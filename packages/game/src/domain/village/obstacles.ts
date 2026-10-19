@@ -248,6 +248,15 @@ export interface RatedLand {
   readonly kinds: readonly ObstacleKind[];
 }
 
+/**
+ * Volby výčtu překážek na vyklízené ploše: `rated` – kde jsou druhy v sazbě lesa, `only` – jen
+ * překážky s patou tam, kde test platí (pruh pod korunami kolem stavby v lese – v něm jen les).
+ */
+export interface ClearingOptions {
+  readonly rated?: RatedLand;
+  readonly only?: (x: number, z: number) => boolean;
+}
+
 /** Platí se překážka druhu `kind` s patou (x, z) po kusech? */
 function paidPerPiece(
   rated: RatedLand | undefined,
@@ -425,14 +434,17 @@ function localToWorld(position: Position, lx: number, lz: number): Point {
   return [position.x + lx * cos + lz * sin, position.z - lx * sin + lz * cos];
 }
 
-/** Plocha, kterou osadníci kolem obydlí vyklidí (staveniště) – rohy ve světě. */
-export function dwellingClearing(type: DwellingType, position: Position): Point[] {
+/**
+ * Plocha, kterou osadníci kolem obydlí vyklidí (staveniště) – rohy ve světě. `margin` (m) ji
+ * rozšíří na všechny strany (v lese pruh pod korunami – FOREST_CROWN_MARGIN_M).
+ */
+export function dwellingClearing(type: DwellingType, position: Position, margin = 0): Point[] {
   const c = DWELLING_CLEARING_M[type];
   return [
-    localToWorld(position, c.minX, c.minZ),
-    localToWorld(position, c.maxX, c.minZ),
-    localToWorld(position, c.maxX, c.maxZ),
-    localToWorld(position, c.minX, c.maxZ),
+    localToWorld(position, c.minX - margin, c.minZ - margin),
+    localToWorld(position, c.maxX + margin, c.minZ - margin),
+    localToWorld(position, c.maxX + margin, c.maxZ + margin),
+    localToWorld(position, c.minX - margin, c.maxZ + margin),
   ];
 }
 
@@ -450,10 +462,9 @@ function obstaclesInPolygon(layer: ObstacleLayer, polygon: readonly Point[]): nu
 }
 
 /**
- * Překážky na vyklízené ploše obydlí – platí se po kusech, v lese (`rated`) stromy, podrost
- * a pařezy v sazbě lesa (fields.md – Krajina sídla a scéna). Překážky v políčkách `fieldTiles`
- * (index y × size + x) patří polím – odstraní je založení dílu, obydlí je neplatí. Stromy z `keep`
- * (posvátné duby, happiness.md) zůstanou stát.
+ * Překážky na vyklízené ploše obydlí – platí se po kusech (i v lese, fields.md). Překážky
+ * v políčkách `fieldTiles` (index y × size + x) patří polím – odstraní je založení dílu, obydlí
+ * je neplatí. Stromy z `keep` (posvátné duby, happiness.md) zůstanou stát.
  */
 export function dwellingObstacles(
   layer: ObstacleLayer,
@@ -462,17 +473,16 @@ export function dwellingObstacles(
   position: Position,
   fieldTiles: OwnedLand = new Set(),
   keep: ReadonlySet<number> = NO_IDS,
-  rated?: RatedLand,
 ): ObstacleTally {
-  return polygonObstacles(layer, status, dwellingClearing(type, position), fieldTiles, keep, rated);
+  return polygonObstacles(layer, status, dwellingClearing(type, position), fieldTiles, keep);
 }
 
 /**
  * Překážky, jejichž pata leží v mnohoúhelníku (vyklízená plocha stavby) – platí se po kusech
- * (kromě druhů v sazbě lesa tam, kde je les – `rated`), bez překážek vrstvy v políčkách
- * `skipTiles` (index y × size + x – patří poli, hřbitovu, sadu) a stromů z `keep`. Stromy u cest
- * a jabloně přidané vsí se počítají i tam – smí stát i na poli (fields.md – Pole jako krajina)
- * a odstraní je až stavba.
+ * (kromě druhů v sazbě lesa tam, kde je les – `options.rated`), bez překážek vrstvy v políčkách
+ * `skipTiles` (index y × size + x – patří poli, hřbitovu, sadu), stromů z `keep` a překážek mimo
+ * `options.only`. Stromy u cest a jabloně přidané vsí se počítají i na políčkách `skipTiles` – smí
+ * stát i na poli (fields.md – Pole jako krajina) a odstraní je až stavba.
  */
 export function polygonObstacles(
   layer: ObstacleLayer,
@@ -480,8 +490,9 @@ export function polygonObstacles(
   polygon: readonly Point[],
   skipTiles: OwnedLand = new Set(),
   keep: ReadonlySet<number> = NO_IDS,
-  rated?: RatedLand,
+  options: ClearingOptions = {},
 ): ObstacleTally {
+  const { rated, only } = options;
   const tally = emptyTally();
   const half = (layer.size * layer.cellSizeM) / 2;
   const tileOf = (v: number): number =>
@@ -490,12 +501,12 @@ export function polygonObstacles(
     const x = layer.x[index]!;
     const z = layer.z[index]!;
     if (owns(skipTiles, x, z, tileOf(z) * layer.size + tileOf(x))) continue;
-    if (keep.has(layer.id[index]!)) continue;
+    if (keep.has(layer.id[index]!) || (only && !only(x, z))) continue;
     const kind = status.kindOf(layer, index);
     if (kind !== null) addToTally(tally, layer, index, kind, rated);
   }
   for (const o of addedInPolygon(status, polygon)) {
-    if (keep.has(o.id)) continue;
+    if (keep.has(o.id) || (only && !only(o.x, o.z))) continue;
     addAddedToTally(tally, o, rated);
   }
   return tally;
@@ -511,8 +522,9 @@ export function polygonsObstacles(
   polygons: readonly (readonly Point[])[],
   skipTiles: OwnedLand = new Set(),
   keep: ReadonlySet<number> = NO_IDS,
-  rated?: RatedLand,
+  options: ClearingOptions = {},
 ): ObstacleTally {
+  const { rated, only } = options;
   const tally = emptyTally();
   const seen = new Set<number>();
   const half = (layer.size * layer.cellSizeM) / 2;
@@ -525,7 +537,7 @@ export function polygonsObstacles(
       const x = layer.x[index]!;
       const z = layer.z[index]!;
       if (owns(skipTiles, x, z, tileOf(z) * layer.size + tileOf(x))) continue;
-      if (keep.has(layer.id[index]!)) continue;
+      if (keep.has(layer.id[index]!) || (only && !only(x, z))) continue;
       const kind = status.kindOf(layer, index);
       if (kind !== null) addToTally(tally, layer, index, kind, rated);
     }
@@ -535,7 +547,7 @@ export function polygonsObstacles(
     for (const o of addedInPolygon(status, polygon)) {
       if (seenAdded.has(o.id)) continue;
       seenAdded.add(o.id);
-      if (keep.has(o.id)) continue;
+      if (keep.has(o.id) || (only && !only(o.x, o.z))) continue;
       addAddedToTally(tally, o, rated);
     }
   }

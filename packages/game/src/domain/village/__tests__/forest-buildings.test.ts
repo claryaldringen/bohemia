@@ -14,7 +14,12 @@ import {
   type PlacementVillage,
 } from '../placement';
 import { NO_CRAFTS, foundingCostPerHa } from '../productivity';
-import { OBSTACLE_COST, PLOT_HOUSE_ROTATION, dwellingBuildLabor } from '../rules';
+import {
+  FOREST_CROWN_MARGIN_M,
+  OBSTACLE_COST,
+  PLOT_HOUSE_ROTATION,
+  dwellingBuildLabor,
+} from '../rules';
 import { sacredSitesOf } from '../sacred';
 import { advanceVillage } from '../simulate';
 import type { Person, Position, VillageState, VillageWood } from '../types';
@@ -35,8 +40,14 @@ const HOME: Position = { x: -60, z: 0, rotation: 0 };
 /** Sazba lesa za políčko 15 × 15 m bez řemesel (250 čd/ha) a s plným pokrytím nástroji (150). */
 const FOREST_SQUARE = foundingCostPerHa('forest', NO_CRAFTS.tools) * 0.0225;
 const FOREST_SQUARE_TOOLS = foundingCostPerHa('forest', 1) * 0.0225;
-/** Vyklízená plocha zemnice 9,6 × 11,9 m (DWELLING_CLEARING_M). */
-const ZEMNICE_CLEARING_M2 = 9.6 * 11.9;
+/**
+ * Vyklízená plocha zemnice 9,6 × 11,9 m (DWELLING_CLEARING_M) s pruhem pod korunami 4 m
+ * (FOREST_CROWN_MARGIN_M) – 17,6 × 19,9 m.
+ */
+const ZEMNICE_CROWNED = {
+  width: 9.6 + 2 * FOREST_CROWN_MARGIN_M,
+  depth: 11.9 + 2 * FOREST_CROWN_MARGIN_M,
+};
 const forestCost = (areaM2: number, tools = NO_CRAFTS.tools): number =>
   (foundingCostPerHa('forest', tools) * areaM2) / 10_000;
 
@@ -81,8 +92,12 @@ const layer: ObstacleLayer = packObstacles(
   15,
 );
 
-/** Zemnice uprostřed lesního políčka (8, 8) – vyklízená plocha x 2,7–12,3 m, z 0,6–12,5 m. */
+/**
+ * Zemnice v lesním políčku (8, 8) – vyklízená plocha x 2,7–12,3 m, z 0,6–12,5 m; s pruhem pod
+ * korunami x −1,3–16,3 m, z −3,4–16,5 m (v lese x ≥ 0 – 16,3 × 19,9 m).
+ */
 const IN_FOREST: Position = { x: 7.5, z: 5, rotation: 0 };
+const IN_FOREST_M2 = 16.3 * ZEMNICE_CROWNED.depth;
 
 /** Ves s hotovou zemnicí na louce, dospělými a lidmi k osídlení, bez staveb. */
 function village(day = DAY): VillageState {
@@ -101,17 +116,26 @@ function village(day = DAY): VillageState {
 }
 
 describe('obydlí v lese', () => {
-  it('projde – les na vyklízené ploše za sazbu lesa, kámen po kusech, stromy dají klády', () => {
+  it('projde – les i s pruhem pod korunami za sazbu lesa, kámen po kusech, stromy dají klády', () => {
     const check = checkDwellingPlacement(landscape, null, 'zemnice', IN_FOREST, layer);
     expect(check.ok).toBe(true);
-    // stromy, souš, pařez a keř jsou v sazbě lesa, kámen se platí po kusech
-    expect(check.obstacleIds).toEqual([1, 2, 3, 4, 5, 6]);
-    expect(check.obstacleCounts).toEqual({ tree: 2, snag: 1, stump: 1, shrub: 1, stone: 1 });
+    // stromy, souš, pařez, keř, padlý kmen a mladý stromek (ty dva v pruhu pod korunami) jsou
+    // v sazbě lesa, kámen se platí po kusech
+    expect(check.obstacleIds).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(check.obstacleCounts).toEqual({
+      tree: 2,
+      snag: 1,
+      stump: 1,
+      shrub: 1,
+      stone: 1,
+      fallenTree: 1,
+      youngTree: 1,
+    });
     expect(check.clearedTrees).toBe(2);
-    expect(check.obstacleCost).toBeCloseTo(forestCost(ZEMNICE_CLEARING_M2) + OBSTACLE_COST.stone);
-    // táž místa na louce by se platila po kusech (osamělé stromy)
+    expect(check.obstacleCost).toBeCloseTo(forestCost(IN_FOREST_M2) + OBSTACLE_COST.stone);
+    // táž místa na louce by se platila po kusech (osamělé stromy) a pruh pod korunami tam není
     const onMeadow = checkDwellingPlacement(meadow, null, 'zemnice', IN_FOREST, layer);
-    expect(onMeadow.obstacleIds).toEqual(check.obstacleIds);
+    expect(onMeadow.obstacleIds).toEqual([1, 2, 3, 4, 5, 6]);
     expect(onMeadow.obstacleCost).toBe(
       2 * OBSTACLE_COST.tree +
         OBSTACLE_COST.snag +
@@ -124,9 +148,7 @@ describe('obydlí v lese', () => {
   it('s kovářem (nástroji) je vyklučení levnější – sazba lesa podle mezí produktivity', () => {
     const tools: PlacementVillage = { ...placementVillageOf(village(), DAY), toolCoverage: 1 };
     const check = checkDwellingPlacement(landscape, tools, 'zemnice', IN_FOREST, layer);
-    expect(check.obstacleCost).toBeCloseTo(
-      forestCost(ZEMNICE_CLEARING_M2, 1) + OBSTACLE_COST.stone,
-    );
+    expect(check.obstacleCost).toBeCloseTo(forestCost(IN_FOREST_M2, 1) + OBSTACLE_COST.stone);
   });
 
   it('skalní výchoz, voda a prudký svah stavbu dál nedovolí', () => {
@@ -165,7 +187,7 @@ describe('obydlí v lese', () => {
       check.obstacleIds,
       { obstacles: layer, clearedTrees: check.clearedTrees },
     );
-    expect(obstacleChangesAt(started, DAY).removed).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(obstacleChangesAt(started, DAY).removed).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
     // 10 klád + 2 ze stromů staveniště, zemnice vezme 7 – nic se nekácí
     expect(started.woodLogs).toBe(5);
     const site = started.constructions[0]!;
@@ -302,7 +324,9 @@ describe('ostatní stavby v lese', () => {
       layer,
     );
     expect(burner.ok).toBe(true);
-    expect(burner.obstacleCost).toBeGreaterThan(forestCost(ZEMNICE_CLEARING_M2));
+    expect(burner.obstacleCost).toBeGreaterThan(
+      forestCost(ZEMNICE_CROWNED.width * ZEMNICE_CROWNED.depth),
+    );
     const orchard = orchardPartsFromCells(landscape, null, block(8, 9, 2, 1), [HOME], layer);
     expect(orchard.check.ok).toBe(true);
     expect(orchard.squares.map((s) => s.obstacleCost)).toEqual([FOREST_SQUARE, FOREST_SQUARE]);
@@ -372,12 +396,14 @@ describe('posvátné duby a háje se v lese nikdy nekácí', () => {
   });
 
   it('vyklízená plocha u háje: stromy háje zůstanou a jeho plocha se neplatí', () => {
-    // políčko (5, 12) začíná na x = −45; zemnice u hranice zasahuje plochou do háje (4, 12)
+    // políčko (5, 12) začíná na x = −45; zemnice u hranice zasahuje plochou s pruhem pod
+    // korunami (x −50,8 … −33,2, z 59,1 … 79) do háje na políčku (4, 12) – z 60 … 75
     const position: Position = { x: -42, z: 67.5, rotation: 0 };
     const check = checkDwellingPlacement(forest, null, 'zemnice', position, oaks);
     expect(check.ok).toBe(true);
     for (const id of groveIds) expect(check.obstacleIds).not.toContain(id);
-    // v háji (x < −45) leží 1,8 m šířky vyklízené plochy – ta se nevyklučí
-    expect(check.obstacleCost).toBeCloseTo(forestCost((9.6 - 1.8) * 11.9));
+    // v háji leží 5,8 × 15 m plochy – ta se nevyklučí
+    const crowned = ZEMNICE_CROWNED.width * ZEMNICE_CROWNED.depth;
+    expect(check.obstacleCost).toBeCloseTo(forestCost(crowned - 5.8 * 15));
   });
 });

@@ -443,9 +443,9 @@ describe('les vsi – stromy', () => {
       layer,
     );
     expect(dwelling.ok).toBe(true);
-    // plocha lesa vsi z bodů po 0,5 m (vyklízená plocha 9,6 × 11,9 m ≈ 2,86 čd)
-    expect(dwelling.obstacleCost).toBeGreaterThan(2.7);
-    expect(dwelling.obstacleCost).toBeLessThan(3.1);
+    // vyklízená plocha s pruhem pod korunami (17,6 × 19,9 m) pokryje celý čtverec lesa vsi
+    expect(dwelling.obstacleCost).toBeCloseTo(forestSquare, 1);
+    expect(dwelling.clearedTrees).toBeGreaterThan(0);
     expect(dwelling.obstacleIds.length).toBeGreaterThan(0);
 
     // založení pole: díl na lese se vymýtí, les zmizí, stromy dají klády

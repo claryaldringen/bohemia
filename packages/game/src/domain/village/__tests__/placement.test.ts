@@ -67,13 +67,14 @@ describe('checkDwellingPlacement – terén', () => {
     const l = makeLandscape({ surface: (x) => (x === 8 ? 'forest' : 'meadow') });
     const inForest = checkDwellingPlacement(l, null, 'zemnice', at(7.5, 7.5));
     expect(inForest.ok).toBe(true);
-    // vyklízená plocha zemnice 9,6 × 11,9 m celá v lese – 250 čd/ha bez řemesel
-    expect(inForest.obstacleCost).toBeCloseTo((250 * 9.6 * 11.9) / 10_000, 1);
-    // na louce les neplatí; políčko 8 začíná na x = 0 – plocha u x = −3 zasahuje 1,8 m do lesa
-    expect(checkDwellingPlacement(l, null, 'zemnice', at(-10, 7.5)).obstacleCost).toBe(0);
+    // vyklízená plocha zemnice 9,6 × 11,9 m s pruhem pod korunami (4 m) – 17,6 × 19,9 m, v lese
+    // (sloupec 8 = x 0–15 m) 15 × 19,9 m za 250 čd/ha bez řemesel
+    expect(inForest.obstacleCost).toBeCloseTo((250 * 15 * 19.9) / 10_000, 1);
+    // na louce les neplatí; políčko 8 začíná na x = 0 – plocha s pruhem u x = −3 sahá do 5,8 m
+    expect(checkDwellingPlacement(l, null, 'zemnice', at(-14, 7.5)).obstacleCost).toBe(0);
     const edge = checkDwellingPlacement(l, null, 'zemnice', at(-3, 7.5));
     expect(edge.ok).toBe(true);
-    expect(edge.obstacleCost).toBeCloseTo((250 * 1.8 * 11.9) / 10_000, 1);
+    expect(edge.obstacleCost).toBeCloseTo((250 * 5.8 * 19.9) / 10_000, 1);
     // vesničané si místo sami (bez hráče) v lese nevyberou – ani roh půdorysu
     const auto = { clearForest: false };
     const own = checkDwellingPlacement(l, null, 'zemnice', at(-1, 7.5), undefined, auto);

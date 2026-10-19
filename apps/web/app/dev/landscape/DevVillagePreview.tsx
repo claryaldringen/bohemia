@@ -509,6 +509,18 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     ]);
   };
 
+  /**
+   * Překážky na místě nové stavby zmizí hned jako při zahájení stavby ve hře – v lese se les
+   * vyklučí (Martin 19. 10. 2026), ať je vidět paseka.
+   */
+  const clearObstacles = (ids: readonly number[]): void => {
+    if (ids.length === 0) return;
+    setObstacles((changes) => ({
+      ...changes,
+      removed: [...new Set([...changes.removed, ...ids])].sort((a, b) => a - b),
+    }));
+  };
+
   /** Pokácí dospělé stromy nejblíž bodu (bez bodu u prvního obydlí nebo místa vsi) – pařezy. */
   const fellTrees = (count: number, near?: { x: number; z: number }): void => {
     const from = near ?? devDwellingPositions(decoded, village)[0]!;
@@ -659,6 +671,10 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
           onConfirm: (result) => {
             handlers.onCancel();
             if (result.kind !== 'dwelling' || !result.plot) return;
+            const placementVillage = placementVillageFromScene(village);
+            clearObstacles(
+              checkPlotPlacement(decoded, placementVillage, type, result.plot).obstacleIds,
+            );
             const id = nextId.current++;
             const plot = scenePlot(decoded, result.plot);
             setDwellings((list) => [
@@ -696,6 +712,10 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         onConfirm: (result) => {
           handlers.onCancel();
           if (result.kind !== 'dwelling') return;
+          const placementVillage = placementVillageFromScene(village);
+          clearObstacles(
+            checkDwellingPlacement(decoded, placementVillage, type, result.position).obstacleIds,
+          );
           const id = nextId.current++;
           setDwellings((list) => [
             ...list,
@@ -737,6 +757,14 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         onConfirm: (result) => {
           handlers.onCancel();
           if (result.kind !== 'sacred') return;
+          const placementVillage = placementVillageFromScene(village);
+          const check = checkSacredBuildingPlacement(
+            decoded,
+            placementVillage,
+            result.type,
+            result.position,
+          );
+          clearObstacles(check.obstacleIds);
           const id = nextId.current++;
           setSacredBuildings((list) => [
             ...list,

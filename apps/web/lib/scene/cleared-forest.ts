@@ -2,9 +2,9 @@ import {
   NO_OBSTACLE_CHANGES,
   OBSTACLE_KINDS,
   SURFACE_CODES,
+  forestClearingsOf,
   obstacleIndex,
   pointInPolygon,
-  sacredFootprint,
   type Landscape,
   type ObstacleChanges,
   type ObstacleLayer,
@@ -20,9 +20,9 @@ import { isRotatedSquare, squareContains } from './field-cells';
 // plocha korun zapadne pod zem, minimapa ukáže paseku. Maska po políčkách krajiny se počítá ze
 // stavu vsi (odstraněné, pokácené a dorůstající stromy, založené díly polí) – levně, jen při
 // změně. Stavba v lese (Martin, 19. 10. 2026 – les se vyklučí) bere menší plochu než políčko:
-// vyklízené plochy obydlí a dílen, natočené pozemky a půdorysy model a svatyní v lese jsou
-// paseky přesně podle tvaru (`areas`) – plocha korun nad nimi zapadne, okolní les zůstane. Čistý
-// modul bez Babylonu.
+// vyklízené plochy obydlí a dílen i s pruhem pod korunami (`forestClearingsOf` z jádra), natočené
+// pozemky a půdorysy model a svatyní s pruhem v lese jsou paseky přesně podle tvaru (`areas`) –
+// plocha korun nad nimi zapadne, okolní les zůstane. Čistý modul bez Babylonu.
 
 /** Od jakého podílu vykácených dospělých stromů je políčko lesa vymýcené. */
 export const CLEARED_SHARE = 0.5;
@@ -131,8 +131,8 @@ function touchesForest(l: Landscape, polygon: readonly Point[]): boolean {
 /**
  * Vymýcený les ze stavu vsi pro scénu: odstraněné a pokácené stromy, založené díly polí (díl,
  * který se teprve zakládá, má stromy ještě na sobě) a paseky pod stavbami v lese – vyklízené
- * plochy obydlí a dílen (i rozestavěných – les se vyklučí se zahájením stavby), natočené pozemky
- * a půdorysy model a svatyní.
+ * plochy obydlí a dílen i s pruhem pod korunami (i rozestavěných – les se vyklučí se zahájením
+ * stavby), natočené pozemky a půdorysy model a svatyní s pruhem.
  */
 export function villageClearedForest(
   l: Landscape,
@@ -161,8 +161,14 @@ export function villageClearedForest(
     }),
   );
   const areas = [
-    ...buildingClearings(village.dwellings ?? []).map((c) => c.polygon),
-    ...(village.sacred?.buildings ?? []).map((b) => sacredFootprint(b.kind, b.position)),
+    ...(village.dwellings ?? []).flatMap((d) =>
+      d.plot
+        ? buildingClearings([d]).map((c) => c.polygon)
+        : forestClearingsOf({ type: d.type, position: d.position, craft: d.craft }),
+    ),
+    ...(village.sacred?.buildings ?? []).flatMap((b) =>
+      forestClearingsOf({ sacred: b.kind, position: b.position }),
+    ),
   ];
   return clearedForest(l, layer, village.obstacles ?? NO_OBSTACLE_CHANGES, squares, areas);
 }

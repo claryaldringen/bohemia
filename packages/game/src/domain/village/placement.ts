@@ -22,14 +22,13 @@ import { roadWalk, walkGroundOf, type Walk, type WalkRoad } from './paths/walkin
 import {
   cellObstacles,
   dwellingClearing,
-  dwellingObstacles,
   obstacleChangesAt,
   obstacleStatus,
   outcropUnder,
-  polygonObstacles,
   polygonsObstacles,
   squareObstacles,
   tallyCost,
+  type ClearingOptions,
   type ObstacleChanges,
   type ObstacleTally,
   type RatedLand,
@@ -71,6 +70,7 @@ import {
   DWELLING_FOOTPRINT_M,
   DWELLING_MAX_HEIGHT_DIFF_M,
   FIELD_LIMITS,
+  FOREST_CROWN_MARGIN_M,
   MILIR,
   PLOT_HOUSE_OFFSET_M,
   PLOT_HOUSE_ROTATION,
@@ -877,20 +877,26 @@ function checkFootprintFree(
  * stavbou osadníci vyklučí jako díl pole v lese – za plochu lesa sazba lesa za hektar
  * (`foundingCostPerHa('forest')`, s řemesly levněji), stromy, mladé stromky, souše, padlé kmeny,
  * pařezy i podrost s patou v lese jsou v ní (SURFACE_INCLUDED_OBSTACLES.forest), kameny a balvany
- * se platí po kusech. Odstraní se všechno, dospělé stromy dají klády. Půda, která patří jiné
- * stavbě (pole, sad, hřbitov, ohrada), a háje se nepočítají. `clearForest: false` – stavba jen na
- * louku (obyvatelé si les sami nevyklučí – přestavba na novém pozemku, převod starých vsí).
+ * se platí po kusech. Odstraní se všechno, dospělé stromy dají klády. Kolem volně stojící stavby
+ * (obydlí, dílna, modla, svatyně) osadníci v lese vyklučí i pruh pod korunami okolních stromů
+ * (FOREST_CROWN_MARGIN_M – jen les, ne louku ani pole). Půda, která patří jiné stavbě (pole, sad,
+ * hřbitov, ohrada), a háje se nepočítají. `clearForest: false` – stavba jen na louku (obyvatelé si
+ * les sami nevyklučí – přestavba na novém pozemku, převod starých vsí, místo nové vsi).
  */
 interface ForestUse {
   clearForest?: boolean;
 }
 
-/** Les pod stavbou: test paty pro sazbu lesa (`rated`) a cena za plochu lesa. */
+/**
+ * Co osadníci u volně stojící stavby vyklidí: překážky v mnohoúhelnících `polygons` (v lese
+ * vyklízená plocha s pruhem pod korunami) podle `options` (v pruhu jen les, druhy v sazbě lesa)
+ * a práce `cost` za plochu lesa.
+ */
 interface ForestClearing {
-  rated?: RatedLand;
+  polygons: readonly (readonly Point[])[];
+  options: ClearingOptions;
   cost: number;
 }
-const NO_FOREST: ForestClearing = { cost: 0 };
 
 /** Krok vzorkování plochy lesa pod volnou stavbou na políčku se čtverci staveb či lesa vsi (m). */
 const FOREST_SAMPLE_M = 0.5;
@@ -1001,21 +1007,41 @@ function forestRated(at: (x: number, z: number) => boolean): RatedLand {
 }
 
 /**
- * Les pod volnou stavbou (obydlí, dílna, modla, svatyně – vyklízené plochy `polygons`): sazba lesa
- * za plochu lesa a překážky v ní; bez lesa pod stavbou nic.
+ * Vyklízená plocha volně stojící stavby (obydlí, dílna, modla, svatyně – `clearings`) a v lese
+ * i s pruhem pod korunami (`crowned` – tytéž plochy rozšířené o FOREST_CROWN_MARGIN_M): překážky
+ * na vyklízené ploše všude, v pruhu jen na lese; za plochu lesa sazba lesa a druhy v ní se neplatí
+ * po kusech. Bez lesa (nebo bez `clearForest`) jen vyklízená plocha jako dřív.
  */
 function freeForestClearing(
   landscape: Landscape,
   village: PlacementVillage | null,
-  polygons: readonly (readonly Point[])[],
+  clearings: readonly (readonly Point[])[],
+  crowned: readonly (readonly Point[])[],
   owned: (x: number, z: number, tile: number) => boolean,
+  clearForest = true,
 ): ForestClearing {
-  if (!forestNear(landscape, village, polygons.flat())) return NO_FOREST;
+  if (!clearForest || !forestNear(landscape, village, crowned.flat())) {
+    return { polygons: clearings, options: {}, cost: 0 };
+  }
   const at = forestLandAt(landscape, village, owned);
+  const inClearing = (x: number, z: number): boolean =>
+    clearings.some((polygon) => pointInPolygon([x, z], polygon));
   return {
-    rated: forestRated(at),
-    cost: forestClearingCost(village, forestAreaUnder(landscape, village, polygons, owned, at)),
+    polygons: crowned,
+    options: { rated: forestRated(at), only: (x, z) => inClearing(x, z) || at(x, z) },
+    cost: forestClearingCost(village, forestAreaUnder(landscape, village, crowned, owned, at)),
   };
+}
+
+/** Políčka hájů pod mnohoúhelníky (index y × size + x). */
+function groveTilesUnder(
+  landscape: Landscape,
+  sites: SacredSites,
+  polygons: readonly (readonly Point[])[],
+): number[] {
+  return polygons
+    .flatMap((polygon) => cellsUnderPolygon(landscape, polygon))
+    .filter((tile) => sites.groveByTile.has(tile));
 }
 
 /**
@@ -1057,15 +1083,42 @@ function squareFreeArea(landscape: Landscape, taken: readonly TakenLand[]): numb
  * Vyklízená plocha obydlí bez pozemku (`DWELLING_CLEARING_M` – staveniště s hromadou hlíny
  * a střechou předsazenou před štíty), u řemeslné dílny `craft` i kruh kolem milíře (crafts.md).
  * Tolik obydlí sebere z polí a sadů; podle ní scéna pod domem nekreslí obilí ani jabloně.
+ * `margin` (m) plochy rozšíří – v lese pruh pod korunami (FOREST_CROWN_MARGIN_M).
  */
 export function freeDwellingClearings(
   type: DwellingType,
   position: Position,
   craft?: Craft,
+  margin = 0,
 ): Point[][] {
-  const clearing = dwellingClearing(type, position);
+  const clearing = dwellingClearing(type, position, margin);
   if (!craft || workshopFootprints(craft, position).length < 2) return [clearing];
-  return [clearing, milirClearing(position)];
+  return [clearing, milirClearing(position, margin)];
+}
+
+/**
+ * Plochy, ze kterých v lese zmizí les pod volně stojící stavbou (vyklízená plocha s pruhem pod
+ * korunami – FOREST_CROWN_MARGIN_M): obydlí a dílny (`freeDwellingClearings`), modly a svatyně
+ * (půdorys). Scéna podle nich zanoří plochu korun nad pasekou.
+ */
+export function forestClearingsOf(
+  building:
+    | { type: DwellingType; position: Position; craft?: Craft }
+    | { sacred: SacredBuildingKind; position: Position },
+): Point[][] {
+  if ('sacred' in building) return [sacredCrowned(building.sacred, building.position)];
+  return freeDwellingClearings(
+    building.type,
+    building.position,
+    building.craft,
+    FOREST_CROWN_MARGIN_M,
+  );
+}
+
+/** Půdorys modly či svatyně rozšířený o pruh pod korunami (FOREST_CROWN_MARGIN_M). */
+function sacredCrowned(kind: SacredBuildingKind, position: Position): Point[] {
+  const size = SACRED_BUILDINGS[kind].footprintM + 2 * FOREST_CROWN_MARGIN_M;
+  return rectangleCorners(position.x, position.z, size, size, position.rotation);
 }
 
 /** Zabraný kus čtverce pole či sadu `square` – s mřížkou natočené stavby. */
@@ -1226,25 +1279,23 @@ export function checkDwellingPlacement(
   // překážky v políčkách polí, hřbitovů, sadů a hájů odstraní jejich stavba (háj nikdo), obydlí
   // je neplatí; posvátný dub na vyklízené ploše zůstane stát
   const clearing = dwellingClearing(type, position);
+  const crowned = dwellingClearing(type, position, FOREST_CROWN_MARGIN_M);
   const clearingTiles = cellsUnderPolygon(landscape, clearing);
   const groves = grovesOfTiles(sites, clearingTiles);
   const owned = ownedLand(
     landscape,
     village,
     ['field', 'cemetery', 'orchard', 'pen'],
-    clearingTiles.filter((tile) => sites.groveByTile.has(tile)),
+    groveTilesUnder(landscape, sites, [crowned]),
   );
-  const forest = clearForest
-    ? freeForestClearing(landscape, village, [clearing], owned)
-    : NO_FOREST;
-  const tally = dwellingObstacles(
+  const forest = freeForestClearing(landscape, village, [clearing], [crowned], owned, clearForest);
+  const tally = polygonsObstacles(
     obstacles,
     status,
-    type,
-    position,
+    forest.polygons,
     owned,
     sites.protectedTrees,
-    forest.rated,
+    forest.options,
   );
   const spared = sparedSacred(sacredOaksNear(sites, obstacles, clearing, 0), groves);
   const takenLand = takenLandUnder(landscape, village, [clearing]);
@@ -1324,22 +1375,23 @@ export function checkWorkshopPlacement(
   const sacredProblem = sacredUnder(landscape, obstacles, sites, footprints);
   if (sacredProblem) return { ...fail(sacredProblem), ...none };
   const clearings = freeDwellingClearings(type, position, craft);
+  const crowned = freeDwellingClearings(type, position, craft, FOREST_CROWN_MARGIN_M);
   const clearingTiles = clearings.flatMap((c) => cellsUnderPolygon(landscape, c));
   const groves = grovesOfTiles(sites, clearingTiles);
   const owned = ownedLand(
     landscape,
     village,
     ['field', 'cemetery', 'orchard'],
-    clearingTiles.filter((tile) => sites.groveByTile.has(tile)),
+    groveTilesUnder(landscape, sites, crowned),
   );
-  const forest = freeForestClearing(landscape, village, clearings, owned);
+  const forest = freeForestClearing(landscape, village, clearings, crowned, owned);
   const tally = polygonsObstacles(
     obstacles,
     status,
-    clearings,
+    forest.polygons,
     owned,
     sites.protectedTrees,
-    forest.rated,
+    forest.options,
   );
   const oaks = clearings.flatMap((c) => sacredOaksNear(sites, obstacles, c, 0));
   const spared = sparedSacred([...new Map(oaks.map((o) => [o.id, o])).values()], groves);
@@ -3008,15 +3060,21 @@ export function checkSacredBuildingPlacement(
   const sacredProblem = sacredUnder(landscape, obstacles, sites, [footprint]);
   if (sacredProblem) return { ...fail(sacredProblem), ...none };
   // překážky vrstvy na čtvercích polí patří poli (založený díl je už nemá)
-  const fields = ownedLand(landscape, village, ['field'], []);
-  const forest = freeForestClearing(landscape, village, [footprint], fields);
-  const tally = polygonObstacles(
+  const crowned = sacredCrowned(kind, position);
+  const fields = ownedLand(
+    landscape,
+    village,
+    ['field'],
+    groveTilesUnder(landscape, sites, [crowned]),
+  );
+  const forest = freeForestClearing(landscape, village, [footprint], [crowned], fields);
+  const tally = polygonsObstacles(
     obstacles,
     status,
-    footprint,
+    forest.polygons,
     fields,
     sites.protectedTrees,
-    forest.rated,
+    forest.options,
   );
   const takenLand = takenLandUnder(landscape, village, [footprint]);
   return {

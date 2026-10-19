@@ -132,9 +132,9 @@ describe('paseky pod stavbami v lese (Martin 19. 10. 2026 – les se vyklučí)'
     });
     expect(cleared.tiles).toEqual([]);
     expect(cleared.areas).toHaveLength(1);
-    // vyklízená plocha zemnice x 32,7–42,3, z 33,1–45
+    // vyklízená plocha zemnice s pruhem pod korunami (4 m) x 28,7–46,3, z 29,1–49
     expect(clearingDistance(cleared, 37.5, 37.5, 16)).toBe(0);
-    expect(clearingDistance(cleared, 47.3, 37.5, 16)).toBeCloseTo(5);
+    expect(clearingDistance(cleared, 51.3, 37.5, 16)).toBeCloseTo(5);
     expect(clearingDistance(cleared, 37.5, 10, 16)).toBe(Infinity);
   });
 
