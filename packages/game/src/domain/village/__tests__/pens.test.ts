@@ -14,6 +14,7 @@ import {
   touchingPens,
   withPenSpecies,
 } from '../pens';
+import { penEntrance, penGateToward, penSquaresEntrance } from '../paths/entrances';
 import { penSquaresFromCells } from '../placement';
 import { HOMESTEAD_HERD, PEN_PLACES_PER_SQUARE } from '../rules';
 import { advanceVillage } from '../simulate';
@@ -293,5 +294,24 @@ describe('převod starých vsí a spřežení', () => {
     s.pens = [pen(3, 'cattle', 1, 4), pen(4, 'team', 1, 6)];
     expect(trainingBlock(s, 3, DAY, null)).toBe('Ohrada není pro spřežení.');
     expect(trainingBlock(s, 4, DAY, null)).toBeNull();
+  });
+});
+
+describe('branka ohrady o víc čtvercích (paths.md – Vchody)', () => {
+  it('jeden čtverec jako dřív; dva čtverce – branka na plotu po obrysu nejblíž k obydlí', () => {
+    const square = { cell: { x: 0, y: 0 }, x: 7.5, z: 7.5, size: 15 };
+    const dwelling = { x: 40, z: -30 };
+    expect(penSquaresEntrance([square], dwelling)).toEqual(
+      penEntrance(square, { x: dwelling.x - square.x, z: dwelling.z - square.z }),
+    );
+    const two = [square, { cell: { x: 1, y: 0 }, x: 22.5, z: 7.5, size: 15 }];
+    const gate = penSquaresEntrance(two, dwelling);
+    // plot 0,5 m uvnitř čtverců, spodní strana (−z) ke vsi
+    expect(gate.z).toBeCloseTo(0.5, 6);
+    expect(gate.outZ).toBe(-1);
+    expect(gate.x).toBeGreaterThan(15);
+    expect(gate.x).toBeLessThan(29.5);
+    // cíl branky od středu čtverců k nejbližšímu obydlí
+    expect(penGateToward(two, [{ position: dwelling }])).toEqual(dwelling);
   });
 });
