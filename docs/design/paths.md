@@ -3,7 +3,9 @@
 Stav: Martin schválil 18. 10. 2026 („Ano, takhle to zní dobře. Zkusme to a uvidíme, jak to bude
 vypadat ve hře.“). Stromy podél cest přes pole – Martin 18. 10. 2026 (v Estonsku a Dánsku stál
 statek uprostřed svých polí a cesta k němu vedla přes pole, obvykle lemovaná stromy) – mají od 18. 10. 2026 jen **pevné cesty** ([roads.md](roads.md)), pěšiny dne ne. **Pěšiny ovlivňují práci** – Martin 18. 10. 2026 („Tam, kde bude vyšlapaná cesta, ať
-se chodí o něco lépe než tam, kde není.“). Síť počítá herní jádro
+se chodí o něco lépe než tam, kde není.“). **Vzhled pěšin dne** – Martin 19. 10. 2026 („denní
+pěšina ať je nevýrazná. Vyšlapanou cestu nechme jako teď“), viz Jak pěšiny vznikají – Síla
+pěšiny. Síť počítá herní jádro
 (`packages/game/src/domain/village/paths/` – `terrain.ts`, `network.ts`, `walking.ts`,
 `village.ts`) stejně na serveru i v prohlížeči; scéna `apps/web/lib/scene/path-renderer.ts`,
 `path-ribbon.ts`, `path-router.ts`. Pevné cesty a stromy u nich: [roads.md](roads.md).
@@ -49,19 +51,22 @@ A po vyšlapané pěšině se chodí lépe – cesta na vzdálené pole po ní s
   ([roads.md](roads.md)) se jde jako po plné pěšině, takže se k ní pěšiny dne stahují; kde vedou
   po ní, ztratí se v ní (kreslí se jen cesta).
 - **Síla pěšiny** roste s počtem cest za den (pomalu – s odmocninou), jednotlivé cesty nic
-  nevyšlapou. Silná pěšina je širší (do 1,9 m) a uprostřed holá udusaná hlína, slabší jen
-  prošlapaná tráva s hlínou uprostřed. **Rozcestí** (sejdou se aspoň tři pěšiny) je
-  nejvyšlapanější místo (Martin, 18. 10. 2026): udusaný plácek – kruh o poloměru 1,3× šířky
-  nejsilnější přicházející pěšiny (holá hlína uprostřed podle svého podílu šířky), síla té pěšiny + 30 % síly ostatních (nejvýš plná), pásy do
-  něj vbíhají bez zúžení (návrh Clauda; `ribbonJunctions` v `path-ribbon.ts`). Stejně
-  i rozcestí pevných cest ([roads.md](roads.md)).
+  nevyšlapou. **Pěšina dne je nevýrazná** (Martin, 19. 10. 2026: „denní pěšina ať je
+  nevýrazná“) – slabě prošlapaná tráva: pás 0,6–1,2 m podle síly (dřív 0,9–1,9 m), krytí
+  0,2–0,45 (dřív 0,5–0,95), holá hlína jen u silné pěšiny, nanejvýš úzká (do 0,35 m) a slabá
+  (návrh Clauda). Pevná cesta ([roads.md](roads.md)) je vedle ní jasně výraznější – plný pás
+  1,9 m, upravená 3 m. **Rozcestí** (sejdou se aspoň tři pěšiny) je nejvyšlapanější místo
+  (Martin, 18. 10. 2026): plácek – kruh, síla nejsilnější přicházející pěšiny + 30 % síly
+  ostatních (nejvýš plná), pásy do něj vbíhají bez zúžení (`ribbonJunctions` v `path-ribbon.ts`).
+  U pěšin dne jen jemně – poloměr jako šířka pěšiny a krytí o 15 % slabší (návrh Clauda, 19. 10. 2026); udusaný plácek o poloměru 1,3× šířky mají pevné cesty ([roads.md](roads.md)).
 - **Objevuje se a mizí:** spojení nového obydlí se vyšlapává dva roky, zrušené místo pěšinu
   ztratí (v prototypu hned). Práce se mění s rokem – pěšina na pole je v žních silnější.
 - **Vidět jsou i v polích:** pěšina se kreslí nad poli – přes úhor a pastvinu jako prošlapaný
   pás; přes osetý díl pěšiny nevedou (obcházejí ho), kdyby přece, jen úzká stopa (Martin:
   stromy u cesty bez cesty mátly).
-- **Roční období:** tráva v pěšinách usychá jako louka, v zimě je zasype sníh, ušlapaná stopa
-  ve sněhu zřetelně prosvítá.
+- **Roční období:** tráva v pěšinách usychá jako louka, v zimě je zasype sníh – stopa pěšiny
+  dne ve sněhu pořád trochu prosvítá (sníh ji zasype jen ze 30 %, pevnou cestu z 55 % – ta
+  prosvítá zřetelně).
 - **Stromy podél pěšin** už nejsou – rozmisťovaly se znovu s každou změnou sítě dne a přeskakovaly
   (rozbor 18. 10. 2026). Nahradily je **stromy u pevných cest** ([roads.md](roads.md)): herní
   data, která vyrostou z keře, stojí na místě a odumřou stářím.
