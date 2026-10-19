@@ -85,34 +85,48 @@ další rozhodnutí o místě v krajině – vedle obydlí a polí.
 Stav: Martin 19. 10. 2026 – „Významnější lidé budou mít větší mohyly a na prominentnějších
 místech. Čili zasloužilá hlava rodiny bude mít větší mohylu, než např. dítě zemřelé v dětském
 věku. Největší mohyly bude mít vojvodova rodina.“ Velikosti schválil („Ano, udělej to tak.“).
-**Implementováno 19. 10. 2026** – jádro `domain/village/burials.ts`, scéna `cemetery-layout.ts`
-a `cemetery-renderer.ts`.
+Na otázku, jestli odstupňovat i vojvodovu rodinu (v mladé vsi patřila polovina pohřbů k dvorci
+a 2 × 2 místa měly i děti), odpověděl „ano. I ve vojvodově rodině jsou významnější a méně
+významní členové.“ **Implementováno 19. 10. 2026** – jádro `domain/village/burials.ts`, scéna
+`cemetery-layout.ts` a `cemetery-renderer.ts`.
 
 - **Místa na hroby** (Martin – schváleno): čtverec má jako dřív 56 míst v mřížce 7 × 8 (místo
   ≈ 2 × 1,75 m, okraj 0,5 m od plotu). **Kapacita se počítá v místech** a mohyla zabere podle
   významu víc míst – hřbitov se zaplní dřív, když umírají významní:
 
-  | Druh pohřbeného                                                                                                       | Mohyla                          | Míst       |
-  | --------------------------------------------------------------------------------------------------------------------- | ------------------------------- | ---------- |
-  | **vojvodova rodina** – celá domácnost dvorce (`manorId`), i děti                                                      | největší (Ø ≈ 3,3 m, výška 1,1) | 2 × 2      |
-  | **zasloužilá hlava rodiny** – nejstarší muž domácnosti nebo jeho žena (bez muže nejstarší žena), od 35 let, s dítětem | podlouhlá (≈ 1,8 × 3,2 m, 0,7)  | 2 za sebou |
-  | **ostatní dospělí** (od 14 let)                                                                                       | běžná (Ø ≈ 1,8 m, 0,45)         | 1          |
-  | **dítě** – zemřelé v dětském věku (do 14 let)                                                                         | malá (Ø ≈ 1,1 m, 0,26)          | 1          |
+  | Druh pohřbeného                                                                                                       | Mohyla                                  | Míst       |
+  | --------------------------------------------------------------------------------------------------------------------- | --------------------------------------- | ---------- |
+  | **vojvoda a jeho žena** – hlava domácnosti dvorce (`manorId`): nejstarší muž, bez muže nejstarší žena                 | největší s kůlem (Ø ≈ 3,3 m, výška 1,1) | 2 × 2      |
+  | **ostatní dospělí z vojvodovy rodiny** (domácnost dvorce, od 14 let)                                                  | podlouhlá (≈ 1,8 × 3,2 m, 0,7)          | 2 za sebou |
+  | **zasloužilá hlava rodiny** – nejstarší muž domácnosti nebo jeho žena (bez muže nejstarší žena), od 35 let, s dítětem | podlouhlá                               | 2 za sebou |
+  | **dítě z vojvodovy rodiny** (do 14 let)                                                                               | běžná (Ø ≈ 1,8 m, 0,45)                 | 1          |
+  | **ostatní dospělí** (od 14 let)                                                                                       | běžná                                   | 1          |
+  | **dítě** – zemřelé v dětském věku (do 14 let)                                                                         | malá (Ø ≈ 1,1 m, 0,26)                  | 1          |
 
-  Druhy podrobně (návrh Clauda): vojvodova rodina je celá domácnost dvorce – i dítě (Martin řekl
-  „vojvodova rodina“ – u ní rozhoduje rod, ne věk). Hlava rodiny je ten, kdo domácnost vede
-  (dědeček, dokud žije – jeho ženatý syn ne), „zasloužilá“ = od 35 let a s aspoň jedním dítětem
-  (žijícím ve vsi, nebo odešlým). Druh určí jádro z příbuzenství v den úmrtí.
+  Druhy podrobně: vojvodova rodina je domácnost dvorce a je odstupňovaná (Martin, 19. 10. 2026;
+  rozdělení a velikosti návrh Clauda): **vojvoda a jeho žena** největší mohyla s kůlem,
+  **ostatní dospělí z dvorce** jako hlava rodiny (2 místa – patří k nejvýznamnějším ve vsi, ale
+  vojvodou nejsou), **děti z dvorce** běžná mohyla na 1 místo – větší než malá dětská, ale menší než
+  dospělých z dvorce. Vojvoda je hlava domácnosti dvorce stejným pravidlem jako hlava rodiny –
+  nejstarší muž i ovdovělý (vdovec vojvodou zůstává), bez muže nejstarší žena; když zemře, je
+  vojvodou nejstarší dospělý muž dvorce a vdova už jen z vojvodovy rodiny. Věk ani děti se u
+  vojvody nežádají. Hlava rodiny je ten, kdo domácnost vede (dědeček, dokud žije – jeho ženatý syn
+  ne), „zasloužilá“ = od 35 let a s aspoň jedním dítětem (žijícím ve vsi, nebo odešlým). Druh
+  určí jádro z příbuzenství v den úmrtí. **Mohyly uložené podle prvního pravidla** (celá vojvodova
+  rodina 2 × 2, druh `manor`) se nemění.
 
 - **Prominentní místa** (návrh Clauda): od **branky** (`cemeteryEntrance` – vchod, ke kterému vede
   pěšina) vede hlavní osa dovnitř hřbitova. Prominence místa = hloubka od branky + 2 × vzdálenost
-  od osy (m). **Vojvodova rodina a hlavy rodin** dostanou nejprominentnější volné místo – u branky
-  na ose, a jak se plní, dál po ose. **Ostatní dospělí** co nejblíž branky, ale mimo pruh podél
-  osy (2 m na každou stranu) – ten nechávají velkým mohylám, dokud mají kde jinde. **Děti** co
-  nejdál – vzadu a na okrajích. Při shodě rozhoduje pořadí čtverců, řada a sloupec
-  (deterministicky).
-- **Když se velká mohyla nevejde** (návrh Clauda): **zmenší se** – mohyla vojvodovy rodiny na
-  2 místa, pak na 1, hlavy rodiny na 1 – a dostane nejprominentnější volné místo té velikosti.
+  od osy (m). **Vojvoda a jeho žena** a **ostatní dospělí z dvorce** dostanou nejprominentnější
+  volné místo – u branky na ose. **Hlavy rodin** také, jen **začátek osy u branky** (místa do 4 m
+  od branky v pruhu 2 m od osy) nechávají vojvodově rodině, dokud mají kam jinam – vojvodova
+  rodina tak leží u branky a hlavy rodin hned za ní po ose. **Ostatní dospělí a děti z dvorce** co
+  nejblíž branky, ale mimo pruh podél osy (2 m na každou stranu) – ten nechávají velkým mohylám,
+  dokud mají kde jinde; dítě z dvorce tak leží u branky, ne vzadu. **Ostatní děti** co nejdál –
+  vzadu a na okrajích. Při shodě rozhoduje pořadí čtverců, řada a sloupec (deterministicky).
+- **Když se velká mohyla nevejde** (návrh Clauda): **zmenší se** – mohyla vojvody na 2 místa, pak
+  na 1, dospělého z dvorce a hlavy rodiny na 1 – a dostane nejprominentnější volné místo té
+  velikosti.
   Druh pohřbeného zůstane zapsaný. Velká mohyla nikdy nezabere místo jiné ani nepřekročí čtverec.
 - **Staré hroby** (hřbitovy uložené dřív – jen počet hrobů): zůstanou jako běžné mohylky po řadách
   od prvního čtverce, přesně jak vypadaly; nové mohyly se jim vyhnou (návrh Clauda – stav se
@@ -121,12 +135,12 @@ a `cemetery-renderer.ts`.
   je pohřbeno) a odhad na kolik let (úmrtí za rok × průměrná velikost mohyl vsi); hygiena,
   „hřbitov je plný“ a kronika `cemetery-full` – žádné volné místo.
 - **Ve scéně:** mohyly různé velikosti (výška i průměr), podlouhlá mohyla hlavy rodiny leží po
-  řadách čtverce, **na vrcholu mohyly vojvodovy rodiny stojí dřevěný kůl** (návrh Clauda –
+  řadách čtverce, **na vrcholu mohyly vojvody stojí dřevěný kůl** (návrh Clauda –
   inspirace: Pověst dávných let, Vjatičové kladli ostatky na sloup u cest). Čerstvá mohyla je
   první rok po pohřbu z holé hlíny, pak zaroste. Natočený hřbitov má mohyly v osách svých
-  čtverců. Ukázka na `/dev/buildings` – Hřbitov (pohřby v pořadí dospělí, děti, hlavy rodin
-  a vojvodova rodina – místo vybírá herní jádro) a Rozpad staveb (starý hřbitov – plot zmizí,
-  mohyly zůstanou).
+  čtverců. Ukázka na `/dev/buildings` – Hřbitov (pohřby v pořadí dospělí, děti, hlavy rodin,
+  vojvoda, dospělí a děti z dvorce – místo vybírá herní jádro) a Rozpad staveb (starý hřbitov –
+  plot zmizí, mohyly zůstanou).
 
 ## Co hráč vidí
 
@@ -154,31 +168,37 @@ zemnici (200 m od obydlí, 150 m od vody) a rozšíří ho o čtverec, když je 
 (ani hřbitova – po 30 letech hájení hygiena 0) vymře do 60 let ve 2 % vsí místo 0,5 %;
 nasycení ≥ 0,95 u ní 97,6 % let místo 98,2 %. Čísla se neladila.
 
-Mohyly podle významu – `measure-village.ts 20 20` (19. 10. 2026, jen krátká kontrola): pohřeb
-zabere průměrně **2,6 místa** (dřív 1); mohyly vojvodovy rodiny 53 %, děti 47 %, hlavy rodin
-a ostatní dospělí zatím žádné – v prvních 20 letech dospělé chrání hájení a mladá ves je skoro
-celá domácností dvorce. Hřbitov hráče, který staví, má po 20 letech pořád medián 1 čtverec;
-vymření 0 z 20, nasycení ≥ 0,95 celý rok 97,1 % let. Ve starší vsi s víc domácnostmi podíl
-vojvodovy rodiny klesne. Dlouhá kalibrace (200 × 60) zatím neběžela.
+Mohyly podle významu – `measure-village.ts 20 20` (19. 10. 2026, jen krátká kontrola). Podle
+prvního pravidla (celá vojvodova rodina 2 × 2) zabral pohřeb průměrně **2,6 místa**; mohyly
+vojvodovy rodiny 53 %, děti 47 % – v prvních 20 letech dospělé chrání hájení a umírají jen děti,
+z nich polovina z dvorce (mladá ves je skoro celá domácností dvorce). **Po odstupňování
+vojvodovy rodiny** zabere pohřeb průměrně **1,0 místa** (jako před mohylami): děti z dvorce
+53 % (běžná mohyla), ostatní děti 47 % (malá), vojvoda, dospělí z dvorce, hlavy rodin i ostatní
+dospělí v prvních 20 letech žádné. Hřbitov hráče, který staví, má po 20 letech medián
+1 čtverec; vymření 0 z 20, nasycení ≥ 0,95 celý rok 97,1 % let. Velké mohyly přijdou až s úmrtími
+dospělých po hájení. Dlouhá kalibrace (200 × 60) zatím neběžela.
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                 | Kdo                           |
-| ------------------------------------------------------------------------------------------ | ----------------------------- |
-| Hráč staví hřbitov; musí být dobře umístěný a dost velký                                   | Martin                        |
-| Blízko vsi, blízko vody, plný nebo žádný → horší hygiena → vyšší úmrtnost                  | Martin                        |
-| Žádný ukazatel hygieny, jen vliv na populaci                                               | Martin                        |
-| Po čtvercích jako pole; vzdálenosti 150 / 50 m od obydlí a 100 / 30 m od vody              | návrh Clauda, Martin potvrdil |
-| Hrob 4 m², hroby se neopakují; extra úmrtnost 0,3 / 0,5; hájení chrání; 10 čd/čtverec      | návrh Clauda, Martin potvrdil |
-| Plot hřbitova = pletený plot jako polský plot (hustší), rohy zakulacené                    | Martin, 18. 10. 2026          |
-| Hřbitov smí na pole – čtverec pole pod ním z pole zmizí                                    | Martin, 18. 10. 2026          |
-| Plot opuštěného hřbitova vesničané opraví sami, když se k němu zase chodí – i spadlý       | Martin, 19. 10. 2026          |
-| Oprava plotu 3 čd na hotový čtverec × chybějící stav, stavba ze společné práce             | návrh Clauda                  |
-| Starému hřbitovu plot zmizí úplně, zůstanou jen mohylky                                    | Martin, 19. 10. 2026          |
-| Významnější lidé větší mohyly na prominentnějších místech; největší vojvodova rodina       | Martin, 19. 10. 2026          |
-| Vojvodova rodina 2 × 2 místa, hlava rodiny 2, ostatní 1, dítě 1 malá; kapacita v místech   | Martin schválil, 19. 10. 2026 |
-| Vojvodova rodina = celá domácnost dvorce; hlava rodiny od 35 let s dítětem                 | návrh Clauda                  |
-| Prominence = hloubka od branky + 2 × od osy; dospělí mimo pruh osy, děti vzadu na okrajích | návrh Clauda                  |
-| Velká mohyla, která se nevejde, se zmenší; staré hroby zůstanou po řadách jako dřív        | návrh Clauda                  |
-| Kůl na mohyle vojvodovy rodiny; čerstvá mohyla první rok z holé hlíny                      | návrh Clauda                  |
-| Pěšina vede k brance hřbitova; branku počítá jádro pro síť i scénu                         | Martin, 19. 10. 2026          |
+| Rozhodnutí                                                                                                                                         | Kdo                           |
+| -------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| Hráč staví hřbitov; musí být dobře umístěný a dost velký                                                                                           | Martin                        |
+| Blízko vsi, blízko vody, plný nebo žádný → horší hygiena → vyšší úmrtnost                                                                          | Martin                        |
+| Žádný ukazatel hygieny, jen vliv na populaci                                                                                                       | Martin                        |
+| Po čtvercích jako pole; vzdálenosti 150 / 50 m od obydlí a 100 / 30 m od vody                                                                      | návrh Clauda, Martin potvrdil |
+| Hrob 4 m², hroby se neopakují; extra úmrtnost 0,3 / 0,5; hájení chrání; 10 čd/čtverec                                                              | návrh Clauda, Martin potvrdil |
+| Plot hřbitova = pletený plot jako polský plot (hustší), rohy zakulacené                                                                            | Martin, 18. 10. 2026          |
+| Hřbitov smí na pole – čtverec pole pod ním z pole zmizí                                                                                            | Martin, 18. 10. 2026          |
+| Plot opuštěného hřbitova vesničané opraví sami, když se k němu zase chodí – i spadlý                                                               | Martin, 19. 10. 2026          |
+| Oprava plotu 3 čd na hotový čtverec × chybějící stav, stavba ze společné práce                                                                     | návrh Clauda                  |
+| Starému hřbitovu plot zmizí úplně, zůstanou jen mohylky                                                                                            | Martin, 19. 10. 2026          |
+| Významnější lidé větší mohyly na prominentnějších místech; největší vojvodova rodina                                                               | Martin, 19. 10. 2026          |
+| Vojvodova rodina 2 × 2 místa, hlava rodiny 2, ostatní 1, dítě 1 malá; kapacita v místech                                                           | Martin schválil, 19. 10. 2026 |
+| Vojvodova rodina = celá domácnost dvorce; hlava rodiny od 35 let s dítětem                                                                         | návrh Clauda                  |
+| I vojvodova rodina odstupňovaná – významnější a méně významní členové                                                                              | Martin, 19. 10. 2026          |
+| Vojvoda a žena 2 × 2 s kůlem, ostatní dospělí z dvorce 2 místa, děti z dvorce běžná na 1 místo                                                     | návrh Clauda                  |
+| Vojvoda = hlava domácnosti dvorce (i vdovec); začátek osy u branky drží vojvodova rodina, děti z dvorce u branky mimo osu; staré mohyly beze změny | návrh Clauda                  |
+| Prominence = hloubka od branky + 2 × od osy; dospělí mimo pruh osy, děti vzadu na okrajích                                                         | návrh Clauda                  |
+| Velká mohyla, která se nevejde, se zmenší; staré hroby zůstanou po řadách jako dřív                                                                | návrh Clauda                  |
+| Kůl na mohyle vojvodovy rodiny; čerstvá mohyla první rok z holé hlíny                                                                              | návrh Clauda                  |
+| Pěšina vede k brance hřbitova; branku počítá jádro pro síť i scénu                                                                                 | Martin, 19. 10. 2026          |
