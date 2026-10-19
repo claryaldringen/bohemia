@@ -21,6 +21,7 @@ import {
 import {
   CellSelection,
   cellsBoundary,
+  cycleIndex,
   gridFrame,
   mergeDecalGrids,
   rectangleCells,
@@ -34,7 +35,12 @@ import {
   createStripMesh,
   type HeightFn,
 } from './village-meshes';
-import type { PlacementHandlers, PlacementMode, SquaresPreview } from './village-types';
+import type {
+  PlacementHandlers,
+  PlacementMode,
+  SquaresPreview,
+  SquaresVariant,
+} from './village-types';
 
 /** Kliknutí = stisk a puštění tlačítka bez tažení (px); delší tah maluje obdélník. */
 const CLICK_SLOP_PX = 6;
@@ -129,12 +135,20 @@ export class FieldPainter {
   private adopted = false;
   /** Poslední bod terénu pod kurzorem – volná mřížka se po otočení postaví k němu. */
   private lastPoint: Point | null = null;
+  /** Druh stavby (index do `mode.variants`) – Tab ho přepíná (ohrada – druh zvířat). */
+  private variantIndex = 0;
 
   constructor(
     private readonly context: PaintContext,
     readonly mode: FieldMode,
     private readonly handlers: PlacementHandlers,
   ) {
+    if (mode.variants && mode.variant !== undefined) {
+      this.variantIndex = Math.max(
+        0,
+        mode.variants.findIndex((v) => v.id === mode.variant),
+      );
+    }
     if (mode.rotatable && mode.grid) {
       this.grid = mode.grid;
       this.freeTurn = (rotationTurn(mode.grid.rotation) ?? 0) % GRID_TURNS;
@@ -231,8 +245,35 @@ export class FieldPainter {
     if (this.candidate.length === 0 || !this.preview?.check.ok) return;
     const cells = this.candidate;
     const grid = this.grid;
+    const variant = this.variant();
     this.dispose();
-    this.handlers.onConfirm({ kind: 'squares', cells, ...(grid ? { grid } : {}) });
+    this.handlers.onConfirm({
+      kind: 'squares',
+      cells,
+      ...(grid ? { grid } : {}),
+      ...(variant ? { variant: variant.id } : {}),
+    });
+  }
+
+  /** Druh stavby, který se právě maluje (ohrada – druh zvířat); stavba bez druhů undefined. */
+  variant(): SquaresVariant | undefined {
+    return this.mode.variants?.[this.variantIndex];
+  }
+
+  /**
+   * Tab (Shift + Tab zpět): další druh stavby (ohrada – ovce, kozy, prasata, skot, spřežení –
+   * oxen.md). Mřížka se znovu chytí stavby nového druhu pod kurzorem, výběr se ověří znovu.
+   */
+  private nextVariant(step: number): void {
+    const count = this.mode.variants?.length ?? 0;
+    if (count < 2) return;
+    this.variantIndex = cycleIndex(this.variantIndex, count, step);
+    if (!this.gridLocked()) {
+      this.adopted = false;
+      if (this.lastPoint) this.followGrid(this.lastPoint);
+    }
+    this.markSelection();
+    this.report();
   }
 
   /** Zruší malování a ohlásí to (`onCancel`). */
@@ -358,6 +399,11 @@ export class FieldPainter {
         event.preventDefault();
         this.undo();
         return;
+      case 'Tab':
+        if (!this.mode.variants || this.mode.variants.length < 2) return;
+        event.preventDefault();
+        this.nextVariant(event.shiftKey ? -1 : 1);
+        return;
     }
   };
 
@@ -435,7 +481,7 @@ export class FieldPainter {
    */
   private followGrid(point: Point): void {
     if (!this.mode.rotatable) return;
-    const found = this.mode.gridAt?.(point[0], point[1]);
+    const found = this.mode.gridAt?.(point[0], point[1], this.variant()?.id);
     if (found !== null && found !== undefined) {
       this.adopted = true;
       this.freeTurn = (rotationTurn(found.rotation) ?? 0) % GRID_TURNS;
@@ -489,7 +535,10 @@ export class FieldPainter {
     this.candidate = stroke
       ? this.selection.preview(strokeCells, stroke.mode)
       : this.selection.cells();
-    this.preview = this.candidate.length > 0 ? this.mode.preview(this.candidate, this.grid) : null;
+    this.preview =
+      this.candidate.length > 0
+        ? this.mode.preview(this.candidate, this.grid, this.variant()?.id)
+        : null;
 
     disposeAll(this.selectionMeshes);
     const ok = this.preview?.check.ok ?? false;
@@ -548,11 +597,13 @@ export class FieldPainter {
     if (this.done) return;
     const preview = this.preview;
     // Prázdný výběr není chyba – bez důvodu (rozhraní pak u kurzoru nic neukáže).
+    const variant = this.variant();
     this.handlers.onPreview?.({
       check: preview?.check ?? { ok: false, reason: null },
       label: preview?.label ?? '',
       screen: this.screen,
       cost: preview?.check.ok ? (preview.cost ?? null) : null,
+      ...(variant ? { variant } : {}),
     });
   }
 

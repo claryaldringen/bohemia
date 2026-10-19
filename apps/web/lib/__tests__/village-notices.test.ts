@@ -190,6 +190,19 @@ describe('villageNotices – hlad a vymření', () => {
     ).toEqual([{ kind: 'starving', tone: 'warn', text: 'Lidé umírají hlady' }]);
   });
 
+  it('stádo se nevejde do ohrad (oxen.md – Ohrady podle druhu): jeden druh jménem, víc „stáda“', () => {
+    expect(villageNotices(view({ penShort: ['sheep'] }))).toEqual([
+      { kind: 'pen-short', tone: 'warn', text: 'Ovce se nevejdou do ohrad' },
+    ]);
+    expect(villageNotices(view({ penShort: ['pig', 'cow'] }))[0]!.text).toBe(
+      'Stáda se nevejdou do ohrad',
+    );
+    // ohlásí se, když nově vznikne
+    expect(newNotices(view(), view({ penShort: ['goat'] })).map((n) => n.text)).toEqual([
+      'Kozy se nevejdou do ohrad',
+    ]);
+  });
+
   it('vymřelá ves žádná upozornění nemá', () => {
     const extinct = { foundedYear: 512, extinctYear: 587, years: 74 };
     expect(

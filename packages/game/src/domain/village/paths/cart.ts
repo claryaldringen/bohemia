@@ -8,6 +8,7 @@ import {
   buildingBounds,
   cellsIn,
   inBuilding,
+  penPathSquares,
   simplifyPathLine,
   squareCells,
   villageBuildings,
@@ -284,7 +285,7 @@ export function cartGrid(input: Omit<CartRoutesInput, 'kind' | 'depots' | 'targe
   const fenced = [
     ...(v.orchards ?? []).map((o) => o.squares),
     ...(v.cemeteries ?? []).map((c) => c.squares),
-    ...(v.pens ?? []).map((p) => [p]),
+    ...(v.pens ?? []).map((p) => penPathSquares(p)),
   ];
   for (const squares of fenced) {
     if (squares.length === 0) continue;

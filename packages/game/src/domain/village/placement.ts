@@ -16,7 +16,8 @@ import { fieldSquareSurface, fieldsTouching, partFoundingCost } from './fields';
 import { TAKEN_LAND_EPSILON_M2, landTakenWarning, type TakenLand } from './land-taken';
 import { LIVESTOCK, withLivestock } from './livestock';
 import { orchardPlantingCost } from './orchard';
-import { ableTeams } from './oxen';
+import { ableTeams, type PenSquareInput } from './oxen';
+import { MAX_PEN_SQUARES, connectedCells, penCells, touchingPens } from './pens';
 import { foundingCostPerHa } from './productivity';
 import { dwellingGatePoint } from './paths/network';
 import { roadWalk, walkGroundOf, type Walk, type WalkRoad } from './paths/walking';
@@ -105,6 +106,7 @@ import type {
   DwellingType,
   FieldSurface,
   NeighbourSnapshot,
+  PenSpecies,
   PlotVariant,
   PlotSquare,
   Position,
@@ -196,7 +198,17 @@ export interface PlacementVillage {
    * Ohrady (i rozestavěné) – každá zabírá svůj čtverec (bez údaje žádné – oxen.md; natočená ve své
    * mřížce `grid`).
    */
-  readonly pens?: readonly { readonly cell: TileCell; readonly grid?: SquareGrid }[];
+  readonly pens?: readonly {
+    readonly id?: number;
+    readonly cell: TileCell;
+    readonly grid?: SquareGrid;
+    /** Další čtverce ohrady (oxen.md – Ohrady podle druhu); bez údaje jen první. */
+    readonly extraSquares?: readonly { readonly cell: TileCell }[];
+    /** Druh ohrady – rozšíření jen ohrady téhož druhu (`penSquaresFromCells`). */
+    readonly species?: PenSpecies;
+    readonly team?: { readonly readyDay: number } | null;
+    readonly training?: { readonly startDay: number } | null;
+  }[];
   /**
    * Les vsi – čtverce polí zarostlé lesem (fields.md – Les vsi; bez údaje žádný): pole ho vymýtí
    * jako les (stromy lesa jsou v `obstacleChanges.added`), ostatní stavby ho vyklučí jako les
@@ -606,7 +618,7 @@ function squareCounts(village: PlacementVillage | null): string {
     village.parts.length,
     inner(village.orchards),
     inner(village.cemeteries),
-    village.pens?.length ?? 0,
+    (village.pens ?? []).map((p) => 1 + (p.extraSquares?.length ?? 0)).join(','),
     village.woods?.length ?? 0,
     village.fields?.length ?? 0,
   ].join('|');
@@ -1984,6 +1996,124 @@ function checkTurnedPen(
     z,
     takenLand,
   };
+}
+
+/** Kontrola ohrady po čtvercích (oxen.md – Ohrady podle druhu) – náhled i vstup `foundPen`. */
+export interface PenSquaresCheck {
+  check: PlacementCheck;
+  /** Čtverce, kam ohrada nesmí (červeně). */
+  blockedCells: TileCell[];
+  /** Prošlé čtverce v pořadí výběru – vstup `foundPen` (`PenInput.squares`). */
+  squares: PenSquareInput[];
+  /** Ohrada téhož druhu, kterou čtverce rozšíří; nová ohrada null. */
+  extendsPen: number | null;
+  /** Kolik čtverců bude ohrada mít (i s rozšířenou). */
+  totalSquares: number;
+  /** Práce za překážky (člověkodny). */
+  obstacleCost: number;
+  /** Kusy polí pod ohradou – z pole zmizí (fields.md – Pole jako krajina). */
+  takenLand: TakenLand[];
+  /** Mřížka ohrady (natočená), bez ní krajina. */
+  grid?: SquareGrid;
+}
+
+/**
+ * Ohrada po čtvercích (oxen.md – Ohrady podle druhu; Martin 19. 10. 2026: „Velikost ohrady by mělo
+ * jít určovat podobně, jako když se staví hřbitov.“): každý čtverec projde `checkPenPlacement`;
+ * čtverce navazující stranou na ohradu téhož druhu (ve stejné mřížce) ji rozšíří, na dvě ohrady
+ * navázat nejde, ohrada má nejvýš MAX_PEN_SQUARES čtverců souvislých stranou („ohrada, ne výběh“).
+ * Ohrady jiného druhu se nemíchají – ohrada vedle nich je nová ohrada.
+ */
+export function penSquaresFromCells(
+  landscape: Landscape,
+  village: PlacementVillage | null,
+  cells: readonly TileCell[],
+  species: PenSpecies,
+  obstacles: ObstacleLayer = obstaclesOf(landscape),
+  gridInput?: SquareGrid,
+): PenSquaresCheck {
+  const grid = gridInput ? (normalizeGrid(gridInput) ?? undefined) : undefined;
+  const result = (check: PlacementCheck, rest: Partial<PenSquaresCheck> = {}): PenSquaresCheck => ({
+    check,
+    blockedCells: [],
+    squares: [],
+    extendsPen: null,
+    totalSquares: 0,
+    obstacleCost: 0,
+    takenLand: [],
+    ...(grid ? { grid } : {}),
+    ...rest,
+  });
+  if (gridInput && !grid) return result(fail('Neplatné natočení ohrady.'));
+  const unique = new Map<string, TileCell>();
+  for (const c of cells) {
+    if (!Number.isInteger(c.x) || !Number.isInteger(c.y)) {
+      return result(fail('Neplatné čtverce ohrady.'));
+    }
+    unique.set(`${c.x},${c.y}`, { x: c.x, y: c.y });
+  }
+  const chosen = [...unique.values()];
+  if (chosen.length === 0) return result({ ok: false, reason: null });
+  const touching = touchingPens(village?.pens ?? [], chosen, species, grid);
+  if (touching.length > 1) {
+    return result(fail('Ohrada smí navazovat jen na jednu ohradu.'), { blockedCells: chosen });
+  }
+  const extended = touching[0];
+  const total = chosen.length + (extended ? penCells(extended).length : 0);
+  if (total > MAX_PEN_SQUARES) {
+    return result(
+      fail(`Ohrada může mít nejvýš ${MAX_PEN_SQUARES} čtverce – je to ohrada, ne výběh.`),
+      {
+        blockedCells: chosen,
+        totalSquares: total,
+      },
+    );
+  }
+  if (!connectedCells([...(extended ? penCells(extended) : []), ...chosen])) {
+    return result(fail('Čtverce ohrady musí navazovat stranou.'), {
+      blockedCells: chosen,
+      totalSquares: total,
+    });
+  }
+  const squares: PenSquareInput[] = [];
+  const blockedCells: TileCell[] = [];
+  const takenLand: TakenLand[] = [];
+  let reason: string | null = null;
+  let warning: string | undefined;
+  for (const cell of chosen) {
+    const check = checkPenPlacement(landscape, village, cell, obstacles, grid);
+    if (!check.ok) {
+      blockedCells.push(cell);
+      reason ??= check.reason;
+      continue;
+    }
+    if (check.warning) warning ??= check.warning;
+    takenLand.push(...check.takenLand);
+    squares.push({
+      cell,
+      x: check.x,
+      z: check.z,
+      obstacleCost: check.obstacleCost,
+      obstacleIds: check.obstacleIds,
+      clearedTrees: check.clearedTrees,
+    });
+  }
+  const extendsPen = extended?.id ?? null;
+  const obstacleCost = squares.reduce((sum, q) => sum + q.obstacleCost, 0);
+  if (blockedCells.length > 0) {
+    return result(fail(reason ?? 'Sem ohrada nepatří.'), {
+      blockedCells,
+      extendsPen,
+      totalSquares: total,
+    });
+  }
+  return result(warning ? { ...OK, warning } : OK, {
+    squares,
+    extendsPen,
+    totalSquares: total,
+    obstacleCost,
+    takenLand,
+  });
 }
 
 /**

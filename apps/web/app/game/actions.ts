@@ -224,8 +224,9 @@ export async function placeSacred(input: unknown): Promise<VillageActionResult> 
 }
 
 /**
- * Stavba ohrady s přístřeškem (oxen.md): `{ villageId, cells: [{ x, y }] }` – jeden čtverec louky.
- * Server umístění ověří znovu (`checkPenPlacement`).
+ * Stavba ohrady s přístřeškem, nebo její rozšíření (oxen.md – Ohrady podle druhu): `{ villageId,
+ * cells: [{ x, y }], species, grid? }` – nejvýš 4 čtverce louky, druh zvířat.
+ * Server umístění ověří znovu (`penSquaresFromCells`).
  */
 export async function placePen(input: unknown): Promise<VillageActionResult> {
   return villageAction(input, parsePlacePenInput, placePenForPlayer);

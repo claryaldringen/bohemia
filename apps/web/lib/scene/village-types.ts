@@ -60,6 +60,16 @@ export interface SquaresPreview {
 }
 
 /**
+ * Druh stavby po čtvercích, který přepíná Tab (ohrada – druh zvířat, oxen.md): id, ikona
+ * (`public/icons/resources/<icon>.png`) a název do popisku.
+ */
+export interface SquaresVariant {
+  id: string;
+  icon: string;
+  name: string;
+}
+
+/**
  * Co hráč právě umisťuje a jak scéna ověří, jestli to jde: volné obydlí půdorysem (zemnice –
  * duch u kurzoru, klávesy [ a ] otáčejí), obydlí na pozemku (polozemnice – políčko pod kurzorem,
  * [ a ] přepínají variantu, kde na něm dům stojí), nebo stavbu po čtvercích políček (pole a další
@@ -83,8 +93,18 @@ export type PlacementMode =
     }
   | {
       kind: 'squares';
-      /** Kontrola čtverců v mřížce `grid` (fields.md – Natočené stavby; bez ní mřížka krajiny). */
-      preview(cells: TileCell[], grid?: SquareGrid): SquaresPreview;
+      /**
+       * Kontrola čtverců v mřížce `grid` (fields.md – Natočené stavby; bez ní mřížka krajiny)
+       * a druhu `variant` (jen stavba s `variants`).
+       */
+      preview(cells: TileCell[], grid?: SquareGrid, variant?: string): SquaresPreview;
+      /**
+       * Druhy stavby, které přepíná Tab (Shift + Tab zpět) – ohrada: ovce, kozy, prasata, skot,
+       * spřežení (oxen.md – Ohrady podle druhu). Bez údaje stavba jednoho druhu.
+       */
+      variants?: readonly SquaresVariant[];
+      /** Druh (id), se kterým malování začne (jeden z `variants`); bez údaje první. */
+      variant?: string;
       /**
        * Stavbu jde natáčet (pole, sad): [ a ] před prvním čtvercem otáčejí mřížku po 15°, nad
        * stavbou stejného druhu se malování chytí její mřížky (rozšíření). Bez údaje jen mřížka
@@ -95,7 +115,7 @@ export type PlacementMode =
        * Mřížka stavby stejného druhu pod bodem světa – undefined = stavba v mřížce krajiny, null =
        * žádná stavba. Malování se jí chytí, dokud není vybraný žádný čtverec.
        */
-      gridAt?(x: number, z: number): SquareGrid | undefined | null;
+      gridAt?(x: number, z: number, variant?: string): SquareGrid | undefined | null;
       /** Mřížka, ve které malování začne (vybraná stavba stejného druhu); bez údaje krajina. */
       grid?: SquareGrid;
     }
@@ -122,7 +142,7 @@ export type PlacementMode =
  */
 export type PlacementResult =
   | { kind: 'dwelling'; type: DwellingType; position: Position; plot?: DwellingPlot }
-  | { kind: 'squares'; cells: TileCell[]; grid?: SquareGrid }
+  | { kind: 'squares'; cells: TileCell[]; grid?: SquareGrid; variant?: string }
   | { kind: 'sacred'; type: SacredBuildingKind; position: Position }
   | { kind: 'workshop'; craft: Craft; position: Position };
 
@@ -137,6 +157,8 @@ export interface PlacementPreview {
   screen: { x: number; y: number } | null;
   /** Cena prošlého umístění – rozhraní ji ukáže u kurzoru (null = žádná, nebo neprošlo). */
   cost?: PlacementCost | null;
+  /** Druh stavby u kurzoru (druh ohrady – Tab ho přepíná); bez údaje žádný. */
+  variant?: SquaresVariant;
 }
 
 export interface PlacementHandlers {

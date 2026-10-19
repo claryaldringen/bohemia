@@ -576,3 +576,12 @@ export function mergeDecalGrids(
   }
   return { grid: { positions, alphas, indices }, colors };
 }
+
+/**
+ * Další druh stavby po čtvercích (Tab vpřed, Shift + Tab zpět – ohrada: ovce, kozy, prasata, skot,
+ * spřežení – oxen.md): index o `step` dál, dokola.
+ */
+export function cycleIndex(index: number, count: number, step: number): number {
+  if (count <= 0) return 0;
+  return (((index + step) % count) + count) % count;
+}

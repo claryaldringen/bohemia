@@ -441,3 +441,67 @@ describe('penAnimalsFor – skutečná zvířata ohrady (oxen.md)', () => {
     });
   });
 });
+
+describe('ohrada o víc čtvercích (oxen.md – Ohrady podle druhu)', () => {
+  const first = { x: 37.5, z: -22.5, size: 15 };
+  const right = { x: 52.5, z: -22.5 };
+  const up = { x: 37.5, z: -7.5 };
+  const toward = { x: 37.5, z: -80 };
+
+  it('plot obejme oba čtverce, uvnitř je celá plocha bez švu, vytyčení po obrysu', () => {
+    const layout = penLayout(first, penFacing(first, toward), [right]);
+    expect(layout.squares).toHaveLength(2);
+    // obrys plotu odsazený o 0,5 m dovnitř – obdélník 29 × 14 m
+    expect(layout.fenceRect).toEqual({ minX: 30.5, maxX: 59.5, minZ: -29.5, maxZ: -15.5 });
+    expect(layout.outline).toHaveLength(4);
+    for (const p of [
+      { x: 38, z: -22 },
+      { x: 45, z: -22 },
+      { x: 58, z: -18 },
+    ]) {
+      expect(insidePen(layout, p.x, p.z)).toBe(true);
+    }
+    expect(insidePen(layout, 61, -22)).toBe(false);
+    // na vnitřní hraně čtverců je bláto jako uprostřed (žádný šev)
+    expect(penMudAt(layout, 45, -22)).toBeGreaterThan(0);
+    expect(penStakingLine(layout)).toHaveLength(5);
+    // místa pro zvířata i ve druhém čtverci
+    expect(layout.spots.some((s) => s.x > 45)).toBe(true);
+    // branka v plotu (z jádra – stejně jako vchod sítě pěšin)
+    const posts = fencePosts(layout.fence).filter((p) => p.gate);
+    expect(posts).toHaveLength(2);
+    expect(Math.min(...posts.map((p) => p.z))).toBeCloseTo(-29.5, 6);
+  });
+
+  it('tvar L: plot po obrysu se šesti rohy, přístřešek zády a bokem k vnějšímu plotu', () => {
+    const layout = penLayout(first, penFacing(first, toward), [right, up]);
+    expect(layout.outline).toHaveLength(6);
+    expect(insidePen(layout, 52, -8)).toBe(false);
+    expect(insidePen(layout, 38, -10)).toBe(true);
+    // přístřešek stojí v prvním čtverci u vnějšího plotu – ne u souseda
+    const shelter = rel(layout, layout.shelter);
+    expect(Math.abs(shelter.x)).toBeLessThan(7.5);
+    expect(Math.abs(shelter.z)).toBeLessThan(7.5);
+    const back = { x: -layout.front.x, z: -layout.front.z };
+    const neighbours = [
+      { x: 1, z: 0 },
+      { x: 0, z: 1 },
+    ];
+    expect(neighbours.some((n) => dot(n, back) > 0.5)).toBe(false);
+    expect(neighbours.some((n) => dot(n, layout.side) > 0.5)).toBe(false);
+  });
+
+  it('jeden čtverec beze změny', () => {
+    const a = penLayout(first, penFacing(first, toward));
+    const b = penLayout(first, penFacing(first, toward), []);
+    expect(b).toEqual(a);
+    expect(a.fenceRects).toEqual([a.fenceRect]);
+  });
+
+  it('ovce, kozy a prasata na noc na místa ohrady (den a noc je zapne)', () => {
+    const layout = penLayout(first, penFacing(first, toward), [right]);
+    const animals = penAnimalsFor(layout, { oxen: 0, trainees: 0, cows: 0, sheep: 5 });
+    expect(animals.map((a) => a.kind)).toEqual(['sheep', 'sheep', 'sheep', 'sheep', 'sheep']);
+    expect(layout.spots.length).toBeGreaterThan(12);
+  });
+});

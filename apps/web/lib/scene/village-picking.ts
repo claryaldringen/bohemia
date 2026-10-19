@@ -8,7 +8,7 @@ import {
   type TileCell,
 } from '@bohemia/game';
 import { isRotatedSquare, squareContains, type CellSquare } from './field-cells';
-import type { SceneVillage } from '../village-view';
+import { scenePenSquares, type SceneVillage } from '../village-view';
 
 // Výběr obydlí, polí, sadů a hřbitovů kliknutím do scény – čisté funkce bez Babylonu (paprsek
 // z kamery dodá scéna jako čísla).
@@ -188,7 +188,8 @@ export function pickVillageTarget(
       (d.plot?.yard?.cell.x === cell.x && d.plot.yard.cell.y === cell.y),
   );
   if (owner) return { kind: 'dwelling', id: owner.id };
-  const pen = (village.pens ?? []).find((p) => hit(p));
+  // ohrada o víc čtvercích (oxen.md – Ohrady podle druhu) – kterýkoli její čtverec
+  const pen = (village.pens ?? []).find((p) => scenePenSquares(p).some(hit));
   if (pen) return { kind: 'pen', id: pen.id };
   const road = nearestRoad(village, ground, ROAD_PICK_M);
   // celá cesta hráče – navazující úseky různého stupně jsou jedna cesta (Martin)

@@ -1,12 +1,15 @@
 // Ohrada s přístřeškem bez Babylonu (docs/design/oxen.md – staví ji hráč, ve vsi i na ukázce
-// /dev/buildings): jeden čtverec 15 × 15 m obehnaný pleteným plotem se zakulacenými rohy
+// /dev/buildings): čtverec 15 × 15 m (i víc – níž) obehnaný pleteným plotem se zakulacenými rohy
 // (woven-fence.ts – týž plot jako pozemek polozemnice a hřbitov), branka ze žerdí na straně ke
 // vsi, v zadním rohu přístřešek na sloupech otevřený do ohrady, pod ním jesle se senem, vedle
 // žlab a stoh sena. Všechno deterministicky z čtverce a směru ke vsi. Souřadnice světa scény
 // v metrech (x, z); natočení jako `Position.rotation` (+z modelu míří do (sin r, cos r)).
 // Natočená ohrada (fields.md – Natočené stavby, oxen.md): rozmístění se spočítá v „rovném
 // prostoru“ kolem středu čtverce (svět otočený zpět o natočení ohrady) a otočí se do světa.
-import { PEN_GATE, penEntrance, rotationCosSin, type Position } from '@bohemia/game';
+// Ohrada o víc čtvercích (oxen.md – Ohrady podle druhu, nejvýš 4): plot po obrysu všech čtverců
+// odsazený dovnitř (zakulacené rohy, vnitřní roh tvaru L), branka z jádra (`penSquaresEntrance`),
+// přístřešek, jesle, žlab a stoh v prvním čtverci u vnějšího plotu, místa pro zvířata ve všech.
+import { PEN_GATE, penSquaresEntrance, rotationCosSin, type Position } from '@bohemia/game';
 import { isRotatedSquare } from './field-cells';
 import { FENCE_INSET_M, type PlotSquare } from './homestead-layout';
 import { valueNoise } from './livestock-motion';
@@ -54,8 +57,11 @@ const RACK_OFFSET_M = { back: 1.18, inward: 0.8 } as const;
 /** Stoh sena (kupka z models/fields/haystack.glb zmenšená na ≈ 1,8 m). */
 export const PEN_HAYSTACK_SCALE = 0.5;
 
-/** Druh zvířete v ohradě: vůl ze spřežení (models/plough/ox.glb), kráva ze stáda vsi. */
-export type PenAnimalKind = 'ox' | 'cow';
+/**
+ * Druh zvířete v ohradě: vůl ze spřežení (models/plough/ox.glb), kráva ze stáda vsi; ovce, koza
+ * a prase na noc v ohradě svého druhu (oxen.md – Na noc v ohradě – kreslí je den a noc).
+ */
+export type PenAnimalKind = 'ox' | 'cow' | 'sheep' | 'goat' | 'pig';
 
 export interface PenAnimal {
   kind: PenAnimalKind;
@@ -73,11 +79,17 @@ export interface PenAnimal {
 /** Místo pro zvíře v ohradě (bez druhu) – `penAnimalsFor` na ně rozestaví skutečná zvířata. */
 export type PenSpot = Omit<PenAnimal, 'kind' | 'scale'>;
 
-/** Kolik zvířat v ohradě stojí: voli spřežení, telata ve výcviku a krávy (v zimě). */
+/**
+ * Kolik zvířat v ohradě stojí: voli spřežení, telata ve výcviku a krávy (v zimě); ovce, kozy
+ * a prasata na noc (oxen.md – Na noc v ohradě; bez údaje žádné).
+ */
 export interface PenHerd {
   oxen: number;
   trainees: number;
   cows: number;
+  sheep?: number;
+  goats?: number;
+  pigs?: number;
 }
 
 /** Tele ve výcviku je menší než vůl (návrh – jen vzhled). */
@@ -109,10 +121,20 @@ export interface PenLayout {
   /** Místa pro zvířata v pořadí: u žlabu, u jeslí, na pastvě, pak dál po otevřené části. */
   spots: PenSpot[];
   /**
-   * Obdélník plotu (osy kůlů na rovných stranách) – u natočené ohrady v rovném prostoru kolem
-   * středu (`penToFlat`), jinak ve světě.
+   * Obdélník plotu (osy kůlů na rovných stranách; u ohrady o víc čtvercích obal obrysu) –
+   * u natočené ohrady v rovném prostoru kolem středu (`penToFlat`), jinak ve světě.
    */
   fenceRect: { minX: number; maxX: number; minZ: number; maxZ: number };
+  /**
+   * Obdélníky vnitřku po čtvercích v rovném prostoru – u vnějšího plotu po osu kůlů, ke
+   * sousednímu čtverci po společnou stranu a přes ni most (sjednocení = vnitřek ohrady bez švů);
+   * jeden čtverec = `fenceRect`.
+   */
+  fenceRects: { minX: number; maxX: number; minZ: number; maxZ: number }[];
+  /** Obrys plotu (osy kůlů, rohy ostře) v rovném prostoru – uzavřený mnohoúhelník. */
+  outline: Point[];
+  /** Všechny čtverce ohrady ve světě – první (přístřešek) a další. */
+  squares: PenSquare[];
   /** Natočení ohrady (rad, po 15° – fields.md, Natočené stavby); nenatočená ho nemá. */
   rotation?: number;
 }
@@ -145,18 +167,58 @@ function alongX(d: Direction): number {
  * bočního plotu, stoh vedle přístřešku; dva voli (u žlabu a u jeslí) a kráva, která se pase.
  * Stejný čtverec a směr = stejná ohrada.
  */
-export function penLayout(square: PenSquare, facing: Direction): PenLayout {
-  const gate = penEntrance(square, facing);
-  if (square.rotation === undefined || !isRotatedSquare(square))
-    return flatPenLayout(square, facing, { x: gate.x, z: gate.z });
+export function penLayout(
+  square: PenSquare,
+  facing: Direction,
+  extra: readonly { x: number; z: number }[] = [],
+): PenLayout {
+  const squares: PenSquare[] = [
+    square,
+    ...extra.map((q) => ({
+      x: q.x,
+      z: q.z,
+      size: square.size,
+      ...(square.rotation !== undefined ? { rotation: square.rotation } : {}),
+    })),
+  ];
+  const gate = penSquaresEntrance(
+    squares.map((q, i) => ({ ...q, cell: cellOf(square, q, i) })),
+    { x: square.x + facing.x, z: square.z + facing.z },
+  );
+  if (square.rotation === undefined || !isRotatedSquare(square)) {
+    return {
+      ...flatPenLayout(square, facing, { x: gate.x, z: gate.z }, squares.slice(1)),
+      squares,
+    };
+  }
   // natočená ohrada: rozmístění v rovném prostoru, pak otočit do světa
   const turn = turner(square.x, square.z, square.rotation);
   const flat = flatPenLayout(
     { x: square.x, z: square.z, size: square.size },
     turn.toFlatDir(facing),
     turn.toFlat(gate.x, gate.z),
+    squares.slice(1).map((q) => ({ ...turn.toFlat(q.x, q.z), size: q.size })),
   );
-  return turnedLayout(flat, square, square.rotation, turn);
+  return { ...turnedLayout(flat, square, square.rotation, turn), squares };
+}
+
+/**
+ * Políčko čtverce ohrady v její mřížce vůči prvnímu čtverci (0, 0) – z polohy středu (natočená
+ * ohrada v osách mřížky).
+ */
+function cellOf(
+  first: PenSquare,
+  q: { x: number; z: number },
+  index: number,
+): { x: number; y: number } {
+  if (index === 0) return { x: 0, y: 0 };
+  const [c, s] = first.rotation === undefined ? [1, 0] : rotationCosSin(first.rotation);
+  const dx = q.x - first.x;
+  const dz = q.z - first.z;
+  return {
+    x: Math.round((dx * c - dz * s) / first.size),
+    y: Math.round((dx * s + dz * c) / first.size),
+  };
 }
 
 /** Otáčení kolem středu ohrady – svět ↔ rovný prostor (jako rotation.y v Babylonu). */
@@ -246,20 +308,24 @@ function penToWorld(layout: PenLayout, x: number, z: number): { x: number; z: nu
   return turner(layout.square.x, layout.square.z, layout.rotation).toWorld(x, z);
 }
 
-/** Ohrada v osách krajiny (i rovný prostor natočené ohrady); `gateAt` – střed branky z jádra. */
+/**
+ * Ohrada v osách krajiny (i rovný prostor natočené ohrady); `gateAt` – střed branky z jádra,
+ * `extras` – další čtverce (střed a strana, v témže prostoru).
+ */
 function flatPenLayout(
   square: PenSquare,
   facing: Direction,
   gateAt: { x: number; z: number },
+  extras: readonly { x: number; z: number; size: number }[] = [],
 ): PenLayout {
   const c = { x: square.x, z: square.z };
   const half = square.size / 2 - FENCE_INSET_M;
   const f0 = unit(facing);
-  const front: Direction =
+  const axisFront: Direction =
     Math.abs(f0.x) >= Math.abs(f0.z)
       ? { x: Math.sign(f0.x) || 1, z: 0 }
       : { x: 0, z: Math.sign(f0.z) || 1 };
-  const lateral: Direction = { x: -front.z, z: front.x };
+  const lateral: Direction = { x: -axisFront.z, z: axisFront.x };
   const turn = f0.x * lateral.x + f0.z * lateral.z;
   const sign =
     Math.abs(turn) > 0.05
@@ -267,33 +333,34 @@ function flatPenLayout(
       : hash01(Math.round(square.x * 10), Math.round(square.z * 10), 41) < 0.5
         ? 1
         : -1;
-  const side: Direction = { x: lateral.x * sign, z: lateral.z * sign };
+  const all = [{ x: square.x, z: square.z, size: square.size }, ...extras];
+  // přístřešek zády a bokem k vnějšímu plotu prvního čtverce (u víc čtverců – oxen.md)
+  const { front, side } = shelterAxes(all, f0, axisFront, {
+    x: lateral.x * sign,
+    z: lateral.z * sign,
+  });
   const at = (ahead: number, aside: number): { x: number; z: number } => ({
     x: c.x + front.x * ahead + side.x * aside,
     z: c.z + front.z * ahead + side.z * aside,
   });
 
+  const outline =
+    extras.length === 0
+      ? ([
+          [c.x - half, c.z - half],
+          [c.x + half, c.z - half],
+          [c.x + half, c.z + half],
+          [c.x - half, c.z + half],
+        ] as Point[])
+      : insetOutline(all, FENCE_INSET_M);
   const fenceRect = {
-    minX: c.x - half,
-    maxX: c.x + half,
-    minZ: c.z - half,
-    maxZ: c.z + half,
+    minX: Math.min(...outline.map((p) => p[0])),
+    maxX: Math.max(...outline.map((p) => p[0])),
+    minZ: Math.min(...outline.map((p) => p[1])),
+    maxZ: Math.max(...outline.map((p) => p[1])),
   };
-  const fence = wovenFence(
-    [
-      {
-        points: [
-          [fenceRect.minX, fenceRect.minZ],
-          [fenceRect.maxX, fenceRect.minZ],
-          [fenceRect.maxX, fenceRect.maxZ],
-          [fenceRect.minX, fenceRect.maxZ],
-        ],
-        closed: true,
-      },
-    ],
-    PEN_FENCE,
-    { toward: gateAt },
-  );
+  const fenceRects = extras.length === 0 ? [fenceRect] : innerRects(all, FENCE_INSET_M);
+  const fence = wovenFence([{ points: outline, closed: true }], PEN_FENCE, { toward: gateAt });
   const run = fence.runs[0]!.posts;
   const a = run[0]!;
   const b = run[run.length - 1]!;
@@ -347,9 +414,26 @@ function flatPenLayout(
       seed: seed + 4 + k,
     })),
   ];
+  // místa v dalších čtvercích ohrady – mřížka 3 × 3 s odchylkou podle polohy
+  extras.forEach((q, k) => {
+    const qSeed = Math.round(q.x * 7 + q.z * 13);
+    for (let i = 0; i < EXTRA_SQUARE_SPOTS.length; i++) {
+      const [ox, oz] = EXTRA_SQUARE_SPOTS[i]!;
+      spots.push({
+        x: q.x + ox + (hash01(qSeed, i, 46) - 0.5) * 1.6,
+        z: q.z + oz + (hash01(qSeed, i, 48) - 0.5) * 1.6,
+        heading: hash01(qSeed, i + 10, 45) * Math.PI * 2,
+        activity: 'graze',
+        seed: seed + 100 * (k + 1) + i,
+      });
+    }
+  });
   const animals = penAnimalsFor({ spots }, { oxen: 2, trainees: 0, cows: 1 });
   return {
     square,
+    squares: [square],
+    outline,
+    fenceRects,
     front,
     side,
     fence,
@@ -363,6 +447,151 @@ function flatPenLayout(
     spots,
     fenceRect,
   };
+}
+
+/** Místa pro zvířata v dalších čtvercích ohrady (m od středu čtverce, po 4 m). */
+const EXTRA_SQUARE_SPOTS: readonly (readonly [number, number])[] = [
+  [-4, -4],
+  [0, -4],
+  [4, -4],
+  [-4, 0],
+  [0, 0],
+  [4, 0],
+  [-4, 4],
+  [0, 4],
+  [4, 4],
+];
+
+/** Je u čtverce se středem (x, z) soused ve směru `d` (o stranu dál)? */
+function hasNeighbour(
+  squares: readonly { x: number; z: number; size: number }[],
+  q: { x: number; z: number; size: number },
+  d: Direction,
+): boolean {
+  const nx = q.x + d.x * q.size;
+  const nz = q.z + d.z * q.size;
+  return squares.some((o) => Math.abs(o.x - nx) < 0.01 && Math.abs(o.z - nz) < 0.01);
+}
+
+/**
+ * Natočení přístřešku v prvním čtverci (oxen.md – Ohrady podle druhu): přední strana ke vsi
+ * a bok od směru ke vsi jako u jednoho čtverce (`front`, `side`); když by za přístřeškem nebo vedle
+ * něj byl další čtverec (přístřešek by stál uprostřed ohrady), zkusí další směry – nejblíž ke vsi
+ * první – tak, aby záda i bok přístřešku byly u vnějšího plotu.
+ */
+function shelterAxes(
+  squares: readonly { x: number; z: number; size: number }[],
+  f0: Direction,
+  front: Direction,
+  side: Direction,
+): { front: Direction; side: Direction } {
+  const first = squares[0]!;
+  if (squares.length === 1) return { front, side };
+  const ok = (f: Direction, s: Direction): boolean =>
+    !hasNeighbour(squares, first, { x: -f.x, z: -f.z }) && !hasNeighbour(squares, first, s);
+  if (ok(front, side)) return { front, side };
+  const axes: Direction[] = [
+    { x: 1, z: 0 },
+    { x: -1, z: 0 },
+    { x: 0, z: 1 },
+    { x: 0, z: -1 },
+  ];
+  const ranked = [...axes].sort((a, b) => b.x * f0.x + b.z * f0.z - (a.x * f0.x + a.z * f0.z));
+  for (const f of ranked) {
+    const left: Direction = { x: -f.z, z: f.x };
+    for (const s of [left, { x: -left.x, z: -left.z }]) {
+      if (ok(f, s)) return { front: f, side: s };
+    }
+  }
+  return { front, side };
+}
+
+/**
+ * Obrys plotu po čtvercích odsazený `inset` dovnitř (proti směru hodinových ručiček, ohrazení
+ * vlevo – jak chce woven-fence.ts): strany čtverců bez souseda spojené za sebou, rovné úseky
+ * sloučené, vrcholy posunuté dovnitř o `inset` od obou stran (vnější i vnitřní roh).
+ */
+function insetOutline(
+  squares: readonly { x: number; z: number; size: number }[],
+  inset: number,
+): Point[] {
+  const sides: [Point, Point][] = [];
+  const dirs: Direction[] = [
+    { x: 0, z: -1 },
+    { x: 1, z: 0 },
+    { x: 0, z: 1 },
+    { x: -1, z: 0 },
+  ];
+  for (const q of squares) {
+    const h = q.size / 2;
+    const c: Point[] = [
+      [q.x - h, q.z - h],
+      [q.x + h, q.z - h],
+      [q.x + h, q.z + h],
+      [q.x - h, q.z + h],
+    ];
+    dirs.forEach((d, k) => {
+      if (!hasNeighbour(squares, q, d)) sides.push([c[k]!, c[(k + 1) % 4]!]);
+    });
+  }
+  const same = (a: Point, b: Point): boolean =>
+    Math.abs(a[0] - b[0]) < 1e-3 && Math.abs(a[1] - b[1]) < 1e-3;
+  const loop: Point[] = [sides[0]![0]];
+  let current = sides[0]!;
+  const used = new Set<number>([0]);
+  while (loop.length <= sides.length) {
+    const end = current[1];
+    if (same(end, loop[0]!)) break;
+    loop.push(end);
+    const next = sides.findIndex((side, i) => !used.has(i) && same(side[0], end));
+    if (next < 0) break;
+    used.add(next);
+    current = sides[next]!;
+  }
+  // rovné úseky jedním kusem
+  const corners = loop.filter((p, i) => {
+    const a = loop[(i - 1 + loop.length) % loop.length]!;
+    const b = loop[(i + 1) % loop.length]!;
+    return Math.abs((p[0] - a[0]) * (b[1] - p[1]) - (p[1] - a[1]) * (b[0] - p[0])) > 1e-6;
+  });
+  return corners.map((p, i) => {
+    const a = corners[(i - 1 + corners.length) % corners.length]!;
+    const b = corners[(i + 1) % corners.length]!;
+    const d1 = unit({ x: p[0] - a[0], z: p[1] - a[1] });
+    const d2 = unit({ x: b[0] - p[0], z: b[1] - p[1] });
+    // dovnitř = vlevo od směru obou stran
+    return [p[0] + inset * (-d1.z - d2.z), p[1] + inset * (d1.x + d2.x)];
+  });
+}
+
+/**
+ * Vnitřek ohrady po čtvercích (rovný prostor): každý čtverec u vnějšího plotu po osu kůlů,
+ * k sousednímu čtverci až po společnou stranu, a přes každou společnou stranu „most“ od středu ke
+ * středu (u plotu po osu kůlů) – sjednocení je vnitřek bez švů a bez rohu, který k ohradě nepatří.
+ */
+function innerRects(
+  squares: readonly { x: number; z: number; size: number }[],
+  inset: number,
+): { minX: number; maxX: number; minZ: number; maxZ: number }[] {
+  const rects: { minX: number; maxX: number; minZ: number; maxZ: number }[] = [];
+  for (const q of squares) {
+    const h = q.size / 2;
+    const reach = (d: Direction): number => (hasNeighbour(squares, q, d) ? h : h - inset);
+    rects.push({
+      minX: q.x - reach({ x: -1, z: 0 }),
+      maxX: q.x + reach({ x: 1, z: 0 }),
+      minZ: q.z - reach({ x: 0, z: -1 }),
+      maxZ: q.z + reach({ x: 0, z: 1 }),
+    });
+    // most k sousedovi vpravo a nahoře (každá společná strana jednou)
+    if (hasNeighbour(squares, q, { x: 1, z: 0 })) {
+      rects.push({ minX: q.x, maxX: q.x + q.size, minZ: q.z - h + inset, maxZ: q.z + h - inset });
+    }
+    if (hasNeighbour(squares, q, { x: 0, z: 1 })) {
+      rects.push({ minX: q.x - h + inset, maxX: q.x + h - inset, minZ: q.z, maxZ: q.z + q.size });
+    }
+  }
+  return rects;
 }
 
 /**
@@ -383,16 +612,23 @@ const EXTRA_SPOTS: readonly (readonly [number, number])[] = [
 
 /**
  * Skutečná zvířata ohrady na její místa (oxen.md): nejdřív voli spřežení (u žlabu a jeslí), pak
- * telata ve výcviku (menší voli), pak krávy (v zimě) – kolik se jich vejde na místa ohrady.
+ * telata ve výcviku (menší voli), pak krávy (v zimě), ovce, kozy a prasata (na noc – oxen.md, Na
+ * noc v ohradě) – kolik se jich vejde na místa ohrady (ve všech jejích čtvercích).
  */
 export function penAnimalsFor(layout: Pick<PenLayout, 'spots'>, herd: PenHerd): PenAnimal[] {
+  const many = (n: number | undefined, kind: PenAnimalKind): { kind: PenAnimalKind }[] =>
+    Array.from({ length: Math.max(0, Math.floor(n ?? 0)) }, () => ({ kind }));
   const kinds: { kind: PenAnimalKind; scale?: number }[] = [
-    ...Array.from({ length: Math.max(0, herd.oxen) }, () => ({ kind: 'ox' as const })),
+    ...many(herd.oxen, 'ox'),
     ...Array.from({ length: Math.max(0, herd.trainees) }, () => ({
       kind: 'ox' as const,
       scale: TRAINEE_SCALE,
     })),
-    ...Array.from({ length: Math.max(0, herd.cows) }, () => ({ kind: 'cow' as const })),
+    ...many(herd.cows, 'cow'),
+    // na noc v ohradě svého druhu (oxen.md – Na noc v ohradě)
+    ...many(herd.sheep, 'sheep'),
+    ...many(herd.goats, 'goat'),
+    ...many(herd.pigs, 'pig'),
   ];
   return kinds.slice(0, layout.spots.length).map((animal, i) => ({
     ...layout.spots[i]!,
@@ -417,11 +653,12 @@ export function penPartPlace(layout: PenLayout, part: string): Position {
   return layout.shelter;
 }
 
-/** Bod uvnitř ohrady (s okrajem `margin` od os kůlů, m)? */
+/** Bod uvnitř ohrady (s okrajem `margin` od os kůlů, m)? Ohrada o víc čtvercích po čtvercích. */
 export function insidePen(layout: PenLayout, wx: number, wz: number, margin = 0): boolean {
-  const r = layout.fenceRect;
   const { x, z } = penToFlat(layout, wx, wz);
-  return x > r.minX + margin && x < r.maxX - margin && z > r.minZ + margin && z < r.maxZ - margin;
+  return layout.fenceRects.some(
+    (r) => x > r.minX + margin && x < r.maxX - margin && z > r.minZ + margin && z < r.maxZ - margin,
+  );
 }
 
 /**
@@ -429,16 +666,19 @@ export function insidePen(layout: PenLayout, wx: number, wz: number, margin = 0)
  * v brance a před přístřeškem; k plotu měkce ubývá (plot má zakulacené rohy).
  */
 export function penMudAt(layout: PenLayout, x: number, z: number): number {
-  const r = layout.fenceRect;
-  // vzdálenost od plotu v rovném prostoru (natočená ohrada), skvrny a místa ve světě
+  // vzdálenost od plotu v rovném prostoru (natočená ohrada), skvrny a místa ve světě; ohrada
+  // o víc čtvercích – nejhlouběji v některém z obdélníků vnitřku (přes vnitřní hrany bez švů)
   const flat = penToFlat(layout, x, z);
-  const edge = Math.min(flat.x - r.minX, r.maxX - flat.x, flat.z - r.minZ, r.maxZ - flat.z);
-  // zakulacené rohy: vzdálenost od oblouku rohu (uprostřed stran rozhoduje `edge`)
   const corner = WOVEN_CORNER_RADIUS_M;
-  const cx = Math.min(Math.max(flat.x, r.minX + corner), r.maxX - corner);
-  const cz = Math.min(Math.max(flat.z, r.minZ + corner), r.maxZ - corner);
-  const round = corner - Math.hypot(flat.x - cx, flat.z - cz);
-  const inside = Math.min(edge, round);
+  let inside = -Infinity;
+  for (const r of layout.fenceRects) {
+    const edge = Math.min(flat.x - r.minX, r.maxX - flat.x, flat.z - r.minZ, r.maxZ - flat.z);
+    // zakulacené rohy: vzdálenost od oblouku rohu (uprostřed stran rozhoduje `edge`)
+    const cx = Math.min(Math.max(flat.x, r.minX + corner), r.maxX - corner);
+    const cz = Math.min(Math.max(flat.z, r.minZ + corner), r.maxZ - corner);
+    const round = corner - Math.hypot(flat.x - cx, flat.z - cz);
+    inside = Math.max(inside, Math.min(edge, round));
+  }
   if (inside <= 0) return 0;
   const near = (p: { x: number; z: number }, radius: number): number =>
     1 - smoothstep(radius * 0.4, radius, Math.hypot(x - p.x, z - p.z));
@@ -477,7 +717,7 @@ export function penMudBounds(layout: PenLayout): {
   maxZ: number;
 } {
   if (layout.rotation === undefined) return { ...layout.fenceRect };
-  const corners = penStakingLine(layout).slice(0, 4);
+  const corners = penStakingLine(layout);
   return {
     minX: Math.min(...corners.map((p) => p[0])),
     maxX: Math.max(...corners.map((p) => p[0])),
@@ -487,18 +727,11 @@ export function penMudBounds(layout: PenLayout): {
 }
 
 /**
- * Vytyčení ohrady při zadání stavby: kolíky a provázek po obdélníku budoucího plotu (rohy
+ * Vytyčení ohrady při zadání stavby: kolíky a provázek po obrysu budoucího plotu (rohy
  * vytyčení zakulacené být nemusí; natočená ohrada natočeně). Uzavřená čára (první bod i na konci).
  */
 export function penStakingLine(layout: PenLayout): Point[] {
-  const r = layout.fenceRect;
-  const corners: Point[] = [
-    [r.minX, r.minZ],
-    [r.maxX, r.minZ],
-    [r.maxX, r.maxZ],
-    [r.minX, r.maxZ],
-    [r.minX, r.minZ],
-  ];
+  const corners: Point[] = [...layout.outline, layout.outline[0]!];
   if (layout.rotation === undefined) return corners;
   return corners.map(([x, z]): Point => {
     const p = penToWorld(layout, x, z);

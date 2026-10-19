@@ -247,10 +247,30 @@ describe('vstup server actions s natočením', () => {
       cells: [{ x: 1, y: 1 }],
       grid,
     });
+    // ohrada nese druh (oxen.md – Ohrady podle druhu); bez druhu skot jako dřívější ohrada
     expect(parsePlacePenInput({ cells: [{ x: 0, y: 0 }], grid })).toEqual({
       cells: [{ x: 0, y: 0 }],
+      species: 'cattle',
       grid,
     });
+    expect(
+      parsePlacePenInput({
+        cells: [
+          { x: 0, y: 0 },
+          { x: 1, y: 0 },
+        ],
+        species: 'sheep',
+        grid,
+      }),
+    ).toEqual({
+      cells: [
+        { x: 0, y: 0 },
+        { x: 1, y: 0 },
+      ],
+      species: 'sheep',
+      grid,
+    });
+    expect(parsePlacePenInput({ cells: [{ x: 0, y: 0 }], species: 'horse' })).toBeNull();
     expect(parsePlacePenInput({ cells: [], grid })).toBeNull();
     expect(parsePlaceFieldInput({ cells: [{ x: 1, y: 1 }] })).toEqual({ cells: [{ x: 1, y: 1 }] });
   });
@@ -380,13 +400,20 @@ describe('natočená ohrada ve scéně', () => {
 
   it('ohrada bez natočení se rozmístí jako dřív', () => {
     const square = { x: 40, z: -12, size: 15 };
-    const { square: _zero, ...zero } = penLayout(
-      { ...square, rotation: 0 },
-      penFacing(square, toward),
-    );
-    const { square: _none, ...none } = penLayout(square, penFacing(square, toward));
+    const {
+      square: _zero,
+      squares: _zeros,
+      ...zero
+    } = penLayout({ ...square, rotation: 0 }, penFacing(square, toward));
+    const {
+      square: _none,
+      squares: _nones,
+      ...none
+    } = penLayout(square, penFacing(square, toward));
     void _zero;
     void _none;
+    void _zeros;
+    void _nones;
     expect(zero).toEqual(none);
     expect(penLayout(square, penFacing(square, toward)).rotation).toBeUndefined();
   });

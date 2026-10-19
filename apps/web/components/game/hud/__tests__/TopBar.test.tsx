@@ -103,6 +103,11 @@ describe('luštěniny v liště', () => {
 describe('showsHay', () => {
   const pen = (built: boolean): VillageView['pens'][number] => ({
     id: 1,
+    species: 'cattle',
+    squares: 1,
+    places: 45,
+    animals: 0,
+    extension: null,
     built,
     progress: built ? 1 : 0.3,
     team: null,

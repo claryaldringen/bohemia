@@ -41,6 +41,7 @@ import {
   type VillageRecord,
   type VillageRepository,
   type VillageResult,
+  type PenSpecies,
 } from '@bohemia/game';
 import { getDatabase } from './db';
 import {
@@ -413,17 +414,15 @@ export function renameVillageForPlayer(
   );
 }
 
-/** Ohrada je jeden čtverec (oxen.md). */
-export const PEN_ONE_SQUARE = 'Ohrada je jeden čtverec.';
-
-/** Stavba ohrady s přístřeškem (oxen.md) – jeden čtverec louky, i natočený (`grid`). */
+/**
+ * Stavba ohrady s přístřeškem, nebo její rozšíření (oxen.md – Ohrady podle druhu): druh zvířat
+ * a čtverce (nejvýš 4), i natočené (`grid`).
+ */
 export function placePenForPlayer(
   playerId: string,
   villageId: string,
-  input: { cells: TileCell[]; grid?: SquareGrid },
+  input: { cells: TileCell[]; species: PenSpecies; grid?: SquareGrid },
 ): Promise<VillageActionResult> {
-  const [cell, ...rest] = input.cells;
-  if (!cell || rest.length > 0) return Promise.resolve({ error: PEN_ONE_SQUARE });
   const grid = input.grid;
   return actOn(playerId, villageId, (ctx) =>
     placePen(
@@ -432,7 +431,8 @@ export function placePenForPlayer(
         villageId: ctx.villageId,
         landscape: ctx.landscape,
         today: ctx.day,
-        cell,
+        species: input.species,
+        cells: input.cells,
         ...(grid ? { grid } : {}),
       },
     ),

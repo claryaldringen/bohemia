@@ -7,11 +7,20 @@ import {
   sacredBuildLabor,
   orchardPartsFromCells,
   packObstacles,
+  penSquaresFromCells,
   type Landscape,
   type ObstaclePlacement,
   type PlacementVillage,
 } from '@bohemia/game';
-import { BUILD_ITEMS, buildItem, buildItemForKey, dwellingPlacementCost } from '../build-items';
+import {
+  BUILD_ITEMS,
+  PEN_VARIANTS,
+  buildItem,
+  buildItemForKey,
+  dwellingPlacementCost,
+  penVariantSpecies,
+} from '../build-items';
+import { cycleIndex } from '../scene/field-cells';
 
 const key = (
   code: string,
@@ -259,5 +268,85 @@ describe('modla a svatyně', () => {
       sacredBuildings: [{ kind: 'shrine', position: { x: -100, z: -100, rotation: 0 } }],
     };
     expect(item.check(landscape, withShrine, { x: 60, z: 60, rotation: 0 }).ok).toBe(false);
+  });
+});
+
+describe('ohrada podle druhu (oxen.md – Ohrady podle druhu)', () => {
+  const SIZE = 32;
+  const landscape: Landscape = {
+    size: SIZE,
+    cellSizeM: 15,
+    heights: new Float32Array(SIZE * SIZE),
+    surface: new Uint8Array(SIZE * SIZE).fill(2),
+    fertility: new Uint8Array(SIZE * SIZE).fill(50),
+    villageSite: { x: 16, y: 16 },
+    stream: [],
+    obstacleLayer: null,
+  };
+  const village: PlacementVillage = {
+    dwellings: [{ type: 'zemnice', position: { x: 0, z: 0, rotation: 0 } }],
+    constructions: [],
+    parts: [],
+  };
+  const item = buildItem('pen');
+  if (item.placement !== 'squares') throw new Error('Ohrada se maluje po čtvercích.');
+
+  it('Tab přepíná druh: ovce → kozy → prasata → skot → spřežení a dokola, Shift + Tab zpět', () => {
+    expect(PEN_VARIANTS.map((v) => v.id)).toEqual(['sheep', 'goat', 'pig', 'cattle', 'team']);
+    expect(item.variants).toBe(PEN_VARIANTS);
+    let i = 0;
+    const seen: string[] = [];
+    for (let k = 0; k < 6; k++) {
+      seen.push(PEN_VARIANTS[i]!.id);
+      i = cycleIndex(i, PEN_VARIANTS.length, 1);
+    }
+    expect(seen).toEqual(['sheep', 'goat', 'pig', 'cattle', 'team', 'sheep']);
+    expect(PEN_VARIANTS[cycleIndex(0, PEN_VARIANTS.length, -1)]!.id).toBe('team');
+    // ikony zvířat – i u kurzoru
+    expect(PEN_VARIANTS.map((v) => v.icon)).toEqual(['sheep', 'goat', 'pig', 'cow', 'ox']);
+    expect(penVariantSpecies(undefined)).toBe('sheep');
+    expect(penVariantSpecies('team')).toBe('team');
+  });
+
+  it('maluje se po čtvercích jako hřbitov – nejvýš 4, cena roste s čtverci', () => {
+    const one = item.check(landscape, village, [{ x: 20, y: 20 }], undefined, 'pig');
+    const two = item.check(
+      landscape,
+      village,
+      [
+        { x: 20, y: 20 },
+        { x: 21, y: 20 },
+      ],
+      undefined,
+      'pig',
+    );
+    expect(one.check.ok).toBe(true);
+    expect(two.check.ok).toBe(true);
+    expect(two.cost!.laborManDays).toBeCloseTo(2 * one.cost!.laborManDays, 6);
+    const five = item.check(
+      landscape,
+      village,
+      [20, 21, 22, 23, 24].map((x) => ({ x, y: 20 })),
+      undefined,
+      'pig',
+    );
+    expect(five.check.ok).toBe(false);
+    expect(five.check.reason).toMatch(/nejvýš 4 čtverce/);
+  });
+
+  it('nad ohradou téhož druhu ji rozšíří, jiný druh je nová ohrada vedle', () => {
+    const withPen: PlacementVillage = {
+      ...village,
+      pens: [{ id: 7, species: 'sheep', cell: { x: 20, y: 20 } }],
+    };
+    const sheep = penSquaresFromCells(landscape, withPen, [{ x: 21, y: 20 }], 'sheep');
+    expect(sheep.extendsPen).toBe(7);
+    const goats = penSquaresFromCells(landscape, withPen, [{ x: 21, y: 20 }], 'goat');
+    expect(goats.check.ok).toBe(true);
+    expect(goats.extendsPen).toBeNull();
+    // přes ohradu ne
+    expect(item.check(landscape, withPen, [{ x: 20, y: 20 }], undefined, 'sheep').check.ok).toBe(
+      false,
+    );
   });
 });

@@ -169,6 +169,11 @@ const dwelling = (
 const pen = (over: Partial<Extract<SelectionDetails, { kind: 'pen' }>> = {}): SelectionDetails => ({
   kind: 'pen',
   id: 90,
+  species: 'team',
+  squares: 1,
+  places: 0,
+  animals: 4,
+  extension: null,
   built: true,
   progress: 1,
   oxen: 4,

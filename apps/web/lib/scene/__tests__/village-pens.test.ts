@@ -104,3 +104,40 @@ describe('ohrady ve vsi', () => {
     expect([...penHerds(two).keys()]).toEqual([12, 7, 3]);
   });
 });
+
+describe('ohrada o víc čtvercích (oxen.md – Ohrady podle druhu)', () => {
+  const pen = {
+    id: 11,
+    species: 'sheep' as const,
+    cell: { x: 0, y: 6 },
+    x: 7.5,
+    z: 97.5,
+    size: CELL,
+    built: true,
+    progress: 1,
+    oxen: 0,
+    trainees: 0,
+    cows: 0,
+    extraSquares: [
+      { cell: { x: 1, y: 6 }, x: 22.5, z: 97.5 },
+      { cell: { x: 0, y: 7 }, x: 7.5, z: 112.5, pending: true as const },
+    ],
+  };
+
+  it('plot kolem hotových čtverců, rozšíření ve stavbě jen vytyčené; branka k obydlí', () => {
+    const [view] = scenePenViews({ ...village, pens: [pen] });
+    expect(view!.extra).toEqual([{ x: 22.5, z: 97.5 }]);
+    expect(view!.pending?.map((q) => q.cell)).toEqual([{ x: 0, y: 7 }]);
+    // nejbližší obydlí (0, 0) leží pod ohradou – branka míří dolů
+    expect(view!.facing.z).toBeLessThan(0);
+  });
+
+  it('rozestavěná ohrada se vytyčí kolem všech čtverců', () => {
+    const [view] = scenePenViews({
+      ...village,
+      pens: [{ ...pen, built: false, progress: 0.3 }],
+    });
+    expect(view!.extra).toHaveLength(2);
+    expect(view!.pending).toBeUndefined();
+  });
+});

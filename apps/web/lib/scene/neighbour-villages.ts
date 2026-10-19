@@ -1,6 +1,6 @@
 import type { DwellingPlot, ForeignStructures, SquareGrid, TileCell } from '@bohemia/game';
 import type { SceneNeighbour } from '../departure-view';
-import type { ScenePlot, SceneVillage } from '../village-view';
+import { scenePenSquares, type ScenePlot, type SceneVillage } from '../village-view';
 import type { VillageTarget } from './village-picking';
 
 // Stavby jiných vsí na téže mapě ve scéně (migration.md – Vsi na téže mapě): jen pohled – kreslí
@@ -125,7 +125,7 @@ export function foreignFromScene(scene: SceneVillage): ForeignStructures | undef
     for (const f of n.fields) for (const p of f.parts) add(p.cell, f.grid);
     for (const c of n.cemeteries ?? []) for (const s of c.squares) add(s.cell, c.grid);
     for (const o of n.orchards ?? []) for (const s of o.squares) add(s.cell, o.grid);
-    for (const p of n.pens ?? []) add(p.cell, p.grid);
+    for (const p of n.pens ?? []) for (const q of scenePenSquares(p)) add(q.cell, p.grid);
     for (const b of n.sacredBuildings ?? []) {
       sacredBuildings.push({ kind: b.kind, position: b.position });
     }
@@ -147,7 +147,8 @@ export function scenePoints(scene: SceneVillage): Point[] {
     for (const f of s.fields) for (const p of f.parts) points.push({ x: p.x, z: p.z });
     for (const c of s.cemeteries ?? []) for (const q of c.squares) points.push({ x: q.x, z: q.z });
     for (const o of s.orchards ?? []) for (const q of o.squares) points.push({ x: q.x, z: q.z });
-    for (const p of s.pens ?? []) points.push({ x: p.x, z: p.z });
+    for (const p of s.pens ?? [])
+      for (const q of scenePenSquares(p)) points.push({ x: q.x, z: q.z });
     for (const b of s.sacredBuildings ?? []) points.push({ x: b.position.x, z: b.position.z });
   };
   add({ ...scene, sacredBuildings: scene.sacred?.buildings ?? [] });

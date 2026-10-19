@@ -4,7 +4,7 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
 import { DWELLING_FOOTPRINT_M, SACRED_BUILDINGS, roadChain } from '@bohemia/game';
-import type { SceneVillage } from '../village-view';
+import { scenePenSquares, type SceneVillage } from '../village-view';
 import { cellsBoundary, type CellSquare } from './field-cells';
 import { footprintCorners, stripSegments, type Point } from './village-layout';
 import { createDecalMaterial, createStripMesh, type HeightFn } from './village-meshes';
@@ -166,7 +166,7 @@ export function targetOutline(village: SceneVillage, target: VillageTarget): Poi
   }
   if (target.kind === 'pen') {
     const pen = village.pens?.find((p) => p.id === target.id);
-    return pen ? cellsBoundary([pen]) : [];
+    return pen ? cellsBoundary(scenePenSquares(pen)) : [];
   }
   if (target.kind === 'road') {
     // celá cesta hráče (roads.md – Cesta pro hráče): čáry po obou stranách pásu přes všechny

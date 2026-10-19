@@ -159,6 +159,7 @@ const SIDES = [
  */
 function outlineRuns(
   squares: readonly { cell: TileCell; x: number; z: number; size: number }[],
+  inset = 0,
 ): FenceRun[] {
   const present = new Set(squares.map((q) => cellKey(q.cell.x, q.cell.y)));
   const has = (x: number, y: number): boolean => present.has(cellKey(x, y));
@@ -213,12 +214,16 @@ function outlineRuns(
     }
     const ta = tangent(first.i, first.j);
     const tb = tangent(i, j);
+    // plot odsazený `inset` dovnitř (ohrada – FENCE_INSET_M): u vnějšího rohu úsek začíná
+    // a končí o kus dál, u vnitřního o kus dřív
+    const sa = around(first.i, first.j) === 3 ? -inset : inset;
+    const sb = around(i, j) === 3 ? -inset : inset;
     runs.push({
-      x: first.x + s.dir[0] * ta,
-      z: first.z + s.dir[1] * ta,
+      x: first.x + s.dir[0] * (ta + sa) - s.dir[1] * inset,
+      z: first.z + s.dir[1] * (ta + sa) + s.dir[0] * inset,
       dx: s.dir[0],
       dz: s.dir[1],
-      length: length - ta - tb,
+      length: length - ta - tb - sa - sb,
       // ohrazení vlevo – ven vpravo (0 − x: žádná záporná nula)
       outX: s.dir[1],
       outZ: 0 - s.dir[0],
@@ -304,6 +309,50 @@ export function penEntrance(
   const toward: [number, number] = [square.x + ux * (half + 1), square.z + uz * (half + 1)];
   const gate = gateOnRuns(runs, toward, PEN_GATE)!;
   return toEntrance(frame, gate);
+}
+
+/**
+ * Branka ohrady o víc čtvercích (oxen.md – Ohrady podle druhu): pletený plot po obrysu čtverců
+ * odsazený FENCE_INSET_M dovnitř (zakulacené rohy), branka na rovném úseku nejblíž k bodu
+ * `toward` (nejbližší obydlí). Natočená ohrada v osách své mřížky (kolem středu prvního čtverce).
+ * Ohrada o jednom čtverci jako `penEntrance` (branka posunutá po straně ke vsi).
+ */
+export function penSquaresEntrance(
+  squares: readonly EntranceSquare[],
+  toward: { x: number; z: number },
+): Entrance {
+  const first = squares[0]!;
+  if (squares.length === 1) {
+    return penEntrance(first, { x: toward.x - first.x, z: toward.z - first.z });
+  }
+  const frame = frameOf(first.x, first.z, first.rotation);
+  const flat = squares.map((q) => {
+    const [x, z] = frame.toFlat(q.x, q.z);
+    return { cell: q.cell, x, z, size: q.size };
+  });
+  const gate = gateOnRuns(
+    outlineRuns(flat, FENCE_INSET_M),
+    frame.toFlat(toward.x, toward.z),
+    PEN_GATE,
+  );
+  return gate
+    ? toEntrance(frame, gate)
+    : penEntrance(first, { x: toward.x - first.x, z: toward.z - first.z });
+}
+
+/**
+ * Cíl branky ohrady o víc čtvercích: nejbližší obydlí (i rozestavěné) ke středu čtverců – bez
+ * obydlí bod pod středem (−z).
+ */
+export function penGateToward(
+  squares: readonly { x: number; z: number }[],
+  dwellings: readonly { position: { x: number; z: number } }[],
+): { x: number; z: number } {
+  const n = Math.max(1, squares.length);
+  const cx = squares.reduce((sum, q) => sum + q.x, 0) / n;
+  const cz = squares.reduce((sum, q) => sum + q.z, 0) / n;
+  const facing = penEntranceFacing({ x: cx, z: cz }, dwellings);
+  return { x: cx + facing.x, z: cz + facing.z };
 }
 
 /** Směr ve světě → rovný prostor natočené stavby. */

@@ -17,7 +17,7 @@ import {
   sacredFootprint,
   type Point,
 } from '@bohemia/game';
-import type { SceneVillage } from '../village-view';
+import { scenePenSquares, type SceneVillage } from '../village-view';
 
 type SceneDwelling = SceneVillage['dwellings'][number];
 
@@ -108,7 +108,7 @@ export function fieldClearings(
   const squares = [
     ...(village.orchards ?? []).flatMap((o) => partly(o.squares)),
     ...(village.cemeteries ?? []).flatMap((c) => partly(c.squares)),
-    ...(village.pens ?? []).flatMap((p) => partly([p])),
+    ...(village.pens ?? []).flatMap((p) => partly(scenePenSquares(p))),
     ...(turnedFields
       ? village.dwellings.flatMap((d) => (d.plot && !turned(d.plot.rotation) ? [d.plot] : []))
       : []),

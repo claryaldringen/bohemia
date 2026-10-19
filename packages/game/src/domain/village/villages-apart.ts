@@ -1,3 +1,4 @@
+import { penSquares } from './pens';
 import { obstaclesOf, tileCenterWorld, type Landscape, type ObstacleLayer } from '../landscape';
 import { checkDwellingPlacement } from './placement';
 import { NEW_VILLAGE_MIN_DISTANCE_M } from './rules';
@@ -38,7 +39,8 @@ export function villagePoints(
   for (const o of state.orchards ?? []) {
     for (const s of o.squares) points.push(cellCenter(s.cell.x, s.cell.y, o.grid));
   }
-  for (const pen of state.pens ?? []) points.push({ x: pen.x, z: pen.z });
+  for (const pen of state.pens ?? [])
+    for (const q of penSquares(pen)) points.push({ x: q.x, z: q.z });
   return points;
 }
 

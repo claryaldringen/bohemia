@@ -260,7 +260,9 @@ function naturalMeadowHa(state: VillageState): number {
     used += cemetery.squares.length * cemetery.squareSizeM * cemetery.squareSizeM;
   }
   used += state.dwellings.filter((d) => d.plot).length * CELL_M2;
-  used += (state.pens ?? []).length * CELL_M2;
+  // ohrada zabírá všechny své čtverce (oxen.md – Ohrady podle druhu)
+  used +=
+    (state.pens ?? []).reduce((sum, p) => sum + 1 + (p.extraSquares?.length ?? 0), 0) * CELL_M2;
   return Math.max(0, livestockLand(state).meadowHa - used / M2_PER_HA);
 }
 
@@ -459,6 +461,24 @@ export interface WinterInput {
   minSheep?: number;
   /** Cena jídla v práci (`foodCosts` – Rovnovážné hospodaření); bez údaje typická. */
   costs?: FoodCosts;
+  /**
+   * Místa na noc po druzích – ohrady svého druhu a pár kusů u domů (`herdRoom` v pens.ts – oxen.md,
+   * Ohrady podle druhu; diet.md, Bez ohrady u domu); bez údaje neomezeně. Místa jsou pro dospělé
+   * i jarní mláďata – přes zimu jich zůstane nejvýš `room ÷ (1 + růst)` (`roomForWinter`).
+   */
+  room?: Record<HerdSpecies, number>;
+}
+
+/**
+ * Kolik kusů druhu smí přes zimu zůstat, aby se do míst na noc (`room`) vešli i s jarními
+ * mláďaty (oxen.md – Kapacita ohrady); bez údaje neomezeně.
+ */
+export function roomForWinter(
+  room: Record<HerdSpecies, number> | undefined,
+  species: HerdSpecies,
+): number {
+  if (!room) return Infinity;
+  return Math.max(0, room[species]) / (1 + LIVESTOCK.growth[species]);
 }
 
 /**
@@ -515,7 +535,9 @@ function watchedShares(
  * dělí podle přednosti (`GRAZING_ORDER` – voli první, pak ovce na vlnu, krávy na mléko a voly,
  * další ovce, kozy – ty spásají napřed křoviny –, zbytek krav); prasata podle lesa (pasou se v něm
  * celý rok – žaludy, bukvice, kořínky); a jen tolik, kolik pasáci uhlídali (`herding` – co nikdo
- * neuhlídal, jde na maso) – pasáci hlídají napřed ovce na vlnu (`watchedShares`).
+ * neuhlídal, jde na maso) – pasáci hlídají napřed ovce na vlnu (`watchedShares`). Nejvýš tolik,
+ * kolik se i s jarními mláďaty vejde do ohrad svého druhu a u domů (`room` – oxen.md, Ohrady podle
+ * druhu; co se nevejde, jde na maso).
  */
 export function winterTargets(
   state: VillageState,
@@ -563,7 +585,10 @@ export function winterTargets(
     else take(step, Infinity);
   }
   targets.pig = Math.min(herds.pig * watched.rest, pigForestHa(state) / LIVESTOCK.forestHaPerPig);
-  return herdRecord((s) => Math.max(breeding(s), targets[s]));
+  // ohrady svého druhu a pár kusů u domů (oxen.md – Ohrady podle druhu) – chovný pár zůstane vždy
+  return herdRecord((s) =>
+    Math.max(breeding(s), Math.min(targets[s], roomForWinter(input.room, s))),
+  );
 }
 
 /**
@@ -699,8 +724,9 @@ function waitingHayKg(wait: Readonly<Record<HerdSpecies, number>>, perDayKg: num
  * sní čerstvého (`freshMeatPerDayKg` po dny zimního krmení), napřed kusy, které žerou nejméně sena
  * na kg masa (WAIT_ORDER); prasata jen do nosnosti lesa vedle stáda přes zimu; přežvýkavci jen
  * tolik, kolik po stádu přes zimu a volech uživí seno (`hayKg` – zásoba k 1. 11.; bez omezení
- * Infinity) – co seno neuživí, ubere od posledních na řadě (krávy, ovce, kozy). Ostatní kusy na
- * maso se porazí hned a maso se udí.
+ * Infinity) – co seno neuživí, ubere od posledních na řadě (krávy, ovce, kozy); a jen do míst na
+ * noc, která po stádu přes zimu zbudou (`room` – oxen.md, Ohrady podle druhu: na noc jsou všechna
+ * zvířata v ohradě; bez údaje neomezeně). Ostatní kusy na maso se porazí hned a maso se udí.
  */
 export function winterWait(
   state: VillageState,
@@ -709,6 +735,7 @@ export function winterWait(
   killed: Readonly<Record<HerdSpecies, number>>,
   hayKg: number,
   oxen: number,
+  room?: Readonly<Record<HerdSpecies, number>>,
 ): Record<HerdSpecies, number> {
   const perDayKg = freshMeatPerDayKg(state, day);
   let freshKg = perDayKg * HAY_WINTER_DAYS;
@@ -717,6 +744,7 @@ export function winterWait(
   for (const species of WAIT_ORDER) {
     let heads = Math.min(Math.max(0, killed[species]), freshKg / LIVESTOCK.meatKg[species]);
     if (species === 'pig') heads = Math.min(heads, Math.max(0, forestRoom));
+    if (room) heads = Math.min(heads, Math.max(0, room[species] - keep[species]));
     wait[species] = Math.max(0, heads);
     freshKg -= wait[species] * LIVESTOCK.meatKg[species];
   }
@@ -749,10 +777,11 @@ export function winterWaitHayKg(
   day: number,
   keep: Readonly<Record<HerdSpecies, number>>,
   oxen: number,
+  room?: Readonly<Record<HerdSpecies, number>>,
 ): number {
   const herds = villageHerds(state);
   const killed = herdRecord((s) => Math.max(0, herds[s] - keep[s]));
-  const wait = winterWait(state, day, keep, killed, Infinity, oxen);
+  const wait = winterWait(state, day, keep, killed, Infinity, oxen, room);
   return waitingHayKg(wait, freshMeatPerDayKg(state, day));
 }
 
@@ -1263,7 +1292,7 @@ export function slaughter(
   }
   // kusy na maso: kolik ves přes zimu sní čerstvého, počká na porážku – zbytek hned do uzení
   const killed = herdRecord((s) => Math.max(0, herds[s] - keep[s]));
-  const wait = winterWait(state, day, keep, killed, input.hayKg, input.oxen);
+  const wait = winterWait(state, day, keep, killed, input.hayKg, input.oxen, input.room);
   const animals: Partial<Record<HerdSpecies, number>> = {};
   let smoked = 0;
   let fresh = 0;

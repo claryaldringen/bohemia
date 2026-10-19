@@ -54,7 +54,12 @@ export interface SquaresVillage {
     readonly grid?: SquareGrid;
     readonly squares: readonly { readonly cell: TileCell }[];
   }[];
-  readonly pens?: readonly { readonly cell: TileCell; readonly grid?: SquareGrid }[];
+  readonly pens?: readonly {
+    readonly cell: TileCell;
+    readonly grid?: SquareGrid;
+    /** Další čtverce ohrady (oxen.md – Ohrady podle druhu). */
+    readonly extraSquares?: readonly { readonly cell: TileCell }[];
+  }[];
   readonly woods?: readonly { readonly cell: TileCell; readonly grid?: SquareGrid }[];
 }
 
@@ -138,6 +143,7 @@ export function villageLandSquares(
   if (want.has('pen')) {
     (village.pens ?? []).forEach((p, index) => {
       out.push(landSquare(geo, 'pen', index, p.grid, p.cell));
+      for (const q of p.extraSquares ?? []) out.push(landSquare(geo, 'pen', index, p.grid, q.cell));
     });
   }
   if (want.has('wood')) {

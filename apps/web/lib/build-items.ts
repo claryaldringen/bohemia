@@ -3,7 +3,6 @@ import {
   PLOT_TYPES,
   cemeteryPartsFromCells,
   checkDwellingPlacement,
-  checkPenPlacement,
   checkPlotPlacement,
   checkSacredBuildingPlacement,
   checkWorkshopPlacement,
@@ -15,6 +14,7 @@ import {
   obstaclesOf,
   orchardPartsFromCells,
   penLaborManDays,
+  penSquaresFromCells,
   planDwellingWoodFrom,
   planSacredWood,
   planWoodFrom,
@@ -30,6 +30,8 @@ import {
   type DwellingType,
   type Landscape,
   type ObstacleLayer,
+  type PenSpecies,
+  type PenSquaresCheck,
   type PlacementCheck,
   type PlacementVillage,
   type Position,
@@ -39,7 +41,7 @@ import {
   type TileCell,
   type Walk,
 } from '@bohemia/game';
-import type { PlacementCost } from './scene/village-types';
+import type { PlacementCost, SquaresVariant } from './scene/village-types';
 
 // Katalog staveb pro mřížku staveb (jako v 0 A.D.): název, ikona, klávesová zkratka, způsob
 // umístění a kontrola, jestli stavba smí kam. Čistý modul (kontroly z herního jádra běží
@@ -115,11 +117,17 @@ export type BuildItem =
        * a ohrada leží v mřížce krajiny.
        */
       rotatable?: boolean;
+      /**
+       * Druhy stavby, které při umisťování přepíná Tab (ohrada – druh zvířat, oxen.md); `check`
+       * pak dostane id druhu (`variant`).
+       */
+      variants?: readonly SquaresVariant[];
       check(
         landscape: Landscape,
         village: PlacementVillage,
         cells: TileCell[],
         grid?: SquareGrid,
+        variant?: string,
       ): SquaresCheck;
     })
   | (BuildItemBase & {
@@ -343,6 +351,37 @@ const sacred = (
   },
 });
 
+/**
+ * Druhy ohrady v pořadí, jak je přepíná Tab (oxen.md – Ohrady podle druhu): ovce, kozy, prasata,
+ * skot, spřežení – ikony zvířat (`public/icons/resources/`).
+ */
+export const PEN_VARIANTS: readonly (SquaresVariant & { id: PenSpecies })[] = [
+  { id: 'sheep', icon: 'sheep', name: 'Ovce' },
+  { id: 'goat', icon: 'goat', name: 'Kozy' },
+  { id: 'pig', icon: 'pig', name: 'Prasata' },
+  { id: 'cattle', icon: 'cow', name: 'Skot' },
+  { id: 'team', icon: 'ox', name: 'Spřežení' },
+];
+
+/** Název ohrady podle druhu – portrét panelu (oxen.md – Ohrady podle druhu). */
+export const PEN_NAMES: Record<PenSpecies, string> = {
+  sheep: 'Ohrada ovcí',
+  goat: 'Ohrada koz',
+  pig: 'Ohrada prasat',
+  cattle: 'Ohrada skotu',
+  team: 'Ohrada spřežení',
+};
+
+/** Ikona a název zvířat ohrady podle druhu (ikony `public/icons/resources/`). */
+export function penVariant(species: PenSpecies): SquaresVariant {
+  return PEN_VARIANTS.find((v) => v.id === species) ?? PEN_VARIANTS[0]!;
+}
+
+/** Druh ohrady z id druhu stavby (bez údaje nebo neznámý první – ovce). */
+export function penVariantSpecies(variant: string | undefined): PenSpecies {
+  return PEN_VARIANTS.find((v) => v.id === variant)?.id ?? PEN_VARIANTS[0]!.id;
+}
+
 export const BUILD_ITEMS: readonly BuildItem[] = [
   dwelling('zemnice', 'Zemnice', 'Z'),
   dwelling('polozemnice', 'Polozemnice', 'X'),
@@ -437,64 +476,60 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
   // wagons.md – tesař: vozy, dřevěné nářadí a pomoc stavbám
   workshop('carpenter', 'Tesař', 'tesar', 'T'),
   {
-    // oxen.md – ohrada s přístřeškem: jeden čtverec louky, staví se jako pole po čtvercích
+    // oxen.md – Ohrady podle druhu: čtverce jako hřbitov (nejvýš 4), druh zvířat přepíná Tab
     kind: 'pen',
     name: 'Ohrada',
     icon: 'ohrada',
     hotkey: 'KeyO',
     hotkeyLabel: 'O',
     placement: 'squares',
-    // natočená ohrada (fields.md – Natočené stavby): jeden čtverec natočené mřížky
+    // natočená ohrada (fields.md – Natočené stavby): čtverce natočené mřížky
     rotatable: true,
-    check: (landscape, village, cells, grid) => {
-      const [cell, ...rest] = cells;
-      if (!cell) return { check: { ok: false, reason: null }, blockedCells: [], cost: null };
-      if (rest.length > 0) {
-        return {
-          check: { ok: false, reason: 'Ohrada je jeden čtverec.' },
-          blockedCells: rest,
-          cost: null,
-        };
-      }
-      const check = checkPenPlacement(landscape, village, cell, undefined, grid);
+    variants: PEN_VARIANTS,
+    check: (landscape, village, cells, grid, variant) => {
+      const species = penVariantSpecies(variant);
+      const result = penSquaresFromCells(landscape, village, cells, species, undefined, grid);
       return {
-        check,
-        blockedCells: check.ok ? [] : [cell],
-        // čtverec pole pod ohradou oranžově (fields.md – Pole jako krajina) – jen ve stejné mřížce
-        warningCells: check.takenLand.filter((t) => sameGrid(t.grid, grid)).map((t) => t.cell),
-        cost: check.ok ? penPlacementCost(village, check) : null,
+        check: result.check,
+        blockedCells: result.blockedCells,
+        // čtverce pole pod ohradou oranžově (fields.md – Pole jako krajina) – jen ve stejné mřížce
+        warningCells: result.takenLand
+          .filter((t) => sameGrid(t.grid, result.grid))
+          .map((t) => t.cell),
+        cost: result.check.ok ? penPlacementCost(village, result) : null,
       };
     },
   },
 ];
 
 /**
- * Cena ohrady u kurzoru: práce jako při zahájení stavby (`penLaborManDays` – stavba, překážky
- * a kácení) – dřevo z klád na hromadě nezná (VillageView je ukazuje jen v kusech), proto počítá,
- * jako by se kácelo u ohrady všech 6 stromů bez klád; stromy ke kácení ukáže 0 (cena dřeva je
- * v nabídce staveb).
+ * Cena ohrady u kurzoru: práce jako při zahájení stavby (`penLaborManDays` – stavba po čtvercích,
+ * překážky a kácení) – dřevo z klád na hromadě nezná (VillageView je ukazuje jen v kusech), proto
+ * počítá, jako by se kácelo u ohrady všech 6 stromů na čtverec bez klád; stromy ke kácení ukáže 0
+ * (cena dřeva je v nabídce staveb).
  */
 function penPlacementCost(
   village: PlacementVillage,
-  check: {
-    obstacleCost: number;
-    obstacleIds: number[];
-    clearedTrees: number;
-    x: number;
-    z: number;
-  },
+  check: Pick<PenSquaresCheck, 'squares' | 'obstacleCost'>,
 ): PlacementCost {
+  const n = Math.max(1, check.squares.length);
   const plan = planWoodFrom(
-    PEN.trees,
-    { x: check.x, z: check.z },
+    PEN.trees * n,
+    {
+      x: check.squares.reduce((sum, q) => sum + q.x, 0) / n,
+      z: check.squares.reduce((sum, q) => sum + q.z, 0) / n,
+    },
     {
       logs: 0,
       changes: () => village.obstacleChanges ?? NO_OBSTACLE_CHANGES,
       claimed: () => new Set(village.reservedTrees ?? []),
     },
-    { clearedIds: check.obstacleIds, clearedTrees: check.clearedTrees },
+    {
+      clearedIds: check.squares.flatMap((q) => q.obstacleIds),
+      clearedTrees: check.squares.reduce((sum, q) => sum + q.clearedTrees, 0),
+    },
   );
-  return { laborManDays: penLaborManDays(check.obstacleCost, plan), trees: 0 };
+  return { laborManDays: penLaborManDays(check.obstacleCost, plan, n), trees: 0 };
 }
 
 /** Stavba podle druhu. */

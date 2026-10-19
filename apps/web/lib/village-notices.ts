@@ -1,4 +1,4 @@
-import type { AbandonedStructure, HungerLevel, NewcomerGroup } from '@bohemia/game';
+import type { AbandonedStructure, HerdSpecies, HungerLevel, NewcomerGroup } from '@bohemia/game';
 import { DIRECTION_NAMES, NEWCOMER_TEXTS } from './trade-names';
 import { formatAnimals, formatInteger } from './village-format';
 import { productList, type VillageView } from './village-view';
@@ -18,6 +18,8 @@ import { productList, type VillageView } from './village-view';
 
 export type NoticeKind =
   | 'full-household'
+  /** Stádo se na noc nevejde do ohrad svého druhu (oxen.md – Ohrady podle druhu). */
+  | 'pen-short'
   /** Stupně hladu (population.md – Co hráč vidí): šetří jídlem, hladoví, umírají hlady. */
   | 'rationing'
   | 'hungry'
@@ -115,6 +117,14 @@ function worse(next: HungerLevel, before: HungerLevel): boolean {
   return HUNGER_RANK[next] > HUNGER_RANK[before];
 }
 
+/** Stádo, které se nevejde do ohrad (upozornění „Ovce se nevejdou do ohrad“). */
+const PEN_SHORT_NAMES: Record<HerdSpecies, string> = {
+  sheep: 'Ovce',
+  goat: 'Kozy',
+  pig: 'Prasata',
+  cow: 'Krávy',
+};
+
 /** Upozornění, která pro ves právě platí (pořadí: problémy, pak zprávy). */
 export function villageNotices(view: VillageView): VillageNotice[] {
   const notices: VillageNotice[] = [];
@@ -143,6 +153,15 @@ export function villageNotices(view: VillageView): VillageNotice[] {
   // odejít i z neplného domu, kinship.md – Lidé k osídlení)
   if (view.fullHousehold) {
     notices.push({ kind: 'full-household', tone: 'info', text: 'Rodina čeká na dům' });
+  }
+  // stádo se nevejde do ohrad – nadbytek půjde při porážce na maso (oxen.md – Ohrady podle druhu)
+  const short = view.penShort ?? [];
+  if (short.length > 0) {
+    const text =
+      short.length === 1
+        ? `${PEN_SHORT_NAMES[short[0]!]} se nevejdou do ohrad`
+        : 'Stáda se nevejdou do ohrad';
+    notices.push({ kind: 'pen-short', tone: 'warn', text });
   }
   return notices;
 }

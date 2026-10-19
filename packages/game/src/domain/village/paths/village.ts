@@ -10,6 +10,7 @@ import { villageOrchards } from '../orchard';
 import { herdingCoverage } from '../herding';
 import { grazedPartIds, isGrazeableFallow } from '../overgrowth';
 import { villageOxen, villagePens } from '../oxen';
+import { penCells, penSpecies } from '../pens';
 import { ageGroup } from '../people';
 import { partStage } from '../summary';
 import { gridKey, squareCenter } from '../square-grid';
@@ -17,6 +18,8 @@ import { fieldGrids } from '../squares';
 import type {
   DwellingPlot,
   HerdSpecies,
+  Pen,
+  PenSquare,
   Position,
   SquareGrid,
   TileCell,
@@ -84,17 +87,30 @@ function square(landscape: Landscape, cell: TileCell, grid?: SquareGrid): PathSq
   return { cell: { x: cell.x, y: cell.y }, x: c.x, z: c.z, size: landscape.cellSizeM };
 }
 
-/** Stojí dobytek (krávy a voli) v den `day` v ohradě – v zimě, když ves hotovou ohradu má. */
-function cattlePenned(state: Pick<VillageState, 'pens'>, day: number): boolean {
+/** Další čtverce ohrady, kolem kterých stojí plot – u hotové ohrady bez rozšíření ve stavbě. */
+function fencedExtra(pen: Pen): PenSquare[] {
+  const extra = pen.extraSquares ?? [];
+  return pen.builtDay === null ? extra : extra.filter((q) => q.constructionId === undefined);
+}
+
+/**
+ * Stojí krávy (`cattle`), nebo voli (`team`) v den `day` v ohradě – v zimě, když ves hotovou ohradu
+ * jejich druhu má (oxen.md – Ohrady podle druhu).
+ */
+function cattlePenned(
+  state: Pick<VillageState, 'pens'>,
+  day: number,
+  species: 'cattle' | 'team' = 'cattle',
+): boolean {
   return (
     HAY_WINTER_MONTHS.includes(dateOfDayIndex(day).month) &&
-    villagePens(state).some((p) => p.builtDay !== null)
+    villagePens(state).some((p) => p.builtDay !== null && penSpecies(p) === species)
   );
 }
 
 /**
  * Stáda na pastvě v den `day` jako ve scéně (village-view.ts – `SceneVillage.livestock`): kusy
- * zaokrouhleně, v zimě (listopad–březen) stojí krávy v ohradě, když ves hotovou ohradu má.
+ * zaokrouhleně, v zimě (listopad–březen) stojí krávy v ohradě, když ves hotovou ohradu skotu má.
  */
 export function pastureLivestock(
   state: Pick<VillageState, 'livestock' | 'pens'>,
@@ -118,7 +134,7 @@ export function pastureLivestock(
  * stáda ve scéně.
  */
 export function pastureGrazedParts(state: VillageState, day: number): Set<number> {
-  const oxen = cattlePenned(state, day) ? 0 : villageOxen(state);
+  const oxen = cattlePenned(state, day, 'team') ? 0 : villageOxen(state);
   const demand = grazingDemandHa(pastureLivestock(state, day), oxen) * herdingCoverage(state);
   return grazedPartIds(state, day, demand);
 }
@@ -250,6 +266,19 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
     ...(p.grid ? { rotation: p.grid.rotation } : {}),
     built: p.builtDay !== null,
     ...(p.builtDay !== null && !stocked.has(p.id) ? { stocked: false } : {}),
+    // další čtverce ohrady (oxen.md – Ohrady podle druhu) – u hotové ohrady jen hotové (plot
+    // a branka kolem nich jako ve scéně; rozšíření ve stavbě je jen vytyčené)
+    ...(fencedExtra(p).length
+      ? {
+          extra: fencedExtra(p).map((q) => ({
+            cell: { x: q.cell.x, y: q.cell.y },
+            x: q.x,
+            z: q.z,
+            size: landscape.cellSizeM,
+            ...(p.grid ? { rotation: p.grid.rotation } : {}),
+          })),
+        }
+      : {}),
   }));
   return {
     dwellings,
@@ -385,7 +414,11 @@ export function walkLayoutKey(state: VillageState, day: number): string {
   const stocked = stockedPenIds(state);
   const pens = villagePens(state).map(
     (p) =>
-      `${p.id}:${p.cell.x},${p.cell.y}${turned(p.grid)}:${p.builtDay === null ? 0 : 1}${p.builtDay !== null && !stocked.has(p.id) ? ':-' : ''}`,
+      `${p.id}:${penCells(p)
+        .map((c) => `${c.x},${c.y}`)
+        .join(
+          ';',
+        )}${turned(p.grid)}:${p.builtDay === null ? 0 : 1}${p.builtDay !== null && !stocked.has(p.id) ? ':-' : ''}`,
   );
   const herds = state.livestock ? pastureHerds(pastureLivestock(state, day)) : 0;
   return JSON.stringify([

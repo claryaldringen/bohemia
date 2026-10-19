@@ -22,7 +22,7 @@ import {
 import { advanceVillage } from '../simulate';
 import type { HerdSpecies, VillageState } from '../types';
 import { woolSheep } from '../wool';
-import { withBuiltFirstDwelling } from './village-fixtures';
+import { withBuiltFirstDwelling, withRoomyPens } from './village-fixtures';
 
 // Porážka v zimě (diet.md – Porážka v zimě; Martin 19. 10. 2026): 1. 11. ves rozhodne, co nechá
 // přes zimu (nosnost, místo pro jarní mláďata podle výrostků příštího léta, bez starých kusů),
@@ -45,6 +45,8 @@ function village(day: number): VillageState {
   s.storesKg = 50_000;
   s.meatKg = 0;
   s.livestock!.land = { meadowHa: 1000, forestHa: 1000 };
+  // ohrady všech druhů – stáda neomezí místa na noc (oxen.md – Ohrady podle druhu)
+  withRoomyPens(s);
   return s;
 }
 
