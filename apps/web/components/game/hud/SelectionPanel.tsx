@@ -2,6 +2,7 @@ import { useState, type ReactElement, type ReactNode } from 'react';
 import {
   CART_NAMES,
   CRAFT_NAMES,
+  MAX_PEN_SQUARES,
   type BuildableDwellingType,
   type DwellingType,
   type FamilyCounts,
@@ -22,6 +23,7 @@ import {
   type SelectionWorkshop,
 } from '@/lib/selection-details';
 import { DIRECTION_NAMES } from '@/lib/trade-names';
+import { PEN_NAMES, penVariant } from '@/lib/build-items';
 import {
   formatDecimal,
   formatHa,
@@ -1115,34 +1117,53 @@ function formatTons(kg: number): string {
 }
 
 /**
- * Ohrada (oxen.md – Co hráč vidí): rozestavěná jen průběh stavby; hotová zvířata v ohradě (voli,
- * v zimě krávy), seno, stáda vsi s pastvou, spřežení (stáří a kolik let ještě slouží) a průběh
- * výcviku. Spřežení se cvičí samo (Martin 19. 10. 2026) – tlačítko není.
+ * Ohrada (oxen.md – Co hráč vidí, Ohrady podle druhu): rozestavěná jen průběh stavby; hotová druh
+ * zvířat s obsazením a místy na noc (v ohradě / místa), čtverce (nejvýš 4), rozšíření ve stavbě,
+ * seno, stav (chátrání, oprava), stáda vsi s pastvou; ohrada spřežení voly, stáří spřežení (kolik
+ * let ještě slouží) a průběh výcviku. Spřežení se cvičí samo (Martin 19. 10. 2026) – tlačítko není.
  */
 function PenBody({
   details,
 }: {
   details: Extract<SelectionDetails, { kind: 'pen' }>;
 }): ReactElement {
+  const squares = (
+    <Stat icon="fields" name="Čtverce ohrady (nejvýš 4)" testId="selection-pen-squares">
+      {details.squares}/{MAX_PEN_SQUARES}
+    </Stat>
+  );
   if (!details.built) {
     return (
       <div className="flex flex-col justify-center gap-1.5">
-        <Stat icon="labor" name="Stavba">
-          {formatPercent(details.progress)}
-        </Stat>
+        <div className="flex items-center gap-3">
+          <Stat icon="labor" name="Stavba">
+            {formatPercent(details.progress)}
+          </Stat>
+          {squares}
+        </div>
         <Bar value={details.progress} name="Stavba" testId="selection-progress" />
       </div>
     );
   }
+  const animal = penVariant(details.species);
+  const team = details.species === 'team';
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
       <div className="flex items-center gap-3">
-        <Stat icon="ox" name="Voli v ohradě" testId="selection-oxen">
-          {details.oxen}
-        </Stat>
-        <Stat icon="cow" name="Krávy v ohradě" testId="selection-penned-cows">
-          {details.cows}
-        </Stat>
+        {team ? (
+          <Stat icon="ox" name="Voli v ohradě" testId="selection-oxen">
+            {details.oxen}
+          </Stat>
+        ) : (
+          <Stat
+            icon={animal.icon}
+            name={`${animal.name} v ohradě na noc / místa`}
+            testId="selection-pen-animals"
+          >
+            {formatInteger(details.animals)}/{formatInteger(details.places)}
+          </Stat>
+        )}
+        {squares}
         <Stat icon="hay" name="Seno" testId="selection-hay">
           {formatTons(details.hayKg)}
         </Stat>
@@ -1154,6 +1175,9 @@ function PenBody({
         <Wear condition={details.condition} abandoned={details.abandoned} />
       </div>
       {details.repair !== null && <RepairBar value={details.repair} />}
+      {details.extension !== null && (
+        <Bar value={details.extension} name="Rozšíření ohrady" testId="selection-extension" />
+      )}
       <ul aria-label="Stáda vsi" className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
         {HERD_ORDER.map((species) => (
           <li key={species}>
@@ -1515,7 +1539,7 @@ export function SelectionPanel({
       />
     );
   } else if (details.kind === 'pen') {
-    portrait = <Portrait icon="ohrada" name="Ohrada" />;
+    portrait = <Portrait icon="ohrada" name={PEN_NAMES[details.species]} />;
     body = <PenBody key={details.id} details={details} />;
   } else if (details.kind === 'field') {
     portrait = <Portrait icon="pole" name="Pole" />;

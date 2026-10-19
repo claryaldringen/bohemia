@@ -363,6 +363,20 @@ export const PEN_VARIANTS: readonly (SquaresVariant & { id: PenSpecies })[] = [
   { id: 'team', icon: 'ox', name: 'Spřežení' },
 ];
 
+/** Název ohrady podle druhu – portrét panelu (oxen.md – Ohrady podle druhu). */
+export const PEN_NAMES: Record<PenSpecies, string> = {
+  sheep: 'Ohrada ovcí',
+  goat: 'Ohrada koz',
+  pig: 'Ohrada prasat',
+  cattle: 'Ohrada skotu',
+  team: 'Ohrada spřežení',
+};
+
+/** Ikona a název zvířat ohrady podle druhu (ikony `public/icons/resources/`). */
+export function penVariant(species: PenSpecies): SquaresVariant {
+  return PEN_VARIANTS.find((v) => v.id === species) ?? PEN_VARIANTS[0]!;
+}
+
 /** Druh ohrady z id druhu stavby (bez údaje nebo neznámý první – ovce). */
 export function penVariantSpecies(variant: string | undefined): PenSpecies {
   return PEN_VARIANTS.find((v) => v.id === variant)?.id ?? PEN_VARIANTS[0]!.id;

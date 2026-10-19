@@ -12,6 +12,7 @@ import {
   type FamilyCounts,
   type FieldSurface,
   type HerdSpecies,
+  type PenSpecies,
   type PartStage,
   type PartYearWork,
   type RoadGrade,
@@ -318,6 +319,16 @@ export type SelectionDetails =
   | {
       kind: 'pen';
       id: number;
+      /** Druh zvířat ohrady (oxen.md – Ohrady podle druhu). */
+      species: PenSpecies;
+      /** Čtverce ohrady (nejvýš 4). */
+      squares: number;
+      /** Místa na noc pro stádo svého druhu; u spřežení 0. */
+      places: number;
+      /** Kolik zvířat v ohradě v noci stojí. */
+      animals: number;
+      /** Rozšíření ve stavbě – průběh 0–1; bez rozšíření null. */
+      extension: number | null;
       built: boolean;
       /** Průběh stavby 0–1 (hotová 1). */
       progress: number;
@@ -841,6 +852,11 @@ function penDetails(view: VillageView | null, id: number): SelectionDetails | nu
   return {
     kind: 'pen',
     id,
+    species: pen.species,
+    squares: pen.squares,
+    places: pen.places,
+    animals: pen.animals,
+    extension: pen.extension,
     built: pen.built,
     progress: pen.progress,
     oxen: pen.oxen,

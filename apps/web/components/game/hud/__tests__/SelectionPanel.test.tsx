@@ -11,6 +11,11 @@ import { SelectionPanel } from '../SelectionPanel';
 const pen = (over: Partial<Extract<SelectionDetails, { kind: 'pen' }>> = {}): SelectionDetails => ({
   kind: 'pen',
   id: 90,
+  species: 'cattle',
+  squares: 2,
+  places: 90,
+  animals: 4,
+  extension: null,
   built: true,
   progress: 1,
   oxen: 2,
