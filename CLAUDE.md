@@ -1104,7 +1104,9 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   mimo listopad `slaughterWork.emergency` (úloha `slaughter` hned), kronika `emergency-slaughter`
   (kusy), upozornění „Vesničané porazili 12 prasat navíc“ (`formatAnimals`). Prasata jen nad chovné
   prasnice (`emergencyPigFloor` – `EMERGENCY_SLAUGHTER.pigForestShare` 0,5 nosnosti lesa pro
-  prasata jako ve `winterTargets`, aspoň chovný pár; Martin 19. 10. 2026).
+  prasata jako ve `winterTargets`, aspoň chovný pár; Martin 19. 10. 2026). Letošní mláďata ne,
+  kromě selat od 1. 9. (`pigletsSpared`, `EMERGENCY_SLAUGHTER.pigletsFromMonth`; Martin 19. 10.
+  2026: „Ano ke všem návrhům“ – hladový podzim) – ta se počítají do prasat nad prasnicemi.
   **Oděv – vlna** (diet.md – Oděv; Martin 19. 10. 2026: „Ovce jsou hlavně kvůli vlně, aby se lidé
   mohli vůbec oblékat.“; `wool.ts`, `WOOL` v `rules.ts`): ovce na vlnu `woolSheep` (dospělý 1,6 kg,
   dítě 0,8 kg ÷ 0,8 kg z ovce) jsou spodní hranicí ovcí – `minSheep` ve `farmInput` →
