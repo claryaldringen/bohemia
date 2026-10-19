@@ -127,6 +127,7 @@ const pen = (over: Partial<Extract<SelectionDetails, { kind: 'pen' }>> = {}): Se
   trainBlocked: null,
   condition: 0.62,
   abandoned: false,
+  repair: null,
   ...over,
 });
 
@@ -310,6 +311,7 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       building: 0.6,
       condition: 0.38,
       abandoned: true,
+      repair: null,
     },
   },
   {
@@ -352,6 +354,7 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       oaksToFell: 0,
       condition: 0.38,
       abandoned: true,
+      repair: null,
     },
   },
   {
@@ -366,6 +369,7 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       oaksToFell: 6,
       condition: 1,
       abandoned: false,
+      repair: null,
     },
   },
   {
