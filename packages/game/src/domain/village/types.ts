@@ -1419,6 +1419,12 @@ export interface Road {
    * CART_ROADS.dropYears) – podle něj cesta příznak vozová dostane a ztratí. Chybí = bez vozů.
    */
   cartTraffic?: number[];
+  /**
+   * Průsek lesem je vykácený (trade.md – Zemská stezka, roads.md – Průsek lesem; Martin,
+   * 19. 10. 2026: „Tam, kde zemská stezka prochází lesem, ať se les vykácí.“) – upravená cesta
+   * a stezka v pruhu ROAD_SWATH kolem osy. Rozdělený i spojený úsek ho zdědí; chybí = ne.
+   */
+  swath?: true;
 }
 
 /** Tichý kus osy pevné cesty – střed kusu a roky po sobě pod polovinou prahu. */
@@ -1508,6 +1514,14 @@ export interface VillageRoads {
    * i letos, vznikne vozová cesta (wagons.md – Vyjeté cesty). Chybí = žádné.
    */
   cartCandidates?: RoadPoint[][];
+  /**
+   * Pařezy v průsecích lesem (roads.md – Průsek lesem): stromy pokácené v pruhu kolem osy upravené
+   * cesty – dokud cesta stojí, nedorostou (zůstanou pařezem, nesází se na ně). Vzestupně; chybí =
+   * žádné.
+   */
+  swath?: number[];
+  /** Hotové upravené cesty a stezky dostaly průsek převodem starší vsi (`withRoadSwaths`). */
+  swathChecked?: true;
 }
 
 /** Druh vozu (wagons.md – Vůz): dvoukolák (svoz), čtyřkolák (obchod – hůř se otáčí). */

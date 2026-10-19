@@ -21,12 +21,20 @@ const road = (
   fords: 1,
   building: null,
   upgrades: [
-    { upgrade: 'improved', laborManDays: 18, trees: 0, treesToFell: 0, blocked: null },
+    {
+      upgrade: 'improved',
+      laborManDays: 18,
+      trees: 0,
+      treesToFell: 0,
+      swathTrees: 0,
+      blocked: null,
+    },
     {
       upgrade: 'causeway',
       laborManDays: 33,
       trees: 13,
       treesToFell: 5,
+      swathTrees: 0,
       blocked: 'Nejdřív je potřeba cestu upravit.',
     },
   ],

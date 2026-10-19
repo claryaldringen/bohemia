@@ -39,6 +39,7 @@ const trails: TrailOption[] = DIRECTIONS.map((direction) => ({
   laborManDays: 131.4,
   trees: 6,
   treesToFell: 2,
+  swathTrees: direction === 'W' ? 37 : 0,
   tripDays: direction === 'N' ? null : 5,
   blocked:
     direction === 'N'
@@ -435,6 +436,7 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
           laborManDays: 233,
           trees: 26,
           treesToFell: 11,
+          swathTrees: 0,
           blocked: 'Vylepšení cesty se už staví.',
         },
       ],

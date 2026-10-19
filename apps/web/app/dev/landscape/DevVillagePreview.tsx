@@ -86,6 +86,7 @@ import {
   demoRoadStage,
   withRoadCuts,
 } from './dev-road';
+import { FOREST_TRAIL_STAGES, forestTrailDemo, type ForestTrailDemo } from './dev-forest-trail';
 import { demoCartSlope, type CartDemo } from './dev-cart';
 import { devSelectionView } from './dev-selection';
 import type { CartKind } from '@bohemia/game';
@@ -193,6 +194,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   >(null);
   // ukázka vozové sítě na svahu vedle pěšin (wagons.md, dev-cart.ts) – dvoukolák, pak čtyřkolák
   const [cartDemo, setCartDemo] = useState<CartDemo | null>(null);
+  // ukázka zemské stezky lesem s průsekem (roads.md – Průsek lesem, dev-forest-trail.ts)
+  const [forestTrail, setForestTrail] = useState<ForestTrailDemo | null>(null);
   // stupeň vylepšení ukázkových cest (dev-road.ts – DEMO_ROAD_STAGES) a stadium jabloní u cesty
   const [roadStage, setRoadStage] = useState(0);
   const [appleStage, setAppleStage] = useState(0);
@@ -251,6 +254,16 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         ? { sacred: { oaks: sacredOaks, groves, buildings: sacredBuildings } }
         : {}),
     };
+    // stezka lesem – osa a vykácený průsek z jádra (roads.md – Průsek lesem)
+    if (forestTrail) {
+      const changes = base.obstacles ?? NO_OBSTACLE_CHANGES;
+      base.roads = [...(base.roads ?? []), forestTrail.road];
+      base.obstacles = {
+        ...changes,
+        removed: [...new Set([...changes.removed, ...forestTrail.cleared])].sort((a, b) => a - b),
+        stumps: [...new Set([...changes.stumps, ...forestTrail.felled])].sort((a, b) => a - b),
+      };
+    }
     // kousky pole oddělené cestou zůstanou loukou (roads.md a fields.md – Cesta přes pole)
     if (base.roads && base.roads.length > 0) {
       base.fields = withRoadCuts(base.fields, base.roads, decoded);
@@ -306,6 +319,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     sacredBuildings,
     pathAge,
     road,
+    forestTrail,
     roadStage,
     appleStage,
     gapClosed,
@@ -1304,6 +1318,18 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
    * Ukázka vozové sítě na svahu vedle pěšin (wagons.md): vypnuto → jen pěšina (bez vozové cesty)
    * → dvoukolák → čtyřkolák → vypnuto; kamera ke svahu.
    */
+  /** Stezka lesem: vyšlapaná cesta lesem → upravená s průsekem → nic (kamera k lesu). */
+  const toggleForestTrail = (): void => {
+    const next = forestTrail === null ? 0 : forestTrail.stage + 1;
+    if (next >= FOREST_TRAIL_STAGES.length) {
+      setForestTrail(null);
+      return;
+    }
+    const demo = forestTrailDemo(decoded, obstaclesOf(decoded), next);
+    setForestTrail(demo);
+    if (next === 0) scene?.moveCameraTo(demo.focus.x, demo.focus.z);
+  };
+
   const toggleCarts = (): void => {
     const next: Record<string, CartKind | 'none' | null> = {
       off: 'none',
@@ -1544,6 +1570,15 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
           data-testid="dev-road"
         >
           {road ? 'Cesta ✓' : 'Cesta'}
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={toggleForestTrail}
+          title="Zemská stezka lesem – vyšlapaná cesta, pak upravená s vykáceným průsekem"
+          data-testid="dev-forest-trail"
+        >
+          {forestTrail ? `Stezka lesem: ${FOREST_TRAIL_STAGES[forestTrail.stage]}` : 'Stezka lesem'}
         </button>
         <button
           className={buttonClass}

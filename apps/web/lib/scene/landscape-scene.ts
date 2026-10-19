@@ -57,6 +57,7 @@ import { seasonDayAt, seasonLook, seasonLookDistance, type SeasonLook } from './
 import { isDeciduousMesh } from './season-foliage';
 import { setSeasonShaderState } from './season-materials';
 import { SHADOW_DARKNESS, addSunShadows, castersChanged, type SunShadows } from './sun-shadows';
+import { swathBands } from './swath-bands';
 import { tileAt, tileCenter } from './tile-at';
 import { addTrees } from './trees';
 import { FieldPainter } from './field-painting';
@@ -976,7 +977,8 @@ export class LandscapeScene {
       this.obstacles && this.landscape
         ? villageClearedForest(this.landscape, this.obstacles, this.villageState)
         : null;
-    const cleared = this.canopy?.setCleared(clearing) ?? false;
+    // průseky lesem (roads.md) – pás podél os cest, plocha korun nad ním zapadne
+    const cleared = this.canopy?.setCleared(clearing, swathBands(this.villageState.roads)) ?? false;
     if (!sameClearing(this.cleared, clearing)) {
       this.cleared = clearing;
       for (const listener of this.clearedListeners) listener(clearing);

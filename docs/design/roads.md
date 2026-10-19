@@ -295,6 +295,44 @@ nám pak hezky s orbou ustálí tvar polí, který je nyní příliš hranatý.�
 - **Rozhodnuto** (Martin, 19. 10. 2026 – „Ano má.“): cesta dílu pod sebou plochu ubírá – [Cesta
   přes pole](#cesta-přes-pole).
 
+## Průsek lesem
+
+Martin (19. 10. 2026): „Tam, kde zemská stezka prochází lesem, ať se les vykácí.“ Podrobnosti
+návrh Clauda.
+
+- **Pruh:** upravená cesta (vylepšení hráče i zemská stezka – [trade.md](trade.md)) vede lesem
+  v průseku **3,5 m od osy** na každou stranu (`ROAD_SWATH`) – pás upravené cesty 3 m a 2 m
+  z každé strany, ať se vůz i lidé vejdou a nejdou pod větvemi. Les = terén v lese a v lemu do
+  6 m před ním (`PATH_WOODLAND`) a les vsi; na louce se nic nekácí. Stromy u cest a jabloně se
+  nekácí nikde.
+- **Co se vykácí:** stromy, mladé stromky, keře, souše a padlé kmeny v celém pruhu. V pásu cesty
+  (1,5 m od osy) se vyklučí i pařezy a vyberou kameny (strom v pásu = práce stromu i pařezu),
+  po stranách pařezy zůstanou. Práce podle tabulky překážek se připočte k ceně úseku (stezka
+  i vylepšení; v popisku i počet stromů v průseku), klády za dospělé stromy jdou na hromadu.
+  Kácí se, až práce na úsek dojde (`roadSwathDay`); stromy vyhrazené jinou stavbou zůstanou jí.
+- **Pruh zůstane volný:** pařezy v průsecích (`VillageRoads.swath`) nedorostou ani z náletu, ani
+  ze sazenice, dokud cesta stojí; nový les vsi (fields.md – Les vsi) do průseku nevstoupí (jeho
+  stromy tam nevyrostou) a ve scéně ani zarůstání přílohu. Upravená cesta a stezka nezarůstají,
+  takže průsek zůstane navždy.
+- **Posvátné duby a háje** se nekácí: stezka se jim vyhne už trasou (průsek kolem buněk trasy),
+  jinak by úsek nešel; u vylepšení hráče posvátný strom v pásu cesty úpravu nedovolí („Úpravě
+  cesty brání posvátný dub“), po stranách zůstane stát.
+- **Vozová cesta** (wagons.md) vlastní průsek nedostane: vyšlapaná vozová cesta vzniká sama
+  z jízd a nikdo ji nestaví – kácení je stavba s prací a kládami, kterou zadává hráč
+  vylepšením; vozy lesem i dosud jezdí jen po pevné cestě. Kdo chce širokou cestu lesem, upraví ji.
+- **Starší vsi:** hotové upravené cesty, hať a lávka a dostavěné úseky stezek dostanou průsek při
+  načtení jednou (`withRoadSwaths`, `VillageRoads.swathChecked`) – bez práce a bez klád: byly
+  postavené a zaplacené, když se průsek jen nekreslil (stromy se tehdy vykácely, klády už
+  shnily).
+- **Scéna:** stromy (i impostory uvnitř lesa) a keře zmizí podle id, po stranách pařezy, plocha
+  korun nad pruhem zapadne (`swath-bands.ts` – po pásu, maska po políčkách je na 7 m moc
+  hrubá), tráva pod stromy se přestane ztmavovat a stínová mapa se jednou překreslí. Na kraji
+  průseku stojí les jako stěna. Ukázka na `/dev/landscape` – **Stezka lesem** (vyšlapaná, pak
+  s průsekem).
+- **Vlkov** (kopie stavu, stezka 2061 na jih – dnes úsek 131, 675 m): lesem vede jen 36 m (lem
+  lesa), průsek by vykácel 3 stromy, 1 mladý stromek a 9 keřů – 14,5 čd práce a 3 klády. Hotová
+  stezka ho dostane převodem bez klád.
+
 ## Cesta přes pole
 
 Martin (19. 10. 2026) na otázku, jestli má cesta dílu ubírat plochu: „Ano má. Ono to stejně ve

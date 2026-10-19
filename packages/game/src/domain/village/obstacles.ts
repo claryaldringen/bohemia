@@ -106,6 +106,8 @@ export function saplingGrowth(felled: ObstacleChange, day: number): number | nul
  */
 export function plantOnStump(state: VillageState, id: number, day: number): boolean {
   if ((state.clearedObstacles ?? []).some((c) => c.id === id)) return false;
+  // na pařez v průseku lesem se nesází (roads.md – Průsek lesem)
+  if (state.roads?.swath?.includes(id)) return false;
   let last: ObstacleChange | undefined;
   for (const f of state.felledTrees ?? []) {
     if (f.id === id && (!last || f.day >= last.day)) last = f;
@@ -135,11 +137,13 @@ export function obstacleChangesAt(state: ChangeLists, day: number): ObstacleChan
     const known = lastFelled.get(f.id);
     if (!known || f.day >= known.day) lastFelled.set(f.id, f);
   }
+  // pařezy v průsecích lesem nedorostou, dokud cesta stojí (roads.md – Průsek lesem)
+  const kept = new Set(state.roads?.swath ?? []);
   const stumps: number[] = [];
   const saplings: number[] = [];
   for (const [id, felled] of lastFelled) {
     if (removed.has(id)) continue;
-    const regrowth = felledTreeStage(felled, day);
+    const regrowth = kept.has(id) ? 'stump' : felledTreeStage(felled, day);
     if (regrowth === 'stump') stumps.push(id);
     else if (regrowth === 'sapling') saplings.push(id);
   }
@@ -162,7 +166,8 @@ export function obstacleChangesAt(state: ChangeLists, day: number): ObstacleChan
       if (removed.has(spot.id)) continue;
       const felled = lastFelled.get(spot.id);
       // pokácený strom lesa vsi dorůstá z pařezu, nebo ze sazenice jako strom krajiny
-      const regrowth = felled === undefined ? 'grown' : felledTreeStage(felled, day);
+      const regrowth =
+        felled === undefined ? 'grown' : kept.has(spot.id) ? 'stump' : felledTreeStage(felled, day);
       const kind: RoadTreeObstacleKind =
         regrowth === 'stump'
           ? 'stump'
@@ -616,7 +621,11 @@ export function fellTrees(state: VillageState, ids: readonly number[], day: numb
     if (!Number.isInteger(id) || id < 0) throw new RangeError(`Neplatné id stromu ${id}.`);
     if (unavailable.has(id)) throw new RangeError(`Strom ${id} už nestojí.`);
   }
-  const kept = (state.felledTrees ?? []).filter((f) => felledTreeStage(f, day) !== 'grown');
+  // pařezy v průsecích lesem nedorostou – jejich záznam zůstane (roads.md – Průsek lesem)
+  const swath = new Set(state.roads?.swath ?? []);
+  const kept = (state.felledTrees ?? []).filter(
+    (f) => swath.has(f.id) || felledTreeStage(f, day) !== 'grown',
+  );
   return { ...state, felledTrees: [...kept, ...ids.map((id) => ({ id, day }))] };
 }
 

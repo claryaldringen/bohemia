@@ -17,6 +17,7 @@ const option = (
   laborManDays: 131.4,
   trees: 3,
   treesToFell: 1,
+  swathTrees: 0,
   tripDays: 5,
   blocked: null,
   ...over,
@@ -66,6 +67,15 @@ describe('růžice zemských stezek', () => {
     expect(html).toContain('Zemská stezka – západ');
     expect(html).toContain('131');
     expect(html).toContain('820 m');
+  });
+
+  it('stezka lesem: v popisku stromy v průseku (roads.md – Průsek lesem)', () => {
+    expect(html).not.toContain('data-testid="swath-trees"');
+    const forest = renderToStaticMarkup(
+      <TrailCompass trails={[option('W', { swathTrees: 37 })]} onBuild={() => undefined} />,
+    );
+    expect(forest).toMatch(/data-testid="swath-trees"[^>]*>.*37/);
+    expect(forest).toContain('Průsek lesem');
   });
 });
 
