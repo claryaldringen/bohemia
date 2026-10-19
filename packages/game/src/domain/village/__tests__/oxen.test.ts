@@ -323,13 +323,15 @@ describe('orba rádlem', () => {
     const day = at(600, 9, 1);
     const sod = part(2, { state: 'fallow', fallowSinceDay: at(590, 9, 1) });
     const work = createCropWork([part(1), sod], day, 0, true);
-    expect(work.plough).toEqual({
+    expect(work.plough).toMatchObject({
       partIds: [1, 2],
       required: 10 + 10 * PLOUGH_SOD_FACTOR,
       done: 0,
       weight: 2,
       sodIds: [2],
     });
+    // díly bez políčka – každý svůj pás
+    expect(work.plough!.bands!.map((b) => b.partIds)).toEqual([[1], [2]]);
     expect(work.required.dig).toBe(0);
     expect(tilledShare(work)).toBe(0);
     work.plough!.done = work.plough!.required / 2;

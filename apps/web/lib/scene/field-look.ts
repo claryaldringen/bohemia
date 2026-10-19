@@ -3,6 +3,7 @@
 // a `before`); dokud to neposílá, odhadne se vzhled ze stadia dílu a data (odhad níž). Odtud
 // bere vzhled kreslení polí (field-renderer.ts) i postavy (villager-plan.ts) – oba tak vidí
 // stejný rozpracovaný čtverec.
+import { rotationCosSin } from '@bohemia/game';
 import type { FieldLook, LaborActivity, SceneFieldPart, SceneVillage } from '../village-view';
 import { aftermathGrazing, hayPhase } from './hay-meadows';
 
@@ -130,10 +131,27 @@ export interface WorkFrame {
 }
 
 export function workFrame(
-  part: { x: number; z: number; size: number },
+  part: {
+    x: number;
+    z: number;
+    size: number;
+    rotation?: number;
+    furrow?: SceneFieldPart['furrow'];
+  },
   rows: readonly [number, number],
   center: { x: number; z: number },
 ): WorkFrame {
+  // díl, který orá spřežení: řady podél brázdy, práce napříč ve směru orby od herního jádra
+  // (oxen.md – Co nejdelší brázda); osy mřížky pole jako `gridFrame` (natočený čtverec)
+  if (part.furrow) {
+    const [c, s] = part.rotation ? rotationCosSin(part.rotation) : [1, 0];
+    const ax: [number, number] = [c, -s];
+    const ay: [number, number] = [s, c];
+    const along = part.furrow.axis === 'x' ? ax : ay;
+    const perp = part.furrow.axis === 'x' ? ay : ax;
+    const sweep = part.furrow.sweep;
+    return { along, across: [perp[0] * sweep, perp[1] * sweep], half: part.size / 2 };
+  }
   const [dx, dz] = rows;
   // napříč řádky; práce jde od vsi pryč (na stejné ose jako u vsi nejbližší řádek)
   let nx = -dz;

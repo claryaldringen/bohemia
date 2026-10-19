@@ -111,6 +111,8 @@ import {
   planCrops,
   planPartIds,
   ploughWorkPerHa,
+  bandLengthM,
+  furrowEfficiency,
   repairNeedPerDay,
   startNewDwelling,
   threshLossKg,
@@ -348,6 +350,8 @@ interface PlanRecord {
   finished: boolean;
   /** Orba plánu (člověkodny orby všech plodin; ves bez spřežení 0). */
   plough: number;
+  /** Průměrná délka brázdy pásů orby plánu (m, váhou dílů; bez orby 0). */
+  furrowM: number;
 }
 
 interface Reserves {
@@ -677,6 +681,22 @@ function recordHarvest(
   );
 }
 
+/** Průměrná délka brázdy pásů orby plánu (m, váhou plochy dílů pásu); bez orby 0. */
+function planFurrowM(state: VillageState): number {
+  if (!state.plan) return 0;
+  const byId = new Map(state.parts.map((p) => [p.id, p]));
+  let area = 0;
+  let sum = 0;
+  for (const { work } of planCrops(state.plan)) {
+    for (const band of work.plough?.bands ?? []) {
+      const a = band.partIds.reduce((acc, id) => acc + (byId.get(id)?.areaM2 ?? 0), 0);
+      area += a;
+      sum += a * bandLengthM(band, byId);
+    }
+  }
+  return area > 0 ? sum / area : 0;
+}
+
 /** 1. 9. po plánu osevu: osev, velikost pole a stav dílů (u sond). */
 function recordPlan(result: RunResult, after: VillageState, pinned: boolean): void {
   const day = after.lastDay;
@@ -700,6 +720,7 @@ function recordPlan(result: RunResult, after: VillageState, pinned: boolean): vo
     plough: after.plan
       ? planCrops(after.plan).reduce((sum, { work }) => sum + (work.plough?.required ?? 0), 0)
       : 0,
+    furrowM: planFurrowM(after),
   });
   if (!pinned) return;
   for (const p of after.parts) {
@@ -1018,6 +1039,8 @@ interface ProbeSummary {
   idleShare: number;
   /** Medián orby plánu (člověkodny za rok; sonda bez spřežení 0). */
   plough: number;
+  /** Medián průměrné délky brázdy plánu (m). */
+  furrowM: number;
 }
 
 type Task = { kind: 'village'; index: number } | { kind: 'probe'; probe: ProbeName };
@@ -1195,6 +1218,10 @@ function runProbe(name: ProbeName): TaskResult {
       ) / results.reduce((sum, r) => sum + r.partStates.size, 0),
     plough: quantile(
       plans.map((p) => p.plough),
+      0.5,
+    ),
+    furrowM: quantile(
+      plans.map((p) => p.furrowM),
       0.5,
     ),
   };
@@ -1455,7 +1482,7 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
   row(
     'Plná domácnost se spřežením (orba rádlem, bez motyky)',
     'informace (oxen.md – Jen rádlo)',
-    `osev / pole ${fmt(team.sownHa, 2)} / ${fmt(team.fieldHa, 2)} ha | orba ${fmt(team.plough, 0)} čd/rok (${pct(team.plough / teamCapacity)} kapacity spřežení) | práce na obživu ${pct(team.subsistence)} (motykou ${pct(full.subsistence)}) | nasycení ≥ 0,95 v ${pct(team.satiationOk)} let | zásoby po sklizni ${fmt(team.storesMedian, 2)}`,
+    `osev / pole ${fmt(team.sownHa, 2)} / ${fmt(team.fieldHa, 2)} ha | orba ${fmt(team.plough, 0)} čd/rok (${pct(team.plough / teamCapacity)} kapacity spřežení) | brázda Ø ${fmt(team.furrowM, 0)} m (výkon ${pct(furrowEfficiency(team.furrowM))} referenční brázdy 100 m; jeden díl ${pct(furrowEfficiency(15))}) | práce na obživu ${pct(team.subsistence)} (motykou ${pct(full.subsistence)}) | nasycení ≥ 0,95 v ${pct(team.satiationOk)} let | zásoby po sklizni ${fmt(team.storesMedian, 2)}`,
     'info',
   );
   const sownMedian = quantile(start.sownRuns, 0.5);

@@ -244,6 +244,50 @@ Clauda**:
 - **Kalibrace se nemění** – hráč skriptu ohrady nestaví. Informační sonda „plná domácnost se
   spřežením“ v `measure-village.ts` ukazuje orbu, osev a práci na obživu.
 
+## Co nejdelší brázda (19. 10. 2026)
+
+Stav: **Martin, 19. 10. 2026:** „Volské spřežení chce rýt co nejdelší brázdu – otáčení zabírá
+čas a snižuje produktivitu.“ – „Spřežení by mělo trávit co nejvíce času orbou – takže na místo se
+dostane ideálně po nějaké už hotové cestě a pak už jen co nejvíce oře. Rozhodně nepřejíždí
+z dílce na dílec, ale snaží se zorat co největší souvislou plochu.“ – „Změna – pokud to bude
+rychlejší než po cestě, ať jede napříč přes pole, pokud už nebude oseté.“ Podrobnosti **návrh
+Clauda**:
+
+- **Směr brázd:** pole se orá podél své delší rozlohy (rozsah čtverců v mřížce pole, při shodě
+  podél x) – stejný směr, jakým ve scéně vedou řádky obilí; mění se jen se změnou pole (přidané
+  nebo ubrané čtverce), ne denně. Natočené pole v osách své mřížky.
+- **Bloky a pásy:** spřežení orá plodinu po **souvislých blocích** – díly téže plodiny v jednom poli,
+  které sousedí stranou. Blok se zorá celý, **pás po pásu** (souvislá řada dílů podél brázdy –
+  brázda vede přes celý pás, obrat jen na jeho koncích), napříč od strany blíž vsi; blok tvaru U
+  rameno po rameni (pásy navazující přes řady jdou spolu). Teprve pak spřežení přejde k dalšímu
+  bloku. Díly pásu postupují spolu (`PloughWork.bands`, úsek pásu ve `field-progress`), setí jde za
+  orbou po stejných pásech; pletí, žeň a výmlat dál po dílech. Ves bez spřežení (motyka) se
+  nemění.
+- **Pořadí bloků: od nejbližšího.** Obraty stojí stejně, ať se bloky orají v jakémkoli pořadí –
+  pořadí mění jen cestu k bloku: od nejbližšího postupuje orba od vsi ven (jako dřív práce
+  od domu), cesty jsou nejkratší a setí za orbou začne u vsi. Velké bloky napřed by výkon nezvedly.
+- **Výkon podle délky brázdy:** podíl času, kdy rádlo ryje, je L / (L + v·t) – voli s rádlem
+  v ≈ 0,64 m/s (pokusy s tažnými voly v Burkině Faso a Etiopii), obrat na souvrati t ≈ 45 s
+  (vytáhnout rádlo, otočit pár, zarovnat – měření pro voly rešerše nenašla, je to odhad).
+  0,3 ha za den platí pro brázdu 100 m; jeden díl (15 m) ≈ 44 %, pás 45 m ≈ 80 %, 200 m a víc
+  nejvýš +15 % (`FURROW` v `rules.ts`, `furrowEfficiency`). Denní orba spřežení je
+  0,3 ha × výkon pásu, na kterém spřežení právě orá.
+- **Cesta na místo:** spřežení jde ráno z ohrady k bloku a večer zpět **vozovou sítí jako
+  dvoukolák bez nákladu** (`villageCartRoutes`): nejrychlejší trasa – pevná cesta (cena 0,6),
+  napříč přes neosetá pole (louka, úhor, strniště 1, zoraný a zakládaný díl 1,6), osetým dílem
+  nikdy. Cestu ubírá orbě dne poměrným dílem (≈ 0,8 m/s, orá se ≈ 6 h denně, nejvýš polovina dne –
+  `TEAM_TRAVEL`); po cestě 500 m ≈ 6 %. Cena cesty se spočítá, když spřežení začne nový blok
+  (`PloughWork.trip`); bez krajiny (kalibrace) chůze k dílu.
+- **Plán osevu** počítá s výkonem podle tvaru polí, na která může ves zasít (průměr výkonu jejich
+  pásů – `plannedFurrowEfficiency`), cestu neodhaduje (je malá).
+- **Ve scéně:** herní jádro posílá u dílů orby osu brázd a směr orby (`SceneFieldPart.furrow`) –
+  podle nich vede obtisk zorané části i čára práce; spřežení jede pruhem přes celý pás
+  (`bandCandidates`, pruh `PloughField.length`), při ladicí orbě za den (Orba za herní den níž)
+  vyjde z ohrady po cestě (`SceneVillage.ploughApproach`), zorá dnešní pruhy pásů za sebou
+  a večer se po cestě vrátí.
+- **Kalibrace se nemění** – hráč skriptu ohrady nestaví; sonda „plná domácnost se spřežením“
+  ukazuje průměrnou délku brázdy a její výkon.
+
 ## Spřežení postupuje s orbou (19. 10. 2026)
 
 Stav: **Martin, 19. 10. 2026** schválil směr – spřežení ať ve scéně postupuje po čtvercích, jak
@@ -354,6 +398,8 @@ a nechávalo za sebou brázdu. Tak budu moci určit, jak se to chová.“ – **
 | Jen rádlo – ves se spřežením orá všechno, motykou nekope (i drn a louka při založení)       | Martin (19. 10. 2026)         |
 | Drn orbou křížem 2,5×; kapacita spřežení v plánu osevu; slabí voli orají pomaleji           | návrh Clauda                  |
 | Ztráta spřežení během roku – letošní plán dokončí motyka; kulaté rohy podle stavu vsi       | návrh Clauda                  |
+| Co nejdelší brázda; souvislá plocha, ne z dílce na dílec; na místo po cestě či přes neoseté | Martin (19. 10. 2026)         |
+| Bloky a pásy podél delší strany pole, od nejbližšího; výkon L/(L + v·t), obrat 45 s         | návrh Clauda                  |
 | Ladicí přepínač, pruhy po pruzích obtisku, víc spřežení po souvislých kusech                | návrh Clauda                  |
 | Pruh u čáry práce (2–4 řady), jen čelo dne, přechod pěšky do 60 m, dvě spřežení na díl      | návrh Clauda                  |
 | Seno i pro ovce a kozy; dávky malého dobytka; práce seče se sušením a svozem                | Martin (19. 10. 2026)         |

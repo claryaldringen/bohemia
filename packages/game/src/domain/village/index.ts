@@ -10,6 +10,8 @@ export * from './legumes';
 export * from './livestock';
 export * from './hay';
 export * from './plough';
+export * from './plough-blocks';
+export * from './plough-trip';
 export * from './oxen';
 export { breedingCows, winterHayNeedKg } from './husbandry';
 export * from './herding';

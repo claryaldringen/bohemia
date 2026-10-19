@@ -10,6 +10,7 @@ import {
 } from './fields';
 import { daysUntilHarvest, daysUntilWinterHarvest } from './food';
 import { PLOUGH_SOD_FACTOR, hasSod, ploughWorkPerHa } from './plough';
+import { ploughLayout } from './plough-blocks';
 import { fieldWorkPerHa } from './productivity';
 import { CROP_WINDOWS, LEGUMES, SEED_KG_PER_HA, UNWEEDED_YIELD, type WindowSegment } from './rules';
 import type {
@@ -153,9 +154,12 @@ export function createCropWork(
   plough = false,
   order: WorkOrder = nearestFirst,
   crop: Crop = 'spring',
+  fieldParts: FieldPartsOf = partsOfFields(selected),
 ): CropWork {
   const required = emptyTaskRecord();
-  const ordered = order(selected);
+  // spřežení orá po souvislých blocích a pásech podél brázdy (oxen.md – Co nejdelší brázda)
+  const layout = plough ? ploughLayout(selected, fieldParts) : null;
+  const ordered = layout ? layout.order : order(selected);
   const reclaimIds: number[] = [];
   const sodIds: number[] = [];
   let ploughRequired = 0;
@@ -184,10 +188,25 @@ export function createCropWork(
             done: 0,
             weight: ploughWeight,
             ...(sodIds.length > 0 ? { sodIds } : {}),
+            bands: layout!.bands,
           },
         }
       : {}),
   };
+}
+
+/** Všechny díly pole (podle id pole) – osa brázd se počítá z celého pole (`furrowAxis`). */
+export type FieldPartsOf = (fieldId: number) => readonly FieldPart[];
+
+/** Díly polí jen z `parts` (bez stavu vsi – osa brázd podle vybraných dílů). */
+export function partsOfFields(parts: readonly FieldPart[]): FieldPartsOf {
+  const byField = new Map<number, FieldPart[]>();
+  for (const part of parts) {
+    const list = byField.get(part.fieldId);
+    if (list) list.push(part);
+    else byField.set(part.fieldId, [part]);
+  }
+  return (fieldId) => byField.get(fieldId) ?? [];
 }
 
 /**
@@ -200,11 +219,12 @@ export function createPlan(
   toolCoverage: number,
   plough = false,
   order: WorkOrder = nearestFirst,
+  fieldParts: FieldPartsOf = partsOfFields(selected),
 ): YearPlan {
   return {
     plannedDay: day,
     ...(plough ? { ard: true as const } : {}),
-    ...createCropWork(selected, day, toolCoverage, plough, order),
+    ...createCropWork(selected, day, toolCoverage, plough, order, 'spring', fieldParts),
   };
 }
 
@@ -218,13 +238,16 @@ export function createYearPlan(
   toolCoverage: number,
   plough = false,
   order: WorkOrder = nearestFirst,
+  fieldParts?: FieldPartsOf,
 ): YearPlan {
-  const plan = createPlan(crops.spring, day, toolCoverage, plough, order);
+  const all =
+    fieldParts ?? partsOfFields([...crops.winter, ...crops.spring, ...(crops.legume ?? [])]);
+  const plan = createPlan(crops.spring, day, toolCoverage, plough, order, all);
   if (crops.winter.length > 0) {
-    plan.winter = createCropWork(crops.winter, day, toolCoverage, plough, order);
+    plan.winter = createCropWork(crops.winter, day, toolCoverage, plough, order, 'winter', all);
   }
   if (crops.legume && crops.legume.length > 0) {
-    plan.legume = createCropWork(crops.legume, day, toolCoverage, plough, order, 'legume');
+    plan.legume = createCropWork(crops.legume, day, toolCoverage, plough, order, 'legume', all);
   }
   return plan;
 }
@@ -240,9 +263,18 @@ export function addToCropWork(
   day: number,
   toolCoverage: number,
   order: WorkOrder = nearestFirst,
+  fieldParts: FieldPartsOf = partsOfFields(added),
 ): void {
   const plough = work.plough;
-  const extra = createCropWork(added, day, toolCoverage, plough !== undefined, order);
+  const extra = createCropWork(
+    added,
+    day,
+    toolCoverage,
+    plough !== undefined,
+    order,
+    'spring',
+    fieldParts,
+  );
   for (const task of TASK_ORDER) work.required[task] += extra.required[task];
   work.partIds.push(...extra.partIds);
   if (extra.reclaimIds) work.reclaimIds = [...(work.reclaimIds ?? []), ...extra.reclaimIds];
@@ -251,6 +283,11 @@ export function addToCropWork(
   plough.required += extra.plough.required;
   plough.weight += extra.plough.weight;
   if (extra.plough.sodIds) plough.sodIds = [...(plough.sodIds ?? []), ...extra.plough.sodIds];
+  // přidané díly – další bloky orby na konci
+  if (plough.bands && extra.plough.bands) {
+    const next = plough.bands.reduce((max, b) => Math.max(max, b.block + 1), 0);
+    plough.bands.push(...extra.plough.bands.map((b) => ({ ...b, block: b.block + next })));
+  }
 }
 
 /**

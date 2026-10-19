@@ -417,11 +417,12 @@ export function showcasePloughWindow(day: number): { startMs: number; endMs: num
 }
 
 /**
- * Ukázka „Orání“ v den ukázky `day`: tři čtverce vedle sebe, orba za den postoupí o
- * SHOWCASE_PLOUGH_STEP čtverce (od strany ke kameře dál, čtverec po čtverci zleva), po zorání
- * všech začne znovu. Díly mají vzhled jako od herního jádra (zoraný, rozpracovaný s čárou práce,
- * strniště) a rozdělení práce dne podíl orby s frontou dílů, přes které dnes orba postoupila –
- * kde spřežení orá, určí stejně jako ve hře `ploughFront` (plough-front.ts).
+ * Ukázka „Orání“ v den ukázky `day`: tři čtverce vedle sebe jsou jeden pás orby (oxen.md – Co
+ * nejdelší brázda: brázda přes všechny tři, obraty jen na koncích), orba za den postoupí napříč
+ * o SHOWCASE_PLOUGH_STEP čtverce plochy (na všech třech dílech stejně, od strany ke kameře dál),
+ * po zorání všech začne znovu. Díly mají vzhled jako od herního jádra (zoraný, rozpracovaný
+ * s čárou práce, strniště, osa a směr orby `furrow`) a rozdělení práce dne podíl orby s díly, přes
+ * které dnes orba postoupila – kde spřežení orá, určí stejně jako ve hře `ploughFront`.
  */
 export function showcasePlough(day: number): Pick<SceneVillage, 'fields' | 'dwellings' | 'pens'> & {
   labor: SceneLabor;
@@ -429,19 +430,16 @@ export function showcasePlough(day: number): Pick<SceneVillage, 'fields' | 'dwel
   const squares = SHOWCASE_GROUNDS.find((g) => g.id === 'plowing')!.squares;
   const cycle = Math.round(squares.length / SHOWCASE_PLOUGH_STEP);
   const d = ((day % cycle) + cycle) % cycle;
-  const from = d * SHOWCASE_PLOUGH_STEP;
-  const to = (d + 1) * SHOWCASE_PLOUGH_STEP;
+  // podíl pásu napříč – ráno a večer
+  const from = d / cycle;
+  const to = (d + 1) / cycle;
+  const furrow = { axis: 'x' as const, sweep: 1 as const };
   const parts = squares.map((square, i): SceneFieldPart => {
-    const base = { ...square, id: PLOUGH_PART_ID + i, stage: 'sown' as const };
-    if (to >= i + 1 - 1e-9) return { ...base, look: 'plowed' };
-    if (to > i) return { ...base, look: 'plowed', work: to - i, before: 'stubble' };
-    return { ...base, look: 'stubble' };
+    const base = { ...square, id: PLOUGH_PART_ID + i, stage: 'sown' as const, furrow };
+    if (to >= 1 - 1e-9) return { ...base, look: 'plowed' };
+    return { ...base, look: 'plowed', work: to, before: 'stubble' };
   });
-  const today = parts.flatMap((p, i) =>
-    i < to - 1e-9 && i + 1 > from + 1e-9
-      ? [{ id: p.id!, progress: [Math.max(0, from - i), Math.min(1, to - i)] as const }]
-      : [],
-  );
+  const today = parts.map((p) => ({ id: p.id!, progress: [from, to] as const }));
   return {
     dwellings: [],
     pens: [],

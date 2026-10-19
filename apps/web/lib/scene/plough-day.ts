@@ -11,7 +11,14 @@ import { dateOfDayIndex } from '@bohemia/game';
 import type { FieldLook, SceneFieldPart, SceneVillage } from '../village-view';
 import { rowDirection } from './field-cells';
 import { fieldPartViews, villageCenter, workSteps } from './field-look';
-import { fieldEdge, ploughCandidate, ploughedTo, stripField } from './plough-front';
+import {
+  bandCandidates,
+  fieldEdge,
+  ploughCandidate,
+  ploughedTo,
+  stripField,
+  type PloughCandidate,
+} from './plough-front';
 import type { RouteStint } from './plough-team';
 
 /**
@@ -20,9 +27,14 @@ import type { RouteStint } from './plough-team';
  */
 export const PLOUGH_DAY_DEBUG = true;
 
-/** Pruh dnešní orby dílu: kudy dnes spřežení prošlo (0–1 dílu, po pruzích obtisku). */
+/**
+ * Pruh dnešní orby dílu (pásu dílů – oxen.md, Co nejdelší brázda: díly pásu se orají spolu,
+ * brázda přes celý pás): kudy dnes spřežení prošlo (0–1 napříč, po pruzích obtisku).
+ */
 export interface DayStint extends RouteStint {
+  /** První díl pásu a všechny díly pásu. */
   partId: number;
+  partIds: number[];
   /** Kolik dílu bylo zoráno ráno a večer (po pruzích obtisku – `workSteps`). */
   from: number;
   to: number;
@@ -55,6 +67,8 @@ export function dayStints(
     const rows = rowDirection(field.parts);
     const center = villageCenter(village, field.parts);
     const edge = fieldEdge(village, field);
+    // díly dne a kudy přes ně orba prošla; sousední díly pásu se stejným postupem v jeden pruh
+    const pieces: { candidate: PloughCandidate; from: number; to: number }[] = [];
     share.parts.forEach((id, k) => {
       const view = views.get(id);
       if (!view || view.look !== 'plowed') return;
@@ -63,15 +77,25 @@ export function dayStints(
       const to = rawTo >= 1 - 1e-9 ? 1 : workSteps(rawTo);
       if (to - from < 1e-6) return;
       const candidate = ploughCandidate(fieldId, view, rows, center, edge);
-      const size = view.part.size;
+      const last = pieces[pieces.length - 1];
+      const merged =
+        last && last.from === from && last.to === to
+          ? bandCandidates([last.candidate, candidate])
+          : null;
+      if (merged && merged.length === 1) last!.candidate = merged[0]!;
+      else pieces.push({ candidate, from, to });
+    });
+    for (const { candidate, from, to } of pieces) {
+      const size = candidate.part.size;
       stints.push({
         fieldId,
-        partId: id,
+        partId: candidate.part.id!,
+        partIds: candidate.parts.flatMap((p) => (p.id === undefined ? [] : [p.id])),
         field: stripField(candidate, from * size, to * size),
         from,
         to,
       });
-    });
+    }
   }
   return stints;
 }
@@ -112,7 +136,7 @@ export function startOfDayVillage<V extends Pick<SceneVillage, 'fields'>>(
   stints: readonly DayStint[],
 ): V {
   if (stints.length === 0) return village;
-  const byPart = new Map(stints.map((s) => [s.partId, s]));
+  const byPart = new Map(stints.flatMap((s) => s.partIds.map((id) => [id, s] as const)));
   return {
     ...village,
     fields: village.fields.map((field) => {

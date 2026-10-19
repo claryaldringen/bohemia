@@ -961,6 +961,12 @@ export interface SceneVillage {
    * kreslí se spřežením, cart-renderer.ts). Bez údaje žádné.
    */
   carts?: SceneCart[];
+  /**
+   * Cesta spřežení z ohrady k bloku dnešní orby (oxen.md – Co nejdelší brázda): osa vozové sítě
+   * (dvoukolák bez nákladu – po cestě, nebo napříč přes neosetá pole), zjednodušená, po cm. Bez
+   * orby dne nebo když spřežení k bloku nedojede, chybí.
+   */
+  ploughApproach?: { x: number; z: number }[];
 }
 
 /** Vůz ve scéně (wagons.md – Vůz). */
@@ -1210,6 +1216,12 @@ export interface SceneFieldPart {
    * Luštěniny): zelené, zralé a sklizené luštěniny vypadají jinak než obilí. Bez údaje obilí.
    */
   crop?: 'legume';
+  /**
+   * Díl plodiny, kterou orá spřežení (oxen.md – Co nejdelší brázda): osa brázd v mřížce pole
+   * (`x`, `y`) a směr, kterým orba (a setí za ní) postupuje napříč (+1 rostoucí souřadnice
+   * mřížky, −1 klesající) – díly pásu se orají spolu, pruh po pruhu. Bez údaje práce jde od vsi.
+   */
+  furrow?: { axis: 'x' | 'y'; sweep: 1 | -1 };
 }
 
 /**
@@ -1669,6 +1681,7 @@ function sceneVillage(
   }));
   const pens = scenePens(state, landscape, day, summary);
   const carts = sceneCarts(state, day, landscape, fields);
+  const ploughApproach = scenePloughApproach(state, day, landscape, fields);
   const hayMeadows = hayMeadowLooks(state, day).map((view): SceneHayMeadow => {
     const center = tileCenterWorld(landscape, view.cell.x, view.cell.y);
     return {
@@ -1706,6 +1719,7 @@ function sceneVillage(
     ...(plantedSaplings.length > 0 ? { plantedSaplings } : {}),
     ...(roadApples.length > 0 ? { roadApples } : {}),
     ...(carts.length > 0 ? { carts } : {}),
+    ...(ploughApproach ? { ploughApproach } : {}),
   };
 }
 
@@ -2104,6 +2118,31 @@ function sceneCarts(
       ...(route ? { route } : {}),
     };
   });
+}
+
+/**
+ * Cesta spřežení k bloku dnešní orby (oxen.md – Co nejdelší brázda): vozovou sítí jako dvoukolák
+ * bez nákladu (pevná cesta rychleji, napříč přes neosetá pole, osetým dílem ne) z ohrady se
+ * spřežením k prvnímu dílu dnešní orby. Bez orby dne nebo když spřežení nedojede, null.
+ */
+function scenePloughApproach(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  fields: SceneVillage['fields'],
+): { x: number; z: number }[] | null {
+  const share = laborReport(state)?.shares.find(
+    (s) =>
+      s.activity === 'plough' && s.target.kind === 'field' && (s.target.parts?.length ?? 0) > 0,
+  );
+  if (!share || share.target.kind !== 'field') return null;
+  const first = share.target.parts![0]!;
+  const part = fields.flatMap((f) => f.parts).find((p) => p.id === first);
+  if (!part) return null;
+  const route = villageCartRoutes(state, day, landscape, obstaclesOf(landscape), 'two-wheel', [
+    { x: part.x, z: part.z, reachM: part.size / 2 + 1.5 },
+  ])?.[0];
+  return route?.reached && route.points.length >= 2 ? simplifiedRoute(route.points) : null;
 }
 
 /** Co vůz při svozu veze: klády ke stavbě, seno ze seče (louka, díl úhoru v seči), jinak snopy. */

@@ -97,8 +97,8 @@ describe('SHOWCASE_BUILDINGS', () => {
   });
 });
 
-describe('ukázka orby po čtvercích', () => {
-  it('čelo orby postoupí každý den ukázky o 3/8 čtverce, spřežení stojí na čele', () => {
+describe('ukázka orby pásu přes tři čtverce', () => {
+  it('orba postoupí každý den ukázky o 3/8 čtverce plochy, celým pásem; spřežení na pásu', () => {
     expect(showcasePloughDay(0)).toBe(0);
     expect(showcasePloughDay(SHOWCASE_PLOUGH_DAY_S * 1000 * 3 + 1)).toBe(3);
     const ploughed = (day: number): number =>
@@ -111,11 +111,13 @@ describe('ukázka orby po čtvercích', () => {
       const village = showcasePlough(day);
       const [team, ...rest] = ploughFront({ ...village, pens: [] });
       expect(rest).toEqual([]);
-      // spřežení na rozpracovaném dílu (poslední den na posledním zoraném)
-      const front = village.fields[0]!.parts.find((p) => p.work !== undefined);
-      expect(team!.partId).toBe(front?.id ?? village.fields[0]!.parts.at(-1)!.id);
-      // fronta dne: díly, přes které orba dnes postoupila, v pořadí od vsi
-      expect(village.labor.shares[0]!.parts).toContain(team!.partId);
+      // spřežení orá celý pás – brázda přes všechny tři čtverce (oxen.md – Co nejdelší brázda)
+      const parts = village.fields[0]!.parts;
+      expect(team!.partId).toBe(parts[0]!.id);
+      expect(team!.field.length).toBeCloseTo(3 * parts[0]!.size, 9);
+      expect(new Set(parts.map((p) => p.work ?? 1)).size).toBe(1);
+      // díly, přes které orba dnes postoupila
+      expect(village.labor.shares[0]!.parts).toEqual(parts.map((p) => p.id));
     }
     // po zorání všech tří čtverců začne znovu
     expect(ploughed(8)).toBeCloseTo(ploughed(0), 9);

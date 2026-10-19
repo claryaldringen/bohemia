@@ -543,7 +543,9 @@ podle rešerše, dřív 200 – kopání 80, výmlat 30). Ves bez spřežení ko
 spřežením orá rádlem všechno a motykou nekope** (Martin, 19. 10. 2026: „Pokud je k dispozici
 rádlo, kopání motykou úplně vynech. Je to neefektivní a aspoň si nebudeme muset pamatovat, co
 čím bylo kopáno.“) – orba 10 → 6 člověkodní na hektar, drn 2,5× víc (orba křížem), a zaseje se
-jen, co spřežení v oknech orby stihnou zorat ([oxen.md](oxen.md) – Jen rádlo).
+jen, co spřežení v oknech orby stihnou zorat ([oxen.md](oxen.md) – Jen rádlo). Spřežení orá po
+souvislých blocích a pásech podél delší strany pole – dlouhá brázda (méně obratů) zorá za den víc
+(Martin: „Volské spřežení chce rýt co nejdelší brázdu“ – oxen.md, Co nejdelší brázda).
 
 | Práce                      | Kdy – ozim    | Kdy – jař                                   | Člověkodny / ha | Zdroj                 |
 | -------------------------- | ------------- | ------------------------------------------- | --------------- | --------------------- |

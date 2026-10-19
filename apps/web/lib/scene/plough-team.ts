@@ -118,8 +118,13 @@ export interface PloughField {
   /** Střed čtverce pole. */
   x: number;
   z: number;
-  /** Strana čtverce (m). */
+  /** Strana čtverce (m) – napříč řadami. */
   size: number;
+  /**
+   * Délka podél řad (m) – pás orby přes víc dílů (oxen.md – Co nejdelší brázda: brázda vede přes
+   * celý pás); bez údaje čtverec (`size`).
+   */
+  length?: number;
   /** Směr řad (jednotkový vektor) – první řada jde tímto směrem. */
   dirX: number;
   dirZ: number;
@@ -228,9 +233,10 @@ function stintRows(field: PloughField, closed: boolean, turnRadius = TURN_RADIUS
   const plan: PloughRow[] = [];
   const offset = (k: number): number => from + (k + 0.5) * spacing;
   const radii = cornerRadii(field, dx, dz, sx, sz);
-  // kde řada končí (podél řad od středu): u kulatého rohu na oblouku, jinak na okraji čtverce
+  // kde řada končí (podél řad od středu): u kulatého rohu na oblouku, jinak na okraji pásu
+  const halfU = (field.length ?? field.size) / 2;
   const extents = Array.from({ length: rows }, (_, k) =>
-    rowExtent(offset(k), field.size / 2, radii),
+    rowExtent(offset(k), halfU, radii, field.size / 2),
   );
   // obrat mezi dvěma řadami na vzdálenější z jejich konců; návrat po souvrati za všemi řadami
   const back = Math.min(...extents.map((e) => e.lo)) - reach;
@@ -297,11 +303,12 @@ function cornerRadii(
 ): [number, number, number, number] {
   const radii: [number, number, number, number] = [0, 0, 0, 0];
   const radius = Math.min(field.size / 2, field.cornerRadius ?? PLOUGH_CORNER_M);
+  const halfU = (field.length ?? field.size) / 2;
   for (const c of field.corners ?? []) {
     const u = (c.x - field.x) * dx + (c.z - field.z) * dz;
     const v = (c.x - field.x) * sx + (c.z - field.z) * sz;
-    // jen skutečné rohy čtverce (ne bod někde jinde)
-    if (Math.abs(Math.abs(u) - field.size / 2) > 0.05) continue;
+    // jen skutečné rohy pásu (ne bod někde jinde)
+    if (Math.abs(Math.abs(u) - halfU) > 0.05) continue;
     if (Math.abs(Math.abs(v) - field.size / 2) > 0.05) continue;
     radii[quadrant(u, v)] = radius;
   }
@@ -309,19 +316,20 @@ function cornerRadii(
 }
 
 /**
- * Kde řada ve vzdálenosti `v` napříč (od středu) přes čtverec vede (podél řad, od středu): od
- * okraje k okraji, u kulatého rohu jen k oblouku.
+ * Kde řada ve vzdálenosti `v` napříč (od středu) přes čtverec (pás – podél `half`, napříč
+ * `halfV`) vede (podél řad, od středu): od okraje k okraji, u kulatého rohu jen k oblouku.
  */
 export function rowExtent(
   v: number,
   half: number,
   radii: readonly [number, number, number, number],
+  halfV = half,
 ): { lo: number; hi: number } {
   let lo = -half;
   let hi = half;
   for (const su of [-1, 1]) {
     const r = radii[quadrant(su, v)]!;
-    const inner = Math.abs(v) - (half - r);
+    const inner = Math.abs(v) - (halfV - r);
     if (r <= 0 || inner <= 0) continue;
     const cut = r - Math.sqrt(Math.max(0, r * r - inner * inner));
     if (su > 0) hi = Math.min(hi, half - cut);
@@ -331,19 +339,21 @@ export function rowExtent(
 }
 
 /**
- * Jak daleko je bod (podél `du`, napříč `dv` od středu čtverce) venku za okrajem čtverce s kulatými
- * rohy (m; uvnitř záporně, nebo 0 u ostrého čtverce jako dřív – max po osách).
+ * Jak daleko je bod (podél `du`, napříč `dv` od středu čtverce) venku za okrajem čtverce (pásu –
+ * podél `half`, napříč `halfV`) s kulatými rohy (m; uvnitř záporně, nebo 0 u ostrého čtverce jako
+ * dřív – max po osách).
  */
 export function outsideSquare(
   du: number,
   dv: number,
   half: number,
   radii: readonly [number, number, number, number],
+  halfV = half,
 ): number {
   const r = radii[quadrant(du, dv)]!;
-  if (r <= 0) return Math.max(Math.abs(du), Math.abs(dv)) - half;
+  if (r <= 0) return Math.max(Math.abs(du) - half, Math.abs(dv) - halfV);
   const qx = Math.abs(du) - (half - r);
-  const qy = Math.abs(dv) - (half - r);
+  const qy = Math.abs(dv) - (halfV - r);
   return Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - r;
 }
 
@@ -611,7 +621,7 @@ export function teamPose(
   const du = (back.x - f.x) * fdx + (back.z - f.z) * fdz;
   const dv = (back.x - f.x) * fsx + (back.z - f.z) * fsz;
   // kulatý roh – rádlo se zvedá na oblouku (stejném, jaký kreslí obtisk pole)
-  const outside = outsideSquare(du, dv, f.size / 2, path.cornerRadii);
+  const outside = outsideSquare(du, dv, (f.length ?? f.size) / 2, path.cornerRadii, f.size / 2);
   const lift = smoothstep(0, LIFT_RAMP_M, outside);
   return composePose(yoke, back, lift, t, TEAM_SPEED_M_S, out, ground);
 }
@@ -1069,12 +1079,15 @@ function segmentEnd(seg: PathSegment): PathPoint {
 
 /**
  * Trasa přes pruhy `stints` v daném pořadí (`ploughRoute`), s přesunem od místa `from` (kde
- * spřežení právě je) k první řadě; bez `from` začíná na první řadě.
+ * spřežení právě je) k první řadě; bez `from` začíná na první řadě. S `approach` (cesta z ohrady
+ * k bloku – oxen.md, Co nejdelší brázda) začíná v ohradě, dojede po ní k první řadě a po poslední
+ * řadě se po ní vrátí do ohrady.
  */
 export function ploughRoute(
   stints: readonly RouteStint[],
   from: { x: number; z: number } | null = null,
   turnRadius = TURN_RADIUS_M,
+  approach: readonly { x: number; z: number }[] | null = null,
 ): PloughRoute {
   const segments: PathSegment[] = [];
   const segmentStint: number[] = [];
@@ -1089,6 +1102,16 @@ export function ploughRoute(
     segments.push({ kind: 'line', length, x: at.x, z: at.z, dx: lx / length, dz: lz / length });
     segmentStint.push(-1);
   };
+  const road = approach && approach.length >= 2 ? approach : null;
+  if (road) {
+    // z místa, kde spřežení je, do ohrady (začátek cesty), pak po cestě k bloku
+    transit(road[0]!);
+    at = road[0]!;
+    for (const point of road.slice(1)) {
+      transit(point);
+      at = point;
+    }
+  }
   stints.forEach((stint, i) => {
     const plan = stintRows(stint.field, false, turnRadius);
     const first = plan.segments[0]!;
@@ -1106,6 +1129,13 @@ export function ploughRoute(
     });
     at = segmentEnd(plan.segments[plan.segments.length - 1]!);
   });
+  if (road && stints.length > 0) {
+    // večer zpět do ohrady po téže cestě
+    for (const point of [...road].reverse()) {
+      transit(point);
+      at = point;
+    }
+  }
   return { ...pathOf(segments), stints: planned, segmentStint };
 }
 
@@ -1196,7 +1226,11 @@ export function routePose(
     const f = stint.field;
     const du = (back.x - f.x) * axes.dx + (back.z - f.z) * axes.dz;
     const dv = (back.x - f.x) * axes.sx + (back.z - f.z) * axes.sz;
-    lift = smoothstep(0, LIFT_RAMP_M, outsideSquare(du, dv, f.size / 2, radii));
+    lift = smoothstep(
+      0,
+      LIFT_RAMP_M,
+      outsideSquare(du, dv, (f.length ?? f.size) / 2, radii, f.size / 2),
+    );
   }
   return composePose(yoke, back, lift, t, moving ? routeSpeed(track) : 0, out, ground);
 }

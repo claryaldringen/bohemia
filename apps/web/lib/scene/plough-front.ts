@@ -98,10 +98,20 @@ export function stripRows(width: number): number {
   return Math.max(2, 2 * Math.round(width / (2 * PLOUGH_ROW_M)));
 }
 
-/** Díl fronty orby s polem, rámcem práce a místem, kam orba došla. */
+/**
+ * Díl fronty orby (nebo pás dílů, které se orají spolu – oxen.md, Co nejdelší brázda) s polem,
+ * rámcem práce a místem, kam orba došla.
+ */
 export interface PloughCandidate {
   fieldId: number;
+  /** První díl pásu (u jednoho dílu ten díl). */
   part: SceneFieldPart;
+  /** Díly pásu podél brázdy (jeden díl – jen `part`). */
+  parts: SceneFieldPart[];
+  /** Střed pásu a jeho délka podél řad (m). */
+  x: number;
+  z: number;
+  length: number;
   along: [number, number];
   across: [number, number];
   line: number;
@@ -125,14 +135,13 @@ interface Footprint {
  * obratu; obojí i s tělem spřežení.
  */
 function footprint(c: PloughCandidate): Footprint {
-  const half = c.part.size / 2;
   return {
-    x: c.part.x,
-    z: c.part.z,
+    x: c.x,
+    z: c.z,
     ax: c.along,
     bx: c.across,
-    ha: half + ardReach() + (1 + Math.sqrt(3)) * TURN_RADIUS_M + TEAM_BODY_M,
-    hb: half + TURN_RADIUS_M + TEAM_BODY_M,
+    ha: c.length / 2 + ardReach() + (1 + Math.sqrt(3)) * TURN_RADIUS_M + TEAM_BODY_M,
+    hb: c.part.size / 2 + TURN_RADIUS_M + TEAM_BODY_M,
   };
 }
 
@@ -175,7 +184,54 @@ function shareCandidates(
   const rows = rowDirection(field.parts);
   const center = villageCenter(village, field.parts);
   const edge = fieldEdge(village, field);
-  return order.map((view) => ploughCandidate(fieldId, view, rows, center, edge));
+  return bandCandidates(order.map((view) => ploughCandidate(fieldId, view, rows, center, edge)));
+}
+
+/**
+ * Pás orby (oxen.md – Co nejdelší brázda): sousední díly téhož pásu (stejná osa brázd a směr
+ * orby od herního jádra – `furrow`, sousedí podél brázdy a orba na nich došla stejně daleko) se
+ * orají spolu – brázda přes celý pás, obraty jen na jeho koncích. Kandidáti v pořadí; díly bez
+ * `furrow` zůstanou samostatně.
+ */
+export function bandCandidates(candidates: readonly PloughCandidate[]): PloughCandidate[] {
+  const out: PloughCandidate[] = [];
+  for (const c of candidates) {
+    const last = out[out.length - 1];
+    if (last && sameBand(last, c)) {
+      const parts = [...last.parts, ...c.parts];
+      // díly podle polohy podél řad (pořadí kandidátů může jít oběma směry)
+      const along = (p: SceneFieldPart): number => p.x * last.along[0] + p.z * last.along[1];
+      parts.sort((a, b) => along(a) - along(b));
+      out[out.length - 1] = {
+        ...last,
+        part: parts[0]!,
+        parts,
+        x: (parts[0]!.x + parts[parts.length - 1]!.x) / 2,
+        z: (parts[0]!.z + parts[parts.length - 1]!.z) / 2,
+        length: last.length + c.length,
+        corners: [...last.corners, ...c.corners],
+      };
+      continue;
+    }
+    out.push(c);
+  }
+  return out;
+}
+
+/** Patří kandidát `c` do pásu `band` – navazuje podél brázdy na jeden z jeho krajních dílů? */
+function sameBand(band: PloughCandidate, c: PloughCandidate): boolean {
+  const a = band.part.furrow;
+  const b = c.part.furrow;
+  if (!a || !b || a.axis !== b.axis || a.sweep !== b.sweep || band.fieldId !== c.fieldId) {
+    return false;
+  }
+  if (Math.abs(band.line - c.line) > 1e-6) return false;
+  const along = (cell: { x: number; y: number }): number => (a.axis === 'x' ? cell.x : cell.y);
+  const across = (cell: { x: number; y: number }): number => (a.axis === 'x' ? cell.y : cell.x);
+  const cell = c.part.cell;
+  return band.parts.some(
+    (p) => across(p.cell) === across(cell) && Math.abs(along(p.cell) - along(cell)) === 1,
+  );
 }
 
 /**
@@ -210,6 +266,10 @@ export function ploughCandidate(
   return {
     fieldId,
     part: view.part,
+    parts: [view.part],
+    x: view.part.x,
+    z: view.part.z,
+    length: view.part.size,
     along: frame.along,
     across: frame.across,
     line: ploughedTo(view),
@@ -217,13 +277,17 @@ export function ploughCandidate(
   };
 }
 
-/** Pruh napříč řadami (m od strany, kde práce začíná) na dílu jako pole orby pro `ploughPath`. */
+/**
+ * Pruh napříč řadami (m od strany, kde práce začíná) na dílu (pásu dílů) jako pole orby pro
+ * `ploughPath`.
+ */
 export function stripField(c: PloughCandidate, lo: number, hi: number): PloughField {
   const half = c.part.size / 2;
   return {
-    x: c.part.x,
-    z: c.part.z,
+    x: c.x,
+    z: c.z,
     size: c.part.size,
+    ...(c.length !== c.part.size ? { length: c.length } : {}),
     dirX: c.along[0],
     dirZ: c.along[1],
     rows: stripRows(hi - lo),
