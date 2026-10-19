@@ -39,6 +39,7 @@ import {
   type Point,
 } from './village-layout';
 import { createDecalMaterial, createDecalMesh, createStripMesh } from './village-meshes';
+import { hasPorch } from './workshop-layout';
 
 /**
  * VÝVOJOVÝ NÁHLED – staveniště na stránce /dev/buildings podle průběhu stavby 0–1: díly
@@ -239,7 +240,7 @@ export class ShowcaseSites {
       ];
     } else {
       const c = DWELLING_CLEARANCE_M[base];
-      const porch = model.kind === 'hrncir' || model.kind === 'kovar' ? PORCH_EXTRA_M : 0;
+      const porch = hasPorch(model.kind) ? PORCH_EXTRA_M : 0;
       const inset = TRAMPLED_INSET_M + TRAMPLED_SOFT_M / 2;
       area = [
         localToWorld(model, c.minX + inset, c.minZ + inset),

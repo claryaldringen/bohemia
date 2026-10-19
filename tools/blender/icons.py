@@ -6,7 +6,8 @@ Celé jedním příkazem z kořene repa (Blender 5, ImageMagick `magick`, intern
 
 Výstup (128 × 128 PNG, průhledné rohy) – `build/` zemnice, polozemnice, dvorec (dvorec vojvody –
 trade.md), pole, hrbitov,
-hrncir, kovar, uhlir (řemeslné dílny z `apps/web/public/models/crafts/`, uhlíř s milířem), sad
+hrncir, kovar, tesar, uhlir (řemeslné dílny z `apps/web/public/models/crafts/`, tesař pod
+přístřeškem s kozlíky a koly – wagons.md, uhlíř s milířem), sad
 (jabloňový sad), modla, svatyne (posvátná místa z `apps/web/public/models/sacred/`), dub
 (posvátný dub s obětinami), sous (posvátná souš – uschlý dub z `apps/web/public/models/decor/`
 s obětinami), haj (dubový háj s kameny) a ohrada (přístřešek, žlab a branka
@@ -304,8 +305,8 @@ def icon_dwelling(name):
 
 
 def icon_craft(name):
-    """Řemeslná dílna (tools/blender/crafts.py) jako portrét obydlí. Hrnčíř a kovář zepředu
-    do přístřešku (pec / výheň musí být v ikoně vidět), uhlíř i s kouřícím milířem – blíž
+    """Řemeslná dílna (tools/blender/crafts.py) jako portrét obydlí. Hrnčíř, kovář a tesař
+    zepředu do přístřešku (pec / výheň / kozlíky s koly musí být v ikoně vidět), uhlíř i s kouřícím milířem – blíž
     a vzadu vlevo (ve vsi je MILIR_OFFSET v crafts.py), ať se do čtverce vejde obojí."""
     objs = place_model(name, folder=CRAFTS)
     if name == "uhlir":
@@ -1753,6 +1754,7 @@ BUILD = {
     "hrbitov": icon_hrbitov,
     "hrncir": lambda: icon_craft("hrncir"),
     "kovar": lambda: icon_craft("kovar"),
+    "tesar": lambda: icon_craft("tesar"),
     "uhlir": lambda: icon_craft("uhlir"),
     "sad": icon_sad,
     "modla": icon_modla,

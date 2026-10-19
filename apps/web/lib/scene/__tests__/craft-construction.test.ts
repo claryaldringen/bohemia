@@ -124,6 +124,23 @@ describe('díly staveniště řemesel', () => {
     expect(forge(0.92)).toContain('anvil');
   });
 
+  it('tesař: na fázích dílny s přístřeškem, pak kozlíky s trámem a špalek, nakonec kola a hobliny', () => {
+    const ids = CONSTRUCTION_PHASES.tesar.map((p) => p.id);
+    expect(ids.slice(-3)).toEqual(['finish', 'carpentry', 'workshop']);
+    expect(ids).toContain('porch');
+    const at = (p: number): string[] => constructionState('tesar', p).parts;
+    expect(at(0.76)).not.toContain('trestles');
+    expect(at(0.8)).toContain('trestles');
+    expect(at(0.8)).not.toContain('beam');
+    expect(at(0.85)).toContain('beam');
+    expect(at(0.89)).toContain('block');
+    expect(at(0.89)).not.toContain('beams');
+    expect(at(0.93)).toContain('beams');
+    expect(at(0.96)).toContain('wheels');
+    expect(at(0.99)).toContain('chips');
+    expect(constructionState('tesar', 0.3).pitDepth).toBeCloseTo(0.5);
+  });
+
   it('uhlíř: řady mechu ve fázi mechu, dílna nakonec', () => {
     const at = (p: number): string[] => constructionState('uhlir', p).parts;
     expect(at(0.6)).not.toContain('thatch-1');

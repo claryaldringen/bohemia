@@ -99,6 +99,7 @@ import type { SceneDwelling, SceneRuin } from './village-types';
 import {
   CRAFT_MODEL,
   forestKilnAnchor,
+  hasPorch,
   milirCircle,
   milirFootPoints,
   milirHideShape,
@@ -122,6 +123,7 @@ type ModelKey = DwellingType | WorkshopModel | 'milir';
 const CRAFT_MODEL_KEYS: readonly (WorkshopModel | 'milir')[] = [
   'hrncir',
   'kovar',
+  'tesar',
   'uhlir',
   'milir',
 ];
@@ -1638,8 +1640,8 @@ function trampledArea(d: SceneDwelling): Point[] {
     ).map(([lx, lz]): Point => [x + lx * c + lz * s, z - lx * s + lz * c]);
   }
   const c = DWELLING_CLEARANCE_M[d.type];
-  // hrnčíř a kovář: ušlapáno i pod přístřeškem před domem
-  const porch = d.craft === 'potter' || d.craft === 'smith' ? PORCH_EXTRA_M : 0;
+  // dílny s přístřeškem (hrnčíř, kovář, tesař): ušlapáno i pod ním před domem
+  const porch = d.craft && hasPorch(CRAFT_MODEL[d.craft]) ? PORCH_EXTRA_M : 0;
   return [
     localToWorld(d.position, c.minX + inset, c.minZ + inset),
     localToWorld(d.position, c.maxX - inset, c.minZ + inset),

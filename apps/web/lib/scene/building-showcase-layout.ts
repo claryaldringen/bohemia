@@ -6,7 +6,8 @@
 // orba postupuje po dnech ukázky jako ve hře, plough-front.ts),
 // vlevo od zemnice ohrada s přístřeškem (ukázka „Ohrada“, pen-layout.ts); před pozemky rozpad
 // obydlí – opuštěná zemnice a polozemnice podle posuvníku stavu a řada všech stupňů rozpadu
-// (showcaseDecay, dwelling-decay.ts); vpravo vzadu pahorek s vozy (showcaseCarts, cart-layout.ts).
+// (showcaseDecay, dwelling-decay.ts); vpravo vzadu dílna tesaře a pahorek s vozy (showcaseCarts,
+// cart-layout.ts).
 import {
   ABANDONMENT,
   CEMETERY,
@@ -155,6 +156,8 @@ function manorModel(x: number, z: number): ShowcaseModel {
 const MANOR_AT = { x: -82, z: -4 };
 
 const UHLIR_X = 26;
+/** Dílna tesaře – vlevo od pahorku s vozy (SHOWCASE_CARTS), vchodem ke kameře. */
+const TESAR_AT = { x: 86, z: -42 };
 const milir = offset(UHLIR_X, 0, FACING, MILIR_OFFSET_M);
 /** Řada pěti variant pozemku polozemnice před stavbami (z) a rozestup středů (m). */
 const VARIANTS_Z = -26;
@@ -192,6 +195,15 @@ export const SHOWCASE_BUILDINGS: readonly ShowcaseBuilding[] = [
     label: 'Dvorec vojvody',
     models: [manorModel(MANOR_AT.x, MANOR_AT.z)],
     focus: { x: MANOR_AT.x, z: MANOR_AT.z - 7.5, radius: 34 },
+  },
+  // tesař (wagons.md) – vpravo vzadu u vozů, které vyrábí (v řadě dílen už není místo)
+  {
+    id: 'tesar',
+    label: 'Tesař',
+    models: [
+      { kind: 'tesar', url: modelUrl('tesar'), x: TESAR_AT.x, z: TESAR_AT.z, rotation: FACING },
+    ],
+    focus: { x: TESAR_AT.x, z: TESAR_AT.z - 1.5, radius: 20 },
   },
   // posvátná místa: modla (4 × 4 m) a svatyně (30 × 30 m) – vpravo za milířem, před sadem
   building('modla', 'Modla', 'modla', 50, 14),

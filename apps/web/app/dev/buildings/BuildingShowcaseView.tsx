@@ -4,8 +4,8 @@
 // staveb bez přihlášení a databáze, i stavba po fázích (posuvník a přehrání) – obydlí, řemesla,
 // modla a svatyně, za nimi pole, hřbitov a sad, vpravo posvátný dub a dubový háj, vlevo orá
 // spřežení volů s rádlem a vedle zemnice ohrada s přístřeškem (voli a kráva), vpravo vzadu na
-// pahorku vozy se spřežením (dvoukoláky dokola, čtyřkoláky tam a zpět, s různým nákladem). Orba
-// volů, ohrada ani vozy zatím nejsou ve hře – jen modely. Přepínač zimy ukáže sníh.
+// pahorku vozy se spřežením (dvoukoláky dokola, čtyřkoláky tam a zpět, s různým nákladem) a dílna
+// tesaře. Orba volů, ohrada ani vozy zatím nejsou ve hře – jen modely. Přepínač zimy ukáže sníh.
 // Před pozemky rozpad obydlí: posuvník stavu opuštěné zemnice a polozemnice 100 → 0 % a zbytek
 // jámy po zániku, za nimi řada všech stupňů rozpadu. Přepínač Oprava ukáže u opuštěných staveb (modla, svatyně, hřbitov,
 // ohrada) místo rozpadu jejich opravu – posuvník je průběh opravy (abandonment.md – Oprava).
@@ -38,6 +38,7 @@ const KIND_LABELS: Record<ConstructionKind, string> = {
   dvorec: 'Dvorec vojvody',
   hrncir: 'Hrnčíř',
   kovar: 'Kovář',
+  tesar: 'Tesař',
   uhlir: 'Uhlíř',
   milir: 'Milíř',
   modla: 'Modla',
