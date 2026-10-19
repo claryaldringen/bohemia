@@ -494,7 +494,11 @@ describe('orba rádlem', () => {
     expect(spring.plan!.plough).toBeUndefined();
     expect(spring.plan!.required.dig).toBeGreaterThan(0);
     expect(spring.plan!.ard).toBe(true);
-    expect(spring.labor!.shares.some((share) => share.activity === 'dig')).toBe(true);
+    // napřed se zpracuje maso uhynulého vola (porážka přes zimu – diet.md, Porážka v zimě), pak
+    // kopou
+    expect(spring.labor!.shares.some((share) => share.activity === 'slaughter')).toBe(true);
+    const later = advanceVillage(spring, at(601, 3, 6), null);
+    expect(later.labor!.shares.some((share) => share.activity === 'dig')).toBe(true);
   });
 });
 

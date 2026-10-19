@@ -1,5 +1,6 @@
 import { dateOfDayIndex, dayIndexOf, isLeapYear } from '../calendar';
 import { HAY_WINTER_MONTHS } from './hay';
+import { HERD_BREEDING } from './rules';
 import type { HerdSpecies, VillageState } from './types';
 
 // Mléko a sýr, práce se zvířaty (diet.md – Mléko a sýr, Práce se zvířaty; Martin 18. 10. 2026:
@@ -14,8 +15,8 @@ export const DAIRY_SPECIES: readonly DairySpecies[] = ['cow', 'goat', 'sheep'];
 
 /**
  * diet.md – Mléko a sýr (rešerše 2026-10-18-dairy-protein.md): mléko pro lidi na dojnou samici za
- * rok (po vykrmení mláděte – kráva 300 l, ovce 25 l, koza 60 l), podíl dojných kusů stáda (skot
- * 40 %, ovce a kozy 50 % – návrh Clauda), kdy se dojí (váha dne po měsících: kráva květen–září
+ * rok (po vykrmení mláděte – kráva 300 l, ovce 25 l, koza 60 l); dojí se samice, které letos
+ * rodily (`dairyDams` – dřív pevný podíl stáda i s mláďaty: skot 40 %, ovce a kozy 50 %), kdy se dojí (váha dne po měsících: kráva květen–září
  * naplno, říjen–listopad napůl; ovce 15. 5. – 31. 8.; koza květen–září), bílkoviny a energie
  * litru (kg bílkovin, kg obilí – 640 / 700 / 1 050 kcal na litr proti 3 400 kcal na kg obilí),
  * syřidlový sýr (25 % bílkovin, 3 000 kcal/kg ≈ 0,88 kg obilí, zpracováním zůstane 75 % bílkovin
@@ -23,7 +24,6 @@ export const DAIRY_SPECIES: readonly DairySpecies[] = ['cow', 'goat', 'sheep'];
  */
 export const DAIRY = {
   litersPerYear: { cow: 300, goat: 60, sheep: 25 },
-  milkedShare: { cow: 0.4, goat: 0.5, sheep: 0.5 },
   proteinPerL: { cow: 0.033, goat: 0.036, sheep: 0.057 },
   energyPerL: { cow: 0.19, goat: 0.21, sheep: 0.31 },
   cheeseProtein: 0.25,
@@ -32,7 +32,6 @@ export const DAIRY = {
   cheeseLossPerYear: 0.15,
 } as const satisfies {
   litersPerYear: Record<DairySpecies, number>;
-  milkedShare: Record<DairySpecies, number>;
   proteinPerL: Record<DairySpecies, number>;
   energyPerL: Record<DairySpecies, number>;
   cheeseProtein: number;
@@ -124,12 +123,28 @@ function milkingDaysThrough(day: number): number {
 }
 
 /**
- * Mléko, které stáda `herds` dají ode dne `from` do dne `to` včetně (energie v kg obilí) – každý
+ * Dojné samice (kusy po druzích – diet.md, Mléko a sýr; Martin 19. 10. 2026: „Navíc ovce, krávy
+ * i kozy musí být neustále březí aby dávaly mléko.“): dojí se jen samice, které letos rodily –
+ * a rodí všechny chovné samice (Rodí všechny samice), takže dospělé kusy stáda bez letošních
+ * mláďat (`young`) × podíl chovných samic (HERD_BREEDING.femaleShare). Mléka je tak úměrně
+ * letošním porodům. Prasata se nedojí.
+ */
+export function dairyDams(
+  herds: Readonly<Record<HerdSpecies, number>>,
+  young?: Readonly<Record<HerdSpecies, number>>,
+): Record<HerdSpecies, number> {
+  const dams = (species: DairySpecies): number =>
+    Math.max(0, herds[species] - (young?.[species] ?? 0)) * HERD_BREEDING.femaleShare[species];
+  return { sheep: dams('sheep'), goat: dams('goat'), pig: 0, cow: dams('cow') };
+}
+
+/**
+ * Mléko, které dojné samice `dams` (`dairyDams`) dají ode dne `from` do dne `to` včetně (energie v kg obilí) – každý
  * den nejvýš `capPerDay` (víc se nevypije). Pro výhled jídla do sklizně (diet.md – Hlad, osev podle
  * stravy): strop se počítá na dny v měsících dojení, ne po dnech (stačí odhad). Bez dnů 0.
  */
 export function milkEnergyBetween(
-  herds: Record<HerdSpecies, number>,
+  dams: Record<HerdSpecies, number>,
   from: number,
   to: number,
   capPerDay: number,
@@ -147,9 +162,7 @@ export function milkEnergyBetween(
       cumulative[endIndex]! -
       cumulative[startIndex]!;
     if (weight <= 0) continue;
-    const liters =
-      (herds[species] * DAIRY.milkedShare[species] * DAIRY.litersPerYear[species] * weight) /
-      SEASON_WEIGHT[species];
+    const liters = (dams[species] * DAIRY.litersPerYear[species] * weight) / SEASON_WEIGHT[species];
     energy += liters * DAIRY.energyPerL[species];
   }
   const milkingDays = milkingDaysThrough(to) - milkingDaysThrough(from - 1);
@@ -169,8 +182,8 @@ export interface MilkYield {
   energy: number;
 }
 
-/** Možné mléko dne ze stád (bez ohledu na práci). */
-export function dailyMilk(herds: Record<HerdSpecies, number>, day: number): MilkYield {
+/** Možné mléko dne od dojných samic `dams` (`dairyDams` – bez ohledu na práci). */
+export function dailyMilk(dams: Record<HerdSpecies, number>, day: number): MilkYield {
   const { month, day: dayOfMonth } = dateOfDayIndex(day);
   let liters = 0;
   let proteinKg = 0;
@@ -178,9 +191,7 @@ export function dailyMilk(herds: Record<HerdSpecies, number>, day: number): Milk
   for (const species of DAIRY_SPECIES) {
     const weight = milkingWeight(species, month, dayOfMonth);
     if (weight <= 0) continue;
-    const l =
-      (herds[species] * DAIRY.milkedShare[species] * DAIRY.litersPerYear[species] * weight) /
-      SEASON_WEIGHT[species];
+    const l = (dams[species] * DAIRY.litersPerYear[species] * weight) / SEASON_WEIGHT[species];
     liters += l;
     proteinKg += l * DAIRY.proteinPerL[species];
     energy += l * DAIRY.energyPerL[species];
@@ -188,13 +199,13 @@ export function dailyMilk(herds: Record<HerdSpecies, number>, day: number): Milk
   return { liters, proteinKg, energy };
 }
 
-/** Mléko stád za rok (litry, kg bílkovin a energie v kg obilí). */
-export function yearlyMilk(herds: Record<HerdSpecies, number>): MilkYield {
+/** Mléko dojných samic `dams` za rok (litry, kg bílkovin a energie v kg obilí). */
+export function yearlyMilk(dams: Record<HerdSpecies, number>): MilkYield {
   let liters = 0;
   let proteinKg = 0;
   let energy = 0;
   for (const species of DAIRY_SPECIES) {
-    const l = herds[species] * DAIRY.milkedShare[species] * DAIRY.litersPerYear[species];
+    const l = dams[species] * DAIRY.litersPerYear[species];
     liters += l;
     proteinKg += l * DAIRY.proteinPerL[species];
     energy += l * DAIRY.energyPerL[species];
@@ -214,9 +225,9 @@ export interface AnimalCareNeed {
 }
 
 /**
- * Práce se zvířaty dne: dojení dojných kusů v době dojení a výroba sýra z `cheeseMilkL` litrů,
- * zimní péče o krávy a voly (`oxen` – spřežení a telata ve výcviku), ovce a kozy, denní péče
- * o prasata a slepice (`hens`).
+ * Práce se zvířaty dne: dojení dojných samic (`dams` – `dairyDams`) v době dojení a výroba sýra
+ * z `cheeseMilkL` litrů, zimní péče o krávy a voly (`oxen` – spřežení a telata ve výcviku), ovce
+ * a kozy, denní péče o prasata a slepice (`hens`).
  */
 export function animalCareNeed(
   herds: Record<HerdSpecies, number>,
@@ -224,11 +235,12 @@ export function animalCareNeed(
   hens: number,
   day: number,
   cheeseMilkL = 0,
+  dams: Record<HerdSpecies, number> = dairyDams(herds),
 ): AnimalCareNeed {
   let milking = cheeseMilkL * ANIMAL_CARE.cheesePerL;
   for (const species of DAIRY_SPECIES) {
     if (!isMilkingSeason(species, day)) continue;
-    milking += herds[species] * DAIRY.milkedShare[species] * ANIMAL_CARE.milkingPerHead[species];
+    milking += dams[species] * ANIMAL_CARE.milkingPerHead[species];
   }
   const winter = HAY_WINTER_MONTHS.includes(dateOfDayIndex(day).month);
   const care =

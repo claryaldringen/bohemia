@@ -32,16 +32,16 @@ export function woolCoverage(state: Pick<VillageState, 'livestock'>): number {
 
 /**
  * Při porážce (1. 11., mutuje `livestock`): zapíše, na jaký podíl oděvu dají vlnu ovce, které ves
- * nechala přes zimu (`LivestockState.wool`), a když nestačí (pod `WOOL.noticeBelow`), vrátí
- * událost kroniky `wool-short`.
+ * nechala přes zimu (`sheep` – bez ovcí na zimní porážku; `LivestockState.wool`), a když nestačí
+ * (pod `WOOL.noticeBelow`), vrátí událost kroniky `wool-short`.
  */
 export function recordWool(
   state: Pick<VillageState, 'people'>,
   livestock: LivestockState,
   day: number,
+  sheep = livestock.herds.sheep,
 ): ChronicleEvent | null {
   const needed = woolSheep(state, day);
-  const sheep = livestock.herds.sheep;
   const coverage = needed > EPSILON ? Math.min(1, sheep / needed) : 1;
   livestock.wool = coverage;
   if (coverage >= WOOL.noticeBelow - EPSILON) return null;

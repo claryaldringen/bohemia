@@ -881,7 +881,13 @@ export type ChronicleEvent = { day: number } & (
    */
   | { kind: 'linen-short'; kg: number; neededKg: number }
   /** Podzimní porážka (diet.md – 1. 11.): kolik kg masa a kolik kusů kterého druhu. */
-  | { kind: 'slaughter'; kg: number; animals: Partial<Record<HerdSpecies, number>> }
+  | {
+      kind: 'slaughter';
+      kg: number;
+      animals: Partial<Record<HerdSpecies, number>>;
+      /** Z toho maso kusů, které se porážejí po dnech přes zimu (diet.md – Porážka v zimě). */
+      fresh?: number;
+    }
   /**
    * Nouzová porážka (diet.md – Nouzová porážka): výhled jídla do sklizně nevycházel, ves porazila
    * zvířata navíc – kolik kg masa a kusů (na setiny) kterého druhu.
@@ -1228,6 +1234,11 @@ export interface VillageState {
   livestock?: LivestockState;
   /** Zásoba masa (kg) – uzené a sušené (diet.md). Chybí = žádná. */
   meatKg?: number;
+  /**
+   * Čerstvé maso dne (kg) ze zimní porážky (diet.md – Porážka v zimě): porážka ho dá ráno, jídlo
+   * dne ho sní napřed, co zbude, se udí. Mezi dny chybí.
+   */
+  freshMeatKg?: number;
   /** Zásoba sýra (kg) – z mléka, které se nevypije čerstvé (diet.md). Chybí = žádná. */
   cheeseKg?: number;
   /** Zásoba luštěnin (kg suchého semene – diet.md, Luštěniny). Chybí = žádná. */
@@ -1800,6 +1811,12 @@ export interface LivestockState {
    * `recordWool`). Chybí = dost (vsi uložené dřív a nové vsi do první porážky).
    */
   wool?: number;
+  /**
+   * Kusy na maso, které čekají na zimní porážku (diet.md – Porážka v zimě): rozhodne je porážka
+   * 1. 11., žijí ve stádech (`herds`) a žerou seno nebo les, ves je porazí po dnech podle čerstvé
+   * spotřeby do konce zimy. Chybí = žádné (i vsi uložené dřív).
+   */
+  culling?: Record<HerdSpecies, number>;
 }
 
 /** Seno (oxen.md – Seno): zásoba, letošní seč a zima. */
@@ -1931,6 +1948,8 @@ export interface DietDay {
     eggs: number;
     fruit: number;
     legumes?: number;
+    /** Z toho čerstvé maso ze zimní porážky (diet.md – Porážka v zimě); chybí = žádné. */
+    freshMeat?: number;
   };
 }
 

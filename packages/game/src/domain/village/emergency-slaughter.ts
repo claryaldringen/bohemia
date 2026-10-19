@@ -1,5 +1,11 @@
 import { dateOfDayIndex } from '../calendar';
-import { dailyMilk, daysUntilMilking, milkEnergyBetween, villageCheeseKg } from './dairy';
+import {
+  dailyMilk,
+  dairyDams,
+  daysUntilMilking,
+  milkEnergyBetween,
+  villageCheeseKg,
+} from './dairy';
 import {
   DIET,
   daysUntilMeatEnd,
@@ -18,10 +24,12 @@ import { daysUntilLegumeHarvest, villageLegumesKg } from './legumes';
 import {
   HERD_SPECIES,
   LIVESTOCK,
-  SLAUGHTER_MONTH,
   butcher,
   dailyEggsKg,
+  freshMeatAheadEnergy,
+  isSlaughterSeason,
   pigForestHa,
+  villageDams,
   villageHerds,
 } from './livestock';
 import { villageApplesKg } from './orchard';
@@ -54,17 +62,18 @@ const SEARCH_STEPS = 60;
  * Vstup jídla dne (`eatDiet`) ze stavu na konci předchozího dne – co ves dnes jí a s čím do
  * sklizně počítá: dnešní mléko (podojený podíl `milked`) a vejce, mléko stád do sklizně,
  * ovoce do zkažení (nádoby od hrnčíře – `potteryCoverage`), maso do zkažení, sýr do dojení,
- * luštěniny do sklizně. `herds` – stáda, se kterými se počítá (bez údaje stáda vsi).
+ * luštěniny do sklizně. `dams` – dojné samice, se kterými se počítá (bez údaje dojné samice vsi –
+ * `villageDams`).
  */
 export function dayMealInput(
   state: VillageState,
   day: number,
   potteryCoverage: number,
   milked: number,
-  herds: Record<HerdSpecies, number> = villageHerds(state),
+  dams: Record<HerdSpecies, number> = villageDams(state),
 ): DietInput {
   const need = villageFoodNeed(state, day);
-  const milk = dailyMilk(herds, day);
+  const milk = dailyMilk(dams, day);
   // ozim uživí srpen, když pokryje potřebu z pole, na kterou ves osévala (fields.md – Ozim a jař)
   const daysToHarvest = daysUntilFoodHarvest(
     state.plan,
@@ -75,6 +84,9 @@ export function dayMealInput(
   return {
     grainKg: state.storesKg,
     meatKg: villageMeatKg(state),
+    // čerstvé maso zimní porážky – dnešní a do konce zimy (diet.md – Porážka v zimě)
+    freshMeatKg: state.freshMeatKg ?? 0,
+    freshAheadEnergy: freshMeatAheadEnergy(state, day),
     fruitKg: villageApplesKg(state),
     cheeseKg: villageCheeseKg(state),
     milkL: milk.liters * milked,
@@ -88,7 +100,7 @@ export function dayMealInput(
     daysToMilking: daysUntilMilking(day),
     // výhled do sklizně počítá s mlékem stád (fields.md – Osev podle stravy)
     milkAheadEnergy: milkEnergyBetween(
-      herds,
+      dams,
       day + 1,
       day + daysToHarvest - 1,
       DIET.caps.dairy * need,
@@ -190,11 +202,17 @@ export function emergencySlaughterPlan(
   const maxKg = HERD_SPECIES.reduce((sum, s) => sum + spare[s] * LIVESTOCK.meatKg[s], 0);
   if (maxKg < MIN_KG) return null;
   const herds = villageHerds(state);
+  const young = state.livestock.young;
   const meal = (kg: number, reserve: number): DietResult => {
     const killed = animalsFor(kg, spare);
     const after = { sheep: 0, goat: 0, pig: 0, cow: 0 };
-    for (const s of HERD_SPECIES) after[s] = herds[s] - killed[s];
-    const input = dayMealInput(state, day, potteryCoverage, milked, after);
+    const youngAfter = { sheep: 0, goat: 0, pig: 0, cow: 0 };
+    for (const s of HERD_SPECIES) {
+      after[s] = herds[s] - killed[s];
+      youngAfter[s] = herds[s] > 0 ? (young[s] * after[s]) / herds[s] : 0;
+    }
+    // zabitím dojnic ubude mléka – mláďata ubudou poměrně jako při porážce
+    const input = dayMealInput(state, day, potteryCoverage, milked, dairyDams(after, youngAfter));
     const reserveKg = reserve * input.needPerDay * input.daysToHarvest;
     return eatDiet({
       ...input,
@@ -245,10 +263,14 @@ export function emergencySlaughter(
     const herd = livestock.herds[species];
     const left = Math.max(0, herd - killed);
     livestock.young[species] *= herd > 0 ? left / herd : 0;
+    // kusy čekající na zimní porážku jdou první (diet.md – Porážka v zimě)
+    if (livestock.culling) {
+      livestock.culling[species] = Math.max(0, livestock.culling[species] - killed);
+    }
     livestock.herds[species] = left;
     animals[species] = Math.round(killed * 100) / 100;
   }
-  if (dateOfDayIndex(day).month !== SLAUGHTER_MONTH && !livestock.slaughterWork?.emergency) {
+  if (!isSlaughterSeason(day) && !livestock.slaughterWork?.emergency) {
     livestock.slaughterWork = { required: 0, done: 0, emergency: true };
   }
   butcher(state, plan.kg);

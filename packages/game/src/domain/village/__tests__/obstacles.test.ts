@@ -386,10 +386,18 @@ describe('hřbitov – překážky na čtvercích jako u pole', () => {
       ...village(),
       cemeteries: [{ squares: [{ cell: { x: 8, y: 8 } }] }],
     };
-    // půdorys x 1–5, z −4…0 je mimo hřbitov, staveniště zasahuje do čtverce (8, 8) se stromem
-    const check = checkDwellingPlacement(landscape, withCemetery, 'zemnice', at(3, -2), layer);
+    // půdorys je mimo hřbitov (x 0–15, z 0–15), staveniště natočené o 45° sahá do čtverce (8, 8)
+    // ke stromu (3, 3), vchod leží mimo hřbitov – vchodem do hřbitova by obydlí stát nesmělo
+    // (population.md – Umístění obydlí, Martin 19. 10. 2026: „Ano, zakaž to“)
+    const aside = at(1, -4.5, Math.PI / 4);
+    const check = checkDwellingPlacement(landscape, withCemetery, 'zemnice', aside, layer);
     expect(check.ok).toBe(true);
     expect(check.obstacleIds).toEqual([]);
+    // bez hřbitova by obydlí strom na čtverci platilo
+    const alone = checkDwellingPlacement(landscape, village(), 'zemnice', aside, layer);
+    expect(alone.obstacleIds).toContain(100);
+    const facing = checkDwellingPlacement(landscape, withCemetery, 'zemnice', at(3, -2), layer);
+    expect(facing.reason).toBe('Vchod by vedl do hřbitova.');
   });
 });
 

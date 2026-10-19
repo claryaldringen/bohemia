@@ -1061,8 +1061,8 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   (`DIET`); luštěniny (`legumes.ts`) rovným dílem do sklizně 31. 7. (`daysUntilLegumeHarvest`).
   **Bílkoviny** (Martin 18. 10. 2026): 1,6 g na kg tělesné váhy (`PROTEIN`, `proteinNeedPerDay`
   – 20 / 60 / 58 kg), nasycení = energie × kvalita (`dietQuality` = 0,6 + 0,34 × bílkoviny +
-  0,06 × ovoce; jen obilí ≈ 80 %). **Mléko a sýr** (`dairy.ts`): dojí se 40 % skotu a 50 % ovcí
-  a koz v době dojení (`dailyMilk`, `DAIRY`), nevypité mléko → sýr (`cheeseFromMilk`,
+  0,06 × ovoce; jen obilí ≈ 80 %). **Mléko a sýr** (`dairy.ts`): dojí se samice, které letos rodily
+  (`dairyDams` – Porážka v zimě) v době dojení (`dailyMilk`, `DAIRY`), nevypité mléko → sýr (`cheeseFromMilk`,
   `VillageState.cheeseKg`, ztráta 15 %/rok). **Práce se zvířaty** (`animalCareNeed`,
   `ANIMAL_CARE`) jde **bokem** (Martin 19. 10. 2026 – dojení a péče ženy, pasení výrostci;
   population.md – Práce): z práce vsi nebere, dojí se vždy celé stádo; činnosti `milking`
@@ -1072,7 +1072,7 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   `nextStarvationDays` a přirážka úmrtnosti dostávají energii, porody a štěstí nasycení
   (`populationDay(state, day, satiation, energy)`, ovoce štěstí +5 – `HappinessFactors.fruit`,
   maso až +3 – `meatHappiness`, `HappinessFactors.meat`). Stáda `VillageState.livestock` (`livestock.ts`: počty
-  s podílem kusu, mláďata 1. 4., porážka 1. 11. – nad nosnost a nejvýš polovina mláďat na maso,
+  s podílem kusu, mláďata 1. 4., porážka v zimě – nad nosnost, staré kusy a nejvýš polovina mláďat na maso,
   chovný pár zůstane; potřeba masa z bílkovin, které chybí i po luštěninách ze zásoby
   `meatNeedPerYear` / `proteinBudget`; vejce denně; `meatKg` se uzí 20 %/rok).
   **Stáda realističtěji** (diet.md, Martin 19. 10. 2026; čísla návrh Clauda podle rešerše
@@ -1112,6 +1112,23 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   prasata jako ve `winterTargets`, aspoň chovný pár; Martin 19. 10. 2026). Letošní mláďata ne,
   kromě selat od 1. 9. (`pigletsSpared`, `EMERGENCY_SLAUGHTER.pigletsFromMonth`; Martin 19. 10.
   2026: „Ano ke všem návrhům“ – hladový podzim) – ta se počítají do prasat nad prasnicemi.
+  **Porážka v zimě** (diet.md – Porážka v zimě, Martin 19. 10. 2026; `HERD_BREEDING`,
+  `HERD_RETIREMENT` v `rules.ts`, rešerše `research/2026-10-19-breeding-culling.md`): rodí všechny
+  chovné samice (`LIVESTOCK.growth` = podíl samic × mláďata na samici – ovce +64 %, kozy +78 %,
+  prasata +144 %, krávy +40 %), dojí se jen samice, které letos rodily (`dairyDams` /
+  `villageDams` – dospělé kusy bez letošních mláďat × podíl samic; `dailyMilk`, `yearlyMilk`,
+  `milkEnergyBetween` berou dojné samice). Porážka 1. 11. (`slaughter`): stádo přes zimu nejvýš
+  `winterKeepTargets` – `winterTargets`, místo pro jarní mláďata podle výrostků příštího léta
+  (`youngRoomTargets`, `nextSummerDay` 1. 7., `youngsterHerders` z věku dnešních dětí), bez
+  starých kusů (`retiringHeads`), chovné minimum `breedingFloor` vždy; staré a nad nosnost na maso
+  vždy, `keepUneatable` jen pro ostatní. Kusy na maso čekají přes zimu (`winterWait` – čerstvá
+  spotřeba zimy `freshMeatPerDayKg` × 151 dní, napřed prasata v lese, pak krávy, ovce, kozy; co
+  seno neuživí, hned do uzení) v `LivestockState.culling` (ve `herds`), `winterSlaughterDay`
+  (husbandryDay) je porazí po dnech v pořadí kozy, ovce, krávy, prasata do `VillageState.freshMeatKg`
+  – jí se napřed (`DietInput.freshMeatKg`, výhled `freshAheadEnergy` / `freshMeatAheadEnergy`,
+  `DietDay.shares.freshMeat`), co se nesní, se udí; 31. 3. zbytek do uzení. Seč 1. 6. počítá se
+  senem čekajících (`winterWaitHayKg` ve `winterHayNeedKg`), práce porážky po dnech přes zimu
+  (`slaughterRemaining` – `isSlaughterSeason`), kronika `slaughter` s `fresh`.
   **Oděv – vlna** (diet.md – Oděv; Martin 19. 10. 2026: „Ovce jsou hlavně kvůli vlně, aby se lidé
   mohli vůbec oblékat.“; `wool.ts`, `WOOL` v `rules.ts`): ovce na vlnu `woolSheep` (dospělý 1,6 kg,
   dítě 0,8 kg ÷ 0,8 kg z ovce) jsou spodní hranicí ovcí – `minSheep` ve `farmInput` →
@@ -1128,7 +1145,7 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   dětí na pasení, tak to omezí i velikost stád.“); `herdingDay` – kolik výrostků dnes pase;
   přežvýkavci duben–říjen, prasata celý rok; `recordHerding` sčítá `LivestockState.herding` od
   porážky do porážky, `herdingCoverage` jde do porážky, `pastureGrazing` a pastvy; `LaborDay.herders`
-  (výrostci u stád) → `SceneLabor.herders` → `herderKinds` ve `villager-plan.ts`. Porážka a uzení jdou před polními úlohami listopadu.
+  (výrostci u stád) → `SceneLabor.herders` → `herderKinds` ve `villager-plan.ts`. Porážka a uzení jdou před polními úlohami (přes zimu po dnech).
   Louka a les do 600 m pro pastvu jsou z krajiny ve stavu
   (`LivestockState.land`) – doplní je `withLivestockLand` (založení vsi i migrace v
   `updateVillage`); bez nich výchozí `LIVESTOCK.defaultLand`. Den hospodářství `husbandryDay`
@@ -1797,8 +1814,12 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   „každá budova by měla mít nějaký vchod, od kterého cesta povede“ – paths.md, Vchody: jedna
   funkce pro síť i scénu – `cemeteryEntrance` branka hřbitova, `penEntrance` branka ohrady,
   `sacredEntrance` předek modly a svatyně; k hotové stavbě vede pěšina k vchodu, staveniště ze
-  všech stran; obydlí bránou `gateOf`, brána v cizím pozemku → nejbližší volné místo do 7,5 m kolem
-  obydlí `gateAround` (jinak by domácnost vypadla ze sítě); konstanty pleteného plotu `WOVEN_FENCE_CORNER_M`,
+  všech stran; obydlí bránou `gateOf` (pro kontrolu umístění `dwellingGatePoint`), brána v cizím
+  pozemku → nejbližší volné místo do 7,5 m kolem obydlí `gateAround` (jinak by domácnost vypadla
+  ze sítě); **nové obydlí brankou do cizího pozemku nesmí** (Martin 19. 10. 2026 – `gateProblem`
+  v `placement.ts`: obydlí a pozemky i dvůr dvorce, modla, svatyně, hřbitov, ohrada, voda; opačně
+  `blocksGate` v `checkFootprintFree` a u hřbitova – „Zatarasí sousedům branku.“; platí
+  i pro `relocationPlot`, přestěhování a `freeVillageSite`); konstanty pleteného plotu `WOVEN_FENCE_CORNER_M`,
   `CEMETERY_GATE`, `PEN_GATE`, `FENCE_INSET_M` bere scéna odsud; `PathVillage.cemeteries` nese
   `built` a čtverce `pending`), `walking.ts` (`walkGraph`, `walkingDistances` – vzdálenost chůze se
   stejnými rychlostmi jako síť, rovně i přes pole – `withFieldWalk` z `PathVillage.fields`, nikdy

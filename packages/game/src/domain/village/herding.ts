@@ -57,6 +57,20 @@ export function isYoungster(person: Person, day: number): boolean {
   return ageGroup(person, day) === 'child' && ageYears(person.bornDay, day) >= AGE.olderChild;
 }
 
+/** Kolik výrostků 7–13 let bude ve vsi v den `day` (z dnešních lidí – i v budoucnu). */
+export function youngsterCount(state: Pick<VillageState, 'people'>, day: number): number {
+  return state.people.filter((p) => isYoungster(p, day)).length;
+}
+
+/**
+ * Kolik plných pasáků výrostci vsi v den `day` dají (výrostek = HERDING.childShare) – kolik
+ * potřeby pasáků (`herdingDemand`) uhlídají. Tatáž kapacita jako v pasení dne (`herdingDay`);
+ * s budoucím dnem odhad z věku dnešních dětí (diet.md – Porážka v zimě, místo pro mláďata).
+ */
+export function youngsterHerders(state: Pick<VillageState, 'people'>, day: number): number {
+  return youngsterCount(state, day) * HERDING.childShare;
+}
+
 /** Pasení dne – potřeba a co výrostci uhlídají. */
 export interface HerdingDay {
   /** Potřeba pasáků (plných). */
@@ -76,7 +90,7 @@ export function herdingDay(
   const herds = state.livestock?.herds;
   const demand = herds ? herdingDemand(herds, oxen, day) : 0;
   if (demand <= EPSILON) return { demand: 0, free: 0, freeHerders: { children: 0 } };
-  const youngsters = state.people.filter((p) => isYoungster(p, day)).length;
+  const youngsters = youngsterCount(state, day);
   const children = Math.min(youngsters, Math.ceil(demand / HERDING.childShare - EPSILON));
   const free = Math.min(demand, children * HERDING.childShare);
   return { demand, free, freeHerders: { children } };

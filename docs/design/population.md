@@ -127,6 +127,19 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
   i kolize se stavbami podle skutečného překryvu ploch; na poli a v sadu vezme dílům a čtvercům
   jen **průnik** (díl pod 20 % políčka zmizí jako u obydlí bez pozemku), překážky čtverce platí
   kromě těch na poli a v sadu. Pozemky z doby před natáčením zůstávají políčky.
+- **Branka nesmí vést do cizího pozemku** (Martin, 19. 10. 2026: „Ano, zakaž to“ – na otázku,
+  jestli zakázat umístění domu, jehož branka vede do cizího pozemku; ve Vlkově vedla branka
+  polozemnice do pozemku dvorce a domácnost neměla kudy chodit): místo před brankou pozemku nebo
+  před vchodem volného obydlí a dílny – stejné místo, odkud vychází síť pěšin ([paths.md](paths.md)
+  – Vchody) – nesmí padnout do pozemku nebo půdorysu jiného obydlí (i dvora dvorce, rozestavěného
+  i jiné vsi na mapě), do modly či svatyně, do hřbitova, ohrady ani do vody. Pole, sad, les
+  a louka branku neblokují – pole je krajina. Opačně nová stavba (obydlí, pozemek, dílna, ohrada,
+  hřbitov, modla, svatyně) nesmí zatarasit branku obydlí, které už stojí. Důvod u kurzoru:
+  „Branka by vedla do cizího pozemku.“ (do jiného obydlí, na modlu, do svatyně, do hřbitova, do
+  ohrady, do vody; u volného obydlí „Vchod by vedl …“), „Zatarasí sousedům branku.“ Stejně
+  hledají místo vesničané sami (přestavba na novém pozemku, přestěhování, místo nové vsi). Domy
+  postavené dřív se nemění – jejich domácnost vyjde z volného místa kolem obydlí (paths.md –
+  Vchody). Podrobnosti návrh Clauda.
 - **Polozemnice postavené před pozemky dostanou pozemek** (Martin, 18. 10. 2026): při načtení
   vsi (jednou, před dopočtem) dostane každá polozemnice bez pozemku – hotová i rozestavěná –
   políčko, na kterém stojí střed domu, když je volné (žádný díl pole, čtverec hřbitova ani sadu,
@@ -769,3 +782,5 @@ před → po:
 | Starší jen na denní minimum své domácnosti (0,5 čd), přebytek propadne               | návrh Clauda                               |
 | Pro vodu se chodí vždy k nejbližší vodě a chůze se počítá do práce                   | Martin, 19. 10. 2026                       |
 | Přirážka minima za vodu nad 100 m chůze: 0,4 cesty na člověka, 1 m/s, den 10 h       | návrh Clauda                               |
+| Branka ani vchod nového obydlí nesmí vést do cizího pozemku („Ano, zakaž to“)        | Martin, 19. 10. 2026                       |
+| Branku blokuje obydlí, modla, svatyně, hřbitov, ohrada, voda; stavba ji nezataraší   | návrh Clauda                               |

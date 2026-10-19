@@ -111,7 +111,7 @@ describe('rovnovážné hospodaření – pasáci (diet.md)', () => {
     const day = at(600, 11, 1);
     const s = village(day);
     s.livestock!.land = { meadowHa: 1000, forestHa: 1000 };
-    s.livestock!.herds = herds({ sheep: 60, goat: 2, pig: 40, cow: 2 });
+    s.livestock!.herds = herds({ sheep: 20, goat: 2, pig: 40, cow: 2 });
     const watched = winterTargets(s, day, { oxen: 0, hayKg: Infinity });
     const half = winterTargets(s, day, { oxen: 0, hayKg: Infinity, herding: 0.5 });
     // co výrostci neuhlídali, jde na maso (winterTargets – herdingCoverage)

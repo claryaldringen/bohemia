@@ -27,9 +27,11 @@ import {
   computePathNetwork,
   pathAgeFactor,
   pastureHerds,
+  pathPlotOf,
   villagePathBounds,
   roadsKey,
   type PathNetwork,
+  type PathPlot,
   type PathPoint,
   type PathSquare,
   type PathVillage,
@@ -128,37 +130,8 @@ export function pastureGrazedParts(state: VillageState, day: number): Set<number
  */
 export function pathVillageOf(state: VillageState, day: number, landscape: Landscape): PathVillage {
   const occupied = new Set(state.people.map((p) => p.dwellingId));
-  const plotOf = (
-    plot: DwellingPlot | undefined,
-  ):
-    | {
-        plot: {
-          cell: TileCell;
-          x: number;
-          z: number;
-          size: number;
-          rotation?: number;
-          yard?: { x: number; z: number };
-        };
-      }
-    | object => {
-    if (!plot) return {};
-    // natočený pozemek (fields.md – Natočené stavby): střed a natočení čtverce
-    if (plot.square && !plot.yard) {
-      return {
-        plot: {
-          cell: { x: plot.cell.x, y: plot.cell.y },
-          x: plot.square.x,
-          z: plot.square.z,
-          size: landscape.cellSizeM,
-          rotation: plot.square.rotation,
-        },
-      };
-    }
-    // dvorec vojvody (trade.md) – pozemek i se dvorem
-    const yard = plot.yard ? tileCenterWorld(landscape, plot.yard.x, plot.yard.y) : null;
-    return { plot: { ...square(landscape, plot.cell), ...(yard ? { yard } : {}) } };
-  };
+  const plotOf = (plot: DwellingPlot | undefined): { plot: PathPlot } | object =>
+    plot ? { plot: pathPlotOf(landscape, plot) } : {};
   const dwellings = [
     ...state.dwellings.map((d) => ({
       id: d.id,

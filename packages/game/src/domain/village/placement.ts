@@ -18,6 +18,7 @@ import { LIVESTOCK, withLivestock } from './livestock';
 import { orchardPlantingCost } from './orchard';
 import { ableTeams } from './oxen';
 import { foundingCostPerHa } from './productivity';
+import { dwellingGatePoint } from './paths/network';
 import { roadWalk, walkGroundOf, type Walk, type WalkRoad } from './paths/walking';
 import {
   cellObstacles,
@@ -806,6 +807,107 @@ function checkFootprintTerrain(
   return OK;
 }
 
+// --- branka obydlí ------------------------------------------------------------------------------
+
+/** Strana malého čtverce kolem brány (m) – „brána padne do“ je jeho překryv. */
+const GATE_PROBE_M = 0.2;
+
+/** Obydlí, jehož brána se hledá (`dwellingGatePoint` – místo, odkud vychází síť pěšin). */
+interface GateOwner {
+  readonly type: DwellingType;
+  readonly position: Position;
+  readonly plot?: DwellingPlot;
+}
+
+/** Malý čtverec kolem brány obydlí. */
+function gateProbe(gate: { x: number; z: number }): Point[] {
+  const h = GATE_PROBE_M / 2;
+  return [
+    [gate.x - h, gate.z - h],
+    [gate.x + h, gate.z - h],
+    [gate.x + h, gate.z + h],
+    [gate.x - h, gate.z + h],
+  ];
+}
+
+/** Obydlí vsi s branou – hotová, rozestavěná i obydlí jiných vsí na téže mapě. */
+function gateOwners(village: PlacementVillage): (GateOwner & { readonly craft?: Craft })[] {
+  return [
+    ...village.dwellings.map(placedDwelling),
+    ...village.constructions.flatMap((c) =>
+      c.dwellingType !== null && c.position !== null
+        ? [
+            {
+              type: c.dwellingType,
+              position: c.position,
+              ...(c.plot ? { plot: c.plot } : {}),
+              ...(c.craft ? { craft: c.craft } : {}),
+            },
+          ]
+        : [],
+    ),
+    ...(village.foreign?.dwellings ?? []),
+  ];
+}
+
+/**
+ * Kam vede branka nového obydlí (population.md – Umístění obydlí; Martin 19. 10. 2026: „Ano,
+ * zakaž to“ – na otázku, jestli zakázat umístění domu, jehož branka vede do cizího pozemku): místo
+ * před brankou nebo vchodem – brána, odkud vychází síť pěšin (`dwellingGatePoint`; Vlkov: branka
+ * polozemnice vedla do pozemku dvorce a domácnost neměla kudy chodit) – nesmí padnout do pozemku
+ * nebo půdorysu jiného obydlí (i dvora dvorce, rozestavěného i jiné vsi), do modly či svatyně, do
+ * hřbitova, ohrady ani do vody. Pole, sad, les a louka branku neblokují (pole je krajina). Vrátí
+ * důvod, nebo null.
+ */
+function gateProblem(
+  landscape: Landscape,
+  village: PlacementVillage | null,
+  owner: GateOwner,
+): string | null {
+  const gate = dwellingGatePoint(landscape, owner);
+  const probe = gateProbe(gate);
+  const what = owner.plot ? 'Branka by vedla' : 'Vchod by vedl';
+  const tile = tileOfWorldPoint(landscape, gate.x, gate.z);
+  if (!tile) return `${what} ven z krajiny sídla.`;
+  if (surfaceAt(landscape, tile.x, tile.y) === 'water') return `${what} do vody.`;
+  if (village === null) return null;
+  const hits = (polygons: readonly (readonly Point[])[]): boolean =>
+    polygons.some((polygon) => polygonsOverlap(probe, polygon));
+  for (const d of gateOwners(village)) {
+    if (!hits(dwellingPlot(landscape, d))) continue;
+    return d.plot && !d.craft ? `${what} do cizího pozemku.` : `${what} do jiného obydlí.`;
+  }
+  const sacred = [...(village.sacredBuildings ?? []), ...(village.foreign?.sacredBuildings ?? [])];
+  for (const b of sacred) {
+    if (!hits([sacredFootprint(b.kind, b.position)])) continue;
+    return b.kind === 'idol' ? `${what} na modlu.` : `${what} do svatyně.`;
+  }
+  const under = new Set(squaresUnder(landscape, village, freeShape(probe)).map((q) => q.kind));
+  if (under.has('cemetery')) return `${what} do hřbitova.`;
+  if (under.has('pen')) return `${what} do ohrady.`;
+  return null;
+}
+
+/** Důvod, když stavba zatarasí branku nebo vchod obydlí vsi (opačná strana `gateProblem`). */
+const BLOCKS_GATE = 'Zatarasí sousedům branku.';
+
+/**
+ * Zatarasí stavba (mnohoúhelníky `polygons`) branku nebo vchod obydlí vsi – i rozestavěného a jiné
+ * vsi na mapě? Opačná strana `gateProblem`: ve Vlkově přibyl pozemek dvorce před brankou starší
+ * polozemnice. Domy postavené dřív se nemění – kontroluje se jen nová stavba.
+ */
+function blocksGate(
+  landscape: Landscape,
+  village: PlacementVillage | null,
+  polygons: readonly (readonly Point[])[],
+): boolean {
+  if (village === null) return false;
+  return gateOwners(village).some((d) => {
+    const probe = gateProbe(dwellingGatePoint(landscape, d));
+    return polygons.some((polygon) => polygonsOverlap(probe, polygon));
+  });
+}
+
 /**
  * Co smí stavba zabrat: `fields` – čtverce polí (fields.md – Pole jako krajina: na pole smí
  * cokoli kromě pole), `orchards` – čtverce sadu (jen obydlí – population.md, Obydlí na poli
@@ -857,6 +959,16 @@ function checkFootprintFree(
     if (overlaps([sacredFootprint(b.kind, b.position)])) {
       return fail(b.kind === 'idol' ? 'Překrývá se s modlou.' : 'Překrývá se se svatyní.');
     }
+  }
+  // místo před brankou sousedního obydlí (population.md – Umístění obydlí)
+  if (
+    blocksGate(
+      landscape,
+      village,
+      shapes.map((shape) => shape.corners),
+    )
+  ) {
+    return fail(BLOCKS_GATE);
   }
   // stavby a půda jiné vsi na téže mapě (migration.md)
   if (shapes.some((shape) => onForeignLand(landscape, village, shape))) return fail(FOREIGN_LAND);
@@ -1280,6 +1392,8 @@ export function checkDwellingPlacement(
   const sites = sacredSitesOf(obstacles);
   const sacredProblem = sacredUnder(landscape, obstacles, sites, [footprint]);
   if (sacredProblem) return { ...fail(sacredProblem), ...none };
+  const gate = gateProblem(landscape, village, { type, position });
+  if (gate) return { ...fail(gate), ...none };
   // překážky v políčkách polí, hřbitovů, sadů a hájů odstraní jejich stavba (háj nikdo), obydlí
   // je neplatí; posvátný dub na vyklízené ploše zůstane stát
   const clearing = dwellingClearing(type, position);
@@ -1378,6 +1492,8 @@ export function checkWorkshopPlacement(
   const sites = sacredSitesOf(obstacles);
   const sacredProblem = sacredUnder(landscape, obstacles, sites, footprints);
   if (sacredProblem) return { ...fail(sacredProblem), ...none };
+  const gate = gateProblem(landscape, village, { type, position });
+  if (gate) return { ...fail(gate), ...none };
   const clearings = freeDwellingClearings(type, position, craft);
   const crowned = freeDwellingClearings(type, position, craft, FOREST_CROWN_MARGIN_M);
   const clearingTiles = clearings.flatMap((c) => cellsUnderPolygon(landscape, c));
@@ -1491,6 +1607,8 @@ export function checkPlotPlacement(
   }
   const house = sacredUnder(landscape, obstacles, sites, [dwellingFootprint(type, position)]);
   if (house) return { ...fail(house), ...none };
+  const gate = gateProblem(landscape, village, { type, position, plot });
+  if (gate) return { ...fail(gate), ...none };
   const takenLand = takeLand
     ? shapes.flatMap((shape) => takenSquareLand(landscape, village, shape))
     : [];
@@ -2857,7 +2975,7 @@ export function cemeteryPartsFromCells(
     shape.cells.map((cell) => gridSquare(landscape, grid, cell)),
   );
   const size = landscape.cellSizeM;
-  const problems: SquareFlags & { outcrop: boolean; oak: boolean } = {
+  const problems: SquareFlags & { outcrop: boolean; oak: boolean; gate: boolean } = {
     water: false,
     forest: false,
     dwelling: false,
@@ -2870,6 +2988,7 @@ export function cemeteryPartsFromCells(
     foreign: false,
     outcrop: false,
     oak: false,
+    gate: false,
   };
   const squares: CemeterySquareInput[] = [];
   const blockedCells: TileCell[] = [];
@@ -2894,6 +3013,8 @@ export function cemeteryPartsFromCells(
       field: false,
       outcrop: outcropUnder(obstacles, status, gridSq.corners),
       oak: sacredInShape(landscape, obstacles, sites, gridSq).oaks.length > 0,
+      // ohrazený hřbitov před brankou obydlí (population.md – Umístění obydlí)
+      gate: blocksGate(landscape, village, [gridSq.corners]),
     };
     let blocked = false;
     for (const key of Object.keys(flags) as (keyof typeof flags)[]) {
@@ -2957,6 +3078,7 @@ export function cemeteryPartsFromCells(
     [problems.foreign, FOREIGN_LAND],
     [problems.outcrop, 'Stojí tu skalní výchoz – ten osadníci neodstraní.'],
     [problems.oak, 'Stojí tu posvátný dub – mezi hroby ho vesničané nenechají.'],
+    [problems.gate, BLOCKS_GATE],
     [sacred.squares.length === 0, 'Roste tu posvátný dubový háj – ten vesničané nevykácejí.'],
     [touching.length > 1, 'Hřbitov smí navazovat jen na jeden hřbitov.'],
     [
