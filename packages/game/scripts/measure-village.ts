@@ -429,6 +429,11 @@ interface RunResult {
    * (rok potřeby z pole a pojistka se ztrátami – fields.md, Osev podle zásob).
    */
   storesToTarget: Map<number, number>;
+  /**
+   * Rok sklizně → práce na poli plánu toho roku (všechny úlohy všech plodin i orba – po zkrácení
+   * a přidání dílů) na člověka (čd) – rozptyl po rocích (fields.md – Osev podle zásob, plynulost).
+   */
+  fieldWork: Map<number, number>;
   /** Rok sklizně → zásoby obilí po sklizni / roční potřeba celé energie (dřívější měřítko). */
   grainStoresRatio: Map<number, number>;
   /**
@@ -609,6 +614,7 @@ function emptyResult(): RunResult {
     diet: [],
     storesRatio: new Map(),
     storesToTarget: new Map(),
+    fieldWork: new Map(),
     grainStoresRatio: new Map(),
     fieldShares: [],
     labor: new Map(),
@@ -744,6 +750,14 @@ function recordHarvest(
   const target = steadyHarvestKg(fieldNeed, buffer, NO_CRAFTS.pottery) + buffer;
   if (target > 0) result.storesToTarget.set(year, fieldStoresKg(after) / target);
   const plan = after.threshingFromPlan;
+  if (plan && after.people.length > 0) {
+    const work = planCrops(plan).reduce(
+      (sum, { work: w }) =>
+        sum + Object.values(w.required).reduce((a, b) => a + b, 0) + (w.plough?.required ?? 0),
+      0,
+    );
+    result.fieldWork.set(year, work / after.people.length);
+  }
   const record = result.plans.find((p) => p.year === year);
   if (!plan || !pinned || !record) return;
   // práce sondy z pevného složení – úmrtí v posledním kroku před sklizní by rezervu zkreslilo
@@ -1098,6 +1112,20 @@ function fullYears(r: RunResult, foundDay: number, endDay: number): number[] {
 
 // --- statistiky -------------------------------------------------------------------------
 
+/**
+ * Rozptyl řady po rocích: variační koeficient (směrodatná odchylka ÷ průměr) a průměrná změna
+ * z roku na rok ÷ průměr. Prázdná řada NaN.
+ */
+function yearSpread(values: readonly number[]): { cv: number; step: number; mean: number } {
+  if (values.length < 2) return { cv: NaN, step: NaN, mean: NaN };
+  const mean = values.reduce((a, b) => a + b, 0) / values.length;
+  if (mean <= 0) return { cv: NaN, step: NaN, mean };
+  const variance = values.reduce((a, v) => a + (v - mean) ** 2, 0) / values.length;
+  let steps = 0;
+  for (let i = 1; i < values.length; i++) steps += Math.abs(values[i]! - values[i - 1]!);
+  return { cv: Math.sqrt(variance) / mean, step: steps / (values.length - 1) / mean, mean };
+}
+
 function quantile(values: number[], q: number): number {
   const sorted = [...values].sort((a, b) => a - b);
   if (sorted.length === 0) return NaN;
@@ -1132,6 +1160,8 @@ interface ProbeSummary {
   plough: number;
   /** Medián průměrné délky brázdy plánu (m). */
   furrowM: number;
+  /** Práce na poli po rocích v ustáleném oběhu (čd na člověka): průměr a rozptyl (medián sond). */
+  fieldWork: { mean: number; cv: number; step: number };
 }
 
 type Task = { kind: 'village'; index: number } | { kind: 'probe'; probe: ProbeName };
@@ -1289,6 +1319,30 @@ function runProbe(name: ProbeName): TaskResult {
     subsistence: 1 - free / capacity,
     satiationOk: share(satiation),
     storesMedian: quantile(stores, 0.5),
+    fieldWork: (() => {
+      const spreads = results.map((r) =>
+        yearSpread(
+          [...r.fieldWork.entries()]
+            .filter(([y]) => steady(y, r))
+            .sort((a, b) => a[0] - b[0])
+            .map(([, v]) => v),
+        ),
+      );
+      return {
+        mean: quantile(
+          spreads.map((x) => x.mean),
+          0.5,
+        ),
+        cv: quantile(
+          spreads.map((x) => x.cv),
+          0.5,
+        ),
+        step: quantile(
+          spreads.map((x) => x.step),
+          0.5,
+        ),
+      };
+    })(),
     reserves: {
       autumn: Math.min(...withReserves.map((p) => p.reserves.autumn)),
       spring: Math.min(...withReserves.map((p) => p.reserves.spring)),
@@ -1597,6 +1651,12 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
     ),
   );
   row(
+    'Práce na poli po rocích (čd na člověka) – sondy startovní / plná',
+    'informace – rozptyl: variační koeficient, průměrná změna z roku na rok',
+    `startovní průměr ${fmt(start.fieldWork.mean)}, VK ${pct(start.fieldWork.cv)}, změna ${pct(start.fieldWork.step)} | plná průměr ${fmt(full.fieldWork.mean)}, VK ${pct(full.fieldWork.cv)}, změna ${pct(full.fieldWork.step)}`,
+    'info',
+  );
+  row(
     'Startovní ves: práce na obživu',
     '85–90 %',
     `${pct(start.subsistence)} | nasycení ≥ 0,95 v ${pct(start.satiationOk)} let | zásoby po sklizni ${fmt(start.storesMedian, 2)}`,
@@ -1664,6 +1724,77 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
     `${fmt(TARGET_BAND.low, 2)}–${fmt(TARGET_BAND.high, 2)} (p10 ≥ ${fmt(TARGET_BAND.low, 2)}, p90 ≤ ${fmt(TARGET_BAND.high, 2)})`,
     `p10 ${fmt(targetP10, 2)} | medián ${fmt(quantile(toTarget, 0.5), 2)} | p90 ${fmt(targetP90, 2)} | v pásmu ${pct(share(toTarget.map((v) => v >= TARGET_BAND.low && v <= TARGET_BAND.high)))}`,
     ok(targetP10 >= TARGET_BAND.low && targetP90 <= TARGET_BAND.high),
+  );
+  // práce na poli a volná práce po rocích (od 3. roku vsi – bez zakládání) – plynulost osevu
+  const spreads = villages.map(({ builder, foundDay, endDay }) => {
+    const years = fullYears(builder, foundDay, endDay).filter(
+      (y) => y - harvestYear(foundDay) >= 3,
+    );
+    const field = yearSpread(years.flatMap((y) => builder.fieldWork.get(y) ?? []));
+    const free = yearSpread(
+      years.flatMap((y) => {
+        const l = builder.labor.get(y);
+        return l && l.capacity > 0 ? [l.common / l.capacity] : [];
+      }),
+    );
+    return { field, free };
+  });
+  row(
+    'Práce na poli po rocích (čd na člověka), hráč staví',
+    'informace – rozptyl: variační koeficient, průměrná změna z roku na rok (od 3. roku vsi)',
+    `průměr medián ${fmt(
+      quantile(
+        spreads.map((x) => x.field.mean),
+        0.5,
+      ),
+    )} | VK medián ${pct(
+      quantile(
+        spreads.map((x) => x.field.cv),
+        0.5,
+      ),
+    )}, p90 ${pct(
+      quantile(
+        spreads.map((x) => x.field.cv),
+        0.9,
+      ),
+    )} | změna medián ${pct(
+      quantile(
+        spreads.map((x) => x.field.step),
+        0.5,
+      ),
+    )}, p90 ${pct(
+      quantile(
+        spreads.map((x) => x.field.step),
+        0.9,
+      ),
+    )}`,
+    'info',
+  );
+  row(
+    'Volná práce po rocích (podíl práce), hráč staví',
+    'informace – společná práce ÷ všechna práce; rozptyl jako výš',
+    `průměr medián ${pct(
+      quantile(
+        spreads.map((x) => x.free.mean),
+        0.5,
+      ),
+    )} | VK medián ${pct(
+      quantile(
+        spreads.map((x) => x.free.cv),
+        0.5,
+      ),
+    )}, p90 ${pct(
+      quantile(
+        spreads.map((x) => x.free.cv),
+        0.9,
+      ),
+    )} | změna medián ${pct(
+      quantile(
+        spreads.map((x) => x.free.step),
+        0.5,
+      ),
+    )}`,
+    'info',
   );
   const stores = builderYears.map((y) => y.stores).filter((v) => v !== undefined);
   row(
