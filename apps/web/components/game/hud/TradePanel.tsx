@@ -15,7 +15,7 @@ function Good({ good, amount }: { good: TradeGood; amount: number }): ReactEleme
   const { name, unit, icon } = TRADE_GOOD_NAMES[good];
   return (
     <Tooltip content={name} placement="above">
-      <span className="flex items-center gap-1 tabular-nums" tabIndex={0}>
+      <span className="flex items-center gap-1 whitespace-nowrap tabular-nums" tabIndex={0}>
         <img src={`/icons/resources/${icon}.png`} alt="" width={20} height={20} />
         {formatInteger(amount)}
         {unit === 'kg' ? ' kg' : ''}
@@ -55,7 +55,14 @@ function GoodSlider({
           </span>
         }
       >
-        <img src={`/icons/resources/${icon}.png`} alt="" width={24} height={24} tabIndex={0} />
+        <img
+          src={`/icons/resources/${icon}.png`}
+          alt=""
+          width={24}
+          height={24}
+          tabIndex={0}
+          className="shrink-0"
+        />
       </Tooltip>
       <input
         type="range"
@@ -68,7 +75,7 @@ function GoodSlider({
         onChange={(e) => onChange(Number(e.target.value))}
         className="w-28 accent-[#d8b25c] disabled:opacity-40"
       />
-      <span className="w-14 text-right text-xs tabular-nums">
+      <span className="min-w-16 text-right text-xs whitespace-nowrap tabular-nums">
         {formatInteger(Math.min(value, max))}/{formatInteger(max)}
       </span>
     </label>
@@ -152,7 +159,7 @@ export function NeighbourTrade({
           ))}
         </div>
       </div>
-      <div className="flex items-center gap-3 text-sm tabular-nums">
+      <div className="flex items-center gap-3 text-sm whitespace-nowrap tabular-nums">
         <Tooltip content="Bilance pro souseda (kg obilí)" placement="above">
           <span
             data-testid="trade-balance"
@@ -258,7 +265,7 @@ export function TradePanel({
             aria-selected={n.direction === neighbour?.direction}
             data-testid={`neighbour-${n.direction}`}
             onClick={() => setSelected(n.direction)}
-            className={`hud-button px-2 py-0.5 text-sm ${n.direction === neighbour?.direction ? 'ring-1 ring-[#c9a14a]' : ''}`}
+            className={`hud-button px-2 py-0.5 text-sm whitespace-nowrap ${n.direction === neighbour?.direction ? 'ring-1 ring-[#c9a14a]' : ''}`}
           >
             <span aria-hidden className="mr-1">
               {DIRECTION_NAMES[n.direction].arrow}

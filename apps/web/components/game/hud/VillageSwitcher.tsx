@@ -20,6 +20,7 @@ function villageState(village: VillageListItem): string {
 /**
  * Seznam vsí hráče pod jménem vsi: jméno a lidé (ikona s číslem), vybraná ves označená, vymřelá
  * a opuštěná zašedlá, lidé na cestě s poznámkou (migration.md). Klik na jinou ves ji přepne.
+ * Seznam je široký jako nejdelší jméno (bez zalomení, zkrátí se až na šířce okna).
  */
 export function VillageList({
   villages,
@@ -36,7 +37,7 @@ export function VillageList({
       aria-label="Vsi"
       data-testid="village-list"
       data-hud-block
-      className="hud-panel absolute top-full left-0 z-30 mt-1 flex min-w-56 flex-col p-1"
+      className="hud-panel absolute top-full left-0 z-30 mt-1 flex w-max max-w-[calc(100vw-1rem)] min-w-56 flex-col p-1 whitespace-nowrap"
     >
       {villages.map((village) => {
         const current = village.id === currentId;

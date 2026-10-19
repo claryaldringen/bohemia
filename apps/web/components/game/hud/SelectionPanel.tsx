@@ -5,6 +5,7 @@ import {
   type DwellingType,
   type FamilyCounts,
 } from '@bohemia/game';
+import { useOverflowScroll } from '@/hooks/use-overflow-scroll';
 import { PART_COLORS, SURFACE_COLORS } from '@/lib/minimap';
 import {
   CROP_LABELS,
@@ -43,9 +44,10 @@ import {
 } from './RelocationControls';
 import { Tooltip } from './Tooltip';
 
+/** Portrét a název – název na jeden řádek, delší rozšíří sloupec portrétu. */
 function Portrait({ icon, name }: { icon: string; name: string }): ReactElement {
   return (
-    <div className="flex w-20 shrink-0 flex-col items-center gap-1">
+    <div className="flex min-w-20 shrink-0 flex-col items-center gap-1">
       <div className="hud-inset h-20 w-20 overflow-hidden rounded">
         <img
           src={`/icons/build/${icon}.png`}
@@ -55,7 +57,9 @@ function Portrait({ icon, name }: { icon: string; name: string }): ReactElement 
           className="h-full w-full"
         />
       </div>
-      <h2 className="text-center font-serif text-sm leading-tight text-[#f3dfb0]">{name}</h2>
+      <h2 className="text-center font-serif text-sm leading-tight whitespace-nowrap text-[#f3dfb0]">
+        {name}
+      </h2>
     </div>
   );
 }
@@ -77,7 +81,7 @@ function Stat({
 }): ReactElement {
   return (
     <Tooltip content={name} placement="above">
-      <span className="flex items-center gap-1" tabIndex={0}>
+      <span className="flex shrink-0 items-center gap-1 whitespace-nowrap" tabIndex={0}>
         <img src={src ?? `/icons/resources/${icon}.png`} alt="" width={20} height={20} />
         <span data-testid={testId} className="text-sm font-semibold tabular-nums">
           {children}
@@ -270,6 +274,29 @@ function WorkshopRow({ workshop }: { workshop: SelectionWorkshop }): ReactElemen
   );
 }
 
+/** Řádek ikon s čísly – při nedostatku místa se zalomí po celých položkách, ne uvnitř textu. */
+const ROW = 'flex flex-wrap items-center gap-x-3 gap-y-1';
+
+/**
+ * Příkazy vybraného objektu vpravo v panelu (jako v 0 A.D.), oddělené čarou od údajů – panel tak
+ * roste do šířky, ne do výšky (`hud-split` a `hud-commands` v globals.css; na středně úzkém okně
+ * jsou příkazy pod údaji). Rozbalené nabídky (růžice, obchod) se otevírají nad panelem.
+ */
+function Commands({
+  row = false,
+  children,
+}: {
+  /** Tlačítka vedle sebe (cesta), jinak řádky tlačítek pod sebou. */
+  row?: boolean;
+  children: ReactNode;
+}): ReactElement {
+  return (
+    <div data-testid="selection-commands" data-row={row || undefined} className="hud-commands">
+      {children}
+    </div>
+  );
+}
+
 /** Akce panelu nad obydlími – přestěhování domácnosti a jeho zrušení (migration.md). */
 interface RelocationActions {
   /** Začne umisťovat nové domy domácností `householdIds` (postupně, jeden za druhým). */
@@ -303,68 +330,80 @@ function DwellingBody({
 } & RelocationActions &
   ManorActions): ReactElement {
   const tone = details.overcrowded ? 'text-red-400' : details.full ? 'text-[#f3cf86]' : '';
+  const commands = details.manor !== null || details.relocate !== null || details.leave !== null;
   return (
-    <div className="flex min-w-0 flex-col gap-1.5">
-      {details.workshop && <WorkshopRow workshop={details.workshop} />}
-      <div className="flex items-center gap-3">
-        <Stat icon="people" name="Obyvatelé" testId="selection-occupants">
-          <span className={tone}>
-            {details.occupants}/{details.capacity}
-          </span>
-        </Stat>
-        <Stat icon="date" name="Stáří (roky)">
-          {details.ageYears}
-        </Stat>
+    <div className="hud-split">
+      <div className="flex min-w-0 flex-col justify-center gap-1.5">
+        {details.workshop && <WorkshopRow workshop={details.workshop} />}
+        <div className={ROW}>
+          <Stat icon="people" name="Obyvatelé" testId="selection-occupants">
+            <span className={tone}>
+              {details.occupants}/{details.capacity}
+            </span>
+          </Stat>
+          <Stat icon="date" name="Stáří (roky)">
+            {details.ageYears}
+          </Stat>
+        </div>
+        <FamilyRow family={details.family} />
+        {/* nejvýš 8 věků v řádku (8 × 1,75rem + mezery) – dvorec má 10 lidí a víc */}
+        <ul
+          data-testid="selection-ages"
+          aria-label="Věk obyvatel"
+          className="flex max-w-[15.75rem] flex-wrap gap-1"
+        >
+          {details.ages.map((age, i) => (
+            <li
+              key={i}
+              className="hud-inset min-w-7 rounded px-1 text-center text-xs tabular-nums text-[#ecdfc4]"
+            >
+              {age}
+            </li>
+          ))}
+        </ul>
+        <Bar value={details.condition} name="Stav" testId="selection-condition" />
+        {details.rebuild && (
+          <div className={ROW}>
+            <Bar value={details.rebuild.progress} name="Přestavba" />
+            {details.rebuild.treesToFell > 0 && <WoodToFell trees={details.rebuild.treesToFell} />}
+          </div>
+        )}
+        {details.relocation && (
+          <RelocationProgress
+            constructionId={details.relocation.constructionId}
+            progress={details.relocation.progress}
+            onCancel={onCancelRelocation}
+          />
+        )}
       </div>
-      <FamilyRow family={details.family} />
-      <ul data-testid="selection-ages" aria-label="Věk obyvatel" className="flex flex-wrap gap-1">
-        {details.ages.map((age, i) => (
-          <li
-            key={i}
-            className="hud-inset min-w-7 rounded px-1 text-center text-xs tabular-nums text-[#ecdfc4]"
-          >
-            {age}
-          </li>
-        ))}
-      </ul>
-      <Bar value={details.condition} name="Stav" testId="selection-condition" />
-      {details.rebuild && (
-        <div className="flex items-center gap-3">
-          <Bar value={details.rebuild.progress} name="Přestavba" />
-          {details.rebuild.treesToFell > 0 && <WoodToFell trees={details.rebuild.treesToFell} />}
-        </div>
-      )}
-      {details.relocation && (
-        <RelocationProgress
-          constructionId={details.relocation.constructionId}
-          progress={details.relocation.progress}
-          onCancel={onCancelRelocation}
-        />
-      )}
-      {details.manor && (
-        <ManorUpgrades
-          manor={details.manor}
-          onBuildTrail={onBuildTrail}
-          trade={(close) => (
-            <TradePanel
-              neighbours={details.manor?.neighbours ?? []}
-              onSend={onSendExpedition}
-              onClose={close}
+      {commands && (
+        <Commands>
+          {details.manor && (
+            <ManorUpgrades
+              manor={details.manor}
+              onBuildTrail={onBuildTrail}
+              trade={(close) => (
+                <TradePanel
+                  neighbours={details.manor?.neighbours ?? []}
+                  onSend={onSendExpedition}
+                  onClose={close}
+                />
+              )}
             />
           )}
-        />
-      )}
-      {(details.relocate || details.leave) && (
-        <div className="flex items-center gap-2">
-          {details.relocate && (
-            <RelocateButtons
-              options={details.relocate}
-              households={1}
-              onRelocate={onRelocate ? (type) => onRelocate(type, [details.id]) : undefined}
-            />
+          {(details.relocate || details.leave) && (
+            <div className="flex items-center gap-2">
+              {details.relocate && (
+                <RelocateButtons
+                  options={details.relocate}
+                  households={1}
+                  onRelocate={onRelocate ? (type) => onRelocate(type, [details.id]) : undefined}
+                />
+              )}
+              <LeaveControls leave={details.leave} onLeave={onLeave} />
+            </div>
           )}
-          <LeaveControls leave={details.leave} onLeave={onLeave} />
-        </div>
+        </Commands>
       )}
     </div>
   );
@@ -382,8 +421,8 @@ function DwellingsBody({
   details: Extract<SelectionDetails, { kind: 'dwellings' }>;
 } & RelocationActions): ReactElement {
   return (
-    <div className="flex min-w-0 flex-col justify-center gap-1.5">
-      <div className="flex items-center gap-3">
+    <div className="hud-split">
+      <div className={`${ROW} min-w-0`}>
         <Stat src="/icons/build/zemnice.png" name="Domácnosti" testId="selection-households">
           {details.households}
         </Stat>
@@ -391,16 +430,18 @@ function DwellingsBody({
           {details.people}
         </Stat>
       </div>
-      <div className="flex items-center gap-2">
-        {details.relocate && (
-          <RelocateButtons
-            options={details.relocate}
-            households={details.relocatable.length}
-            onRelocate={onRelocate ? (type) => onRelocate(type, details.relocatable) : undefined}
-          />
-        )}
-        <LeaveControls leave={details.leave} onLeave={onLeave} />
-      </div>
+      <Commands>
+        <div className="flex items-center gap-2">
+          {details.relocate && (
+            <RelocateButtons
+              options={details.relocate}
+              households={details.relocatable.length}
+              onRelocate={onRelocate ? (type) => onRelocate(type, details.relocatable) : undefined}
+            />
+          )}
+          <LeaveControls leave={details.leave} onLeave={onLeave} />
+        </div>
+      </Commands>
     </div>
   );
 }
@@ -449,7 +490,7 @@ function FieldBody({
 }): ReactElement {
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
-      <div className="flex items-center gap-3">
+      <div className={ROW}>
         <Tooltip content="Výměra" placement="above">
           <span
             data-testid="selection-area"
@@ -492,7 +533,7 @@ function FieldBody({
           </Stat>
         )}
       </div>
-      <ul aria-label="Díly pole" className="flex flex-wrap gap-1.5">
+      <ul aria-label="Díly pole" className="flex flex-wrap gap-x-2.5 gap-y-1">
         {details.stages.map(({ stage, count }) => (
           <li key={stage}>
             <Tooltip content={PART_STAGE_NAMES[stage]} placement="above">
@@ -513,7 +554,7 @@ function FieldBody({
         ))}
       </ul>
       {details.surfaces.length > 0 && (
-        <ul aria-label="Povrch dílů při založení" className="flex flex-wrap gap-1.5">
+        <ul aria-label="Povrch dílů při založení" className="flex flex-wrap gap-x-2.5 gap-y-1">
           {details.surfaces.map(({ surface, count }) => (
             <li key={surface}>
               <Tooltip content={FIELD_SURFACE_NAMES[surface]} placement="above">
@@ -582,7 +623,7 @@ function OrchardBody({
 }): ReactElement {
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
-      <div className="flex items-center gap-3">
+      <div className={ROW}>
         <Tooltip content="Výměra" placement="above">
           <span
             data-testid="selection-area"
@@ -842,67 +883,71 @@ function RoadBody({
   };
   const { apples } = details;
   return (
-    <div className="flex min-w-0 flex-col gap-1.5">
-      <div className="flex items-center gap-3">
-        <Tooltip content="Délka" placement="above">
-          <span
-            data-testid="selection-length"
-            tabIndex={0}
-            className="text-sm font-semibold tabular-nums"
-          >
-            {formatInteger(details.lengthM)} m
-          </span>
-        </Tooltip>
-        <Stat icon="date" name="Stáří (roky)" testId="selection-road-age">
-          {details.ageYears}
-        </Stat>
-        <Oaks count={details.trees} name="Stromy u cesty" testId="selection-road-trees" />
-        {apples.trees > 0 && (
-          <Stat icon="apples" name="Jabloně (plodí)" testId="selection-road-apples">
-            {apples.trees}
-            {apples.bearing < apples.trees ? ` (${apples.bearing})` : ''}
-          </Stat>
-        )}
-        {(details.wetM > 0 || details.fords > 0) && (
-          <Tooltip content="Mokřina a brody" placement="above">
+    <div className="hud-split">
+      <div className="flex min-w-0 flex-col justify-center gap-1.5">
+        <div className={ROW}>
+          <Tooltip content="Délka" placement="above">
             <span
-              data-testid="selection-wet"
+              data-testid="selection-length"
               tabIndex={0}
-              className="text-xs font-semibold tabular-nums"
+              className="text-sm font-semibold tabular-nums"
             >
-              {formatInteger(details.wetM)} m · {details.fords}×
+              {formatInteger(details.lengthM)} m
             </span>
           </Tooltip>
-        )}
-      </div>
-      {details.building && (
-        <div className="flex items-center gap-1.5">
-          <Bar value={details.building.progress} name="Vylepšení" testId="selection-progress" />
-          {details.building.treesToFell > 0 && <WoodToFell trees={details.building.treesToFell} />}
-        </div>
-      )}
-      {apples.planting && (
-        <div className="flex items-center gap-1.5">
-          <Bar
-            value={apples.planting.progress}
-            name="Výsadba jabloní"
-            testId="selection-apples-progress"
-          />
-          {apples.planting.waits && (
-            <Tooltip content="Sází se na jaře a na podzim" placement="above">
-              <img
-                data-testid="selection-apples-waits"
-                src="/icons/resources/date.png"
-                alt="Sází se na jaře a na podzim"
-                width={18}
-                height={18}
+          <Stat icon="date" name="Stáří (roky)" testId="selection-road-age">
+            {details.ageYears}
+          </Stat>
+          <Oaks count={details.trees} name="Stromy u cesty" testId="selection-road-trees" />
+          {apples.trees > 0 && (
+            <Stat icon="apples" name="Jabloně (plodí)" testId="selection-road-apples">
+              {apples.trees}
+              {apples.bearing < apples.trees ? ` (${apples.bearing})` : ''}
+            </Stat>
+          )}
+          {(details.wetM > 0 || details.fords > 0) && (
+            <Tooltip content="Mokřina a brody" placement="above">
+              <span
+                data-testid="selection-wet"
                 tabIndex={0}
-              />
+                className="text-xs font-semibold tabular-nums"
+              >
+                {formatInteger(details.wetM)} m · {details.fords}×
+              </span>
             </Tooltip>
           )}
         </div>
-      )}
-      <div className="flex items-center gap-1.5">
+        {details.building && (
+          <div className={ROW}>
+            <Bar value={details.building.progress} name="Vylepšení" testId="selection-progress" />
+            {details.building.treesToFell > 0 && (
+              <WoodToFell trees={details.building.treesToFell} />
+            )}
+          </div>
+        )}
+        {apples.planting && (
+          <div className={ROW}>
+            <Bar
+              value={apples.planting.progress}
+              name="Výsadba jabloní"
+              testId="selection-apples-progress"
+            />
+            {apples.planting.waits && (
+              <Tooltip content="Sází se na jaře a na podzim" placement="above">
+                <img
+                  data-testid="selection-apples-waits"
+                  src="/icons/resources/date.png"
+                  alt="Sází se na jaře a na podzim"
+                  width={18}
+                  height={18}
+                  tabIndex={0}
+                />
+              </Tooltip>
+            )}
+          </div>
+        )}
+      </div>
+      <Commands row>
         {details.upgrades.map((option) => (
           <Tooltip
             key={option.upgrade}
@@ -1000,7 +1045,7 @@ function RoadBody({
             />
           </button>
         </Tooltip>
-      </div>
+      </Commands>
     </div>
   );
 }
@@ -1076,6 +1121,7 @@ export function SelectionPanel({
   onPlantRoadApples?: (roadId: number) => Promise<void>;
 } & RelocationActions &
   ManorActions): ReactElement | null {
+  const [panelRef, scroll] = useOverflowScroll();
   if (!details) return null;
   let portrait: ReactElement;
   let body: ReactElement;
@@ -1111,7 +1157,7 @@ export function SelectionPanel({
     );
     body = (
       <div className="flex flex-col justify-center gap-1.5">
-        <div className="flex items-center gap-3">
+        <div className={ROW}>
           <HappinessGain value={details.happiness} />
           <OakAge years={details.ageYears} />
         </div>
@@ -1121,7 +1167,7 @@ export function SelectionPanel({
     portrait = <Portrait icon="haj" name="Dubový háj" />;
     body = (
       <div className="flex flex-col justify-center gap-1.5">
-        <div className="flex items-center gap-3">
+        <div className={ROW}>
           <HappinessGain value={details.happiness} />
           <Oaks count={details.oaks} name="Dospělé duby" testId="selection-grove-oaks" />
           <OakAge years={details.ageYears} />
@@ -1136,8 +1182,8 @@ export function SelectionPanel({
   } else if (details.kind === 'site') {
     portrait = dwellingPortrait(details.type, details.craft);
     body = (
-      <div className="flex flex-col justify-center gap-1.5">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col items-start justify-center gap-1.5">
+        <div className={ROW}>
           <Stat icon="labor" name="Stavba">
             {formatPercent(details.progress)}
           </Stat>
@@ -1170,16 +1216,22 @@ export function SelectionPanel({
       />
     );
   }
+  // Panel roste s obsahem (w-max) do mezí `hud-selection` (globals.css – mezi minimapou a mřížkou
+  // staveb, nejvýš 70 % okna); text se nezalamuje, širší obsah se zalomí po celých položkách.
   return (
     <section
+      ref={panelRef}
       data-testid="selection-panel"
       data-kind={details.kind}
+      data-scroll={scroll || undefined}
       data-hud-block
       aria-label="Výběr"
-      className="hud-panel fixed bottom-2 left-1/2 z-20 flex min-h-28 w-[22rem] max-w-[calc(100vw-30rem)] -translate-x-1/2 gap-3 p-2"
+      className="hud-panel hud-selection fixed left-1/2 z-20 w-max min-w-[20rem] -translate-x-1/2 p-2 whitespace-nowrap"
     >
-      {portrait}
-      {body}
+      <div className="flex min-h-24 gap-3">
+        {portrait}
+        {body}
+      </div>
     </section>
   );
 }

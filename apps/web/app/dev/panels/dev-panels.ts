@@ -1,0 +1,405 @@
+import { DIRECTIONS, type TrailOption } from '@bohemia/game';
+import type { VillageManor, VillageNeighbour } from '@/lib/manor-view';
+import type { SelectionDetails, SelectionLeave } from '@/lib/selection-details';
+import type { VillageListItem } from '@/lib/village-list';
+import type { BuildOption } from '@/lib/village-view';
+
+// Ukázková data panelu výběru pro vývojovou stránku /dev/panels – nejbohatší objekty (dvorec
+// s vylepšeními a obchodem, obydlí s rodinami a přestavbou, víc obydlí, dílny, ohrada, pole, cesta)
+// i malé (posvátný dub, staveniště) vedle sebe, ať jde rozvržení panelu zkontrolovat bez hry.
+
+const option = (affordable: boolean, wood: number, missing = 0): BuildOption => ({
+  laborManDays: 64,
+  perHa: false,
+  perSquare: false,
+  upfront: [{ resource: 'wood', amount: wood, missing }],
+  blocked: null,
+  affordable,
+});
+
+const relocate = { zemnice: option(true, 7), polozemnice: option(false, 18, 6) };
+
+const leave: SelectionLeave = {
+  households: [3],
+  people: 9,
+  foodKg: 175,
+  directions: DIRECTIONS.map((direction) => ({
+    direction,
+    days: direction === 'E' ? 1 : 2,
+    blocked: direction === 'W' ? 'Tím směrem leží tvoje ves Budeč.' : null,
+  })),
+};
+
+const trails: TrailOption[] = DIRECTIONS.map((direction) => ({
+  direction,
+  status: direction === 'E' ? 'built' : direction === 'S' ? 'building' : 'none',
+  progress: direction === 'E' ? 1 : direction === 'S' ? 0.45 : 0,
+  lengthM: direction === 'N' ? null : 820,
+  laborManDays: 131.4,
+  trees: 6,
+  treesToFell: 2,
+  tripDays: direction === 'N' ? null : 5,
+  blocked:
+    direction === 'N'
+      ? 'Ke kraji mapy tudy cesta nevede – zahrazuje ji voda nebo sráz.'
+      : direction === 'E'
+        ? 'Stezka tímto směrem už vede.'
+        : direction === 'S'
+          ? 'Stezka tímto směrem se už staví.'
+          : null,
+}));
+
+const neighbours: VillageNeighbour[] = [
+  {
+    direction: 'E',
+    name: 'Stará Boleslav',
+    lengthM: 820,
+    tripDays: 5,
+    offers: [
+      { good: 'salt', price: 7.68, left: 1200 },
+      { good: 'iron', price: 28.8, left: 300 },
+      { good: 'honey', price: 9.5, left: 140 },
+    ],
+    demands: [
+      { good: 'grain', price: 1, left: 15000, have: 12400 },
+      { good: 'cheese', price: 4, left: 3000, have: 1450 },
+      { good: 'pottery', price: 6, left: 400, have: 260 },
+    ],
+    expedition: null,
+  },
+  {
+    direction: 'S',
+    name: 'Kouřim',
+    lengthM: 1200,
+    tripDays: 7,
+    offers: [{ good: 'furs', price: 40, left: 12 }],
+    demands: [{ good: 'tools', price: 20, left: 80, have: 35 }],
+    expedition: {
+      give: { tools: 20 },
+      get: { furs: 9 },
+      porters: 2,
+      days: 7,
+      progress: 0.6,
+    },
+  },
+];
+
+const manor: VillageManor = { dwellingId: 3, trails, neighbours };
+
+const dwelling = (
+  over: Partial<Extract<SelectionDetails, { kind: 'dwelling' }>> = {},
+): SelectionDetails => ({
+  kind: 'dwelling',
+  id: 3,
+  type: 'polozemnice',
+  occupants: 8,
+  family: { men: 2, women: 3, boys: 1, girls: 1, elderMen: 0, elderWomen: 1, couples: 2 },
+  capacity: 8,
+  ages: [61, 34, 31, 27, 24, 11, 6, 2],
+  condition: 0.72,
+  ageYears: 23,
+  full: true,
+  overcrowded: false,
+  rebuild: null,
+  workshop: null,
+  relocation: null,
+  relocate,
+  manor: null,
+  leave,
+  ...over,
+});
+
+const pen = (over: Partial<Extract<SelectionDetails, { kind: 'pen' }>> = {}): SelectionDetails => ({
+  kind: 'pen',
+  id: 90,
+  built: true,
+  progress: 1,
+  oxen: 4,
+  cows: 11,
+  herds: { sheep: 128, goat: 37, pig: 64, cow: 22 },
+  chickens: 146,
+  pastureHa: 141.5,
+  grazingHa: 98.4,
+  milkLPerDay: 186,
+  team: { ageYears: 8, yearsLeft: 2 },
+  training: { progress: 0.35, daysLeft: 438 },
+  hayKg: 41_200,
+  trainBlocked: null,
+  condition: 0.62,
+  abandoned: false,
+  ...over,
+});
+
+/** Ukázky panelu – klíč (`?panel=`), popisek tlačítka na stránce a data. */
+export const DEV_PANELS: readonly { key: string; label: string; details: SelectionDetails }[] = [
+  {
+    key: 'dvorec',
+    label: 'Dvorec',
+    details: dwelling({
+      type: 'dvorec',
+      occupants: 12,
+      capacity: 10,
+      full: true,
+      overcrowded: true,
+      family: { men: 3, women: 4, boys: 2, girls: 2, elderMen: 1, elderWomen: 0, couples: 3 },
+      ages: [63, 41, 38, 35, 33, 29, 26, 14, 11, 8, 5, 1],
+      rebuild: { progress: 0.3, type: 'dvorec', treesToFell: 7 },
+      manor,
+    }),
+  },
+  {
+    key: 'obydli',
+    label: 'Obydlí',
+    details: dwelling(),
+  },
+  {
+    key: 'stehovani',
+    label: 'Stěhování',
+    details: dwelling({
+      relocate: null,
+      relocation: { constructionId: 12, type: 'polozemnice', progress: 0.35, treesToFell: 4 },
+      rebuild: null,
+    }),
+  },
+  {
+    key: 'vic-obydli',
+    label: 'Víc obydlí',
+    details: {
+      kind: 'dwellings',
+      ids: Array.from({ length: 14 }, (_, i) => i + 1),
+      households: 13,
+      people: 87,
+      relocatable: [1, 2, 3, 5, 8],
+      relocate,
+      leave: { ...leave, households: [1, 2, 3, 5, 8], people: 34, foodKg: 680 },
+    },
+  },
+  {
+    key: 'uhlir',
+    label: 'Uhlíř',
+    details: dwelling({
+      type: 'zemnice',
+      occupants: 5,
+      capacity: 6,
+      full: false,
+      family: { men: 1, women: 1, boys: 2, girls: 0, elderMen: 1, elderWomen: 0, couples: 1 },
+      ages: [58, 32, 29, 7, 3],
+      workshop: {
+        craft: 'burner',
+        activity: 'felling',
+        laborPerDay: 1.8,
+        outputPerDayKg: 0,
+        stockKg: 1240,
+        coverage: null,
+        kiln: { stage: 'wood', prepared: 3, trees: 8, progress: 0.4, forest: true },
+        toPlant: 12,
+      },
+    }),
+  },
+  {
+    key: 'kovar',
+    label: 'Kovář',
+    details: dwelling({
+      workshop: {
+        craft: 'smith',
+        activity: 'no-charcoal',
+        laborPerDay: 0,
+        outputPerDayKg: 0.8,
+        stockKg: 312,
+        coverage: 0.64,
+        kiln: null,
+        toPlant: 0,
+      },
+    }),
+  },
+  { key: 'ohrada', label: 'Ohrada', details: pen() },
+  {
+    key: 'ohrada-opustena',
+    label: 'Ohrada opuštěná',
+    details: pen({
+      oxen: 0,
+      cows: 0,
+      team: null,
+      training: null,
+      milkLPerDay: 0,
+      condition: 0.31,
+      abandoned: true,
+      trainBlocked: 'Na výcvik chybí telata – stádo potřebuje aspoň 3 krávy.',
+    }),
+  },
+  {
+    key: 'pole',
+    label: 'Pole',
+    details: {
+      kind: 'field',
+      id: 5,
+      areaM2: 312_500,
+      fertility: 64.4,
+      stages: [
+        { stage: 'founding', count: 12 },
+        { stage: 'ready', count: 34 },
+        { stage: 'sown', count: 418 },
+        { stage: 'young-fallow', count: 96 },
+        { stage: 'meadow', count: 210 },
+        { stage: 'shrubs', count: 41 },
+        { stage: 'young-forest', count: 17 },
+      ],
+      surfaces: [
+        { surface: 'meadow', count: 604 },
+        { surface: 'shrub', count: 112 },
+        { surface: 'forest', count: 112 },
+      ],
+      crops: [
+        { crop: 'winter', count: 204 },
+        { crop: 'spring', count: 158 },
+        { crop: 'legume', count: 56 },
+      ],
+      ashParts: 24,
+      ashBonus: 40,
+      overgrowingM2: 13_050,
+      founding: 0.42,
+    },
+  },
+  {
+    key: 'cesta',
+    label: 'Cesta',
+    details: {
+      kind: 'road',
+      id: 4,
+      grade: 'improved',
+      lengthM: 1240,
+      ageYears: 112,
+      trees: 46,
+      wetM: 180,
+      fords: 2,
+      building: { grade: 'causeway', progress: 0.55, treesToFell: 9 },
+      upgrades: [
+        {
+          upgrade: 'causeway',
+          laborManDays: 233,
+          trees: 26,
+          treesToFell: 11,
+          blocked: 'Vylepšení cesty se už staví.',
+        },
+      ],
+      apples: {
+        trees: 64,
+        bearing: 41,
+        planting: { trees: 22, progress: 0.3, waits: true },
+        option: {
+          trees: 18,
+          laborManDays: 9.8,
+          blocked: null,
+          warning: 'Pole se zmenší',
+        },
+      },
+    },
+  },
+  {
+    key: 'hrbitov',
+    label: 'Hřbitov',
+    details: {
+      kind: 'cemetery',
+      id: 30,
+      squares: 6,
+      capacity: 336,
+      graves: 287,
+      freeGraves: 49,
+      yearsLeft: 23,
+      built: true,
+      building: 0.6,
+      condition: 0.38,
+      abandoned: true,
+    },
+  },
+  {
+    key: 'sad',
+    label: 'Sad',
+    details: {
+      kind: 'orchard',
+      id: 41,
+      areaM2: 33_750,
+      ageYears: 48,
+      expectedYieldKg: 12_400,
+      planting: 0.25,
+      plantingWaits: true,
+    },
+  },
+  {
+    key: 'dub',
+    label: 'Posvátný dub',
+    details: { kind: 'sacred-oak', id: 7, happiness: 9, ageYears: 1203, snag: false },
+  },
+  {
+    key: 'sous',
+    label: 'Souš',
+    details: { kind: 'sacred-oak', id: 8, happiness: 1, ageYears: 1180, snag: true },
+  },
+  {
+    key: 'haj',
+    label: 'Háj',
+    details: { kind: 'grove', id: 9, oaks: 23, happiness: 14, ageYears: 387 },
+  },
+  {
+    key: 'modla',
+    label: 'Modla',
+    details: {
+      kind: 'sacred',
+      id: 40,
+      type: 'idol',
+      happiness: 8,
+      building: null,
+      oaksToFell: 0,
+      condition: 0.38,
+      abandoned: true,
+    },
+  },
+  {
+    key: 'svatyne',
+    label: 'Svatyně',
+    details: {
+      kind: 'sacred',
+      id: 41,
+      type: 'shrine',
+      happiness: 20,
+      building: 0.4,
+      oaksToFell: 6,
+      condition: 1,
+      abandoned: false,
+    },
+  },
+  {
+    key: 'staveniste',
+    label: 'Staveniště',
+    details: {
+      kind: 'site',
+      id: 12,
+      type: 'polozemnice',
+      craft: null,
+      progress: 0.2,
+      treesToFell: 11,
+      relocates: 3,
+    },
+  },
+];
+
+const village = (over: Partial<VillageListItem>): VillageListItem => ({
+  id: 'v-1',
+  settlementId: 's-1',
+  name: 'Libice',
+  people: 112,
+  extinct: false,
+  abandoned: false,
+  travelling: false,
+  hungry: false,
+  starving: false,
+  ...over,
+});
+
+/** Seznam vsí v liště – i jméno skoro o 40 znacích (nejvíc dovolené) a vsi na cestě a opuštěná. */
+export const DEV_VILLAGES: readonly VillageListItem[] = [
+  village({}),
+  village({ id: 'v-2', name: 'Stará Boleslav nad Labem pod Hradištěm', people: 1240 }),
+  village({ id: 'v-3', name: 'Budeč', people: 34, travelling: true }),
+  village({ id: 'v-4', settlementId: 's-2', name: 'Levý Hradec', people: 0, abandoned: true }),
+];

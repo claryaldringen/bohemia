@@ -437,3 +437,103 @@ describe('SelectionPanel – odchod do nové vsi', () => {
     expect(arrived).toContain('umísti první zemnici');
   });
 });
+
+// Rozvržení panelu (Martin 19. 10. 2026 – „panely s hodně informacemi musí být větší, text se
+// nesmí zalamovat ani být nahňácaný“): panel roste s obsahem do mezí `hud-selection`, text se
+// nezalamuje, příkazy jsou vpravo za čarou a rozbalené nabídky nad panelem.
+describe('SelectionPanel – rozvržení', () => {
+  /** Atributy panelu výběru. */
+  const section = (html: string): string =>
+    /<section([^>]*data-testid="selection-panel"[^>]*)>/.exec(html)?.[1] ?? '';
+  const classes = (attrs: string): string[] => /class="([^"]*)"/.exec(attrs)?.[1]?.split(' ') ?? [];
+
+  it('panel roste s obsahem do mezí hud-selection a text v něm se nezalamuje', () => {
+    const panel = classes(section(render(pen())));
+    expect(panel).toEqual(
+      expect.arrayContaining(['hud-selection', 'w-max', 'min-w-[20rem]', 'whitespace-nowrap']),
+    );
+    // žádná pevná šířka jako dřív (22rem)
+    expect(panel.some((c) => /^w-\[/.test(c))).toBe(false);
+  });
+
+  it('popisky v panelu se zalomit smí – delší důvod, proč akce nejde', () => {
+    const html = render(
+      pen({ trainBlocked: 'Na výcvik chybí telata – stádo potřebuje aspoň 3 krávy.' }),
+    );
+    const tooltip = /<span role="tooltip" class="([^"]*)"/.exec(html)?.[1] ?? '';
+    expect(tooltip.split(' ')).toContain('whitespace-normal');
+  });
+
+  it('dlouhý název pod portrétem zůstane na jednom řádku', () => {
+    const html = render(
+      dwelling({ type: 'dvorec', manor: { dwellingId: 3, trails: [], neighbours: [] } }),
+    );
+    expect(html).toMatch(/<h2 class="[^"]*whitespace-nowrap[^"]*">Dvorec vojvody<\/h2>/);
+  });
+
+  it('obydlí: údaje vlevo, příkazy (dvorec, přestěhovat, odejít) vpravo za čarou', () => {
+    const html = render(
+      dwelling({
+        type: 'dvorec',
+        manor: { dwellingId: 3, trails: [], neighbours: [] },
+        leave: { households: [3], people: 4, foodKg: 50, directions: [] },
+      }),
+    );
+    const commands = html.indexOf('data-testid="selection-commands"');
+    expect(commands).toBeGreaterThan(-1);
+    expect(html).toContain('class="hud-commands"');
+    // údaje před příkazy, tlačítka v nich
+    expect(html.indexOf('selection-occupants')).toBeLessThan(commands);
+    expect(html.indexOf('selection-ages')).toBeLessThan(commands);
+    for (const id of ['manor-upgrades', 'relocate-zemnice', 'leave-village']) {
+      expect(html.indexOf(`data-testid="${id}"`)).toBeGreaterThan(commands);
+    }
+    expect(html).toContain('class="hud-split"');
+  });
+
+  it('obydlí bez příkazů (nejde přestěhovat ani odejít) sloupec příkazů nemá', () => {
+    const html = render(dwelling({ relocate: null, leave: null }));
+    expect(html).not.toContain('selection-commands');
+  });
+
+  it('věk obyvatel nejvýš po 8 v řádku – další řádek pod nimi', () => {
+    const html = render(dwelling({ ages: [63, 41, 38, 35, 33, 29, 26, 14, 11, 8, 5, 1] }));
+    const list = /<ul data-testid="selection-ages"[^>]*class="([^"]*)"/.exec(html)?.[1] ?? '';
+    // 8 × 1,75rem + 7 mezer po 0,25rem
+    expect(list.split(' ')).toEqual(expect.arrayContaining(['flex-wrap', 'max-w-[15.75rem]']));
+  });
+
+  it('víc obydlí: počty vlevo, přestěhovat a odejít vpravo', () => {
+    const html = render({
+      kind: 'dwellings',
+      ids: [1, 2],
+      households: 2,
+      people: 9,
+      relocatable: [1],
+      relocate,
+      leave: null,
+    });
+    const commands = html.indexOf('data-testid="selection-commands"');
+    expect(html.indexOf('selection-people')).toBeLessThan(commands);
+    expect(html.indexOf('data-testid="leave-village"')).toBeGreaterThan(commands);
+  });
+
+  it('řádky ikon s čísly se při nedostatku místa zalomí po celých položkách', () => {
+    const html = render({
+      kind: 'field',
+      id: 5,
+      areaM2: 312_500,
+      fertility: 64,
+      stages: [{ stage: 'sown', count: 418 }],
+      surfaces: [],
+      crops: [{ crop: 'winter', count: 204 }],
+      ashParts: 0,
+      ashBonus: 0,
+      overgrowingM2: 13_050,
+      founding: null,
+    });
+    // řádek s výměrou je flex-wrap; položka (ikona + číslo) se sama nezalomí ani nezúží
+    expect(html).toMatch(/<div class="flex flex-wrap items-center gap-x-3 gap-y-1">/);
+    expect(html).toMatch(/class="flex shrink-0 items-center gap-1 whitespace-nowrap"/);
+  });
+});

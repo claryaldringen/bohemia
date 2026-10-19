@@ -10,7 +10,8 @@ const PLACEMENT = {
 
 /**
  * Popisek při najetí myší nebo fokusu (jako v 0 A.D.) – krátký název, u staveb i cena.
- * Obsah je jen vizuální doplněk: tlačítka nesou název v `aria-label`.
+ * Obsah je jen vizuální doplněk: tlačítka nesou název v `aria-label`. Delší věta (důvod, proč
+ * stavba nejde) se zalomí i v panelu, který zalamování vypíná (`whitespace-normal`).
  */
 export function Tooltip({
   content,
@@ -29,7 +30,7 @@ export function Tooltip({
       {children}
       <span
         role="tooltip"
-        className={`hud-tooltip pointer-events-none absolute z-40 hidden w-max max-w-64 px-2 py-1 text-xs leading-snug group-focus-within/tooltip:block group-hover/tooltip:block ${PLACEMENT[placement]}`}
+        className={`hud-tooltip pointer-events-none absolute z-40 hidden w-max max-w-64 px-2 whitespace-normal py-1 text-xs leading-snug group-focus-within/tooltip:block group-hover/tooltip:block ${PLACEMENT[placement]}`}
       >
         {content}
       </span>

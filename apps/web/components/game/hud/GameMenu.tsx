@@ -38,7 +38,8 @@ function MenuButton({
 
 /**
  * Panel nabídky (bez stavu): položky Začít znovu, Odhlásit a Zpět do hry, nebo potvrzení
- * Začít znovu s krátkým varováním. Nabídka smí mít slova – zbytek rozhraní jsou ikony s čísly.
+ * Začít znovu s krátkým varováním na jeden řádek (panel se kvůli němu rozšíří). Nabídka smí mít
+ * slova – zbytek rozhraní jsou ikony s čísly.
  */
 export function GameMenuPanel({
   step,
@@ -79,7 +80,7 @@ export function GameMenuPanel({
       aria-label="Nabídka"
       aria-describedby={step === 'confirm' ? 'game-menu-warning' : undefined}
       tabIndex={-1}
-      className="hud-panel fixed top-12 right-2 z-40 w-72 max-w-[calc(100vw-1rem)] p-3 outline-none"
+      className="hud-panel fixed top-12 right-2 z-40 w-max max-w-[calc(100vw-1rem)] min-w-72 p-3 outline-none"
     >
       {step === 'main' ? (
         <div className="flex flex-col gap-2">
@@ -105,7 +106,7 @@ export function GameMenuPanel({
           <p
             id="game-menu-warning"
             data-testid="game-menu-warning"
-            className="px-1 text-center font-serif text-[0.95rem] leading-snug text-balance text-[#f0c987]"
+            className="px-1 text-center font-serif text-[0.95rem] leading-snug whitespace-nowrap text-[#f0c987]"
           >
             {RESTART_WARNING}
           </p>

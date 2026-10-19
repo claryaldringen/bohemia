@@ -1,5 +1,6 @@
-import { useState, type ReactElement, type ReactNode } from 'react';
+import { useRef, useState, type ReactElement, type ReactNode } from 'react';
 import type { Direction8, TrailOption } from '@bohemia/game';
+import { useDismiss } from '@/hooks/use-dismiss';
 import type { VillageManor } from '@/lib/manor-view';
 import { DIRECTION_NAMES } from '@/lib/trade-names';
 import { formatDecimal, formatInteger } from '@/lib/village-format';
@@ -119,7 +120,8 @@ export function TrailCompass({
 
 /**
  * Vylepšení vsi ve dvorci: tlačítko zemské stezky (otevře růžici směrů) a obchodu (otevře panel
- * obchodu – jen s hotovou stezkou). `trade` – obsah panelu obchodu (TradePanel).
+ * obchodu – jen s hotovou stezkou). `trade` – obsah panelu obchodu (TradePanel). Růžice i obchod
+ * se otevřou nad panelem výběru (`hud-popup` – panel se nezvětší) a zavře je stisk myši mimo ně.
  */
 export function ManorUpgrades({
   manor,
@@ -132,6 +134,8 @@ export function ManorUpgrades({
 }): ReactElement {
   const [open, setOpen] = useState<'trail' | 'trade' | null>(null);
   const [busy, setBusy] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  useDismiss(open !== null, rootRef, () => setOpen(null));
   const build = (direction: Direction8): void => {
     if (!onBuildTrail || busy) return;
     setBusy(true);
@@ -140,7 +144,7 @@ export function ManorUpgrades({
   const anyBuilt = manor.trails.some((t) => t.status === 'built');
   const toggle = (what: 'trail' | 'trade'): void => setOpen((o) => (o === what ? null : what));
   return (
-    <div data-testid="manor-upgrades" className="relative flex items-center gap-1.5">
+    <div ref={rootRef} data-testid="manor-upgrades" className="flex items-center gap-1.5">
       <Tooltip placement="above" content="Zemská stezka">
         <button
           type="button"
@@ -191,12 +195,12 @@ export function ManorUpgrades({
         </button>
       </Tooltip>
       {open === 'trail' && (
-        <div className="hud-panel absolute bottom-full left-0 z-30 mb-3 p-2" data-hud-block>
+        <div className="hud-panel hud-popup p-2" data-hud-block>
           <TrailCompass trails={manor.trails} busy={busy} onBuild={build} />
         </div>
       )}
       {open === 'trade' && trade && (
-        <div className="hud-panel absolute bottom-full left-0 z-30 mb-3 p-2" data-hud-block>
+        <div className="hud-panel hud-popup p-2" data-hud-block>
           {trade(() => setOpen(null))}
         </div>
       )}
