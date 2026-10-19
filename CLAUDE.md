@@ -657,7 +657,15 @@ rozhraní částí v
   K 1. 9. rozhodne `chooseCrops` (`sowing.ts`): díly v pořadí `sowingOrder`, každý do ozimu, když
   ho podzim (září–říjen po sklizni jablek) stihne a červenec sklidí, jinak do jaře, když se
   vejde do zbytku podzimu, jara a srpna – volná práce `windowDaysLeft` × práce po denním minimu.
-  Díly hotové po plánu jdou jen do jaře. Polní úlohy obou plodin řadí `fieldTasks` v `simulate.ts`
+  Díly hotové po plánu jdou jen do jaře. **Cíl osevu podle stravy** (fields.md – Osev podle
+  stravy, 19. 10. 2026): `sowingTargetKg` ve `field-food.ts` (v plánu `fieldSowingTarget`) =
+  potřeba z pole (podíl jídla z pole za uplynulý hospodářský rok – `VillageState.fieldFood`, součty
+  v `eat`, uzávěrka 1. 9. `closeFieldFoodYear`; nejméně `FIELD_FOOD.minShare`, bez změřeného roku
+  1 – × roční potřeba) s rezervou obilí, dokud zásoby obilí nemají 1,5 roku potřeby z pole,
+  a s rezervou luštěnin; touž potřebou z pole jde `energyFloorKg`, odhad ozimu na srpen
+  (`daysUntilFoodHarvest`) a dobré zásoby štěstí. Výhled jídla do sklizně (`eatDiet`) počítá
+  s mlékem stád do sklizně (`milkAheadEnergy` z `milkEnergyBetween`) a celou zásobou sýra.
+  Polní úlohy obou plodin řadí `fieldTasks` v `simulate.ts`
   (konec okna, ozim před jaří); `allocateDay` vrací i `taskAmounts` po úlohách vstupu (stejný
   název víckrát). Sklizeň ozimu 31. 7. (`harvestWinter`), jaře 31. 8.; příděl počítá do sklizně
   podle `daysUntilFoodHarvest` (31. 7., když ozim podle odhadu uživí srpen). Plán po plodinách
