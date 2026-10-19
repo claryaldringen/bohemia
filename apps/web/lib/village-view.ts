@@ -2591,9 +2591,7 @@ function scenePens(
 }
 
 /** Druh ohrady ve scéně – bez údaje (ukázky) se spřežením nebo výcvikem spřežení, jinak skot. */
-export function scenePenSpecies(
-  pen: Pick<ScenePen, 'species' | 'oxen' | 'trainees'>,
-): PenSpecies {
+export function scenePenSpecies(pen: Pick<ScenePen, 'species' | 'oxen' | 'trainees'>): PenSpecies {
   return pen.species ?? (pen.oxen > 0 || pen.trainees > 0 ? 'team' : 'cattle');
 }
 

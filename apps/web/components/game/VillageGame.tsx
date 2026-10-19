@@ -47,7 +47,7 @@ import {
 import { usePlacement } from '@/hooks/use-placement';
 import { usePolling } from '@/hooks/use-polling';
 import { authClient } from '@/lib/auth-client';
-import { buildItem, buildItemForKey } from '@/lib/build-items';
+import { buildItem, buildItemForKey, penVariantSpecies } from '@/lib/build-items';
 import { setE2EHook } from '@/lib/e2e-hooks';
 import { opensMenu } from '@/lib/game-menu';
 import { nextPollDelayMs } from '@/lib/village-polling';
@@ -81,6 +81,7 @@ import {
   type ScenePlot,
   type SceneVillage,
   type VillageView,
+  scenePenSpecies,
 } from '@/lib/village-view';
 import { GameView } from './GameView';
 import { BuildGrid } from './hud/BuildGrid';
@@ -111,7 +112,12 @@ type ActionResult = VillageView | { error: string };
 const SUBMIT_SQUARES: Partial<
   Record<
     BuildKind,
-    (villageId: string, cells: TileCell[], grid?: SquareGrid) => Promise<ActionResult>
+    (
+      villageId: string,
+      cells: TileCell[],
+      grid?: SquareGrid,
+      variant?: string,
+    ) => Promise<ActionResult>
   >
 > = {
   // všechny i v natočené mřížce (fields.md – Natočené stavby)
@@ -120,7 +126,14 @@ const SUBMIT_SQUARES: Partial<
     placeCemetery({ villageId, cells, ...(grid ? { grid } : {}) }),
   orchard: (villageId, cells, grid) =>
     placeOrchard({ villageId, cells, ...(grid ? { grid } : {}) }),
-  pen: (villageId, cells, grid) => placePen({ villageId, cells, ...(grid ? { grid } : {}) }),
+  // ohrada podle druhu (oxen.md – Ohrady podle druhu): druh přepíná Tab
+  pen: (villageId, cells, grid, variant) =>
+    placePen({
+      villageId,
+      cells,
+      species: penVariantSpecies(variant),
+      ...(grid ? { grid } : {}),
+    }),
 };
 
 /**
@@ -130,6 +143,7 @@ const SUBMIT_SQUARES: Partial<
 function squareStructures(
   scene: SceneVillage | null,
   kind: BuildKind,
+  variant?: string,
 ): { id: number; grid?: SquareGrid; squares: readonly CellSquare[] }[] {
   if (!scene) return [];
   if (kind === 'field') {
@@ -154,12 +168,30 @@ function squareStructures(
     }));
   }
   if (kind === 'pen') {
-    // ohrada se chytí mřížky jiné ohrady – nová vedle ní leží v řadě
-    return (scene.pens ?? []).map((p) => ({
-      id: p.id,
-      ...(p.grid ? { grid: p.grid } : {}),
-      squares: [p],
-    }));
+    // ohrada se chytí mřížky ohrady téhož druhu – rozšíření jako u hřbitova (oxen.md – Ohrady
+    // podle druhu); bez druhu (výběr stavby) všechny ohrady
+    return (scene.pens ?? [])
+      .filter((p) => variant === undefined || scenePenSpecies(p) === variant)
+      .map((p) => ({
+        id: p.id,
+        ...(p.grid ? { grid: p.grid } : {}),
+        squares: [
+          {
+            cell: p.cell,
+            x: p.x,
+            z: p.z,
+            size: p.size,
+            ...(p.rotation ? { rotation: p.rotation } : {}),
+          },
+          ...(p.extraSquares ?? []).map((q) => ({
+            cell: q.cell,
+            x: q.x,
+            z: q.z,
+            size: p.size,
+            ...(p.rotation ? { rotation: p.rotation } : {}),
+          })),
+        ],
+      }));
   }
   return [];
 }
@@ -294,6 +326,8 @@ export function VillageGame({
   /** Akce na serveru jdou za sebou (Shift + klik staví víc obydlí rychle po sobě). */
   const queueRef = useRef<Promise<unknown>>(Promise.resolve());
   const viewRef = useRef(view);
+  // druh naposledy malované stavby po druzích (ohrada – oxen.md): příště začne s ním
+  const lastVariant = useRef<Partial<Record<BuildKind, string>>>({});
   const pendingRef = useRef<PendingSite[]>([]);
   const pendingId = useRef(0);
   useEffect(() => {
@@ -671,24 +705,33 @@ export function VillageGame({
     if (item.placement === 'squares') {
       const submit = SUBMIT_SQUARES[kind];
       if (!submit) throw new Error(`Stavba ${kind} nemá server action.`);
-      // vybraná stavba stejného druhu: malování začne v její mřížce (rozšíření)
+      // vybraná stavba stejného druhu: malování začne v její mřížce (rozšíření); u ohrady i s jejím
+      // druhem zvířat, jinak druh naposledy malované ohrady (oxen.md – Ohrady podle druhu)
       const structures = squareStructures(sceneVillageRef.current, kind);
-      const start =
-        chosen && chosen.kind === kind
-          ? structures.find((s) => 'id' in chosen && s.id === chosen.id)?.grid
+      const chosenId = chosen && chosen.kind === kind && 'id' in chosen ? chosen.id : null;
+      const start = chosenId === null ? undefined : structures.find((s) => s.id === chosenId)?.grid;
+      const chosenPen =
+        kind === 'pen' && chosenId !== null
+          ? sceneVillageRef.current?.pens?.find((p) => p.id === chosenId)
           : undefined;
+      const variant = chosenPen ? scenePenSpecies(chosenPen) : lastVariant.current[kind];
       placement.start(
         {
           kind: 'squares',
-          preview: (cells, grid) => ({
-            ...item.check(decoded, placementVillage(), cells, grid),
+          preview: (cells, grid, kindVariant) => ({
+            ...item.check(decoded, placementVillage(), cells, grid, kindVariant),
             label: '',
           }),
+          ...(item.variants ? { variants: item.variants, ...(variant ? { variant } : {}) } : {}),
           ...(item.rotatable
             ? {
                 rotatable: true,
-                gridAt: (x: number, z: number) =>
-                  structureGridAt(squareStructures(sceneVillageRef.current, kind), x, z),
+                gridAt: (x: number, z: number, kindVariant?: string) =>
+                  structureGridAt(
+                    squareStructures(sceneVillageRef.current, kind, kindVariant),
+                    x,
+                    z,
+                  ),
                 ...(start ? { grid: start } : {}),
               }
             : {}),
@@ -696,7 +739,8 @@ export function VillageGame({
         (result) => {
           const villageId = viewRef.current?.id;
           if (result.kind === 'squares' && villageId) {
-            void runBuildAction(() => submit(villageId, result.cells, result.grid));
+            if (result.variant) lastVariant.current[kind] = result.variant;
+            void runBuildAction(() => submit(villageId, result.cells, result.grid, result.variant));
           }
         },
       );
