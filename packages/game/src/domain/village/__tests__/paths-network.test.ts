@@ -125,6 +125,37 @@ describe('computePathNetwork – pěšiny vsi', () => {
     expect(network.lines.some((l) => l.points.some((p) => p.z > 280))).toBe(true);
   });
 
+  it('každé obývané obydlí má pochůzku pro vodu i dřevo – i když jeho branka vede k sousedovi', () => {
+    // Vlkov (19. 10. 2026): polozemnice na pozemku přední stranou (branka, −z) k pozemku dvorce –
+    // brána padla do cizího pozemku, domácnost vypadla ze sítě a neměla žádnou pochůzku
+    const plot = (x: number, z: number): PathVillage['dwellings'][number]['plot'] => ({
+      cell: { x: Math.round((x + 142.5) / 15), y: Math.round((z + 142.5) / 15) },
+      x,
+      z,
+      size: 15,
+    });
+    const boxed: PathVillage = village({
+      dwellings: [
+        house(1, 7.5, 7.5, Math.PI, { type: 'polozemnice', plot: plot(7.5, 7.5) }),
+        house(2, 7.5, -7.5, Math.PI, { type: 'polozemnice', plot: plot(7.5, -7.5) }),
+        house(3, 22.5, 7.5, Math.PI, { type: 'polozemnice', plot: plot(22.5, 7.5) }),
+      ],
+    });
+    const network = computePathNetwork({ village: boxed, terrain });
+    for (const id of [1, 2, 3]) {
+      const errand = network.errands.get(id);
+      expect(errand?.water).toBeDefined();
+      expect(errand?.wood).toBeDefined();
+    }
+    // pěšina domu 1 nezačíná v cizím pozemku (branka do souseda) – vyjde těsně u jeho pozemku
+    const starts = network.lines.flatMap((l) => [l.points[0]!, l.points[l.points.length - 1]!]);
+    const inPlot = (p: { x: number; z: number }, cx: number, cz: number): boolean =>
+      Math.abs(p.x - cx) < 7.5 && Math.abs(p.z - cz) < 7.5;
+    for (const p of starts) {
+      expect(inPlot(p, 7.5, -7.5) || inPlot(p, 7.5, 7.5) || inPlot(p, 22.5, 7.5)).toBe(false);
+    }
+  });
+
   it('pěšina nevede domem a začíná u brány před vchodem', () => {
     const v = village();
     const network = computePathNetwork({ village: v, terrain });

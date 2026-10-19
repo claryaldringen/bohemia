@@ -1013,6 +1013,30 @@ function passableNear(grid: Grid, x: number, z: number, reach: number): number {
   return best;
 }
 
+/** Pás kolem obydlí (m), kde se hledá náhradní brána (`gateAround`). */
+const GATE_RING_M = 7.5;
+
+/**
+ * Náhradní brána obydlí, jehož brána leží v neprůchodné zemi (Vlkov, 19. 10. 2026: branka
+ * polozemnice vedla do pozemku dvorce a domácnost vypadla ze sítě – neměla žádnou pochůzku):
+ * průchodná buňka v pásu GATE_RING_M kolem obdélníku obydlí nejblíž k bráně (při shodě první po
+ * řádcích), nebo −1 (obydlí celé obestavěné).
+ */
+function gateAround(grid: Grid, b: Building, gate: PathPoint): number {
+  const [x0, z0, x1, z1] = buildingBounds(b, GATE_RING_M);
+  let best = -1;
+  let bestD = Infinity;
+  cellsIn(grid, x0, z0, x1, z1, (c, x, z) => {
+    if (!Number.isFinite(grid.base[c]!) || !inBuilding(b, x, z, GATE_RING_M)) return;
+    const d = length2(x - gate.x, z - gate.z);
+    if (d < bestD) {
+      best = c;
+      bestD = d;
+    }
+  });
+  return best;
+}
+
 /** Průchodné buňky do `radius` m od bodu (aspoň nejbližší jedna). */
 function cellsAround(grid: Grid, p: PathPoint, radius: number): number[] {
   const out: number[] = [];
@@ -1160,8 +1184,14 @@ function households(
   for (const d of settled) {
     const b = buildings.get(d.id);
     if (!b) continue;
-    const gatePoint = gateOf(b);
-    const gate = passableNear(grid, gatePoint.x, gatePoint.z, 2);
+    let gatePoint = gateOf(b);
+    let gate = passableNear(grid, gatePoint.x, gatePoint.z, 2);
+    if (gate < 0) {
+      // brána padla do souseda (pozemek přední stranou k cizímu pozemku nebo domu) – domácnost
+      // vyjde z nejbližšího volného místa těsně kolem svého obydlí
+      gate = gateAround(grid, b, gatePoint);
+      if (gate >= 0) gatePoint = { x: cellX(grid, gate), z: cellZ(grid, gate) };
+    }
     if (gate < 0) continue;
     const years =
       d.since !== undefined && day !== null

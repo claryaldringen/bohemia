@@ -120,7 +120,11 @@ povede.“ Podrobnosti návrh Clauda.
 - **Obydlí:** brána před koncem šíje, u pozemku polozemnice branka v plotu proti vchodu domu, u
   dvorce vojvody brána na vzdálené straně dvora, u dílen hrnčíře a kováře vchod pod přístřeškem
   (brána 1 m před domem leží pod ním), u uhlíře vchod do zemnice – tak to síť dělala už dřív
-  (`gateOf`) a se scénou to sedí (ověřeno).
+  (`gateOf`) a se scénou to sedí (ověřeno). **Brána do souseda:** padne-li brána do cizího
+  pozemku nebo domu (Vlkov, 19. 10. 2026: polozemnice přední stranou k pozemku dvorce – domácnost
+  vypadla ze sítě a neměla žádnou pochůzku, ani pro vodu a dřevo), vyjde domácnost z nejbližšího
+  volného místa do 7,5 m kolem svého obydlí (`gateAround`, návrh Clauda). Bez volného místa kolem
+  (obydlí celé obestavěné) zůstává mimo síť.
 - **Hřbitov:** branka v pleteném plotu na rovném úseku nejblíž k nejbližšímu hotovému obydlí (od
   středu hotových čtverců), aspoň kůl od zakulaceného rohu. Dřív ji počítala jen scéna a nikde se
   neukládala – teď ji počítá jádro (`cemeteryEntrance`) a scéna ji převezme. Hotový hřbitov má

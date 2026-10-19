@@ -1794,7 +1794,8 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   „každá budova by měla mít nějaký vchod, od kterého cesta povede“ – paths.md, Vchody: jedna
   funkce pro síť i scénu – `cemeteryEntrance` branka hřbitova, `penEntrance` branka ohrady,
   `sacredEntrance` předek modly a svatyně; k hotové stavbě vede pěšina k vchodu, staveniště ze
-  všech stran; obydlí bránou `gateOf`; konstanty pleteného plotu `WOVEN_FENCE_CORNER_M`,
+  všech stran; obydlí bránou `gateOf`, brána v cizím pozemku → nejbližší volné místo do 7,5 m kolem
+  obydlí `gateAround` (jinak by domácnost vypadla ze sítě); konstanty pleteného plotu `WOVEN_FENCE_CORNER_M`,
   `CEMETERY_GATE`, `PEN_GATE`, `FENCE_INSET_M` bere scéna odsud; `PathVillage.cemeteries` nese
   `built` a čtverce `pending`), `walking.ts` (`walkGraph`, `walkingDistances` – vzdálenost chůze se
   stejnými rychlostmi jako síť, rovně i přes pole – `withFieldWalk` z `PathVillage.fields`, nikdy
