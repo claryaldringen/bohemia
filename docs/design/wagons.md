@@ -204,12 +204,11 @@ Návrh Clauda (19. 10. 2026) – detaily, které návrh výš nechal otevřené;
   výpravy. `/dev/panels` – Tesař, Tesař pomáhá stavbám.
 - **Scéna (data pro fázi 3):** `SceneVillage.carts` – vůz, kde stojí (u ohrady), stav a cíl dne
   (svoz – pole, louka, stromy; výprava – stezka). Postavy posádky vozu stojí u svozu jako nosiči,
-  sekáči a dřevorubci; vozy se zatím nekreslí.
+  sekáči a dřevorubci (od fáze 3 jde honák s vozem – vozy kreslí scéna, fáze 3).
 - **Ikony:** `build/tesar.png` (z modelu `tesar.glb`), `resources/cart.png` (dvoukolák),
   `resources/wood-tools.png` (hrábě a vidle) – `tools/blender/icons.py`.
 
-**Zbývá:** fáze 3 – vozy se spřežením a honákem ve scéně podle `SceneVillage.carts` (trasu po síti
-dá `villageCartRoutes`, kreslí `cart-renderer.ts`); jízdy výprav do provozu stezky.
+**Zbývá:** jízdy výprav do provozu stezky (vozy ve scéně – fáze 3).
 
 ## Jak je postavené – fáze 2 (vozová síť a vyjeté cesty)
 
@@ -291,8 +290,8 @@ v `paths/roads.ts`, čísla `CART_ROUTES` a `CART_ROADS` v `rules.ts`.
   louka mapy (krajiny jsou mírné – bývá daleko od vsi, kamera se tam přesune), dole obydlí a ohrada
   se spřežením, nahoře díl pole; pěšina na pole jde rovně, vozová cesta šikmo a serpentinami
   (seed 44: dvoukolák 213 m, čtyřkolák 249 m, přímo 62 m).
-- **Zatím není:** vozy ve scéně, ikona vozu v panelu cesty. Svoz fáze 1 už jezdí po síti
-  (část fáze 1 – Dosah vozu).
+- Svoz fáze 1 už jezdí po síti (část fáze 1 – Dosah vozu); vozy ve scéně a ikona vozu v panelu
+  cesty – fáze 3.
 
 ## Jak je postavené – modely (fáze 3a)
 
@@ -323,6 +322,40 @@ zblízka**, **Sledovat vůz**) – herní logika vozů ani tesaře v jádru nen�
   `icons/build/tesar.png`. Herní řemeslo `carpenter` má ve scéně model `tesar`
   (`CRAFT_MODEL` v `workshop-layout.ts`).
 
+## Jak je postavené – fáze 3 (vozy ve scéně)
+
+Návrh Clauda (19. 10. 2026) – jen zobrazení, simulace se nemění.
+
+- **Trasa dne ze serveru:** `SceneVillage.carts` (`sceneCarts` ve `village-view.ts`) nese u vozu,
+  který dnes jede, náklad (`job.load` – snopy při žni, seno při seči, klády ke stavbě, zboží
+  výpravy) a trasu (`route`): osa vozové sítě (`villageCartRoutes` – stejná funkce jako dosah
+  svozu, žeň po strništi sklízené plodiny) od ohrady k místu dnešní práce – díl na čele žně nebo
+  seče nejblíž těžišti dnešních dílů, políčko louky, strom stavby. Výprava: od ohrady na začátek
+  zemské stezky a po ní ke kraji mapy. Osa zjednodušená (odchylka 0,6 m, nejvýš 80 bodů, po cm).
+  Kam vůz nedojede, trasu nemá a stojí.
+- **Ve scéně** (`village-carts.ts`, kreslí `cart-renderer.ts` ve `VillageRenderer`): vůz s trasou
+  jede **tam a zpět** se spřežením a honákem – prázdný k cíli, tam chvíli stojí (nakládá), plný
+  zpátky, u ohrady skládá. Vůz se neotočí na místě: za cílem a u ohrady objede smyčku obratiště
+  (`shuttleRoute`, dvoukolák poloměr 3,5 m, čtyřkolák 6 m). Výprava jede naložená tam i zpět
+  dokola tempem volů jako nosiči. Vůz bez jízdy stojí venku u boční stěny ohrady (dvoukolák
+  skloněný na oj, čtyřkolák s ojí na zemi), voli jsou v ohradě.
+- **Tempo – ladicí zrychlení s orbou** (rozhodnutí Clauda): svoz používá stejný přepínač jako orba
+  za herní den (`PLOUGH_DAY_DEBUG`) – jedno místo pro „práce dne za herní den“. Vůz za herní den
+  udělá tolik jízd, kolik se jich vejde při 4 m/s (≈ 4,5× tempo volů), nejvýš 8 (jako v jádru)
+  a aspoň jednu – dlouhá trasa se jede rychleji. Den se opakuje (den končí i začíná u ohrady),
+  takže nová trasa dalšího dne navazuje bez skoku. Bez přepínače vůz jezdí dokola tempem volů
+  (0,85 m/s ≈ 3 km/h). Pohyb je čistá funkce skutečného času, kreslí se jen v záběru v taktu
+  `WATER_FPS`, při omezeném pohybu stojí u cíle naložený.
+- **Voli táhnou buď rádlo, nebo vůz:** jádro vozí jen se spřežením, které ten den neorá; scéna to
+  respektuje – orba dostane jen spřežení, která nejedou s vozem (`draftTeamsToday`), a voli
+  spřežení na cestě nestojí v ohradě (`penHerds`). Honák jde s vozem, u svozu zůstane nakladač
+  (postavy – `villager-plan.ts`).
+- **Druhy vozů** mají ve scéně stejné názvy jako v jádru (`two-wheel`, `four-wheel`).
+- **Panel cesty:** vozová cesta má ikonu vozu (`resources/cart.png`).
+- **Ukázky:** `/dev/landscape` **Vozy ve svahu** – bez vozové cesty vůz stojí u ohrady, s ní
+  dvoukolák a pak čtyřkolák vozí snopy z dílu nahoře serpentinami po vyjeté cestě (den ukázky
+  86 s – `LandscapeScene.setWorkDayClock`); `/dev/buildings` **Vozy** beze změny.
+
 ## Rozhodnutí
 
 | Rozhodnutí                                                                                | Kdo                   |
@@ -347,5 +380,5 @@ zblízka**, **Sledovat vůz**) – herní logika vozů ani tesaře v jádru nen�
 | Fáze 2: 16 směrů na mřížce pěšin, směr jízdy ve stavu hledání, mez sklonu 10 %            | návrh Clauda          |
 | Pevná cesta pro vůz sjízdná vždy; vůz vyjede kdekoli u ohrady se spřežením                | návrh Clauda          |
 | Vyjetá cesta 0,25 jízdy denně 2 roky; jedna zemská stezka, sjízdnost `axisCartCheck`      | návrh Clauda          |
-
-| Kola vozů točí matice instance podle ujeté dráhy (ne VAT); vlastní oj ke jhu volů | návrh Clauda |
+| Kola vozů točí matice instance podle ujeté dráhy (ne VAT); vlastní oj ke jhu volů         | návrh Clauda          |
+| Fáze 3: trasa dne ze serveru, tam a zpět se smyčkami obratišť, svoz zrychleně s orbou     | návrh Clauda          |
