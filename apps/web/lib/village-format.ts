@@ -1,4 +1,4 @@
-import type { FieldPreview } from '@bohemia/game';
+import type { FieldPreview, HerdSpecies } from '@bohemia/game';
 
 // Čísla a jednotky vsi česky pro panel, nabídku staveb a bublinu umisťování. Čistý modul –
 // stejný výstup na serveru i v prohlížeči (mezery po tisících bez nezlomitelných mezer).
@@ -21,6 +21,31 @@ export function plural(count: number, one: string, few: string, many: string): s
   if (n === 1) return one;
   if (n >= 2 && n <= 4) return few;
   return many;
+}
+
+/** Tvary druhů dobytka ve 4. pádě (koho) – 1 / 2–4 / 5+. */
+const HERD_ACCUSATIVE: Record<HerdSpecies, readonly [string, string, string]> = {
+  pig: ['prase', 'prasata', 'prasat'],
+  goat: ['kozu', 'kozy', 'koz'],
+  cow: ['krávu', 'krávy', 'krav'],
+  sheep: ['ovci', 'ovce', 'ovcí'],
+};
+/** Pořadí druhů ve výčtu – jako nouzová porážka (prasata první). */
+const HERD_LIST_ORDER: readonly HerdSpecies[] = ['pig', 'goat', 'cow', 'sheep'];
+
+/**
+ * Výčet kusů dobytka ve 4. pádě – „12 prasat a 3 kozy“; kusy se zaokrouhlí, druh pod půl kusu
+ * vypadne. Bez kusů prázdný řetězec.
+ */
+export function formatAnimals(animals: Partial<Record<HerdSpecies, number>>): string {
+  const items = HERD_LIST_ORDER.flatMap((species) => {
+    const count = Math.round(animals[species] ?? 0);
+    if (count <= 0) return [];
+    const [one, few, many] = HERD_ACCUSATIVE[species];
+    return [`${formatInteger(count)} ${plural(count, one, few, many)}`];
+  });
+  if (items.length <= 1) return items.join('');
+  return `${items.slice(0, -1).join(', ')} a ${items.at(-1)!}`;
 }
 
 /** Výměra v hektarech na dvě desetinná místa – „0,42 ha“. */

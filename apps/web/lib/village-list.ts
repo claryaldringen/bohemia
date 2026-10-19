@@ -4,6 +4,7 @@ import {
   isVillageExtinct,
   isVillageTravelling,
   summarizeVillage,
+  type HungerLevel,
   type VillageRecord,
 } from '@bohemia/game';
 
@@ -25,10 +26,11 @@ export interface VillageListItem {
   abandoned: boolean;
   /** Lidé jsou na cestě na novou mapu – ves ještě nestojí (migration.md). */
   travelling: boolean;
-  /** Ves hladoví – zásoby nevystačí do sklizně. */
-  hungry: boolean;
-  /** Lidé umírají hlady. */
-  starving: boolean;
+  /**
+   * Stupeň hladu (population.md – Co hráč vidí): šetří jídlem, hladoví, lidé umírají hlady – pro
+   * upozornění z jiné vsi.
+   */
+  hunger: HungerLevel;
 }
 
 /** Položka přepínače z uložené vsi dopočítané do dne `day`. */
@@ -44,7 +46,6 @@ export function villageListItem(record: VillageRecord, day: number): VillageList
     extinct,
     abandoned: isVillageAbandoned(record.state),
     travelling: isVillageTravelling(record.state),
-    hungry: summary?.hungry ?? false,
-    starving: summary?.starving ?? false,
+    hunger: summary?.hunger ?? 'fed',
   };
 }

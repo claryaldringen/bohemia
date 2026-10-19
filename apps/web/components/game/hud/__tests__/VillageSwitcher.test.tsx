@@ -13,8 +13,7 @@ const village = (over: Partial<VillageListItem> = {}): VillageListItem => ({
   extinct: false,
   abandoned: false,
   travelling: false,
-  hungry: false,
-  starving: false,
+  hunger: 'fed',
   ...over,
 });
 const villages = [
