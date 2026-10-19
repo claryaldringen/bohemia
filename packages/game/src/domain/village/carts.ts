@@ -369,6 +369,28 @@ export function cropCartReach(
   return reachOf(harvestReachState(state, work), spots, access);
 }
 
+/**
+ * Kam vůz s osivem dojede (wagons.md – Co vozy vozí): podíl plochy dílů plodiny a body jízd po
+ * polích – vozová síť ve stavu, jak je (zoraný díl projede pomaleji, osetý díl jiné plodiny ne).
+ * Osivo na ostatní díly se nosí jako dřív. Bez krajiny všude (body žádné – jízdy se nesčítají).
+ */
+export function sowingCartReach(
+  state: VillageState,
+  work: CropWork,
+  landscape: Landscape | null,
+  access: CartAccess,
+): CartReach {
+  if (!landscape) return { share: 1, points: [] };
+  const partsById = new Map(state.parts.map((p) => [p.id, p]));
+  const spots = work.partIds.flatMap((id): HaulSpot[] => {
+    const part = partsById.get(id);
+    if (!part?.cell) return [];
+    const at = partCenter(state, landscape, part);
+    return [{ ...at, weight: part.areaM2, group: `field:${part.fieldId}` }];
+  });
+  return reachOf(state, spots, access);
+}
+
 /** Kam vůz při seči dojede (podíl plochy luk v seči, body jízd – díly polí a přirozené louky). */
 export function mowingCartReach(
   state: VillageState,

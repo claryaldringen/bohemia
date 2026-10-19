@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SceneCart, SceneVillage } from '../../village-view';
+import { cartPlanPose, createCartPose, shuttleAt, type CartShuttle } from '../cart-layout';
 import { penLayout } from '../pen-layout';
 import { penHerds } from '../village-pens';
 import { draftTeamsToday, drivingCarts, parkedCartSpot, villageCartPlans } from '../village-carts';
@@ -89,6 +90,47 @@ describe('vozy ve vsi (village-carts.ts)', () => {
     expect('shuttle' in haul! && haul.schedule.window).toEqual(window);
     expect(goods).toMatchObject({ kind: 'four-wheel', cargo: 'goods', loadedBothWays: true });
     expect('shuttle' in goods! && goods.schedule.window).toBeNull();
+  });
+
+  it('mimo svoz (Co vozy vozí): osivo naložené tam, uhlí zpátky, voda zatím bez nákladu', () => {
+    const window = { startMs: 0, endMs: 86_000 };
+    const job = (load: 'goods' | 'water', outbound?: true): SceneCart =>
+      cart({
+        id: 1,
+        job: {
+          activity: 'haul',
+          target: { kind: 'field', id: 3, parts: [9] },
+          load,
+          ...(outbound ? { outbound } : {}),
+        },
+        route: ROUTE,
+      });
+    const [seed] = villageCartPlans(village([job('goods', true)]), pens, window);
+    expect(seed).toMatchObject({ cargo: 'goods', loadedOut: true });
+    const [coal] = villageCartPlans(village([job('goods')]), pens, window);
+    expect(coal).toMatchObject({ cargo: 'goods' });
+    expect('loadedOut' in coal!).toBe(false);
+    const [water] = villageCartPlans(village([job('water')]), pens, window);
+    expect(water).toMatchObject({ cargo: 'empty' });
+    // osivo: tam naložený, zpátky prázdný
+    const pose = createCartPose();
+    const shuttle = seed as CartShuttle;
+    const L = shuttle.shuttle.route.length;
+    const out = { s: 0, speed: 0, loaded: false };
+    let sawOut = false;
+    let sawBack = false;
+    for (let ms = 0; ms < 86_000; ms += 500) {
+      cartPlanPose(seed!, ms, pose);
+      const at = shuttleAt(shuttle.shuttle, shuttle.schedule, ms, out);
+      if (at.speed > 0 && at.s < shuttle.shuttle.farM) {
+        expect(pose.loaded).toBe(true);
+        sawOut = true;
+      } else if (at.speed > 0 && at.s > shuttle.shuttle.farM && at.s < L) {
+        expect(pose.loaded).toBe(false);
+        sawBack = true;
+      }
+    }
+    expect(sawOut && sawBack).toBe(true);
   });
 
   it('víc vozů na téže trase jede za sebou (posun fáze)', () => {

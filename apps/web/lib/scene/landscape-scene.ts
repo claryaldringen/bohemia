@@ -53,6 +53,8 @@ import { VillageLivestock } from './livestock';
 import { VillageVillagers } from './villagers';
 import { VillagePaths, type PathStats } from './path-renderer';
 import { PitCuts, applyPitCut } from './pit-cut';
+import { ColorCurves } from '@babylonjs/core/Materials/colorCurves';
+import { dayLight, dayLightDistance, type DayLight } from './day-light';
 import { seasonDayAt, seasonLook, seasonLookDistance, type SeasonLook } from './season-look';
 import { isDeciduousMesh } from './season-foliage';
 import { setSeasonShaderState } from './season-materials';
@@ -104,6 +106,17 @@ const WINTER_SHADOW_DARKNESS = 0.6;
  * zimního atlasu. Stínová mapa se překreslí jen při přechodu.
  */
 const BARE_SHADOW_LEAVES = 0.3;
+/**
+ * Den a noc (day-light.ts): jak často (ms) se při plynulém pohybu přepočítá světlo dne a od jaké
+ * změny (`dayLightDistance`) se scéna překreslí. Slunce oběhne oblohu za herní den (≈ 86 s) –
+ * 10× za sekundu je to pod půl stupně, světlo se mění plynule a kreslí se jen 10 snímků za sekundu.
+ */
+const DAY_LIGHT_MS = 100;
+const DAY_LIGHT_EPSILON = 0.002;
+/** Slabší hlavní světlo (× síla stínu) stín nevrhá – stínová mapa se kvůli němu neobnovuje. */
+const SHADOW_VISIBLE = 0.03;
+/** Hodiny dne: hodina 0–24 v okamžiku `nowMs` (epoch ms). */
+export type DayClock = (nowMs: number) => number;
 
 export class LandscapeScene {
   private readonly listeners = new Set<HoverListener>();
@@ -214,6 +227,11 @@ export class LandscapeScene {
   private bareShadows = false;
   /** Vnitřek lesa – v zimě vrhá stín ze zimního atlasu (holé koruny). */
   private impostorForest: ImpostorForest | null = null;
+  /** Den a noc: hodiny dne (null = bez denní doby – pevné odpolední slunce jako dřív). */
+  private dayClock: DayClock | null = null;
+  /** Naposledy nastavené světlo dne a kdy se počítalo (performance.now). */
+  private daylight: DayLight | null = null;
+  private daylightAt = 0;
   /** Paprsek pro pick terénu pod kurzorem (bez alokace při každém pohybu myši). */
   private readonly pickRay = PickingRay.Zero();
   /** Vývojový ukazatel výkonu (jen /dev/landscape – `enablePerfStats`). */
@@ -458,6 +476,7 @@ export class LandscapeScene {
         ).then(
           (forest) => {
             this.impostorForest = forest;
+            if (this.daylight) forest?.setTone(this.daylight.tone);
             if (forest) collect(forest.meshes);
           },
           (error) =>
@@ -677,6 +696,23 @@ export class LandscapeScene {
   setSeasonDay(day: number | null): void {
     this.seasonDay = day;
     this.updateSeason(true);
+  }
+
+  /**
+   * Den a noc (zatím jen vývojová stránka): hodiny dne, null = bez denní doby (pevné odpolední
+   * slunce jako dřív). Slunce pak jde po obloze plynule v taktu animací (DAY_LIGHT_MS), při
+   * omezeném pohybu po krocích jednou za sekundu; stínová mapa se obnoví po SHADOW_STEP_DEG.
+   */
+  setDayClock(clock: DayClock | null): void {
+    this.dayClock = clock;
+    // Filtr obrazu soumraku a noci (ColorCurves) – zapnutí přeloží shadery všech materiálů,
+    // proto jednou při prvních hodinách dne a už se nevypíná (bez filtru obraz nemění).
+    const processing = this.scene.imageProcessingConfiguration;
+    if (clock && !processing.colorCurvesEnabled) {
+      processing.colorCurves ??= new ColorCurves();
+      processing.colorCurvesEnabled = true;
+    }
+    if (this.applyLight(true)) this.needsRender = true;
   }
 
   /** Vývojová volba: vyšlapané pěšiny a pevné cesty (i se stromy u nich) vidět / skrýt. */
@@ -1127,6 +1163,10 @@ export class LandscapeScene {
     if (this.village?.animateOxen(epochMs, camera)) animated = true;
     // obilí ve větru – jen zralé a zelené v záběru
     if (this.village?.animateFields(epochMs, camera)) animated = true;
+    // den a noc – slunce jde po obloze (světlo se mění pomalu, stačí DAY_LIGHT_MS)
+    if (this.dayClock && now - this.daylightAt >= DAY_LIGHT_MS && this.applyLight(false)) {
+      animated = true;
+    }
     return animated;
   }
 
@@ -1176,28 +1216,15 @@ export class LandscapeScene {
       this.shadows?.refresh();
       this.needsRender = true;
     }
-    if (!force && this.season && seasonLookDistance(look, this.season) < SEASON_EPSILON) return;
+    if (!force && this.season && seasonLookDistance(look, this.season) < SEASON_EPSILON) {
+      // den a noc při omezeném pohybu (animace stojí): světlo po krocích jednou za sekundu
+      if (this.dayClock && this.reducedMotion?.matches && this.applyLight(false)) {
+        this.needsRender = true;
+      }
+      return;
+    }
     this.season = look;
-    const { light } = look;
-    const scene = this.scene;
-    const sun = scene.getLightByName('sun');
-    if (sun instanceof DirectionalLight) {
-      sun.intensity = light.sunIntensity;
-      sun.diffuse.set(...light.sunColor);
-    }
-    const sky = scene.getLightByName('sky');
-    if (sky instanceof HemisphericLight) {
-      sky.intensity = light.skyIntensity;
-      sky.diffuse.set(...light.skyColor);
-      sky.groundColor.set(...light.groundColor);
-    }
-    scene.clearColor.set(...light.clearColor, 1);
-    scene.fogColor.set(...light.fogColor);
-    scene.fogDensity = light.fogDensity;
-    setSeasonShaderState(scene, look);
-    this.shadows?.setDarkness(
-      SHADOW_DARKNESS + (WINTER_SHADOW_DARKNESS - SHADOW_DARKNESS) * (1 - look.leaves),
-    );
+    setSeasonShaderState(this.scene, look);
     const bare = look.leaves < BARE_SHADOW_LEAVES;
     if (this.shadows && bare !== this.bareShadows) {
       this.bareShadows = bare;
@@ -1205,10 +1232,68 @@ export class LandscapeScene {
       // obnoví i stínovou mapu – setCastersEnabled ji překreslí
       this.impostorForest?.setBareShadows(bare);
     }
-    this.water?.setSeason(look.water.tint, look.water.sky, look.ice);
     this.fauna?.setIce(look.ice);
     this.ambient?.setSeason({ ...look.sound, ice: look.ice });
+    this.applyLight(true);
     this.needsRender = true;
+  }
+
+  /**
+   * Světlo scény z ročního období a denní doby (day-light.ts): slunce (v noci měsíc) a jeho
+   * směr, obloha, opar, okolní světlo, stíny, tón impostorů a dýmu a odraz oblohy na vodě. Bez
+   * hodin dne světlo ročního období a pevné slunce SUN_DIRECTION jako dřív. Vrátí true, když se
+   * světlo (znatelně) změnilo – scénu je třeba překreslit.
+   */
+  private applyLight(force: boolean): boolean {
+    const look = this.season;
+    if (!look) return false;
+    this.daylightAt = performance.now();
+    const hour = this.dayClock ? this.dayClock(Date.now()) : null;
+    const day = dayLight(look, this.seasonDayOfYear(), hour);
+    if (!force && this.daylight && dayLightDistance(day, this.daylight) < DAY_LIGHT_EPSILON) {
+      return false;
+    }
+    this.daylight = day;
+    const { light } = day;
+    const scene = this.scene;
+    const sun = scene.getLightByName('sun');
+    if (sun instanceof DirectionalLight) {
+      sun.intensity = light.sunIntensity;
+      sun.diffuse.set(...light.sunColor);
+      sun.specular.set(...day.specular);
+      const { x, y, z } = day.direction;
+      if (this.shadows) {
+        this.shadows.aim(day.direction, light.sunIntensity * day.shadowStrength > SHADOW_VISIBLE);
+      } else if (sun.direction.x !== x || sun.direction.y !== y || sun.direction.z !== z) {
+        sun.direction.set(x, y, z);
+      }
+    }
+    const sky = scene.getLightByName('sky');
+    if (sky instanceof HemisphericLight) {
+      sky.intensity = light.skyIntensity;
+      sky.diffuse.set(...light.skyColor);
+      sky.groundColor.set(...light.groundColor);
+    }
+    scene.ambientColor.set(...day.ambient);
+    const curves = scene.imageProcessingConfiguration.colorCurves;
+    if (scene.imageProcessingConfiguration.colorCurvesEnabled && curves) {
+      curves.globalHue = day.grade.hue;
+      curves.globalDensity = day.grade.density;
+      curves.globalSaturation = day.grade.saturation;
+    }
+    scene.clearColor.set(...light.clearColor, 1);
+    scene.fogColor.set(...light.fogColor);
+    scene.fogDensity = light.fogDensity;
+    // v zimě holé listnáče propouštějí světlo; nízké slunce a měsíc vrhají slabší stín
+    const darkness =
+      SHADOW_DARKNESS + (WINTER_SHADOW_DARKNESS - SHADOW_DARKNESS) * (1 - look.leaves);
+    this.shadows?.setDarkness(
+      day.shadowStrength >= 1 ? darkness : 1 - (1 - darkness) * day.shadowStrength,
+    );
+    this.impostorForest?.setTone(day.tone);
+    this.village?.setLightTone(day.tone);
+    this.water?.setSeason(look.water.tint, day.waterSky, look.ice);
+    return true;
   }
 
   /**

@@ -62,7 +62,7 @@ export function parkedCartSpot(
 /**
  * Co vozy vsi dnes ve scéně dělají (`CartPlan` pro cart-renderer.ts): vůz s úlohou a trasou jede
  * tam a zpět (`shuttleRoute` – smyčky obratišť za cílem a u ohrady), náklad podle úlohy (snopy,
- * seno, klády zpátky, zboží výpravy tam i zpět); svoz v okně herního dne `window` (ladicí – jízdy
+ * seno, klády a uhlí zpátky, osivo tam, voda zatím bez modelu, zboží výpravy tam i zpět); svoz v okně herního dne `window` (ladicí – jízdy
  * dne se vejdou do herního dne, PLOUGH_DAY_DEBUG), výprava dokola tempem volů jako nosiči.
  * Víc vozů na téže trase jede za sebou. Vůz bez jízdy stojí u ohrady (nejbližší hotové), bez
  * ohrady se nekreslí.
@@ -103,7 +103,8 @@ export function villageCartPlans(
       const group = sameRoute.get(JSON.stringify(cart.route))!;
       plans.push({
         kind: cart.kind,
-        cargo: job.load,
+        // voda v sudech zatím bez modelu – vůz jede prázdný (wagons.md – Co vozy vozí)
+        cargo: job.load === 'water' ? 'empty' : job.load,
         shuttle: shuttleRoute(cart.route!, cart.kind),
         schedule: {
           window: job.activity === 'haul' ? window : null,
@@ -111,6 +112,7 @@ export function villageCartPlans(
           phase: group.indexOf(cart.id) / group.length,
         },
         ...(job.activity === 'trade' ? { loadedBothWays: true } : {}),
+        ...(job.outbound ? { loadedOut: true } : {}),
       });
       continue;
     }

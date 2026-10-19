@@ -4,6 +4,7 @@ import '@babylonjs/core/Engines/WebGPU/Extensions/engine.query';
 import type { AbstractEngine } from '@babylonjs/core/Engines/abstractEngine';
 import { EngineInstrumentation } from '@babylonjs/core/Instrumentation/engineInstrumentation';
 import { SceneInstrumentation } from '@babylonjs/core/Instrumentation/sceneInstrumentation';
+import type { RenderTargetTexture } from '@babylonjs/core/Materials/Textures/renderTargetTexture';
 import type { Scene } from '@babylonjs/core/scene';
 import { AverageMeter, RateMeter, type ScenePerfStats } from './perf-stats';
 
@@ -18,6 +19,10 @@ export class ScenePerf {
   private readonly loops = new RateMeter();
   private readonly drawn = new RateMeter();
   private readonly picks = new AverageMeter();
+  /** Stínová mapa – obnovy za sekundu (okno 5 s – obnovují se po krocích) a CPU vykreslení. */
+  private readonly shadowRenders = new RateMeter(5000);
+  private readonly shadowCpu = new AverageMeter(10);
+  private shadowMap: RenderTargetTexture | null = null;
 
   constructor(
     private readonly scene: Scene,
@@ -52,6 +57,7 @@ export class ScenePerf {
   }
 
   stats(nowMs: number, animationFps: number): ScenePerfStats {
+    this.watchShadowMap();
     const gpu = this.gpuCounter();
     // čítač GPU je v nanosekundách; bez podpory měření zůstane nula
     const gpuNs = gpu?.lastSecAverage || gpu?.current || 0;
@@ -67,7 +73,33 @@ export class ScenePerf {
       activeMeshes: this.scene.getActiveMeshes().length,
       triangles: this.scene.getActiveIndices() / 3,
       pickMs: this.picks.average(),
+      ...(this.shadowMap
+        ? {
+            shadows: {
+              perSec: this.shadowRenders.rate(nowMs),
+              cpuMs: this.shadowCpu.average(),
+            },
+          }
+        : {}),
     };
+  }
+
+  /** Stínová mapa vzniká až s krajinou – měření se na ni napojí, jakmile je. */
+  private watchShadowMap(): void {
+    if (this.shadowMap) return;
+    const sun = this.scene.getLightByName('sun');
+    const map = sun?.getShadowGenerator()?.getShadowMap() ?? null;
+    if (!map) return;
+    this.shadowMap = map;
+    let started = 0;
+    map.onBeforeRenderObservable.add(() => {
+      started = performance.now();
+    });
+    map.onAfterRenderObservable.add(() => {
+      const now = performance.now();
+      this.shadowCpu.add(now - started);
+      this.shadowRenders.tick(now);
+    });
   }
 
   private gpuCounter(): { lastSecAverage: number; current: number } | null {

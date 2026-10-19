@@ -235,6 +235,23 @@ function extraLeftOf(work: CropWork, task: ExtraTask): number {
 }
 
 /**
+ * Chce dnes osev navíc orat spřežením (fields.md – Osev navíc, oxen.md – Jen rádlo)? Ano, když
+ * čekají díly navíc nebo jejich příprava a plodina dne se orá – pak voli nejedou s vozem
+ * (wagons.md – Co vozy vozí). Stejné podmínky jako začátek `extraSowingDay` (bez práce dne).
+ */
+export function extraSowingWantsTeam(state: VillageState, day: number): boolean {
+  const plan = state.plan;
+  if (!plan) return false;
+  const month = dateOfDayIndex(day).month;
+  if (month >= CLOSED_MONTHS[0] && month <= CLOSED_MONTHS[1]) return false;
+  const crop = extraSowingCrop(day);
+  if (crop === null) return false;
+  const existing = crop === 'winter' ? (plan.winter ?? null) : plan;
+  if (!plan.extra && !existing?.extraLeft) return false;
+  return (existing ?? plan).plough !== undefined;
+}
+
+/**
  * Krok osevu navíc (fields.md – Osev navíc; mutuje stav): práce, kterou nespotřebovaly stavby, jde
  * napřed na přípravu půdy začatých dílů navíc (`CropWork.extraLeft`), pak na další díly navíc
  * v pořadí výběru – vrácení přílohu (jen v jeho okně) a kopání, nebo orba spřežením, která po

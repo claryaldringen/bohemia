@@ -15,6 +15,7 @@ import { IMPOSTOR_ATLAS, type ImpostorCell } from './impostor-atlas';
 import { setStaticInstances } from './instanced-model';
 import type { ImpostorPlacement } from './obstacle-scenery';
 import { applySeasonImpostors, type ImpostorAtlases } from './season-materials';
+import type { Rgb } from './season-look';
 
 /** Jas obrázků stromů (nejvýš 1) – ladí se proti terénu, aby les nebyl tmavá skvrna ani bledý. */
 const BRIGHTNESS = new Color3(0.92, 0.95, 0.92);
@@ -35,6 +36,11 @@ export interface ImpostorForest {
    * a větve, ne plné koruny. Vrací true, když se atlas stínů změnil (stínovou mapu obnovit).
    */
   setBareShadows(bare: boolean): boolean;
+  /**
+   * Den a noc: světlo je v atlasu zapečené z jednoho směru – v soumraku a v noci se obrázky jen
+   * přibarví a ztmaví (`tone` z day-light.ts; bílá = jako přes den), atlas se nepřekresluje.
+   */
+  setTone(tone: Rgb): void;
 }
 
 /**
@@ -82,7 +88,7 @@ export async function addImpostors(
   material.alphaCutOff = ALPHA_CUTOFF;
   // Bez světel je difuzní složka nulová; výsledek = (emissive + ambient) × barva textury.
   material.disableLighting = true;
-  material.emissiveColor = BRIGHTNESS;
+  material.emissiveColor = BRIGHTNESS.clone();
   material.backFaceCulling = false;
   // podzimní barvy, v zimě holé listnáče a smrky se sněhem ze zimního atlasu
   const atlases: ImpostorAtlases = { summer: texture, winter: null };
@@ -130,6 +136,13 @@ export async function addImpostors(
     setBareShadows(bare) {
       bareShadows = bare;
       return applyShadowAtlas();
+    },
+    setTone(tone) {
+      material.emissiveColor.set(
+        BRIGHTNESS.r * tone[0],
+        BRIGHTNESS.g * tone[1],
+        BRIGHTNESS.b * tone[2],
+      );
     },
   };
 }

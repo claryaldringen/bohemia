@@ -271,7 +271,7 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   navíc), stínová mapa se jednou překreslí a minimapa kreslí vykácený les jako paseku. Vše jen
   při změně (`applyVillage`).
 - **Světlo:** letní slunce a obloha podle 0 A.D., kontrast 1,1. **Stíny od slunce**
-  (`sun-shadows.ts`) – stínová mapa 4096 přes celou krajinu se vykreslí jednou; vrhají je meshe
+  (`sun-shadows.ts`) – stínová mapa 4096 přes celou krajinu se vykreslí jednou (s denní dobou po krocích – Den a noc); vrhají je meshe
   pojmenované `trees-*`, `impostors-*` a `decor-*` (při přejmenování zachovat prefix). Znovu se
   kreslí **jen při změně vrhačů** (`castersChanged`: stavby a pole vsi, skryté stromy, pařezy,
   klády, stromy u cest přes `refreshShadows`) – ne kvůli zvířatům, lidem, ztmavení trávy, ploše
@@ -306,6 +306,19 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   (`isDeciduousMesh`) ze stínové mapy vypadnou a impostory dostanou do `diffuseTexture` zimní
   atlas (stín kmenů a větví), mapa se překreslí jednou. Vývojový náhled má posuvník dne v roce
   a „přehrát rok“ (`setSeasonDay`).
+- **Den a noc** (landscape.md – Den a noc; Martin 19. 10. 2026, **zatím jen `/dev/landscape`**,
+  hra `/game` beze změny – do hry po Martinově schválení): `day-light.ts` (čisté funkce, testy) –
+  z dne v roce a hodiny (`dayLight(season, day, hour)`) směr slunce (50° s. š., v poledne
+  referenčního dne přesně `SUN_DIRECTION`, dráha otočená a výška měkce převedená), v noci měsíc
+  (úplněk naproti slunci), fáze podle skutečné výšky slunce (zlatá hodinka, západ, soumrak, modrá
+  hodinka, noc) jako násobky světla období, okolní světlo, tón materiálů bez světla (impostory –
+  `ImpostorForest.setTone`, dým – `VillageRenderer.setLightTone`), odraz oblohy na vodě, síla
+  stínů a filtr obrazu (`Grade` → `ColorCurves`, zapne se s prvními hodinami dne – přeloží
+  shadery). `hour` null = bez denní doby (pevné světlo jako dřív). Scéna: `setDayClock(clock)`
+  (hodiny dne – epoch ms → hodina; fáze 2 `dayHourAt`), `applyLight` v `animate()` po
+  `DAY_LIGHT_MS` (při omezeném pohybu jednou za sekundu), stínová mapa `SunShadows.aim` – obnoví se
+  po `SHADOW_STEP_DEG` (1,5°), mezi obnovami stíny čtou matici vykreslené mapy. Náhled: posuvník
+  **Hodina**, **▶ Přehrát den** (≈ 86 s), **Bez denní doby** (`DayTimeControls`).
 - **Ukazatel načítání:** `setLandscape(landscape, onProgress)` hlásí kroky přípravy a mezi
   náročnými kroky pustí prohlížeč překreslit; `GameView` ukazuje `SceneLoading`.
 - **Zvuky** (podle 0 A.D.): `ambient-mix.ts` (čisté funkce, testy) spočítá z cíle a přiblížení
@@ -823,6 +836,25 @@ rozhraní částí v
   (`VillageNeighbour.carts`), `SceneVillage.carts` (`sceneCarts` – u ohrady, cíl dne, náklad
   `job.load` a trasa dne `route` – osa `villageCartRoutes` zjednodušená `simplifiedRoute`; scéna
   je kreslí – Vozy se spřežením). Dílna tesaře má model `tesar` (Řemeslné dílny).
+- **Co vozy vozí** ([wagons.md](docs/design/wagons.md) – Co vozy vozí; Martin 19. 10. 2026:
+  „Pokud budou mít k dispozici vůz, ať na pole, pro vodu nebo pro dřevěné uhlí jede vůz.“;
+  čísla `CART_JOBS` v `rules.ts`, návrh Clauda): `cart-jobs.ts` + `planCartJobs` v `simulate.ts`.
+  Dvoukolák, který dnes nesváží úrodu ani seno (`planTaskHauls`) a nevozí klády (ty mají přednost
+  – `logHaulCandidates` / `logHaulPlan` před rozdělením práce, `haulLogs` po něm), jede v pořadí
+  `CART_JOBS.order` – ne když voli orají ani orbu navíc (`extraSowingWantsTeam`): **uhlí** –
+  uhlíři, který dnes nosí (`burnerDraws` v crafts.ts), jízda k milíři (`kilnCartDrive`, uložená
+  v `CharcoalKiln.cart`), `kilnCartOffer` (jen když je jízda levnější než odnos) → `workBurner`
+  (`BurnerPlan.cart` – odnos `carryShare` nahradí posádka z práce uhlíře, `BurnerDay.cart` /
+  `WorkshopDay.cart`); **osivo** – `planSeedHauls` na úlohu `sow` jako svoz (`CropWork.seedHauled`,
+  `seedReach` – `sowingCartReach`); **voda** – `waterCartDrive` (břeh nejblíž ohradě, kam vůz
+  sjede, uložený ve `VillageState.waterCart` podle klíče chůze) a `waterCartPlan` z
+  `householdWater` (labor.ts) – přirážka za vodu se zmenší a přičte se díl posádky (v denním
+  minimu). Jízdy vozí `villageCartDrives` (vozová síť – cena v m po louce a konec trasy, bez
+  krajiny vzdušně), do ročního provozu cest `addRoadCartTrips`. Rozdělení práce: `haul`
+  s `LaborShare.job` (`charcoal` / `seed` / `water`), cíl milíř (`kiln` i u dílny), díl pole, břeh
+  (`LaborTarget` `{ kind: 'water', x, z }`); voda v práci `domestic` ubere posádku. Web:
+  `SceneCart.job.load` – uhlí a osivo `goods`, voda `water` (scéna zatím prázdný vůz), osivo
+  `outbound` (`CartShuttle.loadedOut` – naložené tam), trasa k milíři a břehu (`cartRouteToday`).
 - **Ozim a jař** (fields.md – Ozim a jař): roční plán (`YearPlan`) nese práci jaře nahoře (tvar
   plánu z doby před ozimem) a ozimu v `winter?` (`CropWork`); díly osevu mají `crop?` (chybí =
   jař). Okna prací po plodinách `CROP_WINDOWS` (`WINDOWS` = jař, `WINTER_WINDOWS`) v `rules.ts`.

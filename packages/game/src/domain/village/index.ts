@@ -151,6 +151,7 @@ export {
   missingCart,
   mowingCartReach,
   networkCartAccess,
+  sowingCartReach,
   teamsAway,
   tradeCarts,
   trailCartPassable,
@@ -159,6 +160,19 @@ export {
   type CartAccess,
   type HaulPlan,
 } from './carts';
+export {
+  cartTripManDays,
+  cartTripSeconds,
+  cartTripsPerDay,
+  kilnCartDrive,
+  kilnCartOffer,
+  villageCartDrives,
+  waterCartDrive,
+  waterCartPlan,
+  type CartDrives,
+  type KilnCart,
+  type WaterCartPlan,
+} from './cart-jobs';
 export * from './paths';
 export * from './road-trees';
 export * from './road-upgrades';
