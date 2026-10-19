@@ -128,6 +128,11 @@ export const START_STORES_MONTHS = 18;
 // fields.md – Kolik ves oseje (potřeba + rezerva 15 %, nad 1,5 roční potřeby jen potřeba)
 export const SOW_RESERVE = 0.15;
 export const STORES_HIGH_YEARS = 1.5;
+// fields.md – Kolik ves oseje, Osev podle stravy (návrh Clauda, Martin schválil směr 19. 10. 2026):
+// potřeba z pole = podíl energie, který ves za uplynulý hospodářský rok potřebovala z obilí
+// a luštěnin, × dnešní roční potřeba; podíl nejméně minShare = 1 − strop masa (0,4) − strop
+// mléka a sýra (0,3) z diet.md – ovoce, vejce a med se do pojistky nepočítají (hlídá test)
+export const FIELD_FOOD = { minShare: 0.3 } as const;
 // fields.md – Kolik ves oseje (návrh Clauda)
 export const PEAK_CAPACITY_SHARE = 1; // ve špičce smí jít na pole všechna práce po denním minimu (kalibrace z 0,8)
 // fields.md – Úroda (hrubá úroda na hektar podle úrodnosti)

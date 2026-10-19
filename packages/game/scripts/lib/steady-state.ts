@@ -157,6 +157,11 @@ export interface SteadyInput {
   orchardHa: number;
   /** Cíl osevu s rezervou 15 % (zásoby do 1,5 roční potřeby), jinak jen potřeba. */
   reserve: boolean;
+  /**
+   * Podíl jídla z pole (fields.md – Osev podle stravy): osev jen na tuto část roční potřeby
+   * energie, zbytek dá maso, mléko a sýr, vejce, ovoce a med. Bez údaje 1 – ves jí jen obilí.
+   */
+  fieldShare?: number;
   /** Osev (ha) místo cíle osevu – např. pro hledání nejvyššího osevu, který práce stihne. */
   sownHaOverride?: number;
 }
@@ -262,7 +267,8 @@ export function steadyState(input: SteadyInput): SteadyResult {
   const h = input.household;
   const count = input.households;
   const persons = people(h) * count;
-  const need = foodNeedKg(h) * count;
+  // potřeba z pole – osev podle stravy (fields.md – Kolik ves oseje)
+  const need = foodNeedKg(h) * count * (input.fieldShare ?? 1);
   const sown = input.sownHaOverride ?? sownHa(need, input.fertility, input.reserve);
   const factor = distanceFactor(input.distanceM);
   const capacityPerDay = laborPerDay(h) * count;
@@ -481,7 +487,10 @@ export function maxSownHa(input: SteadyInput): number {
   let low = 0;
   let high = Math.max(
     1,
-    sownHa(foodNeedKg(input.household) * input.households, input.fertility) * 4,
+    sownHa(
+      foodNeedKg(input.household) * input.households * (input.fieldShare ?? 1),
+      input.fertility,
+    ) * 4,
   );
   for (let i = 0; i < 40; i++) {
     const mid = (low + high) / 2;

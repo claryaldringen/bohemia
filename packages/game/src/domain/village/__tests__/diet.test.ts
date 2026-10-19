@@ -144,6 +144,42 @@ describe('eatDiet – příděl', () => {
     expect(meal.outlook).toBeCloseTo(meal.diet.energy, 2);
   });
 
+  it('výhled s mlékem stád do sklizně a celou zásobou sýra – ves s malými zásobami nehladoví', () => {
+    // září: dnešní mléko na stropu (sýr se dnes nejí), obilí jen na zbytek energie po mase
+    // a mléku – dřívější výhled (mléko jen dnešní) by ves zbytečně dělil
+    const days = 300;
+    const milkL = (DIET.caps.dairy * NEED) / DAIRY.energyPerL.cow;
+    const fresh = {
+      milkL,
+      milkProteinKg: milkL * DAIRY.proteinPerL.cow,
+      milkEnergy: milkL * DAIRY.energyPerL.cow,
+    };
+    const meatKg = (DIET.caps.meat * NEED * 400) / DIET.meatEnergy;
+    const cheeseKg = (DIET.caps.dairy * NEED * 150) / DAIRY.cheeseEnergy; // zima do 1. 5.
+    const grainKg = 0.32 * NEED * days; // 30 % potřeby + ztráty
+    const base = input({ ...fresh, meatKg, cheeseKg, grainKg, daysToHarvest: days });
+    const old = eatDiet({ ...base, daysToMilking: 240 });
+    expect(old.outlook).toBeLessThan(0.95);
+    const ahead = DIET.caps.dairy * NEED * (days - 1 - 150); // mléko v létě do sklizně
+    const meal = eatDiet({ ...base, daysToMilking: 240, milkAheadEnergy: ahead });
+    expect(meal.outlook).toBe(1);
+    expect(meal.diet.energy).toBeCloseTo(1, 9);
+    // bez zásoby sýra a mléka do sklizně výhled hladoví dál
+    const none = eatDiet({ ...base, cheeseKg: 0, daysToMilking: 240, milkAheadEnergy: 0 });
+    expect(none.outlook).toBeLessThan(old.outlook + 1e-9);
+    // výhled nikdy nepočítá víc mléka a sýra než strop za dny do sklizně
+    const flood = eatDiet({ ...base, cheeseKg: 1e6, daysToMilking: 240, milkAheadEnergy: 1e6 });
+    const capped = eatDiet({
+      ...base,
+      grainKg: 0.3 * NEED * days - 1,
+      cheeseKg: 1e6,
+      daysToMilking: 240,
+      milkAheadEnergy: 1e6,
+    });
+    expect(flood.outlook).toBe(1);
+    expect(capped.outlook).toBeLessThan(1);
+  });
+
   it('čerstvé mléko se pije do stropu mléka a sýra, zbytek se zpracuje na sýr', () => {
     const milkL = 1000;
     const meal = eatDiet(

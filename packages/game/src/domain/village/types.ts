@@ -878,6 +878,12 @@ export interface VillageState {
   sacredRuins?: SacredRuin[];
   /** Jídlo posledního odsimulovaného dne – energie, pestrost a podíly (jen pro zobrazení). */
   diet?: DietDay;
+  /**
+   * Kolik jídla ves potřebuje z pole (fields.md – Kolik ves oseje, Osev podle stravy): součty
+   * běžícího hospodářského roku a podíl uplynulého – podle něj ves oseje obilí a luštěniny. Chybí
+   * u vsí uložených dřív a do prvního 1. 9. po založení (ves pak plánuje, jako by jedla jen obilí).
+   */
+  fieldFood?: FieldFoodYear;
   /** Zásoby výrobků řemeslníků (crafts.md) – u vsí uložených před řemesly chybí (= 0). */
   crafts?: CraftStocks;
   /**
@@ -1350,6 +1356,21 @@ export interface DietDay {
     /** Med ze zboží zvenku (trade.md); chybí u jídla uloženého dřív = 0. */
     honey?: number;
   };
+}
+
+/**
+ * Jídlo z pole za hospodářský rok (fields.md – Kolik ves oseje, Osev podle stravy). Součty běží od
+ * 1. 9. (začnou prvním 1. 9. po založení vsi, takže vždy pokrývají celý rok): potřeba energie
+ * a z ní část, kterou nepokrylo maso, mléko a sýr, vejce, ovoce a med – tu musí dát pole (obilí
+ * a luštěniny), i když ves zrovna hladověla. 1. 9. se z nich spočítá podíl uplynulého roku.
+ */
+export interface FieldFoodYear {
+  /** Potřeba energie od 1. 9. (kg obilí). */
+  needKg: number;
+  /** Z toho potřeba jídla z pole (kg obilí). */
+  fieldKg: number;
+  /** Podíl jídla z pole za poslední celý hospodářský rok (0–1); chybí po prvním 1. 9. */
+  share?: number;
 }
 
 /**

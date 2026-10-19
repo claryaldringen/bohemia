@@ -11,6 +11,8 @@
 //   --dwelling zemnice|polozemnice   (výchozí zemnice)
 //   --orchard HA           sad v plné úrodě (výchozí 0)
 //   --no-reserve           osev jen na potřebu (zásoby nad 1,5 roční potřeby)
+//   --field-share S        podíl jídla z pole 0–1 (osev podle stravy – fields.md, Kolik ves
+//                          oseje; kalibrace vypíše změřený podíl); výchozí 1 = ves jí jen obilí
 //
 // Vypíše osev, pole s přílohem, práci po měsících (pole, opravy, domácí výroba, společná práce),
 // rezervy ve špičkách, dřevo a sad. Dobytek a seno zatím pravidla nemají.
@@ -96,6 +98,7 @@ function parseArgs(argv: string[]): SteadyInput {
     dwelling,
     orchardHa: number('orchard', 0),
     reserve: !flags.has('no-reserve'),
+    fieldShare: Math.min(1, number('field-share', 1)),
   };
 }
 
@@ -123,7 +126,7 @@ function main(): void {
     `Ves: ${input.households} × (dospělí ${h.adults}, starší ${h.elders}, děti 7–13 ${h.olderChildren}, malé ${h.smallChildren}) = ${r.people} lidí | úrodnost ${input.fertility} | díly ${input.distanceM} m od obydlí | les ${input.forestDistanceM} m | ${input.dwelling}`,
   );
   console.log(
-    `Potřeba ${fmt(r.needKg, 0)} kg/rok | čistá úroda ${fmt(r.netPerHa, 0)} kg/ha (průměr ${ROTATION.sown} let osevu) | cíl osevu ${input.reserve ? `potřeba + ${fmt(SOW_RESERVE * 100, 0)} %` : 'jen potřeba'}`,
+    `Potřeba${input.fieldShare !== undefined && input.fieldShare < 1 ? ` z pole (podíl ${fmt(input.fieldShare, 2)})` : ''} ${fmt(r.needKg, 0)} kg/rok | čistá úroda ${fmt(r.netPerHa, 0)} kg/ha (průměr ${ROTATION.sown} let osevu) | cíl osevu ${input.reserve ? `potřeba + ${fmt(SOW_RESERVE * 100, 0)} %` : 'jen potřeba'}`,
   );
   const limit = maxSownHa(input);
   console.log(

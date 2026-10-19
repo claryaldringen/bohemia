@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
-import { ANIMAL_CARE, DAIRY, animalCareNeed, dailyMilk, yearlyMilk } from '../dairy';
+import {
+  ANIMAL_CARE,
+  DAIRY,
+  animalCareNeed,
+  dailyMilk,
+  milkEnergyBetween,
+  yearlyMilk,
+} from '../dairy';
 import { advanceVillage } from '../simulate';
 import type { HerdSpecies } from '../types';
 import { withBuiltFirstDwelling } from './village-fixtures';
@@ -32,6 +39,29 @@ describe('mléko stád', () => {
     let year = 0;
     for (let d = at(601, 1, 1); d < at(602, 1, 1); d++) year += dailyMilk(h, d).liters;
     expect(year).toBeCloseTo(yearlyMilk(h).liters, 6);
+  });
+
+  it('mléko mezi dny (výhled do sklizně) = součet dnů, za den nejvýš strop v měsících dojení', () => {
+    const h = herds({ cow: 6, goat: 4, sheep: 9 });
+    const sum = (from: number, to: number, cap = Infinity): number => {
+      let energy = 0;
+      for (let d = from; d <= to; d++) energy += dailyMilk(h, d).energy;
+      return Math.min(energy, cap);
+    };
+    // přes konec roku i přestupný únor (604)
+    for (const [from, to] of [
+      [at(603, 9, 1), at(604, 8, 31)],
+      [at(603, 11, 20), at(604, 3, 1)],
+      [at(604, 5, 10), at(604, 7, 30)],
+      [at(604, 2, 28), at(604, 2, 29)],
+    ] as const) {
+      expect(milkEnergyBetween(h, from, to, Infinity)).toBeCloseTo(sum(from, to), 9);
+    }
+    expect(milkEnergyBetween(h, at(604, 5, 2), at(604, 5, 1), Infinity)).toBe(0);
+    // strop: dny v měsících dojení (květen–listopad) × strop za den
+    const cap = 0.1;
+    const days = at(604, 12, 1) - at(604, 5, 1);
+    expect(milkEnergyBetween(h, at(604, 1, 1), at(604, 12, 31), cap)).toBeCloseTo(cap * days, 9);
   });
 
   it('za rok dojná část stáda × dojivost, bílkoviny podle druhu (ovce víc)', () => {

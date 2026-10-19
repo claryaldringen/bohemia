@@ -411,7 +411,8 @@ export function expectedWinterKg(work: CropWork, parts: FieldPart[], day: number
 /**
  * Dní do sklizně, se kterou počítá přídělový systém (fields.md – Ozim a jař): do sklizně ozimu
  * (31. 7.), když ji ves ještě čeká a podle odhadu (`expectedWinterKg`) uživí ves od 1. 8. do
- * sklizně jaře; jinak do sklizně jaře (31. 8.).
+ * sklizně jaře; jinak do sklizně jaře (31. 8.). `needPerDayKg` = denní potřeba, kterou má ozim
+ * pokrýt – simulace dává potřebu z pole (potřeba × `fieldFoodShare`), na kterou ves osévala.
  */
 export function daysUntilFoodHarvest(
   plan: YearPlan | null,

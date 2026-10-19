@@ -4,6 +4,7 @@ export * from './productivity';
 export * from './people';
 export * from './food';
 export * from './diet';
+export * from './field-food';
 export * from './dairy';
 export * from './legumes';
 export * from './livestock';
