@@ -84,6 +84,11 @@ export interface DayWork {
   trade?: { trailId: number; manDays: number; carts?: number }[];
   /** Svoz vozy (wagons.md – Vůz); bez údaje žádný. */
   hauls?: HaulWork[];
+  /**
+   * Skupiny nákupu u sousedů na cestě (crafts.md – Nákup u sousedů) – stezka, nebo kraj mapy; jsou
+   * celé dny pryč (mimo práci vsi); bez údaje žádné.
+   */
+  purchases?: { target: LaborTarget; manDays: number }[];
   /** Děti od 7 let a starší, kteří dnes pasou (diet.md – Pasáci); bez údaje se neví. */
   herders?: { children: number; elders: number };
 }
@@ -212,6 +217,8 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
   for (const t of work.trade ?? []) {
     add('trade', { kind: 'trail', id: t.trailId }, t.manDays, undefined, t.carts);
   }
+  // nákup u sousedů – malá skupina po stezce nebo krajinou ke kraji mapy (crafts.md)
+  for (const p of work.purchases ?? []) add('trade', p.target, p.manDays);
   let invested = 0;
   // honáci a nakladači klád jdou ze společné práce (wagons.md)
   for (const haul of hauls) if (haul.job === 'logs') invested += haul.manDays;

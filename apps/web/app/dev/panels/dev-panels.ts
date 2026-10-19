@@ -202,6 +202,25 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       ages: [63, 41, 38, 35, 33, 29, 26, 14, 11, 8, 5, 1],
       rebuild: { progress: 0.3, type: 'dvorec', treesToFell: 7 },
       manor,
+      // nákup u sousedů (crafts.md): nástroje a keramika u souseda, dřevěné nářadí od vlastního
+      // tesaře; skupina jde pro nástroje na sever
+      buying: {
+        sources: [
+          { product: 'toolsKg', own: false, direction: 'N', days: 6, trail: true },
+          { product: 'potteryKg', own: false, direction: 'NE', days: 8, trail: false },
+          { product: 'woodToolsKg', own: true, direction: null, days: null, trail: false },
+        ],
+        purchases: [
+          {
+            direction: 'N',
+            get: { toolsKg: 9.1, potteryKg: 40 },
+            payKg: 640,
+            group: 4,
+            daysLeft: 11,
+            progress: 0.4,
+          },
+        ],
+      },
     }),
   },
   {
@@ -268,6 +287,8 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
         kiln: null,
         toPlant: 0,
         carpenter: null,
+        // kovář nemá uhlí – vesničané dokupují nástroje u souseda (crafts.md)
+        buying: { direction: 'N', days: 6 },
       },
     }),
   },

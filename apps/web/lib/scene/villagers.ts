@@ -32,6 +32,7 @@ import type { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import type { Scene } from '@babylonjs/core/scene';
 import { obstacleIndex, obstacleStatus, obstaclesNear, type ObstacleLayer } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
+import { caravanPoints } from './caravan';
 import type { LivestockGround } from './livestock-placement';
 import {
   createVillagerPose,
@@ -598,12 +599,14 @@ function villageKey(village: SceneVillage): string {
   ]);
 }
 
-/** Obdélník zemských stezek, po kterých jdou karavany výprav (caravan.ts); bez výprav null. */
+/**
+ * Obdélník cest, po kterých jdou karavany výprav a nákupů (zemské stezky, čáry krajinou ke kraji
+ * mapy – caravan.ts); bez výprav null.
+ */
 function caravanExtent(
   village: SceneVillage,
 ): { minX: number; maxX: number; minZ: number; maxZ: number } | null {
-  const ids = new Set((village.expeditions ?? []).map((e) => e.trailId));
-  const points = (village.trails ?? []).filter((t) => ids.has(t.id)).flatMap((t) => t.points);
+  const points = (village.expeditions ?? []).flatMap((e) => caravanPoints(e, village.trails));
   if (points.length === 0) return null;
   return {
     minX: Math.min(...points.map((p) => p.x)),

@@ -723,6 +723,30 @@ rozhraní částí v
   scéna kreslí lesní milíř funkcemi milíře u dílny přes kotvu `forestKilnAnchor`
   (`workshop-layout.ts`), postavy u lesního milíře `kilnWorkers`, sázení `planting`, polena nosí
   k lesnímu milíři (`felling`).
+- **Nákup u sousedů** ([crafts.md](docs/design/crafts.md) – Nákup u sousedů, Martin 19. 10. 2026:
+  „Nástroje ať vesničané obchodují individuálně… Sami si spočítají, jestli se jim to vyplatí.“;
+  čísla `CRAFT_BUYING` v `rules.ts`, rešerše `research/2026-10-19-craft-buying.md`):
+  `craft-buying.ts`. Sousedé mají řemeslníky podle druhu (`neighbourCrafts` – řemeslníci kováře,
+  hrnčíře i tesaře jistě, ostatní s pravděpodobností). Ves se rozhoduje sama 15. 11.
+  (`startPurchases` na začátku dne – `planPurchases`): u výrobku bez vlastního pracujícího
+  řemeslníka (`ownCraftsmanWorks` – dílna bez vstupů se nepočítá) chybí do `craftTargets` –
+  nejbližší soused s řemeslníkem (`purchaseRoute`: po hotové stezce `trailTripDays`, jinak krajinou
+  ke kraji mapy × 1,5 a den navíc), cena `productPrice` (0,96 hodnoty), platba obilím nebo
+  luštěninami z přebytku nad pojistkou (`sowingTargets` – `leftKg − bufferKg`) nejlevnější v práci
+  (`villageFoodCosts`; u nástrojů při pokrytí po nákupu), skupina polovina dospělých (nejvýš 8)
+  po 25 kg, nejvýš 60 dní; koupí, když práce ušetřená za dobu služby (1 ÷ opotřebení let –
+  nástroje polní práce a seč, keramika ztráty zásob a denní minimum, dřevěné nářadí práce vsi)
+  převýší práci za platbu a cestu – z jednoho přebytku napřed nejvyšší poměr ušetřené práce
+  k ceně (rozhodnutí Clauda). `VillageState.purchases` (`CraftPurchase` – směr, skupina, dny,
+  stezka nebo bod na kraji `edge`, zboží a platba); lidé na cestě chybí v práci vsi od prvního dne
+  (`purchaseTravelers` – kapacita `allocateDay`), `walkPurchases` → podíl práce `trade` s cílem
+  stezky nebo `{ kind: 'edge' }`; ve scéně karavana (`sceneExpeditions` v `caravan-view.ts` –
+  `SceneExpedition` s `trailId` null a čarou `line` od dvorce ke kraji – `purchaseLine`, každá
+  cesta tam a zpět zvlášť podle `CraftPurchase.tripDays`; body cesty `caravanPoints`),
+  `finishPurchases` → zásoby a kronika `crafts-bought`. Web: kronika a upozornění „Vesničané
+  koupili nástroje u souseda (sever)“, `VillageCrafts.sources` (`craftSources`),
+  `VillageView.purchases`, panel dvorce `BuyingRow` (výrobky se šipkou ke zdroji, nákup na cestě),
+  panel dílny bez vstupů `SelectionWorkshop.buying`; řádek kalibrace „Nákup u sousedů“.
 - **Tesař a vozy** ([wagons.md](docs/design/wagons.md) – fáze 1, Martin 19. 10. 2026; čísla
   `CARPENTRY`, `WOODWORK_LABOR`, `CARPENTER_TOOLS_WORK`, `WOOD_TOOLS`, `WOOD_TOOLS_LABOR`, `CARTS`,
   `CART_ACCESS` v `rules.ts`, rešerše `research/2026-10-19-carts-carpentry.md`): řemeslo

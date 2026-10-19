@@ -152,6 +152,8 @@ export function roadsDay(
 function laborKey(target: LaborTarget): string {
   if (target.kind === 'trees') return `trees:${target.ids.join('.')}`;
   if (target.kind === 'meadow') return 'meadow';
+  // cesta ke kraji mapy (nákup u souseda – crafts.md) podle směru
+  if (target.kind === 'edge') return `edge:${target.direction}`;
   return target.kind === 'village' ? 'village' : `${target.kind}:${target.id}`;
 }
 

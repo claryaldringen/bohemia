@@ -41,7 +41,8 @@
 //   a ztráty skladováním – `steadyHarvestKg`) / čistá úroda hektaru v průměru tří let osevu (tak
 //   osev vybírá i ves – od 19. 10. 2026 podle stravy a podle zásob, fields.md – Kolik ves oseje:
 //   potřeba z pole = podíl jídla z pole za uplynulý rok × roční potřeba).
-// - Řemesla zatím nejsou – práce a ztráty se počítají s pokrytím NO_CRAFTS (horní meze).
+// - Dílny hráč skriptu nestaví. Ves ale od 19. 10. 2026 kupuje výrobky řemeslníků u sousedů sama
+//   (crafts.md – Nákup u sousedů – 15. 11., když se to vyplatí) – pokrytí pak nemusí být 0.
 // - Hřbitov (cemetery.md): hráč ho založí hned po dostavění první zemnice – jeden čtverec 200 m
 //   od obydlí a 150 m od vody, hygiena 1 – a rozšíří ho o čtverec, když je z 80 % plný a žádné
 //   rozšíření se zrovna nestaví.
@@ -78,6 +79,7 @@ import {
   FOOD_NEED_KG_PER_YEAR,
   HARVEST_DAY,
   NO_CRAFTS,
+  craftCoverage,
   PLANNING_DAY,
   PLOUGH_HA_PER_DAY,
   SEED_KG_PER_HA,
@@ -455,6 +457,18 @@ interface RunResult {
   orchardDay: number | null; // den založení sadu
   /** Dřevo staveb obydlí (i přestaveb): klády z hromady a pokácené stromy. */
   wood: { fromPile: number; felled: number; finalLogs: number };
+  /**
+   * Nákup u sousedů (crafts.md): kolik cest, co ves koupila (kg) a čím platila (kg obilí
+   * a luštěnin) z kroniky a pokrytí výrobky řemeslníků na konci běhu.
+   */
+  crafts?: {
+    trips: number;
+    toolsKg: number;
+    potteryKg: number;
+    woodToolsKg: number;
+    payKg: number;
+    coverage: { tools: number; pottery: number; woodTools: number };
+  };
   /** Rok sklizně → kopání jaře hotové do konce února (podzim) – pro rezervu práce na jaře. */
   autumnDig: Map<number, number>;
   /** Rok sklizně → podíl ozimu na osevu (ha). */
@@ -967,6 +981,7 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
     let after = step(result, before, stop, opts.land, opts.trackLabor);
     const events = after.chronicle;
     after.chronicle = []; // kronika patří jen tomuto kroku (stav skriptu, simulace ji nečte)
+    countPurchases(result, events);
     const day = after.lastDay;
     const date = dateOfDayIndex(day);
     // pálení drnu: po první sklizni má díl zase svou úrodnost (jen varianta meadow-burn)
@@ -1125,6 +1140,7 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
   result.finalFieldHa = lastPlan?.fieldHa ?? 0;
   result.finalSownHa = lastPlan?.sownHa ?? 0;
   result.wood.finalLogs = state.woodLogs ?? 0;
+  result.crafts = { ...(result.crafts ?? NO_PURCHASES), coverage: coverageAtEnd(state) };
   result.cemetery = cemeteryAtEnd(state);
   if (result.extinctDay !== null) {
     // vymřelá ves – v rocích, kam už nedoběhla, nemá nikoho
@@ -1148,6 +1164,34 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
   result.livestock.woolEnd = state.livestock?.wool ?? 1;
   result.livestock.meatKg = state.meatKg ?? 0;
   return result;
+}
+
+const NO_PURCHASES: NonNullable<RunResult['crafts']> = {
+  trips: 0,
+  toolsKg: 0,
+  potteryKg: 0,
+  woodToolsKg: 0,
+  payKg: 0,
+  coverage: { tools: 0, pottery: 0, woodTools: 0 },
+};
+
+/** Nákupy u sousedů v kronice kroku (crafts.md – Nákup u sousedů) – sečte do výsledku. */
+function countPurchases(result: RunResult, events: readonly ChronicleEvent[]): void {
+  for (const e of events) {
+    if (e.kind !== 'crafts-bought') continue;
+    const out = (result.crafts ??= structuredClone(NO_PURCHASES));
+    out.trips++;
+    out.toolsKg += e.get.toolsKg ?? 0;
+    out.potteryKg += e.get.potteryKg ?? 0;
+    out.woodToolsKg += e.get.woodToolsKg ?? 0;
+    out.payKg += (e.pay.grainKg ?? 0) + (e.pay.legumesKg ?? 0);
+  }
+}
+
+/** Pokrytí výrobky řemeslníků na konci běhu. */
+function coverageAtEnd(state: VillageState): NonNullable<RunResult['crafts']>['coverage'] {
+  const coverage = craftCoverage(state, state.lastDay);
+  return { tools: coverage.tools, pottery: coverage.pottery, woodTools: coverage.woodTools ?? 0 };
 }
 
 /** Hřbitovy na konci běhu – pohřbení, místa, mohyly podle druhu a čtverce. */
@@ -1923,6 +1967,16 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
       ),
       0,
     )}`,
+    'info',
+  );
+  // nákup u sousedů (crafts.md – Nákup u sousedů): ves bez řemeslníků kupuje sama
+  const bought = builders.flatMap((r) => (r.crafts ? [r.crafts] : []));
+  const median = (pick: (c: NonNullable<RunResult['crafts']>) => number, digits = 0): string =>
+    fmt(quantile(bought.map(pick), 0.5), digits);
+  row(
+    `Nákup u sousedů – hráč staví (${config.years} let)`,
+    'jen informace (crafts.md – Nákup u sousedů)',
+    `cest na ves medián ${median((c) => c.trips)} | koupeno za běh medián nástroje ${median((c) => c.toolsKg)} kg, keramika ${median((c) => c.potteryKg)} kg, dřevěné nářadí ${median((c) => c.woodToolsKg)} kg za ${median((c) => c.payKg)} kg obilí | pokrytí na konci nástroje ${median((c) => c.coverage.tools, 2)}, nádoby ${median((c) => c.coverage.pottery, 2)}, dřevěné nářadí ${median((c) => c.coverage.woodTools, 2)} (n ${bought.length})`,
     'info',
   );
   // hřbitov (cemetery.md – Mohyly podle významu): kolik míst zabere pohřeb a podíl druhů

@@ -27,6 +27,7 @@ import {
   type HaulPlan,
 } from './carts';
 import { villageCemeteries } from './cemetery';
+import { finishPurchases, purchaseTravelers, startPurchases, walkPurchases } from './craft-buying';
 import { cloneState } from './clone';
 import {
   craftCoverage,
@@ -314,6 +315,9 @@ function simulateDay(
     // má-li ves zásob dost, rozjetý plán se zkrátí hned, ne až 1. 9. (fields.md – Osev podle zásob)
     trimPlan(state, day, coverage);
   }
+  // nákup výrobků řemeslníků u sousedů – jednou za rok po sklizni, ves se rozhodne sama
+  // (crafts.md – Nákup u sousedů); skupina vyrazí hned
+  startPurchases(state, day, coverage, landscape);
   const { toil, milking } = work(state, day, obstacles, coverage, landscape);
   // nástroje a nádoby v užívání se opotřebí (crafts.md – Účinek)
   wearCraftStocks(state, day);
@@ -322,6 +326,7 @@ function simulateDay(
   // průsek lesem – úseky, na které vylepšení cesty došlo (roads.md – Průsek lesem)
   roadSwathDay(state, day, obstacles, landscape, swathRoadsInWork(state));
   state.chronicle.push(...finishExpeditions(state, day));
+  state.chronicle.push(...finishPurchases(state, day));
   finishConstructions(state, day);
   // dvorec vojvody – po zániku dvorce nejstarší obydlí, starší ves dvorec dostane (trade.md)
   keepManor(state);
@@ -814,7 +819,8 @@ function work(
     productivity,
     // lidé na výpravách k sousedům (trade.md – Doprava, Martin 19. 10. 2026): jejich práce jde po
     // denním minimu, před úlohami dne – nosiči jsou dospělí, nejvýš kolik jich ves má
-    away: expeditionLaborToday(state, villagers, day),
+    // i skupiny nákupu u sousedů (crafts.md – Nákup u sousedů) – stejné pravidlo
+    away: expeditionLaborToday(state, villagers, day, purchaseTravelers(state)),
   });
 
   // polní práce dne – i odkud kam došla (rozdělení práce po dílech pro postavy, labor-report.ts);
@@ -891,8 +897,15 @@ function work(
   state.domesticBacklog = allocation.domesticBacklog;
   // co dnes pasáci uhlídali – podle toho ves při porážce drží stádo (diet.md – Pasáci)
   recordHerding(state, herding, herdedByAdults);
-  // lidé na výpravách k sousedům – podíl z rozdělení dne (trade.md – Doprava)
-  const trade = workExpeditions(state, allocation.away);
+  // lidé na cestách k sousedům – podíl z rozdělení dne (trade.md – Doprava): skupiny nákupu
+  // u sousedů ujdou den napřed (jdou pevně dny cesty – crafts.md, Nákup u sousedů), zbytek
+  // dostanou výpravy obchodu
+  const purchases = walkPurchases(state);
+  const purchaseLabor = Math.min(
+    allocation.away,
+    purchases.reduce((sum, p) => sum + p.manDays, 0),
+  );
+  const trade = workExpeditions(state, allocation.away - purchaseLabor);
   let common = allocation.common;
   // klády ke stavbám vozem tam, kam vůz dojede (wagons.md – Vůz) – honák a nakladač ze společné
   // práce
@@ -920,6 +933,7 @@ function work(
     constructions,
     workshops,
     trade: trade.shares,
+    purchases,
     hauls: haulWork,
     toolCoverage: coverage.tools,
     herders: herding.freeHerders,

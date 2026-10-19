@@ -1,10 +1,12 @@
 import {
   LEAVING,
   ORCHARD,
+  PRODUCT_CRAFT,
   sacredBuildingHappiness,
   type CartKind,
   type Craft,
   type Crop,
+  type Direction8,
   type BuildableDwellingType,
   type DwellingType,
   type FamilyCounts,
@@ -32,6 +34,8 @@ import {
   type BuildOption,
   type FieldLook,
   type SceneVillage,
+  type VillageCraftSource,
+  type VillagePurchase,
   type VillageRoad,
   type VillageView,
 } from './village-view';
@@ -65,12 +69,23 @@ export interface SelectionWorkshop {
    * Tesař (wagons.md – Tesař): vozy vsi (doma / na cestě) a kolik jich ves potřebuje, rozdělaný
    * vůz (druh, průběh 0–1) a pokrytí dřevěné práce staveb posledního dne 0–1; ostatní dílny null.
    */
+  /**
+   * Ves výrobek dílny dokupuje u souseda (vlastní řemeslník nemá vstupy – crafts.md, Nákup
+   * u sousedů): směr a dny cesty; jinak chybí.
+   */
+  buying?: { direction: Direction8; days: number };
   carpenter: {
     carts: VillageView['crafts']['carts'];
     cartTargets: VillageView['crafts']['cartTargets'];
     making: { kind: CartKind; progress: number } | null;
     woodworkCoverage: number;
   } | null;
+}
+
+/** Nákup u sousedů v panelu dvorce (crafts.md – Nákup u sousedů). */
+export interface SelectionBuying {
+  sources: VillageCraftSource[];
+  purchases: VillagePurchase[];
 }
 
 export type SelectionDetails =
@@ -101,6 +116,11 @@ export type SelectionDetails =
       relocate: Record<BuildableDwellingType, BuildOption> | null;
       /** Dvorec vojvody (trade.md) – vylepšení vsi; obyčejné obydlí null. */
       manor: VillageManor | null;
+      /**
+       * Dvorec: kde ves bere výrobky řemeslníků a nákupy u sousedů na cestě (crafts.md – Nákup
+       * u sousedů); u ostatních obydlí chybí.
+       */
+      buying?: SelectionBuying;
       /** Odejít do nové vsi (migration.md); když domácnost odejít nemůže, null. */
       leave: SelectionLeave | null;
     }
@@ -510,6 +530,9 @@ export function selectionDetails(
       relocation: household.relocation,
       relocate: view && household.relocationBlock === null ? view.relocation : null,
       manor: view?.manor?.dwellingId === household.dwellingId ? view.manor : null,
+      ...(view?.manor?.dwellingId === household.dwellingId && view.crafts.sources
+        ? { buying: { sources: view.crafts.sources, purchases: view.purchases ?? [] } }
+        : {}),
       leave: view ? leaveDetails(view, [household.dwellingId]) : null,
     };
   }
@@ -735,7 +758,14 @@ function workshopDetails(view: VillageView, dwellingId: number): SelectionWorksh
           ? (view.crafts.coverage.woodTools ?? 0)
           : null;
   const carpenter = workshop.carpenter;
+  // ves výrobek dílny dokupuje u souseda (vlastní řemeslník nemá vstupy – crafts.md)
+  const source = view.crafts.sources?.find((s) => PRODUCT_CRAFT[s.product] === workshop.craft);
+  const buying =
+    source && !source.own && source.direction !== null && source.days !== null
+      ? { direction: source.direction, days: source.days }
+      : null;
   return {
+    ...(buying ? { buying } : {}),
     craft: workshop.craft,
     activity: workshop.activity,
     laborPerDay: workshop.laborPerDay,

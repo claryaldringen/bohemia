@@ -594,3 +594,28 @@ describe('tesař a vozy (wagons.md)', () => {
     ]);
   });
 });
+
+describe('nákup u sousedů (crafts.md)', () => {
+  it('vesničané koupili výrobky u souseda – krátký fakt z kroniky', () => {
+    const after = view({
+      dayIndex: 1003,
+      chronicle: [
+        {
+          day: 1002,
+          kind: 'crafts-bought',
+          direction: 'N',
+          products: ['toolsKg', 'potteryKg'],
+          dateLabel: '',
+          text: '',
+        },
+      ],
+    });
+    expect(newNotices(view({ dayIndex: 1000 }), after)).toEqual([
+      {
+        kind: 'crafts-bought',
+        tone: 'info',
+        text: 'Vesničané koupili nástroje a keramiku u souseda (sever)',
+      },
+    ]);
+  });
+});
