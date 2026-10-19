@@ -1185,6 +1185,19 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
   zakulacené obloukem o poloměru 5 m (do rohu se spřežení s radlicí v zemi nevejde); v rohu
   zůstane tráva louky a nestojí tam trsy. Vnitřní rohy, styky dílů a styk s jiným polem zůstanou
   jako dřív, kopané díly mají rohy ostré.
+  **Pod cestou obilí neroste** (Martin, 19. 10. 2026: „Vzrostlé obilí přerůstá cestu. Tam, kde je
+  cesta, prostě obilí neroste.“; podrobnosti návrh Clauda, jen vzhled – plochu dílu cesta
+  neubírá, [roads.md](roads.md) – Cesta je cesta): pod pásem pevné cesty (vyšlapaná 1,9 m,
+  upravená 3 m – šířka prošlapané trávy obtisku i s vlněním osy) a pod plácky rozcestí scéna
+  nekreslí trsy obilí ani luštěnin, panáky, plevel, korunu porostu ani obtisk pole; za okrajem
+  pásu se pole vrací do 0,8 m a koruna tam vystoupá ze země **svahem** jako na okraji pole (ne
+  schodem – cesta ve vzrostlém obilí je úvoz, ne vyříznutý žlab). Totéž pod **pěšinou dne** –
+  přes osetý díl je to úzká stopa (šířka podle stopy, okraj 0,5 m); lidé chodí nejkratší cestou
+  přes pole (Martin), takže pěšiny pole viditelně člení. Maska jde ze stejných průřezů jako obtisk
+  cesty (`ribbonTrack`, `track-mask.ts`); bloky polí (8 × 8 dílů) se přestaví jen při změně cest
+  nebo nové síti pěšin (odloženě s přepočtem pěšin, nikdy za snímek) a jen ty, kudy pás vede.
+  Kus pole, přes který pás vede, má jemnější síť koruny (≈ 0,47 m) a obtisku (≈ 0,94 m), jinak by
+  úzkou stopu přerostla.
   Kolem vsi se navíc seče pár luk na seno (jen vzhled, na dvě domácnosti jedna louka).
   **Zarůstání** (viz Zarůstání, Les vsi): stáda se pasou jen na dílech, kam dojdou (nejbližší
   napřed). Na nepaseném a nesečeném přílohu od 3. roku přibývají keře, které rostou (plné
@@ -1326,6 +1339,8 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Rozjetý plán se zkrátí hned, ne až 1. 9. – ves přestane kopat nové díly                                                           | Martin (19. 10. 2026)                           |
 | Zrající a zralé obilí vystouplé (dvouzrnka); kulaté rohy pole oraného rádlem                                                      | Martin (19. 10. 2026)                           |
 | Koruna porostu 0,62 / 0,88 m, luštěniny 0,3 m, schod na čáře žně; roh 5 m jen vnější rohy oraných dílů, jen vzhled                | návrh Clauda                                    |
+| Pod cestou obilí neroste – pod pevnou cestou i pěšinou dne                                                                        | Martin (19. 10. 2026)                           |
+| Maska v šířce obtisku cesty, okraj 0,8 m (pěšina 0,5 m) svahem; přestavba jen bloků u změněných pásů; jemnější síť pod pásem      | návrh Clauda                                    |
 | Cíl = rok spotřeby z pole a pojistka po příští sklizni bez toho, co zbude; pojistka ~~0,3~~ 0,5 roční potřeby celé energie        | návrh Clauda                                    |
 | Volná práce pro plán osevu po dospělých pasácích (se stády podle bílkovin)                                                        | návrh Clauda                                    |
 | Přebytek nad pojistku za 3 roky, chybějící hned; luštěniny podle své zásoby bez rezervy; bez měření podílu podíl 1                | návrh Clauda                                    |

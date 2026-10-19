@@ -44,6 +44,7 @@ import {
   type PitCut,
 } from './dwelling-pit';
 import { FieldRenderer } from './field-renderer';
+import type { Track } from './track-mask';
 import type { HayMeadow } from './hay-meadows';
 import { applyGammaFog } from './gamma-fog';
 import { HomesteadRenderer, type PlotView } from './homestead';
@@ -524,6 +525,14 @@ export class VillageRenderer {
   /** Obilí ve větru (jen v záběru); vrátí true, když je co překreslit. */
   animateFields(nowMs: number, camera: Camera | null): boolean {
     return this.fields.animate(nowMs, camera);
+  }
+
+  /**
+   * Pás pěšin dne (path-renderer.ts) – pod ním pole nekreslí obilí; volá se s novou sítí pěšin.
+   * Vrátí true, když je co překreslit.
+   */
+  setPathTrack(track: Track | null): boolean {
+    return this.fields.setPaths(track);
   }
 
   /** Vývojový náhled: louky na seno dané přímo (bez krajiny). */

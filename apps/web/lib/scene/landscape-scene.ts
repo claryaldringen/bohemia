@@ -385,6 +385,8 @@ export class LandscapeScene {
       // (refreshShadows), stínová mapa se kvůli pěšinám nepřekresluje
       onChange: () => {
         this.villagers?.setPaths(this.paths?.paths() ?? null, Date.now());
+        // pod pěšinami dne obilí neroste – bloky polí se přestaví jen s novou sítí pěšin
+        this.village?.setPathTrack(this.paths?.pathTrack() ?? null);
         this.renderWhenReady();
       },
       requestRender: () => this.renderWhenReady(),

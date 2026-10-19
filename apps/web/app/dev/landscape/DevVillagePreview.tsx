@@ -179,9 +179,10 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [pathAge, setPathAge] = useState<number | null>(null);
   const [pathInfo, setPathInfo] = useState('');
   // ukázka pevné cesty se stromy v různém stáří (roads.md, dev-road.ts)
-  const [road, setRoad] = useState<Pick<SceneVillage, 'roads' | 'roadTrees' | 'roadApples'> | null>(
-    null,
-  );
+  // i se zralým polem přes rozcestí (pod cestou obilí neroste – fields.md, Co hráč vidí)
+  const [road, setRoad] = useState<
+    (Pick<SceneVillage, 'roads' | 'roadTrees' | 'roadApples'> & { fieldId: number | null }) | null
+  >(null);
   // stupeň vylepšení ukázkových cest (dev-road.ts – DEMO_ROAD_STAGES) a stadium jabloní u cesty
   const [roadStage, setRoadStage] = useState(0);
   const [appleStage, setAppleStage] = useState(0);
@@ -1220,14 +1221,32 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     scene?.moveCameraTo(sample.center.x, sample.center.z);
   };
 
-  /** Ukázka pevné cesty se stromy (keř, mladý a plný strom, souš, pařez) – kamera k ní. */
+  /**
+   * Ukázka pevné cesty se stromy (keř, mladý a plný strom, souš, pařez) a se zralým polem 15 × 15
+   * čtverců přes rozcestí (pod cestou obilí neroste – fields.md, Co hráč vidí) – kamera k ní.
+   */
   const toggleRoad = (): void => {
     if (road) {
       setRoad(null);
+      if (road.fieldId !== null) setFields((list) => list.filter((f) => f.id !== road.fieldId));
       return;
     }
     const sample = demoRoad(decoded);
-    setRoad({ roads: sample.roads, roadTrees: sample.trees, roadApples: sample.apples });
+    const focus = tileAt(decoded, sample.focus.x, sample.focus.z);
+    const cells: TileCell[] = [];
+    for (let dy = -7; dy <= 7 && focus; dy++)
+      for (let dx = -7; dx <= 7; dx++) cells.push({ x: focus.x + dx, y: focus.y + dy });
+    const parts = fieldParts(decoded, cells);
+    const fieldId = parts.length > 0 ? nextId.current++ : null;
+    if (fieldId !== null) {
+      setFields((list) => [...list, { id: fieldId, parts, sample: { look: 'ripe' } }]);
+    }
+    setRoad({
+      roads: sample.roads,
+      roadTrees: sample.trees,
+      roadApples: sample.apples,
+      fieldId,
+    });
     // kamera k rozcestí uprostřed první cesty
     scene?.moveCameraTo(sample.focus.x, sample.focus.z);
   };
