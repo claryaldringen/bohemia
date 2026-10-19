@@ -796,7 +796,9 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   souš už posvátným dubem není (panel, výběr, štěstí), místo ale zůstává chráněné vrstvou.
 - **Strava a dobytek** ([diet.md](docs/design/diet.md)): jídlo dne `eatDiet` / `villageMeal`
   (`diet.ts`) – ovoce (jablka; v rozhraní „ovoce“) rovným dílem do zkažení 1. 3., čerstvé mléko
-  a vejce, maso rovným dílem do porážky 1. 11., sýr do 1. 5. (`daysUntilMilking`), obilí
+  a vejce, maso rovným dílem do zkažení 31. 8. (`daysUntilMeatEnd`; 1. 9. ráno se zbytek zkazí –
+  `spoilMeat`, kronika `meat-spoiled`, upozornění; maso ze září a října do porážky – Martin:
+  „uzené maso určitě také nevydrží 3 roky“), sýr do 1. 5. (`daysUntilMilking`), obilí
   dorovná; stropy ovoce 25 %, maso 40 %, mléko a sýr 30 %, luštěniny 25 % potřeby energie
   (`DIET`); luštěniny (`legumes.ts`) rovným dílem do sklizně 31. 7. (`daysUntilLegumeHarvest`).
   **Bílkoviny** (Martin 18. 10. 2026): 1,6 g na kg tělesné váhy (`PROTEIN`, `proteinNeedPerDay`
@@ -805,32 +807,56 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   a koz v době dojení (`dailyMilk`, `DAIRY`), nevypité mléko → sýr (`cheeseFromMilk`,
   `VillageState.cheeseKg`, ztráta 15 %/rok). **Práce se zvířaty** (`animalCareNeed`,
   `ANIMAL_CARE`): úlohy `milking` a `animal-care` jdou v `allocateDay` hned po denním minimu
-  (činnosti `milking`, `animal-care` v rozdělení práce), pasení bez práce. `VillageState.diet`
-  nese jídlo posledního dne (energie, bílkoviny, kvalita, nasycení, podíly obilí / maso / mléko
-  / vejce / ovoce / luštěniny – `legumes?`, starší jídlo bez něj). **Hlad z energie:**
+  (činnosti `milking`, `animal-care` v rozdělení práce; zimní péče i o ovce a kozy).
+  `VillageState.diet` nese jídlo posledního dne (energie, bílkoviny, kvalita, nasycení, podíly
+  obilí / maso / mléko / vejce / ovoce / luštěniny – `legumes?`, starší jídlo bez něj). **Hlad z energie:**
   `nextStarvationDays` a přirážka úmrtnosti dostávají energii, porody a štěstí nasycení
   (`populationDay(state, day, satiation, energy)`, ovoce štěstí +5 – `HappinessFactors.fruit`,
   maso až +3 – `meatHappiness`, `HappinessFactors.meat`). Stáda `VillageState.livestock` (`livestock.ts`: počty
   s podílem kusu, mláďata 1. 4., porážka 1. 11. – nad nosnost a nejvýš polovina mláďat na maso,
   chovný pár zůstane; potřeba masa z bílkovin, které chybí i po luštěninách ze zásoby
-  `meatNeedPerYear` / `proteinBudget`,
-  „ves chová, kolik potřebuje“ podle chovných kusů; nosnost pastvy `pastureHa`, lesa `pigForestHa` a sena; vejce denně;
-  `meatKg` se uzí 20 %/rok). Louka a les do 600 m pro pastvu jsou z krajiny ve stavu
+  `meatNeedPerYear` / `proteinBudget`; vejce denně; `meatKg` se uzí 20 %/rok).
+  **Stáda realističtěji** (diet.md, Martin 19. 10. 2026; čísla návrh Clauda podle rešerše
+  `research/2026-10-19-herds-hay-meat.md`): roční ztráty `LIVESTOCK.lossPerYear` (ovce 12, kozy
+  10, prasata 12, skot 6 %) po dnech (`herdLosses`, i z `young`); nosnost `winterTargets` –
+  pastva a seno podle přednosti (`GRAZING_ORDER`: voli, krávy `minCows`, ovce,
+  kozy – napřed zarůstající příloh `goatBrowseHa`, zbytek krav), seno po ztrátách ve stohu
+  (`winterHayAvailable`), prasata podle lesa celý rok, nejvýš podíl uhlídaný pasáky (`herding`);
+  **chovné stádo podle potřeby** `sizeHerdsToNeed` – pár a krávy `breedingCows` (husbandry.ts:
+  kráva na 2 domácnosti, 3 na ohradu), pak `BREEDING_ORDER` ovce → kozy → krávy → prasata, dokud
+  `proteinPerHead` (mléko × 0,85 + maso z mláďat po ztrátách – `yearlyMeatPerHead`) nepokryje
+  `herdProteinNeed` × 1,25 (`needReserve`); zbytek i dospělé kusy na maso; stádo pod potřebou dá na
+  maso navíc mláďata v pořadí prasata, krávy, kozy, ovce (`MEAT_ORDER`). Zimní úhyn 1. 3.
+  (`starveHerds` z `herdHayCoverage` – pod polovinou přídělu, chovný pár přežije, kronika
+  `herd-starved`). **Pasáci** (`herding.ts`, `HERDING`): dospělý pasák 40 krav (i voli), 100 ovcí či
+  koz, 50 prasat, dítě 7–13 40 %, starší 75 %; `herdingDay` – děti a starší bez práce vsi, zbytek
+  dospělí (nejvýš jeden z domácnosti) úlohou `herding` hned po dojení; přežvýkavci duben–říjen,
+  prasata celý rok; `recordHerding` sčítá `LivestockState.herding` od porážky do porážky,
+  `herdingCoverage` jde do porážky; `LaborDay.herders` (děti a starší u stád) → `SceneLabor.herders`
+  → `herderKinds` ve `villager-plan.ts`. Porážka a uzení jdou před polními úlohami listopadu.
+  Louka a les do 600 m pro pastvu jsou z krajiny ve stavu
   (`LivestockState.land`) – doplní je `withLivestockLand` (založení vsi i migrace v
   `updateVillage`); bez nich výchozí `LIVESTOCK.defaultLand`. Den hospodářství `husbandryDay`
-  (`husbandry.ts`) běží před plánem osevu: ohrady, mláďata, plán seče, porážka, vejce, zimní seno.
+  (`husbandry.ts`) běží před plánem osevu: ztráty stád a seno ve stohu, ohrady a zimní úhyn,
+  mláďata, zkažené staré seno a plán seče, zkažené maso, porážka, zimní seno.
 - **Ohrada, spřežení a orba rádlem** ([oxen.md](docs/design/oxen.md), `oxen.ts`, `plough.ts`,
   `hay.ts`): ohrada (`BuildKind` `'pen'`, `checkPenPlacement`, `foundPen`, use-case `placePen`)
   je čtverec louky, stavba se dřevem jako obydlí; `trainTeam` (use-case `trainTeamInPen`,
   `trainingBlock` = důvod pro tlačítko) vezme 2 telata ze stáda a postaví rádlo (stavba `'ard'`);
   po 2 letech `Pen.team`, po 10 letech na maso; náhradu jde cvičit jen v posledních 2 letech
   služby (`serviceYearsBeforeTraining`, Martin – druhé spřežení = druhá ohrada). Seno `VillageState.hay` (seč 1. 6. z úhoru ve
-  fázi louky a přirozených luk do 600 m od obydlí – `planMowing` s krajinou, `HayMowing.squares`,
+  fázi louky a přirozených luk do 600 m od obydlí – `planMowing` s potřebou `winterHayNeedKg`
+  (zimní stádo podle potřeby `wantedWinterHerds` + voli ohrad, se ztrátou do zkrmení
+  `PLAN_HAY_KEEP`), práce `HAY_WORK_PER_HA` meze 15 → 10 čd/ha
+  (`hayWorkPerHa`), dávky `HAY.dailyKg` kráva 5, vůl 6, ovce a koza 1 kg, stoh 10 %/rok (`rotHay`),
+  zbytek loňského k 1. 6. shnije (`spoilOldHay`) – oxen.md, Seno, Martin 19. 10. 2026;
+  `HayMowing.squares`,
   od nejbližší po pěšinách a pevných cestách (`partWalkDistance`, přirozené louky
   `walkDistancesTo` z `paths/village.ts` přes `walking.ts` – měří se jen louky v dosahu podle
   `FASTEST_WALK_SHARE`), jen kolik je třeba; pěšina k sečeným loukám – `PathVillage.hayMeadows`
-  a práce `meadow`; sezónní úloha `mow`, vzhled políček `hayMeadowLooks`; zimní krmení, pokrytí volů `oxenHayCoverage`
-  k 1. 3.). **Orba:** plán s vycvičeným spřežením dá díly bez drnu (`isPloughable`) do
+  a práce `meadow`; sezónní úloha `mow`, vzhled políček `hayMeadowLooks`; zimní krmení `feedHay` –
+  voli první, krávy, ovce a kozy poměrně; pokrytí volů `oxenHayCoverage` a stáda
+  `herdHayCoverage` k 1. 3.). **Orba:** plán s vycvičeným spřežením dá díly bez drnu (`isPloughable`) do
   `CropWork.plough` (jejich kopání v `required.dig` není); úloha `plough` v oknech kopání, nejvýš
   `ploughCapacityPerDay`; setí jde za `tilledShare`; `returnPloughToHoe` vrátí díly motyce
   (konec řady kopání – `PloughWork.returned`). Postup po dílech zná úlohu `plough`
