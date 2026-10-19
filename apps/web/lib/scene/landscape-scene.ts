@@ -296,6 +296,7 @@ export class LandscapeScene {
       pitCuts: this.pitCuts,
       sunDirection: SUN_DIRECTION,
       landscape,
+      animated: () => !this.reducedMotion?.matches,
     });
     if (this.worldClock) this.village.setWorldClock(this.worldClock);
     if (this.season) {

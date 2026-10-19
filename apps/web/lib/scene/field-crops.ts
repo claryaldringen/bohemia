@@ -3,7 +3,7 @@
 // na sklizené části, plevel v úhoru a kolíky s provázkem kolem vytyčeného pole. Všechno deterministicky podle políčka – stejné pole se
 // při překreslení nezmění. Vzhled dílů rozhoduje field-look.ts.
 import { createNoise2D } from 'simplex-noise';
-import { cellsBoundary, cellsCoverage, type CellSquare } from './field-cells';
+import { cellsBoundary, cellsCoverage, type CellSquare, type CornerRounding } from './field-cells';
 import {
   workAt,
   workFrame,
@@ -126,7 +126,7 @@ export const LOOK_STYLES: Record<FieldLook, LookStyle> = {
     tint: [0.44, 0.6, 0.32],
     alpha: 1,
     patches: null,
-    crop: { kind: 'green', height: 0.78, width: 0.75, density: 1 },
+    crop: { kind: 'green', height: 0.85, width: 0.75, density: 1 },
     stooks: false,
     hay: false,
     weeds: 0,
@@ -136,7 +136,7 @@ export const LOOK_STYLES: Record<FieldLook, LookStyle> = {
     tint: [1.1, 0.94, 0.52],
     alpha: 1,
     patches: null,
-    crop: { kind: 'ripe', height: 1.05, width: 0.95, density: 1 },
+    crop: { kind: 'ripe', height: 1.15, width: 0.95, density: 1 },
     stooks: false,
     hay: false,
     weeds: 0,
@@ -279,7 +279,8 @@ export type CropSquare = CellSquare & { readonly crop?: FieldCrop };
 
 /**
  * Část klíče změn pole (field-renderer.ts) za vzhled dílů: vzhled, rozpracovanost po pruzích,
- * vzhled zbytku, vytyčení a plodina – pole se přestaví, jen když se některé z nich změní.
+ * vzhled zbytku, vytyčení, plodina a orba rádlem (kulaté rohy) – pole se přestaví, jen když se
+ * některé z nich změní.
  */
 export function partViewsKey(views: readonly PartView[]): unknown[] {
   return views.map((v) => [
@@ -288,6 +289,7 @@ export function partViewsKey(views: readonly PartView[]): unknown[] {
     v.before,
     v.staked,
     v.part.crop ?? null,
+    v.part.ploughed ?? false,
   ]);
 }
 
@@ -614,13 +616,15 @@ export function patchNoise(x: number, z: number): number {
 
 /**
  * Krytí pole s měkkým a nepravidelným okrajem: uvnitř 1, k hranici čtverců klesá na 0 (venku 0);
- * v pásu okraje ho šum zvlní, ať mez není rovná čára jako pravítkem.
+ * v pásu okraje ho šum zvlní, ať mez není rovná čára jako pravítkem. S `rounding` mají díly orané
+ * rádlem kulaté vnější rohy (field-cells.ts – `cellsCoverage`).
  */
 export function raggedCoverage(
   squares: readonly CellSquare[],
   softM: number,
+  rounding?: CornerRounding,
 ): (x: number, z: number) => number {
-  const coverage = cellsCoverage(squares, softM);
+  const coverage = cellsCoverage(squares, softM, rounding);
   return (x, z) => {
     const c = coverage(x, z);
     if (c <= 0 || c >= 1) return c;

@@ -987,6 +987,11 @@ export interface SceneFieldPart {
   /** Vzhled nehotové části rozpracovaného dílu; bez údaje povrch před prací (louka u zakládání). */
   before?: FieldLook;
   /**
+   * Díl letošní plodiny oralo spřežení rádlem (oxen.md – Kulaté rohy): ve vnějších rozích pole má
+   * zoraná plocha kulaté rohy podle obratu spřežení. Kopaný díl (motyka) údaj nemá – rohy ostré.
+   */
+  ploughed?: true;
+  /**
    * Roky přílohu bez pastvy a seče (fields.md – Zarůstání) – podle nich ve scéně rostou keře
    * a stromky (hustota a velikost). Jen u přílohu, který zarůstá (aspoň rok).
    */
@@ -1008,7 +1013,14 @@ export interface SceneFieldPart {
  * dílů v pořadí: nejdřív rozpracovaný, pak ty, na které práce přijde) – postavy pak pracují
  * přesně tam; bez nich je scéna odhadne z `work` a vzhledu dílů.
  */
-export type SceneLaborShare = LaborShare & { parts?: readonly number[] };
+export type SceneLaborShare = LaborShare & {
+  parts?: readonly number[];
+  /**
+   * U orby ke každému dílu `parts`: kolik orby dílu bylo hotovo na začátku a na konci dne (0–1) –
+   * scéna podle toho projede celou dnešní orbu (oxen.md – Orba za herní den).
+   */
+  progress?: readonly (readonly [number, number])[];
+};
 
 /**
  * Rozdělení práce posledního dne pro postavy: člověkodny po činnostech a místech (na setiny),
@@ -1923,8 +1935,8 @@ function sceneLabor(state: VillageState, people: SceneLabor['people']): SceneLab
     if (share.manDays <= 0) return [];
     const manDays = Math.max(0.01, Math.round(share.manDays * 100) / 100);
     if (share.target.kind === 'field' && share.target.parts) {
-      const { parts, ...target } = share.target;
-      return [{ ...share, target, manDays, parts }];
+      const { parts, progress, ...target } = share.target;
+      return [{ ...share, target, manDays, parts, ...(progress ? { progress } : {}) }];
     }
     return [{ ...share, manDays }];
   });

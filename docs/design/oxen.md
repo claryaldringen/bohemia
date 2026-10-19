@@ -193,7 +193,7 @@ Rozhodnutí kontroléru tam, kde návrh nedává postup (Martin je může změni
   den (obě plodiny dohromady). Když ves přijde o poslední spřežení, zbylou orbu (i rozpracovaný
   díl) kopou motyky – vrácené díly jdou na konec řady kopání.
 - **Ve scéně** orá spřežení na čele orby – pruh u čáry práce a další den dojde dál (viz
-  Spřežení postupuje s orbou); voli spřežení jsou jinak v ohradě, telata ve výcviku taky, krávy
+  Spřežení postupuje s orbou; při ladění projede celou dnešní orbu – Orba za herní den); voli spřežení jsou jinak v ohradě, telata ve výcviku taky, krávy
   v zimě.
 
 ## Spřežení postupuje s orbou (19. 10. 2026)
@@ -227,6 +227,52 @@ orba skutečně postupuje, stejně jako se mění vzhled dílů ([fields.md](fie
   čelo nevejde, zůstane ten den v ohradě (ohrady podle id).
 - **Natočené pole** (fields.md – Natočené stavby): řady a pruh v osách natočeného čtverce.
 
+## Kulaté rohy (19. 10. 2026)
+
+Stav: **Martin, 19. 10. 2026:** „Pokud bude orat spřežení rádlem, spřežení se musí otočit, takže
+zorané pole nikdy nebude mít ostré rohy, ale kulaté rohy podle toho, jak se volské spřežení
+otáčí.“ Podrobnosti **návrh Clauda** (jen vzhled):
+
+- **Poloměr rohu 5 m:** radlice jede o dosah oje (≈ 3,3 m ve scéně) za jhem a jho se otáčí po
+  oblouku ≈ 1,9 m (obrat na souvrati) – blíž než ≈ 5 m do rohu spřežení s radlicí v zemi nedojede.
+  Z rozsahu 3–5 m horní mez – je i vidět (měkký okraj pole má 1,6 m).
+- **Jen vnější rohy celého pole** – roh, u kterého ani jeden ze tří sousedních čtverců do pole
+  (ani do sousedního pole) nepatří. Vnitřní rohy, styky dílů a styk s jiným polem zůstanou jako
+  dřív. **Rozhoduje díl, kterému roh patří:** díl oraný rádlem (orba plodiny na něm letos
+  začala – `PartView.ploughed` z herního jádra) má roh kulatý, díl kopaný motykou ostrý – pole
+  zčásti orané a zčásti kopané má kulaté jen rohy oraných dílů. Platí pro zoranou, osetou,
+  zelenou a zralou část i strniště; v rohu zůstane tráva louky a nestojí tam trsy obilí.
+- **Plochu dílu (úrodu) roh neubírá:** roh vezme (1 − π/4) · 5² ≈ 5,4 m² – u čtverce 225 m² 2,4 %
+  na roh, ale pole o desítkách dílů má rohů jen pár (obdélník 4) – desetiny procenta úrody, a to
+  jen u polí oraných rádlem. Jádro proto počítá s celou plochou.
+- **Dráha spřežení** v rohu končí řady na stejném oblouku (`rowExtent`) a radlice se tam zvedá
+  (`outsideSquare`) – spřežení se otáčí po oblouku, jaký kreslí obtisk.
+
+## Orba za herní den (19. 10. 2026, ladicí)
+
+Stav: **Martin, 19. 10. 2026:** „Vím, že to bude divně zrychlené, ale až bude probíhat orba
+pomocí spřežení, potřeboval bych, aby spřežení projelo opravdu všechna obdělávaná políčka
+a nechávalo za sebou brázdu. Tak budu moci určit, jak se to chová.“ – **ruší rozhodnutí „jen
+čelo dne, skutečné tempo volů“** (Spřežení postupuje s orbou výš) po dobu ladění. Podrobnosti
+**návrh Clauda**:
+
+- **Ladicí přepínač** `PLOUGH_DAY_DEBUG` (`apps/web/lib/scene/plough-day.ts`): true – celá
+  dnešní orba za herní den, false – zpět skutečné tempo a jen pruh u čela dne.
+- **Celá dnešní orba:** herní jádro posílá u orby ke každému dílu dnešní fronty, kolik orby
+  bylo hotovo ráno a večer (`progress`); scéna z toho udělá pruhy dílů (po pruzích obtisku, ať
+  na konci dne sedí s polem dalšího dne) a spřežení je projede v pořadí práce řadu po řadě
+  s obraty na souvrati (kulaté rohy platí) – od chvíle, kdy přišel plán dne, do konce herního dne
+  (≈ 86 s), tempo zrychlené, kolik je třeba. Mezi díly a od místa, kde spřežení stálo, jde krokem
+  se zvednutým rádlem, zrychleně stejně.
+- **Brázda:** pole na začátku dne ukáže dnešní díly ještě nezorané (ranní stav) a za radlicí
+  přibývá zoraná plocha přesně tam, kudy projela – pás každé řady (čistá funkce času
+  `routeFurrows`, obtisk přestavovaný v taktu animací, nejvýš 30× za sekundu). Na konci dne pásy
+  pokryjí dnešní pruhy – pole dalšího dne je stejné.
+- **Víc spřežení** si dnešní díly rozdělí po souvislých kusech fronty (zhruba stejně velkých),
+  spřežení navíc zůstanou v ohradě.
+- **Při omezeném pohybu** (a bez hodin herního dne) se orba za den nepřehrává – pole ukáže
+  konec dne a spřežení stojí na čele jako dřív.
+
 ## Co hráč vidí
 
 - V nabídce staveb **ohrada** (název a cena v tooltipu).
@@ -255,6 +301,10 @@ orba skutečně postupuje, stejně jako se mění vzhled dílů ([fields.md](fie
 | Přirozené louky do 600 m od obydlí; louky na seno ve scéně z dat                            | návrh Clauda                  |
 | Ohrada smí na pole – čtverec pole pod ní z pole zmizí                                       | Martin (18. 10. 2026)         |
 | Spřežení postupuje s orbou po čtvercích                                                     | Martin (19. 10. 2026)         |
+| Kulaté rohy zorané plochy podle obratu spřežení                                             | Martin (19. 10. 2026)         |
+| Roh 5 m, jen vnější rohy oraných dílů, úrodu neubírá                                        | návrh Clauda                  |
+| Ladění: spřežení projede celou dnešní orbu za herní den a nechává brázdu                    | Martin (19. 10. 2026)         |
+| Ladicí přepínač, pruhy po pruzích obtisku, víc spřežení po souvislých kusech                | návrh Clauda                  |
 | Pruh u čáry práce (2–4 řady), jen čelo dne, přechod pěšky do 60 m, dvě spřežení na díl      | návrh Clauda                  |
 | Seno i pro ovce a kozy; dávky malého dobytka; práce seče se sušením a svozem                | Martin (19. 10. 2026)         |
 | Kráva 5, vůl 6, ovce a koza 1 kg denně; seč 15 → 10 čd/ha; stoh 10 %/rok                    | návrh Clauda (rešerše)        |

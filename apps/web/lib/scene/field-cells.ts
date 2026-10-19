@@ -299,19 +299,33 @@ export function cellsBoundary(squares: readonly CellSquare[]): Point[][] {
 }
 
 /**
+ * Kulaté vnější rohy (oxen.md – Kulaté rohy): poloměr (m) a které čtverce je mají (políčko
+ * v mřížce sjednocení – díly orané rádlem). Roh je vnější, když ani jeden ze tří čtverců kolem
+ * něj (dva po stranách, jeden úhlopříčně) do sjednocení nepatří.
+ */
+export interface CornerRounding {
+  radius: number;
+  rounded(cell: TileCell): boolean;
+}
+
+/**
  * Krytí pole s měkkým okrajem: 1 uvnitř sjednocení čtverců dál než `softM` od jeho hranice,
  * k hranici klesá na 0 (venku 0). Mezi sousedními čtverci pole žádný šev. Vzdálenost se měří
- * jen k sousedům (3 × 3 políčka) – `softM` musí být menší než strana čtverce.
+ * jen k sousedům (3 × 3 políčka) – `softM` musí být menší než strana čtverce. S `rounding` mají
+ * vybrané čtverce vnější rohy zakulacené obloukem o poloměru `rounding.radius` (vzdálenost k hranici
+ * se v rohu měří k oblouku) – vnitřní rohy a styky čtverců zůstanou ostré.
  */
 export function cellsCoverage(
   squares: readonly CellSquare[],
   softM: number,
+  rounding?: CornerRounding,
 ): (x: number, z: number) => number {
   const first = squares[0];
   if (!first) return () => 0;
   const frame = gridFrame(first);
   const inside = new Set(squares.map((s) => key(s.cell.x, s.cell.y)));
   const half = frame.size / 2;
+  const radius = Math.min(half, rounding?.radius ?? 0);
   return (wx, wz) => {
     const [x, z] = frame.toSpace(wx, wz);
     const cell = frame.cellAt(x, z);
@@ -326,8 +340,57 @@ export function cellsCoverage(
         distance = Math.min(distance, Math.hypot(ox, oz));
       }
     }
+    if (radius > 0 && rounding!.rounded(cell)) {
+      const [cx, cz] = frame.center(cell.x, cell.y);
+      for (const sx of [-1, 1]) {
+        for (const sz of [-1, 1]) {
+          if (
+            inside.has(key(cell.x + sx, cell.y)) ||
+            inside.has(key(cell.x, cell.y + sz)) ||
+            inside.has(key(cell.x + sx, cell.y + sz))
+          ) {
+            continue;
+          }
+          // vzdálenost od obou vnějších stran rohu; v rohovém čtverci R × R k oblouku
+          const a = half - sx * (x - cx);
+          const b = half - sz * (z - cz);
+          if (a < radius && b < radius) {
+            distance = Math.min(distance, radius - Math.hypot(radius - a, radius - b));
+          }
+        }
+      }
+    }
     return smoothstep(0, softM, distance);
   };
+}
+
+/**
+ * Vnější rohy čtverce `square` ve sjednocení `squares` (stejná mřížka) – body ve světě. Roh je
+ * vnější, když ani jeden ze tří čtverců kolem něj do sjednocení nepatří (kulaté rohy pole oraného
+ * rádlem – oxen.md).
+ */
+export function outerCorners(squares: readonly CellSquare[], square: CellSquare): Point[] {
+  const first = squares[0];
+  if (!first) return [];
+  const frame = gridFrame(first);
+  const inside = new Set(squares.map((s) => key(s.cell.x, s.cell.y)));
+  const { x: cx, y: cy } = square.cell;
+  const [ux, uz] = frame.center(cx, cy);
+  const half = frame.size / 2;
+  const corners: Point[] = [];
+  for (const sx of [-1, 1]) {
+    for (const sz of [-1, 1]) {
+      if (
+        inside.has(key(cx + sx, cy)) ||
+        inside.has(key(cx, cy + sz)) ||
+        inside.has(key(cx + sx, cy + sz))
+      ) {
+        continue;
+      }
+      corners.push(frame.toWorld(ux + sx * half, uz + sz * half));
+    }
+  }
+  return corners;
 }
 
 /**

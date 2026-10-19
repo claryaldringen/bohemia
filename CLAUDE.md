@@ -1231,7 +1231,19 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   úhoru a louce, seno – řádky, kupky a stohy (`haystack.glb`) přes podzim a zimu postupně mizí
   (`hay-meadows.ts`: `hayPhase`, `stackStands`); kolíky a provázek kolem vytyčeného pole
   (Martin: hned po zadání, `fieldStaking`). Rozmístění trsů a panáků je v `field-crops.ts`
-  (čisté funkce, deterministicky po políčkách). **Louky na seno** ve vsi jsou data – políčka
+  (čisté funkce, deterministicky po políčkách). **Vystouplé obilí** (fields.md – Co hráč vidí;
+  Martin 19. 10. 2026, dvouzrnka): zelené a zralé obilí má nad sebou neprůhlednou „korunu“
+  porostu (`field-canopy.ts` – `fieldCanopy`, čisté funkce: síť po krocích obtisku ve výšce
+  `CANOPY_M` – obilí 0,62 / 0,88 m, luštěniny ≈ 0,3 m –, k okraji pole podle krytí zanořená pod
+  zem, svislé stěny tam, kde vedle nestojí stejný porost – schod na čáře žně; po blocích v
+  `FieldBlockContent.canopy`, natočené pole `FieldSpace.canopy`, mesh `village-field-canopy-<id>`
+  s texturou porostu, `applySeasonGround`); 3D trsy (zelené 0,85, zralé 1,15 m) z ní vyčnívají.
+  Pole s 1 566 zralými díly: +1 draw call, ≈ +0,2 M trojúhelníků. **Kulaté rohy** (oxen.md –
+  Kulaté rohy): díl oraný rádlem (`SceneFieldPart.ploughed` z jádra – `PartView.ploughed`, orba
+  plodiny na něm začala) má vnější rohy pole zakulacené obloukem `PLOUGH_CORNER_M` (5 m) –
+  `cellsCoverage(…, rounding)` / `raggedCoverage(…, rounding)` v `field-cells.ts`, vnější rohy
+  `outerCorners`; obtisk, trsy i koruna podle krytí, v klíči bloku (`partViewsKey`). Jen vzhled –
+  plochu dílu roh neubírá. **Louky na seno** ve vsi jsou data – políčka
   přirozených luk v seči (`SceneVillage.hayMeadows`, `hayMeadowFields` je kreslí jako pole
   se vzhledem `meadow` / `mown` / `haystacks`, postavy sečou po čele práce); dekorativní
   `chooseHayMeadows` jen ve vývojové ukázce (oxen.md). Den pro
@@ -1341,10 +1353,23 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   `transitTrack` (rovně ≈ 1 m/s – `TRANSIT_SPEED_M_S`, rádlo nahoře, natočení na začátku a konci,
   čas příchodu dopočítaný, ať naváže bez skoku; nad `TRANSIT_M.max` 60 m skok), póza `trackPose`;
   jen když animace běží (`liveAt`), při omezeném pohybu stálá póza na novém místě; obal pro ořez
-  záběrem stálý přes celé dráhy i přechody (`updateBounds`). Ukázka **Orání** na
-  `/dev/buildings`: tři čtverce, orba postoupí za den ukázky (40 s – `showcasePloughDay`) o 3/8
-  čtverce (`showcasePlough` – díly a fronta jako od jádra), spřežení přes `ploughFront` jako ve
-  vsi. Voli a oráč z `people_from_0ad.py` s `tools/blender/plough-team.json` – vůl
+  záběrem stálý přes celé dráhy i přechody (`updateBounds`). V kulatém rohu pole (Kulaté rohy)
+  končí řady na oblouku (`PloughField.corners`, `rowExtent`) a radlice se zvedá (`outsideSquare`).
+  **Orba za herní den – LADICÍ** (oxen.md; Martin 19. 10. 2026: „aby spřežení projelo opravdu
+  všechna obdělávaná políčka a nechávalo za sebou brázdu“): přepínač `PLOUGH_DAY_DEBUG`
+  v `plough-day.ts` (false = skutečné tempo, jen čelo dne). Jádro dává k orbě v rozdělení práce
+  `progress` (ráno a večer na dílu – `partsWorked` vrací `from` / `to`) a zoraný díl rádlem nese
+  `before`; `dayStints` (pruhy po pruzích obtisku), `splitStints` (souvislé kusy fronty mezi
+  spřežení), `startOfDayVillage` (pole na začátku dne); trasa `ploughRoute` (řady všech pruhů
+  s obraty, přesuny se zvednutým rádlem, otevřená), `RouteTrack` (od příchodu plánu do konce
+  herního dne – okno z hodin světa, `realTimeOf`, nebo `VillageRenderer.setPloughClock`),
+  `routePose`, brázda `routeFurrows` (pásy řad, kudy radlice projela – čistá funkce času)
+  → `FieldRenderer.setFurrows` (obtisk `village-field-furrow-<id>` s krytím pole, v
+  `animateOxen`); `PloughTeams.setRoutes` / `furrows`. Jen s animací (`VillageContext.animated`
+  – při omezeném pohybu konec dne a čelo jako dřív). Ukázka **Orání** na `/dev/buildings`: tři
+  čtverce, vlastní `VillageRenderer` (`ploughDemo`) s polem a orbou dne ukázky (40 s –
+  `showcasePloughDay`, `showcasePloughWindow`, díly a `progress` jako od jádra – `showcasePlough`),
+  orba postoupí za den o 3/8 čtverce. Voli a oráč z `people_from_0ad.py` s `tools/blender/plough-team.json` – vůl
   `cattle_male_c` (srst přebarvená, maska srsti), oráč = muž s klipy `plough` (předklon + ruce
   dvoukloubovou IK na rukojeti, „pose“ v JSON) a `lead` (honáček s provazem); rádlo, jho, oj
   a provaz `tools/blender/plough.py` (malý atlas vyříznutý z atlasu obydlí). Rozestavění

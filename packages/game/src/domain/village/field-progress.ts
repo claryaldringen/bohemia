@@ -53,12 +53,15 @@ export type FieldPartLook =
 
 /**
  * Vzhled dílu: `look`, u rozpracovaného dílu (čelo práce) i `work` – kolik práce dnešní úlohy je
- * na něm hotovo 0–1 (hotová část má `look`) a `before` – vzhled zbytku.
+ * na něm hotovo 0–1 (hotová část má `look`) a `before` – vzhled zbytku. `ploughed` – díl letošní
+ * plodiny oralo spřežení rádlem (orba na něm začala – oxen.md, Kulaté rohy): ve scéně má pole
+ * v jeho vnějších rozích kulaté rohy podle obratu spřežení; kopaný díl údaj nemá.
  */
 export interface PartView {
   look: FieldPartLook;
   work?: number;
   before?: FieldPartLook;
+  ploughed?: true;
 }
 
 /** Úsek dílu v pořadí úlohy – od–do jako podíl celé práce úlohy (0–1). */
@@ -129,7 +132,8 @@ function isDone(span: PartSpan, position: number): boolean {
 
 /**
  * Díly, na kterých se v úloze dnes pracovalo – úseky, přes které úloha přešla z `before` do
- * `after` (hotová práce v člověkodnech), s podílem dnešní práce na každém.
+ * `after` (hotová práce v člověkodnech), s podílem dnešní práce na každém a s tím, kolik práce
+ * dílu bylo hotovo na začátku a na konci dne (`from`, `to` 0–1 – kudy dnes práce na dílu prošla).
  */
 export function partsWorked(
   work: CropWork,
@@ -138,14 +142,22 @@ export function partsWorked(
   day: number,
   before: number,
   after: number,
-): { id: number; fieldId: number; share: number }[] {
+): { id: number; fieldId: number; share: number; from: number; to: number }[] {
   const from = taskPosition(work, task, before);
   const to = taskPosition(work, task, after);
   if (to - from <= EPSILON) return [];
   return taskSpans(work, partsById, task, day).flatMap((span) => {
     const overlap = Math.min(to, span.end) - Math.max(from, span.start);
     return overlap > EPSILON
-      ? [{ id: span.id, fieldId: span.fieldId, share: overlap / (to - from) }]
+      ? [
+          {
+            id: span.id,
+            fieldId: span.fieldId,
+            share: overlap / (to - from),
+            from: shareOn(span, from) ?? 0,
+            to: shareOn(span, to) ?? 1,
+          },
+        ]
       : [];
   });
 }
@@ -296,6 +308,8 @@ function cropLooks(
       share('reclaim', id) ?? 0,
       share('plough', id) ?? 0,
     );
+    // orané rádlem – orba plodiny na dílu začala (kopaný díl a díl, ke kterému orba nedošla, ne)
+    const ard = (share('plough', id) ?? 0) > EPSILON ? ({ ploughed: true } as const) : {};
     let view: PartView;
     if (harvested) view = { look: 'stubble' };
     else if (harvest >= DONE) view = { look: 'harvesting' };
@@ -305,7 +319,12 @@ function cropLooks(
     else if (dig >= DONE) view = { look: 'plowed' };
     else if (dig > EPSILON) view = { look: 'plowed', work: dig, before: untouched };
     else view = { look: untouched };
-    views.set(id, view);
+    // zoraný díl rádlem nese i vzhled před orbou – scéna z něj kreslí začátek dne, když spřežení
+    // dnešní orbu teprve projíždí (oxen.md – Orba za herní den)
+    if (view.look === 'plowed' && view.before === undefined && share('plough', id) !== null) {
+      view.before = untouched;
+    }
+    views.set(id, { ...view, ...ard });
   }
 }
 

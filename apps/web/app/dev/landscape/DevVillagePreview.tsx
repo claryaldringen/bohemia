@@ -1717,6 +1717,8 @@ function devPart(
       look: sample.look,
       ...(work !== undefined ? { work } : {}),
       ...(sample.before ? { before: sample.before } : {}),
+      // od orby do strniště oralo spřežení rádlem – kulaté vnější rohy (oxen.md)
+      ...(stage === 'sown' ? { ploughed: true as const } : {}),
     };
   }
   const stage = STAGES[(options.stage + (options.mixed ? index : 0)) % STAGES.length]!;

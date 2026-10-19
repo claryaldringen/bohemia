@@ -103,9 +103,11 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
   const { allocation } = work;
   const carryShare = harvestCarryShare(work.toolCoverage ?? NO_CRAFTS.tools);
 
-  for (const { task, fieldId, manDays, parts } of fieldShares(state, day, work)) {
+  for (const { task, fieldId, manDays, parts, progress } of fieldShares(state, day, work)) {
     const target: LaborTarget =
-      parts.length > 0 ? { kind: 'field', id: fieldId, parts } : { kind: 'field', id: fieldId };
+      parts.length > 0
+        ? { kind: 'field', id: fieldId, parts, ...(progress ? { progress } : {}) }
+        : { kind: 'field', id: fieldId };
     if (task === 'harvest') {
       add('harvest', target, manDays * (1 - carryShare));
       add('carry', target, manDays * carryShare);
@@ -182,11 +184,7 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
  * Polní práce dne po polích: s polními úlohami po plodinách na díly, přes které práce dnes
  * postoupila (podíl podle úseku dílu), jinak (starší volání) poměrně k ploše polí v plánu.
  */
-function fieldShares(
-  state: VillageState,
-  day: number,
-  work: DayWork,
-): { task: PartTask; fieldId: number; manDays: number; parts: number[] }[] {
+function fieldShares(state: VillageState, day: number, work: DayWork): FieldShare[] {
   const { allocation, fieldWork } = work;
   if (!fieldWork) {
     const fields = FIELD_ACTIVITIES.some((t) => allocation.tasks[t] > 0)
@@ -203,21 +201,38 @@ function fieldShares(
   }
   if (!fieldWork.some(({ task, before, after }) => task !== 'thresh' && after > before)) return [];
   const partsById = new Map(state.parts.map((p) => [p.id, p]));
-  const shares = new Map<
-    string,
-    { task: PartTask; fieldId: number; manDays: number; parts: number[] }
-  >();
+  const shares = new Map<string, FieldShare>();
   for (const { task, work: crop, before, after } of fieldWork) {
     if (task === 'thresh' || after - before <= 0) continue;
     for (const part of partsWorked(crop, partsById, task, day, before, after)) {
       const key = `${task}:${part.fieldId}`;
       const share = shares.get(key) ?? { task, fieldId: part.fieldId, manDays: 0, parts: [] };
       share.manDays += (after - before) * part.share;
-      if (!share.parts.includes(part.id)) share.parts.push(part.id);
+      if (!share.parts.includes(part.id)) {
+        share.parts.push(part.id);
+        // orba: kudy dnes spřežení na dílu prošlo (scéna projede celou dnešní orbu – oxen.md)
+        if (task === 'plough') {
+          share.progress = [...(share.progress ?? []), [round3(part.from), round3(part.to)]];
+        }
+      }
       shares.set(key, share);
     }
   }
   return [...shares.values()];
+}
+
+/** Polní práce dne na jednom poli (úloha, člověkodny, díly a u orby postup na dílech). */
+interface FieldShare {
+  task: PartTask;
+  fieldId: number;
+  manDays: number;
+  parts: number[];
+  progress?: [number, number][];
+}
+
+/** Na tisíciny. */
+function round3(value: number): number {
+  return Math.round(value * 1000) / 1000;
 }
 
 /**
