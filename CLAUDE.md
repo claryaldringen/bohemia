@@ -830,7 +830,8 @@ rozhraní částí v
   `chooseCrops` dostane `flaxTargetKg` – `chooseSideCrop` dá len napřed (před luštěninami) na díly
   výběru obilí **od konce** (vysiluje půdu, delší příloh neleží domům v cestě; loňský len až
   nakonec; když se práce nevejde, zkusí další díl – `fitsSideCrop`), obilí doplní energii, a když
-  nejde, len ubere obilí nejvýš o svůj díl; trhání v červenci napřed (`CROP_ORDER` – len první);
+  nejde, len ubere obilí nejvýš o svůj díl ze zásob nad pojistku (`flaxSpareKg` = `leftKg` −
+  `bufferKg` ze `sowingTargets`); trhání v červenci napřed (`CROP_ORDER` – len první);
   `trimPlan` len neubírá. Zpracování je v domácí výrobě
   (přerozdělení), žádná zásoba v liště. Web: `SceneFieldPart.crop: 'flax'` a `bloom` (červen –
   `FLAX_BLOOM_MONTH` ve `village-view.ts`), scéna `FLAX_STYLES` / `FLAX_BLOOM` ve `field-crops.ts`

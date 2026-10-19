@@ -449,7 +449,7 @@ výnosy vlákna ze Skotska a Irska).
   šátků, ručníků a plachet; lněná košile nošená denně vydrží rok až dva. Na kg látky ≈ 2 kg
   třeného lnu (z vochlování ≈ 46 % dlouhého vlákna, část koudele na hrubé plátno).
 - **Pole:** len je plodina na dílech pole (jař se setím na jaře a trháním v červenci), ≈ 550 kg
-  třeného lnu z hektaru při plné úrodnosti – ves 30 lidí ≈ 0,1 ha ≈ 5 dílů. Obilí má přednost, len ho ubere nejvýš o svou plochu.
+  třeného lnu z hektaru při plné úrodnosti – ves 30 lidí ≈ 0,1 ha ≈ 5 dílů. Obilí má přednost, len ho ubere nejvýš o svou plochu a jen ze zásob nad pojistku.
 - **Kdy se rozhodne:** při trhání 31. 7. – sklizený len ÷ potřeba při plánu k 1. 9.
   (`VillageState.linen`), platí do dalšího trhání. Vsi uložené dřív se do prvního trhání po plánu
   se lnem nemění.

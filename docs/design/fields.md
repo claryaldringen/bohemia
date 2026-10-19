@@ -775,8 +775,9 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
   jeho delší příloh pak neleží domům v cestě; díly, které měly len loni, až nakonec; když se práce
   dílu nevejde – třeba sklizeň jaře v červenci plném ozimu –, zkusí další díl) a obilí doplní celou
   energii dílu (len se nejí); pak luštěniny od domu. Když obilí doplnit nejde (chybí půda nebo
-  práce), **len ubere obilí nejvýš o svou plochu** (≈ 1–2 % osevu – vyrovnají to zásoby, Osev
-  podle zásob) – bez lnu by chyběl oděv. Zkrácení rozjetého plánu (Osev podle zásob) len neubírá.
+  práce), **len ubere obilí nejvýš o svou plochu** (≈ 1–2 % osevu) – ale jen ze zásob, které
+  k příští sklizni zbudou nad pojistku (Osev podle zásob); ves se zásobami na pojistce má obilí
+  napřed a lnu je méně. Zkrácení rozjetého plánu (Osev podle zásob) len neubírá.
   Díly hotové během roku jdou jen do jaře.
 - **Trhání** jde v červenci napřed (před sklizní ozimu a luštěnin – je ho málo, bez něj chybí
   oděv).
@@ -800,13 +801,16 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
   lnu (ikona `flax` – hrst s modrými květy), panel dílu „Zelený len“ / „Kvetoucí len“ / „Zralý len“
   / „Trhání lnu“. Ukázka na `/dev/buildings` – pole **Len**.
 - **Naměřeno** (`measure-village.ts 20 20`, 19. 10. 2026, jen orientačně; hráč skriptu zakládá
-  pole i na len – `neededFieldHa` s `flaxNeedKg`): len na plný oděv **v 99,7 % let** (od 3. roku
-  vsi), plocha lnu medián **45 m² na člověka**; práce na poli hráče, který staví, 67,5 → 69,0 čd
-  na člověka a rok (+2 %), volná práce 5,9 → 5,8 % práce, nasycení ≥ 0,95 celý rok 93,4 → 92,6 %
-  let (nestaví 99,2 % beze změny), práce na obživu startovní ves 86,2 → 86,4 %, plná domácnost
-  86,8 → 87,6 %, štěstí medián 53,9 → 53,5. První verze (len jen na díl, který obilí doplní,
-  trhání v červenci až po ozimu) měla plný oděv jen v 66,5 % let – vesnicím bez volné půdy len
-  nezbyl a trhání nestihly; proto len smí ubrat obilí o svou plochu a trhá se napřed.
+  pole i na len – `neededFieldHa` s `flaxNeedKg`; po sloučení s ovcemi na vlnu, v závorce stejný
+  kód bez lnu – ves bez lnu): len na plný oděv **v 92,4 % let** (od 3. roku vsi; jinak zásoby na
+  pojistce – obilí napřed), plocha lnu medián **45 m² na člověka**; práce na poli hráče, který
+  staví, 63,3 (62,1) čd na člověka a rok (+2 %), volná práce 5,8 (5,6) čd, nasycení ≥ 0,95 celý
+  rok 96,6 (96,1) % let, práce na obživu startovní ves 82,4 (82,7) %, plná domácnost 83,4
+  (83,5) %, štěstí medián 52,4 (49,4 – bez lnu −4). První verze (len jen na díl, který obilí
+  doplní, trhání v červenci až po ozimu) měla plný oděv jen v 66,5 % let – vesnicím bez volné půdy
+  len nezbyl a trhání nestihly; proto len smí ubrat obilí o svou plochu (ze zásob nad pojistku)
+  a trhá se napřed. Bez omezení na zásoby nad pojistku 99,7 % let, ale ves na hranici půdy pak
+  krátce hladověla.
 
 ### Úroda
 
