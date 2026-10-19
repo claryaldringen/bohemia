@@ -26,31 +26,84 @@ půdy na seno. Dobytek, dosud jen ozdoba, se tím poprvé zapojí do hry.
 
 ## Ohrada s přístřeškem (staví hráč)
 
-- **Stavba po čtvercích** jako pozemek polozemnice: jeden čtverec 15 × 15 m na louce, obehnaný
-  **pleteným plotem se zakulacenými rohy** (Martin), v rohu jednoduchý přístřešek na sloupech
+- **Stavba po čtvercích** jako hřbitov (od 19. 10. 2026 – Ohrady podle druhu níž): 1–4 čtverce
+  15 × 15 m na louce pro jeden druh zvířat, obehnané **pleteným plotem se zakulacenými rohy**
+  (Martin) po obrysu čtverců, v rohu prvního čtverce jednoduchý přístřešek na sloupech
   s doškovou střechou a žlab; branka (návrh Clauda) na straně k nejbližšímu obydlí, posunutá
   po té straně k němu. **Pěšina vede k brance** (Martin, 19. 10. 2026: „každá budova by měla mít
   nějaký vchod, od kterého cesta povede“) – krmení a práce v hotové ohradě chodí brankou,
   staveniště ze všech stran; branku počítá herní jádro (`penEntrance`) pro síť pěšin i scénu
   ([paths.md](paths.md) – Vchody).
 - **Natočená ohrada** (Martin, 19. 10. 2026 – všechny plošné stavby jde natáčet;
-  [fields.md](fields.md), Natočené stavby): ohrada je jeden čtverec mřížky natočené po 15°
-  (návrh Clauda) – [ a ] před umístěním otáčejí mřížku kolem čtverce pod kurzorem, nad jinou
-  ohradou se malování chytí její mřížky. Volný střed jako pozemek polozemnice zatím nemá
+  [fields.md](fields.md), Natočené stavby): ohrada jsou čtverce mřížky natočené po 15°
+  (návrh Clauda) – [ a ] před umístěním otáčejí mřížku kolem čtverce pod kurzorem, nad ohradou
+  téhož druhu se malování chytí její mřížky (rozšíření). Volný střed jako pozemek polozemnice zatím nemá
   (rozhodnutí Clauda: potřeboval by vlastní způsob umisťování, natočení kolem středu políčka
   dává stejnou volnost směru, model dat volný střed unese). Kontroly jako na políčku přes
   natočený čtverec (krajina pod ním podle bodů vzorkování, výchoz, posvátná místa, překážky
   s patou ve čtverci, pole v jiné mřížce jen průnik). Ve scéně se branka k nejbližšímu obydlí,
   přístřešek v zadním rohu, žlab, stoh, zvířata, bláto, vytyčení a rozpad rozmístí v osách
   ohrady. Staré ohrady leží v mřížce krajiny beze změny.
-- Cena: **40 člověkodní a 6 stromů** (kůly, přístřešek – [les](forest.md)) (návrh Clauda).
-- Jedna ohrada pojme **jedno spřežení** (2 voli) a k tomu chovné krávy a telata (stádo, které dnes
-  ve hře je – jedna kráva na 2 domácnosti) (návrh Clauda).
-- V létě se dobytek pase venku (úhor, louky po seči – jako dnes), přes zimu stojí v ohradě a žere
-  seno.
+- Cena: **40 člověkodní a 6 stromů na čtverec** (kůly, přístřešek – [les](forest.md)) (návrh
+  Clauda).
+- Ohrada spřežení pojme **jedno spřežení** (2 voli) a výcvik nového páru; krávy a telata stojí
+  v ohradě skotu, ovce, kozy a prasata každé ve své (Ohrady podle druhu).
+- V létě se dobytek přes den pase venku (úhor, louky po seči – jako dnes), na noc je v ohradě;
+  přes zimu skot stojí v ohradě a žere seno.
 - **Ohrada bez zvířat chátrá** ([abandonment.md](abandonment.md), Martin 18. 10. 2026): do ohrady
-  bez spřežení, výcviku a zimních krav se krmit nechodí; když k ní za rok nevede žádná cesta,
-  chátrá a za ≈ 10 let se rozpadne a zmizí. Ohrada se zvířaty opuštěná není.
+  bez zvířat svého druhu (u spřežení bez spřežení a výcviku) se krmit nechodí; když k ní za rok
+  nevede žádná cesta, chátrá a za ≈ 10 let se rozpadne a zmizí. Ohrada se zvířaty svého druhu
+  opuštěná není.
+
+## Ohrady podle druhu (19. 10. 2026)
+
+Martin, 19. 10. 2026: „**Ještě bychom měli pořešit ohrady. Zvířata je potřeba na noc zavírat do
+ohrad. Každý druh zvířete by měl mít vlastní ohradu, ať se nemíchají. Velikost ohrady by mělo jít
+určovat podobně, jako když se staví hřbitov. Velikost ohrady bude mít vliv na velikost stáda.
+Zároveň velikost ohrady bude omezená – má to být ohrada, ne výběh.**“ K návrhu níž: „**Ano, udělej
+to tak, jak navrhuješ**“ (i výběr druhu hráčem a stáda bez ohrady u domu). Podrobnosti jsou návrh
+Clauda, čísla podle [rešerše](research/2026-10-19-pens.md).
+
+- **Na noc jsou všechna zvířata v ohradě** – stádo druhu se musí vejít do ohrad svého druhu
+  (a pár kusů k domům, níž). Krávy stojí v ohradě i přes zimu jako dřív. Zahánění stád na noc ve
+  scéně přijde se dnem a nocí – rozmístění zvířat v ohradě (místa ve všech čtvercích, ovce, kozy,
+  prasata, krávy, voli) je připravené.
+- **Každý druh má vlastní ohradu:** ovce, kozy, prasata, skot (krávy a telata) a **spřežení**
+  (voli a výcvik nového páru – s kravami se nemíchají; výcvik jde jen v ohradě spřežení, druhé
+  spřežení = druhá ohrada spřežení, telata na výcvik dál ze stáda krav).
+- **Velikost se maluje po čtvercích jako hřbitov:** čtverce navazující stranou na ohradu téhož
+  druhu (ve stejné mřížce) ji rozšíří – stejná ohrada, stavba rozšíření, do jejího dokončení se
+  nové čtverce nepočítají; na dvě ohrady téhož druhu navázat nejde; čtverec vedle ohrady jiného
+  druhu je nová ohrada (nemíchají se). Ohrada má **nejvýš 4 čtverce** (≈ 900 m², „ohrada, ne
+  výběh“), souvislé stranou. Cena po čtvercích – 40 čd a 6 stromů na čtverec.
+- **Kapacita podle plochy** – místa na noc na hotový čtverec (plocha uvnitř plotu ≈ 196 m²):
+  **ovce 130, kozy 100, prasata 80, krávy 45** (≈ 1,5 / 2 / 2,5 / 4,5 m² na kus – malá zvířata
+  raného středověku, dnešní minima ustájení – [rešerše](research/2026-10-19-pens.md)). Místa jsou
+  pro dospělé kusy i jarní mláďata.
+- **Bez ohrady u domu** jen pár kusů: každá domácnost udrží u domu **2 ovce, 1 kozu a 1 prase**
+  (místa jako v ohradě); **krávy jen v ohradě**. **Chovný pár** druhu, který ves má, zůstane u domů
+  vždy – jinak by druh bez ohrady vymřel a nebylo by co chovat, až ves ohradu postaví (rozhodnutí
+  Clauda).
+- **Stádo omezují místa** ([diet.md](diet.md) – Místa na noc): 1. 11. si ves přes zimu nechá
+  nejvýš tolik kusů, aby se i s jarními mláďaty vešly do ohrad svého druhu a k domům (místa ÷
+  (1 + jarní mláďata na kus)) – vedle pastvy, sena, lesa, pasáků a místa pro mláďata podle
+  výrostků. Kusy nad místa jdou na maso jako kusy nad nosnost; kusy čekající na zimní porážku jen
+  do volných míst. Platí i pro dřívější vsi bez ohrad – nadbytek jde na maso při nejbližší
+  porážce.
+- **Výběr druhu hráčem:** jedna stavba „Ohrada“ ([O]); při umisťování **Tab** (Shift + Tab zpět)
+  přepíná druh – ovce → kozy → prasata → skot → spřežení; u kurzoru ikona druhu a cena. Nad
+  ohradou téhož druhu se malování chytí její mřížky (rozšíření). Vybraná ohrada dá druh i mřížku;
+  jinak začne druh naposledy stavěné ohrady.
+- **Staré vsi** (převod při načtení, jednou): ohrada se spřežením nebo výcvikem je ohrada
+  spřežení, ohrada bez nich ohrada skotu (dřív v ní zimovaly krávy).
+- **Panel ohrady:** název podle druhu („Ohrada ovcí“…), zvířata v ohradě na noc / místa (ikona
+  druhu), čtverce (např. 2/4), rozšíření ve stavbě, seno, stav (chátrání, oprava), stáda vsi;
+  ohrada spřežení voly, stáří spřežení a výcvik jako dřív.
+- **Upozornění** „Ovce se nevejdou do ohrad“ (víc druhů „Stáda se nevejdou do ohrad“), když se stádo
+  na noc nevejde – hráč ví, že nadbytek půjde na maso.
+- **Chátrání a oprava** jako dřív: ohrada se zvířaty svého druhu se neopouští. **Síť pěšin:**
+  ohrada je oplocená jako hřbitov, branka (vchod) na obrysu nejblíž k nejbližšímu obydlí, krmení
+  jako cíl; rozšíření ve stavbě je jen vytyčené (plot a branka kolem hotových čtverců).
 
 ## Spřežení (cvičí se samo)
 
@@ -420,7 +473,10 @@ a nechávalo za sebou brázdu. Tak budu moci určit, jak se to chová.“ – **
 ## Co hráč vidí
 
 - V nabídce staveb **ohrada** (název a cena v tooltipu).
-- V panelu ohrady: zvířata (ikony + čísla), průběh cvičení spřežení, zásoba sena na zimu; kolik
+- V nabídce staveb **ohrada** – Tab přepíná druh zvířat (ikona u kurzoru), maluje se po čtvercích
+  (nejvýš 4) a rozšiřuje jako hřbitov.
+- V panelu ohrady: druh, zvířata v ohradě na noc / místa, čtverce (ikony + čísla), průběh cvičení
+  spřežení, zásoba sena na zimu; kolik
   let spřežení ještě slouží a kolik dní výcviku zbývá – ikona přesýpacích hodin (Martin: slunce
   nebylo srozumitelné). Tlačítko výcviku není – spřežení se cvičí samo (Martin, 19. 10. 2026).
 - V horní liště **seno** (ikona + číslo), když ves má dobytek v ohradě.
@@ -430,39 +486,47 @@ a nechávalo za sebou brázdu. Tak budu moci určit, jak se to chová.“ – **
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                  | Kdo                           |
-| ------------------------------------------------------------------------------------------- | ----------------------------- |
-| Orání rádlem s voly; voli z vlastních telat, výcvik ≈ 2 roky; pastva a seno; rádlo ze dřeva | návrh Clauda, Martin – směr   |
-| Ohrada s přístřeškem z pleteného plotu se zakulacenými rohy (žádný dobytek v obydlí)        | Martin (rešerše 18. 10. 2026) |
-| Ohrada 1 čtverec, 40 čd + 6 stromů; 1 spřežení na ohradu; spřežení slouží ≈ 10 let          | návrh Clauda                  |
-| Seno 1,5 t na vola za zimu, louka 1,5 t/ha, sečení 6 čd/ha; bez sena slabší orba / úhyn     | návrh Clauda                  |
-| Orba 10 → 6 čd/ha místo kopání 100 → 50; drn rádlo nezvládne; spřežení ≈ 0,3 ha/den         | návrh Clauda (rešerše)        |
-| Výcvik z aspoň 3 krav; rádlo jako stavba; seč 1. 6. pro krávy a 2 voly na ohradu            | rozhodnutí kontroléru         |
-| Náhrada spřežení jen v posledních 2 letech služby; dvě spřežení = druhá ohrada              | Martin (18. 10. 2026)         |
-| Zbývající služba a dny výcviku s ikonou přesýpacích hodin (místo slunce)                    | Martin (18. 10. 2026)         |
-| Pokrytí sena k 1. 3.; vracení orby motyce po celých dílech                                  | rozhodnutí kontroléru         |
-| Seno ze všech luk – přirozené louky i úhor ve fázi louky, od nejbližší, jen kolik je třeba  | Martin (18. 10. 2026)         |
-| Přirozené louky do 600 m od obydlí; louky na seno ve scéně z dat                            | návrh Clauda                  |
-| Ohrada smí na pole – čtverec pole pod ní z pole zmizí                                       | Martin (18. 10. 2026)         |
-| Spřežení postupuje s orbou po čtvercích                                                     | Martin (19. 10. 2026)         |
-| Kulaté rohy zorané plochy podle obratu spřežení                                             | Martin (19. 10. 2026)         |
-| Roh 5 m, jen vnější rohy oraných dílů, úrodu neubírá                                        | návrh Clauda                  |
-| Ladění: spřežení projede celou dnešní orbu za herní den a nechává brázdu                    | Martin (19. 10. 2026)         |
-| Jen rádlo – ves se spřežením orá všechno, motykou nekope (i drn a louka při založení)       | Martin (19. 10. 2026)         |
-| Drn orbou křížem 2,5×; kapacita spřežení v plánu osevu; slabí voli orají pomaleji           | návrh Clauda                  |
-| Ztráta spřežení během roku – letošní plán dokončí motyka; kulaté rohy podle stavu vsi       | návrh Clauda                  |
-| Co nejdelší brázda; souvislá plocha, ne z dílce na dílec; na místo po cestě či přes neoseté | Martin (19. 10. 2026)         |
-| Bloky a pásy podél delší strany pole, od nejbližšího; výkon L/(L + v·t), obrat 45 s         | návrh Clauda                  |
-| Osa brázdy po blocích (i sever – jih), ne podle celého pole                                 | Martin (19. 10. 2026)         |
-| Osa bloku = delší průměrná brázda (vážená plochou), při shodě delší rozloha, pak x          | návrh Clauda                  |
-| Brázdy končí na cestě, spřežení se na ní otočí                                              | Martin (19. 10. 2026)         |
-| Výkon s průměrnou délkou kusu mezi cestami; kus pod 2 m se neorá; brázda řady až k cestě    | návrh Clauda                  |
-| Kulatější pole – zakulacené i schody obrysu, nepravidelný okraj, bez travnaté souvratě      | Martin, návrh Clauda          |
-| Ladicí přepínač, pruhy po pruzích obtisku, víc spřežení po souvislých kusech                | návrh Clauda                  |
-| Pruh u čáry práce (2–4 řady), jen čelo dne, přechod pěšky do 60 m, dvě spřežení na díl      | návrh Clauda                  |
-| Seno i pro ovce a kozy; dávky malého dobytka; práce seče se sušením a svozem                | Martin (19. 10. 2026)         |
-| Kráva 5, vůl 6, ovce a koza 1 kg denně; seč 15 → 10 čd/ha; stoh 10 %/rok                    | návrh Clauda (rešerše)        |
-| Staré seno se k nové seči zkazí; seče se na zimní stádo podle potřeby                       | návrh Clauda                  |
-| Spřežení se cvičí samo – co ulehčí práci a ves to má, vesničané používají sami              | Martin (19. 10. 2026)         |
-| Řádky sena zelenožluté, širší a nepravidelné, jen pár dní po seči, pak kupky (fields.md)    | Martin (19. 10. 2026)         |
-| Výcvik začne první vhodný den (telata, dřevo, v zimě seno), rádlo staví ves sama            | návrh Clauda                  |
+| Rozhodnutí                                                                                                                                                                                                                                                                                                | Kdo                                                        |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Orání rádlem s voly; voli z vlastních telat, výcvik ≈ 2 roky; pastva a seno; rádlo ze dřeva                                                                                                                                                                                                               | návrh Clauda, Martin – směr                                |
+| Ohrada s přístřeškem z pleteného plotu se zakulacenými rohy (žádný dobytek v obydlí)                                                                                                                                                                                                                      | Martin (rešerše 18. 10. 2026)                              |
+| Ohrada 1 čtverec, 40 čd + 6 stromů; 1 spřežení na ohradu; spřežení slouží ≈ 10 let                                                                                                                                                                                                                        | návrh Clauda                                               |
+| Seno 1,5 t na vola za zimu, louka 1,5 t/ha, sečení 6 čd/ha; bez sena slabší orba / úhyn                                                                                                                                                                                                                   | návrh Clauda                                               |
+| Orba 10 → 6 čd/ha místo kopání 100 → 50; drn rádlo nezvládne; spřežení ≈ 0,3 ha/den                                                                                                                                                                                                                       | návrh Clauda (rešerše)                                     |
+| Výcvik z aspoň 3 krav; rádlo jako stavba; seč 1. 6. pro krávy a 2 voly na ohradu                                                                                                                                                                                                                          | rozhodnutí kontroléru                                      |
+| Náhrada spřežení jen v posledních 2 letech služby; dvě spřežení = druhá ohrada                                                                                                                                                                                                                            | Martin (18. 10. 2026)                                      |
+| Zbývající služba a dny výcviku s ikonou přesýpacích hodin (místo slunce)                                                                                                                                                                                                                                  | Martin (18. 10. 2026)                                      |
+| Pokrytí sena k 1. 3.; vracení orby motyce po celých dílech                                                                                                                                                                                                                                                | rozhodnutí kontroléru                                      |
+| Seno ze všech luk – přirozené louky i úhor ve fázi louky, od nejbližší, jen kolik je třeba                                                                                                                                                                                                                | Martin (18. 10. 2026)                                      |
+| Přirozené louky do 600 m od obydlí; louky na seno ve scéně z dat                                                                                                                                                                                                                                          | návrh Clauda                                               |
+| Ohrada smí na pole – čtverec pole pod ní z pole zmizí                                                                                                                                                                                                                                                     | Martin (18. 10. 2026)                                      |
+| Spřežení postupuje s orbou po čtvercích                                                                                                                                                                                                                                                                   | Martin (19. 10. 2026)                                      |
+| Kulaté rohy zorané plochy podle obratu spřežení                                                                                                                                                                                                                                                           | Martin (19. 10. 2026)                                      |
+| Roh 5 m, jen vnější rohy oraných dílů, úrodu neubírá                                                                                                                                                                                                                                                      | návrh Clauda                                               |
+| Ladění: spřežení projede celou dnešní orbu za herní den a nechává brázdu                                                                                                                                                                                                                                  | Martin (19. 10. 2026)                                      |
+| Jen rádlo – ves se spřežením orá všechno, motykou nekope (i drn a louka při založení)                                                                                                                                                                                                                     | Martin (19. 10. 2026)                                      |
+| Drn orbou křížem 2,5×; kapacita spřežení v plánu osevu; slabí voli orají pomaleji                                                                                                                                                                                                                         | návrh Clauda                                               |
+| Ztráta spřežení během roku – letošní plán dokončí motyka; kulaté rohy podle stavu vsi                                                                                                                                                                                                                     | návrh Clauda                                               |
+| Co nejdelší brázda; souvislá plocha, ne z dílce na dílec; na místo po cestě či přes neoseté                                                                                                                                                                                                               | Martin (19. 10. 2026)                                      |
+| Bloky a pásy podél delší strany pole, od nejbližšího; výkon L/(L + v·t), obrat 45 s                                                                                                                                                                                                                       | návrh Clauda                                               |
+| Osa brázdy po blocích (i sever – jih), ne podle celého pole                                                                                                                                                                                                                                               | Martin (19. 10. 2026)                                      |
+| Osa bloku = delší průměrná brázda (vážená plochou), při shodě delší rozloha, pak x                                                                                                                                                                                                                        | návrh Clauda                                               |
+| Brázdy končí na cestě, spřežení se na ní otočí                                                                                                                                                                                                                                                            | Martin (19. 10. 2026)                                      |
+| Výkon s průměrnou délkou kusu mezi cestami; kus pod 2 m se neorá; brázda řady až k cestě                                                                                                                                                                                                                  | návrh Clauda                                               |
+| Kulatější pole – zakulacené i schody obrysu, nepravidelný okraj, bez travnaté souvratě                                                                                                                                                                                                                    | Martin, návrh Clauda                                       |
+| Ladicí přepínač, pruhy po pruzích obtisku, víc spřežení po souvislých kusech                                                                                                                                                                                                                              | návrh Clauda                                               |
+| Pruh u čáry práce (2–4 řady), jen čelo dne, přechod pěšky do 60 m, dvě spřežení na díl                                                                                                                                                                                                                    | návrh Clauda                                               |
+| Seno i pro ovce a kozy; dávky malého dobytka; práce seče se sušením a svozem                                                                                                                                                                                                                              | Martin (19. 10. 2026)                                      |
+| Kráva 5, vůl 6, ovce a koza 1 kg denně; seč 15 → 10 čd/ha; stoh 10 %/rok                                                                                                                                                                                                                                  | návrh Clauda (rešerše)                                     |
+| Staré seno se k nové seči zkazí; seče se na zimní stádo podle potřeby                                                                                                                                                                                                                                     | návrh Clauda                                               |
+| Spřežení se cvičí samo – co ulehčí práci a ves to má, vesničané používají sami                                                                                                                                                                                                                            | Martin (19. 10. 2026)                                      |
+| Řádky sena zelenožluté, širší a nepravidelné, jen pár dní po seči, pak kupky (fields.md)                                                                                                                                                                                                                  | Martin (19. 10. 2026)                                      |
+| Výcvik začne první vhodný den (telata, dřevo, v zimě seno), rádlo staví ves sama                                                                                                                                                                                                                          | návrh Clauda                                               |
+| „Zvířata je potřeba na noc zavírat do ohrad. Každý druh zvířete by měl mít vlastní ohradu, ať se nemíchají. Velikost ohrady by mělo jít určovat podobně, jako když se staví hřbitov. Velikost ohrady bude mít vliv na velikost stáda. Zároveň velikost ohrady bude omezená – má to být ohrada, ne výběh.“ | Martin (19. 10. 2026)                                      |
+| Druhy ovce, kozy, prasata, skot, spřežení; nejvýš 4 čtverce; rozšíření jako hřbitov; Tab přepíná druh                                                                                                                                                                                                     | návrh Clauda, Martin („Ano, udělej to tak, jak navrhuješ“) |
+| Místa na čtverec: ovce 130, kozy 100, prasata 80, krávy 45 – pro dospělé i jarní mláďata                                                                                                                                                                                                                  | návrh Clauda (rešerše)                                     |
+| Bez ohrady u domu 2 ovce, 1 koza, 1 prase na domácnost, krávy jen v ohradě                                                                                                                                                                                                                                | návrh Clauda, Martin schválil                              |
+| Chovný pár druhu zůstane u domů vždy; kusy čekající na zimní porážku jen do volných míst                                                                                                                                                                                                                  | rozhodnutí Clauda                                          |
+| Staré ohrady: se spřežením nebo výcvikem spřežení, jinak skot                                                                                                                                                                                                                                             | návrh Clauda, Martin schválil                              |
+| Přístřešek v prvním čtverci zády a bokem k vnějšímu plotu; rozšíření ve stavbě jen vytyčené                                                                                                                                                                                                               | rozhodnutí Clauda                                          |
+| Upozornění „Ovce se nevejdou do ohrad“                                                                                                                                                                                                                                                                    | rozhodnutí Clauda                                          |

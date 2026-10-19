@@ -615,8 +615,8 @@ rozhraní částí v
   svatyni a hřbitovu chodí každá domácnost jen k nejbližšímu). `roadsDay` ho vrátí v den roční
   kontroly (jinak a bez krajiny null – kalibrace nic neopouští) a `simulateDay` zavolá
   `abandonmentCheck` (začne / přestane chátrat; dokončená za poslední rok – `graceDays` – ne;
-  ohrada se zvířaty – `stockedPenIds`: spřežení, výcvik, zimní krávy rovným dílem jako ve
-  scéně – nikdy) a každý den `abandonmentDay` (pád, zbytky). Do ohrady bez zvířat se nechodí
+  ohrada se zvířaty svého druhu – `stockedPenIds` z `penOccupancy`: stádo druhu do ohrad podle
+  id a míst, u spřežení spřežení a výcvik – nikdy) a každý den `abandonmentDay` (pád, zbytky). Do ohrady bez zvířat se nechodí
   krmit (`PathVillage.pens[].stocked: false` – `pathVillageOf`, `ScenePen.stocked`, i v klíčích
   sítě). Stav `StructureWear` (`condition` ke dni `abandonedDay`; bez dne zastavené chátrání –
   sám se nezvedá, jen prací opravy) na `SacredBuilding.wear`, `Cemetery.fenceWear`, `Pen.wear`;
@@ -1081,8 +1081,11 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   pastva a seno podle přednosti (`GRAZING_ORDER`: voli, ovce na vlnu `minSheep`, krávy `minCows`, ovce,
   kozy – napřed zarůstající příloh `goatBrowseHa`, zbytek krav), seno po ztrátách ve stohu
   (`winterHayAvailable`), prasata podle lesa celý rok, nejvýš podíl uhlídaný pasáky (`herding`);
-  **chovné stádo podle potřeby** `sizeHerdsToNeed` – pár a krávy `breedingCows` (husbandry.ts:
-  kráva na 2 domácnosti, 3 na ohradu), pak **rovnovážné hospodaření** (diet.md – Rovnovážné
+  **místa na noc** (oxen.md – Ohrady podle druhu, diet.md – Místa na noc): `WinterInput.room` =
+  `herdRoom` (pens.ts – ohrady svého druhu `penCapacity` + pár kusů u domů `homesteadRoom`) – přes
+  zimu nejvýš `roomForWinter` (místa ÷ (1 + mláďata na kus)), chovný pár vždy, čekající kusy
+  `winterWait` jen do volných míst; **chovné stádo podle potřeby** `sizeHerdsToNeed` – pár a krávy
+  `breedingCows` (husbandry.ts: kráva na 2 domácnosti, 3 na ohradu spřežení), pak **rovnovážné hospodaření** (diet.md – Rovnovážné
   hospodaření; Martin 19. 10. 2026: „aby byla sytá, měla ± ideální kombinaci stravy, ale aby jí
   zároveň zbylo co nejvíc volného času na rozvoj“): cena jídla v práci `foodCosts` (`economy.ts` –
   čd na kg obilí a luštěnin z dílů v osevu, sena z plánu seče; ve vsi `villageFoodCosts`
@@ -1152,8 +1155,20 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   (`husbandry.ts`) běží před plánem osevu: ztráty stád a seno ve stohu, ohrady a zimní úhyn,
   mláďata, zkažené staré seno a plán seče, zkažené maso, porážka, zimní seno.
 - **Ohrada, spřežení a orba rádlem** ([oxen.md](docs/design/oxen.md), `oxen.ts`, `plough.ts`,
-  `hay.ts`): ohrada (`BuildKind` `'pen'`, `checkPenPlacement`, `foundPen`, use-case `placePen`)
-  je čtverec louky, stavba se dřevem jako obydlí. **Výcvik spřežení začne sám** (Martin:
+  `hay.ts`): ohrada (`BuildKind` `'pen'`, `penSquaresFromCells` / `checkPenPlacement` po
+  čtvercích, `foundPen`, use-case `placePen` s `species` a `cells`) – **ohrady podle druhu**
+  (oxen.md – Ohrady podle druhu; Martin 19. 10. 2026: „Zvířata je potřeba na noc zavírat do ohrad.
+  Každý druh zvířete by měl mít vlastní ohradu, ať se nemíchají. … má to být ohrada, ne výběh.“;
+  `pens.ts`): `Pen.species` (`PenSpecies` – `sheep`, `goat`, `pig`, `cattle`, `team`; starší
+  ohrady převede `withPenSpecies` v `updateVillage` i na začátku `advanceVillage` – se spřežením
+  nebo výcvikem `team`, jinak `cattle`), první čtverec `cell` / `x` / `z` (přístřešek) a další
+  `Pen.extraSquares` (`PenSquare`, rozšíření ve stavbě s `constructionId` – `finishPen(…, c.id)`),
+  nejvýš `PEN_SQUARES.max` (4) souvislé stranou; čtverce navazující na ohradu téhož druhu ve
+  stejné mřížce ji rozšíří (`touchingPens`), na dvě navázat nejde; cena po čtvercích (40 čd
+  a 6 stromů na čtverec, `penLaborManDays(…, squares)`). Místa `PEN_PLACES_PER_SQUARE` (ovce 130,
+  kozy 100, prasata 80, krávy 45) a u domů `HOMESTEAD_HERD` v `rules.ts`; `penCapacity`,
+  `penOccupancy`, `herdRoom`; výcvik jen v ohradě spřežení (`oxPens`, `trainingBlock` – „Ohrada
+  není pro spřežení.“). Stavba se dřevem jako obydlí. **Výcvik spřežení začne sám** (Martin:
   „ve chvíli, kdy mají vesničané k dispozici cokoliv, co jim ulehčí práci – zde
   rádlo a voly – začnou to automaticky používat“ – princip pro celou hru, oxen.md – Spřežení):
   `trainTeamsWhenReady` v `husbandryDay` (po mláďatech 1. 4.) každý den, kdy `trainingBlock` je
@@ -1426,7 +1441,10 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   okrajem okna, mají `data-hud-block`.
 - **Katalog staveb** `lib/build-items.ts` (název, ikona, zkratka, umístění `footprint` /
   `plot` / `squares` / `sacred` / `workshop`, kontrola) – nová stavba = záznam tam, cena v `BUILD_COSTS` a server action
-  v `SUBMIT_SQUARES` (`VillageGame`); mřížka, zkratky i malování po čtvercích se nemění. Stavba,
+  v `SUBMIT_SQUARES` (`VillageGame`); mřížka, zkratky i malování po čtvercích se nemění. Stavba
+  po čtvercích s druhy (`variants` – ohrada: `PEN_VARIANTS` ovce, kozy, prasata, skot, spřežení)
+  dostane v kontrole druh; Tab ho přepíná (`FieldPainter`, `cycleIndex`), u kurzoru ikona druhu
+  (`PlacementPreview.variant`). Stavba,
   kterou nejde zahájit z jiného důvodu než surovin (druhá svatyně), má v `BuildOption.blocked`
   důvod – v popisku červeně. Panel výběru umí i posvátný dub, háj, modlu a svatyni (ikona,
   kolik přidávají štěstí, průběh stavby a duby ke kácení); u posvátného dubu i jeho stáří
@@ -1460,7 +1478,7 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   | Esc                    | zruší výběr                                                      | zruší                           | zruší tah, pak malování            |
   | F10                    | otevře nabídku hry, zruší výběr                                  | otevře nabídku, zruší           | otevře nabídku, zruší malování     |
   | `[` / `]`              |                                                                  | otáčí po 15° (pozemek celý)     | otáčí mřížku po 15° (všechny)      |
-  | Tab                    |                                                                  | pozemek: místo domu (varianta)  | –                                  |
+  | Tab                    |                                                                  | pozemek: místo domu (varianta)  | ohrada: druh zvířat                |
   | další                  |                                                                  | Enter postaví                   | Backspace / Ctrl+Z vrátí, Enter    |
 
   Vždy: WASD / šipky a kurzor u okraje okna posouvají, kolečko i rozevření prstů na trackpadu
@@ -1471,7 +1489,8 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   natočená mřížka má čtverec pod kurzorem ve středu políčka. Ctrl ve výběru obydlí platí i jako Cmd; Ctrl / Shift + klik na cestu či
   pole vybraná obydlí nezruší; Ctrl + A při umisťování nic nevybere. Zkratky staveb Z zemnice, X polozemnice, C pole, V hřbitov, B sad,
   N modla, M svatyně, O ohrada (modla a svatyně se umisťují půdorysem jako obydlí – `PlacementMode`
-  `sacred`). V otevřené nabídce hry žádná klávesa hry neběží – F10 nebo Esc ji zavře (Tab jen
+  `sacred`; ohrada po čtvercích, Tab / Shift + Tab přepíná druh zvířat – ovce, kozy, prasata, skot,
+  spřežení; nad ohradou téhož druhu se chytí její mřížky). V otevřené nabídce hry žádná klávesa hry neběží – F10 nebo Esc ji zavře (Tab jen
   po jejích položkách). Rozhraní
   obydlí hned ukáže jako staveniště a akce posílá na server za sebou (fronta v `VillageGame`).
 
@@ -2137,8 +2156,14 @@ směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, 
   `tradePreview(…, people)`, řádky rodina / muž / žena v `TradePanel` (ikony
   `resources/family.png`, `man.png`, `woman.png`), upozornění „Přišla rodina ze severu“.
 - **Ohrada s přístřeškem** ([oxen.md](docs/design/oxen.md); ve vsi `SceneVillage.pens` –
+  `ScenePen.species`, `extraSquares` (`pending` – rozšíření ve stavbě, jen vytyčené), `night`
+  (kolik zvířat v noci stojí – pro den a noc), `scenePenSquares`, `scenePenSpecies`;
   `village-pens.ts` ve `VillageRenderer`: fáze podle `progress`, branka k nejbližšímu obydlí
-  (vchod z jádra – `penEntrance`, `penEntranceFacing`; paths.md – Vchody),
+  (vchod z jádra – `penSquaresEntrance`, `penGateToward`; paths.md – Vchody; plot po obrysu všech
+  čtverců odsazený dovnitř – `penLayout(square, facing, extra)`, `PenLayout.outline` /
+  `fenceRects` / `squares`, přístřešek v prvním čtverci zády a bokem k vnějšímu plotu –
+  `shelterAxes`, místa pro zvířata ve všech čtvercích, `penAnimalsFor` zná i ovce, kozy
+  a prasata – kreslí je den a noc, `PenAnimals` jen voly a krávy),
   zvířata `penAnimalsFor` na místa `spots` – voli spřežení (v den orby na poli), telata ve
   výcviku menší, v zimě krávy; výběr `{ kind: 'pen' }`, panel se stářím spřežení a průběhem
   výcviku (bez tlačítka – cvičí se samo);
