@@ -56,9 +56,11 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
   crafts: {
     present: false,
     stocks: { charcoalKg: 0, toolsKg: 0, potteryKg: 0 },
-    needs: { toolsKg: 6, potteryKg: 20 },
+    needs: { toolsKg: 6, potteryKg: 20, woodToolsKg: 8 },
     coverage: { tools: 0, pottery: 0 },
     workshops: [],
+    carts: [],
+    cartTargets: { 'two-wheel': 0, 'four-wheel': 0 },
   },
   storesMonths: 17,
   satiation: 1,
@@ -124,6 +126,7 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
     potter: workshop(286),
     smith: workshop(286),
     burner: workshop(78),
+    carpenter: workshop(286),
     pen: {
       laborManDays: 40,
       perHa: false,
@@ -439,6 +442,7 @@ describe('villageNotices – řemesla (crafts.md)', () => {
       outputPerDayKg: 0.09,
       kiln: null,
       toPlant: 0,
+      carpenter: null,
     });
     const crafts = (activities: VillageView['crafts']['workshops'][number]['activity'][]) => ({
       ...view().crafts,
@@ -542,5 +546,48 @@ describe('upozornění z jiných vsí (migration.md)', () => {
     const libice = view({ villages: [self, item()] });
     const budec = view({ id: 'v-2', name: 'Budeč', hungry: true, villages: [self, item()] });
     expect(newNotices(libice, budec)).toEqual([]);
+  });
+});
+
+describe('tesař a vozy (wagons.md)', () => {
+  it('tesař bez klád – vlastní řádek, ostatní dílny dál „Dílna nemá co kácet“', () => {
+    const workshop = (craft: 'carpenter' | 'potter') => ({
+      dwellingId: craft === 'carpenter' ? 9 : 8,
+      craft,
+      activity: 'no-wood' as const,
+      occupants: 2,
+      laborPerDay: 0.9,
+      outputPerDayKg: 1,
+      kiln: null,
+      toPlant: 0,
+      carpenter: null,
+    });
+    const crafts = (crafts: ('carpenter' | 'potter')[]) => ({
+      ...view().crafts,
+      present: true,
+      workshops: crafts.map(workshop),
+    });
+    expect(villageNotices(view({ crafts: crafts(['carpenter']) }))).toEqual([
+      { kind: 'carpenter-no-wood', tone: 'warn', text: 'Tesař nemá klády' },
+    ]);
+    expect(villageNotices(view({ crafts: crafts(['potter', 'carpenter']) }))).toEqual([
+      { kind: 'no-wood', tone: 'warn', text: 'Dílna nemá co kácet' },
+      { kind: 'carpenter-no-wood', tone: 'warn', text: 'Tesař nemá klády' },
+    ]);
+  });
+
+  it('tesař vyrobil vůz a vůz dosloužil – krátký fakt z kroniky', () => {
+    const entry = (
+      day: number,
+      kind: 'cart-made' | 'cart-worn-out',
+    ): VillageView['chronicle'][number] => ({ day, kind, dateLabel: '', text: '' });
+    const after = view({
+      dayIndex: 1003,
+      chronicle: [entry(1002, 'cart-made'), entry(1001, 'cart-worn-out')],
+    });
+    expect(newNotices(view({ dayIndex: 1000 }), after)).toEqual([
+      { kind: 'cart-worn-out', tone: 'warn', text: 'Vůz dosloužil' },
+      { kind: 'cart-made', tone: 'info', text: 'Tesař vyrobil vůz' },
+    ]);
   });
 });

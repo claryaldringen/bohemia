@@ -4,6 +4,7 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
 import {
+  CRAFT_BASE,
   CRAFT_NAMES,
   DWELLING_FOOTPRINT_M,
   SACRED_BUILDINGS,
@@ -41,7 +42,7 @@ import type {
   PlacementMode,
   PlacementResult,
 } from './village-types';
-import { CRAFT_MODEL, milirPlace, type WorkshopModel } from './workshop-layout';
+import { milirPlace, workshopModelOf, type WorkshopModel } from './workshop-layout';
 
 /** Krok otáčení obydlí klávesami [ a ] (jako otáčení budovy v 0 A.D.). */
 const ROTATE_STEP = Math.PI / 12;
@@ -313,7 +314,8 @@ export class PlacementController implements ActivePlacement {
   }
 
   private refreshDwelling(mode: FootprintMode): void {
-    const ghostType: GhostType = mode.kind === 'workshop' ? CRAFT_MODEL[mode.craft] : mode.type;
+    const ghostType: GhostType =
+      mode.kind === 'workshop' ? workshopModelOf(mode.craft, CRAFT_BASE[mode.craft]) : mode.type;
     this.model ??= this.context.ghostModel(ghostType);
     if (mode.kind === 'workshop' && mode.craft === 'burner') {
       this.milir ??= this.context.ghostModel('milir');

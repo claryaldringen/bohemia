@@ -1,5 +1,6 @@
 import { useState, type ReactElement, type ReactNode } from 'react';
 import {
+  CART_NAMES,
   CRAFT_NAMES,
   type BuildableDwellingType,
   type DwellingType,
@@ -177,7 +178,12 @@ function dwellingPortrait(type: DwellingType, craft: Craft | null): ReactElement
  * v tooltipu; u výroby kolik kg za den.
  */
 /** Čeho má ves dost, když řemeslník pomáhá vsi (2. pád). */
-const ENOUGH: Record<Craft, string> = { burner: 'Uhlí', smith: 'Nástrojů', potter: 'Keramiky' };
+const ENOUGH: Record<Craft, string> = {
+  burner: 'Uhlí',
+  smith: 'Nástrojů',
+  potter: 'Keramiky',
+  carpenter: 'Vozů a nářadí',
+};
 
 function activityLook(workshop: SelectionWorkshop): {
   icon: string;
@@ -189,15 +195,33 @@ function activityLook(workshop: SelectionWorkshop): {
   const perDay = `${formatDecimal(workshop.outputPerDayKg, 1)} kg/den`;
   const kiln = workshop.kiln;
   const percent = kiln ? formatPercent(kiln.progress) : '–';
+  // tesař (wagons.md): rozdělaný vůz, pomoc stavbám
+  const making = workshop.carpenter?.making ?? null;
   const looks: Record<WorkshopActivity, { icon: string; name: string; value: string }> = {
-    producing: {
-      icon: product.icon,
-      name: `Vyrábí – ${product.name.toLowerCase()}`,
-      value: perDay,
+    producing: making
+      ? {
+          icon: 'cart',
+          name: `Vyrábí vůz – ${CART_NAMES[making.kind].toLowerCase()}`,
+          value: formatPercent(making.progress),
+        }
+      : {
+          icon: product.icon,
+          name: `Vyrábí – ${product.name.toLowerCase()}`,
+          value: perDay,
+        },
+    helping: {
+      icon: 'labor',
+      name: 'Pomáhá se stavbami – dřevěné části opracuje rychleji (pokrytí dřevěné práce)',
+      value: formatPercent(workshop.carpenter?.woodworkCoverage ?? 0),
     },
     felling: {
       icon: 'wood',
-      name: workshop.craft === 'burner' ? 'Kácí a připravuje buky na milíř' : 'Kácí dřevo',
+      name:
+        workshop.craft === 'burner'
+          ? 'Kácí a připravuje buky na milíř'
+          : workshop.craft === 'carpenter'
+            ? 'Nemá klády – kácí strom'
+            : 'Kácí dřevo',
       value: kiln ? `${kiln.prepared}/${kiln.trees}` : perDay,
     },
     building: { icon: 'wood', name: 'Staví milíř', value: percent },
@@ -215,7 +239,9 @@ function activityLook(workshop: SelectionWorkshop): {
       name:
         workshop.craft === 'burner'
           ? 'Čeká na dřevo – nejsou dospělé buky, zatím pomáhá vsi'
-          : 'Čeká na dřevo – není co kácet, zatím pomáhá vsi',
+          : workshop.craft === 'carpenter'
+            ? 'Nemá klády ani co kácet – zatím pomáhá vsi'
+            : 'Čeká na dřevo – není co kácet, zatím pomáhá vsi',
       value: '0',
     },
     idle: { icon: 'labor', name: 'Nemá kdo pracovat', value: '0' },
@@ -262,6 +288,7 @@ function WorkshopRow({ workshop }: { workshop: SelectionWorkshop }): ReactElemen
           les
         </Stat>
       )}
+      {workshop.carpenter && <CarpenterStats carpenter={workshop.carpenter} />}
       {workshop.craft === 'burner' && workshop.toPlant > 0 && workshop.activity !== 'planting' && (
         <Stat
           icon="labor"
@@ -272,6 +299,46 @@ function WorkshopRow({ workshop }: { workshop: SelectionWorkshop }): ReactElemen
         </Stat>
       )}
     </div>
+  );
+}
+
+/**
+ * Tesař v panelu dílny (wagons.md – Co hráč vidí): vozy vsi proti potřebě (dvoukolák na spřežení,
+ * čtyřkolák se stezkou) a pokrytí dřevěné práce staveb.
+ */
+function CarpenterStats({
+  carpenter,
+}: {
+  carpenter: NonNullable<SelectionWorkshop['carpenter']>;
+}): ReactElement {
+  const kinds = (['two-wheel', 'four-wheel'] as const).filter(
+    (kind) => carpenter.cartTargets[kind] > 0 || carpenter.carts.some((c) => c.kind === kind),
+  );
+  return (
+    <>
+      {kinds.map((kind) => {
+        const carts = carpenter.carts.filter((c) => c.kind === kind);
+        const away = carts.filter((c) => c.away).length;
+        const target = carpenter.cartTargets[kind];
+        return (
+          <Stat
+            key={kind}
+            icon="cart"
+            name={`${CART_NAMES[kind]} – vozy vsi / potřeba${away > 0 ? `, ${away} na cestě` : ''}`}
+            testId={`selection-workshop-carts-${kind}`}
+          >
+            {carts.length}/{target}
+          </Stat>
+        );
+      })}
+      <Stat
+        src="/icons/build/tesar.png"
+        name="Pokrytí dřevěné práce staveb tesařem (stavby dnes)"
+        testId="selection-workshop-woodwork"
+      >
+        {formatPercent(carpenter.woodworkCoverage)}
+      </Stat>
+    </>
   );
 }
 

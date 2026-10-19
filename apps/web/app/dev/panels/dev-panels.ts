@@ -71,6 +71,8 @@ const neighbours: VillageNeighbour[] = [
       have: { families: [], adults: 0, adultCredit: 360 },
     },
     expedition: null,
+    // ves má čtyřkolák a spřežení doma – náklad jde na vůz (wagons.md – Obchod)
+    carts: ['four-wheel'],
   },
   {
     direction: 'S',
@@ -97,6 +99,7 @@ const neighbours: VillageNeighbour[] = [
       days: 7,
       progress: 0.6,
     },
+    carts: [],
   },
 ];
 
@@ -210,6 +213,7 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
         coverage: null,
         kiln: { stage: 'wood', prepared: 3, trees: 8, progress: 0.4, forest: true },
         toPlant: 12,
+        carpenter: null,
       },
     }),
   },
@@ -226,6 +230,55 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
         coverage: 0.64,
         kiln: null,
         toPlant: 0,
+        carpenter: null,
+      },
+    }),
+  },
+  {
+    // wagons.md – tesař: vyrábí dvoukolák, vozy vsi proti potřebě a pokrytí dřevěné práce staveb
+    key: 'tesar',
+    label: 'Tesař',
+    details: dwelling({
+      workshop: {
+        craft: 'carpenter',
+        activity: 'producing',
+        laborPerDay: 1.6,
+        outputPerDayKg: 3.2,
+        stockKg: 46,
+        coverage: 0.72,
+        kiln: null,
+        toPlant: 0,
+        carpenter: {
+          carts: [
+            { id: 1, kind: 'two-wheel', condition: 0.6, away: false },
+            { id: 2, kind: 'four-wheel', condition: 0.9, away: true },
+          ],
+          cartTargets: { 'two-wheel': 2, 'four-wheel': 1 },
+          making: { kind: 'two-wheel', progress: 0.35 },
+          woodworkCoverage: 0.8,
+        },
+      },
+    }),
+  },
+  {
+    key: 'tesar-stavby',
+    label: 'Tesař pomáhá stavbám',
+    details: dwelling({
+      workshop: {
+        craft: 'carpenter',
+        activity: 'helping',
+        laborPerDay: 1.6,
+        outputPerDayKg: 3.2,
+        stockKg: 64,
+        coverage: 1,
+        kiln: null,
+        toPlant: 0,
+        carpenter: {
+          carts: [{ id: 1, kind: 'two-wheel', condition: 0.9, away: false }],
+          cartTargets: { 'two-wheel': 1, 'four-wheel': 0 },
+          making: null,
+          woodworkCoverage: 0.45,
+        },
       },
     }),
   },

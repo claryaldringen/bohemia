@@ -13,6 +13,7 @@ import {
   forestKilnAnchor,
   milirHideShape,
   milirPlace,
+  workshopModelOf,
   workshopVents,
 } from '../workshop-layout';
 
@@ -21,10 +22,20 @@ const TURNED = { x: -5, z: 3, rotation: Math.PI / 2 };
 
 describe('dílny ve scéně (crafts.md)', () => {
   it('řemeslo → model dílny s fázemi staveniště', () => {
-    expect(CRAFT_MODEL).toEqual({ potter: 'hrncir', smith: 'kovar', burner: 'uhlir' });
+    // tesař (wagons.md) zatím model nemá – kreslí se a staví jako polozemnice
+    expect(CRAFT_MODEL).toEqual({
+      potter: 'hrncir',
+      smith: 'kovar',
+      burner: 'uhlir',
+      carpenter: null,
+    });
     for (const model of Object.values(CRAFT_MODEL)) {
-      expect(CONSTRUCTION_PHASES[model].length).toBeGreaterThan(0);
+      if (model) expect(CONSTRUCTION_PHASES[model].length).toBeGreaterThan(0);
     }
+    expect(workshopModelOf('carpenter', 'polozemnice')).toBe('polozemnice');
+    expect(workshopModelOf('smith', 'polozemnice')).toBe('kovar');
+    expect(workshopModelOf(undefined, 'zemnice')).toBe('zemnice');
+    expect(workshopVents('carpenter', AT)).toEqual([]);
   });
 
   it('milíř stojí kus od zemnice podle herního jádra a natáčí se s ní', () => {

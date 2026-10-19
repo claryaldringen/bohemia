@@ -97,12 +97,12 @@ import { WildGrowthRenderer } from './wild-growth-renderer';
 import { VillageSmoke, type SmokeSource } from './village-smoke';
 import type { SceneDwelling, SceneRuin } from './village-types';
 import {
-  CRAFT_MODEL,
   forestKilnAnchor,
   milirCircle,
   milirFootPoints,
   milirHideShape,
   milirPlace,
+  workshopModelOf,
   workshopVents,
   type WorkshopModel,
 } from './workshop-layout';
@@ -1141,7 +1141,7 @@ export class VillageRenderer {
     const decayReady = this.decayParts.size > 0;
     for (const d of built) {
       if (decayReady && dwellingDecay(d) > 0) continue;
-      push(d.craft ? CRAFT_MODEL[d.craft] : d.type, {
+      push(workshopModelOf(d.craft, d.type), {
         x: d.position.x,
         y: this.baseHeight(d),
         z: d.position.z,
@@ -1612,7 +1612,7 @@ function ruinKey(r: SceneRuin): string {
 
 /** Druh staveniště (fáze, díly): obydlí, nebo model řemeslné dílny. */
 function siteKind(d: Pick<SceneDwelling, 'type' | 'craft'>): SiteKind {
-  return d.craft ? CRAFT_MODEL[d.craft] : d.type;
+  return workshopModelOf(d.craft, d.type);
 }
 
 /** Je model dílnou nebo milířem (public/models/crafts)? */
@@ -1639,7 +1639,8 @@ function trampledArea(d: SceneDwelling): Point[] {
   }
   const c = DWELLING_CLEARANCE_M[d.type];
   // hrnčíř a kovář: ušlapáno i pod přístřeškem před domem
-  const porch = d.craft === 'potter' || d.craft === 'smith' ? PORCH_EXTRA_M : 0;
+  const porch =
+    d.craft === 'potter' || d.craft === 'smith' || d.craft === 'carpenter' ? PORCH_EXTRA_M : 0;
   return [
     localToWorld(d.position, c.minX + inset, c.minZ + inset),
     localToWorld(d.position, c.maxX - inset, c.minZ + inset),

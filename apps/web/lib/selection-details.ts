@@ -1,6 +1,7 @@
 import {
   LEAVING,
   sacredBuildingHappiness,
+  type CartKind,
   type Craft,
   type Crop,
   type BuildableDwellingType,
@@ -50,6 +51,16 @@ export interface SelectionWorkshop {
   kiln: VillageView['crafts']['workshops'][number]['kiln'];
   /** Uhlíř: pařezy buků, na které ještě zasadí mladý buk. */
   toPlant: number;
+  /**
+   * Tesař (wagons.md – Tesař): vozy vsi (doma / na cestě) a kolik jich ves potřebuje, rozdělaný
+   * vůz (druh, průběh 0–1) a pokrytí dřevěné práce staveb posledního dne 0–1; ostatní dílny null.
+   */
+  carpenter: {
+    carts: VillageView['crafts']['carts'];
+    cartTargets: VillageView['crafts']['cartTargets'];
+    making: { kind: CartKind; progress: number } | null;
+    woodworkCoverage: number;
+  } | null;
 }
 
 export type SelectionDetails =
@@ -538,16 +549,27 @@ function workshopDetails(view: VillageView, dwellingId: number): SelectionWorksh
       ? view.crafts.coverage.tools
       : workshop.craft === 'potter'
         ? view.crafts.coverage.pottery
-        : null;
+        : workshop.craft === 'carpenter'
+          ? (view.crafts.coverage.woodTools ?? 0)
+          : null;
+  const carpenter = workshop.carpenter;
   return {
     craft: workshop.craft,
     activity: workshop.activity,
     laborPerDay: workshop.laborPerDay,
     outputPerDayKg: workshop.outputPerDayKg,
-    stockKg: view.crafts.stocks[stock],
+    stockKg: view.crafts.stocks[stock] ?? 0,
     coverage,
     kiln: workshop.kiln,
     toPlant: workshop.toPlant,
+    carpenter: carpenter
+      ? {
+          carts: view.crafts.carts,
+          cartTargets: view.crafts.cartTargets,
+          making: carpenter.cart,
+          woodworkCoverage: carpenter.woodworkCoverage,
+        }
+      : null,
   };
 }
 

@@ -26,6 +26,7 @@ const neighbour = (over: Partial<VillageNeighbour> = {}): VillageNeighbour => ({
     have: { families: [], adults: 0, adultCredit: 360 },
   },
   expedition: null,
+  carts: [],
   ...over,
 });
 
@@ -33,6 +34,14 @@ const button = (html: string, testId: string): string | undefined =>
   new RegExp(`<button([^>]*data-testid="${testId}"[^>]*)>`).exec(html)?.[1];
 
 describe('náhled výměny', () => {
+  it('s vozem jde náklad na vůz – honák a pomocník místo nosičů (wagons.md – Obchod)', () => {
+    const p = tradePreview(neighbour({ carts: ['two-wheel'] }), { grain: 400 }, {});
+    expect(p.carts).toBe(1);
+    expect(p.porters).toBe(2);
+    expect(p.manDays).toBe(2 * 5);
+    expect(tradePreview(neighbour(), { grain: 400 }, {}).porters).toBe(16);
+  });
+
   it('bilance, nosiči po 25 kg a práce nosiči × dny', () => {
     const p = tradePreview(neighbour(), { grain: 100 }, { pottery: 25 });
     expect(p.credit).toBe(100);

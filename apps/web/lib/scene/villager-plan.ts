@@ -114,6 +114,7 @@ const WOMEN: Record<LaborActivity, number> = {
   plant: 0.4,
   domestic: 0.85,
   trade: 0.3,
+  haul: 0.1,
   idle: 0.5,
 };
 /**
@@ -882,6 +883,12 @@ function placer(ctx: Context, share: SceneLaborShare, count: number): Placer {
     case 'trade':
       // nosiči výpravy k sousedovi po zemské stezce (trade.md)
       return t.kind === 'trail' ? porters(ctx, t.id) : none;
+    case 'haul':
+      // honák a nakladač s vozem (wagons.md – Vůz): vozy scéna zatím nekreslí (fáze 3) – posádka
+      // vozu stojí u svozu jako nosiči snopů, sekáči na louce a dřevorubci u stromů
+      if (t.kind === 'field') return carriers(ctx, share, t.id);
+      if (t.kind === 'meadow') return meadowRows(ctx, t.cells, count);
+      return t.kind === 'trees' ? felling(ctx, t.ids, false) : none;
     case 'idle':
       return idlers(ctx);
   }

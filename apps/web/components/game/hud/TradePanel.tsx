@@ -316,6 +316,14 @@ export function NeighbourTrade({
             {preview.porters}
           </span>
         </Tooltip>
+        {preview.carts > 0 && (
+          <Tooltip content="Vozy – náklad místo nosičů" placement="above">
+            <span data-testid="trade-carts" className="flex items-center gap-1" tabIndex={0}>
+              <img src="/icons/resources/cart.png" alt="" width={18} height={18} />
+              {preview.carts}
+            </span>
+          </Tooltip>
+        )}
         <Tooltip content="Dny cesty tam a zpět" placement="above">
           <span data-testid="trade-days" className="flex items-center gap-1" tabIndex={0}>
             <img src="/icons/resources/date.png" alt="" width={18} height={18} />

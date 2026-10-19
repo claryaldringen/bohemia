@@ -2,17 +2,31 @@
 // milíř uhlíře, odkud stoupá dým z pece, výhně a milíře a kde v dílně stojí řemeslníci. Souřadnice
 // modelu jako `localToWorld` (x napříč, z k vchodu); modely z tools/blender/crafts.py (tam
 // Blender: x napříč, y podél hřebene s vchodem v −y – ve scéně x → −x, y → −z).
-import { MILIR, milirPosition, type Craft, type Position } from '@bohemia/game';
+import { MILIR, milirPosition, type Craft, type DwellingType, type Position } from '@bohemia/game';
 import type { CraftKind } from './village-construction';
 import { localToWorld, type HideShape, type Point } from './village-layout';
 
-/** Model dílny podle řemesla – public/models/crafts/<model>.glb a díly staveniště „<model>-…“. */
+/**
+ * Model dílny podle řemesla – public/models/crafts/<model>.glb a díly staveniště „<model>-…“.
+ * Řemeslo bez vlastního modelu (null) se kreslí i staví jako své obydlí: tesař (wagons.md) zatím
+ * jako polozemnice – jeho dílnu připravuje feat/wagon-assets; až model bude, stačí ho přidat do
+ * `CraftKind` a sem.
+ */
 export type WorkshopModel = Exclude<CraftKind, 'milir'>;
-export const CRAFT_MODEL: Readonly<Record<Craft, WorkshopModel>> = {
+export const CRAFT_MODEL: Readonly<Record<Craft, WorkshopModel | null>> = {
   potter: 'hrncir',
   smith: 'kovar',
   burner: 'uhlir',
+  carpenter: null,
 };
+
+/** Model, kterým se obydlí kreslí a staví: model dílny, nebo (bez řemesla či modelu) obydlí. */
+export function workshopModelOf(
+  craft: Craft | undefined | null,
+  type: DwellingType,
+): WorkshopModel | DwellingType {
+  return (craft ? CRAFT_MODEL[craft] : null) ?? type;
+}
 
 /** Přední okraj přístřešku hrnčíře a kováře (m od středu, crafts.py PZ_O + PORCH). */
 export const PORCH_FRONT_M = 2.1 + 3.6;
@@ -86,6 +100,8 @@ export interface WorkshopVent {
  * v milíři – dým z komína navrchu kupy.
  */
 export function workshopVents(craft: Craft, position: Position): WorkshopVent[] {
+  // tesař netopí (wagons.md)
+  if (craft === 'carpenter') return [];
   if (craft === 'burner') {
     const c = milirPlace(position);
     return [{ kind: 'milir', x: c.x, z: c.z, y: MILIR_SHAPE_M.height + 0.1 }];
@@ -124,19 +140,27 @@ export function craftSpots(craft: Craft, position: Position): CraftSpot[] {
   }
   // [x, z, směr x, směr z, klip] v souřadnicích modelu
   const local: [number, number, number, number, CraftSpot['clip']][] =
-    craft === 'potter'
+    craft === 'carpenter'
       ? [
-          [0.55, 5.05, 0, -1, 'weed'], // u hrnčířského kruhu (0,55; 4,45)
-          [-0.72, 5.95, 0, -1, 'build'], // u topeniště pece
-          [1.85, 4.3, -1, 0, 'idle'], // u police se sušícími se hrnci
-          [-1.9, 5.3, 1, 0, 'build'],
+          // tesař (wagons.md) – před domem, kde bude přístřešek s kozlíky a rozdělaným vozem
+          [0.6, 4.6, 0, -1, 'build'],
+          [-1.2, 5.2, 1, 0, 'build'],
+          [1.8, 5.4, -1, 0, 'weed'],
+          [-0.4, 6.0, 0, -1, 'idle'],
         ]
-      : [
-          [0.35, 5.3, 0, -1, 'build'], // u kovadliny (0,35; 4,7)
-          [-1.75, 3.8, 1, 0, 'weed'], // u měchů za výhní
-          [1.75, 5.2, -1, 0, 'idle'], // u koryta s vodou
-          [-0.85, 5.95, 0, -1, 'build'],
-        ];
+      : craft === 'potter'
+        ? [
+            [0.55, 5.05, 0, -1, 'weed'], // u hrnčířského kruhu (0,55; 4,45)
+            [-0.72, 5.95, 0, -1, 'build'], // u topeniště pece
+            [1.85, 4.3, -1, 0, 'idle'], // u police se sušícími se hrnci
+            [-1.9, 5.3, 1, 0, 'build'],
+          ]
+        : [
+            [0.35, 5.3, 0, -1, 'build'], // u kovadliny (0,35; 4,7)
+            [-1.75, 3.8, 1, 0, 'weed'], // u měchů za výhní
+            [1.75, 5.2, -1, 0, 'idle'], // u koryta s vodou
+            [-0.85, 5.95, 0, -1, 'build'],
+          ];
   const c = Math.cos(position.rotation);
   const s = Math.sin(position.rotation);
   return local.map(([lx, lz, dx, dz, clip]) => {

@@ -537,3 +537,45 @@ describe('SelectionPanel – rozvržení', () => {
     expect(html).toMatch(/class="flex shrink-0 items-center gap-1 whitespace-nowrap"/);
   });
 });
+
+describe('SelectionPanel – dílna tesaře (wagons.md – Tesař)', () => {
+  const carpenter = (
+    activity: 'producing' | 'helping',
+    making: { kind: 'two-wheel'; progress: number } | null,
+  ): SelectionDetails =>
+    dwelling({
+      type: 'polozemnice',
+      workshop: {
+        craft: 'carpenter',
+        activity,
+        laborPerDay: 1.6,
+        outputPerDayKg: 3.2,
+        stockKg: 46,
+        coverage: 0.72,
+        kiln: null,
+        toPlant: 0,
+        carpenter: {
+          carts: [{ id: 1, kind: 'two-wheel', condition: 0.6, away: true }],
+          cartTargets: { 'two-wheel': 2, 'four-wheel': 0 },
+          making,
+          woodworkCoverage: 0.45,
+        },
+      },
+    });
+
+  it('vyrábí vůz – průběh, vozy proti potřebě, dřevěné nářadí a pokrytí staveb', () => {
+    const html = render(carpenter('producing', { kind: 'two-wheel', progress: 0.35 }));
+    expect(html).toContain('/icons/build/tesar.png');
+    expect(html).toMatch(/data-testid="selection-workshop-activity"[^>]*>[^<]*<span[^>]*>35/);
+    expect(html).toMatch(/data-testid="selection-workshop-carts-two-wheel"[^>]*>1\/2</);
+    expect(html).not.toContain('selection-workshop-carts-four-wheel');
+    expect(html).toMatch(/data-testid="selection-workshop-woodwork"[^>]*>45/);
+    expect(html).toMatch(/data-testid="selection-workshop-stock"[^>]*>46</);
+  });
+
+  it('pomáhá se stavbami – pokrytí dřevěné práce', () => {
+    const html = render(carpenter('helping', null));
+    expect(html).toContain('data-activity="helping"');
+    expect(html).toContain('Pomáhá se stavbami');
+  });
+});

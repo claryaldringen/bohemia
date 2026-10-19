@@ -1721,3 +1721,86 @@ describe('buildVillageView – odchod do nové vsi (migration.md – fáze 3 a 4
     expect(placement.foreign?.cells.length).toBeGreaterThan(0);
   });
 });
+
+describe('buildVillageView – tesař a vozy (wagons.md)', () => {
+  /** Ves s tesařem (id 50) a rozdělaným dvoukolákem, ohradou se spřežením a vozem na svozu. */
+  const carpenterVillage = (): VillageState => {
+    const s = settled();
+    s.dwellings.push({
+      id: 50,
+      type: 'polozemnice',
+      builtDay: DAY,
+      condition: 1,
+      position: { x: 40, z: 0, rotation: 0 },
+      workshop: {
+        craft: 'carpenter',
+        felling: null,
+        fuelKg: 0,
+        activity: 'producing',
+        cart: { kind: 'two-wheel', done: 10 },
+        woodworkCoverage: 0.5,
+      },
+    });
+    s.people.push({ id: 90, bornDay: DAY - 9000, dwellingId: 50 });
+    s.pens = [
+      {
+        id: 900,
+        cell: { x: 3, y: 4 },
+        x: 50,
+        z: 60,
+        builtDay: DAY - 800,
+        team: { readyDay: DAY - 10 },
+        training: null,
+      },
+    ];
+    s.carts = [{ id: 1, kind: 'two-wheel', builtDay: DAY - 365 }];
+    s.crafts = { charcoalKg: 0, toolsKg: 0, potteryKg: 0, woodToolsKg: 12 };
+    s.labor = {
+      day: DAY,
+      shares: [{ activity: 'haul', target: { kind: 'field', id: 1 }, manDays: 2, carts: 1 }],
+    };
+    return s;
+  };
+
+  it('dílna tesaře: rozdělaný vůz, pokrytí staveb, vozy a dřevěné nářadí v řemeslech', () => {
+    const view = buildVillageView(record(carpenterVillage()), landscape, DAY);
+    const workshop = view.crafts.workshops.find((w) => w.dwellingId === 50)!;
+    expect(workshop.craft).toBe('carpenter');
+    expect(workshop.carpenter).toEqual({
+      cart: { kind: 'two-wheel', progress: 0.4 },
+      timber: 0,
+      woodworkCoverage: 0.5,
+    });
+    expect(view.crafts.present).toBe(true);
+    expect(view.crafts.stocks.woodToolsKg).toBe(12);
+    expect(view.crafts.carts).toEqual([{ id: 1, kind: 'two-wheel', condition: 0.9, away: false }]);
+    expect(view.crafts.cartTargets).toEqual({ 'two-wheel': 1, 'four-wheel': 0 });
+    // tesař netopí – dílna nekouří; model zatím polozemnice (scéna)
+    expect(view.scene.dwellings.find((d) => d.id === 50)).toMatchObject({ craft: 'carpenter' });
+    expect(view.scene.dwellings.find((d) => d.id === 50)?.working).toBeUndefined();
+  });
+
+  it('vozy ve scéně stojí u ohrady se spřežením a nesou cíl svozu dne', () => {
+    const view = buildVillageView(record(carpenterVillage()), landscape, DAY);
+    expect(view.scene.carts).toEqual([
+      {
+        id: 1,
+        kind: 'two-wheel',
+        x: 50,
+        z: 60,
+        condition: 0.9,
+        job: { activity: 'haul', target: { kind: 'field', id: 1 } },
+      },
+    ]);
+    expect(buildVillageView(record(settled()), landscape, DAY).scene.carts).toBeUndefined();
+  });
+
+  it('kronika – tesař vyrobil vůz, vůz dosloužil', () => {
+    expect(chronicleText({ day: DAY, kind: 'cart-made', cart: 'two-wheel' }, 'Libice')).toBe(
+      'Tesař vyrobil dvoukolák.',
+    );
+    expect(chronicleText({ day: DAY, kind: 'cart-worn-out', cart: 'four-wheel' }, 'Libice')).toBe(
+      'Čtyřkolák dosloužil – tesař vyrobí nový.',
+    );
+  });
+});

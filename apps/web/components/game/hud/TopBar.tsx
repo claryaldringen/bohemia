@@ -130,9 +130,27 @@ export function showsHay(view: Pick<VillageView, 'hayKg' | 'pens'>): boolean {
   return Math.round(view.hayKg) > 0 || view.pens.some((pen) => pen.built);
 }
 
+/** Dřevěné nářadí v horní liště – ves s tesařem nebo s nářadím v zásobě (wagons.md – Tesař). */
+export function showsWoodTools(crafts: VillageView['crafts']): boolean {
+  return (
+    Math.round(crafts.stocks.woodToolsKg ?? 0) > 0 ||
+    crafts.workshops.some((w) => w.craft === 'carpenter')
+  );
+}
+
+/** Popisek vozů v horní liště: kolik dvoukoláků a čtyřkoláků, kolik na cestě (wagons.md). */
+export function cartsLabel(carts: VillageView['crafts']['carts']): string {
+  const two = carts.filter((c) => c.kind === 'two-wheel').length;
+  const four = carts.length - two;
+  const away = carts.filter((c) => c.away).length;
+  const parts = [`dvoukoláky ${two}`, ...(four > 0 ? [`čtyřkoláky ${four}`] : [])];
+  return `Vozy – ${parts.join(', ')}${away > 0 ? ` (na cestě ${away})` : ''}`;
+}
+
 /**
  * Zásoby výrobků řemeslníků (crafts.md) – uhlí, nástroje a keramika v kg; v popisku nástrojů
- * a keramiky i pokrytí potřeby vsi (meze produktivity).
+ * a keramiky i pokrytí potřeby vsi (meze produktivity). Dřevěné nářadí a vozy od tesaře
+ * (wagons.md) – jen když ves tesaře nebo vozy má.
  */
 function CraftStocks({ crafts }: { crafts: VillageView['crafts'] }): ReactElement {
   const { stocks, coverage } = crafts;
@@ -155,6 +173,20 @@ function CraftStocks({ crafts }: { crafts: VillageView['crafts'] }): ReactElemen
       >
         {formatInteger(stocks.potteryKg)}
       </Resource>
+      {showsWoodTools(crafts) && (
+        <Resource
+          icon="wood-tools"
+          name={`Dřevěné nářadí (kg) – pokrytí potřeby ${formatPercent(coverage.woodTools ?? 0)}`}
+          testId="village-wood-tools"
+        >
+          {formatInteger(stocks.woodToolsKg ?? 0)}
+        </Resource>
+      )}
+      {crafts.carts.length > 0 && (
+        <Resource icon="cart" name={cartsLabel(crafts.carts)} testId="village-carts">
+          {crafts.carts.length}
+        </Resource>
+      )}
     </>
   );
 }
