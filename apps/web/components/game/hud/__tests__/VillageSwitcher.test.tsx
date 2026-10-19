@@ -56,4 +56,19 @@ describe('VillageList', () => {
     expect(html).toMatch(/Budeč<\/span>.*>4</);
     expect(html).toMatch(/opacity-50[^>]*><span[^>]*>Levý Hradec/);
   });
+
+  it('seznam je široký jako nejdelší jméno – jména se nezalamují ani zbytečně nezkracují', () => {
+    const html = renderToStaticMarkup(
+      <VillageList villages={villages} currentId="v-2" onSelect={() => undefined} />,
+    );
+    const list = /<ul[^>]*data-testid="village-list"[^>]*class="([^"]*)"/.exec(html)?.[1] ?? '';
+    expect(list.split(' ')).toEqual(
+      expect.arrayContaining([
+        'w-max',
+        'min-w-56',
+        'max-w-[calc(100vw-1rem)]',
+        'whitespace-nowrap',
+      ]),
+    );
+  });
 });

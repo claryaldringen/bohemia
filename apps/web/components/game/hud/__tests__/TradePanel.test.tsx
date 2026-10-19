@@ -56,6 +56,19 @@ describe('panel obchodu', () => {
     expect(button(html, 'trade-send')).toContain('disabled=""');
   });
 
+  it('nic se nezalamuje – jména sousedů, množství u posuvníků i řádek bilance', () => {
+    const html = renderToStaticMarkup(
+      <TradePanel
+        neighbours={[neighbour({ name: 'Stará Boleslav' }), neighbour({ direction: 'E' })]}
+      />,
+    );
+    expect(html).toMatch(/<button[^>]*data-testid="neighbour-S"[^>]*class="[^"]*whitespace-nowrap/);
+    expect(html).toMatch(
+      /class="min-w-16 text-right text-xs whitespace-nowrap tabular-nums">0\/900</,
+    );
+    expect(html).toMatch(/class="flex items-center gap-3 text-sm whitespace-nowrap tabular-nums"/);
+  });
+
   it('výhodná výměna jde poslat, nevýhodná zašedlá s důvodem červeně', () => {
     const fair = renderToStaticMarkup(
       <NeighbourTrade

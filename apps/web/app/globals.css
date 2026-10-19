@@ -102,6 +102,81 @@
     outline-offset: 2px;
   }
 
+  /*
+   * Panel výběru dole uprostřed roste s obsahem (šířka i výška). Stojí na středu okna mezi
+   * minimapou vlevo (212 px) a mřížkou staveb vpravo (262 px) – smí být nejvýš o dvě širší strany
+   * (mřížka + odsazení a mezera = 17,5rem) užší než okno a nejvýš 70 % okna; širší obsah se
+   * zalomí po celých položkách. Na úzkém okně, kde se mezi ně nevejde ani nejmenší panel (20rem),
+   * stojí nad nimi přes celou šířku. Svislý posuv až nakonec, když obsah přeroste výšku okna
+   * (`data-scroll` – posuv ořízne popisky a nabídky nad panelem, proto jen tehdy).
+   */
+  .hud-selection {
+    bottom: 0.5rem;
+    max-width: min(70vw, calc(100vw - 35rem));
+    max-height: calc(100dvh - 4rem);
+  }
+  @media (width < 55rem) {
+    .hud-selection {
+      bottom: 14.5rem;
+      max-width: calc(100vw - 1rem);
+      max-height: calc(100dvh - 18.5rem);
+    }
+  }
+  .hud-selection[data-scroll] {
+    overflow-y: auto;
+  }
+
+  /* Údaje a příkazy panelu výběru vedle sebe, příkazy vpravo za čarou (jako v 0 A.D.). Na okně
+     55–72rem je panel nejvýš ~37rem široký a vedle sebe by se údaje tlačily – příkazy jdou pod
+     ně (čára nad nimi) a tlačítka do řádku. */
+  .hud-split {
+    display: flex;
+    gap: 0.75rem;
+    min-width: 0;
+  }
+  .hud-commands {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0.375rem;
+    border-left: 1px solid #5c4526;
+    padding-left: 0.75rem;
+  }
+  .hud-commands[data-row] {
+    flex-direction: row;
+    align-items: center;
+  }
+  @media (55rem <= width < 72rem) {
+    .hud-split {
+      flex-direction: column;
+      gap: 0.375rem;
+    }
+    .hud-commands {
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 0.375rem 0.75rem;
+      border-top: 1px solid #5c4526;
+      border-left: 0;
+      padding-top: 0.375rem;
+      padding-left: 0;
+    }
+  }
+
+  /* Rozbalená nabídka panelu výběru (růžice stezek a odchodu, obchod) – nad panelem u pravého
+     okraje, tedy nad příkazy; panel se jejím otevřením nezvětší ani neposune. */
+  .hud-popup {
+    position: absolute;
+    right: 0;
+    bottom: 100%;
+    z-index: 30;
+    width: max-content;
+    margin-bottom: 0.5rem;
+  }
+
   .hud-tooltip {
     color: #ecdfc4;
     background: rgb(22 16 11 / 0.96);

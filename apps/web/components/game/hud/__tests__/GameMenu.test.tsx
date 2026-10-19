@@ -61,6 +61,9 @@ describe('GameMenuPanel', () => {
     expect(html).toContain(RESTART_WARNING);
     expect(RESTART_WARNING).toBe('Ves i rod zaniknou, začneš v\u00a0nové krajině.');
     expect(html).toContain('aria-describedby="game-menu-warning"');
+    // varování na jeden řádek – panel se kvůli němu rozšíří (w-max), nezalomí se
+    expect(html).toMatch(/<p id="game-menu-warning"[^>]*class="[^"]*whitespace-nowrap/);
+    expect(html).toMatch(/data-testid="game-menu"[^>]*class="[^"]*w-max/);
     expect(buttons(html)).toEqual([
       { text: 'Začít znovu', disabled: false },
       { text: 'Zrušit', disabled: false },

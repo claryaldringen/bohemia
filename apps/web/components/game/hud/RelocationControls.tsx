@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, type ReactElement } from 'react';
+import { useRef, useState, type ReactElement } from 'react';
 import type { BuildableDwellingType, Direction8 } from '@bohemia/game';
+import { useDismiss } from '@/hooks/use-dismiss';
 import type { LeaveDirection, VillageJourneyView } from '@/lib/departure-view';
 import { RELOCATION_TYPES } from '@/lib/relocation-view';
 import type { SelectionLeave } from '@/lib/selection-details';
@@ -232,8 +233,9 @@ export function LeaveCompass({
 }
 
 /**
- * Tlačítko Odejít (migration.md – fáze 3 a 4): otevře růžici odchodu; když nikdo z vybraných
- * obydlí odejít nemůže (staví si nový dům, ves je na cestě…), zašedlé s důvodem.
+ * Tlačítko Odejít (migration.md – fáze 3 a 4): otevře růžici odchodu nad panelem výběru
+ * (`hud-popup` – panel se nezvětší, stisk myši mimo ni ji zavře); když nikdo z vybraných obydlí
+ * odejít nemůže (staví si nový dům, ves je na cestě…), zašedlé s důvodem.
  */
 export function LeaveControls({
   leave,
@@ -243,8 +245,10 @@ export function LeaveControls({
   onLeave?: (target: 'here' | Direction8, households: readonly number[]) => void;
 }): ReactElement {
   const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  useDismiss(open, rootRef, () => setOpen(false));
   return (
-    <div className="flex items-center gap-2">
+    <div ref={rootRef} className="flex items-center gap-2">
       <Tooltip
         content={
           <span className="block">
@@ -272,17 +276,19 @@ export function LeaveControls({
         </button>
       </Tooltip>
       {open && leave && (
-        <LeaveCompass
-          leave={leave}
-          onLeave={
-            onLeave
-              ? (target, households) => {
-                  setOpen(false);
-                  onLeave(target, households);
-                }
-              : undefined
-          }
-        />
+        <div className="hud-panel hud-popup p-2" data-hud-block>
+          <LeaveCompass
+            leave={leave}
+            onLeave={
+              onLeave
+                ? (target, households) => {
+                    setOpen(false);
+                    onLeave(target, households);
+                  }
+                : undefined
+            }
+          />
+        </div>
       )}
     </div>
   );

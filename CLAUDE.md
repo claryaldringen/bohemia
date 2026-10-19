@@ -1008,7 +1008,17 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   a do krajiny nedojde; po konci hry se neotevře; logika kláves v `lib/game-menu.ts`), `Minimap` (vlevo dole, `lib/minimap.ts`,
   klik / tažení přesune pohled; krajina a ves se kreslí jednou do vrstvy v rozlišení plátna
   – `drawMinimapVillage` – a při pohybu kamery se přes ni kreslí jen záběr – `drawMinimapView`), `SelectionPanel` (dole uprostřed, jen při výběru,
-  `lib/selection-details.ts`; u obydlí a víc vybraných obydlí – počet domácností a lidí –
+  `lib/selection-details.ts`; **roste s obsahem** (Martin 19. 10. 2026 – text se nesmí zalamovat
+  ani být nahňácaný): `w-max` a `whitespace-nowrap`, meze v `hud-selection` (globals.css – na
+  středu mezi minimapou a mřížkou staveb, nejvýš 70 % okna, širší obsah se zalomí po celých
+  položkách – řádky `ROW` s `flex-wrap`; na okně pod 55rem stojí nad nimi, svislý posuv
+  `useOverflowScroll` až když přeroste výšku okna – ořízl by popisky); příkazy (dvorec, Přestěhovat,
+  Odejít, vylepšení cesty) vpravo za čarou – `Commands`, `hud-split` / `hud-commands`, na okně
+  55–72rem pod údaji; rozbalené nabídky (růžice stezek a odchodu, obchod) nad panelem u pravého
+  okraje – `hud-popup`, zavře je stisk myši mimo ně (`hooks/use-dismiss.ts`); popisky (`Tooltip`)
+  se zalomit smí – `whitespace-normal`; náhled bez hry s nejbohatšími daty:
+  http://localhost:3010/dev/panels (`?panel=dvorec`, `ohrada`, `pole`… – `app/dev/panels/dev-panels.ts`,
+  i seznam vsí a nabídka hry); u obydlí a víc vybraných obydlí – počet domácností a lidí –
   tlačítka Přestěhovat po typu nového domu a Odejít – růžice odchodu `LeaveCompass`: uprostřed
   nová ves na téže mapě (umístění první zemnice nejméně 300 m od staveb všech vsí mapy, pak se
   rozhraní přepne), kolem 8 směrů nové mapy (dny cesty, lidé a jídlo v popisku, směr s vlastní

@@ -139,4 +139,13 @@ describe('SelectionPanel – pevná cesta', () => {
     expect(html).toContain('data-testid="selection-apples-waits"');
     expect(plantButton(html)).toContain('disabled=""');
   });
+
+  it('tlačítka vylepšení a jabloní jsou vpravo za čarou vedle sebe, údaje vlevo', () => {
+    const html = render(road());
+    const commands = html.indexOf('data-testid="selection-commands" data-row="true"');
+    expect(commands).toBeGreaterThan(-1);
+    expect(html.indexOf('data-testid="selection-length"')).toBeLessThan(commands);
+    expect(html.indexOf('data-testid="road-upgrade-improved"')).toBeGreaterThan(commands);
+    expect(html.indexOf('data-testid="road-plant-apples"')).toBeGreaterThan(commands);
+  });
 });
