@@ -133,6 +133,8 @@ export class VillagePaths {
   private village: SceneVillage | null = null;
   private key = '';
   private timer: ReturnType<typeof setTimeout> | null = null;
+  /** Odložené obtisky nové sítě (`recompute` – síť a obtisky ve dvou úlohách). */
+  private showTimer: ReturnType<typeof setTimeout> | null = null;
   /** Terén okna s překážkami krajiny – přepočítá se jen s novým oknem nebo změnou překážek. */
   private obstacleTerrain: { key: string; terrain: PathTerrain } | null = null;
   private network: PathNetwork | null = null;
@@ -194,7 +196,7 @@ export class VillagePaths {
     if (this.timer === null) return;
     clearTimeout(this.timer);
     this.timer = null;
-    this.recompute();
+    this.recompute(false);
   }
 
   /** Trasy po pěšinách a pochůzky domácností pro postavy; bez sítě null. */
@@ -231,6 +233,7 @@ export class VillagePaths {
   dispose(): void {
     this.disposed = true;
     if (this.timer !== null) clearTimeout(this.timer);
+    if (this.showTimer !== null) clearTimeout(this.showTimer);
     for (const mesh of [...this.meshes, ...this.roadMeshes]) mesh.dispose();
     this.meshes = [];
     this.roadMeshes = [];
@@ -294,7 +297,7 @@ export class VillagePaths {
     }
   }
 
-  private recompute(): void {
+  private recompute(defer = true): void {
     const village = this.village;
     if (!village || this.disposed) return;
     // okno i s nejbližší vodou – pěšina k potoku je vidět vždy (paths.md – Pochůzky pro vodu)
@@ -334,14 +337,26 @@ export class VillagePaths {
       terrain,
       tree: (id) => obstaclePosition(layer, id),
     });
-    this.show(network, {
+    const stats = {
       ms: performance.now() - t0,
       terrainMs,
       cells: terrain.width * terrain.height,
       trips: network.trips,
       lines: network.lines.length,
       ...counts,
-    });
+    };
+    if (this.showTimer !== null) clearTimeout(this.showTimer);
+    this.showTimer = null;
+    if (!defer) {
+      this.show(network, stats);
+      return;
+    }
+    // obtisky pěšin (a pak pás pod nimi v polích) až v další úloze – výpočet sítě a stavba
+    // obtisků jsou dvě kratší úlohy, mezi které se vejde snímek pohybu kamery
+    this.showTimer = setTimeout(() => {
+      this.showTimer = null;
+      if (!this.disposed) this.show(network, stats);
+    }, 0);
   }
 
   private show(network: PathNetwork | null, stats: PathStats): void {
