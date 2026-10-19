@@ -1,0 +1,136 @@
+// Celá dnešní orba za herní den (oxen.md – Orba za herní den; Martin, 19. 10. 2026: „Vím, že to
+// bude divně zrychlené, ale až bude probíhat orba pomocí spřežení, potřeboval bych, aby spřežení
+// projelo opravdu všechna obdělávaná políčka a nechávalo za sebou brázdu.“) – LADICÍ: spřežení
+// projede za herní den (≈ 86 s) všechny díly a pruhy, přes které dnes orba postupuje, zrychleně;
+// zoraná plocha přibývá za rádlem. Čisté funkce vsi pro scénu, bez Babylonu: pruhy dnešní orby
+// po dílech (`dayStints`), rozdělení mezi spřežení (`splitStints`) a pole na začátku dne
+// (`startOfDayVillage` – dnešní pruhy ještě nezorané, brázdu kreslí scéna podle trasy –
+// plough-team.ts, `routeFurrows`). Vypnutí: PLOUGH_DAY_DEBUG = false – spřežení zase orá jen
+// pruh u čela dne skutečným tempem (plough-front.ts).
+import { dateOfDayIndex } from '@bohemia/game';
+import type { FieldLook, SceneFieldPart, SceneVillage } from '../village-view';
+import { rowDirection } from './field-cells';
+import { fieldPartViews, villageCenter, workSteps } from './field-look';
+import { fieldEdge, ploughCandidate, ploughedTo, stripField } from './plough-front';
+import type { RouteStint } from './plough-team';
+
+/**
+ * LADICÍ přepínač (Martin, 19. 10. 2026): true = spřežení projede celou dnešní orbu za herní den
+ * (zrychleně) a nechává za sebou brázdu; false = skutečné tempo volů, jen pruh u čela dne.
+ */
+export const PLOUGH_DAY_DEBUG = true;
+
+/** Pruh dnešní orby dílu: kudy dnes spřežení prošlo (0–1 dílu, po pruzích obtisku). */
+export interface DayStint extends RouteStint {
+  partId: number;
+  /** Kolik dílu bylo zoráno ráno a večer (po pruzích obtisku – `workSteps`). */
+  from: number;
+  to: number;
+}
+
+/**
+ * Pruhy dnešní orby v pořadí práce: z podílů práce `plough` (díly `parts` a u každého, kolik orby
+ * bylo hotovo ráno a večer – `progress` od herního jádra; bez něj od začátku dílu k čáře orby).
+ * Ráno i večer po pruzích obtisku (`workSteps`), ať brázda na konci dne přesně sedí s polem
+ * dalšího dne. Díl, na kterém se už i selo (vzhled jiný než zoraný), se neprojíždí.
+ */
+export function dayStints(
+  village: Pick<SceneVillage, 'labor' | 'fields' | 'dwellings'>,
+): DayStint[] {
+  const day = village.labor?.day ?? 0;
+  const dayOfYear = dateOfDayIndex(day).dayOfYear;
+  const stints: DayStint[] = [];
+  for (const share of village.labor?.shares ?? []) {
+    if (share.activity !== 'plough' || share.manDays <= 0 || share.target.kind !== 'field') {
+      continue;
+    }
+    const fieldId = share.target.id;
+    const field = village.fields.find((f) => f.id === fieldId);
+    if (!field || !share.parts) continue;
+    const views = new Map(
+      fieldPartViews(field, { dayOfYear, village }).flatMap((v) =>
+        v.part.id === undefined ? [] : [[v.part.id, v] as const],
+      ),
+    );
+    const rows = rowDirection(field.parts);
+    const center = villageCenter(village, field.parts);
+    const edge = fieldEdge(village, field);
+    share.parts.forEach((id, k) => {
+      const view = views.get(id);
+      if (!view || view.look !== 'plowed') return;
+      const [rawFrom, rawTo] = share.progress?.[k] ?? [0, ploughedTo(view)];
+      const from = workSteps(rawFrom);
+      const to = rawTo >= 1 - 1e-9 ? 1 : workSteps(rawTo);
+      if (to - from < 1e-6) return;
+      const candidate = ploughCandidate(fieldId, view, rows, center, edge);
+      const size = view.part.size;
+      stints.push({
+        fieldId,
+        partId: id,
+        field: stripField(candidate, from * size, to * size),
+        from,
+        to,
+      });
+    });
+  }
+  return stints;
+}
+
+/**
+ * Rozdělí pruhy mezi `teams` spřežení: každé dostane souvislý kus fronty v pořadí práce, kusy
+ * zhruba stejně velké (podle plochy pruhů – pruh patří kusu, do kterého padne jeho střed). Kusy
+ * bez pruhu odpadnou – zbylá spřežení zůstanou v ohradě.
+ */
+export function splitStints<T extends { field: { size: number; from?: number; to?: number } }>(
+  stints: readonly T[],
+  teams: number,
+): T[][] {
+  const n = Math.max(0, Math.min(teams, stints.length));
+  if (n === 0) return [];
+  const area = stints.map((s) => s.field.size * ((s.field.to ?? 0) - (s.field.from ?? 0)));
+  const total = Math.max(
+    1e-9,
+    area.reduce((sum, a) => sum + a, 0),
+  );
+  const chunks: T[][] = Array.from({ length: n }, () => []);
+  let acc = 0;
+  stints.forEach((stint, i) => {
+    const mid = acc + area[i]! / 2;
+    acc += area[i]!;
+    chunks[Math.min(n - 1, Math.floor((mid / total) * n))]!.push(stint);
+  });
+  return chunks.filter((c) => c.length > 0);
+}
+
+/**
+ * Pole na začátku dne: díly dnešní orby mají zoranou jen ranní část (`from`), zbytek vzhled před
+ * orbou (`before` od herního jádra, jinak strniště) – zbytek dnešní orby přibývá brázdou za
+ * rádlem (plough-team.ts – `routeFurrows`).
+ */
+export function startOfDayVillage<V extends Pick<SceneVillage, 'fields'>>(
+  village: V,
+  stints: readonly DayStint[],
+): V {
+  if (stints.length === 0) return village;
+  const byPart = new Map(stints.map((s) => [s.partId, s]));
+  return {
+    ...village,
+    fields: village.fields.map((field) => {
+      if (!field.parts.some((p) => p.id !== undefined && byPart.has(p.id))) return field;
+      return {
+        ...field,
+        parts: field.parts.map((part): SceneFieldPart => {
+          const stint = part.id === undefined ? undefined : byPart.get(part.id);
+          if (!stint) return part;
+          const before: FieldLook = part.before ?? 'stubble';
+          const { work: _work, before: _before, ...rest } = part;
+          void _work;
+          void _before;
+          return stint.from > 0
+            ? { ...rest, look: 'plowed', work: stint.from, before }
+            : { ...rest, look: before };
+        }),
+      };
+    }),
+  };
+}

@@ -789,7 +789,16 @@ export type LaborTarget =
    * Pole (id) – osévané díly plánu, zakládané díly. U polních prací `parts` = díly pole, přes
    * které dnes práce postoupila (čelo práce, v pořadí postupu); bez nich celé pole.
    */
-  | { kind: 'field'; id: number; parts?: number[] }
+  | {
+      kind: 'field';
+      id: number;
+      parts?: number[];
+      /**
+       * U orby: kolik orby dílu bylo hotovo na začátku a na konci dne (0–1, ke každému dílu
+       * `parts`) – kudy dnes spřežení prošlo (scéna projede celou dnešní orbu – oxen.md).
+       */
+      progress?: [number, number][];
+    }
   /** Hotové obydlí (id) – opravy, přestavba, práce řemeslníka v dílně. */
   | { kind: 'dwelling'; id: number }
   /** Staveniště nového obydlí – id stavby. */

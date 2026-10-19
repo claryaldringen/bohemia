@@ -30,6 +30,9 @@ import {
   TEAM_SCALE,
   createTeamPose,
   pathAt,
+  ploughRoute,
+  routeFurrows,
+  routePose,
   teamPose,
   teamSpot,
   teamTrack,
@@ -40,7 +43,10 @@ import {
   type FigurePose,
   type GroundFn,
   type PathPoint,
+  type FurrowBand,
   type PloughPath,
+  type RouteStint,
+  type RouteTrack,
   type TeamPose,
   type TeamTrack,
 } from './plough-team';
@@ -60,6 +66,8 @@ const FROZEN_T = 17;
  * místo dojde (při omezeném pohybu, ve skryté záložce stojí rovnou na novém).
  */
 const LIVE_MS = 3000;
+/** Nejkratší doba (ms), za kterou spřežení projede trasu dne (plán přišel až těsně před koncem). */
+const MIN_ROUTE_MS = 5000;
 /** Krok (m), po kterém se dráhy projdou kvůli obalu spřežení. */
 const BOUNDS_STEP_M = 1;
 /** Kam spřežení od jha sahá (m, ve scéně) – rádlo a oráč za ním jedou po dráze. */
@@ -105,7 +113,10 @@ export interface BakedKind {
  * (skutečný čas, jako zvířata) – jen v záběru; `frozen` = omezený pohyb, stojí.
  */
 export class PloughTeams {
-  private tracks: TeamTrack[] = [];
+  /** Spřežení: smyčka na pruhu (`loop`), nebo trasa celé dnešní orby (`route` – ladicí). */
+  private tracks: ({ loop: TeamTrack } | { route: RouteTrack })[] = [];
+  /** Kdy se trasy dne naposledy nastavily – při omezeném pohybu stojí spřežení, kde v tu chvíli bylo. */
+  private frozenMs = 0;
   /** Kdy scéna naposledy posunula animaci (ms, epoch) – jestli animace běží. */
   private liveAt = -Infinity;
   private ox: BakedKind | null = null;
@@ -134,16 +145,63 @@ export class PloughTeams {
     const before = this.tracks;
     this.tracks = paths.map((path, i) => {
       const old = before[i];
-      if (!live || !old) return teamTrack(path);
-      return transitTrack(path, teamSpot(trackPose(old, t, probe, this.env.groundHeight)), t);
+      if (!live || !old || !('loop' in old)) return { loop: teamTrack(path) };
+      const spot = teamSpot(trackPose(old.loop, t, probe, this.env.groundHeight));
+      return { loop: transitTrack(path, spot, t) };
     });
-    while (this.poses.length < paths.length) this.poses.push(createTeamPose());
-    this.poses.length = paths.length;
-    if (paths.length > 0) void this.load();
+    this.applyTracks(nowMs, live);
+  }
+
+  /**
+   * Trasy celé dnešní orby (ladicí – oxen.md, Orba za herní den): `i`-té spřežení projede pruhy
+   * `teams[i]` v pořadí práce od okamžiku `nowMs` (nejdřív na začátku dne `window.startMs`) do
+   * konce herního dne `window.endMs` – zrychleně. Spřežení, které už ve scéně je a hýbe se,
+   * k první řadě dojde z místa, kde právě je. Vrátí trasy (pro brázdu – `furrows`).
+   */
+  setRoutes(
+    teams: readonly (readonly RouteStint[])[],
+    window: { startMs: number; endMs: number },
+    nowMs = Date.now(),
+  ): RouteTrack[] {
+    const live = nowMs - this.liveAt < LIVE_MS && this.count > 0;
+    const probe = createTeamPose();
+    const before = this.tracks;
+    const startMs = Math.max(window.startMs, nowMs);
+    const endMs = Math.max(window.endMs, startMs + MIN_ROUTE_MS);
+    this.tracks = teams.map((stints, i) => {
+      const old = before[i];
+      let from: { x: number; z: number } | null = null;
+      if (live && old) {
+        const pose =
+          'loop' in old
+            ? trackPose(old.loop, villagerSeconds(nowMs), probe, this.env.groundHeight)
+            : routePose(old.route, nowMs, probe, this.env.groundHeight);
+        from = { x: pose.yoke.x, z: pose.yoke.z };
+      }
+      return { route: { route: ploughRoute(stints, from), startMs, endMs } };
+    });
+    this.frozenMs = nowMs;
+    this.applyTracks(nowMs, live);
+    return this.tracks.flatMap((track) => ('route' in track ? [track.route] : []));
+  }
+
+  /** Brázdy všech spřežení na trasách dne v okamžiku `nowMs` (co je už zoráno). */
+  furrows(nowMs: number): FurrowBand[] {
+    return this.tracks.flatMap((track) =>
+      'route' in track ? routeFurrows(track.route, nowMs) : [],
+    );
+  }
+
+  /** Nové dráhy: buffery, obal a póza hned (při omezeném pohybu stálá). */
+  private applyTracks(nowMs: number, live: boolean): void {
+    const n = this.tracks.length;
+    while (this.poses.length < n) this.poses.push(createTeamPose());
+    this.poses.length = n;
+    if (n > 0) void this.load();
     this.allocate();
     this.updateBounds();
     // póza hned – při omezeném pohybu stálá na novém místě, jinak tam, kde spřežení právě je
-    if (this.count > 0) this.write(live ? t : FROZEN_T, !live);
+    if (this.count > 0) this.write(nowMs, !live);
   }
 
   /** Počet spřežení s načtenými modely (pro testy a měření). */
@@ -170,9 +228,7 @@ export class PloughTeams {
       const c = this.bounds.boundingSphere.centerWorld;
       if (Vector3.Distance(camera.globalPosition, c) > ANIMATE_RANGE_M) return false;
     }
-    // skutečný čas od stejného počátku jako lidé a zvířata (malá čísla – přesné siny)
-    const t = frozen ? FROZEN_T : villagerSeconds(nowMs);
-    this.write(t, frozen);
+    this.write(nowMs, frozen);
     return true;
   }
 
@@ -215,12 +271,13 @@ export class PloughTeams {
     };
     const at: PathPoint = { x: 0, z: 0, hx: 0, hz: 1 };
     for (const track of this.tracks) {
-      const { path, transit } = track;
+      const path = ('loop' in track ? track.loop.path : track.route.route) as PloughPath;
       const steps = Math.max(1, Math.ceil(path.length / BOUNDS_STEP_M));
       for (let i = 0; i <= steps; i++) {
-        pathAt(path, (i / steps) * path.length, at);
+        pathAt(path, Math.min(path.length - 1e-6, (i / steps) * path.length), at);
         extend(at.x, at.z);
       }
+      const transit = 'loop' in track ? track.loop.transit : null;
       if (transit) {
         extend(transit.from.x, transit.from.z);
         extend(transit.to.x, transit.to.z);
@@ -280,18 +337,23 @@ export class PloughTeams {
   }
 
   /**
-   * Zapíše pózy všech spřežení v čase `t` (s) do instancí. `frozen` = omezený pohyb: stálá póza
-   * na dráze (bez přechodu), nohy stojí.
+   * Zapíše pózy všech spřežení v okamžiku `nowMs` do instancí. `frozen` = omezený pohyb: stálá
+   * póza na dráze (bez přechodu, na trase dne tam, kde spřežení bylo při nastavení), nohy stojí.
    */
-  private write(t: number, frozen: boolean): void {
+  private write(nowMs: number, frozen: boolean): void {
     const ox = this.ox!;
     const man = this.man!;
+    // skutečný čas od stejného počátku jako lidé a zvířata (malá čísla – přesné siny)
+    const t = frozen ? FROZEN_T : villagerSeconds(nowMs);
     this.tracks.forEach((track, i) => {
       const out = this.poses[i]!;
       const ground = this.env.groundHeight;
-      const pose = frozen
-        ? teamPose(track.path, t, out, ground, track.offsetM)
-        : trackPose(track, t, out, ground);
+      const pose =
+        'route' in track
+          ? routePose(track.route, frozen ? this.frozenMs : nowMs, out, ground)
+          : frozen
+            ? teamPose(track.loop.path, t, out, ground, track.loop.offsetM)
+            : trackPose(track.loop, t, out, ground);
       pose.oxen.forEach((o, j) => {
         writeFigure(ox, i * 2 + j, o, TEAM_SCALE, 'walk', j * 0.37, frozen);
         this.writeShadow(i * 5 + j, o, SHADOW.ox);
@@ -409,7 +471,7 @@ export class PloughTeams {
       if (this.count > 0) {
         const nowMs = Date.now();
         const live = nowMs - this.liveAt < LIVE_MS;
-        this.write(live ? villagerSeconds(nowMs) : FROZEN_T, !live);
+        this.write(nowMs, !live);
         this.env.onLoaded();
       }
     })();

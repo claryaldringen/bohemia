@@ -8,6 +8,7 @@ import {
   type FieldPlants,
   type FieldTexture,
 } from './field-crops';
+import { emptyCanopy, fieldCanopy, mergeCanopies, type CanopyMesh } from './field-canopy';
 import type { PartView } from './field-look';
 import { hayPhase } from './hay-meadows';
 import { decalGrid, type DecalGrid } from './village-layout';
@@ -41,6 +42,8 @@ export interface FieldBlockContent {
   swaths: DecalGrid[];
   /** Rostliny po dílech (klíč políčka – `cellKey`). */
   plants: Map<string, FieldPlants>;
+  /** Koruna porostu zeleného a zralého obilí (field-canopy.ts). */
+  canopy: CanopyMesh;
 }
 
 /** Obtisky a rostliny celého pole. */
@@ -48,6 +51,7 @@ export interface FieldContent {
   layers: Map<string, DecalLayer>;
   swaths: DecalGrid[];
   plants: FieldPlants;
+  canopy: CanopyMesh;
 }
 
 /**
@@ -145,7 +149,12 @@ export function fieldBlockContent(
   for (const view of views) {
     plants.set(cellKey(view.part.cell), fieldPlants([view], rows, center, coverage, day));
   }
-  return { layers, swaths, plants };
+  // koruna porostu po síti obtisku (stejné body jako okraj obtisku)
+  const first = views[0];
+  const canopy = first
+    ? fieldCanopy(views, rows, center, coverage, first.part.size / GRID_PER_CELL)
+    : emptyCanopy();
+  return { layers, swaths, plants, canopy };
 }
 
 /**
@@ -189,5 +198,5 @@ export function mergeFieldBlocks(
     appendAll(plants.weeds, part.weeds);
     appendAll(plants.hay, part.hay);
   }
-  return { layers, swaths, plants };
+  return { layers, swaths, plants, canopy: mergeCanopies(blocks.map((b) => b.canopy)) };
 }

@@ -378,12 +378,18 @@ export const SHOWCASE_PLOUGH_STEP = 3 / 8;
 /** Id pole a dílů ukázky orby (díly jako od herního jádra – fronta práce jde po id). */
 const PLOUGH_FIELD_ID = 2;
 const PLOUGH_PART_ID = 200;
-/** Den rozdělení práce ukázky – září (podzimní orba). */
-const PLOUGH_LABOR_DAY = 250;
 
 /** Den ukázky orby v okamžiku `nowMs` (epoch ms – skutečný čas jako spřežení). */
 export function showcasePloughDay(nowMs: number): number {
   return Math.floor(nowMs / 1000 / SHOWCASE_PLOUGH_DAY_S);
+}
+
+/** Kdy den ukázky orby začíná a končí (epoch ms) – za den spřežení projede jeho orbu. */
+export function showcasePloughWindow(day: number): { startMs: number; endMs: number } {
+  return {
+    startMs: day * SHOWCASE_PLOUGH_DAY_S * 1000,
+    endMs: (day + 1) * SHOWCASE_PLOUGH_DAY_S * 1000,
+  };
 }
 
 /**
@@ -393,7 +399,7 @@ export function showcasePloughDay(nowMs: number): number {
  * strniště) a rozdělení práce dne podíl orby s frontou dílů, přes které dnes orba postoupila –
  * kde spřežení orá, určí stejně jako ve hře `ploughFront` (plough-front.ts).
  */
-export function showcasePlough(day: number): Pick<SceneVillage, 'fields' | 'dwellings'> & {
+export function showcasePlough(day: number): Pick<SceneVillage, 'fields' | 'dwellings' | 'pens'> & {
   labor: SceneLabor;
 } {
   const squares = SHOWCASE_GROUNDS.find((g) => g.id === 'plowing')!.squares;
@@ -403,16 +409,24 @@ export function showcasePlough(day: number): Pick<SceneVillage, 'fields' | 'dwel
   const to = (d + 1) * SHOWCASE_PLOUGH_STEP;
   const parts = squares.map((square, i): SceneFieldPart => {
     const base = { ...square, id: PLOUGH_PART_ID + i, stage: 'sown' as const };
-    if (to >= i + 1 - 1e-9) return { ...base, look: 'plowed' };
-    if (to > i) return { ...base, look: 'plowed', work: to - i, before: 'stubble' };
+    // orá spřežení rádlem – zoraná plocha má kulaté vnější rohy (oxen.md – Kulaté rohy)
+    const ard = { ploughed: true as const };
+    if (to >= i + 1 - 1e-9) return { ...base, ...ard, look: 'plowed' };
+    if (to > i) return { ...base, ...ard, look: 'plowed', work: to - i, before: 'stubble' };
     return { ...base, look: 'stubble' };
   });
-  const worked = parts.filter((_, i) => i < to - 1e-9 && i + 1 > from + 1e-9).map((p) => p.id!);
+  const today = parts.flatMap((p, i) =>
+    i < to - 1e-9 && i + 1 > from + 1e-9
+      ? [{ id: p.id!, progress: [Math.max(0, from - i), Math.min(1, to - i)] as const }]
+      : [],
+  );
   return {
     dwellings: [],
+    pens: [],
     fields: [{ id: PLOUGH_FIELD_ID, parts }],
     labor: {
-      day: PLOUGH_LABOR_DAY,
+      // den ukázky (okno dne – showcasePloughWindow)
+      day,
       month: 9,
       people: { children: 0, adults: 2, elders: 0 },
       shares: [
@@ -420,7 +434,9 @@ export function showcasePlough(day: number): Pick<SceneVillage, 'fields' | 'dwel
           activity: 'plough',
           target: { kind: 'field', id: PLOUGH_FIELD_ID },
           manDays: 1,
-          parts: worked,
+          // díly, přes které dnes orba prošla, a kolik z nich bylo zoráno ráno a večer
+          parts: today.map((t) => t.id),
+          progress: today.map((t) => t.progress),
         },
       ],
     },
@@ -635,10 +651,7 @@ export function showcaseHayMeadows(): HayMeadow[] {
  * Pole, hřbitov, sad a louka na seno na vývojové stránce při průběhu `progress` (0–1): ves pro
  * scénu (`VillageRenderer` – kreslí je stejně jako ve hře) a popisek fáze každého z nich.
  */
-export function showcaseGrounds(
-  progress: number,
-  ploughDay = 0,
-): {
+export function showcaseGrounds(progress: number): {
   village: SceneVillage;
   labels: Record<ShowcaseGroundId, string>;
 } {
@@ -695,16 +708,11 @@ export function showcaseGrounds(
     crop: 'legume',
   }));
 
-  // orba po čtvercích podle dne ukázky – nezávisí na průběhu (rozdělení práce ve vsi ukázky
-  // není: den práce by přebil den sena a odhadu vzhledu ostatních polí)
-  const plowing = showcasePlough(ploughDay).fields[0]!.parts;
-
   return {
     village: {
       dwellings: [],
       fields: [
         { id: 1, parts },
-        { id: PLOUGH_FIELD_ID, parts: plowing },
         { id: 3, parts: legumes },
       ],
       cemeteries: [{ id: 1, squares: cemetery, built, progress: built ? 1 : founding, graves }],
