@@ -9,7 +9,8 @@ z 0 A.D. jako u dwellings.py. render_dir: náhledy v Cycles, "-" = bez náhledů
 
 Tvary obydlí (Builder, thatch_roof, build_zemnice, build_polozemnice…) se berou z dwellings.py,
 takže řemeslná stavba je opravdu zemnice / polozemnice a sedí do stejné jámy, kterou kreslí scéna
-(apps/web/lib/scene/dwelling-pit.ts): hrnčíř a kovář = jáma polozemnice, uhlíř = jáma zemnice.
+(apps/web/lib/scene/dwelling-pit.ts): hrnčíř, kovář a tesař = jáma polozemnice, uhlíř = jáma
+zemnice.
 Souřadnice a počátek jako u obydlí: Z nahoru, hřeben podél Y, vchod v −Y (v glTF do +Z),
 počátek = střed půdorysu na úrovni původního terénu. Jeden materiál (atlas) na model.
 
@@ -23,16 +24,21 @@ Výstup (apps/web/public/models/crafts):
   kovar.glb   tentýž přístřešek, pod ním výheň (zvýšené ohniště z kamenů a hlíny se žhavým uhlím,
               hliněná zadní stěna, dvojitý měch s dmyšnou), kovadlina na špalku, kladivo,
               kleště, hromada uhlí, koryto s vodou; koše (díl „yard“)
+  tesar.glb   tentýž přístřešek (docs/design/wagons.md – Tesař), pod ním dva kozlíky s otesávaným
+              trámem, špalek se zaseknutou sekerou, rozdělané kolo na dvou špalcích, hotová kola
+              opřená o stěnu a o zásobu otesaných trámů pod pravým okapem, hobliny a třísky
+              (kola jako u vozů z 0 A.D. – ⌀ 0,98 m, 8 paprsků, ráfek z loukotí)
   uhlir.glb   zemnice se střechou krytou mechem (stejný tvar, atlas-moss.jpg), volná hromada
               polen na milíř (polena po povrchu nízké kupy, ne vyskládaná hráň), koše s uhlím
   milir.glb   milíř – samostatný model: kupa polen pod hlínou a drny, dole věnec polen, průduchy,
               komín, kolem začernalá zem, žebřík, hrabice, drny a lopata. Stojí „kus od zemnice“:
               doporučený odstup MILIR_OFFSET níže (≈ 10 m, 8–12 m je v pořádku).
-  construction.glb       díly staveniště hrnčíře a kováře („hrncir-…“, „kovar-…“: díly
-                         polozemnice, přístřešek porch-posts / porch-rafters-N / porch-laths,
-                         došky přes celou délku, pec kiln-base / kiln-dome-1…3 / kiln-mouth,
-                         výheň forge-hearth / forge-fire / forge-wall / forge-bellows / anvil,
-                         vybavení dílny, yard) a rekvizity „site-stones“, „site-clay“
+  construction.glb       díly staveniště hrnčíře, kováře a tesaře („hrncir-…“, „kovar-…“,
+                         „tesar-…“: díly polozemnice, přístřešek porch-posts / porch-rafters-N /
+                         porch-laths, došky přes celou délku, pec kiln-base / kiln-dome-1…3 /
+                         kiln-mouth, výheň forge-hearth / forge-fire / forge-wall / forge-bellows /
+                         anvil, tesařské pracoviště trestles / beam / block, vybavení dílny – u
+                         tesaře beams / wheels / chips, yard) a rekvizity „site-stones“, „site-clay“
   construction-moss.glb  díly uhlíře (zemnice s řadami mechu, hromada polen „wood“, koše)
                          a milíře („milir-…“:
                          stakes, pole, ground, ring, stack-1…4, cover-1…3, top, vents, tools)
@@ -47,7 +53,7 @@ basket-a.glb a basket-b.glb jako u dwellings.py přes trees_from_0ad.py a dwelli
       tools/blender/dwelling-props.json art /tmp/dwelling-props
   blender -b --factory-startup --python tools/blender/crafts.py -- \
       /tmp/craft-atlas /tmp/dwelling-props apps/web/public/models/crafts -
-Ikony do panelu staveb: tools/blender/icons.py (hrncir, kovar, uhlir).
+Ikony do panelu staveb: tools/blender/icons.py (hrncir, kovar, tesar, uhlir).
 """
 import math
 import os
@@ -631,6 +637,119 @@ def build_kovar(mat, stages=False):
     return part, extras
 
 
+# ------------------------------------------------------------------ tesař
+
+
+def cart_wheel(b, c, axis, up, r=0.49, spokes=8, missing_spokes=(), felloes=8, missing_felloes=()):
+    """Loukoťové kolo (jako kola vozů z 0 A.D. – tools/blender/wagons_from_0ad.py, ⌀ 0,98 m):
+    náboj, paprsky a ráfek z loukotí (oblouků), osa kola `axis`, `up` míří k prvnímu paprsku.
+    Rozdělané kolo vynechá paprsky `missing_spokes` a loukotě `missing_felloes`."""
+    c, axis, up = Vector(c), Vector(axis).normalized(), Vector(up).normalized()
+    side = axis.cross(up).normalized()
+    hub_half = 0.12
+    # náboj: soudek z čel a boku trámu
+    n = 8
+    ring = [(math.cos(2 * math.pi * k / n), math.sin(2 * math.pi * k / n)) for k in range(n)]
+    for k in range(n):
+        (ca, sa), (cb, sb) = ring[k], ring[(k + 1) % n]
+        pts = []
+        for d, rr in ((-hub_half, 0.08), (hub_half, 0.08)):
+            pts.append((c + axis * d + up * (ca * rr) + side * (sa * rr), c + axis * d + up * (cb * rr) + side * (sb * rr)))
+        a0, b0 = pts[0]
+        a1, b1 = pts[1]
+        mid = (a0 + b0 + a1 + b1) / 4
+        b.poly([a0, b0, b1, a1], "beam", out=mid - c, uvm=[(0, -0.04), (0, 0.04), (0.24, 0.04), (0.24, -0.04)])
+    for d in (-hub_half, hub_half):
+        cap = [c + axis * d + up * (ca * 0.08) + side * (sa * 0.08) for ca, sa in ring]
+        b.poly(cap, "logends", out=axis * d, uvm=[(0.111 + ca * 0.06, sa * 0.06) for ca, sa in ring])
+    # paprsky
+    for k in range(spokes):
+        if k in missing_spokes:
+            continue
+        a = 2 * math.pi * k / spokes
+        d = up * math.cos(a) + side * math.sin(a)
+        b.beam(c + d * 0.07, c + d * (r - 0.06), 0.045, mat="beam")
+    # ráfek z loukotí – každá loukoť dva rovné kusy po obvodu
+    for k in range(felloes):
+        if k in missing_felloes:
+            continue
+        for h in range(2):
+            a0 = 2 * math.pi * (k + h / 2) / felloes
+            a1 = 2 * math.pi * (k + (h + 1) / 2) / felloes
+            p0 = c + (up * math.cos(a0) + side * math.sin(a0)) * (r - 0.035)
+            p1 = c + (up * math.cos(a1) + side * math.sin(a1)) * (r - 0.035)
+            b.beam(p0, p1, 0.07, mat="beam")
+
+
+def trestle(b, x, y, top=0.68, half=0.38):
+    """Kozlík: příčný trám (kulatina, napříč – podél x) na čtyřech rozkročených nohách."""
+    b.beam((x - half, y, top), (x + half, y, top), 0.13, mat="beam")
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            b.beam((x + sx * (half - 0.1), y, top - 0.02), (x + sx * (half + 0.02), y + sy * 0.26, -0.06), 0.06)
+
+
+def build_tesar(mat, stages=False):
+    """Tesař (docs/design/wagons.md – Tesař): polozemnice s přístřeškem jako hrnčíř a kovář, pod
+    ním tesařské pracoviště – dva kozlíky s otesávaným trámem („trestles“, „beam“), špalek se
+    zaseknutou sekerou („block“) – a vybavení dílny: zásoba otesaných trámů pod okapem
+    („beams“), rozdělané kolo na špalcích a hotová kola opřená o stěnu a sloup („wheels“),
+    hobliny a třísky kolem kozlíků („chips“)."""
+    part = Parts("tesar")
+    build_porch_house(part, stages)
+    # kozlíky a otesávaný trám podél přístřešku (vlevo)
+    bx = -0.85
+    b = part("trestles")
+    for y in (-3.05, -5.0):
+        trestle(b, bx, y)
+    b = part("beam")
+    b.beam((bx, -2.6, 0.83), (bx, -5.5, 0.83), 0.24, mat="beam")
+    # neotesaný konec trámu (kůra) a odseknuté třísky na trámu
+    b.beam((bx, -5.5, 0.83), (bx, -5.62, 0.83), 0.26)
+    # špalek se zaseknutou sekerou (vpředu vlevo, kousek od kozlíků)
+    b = part("block")
+    blk = (-1.5, -5.25)
+    lathe(b, blk, [(0.24, -0.05), (0.23, 0.48)], "beam", seg=10, smooth=False)
+    stump_top(b, blk, 0.23, 0.48)
+    head = Vector((blk[0] + 0.02, blk[1] + 0.03, 0.52))
+    cbox(b, head.x - 0.05, head.x + 0.05, head.y - 0.03, head.y + 0.1, head.z - 0.06, head.z + 0.03, "iron")
+    b.beam(head + Vector((0, 0.05, 0.02)), head + Vector((0.08, 0.6, 0.32)), 0.04)
+    # vybavení: zásoba otesaných trámů pod pravým okapem na dvou podkladech
+    b = part("beams")
+    for y in (-2.75, -5.15):
+        b.beam((1.62, y, 0.06), (2.32, y, 0.06), 0.12)
+    for i, (x, z) in enumerate(((1.75, 0.2), (1.95, 0.2), (2.15, 0.2), (1.85, 0.37), (2.05, 0.37))):
+        y0 = -2.5 - 0.06 * seeded(i)
+        b.beam((x, y0, z), (x, -5.45 + 0.08 * seeded(i + 4), z), 0.16, mat="beam")
+    # kola: rozdělané kolo vodorovně na dvou špalcích (chybí dva paprsky a tři loukotě),
+    # hotová kola opřená o přední stěnu a o zásobu trámů
+    b = part("wheels")
+    wc = (0.55, -4.25)
+    for dx in (-0.3, 0.3):
+        lathe(b, (wc[0] + dx, wc[1]), [(0.11, -0.05), (0.1, 0.22)], "beam", seg=8, smooth=False)
+        stump_top(b, (wc[0] + dx, wc[1]), 0.1, 0.22)
+    cart_wheel(b, (wc[0], wc[1], 0.3), (0, 0, 1), (0, 1, 0), missing_spokes=(2, 5), missing_felloes=(1, 2, 5))
+    tilt = math.radians(14)
+    cart_wheel(b, (0.95, -2.42, 0.49), (0, -math.cos(tilt), math.sin(tilt)), (0, math.sin(tilt), math.cos(tilt)))
+    # hotové kolo vpředu vpravo opřené o čela trámů – čelem ke vchodu (vidět i v ikoně)
+    cart_wheel(b, (1.97, -5.66, 0.48), (0.25, -0.94 * math.cos(tilt), 0.94 * math.sin(tilt)), (0, math.sin(tilt), math.cos(tilt)))
+    # hobliny a třísky: světlé plošky kolem kozlíků a pod trámem
+    b = part("chips")
+    for i in range(46):
+        a = 2 * math.pi * seeded(i + 70)
+        dist = 0.15 + 0.85 * math.sqrt(seeded(i + 90))
+        x = bx + math.cos(a) * dist * 0.75
+        y = -4.05 + math.sin(a) * dist * 1.6
+        size = 0.05 + 0.05 * seeded(i + 110)
+        rot = 2 * math.pi * seeded(i + 130)
+        cx, sx = math.cos(rot), math.sin(rot)
+        z = 0.012 + 0.008 * seeded(i + 150)
+        corners = [(-1, -0.45), (1, -0.45), (1, 0.45), (-1, 0.45)]
+        pts = [(x + (u * cx - v * sx) * size, y + (u * sx + v * cx) * size, z + 0.01 * u * seeded(i)) for u, v in corners]
+        b.poly(pts, "logends", out=(0, 0, 1), uvm=[(0.111 + u * 0.025, v * 0.025) for u, v in corners])
+    return part, {}
+
+
 # ------------------------------------------------------------------ uhlíř a milíř
 
 
@@ -968,7 +1087,7 @@ def preview(models, render_dir):
     earth_mat = D.textured_material("pit-earth", os.path.join(terrain, "mud.jpg"), (0.8, 0.62, 0.45))
     bpy.data.objects["ground"].hide_render = True
     os.makedirs(render_dir, exist_ok=True)
-    for obj, kind in ((models["hrncir"], "polozemnice"), (models["kovar"], "polozemnice"), (models["uhlir"], "zemnice")):
+    for obj, kind in ((models["hrncir"], "polozemnice"), (models["kovar"], "polozemnice"), (models["tesar"], "polozemnice"), (models["uhlir"], "zemnice")):
         extra = D.pit_ground(kind, grass_mat, earth_mat)
         objs = [obj]
         if obj.name == "uhlir":
@@ -987,7 +1106,7 @@ def preview(models, render_dir):
         models["milir"].location = (0, 0, 0)
 
 
-BUILDERS = {"hrncir": build_hrncir, "kovar": build_kovar, "uhlir": build_uhlir, "milir": build_milir}
+BUILDERS = {"hrncir": build_hrncir, "kovar": build_kovar, "tesar": build_tesar, "uhlir": build_uhlir, "milir": build_milir}
 MOSS = {"uhlir", "milir"}  # střecha / zem z atlasu s mechem (atlas-moss.jpg)
 
 

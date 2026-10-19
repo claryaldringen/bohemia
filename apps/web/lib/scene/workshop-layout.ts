@@ -6,7 +6,11 @@ import { MILIR, milirPosition, type Craft, type Position } from '@bohemia/game';
 import type { CraftKind } from './village-construction';
 import { localToWorld, type HideShape, type Point } from './village-layout';
 
-/** Model dílny podle řemesla – public/models/crafts/<model>.glb a díly staveniště „<model>-…“. */
+/**
+ * Model dílny podle řemesla – public/models/crafts/<model>.glb a díly staveniště „<model>-…“.
+ * Tesař (`tesar`, wagons.md) má model, díly staveniště, místa řemeslníků i fáze stavby hotové –
+ * jakmile herní jádro přidá řemeslo (`carpenter`), stačí doplnit záznam `carpenter: 'tesar'`.
+ */
 export type WorkshopModel = Exclude<CraftKind, 'milir'>;
 export const CRAFT_MODEL: Readonly<Record<Craft, WorkshopModel>> = {
   potter: 'hrncir',
@@ -14,7 +18,15 @@ export const CRAFT_MODEL: Readonly<Record<Craft, WorkshopModel>> = {
   burner: 'uhlir',
 };
 
-/** Přední okraj přístřešku hrnčíře a kováře (m od středu, crafts.py PZ_O + PORCH). */
+/** Dílny na polozemnici s přístřeškem před domem (crafts.py – build_porch_house). */
+export const PORCH_WORKSHOPS: readonly WorkshopModel[] = ['hrncir', 'kovar', 'tesar'];
+
+/** Má model (druh stavby) přístřešek před domem? Ušlapaná tráva sahá i pod něj. */
+export function hasPorch(kind: string): boolean {
+  return (PORCH_WORKSHOPS as readonly string[]).includes(kind);
+}
+
+/** Přední okraj přístřešku hrnčíře, kováře a tesaře (m od středu, crafts.py PZ_O + PORCH). */
 export const PORCH_FRONT_M = 2.1 + 3.6;
 /** Kupa milíře (crafts.py MILIR_R, MILIR_H) – poloměr a výška nad patou (m). */
 export const MILIR_SHAPE_M = { radius: 2.3, height: 2.15 } as const;
@@ -81,16 +93,31 @@ export interface WorkshopVent {
 }
 
 /**
+ * Kde pod přístřeškem dílny je oheň (x napříč v souřadnicích modelu): hrnčířská pec v crafts.py
+ * na (0,72; −4,55), výheň na (0,85; −4,75); tesař oheň nemá.
+ */
+const PORCH_FIRE_X: Record<Exclude<WorkshopModel, 'uhlir'>, number | null> = {
+  hrncir: -0.72,
+  kovar: -0.85,
+  tesar: null,
+};
+
+/**
  * Dým pracující dílny: hrnčířská pec a výheň stojí pod přístřeškem – dým vychází zpod jeho
- * předního okraje (pec v crafts.py na (0,72; −4,55), výheň na (0,85; −4,75)); uhlíř topí jen
- * v milíři – dým z komína navrchu kupy.
+ * předního okraje; uhlíř topí jen v milíři – dým z komína navrchu kupy; tesař nekouří.
  */
 export function workshopVents(craft: Craft, position: Position): WorkshopVent[] {
-  if (craft === 'burner') {
+  return modelVents(CRAFT_MODEL[craft], position);
+}
+
+/** Dým dílny podle modelu (`workshopVents` – i pro dílnu, jejíž řemeslo jádro ještě nezná). */
+export function modelVents(model: WorkshopModel, position: Position): WorkshopVent[] {
+  if (model === 'uhlir') {
     const c = milirPlace(position);
     return [{ kind: 'milir', x: c.x, z: c.z, y: MILIR_SHAPE_M.height + 0.1 }];
   }
-  const lx = craft === 'potter' ? -0.72 : -0.85;
+  const lx = PORCH_FIRE_X[model];
+  if (lx === null) return [];
   const [x, z] = localToWorld(position, lx, PORCH_FRONT_M + 0.2);
   return [{ kind: 'craft', x, z, y: 1.3 }];
 }
@@ -106,12 +133,46 @@ export interface CraftSpot {
 }
 
 /**
+ * Místa řemeslníků pod přístřeškem: [x, z, směr x, směr z, klip] v souřadnicích modelu
+ * (souřadnice z crafts.py: x → −x, y → −z).
+ */
+const PORCH_SPOTS: Record<
+  Exclude<WorkshopModel, 'uhlir'>,
+  readonly (readonly [number, number, number, number, CraftSpot['clip']])[]
+> = {
+  hrncir: [
+    [0.55, 5.05, 0, -1, 'weed'], // u hrnčířského kruhu (0,55; 4,45)
+    [-0.72, 5.95, 0, -1, 'build'], // u topeniště pece
+    [1.85, 4.3, -1, 0, 'idle'], // u police se sušícími se hrnci
+    [-1.9, 5.3, 1, 0, 'build'],
+  ],
+  kovar: [
+    [0.35, 5.3, 0, -1, 'build'], // u kovadliny (0,35; 4,7)
+    [-1.75, 3.8, 1, 0, 'weed'], // u měchů za výhní
+    [1.75, 5.2, -1, 0, 'idle'], // u koryta s vodou
+    [-0.85, 5.95, 0, -1, 'build'],
+  ],
+  tesar: [
+    [0.25, 3.9, 1, 0, 'build'], // u otesávaného trámu na kozlících (0,85; 2,6–5,5)
+    [-0.55, 5.1, 0, -1, 'weed'], // u rozdělaného kola na špalcích (−0,55; 4,25)
+    [1.5, 5.9, 0, -1, 'build'], // u špalku se sekerou (1,5; 5,25)
+    [-1.3, 3.4, -1, 0, 'idle'], // u zásoby trámů pod okapem
+  ],
+};
+
+/**
  * Místa řemeslníků (Martin: řemeslník pracuje v dílně) – hrnčíř u kruhu, u topeniště pece a u
- * police, kovář u kovadliny, u měchů a u koryta (souřadnice z crafts.py), uhlíř kolem milíře
- * s hrabicí. Postavy se střídají po místech dokola.
+ * police, kovář u kovadliny, u měchů a u koryta, tesař u trámu na kozlících, u rozdělaného kola,
+ * u špalku a u zásoby trámů (PORCH_SPOTS), uhlíř kolem milíře s hrabicí. Postavy se střídají po
+ * místech dokola.
  */
 export function craftSpots(craft: Craft, position: Position): CraftSpot[] {
-  if (craft === 'burner') {
+  return modelSpots(CRAFT_MODEL[craft], position);
+}
+
+/** Místa řemeslníků podle modelu dílny (`craftSpots` – i pro tesaře před řemeslem v jádru). */
+export function modelSpots(model: WorkshopModel, position: Position): CraftSpot[] {
+  if (model === 'uhlir') {
     const c = milirPlace(position);
     const r = MILIR_SHAPE_M.radius + 0.9;
     return [0.3, 2.4, 4.5, 1.35, 3.45, 5.55].map((a) => ({
@@ -122,21 +183,7 @@ export function craftSpots(craft: Craft, position: Position): CraftSpot[] {
       clip: 'build' as const,
     }));
   }
-  // [x, z, směr x, směr z, klip] v souřadnicích modelu
-  const local: [number, number, number, number, CraftSpot['clip']][] =
-    craft === 'potter'
-      ? [
-          [0.55, 5.05, 0, -1, 'weed'], // u hrnčířského kruhu (0,55; 4,45)
-          [-0.72, 5.95, 0, -1, 'build'], // u topeniště pece
-          [1.85, 4.3, -1, 0, 'idle'], // u police se sušícími se hrnci
-          [-1.9, 5.3, 1, 0, 'build'],
-        ]
-      : [
-          [0.35, 5.3, 0, -1, 'build'], // u kovadliny (0,35; 4,7)
-          [-1.75, 3.8, 1, 0, 'weed'], // u měchů za výhní
-          [1.75, 5.2, -1, 0, 'idle'], // u koryta s vodou
-          [-0.85, 5.95, 0, -1, 'build'],
-        ];
+  const local = PORCH_SPOTS[model];
   const c = Math.cos(position.rotation);
   const s = Math.sin(position.rotation);
   return local.map(([lx, lz, dx, dz, clip]) => {

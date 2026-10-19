@@ -3,15 +3,17 @@
 // VÝVOJOVÝ NÁSTROJ – jen pro /dev/buildings (v produkci stránka vrací 404): prohlídka modelů
 // staveb bez přihlášení a databáze, i stavba po fázích (posuvník a přehrání) – obydlí, řemesla,
 // modla a svatyně, za nimi pole, hřbitov a sad, vpravo posvátný dub a dubový háj, vlevo orá
-// spřežení volů s rádlem a vedle zemnice ohrada s přístřeškem (voli a kráva). Orba volů ani
-// ohrada zatím nejsou ve hře – jen modely. Přepínač zimy ukáže sníh. Před pozemky rozpad obydlí:
-// posuvník stavu opuštěné zemnice a polozemnice 100 → 0 % a zbytek jámy po zániku, za nimi řada
-// všech stupňů rozpadu. Přepínač Oprava ukáže u opuštěných staveb (modla, svatyně, hřbitov,
+// spřežení volů s rádlem a vedle zemnice ohrada s přístřeškem (voli a kráva), vpravo vzadu na
+// pahorku vozy se spřežením (dvoukoláky dokola, čtyřkoláky tam a zpět, s různým nákladem) a dílna
+// tesaře. Orba volů, ohrada ani vozy zatím nejsou ve hře – jen modely. Přepínač zimy ukáže sníh.
+// Před pozemky rozpad obydlí: posuvník stavu opuštěné zemnice a polozemnice 100 → 0 % a zbytek
+// jámy po zániku, za nimi řada všech stupňů rozpadu. Přepínač Oprava ukáže u opuštěných staveb (modla, svatyně, hřbitov,
 // ohrada) místo rozpadu jejich opravu – posuvník je průběh opravy (abandonment.md – Oprava).
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import {
   MILIR_OFFSET_M,
   SHOWCASE_BUILDINGS,
+  SHOWCASE_CARTS,
   SHOWCASE_DECAY,
   SHOWCASE_ROADS,
   SHOWCASE_DECOR,
@@ -36,6 +38,7 @@ const KIND_LABELS: Record<ConstructionKind, string> = {
   dvorec: 'Dvorec vojvody',
   hrncir: 'Hrnčíř',
   kovar: 'Kovář',
+  tesar: 'Tesař',
   uhlir: 'Uhlíř',
   milir: 'Milíř',
   modla: 'Modla',
@@ -57,6 +60,7 @@ export function BuildingShowcaseView(): ReactElement {
   const [progress, setProgress] = useState(1);
   const [playing, setPlaying] = useState(false);
   const [following, setFollowing] = useState(false);
+  const [followingCart, setFollowingCart] = useState(false);
   const [winter, setWinter] = useState(false);
   const [decay, setDecay] = useState(0);
   const [decaying, setDecaying] = useState(false);
@@ -169,7 +173,7 @@ export function BuildingShowcaseView(): ReactElement {
   return (
     <>
       <div ref={containerRef} className="fixed inset-0 bg-[#a1bfd9]" />
-      <nav className="fixed top-0 left-0 z-10 flex max-w-full flex-wrap items-center gap-2 rounded-br bg-stone-100/80 px-4 py-2 text-sm text-stone-600 backdrop-blur dark:bg-stone-950/70 dark:text-stone-400">
+      <nav className="fixed top-0 left-0 z-10 flex max-w-[calc(100%-20rem)] flex-wrap items-center gap-2 rounded-br bg-stone-100/80 px-4 py-2 text-sm text-stone-600 backdrop-blur dark:bg-stone-950/70 dark:text-stone-400">
         <span className="mr-2 font-serif text-lg text-stone-900 dark:text-stone-100">
           Náhled staveb
         </span>
@@ -180,6 +184,7 @@ export function BuildingShowcaseView(): ReactElement {
           SHOWCASE_PEN,
           ...SHOWCASE_DECAY,
           SHOWCASE_ROADS,
+          SHOWCASE_CARTS,
         ].map((target) => (
           <button
             key={target.id}
@@ -197,7 +202,9 @@ export function BuildingShowcaseView(): ReactElement {
           disabled={!showcase}
           onClick={() => {
             setFollowing(false);
+            setFollowingCart(false);
             showcase?.followTeam(false);
+            showcase?.followCart(false);
             showcase?.focusTeam();
           }}
         >
@@ -208,9 +215,38 @@ export function BuildingShowcaseView(): ReactElement {
           className={buttonClass}
           disabled={!showcase}
           aria-pressed={following}
-          onClick={() => setFollowing(showcase?.followTeam(!following) ?? false)}
+          onClick={() => {
+            setFollowingCart(false);
+            showcase?.followCart(false);
+            setFollowing(showcase?.followTeam(!following) ?? false);
+          }}
         >
           {following ? 'Nesledovat spřežení' : 'Sledovat spřežení'}
+        </button>
+        <button
+          type="button"
+          className={buttonClass}
+          disabled={!showcase}
+          onClick={() => {
+            setFollowing(false);
+            showcase?.followTeam(false);
+            showcase?.focusCart();
+          }}
+        >
+          Další vůz zblízka
+        </button>
+        <button
+          type="button"
+          className={buttonClass}
+          disabled={!showcase}
+          aria-pressed={followingCart}
+          onClick={() => {
+            setFollowing(false);
+            showcase?.followTeam(false);
+            setFollowingCart(showcase?.followCart(!followingCart) ?? false);
+          }}
+        >
+          {followingCart ? 'Nesledovat vůz' : 'Sledovat vůz'}
         </button>
         <button
           type="button"

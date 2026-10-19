@@ -464,17 +464,25 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   studená až do konce opravy (`sacredDecayParts(…, cold)`, bez dýmu).
 - **Řemeslné dílny** (ve hře od 18. 10. 2026, pravidla v [docs/design/crafts.md](docs/design/crafts.md),
   jádro a rozhraní viz Ves – Řemesla): `public/models/crafts/`
-  hrnčíř a kovář (polozemnice s přístřeškem o `PORCH` 3,6 m vpředu, pod ním pec / výheň
-  s kovadlinou), uhlíř (zemnice s mechovou střechou) a samostatný milíř ≈ 9,5 m od ní
+  hrnčíř, kovář a tesař (polozemnice s přístřeškem o `PORCH` 3,6 m vpředu, pod ním pec / výheň
+  s kovadlinou, u tesaře kozlíky s otesávaným trámem, špalek se sekerou, kola a zásoba trámů –
+  wagons.md), uhlíř (zemnice s mechovou střechou) a samostatný milíř ≈ 9,5 m od ní
   (`MILIR_OFFSET` v `tools/blender/crafts.py` = `MILIR.offset` v `rules.ts` jádra – podle něj
   stojí milíř i ve hře). Tvary bere `crafts.py` z `dwellings.py` (ten má proto
-  `if __name__ == "__main__"`), sedí do jam obydlí (hrnčíř, kovář = polozemnice, uhlíř = zemnice).
+  `if __name__ == "__main__"`), sedí do jam obydlí (hrnčíř, kovář, tesař = polozemnice, uhlíř =
+  zemnice).
   Atlas: `tools/blender/craft_atlas.py` (atlas obydlí + pec, kámen, zem milíře, uhlí…; varianta
-  `atlas-moss.jpg` s mechem místo slámy). Postup v hlavičce `crafts.py`, ikony `icons.py hrncir,kovar,uhlir`.
+  `atlas-moss.jpg` s mechem místo slámy). Postup v hlavičce `crafts.py`, ikony
+  `icons.py hrncir,kovar,tesar,uhlir`.
   **Fáze stavby** řemesel: `village-construction.ts` má tabulku fází pro každý druh
   (`ConstructionKind` = obydlí + `CraftKind`; dílny na fázích svého obydlí + přístřešek, pec /
-  výheň, dílna, uhlíř mech místo došků, milíř zvlášť), díly v `public/models/crafts/construction.glb`
-  a `construction-moss.glb` (předpona druhu). Obydlí se tím nezměnila.
+  výheň / tesařské pracoviště `carpentry`, dílna, uhlíř mech místo došků, milíř zvlášť), díly
+  v `public/models/crafts/construction.glb` a `construction-moss.glb` (předpona druhu). Obydlí se
+  tím nezměnila. **Tesař** (`tesar`, díly `tesar-trestles` / `-beam` / `-block` / `-beams` /
+  `-wheels` / `-chips`) je ve scéně hotový – model, staveniště, místa řemeslníků (`modelSpots`),
+  bez dýmu (`modelVents`), ušlapaná tráva i pod přístřeškem (`hasPorch`, `PORCH_WORKSHOPS`); jádro
+  řemeslo zatím nezná – s řemeslem `carpenter` stačí doplnit `CRAFT_MODEL` o
+  `carpenter: 'tesar'` (a katalog staveb, ikona `icons/build/tesar.png` je).
   Dílny bez hráně polen: hrnčíř a kovář mají místo dílu `wood` díl `yard` (koše), uhlíř
   volnou hromadu polen na milíř (`log_heap` v `crafts.py`).
   **Náhled všech staveb** bez databáze: http://localhost:3010/dev/buildings (`building-showcase.ts`,
@@ -484,7 +492,8 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   jako náhled zelené a zralé obilí a strniště (`CropLook` / `crop` dílu v `SceneVillage`, server
   ho zatím neposílá), hřbitov vytyčení → kůly → plot → přibývající mohyly podle významu
   (`showcaseMounds` – místo vybírá jádro), sad vytyčení → kůly
-  → sazenice → rostoucí stromky → jablka.
+  → sazenice → rostoucí stromky → jablka. Vpravo vzadu dílna tesaře a pahorek s vozy (**Vozy**,
+  **Další vůz zblízka**, **Sledovat vůz** – Vozy se spřežením níž).
 - **Grafika (licence):** CC0, nebo z **0 A.D.** pod **CC BY-SA 3.0** (textury terénu, stromy –
   uvést Wildfire Games, upravené soubory pod stejnou licencí). Zdroj a původní název každého
   souboru do `LICENSE.md` / `LICENSES.md` vedle něj. Převod stromů, atlas impostorů a render
@@ -1400,6 +1409,26 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   souvrati nadzvednuté, oráč u rukojeti – `composePose`), kreslení
   `plough-team-renderer.ts` (VAT jako lidé + pevné díly v instancích). Rozměry rádla a jha musí
   sedět s `TEAM_PARTS` (hlídá test).
+- **Vozy se spřežením** ([docs/design/wagons.md](docs/design/wagons.md) – zatím jen modely
+  a ukázka **Vozy** na `/dev/buildings`, ve hře nejsou): dvoukolák a čtyřkolák z 0 A.D. převádí
+  `tools/blender/wagons_from_0ad.py` (vlastní parser skinovaného COLLADA, model rozdělený podle
+  kostí, koňský postroj pryč, vlastní oj ke jhu, náklad modelovaný ve skriptu) do
+  `public/models/wagons/wagons.glb` – díly `wagon2-body`, `wagon4-body`, `wagon4-front` (předek na
+  čepu), `wagon4-pole`, `wagon-wheel` (levé kolo, pravé = otočené o 180°) a náklad
+  `wagon{2,4}-{hay,sheaves,logs,goods}`. **Kola se točí maticí instance podle ujeté dráhy, ne VAT**
+  (animace 0 A.D. jen točí kosti kol; VAT by se s jízdou po terénu nesešla a postava s kostrou má
+  ve WebGPU vyčerpaných 8 vertex bufferů). Pohyb `cart-layout.ts` (čisté funkce, testy):
+  `cartRoute` (lomená čára → úseky a oblouky jako dráha rádla, rohy zaoblené `turnRadius`,
+  uzavřená / otevřená), `routeAt`, `cartPose(track, t, out, ground)` – jho na trase (`composeDraft`
+  v `plough-team.ts`: voli, jho a honák s provazem jako u rádla, u vozu dospělý
+  `CART_PARTS.drover`), dvoukolák = náprava na tětivě oje za jhem a korba naklopená tak, aby špička
+  oje ležela pod jhem, čtyřkolák = přední náprava za jhem (`yokeReach`), zadní po rozvoru, korba na
+  obou (sklon a náklon podle terénu pod koly), předek natočený ke jhu, oj od špičky rozvory ke jhu;
+  dráha kola = dráha osy ± polovina rozchodu × změna směru (vnější kolo v oblouku víc). Rozměry
+  `CART_PARTS` musí sedět s modely (test čte obaly dílů z GLB). Kreslení `cart-renderer.ts`
+  (`CartRenderer.setCarts(tracks)` / `animate` – voli a honák VAT z `plough/`, jho a provaz
+  z `ard.glb`, díly vozů v instancích, měkké stíny). Až jádro pošle vozy, herní scéna jen předá
+  trasy (`CartTrack` – druh, náklad, trasa, posun).
 - **Vyšlapané pěšiny** ([docs/design/paths.md](docs/design/paths.md), Martin 18. 10. 2026 –
   i práce): síť počítá herní jádro `domain/village/paths/` stejně na serveru i v prohlížeči
   (soubory jsou v deterministické vrstvě – ESLint zakazuje Math.sin/cos/hypot/log, `**`; jen
