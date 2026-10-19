@@ -1,14 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { SceneVillage } from '../../village-view';
-import {
-  PLOUGH_ROWS,
-  penHerds,
-  ploughFields,
-  ploughingToday,
-  scenePenViews,
-} from '../village-pens';
+import { ploughingToday } from '../plough-front';
+import { penHerds, scenePenViews } from '../village-pens';
 
-// Ohrady a spřežení ve vsi (oxen.md): pohled na ohrady, zvířata v nich a kde se orá.
+// Ohrady ve vsi (oxen.md): pohled na ohrady a zvířata v nich (kde se orá – plough-front.test.ts).
 
 const CELL = 15;
 const part = (
@@ -91,10 +86,21 @@ describe('ohrady ve vsi', () => {
     expect(penHerds(ploughing).get(9)).toEqual({ oxen: 0, trainees: 2, cows: 1 });
   });
 
-  it('spřežení orá na prvním dílu čela orby, řady podél delší strany pole', () => {
-    expect(ploughFields(village)).toEqual([]);
-    expect(ploughFields(ploughing)).toEqual([
-      { x: 52.5, z: 7.5, size: CELL, dirX: 1, dirZ: 0, rows: PLOUGH_ROWS },
-    ]);
+  it('voli, kteří se na čelo orby nevešli, zůstanou v ohradě (spřežení po ohradách podle id)', () => {
+    const pens = [
+      { ...village.pens![0]!, id: 12 },
+      { ...village.pens![0]!, id: 7, oxen: 2 },
+      { ...village.pens![0]!, id: 3, oxen: 0 },
+    ];
+    const two: SceneVillage = { ...ploughing, pens };
+    // na poli jedno spřežení – voli první ohrady s voly (id 7)
+    const herds = penHerds(two, 1);
+    expect(herds.get(7)!.oxen).toBe(0);
+    expect(herds.get(12)!.oxen).toBe(2);
+    expect(herds.get(3)!.oxen).toBe(0);
+    // bez orby jsou všichni doma, bez údaje v den orby všichni na poli
+    expect(penHerds(two, 0).get(7)!.oxen).toBe(2);
+    expect([...penHerds(two).values()].map((h) => h.oxen)).toEqual([0, 0, 0]);
+    expect([...penHerds(two).keys()]).toEqual([12, 7, 3]);
   });
 });

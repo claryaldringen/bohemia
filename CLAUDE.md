@@ -1246,14 +1246,31 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   na vrchol nepřidávat, patří do textury. Klipy se střídají střihem (VAT prolínat neumí). Hýbou
   se jen v záběru (`WATER_FPS`), při omezeném pohybu stojí. Ve vývojovém náhledu tlačítko
   **Lidé** (ukázkové rozdělení práce podle měsíce – `app/dev/landscape/dev-labor.ts`).
-- **Spřežení volů s rádlem** (ve vsi orá na prvním dílu čela orby – podíl práce `plough`
-  v `SceneLabor`, 6 řad podél delší strany, kolik ohrad s voly, tolik spřežení; ukázka
-  **Orání** na `/dev/buildings`): voli a oráč z `people_from_0ad.py` s `tools/blender/plough-team.json` – vůl
+- **Spřežení volů s rádlem** (oxen.md – Spřežení postupuje s orbou; Martin 19. 10. 2026,
+  podrobnosti návrh Clauda): ve vsi orá na čele orby – `plough-front.ts` (`ploughFront`, čisté
+  funkce bez Babylonu): díl s čárou práce z fronty `SceneLaborShare.parts` podílu `plough` (bez fronty odhad
+  jako u kopání – `workedParts`), na něm **pruh u čáry práce** ve stejném rámci jako obtisk
+  (`workFrame`, `workSteps` – řady podél `rowDirection`, napříč od vsi; `frontStrip`: končí na
+  čáře, nejvýš 4 řady zpět, aspoň 2 – `ploughedTo`, `stripRows`, řady po 2,5 m). Jen čelo dne,
+  ne všechny dnešní díly (0,3 ha ≈ 13 čtverců za ≈ 86 s by voly hnalo 13× rychleji). Kolik ohrad
+  s voly, tolik spřežení (`ploughTeamCount`): každé na jiném dílu fronty, kam jeho dráha i se
+  souvratěmi nesahá (obdélníky `footprint`, `overlaps`), jinak dvě na jednom dílu v půlkách
+  (`SHARED_STRIP_M`, stejná dráha posunutá napříč – v zákrytu), kdo se nevejde, zůstane v ohradě
+  (`penHerds(village, teamsOut)`). Natočené pole v osách mřížky (`rowDirection` natočených dílů).
+  Další den (nová dráha – `PloughTeams.setPaths(paths, nowMs)`) spřežení **dojde pěšky**:
+  `transitTrack` (rovně ≈ 1 m/s – `TRANSIT_SPEED_M_S`, rádlo nahoře, natočení na začátku a konci,
+  čas příchodu dopočítaný, ať naváže bez skoku; nad `TRANSIT_M.max` 60 m skok), póza `trackPose`;
+  jen když animace běží (`liveAt`), při omezeném pohybu stálá póza na novém místě; obal pro ořez
+  záběrem stálý přes celé dráhy i přechody (`updateBounds`). Ukázka **Orání** na
+  `/dev/buildings`: tři čtverce, orba postoupí za den ukázky (40 s – `showcasePloughDay`) o 3/8
+  čtverce (`showcasePlough` – díly a fronta jako od jádra), spřežení přes `ploughFront` jako ve
+  vsi. Voli a oráč z `people_from_0ad.py` s `tools/blender/plough-team.json` – vůl
   `cattle_male_c` (srst přebarvená, maska srsti), oráč = muž s klipy `plough` (předklon + ruce
   dvoukloubovou IK na rukojeti, „pose“ v JSON) a `lead` (honáček s provazem); rádlo, jho, oj
   a provaz `tools/blender/plough.py` (malý atlas vyříznutý z atlasu obydlí). Rozestavění
-  a pohyb `plough-team.ts` (čisté funkce času: dráha přes čtverec – řady, obraty na souvrati,
-  návrat; rádlo za jhem na tětivě oje, na souvrati nadzvednuté, oráč u rukojeti), kreslení
+  a pohyb `plough-team.ts` (čisté funkce času: dráha přes čtverec nebo jeho pruh – `PloughField`
+  `from` / `to` / `across…`, řady, obraty na souvrati, návrat; rádlo za jhem na tětivě oje, na
+  souvrati nadzvednuté, oráč u rukojeti – `composePose`), kreslení
   `plough-team-renderer.ts` (VAT jako lidé + pevné díly v instancích). Rozměry rádla a jha musí
   sedět s `TEAM_PARTS` (hlídá test).
 - **Vyšlapané pěšiny** ([docs/design/paths.md](docs/design/paths.md), Martin 18. 10. 2026 –

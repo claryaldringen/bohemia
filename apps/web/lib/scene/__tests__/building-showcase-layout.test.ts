@@ -8,9 +8,13 @@ import {
   decayAt,
   decayLabel,
   showcaseDecay,
-  showcasePloughField,
+  SHOWCASE_PLOUGH_DAY_S,
+  showcasePlough,
+  showcasePloughDay,
 } from '../building-showcase-layout';
 import { decayStage } from '../dwelling-decay';
+import { ploughFront } from '../plough-front';
+import { pathAt, ploughPath, type PathPoint } from '../plough-team';
 
 describe('SHOWCASE_BUILDINGS', () => {
   it('milíř stojí „kus od“ uhlířovy zemnice – 8 až 12 m', () => {
@@ -71,14 +75,49 @@ describe('SHOWCASE_BUILDINGS', () => {
         expect(apart, ground.id).toBe(true);
       }
     }
-    const field = showcasePloughField();
-    expect(Math.abs(field.x - pen.x) >= 15 + 10 || Math.abs(field.z - pen.z) >= 15 + 10).toBe(true);
+    // spřežení ukázky „Orání“ se ani na souvratích k ohradě nepřiblíží
+    const at: PathPoint = { x: 0, z: 0, hx: 0, hz: 1 };
+    for (let day = 0; day < 8; day++) {
+      for (const { field } of ploughFront({ ...showcasePlough(day), pens: [] })) {
+        const path = ploughPath(field);
+        for (let d = 0; d < path.length; d += 0.5) {
+          pathAt(path, d, at);
+          const apart = Math.abs(at.x - pen.x) >= 7.5 + 4 || Math.abs(at.z - pen.z) >= 7.5 + 4;
+          expect(apart).toBe(true);
+        }
+      }
+    }
     const dwellings = models.filter((m) => m.kind === 'zemnice' || m.kind === 'polozemnice');
     const nearest = dwellings.reduce((best, m) =>
       Math.hypot(m.x - pen.x, m.z - pen.z) < Math.hypot(best.x - pen.x, best.z - pen.z) ? m : best,
     );
     expect(nearest.x).toBe(SHOWCASE_PEN.toward.x);
     expect(nearest.z).toBe(SHOWCASE_PEN.toward.z);
+  });
+});
+
+describe('ukázka orby po čtvercích', () => {
+  it('čelo orby postoupí každý den ukázky o 3/8 čtverce, spřežení stojí na čele', () => {
+    expect(showcasePloughDay(0)).toBe(0);
+    expect(showcasePloughDay(SHOWCASE_PLOUGH_DAY_S * 1000 * 3 + 1)).toBe(3);
+    const ploughed = (day: number): number =>
+      showcasePlough(day).fields[0]!.parts.reduce(
+        (sum, p) => sum + (p.look === 'plowed' ? (p.work ?? 1) : 0),
+        0,
+      );
+    for (let day = 0; day < 8; day++) {
+      expect(ploughed(day)).toBeCloseTo(((day + 1) * 3) / 8, 9);
+      const village = showcasePlough(day);
+      const [team, ...rest] = ploughFront({ ...village, pens: [] });
+      expect(rest).toEqual([]);
+      // spřežení na rozpracovaném dílu (poslední den na posledním zoraném)
+      const front = village.fields[0]!.parts.find((p) => p.work !== undefined);
+      expect(team!.partId).toBe(front?.id ?? village.fields[0]!.parts.at(-1)!.id);
+      // fronta dne: díly, přes které orba dnes postoupila, v pořadí od vsi
+      expect(village.labor.shares[0]!.parts).toContain(team!.partId);
+    }
+    // po zorání všech tří čtverců začne znovu
+    expect(ploughed(8)).toBeCloseTo(ploughed(0), 9);
   });
 });
 
