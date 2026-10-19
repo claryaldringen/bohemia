@@ -571,6 +571,12 @@ v roce po sklizni ≈ o čtvrtinu víc než k 1. 9.
   **úroda, pojistka a cílová zásoba** podle průměrné potřeby v roce po sklizni.
 - Dnešní potřeba zůstává všude jinde (příděl, výhled jídla, stáda).
 
+**Naměřeno** (`measure-village.ts 20 20`, 19. 10. 2026, jen orientačně; v závorce bez výhledu,
+s nouzovou porážkou v obou): zásoby z pole po sklizni ÷ cíl v pásmu 79,7 % let (73,2 %), medián
+0,90 (0,88); startovní ves zásoby po sklizni 2,80 (2,55) roční potřeby z pole; práce na poli
+63,5 čd na člověka a rok (63,3), volná práce 6,2 (5,8); nasycení ≥ 0,95 celý rok 96,6 % let
+(96,8 %), nejnižší nasycení roku p1 0,60 (0,56).
+
 ### Přílohová soustava – co se oseje a co leží ladem
 
 Výchozí osevní systém je přílohová soustava raných Slovanů (Martin). Pravidla (návrh Clauda):

@@ -346,6 +346,15 @@ zásoby ≈ 3,6 t na ≈ 4,2 t potřeby do žní, jí 94 % přídělu – a při
 
 #### Náměty (neimplementováno – Martin rozhodne)
 
+- **Nouzová porážka v trvalém nedostatku:** Vlkov bez hráče (pole na 45 lidí nestačí) s nouzovou
+  porážkou přežije první zimu bez hladu, ale druhou zimu sní prasata až na chovný pár (52 → 2–4)
+  a stádo se už neobnoví – bez masa z podzimní porážky pak lidé umírají hlady pět let po sobě:
+  1. 9. 786 žije 13 lidí, bez nouzové porážky 29 (ti vymřeli hned druhou zimu, 45 → 22, ale
+     stádo ≈ 95 prasat zůstalo a živí je). Prase v nouzi stojí příští rok selata – 50 kg masa teď za
+     ≈ 50 kg každý další rok. Návrhy: chovné prasnice jako spodní hranice (polovina toho, co uživí
+     les – na jaře se stádo zdvojnásobí), nebo nouzová porážka jen do chovného stáda z poslední
+     podzimní porážky (jednou za rok). U hráče, který zakládá pole, se to v kalibraci neukázalo.
+
 - ~~**Vlna**~~ – od 19. 10. 2026 ve hře jako spodní hranice stáda ovcí (Oděv). Zůstává námětem
   přebytek sukna jako zboží k sousedům (trade.md) a oděv z kůží z porážky.
 - **Kozy brzdí zarůstání:** pastva koz na křovinách by mohla zarůstání přílohu zpomalit (dnes ho
