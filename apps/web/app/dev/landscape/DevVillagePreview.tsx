@@ -88,6 +88,7 @@ import {
 } from './dev-road';
 import { FOREST_TRAIL_STAGES, forestTrailDemo, type ForestTrailDemo } from './dev-forest-trail';
 import { demoCartSlope, type CartDemo } from './dev-cart';
+import { demoCaravan, type CaravanDemo } from './dev-caravan';
 import { devSelectionView } from './dev-selection';
 import type { CartKind } from '@bohemia/game';
 import {
@@ -196,6 +197,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [cartDemo, setCartDemo] = useState<CartDemo | null>(null);
   // ukázka zemské stezky lesem s průsekem (roads.md – Průsek lesem, dev-forest-trail.ts)
   const [forestTrail, setForestTrail] = useState<ForestTrailDemo | null>(null);
+  // ukázka karavany výpravy k sousedovi (trade.md – Ve scéně, dev-caravan.ts) – nosiči, pak vůz
+  const [caravanDemo, setCaravanDemo] = useState<CaravanDemo | null>(null);
   // stupeň vylepšení ukázkových cest (dev-road.ts – DEMO_ROAD_STAGES) a stadium jabloní u cesty
   const [roadStage, setRoadStage] = useState(0);
   const [appleStage, setAppleStage] = useState(0);
@@ -268,6 +271,18 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     if (base.roads && base.roads.length > 0) {
       base.fields = withRoadCuts(base.fields, base.roads, decoded);
     }
+    if (caravanDemo) {
+      // karavana výpravy: dvorec, zemská stezka, výprava (a vůz) – zboží a lidé tam a zpět
+      return {
+        ...base,
+        dwellings: [...base.dwellings, ...caravanDemo.dwellings],
+        trails: [caravanDemo.trail],
+        roads: [...(base.roads ?? []), caravanDemo.road],
+        expeditions: [caravanDemo.expedition],
+        carts: caravanDemo.carts,
+        labor: base.labor ?? caravanDemo.labor,
+      };
+    }
     if (cartDemo) {
       // ukázka vozů na svahu: obydlí, ohrada se spřežením, díl nahoře a vozová cesta jádra
       return {
@@ -326,6 +341,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     simulated,
     overgrowth,
     cartDemo,
+    caravanDemo,
   ]);
 
   useEffect(() => {
@@ -1357,6 +1373,23 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   };
 
   /**
+   * Ukázka karavany výpravy (trade.md – Ve scéně): vypnuto → nosiči se zbožím → vůz → vypnuto.
+   * Výprava vyrazí hned a za „den“ ukázky (90 s) se vrátí; kamera k půlce stezky.
+   */
+  const toggleCaravan = (): void => {
+    const next = caravanDemo === null ? 'porters' : !caravanDemo.cart ? 'cart' : null;
+    if (!next) {
+      setCaravanDemo(null);
+      scene?.setWorkDayClock(null);
+      return;
+    }
+    const sample = demoCaravan(decoded, next === 'cart', Date.now());
+    scene?.setWorkDayClock(() => sample.window);
+    setCaravanDemo(sample);
+    scene?.moveCameraTo(sample.focus.x, sample.focus.z);
+  };
+
+  /**
    * Ukázka pevné cesty se stromy (keř, mladý a plný strom, souš, pařez) a se zralým polem 15 × 15
    * čtverců přes rozcestí (pod cestou obilí neroste – fields.md, Co hráč vidí) – kamera k ní.
    */
@@ -1579,6 +1612,15 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
           data-testid="dev-forest-trail"
         >
           {forestTrail ? `Stezka lesem: ${FOREST_TRAIL_STAGES[forestTrail.stage]}` : 'Stezka lesem'}
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={toggleCaravan}
+          title="Karavana výpravy k sousedovi – zboží a lidé tam a zpět, nejdřív nosiči, pak vůz (výprava trvá 90 s)"
+          data-testid="dev-caravan"
+        >
+          {caravanDemo ? `Karavana: ${caravanDemo.cart ? 'vůz' : 'nosiči'}` : 'Karavana'}
         </button>
         <button
           className={buttonClass}

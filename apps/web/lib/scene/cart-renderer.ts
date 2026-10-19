@@ -281,6 +281,14 @@ export class CartRenderer {
     this.plans.forEach((plan, i) => {
       const pose = cartPlanPose(plan, nowMs, this.poses[i]!, ground, frozen);
       const still = frozen || !pose.moving;
+      if (pose.hidden) {
+        // karavana výpravy za krajem mapy (caravan.ts) – vůz, voli, honák ani stíny se nekreslí
+        hideFigure(ox, i * 2);
+        hideFigure(ox, i * 2 + 1);
+        hideFigure(man, i);
+        for (let j = 0; j < SHADOWS_PER_CART; j++) this.hideShadow(i * SHADOWS_PER_CART + j);
+        return;
+      }
       if (pose.hitched) {
         pose.oxen.forEach((o, j) => {
           writeFigure(
@@ -334,7 +342,8 @@ export class CartRenderer {
       part.slots.forEach(({ cart, index }, slot) => {
         const pose = this.poses[cart]!;
         const o = slot * 16;
-        if (name === 'yoke') writePartMatrix(part.matrices, o, pose.yoke, CART_SCALE);
+        if (pose.hidden) part.matrices.fill(0, o, o + 16);
+        else if (name === 'yoke') writePartMatrix(part.matrices, o, pose.yoke, CART_SCALE);
         else if (name === 'rope') writeSegmentMatrix(part.matrices, o, pose.rope, 1, CART_SCALE);
         else if (name === 'wagon4-pole') {
           writeSegmentMatrix(

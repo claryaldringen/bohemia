@@ -298,6 +298,8 @@ export interface CartPose {
   hitched: boolean;
   /** Veze náklad (prázdný jede tam, plný zpátky). */
   loaded: boolean;
+  /** Vůz teď není vidět (karavana výpravy za krajem mapy – caravan.ts). Bez údaje vidět. */
+  hidden?: boolean;
 }
 
 function figure(): FigurePose {
@@ -687,7 +689,7 @@ function unit2(x: number, z: number): Point {
 }
 
 /** Kde je bod trasy nejblíž bodu `p` (m od začátku, po kroku `step`). */
-function nearestOnRoute(route: CartRoute, p: Point, step = 0.25): number {
+export function nearestOnRoute(route: CartRoute, p: Point, step = 0.25): number {
   const at: RoutePoint = { x: 0, z: 0, hx: 0, hz: 1, heading: 0 };
   let best = 0;
   let bestD = Infinity;
@@ -923,8 +925,19 @@ export interface CartParked {
   parked: CartSpot;
 }
 
-/** Co vůz ve scéně dělá: jede dokola po trase (ukázka), tam a zpět, nebo stojí. */
-export type CartPlan = CartTrack | CartShuttle | CartParked;
+/**
+ * Vůz v karavaně výpravy (trade.md – Ve scéně, caravan.ts): trasa tam (od ohrady na stezku a po ní
+ * ke kraji mapy) a zpět (obráceně) a kde na nich v okamžiku je – podle postupu výpravy.
+ */
+export interface CartCaravan {
+  kind: CartKind;
+  cargo: CartCargo;
+  routes: { out: CartRoute; back: CartRoute };
+  at: (nowMs: number) => { leg: 'out' | 'back'; s: number; speed: number; visible: boolean };
+}
+
+/** Co vůz ve scéně dělá: jede dokola po trase (ukázka), tam a zpět, v karavaně, nebo stojí. */
+export type CartPlan = CartTrack | CartShuttle | CartParked | CartCaravan;
 
 /** Čas (s), ve kterém stojí vozy dokola po trase při omezeném pohybu. */
 export const CART_FROZEN_T = 23;
@@ -943,8 +956,16 @@ export function cartPlanPose(
   ground: GroundFn = FLAT,
   frozen = false,
 ): CartPose {
+  out.hidden = false;
   if ('parked' in plan) return parkedCartPose(plan.kind, plan.parked, out, ground);
   const t = villagerSeconds(nowMs);
+  if ('routes' in plan) {
+    const at = plan.at(nowMs);
+    poseOnRoute(plan.kind, plan.routes[at.leg], at.s, t, frozen ? 0 : at.speed, out, ground);
+    out.loaded = plan.cargo !== 'empty';
+    out.hidden = !at.visible;
+    return out;
+  }
   if ('shuttle' in plan) {
     const at = frozen
       ? { s: plan.shuttle.farM, speed: 0, loaded: true }
@@ -959,5 +980,6 @@ export function cartPlanPose(
 /** Trasa, po které plán jede (kvůli obalu); stojící vůz žádnou. */
 export function cartPlanRoute(plan: CartPlan): CartRoute | null {
   if ('parked' in plan) return null;
+  if ('routes' in plan) return plan.routes.out;
   return 'shuttle' in plan ? plan.shuttle.route : plan.route;
 }

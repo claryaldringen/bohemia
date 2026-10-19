@@ -12,11 +12,22 @@ import type {
   LaborActivity,
   LaborShare,
   LaborTarget,
+  SceneExpedition,
   SceneFieldPart,
   SceneLaborShare,
   SceneLabor,
   SceneVillage,
 } from '../village-view';
+import {
+  caravanHead,
+  caravanPlan,
+  caravanProgress,
+  memberSpot,
+  waitingOffset,
+  type CaravanMember,
+  type DayWindow,
+} from './caravan';
+import { LIVESTOCK_EPOCH_MS } from './livestock-motion';
 import { TREE_CLEARANCE_M, buildingClearings, insideClearings } from './building-clearings';
 import { cellsBoundary, rowDirection, type CellSquare } from './field-cells';
 import {
@@ -33,6 +44,7 @@ import { orchardTreeSpots } from './orchard-layout';
 import { hash01 } from './smoke-schedule';
 import { localToWorld } from './village-layout';
 import {
+  alongRoute,
   fetcher,
   herder,
   route,
@@ -203,6 +215,11 @@ export interface VillagerPlanOptions {
   maxWorkers?: number;
   /** Vyšlapané pěšiny – nosiči a ženy pro vodu a dřevo chodí po nich. */
   paths?: VillagerPaths | null;
+  /**
+   * Okno herního dne (skutečný čas) – karavany výprav jdou podle postupu výpravy v herním čase
+   * (caravan.ts); bez hodin stojí na postupu dne dat.
+   */
+  dayWindow?: (day: number) => DayWindow | null;
 }
 
 /** Obdélník domu v jeho souřadnicích (x napříč, z k vchodu). */
@@ -297,9 +314,13 @@ export function planVillagers(
   );
   const counts = shareCounts(labor.shares, labor.month, options.maxWorkers ?? MAX_WORKERS);
   const people: PlannedVillager[] = [];
+  // výpravy k sousedům jdou jako karavany podle stavu výpravy (trade.md – Ve scéně), ne podle
+  // práce dne – nosiči nezmizí, když výprava dnes nedostala volné ruce
+  const caravans = village.expeditions !== undefined;
   labor.shares.forEach((share, s) => {
     const count = counts[s] ?? 0;
     if (count === 0) return;
+    if (caravans && share.activity === 'trade') return;
     const place = placer(ctx, share, count);
     for (let i = 0; i < count; i++) {
       const who = identity(ctx.seed, `${share.activity}:${targetKey(share.target)}:${i}`, {
@@ -317,7 +338,88 @@ export function planVillagers(
   const elderHerders = tending.filter((kind) => kind === 'elder').length;
   people.push(...elders(ctx, elderCount(Math.max(0, labor.people.elders - elderHerders), winter)));
   people.push(...herders(ctx, tending));
+  for (const e of village.expeditions ?? []) {
+    people.push(...caravanFigures(ctx, e, options.dayWindow?.(e.day) ?? null));
+  }
   return people;
+}
+
+/** Klip člena karavany na cestě: nosič se zbožím nese, ostatní jdou. */
+function caravanClip(member: CaravanMember): VillagerClip {
+  return member.loaded ? 'carry' : 'walk';
+}
+
+/**
+ * Karavana výpravy k sousedovi (trade.md – Ve scéně, caravan.ts): jedna skupina po zemské
+ * stezce podle postupu výpravy v herním čase – tam nosiči se zbožím (s vozy jen pomocníci, náklad
+ * veze vůz – kreslí village-carts.ts) a lidé, kteří odcházejí k sousedovi; za krajem mapy zmizí
+ * a za dny výpravy se objeví na cestě zpátky – nosiči a lidé od souseda (pohlaví a věk z jádra).
+ * Před odchodem a po návratu stojí v hloučku u začátku stezky; bez volných rukou stojí na cestě.
+ */
+function caravanFigures(
+  ctx: Context,
+  e: SceneExpedition,
+  window: DayWindow | null,
+): PlannedVillager[] {
+  const trail = (ctx.village.trails ?? []).find((t) => t.id === e.trailId);
+  if (!trail || trail.points.length < 2) return [];
+  const path = route(trail.points.map((p) => [p.x, p.z] as const));
+  const L = path.length;
+  const plan = caravanPlan(e);
+  const columns = { out: plan.out.length, back: plan.back.length };
+  const daySeconds = window ? Math.max(1, (window.endMs - window.startMs) / 1000) : 86;
+  const [x0, z0] = trail.points[0] ? [trail.points[0].x, trail.points[0].z] : [0, 0];
+  const first = unit(trail.points[1]!.x - x0, trail.points[1]!.z - z0);
+  const out: PlannedVillager[] = [];
+  for (const leg of ['out', 'back'] as const) {
+    plan[leg].members.forEach((member, index) => {
+      const key = `caravan:${e.id}:${member.key}`;
+      const person = member.sex !== null;
+      const child = person && (member.age ?? 30) < 14;
+      const who = identity(ctx.seed, key, {
+        women: person ? (member.sex === 'female' ? 1 : 0) : WOMEN.trade,
+        child,
+      });
+      const hair: HairLook =
+        (member.age ?? 0) >= 45 ? 'grey' : child ? 'natural' : adultHair(who, ctx.sexes.married);
+      const clip = caravanClip(member);
+      const base = walkSpeed(who.kind, clip, who.scale);
+      const pose: PoseFn = (t, _herds, o) => {
+        const nowMs = t * 1000 + LIVESTOCK_EPOCH_MS;
+        const head = caravanHead(e, caravanProgress(e, window, nowMs), L, columns);
+        o.hidden = head.leg !== leg;
+        if (o.hidden) {
+          o.x = x0;
+          o.z = z0;
+          o.clip = 'idle';
+          o.pace = 1;
+          return o;
+        }
+        const spot = memberSpot(head, member.behind, L, index);
+        o.hidden = !spot.visible;
+        if (spot.waiting !== null) {
+          const w = waitingOffset(spot.waiting);
+          o.x = x0 - first.x * w.back - first.z * w.side;
+          o.z = z0 - first.z * w.back + first.x * w.side;
+          o.headingX = first.x;
+          o.headingZ = first.z;
+          o.clip = 'idle';
+          o.pace = 1;
+          return o;
+        }
+        alongRoute(path, spot.s, leg === 'back', o);
+        // vedle osy (pomocník u vozu) – vlevo od směru chůze
+        o.x -= o.headingZ * member.side;
+        o.z += o.headingX * member.side;
+        const speed = head.perDay / daySeconds;
+        o.clip = speed > 0 ? clip : 'idle';
+        o.pace = speed > 0 ? Math.min(3, Math.max(0.6, speed / Math.max(0.1, base))) : 1;
+        return o;
+      };
+      out.push(villager(who, pose, hair));
+    });
+  }
+  return out;
 }
 
 /**

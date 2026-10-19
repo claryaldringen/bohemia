@@ -37,13 +37,24 @@ export const TRADE_GOOD_NAMES: Record<
   charcoal: { name: 'Uhlí', genitive: 'uhlí', unit: 'kg', icon: 'charcoal' },
 };
 
-/** Lidé ve výměně se sousedem (trade.md – Výměna lidí): rodina a svobodný dospělý. */
-export type PeopleKind = 'family' | 'adult';
+/**
+ * Lidé ve výměně se sousedem (trade.md – Výměna lidí): rodina, svobodný muž a svobodná žena –
+ * muži a ženy zvlášť (Martin 19. 10. 2026).
+ */
+export type PeopleKind = 'family' | 'man' | 'woman';
 
-/** Lidé – název a ikona v `public/icons/resources/` (dospělý ikonou muže, muž i žena). */
+/** Klíč počtu v `TradePeople` k druhu lidí. */
+export const PEOPLE_KEYS: Record<PeopleKind, keyof TradePeople> = {
+  family: 'families',
+  man: 'men',
+  woman: 'women',
+};
+
+/** Lidé – název a ikona v `public/icons/resources/`. */
 export const PEOPLE_NAMES: Record<PeopleKind, { name: string; icon: string }> = {
   family: { name: 'Rodina – muž, žena a jejich děti', icon: 'family' },
-  adult: { name: 'Svobodný dospělý – muž nebo žena 16–44 let', icon: 'man' },
+  man: { name: 'Svobodný muž 16–44 let', icon: 'man' },
+  woman: { name: 'Svobodná žena 16–44 let', icon: 'woman' },
 };
 
 /** Česky skloňované počty – 1, 2–4, 5 a víc. */
@@ -53,7 +64,7 @@ function plural(n: number, one: string, few: string, many: string): string {
 
 /**
  * Kolik soused ještě vezme nebo má, ve 4. pádě s jednotkou (popisek řádku obchodu): „1 500 kg“,
- * „4 kusy“, „1 rodinu“, „2 dospělé“.
+ * „4 kusy“, „1 rodinu“, „2 muže“, „1 ženu“.
  */
 export function tradeAmountText(n: number, unit: 'kg' | 'ks' | PeopleKind): string {
   const count = formatInteger(n);
@@ -64,23 +75,31 @@ export function tradeAmountText(n: number, unit: 'kg' | 'ks' | PeopleKind): stri
       return `${count} ${plural(n, 'kus', 'kusy', 'kusů')}`;
     case 'family':
       return `${count} ${plural(n, 'rodinu', 'rodiny', 'rodin')}`;
-    case 'adult':
-      return `${count} ${plural(n, 'dospělého', 'dospělé', 'dospělých')}`;
+    case 'man':
+      return `${count} ${plural(n, 'muže', 'muže', 'mužů')}`;
+    case 'woman':
+      return `${count} ${plural(n, 'ženu', 'ženy', 'žen')}`;
   }
 }
 
-/** Lidé ve výměně („1 rodina a 2 dospělí“); nikdo – prázdný text. */
-export function peopleText(people: TradePeople | undefined): string {
+/**
+ * Lidé ve výměně („1 rodina, 2 muži a 1 žena“); nikdo – prázdný text. Kronika uložená před muži
+ * a ženami zvlášť má `adults` („2 dospělí“).
+ */
+export function peopleText(
+  people: (Partial<TradePeople> & { adults?: number }) | undefined,
+): string {
   if (!people) return '';
+  const part = (n: number | undefined, one: string, few: string, many: string): string =>
+    n !== undefined && n > 0 ? `${formatInteger(n)} ${plural(n, one, few, many)}` : '';
   const parts = [
-    people.families > 0
-      ? `${formatInteger(people.families)} ${plural(people.families, 'rodina', 'rodiny', 'rodin')}`
-      : '',
-    people.adults > 0
-      ? `${formatInteger(people.adults)} ${plural(people.adults, 'dospělý', 'dospělí', 'dospělých')}`
-      : '',
+    part(people.families, 'rodina', 'rodiny', 'rodin'),
+    part(people.men, 'muž', 'muži', 'mužů'),
+    part(people.women, 'žena', 'ženy', 'žen'),
+    part(people.adults, 'dospělý', 'dospělí', 'dospělých'),
   ].filter((p) => p !== '');
-  return parts.join(' a ');
+  if (parts.length <= 1) return parts[0] ?? '';
+  return `${parts.slice(0, -1).join(', ')} a ${parts[parts.length - 1]}`;
 }
 
 /** Krátký řádek a věta kroniky, kdo přišel od souseda (trade.md – Výměna lidí). */

@@ -148,6 +148,7 @@ import {
 import { manorView, type VillageManor } from './manor-view';
 import { foreignFromScene, plotOfScene } from './scene/neighbour-villages';
 import { sceneTrails, trailRoadWork } from './trail-view';
+import { sceneExpeditions } from './caravan-view';
 import { DIRECTION_NAMES, NEWCOMER_TEXTS, goodsText, peopleText } from './trade-names';
 import { formatCells, formatHa, formatInteger, plural } from './village-format';
 import type { VillageListItem } from './village-list';
@@ -922,6 +923,11 @@ export interface SceneVillage {
    */
   trails?: SceneTrail[];
   /**
+   * Výpravy k sousedům na cestě (trade.md – Ve scéně): karavana po zemské stezce – kdo jde tam
+   * a kdo zpátky, vozy a postup (`caravan.ts`). Bez údaje karavany nejsou (nosiči podle práce dne).
+   */
+  expeditions?: SceneExpedition[];
+  /**
    * Stromy u pevných cest (roads.md) – stadium (keř, strom, souš, pařez) a velikost 0–1 v den
    * pohledu. Bez údaje žádné.
    */
@@ -1060,6 +1066,29 @@ export interface SceneTrail {
   direction: Direction8;
   points: { x: number; z: number }[];
   built: boolean;
+}
+
+/**
+ * Výprava k sousedovi pro karavanu ve scéně (trade.md – Ve scéně, `scene/caravan.ts`): stezka,
+ * kolik lidí jde (nosiči, s vozy honáci a pomocníci – `cartCrew` na vůz), vozy (id), kdo odchází
+ * k sousedovi a kdo s výpravou přijde (pohlaví a věk z jádra), jestli se nese náklad tam a zpátky,
+ * postup 0–1 na konci dne `day`, denní přírůstek postupu (dnešní tempo, výprava vyslaná dnes plné)
+ * a podíl cesty na mapě (bez dne za krajem mapy).
+ */
+export interface SceneExpedition {
+  id: number;
+  trailId: number;
+  porters: number;
+  carts: number[];
+  cartCrew: number;
+  leaving: { sex: 'male' | 'female'; age: number }[];
+  coming: { sex: 'male' | 'female'; age: number }[];
+  carriesOut: boolean;
+  carriesBack: boolean;
+  progress: number;
+  rate: number;
+  day: number;
+  onMap: number;
 }
 
 export type SceneRoad = Pick<
@@ -3001,6 +3030,7 @@ export function buildVillageView(
     scene: {
       ...sceneVillage(state, landscape, day, summary),
       trails: sceneTrails(state),
+      expeditions: sceneExpeditions(state),
       ...(context.neighbourScenes?.length ? { neighbours: context.neighbourScenes } : {}),
     },
     chronicle: chronicle(state, name),

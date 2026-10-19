@@ -51,6 +51,11 @@ export interface VillagerPose {
   clip: VillagerClip;
   /** Rychlost přehrávání klipu (1 = jak je zapečený). */
   pace: number;
+  /**
+   * Postava teď není vidět (karavana výpravy za krajem mapy – caravan.ts); scéna ji nekreslí.
+   * Bez údaje vidět.
+   */
+  hidden?: boolean;
 }
 
 export function createVillagerPose(): VillagerPose {

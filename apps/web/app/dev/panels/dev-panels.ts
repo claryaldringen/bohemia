@@ -51,6 +51,8 @@ const trails: TrailOption[] = DIRECTIONS.map((direction) => ({
           : null,
 }));
 
+const NOBODY = { families: 0, men: 0, women: 0 };
+
 const neighbours: VillageNeighbour[] = [
   {
     direction: 'E',
@@ -66,11 +68,12 @@ const neighbours: VillageNeighbour[] = [
       { good: 'cheese', price: 4, left: 300, have: 1450 },
       { good: 'logs', price: 40, left: 40, have: 26 },
     ],
-    // soused má letos lidi navíc – rodinu se dvěma dětmi a svobodného dospělého (trade.md)
+    // soused má letos lidi navíc – rodinu se dvěma dětmi, svobodného muže a dvě svobodné ženy
+    // (trade.md – Výměna lidí, muži a ženy zvlášť)
     people: {
-      offers: { families: [{ people: 4, price: 1036.8 }], adults: 1, adultPrice: 345.6 },
-      takes: { families: 0, adults: 0 },
-      have: { families: [], adults: 0, adultCredit: 360 },
+      offers: { families: [{ people: 4, price: 1036.8 }], men: 1, women: 2, adultPrice: 345.6 },
+      takes: NOBODY,
+      have: { families: [], men: 0, women: 0, adultCredit: 360 },
     },
     expedition: null,
     // ves má čtyřkolák a spřežení doma – náklad jde na vůz (wagons.md – Obchod)
@@ -86,20 +89,53 @@ const neighbours: VillageNeighbour[] = [
       { good: 'meat', price: 2.88, left: 350 },
     ],
     demands: [{ good: 'grain', price: 1, left: 1800, have: 12400 }],
-    // soused lidi shání – ves by dala rodinu ze tří a jednoho svobodného dospělého
+    // soused lidi shání – ves by dala rodinu ze tří a svobodnou ženu
     people: {
-      offers: { families: [], adults: 0, adultPrice: 345.6 },
-      takes: { families: 1, adults: 2 },
-      have: { families: [{ people: 3, credit: 900 }], adults: 1, adultCredit: 360 },
+      offers: { families: [], men: 0, women: 0, adultPrice: 345.6 },
+      takes: { families: 1, men: 1, women: 1 },
+      have: { families: [{ people: 3, credit: 900 }], men: 0, women: 1, adultCredit: 360 },
     },
+    // výprava čeká na volné ruce – ves dnes neměla volnou práci (Vlkov 19. 10. 2026)
     expedition: {
-      give: { grain: 600 },
-      get: { cattle: 1 },
-      givePeople: { families: 0, adults: 1 },
-      getPeople: { families: 0, adults: 0 },
-      porters: 24,
-      days: 7,
+      give: { meat: 289 },
+      get: {},
+      givePeople: NOBODY,
+      getPeople: { families: 0, men: 1, women: 1 },
+      porters: 12,
+      carts: 0,
+      days: 5,
       progress: 0.6,
+      daysLeft: null,
+      pace: 'waiting',
+      today: 0,
+    },
+    carts: [],
+  },
+  {
+    direction: 'W',
+    name: 'Mokrá',
+    lengthM: 960,
+    tripDays: 6,
+    offers: [{ good: 'tools', price: 57.6, left: 20 }],
+    demands: [{ good: 'grain', price: 1, left: 1200, have: 12400 }],
+    people: {
+      offers: { families: [], men: 0, women: 0, adultPrice: 345.6 },
+      takes: NOBODY,
+      have: { families: [], men: 0, women: 0, adultCredit: 360 },
+    },
+    // výprava s vozem jde pomaleji – volné práce je míň, než je lidí výpravy
+    expedition: {
+      give: { grain: 900 },
+      get: { tools: 15 },
+      givePeople: { families: 1, men: 0, women: 0 },
+      getPeople: NOBODY,
+      porters: 4,
+      carts: 1,
+      days: 6,
+      progress: 0.35,
+      daysLeft: 6,
+      pace: 'slow',
+      today: 2.6,
     },
     carts: [],
   },

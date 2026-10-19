@@ -377,6 +377,8 @@ export class LandscapeScene {
       baseUrl: '/models/people/',
       herds: (nowMs) => this.livestock?.herdViews(nowMs) ?? [],
       onLoaded: () => this.renderWhenReady(),
+      // karavany výprav jdou v herním čase (caravan.ts) – okno herního dne jako orba za den
+      dayWindow: (day) => this.village?.gameDayWindow(day) ?? null,
     });
     // Vyšlapané pěšiny – síť se počítá z vsi a krajiny (odloženě), lidé po ní chodí; pevné cesty
     // a stromy u nich z dat vsi (roads.md).
