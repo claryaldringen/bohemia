@@ -280,6 +280,14 @@ const YEARS_KEY_MAX = 40;
 const WATER_TRIPS_PER_PERSON = WATER_FETCHING.tripsPerPerson;
 const WOOD_TRIPS = { summer: 0.5, winter: 1.2 } as const;
 const WINTER_MONTHS: readonly number[] = [11, 12, 1, 2, 3];
+
+/**
+ * Cest pro dřevo za den na domácnost v měsíci `month` (léto / zima, jako v síti pěšin) – podle nich
+ * chodí ve scéně postavy k lesu (villagers.md – Provoz na cestách).
+ */
+export function woodErrandTrips(month: number): number {
+  return WINTER_MONTHS.includes(month) ? WOOD_TRIPS.winter : WOOD_TRIPS.summer;
+}
 /** Návštěvy mezi sousedy – každá domácnost se dvěma nejbližšími. */
 const NEIGHBOUR_TRIPS = 0.5;
 const NEIGHBOURS = 2;
