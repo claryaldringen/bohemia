@@ -1,5 +1,6 @@
 import type { PathLine } from '@bohemia/game';
 import type { SceneRoad } from '../village-view';
+import type { Track, TrackDisc, TrackSegment } from './track-mask';
 import { hash01 } from './smoke-schedule';
 import { smoothstep, type DecalGrid } from './village-layout';
 
@@ -223,27 +224,44 @@ export function pathRibbons(
   };
 }
 
-function addRibbon(
+/**
+ * Průřez pásu v bodě osy: střed (s vlněním osy), kolmice, poloviční šířka (s kolísáním a `widthAt`),
+ * síla pěšiny a vytrácení – volné konce (`fadeStart`, `fadeEnd`) a `alphaAt` v bodě.
+ */
+export interface RibbonSection {
+  cx: number;
+  cz: number;
+  nx: number;
+  nz: number;
+  half: number;
+  strength: number;
+  fadeStart: number;
+  fadeEnd: number;
+  alphaAt: number;
+}
+
+/**
+ * Průřezy pásu pěšiny po ose (krok STEP_M) – stejné body jako obtisk (`pathRibbons`) i maska polí
+ * pod cestou (`ribbonTrack`). Krátká čára (pod 0,5 m) průřezy nemá.
+ */
+export function ribbonSections(
   line: PathLine,
   layer: RibbonLayer,
   widthAt: (x: number, z: number) => number,
   alphaAt: (x: number, z: number) => number,
-  positions: number[],
-  alphas: number[],
-  indices: number[],
-): void {
+): RibbonSection[] {
   const pts = line.points;
-  if (pts.length < 2) return;
+  if (pts.length < 2) return [];
   const at = [0];
   for (let k = 1; k < pts.length; k++) {
     at.push(at[k - 1]! + Math.hypot(pts[k]!.x - pts[k - 1]!.x, pts[k]!.z - pts[k - 1]!.z));
   }
   const length = at[at.length - 1]!;
-  if (length < 0.5) return;
+  if (length < 0.5) return [];
   const seed = lineSeed(line);
   const steps = Math.max(1, Math.ceil(length / STEP_M));
+  const sections: RibbonSection[] = [];
   let segment = 1;
-  let previous = -1;
   for (let k = 0; k <= steps; k++) {
     const d = (k / steps) * length;
     while (segment < pts.length - 1 && at[segment]! < d) segment++;
@@ -277,9 +295,34 @@ function addRibbon(
       layer.widthFactor *
       widthAt(cx, cz) *
       (1 + (noise1(seed + 17, d / (WOBBLE_WAVE_M * 0.6)) - 0.5) * 2 * WIDTH_JITTER);
-    const fadeStart = line.openStart ? smoothstep(0, END_FADE_M, d) : 1;
-    const fadeEnd = line.openEnd ? smoothstep(0, END_FADE_M, length - d) : 1;
-    const alpha = layer.alpha(strength) * fadeStart * fadeEnd * alphaAt(cx, cz);
+    sections.push({
+      cx,
+      cz,
+      nx,
+      nz,
+      half,
+      strength,
+      fadeStart: line.openStart ? smoothstep(0, END_FADE_M, d) : 1,
+      fadeEnd: line.openEnd ? smoothstep(0, END_FADE_M, length - d) : 1,
+      alphaAt: alphaAt(cx, cz),
+    });
+  }
+  return sections;
+}
+
+function addRibbon(
+  line: PathLine,
+  layer: RibbonLayer,
+  widthAt: (x: number, z: number) => number,
+  alphaAt: (x: number, z: number) => number,
+  positions: number[],
+  alphas: number[],
+  indices: number[],
+): void {
+  let previous = -1;
+  for (const s of ribbonSections(line, layer, widthAt, alphaAt)) {
+    const { cx, cz, nx, nz, half } = s;
+    const alpha = layer.alpha(s.strength) * s.fadeStart * s.fadeEnd * s.alphaAt;
     const offsets = [-(half + layer.softM), -half * 0.35, half * 0.35, half + layer.softM];
     const base = positions.length / 2;
     for (let i = 0; i < 4; i++) {
@@ -295,6 +338,52 @@ function addRibbon(
     }
     previous = base;
   }
+}
+
+/**
+ * Pás pěšin či cest pro masku polí (fields.md – Co hráč vidí, Martin 19. 10. 2026: „Tam, kde je
+ * cesta, prostě obilí neroste.“): úsečky mezi průřezy pásu (`ribbonSections` – stejné vlnění
+ * a šířka jako obtisk) a kruhy plácků rozcestí, každý s hloubkou masky 0–1 (vytrácení volných
+ * konců a `alphaAt`; pěšina bez síly 0). Čáry v pořadí, kus nese index své čáry (`line`, plácky
+ * za čarami).
+ */
+export function ribbonTrack(
+  lines: readonly PathLine[],
+  layer: RibbonLayer,
+  widthAt: (x: number, z: number) => number = () => 1,
+  alphaAt: (x: number, z: number) => number = () => 1,
+  junctions: readonly RibbonJunction[] = ribbonJunctions(lines),
+): Track {
+  const segments: TrackSegment[] = [];
+  lines.forEach((line, index) => {
+    const sections = ribbonSections(line, layer, widthAt, alphaAt);
+    const depth = (s: RibbonSection): number =>
+      layer.alpha(s.strength) > 0 ? s.fadeStart * s.fadeEnd * s.alphaAt : 0;
+    for (let k = 1; k < sections.length; k++) {
+      const a = sections[k - 1]!;
+      const b = sections[k]!;
+      segments.push({
+        line: index,
+        ax: a.cx,
+        az: a.cz,
+        bx: b.cx,
+        bz: b.cz,
+        halfA: a.half,
+        halfB: b.half,
+        depthA: depth(a),
+        depthB: depth(b),
+      });
+    }
+  });
+  const discs = junctions.flatMap((junction, k): TrackDisc[] => {
+    const { x, z, strength } = junction;
+    const width = layer.width.weak + (layer.width.strong - layer.width.weak) * strength;
+    const radius =
+      width * layer.widthFactor * widthAt(x, z) * (layer.junction?.scale ?? JUNCTION.scale);
+    const depth = layer.alpha(strength) > 0 ? alphaAt(x, z) : 0;
+    return radius > 0 && depth > 0 ? [{ line: lines.length + k, x, z, radius, depth }] : [];
+  });
+  return { segments, discs };
 }
 
 /**

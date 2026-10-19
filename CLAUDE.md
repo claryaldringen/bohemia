@@ -1314,7 +1314,17 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   plodiny na něm začala) má vnější rohy pole zakulacené obloukem `PLOUGH_CORNER_M` (5 m) –
   `cellsCoverage(…, rounding)` / `raggedCoverage(…, rounding)` v `field-cells.ts`, vnější rohy
   `outerCorners`; obtisk, trsy i koruna podle krytí, v klíči bloku (`partViewsKey`). Jen vzhled –
-  plochu dílu roh neubírá. **Louky na seno** ve vsi jsou data – políčka
+  plochu dílu roh neubírá. **Pod cestou obilí neroste** (fields.md – Co hráč vidí, Martin 19. 10. 2026): maska `track-mask.ts` (`trackMask` – úsečky a plácky rozcestí s hloubkou,
+  přihrádky po 8 m, `keyNear` = klíč pásů v bloku) z průřezů obtisku (`ribbonSections` /
+  `ribbonTrack` v `path-ribbon.ts`) – pevné cesty `roadTrack` (`road-works-layout.ts`, klíč cest
+  `roadsKey` + `roadWorksKey`) s okrajem 0,8 m a pěšiny dne z `VillagePaths.pathTrack()` (síla po
+  čtvrtinách) s okrajem 0,5 m, předává je `onChange` sítě pěšin přes
+  `VillageRenderer.setPathTrack` → `FieldRenderer.setPaths` (odloženě s přepočtem pěšin, nikdy za
+  snímek). Násobí krytí pole (obtisk, trsy, panáky, plevel, koruna svahem); klíč bloku nese pásy
+  bloku, takže se přestaví jen bloky, kudy pás vede nebo vedl; kusy pod pásem mají jemnější síť
+  (`TRACK_DETAIL` – koruna 4×, obtisk 2×). Ukázka: /dev/landscape **Cesta** se zralým polem
+  15 × 15 přes rozcestí. Jen vzhled – plochu dílu cesta neubírá (roads.md – Cesta je cesta).
+  **Louky na seno** ve vsi jsou data – políčka
   přirozených luk v seči (`SceneVillage.hayMeadows`, `hayMeadowFields` je kreslí jako pole
   se vzhledem `meadow` / `mown` / `haystacks`, postavy sečou po čele práce); dekorativní
   `chooseHayMeadows` jen ve vývojové ukázce (oxen.md). Den pro

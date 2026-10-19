@@ -11,7 +11,7 @@ import {
 import { emptyCanopy, fieldCanopy, mergeCanopies, type CanopyMesh } from './field-canopy';
 import type { PartView } from './field-look';
 import { hayPhase } from './hay-meadows';
-import { decalGrid, type DecalGrid } from './village-layout';
+import { decalGrid, type Bounds, type DecalGrid } from './village-layout';
 
 /**
  * Pole po blocích dílů (field-renderer.ts) – čisté funkce bez Babylonu. Obtisky a trsy dílu
@@ -24,6 +24,13 @@ import { decalGrid, type DecalGrid } from './village-layout';
 export const FIELD_BLOCK = 8;
 /** Bodů sítě obtisku na stranu čtverce – 8 na 15 m sedí na síť terénu (village-renderer.ts). */
 export const GRID_PER_CELL = 8;
+/**
+ * Kolikrát jemnější síť koruny a obtisku mají kusy, přes které vede cesta nebo pěšina
+ * (track-mask.ts): koruna 4× (15 m / 32 ≈ 0,47 m) – pás bez obilí (pěšina přes osetý díl je úzká
+ * stopa) je jinak užší než krok sítě a koruna by ho přerostla; obtisk pole 2× (≈ 0,94 m, skvrny
+ * stejně jako podklad) – shora ho kryje obtisk cesty, jemnější síť by jen stála čas.
+ */
+export const TRACK_DETAIL = { canopy: 4, decal: 2 } as const;
 
 /** Obtisky jedné textury (podklad nebo skvrny) – sítě kusů dílů s barvou a průhledností. */
 export interface DecalLayer {
@@ -91,6 +98,7 @@ export function fieldBlockContent(
   center: { x: number; z: number },
   coverage: (x: number, z: number) => number,
   day: number,
+  fine: (bounds: Bounds) => boolean = () => false,
 ): FieldBlockContent {
   const layers = new Map<string, DecalLayer>();
   const layer = (texture: FieldTexture, patches: boolean): DecalLayer => {
@@ -107,17 +115,19 @@ export function fieldBlockContent(
     const style = lookStyle(piece.look, piece.part.crop);
     // zarůstající příloh obtisk nemá – zůstane tráva louky (fields.md – Zarůstání)
     if (style.alpha <= 0) continue;
-    const step = piece.part.size / GRID_PER_CELL;
+    const base = piece.part.size / GRID_PER_CELL;
+    const tracked = fine(piece.bounds);
+    const step = tracked ? base / TRACK_DETAIL.decal : base;
     const grid = decalGrid(piece.bounds, step, coverage);
     if (grid.indices.length === 0) continue;
-    const base = layer(style.texture, false);
-    base.grids.push(grid);
-    base.colors.push(style.tint);
-    base.alphas.push(style.alpha);
+    const ground = layer(style.texture, false);
+    ground.grids.push(grid);
+    ground.colors.push(style.tint);
+    ground.alphas.push(style.alpha);
     if (style.patches) {
       // skvrny jemnější sítí – šum je menší než krok obtisku
       const even = style.patches.even ?? false;
-      const fine = decalGrid(piece.bounds, even ? step : step / 2, (x, z) => {
+      const fine = decalGrid(piece.bounds, even || tracked ? step : step / 2, (x, z) => {
         if (even) return coverage(x, z);
         const n = patchNoise(x, z);
         return coverage(x, z) * Math.min(1, Math.max(0, (n - 0.45) / 0.2));
@@ -152,7 +162,9 @@ export function fieldBlockContent(
   // koruna porostu po síti obtisku (stejné body jako okraj obtisku)
   const first = views[0];
   const canopy = first
-    ? fieldCanopy(views, rows, center, coverage, first.part.size / GRID_PER_CELL)
+    ? fieldCanopy(views, rows, center, coverage, first.part.size / GRID_PER_CELL, (bounds) =>
+        fine(bounds) ? 1 / TRACK_DETAIL.canopy : 1,
+      )
     : emptyCanopy();
   return { layers, swaths, plants, canopy };
 }

@@ -97,6 +97,7 @@ export function fieldCanopy(
   center: { x: number; z: number },
   coverage: (x: number, z: number) => number,
   step: number,
+  detail: (bounds: Bounds) => number = () => 1,
 ): CanopyMesh {
   const positions: number[] = [];
   const offsets: number[] = [];
@@ -144,12 +145,26 @@ export function fieldCanopy(
     if (n[0] * want[0] + n[1] * want[1] + n[2] * want[2] >= 0) indices.push(a, b, c);
     else indices.push(a, c, b);
   };
+  /**
+   * Trojúhelník plochy s normálou nahoru – jako `triangle(…, [0, 1, 0])`, jen bez polí navíc:
+   * svislá složka normály závisí jen na x a z (jemná síť u cest má bodů mnohem víc).
+   */
+  const upward = (a: number, b: number, c: number): void => {
+    const ax = positions[a * 2]! - positions[b * 2]!;
+    const az = positions[a * 2 + 1]! - positions[b * 2 + 1]!;
+    const cx = positions[c * 2]! - positions[b * 2]!;
+    const cz = positions[c * 2 + 1]! - positions[b * 2 + 1]!;
+    if (az * cx - ax * cz >= 0) indices.push(a, b, c);
+    else indices.push(a, c, b);
+  };
   for (const piece of pieces) {
     const h = canopyHeight(piece.look, piece.part.crop);
     const tint = lookStyle(piece.look, piece.part.crop).tint;
     const b: Bounds = piece.bounds;
-    const nx = Math.max(1, Math.round((b.maxX - b.minX) / step));
-    const nz = Math.max(1, Math.round((b.maxZ - b.minZ) / step));
+    // kus, přes který vede cesta, jemněji (`detail` – pás bez obilí užší než krok sítě)
+    const pieceStep = step * detail(b);
+    const nx = Math.max(1, Math.round((b.maxX - b.minX) / pieceStep));
+    const nz = Math.max(1, Math.round((b.maxZ - b.minZ) / pieceStep));
     const sx = (b.maxX - b.minX) / nx;
     const sz = (b.maxZ - b.minZ) / nz;
     const columns = nx + 1;
@@ -169,8 +184,8 @@ export function fieldCanopy(
         const d = top[(j + 1) * columns + i + 1]!;
         // celý čtverec sítě pod zemí (za okrajem pole) se nekreslí
         if (Math.max(offsets[a]!, offsets[bb]!, offsets[c]!, offsets[d]!) <= 0) continue;
-        triangle(a, bb, c, [0, 1, 0]);
-        triangle(bb, d, c, [0, 1, 0]);
+        upward(a, bb, c);
+        upward(bb, d, c);
       }
     }
     // stěny po stranách kusu: dolů k výšce porostu za stranou (bez porostu k zemi)

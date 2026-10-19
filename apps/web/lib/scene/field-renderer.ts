@@ -11,7 +11,7 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
-import { dateOfDayIndex, type Landscape, type ObstacleLayer } from '@bohemia/game';
+import { dateOfDayIndex, roadsKey, type Landscape, type ObstacleLayer } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 import { clearingMask, clearingsKey, clearingsNear, fieldClearings } from './building-clearings';
 import { cellsBounds, rowDirection, squaresContain, touchingSquares } from './field-cells';
@@ -57,7 +57,9 @@ import {
 import { loadMergedModel, loadModelParts } from './instanced-model';
 import { PLOUGH_CORNER_M, type FurrowBand } from './plough-team';
 import { applyPitCut, type PitCuts } from './pit-cut';
+import { roadTrack, roadWorksKey } from './road-works-layout';
 import { applySeasonGround, applySeasonModel, applySeasonSnow } from './season-materials';
+import { trackMask, type Track, type TrackBounds, type TrackMask } from './track-mask';
 import {
   decalGrid,
   fieldHideShape,
@@ -87,6 +89,29 @@ const MEADOW_EDGE_SOFT_M = 3;
  * (population.md – Obydlí na poli a v sadu), obtisk ani trsy pod ní nejsou.
  */
 const CLEARING_SOFT_M = 1.2;
+/**
+ * Měkký okraj masky pod pevnou cestou a pěšinou dne (m) – za okrajem pásu se obilí vrací
+ * a koruna porostu vystoupá ze země svahem jako na okraji pole (field-canopy.ts – EDGE). U pěšiny
+ * užší, ať úzká stopa přes osetý díl zůstane úzká.
+ */
+const ROAD_MASK_SOFT_M = 0.8;
+const PATH_MASK_SOFT_M = 0.5;
+
+/** Obdélník dílů bloku ve světě (natočený čtverec celou úhlopříčkou) s rezervou na koruny. */
+function viewsBounds(views: readonly PartView[]): TrackBounds {
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minZ = Infinity;
+  let maxZ = -Infinity;
+  for (const { part } of views) {
+    const r = (part.rotation ? Math.SQRT1_2 : 0.5) * part.size + 0.5;
+    minX = Math.min(minX, part.x - r);
+    maxX = Math.max(maxX, part.x + r);
+    minZ = Math.min(minZ, part.z - r);
+    maxZ = Math.max(maxZ, part.z + r);
+  }
+  return { minX, maxX, minZ, maxZ };
+}
 /** Sníh na obtiscích pole – část barvy zimou prosvítá (jako cesty a vyšlapaná hlína). */
 const FIELD_SNOW = 0.85;
 /** Výška obtisků nad terénem (m) – navzájem v pořadí, aby se nepraly o hloubku. */
@@ -240,6 +265,14 @@ export class FieldRenderer {
   /** Brázda za rádlem (ladicí orba za herní den – oxen.md) a klíč jejího tvaru. */
   private furrowMeshes: Mesh[] = [];
   private furrowKey = '';
+  /**
+   * Pásy, pod kterými obilí neroste (track-mask.ts): pevné cesty z dat vsi (klíč cest) a pěšiny
+   * dne (`setPaths` – při nové síti pěšin); maska se sestaví, jen když se některé změní.
+   */
+  private roads: { key: string; track: Track } | null = null;
+  private paths: Track | null = null;
+  private tracks: TrackMask | null = null;
+  private tracksStale = true;
   private disposed = false;
 
   constructor(
@@ -255,6 +288,18 @@ export class FieldRenderer {
   update(village: SceneVillage): boolean {
     if (this.disposed) return false;
     this.village = village;
+    return this.rebuild();
+  }
+
+  /**
+   * Pěšiny dne (pás z obtisku pěšin – `ribbonTrack`): pod nimi obilí neroste. Volá se při nové
+   * síti pěšin (odloženě, ne za snímek); přestaví se jen bloky polí, kudy pěšina vede nebo vedla.
+   * Vrátí true, když se něco změnilo.
+   */
+  setPaths(track: Track | null): boolean {
+    if (track === this.paths) return false;
+    this.paths = track;
+    this.tracksStale = true;
     return this.rebuild();
   }
 
@@ -439,9 +484,29 @@ export class FieldRenderer {
     return true;
   }
 
+  /** Maska pásů cest a pěšin – sestaví se znovu jen při změně cest nebo sítě pěšin. */
+  private trackMask(): TrackMask | null {
+    const roads = this.village.roads ?? [];
+    const key = `${roadsKey(roads)}|${roadWorksKey(roads)}`;
+    if (this.roads?.key !== key) {
+      this.roads = { key, track: roadTrack(roads) };
+      this.tracksStale = true;
+    }
+    if (this.tracksStale) {
+      this.tracks = trackMask([
+        { track: this.roads.track, softM: ROAD_MASK_SOFT_M },
+        ...(this.paths ? [{ track: this.paths, softM: PATH_MASK_SOFT_M }] : []),
+      ]);
+      this.tracksStale = false;
+    }
+    return this.tracks;
+  }
+
   private updateFields(): boolean {
     const day = this.lookDay();
     let changed = false;
+    // pod cestami a pěšinami obilí neroste (fields.md – Co hráč vidí)
+    const tracks = this.trackMask();
     const seen = new Set<number>();
     // obydlí, modly, svatyně a stromy u cest na poli – pod nimi pole není
     const clearings = fieldClearings(
@@ -481,10 +546,12 @@ export class FieldRenderer {
         clearingsKey(built),
       ]);
       const grouped = groupFieldBlocks(views);
+      // pásy cest a pěšin v bloku – blok se přestaví, jen když se změní ty jeho
       const blockKeys = new Map(
         [...grouped].map(([block, blockViews]) => [
           block,
-          JSON.stringify(partViewsKey(blockViews)),
+          JSON.stringify(partViewsKey(blockViews)) +
+            (tracks ? `#${tracks.keyNear(viewsBounds(blockViews))}` : ''),
         ]),
       );
       const key = `${context}|${[...blockKeys].map(([block, k]) => `${block}:${k}`).join('|')}`;
@@ -516,7 +583,14 @@ export class FieldRenderer {
             ? { radius: PLOUGH_CORNER_M, rounded: (cell) => ploughed.has(`${cell.x},${cell.y}`) }
             : undefined,
         );
-        const mask = clearingMask(built, CLEARING_SOFT_M);
+        const clearing = clearingMask(built, CLEARING_SOFT_M);
+        // obydlí na poli a pásy cest a pěšin (ve světě)
+        const mask =
+          tracks && built.length > 0
+            ? (x: number, z: number): number => clearing(x, z) * tracks.at(x, z)
+            : tracks
+              ? (x: number, z: number): number => tracks.at(x, z)
+              : clearing;
         const maskIn = space
           ? (u: number, v: number): number => {
               const [x, z] = space.frame.toWorld(u, v);
@@ -524,8 +598,27 @@ export class FieldRenderer {
             }
           : mask;
         coverage =
-          built.length > 0 ? (x: number, z: number): number => ragged(x, z) * maskIn(x, z) : ragged;
+          built.length > 0 || tracks
+            ? (x: number, z: number): number => ragged(x, z) * maskIn(x, z)
+            : ragged;
         return coverage;
+      };
+      // kusy, přes které vede pás cesty či pěšiny, mají jemnější síť obtisku a koruny
+      const fine = (bounds: TrackBounds): boolean => {
+        if (!tracks) return false;
+        if (!space) return tracks.near(bounds);
+        const corners = [
+          space.frame.toWorld(bounds.minX, bounds.minZ),
+          space.frame.toWorld(bounds.maxX, bounds.minZ),
+          space.frame.toWorld(bounds.minX, bounds.maxZ),
+          space.frame.toWorld(bounds.maxX, bounds.maxZ),
+        ];
+        return tracks.near({
+          minX: Math.min(...corners.map((c) => c[0])),
+          maxX: Math.max(...corners.map((c) => c[0])),
+          minZ: Math.min(...corners.map((c) => c[1])),
+          maxZ: Math.max(...corners.map((c) => c[1])),
+        });
       };
       const reuse = current?.context === context ? current.blocks : null;
       const blocks = new Map<string, { key: string; content: FieldBlockContent }>();
@@ -538,7 +631,14 @@ export class FieldRenderer {
             ? cached
             : {
                 key: blockKey,
-                content: fieldBlockContent(spaced(blockViews), rowsIn, centerIn, coverageOf(), day),
+                content: fieldBlockContent(
+                  spaced(blockViews),
+                  rowsIn,
+                  centerIn,
+                  coverageOf(),
+                  day,
+                  fine,
+                ),
               },
         );
       }

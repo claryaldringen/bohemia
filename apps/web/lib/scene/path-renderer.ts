@@ -37,9 +37,11 @@ import {
   PATH_EARTH_LAYER,
   PATH_WORN_LAYER,
   pathRibbons,
+  ribbonTrack,
   roadFade,
   type RibbonLayer,
 } from './path-ribbon';
+import type { Track } from './track-mask';
 import { RoadWorks, roadRibbonMeshes } from './road-works';
 import { roadWorksKey } from './road-works-layout';
 import { pathRouter } from './path-router';
@@ -134,6 +136,8 @@ export class VillagePaths {
   /** Terén okna s překážkami krajiny – přepočítá se jen s novým oknem nebo změnou překážek. */
   private obstacleTerrain: { key: string; terrain: PathTerrain } | null = null;
   private network: PathNetwork | null = null;
+  /** Pás pěšin dne pro masku polí (pod pěšinou obilí neroste – track-mask.ts). */
+  private track: Track | null = null;
   private router: VillagerPaths | null = null;
   private meshes: Mesh[] = [];
   /** Pevné cesty (obtisky z dat) a jejich klíč. */
@@ -194,6 +198,11 @@ export class VillagePaths {
   }
 
   /** Trasy po pěšinách a pochůzky domácností pro postavy; bez sítě null. */
+  /** Pás pěšin dne (stejné průřezy jako obtisk) – pod ním pole nekreslí obilí; bez sítě null. */
+  pathTrack(): Track | null {
+    return this.track;
+  }
+
   paths(): VillagerPaths | null {
     return this.router;
   }
@@ -339,6 +348,7 @@ export class VillagePaths {
     this.stats = stats;
     for (const mesh of this.meshes) mesh.dispose();
     this.meshes = [];
+    this.track = null;
     if (network && network.lines.length > 0) {
       // pěšina dne se v pevné cestě ztrácí – cesta se kreslí zvlášť z dat
       const fade = roadFade(this.roads);
@@ -348,6 +358,17 @@ export class VillagePaths {
         if (mesh.getTotalIndices() > 0) this.meshes.push(mesh);
         else mesh.dispose();
       }
+      // pod pěšinou dne obilí neroste – pás v šířce prošlapané trávy (přes osetý díl úzká stopa);
+      // síla po čtvrtinách, ať drobné změny provozu bloky polí nepřestavují každý den
+      this.track = ribbonTrack(
+        network.lines.map((line) => ({
+          ...line,
+          strength: line.strength.map((v) => (v > 0 ? Math.ceil(v * 4) / 4 : 0)),
+        })),
+        PATH_WORN_LAYER,
+        width,
+        fade,
+      );
     }
     for (const mesh of this.meshes) mesh.setEnabled(this.visible);
     this.rebuildHeatmap();

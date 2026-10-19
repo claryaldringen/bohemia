@@ -1,6 +1,15 @@
 import type { PathLine, RoadGrade } from '@bohemia/game';
 import type { SceneRoad, SceneRoadApple } from '../village-view';
-import { CART_RUT_OFFSET_M, JUNCTION, ROAD_WIDTH_M, type RibbonJunction } from './path-ribbon';
+import {
+  CART_RUT_OFFSET_M,
+  IMPROVED_WORN_LAYER,
+  JUNCTION,
+  ROAD_WIDTH_M,
+  ROAD_WORN_LAYER,
+  ribbonTrack,
+  type RibbonJunction,
+} from './path-ribbon';
+import type { Track } from './track-mask';
 import { hash01 } from './smoke-schedule';
 import type { Point } from './village-layout';
 
@@ -208,6 +217,39 @@ export function roadJunctions(roads: readonly SceneRoad[]): {
     list.push({ x: node.x, z: node.z, strength: 1 });
   }
   return out;
+}
+
+/**
+ * Pás pevných cest pro masku polí (track-mask.ts – pod cestou obilí neroste): vyšlapané a upravené
+ * úseky v šířce prošlapané trávy obtisku (`ROAD_WORN_LAYER`, `IMPROVED_WORN_LAYER`) a plácky
+ * rozcestí – stejné průřezy jako obtisk cesty (`roadRibbonMeshes`).
+ */
+export function roadTrack(roads: readonly SceneRoad[]): Track {
+  const bands = roadBands(roads);
+  const junctions = roadJunctions(roads);
+  const trodden = ribbonTrack(
+    bands.trodden,
+    ROAD_WORN_LAYER,
+    undefined,
+    undefined,
+    junctions.trodden,
+  );
+  const improved = ribbonTrack(
+    bands.improved,
+    IMPROVED_WORN_LAYER,
+    undefined,
+    undefined,
+    junctions.improved,
+  );
+  // čáry upravených úseků za vyšlapanými (klíče bloků podle čar)
+  const offset = bands.trodden.length + junctions.trodden.length;
+  return {
+    segments: [
+      ...trodden.segments,
+      ...improved.segments.map((s) => ({ ...s, line: s.line + offset })),
+    ],
+    discs: [...trodden.discs, ...improved.discs.map((d) => ({ ...d, line: d.line + offset }))],
+  };
 }
 
 /** Lomená čára posunutá o `offset` m kolmo k ose (vlevo kladně). */
