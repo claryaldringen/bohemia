@@ -2,12 +2,14 @@
 // 2026: „plná domácnost → nová domácnost v novém obydlí“, „Pokud už jsou rodiče neplodní, tak ano,
 // má [nejstarší zůstat]“, „pokud se lidé v domě tísní a je tam nejstarší dítě, nejstarší dítě může
 // odejít do nového domu“, „ať prázdný dům obsadí i plná domácnost“; převod na rodiny návrh
-// Clauda). Novou domácnost zakládá ženatý syn se ženou a dětmi, nejstarší ženatý syn zůstává
-// s rodiči (dědic), z plného domu smí odejít i svobodný nejstarší syn; dcery odcházejí sňatkem. Čisté funkce nad stavem vsi, kroky
-// `settleNewDwelling` a `occupyEmptyDwellings` stav mění.
+// Clauda; 19. 10. 2026 Martin schválil: ženatý pár, který dům nedrží, smí odejít kdykoli, ne jen
+// z plného domu). Novou domácnost zakládá ženatý syn se ženou a dětmi, nejstarší ženatý syn
+// zůstává s rodiči (dědic), z plného domu smí odejít i svobodný nejstarší syn; dcery odcházejí
+// sňatkem. Čisté funkce nad stavem vsi, kroky `settleNewDwelling` a `occupyEmptyDwellings` stav
+// mění.
 import { isFull } from './dwellings';
 import { withKinship } from './kinship';
-import { ageYears, canBear, householdBreaksUp, occupants } from './people';
+import { ageYears, canBear, holdsHousehold, householdBreaksUp, occupants } from './people';
 import { AGE, DWELLINGS } from './rules';
 import type { ChronicleEvent, Dwelling, Person, VillageState } from './types';
 
@@ -47,7 +49,8 @@ export interface Family {
  * ženatý muž. Všichni ostatní ženatí
  * muži se se ženou a dětmi smí oddělit – i ženatý muž bez rodičů v domě vedle dědice (starší vsi
  * mají rodiče neznámé). Odchází muž, žena a jejich svobodné děti z domu – jen když se zbytek
- * domácnosti nerozpadne (`householdBreaksUp`). Od nejstaršího muže.
+ * domácnosti nerozpadne (`householdBreaksUp`) a nový dům udrží (je v ní někdo 16–44; starší pár
+ * by se rozpadl a vrátil). Od nejstaršího muže.
  */
 export function familiesOf(state: VillageState, dwelling: Dwelling, day: number): Family[] {
   const members = occupants(state, dwelling.id);
@@ -81,6 +84,9 @@ export function familiesOf(state: VillageState, dwelling: Dwelling, day: number)
         unmarriedHere(c, members),
     );
     const people = [husband, wife, ...children];
+    // rodina musí dům udržet sama (někdo 16–44) – starší pár by se v novém domě hned rozpadl,
+    // vrátil k příbuzným a druhý den odešel znovu (stěhování tam a zpět, kalibrace 19. 10. 2026)
+    if (householdBreaksUp(people, day)) continue;
     const staying = members.filter((m) => !people.includes(m));
     if (householdBreaksUp(staying, day)) continue;
     families.push({ dwelling, people });
@@ -101,27 +107,27 @@ function byCrowding(state: VillageState): Dwelling[] {
 }
 
 /**
- * Rodiny, které z domácnosti obydlí `dwelling` opravdu odejdou do nových domů: jen z plné nebo
- * přeplněné domácnosti (Martin: „plná domácnost → nová domácnost v novém obydlí“, „ať prázdný
- * dům obsadí i plná domácnost“; z neplného domu ne – rozhodnutí 18. 10. 2026) a jen dokud dům před
- * odchodem další rodiny zůstává plný – po odchodu první už obvykle plný není. V pořadí
- * `familiesOf`.
+ * Rodiny, které z domácnosti obydlí `dwelling` mohou odejít do nových nebo prázdných domů – každá
+ * rodina z `familiesOf` (všichni kromě toho, kdo dům drží), jen dokud se zbytek domácnosti po
+ * odchodu všech dosud vybraných rodin nerozpadne. Plnost domu nerozhoduje (Martin, 19. 10. 2026 –
+ * schválený návrh Clauda: ženatý pár, který dům nedrží, smí odejít kdykoli; dřív jen z plné nebo
+ * přeplněné domácnosti a jen dokud dům zůstával plný). V pořadí `familiesOf`.
  */
 export function departingFamilies(state: VillageState, dwelling: Dwelling, day: number): Family[] {
-  let living = occupants(state, dwelling.id).length;
-  const capacity = DWELLINGS[dwelling.type].capacity;
+  let staying = occupants(state, dwelling.id);
   const out: Family[] = [];
   for (const family of familiesOf(state, dwelling, day)) {
-    if (living < capacity) break;
+    const rest = staying.filter((m) => !family.people.includes(m));
+    if (householdBreaksUp(rest, day)) continue;
     out.push(family);
-    living -= family.people.length;
+    staying = rest;
   }
   return out;
 }
 
 /**
- * Rodiny vsi, které se teď mohou oddělit do prázdného nebo nového domu – z každé plné domácnosti
- * první z `departingFamilies`; domácnosti od nejvíc přeplněné, při shodě nižší id.
+ * Rodiny vsi, které se teď mohou oddělit do prázdného nebo nového domu – z každé domácnosti první
+ * z `departingFamilies` (od nejstaršího muže); domácnosti od nejvíc přeplněné, při shodě nižší id.
  */
 export function leavingFamilies(state: VillageState, day: number): Family[] {
   return byCrowding(state).flatMap((d) => departingFamilies(state, d, day).slice(0, 1));
@@ -131,10 +137,13 @@ export function leavingFamilies(state: VillageState, day: number): Family[] {
  * Svobodný syn, který smí z plného (i přeplněného) domu `dwelling` odejít sám (Martin – „nejstarší
  * dítě může odejít“, „ať prázdný dům obsadí i plná domácnost“; kinship.md – Domácnosti): nejstarší
  * svobodný syn od 16 let (matka nebo otec bydlí v domě); bez něj jiný svobodný muž od 16 let bez
- * rodičů v domě (`lodgerOf`). Zpátky ho nic nevrátí – sňatkem se stěhuje
- * žena k muži a sestra ani matka si ho nevezme (blízcí příbuzní). Dědic zůstává: když v domě ještě není ženatý syn a rodiče už jsou neplodní (žádná
- * matka synů v domě nemůže rodit), zůstává nejstarší syn a odejít smí druhý nejstarší (Martin).
- * Jen když se zbytek domácnosti nerozpadne; jinak undefined.
+ * rodičů v domě (`lodgerOf`). Na rozdíl od ženatého páru jen z plného domu (návrh Clauda,
+ * 19. 10. 2026): svobodný muž odchodem nic nezíská – ženit se smí i doma (žena se stěhuje
+ * k němu) – a sám by zabral dům, na který čeká rodina. Zpátky ho vrátí nanejvýš svatba s vdovou
+ * či dědičkou, která drží dům (`weddingHome`) – jednou, pak je ženatý; sestra ani matka si ho
+ * nevezme (blízcí příbuzní). Dědic zůstává: když v domě ještě není ženatý syn a rodiče už jsou
+ * neplodní (žádná matka synů v domě nemůže rodit), zůstává nejstarší syn a odejít smí druhý
+ * nejstarší (Martin). Jen když se zbytek domácnosti nerozpadne; jinak undefined.
  */
 export function loneSonOf(
   state: VillageState,
@@ -148,7 +157,8 @@ export function loneSonOf(
   // 19. 10. 2026 – přeplněný dům ve Vlkově, ve vsi prázdná polozemnice); ne otec dětí z domu
   const candidate =
     (unmarriedHeir(members, day) ? unmarried[1] : unmarried[0]) ?? lodgerOf(members, day);
-  if (!candidate) return undefined;
+  // sám dům udrží jen člověk 16–44 – starší by se v novém domě rozpadl a vrátil (tam a zpět)
+  if (!candidate || !holdsHousehold(candidate, day)) return undefined;
   const staying = members.filter((m) => m.id !== candidate.id);
   return householdBreaksUp(staying, day) ? undefined : candidate;
 }
@@ -244,10 +254,10 @@ export function occupyEmptyDwellings(state: VillageState, day: number): void {
 }
 
 /**
- * Kolik nových domácností může ves založit (kinship.md – Lidé k osídlení): z plných a přeplněných
- * domácností rodiny ženatých synů, které odejdou, dokud dům zůstává plný (`departingFamilies`),
- * a svobodní nejstarší synové plných domů, ze kterých žádná rodina odejít nemůže. Neplný dům
- * nikoho nedává.
+ * Kolik nových domácností může ves založit (kinship.md – Lidé k osídlení): z každé domácnosti
+ * rodiny, které dům nedrží a smí odejít (`departingFamilies` – i z neplného domu, Martin
+ * 19. 10. 2026), a svobodní synové plných domů, ze kterých žádná rodina odejít nemůže
+ * (`loneSonOf` – jen z plného domu).
  */
 export function possibleNewHouseholds(state: VillageState, day: number): number {
   let count = 0;
@@ -277,7 +287,7 @@ export function availableSettlers(state: VillageState, day: number): number {
 
 /**
  * Kolik možných nových domácností nemá kam jít – na každou z nich nečeká prázdné ani rozestavěné
- * obydlí (= kladní `availableSettlers`). Upozornění „Domácnost je plná“.
+ * obydlí (= kladní `availableSettlers`). Upozornění „Rodina čeká na dům“ (dřív „Domácnost je plná“).
  */
 export function waitingHouseholds(state: VillageState, day: number): number {
   return Math.max(0, availableSettlers(state, day));

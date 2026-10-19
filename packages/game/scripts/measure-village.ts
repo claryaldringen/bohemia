@@ -486,6 +486,12 @@ interface RunResult {
     meatKg: number;
   };
   /**
+   * Obyvatelstvo (population.md, kinship.md – Naměřeno): lidé a domácnosti v N. roce vsi, události
+   * kroniky podle druhu, ovdovění a nové sňatky, muži a ženy na konci. Starší kontrolní body ho
+   * nemají.
+   */
+  demography?: Demography;
+  /**
    * Hřbitovy na konci běhu (cemetery.md – Mohyly podle významu): pohřbení, obsazená místa, mohyly
    * podle druhu pohřbeného a čtverce. Starší kontrolní body ho nemají.
    */
@@ -496,6 +502,91 @@ interface RunResult {
     /** Mohyly podle druhu pohřbeného (starší kontrolní body nemají všechny druhy). */
     ranks: Partial<Record<GraveRank, number>>;
   };
+}
+
+/** Roky vsi, ve kterých se zapíše počet lidí a domácností (population.md – Naměřeno). */
+const SNAPSHOT_YEARS = [20, 40, 60, 100] as const;
+
+interface Demography {
+  /** Rok vsi → lidé a domácnosti na konci prvního kroku od N let (vymřelá ves 0). */
+  snapshots: Map<number, { people: number; households: number }>;
+  /** Události kroniky podle druhu (`death:<skupina>`, `death:hunger`, ostatní podle `kind`). */
+  events: Map<string, number>;
+  /**
+   * Ovdovění (manžel zemřel): pohlaví, věk při ovdovění a dny do nového sňatku (null – nevzal se
+   * do konce běhu, do smrti ani do odchodu); přesnost na krok skriptu.
+   */
+  widowed: { sex: 'male' | 'female'; age: number; days: number | null }[];
+  /** Muži a ženy na konci běhu – všichni a od 16 let. */
+  final: { males: number; females: number; adultMales: number; adultFemales: number };
+}
+
+function emptyDemography(): Demography {
+  return {
+    snapshots: new Map(),
+    events: new Map(),
+    widowed: [],
+    final: { males: 0, females: 0, adultMales: 0, adultFemales: 0 },
+  };
+}
+
+/** Události kroku do demografie – úmrtí podle skupiny a hladu, ostatní podle druhu. */
+function countEvents(demography: Demography, events: readonly ChronicleEvent[]): void {
+  const add = (key: string): void => {
+    demography.events.set(key, (demography.events.get(key) ?? 0) + 1);
+  };
+  for (const e of events) {
+    if (e.kind === 'death') {
+      add(`death:${e.group}`);
+      if (e.cause === 'hunger') add('death:hunger');
+    } else add(e.kind);
+  }
+}
+
+/**
+ * Ovdovění a nové sňatky v kroku: kdo měl na začátku žijícího manžela a na konci jiného nebo
+ * žádného, ovdověl (s novým manželem se v kroku i vzal); otevřené ovdovění se uzavře sňatkem.
+ * `open` – id člověka → index v `widowed`.
+ */
+function trackWidows(
+  demography: Demography,
+  open: Map<number, { index: number; day: number }>,
+  before: VillageState,
+  after: VillageState,
+): void {
+  const day = after.lastDay;
+  const alive = new Set(before.people.map((p) => p.id));
+  const afterById = new Map(after.people.map((p) => [p.id, p]));
+  for (const p of before.people) {
+    const now = afterById.get(p.id);
+    if (!now || now.sex === undefined) continue;
+    if (p.spouseId !== undefined && alive.has(p.spouseId) && now.spouseId !== p.spouseId) {
+      // manžel zemřel (rozvody ani odchod ženatých skript nezná)
+      if (afterById.has(p.spouseId)) continue;
+      const age = Math.floor((day - p.bornDay) / DAYS_PER_YEAR);
+      demography.widowed.push({ sex: now.sex, age, days: now.spouseId === undefined ? null : 0 });
+      if (now.spouseId === undefined) {
+        open.set(p.id, { index: demography.widowed.length - 1, day });
+      }
+      continue;
+    }
+    const waiting = open.get(p.id);
+    if (waiting && now.spouseId !== undefined) {
+      const entry = demography.widowed[waiting.index];
+      if (entry) entry.days = day - waiting.day;
+      open.delete(p.id);
+    }
+  }
+  for (const id of [...open.keys()]) if (!afterById.has(id)) open.delete(id);
+}
+
+/** Lidé a domácnosti v rocích SNAPSHOT_YEARS, které krok `day` právě překročil. */
+function recordSnapshots(demography: Demography, state: VillageState, day: number): void {
+  const years = (day - state.foundedDay) / DAYS_PER_YEAR;
+  for (const n of SNAPSHOT_YEARS) {
+    if (years + 1e-6 < n || demography.snapshots.has(n)) continue;
+    demography.snapshots.set(n, { people: state.people.length, households: occupiedCount(state) });
+  }
 }
 
 function harvestYear(day: number): number {
@@ -638,6 +729,7 @@ function emptyResult(): RunResult {
       herds: { sheep: 0, goat: 0, pig: 0, cow: 0 },
       meatKg: 0,
     },
+    demography: emptyDemography(),
   };
 }
 
@@ -854,6 +946,8 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
     }
   };
   countWood(start);
+  const demography = result.demography ?? emptyDemography();
+  const widows = new Map<number, { index: number; day: number }>();
   const finishedDwelling = (events: ChronicleEvent[]): ChronicleEvent | undefined =>
     events.find((e) => e.kind === 'construction-finished' && e.constructionKind === 'dwelling');
 
@@ -886,6 +980,11 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
       }
     }
 
+    if (!opts.pinned) {
+      countEvents(demography, events);
+      trackWidows(demography, widows, before, after);
+      recordSnapshots(demography, after, day);
+    }
     for (const e of events) {
       if (e.kind === 'rebuild-decided') {
         const dwelling =
@@ -1014,6 +1113,24 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
   result.finalSownHa = lastPlan?.sownHa ?? 0;
   result.wood.finalLogs = state.woodLogs ?? 0;
   result.cemetery = cemeteryAtEnd(state);
+  if (result.extinctDay !== null) {
+    // vymřelá ves – v rocích, kam už nedoběhla, nemá nikoho
+    for (const n of SNAPSHOT_YEARS) {
+      if (!demography.snapshots.has(n) && n <= config.years) {
+        demography.snapshots.set(n, { people: 0, households: 0 });
+      }
+    }
+  }
+  for (const p of state.people) {
+    const adult = Math.floor((state.lastDay - p.bornDay) / DAYS_PER_YEAR) >= 16;
+    if (p.sex === 'male') {
+      demography.final.males++;
+      if (adult) demography.final.adultMales++;
+    } else if (p.sex === 'female') {
+      demography.final.females++;
+      if (adult) demography.final.adultFemales++;
+    }
+  }
   if (state.livestock) result.livestock.herds = { ...state.livestock.herds };
   result.livestock.meatKg = state.meatKg ?? 0;
   return result;
@@ -1375,6 +1492,68 @@ interface Row {
 }
 type VillageResult = Extract<TaskResult, { kind: 'village' }>;
 
+/** Řádky tabulky o obyvatelstvu jedné strategie (population.md, kinship.md – Naměřeno). */
+function demographyRows(label: string, runs: readonly RunResult[]): Row[] {
+  const rows: Row[] = [];
+  const all = runs.flatMap((r) => (r.demography ? [r.demography] : []));
+  if (all.length === 0) return rows;
+  const snapshots = SNAPSHOT_YEARS.filter((n) => n <= config.years).map((n) => {
+    const at = all.flatMap((d) => {
+      const s = d.snapshots.get(n);
+      return s ? [s] : [];
+    });
+    const people = at.map((s) => s.people);
+    const households = at.map((s) => s.households);
+    return `po ${n} letech lidí medián ${fmt(quantile(people, 0.5), 0)} (p10 ${fmt(quantile(people, 0.1), 0)}, p90 ${fmt(quantile(people, 0.9), 0)}), domácností ${fmt(quantile(households, 0.5), 0)}`;
+  });
+  rows.push({
+    name: `Obyvatelstvo (${label})`,
+    target: 'informace – kinship.md, Naměřeno',
+    measured: snapshots.join(' | '),
+    status: 'info',
+  });
+  const perVillage = (key: string): string => {
+    const values = all.map((d) => d.events.get(key) ?? 0);
+    const total = values.reduce((sum, v) => sum + v, 0);
+    return fmt(total / all.length);
+  };
+  rows.push({
+    name: `Porody, úmrtí a sňatky na ves (${label}, ${config.years} let)`,
+    target: 'informace – průměr na ves za běh',
+    measured: `porody ${perVillage('birth')} | úmrtí dětí ${perVillage('death:child')}, dospělých ${perVillage('death:adult')}, starších ${perVillage('death:elder')} (hladem ${perVillage('death:hunger')}) | svatby ve vsi ${perVillage('marriage')} | nevěsty z okolí ${perVillage('bride-from-outside')} | ženichové z okolí ${perVillage('groom-from-outside')} | vdané pryč ${perVillage('married-away')} | rozpady domácností ${perVillage('household-merged')}`,
+    status: 'info',
+  });
+  for (const [sex, title, maxAge] of [
+    ['female', 'Vdovy 16–44', 44],
+    ['male', 'Vdovci 16–59', 59],
+  ] as const) {
+    const widowed = all.flatMap((d) =>
+      d.widowed.filter((w) => w.sex === sex && w.age >= 16 && w.age <= maxAge),
+    );
+    const remarried = widowed.flatMap((w) => (w.days === null ? [] : [w.days / DAYS_PER_YEAR]));
+    rows.push({
+      name: `${title} (${label})`,
+      target: 'informace – ovdovění a nový sňatek',
+      measured:
+        widowed.length === 0
+          ? 'nikdo neovdověl'
+          : `ovdověli ${widowed.length} (na ves ${fmt(widowed.length / all.length)}) | znovu se vzali ${pct(remarried.length / widowed.length)} | doba do sňatku medián ${fmt(quantile(remarried, 0.5))} roku, p90 ${fmt(quantile(remarried, 0.9))}`,
+      status: 'info',
+    });
+  }
+  const sum = (pick: (d: Demography) => number): number =>
+    all.reduce((total, d) => total + pick(d), 0);
+  const adultMales = sum((d) => d.final.adultMales);
+  const adultFemales = sum((d) => d.final.adultFemales);
+  rows.push({
+    name: `Pohlaví na konci (${label})`,
+    target: 'informace – muži / ženy',
+    measured: `všichni ${sum((d) => d.final.males)} / ${sum((d) => d.final.females)} | od 16 let ${adultMales} / ${adultFemales} (mužů na 100 žen ${fmt((100 * adultMales) / Math.max(1, adultFemales), 0)})`,
+    status: 'info',
+  });
+  return rows;
+}
+
 function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummary>): Row[] {
   const rows: Row[] = [];
   const row = (name: string, target: string, measured: string, status: Status): void => {
@@ -1577,6 +1756,14 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
     )}`,
     'info',
   );
+
+  // obyvatelstvo, sňatky a vdovy (population.md, kinship.md – Naměřeno) – jen informace
+  for (const [label, runs] of [
+    ['hráč staví', builders],
+    ['nestaví', loners],
+  ] as const) {
+    rows.push(...demographyRows(label, runs));
+  }
 
   const { start, full, oversize } = probes;
   // pole v ustáleném oběhu = osev × oběh podle pravidel (dřív ≈ 3,3×, od rešerše ≈ 5,3×); cíle

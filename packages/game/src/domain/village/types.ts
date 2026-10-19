@@ -43,6 +43,12 @@ export interface Person {
    * trade.md – Výměna lidí, war.md – příbuzní v cílové vsi); narození ve vsi ho nemají.
    */
   origin?: NeighborDirection;
+  /**
+   * Den, od kterého žena může znovu porodit (population.md – Růst populace, rozestup porodů): po
+   * porodu za BIRTH_SPACING.afterBirthDays, po svatbě za afterWeddingDays. Chybí – kdykoli (i ve
+   * vsích uložených dřív).
+   */
+  nextBirthFrom?: number;
 }
 /**
  * Dcera, která se vdala pryč (kinship.md – Sňatky z okolí), nebo člověk, kterého ves dala sousedovi
@@ -758,12 +764,24 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'household-founded'; dwellingId: number }
   | { kind: 'household-merged'; fromDwellingId: number; toDwellingId: number }
   /**
-   * Svatba ve vsi (kinship.md – Sňatky) – nevěsta z domu `from` se přestěhovala k muži do domu
-   * `to` (ze stejného domu from = to).
+   * Svatba ve vsi (kinship.md – Sňatky) – nevěsta (s vlastními dětmi do 16 let) z domu `from` se
+   * přestěhovala k muži do domu `to` (ze stejného domu from = to); `groomMoved` – naopak ženich se
+   * přiženil k nevěstě, která drží dům; `widow` – vdávala se vdova (už má děti).
    */
-  | { kind: 'marriage'; fromDwellingId: number; toDwellingId: number }
+  | {
+      kind: 'marriage';
+      fromDwellingId: number;
+      toDwellingId: number;
+      groomMoved?: true;
+      widow?: true;
+    }
   /** Muž z domu `dwellingId` si přivedl nevěstu z okolí (kinship.md – Sňatky z okolí). */
   | { kind: 'bride-from-outside'; dwellingId: number }
+  /**
+   * K ženě z domu `dwellingId` se přiženil muž z okolí (kinship.md – Sňatky z okolí); `widow` –
+   * k vdově.
+   */
+  | { kind: 'groom-from-outside'; dwellingId: number; widow?: true }
   /** Dcera z domu `dwellingId` se vdala pryč – odešla ze vsi (kinship.md – Sňatky z okolí). */
   | { kind: 'married-away'; dwellingId: number }
   | {

@@ -6,7 +6,7 @@ import { ageGroup, ageYears, canBear, canFather, householdBreaksUp, occupants } 
 import {
   ADULT_DEATHS_PER_YEAR,
   AGE,
-  BIRTHS_PER_PAIR_PER_YEAR,
+  BIRTH_SPACING,
   BOY_SHARE,
   CROWDED_BIRTH_FACTOR,
   CROWDED_DEATH_FACTOR,
@@ -17,11 +17,13 @@ import {
   LUCKY_YEARS,
   STARVATION,
   childDeathsPerYear,
+  maritalFertility,
 } from './rules';
 import type { ChronicleEvent, Dwelling, DwellingType, Person, VillageState } from './types';
 
 const DAYS_PER_YEAR = 365.25; // hájení se měří v letech po 365,25 dne
 const DAYS_PER_RISK_YEAR = 365; // roční riziko se na den převádí přes 365 dní
+const MIN_WAIT_YEARS = 0.25; // nejkratší průměrné čekání na početí po pauze (pojistka)
 
 type AgeGroup = 'child' | 'adult' | 'elder';
 const AGE_GROUPS: readonly AgeGroup[] = ['child', 'adult', 'elder'];
@@ -32,10 +34,29 @@ function hungerBirthFactor(satiation: number): number {
   return Math.min(1, Math.max(0, (satiation - HUNGER.birthsStopAt) / span));
 }
 
-/** Pravděpodobnost porodu páru za den. */
-export function birthChancePerDay(ctx: { satiation: number; overcrowded: boolean }): number {
+/**
+ * Roční šance na porod vdané ženy věku `age` mimo pauzu po porodu (population.md – Růst
+ * populace, rozestup porodů): po porodu žena BIRTH_SPACING.afterBirthDays nerodí, pak rodí s touto
+ * šancí – průměrný odstup porodů tak vyjde 1 / plodnost věku (`maritalFertility`).
+ */
+export function birthRatePerYear(age: number): number {
+  const fertility = maritalFertility(age);
+  if (fertility <= 0) return 0;
+  const pauseYears = BIRTH_SPACING.afterBirthDays / DAYS_PER_YEAR;
+  return 1 / Math.max(MIN_WAIT_YEARS, 1 / fertility - pauseYears);
+}
+
+/**
+ * Pravděpodobnost porodu manželského páru za den – podle věku ženy (`birthRatePerYear`), hladu
+ * a přeplnění; v pauze po svatbě nebo porodu (`Person.nextBirthFrom`) ji počítá `populationDay`.
+ */
+export function birthChancePerDay(ctx: {
+  satiation: number;
+  overcrowded: boolean;
+  motherAge: number;
+}): number {
   return (
-    (BIRTHS_PER_PAIR_PER_YEAR / DAYS_PER_RISK_YEAR) *
+    (birthRatePerYear(ctx.motherAge) / DAYS_PER_RISK_YEAR) *
     hungerBirthFactor(ctx.satiation) *
     (ctx.overcrowded ? CROWDED_BIRTH_FACTOR : 1)
   );
@@ -235,6 +256,24 @@ function dissolveHouseholds(state: VillageState, day: number): ChronicleEvent[] 
 }
 
 /**
+ * Od kterého dne může která žena znovu porodit (population.md – rozestup porodů):
+ * `Person.nextBirthFrom`, a když chybí (vsi uložené dřív, lidé od souseda), podle nejmladšího
+ * žijícího dítěte – za BIRTH_SPACING.afterBirthDays od jeho narození.
+ */
+function birthPauses(state: VillageState): Map<number, number> {
+  const pauses = new Map<number, number>();
+  for (const child of state.people) {
+    if (child.motherId === undefined) continue;
+    const until = child.bornDay + BIRTH_SPACING.afterBirthDays;
+    pauses.set(child.motherId, Math.max(pauses.get(child.motherId) ?? until, until));
+  }
+  for (const p of state.people) {
+    if (p.nextBirthFrom !== undefined) pauses.set(p.id, p.nextBirthFrom);
+  }
+  return pauses;
+}
+
+/**
  * Jeden den populace (porody podle nasycení `satiation`, úmrtnost hladem podle energie `energy` –
  * diet.md): úmrtí (lidé podle id, každý zemřelý se pohřbí – cemetery.md; zemřel hlady,
  * když los padl do části rizika z nahromaděného hladu `state.starvationDays`), porody
@@ -290,8 +329,10 @@ export function populationDay(
 
   // porody – po domácnostech podle id (i zakladatelé na staveništi první zemnice), v domácnosti
   // po manželských párech podle id ženy: žena 16–44 s manželem od 16 let v témže domě
-  // (kinship.md – Pohlaví); chlapec s pravděpodobností BOY_SHARE
+  // (kinship.md – Pohlaví), šance podle věku ženy, po svatbě a po porodu pauza (rozestup porodů);
+  // chlapec s pravděpodobností BOY_SHARE
   const households = [...new Set(state.people.map((p) => p.dwellingId))].sort((a, b) => a - b);
+  const pauses = birthPauses(state);
   for (const household of households) {
     const members = occupants(state, household);
     const couples = members.flatMap((mother) => {
@@ -299,12 +340,16 @@ export function populationDay(
       const father = members.find((m) => m.id === mother.spouseId);
       return father && canFather(father, day) ? [{ mother, father }] : [];
     });
-    const chance = birthChancePerDay({
-      satiation,
-      overcrowded: crowded.get(household) ?? false,
-    });
     for (const { mother, father } of couples) {
-      if (random.next() >= chance) continue;
+      const chance = birthChancePerDay({
+        satiation,
+        overcrowded: crowded.get(household) ?? false,
+        motherAge: ageYears(mother.bornDay, day),
+      });
+      // los vždy – pauza po svatbě nebo porodu nemění losy ostatních párů
+      const roll = random.next();
+      if (day < (pauses.get(mother.id) ?? day) || roll >= chance) continue;
+      mother.nextBirthFrom = day + BIRTH_SPACING.afterBirthDays;
       state.people.push({
         id: state.nextId++,
         bornDay: day,

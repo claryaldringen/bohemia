@@ -32,6 +32,7 @@ import {
   PLOT_VARIANTS,
   START_AGES,
   START_SEXES,
+  BIRTH_SPACING,
   START_STORES_MONTHS,
   dwellingBuildLabor,
   workshopTrees,
@@ -398,6 +399,8 @@ export function foundVillage(input: {
   if (!settlers && husband && wife) {
     husband.spouseId = wife.id;
     wife.spouseId = husband.id;
+    // první dítě nejdřív za 9 měsíců jako po svatbě (population.md – rozestup porodů)
+    wife.nextBirthFrom = day + BIRTH_SPACING.afterWeddingDays;
   }
   const constructionId = settlers ? householdId + 1 : householdId + 1 + people.length;
   const annualNeed = people.reduce((sum, p) => sum + FOOD_NEED_KG_PER_YEAR[ageGroup(p, day)], 0);
