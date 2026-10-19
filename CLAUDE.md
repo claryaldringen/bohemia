@@ -979,8 +979,8 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   k osídlení** (`settlers` = `availableSettlers` v `households.ts`: možné nové domácnosti
   `possibleNewHouseholds` − prázdná − rozestavěná nová obydlí); pole a hřbitov lidi nechtějí.
   Tlačítko je pak zašedlé, zkratka nic nespustí, v popisku chybějící část červeně; server odmítne
-  (`NO_SETTLERS`, `CANNOT_AFFORD`). `waitingHouseholds` (upozornění „Domácnost je plná“) =
-  kladní lidé k osídlení.
+  (`NO_SETTLERS`, `CANNOT_AFFORD`). `waitingHouseholds` (upozornění „Rodina čeká na dům“, dřív
+  „Domácnost je plná“; `VillageSummary.fullHousehold`) = kladní lidé k osídlení.
 - **Příbuzenství a pohlaví** ([kinship.md](docs/design/kinship.md), Martin 18. 10. 2026;
   `kinship.ts`): `Person.sex`, `motherId`, `fatherId`, `spouseId`, u nevěsty z okolí a lidí od
   souseda (výměna lidí – trade.md) `origin` (směr sousední vsi – válka); zemřelí a odešlí rodiče
@@ -990,31 +990,49 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   Staré vsi převede `withKinship` (v `updateVillage` i na začátku `advanceVillage`, bez příznaku –
   ves, kde mají všichni pohlaví, se nemění; `availableSettlers` počítá na převedené).
   **Porody** (`population.ts`) jen manželským párům: žena 16–44 s manželem od 16 let v témže domě,
-  chlapec `BOY_SHARE` (105/205). **Domácnost drží člověk 16–44** (`householdBreaksUp` v `people.ts`;
+  chlapec `BOY_SHARE` (105/205); šance podle věku ženy (`maritalFertility` – přirozená plodnost
+  `NATURAL_MARITAL_FERTILITY` × `MARITAL_FERTILITY_LEVEL` 0,85, Martin 19. 10. 2026 „aby se
+  populace co nejvíce rozrůstala“, čísla návrh Clauda – rešerše
+  `research/2026-10-19-population-growth.md`) a **rozestup** `BIRTH_SPACING` (po porodu 21 měsíců,
+  po svatbě a od založení vsi 9 měsíců – `Person.nextBirthFrom`; ve vsích uložených dřív od
+  nejmladšího žijícího dítěte – `birthPauses`), potom `birthRatePerYear` (průměrný odstup =
+  1 / plodnost věku). **Domácnost drží člověk 16–44** (`householdBreaksUp` v `people.ts`;
   osamělý 16–44 zůstává), rozpadlá jde k příbuzným (syn, dcera, sourozenec), jinak do domu
   s nejvíc místy – jen kam se vejde bez přeplnění, jinak zůstane doma (Martin; samotné děti jdou
   i do přeplněného).
 - **Osídlení obydlí** (`households.ts`; population.md – Nové obydlí, kinship.md – Domácnosti): nové
   obydlí po dokončení (`settleNewDwelling`) a prázdné v kroku 6 (`occupyEmptyDwellings`) osídlí
   **rodina ženatého syna** (muž, žena, jejich svobodné děti – `familiesOf` / `leavingFamilies`)
-  jen z plné či přeplněné domácnosti, dokud dům zůstává plný (`departingFamilies` – i lidé
-  k osídlení);
+  **z jakéhokoli domu** (Martin, 19. 10. 2026 – „ženatý pár, který dům nedrží, smí odejít kdykoli“;
+  dřív jen z plné domácnosti), dokud se zbytek nerozpadá (`departingFamilies` – i lidé k osídlení;
+  prázdný dům nejdřív rodina z nejvíc přeplněného domu, v něm od nejstaršího muže);
   dům drží jeden dědic – nejstarší ženatý syn s rodiči, v domě bez ženatého syna vdova s vlastními dětmi, jinak nejstarší ženatý muž; ostatní ženatí se oddělí (i muž bez rodičů v domě vedle dědice). Co zůstane prázdné,
-  osídlí **svobodný nejstarší syn z plného domu** (`loneSonOf`, Martin – „nejstarší dítě může
+  osídlí **svobodný nejstarší syn – jen z plného domu** (`loneSonOf`, Martin – „nejstarší dítě může
   odejít“, „ať prázdný dům obsadí i plná domácnost“; od 16 let, bez ženatého dědice a s neplodnou matkou zůstává nejstarší a jde druhý; bez syna jiný svobodný muž od 16 let bez rodičů v domě, ne otec dětí z domu – `lodgerOf`).
-  Dcery odcházejí sňatkem. Ne z domácnosti, jejíž zbytek by se rozpadl. **Chátrá jen prázdné
+  Dcery odcházejí sňatkem. Ne z domácnosti, jejíž zbytek by se rozpadl, a jen kdo nový dům udrží
+  (rodina i svobodný muž s někým 16–44 – starší pár by se v novém domě rozpadl, vrátil a odešel
+  znovu: stěhování tam a zpět, kalibrace 19. 10. 2026). **Chátrá jen prázdné
   obydlí** (Martin: „obydlená budova nechátrá – obyvatelé ji opravují“): `decayEmptyDwelling` – bez
   oprav podle stáří a navíc pevný denní podíl, nové zanikne za `DWELLINGS[type].emptyLifespanYears`
   (zemnice 5, polozemnice 8 let). Obydlené stav neztrácí – opravy podle stáří (`repairNeedPerDay`)
   dál berou práci vsi, nedodělek se jen neudělá; přestavbu rozhoduje jen stáří (`wantsRebuild`).
-- **Sňatky** (`marriage.ts`, kinship.md – Sňatky; Martin, varianta c): svobodný = muž od 16 / žena
-  16–44 bez manžela (vdova s dětmi do 14 ne – `isSingle`); v kroku 6 po osídlení obydlí se berou
-  nepříbuzní muž a žena s rozdílem do `MARRIAGE.maxAgeGapYears` (od nejstaršího, nejbližší věkem –
-  `bestMatch`), **žena se stěhuje k muži** (`canWed`: její dům se nesmí rozpadnout, ženichův nesmí
-  být přeplněný). Kdo nemá s kým, tomu okolí s 30 % ročně (`MARRIAGE.outsidePerYear`, los ze seedu
-  a dne): muži od 18 nevěsta 16–22 s `origin` (ne v hladu, ne do přeplněného domu), žena od 18 se
-  vdá pryč (záznam v `emigrants`). Kronika `marriage`, `bride-from-outside`, `married-away`;
-  upozornění „Svatba“ (`VillageView.lastMarriageDay`), „Nevěsta z okolí“, „Dcera se vdala pryč“.
+- **Sňatky** (`marriage.ts`, kinship.md – Sňatky; Martin, varianta c; 19. 10. 2026: „Vdova by se
+  měla snažit co nejdříve vdát, ideálně ve vesnici.“): svobodný = muž od 16 / žena 16–44 bez
+  manžela, i vdova s malými dětmi (`isSingle`); vdova / vdovec = svobodný s dítětem
+  (`isWidowed`, `parentIds` – bez příznaku, pozná se i ve starých vsích). V kroku 6 po osídlení
+  obydlí se berou nepříbuzní muž a žena – **vdovy a vdovci první**, pak od nejstaršího, nejbližší
+  věkem (`bestMatch`), rozdíl do `MARRIAGE.maxAgeGapYears` (s vdovou či vdovcem
+  `maxAgeGapWidowedYears` 20). Kam (`weddingHome`): **žena k muži**, i do přeplněného domu; drží-li
+  dům ona a on ne (`holdsHome` – po jeho odchodu s dětmi do 16 by doma nezůstal nikdo 16–44), **on
+  k ní**; drží-li oba, kde bude méně těsno, při shodě žena. Stěhuje se i s vlastními dětmi do 16
+  (`dependants`); nevěsta dostane `nextBirthFrom` (9 měsíců). Okolí (`MARRIAGE.outside`, los ze
+  seedu a dne, kdo nemá s kým): muž od 18 nevěsta 30 % ročně (16–22, staršímu nejvýš o povolený
+  rozdíl mladší, `origin`); žena od 18 ženich z okolí 10 % ročně (vdova, dědička – `holdsHome`
+  – a žena z domu bez mužů 50 %, `favouredBride`), jinak pryč 20 % ročně (záznam v `emigrants`;
+  vdova, dědička ani žena z domu bez mužů ne); v hladu a do přeplněného domu z okolí nikdo.
+  Kronika `marriage` (`groomMoved`, `widow`), `bride-from-outside`, `groom-from-outside`
+  (`widow`), `married-away`; upozornění „Svatba“ (`VillageView.lastMarriageDay`), „Nevěsta
+  z okolí“, „Ženich z okolí“, „Dcera se vdala pryč“.
 - **Přestěhování domácnosti** ([migration.md](docs/design/migration.md), fáze 1): akce
   `startRelocation` (`actions.ts`) = nová stavba obydlí (`kind: 'dwelling'`) s
   `Construction.relocates` = id domácnosti – dřevo, pozemek polozemnice, překážky a cena jako
@@ -1362,9 +1380,9 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   práce podle `forestDistanceM` obydlí. Scéna: hromada klád `lib/scene/log-pile.ts` (místo
   a hranice v `log-pile-layout.ts`, bez volného místa se nekreslí), staveniště ukazuje průběh
   bez kácení (`buildProgress`).
-- **Upozornění** (`lib/village-notices.ts`): plná domácnost (fakt), lidé umírají hlady, hlad,
+- **Upozornění** (`lib/village-notices.ts`): rodina čeká na dům (fakt), lidé umírají hlady, hlad,
   stojící stavby, plný hřbitov (žádný hotový nemá volný hrob), vesničané ušetřili posvátný dub
-  / dubový háj, svatba, nevěsta z okolí a dcera vdaná pryč, přišla rodina / muž / žena od souseda
+  / dubový háj, svatba, nevěsta a ženich z okolí a dcera vdaná pryč, přišla rodina / muž / žena od souseda
   (`newcomer` – trade.md, Výměna lidí) (fakt, když přibude – svatba podle
   `VillageView.lastMarriageDay`), podzimní porážka, spřežení vycvičené / dosloužilo, vůl
   uhynul, vesničané obnovují starý sad a starý sad dosloužil (nové události kroniky –

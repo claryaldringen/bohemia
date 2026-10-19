@@ -3,7 +3,11 @@
 Stav: schváleno 18. 10. 2026 (Martin: „Pojďme na příbuzenství a pohlaví“, sňatky s okolím
 varianta „c“, návrh celkem „Ano“). Implementováno týž den (`kinship.ts`, `marriage.ts`,
 `households.ts`, `population.ts`) – detaily, které návrh neřešil, jsou v sekci Implementace
-(návrh Clauda).
+(návrh Clauda). 19. 10. 2026 Martin: „Vdova by se měla snažit co nejdříve vdát, ideálně ve
+vesnici. Obecně by měla být pravidla nastavena tak, aby se populace co nejvíce rozrůstala.“ –
+vdovy a sňatky s okolím přepracované (návrh Clauda, [rešerše](research/2026-10-19-population-growth.md))
+a týž den Martin schválil, že ženatý pár, který dům nedrží, smí odejít do nového domu kdykoli
+(Lidé k osídlení).
 
 ## Proč
 
@@ -46,39 +50,51 @@ dědictví, sňatky a nástupnictví potřebují vědět, kdo je čí. Postavy v
 
 ## Sňatky
 
-- **Svobodný** = muž od 16 let nebo žena 16–44 bez manžela (i vdovec a vdova).
+- **Svobodný** = muž od 16 let nebo žena 16–44 bez manžela (i vdovec a vdova, **i vdova s malými
+  dětmi** – Martin, 19. 10. 2026; dřív se vdova s dětmi do 14 let nevdávala).
 - **Ve vsi:** svobodný muž a svobodná žena, kteří nejsou blízcí příbuzní, se vezmou (věkový
-  rozdíl nejvýš ≈ 15 let – návrh Clauda); párování deterministicky – od nejstarších svobodných,
-  každý s nejbližším věkem. **Žena se stěhuje k muži** (rodina muže – patrilokalita raných
-  Slovanů, návrh Clauda). Kronika „Svatba“ jako dnes.
+  rozdíl nejvýš ≈ 15 let, **je-li jeden z nich vdovec nebo vdova, 20 let** – návrh Clauda);
+  párování deterministicky – **nejdřív vdovy a vdovci** (Martin: vdova se má vdát co nejdřív,
+  nejlépe ve vsi), pak ostatní od nejstarších svobodných, každý s nejbližším věkem. **Žena se
+  stěhuje k muži** (rodina muže – patrilokalita raných Slovanů, návrh Clauda), i do přeplněného
+  domu (Martin, 19. 10. 2026: „Jinak jde ona s dětmi k němu, i za cenu přeplnění.“). **Když drží
+  dům ona a on ne, přižení se on k ní** (Martin: „Když drží vlastní dům (vdova s dětmi), muž se
+  k ní přiženit smí – přestěhuje se on, když není dědicem svého domu.“). Kdo se stěhuje, vezme
+  s sebou **vlastní děti mladší 16 let**. Kronika „Svatba“ jako dnes.
 - **Z okolí (Martin – c):** dokud okolní vsi nejsou, svobodný muž od 18 let, který ve vsi
   nemá s kým se oženit, si **každý rok s pravděpodobností ≈ 30 %** přivede ženu z okolí (16–22
-  let, rodiče neznámí); svobodná žena od 18 let bez možného ženicha se každý rok s ≈ 30 % vdá
-  **pryč** (odejde ze vsi). Ves tak lidi z okolí bere i dává (návrh Clauda). Až budou okolní vsi
-  (NPC vojvodové, další hráči – [válka](war.md), [stěhování](migration.md)), sňatky půjdou
-  přes ně.
-- **Vdovy a vdovci** se smí znovu oženit / vdát (stejná pravidla). Vdova s malými dětmi zůstává
-  v domě manžela (návrh Clauda).
+  let, rodiče neznámí). **Ke svobodné ženě od 18 let bez možného ženicha ve vsi se přižení muž
+  z okolí** (Martin, 19. 10. 2026 – návrh růstu): k vdově, ženě, která drží dům (dědička), a k ženě
+  z domu bez mužů s **≈ 50 % ročně** – ta se pryč nevdává; k ostatním s ≈ 10 % ročně, nebo se
+  s ≈ 20 % ročně **vdá pryč** (dřív jen pryč, 30 % ročně). Ves tak lidi z okolí bere i dává
+  (návrh Clauda). Až budou okolní vsi (NPC vojvodové, další hráči – [válka](war.md),
+  [stěhování](migration.md)), sňatky půjdou přes ně.
+- **Vdovy a vdovci** se znovu žení a vdávají co nejdřív – žádná čekací doba; dítě s novým mužem
+  nejdřív za 9 měsíců (population.md – rozestup porodů).
 
 ## Domácnosti
 
 Dnešní pravidla domácností (population.md – Martinova rozhodnutí 18. 10. 2026) se přeloží na
 rodiny (návrh Clauda – Martin uvidí):
 
-- **Nová domácnost** = **ženatý syn se ženou** (a jejich dětmi), když je dům přeplněný nebo když
-  čeká prázdný či nový dům. Dnešní „mladý pár“ a „dospělé děti“ jsou teď synové se ženami.
-  **Jen z plné nebo přeplněné domácnosti** (rozhodnutí 18. 10. 2026 podle Martinových „plná
-  domácnost → nová domácnost v novém obydlí“ a „ať prázdný dům obsadí i plná domácnost“ – z neplného
-  domu ne, ani druhý pár zakladatelů): z plného domu odejde rodina, dokud dům před jejím odchodem
-  zůstává plný – obvykle jedna.
+- **Nová domácnost** = **ženatý syn se ženou** (a jejich dětmi), když čeká prázdný či nový dům.
+  Dnešní „mladý pár“ a „dospělé děti“ jsou teď synové se ženami. **Odejít smí kdykoli, i z neplného
+  domu** – každá rodina kromě té, která dům drží (dědic s rodiči, vdova s dětmi, nejstarší ženatý
+  muž), jen když se zbytek domácnosti nerozpadne (Martin, 19. 10. 2026 – schválený návrh Clauda:
+  „ženatý pár, který dům nedrží, smí odejít do nového nebo prázdného domu kdykoli, ne jen z plného
+  domu“; ve Vlkově nešla postavit dílna uhlíře, protože se dvě ženy od souseda vdaly do neplného
+  domu a pár z něj nesměl). Dřív (rozhodnutí 18. 10. 2026) jen z plné nebo přeplněné domácnosti
+  a jen dokud dům zůstával plný – pravidlo bylo kvůli stěhování tam a zpět, které po zavedení
+  příbuzenství odpadlo (hlídá test).
 - **Dědic:** nejstarší ženatý syn zůstává s rodiči (dnešní dědic u neplodných rodičů platí
   obecně – dům dědí nejstarší syn).
 - **Nejstarší dítě smí odejít samo** (Martin): z plného i přeplněného domu (Martin, 18. 10. 2026:
   „ať prázdný dům obsadí i plná domácnost“) smí do prázdného nebo nového domu odejít i
-  **svobodný** nejstarší syn (od 16 let) – a oženit se tam (sňatkem ve vsi nebo z okolí). Dcery
-  odcházejí sňatkem.
-- **Lidé k osídlení** = ženatí synové plných a přeplněných domů (a svobodní nejstarší synové
-  plných domů), na které nečeká dům.
+  **svobodný** nejstarší syn (od 16 let) – a oženit se tam (sňatkem ve vsi nebo z okolí). **Dál
+  jen z plného domu** (návrh Clauda, 19. 10. 2026): svobodný muž odchodem nic nezíská – ženit se
+  smí i doma, žena se stěhuje k němu – a sám by zabral dům, na který čeká rodina. Dcery odcházejí
+  sňatkem.
+- **Lidé k osídlení** = ženatí synové (rodiny, které dům nedrží – z jakéhokoli domu, Martin, 19. 10. 2026) a svobodní nejstarší synové plných domů, na které nečeká dům.
 - **Rozpad domácnosti:** dům bez dospělého muže i ženy 16+ (jen děti, nebo jen starší) se
   přestěhuje k nejbližším příbuzným (syn, dcera, sourozenec), jinak do domu s nejvíc místy – jen
   když tam dům nepřeplní (Martin, 19. 10. 2026: „Pokud by byla domácnost kam přijde přeplněná, ať
@@ -108,7 +124,8 @@ vsi blízké příbuzné, nebudou chtít útočit):
 
 - Postavy ve scéně podle skutečného pohlaví (muž / žena), děti podle věku.
 - Panel obydlí: muži, ženy, děti a starší (ikony + čísla); páry (ikona prstenu + počet).
-- Upozornění: „Svatba“ (ve vsi), „Nevěsta z okolí“, „Dcera se vdala pryč“ (fakty, krátké řádky).
+- Upozornění: „Svatba“ (ve vsi, i vdovy), „Nevěsta z okolí“, „Ženich z okolí“, „Dcera se vdala pryč“
+  (fakty, krátké řádky) a „Rodina čeká na dům“ (rodina, která smí odejít, nemá kam).
 
 ## Implementace – doplněné detaily (návrh Clauda)
 
@@ -119,17 +136,34 @@ vsi blízké příbuzné, nebudou chtít útočit):
   (v každé skupině dům s nejvíc volnými místy), jinak do domu s nejvíc volnými místy – vždy jen do
   domu, kam se všichni vejdou bez přeplnění; když takový není, zůstanou doma (Martin). Samotné děti
   (nikdo od 16 let) jdou k příbuzným i do přeplněného domu – samy bydlet nemohou.
-- **Svatba ve vsi:** nevěsta se smí přestěhovat, jen když se její domácnost odchodem nerozpadne,
-  a ženichův dům nesmí být přeplněný (po svatbě nejvýš o jednoho přes kapacitu). Ženich se
-  nestěhuje, takže svatba nikoho nevrací do domu, ze kterého odešel – stěhování tam a zpět
-  (rozbor 18. 10. 2026) nevznikne (hlídá test 80 let tří vsí). Párování od nejstaršího
-  svobodného, každý s nejbližším věkem, se kterým svatba jde; jeden sňatek na člověka a den,
-  krok 6 simulace po obsazení prázdných obydlí.
-- **Z okolí:** denní pravděpodobnost odpovídá 30 % ročně; „nemá s kým se vzít“ = ve vsi není
-  nikdo, s kým by svatba dnes šla. Nevěsta z okolí nepřijde do přeplněného domu ani **když ves
-  hladoví** (byla by jen další ústa). Dcera se vdá pryč, jen když se její domácnost odchodem
-  nerozpadne.
-- **Vdova s vlastními dětmi do 14 let** se nevdává – zůstává v domě manžela.
+- **Svatba ve vsi (od 19. 10. 2026):** vdova a vdovec = svobodný, který má (nebo měl) dítě –
+  děti se rodí jen manželům, takže se pozná i ve vsích uložených dřív (vdova, jejíž všechny děti
+  zemřely bez potomků, se nepozná – zjednodušení). **Kdo drží dům:** když s ním odejdou jeho děti
+  do 16 let a doma po nich nezůstane nikdo 16–44 (vdova s dětmi, dcera nebo syn, po kterých by
+  zůstali jen starší a děti). Syn, po kterém doma zůstane otec nebo sourozenec 16–44, dům nedrží,
+  ani kdo žije sám bez dětí – ten se smí přiženit jinam a jeho dům osídlí čekající rodina.
+  **Kam:** žena k muži; drží-li dům ona a on ne, on k ní; drží-li ho oba, stěhuje se ten, u koho
+  bude po svatbě méně těsno (lidé nad kapacitu), při shodě žena – jinak by vdova s pěti dětmi
+  odešla z polozemnice do zemnice a polozemnice zůstala prázdná. Přeplněný dům ani rozpad
+  domácnosti, ze které nevěsta odchází, svatbě nebrání (dřív ano – ženichův dům směl být po
+  svatbě nejvýš o jednoho přes kapacitu); zbytek rozpadlé domácnosti jde k příbuzným, když se
+  tam vejde, jinak zůstane doma. Stěhování tam a zpět nevznikne: kdo se přiženil, je ženatý
+  a dům drží s ženou (hlídá test 80 let tří vsí i „11× za 10 dní“). Párování: vdovy a vdovci
+  první, pak od nejstaršího svobodného, každý s nejbližším věkem, se kterým svatba jde; jeden
+  sňatek na člověka a den, krok 6 simulace po obsazení prázdných obydlí. Kronika rozliší
+  vdovu a ženicha, který se přiženil („Svatba – k vdově se přiženil muž ze vsi.“).
+- **Z okolí:** denní pravděpodobnosti odpovídají ročním (nevěsta 30 %, ženich 10 % a 50 %, pryč
+  20 %), jeden los dne na člověka; „nemá s kým se vzít“ = ve vsi není nikdo, s kým by svatba dnes
+  šla. Z okolí nikdo nepřijde do přeplněného domu ani **když ves hladoví** (byl by jen další
+  jedlík) – dřív platilo jen pro nevěstu. Ženich z okolí je o 2 roky mladší až o 8 let starší než
+  nevěsta (od 18 let); nevěsta z okolí 16–22 let, staršímu muži nejvýš o povolený rozdíl mladší
+  (do 44 let – 50letý vdovec si přivede ženu 30–36letou). Dcera se vdá pryč, jen když se její
+  domácnost odchodem nerozpadne; vdova (s dětmi), dědička a žena z domu bez mužů pryč nejdou.
+  Kronika „Ženich z okolí“ jako „Nevěsta z okolí“ (upozornění).
+- **Vdova s malými dětmi se vdává** (Martin, 19. 10. 2026) – dřív zůstávala v domě manžela,
+  dokud jí děti nebyly 14 (ve Vlkově proto 21letá matka pětiletého syna nesměla za nikoho).
+- **Po svatbě nejdřív za 9 měsíců dítě** (population.md – rozestup porodů); stejně zakladatelé
+  vsi od založení.
 - **Domácnosti:** rodina = muž, žena a jejich svobodné děti z domu. Ženatý syn = muž, jehož matka
   nebo otec bydlí v domě; dědic = nejstarší ženatý syn a s ním zůstávají jeho rodiče; v domě bez
   ženatého syna drží dům vdova s vlastními dětmi (Martin, 19. 10. 2026 – ve Vlkově mladý pár
@@ -143,11 +177,15 @@ vsi blízké příbuzné, nebudou chtít útočit):
   nikoho z domu (Martin, 19. 10. 2026 – „Jedna polozemnice je přeplněná a jsou v ní 4 dospělí.
   Tohle by se mělo nějak řešit“: ve Vlkově 25letý muž s neznámými rodiči nesměl do prázdné
   polozemnice; návrh Clauda). Zpátky
-  ho nic nevrátí – sňatkem se stěhuje žena k muži a sestra ani matka si ho nevezme (bez
-  příbuzenství tu vznikalo stěhování tam a zpět – 11× za 10 dní, hlídá test).
-- **Lidé k osídlení:** v každém plném nebo přeplněném domě rodiny, které odejdou, dokud dům zůstává
-  plný (`departingFamilies`), a když žádná není, svobodný syn plného domu. Založená ves (manželé
-  a jejich děti, i když se pak vezmou) nemá lidi k osídlení, dokud dům zakladatelů není plný.
+  ho vrátí nanejvýš svatba s vdovou nebo dědičkou, která drží dům – jednou, pak je ženatý; sestra
+  ani matka si ho nevezme (bez příbuzenství tu vznikalo stěhování tam a zpět – 11× za 10 dní,
+  hlídá test).
+- **Lidé k osídlení:** v každém domě rodiny, které dům nedrží a smí odejít, dokud se zbytek
+  domácnosti nerozpadá (`departingFamilies` – plnost domu nerozhoduje, Martin 19. 10. 2026), a když
+  žádná není, svobodný syn plného domu. Prázdný dům osídlí první taková rodina – z nejvíc
+  přeplněného domu, v něm od nejstaršího muže. Založená ves má lidi k osídlení, jakmile se děti
+  zakladatelů vezmou (mladší pár dům nedrží – drží ho nejstarší ženatý muž); dřív až když byl dům
+  zakladatelů plný. Upozornění „Rodina čeká na dům“ (dřív „Domácnost je plná“).
 - **Rodokmen** drží zemřelé a odešlé jen jako id a jejich rodiče, a jen dokud jsou rodičem
   někoho žijícího – tak jde poznat prarodiče, strýce i bratrance a stav neroste do nekonečna.
 - **Převod starých vsí** (`withKinship`, při načtení i na začátku dopočtu, bez příznaku – ves
@@ -161,6 +199,24 @@ vsi blízké příbuzné, nebudou chtít útočit):
   3 svatby ve vsi, 2 nevěsty z okolí, 2 dcery vdané pryč (bez příbuzenství 17 lidí, 17 porodů).
 
 ## Kalibrace
+
+**Naměřeno 19. 10. 2026** (vdovy, ženich z okolí, porody podle věku, odchod ženatého páru
+i z neplného domu; `measure-village.ts 20 60`, před → po; podrobně population.md – Kalibrace):
+
+- vdovy 16–44: znovu se vdalo 32 → 89 %, doba do sňatku medián 2,2 → 0,1 roku (p90 11 → 2,4);
+  vdovci 16–59: 90 → 88 %, medián 1,2 → 0,9 roku,
+- sňatky na ves za 60 let (hráč staví): ve vsi 4,4 → 7,5, nevěsty z okolí 7,3 → 7,0, ženichové
+  z okolí 0 → 4,5, vdané pryč 4,3 → 2,7; bez staveb ve vsi 2,4 → 3,6, ženichové 0 → 1,5, pryč
+  3,1 → 1,6,
+- dospělých mužů na 100 žen 80 → 96; lidí po 60 letech 25 → 40 (bez staveb 8 → 10), vymření
+  1 → 0 z 20 (bez staveb 4 → 0 z 20).
+- **Vlkov** (kopie stavu 20. 12. 767, 32 lidí, bez staveb hráče, 10 let): vdova 31 let s pěti
+  dětmi si 3. 5. 768 vzala šestnáctiletého souseda, který se k ní přiženil do polozemnice;
+  21letá matka pětiletého syna dostala 22. 6. 768 ženicha z okolí (29 let). Dřív se dcera za
+  10 let nevdala a vdova až po 4 letech za vdovce. Po 10 letech 37 lidí (dřív 34), 15 porodů (13),
+  první lidé k osídlení 20. 6. 770 (dřív 19. 9. 774). Kopie 3. 3. 770 (dvě ženy od souseda, kód
+  feat/landscape): první lidé k osídlení 2. 9. 770 (dřív 3. 5. 775), po roce 2, po dvou 3 –
+  ke ženám od souseda se přiženili muži z okolí (15. 8. 770 a 7. 3. 771).
 
 `measure-village.ts 30 60` (18. 10. 2026, bez příbuzenství → s ním; měřeno ještě před povolením
 odchodu svobodného syna z plného domu):
@@ -185,10 +241,18 @@ odchodu svobodného syna z plného domu):
 | Sňatky z okolí: teď abstraktně, až budou okolní vsi, přes ně (varianta c)                 | Martin                                    |
 | 105 chlapců na 100 dívek; žena plodná 16–44, muž od 16 bez meze; zakladatelé dva páry     | návrh Clauda                              |
 | Blízcí příbuzní do bratranců; žena se stěhuje k muži; věkový rozdíl do ≈ 15 let           | návrh Clauda                              |
-| Z okolí ≈ 30 % ročně pro svobodného muže / ženu od 18 bez možného partnera ve vsi         | návrh Clauda                              |
+| ~~Z okolí ≈ 30 % ročně pro svobodného muže / ženu od 18 bez možného partnera ve vsi~~     | návrh Clauda                              |
 | Domácnosti: ženatý syn zakládá, nejstarší syn dědí, svobodný nejstarší syn smí odejít sám | návrh Clauda                              |
-| Nová domácnost a lidé k osídlení jen z plné nebo přeplněné domácnosti                     | návrh Clauda (podle Martinových pravidel) |
+| ~~Nová domácnost a lidé k osídlení jen z plné nebo přeplněné domácnosti~~                 | návrh Clauda (podle Martinových pravidel) |
+| Ženatý pár, který dům nedrží, smí odejít do nového nebo prázdného domu kdykoli            | Martin (19. 10. 2026), návrh Clauda       |
+| Svobodný syn smí odejít sám dál jen z plného domu                                         | návrh Clauda (19. 10. 2026)               |
 | Starší vsi: pohlaví a manželé se doplní jednou deterministicky, rodiče neznámí            | návrh Clauda                              |
 | Nevěsta z okolí si pamatuje směr vsi, vdaná pryč zůstane v rodokmenu se směrem (válka)    | návrh Clauda                              |
-| Domácnost drží člověk 16–44; rozpad k příbuzným; vdova s dětmi do 14 se nevdává           | návrh Clauda                              |
-| Svatba nepřeplní dům víc než o jednoho; v hladu nevěsta z okolí nepřijde                  | návrh Clauda                              |
+| Domácnost drží člověk 16–44; rozpad k příbuzným; ~~vdova s dětmi do 14 se nevdává~~       | návrh Clauda                              |
+| ~~Svatba nepřeplní dům víc než o jednoho~~; v hladu nevěsta z okolí nepřijde              | návrh Clauda                              |
+| Vdova se vdává co nejdřív, nejlépe ve vsi; s dětmi; žena jde k muži i do přeplnění        | Martin (19. 10. 2026)                     |
+| Drží-li dům žena a muž ne, přižení se muž k ní (i z okolí)                                | Martin (19. 10. 2026)                     |
+| Vdovy a vdovci mají přednost; rozdíl věku u nich 20 let; děti do 16 jdou s rodičem        | návrh Clauda (19. 10. 2026)               |
+| Drží-li dům oba, stěhuje se, u koho bude méně těsno; přeplnění ani rozpad svatbě nebrání  | návrh Clauda (19. 10. 2026)               |
+| Ženich z okolí 10 % ročně (vdově, dědičce, ženě z domu bez mužů 50 %), pryč 20 % ročně    | návrh Clauda (19. 10. 2026)               |
+| Nevěsta z okolí 30 % ročně; v hladu a do přeplněného domu z okolí nikdo nepřijde          | návrh Clauda                              |
