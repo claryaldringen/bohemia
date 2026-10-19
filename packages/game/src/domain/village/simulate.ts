@@ -361,7 +361,7 @@ function planYear(state: VillageState, day: number, coverage: CraftCoverage): vo
   // oseje, Osev podle stravy)
   closeFieldFoodYear(state);
   for (const part of state.parts) endOfSeason(part, day);
-  // ves se spřežením orá rádlem (oxen.md)
+  // ves se spřežením orá rádlem všechno, motyka nekope (oxen.md – Jen rádlo)
   const plough = ableTeams(state) > 0;
   // díly po úsecích hospodářství od domu ven (fields.md – Hospodaření podle polohy domů)
   const holdings = villageHoldings(state);
@@ -370,7 +370,7 @@ function planYear(state: VillageState, day: number, coverage: CraftCoverage): vo
   const crops = chooseCrops(sowingBlocks(state.parts, holdings), {
     targetKg: targets.targetKg,
     startKg: 0,
-    capacity: sowingCapacity(state, day, coverage),
+    capacity: sowingCapacity(state, day, coverage, plough),
     load: orchardOnlyLoad(orchardHarvestLoad(state)),
     allowWinter: true,
     day,
@@ -415,13 +415,15 @@ function joinFinishedParts(state: VillageState, day: number, coverage: CraftCove
   const startKg = state.parts
     .filter((p) => inPlan.has(p.id))
     .reduce((sum, p) => sum + expectedNetKg(p, day), 0);
-  const plough = ableTeams(state) > 0;
+  // jař se buď celá orá, nebo celá kope (oxen.md – Jen rádlo): k plánu, který orá, přibudou díly
+  // k orbě; bez plánu podle toho, jestli ves má spřežení
+  const plough = plan ? plan.plough !== undefined : ableTeams(state) > 0;
   const holdings = villageHoldings(state);
   // hotové díly (skupina 2 přílohové soustavy) po úsecích hospodářství
   const { spring } = chooseCrops(sowingBlocks(state.parts, holdings, 2), {
     targetKg: fieldSowingTargets(state, day, coverage).targetKg,
     startKg,
-    capacity: sowingCapacity(state, day, coverage),
+    capacity: sowingCapacity(state, day, coverage, plough),
     load: planLoad(plan, orchardHarvestLoad(state)),
     allowWinter: false,
     day,
@@ -431,10 +433,7 @@ function joinFinishedParts(state: VillageState, day: number, coverage: CraftCove
   if (spring.length === 0) return;
   const order = workOrder(holdings);
   if (plan === null) state.plan = createPlan(spring, day, coverage.tools, plough, order);
-  else {
-    const partsById = new Map(state.parts.map((p) => [p.id, p]));
-    addToCropWork(plan, spring, day, coverage.tools, plough, partsById, order);
-  }
+  else addToCropWork(plan, spring, day, coverage.tools, order);
   sow(spring, day, 'spring');
 }
 
@@ -473,8 +472,16 @@ const SOW_AFTER_DIG_DAYS = 1;
  * práce po denním minimu (PEAK_CAPACITY_SHARE) krát dny oken – podzim pro ozim (září–říjen)
  * a celý podzim (září–listopad), jaro (březen–duben), červenec a srpen (sklizně). Domácnosti
  * dílen na pole nechodí (crafts.md) – nepočítají se; práce se zvířaty (diet.md) jde napřed.
+ * Ves, která orá (`plough`), má navíc kapacitu spřežení v oknech orby (oxen.md – Jen rádlo):
+ * denní orba všech spřežení krát dny oken kopání – září–říjen pro ozim (bez posledního dne, ať se
+ * zaseje i poslední zoraný pruh), září–listopad a březen–duben pro jař a luštěniny.
  */
-function sowingCapacity(state: VillageState, day: number, coverage: CraftCoverage): SowingCapacity {
+function sowingCapacity(
+  state: VillageState,
+  day: number,
+  coverage: CraftCoverage,
+  plough = false,
+): SowingCapacity {
   const crafts = craftHouseholds(state);
   // práci násobí štěstí vsi (happiness.md) a dřevěné nářadí od tesaře (wagons.md)
   const capacity =
@@ -496,12 +503,25 @@ function sowingCapacity(state: VillageState, day: number, coverage: CraftCoverag
     PEAK_CAPACITY_SHARE;
   const days = (segments: Parameters<typeof windowDaysLeft>[1], sowing = false): number =>
     free * Math.max(0, windowDaysLeft(day, segments) - (sowing ? SOW_AFTER_DIG_DAYS : 0));
-  return {
+  const people: SowingCapacity = {
     autumnWinter: days(WINTER_WINDOWS.sow, true),
     autumn: days(WINDOWS.reclaim),
     spring: days(WINDOWS.sow, true),
     july: days(WINTER_WINDOWS.harvest),
     august: days(WINDOWS.harvest),
+  };
+  if (!plough) return people;
+  const perDay = ploughCapacityPerDay(state, coverage.tools, day);
+  const ploughDays = (segments: Parameters<typeof windowDaysLeft>[1], sowing = false): number =>
+    perDay * Math.max(0, windowDaysLeft(day, segments) - (sowing ? SOW_AFTER_DIG_DAYS : 0));
+  // okna kopání jaře: podzim jako vracení přílohu, jaro jako setí
+  return {
+    ...people,
+    plough: {
+      autumnWinter: ploughDays(WINTER_WINDOWS.dig, true),
+      autumn: ploughDays(WINDOWS.reclaim),
+      spring: ploughDays(WINDOWS.sow, true),
+    },
   };
 }
 
@@ -655,12 +675,12 @@ function work(
   landscape: Landscape | null,
 ): { toil: boolean; milking: number } {
   const month = dateOfDayIndex(day).month;
-  // orba: spřežení s rádlem, se železnou špičkou od kováře rychleji (oxen.md); spřežení s vozem na
-  // výpravě neorá (wagons.md)
+  // orba: spřežení s rádlem, se železnou špičkou od kováře rychleji (oxen.md); slabí voli po
+  // zimě pomaleji; spřežení s vozem na výpravě neorá (wagons.md)
   const owned = fieldTasks(
     state,
     day,
-    ploughCapacityPerDay(state, coverage.tools) * teamsHomeShare(state),
+    ploughCapacityPerDay(state, coverage.tools, day) * teamsHomeShare(state),
   );
   const dayTasks: DayTask[] = owned.map((field) => ({
     name: field.name,
@@ -977,6 +997,14 @@ function build(
   carpentry = 0,
 ): ConstructionWork[] {
   const founding = foundingIndex(state);
+  // díl louky, který ves se spřežením zakládá bez překážek, práci nepotřebuje – založí se hned
+  // (drn rozorá první orba – oxen.md, Jen rádlo)
+  for (const c of state.constructions) {
+    if (c.kind !== 'field') continue;
+    for (const part of foundingParts(founding, c)) {
+      if (part.foundingCost - part.foundingDone <= 0) foundPart(state, day, part);
+    }
+  }
   let active = state.constructions
     .map((c) => {
       const factor = constructionLaborFactor(c, carpentry);
@@ -1178,21 +1206,7 @@ function invest(
     if (completes || left >= need) {
       left -= need;
       used += need;
-      part.foundingDone = part.foundingCost;
-      part.state = 'ready';
-      if (part.surface === 'forest') part.bonusUntilDay = forestBonusUntil(day);
-      // založený díl: stromy, kameny a keře z něj zmizí natrvalo (fields.md – Zakládání),
-      // dospělé stromy dají klády na hromadu (forest.md – Mýcení)
-      if (part.obstacles) {
-        recordClearedObstacles(state, part.obstacles, day);
-        delete part.obstacles;
-      }
-      if (part.trees) {
-        addLogs(state, logsFromClearedTrees(part.trees));
-        delete part.trees;
-      }
-      // pole vymýtilo les vsi na čtverci (fields.md – Les vsi) – stromy zmizely s překážkami
-      if (part.cell) clearWoodAt(state, part.cell, fieldGridOf(state, part.fieldId));
+      foundPart(state, day, part);
     } else {
       part.foundingDone += left;
       used += left;
@@ -1201,6 +1215,25 @@ function invest(
   }
   // průběh stavby jen z jejích dílů – pole mohlo mít díly založené dřív (rozšíření, sloučení)
   c.done = Math.min(c.cost, c.done + used);
+}
+
+/** Díl pole je založený (mutuje stav). */
+function foundPart(state: VillageState, day: number, part: FieldPart): void {
+  part.foundingDone = part.foundingCost;
+  part.state = 'ready';
+  if (part.surface === 'forest') part.bonusUntilDay = forestBonusUntil(day);
+  // založený díl: stromy, kameny a keře z něj zmizí natrvalo (fields.md – Zakládání),
+  // dospělé stromy dají klády na hromadu (forest.md – Mýcení)
+  if (part.obstacles) {
+    recordClearedObstacles(state, part.obstacles, day);
+    delete part.obstacles;
+  }
+  if (part.trees) {
+    addLogs(state, logsFromClearedTrees(part.trees));
+    delete part.trees;
+  }
+  // pole vymýtilo les vsi na čtverci (fields.md – Les vsi) – stromy zmizely s překážkami
+  if (part.cell) clearWoodAt(state, part.cell, fieldGridOf(state, part.fieldId));
 }
 
 // --- stavby a domácnosti ------------------------------------------------------------------

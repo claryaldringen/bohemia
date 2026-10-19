@@ -539,9 +539,11 @@ pořadí (návrh Clauda; nahrazuje pevných 85 % a dělení práce po domácnost
 5. Zbytek je **společná práce vsi** – stavby obydlí a zakládání polí (populace).
 
 **Polní práce při ruční práci** (člověkodny na osetý hektar za rok, v závorce s řemesly – oprava
-podle rešerše, dřív 200 – kopání 80, výmlat 30). Zatím jen motyky; **rádlo a voli později
-(Martin)** – rádlo by zpracování půdy zkrátilo na ≈ 5–15 člověkodní na hektar, drn ale dál chce
-motyku nebo oheň (Semjonov 1974).
+podle rešerše, dřív 200 – kopání 80, výmlat 30). Ves bez spřežení kope motykou; **ves se
+spřežením orá rádlem všechno a motykou nekope** (Martin, 19. 10. 2026: „Pokud je k dispozici
+rádlo, kopání motykou úplně vynech. Je to neefektivní a aspoň si nebudeme muset pamatovat, co
+čím bylo kopáno.“) – orba 10 → 6 člověkodní na hektar, drn 2,5× víc (orba křížem), a zaseje se
+jen, co spřežení v oknech orby stihnou zorat ([oxen.md](oxen.md) – Jen rádlo).
 
 | Práce                      | Kdy – ozim    | Kdy – jař                                   | Člověkodny / ha | Zdroj                 |
 | -------------------------- | ------------- | ------------------------------------------- | --------------- | --------------------- |
@@ -1170,6 +1172,13 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
   (Martin) – na jaře vysoká kvetoucí tráva, v červnu se seče po dílech (řádky sena), pak kupky
   a od poloviny července stohy na otavě, které přes podzim a zimu postupně mizí (zkrmují se);
   na otavě se od srpna do konce listopadu pase. Z dálky trsy řídnou a pole nese barva obtisku.
+  **Řádky sena** (Martin, 19. 10. 2026, ke snímku posečené louky: „Proč jsou na tom ty čáry?“;
+  k návrhu úpravy: „Udělej to tak, jak říkáš“; podrobnosti návrh Clauda): řádky jsou
+  zelenožluté jako schnoucí seno (dřív skoro bílé), široké ≈ 1,1 m s měkkým roztřepeným okrajem
+  do ≈ 2 m, vlní se a nejsou přesně rovnoběžné (rozestup 4,5 m ± 15 %), místy se trhají. Leží jen
+  na čerstvě posečených dílech – seno v řádcích schne ≈ 3 dny (`SWATH_DAYS`), pak se shrabe do
+  kupek; ve vsi podle dat jádra jsou řádky na rozpracovaném dílu a na dílech dnešní seče, ostatní
+  posečené díly mají kupky.
   **Vystouplé obilí** (Martin, 19. 10. 2026: „Zrající a dozrálé obilí by mělo být také mírně
   vystouplé – pšenice dvouzrnka má nějakou výšku.“): zelené a zralé obilí je vyvýšená hmota –
   nad dílem leží „koruna“ porostu (textura porostu shora) ve výšce 0,62 m (zelené) a 0,88 m
@@ -1180,11 +1189,12 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
   spadne koruna svislou stěnou – schod. Luštěniny (hrách, čočka – polehlé) mají korunu jen 0,3 m,
   vzcházející osení, strniště a úhor žádnou. Vítr vlní dál trsy, sníh a usychání platí pro
   korunu jako pro obtisk pole.
-  **Kulaté rohy** ([oxen.md](oxen.md) – Kulaté rohy; Martin, 19. 10. 2026): kde pole oralo
-  spřežení rádlem, má zoraná plocha – i osetá, zelená, zralá a strniště po ní – vnější rohy pole
+  **Kulaté rohy** ([oxen.md](oxen.md) – Kulaté rohy; Martin, 19. 10. 2026): ve vsi, která letos
+  orá rádlem (oxen.md – Jen rádlo: orá všechno, nic se nekope), mají všechna pole vnější rohy
   zakulacené obloukem o poloměru 5 m (do rohu se spřežení s radlicí v zemi nevejde); v rohu
-  zůstane tráva louky a nestojí tam trsy. Vnitřní rohy, styky dílů a styk s jiným polem zůstanou
-  jako dřív, kopané díly mají rohy ostré.
+  zůstane tráva louky a nestojí tam trsy. Vnitřní rohy a styk s jiným polem zůstanou jako dřív;
+  pole vsi, která kope motykou, mají rohy ostré – i pole z doby před spřežením, dokud je ves
+  neoře (stav vsi „letos orá rádlem“, ne paměť po dílech).
   **Pod cestou obilí neroste** (Martin, 19. 10. 2026: „Vzrostlé obilí přerůstá cestu. Tam, kde je
   cesta, prostě obilí neroste.“; podrobnosti návrh Clauda, jen vzhled – plochu dílu cesta
   neubírá, [roads.md](roads.md) – Cesta je cesta): pod pásem pevné cesty (vyšlapaná 1,9 m,
@@ -1338,8 +1348,12 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Osev podle zásob – ves si drží rozumnou zásobu na hubené roky, s velkou zásobou seje méně a staví                                 | Martin (19. 10. 2026)                           |
 | Rozjetý plán se zkrátí hned, ne až 1. 9. – ves přestane kopat nové díly                                                           | Martin (19. 10. 2026)                           |
 | Zrající a zralé obilí vystouplé (dvouzrnka); kulaté rohy pole oraného rádlem                                                      | Martin (19. 10. 2026)                           |
+| Ves se spřežením orá všechno, motykou nekope – i drn a louku při založení                                                         | Martin (19. 10. 2026)                           |
+| Drn orbou křížem 2,5×; zaseje se, co spřežení zorají; ztráta spřežení – letošní plán dokončí motyka; rohy podle stavu vsi         | návrh Clauda                                    |
 | Koruna porostu 0,62 / 0,88 m, luštěniny 0,3 m, schod na čáře žně; roh 5 m jen vnější rohy oraných dílů, jen vzhled                | návrh Clauda                                    |
 | Pod cestou obilí neroste – pod pevnou cestou i pěšinou dne                                                                        | Martin (19. 10. 2026)                           |
+| Řádky sena zelenožluté, širší, nepravidelné, kratší dobu – pak kupky                                                              | Martin (19. 10. 2026)                           |
+| Řádky ≈ 1,1 m (okraj do 2 m), rozestup ± 15 %, trhliny; seno v řádcích 3 dny, ve vsi jen díly dnešní seče                         | návrh Clauda                                    |
 | Maska v šířce obtisku cesty, okraj 0,8 m (pěšina 0,5 m) svahem; přestavba jen bloků u změněných pásů; jemnější síť pod pásem      | návrh Clauda                                    |
 | Cíl = rok spotřeby z pole a pojistka po příští sklizni bez toho, co zbude; pojistka ~~0,3~~ 0,5 roční potřeby celé energie        | návrh Clauda                                    |
 | Volná práce pro plán osevu po dospělých pasácích (se stády podle bílkovin)                                                        | návrh Clauda                                    |

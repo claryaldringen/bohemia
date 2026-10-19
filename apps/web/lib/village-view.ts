@@ -2,6 +2,8 @@ import {
   BUILD_COSTS,
   CARPENTRY,
   CART_NAMES,
+  ableTeams,
+  ploughsThisYear,
   CRAFT_NAMES,
   CRAFT_PRODUCTION,
   carpenterWorkFactor,
@@ -715,6 +717,12 @@ export interface SceneVillage {
      */
     grid?: SquareGrid;
     parts: SceneFieldPart[];
+    /**
+     * Pole orá spřežení rádlem (oxen.md – Jen rádlo: ves se spřežením orá všechno, nic nekope) –
+     * ve vnějších rozích má pole kulaté rohy podle obratu spřežení (Kulaté rohy). Ve vsi platí pro
+     * všechna pole vsi, která letos orá (`ploughsThisYear` z jádra). Bez údaje ostré rohy.
+     */
+    ard?: true;
   }[];
   /**
    * Hřbitovy po čtvercích (střed políčka ve světě a strana jako u pole) – průběh stavby
@@ -804,6 +812,11 @@ export interface SceneVillage {
    * založení jako server. Bez údaje 0.
    */
   toolCoverage?: number;
+  /**
+   * Ves má vycvičené spřežení s rádlem (oxen.md – Jen rádlo) – kontrola umístění pole v prohlížeči
+   * počítá louku bez motyky (jen překážky) jako server. Bez údaje ne.
+   */
+  ploughTeam?: true;
   /**
    * Milíře uhlíře v lese (crafts.md – Uhlíř) – id dílny, střed (m), fáze a její průběh 0–1
    * (stavba po fázích staveniště, pálení kouří). Milíř u dílny nese dílna (`working`). Bez údaje
@@ -1095,11 +1108,6 @@ export interface SceneFieldPart {
   work?: number;
   /** Vzhled nehotové části rozpracovaného dílu; bez údaje povrch před prací (louka u zakládání). */
   before?: FieldLook;
-  /**
-   * Díl letošní plodiny oralo spřežení rádlem (oxen.md – Kulaté rohy): ve vnějších rozích pole má
-   * zoraná plocha kulaté rohy podle obratu spřežení. Kopaný díl (motyka) údaj nemá – rohy ostré.
-   */
-  ploughed?: true;
   /**
    * Roky přílohu bez pastvy a seče (fields.md – Zarůstání) – podle nich ve scéně rostou keře
    * a stromky (hustota a velikost). Jen u přílohu, který zarůstá (aspoň rok).
@@ -1508,9 +1516,12 @@ function sceneVillage(
   const looks = fieldPartLooks(state, day);
   // kam stáda dojdou – jen ves se skutečnými stády (bez nich scéna stáda odvodí z domácností)
   const grazed = state.livestock ? pastureGrazedParts(state, day) : null;
+  // ves letos orá rádlem – celé pole má kulaté rohy (oxen.md – Jen rádlo)
+  const ard = ploughsThisYear(state);
   const fields = state.fields.map((f) => ({
     id: f.id,
     ...(f.grid ? { grid: f.grid } : {}),
+    ...(ard ? { ard: true as const } : {}),
     // vzhled po čtvercích z jádra (fieldPartLooks); bez něj (starší příloh) odhad scény
     parts: state.parts.flatMap((p): SceneFieldPart[] => {
       if (p.fieldId !== f.id || p.cell === undefined) return [];
@@ -1600,6 +1611,7 @@ function sceneVillage(
     ...(hayMeadows.length > 0 ? { hayMeadows } : {}),
     ...(pens.length > 0 ? { pens } : {}),
     ...(summary.crafts.coverage.tools > 0 ? { toolCoverage: summary.crafts.coverage.tools } : {}),
+    ...(ableTeams(state) > 0 ? { ploughTeam: true as const } : {}),
     ...(roads.length > 0 ? { roads } : {}),
     ...(roadTrees.length > 0 ? { roadTrees } : {}),
     ...(woods.length > 0 ? { woods } : {}),
@@ -2784,6 +2796,7 @@ function scenePlacementVillage(scene: SceneVillage): PlacementVillage {
         }
       : {}),
     ...(scene.toolCoverage ? { toolCoverage: scene.toolCoverage } : {}),
+    ...(scene.ploughTeam ? { ploughTeam: true } : {}),
     // pevné cesty – kácení u kurzoru chůzí jako na serveru (roads.md)
     ...(scene.roads ? { walkRoads: scene.roads } : {}),
   };

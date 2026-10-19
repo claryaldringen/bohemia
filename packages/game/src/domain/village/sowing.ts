@@ -13,6 +13,10 @@ import { emptyTaskRecord, partWork, ploughRemaining, type PartWork } from './yea
 // Luštěniny (fields.md – Luštěniny): obilí má přednost – po výběru obilí dostanou luštěniny díly
 // toho výběru od domu, dokud očekávaná úroda nepokryje cíl luštěnin a práce se vejde jako jař
 // (sklizeň v červenci), a obilí doplní energii, kterou luštěniny dají méně.
+// Ves se spřežením (oxen.md – Jen rádlo) orá všechno a nekope: díl se vejde, jen když ho spřežení
+// v oknech orby stihnou zorat (orba ozimu v září–říjnu, jaře na podzim, kolik po ozimu zbude,
+// a zbytek na jaře) – víc ohrad se spřežením = víc kapacity. Orbu přitom dělají i lidé (oráč
+// a honáček), takže se počítá i do práce lidí jako kopání.
 
 /** Tolerance proti chybám desetinných čísel při porovnání práce s kapacitou. */
 const EPSILON = 1e-9;
@@ -50,15 +54,24 @@ export interface SowingCapacity {
   july: number;
   /** Srpen: sklizeň jaře. */
   august: number;
+  /**
+   * Orba spřežení v člověkodnech orby (oxen.md – Jen rádlo) – jen ves, která orá: září–říjen
+   * (ozim), září–listopad celkem (co po ozimu zbude, jde na jař) a březen–duben (zbytek jaře
+   * a luštěnin). Chybí = ves neorá, orba se nehlídá.
+   */
+  plough?: { autumnWinter: number; autumn: number; spring: number };
 }
 
-/** Práce, kterou ves v oknech už má: sklizeň jablek a zbytek letošního plánu po plodinách. */
+/**
+ * Práce, kterou ves v oknech už má: sklizeň jablek a zbytek letošního plánu po plodinách (úlohy
+ * a orba).
+ */
 export interface SowingLoad {
   orchardAutumn: number;
-  winter: Record<TaskName, number>;
-  spring: Record<TaskName, number>;
+  winter: PartWork;
+  spring: PartWork;
   /** Zbytek práce luštěnin; chybí = žádné. */
-  legume?: Record<TaskName, number>;
+  legume?: PartWork;
 }
 
 export interface CropChoiceInput {
@@ -71,7 +84,7 @@ export interface CropChoiceInput {
   allowWinter: boolean;
   day: number;
   toolCoverage: number;
-  /** Ves má spřežení – díly, které rádlo zvládne, orá místo kopání (oxen.md). */
+  /** Ves orá spřežením – všechny díly orá místo kopání (oxen.md – Jen rádlo). */
   plough?: boolean;
   /** Cíl luštěnin (kg čisté úrody – fields.md, Luštěniny); bez údaje žádné luštěniny. */
   legumeTargetKg?: number;
@@ -82,19 +95,24 @@ export interface CropChoiceInput {
   energyFloorKg?: number;
 }
 
-/** Prázdná zátěž – jen sklizeň jablek. */
-export function orchardOnlyLoad(orchardAutumn: number): SowingLoad {
-  return { orchardAutumn, winter: emptyTaskRecord(), spring: emptyTaskRecord() };
+/** Prázdná práce dílu – úlohy i orba nulové. */
+function emptyPartWork(): PartWork {
+  return { ...emptyTaskRecord(), plough: 0 };
 }
 
-/** Zbytek práce plodiny (potřebné − odvedené po úlohách; orba se počítá ke kopání). */
-function remaining(work: CropWork | undefined): Record<TaskName, number> {
-  const rest = emptyTaskRecord();
+/** Prázdná zátěž – jen sklizeň jablek. */
+export function orchardOnlyLoad(orchardAutumn: number): SowingLoad {
+  return { orchardAutumn, winter: emptyPartWork(), spring: emptyPartWork() };
+}
+
+/** Zbytek práce plodiny (potřebné − odvedené po úlohách a zbývající orba). */
+function remaining(work: CropWork | undefined): PartWork {
+  const rest = emptyPartWork();
   if (!work) return rest;
-  for (const task of Object.keys(rest) as TaskName[]) {
+  for (const task of Object.keys(emptyTaskRecord()) as TaskName[]) {
     rest[task] = Math.max(0, work.required[task] - work.done[task]);
   }
-  rest.dig += ploughRemaining(work);
+  rest.plough = ploughRemaining(work);
   return rest;
 }
 
@@ -116,6 +134,9 @@ interface CropLoad {
   springDig: number;
   springSow: number;
   august: number;
+  /** Orba ozimu (září–říjen) a orba jaře s luštěninami (podzim, zbytek na jaře). */
+  ploughWinter: number;
+  ploughSpring: number;
 }
 
 /**
@@ -126,12 +147,27 @@ function autumnWork(work: PartWork): number {
   return work.reclaim + (work.dig + work.plough) + work.sow;
 }
 
-/** Ozim pojme práci `work` – podzim (vrácení, kopání, setí) i červencová sklizeň. */
+/**
+ * Ozim pojme práci `work` – podzim (vrácení, kopání, setí) i červencová sklizeň; ves, která orá,
+ * i orbu v září–říjnu.
+ */
 function fitsWinter(load: CropLoad, work: PartWork, capacity: SowingCapacity): boolean {
   return (
     load.winterAutumn + autumnWork(work) <= capacity.autumnWinter + EPSILON &&
-    load.july + work.harvest <= capacity.july + EPSILON
+    load.july + work.harvest <= capacity.july + EPSILON &&
+    (!capacity.plough || load.ploughWinter + work.plough <= capacity.plough.autumnWinter + EPSILON)
   );
+}
+
+/**
+ * Orba jaře a luštěnin se vejde: na podzim, kolik spřežením po ozimu zbude, zbytek na jaře (ves
+ * bez orby vždy).
+ */
+function fitsSpringPlough(load: CropLoad, work: PartWork, capacity: SowingCapacity): boolean {
+  if (!capacity.plough) return true;
+  const autumnLeft = Math.max(0, capacity.plough.autumn - load.ploughWinter);
+  const springNeed = Math.max(0, load.ploughSpring + work.plough - autumnLeft);
+  return springNeed <= capacity.plough.spring + EPSILON;
 }
 
 /**
@@ -147,13 +183,15 @@ function fitsSpring(load: CropLoad, work: PartWork, capacity: SowingCapacity): b
   const springNeed = sow + Math.max(0, dig - autumnLeft);
   return (
     springNeed <= capacity.spring + EPSILON &&
-    load.august + work.harvest <= capacity.august + EPSILON
+    load.august + work.harvest <= capacity.august + EPSILON &&
+    fitsSpringPlough(load, work, capacity)
   );
 }
 
 function addWinter(load: CropLoad, work: PartWork): void {
   load.winterAutumn += autumnWork(work);
   load.july += work.harvest;
+  load.ploughWinter += work.plough;
 }
 
 /**
@@ -172,6 +210,7 @@ function addLegume(load: CropLoad, work: PartWork): void {
   load.springDig += work.dig + work.plough;
   load.springSow += work.sow;
   load.july += work.harvest;
+  load.ploughSpring += work.plough;
 }
 
 function addSpring(load: CropLoad, work: PartWork): void {
@@ -179,6 +218,7 @@ function addSpring(load: CropLoad, work: PartWork): void {
   load.springDig += work.dig + work.plough;
   load.springSow += work.sow;
   load.august += work.harvest;
+  load.ploughSpring += work.plough;
 }
 
 /** Průběžný výběr `chooseCrops` – díly po plodinách, zátěž oken a očekávaná úroda. */
@@ -218,7 +258,7 @@ function chooseGrain(
       blockNet += expectedNetKg(part, input.day);
     }
     const works = needed.map(workOf);
-    const total: PartWork = { ...emptyTaskRecord(), plough: 0 };
+    const total = emptyPartWork();
     for (const work of works) {
       for (const task of Object.keys(total) as (keyof PartWork)[]) total[task] += work[task];
     }
@@ -259,6 +299,7 @@ function chooseGrain(
 function removeWinter(load: CropLoad, work: PartWork): void {
   load.winterAutumn -= autumnWork(work);
   load.july -= work.harvest;
+  load.ploughWinter -= work.plough;
 }
 
 function removeSpring(load: CropLoad, work: PartWork): void {
@@ -266,6 +307,7 @@ function removeSpring(load: CropLoad, work: PartWork): void {
   load.springDig -= work.dig + work.plough;
   load.springSow -= work.sow;
   load.august -= work.harvest;
+  load.ploughSpring -= work.plough;
 }
 
 /** Kopie průběžného výběru – krok luštěnin jde vrátit. */
@@ -359,17 +401,22 @@ export function chooseCrops(
   const blocks = (candidates as readonly (FieldPart | readonly FieldPart[])[]).map(
     (c): readonly FieldPart[] => (Array.isArray(c) ? c : [c as FieldPart]),
   );
-  // ozim na podzim: vrácení, kopání a setí; jablka se sklízejí po něm, ale v témže okně
+  // ozim na podzim: vrácení, kopání (orba) a setí; jablka se sklízejí po něm, ale v témže okně
   const load: CropLoad = {
     winterAutumn:
-      planned.orchardAutumn + planned.winter.reclaim + planned.winter.dig + planned.winter.sow,
+      planned.orchardAutumn +
+      planned.winter.reclaim +
+      (planned.winter.dig + planned.winter.plough) +
+      planned.winter.sow,
     july: planned.winter.harvest,
     springReclaim: planned.spring.reclaim,
-    springDig: planned.spring.dig,
+    springDig: planned.spring.dig + planned.spring.plough,
     springSow: planned.spring.sow,
     august: planned.spring.harvest,
+    ploughWinter: planned.winter.plough,
+    ploughSpring: planned.spring.plough,
   };
-  if (planned.legume) addLegume(load, { ...planned.legume, plough: 0 });
+  if (planned.legume) addLegume(load, planned.legume);
   const choice: Choice = {
     winter: [],
     spring: [],

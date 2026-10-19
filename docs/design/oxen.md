@@ -131,8 +131,9 @@ Původní pravidla (18. 10. 2026; dávka a práce výš nahrazeny):
   a úhor ve fázi louky (pastvina) – ≈ **1,5 t/ha** ročně (nehnojená louka – návrh Clauda), tedy
   ≈ **2 ha luk na spřežení**. Seče se **od nejbližší louky k obydlí a jen tolik, kolik je
   potřeba**. Sečení, sušení a stohování stojí **6 člověkodní/ha** v červnu–červenci.
-- **Bez sena** voli zeslábnou: na jaře orají jen podíl odpovídající pokrytí sena (zbytek se dokope
-  motykou); když sena chybí přes polovinu, jeden vůl uhyne a spřežení se rozpadne (návrh Clauda).
+- **Bez sena** voli zeslábnou: na jaře orají jen podíl odpovídající pokrytí sena (~~zbytek se dokope
+  motykou~~ – od 19. 10. 2026 orají pomaleji, viz Jen rádlo); když sena chybí přes polovinu, jeden
+  vůl uhyne a spřežení se rozpadne (návrh Clauda).
 
 ## Účinek na práci
 
@@ -140,8 +141,9 @@ Původní pravidla (18. 10. 2026; dávka a práce výš nahrazeny):
   motykou (**100 → 50 člověkodní/ha** podle nástrojů) **orba rádlem 10 → 6 člověkodní/ha**
   (rešerše: 5–15 člověkodní/ha; meze produktivity – nejhorší dřevěná radlice, nejlepší se železnou
   špičkou od kováře podle pokrytí nástroji, [řemesla](crafts.md)). Orá oráč a honáček (2 lidé).
-- **Drn rádlo nezvládne** (rešerše – rádla selhávala na panenském drnu): zakládání pole na louce,
-  v křovinách a v lese a vracení úhoru ve fázi louky (3+ roky) dál stojí jako dnes (motyka, mýcení).
+- ~~**Drn rádlo nezvládne** (rešerše – rádla selhávala na panenském drnu): zakládání pole na louce,
+  v křovinách a v lese a vracení úhoru ve fázi louky (3+ roky) dál stojí jako dnes (motyka, mýcení).~~
+  Od 19. 10. 2026 rádlo bere i drn – viz Jen rádlo.
 - **Kapacita spřežení:** ≈ **0,3 ha za den** (orba křížem – dva průchody; návrh Clauda) – za jarní
   okno (březen–duben) ≈ 18 ha, za podzim víc. Jedno spřežení stačí běžné vsi; větší ves může mít víc
   ohrad a spřežení.
@@ -183,18 +185,64 @@ Rozhodnutí kontroléru tam, kde návrh nedává postup (Martin je může změni
   a ztráty ve stohu podle části Seno výš.
 - **Pokrytí sena** se rozhodne **1. 3.**: co voli za zimu dostali a co jim ze zásoby zbývá na
   březen, proti potřebě celé zimy. Pod polovinu jeden vůl (nebo tele ve výcviku) uhyne,
-  spřežení i výcvik se rozpadnou a druhý vůl jde na maso. Mezi polovinou a plným pokrytím vrátí
-  slabí voli motyce podíl zbývající orby (celé díly od konce řady orby).
-- **Co rádlo zorá:** díly bez drnu – díl po sklizni, mladý příloh a díl, kterému drn rozrušilo
+  spřežení i výcvik se rozpadnou a druhý vůl jde na maso. Mezi polovinou a plným pokrytím ~~vrátí
+  slabí voli motyce podíl zbývající orby (celé díly od konce řady orby)~~ orají slabí voli na jaře
+  jen tímto podílem své kapacity (Jen rádlo).
+- ~~**Co rádlo zorá:** díly bez drnu – díl po sklizni, mladý příloh a díl, kterému drn rozrušilo
   založení. Díl, který se vrací z přílohu ve fázi pastviny (vrácení stojí práci navíc), kope dál
-  motyka (vrácení i kopání). Plán osevu (1. 9. i díly přidané během roku) dá spřežení díly, které
-  rádlo zvládne, když ves má vycvičené spřežení; setí jde za zkopanou i zoranou částí podle vah
-  dílů. Orba běží v oknech kopání, spřežení zvládnou nejvýš 0,3 ha × sazba orby (člověkodny) za
-  den (obě plodiny dohromady). Když ves přijde o poslední spřežení, zbylou orbu (i rozpracovaný
-  díl) kopou motyky – vrácené díly jdou na konec řady kopání.
+  motyka (vrácení i kopání). … Když ves přijde o poslední spřežení, zbylou orbu (i rozpracovaný
+  díl) kopou motyky – vrácené díly jdou na konec řady kopání.~~ Od 19. 10. 2026 orá spřežení
+  všechno – viz Jen rádlo. Orba běží v oknech kopání, spřežení zvládnou nejvýš 0,3 ha × sazba orby
+  (člověkodny) za den (obě plodiny dohromady).
 - **Ve scéně** orá spřežení na čele orby – pruh u čáry práce a další den dojde dál (viz
   Spřežení postupuje s orbou; při ladění projede celou dnešní orbu – Orba za herní den); voli spřežení jsou jinak v ohradě, telata ve výcviku taky, krávy
   v zimě.
+
+## Jen rádlo (19. 10. 2026)
+
+Stav: **Martin, 19. 10. 2026:** „Pokud je k dispozici rádlo, kopání motykou úplně vynech. Je to
+neefektivní a aspoň si nebudeme muset pamatovat, co čím bylo kopáno.“ – ruší „Drn rádlo
+nezvládne“ a vracení orby motyce (Účinek na práci, Implementace výš). Podrobnosti **návrh
+Clauda**:
+
+- **Ves se spřežením orá všechno:** plán osevu k 1. 9. vznikne, když ves má vycvičené spřežení,
+  s orbou celé plodiny – ozim, jař i luštěniny (`YearPlan.ard`, `CropWork.plough` se všemi díly,
+  kopání 0); díly přidané během roku k plánu, který orá, orá taky. Plodina se tak buď celá orá,
+  nebo celá kope – nic se nepamatuje po dílech.
+- **Drn orbou křížem, 2,5× práce:** příloh ve fázi louky a louka založená rádlem se orají
+  `PLOUGH_SOD_FACTOR` = 2,5× déle (25 → 15 člověkodní/ha). Rešerše (zemědělství a populace)
+  číslo pro rádlo na drnu nemá – rádla na panenském drnu jedním průchodem selhávala (Butser), drn
+  motykou je ≈ 2,5× pomalejší než lehká půda (Semjonov) – stejný poměr pro opakovanou orbu křížem.
+  Jde do ceny orby i do kapacity spřežení (kapacita je v člověkodnech orby, takže drnu zorá
+  spřežení za den 2,5× méně). Pořád je to zlomek motyky (drn 100 + kopání 100).
+- **Křoviny a mladý les** se při vrácení klučí ručně jako dřív (keře a kořeny rádlo neprojede,
+  drn s kořeny tím zmizí), pak se orají běžně.
+- **Založení pole na louce:** ves se spřežením louku motykou nezakládá – zaplatí jen překážky
+  (bez překážek je díl připravený hned) a díl nese drn (`FieldPart.sod`) do první orby. Křoviny
+  a les se zakládají jako dřív. Když ves spřežení do plánu ztratí, drn rozruší motyka jako vrácení
+  louky. Cena u kurzoru podle `PlacementVillage.ploughTeam` (v prohlížeči `SceneVillage.ploughTeam`).
+- **Kapacita:** plán osevu (`chooseCrops`, `sowingCapacity`) hlídá i orbu spřežení v jejích
+  oknech – ozim v září–říjnu (bez posledního dne, ať se zaseje i poslední zoraný pruh), jař
+  a luštěniny na podzim, kolik po ozimu zbude, a zbytek v březnu–dubnu. Co spřežení nestihnou,
+  ves nezaseje (motyka nepomůže); víc ohrad se spřežením = víc kapacity. Orbu dál dělají lidé
+  (oráč a honáček), proto se počítá i do práce lidí. Jedno spřežení zorá za podzim ≈ 27 ha a na
+  jaře ≈ 18 ha bez drnu – běžná ves osévá jednotky hektarů, hladovět kvůli tomu nebude; osev podle
+  zásob a pojistka platí dál.
+- **Slabí voli po zimě** (pokrytí sena k 1. 3. mezi polovinou a 1): orají v březnu–dubnu jen tímto
+  podílem své denní kapacity (`team.weak`), co nezorají, se nezaseje.
+- **Ztráta posledního spřežení během roku** (vůl uhynul, spřežení dosloužilo bez náhrady): letošní
+  plán dokončí motyka (`ploughToHoe`) – zorané díly zůstanou, zbytek se dokope (drn i s vrácením
+  louky), jen letos; od 1. 9. vznikne plán bez orby. Proč: plán vznikl s kapacitou spřežení – bez
+  něj by ves nezasela nic, co ještě nezorala, a v nejhorším případě (úhyn 1. 3.) by přišla o celou
+  jař; motyka je nouzové řešení do konce roku, nic se nepamatuje.
+- **Starší vsi:** rozběhnutý plán z doby, kdy spřežení oralo jen díly bez drnu a zbytek kopala
+  motyka, doběhne (váhy orby a kopání – `digWeight`); vracení dílů motyce (`returned`) zmizelo. Nové
+  pravidlo platí od dalšího plánu k 1. 9.
+- **Vzhled:** kulaté rohy (Kulaté rohy níž) platí pro všechna pole vsi, která letos orá
+  (`ploughsThisYear` – plán vznikl se spřežením), místo příznaku po dílech; díl s drnem je před
+  orbou pastvina.
+- **Kalibrace se nemění** – hráč skriptu ohrady nestaví. Informační sonda „plná domácnost se
+  spřežením“ v `measure-village.ts` ukazuje orbu, osev a práci na obživu.
 
 ## Spřežení postupuje s orbou (19. 10. 2026)
 
@@ -238,10 +286,9 @@ otáčí.“ Podrobnosti **návrh Clauda** (jen vzhled):
   Z rozsahu 3–5 m horní mez – je i vidět (měkký okraj pole má 1,6 m).
 - **Jen vnější rohy celého pole** – roh, u kterého ani jeden ze tří sousedních čtverců do pole
   (ani do sousedního pole) nepatří. Vnitřní rohy, styky dílů a styk s jiným polem zůstanou jako
-  dřív. **Rozhoduje díl, kterému roh patří:** díl oraný rádlem (orba plodiny na něm letos
-  začala – `PartView.ploughed` z herního jádra) má roh kulatý, díl kopaný motykou ostrý – pole
-  zčásti orané a zčásti kopané má kulaté jen rohy oraných dílů. Platí pro zoranou, osetou,
-  zelenou a zralou část i strniště; v rohu zůstane tráva louky a nestojí tam trsy obilí.
+  dřív. ~~**Rozhoduje díl, kterému roh patří:** díl oraný rádlem (orba plodiny na něm letos
+  začala – `PartView.ploughed` z herního jádra) má roh kulatý, díl kopaný motykou ostrý.~~ Od 19. 10. 2026 (Jen rádlo) rozhoduje stav vsi: ves, která letos orá, má kulaté rohy všech polí,
+  ves, která kope, ostré. V rohu zůstane tráva louky a nestojí tam trsy obilí.
 - **Plochu dílu (úrodu) roh neubírá:** roh vezme (1 − π/4) · 5² ≈ 5,4 m² – u čtverce 225 m² 2,4 %
   na roh, ale pole o desítkách dílů má rohů jen pár (obdélník 4) – desetiny procenta úrody, a to
   jen u polí oraných rádlem. Jádro proto počítá s celou plochou.
@@ -304,10 +351,14 @@ a nechávalo za sebou brázdu. Tak budu moci určit, jak se to chová.“ – **
 | Kulaté rohy zorané plochy podle obratu spřežení                                             | Martin (19. 10. 2026)         |
 | Roh 5 m, jen vnější rohy oraných dílů, úrodu neubírá                                        | návrh Clauda                  |
 | Ladění: spřežení projede celou dnešní orbu za herní den a nechává brázdu                    | Martin (19. 10. 2026)         |
+| Jen rádlo – ves se spřežením orá všechno, motykou nekope (i drn a louka při založení)       | Martin (19. 10. 2026)         |
+| Drn orbou křížem 2,5×; kapacita spřežení v plánu osevu; slabí voli orají pomaleji           | návrh Clauda                  |
+| Ztráta spřežení během roku – letošní plán dokončí motyka; kulaté rohy podle stavu vsi       | návrh Clauda                  |
 | Ladicí přepínač, pruhy po pruzích obtisku, víc spřežení po souvislých kusech                | návrh Clauda                  |
 | Pruh u čáry práce (2–4 řady), jen čelo dne, přechod pěšky do 60 m, dvě spřežení na díl      | návrh Clauda                  |
 | Seno i pro ovce a kozy; dávky malého dobytka; práce seče se sušením a svozem                | Martin (19. 10. 2026)         |
 | Kráva 5, vůl 6, ovce a koza 1 kg denně; seč 15 → 10 čd/ha; stoh 10 %/rok                    | návrh Clauda (rešerše)        |
 | Staré seno se k nové seči zkazí; seče se na zimní stádo podle potřeby                       | návrh Clauda                  |
 | Spřežení se cvičí samo – co ulehčí práci a ves to má, vesničané používají sami              | Martin (19. 10. 2026)         |
+| Řádky sena zelenožluté, širší a nepravidelné, jen pár dní po seči, pak kupky (fields.md)    | Martin (19. 10. 2026)         |
 | Výcvik začne první vhodný den (telata, dřevo, v zimě seno), rádlo staví ves sama            | návrh Clauda                  |

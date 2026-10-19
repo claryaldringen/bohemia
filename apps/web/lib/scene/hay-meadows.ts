@@ -30,12 +30,15 @@ export interface HayMeadow {
 }
 
 /**
- * Stav louky na seno v den roku: kolik je posečeno (0–1, seče se od kraje), co leží na posečené
- * části – řádky sena, kupky, nebo stohy (ty stojí přes podzim a zimu, každý zmizí jindy – seno
- * se zkrmí) – a jak moc už otava dorostla (0 = čerstvě posečeno, 1 = jako louka).
+ * Stav louky na seno v den roku: kolik je posečeno (0–1, seče se od kraje), kolik už je
+ * shrabané do kupek (`raked` – posečené aspoň před SWATH_DAYS dny; mezi `raked` a `mown` leží
+ * řádky sena), co na louce je – řádky a kupky, jen kupky, nebo stohy (ty stojí přes podzim a zimu,
+ * každý zmizí jindy – seno se zkrmí) – a jak moc už otava dorostla (0 = čerstvě posečeno, 1 = jako
+ * louka).
  */
 export interface HayPhase {
   mown: number;
+  raked: number;
   hay: 'swaths' | 'heaps' | 'stacks';
   regrowth: number;
 }
@@ -44,7 +47,13 @@ export interface HayPhase {
 // otava doroste do konce srpna, stohy se odvážejí (zkrmují) od října do poloviny března.
 const MOW_FROM = 156; // 5. 6.
 const MOW_TO = 177; // 26. 6.
-const HEAPS_FROM = 180; // 29. 6.
+/**
+ * Kolik dní leží posečené seno v řádcích, než se shrabe do kupek (Martin, 19. 10. 2026 – řádky
+ * po seči „Udělej to tak, jak říkáš“: kratší doba; návrh Clauda – seno v řádcích schne ≈ 2–4 dny).
+ * Ve vsi s daty jádra leží řádky na dílech dnešní seče (rozdělení práce dne), druhý den kupky.
+ */
+export const SWATH_DAYS = 3;
+const HEAPS_FROM = MOW_TO + SWATH_DAYS; // 29. 6.
 const STACKS_FROM = 193; // 12. 7.
 const REGROWN = 243; // 31. 8.
 const FEED_FROM = 274; // 1. 10.
@@ -70,20 +79,40 @@ function hayDay(dayOfYear: number): number {
   return dayOfYear < SPRING ? dayOfYear + 365 : dayOfYear;
 }
 
+/** Posečený podíl louky v den sezóny (seč od MOW_FROM do MOW_TO). */
+function mownBy(day: number): number {
+  return Math.min(1, Math.max(0, (day - MOW_FROM) / (MOW_TO - MOW_FROM)));
+}
+
 /** Stav louk na seno v den roku 1–366; na jaře, než se seče, null (roste vysoká tráva). */
 export function hayPhase(dayOfYear: number): HayPhase | null {
   const day = hayDay(dayOfYear);
   if (day < MOW_FROM) return null;
   if (day < HEAPS_FROM) {
-    return {
-      mown: Math.min(1, (day - MOW_FROM) / (MOW_TO - MOW_FROM)),
-      hay: 'swaths',
-      regrowth: 0,
-    };
+    return { mown: mownBy(day), raked: mownBy(day - SWATH_DAYS), hay: 'swaths', regrowth: 0 };
   }
-  if (day < STACKS_FROM) return { mown: 1, hay: 'heaps', regrowth: 0.1 };
+  if (day < STACKS_FROM) return { mown: 1, raked: 1, hay: 'heaps', regrowth: 0.1 };
   const regrowth = Math.min(1, 0.1 + (0.9 * (day - STACKS_FROM)) / (REGROWN - STACKS_FROM));
-  return { mown: 1, hay: 'stacks', regrowth };
+  return { mown: 1, raked: 1, hay: 'stacks', regrowth };
+}
+
+/**
+ * Kam po louce došla seč s podílem `share` (seče se od jednoho kraje napříč řádky): bod za čarou
+ * 1, před ní 0, přechod 1,2 m.
+ */
+export function meadowReached(meadow: HayMeadow, share: number): (x: number, z: number) => number {
+  const [dx, dz] = meadow.rows;
+  const across: [number, number] = [-dz, dx];
+  const values = meadow.squares.map((s) => s.x * across[0] + s.z * across[1]);
+  const half = (meadow.squares[0]?.size ?? 0) / 2;
+  const from = Math.min(...values) - half;
+  const to = Math.max(...values) + half;
+  const limit = from + (to - from) * share;
+  return (x, z) => {
+    const t = (limit - (x * across[0] + z * across[1])) / 1.2;
+    const u = Math.min(1, Math.max(0, t));
+    return u * u * (3 - 2 * u);
+  };
 }
 
 /** Stoh stojí? Každý se odveze (zkrmí) v jiný den mezi říjnem a polovinou března. */
@@ -194,27 +223,87 @@ export function chooseHayMeadows(
   return meadows;
 }
 
-/** Rozestup řádků sena (m) a šířka řádku. */
+/** Rozestup řádků sena (m). */
 export const SWATH_SPACING_M = 4.5;
 
 /**
- * Kupky a stohy na posečených čtvercích: v době kupek drobné kupky v řadách (asi po 9 m), od
- * poloviny července stoh na každém čtverci (u větší louky jeden na dva) – stojí, dokud se seno
- * nezkrmí (`stackStands`). Velikost ve `width` (násobek modelu stohu). Deterministicky podle
- * políčka.
+ * Textura řádku sena (RGBA, šířka `width` podél řádku, výška `height` napříč přes rozestup):
+ * řádek zabírá ≈ 1,1 m (krytí plné), k ≈ 2 m měkce řídne, okraj se podél řádku nepravidelně
+ * vlní a třepí; barva jen světlost – stébla podél řádku (barvu dává SWATH_COLOR). Deterministicky.
+ */
+export function swathTexture(width: number, height: number): Uint8Array {
+  const data = new Uint8Array(4 * width * height);
+  // okraj řádku podél řádku: hladký šum ±0,06 rozestupu (kolem dokola – textura se opakuje)
+  const edge = (u: number): number => {
+    const t = (u / width) * 4;
+    const i = Math.floor(t);
+    const f = t - i;
+    const s = f * f * (3 - 2 * f);
+    const a = hash01(i % 4, 0, 223);
+    const b = hash01((i + 1) % 4, 0, 223);
+    return (a * (1 - s) + b * s - 0.5) * 0.12;
+  };
+  for (let y = 0; y < height; y++) {
+    const t = Math.abs((y + 0.5) / height - 0.5) * 2;
+    for (let x = 0; x < width; x++) {
+      const core = 0.24 + edge(x);
+      let alpha = 1 - Math.min(1, Math.max(0, (t - core) / 0.2));
+      // roztřepený okraj – stébla mimo řádek
+      if (t > core && hash01(x, y, 227) < 0.35) alpha *= 0.55;
+      const light = 0.7 + 0.3 * (0.6 * hash01(y, 1, 229) + 0.4 * hash01(y, Math.floor(x / 8), 231));
+      const v = Math.round(255 * light);
+      data.set([v, v, v, Math.round(255 * alpha)], (y * width + x) * 4);
+    }
+  }
+  return data;
+}
+
+/** Hladký šum 0–1 (hodnotový, dva oktávy) – trhliny a hustota řádků sena. */
+function swathNoise(x: number, z: number): number {
+  const at = (u: number, v: number): number => {
+    const i = Math.floor(u);
+    const j = Math.floor(v);
+    const fu = u - i;
+    const fv = v - j;
+    const su = fu * fu * (3 - 2 * fu);
+    const sv = fv * fv * (3 - 2 * fv);
+    const a = hash01(i, j, 211);
+    const b = hash01(i + 1, j, 211);
+    const c = hash01(i, j + 1, 211);
+    const d = hash01(i + 1, j + 1, 211);
+    return (a * (1 - su) + b * su) * (1 - sv) + (c * (1 - su) + d * su) * sv;
+  };
+  return 0.65 * at(x / 6, z / 6) + 0.35 * at(x / 2.2 + 31.7, z / 2.2 - 12.9);
+}
+
+/**
+ * Krytí řádků sena v bodě (Martin, 19. 10. 2026 – „Proč jsou na tom ty čáry?“, náprava „Udělej
+ * to tak, jak říkáš“): řádek není všude stejně hustý a místy se trhá (kde šum klesne, seno
+ * chybí), `coverage` je krytí pole či louky.
+ */
+export function swathAlpha(x: number, z: number, coverage: number): number {
+  const n = swathNoise(x, z);
+  const gaps = Math.min(1, Math.max(0, (n - 0.3) / 0.15));
+  return coverage * (0.8 + 0.2 * n) * gaps;
+}
+
+/**
+ * Kupky a stohy na posečených čtvercích: shrabané seno (`heaps`) drobné kupky v řadách (asi po
+ * 9 m), od poloviny července (`stacks`) stoh na každém čtverci (u větší louky jeden na dva) –
+ * stojí, dokud se seno nezkrmí (`stackStands`). Velikost ve `width` (násobek modelu stohu).
+ * Deterministicky podle políčka.
  */
 export function hayOnSquares(
   squares: readonly CellSquare[],
-  phase: HayPhase | null,
+  hay: 'heaps' | 'stacks',
   dayOfYear: number,
 ): PlantInstance[] {
-  if (!phase || phase.hay === 'swaths') return [];
   const out: PlantInstance[] = [];
   for (const square of squares) {
     const seed = Math.imul(square.cell.x, 7919) ^ Math.imul(square.cell.y, 104729);
     const random = seededRandom(seed >>> 0);
     const half = square.size / 2;
-    if (phase.hay === 'heaps') {
+    if (hay === 'heaps') {
       const step = 7.5;
       for (let i = 0; i < 2; i++) {
         for (let j = 0; j < 2; j++) {
@@ -249,13 +338,23 @@ export function hayOnSquares(
   return out;
 }
 
-/** Kupky a stohy na louce na seno v den roku (viz `hayOnSquares`). */
+/**
+ * Kupky a stohy na louce na seno v den roku (viz `hayOnSquares`): kupky na čtvercích, které už
+ * jsou shrabané (posečené aspoň před SWATH_DAYS dny – střed čtverce za čarou `raked`).
+ */
 export function meadowHay(
   meadow: HayMeadow,
   phase: HayPhase | null,
   dayOfYear: number,
 ): PlantInstance[] {
-  return hayOnSquares(meadow.squares, phase, dayOfYear);
+  if (!phase) return [];
+  if (phase.hay === 'stacks') return hayOnSquares(meadow.squares, 'stacks', dayOfYear);
+  const raked = meadowReached(meadow, phase.raked);
+  return hayOnSquares(
+    meadow.squares.filter((s) => raked(s.x, s.z) >= 0.5),
+    'heaps',
+    dayOfYear,
+  );
 }
 
 /**

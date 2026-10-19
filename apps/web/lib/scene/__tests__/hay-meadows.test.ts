@@ -7,9 +7,13 @@ import {
   chooseHayMeadows,
   hayMeadowFields,
   hayPhase,
+  SWATH_DAYS,
   meadowHay,
   meadowLook,
+  meadowReached,
   stackStands,
+  swathAlpha,
+  swathTexture,
 } from '../hay-meadows';
 
 // Krajina 40 × 40 políček po 15 m se středem v počátku – louka, jen sloupce x ≥ 30 jsou les.
@@ -79,6 +83,75 @@ describe('louky na seno – kdy', () => {
     expect(meadowLook(stacks)).toBe('haystacks');
     expect(meadowLook(early)).toBe('mown');
     expect(stacks.regrowth).toBeGreaterThan(hayPhase(dayOfYearFromDate(7, 20))!.regrowth);
+  });
+});
+
+describe('řádky sena po seči (Martin, 19. 10. 2026 – „Proč jsou na tom ty čáry?“)', () => {
+  it('seno leží v řádcích jen SWATH_DAYS dní po seči, pak se shrabe do kupek', () => {
+    for (let month = 6; month <= 6; month++) {
+      for (let day = 6; day <= 28; day++) {
+        const d = dayOfYearFromDate(month, day);
+        const now = hayPhase(d)!;
+        // shrabáno je, co bylo posečené před SWATH_DAYS dny
+        expect(now.raked).toBeCloseTo(hayPhase(d - SWATH_DAYS)?.mown ?? 0, 9);
+        expect(now.raked).toBeLessThanOrEqual(now.mown);
+      }
+    }
+    const [meadow] = chooseHayMeadows(landscape, null, village(2));
+    // uprostřed seče: kupky jen na shrabaných čtvercích, řádky jen na čerstvě posečených
+    const d = dayOfYearFromDate(6, 22);
+    const phase = hayPhase(d)!;
+    const raked = meadowReached(meadow!, phase.raked);
+    const heaps = meadowHay(meadow!, phase, d);
+    const rakedSquares = meadow!.squares.filter((sq) => raked(sq.x, sq.z) >= 0.5);
+    expect(rakedSquares.length).toBeGreaterThan(0);
+    expect(rakedSquares.length).toBeLessThan(meadow!.squares.length);
+    expect(heaps.length).toBe(rakedSquares.length * 4);
+  });
+
+  it('řádek ≈ 1,1 m plně, ke 2 m řídne, okraj se podél řádku vlní; stébla jen světlost', () => {
+    const width = 32;
+    const height = 64;
+    const data = swathTexture(width, height);
+    const alpha = (x: number, y: number): number => data[(y * width + x) * 4 + 3]! / 255;
+    // střed řádku plný, mezi řádky nic
+    for (let x = 0; x < width; x++) {
+      expect(alpha(x, height / 2)).toBe(1);
+      expect(alpha(x, 0)).toBe(0);
+    }
+    // šířka plného krytí (podíl rozestupu) kolísá podél řádku
+    const widths = Array.from({ length: width }, (_, x) => {
+      let full = 0;
+      for (let y = 0; y < height; y++) if (alpha(x, y) >= 0.99) full++;
+      return full / height;
+    });
+    expect(Math.min(...widths)).toBeGreaterThan(0.15);
+    expect(Math.max(...widths)).toBeLessThan(0.4);
+    expect(Math.max(...widths) - Math.min(...widths)).toBeGreaterThan(0.02);
+    // barva jen šedá (barvu dává materiál), stébla světlejší i tmavší
+    const greys = new Set<number>();
+    for (let i = 0; i < width * height; i++) {
+      expect(data[i * 4]).toBe(data[i * 4 + 1]);
+      expect(data[i * 4]).toBe(data[i * 4 + 2]);
+      greys.add(data[i * 4]!);
+    }
+    expect(greys.size).toBeGreaterThan(5);
+  });
+
+  it('řádky se místy trhají – krytí v trhlinách 0', () => {
+    let gaps = 0;
+    let full = 0;
+    for (let x = 0; x < 200; x += 0.7) {
+      for (let z = 0; z < 60; z += 0.7) {
+        const a = swathAlpha(x, z, 1);
+        expect(a).toBeGreaterThanOrEqual(0);
+        expect(a).toBeLessThanOrEqual(1);
+        if (a === 0) gaps++;
+        else full++;
+      }
+    }
+    expect(gaps).toBeGreaterThan(0);
+    expect(full).toBeGreaterThan(gaps * 2);
   });
 });
 

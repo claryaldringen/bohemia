@@ -207,6 +207,10 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         ...fields.map((field): SceneField => ({
           id: field.id,
           ...(field.grid ? { grid: field.grid } : {}),
+          // ukázkové pole od orby do strniště oralo spřežení rádlem – kulaté rohy (oxen.md)
+          ...(field.sample?.look && sampleStage(field.sample.look) === 'sown'
+            ? { ard: true as const }
+            : {}),
           parts: field.parts.map((part, i) =>
             devPart(field, part, i, { stage, mixed, lookMode, simulated }),
           ),
@@ -1753,6 +1757,13 @@ function fieldParts(l: Landscape, cells: TileCell[], grid?: SquareGrid): DevFiel
     });
 }
 
+/** Stadium dílů ukázkového pole podle vzhledu. */
+function sampleStage(look: FieldLook): 'founding' | 'young-fallow' | 'meadow' | 'sown' {
+  if (look === 'bare') return 'founding';
+  if (look === 'young-fallow') return 'young-fallow';
+  return ['pasture', 'meadow', 'mown', 'haystacks'].includes(look) ? 'meadow' : 'sown';
+}
+
 /**
  * Díl pole vývojové vsi: ukázkové pole má svůj vzhled (rozpracovaný díl je ten nejblíž, ostatní
  * hotové), jinak stadium z přepínače dílů a vzhled z přepínače vzhledu (podle stadia ho odhadne
@@ -1775,14 +1786,7 @@ function devPart(
   if (sample) {
     if (sample.look === null)
       return { ...part, id: index + 1, stage: 'founding', look: 'bare', work: 0 };
-    const stage =
-      sample.look === 'bare'
-        ? 'founding'
-        : sample.look === 'young-fallow'
-          ? 'young-fallow'
-          : ['pasture', 'meadow', 'mown', 'haystacks'].includes(sample.look)
-            ? 'meadow'
-            : 'sown';
+    const stage = sampleStage(sample.look);
     // rozpracovaný je první díl, ostatní mají vzhled celé
     const work = sample.work !== undefined ? (index === 0 ? sample.work : 1) : undefined;
     return {
@@ -1792,8 +1796,6 @@ function devPart(
       look: sample.look,
       ...(work !== undefined ? { work } : {}),
       ...(sample.before ? { before: sample.before } : {}),
-      // od orby do strniště oralo spřežení rádlem – kulaté vnější rohy (oxen.md)
-      ...(stage === 'sown' ? { ploughed: true as const } : {}),
     };
   }
   const stage = STAGES[(options.stage + (options.mixed ? index : 0)) % STAGES.length]!;

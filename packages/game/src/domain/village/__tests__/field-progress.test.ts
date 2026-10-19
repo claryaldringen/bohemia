@@ -13,7 +13,8 @@ import {
 import { laborReport } from '../labor-report';
 import { advanceVillage } from '../simulate';
 import type { FieldPart, VillageState } from '../types';
-import { planPartIds } from '../year-plan';
+import { PLOUGH_SOD_FACTOR } from '../plough';
+import { partWeight, planPartIds } from '../year-plan';
 
 // Postup práce po čtvercích (fields.md; Martin, 18. 10. 2026): kopání, setí a sklizeň mění díl, až
 // k němu práce dojde – díly plodiny v pořadí plánu (nejblíž obydlím první), čelo práce je díl,
@@ -141,29 +142,34 @@ describe('postup po čtvercích', () => {
   });
 });
 
-describe('orba rádlem – kulaté rohy (oxen.md)', () => {
-  it('díl, na kterém začala orba rádlem, je označený; kopaný a nezačatý ne', () => {
+describe('orba rádlem (oxen.md – Jen rádlo)', () => {
+  it('díl s drnem má v orbě větší váhu a před orbou je pastvinou; zoraný nese vzhled před orbou', () => {
     const s = advanceVillage(village(), at(601, 9, 20), null);
     const winter = s.plan!.winter!;
-    // spřežení dostalo prvních pět dílů a zoralo zhruba polovinu z nich
-    const ploughIds = winter.partIds.slice(0, 5);
-    winter.plough = { partIds: ploughIds, required: 10, done: 5, weight: 1, digWeight: 0 };
-    const looks = fieldPartLooks(s, s.lastDay);
-    const spans = taskSpans(winter, byId(s), 'plough', s.lastDay);
-    for (const span of spans) {
-      const view = looks.get(span.id)!;
-      if (span.start < 0.5 - 1e-9) expect(view.ploughed).toBe(true);
-      else expect(view.ploughed).toBeUndefined();
-    }
-    expect(looks.get(ploughIds[0]!)!.ploughed).toBe(true);
-    // díly kopané motykou (i zkopané) orané nejsou
-    const hoe = winter.partIds.filter((id) => !ploughIds.includes(id));
-    expect(hoe.some((id) => looks.get(id)!.look !== 'stubble')).toBe(true);
-    for (const id of hoe) expect(looks.get(id)!.ploughed).toBeUndefined();
-    // zoraný díl rádlem nese vzhled před orbou (scéna z něj kreslí začátek dne)
-    for (const span of spans) {
-      const view = looks.get(span.id)!;
-      if (view.look === 'plowed') expect(view.before).toBe('stubble');
+    const ids = winter.partIds;
+    const sod = ids[1]!;
+    // ves orá celou plodinu, druhý díl je drn (louka založená rádlem)
+    winter.done = { reclaim: 0, dig: 0, sow: 0, weed: 0, harvest: 0, thresh: 0 };
+    winter.plough = { partIds: [...ids], required: 10, done: 0, weight: 1, sodIds: [sod] };
+    const parts = byId(s);
+    const spans = taskSpans(winter, parts, 'plough', s.lastDay);
+    const width = (id: number): number => {
+      const span = spans.find((x) => x.id === id)!;
+      return span.end - span.start;
+    };
+    const ratio = partWeight(parts.get(sod)!) / partWeight(parts.get(ids[0]!)!);
+    expect(width(sod) / width(ids[0]!)).toBeCloseTo(PLOUGH_SOD_FACTOR * ratio, 9);
+    // kopání plodina nemá – všechno orá spřežení
+    expect(taskSpans(winter, parts, 'dig', s.lastDay)).toEqual([]);
+    const before = fieldPartLooks(s, s.lastDay);
+    expect(before.get(sod)!.look).toBe('pasture');
+    for (const id of ids.filter((x) => x !== sod)) expect(before.get(id)!.look).not.toBe('pasture');
+    // zoraná celá plodina – díly zoraného pole s vzhledem před orbou
+    winter.plough.done = 10;
+    const after = fieldPartLooks(s, s.lastDay);
+    for (const id of ids) {
+      expect(after.get(id)!.look).toBe('plowed');
+      expect(after.get(id)!.before).toBe(before.get(id)!.look);
     }
   });
 
@@ -175,7 +181,6 @@ describe('orba rádlem – kulaté rohy (oxen.md)', () => {
       required: 12,
       done: 0,
       weight: 1,
-      digWeight: 0,
     };
     const spans = taskSpans(winter, byId(s), 'plough', s.lastDay);
     const worked = partsWorked(winter, byId(s), 'plough', s.lastDay, 3, 7);
@@ -217,16 +222,19 @@ describe('přirozená stadia podle kalendáře', () => {
     if (spring.length > 0) expect(statesInOrder(s, spring)).toContain('ripe');
   });
 
-  it('připravený díl rozrytý drn, mladý příloh, starší příloh bez seče pastvina', () => {
+  it('připravený díl rozrytý drn (louka založená rádlem drn), mladý příloh, starší příloh bez seče pastvina', () => {
     const s = village();
     const sept = at(602, 9, 1);
     s.parts[0]!.state = 'ready';
+    s.parts[3]!.state = 'ready';
+    s.parts[3]!.sod = true;
     s.parts[1]!.state = 'fallow';
     s.parts[1]!.fallowSinceDay = at(601, 9, 1);
     s.parts[2]!.state = 'fallow';
     s.parts[2]!.fallowSinceDay = at(590, 9, 1);
     const looks = fieldPartLooks(s, sept);
     expect(looks.get(s.parts[0]!.id)).toEqual({ look: 'bare' });
+    expect(looks.get(s.parts[3]!.id)).toEqual({ look: 'pasture' });
     expect(looks.get(s.parts[1]!.id)).toEqual({ look: 'young-fallow' });
     // starší příloh (louka) se letos neseče – pase se (oxen.md – Seno)
     expect(looks.get(s.parts[2]!.id)).toEqual({ look: 'pasture' });

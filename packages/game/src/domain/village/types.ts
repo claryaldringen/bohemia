@@ -319,6 +319,12 @@ export interface FieldPart {
    * (fields.md – Osev podle zásob). Smaže se na konci hospodářského roku; chybí = díl se nevrací.
    */
   fallowBeforePlan?: { sinceDay: number | null; overgrowthYears?: number };
+  /**
+   * Na dílu leží drn – louka, kterou ves se spřežením založila bez motyky (oxen.md – Jen rádlo):
+   * rozorá ho až první orba (`PLOUGH_SOD_FACTOR`), bez spřežení ho rozruší motyka jako vrácení
+   * louky. Smaže se na konci hospodářského roku, ve kterém byl díl v osevu; chybí = drn není.
+   */
+  sod?: true;
 }
 /**
  * Les vsi (fields.md – Zarůstání, Les vsi): čtverec pole, který zarostl lesem a z pole vypadl. Les
@@ -641,8 +647,9 @@ export interface CropWork {
   done: Record<TaskName, number>;
   harvestedKg: number | null; // čistá úroda ze sklizně (pro ztrátu nevymláceného 1. 3.)
   /**
-   * Orba rádlem (oxen.md – Účinek na práci): díly, které místo motyky orá spřežení. Jejich
-   * kopání v `required.dig` není. Chybí = ves letos neorá (i plány starších vsí).
+   * Orba rádlem (oxen.md – Jen rádlo): ves se spřežením orá všechny díly plodiny, nic nekope
+   * motykou (`required.dig` 0). Chybí = plodinu kope motyka (ves bez spřežení, plán, který po
+   * ztrátě posledního spřežení dokončí motyka, i plány starších vsí).
    */
   plough?: PloughWork;
   /**
@@ -662,10 +669,8 @@ export interface CartReach {
   points: { x: number; z: number; weight: number }[];
 }
 /**
- * Orba jedné plodiny: díly pro spřežení v pořadí orby, potřebné a odvedené člověkodny a váhy
- * (plocha × vzdálenost) oraných dílů a dílů kopaných motykou – setí jde za obojím. Díly vrácené
- * motyce (vůl uhynul, spřežení dosloužilo, slabí voli po zimě bez sena) se kopou na konci řady
- * kopání (`returned`).
+ * Orba jedné plodiny: díly v pořadí orby, potřebné a odvedené člověkodny a váha oraných dílů
+ * (plocha × vzdálenost) – setí jde za orbou.
  */
 export interface PloughWork {
   partIds: number[];
@@ -673,10 +678,16 @@ export interface PloughWork {
   done: number;
   /** Váha oraných dílů (ha × příplatek za vzdálenost). */
   weight: number;
-  /** Váha dílů kopaných motykou (i vrácených). */
-  digWeight: number;
-  /** Díly vrácené motyce – kopou se po ostatních dílech plodiny. */
-  returned?: number[];
+  /**
+   * Díly s drnem (`hasSod` při plánu – louka založená rádlem, příloh ve fázi louky): orba na nich
+   * stojí `PLOUGH_SOD_FACTOR`× víc práce a před orbou jsou pastvinou. Chybí = žádné.
+   */
+  sodIds?: number[];
+  /**
+   * Váha dílů kopaných motykou – jen plány starších vsí, kde spřežení oralo jen díly bez drnu
+   * a zbytek kopala motyka; chybí = 0.
+   */
+  digWeight?: number;
 }
 /**
  * Roční plán osevu (k 1. 9.): na nejvyšší úrovni jař (tvar plánu z doby před ozimem), ozim
@@ -684,6 +695,12 @@ export interface PloughWork {
  */
 export interface YearPlan extends CropWork {
   plannedDay: number;
+  /**
+   * Ves letos orá rádlem (oxen.md – Jen rádlo): plán vznikl, když ves měla vycvičené spřežení –
+   * ve scéně má pak celé pole kulaté rohy. Zůstane, i když spřežení během roku zmizí a zbytek
+   * plánu dokončí motyka. Chybí = ves letos kope motykou (i plány starších vsí).
+   */
+  ard?: true;
   winter?: CropWork;
   /** Luštěniny (fields.md – Luštěniny) – chybí u plánů bez luštěnin (i u starších vsí). */
   legume?: CropWork;
@@ -1576,8 +1593,12 @@ export interface Pen {
   z: number;
   /** Den dostavění; dokud se staví, null. */
   builtDay: number | null;
-  /** Vycvičené spřežení (2 voli) – den, kdy začalo orat; úhyn vola ho rozpadne. */
-  team: { readyDay: number } | null;
+  /**
+   * Vycvičené spřežení (2 voli) – den, kdy začalo orat; úhyn vola ho rozpadne. `weak` – slabí
+   * voli po zimě bez dost sena (pokrytí sena k 1. 3., 0,5–1): na jaře orají jen tímto podílem své
+   * denní kapacity (oxen.md – Jen rádlo); chybí = plná síla.
+   */
+  team: { readyDay: number; weak?: number } | null;
   /** Výcvik dvou telat – den zadání (spřežení za OXEN.trainingYears let a s hotovým rádlem). */
   training: { startDay: number } | null;
   /** Překážky na čtverci (id z vrstvy) – zmizí se zahájením stavby. */

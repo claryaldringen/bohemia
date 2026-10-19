@@ -12,7 +12,7 @@ import {
 import { craftCoverage } from './crafts';
 import { isVillageExtinct } from './extinction';
 import { startingLivestock } from './livestock';
-import { startPen, type PenInput } from './oxen';
+import { ableTeams, startPen, type PenInput } from './oxen';
 import { fieldsTouching, mergeFields, partFoundingCost } from './fields';
 import { normalizeGrid, rotationTurn, squareKey } from './square-grid';
 import { fieldGrids } from './squares';
@@ -271,11 +271,19 @@ function addField(state: VillageState, day: number, field: FieldInput): void {
   if (extended !== undefined && joined.length > 1) mergeFields(state, extended, joined.slice(1));
   const fieldId = extended ?? state.nextId++;
   if (extended === undefined) state.fields.push({ id: fieldId, ...(grid ? { grid } : {}) });
-  // založení podle dnešního pokrytí nástroji (crafts.md – meze produktivity)
+  // založení podle dnešního pokrytí nástroji (crafts.md – meze produktivity); ves se spřežením
+  // louku motykou nezakládá – drn rozorá rádlo při první orbě (oxen.md – Jen rádlo)
   const tools = craftCoverage(state, day).tools;
+  const ard = ableTeams(state) > 0;
   let cost = 0;
   for (const input of field.parts) {
-    const foundingCost = partFoundingCost(input.surface, input.areaM2, input.obstacleCost, tools);
+    const foundingCost = partFoundingCost(
+      input.surface,
+      input.areaM2,
+      input.obstacleCost,
+      tools,
+      ard,
+    );
     cost += foundingCost;
     state.parts.push({
       id: state.nextId++,
@@ -294,6 +302,7 @@ function addField(state: VillageState, day: number, field: FieldInput): void {
       ...(input.cell ? { cell: { ...input.cell } } : {}),
       ...(input.obstacleIds?.length ? { obstacles: [...input.obstacleIds] } : {}),
       ...(input.trees ? { trees: input.trees } : {}),
+      ...(ard && input.surface === 'meadow' ? { sod: true as const } : {}),
     });
   }
   const running = state.constructions.find((c) => c.kind === 'field' && c.fieldId === fieldId);

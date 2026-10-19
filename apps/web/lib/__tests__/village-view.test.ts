@@ -6,6 +6,7 @@ import {
   startRoadApples,
   startRoadUpgrade,
   checkDwellingPlacement,
+  createCropWork,
   dayIndexOf,
   fieldPartsFromCells,
   foundCemetery,
@@ -582,6 +583,44 @@ describe('buildVillageView', () => {
     const c = constructions.find((x) => x.id === 99)!;
     expect(c.progress).toBeCloseTo(31 / 112, 9);
     expect(c.treesToFell).toBe(2);
+  });
+
+  it('ves se spřežením: pole letos orané rádlem má kulaté rohy, louka se zakládá bez motyky', () => {
+    const s = settled();
+    expect(buildVillageView(record(s), landscape, DAY).scene.fields[0]!.ard).toBeUndefined();
+    s.pens = [
+      {
+        id: 900,
+        cell: { x: 2, y: 2 },
+        x: -82,
+        z: -82,
+        builtDay: DAY - 900,
+        team: { readyDay: DAY - 100 },
+        training: null,
+      },
+    ];
+    s.plan = { plannedDay: DAY - 200, ard: true, ...createCropWork([], DAY - 200, 0, true) };
+    const { scene } = buildVillageView(record(s), landscape, DAY);
+    expect(scene.fields.every((f) => f.ard === true)).toBe(true);
+    expect(scene.ploughTeam).toBe(true);
+    // cena louky u kurzoru jako na serveru – jen překážky (drn rozorá první orba)
+    const cells = [
+      { x: 8, y: 10 },
+      { x: 9, y: 10 },
+      { x: 10, y: 10 },
+      { x: 11, y: 10 },
+      { x: 12, y: 10 },
+    ];
+    const positions = villageDwellingPositions(placementVillageOf(s, DAY));
+    const browser = fieldPartsFromCells(
+      landscape,
+      placementVillageFromScene(scene),
+      cells,
+      positions,
+    );
+    const server = fieldPartsFromCells(landscape, placementVillageOf(s, DAY), cells, positions);
+    expect(browser.foundingCost).toBe(0);
+    expect(server.foundingCost).toBe(0);
   });
 
   it('ze scény jde složit data pro kontrolu umístění v prohlížeči', () => {

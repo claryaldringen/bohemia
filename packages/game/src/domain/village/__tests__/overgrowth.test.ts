@@ -11,7 +11,8 @@ import { isHayMeadow, mownPartIds } from '../hay';
 import { plantingBlocker } from '../paths/roads';
 import { pathTerrainOf, pathWindowFor, withObstacles } from '../paths/terrain';
 import { pastureGrazedParts, pathVillageOf, walkLayoutKey } from '../paths/village';
-import { isPloughable } from '../plough';
+import { hasSod } from '../plough';
+import { partWork } from '../year-plan';
 import {
   checkDwellingPlacement,
   fieldPartsFromCells,
@@ -128,12 +129,17 @@ describe('pastva po dílech přílohu', () => {
 });
 
 describe('zarostlý příloh – seno, orba, pěšiny', () => {
-  it('křoviny se nesečou a rádlo je nezorá; posečené díly letošní seče', () => {
+  it('křoviny se nesečou a rádlo je bez klučení nezorá; posečené díly letošní seče', () => {
     const meadow = part(1);
     const shrubs = part(2, { overgrowthYears: 6 });
     expect(isHayMeadow(meadow, NOV1)).toBe(true);
     expect(isHayMeadow(shrubs, NOV1)).toBe(false);
-    expect(isPloughable(shrubs, NOV1)).toBe(false);
+    // louka je drn, křoviny se klučí ručně (drn s kořeny zmizí) – pak je rádlo zorá běžně
+    expect(hasSod(meadow, NOV1)).toBe(true);
+    expect(hasSod(shrubs, NOV1)).toBe(false);
+    const work = partWork(shrubs, NOV1, 0, true);
+    expect(work.reclaim).toBeGreaterThan(0);
+    expect(work.dig).toBe(0);
     const s = village();
     s.parts = [part(1), part(2), part(3)];
     s.hay = { kg: 0, mowing: { partIds: [1, 2, 3], required: 3, done: 1.5, yieldKg: 90 } };

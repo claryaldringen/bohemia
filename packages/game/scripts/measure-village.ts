@@ -79,6 +79,7 @@ import {
   HARVEST_DAY,
   NO_CRAFTS,
   PLANNING_DAY,
+  PLOUGH_HA_PER_DAY,
   SEED_KG_PER_HA,
   THRESH_END_DAY,
   WINTER_HARVEST_DAY,
@@ -109,6 +110,7 @@ import {
   laborPerDay,
   planCrops,
   planPartIds,
+  ploughWorkPerHa,
   repairNeedPerDay,
   startNewDwelling,
   threshLossKg,
@@ -221,9 +223,12 @@ const OUTLINE: [number, number][] = [
 ];
 // sondy s pevným složením (věk v letech – uprostřed roku, aby se během kroku nezměnila skupina)
 const PROBES = {
-  start: { ages: [25.5, 25.5, 10.5, 10.5], oversize: 1 },
-  full: { ages: [25.5, 25.5, 30.5, 30.5, 3.5, 3.5], oversize: 1 },
-  oversize: { ages: [25.5, 25.5, 10.5, 10.5], oversize: 1.5 },
+  start: { ages: [25.5, 25.5, 10.5, 10.5], oversize: 1, team: false },
+  full: { ages: [25.5, 25.5, 30.5, 30.5, 3.5, 3.5], oversize: 1, team: false },
+  oversize: { ages: [25.5, 25.5, 10.5, 10.5], oversize: 1.5, team: false },
+  // informační sonda: plná domácnost se spřežením – orá rádlem, motykou nekope (oxen.md – Jen
+  // rádlo); spřežení je stále v síle a seno na zimu stačí (`pinTeam`)
+  team: { ages: [25.5, 25.5, 30.5, 30.5, 3.5, 3.5], oversize: 1, team: true },
 } as const;
 type ProbeName = keyof typeof PROBES;
 // hřbitov hráče se rozšíří o čtverec, když je z 80 % plný
@@ -279,6 +284,31 @@ function occupiedCount(state: VillageState): number {
 }
 
 /** Lidé v pevném složení – věk vztažený k začátku kroku. */
+/** Ohrada sondy se spřežením (id mimo id vsi). */
+const TEAM_PEN_ID = 2_000_000;
+/** Seno, které sonda se spřežením drží v zásobě – voli nezeslábnou ani neuhynou. */
+const TEAM_HAY_KG = 10_000;
+
+/**
+ * Sonda se spřežením (oxen.md – Jen rádlo): ohrada s vycvičeným spřežením, které nikdy
+ * nedoslouží (vycvičené před rokem), a seno na zimu – ves orá rádlem celý běh.
+ */
+function pinTeam(state: VillageState, day: number): void {
+  state.pens = [
+    {
+      id: TEAM_PEN_ID,
+      cell: { x: -1, y: -1 },
+      x: -40,
+      z: -40,
+      builtDay: day - 3 * DAYS_PER_YEAR,
+      team: { readyDay: Math.floor(day - DAYS_PER_YEAR) },
+      training: null,
+    },
+  ];
+  const hay = state.hay ?? { kg: 0, mowing: null };
+  state.hay = { ...hay, kg: Math.max(hay.kg, TEAM_HAY_KG) };
+}
+
 function pinPeople(state: VillageState, day: number, ages: readonly number[]): void {
   const dwellingId = state.dwellings[0]?.id ?? 1;
   state.people = ages.map((age, i): Person => ({
@@ -302,6 +332,8 @@ interface RunOptions {
   stopAfterConstruction: number | null;
   /** Po dostavění první zemnice založit sad (třetí strategie). */
   orchard?: boolean;
+  /** Ves má stále spřežení (sonda se spřežením – `pinTeam`). */
+  team?: boolean;
 }
 
 interface PlanRecord {
@@ -314,6 +346,8 @@ interface PlanRecord {
    */
   reserves: Reserves;
   finished: boolean;
+  /** Orba plánu (člověkodny orby všech plodin; ves bez spřežení 0). */
+  plough: number;
 }
 
 interface Reserves {
@@ -663,6 +697,9 @@ function recordPlan(result: RunResult, after: VillageState, pinned: boolean): vo
     fieldHa: area(() => true),
     reserves: NO_RESERVES,
     finished: false,
+    plough: after.plan
+      ? planCrops(after.plan).reduce((sum, { work }) => sum + (work.plough?.required ?? 0), 0)
+      : 0,
   });
   if (!pinned) return;
   for (const p of after.parts) {
@@ -711,6 +748,7 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
 
   while (state.lastDay < opts.endDay) {
     if (opts.pinned) pinPeople(state, state.lastDay + 1, opts.pinned);
+    if (opts.team) pinTeam(state, state.lastDay + 1);
     const before = state;
     const stop = nextStop(before.lastDay, opts.endDay, opts.stepDays);
     let after = step(result, before, stop, opts.land);
@@ -978,6 +1016,8 @@ interface ProbeSummary {
   fallowRuns: number[];
   /** Podíl dílů, které aspoň LONG_IDLE_YEARS let v kuse ležely ladem (pastvina bez osevu). */
   idleShare: number;
+  /** Medián orby plánu (člověkodny za rok; sonda bez spřežení 0). */
+  plough: number;
 }
 
 type Task = { kind: 'village'; index: number } | { kind: 'probe'; probe: ProbeName };
@@ -1055,7 +1095,7 @@ function steadyFieldShare(ages: readonly number[], land: CalibrationLand): numbe
 
 function runProbe(name: ProbeName): TaskResult {
   const t0 = performance.now();
-  const { ages, oversize } = PROBES[name];
+  const { ages, oversize, team } = PROBES[name];
   const fixedField = oversize !== 1;
   // sondy měří ustálený oběh na syntetické louce (úrodnost 70) – cíle Ukázky jsou na ní
   const land = syntheticLand();
@@ -1088,6 +1128,7 @@ function runProbe(name: ProbeName): TaskResult {
       pinned: ages,
       forkPolozemnice: false,
       stopAfterConstruction: null,
+      team,
     });
     results.push(r);
     for (const y of fullYears(r, foundDay, endDay)) {
@@ -1152,6 +1193,10 @@ function runProbe(name: ProbeName): TaskResult {
           ).length,
         0,
       ) / results.reduce((sum, r) => sum + r.partStates.size, 0),
+    plough: quantile(
+      plans.map((p) => p.plough),
+      0.5,
+    ),
   };
   const replays = results.reduce((sum, r) => sum + r.replays, 0);
   return { kind: 'probe', probe: name, summary, ms: performance.now() - t0, replays };
@@ -1402,6 +1447,16 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
     '≈ 80 % (75–85)',
     `${pct(full.subsistence)} | nasycení ≥ 0,95 v ${pct(full.satiationOk)} let | zásoby po sklizni ${fmt(full.storesMedian, 2)}`,
     ok(full.subsistence >= 0.75 && full.subsistence <= 0.85),
+  );
+  // ves se spřežením orá rádlem a motykou nekope (oxen.md – Jen rádlo) – jen informace, hráč
+  // skriptu ohrady nestaví; kapacita jednoho spřežení za rok (září–listopad a březen–duben)
+  const { team } = probes;
+  const teamCapacity = PLOUGH_HA_PER_DAY * ploughWorkPerHa(NO_CRAFTS.tools) * (91 + 61);
+  row(
+    'Plná domácnost se spřežením (orba rádlem, bez motyky)',
+    'informace (oxen.md – Jen rádlo)',
+    `osev / pole ${fmt(team.sownHa, 2)} / ${fmt(team.fieldHa, 2)} ha | orba ${fmt(team.plough, 0)} čd/rok (${pct(team.plough / teamCapacity)} kapacity spřežení) | práce na obživu ${pct(team.subsistence)} (motykou ${pct(full.subsistence)}) | nasycení ≥ 0,95 v ${pct(team.satiationOk)} let | zásoby po sklizni ${fmt(team.storesMedian, 2)}`,
+    'info',
   );
   const sownMedian = quantile(start.sownRuns, 0.5);
   const fallowMedian = quantile(start.fallowRuns, 0.5);

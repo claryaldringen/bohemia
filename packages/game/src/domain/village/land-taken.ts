@@ -328,7 +328,9 @@ export function shrinkInPlan(
     if (plough) {
       const lost = share * partWeight(part);
       if (plough.partIds.includes(part.id)) plough.weight = Math.max(0, plough.weight - lost);
-      else plough.digWeight = Math.max(0, plough.digWeight - lost);
+      else if (plough.digWeight !== undefined) {
+        plough.digWeight = Math.max(0, plough.digWeight - lost);
+      }
     }
     const harvest = taskSpans(work, partsById, 'harvest', day).find((s) => s.id === part.id);
     if (harvest) {
@@ -339,15 +341,15 @@ export function shrinkInPlan(
   }
 }
 
-/** Odebrané díly zmizí z pořadí práce plodiny (i z vracených přílohů a z orby). */
+/** Odebrané díly zmizí z pořadí práce plodiny (i z vracených přílohů a z orby s drnem). */
 export function dropFromWork(work: CropWork, removed: ReadonlySet<number>): void {
   work.partIds = work.partIds.filter((id) => !removed.has(id));
   const plough = work.plough;
   if (plough) {
     plough.partIds = plough.partIds.filter((id) => !removed.has(id));
-    const returned = (plough.returned ?? []).filter((id) => !removed.has(id));
-    if (returned.length > 0) plough.returned = returned;
-    else delete plough.returned;
+    const sodIds = (plough.sodIds ?? []).filter((id) => !removed.has(id));
+    if (sodIds.length > 0) plough.sodIds = sodIds;
+    else delete plough.sodIds;
   }
   if (!work.reclaimIds) return;
   const reclaimIds = work.reclaimIds.filter((id) => !removed.has(id));

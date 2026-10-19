@@ -83,6 +83,35 @@ describe('vzhled dílů – odhad ze stadia a data', () => {
     expect(mid.filter((v) => v.work !== null).length).toBeLessThanOrEqual(1);
     expect(new Set(looks(7, 5))).toEqual(new Set(['mown']));
     expect(new Set(looks(12, 1))).toEqual(new Set(['haystacks']));
+    // řádky sena jen na čerstvě posečených dílech, starší posečené už v kupkách
+    const late = views(dayOfYearFromDate(6, 24), hay).filter((v) => v.look === 'mown');
+    expect(late.some((v) => v.swaths)).toBe(true);
+    expect(late.some((v) => !v.swaths)).toBe(true);
+    expect(views(dayOfYearFromDate(7, 5), hay).some((v) => v.swaths)).toBe(false);
+  });
+
+  it('vzhled od jádra: řádky sena na rozpracovaném dílu a dílech dnešní seče, jinde kupky', () => {
+    const field = {
+      parts: [
+        part(2, 0, 'meadow', { look: 'mown' }),
+        part(3, 0, 'meadow', { look: 'mown' }),
+        part(4, 0, 'meadow', { look: 'mown', work: 0.4, before: 'meadow' }),
+        part(5, 0, 'meadow', { look: 'meadow' }),
+      ],
+    };
+    const village: Pick<SceneVillage, 'dwellings' | 'labor'> = {
+      ...VILLAGE,
+      labor: {
+        day: 160,
+        month: 6,
+        people: { children: 0, adults: 2, elders: 0 },
+        shares: [
+          { activity: 'mow', target: { kind: 'field', id: 1, parts: [300, 400] }, manDays: 1 },
+        ],
+      },
+    };
+    const result = fieldPartViews(field, { dayOfYear: 160, village });
+    expect(result.map((v) => v.swaths ?? false)).toEqual([false, true, true, false]);
   });
 
   it('osetý díl projde rokem: orba, setí, vzcházení, zelené a zralé obilí, žeň, strniště', () => {
