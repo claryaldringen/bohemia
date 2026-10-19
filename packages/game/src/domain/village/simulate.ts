@@ -303,9 +303,9 @@ function simulateDay(
   state.chronicle.push(...husbandryDay(state, day, coverage.tools, landscape, obstacles));
   // ušetřené posvátné duby stářím usychají a souše padají – den plyne z dubu (happiness.md)
   state.chronicle.push(...sacredOakEvents(villageSacredOaks(state), obstacles, day));
-  if (isOn(date, PLANNING_DAY)) planYear(state, day, coverage);
+  if (isOn(date, PLANNING_DAY)) planYear(state, day, coverage, landscape);
   if (date.month >= PLANNING_DAY.month || date.month <= LAST_JOIN_MONTH) {
-    joinFinishedParts(state, day, coverage);
+    joinFinishedParts(state, day, coverage, landscape);
     // má-li ves zásob dost, rozjetý plán se zkrátí hned, ne až 1. 9. (fields.md – Osev podle zásob)
     trimPlan(state, day, coverage);
   }
@@ -367,7 +367,12 @@ function isOn(date: CalendarDate, target: DayOfYear): boolean {
  * Krok 1 (1. 9.): konec hospodářského roku pro všechny díly a nový plán osevu – ves rozhodne, co
  * oseje ozimem a co jaří (fields.md – Ozim a jař).
  */
-function planYear(state: VillageState, day: number, coverage: CraftCoverage): void {
+function planYear(
+  state: VillageState,
+  day: number,
+  coverage: CraftCoverage,
+  landscape: Landscape | null,
+): void {
   // kolik jídla ves za uplynulý rok potřebovala z pole – podle toho oseje (fields.md – Kolik ves
   // oseje, Osev podle stravy)
   closeFieldFoodYear(state);
@@ -381,7 +386,7 @@ function planYear(state: VillageState, day: number, coverage: CraftCoverage): vo
   const crops = chooseCrops(sowingBlocks(state.parts, holdings), {
     targetKg: targets.targetKg,
     startKg: 0,
-    capacity: sowingCapacity(state, day, coverage, plough),
+    capacity: sowingCapacity(state, day, coverage, plough, landscape),
     load: orchardOnlyLoad(orchardHarvestLoad(state)),
     allowWinter: true,
     day,
@@ -417,7 +422,12 @@ function planYear(state: VillageState, day: number, coverage: CraftCoverage): vo
  * když plán cíl nepokrývá a jař se vejde do zbývající práce – bez plánu ho založí. Díly hotové
  * po dubnu čekají na 1. 9.
  */
-function joinFinishedParts(state: VillageState, day: number, coverage: CraftCoverage): void {
+function joinFinishedParts(
+  state: VillageState,
+  day: number,
+  coverage: CraftCoverage,
+  landscape: Landscape | null,
+): void {
   const ready = state.parts.filter((p) => p.state === 'ready');
   if (ready.length === 0) return;
   const plan = state.plan;
@@ -434,7 +444,7 @@ function joinFinishedParts(state: VillageState, day: number, coverage: CraftCove
   const { spring } = chooseCrops(sowingBlocks(state.parts, holdings, 2), {
     targetKg: fieldSowingTargets(state, day, coverage).targetKg,
     startKg,
-    capacity: sowingCapacity(state, day, coverage, plough),
+    capacity: sowingCapacity(state, day, coverage, plough, landscape),
     load: planLoad(plan, orchardHarvestLoad(state)),
     allowWinter: false,
     day,
@@ -492,6 +502,7 @@ function sowingCapacity(
   day: number,
   coverage: CraftCoverage,
   plough = false,
+  landscape: Landscape | null = null,
 ): SowingCapacity {
   const crafts = craftHouseholds(state);
   // práci násobí štěstí vsi (happiness.md) a dřevěné nářadí od tesaře (wagons.md)
@@ -522,10 +533,15 @@ function sowingCapacity(
     august: days(WINDOWS.harvest),
   };
   if (!plough) return people;
-  // výkon podle délky brázd polí, na která ves může zasít (oxen.md – Co nejdelší brázda)
+  // výkon podle délky brázd polí, na která ves může zasít – na pevných cestách se brázda láme
+  // (oxen.md – Co nejdelší brázda, Brázdy končí na cestě)
   const perDay =
     ploughCapacityPerDay(state, coverage.tools, day) *
-    plannedFurrowEfficiency(state.parts.filter((p) => sowingGroup(p) !== null));
+    plannedFurrowEfficiency(
+      state.parts.filter((p) => sowingGroup(p) !== null),
+      state,
+      landscape,
+    );
   const ploughDays = (segments: Parameters<typeof windowDaysLeft>[1], sowing = false): number =>
     perDay * Math.max(0, windowDaysLeft(day, segments) - (sowing ? SOW_AFTER_DIG_DAYS : 0));
   // okna kopání jaře: podzim jako vracení přílohu, jaro jako setí

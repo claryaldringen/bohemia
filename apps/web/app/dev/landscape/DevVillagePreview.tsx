@@ -83,6 +83,7 @@ import {
   demoApplesStage,
   demoRoad,
   demoRoadGap,
+  demoRoadPlough,
   demoRoadStage,
   withRoadCuts,
 } from './dev-road';
@@ -198,6 +199,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [appleStage, setAppleStage] = useState(0);
   // díra mezi úseky ukázky – zacelená jádrem jako v roční kontrole, nebo jak byla (dev-road.ts)
   const [gapClosed, setGapClosed] = useState(true);
+  // orba přes pole ukázky cesty – brázdy končí na cestě (oxen.md, dev-road.ts – demoRoadPlough)
+  const [roadPlough, setRoadPlough] = useState(false);
   // ukázka zarůstání přílohu a lesa vsi (fields.md – Zarůstání, dev-overgrowth.ts)
   const [overgrowth, setOvergrowth] = useState<OvergrowthDemo | null>(null);
   // hospodaření podle polohy domů (fields.md): obrysy úseků a vzorec polí ze simulace jádra
@@ -254,6 +257,13 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     // kousky pole oddělené cestou zůstanou loukou (roads.md a fields.md – Cesta přes pole)
     if (base.roads && base.roads.length > 0) {
       base.fields = withRoadCuts(base.fields, base.roads, decoded);
+    }
+    // orba přes cestu: pole ukázky cesty po žni orá spřežení, brázdy končí na cestě
+    const ploughed = roadPlough ? base.fields.find((f) => f.id === road?.fieldId) : undefined;
+    if (ploughed) {
+      const demo = demoRoadPlough(ploughed);
+      base.fields = base.fields.map((f) => (f.id === ploughed.id ? demo.field : f));
+      base.labor = demo.labor;
     }
     if (cartDemo) {
       // ukázka vozů na svahu: obydlí, ohrada se spřežením, díl nahoře a vozová cesta jádra
@@ -312,6 +322,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     simulated,
     overgrowth,
     cartDemo,
+    roadPlough,
   ]);
 
   useEffect(() => {
@@ -1337,6 +1348,10 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const toggleRoad = (): void => {
     if (road) {
       setRoad(null);
+      if (roadPlough) {
+        setRoadPlough(false);
+        scene?.setWorkDayClock(null);
+      }
       if (road.fieldId !== null) setFields((list) => list.filter((f) => f.id !== road.fieldId));
       return;
     }
@@ -1373,6 +1388,23 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     });
     // kamera k rozcestí uprostřed první cesty
     scene?.moveCameraTo(sample.focus.x, sample.focus.z);
+  };
+
+  /**
+   * Orba přes cestu (oxen.md – Brázdy končí na cestě): pole ukázky cesty (zapne ji) po žni orá
+   * spřežení – pás přes rozcestí; spřežení projede dnešní orbu za 4 minuty od zapnutí (stránka
+   * hodiny světa nemá).
+   */
+  const toggleRoadPlough = (): void => {
+    if (roadPlough) {
+      setRoadPlough(false);
+      scene?.setWorkDayClock(null);
+      return;
+    }
+    if (!road) toggleRoad();
+    const start = Date.now();
+    scene?.setWorkDayClock(() => ({ startMs: start, endMs: start + 240_000 }));
+    setRoadPlough(true);
   };
 
   /**
@@ -1544,6 +1576,15 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
           data-testid="dev-road"
         >
           {road ? 'Cesta ✓' : 'Cesta'}
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={toggleRoadPlough}
+          title="Orba přes pole ukázky cesty – brázdy končí na cestě, spřežení se na ní otočí"
+          data-testid="dev-road-plough"
+        >
+          {roadPlough ? 'Orba přes cestu ✓' : 'Orba přes cestu'}
         </button>
         <button
           className={buttonClass}

@@ -28,7 +28,13 @@ import {
   type RoadPoint,
   type RoadTreeSpecies,
 } from '@bohemia/game';
-import type { SceneRoad, SceneRoadApple, SceneRoadTree } from '@/lib/village-view';
+import type {
+  SceneFieldPart,
+  SceneLabor,
+  SceneRoad,
+  SceneRoadApple,
+  SceneRoadTree,
+} from '@/lib/village-view';
 import type { SceneField } from '@/lib/scene/village-types';
 
 /** Stadia stromů na ukázce po řadě (keř malý a velký, strom mladý, poloviční a plný, souš, pařez). */
@@ -315,4 +321,47 @@ export function withRoadCuts(
       }),
     };
   });
+}
+
+/** Den práce ukázky orby přes cestu (září – orba ozimu po žni). */
+export const ROAD_PLOUGH_DAY = 250;
+
+/**
+ * Orba přes cestu (oxen.md – Brázdy končí na cestě; Martin, 19. 10. 2026: „pokud oráč narazí na
+ * cestu, tak spřežení otočí“): pole ukázky cesty po žni orá spřežení rádlem podél x – řady dílů
+ * pod prostřední řadou zorané, prostřední a další řadu (pás přes celé pole, přes rozcestí) orá
+ * dnes, zbytek strniště. Brázdy dne končí na pásu cesty a spřežení se na něm otočí.
+ */
+export function demoRoadPlough(field: SceneField): { field: SceneField; labor: SceneLabor } {
+  const ys = [...new Set(field.parts.map((p) => p.cell.y))].sort((a, b) => a - b);
+  const mid = ys[Math.floor(ys.length / 2)] ?? 0;
+  const furrow = { axis: 'x' as const, sweep: 1 as const };
+  const parts = field.parts.map((part): SceneFieldPart => {
+    const { work: _work, before: _before, ...rest } = part;
+    void _work;
+    void _before;
+    const look = part.cell.y <= mid + 1 ? 'plowed' : 'stubble';
+    return { ...rest, stage: 'sown', look, furrow };
+  });
+  const today = parts
+    .filter((p) => p.cell.y === mid || p.cell.y === mid + 1)
+    .sort((a, b) => a.cell.y - b.cell.y || a.cell.x - b.cell.x)
+    .flatMap((p) => (p.id === undefined ? [] : [p.id]));
+  return {
+    field: { ...field, parts, ard: true },
+    labor: {
+      day: ROAD_PLOUGH_DAY,
+      month: 9,
+      people: { children: 0, adults: 4, elders: 0 },
+      shares: [
+        {
+          activity: 'plough',
+          target: { kind: 'field', id: field.id },
+          manDays: 2,
+          parts: today,
+          progress: today.map(() => [0, 1] as const),
+        },
+      ],
+    },
+  };
 }
