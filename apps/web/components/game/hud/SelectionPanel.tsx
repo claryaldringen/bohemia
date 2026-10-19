@@ -939,6 +939,18 @@ function RoadBody({
             {details.ageYears}
           </Stat>
           <Oaks count={details.trees} name="Stromy u cesty" testId="selection-road-trees" />
+          {details.cart && (
+            <Tooltip content="Vozová cesta" placement="above">
+              <img
+                data-testid="selection-road-cart"
+                src="/icons/resources/cart.png"
+                alt="Vozová cesta"
+                width={20}
+                height={20}
+                tabIndex={0}
+              />
+            </Tooltip>
+          )}
           {apples.trees > 0 && (
             <Stat icon="apples" name="Jabloně (plodí)" testId="selection-road-apples">
               {apples.trees}

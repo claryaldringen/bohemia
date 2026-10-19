@@ -51,6 +51,12 @@ const plantButton = (html: string): string | undefined =>
   /<button[^>]*data-testid="road-plant-apples"[^>]*>/.exec(html)?.[0];
 
 describe('SelectionPanel – pevná cesta', () => {
+  it('vozová cesta má ikonu vozu, pěší ne (wagons.md – Vyjeté cesty)', () => {
+    expect(render(road({ cart: true }))).toContain('data-testid="selection-road-cart"');
+    expect(render(road({ cart: true }))).toContain('/icons/resources/cart.png');
+    expect(render(road())).not.toContain('selection-road-cart');
+  });
+
   it('portrét stupně, délka, stáří, stromy a mokřina s brody', () => {
     const html = render(road());
     expect(html).toContain('data-kind="road"');

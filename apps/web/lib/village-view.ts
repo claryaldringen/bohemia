@@ -8,7 +8,12 @@ import {
   cartCondition,
   cartOrigin,
   cartsAway,
+  harvestReachState,
+  obstacleIndex,
+  planCrops,
+  villageCartRoutes,
   villageCarts,
+  CARTS,
   ORCHARD_WINDOWS,
   STOCK_RESOURCES,
   affordability,
@@ -266,6 +271,8 @@ export interface VillageRoad {
   /** Úsek vede mokřinou (m) a přes brody. */
   wetM: number;
   fords: number;
+  /** Vozová cesta – vyjetá vozy (wagons.md – Vyjeté cesty, `Road.cart`). */
+  cart: boolean;
   /** Rozestavěné vylepšení – na jaký stupeň, průběh 0–1 a stromy ke skácení; jinak null. */
   building: { grade: RoadGrade; progress: number; treesToFell: number } | null;
   upgrades: RoadUpgradeOption[];
@@ -855,8 +862,8 @@ export interface SceneVillage {
    */
   hayMeadows?: SceneHayMeadow[];
   /**
-   * Vozy vsi (wagons.md – Vůz): kde stojí (u ohrady) a kam dnes jedou. Scéna je zatím nekreslí
-   * (fáze 3 – modely z feat/wagon-assets). Bez údaje žádné.
+   * Vozy vsi (wagons.md – Vůz): kde stojí (u ohrady), kam dnes jedou a kudy (fáze 3 – scéna je
+   * kreslí se spřežením, cart-renderer.ts). Bez údaje žádné.
    */
   carts?: SceneCart[];
 }
@@ -872,10 +879,20 @@ export interface SceneCart {
   condition: number;
   /**
    * Co vůz dnes dělá – svoz (`haul`: pole, louka, stromy) nebo výprava po stezce (`trade`) s cílem
-   * z rozdělení práce dne; stojí-li u ohrady, null.
+   * z rozdělení práce dne a nákladem, který veze (snopy ze žně, seno ze seče, klády ke stavbě,
+   * zboží výpravy); stojí-li u ohrady, null.
    */
-  job: { activity: 'haul' | 'trade'; target: LaborShare['target'] } | null;
+  job: { activity: 'haul' | 'trade'; target: LaborShare['target']; load: CartLoad } | null;
+  /**
+   * Kudy vůz dnes jede (wagons.md – fáze 3): osa vozové sítě od ohrady k cíli svozu
+   * (`villageCartRoutes`, zjednodušená, po cm), u výpravy od ohrady na zemskou stezku a po ní ke
+   * kraji mapy. Bez jízdy, nebo když vůz k cíli nedojede, chybí – vůz stojí u ohrady.
+   */
+  route?: { x: number; z: number }[];
 }
+
+/** Náklad vozu na cestě zpátky (u výpravy tam i zpět). */
+export type CartLoad = 'sheaves' | 'hay' | 'logs' | 'goods';
 
 /** Čtverec lesa vsi ve scéně (fields.md – Les vsi). */
 export interface SceneWood {
@@ -1553,7 +1570,7 @@ function sceneVillage(
     ...(r.craft ? { craft: r.craft } : {}),
   }));
   const pens = scenePens(state, landscape, day, summary);
-  const carts = sceneCarts(state, day);
+  const carts = sceneCarts(state, day, landscape, fields);
   const hayMeadows = hayMeadowLooks(state, day).map((view): SceneHayMeadow => {
     const center = tileCenterWorld(landscape, view.cell.x, view.cell.y);
     return {
@@ -1696,6 +1713,7 @@ function roadViews(
       trees: standing.filter((t) => spots.has(t.spot) && !removed.has(t.id)).length,
       wetM: Math.round((r.ground?.wet ?? []).reduce((sum, [a, b]) => sum + (b - a), 0)),
       fords: r.ground?.fords.length ?? 0,
+      cart: r.cart === true,
       building:
         work && work.roadGrade
           ? { grade: work.roadGrade, progress: work.progress, treesToFell: work.treesToFell }
@@ -1863,18 +1881,27 @@ function craftsView(state: VillageState, summary: VillageSummary): VillageCrafts
 
 /**
  * Vozy vsi pro scénu (wagons.md – Vůz): stojí u ohrady se spřežením; ty, které dnes vozí
- * (podíly práce `haul` s počtem vozů) nebo jedou s výpravou (`trade`), nesou cíl dne. Scéna je
- * zatím nekreslí – modely vozů a spřežení s vozem přijdou se scénou (wagons.md – fáze 3).
+ * (podíly práce `haul` s počtem vozů) nebo jedou s výpravou (`trade`), nesou cíl dne, náklad
+ * a trasu (`cartRouteToday` – fáze 3).
  */
-function sceneCarts(state: VillageState, day: number): SceneCart[] {
+function sceneCarts(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  fields: SceneVillage['fields'],
+): SceneCart[] {
   const carts = villageCarts(state);
   if (carts.length === 0) return [];
   const home = cartOrigin(state) ?? (state.pens ?? []).find((p) => p.builtDay !== null) ?? null;
   const away = cartsAway(state);
-  const jobs = new Map<number, SceneCart['job']>();
+  const jobs = new Map<number, NonNullable<SceneCart['job']>>();
   for (const e of state.trade?.expeditions ?? []) {
     for (const id of e.carts ?? []) {
-      jobs.set(id, { activity: 'trade', target: { kind: 'trail', id: e.trailId } });
+      jobs.set(id, {
+        activity: 'trade',
+        target: { kind: 'trail', id: e.trailId },
+        load: 'goods',
+      });
     }
   }
   const idle = carts
@@ -1883,17 +1910,171 @@ function sceneCarts(state: VillageState, day: number): SceneCart[] {
   for (const share of laborReport(state)?.shares ?? []) {
     if (share.activity !== 'haul') continue;
     for (const cart of idle.splice(0, share.carts ?? 1)) {
-      jobs.set(cart.id, { activity: 'haul', target: share.target });
+      jobs.set(cart.id, { activity: 'haul', target: share.target, load: haulLoad(state, share) });
     }
   }
-  return carts.map((c) => ({
-    id: c.id,
-    kind: c.kind,
-    x: home?.x ?? 0,
-    z: home?.z ?? 0,
-    condition: Math.round(cartCondition(c, day) * 10) / 10,
-    job: jobs.get(c.id) ?? null,
-  }));
+  return carts.map((c) => {
+    const job = jobs.get(c.id) ?? null;
+    const route = job ? cartRouteToday(state, day, landscape, c.kind, job, fields) : null;
+    return {
+      id: c.id,
+      kind: c.kind,
+      x: home?.x ?? 0,
+      z: home?.z ?? 0,
+      condition: Math.round(cartCondition(c, day) * 10) / 10,
+      job,
+      ...(route ? { route } : {}),
+    };
+  });
+}
+
+/** Co vůz při svozu veze: klády ke stavbě, seno ze seče (louka, díl úhoru v seči), jinak snopy. */
+function haulLoad(state: VillageState, share: LaborShare): CartLoad {
+  const t = share.target;
+  if (t.kind === 'meadow') return 'hay';
+  if (t.kind !== 'field') return 'logs';
+  const mown = new Set(state.hay?.mowing?.partIds ?? []);
+  return (t.parts ?? []).some((id) => mown.has(id)) ? 'hay' : 'sheaves';
+}
+
+/** Nejvýš tolik bodů trasy vozu do scény (osa se zjednoduší). */
+const CART_ROUTE_POINTS = 80;
+/** Odchylka zjednodušené osy od trasy vozové sítě (m). */
+const CART_ROUTE_TOLERANCE_M = 0.6;
+
+/**
+ * Trasa vozu dne (wagons.md – fáze 3): svoz – osa vozové sítě od ohrady k místu dnešní práce
+ * (díl na čele žně / seče nejblíž těžišti dnešních dílů, políčko louky, strom stavby) stejnou
+ * funkcí jako dosah svozu (`villageCartRoutes`; žeň po strništi sklízené plodiny –
+ * `harvestReachState`); výprava – od ohrady na začátek zemské stezky a po ní ke kraji mapy. Kam
+ * vůz nedojede (nebo bez cíle), null.
+ */
+function cartRouteToday(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  kind: CartKind,
+  job: NonNullable<SceneCart['job']>,
+  fields: SceneVillage['fields'],
+): { x: number; z: number }[] | null {
+  const obstacles = obstaclesOf(landscape);
+  const routeTo = (
+    reachState: VillageState,
+    target: { x: number; z: number },
+    reachM: number,
+  ): { x: number; z: number }[] | null => {
+    const route = villageCartRoutes(reachState, day, landscape, obstacles, kind, [
+      { x: target.x, z: target.z, reachM },
+    ])?.[0];
+    return route?.reached && route.points.length >= 2 ? route.points : null;
+  };
+  const t = job.target;
+  let axis: { x: number; z: number }[] | null = null;
+  if (job.activity === 'trade') {
+    if (t.kind !== 'trail') return null;
+    const trail = sceneTrails(state).find((tr) => tr.id === t.id);
+    if (!trail || trail.points.length < 2) return null;
+    // od ohrady na začátek stezky (vozovou sítí), pak po stezce ke kraji mapy
+    const start = trail.points[0]!;
+    const approach = routeTo(state, start, CARTS.reachM);
+    axis = [...(approach ?? []), ...trail.points];
+  } else if (t.kind === 'field') {
+    const field = fields.find((f) => f.id === t.id);
+    const ids = new Set(t.parts ?? []);
+    const parts = (field?.parts ?? []).filter((p) => p.id !== undefined && ids.has(p.id));
+    const goal = nearestToCentroid(parts);
+    if (!goal) return null;
+    // žeň – vůz jede po strništi sklízené plodiny (jako dosah svozu v jádru)
+    const work = state.plan
+      ? planCrops(state.plan).find((c) => c.work.partIds.some((id) => ids.has(id)))?.work
+      : undefined;
+    const reachState = job.load === 'sheaves' && work ? harvestReachState(state, work) : state;
+    axis = routeTo(reachState, goal, CARTS.reachM);
+  } else if (t.kind === 'meadow') {
+    const goal = nearestToCentroid(t.cells.map((c) => tileCenterWorld(landscape, c.x, c.y)));
+    axis = goal ? routeTo(state, goal, CARTS.reachM) : null;
+  } else if (t.kind === 'trees') {
+    const trees = t.ids.flatMap((id) => {
+      const k = obstacleIndex(obstacles, id);
+      return k < 0 ? [] : [{ x: obstacles.x[k]!, z: obstacles.z[k]! }];
+    });
+    const goal = nearestToCentroid(trees);
+    axis = goal ? routeTo(state, goal, CARTS.dragM) : null;
+  }
+  return axis ? simplifiedRoute(axis) : null;
+}
+
+/** Bod nejblíž těžišti bodů (díl na čele práce, políčko louky, strom); bez bodů null. */
+function nearestToCentroid<P extends { x: number; z: number }>(points: readonly P[]): P | null {
+  if (points.length === 0) return null;
+  const cx = points.reduce((sum, p) => sum + p.x, 0) / points.length;
+  const cz = points.reduce((sum, p) => sum + p.z, 0) / points.length;
+  let best = points[0]!;
+  let bestD = Infinity;
+  for (const p of points) {
+    const d = (p.x - cx) ** 2 + (p.z - cz) ** 2;
+    if (d < bestD) {
+      best = p;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
+/**
+ * Osa trasy pro scénu: bez opakovaných bodů, zjednodušená (Douglas–Peucker s odchylkou
+ * CART_ROUTE_TOLERANCE_M, když je bodů moc, s větší) a zaokrouhlená na cm.
+ */
+export function simplifiedRoute(
+  points: readonly { x: number; z: number }[],
+): { x: number; z: number }[] {
+  const unique = points.filter(
+    (p, i) => i === 0 || Math.hypot(p.x - points[i - 1]!.x, p.z - points[i - 1]!.z) > 0.01,
+  );
+  let tolerance = CART_ROUTE_TOLERANCE_M;
+  let out = douglasPeucker(unique, tolerance);
+  while (out.length > CART_ROUTE_POINTS) {
+    tolerance *= 1.5;
+    out = douglasPeucker(unique, tolerance);
+  }
+  return out.map((p) => ({ x: Math.round(p.x * 100) / 100, z: Math.round(p.z * 100) / 100 }));
+}
+
+function douglasPeucker<P extends { x: number; z: number }>(
+  points: readonly P[],
+  tolerance: number,
+): P[] {
+  if (points.length <= 2) return [...points];
+  const keep = new Uint8Array(points.length);
+  keep[0] = 1;
+  keep[points.length - 1] = 1;
+  const stack: [number, number][] = [[0, points.length - 1]];
+  while (stack.length > 0) {
+    const [a, b] = stack.pop()!;
+    const pa = points[a]!;
+    const pb = points[b]!;
+    const dx = pb.x - pa.x;
+    const dz = pb.z - pa.z;
+    const length = Math.hypot(dx, dz);
+    let worst = -1;
+    let worstD = tolerance;
+    for (let i = a + 1; i < b; i++) {
+      const p = points[i]!;
+      const d =
+        length > 1e-9
+          ? Math.abs((p.x - pa.x) * dz - (p.z - pa.z) * dx) / length
+          : Math.hypot(p.x - pa.x, p.z - pa.z);
+      if (d > worstD) {
+        worst = i;
+        worstD = d;
+      }
+    }
+    if (worst >= 0) {
+      keep[worst] = 1;
+      stack.push([a, worst], [worst, b]);
+    }
+  }
+  return points.filter((_, i) => keep[i] === 1);
 }
 
 /**
