@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { obstaclesOf } from '../../landscape';
 import { foundVillage } from '../actions';
-import { mergeRoadChains, updateRoads, withMergedRoads } from '../paths/roads';
+import { mergeRoadChains, roadPieces, updateRoads, withMergedRoads } from '../paths/roads';
 import { finishRoadUpgrade } from '../road-upgrades';
 import { advanceVillage } from '../simulate';
 import type {
@@ -379,7 +379,15 @@ function withBranch(s: VillageState): void {
         [0, -120],
         [0, -200],
       ],
-      { bornDay: Y1 - 8 * 365, traffic: [0, 0, 0, 0] },
+      {
+        bornDay: Y1 - 8 * 365,
+        traffic: [0, 0, 0, 0],
+        // kusy čtyři roky tiché – letos pátý (roads.md – Zarůstá jen nepoužívaný kus)
+        quiet: roadPieces([
+          { x: 0, z: -120 },
+          { x: 0, z: -200 },
+        ]).map((p) => ({ x: p.x, z: p.z, years: 4 })),
+      },
     ),
   );
 }

@@ -28,7 +28,11 @@ půdy na seno. Dobytek, dosud jen ozdoba, se tím poprvé zapojí do hry.
 
 - **Stavba po čtvercích** jako pozemek polozemnice: jeden čtverec 15 × 15 m na louce, obehnaný
   **pleteným plotem se zakulacenými rohy** (Martin), v rohu jednoduchý přístřešek na sloupech
-  s doškovou střechou a žlab; branka (návrh Clauda).
+  s doškovou střechou a žlab; branka (návrh Clauda) na straně k nejbližšímu obydlí, posunutá
+  po té straně k němu. **Pěšina vede k brance** (Martin, 19. 10. 2026: „každá budova by měla mít
+  nějaký vchod, od kterého cesta povede“) – krmení a práce v hotové ohradě chodí brankou,
+  staveniště ze všech stran; branku počítá herní jádro (`penEntrance`) pro síť pěšin i scénu
+  ([paths.md](paths.md) – Vchody).
 - **Natočená ohrada** (Martin, 19. 10. 2026 – všechny plošné stavby jde natáčet;
   [fields.md](fields.md), Natočené stavby): ohrada je jeden čtverec mřížky natočené po 15°
   (návrh Clauda) – [ a ] před umístěním otáčejí mřížku kolem čtverce pod kurzorem, nad jinou
@@ -48,7 +52,37 @@ půdy na seno. Dobytek, dosud jen ozdoba, se tím poprvé zapojí do hry.
   bez spřežení, výcviku a zimních krav se krmit nechodí; když k ní za rok nevede žádná cesta,
   chátrá a za ≈ 10 let se rozpadne a zmizí. Ohrada se zvířaty opuštěná není.
 
-## Spřežení (cvičí hráč)
+## Spřežení (cvičí se samo)
+
+**Změna (Martin, 19. 10. 2026):** „Ať se spřežení cvičí automaticky, bez zásahu hráče. Prostě ve
+chvíli, kdy mají vesničané k dispozici cokoliv, co jim ulehčí práci – zde rádlo a voly – začnou to
+automaticky používat.“
+
+**Princip pro celou hru** (Martin): co vesničanům ulehčí práci a mají to k dispozici, začnou
+používat sami – hráč staví a rozhoduje o velkých věcech (stavby, pole, odchod, obchod), každodenní
+využití toho, co ves má, je na vesničanech. Tak už fungují nástroje a nádoby od řemeslníků, klády
+z hromady, orba spřežením, seč, porážka i obnova sadu; od 19. 10. 2026 i výcvik spřežení.
+
+Výcvik (návrh Clauda):
+
+- **Začne sám** kterýkoli den, kdy ohrada stojí, nic se v ní necvičí, nemá spřežení (nebo je
+  spřežení v posledních 2 letech služby – náhrada), stádo má aspoň **3 krávy** (dvě telata do
+  výcviku a chovná kráva), na rádlo je dřevo (kláda z hromady, nebo strom ke kácení) a v zimě
+  (listopad–březen) vystačí seno volům i telatům do konce března.
+- **Proč kterýkoli den a ne jednou ročně (třeba 1. 4. s mláďaty):** náhrada musí začít přesně
+  8 let po vycvičení, aby starý pár dosloužil celých 10 let a nový navázal týž den (rozhodnutí
+  Martina z 18. 10.); nová ohrada nečeká na jaro; „telata“ jsou mladé kusy stáda – hra věk kusů
+  nevede, mláďata 1. 4. jen zvětší stádo.
+- **Když telata chybí** (méně než 3 krávy): ohrada čeká a výcvik začne první den, kdy je stádo má
+  – nejčastěji 1. 4. s mláďaty. Ves s ohradou drží aspoň 3 krávy na ohradu
+  ([strava – Skladba stáda](diet.md)), takže telata zase přibudou.
+- **Rádlo** postaví ves sama jako součást výcviku – stavba ze společné práce (5 člověkodní
+  a strom), jako dřív.
+- Hráč výcvik nezadává – tlačítko „Vycvičit spřežení“ zmizelo; panel ohrady ukazuje průběh výcviku
+  a stáří spřežení, upozornění „Spřežení je vycvičené“ zůstává. Výcvik zadaný hráčem ve starší vsi
+  doběhne beze změny, ohrada, která na hráče čekala, začne sama od dalšího vhodného dne.
+
+Původní pravidla (18. 10. 2026; zadávání hráčem výš nahrazeno):
 
 - V ohradě hráč zadá **„Vycvičit spřežení“** – z telat vlastního stáda se za **2 roky** vycvičí pár
   volů (Martin – směr). Mezitím je potřeba je krmit (pastva, v zimě seno); práce na péči je malá –
@@ -129,7 +163,8 @@ Rozhodnutí kontroléru tam, kde návrh nedává postup (Martin je může změni
   smí cvičit náhradu až v posledních 2 letech jeho služby (`trainingBlock` –
   `serviceYearsBeforeTraining`); nové spřežení vystřídá staré (staré jde na maso), spřežení
   starší 10 let zestárne a jde na maso (2 × 120 kg) – náhrada zadaná hned, jak smí, naváže týž
-  den.
+  den. **Od 19. 10. 2026** výcvik začne sám první vhodný den (Spřežení výš) – náhrada tak naváže
+  vždy, když jsou telata, dřevo a seno.
 - **Seno:** 1. 6. ves naplánuje seč – seno pro krávy a voly na zimu (≈ 1,5 t na kus, ohrada bez
   spřežení a výcviku počítá se dvěma voly – výcvik jde zadat kdykoli) bez zásoby, z dílů úhoru ve
   fázi louky a z přirozených luk do 600 m od nejbližší k obydlí – vzdálenost je **chůze po
@@ -158,7 +193,7 @@ Rozhodnutí kontroléru tam, kde návrh nedává postup (Martin je může změni
   den (obě plodiny dohromady). Když ves přijde o poslední spřežení, zbylou orbu (i rozpracovaný
   díl) kopou motyky – vrácené díly jdou na konec řady kopání.
 - **Ve scéně** orá spřežení na čele orby – pruh u čáry práce a další den dojde dál (viz
-  Spřežení postupuje s orbou); voli spřežení jsou jinak v ohradě, telata ve výcviku taky, krávy
+  Spřežení postupuje s orbou; při ladění projede celou dnešní orbu – Orba za herní den); voli spřežení jsou jinak v ohradě, telata ve výcviku taky, krávy
   v zimě.
 
 ## Spřežení postupuje s orbou (19. 10. 2026)
@@ -192,12 +227,58 @@ orba skutečně postupuje, stejně jako se mění vzhled dílů ([fields.md](fie
   čelo nevejde, zůstane ten den v ohradě (ohrady podle id).
 - **Natočené pole** (fields.md – Natočené stavby): řady a pruh v osách natočeného čtverce.
 
+## Kulaté rohy (19. 10. 2026)
+
+Stav: **Martin, 19. 10. 2026:** „Pokud bude orat spřežení rádlem, spřežení se musí otočit, takže
+zorané pole nikdy nebude mít ostré rohy, ale kulaté rohy podle toho, jak se volské spřežení
+otáčí.“ Podrobnosti **návrh Clauda** (jen vzhled):
+
+- **Poloměr rohu 5 m:** radlice jede o dosah oje (≈ 3,3 m ve scéně) za jhem a jho se otáčí po
+  oblouku ≈ 1,9 m (obrat na souvrati) – blíž než ≈ 5 m do rohu spřežení s radlicí v zemi nedojede.
+  Z rozsahu 3–5 m horní mez – je i vidět (měkký okraj pole má 1,6 m).
+- **Jen vnější rohy celého pole** – roh, u kterého ani jeden ze tří sousedních čtverců do pole
+  (ani do sousedního pole) nepatří. Vnitřní rohy, styky dílů a styk s jiným polem zůstanou jako
+  dřív. **Rozhoduje díl, kterému roh patří:** díl oraný rádlem (orba plodiny na něm letos
+  začala – `PartView.ploughed` z herního jádra) má roh kulatý, díl kopaný motykou ostrý – pole
+  zčásti orané a zčásti kopané má kulaté jen rohy oraných dílů. Platí pro zoranou, osetou,
+  zelenou a zralou část i strniště; v rohu zůstane tráva louky a nestojí tam trsy obilí.
+- **Plochu dílu (úrodu) roh neubírá:** roh vezme (1 − π/4) · 5² ≈ 5,4 m² – u čtverce 225 m² 2,4 %
+  na roh, ale pole o desítkách dílů má rohů jen pár (obdélník 4) – desetiny procenta úrody, a to
+  jen u polí oraných rádlem. Jádro proto počítá s celou plochou.
+- **Dráha spřežení** v rohu končí řady na stejném oblouku (`rowExtent`) a radlice se tam zvedá
+  (`outsideSquare`) – spřežení se otáčí po oblouku, jaký kreslí obtisk.
+
+## Orba za herní den (19. 10. 2026, ladicí)
+
+Stav: **Martin, 19. 10. 2026:** „Vím, že to bude divně zrychlené, ale až bude probíhat orba
+pomocí spřežení, potřeboval bych, aby spřežení projelo opravdu všechna obdělávaná políčka
+a nechávalo za sebou brázdu. Tak budu moci určit, jak se to chová.“ – **ruší rozhodnutí „jen
+čelo dne, skutečné tempo volů“** (Spřežení postupuje s orbou výš) po dobu ladění. Podrobnosti
+**návrh Clauda**:
+
+- **Ladicí přepínač** `PLOUGH_DAY_DEBUG` (`apps/web/lib/scene/plough-day.ts`): true – celá
+  dnešní orba za herní den, false – zpět skutečné tempo a jen pruh u čela dne.
+- **Celá dnešní orba:** herní jádro posílá u orby ke každému dílu dnešní fronty, kolik orby
+  bylo hotovo ráno a večer (`progress`); scéna z toho udělá pruhy dílů (po pruzích obtisku, ať
+  na konci dne sedí s polem dalšího dne) a spřežení je projede v pořadí práce řadu po řadě
+  s obraty na souvrati (kulaté rohy platí) – od chvíle, kdy přišel plán dne, do konce herního dne
+  (≈ 86 s), tempo zrychlené, kolik je třeba. Mezi díly a od místa, kde spřežení stálo, jde krokem
+  se zvednutým rádlem, zrychleně stejně.
+- **Brázda:** pole na začátku dne ukáže dnešní díly ještě nezorané (ranní stav) a za radlicí
+  přibývá zoraná plocha přesně tam, kudy projela – pás každé řady (čistá funkce času
+  `routeFurrows`, obtisk přestavovaný v taktu animací, nejvýš 30× za sekundu). Na konci dne pásy
+  pokryjí dnešní pruhy – pole dalšího dne je stejné.
+- **Víc spřežení** si dnešní díly rozdělí po souvislých kusech fronty (zhruba stejně velkých),
+  spřežení navíc zůstanou v ohradě.
+- **Při omezeném pohybu** (a bez hodin herního dne) se orba za den nepřehrává – pole ukáže
+  konec dne a spřežení stojí na čele jako dřív.
+
 ## Co hráč vidí
 
 - V nabídce staveb **ohrada** (název a cena v tooltipu).
 - V panelu ohrady: zvířata (ikony + čísla), průběh cvičení spřežení, zásoba sena na zimu; kolik
   let spřežení ještě slouží a kolik dní výcviku zbývá – ikona přesýpacích hodin (Martin: slunce
-  nebylo srozumitelné).
+  nebylo srozumitelné). Tlačítko výcviku není – spřežení se cvičí samo (Martin, 19. 10. 2026).
 - V horní liště **seno** (ikona + číslo), když ves má dobytek v ohradě.
 - Ve scéně: ohrada s přístřeškem, v zimě voli a krávy v ohradě, stohy sena, na jaře a na podzim
   spřežení orá pole čtverec po čtverci – na čele orby u čáry, kde se zem mění na zoranou, a každý
@@ -220,7 +301,13 @@ orba skutečně postupuje, stejně jako se mění vzhled dílů ([fields.md](fie
 | Přirozené louky do 600 m od obydlí; louky na seno ve scéně z dat                            | návrh Clauda                  |
 | Ohrada smí na pole – čtverec pole pod ní z pole zmizí                                       | Martin (18. 10. 2026)         |
 | Spřežení postupuje s orbou po čtvercích                                                     | Martin (19. 10. 2026)         |
+| Kulaté rohy zorané plochy podle obratu spřežení                                             | Martin (19. 10. 2026)         |
+| Roh 5 m, jen vnější rohy oraných dílů, úrodu neubírá                                        | návrh Clauda                  |
+| Ladění: spřežení projede celou dnešní orbu za herní den a nechává brázdu                    | Martin (19. 10. 2026)         |
+| Ladicí přepínač, pruhy po pruzích obtisku, víc spřežení po souvislých kusech                | návrh Clauda                  |
 | Pruh u čáry práce (2–4 řady), jen čelo dne, přechod pěšky do 60 m, dvě spřežení na díl      | návrh Clauda                  |
 | Seno i pro ovce a kozy; dávky malého dobytka; práce seče se sušením a svozem                | Martin (19. 10. 2026)         |
 | Kráva 5, vůl 6, ovce a koza 1 kg denně; seč 15 → 10 čd/ha; stoh 10 %/rok                    | návrh Clauda (rešerše)        |
 | Staré seno se k nové seči zkazí; seče se na zimní stádo podle potřeby                       | návrh Clauda                  |
+| Spřežení se cvičí samo – co ulehčí práci a ves to má, vesničané používají sami              | Martin (19. 10. 2026)         |
+| Výcvik začne první vhodný den (telata, dřevo, v zimě seno), rádlo staví ves sama            | návrh Clauda                  |

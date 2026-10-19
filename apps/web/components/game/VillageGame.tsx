@@ -42,7 +42,6 @@ import {
   selectVillage,
   sendExpedition,
   skipTime,
-  trainTeam,
   upgradeRoad,
 } from '@/app/game/actions';
 import { usePlacement } from '@/hooks/use-placement';
@@ -930,12 +929,6 @@ export function VillageGame({
       <Minimap landscape={decoded} scene={scene} village={drawnVillage} />
       <SelectionPanel
         details={selectionDetails(view, sceneVillage, current)}
-        onTrainTeam={(penId) => {
-          const villageId = viewRef.current?.id;
-          return villageId
-            ? runBuildAction(() => trainTeam({ villageId, penId }))
-            : Promise.resolve();
-        }}
         onRelocate={relocate}
         onLeave={leave}
         onCancelRelocation={(constructionId) => {

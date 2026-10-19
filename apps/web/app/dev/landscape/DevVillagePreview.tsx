@@ -81,6 +81,8 @@ import {
   demoRoadGap,
   demoRoadStage,
 } from './dev-road';
+import { demoCartSlope, type CartDemo } from './dev-cart';
+import type { CartKind } from '@bohemia/game';
 import {
   placementVillageFromScene,
   scenePlot,
@@ -182,6 +184,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [road, setRoad] = useState<Pick<SceneVillage, 'roads' | 'roadTrees' | 'roadApples'> | null>(
     null,
   );
+  // ukázka vozové sítě na svahu vedle pěšin (wagons.md, dev-cart.ts) – dvoukolák, pak čtyřkolák
+  const [cartDemo, setCartDemo] = useState<CartDemo | null>(null);
   // stupeň vylepšení ukázkových cest (dev-road.ts – DEMO_ROAD_STAGES) a stadium jabloní u cesty
   const [roadStage, setRoadStage] = useState(0);
   const [appleStage, setAppleStage] = useState(0);
@@ -236,6 +240,17 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         ? { sacred: { oaks: sacredOaks, groves, buildings: sacredBuildings } }
         : {}),
     };
+    if (cartDemo) {
+      // ukázka vozů na svahu: obydlí, ohrada se spřežením, díl nahoře a vozová cesta jádra
+      return {
+        ...base,
+        dwellings: [...base.dwellings, ...cartDemo.dwellings],
+        pens: [...(base.pens ?? []), ...cartDemo.pens],
+        fields: [...base.fields, cartDemo.field],
+        roads: [...(base.roads ?? []), ...cartDemo.roads],
+        labor: base.labor ?? cartDemo.labor,
+      };
+    }
     if (!people) return base;
     // kácí se u nejbližších stromů k prvnímu staveništi (jako vyhrazené stromy stavby)
     const site = dwellings.find((d) => !d.built);
@@ -280,6 +295,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     gapClosed,
     simulated,
     overgrowth,
+    cartDemo,
   ]);
 
   useEffect(() => {
@@ -1220,6 +1236,32 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     scene?.moveCameraTo(sample.center.x, sample.center.z);
   };
 
+  /**
+   * Ukázka vozové sítě na svahu vedle pěšin (wagons.md): vypnuto → jen pěšina (bez vozové cesty)
+   * → dvoukolák → čtyřkolák → vypnuto; kamera ke svahu.
+   */
+  const toggleCarts = (): void => {
+    const next: Record<string, CartKind | 'none' | null> = {
+      off: 'none',
+      none: 'two-wheel',
+      'two-wheel': 'four-wheel',
+      'four-wheel': null,
+    };
+    const kind = next[cartDemo?.kind ?? 'off'] ?? null;
+    if (!kind) {
+      setCartDemo(null);
+      return;
+    }
+    const sample = demoCartSlope(decoded, obstaclesOf(decoded), kind, {
+      dwelling: 9_000_001,
+      pen: 9_000_002,
+      field: 9_000_003,
+      road: 9_000_004,
+    });
+    setCartDemo(sample);
+    if (sample) scene?.moveCameraTo(sample.focus.x, sample.focus.z);
+  };
+
   /** Ukázka pevné cesty se stromy (keř, mladý a plný strom, souš, pařez) – kamera k ní. */
   const toggleRoad = (): void => {
     if (road) {
@@ -1401,6 +1443,15 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
           data-testid="dev-road"
         >
           {road ? 'Cesta ✓' : 'Cesta'}
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={toggleCarts}
+          title="Vozová síť na svahu vedle pěšin – nejdřív jen pěšina, pak vozová cesta dvoukoláku a čtyřkoláku"
+          data-testid="dev-carts"
+        >
+          {cartDemo ? `Vozy: ${cartDemo.note}` : 'Vozy ve svahu'}
         </button>
         {road && (
           <button
@@ -1717,6 +1768,8 @@ function devPart(
       look: sample.look,
       ...(work !== undefined ? { work } : {}),
       ...(sample.before ? { before: sample.before } : {}),
+      // od orby do strniště oralo spřežení rádlem – kulaté vnější rohy (oxen.md)
+      ...(stage === 'sown' ? { ploughed: true as const } : {}),
     };
   }
   const stage = STAGES[(options.stage + (options.mixed ? index : 0)) % STAGES.length]!;

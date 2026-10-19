@@ -141,6 +141,59 @@ describe('postup po čtvercích', () => {
   });
 });
 
+describe('orba rádlem – kulaté rohy (oxen.md)', () => {
+  it('díl, na kterém začala orba rádlem, je označený; kopaný a nezačatý ne', () => {
+    const s = advanceVillage(village(), at(601, 9, 20), null);
+    const winter = s.plan!.winter!;
+    // spřežení dostalo prvních pět dílů a zoralo zhruba polovinu z nich
+    const ploughIds = winter.partIds.slice(0, 5);
+    winter.plough = { partIds: ploughIds, required: 10, done: 5, weight: 1, digWeight: 0 };
+    const looks = fieldPartLooks(s, s.lastDay);
+    const spans = taskSpans(winter, byId(s), 'plough', s.lastDay);
+    for (const span of spans) {
+      const view = looks.get(span.id)!;
+      if (span.start < 0.5 - 1e-9) expect(view.ploughed).toBe(true);
+      else expect(view.ploughed).toBeUndefined();
+    }
+    expect(looks.get(ploughIds[0]!)!.ploughed).toBe(true);
+    // díly kopané motykou (i zkopané) orané nejsou
+    const hoe = winter.partIds.filter((id) => !ploughIds.includes(id));
+    expect(hoe.some((id) => looks.get(id)!.look !== 'stubble')).toBe(true);
+    for (const id of hoe) expect(looks.get(id)!.ploughed).toBeUndefined();
+    // zoraný díl rádlem nese vzhled před orbou (scéna z něj kreslí začátek dne)
+    for (const span of spans) {
+      const view = looks.get(span.id)!;
+      if (view.look === 'plowed') expect(view.before).toBe('stubble');
+    }
+  });
+
+  it('dnešní orba po dílech: kolik bylo na dílu hotovo ráno a večer', () => {
+    const s = advanceVillage(village(), at(601, 9, 20), null);
+    const winter = s.plan!.winter!;
+    winter.plough = {
+      partIds: winter.partIds.slice(0, 6),
+      required: 12,
+      done: 0,
+      weight: 1,
+      digWeight: 0,
+    };
+    const spans = taskSpans(winter, byId(s), 'plough', s.lastDay);
+    const worked = partsWorked(winter, byId(s), 'plough', s.lastDay, 3, 7);
+    expect(worked.length).toBeGreaterThan(1);
+    // první díl dnes dokončený z rozpracovaného, poslední rozpracovaný, mezi nimi celé
+    for (const [k, part] of worked.entries()) {
+      const span = spans.find((x) => x.id === part.id)!;
+      expect(part.from).toBeCloseTo(
+        Math.max(0, (3 / 12 - span.start) / (span.end - span.start)),
+        9,
+      );
+      expect(part.to).toBeCloseTo(Math.min(1, (7 / 12 - span.start) / (span.end - span.start)), 9);
+      if (k > 0) expect(part.from).toBe(0);
+      if (k < worked.length - 1) expect(part.to).toBe(1);
+    }
+  });
+});
+
 describe('přirozená stadia podle kalendáře', () => {
   it('ozim: v září zasetý, přes zimu vzešlý, na jaře zelený, v červenci zralý; jař v srpnu', () => {
     let s = advanceVillage(village(), at(601, 9, 1), null);

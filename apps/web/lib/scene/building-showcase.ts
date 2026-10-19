@@ -25,6 +25,7 @@ import {
   showcaseMeadowDay,
   showcasePlough,
   showcasePloughDay,
+  showcasePloughWindow,
   type ShowcaseDecorModel,
 } from './building-showcase-layout';
 import { SUN_DIRECTION, WATER_FPS } from './constants';
@@ -44,9 +45,6 @@ import { TREE_MODELS, type TreeModel } from './obstacle-scenery';
 import { PenAnimals } from './pen-animals';
 import { PenRenderer } from './pen-renderer';
 import { PitCuts, applyPitCut } from './pit-cut';
-import { ploughFront } from './plough-front';
-import { ploughPath } from './plough-team';
-import { PloughTeams } from './plough-team-renderer';
 import { RoadWorks, roadRibbonMeshes } from './road-works';
 import { REFERENCE_DAY, seasonLook, type SeasonLight } from './season-look';
 import {
@@ -149,9 +147,9 @@ function decorInstance(m: ShowcaseDecorModel): ModelInstance {
  * polozemnice jako ve vsi, stíny od slunce. Za stavbami pole, hřbitov, sad a louka na seno –
  * kreslí je herní `VillageRenderer` podle `showcaseGrounds`; vpravo posvátný dub s obětinami
  * a dubový háj s kameny (`SHOWCASE_DECOR`, bez staveniště); vlevo orá spřežení volů s rádlem
- * (`PloughTeams`) po čtvercích – orba postupuje po dnech ukázky a spřežení stojí na čele jako ve
- * hře (`ploughFront`, další den dojde dál) – a vedle zemnice stojí ohrada s přístřeškem, dvěma
- * voly a krávou (`PenRenderer`, `PenAnimals`). `setWinter` přepne světlo a uniformy období na zimu (sníh na
+ * po čtvercích – vlastní herní renderer vsi s polem a orbou dne (spřežení a brázda stejně jako
+ * ve vsi, den ukázky trvá SHOWCASE_PLOUGH_DAY_S) – a vedle zemnice stojí ohrada s přístřeškem,
+ * dvěma voly a krávou (`PenRenderer`, `PenAnimals`). `setWinter` přepne světlo a uniformy období na zimu (sníh na
  * střechách a louce). Kamera se otáčí levým tlačítkem, posouvá pravým, kolečko přibližuje.
  * Kreslí se jen při změně pohledu – výjimka je spřežení a zvířata v ohradě v záběru
  * (WATER_FPS jako voda, při omezeném pohybu stojí).
@@ -182,7 +180,7 @@ export class BuildingShowcase {
   private readonly finished: Mesh[] = [];
   private readonly tufts: Mesh[] = [];
   /** Spřežení volů s rádlem (ukázka „Orání“). */
-  private teams: PloughTeams | null = null;
+  private ploughDemo: VillageRenderer | null = null;
   /** Den ukázky orby (showcasePloughDay) – po něm se posune čelo orby a spřežení dojde dál. */
   private ploughDay = showcasePloughDay(Date.now());
   /** Ohrada s přístřeškem a zvířata v ní (ukázka „Ohrada“). */
@@ -308,7 +306,7 @@ export class BuildingShowcase {
 
   /** Kamera na spřežení (střed mezi jhem a rádlem); `radius` = vzdálenost kamery (m). */
   focusTeam(radius = 16): void {
-    const center = this.teams?.center();
+    const center = this.ploughDemo?.ploughTeamCenter();
     if (!center) return;
     this.setView({ x: center.x, z: center.z, radius });
   }
@@ -346,7 +344,7 @@ export class BuildingShowcase {
 
   /** Kamera jede za spřežením (zapnuto / vypnuto); vrátí nový stav. */
   followTeam(on: boolean): boolean {
-    this.following = on && this.teams !== null;
+    this.following = on && this.ploughDemo !== null;
     if (this.following) this.focusTeam(this.camera.radius > 60 ? 24 : this.camera.radius);
     return this.following;
   }
@@ -360,7 +358,7 @@ export class BuildingShowcase {
     this.decay?.dispose();
     this.plots?.dispose();
     this.fences?.dispose();
-    this.teams?.dispose();
+    this.ploughDemo?.dispose();
     this.pens?.dispose();
     this.penAnimals?.dispose();
     this.roadWorks?.dispose();
@@ -568,7 +566,26 @@ export class BuildingShowcase {
     this.decay.update(showcaseDecay(this.decayT, this.repair));
     this.grounds.setHayMeadows(showcaseHayMeadows());
     this.grounds.setSeason(showcaseMeadowDay(this.progress), this.snow());
-    this.grounds.update(showcaseGrounds(this.progress, this.ploughDay).village);
+    this.grounds.update(showcaseGrounds(this.progress).village);
+    // ukázka „Orání“ – vlastní renderer vsi (pole, spřežení, brázda) s dnem ukázky
+    this.ploughDemo = new VillageRenderer(scene, {
+      groundHeight: () => 0,
+      decalHeight: () => 0,
+      addShadowCaster: (mesh) => {
+        if (this.shadows) this.shadows.addCaster(mesh);
+        else casters.push(mesh);
+      },
+      onAsyncChange: () => {
+        this.shadows?.refresh();
+        this.burst(600);
+      },
+      requestRender: () => this.burst(300),
+      pitCuts: new PitCuts(),
+      sunDirection: SUN_DIRECTION,
+      animated: () => !this.reducedMotion?.matches,
+    });
+    this.ploughDemo.setPloughClock(showcasePloughWindow);
+    this.ploughDemo.update(showcasePlough(this.ploughDay));
     const pathMaterial = createDecalMaterial(scene, 'showcase-plot-path', {
       texture: 'grass-dirt',
     });
@@ -598,13 +615,6 @@ export class BuildingShowcase {
       prepareWeedMaterial: prepareTuftMaterial,
       fences: this.fences,
     });
-    this.teams = new PloughTeams(scene, {
-      baseUrl: '/models/plough/',
-      groundHeight: () => 0,
-      prepareMaterial: prepareModelMaterial,
-      onLoaded: () => this.burst(600),
-    });
-    this.teams.setPaths(this.ploughPaths());
     const mudMaterial = createDecalMaterial(scene, 'showcase-pen-mud', { texture: 'mud' });
     // ušlapaný sníh v ohradě – bláto pod ním prosvítá
     applySeasonGround(mudMaterial, 0.45);
@@ -658,7 +668,7 @@ export class BuildingShowcase {
     for (const mesh of this.tufts) mesh.setEnabled(built);
     this.sites.update(this.progress);
     this.grounds?.setSeason(showcaseMeadowDay(this.progress), this.snow());
-    this.grounds?.update(showcaseGrounds(this.progress, this.ploughDay).village);
+    this.grounds?.update(showcaseGrounds(this.progress).village);
     this.plots?.update(this.plotViews());
     this.pens?.update([
       {
@@ -705,22 +715,16 @@ export class BuildingShowcase {
     });
   }
 
-  /** Dráhy spřežení v dnešní den ukázky orby – stejně jako ve vsi (`ploughFront`). */
-  private ploughPaths(): ReturnType<typeof ploughPath>[] {
-    const village = showcasePlough(this.ploughDay);
-    return ploughFront({ ...village, pens: [] }).map((a) => ploughPath(a.field));
-  }
-
   /**
-   * Další den ukázky orby: čelo orby se posune (obtisk pole) a spřežení dojde na nový pruh.
-   * Vrátí true, když se den změnil.
+   * Další den ukázky orby: nové rozdělení práce (orba dne – spřežení ji projede a za rádlem
+   * přibývá brázda, nebo s vypnutým ladicím přepínačem stojí na čele). Vrátí true, když se den
+   * změnil.
    */
   private advancePlough(nowMs: number): boolean {
     const day = showcasePloughDay(nowMs);
-    if (day === this.ploughDay || !this.teams) return false;
+    if (day === this.ploughDay || !this.ploughDemo) return false;
     this.ploughDay = day;
-    this.grounds?.update(showcaseGrounds(this.progress, day).village);
-    this.teams.setPaths(this.ploughPaths(), nowMs);
+    this.ploughDemo.update(showcasePlough(day));
     this.frozenWritten = false;
     this.burst(600);
     return true;
@@ -733,10 +737,11 @@ export class BuildingShowcase {
   private frame(): void {
     const now = performance.now();
     let animated = this.advancePlough(Date.now());
-    if (this.teams) {
+    const demo = this.ploughDemo;
+    if (demo) {
       if (this.reducedMotion?.matches) {
-        // omezený pohyb: spřežení stojí uprostřed první řady
-        if (!this.frozenWritten && this.teams.animate(0, null, true)) {
+        // omezený pohyb: spřežení stojí
+        if (!this.frozenWritten && demo.animateOxen(0, null, true)) {
           this.frozenWritten = true;
           animated = true;
         }
@@ -744,13 +749,13 @@ export class BuildingShowcase {
         this.frozenWritten = false;
         // skutečný čas (epoch ms) jako zvířata – stejný okamžik = stejná póza
         const camera = this.following ? null : this.camera;
-        if (this.teams.animate(Date.now(), camera)) {
+        if (demo.animateOxen(Date.now(), camera)) {
           this.lastAnimation = now;
           animated = true;
         }
       }
       if (this.following) {
-        const center = this.teams.center();
+        const center = demo.ploughTeamCenter();
         if (center) this.camera.target.set(center.x, 0, center.z);
       }
     }

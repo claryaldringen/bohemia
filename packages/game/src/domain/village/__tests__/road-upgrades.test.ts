@@ -4,7 +4,7 @@ import { obstaclesOf } from '../../landscape';
 import { foundField, foundVillage } from '../actions';
 import { partWalkDistance } from '../fields';
 import { squareCareWork, squareWalkDistance } from '../orchard';
-import { roadGroundOf, roadsInWork, updateRoads } from '../paths/roads';
+import { keepingApples, roadGroundOf, roadPieces, roadsInWork, updateRoads } from '../paths/roads';
 import { PATH_FORD, PATH_WATER, PATH_WETLAND, type PathTerrain } from '../paths/terrain';
 import { refreshWalkDistances } from '../paths/village';
 import {
@@ -17,9 +17,9 @@ import {
   type WalkRoad,
 } from '../paths/walking';
 import { roadUpgradeCost, roadUpgradeOptions, startRoadUpgrade } from '../road-upgrades';
-import { ROAD_UPGRADES, ROAD_WALK } from '../rules';
+import { ORCHARD, ROAD_UPGRADES, ROAD_WALK } from '../rules';
 import { advanceVillage } from '../simulate';
-import type { Dwelling, Person, Road, VillageState } from '../types';
+import type { Dwelling, Person, Road, RoadApple, VillageState } from '../types';
 import { dwellingForestDistance, fuelExtraPerDay } from '../wood';
 import { LANDSCAPE, pathTestTerrain } from './paths-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
@@ -191,6 +191,31 @@ describe('chůze podle stupně cesty, mokřiny a brodů', () => {
     expect(roadPieceCost(wet('trodden'), 15, 25)).toBeCloseTo(5 / 0.5 + 5 / 1.2, 9);
   });
 
+  it('po pevné cestě bez ohledu na povrch – pole, les ani svah chůzi nezdraží (Martin)', () => {
+    // chůze (walking.ts) zná z půdy jen mokřinu a vodu: drahý terén (les, svah) ji nemění
+    const band = terrainBand();
+    const rough: WalkGround = {
+      terrain: { ...band, cost: band.cost.map((c) => (c === Infinity ? c : c * 10)) },
+    };
+    const r: WalkRoad = {
+      points: [
+        { x: 10, z: 0 },
+        { x: 10, z: 18 },
+      ],
+      grade: 'trodden',
+      ground: { wet: [], fords: [] },
+    };
+    const walk = (g: WalkGround): number =>
+      walkingDistances(
+        walkGraph([], { roads: [r], ground: g }),
+        [{ x: 10, z: 0 }],
+        [{ x: 10, z: 18 }],
+        g,
+      )[0]!;
+    expect(walk(rough)).toBe(walk(ground));
+    expect(walk(ground)).toBeCloseTo(18 / ROAD_WALK.speed.trodden, 9);
+  });
+
   it('pole za potokem: bez cesty zdraží, po hati a lávce zlevní', () => {
     const origin = [{ x: 4, z: 0 }];
     const target = [{ x: 4, z: 70 }];
@@ -270,14 +295,16 @@ describe('vylepšení pevné cesty', () => {
   });
 
   it('cesta, která se vylepšuje, nezaroste', () => {
-    // úsek stranou vsi, kudy nikdo nechodí
+    // úsek stranou vsi, kudy nikdo nechodí – kusy čtyři roky tiché
+    const points = [
+      { x: 100, z: -130 },
+      { x: 140, z: -130 },
+    ];
     const far = {
       ...road(),
-      points: [
-        { x: 100, z: -130 },
-        { x: 140, z: -130 },
-      ],
+      points,
       traffic: [0, 0, 0, 0, 0],
+      quiet: roadPieces(points).map((p) => ({ x: p.x, z: p.z, years: 4 })),
     };
     const s = withRoad(village(), far);
     const started = startRoadUpgrade(s, DAY, 7, 'improved', null);
@@ -287,6 +314,55 @@ describe('vylepšení pevné cesty', () => {
     const idle = withRoad(village(), far);
     updateRoads(idle, dayIndexOf({ year: 600, month: 11, day: 1 }), LANDSCAPE, null);
     expect(idle.roads!.roads.some((r) => r.id === 7)).toBe(false);
+  });
+});
+
+describe('cesta s prací hráče nezaroste (roads.md – návrh Clauda, 19. 10. 2026)', () => {
+  const NOV = dayIndexOf({ year: 600, month: 11, day: 1 });
+  /** Úsek stranou vsi, kudy nikdo nechodí – kusy čtyři roky tiché, letos pátý. */
+  const far = (grade: Road['grade'] = 'trodden'): Road => {
+    const points = [
+      { x: 100, z: -130 },
+      { x: 140, z: -130 },
+    ];
+    return {
+      ...road(grade),
+      points,
+      traffic: [0, 0, 0, 0, 0],
+      quiet: roadPieces(points).map((p) => ({ x: p.x, z: p.z, years: 4 })),
+    };
+  };
+  const apple = (plantedDay: number | null): RoadApple => ({
+    id: 2 ** 30 + 1,
+    roadId: 7,
+    x: 120,
+    z: -127,
+    distanceM: 150,
+    plantedDay,
+  });
+  /** Stojí úsek po roční kontrole? */
+  const stays = (r: Road, apples?: RoadApple[]): boolean => {
+    const s = withRoad(village(), r);
+    if (apples) s.roads!.apples = apples;
+    updateRoads(s, NOV, LANDSCAPE, null);
+    return s.roads!.roads.some((x) => x.id === 7);
+  };
+
+  it('vyšlapaná cesta bez provozu zaroste, upravená a hať s lávkou ne', () => {
+    expect(stays(far())).toBe(false);
+    expect(stays(far('improved'))).toBe(true);
+    expect(stays(far('causeway'))).toBe(true);
+  });
+
+  it('cesta s vysazenými jabloněmi nezaroste; až jabloně dožijí, zarůst může', () => {
+    expect(stays(far(), [apple(NOV - Math.round(10 * YEAR))])).toBe(true);
+    // jabloně se teprve sázejí
+    expect(stays(far(), [apple(null)])).toBe(true);
+    // souš po jabloni cestu nedrží
+    expect(stays(far(), [apple(NOV - Math.round((ORCHARD.endYear + 2) * YEAR))])).toBe(false);
+    expect(keepingApples({ apples: [apple(NOV - 400)] }, NOV)).toHaveLength(1);
+    expect(keepingApples({ apples: [apple(NOV - Math.round(70 * YEAR))] }, NOV)).toEqual([]);
+    expect(keepingApples({}, NOV)).toEqual([]);
   });
 });
 

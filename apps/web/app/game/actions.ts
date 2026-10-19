@@ -22,7 +22,6 @@ import {
   plantRoadApplesForPlayer,
   renameVillageForPlayer,
   skipTimeForPlayerView,
-  trainTeamForPlayer,
   upgradeRoadForPlayer,
   villageViewForPlayer,
   villageViewIfChanged,
@@ -50,7 +49,6 @@ import {
   parseRenameVillageInput,
   parseRestartGameInput,
   parseSkipTimeInput,
-  parseTrainTeamInput,
   villageIdOf,
   parseUpgradeRoadInput,
 } from '@/lib/village-input';
@@ -231,11 +229,6 @@ export async function placeSacred(input: unknown): Promise<VillageActionResult> 
  */
 export async function placePen(input: unknown): Promise<VillageActionResult> {
   return villageAction(input, parsePlacePenInput, placePenForPlayer);
-}
-
-/** Výcvik spřežení v ohradě (oxen.md – „Vycvičit spřežení“): `{ villageId, penId }`. */
-export async function trainTeam(input: unknown): Promise<VillageActionResult> {
-  return villageAction(input, parseTrainTeamInput, trainTeamForPlayer);
 }
 
 /**

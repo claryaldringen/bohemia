@@ -12,7 +12,8 @@
 // posunutá napříč – nikdy se nesrazí).
 import { dateOfDayIndex } from '@bohemia/game';
 import type { SceneFieldPart, SceneLaborShare, SceneVillage } from '../village-view';
-import { rowDirection } from './field-cells';
+import { isWildStage } from './field-crops';
+import { outerCorners, rowDirection, touchingSquares } from './field-cells';
 import {
   fieldPartViews,
   villageCenter,
@@ -98,12 +99,14 @@ export function stripRows(width: number): number {
 }
 
 /** Díl fronty orby s polem, rámcem práce a místem, kam orba došla. */
-interface Candidate {
+export interface PloughCandidate {
   fieldId: number;
   part: SceneFieldPart;
   along: [number, number];
   across: [number, number];
   line: number;
+  /** Vnější rohy pole na dílu (ve světě) – tam se spřežení otáčí po oblouku (kulaté rohy). */
+  corners: { x: number; z: number }[];
 }
 
 /** Obdélník ve světě (střed, osy a poloviny stran) – kam až dráha spřežení sahá. */
@@ -121,7 +124,7 @@ interface Footprint {
  * za okraj o dosah rádla a obrat (kapka sahá až (1 + √3) × poloměr obratu), napříč o poloměr
  * obratu; obojí i s tělem spřežení.
  */
-function footprint(c: Candidate): Footprint {
+function footprint(c: PloughCandidate): Footprint {
   const half = c.part.size / 2;
   return {
     x: c.part.x,
@@ -153,7 +156,7 @@ function overlaps(a: Footprint, b: Footprint): boolean {
 function shareCandidates(
   village: Pick<SceneVillage, 'labor' | 'fields' | 'dwellings'>,
   share: SceneLaborShare,
-): Candidate[] {
+): PloughCandidate[] {
   if (share.target.kind !== 'field') return [];
   const fieldId = share.target.id;
   const field = village.fields.find((f) => f.id === fieldId);
@@ -171,20 +174,51 @@ function shareCandidates(
   const order = [...worked.slice(0, front + 1).reverse(), ...worked.slice(front + 1)];
   const rows = rowDirection(field.parts);
   const center = villageCenter(village, field.parts);
-  return order.map((view) => {
-    const frame = workFrame(view.part, rows, center);
-    return {
-      fieldId,
-      part: view.part,
-      along: frame.along,
-      across: frame.across,
-      line: ploughedTo(view),
-    };
-  });
+  const edge = fieldEdge(village, field);
+  return order.map((view) => ploughCandidate(fieldId, view, rows, center, edge));
+}
+
+/**
+ * Čtverce okraje pole i se styky s jinými poli (jako okraj obtisku – field-renderer.ts): vnější
+ * rohy jsou jen tam, kde pole s ničím nesousedí.
+ */
+export function fieldEdge(
+  village: Pick<SceneVillage, 'fields'>,
+  field: SceneVillage['fields'][number],
+): SceneFieldPart[] {
+  const drawn = field.parts.filter((p) => !isWildStage(p.stage));
+  return [
+    ...drawn,
+    ...touchingSquares(
+      field.parts,
+      village.fields.flatMap((f) =>
+        f.id === field.id ? [] : f.parts.filter((p) => !isWildStage(p.stage)),
+      ),
+    ),
+  ];
+}
+
+/** Díl pole jako kandidát orby: rámec práce (řady, strana od vsi), čára orby a vnější rohy. */
+export function ploughCandidate(
+  fieldId: number,
+  view: PartView,
+  rows: readonly [number, number],
+  center: { x: number; z: number },
+  edge: readonly SceneFieldPart[],
+): PloughCandidate {
+  const frame = workFrame(view.part, rows, center);
+  return {
+    fieldId,
+    part: view.part,
+    along: frame.along,
+    across: frame.across,
+    line: ploughedTo(view),
+    corners: outerCorners(edge, view.part).map(([x, z]) => ({ x, z })),
+  };
 }
 
 /** Pruh napříč řadami (m od strany, kde práce začíná) na dílu jako pole orby pro `ploughPath`. */
-function stripField(c: Candidate, lo: number, hi: number): PloughField {
+export function stripField(c: PloughCandidate, lo: number, hi: number): PloughField {
   const half = c.part.size / 2;
   return {
     x: c.part.x,
@@ -197,6 +231,7 @@ function stripField(c: Candidate, lo: number, hi: number): PloughField {
     to: hi - half,
     acrossX: c.across[0],
     acrossZ: c.across[1],
+    ...(c.corners.length > 0 ? { corners: c.corners } : {}),
   };
 }
 
@@ -217,7 +252,7 @@ export function ploughFront(
   // podíly jdou v pořadí postupu – čelo je v posledním
   const candidates = [...shares].reverse().flatMap((share) => shareCandidates(village, share));
   const teams = ploughTeamCount(village);
-  const lanes: { candidate: Candidate; footprint: Footprint; members: number }[] = [];
+  const lanes: { candidate: PloughCandidate; footprint: Footprint; members: number }[] = [];
   for (let team = 0; team < teams; team++) {
     const free = candidates.find((c) => {
       const f = footprint(c);

@@ -41,6 +41,7 @@ import {
   type FieldBlockContent,
   type FieldContent,
 } from './field-blocks';
+import type { CanopyMesh } from './field-canopy';
 import { fieldPartViews, villageCenter, workSteps, type PartView } from './field-look';
 import { fieldSpace } from './field-space';
 import { applyGammaFog } from './gamma-fog';
@@ -54,6 +55,7 @@ import {
   type HayPhase,
 } from './hay-meadows';
 import { loadMergedModel, loadModelParts } from './instanced-model';
+import { PLOUGH_CORNER_M, type FurrowBand } from './plough-team';
 import { applyPitCut, type PitCuts } from './pit-cut';
 import { applySeasonGround, applySeasonModel, applySeasonSnow } from './season-materials';
 import {
@@ -88,7 +90,9 @@ const CLEARING_SOFT_M = 1.2;
 /** Sníh na obtiscích pole – část barvy zimou prosvítá (jako cesty a vyšlapaná hlína). */
 const FIELD_SNOW = 0.85;
 /** Výška obtisků nad terénem (m) – navzájem v pořadí, aby se nepraly o hloubku. */
-const LIFT = { base: 0.03, patches: 0.04, swaths: 0.045, layout: 0.065 };
+const LIFT = { base: 0.03, patches: 0.04, swaths: 0.045, furrow: 0.05, layout: 0.065 };
+/** Krok sítě brázdy podél řady (m). */
+const FURROW_STEP_M = 1;
 /** Provázek vytyčení: výška nad zemí a tloušťka (m); světlá čára naražené trávy pod ním. */
 const STRING_HEIGHT_M = 0.5;
 const STRING_THICKNESS_M = 0.035;
@@ -143,6 +147,8 @@ interface FieldView {
   context: string;
   /** Obsah bloků dílů – přestaví se jen bloky, které se změnily (field-blocks.ts). */
   blocks: Map<string, { key: string; content: FieldBlockContent }>;
+  /** Krytí pole ve světě (okraj, kulaté rohy, obydlí) – i pro brázdu za rádlem. */
+  coverage: (x: number, z: number) => number;
 }
 
 interface MeadowView {
@@ -231,6 +237,9 @@ export class FieldRenderer {
   private density = 1;
   private snow = 0;
   private swayPlugins: CropSwayPlugin[] = [];
+  /** Brázda za rádlem (ladicí orba za herní den – oxen.md) a klíč jejího tvaru. */
+  private furrowMeshes: Mesh[] = [];
+  private furrowKey = '';
   private disposed = false;
 
   constructor(
@@ -306,6 +315,86 @@ export class FieldRenderer {
     return true;
   }
 
+  /**
+   * Brázda za rádlem (ladicí orba za herní den – oxen.md): zoraná plocha přibývá v pásech řad,
+   * kudy radlice projela (plough-team.ts – `routeFurrows`), s okrajem a kulatými rohy pole jako
+   * obtisk. Vrátí true, když se brázda změnila.
+   */
+  setFurrows(bands: readonly FurrowBand[]): boolean {
+    const key = bands
+      .map((b) => `${b.partId}:${b.v.toFixed(2)}:${b.from.toFixed(1)}:${b.to.toFixed(1)}`)
+      .join('|');
+    if (key === this.furrowKey) return false;
+    this.furrowKey = key;
+    for (const mesh of this.furrowMeshes) mesh.dispose();
+    this.furrowMeshes = [];
+    const byField = new Map<number, FurrowBand[]>();
+    for (const band of bands) {
+      const list = byField.get(band.fieldId);
+      if (list) list.push(band);
+      else byField.set(band.fieldId, [band]);
+    }
+    for (const [fieldId, list] of byField) {
+      this.furrowMeshes.push(this.furrowMesh(fieldId, list));
+    }
+    return true;
+  }
+
+  /** Brázda jednoho pole – pásy řad jako obtisk zoraného pole (textura podél řad pole). */
+  private furrowMesh(fieldId: number, bands: readonly FurrowBand[]): Mesh {
+    const positions: number[] = [];
+    const alphas: number[] = [];
+    const indices: number[] = [];
+    const coverage = this.fields.get(fieldId)?.coverage ?? ((): number => 1);
+    for (const band of bands) {
+      const steps = Math.max(1, Math.ceil((band.to - band.from) / FURROW_STEP_M));
+      const base = alphas.length;
+      const [ax, az] = band.along;
+      const [sx, sz] = band.across;
+      for (let k = 0; k <= steps; k++) {
+        const u = band.from + ((band.to - band.from) * k) / steps;
+        for (const side of [-1, 1]) {
+          const v = band.v + side * band.half;
+          const x = band.x + ax * u + sx * v;
+          const z = band.z + az * u + sz * v;
+          positions.push(x, z);
+          alphas.push(coverage(x, z));
+        }
+      }
+      for (let k = 0; k < steps; k++) {
+        const a = base + k * 2;
+        indices.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
+      }
+    }
+    const style = LOOK_STYLES.plowed;
+    const repeat = FIELD_TEXTURES[style.texture].repeatM;
+    // stejné mapování podél řad jako obtisk pole – na konci dne brázda splyne s polem
+    const [dx, dz] = bands[0]!.along;
+    const mesh = createDecalMesh(
+      this.scene,
+      `village-field-furrow-${fieldId}`,
+      {
+        positions: Float32Array.from(positions),
+        alphas: Float32Array.from(alphas),
+        indices: Uint32Array.from(indices),
+      },
+      {
+        height: this.context.decalHeight,
+        smoothHeight: this.context.groundHeight,
+        lift: LIFT.furrow,
+        color: (x, z) => {
+          const n = 0.9 + 0.2 * patchNoise(x / 6 + 11.3, z / 6 - 3.7);
+          return [style.tint[0] * n, style.tint[1] * n, style.tint[2] * n];
+        },
+        uv: (x, z) => [(-x * dz + z * dx) / repeat, (x * dx + z * dz) / repeat],
+      },
+    );
+    mesh.material = this.decalMaterial(style.texture, -4);
+    // nad obtiskem pole i jeho skvrnami (alphaIndex 1–2)
+    mesh.alphaIndex = 2.5;
+    return mesh;
+  }
+
   hideShapes(): HideShape[] {
     const shapes: HideShape[] = [];
     for (const view of this.fields.values()) if (view.shape) shapes.push(view.shape);
@@ -333,6 +422,7 @@ export class FieldRenderer {
       plant.mesh?.dispose();
     }
     this.pegMesh?.dispose();
+    for (const mesh of this.furrowMeshes) mesh.dispose();
   }
 
   /** Den pro odhad vzhledu: herní den rozdělení práce (postavy ho mají taky), jinak scéna. */
@@ -414,7 +504,18 @@ export class FieldRenderer {
       const coverageOf = (): ((x: number, z: number) => number) => {
         if (coverage) return coverage;
         const edge = [...drawn, ...neighbours].map((p) => (space ? space.square(p) : p));
-        const ragged = raggedCoverage(edge, EDGE_SOFT_M);
+        // díly orané rádlem mají kulaté vnější rohy podle obratu spřežení (oxen.md – Kulaté
+        // rohy); kopané ostré, styky s jinými poli a vnitřní rohy taky
+        const ploughed = new Set(
+          drawn.filter((p) => p.ploughed).map((p) => `${p.cell.x},${p.cell.y}`),
+        );
+        const ragged = raggedCoverage(
+          edge,
+          EDGE_SOFT_M,
+          ploughed.size > 0
+            ? { radius: PLOUGH_CORNER_M, rounded: (cell) => ploughed.has(`${cell.x},${cell.y}`) }
+            : undefined,
+        );
         const mask = clearingMask(built, CLEARING_SOFT_M);
         const maskIn = space
           ? (u: number, v: number): number => {
@@ -455,14 +556,21 @@ export class FieldRenderer {
             ),
             swaths: merged.swaths.map((g) => space.grid(g)),
             plants: space.plants(merged.plants),
+            canopy: space.canopy(merged.canopy),
           }
         : merged;
       const stakingIn = fieldStaking(spaced(views));
       const staking = space
         ? { lines: space.lines(stakingIn.lines), pegs: space.pegs(stakingIn.pegs) }
         : stakingIn;
+      const worldCoverage = (x: number, z: number): number => {
+        if (!space) return coverageOf()(x, z);
+        const p = space.point({ x, z });
+        return coverageOf()(p.x, p.z);
+      };
       this.fields.set(field.id, {
         key,
+        coverage: worldCoverage,
         meshes: this.fieldMeshes(field, content, rows, staking.lines),
         shape: field.id < 0 ? null : fieldHideShape(field),
         plants: content.plants,
@@ -570,6 +678,10 @@ export class FieldRenderer {
     if (content.swaths.length > 0) {
       meshes.push(this.swathMesh(`field-${field.id}`, content.swaths, rows));
     }
+    // zelené a zralé obilí jako vyvýšená hmota (field-canopy.ts)
+    if (content.canopy.indices.length > 0) {
+      meshes.push(this.canopyMesh(`village-field-canopy-${field.id}`, content.canopy, rows));
+    }
     if (stakingLines.length > 0) {
       const line = createStripMesh(
         this.scene,
@@ -582,6 +694,70 @@ export class FieldRenderer {
       meshes.push(line, this.stringMesh(field.id, stakingLines));
     }
     return meshes;
+  }
+
+  /**
+   * Koruna porostu (field-canopy.ts): body ve výšce porostu nad vykresleným terénem, normály
+   * ze sítě (stěny do strany), textura porostu shora podél řádků a barva vzhledu s kolísáním
+   * ve skvrnách jako obtisk pole. Neprůhledná – obtisk a paty trsů pod ní zakryje.
+   */
+  private canopyMesh(name: string, canopy: CanopyMesh, rows: [number, number]): Mesh {
+    const count = canopy.offsets.length;
+    const positions = new Float32Array(count * 3);
+    const uvs = new Float32Array(count * 2);
+    const colors = new Float32Array(count * 4);
+    const [dx, dz] = rows;
+    const repeat = FIELD_TEXTURES.crop.repeatM;
+    const height = this.context.decalHeight;
+    for (let v = 0; v < count; v++) {
+      const x = canopy.positions[v * 2]!;
+      const z = canopy.positions[v * 2 + 1]!;
+      positions[v * 3] = x;
+      positions[v * 3 + 1] = height(x, z) + canopy.offsets[v]!;
+      positions[v * 3 + 2] = z;
+      uvs[v * 2] = (-x * dz + z * dx) / repeat;
+      uvs[v * 2 + 1] = (x * dx + z * dz) / repeat;
+      const n = 0.9 + 0.2 * patchNoise(x / 6 + 11.3, z / 6 - 3.7);
+      colors[v * 4] = canopy.colors[v * 3]! * n;
+      colors[v * 4 + 1] = canopy.colors[v * 3 + 1]! * n;
+      colors[v * 4 + 2] = canopy.colors[v * 3 + 2]! * n;
+      colors[v * 4 + 3] = 1;
+    }
+    const normals = new Float32Array(count * 3);
+    VertexData.ComputeNormals(positions, canopy.indices, normals);
+    const data = new VertexData();
+    data.positions = positions;
+    data.normals = normals;
+    data.uvs = uvs;
+    data.colors = colors;
+    data.indices = canopy.indices;
+    const mesh = new Mesh(name, this.scene);
+    data.applyToMesh(mesh);
+    mesh.isPickable = false;
+    mesh.receiveShadows = true;
+    mesh.material = this.canopyMaterial();
+    return mesh;
+  }
+
+  /** Materiál koruny porostu – textura porostu shora jako obtisk, neprůhledný. */
+  private canopyMaterial(): Material {
+    let material = this.materials.get('canopy');
+    if (!material) {
+      const standard = new StandardMaterial('village-field-canopy', this.scene);
+      const texture = new Texture(FIELD_TEXTURES.crop.url, this.scene);
+      texture.anisotropicFilteringLevel = 8;
+      if (!texture.isReady()) texture.onLoadObservable.addOnce(() => this.context.requestRender());
+      standard.diffuseTexture = texture;
+      standard.specularColor = Color3.Black();
+      // stěny i z druhé strany (zalomení u okraje), světlo podle normál sítě
+      standard.backFaceCulling = false;
+      standard.ambientColor = PLANT_AMBIENT;
+      // porost usychá a pod sněhem zmizí stejně jako obtisk pole
+      applySeasonGround(standard, FIELD_SNOW);
+      material = standard;
+      this.materials.set('canopy', material);
+    }
+    return material;
   }
 
   /** Provázek mezi kolíky – tenký svislý pás ve výšce STRING_HEIGHT_M nad terénem. */

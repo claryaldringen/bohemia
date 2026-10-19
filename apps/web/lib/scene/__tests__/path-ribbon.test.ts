@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { PathLine } from '@bohemia/game';
 import {
+  CART_RUT_LAYER,
+  CART_RUT_OFFSET_M,
   IMPROVED_EARTH_LAYER,
   IMPROVED_WORN_LAYER,
   JUNCTION,
@@ -281,12 +283,53 @@ describe('rozcestí – udusaný plácek (Martin: „rozcestí by mělo být nej
       ],
       grade,
     });
-    expect(roadJunctions([road(1, 30, 0), road(2, -30, 0)])).toEqual({ trodden: [], improved: [] });
+    expect(roadJunctions([road(1, 30, 0), road(2, -30, 0)])).toEqual({
+      trodden: [],
+      improved: [],
+      cart: [],
+    });
     expect(roadJunctions([road(1, 30, 0), road(2, -30, 0), road(3, 0, 30)]).trodden).toEqual([
       { x: 0, z: 0, strength: 1 },
     ]);
     const mixed = roadJunctions([road(1, 30, 0, 'improved'), road(2, -30, 0), road(3, 0, 30)]);
     expect(mixed.improved).toHaveLength(1);
     expect(mixed.trodden).toEqual([]);
+    // vozová cesta (wagons.md) – plácek na šířku vozové cesty
+    const carts = roadJunctions([
+      { ...road(1, 30, 0), cart: true as const },
+      road(2, -30, 0),
+      road(3, 0, 30),
+    ]);
+    expect(carts.cart).toHaveLength(1);
+    expect(carts.trodden).toEqual([]);
+  });
+
+  it('vozová cesta: širší pás bez holé hlíny a dvě koleje po 0,65 m od osy (wagons.md)', () => {
+    const cart = {
+      id: 1,
+      points: [
+        { x: 0, z: 0 },
+        { x: 40, z: 0 },
+      ],
+      grade: 'trodden' as const,
+      cart: true as const,
+    };
+    const bands = roadBands([cart]);
+    expect(bands.trodden).toEqual([]);
+    expect(bands.cart).toHaveLength(1);
+    expect(bands.ruts).toHaveLength(2);
+    expect(bands.ruts.map((r) => r.points[0]!.z).sort()).toEqual([
+      -CART_RUT_OFFSET_M,
+      CART_RUT_OFFSET_M,
+    ]);
+    // koleje se nevlní – střed každého průřezu (4 body) leží na koleji
+    const grid = pathRibbons([bands.ruts[0]!], CART_RUT_LAYER);
+    const rutZ = bands.ruts[0]!.points[0]!.z;
+    for (let k = 0; k < grid.positions.length; k += 8) {
+      const mid = (grid.positions[k + 1]! + grid.positions[k + 7]!) / 2;
+      expect(mid).toBeCloseTo(rutZ, 6);
+    }
+    // pěší cesta koleje nemá
+    expect(roadBands([{ ...cart, cart: undefined }]).ruts).toEqual([]);
   });
 });

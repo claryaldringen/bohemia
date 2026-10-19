@@ -237,8 +237,6 @@ export interface VillagePen {
   team: { ageYears: number; yearsLeft: number } | null;
   /** Výcvik spřežení – průběh 0–1 a zbývající dny; bez výcviku null. */
   training: { progress: number; daysLeft: number } | null;
-  /** Proč teď nejde začít výcvik (česky), nebo null – tlačítko „Vycvičit spřežení“. */
-  trainBlocked: string | null;
   /** Kolik krav a volů v ohradě právě stojí (krávy jen v zimě). */
   cows: number;
   oxen: number;
@@ -900,7 +898,7 @@ export interface SceneTrail {
   built: boolean;
 }
 
-export type SceneRoad = Pick<Road, 'id' | 'points' | 'grade' | 'ground' | 'openEnds'> & {
+export type SceneRoad = Pick<Road, 'id' | 'points' | 'grade' | 'ground' | 'openEnds' | 'cart'> & {
   upgrade?: { grade: RoadGrade; progress: number };
 };
 /** Strom u pevné cesty pro scénu – poloha, druh a vzhled v den pohledu (`roadTreeLook`). */
@@ -1035,6 +1033,11 @@ export interface SceneFieldPart {
   /** Vzhled nehotové části rozpracovaného dílu; bez údaje povrch před prací (louka u zakládání). */
   before?: FieldLook;
   /**
+   * Díl letošní plodiny oralo spřežení rádlem (oxen.md – Kulaté rohy): ve vnějších rozích pole má
+   * zoraná plocha kulaté rohy podle obratu spřežení. Kopaný díl (motyka) údaj nemá – rohy ostré.
+   */
+  ploughed?: true;
+  /**
    * Roky přílohu bez pastvy a seče (fields.md – Zarůstání) – podle nich ve scéně rostou keře
    * a stromky (hustota a velikost). Jen u přílohu, který zarůstá (aspoň rok).
    */
@@ -1056,7 +1059,14 @@ export interface SceneFieldPart {
  * dílů v pořadí: nejdřív rozpracovaný, pak ty, na které práce přijde) – postavy pak pracují
  * přesně tam; bez nich je scéna odhadne z `work` a vzhledu dílů.
  */
-export type SceneLaborShare = LaborShare & { parts?: readonly number[] };
+export type SceneLaborShare = LaborShare & {
+  parts?: readonly number[];
+  /**
+   * U orby ke každému dílu `parts`: kolik orby dílu bylo hotovo na začátku a na konci dne (0–1) –
+   * scéna podle toho projede celou dnešní orbu (oxen.md – Orba za herní den).
+   */
+  progress?: readonly (readonly [number, number])[];
+};
 
 /**
  * Rozdělení práce posledního dne pro postavy: člověkodny po činnostech a místech (na setiny),
@@ -1561,6 +1571,8 @@ export function sceneRoads(
       id: r.id,
       points: r.points.map((p) => ({ x: p.x, z: p.z })),
       grade: r.grade,
+      // vozová cesta (wagons.md – Vyjeté cesty) – dvě koleje
+      ...(r.cart ? { cart: true as const } : {}),
       ...(r.ground
         ? {
             ground: {
@@ -2035,8 +2047,8 @@ function sceneLabor(state: VillageState, people: SceneLabor['people']): SceneLab
     if (share.manDays <= 0) return [];
     const manDays = Math.max(0.01, Math.round(share.manDays * 100) / 100);
     if (share.target.kind === 'field' && share.target.parts) {
-      const { parts, ...target } = share.target;
-      return [{ ...share, target, manDays, parts }];
+      const { parts, progress, ...target } = share.target;
+      return [{ ...share, target, manDays, parts, ...(progress ? { progress } : {}) }];
     }
     return [{ ...share, manDays }];
   });
@@ -2464,7 +2476,6 @@ function penViews(state: VillageState, day: number, summary: VillageSummary): Vi
       progress,
       team: pen.team,
       training: pen.training,
-      trainBlocked: pen.trainBlocked,
       cows: winter && pen.built && built > 0 ? Math.round(summary.livestock.herds.cow / built) : 0,
       oxen: (pen.team ? 2 : 0) + (pen.training ? 2 : 0),
       condition: structureCondition(wear, 'pen', day),

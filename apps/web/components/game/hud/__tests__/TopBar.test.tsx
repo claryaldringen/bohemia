@@ -106,7 +106,6 @@ describe('showsHay', () => {
     progress: built ? 1 : 0.3,
     team: null,
     training: null,
-    trainBlocked: null,
     cows: 0,
     oxen: 0,
     condition: 1,

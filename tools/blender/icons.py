@@ -20,7 +20,8 @@ s kozlíky, trámem a rozdělaným dvoukolákem – wagons.md) – portréty do 
 z `apps/web/public/models/fields/haystack.glb`), meat (maso – uzená kýta s kostí a provázkem),
 cheese (mléko a sýr – bochník sýra s vykrojeným klínem a hrouda tvarohu), eggs (vejce v hnízdě
 ze slámy), legumes (luštěniny – hromádka suchého hrachu a čočky, otevřený lusk s hrášky),
-hourglass (přesýpací hodiny – kolik zbývá: služba spřežení, výcvik),
+hourglass (přesýpací hodiny – kolik zbývá: služba spřežení, výcvik), balance (váhy s miskami –
+bilance obchodu se sousedem, trade.md),
 ozim (osení pod sněhem), jar (klasy jarního ječmene), charcoal (hromádka dřevěného uhlí), tools
 (kovaná sekera zkřížená se srpem) a pottery (dva hrnce pražského typu, větší s vlnovkou) –
 suroviny řemesel (crafts.md) –, cart (dvoukolák s loukoťovými koly) a wood-tools (hrábě zkřížené
@@ -1472,6 +1473,48 @@ def icon_hourglass():
     return True
 
 
+def icon_balance():
+    """Váhy (bilance obchodu se sousedem – trade.md): dřevěný sloupek s vahadlem, na krajích na
+    šňůrách dvě bronzové misky, v jedné hromádka obilí."""
+    wood, beam, pans, cords, grain = (bmesh.new() for _ in range(5))
+    cyl(wood, (0, 0, 0), (0, 0, 0.08), 0.42, 0.4, 32)
+    cyl(wood, (0, 0, 0.08), (0, 0, 1.28), 0.085, 0.07, 16)
+    blob(wood, ((0, 0, 1.3), (0, 0, 0)), (0.08, 0.08, 0.08), 12, 8)
+    cyl(beam, (-0.86, 0, 1.22), (0.86, 0, 1.22), 0.055, 0.055, 12)
+    for x in (-0.86, 0.86):
+        blob(beam, ((x, 0, 1.22), (0, 0, 0)), (0.05, 0.05, 0.05), 10, 6)
+    pan_z = 0.46
+    for x in (-0.78, 0.78):
+        bowl = bmesh.new()
+        revolve(bowl, [(0.0, 0.0), (0.03, 0.14), (0.08, 0.26), (0.13, 0.31), (0.135, 0.32)], seg=40)
+        bmesh.ops.translate(bowl, verts=bowl.verts, vec=(x, 0, pan_z))
+        me = bpy.data.meshes.new("tmp")
+        bowl.to_mesh(me)
+        bowl.free()
+        pans.from_mesh(me)
+        bpy.data.meshes.remove(me)
+        for k in range(3):
+            a = 2 * math.pi * k / 3 + math.pi / 2
+            rim = (x + math.cos(a) * 0.3, math.sin(a) * 0.3, pan_z + 0.13)
+            cyl(cords, (x * 1.1, 0, 1.2), rim, 0.016, 0.016, 5)
+    rng = random.Random(9)
+    for k in range(26):
+        a = rng.uniform(0, 6.28)
+        r = rng.uniform(0.0, 0.2)
+        blob(grain, ((-0.78 + math.cos(a) * r, math.sin(a) * r, pan_z + 0.12 + (0.2 - r) * 0.45),
+                     (rng.uniform(0, 3), rng.uniform(0, 3), 0)), (0.045, 0.03, 0.03), 6, 4)
+    objs = [
+        to_obj(wood, "wood", mat("post", (0.42, 0.25, 0.12), 0.6, noise=16, bump=0.15)),
+        to_obj(beam, "beam", mat("beam", (0.36, 0.22, 0.1), 0.55, noise=20, bump=0.1)),
+        to_obj(pans, "pans", mat("bronze", (0.62, 0.4, 0.16), 0.38, noise=30)),
+        to_obj(cords, "cords", mat("cord", (0.55, 0.45, 0.3), 0.9), smooth=False),
+        to_obj(grain, "grain", mat("grain", (0.86, 0.66, 0.3), 0.8, noise=40)),
+    ]
+    sun(az=-40, el=40, strength=4.4)
+    camera(world_points(objs), az=8, el=12, margin=1.04)
+    return True
+
+
 def icon_animal(name, folder=FAUNA, tint=None, turn=-115):
     """Zvíře stáda (model z `models/fauna/`, vůl ze spřežení `models/plough/`) z boku ve 3/4:
     morph targety pózy (krok, pastva) vypnuté – stojí; pomocná koule v GLB vola pryč."""
@@ -2033,6 +2076,7 @@ RESOURCES = {
     "eggs": icon_eggs,
     "legumes": icon_legumes,
     "hourglass": icon_hourglass,
+    "balance": icon_balance,
     "sheep": lambda: icon_animal("sheep"),
     "goat": lambda: icon_animal("goat"),
     "pig": lambda: icon_animal("pig"),

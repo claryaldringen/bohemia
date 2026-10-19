@@ -54,6 +54,14 @@ export const CLIP_WALK_M_S = { ox: 0.84, man: 0.86 } as const;
 
 /** Poloměr obratu jha na souvrati (m, ve scéně). */
 export const TURN_RADIUS_M = 1.9;
+/**
+ * Poloměr kulatého vnějšího rohu pole oraného rádlem (m – oxen.md, Kulaté rohy; Martin,
+ * 19. 10. 2026: „spřežení se musí otočit, takže zorané pole nikdy nebude mít ostré rohy“): radlice
+ * jede o dosah oje (≈ 3,3 m) za jhem a jho se otáčí po oblouku ≈ 1,9 m – do rohu blíž než ≈ 5 m
+ * spřežení s radlicí v zemi nedojede. Stejný oblouk kreslí obtisk pole (field-renderer.ts) i dráha
+ * spřežení (řady v rohu končí na oblouku).
+ */
+export const PLOUGH_CORNER_M = 5;
 /** O kolik stupňů oráč nadzvedne rádlo na souvrati (radlice ven ze země). */
 const LIFT_DEG = 9;
 /** Jak daleko za okrajem pole (m) je rádlo už úplně nahoře – mezi tím se zvedá. */
@@ -99,6 +107,11 @@ export interface PloughPath {
   length: number;
   /** Čtverec pole (střed, strana) a směr řad – podle něj se rádlo na souvrati zvedá. */
   field: PloughField;
+  /**
+   * Kulaté rohy čtverce v osách řad: poloměr rohu podle čtvrti (podél řad −/+, napříč −/+ –
+   * index `(podél > 0 ? 1 : 0) + (napříč > 0 ? 2 : 0)`), 0 = ostrý roh.
+   */
+  cornerRadii: readonly [number, number, number, number];
 }
 
 export interface PloughField {
@@ -121,6 +134,13 @@ export interface PloughField {
   /** Napříč řadami (jednotkový, kolmo na směr řad); bez údaje (−dirZ, dirX). */
   acrossX?: number;
   acrossZ?: number;
+  /**
+   * Kulaté rohy čtverce (body rohů ve světě – vnější rohy pole oraného rádlem, oxen.md): řady
+   * u nich končí na oblouku o poloměru `cornerRadius` (bez údaje PLOUGH_CORNER_M), rádlo se tam
+   * zvedá. Bez údaje rohy ostré.
+   */
+  corners?: readonly { x: number; z: number }[];
+  cornerRadius?: number;
 }
 
 /** Bod dráhy: poloha a směr jízdy (jednotkový). */
@@ -145,6 +165,53 @@ export function ardReach(): number {
  * dva poloměry obratu) a po poslední řadě návrat po souvrati na začátek první řady.
  */
 export function ploughPath(field: PloughField, turnRadius = TURN_RADIUS_M): PloughPath {
+  const plan = stintRows(field, true, turnRadius);
+  return { ...pathOf(plan.segments), field: plan.field, cornerRadii: plan.radii };
+}
+
+/** Počátky úseků a celková délka dráhy. */
+function pathOf(segments: PathSegment[]): Pick<PloughPath, 'segments' | 'starts' | 'length'> {
+  const starts: number[] = [];
+  let total = 0;
+  for (const s of segments) {
+    starts.push(total);
+    total += s.length;
+  }
+  return { segments, starts, length: total };
+}
+
+/**
+ * Řada orby na pruhu: kde na dráze leží (úsek `segment` – rovná řada, po které jede jho), kudy
+ * vede přes čtverec (podél řad `lo`–`hi` od středu, napříč `v`, šířka pásu `spacing`) a kam jede
+ * (`dir` – podle směru řad +1 / −1); `startU` – kde na ní jho začíná (podél řad od středu).
+ */
+export interface PloughRow {
+  segment: number;
+  v: number;
+  spacing: number;
+  lo: number;
+  hi: number;
+  dir: 1 | -1;
+  startU: number;
+}
+
+/** Řady pruhu jako úseky dráhy (s obraty na souvrati), osy pruhu a poloměry rohů. */
+interface StintRows {
+  segments: PathSegment[];
+  rows: PloughRow[];
+  field: PloughField;
+  radii: [number, number, number, number];
+  /** Osy pruhu: podél řad (d) a napříč (s), jednotkové. */
+  axes: { dx: number; dz: number; sx: number; sz: number };
+}
+
+/**
+ * Řady pruhu tam a zpět s obraty na souvrati: `closed` – po poslední řadě návrat po souvrati
+ * na začátek první (smyčka na dráze `ploughPath`), jinak konec na konci poslední řady (dráha
+ * celé dnešní orby – `ploughRoute`). Řada jde od okraje k okraji (u kulatého rohu k oblouku), jho
+ * o dosah rádla dál, ať radlice dojede až k okraji.
+ */
+function stintRows(field: PloughField, closed: boolean, turnRadius = TURN_RADIUS_M): StintRows {
   const rows = Math.max(2, Math.round(field.rows / 2) * 2);
   const len = Math.hypot(field.dirX, field.dirZ) || 1;
   const dx = field.dirX / len;
@@ -156,38 +223,128 @@ export function ploughPath(field: PloughField, turnRadius = TURN_RADIUS_M): Plou
   const from = field.from ?? -field.size / 2;
   const to = field.to ?? field.size / 2;
   const spacing = (to - from) / rows;
-  const reach = field.size / 2 + ardReach();
+  const reach = ardReach();
   const segments: PathSegment[] = [];
+  const plan: PloughRow[] = [];
   const offset = (k: number): number => from + (k + 0.5) * spacing;
+  const radii = cornerRadii(field, dx, dz, sx, sz);
+  // kde řada končí (podél řad od středu): u kulatého rohu na oblouku, jinak na okraji čtverce
+  const extents = Array.from({ length: rows }, (_, k) =>
+    rowExtent(offset(k), field.size / 2, radii),
+  );
+  // obrat mezi dvěma řadami na vzdálenější z jejich konců; návrat po souvrati za všemi řadami
+  const back = Math.min(...extents.map((e) => e.lo)) - reach;
+  const plusTurn = (k: number): number => Math.max(extents[k]!.hi, extents[k + 1]!.hi) + reach;
+  const minusTurn = (k: number): number => Math.min(extents[k]!.lo, extents[k + 1]!.lo) - reach;
   for (let k = 0; k < rows; k++) {
     const dir = k % 2 === 0 ? 1 : -1;
     const o = offset(k);
-    const ax = field.x + sx * o - dx * reach * dir;
-    const az = field.z + sz * o - dz * reach * dir;
+    const last = k === rows - 1;
+    // začátek a konec řady (podél řad), řada jde ve směru `dir`
+    const start =
+      dir > 0
+        ? k === 0
+          ? closed
+            ? back
+            : extents[0]!.lo - reach
+          : minusTurn(k - 1)
+        : plusTurn(k - 1);
+    const end =
+      dir > 0 ? plusTurn(k) : last ? (closed ? back : extents[k]!.lo - reach) : minusTurn(k);
+    const ax = field.x + sx * o + dx * start;
+    const az = field.z + sz * o + dz * start;
+    plan.push({
+      segment: segments.length,
+      v: o,
+      spacing,
+      lo: extents[k]!.lo,
+      hi: extents[k]!.hi,
+      dir,
+      startU: start,
+    });
     segments.push({
       kind: 'line',
-      length: 2 * reach,
+      length: Math.abs(end - start),
       x: ax,
       z: az,
       dx: dx * dir,
       dz: dz * dir,
     });
-    const endX = ax + dx * dir * 2 * reach;
-    const endZ = az + dz * dir * 2 * reach;
-    if (k < rows - 1) {
+    const endX = field.x + sx * o + dx * end;
+    const endZ = field.z + sz * o + dz * end;
+    if (!last) {
       uTurn(segments, endX, endZ, dx * dir, dz * dir, sx, sz, spacing, turnRadius);
-    } else {
+    } else if (closed) {
       // návrat po souvrati k první řadě (opačným směrem napříč)
       uTurn(segments, endX, endZ, dx * dir, dz * dir, -sx, -sz, (rows - 1) * spacing, turnRadius);
     }
   }
-  const starts: number[] = [];
-  let total = 0;
-  for (const s of segments) {
-    starts.push(total);
-    total += s.length;
+  return { segments, rows: plan, field: { ...field, rows }, radii, axes: { dx, dz, sx, sz } };
+}
+
+/** Index čtvrti čtverce podle znamének podél a napříč řad (viz `PloughPath.cornerRadii`). */
+function quadrant(u: number, v: number): number {
+  return (u > 0 ? 1 : 0) + (v > 0 ? 2 : 0);
+}
+
+/** Poloměry rohů čtverce v osách řad (d – podél, s – napříč) z bodů kulatých rohů pole. */
+function cornerRadii(
+  field: PloughField,
+  dx: number,
+  dz: number,
+  sx: number,
+  sz: number,
+): [number, number, number, number] {
+  const radii: [number, number, number, number] = [0, 0, 0, 0];
+  const radius = Math.min(field.size / 2, field.cornerRadius ?? PLOUGH_CORNER_M);
+  for (const c of field.corners ?? []) {
+    const u = (c.x - field.x) * dx + (c.z - field.z) * dz;
+    const v = (c.x - field.x) * sx + (c.z - field.z) * sz;
+    // jen skutečné rohy čtverce (ne bod někde jinde)
+    if (Math.abs(Math.abs(u) - field.size / 2) > 0.05) continue;
+    if (Math.abs(Math.abs(v) - field.size / 2) > 0.05) continue;
+    radii[quadrant(u, v)] = radius;
   }
-  return { segments, starts, length: total, field: { ...field, rows } };
+  return radii;
+}
+
+/**
+ * Kde řada ve vzdálenosti `v` napříč (od středu) přes čtverec vede (podél řad, od středu): od
+ * okraje k okraji, u kulatého rohu jen k oblouku.
+ */
+export function rowExtent(
+  v: number,
+  half: number,
+  radii: readonly [number, number, number, number],
+): { lo: number; hi: number } {
+  let lo = -half;
+  let hi = half;
+  for (const su of [-1, 1]) {
+    const r = radii[quadrant(su, v)]!;
+    const inner = Math.abs(v) - (half - r);
+    if (r <= 0 || inner <= 0) continue;
+    const cut = r - Math.sqrt(Math.max(0, r * r - inner * inner));
+    if (su > 0) hi = Math.min(hi, half - cut);
+    else lo = Math.max(lo, -half + cut);
+  }
+  return { lo, hi };
+}
+
+/**
+ * Jak daleko je bod (podél `du`, napříč `dv` od středu čtverce) venku za okrajem čtverce s kulatými
+ * rohy (m; uvnitř záporně, nebo 0 u ostrého čtverce jako dřív – max po osách).
+ */
+export function outsideSquare(
+  du: number,
+  dv: number,
+  half: number,
+  radii: readonly [number, number, number, number],
+): number {
+  const r = radii[quadrant(du, dv)]!;
+  if (r <= 0) return Math.max(Math.abs(du), Math.abs(dv)) - half;
+  const qx = Math.abs(du) - (half - r);
+  const qy = Math.abs(dv) - (half - r);
+  return Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - r;
 }
 
 /**
@@ -439,9 +596,15 @@ export function teamPose(
   // Na souvrati (radlice za okrajem pole) oráč rádlo nadzvedne.
   const f = path.field;
   const flen = Math.hypot(f.dirX, f.dirZ) || 1;
-  const du = ((back.x - f.x) * f.dirX + (back.z - f.z) * f.dirZ) / flen;
-  const dv = (-(back.x - f.x) * f.dirZ + (back.z - f.z) * f.dirX) / flen;
-  const outside = Math.max(Math.abs(du), Math.abs(dv)) - f.size / 2;
+  const fdx = f.dirX / flen;
+  const fdz = f.dirZ / flen;
+  const across = Math.hypot(f.acrossX ?? 0, f.acrossZ ?? 0);
+  const fsx = across > 1e-9 ? f.acrossX! / across : -fdz;
+  const fsz = across > 1e-9 ? f.acrossZ! / across : fdx;
+  const du = (back.x - f.x) * fdx + (back.z - f.z) * fdz;
+  const dv = (back.x - f.x) * fsx + (back.z - f.z) * fsz;
+  // kulatý roh – rádlo se zvedá na oblouku (stejném, jaký kreslí obtisk pole)
+  const outside = outsideSquare(du, dv, f.size / 2, path.cornerRadii);
   const lift = smoothstep(0, LIFT_RAMP_M, outside);
   return composePose(yoke, back, lift, t, TEAM_SPEED_M_S, out, ground);
 }
@@ -816,4 +979,238 @@ export function writeSegmentMatrix(
   m[offset + 8] = dx * stretch;
   m[offset + 9] = dy * stretch;
   m[offset + 10] = dz * stretch;
+}
+
+// --- celá dnešní orba za herní den (ladicí – oxen.md, Orba za herní den) --------------------
+
+/** Pruh dnešní orby na trase: pole (pruh dílu), id pole a dílu. */
+export interface RouteStint {
+  fieldId: number;
+  partId: number | null;
+  field: PloughField;
+}
+
+/**
+ * Trasa spřežení přes celou dnešní orbu: pruhy dílů v pořadí práce řadu po řadě s obraty na
+ * souvrati, mezi pruhy (a od místa, kde spřežení stálo) přesun rovně se zvednutým rádlem.
+ * Otevřená dráha (bez návratu) – na konci dne spřežení stojí na konci poslední řady.
+ */
+export interface PloughRoute extends Pick<PloughPath, 'segments' | 'starts' | 'length'> {
+  stints: {
+    stint: RouteStint;
+    radii: readonly [number, number, number, number];
+    axes: { dx: number; dz: number; sx: number; sz: number };
+    /** Řady pruhu – `segment` je index úseku trasy. */
+    rows: PloughRow[];
+  }[];
+  /** U každého úseku trasy index pruhu (−1 = přesun mezi pruhy). */
+  segmentStint: number[];
+}
+
+/** Konec úseku dráhy – bod a směr jízdy. */
+function segmentEnd(seg: PathSegment): PathPoint {
+  const p: PathPoint = { x: 0, z: 0, hx: 0, hz: 1 };
+  if (seg.kind === 'line') {
+    return {
+      x: seg.x + seg.dx * seg.length,
+      z: seg.z + seg.dz * seg.length,
+      hx: seg.dx,
+      hz: seg.dz,
+    };
+  }
+  const tmp: PloughPath = {
+    ...pathOf([seg]),
+    field: { x: 0, z: 0, size: 1, dirX: 1, dirZ: 0, rows: 2 },
+    cornerRadii: [0, 0, 0, 0],
+  };
+  return pathAt(tmp, seg.length - 1e-9, p);
+}
+
+/**
+ * Trasa přes pruhy `stints` v daném pořadí (`ploughRoute`), s přesunem od místa `from` (kde
+ * spřežení právě je) k první řadě; bez `from` začíná na první řadě.
+ */
+export function ploughRoute(
+  stints: readonly RouteStint[],
+  from: { x: number; z: number } | null = null,
+  turnRadius = TURN_RADIUS_M,
+): PloughRoute {
+  const segments: PathSegment[] = [];
+  const segmentStint: number[] = [];
+  const planned: PloughRoute['stints'] = [];
+  let at: { x: number; z: number } | null = from;
+  const transit = (to: { x: number; z: number }): void => {
+    if (!at) return;
+    const lx = to.x - at.x;
+    const lz = to.z - at.z;
+    const length = Math.hypot(lx, lz);
+    if (length < 1e-3) return;
+    segments.push({ kind: 'line', length, x: at.x, z: at.z, dx: lx / length, dz: lz / length });
+    segmentStint.push(-1);
+  };
+  stints.forEach((stint, i) => {
+    const plan = stintRows(stint.field, false, turnRadius);
+    const first = plan.segments[0]!;
+    transit({ x: first.kind === 'line' ? first.x : 0, z: first.kind === 'line' ? first.z : 0 });
+    const offset = segments.length;
+    for (const seg of plan.segments) {
+      segments.push(seg);
+      segmentStint.push(i);
+    }
+    planned.push({
+      stint: { ...stint, field: plan.field },
+      radii: plan.radii,
+      axes: plan.axes,
+      rows: plan.rows.map((r) => ({ ...r, segment: r.segment + offset })),
+    });
+    at = segmentEnd(plan.segments[plan.segments.length - 1]!);
+  });
+  return { ...pathOf(segments), stints: planned, segmentStint };
+}
+
+/**
+ * Spřežení na trase dne: trasa a skutečný čas, za který ji projede (od `startMs` do `endMs` – do
+ * konce herního dne; ladicí zrychlení, oxen.md – Orba za herní den).
+ */
+export interface RouteTrack {
+  route: PloughRoute;
+  startMs: number;
+  endMs: number;
+}
+
+/** Kolik metrů trasy má spřežení v okamžiku `nowMs` za sebou (0 před začátkem, celá po konci). */
+export function routeDistance(track: RouteTrack, nowMs: number): number {
+  const span = Math.max(1, track.endMs - track.startMs);
+  const f = Math.min(1, Math.max(0, (nowMs - track.startMs) / span));
+  return f * track.route.length;
+}
+
+/** Rychlost spřežení na trase (m/s) – zrychlená, ať projede celou dnešní orbu. */
+export function routeSpeed(track: RouteTrack): number {
+  return track.route.length / (Math.max(1, track.endMs - track.startMs) / 1000);
+}
+
+/** Bod trasy ve vzdálenosti `s` (bez obtočení – trasa je otevřená). */
+function routeAt(route: PloughRoute, s: number, out: PathPoint): PathPoint {
+  const path = route as unknown as PloughPath;
+  return pathAt(path, Math.min(route.length - 1e-6, Math.max(0, s)), out);
+}
+
+const TMP_ROUTE_YOKE: PathPoint = { x: 0, z: 0, hx: 0, hz: 1 };
+const TMP_ROUTE_BACK: PathPoint = { x: 0, z: 0, hx: 0, hz: 1 };
+
+/**
+ * Póza spřežení na trase dne v okamžiku `nowMs`: jho na trase, rádlo za ním na tětivě oje (na
+ * začátku trasy rovně za jhem), na souvrati, mimo díl a při přesunu nadzvednuté. Klipy chůze
+ * podle zrychlené rychlosti; po konci trasy spřežení stojí. Čistá funkce času.
+ */
+export function routePose(
+  track: RouteTrack,
+  nowMs: number,
+  out: TeamPose,
+  ground: GroundFn = FLAT,
+): TeamPose {
+  const route = track.route;
+  const t = (nowMs / 1000) % 3600;
+  if (route.length <= 0) return out;
+  const s = routeDistance(track, nowMs);
+  const moving = nowMs > track.startMs && nowMs < track.endMs;
+  const yoke = routeAt(route, s, TMP_ROUTE_YOKE);
+  const reach = ardReach();
+  // rádlo: bod trasy za jhem ve vzdálenosti oje (hledá se zpět po trase, nejvýš na její začátek)
+  const back = TMP_ROUTE_BACK;
+  let backS = 0;
+  const start = routeAt(route, 0, { x: 0, z: 0, hx: 0, hz: 1 });
+  if (Math.hypot(start.x - yoke.x, start.z - yoke.z) < reach) {
+    back.x = yoke.x - yoke.hx * reach;
+    back.z = yoke.z - yoke.hz * reach;
+    back.hx = yoke.hx;
+    back.hz = yoke.hz;
+  } else {
+    let near = s;
+    let far = Math.max(0, s - reach);
+    let guard = 0;
+    while (guard++ < 400 && far > 0) {
+      routeAt(route, far, back);
+      if (Math.hypot(back.x - yoke.x, back.z - yoke.z) >= reach) break;
+      near = far;
+      far = Math.max(0, far - reach / 8);
+    }
+    for (let i = 0; i < 24; i++) {
+      const mid = (near + far) / 2;
+      routeAt(route, mid, back);
+      if (Math.hypot(back.x - yoke.x, back.z - yoke.z) >= reach) far = mid;
+      else near = mid;
+    }
+    backS = (near + far) / 2;
+    routeAt(route, backS, back);
+  }
+  // zvednutí rádla: při přesunu nahoře, na pruhu podle okraje dílu (i kulatého rohu)
+  let index = 0;
+  while (index < route.segments.length - 1 && route.starts[index + 1]! <= backS) index++;
+  const stintIndex = route.segmentStint[index] ?? -1;
+  let lift = 1;
+  if (stintIndex >= 0) {
+    const { stint, radii, axes } = route.stints[stintIndex]!;
+    const f = stint.field;
+    const du = (back.x - f.x) * axes.dx + (back.z - f.z) * axes.dz;
+    const dv = (back.x - f.x) * axes.sx + (back.z - f.z) * axes.sz;
+    lift = smoothstep(0, LIFT_RAMP_M, outsideSquare(du, dv, f.size / 2, radii));
+  }
+  return composePose(yoke, back, lift, t, moving ? routeSpeed(track) : 0, out, ground);
+}
+
+/**
+ * Brázda za spřežením – pás řady, kudy radlice projela: díl (střed a osy pruhu – podél řad
+ * `along`, napříč `across`), řada napříč `v` (šířka pásu `2 × half`) a úsek podél řad `from`–`to`
+ * (od středu dílu).
+ */
+export interface FurrowBand {
+  fieldId: number;
+  partId: number | null;
+  x: number;
+  z: number;
+  along: [number, number];
+  across: [number, number];
+  v: number;
+  half: number;
+  from: number;
+  to: number;
+}
+
+/**
+ * Co je v okamžiku `nowMs` zoráno (čistá funkce času): pás každé řady od okraje dílu, kde
+ * radlice do řady vjela, po místo, kam dojela (radlice jede o dosah oje za jhem); hotové řady
+ * celé, řady před spřežením nic. Na konci dne pásy pokryjí celý dnešní pruh každého dílu.
+ */
+export function routeFurrows(track: RouteTrack, nowMs: number): FurrowBand[] {
+  const route = track.route;
+  const s = routeDistance(track, nowMs);
+  const reach = ardReach();
+  const bands: FurrowBand[] = [];
+  for (const { stint, axes, rows } of route.stints) {
+    for (const row of rows) {
+      const s0 = route.starts[row.segment]!;
+      if (s <= s0) continue;
+      const s1 = s0 + route.segments[row.segment]!.length;
+      const yokeU = row.startU + row.dir * (Math.min(s, s1) - s0);
+      const ardU = yokeU - row.dir * reach;
+      const from = row.dir > 0 ? row.lo : Math.max(row.lo, ardU);
+      const to = row.dir > 0 ? Math.min(row.hi, ardU) : row.hi;
+      if (to - from <= 1e-6) continue;
+      bands.push({
+        fieldId: stint.fieldId,
+        partId: stint.partId,
+        x: stint.field.x,
+        z: stint.field.z,
+        along: [axes.dx, axes.dz],
+        across: [axes.sx, axes.sz],
+        v: row.v,
+        half: row.spacing / 2,
+        from,
+        to,
+      });
+    }
+  }
+  return bands;
 }

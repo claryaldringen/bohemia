@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Position } from '@bohemia/game';
+import { penEntrance, turnRotation, type Position } from '@bohemia/game';
 import {
   PEN_FENCE,
   PEN_MODEL_PARTS,
@@ -22,7 +22,7 @@ import {
   penStakingLine,
   type PenLayout,
 } from '../pen-layout';
-import { WOVEN_CORNER_RADIUS_M, fencePosts } from '../woven-fence';
+import { WOVEN_CORNER_RADIUS_M, fencePosts, wovenFence } from '../woven-fence';
 
 const square = { x: 37.5, z: -22.5, size: 15 };
 const dot = (a: { x: number; z: number }, b: { x: number; z: number }): number =>
@@ -102,6 +102,44 @@ describe('ohrada – rozmístění', () => {
       // díl branky (žerdě podél osy x) leží podél plotu mezi kůly branky
       const ax = { x: Math.cos(layout.gate.rotation), z: -Math.sin(layout.gate.rotation) };
       expect(Math.abs(dot(ax, layout.front))).toBeLessThan(1e-9);
+    }
+  });
+
+  it('branka = vchod z jádra (penEntrance) – i u natočené ohrady; jako dřív', () => {
+    for (const rotation of [undefined, turnRotation(2), turnRotation(6), turnRotation(9)]) {
+      const sq = rotation === undefined ? square : { ...square, rotation };
+      for (const facing of FACINGS) {
+        const layout = penLayout(sq, facing);
+        const core = penEntrance(sq, facing);
+        expect(Math.hypot(layout.gate.x - core.x, layout.gate.z - core.z)).toBeLessThan(1e-6);
+        // ven ze středu ohrady
+        expect(Math.hypot(core.outX, core.outZ)).toBeCloseTo(1, 9);
+        expect(dot({ x: core.outX, z: core.outZ }, rel(layout, core))).toBeCloseTo(
+          sq.size / 2 - 0.5,
+          6,
+        );
+      }
+    }
+    // dřív: branka nejblíž k bodu půl strany plotu + 1 m od středu ve směru `facing`
+    for (const facing of FACINGS) {
+      const half = square.size / 2 - 0.5;
+      const length = Math.hypot(facing.x, facing.z);
+      const toward = {
+        x: square.x + (facing.x / length) * (half + 1),
+        z: square.z + (facing.z / length) * (half + 1),
+      };
+      const rect: [number, number][] = [
+        [square.x - half, square.z - half],
+        [square.x + half, square.z - half],
+        [square.x + half, square.z + half],
+        [square.x - half, square.z + half],
+      ];
+      const posts = wovenFence([{ points: rect, closed: true }], PEN_FENCE, { toward }).runs[0]!
+        .posts;
+      const a = posts[0]!;
+      const b = posts[posts.length - 1]!;
+      const core = penEntrance(square, facing);
+      expect(Math.hypot((a.x + b.x) / 2 - core.x, (a.z + b.z) / 2 - core.z)).toBeLessThan(1e-6);
     }
   });
 

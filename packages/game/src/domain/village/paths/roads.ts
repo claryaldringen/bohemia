@@ -14,8 +14,9 @@ import { villagePens } from '../oxen';
 import { plotShapes } from '../plot-cells';
 import { plotSquareTile, rotationCosSin, squareCenter } from '../square-grid';
 import { ROAD_TREE_ID_BASE, roadAppleStage, roadTreeLook } from '../road-trees';
-import { MILIR, ROADS, ROAD_APPLES, ROAD_TREES, SACRED_BUILDINGS } from '../rules';
+import { CART_ROADS, MILIR, ROADS, ROAD_APPLES, ROAD_TREES, SACRED_BUILDINGS } from '../rules';
 import type {
+  CartKind,
   ChronicleEvent,
   Construction,
   DwellingPlot,
@@ -23,8 +24,10 @@ import type {
   LaborDay,
   LaborTarget,
   Road,
+  RoadCartTrips,
   RoadGround,
   RoadPoint,
+  RoadQuietPiece,
   RoadTreeSpecies,
   RoadTreeSpot,
   SquareGrid,
@@ -43,10 +46,12 @@ import {
   type PathTraffic,
   type PathVillage,
 } from './network';
+import { cartDepots, cartRoutes, cartTraffic, type CartRoute, type CartTarget } from './cart';
 import {
   PATH_FORD,
   PATH_WETLAND,
   PATH_WOODLAND,
+  cartObstacleMask,
   obstaclePosition,
   pathTerrainOf,
   pathWindowFor,
@@ -188,6 +193,170 @@ export function addRoadLabor(roads: VillageRoads, labor: LaborDay | undefined, d
   }
 }
 
+/**
+ * Jízdy vozů do součtu roku cest (mutuje – wagons.md, Vozová síť): svoz (fáze 1 – tesař a vozy)
+ * sem přičte, kam a jakým vozem jel. Stejný cíl a vůz se sečte.
+ */
+export function addRoadCartTrips(roads: VillageRoads, trips: readonly RoadCartTrips[]): void {
+  const list = (roads.labor.cart ??= []);
+  for (const t of trips) {
+    if (t.trips <= 0) continue;
+    const same = list.find((o) => o.x === t.x && o.z === t.z && o.kind === t.kind);
+    if (same) same.trips += t.trips;
+    else list.push({ x: t.x, z: t.z, kind: t.kind, trips: t.trips });
+  }
+}
+
+/** Ohrady se spřežením – tam stojí vozy (wagons.md – Vůz). */
+export function teamPens(state: Pick<VillageState, 'pens'>): Set<number> {
+  return new Set(
+    (state.pens ?? []).filter((p) => p.builtDay !== null && p.team !== null).map((p) => p.id),
+  );
+}
+
+/** Vůz dojede k cíli, když je od něj nejvýš tak daleko (m) – kraj dílu, louky, hromady. */
+const CART_REACH_M = 9;
+
+/**
+ * Roční síť vozů (wagons.md – Vyjeté cesty): jízdy vozů za rok cest (`VillageRoads.labor.cart`,
+ * průměr na den) po trasách vozů od ohrad se spřežením – provoz po buňkách a úseky tras nad
+ * prahem (CART_ROADS.tripsPerDay). Bez jízd nebo bez ohrady se spřežením null.
+ */
+export function annualCartNetwork(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer | null,
+  changes: ObstacleChanges,
+  terrain: PathTerrain,
+): { traffic: PathTraffic; runs: RoadPoint[][] } | null {
+  const trips = state.roads?.labor.cart ?? [];
+  if (trips.length === 0) return null;
+  const village = pathVillageOf(state, day, landscape);
+  const depots = cartDepots(village, teamPens(state));
+  if (depots.length === 0) return null;
+  const days = Math.max(1, state.roads?.labor.days ?? 1);
+  const blocked = obstacles ? cartObstacleMask(terrain, obstacles, changes) : null;
+  const raw = new Float32Array(terrain.width * terrain.height);
+  const routes: { points: RoadPoint[]; cells: number[] }[] = [];
+  for (const kind of ['two-wheel', 'four-wheel'] as const satisfies readonly CartKind[]) {
+    const own = trips.filter((t) => t.kind === kind);
+    if (own.length === 0) continue;
+    const targets: CartTarget[] = own.map((t) => ({ x: t.x, z: t.z, reachM: CART_REACH_M }));
+    const found = cartRoutes({ village, terrain, blocked, kind, depots, targets });
+    const traffic = cartTraffic(
+      found.grid,
+      found.routes,
+      own.map((t) => t.trips / days),
+    );
+    for (let c = 0; c < raw.length; c++) raw[c] = raw[c]! + traffic.raw[c]!;
+    for (const route of found.routes) {
+      if (!route.reached) continue;
+      routes.push({
+        points: route.cells.map((c) => ({
+          x: terrain.originX + (c % terrain.width) * terrain.cellM,
+          z: terrain.originZ + Math.floor(c / terrain.width) * terrain.cellM,
+        })),
+        cells: route.cells,
+      });
+    }
+  }
+  const traffic: PathTraffic = {
+    originX: terrain.originX,
+    originZ: terrain.originZ,
+    cellM: terrain.cellM,
+    width: terrain.width,
+    height: terrain.height,
+    values: raw,
+    raw,
+  };
+  // úseky tras nad prahem – osa po SAMPLE_M (jako úseky sítě pěšin)
+  const threshold = CART_ROADS.tripsPerDay - 1e-9;
+  const runs: RoadPoint[][] = [];
+  for (const route of routes) {
+    let run: RoadPoint[] = [];
+    const flush = (): void => {
+      if (run.length >= 2) runs.push(resample(run, null, SAMPLE_M).points);
+      run = [];
+    };
+    route.cells.forEach((c, k) => {
+      if (raw[c]! >= threshold) run.push(route.points[k]!);
+      else flush();
+    });
+    flush();
+  }
+  return { traffic, runs };
+}
+
+/** Poslední trasy vozů ze stavu vsi – po krajinách (stejný vstup = stejné trasy). */
+const lastCartRoutes = new WeakMap<
+  Landscape,
+  { obstacles: ObstacleLayer | null; key: string; routes: CartRoute[] | null }
+>();
+
+/**
+ * Dosah vozů vsi (wagons.md – Vozová síť; rozhraní pro svoz – „dojede vůz k cíli a za kolik“):
+ * trasy vozu `kind` od ohrad se spřežením ke všem cílům najednou (jedno hledání) – dojede,
+ * cena, délka a osa trasy pro scénu. Terén pěšin v okně vsi a cílů, překážky krajiny a stavby vsi
+ * jako v síti pěšin, pevné cesty podle stupně a příznaku vozová. Bez ohrady se spřežením (nebo
+ * bez obydlí) null. Čistá funkce stavu – výsledek se pamatuje pro stejný vstup.
+ */
+export function villageCartRoutes(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer | null,
+  kind: CartKind,
+  targets: readonly CartTarget[],
+): CartRoute[] | null {
+  const village = pathVillageOf(state, day, landscape);
+  const depots = cartDepots(village, teamPens(state));
+  const bounds = pathBounds(village);
+  if (depots.length === 0 || !bounds) return null;
+  const margin = 20;
+  const box = {
+    minX: Math.min(bounds.minX, ...targets.map((t) => t.x - t.reachM - margin)),
+    minZ: Math.min(bounds.minZ, ...targets.map((t) => t.z - t.reachM - margin)),
+    maxX: Math.max(bounds.maxX, ...targets.map((t) => t.x + t.reachM + margin)),
+    maxZ: Math.max(bounds.maxZ, ...targets.map((t) => t.z + t.reachM + margin)),
+  };
+  const key = JSON.stringify([village, kind, targets, box]);
+  const last = lastCartRoutes.get(landscape);
+  if (last && last.obstacles === obstacles && last.key === key) return last.routes;
+  const terrain = pathTerrainOf(landscape, pathWindowFor(landscape, box));
+  const blocked = obstacles
+    ? cartObstacleMask(terrain, obstacles, obstacleChangesAt(state, day))
+    : null;
+  const routes = cartRoutes({ village, terrain, blocked, kind, depots, targets }).routes;
+  lastCartRoutes.set(landscape, { obstacles, key, routes });
+  return routes;
+}
+
+/**
+ * Příznak vozová (mutuje – wagons.md, Vyjeté cesty): pevná cesta, kudy vozy jezdí nad prahem
+ * CART_ROADS.years let po sobě, ho dostane; vozová cesta, kudy CART_ROADS.dropYears let jezdí
+ * pod polovinou prahu, ho ztratí (dál je pěší). Provoz bez vozů se přestane pamatovat.
+ */
+function markCartRoads(roads: VillageRoads): void {
+  for (const road of roads.roads) {
+    const history = road.cartTraffic;
+    if (!history) continue;
+    const recent = history.slice(-CART_ROADS.years);
+    if (
+      !road.cart &&
+      recent.length >= CART_ROADS.years &&
+      recent.every((t) => t >= CART_ROADS.tripsPerDay)
+    ) {
+      road.cart = true;
+    }
+    const quiet = history.every((t) => t < CART_ROADS.tripsPerDay * CART_ROADS.dropShare);
+    if (road.cart && history.length >= CART_ROADS.dropYears && quiet) delete road.cart;
+    if (!road.cart && history.length >= CART_ROADS.dropYears && history.every((t) => t === 0)) {
+      delete road.cartTraffic;
+    }
+  }
+}
+
 /** Síť z celoroční práce a terén, ze kterého vznikla; ves bez obydlí null. */
 export interface AnnualNetwork {
   network: PathNetwork;
@@ -270,21 +439,26 @@ export function updateRoads(
   const blocked = plantingBlocker(state, landscape);
   if (annual) {
     const { network, terrain } = annual;
+    // jízdy vozů za rok (wagons.md – Vyjeté cesty) – ves bez vozů nic
+    const cart = annualCartNetwork(state, day, landscape, obstacles, changes, terrain);
     for (const road of roads.roads) {
       road.traffic = [...road.traffic, roadTraffic(road.points, network.traffic)].slice(
         -ROADS.overgrowYears,
       );
+      if (cart || road.cartTraffic) {
+        road.cartTraffic = [
+          ...(road.cartTraffic ?? []),
+          cart ? roadTraffic(road.points, cart.traffic) : 0,
+        ].slice(-CART_ROADS.dropYears);
+      }
       // úseky z doby před mokřinou a brody (fáze 1) si je doplní
       road.ground ??= roadGroundOf(road.points, terrain);
     }
-    // zarůstání vyšlapané cesty (upravená a hať nezarůstají, ani cesta, která se vylepšuje) –
+    // zarůstání vyšlapané cesty po kusech (upravená a hať nezarůstají, ani cesta, která se
+    // vylepšuje, a kus s jabloněmi – hráč do něj vložil práci; kus, kudy jezdí vozy, taky ne) –
     // stromy u ní stojí dál
-    const building = roadsInWork(state.constructions);
-    roads.roads = roads.roads.filter((road) => {
-      if (building.has(road.id) || !isOvergrown(road)) return true;
-      events.push({ day, kind: 'road-overgrown', roadId: road.id });
-      return false;
-    });
+    events.push(...overgrowRoads(state, roads, day, network.traffic, cart?.traffic ?? null));
+    markCartRoads(roads);
     const runs = hotRuns(network.lines);
     const context: SpotContext = {
       terrain,
@@ -299,6 +473,21 @@ export function updateRoads(
     };
     for (const road of formRoads(roads, runs, day, network.traffic, context)) {
       events.push({ day, kind: 'road-formed', roadId: road.id });
+    }
+    // vyjeté vozové cesty – kde vozy jezdí nad prahem i loni a nevedou po pevné cestě
+    if (cart) {
+      const formed = formRoads(roads, cart.runs, day, network.traffic, context, {
+        candidates: roads.cartCandidates ?? [],
+        cartTraffic: cart.traffic,
+      });
+      for (const road of formed) events.push({ day, kind: 'road-formed', roadId: road.id });
+      const next = cart.runs.map((run) =>
+        resample(run, null, CANDIDATE_STEP_M).points.map((p) => ({ x: dm(p.x), z: dm(p.z) })),
+      );
+      if (next.length > 0) roads.cartCandidates = next;
+      else delete roads.cartCandidates;
+    } else {
+      delete roads.cartCandidates;
     }
     // díry: volný konec kus od jiného úseku (ne u brány ani cíle) se k němu napojí; falešná
     // rozcestí (odbočka zarostla, nová cesta navázala na konec jiné) – úseky se spojí
@@ -322,6 +511,195 @@ export function updateRoads(
   }
   rootTrees(state, roads, day, blocked, landscape);
   return events;
+}
+
+/**
+ * Jabloně, které drží cestu (roads.md – Cesta s prací hráče nezaroste): živá jabloň nebo jabloň,
+ * která se teprve sází. Až dožijí (souš), kus cesty u nich může zarůst jako jiný.
+ */
+export function keepingApples(
+  roads: Pick<VillageRoads, 'apples'>,
+  day: number,
+): NonNullable<VillageRoads['apples']> {
+  return (roads.apples ?? []).filter((apple) => {
+    const stage = roadAppleStage(apple, day);
+    return stage === 'tree' || stage === 'planting';
+  });
+}
+
+/** Kus osy úseku: od–do (m od začátku osy) a jeho střed ve světě (na cm). */
+export interface RoadPiece {
+  from: number;
+  to: number;
+  x: number;
+  z: number;
+}
+
+/**
+ * Kusy osy pro zarůstání (roads.md – Zarůstá jen nepoužívaný kus): osa rozdělená na stejně
+ * dlouhé kusy co nejblíž ROADS.pieceM (kratší úsek je jeden kus).
+ */
+export function roadPieces(points: readonly RoadPoint[]): RoadPiece[] {
+  const at = lengthsAlong(points);
+  const length = at[at.length - 1] ?? 0;
+  const count = Math.max(1, Math.round(length / ROADS.pieceM));
+  const pieces: RoadPiece[] = [];
+  for (let k = 0; k < count; k++) {
+    const from = (length * k) / count;
+    const to = (length * (k + 1)) / count;
+    pieces.push({ from, to, ...pointAlong(points, (from + to) / 2) });
+  }
+  return pieces;
+}
+
+/** Jabloň stojí u kusu cesty, když je od jeho osy nejvýš tak daleko (m) – místa 2,6–3,4 m. */
+const APPLE_KEEP_M = 6;
+
+/**
+ * Zarůstání vyšlapaných cest po kusech (mutuje – roads.md, Zarůstá jen nepoužívaný kus; Martin,
+ * 19. 10. 2026): každý kus osy (`roadPieces`) s provozem roční sítě pod polovinou prahu přičte rok
+ * (`Road.quiet` – tichý kus loni do půl kusu odsud), jinak se počítá od nuly. Kus tichý
+ * ROADS.overgrowYears let po sobě zaroste, když u něj nestojí živá jabloň (`keepingApples`);
+ * celý tichý úsek zaroste jako dřív, jinak se tichý kus vyřízne (`cutOvergrown`) a zbytek zůstane
+ * pevnou cestou se starým id. Upravená cesta, hať a cesta, která se vylepšuje, nezarůstají
+ * (a počítat nemusí). Vrátí události kroniky (`road-overgrown` jen pro zaniklé kusy).
+ */
+function overgrowRoads(
+  state: VillageState,
+  roads: VillageRoads,
+  day: number,
+  traffic: PathTraffic,
+  carts: PathTraffic | null = null,
+): ChronicleEvent[] {
+  const events: ChronicleEvent[] = [];
+  const building = roadsInWork(state.constructions);
+  const apples = keepingApples(roads, day);
+  const quietBelow = ROADS.tripsPerDay * ROADS.overgrowShare;
+  for (const road of [...roads.roads]) {
+    if (road.grade !== 'trodden' || building.has(road.id) || road.points.length < 2) {
+      delete road.quiet;
+      continue;
+    }
+    const pieces = roadPieces(road.points);
+    const before = road.quiet ?? [];
+    const quiet: RoadQuietPiece[] = [];
+    const dead = pieces.map((piece) => {
+      const axis = axisSlice(road.points, piece.from, piece.to);
+      if (roadTraffic(axis, traffic) >= quietBelow) return false;
+      // kus, kudy jezdí vozy, není tichý (wagons.md – Vyjeté cesty)
+      if (carts && roadTraffic(axis, carts) >= CART_ROADS.tripsPerDay * CART_ROADS.dropShare) {
+        return false;
+      }
+      let years = 1;
+      let nearest = ROADS.pieceM / 2;
+      for (const old of before) {
+        const d = length2(old.x - piece.x, old.z - piece.z);
+        if (d <= nearest) {
+          nearest = d;
+          years = Math.min(ROADS.overgrowYears, old.years + 1);
+        }
+      }
+      quiet.push({ x: piece.x, z: piece.z, years });
+      if (years < ROADS.overgrowYears) return false;
+      const along = axisDistance([axisSlice(road.points, piece.from, piece.to)]);
+      return !apples.some((a) => a.roadId === road.id && along(a.x, a.z) <= APPLE_KEEP_M);
+    });
+    if (quiet.length > 0) road.quiet = quiet;
+    else delete road.quiet;
+    if (!dead.some(Boolean)) continue;
+    if (dead.every(Boolean)) {
+      roads.roads.splice(roads.roads.indexOf(road), 1);
+      events.push({ day, kind: 'road-overgrown', roadId: road.id });
+      continue;
+    }
+    for (const roadId of cutOvergrown(roads, road, pieces, dead, traffic)) {
+      events.push({ day, kind: 'road-overgrown', roadId });
+    }
+  }
+  return events;
+}
+
+/**
+ * Vyřízne z úseku zarostlé kusy (`dead` po kusech `pieces`) – mutuje. Živé zbytky zůstanou
+ * úseky (první se starým id a dnem vzniku, další s novým id), letošní provoz každého podle jeho
+ * osy, tiché kusy, místa na stromy a jabloně k nejbližšímu zbytku (místa zarostlého kusu zmizí –
+ * stromy na nich stojí dál), mokřina a brody po kusech. Konce u zarostlého kusu jsou volné
+ * (`openEnds`, `VillageRoads.cutEnds`). Vrátí id zarostlých kusů (nová id – pro kroniku).
+ */
+function cutOvergrown(
+  roads: VillageRoads,
+  road: Road,
+  pieces: readonly RoadPiece[],
+  dead: readonly boolean[],
+  traffic: PathTraffic,
+): number[] {
+  const alive: { a: number; b: number }[] = [];
+  const gone: number[] = [];
+  pieces.forEach((piece, k) => {
+    const last = k > 0 ? dead[k - 1] : undefined;
+    if (dead[k]) {
+      if (last !== true) gone.push(roads.nextId++);
+      return;
+    }
+    if (last === false) alive[alive.length - 1]!.b = piece.to;
+    else alive.push({ a: piece.from, b: piece.to });
+  });
+  const length = pieces[pieces.length - 1]!.to;
+  const made: Road[] = alive.map(({ a, b }, k) => {
+    const points = axisSlice(road.points, a, b);
+    const openEnds: [boolean, boolean] = [
+      a > 0 ? true : (road.openEnds?.[0] ?? false),
+      b < length ? true : (road.openEnds?.[1] ?? false),
+    ];
+    return {
+      id: k === 0 ? road.id : roads.nextId++,
+      points,
+      bornDay: road.bornDay,
+      grade: road.grade,
+      traffic: [...road.traffic.slice(0, -1), roadTraffic(points, traffic)],
+      spots: [],
+      ...(road.ground ? { ground: groundPart(road.ground, a, b) } : {}),
+      openEnds,
+      ...(road.cart ? { cart: true as const } : {}),
+      ...(road.cartTraffic ? { cartTraffic: [...road.cartTraffic] } : {}),
+    };
+  });
+  const axes = made.map((r) => axisDistance([r.points]));
+  const nearest = (x: number, z: number, within: number): Road | null => {
+    let best: Road | null = null;
+    let bestD = within;
+    made.forEach((r, k) => {
+      const d = axes[k]!(x, z);
+      if (d <= bestD) {
+        best = r;
+        bestD = d;
+      }
+    });
+    return best;
+  };
+  for (const spot of road.spots) {
+    nearest(spot.x, spot.z, ROAD_TREES.offsetM.to + 1)?.spots.push(spot);
+  }
+  for (const piece of road.quiet ?? []) {
+    const owner = nearest(piece.x, piece.z, ROADS.pieceM / 2);
+    if (owner) (owner.quiet ??= []).push(piece);
+  }
+  for (const apple of roads.apples ?? []) {
+    if (apple.roadId === road.id) apple.roadId = nearest(apple.x, apple.z, Infinity)!.id;
+  }
+  // konce u zarostlého kusu
+  const cuts = made.flatMap((r, k) => [
+    ...(alive[k]!.a > 0 ? [{ ...r.points[0]! }] : []),
+    ...(alive[k]!.b < length ? [{ ...r.points[r.points.length - 1]! }] : []),
+  ]);
+  roads.cutEnds = [...(roads.cutEnds ?? []), ...cuts];
+  roads.roads.splice(roads.roads.indexOf(road), 1, ...made);
+  return gone;
+}
+
+/** Bod osy `d` m od začátku (na cm). */
+function pointAlong(points: readonly RoadPoint[], d: number): RoadPoint {
+  return axisSlice(points, d, d)[0]!;
 }
 
 /** Úseky, které se právě vylepšují (stavby `road` – roads.md). */
@@ -412,15 +790,6 @@ function groundPart(ground: RoadGround | undefined, from: number, to: number): R
 export function roadLengthM(road: Pick<Road, 'points'>): number {
   const at = lengthsAlong(road.points);
   return at[at.length - 1] ?? 0;
-}
-
-/** Vyšlapaná cesta, kudy se ROADS.overgrowYears let po sobě chodí pod polovinou prahu. */
-function isOvergrown(road: Road): boolean {
-  return (
-    road.grade === 'trodden' &&
-    road.traffic.length >= ROADS.overgrowYears &&
-    road.traffic.every((t) => t < ROADS.tripsPerDay * ROADS.overgrowShare)
-  );
 }
 
 function cm(v: number): number {
@@ -619,10 +988,16 @@ function formRoads(
   day: number,
   traffic: PathTraffic,
   context: SpotContext,
+  /**
+   * Vozové cesty (wagons.md – Vyjeté cesty): loňské úseky sítě vozů nad prahem a provoz vozů –
+   * nová cesta dostane příznak vozová.
+   */
+  cart?: { candidates: readonly RoadPoint[][]; cartTraffic: PathTraffic },
 ): Road[] {
   const formed: Road[] = [];
-  if (roads.candidates.length === 0) return formed;
-  const lastYear = axisDistance(roads.candidates);
+  const candidates = cart ? cart.candidates : roads.candidates;
+  if (candidates.length === 0) return formed;
+  const lastYear = axisDistance(candidates);
   for (const run of runs) {
     const onRoadAt = axisDistance(roads.roads.map((r) => r.points));
     const confirmed = run.map((p) => lastYear(p.x, p.z) <= MATCH_M);
@@ -654,6 +1029,7 @@ function formRoads(
         day,
         traffic,
         context,
+        cart?.cartTraffic,
       );
       if (road) formed.push(road);
       i = j + 1;
@@ -671,6 +1047,7 @@ function formRoad(
   day: number,
   traffic: PathTraffic,
   context: SpotContext,
+  cartTraffic?: PathTraffic,
 ): Road | null {
   const axis = points.map((p) => ({ x: cm(p.x), z: cm(p.z) }));
   // napojení na pevnou cestu (případné rozdělení cesty v rozcestí) – nejdřív začátek, pak konec
@@ -692,6 +1069,9 @@ function formRoad(
     traffic: [roadTraffic(simple, traffic)],
     spots: [],
     ground: roadGroundOf(simple, context.terrain),
+    ...(cartTraffic
+      ? { cart: true as const, cartTraffic: [roadTraffic(simple, cartTraffic)] }
+      : {}),
   };
   roads.roads.push(road);
   // volná místa jiných cest, přes která nová cesta vede, zmizí (stromy na nich stojí dál)
@@ -747,8 +1127,18 @@ function splitRoad(roads: VillageRoads, hit: RoadHit, context: SpotContext): Roa
     traffic: [...road.traffic],
     spots: road.spots.filter((s) => secondAxis(s.x, s.z) < firstAxis(s.x, s.z)),
     ...(road.ground ? { ground: groundPart(road.ground, splitAt, total) } : {}),
+    ...(road.cart ? { cart: true as const } : {}),
+    ...(road.cartTraffic ? { cartTraffic: [...road.cartTraffic] } : {}),
   };
   road.spots = road.spots.filter((s) => secondAxis(s.x, s.z) >= firstAxis(s.x, s.z));
+  // tiché kusy podle polohy (roads.md – Zarůstá jen nepoužívaný kus)
+  if (road.quiet) {
+    const tail = road.quiet.filter((q) => secondAxis(q.x, q.z) < firstAxis(q.x, q.z));
+    const head = road.quiet.filter((q) => secondAxis(q.x, q.z) >= firstAxis(q.x, q.z));
+    if (tail.length > 0) rest.quiet = tail;
+    if (head.length > 0) road.quiet = head;
+    else delete road.quiet;
+  }
   // jabloně podél druhé části patří novému úseku (roads.md – Vysazení jabloní)
   for (const apple of roads.apples ?? []) {
     if (apple.roadId === road.id && secondAxis(apple.x, apple.z) < firstAxis(apple.x, apple.z)) {
@@ -808,7 +1198,12 @@ function joinedGround(first: RoadGround, second: RoadGround, offset: number): Ro
 }
 
 /** Provoz posledních let dvou spojených úseků – po letech od nejnovějšího, vážený délkou. */
-function joinedTraffic(a: Road, b: Road, lengthA: number, lengthB: number): number[] {
+function joinedTraffic(
+  a: Pick<Road, 'traffic'>,
+  b: Pick<Road, 'traffic'>,
+  lengthA: number,
+  lengthB: number,
+): number[] {
   const years = Math.max(a.traffic.length, b.traffic.length);
   const out: number[] = [];
   for (let k = years; k >= 1; k--) {
@@ -898,6 +1293,8 @@ function chainPair(
       if (list.length !== 2 || list[0]!.road !== road || list[0]!.atStart !== atStart) continue;
       const [a, b] = list as [RoadEnd, RoadEnd];
       if (a.road === b.road || a.road.grade !== b.road.grade) continue;
+      // vozová a pěší cesta zůstanou dva úseky (wagons.md – Vyjeté cesty)
+      if (!!a.road.cart !== !!b.road.cart) continue;
       // dva úseky mezi stejnými uzly (dvě trasy) se nespojí do okruhu – copánek řeší
       // `removeBraids`, vzdálené trasy zůstanou dvě
       if (endKey(endOf(a.road, !a.atStart)) === endKey(endOf(b.road, !b.atStart))) continue;
@@ -954,10 +1351,22 @@ function joinRoads(
     delete road.openEnds;
   }
   road.traffic = joinedTraffic(road, other, lengthKeep, lengthOther);
+  if (road.cartTraffic || other.cartTraffic) {
+    road.cartTraffic = joinedTraffic(
+      { traffic: road.cartTraffic ?? [] },
+      { traffic: other.cartTraffic ?? [] },
+      lengthKeep,
+      lengthOther,
+    );
+  }
   road.points = points.map((p) => ({ x: p.x, z: p.z }));
   road.spots = [...road.spots, ...other.spots];
   if (ground) road.ground = ground;
   else delete road.ground;
+  // tiché kusy obou (roads.md – Zarůstá jen nepoužívaný kus) – po bodech, osa se nemění
+  const quiet = [...(road.quiet ?? []), ...(other.quiet ?? [])];
+  if (quiet.length > 0) road.quiet = quiet;
+  else delete road.quiet;
   for (const apple of roads.apples ?? []) if (apple.roadId === other.id) apple.roadId = road.id;
   for (const c of constructions) {
     if (!c.roadIds?.includes(other.id)) continue;
@@ -1020,6 +1429,8 @@ function strongerRoad(a: Road, b: Road): number {
   const grade = (r: Road): number => (r.grade === 'trodden' ? 0 : r.grade === 'improved' ? 1 : 2);
   return (
     grade(b) - grade(a) ||
+    // vozová cesta před pěší (wagons.md – Vyjeté cesty)
+    (b.cart ? 1 : 0) - (a.cart ? 1 : 0) ||
     a.bornDay - b.bornDay ||
     (b.traffic[b.traffic.length - 1] ?? 0) - (a.traffic[a.traffic.length - 1] ?? 0) ||
     a.id - b.id
@@ -1130,6 +1541,8 @@ function cutRoad(roads: VillageRoads, road: Road, from: number, to: number, part
       traffic: [...road.traffic],
       spots: [],
       ...(road.ground ? { ground: groundPart(road.ground, a, b) } : {}),
+      ...(road.cart ? { cart: true as const } : {}),
+      ...(road.cartTraffic ? { cartTraffic: [...road.cartTraffic] } : {}),
     };
   });
   // místa na stromy a jabloně k nejbližšímu kusu, ve vyříznutém kusu k silnější cestě
@@ -1158,6 +1571,11 @@ function cutRoad(roads: VillageRoads, road: Road, from: number, to: number, part
   for (const apple of roads.apples ?? []) {
     if (apple.roadId !== road.id) continue;
     apple.roadId = (nearPiece(apple.x, apple.z) ?? partner).id;
+  }
+  // tiché kusy k nejbližšímu zbytku (roads.md – Zarůstá jen nepoužívaný kus)
+  for (const q of road.quiet ?? []) {
+    const piece = nearPiece(q.x, q.z);
+    if (piece) (piece.quiet ??= []).push(q);
   }
   const index = roads.roads.indexOf(road);
   roads.roads.splice(index, 1, ...made);
@@ -1229,10 +1647,12 @@ function tidyRoads(
   termini: readonly RoadPoint[],
   context: SpotContext,
 ): void {
+  // konce po zarostlém kusu jsou skutečné volné konce – díra se k nim nedoplní (roads.md)
+  const ends = [...termini, ...(roads.cutEnds ?? [])];
   // po sloučení souběžných kusů a zacelení děr můžou vzniknout copánky – znovu, nejvýš pár kol
   for (let round = 0; round < TIDY_ROUNDS; round++) {
     const parallel = mergeParallelRoads(roads, constructions);
-    joinRoadGaps(roads, termini, context);
+    joinRoadGaps(roads, ends, context);
     // copánky před spojováním – kusy silnější cesty se po odstranění slabší trasy spojí zpět
     const braids = removeBraids(roads, constructions);
     mergeRoadChains(roads, constructions);
@@ -1240,7 +1660,14 @@ function tidyRoads(
     if (more) mergeRoadChains(roads, constructions);
     if (!parallel && !braids && !more) break;
   }
-  markRoadEnds(roads, termini);
+  markRoadEnds(roads, ends);
+  // konce po zarostlém kusu, kde už žádný úsek nekončí, zmizí
+  if (roads.cutEnds) {
+    const degrees = endDegrees(roads.roads);
+    const kept = roads.cutEnds.filter((p) => degrees.has(endKey(p)));
+    if (kept.length > 0) roads.cutEnds = kept;
+    else delete roads.cutEnds;
+  }
   roads.endsChecked = true;
   roads.parallelsChecked = true;
 }

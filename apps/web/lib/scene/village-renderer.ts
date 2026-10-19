@@ -10,6 +10,8 @@ import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
 import {
   DWELLING_FOOTPRINT_M,
+  dateOfDayIndex,
+  realTimeOf,
   rotationCosSin,
   type DwellingType,
   type Landscape,
@@ -56,7 +58,14 @@ import { OrchardRenderer } from './orchard-renderer';
 import { PenAnimals } from './pen-animals';
 import { penAnimalsFor } from './pen-layout';
 import { PenRenderer } from './pen-renderer';
-import { ploughFront } from './plough-front';
+import {
+  PLOUGH_DAY_DEBUG,
+  dayStints,
+  splitStints,
+  startOfDayVillage,
+  type DayStint,
+} from './plough-day';
+import { ploughFront, ploughTeamCount } from './plough-front';
 import { ploughPath } from './plough-team';
 import { PloughTeams } from './plough-team-renderer';
 import { penHerds, scenePenViews } from './village-pens';
@@ -192,6 +201,11 @@ interface VillageContext {
   sunDirection: { x: number; y: number; z: number };
   /** Krajina sídla – louky na seno se vybírají na louce (bez ní žádné). */
   landscape?: Landscape;
+  /**
+   * Smí se scéna hýbat (bez omezeného pohybu)? Orba za herní den (ladicí) jen s animací – při
+   * omezeném pohybu pole ukáže stav na konci dne a spřežení stojí na čele. Bez údaje ano.
+   */
+  animated?(): boolean;
 }
 
 /**
@@ -247,6 +261,13 @@ export class VillageRenderer {
   private readonly penAnimals: PenAnimals;
   private readonly teams: PloughTeams;
   private teamsKey = '';
+  /** Hodiny světa – kdy herní den rozdělení práce začíná a končí (orba za herní den). */
+  private worldClock: WorldClock | null = null;
+  /** Vlastní okno herního dne (vývojová ukázka „Orání“ – den ukázky), jinak z hodin světa. */
+  private ploughClock: ((day: number) => { startMs: number; endMs: number }) | null = null;
+  /** Dnešní orba projížděná za herní den (ladicí – oxen.md, Orba za herní den), nebo null. */
+  private ploughDay: { stints: DayStint[]; window: { startMs: number; endMs: number } } | null =
+    null;
   private village: SceneVillage = { dwellings: [], fields: [] };
   private disposed = false;
 
@@ -320,7 +341,11 @@ export class VillageRenderer {
     const kilns = this.updateKilns(village.kilns ?? []);
     const ruins = this.updateRuins(village.ruins ?? []);
     if (dwellings || ruins) this.updatePitCuts();
-    const fields = this.fields.update(village);
+    // ladicí orba za herní den: dnešní díly orby na začátku dne, zbytek přibývá brázdou za rádlem
+    this.ploughDay = this.ploughDayOf(village);
+    const fields = this.fields.update(
+      this.ploughDay ? startOfDayVillage(village, this.ploughDay.stints) : village,
+    );
     const wild = this.wild.update(village);
     const cemeteries = this.cemeteries.update(village.cemeteries ?? [], village.dwellings);
     const orchards = this.orchards.update(
@@ -359,36 +384,102 @@ export class VillageRenderer {
    */
   private updatePens(village: SceneVillage): boolean {
     const pens = this.pens.update(scenePenViews(village));
-    const front = ploughFront(village);
-    const herds = penHerds(village, front.length);
+    const day = this.ploughDay;
+    const routes = day ? splitStints(day.stints, ploughTeamCount(village)) : null;
+    const front = routes ? [] : ploughFront(village);
+    const herds = penHerds(village, routes ? routes.length : front.length);
     const animals = this.penAnimals.set(
       this.pens.builtPens().flatMap(({ id, layout }) => {
         const herd = herds.get(id);
         return herd ? penAnimalsFor(layout, herd) : [];
       }),
     );
-    const key = JSON.stringify(front.map((a) => a.field));
     let teams = false;
-    if (key !== this.teamsKey) {
-      this.teamsKey = key;
-      // spřežení, které už orá, dojde na nový pruh pěšky (skutečný čas jako zvířata)
-      this.teams.setPaths(
-        front.map((a) => ploughPath(a.field)),
-        Date.now(),
-      );
-      teams = true;
+    if (day && routes) {
+      // celá dnešní orba za herní den (ladicí): trasy po dílech dne, brázda za rádlem
+      const key = JSON.stringify([
+        'day',
+        day.window,
+        routes.map((r) => r.map((s) => [s.partId, s.from, s.to])),
+      ]);
+      if (key !== this.teamsKey) {
+        this.teamsKey = key;
+        this.teams.setRoutes(routes, day.window, Date.now());
+        teams = true;
+      }
+      if (this.fields.setFurrows(this.teams.furrows(Date.now()))) teams = true;
+    } else {
+      const key = JSON.stringify(front.map((a) => a.field));
+      if (key !== this.teamsKey) {
+        this.teamsKey = key;
+        // spřežení, které už orá, dojde na nový pruh pěšky (skutečný čas jako zvířata)
+        this.teams.setPaths(
+          front.map((a) => ploughPath(a.field)),
+          Date.now(),
+        );
+        teams = true;
+      }
+      if (this.fields.setFurrows([])) teams = true;
     }
     return pens || animals || teams;
+  }
+
+  /**
+   * Dnešní orba projížděná za herní den (ladicí – PLOUGH_DAY_DEBUG): pruhy dílů podle rozdělení
+   * práce a okno herního dne (z hodin světa, nebo vlastní – `setPloughClock`); bez orby, hodin
+   * nebo s vypnutým přepínačem null.
+   */
+  private ploughDayOf(
+    village: SceneVillage,
+  ): { stints: DayStint[]; window: { startMs: number; endMs: number } } | null {
+    if (!PLOUGH_DAY_DEBUG || !village.labor) return null;
+    // při omezeném pohybu se brázda nepřidává – pole ukáže konec dne
+    if (this.context.animated && !this.context.animated()) return null;
+    const window = this.dayWindow(village.labor.day);
+    if (!window) return null;
+    const stints = dayStints(village);
+    return stints.length > 0 ? { stints, window } : null;
+  }
+
+  /** Kdy herní den `day` začíná a končí (skutečný čas, ms). */
+  private dayWindow(day: number): { startMs: number; endMs: number } | null {
+    if (this.ploughClock) return this.ploughClock(day);
+    const clock = this.worldClock;
+    if (!clock) return null;
+    try {
+      return {
+        startMs: realTimeOf(dateOfDayIndex(day), clock),
+        endMs: realTimeOf(dateOfDayIndex(day + 1), clock),
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Vlastní okno herního dne pro orbu za herní den (vývojová ukázka „Orání“ – den ukázky trvá
+   * kratší dobu); null = z hodin světa.
+   */
+  setPloughClock(clock: ((day: number) => { startMs: number; endMs: number }) | null): void {
+    this.ploughClock = clock;
+  }
+
+  /** Střed spřežení (jho a rádlo) – kam namířit kameru (vývojová ukázka). */
+  ploughTeamCenter(index = 0): { x: number; z: number } | null {
+    return this.teams.center(index);
   }
 
   /**
    * Posune zvířata v ohradách a spřežení na poli na okamžik `nowMs` (jen v záběru kamery; bez
    * kamery všechno). Vrátí true, když je co překreslit.
    */
-  animateOxen(nowMs: number, camera: Camera | null): boolean {
-    const animals = this.penAnimals.animate(nowMs, camera);
-    const teams = this.teams.animate(nowMs, camera);
-    return animals || teams;
+  animateOxen(nowMs: number, camera: Camera | null, frozen = false): boolean {
+    const animals = this.penAnimals.animate(nowMs, camera, frozen);
+    const teams = this.teams.animate(nowMs, camera, frozen);
+    // brázda za rádlem přibývá s trasou spřežení (ladicí orba za herní den)
+    const furrows =
+      this.ploughDay !== null && !frozen && this.fields.setFurrows(this.teams.furrows(nowMs));
+    return animals || teams || furrows;
   }
 
   /**
@@ -443,6 +534,10 @@ export class VillageRenderer {
   /** Svět, podle jehož herního dne se v obydlích topí (ráno a večer). */
   setWorldClock(world: WorldClock): void {
     this.smoke.setWorldClock(world);
+    const changed = this.worldClock !== world;
+    this.worldClock = world;
+    // orba za herní den potřebuje okno dne – hodiny mohly přijít až po datech vsi
+    if (changed && PLOUGH_DAY_DEBUG && this.village.labor) this.update(this.village);
   }
 
   /** Oblasti, kde se mají skrýt stromy a kameny krajiny. */

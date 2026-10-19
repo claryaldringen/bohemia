@@ -396,7 +396,7 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   (hrnčíř, kovář) pozemek nemají – stojí volně jako dřív. **Hřbitov** (`cemetery-renderer.ts`,
   geometrie bez Babylonu v `cemetery-layout.ts`): nízký pletený plot po obrysu čtverců (sdílený
   pletený plot, zakulacené rohy) s brankou k nejbližšímu hotovému obydlí (při rozšíření jinam
-  zůstane), uvnitř mohylky po hrobech (mřížka 7 × 8 na čtverec, poslední čerstvé z hlíny);
+  zůstane; místo branky = vchod z jádra `cemeteryEntrance`, paths.md – Vchody), uvnitř mohylky po hrobech (mřížka 7 × 8 na čtverec, poslední čerstvé z hlíny);
   založení vytyčení (kolíky a provázek po ostrém obrysu) → kůly → pletení; rozšíření ve stavbě
   má vlastní kus plotu bez branky jen tam, kde plot ještě není (na starý jen navazuje), po
   dokončení plot obepne celý hřbitov.
@@ -496,8 +496,8 @@ rozhraní částí v
   Ves se dopočítá při každém načtení a akci (worker zatím není).
 - **API jádra:** `foundVillage` (4 lidé, zásoby, stavba první zemnice, volitelně první pole),
   `advanceVillage(state, toDay)` (dopočítá ves do dne včetně) a akce hráče `startNewDwelling`,
-  `startWorkshop`, `foundField`, `foundCemetery`, `foundOrchard`, `foundPen`, `trainTeam`,
-  `startTrail` a `startExpedition` (trade.md). Stav
+  `startWorkshop`, `foundField`, `foundCemetery`, `foundOrchard`, `foundPen`, `startTrail`
+  a `startExpedition` (trade.md); spřežení se cvičí samo (`trainTeamsWhenReady`). Stav
   vsi je JSON-serializovatelný, funkce vstupní stav nemění. Nové části stavu jsou volitelné
   (`VillageState.cemeteries?`, `orchards?`, `applesKg?`, `orchardWork?`, `starvationDays?`,
   `extinctDay?`, `crafts?`, `Dwelling.workshop?`, `livestock?`, `meatKg?`, `cheeseKg?`,
@@ -909,10 +909,15 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   mláďata, zkažené staré seno a plán seče, zkažené maso, porážka, zimní seno.
 - **Ohrada, spřežení a orba rádlem** ([oxen.md](docs/design/oxen.md), `oxen.ts`, `plough.ts`,
   `hay.ts`): ohrada (`BuildKind` `'pen'`, `checkPenPlacement`, `foundPen`, use-case `placePen`)
-  je čtverec louky, stavba se dřevem jako obydlí; `trainTeam` (use-case `trainTeamInPen`,
-  `trainingBlock` = důvod pro tlačítko) vezme 2 telata ze stáda a postaví rádlo (stavba `'ard'`);
-  po 2 letech `Pen.team`, po 10 letech na maso; náhradu jde cvičit jen v posledních 2 letech
-  služby (`serviceYearsBeforeTraining`, Martin – druhé spřežení = druhá ohrada). Seno `VillageState.hay` (seč 1. 6. z úhoru ve
+  je čtverec louky, stavba se dřevem jako obydlí. **Výcvik spřežení začne sám** (Martin:
+  „ve chvíli, kdy mají vesničané k dispozici cokoliv, co jim ulehčí práci – zde
+  rádlo a voly – začnou to automaticky používat“ – princip pro celou hru, oxen.md – Spřežení):
+  `trainTeamsWhenReady` v `husbandryDay` (po mláďatech 1. 4.) každý den, kdy `trainingBlock` je
+  null – ohrada stojí, nic se necvičí, spřežení není nebo je v posledních 2 letech služby
+  (`serviceYearsBeforeTraining`), aspoň 3 krávy, dřevo na rádlo, v zimě seno volům i telatům do
+  konce března (`hayWinterDaysLeft`) – vezme 2 telata ze stáda a postaví rádlo (stavba `'ard'`
+  ze společné práce); po 2 letech `Pen.team`, po 10 letech na maso; druhé spřežení = druhá ohrada.
+  Hráč výcvik nezadává (akce, use-case i tlačítko zmizely). Seno `VillageState.hay` (seč 1. 6. z úhoru ve
   fázi louky a přirozených luk do 600 m od obydlí – `planMowing` s potřebou `winterHayNeedKg`
   (zimní stádo podle potřeby `wantedWinterHerds` + voli ohrad, se ztrátou do zkrmení
   `PLAN_HAY_KEEP`), práce `HAY_WORK_PER_HA` meze 15 → 10 čd/ha
@@ -1055,7 +1060,7 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
 - **Web:** server actions `app/game/actions.ts` (`getVillageView`, `selectVillage`, `foundVillage`,
   `foundDevVillage`, `placeDwelling`, `relocateHousehold`, `cancelRelocation`, `leaveVillage`,
   `settleJourney`, `placeWorkshop`,
-  `placeField`, `placeCemetery`, `placeOrchard`, `placeSacred`, `placePen`, `trainTeam`,
+  `placeField`, `placeCemetery`, `placeOrchard`, `placeSacred`, `placePen`,
   `buildTrail`, `sendExpedition`, `renameVillage` → `VillageView` / `null` / `{ error }`; `restartGame(input?)` → `{ ok: true }` /
   `{ error }`). **Každá akce nad vsí nese `villageId`** (UUID – `villageIdOf` v
   `lib/village-input.ts`) a server ověří, že ves patří hráči (`context` v `lib/village.ts` →
@@ -1127,7 +1132,9 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   `dwellingPlacementCost` = `planDwellingWoodFrom` + `dwellingLaborManDays` z jádra jako při
   zahájení stavby, modla a svatyně `sacredPlacementCost`; pod ní oranžově `check.warning`, které
   stavbu neblokuje – hřbitov blízko obydlí nebo vody, obydlí blízko hřbitova, posvátný dub nebo
-  háj zůstane stát; když umístění nejde, místo ceny krátký červený důvod). Kromě důvodu a varování u kurzoru žádná slova ani souhrny. Popisky = `hud/Tooltip.tsx`, jeden krátký
+  háj zůstane stát; když umístění nejde, místo ceny krátký červený důvod). Kromě důvodu a varování u kurzoru žádná slova ani souhrny – **výjimka:** v panelu obchodu dvě
+  hlavičky sloupců „Dáš“ a „Dostaneš“ (se šipkou ze vsi ven / do vsi, jako „Prodat“ a „Koupit“
+  v 0 A.D. – Martin 19. 10. 2026, trade.md – Rozhraní). Popisky = `hud/Tooltip.tsx`, jeden krátký
   název (u staveb i cena). Vzhled panelů: třídy `hud-*` v `app/globals.css` (tlačítko se slovy
   `hud-button`). Komponenty se testují statickým renderem (`react-dom/server`, JSX převádí
   `vitest.config.ts`) – panel bez stavu zvlášť (`GameMenuPanel`). Ikony
@@ -1256,7 +1263,19 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   úhoru a louce, seno – řádky, kupky a stohy (`haystack.glb`) přes podzim a zimu postupně mizí
   (`hay-meadows.ts`: `hayPhase`, `stackStands`); kolíky a provázek kolem vytyčeného pole
   (Martin: hned po zadání, `fieldStaking`). Rozmístění trsů a panáků je v `field-crops.ts`
-  (čisté funkce, deterministicky po políčkách). **Louky na seno** ve vsi jsou data – políčka
+  (čisté funkce, deterministicky po políčkách). **Vystouplé obilí** (fields.md – Co hráč vidí;
+  Martin 19. 10. 2026, dvouzrnka): zelené a zralé obilí má nad sebou neprůhlednou „korunu“
+  porostu (`field-canopy.ts` – `fieldCanopy`, čisté funkce: síť po krocích obtisku ve výšce
+  `CANOPY_M` – obilí 0,62 / 0,88 m, luštěniny ≈ 0,3 m –, k okraji pole podle krytí zanořená pod
+  zem, svislé stěny tam, kde vedle nestojí stejný porost – schod na čáře žně; po blocích v
+  `FieldBlockContent.canopy`, natočené pole `FieldSpace.canopy`, mesh `village-field-canopy-<id>`
+  s texturou porostu, `applySeasonGround`); 3D trsy (zelené 0,85, zralé 1,15 m) z ní vyčnívají.
+  Pole s 1 566 zralými díly: +1 draw call, ≈ +0,2 M trojúhelníků. **Kulaté rohy** (oxen.md –
+  Kulaté rohy): díl oraný rádlem (`SceneFieldPart.ploughed` z jádra – `PartView.ploughed`, orba
+  plodiny na něm začala) má vnější rohy pole zakulacené obloukem `PLOUGH_CORNER_M` (5 m) –
+  `cellsCoverage(…, rounding)` / `raggedCoverage(…, rounding)` v `field-cells.ts`, vnější rohy
+  `outerCorners`; obtisk, trsy i koruna podle krytí, v klíči bloku (`partViewsKey`). Jen vzhled –
+  plochu dílu roh neubírá. **Louky na seno** ve vsi jsou data – políčka
   přirozených luk v seči (`SceneVillage.hayMeadows`, `hayMeadowFields` je kreslí jako pole
   se vzhledem `meadow` / `mown` / `haystacks`, postavy sečou po čele práce); dekorativní
   `chooseHayMeadows` jen ve vývojové ukázce (oxen.md). Den pro
@@ -1366,10 +1385,23 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   `transitTrack` (rovně ≈ 1 m/s – `TRANSIT_SPEED_M_S`, rádlo nahoře, natočení na začátku a konci,
   čas příchodu dopočítaný, ať naváže bez skoku; nad `TRANSIT_M.max` 60 m skok), póza `trackPose`;
   jen když animace běží (`liveAt`), při omezeném pohybu stálá póza na novém místě; obal pro ořez
-  záběrem stálý přes celé dráhy i přechody (`updateBounds`). Ukázka **Orání** na
-  `/dev/buildings`: tři čtverce, orba postoupí za den ukázky (40 s – `showcasePloughDay`) o 3/8
-  čtverce (`showcasePlough` – díly a fronta jako od jádra), spřežení přes `ploughFront` jako ve
-  vsi. Voli a oráč z `people_from_0ad.py` s `tools/blender/plough-team.json` – vůl
+  záběrem stálý přes celé dráhy i přechody (`updateBounds`). V kulatém rohu pole (Kulaté rohy)
+  končí řady na oblouku (`PloughField.corners`, `rowExtent`) a radlice se zvedá (`outsideSquare`).
+  **Orba za herní den – LADICÍ** (oxen.md; Martin 19. 10. 2026: „aby spřežení projelo opravdu
+  všechna obdělávaná políčka a nechávalo za sebou brázdu“): přepínač `PLOUGH_DAY_DEBUG`
+  v `plough-day.ts` (false = skutečné tempo, jen čelo dne). Jádro dává k orbě v rozdělení práce
+  `progress` (ráno a večer na dílu – `partsWorked` vrací `from` / `to`) a zoraný díl rádlem nese
+  `before`; `dayStints` (pruhy po pruzích obtisku), `splitStints` (souvislé kusy fronty mezi
+  spřežení), `startOfDayVillage` (pole na začátku dne); trasa `ploughRoute` (řady všech pruhů
+  s obraty, přesuny se zvednutým rádlem, otevřená), `RouteTrack` (od příchodu plánu do konce
+  herního dne – okno z hodin světa, `realTimeOf`, nebo `VillageRenderer.setPloughClock`),
+  `routePose`, brázda `routeFurrows` (pásy řad, kudy radlice projela – čistá funkce času)
+  → `FieldRenderer.setFurrows` (obtisk `village-field-furrow-<id>` s krytím pole, v
+  `animateOxen`); `PloughTeams.setRoutes` / `furrows`. Jen s animací (`VillageContext.animated`
+  – při omezeném pohybu konec dne a čelo jako dřív). Ukázka **Orání** na `/dev/buildings`: tři
+  čtverce, vlastní `VillageRenderer` (`ploughDemo`) s polem a orbou dne ukázky (40 s –
+  `showcasePloughDay`, `showcasePloughWindow`, díly a `progress` jako od jádra – `showcasePlough`),
+  orba postoupí za den o 3/8 čtverce. Voli a oráč z `people_from_0ad.py` s `tools/blender/plough-team.json` – vůl
   `cattle_male_c` (srst přebarvená, maska srsti), oráč = muž s klipy `plough` (předklon + ruce
   dvoukloubovou IK na rukojeti, „pose“ v JSON) a `lead` (honáček s provazem); rádlo, jho, oj
   a provaz `tools/blender/plough.py` (malý atlas vyříznutý z atlasu obydlí). Rozestavění
@@ -1388,15 +1420,24 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   na pěšinu souseda, do cílů podle práce dne + základ zavedených míst (ke společnému cíli každá
   domácnost zvlášť A* od cíle k bráně, nejvytíženější první – další se přidá k čerstvě vyšlapané
   pěšině, souběžné pěšiny nevzniknou), k sousedům; 2 kola,
-  vyšlapané buňky hned zlevní; buňky pod pevnou cestou (`PathVillage.roads`) od začátku jako plná
-  pěšina – trasy se k ní stahují; ohrady (`pens` – plot jako hřbitov, krmení jako cíl) a stáda na
-  pastvě (`livestock` → `pastureHerds`, cesta na stádo denně na úhor; ze stavu `pastureLivestock`
-  jako `SceneVillage.livestock`); cena buňky pole podle nejbližšího dílu přes přihrádky políček
-  (`nearest.ts` – bit po bitu jako průchod všemi díly, zlatý otisk sítě v `paths-nearest.test.ts`);
+  vyšlapané buňky hned zlevní; buňky pod pevnou cestou (`PathVillage.roads`, maska `roadMask`) od
+  začátku jako plná pěšina – trasy se k ní stahují – a **bez ohledu na povrch** (Martin, 19. 10.
+  2026; `ROAD_CELL_COST` jako rovná louka: díl pole v jakémkoli stadiu, sad, les vsi i krajiny,
+  svah a překážky krajiny se pod cestou nepočítají; brod a neprůchodné buňky zůstávají, ploty
+  hřbitova a ohrady, okrsek svatyně a stavby taky – roads.md, Cesta je cesta); ohrady (`pens` –
+  plot jako hřbitov, krmení jako cíl) a stáda na pastvě (`livestock` → `pastureHerds`, cesta na
+  stádo denně na úhor; ze stavu `pastureLivestock` jako `SceneVillage.livestock`); cena buňky pole
+  podle nejbližšího dílu přes přihrádky políček (`nearest.ts` – bit po bitu jako průchod všemi díly, zlatý otisk sítě v `paths-nearest.test.ts`);
   síla `pathStrength` (odmocnina provozu), stáří obydlí →
   `pathAgeFactor`; vyhlazené čáry se sílou a stářím v bodech, provoz po buňkách `traffic.raw`;
   `annual: true` = roční provoz; provoz ke stavbám `visits` – opuštěné stavby, abandonment.md;
-  `PathVillage` splňuje `SceneVillage`), `walking.ts` (`walkGraph`, `walkingDistances` – vzdálenost chůze, po pěšině
+  `PathVillage` splňuje `SceneVillage`), **vchody staveb** `entrances.ts` (Martin, 19. 10. 2026:
+  „každá budova by měla mít nějaký vchod, od kterého cesta povede“ – paths.md, Vchody: jedna
+  funkce pro síť i scénu – `cemeteryEntrance` branka hřbitova, `penEntrance` branka ohrady,
+  `sacredEntrance` předek modly a svatyně; k hotové stavbě vede pěšina k vchodu, staveniště ze
+  všech stran; obydlí bránou `gateOf`; konstanty pleteného plotu `WOVEN_FENCE_CORNER_M`,
+  `CEMETERY_GATE`, `PEN_GATE`, `FENCE_INSET_M` bere scéna odsud; `PathVillage.cemeteries` nese
+  `built` a čtverce `pending`), `walking.ts` (`walkGraph`, `walkingDistances` – vzdálenost chůze, po pěšině
   `PATH_WALK` rychleji, nikdy víc než rovně – čistá funkce pro každého, kdo měří cestu na pole)
   a `village.ts` (`pathVillageOf` ze stavu vsi jako scéna i s pevnými cestami, `refreshWalkDistances`
   – den po dni v `simulateDay` při změně `walkLayoutKey` (i pevné cesty), jen s krajinou;
@@ -1433,9 +1474,14 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   `candidates` a práce roku cest po místech `labor` (od 1. 11., z rozdělení práce dne). Roční
   kontrola 1. 11. (`updateRoads`): roční síť `annualPathNetwork` (stejná `computePathNetwork`,
   průměrné člověkodny na den, sleva za pevné cesty) → provoz cest (`roadTraffic` – medián
-  `traffic.raw` po ose) a zarůstání vyšlapané cesty (5 let pod polovinou prahu) → nové cesty
-  z úseků nad prahem (`ROADS.tripsPerDay`), které leží i na loňských (`MATCH_M`) a nevedou po
-  pevné cestě; konec se připojí k pevné cestě a ta se v rozcestí rozdělí (`splitRoad`) – osa se
+  `traffic.raw` po ose) a zarůstání vyšlapané cesty **po kusech** (Martin, 19. 10. 2026 –
+  roads.md, Zarůstá jen nepoužívaný kus: `overgrowRoads` – osa po kusech ≈ 25 m `roadPieces`,
+  tichý kus pod polovinou prahu sčítá roky v `Road.quiet` (střed kusu, roky – jen tiché kusy,
+  starší vsi od další kontroly), po 5 letech zaroste – celý úsek zmizí, jinak `cutOvergrown`
+  vyřízne tiché kusy a zbytek zůstane se starým id, konec u zarostlého kusu volný
+  `VillageRoads.cutEnds`; nezaroste cesta, která se vylepšuje – `roadsInWork`, kus u živé jabloně
+  – `keepingApples`; upravená a hať nezarůstají) → nové cesty z úseků nad prahem
+  (`ROADS.tripsPerDay`), které leží i na loňských (`MATCH_M`) a nevedou po pevné cestě; konec se připojí k pevné cestě a ta se v rozcestí rozdělí (`splitRoad`) – osa se
   jinak nikdy nemění → **falešná rozcestí** (uzel jen se dvěma úseky stejného stupně, bez
   rozdílného vylepšení) se spojí (`mergeRoadChains` – i po dokončení vylepšení ve
   `finishConstructions`, starší vsi při načtení `withMergedRoads` v `updateVillage`; id a den
@@ -1496,6 +1542,24 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   z `tools/blender/roads.py` v instancích, `roadRibbonMeshes` i pro `/dev/buildings` – ukázka
   **Cesty** s posuvníkem stavby); `/dev/landscape` tlačítko **Cesta: …** přepíná stupně
   a rozestavěné fáze (i cesta k nejbližšímu brodu).
+- **Vozová síť a vyjeté cesty** ([wagons.md](docs/design/wagons.md) – fáze 2; Martin, 19. 10.
+  2026: „ve svahu, kde lidé zvládnou chodit rovně, vůz bude muset vyjezdit serpentiny“; čísla
+  `CART_ROUTES` a `CART_ROADS` – návrh Clauda): `paths/cart.ts` (deterministická vrstva jako
+  pěšiny) – `cartGrid` na mřížce terénu pěšin (výšky `PathTerrain.heights`, les `PATH_FOREST`,
+  překážky `cartObstacleMask` v `terrain.ts`; voda jen brodem, les jen po pevné cestě, pole
+  v lese vymýcené, osetý díl, křoviny, sad, hřbitov, ohrada, les vsi a okrsek svatyně ne, domy
+  a pozemky s půl šířkou vozu; každá pevná cesta sjízdná) a `cartRoutes` – Dijkstra po stavech
+  buňka × 16 směrů (osy, úhlopříčky, skoky 2 : 1), sklon ve směru jízdy nad 10 % nejede, stoupání
+  zdražuje se čtvercem (serpentiny samy), dvoukolák zatočí o 2 směry, čtyřkolák o 1 (širší
+  oblouk); jedno hledání od depa (`cartDepots` – kolem ohrad se spřežením `teamPens`) ke všem
+  cílům. `axisCartCheck` – sjízdnost osy (zemská stezka, `trailRoutes` beze změny). Ze stavu vsi
+  `villageCartRoutes` (rozhraní pro svoz fáze 1 – `CartAccess`). Jízdy svozu sčítá
+  `addRoadCartTrips` do `VillageRoads.labor.cart`; roční kontrola `annualCartNetwork` → provoz
+  vozů, `Road.cartTraffic`, příznak `Road.cart` (`markCartRoads` – 2 roky nad 0,25 jízdy denně,
+  5 let pod polovinou pryč), nové vozové cesty `formRoads` s `cartCandidates`; kus s provozem vozů
+  nezaroste, vozová a pěší se nespojují. Scéna: `roadBands` → `cart` (širší pás) a `ruts` (dvě
+  koleje ±0,65 m, `CART_RUT_LAYER` bez vlnění), `roadsKey` nese `:v`. Ves bez vozů beze změny.
+  `/dev/landscape` tlačítko **Vozy ve svahu** (`dev-cart.ts`).
 - **Jabloně podél pevné cesty** ([roads.md](docs/design/roads.md) – fáze 3): `VillageRoads.apples`
   (`RoadApple` – místo, úsek, `distanceM` vzdušnou čarou, `plantedDay` null = čeká na výsadbu,
   `constructionId`). `road-apples.ts`: `roadAppleSpots` (po 10 m střídavě – `roadTreeSpots`
@@ -1566,8 +1630,12 @@ směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, 
   – nosiči ve scéně chodí po stezce (`porters` ve `villager-plan.ts`). Use-case `sendExpedition`,
   server action `sendExpedition` (`{ villageId, direction, give, get, givePeople?, getPeople? }` –
   `parseSendExpeditionInput`).
-  Web: `VillageManor.neighbours` (`neighbourViews`), panel `hud/TradePanel.tsx` (posuvníky, náhled
-  `lib/trade-quote.ts`), upozornění, ikona `icons/build/obchod.png`.
+  Web: `VillageManor.neighbours` (`neighbourViews`), panel `hud/TradePanel.tsx` (soused a směr,
+  bilance pro souseda ikonou vah `resources/balance.png` – zeleně ≥ 0, červeně záporná –, dva
+  sloupce v `hud-inset` s viditelnými hlavičkami „Dáš“ / „Dostaneš“ a portrétem dvorce, řádky
+  `TradeRow` s popiskem „Soused shání – vezme ještě …“ / „Soused nabízí – má ještě …“
+  – `tradeAmountText`; záložky sousedů jen při víc sousedech; náhled `lib/trade-quote.ts`),
+  upozornění, ikona `icons/build/obchod.png`.
 - **Jen společné suroviny** (trade.md – Jen společné suroviny; Martin 19. 10. 2026: „Nech jen
   společné suroviny, nezaváděj nové.“): obchod zná jen zboží, které má i ves (`TradeGood` – obilí,
   luštěniny, maso, sýr, dobytek, klády, keramika, nástroje, uhlí; `TRADE_GOODS`). Zboží zvenku
@@ -1595,9 +1663,11 @@ směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, 
   dospělý v `TradePanel` (ikony `resources/family.png`, `man.png`), upozornění „Přišla rodina ze
   severu“.
 - **Ohrada s přístřeškem** ([oxen.md](docs/design/oxen.md); ve vsi `SceneVillage.pens` –
-  `village-pens.ts` ve `VillageRenderer`: fáze podle `progress`, branka k nejbližšímu obydlí,
+  `village-pens.ts` ve `VillageRenderer`: fáze podle `progress`, branka k nejbližšímu obydlí
+  (vchod z jádra – `penEntrance`, `penEntranceFacing`; paths.md – Vchody),
   zvířata `penAnimalsFor` na místa `spots` – voli spřežení (v den orby na poli), telata ve
-  výcviku menší, v zimě krávy; výběr `{ kind: 'pen' }`, panel s tlačítkem „Vycvičit spřežení“;
+  výcviku menší, v zimě krávy; výběr `{ kind: 'pen' }`, panel se stářím spřežení a průběhem
+  výcviku (bez tlačítka – cvičí se samo);
   ukázka **Ohrada** na `/dev/buildings`): přístřešek s pultovou doškovou střechou, jesle,
   žlab a branka ze žerdí z `tools/blender/pen.py` (`models/pen/pen.glb`, díly staveniště
   `pen-construction.glb` „ohrada-…“; materiál `…-low` = jen poprašek sněhu – pod střechou

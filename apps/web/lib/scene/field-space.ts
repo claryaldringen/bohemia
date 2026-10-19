@@ -4,6 +4,7 @@
 // otočí do světa: polohy sítí obtisků, rostlin a kolíků kolem prvního čtverce, natočení rostlin
 // o natočení pole.
 import { gridFrame, isRotatedSquare, type CellSquare, type GridFrame } from './field-cells';
+import type { CanopyMesh } from './field-canopy';
 import type { FieldPlants, Peg, PlantInstance } from './field-crops';
 import type { DecalGrid, Point } from './village-layout';
 
@@ -18,6 +19,8 @@ export interface FieldSpace {
   point(p: { x: number; z: number }): { x: number; z: number };
   /** Síť obtisku z rovného prostoru do světa (kopie). */
   grid(grid: DecalGrid): DecalGrid;
+  /** Koruna porostu z rovného prostoru do světa (kopie – výšky a barvy beze změny). */
+  canopy(canopy: CanopyMesh): CanopyMesh;
   /** Rostliny z rovného prostoru do světa. */
   plants(plants: FieldPlants): FieldPlants;
   /** Čáry z rovného prostoru do světa. */
@@ -58,6 +61,15 @@ export function fieldSpace(squares: readonly CellSquare[]): FieldSpace | null {
         positions[k + 1] = z;
       }
       return { positions, alphas: grid.alphas, indices: grid.indices };
+    },
+    canopy: (canopy) => {
+      const positions = new Float32Array(canopy.positions.length);
+      for (let k = 0; k < positions.length; k += 2) {
+        const [x, z] = toWorld(canopy.positions[k]!, canopy.positions[k + 1]!);
+        positions[k] = x;
+        positions[k + 1] = z;
+      }
+      return { ...canopy, positions };
     },
     plants: (plants) => ({
       crops: Object.fromEntries(

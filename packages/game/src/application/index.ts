@@ -19,7 +19,6 @@ export * from './place-cemetery';
 export * from './place-orchard';
 export * from './place-sacred';
 export * from './place-pen';
-export * from './train-team';
 export * from './upgrade-road';
 export * from './build-trail';
 export * from './send-expedition';

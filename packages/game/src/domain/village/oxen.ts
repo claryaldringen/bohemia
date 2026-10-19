@@ -1,5 +1,6 @@
+import { dateOfDayIndex, dayIndexOf, isLeapYear } from '../calendar';
 import type { ObstacleLayer } from '../landscape';
-import { HAY, oxenHayCoverage } from './hay';
+import { HAY, isHayWinter, oxenHayCoverage, villageHayKg } from './hay';
 import { butcher, ensureLivestock, LIVESTOCK } from './livestock';
 import { obstacleChangesAt, recordClearedObstacles } from './obstacles';
 import { PLOUGH_HA_PER_DAY, ploughWorkPerHa } from './plough';
@@ -273,11 +274,23 @@ export function serviceYearsBeforeTraining(pen: Pen, day: number): number | null
   return OXEN.serviceYears - Math.floor(served / DAYS_PER_YEAR);
 }
 
+/** Dní zimního krmení od dneška do konce března včetně dneška (mimo zimu 0). */
+function hayWinterDaysLeft(day: number): number {
+  if (!isHayWinter(day)) return 0;
+  const { year, month } = dateOfDayIndex(day);
+  if (month <= 3) return dayIndexOf({ year, month: 4, day: 1 }) - day;
+  // listopad a prosinec – do Silvestra a pak leden až březen příštího roku (bez dayIndexOf za
+  // koncem světa)
+  const newYear = dayIndexOf({ year, month: 12, day: 31 }) + 1;
+  return newYear - day + 31 + (isLeapYear(year + 1) ? 29 : 28) + 31;
+}
+
 /**
- * Proč v ohradě nejde začít výcvik spřežení (česky), nebo null: ohrada stojí, nic se v ní necvičí,
- * vycvičené spřežení je v posledních 2 letech služby (náhrada naváže, když starý pár doslouží –
- * Martin; kdo chce dvě spřežení, postaví druhou ohradu), stádo má aspoň 3 krávy (dvě telata)
- * a na rádlo je strom (kláda, nebo strom ke kácení).
+ * Proč v ohradě teď nezačne výcvik spřežení (česky), nebo null – výcvik začne sám
+ * (`trainTeamsWhenReady`): ohrada stojí, nic se v ní necvičí, vycvičené spřežení je v posledních
+ * 2 letech služby (náhrada naváže, když starý pár doslouží – Martin; kdo chce dvě spřežení,
+ * postaví druhou ohradu), stádo má aspoň 3 krávy (dvě telata), na rádlo je strom (kláda, nebo
+ * strom ke kácení) a v zimě vystačí seno volům i telatům do konce března.
  */
 export function trainingBlock(
   state: VillageState,
@@ -294,28 +307,41 @@ export function trainingBlock(
   if ((state.livestock?.herds.cow ?? 0) < OXEN.minCows - EPSILON) {
     return `Na výcvik chybí telata – stádo potřebuje aspoň ${OXEN.minCows} krávy.`;
   }
+  const winterHay = (villageOxen(state) + OXEN.teamSize) * HAY.dailyKg.ox * hayWinterDaysLeft(day);
+  if (villageHayKg(state) < winterHay - EPSILON) return 'Na výcvik chybí seno.';
   if (penWood(state, ARD.trees, pen, day, obstacles).missing > 0) return 'Na rádlo chybí dřevo.';
   return null;
 }
 
 /**
- * Zahájí výcvik spřežení v ohradě (oxen.md): dvě telata ze stáda krav jdou do výcviku a vesničané
- * vyrobí rádlo – stavba ze společné práce (5 člověkodní) se dřevem (kláda z hromady, nebo strom
- * ke kácení u ohrady). Za 2 roky (a s hotovým rádlem) spřežení orá. RangeError, když výcvik
- * nejde (`trainingBlock`). Konvence dne jako u ostatních akcí – volá se na ves dopočítanou do dne
- * `day`, práci rádlo dostane od dalšího dne.
+ * Výcvik spřežení začne sám (oxen.md – Spřežení; Martin 19. 10. 2026: „Ať se spřežení cvičí
+ * automaticky, bez zásahu hráče.“ – mutuje stav): v každé ohradě, kde dnes výcvik jde
+ * (`trainingBlock`), jdou dvě telata ze stáda krav do výcviku a vesničané vyrobí rádlo – stavba ze
+ * společné práce (5 člověkodní) se dřevem (kláda z hromady, nebo strom ke kácení u ohrady). Za
+ * 2 roky (a s hotovým rádlem) spřežení orá. `walk` (chůze ke stromům po pevných cestách) se
+ * spočítá, jen když výcvik opravdu začne.
  */
-export function startTeamTraining(
+export function trainTeamsWhenReady(
   state: VillageState,
   day: number,
-  penId: number,
+  obstacles: ObstacleLayer | null,
+  walk?: () => Walk,
+): void {
+  for (const pen of villagePens(state)) {
+    if (trainingBlock(state, pen.id, day, obstacles) === null) {
+      startTraining(state, day, pen, obstacles, walk?.());
+    }
+  }
+}
+
+/** Zahájí výcvik v ohradě – telata do výcviku, stavba rádla (mutuje stav). */
+function startTraining(
+  next: VillageState,
+  day: number,
+  pen: Pen,
   obstacles: ObstacleLayer | null,
   walk?: Walk,
-): VillageState {
-  const block = trainingBlock(state, penId, day, obstacles);
-  if (block) throw new RangeError(block);
-  const next = structuredClone(state);
-  const pen = villagePens(next).find((p) => p.id === penId)!;
+): void {
   const livestock = ensureLivestock(next);
   livestock.herds.cow = Math.max(0, livestock.herds.cow - OXEN.teamSize);
   pen.training = { startDay: day };
@@ -330,10 +356,9 @@ export function startTeamTraining(
     position: null,
     dwellingId: null,
     fieldId: null,
-    penId,
+    penId: pen.id,
     wood,
   });
-  return next;
 }
 
 /** Ohrada k zahájení – čtverec, jeho střed a překážky na něm (`checkPenPlacement`). */
