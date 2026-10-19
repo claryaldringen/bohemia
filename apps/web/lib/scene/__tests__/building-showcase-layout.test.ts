@@ -9,6 +9,7 @@ import {
   decayLabel,
   showcaseDecay,
   showcasePloughField,
+  structureRepairLabel,
 } from '../building-showcase-layout';
 import { decayStage } from '../dwelling-decay';
 
@@ -110,6 +111,29 @@ describe('ukázka rozpadu obydlí', () => {
     expect(fallen.cemeteries![0]!.fence).toBe(0);
     expect(fallen.pens).toEqual([]);
     expect(showcaseDecay(1).sacred!.ruins).toBeUndefined();
+  });
+
+  it('oprava staveb (abandonment.md – Oprava): stav roste s průběhem, ohniště až po opravě', () => {
+    const start = showcaseDecay(0, true);
+    const [idol, shrine] = start.sacred!.buildings;
+    expect(idol).toMatchObject({ condition: 0.1, repairing: true });
+    expect(idol).not.toHaveProperty('abandoned');
+    expect(decayStage(shrine!.condition)).toBe(3);
+    expect(start.cemeteries![0]!.fence).toBe(0);
+    expect(start.pens![0]!.condition).toBe(0.1);
+    expect(start.pens![0]).not.toHaveProperty('stocked');
+    const half = showcaseDecay(0.5, true);
+    expect(half.sacred!.buildings[0]!.condition).toBe(0.55);
+    expect(half.cemeteries![0]!.fence).toBe(0.5);
+    // obydlí dál chátrají podle posuvníku
+    expect(half.dwellings).toEqual(showcaseDecay(0.5).dwellings);
+    const done = showcaseDecay(1, true);
+    expect(done.sacred!.buildings.every((b) => b.condition === undefined && !b.repairing)).toBe(
+      true,
+    );
+    expect(done.cemeteries![0]!.fence).toBeUndefined();
+    expect(structureRepairLabel(0.5)).toContain('oprava 50 %');
+    expect(structureRepairLabel(1)).toContain('opraveno');
   });
 
   it('dvojice podle posuvníku a řada všech stupňů se zbytky jam, nic se nepřekrývá', () => {

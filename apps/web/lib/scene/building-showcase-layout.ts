@@ -763,9 +763,10 @@ type ShowcaseRuin = NonNullable<SceneVillage['ruins']>[number];
 /**
  * Rozpad obydlí na vývojové stránce: opuštěná zemnice a polozemnice na pozemku podle posuvníku
  * (`decayAt`) a za nimi řada stupňů 0–3 a zbytku jámy pro obě obydlí – ves pro scénu
- * (`VillageRenderer` je kreslí jako ve hře).
+ * (`VillageRenderer` je kreslí jako ve hře). S `repair` ukáže řada opuštěných staveb místo
+ * rozpadu jejich opravu (`showcaseRepair` – posuvník je průběh opravy).
  */
-export function showcaseDecay(t: number): SceneVillage {
+export function showcaseDecay(t: number, repair = false): SceneVillage {
   const at = decayAt(t);
   const dwellings: ShowcaseDwelling[] = [];
   const ruins: ShowcaseRuin[] = [];
@@ -823,7 +824,97 @@ export function showcaseDecay(t: number): SceneVillage {
       overgrowth: STAGES_RUIN_OVERGROWTH,
     });
   }
-  return { dwellings, fields: [], ruins, ...showcaseAbandoned(at) };
+  return {
+    dwellings,
+    fields: [],
+    ruins,
+    ...(repair ? showcaseRepair(t) : showcaseAbandoned(at)),
+  };
+}
+
+/**
+ * Stav modly, svatyně a ohrady na začátku ukázky opravy – rozpadlá (spadlé už se neopravují),
+ * plot hřbitova spadlý (staví se znovu).
+ */
+export const REPAIR_SHOWCASE_FROM = 0.1;
+
+/** Stav opravované stavby při průběhu opravy `t` 0–1 (abandonment.md – Oprava). */
+export function repairAt(t: number, from: number): number {
+  const p = Math.min(1, Math.max(0, t));
+  return from + (1 - from) * p;
+}
+
+/** Popisek posuvníku pro ukázku opravy staveb (abandonment.md – Oprava). */
+export function structureRepairLabel(t: number): string {
+  const p = Math.min(1, Math.max(0, t));
+  if (p >= 1) return 'opraveno – modla, svatyně (ohniště zase hoří), plot hřbitova i ohrada celé';
+  const sacred = repairAt(p, REPAIR_SHOWCASE_FROM);
+  const percent = (value: number): string => `${Math.round(value * 100)} %`;
+  const stage = STRUCTURE_STAGE_LABELS[decayStage(sacred)];
+  return [
+    `oprava ${percent(p)} – modla, svatyně a ohrada ${percent(sacred)} (${stage})`,
+    `plot hřbitova ${percent(repairAt(p, 0))}`,
+  ].join(', ');
+}
+
+/**
+ * Oprava modly, svatyně, plotu hřbitova a ohrady (abandonment.md – Oprava): k opuštěným stavbám
+ * se zase chodí a vesničané je opravují – stav roste s průběhem `t`, díly rozpadu se vracejí
+ * opačně než při chátrání, plot se splétá zpět (i spadlý), ohniště svatyně se rozhoří až po
+ * opravě.
+ */
+export function showcaseRepair(t: number): Pick<SceneVillage, 'sacred' | 'cemeteries' | 'pens'> {
+  const z = STRUCTURES_Z;
+  const done = t >= 1;
+  const sacredCondition = repairAt(t, REPAIR_SHOWCASE_FROM);
+  const fence = repairAt(t, 0);
+  const wear = <K extends string>(condition: number, key: K): { [key in K]?: number } =>
+    condition < 1 ? ({ [key]: Math.floor(condition * 100) / 100 } as { [key in K]?: number }) : {};
+  const square = (
+    x: number,
+  ): { cell: { x: number; y: number }; x: number; z: number; size: number } => ({
+    cell: { x: Math.round(x / 15), y: 40 },
+    x,
+    z,
+    size: 15,
+  });
+  return {
+    sacred: {
+      oaks: [],
+      groves: [],
+      buildings: (['idol', 'shrine'] as const).map((kind, k) => ({
+        id: 9201 + k,
+        kind,
+        position: { x: STRUCTURES_X[kind], z, rotation: FACING },
+        built: true,
+        progress: 1,
+        ...wear(sacredCondition, 'condition'),
+        ...(done ? {} : { repairing: true as const }),
+      })),
+    },
+    cemeteries: [
+      {
+        id: 9301,
+        squares: [square(STRUCTURES_X.cemetery)],
+        built: true,
+        progress: 1,
+        graves: 34,
+        ...wear(fence, 'fence'),
+      },
+    ],
+    pens: [
+      {
+        id: 9401,
+        ...square(STRUCTURES_X.pen),
+        built: true,
+        progress: 1,
+        oxen: 0,
+        trainees: 0,
+        cows: 0,
+        ...wear(sacredCondition, 'condition'),
+      },
+    ],
+  };
 }
 
 /**

@@ -171,6 +171,7 @@ const view = {
       yearsLeft: 12.2,
       fenceCondition: 0.62,
       abandoned: true,
+      repair: null,
     },
     {
       id: 31,
@@ -183,6 +184,7 @@ const view = {
       yearsLeft: null,
       fenceCondition: 1,
       abandoned: false,
+      repair: null,
     },
   ],
   orchards: [
@@ -221,6 +223,7 @@ const view = {
         oaksToFell: 0,
         condition: 0.4,
         abandoned: true,
+        repair: null,
       },
       {
         id: 41,
@@ -231,6 +234,7 @@ const view = {
         oaksToFell: 2,
         condition: 1,
         abandoned: false,
+        repair: null,
       },
     ],
   },
@@ -256,8 +260,9 @@ const view = {
       trainBlocked: 'Na výcvik chybí telata – stádo potřebuje aspoň 3 krávy.',
       cows: 4,
       oxen: 2,
-      condition: 1,
+      condition: 0.7,
       abandoned: false,
+      repair: 0.25,
     },
     {
       id: 91,
@@ -270,6 +275,7 @@ const view = {
       oxen: 0,
       condition: 1,
       abandoned: false,
+      repair: null,
     },
   ],
 } as unknown as VillageView;
@@ -424,6 +430,7 @@ describe('selectionDetails – hřbitov', () => {
       building: null,
       condition: 0.62,
       abandoned: true,
+      repair: null,
     });
     expect(selectionDetails(view, scene, { kind: 'cemetery', id: 31 })).toMatchObject({
       built: false,
@@ -490,6 +497,7 @@ describe('selectionDetails – posvátná místa', () => {
       oaksToFell: 0,
       condition: 0.4,
       abandoned: true,
+      repair: null,
     });
     expect(selectionDetails(view, scene, { kind: 'sacred', id: 41 })).toEqual({
       kind: 'sacred',
@@ -500,6 +508,7 @@ describe('selectionDetails – posvátná místa', () => {
       oaksToFell: 2,
       condition: 1,
       abandoned: false,
+      repair: null,
     });
     expect(selectionDetails(view, scene, { kind: 'sacred', id: -1 })).toEqual({
       kind: 'sacred',
@@ -510,6 +519,7 @@ describe('selectionDetails – posvátná místa', () => {
       oaksToFell: 0,
       condition: 1,
       abandoned: false,
+      repair: null,
     });
     expect(selectionDetails(view, scene, { kind: 'sacred', id: 99 })).toBeNull();
   });
@@ -531,8 +541,9 @@ describe('selectionDetails – posvátná místa', () => {
       training: null,
       hayKg: 3200,
       trainBlocked: 'Na výcvik chybí telata – stádo potřebuje aspoň 3 krávy.',
-      condition: 1,
+      condition: 0.7,
       abandoned: false,
+      repair: 0.25,
     });
     expect(selectionDetails(view, scene, { kind: 'pen', id: 91 })).toMatchObject({
       kind: 'pen',

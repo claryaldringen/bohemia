@@ -437,7 +437,12 @@ export type ConstructionKind =
   /** Vylepšení pevné cesty `roadIds` na stupeň `roadGrade` (roads.md – Vylepšení cesty). */
   | 'road'
   /** Výsadba jabloní podél pevné cesty `roadIds` (roads.md – Vysazení jabloní). */
-  | 'road-apples';
+  | 'road-apples'
+  /**
+   * Oprava stavby, ke které se zase chodí (abandonment.md – Oprava): modla, svatyně, plot
+   * hřbitova a ohrada v `repair` – vesničané ji založí sami ze společné práce.
+   */
+  | 'repair';
 /**
  * Co může vzít půdu poli (fields.md – Pole jako krajina; Martin 18. 10. 2026): obydlí (i dílna),
  * sad, hřbitov, ohrada, modla, svatyně, jabloně u cesty a stromy u cesty – cokoli kromě pole.
@@ -493,6 +498,21 @@ export interface Construction {
    * `dwelling`, u ostatních staveb chybí.
    */
   relocates?: number;
+  /**
+   * Oprava stavby (abandonment.md – Oprava): která stavba a z jakého stavu se opravuje – stav
+   * stavby roste s prací. Jen u stavby `repair`, u ostatních chybí.
+   */
+  repair?: StructureRepair;
+}
+/**
+ * Oprava stavby (abandonment.md – Oprava): druh a id stavby (modla a svatyně – id stavby,
+ * hřbitov, ohrada) a stav, ze kterého oprava začala. Práce stavby = plná oprava × (1 − `from`).
+ */
+export interface StructureRepair {
+  structure: AbandonedStructure;
+  id: number;
+  /** Stav 0–1 v den zahájení opravy (spadlý plot hřbitova 0). */
+  from: number;
 }
 /**
  * Dřevo stavby (forest.md – Stavby a kácení): kolik ho stavba spotřebuje, kolik klád vzala při
@@ -686,6 +706,11 @@ export type ChronicleEvent = { day: number } & (
    * svatyně se rozpadla, plot hřbitova se rozpadl, ohrada se rozpadla – id stavby.
    */
   | { kind: 'structure-fell'; structure: AbandonedStructure; id: number }
+  /**
+   * Vesničané opravili stavbu, ke které se zase chodí (abandonment.md – Oprava): modlu, svatyni,
+   * plot hřbitova (i spadlý postavili znovu) nebo ohradu – id stavby.
+   */
+  | { kind: 'structure-repaired'; structure: AbandonedStructure; id: number }
   | {
       kind: 'cemetery-full';
       cemeteryId: number;
@@ -727,7 +752,7 @@ export type LaborActivity =
   | 'found-field'
   | 'orchard-plant'
   | 'cemetery'
-  /** Opravy obydlí (population.md). */
+  /** Opravy obydlí (population.md), oprava modly a svatyně (abandonment.md – Oprava). */
   | 'repair'
   /** Řemeslník v dílně (crafts.md) – výroba uhlí, nástrojů nebo keramiky. */
   | 'craft'
@@ -753,8 +778,10 @@ export type LaborTarget =
   | { kind: 'site'; id: number }
   /** Sad (id) – výsadba, péče, sklizeň. */
   | { kind: 'orchard'; id: number }
-  /** Hřbitov (id) – zakládání a rozšíření. */
+  /** Hřbitov (id) – zakládání, rozšíření a oprava plotu (abandonment.md – Oprava). */
   | { kind: 'cemetery'; id: number }
+  /** Hotová modla nebo svatyně (id stavby) – oprava (abandonment.md – Oprava). */
+  | { kind: 'sacred'; id: number }
   /** Ohrada (id) – stavba, rádlo, péče o krávy a voly v zimě. */
   | { kind: 'pen'; id: number }
   /** Pevná cesta (id úseku) – vylepšení a jabloně podél ní (roads.md). */
@@ -1407,7 +1434,8 @@ export type AbandonedStructure = 'idol' | 'shrine' | 'cemetery-fence' | 'pen';
 /**
  * Chátrání stavby (abandonment.md – Chátrání): stav 0–1 a od kdy je stavba opuštěná. Opuštěná
  * stavba ztrácí stav rovnoměrně (`ABANDONMENT.fallYears` od plného stavu do pádu); když se k ní
- * lidé znovu začnou chodit, `abandonedDay` zmizí a stav zůstane, jaký byl (nezvedá se).
+ * lidé znovu začnou chodit, `abandonedDay` zmizí a chátrání se zastaví – stav pak roste jen
+ * s prací opravy (abandonment.md – Oprava, stavba `repair`); opravená stavba záznam nemá.
  */
 export interface StructureWear {
   /** Stav 0–1 v den `abandonedDay` (opuštěná stavba), jinak trvale. */

@@ -150,6 +150,14 @@ function Wear({
   );
 }
 
+/**
+ * Oprava stavby, ke které se zase chodí (abandonment.md – Oprava) – průběh jako stavba, bez
+ * textů navíc.
+ */
+function RepairBar({ value, name = 'Oprava' }: { value: number; name?: string }): ReactElement {
+  return <Bar value={value} name={name} testId="selection-repair" />;
+}
+
 /** Portrét a název obydlí, nebo dílny řemesla. */
 function dwellingPortrait(type: DwellingType, craft: Craft | null): ReactElement {
   return craft ? (
@@ -562,6 +570,7 @@ function CemeteryBody({
         <Wear condition={details.condition} abandoned={details.abandoned} name="Plot – stav" />
       </div>
       {details.building !== null && <Bar value={details.building} name="Rozšíření" />}
+      {details.repair !== null && <RepairBar value={details.repair} name="Oprava plotu" />}
     </div>
   );
 }
@@ -718,6 +727,7 @@ function PenBody({
         )}
         <Wear condition={details.condition} abandoned={details.abandoned} />
       </div>
+      {details.repair !== null && <RepairBar value={details.repair} />}
       <ul aria-label="Stáda vsi" className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
         {HERD_ORDER.map((species) => (
           <li key={species}>
@@ -1012,6 +1022,7 @@ function SacredBody({
           <HappinessGain value={details.happiness} />
           <Wear condition={details.condition} abandoned={details.abandoned} />
         </div>
+        {details.repair !== null && <RepairBar value={details.repair} />}
       </div>
     );
   }

@@ -7,6 +7,7 @@ import { plotShapes } from './plot-cells';
 import { pointsBounds, squareCenter, squareCorners } from './square-grid';
 import { fieldGrids } from './squares';
 import { polygonsOverlap, type Point } from './polygon';
+import { cancelRepair, startRepair, type StructureRef } from './repair';
 import { ABANDONMENT, SACRED_BUILDINGS } from './rules';
 import { sacredBuildingPlots, sacredFootprint } from './sacred';
 import type {
@@ -29,9 +30,10 @@ import type {
 // roční sítě cest (roads.md – 1. 11., stejný výpočet jako pevné cesty) za celý uplynulý rok
 // nevedla žádná cesta – provoz ke stavbě dává síť pěšin (`PathNetwork.visits`). Opuštěná stavba
 // ztrácí stav rovnoměrně a za ABANDONMENT.fallYears let od plného stavu spadne; když se k ní lidé
-// znovu začnou chodit, chátrání se zastaví (stav se nezvedá – jako u obydlí). Modla a svatyně
-// dávají štěstí, dokud stojí; padlá modla leží jako zbytek, ze svatyně zbude zarostlý příkop.
-// U hřbitova se rozpadne jen plot (hroby zůstávají, pohřbívá se dál), ohrada se rozpadne a zmizí.
+// znovu začnou chodit, chátrání se zastaví a vesničané ji opraví ze společné práce (abandonment.md
+// – Oprava, Martin 19. 10. 2026 – repair.ts). Modla a svatyně dávají štěstí, dokud stojí; padlá
+// modla leží jako zbytek, ze svatyně zbude zarostlý příkop. U hřbitova se rozpadne jen plot (hroby
+// zůstávají, pohřbívá se dál – spadlý plot se postaví znovu), ohrada se rozpadne a zmizí.
 // Bez krajiny (kalibrace, testy) síť cest není a nic se neopouští.
 
 const DAYS_PER_YEAR = 365.25;
@@ -126,10 +128,32 @@ function setWear<K extends string>(
 }
 
 /**
+ * Po roční kontrole (mutuje stav – abandonment.md, Oprava): navštěvovaná stavba pod plným stavem
+ * dostane opravu (jen stojící – plot hřbitova i spadlý, padlá modla, svatyně a ohrada dnes ještě
+ * zmizí), opuštěná o rozestavěnou opravu přijde (spravené zůstane).
+ */
+function keepRepaired(
+  state: VillageState,
+  day: number,
+  ref: StructureRef,
+  wear: StructureWear | undefined,
+  visited: boolean,
+): void {
+  if (!visited) {
+    cancelRepair(state, ref);
+    return;
+  }
+  const condition = structureCondition(wear, ref.structure, day);
+  if (condition <= 0 && ref.structure !== 'cemetery-fence') return;
+  startRepair(state, day, ref, condition);
+}
+
+/**
  * Roční kontrola opuštěných staveb (1. 11. – volá simulace s provozem roční sítě cest; mutuje
  * stav): stavba, ke které za rok nevedla žádná cesta (`visits` – network.ts), začne chátrat,
- * navštěvovaná přestane. Stavba dokončená za poslední rok (ABANDONMENT.graceDays) opuštěná není
- * – lidé k ní chodili stavět; ohrada se zvířaty taky ne.
+ * navštěvovaná přestane a vesničané ji opraví (repair.ts). Stavba dokončená za poslední rok
+ * (ABANDONMENT.graceDays) opuštěná není – lidé k ní chodili stavět; ohrada se zvířaty taky ne.
+ * Práce opravy vede k stavbě cesty – oprava ji tak drží navštěvovanou.
  */
 export function abandonmentCheck(
   state: VillageState,
@@ -142,17 +166,20 @@ export function abandonmentCheck(
   for (const b of state.sacredBuildings ?? []) {
     const on = visited(visitKey(b.kind, b.id)) || fresh(b.builtDay);
     setWear(b, 'wear', nextWear(b.wear, b.kind, day, on));
+    keepRepaired(state, day, { structure: b.kind, id: b.id }, b.wear, on);
   }
   for (const c of villageCemeteries(state)) {
     if (c.builtDay === null) continue;
     const on = visited(visitKey('cemetery', c.id)) || fresh(c.builtDay);
     setWear(c, 'fenceWear', nextWear(c.fenceWear, 'cemetery-fence', day, on));
+    keepRepaired(state, day, { structure: 'cemetery-fence', id: c.id }, c.fenceWear, on);
   }
   const stocked = stockedPenIds(state);
   for (const p of villagePens(state)) {
     if (p.builtDay === null) continue;
     const on = stocked.has(p.id) || visited(visitKey('pen', p.id)) || fresh(p.builtDay);
     setWear(p, 'wear', nextWear(p.wear, 'pen', day, on));
+    keepRepaired(state, day, { structure: 'pen', id: p.id }, p.wear, on);
   }
 }
 
@@ -160,8 +187,8 @@ export function abandonmentCheck(
  * Krok dne (mutuje stav – volá simulace na konci dne): opuštěná stavba, jejíž stav dnes došel na
  * nulu, spadne – modla a svatyně zmizí a zůstane po nich zbytek (`sacredRuins`), plot hřbitova
  * se rozpadne (hřbitov zůstává), ohrada zmizí. Ohrada, do které se mezitím vrátila zvířata,
- * chátrat přestane hned. Zbytky padlých model a svatyní po ABANDONMENT.remnantYears zmizí,
- * stejně jako zbytky pod stavbou. Vrátí události kroniky.
+ * chátrat přestane hned a vesničané ji opraví (repair.ts). Zbytky padlých model a svatyní po
+ * ABANDONMENT.remnantYears zmizí, stejně jako zbytky pod stavbou. Vrátí události kroniky.
  */
 export function abandonmentDay(
   state: VillageState,
@@ -198,10 +225,11 @@ export function abandonmentDay(
       if (!isAbandoned(p.wear)) continue;
       if (stocked.has(p.id)) {
         // zvířata se vrátila – lidé sem chodí krmit, chátrání se zastaví (ohrada se zvířaty
-        // nespadne – zůstane aspoň na MIN_STOCKED_CONDITION)
+        // nespadne – zůstane aspoň na MIN_STOCKED_CONDITION) a vesničané ji opraví
         p.wear = {
           condition: Math.max(MIN_STOCKED_CONDITION, structureCondition(p.wear, 'pen', day)),
         };
+        startRepair(state, day, { structure: 'pen', id: p.id }, p.wear.condition);
         continue;
       }
       if (structureCondition(p.wear, 'pen', day) <= 0) gone.push(p);

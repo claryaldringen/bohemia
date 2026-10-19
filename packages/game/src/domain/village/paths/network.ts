@@ -1167,8 +1167,16 @@ function tripGroups(
     );
   }
   for (const b of sacredBuildings) {
-    if (b.built) continue;
     const half = SACRED_BUILDINGS[b.kind].footprintM / 2;
+    if (b.built) {
+      // oprava hotové modly a svatyně (abandonment.md – Oprava) – práce dne u stavby, i to je
+      // provoz ke stavbě
+      const repair = work(`sacred:${b.id}`);
+      if (repair > 0) {
+        target(cellsAround(grid, b.position, half + grid.cellM), repair, 1, `${b.kind}:${b.id}`);
+      }
+      continue;
+    }
     target(
       cellsAround(grid, b.position, half + grid.cellM),
       BASE_TRIPS.site + work(`site:${b.id}`),

@@ -230,6 +230,7 @@ describe('hřbitov je plný', () => {
     yearsLeft: null,
     fenceCondition: 1,
     abandoned: false,
+    repair: null,
   });
 
   it('jen když žádný hotový hřbitov nemá volný hrob – bez hřbitova nic', () => {
@@ -352,6 +353,31 @@ describe('newNotices – porážka a spřežení (diet.md, oxen.md)', () => {
       { kind: 'shrine-fell', tone: 'warn', text: 'Svatyně se rozpadla' },
       { kind: 'cemetery-fence-fell', tone: 'warn', text: 'Plot hřbitova se rozpadl' },
       { kind: 'pen-fell', tone: 'warn', text: 'Ohrada se rozpadla' },
+    ]);
+  });
+
+  it('vesničané opravili stavbu – fakt podle stavby (abandonment.md – Oprava)', () => {
+    const repaired = (
+      day: number,
+      structure: NonNullable<VillageView['chronicle'][number]['structure']>,
+    ): VillageView['chronicle'][number] => ({
+      ...entry(day, 'structure-repaired', ''),
+      structure,
+    });
+    const after = view({
+      dayIndex: 1010,
+      chronicle: [
+        repaired(1009, 'pen'),
+        repaired(1008, 'shrine'),
+        repaired(1007, 'idol'),
+        repaired(1006, 'cemetery-fence'),
+      ],
+    });
+    expect(newNotices(view({ dayIndex: 1000 }), after)).toEqual([
+      { kind: 'cemetery-fence-repaired', tone: 'info', text: 'Plot hřbitova opraven' },
+      { kind: 'idol-repaired', tone: 'info', text: 'Modla opravena' },
+      { kind: 'shrine-repaired', tone: 'info', text: 'Svatyně opravena' },
+      { kind: 'pen-repaired', tone: 'info', text: 'Ohrada opravena' },
     ]);
   });
 

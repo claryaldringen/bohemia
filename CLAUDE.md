@@ -452,7 +452,9 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   terénu po světových souřadnicích (`overgrow`). Plot opuštěného hřbitova a ohrady `decayFence`
   podle `fenceDecayAmount` (po dvacetinách), mohylky zarůstají a slehnou se s ním. Náhled:
   /dev/buildings tlačítko **Rozpad staveb** (modla, svatyně, hřbitov, ohrada – stejný posuvník
-  ▶ Rozpad jako obydlí, `showcaseAbandoned`).
+  ▶ Rozpad jako obydlí, `showcaseAbandoned`), přepínač **Oprava staveb** (posuvník = průběh
+  opravy – `showcaseRepair`). Opravovaná svatyně (`SceneSacred.buildings[].repairing`) má ohniště
+  studená až do konce opravy (`sacredDecayParts(…, cold)`, bez dýmu).
 - **Řemeslné dílny** (ve hře od 18. 10. 2026, pravidla v [docs/design/crafts.md](docs/design/crafts.md),
   jádro a rozhraní viz Ves – Řemesla): `public/models/crafts/`
   hrnčíř a kovář (polozemnice s přístřeškem o `PORCH` 3,6 m vpředu, pod ním pec / výheň
@@ -564,19 +566,38 @@ rozhraní částí v
   scéně – nikdy) a každý den `abandonmentDay` (pád, zbytky). Do ohrady bez zvířat se nechodí
   krmit (`PathVillage.pens[].stocked: false` – `pathVillageOf`, `ScenePen.stocked`, i v klíčích
   sítě). Stav `StructureWear` (`condition` ke dni `abandonedDay`; bez dne zastavené chátrání –
-  stav se nezvedá) na `SacredBuilding.wear`, `Cemetery.fenceWear`, `Pen.wear`; stav dne
-  `structureCondition`, den pádu `structureFallDay`. Spadne za `ABANDONMENT.fallYears` (modla
+  sám se nezvedá, jen prací opravy) na `SacredBuilding.wear`, `Cemetery.fenceWear`, `Pen.wear`;
+  stav dne `structureCondition`, den pádu `structureFallDay`. Spadne za `ABANDONMENT.fallYears` (modla
   20, svatyně 30, plot hřbitova 10, ohrada 10 let) → kronika `structure-fell` (`structure`,
   `id`; upozornění „Modla padla“ / „Svatyně se rozpadla“ / „Plot hřbitova se rozpadl“ / „Ohrada se
   rozpadla“): modla a svatyně zmizí ze `sacredBuildings` (štěstí jen ze stojících, svatyni jde
   postavit znovu) a zůstane `VillageState.sacredRuins` (`sacredRuinOvergrowth`, modla 10,
   příkop 20 let – `remnantYears`, pod stavbou zmizí), u hřbitova jen plot (`fenceWear`
-  `{ condition: 0 }`, pohřbívá se dál, oprava plotu zatím žádná), ohrada zmizí; ohrada, do
-  které se vrátila zvířata, chátrat přestane hned (nejméně 1 %). Web: `VillageSacred.buildings`,
+  `{ condition: 0 }`, pohřbívá se dál), ohrada zmizí; ohrada, do které se vrátila zvířata,
+  chátrat přestane hned (nejméně 1 %). Web: `VillageSacred.buildings`,
   `VillagePen` a `VillageCemetery` nesou `condition` / `fenceCondition` a `abandoned` (panel –
   `Wear`: ikona `resources/condition` s %, ikona `resources/abandoned`), scéna
   `SceneSacred.buildings[].condition` / `abandoned`, `SceneSacred.ruins`, `ScenePen.condition`,
   `SceneVillage.cemeteries[].fence` (jen pod 1, po setinách).
+  **Oprava** (abandonment.md – Oprava; Martin 19. 10. 2026: plot hřbitova vesničané opraví sami,
+  jakmile se ke hřbitovu zase chodí, postupně z práce vsi, spadlý postaví znovu – a „ano“ i pro
+  modlu, svatyni a ohradu): `repair.ts` (nezávisí na `abandonment.ts`). Roční kontrola
+  (`keepRepaired` v `abandonmentCheck`) navštěvované stojící stavbě pod plným stavem založí stavbu
+  `kind: 'repair'` (`Construction.repair` – `StructureRepair`: druh, id a stav při zahájení
+  `from`; `startRepair`, ohrada i v `abandonmentDay` po návratu zvířat), opuštěné ji zruší
+  (`cancelRepair` – spravené zůstane ve stavu). Spadlá modla, svatyně a ohrada se neopravují
+  (zmizely), spadlý plot hřbitova ano (od 0). Cena `fullRepairManDays` = `STRUCTURE_REPAIR.share`
+  (plot 0,3 z 10 čd na hotový čtverec, modla a svatyně 0,25 z `sacredBuildLabor`, ohrada 0,5
+  z `penBuildLabor`) × (1 − stav), bez dřeva, ze společné práce kdykoli v roce (`build` –
+  `repairNeed`; `workRepair` zvedá `wear.condition` na `repairedCondition`); hotová
+  (`isRepairFinished`, `finishRepair`) záznam chátrání smaže, kronika `structure-repaired`
+  (řádky „Modla opravena“, „Svatyně opravena“, „Plot hřbitova opraven“, „Ohrada opravena“,
+  obecné `construction-finished` ne). Rozdělení práce: plot `cemetery` (po obvodu jako
+  ohrazení), ohrada `pen`, modla a svatyně `repair` u cíle `{ kind: 'sacred', id }` – v síti
+  pěšin i to provoz ke stavbě (`work('sacred:<id>')` s `visit`). Web: `ConstructionSummary.repair`,
+  `VillageCemetery.repair`, `VillagePen.repair`, `VillageSacred.buildings[].repair` (průběh 0–1 –
+  panel `RepairBar` „Oprava“ / „Oprava plotu“), scéna jen podle rostoucího stavu (stupně
+  rozpadu a `decayFence` jdou opačně).
 - **Hřbitov** (`cemetery.ts`, cemetery.md): čtverce s 56 hroby, zemřelý se pohřbí do hotového
   hřbitova s místem nejblíž k obydlím (`bury` v `populationDay`), kronika `cemetery-full`.
   Čtverce navazující stranou na hřbitov ho **rozšíří** (`foundCemetery`: stejné id, čtverce na

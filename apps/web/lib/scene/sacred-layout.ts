@@ -243,5 +243,7 @@ export function sacredBuildingKey(b: SceneSacred['buildings'][number]): string {
     // rozpad opuštěné stavby jen po stupních (abandonment.md – structure-decay.ts)
     b.built ? decayStage(b.condition) : '',
     b.abandoned ? 'a' : '',
+    // opravovaná svatyně má ohniště studená až do konce opravy (abandonment.md – Oprava)
+    b.repairing ? 'r' : '',
   ].join('|');
 }

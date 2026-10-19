@@ -6,7 +6,8 @@
 // spřežení volů s rádlem a vedle zemnice ohrada s přístřeškem (voli a kráva). Orba volů ani
 // ohrada zatím nejsou ve hře – jen modely. Přepínač zimy ukáže sníh. Před pozemky rozpad obydlí:
 // posuvník stavu opuštěné zemnice a polozemnice 100 → 0 % a zbytek jámy po zániku, za nimi řada
-// všech stupňů rozpadu.
+// všech stupňů rozpadu. Přepínač Oprava ukáže u opuštěných staveb (modla, svatyně, hřbitov,
+// ohrada) místo rozpadu jejich opravu – posuvník je průběh opravy (abandonment.md – Oprava).
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import {
   MILIR_OFFSET_M,
@@ -18,6 +19,7 @@ import {
   SHOWCASE_PEN,
   decayLabel,
   structureDecayLabel,
+  structureRepairLabel,
   showcaseGrounds,
 } from '@/lib/scene/building-showcase-layout';
 import { penPhase } from '@/lib/scene/pen-layout';
@@ -58,6 +60,7 @@ export function BuildingShowcaseView(): ReactElement {
   const [winter, setWinter] = useState(false);
   const [decay, setDecay] = useState(0);
   const [decaying, setDecaying] = useState(false);
+  const [repair, setRepair] = useState(false);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -124,6 +127,10 @@ export function BuildingShowcaseView(): ReactElement {
   useEffect(() => {
     showcase?.setDecay(decay);
   }, [showcase, decay]);
+
+  useEffect(() => {
+    showcase?.setRepair(repair);
+  }, [showcase, repair]);
 
   // přehrání rozpadu: od celého domu po zarostlý zbytek jámy
   useEffect(() => {
@@ -264,7 +271,20 @@ export function BuildingShowcaseView(): ReactElement {
         </ul>
         <div className="mt-2 flex items-center gap-2 border-t border-stone-300 pt-2 dark:border-stone-700">
           <button type="button" className={buttonClass} disabled={!showcase} onClick={toggleDecay}>
-            {decaying ? '❚❚ Pauza' : '▶ Rozpad'}
+            {decaying ? '❚❚ Pauza' : repair ? '▶ Oprava' : '▶ Rozpad'}
+          </button>
+          <button
+            type="button"
+            className={buttonClass}
+            disabled={!showcase}
+            aria-pressed={repair}
+            onClick={() => {
+              setDecaying(false);
+              setDecay(0);
+              setRepair(!repair);
+            }}
+          >
+            {repair ? '✓ Oprava staveb' : 'Oprava staveb'}
           </button>
           <input
             type="range"
@@ -286,8 +306,10 @@ export function BuildingShowcaseView(): ReactElement {
           {decayLabel(decay)}
         </p>
         <p className="mt-1 text-xs">
-          <span className="text-stone-900 dark:text-stone-100">Opuštěné stavby:</span>{' '}
-          {structureDecayLabel(decay)}
+          <span className="text-stone-900 dark:text-stone-100">
+            {repair ? 'Oprava staveb:' : 'Opuštěné stavby:'}
+          </span>{' '}
+          {repair ? structureRepairLabel(decay) : structureDecayLabel(decay)}
         </p>
       </section>
       <p className="fixed bottom-0 left-0 z-10 rounded-tr bg-stone-100/80 px-4 py-2 text-xs text-stone-600 backdrop-blur dark:bg-stone-950/70 dark:text-stone-400">

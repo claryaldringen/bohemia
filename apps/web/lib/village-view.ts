@@ -212,6 +212,8 @@ export interface VillageSacred {
     condition: number;
     /** Opuštěná – nikdo k ní nechodí, chátrá. */
     abandoned: boolean;
+    /** Vesničané stavbu opravují (abandonment.md – Oprava) – průběh 0–1; jinak null. */
+    repair: number | null;
   }[];
 }
 
@@ -234,6 +236,8 @@ export interface VillagePen {
   condition: number;
   /** Opuštěná – bez zvířat a nikdo k ní nechodí, chátrá. */
   abandoned: boolean;
+  /** Vesničané ohradu opravují (abandonment.md – Oprava) – průběh 0–1; jinak null. */
+  repair: number | null;
 }
 
 /**
@@ -471,7 +475,7 @@ export interface VillageView {
     day: number;
     kind: ChronicleEvent['kind'];
     kg?: number;
-    /** U pádu opuštěné stavby (`structure-fell`) která stavba. */
+    /** U pádu a opravy stavby (`structure-fell`, `structure-repaired`) která stavba. */
     structure?: AbandonedStructure;
     dateLabel: string;
     text: string;
@@ -505,6 +509,11 @@ export interface VillageCemetery {
   fenceCondition: number;
   /** Opuštěný – nikdo k němu nechodí, plot chátrá. */
   abandoned: boolean;
+  /**
+   * Vesničané plot opravují, spadlý stavějí znovu (abandonment.md – Oprava) – průběh 0–1;
+   * jinak null.
+   */
+  repair: number | null;
 }
 
 /** Sad pro panel výběru – čísla, žádné věty. */
@@ -908,6 +917,11 @@ export interface SceneSacred {
     condition?: number;
     /** Opuštěná stavba – chátrá (u svatyně vyhasnou ohniště). Bez údaje navštěvovaná. */
     abandoned?: true;
+    /**
+     * Vesničané stavbu opravují (abandonment.md – Oprava) – stav roste s prací, ohniště svatyně
+     * zůstanou studená až do konce opravy. Bez údaje se neopravuje.
+     */
+    repairing?: true;
   }[];
   /**
    * Zbytky padlých model a svatyní (abandonment.md – Následky): padlá modla na zemi, zarostlý
@@ -1112,6 +1126,14 @@ const STRUCTURE_FELL_TEXTS: Record<AbandonedStructure, string> = {
   pen: 'Opuštěná ohrada se rozpadla.',
 };
 
+/** Vesničané opravili stavbu, ke které se zase chodí (abandonment.md – Oprava) – kronika. */
+const STRUCTURE_REPAIRED_TEXTS: Record<AbandonedStructure, string> = {
+  idol: 'Vesničané modlu znovu usadili a opravili.',
+  shrine: 'Vesničané opravili svatyni – v ohništích zase hoří oheň.',
+  'cemetery-fence': 'Vesničané opravili plot hřbitova.',
+  pen: 'Vesničané opravili ohradu.',
+};
+
 /** Domácnosti odešly založit novou ves (migration.md) – kronika. */
 function householdsLeftText(households: number, people: number, direction?: Direction8): string {
   const who =
@@ -1207,6 +1229,8 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return `Nosiči se vrátili ${DIRECTION_NAMES[event.direction].from} – přinesli ${goodsText(event.get)}.`;
     case 'structure-fell':
       return STRUCTURE_FELL_TEXTS[event.structure];
+    case 'structure-repaired':
+      return STRUCTURE_REPAIRED_TEXTS[event.structure];
     case 'cemetery-full':
       if (event.othersFree) return 'Jeden z hřbitovů se zaplnil – pohřbívá se do dalšího.';
       // staví se jiný hřbitov nebo rozšíření – bude kam pohřbívat
@@ -1221,6 +1245,26 @@ export const SACRED_BUILDING_NAMES: Record<SacredBuildingKind, string> = {
   shrine: 'Svatyně',
 };
 
+/** Co se opravuje (abandonment.md – Oprava) – popisek stavby. */
+const REPAIR_NAMES: Record<AbandonedStructure, string> = {
+  idol: 'modla',
+  shrine: 'svatyně',
+  'cemetery-fence': 'plot hřbitova',
+  pen: 'ohrada',
+};
+
+/** Průběh opravy stavby 0–1 (abandonment.md – Oprava); bez opravy null. */
+function repairProgress(
+  constructions: readonly ConstructionSummary[],
+  structure: AbandonedStructure,
+  id: number,
+): number | null {
+  const c = constructions.find(
+    (x) => x.kind === 'repair' && x.repair?.structure === structure && x.repair.id === id,
+  );
+  return c ? c.progress : null;
+}
+
 function constructionLabel(c: ConstructionSummary): string {
   if (c.kind === 'field') return `Pole ${formatHa(c.areaM2 ?? 0)}`;
   if (c.craft && c.kind === 'dwelling') return CRAFT_NAMES[c.craft];
@@ -1231,6 +1275,7 @@ function constructionLabel(c: ConstructionSummary): string {
   if (c.kind === 'ard') return 'Rádlo';
   if (c.kind === 'road') return c.roadGrade === 'causeway' ? 'Hať a lávka' : 'Úprava cesty';
   if (c.kind === 'road-apples') return 'Jabloně u cesty';
+  if (c.kind === 'repair') return `Oprava – ${REPAIR_NAMES[c.repair?.structure ?? 'idol']}`;
   const type = c.dwellingType ?? 'zemnice';
   if (c.kind === 'rebuild') return `Přestavba na ${DWELLING_NAMES[type].accusative}`;
   return DWELLING_NAMES[type].nominative;
@@ -1691,6 +1736,13 @@ function sceneSacred(
     return [{ id: c.id, kind: c.kind, position: c.position, built: false, progress }];
   });
   const wears = new Map((state.sacredBuildings ?? []).map((b) => [b.id, b.wear]));
+  const repairing = new Set(
+    state.constructions.flatMap((c) =>
+      c.kind === 'repair' && (c.repair?.structure === 'idol' || c.repair?.structure === 'shrine')
+        ? [c.repair.id]
+        : [],
+    ),
+  );
   const buildings = [
     ...summary.sacred.buildings.map((b) => {
       const wear = wears.get(b.id);
@@ -1702,6 +1754,8 @@ function sceneSacred(
         progress: 1,
         ...wearOf(structureCondition(wear, b.kind, day), 'condition'),
         ...(isAbandoned(wear) ? { abandoned: true as const } : {}),
+        // ohniště opravované svatyně se rozhoří až po opravě (abandonment.md – Oprava)
+        ...(repairing.has(b.id) ? { repairing: true as const } : {}),
       };
     }),
     ...sites,
@@ -1771,6 +1825,7 @@ function sacredView(
             oaksToFell: c.treesToFell,
             condition: 1,
             abandoned: false,
+            repair: null,
           },
         ]
       : [],
@@ -1799,6 +1854,7 @@ function sacredView(
         oaksToFell: 0,
         condition: structureCondition(wears.get(b.id), b.kind, day),
         abandoned: isAbandoned(wears.get(b.id)),
+        repair: repairProgress(summary.constructions, b.kind, b.id),
       })),
       ...sites,
     ],
@@ -1931,7 +1987,9 @@ function chronicle(state: VillageState, name: string): VillageView['chronicle'] 
       day: event.day,
       kind: event.kind,
       ...('kg' in event ? { kg: event.kg } : {}),
-      ...(event.kind === 'structure-fell' ? { structure: event.structure } : {}),
+      ...(event.kind === 'structure-fell' || event.kind === 'structure-repaired'
+        ? { structure: event.structure }
+        : {}),
       dateLabel: formatGameDate(dateOfDayIndex(event.day)),
       text: chronicleText(event, name),
     }));
@@ -2188,6 +2246,7 @@ export function buildVillageView(
         progress,
         fenceCondition: structureCondition(wear, 'cemetery-fence', day),
         abandoned: isAbandoned(wear),
+        repair: repairProgress(summary.constructions, 'cemetery-fence', c.id),
       };
     }),
     orchards: summary.orchards.map((o) => {
@@ -2241,6 +2300,7 @@ function penViews(state: VillageState, day: number, summary: VillageSummary): Vi
       oxen: (pen.team ? 2 : 0) + (pen.training ? 2 : 0),
       condition: structureCondition(wear, 'pen', day),
       abandoned: isAbandoned(wear),
+      repair: repairProgress(summary.constructions, 'pen', pen.id),
     };
   });
 }

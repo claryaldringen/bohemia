@@ -47,7 +47,7 @@ describe('modla a svatyně – díly podle stupně', () => {
     'shrine',
   ]);
 
-  it('celá navštěvovaná je hotový model; opuštěná celá svatyně má studená ohniště', () => {
+  it('celá navštěvovaná je hotový model; opuštěná i opravovaná celá svatyně má studená ohniště', () => {
     expect(sacredDecayParts('idol', 0, false)).toEqual([{ key: 'idol' }]);
     expect(sacredDecayParts('idol', 0, true)).toEqual([{ key: 'idol' }]);
     expect(sacredDecayParts('shrine', 0, false)).toEqual([{ key: 'shrine' }]);
@@ -76,8 +76,8 @@ describe('modla a svatyně – díly podle stupně', () => {
   it('každý díl rozpadu i zbytku je v GLB (sacred-decay.glb a díly staveniště)', () => {
     for (const kind of ['idol', 'shrine'] as const) {
       for (const stage of DECAY_STAGES) {
-        for (const abandoned of [false, true]) {
-          for (const { key } of sacredDecayParts(kind, stage, abandoned)) {
+        for (const cold of [false, true]) {
+          for (const { key } of sacredDecayParts(kind, stage, cold)) {
             expect(sacred.has(key), key).toBe(true);
           }
         }

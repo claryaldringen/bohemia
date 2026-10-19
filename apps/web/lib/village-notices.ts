@@ -10,7 +10,8 @@ import type { VillageView } from './village-view';
 // (oxen.md) –, vesničané obnovují starý sad a starý sad dosloužil (orchard.md – Obnova sadu),
 // posvátný dub uschl a posvátná souš padla (happiness.md), nevěsta z okolí a dcera vdaná pryč
 // (kinship.md – Sňatky z okolí), opuštěná modla padla, svatyně, plot hřbitova či ohrada se
-// rozpadly (abandonment.md) – nové události kroniky. Vymřelá ves žádná nemá.
+// rozpadly a vesničané je opravili (abandonment.md – Oprava) – nové události kroniky. Vymřelá ves
+// žádná nemá.
 // Odvozují se z pohledu na ves a ukážou se jednou, když nově vzniknou – jako krátký mizející
 // řádek nahoře uprostřed (jako oznámení v 0 A.D.). Jen fakt, žádná rada.
 
@@ -45,6 +46,11 @@ export type NoticeKind =
   | 'shrine-fell'
   | 'cemetery-fence-fell'
   | 'pen-fell'
+  /** Vesničané opravili stavbu, ke které se zase chodí (abandonment.md – Oprava). */
+  | 'idol-repaired'
+  | 'shrine-repaired'
+  | 'cemetery-fence-repaired'
+  | 'pen-repaired'
   /** Upozornění z jiné vsi hráče (migration.md – Víc vsí jednoho hráče). */
   | 'other-hungry'
   | 'other-starving'
@@ -195,6 +201,8 @@ const CHRONICLE_NOTICES: Partial<
   }),
   // opuštěná stavba spadla (abandonment.md) – fakt podle stavby
   'structure-fell': (entry) => STRUCTURE_FELL_NOTICES[entry.structure ?? 'idol'],
+  // vesničané opravili stavbu, ke které se zase chodí (abandonment.md – Oprava)
+  'structure-repaired': (entry) => STRUCTURE_REPAIRED_NOTICES[entry.structure ?? 'idol'],
 };
 
 /** Krátké řádky k pádu opuštěné stavby (abandonment.md – Následky). */
@@ -207,6 +215,18 @@ const STRUCTURE_FELL_NOTICES: Record<AbandonedStructure, VillageNotice> = {
     text: 'Plot hřbitova se rozpadl',
   },
   pen: { kind: 'pen-fell', tone: 'warn', text: 'Ohrada se rozpadla' },
+};
+
+/** Krátké řádky k opravené stavbě (abandonment.md – Oprava). */
+const STRUCTURE_REPAIRED_NOTICES: Record<AbandonedStructure, VillageNotice> = {
+  idol: { kind: 'idol-repaired', tone: 'info', text: 'Modla opravena' },
+  shrine: { kind: 'shrine-repaired', tone: 'info', text: 'Svatyně opravena' },
+  'cemetery-fence': {
+    kind: 'cemetery-fence-repaired',
+    tone: 'info',
+    text: 'Plot hřbitova opraven',
+  },
+  pen: { kind: 'pen-repaired', tone: 'info', text: 'Ohrada opravena' },
 };
 
 /** Nové události kroniky od předchozího pohledu (den po něm), které se ohlásí jako fakt. */

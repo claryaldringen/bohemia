@@ -154,6 +154,8 @@ export type SelectionDetails =
       condition: number;
       /** Nikdo ke hřbitovu nechodí – plot chátrá. */
       abandoned: boolean;
+      /** Oprava plotu (abandonment.md – Oprava) – průběh 0–1; bez opravy null. */
+      repair: number | null;
     }
   | {
       kind: 'orchard';
@@ -205,6 +207,8 @@ export type SelectionDetails =
       condition: number;
       /** Opuštěná – nikdo k ní nechodí, chátrá. */
       abandoned: boolean;
+      /** Oprava (abandonment.md – Oprava) – průběh 0–1; bez opravy null. */
+      repair: number | null;
     }
   | {
       kind: 'pen';
@@ -236,6 +240,8 @@ export type SelectionDetails =
       condition: number;
       /** Opuštěná – bez zvířat a nikdo k ní nechodí, chátrá. */
       abandoned: boolean;
+      /** Oprava (abandonment.md – Oprava) – průběh 0–1; bez opravy null. */
+      repair: number | null;
     }
   | {
       kind: 'road';
@@ -380,6 +386,7 @@ export function selectionDetails(
       building: cemetery.built && cemetery.progress >= 1 ? null : cemetery.progress,
       condition: cemetery.fenceCondition,
       abandoned: cemetery.abandoned,
+      repair: cemetery.repair,
     };
   }
   if (target.kind === 'sacred-oak') {
@@ -564,6 +571,7 @@ function sacredDetails(
       oaksToFell: building.built ? 0 : building.oaksToFell,
       condition: building.condition,
       abandoned: building.abandoned,
+      repair: building.repair,
     };
   }
   const site = scene.sacred?.buildings.find((b) => b.id === id);
@@ -577,6 +585,7 @@ function sacredDetails(
     oaksToFell: 0,
     condition: site.condition ?? 1,
     abandoned: site.abandoned === true,
+    repair: null,
   };
 }
 
@@ -602,5 +611,6 @@ function penDetails(view: VillageView | null, id: number): SelectionDetails | nu
     trainBlocked: pen.trainBlocked,
     condition: pen.condition,
     abandoned: pen.abandoned,
+    repair: pen.repair,
   };
 }
