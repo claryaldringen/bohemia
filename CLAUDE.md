@@ -690,7 +690,8 @@ rozhraní částí v
   od konce pořadí přes `shrinkInPlan` / `dropFromWork` z `land-taken.ts`, ladem jako příloh –
   `FieldPart.fallowBeforePlan`). Potřebou z pole jde i `energyFloorKg`, odhad ozimu na srpen
   (`daysUntilFoodHarvest`) a dobré zásoby štěstí; ustálená úroda `steadyHarvestKg` (kalibrace,
-  kalkulačka). Výhled jídla do sklizně (`eatDiet`) počítá s mlékem stád do sklizně
+  kalkulačka). Volná práce plánu (`sowingCapacity`) je po denním minimu, práci se zvířaty
+  a dospělých pasácích (`herdingDay`). Výhled jídla do sklizně (`eatDiet`) počítá s mlékem stád do sklizně
   (`milkAheadEnergy` z `milkEnergyBetween`) a celou zásobou sýra.
   Polní úlohy obou plodin řadí `fieldTasks` v `simulate.ts`
   (konec okna, ozim před jaří); `allocateDay` vrací i `taskAmounts` po úlohách vstupu (stejný

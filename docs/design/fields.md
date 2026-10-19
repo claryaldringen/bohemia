@@ -294,7 +294,8 @@ Clauda**; implementace v `square-grid.ts` a `squares.ts` (jádro), ve scéně `f
   dřív roční potřeba a 15 % navíc, nad 1,5 roční potřeby jen potřeba), ale:
   - nejvýš kolik je dílů, které smí osít (viz Přílohová soustava),
   - nejvýš kolik její práce stihne ve špičkách (podzim, jaro, červenec a srpen – viz Ozim a jař;
-    počítá se všechna práce po denním minimu – kalibrace z 80 %).
+    počítá se všechna práce po denním minimu, práci se zvířaty a od 19. 10. 2026 i po dospělých
+    pasácích – [strava](diet.md), Pasáci; kalibrace z 80 %).
 - Které díly oseje, určuje pořadí v Přílohové soustavě; čím je oseje (ozim, nebo jař), rozhodne
   ves zároveň (viz Ozim a jař).
 - **Spotřeba z pole podle stravy** (od 19. 10. 2026, viz Osev podle stravy níže): ves nejí jen
@@ -377,14 +378,17 @@ masa, a přesto od 1. 3. kopal ≈ 9,7 člověkodne denně – volná práce nul
   zásobou obilí nezaseje nic a práce se uvolní na stavby.
 - **Zásoby z pole** = obilí a luštěniny jejich energií; z luštěnin se do jejich sklizně počítá jen
   tolik, kolik se jich do ní stihne sníst (strop 25 % energie) – zbytek zůstane a sní se příště.
-- **Pojistka = 0,3 roční potřeby celé energie** (≈ 3,6 měsíce celé stravy) – zásoba, která má zbýt
+- **Pojistka = 0,5 roční potřeby celé energie** (≈ půl roku celé stravy) – zásoba, která má zbýt
   před další sklizní. **Z celé potřeby, ne z potřeby z pole:** výpadek, kterého se pojistka týká
   dnes, je výpadek masa a mléka (porážka kolísá – ve zkušební vsi spadlo maso ze 40 na ≈ 20 %
-  energie dva roky po sobě a lidí přibylo), tedy výpadek z celé stravy – ves, která víc jí ze
-  stád, potřebuje proti své potřebě z pole větší pojistku. Hubené roky (pohromy, neúroda) přijdou
-  později; pojistka se pak doladí s nimi. Proč 0,3: s 0,2 bylo v kalibraci 20 × 20 nasycení ≥ 0,95
-  v 98,7 % let (nejhorší 1 % let 0,93), s 0,3 v 99,7 % (0,99) – práce na obživu se tím skoro
-  nezmění (79,8 a 79,9 %).
+  energie dva roky po sobě a lidí přibylo) a růst vsi, které nestačí práce – tedy výpadek z celé
+  stravy. Hubené roky (pohromy, neúroda) přijdou později; pojistka se pak doladí s nimi. **Proč
+  0,5:** se stády podle bílkovin (diet.md – maso ≈ 11 %, mléko ≈ 10 % energie) jí ves ≈ 70 %
+  energie z pole a rostoucí ves (děti, nevěsty) často nestihne zasít, kolik potřebuje – pojistka
+  nasbíraná v lepších letech ji převede přes horší. Kalibrace 20 × 20 se stády: s 0,3 nasycení
+  ≥ 0,95 u hráče, který staví, v 94,2 % let (**MIMO**), s 0,5 v 97,1 %; práce na obživu se skoro
+  nezmění (87,0 a 87,2 % startovní ves). Dřív (stáda na stropech masa a mléka) stačilo 0,3:
+  s 0,2 98,7 %, s 0,3 99,7 % let.
 - **Pojistka podílu** (`FIELD_FOOD.minShare` 0,3, Osev podle stravy) dál hlídá odhad spotřeby:
   ves počítá, že z pole sní aspoň 30 % energie. Obě pojistky se sčítají jen u vsí, které z pole
   jedí méně (sad, med) – mají zásoby o rozdíl vyšší.
@@ -417,8 +421,10 @@ masa, a přesto od 1. 3. kopal ≈ 9,7 člověkodne denně – volná práce nul
     (den, od kdy ležel ladem, i roky bez pastvy – `FieldPart.fallowBeforePlan`, smaže se na konci
     hospodářského roku), ostatní od 1. 9. jako nevybraný díl.
   - Kontrola je čistá funkce stavu a dne, takže nezávisí na kouscích dopočtu (test).
-- **Ukázka – Vlkov** (kopie z DB jen čtená: stav z 18. 6. 751 dopočtený dosavadním kódem do 22. 3. 752 – plán z 1. 9. 751 podle dřívějšího pravidla, 22 lidí, 11 213 kg obilí, 6 724 kg
-  masa, stavby na 94, 94 a 82 %; pak dál dosavadním a novým kódem bez zásahu hráče):
+- **Ukázka – Vlkov** (před sloučením se stády podle bílkovin, s pojistkou 0,3; kopie z DB jen
+  čtená: stav z 18. 6. 751 dopočtený dosavadním kódem do 22. 3. 752 – plán z 1. 9. 751 podle
+  dřívějšího pravidla, 22 lidí, 11 213 kg obilí, 6 724 kg masa, stavby na 94, 94 a 82 %; pak dál
+  dosavadním a novým kódem bez zásahu hráče):
   - 22. 3. 752 ves z jaře ubere 13 nezačatých dílů (0,3 ha ze 2,58 ha) – zbylé jarní práce
     (vrácení, kopání, setí) ubude z 212 na 113 člověkodní; ostatní díly jaře už podzim zkopal
     (rozpracované zůstávají). Do 30. 4. tak ves odvede na jaři 123 místo 175 člověkodní.
@@ -433,17 +439,50 @@ masa, a přesto od 1. 3. kopal ≈ 9,7 člověkodne denně – volná práce nul
   0,8–1,25 (návrh Clauda); dřívější měřítko „1–1,5 roční potřeby z pole“ a zásoby obilí v roční
   potřebě celé energie vypisuje jako informaci. Hráč skriptu zakládá pole na úrodu rok co rok se
   zásobami na pojistce (`steadyHarvestKg`).
-- **Naměřeno s osevem podle zásob** (`measure-village.ts 20 20`, 19. 10. 2026, jen orientačně –
-  dlouhá kalibrace poběží v noci; v závorce před změnou, stejné vsi a krajiny): zásoby z pole po
+- **Naměřeno s osevem podle zásob – před stády podle bílkovin, pojistka 0,3**
+  (`measure-village.ts 20 20`, 19. 10. 2026, jen orientačně; v závorce před změnou): zásoby z pole po
   sklizni ÷ cíl p10 0,84 / medián 1,02 / p90 1,32, v pásmu 0,8–1,25 80 % let (**MIMO** jen p90);
   v ročních potřebách z pole 1,32 / 1,65 / 2,40 (dřív se měřilo jen obilí: 1,02 / 1,38 /
   2,13), zásoby obilí v roční potřebě celé energie medián 0,76 (0,81); práce na obživu startovní
   ves 80,0 % (80,6 %), plná domácnost 70,5 % (71,3 %); osev startovní ves 0,63 ha (0,63), plná
   domácnost 1,15 ha (1,22); nasycení ≥ 0,95 celý rok, hráč staví 99,7 % let (100 %), nestaví
   100 % (100 %), nejhorší 1 % let 0,99 (1,00); nic nevymřelo, po 20 letech medián 2 domácnosti
-  a 12 lidí (2 a 12); polozemnice čerstvě plnou domácností 236 dní (243) – o den pod pásmem. Kalibrační vsi velké přebytky nedrží (pole zakládá hráč na potřebu), takže osev ani práce
-  se skoro nezmění – rozdíl je u vsí jako Vlkov, které zásoby nasbíraly. Zkrácení plánu
-  v kalibraci skoro nenastane (plány vznikají už podle zásob).
+  a 12 lidí (2 a 12); polozemnice čerstvě plnou domácností 236 dní (243) – o den pod pásmem.
+  Kalibrační vsi velké přebytky nedrží (pole zakládá hráč na potřebu), takže osev ani práce se
+  skoro nezmění – rozdíl je u vsí jako Vlkov, které zásoby nasbíraly. Zkrácení plánu v kalibraci
+  skoro nenastane (plány vznikají už podle zásob).
+- **Se stády podle bílkovin** (sloučení s `integ/herds` 19. 10. 2026 – roční ztráty, seno pro
+  všechny druhy, uzené maso jen do 31. 8., chovné stádo podle potřeby bílkovin s rezervou 25 %,
+  pasáci – [strava](diet.md)): osev podle stravy bez osevu podle zásob hladověl (nasycení ≥ 0,95
+  u hráče, který staví, v 76,3 % let, plná domácnost jen v 24,5 % let). Příčiny a úpravy (návrh
+  Clauda; stropy, potřeba bílkovin ani pravidla stád se nemění):
+  - **Pasáci v práci na polní špičky:** dospělý pasák (plná domácnost bez starších dětí ≈ 0,8
+    člověkodne denně od dubna do října) chybí na poli – plán k 1. 9. s ním nepočítal, v červenci
+    ves sklidila luštěniny jen z půlky (sonda plné domácnosti, každý rok) a energie chyběla.
+    Volná práce pro plán osevu se teď počítá i po dospělých pasácích dneška (`herdingDay`).
+  - **Pojistka 0,5** místo 0,3 (výš) – rostoucí vsi, které nestačí práce na celý cíl osevu.
+  - Podíl z pole za loňský rok se stády kolísá (v sondě plné domácnosti 0,48 ↔ 0,70 rok po roce)
+    – zpětná vazba osevu podle zásob (chybějící pojistku doplní hned) a pojistka to pokryjí,
+    odhad podílu z dnešních stád proto Claude nezaváděl (pravidla porážky by musel opakovat).
+- **Naměřeno se stády podle bílkovin** (`measure-village.ts 20 20`, 19. 10. 2026, jen orientačně;
+  v závorce `integ/herds` – osev podle stravy bez osevu podle zásob):
+
+  | 20 vsí × 20 let                                    | Se stády a osevem podle zásob | `integ/herds`                |
+  | -------------------------------------------------- | ----------------------------- | ---------------------------- |
+  | nasycení ≥ 0,95 celý rok – hráč staví              | **97,1 %** let (p1 0,63) OK   | 76,3 % let (p1 0,65) MIMO    |
+  | plná domácnost / startovní ves                     | **98,0 %** / 100 % let        | 24,5 % / 100 % let           |
+  | hráč nestaví                                       | 98,9 % let                    | 93,9 % let                   |
+  | zásoby po sklizni ÷ cíl, hráč staví                | 0,74 / 0,96 / 1,18            | –                            |
+  | zásoby z pole po sklizni (roční potřeby z pole)    | 1,35 / 1,72 / 2,41            | jen obilí 0,75 / 1,04 / 1,51 |
+  | zásoby po sklizni – startovní ves / plná dom.      | 1,92 / 1,98                   | 1,46 / 0,69                  |
+  | práce na obživu – startovní ves / plná dom.        | 87,2 % / 87,4 %               | 87,6 % / 89,2 %              |
+  | podíl jídla z pole (medián)                        | 70 %                          | 70 %                         |
+  | dobytek na 10 lidí – krávy / prasata / ovce / kozy | 2,0 / 9,5 / 45 / 6,1          | 2,2 / 9,8 / 44 / 15,2        |
+  | porážka na člověka a rok / zkažené maso            | 27 kg / 1,3 %                 | 26 kg / 1,9 %                |
+  | po 20 letech domácností / lidí, vymření            | 2 / 12, nic                   | 2 / 12, nic                  |
+
+  Zbylé hladové roky (11 z 380) jsou ve dvou vsích: jediná domácnost, která za dva roky vyrostla ze
+  4 na 7 lidí, a ves, jejíž růst předběhl práci – cíl osevu nestihnou zasít ani s pojistkou.
 
 ### Přílohová soustava – co se oseje a co leží ladem
 
@@ -1270,6 +1309,7 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | ~~Rezerva jde do obilí – zásoby obilí na 1–1,5 roku potřeby z pole~~; výhled jídla s mlékem do sklizně                            | návrh Clauda                                    |
 | Osev podle zásob – ves si drží rozumnou zásobu na hubené roky, s velkou zásobou seje méně a staví                                 | Martin (19. 10. 2026)                           |
 | Rozjetý plán se zkrátí hned, ne až 1. 9. – ves přestane kopat nové díly                                                           | Martin (19. 10. 2026)                           |
-| Cíl = rok spotřeby z pole a pojistka po příští sklizni bez toho, co zbude; pojistka 0,3 roční potřeby celé energie                | návrh Clauda                                    |
+| Cíl = rok spotřeby z pole a pojistka po příští sklizni bez toho, co zbude; pojistka ~~0,3~~ 0,5 roční potřeby celé energie        | návrh Clauda                                    |
+| Volná práce pro plán osevu po dospělých pasácích (se stády podle bílkovin)                                                        | návrh Clauda                                    |
 | Přebytek nad pojistku za 3 roky, chybějící hned; luštěniny podle své zásoby bez rezervy; bez měření podílu podíl 1                | návrh Clauda                                    |
 | Zkrácení plánu denně 1. 9. – 30. 4. nad cíl + desetinu potřeby z pole; jen nezačaté díly od konce pořadí, ladem jako příloh       | návrh Clauda                                    |
