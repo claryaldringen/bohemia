@@ -6,7 +6,9 @@ import {
   pickVillageTarget,
   rayAtHeight,
   targetExists,
+  wholeTarget,
   type Ray,
+  type VillageTarget,
 } from '../village-picking';
 
 const CELL = 15;
@@ -86,11 +88,20 @@ describe('pickVillageTarget', () => {
     });
   });
 
-  it('čtverec pole vybere pole, prázdná zem nic, mimo krajinu nic', () => {
-    expect(pickVillageTarget(village, rayTo(52, 8), options({ x: 52, z: 8 }))).toEqual({
-      kind: 'field',
-      id: 3,
-    });
+  it('klik na čtverec pole vybere díl (dvojklik celé pole), prázdná zem nic, mimo krajinu nic', () => {
+    const part = pickVillageTarget(village, rayTo(52, 8), options({ x: 52, z: 8 }));
+    expect(part).toEqual({ kind: 'field-part', id: 3, cell: { x: 3, y: 0 } });
+    expect(wholeTarget(part!)).toEqual({ kind: 'field', id: 3 });
+    // obrys dílu je jen jeho čtverec, celé pole obě políčka
+    const xs = (target: VillageTarget): number[] =>
+      targetOutline(village, target)
+        .flat()
+        .map(([x]) => x);
+    expect([Math.min(...xs(part!)), Math.max(...xs(part!))]).toEqual([45, 60]);
+    expect([
+      Math.min(...xs({ kind: 'field', id: 3 })),
+      Math.max(...xs({ kind: 'field', id: 3 })),
+    ]).toEqual([30, 60]);
     expect(pickVillageTarget(village, rayTo(100, 100), options({ x: 100, z: 100 }))).toBeNull();
     expect(pickVillageTarget(village, rayTo(100, 100), options(null))).toBeNull();
   });
@@ -99,6 +110,8 @@ describe('pickVillageTarget', () => {
     expect(targetExists(village, { kind: 'dwelling', id: 7 })).toBe(true);
     expect(targetExists(village, { kind: 'dwelling', id: 3 })).toBe(false);
     expect(targetExists(village, { kind: 'field', id: 3 })).toBe(true);
+    expect(targetExists(village, { kind: 'field-part', id: 3, cell: { x: 2, y: 0 } })).toBe(true);
+    expect(targetExists(village, { kind: 'field-part', id: 3, cell: { x: 9, y: 0 } })).toBe(false);
   });
 });
 
@@ -149,13 +162,15 @@ describe('sad', () => {
     ],
   };
 
-  it('klik na čtverec sadu ho vybere; zaniklý sad neexistuje', () => {
+  it('klik na čtverec sadu vybere čtverec, dvojklik sad; zaniklý sad neexistuje', () => {
     const target = pickVillageTarget(withOrchard, rayTo(22, 66), {
       ground: { x: 22, z: 66 },
       groundHeight: flat,
       cellOf,
     });
-    expect(target).toEqual({ kind: 'orchard', id: 50 });
+    expect(target).toEqual({ kind: 'orchard-square', id: 50, cell: { x: 1, y: 4 } });
+    expect(wholeTarget(target!)).toEqual({ kind: 'orchard', id: 50 });
+    expect(targetExists(withOrchard, target!)).toBe(true);
     expect(targetExists(withOrchard, { kind: 'orchard', id: 50 })).toBe(true);
     expect(targetExists(village, { kind: 'orchard', id: 50 })).toBe(false);
   });
@@ -265,8 +280,9 @@ describe('pickVillageTarget – posvátná místa', () => {
     // daleko od všeho nic, pole zůstává polem
     expect(pickVillageTarget(sacredVillage, rayTo(120, 140), options(120, 140))).toBeNull();
     expect(pickVillageTarget(sacredVillage, rayTo(40, 5), options(40, 5))).toEqual({
-      kind: 'field',
+      kind: 'field-part',
       id: 3,
+      cell: { x: 2, y: 0 },
     });
   });
 

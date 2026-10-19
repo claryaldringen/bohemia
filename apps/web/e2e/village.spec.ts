@@ -386,6 +386,33 @@ test('obydlí jde stavět, jen když je kým ho osadit – pole kdykoli', async 
   await confirmPlacement(page, { kind: 'squares', cells: spots.cells });
   await expect.poll(async () => (await villageState(s.settlementId)).fields.length).toBe(1);
 
+  // Klik na čtverec pole vybere jen díl, dvojklik celé pole (fields.md – Co hráč vidí); čtverec
+  // nejdál od zemnice, ať klik nezachytí střecha.
+  await page.keyboard.press('r');
+  const fieldCenter = spots.cells
+    .map((cell) => tileCenterWorld(s.landscape, cell.x, cell.y))
+    .sort(
+      (a, b) =>
+        Math.hypot(b.x - spots.dwelling.x, b.z - spots.dwelling.z) -
+        Math.hypot(a.x - spots.dwelling.x, a.z - spots.dwelling.z),
+    )[0]!;
+  const fieldPoint = await page.evaluate(
+    (p) => window.__bohemiaE2E!.projectToScreen!(p.x, p.z),
+    fieldCenter,
+  );
+  expect(fieldPoint).not.toBeNull();
+  const panel = page.getByTestId('selection-panel');
+  await page.mouse.move(fieldPoint!.x - 3, fieldPoint!.y);
+  await page.mouse.click(fieldPoint!.x, fieldPoint!.y);
+  await expect(panel).toHaveAttribute('data-kind', 'field-part');
+  await expect(panel.getByTestId('selection-area')).toHaveText(/ m²$/);
+  await expect(panel.getByTestId('selection-progress')).toBeVisible();
+  await page.mouse.dblclick(fieldPoint!.x, fieldPoint!.y);
+  await expect(panel).toHaveAttribute('data-kind', 'field');
+  await expect(panel.getByTestId('selection-area')).toHaveText(/ ha$/);
+  await page.keyboard.press('Escape');
+  await expect(panel).toHaveCount(0);
+
   // Zemnice dostavěná a domácnost v ní plná se 4 dospělými – jeden pár k osídlení.
   const full = withBuiltFirstDwelling(await villageState(s.settlementId));
   const adultBorn = full.lastDay - Math.ceil(16 * 365.25);
@@ -495,7 +522,7 @@ test('hráč vysadí sad po čtvercích a vybere ho – panel ukáže výsadbu, 
   await expect.poll(async () => (await villageState(s.settlementId)).orchards?.length ?? 0).toBe(1);
   await expect(page.locator('[data-testid="village-notice"][data-kind="error"]')).toHaveCount(0);
 
-  // Kliknutí na čtverec sadu ho vybere – sázející se sad ukáže průběh výsadby a odhad úrody.
+  // Kliknutí na čtverec sadu vybere jen ten čtverec (fields.md – Co hráč vidí) – sází se, úroda 0.
   await page.keyboard.press('r');
   const center = tileCenterWorld(s.landscape, cells[0]!.x, cells[0]!.y);
   const point = await page.evaluate((p) => window.__bohemiaE2E!.projectToScreen!(p.x, p.z), center);
@@ -503,6 +530,11 @@ test('hráč vysadí sad po čtvercích a vybere ho – panel ukáže výsadbu, 
   await page.mouse.move(point!.x - 3, point!.y);
   await page.mouse.click(point!.x, point!.y);
   const panel = page.getByTestId('selection-panel');
+  await expect(panel).toHaveAttribute('data-kind', 'orchard-square');
+  await expect(panel.getByTestId('selection-progress')).toBeVisible();
+  await expect(panel.getByTestId('selection-yield')).toHaveText('0');
+  // Dvojklik vybere celý sad – sázející se sad ukáže průběh výsadby a odhad úrody.
+  await page.mouse.dblclick(point!.x, point!.y);
   await expect(panel).toHaveAttribute('data-kind', 'orchard');
   await expect(panel.getByTestId('selection-progress')).toBeVisible();
   await expect(panel.getByTestId('selection-yield')).toHaveText('0');

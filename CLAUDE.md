@@ -1180,7 +1180,7 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   55–72rem pod údaji; rozbalené nabídky (růžice stezek a odchodu, obchod) nad panelem u pravého
   okraje – `hud-popup`, zavře je stisk myši mimo ně (`hooks/use-dismiss.ts`); popisky (`Tooltip`)
   se zalomit smí – `whitespace-normal`; náhled bez hry s nejbohatšími daty:
-  http://localhost:3010/dev/panels (`?panel=dvorec`, `ohrada`, `pole`… – `app/dev/panels/dev-panels.ts`,
+  http://localhost:3010/dev/panels (`?panel=dvorec`, `ohrada`, `pole`, `pole-dil`… – `app/dev/panels/dev-panels.ts`,
   i seznam vsí a nabídka hry); u obydlí a víc vybraných obydlí – počet domácností a lidí –
   tlačítka Přestěhovat po typu nového domu a Odejít – růžice odchodu `LeaveCompass`: uprostřed
   nová ves na téže mapě (umístění první zemnice nejméně 300 m od staveb všech vsí mapy, pak se
@@ -1223,22 +1223,26 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
 - **Ovládání (jako 0 A.D., hraje se i na trackpadu):** výběr `village-picking.ts` (rámeček
   `selection-highlight.ts`, výběr víc obydlí `village-selection.ts` – `VillageTarget`
   `dwellings`), kamera `camera.ts` (čisté funkce `camera-input.ts`,
-  `edge-scroll.ts`). Kliknutí = do 6 px pohybu (`CLICK_SLOP_PX`), delší tah je tah.
+  `edge-scroll.ts`). Kliknutí = do 6 px pohybu (`CLICK_SLOP_PX`), delší tah je tah. Dvojklik =
+  druhé levé kliknutí do 400 ms a 6 px od prvního (`nextClick`, `DOUBLE_CLICK_MS` v
+  `camera-input.ts`; tah, pravé tlačítko i umisťování řadu přeruší) – `onSelect` ho ohlásí jako
+  `double`.
 
-  | Vstup                  | Nic se neumisťuje                             | Obydlí (`village-placement.ts`) | Po čtvercích (`field-painting.ts`) |
-  | ---------------------- | --------------------------------------------- | ------------------------------- | ---------------------------------- |
-  | levé kliknutí          | vybere obydlí / pole / hřbitov, na zemi zruší | postaví, Shift + klik staví dál | přepne čtverec                     |
-  | levé tažení            | posouvá krajinu (uchopená mapa)               | –                               | přidá obdélník, s Ctrl (Cmd) ubere |
-  | Ctrl / Shift + klik    | přidá obydlí k výběru, vybrané ubere          | Shift + klik staví dál          | Ctrl (Cmd) + klik čtverec ubere    |
-  | Ctrl (Cmd) + A         | vybere všechna hotová obydlí vsi              | –                               | –                                  |
-  | mezerník + levé tažení | posouvá                                       | posouvá                         | posouvá                            |
-  | prostřední tažení      | posouvá                                       | posouvá                         | posouvá                            |
-  | pravé tlačítko         | zruší výběr                                   | zruší                           | zruší malování                     |
-  | Esc                    | zruší výběr                                   | zruší                           | zruší tah, pak malování            |
-  | F10                    | otevře nabídku hry, zruší výběr               | otevře nabídku, zruší           | otevře nabídku, zruší malování     |
-  | `[` / `]`              |                                               | otáčí po 15° (pozemek celý)     | otáčí mřížku po 15° (všechny)      |
-  | Tab                    |                                               | pozemek: místo domu (varianta)  | –                                  |
-  | další                  |                                               | Enter postaví                   | Backspace / Ctrl+Z vrátí, Enter    |
+  | Vstup                  | Nic se neumisťuje                                                | Obydlí (`village-placement.ts`) | Po čtvercích (`field-painting.ts`) |
+  | ---------------------- | ---------------------------------------------------------------- | ------------------------------- | ---------------------------------- |
+  | levé kliknutí          | vybere obydlí / díl pole / čtverec sadu / hřbitov, na zemi zruší | postaví, Shift + klik staví dál | přepne čtverec                     |
+  | dvojklik               | celé pole / celý sad (jinde jako klik)                           | jako dvě kliknutí               | jako dvě kliknutí                  |
+  | levé tažení            | posouvá krajinu (uchopená mapa)                                  | –                               | přidá obdélník, s Ctrl (Cmd) ubere |
+  | Ctrl / Shift + klik    | přidá obydlí k výběru, vybrané ubere                             | Shift + klik staví dál          | Ctrl (Cmd) + klik čtverec ubere    |
+  | Ctrl (Cmd) + A         | vybere všechna hotová obydlí vsi                                 | –                               | –                                  |
+  | mezerník + levé tažení | posouvá                                                          | posouvá                         | posouvá                            |
+  | prostřední tažení      | posouvá                                                          | posouvá                         | posouvá                            |
+  | pravé tlačítko         | zruší výběr                                                      | zruší                           | zruší malování                     |
+  | Esc                    | zruší výběr                                                      | zruší                           | zruší tah, pak malování            |
+  | F10                    | otevře nabídku hry, zruší výběr                                  | otevře nabídku, zruší           | otevře nabídku, zruší malování     |
+  | `[` / `]`              |                                                                  | otáčí po 15° (pozemek celý)     | otáčí mřížku po 15° (všechny)      |
+  | Tab                    |                                                                  | pozemek: místo domu (varianta)  | –                                  |
+  | další                  |                                                                  | Enter postaví                   | Backspace / Ctrl+Z vrátí, Enter    |
 
   Vždy: WASD / šipky a kurzor u okraje okna posouvají, kolečko i rozevření prstů na trackpadu
   (Ctrl + kolečko, v Safari `gesturechange`) přibližují, Q/E otáčí, R vrátí pohled na ves
@@ -1252,6 +1256,27 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   po jejích položkách). Rozhraní
   obydlí hned ukáže jako staveniště a akce posílá na server za sebou (fronta v `VillageGame`).
 
+- **Výběr dílu pole a čtverce sadu** (fields.md – Co hráč vidí; Martin 19. 10. 2026: „Když
+  kliknu na pole, zobrazí se mi jen to jedno políčko s parametry. Když dvojkliknu, označí se
+  celé pole jako teď.“): `pickVillageTarget` vrací `{ kind: 'field-part', id: pole, cell }`
+  a `{ kind: 'orchard-square', id: sad, cell }` (čtverec v mřížce stavby), `nextSelection(…,
+double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první klik vybere díl hned,
+  dvojklik na ostatní je jako klik), `presentTarget` zahodí díl, který zanikl. Hřbitov se vybírá
+  celý (hroby, plot – rozhodnutí Clauda). Obrys čtverců (díl, pole, sad, hřbitov, háj, ohrada)
+  má v `SelectionHighlight` druhou průsvitnou kopii bez testu hloubky – prosvítá přes korunu
+  vystouplého obilí a stromy. Data panelu: `VillageView.fields[].parts` (`VillageFieldPart` –
+  úsporně, výchozí údaje chybí: výměra jen u neúplného čtverce, přirozená úrodnost jen když se
+  liší, `holding` = obydlí hospodářství z `villageHoldings`, `work` = `partYearWork` z
+  `field-progress.ts` – plodina, příprava půdy `reclaim` / `plough` / `dig`, setí, sklizeň, seč;
+  rok osevu, roky ladem, zakládání), `VillageOrchard.cells` (`VillageOrchardSquare` – stáří,
+  `squareExpectedYieldKg`, výsadba, obnova, cesta); co je vidět (vzhled, stadium, zarůstání,
+  pastva) bere `selectionDetails` ze scény (`selectedFieldPart`, `selectedOrchardSquare`).
+  Panel: `FieldPartBody` / `OrchardSquareBody`, název pod portrétem `fieldPartName` /
+  `orchardSquareName`, dům hospodářství je tlačítko (`onSelectTarget` ho vybere); ikony
+  `resources/harvest` (srp s klasy) a `resources/walk` (šlépěje – cesta z domu). Při malování
+  po čtvercích vybraný díl dá mřížku svého pole (`wholeTarget` ve `startBuild`).
+  `/dev/landscape` vybírá jako hra (čísla panelu odhaduje `app/dev/landscape/dev-selection.ts`),
+  `/dev/panels?panel=pole-dil` (`pole-dil-priloh`, `pole-dil-zaklada`, `sad-ctverec`).
 - **Natočené stavby** ([fields.md](docs/design/fields.md) – Natočené stavby; Martin 18. 10. 2026:
   „Je to 3D, takže všechny stavby by měly jít natáčet po 15 stupních“): `square-grid.ts`
   (deterministická vrstva – přesné cos/sin násobků 15° z odmocnin, `rotationTurn`,

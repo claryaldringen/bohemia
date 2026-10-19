@@ -12,6 +12,36 @@ export function isDrag(from: { x: number; y: number }, to: { x: number; y: numbe
 }
 
 /**
+ * Dvojklik (fields.md – Co hráč vidí): druhé kliknutí do tolika ms po prvním a do CLICK_SLOP_PX od
+ * něj (jako výchozí dvojklik systémů – Windows 500 ms, uživatelé zvládnou ≈ 300 ms).
+ */
+export const DOUBLE_CLICK_MS = 400;
+
+/** Kliknutí v řadě rychle po sobě: kde (CSS px), kdy (ms) a kolikáté v řadě (1 = samotné). */
+export interface ClickRecord {
+  x: number;
+  y: number;
+  at: number;
+  count: number;
+}
+
+/**
+ * Další kliknutí řady: do DOUBLE_CLICK_MS a CLICK_SLOP_PX od předchozího pokračuje řadu (2 =
+ * dvojklik, 3 = trojklik…), jinak začne novou. Čas se měří od předchozího kliknutí řady.
+ */
+export function nextClick(
+  previous: ClickRecord | null,
+  click: { x: number; y: number; at: number },
+): ClickRecord {
+  const continues =
+    previous !== null &&
+    click.at - previous.at >= 0 &&
+    click.at - previous.at <= DOUBLE_CLICK_MS &&
+    !isDrag(previous, click);
+  return { ...click, count: continues ? previous.count + 1 : 1 };
+}
+
+/**
  * Rozevření prstů na trackpadu posílá Chrome i Firefox jako kolečko s Ctrl, deltaY ≈ −100 · ln
  * (změna měřítka). Kamera se tedy vzdálí e^(deltaY / 100)krát – krajina se roztahuje s prsty.
  * Krok je omezený, aby Ctrl + zub kolečka myši (deltaY 100) nepřiblížil skokem.

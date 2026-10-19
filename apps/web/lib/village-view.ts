@@ -1,6 +1,7 @@
 import {
   BUILD_COSTS,
   CARPENTRY,
+  CELL_SIZE_M,
   CART_NAMES,
   ableTeams,
   ploughsThisYear,
@@ -22,7 +23,13 @@ import {
   ageYears,
   dateOfDayIndex,
   effectiveFertility,
+  fallowYears,
   fieldPartLooks,
+  partYearWork,
+  partWalkDistance,
+  squareExpectedYieldKg,
+  squareWalkDistance,
+  villageHoldings,
   hayMeadowLooks,
   forestBonus,
   monthInWindow,
@@ -86,6 +93,7 @@ import {
   type TradeGoods,
   type TradePeople,
   type DwellingType,
+  type FieldPart,
   type FieldSurface,
   type LaborShare,
   type Landscape,
@@ -94,6 +102,7 @@ import {
   type OrchardSquare,
   type OrchardWork,
   type PartStage,
+  type PartYearWork,
   type PlacementVillage,
   type PlotVariant,
   type Position,
@@ -486,6 +495,8 @@ export interface VillageView {
      * období nespásl ani neposekl, i ten, který už zarostl křovinami a mladým lesem.
      */
     overgrowingM2: number;
+    /** Díly pole pro panel vybraného dílu (klik na pole – fields.md, Co hráč vidí). */
+    parts: VillageFieldPart[];
   }[];
   /** Hřbitovy v pořadí pohřbívání – kolik místa zbývá (hygienu hráč nevidí – cemetery.md). */
   cemeteries: VillageCemetery[];
@@ -571,11 +582,70 @@ export interface VillageCemetery {
   repair: number | null;
 }
 
+/**
+ * Díl pole pro panel vybraného dílu (klik na pole vybere díl, dvojklik celé pole – fields.md, Co
+ * hráč vidí): čísla zaokrouhlená pro panel, výchozí údaje chybí – pohled nese všechny díly vsi,
+ * drží se proto úsporně. Co je vidět ve scéně (stadium, vzhled, roky bez pastvy a seče, pastva),
+ * bere panel ze `SceneFieldPart` (díl podle `id`).
+ */
+export interface VillageFieldPart {
+  id: number;
+  /**
+   * Výměra (m², celé) – bez skalních výchozů a půdy, kterou zabrala stavba; celý čtverec chybí
+   * (strana čtverce ze scény na druhou).
+   */
+  areaM2?: number;
+  /** Úrodnost dnes – i s popelem z vymýceného lesa (celá čísla 0–100). */
+  fertility: number;
+  /**
+   * Přirozená úrodnost z krajiny – osev ji vyčerpává, ladem se obnovuje (celá čísla 0–100); stejná
+   * jako dnešní chybí.
+   */
+  naturalFertility?: number;
+  /** Letošní bonus úrodnosti z popela vymýceného lesa (+40, +20 – fields.md, Úroda); jinak chybí. */
+  ashBonus?: number;
+  /** Povrch při založení, když to nebyla louka (křoviny, les); louka chybí. */
+  surface?: FieldSurface;
+  /** Chůze z nejbližšího obydlí po pěšinách a cestách (m, celé – paths.md, Pěšiny a práce). */
+  walkM: number;
+  /** Hospodářství – id obydlí, ke kterému díl patří (fields.md – Hospodaření podle polohy domů). */
+  holding?: number;
+  /** Osetý díl: kolik let v řadě je oset (vyčerpání úrodnosti). */
+  sownYears?: number;
+  /** Příloh: celé roky ladem. */
+  fallowYears?: number;
+  /** Letošní práce na dílu (`partYearWork` – podíly na setiny); díl bez letošní práce chybí. */
+  work?: PartYearWork;
+  /** Zakládaný díl: průběh 0–1 (setiny), zbývající práce (člověkodny) a dospělé stromy na klády. */
+  founding?: { progress: number; laborLeft: number; trees: number };
+}
+
+/** Čtverec sadu pro panel vybraného čtverce (klik na sad – orchard.md, Co hráč vidí). */
+export interface VillageOrchardSquare {
+  /** Čtverec v mřížce sadu – podle něj ho najde výběr ve scéně. */
+  cell: TileCell;
+  areaM2: number;
+  /** Stáří v celých letech od výsadby; dokud se sází, null. */
+  ageYears: number | null;
+  /** Úroda čtverce nejbližší sklizně při plné sklizni (kg jablek, celé). */
+  expectedYieldKg: number;
+  /** Výsadba čtverce 0–1 (i znovu při obnově, když staré stromy padly); vysazený null. */
+  planting: number | null;
+  /** Výsadba čeká na okno (jaro, podzim). */
+  plantingWaits: boolean;
+  /** Čtverec je v obnově (orchard.md – Obnova sadu) – staré stromy čekají na skácení, nebo se sází znovu. */
+  renewal: boolean;
+  /** Chůze z nejbližšího obydlí (m, celé). */
+  walkM: number;
+}
+
 /** Sad pro panel výběru – čísla, žádné věty. */
 export interface VillageOrchard {
   id: number;
   areaM2: number;
   squares: number;
+  /** Čtverce sadu pro panel vybraného čtverce. */
+  cells: VillageOrchardSquare[];
   /** Stáří v celých letech od výsadby; dokud se nic nevysadilo, null. */
   ageYears: number | null;
   /** Úroda nejbližší sklizně při plné sklizni (kg jablek). */
@@ -2584,6 +2654,12 @@ function buildOptions(
  * a díly s popelem z vymýceného lesa.
  */
 function fieldViews(state: VillageState, day: number): VillageView['fields'] {
+  const holdings = villageHoldings(state);
+  const work = partYearWork(state, day);
+  const holdingOf = (id: number): number | null => {
+    const at = holdings.byPart.get(id);
+    return at ? (holdings.sectors[at.sector]?.dwellingId ?? null) : null;
+  };
   return state.fields.map((f) => {
     const parts = state.parts.filter((p) => p.fieldId === f.id);
     const areaM2 = parts.reduce((sum, p) => sum + p.areaM2, 0);
@@ -2621,8 +2697,87 @@ function fieldViews(state: VillageState, day: number): VillageView['fields'] {
       ashParts,
       ashBonus,
       overgrowingM2,
+      parts: parts.map((p) => fieldPartView(p, day, holdingOf(p.id), work.get(p.id))),
     };
   });
+}
+
+/** Podíl na setiny – v pohledu stačí, panel ukazuje celá procenta. */
+const hundredths = (share: number): number => Math.round(share * 100) / 100;
+
+/** Díl pole pro panel vybraného dílu – úsporně (výchozí údaje chybí). */
+function fieldPartView(
+  part: FieldPart,
+  day: number,
+  holding: number | null,
+  work: PartYearWork | undefined,
+): VillageFieldPart {
+  const ash = forestBonus(part, day);
+  const crop = work?.crop;
+  const areaM2 = Math.round(part.areaM2);
+  const fertility = Math.round(effectiveFertility(part, day));
+  const naturalFertility = Math.round(part.naturalFertility);
+  return {
+    id: part.id,
+    ...(areaM2 !== CELL_SIZE_M * CELL_SIZE_M ? { areaM2 } : {}),
+    fertility,
+    ...(naturalFertility !== fertility ? { naturalFertility } : {}),
+    ...(ash > 0 ? { ashBonus: ash } : {}),
+    ...(part.surface !== 'meadow' ? { surface: part.surface } : {}),
+    walkM: Math.round(partWalkDistance(part)),
+    ...(holding !== null ? { holding } : {}),
+    ...(part.state === 'sown' ? { sownYears: part.sownYears } : {}),
+    ...(part.state === 'fallow' ? { fallowYears: fallowYears(part, day) } : {}),
+    ...(work
+      ? {
+          work: {
+            ...(crop
+              ? {
+                  crop: {
+                    crop: crop.crop,
+                    prep: crop.prep && { task: crop.prep.task, share: hundredths(crop.prep.share) },
+                    sow: hundredths(crop.sow),
+                    harvest: hundredths(crop.harvest),
+                  },
+                }
+              : {}),
+            ...(work.mow !== undefined ? { mow: hundredths(work.mow) } : {}),
+          },
+        }
+      : {}),
+    ...(part.state === 'founding'
+      ? {
+          founding: {
+            progress: hundredths(part.foundingCost > 0 ? part.foundingDone / part.foundingCost : 0),
+            laborLeft: Math.round(Math.max(0, part.foundingCost - part.foundingDone) * 10) / 10,
+            trees: part.trees ?? 0,
+          },
+        }
+      : {}),
+  };
+}
+
+/** Čtverec sadu pro panel vybraného čtverce. */
+function orchardSquareView(
+  square: OrchardSquare,
+  day: number,
+  waits: boolean,
+): VillageOrchardSquare {
+  const planted = square.plantedDay;
+  const planting =
+    planted !== null
+      ? null
+      : hundredths(square.plantingCost > 0 ? square.plantingDone / square.plantingCost : 0);
+  return {
+    cell: { x: square.cell.x, y: square.cell.y },
+    areaM2: Math.round(square.areaM2),
+    ageYears: planted === null ? null : Math.max(0, Math.floor((day - planted) / DAYS_PER_YEAR)),
+    expectedYieldKg: Math.round(squareExpectedYieldKg(square, day)),
+    planting,
+    plantingWaits: planting !== null && waits,
+    renewal: square.renewal !== undefined,
+    walkM: Math.round(squareWalkDistance(square)),
+  };
 }
 
 /** Co pohled na jednu ves sám neví – zjistí ho vstupní bod přes `dynastyStatus`. */
@@ -2771,16 +2926,17 @@ export function buildVillageView(
       const planting = summary.constructions.find(
         (c) => c.kind === 'orchard' && c.orchardId === o.id,
       );
+      const waits = !monthInWindow(ORCHARD_PLANTING_WINDOWS, dateOfDayIndex(day).month);
+      const orchard = villageOrchards(state).find((x) => x.id === o.id);
       return {
         id: o.id,
         areaM2: o.areaM2,
         squares: o.squares,
+        cells: (orchard?.squares ?? []).map((square) => orchardSquareView(square, day, waits)),
         ageYears: o.ageYears,
         expectedYieldKg: o.expectedYieldKg,
         planting: planting ? planting.progress : null,
-        plantingWaits:
-          planting !== undefined &&
-          !monthInWindow(ORCHARD_PLANTING_WINDOWS, dateOfDayIndex(day).month),
+        plantingWaits: planting !== undefined && waits,
       };
     }),
     pens: penViews(state, day, summary),

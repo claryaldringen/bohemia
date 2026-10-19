@@ -1,5 +1,10 @@
 import type { SceneVillage } from '../village-view';
-import type { VillageTarget } from './village-picking';
+import {
+  selectedFieldPart,
+  selectedOrchardSquare,
+  wholeTarget,
+  type VillageTarget,
+} from './village-picking';
 
 // Výběr víc obydlí (migration.md – Výběr víc obydlí; jako v 0 A.D.): Ctrl / Shift + klik přidá
 // nebo ubere obydlí z výběru, Ctrl + A vybere všechna hotová obydlí vsi. Čisté funkce bez
@@ -21,16 +26,20 @@ export function dwellingsTarget(ids: readonly number[]): VillageTarget | null {
 
 /**
  * Nový výběr po kliknutí do scény: bez modifikátoru vybere, co je pod kurzorem (prázdná zem
- * výběr zruší). S Ctrl / Shift (`additive`) přidá obydlí k vybraným obydlím, nebo ho z výběru
- * ubere, když už vybrané je; prázdná zem výběr nechá. Jiný cíl než obydlí (úsek cesty mezi
- * domy, pole…) vybraná obydlí nezruší – klik vedle domu výběr nerozbije; když obydlí vybraná
- * nejsou, vybere se sám (víc najednou jde vybrat jen obydlí).
+ * výběr zruší) – u pole a sadu jen díl / čtverec pod kurzorem, dvojklik (`double`) celé pole či
+ * sad (Martin 19. 10. 2026 – fields.md, Co hráč vidí); dvojklik na ostatní je jako klik. S Ctrl
+ * / Shift (`additive`) přidá obydlí k vybraným obydlím, nebo ho z výběru ubere, když už vybrané
+ * je; prázdná zem výběr nechá. Jiný cíl než obydlí (úsek cesty mezi domy, pole…) vybraná obydlí
+ * nezruší – klik vedle domu výběr nerozbije; když obydlí vybraná nejsou, vybere se sám (víc
+ * najednou jde vybrat jen obydlí).
  */
 export function nextSelection(
   current: VillageTarget | null,
-  picked: VillageTarget | null,
+  clicked: VillageTarget | null,
   additive: boolean,
+  double = false,
 ): VillageTarget | null {
+  const picked = double && clicked !== null ? wholeTarget(clicked) : clicked;
   if (!additive) return picked;
   if (picked === null) return current;
   const ids = selectedDwellingIds(current);
@@ -46,8 +55,9 @@ export function allDwellingsTarget(village: SceneVillage): VillageTarget | null 
 }
 
 /**
- * Vybraný cíl, jak ho ves po obnovení stavu ještě má: zaniklý cíl → null, z víc obydlí zbydou
- * jen existující (jedno zbylé je obydlí). Beze změny vrátí tentýž objekt.
+ * Vybraný cíl, jak ho ves po obnovení stavu ještě má: zaniklé obydlí, díl pole (zarostl lesem,
+ * ustoupil stavbě) či čtverec sadu → null, z víc obydlí zbydou jen existující (jedno zbylé je
+ * obydlí). Beze změny vrátí tentýž objekt.
  */
 export function presentTarget(
   village: SceneVillage,
@@ -57,6 +67,12 @@ export function presentTarget(
   if (target.kind !== 'dwellings') {
     if (target.kind === 'dwelling') {
       return village.dwellings.some((d) => d.id === target.id) ? target : null;
+    }
+    if (target.kind === 'field-part') {
+      return selectedFieldPart(village, target) ? target : null;
+    }
+    if (target.kind === 'orchard-square') {
+      return selectedOrchardSquare(village, target) ? target : null;
     }
     return target;
   }

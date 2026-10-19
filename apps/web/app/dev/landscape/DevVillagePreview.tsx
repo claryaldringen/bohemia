@@ -37,6 +37,7 @@ import {
 import { GameView } from '@/components/game/GameView';
 import { CursorReason } from '@/components/game/hud/CursorReason';
 import { Minimap } from '@/components/game/hud/Minimap';
+import { SelectionPanel } from '@/components/game/hud/SelectionPanel';
 import { ScenePerfPanel } from '@/components/game/ScenePerfPanel';
 import { dwellingPlacementCost, sacredPlacementCost } from '@/lib/build-items';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
@@ -51,6 +52,9 @@ import {
   treeGrowth,
 } from '@/lib/scene/orchard-layout';
 import { tileAt, tileCenter } from '@/lib/scene/tile-at';
+import type { VillageTarget } from '@/lib/scene/village-picking';
+import { nextSelection, presentTarget } from '@/lib/scene/village-selection';
+import { selectionDetails } from '@/lib/selection-details';
 import { CONSTRUCTION_PHASES, constructionPhase } from '@/lib/scene/village-construction';
 import { SACRED_SITE_KIND } from '@/lib/scene/sacred-layout';
 import { REFERENCE_DAY, dateOfDayOfYear } from '@/lib/scene/season-look';
@@ -82,6 +86,7 @@ import {
   demoRoadStage,
 } from './dev-road';
 import { demoCartSlope, type CartDemo } from './dev-cart';
+import { devSelectionView } from './dev-selection';
 import type { CartKind } from '@bohemia/game';
 import {
   placementVillageFromScene,
@@ -307,6 +312,25 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   useEffect(() => {
     scene?.setVillage(village);
   }, [scene, village]);
+
+  // výběr jako ve hře: klik na pole vybere díl, dvojklik celé pole (fields.md – Co hráč vidí);
+  // čísla panelu odhaduje dev-selection.ts
+  const [selected, setSelected] = useState<VillageTarget | null>(null);
+  useEffect(
+    () =>
+      scene?.onSelect((target, additive, double) =>
+        setSelected((prev) => nextSelection(prev, target, additive, double)),
+      ),
+    [scene],
+  );
+  const current = useMemo(() => presentTarget(village, selected), [village, selected]);
+  useEffect(() => {
+    scene?.setSelection(current);
+  }, [scene, current]);
+  const selection = useMemo(
+    () => selectionDetails(devSelectionView(village, decoded), village, current),
+    [village, decoded, current],
+  );
 
   useEffect(() => {
     scene?.setPathsVisible(paths);
@@ -1670,6 +1694,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         )}
       </div>
       <Minimap landscape={decoded} scene={scene} village={village} />
+      <SelectionPanel details={selection} onSelectTarget={setSelected} />
       <ScenePerfPanel scene={scene} />
       {/* u kurzoru totéž co ve hře – cena ikonami s čísly, nebo důvod, proč to nejde */}
       <CursorReason preview={preview} />

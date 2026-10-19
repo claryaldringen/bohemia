@@ -112,6 +112,43 @@ describe('buildVillageView – práce vsi pro postavy', () => {
   });
 });
 
+describe('buildVillageView – díl pole pro panel (fields.md – Co hráč vidí)', () => {
+  it('osetý díl: plodina a letošní práce, rok osevu; příloh: roky ladem', () => {
+    const s = settled();
+    s.constructions = s.constructions.filter((c) => c.kind !== 'field');
+    for (const p of s.parts) {
+      p.foundingDone = p.foundingCost;
+      p.state = 'ready';
+    }
+    const day = dayIndexOf({ year: 504, month: 9, day: 20 });
+    const later = advanceVillage(s, day, null);
+    const sown = later.parts.filter((p) => p.state === 'sown');
+    expect(sown.length).toBeGreaterThan(0);
+    const view = buildVillageView(record(later), landscape, day);
+    const parts = new Map(view.fields[0]!.parts.map((p) => [p.id, p]));
+    for (const part of sown) {
+      const shown = parts.get(part.id)!;
+      expect(shown.sownYears).toBe(part.sownYears);
+      expect(shown.fallowYears).toBeUndefined();
+      const crop = shown.work!.crop!;
+      expect(['winter', 'spring', 'legume']).toContain(crop.crop);
+      // podíly na setiny
+      for (const share of [crop.sow, crop.harvest, crop.prep?.share ?? 0]) {
+        expect(Math.round(share * 100)).toBeCloseTo(share * 100, 9);
+      }
+    }
+    // díl, který leží ladem od září 501 – tři celé roky, letošní osevní práci nemá
+    const fallow = later.parts.at(-1)!;
+    fallow.state = 'fallow';
+    fallow.fallowSinceDay = dayIndexOf({ year: 501, month: 9, day: 1 });
+    const again = buildVillageView(record(later), landscape, day);
+    const shown = again.fields[0]!.parts.find((p) => p.id === fallow.id)!;
+    expect(shown).toMatchObject({ fallowYears: 3 });
+    expect(shown.sownYears).toBeUndefined();
+    expect(shown.work?.crop).toBeUndefined();
+  });
+});
+
 describe('buildVillageView – zarůstání (fields.md)', () => {
   it('díly přílohu: roky bez pastvy, kde se pase, zarůstající plocha; les vsi se stromy', () => {
     const s = settled();
@@ -316,8 +353,21 @@ describe('buildVillageView', () => {
         ashParts: 0,
         ashBonus: 0,
         overgrowingM2: 0,
+        parts: expect.any(Array),
       },
     ]);
+    // díly pro panel dílu (klik na pole): celý čtverec bez výměry, přirozená úrodnost = dnešní
+    // chybí, zakládá se – průběh, zbývající práce; hospodářství první zemnice
+    const parts = view.fields[0]!.parts;
+    expect(parts).toHaveLength(5);
+    expect(parts[0]).toEqual({
+      id: expect.any(Number),
+      fertility: 50,
+      walkM: expect.any(Number),
+      holding: 1,
+      founding: { progress: 0, laborLeft: expect.any(Number), trees: 0 },
+    });
+    expect(parts[0]!.founding!.laborLeft).toBeGreaterThan(0);
     expect(view.hungry).toBe(false);
     expect(view.constructionsStalled).toBe(false);
   });
@@ -1055,6 +1105,29 @@ describe('sad v pohledu na ves', () => {
         id: orchardId,
         areaM2: 450,
         squares: 2,
+        // čtverce pro panel čtverce sadu (klik na sad)
+        cells: [
+          {
+            cell: { x: 2, y: 2 },
+            areaM2: 225,
+            ageYears: null,
+            expectedYieldKg: 0,
+            planting: 0,
+            plantingWaits: false,
+            renewal: false,
+            walkM: 60,
+          },
+          {
+            cell: { x: 3, y: 2 },
+            areaM2: 225,
+            ageYears: null,
+            expectedYieldKg: 0,
+            planting: 0,
+            plantingWaits: false,
+            renewal: false,
+            walkM: 70,
+          },
+        ],
         ageYears: null,
         expectedYieldKg: 0,
         planting: 0,
@@ -1090,9 +1163,9 @@ describe('sad v pohledu na ves', () => {
     ]);
     // v červnu výsadba čeká na podzimní okno
     const june = dayIndexOf({ year: 503, month: 6, day: 1 });
-    expect(buildVillageView(record(withOrchard()), landscape, june).orchards[0]).toMatchObject({
-      plantingWaits: true,
-    });
+    const waiting = buildVillageView(record(withOrchard()), landscape, june).orchards[0]!;
+    expect(waiting).toMatchObject({ plantingWaits: true });
+    expect(waiting.cells.map((c) => c.plantingWaits)).toEqual([true, true]);
     expect(placementVillageFromScene(view.scene).orchards).toEqual([
       {
         squares: [
@@ -1180,6 +1253,16 @@ describe('sad v pohledu na ves', () => {
     });
     expect(renewing.scene.orchards![0]!.squares[0]).not.toHaveProperty('renewal');
     expect(renewing.orchards[0]).toMatchObject({ planting: 0.5, ageYears: 53 });
+    // panel čtverce: starý čtverec plodí, obnovovaný se sází znovu
+    const [oldCell, renewingCell] = renewing.orchards[0]!.cells;
+    expect(oldCell).toMatchObject({ ageYears: 53, planting: null, renewal: false });
+    expect(oldCell!.expectedYieldKg).toBeGreaterThan(0);
+    expect(renewingCell).toMatchObject({
+      ageYears: null,
+      planting: 0.5,
+      renewal: true,
+      expectedYieldKg: 0,
+    });
   });
 
   it('kronika obnovy – druh události pro upozornění a text', () => {

@@ -25,7 +25,9 @@ hourglass (přesýpací hodiny – kolik zbývá: služba spřežení, výcvik),
 bilance obchodu se sousedem, trade.md),
 ozim (osení pod sněhem), jar (klasy jarního ječmene), charcoal (hromádka dřevěného uhlí), tools
 (kovaná sekera zkřížená se srpem) a pottery (dva hrnce pražského typu, větší s vlnovkou) –
-suroviny řemesel (crafts.md) –, cart (dvoukolák s loukoťovými koly) a wood-tools (hrábě zkřížené
+suroviny řemesel (crafts.md) –, harvest (sklizeň – srp zkřížený s uříznutou hrstí zralých klasů,
+panel dílu pole – fields.md), walk (cesta z domu – dvě šlépěje bosých nohou ve vyšlapané hlíně, chůze
+po pěšinách – paths.md), cart (dvoukolák s loukoťovými koly) a wood-tools (hrábě zkřížené
 s dřevěnými vidlemi) – vozy a dřevěné nářadí od tesaře (wagons.md) –, overgrowth (zarůstání – keře
 a mladá bříza z modelů krajiny
 `apps/web/public/models/decor/` a `trees/`, fields.md – Zarůstání), condition (stav stavby –
@@ -724,6 +726,39 @@ def icon_road(grade):
         place_root(objs, (math.sin(2.6 * 0.6) * 0.25, 2.6, -0.05), 0.0, 1.0)
     sun(az=-55, el=46)
     camera([Vector((-3.2, -4.6, 0)), Vector((3.2, 4.6, 1.4)), Vector((-3.2, 4.6, 0)), Vector((3.2, -4.6, 0))], az=24, el=42, margin=0.92)
+
+
+def icon_walk():
+    """Cesta z domu (chůze po pěšinách – paths.md): dvě šlépěje bosých nohou ve vyšlapané hlíně."""
+    ground(1.6, mat("g", tex=f"{TEX}/mud.jpg", scale=0.8, tint=(1.0, 0.8, 0.56)), z=0.0, fade=0.66)
+    prints = bmesh.new()
+    # obrys chodidla (pravá noha, špička k +Y): pata úzká, přední část široká, klenba uvnitř
+    sole = [(0.0, -0.42), (0.1, -0.38), (0.14, -0.22), (0.12, -0.02), (0.17, 0.14), (0.2, 0.26),
+            (0.14, 0.33), (0.02, 0.32), (-0.12, 0.27), (-0.17, 0.14), (-0.1, 0.0), (-0.06, -0.2),
+            (-0.1, -0.36)]
+    toes = [(-0.13, 0.4, 0.06), (-0.04, 0.44, 0.045), (0.04, 0.43, 0.04), (0.11, 0.4, 0.035),
+            (0.17, 0.35, 0.03)]
+
+    def foot(centre, ang, mirror):
+        ca, sa = math.cos(ang), math.sin(ang)
+        place = lambda x, y: (centre[0] + (x * mirror) * ca - y * sa, centre[1] + (x * mirror) * sa + y * ca)  # noqa: E731
+        verts = [prints.verts.new((*place(x, y), 0.006)) for x, y in sole]
+        prints.faces.new(verts if mirror > 0 else verts[::-1])
+        for x, y, r in toes:
+            px, py = place(x, y)
+            blob(prints, ((px, py, 0.0), (0, 0, 0)), (r, r * 1.2, 0.008), 10, 4)
+
+    d = Vector((0.45, 1.0, 0)).normalized()
+    ang = math.atan2(d.y, d.x) - math.pi / 2
+    side = Vector((d.y, -d.x, 0))
+    for k, mirror in ((0, -1), (1, 1)):
+        c = d * (-0.45 + k * 0.9) + side * 0.2 * mirror
+        foot((c.x, c.y), ang, mirror)
+    bmesh.ops.recalc_face_normals(prints, faces=prints.faces)
+    to_obj(prints, "prints", mat("print", (0.05, 0.03, 0.016), 0.98), smooth=False)
+    sun(az=-55, el=46)
+    camera([Vector((-1.15, -1.15, 0)), Vector((1.15, 1.15, 0.05))], az=0, el=70, margin=1.0)
+    return True
 
 
 def icon_jablone():
@@ -1686,6 +1721,70 @@ def icon_tools():
     return True
 
 
+def icon_harvest():
+    """Sklizeň (žeň): srp zkřížený s uříznutou hrstí zralých klasů – panel dílu pole (fields.md)."""
+    rng = random.Random(23)
+    wood, iron, edge, stems, ears, awns = (bmesh.new() for _ in range(6))
+    # hrst klasů: stébla od uříznutého konce vlevo dole vějířem doprava nahoru, nahoře plné klasy
+    base_c, lean = Vector((-0.5, 0.2, -0.85)), Vector((0.38, 0.0, 1.0)).normalized()
+    side = Vector((lean.z, 0, -lean.x))
+    for i in range(9):
+        fan = (i - 4) / 4
+        base = base_c + side * fan * 0.1 + Vector((0, rng.uniform(-0.06, 0.06), 0))
+        d = (lean + side * (fan * 0.32 + rng.uniform(-0.05, 0.05))).normalized()
+        top = base + d * rng.uniform(1.15, 1.3)
+        cyl(stems, base, top, 0.03, 0.022, 6)
+        for k in range(5):
+            c = top + d * (0.08 + 0.085 * k)
+            alt = 1 if k % 2 == 0 else -1
+            o2 = Vector((d.z, 0, -d.x)) * 0.05 * alt
+            ax = d.to_track_quat("Z", "Y").to_euler()
+            blob(ears, ((c + o2)[:], tuple(ax)), (0.075, 0.075, 0.12), 8, 5)
+            tip = c + o2 + d * 0.1
+            cyl(awns, tip, tip + d * 0.32 + o2 * 1.6, 0.012, 0.0, 3)
+    # provázek kolem hrsti
+    mid = base_c + lean * 0.38
+    for k in range(18):
+        a0, a1 = 2 * math.pi * k / 18, 2 * math.pi * (k + 1) / 18
+        w = Vector((0, 1, 0))
+        p0 = mid + (side * math.cos(a0) + w * math.sin(a0)) * 0.17
+        p1 = mid + (side * math.cos(a1) + w * math.sin(a1)) * 0.17
+        cyl(wood, p0, p1, 0.035, 0.035, 5)
+    # srp vpředu: rukojeť vpravo dole, čepel srpkem doleva nahoru a dolů ke špičce
+    c, R = Vector((0.18, 0.0, 0.02)), 0.56
+    a0, a1 = math.radians(-28), math.radians(196)
+    start = c + Vector((math.cos(a0), 0, math.sin(a0))) * R
+    cyl(wood, (0.92, -0.24, -0.9), (start.x - 0.03, -0.24, start.z + 0.02), 0.1, 0.09, 10)
+    steps = 28
+    outer, inner, honed = [], [], []
+    for i in range(steps + 1):
+        t = i / steps
+        a = a0 + (a1 - a0) * t
+        w = 0.24 * (1 - t) ** 0.7 + 0.008
+        rr = R + 0.04 * math.sin(math.pi * t)
+        outer.append((c.x + math.cos(a) * rr, c.z + math.sin(a) * rr))
+        inner.append((c.x + math.cos(a) * (rr - w), c.z + math.sin(a) * (rr - w)))
+        honed.append((c.x + math.cos(a) * (rr - w * 0.7), c.z + math.sin(a) * (rr - w * 0.7)))
+    flat_plate(iron, outer + inner[::-1], -0.24, 0.07)
+    # broušené ostří – světlejší pruh na vnitřní (řezné) straně čepele
+    flat_plate(edge, honed + inner[::-1], -0.24, 0.075)
+    bmesh.ops.recalc_face_normals(iron, faces=iron.faces)
+    bmesh.ops.recalc_face_normals(edge, faces=edge.faces)
+    to_obj(stems, "stems", mat("stem", (0.84, 0.66, 0.3), 0.7))
+    to_obj(ears, "ears", mat("ear", (0.95, 0.74, 0.27), 0.65, noise=30))
+    to_obj(awns, "awns", mat("awn", (0.92, 0.76, 0.4), 0.6))
+    to_obj(wood, "handle", mat("haft", (0.62, 0.42, 0.22), 0.75, noise=18, bump=0.3))
+    ir = mat("forged", (0.36, 0.36, 0.38), 0.42, noise=14, bump=0.4)
+    next(x for x in ir.node_tree.nodes if x.type == "BSDF_PRINCIPLED").inputs["Metallic"].default_value = 0.65
+    to_obj(iron, "iron", ir, smooth=False)
+    ed = mat("edge", (0.74, 0.74, 0.76), 0.3)
+    next(x for x in ed.node_tree.nodes if x.type == "BSDF_PRINCIPLED").inputs["Metallic"].default_value = 0.8
+    to_obj(edge, "edge", ed, smooth=False)
+    sun(az=-35, el=45, strength=4.4)
+    camera([Vector((-0.95, -0.3, -0.95)), Vector((0.95, 0.3, 1.15))], az=0, el=8, margin=1.02)
+    return True
+
+
 # Hrnec pražského typu: vnější profil (poloměr, výška) od dna k okraji, pak vnitřek zpět ke dnu
 POT_OUTER = [(0.0, 0.0), (0.3, 0.0), (0.36, 0.05), (0.48, 0.25), (0.57, 0.5), (0.58, 0.6),
              (0.53, 0.76), (0.45, 0.86), (0.43, 0.9), (0.47, 0.97), (0.51, 1.0)]
@@ -2051,6 +2150,8 @@ RESOURCES = {
     "jar": icon_jar,
     "charcoal": icon_charcoal,
     "tools": icon_tools,
+    "harvest": icon_harvest,
+    "walk": icon_walk,
     "pottery": icon_pottery,
     "cart": icon_cart,
     "wood-tools": icon_wood_tools,

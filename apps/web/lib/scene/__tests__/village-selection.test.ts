@@ -20,8 +20,28 @@ const dwelling = (id: number, built = true): SceneVillage['dwellings'][number] =
 });
 const village: SceneVillage = {
   dwellings: [dwelling(1), dwelling(2), dwelling(3), dwelling(40, false)],
-  fields: [],
+  fields: [
+    { id: 5, parts: [{ id: 51, cell: { x: 2, y: 0 }, x: 37.5, z: 7.5, size: 15, stage: 'sown' }] },
+  ],
+  orchards: [
+    {
+      id: 6,
+      squares: [
+        {
+          cell: { x: 4, y: 4 },
+          x: 67.5,
+          z: 67.5,
+          size: 15,
+          planting: 1,
+          growth: 1,
+          fruit: false,
+        },
+      ],
+    },
+  ],
 };
+const part = { kind: 'field-part', id: 5, cell: { x: 2, y: 0 } } as const;
+const square = { kind: 'orchard-square', id: 6, cell: { x: 4, y: 4 } } as const;
 
 describe('nextSelection', () => {
   it('bez modifikátoru vybere, co je pod kurzorem; prázdná zem výběr zruší', () => {
@@ -73,6 +93,34 @@ describe('nextSelection', () => {
   });
 });
 
+describe('klik vybere díl, dvojklik celé pole či sad (fields.md – Co hráč vidí)', () => {
+  it('klik na pole vybere díl, dvojklik celé pole; sad stejně po čtvercích', () => {
+    expect(nextSelection(null, part, false)).toBe(part);
+    expect(nextSelection(part, part, false, true)).toEqual({ kind: 'field', id: 5 });
+    expect(nextSelection(null, square, false)).toBe(square);
+    expect(nextSelection(square, square, false, true)).toEqual({ kind: 'orchard', id: 6 });
+  });
+
+  it('dvojklik na obydlí, hřbitov či prázdnou zem je jako klik', () => {
+    expect(nextSelection(null, { kind: 'dwelling', id: 1 }, false, true)).toEqual({
+      kind: 'dwelling',
+      id: 1,
+    });
+    expect(nextSelection(null, { kind: 'cemetery', id: 3 }, false, true)).toEqual({
+      kind: 'cemetery',
+      id: 3,
+    });
+    expect(nextSelection(part, null, false, true)).toBeNull();
+  });
+
+  it('s Ctrl / Shift díl ani celé pole vybraná obydlí nezruší', () => {
+    const two = { kind: 'dwellings', ids: [1, 2] } as const;
+    expect(nextSelection(two, part, true)).toBe(two);
+    expect(nextSelection(two, part, true, true)).toBe(two);
+    expect(nextSelection(null, part, true, true)).toEqual({ kind: 'field', id: 5 });
+  });
+});
+
 describe('allDwellingsTarget a presentTarget', () => {
   it('Ctrl + A vybere všechna hotová obydlí – staveniště ne', () => {
     expect(allDwellingsTarget(village)).toEqual({ kind: 'dwellings', ids: [1, 2, 3] });
@@ -95,6 +143,13 @@ describe('allDwellingsTarget a presentTarget', () => {
     expect(presentTarget(village, null)).toBeNull();
     const field = { kind: 'field', id: 5 } as const;
     expect(presentTarget(village, field)).toBe(field);
+  });
+
+  it('díl pole a čtverec sadu, které zanikly (les, stavba), z výběru vypadnou', () => {
+    expect(presentTarget(village, part)).toBe(part);
+    expect(presentTarget(village, square)).toBe(square);
+    expect(presentTarget(village, { ...part, cell: { x: 3, y: 0 } })).toBeNull();
+    expect(presentTarget(village, { ...square, id: 7 })).toBeNull();
   });
 
   it('id vybraných obydlí a výběr z id', () => {

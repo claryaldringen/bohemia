@@ -15,8 +15,9 @@ import type { SceneVillage } from '../village-view';
 
 /**
  * Co je ve vsi vybrané: obydlí (hotové i rozestavěné – id ze scény vsi), víc obydlí najednou
- * (Ctrl/Shift + klik, Ctrl + A – migration.md; aspoň dvě), pole, hřbitov, sad, posvátný dub (id
- * stromu), dubový háj (id středového dubu), modla či svatyně (id stavby – hotová i rozestavěná,
+ * (Ctrl/Shift + klik, Ctrl + A – migration.md; aspoň dvě), díl pole nebo čtverec sadu (klik –
+ * fields.md, Co hráč vidí), celé pole nebo sad (dvojklik), hřbitov, posvátný dub (id stromu),
+ * dubový háj (id středového dubu), modla či svatyně (id stavby – hotová i rozestavěná,
  * happiness.md), nebo ohrada (id ohrady – oxen.md).
  */
 export type VillageTarget =
@@ -24,8 +25,12 @@ export type VillageTarget =
   /** Víc obydlí najednou – id ze scény vsi v pořadí výběru (aspoň dvě). */
   | { kind: 'dwellings'; ids: readonly number[] }
   | { kind: 'field'; id: number }
+  /** Díl pole – id pole a čtverec dílu (v mřížce pole – natočené pole má vlastní). */
+  | { kind: 'field-part'; id: number; cell: TileCell }
   | { kind: 'cemetery'; id: number }
   | { kind: 'orchard'; id: number }
+  /** Čtverec sadu – id sadu a čtverec (v mřížce sadu). */
+  | { kind: 'orchard-square'; id: number; cell: TileCell }
   | { kind: 'sacred-oak'; id: number }
   | { kind: 'grove'; id: number }
   | { kind: 'sacred'; id: number }
@@ -118,8 +123,9 @@ export function insideSacredFootprint(
  * Co je pod kurzorem: obydlí, které paprsek protne od země do výšky střechy (nejbližší ke
  * kameře), pak modla nebo svatyně (paprsek přes půdorys do výšky modly), posvátný dub (paprsek
  * do 4 m od kmene od země do koruny), jinak obydlí, jehož pozemek (políčko) nebo ohrada leží pod
- * bodem terénu `ground`, úsek pevné cesty do ROAD_PICK_M od osy, pak pole, hřbitov, sad nebo
- * dubový háj pod bodem; null = prázdná zem.
+ * bodem terénu `ground`, úsek pevné cesty do ROAD_PICK_M od osy, pak díl pole, hřbitov, čtverec
+ * sadu nebo dubový háj pod bodem (celé pole a sad vybere dvojklik – `wholeTarget`); null =
+ * prázdná zem.
  */
 export function pickVillageTarget(
   village: SceneVillage,
@@ -188,14 +194,52 @@ export function pickVillageTarget(
   // celá cesta hráče – navazující úseky různého stupně jsou jedna cesta (Martin)
   if (road !== null)
     return { kind: 'road', id: roadChainIds(village.roads ?? [], road)[0] ?? road };
-  const field = village.fields.find((f) => f.parts.some(hit));
-  if (field) return { kind: 'field', id: field.id };
+  for (const field of village.fields) {
+    const part = field.parts.find(hit);
+    if (part) return { kind: 'field-part', id: field.id, cell: copyCell(part.cell) };
+  }
   const cemetery = (village.cemeteries ?? []).find((c) => c.squares.some(hit));
   if (cemetery) return { kind: 'cemetery', id: cemetery.id };
-  const orchard = (village.orchards ?? []).find((o) => o.squares.some(hit));
-  if (orchard) return { kind: 'orchard', id: orchard.id };
+  for (const orchard of village.orchards ?? []) {
+    const square = orchard.squares.find(hit);
+    if (square) return { kind: 'orchard-square', id: orchard.id, cell: copyCell(square.cell) };
+  }
   const grove = (sacred?.groves ?? []).find((g) => g.squares.some(hit));
   return grove ? { kind: 'grove', id: grove.id } : null;
+}
+
+function copyCell(cell: TileCell): TileCell {
+  return { x: cell.x, y: cell.y };
+}
+
+/**
+ * Celá stavba, ke které vybraný kus patří (dvojklik – fields.md, Co hráč vidí): díl pole → pole,
+ * čtverec sadu → sad; ostatní cíle beze změny (tentýž objekt).
+ */
+export function wholeTarget(target: VillageTarget): VillageTarget {
+  if (target.kind === 'field-part') return { kind: 'field', id: target.id };
+  if (target.kind === 'orchard-square') return { kind: 'orchard', id: target.id };
+  return target;
+}
+
+/** Díl pole vybraný ve scéně (čtverec v mřížce pole), nebo undefined. */
+export function selectedFieldPart(
+  village: SceneVillage,
+  target: Extract<VillageTarget, { kind: 'field-part' }>,
+): SceneVillage['fields'][number]['parts'][number] | undefined {
+  return village.fields
+    .find((f) => f.id === target.id)
+    ?.parts.find((p) => p.cell.x === target.cell.x && p.cell.y === target.cell.y);
+}
+
+/** Čtverec sadu vybraný ve scéně (v mřížce sadu), nebo undefined. */
+export function selectedOrchardSquare(
+  village: SceneVillage,
+  target: Extract<VillageTarget, { kind: 'orchard-square' }>,
+): NonNullable<SceneVillage['orchards']>[number]['squares'][number] | undefined {
+  return village.orchards
+    ?.find((o) => o.id === target.id)
+    ?.squares.find((s) => s.cell.x === target.cell.x && s.cell.y === target.cell.y);
 }
 
 /** Vzdálenost bodu od lomené čáry (m). */
@@ -241,6 +285,8 @@ export function targetExists(village: SceneVillage, target: VillageTarget): bool
     return (village.cemeteries ?? []).some((c) => c.id === target.id);
   }
   if (target.kind === 'orchard') return (village.orchards ?? []).some((o) => o.id === target.id);
+  if (target.kind === 'field-part') return selectedFieldPart(village, target) !== undefined;
+  if (target.kind === 'orchard-square') return selectedOrchardSquare(village, target) !== undefined;
   if (target.kind === 'sacred-oak') {
     return (village.sacred?.oaks ?? []).some((o) => o.id === target.id);
   }

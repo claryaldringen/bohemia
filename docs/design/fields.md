@@ -1157,7 +1157,30 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
   čtvercem otáčejí mřížku, nad polem se malování chytí jeho mřížky.
 - **Zakládání:** pole se zakládá jako stavba po dílech od obydlí – rozpracovaný díl se rozrývá
   po řádcích, stromy a kameny z hotového dílu zmizí.
-- **Panel pole** (výběr kliknutím): výměra, úrodnost, kolik dílů se zakládá, je oseto a leží
+- **Klik vybere díl, dvojklik celé pole** (Martin, 19. 10. 2026: „Když kliknu na pole, zobrazí
+  se mi jen to jedno políčko s parametry. Když dvojkliknu, označí se celé pole jako teď.“):
+  kliknutí na pole označí jen čtverec pod kurzorem (obrys čtverce, u natočeného pole natočený),
+  druhé kliknutí do 400 ms na totéž místo (dvojklik) označí celé pole. Výběr se nezdržuje – první
+  kliknutí vybere díl hned, dvojklik ho rozšíří. Obrys čtverců prosvítá přes obilí a stromy
+  (uprostřed pole by ho jinak zakryla koruna vystouplého obilí). Dvojklik na obydlí, hřbitov
+  a ostatní je jako kliknutí; při malování po čtvercích se nic nemění. Stejně sad – klik čtverec
+  sadu, dvojklik celý sad ([orchard.md](orchard.md)). **Hřbitov zůstává celý** (návrh Clauda):
+  hroby se plní po celém hřbitově (místo nejblíž obydlím), plot i jeho stav jsou celého hřbitova
+  a hygienu hráč nevidí – čtverec hřbitova by ukázal jen počet míst.
+- **Panel dílu** (klik – jen ikony s čísly a popisky jako v 0 A.D.; co na dílu je, píše název
+  pod portrétem): **co na dílu je** – zralé obilí, zelené luštěniny, strniště, zoráno / zkopáno,
+  mladý příloh, louka na seno, křoviny, zakládá se…; **výměra** (m² – výchozy a zabraná půda ji
+  zmenšují); **úrodnost** dílu dnes (v popisku přirozená z krajiny – osev ji vyčerpává, ladem se
+  vrací; jádro panelu dílu, proto se díl vybírá) a bonus z popela; **cesta z domu** (m po
+  pěšinách – podle ní je práce dražší); **hospodářství** – ikona domu, ke kterému díl patří
+  (viz Hospodaření podle polohy domů), kliknutím ho vybere; povrch založení, když to nebyla louka.
+  Osetý díl: **letošní práce** – příprava půdy (kopání motykou, orba rádlem, rozrytí drnu přílohu
+  – ikona motyky, nebo vola), setí s ikonou plodiny (ozim, jař, luštěniny) a sklizeň (srp
+  s klasy), každá v procentech, jak k dílu došla práce (Postup práce po čtvercích), a kolikátý rok
+  je díl v osevu. Příloh: roky ladem, roky bez pastvy a seče (zarůstání), jestli se na něm pasou
+  stáda a kolik je posečeno. Zakládaný díl: průběh, zbývající práce a dospělé stromy, které dají
+  klády. Očekávaná úroda dílu – později (závisí na celé sklizni vsi).
+- **Panel pole** (dvojklik): výměra, úrodnost, kolik dílů se zakládá, je oseto a leží
   v přílohu podle stadia (mladý příloh, pastvina, křoviny, mladý les) – ikony a čísla; oseté díly
   podle plodiny (ozim, jař); **kolik z pole zarůstá** – ikona zarůstání (keř a mladá bříza)
   s plochou přílohu, který se poslední vegetační období nespásl ani neposekl, i toho, který už
@@ -1367,3 +1390,5 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Volná práce pro plán osevu po dospělých pasácích (se stády podle bílkovin)                                                        | návrh Clauda                                    |
 | Přebytek nad pojistku za 3 roky, chybějící hned; luštěniny podle své zásoby bez rezervy; bez měření podílu podíl 1                | návrh Clauda                                    |
 | Zkrácení plánu denně 1. 9. – 30. 4. nad cíl + desetinu potřeby z pole; jen nezačaté díly od konce pořadí, ladem jako příloh       | návrh Clauda                                    |
+| Klik na pole vybere díl s parametry, dvojklik celé pole jako dřív                                                                 | Martin (19. 10. 2026)                           |
+| Panel dílu: co na něm je, výměra, úrodnost, cesta, hospodářství, letošní práce / příloh; hřbitov celý                             | návrh Clauda                                    |

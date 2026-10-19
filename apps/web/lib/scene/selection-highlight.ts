@@ -1,13 +1,14 @@
+import { Constants } from '@babylonjs/core/Engines/constants';
 import type { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
 import { DWELLING_FOOTPRINT_M, SACRED_BUILDINGS, roadChain } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
-import { cellsBoundary } from './field-cells';
+import { cellsBoundary, type CellSquare } from './field-cells';
 import { footprintCorners, stripSegments, type Point } from './village-layout';
 import { createDecalMaterial, createStripMesh, type HeightFn } from './village-meshes';
-import type { VillageTarget } from './village-picking';
+import { selectedFieldPart, selectedOrchardSquare, type VillageTarget } from './village-picking';
 
 /** Barva výběru – světlá zlatavá, jako prstenec vybrané jednotky v 0 A.D. */
 const SELECTION_COLOR = new Color3(1, 0.86, 0.45);
@@ -17,6 +18,21 @@ const DWELLING_RING_MARGIN_M = 1.2;
 const OAK_RING_RADIUS_M = 2.6;
 /** Čáry výběru úseku cesty od osy (m) – kousek za okrajem pásu vyšlapané a upravené cesty. */
 const ROAD_RING_M = { trodden: 1.6, improved: 2.2 } as const;
+/**
+ * Obrys čtverců (díl pole, pole, čtverec sadu, sad, hřbitov, háj, ohrada) prosvítá přes obilí,
+ * stromy a ploty – druhý obrys bez testu hloubky, průsvitný (jako obrys malování – field-painting.ts).
+ * Uprostřed pole by jinak obrys dílu zakryla koruna vystouplého obilí (fields.md – Co hráč vidí).
+ */
+const XRAY_ALPHA = 0.55;
+const SEE_THROUGH: ReadonlySet<VillageTarget['kind']> = new Set([
+  'field',
+  'field-part',
+  'orchard',
+  'orchard-square',
+  'cemetery',
+  'grove',
+  'pen',
+]);
 
 /** Lomená čára posunutá o `d` m kolmo (vlevo kladně) – v bodech zlomu podle průměru směrů. */
 export function offsetLine(points: readonly { x: number; z: number }[], d: number): Point[] {
@@ -33,6 +49,7 @@ export function offsetLine(points: readonly { x: number; z: number }[], d: numbe
 /** Zvýraznění vybraného obydlí, pole nebo hřbitova – rámeček na zemi (obtisk). */
 export class SelectionHighlight {
   private readonly material: StandardMaterial;
+  private readonly xrayMaterial: StandardMaterial;
   private meshes: Mesh[] = [];
 
   constructor(
@@ -43,6 +60,12 @@ export class SelectionHighlight {
       emissive: SELECTION_COLOR,
       zOffset: -6,
     });
+    this.xrayMaterial = createDecalMaterial(scene, 'selection-ring-xray', {
+      emissive: SELECTION_COLOR,
+    });
+    this.xrayMaterial.alpha = XRAY_ALPHA;
+    this.xrayMaterial.depthFunction = Constants.ALWAYS;
+    this.xrayMaterial.disableDepthWrite = true;
   }
 
   /** Překreslí rámeček podle vybraného cíle ve vsi (null nebo zaniklý cíl = nic). */
@@ -51,21 +74,24 @@ export class SelectionHighlight {
     if (!village || !target) return;
     const lines = targetOutline(village, target);
     if (lines.length === 0) return;
-    const mesh = createStripMesh(
-      this.scene,
-      'selection-ring',
-      lines.flatMap((line) => stripSegments(line, false, 0.35, 1.5)),
-      this.height,
-      0.15,
-    );
+    const segments = lines.flatMap((line) => stripSegments(line, false, 0.35, 1.5));
+    const mesh = createStripMesh(this.scene, 'selection-ring', segments, this.height, 0.15);
     mesh.material = this.material;
     mesh.receiveShadows = false;
     this.meshes.push(mesh);
+    if (SEE_THROUGH.has(target.kind)) {
+      const xray = createStripMesh(this.scene, 'selection-ring-xray', segments, this.height, 0.15);
+      xray.material = this.xrayMaterial;
+      xray.receiveShadows = false;
+      xray.alphaIndex = 12;
+      this.meshes.push(xray);
+    }
   }
 
   dispose(): void {
     this.clear();
     this.material.dispose();
+    this.xrayMaterial.dispose();
   }
 
   private clear(): void {
@@ -77,9 +103,18 @@ export class SelectionHighlight {
 /**
  * Obrys cíle jako lomené čáry: celý pozemek obydlí (polozemnice – políčko), rámeček kolem
  * půdorysu volného obydlí (u víc vybraných obydlí kolem každého), modly nebo svatyně, kroužek kolem posvátného dubu, nebo mez kolem
- * čtverců pole, hřbitova, sadu, háje či ohrady.
+ * čtverců pole, hřbitova, sadu, háje či ohrady; vybraný díl pole a čtverec sadu jen jeho čtverec
+ * (i natočený).
  */
 export function targetOutline(village: SceneVillage, target: VillageTarget): Point[][] {
+  if (target.kind === 'field-part') {
+    const part = selectedFieldPart(village, target);
+    return part ? cellsBoundary([cellSquare(part)]) : [];
+  }
+  if (target.kind === 'orchard-square') {
+    const square = selectedOrchardSquare(village, target);
+    return square ? cellsBoundary([cellSquare(square)]) : [];
+  }
   if (target.kind === 'sacred') {
     const building = village.sacred?.buildings.find((b) => b.id === target.id);
     if (!building) return [];
@@ -150,13 +185,16 @@ export function targetOutline(village: SceneVillage, target: VillageTarget): Poi
   }
   const field = village.fields.find((f) => f.id === target.id);
   if (!field || field.parts.length === 0) return [];
-  return cellsBoundary(
-    field.parts.map((p) => ({
-      cell: p.cell,
-      x: p.x,
-      z: p.z,
-      size: p.size,
-      ...(p.rotation !== undefined ? { rotation: p.rotation } : {}),
-    })),
-  );
+  return cellsBoundary(field.parts.map(cellSquare));
+}
+
+/** Čtverec stavby (díl pole, čtverec sadu) pro obrys – bez ostatních údajů. */
+function cellSquare(square: CellSquare): CellSquare {
+  return {
+    cell: square.cell,
+    x: square.x,
+    z: square.z,
+    size: square.size,
+    ...(square.rotation !== undefined ? { rotation: square.rotation } : {}),
+  };
 }
