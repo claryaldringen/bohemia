@@ -125,7 +125,12 @@ z [rešerše uhlířství](research/2026-10-18-charcoal.md).
      práce domácnosti uhlíře,
   5. **vytahání, třídění a odnos uhlí** – 2 čd na buk (120 kg uhlí); vypálený milíř se
      rozebírá postupně, jak kovář uhlí odebírá ([Milíř stojí vždy](#milíř-stojí-vždy)).
-     Rozebraný milíř zmizí a uhlíř staví další.
+     Rozebraný milíř zmizí a uhlíř staví další. **S vozem** (wagons.md – Co vozy vozí; Martin 19. 10. 2026: „Pokud budou mít k dispozici vůz, ať … pro dřevěné uhlí jede vůz.“): když
+     ves má vůz, jehož voli dnes neorají a vůz nesváží úrodu, seno ani klády, a vůz k milíři
+     dojede (do 12 m – milíř v lese jen po pevné cestě), odnos v koších (pětina vytahání,
+     u lesního milíře s přirážkou za chůzi) nahradí jízdy vozu – 300 kg na jízdu, posádka ze
+     uhlířovy domácnosti; práce na kg uhlí klesne (u milíře u dílny ≈ o 18 %). Vůz se vezme, jen
+     když je jízda levnější než odnos.
 - **Kde milíř stojí** (rešerše – milíře se stavěly v lesích u těžby, dřevo se nevyplatilo
   vozit, Szabó a kol. 2022): leží-li první buk dávky do **150 m** od milíře u zemnice, pálí
   uhlíř doma a dřevo dováží. Dál staví **milíř v lese** u prvního buku dávky (dávka = buky
@@ -440,3 +445,4 @@ Rozhodnutí kontroléru při implementaci (18. 10. 2026) – kde návrh necháva
 | Jeden milíř na uhlíře, nový až po rozebrání; uhlí na 30 dní kování, když u kováře nestačí na dnešek      | návrh Clauda (19. 10. 2026)                  |
 | Zbytek milíře, který stačí jen na přípravu dalšího, uhlíř vytahá celý a začne nový (kovář nečeká)        | návrh Clauda (19. 10. 2026)                  |
 | Bez kováře vypálený milíř čeká, další se nestaví; uhlí z milíře jde prodat sousedovi                     | rozhodnutí Clauda (19. 10. 2026)             |
+| Uhlí z milíře ke kováři vozem – odnos (pětina vytahání) nahradí jízdy, posádka z domácnosti uhlíře       | návrh Clauda (19. 10. 2026)                  |

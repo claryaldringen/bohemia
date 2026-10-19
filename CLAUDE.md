@@ -823,6 +823,25 @@ rozhraní částí v
   (`VillageNeighbour.carts`), `SceneVillage.carts` (`sceneCarts` – u ohrady, cíl dne, náklad
   `job.load` a trasa dne `route` – osa `villageCartRoutes` zjednodušená `simplifiedRoute`; scéna
   je kreslí – Vozy se spřežením). Dílna tesaře má model `tesar` (Řemeslné dílny).
+- **Co vozy vozí** ([wagons.md](docs/design/wagons.md) – Co vozy vozí; Martin 19. 10. 2026:
+  „Pokud budou mít k dispozici vůz, ať na pole, pro vodu nebo pro dřevěné uhlí jede vůz.“;
+  čísla `CART_JOBS` v `rules.ts`, návrh Clauda): `cart-jobs.ts` + `planCartJobs` v `simulate.ts`.
+  Dvoukolák, který dnes nesváží úrodu ani seno (`planTaskHauls`) a nevozí klády (ty mají přednost
+  – `logHaulCandidates` / `logHaulPlan` před rozdělením práce, `haulLogs` po něm), jede v pořadí
+  `CART_JOBS.order` – ne když voli orají ani orbu navíc (`extraSowingWantsTeam`): **uhlí** –
+  uhlíři, který dnes nosí (`burnerDraws` v crafts.ts), jízda k milíři (`kilnCartDrive`, uložená
+  v `CharcoalKiln.cart`), `kilnCartOffer` (jen když je jízda levnější než odnos) → `workBurner`
+  (`BurnerPlan.cart` – odnos `carryShare` nahradí posádka z práce uhlíře, `BurnerDay.cart` /
+  `WorkshopDay.cart`); **osivo** – `planSeedHauls` na úlohu `sow` jako svoz (`CropWork.seedHauled`,
+  `seedReach` – `sowingCartReach`); **voda** – `waterCartDrive` (břeh nejblíž ohradě, kam vůz
+  sjede, uložený ve `VillageState.waterCart` podle klíče chůze) a `waterCartPlan` z
+  `householdWater` (labor.ts) – přirážka za vodu se zmenší a přičte se díl posádky (v denním
+  minimu). Jízdy vozí `villageCartDrives` (vozová síť – cena v m po louce a konec trasy, bez
+  krajiny vzdušně), do ročního provozu cest `addRoadCartTrips`. Rozdělení práce: `haul`
+  s `LaborShare.job` (`charcoal` / `seed` / `water`), cíl milíř (`kiln` i u dílny), díl pole, břeh
+  (`LaborTarget` `{ kind: 'water', x, z }`); voda v práci `domestic` ubere posádku. Web:
+  `SceneCart.job.load` – uhlí a osivo `goods`, voda `water` (scéna zatím prázdný vůz), osivo
+  `outbound` (`CartShuttle.loadedOut` – naložené tam), trasa k milíři a břehu (`cartRouteToday`).
 - **Ozim a jař** (fields.md – Ozim a jař): roční plán (`YearPlan`) nese práci jaře nahoře (tvar
   plánu z doby před ozimem) a ozimu v `winter?` (`CropWork`); díly osevu mají `crop?` (chybí =
   jař). Okna prací po plodinách `CROP_WINDOWS` (`WINDOWS` = jař, `WINTER_WINDOWS`) v `rules.ts`.
