@@ -130,8 +130,40 @@ Rozhodnutí kontroléru tam, kde návrh nedává postup (Martin je může změni
   dílů. Orba běží v oknech kopání, spřežení zvládnou nejvýš 0,3 ha × sazba orby (člověkodny) za
   den (obě plodiny dohromady). Když ves přijde o poslední spřežení, zbylou orbu (i rozpracovaný
   díl) kopou motyky – vrácené díly jdou na konec řady kopání.
-- **Ve scéně** stojí spřežení na čele orby (díl, přes který dnes orba postoupila) a otáčí se na
-  souvratích; voli spřežení jsou jinak v ohradě, telata ve výcviku taky, krávy v zimě.
+- **Ve scéně** orá spřežení na čele orby – pruh u čáry práce a další den dojde dál (viz
+  Spřežení postupuje s orbou); voli spřežení jsou jinak v ohradě, telata ve výcviku taky, krávy
+  v zimě.
+
+## Spřežení postupuje s orbou (19. 10. 2026)
+
+Stav: **Martin, 19. 10. 2026** schválil směr – spřežení ať ve scéně postupuje po čtvercích, jak
+orba skutečně postupuje, stejně jako se mění vzhled dílů ([fields.md](fields.md) – Postup práce po
+čtvercích). Podrobnosti **návrh Clauda** (jen zobrazení, simulace se nemění):
+
+- **Kde orá:** na dílu, přes který dnes orba postoupila – na čele (rozpracovaný díl fronty `parts`
+  podílu práce orby, bez něj poslední díl dnešní fronty). Na dílu jde **po pruhu u čáry práce**:
+  řady podél řádků pole a pruh napříč od strany blíž vsi, přesně jako obtisk rozpracovaného dílu
+  (hotová část je zoraná, čára práce po osminách dílu) – spřežení orá tu část, která se ten den
+  změnila na zoranou. Pruh končí na čáře, sahá nejvýš **4 řady (10 m)** zpět do zorané části
+  a má aspoň **2 řady (3,75 m)** – na začátku dílu, kde je zorané méně, kus za čáru. Řady po
+  ≈ 2,5 m jako dřív.
+- **Proč jen čelo, ne všechny dnešní díly:** spřežení orá 0,3 ha za herní den, tj. ≈ 13 čtverců,
+  herní den ale trvá ≈ 86 s a voli skutečnou rychlostí (0,7 m/s) za tu dobu zorají ≈ 2 řady
+  jednoho čtverce. Projít všechny dnešní díly by znamenalo hnát voly třináctkrát rychleji (jako
+  zvířata „na koksu“, která Martin nechtěl). Obtisk pole se mění jednou za herní den, takže
+  spřežení na čele – u čáry, kterou obtisk ukazuje – drží se scénou krok.
+- **Další den dojde na nové čelo pěšky**, ne skokem (jako lidé – postavy): z místa, kde zrovna je,
+  jde rovně krokem ≈ 1 m/s s nadzvednutým rádlem a naváže na novou dráhu bez skoku (na začátku
+  a konci se plynule natočí). Posun delší než **60 m** (víc než půl herního dne chůze) se nejde –
+  spřežení je rovnou na novém místě, stejně jako lidé při dlouhém přechodu; při omezeném pohybu
+  stojí rovnou na novém místě.
+- **Víc spřežení** (víc ohrad s vycvičenými voly): každé na jiném dílu dnešní fronty – první na
+  čele, další na nejčerstvějších dílech, kam jeho dráha i se souvratěmi nesahá (obrys dílu
+  prodloužený o dosah rádla a obrat). Když takový díl není (dnes se oralo málo), orají **dvě
+  spřežení jeden díl** – každé půlku (7,5 m napříč), stejnou dráhou posunutou napříč, takže jdou
+  v zákrytu a nikdy se nesrazí (na souvrati jedno za druhým, mezera ≈ 2 m). Spřežení, které se na
+  čelo nevejde, zůstane ten den v ohradě (ohrady podle id).
+- **Natočené pole** (fields.md – Natočené stavby): řady a pruh v osách natočeného čtverce.
 
 ## Co hráč vidí
 
@@ -140,8 +172,9 @@ Rozhodnutí kontroléru tam, kde návrh nedává postup (Martin je může změni
   let spřežení ještě slouží a kolik dní výcviku zbývá – ikona přesýpacích hodin (Martin: slunce
   nebylo srozumitelné).
 - V horní liště **seno** (ikona + číslo), když ves má dobytek v ohradě.
-- Ve scéně: ohrada s přístřeškem, v zimě voli a krávy v ohradě, stohy sena, na jaře spřežení orá
-  pole čtverec po čtverci.
+- Ve scéně: ohrada s přístřeškem, v zimě voli a krávy v ohradě, stohy sena, na jaře a na podzim
+  spřežení orá pole čtverec po čtverci – na čele orby u čáry, kde se zem mění na zoranou, a každý
+  den dojde dál.
 
 ## Rozhodnutí
 
@@ -159,3 +192,5 @@ Rozhodnutí kontroléru tam, kde návrh nedává postup (Martin je může změni
 | Seno ze všech luk – přirozené louky i úhor ve fázi louky, od nejbližší, jen kolik je třeba  | Martin (18. 10. 2026)         |
 | Přirozené louky do 600 m od obydlí; louky na seno ve scéně z dat                            | návrh Clauda                  |
 | Ohrada smí na pole – čtverec pole pod ní z pole zmizí                                       | Martin (18. 10. 2026)         |
+| Spřežení postupuje s orbou po čtvercích                                                     | Martin (19. 10. 2026)         |
+| Pruh u čáry práce (2–4 řady), jen čelo dne, přechod pěšky do 60 m, dvě spřežení na díl      | návrh Clauda                  |
