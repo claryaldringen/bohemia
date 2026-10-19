@@ -277,11 +277,12 @@ export function updateRoads(
       // úseky z doby před mokřinou a brody (fáze 1) si je doplní
       road.ground ??= roadGroundOf(road.points, terrain);
     }
-    // zarůstání vyšlapané cesty (upravená a hať nezarůstají, ani cesta, která se vylepšuje) –
-    // stromy u ní stojí dál
+    // zarůstání vyšlapané cesty (upravená a hať nezarůstají, ani cesta, která se vylepšuje,
+    // a cesta s jabloněmi – hráč do ní vložil práci) – stromy u ní stojí dál
     const building = roadsInWork(state.constructions);
+    const kept = roadsWithApples(roads, day);
     roads.roads = roads.roads.filter((road) => {
-      if (building.has(road.id) || !isOvergrown(road)) return true;
+      if (building.has(road.id) || kept.has(road.id) || !isOvergrown(road)) return true;
       events.push({ day, kind: 'road-overgrown', roadId: road.id });
       return false;
     });
@@ -322,6 +323,19 @@ export function updateRoads(
   }
   rootTrees(state, roads, day, blocked, landscape);
   return events;
+}
+
+/**
+ * Úseky s jabloněmi, které hráč vysadil (roads.md – Cesta s prací hráče nezaroste): živá jabloň
+ * nebo jabloň, která se teprve sází. Až všechny dožijí (souš), cesta může zarůst jako jiná.
+ */
+export function roadsWithApples(roads: Pick<VillageRoads, 'apples'>, day: number): Set<number> {
+  const kept = new Set<number>();
+  for (const apple of roads.apples ?? []) {
+    const stage = roadAppleStage(apple, day);
+    if (stage === 'tree' || stage === 'planting') kept.add(apple.roadId);
+  }
+  return kept;
 }
 
 /** Úseky, které se právě vylepšují (stavby `road` – roads.md). */
@@ -414,7 +428,11 @@ export function roadLengthM(road: Pick<Road, 'points'>): number {
   return at[at.length - 1] ?? 0;
 }
 
-/** Vyšlapaná cesta, kudy se ROADS.overgrowYears let po sobě chodí pod polovinou prahu. */
+/**
+ * Vyšlapaná cesta, kudy se ROADS.overgrowYears let po sobě chodí pod polovinou prahu. Upravená
+ * cesta a hať s lávkou (i hotová zemská stezka – trade.md) nezarůstají – hráč do nich vložil
+ * práci (roads.md).
+ */
 function isOvergrown(road: Road): boolean {
   return (
     road.grade === 'trodden' &&

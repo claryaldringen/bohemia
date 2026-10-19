@@ -343,6 +343,69 @@ describe('computePathNetwork – pěšiny vsi', () => {
   });
 });
 
+describe('pevná cesta – chodí se po ní bez ohledu na povrch (Martin, 19. 10. 2026)', () => {
+  /** Pevná cesta od vsi k potoku po ose x = 0. */
+  const north: NonNullable<PathVillage['roads']> = [
+    {
+      id: 1,
+      points: [
+        { x: 0, z: 8 },
+        { x: 0, z: 73 },
+      ],
+      grade: 'trodden',
+    },
+  ];
+  /** Body os pěšin do 2 m od osy cesty v pásu `z` ± `half`. */
+  const onRoad = (network: PathNetwork, z: number, half: number): number =>
+    samples(network).filter((p) => Math.abs(p.x) < 2 && Math.abs(p.z - z) < half).length;
+
+  it('pevná cesta přes osetý díl: lidé jdou po ní, ne kolem pole', () => {
+    // tři řady osetých dílů mezi vsí a potokem (z od 15 do 60, x od −45 do 45)
+    const parts = [22.5, 37.5, 52.5].flatMap((z) =>
+      [-37.5, -22.5, -7.5, 7.5, 22.5, 37.5].map((x) => part(x, z)),
+    );
+    const fields = [{ id: 9, parts }];
+    const withRoad = computePathNetwork({ village: village({ fields, roads: north }), terrain });
+    const without = computePathNetwork({ village: village({ fields }), terrain });
+    expect(onRoad(withRoad, 37.5, 20)).toBeGreaterThan(0);
+    expect(onRoad(without, 37.5, 20)).toBe(0);
+    // zoraný a zakládaný díl taky
+    const ready = [{ id: 9, parts: parts.map((p) => ({ ...p, stage: 'ready' as const })) }];
+    const readyNet = computePathNetwork({
+      village: village({ fields: ready, roads: north }),
+      terrain,
+    });
+    expect(onRoad(readyNet, 37.5, 20)).toBeGreaterThan(0);
+  });
+
+  it('drahý terén pod cestou (svah, les, překážky) ji neprodraží', () => {
+    // pás drahého terénu (×10) mezi vsí a potokem – kolem se dá obejít
+    const rough = { ...terrain, cost: new Float32Array(terrain.cost) };
+    for (let j = 0; j < rough.height; j++) {
+      for (let i = 0; i < rough.width; i++) {
+        const x = rough.originX + i * rough.cellM;
+        const z = rough.originZ + j * rough.cellM;
+        if (Math.abs(x) <= 45 && z >= 20 && z <= 60) rough.cost[j * rough.width + i]! *= 10;
+      }
+    }
+    const withRoad = computePathNetwork({ village: village({ roads: north }), terrain: rough });
+    const without = computePathNetwork({ village: village(), terrain: rough });
+    expect(onRoad(withRoad, 40, 15)).toBeGreaterThan(0);
+    expect(onRoad(without, 40, 15)).toBe(0);
+  });
+
+  it('plot ohrady pod pevnou cestou dál překáží – jde se kolem', () => {
+    // hotová ohrada bez zvířat (krmit se do ní nechodí) přes cestu
+    const pens = [{ ...part(0, 37.5), id: 4, built: true, stocked: false }];
+    const network = computePathNetwork({ village: village({ pens, roads: north }), terrain });
+    // vnitřek ohrady (okraj čtverce je plot – pěšina vede podél něj)
+    const inside = samples(network).filter((p) => Math.abs(p.x) < 4 && Math.abs(p.z - 37.5) < 4);
+    expect(inside).toEqual([]);
+    // cesta k potoku pokračuje kolem ohrady
+    expect(onRoad(network, 60, 6)).toBeGreaterThan(0);
+  });
+});
+
 describe('žádné souběžné pěšiny (Martin: „lidé by měli použít tu, ne si prošlapat vlastní“)', () => {
   /** Počet čar sítě, které protínají přímku z = `z`. */
   const crossing = (lines: readonly PathLine[], z: number): number =>

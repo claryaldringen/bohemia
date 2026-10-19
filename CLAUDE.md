@@ -1323,11 +1323,14 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   na pěšinu souseda, do cílů podle práce dne + základ zavedených míst (ke společnému cíli každá
   domácnost zvlášť A* od cíle k bráně, nejvytíženější první – další se přidá k čerstvě vyšlapané
   pěšině, souběžné pěšiny nevzniknou), k sousedům; 2 kola,
-  vyšlapané buňky hned zlevní; buňky pod pevnou cestou (`PathVillage.roads`) od začátku jako plná
-  pěšina – trasy se k ní stahují; ohrady (`pens` – plot jako hřbitov, krmení jako cíl) a stáda na
-  pastvě (`livestock` → `pastureHerds`, cesta na stádo denně na úhor; ze stavu `pastureLivestock`
-  jako `SceneVillage.livestock`); cena buňky pole podle nejbližšího dílu přes přihrádky políček
-  (`nearest.ts` – bit po bitu jako průchod všemi díly, zlatý otisk sítě v `paths-nearest.test.ts`);
+  vyšlapané buňky hned zlevní; buňky pod pevnou cestou (`PathVillage.roads`, maska `roadMask`) od
+  začátku jako plná pěšina – trasy se k ní stahují – a **bez ohledu na povrch** (Martin, 19. 10.
+  2026; `ROAD_CELL_COST` jako rovná louka: díl pole v jakémkoli stadiu, sad, les vsi i krajiny,
+  svah a překážky krajiny se pod cestou nepočítají; brod a neprůchodné buňky zůstávají, ploty
+  hřbitova a ohrady, okrsek svatyně a stavby taky – roads.md, Cesta je cesta); ohrady (`pens` –
+  plot jako hřbitov, krmení jako cíl) a stáda na pastvě (`livestock` → `pastureHerds`, cesta na
+  stádo denně na úhor; ze stavu `pastureLivestock` jako `SceneVillage.livestock`); cena buňky pole
+  podle nejbližšího dílu přes přihrádky políček (`nearest.ts` – bit po bitu jako průchod všemi díly, zlatý otisk sítě v `paths-nearest.test.ts`);
   síla `pathStrength` (odmocnina provozu), stáří obydlí →
   `pathAgeFactor`; vyhlazené čáry se sílou a stářím v bodech, provoz po buňkách `traffic.raw`;
   `annual: true` = roční provoz; provoz ke stavbám `visits` – opuštěné stavby, abandonment.md;
@@ -1368,8 +1371,9 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   `candidates` a práce roku cest po místech `labor` (od 1. 11., z rozdělení práce dne). Roční
   kontrola 1. 11. (`updateRoads`): roční síť `annualPathNetwork` (stejná `computePathNetwork`,
   průměrné člověkodny na den, sleva za pevné cesty) → provoz cest (`roadTraffic` – medián
-  `traffic.raw` po ose) a zarůstání vyšlapané cesty (5 let pod polovinou prahu) → nové cesty
-  z úseků nad prahem (`ROADS.tripsPerDay`), které leží i na loňských (`MATCH_M`) a nevedou po
+  `traffic.raw` po ose) a zarůstání vyšlapané cesty (5 let pod polovinou prahu; nezaroste cesta,
+  která se vylepšuje – `roadsInWork`, ani s vysazenými jabloněmi – `roadsWithApples`; upravená
+  a hať nezarůstají) → nové cesty z úseků nad prahem (`ROADS.tripsPerDay`), které leží i na loňských (`MATCH_M`) a nevedou po
   pevné cestě; konec se připojí k pevné cestě a ta se v rozcestí rozdělí (`splitRoad`) – osa se
   jinak nikdy nemění → **falešná rozcestí** (uzel jen se dvěma úseky stejného stupně, bez
   rozdílného vylepšení) se spojí (`mergeRoadChains` – i po dokončení vylepšení ve

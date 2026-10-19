@@ -5,7 +5,9 @@ vypadat ve hře.“). Stromy podél cest přes pole – Martin 18. 10. 2026 (v E
 statek uprostřed svých polí a cesta k němu vedla přes pole, obvykle lemovaná stromy) – mají od 18. 10. 2026 jen **pevné cesty** ([roads.md](roads.md)), pěšiny dne ne. **Pěšiny ovlivňují práci** – Martin 18. 10. 2026 („Tam, kde bude vyšlapaná cesta, ať
 se chodí o něco lépe než tam, kde není.“). **Vzhled pěšin dne** – Martin 19. 10. 2026 („denní
 pěšina ať je nevýrazná. Vyšlapanou cestu nechme jako teď“), viz Jak pěšiny vznikají – Síla
-pěšiny. Síť počítá herní jádro
+pěšiny. **Po pevné cestě bez ohledu na povrch** – Martin 19. 10. 2026 („Když už někde vyšlapaná
+cesta je, ať po ní lidé chodí bez ohledu na to, na čem ta stezka leží.“), viz Jak pěšiny vznikají
+– Kudy. Síť počítá herní jádro
 (`packages/game/src/domain/village/paths/` – `terrain.ts`, `network.ts`, `walking.ts`,
 `village.ts`) stejně na serveru i v prohlížeči; scéna `apps/web/lib/scene/path-renderer.ts`,
 `path-ribbon.ts`, `path-router.ts`. Pevné cesty a stromy u nich: [roads.md](roads.md).
@@ -40,7 +42,14 @@ A po vyšlapané pěšině se chodí lépe – cesta na vzdálené pole po ní s
   v ohradě, prasata jdou do lesa (návrh Clauda).
 - **Kudy:** lidé obcházejí prudké svahy, vodu (kromě mělkých brodů), domy se zahrádkami,
   kmeny, keře, balvany a skály, plot ohrady a hřbitova, přes oseté pole nechodí (jdou po jeho
-  okraji), přes úhor a louku ano, lesem neradi.
+  okraji), přes úhor a louku ano, lesem neradi. **Po pevné cestě ([roads.md](roads.md)) se jde
+  bez ohledu na to, na čem leží** (Martin, 19. 10. 2026, Vlkov: „Je tam vidět, že na nový hřbitov
+  vedla nejkratší cesta, kolem které dokonce byly nějaké stromy (jabloně) a ta zanikla a lidé to
+  začali obcházet divnou delší cestou.“ a „Když už někde vyšlapaná cesta je, ať po ní lidé chodí
+  bez ohledu na to, na čem ta stezka leží.“): pevná cesta přes osetý díl, zoranou zem, sad, les
+  nebo svah stojí jako cesta přes louku – je to mez, po které se chodí. Dál platí jen brod
+  a neprůchodná místa a ploty a stavby (hřbitov, ohrada, svatyně, domy a pozemky) – podrobnosti
+  v [roads.md – Cesta je cesta](roads.md#cesta-je-cesta--povrch-pod-ní-a-zarůstání).
 - **Slévání:** vyšlapaná pěšina je pohodlnější (až o polovinu), takže kdo jde po ní, jde i kus
   oklikou – trasy sousedů se slijí do společné pěšiny a vznikne síť. **Žádné souběžné pěšiny**
   (Martin, 18. 10. 2026: „Pokud už cesta vede tím směrem, lidé by měli použít tu, ne si prošlapat
@@ -62,8 +71,8 @@ A po vyšlapané pěšině se chodí lépe – cesta na vzdálené pole po ní s
 - **Objevuje se a mizí:** spojení nového obydlí se vyšlapává dva roky, zrušené místo pěšinu
   ztratí (v prototypu hned). Práce se mění s rokem – pěšina na pole je v žních silnější.
 - **Vidět jsou i v polích:** pěšina se kreslí nad poli – přes úhor a pastvinu jako prošlapaný
-  pás; přes osetý díl pěšiny nevedou (obcházejí ho), kdyby přece, jen úzká stopa (Martin:
-  stromy u cesty bez cesty mátly).
+  pás; přes osetý díl pěšiny nevedou (obcházejí ho – kromě pevné cesty, po které se jde i přes
+  osetý díl), kdyby přece, jen úzká stopa (Martin: stromy u cesty bez cesty mátly).
 - **Roční období:** tráva v pěšinách usychá jako louka, v zimě je zasype sníh – stopa pěšiny
   dne ve sněhu pořád trochu prosvítá (sníh ji zasype jen ze 30 %, pevnou cestu z 55 % – ta
   prosvítá zřetelně).
@@ -84,7 +93,9 @@ není.“), čísla návrh Clauda.
   [roads.md](roads.md) – Rychlejší chůze.
 - **Vzdálenost dílu pole pro práci** (fields.md – Vzdálenost) se měří chůzí z nejbližšího
   obydlí: rovně, nebo rovně k pěšině, po ní (úsek se počítá 0,75–1 × délka podle síly) a rovně
-  od ní na díl – kratší z obou. Pěšina práci jen zlevní – nikdy víc než chůze rovně; chůze rovně
+  od ní na díl – kratší z obou. Povrch (pole, sad, les, svah) chůzi pro práci nezdražuje – ani
+  rovně, ani po pevné cestě (Martin, 19. 10. 2026 – po cestě bez ohledu na to, na čem leží); po
+  pevné cestě rozhoduje jen stupeň, mokřina a brody na ose. Pěšina práci jen zlevní – nikdy víc než chůze rovně; chůze rovně
   ale počítá mokřinu a brody ([roads.md](roads.md)), takže díl za potokem může být dál než
   vzdušnou čarou. Stejně se měří čtverce sadu a palivo (obydlí → okraj lesa).
 - **Kdy se přepočítá:** když se změní rozložení vsi – nové obydlí nebo staveniště, nová pole

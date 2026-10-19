@@ -16,7 +16,7 @@ import type {
   TileCell,
 } from '../types';
 import { nearestPartFinder } from './nearest';
-import { PATH_FOREST_EDGE, PATH_WATER_SPOT, type PathTerrain } from './terrain';
+import { PATH_FOREST_EDGE, PATH_WATER, PATH_WATER_SPOT, type PathTerrain } from './terrain';
 
 // Vyšlapané pěšiny (docs/design/paths.md). Čistá deterministická funkce vsi a terénu – počítá ji
 // server (cesta na pole po pěšině je rychlejší – fields.md – Vzdálenost) i prohlížeč (vzhled,
@@ -29,8 +29,9 @@ import { PATH_FOREST_EDGE, PATH_WATER_SPOT, type PathTerrain } from './terrain';
 // (aktivní chodci) – lidé dají přednost vyšlapané pěšině a trasy se slijí do sítě. Ke společnému
 // cíli (pole, sad, staveniště…) jde každá domácnost zvlášť, nejvytíženější první, a další se
 // k čerstvě vyšlapané pěšině přidá – žádné souběžné pěšiny vedle sebe (Martin). Po pevné cestě
-// (roads.md) se jde jako po plné pěšině, takže se k ní trasy stahují. Výsledek jsou vyhlazené
-// lomené čáry se silou v bodech.
+// (roads.md) se jde jako po plné pěšině, takže se k ní trasy stahují – a bez ohledu na to, na čem
+// leží (pole, sad, les, svah – Martin, 19. 10. 2026). Výsledek jsou vyhlazené lomené čáry se
+// silou v bodech.
 
 /** Bod ve světě (m). */
 export interface PathPoint {
@@ -204,6 +205,15 @@ const PATH_DISCOUNT = 0.5;
 const MILIR_RADIUS_M = 2.3;
 /** Pevná cesta (roads.md): sleva jako po plné pěšině – trasy se k ní stahují. */
 const ROAD_STRENGTH = 1;
+/**
+ * Buňka pod osou pevné cesty stojí jako rovná louka – bez ohledu na povrch pod ní (Martin,
+ * 19. 10. 2026: „Když už někde vyšlapaná cesta je, ať po ní lidé chodí bez ohledu na to, na čem
+ * ta stezka leží.“ – paths.md, roads.md – Cesta je cesta): díl pole v jakémkoli stadiu, sad, les
+ * vsi i krajiny, křoviny, svah ani překážky krajiny ji neprodraží. Brod zůstává (cena brodu
+ * z terénu), neprůchodná buňka (voda, sráz, balvan) neprůchodnou a ploty hřbitova a ohrady,
+ * okrsek svatyně a stavby vsi zůstávají překážkou.
+ */
+const ROAD_CELL_COST = 1;
 /**
  * Provoz v cestách za den: pod `min` se pěšina nevyšlape (jednotlivé cesty nekreslí), od `full`
  * je plná; mezi tím síla roste s odmocninou provozu (pomalu – přesná aritmetika místo logaritmu).
@@ -536,6 +546,8 @@ interface Grid {
   flags: Uint8Array;
   /** Buňka patří stavbě vsi (pole, sad, hřbitov, dům) – pro dřevo a vodu se sem nechodí. */
   village: Uint8Array;
+  /** Buňka leží pod osou pevné cesty (`roadMask`); bez pevných cest null. */
+  road: Uint8Array | null;
 }
 
 function cellX(grid: Grid, c: number): number {
@@ -768,7 +780,8 @@ function gateOf(b: Building): PathPoint {
 
 /**
  * Mřížka pro hledání: terén (i s překážkami krajiny), k němu stavby vsi (pole podle stadia, sad,
- * hřbitov) a neprůchodné domy.
+ * hřbitov) a neprůchodné domy. Pod pevnou cestou platí cena cesty (`ROAD_CELL_COST`) místo terénu,
+ * pole, sadu a lesa vsi; ploty hřbitova a ohrady, okrsek svatyně a domy platí i tam.
  */
 function villageGrid(input: PathNetworkInput, buildings: readonly Building[]): Grid {
   const t = input.terrain;
@@ -781,21 +794,34 @@ function villageGrid(input: PathNetworkInput, buildings: readonly Building[]): G
     base: new Float32Array(t.cost),
     flags: t.flags,
     village: new Uint8Array(t.width * t.height),
+    road: null,
   };
   const v = input.village;
+  const road = roadMask(grid, v.roads);
+  grid.road = road;
+  if (road) {
+    for (let c = 0; c < road.length; c++) {
+      // brod (voda) a neprůchodné buňky zůstávají, jinak cesta jako louka (roads.md)
+      if (road[c] && Number.isFinite(grid.base[c]!) && !(grid.flags[c]! & PATH_WATER)) {
+        grid.base[c] = ROAD_CELL_COST;
+      }
+    }
+  }
+  const onRoad = (c: number): boolean => road !== null && road[c] === 1;
   for (const field of v.fields) {
     // hrana mezi díly téhož pole je uvnitř pole (meze nejsou) – cena podle nejbližšího dílu
     const nearestPart = nearestPartFinder(field.parts, field.parts[0]?.size ?? 0);
     for (const c of squareCells(grid, field.parts).inside) {
+      grid.village[c] = 1;
+      if (onRoad(c)) continue;
       const stage = nearestPart(cellX(grid, c), cellZ(grid, c)).stage;
       grid.base[c] = grid.base[c]! * STAGE_COST[stage];
-      grid.village[c] = 1;
     }
   }
   for (const orchard of v.orchards ?? []) {
     for (const c of squareCells(grid, orchard.squares).inside) {
-      grid.base[c] = grid.base[c]! * ORCHARD_COST;
       grid.village[c] = 1;
+      if (!onRoad(c)) grid.base[c] = grid.base[c]! * ORCHARD_COST;
     }
   }
   for (const cemetery of v.cemeteries ?? []) {
@@ -812,7 +838,9 @@ function villageGrid(input: PathNetworkInput, buildings: readonly Building[]): G
   }
   const woods = (v.woods ?? []).filter((w) => w.surface !== 'forest');
   if (woods.length > 0) {
-    for (const c of squareCells(grid, woods).inside) grid.base[c] = grid.base[c]! * WOOD_COST;
+    for (const c of squareCells(grid, woods).inside) {
+      if (!onRoad(c)) grid.base[c] = grid.base[c]! * WOOD_COST;
+    }
   }
   for (const b of v.sacred?.buildings ?? []) {
     if (b.kind !== 'shrine') continue;
@@ -877,19 +905,18 @@ function cellsAround(grid: Grid, p: PathPoint, radius: number): number[] {
 }
 
 /**
- * Buňky pevných cest (síla ROAD_STRENGTH, jinak 0) – osy se projdou po třetinách buňky a označí
- * se nejbližší buňka, takže cesta je souvislá řada buněk. Bez cest null.
+ * Buňky pod osami pevných cest (1, jinak 0) – osy se projdou po třetinách buňky a označí se
+ * nejbližší buňka, takže cesta je souvislá řada buněk. Bez cest null.
  */
-function roadCells(grid: Grid, roads: PathVillage['roads']): Float32Array | null {
+function roadMask(grid: Grid, roads: PathVillage['roads']): Uint8Array | null {
   if (!roads || roads.length === 0) return null;
-  const fixed = new Float32Array(grid.width * grid.height);
+  const mask = new Uint8Array(grid.width * grid.height);
   const step = grid.cellM / 3;
   const mark = (x: number, z: number): void => {
     const i = Math.round((x - grid.originX) / grid.cellM);
     const j = Math.round((z - grid.originZ) / grid.cellM);
     if (i < 0 || j < 0 || i >= grid.width || j >= grid.height) return;
-    const c = j * grid.width + i;
-    if (Number.isFinite(grid.base[c]!)) fixed[c] = ROAD_STRENGTH;
+    mask[j * grid.width + i] = 1;
   };
   for (const road of roads) {
     const pts = road.points;
@@ -900,6 +927,20 @@ function roadCells(grid: Grid, roads: PathVillage['roads']): Float32Array | null
       const n = Math.max(1, Math.ceil(length2(b.x - a.x, b.z - a.z) / step));
       for (let s = 0; s <= n; s++) mark(a.x + ((b.x - a.x) * s) / n, a.z + ((b.z - a.z) * s) / n);
     }
+  }
+  return mask;
+}
+
+/**
+ * Síla pevných cest po buňkách (ROAD_STRENGTH pod osou na průchodné buňce, jinak 0) – od začátku
+ * jako plná pěšina. Bez cest null.
+ */
+function roadCells(grid: Grid): Float32Array | null {
+  const road = grid.road;
+  if (!road) return null;
+  const fixed = new Float32Array(grid.width * grid.height);
+  for (let c = 0; c < road.length; c++) {
+    if (road[c] && Number.isFinite(grid.base[c]!)) fixed[c] = ROAD_STRENGTH;
   }
   return fixed;
 }
@@ -1905,7 +1946,7 @@ export function computePathNetwork(input: PathNetworkInput): PathNetwork {
     sinks: new Uint8Array(all),
   };
   // pevné cesty: od začátku jako plná pěšina (sleva), síla buňky nikdy pod ni neklesne
-  const fixed = roadCells(grid, v.roads);
+  const fixed = roadCells(grid);
   const costs: PassCosts = {
     base: grid.base,
     previous: fixed ? new Float32Array(fixed) : new Float32Array(all),

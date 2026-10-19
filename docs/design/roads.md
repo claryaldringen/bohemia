@@ -3,7 +3,9 @@
 Stav: schváleno 18. 10. 2026 (Martin: „Ano, spusť to takhle“). **Fáze 1 hotová** (18. 10. 2026 –
 pevné cesty a stromy u nich, viz [Fáze 1 – jak je postavená](#fáze-1--jak-je-postavená)),
 **fáze 2 hotová** (výběr, vylepšení a rychlejší chůze – [Fáze 2](#fáze-2--jak-je-postavená)),
-**fáze 3 hotová** (jabloně podél cesty – [Fáze 3](#fáze-3--jak-je-postavená)). Navazuje na
+**fáze 3 hotová** (jabloně podél cesty – [Fáze 3](#fáze-3--jak-je-postavená)). **Cesta je cesta**
+(19. 10. 2026 – po pevné cestě bez ohledu na povrch, cesta s jabloněmi nezaroste –
+[Cesta je cesta](#cesta-je-cesta--povrch-pod-ní-a-zarůstání)). Navazuje na
 [vyšlapané pěšiny](paths.md) (jen vzhled) a nahrazuje v nich stromy podél pěšin.
 
 ## Proč
@@ -47,8 +49,10 @@ Cesta se tím stává herní věcí: pamatuje si, kudy vede, a zkracuje lidem ch
     jiné), spojí se do jednoho (Martin, 18. 10. 2026 – viz [Úseky a rozcestí](#úseky-a-rozcestí)).
     Rozcestí je ve scéně udusaný plácek – nejvyšlapanější místo cesty.
   - **Zarůstání:** vyšlapaná cesta, kterou se **5 let po sobě** chodí pod polovinu prahu,
-    zaroste a zmizí (návrh Clauda). Upravená cesta a hať nezarůstají. Stromy u zarostlé cesty
-    stojí dál, dokud neodumřou.
+    zaroste a zmizí (návrh Clauda). Upravená cesta a hať nezarůstají, ani cesta s vysazenými
+    jabloněmi (návrh Clauda, 19. 10. 2026 – hráč do ní vložil práci; [Cesta je
+    cesta](#cesta-je-cesta--povrch-pod-ní-a-zarůstání)). Stromy u zarostlé cesty stojí dál,
+    dokud neodumřou.
 
 ## Stromy u pevných cest
 
@@ -135,6 +139,66 @@ společné práce vsi; stromy bere jako obydlí (klády z hromady, pak nejbliž�
 | Strom na poli vezme dílu 20 m²; nálet jen na mezi – místa 2,5–4 m od osy                 | návrh Clauda |
 | Pěšina dne nevýrazná; vyšlapaná cesta beze změny; upravená jen širší, strouha zrušená    | Martin       |
 | Upravená cesta 3 m (vyšlapaná 1,9 m), bez kamenů; kmeny hatě na šířku upravené cesty     | návrh Clauda |
+| Po pevné cestě se chodí bez ohledu na povrch pod ní (pole, sad, les, svah)               | Martin       |
+| Výjimky: brod, neprůchodná místa, ploty hřbitova a ohrady, svatyně a stavby              | návrh Clauda |
+| Cesta s jabloněmi nezaroste (jako upravená, hať a stezka); díl pole o cestu nepřichází   | návrh Clauda |
+
+## Cesta je cesta – povrch pod ní a zarůstání
+
+Martin (19. 10. 2026, ves Vlkov): „Je tam vidět, že na nový hřbitov vedla nejkratší cesta, kolem
+které dokonce byly nějaké stromy (jabloně) a ta zanikla a lidé to začali obcházet divnou delší
+cestou.“ a „Když už někde vyšlapaná cesta je, ať po ní lidé chodí bez ohledu na to, na čem ta
+stezka leží.“
+
+- **Po pevné cestě bez ohledu na povrch** (Martin): buňka sítě pěšin pod osou pevné cesty
+  (jakéhokoli stupně, i vyšlapané) stojí jako rovná louka a k tomu sleva plné pěšiny – díl pole
+  v jakémkoli stadiu (osetý, zoraný, zakládaný, zarůstající příloh), sad, les vsi i krajiny, svah
+  ani kmeny, keře a kameny krajiny ji neprodraží (`ROAD_CELL_COST` v `network.ts`). Dřív pod
+  cestou platila cena povrchu: přes osetý díl stála cesta 12 × 0,5 = 6× louku, lidé ji obcházeli
+  kolem pole a cesta zarostla. Platí v síti dne (vzhled, postavy) i v roční síti (pevné cesty).
+- **Co platí dál** (návrh Clauda): **brod** se počítá jako dřív – v síti cena brodu z terénu,
+  v chůzi pro práci podle mokřiny a brodů na ose a stupně (brod + 30 m, po lávce nic, mokřina
+  podle stupně). **Neprůchodné místo** (voda mimo brod, sráz, balvan, skalní výchoz) zůstává
+  neprůchodné – pevná cesta přes ně nevzniká (vzniká z provozu, který je obchází), osa je může
+  nanejvýš lízt rohem buňky. **Ploty a stavby** zůstávají překážkou: hřbitov, ohrada, okrsek
+  svatyně, dům, pozemek, staveniště, modla a milíř. Postaví-li hráč stavbu přes pevnou cestu,
+  přehradí ji – lidé ji obejdou podél plotu (okraj čtverce plotem není) a cesta po obou stranách
+  žije dál: provoz cesty je medián po ose, krátký kus pod stavbou ho nezkreslí. Důvod: plot a zeď
+  jsou skutečná překážka, kterou cesta neprorazí, a přes cestu je postavil hráč; zrušit kus cesty
+  pod stavbou může přijít později (jako u pole přes cestu – Fáze 1).
+- **Chůze pro práci** (`walking.ts`) povrch pod pevnou cestou nepočítala už dřív: po cestě podle
+  stupně, mokřiny a brodů na ose (`roadPieceCost`), rovně jen mokřina a voda – pole, sad ani les
+  chůzi nezdraží (hlídá test). Beze změny.
+- **Cesta s prací hráče nezaroste** (návrh Clauda – hráč do ní vložil práci): vyšlapaná cesta,
+  podél které jsou vysazené jabloně (živé, nebo se teprve sázejí – `roadsWithApples`), nezaroste
+  ani při malém provozu – stejně jako upravená cesta, hať s lávkou a hotová zemská stezka
+  (stupeň nad vyšlapanou) a cesta, která se vylepšuje. Až všechny jabloně dožijí (souš), může
+  zarůst jako jiná.
+- **Díl pole pod cestou o plochu nepřichází** (návrh Clauda) – na rozdíl od stromu na poli
+  (20 m²): (1) pevná cesta vzniká a zaniká sama provozem, hráč o ní nerozhoduje – ubírat pole by
+  byla neviditelná ztráta, kterou nemůže ovlivnit, a při zarůstání, spojování a dělení úseků by
+  se plocha musela vracet a přepočítávat (`giveWayToBuilding` umí jen ubrat); (2) je to málo –
+  ve Vlkově vedl úsek 24 přes pole 285 m, při šířce 1,9 m ≈ 540 m², tj. 0,13 % ze 40 ha polí
+  (na jednom přeťatém dílu ≈ 28 m² z 225 m²); (3) strom pole stíní a obchází se s rádlem
+  i motykou, pás cesty je mez mezi díly, po které se jen chodí. Staré vsi se tím nemění.
+- **Vlkov** (rozbor 19. 10. 2026 na kopii stavu): úsek 24 (vyšlapaný, 378 m, z toho 285 m přes
+  pole, 6 jabloní) vedl ze vsi kolem nového hřbitova (≈ 15 m od něj, hotový 749) dál ke starému
+  plnému hřbitovu. 1. 11. 752 se do roční sítě promítly ozimy: trasa ke hřbitovu opustila cestu
+  100–220 m od vsi a obešla osetý blok východem (na ose 0 cest za den). Navíc za novým hřbitovem
+  chodí ke starému hřbitovu jen 0,6 cesty denně (k modle) – a to je víc než polovina délky úseku,
+  takže medián provozu byl 0,6 (práh zarůstání 1,5) a úsek zarostl i s jabloněmi. S novým
+  pravidlem jde provoz po cestě až k novému hřbitovu (3,1–3,7 cesty denně, trasa ≈ 180 m při
+  vzdušné vzdálenosti 160 m), medián úseku ale zůstává 0,6 – úsek drží jabloně (dopočet kopie
+  stavu přes 1. 11. 752: zůstane). Dnes (758) úsek 24 neexistuje a data hráče se neobnovují:
+  v létě trasa ke hřbitovu obchází osetý blok západem (≈ 350 m po pěšinách místo ≈ 180 m). Na
+  nejkratší trase přes pole cesta sama znovu nevznikne – mimo pevnou cestu se přes osetý díl dál
+  nechodí; 1. 11. 758 ale vznikne nová pevná cesta (79 m) od vsi k severozápadu podél okraje
+  osetých dílů (stejně se starým i novým pravidlem) a po ní se pak chodí i v letech, kdy jsou
+  díly pod ní oseté.
+- **Otevřené – k rozhodnutí:** dlouhý úsek, jehož část vede tam, kam se už nechodí, zaroste celý
+  – i s používanou částí (medián provozu po ose). Ve Vlkově by úsek 24 bez jabloní zarostl
+  i s novým pravidlem. Návrh Clauda: zarůstá jen nepoužívaný kus úseku – úsek se v roční kontrole
+  rozdělí tam, kde provoz klesne pod polovinu prahu, a zaroste jen ta část.
 
 ## Fáze 1 – jak je postavená
 
@@ -157,7 +221,8 @@ Návrh Clauda (detaily, které návrh výš nechal otevřené – 18. 10. 2026):
   nejvyšší z buněk kolem bodu – trasa vede po cestě nebo těsně vedle); pamatuje se posledních
   5 let. ~~Když zaroste úsek mezi dvěma jinými, ty se nespojují (rozcestí zůstane).~~ Od 18. 10. 2026 se spojí – [Úseky a rozcestí](#úseky-a-rozcestí).
 - **Sleva za pevnou cestu** v síti dne i v roční síti: buňky pod osou cesty jako plná pěšina
-  (poloviční cena) – pěšiny dne se k cestě stahují. Ve scéně se pěšina dne v pevné cestě ztrácí
+  (poloviční cena) – pěšiny dne se k cestě stahují. Od 19. 10. 2026 bez ohledu na povrch pod
+  cestou (Martin – [Cesta je cesta](#cesta-je-cesta--povrch-pod-ní-a-zarůstání)). Ve scéně se pěšina dne v pevné cestě ztrácí
   (do 1,4 m od osy se nekreslí, od 3,2 m plně), pevná cesta se kreslí z dat jako plně vyšlapaná
   pěšina, volný konec (brána, pole) se vytrácí.
 - **Místa na stromy** (při vzniku úseku, ze seedu vsi a konců úseku): po 12–20 m střídavě vlevo
@@ -176,7 +241,10 @@ Návrh Clauda (detaily, které návrh výš nechal otevřené – 18. 10. 2026):
   dílu, který obydlí zabere, odklidí stavba obydlí s kládou). Strom odstraněný stavbou a pařez po
   20 letech od smrti zmizí ze stavu při roční kontrole.
 - **Cesta přes pole:** když hráč postaví pole přes pevnou cestu, cesta zůstává (kreslí se dál
-  a po ní se chodí) – zrušení cesty stavbou může přijít s fází 2.
+  a po ní se chodí) – zrušení cesty stavbou může přijít s fází 2. Do 19. 10. 2026 ale pod cestou
+  platila cena dílu – přes osetý díl stála cesta 6× louku, lidé ji obcházeli kolem pole a cesta
+  zarostla (Vlkov); od té doby se po ní chodí jako po cestě přes louku ([Cesta je
+  cesta](#cesta-je-cesta--povrch-pod-ní-a-zarůstání)).
 - **Stromy na poli** (Martin, 18. 10. 2026 – [fields.md](fields.md), Pole jako krajina; podrobnosti
   návrh Clauda): místa na stromy smí i na čtverce polí – leží 2,5–4 m od osy, na mezi podél cesty,
   kam se neorá. Strom, který se na poli uchytí, vezme dílu 20 m² (úroda a práce úměrně, kronika
@@ -256,8 +324,11 @@ Návrh Clauda (18. 10. 2026):
   nejbližšího obydlí při výsadbě (jabloň stojí u cesty – chůze by se lišila málo).
 - **Život:** strom do 60 let, pak souš 10 let a místo je volné. Jako překážka je jabloň do 20 let
   mladý strom (kácení bez klády), pak strom (kláda), souš jako souš; stavba přes jabloň ji
-  odstraní. U jabloně se strom u cesty neuchytí (do 6 m). Jabloně zůstanou, i když vyšlapaná cesta
-  zaroste (jako stromy u cest); při rozdělení úseku patří bližší části.
+  odstraní. U jabloně se strom u cesty neuchytí (do 6 m). Cesta s živými jabloněmi (i když se
+  teprve sázejí) nezaroste (od 19. 10. 2026 – [Cesta je
+  cesta](#cesta-je-cesta--povrch-pod-ní-a-zarůstání)); až všechny dožijí, zarůst může. Jabloně
+  u cesty, která zarostla dřív (Vlkov – úsek 24), stojí dál jako stromy u zarostlé cesty; při
+  rozdělení úseku patří bližší části.
 - **Panel cesty:** počet jabloní (v závorce plodící, když nejsou všechny), průběh výsadby
   a tlačítko „Vysadit jabloně“ (ikona `jablone`, v popisku práce a počet jabloní; zašedlé
   s důvodem – „Jabloně se tu už sázejí.“, „Podél cesty není volné místo.“). Server výsadbu
