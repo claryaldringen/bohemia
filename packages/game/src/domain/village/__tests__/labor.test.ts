@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { adultDailyMin, afterConstructions, allocateDay, householdElders } from '../labor';
+import {
+  adultDailyMin,
+  afterConstructions,
+  allocateDay,
+  householdElders,
+  householdWaterLabor,
+  waterFetchingLabor,
+} from '../labor';
 import { NO_CRAFTS, dailyMinPerHousehold } from '../productivity';
-import { LABOR_PER_DAY } from '../rules';
+import { LABOR_PER_DAY, WATER_FETCHING } from '../rules';
 import type { Person } from '../types';
 
 const base = {
@@ -130,6 +137,67 @@ describe('denní minimum a starší (population.md – Práce)', () => {
     people.push(person(5, 9, 10), person(6, 7, 46));
     expect(householdElders(people, DAY)).toEqual([2, 2, 0]);
     expect(householdElders(people, DAY, new Set([8]))).toEqual([2, 0]);
+  });
+});
+
+// Martin, 19. 10. 2026: „Ale vesničané tam přece musí chodit nějak pro vodu a musí jim to zabírat
+// čas.“ – chůze pro vodu nad 100 m je přirážka denního minima domácnosti (population.md – Práce)
+describe('chůze pro vodu v denním minimu (population.md – Práce)', () => {
+  it('do 100 m nulová, dál roste se vzdáleností i s lidmi domácnosti', () => {
+    expect(waterFetchingLabor(6, 0)).toBe(0);
+    expect(waterFetchingLabor(6, WATER_FETCHING.includedM)).toBe(0);
+    const near = waterFetchingLabor(6, 300);
+    const far = waterFetchingLabor(6, 600);
+    expect(near).toBeGreaterThan(0);
+    expect(far).toBeGreaterThan(near);
+    // cesty × 2 × (chůze − 100 m) ÷ rychlost ÷ délka dne: 6 lidí × 0,4 = 2,4 cesty, 500 m navíc
+    const day = WATER_FETCHING.dayHours * 3600;
+    expect(far).toBeCloseTo(
+      (6 * WATER_FETCHING.tripsPerPerson * 2 * 500) / WATER_FETCHING.speedMps / day,
+      12,
+    );
+    expect(waterFetchingLabor(3, 600)).toBeCloseTo(far / 2, 12);
+  });
+  it('bez změřené chůze (bez krajiny) nulová', () => {
+    expect(waterFetchingLabor(6, undefined)).toBe(0);
+    expect(waterFetchingLabor(0, 600)).toBe(0);
+  });
+  it('přirážka jde do denního minima před úlohami a kryjí ji napřed starší', () => {
+    const water = waterFetchingLabor(6, 600);
+    const r = allocateDay({
+      ...base,
+      householdWater: [water],
+      tasks: [{ name: 'dig', remaining: 5 }],
+    });
+    expect(r.dailyMin).toBeCloseTo(DAILY_MIN + water, 12);
+    expect(r.tasks.dig).toBeCloseTo(2.6 - DAILY_MIN - water, 12);
+    // starší kryje 0,5 čd – na dospělé zbude jen přirážka nad jeho práci
+    const elder = allocateDay({ ...base, householdElders: [1], householdWater: [water] });
+    expect(elder.dailyMin).toBeCloseTo(Math.max(0, DAILY_MIN + water - LABOR_PER_DAY.elder), 12);
+    expect(elder.eldersDailyMin).toBeCloseTo(DAILY_MIN + water - elder.dailyMin, 12);
+    const two = allocateDay({ ...base, householdElders: [2], householdWater: [water] });
+    expect(two.dailyMin).toBe(0);
+    expect(two.eldersDailyMin).toBeCloseTo(DAILY_MIN + water, 12);
+    // bez přirážky beze změny
+    expect(allocateDay({ ...base, householdWater: [0] })).toEqual(allocateDay(base));
+  });
+  it('householdWaterLabor: po domácnostech ve stejném pořadí jako householdElders', () => {
+    const DAY = 365.25 * 100;
+    const person = (id: number, dwellingId: number, age: number): Person =>
+      ({ id, dwellingId, bornDay: DAY - age * 365.25 - 10 }) as Person;
+    const people = [person(1, 7, 30), person(2, 8, 50), person(3, 7, 6), person(4, 9, 40)];
+    // obydlí 9 nemá chůzi změřenou, 10 (prázdné) se nepočítá
+    const dwellings = [
+      { id: 7, waterWalkM: 400 },
+      { id: 8, waterWalkM: 80 },
+      { id: 9 },
+      { id: 10, waterWalkM: 900 },
+    ];
+    expect(householdWaterLabor(people, dwellings)).toEqual([waterFetchingLabor(2, 400), 0, 0]);
+    expect(householdWaterLabor(people, dwellings, new Set([8]))).toEqual([
+      waterFetchingLabor(2, 400),
+      0,
+    ]);
   });
 });
 

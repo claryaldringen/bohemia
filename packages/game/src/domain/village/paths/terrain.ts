@@ -6,6 +6,7 @@ import {
   obstacleIndex,
   obstaclesNear,
   streamCenterline,
+  tileCenterWorld,
   type Landscape,
   type ObstacleKind,
   type ObstacleLayer,
@@ -488,4 +489,54 @@ export function trailTerrain(landscape: Landscape, obstacles: ObstacleLayer | nu
   const terrain = obstacles ? withObstacles(base, obstacles) : base;
   byLayer.set(obstacles, terrain);
   return terrain;
+}
+
+/**
+ * Voda pro okno sítě pěšin dál než tolik od obydlí (m vzdušnou čarou) se nebere – výpočet zůstane
+ * krátký i ve vsi úplně daleko od vody.
+ */
+export const WATER_WINDOW_MAX_M = 1000;
+
+const waterTilesCache = new WeakMap<Landscape, { x: number; z: number }[]>();
+
+/** Středy vodních políček krajiny (po řádcích, v mezipaměti podle krajiny). */
+function waterTiles(l: Landscape): { x: number; z: number }[] {
+  const cached = waterTilesCache.get(l);
+  if (cached) return cached;
+  const out: { x: number; z: number }[] = [];
+  for (let y = 0; y < l.size; y++) {
+    for (let x = 0; x < l.size; x++) {
+      if (l.surface[y * l.size + x] === SURFACE_CODES.water) out.push(tileCenterWorld(l, x, y));
+    }
+  }
+  waterTilesCache.set(l, out);
+  return out;
+}
+
+/**
+ * Nejbližší voda k bodům `from` (obydlí) pro okno sítě pěšin (paths.md – Pochůzky pro vodu): střed
+ * vodního políčka nejblíž vzdušnou čarou, nejvýš WATER_WINDOW_MAX_M daleko; každé políčko jednou.
+ * Suchý břeh, kam domácnost chodí pro vodu, leží u něj (voda je jen na vodních políčkách a kolem
+ * nich). Jen políčka krajiny – levné, stejně na serveru i v prohlížeči.
+ */
+export function nearestWaterTiles(
+  l: Landscape,
+  from: readonly { x: number; z: number }[],
+): { x: number; z: number }[] {
+  const tiles = waterTiles(l);
+  const max2 = WATER_WINDOW_MAX_M * WATER_WINDOW_MAX_M;
+  const picked = new Set<number>();
+  for (const p of from) {
+    let best = -1;
+    let bestD = Infinity;
+    tiles.forEach((t, k) => {
+      const d = (t.x - p.x) * (t.x - p.x) + (t.z - p.z) * (t.z - p.z);
+      if (d < bestD) {
+        best = k;
+        bestD = d;
+      }
+    });
+    if (best >= 0 && bestD <= max2) picked.add(best);
+  }
+  return [...picked].sort((a, b) => a - b).map((k) => tiles[k]!);
 }

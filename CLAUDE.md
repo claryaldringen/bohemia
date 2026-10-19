@@ -542,7 +542,11 @@ rozhraní částí v
   staví, tak čas věnují primárně té stavbě – zemědělství jenom natolik, aby vesnice neměla
   hlad“): pracovní síla vsi = dospělí (`laborPerDay`); starší kryjí jen denní minimum své
   domácnosti (`adultDailyMin`, `householdElders` – přebytek propadne), výrostci 7–13 let pasou.
-  `allocateDay`: denní minimum → výpravy (`away`) → potřebné sezónní úlohy → `common` (volná práce
+  Denní minimum domácnosti nese **přirážku za chůzi pro vodu** (paths.md – Pochůzky pro vodu,
+  Martin 19. 10. 2026): `householdWaterLabor` / `waterFetchingLabor` z `Dwelling.waterWalkM` –
+  cesty (`WATER_FETCHING` 0,4 na člověka) × 2 × (chůze − 100 m) ÷ 1 m/s ÷ 10 h; starší ji kryjí
+  jako zbytek minima, i v plánu osevu (`sowingCapacity`) a v dílnách (`workshopLabor`); bez
+  krajiny 0. `allocateDay`: denní minimum → výpravy (`away`) → potřebné sezónní úlohy → `common` (volná práce
   v liště, `commonLaborHistory`) do staveb (`build`) → z toho, co stavby nespotřebovaly, opravy
   obydlí (`afterConstructions`) → zbytek (místo pro polní práci navíc – fields.md, Osev navíc)
   propadne. Zvířata a domácí výroba (`DOMESTIC`) jdou bokem – jen `LaborDay.aside` pro postavy;
@@ -1763,7 +1767,9 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   sklon, voda a brody z osy potoka, les; `pathTerrainOf` – výřez z mezipaměti podle krajiny,
   nezávisí na jejím stavu; `withObstacles` – kmeny, keře, balvany, výchozy), `network.ts`
   (`computePathNetwork(PathVillage)` – cesty domácností pro vodu a dřevo každá zvlášť s napojením
-  na pěšinu souseda, do cílů podle práce dne + základ zavedených míst (ke společnému cíli každá
+  na pěšinu souseda – **pro vodu vždy k nejbližší vodě v okně, bez meze a naplno** (0,4 cesty na
+  člověka – `WATER_FETCHING`; dřevo nejvýš 450 m a za 130 m řidčeji – `nearCost`; okno sítě
+  `villagePathBounds` sahá k nejbližší vodě – `nearestWaterTiles`, jen k ní, ± 45 m, do 1 000 m), do cílů podle práce dne + základ zavedených míst (ke společnému cíli každá
   domácnost zvlášť A* od cíle k bráně, nejvytíženější první – další se přidá k čerstvě vyšlapané
   pěšině, souběžné pěšiny nevzniknou), k sousedům; 2 kola,
   vyšlapané buňky hned zlevní; buňky pod pevnou cestou (`PathVillage.roads`, maska `roadMask`) od
@@ -1791,7 +1797,8 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   „každá budova by měla mít nějaký vchod, od kterého cesta povede“ – paths.md, Vchody: jedna
   funkce pro síť i scénu – `cemeteryEntrance` branka hřbitova, `penEntrance` branka ohrady,
   `sacredEntrance` předek modly a svatyně; k hotové stavbě vede pěšina k vchodu, staveniště ze
-  všech stran; obydlí bránou `gateOf`; konstanty pleteného plotu `WOVEN_FENCE_CORNER_M`,
+  všech stran; obydlí bránou `gateOf`, brána v cizím pozemku → nejbližší volné místo do 7,5 m kolem
+  obydlí `gateAround` (jinak by domácnost vypadla ze sítě); konstanty pleteného plotu `WOVEN_FENCE_CORNER_M`,
   `CEMETERY_GATE`, `PEN_GATE`, `FENCE_INSET_M` bere scéna odsud; `PathVillage.cemeteries` nese
   `built` a čtverce `pending`), `walking.ts` (`walkGraph`, `walkingDistances` – vzdálenost chůze se
   stejnými rychlostmi jako síť, rovně i přes pole – `withFieldWalk` z `PathVillage.fields`, nikdy
@@ -1888,7 +1895,10 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   `withFieldWalk` (vzdálenosti dílů, sadu, paliva a luk; kácení staveb po pevných cestách bez
   polí). `refreshWalkDistances` počítá
   `FieldPart.walkDistanceM`, `OrchardSquare.walkDistanceM` (`squareWalkDistance`) a
-  `Dwelling.forestWalkM` (`dwellingForestDistance` – palivo); kácení staveb přes `walk` v plánu
+  `Dwelling.forestWalkM` (`dwellingForestDistance` – palivo) a `Dwelling.waterWalkM` (k nejbližšímu
+  břehu vzdušnou čarou – jedna funkce `waterWalkDistance(ground, walk, from)`: po pěšinách a cestách,
+  jen po cestách – `roadWalk`, nebo rovně – `straightWalk`; `WALK_VERSION` v otisku přepočte starší
+  vsi); kácení staveb přes `walk` v plánu
   dřeva (`roadWalk` / `villageRoadWalk` jen po pevných cestách, u kurzoru `placementWalk`
   s `PlacementVillage.walkRoads`). Bez krajiny (kalibrace) se nic z toho nepočítá. Web:
   `VillageView.roads` (`VillageRoad` – panel), `SceneRoad.ground` a `upgrade` (průběh pro fáze),

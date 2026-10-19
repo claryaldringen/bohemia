@@ -1,7 +1,7 @@
 import { detCos, detSin, type Landscape, type ObstacleLayer } from '../landscape';
 import { distanceFactor } from './fields';
 import { buildingLocalToWorld, fellTrees, obstacleChangesAt } from './obstacles';
-import { adultDailyMin } from './labor';
+import { adultDailyMin, waterFetchingLabor } from './labor';
 import { ageGroup, laborPerDay } from './people';
 import { rectangleCorners, type Point } from './polygon';
 import { NO_CRAFTS, dailyMinPerHousehold } from './productivity';
@@ -395,9 +395,15 @@ export function workshopLabor(
     left -= amount;
     return amount;
   };
-  // denní minimum kryjí napřed starší domácnosti, dospělí dají zbytek (population.md – Práce)
+  // denní minimum (s přirážkou za chůzi pro vodu) kryjí napřed starší domácnosti, dospělí dají
+  // zbytek (population.md – Práce)
   const elders = members.filter((p) => ageGroup(p, day) === 'elder').length;
-  const dailyMin = take(adultDailyMin(dailyMinPerHousehold(potteryCoverage), elders, productivity));
+  const water = waterFetchingLabor(
+    members.length,
+    state.dwellings.find((d) => d.id === dwellingId)?.waterWalkM,
+  );
+  const minimum = dailyMinPerHousehold(potteryCoverage) + water;
+  const dailyMin = take(adultDailyMin(minimum, elders, productivity));
   return { capacity, dailyMin, craft: left };
 }
 

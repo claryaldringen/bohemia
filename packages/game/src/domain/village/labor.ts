@@ -1,7 +1,7 @@
 import { ageGroup } from './people';
 import { dailyMinPerHousehold } from './productivity';
-import { LABOR_PER_DAY } from './rules';
-import type { OrchardTaskName, Person, TaskName } from './types';
+import { LABOR_PER_DAY, WATER_FETCHING } from './rules';
+import type { Dwelling, OrchardTaskName, Person, TaskName } from './types';
 
 /**
  * Sezónní práce v rozdělení práce vsi – polní (fields.md), orba rádlem, seč sena (oxen.md),
@@ -18,6 +18,11 @@ export interface DayAllocationInput {
    * kryjí napřed denní minimum své domácnosti (`adultDailyMin`).
    */
   householdElders: readonly number[];
+  /**
+   * Přirážka denního minima za chůzi pro vodu po domácnostech (člověkodny, ve stejném pořadí jako
+   * `householdElders` – `householdWaterLabor`); bez údaje 0. Kryjí ji starší jako zbytek minima.
+   */
+  householdWater?: readonly number[];
   tasks: { name: LaborTaskName; remaining: number }[];
   /** Pokrytí nádobami 0–1 – posouvá denní minimum mezi mezemi (crafts.md). */
   potteryCoverage: number;
@@ -53,7 +58,8 @@ export interface DayAllocation {
 
 /**
  * Denní rozdělení práce (population.md – Práce; Martin 19. 10. 2026: „pokud se něco staví, tak čas
- * věnují primárně té stavbě – zemědělství jenom natolik, aby vesnice neměla hlad“): minimum →
+ * věnují primárně té stavbě – zemědělství jenom natolik, aby vesnice neměla hlad“): minimum
+ * (s přirážkou za chůzi pro vodu – `householdWater`) →
  * lidé na výpravách → potřebné sezónní úlohy (polní, v sadech, seč, porážka) v daném pořadí →
  * společná práce (stavby, po nich opravy obydlí – `afterConstructions`). Denní minimum domácnosti
  * kryjí napřed její starší (`adultDailyMin`).
@@ -67,11 +73,16 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     return amount;
   };
   const minimum = dailyMinPerHousehold(input.potteryCoverage);
-  const adults = input.householdElders.reduce(
-    (sum, elders) => sum + adultDailyMin(minimum, elders, productivity),
-    0,
-  );
-  const eldersDailyMin = minimum * input.householdElders.length - adults;
+  const water = input.householdWater ?? [];
+  let minimums = 0;
+  let adults = 0;
+  input.householdElders.forEach((elders, k) => {
+    // denní minimum domácnosti s přirážkou za vodu (population.md – Práce)
+    const own = minimum + (water[k] ?? 0);
+    minimums += own;
+    adults += adultDailyMin(own, elders, productivity);
+  });
+  const eldersDailyMin = minimums - adults;
   const dailyMin = take(adults);
   // výpravy (trade.md – Doprava): nosiči jsou na cestě celé dny – po denním minimu, před vším
   // ostatním
@@ -109,6 +120,21 @@ export function adultDailyMin(minimum: number, elders: number, productivity = 1)
 }
 
 /**
+ * Domácnosti vsi – lidé se stejným `dwellingId` v pořadí prvního člověka domácnosti; `skip`
+ * vynechá domácnosti (dílny pracují zvlášť).
+ */
+function householdsOf(people: readonly Person[], skip: ReadonlySet<number>): Map<number, Person[]> {
+  const households = new Map<number, Person[]>();
+  for (const p of people) {
+    if (skip.has(p.dwellingId)) continue;
+    const members = households.get(p.dwellingId);
+    if (members) members.push(p);
+    else households.set(p.dwellingId, [p]);
+  }
+  return households;
+}
+
+/**
  * Starší lidé po domácnostech (počet, v pořadí prvního člověka domácnosti) – domácnost = lidé se
  * stejným `dwellingId`; `skip` vynechá domácnosti (dílny pracují zvlášť).
  */
@@ -117,13 +143,40 @@ export function householdElders(
   day: number,
   skip: ReadonlySet<number> = new Set(),
 ): number[] {
-  const elders = new Map<number, number>();
-  for (const p of people) {
-    if (skip.has(p.dwellingId)) continue;
-    const add = ageGroup(p, day) === 'elder' ? 1 : 0;
-    elders.set(p.dwellingId, (elders.get(p.dwellingId) ?? 0) + add);
-  }
-  return [...elders.values()];
+  return [...householdsOf(people, skip).values()].map(
+    (members) => members.filter((p) => ageGroup(p, day) === 'elder').length,
+  );
+}
+
+/**
+ * Přirážka denního minima za chůzi pro vodu po domácnostech (člověkodny za den, ve stejném pořadí
+ * jako `householdElders`): podle lidí domácnosti a chůze jejího obydlí k vodě
+ * (`Dwelling.waterWalkM` – `waterFetchingLabor`). Domácnost bez obydlí (zakladatelé na staveništi)
+ * nebo bez změřené chůze 0.
+ */
+export function householdWaterLabor(
+  people: readonly Person[],
+  dwellings: readonly Pick<Dwelling, 'id' | 'waterWalkM'>[],
+  skip: ReadonlySet<number> = new Set(),
+): number[] {
+  const walks = new Map(dwellings.map((d) => [d.id, d.waterWalkM]));
+  return [...householdsOf(people, skip)].map(([id, members]) =>
+    waterFetchingLabor(members.length, walks.get(id)),
+  );
+}
+
+/**
+ * Chůze pro vodu nad denní minimum (člověkodny za den; population.md – Práce, paths.md – Pochůzky
+ * pro vodu; Martin 19. 10. 2026, čísla návrh Clauda – WATER_FETCHING): domácnost `people` lidí
+ * chodí `tripsPerPerson` cesty na člověka tam a zpět k vodě `walkM` m chůze daleko; prvních
+ * `includedM` je v ceně denního minima: cesty × 2 × max(0, chůze − includedM) ÷ rychlost ÷ délka
+ * dne. Bez změřené chůze (bez krajiny – kalibrace, testy) 0.
+ */
+export function waterFetchingLabor(people: number, walkM: number | undefined): number {
+  if (walkM === undefined || people <= 0) return 0;
+  const extraM = Math.max(0, walkM - WATER_FETCHING.includedM);
+  const trips = WATER_FETCHING.tripsPerPerson * people;
+  return (trips * 2 * extraM) / WATER_FETCHING.speedMps / (WATER_FETCHING.dayHours * 3600);
 }
 
 /** Práce po stavbách – opravy obydlí a co zbude. */

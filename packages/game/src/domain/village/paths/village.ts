@@ -27,7 +27,7 @@ import {
   computePathNetwork,
   pathAgeFactor,
   pastureHerds,
-  pathBounds,
+  villagePathBounds,
   roadsKey,
   type PathNetwork,
   type PathPoint,
@@ -42,11 +42,14 @@ import {
   withObstacles,
 } from './terrain';
 import {
+  groundSpots,
+  nearestSpot,
   walkGraph,
   walkGroundOf,
   walkingDistances,
+  waterWalkDistance,
   withFieldWalk,
-  type WalkGround,
+  type Walk,
 } from './walking';
 import { partWalkSpeed } from './walk-speed';
 
@@ -351,7 +354,7 @@ function computeVillageNetwork(
   obstacles: ObstacleLayer | null,
   village: PathVillage,
 ): PathNetwork | null {
-  const bounds = pathBounds(village);
+  const bounds = villagePathBounds(village, landscape);
   if (!bounds) return null;
   const base = pathTerrainOf(landscape, pathWindowFor(landscape, bounds));
   const terrain = obstacles ? withObstacles(base, obstacles, obstacleChangesAt(state, day)) : base;
@@ -501,13 +504,20 @@ export function walkDistancesTo(
 }
 
 /**
+ * Verze měření chůze v otisku rozložení – po přidání nové vzdálenosti (voda – `waterWalkM`) se
+ * vsi uložené dřív přepočítají hned při dalším dni, ne až při změně rozložení.
+ */
+export const WALK_VERSION = 'water';
+
+/**
  * Vzdálenosti chůze po pěšinách a pevných cestách (mutuje stav – paths.md, roads.md – Rychlejší
  * chůze): díly pole (`FieldPart.walkDistanceM`) a čtverce sadů (`OrchardSquare.walkDistanceM`)
- * z nejbližšího obydlí, palivo z obydlí k nejbližšímu okraji lesa (`Dwelling.forestWalkM`).
- * Přepočítá je, jen když se od posledního výpočtu změnilo rozložení vsi (`walkLayoutKey` – i pevné
- * cesty a jejich stupeň, takže i po dokončení vylepšení) nebo stadia dílů (`walkStageKey`), ta ale
- * jen 1. dne v měsíci (Martin – chůze se přepočítává měsíčně; otisk stadií z posledního 1. dne je
- * ve stavu `walkStages`, ve stavu jen otisky `walkLayoutHash`). Chůze rovně počítá mokřinu a brody
+ * z nejbližšího obydlí, palivo z obydlí k nejbližšímu okraji lesa (`Dwelling.forestWalkM`) a voda
+ * z obydlí k nejbližší vodě (`Dwelling.waterWalkM` – `waterWalkDistance`). Přepočítá je, jen když
+ * se od posledního výpočtu změnilo rozložení vsi (`walkLayoutKey` – i pevné cesty a jejich stupeň,
+ * takže i po dokončení vylepšení) nebo stadia dílů (`walkStageKey`), ta ale jen 1. dne v měsíci
+ * (Martin – chůze se přepočítává měsíčně; otisk stadií z posledního 1. dne je ve stavu
+ * `walkStages`, ve stavu jen otisky `walkLayoutHash`). Chůze rovně počítá mokřinu a brody
  * (`walkGroundOf`) – pole za potokem bez cesty zdraží, s hatí a lávkou zlevní.
  */
 export function refreshWalkDistances(
@@ -520,7 +530,7 @@ export function refreshWalkDistances(
   if (state.walkStages === undefined || dateOfDayIndex(day).day === 1) {
     state.walkStages = walkLayoutHash(walkStageKey(state, day));
   }
-  const key = walkLayoutHash(`${walkLayoutKey(state, day)}|${state.walkStages}`);
+  const key = walkLayoutHash(`${walkLayoutKey(state, day)}|${state.walkStages}|${WALK_VERSION}`);
   const unchanged = state.walkLayoutKey === key;
   state.walkLayoutKey = key;
   if (unchanged) return;
@@ -529,7 +539,10 @@ export function refreshWalkDistances(
   if (!network) {
     for (const p of state.parts) delete p.walkDistanceM;
     for (const o of villageOrchards(state)) for (const s of o.squares) delete s.walkDistanceM;
-    for (const d of state.dwellings) delete d.forestWalkM;
+    for (const d of state.dwellings) {
+      delete d.forestWalkM;
+      delete d.waterWalkM;
+    }
     return;
   }
   const ground = withFieldWalk(walkGroundOf(landscape), village.fields);
@@ -552,50 +565,16 @@ export function refreshWalkDistances(
   squares.forEach((s, k) => {
     s.walkDistanceM = rounded(walks[parts.length + k]!);
   });
-  // palivo: z každého obydlí k nejbližšímu okraji lesa (vzdušnou čarou) chůzí
-  const edges = forestEdges(walkGroundOf(landscape));
+  // palivo: z každého obydlí k nejbližšímu okraji lesa (vzdušnou čarou) chůzí; voda: k nejbližší
+  // vodě (paths.md – Pochůzky pro vodu) – přirážka denního minima (population.md – Práce)
+  const walk: Walk = (from, to) => walkingDistances(graph, [from], to, ground);
+  const edges = groundSpots(ground, PATH_FOREST_EDGE);
   for (const d of state.dwellings) {
-    const edge = nearestPoint(edges, d.position);
-    if (!edge) {
-      delete d.forestWalkM;
-      continue;
-    }
-    d.forestWalkM = rounded(walkingDistances(graph, [d.position], [edge], ground)[0]!);
+    const edge = nearestSpot(edges, d.position);
+    if (edge) d.forestWalkM = rounded(walk(d.position, [edge])[0]!);
+    else delete d.forestWalkM;
+    const water = waterWalkDistance(ground, walk, d.position);
+    if (water !== null) d.waterWalkM = rounded(water);
+    else delete d.waterWalkM;
   }
-}
-
-const edgesCache = new WeakMap<WalkGround, { x: number; z: number }[]>();
-
-/** Body okraje lesa (kam se chodí pro dřevo – PATH_FOREST_EDGE) v okně půdy pro chůzi. */
-function forestEdges(ground: WalkGround): { x: number; z: number }[] {
-  const cached = edgesCache.get(ground);
-  if (cached) return cached;
-  const t = ground.terrain;
-  const out: { x: number; z: number }[] = [];
-  for (let j = 0; j < t.height; j++) {
-    for (let i = 0; i < t.width; i++) {
-      if (t.flags[j * t.width + i]! & PATH_FOREST_EDGE) {
-        out.push({ x: t.originX + i * t.cellM, z: t.originZ + j * t.cellM });
-      }
-    }
-  }
-  edgesCache.set(ground, out);
-  return out;
-}
-
-/** Nejbližší bod vzdušnou čarou (při shodě první); bez bodů null. */
-function nearestPoint(
-  points: readonly { x: number; z: number }[],
-  from: { x: number; z: number },
-): { x: number; z: number } | null {
-  let best: { x: number; z: number } | null = null;
-  let bestD = Infinity;
-  for (const p of points) {
-    const d = (p.x - from.x) * (p.x - from.x) + (p.z - from.z) * (p.z - from.z);
-    if (d < bestD) {
-      best = p;
-      bestD = d;
-    }
-  }
-  return best;
 }

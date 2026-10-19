@@ -1,7 +1,7 @@
-import { detCos, detSin, length2 } from '../../landscape';
+import { detCos, detSin, length2, type Landscape } from '../../landscape';
 import { milirPosition } from '../crafts';
 import { rotatedSquareCorners, rotationCosSin, rotationTurn } from '../square-grid';
-import { DWELLING_CLEARING_M, ROAD_WALK, SACRED_BUILDINGS } from '../rules';
+import { DWELLING_CLEARING_M, ROAD_WALK, SACRED_BUILDINGS, WATER_FETCHING } from '../rules';
 import type { ObstacleChanges } from '../obstacles';
 import type { PartStage } from '../summary';
 import type {
@@ -28,6 +28,7 @@ import {
   PATH_WATER,
   PATH_WATER_SPOT,
   PATH_WETLAND,
+  nearestWaterTiles,
   type PathTerrain,
 } from './terrain';
 import {
@@ -265,8 +266,11 @@ export const PATH_YEARS_UNKNOWN = 100;
 /** Stáří pro stromy podél pěšin se v klíči sítě zaokrouhluje na tolik let a nejvýš do tolika. */
 const YEARS_STEP = 2;
 const YEARS_KEY_MAX = 40;
-/** Cest za den: pro vodu na člověka domácnosti, pro dřevo na domácnost (léto / zima). */
-const WATER_TRIPS_PER_PERSON = 0.4;
+/**
+ * Cest za den: pro vodu na člověka domácnosti (WATER_FETCHING – i přirážka denního minima,
+ * population.md – Práce), pro dřevo na domácnost (léto / zima).
+ */
+const WATER_TRIPS_PER_PERSON = WATER_FETCHING.tripsPerPerson;
 const WOOD_TRIPS = { summer: 0.5, winter: 1.2 } as const;
 const WINTER_MONTHS: readonly number[] = [11, 12, 1, 2, 3];
 /** Návštěvy mezi sousedy – každá domácnost se dvěma nejbližšími. */
@@ -300,11 +304,14 @@ const CEMETERY_VISITS_PER_PERSON = 0.15;
 const DEFAULT_HOUSEHOLD = 5;
 /** Menší cesta za den se nehledá. */
 const MIN_TRIP = 0.02;
-/** Pro vodu a dřevo se chodí nejvýš tak daleko (cena v m chůze po louce). */
+/**
+ * Pro dřevo se chodí nejvýš tak daleko (cena v m chůze po louce). Pro vodu bez meze – vždy
+ * k nejbližší vodě v okně (paths.md – Pochůzky pro vodu; Martin, 19. 10. 2026).
+ */
 const ERRAND_MAX_COST = 450;
 /** Další kola hledají pochůzku domácnosti nejvýš tak daleko proti prvnímu kolu (násobek a cena navíc). */
 const ERRAND_REACH = { factor: 1.25, extra: 30 } as const;
-/** Do takové ceny cesty se pro vodu a dřevo chodí naplno, dál úměrně méně často. */
+/** Do takové ceny cesty se pro dřevo chodí naplno, dál úměrně méně často (pro vodu vždy naplno). */
 const ERRAND_NEAR_COST = 130;
 /**
  * Zarůstající příloh je vegetace, ne pole (fields.md – Zarůstání) – trnité křoviny a houština
@@ -358,13 +365,22 @@ export const PATH_REACH_M = 240;
 const MAX_WINDOW_HALF_M = 650;
 /** Okno se zaokrouhluje ven na tolik (m) – terén se nepřepočítá při každé nové stavbě. */
 const WINDOW_ROUND_M = 90;
+/**
+ * Voda mimo okno: okno se rozšíří k ní o tolik kolem středu vodního políčka (m) – suchý břeh u něj
+ * (políčko 15 m, voda i v sousedních políčkách podle osy potoka) bude v okně.
+ */
+const WATER_WINDOW_MARGIN_M = 45;
 
 /**
  * Obdélník světa, který pěšiny vsi potřebují: stavby vsi a okolí pro vodu a dřevo, zaokrouhlený
- * ven (stabilní okno) a nejvýš MAX_WINDOW_HALF_M od středu obydlí. Ves bez obydlí null.
+ * ven (stabilní okno) a nejvýš MAX_WINDOW_HALF_M od středu obydlí. Voda `water` (nejbližší vodní
+ * políčka k obydlím – `villagePathBounds`), která v tom okolí neleží, ho rozšíří jen k sobě
+ * (± WATER_WINDOW_MARGIN_M, bez meze od středu) – pro vodu se chodí vždy (paths.md – Pochůzky pro
+ * vodu). Ves bez obydlí null.
  */
 export function pathBounds(
   village: PathVillage,
+  water: readonly PathPoint[] = [],
 ): { minX: number; minZ: number; maxX: number; maxZ: number } | null {
   if (village.dwellings.length === 0) return null;
   const xs: number[] = [];
@@ -390,12 +406,36 @@ export function pathBounds(
     Math.min(cz + MAX_WINDOW_HALF_M, Math.max(cz - MAX_WINDOW_HALF_M, z));
   const down = (v: number): number => Math.floor(v / WINDOW_ROUND_M) * WINDOW_ROUND_M;
   const up = (v: number): number => Math.ceil(v / WINDOW_ROUND_M) * WINDOW_ROUND_M;
-  return {
-    minX: down(clampX(Math.min(...xs) - PATH_REACH_M)),
-    minZ: down(clampZ(Math.min(...zs) - PATH_REACH_M)),
-    maxX: up(clampX(Math.max(...xs) + PATH_REACH_M)),
-    maxZ: up(clampZ(Math.max(...zs) + PATH_REACH_M)),
-  };
+  let minX = down(clampX(Math.min(...xs) - PATH_REACH_M));
+  let minZ = down(clampZ(Math.min(...zs) - PATH_REACH_M));
+  let maxX = up(clampX(Math.max(...xs) + PATH_REACH_M));
+  let maxZ = up(clampZ(Math.max(...zs) + PATH_REACH_M));
+  // voda mimo okno staveb – okno jen k ní (voda v okně ho nemění)
+  const outside = water.filter((w) => w.x < minX || w.x > maxX || w.z < minZ || w.z > maxZ);
+  for (const w of outside) {
+    minX = Math.min(minX, w.x - WATER_WINDOW_MARGIN_M);
+    minZ = Math.min(minZ, w.z - WATER_WINDOW_MARGIN_M);
+    maxX = Math.max(maxX, w.x + WATER_WINDOW_MARGIN_M);
+    maxZ = Math.max(maxZ, w.z + WATER_WINDOW_MARGIN_M);
+  }
+  return { minX: down(minX), minZ: down(minZ), maxX: up(maxX), maxZ: up(maxZ) };
+}
+
+/**
+ * Okno sítě pěšin vsi v krajině sídla (`pathBounds` s nejbližší vodou k obydlím –
+ * `nearestWaterTiles`): stejně na serveru (denní i roční síť) i ve scéně.
+ */
+export function villagePathBounds(
+  village: PathVillage,
+  landscape: Landscape,
+): { minX: number; minZ: number; maxX: number; maxZ: number } | null {
+  return pathBounds(
+    village,
+    nearestWaterTiles(
+      landscape,
+      village.dwellings.map((d) => d.position),
+    ),
+  );
 }
 
 /**
@@ -973,6 +1013,30 @@ function passableNear(grid: Grid, x: number, z: number, reach: number): number {
   return best;
 }
 
+/** Pás kolem obydlí (m), kde se hledá náhradní brána (`gateAround`). */
+const GATE_RING_M = 7.5;
+
+/**
+ * Náhradní brána obydlí, jehož brána leží v neprůchodné zemi (Vlkov, 19. 10. 2026: branka
+ * polozemnice vedla do pozemku dvorce a domácnost vypadla ze sítě – neměla žádnou pochůzku):
+ * průchodná buňka v pásu GATE_RING_M kolem obdélníku obydlí nejblíž k bráně (při shodě první po
+ * řádcích), nebo −1 (obydlí celé obestavěné).
+ */
+function gateAround(grid: Grid, b: Building, gate: PathPoint): number {
+  const [x0, z0, x1, z1] = buildingBounds(b, GATE_RING_M);
+  let best = -1;
+  let bestD = Infinity;
+  cellsIn(grid, x0, z0, x1, z1, (c, x, z) => {
+    if (!Number.isFinite(grid.base[c]!) || !inBuilding(b, x, z, GATE_RING_M)) return;
+    const d = length2(x - gate.x, z - gate.z);
+    if (d < bestD) {
+      best = c;
+      bestD = d;
+    }
+  });
+  return best;
+}
+
 /** Průchodné buňky do `radius` m od bodu (aspoň nejbližší jedna). */
 function cellsAround(grid: Grid, p: PathPoint, radius: number): number[] {
   const out: number[] = [];
@@ -1085,6 +1149,11 @@ interface TripGroup {
   years?: number[];
   maxCost: number;
   /**
+   * Pochůzka, kam se dál chodí méně často: do této ceny cesty naplno, dál úměrně méně (dřevo);
+   * bez údaje vždy naplno (voda).
+   */
+  nearCost?: number;
+  /**
    * Pochůzka: buňky míst (1 = sem se chodí) a po prvním kole, jak daleko smí hledání každé
    * domácnosti (cena) – další kola hledají každé domácnosti zvlášť od brány k nejbližšímu místu
    * podle cen se slevou, aby se trasy sousedů mohly slít.
@@ -1115,8 +1184,14 @@ function households(
   for (const d of settled) {
     const b = buildings.get(d.id);
     if (!b) continue;
-    const gatePoint = gateOf(b);
-    const gate = passableNear(grid, gatePoint.x, gatePoint.z, 2);
+    let gatePoint = gateOf(b);
+    let gate = passableNear(grid, gatePoint.x, gatePoint.z, 2);
+    if (gate < 0) {
+      // brána padla do souseda (pozemek přední stranou k cizímu pozemku nebo domu) – domácnost
+      // vyjde z nejbližšího volného místa těsně kolem svého obydlí
+      gate = gateAround(grid, b, gatePoint);
+      if (gate >= 0) gatePoint = { x: cellX(grid, gate), z: cellZ(grid, gate) };
+    }
     if (gate < 0) continue;
     const years =
       d.since !== undefined && day !== null
@@ -1391,8 +1466,11 @@ function tripGroups(
 
 /**
  * Pochůzky pro vodu (suchý břeh u potoka) a pro dřevo (okraj lesa) – mimo stavby vsi, každá
- * domácnost k nejbližšímu místu. Cest za den: voda podle lidí v domácnosti, dřevo na domácnost
- * (v zimní půlce roku víc). Hledá se od všech míst najednou k branám.
+ * domácnost k nejbližšímu místu. Cest za den: voda podle lidí v domácnosti – vždy, k nejbližší vodě
+ * v okně bez ohledu na vzdálenost a naplno (paths.md – Pochůzky pro vodu; Martin, 19. 10. 2026:
+ * „Ale vesničané tam přece musí chodit nějak pro vodu a musí jim to zabírat čas.“), dřevo na
+ * domácnost (v zimní půlce roku víc) nejvýš ERRAND_MAX_COST, dál méně často. Hledá se od všech
+ * míst najednou k branám.
  */
 function errandGroups(
   annual: boolean,
@@ -1428,7 +1506,7 @@ function errandGroups(
       marks: marksOf(water),
       sources: water,
       weights: homes.map((h) => WATER_TRIPS_PER_PERSON * h.size * h.age),
-      maxCost: ERRAND_MAX_COST,
+      maxCost: Infinity,
       goals: nearestByAir(grid, water, homes),
     });
   }
@@ -1439,6 +1517,7 @@ function errandGroups(
       sources: wood,
       weights: homes.map((h) => woodTrips * h.age),
       maxCost: ERRAND_MAX_COST,
+      nearCost: ERRAND_NEAR_COST,
       goals: nearestByAir(grid, wood, homes),
     });
   }
@@ -1826,8 +1905,11 @@ function routeAll(
         if (first) {
           const total = state.dist[at]! + (marks[at] ? 0 : trail.rest[at]!);
           reach[k] = total * ERRAND_REACH.factor + ERRAND_REACH.extra;
-          // daleko se chodí méně často (s větším nákladem) – pěšina tam vznikne, až když se slije
-          group.weights[k] = w * Math.min(1, ERRAND_NEAR_COST / Math.max(1, total));
+          // pro dřevo se daleko chodí méně často (s větším nákladem) – pěšina tam vznikne, až když
+          // se slije; pro vodu vždy naplno
+          if (group.nearCost !== undefined) {
+            group.weights[k] = w * Math.min(1, group.nearCost / Math.max(1, total));
+          }
         }
         const trips = group.weights[k]!;
         const years = group.years?.[k] ?? homes[k]!.years;

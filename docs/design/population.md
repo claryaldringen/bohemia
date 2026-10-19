@@ -248,6 +248,13 @@ zbytku rodiny.“
   - **Děti 7–13 let (výrostci)** jen pasou – do práce vsi nejdou vůbec (dřív 0,3 člověkodne;
     návrh Clauda). Jejich počet omezuje velikost stád ([diet.md](diet.md) – Pasáci).
   - Mladší děti nepracují.
+- **Chůze pro vodu je práce** (Martin 19. 10. 2026: „Ve Vlkově nikde nevidím vyšlapanou cestu
+  k potoku. Ale vesničané tam přece musí chodit nějak pro vodu a musí jim to zabírat čas.“; čísla
+  návrh Clauda – [paths.md](paths.md), Pochůzky pro vodu): k dennímu minimu domácnosti se přičte
+  chůze pro vodu nad 100 m – 0,4 cesty (tam a zpět) na člověka domácnosti a den, 1 m/s po louce,
+  den 10 h: cesty × 2 × (chůze k vodě − 100 m, nejméně 0) ÷ 1 m/s ÷ 10 h. Prvních 100 m je
+  v ceně minima. Patří do denního minima – starší ji kryjí jako jeho zbytek, platí i v plánu
+  osevu a v dílnách. Bez krajiny (kalibrace) se chůze neměří a přirážka není.
 - **Bokem – mimo práci vsi:** dojení a péče o zvířata (ženy), pasení (výrostci) a domácí výroba
   (z většiny ženy – i zpracování vlny a lnu na oděv a palivo, forest.md – Palivo). Práci vsi
   neberou; ve scéně jsou ženy dál u domů a dojí, výrostci u stád (jen zobrazení).
@@ -760,3 +767,5 @@ před → po:
 | Zvířata (dojení, péče – ženy; pasení – výrostci) a domácí výroba bokem, mimo práci   | Martin, 19. 10. 2026                       |
 | Výrostci 7–13 let jen pasou, mimo práci vsi; jejich počet omezuje stáda              | Martin, 19. 10. 2026 (mimo práci – Claude) |
 | Starší jen na denní minimum své domácnosti (0,5 čd), přebytek propadne               | návrh Clauda                               |
+| Pro vodu se chodí vždy k nejbližší vodě a chůze se počítá do práce                   | Martin, 19. 10. 2026                       |
+| Přirážka minima za vodu nad 100 m chůze: 0,4 cesty na člověka, 1 m/s, den 10 h       | návrh Clauda                               |

@@ -122,6 +122,13 @@ export interface Dwelling {
    */
   forestWalkM?: number;
   /**
+   * Chůze z obydlí k nejbližší vodě (m – místo na břehu nejblíž vzdušnou čarou, chůze jako
+   * `forestWalkM`; paths.md – Pochůzky pro vodu) – přirážka denního minima domácnosti za vodu
+   * (population.md – Práce, `waterFetchingLabor`). Počítá se jen s krajinou; bez vody v okně půdy
+   * pro chůzi a u starších obydlí do prvního přepočtu chybí (přirážka 0).
+   */
+  waterWalkM?: number;
+  /**
    * Řemeslná dílna (crafts.md) – řemeslo patří budově: provozuje ho domácnost, která v ní bydlí,
    * prázdná dílna nic nevyrábí. Obyčejné obydlí ji nemá.
    */

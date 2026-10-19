@@ -9,11 +9,15 @@ import {
   pathStrength,
   simplifyPathLine,
   smoothPathLine,
+  villagePathBounds,
   type PathLine,
   type PathNetwork,
   type PathVillage,
 } from '../paths/network';
+import { WATER_FETCHING } from '../rules';
+import { nearestWaterTiles, pathTerrainOf, pathWindowFor } from '../paths/terrain';
 import { house, part, pathTestTerrain } from './paths-fixtures';
+import { makeLandscape } from './placement-fixtures';
 
 const terrain = pathTestTerrain();
 
@@ -78,6 +82,77 @@ describe('computePathNetwork – pěšiny vsi', () => {
       expect(errand.water!.z).toBeGreaterThan(60);
       expect(errand.water!.z).toBeLessThan(72);
       expect(errand.wood!.x).toBeLessThan(-80);
+    }
+  });
+
+  it('pro vodu se chodí vždy k nejbližší vodě – i daleko a naplno (paths.md – Pochůzky pro vodu)', () => {
+    // Martin, 19. 10. 2026: „Ve Vlkově nikde nevidím vyšlapanou cestu k potoku. Ale vesničané tam
+    // přece musí chodit nějak pro vodu a musí jim to zabírat čas.“ – louka 750 × 750 m, potok
+    // v řadě políček z ∈ (315, 330), dům 510 m od břehu (dřív pochůzky jen do 450 m chůze)
+    const far = makeLandscape({ size: 50, surface: (_x, y) => (y === 46 ? 'water' : 'meadow') });
+    const farTerrain = pathTerrainOf(
+      far,
+      pathWindowFor(far, { minX: -375, minZ: -375, maxX: 375, maxZ: 375 }),
+    );
+    const people = 10;
+    const network = computePathNetwork({
+      village: {
+        dwellings: [house(1, 0, -200)],
+        fields: [],
+        labor: {
+          day: 4000,
+          month: 6,
+          people: { children: 0, adults: people, elders: 0 },
+          shares: [],
+        },
+      },
+      terrain: farTerrain,
+    });
+    const water = network.errands.get(1)?.water;
+    expect(water).toBeDefined();
+    expect(water!.z).toBeGreaterThan(300);
+    expect(water!.z).toBeLessThan(316);
+    // plný počet cest – 0,4 na člověka (dřív za 130 m úměrně méně)
+    const t = network.traffic;
+    const at = (x: number, z: number): number =>
+      t.raw[
+        Math.round((z - t.originZ) / t.cellM) * t.width + Math.round((x - t.originX) / t.cellM)
+      ]!;
+    let near = 0;
+    for (let dx = -20; dx <= 20; dx += t.cellM) near = Math.max(near, at(water!.x + dx, 250));
+    expect(near).toBeCloseTo(WATER_FETCHING.tripsPerPerson * people, 6);
+    // pěšina k vodě vznikne
+    expect(network.lines.some((l) => l.points.some((p) => p.z > 280))).toBe(true);
+  });
+
+  it('každé obývané obydlí má pochůzku pro vodu i dřevo – i když jeho branka vede k sousedovi', () => {
+    // Vlkov (19. 10. 2026): polozemnice na pozemku přední stranou (branka, −z) k pozemku dvorce –
+    // brána padla do cizího pozemku, domácnost vypadla ze sítě a neměla žádnou pochůzku
+    const plot = (x: number, z: number): PathVillage['dwellings'][number]['plot'] => ({
+      cell: { x: Math.round((x + 142.5) / 15), y: Math.round((z + 142.5) / 15) },
+      x,
+      z,
+      size: 15,
+    });
+    const boxed: PathVillage = village({
+      dwellings: [
+        house(1, 7.5, 7.5, Math.PI, { type: 'polozemnice', plot: plot(7.5, 7.5) }),
+        house(2, 7.5, -7.5, Math.PI, { type: 'polozemnice', plot: plot(7.5, -7.5) }),
+        house(3, 22.5, 7.5, Math.PI, { type: 'polozemnice', plot: plot(22.5, 7.5) }),
+      ],
+    });
+    const network = computePathNetwork({ village: boxed, terrain });
+    for (const id of [1, 2, 3]) {
+      const errand = network.errands.get(id);
+      expect(errand?.water).toBeDefined();
+      expect(errand?.wood).toBeDefined();
+    }
+    // pěšina domu 1 nezačíná v cizím pozemku (branka do souseda) – vyjde těsně u jeho pozemku
+    const starts = network.lines.flatMap((l) => [l.points[0]!, l.points[l.points.length - 1]!]);
+    const inPlot = (p: { x: number; z: number }, cx: number, cz: number): boolean =>
+      Math.abs(p.x - cx) < 7.5 && Math.abs(p.z - cz) < 7.5;
+    for (const p of starts) {
+      expect(inPlot(p, 7.5, -7.5) || inPlot(p, 7.5, 7.5) || inPlot(p, 22.5, 7.5)).toBe(false);
     }
   });
 
@@ -524,6 +599,53 @@ describe('pathBounds', () => {
     expect(b.minX).toBeLessThan(-200);
     expect(b.maxX).toBeGreaterThan(200);
     expect(Math.abs(b.minX % 90)).toBe(0);
+  });
+
+  it('voda mimo okno ho rozšíří jen k sobě, voda v okně ho nemění (paths.md – Pochůzky pro vodu)', () => {
+    const v = village();
+    const b = pathBounds(v)!;
+    // voda v okně – beze změny
+    expect(pathBounds(v, [{ x: 0, z: b.maxZ - 10 }])).toEqual(b);
+    // voda 600 m na sever – okno sahá k ní (s okrajem, zaokrouhleno), do stran se nemění
+    const far = pathBounds(v, [{ x: 10, z: 600 }])!;
+    expect(far.maxZ).toBeGreaterThanOrEqual(600 + 30);
+    expect(far.maxZ).toBeLessThanOrEqual(720);
+    expect([far.minX, far.minZ, far.maxX]).toEqual([b.minX, b.minZ, b.maxX]);
+    expect(Math.abs(far.maxZ % 90)).toBe(0);
+  });
+});
+
+describe('villagePathBounds, nearestWaterTiles – okno sítě až k vodě', () => {
+  // louka 900 × 900 m, potok v řadě políček z ∈ (375, 390); ves 670 m od vody bez staveb k ní
+  const far = makeLandscape({ size: 60, surface: (_x, y) => (y === 55 ? 'water' : 'meadow') });
+  const v = village({
+    dwellings: [house(1, 0, -300), house(2, 14, -296), house(3, -13, -295)],
+  });
+
+  it('nejbližší vodní políčko ke každému obydlí, každé jednou; dál než 1 000 m nic', () => {
+    const tiles = nearestWaterTiles(
+      far,
+      v.dwellings.map((d) => d.position),
+    );
+    expect(tiles.length).toBeGreaterThan(0);
+    for (const t of tiles) expect(t.z).toBe(382.5);
+    expect(new Set(tiles.map((t) => t.x)).size).toBe(tiles.length);
+    expect(nearestWaterTiles(far, [{ x: 0, z: -700 }])).toEqual([]);
+  });
+
+  it('pěšina k vodě vznikne, i když voda leží daleko za okolím staveb', () => {
+    const narrow = pathBounds(v)!;
+    const wide = villagePathBounds(v, far)!;
+    expect(narrow.maxZ).toBeLessThan(375);
+    expect(wide.maxZ).toBeGreaterThan(390);
+    expect([wide.minX, wide.minZ, wide.maxX]).toEqual([narrow.minX, narrow.minZ, narrow.maxX]);
+    const network = (b: typeof wide): PathNetwork =>
+      computePathNetwork({ village: v, terrain: pathTerrainOf(far, pathWindowFor(far, b)) });
+    expect([...network(narrow).errands.values()].some((e) => e.water)).toBe(false);
+    const errands = [...network(wide).errands.values()];
+    expect(errands.length).toBe(3);
+    for (const e of errands) expect(e.water!.z).toBeGreaterThan(360);
+    expect(network(wide).lines.some((l) => l.points.some((p) => p.z > 340))).toBe(true);
   });
 });
 

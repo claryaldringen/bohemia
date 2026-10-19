@@ -2032,12 +2032,16 @@ function domestic(ctx: Context): Placer {
   };
 }
 
-/** Pochůzka pro vodu nebo dřevo nejvýš tak daleko (m po pěšině) – dál chodí jen kousek od domu. */
-const ERRAND_MAX_M = 220;
+/**
+ * Pochůzka pro dřevo nejvýš tak daleko (m po pěšině) – dál chodí jen kousek od domu. Pro vodu se
+ * chodí vždy, i daleko (paths.md – Pochůzky pro vodu; Martin, 19. 10. 2026).
+ */
+const ERRAND_MAX_M: Record<'water' | 'wood', number> = { water: Infinity, wood: 220 };
 
 /**
  * Trasa pro vodu nebo dřevo po pěšině domácnosti (podle fáze postavy jedno nebo druhé), nebo
- * null – bez pěšin, moc daleko, nebo cíl ve vodě.
+ * null – bez pěšin, pro dřevo moc daleko, nebo cíl ve vodě. Konec pochůzky mimo rastr schůdné
+ * země (vzdálená voda) je suchý břeh ze sítě pěšin – postava se zastaví na něm.
  */
 function errandRoute(ctx: Context, home: House, door: Point, who: Identity): Route | null {
   const paths = ctx.paths;
@@ -2047,13 +2051,13 @@ function errandRoute(ctx: Context, home: House, door: Point, who: Identity): Rou
     const end = paths.errand(home.id, kind);
     if (!end) continue;
     // pěšina končí u vody / pod stromy – postava se zastaví na nejbližším volném místě
-    const goal = nearestFree(ctx, end.x, end.z, 4);
+    const goal = nearestFree(ctx, end.x, end.z, 4) ?? (kind === 'water' ? end : null);
     const along = paths.route(door, end);
     if (!goal || !along || along.points.length < 2) continue;
     const points = [...along.points.slice(0, -1), [goal.x, goal.z] as const];
     if (!pathRouteOk(ctx, points, false)) continue;
     const path = route(points, along.pace);
-    if (path.length <= ERRAND_MAX_M) return path;
+    if (path.length <= ERRAND_MAX_M[kind]) return path;
   }
   return null;
 }

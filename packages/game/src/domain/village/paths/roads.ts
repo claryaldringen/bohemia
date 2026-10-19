@@ -39,6 +39,7 @@ import type {
 import {
   computePathNetwork,
   pathBounds,
+  villagePathBounds,
   pathStrength,
   simplifyPathLine,
   type PathLine,
@@ -414,7 +415,7 @@ export function annualPathNetwork(
     ...(base.labor ? { labor: { ...base.labor, shares } } : {}),
     ...(state.livestock ? { livestock: annualPasture(state) } : {}),
   };
-  const bounds = pathBounds(village);
+  const bounds = villagePathBounds(village, landscape);
   if (!bounds) return null;
   const window = pathTerrainOf(landscape, pathWindowFor(landscape, bounds));
   const terrain = obstacles ? withObstacles(window, obstacles, changes) : window;

@@ -710,7 +710,11 @@ domácnostech v populaci):
    na každou domácnost (s hrnčířem 0,45; FAO: venkovské ženy 0,5–0,6 dne). Napřed ho kryjí
    **starší** domácnosti (Martin: „Starší lidé se zase starají o malé děti, a uvolňují práci
    zbytku rodiny.“) – každý 0,5 člověkodne; dospělí dají jen zbytek, max(0, minimum − 0,5 ×
-   starší). Co starším nad minimum zbude, propadne (návrh Clauda).
+   starší). Co starším nad minimum zbude, propadne (návrh Clauda). **Přirážka za vodu**
+   (Martin 19. 10. 2026: „Ale vesničané tam přece musí chodit nějak pro vodu a musí jim to
+   zabírat čas.“): k minimu domácnosti se přičte chůze pro vodu nad 100 m – cesty (0,4 na člověka)
+   × 2 × (chůze k vodě − 100 m) ÷ 1 m/s ÷ 10 h; kryjí ji napřed starší jako zbytek minima
+   ([paths.md](paths.md) – Pochůzky pro vodu, čísla návrh Clauda).
 2. **Lidé na výpravách k sousedům** – každá výprava na cestě tolik člověkodní, kolik s ní jde
    lidí, nejvýš kolik má ves dospělých ([obchod](trade.md) – Doprava; Martin 19. 10. 2026).
 3. **Potřebné sezónní úlohy** podle konce svého okna – polní práce v jejich období (tabulka
@@ -1710,3 +1714,4 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | „Ves neoseje díly pod 40 % úrodnosti“ – nouzově jen příloh aspoň na 40 % přirozené, pod 40 % leží, dokud se nezotaví              | Martin (19. 10. 2026)                           |
 | „Pole, které zrovna neleží ladem: 0.5.“ – chůze přes díl v osevu 0,5× i pro vzdálenost práce, pěšina dne přes osev nezrychlí      | Martin (19. 10. 2026)                           |
 | „Neber strniště jako louku, ale dej mu drobný postih. Ber to třeba jako 0.8.“                                                     | Martin (19. 10. 2026)                           |
+| Denní minimum s přirážkou za chůzi pro vodu nad 100 m (cesty × 2 × chůze navíc ÷ 1 m/s ÷ 10 h), starší ji kryjí                   | Martin (19. 10. 2026), čísla návrh Clauda       |
