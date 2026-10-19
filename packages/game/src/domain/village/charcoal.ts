@@ -32,17 +32,19 @@ import {
 
 // Uhlíř (crafts.md – Uhlíř, Martin 18. 10. 2026; rešerše 2026-10-18-charcoal.md): pálí jen buky
 // po dávkách do milíře – vybere nejbližší dospělé buky (vyhradí je), skácí je a připraví dřevo,
-// postaví milíř, pálí ho 8 dní (hlídá ve dne i v noci), vytahá uhlí a odnese ho domů. Leží-li
-// dávka blízko dílny, pálí u ní; dál staví milíř v lese u dávky a za chůzi platí přirážku
-// vzdálenosti. Na pařezy skácených buků sází mladé buky (obnova lesa). Pálí jen do zásoby na rok
-// spotřeby kovářů – s plnou zásobou sází, nebo pomáhá vsi. Krok dne mutuje stav (volat na klonu),
-// den po dni – na kouscích nezávisí.
+// postaví milíř a pálí ho 8 dní (hlídá ve dne i v noci). Leží-li dávka blízko dílny, pálí u ní;
+// dál staví milíř v lese u dávky a za chůzi platí přirážku vzdálenosti. Na pařezy skácených buků
+// sází mladé buky (obnova lesa). Milíř stojí vždy (crafts.md – Milíř stojí vždy, Martin
+// 19. 10. 2026): uhlíř má jeden milíř, vypálený je zásobou uhlí a uhlíř z něj nosí uhlí kovářům,
+// jak ho spotřebují – rozebraný zmizí a uhlíř staví nový; s vypáleným milířem sází, nebo pomáhá
+// vsi. Krok dne mutuje stav (volat na klonu), den po dni – na kouscích nezávisí.
 
 /** Tolerance proti chybám desetinných čísel u odvedené práce. */
 const EPSILON = 1e-9;
 /** Nejvýš tolik kroků práce uhlíře za den (sázení, buky, fáze milíře). */
 const MAX_STEPS = 64;
-const DAYS_PER_YEAR = 365;
+/** Vytahání, třídění a odnos uhlí z vypáleného milíře – čd na kg (2 čd na buk po 120 kg). */
+const DRAW_MAN_DAYS_PER_KG = CHARCOAL_KILN.drawManDaysPerTree / CRAFT_PRODUCTION.charcoalKgPerTree;
 
 /** Střed milíře u uhlířovy zemnice ve světě (MILIR.offset v souřadnicích modelu). */
 export function homeKilnCenter(position: Position): { x: number; z: number } {
@@ -53,6 +55,117 @@ export function homeKilnCenter(position: Position): { x: number; z: number } {
 /** Kolik uhlí dá milíř (kg) – 120 kg z každého buku dávky. */
 export function kilnYieldKg(kiln: Pick<CharcoalKiln, 'trees'>): number {
   return kiln.trees.length * CRAFT_PRODUCTION.charcoalKgPerTree;
+}
+
+/**
+ * Uhlí, které ve vypáleném milíři zbývá (kg; crafts.md – Milíř stojí vždy); milíř, který se teprve
+ * chystá nebo pálí, 0. Vypálený milíř ze starší vsi (bez `charcoalKg`) má celou dávku.
+ */
+export function kilnCharcoalKg(
+  kiln: Pick<CharcoalKiln, 'stage' | 'trees' | 'charcoalKg'> | null | undefined,
+): number {
+  if (!kiln || kiln.stage !== 'draw') return 0;
+  return Math.max(0, kiln.charcoalKg ?? kilnYieldKg(kiln));
+}
+
+/** Podíl uhlí, které ve vypáleném milíři zbývá, 0–1 (scéna – milíř se zmenšuje); jinak 0. */
+export function kilnCharcoalShare(
+  kiln: Pick<CharcoalKiln, 'stage' | 'trees' | 'charcoalKg'> | null | undefined,
+): number {
+  const total = kiln ? kilnYieldKg(kiln) : 0;
+  return total > 0 ? Math.min(1, kilnCharcoalKg(kiln) / total) : 0;
+}
+
+/**
+ * Zásoba uhlí vsi (kg; crafts.md – Milíř stojí vždy): uhlí u kováře (`crafts.charcoalKg` – co
+ * uhlíř donesl a kovář ještě nespálil, koupené) a uhlí ve vypálených milířích uhlířů.
+ */
+export function charcoalStockKg(state: Pick<VillageState, 'dwellings' | 'crafts'>): number {
+  let kg = state.crafts?.charcoalKg ?? 0;
+  for (const d of state.dwellings) kg += kilnCharcoalKg(d.workshop?.kiln);
+  return kg;
+}
+
+/**
+ * Vezme ze zásoby vsi `kg` uhlí (mutuje stav; prodej sousedovi – trade.md): napřed u kováře, pak
+ * z vypálených milířů v pořadí id dílen – milíř se tím rozebírá (vytahají ho nosiči výpravy),
+ * rozebraný zmizí a uhlíř postaví nový. Vrátí, kolik uhlí vzal.
+ */
+export function takeCharcoal(state: VillageState, kg: number): number {
+  let left = Math.max(0, kg);
+  const crafts = state.crafts;
+  if (crafts && crafts.charcoalKg > 0) {
+    const loose = Math.min(left, crafts.charcoalKg);
+    crafts.charcoalKg -= loose;
+    left -= loose;
+  }
+  const burners = state.dwellings
+    .filter((d) => kilnCharcoalKg(d.workshop?.kiln) > 0)
+    .sort((a, b) => a.id - b.id);
+  for (const d of burners) {
+    if (left <= EPSILON) break;
+    const workshop = d.workshop!;
+    const kiln = workshop.kiln!;
+    const inKiln = kilnCharcoalKg(kiln);
+    const taken = Math.min(left, inKiln);
+    left -= taken;
+    if (inKiln - taken <= EPSILON) workshop.kiln = null;
+    else kiln.charcoalKg = inKiln - taken;
+  }
+  return Math.max(0, kg) - left;
+}
+
+/**
+ * Převod milíře ze starší vsi (mutuje): milíř, ze kterého se uhlí vytahovalo najednou (fáze `draw`
+ * bez `charcoalKg`), je vypálený s celou dávkou uhlí – rozdělané vytahání se zapomene (crafts.md –
+ * Milíř stojí vždy, Starší vsi). Idempotentní.
+ */
+export function migrateKiln(kiln: CharcoalKiln): void {
+  if (kiln.stage !== 'draw' || kiln.charcoalKg !== undefined) return;
+  kiln.charcoalKg = kilnYieldKg(kiln);
+  kiln.done = 0;
+}
+
+/**
+ * Kolik dní uhlíř připraví a vypálí další milíř (crafts.md – Milíř stojí vždy, Rozebraný milíř):
+ * odhad z dávky `kiln` – kácení a dovoz, příprava dřeva a stavba, u lesního milíře s přirážkou za
+ * chůzi z dílny `home` – při práci `labor` čd za den, a k tomu pálení. Bez práce 0.
+ */
+export function kilnLeadDays(
+  kiln: Pick<CharcoalKiln, 'trees' | 'site' | 'walkM'>,
+  home: Position,
+  labor: number,
+): number {
+  if (labor <= EPSILON) return 0;
+  const work =
+    kiln.trees.reduce(
+      (sum, t) =>
+        sum + t.cost + CHARCOAL_KILN.prepManDaysPerTree + CHARCOAL_KILN.buildManDaysPerTree,
+      0,
+    ) * kilnWalkFactor(kiln, home);
+  return work / labor + CHARCOAL_KILN.burnDays;
+}
+
+/**
+ * Kolik uhlí uhlíř dnes donese kovářům z vypáleného milíře (kg; crafts.md – Milíř stojí vždy):
+ * - zbývá-li v milíři a u kováře jen tolik uhlí, kolik kováři spálí, než uhlíř připraví a vypálí
+ *   další milíř (`leadKg`), vytahá zbytek celý – milíř je rozebraný a uhlíř začne nový,
+ * - jinak když uhlí u kováře (`looseKg`) nestačí na dnešní kování (`forgeKg` – všichni kováři, kteří
+ *   dnes kovou, na plný úvazek), donese uhlí na CHARCOAL_KILN.drawBatchDays dní kování, nejvýš co
+ *   v milíři zbývá,
+ * - jinak 0 – milíř stojí a čeká (bez kováře vždy).
+ */
+export function charcoalDrawKg(
+  kiln: Pick<CharcoalKiln, 'stage' | 'trees' | 'charcoalKg'> | null | undefined,
+  looseKg: number,
+  forgeKg: number,
+  leadKg = 0,
+): number {
+  const inKiln = kilnCharcoalKg(kiln);
+  if (inKiln <= EPSILON) return 0;
+  if (leadKg > EPSILON && inKiln + looseKg <= leadKg) return inKiln;
+  if (forgeKg <= EPSILON || looseKg + EPSILON >= forgeKg) return 0;
+  return Math.min(inKiln, forgeKg * CHARCOAL_KILN.drawBatchDays);
 }
 
 /**
@@ -139,30 +252,34 @@ export interface BurnerDay {
   activity: WorkshopActivity;
 }
 
-/** Co uhlíř dnes dělá: hlídá pálící milíř, sází, pokračuje v milíři, nebo začne nový. */
+/** Co uhlíř dnes dělá s vypáleným milířem (crafts.md – Milíř stojí vždy). */
 export interface BurnerPlan {
-  /** Smí začít nový milíř (ves potřebuje uhlí – zásoba pod rokem spotřeby kovářů). */
-  startNew: boolean;
+  /** Kolik uhlí dnes donese kovářům z vypáleného milíře (kg – `charcoalDrawKg`); 0 = nenosí. */
+  drawKg: number;
 }
 
 /**
- * Starší dílna uhlíře (před milíři): skácené dřevo, ze kterého ještě nevzniklo uhlí, se dopálí
- * do zásoby a rozdělané kácení se opustí (strom se uvolní). Mutuje stav; volá se v kroku práce,
- * takže se to stane v prvním dopočítaném dni – na kouscích nezávisí.
+ * Starší dílna uhlíře (mutuje stav, idempotentně): z doby před milíři – skácené dřevo, ze kterého
+ * ještě nevzniklo uhlí, se dopálí do zásoby u kováře a rozdělané kácení se opustí (strom se
+ * uvolní); z doby, kdy se milíř vytahal najednou, je vytahovaný milíř vypálený s celou dávkou
+ * (`migrateKiln`). Volá se v kroku práce řemeslníků pro každou dílnu uhlíře, takže se to stane
+ * v prvním dopočítaném dni – na kouscích nezávisí.
  */
 export function migrateBurner(workshop: Workshop, stocks: CraftStocks): void {
   if (workshop.fuelKg > 0) stocks.charcoalKg += workshop.fuelKg;
   workshop.fuelKg = 0;
   workshop.felling = null;
+  if (workshop.kiln) migrateKiln(workshop.kiln);
 }
 
 /**
  * Den uhlíře (mutuje stav): `labor` = práce domácnosti řemeslu (po minimu a domácí výrobě).
- * Pálící milíř zabere celý den (hlídání ve dne i v noci) – po CHARCOAL_KILN.burnDays dnech jde
- * k vytahání. Jinak v okně výsadby nejdřív sází mladé buky na pařezy, pak pokračuje v milíři
- * (buky strom po stromu: kácení a dovoz, pak příprava dřeva; stavba; vytahání a odnos uhlí –
- * u milíře v lese s přirážkou za chůzi), a když žádný nemá a `plan.startNew`, začne nový.
- * Vytahaný milíř přidá uhlí do zásoby.
+ * Pálící milíř zabere celý den (hlídání ve dne i v noci) – po CHARCOAL_KILN.burnDays dnech je
+ * vypálený. Jinak v okně výsadby nejdřív sází mladé buky na pařezy, pak pokračuje v milíři (buky
+ * strom po stromu: kácení a dovoz, pak příprava dřeva; stavba), a když žádný nemá, začne nový –
+ * milíř stojí vždy (crafts.md – Milíř stojí vždy). Z vypáleného milíře donese kovářům
+ * `plan.drawKg` uhlí (vytahání, třídění a odnos – u milíře v lese s přirážkou za chůzi) do zásoby
+ * u kováře; rozebraný milíř zmizí a nový začne od zítřka.
  */
 export function workBurner(
   state: VillageState,
@@ -175,7 +292,7 @@ export function workBurner(
   walk?: Walk,
 ): BurnerDay {
   const workshop = dwelling.workshop!;
-  if (workshop.felling || workshop.fuelKg > 0) migrateBurner(workshop, stocks);
+  migrateBurner(workshop, stocks);
   const out: BurnerDay = {
     felling: 0,
     fellingTrees: [],
@@ -195,8 +312,10 @@ export function workBurner(
     out.making = left;
     kilnNow.done += 1;
     if (kilnNow.done + EPSILON >= CHARCOAL_KILN.burnDays) {
+      // vypálený milíř je zásobou uhlí – rozebírá se podle odběru kovářů
       kilnNow.stage = 'draw';
       kilnNow.done = 0;
+      kilnNow.charcoalKg = kilnYieldKg(kilnNow);
     }
     out.activity = 'burning';
     return out;
@@ -223,7 +342,8 @@ export function workBurner(
   for (let step = 0; step < MAX_STEPS && left > EPSILON; step++) {
     let kiln = workshop.kiln ?? null;
     if (!kiln) {
-      if (!plan.startNew || out.producedKg > 0) break;
+      // milíř stojí vždy – rozebraný dnes, nový od zítřka
+      if (out.producedKg > 0) break;
       kiln = startKiln(state, dwelling, day, obstacles, walk);
       if (!kiln) {
         noWood = true;
@@ -253,29 +373,52 @@ export function workBurner(
       }
       continue;
     }
-    const perTree =
-      kiln.stage === 'build' ? CHARCOAL_KILN.buildManDaysPerTree : CHARCOAL_KILN.drawManDaysPerTree;
-    const total = perTree * kiln.trees.length;
-    const work = Math.min(left / factor, Math.max(0, total - kiln.done));
-    kiln.done += work;
-    left -= work * factor;
-    out.making += work * factor;
-    worked = kiln.stage === 'build' ? 'building' : 'drawing';
-    if (kiln.done + EPSILON < total) continue;
     if (kiln.stage === 'build') {
+      const total = CHARCOAL_KILN.buildManDaysPerTree * kiln.trees.length;
+      const work = Math.min(left / factor, Math.max(0, total - kiln.done));
+      kiln.done += work;
+      left -= work * factor;
+      out.making += work * factor;
+      worked = 'building';
+      if (kiln.done + EPSILON < total) continue;
       // postavený milíř se zapálí – pálí se od zítřka
       kiln.stage = 'burn';
       kiln.done = 0;
       break;
     }
-    // vytahané uhlí jde domů do zásoby, milíř je hotový
-    const kg = kilnYieldKg(kiln);
-    stocks.charcoalKg += kg;
+    // vypálený milíř: uhlíř donese kovářům uhlí podle plánu dne, jinak milíř stojí a čeká
+    const inKiln = kilnCharcoalKg(kiln);
+    const kg = Math.min(
+      plan.drawKg - out.producedKg,
+      inKiln,
+      left / (DRAW_MAN_DAYS_PER_KG * factor),
+    );
+    if (kg <= EPSILON) break;
+    left -= kg * DRAW_MAN_DAYS_PER_KG * factor;
+    out.making += kg * DRAW_MAN_DAYS_PER_KG * factor;
     out.producedKg += kg;
+    stocks.charcoalKg += kg;
+    worked = 'drawing';
+    if (inKiln - kg > EPSILON) {
+      kiln.charcoalKg = inKiln - kg;
+      break;
+    }
+    // rozebraný milíř zmizí – zbytek uhlí uhlíř vytahá celý
+    stocks.charcoalKg += inKiln - kg;
+    out.producedKg += inKiln - kg;
     workshop.kiln = null;
   }
   out.activity =
-    worked ?? (noWood ? 'no-wood' : labor <= EPSILON ? 'idle' : workshop.kiln ? 'idle' : 'resting');
+    worked ??
+    (noWood
+      ? 'no-wood'
+      : labor <= EPSILON
+        ? 'idle'
+        : workshop.kiln?.stage === 'draw'
+          ? 'resting'
+          : workshop.kiln
+            ? 'idle'
+            : 'resting');
   return out;
 }
 
@@ -301,44 +444,17 @@ function stumpWalkFactor(obstacles: ObstacleLayer | null, id: number, dwelling: 
 }
 
 /**
- * Kolik uhlí ročně spálí kováři vsi, když kovají celý rok (kg): práce kováře za den ÷ práce na
- * kg nástrojů × 50 kg uhlí × 365. Volající dává práci kovářů (`workshopLabor` v crafts.ts).
+ * Kolik uhlí kováři dnes spálí, když kovají celý den (kg): práce kováře za den ÷ práce na kg
+ * nástrojů × 50 kg uhlí. Volající dává práci kovářů (`workshopLabor` v crafts.ts).
  */
-export function smithCharcoalPerYear(
+export function smithForgeCharcoalKg(
   smiths: readonly { labor: number; oreFactor: number }[],
 ): number {
   return smiths.reduce(
     (sum, s) =>
       sum +
       (s.labor / (CRAFT_PRODUCTION.toolManDaysPerKg * s.oreFactor)) *
-        CRAFT_PRODUCTION.toolCharcoalKgPerKg *
-        DAYS_PER_YEAR,
+        CRAFT_PRODUCTION.toolCharcoalKgPerKg,
     0,
   );
-}
-
-/**
- * Uhlí, které ves ještě potřebuje (kg): zásoba na CHARCOAL_KILN.reserveYears spotřeby kovářů
- * minus uhlí v zásobě a v rozdělaných milířích. Kladné = uhlíř smí začít nový milíř.
- */
-export function charcoalShortfallKg(
-  state: Pick<VillageState, 'dwellings' | 'crafts'>,
-  smithPerYearKg: number,
-): number {
-  const inKilns = state.dwellings.reduce(
-    (sum, d) => sum + (d.workshop?.kiln ? kilnYieldKg(d.workshop.kiln) : 0),
-    0,
-  );
-  const stock = state.crafts?.charcoalKg ?? 0;
-  return smithPerYearKg * CHARCOAL_KILN.reserveYears - stock - inKilns;
-}
-
-/**
- * Uhlíř dnes nemá co dělat – nemá rozdělaný milíř, ves uhlí nepotřebuje a není kam (nebo kdy)
- * sázet: jeho domácnost dnes pracuje se vsí (crafts.md – Uhlíř, návrh Clauda).
- */
-export function burnerRests(workshop: Workshop, day: number, shortfallKg: number): boolean {
-  if (workshop.kiln) return false;
-  if (inPlantingWindow(day) && (workshop.toPlant?.length ?? 0) > 0) return false;
-  return shortfallKg <= 0;
 }

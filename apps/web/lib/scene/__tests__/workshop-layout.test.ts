@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { MILIR, milirPosition } from '@bohemia/game';
 import type { SceneVillage } from '../../village-view';
 import { ventSmokeStrength, smokeStrength } from '../smoke-schedule';
-import { CONSTRUCTION_PHASES } from '../village-construction';
+import { CONSTRUCTION_PHASES, constructionState } from '../village-construction';
 import { plantedScale } from '../felled-trees';
 import { insideFootprint } from '../village-picking';
 import {
@@ -12,6 +12,9 @@ import {
   craftSpots,
   forestKilnAnchor,
   hasPorch,
+  KILN_SETTLED,
+  kilnLook,
+  milirGroundProgress,
   milirHideShape,
   milirPlace,
   modelSpots,
@@ -148,5 +151,41 @@ describe('dílna tesaře (wagons.md – Tesař)', () => {
       expect(Math.abs(lx)).toBeLessThan(2.3);
       expect(Math.hypot(spot.hx, spot.hz)).toBeCloseTo(1, 9);
     }
+  });
+});
+
+describe('fáze milíře ve scéně (crafts.md – Milíř stojí vždy)', () => {
+  it('bez milíře jen milířiště, příprava dřeva vytyčí a roste hráň polen', () => {
+    expect(kilnLook(null)).toMatchObject({ site: null, model: null, smoke: false });
+    const wood = kilnLook({ stage: 'wood', progress: 0.5 });
+    expect(wood.model).toBeNull();
+    const heap = (site: number): string[] =>
+      constructionState('milir', site).parts.filter((p) => /^(ring|stack|cover)/.test(p));
+    expect(heap(wood.site!)).toHaveLength(0);
+    expect(wood.timber).toBeCloseTo(0.65, 9);
+    // milířiště při stavbě dílny – jen vytyčení a srovnaná zem, milíř ne
+    expect(heap(milirGroundProgress(1))).toHaveLength(0);
+  });
+
+  it('stavba po fázích staveniště, pálení – hotový milíř s dýmem', () => {
+    const built = kilnLook({ stage: 'build', progress: 1 });
+    expect(built.model).toBeNull();
+    expect(constructionState('milir', built.site!).parts.length).toBeGreaterThan(0);
+    const burning = kilnLook({ stage: 'burn', progress: 0.3 });
+    expect(burning).toMatchObject({ site: null, model: { scale: 1, scaleY: 1 }, smoke: true });
+  });
+
+  it('vypálený milíř nekouří, sesedne a při rozebírání se zmenšuje podle uhlí', () => {
+    const burnt = kilnLook({ stage: 'draw', progress: 0, charcoal: 1 });
+    expect(burnt).toMatchObject({ smoke: false, baskets: false });
+    expect(burnt.model!.scale).toBeCloseTo(1, 9);
+    expect(burnt.model!.scaleY).toBeCloseTo(KILN_SETTLED, 9);
+    const half = kilnLook({ stage: 'draw', progress: 0.5, charcoal: 0.5 });
+    expect(half.baskets).toBe(true);
+    expect(half.model!.scale).toBeLessThan(burnt.model!.scale);
+    expect(half.model!.scaleY).toBeLessThan(burnt.model!.scaleY);
+    const last = kilnLook({ stage: 'draw', progress: 0.98, charcoal: 0.02 });
+    expect(last.model!.scaleY).toBeLessThan(half.model!.scaleY);
+    expect(last.model!.scaleY).toBeGreaterThan(0);
   });
 });

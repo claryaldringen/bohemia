@@ -13,6 +13,8 @@ export interface ModelInstance {
   z: number;
   rotationY: number;
   scale: number;
+  /** Svislé měřítko, když se liší od `scale` (rozebíraný milíř je nižší než užší). */
+  scaleY?: number;
   /** Naklonění: svislá osa modelu míří sem (jednotkový vektor), jinak stojí svisle. */
   up?: { x: number; y: number; z: number };
   /** Id překážky ve vrstvě překážek – podle něj se instance skryje (vykácený strom…). */
@@ -210,7 +212,7 @@ export function instanceMatrices(instances: readonly ModelInstance[]): Float32Ar
       rotation = tilt.multiply(rotation);
     }
     Matrix.ComposeToRef(
-      new Vector3(instance.scale, instance.scale, instance.scale),
+      new Vector3(instance.scale, instance.scaleY ?? instance.scale, instance.scale),
       rotation,
       new Vector3(instance.x, instance.y, instance.z),
       matrix,

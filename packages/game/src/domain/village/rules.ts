@@ -978,8 +978,12 @@ export const CRAFT_NEEDS = {
 // 6 čd na buk, stavba milíře 2 čd na buk, pálení 8 dní (hlídá se ve dne i v noci – celá práce
 // domácnosti), vytahání, třídění a odnos uhlí 2 čd na buk. Leží-li první buk dávky do 150 m od
 // milíře u dílny, pálí se doma; dál staví uhlíř milíř v lese u dávky (Szabó a kol. 2022) a za
-// chůzi z dílny platí přirážku vzdálenosti (DISTANCE) na veškerou práci u něj. Uhlí pálí jen do
-// zásoby na rok spotřeby kovářů (návrh Clauda) – s plnou zásobou sází buky, nebo pomáhá vsi.
+// chůzi z dílny platí přirážku vzdálenosti (DISTANCE) na veškerou práci u něj.
+// crafts.md – Milíř stojí vždy (Martin 19. 10. 2026; podrobnosti návrh Clauda): uhlíř má vždy
+// jeden milíř – vypálený se rozebírá podle odběru kovářů: když uhlí u kováře nestačí na dnešní
+// kování, uhlíř donese uhlí na `drawBatchDays` dní kování všech kovářů na plný úvazek; zbytek,
+// který stačí jen na dobu přípravy a pálení dalšího milíře, vytahá celý; nový milíř začne, až je
+// starý rozebraný.
 export const CHARCOAL_KILN = {
   trees: 15,
   prepManDaysPerTree: 6,
@@ -987,7 +991,7 @@ export const CHARCOAL_KILN = {
   burnDays: 8,
   drawManDaysPerTree: 2,
   homeReachM: 150,
-  reserveYears: 1,
+  drawBatchDays: 30,
 } as const;
 // crafts.md – Uhlíř, obnova lesa (Martin; čísla návrh Clauda podle rešerše): na pařez skáceného
 // buku uhlíř zasadí mladý buk (semenáček z lesa) – 0,1 čd na sazenici, jen v oknech výsadby jako
