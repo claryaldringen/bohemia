@@ -153,7 +153,8 @@ Původní pravidla (18. 10. 2026; dávka a práce výš nahrazeny):
 
 Rozhodnutí kontroléru tam, kde návrh nedává postup (Martin je může změnit):
 
-- **Ohrada** se staví jako pozemek polozemnice – jeden čtverec louky (ne voda, les, skalní
+- **Ohrada** se staví jako pozemek polozemnice – jeden čtverec louky nebo lesa (les se vyklučí –
+  Martin 19. 10. 2026, fields.md – Stavby v lese; ne voda, skalní
   výchoz, posvátné místo ani zabrané políčko – čtverec pole ano: z pole zmizí,
   Martin 18. 10. 2026 – [fields.md](fields.md), Pole jako krajina), v nabídce staveb zkratka O.
   Cena jako u obydlí: 40 člověkodní v sobě mají kácení 6 stromů u blízkého lesa – stavba vezme klády z hromady,

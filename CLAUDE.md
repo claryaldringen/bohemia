@@ -262,8 +262,11 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   kamery). Na místo pokáceného stromu dá `felled-trees.ts` pařez,
   po TREE_SAPLING_AFTER_YEARS mladý stromek. **Vymýcený les** (`cleared-forest.ts`, čistý
   modul): maska po políčkách ze stavu vsi – políčko lesa bez aspoň poloviny dospělých stromů
-  nebo pod založeným dílem pole. Plocha korun nad pasekou zapadne pod zem
-  (`ForestCanopy.setCleared` mění jen výšky vrcholů), ztmavení trávy se přepočítá bez skrytých
+  nebo pod založeným dílem pole, a paseky pod stavbami v lese přesně podle tvaru
+  (`ClearedForest.areas` – vyklízené plochy obydlí a dílen s pruhem pod korunami
+  `forestClearingsOf` z jádra, natočené pozemky, modly a svatyně; `clearingDistance` měří
+  i k nim). Plocha korun nad pasekou zapadne pod zem
+  (`ForestCanopy.setCleared` mění jen výšky vrcholů, klíč i z `clearedAreasKey`), ztmavení trávy se přepočítá bez skrytých
   stromů do modrého kanálu splat textury (`TerrainMaterial.setHiddenTrees` – žádný sampler
   navíc), stínová mapa se jednou překreslí a minimapa kreslí vykácený les jako paseku. Vše jen
   při změně (`applyVillage`).
@@ -374,7 +377,7 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   na obsazeném políčku až přestavbou na nejbližším volném do 50 m – `relocationPlot` (bez polí
   a sadů – `takeLand: false`), proto `advanceVillage` dostává krajinu), `PLOT_TYPES`,
   `PLOT_VARIANTS`, `PLOT_HOUSE_OFFSET_M`, `plotHousePosition` a `checkPlotPlacement`
-  v `placement.ts` (louka, bez výchozu, bez posvátného dubu a čtverce háje, dům ne pod korunou
+  v `placement.ts` (louka nebo les – les se vyklučí, viz Ves – Stavba v lese –, bez výchozu, bez posvátného dubu a čtverce háje, dům ne pod korunou
   dubu, nezabrané hřbitovem ani jiným obydlím či pozemkem – čtverec pole či sadu smí, viz Ves –
   Obydlí na poli a v sadu –, rovno jen pod domem, `spared` vždy prázdné; překážky celého
   políčka jako u čtverce pole, stromy dají klády); `dwellingPlot` zabírá celé políčko
@@ -817,6 +820,28 @@ rozhraní částí v
   s navazujícím polem. **Stará navazující pole** (založená samostatně dřív) sloučí při načtení
   vsi `withMergedFields` v `updateVillage` (souvislé skupiny stranou do nejmenšího id, pole
   z obrysu ne; Martin) – stejným `mergeFields`, bez příznaku „převedeno“ (idempotentní a levné).
+- **Stavba v lese** (population.md – Stavba v lese; Martin 19. 10. 2026: „Oprav – obydlí může jít
+  postavit i v lese – les se prostě vyklučí.“ a „pokud jsem pole založil v lese, tak na něm nemohu
+  postavit kovárnu“; podrobnosti návrh Clauda): `placement.ts` les krajiny ani les vsi nezakazuje
+  žádné stavbě (`checkFootprintTerrain(…, clearForest)`, `LandUse.woods`, pozemek
+  `plotGroundProblem`, ohrada, sad a hřbitov v `buildSquares` / `cemeteryPartsFromCells`, modla
+  a svatyně `checkSacredTerrain`); výchoz, voda a prudký svah dál ano. **Cena = sazba lesa jako
+  díl pole** (`forestClearingCost` – `foundingCostPerHa('forest', toolCoverage)` × plocha lesa):
+  volně stojící stavba (obydlí, dílna, modla, svatyně) vyklučí vyklízenou plochu a v lese i pruh
+  `FOREST_CROWN_MARGIN_M` (4 m) pod korunami (`freeForestClearing` – mnohoúhelníky
+  `dwellingClearing(…, margin)`, `milirClearing(…, margin)`, `freeDwellingClearings(…, margin)`,
+  v pruhu jen les – `ClearingOptions.only`); plocha lesa `forestAreaUnder` (políčko lesa bez staveb
+  přesně, se čtverci staveb a lesa vsi body po 0,5 m – `forestLandAt`: políčko lesa krajiny nebo
+  čtverec lesa vsi mimo půdu polí, sadů, hřbitovů, ohrad a hájů); druhy v sazbě
+  (`SURFACE_INCLUDED_OBSTACLES.forest`) se po kusech neplatí – `RatedLand` v `polygonObstacles` /
+  `polygonsObstacles` (`ClearingOptions.rated`), kameny a balvany ano. Čtverce (pozemek, ohrada,
+  sad, hřbitov) v lese jako díl pole: `squareInForest`, `squareObstacleCost` za plochu čtverce bez
+  půdy pole a sadu (`squareFreeArea`). Na poli v lese (i natočeném) stavba za les neplatí – půda
+  patří poli (`owned`). Obyvatelé les nevyklučí (`clearForest: false` – `relocationPlot`
+  přes `takeLand: false`, `existingPlotSquare`, `freeVillageSite`). Dospělé stromy dají klády
+  jako dřív (`clearedTrees`), les vsi bez stromů zmizí. Scéna: paseka podle tvaru
+  (`cleared-forest.ts` – `areas`), podrost a zarůstání pod stavbou neroste (`wildPlants`
+  s `buildingClearings`), `/dev/landscape` odstraní překážky postavené stavby jako hra.
 - **Obydlí na poli a v sadu** (population.md – Obydlí na poli a v sadu; Martin 18. 10. 2026:
   „Pole a sad se prostě zmenší o plochu domu“): `checkDwellingPlacement`, `checkPlotPlacement`
   a `checkWorkshopPlacement` pole a sad nezakazují (`checkFootprintFree(…, DWELLING_LAND)`,
@@ -878,8 +903,9 @@ rozhraní částí v
   místa `woodTreeSpots`; 240/ha, dospělé od 15 do 70 let – `VILLAGE_WOOD`), kácí se na dřevo
   (`nearestMatureTrees`, `availableTrees`; i uhlíř – `isBeech` / `'beeches'` les vsi bere,
   pařezy se sazenicí přes `felledTreeStage`), pole na nich mýtí les (`buildSquares` – povrch les,
-  stromy z `added` dají klády; `clearWoodAt` po založení dílu), ostatní stavby na les vsi nesmí
-  (`checkFootprintFree`, příznak lesa v `squareFlags`). Prasatům je les vsi lesem (`pigForestHa`).
+  stromy z `added` dají klády; `clearWoodAt` po založení dílu), ostatní stavby ho vyklučí jako les
+  krajiny (Stavba v lese; les vsi bez stromů zmizí – `dropClearedWoods` v `recordClearedObstacles`).
+  Prasatům je les vsi lesem (`pigForestHa`).
   Starší vsi začínají roky bez pastvy počítat od nuly.
 - **Štěstí a posvátná místa** ([happiness.md](docs/design/happiness.md), `happiness.ts`,
   `sacred.ts`): štěstí 0–100 (`VillageState.happiness` – hodnota, úmrtí posledního roku, dny dřiny
@@ -901,7 +927,7 @@ rozhraní částí v
   zůstane (`DwellingPlacementCheck.spared`). Akce (`foundField`, `foundOrchard`, `foundCemetery`,
   `startNewDwelling`, `foundVillage`) dostanou `sacred` / `dwellingSpared` a ušetřená místa
   zapíší (`recordSpared` → `sacredOaks`, `groves`, kronika `sacred-spared`). **Modla a svatyně**:
-  `checkSacredBuildingPlacement` (půdorys 4 × 4 / 30 × 30 m na louce, svatyně ≤ 1 m převýšení,
+  `checkSacredBuildingPlacement` (půdorys 4 × 4 / 30 × 30 m na louce i v lese, svatyně ≤ 1 m převýšení,
   jedna na ves), `startSacredBuilding` (stavba `kind` `idol` / `shrine` s `position`, dub(y) přes
   `planSacredWood` – nejbližší dospělé duby, ne posvátné; cena `sacredLaborManDays`), po
   dostavění `VillageState.sacredBuildings` (id = id stavby). Surovina předem `oaks`
@@ -1368,7 +1394,7 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   `fieldPartsFromCells` a `cemeteryPartsFromCells` v `placement.ts` (společné kontroly čtverců;
   u hřbitova navíc `check.warning` a `warningCells`, které neblokují – oranžově). Pole smí na
   louku, do křovin i do lesa – povrch dílu `fieldSquareSurface` (les z krajiny, křoviny = louka
-  s keři za aspoň rozdíl sazeb); sad a hřbitov jen na louku. Obrys výběru při malování
+  s keři za aspoň rozdíl sazeb); sad a hřbitov na louku i do lesa (sazba lesa – Stavba v lese). Obrys výběru při malování
   prosvítá přes stromy. Server
   actions dostávají `cells` / `fieldCells` (`{ x, y }[]`). Malování ve scéně
   `lib/scene/field-painting.ts` (`FieldPainter`, režim `squares`, logika výběru ve
@@ -1486,7 +1512,8 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   (`getVillageView`) ji potřebuje jen při prvním načtení vsi založené před vrstvou (doplnění
   odstraněných překážek, ≈ 300 ms jednou).
 - **Překážky ve vsi** (`domain/village/obstacles.ts`, fields.md – tabulka překážek): obydlí
-  platí překážky na vyklízené ploše (`DWELLING_CLEARING_M` = staveniště scény) po kusech,
+  platí překážky na vyklízené ploše (`DWELLING_CLEARING_M` = staveniště scény) po kusech (les za
+  sazbu lesa – Stavba v lese),
   skalní výchoz pod půdorysem stavbu nedovolí; díl pole platí překážky v políčku jen mimo
   sazbu povrchu (`tallyCost`, `SURFACE_INCLUDED_OBSTACLES` – v lese stromy a podrost v ceně,
   v křovinách keře), výchoz zůstane a plocha pod ním se nepočítá; čtverec hřbitova

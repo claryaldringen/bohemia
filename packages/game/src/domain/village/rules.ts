@@ -636,6 +636,12 @@ export const DWELLING_CLEARING_M: Record<
   polozemnice: { minX: -5.1, maxX: 5.1, minZ: -4.7, maxZ: 7.5 },
   dvorec: { minX: -5.4, maxX: 5.4, minZ: -6.4, maxZ: 9.5 },
 };
+// population.md – Umístění obydlí, Stavba v lese (Martin, 19. 10. 2026: „obydlí může jít postavit
+// i v lese – les se prostě vyklučí“; šířka návrh Clauda): v lese osadníci kolem volně stojící
+// stavby (obydlí, dílna, modla, svatyně) vyklučí i pruh, nad který by sahaly koruny okolních
+// stromů – koruna ≈ 50 m² jako u posvátného dubu (SACRED_OAK.crownM2), poloměr ≈ 4 m. Dům pod
+// korunami by stál ve stínu a vlhku a hráč by ho ve scéně neviděl.
+export const FOREST_CROWN_MARGIN_M = 4;
 // population.md – Umístění obydlí (Martin, 18. 10. 2026): polozemnice stojí na pozemku velkém
 // jako jedno políčko pole (15 × 15 m, v mřížce políček), obehnaném polským plotem; dům uprostřed
 // nebo v jednom ze čtyř rohů (5 variant), vchodem vždy k brance na přední straně (−z světa,

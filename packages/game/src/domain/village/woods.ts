@@ -213,3 +213,26 @@ export function clearWoodAt(state: VillageState, cell: TileCell, grid?: SquareGr
   }
   if (state.felledTrees) state.felledTrees = state.felledTrees.filter((f) => !onCell(f.id));
 }
+
+/**
+ * Les vsi, ze kterého stavby odstranily všechny stromy (fields.md – Les vsi; Martin 19. 10. 2026 –
+ * stavby v lese: les se vyklučí), zmizí jako pod polem (`clearWoodAt`) – na jeho čtverci už nic
+ * neroste. Kontroluje jen lesy stromů `ids` (právě odstraněných); mutuje stav, volat na klonu.
+ */
+export function dropClearedWoods(state: VillageState, ids: readonly number[]): void {
+  const touched = new Set<string>();
+  for (const id of ids) {
+    if (!isWoodTreeId(id)) continue;
+    const { cell } = woodTreeOf(id);
+    touched.add(`${cell.x},${cell.y}`);
+  }
+  if (touched.size === 0) return;
+  const cleared = new Set((state.clearedObstacles ?? []).map((c) => c.id));
+  for (const wood of [...villageWoods(state)]) {
+    const idCell = woodIdCell(wood);
+    if (!touched.has(`${idCell.x},${idCell.y}`)) continue;
+    const spots = woodTreeSpots(wood);
+    if (spots.length === 0 || !spots.every((spot) => cleared.has(spot.id))) continue;
+    clearWoodAt(state, wood.cell, wood.grid);
+  }
+}

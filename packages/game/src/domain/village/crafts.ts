@@ -621,15 +621,17 @@ export function workshopFootprints(craft: Craft, position: Position): Point[][] 
 
 /**
  * Vyklízený kruh kolem milíře (mnohoúhelník ve světě) – překážky z něj osadníci odstraní.
- * Deterministicky – kontrola v prohlížeči a na serveru musí najít tytéž překážky.
+ * `margin` (m) ho rozšíří (v lese pruh pod korunami – FOREST_CROWN_MARGIN_M). Deterministicky –
+ * kontrola v prohlížeči a na serveru musí najít tytéž překážky.
  */
-export function milirClearing(position: Position): Point[] {
+export function milirClearing(position: Position, margin = 0): Point[] {
+  const radius = MILIR.clearingRadiusM + margin;
   return Array.from({ length: MILIR_CLEARING_SIDES }, (_, i) => {
     const angle = (2 * Math.PI * i) / MILIR_CLEARING_SIDES;
     return buildingLocalToWorld(
       position,
-      MILIR.offset.x + MILIR.clearingRadiusM * detCos(angle),
-      MILIR.offset.z + MILIR.clearingRadiusM * detSin(angle),
+      MILIR.offset.x + radius * detCos(angle),
+      MILIR.offset.z + radius * detSin(angle),
     );
   });
 }

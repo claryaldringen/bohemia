@@ -8,7 +8,7 @@ import type { Scene } from '@babylonjs/core/scene';
 import { createNoise2D } from 'simplex-noise';
 import { HEIGHT_SCALE } from './constants';
 import type { ForestField } from '@bohemia/game';
-import { clearingDistance, type ClearedForest } from './cleared-forest';
+import { clearedAreasKey, clearingDistance, type ClearedForest } from './cleared-forest';
 import { swathBandsKey, swathDistance, type SwathBand } from './swath-bands';
 import type { RenderSurface } from './render-surface';
 import { applySeasonCanopy } from './season-materials';
@@ -149,7 +149,8 @@ export function createForestCanopy(
   return {
     mesh,
     setCleared(cleared, swaths = []) {
-      const key = `${cleared ? cleared.tiles.join(',') : ''}#${swathBandsKey(swaths)}`;
+      const tiles = cleared ? `${cleared.tiles.join(',')}/${clearedAreasKey(cleared)}` : '';
+      const key = `${tiles}#${swathBandsKey(swaths)}`;
       if (key === clearedKey) return false;
       clearedKey = key;
       for (let k = 0; k < grid.length; k++) {

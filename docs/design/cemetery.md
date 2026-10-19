@@ -4,8 +4,8 @@ Stav: schváleno 17. 10. 2026 (Martin: „Ukazatel hygieny nebude. Prostě to bu
 populaci. Ohledně ostatního sis to domyslel dobře.“). Implementováno 17. 10. 2026: jádro
 `packages/game/src/domain/village/cemetery.ts`, umístění `cemeteryPartsFromCells`, scéna
 `apps/web/lib/scene/cemetery-renderer.ts`, Hřbitov [V] v mřížce staveb; čtverce navazující
-stranou na hřbitov ho rozšíří. Hřbitov se zatím nesmí
-zakládat v lese (pole už ano – fields.md). Překážky z vrstvy překážek (fields.md)
+stranou na hřbitov ho rozšíří. Hřbitov smí i do lesa – les se vyklučí za sazbu lesa jako díl
+pole (Martin, 19. 10. 2026 – fields.md, Stavby v lese). Překážky z vrstvy překážek (fields.md)
 zdraží čtverec po kusech jako u pole a zmizí s dostavěním hřbitova nebo rozšíření; čtverec,
 do kterého zasahuje skalní výchoz, hřbitov mít nesmí – výchoz se neodstraní a hroby jdou
 v pevné mřížce 56 na čtverec (návrh Clauda).

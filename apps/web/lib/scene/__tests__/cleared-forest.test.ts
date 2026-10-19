@@ -115,6 +115,61 @@ describe('clearedForest', () => {
   });
 });
 
+describe('paseky pod stavbami v lese (Martin 19. 10. 2026 – les se vyklučí)', () => {
+  const dwelling = (x: number, z: number) => ({
+    id: 1,
+    type: 'zemnice' as const,
+    position: { x, z, rotation: 0 },
+    built: true,
+    progress: 1,
+  });
+
+  it('obydlí v lese: paseka podle vyklízené plochy, políčko zůstane lesem; na louce nic', () => {
+    // políčko (6, 6) = svět x 30–45, z 30–45 (les); (1, 6) louka
+    const cleared = villageClearedForest(landscape, layer, {
+      fields: [],
+      dwellings: [dwelling(37.5, 37.5), dwelling(-37.5, 37.5)],
+    });
+    expect(cleared.tiles).toEqual([]);
+    expect(cleared.areas).toHaveLength(1);
+    // vyklízená plocha zemnice s pruhem pod korunami (4 m) x 28,7–46,3, z 29,1–49
+    expect(clearingDistance(cleared, 37.5, 37.5, 16)).toBe(0);
+    expect(clearingDistance(cleared, 51.3, 37.5, 16)).toBeCloseTo(5);
+    expect(clearingDistance(cleared, 37.5, 10, 16)).toBe(Infinity);
+  });
+
+  it('modla v lese je paseka; jiná stavba je jiný vymýcený les', () => {
+    const idol = villageClearedForest(landscape, layer, {
+      fields: [],
+      sacred: {
+        oaks: [],
+        groves: [],
+        buildings: [
+          {
+            id: 5,
+            kind: 'idol',
+            position: { x: 37.5, z: 37.5, rotation: 0 },
+            built: true,
+            progress: 1,
+          },
+        ],
+      },
+    } as Parameters<typeof villageClearedForest>[2]);
+    expect(idol.areas).toHaveLength(1);
+    expect(clearingDistance(idol, 37.5, 37.5, 16)).toBe(0);
+    const house = villageClearedForest(landscape, layer, {
+      fields: [],
+      dwellings: [dwelling(37.5, 37.5)],
+    });
+    expect(sameClearing(idol, house)).toBe(false);
+    const again = villageClearedForest(landscape, layer, {
+      fields: [],
+      dwellings: [dwelling(37.5, 37.5)],
+    });
+    expect(sameClearing(house, again)).toBe(true);
+  });
+});
+
 describe('clearingDistance a sameClearing', () => {
   const cleared = clearedForest(landscape, layer, NO_OBSTACLE_CHANGES, [{ x: 6, y: 6 }]);
 

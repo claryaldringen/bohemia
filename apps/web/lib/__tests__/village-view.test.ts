@@ -6,6 +6,9 @@ import {
   startRoadApples,
   startRoadUpgrade,
   checkDwellingPlacement,
+  checkPlotPlacement,
+  checkSacredBuildingPlacement,
+  checkWorkshopPlacement,
   createCropWork,
   dayIndexOf,
   fieldPartsFromCells,
@@ -2130,6 +2133,38 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
     );
     expect(chronicleText({ day: DAY, kind: 'cart-worn-out', cart: 'four-wheel' }, 'Libice')).toBe(
       'Čtyřkolák dosloužil – tesař vyrobí nový.',
+    );
+  });
+});
+
+describe('placementVillageFromScene – stavby na poli založeném v lese (Martin 19. 10. 2026)', () => {
+  // „pokud jsem pole založil v lese, tak na něm nemohu postavit kovárnu“ – kurzor v prohlížeči
+  // (ves ze scény) i server (stav vsi) mají stejnou kontrolu: pole patří poli, za les se neplatí
+  const forest: Landscape = { ...landscape, surface: new Uint8Array(SIZE * SIZE).fill(1) };
+  const s = state();
+  const view = buildVillageView(record(s), forest, DAY);
+  const browser = placementVillageFromScene(view.scene);
+  const server = placementVillageOf(s, DAY);
+  // díly pole na políčkách (8–12, 8) = svět x 0–75, z 0–15
+  const center = tileCenterWorld(forest, 10, 8);
+  const position = { x: center.x, z: center.z, rotation: 0 };
+
+  it('kovárna, modla i pozemek projdou – v prohlížeči stejně jako na serveru', () => {
+    for (const village of [browser, server]) {
+      const smithy = checkWorkshopPlacement(forest, village, 'smith', position);
+      expect(smithy.ok).toBe(true);
+      expect(smithy.reason).toBeNull();
+      expect(smithy.warning).toContain('Pole se zmenší');
+      const idol = checkSacredBuildingPlacement(forest, village, 'idol', position);
+      expect(idol).toMatchObject({ ok: true, reason: null, obstacleCost: 0 });
+      const plot = checkPlotPlacement(forest, village, 'polozemnice', {
+        cell: { x: 10, y: 8 },
+        variant: 'center',
+      });
+      expect(plot).toMatchObject({ ok: true, reason: null, obstacleCost: 0 });
+    }
+    expect(checkWorkshopPlacement(forest, browser, 'smith', position).obstacleCost).toBeCloseTo(
+      checkWorkshopPlacement(forest, server, 'smith', position).obstacleCost,
     );
   });
 });
