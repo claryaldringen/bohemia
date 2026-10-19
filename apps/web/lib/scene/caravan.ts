@@ -14,6 +14,18 @@
 // je tak vyšší než chůze (časosběr jako jednotky v 0 A.D.), klip se přehrává rychleji.
 import type { SceneExpedition } from '../village-view';
 
+/**
+ * Body cesty karavany: zemská stezka výpravy, nebo čára krajinou ke kraji mapy (nákup u souseda
+ * bez stezky – crafts.md, Nákup u sousedů); bez nich prázdné.
+ */
+export function caravanPoints(
+  e: Pick<SceneExpedition, 'trailId' | 'line'>,
+  trails: readonly { id: number; points: readonly { x: number; z: number }[] }[] | undefined,
+): readonly { x: number; z: number }[] {
+  if (e.line) return e.line;
+  return (trails ?? []).find((t) => t.id === e.trailId)?.points ?? [];
+}
+
 /** Rozestup lidí v karavaně (m, postavy jsou zvětšené) a vozů za sebou (m). */
 export const CARAVAN_GAP_M = { person: 1.9, cart: 9 } as const;
 /** Pomocník u vozu jde vedle něj (m vlevo od osy). */

@@ -1143,15 +1143,23 @@ export interface SceneTrail {
 }
 
 /**
- * Výprava k sousedovi pro karavanu ve scéně (trade.md – Ve scéně, `scene/caravan.ts`): stezka,
+ * Výprava k sousedovi pro karavanu ve scéně (trade.md – Ve scéně, `scene/caravan.ts`; i skupina
+ * nákupu u souseda – crafts.md, Nákup u sousedů): stezka (bez ní čára krajinou ke kraji mapy),
  * kolik lidí jde (nosiči, s vozy honáci a pomocníci – `cartCrew` na vůz), vozy (id), kdo odchází
  * k sousedovi a kdo s výpravou přijde (pohlaví a věk z jádra), jestli se nese náklad tam a zpátky,
  * postup 0–1 na konci dne `day`, denní přírůstek postupu (dnešní tempo, výprava vyslaná dnes plné)
  * a podíl cesty na mapě (bez dne za krajem mapy).
  */
 export interface SceneExpedition {
-  id: number;
-  trailId: number;
+  /** Výprava (id z jádra), nebo skupina nákupu u souseda (`purchase:<směr>:<den>`). */
+  id: number | string;
+  /** Hotová zemská stezka, po které karavana jde; null – jde po čáře `line`. */
+  trailId: number | null;
+  /**
+   * Cesta krajinou bez stezky – od vsi rovně ke kraji mapy (nákup u souseda – crafts.md); jen
+   * s `trailId` null.
+   */
+  line?: { x: number; z: number }[];
   porters: number;
   carts: number[];
   cartCrew: number;

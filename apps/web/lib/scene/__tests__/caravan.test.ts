@@ -1,4 +1,6 @@
+import type { CraftPurchase, VillageState } from '@bohemia/game';
 import { describe, expect, it } from 'vitest';
+import { sceneExpeditions } from '../../caravan-view';
 import type { SceneCart, SceneExpedition, SceneVillage } from '../../village-view';
 import { cartPlanPose, createCartPose, routeAt, type CartCaravan } from '../cart-layout';
 import { CARAVAN_GAP_M, caravanHead, caravanPlan, caravanProgress, memberSpot } from '../caravan';
@@ -243,5 +245,94 @@ describe('karavana ve scéně – postavy a vůz', () => {
     expect(back.yoke.x).toBeLessThan(back.body.x);
     const r = plan(0.2).routes.out;
     expect(routeAt(r, 0, { x: 0, z: 0, hx: 0, hz: 1, heading: 0 }).x).toBeCloseTo(-20, 0);
+  });
+});
+
+describe('nákup u souseda jako karavana (crafts.md – Nákup u sousedů)', () => {
+  const purchase = (over: Partial<CraftPurchase> = {}): CraftPurchase => ({
+    direction: 'N',
+    startedDay: 495,
+    group: 3,
+    days: 14,
+    tripDays: 7,
+    done: 1,
+    trailId: null,
+    edge: { x: -10, z: 960 },
+    get: { toolsKg: 2 },
+    pay: { grainKg: 120 },
+    ...over,
+  });
+  /** Ves s dvorcem na (−10, 0) a jedním nákupem na cestě (jen co čte pohled na karavany). */
+  const state = (p: CraftPurchase): VillageState =>
+    ({
+      lastDay: 500,
+      seed: 1,
+      manorId: 1,
+      dwellings: [
+        {
+          id: 1,
+          type: 'dvorec',
+          builtDay: 0,
+          condition: 1,
+          position: { x: -10, z: 0, rotation: 0 },
+        },
+      ],
+      constructions: [],
+      people: [],
+      purchases: [p],
+    }) as unknown as VillageState;
+  /** Scéna vsi jako ze serveru: karavany ze stavu, v práci dne skupina nákupu ke kraji mapy. */
+  const scene = (p: CraftPurchase): SceneVillage => ({
+    ...village(expedition()),
+    trails: [],
+    expeditions: sceneExpeditions(state(p)),
+    labor: {
+      day: 500,
+      month: 11,
+      people: { children: 0, adults: 6, elders: 0 },
+      shares: [
+        {
+          activity: 'trade',
+          target: { kind: 'edge', direction: 'N', x: -10, z: 960 },
+          manDays: 3,
+        },
+      ],
+    },
+  });
+
+  it('bez stezky jde karavana po čáře od dvorce ke kraji mapy, každou cestu zvlášť', () => {
+    const [e] = sceneExpeditions(state(purchase({ done: 9 })));
+    expect(e).toMatchObject({
+      id: 'purchase:N:495',
+      trailId: null,
+      line: [
+        { x: -10, z: 0 },
+        { x: -10, z: 960 },
+      ],
+      porters: 3,
+      carriesOut: true,
+      carriesBack: true,
+    });
+    // druhá cesta tam a zpět (7 dní na cestu) – postup v ní 2/7, den za den 1/7
+    expect(e!.progress).toBeCloseTo(2 / 7, 3);
+    expect(e!.rate).toBeCloseTo(1 / 7, 3);
+  });
+
+  it('po sloučení s karavanami nákup ve scéně nezmizí – tam s platbou, zpátky s výrobky', () => {
+    // první den cesty – nosiči jdou ke kraji mapy (práce dne `trade` se kreslí jen jako karavana)
+    const out = caravanAt(scene(purchase({ done: 1 })), at(0.5));
+    expect(out.filter((p) => !p.hidden)).toHaveLength(3);
+    expect(out.filter((p) => !p.hidden).every((p) => p.clip === 'carry')).toBe(true);
+    const all = planVillagers(scene(purchase()), GROUND, {
+      seed: 1,
+      herds: 0,
+      dayWindow: () => WINDOW,
+    });
+    expect(all.some((p) => p.key.startsWith('trade:'))).toBe(false);
+    // u souseda pryč, cestou zpátky zase vidět
+    expect(caravanAt(scene(purchase({ done: 3 })), at(0.5)).every((p) => p.hidden)).toBe(true);
+    const back = caravanAt(scene(purchase({ done: 5 })), at(0.5)).filter((p) => !p.hidden);
+    expect(back).toHaveLength(3);
+    expect(back.every((p) => p.key.includes(':back:'))).toBe(true);
   });
 });

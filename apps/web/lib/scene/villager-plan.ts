@@ -22,6 +22,7 @@ import {
   caravanHead,
   caravanPlan,
   caravanProgress,
+  caravanPoints,
   memberSpot,
   waitingOffset,
   type CaravanMember,
@@ -361,15 +362,16 @@ function caravanFigures(
   e: SceneExpedition,
   window: DayWindow | null,
 ): PlannedVillager[] {
-  const trail = (ctx.village.trails ?? []).find((t) => t.id === e.trailId);
-  if (!trail || trail.points.length < 2) return [];
-  const path = route(trail.points.map((p) => [p.x, p.z] as const));
+  // po zemské stezce, nákup u souseda bez stezky po čáře krajinou (crafts.md)
+  const points = caravanPoints(e, ctx.village.trails);
+  if (points.length < 2) return [];
+  const path = route(points.map((p) => [p.x, p.z] as const));
   const L = path.length;
   const plan = caravanPlan(e);
   const columns = { out: plan.out.length, back: plan.back.length };
   const daySeconds = window ? Math.max(1, (window.endMs - window.startMs) / 1000) : 86;
-  const [x0, z0] = trail.points[0] ? [trail.points[0].x, trail.points[0].z] : [0, 0];
-  const first = unit(trail.points[1]!.x - x0, trail.points[1]!.z - z0);
+  const [x0, z0] = [points[0]!.x, points[0]!.z];
+  const first = unit(points[1]!.x - x0, points[1]!.z - z0);
   const out: PlannedVillager[] = [];
   for (const leg of ['out', 'back'] as const) {
     plan[leg].members.forEach((member, index) => {
