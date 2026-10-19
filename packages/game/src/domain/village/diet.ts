@@ -1,7 +1,15 @@
 import { dateOfDayIndex, dayIndexOf, isLeapYear } from '../calendar';
+import { fieldFoodShare } from './field-food';
 import { applesSpoiled, daysUntilAppleRot } from './food';
 import { villageApplesKg } from './orchard';
-import { DAIRY, cheeseFromMilk, daysUntilMilking, villageCheeseKg, type MilkYield } from './dairy';
+import {
+  DAIRY,
+  cheeseFromMilk,
+  daysUntilMilking,
+  milkEnergyBetween,
+  villageCheeseKg,
+  type MilkYield,
+} from './dairy';
 import {
   daysUntilLegumeHarvest,
   legumeEnergy,
@@ -202,6 +210,12 @@ export interface DietInput {
   daysToSlaughter: number;
   /** Dní do příštího začátku dojení – sýr se jí rovným dílem do něj; bez údaje rok. */
   daysToMilking?: number;
+  /**
+   * Mléko, které stáda dají od zítřka do sklizně (energie v kg obilí, za den nejvýš strop mléka
+   * a sýra – `milkEnergyBetween`): výhled pak počítá s ním a s celou zásobou sýra (fields.md –
+   * Osev podle stravy). Bez údaje dřívější výhled – mléko jen dnešní, sýr dnešním přídělem.
+   */
+  milkAheadEnergy?: number;
   /** Pokrytí nádobami 0–1 – ztráty zásob obilí (crafts.md). */
   potteryCoverage: number;
 }
@@ -292,17 +306,30 @@ export function eatDiet(input: DietInput): DietResult {
     FOREIGN_GOODS.honeyCap * need,
     honeyEnergy(honey) / FOREIGN_GOODS.honeyDays,
   );
-  // maso, sýr, luštěniny, med a vejce se počítají i do dalších dní, mléko a ovoce jen, jak
-  // opravdu přijdou
+  // maso, sýr, luštěniny, med a vejce se počítají i do dalších dní, ovoce jen do zkažení
   const daily = meatRation + cheeseRation + legumeRation + honeyRation + eggsEnergy;
   const today = fruitRation + milkEnergy + daily;
-  const grainNeed = (need - daily) * days - fruitRation * rotDays - milkEnergy;
+  const made = cheeseFromMilk(milkProtein * (1 - drunkShare));
+  // mléko a sýr od zítřka do sklizně: s mlékem stád se počítá celá zásoba sýra (i dnešní), nejvýš
+  // strop; bez mléka stád sýr dnešním přídělem (dřívější výhled) – `extraDairy` je rozdíl proti němu
+  const daysAhead = days - 1;
+  const extraDairy =
+    input.milkAheadEnergy === undefined
+      ? 0
+      : Math.min(
+          DIET.caps.dairy * need * daysAhead,
+          (cheese - cheeseRation / DAIRY.cheeseEnergy + made) * DAIRY.cheeseEnergy +
+            Math.max(0, input.milkAheadEnergy),
+        ) -
+        cheeseRation * daysAhead;
+  const grainNeed = (need - daily) * days - fruitRation * rotDays - milkEnergy - extraDairy;
   let outlook = 1;
   let grainToday: number;
   if (grain >= grainNeed) {
     grainToday = need - today;
   } else {
-    const even = (grain + fruitRation * rotDays + milkEnergy + daily * days) / (need * days);
+    const even =
+      (grain + fruitRation * rotDays + milkEnergy + daily * days + extraDairy) / (need * days);
     if (even * need >= today) {
       outlook = even;
       grainToday = even * need - today;
@@ -311,7 +338,8 @@ export function eatDiet(input: DietInput): DietResult {
       grainToday = 0;
       const now = today / need;
       const after = days - rotDays;
-      const later = after > 0 ? (grain + daily * after) / (need * after) : now;
+      const laterDairy = daysAhead > 0 ? (extraDairy * after) / daysAhead : 0;
+      const later = after > 0 ? (grain + daily * after + laterDairy) / (need * after) : now;
       outlook = Math.min(now, later);
     }
   }
@@ -328,7 +356,6 @@ export function eatDiet(input: DietInput): DietResult {
     legumesKg: legumeRation / LEGUMES.energy,
     ...(honeyRation > 0 ? { honeyKg: honeyRation / FOREIGN_GOODS.honeyEnergy } : {}),
   };
-  const made = cheeseFromMilk(milkProtein * (1 - drunkShare));
   const diet = dietOf(need, input.proteinNeedPerDay ?? 0, eaten);
   return {
     // poslední den před sklizní se snědí celé zásoby – ořez chyb zaokrouhlení pod nulu
@@ -388,6 +415,13 @@ export function villageMeal(
   },
 ): DietResult {
   const need = villageFoodNeed(state, day);
+  // jako simulace – ozim uživí srpen, když pokryje potřebu z pole (fields.md – Ozim a jař)
+  const daysToHarvest = daysUntilFoodHarvest(
+    state.plan,
+    state.parts,
+    day,
+    need * fieldFoodShare(state),
+  );
   return eatDiet({
     grainKg: state.storesKg,
     meatKg: villageMeatKg(state),
@@ -402,7 +436,17 @@ export function villageMeal(
     needPerDay: need,
     proteinNeedPerDay: villageProteinNeed(state, day),
     daysToMilking: daysUntilMilking(day),
-    daysToHarvest: daysUntilFoodHarvest(state.plan, state.parts, day, need),
+    // výhled do sklizně s mlékem stád, jako simulace (fields.md – Osev podle stravy)
+    // stáda přímo ze stavu – livestock.ts importuje tento soubor
+    milkAheadEnergy: state.livestock
+      ? milkEnergyBetween(
+          state.livestock.herds,
+          day + 1,
+          day + daysToHarvest - 1,
+          DIET.caps.dairy * need,
+        )
+      : 0,
+    daysToHarvest,
     daysToRot: daysUntilAppleRot(day, potteryCoverage),
     daysToSlaughter: daysUntilSlaughter(day),
     potteryCoverage,

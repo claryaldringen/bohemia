@@ -150,8 +150,12 @@ Rozhodnutí kontroléru tam, kde návrh nedává číslo nebo postup (Martin je 
   a ovoce a obilí zůstane na dobu po nich (jako dřív u jablek).
 - **Hlad z energie:** nahromaděný hlad i přirážka úmrtnosti za dnešní hlad počítají s energií,
   porody a štěstí s nasycením (energie × kvalita z bílkovin). Hlad v rozhraní (upozornění) =
-  výhled energie. Mléko a ovoce se do výhledu na další dny nepočítají (jen dnešní), maso, sýr
-  a vejce ano.
+  výhled energie. Ovoce se do výhledu počítá do zkažení, maso, luštěniny a vejce dnešním
+  přídělem. **Mléko a sýr** (změna 19. 10. 2026 s osevem podle stravy, návrh Clauda): mléko stád
+  od zítřka do sklizně podle doby dojení a celá zásoba sýra, dohromady nejvýš strop mléka a sýra
+  za každý den (`milkAheadEnergy`, `milkEnergyBetween`). Dřív se mléko počítalo jen dnešní a sýr
+  dnešním přídělem (v době dojení skoro nulovým) – dokud ves sela obilí na celou potřebu, nevadilo
+  to; se zásobami podle stravy by každý podzim zbytečně šetřila a hlásila hlad.
 - **Stáda** jsou čísla s podílem kusu (mláďata a porážka se počítají podílem stáda), panel
   a scéna je zaokrouhlí. Výchozí stádo dostane nová ves i ves uložená před dobytkem (z domácností,
   jako dřív ozdoba scény). **Mláďata 1. 4.** (stádo × roční růst).
@@ -251,7 +255,46 @@ krajiny, hráč skriptu ohrady ani dílny nestaví). Srovnání s měřením str
 
 Závěr (k rozhodnutí Martina): maso a mléko na stropech jsou na rané Slovany hodně – strava byla
 převážně obilná. K doladění: cíl osevu podle stravy, nižší stropy masa a mléka, nebo menší potřeba
-bílkovin pokrytá luštěninami.
+bílkovin pokrytá luštěninami. **Martin 19. 10. 2026:** „Zatím udělejme osev podle stravy. Já
+později zjistím, proč tam máme tuhle disbalanci.“ – viz [pole – Osev podle stravy](fields.md)
+(stropy a podíly masa, mléka a luštěnin se nemění).
+
+## Naměřeno s osevem podle stravy (19. 10. 2026)
+
+Krátké `measure-village.ts 20 20` před změnou a po ní (stejné vsi a krajiny; jen orientačně –
+dlouhá kalibrace poběží v noci). Zásoby po sklizni se po změně měří jako zásoby obilí v ročních
+potřebách z pole (pravidlo zásob v plánu osevu), v závorce dřívějším měřítkem (v ročních
+potřebách celé energie):
+
+| 20 vsí × 20 let                                  | Před (osev na celou potřebu)  | Po (osev podle stravy)                    |
+| ------------------------------------------------ | ----------------------------- | ----------------------------------------- |
+| zásoby po sklizni p10 / medián / p90, hráč staví | 1,16 / 2,35 / 3,33 (celé en.) | 1,02 / 1,38 / 2,13 (medián 0,81 celé en.) |
+| zásoby v pásmu 1–1,5                             | 19 % let                      | 55 % let – **MIMO** jen p90               |
+| práce na obživu – startovní ves / plná dom.      | 93,3 % / 89,7 % (**MIMO**)    | 80,6 % / 71,3 % (**MIMO** – pod pásmem)   |
+| osev startovní ves / plná domácnost              | 1,53 / 2,50 ha                | 0,63 / 1,22 ha (podíl z pole 0,33 / 0,38) |
+| oběh dílu – roky osevu / přílohu                 | 5 / 13                        | 8 / 8 (**MIMO**, cíl 3 / 13–14)           |
+| nasycení ≥ 0,95 celý rok – staví / nestaví       | 99,5 % / 99,7 % let           | 100 % / 100 % let                         |
+| nasycení se stravou – medián (p10)               | 0,94 (0,84)                   | 0,94 (0,84)                               |
+| po 20 letech domácností / lidí (medián)          | 2 / 12                        | 2 / 12                                    |
+| zemnice / polozemnice čerstvě plnou domácností   | 163 / 572 dní (**MIMO**)      | 73 / 243 dní (**OK**)                     |
+| pole / osev na domácnost na konci                | 14,4 / 2,14 ha                | 7,7 / 1,38 ha                             |
+
+- **Podíl jídla z pole** (hráč staví, 20 let – stáda ještě rostou): medián 55 % (p10 42 %,
+  p90 83 %); sondy pevných domácností v ustáleném oběhu 0,33 a 0,38 – skoro na pojistce 0,3
+  (maso a mléko na stropech, luštěniny na stropu 25 % – obilí tak dorovná jen ≈ 5–10 % energie).
+- **Zásoby:** medián v pásmu, p90 2,1 – nad pásmem budou nejspíš roky, kdy podíl z pole rychle
+  klesá (stáda rostou – ves seje podle loňska), a první roky se startovními zásobami (neověřeno).
+- **Práce na obživu pod pásmem:** pole teď bere málo práce, protože maso a mléko pokryjí ≈ 45–70 %
+  energie – ves má hodně společné práce (staví rychleji – zemnice a polozemnice jsou zpět
+  v pásmu). Je to ta disbalance stravy, kterou chce Martin prověřit; osev podle stravy ji jen
+  odkryl.
+- **Oběh dílu** je dál od cíle: luštěniny teď tvoří většinu osevu (25 % energie z ≈ 33 %
+  z pole) a vracejí úrodnost, takže díl se oseje 8 let po sobě (dřív 5) – pravidla luštěnin se
+  neměnila.
+- **Nasycení drží:** ≥ 0,95 ve všech letech, bez jakéhokoli hladu 99 % let. Cestou: první verze
+  (práh zásob i s luštěninami, výhled jen s dnešním mlékem) měla nasycení ≥ 0,95 jen v 79 % let –
+  část byla chyba měření (skript přehrával jídlo bez mléka dne); s výhledem s mlékem do sklizně
+  a opraveným měřením 95,8 % let, se zásobami v obilí 100 %.
 
 ## Co hráč vidí
 
@@ -285,3 +328,5 @@ bílkovin pokrytá luštěninami.
 | Luštěniny 22 % bílkovin, energie jako obilí; strop 25 % energie; jí se rovným dílem do sklizně    | návrh Clauda (rešerše) |
 | Cíl luštěnin z bílkovin po obilí, mléku a vejcích; potřeba masa až po luštěninách (podle zásoby)  | návrh Clauda           |
 | Maso štěstí až +3 – plně od 20 % energie z masa, méně poměrně                                     | návrh Clauda           |
+| Osev podle stravy – ves seje obilí a luštěniny jen na energii, kterou nedá maso, mléko a ostatní  | Martin (19. 10. 2026)  |
+| Výhled jídla do sklizně s mlékem stád podle doby dojení a s celou zásobou sýra                    | návrh Clauda           |

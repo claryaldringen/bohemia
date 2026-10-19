@@ -80,6 +80,80 @@ export const ANIMAL_CARE = {
   henPerHead: 0.0008,
 } as const;
 
+/** Den roku v nepřestupném roce (0–364) – 29. 2. jako 28. 2. (v únoru se nedojí). */
+function commonDayOfYear(month: number, dayOfMonth: number): number {
+  let index = Math.min(dayOfMonth, MONTH_DAYS[month - 1]!) - 1;
+  for (let m = 1; m < month; m++) index += MONTH_DAYS[m - 1]!;
+  return index;
+}
+
+/** Měsíce, kdy se nějaký druh dojí (kráva květen–listopad, koza a ovce uvnitř). */
+const MILKING_MONTHS = { from: 5, to: 11 } as const;
+
+/**
+ * Kumulované váhy dojení po dnech nepřestupného roku: `[druh][i]` = součet vah dnů 0 až i;
+ * `days[i]` = kolik z nich je v měsících dojení. Váhy jsou násobky 0,5 – součty jsou přesné.
+ */
+const CUMULATIVE: { species: Record<DairySpecies, number[]>; days: number[] } = (() => {
+  const species = { cow: [] as number[], goat: [] as number[], sheep: [] as number[] };
+  const days: number[] = [];
+  const sum = { cow: 0, goat: 0, sheep: 0 };
+  let milkingDays = 0;
+  for (let m = 1; m <= 12; m++) {
+    for (let d = 1; d <= MONTH_DAYS[m - 1]!; d++) {
+      for (const s of DAIRY_SPECIES) {
+        sum[s] += milkingWeight(s, m, d);
+        species[s].push(sum[s]);
+      }
+      if (m >= MILKING_MONTHS.from && m <= MILKING_MONTHS.to) milkingDays++;
+      days.push(milkingDays);
+    }
+  }
+  return { species, days };
+})();
+
+/** Počet dní v měsících dojení za rok. */
+const MILKING_MONTH_DAYS = CUMULATIVE.days[CUMULATIVE.days.length - 1]!;
+
+/** Kolik dní v měsících dojení uplynulo do konce dne `day` včetně (od začátku letopočtu). */
+function milkingDaysThrough(day: number): number {
+  const { year, month, day: dayOfMonth } = dateOfDayIndex(day);
+  return year * MILKING_MONTH_DAYS + CUMULATIVE.days[commonDayOfYear(month, dayOfMonth)]!;
+}
+
+/**
+ * Mléko, které stáda `herds` dají ode dne `from` do dne `to` včetně (energie v kg obilí) – každý
+ * den nejvýš `capPerDay` (víc se nevypije). Pro výhled jídla do sklizně (diet.md – Hlad, osev podle
+ * stravy): strop se počítá na dny v měsících dojení, ne po dnech (stačí odhad). Bez dnů 0.
+ */
+export function milkEnergyBetween(
+  herds: Record<HerdSpecies, number>,
+  from: number,
+  to: number,
+  capPerDay: number,
+): number {
+  if (to < from) return 0;
+  const start = dateOfDayIndex(from - 1);
+  const end = dateOfDayIndex(to);
+  const startIndex = commonDayOfYear(start.month, start.day);
+  const endIndex = commonDayOfYear(end.month, end.day);
+  let energy = 0;
+  for (const species of DAIRY_SPECIES) {
+    const cumulative = CUMULATIVE.species[species];
+    const weight =
+      (end.year - start.year) * SEASON_WEIGHT[species] +
+      cumulative[endIndex]! -
+      cumulative[startIndex]!;
+    if (weight <= 0) continue;
+    const liters =
+      (herds[species] * DAIRY.milkedShare[species] * DAIRY.litersPerYear[species] * weight) /
+      SEASON_WEIGHT[species];
+    energy += liters * DAIRY.energyPerL[species];
+  }
+  const milkingDays = milkingDaysThrough(to) - milkingDaysThrough(from - 1);
+  return milkingDays > 0 ? Math.min(energy, Math.max(0, capPerDay) * milkingDays) : 0;
+}
+
 /** Dojí se druh v den? */
 export function isMilkingSeason(species: DairySpecies, day: number): boolean {
   const { month, day: dayOfMonth } = dateOfDayIndex(day);
