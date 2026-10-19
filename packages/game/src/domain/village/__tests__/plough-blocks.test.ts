@@ -217,3 +217,37 @@ describe('výkon spřežení za den', () => {
     expect(plannedFurrowEfficiency(single)).toBeCloseTo(furrowEfficiency(15), 12);
   });
 });
+
+describe('zoraná zem jen kam došla orba (Martin, 19. 10. 2026)', () => {
+  it('setí za orbou po stejných úsecích i s drnem – nikdy před pluhem; klučení zem nezorá', () => {
+    // dva pásy: první bez drnu, druhý drn (orba ×2,5) a křoviny na posledním dílu
+    const parts = [
+      ...rect(1, 0, 0, 4, 1),
+      ...rect(11, 0, 1, 4, 1).map((p) => ({ ...p, sod: true as const })),
+    ];
+    parts[7] = {
+      ...parts[7]!,
+      sod: undefined,
+      state: 'fallow',
+      fallowSinceDay: at(590, 9, 1),
+      overgrowthYears: 6,
+    };
+    const byId = new Map(parts.map((p) => [p.id, p]));
+    const work = createCropWork(parts, DAY, 0, true, undefined, 'spring', partsOfFields(parts));
+    const ploughSpans = taskSpans(work, byId, 'plough', DAY);
+    const sowSpans = taskSpans(work, byId, 'sow', DAY);
+    for (const [k, span] of ploughSpans.entries()) {
+      expect(sowSpans[k]!.start).toBeCloseTo(span.start, 12);
+      expect(sowSpans[k]!.end).toBeCloseTo(span.end, 12);
+    }
+    // vrácení křovin (lidé) hotové, orba nezačala: díl není zoraný
+    const s = {
+      parts,
+      plan: { plannedDay: DAY, ard: true as const, ...work },
+    } as unknown as VillageState;
+    for (const p of parts) p.state = 'sown';
+    work.done.reclaim = work.required.reclaim;
+    const looks = fieldPartLooks({ ...s, threshingFromPlan: null } as VillageState, DAY + 1);
+    for (const p of parts) expect(looks.get(p.id)!.look).not.toBe('plowed');
+  });
+});

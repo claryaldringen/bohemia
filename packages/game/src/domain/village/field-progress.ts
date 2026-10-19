@@ -63,6 +63,11 @@ export interface PartView {
   work?: number;
   before?: FieldPartLook;
   furrow?: { axis: 'x' | 'y'; sweep: 1 | -1 };
+  /**
+   * Díl plodiny, kterou orá spřežení: jak vypadal před orbou (strniště, drn pastviny, rozrytý
+   * drn) – scéna z něj kreslí ranní stav dílů dnešní orby (oxen.md – Orba za herní den).
+   */
+  unploughed?: FieldPartLook;
 }
 
 /**
@@ -96,7 +101,7 @@ function partWeight(
   if (task === 'reclaim' && !(work.reclaimIds ?? []).includes(part.id)) return 0;
   if (task === 'weed' && isWeedFree(part, day)) return 0;
   const weight = (part.areaM2 / M2_PER_HA) * distanceFactor(partWalkDistance(part));
-  return task === 'plough' && sod.has(part.id) ? weight * PLOUGH_SOD_FACTOR : weight;
+  return sod.has(part.id) ? weight * PLOUGH_SOD_FACTOR : weight;
 }
 
 /**
@@ -119,7 +124,12 @@ export function taskSpans(
   task: PartTask,
   day: number,
 ): PartSpan[] {
-  const sod = new Set(task === 'plough' ? (work.plough?.sodIds ?? []) : []);
+  // orba a setí za ní ve vsi s pásy orby: díl s drnem váží jako v orbě (orba křížem), ať setí
+  // dojde přesně tam, kam orba (seje se, co je zorané – `tilledShare`)
+  const banded = work.plough?.bands !== undefined;
+  const sod = new Set(
+    task === 'plough' || (task === 'sow' && banded) ? (work.plough?.sodIds ?? []) : [],
+  );
   const weighted = taskPartIds(work, task).flatMap((id) => {
     const part = partsById.get(id);
     const weight = part ? partWeight(work, part, task, day, sod) : 0;
@@ -352,6 +362,7 @@ function cropLooks(
   const share = (task: keyof typeof spans, id: number): number | null =>
     shareOn(spans[task].byId.get(id), spans[task].at);
   const sodIds = new Set([...(work.reclaimIds ?? []), ...(work.plough?.sodIds ?? [])]);
+  const banded = work.plough?.bands !== undefined;
   const furrows = new Map<number, { axis: 'x' | 'y'; sweep: 1 | -1 }>();
   for (const band of work.plough?.bands ?? []) {
     for (const id of band.partIds) furrows.set(id, { axis: band.axis, sweep: band.sweep });
@@ -366,11 +377,11 @@ function cropLooks(
         : 'bare';
     const harvest = share('harvest', id) ?? 0;
     const sow = share('sow', id) ?? 0;
-    const dig = Math.max(
-      share('dig', id) ?? 0,
-      share('reclaim', id) ?? 0,
-      share('plough', id) ?? 0,
-    );
+    // plodina, kterou orá spřežení po pásech: zoraná zem jen tam, kam došla orba (klučení křovin
+    // lidmi zem nezorá – oxen.md, Jen rádlo); jinak kopání či vrácení přílohu jako dřív
+    const dig = banded
+      ? (share('plough', id) ?? 0)
+      : Math.max(share('dig', id) ?? 0, share('reclaim', id) ?? 0, share('plough', id) ?? 0);
     let view: PartView;
     if (harvested) view = { look: 'stubble' };
     else if (harvest >= DONE) view = { look: 'harvesting' };
@@ -386,7 +397,8 @@ function cropLooks(
       view.before = untouched;
     }
     const furrow = furrows.get(id);
-    views.set(id, furrow ? { ...view, furrow } : view);
+    // vzhled před orbou – ranní stav dnešní orby pro scénu (oxen.md – Orba za herní den)
+    views.set(id, furrow ? { ...view, furrow, unploughed: untouched } : view);
   }
 }
 

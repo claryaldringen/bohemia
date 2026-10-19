@@ -1228,6 +1228,11 @@ export interface SceneFieldPart {
    * mřížky, −1 klesající) – díly pásu se orají spolu, pruh po pruhu. Bez údaje práce jde od vsi.
    */
   furrow?: { axis: 'x' | 'y'; sweep: 1 | -1 };
+  /**
+   * Díl plodiny, kterou orá spřežení: vzhled před orbou (strniště, drn pastviny…) – ladicí orba
+   * za den z něj kreslí ranní stav dílů dnešní orby (plough-day.ts).
+   */
+  unploughed?: FieldLook;
 }
 
 /**
