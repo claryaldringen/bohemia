@@ -22,7 +22,6 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
   journey: null,
   leave: { directions: [] },
   manor: null,
-  goods: { saltKg: 0, ironKg: 0, honeyKg: 0, furs: 0 },
   dayIndex: 1000,
   people: { children: 2, adults: 2, elders: 0 },
   households: [],

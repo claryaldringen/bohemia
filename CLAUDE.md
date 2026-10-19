@@ -501,7 +501,7 @@ rozhraní částí v
   (`VillageState.cemeteries?`, `orchards?`, `applesKg?`, `orchardWork?`, `starvationDays?`,
   `extinctDay?`, `crafts?`, `Dwelling.workshop?`, `livestock?`, `meatKg?`, `cheeseKg?`,
   `legumesKg?`, `hay?`, `pens?`, `diet?`, `ruins?`, `woods?`, `FieldPart.overgrowthYears?`,
-  `manorId?`, `trails?`, `trade?`, `goods?`, `DwellingPlot.yard?`, `Construction.trail?`) – vsi
+  `manorId?`, `trails?`, `trade?`, `DwellingPlot.yard?`, `Construction.trail?`) – vsi
   `sacredRuins?`, `SacredBuilding.wear?`, `Cemetery.fenceWear?`, `Pen.wear?`) – vsi
   uložené dřív se načtou a beze sadů či dílen se jejich stav nemění.
 - **Hlad a vymření** (population.md, Martin 18. 10. 2026): nahromaděný hlad
@@ -1024,8 +1024,7 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   krátkým řádkem se jménem vsi – `otherVillageNotices`; ikony s čísly: lidé, obilí, luštěniny
   (ikona `legumes`, když jsou v zásobě, na poli nebo v jídle – `showsLegumes`), maso,
   sýr (ikona `cheese`, v popisku mléko za den) když je mléko nebo sýr, ovoce (jablka) jen když
-  jsou nebo je sad, seno s ohradou, klády, uhlí / nástroje / keramika jen ves s řemesly, sůl /
-  železo / med / kožešiny jen když jsou (`ForeignStocks` – trade.md, med i v popisku nasycení), volná
+  jsou nebo je sad, seno s ohradou, klády, uhlí / nástroje / keramika jen ves s řemesly, volná
   práce, nasycení (barva ikony podle energie – hlad, tooltip nasycení s energií, bílkovinami
   a podíly obilí / luštěniny / maso / mléko a sýr / vejce / ovoce), štěstí, datum – obnoví se
   na začátku dalšího herního dne, ne každou sekundu (`dateRefreshDelay` v `lib/game-date.ts`);
@@ -1487,8 +1486,10 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   `lib/trail-view.ts` (`sceneTrails` – osa stezky, `trailRoadWork` – vytyčení a průběh po úsecích
   v `sceneRoads`), `SceneVillage.trails`. Ikona `icons/build/stezka.png`.
 - **Sousedé a obchod** (trade.md – Sousedé, Obchod; `neighbours.ts`, `trade.ts`): `neighbourOf(seed,
-směr)` – stálá povaha (2–3 nabízí, aspoň jedno zboží zvenku, 2–3 shání, roční zásoby a poptávka
-  `NEIGHBOURS`, jméno `suggestVillageName`), `neighbourStock` – zbytek roku obchodu
+směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, pastevci, lesní ves,
+  řemeslníci, každý dvakrát kolem vsi; `NEIGHBOURS.kinds`: 2–3 nabízí ze své nabídky, 2–3 shání –
+  `always` vždy, zbytek z `needs`), roční zásoby a poptávka `NEIGHBOURS`, jméno
+  `suggestVillageName`), `neighbourStock` – zbytek roku obchodu
   (`tradeSeason` – od 1. 11.), ukládá se jen `VillageTrade.neighbours`. Hodnoty zboží v kg obilí
   `TRADE_GOOD_VALUES` (rešerše `research/2026-10-18-trade-values.md`), ceny `sellPrice` / `buyPrice`
   (přirážka a příplatky `TRADE`), `tradeQuote` – kontrola a ocenění (bilance pro souseda ≥ 0,
@@ -1500,11 +1501,14 @@ směr)` – stálá povaha (2–3 nabízí, aspoň jedno zboží zvenku, 2–3 s
   server action `sendExpedition` (`{ villageId, direction, give, get }` – `parseSendExpeditionInput`).
   Web: `VillageManor.neighbours` (`neighbourViews`), panel `hud/TradePanel.tsx` (posuvníky, náhled
   `lib/trade-quote.ts`), upozornění, ikona `icons/build/obchod.png`.
-- **Zboží zvenku** (trade.md – Zboží zvenku ve vsi; `goods.ts`): `VillageState.goods` (sůl, železo,
-  med v kg, kožešiny v kusech), `goodsDay` (krok dne – sůl se jí, kožešiny se opotřebí),
-  `goodsHappiness` (složka štěstí `goods` – sůl +3, kožešiny až +2), med v `eatDiet` (`honeyKg`,
-  podíl `DietDay.shares.honey`, štěstí jako ovoce), kovář bere železo přednostně (`workSmith`,
-  `IRON_SMITHING`). Čísla `FOREIGN_GOODS`. Ikony `salt`, `iron`, `honey`, `furs` (`icons.py`).
+- **Jen společné suroviny** (trade.md – Jen společné suroviny; Martin 19. 10. 2026: „Nech jen
+  společné suroviny, nezaváděj nové.“): obchod zná jen zboží, které má i ves (`TradeGood` – obilí,
+  luštěniny, maso, sýr, dobytek, klády, keramika, nástroje, uhlí; `TRADE_GOODS`). Zboží zvenku
+  (sůl, železo, med, kožešiny – dřívější `goods.ts`) ve hře není. Starší vsi převede
+  `withoutForeignGoods` (`trade.ts`; v `updateVillage` i na začátku `advanceVillage`, bez příznaku,
+  idempotentně): zahodí `goods` a podíl medu v jídle, uložený zbytek roku souseda, který nesedí na
+  jeho povahu, a výpravu na cestě pro zboží zvenku zruší – nosiči přinesou zpět, co nesli
+  (`get` = `give`); z kroniky výprav zboží zvenku zmizí.
 - **Ohrada s přístřeškem** ([oxen.md](docs/design/oxen.md); ve vsi `SceneVillage.pens` –
   `village-pens.ts` ve `VillageRenderer`: fáze podle `progress`, branka k nejbližšímu obydlí,
   zvířata `penAnimalsFor` na místa `spots` – voli spřežení (v den orby na poli), telata ve

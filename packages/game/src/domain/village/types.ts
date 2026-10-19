@@ -962,11 +962,6 @@ export interface VillageState {
   /** Obchod se sousedy – zásoby a poptávka sousedů a výpravy (trade.md – Obchod); chybí = nic. */
   trade?: VillageTrade;
   /**
-   * Zboží zvenku (trade.md – Zboží zvenku ve vsi): sůl, železo, med (kg) a kožešiny (kusy).
-   * Chybí = žádné.
-   */
-  goods?: ForeignGoods;
-  /**
    * Ves je opuštěná (migration.md – Odchod do nové vsi): odešli z ní všichni lidé. Dál se
    * nesimuluje, obydlí se rozpadají podle dne odchodu (`abandonedVillageAt`). Žijící ves ho nemá.
    */
@@ -1050,36 +1045,16 @@ export interface Trail {
 }
 
 /**
- * Zboží obchodu (trade.md – Sousedé): obilí, maso, sýr, luštěniny (kg), dobytek (kusy – krávy),
- * klády (kusy), keramika, nástroje, uhlí (kg) a zboží zvenku – sůl, železo, med (kg) a kožešiny
- * (kusy).
+ * Zboží obchodu (trade.md – Sousedé): jen to, co ves sama má – obilí, maso, sýr, luštěniny (kg),
+ * dobytek (kusy – krávy), klády (kusy), keramika, nástroje, uhlí (kg). Zboží zvenku (sůl, železo,
+ * med, kožešiny) obchod od 19. 10. 2026 nezná (Martin: „Nech jen společné suroviny, nezaváděj
+ * nové.“) – starší vsi o něj přijdou (`withoutForeignGoods`).
  */
 export type TradeGood =
-  | 'grain'
-  | 'meat'
-  | 'cheese'
-  | 'legumes'
-  | 'cattle'
-  | 'logs'
-  | 'pottery'
-  | 'tools'
-  | 'charcoal'
-  | 'salt'
-  | 'iron'
-  | 'honey'
-  | 'furs';
+  'grain' | 'meat' | 'cheese' | 'legumes' | 'cattle' | 'logs' | 'pottery' | 'tools' | 'charcoal';
 
 /** Množství zboží (jen uvedené druhy, kg nebo kusy podle druhu). */
 export type TradeGoods = Partial<Record<TradeGood, number>>;
-
-/** Zboží zvenku ve vsi (trade.md – Zboží zvenku ve vsi). */
-export interface ForeignGoods {
-  saltKg: number;
-  ironKg: number;
-  honeyKg: number;
-  /** Kožešiny (kusy; neceločíselné – opotřebení). */
-  furs: number;
-}
 
 /**
  * Soused v jednom směru – co mu letos zbývá z nabídky a kolik ještě vezme ze sháněného
@@ -1380,15 +1355,13 @@ export interface DietDay {
     eggs: number;
     fruit: number;
     legumes?: number;
-    /** Med ze zboží zvenku (trade.md); chybí u jídla uloženého dřív = 0. */
-    honey?: number;
   };
 }
 
 /**
  * Jídlo z pole za hospodářský rok (fields.md – Kolik ves oseje, Osev podle stravy). Součty běží od
  * 1. 9. (začnou prvním 1. 9. po založení vsi, takže vždy pokrývají celý rok): potřeba energie
- * a z ní část, kterou nepokrylo maso, mléko a sýr, vejce, ovoce a med – tu musí dát pole (obilí
+ * a z ní část, kterou nepokrylo maso, mléko a sýr, vejce a ovoce – tu musí dát pole (obilí
  * a luštěniny), i když ves zrovna hladověla. 1. 9. se z nich spočítá podíl uplynulého roku.
  */
 export interface FieldFoodYear {

@@ -1,14 +1,16 @@
 // Sousedé bez simulace (docs/design/trade.md – Sousedé, varianta a): v každém z 8 směrů za krajem
-// mapy je ves se stálou povahou – 2–3 druhy zboží nabízí (přebytek), 2–3 shání. Povaha je čistá
-// funkce seedu a směru; ukládá se jen, kolik ze zásob a poptávky roku zbývá (`NeighbourStock`) –
-// 1. 11. se doplní. Až budou skutečné vsi NPC vojvodů (war.md), obchod převezmou ony.
+// mapy je ves se stálou povahou – něčím se živí (obilnáři, pastevci, lesní ves, řemeslníci), to
+// nabízí, a shání, čeho sama nemá dost; obchoduje se jen zbožím, které má i ves (Martin 19. 10.
+// 2026: „Nech jen společné suroviny, nezaváděj nové.“). Povaha je čistá funkce seedu a směru;
+// ukládá se jen, kolik ze zásob a poptávky roku zbývá (`NeighbourStock`) – 1. 11. se doplní. Až
+// budou skutečné vsi NPC vojvodů (war.md), obchod převezmou ony.
 import { dateOfDayIndex } from '../calendar';
 import { createRandom, deriveSeed, type Random } from '../landscape/random';
 import { suggestVillageName } from './names';
-import { NEIGHBOURS, TRADE, TRADE_GOOD_VALUES } from './rules';
+import { NEIGHBOR_DIRECTIONS, NEIGHBOURS, TRADE, TRADE_GOOD_VALUES } from './rules';
 import type { Direction8, NeighbourStock, TradeGood, TradeGoods, VillageState } from './types';
 
-/** Zboží obchodu v pořadí panelu (obilí a jídlo, dobytek a dřevo, výrobky, zboží zvenku). */
+/** Zboží obchodu v pořadí panelu (obilí a jídlo, dobytek a dřevo, výrobky řemesel). */
 export const TRADE_GOODS: readonly TradeGood[] = [
   'grain',
   'legumes',
@@ -19,22 +21,19 @@ export const TRADE_GOODS: readonly TradeGood[] = [
   'pottery',
   'tools',
   'charcoal',
-  'salt',
-  'iron',
-  'honey',
-  'furs',
 ];
 
-/** Zboží zvenku – ves si ho sama nevyrobí (trade.md – Zboží zvenku ve vsi). */
-export const FOREIGN_GOODS_LIST: readonly TradeGood[] = ['salt', 'iron', 'honey', 'furs'];
+/** Čím se soused živí (trade.md – Sousedé): obilnáři, pastevci, lesní ves, řemeslníci. */
+export type NeighbourKind = keyof typeof NEIGHBOURS.kinds;
 
-/** Zboží, které ves sama umí (soused shání jen to). */
-const HOME_GOODS = TRADE_GOODS.filter((g) => !FOREIGN_GOODS_LIST.includes(g));
+/** Druhy sousedů v pořadí tabulky NEIGHBOURS.kinds. */
+const NEIGHBOUR_KINDS = Object.keys(NEIGHBOURS.kinds) as NeighbourKind[];
 
 /** Stálá povaha souseda – jméno vsi, co nabízí a shání a roční zásoby a poptávka (kg / kusy). */
 export interface Neighbour {
   direction: Direction8;
   name: string;
+  kind: NeighbourKind;
   offers: TradeGood[];
   demands: TradeGood[];
   /** Zásoba nabízeného zboží na rok (doplní se 1. 11.). */
@@ -69,27 +68,32 @@ function ordered(goods: readonly TradeGood[]): TradeGood[] {
 }
 
 /**
+ * Čím se živí soused ve směru `direction`: kolem vsi je každý druh dvakrát, rozdaný do směrů
+ * deterministicky ze seedu (co ves potřebuje, to některý soused nabízí).
+ */
+export function neighbourKind(seed: number, direction: Direction8): NeighbourKind {
+  const rnd = createRandom(deriveSeed(seed, 'neighbour-kinds'));
+  const kinds = shuffled([...NEIGHBOUR_KINDS, ...NEIGHBOUR_KINDS], rnd);
+  return kinds[NEIGHBOR_DIRECTIONS.indexOf(direction)]!;
+}
+
+/**
  * Povaha souseda ve směru `direction` – deterministicky ze seedu (`seed` = seed vsi, dokud mapy
- * nemají polohu ve světě – trade.md) a směru: jedno zboží zvenku a 1–2 další nabízí, 2–3 druhy
- * zboží, které ves sama umí, shání; roční zásoba každého nabízeného zboží v hodnotě
- * NEIGHBOURS.supplyKg kg obilí, poptávka NEIGHBOURS.demandKg.
+ * nemají polohu ve světě – trade.md) a směru: podle druhu (`neighbourKind`) nabízí 2–3 druhy své
+ * nabídky a shání 2–3 druhy – `always` vždy, zbytek ze svých potřeb; roční zásoba každého
+ * nabízeného zboží v hodnotě NEIGHBOURS.supplyKg kg obilí, poptávka NEIGHBOURS.demandKg.
  */
 export function neighbourOf(seed: number, direction: Direction8): Neighbour {
+  const kind = neighbourKind(seed, direction);
+  const profile = NEIGHBOURS.kinds[kind];
   const rnd = createRandom(deriveSeed(seed, `neighbour:${direction}`));
   const offerCount = between(rnd, NEIGHBOURS.offers.min, NEIGHBOURS.offers.max);
   const demandCount = between(rnd, NEIGHBOURS.demands.min, NEIGHBOURS.demands.max);
-  const foreign = FOREIGN_GOODS_LIST[Math.floor(rnd.next() * FOREIGN_GOODS_LIST.length)]!;
-  const others = shuffled(
-    TRADE_GOODS.filter((g) => g !== foreign),
-    rnd,
-  ).slice(0, offerCount - 1);
-  const offers = ordered([foreign, ...others]);
-  const demands = ordered(
-    shuffled(
-      HOME_GOODS.filter((g) => !offers.includes(g)),
-      rnd,
-    ).slice(0, demandCount),
-  );
+  const offers = ordered(shuffled(profile.offers, rnd).slice(0, offerCount));
+  const demands = ordered([
+    profile.always,
+    ...shuffled(profile.needs, rnd).slice(0, demandCount - 1),
+  ]);
   const supply: TradeGoods = {};
   for (const good of offers) {
     const { from, to } = NEIGHBOURS.supplyKg;
@@ -101,7 +105,7 @@ export function neighbourOf(seed: number, direction: Direction8): Neighbour {
     demand[good] = amountWorth(good, from + (to - from) * rnd.next());
   }
   const name = suggestVillageName(deriveSeed(seed, `neighbour-name:${direction}`));
-  return { direction, name, offers, demands, supply, demand };
+  return { direction, name, kind, offers, demands, supply, demand };
 }
 
 /** Rok obchodu – herní rok posledního doplnění zásob sousedů (1. 11.) do dne `day` včetně. */

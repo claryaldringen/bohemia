@@ -12,7 +12,6 @@ import {
   CRAFT_PRODUCTION,
   DOMESTIC,
   DWELLING_FOOTPRINT_M,
-  IRON_SMITHING,
   MILIR,
   WORKSHOP_PORCH_M,
 } from './rules';
@@ -21,7 +20,6 @@ import type {
   CraftCoverage,
   CraftStocks,
   Dwelling,
-  ForeignGoods,
   Position,
   VillageState,
   Workshop,
@@ -440,48 +438,18 @@ function workWithWood(
   return { felling, fellingTrees, making, producedKg, activity };
 }
 
-/**
- * Den kováře (mutuje stav): kuje, dokud má práci a uhlí – bez uhlí stojí. Koupené železo
- * (trade.md – Zboží zvenku) bere přednostně: z něj jen kuje (IRON_SMITHING – méně práce i uhlí,
- * žádná ruda), zbytek práce jde na rudu a tavení jako dřív.
- */
-function workSmith(
-  stocks: CraftStocks,
-  workshop: Workshop,
-  labor: number,
-  goods?: ForeignGoods,
-): WorkshopOutput {
-  let left = labor;
-  let made = 0;
-  let making = 0;
-  if (goods && goods.ironKg > EPSILON) {
-    const fromIron = Math.max(
-      0,
-      Math.min(
-        left / IRON_SMITHING.manDaysPerKg,
-        stocks.charcoalKg / IRON_SMITHING.charcoalKgPerKg,
-        goods.ironKg / IRON_SMITHING.ironKgPerKg,
-      ),
-    );
-    stocks.toolsKg += fromIron;
-    stocks.charcoalKg = Math.max(0, stocks.charcoalKg - fromIron * IRON_SMITHING.charcoalKgPerKg);
-    goods.ironKg = Math.max(0, goods.ironKg - fromIron * IRON_SMITHING.ironKgPerKg);
-    left = Math.max(0, left - fromIron * IRON_SMITHING.manDaysPerKg);
-    made += fromIron;
-    making += fromIron * IRON_SMITHING.manDaysPerKg;
-  }
+/** Den kováře (mutuje stav): kuje, dokud má práci a uhlí – bez uhlí stojí. */
+function workSmith(stocks: CraftStocks, workshop: Workshop, labor: number): WorkshopOutput {
   const manDaysPerKg = CRAFT_PRODUCTION.toolManDaysPerKg * oreFactor(workshop);
   const kg = Math.max(
     0,
-    Math.min(left / manDaysPerKg, stocks.charcoalKg / CRAFT_PRODUCTION.toolCharcoalKgPerKg),
+    Math.min(labor / manDaysPerKg, stocks.charcoalKg / CRAFT_PRODUCTION.toolCharcoalKgPerKg),
   );
   stocks.toolsKg += kg;
   stocks.charcoalKg = Math.max(0, stocks.charcoalKg - kg * CRAFT_PRODUCTION.toolCharcoalKgPerKg);
-  made += kg;
-  making += kg * manDaysPerKg;
   const activity: WorkshopActivity =
-    labor <= EPSILON ? 'idle' : made > EPSILON ? 'producing' : 'no-charcoal';
-  return { felling: 0, fellingTrees: [], making, producedKg: made, activity };
+    labor <= EPSILON ? 'idle' : kg > EPSILON ? 'producing' : 'no-charcoal';
+  return { felling: 0, fellingTrees: [], making: kg * manDaysPerKg, producedKg: kg, activity };
 }
 
 /** Přirážka za rudu nebo hlínu dál od potoka (+1 % za 10 m nad 100 m – crafts.md). */
@@ -569,7 +537,7 @@ export function workCrafts(
     }
     let output: WorkshopOutput;
     if (workshop.craft === 'smith') {
-      output = workSmith(stocks, workshop, labor.craft, state.goods);
+      output = workSmith(stocks, workshop, labor.craft);
     } else {
       output = workWithWood(
         state,

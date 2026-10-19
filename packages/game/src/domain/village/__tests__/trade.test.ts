@@ -18,10 +18,11 @@ import {
   startExpedition,
   tradeQuote,
   villageGoodStock,
+  withoutForeignGoods,
   workExpeditions,
 } from '../trade';
 import { finishTrail, startTrail, trailTripDays } from '../trail';
-import type { Direction8, TradeGood, TradeGoods, VillageState } from '../types';
+import type { Direction8, NeighbourStock, TradeGood, TradeGoods, VillageState } from '../types';
 import { LANDSCAPE } from './paths-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
@@ -67,8 +68,8 @@ function fairOffer(
 describe('ceny výměny', () => {
   it('sháněné zboží soused bere za hodnotu, nabízené prodá za 0,96 hodnoty', () => {
     expect(sellPrice('cheese')).toBeCloseTo(4);
-    expect(buyPrice('salt')).toBeCloseTo(8 * 1.2 * 0.8);
-    expect(buyPrice('iron')).toBeCloseTo(30 * 0.96);
+    expect(buyPrice('tools')).toBeCloseTo(60 * 1.2 * 0.8);
+    expect(buyPrice('cattle')).toBeCloseTo(600 * 0.96);
     expect(TRADE.markup).toBe(0.2);
   });
 });
@@ -180,5 +181,88 @@ describe('výprava', () => {
     const next = advanceVillage(s, DAY + 1, null, LANDSCAPE);
     const share = next.labor!.shares.find((x) => x.activity === 'trade');
     expect(share?.target).toEqual({ kind: 'trail', id: s.trails![0]!.id });
+  });
+});
+
+describe('starší vsi bez zboží zvenku (trade.md – Jen společné suroviny)', () => {
+  /** Ves uložená před 19. 10. 2026: zásoby zvenku, med v jídle, soused se solí, výprava pro sůl. */
+  function legacy(): VillageState {
+    const s = startExpedition(trading(), DAY, { direction: 'S', ...fairOffer(trading(), 'S') });
+    const e = s.trade!.expeditions[0]!;
+    const old = s as unknown as Record<string, unknown>;
+    old.goods = { saltKg: 12, ironKg: 3, honeyKg: 40, furs: 2 };
+    s.diet = {
+      energy: 1,
+      protein: 1,
+      diversity: 1,
+      satiation: 1,
+      shares: { grain: 0.9, meat: 0, dairy: 0, eggs: 0, fruit: 0, legumes: 0, honey: 0.05 },
+    } as VillageState['diet'];
+    s.trade!.neighbours = [
+      { direction: 'S', season: 599, supply: { salt: 80, grain: 400 }, demand: { cheese: 100 } },
+    ] as unknown as NeighbourStock[];
+    e.get = { salt: 10, grain: 5 } as TradeGoods;
+    s.chronicle.push({
+      day: DAY - 30,
+      kind: 'trade-returned',
+      direction: 'S',
+      get: {
+        salt: 20,
+        cheese: 3,
+      } as TradeGoods,
+    });
+    return s;
+  }
+
+  it('zásoby zvenku a med zmizí, soused se solí začne rok znovu, výprava pro sůl se ruší', () => {
+    const s = legacy();
+    const give = { ...s.trade!.expeditions[0]!.give };
+    const next = withoutForeignGoods(s);
+    expect('goods' in next).toBe(false);
+    expect(next.diet!.shares).toEqual({
+      grain: 0.9,
+      meat: 0,
+      dairy: 0,
+      eggs: 0,
+      fruit: 0,
+      legumes: 0,
+    });
+    // zbytek roku, který nesedí na povahu souseda, se zahodí – plné roční zásoby
+    expect(next.trade!.neighbours).toEqual([]);
+    expect(neighbourStock(next, 'S', DAY).supply).toEqual(neighbourOf(next.seed, 'S').supply);
+    // nosiči přinesou zpět, co nesli
+    expect(next.trade!.expeditions[0]!.give).toEqual(give);
+    expect(next.trade!.expeditions[0]!.get).toEqual(give);
+    expect(next.chronicle.at(-1)).toEqual({
+      day: DAY - 30,
+      kind: 'trade-returned',
+      direction: 'S',
+      get: { cheese: 3 },
+    });
+    // vstupní stav beze změny, převod je idempotentní
+    expect((s as unknown as Record<string, unknown>).goods).toBeDefined();
+    expect(withoutForeignGoods(next)).toBe(next);
+    // ves bez zboží zvenku se nemění (tentýž objekt – nic se neukládá)
+    const fresh = startExpedition(trading(), DAY, { direction: 'S', ...fairOffer(trading(), 'S') });
+    expect(withoutForeignGoods(fresh)).toBe(fresh);
+  });
+
+  it('v simulaci: vrácená výprava vrátí dané zboží, nezávisle na kouscích dopočtu', () => {
+    const s = legacy();
+    const [good, amount] = Object.entries(s.trade!.expeditions[0]!.give)[0] as [TradeGood, number];
+    const before = villageGoodStock(s, good);
+    const whole = advanceVillage(s, DAY + 40, null, LANDSCAPE);
+    expect('goods' in whole).toBe(false);
+    const returned = whole.chronicle.filter((ev) => ev.kind === 'trade-returned').at(-1);
+    expect(returned).toMatchObject({ direction: 'S', get: { [good]: amount } });
+    expect(whole.trade!.expeditions).toHaveLength(0);
+    let parts = s;
+    for (const step of [0, 1, 3, 17, 40])
+      parts = advanceVillage(parts, DAY + step, null, LANDSCAPE);
+    expect(parts).toEqual(whole);
+    // zboží se vrátilo (obilí, maso a sýr se mezitím jedí – jen krávy, klády a výrobky drží)
+    if (good === 'cattle' || good === 'logs' || good === 'tools' || good === 'pottery') {
+      expect(villageGoodStock(whole, good)).toBeGreaterThanOrEqual(before - 1);
+    }
   });
 });

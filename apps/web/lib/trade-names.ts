@@ -20,7 +20,7 @@ export const DIRECTION_NAMES: Record<
 
 /**
  * Zboží – název, jednotka (kg nebo kusy) a ikona v `public/icons/resources/`; 2. pád množného
- * čísla pro věty kroniky („kg soli“).
+ * čísla pro věty kroniky („kg obilí“).
  */
 export const TRADE_GOOD_NAMES: Record<
   TradeGood,
@@ -35,13 +35,9 @@ export const TRADE_GOOD_NAMES: Record<
   pottery: { name: 'Keramika', genitive: 'keramiky', unit: 'kg', icon: 'pottery' },
   tools: { name: 'Nástroje', genitive: 'nástrojů', unit: 'kg', icon: 'tools' },
   charcoal: { name: 'Uhlí', genitive: 'uhlí', unit: 'kg', icon: 'charcoal' },
-  salt: { name: 'Sůl', genitive: 'soli', unit: 'kg', icon: 'salt' },
-  iron: { name: 'Železo', genitive: 'železa', unit: 'kg', icon: 'iron' },
-  honey: { name: 'Med', genitive: 'medu', unit: 'kg', icon: 'honey' },
-  furs: { name: 'Kožešiny', genitive: 'kožešin', unit: 'ks', icon: 'furs' },
 };
 
-/** Množství zboží s jednotkou („120 kg soli“, „2 ks krav“) – pro kroniku. */
+/** Množství zboží s jednotkou („120 kg obilí“, „2 ks krav“) – pro kroniku. */
 export function goodsText(goods: TradeGoods): string {
   const items = (Object.entries(goods) as [TradeGood, number][])
     .filter(([, amount]) => amount > 0)

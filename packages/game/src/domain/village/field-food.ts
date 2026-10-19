@@ -3,7 +3,7 @@ import { FIELD_FOOD, FOOD_NEED_KG_PER_YEAR, SOW_RESERVE, STORES_HIGH_YEARS } fro
 import type { DietDay, VillageState } from './types';
 
 // Osev podle stravy (fields.md – Kolik ves oseje; Martin 19. 10. 2026: „Zatím udělejme osev podle
-// stravy“). Ves nejí jen obilí – maso, mléko a sýr, vejce, ovoce a med pokryjí velkou část energie
+// stravy“). Ves nejí jen obilí – maso, mléko a sýr, vejce a ovoce pokryjí velkou část energie
 // (diet.md) a obilí s luštěninami jen dorovná zbytek. Kolik toho zbytku za uplynulý hospodářský
 // rok (1. 9. – 31. 8.) potřebovala, tolik (podílem dnešní potřeby) oseje na příští rok – nejméně
 // podíl FIELD_FOOD.minShare (pojistka – co maso a mléko na stropech nepokryjí). Měří se potřeba, ne
@@ -20,12 +20,12 @@ export function yearlyFoodNeed(state: Pick<VillageState, 'people'>, day: number)
 }
 
 /**
- * Podíl potřeby energie, který dnes nepokrylo jídlo mimo pole (maso, mléko a sýr, vejce, ovoce,
- * med) – ten musí dát obilí a luštěniny (0–1).
+ * Podíl potřeby energie, který dnes nepokrylo jídlo mimo pole (maso, mléko a sýr, vejce, ovoce) –
+ * ten musí dát obilí a luštěniny (0–1).
  */
 export function fieldShareOf(diet: DietDay): number {
-  const { meat, dairy, eggs, fruit, honey = 0 } = diet.shares;
-  return Math.max(0, 1 - (meat + dairy + eggs + fruit + honey));
+  const { meat, dairy, eggs, fruit } = diet.shares;
+  return Math.max(0, 1 - (meat + dairy + eggs + fruit));
 }
 
 /**

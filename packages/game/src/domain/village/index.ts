@@ -97,7 +97,6 @@ export * from './road-upgrades';
 export * from './trail';
 export * from './neighbours';
 export * from './trade';
-export * from './goods';
 // jabloně u cest – kroky simulace (práce a dokončení výsadby) zůstávají uvnitř
 export {
   roadAppleSpots,

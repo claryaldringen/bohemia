@@ -236,9 +236,15 @@ describe('vstup stezky a obchodu (trade.md)', () => {
   it('výprava: známé zboží, celá nezáporná množství', async () => {
     const { parseSendExpeditionInput } = await import('../village-input');
     expect(
-      parseSendExpeditionInput({ direction: 'N', give: { grain: 100, salt: 0 }, get: { iron: 2 } }),
-    ).toEqual({ direction: 'N', give: { grain: 100 }, get: { iron: 2 } });
+      parseSendExpeditionInput({
+        direction: 'N',
+        give: { grain: 100, logs: 0 },
+        get: { tools: 2 },
+      }),
+    ).toEqual({ direction: 'N', give: { grain: 100 }, get: { tools: 2 } });
     expect(parseSendExpeditionInput({ direction: 'N', give: { gold: 1 }, get: {} })).toBeNull();
+    // zboží zvenku obchod nezná (trade.md – Jen společné suroviny)
+    expect(parseSendExpeditionInput({ direction: 'N', give: {}, get: { salt: 1 } })).toBeNull();
     expect(parseSendExpeditionInput({ direction: 'N', give: { grain: -1 }, get: {} })).toBeNull();
     expect(parseSendExpeditionInput({ direction: 'N', give: { grain: 1.5 }, get: {} })).toBeNull();
   });

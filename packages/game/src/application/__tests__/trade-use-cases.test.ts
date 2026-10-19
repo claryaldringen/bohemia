@@ -14,6 +14,7 @@ import { LANDSCAPE } from '../../domain/village/__tests__/paths-fixtures';
 import { withBuiltFirstDwelling } from '../../domain/village/__tests__/village-fixtures';
 import { UNKNOWN_DIRECTION, buildTrail } from '../build-trail';
 import { foundVillageForSettlement } from '../found-village';
+import { loadVillage } from '../load-village';
 import { OWN_VILLAGE_TRADE, sendExpedition } from '../send-expedition';
 import { InMemoryVillages } from './in-memory-villages';
 
@@ -96,5 +97,36 @@ describe('sendExpedition', () => {
     expect(sent.ok).toBe(true);
     if (!sent.ok) return;
     expect(sent.village.state.trade!.expeditions).toHaveLength(1);
+  });
+});
+
+describe('starší ves se zbožím zvenku (trade.md – Jen společné suroviny)', () => {
+  it('načtení dopočítané vsi zboží zvenku zahodí a uloží', async () => {
+    const { villages, villageId } = await settled();
+    villages.edit(villageId, (state) => {
+      (state as unknown as Record<string, unknown>).goods = {
+        saltKg: 5,
+        ironKg: 0,
+        honeyKg: 10,
+        furs: 1,
+      };
+    });
+    const before = (await villages.find(villageId))!;
+    expect(before.state.lastDay).toBe(TODAY);
+    const loaded = await loadVillage(
+      { villages },
+      { villageId, today: TODAY, landscape: LANDSCAPE },
+    );
+    expect(loaded).not.toBeNull();
+    expect('goods' in loaded!.state).toBe(false);
+    expect(loaded!.version).toBeGreaterThan(before.version);
+    const stored = (await villages.find(villageId))!;
+    expect('goods' in stored.state).toBe(false);
+    // podruhé už se nic neukládá
+    const again = await loadVillage(
+      { villages },
+      { villageId, today: TODAY, landscape: LANDSCAPE },
+    );
+    expect(again!.version).toBe(stored.version);
   });
 });

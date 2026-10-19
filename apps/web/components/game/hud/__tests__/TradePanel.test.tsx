@@ -13,8 +13,8 @@ const neighbour = (over: Partial<VillageNeighbour> = {}): VillageNeighbour => ({
   lengthM: 820,
   tripDays: 5,
   offers: [
-    { good: 'salt', price: 7.68, left: 120 },
-    { good: 'iron', price: 28.8, left: 30 },
+    { good: 'pottery', price: 2.88, left: 120 },
+    { good: 'tools', price: 57.6, left: 30 },
   ],
   demands: [
     { good: 'grain', price: 1, left: 1500, have: 900 },
@@ -29,14 +29,14 @@ const button = (html: string, testId: string): string | undefined =>
 
 describe('náhled výměny', () => {
   it('bilance, nosiči po 25 kg a práce nosiči × dny', () => {
-    const p = tradePreview(neighbour(), { grain: 100 }, { salt: 10 });
+    const p = tradePreview(neighbour(), { grain: 100 }, { pottery: 25 });
     expect(p.credit).toBe(100);
-    expect(p.price).toBe(77);
-    expect(p.balance).toBe(23);
+    expect(p.price).toBe(72);
+    expect(p.balance).toBe(28);
     expect(p.porters).toBe(4);
     expect(p.manDays).toBe(20);
     expect(p.blocked).toBeNull();
-    expect(tradePreview(neighbour(), { grain: 10 }, { iron: 1 }).blocked).toMatch(/prodělal/);
+    expect(tradePreview(neighbour(), { grain: 10 }, { tools: 1 }).blocked).toMatch(/prodělal/);
     expect(tradePreview(neighbour(), {}, {}).blocked).toMatch(/nic/);
   });
 });
@@ -50,7 +50,7 @@ describe('panel obchodu', () => {
     expect(html).toContain('data-testid="trade-give-grain"');
     expect(html).toContain('max="900"');
     expect(html).toContain('max="40"');
-    expect(html).toContain('data-testid="trade-get-salt"');
+    expect(html).toContain('data-testid="trade-get-pottery"');
     expect(html).toContain('max="120"');
     // bez zboží se posílat nedá
     expect(button(html, 'trade-send')).toContain('disabled=""');
@@ -74,7 +74,7 @@ describe('panel obchodu', () => {
       <NeighbourTrade
         neighbour={neighbour()}
         onSend={() => undefined}
-        initial={{ give: { grain: 100 }, get: { salt: 10 } }}
+        initial={{ give: { grain: 100 }, get: { pottery: 25 } }}
       />,
     );
     expect(fair).toContain('data-fair="true"');
@@ -83,7 +83,7 @@ describe('panel obchodu', () => {
       <NeighbourTrade
         neighbour={neighbour()}
         onSend={() => undefined}
-        initial={{ give: { grain: 10 }, get: { iron: 1 } }}
+        initial={{ give: { grain: 10 }, get: { tools: 1 } }}
       />,
     );
     expect(unfair).toContain('data-fair="false"');
@@ -98,7 +98,7 @@ describe('panel obchodu', () => {
           neighbour({
             expedition: {
               give: { grain: 100 },
-              get: { salt: 10 },
+              get: { pottery: 25 },
               porters: 4,
               days: 5,
               progress: 0.4,

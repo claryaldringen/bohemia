@@ -85,10 +85,9 @@ function planEnergy(s: VillageState, day: number): number {
 }
 
 describe('podíl jídla z pole', () => {
-  it('pole dá, co nepokryje maso, mléko a sýr, vejce, ovoce a med – nejméně nic', () => {
+  it('pole dá, co nepokryje maso, mléko a sýr, vejce a ovoce – nejméně nic', () => {
     const mixed = diet({ grain: 0.3, meat: 0.4, dairy: 0.2, eggs: 0.05, fruit: 0.05 });
     expect(fieldShareOf(mixed)).toBeCloseTo(0.3, 12);
-    expect(fieldShareOf(diet({ meat: 0.4, honey: 0.05 }))).toBeCloseTo(0.55, 12);
     // luštěniny a obilí jsou z pole – podíl neubírají
     expect(fieldShareOf(diet({ grain: 0.5, legumes: 0.25 }))).toBe(1);
     expect(fieldShareOf(diet({ meat: 0.4, dairy: 0.3, fruit: 0.25, eggs: 0.1 }))).toBe(0);

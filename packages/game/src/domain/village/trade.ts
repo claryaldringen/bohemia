@@ -3,16 +3,18 @@
 // levněji; bilance hodnoty musí být pro souseda nezáporná. Zboží nesou nosiči po stezce (25 kg
 // na člověka, dobytek se žene), cesta tam a zpět 2–6 dní podle délky stezky + 1 den za krajem
 // mapy; práce nosičů jde ze společné práce vsi (jako stavba) a zboží dorazí, až se vrátí. Jedna
-// výprava na souseda naráz. Čisté funkce bez I/O.
+// výprava na souseda naráz. Obchoduje se jen zbožím, které má i ves (Martin 19. 10. 2026: „Nech jen
+// společné suroviny, nezaváděj nové.“) – starší vsi o zboží zvenku přijdou (`withoutForeignGoods`).
+// Čisté funkce bez I/O.
 import { startingLivestock } from './livestock';
 import { addLogs, woodLogs } from './wood';
-import { FOREIGN_GOODS_LIST, TRADE_GOODS, neighbourOf, neighbourStock } from './neighbours';
+import { TRADE_GOODS, neighbourOf, neighbourStock } from './neighbours';
 import { TRADE, TRADE_GOOD_VALUES } from './rules';
 import { builtTrail, trailTripDays } from './trail';
 import type {
   ChronicleEvent,
+  DietDay,
   Direction8,
-  ForeignGoods,
   NeighbourStock,
   TradeExpedition,
   TradeGood,
@@ -33,21 +35,9 @@ export function buyPrice(good: TradeGood): number {
   return TRADE_GOOD_VALUES[good].valueKg * (1 + TRADE.markup) * (1 - TRADE.offerDiscount);
 }
 
-/** Zboží zvenku ve vsi (starší vsi bez něj nic). */
-export function villageGoods(state: Pick<VillageState, 'goods'>): ForeignGoods {
-  return state.goods ?? { saltKg: 0, ironKg: 0, honeyKg: 0, furs: 0 };
-}
-
-const FOREIGN_KEYS: Record<'salt' | 'iron' | 'honey' | 'furs', keyof ForeignGoods> = {
-  salt: 'saltKg',
-  iron: 'ironKg',
-  honey: 'honeyKg',
-  furs: 'furs',
-};
-
 /**
  * Kolik zboží ves má k obchodu (celé kusy a kg): obilí, maso, sýr a luštěniny ze zásob, krávy
- * (chovný pár zůstane – TRADE.keepCows), celé klády z hromady, výrobky řemesel a zboží zvenku.
+ * (chovný pár zůstane – TRADE.keepCows), celé klády z hromady a výrobky řemesel.
  */
 export function villageGoodStock(state: VillageState, good: TradeGood): number {
   switch (good) {
@@ -69,8 +59,6 @@ export function villageGoodStock(state: VillageState, good: TradeGood): number {
       return Math.floor(state.crafts?.toolsKg ?? 0);
     case 'charcoal':
       return Math.floor(state.crafts?.charcoalKg ?? 0);
-    default:
-      return Math.floor(villageGoods(state)[FOREIGN_KEYS[good]]);
   }
 }
 
@@ -105,12 +93,6 @@ function addGood(state: VillageState, good: TradeGood, amount: number): void {
       const crafts = (state.crafts ??= { charcoalKg: 0, toolsKg: 0, potteryKg: 0 });
       const key = good === 'pottery' ? 'potteryKg' : good === 'tools' ? 'toolsKg' : 'charcoalKg';
       crafts[key] = Math.max(0, crafts[key] + amount);
-      return;
-    }
-    default: {
-      const goods = (state.goods ??= { saltKg: 0, ironKg: 0, honeyKg: 0, furs: 0 });
-      const key = FOREIGN_KEYS[good];
-      goods[key] = Math.max(0, goods[key] + amount);
     }
   }
 }
@@ -310,7 +292,93 @@ export function finishExpeditions(state: VillageState, day: number): ChronicleEv
   return events;
 }
 
-/** Zboží zvenku, které ves koupit může (pro horní lištu a panel). */
-export function isForeignGood(good: TradeGood): boolean {
-  return FOREIGN_GOODS_LIST.includes(good);
+/** Zboží, které obchod zná – uložené vsi mohou mít v obchodu ještě zboží zvenku (sůl, med…). */
+function isTradeGood(key: string): key is TradeGood {
+  return (TRADE_GOODS as readonly string[]).includes(key);
+}
+
+/** Zboží obsahuje druh, který obchod nezná. */
+function hasForeign(goods: TradeGoods): boolean {
+  return Object.keys(goods).some((key) => !isTradeGood(key));
+}
+
+/** Jen zboží, které obchod zná (nový objekt). */
+function knownGoods(goods: TradeGoods): TradeGoods {
+  return Object.fromEntries(Object.entries(goods).filter(([key]) => isTradeGood(key)));
+}
+
+/** Druhy zboží jsou přesně `goods` (bez ohledu na pořadí). */
+function sameGoods(stock: TradeGoods, goods: readonly TradeGood[]): boolean {
+  const keys = Object.keys(stock);
+  return keys.length === goods.length && goods.every((g) => g in stock);
+}
+
+/** Uložený zbytek roku souseda sedí na jeho povahu – nabídka i poptávka mají jeho druhy zboží. */
+function fitsNeighbour(stock: NeighbourStock, seed: number): boolean {
+  const neighbour = neighbourOf(seed, stock.direction);
+  return sameGoods(stock.supply, neighbour.offers) && sameGoods(stock.demand, neighbour.demands);
+}
+
+/** Událost kroniky o výpravě se zbožím, které obchod nezná. */
+function foreignTradeEvent(event: ChronicleEvent): boolean {
+  return (
+    (event.kind === 'trade-departed' && hasForeign(event.give)) ||
+    (event.kind === 'trade-returned' && hasForeign(event.get))
+  );
+}
+
+/**
+ * Ves bez zboží zvenku (trade.md – Jen společné suroviny; Martin 19. 10. 2026: „Nech jen společné
+ * suroviny, nezaváděj nové.“). Starší ves přijde o zásoby soli, železa, medu a kožešin
+ * (`VillageState.goods`) a o podíl medu v posledním jídle; uložený zbytek roku souseda, který
+ * nesedí na jeho dnešní povahu (soused nabízel zboží zvenku), se zahodí – soused má do 1. 11. plné
+ * roční zásoby a poptávku. Výprava na cestě, která měla přinést zboží zvenku, se ruší celá: nosiči
+ * přinesou zpět, co nesli (`get` = `give`), ves nic neztratí ani nezíská. Z kroniky výprav zboží
+ * zvenku zmizí. Bez čeho převádět, vrátí tentýž objekt; idempotentní (jako `withKinship`).
+ */
+export function withoutForeignGoods(state: VillageState): VillageState {
+  const legacy = state as VillageState & { goods?: unknown };
+  const shares = state.diet?.shares as (DietDay['shares'] & { honey?: number }) | undefined;
+  const trade = state.trade;
+  const staleStocks = trade?.neighbours.some((n) => !fitsNeighbour(n, state.seed)) ?? false;
+  const foreignExpeditions =
+    trade?.expeditions.some((e) => hasForeign(e.give) || hasForeign(e.get)) ?? false;
+  const foreignEvents = state.chronicle.some(foreignTradeEvent);
+  if (
+    legacy.goods === undefined &&
+    shares?.honey === undefined &&
+    !staleStocks &&
+    !foreignExpeditions &&
+    !foreignEvents
+  ) {
+    return state;
+  }
+  const next: VillageState & { goods?: unknown } = { ...state };
+  delete next.goods;
+  if (state.diet && shares?.honey !== undefined) {
+    const { grain, meat, dairy, eggs, fruit, legumes } = shares;
+    next.diet = {
+      ...state.diet,
+      shares: { grain, meat, dairy, eggs, fruit, ...(legumes !== undefined ? { legumes } : {}) },
+    };
+  }
+  if (trade && (staleStocks || foreignExpeditions)) {
+    next.trade = {
+      ...trade,
+      neighbours: trade.neighbours.filter((n) => fitsNeighbour(n, state.seed)),
+      expeditions: trade.expeditions.map((e) =>
+        hasForeign(e.give) || hasForeign(e.get)
+          ? { ...e, give: knownGoods(e.give), get: knownGoods(hasForeign(e.get) ? e.give : e.get) }
+          : e,
+      ),
+    };
+  }
+  if (foreignEvents) {
+    next.chronicle = state.chronicle.map((event) => {
+      if (event.kind === 'trade-departed') return { ...event, give: knownGoods(event.give) };
+      if (event.kind === 'trade-returned') return { ...event, get: knownGoods(event.get) };
+      return event;
+    });
+  }
+  return next;
 }

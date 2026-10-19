@@ -90,8 +90,7 @@ import { inLuckyYears, nextStarvationDays, populationDay } from './population';
 import { dailyMinPerHousehold } from './productivity';
 import { moveRelocatedHousehold, relocatingHouseholds } from './relocation';
 import { keepManor, villageManorId } from './manor';
-import { goodsDay } from './goods';
-import { finishExpeditions, workExpeditions } from './trade';
+import { finishExpeditions, withoutForeignGoods, workExpeditions } from './trade';
 import { finishTrail, trailsDay } from './trail';
 import { isVillageDormant } from './departure';
 import { recordRuins, updateRuins } from './ruins';
@@ -222,8 +221,9 @@ export function* advanceVillageSteps(
   if (toDay < state.lastDay) {
     throw new RangeError(`Ves je dopočítaná do dne ${state.lastDay}, nelze zpět na ${toDay}.`);
   }
-  // ves z doby před příbuzenstvím dostane pohlaví a manžele (kinship.md) – jednou, idempotentně
-  const next = cloneState(withKinship(state));
+  // ves z doby před příbuzenstvím dostane pohlaví a manžele (kinship.md) a ves ze zboží zvenku
+  // o něj přijde (trade.md – Jen společné suroviny) – jednou, idempotentně
+  const next = cloneState(withoutForeignGoods(withKinship(state)));
   // vymřelá, opuštěná a ves na cestě se nesimulují – jen se posune den (migration.md)
   for (let day = next.lastDay + 1; day <= toDay && !isVillageDormant(next); day++) {
     simulateDay(next, day, obstacles, landscape);
@@ -274,8 +274,6 @@ function simulateDay(
   // zemské stezky – dostavěné úseky od vsi ven hned vylepšené, vrácené výpravy (trade.md)
   trailsDay(state);
   state.chronicle.push(...finishExpeditions(state, day));
-  // sůl se jí, kožešiny se opotřebí (trade.md – Zboží zvenku)
-  goodsDay(state);
   finishConstructions(state, day);
   // dvorec vojvody – po zániku dvorce nejstarší obydlí, starší ves dvorec dostane (trade.md)
   keepManor(state);
@@ -1251,8 +1249,6 @@ function eat(
     milkEnergy: milk.energy * milked,
     eggsKg: dailyEggsKg(state),
     legumesKg: villageLegumesKg(state),
-    // med ze zboží zvenku (trade.md)
-    honeyKg: state.goods?.honeyKg ?? 0,
     daysToLegumeHarvest: daysUntilLegumeHarvest(day),
     needPerDay: need,
     proteinNeedPerDay: villageProteinNeed(state, day),
@@ -1275,7 +1271,6 @@ function eat(
   if (state.cheeseKg !== undefined || meal.cheeseKg > 0) state.cheeseKg = meal.cheeseKg;
   if (state.legumesKg !== undefined || meal.legumesKg > 0) state.legumesKg = meal.legumesKg;
   if (state.applesKg !== undefined) state.applesKg = meal.fruitKg;
-  if (state.goods) state.goods.honeyKg = meal.honeyKg;
   state.diet = meal.diet;
   // kolik z dnešní potřeby musí dát pole – podle toho ves k 1. 9. oseje (fields.md – Kolik ves
   // oseje, Osev podle stravy)
@@ -1288,8 +1283,7 @@ function eat(
   return {
     satiation: meal.diet.satiation,
     energy: meal.diet.energy,
-    // med štěstí přidá jako ovoce (trade.md – Zboží zvenku)
-    fruit: meal.diet.shares.fruit > 0 || (meal.diet.shares.honey ?? 0) > 0,
+    fruit: meal.diet.shares.fruit > 0,
     meat: meal.diet.shares.meat,
   };
 }
