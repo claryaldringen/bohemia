@@ -50,6 +50,14 @@ export interface FieldContent {
   plants: FieldPlants;
 }
 
+/**
+ * Přidá všechny prvky `source` na konec `target` (mutuje `target`). Ne `push(...source)` – velké
+ * pole (desítky tisíc trsů obilí na poli) by přeteklo zásobník.
+ */
+export function appendAll<T>(target: T[], source: readonly T[]): void {
+  for (const item of source) target.push(item);
+}
+
 /** Klíč bloku dílu podle políčka. */
 export function fieldBlockOf(cell: { x: number; y: number }): string {
   return `${Math.floor(cell.x / FIELD_BLOCK)},${Math.floor(cell.y / FIELD_BLOCK)}`;
@@ -165,21 +173,21 @@ export function mergeFieldBlocks(
         };
         layers.set(key, entry);
       }
-      entry.grids.push(...layer.grids);
-      entry.colors.push(...layer.colors);
-      entry.alphas.push(...layer.alphas);
+      appendAll(entry.grids, layer.grids);
+      appendAll(entry.colors, layer.colors);
+      appendAll(entry.alphas, layer.alphas);
     }
-    swaths.push(...block.swaths);
+    appendAll(swaths, block.swaths);
     for (const [cell, part] of block.plants) byCell.set(cell, part);
   }
   for (const view of views) {
     const part = byCell.get(cellKey(view.part.cell));
     if (!part) continue;
-    for (const kind of CROP_KINDS) plants.crops[kind].push(...part.crops[kind]);
-    plants.stooks.push(...part.stooks);
-    plants.heaps.push(...part.heaps);
-    plants.weeds.push(...part.weeds);
-    plants.hay.push(...part.hay);
+    for (const kind of CROP_KINDS) appendAll(plants.crops[kind], part.crops[kind]);
+    appendAll(plants.stooks, part.stooks);
+    appendAll(plants.heaps, part.heaps);
+    appendAll(plants.weeds, part.weeds);
+    appendAll(plants.hay, part.hay);
   }
   return { layers, swaths, plants };
 }

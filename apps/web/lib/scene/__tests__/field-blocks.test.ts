@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { SceneFieldPart } from '../../village-view';
 import {
   FIELD_BLOCK,
+  appendAll,
   fieldBlockContent,
   fieldBlockOf,
   groupFieldBlocks,
@@ -99,4 +100,14 @@ describe('pole po blocích dílů', () => {
       );
     });
   }
+});
+
+describe('appendAll', () => {
+  it('přidá i pole se statisíci prvky – push(...pole) by přeteklo zásobník (Vlkov)', () => {
+    const big = Array.from({ length: 500_000 }, (_, i) => i);
+    const target = [-1];
+    appendAll(target, big);
+    expect(target).toHaveLength(500_001);
+    expect(target[500_000]).toBe(499_999);
+  });
 });
