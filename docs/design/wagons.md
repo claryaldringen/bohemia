@@ -40,7 +40,7 @@ serpentiny.“ Vozy vyrábí nový řemeslník **tesař** (Martin).
 - **Podle potřeby a volný čas** jako kovář a hrnčíř (crafts.md – Podle potřeby): vyrábí do zásoby
   podle potřeby vsi, s plnou zásobou (nebo bez klád) pracuje se vsí.
 - **Co vyrábí:**
-  1. **Vozy** – tolik, kolik ves potřebuje (návrh: jeden vůz na spřežení); vůz se opotřebí
+  1. **Vozy** – tolik, kolik ves potřebuje: **jeden vůz na spřežení**; vůz se opotřebí
      a doslouží (návrh ≈ 10 let – rešerše), tesař vyrobí nový.
   2. **Dřevěné nářadí** (hrábě, vidle, jha, kádě, topůrka, rádla) – zásoba v kg jako nástroje
      kováře, potřeba na pracujícího a opotřebení ročně (rešerše).
@@ -77,7 +77,7 @@ serpentiny.“ Vozy vyrábí nový řemeslník **tesař** (Martin).
   stoupání dražší. Proto nejlevnější cesta do svahu vede šikmo a **serpentiny vzniknou samy**.
   Pěšák jde dál rovně (jeho síť se nemění).
 - **Les** jen po vykácené cestě (pevné cestě), **křoviny a mladý les** ne, **voda** jen mělkým
-  brodem nebo po hati; **lávka** je jen pro pěší. Ploty, domy a pozemky jako u pěšin, mezi domy jen
+  brodem nebo po hati (Martin: most zatím ne – stačí brod a hať); **lávka** je jen pro pěší. Ploty, domy a pozemky jako u pěšin, mezi domy jen
   kudy se vůz vejde (šířka ≈ 2,5 m).
 - **Přes louku, úhor a strniště** jezdí (pomaleji), **přes osetý díl** ne – jako lidé.
 - **Vyjeté cesty:** provoz vozů se sčítá jako provoz lidí (roční síť 1. 11., roads.md). Úsek
@@ -107,12 +107,6 @@ Z 0 A.D. (CC BY-SA 3.0, převod jako spřežení – `tools/blender/people_from_
 vyrenderovat a ukázat Martinovi** – řecké a římské vozy mohou mít nevhodná kola nebo zdobení; pro
 Slovany 6.–9. st. jednoduchý vůz s plnými nebo loukoťovými koly tažený voly. Jho a oj ze spřežení.
 
-## Otevřené otázky (pro Martina)
-
-- **Most pro vozy:** potok vůz přejede jen brodem nebo po hati. Má přibýt **most** jako další
-  vylepšení cesty (staví ves, tesař jen zrychlí), nebo stačí brod a hať?
-- **Jeden vůz na spřežení**, nebo víc vozů na spřežení (vůz se nakládá, zatímco druhý jede)?
-
 ## Rozhodnutí
 
 | Rozhodnutí                                                                                | Kdo                   |
@@ -126,3 +120,5 @@ Slovany 6.–9. st. jednoduchý vůz s plnými nebo loukoťovými koly tažený 
 | Vůz = zásoba vsi u ohrady, táhnou ho voli ze spřežení (ve dny orby orají)                 | návrh Clauda          |
 | Sklon ve směru jízdy s mezí (serpentiny vzniknou samy); les jen po cestě; lávka jen pěší  | návrh Clauda          |
 | Vyjetá cesta = pevná cesta s příznakem vozová z ročního provozu vozů                      | návrh Clauda          |
+| Most zatím ne – vůz přejede potok brodem nebo po hati                                     | Martin (19. 10. 2026) |
+| Jeden vůz na spřežení                                                                     | návrh Clauda          |
