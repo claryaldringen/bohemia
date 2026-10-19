@@ -364,7 +364,8 @@ takový růžek…“ Podrobnosti návrh Clauda.
   na domácnost, bílkoviny 91,5 → 91,6 %).
 - **Scéna:** pás cesty maskuje track-mask.ts (od teď i vozová cesta), oddělené kousky dílu nesou
   `SceneFieldPart.roadCut` (buňky z jádra) – obtisk, obilí ani koruna porostu tam nejsou
-  (`road-cut-mask.ts`). Brázdy a dráha spřežení (plough-front.ts) zatím oddělené kousky neznají.
+  (`road-cut-mask.ts`). Brázdy končí na pásu cesty, spřežení se na něm otočí a oddělený kousek
+  neorá ([oxen.md](oxen.md) – Brázdy končí na cestě; `plough-roads.ts`).
   Ukázka na `/dev/landscape` – **Cesta**: zralé pole přes rozcestí a krátká cesta přes roh pole
   (růžek za ní zůstane loukou), **Cesta: přechod stupňů** (upravená půlka navazuje na vyšlapanou,
   vozová cesta).

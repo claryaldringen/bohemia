@@ -1261,7 +1261,8 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
   a plácky rozcestí a kus pole, který cesta oddělí a který je menší než obrat spřežení (80 m²)
   nebo užší než 3 m, zůstane loukou – úroda i práce jen z obdělané části (`FieldPart.roadM2`
   odečtené z plochy). Scéna na odděleném kousku nekreslí obtisk, obilí ani korunu
-  (`SceneFieldPart.roadCut`).
+  (`SceneFieldPart.roadCut`). Brázdy končí na cestě – spřežení se na ní otočí a přes ni neorá,
+  pás přes cestu orá po kusech s vlastními obraty ([oxen.md](oxen.md) – Brázdy končí na cestě).
   Kolem vsi se navíc seče pár luk na seno (jen vzhled, na dvě domácnosti jedna louka).
   **Zarůstání** (viz Zarůstání, Les vsi): stáda se pasou jen na dílech, kam dojdou (nejbližší
   napřed). Na nepaseném a nesečeném přílohu od 3. roku přibývají keře, které rostou (plné

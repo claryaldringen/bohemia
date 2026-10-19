@@ -19,6 +19,7 @@ import {
   stripField,
   type PloughCandidate,
 } from './plough-front';
+import { roadPieces, villageRoadCapsules } from './plough-roads';
 import type { RouteStint } from './plough-team';
 
 /**
@@ -49,11 +50,13 @@ export interface DayStint extends RouteStint {
  * změnit na zoráno.“); bez `progress` od jádra jen díly se zoraným vzhledem.
  */
 export function dayStints(
-  village: Pick<SceneVillage, 'labor' | 'fields' | 'dwellings'>,
+  village: Pick<SceneVillage, 'labor' | 'fields' | 'dwellings' | 'roads'>,
 ): DayStint[] {
   const day = village.labor?.day ?? 0;
   const dayOfYear = dateOfDayIndex(day).dayOfYear;
   const stints: DayStint[] = [];
+  // brázdy končí na pevné cestě – pruh přes cestu se orá po kusech (plough-roads.ts)
+  const capsules = villageRoadCapsules(village);
   for (const share of village.labor?.shares ?? []) {
     if (share.activity !== 'plough' || share.manDays <= 0 || share.target.kind !== 'field') {
       continue;
@@ -91,14 +94,17 @@ export function dayStints(
     });
     for (const { candidate, from, to } of pieces) {
       const size = candidate.part.size;
-      stints.push({
-        fieldId,
-        partId: candidate.part.id!,
-        partIds: candidate.parts.flatMap((p) => (p.id === undefined ? [] : [p.id])),
-        field: stripField(candidate, from * size, to * size),
-        from,
-        to,
-      });
+      const strip = stripField(candidate, from * size, to * size);
+      for (const piece of roadPieces(strip, capsules, candidate.parts)) {
+        stints.push({
+          fieldId,
+          partId: candidate.part.id!,
+          partIds: candidate.parts.flatMap((p) => (p.id === undefined ? [] : [p.id])),
+          field: piece,
+          from,
+          to,
+        });
+      }
     }
   }
   return stints;

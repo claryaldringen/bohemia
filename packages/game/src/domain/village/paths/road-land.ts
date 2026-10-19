@@ -92,28 +92,7 @@ class RoadBands {
   private readonly margin = ROAD_LAND.stripMinM / 2;
 
   constructor(roads: readonly RoadLandRoad[]) {
-    const nodes = new Map<string, { x: number; z: number; count: number; width: number }>();
-    for (const road of roads) {
-      if (road.points.length < 2) continue;
-      const r = roadLandWidthM(road) / 2;
-      for (let k = 1; k < road.points.length; k++) {
-        const a = road.points[k - 1]!;
-        const b = road.points[k]!;
-        this.add(a.x, a.z, b.x, b.z, r);
-      }
-      for (const p of [road.points[0]!, road.points[road.points.length - 1]!]) {
-        const key = `${Math.round(p.x * 100)},${Math.round(p.z * 100)}`;
-        const node = nodes.get(key) ?? { x: p.x, z: p.z, count: 0, width: 0 };
-        node.count++;
-        node.width = Math.max(node.width, r * 2);
-        nodes.set(key, node);
-      }
-    }
-    // plácek rozcestí – kde končí aspoň tři úseky (roads.md – Úseky a rozcestí)
-    for (const node of nodes.values()) {
-      if (node.count >= 3)
-        this.add(node.x, node.z, node.x, node.z, node.width * ROAD_LAND.junctionScale);
-    }
+    for (const c of roadCapsules(roads)) this.add(c.ax, c.az, c.bx, c.bz, c.r);
   }
 
   private add(ax: number, az: number, bx: number, bz: number, r: number): void {
@@ -409,4 +388,157 @@ export function roadCutAt(
 ): boolean {
   if (!cut) return false;
   return ((cut[b] ?? 0) & (1 << a)) !== 0;
+}
+
+// --- brázdy přes cestu (oxen.md – Co nejdelší brázda; Martin, 19. 10. 2026: „pokud oráč narazí
+// na cestu, tak spřežení otočí“) ---------------------------------------------------------------
+
+/** Pás pevné cesty (úsečka a–b s poloměrem r) nebo plácek rozcestí (a = b) – jako v `roadLand`. */
+export interface RoadCapsule {
+  ax: number;
+  az: number;
+  bx: number;
+  bz: number;
+  r: number;
+}
+
+/**
+ * Pásy pevných cest (kusy po úsečkách osy, šířka `roadLandWidthM`) a plácky rozcestí (kde končí
+ * aspoň tři úseky – roads.md, Úseky a rozcestí; ROAD_LAND.junctionScale) – plocha, kterou cesty
+ * vezmou polím (`roadLand`) a na které se brázda láme.
+ */
+export function roadCapsules(roads: readonly RoadLandRoad[]): RoadCapsule[] {
+  const out: RoadCapsule[] = [];
+  const nodes = new Map<string, { x: number; z: number; count: number; width: number }>();
+  for (const road of roads) {
+    if (road.points.length < 2) continue;
+    const r = roadLandWidthM(road) / 2;
+    for (let k = 1; k < road.points.length; k++) {
+      const a = road.points[k - 1]!;
+      const b = road.points[k]!;
+      out.push({ ax: a.x, az: a.z, bx: b.x, bz: b.z, r });
+    }
+    for (const p of [road.points[0]!, road.points[road.points.length - 1]!]) {
+      const key = `${Math.round(p.x * 100)},${Math.round(p.z * 100)}`;
+      const node = nodes.get(key) ?? { x: p.x, z: p.z, count: 0, width: 0 };
+      node.count++;
+      node.width = Math.max(node.width, r * 2);
+      nodes.set(key, node);
+    }
+  }
+  for (const node of nodes.values()) {
+    if (node.count >= 3) {
+      out.push({
+        ax: node.x,
+        az: node.z,
+        bx: node.x,
+        bz: node.z,
+        r: node.width * ROAD_LAND.junctionScale,
+      });
+    }
+  }
+  return out;
+}
+
+/** Interval parametru `u`, kde `a + b·u` leží v [lo, hi] (prázdný null). */
+function linearRange(
+  a: number,
+  b: number,
+  lo: number,
+  hi: number,
+): { from: number; to: number } | null {
+  if (Math.abs(b) < 1e-12) return a >= lo && a <= hi ? { from: -Infinity, to: Infinity } : null;
+  const u1 = (lo - a) / b;
+  const u2 = (hi - a) / b;
+  return { from: Math.min(u1, u2), to: Math.max(u1, u2) };
+}
+
+/** Kde přímka bod (x, z) + směr (dx, dz)·u (směr jednotkový) prochází kruhem (null mimo). */
+function circleRange(
+  c: { x: number; z: number; r: number },
+  x: number,
+  z: number,
+  dx: number,
+  dz: number,
+): { from: number; to: number } | null {
+  const ox = x - c.x;
+  const oz = z - c.z;
+  const b = dx * ox + dz * oz;
+  const disc = b * b - (ox * ox + oz * oz - c.r * c.r);
+  if (disc < 0) return null;
+  const root = Math.sqrt(disc);
+  return { from: -b - root, to: -b + root };
+}
+
+/**
+ * Kudy přímka (bod a jednotkový směr) prochází pásem cesty – interval parametru `u` (m), nebo
+ * null. Pás je konvexní (úsečka s poloměrem), takže průnik s přímkou je jeden interval –
+ * obal průniků s oběma koncovými kruhy a s obdélníkem podél úsečky.
+ */
+export function capsuleRange(
+  c: RoadCapsule,
+  x: number,
+  z: number,
+  dx: number,
+  dz: number,
+): { from: number; to: number } | null {
+  const ranges: ({ from: number; to: number } | null)[] = [
+    circleRange({ x: c.ax, z: c.az, r: c.r }, x, z, dx, dz),
+    circleRange({ x: c.bx, z: c.bz, r: c.r }, x, z, dx, dz),
+  ];
+  const ex = c.bx - c.ax;
+  const ez = c.bz - c.az;
+  const length = Math.sqrt(ex * ex + ez * ez);
+  if (length > 1e-9) {
+    const ux = ex / length;
+    const uz = ez / length;
+    // podél úsečky 0–L, napříč ±r
+    const along = linearRange((x - c.ax) * ux + (z - c.az) * uz, dx * ux + dz * uz, 0, length);
+    const across = linearRange(-(x - c.ax) * uz + (z - c.az) * ux, -dx * uz + dz * ux, -c.r, c.r);
+    if (along && across) {
+      const from = Math.max(along.from, across.from);
+      const to = Math.min(along.to, across.to);
+      ranges.push(from <= to ? { from, to } : null);
+    }
+  }
+  let from = Infinity;
+  let to = -Infinity;
+  for (const range of ranges) {
+    if (!range) continue;
+    from = Math.min(from, range.from);
+    to = Math.max(to, range.to);
+  }
+  return from <= to ? { from, to } : null;
+}
+
+/**
+ * Úseky přímky mimo pásy cest (bod, jednotkový směr, od–do v m podél): brázda se na cestě láme –
+ * každý úsek se orá zvlášť, s vlastními obraty (oxen.md – Co nejdelší brázda). Úseky v pořadí,
+ * kratší než `minM` vynechané.
+ */
+export function roadFreeRuns(
+  capsules: readonly RoadCapsule[],
+  x: number,
+  z: number,
+  dx: number,
+  dz: number,
+  from: number,
+  to: number,
+  minM = 0,
+): { from: number; to: number }[] {
+  const blocked = capsules
+    .flatMap((c) => {
+      const range = capsuleRange(c, x, z, dx, dz);
+      return range && range.to > from && range.from < to ? [range] : [];
+    })
+    .sort((a, b) => a.from - b.from);
+  const runs: { from: number; to: number }[] = [];
+  let at = from;
+  for (const range of blocked) {
+    if (range.from > at && range.from - at >= minM) runs.push({ from: at, to: range.from });
+    at = Math.max(at, range.to);
+    if (at >= to) break;
+  }
+  if (to > at && to - at >= minM) runs.push({ from: at, to });
+  return runs;
 }

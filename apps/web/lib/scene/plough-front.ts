@@ -23,6 +23,7 @@ import {
   type FieldLook,
   type PartView,
 } from './field-look';
+import { pieceLength, roadPieces, villageRoadCapsules } from './plough-roads';
 import { TURN_RADIUS_M, ardReach, type PloughField } from './plough-team';
 
 /** Rozestup řad orby (m) – 2,5 m jako dřív (6 řad na čtverec 15 m). */
@@ -307,7 +308,7 @@ export function stripField(c: PloughCandidate, lo: number, hi: number): PloughFi
  * Bez orby dne žádné.
  */
 export function ploughFront(
-  village: Pick<SceneVillage, 'labor' | 'fields' | 'pens' | 'dwellings'>,
+  village: Pick<SceneVillage, 'labor' | 'fields' | 'pens' | 'dwellings' | 'roads'>,
 ): PloughAssignment[] {
   const shares = (village.labor?.shares ?? []).filter(
     (s) => s.activity === 'plough' && s.manDays > 0 && s.target.kind === 'field',
@@ -316,6 +317,7 @@ export function ploughFront(
   // podíly jdou v pořadí postupu – čelo je v posledním
   const candidates = [...shares].reverse().flatMap((share) => shareCandidates(village, share));
   const teams = ploughTeamCount(village);
+  const capsules = villageRoadCapsules(village);
   const lanes: { candidate: PloughCandidate; footprint: Footprint; members: number }[] = [];
   for (let team = 0; team < teams; team++) {
     const free = candidates.find((c) => {
@@ -345,10 +347,20 @@ export function ploughFront(
         : strip.hi - strip.lo;
     const lo = Math.max(0, Math.min(strip.hi - width, size - width));
     const step = width / members;
-    return Array.from({ length: members }, (_, k) => ({
-      fieldId: candidate.fieldId,
-      partId: candidate.part.id ?? null,
-      field: stripField(candidate, lo + k * step, lo + (k + 1) * step),
-    }));
+    return Array.from({ length: members }, (_, k) => {
+      // pruh přes pevnou cestu: spřežení orá nejdelší kus mezi cestami (brázdy končí na cestě)
+      const pieces = roadPieces(
+        stripField(candidate, lo + k * step, lo + (k + 1) * step),
+        capsules,
+        candidate.parts,
+      );
+      const field = pieces.reduce<PloughField | null>(
+        (best, p) => (!best || pieceLength(p) > pieceLength(best) ? p : best),
+        null,
+      );
+      return field
+        ? [{ fieldId: candidate.fieldId, partId: candidate.part.id ?? null, field }]
+        : [];
+    }).flat();
   });
 }
