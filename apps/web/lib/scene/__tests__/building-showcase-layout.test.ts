@@ -148,6 +148,9 @@ describe('ukázka rozpadu obydlí', () => {
     expect(fallen.sacred!.buildings).toEqual([]);
     expect(fallen.sacred!.ruins!.map((r) => r.kind)).toEqual(['idol', 'shrine']);
     expect(fallen.cemeteries![0]!.fence).toBe(0);
+    // starý hřbitov bez plotu – zůstaly mohyly podle významu (Martin, 19. 10. 2026)
+    const sizes = new Set(fallen.cemeteries![0]!.mounds!.map((m) => m.size));
+    expect(sizes.has('great') && sizes.has('small')).toBe(true);
     expect(fallen.pens).toEqual([]);
     expect(showcaseDecay(1).sacred!.ruins).toBeUndefined();
   });

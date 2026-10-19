@@ -598,17 +598,18 @@ function CemeteryBody({
       </div>
     );
   }
-  const full = details.freeGraves === 0;
+  const full = details.freePlaces === 0;
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
       <div className="flex items-center gap-3">
-        <Tooltip content="Hroby" placement="above">
+        {/* místa na hroby – mohyla významného zabere víc míst (cemetery.md) */}
+        <Tooltip content={`Hroby – pohřbených ${details.graves}`} placement="above">
           <span
             data-testid="selection-graves"
             tabIndex={0}
             className={`text-sm font-semibold tabular-nums ${full ? 'text-red-400' : ''}`}
           >
-            {details.graves}/{details.capacity}
+            {details.usedPlaces}/{details.capacity}
           </span>
         </Tooltip>
         <Stat icon="date" name="Místo na roky" testId="selection-years">

@@ -32,6 +32,7 @@ import {
   villageRoadWalk,
   ruinOvergrowth,
   isAbandoned,
+  oldGraves,
   sacredRuinOvergrowth,
   stockedPenIds,
   structureCondition,
@@ -52,6 +53,8 @@ import {
   type ChronicleEvent,
   type LandTaker,
   type FamilyCounts,
+  type GraveMound,
+  type MoundSize,
   type ConstructionKind,
   type ConstructionSummary,
   type Craft,
@@ -501,10 +504,16 @@ export interface VillageCemetery {
   built: boolean;
   /** Průběh stavby 0–1: založení, u hotového hřbitova rozšíření; bez stavby 1. */
   progress: number;
-  /** Hroby hotových čtverců (rozšíření ve stavbě se nepočítá). */
+  /**
+   * Místa na hroby hotových čtverců (rozšíření ve stavbě se nepočítá) – mohyla významného zabere
+   * víc míst (cemetery.md – Mohyly podle významu).
+   */
   capacity: number;
+  /** Pohřbení (lidé). */
   graves: number;
-  freeGraves: number;
+  /** Obsazená a volná místa na hroby. */
+  usedPlaces: number;
+  freePlaces: number;
   /** Odhad, za kolik let se zaplní (podle úmrtí posledních let); bez úmrtí null. */
   yearsLeft: number | null;
   /** Stav plotu 0–1 (abandonment.md – ke hřbitovu, kam nikdo nechodí, plot chátrá). */
@@ -585,6 +594,33 @@ export interface SceneKiln {
   stage: KilnStage;
   /** Průběh fáze 0–1 (stavba po fázích staveniště milíře). */
   progress: number;
+}
+
+/**
+ * Mohyla na hřbitově pro scénu (cemetery.md – Mohyly podle významu): čtverec hřbitova, první místo
+ * mřížky 7 × 8 (sloupec, řada) a velikost – vojvodova rodina `great` (2 × 2 místa, s kůlem), hlava
+ * rodiny `large` (2 místa za sebou), dospělý `normal`, dítě `small`. Čerstvá = z holé hlíny.
+ */
+export interface SceneGraveMound {
+  cell: TileCell;
+  column: number;
+  row: number;
+  size: MoundSize;
+  fresh?: true;
+}
+
+/** Jak dlouho je mohyla po pohřbu z holé hlíny, než zaroste trávou (herní dny – jen vzhled). */
+export const FRESH_MOUND_DAYS = 365;
+
+/** Mohyla ze stavu vsi pro scénu – čerstvá první rok po pohřbu. */
+export function sceneMound(m: GraveMound, day: number): SceneGraveMound {
+  return {
+    cell: { x: m.cell.x, y: m.cell.y },
+    column: m.column,
+    row: m.row,
+    size: m.size,
+    ...(day - m.day < FRESH_MOUND_DAYS ? { fresh: true as const } : {}),
+  };
 }
 
 export interface SceneVillage {
@@ -669,10 +705,19 @@ export interface SceneVillage {
     }[];
     built: boolean;
     progress: number;
+    /**
+     * Staré hroby – pohřbení před mohylami podle významu: běžné mohylky po řadách od prvního
+     * hotového čtverce jako dřív (`gravePlacements`).
+     */
     graves: number;
     /**
+     * Mohyly podle významu (cemetery.md): místo v mřížce čtverce, velikost a čerstvá (holá hlína
+     * – první rok po pohřbu). Bez údaje žádné.
+     */
+    mounds?: SceneGraveMound[];
+    /**
      * Stav plotu 0–1 (abandonment.md) – plot se rozpadá jako plot opuštěného pozemku, mohylky
-     * zarůstají. Jen pod 1; bez údaje celý.
+     * zarůstají; spadlý (0) zmizí úplně. Jen pod 1; bez údaje celý.
      */
     fence?: number;
   }[];
@@ -1411,7 +1456,8 @@ function sceneVillage(
     })),
     built: c.builtDay !== null,
     progress: cemeteryProgress(c.id, c.builtDay !== null, constructions),
-    graves: c.graves,
+    graves: oldGraves(c),
+    ...(c.mounds?.length ? { mounds: c.mounds.map((m) => sceneMound(m, day)) } : {}),
     ...wearOf(structureCondition(c.fenceWear, 'cemetery-fence', day), 'fence'),
   }));
   const orchards = villageOrchards(state).map((o) => ({

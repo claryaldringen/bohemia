@@ -141,9 +141,12 @@ export type SelectionDetails =
       kind: 'cemetery';
       id: number;
       squares: number;
+      /** Místa na hroby (cemetery.md – Mohyly podle významu: mohyla zabere 1–4 místa). */
       capacity: number;
+      /** Pohřbení (lidé). */
       graves: number;
-      freeGraves: number;
+      usedPlaces: number;
+      freePlaces: number;
       /** Odhad, za kolik let se zaplní; bez úmrtí null. Hygienu hráč nevidí (cemetery.md). */
       yearsLeft: number | null;
       /** Vytyčený a ohrazený – nehotový ukáže jen průběh založení. */
@@ -380,7 +383,8 @@ export function selectionDetails(
       squares: cemetery.squares,
       capacity: cemetery.capacity,
       graves: cemetery.graves,
-      freeGraves: cemetery.freeGraves,
+      usedPlaces: cemetery.usedPlaces,
+      freePlaces: cemetery.freePlaces,
       yearsLeft: cemetery.yearsLeft,
       built: cemetery.built,
       building: cemetery.built && cemetery.progress >= 1 ? null : cemetery.progress,

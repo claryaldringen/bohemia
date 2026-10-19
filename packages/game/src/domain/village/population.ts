@@ -280,7 +280,8 @@ export function populationDay(
           ? { day, kind: 'death', group }
           : { day, kind: 'death', group, cause: 'hunger' },
       );
-      const full = bury(state, day);
+      // mohyla podle významu zemřelého – vojvodova rodina, hlava rodiny, dítě (cemetery.md)
+      const full = bury(state, day, person);
       if (full) events.push(full);
     }
   }

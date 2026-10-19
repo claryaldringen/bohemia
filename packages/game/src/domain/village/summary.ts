@@ -1,9 +1,10 @@
 import { TOTAL_GAME_DAYS } from '../calendar';
 import type { ObstacleLayer } from '../landscape';
+import { moundPlaces, usedPlaces } from './burials';
 import {
   burialOrder,
   cemeteryCapacity,
-  freeGraves,
+  freePlaces,
   readySquares,
   villageCemeteries,
 } from './cemetery';
@@ -139,12 +140,16 @@ export interface CemeterySummary {
   squares: number;
   /** Vytyčené a ohrazené – přijímá mrtvé. */
   built: boolean;
+  /** Místa na hroby hotových čtverců (cemetery.md – Mohyly podle významu: mohyla zabere 1–4). */
   capacity: number;
+  /** Pohřbení (lidé). */
   graves: number;
-  freeGraves: number;
+  /** Obsazená a volná místa na hroby. */
+  usedPlaces: number;
+  freePlaces: number;
   /**
-   * Odhad, za kolik let se zaplní – podle úmrtí posledních let a pořadí pohřbívání (nejdřív
-   * pohřebiště nejblíž k obydlím). Bez úmrtí null.
+   * Odhad, za kolik let se zaplní – podle úmrtí posledních let, průměrné velikosti mohyl vsi
+   * a pořadí pohřbívání (nejdřív pohřebiště nejblíž k obydlím). Bez úmrtí null.
    */
   yearsLeft: number | null;
 }
@@ -517,9 +522,13 @@ function cemeterySummaries(state: VillageState, deathsPerYear: number): Cemetery
     villageCemeteries(state),
     state.dwellings.map((d) => d.position),
   );
+  // míst na pohřeb – průměr mohyl vsi (bez mohyl jedno místo)
+  const mounds = ordered.flatMap((c) => c.mounds ?? []);
+  const perBurial =
+    mounds.length > 0 ? mounds.reduce((sum, m) => sum + moundPlaces(m.size), 0) / mounds.length : 1;
   let freeBefore = 0;
   return ordered.map((c) => {
-    const free = freeGraves(c);
+    const free = freePlaces(c);
     freeBefore += free;
     return {
       id: c.id,
@@ -527,8 +536,10 @@ function cemeterySummaries(state: VillageState, deathsPerYear: number): Cemetery
       built: c.builtDay !== null,
       capacity: cemeteryCapacity(c),
       graves: c.graves,
-      freeGraves: free,
-      yearsLeft: free === 0 ? 0 : deathsPerYear > 0 ? freeBefore / deathsPerYear : null,
+      usedPlaces: usedPlaces(c),
+      freePlaces: free,
+      yearsLeft:
+        free === 0 ? 0 : deathsPerYear > 0 ? freeBefore / (deathsPerYear * perBurial) : null,
     };
   });
 }

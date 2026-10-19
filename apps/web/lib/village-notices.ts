@@ -79,9 +79,9 @@ export function villageNotices(view: VillageView): VillageNotice[] {
   if (view.constructionsStalled) {
     notices.push({ kind: 'stalled', tone: 'warn', text: 'Stavby stojí' });
   }
-  // aspoň jeden hotový hřbitov a žádný hotový nemá volný hrob (rozestavěný mrtvé nepřijme)
+  // aspoň jeden hotový hřbitov a žádný hotový nemá volné místo (rozestavěný mrtvé nepřijme)
   const built = view.cemeteries.filter((c) => c.built);
-  if (built.length > 0 && built.every((c) => c.freeGraves === 0)) {
+  if (built.length > 0 && built.every((c) => c.freePlaces === 0)) {
     notices.push({ kind: 'cemetery-full', tone: 'warn', text: 'Hřbitov je plný' });
   }
   // dílny bez vstupu stojí (crafts.md)
