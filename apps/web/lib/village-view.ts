@@ -1010,6 +1010,11 @@ export interface SceneLabor {
    */
   people: { children: number; adults: number; elders: number } & Partial<FamilyCounts>;
   shares: SceneLaborShare[];
+  /**
+   * Děti od 7 let a starší, kteří dnes pasou (diet.md – Pasáci) – postavy u stád; dospělí pasáci
+   * jsou podíl `herding`. Bez údaje (dřívější rozdělení práce) pasou děti.
+   */
+  herders?: { children: number; elders: number };
 }
 
 export const CHRONICLE_LENGTH = 8;
@@ -1167,6 +1172,12 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return `Sklizeň ovoce: ${formatInteger(event.kg)} kg.`;
     case 'slaughter':
       return `Podzimní porážka: ${formatInteger(event.kg)} kg masa.`;
+    case 'meat-spoiled':
+      return `Zbytek uzeného masa se zkazil: ${formatInteger(event.kg)} kg.`;
+    case 'herd-starved':
+      return `Přes zimu chybělo seno – uhynulo ${formatInteger(
+        Object.values(event.animals).reduce((sum, n) => sum + n, 0),
+      )} kusů dobytka.`;
     case 'team-ready':
       return 'Spřežení volů je vycvičené – orá rádlem.';
     case 'team-retired':
@@ -1821,7 +1832,13 @@ function sceneLabor(state: VillageState, people: SceneLabor['people']): SceneLab
     }
     return [{ ...share, manDays }];
   });
-  return { day: labor.day, month: dateOfDayIndex(labor.day).month, people, shares };
+  return {
+    day: labor.day,
+    month: dateOfDayIndex(labor.day).month,
+    people,
+    shares,
+    ...(labor.herders ? { herders: { ...labor.herders } } : {}),
+  };
 }
 
 const DAYS_PER_TREE_YEAR = 365.25;

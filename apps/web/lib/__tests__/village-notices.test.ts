@@ -302,6 +302,20 @@ describe('newNotices – porážka a spřežení (diet.md, oxen.md)', () => {
     expect(newNotices(null, after)).toEqual([]);
   });
 
+  it('zkažené maso a zimní úhyn stáda – fakt (diet.md)', () => {
+    const after = view({
+      dayIndex: 1003,
+      chronicle: [
+        entry(1002, 'herd-starved', 'Přes zimu chybělo seno – uhynulo 12 kusů dobytka.'),
+        entry(1001, 'meat-spoiled', 'Zbytek uzeného masa se zkazil: 1 120 kg.', 1120),
+      ],
+    });
+    expect(newNotices(view({ dayIndex: 1000 }), after)).toEqual([
+      { kind: 'meat-spoiled', tone: 'warn', text: 'Maso se zkazilo – 1 120 kg' },
+      { kind: 'herd-starved', tone: 'warn', text: 'Dobytek hynul – chybělo seno' },
+    ]);
+  });
+
   it('nevěsta z okolí a dcera vdaná pryč – fakt (kinship.md)', () => {
     const after = view({
       dayIndex: 1003,

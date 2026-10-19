@@ -70,12 +70,14 @@ const SEASON_WEIGHT: Record<DairySpecies, number> = (() => {
  * diet.md – Práce se zvířaty (rešerše, člověkoden = 10 hodin): dojení na dojný kus a den
  * (kráva 2 × 5 min, koza 0,013, ovce 0,005 čd), sýr 1 člověkoden na 100 l zpracovaného mléka
  * (návrh Clauda), zimní krmení, voda a kydání krávy nebo vola 20 min denně (listopad–březen),
- * prase u domu 2 min, slepice půl minuty denně (návrh Clauda).
+ * ovce nebo kozy 3 min (Martin 19. 10. 2026 – v zimě jedí seno taky; návrh Clauda), prase u domu
+ * 2 min, slepice půl minuty denně (návrh Clauda).
  */
 export const ANIMAL_CARE = {
   milkingPerHead: { cow: 0.017, goat: 0.013, sheep: 0.005 },
   cheesePerL: 0.01,
   winterPerHead: 0.033,
+  smallWinterPerHead: 0.005,
   pigPerHead: 0.0033,
   henPerHead: 0.0008,
 } as const;
@@ -139,8 +141,8 @@ export interface AnimalCareNeed {
 
 /**
  * Práce se zvířaty dne: dojení dojných kusů v době dojení a výroba sýra z `cheeseMilkL` litrů,
- * zimní péče o krávy a voly (`oxen` – spřežení a telata ve výcviku), denní péče o prasata
- * a slepice (`hens`).
+ * zimní péče o krávy a voly (`oxen` – spřežení a telata ve výcviku), ovce a kozy, denní péče
+ * o prasata a slepice (`hens`).
  */
 export function animalCareNeed(
   herds: Record<HerdSpecies, number>,
@@ -156,7 +158,10 @@ export function animalCareNeed(
   }
   const winter = HAY_WINTER_MONTHS.includes(dateOfDayIndex(day).month);
   const care =
-    (winter ? (herds.cow + oxen) * ANIMAL_CARE.winterPerHead : 0) +
+    (winter
+      ? (herds.cow + oxen) * ANIMAL_CARE.winterPerHead +
+        (herds.sheep + herds.goat) * ANIMAL_CARE.smallWinterPerHead
+      : 0) +
     herds.pig * ANIMAL_CARE.pigPerHead +
     hens * ANIMAL_CARE.henPerHead;
   return { milking, care };

@@ -12,6 +12,7 @@ import {
   elderCount,
   figureCounts,
   figureSexes,
+  herderKinds,
   womenChance,
   shareCounts,
   planVillagers,
@@ -1130,5 +1131,22 @@ describe('nosiči výpravy po zemské stezce (trade.md)', () => {
     expect(
       planVillagers(base, GROUND, { seed: 3, herds: 0 }).some((p) => p.key.startsWith('trade:')),
     ).toBe(false);
+  });
+});
+
+describe('pasáci u stád (diet.md – Pasáci)', () => {
+  const people = { children: 4, adults: 3, elders: 2 };
+  const herding = (manDays: number): SceneLaborShare => ({
+    activity: 'herding',
+    target: { kind: 'village' },
+    manDays,
+  });
+
+  it('děti a starší z jádra, pak dospělí (člověkoden = pasák), nejvýš jeden u stáda', () => {
+    const labor = { people, shares: [herding(1.3)], herders: { children: 2, elders: 1 } };
+    expect(herderKinds(labor, 9)).toEqual(['child', 'child', 'elder', 'adult', 'adult']);
+    expect(herderKinds(labor, 2)).toEqual(['child', 'child']);
+    // rozdělení práce z doby před pasáky – děti jako dřív
+    expect(herderKinds({ people, shares: [] }, 3)).toEqual(['child', 'child', 'child']);
   });
 });

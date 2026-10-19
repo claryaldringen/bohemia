@@ -5,17 +5,20 @@ import { DAIRY, daysUntilMilking } from '../dairy';
 import {
   DIET,
   PROTEIN,
+  daysUntilMeatEnd,
   daysUntilSlaughter,
   dietOf,
   dietQuality,
   eatDiet,
   fruitEnergy,
   meatEnergy,
+  spoilMeat,
   type DietInput,
   type Eaten,
 } from '../diet';
-import { NO_CRAFTS } from '../productivity';
+import { NO_CRAFTS, storageLossPerYear } from '../productivity';
 import { advanceVillage } from '../simulate';
+import type { VillageState } from '../types';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
 // Strava (diet.md): energie × kvalita z bílkovin a ovoce, stropy, ovoce, mléko a sýr, hlad jen
@@ -36,7 +39,7 @@ function input(over: Partial<DietInput>): DietInput {
     proteinNeedPerDay: PROTEIN_NEED,
     daysToHarvest: 100,
     daysToRot: 0,
-    daysToSlaughter: 100,
+    daysToMeatEnd: 100,
     potteryCoverage: NO_CRAFTS.pottery,
     ...over,
   };
@@ -120,7 +123,7 @@ describe('eatDiet – příděl', () => {
     // ovoce na 2 % energie denně do 1. 3., maso na 10 % do porážky
     const fruitKg = 0.02 * NEED * 7 * 40;
     const meatKg = (0.1 * NEED * 60) / DIET.meatEnergy;
-    const meal = eatDiet(input({ fruitKg, meatKg, daysToRot: 40, daysToSlaughter: 60 }));
+    const meal = eatDiet(input({ fruitKg, meatKg, daysToRot: 40, daysToMeatEnd: 60 }));
     expect(meal.diet.shares.fruit).toBeCloseTo(0.02, 9);
     // maso se ztrátou uzením za den
     expect(meal.diet.shares.meat).toBeCloseTo(0.1 * (1 - DIET.meatLossPerYear) ** (1 / 365), 9);
@@ -197,6 +200,40 @@ describe('eatDiet – příděl', () => {
     expect(daysUntilSlaughter(at(601, 1, 1))).toBe(at(601, 11, 1) - at(601, 1, 1));
     // poslední podzim světa – příští porážka by byla v roce 1500
     expect(daysUntilSlaughter(at(1499, 12, 31))).toBeGreaterThan(300);
+  });
+
+  it('maso se jí do zkažení (31. 8.), maso ze září a října do porážky (diet.md – Trvanlivost masa)', () => {
+    expect(daysUntilMeatEnd(at(601, 8, 31))).toBe(1);
+    expect(daysUntilMeatEnd(at(601, 11, 1))).toBe(at(602, 9, 1) - at(601, 11, 1));
+    expect(daysUntilMeatEnd(at(602, 1, 1))).toBe(at(602, 9, 1) - at(602, 1, 1));
+    expect(daysUntilMeatEnd(at(601, 9, 1))).toBe(at(601, 11, 1) - at(601, 9, 1));
+    expect(daysUntilMeatEnd(at(601, 10, 31))).toBe(1);
+  });
+
+  it('1. 9. ráno se zbytek masa zkazí – do kroniky od kila', () => {
+    const s = { meatKg: 120.4 } as VillageState;
+    expect(spoilMeat(s, at(601, 8, 31))).toBeNull();
+    expect(s.meatKg).toBe(120.4);
+    expect(spoilMeat(s, at(601, 9, 1))).toEqual({
+      day: at(601, 9, 1),
+      kind: 'meat-spoiled',
+      kg: 120,
+    });
+    expect(s.meatKg).toBe(0);
+    const crumbs = { meatKg: 0.4 } as VillageState;
+    expect(spoilMeat(crumbs, at(601, 9, 1))).toBeNull();
+    expect(crumbs.meatKg).toBe(0);
+  });
+
+  it('výhled do sklizně počítá maso jen do jeho zkažení', () => {
+    // maso na strop 40 % (4 kg obilí denně) jen 30 dní z 60 do sklizně – obilí chybí
+    const meal = eatDiet(
+      input({ grainKg: 400, meatKg: 6000, daysToHarvest: 60, daysToMeatEnd: 30 }),
+    );
+    const grain = 400 * (1 - storageLossPerYear(NO_CRAFTS.pottery)) ** (1 / 365);
+    expect(meal.outlook).toBeCloseTo((grain + 4 * 30) / (NEED * 60), 9);
+    // do zkažení dost
+    expect(eatDiet(input({ grainKg: 400, meatKg: 6000, daysToHarvest: 60 })).outlook).toBe(1);
   });
 });
 
