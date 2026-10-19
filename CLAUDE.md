@@ -1199,7 +1199,10 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   stejné mřížce ji rozšíří (`touchingPens`), na dvě navázat nejde; cena po čtvercích (40 čd
   a 6 stromů na čtverec, `penLaborManDays(…, squares)`). Místa `PEN_PLACES_PER_SQUARE` (ovce 130,
   kozy 100, prasata 80, krávy 45) a u domů `HOMESTEAD_HERD` v `rules.ts`; `penCapacity`,
-  `penOccupancy`, `herdRoom`; výcvik jen v ohradě spřežení (`oxPens`, `trainingBlock` – „Ohrada
+  `penOccupancy`, `herdRoom`; **roční odklad** – místa omezí stádo až od
+  `LivestockState.pensFromDay` (`pensLimitHerds`; nová ves rok po založení – `foundVillage`, starší
+  ves rok od načtení – `withPenGrace(state, today)` jen v `updateVillage`, `PEN_GRACE`), upozornění
+  `herdsOverRoom` platí i během odkladu; výcvik jen v ohradě spřežení (`oxPens`, `trainingBlock` – „Ohrada
   není pro spřežení.“). Stavba se dřevem jako obydlí. **Výcvik spřežení začne sám** (Martin:
   „ve chvíli, kdy mají vesničané k dispozici cokoliv, co jim ulehčí práci – zde
   rádlo a voly – začnou to automaticky používat“ – princip pro celou hru, oxen.md – Spřežení):

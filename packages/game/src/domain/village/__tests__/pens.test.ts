@@ -7,16 +7,19 @@ import { LIVESTOCK, winterTargets } from '../livestock';
 import { PEN, trainingBlock, type PenInput } from '../oxen';
 import {
   herdRoom,
+  herdsOverRoom,
   homesteadRoom,
   penCapacity,
   penOccupancy,
   penSpecies,
+  pensLimitHerds,
   touchingPens,
+  withPenGrace,
   withPenSpecies,
 } from '../pens';
 import { penEntrance, penGateToward, penSquaresEntrance } from '../paths/entrances';
 import { penSquaresFromCells } from '../placement';
-import { HOMESTEAD_HERD, PEN_PLACES_PER_SQUARE } from '../rules';
+import { HOMESTEAD_HERD, PEN_GRACE, PEN_PLACES_PER_SQUARE } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { Pen, PenSpecies, VillageState } from '../types';
 import { block, makeLandscape } from './placement-fixtures';
@@ -249,6 +252,8 @@ describe('stádo a místa na noc', () => {
   it('ves bez ohrad: nadbytek jde na maso při porážce, chovný pár zůstane', () => {
     const s = village();
     s.lastDay = dayIndexOf({ year: 600, month: 10, day: 30 });
+    // odklad uplynul (ves uložená dřív bez dne odkladu – platí hned)
+    delete s.livestock!.pensFromDay;
     s.livestock!.land = { meadowHa: 1000, forestHa: 1000 };
     s.livestock!.herds = { sheep: 30, goat: 10, pig: 10, cow: 6 };
     s.hay = { kg: 50_000, mowing: null };
@@ -262,6 +267,57 @@ describe('stádo a místa na noc', () => {
     }
     expect(herds.cow).toBeCloseTo(LIVESTOCK.breedingMin, 6);
     expect(after.chronicle.some((e) => e.kind === 'slaughter')).toBe(true);
+  });
+
+  it('roční odklad: nová ves rok po založení stádo nekrátí, porážka po roce ano', () => {
+    const s = village();
+    // nová ves dostane odklad (oxen.md – Ohrady podle druhu, roční odklad)
+    expect(s.livestock!.pensFromDay).toBe(DAY + PEN_GRACE.graceDays);
+    expect(pensLimitHerds(s, DAY + 364)).toBe(false);
+    expect(pensLimitHerds(s, DAY + 365)).toBe(true);
+    s.livestock!.land = { meadowHa: 1000, forestHa: 1000 };
+    s.livestock!.herds = { sheep: 30, goat: 10, pig: 10, cow: 6 };
+    // upozornění platí i během odkladu – hráč ví, že má stavět
+    expect(herdsOverRoom(s)).toEqual(['sheep', 'goat', 'pig', 'cow']);
+    // den před porážkou: plné stádo, dost sena a pasáci uhlídali vše
+    const eve = advanceVillage(s, dayIndexOf({ year: 600, month: 10, day: 31 }), null);
+    const ready = (v: VillageState): VillageState => {
+      v.livestock!.herds = { sheep: 30, goat: 10, pig: 10, cow: 6 };
+      v.livestock!.young = { sheep: 0, goat: 0, pig: 0, cow: 0 };
+      v.livestock!.herding = { needDays: 100, watchedDays: 100 };
+      v.hay = { kg: 100_000, mowing: null };
+      return v;
+    };
+    const day = dayIndexOf({ year: 600, month: 11, day: 1 });
+    // 1. 11. 600 (necelý rok po založení) – místa stádo neomezí
+    const grace = advanceVillage(ready(structuredClone(eve)), day, null);
+    // táž ves bez odkladu – místa u domů a chovný pár
+    const strict = structuredClone(eve);
+    delete strict.livestock!.pensFromDay;
+    const cut = advanceVillage(ready(strict), day, null);
+    const room = herdRoom(cut);
+    for (const species of ['sheep', 'goat', 'pig', 'cow'] as const) {
+      expect(cut.livestock!.herds[species]).toBeLessThanOrEqual(
+        Math.max(LIVESTOCK.breedingMin, room[species]) + 1e-6,
+      );
+    }
+    expect(grace.livestock!.herds.sheep).toBeGreaterThan(cut.livestock!.herds.sheep + 1);
+    // po roce odklad skončí – 1. 11. 601 už místa platí
+    expect(pensLimitHerds(grace, dayIndexOf({ year: 601, month: 11, day: 1 }))).toBe(true);
+  });
+
+  it('krávy se bez ohrady skotu nevejdou – upozornění i pro skot', () => {
+    const s = village();
+    s.livestock!.herds = { sheep: 0, goat: 0, pig: 0, cow: 4 };
+    // ohrada spřežení krávy nepojme
+    s.pens = [pen(3, 'team', 1, 4)];
+    expect(herdsOverRoom(s)).toEqual(['cow']);
+    s.pens.push(pen(4, 'cattle', 1, 6));
+    expect(herdsOverRoom(s)).toEqual([]);
+    // chovný pár se vejde vždy
+    s.pens = [];
+    s.livestock!.herds.cow = 2;
+    expect(herdsOverRoom(s)).toEqual([]);
   });
 });
 
@@ -286,6 +342,17 @@ describe('převod starých vsí a spřežení', () => {
     // dopočet převede taky
     const advanced = advanceVillage(s, DAY + 1, null);
     expect(advanced.pens!.map((p) => p.species)).toEqual(['team', 'team', 'cattle']);
+  });
+
+  it('ves uložená dřív dostane při načtení roční odklad od dne převodu; jednou', () => {
+    const s = village();
+    delete s.livestock!.pensFromDay;
+    const today = DAY + 40;
+    const migrated = withPenGrace(s, today);
+    expect(migrated.livestock!.pensFromDay).toBe(today + PEN_GRACE.graceDays);
+    expect(withPenGrace(migrated, today + 500)).toBe(migrated);
+    // bez dne převodu od posledního dopočteného dne
+    expect(withPenGrace(s).livestock!.pensFromDay).toBe(s.lastDay + PEN_GRACE.graceDays);
   });
 
   it('výcvik spřežení jen v ohradě spřežení – s kravami se nemíchá', () => {

@@ -66,15 +66,16 @@ describe('vlna na oděv', () => {
     const spring = advanceVillage(autumn, at(601, 3, 2), null);
     expect(spring.livestock!.herds.sheep).toBeGreaterThan(woolSheep(spring, spring.lastDay) - 1);
     expect(spring.chronicle.some((e) => e.kind === 'wool-short')).toBe(false);
-    // bez ohrady ovcí si domácnost u domu nechá jen pár ovcí – vlna chybí
+    // bez ohrady ovcí: první rok odklad (oxen.md – Ohrady podle druhu) – ovce zůstanou; po něm si
+    // domácnost u domu nechá jen pár ovcí a vlna chybí
     const bare = withBuiltFirstDwelling(
       foundVillage({ seed: 7, day: at(600, 10, 1), dwellingPosition: { x: 0, z: 0, rotation: 0 } }),
     );
     const bareSpring = advanceVillage(bare, at(601, 3, 2), null);
-    expect(bareSpring.livestock!.herds.sheep).toBeLessThan(
-      woolSheep(bareSpring, bareSpring.lastDay),
-    );
-    expect(bareSpring.chronicle.some((e) => e.kind === 'wool-short')).toBe(true);
+    expect(bareSpring.chronicle.some((e) => e.kind === 'wool-short')).toBe(false);
+    const later = advanceVillage(bareSpring, at(602, 3, 2), null);
+    expect(later.livestock!.herds.sheep).toBeLessThan(woolSheep(later, later.lastDay));
+    expect(later.chronicle.some((e) => e.kind === 'wool-short')).toBe(true);
   });
 
   it('maso navíc z mláďat nejde z ovcí na vlnu', () => {

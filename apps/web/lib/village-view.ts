@@ -148,8 +148,7 @@ import {
   withNeighbours,
   type NeighbourSnapshot,
   type PenSpecies,
-  LIVESTOCK,
-  herdRoom,
+  herdsOverRoom,
 } from '@bohemia/game';
 import { formatGameDate } from './game-date';
 import { fruitVisible, treeGrowth } from './orchard-look';
@@ -2647,16 +2646,11 @@ export function scenePenSquares(
 }
 
 /**
- * Druhy stád, která se na noc nevejdou do ohrad svého druhu a k domům (`herdRoom` – oxen.md,
- * Ohrady podle druhu; chovný pár zůstane vždy). Vše se vejde – nic.
+ * Druhy stád, která se na noc nevejdou do ohrad svého druhu a k domům (`herdsOverRoom` – oxen.md,
+ * Ohrady podle druhu; i během ročního odkladu, ať hráč ví, že má stavět). Vše se vejde – nic.
  */
 function penShortOf(state: VillageState): { penShort?: HerdSpecies[] } {
-  const herds = state.livestock?.herds;
-  if (!herds) return {};
-  const room = herdRoom(state);
-  const short = (['sheep', 'goat', 'pig', 'cow'] as const).filter(
-    (s) => Math.round(herds[s]) > Math.max(room[s], LIVESTOCK.breedingMin),
-  );
+  const short = herdsOverRoom(state);
   return short.length > 0 ? { penShort: short } : {};
 }
 

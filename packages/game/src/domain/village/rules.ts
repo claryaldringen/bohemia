@@ -540,6 +540,13 @@ export const PEN_PLACES_PER_SQUARE = { sheep: 130, goat: 100, pig: 80, cow: 45 }
  * a ohrada by už neměla co chovat.
  */
 export const HOMESTEAD_HERD = { sheep: 2, goat: 1, pig: 1, cow: 0 } as const;
+/**
+ * oxen.md – Ohrady podle druhu, roční odklad (návrh Clauda, koordinátor za Martina 19. 10. 2026):
+ * místa ohrad a u domů omezí stádo až u porážky aspoň `graceDays` dní po založení vsi, u vsi
+ * uložené dřív po zavedení pravidla – hráč má rok na stavbu ohrad (nová ves založená na podzim by
+ * ohradu před 1. 11. nestihla, Vlkov by přišel o stáda přes noc).
+ */
+export const PEN_GRACE = { graceDays: 365 } as const;
 // population.md – Nové obydlí (společná práce za posledních 30 dní pro „má na to“)
 export const COMMON_LABOR_HISTORY_DAYS = 30;
 // population.md – Chátrání a přestavba (oprava podle hlášení Martina 18. 10. 2026): přestavba na

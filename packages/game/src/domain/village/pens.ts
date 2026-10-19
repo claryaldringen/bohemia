@@ -1,4 +1,4 @@
-import { HOMESTEAD_HERD, PEN_PLACES_PER_SQUARE, PEN_SQUARES } from './rules';
+import { HOMESTEAD_HERD, PEN_GRACE, PEN_PLACES_PER_SQUARE, PEN_SQUARES } from './rules';
 import { sameGrid } from './square-grid';
 import type {
   HerdSpecies,
@@ -173,6 +173,52 @@ export function withPenSpecies(state: VillageState): VillageState {
     pens: state.pens!.map((p) => (p.species ? p : { ...p, species: penSpecies(p) })),
   };
 }
+
+/**
+ * Roční odklad míst pro ves uloženou dřív (oxen.md – Ohrady podle druhu, roční odklad): stáda bez
+ * dne odkladu ho dostanou od dneška (`today`, nejdřív `lastDay`; + PEN_GRACE –
+ * `LivestockState.pensFromDay`).
+ * Jen při načtení vsi (`updateVillage`) – dopočet sám den nemění (výsledek nezávisí na kouscích).
+ * Jednou – ves s dnem odkladu (i nová ves) se nemění (vrátí týž stav).
+ */
+export function withPenGrace(state: VillageState, today: number = state.lastDay): VillageState {
+  const livestock = state.livestock;
+  if (!livestock || livestock.pensFromDay !== undefined) return state;
+  const day = Math.max(state.lastDay, today);
+  return { ...state, livestock: { ...livestock, pensFromDay: penGraceEnd(day) } };
+}
+
+/** Den, od kterého stádo omezují místa – rok po dni `day` (založení vsi, převod). */
+export function penGraceEnd(day: number): number {
+  return day + PEN_GRACE.graceDays;
+}
+
+/**
+ * Omezují v den `day` stádo místa ohrad a u domů? Až po ročním odkladu (`pensFromDay`); bez dne
+ * hned (oxen.md – Ohrady podle druhu, roční odklad).
+ */
+export function pensLimitHerds(state: Pick<VillageState, 'livestock'>, day: number): boolean {
+  const from = state.livestock?.pensFromDay;
+  return from === undefined || day >= from;
+}
+
+/**
+ * Druhy stád, která se na noc nevejdou do ohrad svého druhu a k domům (`herdRoom`; chovný pár
+ * zůstane vždy) – upozornění „Stáda se nevejdou do ohrad“, i během ročního odkladu.
+ */
+export function herdsOverRoom(
+  state: Pick<VillageState, 'pens' | 'people' | 'livestock'>,
+): HerdSpecies[] {
+  const herds = state.livestock?.herds;
+  if (!herds) return [];
+  const room = herdRoom(state);
+  return (['sheep', 'goat', 'pig', 'cow'] as const).filter(
+    (s) => Math.round(herds[s]) > Math.max(room[s], BREEDING_PAIR),
+  );
+}
+
+/** Chovný pár druhu zůstane vždy (LIVESTOCK.breedingMin – bez importu livestock.ts). */
+const BREEDING_PAIR = 2;
 
 function sharesEdge(a: TileCell, b: TileCell): boolean {
   return Math.abs(a.x - b.x) + Math.abs(a.y - b.y) === 1;

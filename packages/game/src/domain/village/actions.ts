@@ -14,7 +14,14 @@ import { isVillageExtinct } from './extinction';
 import { winterHayKg } from './hay';
 import { foundingLivestock } from './livestock';
 import { ableTeams, startPen, type PenInput } from './oxen';
-import { MAX_PEN_SQUARES, PEN_SPECIES, connectedCells, penSquares, touchingPens } from './pens';
+import {
+  MAX_PEN_SQUARES,
+  PEN_SPECIES,
+  connectedCells,
+  penGraceEnd,
+  penSquares,
+  touchingPens,
+} from './pens';
 import { fieldsTouching, mergeFields, partFoundingCost } from './fields';
 import { normalizeGrid, rotationTurn, squareKey } from './square-grid';
 import { fieldGrids } from './squares';
@@ -397,9 +404,13 @@ export function foundVillage(input: {
         dwellingId: householdId,
         sex: START_SEXES[i] ?? 'male',
       }));
-  const livestock = settlers
-    ? { herds: { ...settlers.herds }, young: { ...settlers.young } }
-    : foundingLivestock({ people }, day);
+  const livestock = {
+    ...(settlers
+      ? { herds: { ...settlers.herds }, young: { ...settlers.young } }
+      : foundingLivestock({ people }, day)),
+    // rok na stavbu ohrad (oxen.md – Ohrady podle druhu, roční odklad)
+    pensFromDay: penGraceEnd(day),
+  };
   const [husband, wife] = people;
   if (!settlers && husband && wife) {
     husband.spouseId = wife.id;

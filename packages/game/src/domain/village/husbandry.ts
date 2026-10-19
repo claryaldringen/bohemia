@@ -31,7 +31,7 @@ import {
   winterWaitHayKg,
 } from './livestock';
 import { OXEN, ableTeams, penDay, penOxen, oxPens, trainTeamsWhenReady, villageOxen } from './oxen';
-import { herdRoom } from './pens';
+import { herdRoom, pensLimitHerds } from './pens';
 import { walkDistancesTo } from './paths/village';
 import { villageRoadWalk } from './paths/walking';
 import type { ChronicleEvent, HerdSpecies, VillageState } from './types';
@@ -111,7 +111,7 @@ function farmInput(
   minSheep: number;
   herding: number;
   costs: FoodCosts;
-  room: Record<HerdSpecies, number>;
+  room?: Record<HerdSpecies, number>;
 } {
   return {
     oxen: villageOxen(state),
@@ -119,8 +119,9 @@ function farmInput(
     minSheep: woolSheep(state, day),
     herding: herdingCoverage(state),
     costs: villageFoodCosts(state, day, toolCoverage),
-    // místa na noc – ohrady svého druhu a pár kusů u domů (oxen.md – Ohrady podle druhu)
-    room: herdRoom(state),
+    // místa na noc – ohrady svého druhu a pár kusů u domů (oxen.md – Ohrady podle druhu); po
+    // ročním odkladu (nová ves, převod)
+    ...(pensLimitHerds(state, day) ? { room: herdRoom(state) } : {}),
   };
 }
 

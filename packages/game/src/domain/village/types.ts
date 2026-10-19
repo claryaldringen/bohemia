@@ -1860,6 +1860,12 @@ export interface LivestockState {
    * spotřeby do konce zimy. Chybí = žádné (i vsi uložené dřív).
    */
   culling?: Record<HerdSpecies, number>;
+  /**
+   * Od kterého dne stádo omezují místa ohrad a u domů (oxen.md – Ohrady podle druhu, roční
+   * odklad – návrh Clauda): rok po založení vsi, u vsi uložené dřív rok po zavedení pravidla
+   * (`withPenSpecies`). Chybí = platí hned (testy, vsi bez převodu).
+   */
+  pensFromDay?: number;
 }
 
 /** Seno (oxen.md – Seno): zásoba, letošní seč a zima. */

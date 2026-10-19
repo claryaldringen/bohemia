@@ -88,8 +88,15 @@ Clauda, čísla podle [rešerše](research/2026-10-19-pens.md).
   nejvýš tolik kusů, aby se i s jarními mláďaty vešly do ohrad svého druhu a k domům (místa ÷
   (1 + jarní mláďata na kus)) – vedle pastvy, sena, lesa, pasáků a místa pro mláďata podle
   výrostků. Kusy nad místa jdou na maso jako kusy nad nosnost; kusy čekající na zimní porážku jen
-  do volných míst. Platí i pro dřívější vsi bez ohrad – nadbytek jde na maso při nejbližší
-  porážce.
+  do volných míst. Platí i pro dřívější vsi bez ohrad – nadbytek jde na maso při první
+  porážce po ročním odkladu (níž).
+- **Roční odklad** (návrh Clauda, koordinátor za Martina 19. 10. 2026): místa ohrad a u domů
+  omezí stádo až u porážky 1. 11., která přijde aspoň 365 dní po založení vsi – u vsi uložené
+  dřív po zavedení pravidla (den převodu při načtení). Hráč má rok na stavbu ohrad: nová ves
+  založená na podzim by ohradu před 1. 11. nestihla a dřívější ves by přes noc přišla o stáda
+  (Vlkov v herním květnu: ovce 74 → 12). Upozornění „Stáda se nevejdou do ohrad“ platí i během
+  odkladu, ať hráč ví, že má stavět. Spřežení a ohrada skotu se neodkládají zvlášť – na ohradu
+  skotu (krávy na výcvik dalšího spřežení) má hráč 10 let služby spřežení a upozornění.
 - **Výběr druhu hráčem:** jedna stavba „Ohrada“ ([O]); při umisťování **Tab** (Shift + Tab zpět)
   přepíná druh – ovce → kozy → prasata → skot → spřežení; u kurzoru ikona druhu a cena. Nad
   ohradou téhož druhu se malování chytí její mřížky (rozšíření). Vybraná ohrada dá druh i mřížku;
@@ -530,3 +537,4 @@ a nechávalo za sebou brázdu. Tak budu moci určit, jak se to chová.“ – **
 | Staré ohrady: se spřežením nebo výcvikem spřežení, jinak skot                                                                                                                                                                                                                                             | návrh Clauda, Martin schválil                              |
 | Přístřešek v prvním čtverci zády a bokem k vnějšímu plotu; rozšíření ve stavbě jen vytyčené                                                                                                                                                                                                               | rozhodnutí Clauda                                          |
 | Upozornění „Ovce se nevejdou do ohrad“                                                                                                                                                                                                                                                                    | rozhodnutí Clauda                                          |
+| Roční odklad míst: porážka aspoň 365 dní po založení vsi / zavedení pravidla; upozornění i během odkladu                                                                                                                                                                                                  | návrh Clauda (koordinátor za Martina)                      |
