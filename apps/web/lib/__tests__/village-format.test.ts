@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   fieldPreviewLabel,
+  formatAnimals,
   formatCells,
   formatHa,
   formatInteger,
@@ -55,6 +56,15 @@ describe('čísla vsi česky', () => {
     ).toBe('19 čtverců · 0,43 ha · úrodnost 63 · 17 člověkodnů');
     expect(formatCells(1)).toBe('1 čtverec');
     expect(formatCells(3)).toBe('3 čtverce');
+  });
+});
+
+describe('kusy dobytka', () => {
+  it('výčet ve 4. pádě, prasata první, kusy zaokrouhlené', () => {
+    expect(formatAnimals({ pig: 11.6 })).toBe('12 prasat');
+    expect(formatAnimals({ sheep: 1, pig: 2 })).toBe('2 prasata a 1 ovci');
+    expect(formatAnimals({ cow: 1, goat: 3, pig: 0.3, sheep: 5 })).toBe('3 kozy, 1 krávu a 5 ovcí');
+    expect(formatAnimals({ pig: 0.2 })).toBe('');
   });
 });
 

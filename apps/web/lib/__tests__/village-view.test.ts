@@ -1781,8 +1781,7 @@ describe('buildVillageView – víc vsí a přestěhování (migration.md)', () 
         extinct: false,
         abandoned: false,
         travelling: false,
-        hungry: false,
-        starving: false,
+        hunger: 'fed',
       },
     ]);
   });

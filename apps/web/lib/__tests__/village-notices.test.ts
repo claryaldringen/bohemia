@@ -142,6 +142,7 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
   orchards: [],
   hungry: false,
   starving: false,
+  hunger: 'fed',
   constructionsStalled: false,
   happiness: { value: 50, target: 50, laborFactor: 1 },
   sacred: { oaks: [], groves: [], buildings: [] },
@@ -160,7 +161,13 @@ describe('villageNotices', () => {
 
   it('hlad, stojící stavby a rodina čeká na dům – problémy první, jen krátký fakt', () => {
     const notices = villageNotices(
-      view({ hungry: true, satiation: 0.72, constructionsStalled: true, fullHousehold: true }),
+      view({
+        hungry: true,
+        hunger: 'hungry',
+        satiation: 0.72,
+        constructionsStalled: true,
+        fullHousehold: true,
+      }),
     );
     expect(notices).toEqual([
       { kind: 'hungry', tone: 'warn', text: 'Ves hladoví' },
@@ -171,27 +178,71 @@ describe('villageNotices', () => {
 });
 
 describe('villageNotices – hlad a vymření', () => {
-  it('lidé umírají hlady – upozornění před hladem', () => {
-    expect(villageNotices(view({ hungry: true, starving: true, satiation: 0 }))).toEqual([
-      { kind: 'starving', tone: 'warn', text: 'Lidé umírají hlady' },
+  it('stupně hladu – vždy jen nejvyšší: šetří jídlem mírně, hladoví, umírají hlady', () => {
+    expect(villageNotices(view({ hungry: true, hunger: 'rationing' }))).toEqual([
+      { kind: 'rationing', tone: 'info', text: 'Ves šetří jídlem' },
+    ]);
+    expect(villageNotices(view({ hungry: true, hunger: 'hungry' }))).toEqual([
       { kind: 'hungry', tone: 'warn', text: 'Ves hladoví' },
     ]);
+    expect(
+      villageNotices(view({ hungry: true, starving: true, hunger: 'starving', satiation: 0 })),
+    ).toEqual([{ kind: 'starving', tone: 'warn', text: 'Lidé umírají hlady' }]);
   });
 
   it('vymřelá ves žádná upozornění nemá', () => {
     const extinct = { foundedYear: 512, extinctYear: 587, years: 74 };
-    expect(villageNotices(view({ hungry: true, starving: true, extinct }))).toEqual([]);
+    expect(
+      villageNotices(view({ hungry: true, starving: true, hunger: 'starving', extinct })),
+    ).toEqual([]);
   });
 });
 
 describe('newNotices', () => {
   it('ohlásí jen nově vzniklá upozornění, trvající podruhé ne', () => {
     const calm = view();
-    const hungry = view({ hungry: true, satiation: 0.8 });
+    const hungry = view({ hungry: true, hunger: 'hungry', satiation: 0.8 });
     expect(newNotices(calm, hungry).map((n) => n.kind)).toEqual(['hungry']);
-    expect(newNotices(hungry, view({ hungry: true, satiation: 0.6 }))).toEqual([]);
-    const both = view({ hungry: true, fullHousehold: true });
+    expect(newNotices(hungry, view({ hungry: true, hunger: 'hungry', satiation: 0.6 }))).toEqual(
+      [],
+    );
+    const both = view({ hungry: true, hunger: 'hungry', fullHousehold: true });
     expect(newNotices(hungry, both).map((n) => n.kind)).toEqual(['full-household']);
+  });
+
+  it('hlad se ohlásí, jen když se zhorší – šetří jídlem → hladoví → umírají, zpět nic', () => {
+    const rationing = view({ hungry: true, hunger: 'rationing' });
+    const hungry = view({ hungry: true, hunger: 'hungry' });
+    const starving = view({ hungry: true, starving: true, hunger: 'starving' });
+    expect(newNotices(view(), rationing).map((n) => n.text)).toEqual(['Ves šetří jídlem']);
+    expect(newNotices(rationing, hungry).map((n) => n.text)).toEqual(['Ves hladoví']);
+    expect(newNotices(hungry, starving).map((n) => n.text)).toEqual(['Lidé umírají hlady']);
+    expect(newNotices(view(), starving).map((n) => n.text)).toEqual(['Lidé umírají hlady']);
+    expect(newNotices(starving, hungry)).toEqual([]);
+    expect(newNotices(hungry, rationing)).toEqual([]);
+    expect(newNotices(rationing, view())).toEqual([]);
+  });
+
+  it('nouzová porážka – krátký fakt, kolik kusů čeho', () => {
+    const entry = (animals: Record<string, number>): VillageView['chronicle'][number] => ({
+      day: 1001,
+      kind: 'emergency-slaughter',
+      kg: 600,
+      animals,
+      dateLabel: '',
+      text: '',
+    });
+    expect(
+      newNotices(view(), view({ dayIndex: 1001, chronicle: [entry({ pig: 11.6 })] })).map(
+        (n) => n.text,
+      ),
+    ).toEqual(['Vesničané porazili 12 prasat navíc']);
+    expect(
+      newNotices(
+        view(),
+        view({ dayIndex: 1001, chronicle: [entry({ pig: 3, goat: 1, cow: 2.2 })] }),
+      ).map((n) => n.text),
+    ).toEqual(['Vesničané porazili 3 prasata, 1 kozu a 2 krávy navíc']);
   });
 
   it('po skončení a novém začátku stavu ohlásí znovu', () => {
@@ -513,20 +564,25 @@ describe('upozornění z jiných vsí (migration.md)', () => {
     extinct: false,
     abandoned: false,
     travelling: false,
-    hungry: false,
-    starving: false,
+    hunger: 'fed',
     ...overrides,
   });
   const self = item({ id: 'v-1', name: 'Libice' });
 
   it('hlad, vymírání hladem a vymření jiné vsi – jednou, se jménem vsi', () => {
     const before = view({ villages: [self, item()] });
-    const hungry = view({ villages: [self, item({ hungry: true })] });
-    expect(newNotices(before, hungry)).toEqual([
+    const rationing = view({ villages: [self, item({ hunger: 'rationing' })] });
+    expect(newNotices(before, rationing)).toEqual([
+      { kind: 'other-rationing', tone: 'info', text: 'Budeč: ves šetří jídlem' },
+    ]);
+    const hungry = view({ villages: [self, item({ hunger: 'hungry' })] });
+    expect(newNotices(rationing, hungry)).toEqual([
       { kind: 'other-hungry', tone: 'warn', text: 'Budeč: ves hladoví' },
     ]);
     expect(newNotices(hungry, hungry)).toEqual([]);
-    const starving = view({ villages: [self, item({ hungry: true, starving: true })] });
+    // zlepšení se neohlašuje
+    expect(newNotices(hungry, rationing)).toEqual([]);
+    const starving = view({ villages: [self, item({ hunger: 'starving' })] });
     expect(otherVillageNotices(hungry, starving)).toEqual([
       { kind: 'other-starving', tone: 'warn', text: 'Budeč: lidé umírají hlady' },
     ]);
@@ -540,14 +596,21 @@ describe('upozornění z jiných vsí (migration.md)', () => {
     const before = view({ villages: [self] });
     const after = view({
       hungry: true,
-      villages: [{ ...self, hungry: true }, item({ hungry: true })],
+      hunger: 'hungry',
+      villages: [{ ...self, hunger: 'hungry' }, item({ hunger: 'hungry' })],
     });
     expect(otherVillageNotices(before, after)).toEqual([]);
   });
 
   it('po přepnutí na jinou ves žádná nová upozornění', () => {
     const libice = view({ villages: [self, item()] });
-    const budec = view({ id: 'v-2', name: 'Budeč', hungry: true, villages: [self, item()] });
+    const budec = view({
+      id: 'v-2',
+      name: 'Budeč',
+      hungry: true,
+      hunger: 'hungry',
+      villages: [self, item()],
+    });
     expect(newNotices(libice, budec)).toEqual([]);
   });
 });

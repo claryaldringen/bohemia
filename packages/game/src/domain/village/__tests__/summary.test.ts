@@ -160,6 +160,31 @@ describe('summarizeVillage', () => {
     expect(summarizeVillage(s, DAY).hungry).toBe(true);
   });
 
+  it('stupeň hladu (population.md – Co hráč vidí): šetří jídlem, hladoví od 90 %, umírají hlady', () => {
+    const s = found();
+    expect(summarizeVillage(s, DAY).hunger).toBe('fed');
+    s.hungry = true;
+    s.ration = 0.94;
+    expect(summarizeVillage(s, DAY).hunger).toBe('rationing');
+    s.ration = 0.9;
+    expect(summarizeVillage(s, DAY).hunger).toBe('rationing');
+    s.ration = 0.89;
+    expect(summarizeVillage(s, DAY).hunger).toBe('hungry');
+    // ves uložená bez přídělu – energie posledního jídla
+    delete s.ration;
+    s.diet = {
+      energy: 0.95,
+      protein: 1,
+      diversity: 1,
+      satiation: 0.95,
+      shares: { grain: 0.95, meat: 0, dairy: 0, eggs: 0, fruit: 0, legumes: 0 },
+    };
+    expect(summarizeVillage(s, DAY).hunger).toBe('rationing');
+    s.starvationDays = 40;
+    expect(summarizeVillage(s, DAY).hunger).toBe('starving');
+    expect(summarizeVillage(s, DAY).starving).toBe(true);
+  });
+
   it(`stavby stojí, když ${STALL_DAYS} dny po sobě nezbyla společná práce`, () => {
     const s = found(); // první pole se zakládá
     s.commonLaborHistory = [2, 0, 0];

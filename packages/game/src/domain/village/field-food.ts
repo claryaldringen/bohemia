@@ -1,4 +1,5 @@
 import { daysUntilHarvest } from './food';
+import { expectedYearlyFoodNeed } from './food-outlook';
 import {
   daysUntilLegumeHarvest,
   legumeEnergy,
@@ -103,7 +104,7 @@ export interface SowingTargets {
   legumeKg: number;
   /** Pod kolik energie luštěniny plán nestáhnou – nejvýš potřeba z pole na rok. */
   energyFloorKg: number;
-  /** Roční potřeba z pole (kg obilí). */
+  /** Roční potřeba z pole v roce po příští sklizni – podle růstu vsi (kg obilí). */
   needKg: number;
   /** Zásoby z pole, které zbudou k příští sklizni (kg obilí). */
   leftKg: number;
@@ -124,7 +125,9 @@ export interface SowingTargets {
  * bez toho, co z jejich zásoby k jejich sklizni zbude – jí se rovným dílem do sklizně až do stropu,
  * takže zásoba nad strop přetrvá a sní se příště; pojistku drží obilí, které dorovná cokoli.
  * Luštěniny se zasejí i tehdy, když obilí ves nepotřebuje. `potteryCoverage` – nádoby od hrnčíře
- * zmenšují ztráty (crafts.md).
+ * zmenšují ztráty (crafts.md). Potřeba podle růstu vsi (fields.md – Osev podle růstu vsi): do
+ * příští sklizně a rok po ní podle výhledu lidí (`expectedYearlyFoodNeed` – děti dorostou, narodí
+ * se další), ne podle dnešního počtu.
  */
 export function sowingTargets(
   state: Pick<VillageState, 'people' | 'fieldFood' | 'storesKg' | 'legumesKg'>,
@@ -132,8 +135,19 @@ export function sowingTargets(
   legumeNeedKg: number,
   potteryCoverage: number,
 ): SowingTargets {
-  const yearly = yearlyFoodNeed(state, day);
-  const need = fieldFoodShare(state) * yearly;
+  // potřeba podle růstu vsi (Osev podle růstu vsi): do příští sklizně se jí ze zásob, úroda plánu
+  // se jí rok po ní – děti mezitím dorostou a narodí se další
+  const harvestDay = day + daysUntilHarvest(day) - 1;
+  const yearly = expectedYearlyFoodNeed(state, day, day, harvestDay);
+  const yearlyAfter = expectedYearlyFoodNeed(
+    state,
+    day,
+    harvestDay + 1,
+    harvestDay + DAYS_PER_YEAR,
+  );
+  const share = fieldFoodShare(state);
+  const need = share * yearly;
+  const needAfter = share * yearlyAfter;
   const loss = storageLossPerYear(potteryCoverage);
   const legumeLoss = legumeStorageLossPerYear(potteryCoverage);
   // luštěnin se do jejich sklizně sní nejvýš strop – co nad něj zbude, sní se příští rok
@@ -146,10 +160,10 @@ export function sowingTargets(
   const years = daysUntilHarvest(day) / DAYS_PER_YEAR;
   const eatenStock = state.storesKg + legumeEnergy(Math.max(0, legumesKg - legumesLeftKg));
   const left = storesLeft(eatenStock, need, years, loss) + legumeEnergy(legumesLeftKg);
-  const buffer = bufferKg(yearly);
-  const keep = storesTargetKg(need, buffer);
+  const buffer = bufferKg(yearlyAfter);
+  const keep = storesTargetKg(needAfter, buffer);
   // úroda rok co rok: po sklizni tolik, aby po roce spotřeby a ztrát zbyla cílová zásoba
-  const afterHarvest = storesNeeded(keep, need, 1, loss);
+  const afterHarvest = storesNeeded(keep, needAfter, 1, loss);
   const steady = afterHarvest - keep;
   // odchylka od cílové zásoby po třetinách; pod pojistkou se chybějící doplní hned
   const correction =
@@ -162,8 +176,8 @@ export function sowingTargets(
   return {
     targetKg,
     legumeKg,
-    energyFloorKg: Math.min(targetKg, need),
-    needKg: need,
+    energyFloorKg: Math.min(targetKg, needAfter),
+    needKg: needAfter,
     leftKg: left,
     bufferKg: buffer,
     afterHarvestKg: afterHarvest,

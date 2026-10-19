@@ -1,13 +1,13 @@
-import type { AbandonedStructure, NewcomerGroup } from '@bohemia/game';
+import type { AbandonedStructure, HungerLevel, NewcomerGroup } from '@bohemia/game';
 import { DIRECTION_NAMES, NEWCOMER_TEXTS } from './trade-names';
-import { formatInteger } from './village-format';
+import { formatAnimals, formatInteger } from './village-format';
 import { productList, type VillageView } from './village-view';
 
-// Upozornění vsi (population.md – Co hráč vidí): rodina čeká na dům, ves hladoví, lidé umírají hlady
-// (Hlad a vymření), stavby stojí, hřbitov je plný (cemetery.md), vesničané ušetřili posvátný dub
+// Upozornění vsi (population.md – Co hráč vidí): rodina čeká na dům, ves šetří jídlem, hladoví,
+// lidé umírají hlady – vždy jen nejvyšší stupeň (Hlad a vymření), stavby stojí, hřbitov je plný (cemetery.md), vesničané ušetřili posvátný dub
 // nebo dubový háj (happiness.md – jen když přibude), kovář nemá uhlí a dílna nemá co kácet
 // (crafts.md), tesař nemá klády, vyrobil vůz a vůz dosloužil (wagons.md), svatba mezi domy (population.md – Sňatky mezi domy, když přibude), podzimní porážka,
-// zkažené maso a zimní úhyn stáda (diet.md), spřežení volů – vycvičené, dosloužilo, vůl uhynul pro
+// nouzová porážka, zkažené maso a zimní úhyn stáda (diet.md), spřežení volů – vycvičené, dosloužilo, vůl uhynul pro
 // nedostatek sena (oxen.md) –, vesničané obnovují starý sad a starý sad dosloužil (orchard.md –
 // Obnova sadu), posvátný dub uschl a posvátná souš padla (happiness.md), nevěsta a ženich z okolí
 // a dcera vdaná pryč (kinship.md – Sňatky z okolí), lidé od souseda – rodina, muž, žena (trade.md – Výměna
@@ -18,6 +18,8 @@ import { productList, type VillageView } from './village-view';
 
 export type NoticeKind =
   | 'full-household'
+  /** Stupně hladu (population.md – Co hráč vidí): šetří jídlem, hladoví, umírají hlady. */
+  | 'rationing'
   | 'hungry'
   | 'starving'
   | 'stalled'
@@ -36,6 +38,8 @@ export type NoticeKind =
   | 'sacred-snag-fell'
   | 'marriage'
   | 'slaughter'
+  /** Výhled jídla nevycházel – vesničané porazili zvířata navíc (diet.md – Nouzová porážka). */
+  | 'emergency-slaughter'
   | 'meat-spoiled'
   /** Lnu na oděv všech je málo (fields.md – Len, diet.md – Oděv). */
   | 'linen-short'
@@ -71,6 +75,7 @@ export type NoticeKind =
   | 'cemetery-fence-repaired'
   | 'pen-repaired'
   /** Upozornění z jiné vsi hráče (migration.md – Víc vsí jednoho hráče). */
+  | 'other-rationing'
   | 'other-hungry'
   | 'other-starving'
   | 'other-extinct';
@@ -82,12 +87,39 @@ export interface VillageNotice {
   text: string;
 }
 
+/**
+ * Stupně hladu (population.md – Co hráč vidí): ves šetří jídlem (ubírá z přídělu, jí se 90–100 % –
+ * mírně, jako zpráva), hladoví (pod 90 % – od té hranice se sčítá hlad), lidé umírají hlady.
+ */
+const HUNGER_NOTICES: Record<Exclude<HungerLevel, 'fed'>, VillageNotice> = {
+  rationing: { kind: 'rationing', tone: 'info', text: 'Ves šetří jídlem' },
+  hungry: { kind: 'hungry', tone: 'warn', text: 'Ves hladoví' },
+  starving: { kind: 'starving', tone: 'warn', text: 'Lidé umírají hlady' },
+};
+
+/** Totéž z jiné vsi hráče – krátký řádek se jménem vsi. */
+const OTHER_HUNGER_NOTICES: Record<
+  Exclude<HungerLevel, 'fed'>,
+  { kind: NoticeKind; tone: VillageNotice['tone']; text: string }
+> = {
+  rationing: { kind: 'other-rationing', tone: 'info', text: 'ves šetří jídlem' },
+  hungry: { kind: 'other-hungry', tone: 'warn', text: 'ves hladoví' },
+  starving: { kind: 'other-starving', tone: 'warn', text: 'lidé umírají hlady' },
+};
+
+/** Pořadí stupňů hladu – vyšší je horší. */
+const HUNGER_RANK: Record<HungerLevel, number> = { fed: 0, rationing: 1, hungry: 2, starving: 3 };
+
+/** Je stupeň hladu `next` horší než `before`? */
+function worse(next: HungerLevel, before: HungerLevel): boolean {
+  return HUNGER_RANK[next] > HUNGER_RANK[before];
+}
+
 /** Upozornění, která pro ves právě platí (pořadí: problémy, pak zprávy). */
 export function villageNotices(view: VillageView): VillageNotice[] {
   const notices: VillageNotice[] = [];
   if (view.extinct) return notices;
-  if (view.starving) notices.push({ kind: 'starving', tone: 'warn', text: 'Lidé umírají hlady' });
-  if (view.hungry) notices.push({ kind: 'hungry', tone: 'warn', text: 'Ves hladoví' });
+  if (view.hunger !== 'fed') notices.push(HUNGER_NOTICES[view.hunger]);
   if (view.constructionsStalled) {
     notices.push({ kind: 'stalled', tone: 'warn', text: 'Stavby stojí' });
   }
@@ -137,23 +169,29 @@ export function otherVillageNotices(previous: VillageView, next: VillageView): V
     if (!before) continue;
     if (village.extinct && !before.extinct) {
       notices.push({ kind: 'other-extinct', tone: 'warn', text: `${village.name}: ves vymřela` });
-    } else if (village.starving && !before.starving) {
-      notices.push({
-        kind: 'other-starving',
-        tone: 'warn',
-        text: `${village.name}: lidé umírají hlady`,
-      });
-    } else if (village.hungry && !before.hungry) {
-      notices.push({ kind: 'other-hungry', tone: 'warn', text: `${village.name}: ves hladoví` });
+    } else if (village.hunger !== 'fed' && worse(village.hunger, before.hunger)) {
+      // jen když se hlad v té vsi zhoršil – zlepšení se neohlašuje
+      const notice = OTHER_HUNGER_NOTICES[village.hunger];
+      notices.push({ ...notice, text: `${village.name}: ${notice.text}` });
     }
   }
   return notices;
 }
 
+/** Upozornění na hlad – ohlašují se jen, když se hlad zhorší (o stupeň a víc). */
+const HUNGER_KINDS: ReadonlySet<NoticeKind> = new Set(
+  Object.values(HUNGER_NOTICES).map((n) => n.kind),
+);
+
 /** Nová upozornění vsi samotné mezi dvěma jejími pohledy. */
 function ownNotices(previous: VillageView, next: VillageView): VillageNotice[] {
   const before = new Set(villageNotices(previous).map((n) => n.kind));
-  const notices = villageNotices(next).filter((n) => !before.has(n.kind));
+  const notices = villageNotices(next).filter(
+    (n) => !before.has(n.kind) && !HUNGER_KINDS.has(n.kind),
+  );
+  if (!next.extinct && next.hunger !== 'fed' && worse(next.hunger, previous.hunger)) {
+    notices.unshift(HUNGER_NOTICES[next.hunger]);
+  }
   // posvátná místa vznikají jednou – fakt, když přibudou (happiness.md)
   if (next.sacred.oaks.length > previous.sacred.oaks.length) {
     notices.push({ kind: 'sacred-oak', tone: 'info', text: 'Vesničané ušetřili posvátný dub' });
@@ -188,6 +226,16 @@ const CHRONICLE_NOTICES: Partial<
         ? `Podzimní porážka – ${formatInteger(entry.kg)} kg masa`
         : 'Podzimní porážka',
   }),
+  // výhled jídla do sklizně nevycházel – ves porazila zvířata navíc (diet.md – Nouzová porážka)
+  'emergency-slaughter': (entry) => {
+    const animals = entry.animals ? formatAnimals(entry.animals) : '';
+    return {
+      kind: 'emergency-slaughter',
+      tone: 'info',
+      text:
+        animals !== '' ? `Vesničané porazili ${animals} navíc` : 'Vesničané porazili dobytek navíc',
+    };
+  },
   // zbytek uzeného masa se do žní nesnědl, přes zimu chybělo seno (diet.md)
   'meat-spoiled': (entry) => ({
     kind: 'meat-spoiled',

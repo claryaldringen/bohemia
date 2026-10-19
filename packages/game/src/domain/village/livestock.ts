@@ -362,10 +362,13 @@ export function butcher(state: VillageState, kg: number): void {
   work.required += kg / LIVESTOCK.slaughterKgPerManDay;
 }
 
-/** Zbývající práce porážky a uzení (člověkodny) – jen v listopadu. */
+/**
+ * Zbývající práce porážky a uzení (člověkodny) – v listopadu, nouzová porážka (diet.md – Nouzová
+ * porážka) i v jiném měsíci.
+ */
 export function slaughterRemaining(state: VillageState, day: number): number {
   const work = state.livestock?.slaughterWork;
-  if (!work || dateOfDayIndex(day).month !== SLAUGHTER_MONTH) return 0;
+  if (!work || (dateOfDayIndex(day).month !== SLAUGHTER_MONTH && !work.emergency)) return 0;
   return Math.max(0, work.required - work.done);
 }
 

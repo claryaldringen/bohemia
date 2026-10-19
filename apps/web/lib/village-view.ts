@@ -101,6 +101,7 @@ import {
   type DwellingType,
   type FieldPart,
   type FieldSurface,
+  type HungerLevel,
   type LaborShare,
   type Landscape,
   type ObstacleChanges,
@@ -157,7 +158,7 @@ import { foreignFromScene, plotOfScene } from './scene/neighbour-villages';
 import { sceneTrails, trailRoadWork } from './trail-view';
 import { sceneExpeditions } from './caravan-view';
 import { DIRECTION_NAMES, NEWCOMER_TEXTS, goodsText, peopleText } from './trade-names';
-import { formatCells, formatHa, formatInteger, plural } from './village-format';
+import { formatAnimals, formatCells, formatHa, formatInteger, plural } from './village-format';
 import type { VillageListItem } from './village-list';
 import {
   journeyView,
@@ -525,10 +526,15 @@ export interface VillageView {
   cemeteries: VillageCemetery[];
   /** Jabloňové sady pro panel výběru – plocha, stáří, odhad úrody (orchard.md). */
   orchards: VillageOrchard[];
-  /** Ves hladoví – zásoby nevystačí do sklizně. */
+  /** Ves šetří jídlem nebo hladoví – zásoby nevystačí do sklizně. */
   hungry: boolean;
   /** Lidé umírají hlady – nahromaděný hlad přesáhl práh (population.md – Hlad a vymření). */
   starving: boolean;
+  /**
+   * Stupeň hladu pro upozornění (population.md – Co hráč vidí): šetří jídlem (příděl 90–100 %),
+   * hladoví (pod 90 %), lidé umírají hlady.
+   */
+  hunger: HungerLevel;
   /** Stavby stojí – několik dní po sobě nezbyla žádná společná práce. */
   constructionsStalled: boolean;
   /** Štěstí obyvatel (happiness.md) – horní lišta. */
@@ -559,6 +565,8 @@ export interface VillageView {
     kg?: number;
     /** U pádu a opravy stavby (`structure-fell`, `structure-repaired`) která stavba. */
     structure?: AbandonedStructure;
+    /** Kolik kusů kterého druhu se porazilo navíc (`emergency-slaughter` – diet.md). */
+    animals?: Partial<Record<HerdSpecies, number>>;
     /** Kdo přišel od souseda a odkud (`newcomer` – trade.md, Výměna lidí). */
     group?: NewcomerGroup;
     direction?: Direction8;
@@ -1629,6 +1637,10 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return `Sklizeň ovoce: ${formatInteger(event.kg)} kg.`;
     case 'slaughter':
       return `Podzimní porážka: ${formatInteger(event.kg)} kg masa.`;
+    case 'emergency-slaughter': {
+      const animals = formatAnimals(event.animals);
+      return `Jídlo do sklizně by nevystačilo – vesničané porazili ${animals !== '' ? animals : 'dobytek'} navíc: ${formatInteger(event.kg)} kg masa.`;
+    }
     case 'meat-spoiled':
       return `Zbytek uzeného masa se zkazil: ${formatInteger(event.kg)} kg.`;
     case 'wool-short':
@@ -2826,6 +2838,7 @@ function chronicle(state: VillageState, name: string): VillageView['chronicle'] 
         ? { structure: event.structure }
         : {}),
       ...(event.kind === 'newcomer' ? { group: event.group, direction: event.direction } : {}),
+      ...(event.kind === 'emergency-slaughter' ? { animals: event.animals } : {}),
       ...(event.kind === 'crafts-bought'
         ? { direction: event.direction, products: boughtProducts(event.get) }
         : {}),
@@ -3093,8 +3106,7 @@ export function buildVillageView(
         extinct: state.extinctDay !== undefined,
         abandoned: state.abandonedDay !== undefined,
         travelling: state.journey !== undefined,
-        hungry: summary.hungry,
-        starving: summary.starving,
+        hunger: summary.hunger,
       },
     ],
     dayIndex: day,
@@ -3155,6 +3167,7 @@ export function buildVillageView(
     fields: fieldViews(state, day),
     hungry: summary.hungry,
     starving: summary.starving,
+    hunger: summary.hunger,
     constructionsStalled: summary.constructionsStalled,
     happiness: {
       value: summary.happiness.value,

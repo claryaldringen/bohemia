@@ -64,7 +64,7 @@ const targetOf = (s: VillageState, day: number): ReturnType<typeof sowingTargets
 
 describe('zkrácení plánu podle zásob', () => {
   it('velký plán ves zkrátí hned první den – od konce pořadí, ubrané díly leží ladem', () => {
-    const s0 = withOldPlan(300);
+    const s0 = withOldPlan(600);
     const day = at(601, 3, 1);
     const target = targetOf(s0, day);
     expect(planEnergyKg(s0, s0.plan!, day)).toBeGreaterThan(target.targetKg * 1.3);
