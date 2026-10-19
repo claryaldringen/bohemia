@@ -320,7 +320,7 @@ describe('souhrn pohřebišť', () => {
       cemetery(102, [square(-300, 0), square(-315, 0)], { builtDay: null }),
     ];
     const summary = summarizeVillage(s, day);
-    expect(summary.cemeteries.map((c) => [c.id, c.freeGraves, c.built])).toEqual([
+    expect(summary.cemeteries.map((c) => [c.id, c.freePlaces, c.built])).toEqual([
       [101, 10, true],
       [102, 112, false],
       [100, 50, true],

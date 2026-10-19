@@ -33,6 +33,7 @@ export * from './households';
 export * from './marriage';
 export * from './extinction';
 export * from './cemetery';
+export * from './burials';
 // sady – jen čisté funkce; kroky simulace (výsadba, práce a sezóna sadů) zůstávají uvnitř
 export {
   ORCHARD_TASK_NAMES,

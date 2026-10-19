@@ -736,7 +736,8 @@ describe('hřbitov v pohledu na ves', () => {
         progress: 0,
         capacity: 112,
         graves: 0,
-        freeGraves: 112,
+        usedPlaces: 0,
+        freePlaces: 112,
         yearsLeft: null,
         fenceCondition: 1,
         abandoned: false,
@@ -766,9 +767,37 @@ describe('hřbitov v pohledu na ves', () => {
     s.cemeteries![0]!.builtDay = DAY - 1;
     s.cemeteries![0]!.graves = 100;
     const view = buildVillageView(record(s), landscape, DAY);
-    expect(view.cemeteries[0]).toMatchObject({ built: true, progress: 1, freeGraves: 12 });
+    expect(view.cemeteries[0]).toMatchObject({
+      built: true,
+      progress: 1,
+      graves: 100,
+      usedPlaces: 100,
+      freePlaces: 12,
+    });
     expect(view.cemeteries[0]).not.toHaveProperty('spaceLabel');
     expect(view.scene.cemeteries?.[0]).toMatchObject({ built: true, graves: 100 });
+  });
+
+  it('mohyly podle významu: místa v panelu, staré hroby a mohyly ve scéně (cemetery.md)', () => {
+    const s = withCemetery();
+    s.constructions = s.constructions.filter((c) => c.kind !== 'cemetery');
+    const c = s.cemeteries![0]!;
+    c.builtDay = DAY - 1;
+    c.graves = 12;
+    c.mounds = [
+      { cell: { x: 0, y: 0 }, column: 2, row: 1, size: 'great', rank: 'manor', day: DAY - 800 },
+      { cell: { x: 1, y: 0 }, column: 6, row: 7, size: 'small', rank: 'child', day: DAY - 10 },
+    ];
+    const view = buildVillageView(record(s), landscape, DAY);
+    expect(view.cemeteries[0]).toMatchObject({ graves: 12, usedPlaces: 15, freePlaces: 97 });
+    expect(view.scene.cemeteries?.[0]).toMatchObject({
+      graves: 10,
+      mounds: [
+        { cell: { x: 0, y: 0 }, column: 2, row: 1, size: 'great' },
+        { cell: { x: 1, y: 0 }, column: 6, row: 7, size: 'small', fresh: true },
+      ],
+    });
+    expect(view.scene.cemeteries?.[0]?.mounds?.[0]).not.toHaveProperty('fresh');
   });
 });
 

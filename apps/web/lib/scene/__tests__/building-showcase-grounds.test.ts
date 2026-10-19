@@ -70,7 +70,7 @@ describe('pole, hřbitov a sad na vývojové stránce staveb', () => {
     expect(showcaseGrounds(0.98).labels.meadow).toMatch(/stohy/);
   });
 
-  it('hřbitov: založení ve fázích, pak přibývají hroby až do plného hřbitova', () => {
+  it('hřbitov: založení ve fázích, pak přibývají mohyly podle významu až do plného hřbitova', () => {
     const at = (
       p: number,
     ): NonNullable<ReturnType<typeof showcaseGrounds>['village']['cemeteries']>[number] =>
@@ -81,10 +81,19 @@ describe('pole, hřbitov a sad na vývojové stránce staveb', () => {
     expect(showcaseGrounds(0.15).labels.cemetery).toMatch(/kůlů/);
     expect(showcaseGrounds(0.4).labels.cemetery).toMatch(/plotu/);
     expect(at(0.6).built).toBe(true);
-    expect(at(0.6).graves).toBeGreaterThan(0);
-    expect(at(0.8).graves).toBeGreaterThan(at(0.6).graves);
+    const mounds = (p: number): number => at(p).mounds?.length ?? 0;
+    expect(mounds(0.6)).toBeGreaterThan(0);
+    expect(mounds(0.8)).toBeGreaterThan(mounds(0.6));
+    // plný hřbitov – místa obsazená mohylami všech velikostí, posledních pár čerstvých
+    const full = at(1).mounds!;
+    const places = { great: 4, large: 2, normal: 1, small: 1 } as const;
     const capacity = at(1).squares.length * CEMETERY.gravesPerSquare;
-    expect(at(1).graves).toBe(capacity);
+    expect(full.reduce((sum, m) => sum + places[m.size], 0)).toBe(capacity);
+    expect(new Set(full.map((m) => m.size))).toEqual(
+      new Set(['great', 'large', 'normal', 'small']),
+    );
+    expect(full.filter((m) => m.fresh)).toHaveLength(3);
+    expect(showcaseGrounds(1).labels.cemetery).toMatch(/plný hřbitov/);
   });
 
   it('sad: vytyčení, kůly, sazenice, rostoucí stromky, nakonec plný sad s jablky', () => {

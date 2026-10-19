@@ -1,13 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { CEMETERY, cemeteryEntrance, rotationCosSin, turnRotation } from '@bohemia/game';
+import {
+  CEMETERY,
+  MOUND_SIZES,
+  cemeteryEntrance,
+  gravePlaceCenter,
+  rotationCosSin,
+  turnRotation,
+} from '@bohemia/game';
 import {
   CEMETERY_FENCE,
   CEMETERY_PHASES,
   FRESH_GRAVES,
   GRAVE_GRID,
+  MOUND_SHAPES,
   cemeteryConstruction,
+  cemeteryFenceGone,
   fenceLayout,
   gravePlacements,
+  moundPlacements,
 } from '../cemetery-layout';
 import type { CellSquare } from '../field-cells';
 import { PLOT_FENCE } from '../homestead-layout';
@@ -43,6 +53,83 @@ describe('gravePlacements', () => {
     expect(gravePlacements(two, 20, 9)).toEqual(gravePlacements(two, 20, 9));
     expect(gravePlacements(two, 500, 9)).toHaveLength(112);
     expect(gravePlacements(two, 0, 9)).toEqual([]);
+  });
+
+  it('staré hroby vedle mohyl podle významu jsou všechny zarostlé – jinak stejné', () => {
+    const old = gravePlacements(two, 20, 9, 0);
+    expect(old.some((g) => g.fresh)).toBe(false);
+    const where = (g: { x: number; z: number; rotationY: number; scale: number }): number[] => [
+      g.x,
+      g.z,
+      g.rotationY,
+      g.scale,
+    ];
+    expect(old.map(where)).toEqual(gravePlacements(two, 20, 9).map(where));
+  });
+
+  it('staré hroby leží na místech mřížky z jádra (gravePlaceCenter) – mohyly se jim vyhnou', () => {
+    const graves = gravePlacements(two, 9, 4);
+    graves.forEach((g, i) => {
+      const center = gravePlaceCenter(two[0]!, 15, undefined, i % 7, Math.floor(i / 7));
+      expect(Math.abs(g.x - center.x)).toBeLessThan(0.3);
+      expect(Math.abs(g.z - center.z)).toBeLessThan(0.3);
+    });
+  });
+});
+
+describe('plot starého hřbitova (abandonment.md)', () => {
+  it('spadlý plot zmizí úplně, rozpadající se a celý zůstane', () => {
+    expect(cemeteryFenceGone(0)).toBe(true);
+    expect(cemeteryFenceGone(0.05)).toBe(false);
+    expect(cemeteryFenceGone(undefined)).toBe(false);
+  });
+});
+
+describe('moundPlacements (cemetery.md – Mohyly podle významu)', () => {
+  it('mohyla na středu svých míst; vojvodova rodina s kůlem výrazně větší než dítě', () => {
+    const mounds = moundPlacements(
+      two,
+      [
+        { cell: { x: 1, y: 0 }, column: 2, row: 0, size: 'great', fresh: true },
+        { cell: { x: 0, y: 0 }, column: 6, row: 6, size: 'small' },
+        { cell: { x: 5, y: 5 }, column: 0, row: 0, size: 'normal' },
+      ],
+      7,
+    );
+    // mohyla ve čtverci mimo hřbitov (rozšíření ve stavbě) se nekreslí
+    expect(mounds.map((m) => m.size)).toEqual(['great', 'small']);
+    const great = gravePlaceCenter(two[1]!, 15, undefined, 2, 0, 2, 2);
+    expect(Math.abs(mounds[0]!.x - great.x)).toBeLessThan(0.2);
+    expect(Math.abs(mounds[0]!.z - great.z)).toBeLessThan(0.2);
+    expect(mounds[0]!.fresh).toBe(true);
+    expect(mounds[1]!.fresh).toBe(false);
+    expect(MOUND_SHAPES.great.radius).toBeGreaterThan(2.5 * MOUND_SHAPES.small.radius);
+    expect(MOUND_SHAPES.great.height).toBeGreaterThan(2 * MOUND_SHAPES.normal.height);
+    expect(MOUND_SHAPES.great.post).toBe(true);
+    // mohyla se vejde na svá místa (2 × 2 = 4 × 3,5 m)
+    const { columns, rows } = MOUND_SIZES.great;
+    expect(2 * MOUND_SHAPES.great.radius * 1.04).toBeLessThan(rows * 1.75 + 0.2);
+    expect(columns * 2).toBeGreaterThan(2 * MOUND_SHAPES.great.radius);
+    // deterministicky
+    expect(
+      moundPlacements(two, [{ ...mounds[0]!, cell: { x: 1, y: 0 }, column: 2, row: 0 }], 7)[0],
+    ).toEqual(mounds[0]);
+  });
+
+  it('podlouhlá mohyla hlavy rodiny leží po řadách – i v natočeném hřbitově', () => {
+    const rotation = turnRotation(3);
+    const turned: CellSquare[] = [{ ...square(0, 0), rotation }];
+    const [m] = moundPlacements(
+      turned,
+      [{ cell: { x: 0, y: 0 }, column: 3, row: 2, size: 'large' }],
+      2,
+    );
+    const center = gravePlaceCenter(turned[0]!, 15, rotation, 3, 2, 1, 2);
+    expect(Math.abs(m!.x - center.x)).toBeLessThan(0.2);
+    expect(Math.abs(m!.z - center.z)).toBeLessThan(0.2);
+    // natočení po řadách (± půl otočky a drobná odchylka)
+    const off = Math.abs(((m!.rotationY - rotation + Math.PI / 2) % Math.PI) - Math.PI / 2);
+    expect(off).toBeLessThan(0.07);
   });
 });
 

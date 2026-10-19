@@ -396,7 +396,12 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   (hrnčíř, kovář) pozemek nemají – stojí volně jako dřív. **Hřbitov** (`cemetery-renderer.ts`,
   geometrie bez Babylonu v `cemetery-layout.ts`): nízký pletený plot po obrysu čtverců (sdílený
   pletený plot, zakulacené rohy) s brankou k nejbližšímu hotovému obydlí (při rozšíření jinam
-  zůstane; místo branky = vchod z jádra `cemeteryEntrance`, paths.md – Vchody), uvnitř mohylky po hrobech (mřížka 7 × 8 na čtverec, poslední čerstvé z hlíny);
+  zůstane; místo branky = vchod z jádra `cemeteryEntrance`, paths.md – Vchody), uvnitř mohyly
+  podle významu (`SceneVillage.cemeteries[].mounds` – místo, velikost, `fresh` první rok –
+  `FRESH_MOUND_DAYS`; `moundPlacements` se středem z jádra `gravePlaceCenter`, tvary
+  `MOUND_SHAPES`: malá dítěte, běžná, podlouhlá hlavy rodiny po řadách, největší vojvodovy
+  rodiny s dřevěným kůlem; sítě po vzhledu a velikosti) a staré hroby (`graves` – pohřbení před
+  mohylami, mřížka 7 × 8 po řadách jako dřív, `gravePlacements`, čerstvé jen bez mohyl);
   založení vytyčení (kolíky a provázek po ostrém obrysu) → kůly → pletení; rozšíření ve stavbě
   má vlastní kus plotu bez branky jen tam, kde plot ještě není (na starý jen navazuje), po
   dokončení plot obepne celý hřbitov.
@@ -450,7 +455,9 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   argument `decay`; načtou se až s první chátrající stavbou, do té doby nejbližší díly
   staveniště – `DECAY_SUBSTITUTES`); zarostlá plocha a příkop svatyně dostanou ve scéně trávu
   terénu po světových souřadnicích (`overgrow`). Plot opuštěného hřbitova a ohrady `decayFence`
-  podle `fenceDecayAmount` (po dvacetinách), mohylky zarůstají a slehnou se s ním. Náhled:
+  podle `fenceDecayAmount` (po dvacetinách), mohylky zarůstají a slehnou se s ním; spadlý plot
+  hřbitova (stav 0 – `cemeteryFenceGone`) zmizí úplně, zůstanou
+  jen mohyly (Martin, 19. 10. 2026). Náhled:
   /dev/buildings tlačítko **Rozpad staveb** (modla, svatyně, hřbitov, ohrada – stejný posuvník
   ▶ Rozpad jako obydlí, `showcaseAbandoned`), přepínač **Oprava staveb** (posuvník = průběh
   opravy – `showcaseRepair`). Opravovaná svatyně (`SceneSacred.buildings[].repairing`) má ohniště
@@ -475,7 +482,8 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   pole, hřbitov a sad po čtvercích – kreslí je herní `VillageRenderer` (bez obydlí) podle
   `showcaseGrounds` v `building-showcase-layout.ts`: pole zakládání → brázdy → osev, pak jen
   jako náhled zelené a zralé obilí a strniště (`CropLook` / `crop` dílu v `SceneVillage`, server
-  ho zatím neposílá), hřbitov vytyčení → kůly → plot → přibývající mohylky, sad vytyčení → kůly
+  ho zatím neposílá), hřbitov vytyčení → kůly → plot → přibývající mohyly podle významu
+  (`showcaseMounds` – místo vybírá jádro), sad vytyčení → kůly
   → sazenice → rostoucí stromky → jablka.
 - **Grafika (licence):** CC0, nebo z **0 A.D.** pod **CC BY-SA 3.0** (textury terénu, stromy –
   uvést Wildfire Games, upravené soubory pod stejnou licencí). Zdroj a původní název každého
@@ -573,8 +581,8 @@ rozhraní částí v
   rozpadla“): modla a svatyně zmizí ze `sacredBuildings` (štěstí jen ze stojících, svatyni jde
   postavit znovu) a zůstane `VillageState.sacredRuins` (`sacredRuinOvergrowth`, modla 10,
   příkop 20 let – `remnantYears`, pod stavbou zmizí), u hřbitova jen plot (`fenceWear`
-  `{ condition: 0 }`, pohřbívá se dál), ohrada zmizí; ohrada, do které se vrátila zvířata,
-  chátrat přestane hned (nejméně 1 %). Web: `VillageSacred.buildings`,
+  `{ condition: 0 }`, pohřbívá se dál, ve scéně plot zmizí úplně), ohrada zmizí; ohrada, do
+  které se vrátila zvířata, chátrat přestane hned (nejméně 1 %). Web: `VillageSacred.buildings`,
   `VillagePen` a `VillageCemetery` nesou `condition` / `fenceCondition` a `abandoned` (panel –
   `Wear`: ikona `resources/condition` s %, ikona `resources/abandoned`), scéna
   `SceneSacred.buildings[].condition` / `abandoned`, `SceneSacred.ruins`, `ScenePen.condition`,
@@ -598,16 +606,30 @@ rozhraní částí v
   `VillageCemetery.repair`, `VillagePen.repair`, `VillageSacred.buildings[].repair` (průběh 0–1 –
   panel `RepairBar` „Oprava“ / „Oprava plotu“), scéna jen podle rostoucího stavu (stupně
   rozpadu a `decayFence` jdou opačně).
-- **Hřbitov** (`cemetery.ts`, cemetery.md): čtverce s 56 hroby, zemřelý se pohřbí do hotového
-  hřbitova s místem nejblíž k obydlím (`bury` v `populationDay`), kronika `cemetery-full`.
+- **Hřbitov** (`cemetery.ts`, cemetery.md): čtverce s 56 místy na hroby, zemřelý se pohřbí do
+  hotového hřbitova s místem nejblíž k obydlím (`bury(state, day, person)` v `populationDay` – za
+  života, před `removePeople`), kronika `cemetery-full` (žádné volné místo). **Mohyly podle
+  významu** (cemetery.md; Martin 19. 10. 2026: „Významnější lidé budou mít větší mohyly a na
+  prominentnějších místech… Největší mohyly bude mít vojvodova rodina.“, velikosti schválil):
+  `burials.ts` – `graveRank` (celá domácnost dvorce `manor`, dítě do 14 let `child`, hlava
+  domácnosti od 35 let s dítětem `head` – nejstarší muž a jeho žena, bez muže nejstarší žena,
+  jinak `adult`), `placeMound` (místo v mřížce 7 × 8 čtverce – `GRAVE_PLACES`; mohyla zabere
+  `MOUND_SIZES` míst: `great` 2 × 2, `large` 2 za sebou, `normal` a `small` 1; prominence =
+  hloubka od branky `cemeteryEntrance` + 2 × od osy – `GRAVE_RANKS`; vojvodova rodina a hlavy
+  nejprominentněji, dospělí u branky mimo pruh osy, děti vzadu; velká se zmenší, když se nevejde)
+  → `Cemetery.mounds` (`GraveMound`: čtverec, sloupec, řada, velikost, druh, den). `graves` =
+  pohřbení celkem; staré hroby (`oldGraves` = `graves` − mohyly) leží po jednom místě na prvních
+  místech po řadách jako dřív – hřbitov uložený dřív se načte a vypadá stejně. Kapacita
+  v místech: `cemeteryCapacity`, `usedPlaces`, `freePlaces` (i `acceptsBurials`, hygiena,
+  `CemeterySummary.usedPlaces` / `freePlaces`, `yearsLeft` s průměrnou velikostí mohyl).
   Čtverce navazující stranou na hřbitov ho **rozšíří** (`foundCemetery`: stejné id, čtverce na
   konec s `constructionId`, dokud se ohrazují, a nepočítají se); na dva hřbitovy navázat nejde.
   Hráči se říká vždy **Hřbitov** (texty), v kódu zůstává `cemetery`.
   **Hygiena** (`villageHygiene`, 0 bez hřbitova s místem, jinak podle vzdálenosti od hotových
   obydlí a vody – vzdálenost od vody se ukládá u čtverce při založení, simulace krajinu nemá)
   násobí úmrtnost, hájení chrání. Je jen vnitřní – **nikdy ji neukazovat hráči** (Martin), panel
-  ukáže jen hroby (obsazené / všechny) a na kolik let (`CemeterySummary.yearsLeft` z úmrtí
-  v kronice).
+  ukáže jen místa na hroby (obsazená / všechna, v bublině pohřbení) a na kolik let
+  (`CemeterySummary.yearsLeft` z úmrtí v kronice).
 - **Sad** (`orchard.ts`, orchard.md): staví se po čtvercích jako pole (`orchardPartsFromCells`,
   sad a hřbitov se nepřekrývají, na pole sad smí – Pole jako krajina, obydlí do sadu smí –
   Obydlí na poli a v sadu). Výsadba je

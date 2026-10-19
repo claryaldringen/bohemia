@@ -95,6 +95,7 @@ import {
   availableSettlers,
   buildAffordability,
   cemeteryCapacity,
+  usedPlaces,
   dailyMinPerHousehold,
   daysUntilFoodHarvest,
   eatDay,
@@ -117,6 +118,7 @@ import type {
   ChronicleEvent,
   DwellingType,
   FieldSurface,
+  GraveRank,
   HerdSpecies,
   Person,
   VillageState,
@@ -395,6 +397,16 @@ interface RunResult {
     herds: Record<HerdSpecies, number>;
     meatKg: number;
   };
+  /**
+   * Hřbitovy na konci běhu (cemetery.md – Mohyly podle významu): pohřbení, obsazená místa, mohyly
+   * podle druhu pohřbeného a čtverce. Starší kontrolní body ho nemají.
+   */
+  cemetery?: {
+    graves: number;
+    places: number;
+    squares: number;
+    ranks: Record<GraveRank, number>;
+  };
 }
 
 function harvestYear(day: number): number {
@@ -665,7 +677,10 @@ function recordPlan(result: RunResult, after: VillageState, pinned: boolean): vo
 function tendCemetery(state: VillageState, day: number, land: CalibrationLand): VillageState {
   const cemetery = state.cemeteries?.[0];
   if (cemetery && isCemeteryBuilding(cemetery)) return state;
-  if (cemetery && cemetery.graves < CEMETERY_EXTEND_AT * cemeteryCapacity(cemetery)) return state;
+  // místa na hroby – mohyly významných zaberou víc (cemetery.md – Mohyly podle významu)
+  if (cemetery && usedPlaces(cemetery) < CEMETERY_EXTEND_AT * cemeteryCapacity(cemetery)) {
+    return state;
+  }
   const square = land.cemeterySquare(cemetery?.squares.length ?? 0);
   return foundCemetery(state, day, { squares: [square], squareSizeM: 15 });
 }
@@ -847,9 +862,25 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
   result.finalFieldHa = lastPlan?.fieldHa ?? 0;
   result.finalSownHa = lastPlan?.sownHa ?? 0;
   result.wood.finalLogs = state.woodLogs ?? 0;
+  result.cemetery = cemeteryAtEnd(state);
   if (state.livestock) result.livestock.herds = { ...state.livestock.herds };
   result.livestock.meatKg = state.meatKg ?? 0;
   return result;
+}
+
+/** Hřbitovy na konci běhu – pohřbení, místa, mohyly podle druhu a čtverce. */
+function cemeteryAtEnd(state: VillageState): NonNullable<RunResult['cemetery']> {
+  const ranks: Record<GraveRank, number> = { manor: 0, head: 0, adult: 0, child: 0 };
+  let graves = 0;
+  let places = 0;
+  let squares = 0;
+  for (const c of state.cemeteries ?? []) {
+    graves += c.graves;
+    places += usedPlaces(c);
+    squares += c.squares.length;
+    for (const m of c.mounds ?? []) ranks[m.rank] += 1;
+  }
+  return { graves, places, squares, ranks };
 }
 
 /** Založená pole podle povrchu do výsledku. */
@@ -1466,6 +1497,35 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
       ),
       0,
     )}`,
+    'info',
+  );
+  // hřbitov (cemetery.md – Mohyly podle významu): kolik míst zabere pohřeb a podíl druhů
+  const graveyards = builders.flatMap((r) =>
+    r.cemetery && r.cemetery.graves > 0 ? [r.cemetery] : [],
+  );
+  const mounds = graveyards.reduce(
+    (sum, c) => sum + c.ranks.manor + c.ranks.head + c.ranks.adult + c.ranks.child,
+    0,
+  );
+  const rankShare = (rank: GraveRank): string =>
+    pct(graveyards.reduce((sum, c) => sum + c.ranks[rank], 0) / Math.max(1, mounds));
+  row(
+    `Hřbitov – mohyly podle významu, hráč staví (${config.years} let)`,
+    'jen informace (cemetery.md)',
+    `míst na pohřeb ${fmt(
+      graveyards.reduce((sum, c) => sum + c.places, 0) /
+        Math.max(
+          1,
+          graveyards.reduce((sum, c) => sum + c.graves, 0),
+        ),
+      2,
+    )} (1 = jako dřív) | vojvodova rodina ${rankShare('manor')}, hlavy rodin ${rankShare('head')}, dospělí ${rankShare('adult')}, děti ${rankShare('child')} | čtverce na ves medián ${fmt(
+      quantile(
+        graveyards.map((c) => c.squares),
+        0.5,
+      ),
+      0,
+    )} (n ${graveyards.length})`,
     'info',
   );
   // dobytek (diet.md – Dobytek): stáda a maso na konci na lidi vsi, porážky, zkažené maso, úhyn

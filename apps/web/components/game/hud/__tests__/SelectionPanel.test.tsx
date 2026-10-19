@@ -326,7 +326,8 @@ describe('SelectionPanel – opuštěné stavby (abandonment.md)', () => {
       squares: 1,
       capacity: 56,
       graves: 20,
-      freeGraves: 36,
+      usedPlaces: 26,
+      freePlaces: 30,
       yearsLeft: 9,
       built: true,
       building: null,
@@ -336,6 +337,9 @@ describe('SelectionPanel – opuštěné stavby (abandonment.md)', () => {
     };
     const html = render(cemetery);
     expect(html).toContain('Plot – stav');
+    // místa na hroby – mohyly významných zabírají víc míst (cemetery.md)
+    expect(html).toMatch(/data-testid="selection-graves"[^>]*>26\/56</);
+    expect(html).toContain('pohřbených 20');
     expect(html).toMatch(/text-red-400[^>]*>0 %/);
     expect(html).not.toContain('selection-repair');
   });
@@ -356,7 +360,8 @@ describe('SelectionPanel – opuštěné stavby (abandonment.md)', () => {
       squares: 2,
       capacity: 112,
       graves: 20,
-      freeGraves: 92,
+      usedPlaces: 20,
+      freePlaces: 92,
       yearsLeft: 9,
       built: true,
       building: null,
