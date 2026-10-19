@@ -1,4 +1,4 @@
-import { detCos, detSin, length2, type Landscape } from '../../landscape';
+import { detCos, detSin, length2, tileCenterWorld, type Landscape } from '../../landscape';
 import { milirPosition } from '../crafts';
 import { rotatedSquareCorners, rotationCosSin, rotationTurn } from '../square-grid';
 import { DWELLING_CLEARING_M, ROAD_WALK, SACRED_BUILDINGS, WATER_FETCHING } from '../rules';
@@ -6,6 +6,7 @@ import type { ObstacleChanges } from '../obstacles';
 import type { PartStage } from '../summary';
 import type {
   Craft,
+  DwellingPlot,
   DwellingType,
   FieldSurface,
   HerdSpecies,
@@ -800,7 +801,9 @@ export function buildingBounds(b: Building, margin: number): [number, number, nu
  * Obdélník obydlí pro pěšiny: na pozemku celé oplocené políčko (brána = branka na přední
  * straně proti vchodu), volné obydlí jako dům se šíjí, rozestavěné jako staveniště.
  */
-function dwellingBox(d: PathVillage['dwellings'][number]): PathBox {
+function dwellingBox(
+  d: Pick<PathVillage['dwellings'][number], 'type' | 'position' | 'built' | 'plot'>,
+): PathBox {
   if (d.plot) return plotPathBox(d.position, d.plot);
   return d.built ? DWELLING_PATH_BOX_M[d.type] : sitePathBox(d.type);
 }
@@ -867,6 +870,50 @@ function plotPathBox(
     minZ: Math.min(...local.map((p) => p[1])),
     maxZ: Math.max(...local.map((p) => p[1])),
   };
+}
+
+/** Pozemek obydlí v síti pěšin (`PathVillage.dwellings[].plot`). */
+export type PathPlot = NonNullable<PathVillage['dwellings'][number]['plot']>;
+
+/**
+ * Pozemek obydlí ze stavu (`DwellingPlot`) pro síť pěšin: střed políčka, u natočeného pozemku
+ * střed a natočení čtverce (fields.md – Natočené stavby), u dvorce i střed dvora (trade.md).
+ */
+export function pathPlotOf(landscape: Landscape, plot: DwellingPlot): PathPlot {
+  const cell = { x: plot.cell.x, y: plot.cell.y };
+  if (plot.square && !plot.yard) {
+    return {
+      cell,
+      x: plot.square.x,
+      z: plot.square.z,
+      size: landscape.cellSizeM,
+      rotation: plot.square.rotation,
+    };
+  }
+  const c = tileCenterWorld(landscape, plot.cell.x, plot.cell.y);
+  const yard = plot.yard ? tileCenterWorld(landscape, plot.yard.x, plot.yard.y) : null;
+  return { cell, x: c.x, z: c.z, size: landscape.cellSizeM, ...(yard ? { yard } : {}) };
+}
+
+/**
+ * Brána hotového obydlí – místo, odkud vychází síť pěšin (`gateOf`): kus před koncem šíje, na
+ * pozemku 1 m před brankou proti vchodu, u dvorce za vzdálenou stranou dvora. Kontrola umístění
+ * se ptá stejného místa (population.md – Umístění obydlí, paths.md – Vchody).
+ */
+export function dwellingGatePoint(
+  landscape: Landscape,
+  d: { type: DwellingType; position: Position; plot?: DwellingPlot },
+): PathPoint {
+  const plot = d.plot ? pathPlotOf(landscape, d.plot) : undefined;
+  return gateOf({
+    position: d.position,
+    box: dwellingBox({
+      type: d.type,
+      position: d.position,
+      built: true,
+      ...(plot ? { plot } : {}),
+    }),
+  });
 }
 
 /** Brána domu – kus před koncem šíje (odtud vychází pěšina). */

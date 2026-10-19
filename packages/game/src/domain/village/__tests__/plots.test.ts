@@ -269,6 +269,29 @@ describe('přestavba polozemnice bez pozemku', () => {
     expect(dwelling(later, id).position).toEqual(rebuild.position);
   });
 
+  it('vybere jen pozemek s volnou brankou (population.md – Umístění obydlí)', () => {
+    const { s, id } = crowded();
+    // bez souseda nejbližší políčko (8, 7) – branka vede do (8, 6)
+    expect(
+      relocationPlot(s, landscape, EMPTY, dwelling(s, id), 'polozemnice', s.lastDay)!.plot.cell,
+    ).toEqual({ x: 8, y: 7 });
+    // soused na pozemku (8, 6): branka z (8, 7) by vedla k němu – vesničané vezmou další políčko
+    const blocked = structuredClone(s);
+    const neighbour = { cell: { x: 8, y: 6 }, variant: 'center' as const };
+    const other = addDwelling(blocked, plotHousePosition(landscape, neighbour));
+    dwelling(blocked, other).plot = neighbour;
+    const chosen = relocationPlot(
+      blocked,
+      landscape,
+      EMPTY,
+      dwelling(blocked, id),
+      'polozemnice',
+      blocked.lastDay,
+    )!;
+    expect(chosen.plot.cell).toEqual({ x: 7, y: 8 });
+    expect(chosen.check.ok).toBe(true);
+  });
+
   it('nezávisí na kouscích dopočtu', () => {
     const { s } = crowded();
     const end = s.lastDay + 400;
