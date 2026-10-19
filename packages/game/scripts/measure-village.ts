@@ -336,6 +336,11 @@ interface RunOptions {
   orchard?: boolean;
   /** Ves má stále spřežení (sonda se spřežením – `pinTeam`). */
   team?: boolean;
+  /**
+   * Dopočítávat den po dni a sčítat rozdělení práce po činnostech (`VillageState.labor`) – práce
+   * na obživu a volná práce hráče, který staví (diet.md – Rovnovážné hospodaření).
+   */
+  trackLabor?: boolean;
 }
 
 interface PlanRecord {
@@ -369,6 +374,47 @@ interface LaborYear {
   households: number;
 }
 
+/**
+ * Práce roku po skupinách činností (člověkodny, z rozdělení práce dne) – jen u běhu s `trackLabor`.
+ * `personDays` = lidé × dny (na člověka a rok), `herders` = dny dětí a starších u stád.
+ */
+interface ActivityYear {
+  field: number;
+  hay: number;
+  animals: number;
+  herding: number;
+  orchard: number;
+  domestic: number;
+  foundField: number;
+  free: number;
+  personDays: number;
+  herders: number;
+}
+
+/** Skupina činnosti pro práci na obživu (null = volná práce – stavby, opravy, nevyužitá práce). */
+const ACTIVITY_GROUPS: Partial<
+  Record<string, Exclude<keyof ActivityYear, 'personDays' | 'herders' | 'free'>>
+> = {
+  reclaim: 'field',
+  dig: 'field',
+  sow: 'field',
+  weed: 'field',
+  harvest: 'field',
+  carry: 'field',
+  thresh: 'field',
+  plough: 'field',
+  haul: 'field',
+  mow: 'hay',
+  slaughter: 'animals',
+  milking: 'animals',
+  'animal-care': 'animals',
+  herding: 'herding',
+  'orchard-care': 'orchard',
+  'orchard-harvest': 'orchard',
+  domestic: 'domestic',
+  'found-field': 'foundField',
+};
+
 interface RunResult {
   firstBuildDay: number | null;
   zemniceDays: number | null;
@@ -391,6 +437,8 @@ interface RunResult {
    */
   fieldShares: { year: number; measured: number; planned: number }[];
   labor: Map<number, LaborYear>;
+  /** Hospodářský rok → práce po skupinách činností (jen `trackLabor`). */
+  activities: Map<number, ActivityYear>;
   plans: PlanRecord[];
   partStates: Map<number, string>; // díl → stav k 1. 9. každého roku (S oseto, F příloh, R jinak)
   meadowGoneHouseholds: number | null;
@@ -421,6 +469,8 @@ interface RunResult {
     dairy: number;
     fruit: number;
     legumes: number;
+    /** Kvalita stravy (`dietQuality`); starší kontrolní body ji nemají. */
+    quality?: number;
   }[];
   /** Založená pole podle povrchu (ha) – i první pole při založení vsi. */
   foundedHa: Record<FieldSurface, number>;
@@ -562,6 +612,7 @@ function emptyResult(): RunResult {
     grainStoresRatio: new Map(),
     fieldShares: [],
     labor: new Map(),
+    activities: new Map(),
     plans: [],
     partStates: new Map(),
     meadowGoneHouseholds: null,
@@ -600,7 +651,18 @@ function step(
   before: VillageState,
   stop: number,
   land: CalibrationLand,
+  trackLabor = false,
 ): VillageState {
+  if (trackLabor) {
+    // den po dni – výsledek je stejný (nezávisí na kouscích dopočtu), jen se přečte práce dne
+    let s = before;
+    for (let d = before.lastDay + 1; d <= stop; d++) {
+      s = advanceVillage(s, d, land.obstacles, land.landscape);
+      lowerMin(result.minSatiation, harvestYear(d), satiationOf(s));
+      addActivities(result, s, d);
+    }
+    return s;
+  }
   const after = advanceVillage(before, stop, land.obstacles, land.landscape);
   const hunger =
     before.hungry || after.hungry || after.chronicle.some((e) => e.kind === 'hunger-began');
@@ -617,6 +679,34 @@ function step(
     lowerMin(result.minSatiation, harvestYear(d), satiationOf(s));
   }
   return s;
+}
+
+/** Rozdělení práce dne `day` (stav po něm) do skupin činností hospodářského roku. */
+function addActivities(result: RunResult, state: VillageState, day: number): void {
+  const year = harvestYear(day);
+  const a = result.activities.get(year) ?? {
+    field: 0,
+    hay: 0,
+    animals: 0,
+    herding: 0,
+    orchard: 0,
+    domestic: 0,
+    foundField: 0,
+    free: 0,
+    personDays: 0,
+    herders: 0,
+  };
+  a.personDays += state.people.length;
+  if (state.labor?.day === day) {
+    for (const share of state.labor.shares) {
+      const group = ACTIVITY_GROUPS[share.activity];
+      if (group) a[group] += share.manDays;
+      else a.free += share.manDays;
+    }
+    const herders = state.labor.herders;
+    if (herders) a.herders += herders.children + herders.elders;
+  }
+  result.activities.set(year, a);
 }
 
 /** Práce kroku pro podíl obživy (kapacita a opravy podle stavu na konci kroku). */
@@ -772,7 +862,7 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
     if (opts.team) pinTeam(state, state.lastDay + 1);
     const before = state;
     const stop = nextStop(before.lastDay, opts.endDay, opts.stepDays);
-    let after = step(result, before, stop, opts.land);
+    let after = step(result, before, stop, opts.land, opts.trackLabor);
     const events = after.chronicle;
     after.chronicle = []; // kronika patří jen tomuto kroku (stav skriptu, simulace ji nečte)
     const day = after.lastDay;
@@ -791,6 +881,7 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
           dairy: after.diet.shares.dairy,
           fruit: after.diet.shares.fruit,
           legumes: after.diet.shares.legumes ?? 0,
+          quality: after.diet.diversity,
         });
       }
     }
@@ -1084,7 +1175,7 @@ function runVillageTask(index: number): TaskResult {
     return result;
   };
   const t0 = performance.now();
-  const builder = run(options);
+  const builder = run({ ...options, trackLabor: true });
   const t1 = performance.now();
   const loner = run({ ...options, build: false, forkPolozemnice: false });
   const t2 = performance.now();
@@ -1301,10 +1392,61 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
     const median = (pick: (d: (typeof all)[number]) => number): number =>
       quantile(all.map(pick), 0.5);
     const satiation = all.map((d) => d.satiation);
+    const quality = all.flatMap((d) => (d.quality === undefined ? [] : [d.quality]));
     row(
       `Strava – nasycení se stravou (${label})`,
       'informace – energie × kvalita z bílkovin (jen obilí ≈ 0,8)',
-      `kroky: medián ${fmt(quantile(satiation, 0.5), 2)} | p10 ${fmt(quantile(satiation, 0.1), 2)} | bílkoviny medián ${pct(median((d) => d.protein))} | energie z masa ${pct(median((d) => d.meat))}, mléka a sýra ${pct(median((d) => d.dairy))}, luštěnin ${pct(median((d) => d.legumes))}, ovoce ${pct(median((d) => d.fruit))}`,
+      `kroky: medián ${fmt(quantile(satiation, 0.5), 2)} | p10 ${fmt(quantile(satiation, 0.1), 2)} | kvalita stravy medián ${fmt(quantile(quality, 0.5), 2)}, p10 ${fmt(quantile(quality, 0.1), 2)} | bílkoviny medián ${pct(median((d) => d.protein))} | energie z masa ${pct(median((d) => d.meat))}, mléka a sýra ${pct(median((d) => d.dairy))}, luštěnin ${pct(median((d) => d.legumes))}, ovoce ${pct(median((d) => d.fruit))}`,
+      'info',
+    );
+  }
+
+  // práce hráče, který staví (diet.md – Rovnovážné hospodaření): po skupinách činností na člověka
+  // a rok, od 3. celého roku vsi (bez zakládání vsi), medián přes roky všech vsí
+  const activityYears = villages.flatMap(({ builder, foundDay, endDay }) =>
+    fullYears(builder, foundDay, endDay)
+      .slice(2)
+      .flatMap((y) => {
+        const a = builder.activities.get(y);
+        return a && a.personDays > 0 ? [a] : [];
+      }),
+  );
+  if (activityYears.length > 0) {
+    // součty přes všechny roky všech vsí (práce přichází v dávkách – medián roků by volnou práci
+    // podhodnotil), na člověka a rok
+    const sum = (pick: (a: ActivityYear) => number): number =>
+      activityYears.reduce((acc, a) => acc + pick(a), 0);
+    const personYears = sum((a) => a.personDays) / DAYS_PER_YEAR;
+    const perPerson = (pick: (a: ActivityYear) => number): number => sum(pick) / personYears;
+    const subsistence = (a: ActivityYear): number =>
+      a.field + a.hay + a.animals + a.herding + a.orchard + a.domestic;
+    const total = (a: ActivityYear): number => subsistence(a) + a.foundField + a.free;
+    const freeYear = activityYears.map((a) => (a.free / a.personDays) * DAYS_PER_YEAR);
+    row(
+      'Práce – hráč staví (člověkodny na člověka a rok, od 3. roku)',
+      'informace – rovnovážné hospodaření: co nejvíc volné práce při nasycení',
+      `volná ${fmt(
+        perPerson((a) => a.free),
+        1,
+      )} (${pct(sum((a) => a.free) / sum(total))} práce; roky vsí p50 ${fmt(quantile(freeYear, 0.5), 1)}, p90 ${fmt(quantile(freeYear, 0.9), 1)}) | obživa ${fmt(perPerson(subsistence))} (${pct(sum(subsistence) / sum(total))}): pole ${fmt(perPerson((a) => a.field))}, seč ${fmt(
+        perPerson((a) => a.hay),
+        1,
+      )}, zvířata ${fmt(
+        perPerson((a) => a.animals),
+        1,
+      )}, dospělí pasáci ${fmt(
+        perPerson((a) => a.herding),
+        1,
+      )}, domácí ${fmt(perPerson((a) => a.domestic))}, sad ${fmt(
+        perPerson((a) => a.orchard),
+        1,
+      )} | zakládání polí ${fmt(
+        perPerson((a) => a.foundField),
+        1,
+      )} | děti a starší u stád ${fmt(
+        perPerson((a) => a.herders),
+        1,
+      )} dní (n ${activityYears.length} let)`,
       'info',
     );
   }
