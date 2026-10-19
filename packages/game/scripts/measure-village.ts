@@ -110,6 +110,17 @@ import {
   foundCemetery,
   foundField,
   foundOrchard,
+  foundPen,
+  herdPenSpecies,
+  herdRoom,
+  isPenBuilding,
+  LIVESTOCK,
+  MAX_PEN_SQUARES,
+  penSpecies,
+  penSquares,
+  winterTargets,
+  woolSheep,
+  breedingCows,
   foundVillage,
   grossYieldPerHa,
   isCemeteryBuilding,
@@ -980,6 +991,66 @@ function tendCemetery(state: VillageState, day: number, land: CalibrationLand): 
   return foundCemetery(state, day, { squares: [square], squareSizeM: 15 });
 }
 
+/** Ohrady hráče začínají na tomto sloupci políček (mimo pole, hřbitov a sad). */
+const PEN_FIRST_CELL = 40;
+/** Řada políček ohrad každého druhu (ovce, kozy, prasata, skot). */
+const PEN_ROWS: Record<HerdSpecies, number> = { sheep: 3, goat: 5, pig: 7, cow: 9 };
+/** Rezerva míst, se kterou hráč staví ohradu dřív, než se stádo do ní přestane vejít. */
+const PEN_SLACK = 1.15;
+
+/**
+ * Ohrady hráče (oxen.md – Ohrady podle druhu): když stádo, které by ves podle pastvy, sena a lesa
+ * uživila (`winterTargets` bez míst, s ovcemi na vlnu a kravami na mléko a voly), i s jarními
+ * mláďaty přeroste místa ohrad a u domů, postaví hráč čtverec ohrady toho druhu – rozšíří ohradu,
+ * dokud má méně než 4 čtverce, jinak novou vedle. Najednou jedna stavba ohrady; bez dřeva nic.
+ */
+function tendPens(state: VillageState, day: number, land: CalibrationLand): VillageState {
+  const pens = state.pens ?? [];
+  if (pens.some(isPenBuilding) || !state.livestock) return state;
+  const room = herdRoom(state);
+  const wanted = winterTargets(state, day, {
+    oxen: 0,
+    hayKg: Infinity,
+    minSheep: woolSheep(state, day),
+    minCows: breedingCows(state),
+  });
+  for (const herd of ['sheep', 'cow', 'goat', 'pig'] as const) {
+    const need = wanted[herd] * (1 + LIVESTOCK.growth[herd]) * PEN_SLACK;
+    if (need <= room[herd]) continue;
+    const species = herdPenSpecies(herd);
+    const own = pens.filter((p) => penSpecies(p) === species);
+    const open = own.find((p) => penSquares(p).length < MAX_PEN_SQUARES);
+    // každá ohrada druhu má svůj úsek řady s mezerou (ohrady téhož druhu na sebe nenavazují)
+    const pen = open ? own.indexOf(open) : own.length;
+    const index = open ? penSquares(open).length : 0;
+    const x = PEN_FIRST_CELL + pen * (MAX_PEN_SQUARES + 1) + index;
+    const y = PEN_ROWS[herd];
+    try {
+      return foundPen(
+        state,
+        day,
+        {
+          species,
+          squares: [
+            {
+              cell: { x, y },
+              x: land.position.x + x * 15 + 7.5,
+              z: land.position.z + y * 15 + 7.5,
+              obstacleCost: 0,
+              obstacleIds: [],
+              clearedTrees: 0,
+            },
+          ],
+        },
+        land.obstacles,
+      );
+    } catch {
+      // dřevo nestačí – zkusí to jindy
+    }
+  }
+  return state;
+}
+
 /** Sad hráče (třetí strategie): 22 čtverců mimo půdu pro pole. */
 function plantOrchard(state: VillageState, day: number, land: CalibrationLand): VillageState {
   return foundOrchard(state, day, { squares: land.orchardSquares() });
@@ -1149,6 +1220,8 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
       }
     }
     if (opts.build && after.dwellings.length > 0) after = tendCemetery(after, day, opts.land);
+    // ohrady podle druhu – stáda na noc (oxen.md – Ohrady podle druhu)
+    if (opts.build && after.dwellings.length > 0) after = tendPens(after, day, opts.land);
     if (opts.orchard && result.orchardDay === null && after.dwellings.length > 0) {
       after = plantOrchard(after, day, opts.land);
       result.orchardDay = day;

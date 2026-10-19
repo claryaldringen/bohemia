@@ -1,5 +1,5 @@
 // Ohrada s přístřeškem bez Babylonu (docs/design/oxen.md – staví ji hráč, ve vsi i na ukázce
-// /dev/buildings): jeden čtverec 15 × 15 m obehnaný pleteným plotem se zakulacenými rohy
+// /dev/buildings): čtverec 15 × 15 m (i víc – níž) obehnaný pleteným plotem se zakulacenými rohy
 // (woven-fence.ts – týž plot jako pozemek polozemnice a hřbitov), branka ze žerdí na straně ke
 // vsi, v zadním rohu přístřešek na sloupech otevřený do ohrady, pod ním jesle se senem, vedle
 // žlab a stoh sena. Všechno deterministicky z čtverce a směru ke vsi. Souřadnice světa scény
