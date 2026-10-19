@@ -133,7 +133,8 @@ v `paths/roads.ts`, čísla `CART_ROUTES` a `CART_ROADS` v `rules.ts`.
   43, 44 a Vlkov); scéna terén převyšuje 3× (`HEIGHT_SCALE`), takže svah, který na obrazovce
   vypadá na 30 %, má ve hře 10 %. **Při 12 % by se serpentiny u vsí skoro neobjevily** (u Vlkova
   je nejprudší svah do 300 m od vsi 9 %) – kdo chce serpentiny vidět častěji, musí mez snížit
-  (jedno číslo v `rules.ts`), nebo ji vztáhnout k převýšené scéně (k rozhodnutí).
+  (jedno číslo v `rules.ts`), nebo ji vztáhnout k převýšené scéně. **Martin (19. 10. 2026): „sklon
+  zatím nechme tak, jak je. Později si budeme hrát ještě s modelací krajiny“** – mez zůstává 10 %.
   Pěšák jde dál rovně (jeho síť se nemění).
 - **Poloměr otáčení:** hledání nese **směr jízdy** (stav = buňka × 16 směrů). Dvoukolák zatočí
   na krok nejvýš o 2 směry (≤ 53°, poloměr ≈ 4–5 m), čtyřkolák o 1 (≤ 27°, ≈ 8–11 m – širší
