@@ -147,7 +147,7 @@ describe('karavana – kdo jde tam a kdo zpátky', () => {
 describe('karavana – rozvrh v čase', () => {
   const columns = { out: 20, back: 15 };
 
-  it('postup plyne přes herní den dnešním tempem; bez volných rukou stojí', () => {
+  it('postup plyne přes herní den dnešním tempem; s tempem 0 stojí', () => {
     const e = expedition({ progress: 0.3, rate: 0.2 });
     expect(caravanProgress(e, WINDOW, at(0))).toBeCloseTo(0.3);
     expect(caravanProgress(e, WINDOW, at(0.5))).toBeCloseTo(0.4);
@@ -184,7 +184,7 @@ describe('karavana – rozvrh v čase', () => {
 describe('karavana ve scéně – postavy a vůz', () => {
   it('karavana je vidět i bez práce dne; tam rodina, zpátky dva lidé navíc', () => {
     const e = expedition({ rate: 0 });
-    // výprava dnes nedostala volné ruce – karavana nezmizí, stojí na cestě
+    // výprava dnes nepostoupila (ves bez dospělých) – karavana nezmizí, stojí na cestě
     const still = caravanAt(
       { ...village(e), labor: { ...village(e).labor!, shares: [] } },
       at(0.5),

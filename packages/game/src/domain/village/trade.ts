@@ -11,6 +11,7 @@
 import type { Landscape } from '../landscape';
 import { tradeCarts, trailCartPassable } from './carts';
 import { removePeople } from './kinship';
+import { ageGroup } from './people';
 import { startingLivestock } from './livestock';
 import {
   NO_PEOPLE,
@@ -35,6 +36,7 @@ import type {
   Direction8,
   NeighbourPeople,
   NeighbourStock,
+  Person,
   TradeExpedition,
   TradeGood,
   TradeGoods,
@@ -458,16 +460,48 @@ export function startExpedition(
 }
 
 /**
- * Práce nosičů dne (mutuje stav – krok práce před stavbami): každá výprava si ze společné práce
- * vezme nejvýš tolik, kolik má nosičů (jdou všichni naráz), v pořadí výprav. Když společné práce
- * nestačí, cesta trvá déle (nosiči jdou na víc cest). Vrátí použitou práci a podíly po stezkách.
+ * Kolik lidí je dnes na výpravách k sousedům (trade.md – Doprava; Martin 19. 10. 2026: „Ano,
+ * udělej to tak.“ – nosiči mají vlastní podíl práce): každá výprava na cestě chce denně tolik
+ * člověkodní, kolik s ní jde lidí (nosiči, honáci a pomocníci u vozů), nejvýš co jí zbývá. Krok
+ * práce je vezme po denním minimu a před rozdělením dne (`allocateDay` – `away`), takže výprava trvá
+ * přesně dny z náhledu. Platí pro každou výpravu ve `state.trade.expeditions` (i nákup u sousedů).
+ */
+export function expeditionLaborNeed(state: Pick<VillageState, 'trade'>): number {
+  return (state.trade?.expeditions ?? []).reduce(
+    (sum, e) => sum + Math.min(e.porters, Math.max(0, e.cost - e.done)),
+    0,
+  );
+}
+
+/**
+ * Práce lidí na výpravách dnes (trade.md – Doprava; jediné pravidlo pro všechny výpravy na cestě):
+ * `expeditionLaborNeed`, nejvýš kolik je mezi `people` (lidé, kteří dnes pracují se vsí – bez
+ * řemeslníků v dílnách) dospělých. Náklad 25 kg na několik dní cesty nesou dospělí; děti a starší
+ * zůstanou doma. Krok práce ji dá do `allocateDay` jako `away` – po denním minimu domácností, před
+ * úlohami dne – a `workExpeditions` ji rozdělí mezi výpravy.
+ */
+export function expeditionLaborToday(
+  state: Pick<VillageState, 'trade'>,
+  people: readonly Person[],
+  day: number,
+): number {
+  const need = expeditionLaborNeed(state);
+  if (need <= 0) return 0;
+  return Math.min(need, people.filter((p) => ageGroup(p, day) === 'adult').length);
+}
+
+/**
+ * Práce nosičů dne (mutuje stav – krok práce): rozdělí práci lidí na výpravách (`allocateDay` –
+ * `away`, nejvýš `expeditionLaborToday`) – každá výprava nejvýš tolik, kolik má lidí, v pořadí
+ * výprav. Když ves lidí na výpravu nemá (po denním minimu, jen dospělí), cesta trvá déle. Vrátí
+ * použitou práci a podíly po stezkách.
  */
 export function workExpeditions(
   state: VillageState,
-  common: number,
+  away: number,
 ): { used: number; shares: { trailId: number; manDays: number; carts?: number }[] } {
   const shares: { trailId: number; manDays: number; carts?: number }[] = [];
-  let left = common;
+  let left = away;
   for (const e of state.trade?.expeditions ?? []) {
     if (left <= EPSILON) break;
     const take = Math.min(left, e.porters, Math.max(0, e.cost - e.done));
@@ -480,7 +514,7 @@ export function workExpeditions(
       ...(e.carts && e.carts.length > 0 ? { carts: e.carts.length } : {}),
     });
   }
-  return { used: common - left, shares };
+  return { used: away - left, shares };
 }
 
 /**

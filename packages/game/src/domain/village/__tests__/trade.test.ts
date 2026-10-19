@@ -13,6 +13,8 @@ import {
   OVER_SUPPLY,
   UNFAIR,
   buyPrice,
+  expeditionLaborNeed,
+  expeditionLaborToday,
   finishExpeditions,
   sellPrice,
   startExpedition,
@@ -198,10 +200,66 @@ describe('výprava', () => {
     const returned = whole.chronicle.find((ev) => ev.kind === 'trade-returned');
     expect(returned).toBeDefined();
     expect(returned!.day).toBeGreaterThanOrEqual(DAY + days);
+    // výprava trvá dny cesty, jen když má ves dost dospělých na nosiče (zakladatelé: 2)
+    if (s.trade!.expeditions[0]!.porters <= 2) expect(returned!.day).toBe(DAY + days);
     expect(whole.labor).toBeDefined();
     let parts = s;
     for (const step of [1, 2, 5, 40]) parts = advanceVillage(parts, DAY + step, null, LANDSCAPE);
     expect(parts).toEqual(whole);
+  });
+
+  it('nosiči mají vlastní podíl práce – výprava trvá jen dny cesty i bez volné práce', () => {
+    // ves se dvanácti dospělými navíc; domácí výroba s velkým nedodělkem sní všechnu volnou práci
+    const base = trading();
+    for (let i = 0; i < 12; i++) {
+      base.people.push({
+        id: 700 + i,
+        bornDay: DAY - Math.ceil((25 + i) * 365.25),
+        dwellingId: base.dwellings[0]!.id,
+        sex: i % 2 === 0 ? 'male' : 'female',
+      });
+    }
+    base.nextId = 800;
+    const s = startExpedition(base, DAY, {
+      direction: 'S',
+      give: { meat: 300 },
+      get: {},
+    });
+    const e = s.trade!.expeditions[0]!;
+    expect(e.porters).toBeGreaterThan(2);
+    expect(expeditionLaborNeed(s)).toBe(e.porters);
+    s.domesticBacklog = 1e6;
+    const whole = advanceVillage(s, DAY + e.days + 2, null, LANDSCAPE);
+    const returned = whole.chronicle.find((ev) => ev.kind === 'trade-returned');
+    // přesně dny z náhledu – i když ves neměla žádnou volnou práci
+    expect(returned!.day).toBe(DAY + e.days);
+    expect(whole.commonLaborHistory.slice(-e.days).every((c) => c < 1e-9)).toBe(true);
+    // nezávisle na kouscích dopočtu
+    let parts = s;
+    for (const step of [1, 2, 3, e.days, e.days + 2]) {
+      parts = advanceVillage(parts, DAY + step, null, LANDSCAPE);
+    }
+    expect(parts).toEqual(whole);
+  });
+
+  it('nosiči jsou dospělí – víc, než kolik jich ves má, nejde; denní minimum má přednost', () => {
+    const s = startExpedition(trading(), DAY, { direction: 'S', give: { meat: 300 }, get: {} });
+    const e = s.trade!.expeditions[0]!;
+    // zakladatelé: 2 dospělí (13 a 12 let jsou děti) – výprava jde po dvou člověkodnech
+    expect(expeditionLaborToday(s, s.people, DAY + 1)).toBe(Math.min(e.porters, 2));
+    expect(expeditionLaborToday(trading(), trading().people, DAY + 1)).toBe(0);
+    const next = advanceVillage(s, DAY + 1, null, LANDSCAPE);
+    expect(next.trade!.expeditions[0]!.done).toBeCloseTo(Math.min(e.porters, 2) * 1, 6);
+    const share = next.labor!.shares.find((x) => x.activity === 'trade');
+    expect(share!.manDays).toBeCloseTo(Math.min(e.porters, 2), 6);
+    // denní minimum domácností dostane práci vždy
+    expect(next.labor!.shares.some((x) => x.activity === 'domestic')).toBe(true);
+    // lidé na výpravě společnou práci neberou – volná práce dne zůstane celá nevyužitá (bez staveb)
+    expect(next.constructions).toHaveLength(0);
+    const idle = next
+      .labor!.shares.filter((x) => x.activity === 'idle')
+      .reduce((sum, x) => sum + x.manDays, 0);
+    expect(idle).toBeCloseTo(next.commonLaborHistory.at(-1)!, 2);
   });
 
   it('nosiči jsou v rozdělení práce dne u stezky', () => {

@@ -123,7 +123,12 @@ import { inLuckyYears, nextStarvationDays, populationDay } from './population';
 import { dailyMinPerHousehold, harvestCarryShare, woodToolsLaborFactor } from './productivity';
 import { moveRelocatedHousehold, relocatingHouseholds } from './relocation';
 import { keepManor, villageManorId } from './manor';
-import { finishExpeditions, withoutForeignGoods, workExpeditions } from './trade';
+import {
+  expeditionLaborToday,
+  finishExpeditions,
+  withoutForeignGoods,
+  workExpeditions,
+} from './trade';
 import { finishTrail, swathRoadsInWork, trailsDay } from './trail';
 import { roadSwathDay } from './road-swath';
 import { isVillageDormant } from './departure';
@@ -807,6 +812,9 @@ function work(
     potteryCoverage: coverage.pottery,
     fuelExtra: fuelExtraPerDay(state, (id) => !crafts.has(id)),
     productivity,
+    // lidé na výpravách k sousedům (trade.md – Doprava, Martin 19. 10. 2026): jejich práce jde po
+    // denním minimu, před úlohami dne – nosiči jsou dospělí, nejvýš kolik jich ves má
+    away: expeditionLaborToday(state, villagers, day),
   });
 
   // polní práce dne – i odkud kam došla (rozdělení práce po dílech pro postavy, labor-report.ts);
@@ -883,9 +891,9 @@ function work(
   state.domesticBacklog = allocation.domesticBacklog;
   // co dnes pasáci uhlídali – podle toho ves při porážce drží stádo (diet.md – Pasáci)
   recordHerding(state, herding, herdedByAdults);
-  // nosiči výprav k sousedům jdou ze společné práce před stavbami (trade.md – Doprava)
-  const trade = workExpeditions(state, allocation.common);
-  let common = allocation.common - trade.used;
+  // lidé na výpravách k sousedům – podíl z rozdělení dne (trade.md – Doprava)
+  const trade = workExpeditions(state, allocation.away);
+  let common = allocation.common;
   // klády ke stavbám vozem tam, kam vůz dojede (wagons.md – Vůz) – honák a nakladač ze společné
   // práce
   if (access && cartsLeft > 0) {

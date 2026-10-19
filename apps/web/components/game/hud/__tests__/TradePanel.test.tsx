@@ -386,7 +386,7 @@ describe('odeslání výpravy (Martin 19. 10. 2026 – „dál nějak nevím, co
     expect(html).not.toContain('data-testid="trade-pace"');
   });
 
-  it('výprava čeká na volné ruce – přesýpací hodiny a popisek, návrat neznámý', () => {
+  it('výprava stojí (ves bez dospělých) – přesýpací hodiny a popisek, návrat neznámý', () => {
     const waiting = renderToStaticMarkup(
       <NeighbourTrade
         neighbour={neighbour({
@@ -396,7 +396,7 @@ describe('odeslání výpravy (Martin 19. 10. 2026 – „dál nějak nevím, co
     );
     expect(waiting).toMatch(/data-testid="trade-pace" data-pace="waiting"/);
     expect(waiting).toContain('/icons/resources/hourglass.png');
-    expect(waiting).toContain('Čeká na volné ruce');
+    expect(waiting).toContain('Výprava stojí');
     expect(textOf(waiting, 'trade-days-left')).toBe('?');
     const slow = renderToStaticMarkup(
       <NeighbourTrade
@@ -404,7 +404,7 @@ describe('odeslání výpravy (Martin 19. 10. 2026 – „dál nějak nevím, co
       />,
     );
     expect(textOf(slow, 'trade-pace')).toBe('7/12');
-    expect(slow).toContain('dnes šlo 7 z 12 nosičů');
+    expect(slow).toContain('dnes šlo 7 z 12 lidí výpravy');
   });
 
   it('vozy ušetří člověkodny – v panelu zeleně, kolik proti nosičům', () => {

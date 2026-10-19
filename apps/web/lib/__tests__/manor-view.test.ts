@@ -148,7 +148,7 @@ describe('výprava na cestě v panelu – tempo z práce dne (trade.md – Obcho
     return s;
   };
 
-  it('plné tempo, zdržení, čekání na volné ruce a výprava vyslaná dnes', () => {
+  it('plné tempo, zdržení, stání (ves bez dospělých) a výprava vyslaná dnes', () => {
     const view = (s: VillageState): ReturnType<typeof expeditionView> =>
       expeditionView(s, s.trade!.expeditions[0]!);
     expect(view(sent(12))).toMatchObject({ pace: 'full', daysLeft: 3, today: 12, progress: 0.4 });
@@ -208,7 +208,7 @@ describe('výprava pro karavanu ve scéně (trade.md – Ve scéně)', () => {
     expect(e!.coming).toHaveLength(4);
     expect(e!.coming.map((p) => p.sex).slice(0, 2)).toEqual(['male', 'female']);
     expect(e!.coming[3]!.sex).toBe('female');
-    // bez volných rukou stojí
+    // výprava dnes nepostoupila – stojí
     s.labor = { day: DAY, shares: [] };
     expect(sceneExpeditions(s)[0]!.rate).toBe(0);
   });

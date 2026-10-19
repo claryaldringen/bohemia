@@ -37,8 +37,8 @@ import {
 
 /**
  * Výprava na cestě – co nesou, co přinesou, kdo s ní odešel a kdo přijde (rodiny, svobodní muži
- * a ženy – trade.md, Výměna lidí), průběh cesty 0–1 a jak dnes postoupila (trade.md – Obchod:
- * nosiči jdou ze společné práce vsi – bez volných rukou výprava stojí).
+ * a ženy – trade.md, Výměna lidí), průběh cesty 0–1 a jak dnes postoupila (trade.md – Doprava:
+ * lidé na výpravě mají vlastní podíl práce po denním minimu – zdrží se jen ves bez dost dospělých).
  */
 export interface VillageExpedition {
   give: TradeGoods;
@@ -51,14 +51,14 @@ export interface VillageExpedition {
   days: number;
   progress: number;
   /**
-   * Za kolik dní se vrátí dnešním tempem (null = dnes nepostoupila – čeká na volné ruce);
-   * výprava vyslaná dnes počítá s plným tempem.
+   * Za kolik dní se vrátí dnešním tempem (null = dnes nepostoupila – ves neměla nikoho, kdo by
+   * šel); výprava vyslaná dnes počítá s plným tempem.
    */
   daysLeft: number | null;
   /**
-   * Tempo dne: `full` – šli všichni nosiči, `slow` – společné práce bylo méně, než je nosičů
-   * (výprava se zdrží), `waiting` – žádná volná práce, výprava stojí, `starting` – vyslaná dnes,
-   * vyrazí zítra.
+   * Tempo dne: `full` – šli všichni (lidé na výpravě mají vlastní podíl práce – trade.md,
+   * Doprava), `slow` – ves po denním minimu neměla dost dospělých (výprava se zdrží), `waiting` –
+   * neměla nikoho, výprava stojí, `starting` – vyslaná dnes, vyrazí zítra.
    */
   pace: 'full' | 'slow' | 'waiting' | 'starting';
   /** Kolik člověkodní dnes dostala (podíl `trade` v rozdělení práce), u nové null. */

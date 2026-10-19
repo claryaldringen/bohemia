@@ -193,8 +193,8 @@ zmenší o plochu domu“. Podrobnosti jsou návrh Clauda:
 - Pracovní síla za den: dospělý 1 člověkoden, starší 0,5, dítě 7–13 let 0,3, mladší 0
   (návrh Clauda).
 - Pole jsou společná, a proto se práce počítá **za celou ves** – dospělí všech domácností
-  pracují pro ves. Pořadí (denní minimum domácností, polní práce, opravy obydlí, domácí výroba,
-  zbytek **společná práce vsi**) popisuje [fields.md](fields.md).
+  pracují pro ves. Pořadí (denní minimum domácností, lidé na výpravách k sousedům, polní práce,
+  opravy obydlí, domácí výroba, zbytek **společná práce vsi**) popisuje [fields.md](fields.md).
 - Společná práce se nedá schovat na později – každý den jde do rozestavěných staveb (stavby
   hráče i přestavby obyvatel, rovným dílem), a když žádná není, propadne.
 

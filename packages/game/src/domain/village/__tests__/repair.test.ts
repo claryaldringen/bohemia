@@ -190,6 +190,7 @@ describe('práce opravy', () => {
     }));
     const labor = laborDay(s, Y1, {
       allocation: {
+        away: 0,
         tasks: {
           reclaim: 0,
           dig: 0,

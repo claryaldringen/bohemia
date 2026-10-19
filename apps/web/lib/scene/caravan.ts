@@ -10,7 +10,8 @@
 // (odvedená práce ÷ cena) se v herním dni plynule posouvá dnešním tempem (u dat dne D od jeho
 // začátku k postupu po dni D + 1 – karavana tak dojde domů právě, když se výprava v jádru vrátí).
 // Dny cesty se dělí: na mapě tam a zpět (každé polovina dní bez dne za krajem mapy), mezi tím den
-// za krajem mapy – karavana je u souseda, není vidět. Bez volných rukou (tempo 0) stojí. Rychlost
+// za krajem mapy – karavana je u souseda, není vidět. Lidé na výpravě mají vlastní podíl práce, jde
+// plným tempem; stojí jen výjimečně (ves bez dospělých – tempo 0). Rychlost
 // je tak vyšší než chůze (časosběr jako jednotky v 0 A.D.), klip se přehrává rychleji.
 import type { SceneExpedition } from '../village-view';
 

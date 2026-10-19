@@ -530,13 +530,15 @@ pořadí (návrh Clauda; nahrazuje pevných 85 % a dělení práce po domácnost
 
 1. **Denní minimum domácností** – vaření, voda, oheň, péče o malé děti: 0,5 člověkodne denně
    na každou domácnost (s hrnčířem 0,45; FAO: venkovské ženy 0,5–0,6 dne).
-2. **Polní práce v jejich období** (tabulka níže) – a sezónní práce v sadech (sklizeň jablek,
+2. **Lidé na výpravách k sousedům** – každá výprava na cestě tolik člověkodní, kolik s ní jde
+   lidí, nejvýš kolik má ves dospělých ([obchod](trade.md) – Doprava; Martin 19. 10. 2026).
+3. **Polní práce v jejich období** (tabulka níže) – a sezónní práce v sadech (sklizeň jablek,
    péče) podle konce svého okna ([sad](orchard.md)).
-3. **Opravy obydlí** (populace).
-4. **Domácí výroba** – oděv, nádobí, jednoduché železné předměty, palivo: v průměru 0,3
+4. **Opravy obydlí** (populace).
+5. **Domácí výroba** – oděv, nádobí, jednoduché železné předměty, palivo: v průměru 0,3
    člověkodne denně na domácnost + 0,15 na člověka. Dá se odkládat a dělá se hlavně v zimě;
    nedodělaná se přenáší, nejvýš za 60 dní, a má přednost před společnou prací.
-5. Zbytek je **společná práce vsi** – stavby obydlí a zakládání polí (populace).
+6. Zbytek je **společná práce vsi** – stavby obydlí a zakládání polí (populace).
 
 **Polní práce při ruční práci** (člověkodny na osetý hektar za rok, v závorce s řemesly – oprava
 podle rešerše, dřív 200 – kopání 80, výmlat 30). Ves bez spřežení kope motykou; **ves se
