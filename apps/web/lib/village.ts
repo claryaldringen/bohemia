@@ -32,6 +32,7 @@ import {
   type BuildableDwellingType,
   type Direction8,
   type TradeGoods,
+  type TradePeople,
   type Landscape,
   type Position,
   type SacredBuildingKind,
@@ -511,11 +512,17 @@ export function buildTrailForPlayer(
   );
 }
 
-/** Výprava nosičů k sousedovi po hotové stezce (trade.md – Obchod). */
+/** Výprava nosičů k sousedovi po hotové stezce (trade.md – Obchod), i s lidmi (Výměna lidí). */
 export function sendExpeditionForPlayer(
   playerId: string,
   villageId: string,
-  input: { direction: Direction8; give: TradeGoods; get: TradeGoods },
+  input: {
+    direction: Direction8;
+    give: TradeGoods;
+    get: TradeGoods;
+    givePeople?: TradePeople;
+    getPeople?: TradePeople;
+  },
 ): Promise<VillageActionResult> {
   return actOn(playerId, villageId, async (ctx) =>
     sendExpedition(
@@ -527,6 +534,8 @@ export function sendExpeditionForPlayer(
         direction: input.direction,
         give: input.give,
         get: input.get,
+        ...(input.givePeople ? { givePeople: input.givePeople } : {}),
+        ...(input.getPeople ? { getPeople: input.getPeople } : {}),
         // tím směrem, kde leží vlastní ves, soused bez simulace není (migration.md)
         ownDirections: Object.keys(
           await ownMapsOfPlayer(playerId, ctx.settlementId),

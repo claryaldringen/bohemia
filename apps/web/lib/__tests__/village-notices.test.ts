@@ -316,6 +316,29 @@ describe('newNotices – porážka a spřežení (diet.md, oxen.md)', () => {
     ]);
   });
 
+  it('lidé od souseda – fakt, odkud přišli (trade.md – Výměna lidí)', () => {
+    const newcomer = (
+      day: number,
+      group: 'family' | 'man' | 'woman',
+    ): VillageView['chronicle'][number] => ({
+      day,
+      kind: 'newcomer',
+      group,
+      direction: 'N',
+      dateLabel: '',
+      text: '',
+    });
+    const after = view({
+      dayIndex: 1003,
+      chronicle: [newcomer(1002, 'woman'), newcomer(1001, 'man'), newcomer(1001, 'family')],
+    });
+    expect(newNotices(view({ dayIndex: 1000 }), after)).toEqual([
+      { kind: 'newcomer-family', tone: 'info', text: 'Přišla rodina ze severu' },
+      { kind: 'newcomer-man', tone: 'info', text: 'Přišel muž ze severu' },
+      { kind: 'newcomer-woman', tone: 'info', text: 'Přišla žena ze severu' },
+    ]);
+  });
+
   it('posvátný dub uschl a posvátná souš padla – fakt', () => {
     const after = view({
       dayIndex: 1003,

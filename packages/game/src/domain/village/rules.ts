@@ -883,6 +883,31 @@ export const TRADE_GOOD_VALUES = {
   cattle: { valueKg: 600, carryKg: 0 },
   logs: { valueKg: 40, carryKg: 100 },
 } as const satisfies Record<TradeGood, { valueKg: number; carryKg: number }>;
+// trade.md – Výměna lidí (Martin 19. 10. 2026: „Se sousedem půjde vyměnit i lidi... např. když on
+// jich bude mít moc a nebude je moci uživit, může jich pár vyměnit s námi za nějaké suroviny
+// a opačně.“, „Mohou se stěhovat celé rodiny i jen dospělí. Podle toho, co je v nabídce.“; čísla
+// návrh Clauda): dospělý má hodnotu ≈ dvouleté spotřeby jídla (2 × 180 kg obilí), dítě do 14 let
+// polovinu, přirážky jako u zboží. Rok obchodu: soused má s pravděpodobností 40 % lidi navíc
+// (0–2 rodiny a 0–3 svobodné dospělé, aspoň jednoho člověka), s 30 % lidi shání (vezme 0–2 rodiny
+// a 0–3 dospělé, aspoň jednoho), jinak lidi nemění. Rodina souseda: muž 24–38 let, žena o 0–6 let
+// mladší (nejméně 18 + 3 roky na dítě), 0–3 děti – nejmladší 0–2 roky, mezi dětmi 2–3 roky;
+// svobodný dospělý muž nebo žena 16–26 let.
+export const PEOPLE_TRADE = {
+  adultValueKg: 360,
+  childShare: 0.5,
+  surplusChance: 0.4,
+  shortageChance: 0.3,
+  families: { min: 0, max: 2 },
+  adults: { min: 0, max: 3 },
+  children: { min: 0, max: 3 },
+  husbandAge: { from: 24, to: 38 },
+  wifeYounger: { from: 0, to: 6 },
+  wifeMinAge: 18,
+  wifeYearsPerChild: 3,
+  youngestChildAge: { from: 0, to: 2 },
+  childSpacing: { from: 2, to: 3 },
+  adultAge: { from: 16, to: 26 },
+} as const;
 // abandonment.md – Chátrání (Martin 18. 10. 2026: „stavby, kam nikdo nechodí, budou postupně
 // chátrat a rozpadnou se“; čísla návrh Clauda podle rešerše research/2026-10-18-abandonment.md):
 // opuštěná stavba spadne za `fallYears` let od plného stavu – modla (dubový kůl Ø 0,5 m v zemi)

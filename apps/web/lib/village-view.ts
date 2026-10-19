@@ -61,6 +61,9 @@ import {
   type DwellingPlot,
   type BuildableDwellingType,
   type Direction8,
+  type NewcomerGroup,
+  type TradeGoods,
+  type TradePeople,
   type DwellingType,
   type FieldSurface,
   type LaborShare,
@@ -115,7 +118,7 @@ import {
 import { manorView, type VillageManor } from './manor-view';
 import { foreignFromScene, plotOfScene } from './scene/neighbour-villages';
 import { sceneTrails, trailRoadWork } from './trail-view';
-import { DIRECTION_NAMES, goodsText } from './trade-names';
+import { DIRECTION_NAMES, NEWCOMER_TEXTS, goodsText, peopleText } from './trade-names';
 import { formatCells, formatHa, formatInteger, plural } from './village-format';
 import type { VillageListItem } from './village-list';
 import {
@@ -475,6 +478,9 @@ export interface VillageView {
     kg?: number;
     /** U pádu a opravy stavby (`structure-fell`, `structure-repaired`) která stavba. */
     structure?: AbandonedStructure;
+    /** Kdo přišel od souseda a odkud (`newcomer` – trade.md, Výměna lidí). */
+    group?: NewcomerGroup;
+    direction?: Direction8;
     dateLabel: string;
     text: string;
   }[];
@@ -1142,6 +1148,32 @@ function householdsLeftText(households: number, people: number, direction?: Dire
   return `${who} založit novou ves${where} – ${formatInteger(people)} ${plural(people, 'člověk', 'lidé', 'lidí')}.`;
 }
 
+/**
+ * Věta kroniky o výpravě (trade.md – Obchod, Výměna lidí): „Nosiči vyrazili … – nesou 100 kg obilí;
+ * odchází s nimi 1 rodina.“ Bez zboží jen lidé, bez lidí jen zboží.
+ */
+function tradeTripText(
+  lead: string,
+  carry: string,
+  goods: TradeGoods,
+  withThem: string,
+  people: TradePeople | undefined,
+): string {
+  const who = peopleText(people);
+  const hasGoods = Object.values(goods).some((n) => (n ?? 0) > 0);
+  if (who === '') return `${lead} – ${carry} ${goodsText(goods)}.`;
+  if (!hasGoods) return `${lead} – ${withThem} ${who}.`;
+  return `${lead} – ${carry} ${goodsText(goods)}; ${withThem} ${who}.`;
+}
+
+/** Věta kroniky o lidech od souseda: „Ze severu přišla rodina – 4 lidé.“ */
+function newcomerText(direction: Direction8, group: NewcomerGroup, people: number): string {
+  const from = DIRECTION_NAMES[direction].from;
+  const lead = `${from.charAt(0).toUpperCase()}${from.slice(1)} ${NEWCOMER_TEXTS[group].chronicle}`;
+  if (group !== 'family') return `${lead}.`;
+  return `${lead} – ${formatInteger(people)} ${plural(people, 'člověk', 'lidé', 'lidí')}.`;
+}
+
 /** Text události kroniky česky. */
 export function chronicleText(event: ChronicleEvent, villageName: string): string {
   switch (event.kind) {
@@ -1220,9 +1252,23 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
     case 'trail-built':
       return `Zemská stezka na ${DIRECTION_NAMES[event.direction].name} je dostavěná – dá se obchodovat se sousedy.`;
     case 'trade-departed':
-      return `Nosiči vyrazili po stezce na ${DIRECTION_NAMES[event.direction].name} – nesou ${goodsText(event.give)}.`;
+      return tradeTripText(
+        `Nosiči vyrazili po stezce na ${DIRECTION_NAMES[event.direction].name}`,
+        'nesou',
+        event.give,
+        'odchází s nimi',
+        event.people,
+      );
     case 'trade-returned':
-      return `Nosiči se vrátili ${DIRECTION_NAMES[event.direction].from} – přinesli ${goodsText(event.get)}.`;
+      return tradeTripText(
+        `Nosiči se vrátili ${DIRECTION_NAMES[event.direction].from}`,
+        'přinesli',
+        event.get,
+        'přišli s nimi',
+        event.people,
+      );
+    case 'newcomer':
+      return newcomerText(event.direction, event.group, event.people);
     case 'structure-fell':
       return STRUCTURE_FELL_TEXTS[event.structure];
     case 'structure-repaired':
@@ -1986,6 +2032,7 @@ function chronicle(state: VillageState, name: string): VillageView['chronicle'] 
       ...(event.kind === 'structure-fell' || event.kind === 'structure-repaired'
         ? { structure: event.structure }
         : {}),
+      ...(event.kind === 'newcomer' ? { group: event.group, direction: event.direction } : {}),
       dateLabel: formatGameDate(dateOfDayIndex(event.day)),
       text: chronicleText(event, name),
     }));

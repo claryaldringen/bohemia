@@ -5,34 +5,66 @@
 // mapy; práce nosičů jde ze společné práce vsi (jako stavba) a zboží dorazí, až se vrátí. Jedna
 // výprava na souseda naráz. Obchoduje se jen zbožím, které má i ves (Martin 19. 10. 2026: „Nech jen
 // společné suroviny, nezaváděj nové.“) – starší vsi o zboží zvenku přijdou (`withoutForeignGoods`).
+// Se sousedem jdou vyměnit i lidé – rodiny a svobodní dospělí (trade.md – Výměna lidí,
+// `people-trade.ts`): odejdou hned s výpravou, lidé od souseda přijdou s jejím návratem.
 // Čisté funkce bez I/O.
+import { removePeople } from './kinship';
 import { startingLivestock } from './livestock';
+import {
+  NO_PEOPLE,
+  emigrantGroups,
+  neighbourFamilyValue,
+  peopleCount,
+  settleNewcomers,
+} from './people-trade';
 import { addLogs, woodLogs } from './wood';
 import { TRADE_GOODS, neighbourOf, neighbourStock } from './neighbours';
-import { TRADE, TRADE_GOOD_VALUES } from './rules';
+import { PEOPLE_TRADE, TRADE, TRADE_GOOD_VALUES } from './rules';
 import { builtTrail, trailTripDays } from './trail';
 import type {
   ChronicleEvent,
   DietDay,
   Direction8,
+  NeighbourPeople,
   NeighbourStock,
   TradeExpedition,
   TradeGood,
   TradeGoods,
+  TradePeople,
   VillageState,
   VillageTrade,
 } from './types';
 
 const EPSILON = 1e-9;
 
+/** Kolik kg obilí soused připíše za sháněné v hodnotě `valueKg` – ÷ přirážka × příplatek. */
+export function sellValue(valueKg: number): number {
+  return (valueKg / (1 + TRADE.markup)) * (1 + TRADE.demandBonus);
+}
+
+/** Kolik kg obilí soused chce za nabízené v hodnotě `valueKg` – × přirážka × sleva. */
+export function buyValue(valueKg: number): number {
+  return valueKg * (1 + TRADE.markup) * (1 - TRADE.offerDiscount);
+}
+
 /** Kolik kg obilí soused dá za kus sháněného zboží – hodnota ÷ přirážka × příplatek za sháněné. */
 export function sellPrice(good: TradeGood): number {
-  return (TRADE_GOOD_VALUES[good].valueKg / (1 + TRADE.markup)) * (1 + TRADE.demandBonus);
+  return sellValue(TRADE_GOOD_VALUES[good].valueKg);
 }
 
 /** Kolik kg obilí soused chce za kus nabízeného zboží – hodnota × přirážka × sleva za nabízené. */
 export function buyPrice(good: TradeGood): number {
-  return TRADE_GOOD_VALUES[good].valueKg * (1 + TRADE.markup) * (1 - TRADE.offerDiscount);
+  return buyValue(TRADE_GOOD_VALUES[good].valueKg);
+}
+
+/** Kolik kg obilí soused chce za svobodného dospělého, kterého dá (trade.md – Výměna lidí). */
+export function adultBuyPrice(): number {
+  return buyValue(PEOPLE_TRADE.adultValueKg);
+}
+
+/** Kolik kg obilí soused chce za svou rodinu s `children` dětmi. */
+export function familyBuyPrice(children: number): number {
+  return buyValue(neighbourFamilyValue(children));
 }
 
 /**
@@ -122,11 +154,16 @@ function carriers(goods: TradeGoods): number {
   );
 }
 
-/** Návrh výměny se sousedem ve směru – co ves dá a co dostane. */
+/**
+ * Návrh výměny se sousedem ve směru – co ves dá a co dostane, i lidé (trade.md – Výměna lidí:
+ * kolik rodin a svobodných dospělých ves dá a vezme; chybí = nikdo).
+ */
 export interface TradeOffer {
   direction: Direction8;
   give: TradeGoods;
   get: TradeGoods;
+  givePeople?: TradePeople;
+  getPeople?: TradePeople;
 }
 
 /** Ocenění výměny a výpravy: hodnoty pro souseda, nosiči, dny a práce, nebo proč nejde. */
@@ -153,6 +190,12 @@ export const OVER_DEMAND = 'Tolik soused letos nevezme.';
 export const OVER_SUPPLY = 'Tolik soused letos nemá.';
 export const OVER_STOCK = 'Tolik ves nemá.';
 export const UNFAIR = 'Za to by soused prodělal – přidej, nebo uber.';
+export const NO_PEOPLE_WANTED = 'Lidi soused letos nevezme.';
+export const NO_PEOPLE_OFFERED = 'Lidi soused letos nedá.';
+export const OVER_PEOPLE_DEMAND = 'Tolik lidí soused letos nevezme.';
+export const OVER_PEOPLE_SUPPLY = 'Tolik lidí soused letos nemá.';
+export const NO_EMIGRANTS =
+  'Tolik lidí ves dát nemůže – bez dědiců, dvorce a bez rozpadu domácností.';
 
 /** Výprava k sousedovi ve směru, která je na cestě; jinak null. */
 export function expeditionTo(
@@ -172,8 +215,19 @@ export function tradeQuote(state: VillageState, offer: TradeOffer, day: number):
   const stock = neighbourStock(state, offer.direction, day);
   const give = entries(offer.give);
   const get = entries(offer.get);
-  const credit = give.reduce((sum, [g, n]) => sum + n * sellPrice(g), 0);
-  const price = get.reduce((sum, [g, n]) => sum + n * buyPrice(g), 0);
+  const givePeople = offer.givePeople ?? NO_PEOPLE;
+  const getPeople = offer.getPeople ?? NO_PEOPLE;
+  const people = stockPeople(stock);
+  const leaving = emigrantGroups(state, day, givePeople);
+  const credit =
+    give.reduce((sum, [g, n]) => sum + n * sellPrice(g), 0) +
+    [...leaving.families, ...leaving.adults].reduce((sum, g) => sum + sellValue(g.valueKg), 0);
+  const price =
+    get.reduce((sum, [g, n]) => sum + n * buyPrice(g), 0) +
+    people.families
+      .slice(0, getPeople.families)
+      .reduce((sum, children) => sum + familyBuyPrice(children), 0) +
+    Math.min(getPeople.adults, people.adults) * adultBuyPrice();
   const trail = builtTrail(state, offer.direction);
   const days = trail ? trailTripDays(trail.lengthM) : 0;
   const porters = expeditionPorters(offer.give, offer.get);
@@ -188,7 +242,11 @@ export function tradeQuote(state: VillageState, offer: TradeOffer, day: number):
   const blocked = ((): string | null => {
     if (!trail) return NO_TRAIL;
     if (expeditionTo(state, offer.direction)) return EXPEDITION_AWAY;
-    if (give.length === 0 && get.length === 0) return NOTHING_TO_TRADE;
+    const noPeople =
+      givePeople.families + givePeople.adults + getPeople.families + getPeople.adults === 0;
+    if (give.length === 0 && get.length === 0 && noPeople) return NOTHING_TO_TRADE;
+    const peopleBlock = peopleBlocked(people, givePeople, getPeople, leaving);
+    if (peopleBlock) return peopleBlock;
     for (const [g, n] of give) {
       if (!neighbour.demands.includes(g)) return NOT_WANTED;
       if (n > (stock.demand[g] ?? 0)) return OVER_DEMAND;
@@ -208,6 +266,36 @@ function round2(v: number): number {
   return Math.round(v * 100) / 100;
 }
 
+/** Lidé souseda ze zbytku roku (`neighbourStock` je doplní vždy). */
+function stockPeople(stock: NeighbourStock): NeighbourPeople {
+  return stock.people ?? { families: [], adults: 0, takes: { ...NO_PEOPLE } };
+}
+
+/** Proč lidé ve výměně nejdou (trade.md – Výměna lidí), nebo null. */
+function peopleBlocked(
+  people: NeighbourPeople,
+  give: TradePeople,
+  get: TradePeople,
+  leaving: ReturnType<typeof emigrantGroups>,
+): string | null {
+  if (give.families + give.adults > 0) {
+    if (people.takes.families + people.takes.adults === 0) return NO_PEOPLE_WANTED;
+    if (give.families > people.takes.families || give.adults > people.takes.adults) {
+      return OVER_PEOPLE_DEMAND;
+    }
+    if (leaving.families.length < give.families || leaving.adults.length < give.adults) {
+      return NO_EMIGRANTS;
+    }
+  }
+  if (get.families + get.adults > 0) {
+    if (people.families.length + people.adults === 0) return NO_PEOPLE_OFFERED;
+    if (get.families > people.families.length || get.adults > people.adults) {
+      return OVER_PEOPLE_SUPPLY;
+    }
+  }
+  return null;
+}
+
 /** Obchod vsi (založí prázdný – mutuje stav). */
 function tradeOf(state: VillageState): VillageTrade {
   return (state.trade ??= { neighbours: [], expeditions: [], nextId: 1 });
@@ -222,8 +310,10 @@ function storeStock(state: VillageState, stock: NeighbourStock): void {
 /**
  * Výprava vyrazí (trade.md – Obchod): zboží, které ves dává, se odebere ze zásob a soused ho
  * odepíše ze své poptávky, nabízené ze své zásoby; nosiči jdou od zítřka ze společné práce vsi
- * (nosiči × dny). RangeError, když výměna nejde (`tradeQuote` – důvod česky). Konvence dne jako
- * u ostatních akcí.
+ * (nosiči × dny). Lidé, které ves dává (trade.md – Výměna lidí – `emigrantGroups`), odejdou hned
+ * a v rodokmenu zůstanou jako odešlí ve směru souseda (`removePeople`); lidé souseda přijdou
+ * s návratem výpravy. Lidé nic nenesou a nosiče nepotřebují. RangeError, když výměna nejde
+ * (`tradeQuote` – důvod česky). Konvence dne jako u ostatních akcí.
  */
 export function startExpedition(state: VillageState, day: number, offer: TradeOffer): VillageState {
   const quote = tradeQuote(state, offer, day);
@@ -238,7 +328,29 @@ export function startExpedition(state: VillageState, day: number, offer: TradeOf
     stock.demand[g] = (stock.demand[g] ?? 0) - n;
   }
   for (const [g, n] of entries(get)) stock.supply[g] = (stock.supply[g] ?? 0) - n;
-  storeStock(next, stock);
+  // lidé (trade.md – Výměna lidí): naši odejdou hned s výpravou, lidé souseda přijdou s návratem
+  const givePeople = offer.givePeople ?? NO_PEOPLE;
+  const getPeople = offer.getPeople ?? NO_PEOPLE;
+  const people = stockPeople(stock);
+  const leaving = emigrantGroups(next, day, givePeople);
+  const groups = [...leaving.families, ...leaving.adults];
+  const emigrated = new Map(
+    groups.flatMap((g) => g.people.map((p) => [p.id, offer.direction] as const)),
+  );
+  removePeople(next, new Set(emigrated.keys()), emigrated);
+  people.takes = {
+    families: people.takes.families - givePeople.families,
+    adults: people.takes.adults - givePeople.adults,
+  };
+  const coming = {
+    families: people.families.slice(0, getPeople.families),
+    adults: getPeople.adults,
+  };
+  people.families = people.families.slice(getPeople.families);
+  people.adults -= getPeople.adults;
+  storeStock(next, { ...stock, people });
+  const sent = givePeople.families + givePeople.adults > 0;
+  const fetched = getPeople.families + getPeople.adults > 0;
   const trade = tradeOf(next);
   trade.expeditions.push({
     id: trade.nextId++,
@@ -251,8 +363,16 @@ export function startExpedition(state: VillageState, day: number, offer: TradeOf
     days: quote.days,
     cost: quote.manDays,
     done: 0,
+    ...(sent ? { givePeople: { ...givePeople, people: peopleCount(groups) } } : {}),
+    ...(fetched ? { getPeople: coming } : {}),
   });
-  next.chronicle.push({ day, kind: 'trade-departed', direction: offer.direction, give });
+  next.chronicle.push({
+    day,
+    kind: 'trade-departed',
+    direction: offer.direction,
+    give,
+    ...(sent ? { people: { ...givePeople } } : {}),
+  });
   return next;
 }
 
@@ -278,7 +398,10 @@ export function workExpeditions(
   return { used: common - left, shares };
 }
 
-/** Vrácené výpravy (mutuje stav): přinesené zboží do zásob vsi, kronika. */
+/**
+ * Vrácené výpravy (mutuje stav): přinesené zboží do zásob vsi, lidé od souseda do obydlí
+ * (`settleNewcomers`), kronika.
+ */
 export function finishExpeditions(state: VillageState, day: number): ChronicleEvent[] {
   const trade = state.trade;
   if (!trade || trade.expeditions.length === 0) return [];
@@ -286,7 +409,16 @@ export function finishExpeditions(state: VillageState, day: number): ChronicleEv
   trade.expeditions = trade.expeditions.filter((e) => {
     if (e.done + EPSILON < e.cost) return true;
     for (const [g, n] of entries(e.get)) addGood(state, g, n);
-    events.push({ day, kind: 'trade-returned', direction: e.direction, get: { ...e.get } });
+    const coming = e.getPeople;
+    events.push({
+      day,
+      kind: 'trade-returned',
+      direction: e.direction,
+      get: { ...e.get },
+      ...(coming ? { people: { families: coming.families.length, adults: coming.adults } } : {}),
+    });
+    // lidé od souseda přijdou s výpravou (trade.md – Výměna lidí)
+    if (coming) events.push(...settleNewcomers(state, day, e.direction, coming, String(e.id)));
     return false;
   });
   return events;

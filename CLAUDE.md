@@ -872,10 +872,10 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   (`NO_SETTLERS`, `CANNOT_AFFORD`). `waitingHouseholds` (upozornění „Domácnost je plná“) =
   kladní lidé k osídlení.
 - **Příbuzenství a pohlaví** ([kinship.md](docs/design/kinship.md), Martin 18. 10. 2026;
-  `kinship.ts`): `Person.sex`, `motherId`, `fatherId`, `spouseId`, u nevěsty z okolí `origin`
-  (směr sousední vsi – válka); zemřelí a odešlí rodiče žijících v `VillageState.ancestors` (id
-  a rodiče, jen dokud jsou rodičem někoho žijícího – `removePeople`), dcery vdané pryč
-  v `emigrants` (se směrem). `areCloseKin` (do bratranců), `hasCloseKinIn` (příbuzní ve vsi ve
+  `kinship.ts`): `Person.sex`, `motherId`, `fatherId`, `spouseId`, u nevěsty z okolí a lidí od
+  souseda (výměna lidí – trade.md) `origin` (směr sousední vsi – válka); zemřelí a odešlí rodiče
+  žijících v `VillageState.ancestors` (id a rodiče, jen dokud jsou rodičem někoho žijícího –
+  `removePeople`), dcery vdané pryč a lidé daní sousedovi v `emigrants` (se směrem). `areCloseKin` (do bratranců), `hasCloseKinIn` (příbuzní ve vsi ve
   směru – war.md), `familyCounts` (muži, ženy, děti, starší, páry – panel obydlí a pohlaví postav).
   Staré vsi převede `withKinship` (v `updateVillage` i na začátku `advanceVillage`, bez příznaku –
   ves, kde mají všichni pohlaví, se nemění; `availableSettlers` počítá na převedené).
@@ -1230,7 +1230,8 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   bez kácení (`buildProgress`).
 - **Upozornění** (`lib/village-notices.ts`): plná domácnost (fakt), lidé umírají hlady, hlad,
   stojící stavby, plný hřbitov (žádný hotový nemá volný hrob), vesničané ušetřili posvátný dub
-  / dubový háj, svatba, nevěsta z okolí a dcera vdaná pryč (fakt, když přibude – svatba podle
+  / dubový háj, svatba, nevěsta z okolí a dcera vdaná pryč, přišla rodina / muž / žena od souseda
+  (`newcomer` – trade.md, Výměna lidí) (fakt, když přibude – svatba podle
   `VillageView.lastMarriageDay`), podzimní porážka, spřežení vycvičené / dosloužilo, vůl
   uhynul, vesničané obnovují starý sad a starý sad dosloužil (nové události kroniky –
   `VillageView.chronicle[].kind`, `CHRONICLE_NOTICES`) – nově vzniklé jako krátký mizející
@@ -1498,7 +1499,8 @@ směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, 
   den ze společné práce) a `finishExpeditions` (po práci – zboží do zásob, kronika
   `trade-departed` / `trade-returned`). Rozdělení práce: činnost `trade`, cíl `{ kind: 'trail' }`
   – nosiči ve scéně chodí po stezce (`porters` ve `villager-plan.ts`). Use-case `sendExpedition`,
-  server action `sendExpedition` (`{ villageId, direction, give, get }` – `parseSendExpeditionInput`).
+  server action `sendExpedition` (`{ villageId, direction, give, get, givePeople?, getPeople? }` –
+  `parseSendExpeditionInput`).
   Web: `VillageManor.neighbours` (`neighbourViews`), panel `hud/TradePanel.tsx` (posuvníky, náhled
   `lib/trade-quote.ts`), upozornění, ikona `icons/build/obchod.png`.
 - **Jen společné suroviny** (trade.md – Jen společné suroviny; Martin 19. 10. 2026: „Nech jen
@@ -1509,6 +1511,24 @@ směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, 
   idempotentně): zahodí `goods` a podíl medu v jídle, uložený zbytek roku souseda, který nesedí na
   jeho povahu, a výpravu na cestě pro zboží zvenku zruší – nosiči přinesou zpět, co nesli
   (`get` = `give`); z kroniky výprav zboží zvenku zmizí.
+- **Výměna lidí** (trade.md – Výměna lidí; Martin 19. 10. 2026: „Se sousedem půjde vyměnit
+  i lidi…“, „Mohou se stěhovat celé rodiny i jen dospělí. Podle toho, co je v nabídce.“;
+  `people-trade.ts`): soused má na rok obchodu lidi navíc, nebo je shání (`neighbourPeople` – ze
+  seedu, směru a roku; `NeighbourStock.people` – `families` počty dětí rodin, které dá, `adults`,
+  `takes`; chybí u zbytku roku uloženého dřív – doplní `neighbourStock`). Cena `PEOPLE_TRADE`
+  (dospělý 360 kg obilí, dítě polovina – `personValue`, `neighbourFamilyValue`, přirážky
+  `sellValue` / `buyValue`). `TradeOffer.givePeople` / `getPeople` (`TradePeople` – rodiny
+  a dospělí); `tradeQuote` je ocení a zkontroluje (`NO_PEOPLE_WANTED`, `OVER_PEOPLE_DEMAND`,
+  `NO_EMIGRANTS`…). Koho ves dá, vybere `emigrantGroups` (rodiny podle `familiesOf`, pak svobodní
+  16–44, z nejvíc přeplněného domu, ne dvorec, ne dědic – `unmarriedHeir` v `households.ts` –,
+  ne rozpad domácnosti; postupně, prefix stálý); odejdou hned v `startExpedition` (`removePeople`
+  se směrem, `TradeExpedition.givePeople`). Lidé souseda (`TradeExpedition.getPeople`) přijdou
+  v `finishExpeditions` – `settleNewcomers` (rodina do prázdného obydlí, jinak do domu s nejvíc
+  místy mimo dvorec, dospělý do obydleného domu s nejvíc místy; kronika `newcomer`, los ze seedu
+  a id výpravy). Lidé nosiče nepotřebují. Web: `VillageNeighbour.people` (`neighbourViews` –
+  `offers`, `takes`, `have` po výběru jádra), náhled `tradePreview(…, people)`, řádky rodina /
+  dospělý v `TradePanel` (ikony `resources/family.png`, `man.png`), upozornění „Přišla rodina ze
+  severu“.
 - **Ohrada s přístřeškem** ([oxen.md](docs/design/oxen.md); ve vsi `SceneVillage.pens` –
   `village-pens.ts` ve `VillageRenderer`: fáze podle `progress`, branka k nejbližšímu obydlí,
   zvířata `penAnimalsFor` na místa `spots` – voli spřežení (v den orby na poli), telata ve

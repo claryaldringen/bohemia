@@ -1,4 +1,5 @@
-import type { AbandonedStructure } from '@bohemia/game';
+import type { AbandonedStructure, NewcomerGroup } from '@bohemia/game';
+import { DIRECTION_NAMES, NEWCOMER_TEXTS } from './trade-names';
 import { formatInteger } from './village-format';
 import type { VillageView } from './village-view';
 
@@ -9,7 +10,8 @@ import type { VillageView } from './village-view';
 // porážka (diet.md), spřežení volů – vycvičené, dosloužilo, vůl uhynul pro nedostatek sena
 // (oxen.md) –, vesničané obnovují starý sad a starý sad dosloužil (orchard.md – Obnova sadu),
 // posvátný dub uschl a posvátná souš padla (happiness.md), nevěsta z okolí a dcera vdaná pryč
-// (kinship.md – Sňatky z okolí), opuštěná modla padla, svatyně, plot hřbitova či ohrada se
+// (kinship.md – Sňatky z okolí), lidé od souseda – rodina, muž, žena (trade.md – Výměna lidí),
+// opuštěná modla padla, svatyně, plot hřbitova či ohrada se
 // rozpadly a vesničané je opravili (abandonment.md – Oprava) – nové události kroniky. Vymřelá ves
 // žádná nemá.
 // Odvozují se z pohledu na ves a ukážou se jednou, když nově vzniknou – jako krátký mizející
@@ -41,6 +43,10 @@ export type NoticeKind =
   | 'trail-built'
   | 'trade-departed'
   | 'trade-returned'
+  /** S výpravou přišli lidé od souseda (trade.md – Výměna lidí). */
+  | 'newcomer-family'
+  | 'newcomer-man'
+  | 'newcomer-woman'
   /** Opuštěná stavba spadla (abandonment.md). */
   | 'idol-fell'
   | 'shrine-fell'
@@ -182,6 +188,8 @@ const CHRONICLE_NOTICES: Partial<
   'trail-built': () => ({ kind: 'trail-built', tone: 'info', text: 'Zemská stezka je dostavěná' }),
   'trade-departed': () => ({ kind: 'trade-departed', tone: 'info', text: 'Výprava vyrazila' }),
   'trade-returned': () => ({ kind: 'trade-returned', tone: 'info', text: 'Výprava se vrátila' }),
+  // lidé od souseda (trade.md – Výměna lidí) – fakt, odkud přišli
+  newcomer: (entry) => newcomerNotice(entry.group ?? 'family', entry),
   // nepasený příloh zarostl lesem a vypadl z pole (fields.md – Zarůstání)
   'part-became-forest': () => ({
     kind: 'part-forest',
@@ -204,6 +212,16 @@ const CHRONICLE_NOTICES: Partial<
   // vesničané opravili stavbu, ke které se zase chodí (abandonment.md – Oprava)
   'structure-repaired': (entry) => STRUCTURE_REPAIRED_NOTICES[entry.structure ?? 'idol'],
 };
+
+/** Krátký řádek „Přišla rodina ze severu“ (trade.md – Výměna lidí). */
+function newcomerNotice(group: NewcomerGroup, entry: ChronicleEntry): VillageNotice {
+  const from = entry.direction ? ` ${DIRECTION_NAMES[entry.direction].from}` : '';
+  return {
+    kind: `newcomer-${group}`,
+    tone: 'info',
+    text: `${NEWCOMER_TEXTS[group].notice}${from}`,
+  };
+}
 
 /** Krátké řádky k pádu opuštěné stavby (abandonment.md – Následky). */
 const STRUCTURE_FELL_NOTICES: Record<AbandonedStructure, VillageNotice> = {

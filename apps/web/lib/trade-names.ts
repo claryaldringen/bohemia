@@ -1,6 +1,6 @@
 // Názvy pro dvorec vojvody, zemské stezky a obchod (docs/design/trade.md) – směry, zboží a jeho
 // ikony. Čistý modul, smí i do prohlížeče.
-import type { Direction8, TradeGood, TradeGoods } from '@bohemia/game';
+import type { Direction8, NewcomerGroup, TradeGood, TradeGoods, TradePeople } from '@bohemia/game';
 import { formatInteger } from './village-format';
 
 /** Směry – zkratka, název, šipka a „odkud“ (sever nahoře, +z). */
@@ -35,6 +35,41 @@ export const TRADE_GOOD_NAMES: Record<
   pottery: { name: 'Keramika', genitive: 'keramiky', unit: 'kg', icon: 'pottery' },
   tools: { name: 'Nástroje', genitive: 'nástrojů', unit: 'kg', icon: 'tools' },
   charcoal: { name: 'Uhlí', genitive: 'uhlí', unit: 'kg', icon: 'charcoal' },
+};
+
+/** Lidé ve výměně se sousedem (trade.md – Výměna lidí): rodina a svobodný dospělý. */
+export type PeopleKind = 'family' | 'adult';
+
+/** Lidé – název a ikona v `public/icons/resources/` (dospělý ikonou muže, muž i žena). */
+export const PEOPLE_NAMES: Record<PeopleKind, { name: string; icon: string }> = {
+  family: { name: 'Rodina – muž, žena a jejich děti', icon: 'family' },
+  adult: { name: 'Svobodný dospělý – muž nebo žena 16–44 let', icon: 'man' },
+};
+
+/** Česky skloňované počty – 1, 2–4, 5 a víc. */
+function plural(n: number, one: string, few: string, many: string): string {
+  return n === 1 ? one : n >= 2 && n <= 4 ? few : many;
+}
+
+/** Lidé ve výměně („1 rodina a 2 dospělí“); nikdo – prázdný text. */
+export function peopleText(people: TradePeople | undefined): string {
+  if (!people) return '';
+  const parts = [
+    people.families > 0
+      ? `${formatInteger(people.families)} ${plural(people.families, 'rodina', 'rodiny', 'rodin')}`
+      : '',
+    people.adults > 0
+      ? `${formatInteger(people.adults)} ${plural(people.adults, 'dospělý', 'dospělí', 'dospělých')}`
+      : '',
+  ].filter((p) => p !== '');
+  return parts.join(' a ');
+}
+
+/** Krátký řádek a věta kroniky, kdo přišel od souseda (trade.md – Výměna lidí). */
+export const NEWCOMER_TEXTS: Record<NewcomerGroup, { notice: string; chronicle: string }> = {
+  family: { notice: 'Přišla rodina', chronicle: 'přišla rodina' },
+  man: { notice: 'Přišel muž', chronicle: 'přišel svobodný muž' },
+  woman: { notice: 'Přišla žena', chronicle: 'přišla svobodná žena' },
 };
 
 /** Množství zboží s jednotkou („120 kg obilí“, „2 ks krav“) – pro kroniku. */

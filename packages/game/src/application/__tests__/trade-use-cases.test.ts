@@ -6,6 +6,7 @@ import {
   buyPrice,
   neighbourOf,
   sellPrice,
+  tradeSeason,
   villageGoodStock,
   type Direction8,
   type TradeGoods,
@@ -97,6 +98,51 @@ describe('sendExpedition', () => {
     expect(sent.ok).toBe(true);
     if (!sent.ok) return;
     expect(sent.village.state.trade!.expeditions).toHaveLength(1);
+  });
+});
+
+describe('sendExpedition s lidmi (trade.md – Výměna lidí)', () => {
+  it('server lidi ocení a pošle – za svobodného dospělého souseda obilí nebo jiné zboží', async () => {
+    const { villages, villageId } = await settled();
+    const base = { villageId, landscape: LANDSCAPE, today: TODAY };
+    const built = await buildTrail({ villages }, { ...base, direction: 'S' });
+    if (!built.ok) throw new Error(built.reason);
+    villages.edit(villageId, (state) => {
+      state.trails![0]!.builtDay = TODAY;
+      state.constructions = state.constructions.filter((c) => c.trail === undefined);
+      const n = neighbourOf(state.seed, 'S');
+      state.trade = {
+        neighbours: [
+          {
+            direction: 'S',
+            season: tradeSeason(TODAY),
+            supply: { ...n.supply },
+            demand: { ...n.demand },
+            people: { families: [], adults: 1, takes: { families: 0, adults: 0 } },
+          },
+        ],
+        expeditions: [],
+        nextId: 1,
+      };
+    });
+    const state = (await villages.find(villageId))!.state;
+    const n = neighbourOf(state.seed, 'S');
+    const getPeople = { families: 0, adults: 1 };
+    expect(
+      await sendExpedition({ villages }, { ...base, direction: 'S', give: {}, get: {}, getPeople }),
+    ).toEqual({ ok: false, reason: UNFAIR });
+    const pay = n.demands.find((g) => villageGoodStock(state, g) * sellPrice(g) >= 360)!;
+    const give = { [pay]: Math.ceil(360 / sellPrice(pay)) } as TradeGoods;
+    const sent = await sendExpedition(
+      { villages },
+      { ...base, direction: 'S', give, get: {}, getPeople },
+    );
+    expect(sent.ok).toBe(true);
+    if (!sent.ok) return;
+    expect(sent.village.state.trade!.expeditions[0]!.getPeople).toEqual({
+      families: [],
+      adults: 1,
+    });
   });
 });
 

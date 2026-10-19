@@ -3,7 +3,8 @@
 Stav: schváleno 18. 10. 2026 (Martin: „Ano, spusť to takhle“; obchod se sousedem bez simulace –
 varianta „a“). **Implementace hotová** (18. 10. 2026) – dvorec, zemská stezka, sousedé a obchod;
 detaily, které návrh nechal otevřené, v části [Jak je postavené](#jak-je-postavené). **Změna 19. 10. 2026:** obchoduje se jen se surovinami, které má i ves – zboží zvenku (sůl, železo, med,
-kožešiny) hra nemá (viz [Jen společné suroviny](#jen-společné-suroviny)).
+kožešiny) hra nemá (viz [Jen společné suroviny](#jen-společné-suroviny)); se sousedem jde vyměnit
+i lidi – rodiny a svobodné dospělé (viz [Výměna lidí](#výměna-lidí)).
 
 ## Proč
 
@@ -27,6 +28,7 @@ a smysl přebytkům (obilí, sýr, maso, klády po mýcení) – jen se surovina
 - **Ne-cíl (teď):** přistěhovalci – noví lidé do vsi z okolí (rodiny, které se přistěhují).
   Martin (18. 10. 2026): „přistěhovalci budou fungovat na základě obchodu, až ho navrhneme“ –
   přijdou jako součást obchodu a vztahů se sousedy, ne jako samostatná mechanika (viz Navazuje).
+  Od 19. 10. 2026 přicházejí přes [výměnu lidí](#výměna-lidí) se sousedem.
 - **Anti-cíl:** obchod bez práce a bez času (zboží se teleportuje), nebo nekonečný zdroj (soused
   nemá zásoby bez omezení).
 
@@ -127,12 +129,72 @@ variantu „a“: odebrat zboží zvenku). Detaily níž jsou návrh Clauda.
     nabídku dohromady) a zboží, které ves dala, by bez toho propadlo;
   - z kroniky výprav zboží zvenku zmizí.
 
+## Výměna lidí
+
+Stav: **Martin rozhodl 19. 10. 2026** – „Se sousedem půjde vyměnit i lidi... např. když on jich
+bude mít moc a nebude je moci uživit, může jich pár vyměnit s námi za nějaké suroviny a opačně.“
+K návrhu doplnil: „Mohou se stěhovat celé rodiny i jen dospělí. Podle toho, co je v nabídce.“ Jsou
+to přistěhovalci, se kterými počítala část [Navazuje](#navazuje). Detaily níž jsou návrh Clauda.
+Implementace `people-trade.ts` (jádro) a panel obchodu.
+
+- **Lidé souseda na rok obchodu** (od 1. 11.): s pravděpodobností **40 %** má soused lidi navíc,
+  které neuživí – 0–2 rodiny s 0–3 dětmi a 0–3 svobodné dospělé (aspoň jednoho člověka); s **30 %**
+  lidi shání a vezme 0–2 rodiny a 0–3 dospělé (aspoň jednoho); jinak lidi nemění. Deterministicky
+  ze seedu vsi, směru a roku (`neighbourPeople`) – na rozdíl od zboží se rok od roku mění („občas“).
+  Kdo dá lidi, ten je ten rok nevezme, a naopak. Co ves vezme nebo dá, soused do konce roku odepíše.
+- **Co se mění:** **rodina** = muž, žena a jejich svobodné děti; **svobodný dospělý** = muž nebo
+  žena 16–44 let bez manžela.
+- **Cena** (v kg obilí jako zboží): dospělý **360 kg** (≈ dvouletá spotřeba jídla – 2 × 180 kg),
+  dítě do 14 let **polovina**. Přirážky jako u zboží: za naše lidi soused připíše plnou hodnotu,
+  svoje prodá za 0,96 hodnoty – rodina souseda se dvěma dětmi stojí 3 × 360 × 0,96 ≈ 1 037 kg.
+  Lidé a zboží se mísí v jedné výměně (rodina za obilí, dospělý za nástroje…).
+- **Lidé k nám** přijdou s návratem výpravy po stezce:
+  - rodiče dospělých jsou neznámí (s lidmi vsi nepříbuzní), děti mají rodiče z rodiny, všichni
+    nesou `origin` = směr souseda ([příbuzenství](kinship.md), [válka](war.md));
+  - rodina souseda: muž 24–38 let, žena o 0–6 let mladší (aspoň 18 let + 3 roky na každé dítě),
+    nejmladší dítě 0–2 roky, mezi dětmi 2–3 roky; svobodný dospělý 16–26 let, muž nebo žena půl
+    na půl (los ze seedu vsi a id výpravy);
+  - **rodina** jde do prázdného obydlí; když žádné není, do domu s nejvíc volnými místy – smí ho
+    dočasně přeplnit. Muž přišlé rodiny je pak ženatý muž bez rodičů v domě, takže podle pravidla
+    dědice smí do nového domu (lidé k osídlení – [příbuzenství](kinship.md), Domácnosti): v domě
+    s dědicem vždy. V domě bez ženatého syna ale zůstává nejstarší ženatý muž – kdyby byl starší
+    přišlý, oddělí se domácí rodina (do nového domu odejde stejně jedna rodina). Proto rodina
+    nejde do **dvorce vojvody**, pokud může jinam (odstěhovat by se mohla vojvodova rodina),
+    a řemeslné dílny jsou až nakonec. **Ověřeno testem:** rodina v plném domě přidá jednu
+    domácnost k osídlení a je mezi rodinami, které se smí oddělit;
+  - **svobodný dospělý** jde do obydleného domu s nejvíc volnými místy (dílny až nakonec) a vezme
+    se podle pravidel sňatků (ve vsi, nebo z okolí);
+  - kronika „Ze severu přišla rodina – 4 lidé.“ a krátký řádek „Přišla rodina ze severu“ /
+    „Přišel muž …“ / „Přišla žena …“ (jen fakt).
+- **Lidé od nás:** hráč zvolí počet rodin a dospělých, koho přesně, vybere jádro deterministicky
+  (`emigrantGroups`):
+  - nejdřív rodiny, pak dospělí, každá další skupina z vsi bez předchozích, vždy **z nejvíc
+    přeplněného domu**;
+  - **nikdy dědic domu** (rodinu vybírají pravidla domácností – dědic a jeho rodiče zůstávají;
+    svobodný dědic neplodných rodičů také), **vojvodova domácnost** (nikdo z dvorce – rod hráče)
+    ani **nikdo, bez koho by se domácnost rozpadla** (`householdBreaksUp`); svobodný dospělý dům
+    nevyprázdní a vdova s malými dětmi nejde;
+  - výběr je postupný – prvních n skupin je pro každé větší n stejných, takže panel ukáže přesně,
+    kolik soused za lidi připíše;
+  - odejdou **hned s výpravou**; v rodokmenu zůstanou jako odešlí ve směru souseda (`emigrants`),
+    dokud ve vsi žije jejich rodič, sourozenec nebo dítě – kvůli válce (příbuzní ve vsi souseda);
+  - kronika výpravy: „… nesou 100 kg obilí; odchází s nimi 1 rodina a 2 dospělí.“
+- **Doprava:** lidé jdou s výpravou, nic nenesou a nosiče nepotřebují – výprava jen s lidmi má
+  jednoho průvodce (nosiči aspoň 1). Děti jdou s rodiči, do nosičů ani práce se nepočítají a cestu
+  neprodlužují. Jedna výprava na souseda naráz platí dál.
+- **Panel obchodu:** řádek rodiny (ikona muže, ženy a dítěte) a svobodného dospělého (ikona
+  vesničana) na straně „dáš“, když je soused shání (nejvýš kolik vezme a kolik ves smí dát), a na
+  straně „dostaneš“, když je nabízí; cena v popisku. Výprava na cestě ukáže i lidi.
+- **Starší vsi:** zbytek roku souseda uložený dřív lidi nemá – platí celý rok podle povahy;
+  výprava na cestě bez lidí se vrátí beze změny.
+
 ## Navazuje
 
 - **Přistěhovalci** (Martin, 18. 10. 2026): noví lidé do vsi z okolí přijdou přes obchod
   a vztahy se sousedy (např. rodina, která se se sousedem domluví a přistěhuje) – navrhne se
   spolu s dalším rozvojem obchodu, ne jako samostatná mechanika. Nevěsty z okolí už nesou směr
-  souseda (`origin` – [příbuzenství](kinship.md)).
+  souseda (`origin` – [příbuzenství](kinship.md)). **Hotové 19. 10. 2026** jako
+  [výměna lidí](#výměna-lidí).
 - **Skuteční sousedé:** až budou vsi NPC vojvodů ([válka](war.md)), povahu souseda nahradí jejich
   skutečné zásoby a poptávka; stezka zrychlí přesun vojska.
 
@@ -226,3 +288,6 @@ Návrh Clauda (18. 10. 2026) – detaily, které návrh výš nechal otevřené:
 | Jen společné suroviny – se sousedem jen zboží, které má i ves; zboží zvenku pryč (19. 10.) | Martin       |
 | Druhy sousedů (obilnáři, pastevci, lesní ves, řemeslníci), každý dvakrát kolem vsi         | návrh Clauda |
 | Starší vsi: zboží zvenku propadne, výprava pro něj se ruší a nosiči vrátí, co nesli        | návrh Clauda |
+| Výměna lidí se sousedem – celé rodiny i jen dospělí, podle nabídky (19. 10.)               | Martin       |
+| Lidé souseda na rok (40 % navíc, 30 % shání), dospělý 360 kg obilí, dítě polovina          | návrh Clauda |
+| Kdo přijde a kam, koho ves dá (ne dědic, dvorec, rozpad domácnosti), lidé nic nenesou      | návrh Clauda |

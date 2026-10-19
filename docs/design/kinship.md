@@ -95,6 +95,11 @@ vsi blízké příbuzné, nebudou chtít útočit):
 - **Dcera, která se vdala pryč, zůstane v rodokmenu** se směrem vsi, kam odešla – jen jako záznam
   (id, pohlaví, den narození, rodiče, směr), nesimuluje se. Ves ho drží, dokud ve vsi žije její
   rodič, sourozenec nebo dítě.
+- **Výměna lidí se sousedem** ([obchod](trade.md) – Výměna lidí, Martin 19. 10. 2026): lidé,
+  kteří přišli od souseda (rodina nebo svobodný dospělý), nesou směr souseda (`origin`) jako
+  nevěsta z okolí – rodiče dospělých jsou neznámí, děti rodiny mají rodiče z rodiny. Lidé, které
+  ves sousedovi dala, zůstanou v rodokmenu jako odešlí ve směru souseda (`emigrants`) – jako dcera
+  vdaná pryč, dokud ve vsi žije jejich rodič, sourozenec nebo dítě.
 - **Má člověk blízké příbuzné ve vsi ve směru X?** Ano, když odtamtud sám přišel (rodiče
   a sourozenci tam), když se tam vdal jeho rodič, sourozenec nebo dítě, nebo když odtamtud je jeho
   manželka / manžel, případně se tam vdal její rodič nebo sourozenec (`hasCloseKinIn`).

@@ -243,6 +243,33 @@ describe('vstup stezky a obchodu (trade.md)', () => {
       }),
     ).toEqual({ direction: 'N', give: { grain: 100 }, get: { tools: 2 } });
     expect(parseSendExpeditionInput({ direction: 'N', give: { gold: 1 }, get: {} })).toBeNull();
+    // lidé (trade.md – Výměna lidí): rodiny a dospělí celými nezápornými čísly, chybí = nikdo
+    expect(
+      parseSendExpeditionInput({
+        direction: 'N',
+        give: {},
+        get: {},
+        givePeople: { families: 1, adults: 0 },
+        getPeople: { families: 0, adults: 2 },
+      }),
+    ).toEqual({
+      direction: 'N',
+      give: {},
+      get: {},
+      givePeople: { families: 1, adults: 0 },
+      getPeople: { families: 0, adults: 2 },
+    });
+    expect(
+      parseSendExpeditionInput({
+        direction: 'N',
+        give: {},
+        get: {},
+        givePeople: { families: -1, adults: 0 },
+      }),
+    ).toBeNull();
+    expect(
+      parseSendExpeditionInput({ direction: 'N', give: {}, get: {}, getPeople: { families: 1 } }),
+    ).toBeNull();
     // zboží zvenku obchod nezná (trade.md – Jen společné suroviny)
     expect(parseSendExpeditionInput({ direction: 'N', give: {}, get: { salt: 1 } })).toBeNull();
     expect(parseSendExpeditionInput({ direction: 'N', give: { grain: -1 }, get: {} })).toBeNull();

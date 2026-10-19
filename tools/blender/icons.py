@@ -31,7 +31,7 @@ ohrady – sheep, goat, pig, cow, chicken
 (modely `apps/web/public/models/fauna/`) a ox (vůl ze spřežení `apps/web/public/models/plough/ox.glb`)
 a rodiny do panelu obydlí (kinship.md) – man, woman, child (chlapec a dívka), elder (starší s holí
 a šedinami; vesničané z `apps/web/public/models/people/`) a ring (bronzový prsten – manželské
-páry).
+páry) a family (muž, žena a dítě – výměna lidí se sousedem, trade.md).
 Bez druhého argumentu vše, jinak čárkami oddělený výběr (např. `pole,hrbitov,food`).
 
 Postup: portréty staveb a ikony `food`, `wood`, `labor`, `satiation`, `date`, `apples` se vyrenderují v Cycles
@@ -1848,6 +1848,15 @@ def icon_child():
     camera(frame, az=12, el=6, margin=1.02, shift=(0.0, 0.02))
 
 
+def icon_family():
+    """Rodina (výměna lidí se sousedem – trade.md): muž a žena, mezi nimi před nimi dítě."""
+    man = place_person("man", loc=(-0.32, 0.12, 0), turn=-12)
+    woman = place_person("woman", loc=(0.34, 0.16, 0), turn=-28)
+    kid = place_person("man", loc=(0.02, -0.3, 0), scale=0.62, turn=-18)
+    sun(az=-40, el=40, strength=4.4)
+    camera(box_points(man + woman, 0.5, 1.0), az=12, el=6, margin=1.0)
+
+
 def icon_elder():
     """Starší: portrét muže se šedinami (vybledlá barva) a hůl u ramene."""
     meshes = place_person("man", turn=-25, frame=40)
@@ -1910,6 +1919,7 @@ RESOURCES = {
     "man": icon_man,
     "woman": icon_woman,
     "child": icon_child,
+    "family": icon_family,
     "elder": icon_elder,
     "ring": icon_ring,
 }

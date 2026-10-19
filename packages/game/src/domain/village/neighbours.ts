@@ -7,6 +7,7 @@
 import { dateOfDayIndex } from '../calendar';
 import { createRandom, deriveSeed, type Random } from '../landscape/random';
 import { suggestVillageName } from './names';
+import { neighbourPeople } from './people-trade';
 import { NEIGHBOR_DIRECTIONS, NEIGHBOURS, TRADE, TRADE_GOOD_VALUES } from './rules';
 import type { Direction8, NeighbourStock, TradeGood, TradeGoods, VillageState } from './types';
 
@@ -118,7 +119,9 @@ export function tradeSeason(day: number): number {
 
 /**
  * Co soused v den `day` ještě letos dá a vezme: uložený zbytek roku, nebo (nový rok obchodu,
- * soused, se kterým ves ještě neobchodovala) plné roční zásoby a poptávka.
+ * soused, se kterým ves ještě neobchodovala) plné roční zásoby a poptávka, i lidé roku
+ * (`neighbourPeople` – trade.md, Výměna lidí; zbytek roku uložený před výměnou lidí je nemá – pak
+ * platí celý rok).
  */
 export function neighbourStock(
   state: Pick<VillageState, 'seed' | 'trade'>,
@@ -127,7 +130,17 @@ export function neighbourStock(
 ): NeighbourStock {
   const season = tradeSeason(day);
   const stored = state.trade?.neighbours.find((n) => n.direction === direction);
-  if (stored && stored.season === season) return stored;
+  if (stored && stored.season === season) {
+    return stored.people
+      ? stored
+      : { ...stored, people: neighbourPeople(state.seed, direction, season) };
+  }
   const neighbour = neighbourOf(state.seed, direction);
-  return { direction, season, supply: { ...neighbour.supply }, demand: { ...neighbour.demand } };
+  return {
+    direction,
+    season,
+    supply: { ...neighbour.supply },
+    demand: { ...neighbour.demand },
+    people: neighbourPeople(state.seed, direction, season),
+  };
 }

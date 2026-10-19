@@ -1,6 +1,13 @@
 // Náhled výměny v panelu obchodu (trade.md – Obchod): bilance pro souseda, nosiči, dny a práce –
-// stejné ceny a nosiči jako na serveru (`tradeQuote`), jen z dat pohledu na ves. Čistý modul.
-import { expeditionPorters, type TradeGood, type TradeGoods } from '@bohemia/game';
+// stejné ceny a nosiči jako na serveru (`tradeQuote`), jen z dat pohledu na ves – i s lidmi
+// (trade.md – Výměna lidí: rodiny a svobodní dospělí nic nenesou a nosiče nepotřebují). Čistý
+// modul.
+import {
+  expeditionPorters,
+  type TradeGood,
+  type TradeGoods,
+  type TradePeople,
+} from '@bohemia/game';
 import type { VillageNeighbour } from './manor-view';
 
 export interface TradePreview {
@@ -15,19 +22,52 @@ export interface TradePreview {
   blocked: string | null;
 }
 
+/** Lidé ve výměně – co ves dá a co dostane (rodiny a svobodní dospělí). */
+export interface PreviewPeople {
+  give: TradePeople;
+  get: TradePeople;
+}
+
+const NOBODY: PreviewPeople = {
+  give: { families: 0, adults: 0 },
+  get: { families: 0, adults: 0 },
+};
+
 const total = (goods: TradeGoods, rows: readonly { good: TradeGood; price: number }[]): number =>
   rows.reduce((sum, row) => sum + (goods[row.good] ?? 0) * row.price, 0);
 
-/** Náhled výměny se sousedem – zboží, které ves dá (`give`) a dostane (`get`). */
+/** Kolik kg obilí soused připíše za lidi, které ves dá (prvních n rodin výběru jádra). */
+function peopleCredit(neighbour: VillageNeighbour, give: TradePeople): number {
+  const { have } = neighbour.people;
+  return (
+    have.families.slice(0, give.families).reduce((sum, f) => sum + f.credit, 0) +
+    give.adults * have.adultCredit
+  );
+}
+
+/** Kolik kg obilí soused chce za své lidi (rodiny od první). */
+function peoplePrice(neighbour: VillageNeighbour, get: TradePeople): number {
+  const { offers } = neighbour.people;
+  return (
+    offers.families.slice(0, get.families).reduce((sum, f) => sum + f.price, 0) +
+    get.adults * offers.adultPrice
+  );
+}
+
+/** Náhled výměny se sousedem – zboží, které ves dá (`give`) a dostane (`get`), a lidé. */
 export function tradePreview(
   neighbour: VillageNeighbour,
   give: TradeGoods,
   get: TradeGoods,
+  people: PreviewPeople = NOBODY,
 ): TradePreview {
-  const credit = total(give, neighbour.demands);
-  const price = total(get, neighbour.offers);
+  const credit = total(give, neighbour.demands) + peopleCredit(neighbour, people.give);
+  const price = total(get, neighbour.offers) + peoplePrice(neighbour, people.get);
   const porters = expeditionPorters(give, get);
-  const empty = Object.values(give).every((n) => !n) && Object.values(get).every((n) => !n);
+  const nobody =
+    people.give.families + people.give.adults + people.get.families + people.get.adults === 0;
+  const empty =
+    Object.values(give).every((n) => !n) && Object.values(get).every((n) => !n) && nobody;
   const blocked = neighbour.expedition
     ? 'Výprava k tomuto sousedovi je ještě na cestě.'
     : empty
