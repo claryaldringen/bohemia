@@ -1170,6 +1170,21 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
   (Martin) – na jaře vysoká kvetoucí tráva, v červnu se seče po dílech (řádky sena), pak kupky
   a od poloviny července stohy na otavě, které přes podzim a zimu postupně mizí (zkrmují se);
   na otavě se od srpna do konce listopadu pase. Z dálky trsy řídnou a pole nese barva obtisku.
+  **Vystouplé obilí** (Martin, 19. 10. 2026: „Zrající a dozrálé obilí by mělo být také mírně
+  vystouplé – pšenice dvouzrnka má nějakou výšku.“): zelené a zralé obilí je vyvýšená hmota –
+  nad dílem leží „koruna“ porostu (textura porostu shora) ve výšce 0,62 m (zelené) a 0,88 m
+  (zralé), k okraji pole se svažuje a zanoří pod zem; 3D trsy (zelené 0,85 m, zralé 1,15 m – klasy)
+  z koruny vyčnívají, z dálky, kde trsy řídnou, nese výšku pole koruna. Dvouzrnka v pokusech
+  a krajových odrůdách dorůstá ≈ 0,9–1,3 m (návrh Clauda – hmota stébel pod klasy). Kde stojící
+  obilí končí uvnitř pole (čára žně na rozpracovaném dílu, sousední zoraný nebo sklizený díl),
+  spadne koruna svislou stěnou – schod. Luštěniny (hrách, čočka – polehlé) mají korunu jen 0,3 m,
+  vzcházející osení, strniště a úhor žádnou. Vítr vlní dál trsy, sníh a usychání platí pro
+  korunu jako pro obtisk pole.
+  **Kulaté rohy** ([oxen.md](oxen.md) – Kulaté rohy; Martin, 19. 10. 2026): kde pole oralo
+  spřežení rádlem, má zoraná plocha – i osetá, zelená, zralá a strniště po ní – vnější rohy pole
+  zakulacené obloukem o poloměru 5 m (do rohu se spřežení s radlicí v zemi nevejde); v rohu
+  zůstane tráva louky a nestojí tam trsy. Vnitřní rohy, styky dílů a styk s jiným polem zůstanou
+  jako dřív, kopané díly mají rohy ostré.
   Kolem vsi se navíc seče pár luk na seno (jen vzhled, na dvě domácnosti jedna louka).
   **Zarůstání** (viz Zarůstání, Les vsi): stáda se pasou jen na dílech, kam dojdou (nejbližší
   napřed). Na nepaseném a nesečeném přílohu od 3. roku přibývají keře, které rostou (plné
@@ -1309,6 +1324,8 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | ~~Rezerva jde do obilí – zásoby obilí na 1–1,5 roku potřeby z pole~~; výhled jídla s mlékem do sklizně                            | návrh Clauda                                    |
 | Osev podle zásob – ves si drží rozumnou zásobu na hubené roky, s velkou zásobou seje méně a staví                                 | Martin (19. 10. 2026)                           |
 | Rozjetý plán se zkrátí hned, ne až 1. 9. – ves přestane kopat nové díly                                                           | Martin (19. 10. 2026)                           |
+| Zrající a zralé obilí vystouplé (dvouzrnka); kulaté rohy pole oraného rádlem                                                      | Martin (19. 10. 2026)                           |
+| Koruna porostu 0,62 / 0,88 m, luštěniny 0,3 m, schod na čáře žně; roh 5 m jen vnější rohy oraných dílů, jen vzhled                | návrh Clauda                                    |
 | Cíl = rok spotřeby z pole a pojistka po příští sklizni bez toho, co zbude; pojistka ~~0,3~~ 0,5 roční potřeby celé energie        | návrh Clauda                                    |
 | Volná práce pro plán osevu po dospělých pasácích (se stády podle bílkovin)                                                        | návrh Clauda                                    |
 | Přebytek nad pojistku za 3 roky, chybějící hned; luštěniny podle své zásoby bez rezervy; bez měření podílu podíl 1                | návrh Clauda                                    |
