@@ -118,7 +118,8 @@ export function leavingFamilies(state: VillageState, day: number): Family[] {
 /**
  * Svobodný syn, který smí z plného (i přeplněného) domu `dwelling` odejít sám (Martin – „nejstarší
  * dítě může odejít“, „ať prázdný dům obsadí i plná domácnost“; kinship.md – Domácnosti): nejstarší
- * svobodný syn od 16 let (matka nebo otec bydlí v domě). Zpátky ho nic nevrátí – sňatkem se stěhuje
+ * svobodný syn od 16 let (matka nebo otec bydlí v domě); bez něj jiný svobodný muž od 16 let bez
+ * rodičů v domě (`lodgerOf`). Zpátky ho nic nevrátí – sňatkem se stěhuje
  * žena k muži a sestra ani matka si ho nevezme (blízcí příbuzní). Dědic zůstává: když v domě ještě není ženatý syn a rodiče už jsou neplodní (žádná
  * matka synů v domě nemůže rodit), zůstává nejstarší syn a odejít smí druhý nejstarší (Martin).
  * Jen když se zbytek domácnosti nerozpadne; jinak undefined.
@@ -131,10 +132,30 @@ export function loneSonOf(
   if (!isFull(state, dwelling.id, day)) return undefined;
   const members = occupants(state, dwelling.id);
   const unmarried = unmarriedSons(members, day);
-  const candidate = unmarriedHeir(members, day) ? unmarried[1] : unmarried[0];
+  // bez svobodného syna smí odejít i jiný svobodný muž od 16 let bez rodičů v domě (Martin,
+  // 19. 10. 2026 – přeplněný dům ve Vlkově, ve vsi prázdná polozemnice); ne otec dětí z domu
+  const candidate =
+    (unmarriedHeir(members, day) ? unmarried[1] : unmarried[0]) ?? lodgerOf(members, day);
   if (!candidate) return undefined;
   const staying = members.filter((m) => m.id !== candidate.id);
   return householdBreaksUp(staying, day) ? undefined : candidate;
+}
+
+/**
+ * Nejstarší svobodný muž od 16 let domácnosti `members`, který v ní nemá rodiče (starší vsi mají
+ * rodiče neznámé, bratranci, synovci) a není otcem nikoho z ní; jinak undefined.
+ */
+function lodgerOf(members: readonly Person[], day: number): Person | undefined {
+  return members
+    .filter(
+      (m) =>
+        m.sex === 'male' &&
+        !parentHere(m, members) &&
+        unmarriedHere(m, members) &&
+        ageYears(m.bornDay, day) >= AGE.fertile &&
+        !members.some((c) => c.fatherId === m.id),
+    )
+    .sort(byAge)[0];
 }
 
 /** Svobodní synové od 16 let, jejichž matka nebo otec bydlí v domácnosti `members` – od nejstaršího. */

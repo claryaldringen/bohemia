@@ -335,7 +335,9 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
   tam (sňatkem ve vsi nebo z okolí). **Dědic u neplodných rodičů** (Martin, 18. 10. 2026: „Pokud
   už jsou rodiče neplodní, tak ano, má“): když v domě ještě není ženatý syn a matka synů už nemůže
   rodit, zůstává nejstarší syn a odejít smí druhý nejstarší; se ženatým dědicem smí odejít
-  nejstarší svobodný syn. **Dcery odcházejí sňatkem**, samy ne. Dřívější „dospělé děti
+  nejstarší svobodný syn. Bez svobodného syna jde jiný svobodný muž od 16 let bez rodičů v domě,
+  který není otcem nikoho z domu (Martin, 19. 10. 2026 – přeplněný dům ve Vlkově, návrh Clauda).
+  **Dcery odcházejí sňatkem**, samy ne. Dřívější „dospělé děti
   z přeplněné domácnosti“ (Martin, 18. 10. 2026 – dva nejmladší ze 4 dospělých, dospělé děti po
   dvou, jednotlivci z různých domů spolu) se s příbuzenstvím převedly na synovy rodiny.
 - **Pořadí:** nejdřív rodiny pro všechna prázdná obydlí (obydlí podle id), pak svobodní synové –

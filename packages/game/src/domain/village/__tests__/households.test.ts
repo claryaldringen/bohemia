@@ -133,6 +133,30 @@ describe('svobodný syn smí odejít sám', () => {
       ...[50, 51, 52, 53, 54].slice(0, 5 - sons.length).map((id) => child(id, 5, 'female')),
     ]);
 
+  it('bez syna smí odejít svobodný muž bez rodičů v domě – ne otec dětí z domu (Vlkov)', () => {
+    // hospodář (60) s mladou ženou a dětmi, svobodný muž 25 a žena 22 s neznámými rodiči
+    const s = build([
+      ...couple({ id: 10, age: 60 }, { id: 11, age: 28 }),
+      { id: 30, age: 25, sex: 'male' },
+      { id: 31, age: 22, sex: 'female' },
+      child(40, 10, 'male'),
+      child(41, 9, 'male'),
+      child(42, 8, 'female'),
+    ]);
+    expect(loneSonOf(s, s.dwellings[0]!, DAY)?.id).toBe(30);
+    // ovdovělý otec malých dětí neodejde od nich
+    const widower = build([
+      { id: 10, age: 40, sex: 'male' },
+      { id: 12, age: 30, sex: 'female' },
+      child(40, 10, 'male'),
+      child(41, 9, 'male'),
+      child(42, 8, 'female'),
+      child(43, 6, 'female'),
+      child(44, 4, 'female'),
+    ]);
+    expect(loneSonOf(widower, widower.dwellings[0]!, DAY)).toBeUndefined();
+  });
+
   it('nejstarší svobodný syn od 16 let z přeplněného domu', () => {
     const s = crowded(40, [child(20, 19, 'male'), child(21, 17, 'male')]);
     expect(loneSonOf(s, s.dwellings[0]!, DAY)?.id).toBe(20);
