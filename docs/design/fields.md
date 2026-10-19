@@ -183,8 +183,17 @@ má nějaké meze. Bez řemeslníků ber tu nejhorší hranici, s řemeslníky t
     v prohlížeči i na serveru jsou stejné funkce jádra; u kurzoru oranžově „Pole se zmenší“
     / „Pole zanikne“, u staveb po čtvercích i čtverce pole oranžově, u jabloní v nabídce na panelu
     cesty. Kronika: pole ustoupilo sadu, hřbitovu, ohradě, modle, svatyni, jabloním nebo stromům
-    u cesty. Pole leží na krajině pod ním – na čtverci pole v lese (vymýceném) stavby dál nesmí,
-    jako v lese (zatím).
+    u cesty. Pole leží na krajině pod ním – na čtverci pole v lese (vymýceném) stavby smí jako
+    jinde na poli a za les neplatí, pole ho už vymýtilo (Martin, 19. 10. 2026: „pokud jsem pole
+    založil v lese, tak na něm nemohu postavit kovárnu“ – oprava, viz Stavby v lese níž).
+- **Stavby v lese** (Martin, 19. 10. 2026: „Oprav – obydlí může jít postavit i v lese – les se
+  prostě vyklučí.“; podrobnosti návrh Clauda – [populace](population.md), Stavba v lese): do lesa
+  krajiny i lesa vsi smí každá stavba – obydlí, pozemek, dílny, modla, svatyně, ohrada, sad
+  i hřbitov. Les pod stavbou se platí **sazbou lesa jako díl pole** (250, s řemesly 150 člověkodní
+  na hektar plochy lesa – stromy, mladé stromky, souše, padlé kmeny, pařezy i podrost v sazbě,
+  kameny a balvany po kusech), dospělé stromy dají klády. Kolem volně stojící stavby (obydlí,
+  dílna, modla, svatyně) se v lese vyklučí i pruh 4 m pod korunami okolních stromů. Skalní
+  výchoz, voda a prudký svah stavbu dál nedovolí, posvátné duby a háje se nekácí.
 - **Navazující pole** (Martin, 18. 10. 2026: „Pokud více polí navazuje přímo na sebe, počítají se
   jako jedno.“): čtverce, které stranou navazují na pole, ho **rozšíří** – stejné pole, nové díly
   na konec (jako rozšíření hřbitova); rozestavěné založení pole dostane jejich cenu, u hotového
@@ -245,7 +254,7 @@ Clauda**; implementace v `square-grid.ts` a `squares.ts` (jádro), ve scéně `f
   buňky 7,5 m pod jeho středem – středy nepřekrývajících se čtverců jsou od sebe aspoň 15 m).
   Pole ho vymýtí, jen když je jeho čtverec přesně čtvercem pole (stejná mřížka); natočené pole
   napříč lesem vsi z jiné mřížky nejde („Les vsi pole vymýtí jen po jeho čtvercích“), ostatní
-  stavby na les vsi nesmí jako dřív.
+  stavby les vsi vyklučí i jen zčásti (Pole jako krajina – Stavby v lese).
 - **Hospodaření, pěšiny, seno, stromy u cest:** hospodářství a úseky berou středy čtverců v mřížce
   pole (sousedé při vyhlazení jen v téže mřížce), síť pěšin bere natočené čtverce v jejich
   mřížce (buňky sítě převede do souřadnic mřížky), přirozené louky na seno vynechají každé
@@ -813,7 +822,9 @@ povrch při založení a den vypadnutí z pole – les je tehdy 30 let starý).
 - **Stavba:** pole na lese vsi ho **vymýtí jako les** – povrch les (250, s řemesly 150 člověkodní
   na hektar, stromy v ceně), dospělé stromy dají klády a vymýcená půda popel (viz Úroda); les
   zmizí, až se díl založí. Ostatní stavby (obydlí, pozemek, ohrada, sad, hřbitov, modla
-  a svatyně) jdou jako v lese krajiny zatím jen na louku – na les vsi ne.
+  a svatyně) les vsi vyklučí jako les krajiny – sazba lesa, stromy lesa vsi v ní, dospělé dají
+  klády (Martin, 19. 10. 2026 – Pole jako krajina, Stavby v lese); les vsi, ze kterého stavby
+  odstranily všechny stromy, zmizí jako pod polem, zbytek čtverce zůstane lesem.
 - **Pastva:** les vsi na bývalé louce už není pastvinou a prasatům je lesem (žaludy a bukvice);
   les vsi na vymýceném lese se lesem prasat stane zase (díl v lese nepočítá) – [strava a
   dobytek](diet.md).
@@ -960,9 +971,11 @@ naposledy. V řadové vsi je hran víc – lány jsou úzké pásy vedle sebe, j
   (stejně jako ostatní vrstvy). Je to největší přestavba, kterou tyto mechaniky vyžadují.
 - **Co je překážka a za kolik** (doplňuje tabulku výše – návrh Clauda): každý strom mimo políčka
   lesa jako osamělý strom (3 člověkodny), mladý stromek 1, souš 3, padlý strom 2, pařez 2.
-  Uvnitř políček lesa platí sazba lesa za hektar (stromy v ceně). **Obydlí v lese** platí místo
-  sazby za hektar stromy po kusech na ploše 10 × 10 m kolem půdorysu (v lese zhruba 5 stromů,
-  ≈ 15 člověkodní navíc).
+  Uvnitř políček lesa platí sazba lesa za hektar (stromy v ceně). **Stavba v lese** (19. 10. 2026
+  – Pole jako krajina, Stavby v lese) platí stejnou sazbu lesa za plochu lesa, kterou vyklučí
+  (dřívější návrh „stromy po kusech na ploše 10 × 10 m“ by les vyšel ≈ 3× dráž než pro pole –
+  ≈ 243 dospělých stromů na hektar × 3 čd); u zemnice v lese i s pruhem pod korunami ≈ 18 × 20 m
+  ≈ 9 člověkodní, za ≈ 8 dospělých stromů dá klády.
 - Scéna dnes staví les (hranici lesa, 3D stromy, impostory, koruny), dekorace i stínovou mapu
   **jednou z vygenerované krajiny**. Nově musí umět krajinu sídla po změně přestavět – aspoň
   dotčenou oblast: vykácené stromy a odstraněné kameny zmizí, nové pole se vykreslí, stínová
@@ -994,7 +1007,10 @@ naposledy. V řadové vsi je hran víc – lány jsou úzké pásy vedle sebe, j
   a kolem ní zapadne pod zem, ztmavení trávy pod vykácenými stromy zmizí (i pod jednotlivými
   pařezy), stínová mapa se jednou překreslí a minimapa ukáže vykácený les jako paseku (les
   řídne s podílem vykácených stromů). Díly pole ve vymýceném lese mají obtisk pole na běžné
-  trávě; při malování pole přes les prosvítá obrys výběru přes koruny.
+  trávě; při malování pole přes les prosvítá obrys výběru přes koruny. **Paseka pod stavbou
+  v lese** (19. 10. 2026): vyklučená plocha volně stojící stavby (i s pruhem pod korunami) je menší
+  než políčko – plocha korun zapadne přesně podle jejího tvaru (`ClearedForest.areas`), kolem
+  zůstane les; podrost lesa vsi pod stavbou neroste.
 
 ## Ukázka
 
@@ -1417,3 +1433,5 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Zkrácení plánu denně 1. 9. – 30. 4. nad cíl + desetinu potřeby z pole; jen nezačaté díly od konce pořadí, ladem jako příloh       | návrh Clauda                                    |
 | Klik na pole vybere díl s parametry, dvojklik celé pole jako dřív                                                                 | Martin (19. 10. 2026)                           |
 | Panel dílu: co na něm je, výměra, úrodnost, cesta, hospodářství, letošní práce / příloh; hřbitov celý                             | návrh Clauda                                    |
+| Obydlí a ostatní stavby smí do lesa i na pole ve vymýceném lese – les se vyklučí                                                  | Martin (19. 10. 2026)                           |
+| Les pod stavbou sazbou lesa jako díl pole (pařezy v ní), kolem volně stojící stavby i pruh 4 m pod korunami; na poli v lese nic   | návrh Clauda                                    |

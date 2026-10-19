@@ -250,7 +250,8 @@ Rozhodnutí kontroléru při implementaci (18. 10. 2026) – kde návrh necháva
   základní obydlí + 30 %, zaokrouhleno. Umisťuje se volně jako zemnice (bez pozemku); půdorys
   hrnčíře a kováře je o přístřešek (3,2 m) delší vpředu. **Milíř** se staví spolu se zemnicí
   uhlíře (jedna stavba, stejný průběh) a stojí 9 m stranou a 3 m vpřed od ní (souřadnice modelu,
-  `MILIR` v `rules.ts`); místo pod ním (6 × 6 m) musí být louka, dost rovná a volná, překážky
+  `MILIR` v `rules.ts`); místo pod ním (6 × 6 m) musí být louka nebo les (les se vyklučí –
+  [populace](population.md), Stavba v lese, Martin 19. 10. 2026), dost rovné a volné, překážky
   v kruhu o poloměru 4,6 m osadníci odstraní a zaplatí jako u obydlí.
 - **Celá domácnost dílny pracuje v dílně** – i starší děti a starší pomáhají jako na poli; po
   denním minimu (meze podle nádob) a domácí výrobě (i palivo dál od lesa) dostane řemeslo

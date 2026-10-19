@@ -97,11 +97,12 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
   zhruba 4 × 4 m, polozemnice 5 × 5 m (návrh Clauda).
 - Obydlí nesmí stát ve vodě ani se překrývat s jiným obydlím nebo hřbitovem (návrh Clauda). Na
   pole a do sadu smí – pole a sad se zmenší (Martin, 18. 10. 2026 – viz Obydlí na poli a v sadu).
+  Do lesa smí – les se vyklučí (Martin, 19. 10. 2026 – viz Stavba v lese).
 - **Polozemnice stojí na pozemku velkém jako jedno políčko pole** (Martin, 18. 10. 2026):
   15 × 15 m v mřížce políček jako čtverec pole, celý obehnaný polským plotem. Dům stojí
   **uprostřed, nebo v jednom ze čtyř rohů** – 5 variant jednoho stavení (Martin); hráč je při
   umisťování přepíná klávesou Tab (klávesy [ a ] pozemek otáčejí – viz Natočený pozemek níž),
-  vchod míří vždy k brance na přední straně pozemku (návrh Clauda). Pozemek musí být volná louka – ne voda, zatím ani les, bez skalního
+  vchod míří vždy k brance na přední straně pozemku (návrh Clauda). Pozemek musí být volná louka nebo les (les se vyklučí – viz Stavba v lese) – ne voda, bez skalního
   výchozu, bez posvátného dubu a čtverce dubového háje (dům ani pod korunou dubu ze sousedství –
   jako u obydlí, [happiness.md](happiness.md)), nezabraný hřbitovem ani jiným obydlím či
   pozemkem – čtverec pole nebo sadu smí (viz Obydlí na poli a v sadu); rovná zem
@@ -135,13 +136,50 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
   i bez pole a sadu – obyvatelé si pozemek na poli ani v sadu sami nevezmou, to rozhoduje jen
   hráč (návrh Clauda).
 - **Překážky** na místě, např. kameny, osadníci odstraní, ale stavba stojí víc člověkodní
-  (Martin). Totéž **v lese** – stromy je třeba skácet a vykopat pařezy. Ceny překážek a mýcení
-  jsou jedna tabulka pro celou hru ve [fields.md](fields.md) (návrh Clauda). Kontrola umístění
+  (Martin). Totéž **v lese** – stromy je třeba skácet a vykopat pařezy (viz Stavba v lese). Ceny
+  překážek a mýcení jsou jedna tabulka pro celou hru ve [fields.md](fields.md) (návrh Clauda).
+  Kontrola umístění
   cenu spočítá už při umisťování a rozhraní ji ukáže u kurzoru ikonami s čísly: práce celkem
   (stavba, překážky a kácení dřeva, které nedá hromada klád) a počet stromů ke kácení; když
   obydlí na místo nejde, místo ceny krátký červený důvod (fields.md – Co hráč vidí).
 - Odstraněné kameny a stromy z krajiny sídla zmizí natrvalo – krajina sídla je vygenerovaná
   krajina plus změny, které v ní udělali lidé (návrh Clauda).
+
+### Stavba v lese
+
+Martin (19. 10. 2026): „Oprav – obydlí může jít postavit i v lese – les se prostě vyklučí.“
+Podrobnosti návrh Clauda:
+
+- **Do lesa smí** obydlí (zemnice volně, polozemnice s pozemkem), řemeslné dílny i s milířem
+  a stejně i ostatní stavby – modla, svatyně, ohrada, sad a hřbitov. Les krajiny i **les vsi**
+  ([fields.md](fields.md) – Les vsi) se vyklučí stejně. **Skalní výchoz, voda a prudký svah** stavbu
+  dál nedovolí, **posvátné duby a háje** se nekácí nikdy ([happiness.md](happiness.md)).
+- **Cena – sazba lesa jako u dílu pole** (sjednoceno s polem): za plochu lesa, kterou stavba
+  vyklučí, 250 člověkodní na hektar (s kovovými nástroji 150 – meze produktivity). Stromy, mladé
+  stromky, souše, padlé kmeny, pařezy i podrost jsou v sazbě (po kusech se neplatí), kameny
+  a balvany po kusech. Vyklučení pařezů je v sazbě – rešerše ji uvádí právě s klučením pařezů
+  (Rösch a kol. 2017: 250 čd/ha „sedí jako horní mez s klučením“, žďár bez klučení ≈ 120–150);
+  dům se zahlubuje, kořeny pod ním musí pryč. Po kusech podle tabulky by les vyšel ≈ 3× dráž
+  (≈ 243 dospělých stromů na hektar ve vrstvě překážek × 3 čd ≈ 735 čd/ha) a stavba v lese by
+  stála víc než stejné mýcení pro pole – jedna cena lesa pro celou hru. Na louce se dál platí po
+  kusech (osamělé stromy u okraje lesa).
+- **Co se vyklučí:** volně stojící stavba (obydlí, dílna, modla, svatyně) vyklízenou plochu
+  (staveniště, půdorys, kruh milíře) a v lese i **pruh pod korunami** okolních stromů – 4 m kolem
+  ní (koruna ≈ 50 m² jako u posvátného dubu; dům pod korunami by stál ve stínu a vlhku a hráč by
+  ho ve scéně neviděl). Pruh jen v lese – louka, pole a sad kolem zůstanou, jak jsou. Pozemek,
+  ohrada, sad a hřbitov celé své čtverce jako díl pole.
+- **Dospělé stromy dají klády** na hromadu jako mýcení pro pole ([forest.md](forest.md)) – stavba
+  je hned vezme, takže dům v lese se kácením dřeva pro sebe zlevní. Les vsi, ze kterého stavby
+  odstranily všechny stromy, zmizí jako pod polem.
+- **Pole v lese:** díl pole ve vymýceném lese je pole, ne les – stavba na něm (i na natočeném
+  poli) za les neplatí, protože ho pole už vymýtilo (zakládaný díl ho vymýtí sám), jen pole se
+  zmenší (Obydlí na poli a v sadu). Stejně čtverec sadu v lese pod obydlím.
+- **Obyvatelé sami les nevyklučí:** přestavba na novém pozemku, převod starších polozemnic na
+  pozemek a místo nové vsi vedle (vývojové tlačítko) hledají dál jen louku.
+- **Ve scéně:** stromy na vyklučené ploše zmizí (3D i impostory), plocha korun nad pasekou zapadne
+  podle jejího tvaru (i u malé paseky obydlí bez pozemku), ztmavení trávy pod stromy se přepočítá,
+  podrost lesa vsi pod stavbou neroste. Les kolem zůstane. Palivo a pěšiny počítají vzdálenost
+  jako jinde – dům v lese má palivo u dveří.
 
 ### Obydlí na poli a v sadu
 
@@ -621,3 +659,6 @@ pravidla → první verze hladu (1 − nasycení za den, hájení bez stropu) �
 | Nedodělek oprav obydleného domu se neodkládá; znovu osídlený dům ukázat celý         | návrh Clauda                               |
 | Stupně 70 / 45 / 20 %, jejich podoba; plot a záhony od propadající se střechy        | návrh Clauda                               |
 | Zbytek jámy po zaniklém obydlí ≈ 10 let zarůstá; stavba přes něj ho odstraní         | návrh Clauda                               |
+| Obydlí (i ostatní stavby) smí do lesa – les se vyklučí                               | Martin, 19. 10. 2026                       |
+| Les pod stavbou za sazbu lesa jako díl pole, pařezy v ní; v lese i pruh 4 m          | návrh Clauda                               |
+| Obyvatelé sami les nevyklučí; stavba na poli v lese za les neplatí                   | návrh Clauda                               |
