@@ -26,32 +26,60 @@ export interface DecalOptions {
   uv?: number | ((x: number, z: number, v: number) => [number, number]);
 }
 
-/** Obtisk na terénu ze sítě bodů (`decalGrid`, `earthPatch`) – výšky, normály, UV, barvy. */
-export function createDecalMesh(
-  scene: Scene,
-  name: string,
-  grid: DecalGrid,
-  o: DecalOptions,
-): Mesh {
-  const count = grid.alphas.length;
-  const positions = new Float32Array(count * 3);
+/**
+ * Výška terénu a normála pod body sítě obtisku (bez zdvihu `lift`) – nejdražší část obtisku
+ * (pět výšek na bod). Závisí jen na bodech sítě a terénu, takže ji jde pro nezměněnou síť
+ * použít znovu (pole po blocích – field-renderer.ts).
+ */
+export interface DrapedPoints {
+  heights: Float64Array;
+  normals: Float32Array;
+}
+
+/** Výšky a normály bodů `positions` (x, z po dvojicích) – jako `createDecalMesh`. */
+export function drapePoints(
+  positions: ArrayLike<number>,
+  height: HeightFn,
+  smoothHeight?: HeightFn,
+): DrapedPoints {
+  const count = positions.length / 2;
+  const heights = new Float64Array(count);
   const normals = new Float32Array(count * 3);
-  const uvs = new Float32Array(count * 2);
-  const colors = new Float32Array(count * 4);
-  const smooth = o.smoothHeight ?? o.height;
+  const smooth = smoothHeight ?? height;
   const e = NORMAL_STEP_M;
   for (let v = 0; v < count; v++) {
-    const x = grid.positions[v * 2]!;
-    const z = grid.positions[v * 2 + 1]!;
-    positions[v * 3] = x;
-    positions[v * 3 + 1] = o.height(x, z) + o.lift;
-    positions[v * 3 + 2] = z;
+    const x = positions[v * 2]!;
+    const z = positions[v * 2 + 1]!;
+    heights[v] = height(x, z);
     const nx = smooth(x - e, z) - smooth(x + e, z);
     const nz = smooth(x, z - e) - smooth(x, z + e);
     const length = Math.hypot(nx, 2 * e, nz);
     normals[v * 3] = nx / length;
     normals[v * 3 + 1] = (2 * e) / length;
     normals[v * 3 + 2] = nz / length;
+  }
+  return { heights, normals };
+}
+
+/** Obtisk na terénu ze sítě bodů (`decalGrid`, `earthPatch`) – výšky, normály, UV, barvy. */
+export function createDecalMesh(
+  scene: Scene,
+  name: string,
+  grid: DecalGrid,
+  o: DecalOptions,
+  draped: DrapedPoints = drapePoints(grid.positions, o.height, o.smoothHeight),
+): Mesh {
+  const count = grid.alphas.length;
+  const positions = new Float32Array(count * 3);
+  const uvs = new Float32Array(count * 2);
+  const colors = new Float32Array(count * 4);
+  const { heights, normals } = draped;
+  for (let v = 0; v < count; v++) {
+    const x = grid.positions[v * 2]!;
+    const z = grid.positions[v * 2 + 1]!;
+    positions[v * 3] = x;
+    positions[v * 3 + 1] = heights[v]! + o.lift;
+    positions[v * 3 + 2] = z;
     if (typeof o.uv === 'function') {
       const [u, w] = o.uv(x, z, v);
       uvs[v * 2] = u;

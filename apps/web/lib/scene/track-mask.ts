@@ -58,6 +58,9 @@ export interface TrackMask {
 
 /** Strana přihrádky prostorového rejstříku (m). */
 const BIN_M = 8;
+/** Číselný klíč přihrádky: posun a rozsah indexu (přihrádky do ±8 000 km – mapa má pár km). */
+const BIN_OFFSET = 2 ** 20;
+const BIN_SPAN = 2 ** 21;
 
 /** Kus masky v rejstříku – úsečka nebo kruh s měkkým okrajem své vrstvy. */
 interface Item {
@@ -92,8 +95,14 @@ function itemMask(item: Item, x: number, z: number): number {
     const dz = s.bz - s.az;
     const l2 = dx * dx + dz * dz;
     const t = l2 > 0 ? Math.min(1, Math.max(0, ((x - s.ax) * dx + (z - s.az) * dz) / l2)) : 0;
-    distance = Math.hypot(x - (s.ax + dx * t), z - (s.az + dz * t));
+    const ox = x - (s.ax + dx * t);
+    const oz = z - (s.az + dz * t);
     half = s.halfA + (s.halfB - s.halfA) * t;
+    // daleko za měkkým okrajem je maska 1 (jako s přesnou vzdáleností) – bez odmocniny; rezerva
+    // pokryje zaokrouhlení, takže výsledek je stejný jako s Math.hypot
+    const reach = half + item.soft;
+    if (ox * ox + oz * oz > reach * reach * (1 + 1e-9) + 1e-12) return 1;
+    distance = Math.hypot(ox, oz);
     depth = s.depthA + (s.depthB - s.depthA) * t;
   } else {
     const d = item.disc!;
@@ -149,12 +158,14 @@ export function trackMask(layers: readonly { track: Track; softM: number }[]): T
   const live = items.filter((item) => (item.segment ? true : item.disc!.depth > 0));
   if (live.length === 0) return null;
   // prostorový rejstřík – bod se ptá jen na kusy své přihrádky
-  const bins = new Map<string, number[]>();
+  // číselný klíč přihrádky – `at` se volá pro statisíce bodů obtisků a trsů polí
+  const bins = new Map<number, number[]>();
   const binOf = (v: number): number => Math.floor(v / BIN_M);
+  const binKey = (i: number, j: number): number => (i + BIN_OFFSET) * BIN_SPAN + (j + BIN_OFFSET);
   live.forEach((item, index) => {
     for (let i = binOf(item.bounds.minX); i <= binOf(item.bounds.maxX); i++) {
       for (let j = binOf(item.bounds.minZ); j <= binOf(item.bounds.maxZ); j++) {
-        const key = `${i},${j}`;
+        const key = binKey(i, j);
         const list = bins.get(key);
         if (list) list.push(index);
         else bins.set(key, [index]);
@@ -181,7 +192,7 @@ export function trackMask(layers: readonly { track: Track; softM: number }[]): T
     const found = new Set<number>();
     for (let i = binOf(bounds.minX); i <= binOf(bounds.maxX); i++) {
       for (let j = binOf(bounds.minZ); j <= binOf(bounds.maxZ); j++) {
-        for (const index of bins.get(`${i},${j}`) ?? []) {
+        for (const index of bins.get(binKey(i, j)) ?? []) {
           if (overlaps(live[index]!.bounds, bounds)) found.add(index);
         }
       }
@@ -190,7 +201,7 @@ export function trackMask(layers: readonly { track: Track; softM: number }[]): T
   };
   return {
     at(x, z) {
-      const list = bins.get(`${binOf(x)},${binOf(z)}`);
+      const list = bins.get(binKey(binOf(x), binOf(z)));
       if (!list) return 1;
       let mask = 1;
       for (const index of list) {

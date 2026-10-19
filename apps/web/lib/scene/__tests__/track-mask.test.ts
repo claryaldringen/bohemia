@@ -230,10 +230,9 @@ describe('pole pod cestou', () => {
     rows,
     center,
     (x, z) => ragged(x, z) * mask.at(x, z),
-    196,
     (b) => mask.near(b),
   );
-  const plain = fieldBlockContent(views, rows, center, ragged, 196);
+  const plain = fieldBlockContent(views, rows, center, ragged);
 
   it('pod cestou nestojí trsy obilí a koruna je pod zemí', () => {
     const crops = [...masked.plants.values()].flatMap((p) => Object.values(p.crops).flat());
@@ -264,5 +263,58 @@ describe('pole pod cestou', () => {
       const [, cy] = cell.split(',').map(Number);
       if (cy === 0 || cy === 3) expect(masked.plants.get(cell)).toEqual(plants);
     }
+  });
+});
+
+describe('maska pásů – rychlý výpočet = přímý', () => {
+  /** Přímo podle definice: nejmenší maska přes všechny kusy (Math.hypot, bez rejstříku). */
+  function reference(track: Track, softM: number, x: number, z: number): number {
+    let mask = 1;
+    const piece = (distance: number, half: number, depth: number): void => {
+      if (depth <= 0) return;
+      const ramp = Math.min(1, Math.max(0, (distance - half) / softM));
+      mask = Math.min(mask, 1 - depth * (1 - ramp));
+    };
+    for (const s of track.segments) {
+      const dx = s.bx - s.ax;
+      const dz = s.bz - s.az;
+      const l2 = dx * dx + dz * dz;
+      const t = l2 > 0 ? Math.min(1, Math.max(0, ((x - s.ax) * dx + (z - s.az) * dz) / l2)) : 0;
+      piece(
+        Math.hypot(x - (s.ax + dx * t), z - (s.az + dz * t)),
+        s.halfA + (s.halfB - s.halfA) * t,
+        s.depthA + (s.depthB - s.depthA) * t,
+      );
+    }
+    for (const d of track.discs) piece(Math.hypot(x - d.x, z - d.z), d.radius, d.depth);
+    return mask;
+  }
+
+  it('bit po bitu jako přímý výpočet (pěšiny s rozcestím, body i těsně u okraje)', () => {
+    const lines: PathLine[] = [
+      straight(-30, 40, 10),
+      {
+        points: [
+          { x: 0, z: -20 },
+          { x: 7, z: 3 },
+          { x: 12, z: 30 },
+        ],
+        strength: [0.4, 1, 0.7],
+        years: [0, 0, 0],
+        openStart: false,
+        openEnd: true,
+      },
+    ];
+    const track = ribbonTrack(lines, PATH_WORN_LAYER);
+    const mask = trackMask([{ track, softM: 0.5 }])!;
+    let edge = 0;
+    for (let i = 0; i < 20_000; i++) {
+      const x = -35 + ((i * 7.31) % 80);
+      const z = -25 + ((i * 3.17) % 60);
+      const value = mask.at(x, z);
+      expect(value).toBe(reference(track, 0.5, x, z));
+      if (value > 0 && value < 1) edge++;
+    }
+    expect(edge).toBeGreaterThan(100);
   });
 });

@@ -1,5 +1,6 @@
 import {
   CROP_KINDS,
+  appendHay,
   decalPieces,
   emptyCrops,
   fieldPlants,
@@ -7,6 +8,7 @@ import {
   patchNoise,
   type FieldPlants,
   type FieldTexture,
+  type PlantInstance,
 } from './field-crops';
 import { emptyCanopy, fieldCanopy, mergeCanopies, type CanopyMesh } from './field-canopy';
 import type { PartView } from './field-look';
@@ -93,13 +95,16 @@ export function groupFieldBlocks(views: readonly PartView[]): Map<string, PartVi
   return blocks;
 }
 
-/** Obtisky, řádky sena a rostliny dílů `views` (celé pole nebo jeho blok). */
+/**
+ * Obtisky, řádky sena a rostliny dílů `views` (celé pole nebo jeho blok). Rostliny bez kupek
+ * a stohů sena – jen ty závisí na dni (ubývají přes zimu); přidá je `mergeFieldBlocks`, takže
+ * blok nezávisí na dni a nový den ho nepřestaví.
+ */
 export function fieldBlockContent(
   views: readonly PartView[],
   rows: readonly [number, number],
   center: { x: number; z: number },
   coverage: (x: number, z: number) => number,
-  day: number,
   fine: (bounds: Bounds) => boolean = () => false,
 ): FieldBlockContent {
   const layers = new Map<string, DecalLayer>();
@@ -158,7 +163,7 @@ export function fieldBlockContent(
   // se dělí do dvou modelů trsů podle pořadí)
   const plants = new Map<string, FieldPlants>();
   for (const view of views) {
-    plants.set(cellKey(view.part.cell), fieldPlants([view], rows, center, coverage, day));
+    plants.set(cellKey(view.part.cell), fieldPlants([view], rows, center, coverage, null));
   }
   // koruna porostu po síti obtisku (stejné body jako okraj obtisku)
   const first = views[0];
@@ -172,11 +177,13 @@ export function fieldBlockContent(
 
 /**
  * Spojí obsah bloků do obsahu celého pole: obtisky a řádky sena po blocích, rostliny v pořadí
- * dílů `views` (stejné pořadí jako `fieldPlants` celého pole).
+ * dílů `views` (stejné pořadí jako `fieldPlants` celého pole) a kupky a stohy sena podle dne
+ * v roce `day` (null = bez sena – pole ho pak skládá zvlášť, `fieldHay`).
  */
 export function mergeFieldBlocks(
   views: readonly PartView[],
   blocks: readonly FieldBlockContent[],
+  day: number | null,
 ): FieldContent {
   const layers = new Map<string, DecalLayer>();
   const swaths: DecalGrid[] = [];
@@ -204,6 +211,7 @@ export function mergeFieldBlocks(
     appendAll(swaths, block.swaths);
     for (const [cell, part] of block.plants) byCell.set(cell, part);
   }
+  if (day !== null) appendAll(plants.hay, fieldHay(views, day));
   for (const view of views) {
     const part = byCell.get(cellKey(view.part.cell));
     if (!part) continue;
@@ -214,4 +222,11 @@ export function mergeFieldBlocks(
     appendAll(plants.hay, part.hay);
   }
   return { layers, swaths, plants, canopy: mergeCanopies(blocks.map((b) => b.canopy)) };
+}
+
+/** Kupky a stohy sena dílů `views` v jejich pořadí (jako `fieldPlants` celého pole). */
+export function fieldHay(views: readonly PartView[], day: number): PlantInstance[] {
+  const hay: PlantInstance[] = [];
+  for (const view of views) appendHay(hay, view, day);
+  return hay;
 }

@@ -30,6 +30,14 @@ function key(x: number, y: number): string {
   return `${x},${y}`;
 }
 
+/** Rozsah číselného klíče políčka (`cellKeyNumber`) – |x|, |y| menší než tohle. */
+const CELL_KEY_RANGE = 32768;
+
+/** Číselný klíč políčka (rychlejší než řetězec ve velkých smyčkách). */
+function cellKeyNumber(x: number, y: number): number {
+  return (x + CELL_KEY_RANGE) * 2 * CELL_KEY_RANGE + (y + CELL_KEY_RANGE);
+}
+
 /** Čtverce obdélníku mezi dvěma rohovými čtverci (včetně), po řádcích. */
 export function rectangleCells(a: TileCell, b: TileCell): TileCell[] {
   const cells: TileCell[] = [];
@@ -329,14 +337,52 @@ export function cellsCoverage(
   const half = frame.size / 2;
   const radius = Math.min(half, rounding?.radius ?? 0);
   const deepest = softM + (inset?.maxM ?? 0);
+  // sousedé každého čtverce sjednocení jednou (bit 3 × 3 okolí – volá se pro statisíce bodů
+  // obtisků a trsů pole); číselný klíč políčka, mimo jeho rozsah klíč řetězcem jako dřív
+  const neighbours = new Map<number, number>();
+  let numeric = true;
+  for (const s of squares) {
+    const { x, y } = s.cell;
+    if (Math.abs(x) >= CELL_KEY_RANGE - 1 || Math.abs(y) >= CELL_KEY_RANGE - 1) numeric = false;
+  }
+  if (numeric) {
+    for (const s of squares) {
+      const { x, y } = s.cell;
+      let mask = 0;
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (inside.has(key(x + dx, y + dy))) mask |= 1 << ((dy + 1) * 3 + dx + 1);
+        }
+      }
+      neighbours.set(cellKeyNumber(x, y), mask);
+    }
+  }
+  const neighbourMask = (x: number, y: number): number => {
+    if (numeric) {
+      // čtverce sjednocení jsou v rozsahu klíče – bod mimo něj v sjednocení není
+      if (Math.abs(x) >= CELL_KEY_RANGE || Math.abs(y) >= CELL_KEY_RANGE) return -1;
+      return neighbours.get(cellKeyNumber(x, y)) ?? -1;
+    }
+    if (!inside.has(key(x, y))) return -1;
+    let mask = 0;
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (inside.has(key(x + dx, y + dy))) mask |= 1 << ((dy + 1) * 3 + dx + 1);
+      }
+    }
+    return mask;
+  };
+  const has = (mask: number, dx: number, dy: number): boolean =>
+    (mask & (1 << ((dy + 1) * 3 + dx + 1))) !== 0;
   return (wx, wz) => {
     const [x, z] = frame.toSpace(wx, wz);
     const cell = frame.cellAt(x, z);
-    if (!inside.has(key(cell.x, cell.y))) return 0;
+    const mask = neighbourMask(cell.x, cell.y);
+    if (mask < 0) return 0;
     let distance = deepest;
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
-        if ((dx === 0 && dy === 0) || inside.has(key(cell.x + dx, cell.y + dy))) continue;
+        if ((dx === 0 && dy === 0) || has(mask, dx, dy)) continue;
         const [nx, nz] = frame.center(cell.x + dx, cell.y + dy);
         const ox = Math.max(0, Math.abs(x - nx) - half);
         const oz = Math.max(0, Math.abs(z - nz) - half);
@@ -347,9 +393,7 @@ export function cellsCoverage(
       const [cx, cz] = frame.center(cell.x, cell.y);
       for (const sx of [-1, 1]) {
         for (const sz of [-1, 1]) {
-          if (inside.has(key(cell.x + sx, cell.y)) || inside.has(key(cell.x, cell.y + sz))) {
-            continue;
-          }
+          if (has(mask, sx, 0) || has(mask, 0, sz)) continue;
           // vzdálenost od obou vnějších stran rohu; v rohovém čtverci R × R k oblouku
           const a = half - sx * (x - cx);
           const b = half - sz * (z - cz);
@@ -409,16 +453,19 @@ export function touchingSquares<T extends CellSquare>(
   if (!first) return [];
   const frame = gridFrame(first);
   const mine = new Set(own.map((s) => key(s.cell.x, s.cell.y)));
-  return others.filter((o) => {
-    // sousedství po čtvercích jen ve stejné mřížce (natočené stavby – fields.md)
-    if (!inFrame(frame, first, o)) return false;
-    if (mine.has(key(o.cell.x, o.cell.y))) return false;
+  // políčka v 8-sousedství vlastních čtverců – jeden dotaz na čtverec místo devíti (pole Vlkova
+  // s 1 800 díly se porovnává se sousedními poli a loukami při každé přestavbě)
+  const near = new Set<string>();
+  for (const s of own) {
     for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
-        if (mine.has(key(o.cell.x + dx, o.cell.y + dy))) return true;
-      }
+      for (let dx = -1; dx <= 1; dx++) near.add(key(s.cell.x + dx, s.cell.y + dy));
     }
-    return false;
+  }
+  return others.filter((o) => {
+    const cell = key(o.cell.x, o.cell.y);
+    if (!near.has(cell) || mine.has(cell)) return false;
+    // sousedství po čtvercích jen ve stejné mřížce (natočené stavby – fields.md)
+    return inFrame(frame, first, o);
   });
 }
 
