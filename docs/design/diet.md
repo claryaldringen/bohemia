@@ -419,21 +419,21 @@ práci.
   - Když porážka bere na maso i mláďata navíc (maso nestačí), ovce na vlnu nebere.
 - **Osadníci nové vsi** mají ovcí na vlnu pro všechny (2 dospělí a 2 děti – 6 ovcí místo 3)
   a **seno na první zimu** pro své stádo (jako obilí na 18 měsíců; co nesnědí, shnije s příští
-  sečí – rozhodnutí Clauda): ves založená po seči by jinak v první zimě přišla o všechny ovce až
+  sečí – návrh Clauda, Martin potvrdil 19. 10. 2026): ves založená po seči by jinak v první zimě přišla o všechny ovce až
   na chovný pár a ovce na vlnu by odchovávala roky.
 - **Kdy se rozhodne:** při porážce 1. 11. podle ovcí, které ves nechá přes zimu (stříž na jaře) –
   platí do další porážky (`LivestockState.wool`). Vsi uložené dřív se do první porážky nemění –
   stáda ani štěstí; hranici ale použije už plán seče 1. 6. a luštěnin 1. 9.
 - **Když ovcí na vlnu není dost** (ves je neuživí – pastva, seno, pasáci –, nebo je ještě nemá):
-  kronika `wool-short` a krátký řádek **„Chybí vlna na oděv“** (až pod 95 % oděvu – ovce průběžně
+  (Martin potvrdil 19. 10. 2026) kronika `wool-short` a krátký řádek **„Chybí vlna na oděv“** (až pod 95 % oděvu – ovce průběžně
   hynou a stádo na hranici by hlásilo drobnosti); štěstí ubere **až 6** podle chybějícího podílu
   (ovce na 2/3 oděvu → −2).
-- **Ves bez ovcí** (rozhodnutí Clauda): jen štěstí – lidé chodí v obnošeném oděvu a v kůžích.
+- **Ves bez ovcí** (návrh Clauda, Martin potvrdil 19. 10. 2026): jen štěstí – lidé chodí v obnošeném oděvu a v kůžích.
   Nemoci ani úmrtí ne (anti-cíl: ves nevymře kvůli oděvu), nákup vlny ne
   (Martin nechce nové suroviny, obchod vlnu nenabízí), oděv z kůží z porážky hra nevede (námět).
 - **Práce:** stříž, praní, česání, předení, tkaní a šití jsou **součástí domácí výroby** (`DOMESTIC`
-  – fields.md, Práce, bod 4: „oděv, nádobí, …“) – přerozdělení, ne práce navíc (rozhodnutí
-  Clauda): domácí výroba dává 0,15 člověkodne na člověka denně ≈ 55 čd za rok, vlna z toho
+  – fields.md, Práce, bod 4: „oděv, nádobí, …“) – přerozdělení, ne práce navíc (návrh Clauda,
+  Martin potvrdil 19. 10. 2026): domácí výroba dává 0,15 člověkodne na člověka denně ≈ 55 čd za rok, vlna z toho
   ≈ 21–24 čd na dospělého (≈ 150 h na kg vlny – rešerše). Práce navíc by oděv počítala dvakrát
   a ubrala volnou práci, se kterou kalibrace domácí výroby už počítá.
 
@@ -776,5 +776,5 @@ Krátké `measure-village.ts 20 20` před a po (skutečné krajiny; jen orienta�
 | Ovce jsou hlavně kvůli vlně – aby se lidé mohli vůbec oblékat                                                                                   | Martin (19. 10. 2026)  |
 | Vlna 1,6 kg na dospělého (dítě 0,8), ovce 0,8 kg – 2 ovce na dospělého jako spodní hranice stáda                                                | návrh Clauda (rešerše) |
 | Pastva a seno: voli, ovce na vlnu, krávy na mléko a voly; pasáci napřed ovce na vlnu                                                            | návrh Clauda           |
-| Bez vlny jen štěstí až −6 a upozornění; práce na vlně v domácí výrobě (přerozdělení, ne navíc)                                                  | návrh Clauda           |
-| Osadníci mají ovce na vlnu a seno na první zimu; jehňata ovcí na vlnu nejdou na maso navíc                                                      | návrh Clauda           |
+| Bez vlny jen štěstí až −6 a upozornění; práce na vlně v domácí výrobě (přerozdělení, ne navíc)                                                  | Martin (19. 10. 2026)  |
+| Osadníci mají ovce na vlnu a seno na první zimu; jehňata ovcí na vlnu nejdou na maso navíc                                                      | Martin (19. 10. 2026)  |
