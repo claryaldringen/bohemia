@@ -82,6 +82,7 @@ import {
   type SceneVillage,
   type VillageView,
   scenePenSpecies,
+  scenePenSquares,
 } from '@/lib/village-view';
 import { GameView } from './GameView';
 import { BuildGrid } from './hud/BuildGrid';
@@ -175,22 +176,7 @@ function squareStructures(
       .map((p) => ({
         id: p.id,
         ...(p.grid ? { grid: p.grid } : {}),
-        squares: [
-          {
-            cell: p.cell,
-            x: p.x,
-            z: p.z,
-            size: p.size,
-            ...(p.rotation ? { rotation: p.rotation } : {}),
-          },
-          ...(p.extraSquares ?? []).map((q) => ({
-            cell: q.cell,
-            x: q.x,
-            z: q.z,
-            size: p.size,
-            ...(p.rotation ? { rotation: p.rotation } : {}),
-          })),
-        ],
+        squares: scenePenSquares(p),
       }));
   }
   return [];
