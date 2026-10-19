@@ -549,6 +549,28 @@ odvedená práce na poli po hospodářských letech 59, 62, 52, 40 (59, 60, 56, 
 Ves za těch 5 let nasbírala zásoby (obilí 3 137 → 6 400 kg) a podíl jídla z pole jí klesal
 (0,72–0,77 → 0,60 – stáda), takže práce klesá v obou verzích; plán k 1. 9. kolísá méně.
 
+#### Osev podle růstu vsi
+
+Stav: **Martin, 19. 10. 2026:** „Ano, udělej to všechno“ – k návrhu, aby ves k 1. 9. sela na
+počet lidí v době, kdy bude úrodu jíst, ne na dnešní. Odhad a jeho podrobnosti jsou **návrh
+Clauda**.
+
+**Proč:** úroda plánu z 1. 9. se sklidí za rok a jí se ještě rok po sklizni – do té doby děti
+dorostou (dospělý jí 180 kg obilí ročně, dítě 100), narodí se další a ves, která roste, měla
+pokaždé o kus méně, než potřebovala. Startovní ves (dva dospělí, děti 12 a 13 let) potřebuje
+v roce po sklizni ≈ o čtvrtinu víc než k 1. 9.
+
+**Pravidla** (`expectedYearlyFoodNeed` ve `food-outlook.ts`, `sowingTargets` ve `field-food.ts`):
+
+- **Výhled lidí** po měsících z dnešních lidí: každý jí podle věku v daném měsíci (děti dorostou,
+  dospělí zestárnou), ubývá běžnou úmrtností své skupiny (dítě ≈ 3,6 %, dospělý 2 %, starší 8 %
+  ročně – bez přeplnění, hygieny a hladu) a manželské páry (žena 16–44, manžel ve vsi) mají děti
+  podle plodnosti věku ženy (Růst populace). Sňatky, stěhování a hlad výhled nezná – je to jen
+  plán osevu, lidé se jím neřídí; čistá funkce lidí a dne (deterministicky).
+- **Do příští sklizně** (zásoby, které zbudou k 31. 8.) průměrná potřeba od dneška do sklizně,
+  **úroda, pojistka a cílová zásoba** podle průměrné potřeby v roce po sklizni.
+- Dnešní potřeba zůstává všude jinde (příděl, výhled jídla, stáda).
+
 ### Přílohová soustava – co se oseje a co leží ladem
 
 Výchozí osevní systém je přílohová soustava raných Slovanů (Martin). Pravidla (návrh Clauda):
@@ -1566,3 +1588,5 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Na částech pole musí být zasetý len – plátno na spodní oděv                                                                       | Martin (19. 10. 2026)                           |
 | Len 2 kg na dospělého (dítě 1), 550 kg/ha, okna luštěnin, −0,18 úrodnosti; od konce výběru, obilí ubere jen o své díly            | návrh Clauda (rešerše)                          |
 | Zpracování lnu v domácí výrobě (přerozdělení); bez lnu jen štěstí až −4 a upozornění                                              | návrh Clauda                                    |
+| Osev podle růstu vsi – ves seje na lidi v době, kdy úrodu jí, ne na dnešní                                                        | Martin (19. 10. 2026)                           |
+| Výhled po měsících: věk, běžná úmrtnost, porody manželských párů; do sklizně a rok po ní                                          | návrh Clauda                                    |

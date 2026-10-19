@@ -16,6 +16,7 @@ import {
   yearlyFieldNeed,
   yearlyFoodNeed,
 } from '../field-food';
+import { expectedYearlyFoodNeed } from '../food-outlook';
 import { hasGoodStores } from '../happiness';
 import { daysUntilHarvest } from '../food';
 import { daysUntilLegumeHarvest, expectedLegumeKg, legumeEnergy } from '../legumes';
@@ -143,18 +144,26 @@ describe('cíl osevu podle zásob', () => {
   const loss = storageLossPerYear(NO_CRAFTS.pottery);
   const targetsOf = (s: VillageState, legumeNeedKg = 0): ReturnType<typeof sowingTargets> =>
     sowingTargets(s, day, legumeNeedKg, NO_CRAFTS.pottery);
+  // potřeba podle růstu vsi – do sklizně 31. 8. a rok po ní (Osev podle růstu vsi)
+  const harvestDay = day + daysUntilHarvest(day) - 1;
+  const yearlyNow = (s: VillageState): number => expectedYearlyFoodNeed(s, day, day, harvestDay);
+  const yearlyNext = (s: VillageState): number =>
+    expectedYearlyFoodNeed(s, day, harvestDay + 1, harvestDay + 365);
 
   it('prázdné zásoby: úroda rok co rok, pojistka hned, cílová zásoba nad ní po třetinách', () => {
     const s = village(0);
-    const need = s.people.reduce((sum, p) => sum + (day - p.bornDay < 14 * 365.25 ? 100 : 180), 0);
-    expect(yearlyFoodNeed(s, day)).toBe(need);
-    expect(need).toBe(2 * FOOD_NEED_KG_PER_YEAR.adult + 2 * FOOD_NEED_KG_PER_YEAR.child);
+    const today = s.people.reduce((sum, p) => sum + (day - p.bornDay < 14 * 365.25 ? 100 : 180), 0);
+    expect(yearlyFoodNeed(s, day)).toBe(today);
+    expect(today).toBe(2 * FOOD_NEED_KG_PER_YEAR.adult + 2 * FOOD_NEED_KG_PER_YEAR.child);
+    // děti (12 a 13 let) do roku po sklizni dorostou – ves seje na větší potřebu než dnešní
+    const need = yearlyNext(s);
+    expect(need).toBeGreaterThan(today * 1.15);
     // bez změřeného podílu celá potřeba energie
     const t = targetsOf(s);
     const buffer = FIELD_STORES.bufferEnergyYears * need;
     const keep = storesTargetKg(need, buffer);
     expect(keep).toBeCloseTo(buffer + FIELD_STORES.cushionYears * need, 9);
-    expect(t.needKg).toBe(need);
+    expect(t.needKg).toBeCloseTo(need, 9);
     expect(t.bufferKg).toBeCloseTo(buffer, 9);
     expect(t.leftKg).toBe(0);
     const steady = storesNeeded(keep, need, 1, loss) - keep;
@@ -162,20 +171,19 @@ describe('cíl osevu podle zásob', () => {
       steady + buffer + (keep - buffer) / FIELD_STORES.balanceYears,
       9,
     );
-    expect(t.energyFloorKg).toBe(need);
+    expect(t.energyFloorKg).toBeCloseTo(need, 9);
   });
 
   it('zásoby na cílové zásobě: úroda rok co rok jako ustálený stav; pojistka z celé energie', () => {
     const s = village(0);
     s.fieldFood = { needKg: 0, fieldKg: 0, share: 0.4 };
-    const yearly = yearlyFoodNeed(s, day);
+    const yearly = yearlyNext(s);
     const need = 0.4 * yearly;
-    expect(yearlyFieldNeed(s, day)).toBeCloseTo(need, 9);
     const buffer = FIELD_STORES.bufferEnergyYears * yearly;
     const keep = storesTargetKg(need, buffer);
     const years = daysUntilHarvest(day) / 365;
-    // zásoba, ze které k příští sklizni zbude právě cílová zásoba
-    s.storesKg = storesNeeded(keep, need, years, loss);
+    // zásoba, ze které k příští sklizni zbude právě cílová zásoba – do sklizně jí dnešní lidé
+    s.storesKg = storesNeeded(keep, 0.4 * yearlyNow(s), years, loss);
     const t = targetsOf(s);
     expect(t.bufferKg).toBeCloseTo(buffer, 9);
     expect(t.leftKg).toBeCloseTo(keep, 6);
@@ -188,10 +196,11 @@ describe('cíl osevu podle zásob', () => {
   it('přebytek i schodek nad pojistkou vyrovná po třetinách, pod pojistkou doplní hned', () => {
     const s = village(0);
     s.fieldFood = { needKg: 0, fieldKg: 0, share: 0.4 };
-    const need = 0.4 * yearlyFoodNeed(s, day);
-    const buffer = FIELD_STORES.bufferEnergyYears * yearlyFoodNeed(s, day);
+    const need = 0.4 * yearlyNext(s);
+    const buffer = FIELD_STORES.bufferEnergyYears * yearlyNext(s);
     const keep = storesTargetKg(need, buffer);
     const steady = steadyHarvestKg(need, buffer, NO_CRAFTS.pottery);
+    const needNow = 0.4 * yearlyNow(s);
     // pod pojistkou: co chybí do ní hned, zbytek do cílové zásoby po třetinách
     s.storesKg = 0.5 * need;
     const short = targetsOf(s);
@@ -202,7 +211,7 @@ describe('cíl osevu podle zásob', () => {
     );
     // nad pojistkou, pod cílovou zásobou: jen třetina schodku
     const years = daysUntilHarvest(day) / 365;
-    s.storesKg = storesNeeded((buffer + keep) / 2, need, years, loss);
+    s.storesKg = storesNeeded((buffer + keep) / 2, needNow, years, loss);
     const between = targetsOf(s);
     expect(between.leftKg).toBeGreaterThan(between.bufferKg);
     expect(between.leftKg).toBeLessThan(keep);
@@ -281,7 +290,7 @@ describe('cíl osevu podle zásob', () => {
     const s = village(0);
     s.fieldFood = { needKg: 0, fieldKg: 0, share: 0.05 };
     expect(yearlyFieldNeed(s, day)).toBeCloseTo(FIELD_FOOD.minShare * yearlyFoodNeed(s, day), 9);
-    expect(targetsOf(s).needKg).toBeCloseTo(yearlyFieldNeed(s, day), 9);
+    expect(targetsOf(s).needKg).toBeCloseTo(FIELD_FOOD.minShare * yearlyNext(s), 9);
   });
 });
 
@@ -293,7 +302,9 @@ describe('osev podle stravy v simulaci', () => {
     expect(first.fieldFood).toEqual(expect.objectContaining({ needKg: expect.any(Number) }));
     expect(first.fieldFood?.share).toBeUndefined();
     // rok se stády – mléko, vejce a od listopadu maso pokryjí část energie
-    const before = advanceVillage(first, at(601, 8, 31), null);
+    const lean = advanceVillage(first, at(601, 8, 31), null);
+    // zásoba navíc, ať plán neomezí práce osadníků (ves seje na potřebu po růstu – děti dorostou)
+    const before = { ...lean, storesKg: lean.storesKg + 600 };
     const day = at(601, 9, 1);
     const measured = advanceVillage(before, day, null);
     const share = measured.fieldFood!.share!;
@@ -328,7 +339,7 @@ describe('osev podle stravy v simulaci', () => {
     // ves za 10 let vyroste na 8 lidí – pole ≈ 6 ha, ať ani pak osev neomezuje půda (len
     // vysiluje půdu a díly déle leží ladem – fields.md, Len)
     const start = found(at(600, 3, 15), 270);
-    start.storesKg = 6 * yearlyFoodNeed(start, start.foundedDay);
+    start.storesKg = 8 * yearlyFoodNeed(start, start.foundedDay);
     const grain: number[] = [];
     let s = start;
     for (let year = 600; year <= 610; year++) {

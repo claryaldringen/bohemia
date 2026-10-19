@@ -380,7 +380,8 @@ describe('ves hospodaří podle domů', () => {
     const reachOld = mean(
       old.map((s) => reachableShare(withCells(s), villageHoldings(withCells(s)))),
     );
-    expect(reachNow).toBeGreaterThan(0.75);
+    // ves seje na potřebu po růstu (fields.md – Osev podle růstu vsi) – víc dílů i dál od domu
+    expect(reachNow).toBeGreaterThan(0.7);
     expect(reachNow).toBeGreaterThan(reachOld + 0.5);
     // osévá se pořád podobně – úseky jídlo neberou
     const sownParts = (xs: VillageState[]): number =>

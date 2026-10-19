@@ -801,7 +801,11 @@ rozhraní částí v
   podle stravy, Osev podle zásob, 19. 10. 2026): `sowingTargets` ve `field-food.ts` (v plánu
   `fieldSowingTargets`) – potřeba z pole (podíl jídla z pole za uplynulý hospodářský rok –
   `VillageState.fieldFood`, součty v `eat`, uzávěrka 1. 9. `closeFieldFoodYear`; nejméně
-  `FIELD_FOOD.minShare`, bez změřeného roku 1 – × roční potřeba). **Plynulejší osev** (fields.md –
+  `FIELD_FOOD.minShare`, bez změřeného roku 1 – × roční potřeba). **Osev podle růstu vsi**
+  (fields.md, Martin 19. 10. 2026): roční potřeba není dnešní, ale výhled `expectedYearlyFoodNeed`
+  (`food-outlook.ts` – po měsících věk, běžná úmrtnost, porody manželských párů) – do sklizně pro
+  zásoby, rok po sklizni pro úrodu, pojistku a cílovou zásobu. Maso z nouzové porážky se do
+  `fieldFood` počítá jako potřeba z pole. **Plynulejší osev** (fields.md –
   Plynulejší osev, Martin 19. 10. 2026): seje se podle dlouhodobého podílu
   `FieldFoodYear.longShare` (k 1. 9. o třetinu rozdílu – `FIELD_STORES.balanceYears`; starší ves
   začne ročním `share`) – úroda rok co rok na cílovou zásobu `storesTargetKg` = pojistka (`bufferKg`
