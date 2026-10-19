@@ -305,7 +305,8 @@ describe('letošní práce na dílu (panel dílu – fields.md, Co hráč vidí)
     expect(harvests).toContain(1);
     for (const id of s.plan!.winter!.partIds) {
       const { harvest, sow } = work.get(id)!.crop!;
-      expect(sow).toBe(1);
+      // setí hotové – podíl z odvedené a potřebné práce (desetinná čísla)
+      expect(sow).toBeCloseTo(1, 9);
       const look = looks.get(id)!;
       if (look.look === 'ripe') expect(harvest).toBe(0);
       if (look.look === 'harvesting' && look.work === undefined) expect(harvest).toBe(1);

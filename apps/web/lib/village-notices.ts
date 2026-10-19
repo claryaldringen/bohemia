@@ -36,6 +36,8 @@ export type NoticeKind =
   | 'slaughter'
   | 'meat-spoiled'
   | 'herd-starved'
+  /** Ovcí je málo na vlnu pro oděv všech (diet.md – Oděv). */
+  | 'wool-short'
   | 'team-ready'
   | 'team-retired'
   | 'ox-died'
@@ -196,6 +198,8 @@ const CHRONICLE_NOTICES: Partial<
     tone: 'warn',
     text: 'Dobytek hynul – chybělo seno',
   }),
+  // ovcí přes zimu méně, než je třeba na vlnu pro oděv všech (diet.md – Oděv)
+  'wool-short': () => ({ kind: 'wool-short', tone: 'warn', text: 'Chybí vlna na oděv' }),
   'team-ready': () => ({ kind: 'team-ready', tone: 'info', text: 'Spřežení je vycvičené' }),
   'bride-from-outside': () => ({
     kind: 'bride-from-outside',

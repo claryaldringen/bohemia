@@ -394,8 +394,25 @@ export const ROAD_WALK = {
 export const FIELD_LIMITS = { maxDistanceM: 800, minAreaM2: 1000 } as const;
 // fields.md – Práce (denní minimum domácností – meze: s hrnčířem 0,45); population.md – Práce
 export const DAILY_MIN_PER_HOUSEHOLD: Bounds = { worst: 0.5, best: 0.45 };
-// fields.md – Práce (domácí výroba, přenos nedodělané práce nejvýš 60 dní)
+// fields.md – Práce (domácí výroba, přenos nedodělané práce nejvýš 60 dní); oděv z vlny a lnu
+// – praní, česání, předení, tkaní a šití – je její součástí (diet.md – Oděv: vlna ≈ 21 čd na
+// dospělého a rok z 55 čd `perPerson`), stříž ovcí taky
 export const DOMESTIC = { perHousehold: 0.3, perPerson: 0.15, backlogMaxDays: 60 } as const;
+/**
+ * diet.md – Oděv, Vlna (Martin 19. 10. 2026: „Ovce jsou hlavně kvůli vlně, aby se lidé mohli vůbec
+ * oblékat.“; čísla návrh Clauda podle rešerše research/2026-10-19-herds-hay-meat.md – Vlna):
+ * surové (nepráné) vlny na oděv za rok – dospělý a starší 1,6 kg, dítě 0,8 kg (kabátec, kalhoty
+ * nebo sukně, plášť, onuce, kápě a díl přikrývek s dobou nošení; spodní oděv je ze lnu); chovná
+ * ovce dá za rok 0,8 kg (malé ovce raného středověku, stříž nebo vyčesání v květnu); bez vlny
+ * ubere štěstí až 6 (jako ovoce přidá); kronika a upozornění až pod 95 % oděvu (ovce průběžně
+ * hynou – stádo právě na hranici by hlásilo drobnosti).
+ */
+export const WOOL = {
+  kgPerYear: { child: 0.8, adult: 1.6, elder: 1.6 },
+  kgPerSheep: 0.8,
+  unhappiness: 6,
+  noticeBelow: 0.95,
+} as const;
 // population.md – Nové obydlí (společná práce za posledních 30 dní pro „má na to“)
 export const COMMON_LABOR_HISTORY_DAYS = 30;
 // population.md – Chátrání a přestavba (oprava podle hlášení Martina 18. 10. 2026): přestavba na

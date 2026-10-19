@@ -15,6 +15,7 @@ export * from './plough-trip';
 export * from './oxen';
 export { breedingCows, winterHayNeedKg } from './husbandry';
 export * from './herding';
+export { woolCoverage, woolNeedKg, woolSheep, woolUnhappiness } from './wool';
 export * from './dwellings';
 export * from './manor';
 export * from './relocation';

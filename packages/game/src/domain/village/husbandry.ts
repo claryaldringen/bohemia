@@ -40,6 +40,7 @@ import {
 import { walkDistancesTo } from './paths/village';
 import { villageRoadWalk } from './paths/walking';
 import type { ChronicleEvent, VillageState } from './types';
+import { recordWool, woolSheep } from './wool';
 
 // Den hospodářství vsi (diet.md, oxen.md) – stáda, seno a ohrady v pevném pořadí, před plánem
 // osevu a prací dne: roční ztráty stád a seno ve stohu (každý den), ohrady (výcvik, stáří
@@ -103,10 +104,18 @@ function farmInput(
   state: VillageState,
   day: number,
   toolCoverage: number,
-): { oxen: number; minCows: number; herding: number; costs: FoodCosts; freeHerders: number } {
+): {
+  oxen: number;
+  minCows: number;
+  minSheep: number;
+  herding: number;
+  costs: FoodCosts;
+  freeHerders: number;
+} {
   return {
     oxen: villageOxen(state),
     minCows: breedingCows(state),
+    minSheep: woolSheep(state, day),
     herding: herdingCoverage(state),
     costs: villageFoodCosts(state, day, toolCoverage),
     freeHerders: freeHerderCapacity(state, day),
@@ -183,6 +192,9 @@ export function husbandryDay(
       hayKg: villageHayKg(state),
     });
     if (event) events.push(event);
+    // vlna na oděv do další porážky – podle ovcí, které ves nechala přes zimu (diet.md – Oděv)
+    const wool = recordWool(state, livestock, day);
+    if (wool) events.push(wool);
     // nový rok pasení – od porážky do porážky
     delete livestock.herding;
     if (state.hay)

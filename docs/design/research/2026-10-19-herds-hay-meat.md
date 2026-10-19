@@ -115,11 +115,58 @@ beze změny. Bílkoviny, které dá chovný kus za rok mlékem (po syrovátce 85
 ztrátách: ovce 1,2 kg, kozy 1,5 kg, krávy 6,0 kg, prasata 6,5 kg (**vlastní výpočet**, hra
 `proteinPerHead`).
 
-## 8. Vlna (námět, ve hře zatím není)
+## 8. Vlna – oděv (doplněno 19. 10. 2026)
 
-Ovce se v raném středověku chovaly hlavně pro vlnu – přeslenky a závaží tkalcovských stavů patří
-k nejběžnějším nálezům na slovanských sídlištích **(odhad – obecně známé)**. Návrh zapojení je
-v diet.md (Námět – vlna).
+Martin (19. 10. 2026): „Ovce jsou hlavně kvůli vlně, aby se lidé mohli vůbec oblékat.“ Přeslenky
+a závaží tkalcovských stavů patří k nejběžnějším nálezům na slovanských sídlištích **(odhad –
+obecně známé)**.
+
+**Výnos vlny z ovce** (surová, nepraná vlna za rok):
+
+| Zdroj                                              | Výnos                                                            |
+| -------------------------------------------------- | ---------------------------------------------------------------- |
+| Anglie 1230–1327 (už šlechtěné ovce na vlnu)       | rouno 1½–3 lb ≈ **0,7–1,4 kg** (pytel = 200–260 rouna)           |
+| Soay (prastaré plemeno, vlna se vyčesává – línají) | **0,3–1 kg** (britské Soay), jiné profily 1–2 kg **(jen výtah)** |
+| Boreray (nešlechtěné ovce, Hebridy)                | ≈ **1,25 kg**                                                    |
+| Kréta, doba bronzová (lineární B)                  | skopci ≈ **0,75 kg**, bahnice s jehňaty ≈ **0,2–0,3 kg**         |
+
+Raně středověké ovce ve střední Evropě byly malé a nešlechtěné **(odhad – obecně známé)** – blíž
+Soay a Boreray než anglickým ovcím 13.–14. století. **Hra: 0,8 kg
+z chovné ovce za rok** (stříž nůžkami nebo vyčesání v květnu; jehňata se stříhají až příští rok).
+
+**Kolik vlny potřebuje člověk za rok** – přímé číslo pro raný středověk jsem nenašel. Opory:
+
+- Velkomoravské vlněné látky vážily **230–540 g/m²** (Orel 1964, podle Projektu Forlǫg),
+  raně středověké kepry ≈ 180–450 g/m²; tkalcovské stavy 45–90 cm široké.
+- Rekonstrukce kabátce z Lendbreen (Norsko, 3.–4. stol.) – **≈ 402 hodin** práce na jeden kabátec
+  (lněná košile z Viborgu 300–400 h).
+- Bender Jørgensen: plachta a oděv posádky obchodní lodi (knarr) **přes 200 kg vlny a ≈ 10 let
+  práce**, válečné lodi 1,5 t a 50–60 let **(jen výtah)** → ≈ **150 h práce na kg vlny**
+  (10 let × 300 dní × 10 h ÷ 200 kg – **vlastní výpočet**; všechny kroky od třídění po tkaní).
+- Norské Grónsko (studené podnebí, i přikrývky): ≈ 5 kg vlny na člověka za rok (Østergård, citace
+  **jen z výtahu**) – horní mez.
+- Doba měděná (Cucuteni-Trypillia): ≈ 1,3 ovce nebo kozy na člověka – poměr stáda, ne potřeba.
+
+**Vlastní výpočet** (dospělý; spodní oděv je ze lnu – druhá polovina oděvu, diet.md – Oděv):
+
+| Kus                  | Látka                     | Surové vlny (≈ 1,5× látky – třídění, praní, česání) | Nosí se  | Za rok    |
+| -------------------- | ------------------------- | --------------------------------------------------- | -------- | --------- |
+| kabátec (tunika)     | ≈ 2 m² × 350 g = 0,7 kg   | ≈ 1,1 kg                                            | 2–3 roky | ≈ 0,45 kg |
+| kalhoty nebo sukně   | ≈ 1,2 m² = 0,45 kg        | ≈ 0,7 kg                                            | 2 roky   | ≈ 0,35 kg |
+| plášť (hustší látka) | ≈ 2,5 m² × 450 g = 1,1 kg | ≈ 1,7 kg                                            | 5 let    | ≈ 0,35 kg |
+| onuce, kápě, palčáky | –                         | ≈ 0,4 kg                                            | 2 roky   | ≈ 0,2 kg  |
+| díl přikrývek        | –                         | ≈ 1,5 kg                                            | 10 let   | ≈ 0,15 kg |
+| záplaty a spravování |                           |                                                     |          | ≈ 0,1 kg  |
+
+→ **dospělý ≈ 1,6 kg surové vlny za rok, dítě polovina (0,8 kg)** – hra. S výnosem 0,8 kg je to
+**2 ovce na dospělého a 1 na dítě – ves ≈ 1,5–1,8 ovce na člověka** (odhad kontroléra 1–2 ovce na
+člověka sedí). Grónských 5 kg (i přikrývky, studeno) je horní mez, ve střední Evropě s lněným
+spodním oděvem méně.
+
+**Práce:** 1,6 kg × ≈ 130–150 h ≈ **21–24 člověkodní (10 h) na dospělého a rok** (stříž ≈ 20–30
+ovcí za den na člověka **(odhad)** – zanedbatelné). Domácí výroba ve hře (`DOMESTIC`, fields.md – Práce,
+bod 4: „oděv, nádobí, jednoduché železné předměty, palivo“) dává 0,15 člověkodne na člověka denně
+≈ 55 člověkodní za rok – vlna se do ní vejde s rezervou pro len.
 
 ## 9. Pastva na přílohu, otavě a strništi (doplněno 19. 10. 2026)
 
@@ -164,3 +211,18 @@ v diet.md (Námět – vlna).
 - Mléko, sýr, bílkoviny, velikost skotu: rešerše 2026-10-18-dairy-protein.md
 - Plevel na jednoletém a dlouhodobém úhoru (set-aside) –
   https://conservationevidencejournal.com/individual-study/2628
+- Vlna – pytel a rouna v Anglii 1230–1327 (Bell, Brooks, Dryburgh: The English Wool Market) –
+  https://assets.cambridge.org/97805211/87510/frontmatter/9780521187510_frontmatter.pdf
+- Soay – https://breeds.okstate.edu/sheep/soay-sheep.html,
+  https://livestockconservancy.org/wp-content/uploads/2022/04/TLC-Fiber-profile-British-Soay-2022-03-30.pdf;
+  Boreray – https://resolve.cambridge.org/core/journals/journal-of-agricultural-science/article/development-structure-and-seasonal-change-in-the-fleeces-of-unimproved-scottish-blackface-sheep-from-the-hebrides/50B9BD9EE03EC23BB9AD97FFC93CDF87
+- Vlna v době bronzové (lineární B, výnos skopců a bahnic) –
+  https://link.springer.com/article/10.1007/s12520-019-00856-x
+- Stáda na člověka (Cucuteni-Trypillia) – https://arxiv.org/pdf/1505.05121
+- Raně středověké kabátce, velkomoravské vlněné látky (Orel 1964) –
+  https://sagy.vikingove.cz/en/construction-of-early-medieval-tunics/
+- Kabátec z Lendbreen – https://tidsskrift.dk/atr/article/view/167008
+- Bender Jørgensen – vlna a práce na plachty a oděv posádky –
+  https://www.medieval.eu/the-introduction-of-sails-to-viking-scandinavia/
+- Østergård, Woven into the Earth (Grónsko; číslo jen z citace) –
+  https://www.goodreads.com/work/quotes/166638163
