@@ -61,6 +61,9 @@ const FENCE_DECAY_STEPS = 20;
  * hlavě kůlu); mohyly zapadají celé jako terén kolem.
  */
 const POST_SNOW = 0.5;
+/** Barva kůlu (zšedlý dub) a podíl okolního světla v jeho barvě – jako kolíky vytyčení (staking.ts). */
+const POST_COLOR = new Color3(0.3, 0.24, 0.18);
+const POST_AMBIENT_SHARE = 0.6;
 
 interface CemeteryView {
   key: string;
@@ -433,10 +436,11 @@ export class CemeteryRenderer {
     data.applyToMesh(mesh);
     mesh.material = this.material('mound-post', () => {
       const m = new StandardMaterial('village-cemetery-mound-post', this.scene);
-      // zšedlé dubové dřevo
-      m.diffuseColor = new Color3(0.3, 0.24, 0.18);
+      // zšedlé dubové dřevo – okolní světlo v barvě dřeva jako u kolíků vytyčení (šedé by kůl
+      // vybělilo, materiál bez textury nemá barvu, kterou by okolní světlo násobilo)
+      m.diffuseColor = POST_COLOR.clone();
       m.specularColor = Color3.Black();
-      m.ambientColor = AMBIENT;
+      m.ambientColor = POST_COLOR.scale(POST_AMBIENT_SHARE);
       applySeasonRelief(m, POST_SNOW);
       return m;
     });
