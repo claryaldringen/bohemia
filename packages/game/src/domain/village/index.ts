@@ -78,6 +78,8 @@ export {
   structureFallDay,
   visitKey,
 } from './abandonment';
+// oprava staveb, ke kterým se zase chodí – čisté funkce; práce a dokončení zůstávají uvnitř
+export { fullRepairManDays, repairOf, repairedCondition, type StructureRef } from './repair';
 export * from './obstacles';
 export * from './summary';
 export * from './names';

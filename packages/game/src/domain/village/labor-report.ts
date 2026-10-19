@@ -13,6 +13,7 @@ import type {
   LaborDay,
   LaborShare,
   LaborTarget,
+  StructureRepair,
   VillageState,
   YearPlan,
 } from './types';
@@ -315,7 +316,7 @@ function orchardAreas(state: VillageState): { target: LaborTarget; share: number
 /**
  * Práce jedné stavby po místech: obydlí a přestavba nejdřív kácejí své stromy (forest.md) –
  * u stromů, které ještě stojí (nebo u posledního skáceného, když dnes kácení skončilo), zbytek
- * se staví na staveništi / u obydlí. Pole, sad a hřbitov se dělají na svém místě.
+ * se staví na staveništi / u obydlí. Pole, sad, hřbitov a oprava stavby se dělají na svém místě.
  */
 function constructionShares(work: ConstructionWork, state: VillageState): LaborShare[] {
   const c = work.construction;
@@ -374,6 +375,7 @@ function constructionShares(work: ConstructionWork, state: VillageState): LaborS
           },
         ];
   }
+  if (c.kind === 'repair') return c.repair ? [repairShare(c.repair, work.manDays)] : [];
   // přestavba na místě pracuje u obydlí, přestavba na novém pozemku (polozemnice bez pozemku) na
   // staveništi
   const place: LaborTarget | null =
@@ -384,6 +386,20 @@ function constructionShares(work: ConstructionWork, state: VillageState): LaborS
       : { kind: 'site', id: c.id };
   if (place === null) return [];
   return penShares(work, place, 'build');
+}
+
+/**
+ * Oprava stavby (abandonment.md – Oprava) na jejím místě: plot hřbitova po obvodu jako ohrazení,
+ * ohrada jako stavba ohrady, modla a svatyně u stavby.
+ */
+function repairShare(repair: StructureRepair, manDays: number): LaborShare {
+  if (repair.structure === 'cemetery-fence') {
+    return { activity: 'cemetery', target: { kind: 'cemetery', id: repair.id }, manDays };
+  }
+  if (repair.structure === 'pen') {
+    return { activity: 'pen', target: { kind: 'pen', id: repair.id }, manDays };
+  }
+  return { activity: 'repair', target: { kind: 'sacred', id: repair.id }, manDays };
 }
 
 /**

@@ -291,6 +291,40 @@ describe('planVillagers – kdo kde je', () => {
     }
   });
 
+  it('opravu hotové svatyně dělají lidé kolem jejího půdorysu (abandonment.md – Oprava)', () => {
+    const shares: LaborShare[] = [
+      { activity: 'repair', target: { kind: 'sacred', id: 95 }, manDays: 3, construction: 120 },
+    ];
+    const withShrine: SceneVillage = {
+      ...village(shares),
+      sacred: {
+        oaks: [],
+        groves: [],
+        buildings: [
+          {
+            id: 95,
+            kind: 'shrine',
+            position: { x: 40, z: -60, rotation: 0 },
+            built: true,
+            progress: 1,
+            condition: 0.5,
+            repairing: true,
+          },
+        ],
+      },
+    };
+    const repairers = planVillagers(withShrine, GROUND, { seed: 3, herds: 0 }).filter((p) =>
+      p.key.startsWith('repair:'),
+    );
+    expect(repairers.length).toBeGreaterThan(0);
+    for (const p of repairers) {
+      const pose = at(p, 10);
+      const d = Math.max(Math.abs(pose.x - 40), Math.abs(pose.z + 60));
+      expect(d).toBeGreaterThan(14);
+      expect(d).toBeLessThan(22);
+    }
+  });
+
   it('stavitelé ohrady stojí za plotem čelem dovnitř, porážka u vsi (oxen.md, diet.md)', () => {
     const shares: LaborShare[] = [
       { activity: 'pen', target: { kind: 'pen', id: 60 }, manDays: 3, construction: 61 },

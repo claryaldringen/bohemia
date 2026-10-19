@@ -36,13 +36,14 @@ const SHRINE_GROUND = [
 /**
  * Díly modly nebo svatyně podle stupně rozpadu (abandonment.md – Co hráč vidí). Celá
  * navštěvovaná stavba je hotový model (`idol`, `shrine`); opuštěné svatyni vyhasnou ohniště hned,
- * i když je ještě celá. Sešlá: zšedlá modla s mechem, obětiny a stužka pryč; nakloněná
- * a rozpadlá: kloní se, klínové kameny rozvalené, udusaný kruh a dlažba zarůstají.
+ * i když je ještě celá, a opravované se rozhoří až po opravě (`cold` – abandonment.md, Oprava).
+ * Sešlá: zšedlá modla s mechem, obětiny a stužka pryč; nakloněná a rozpadlá: kloní se, klínové
+ * kameny rozvalené, udusaný kruh a dlažba zarůstají. Oprava jde po stupních opačně.
  */
 export function sacredDecayParts(
   kind: SacredBuildingKind,
   stage: DecayStage,
-  abandoned: boolean,
+  cold: boolean,
 ): SacredDecayPart[] {
   if (kind === 'idol') {
     if (stage === 0) return [{ key: 'idol' }];
@@ -54,8 +55,8 @@ export function sacredDecayParts(
     return [{ key: 'idol-ground-overgrown' }, { key: 'idol-stones-scattered' }, ...weathered];
   }
   if (stage === 0) {
-    if (!abandoned) return [{ key: 'shrine' }];
-    // opuštěná, ale celá: studená ohniště, modla s obětinami
+    if (!cold) return [{ key: 'shrine' }];
+    // opuštěná (nebo dosud opravovaná), ale celá: studená ohniště, modla s obětinami
     return [
       ...SHRINE_GROUND.map((key) => ({ key })),
       { key: 'svatyne-paving' },

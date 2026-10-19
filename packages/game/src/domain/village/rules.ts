@@ -874,6 +874,18 @@ export const ABANDONMENT = {
   remnantYears: { idol: 10, shrine: 20 },
   graceDays: 365,
 } as const;
+// abandonment.md – Oprava (Martin 19. 10. 2026: vesničané plot hřbitova opraví sami, jakmile se
+// ke hřbitovu zase chodí – postupně z práce vsi, spadlý postaví znovu; „ano“ i pro modlu, svatyni
+// a ohradu; podíly návrh Clauda): stavba, ke které se zase chodí, se opraví stavbou ze společné
+// práce – práce = `share` z ceny stavby bez kácení × chybějící stav. Opravuje se jen to, co
+// chátrá: plot hřbitova je třetina vytyčení a ohrazení (10 čd na čtverec → 3 čd na čtverec
+// i u spadlého plotu); u modly a svatyně řezba, kůl z dubu a příkop vydrží – oprava je znovu
+// usadit a zaklínovat modlu, očistit ji, vyčistit příkop a založit ohniště (čtvrtina); ohrada je
+// z poloviny pletený plot a došky, které hnijí (plot 7–8 let, sláma bez údržby 15–20) – sloupy
+// a jesle vydrží (polovina). Dřevo oprava nebere (pruty, sláma a drn nejsou surovina).
+export const STRUCTURE_REPAIR = {
+  share: { idol: 0.25, shrine: 0.25, 'cemetery-fence': 0.3, pen: 0.5 },
+} as const;
 
 // migration.md – Odchod do nové vsi (návrh Clauda): s sebou jídlo, které unesou – 25 kg na
 // člověka od 7 let, nejvýš poměrný díl zásob vsi podle počtu lidí; cesta na novou mapu 1–3 dny

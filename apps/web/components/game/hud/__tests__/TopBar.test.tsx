@@ -110,6 +110,7 @@ describe('showsHay', () => {
     oxen: 0,
     condition: 1,
     abandoned: false,
+    repair: null,
   });
 
   it('seno v liště, když ves má hotovou ohradu nebo seno v zásobě', () => {

@@ -170,6 +170,8 @@ export class BuildingShowcase {
   private decay: VillageRenderer | null = null;
   /** Posuvník rozpadu 0–1 (building-showcase-layout.ts – decayAt). */
   private decayT = 0;
+  /** Řada opuštěných staveb ukazuje místo rozpadu opravu (abandonment.md – Oprava). */
+  private repair = false;
   /** Pozemky polozemnic – plot a záhony po fázích jako ve vsi (homestead.ts). */
   private plots: HomesteadRenderer | null = null;
   private fences: WovenFenceRenderer | null = null;
@@ -384,7 +386,20 @@ export class BuildingShowcase {
    */
   setDecay(t: number): void {
     this.decayT = Math.min(1, Math.max(0, t));
-    if (!this.decay?.update(showcaseDecay(this.decayT))) return;
+    this.applyDecay();
+  }
+
+  /**
+   * Řada opuštěných staveb ukáže opravu – posuvník je pak průběh opravy (modla, svatyně a ohrada
+   * z rozpadlého stavu, plot hřbitova ze spadlého – abandonment.md, Oprava).
+   */
+  setRepair(repair: boolean): void {
+    this.repair = repair;
+    this.applyDecay();
+  }
+
+  private applyDecay(): void {
+    if (!this.decay?.update(showcaseDecay(this.decayT, this.repair))) return;
     this.shadows?.refresh();
     this.burst(400);
   }
@@ -550,7 +565,7 @@ export class BuildingShowcase {
       pitCuts: decayCuts,
       sunDirection: SUN_DIRECTION,
     });
-    this.decay.update(showcaseDecay(this.decayT));
+    this.decay.update(showcaseDecay(this.decayT, this.repair));
     this.grounds.setHayMeadows(showcaseHayMeadows());
     this.grounds.setSeason(showcaseMeadowDay(this.progress), this.snow());
     this.grounds.update(showcaseGrounds(this.progress, this.ploughDay).village);

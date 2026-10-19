@@ -56,6 +56,7 @@ import { refreshWalkDistances } from './paths/village';
 import { roadWalk, walkGroundOf } from './paths/walking';
 import { finishRoadApples, workRoadApples, roadApplesNeed } from './road-apples';
 import { finishRoadUpgrade } from './road-upgrades';
+import { finishRepair, isRepairFinished, repairNeed, workRepair } from './repair';
 import { copyPlot, relocationPlot } from './plots';
 import { villageSacredOaks } from './sacred';
 import { sacredOakEvents } from './sacred-life';
@@ -783,6 +784,8 @@ function constructionNeed(
   if (c.kind === 'orchard') return orchardPlantingNeed(state, c, day);
   // jabloně u cesty se sázejí jen v oknech jara a podzimu (roads.md)
   if (c.kind === 'road-apples') return roadApplesNeed(c, day);
+  // oprava stavby, která mezitím přestala stát, práci nebere (abandonment.md – Oprava)
+  if (c.kind === 'repair') return repairNeed(state, c);
   if (c.kind !== 'field') return Math.max(0, c.cost - c.done);
   return foundingParts(founding, c).reduce((sum, p) => sum + (p.foundingCost - p.foundingDone), 0);
 }
@@ -865,6 +868,11 @@ function invest(
     workRoadApples(state, day, c, amount, completes);
     return;
   }
+  if (c.kind === 'repair') {
+    // stav opravované stavby roste s prací (abandonment.md – Oprava)
+    workRepair(state, c, amount, completes);
+    return;
+  }
   if (c.kind !== 'field') {
     c.done = completes ? c.cost : Math.min(c.cost, c.done + amount);
     // dřevo se kácí jako první část práce stavby (forest.md)
@@ -910,14 +918,16 @@ function invest(
 function isFinished(state: VillageState, c: Construction, founding: FoundingIndex): boolean {
   if (c.kind === 'field') return foundingParts(founding, c).length === 0;
   if (c.kind === 'orchard') return isOrchardPlanted(state, c);
+  if (c.kind === 'repair') return isRepairFinished(state, c);
   return c.done >= c.cost;
 }
 
 /**
  * Krok 4: dokončené stavby – nové obydlí, přestavěné obydlí, založené pole, vysazený (obnovený)
- * sad a pohřebiště. První zemnice dostane id domácnosti zakladatelů (`dwellingId` stavby) – ti už
- * v ní bydlí, nikdo se nestěhuje. Do jiného nového obydlí se stěhuje mladý pár; když žádný není,
- * osídlí ho ještě týž den dospělé děti z přeplněné domácnosti (krok 6).
+ * sad, pohřebiště a opravená stavba (abandonment.md – Oprava). První zemnice dostane id
+ * domácnosti zakladatelů (`dwellingId` stavby) – ti už v ní bydlí, nikdo se nestěhuje. Do jiného
+ * nového obydlí se stěhuje mladý pár; když žádný není, osídlí ho ještě týž den dospělé děti
+ * z přeplněné domácnosti (krok 6).
  */
 function finishConstructions(state: VillageState, day: number): void {
   const unfinished: Construction[] = [];
@@ -936,6 +946,12 @@ function finishConstructions(state: VillageState, day: number): void {
     if (c.kind === 'cemetery') {
       finishCemetery(state, day, c);
       state.chronicle.push(finishedEvent(day, c, null));
+      continue;
+    }
+    if (c.kind === 'repair') {
+      // opravená stavba je celá – „Modla opravena“ ap. (abandonment.md – Oprava)
+      const repaired = finishRepair(state, day, c);
+      if (repaired) state.chronicle.push(repaired);
       continue;
     }
     if (c.kind === 'road' && c.trail !== undefined) {

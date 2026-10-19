@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { dayIndexOf } from '../../calendar';
 import { obstaclesOf } from '../../landscape';
 import {
   abandonmentCheck,
@@ -11,86 +10,18 @@ import {
   structureFallDay,
   visitKey,
 } from '../abandonment';
-import { foundVillage } from '../actions';
 import { bury } from '../cemetery';
 import { cloneState } from '../clone';
 import { computePathNetwork, type PathVillage } from '../paths/network';
 import { pathVillageOf } from '../paths/village';
+import { repairOf } from '../repair';
 import { ABANDONMENT } from '../rules';
 import { sacredHappiness } from '../sacred';
 import { advanceVillage } from '../simulate';
-import type { Cemetery, Dwelling, Pen, Person, SacredBuilding, VillageState } from '../types';
 import { LANDSCAPE, house, part, pathTestTerrain } from './paths-fixtures';
-import { withBuiltFirstDwelling } from './village-fixtures';
+import { NOV1, Y1, YEAR, cemetery, idol, json, pen, village } from './abandonment-fixtures';
 
-const YEAR = 365.25;
-const NOV1 = (year: number): number => dayIndexOf({ year, month: 11, day: 1 });
-const Y1 = NOV1(600);
 const LAYER = obstaclesOf(LANDSCAPE);
-const json = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
-
-/** Ves čtyř obydlí kolem počátku jako v testech pevných cest (louka, potok z ∈ (75, 90)). */
-function village(day = Y1 - 30): VillageState {
-  const s = withBuiltFirstDwelling(
-    foundVillage({ seed: 11, day: day - 400, dwellingPosition: { x: 0, z: 0, rotation: 0 } }),
-  );
-  const at = (id: number, x: number, z: number): Dwelling => ({
-    id,
-    type: 'zemnice',
-    builtDay: day - 30 * 365,
-    condition: 1,
-    position: { x, z, rotation: 0 },
-  });
-  s.dwellings = [at(1, 0, 0), at(2, 18, -4), at(3, -18, -4), at(4, 0, -22)];
-  const adult = (id: number, dwellingId: number, years: number): Person => ({
-    id,
-    bornDay: day - Math.ceil(years * YEAR),
-    dwellingId,
-  });
-  s.people = [1, 2, 3, 4].flatMap((d) => [
-    adult(d * 10, d, 30),
-    adult(d * 10 + 1, d, 28),
-    adult(d * 10 + 2, d, 22),
-    adult(d * 10 + 3, d, 20),
-  ]);
-  s.nextId = 100;
-  s.constructions = [];
-  s.storesKg = 20_000;
-  // stáda bez krav – ohrada bez spřežení tak stojí prázdná (krávy v ní přes zimu nestojí)
-  s.livestock = {
-    herds: { sheep: 12, goat: 3, pig: 4, cow: 0 },
-    young: { sheep: 0, goat: 0, pig: 0, cow: 0 },
-  };
-  s.lastDay = day;
-  return s;
-}
-
-const idol = (id: number, x: number, z: number, builtDay: number): SacredBuilding => ({
-  id,
-  kind: 'idol',
-  position: { x, z, rotation: 0 },
-  builtDay,
-});
-
-const pen = (id: number, extra: Partial<Pen> = {}): Pen => ({
-  id,
-  cell: { x: 4, y: 4 },
-  x: -82.5,
-  z: -82.5,
-  builtDay: Y1 - 5 * 365,
-  team: null,
-  training: null,
-  ...extra,
-});
-
-const cemetery = (id: number, extra: Partial<Cemetery> = {}): Cemetery => ({
-  id,
-  squares: [{ cell: { x: 14, y: 8 }, x: 67.5, z: -22.5, waterDistanceM: 100 }],
-  squareSizeM: 15,
-  graves: 3,
-  builtDay: Y1 - 10 * 365,
-  ...extra,
-});
 
 describe('provoz ke stavbám v síti pěšin (PathNetwork.visits)', () => {
   const terrain = pathTestTerrain();
@@ -180,7 +111,7 @@ describe('chátrání opuštěné stavby', () => {
     expect(structureFallDay({ condition: 0.4 }, 'idol')).toBeNull();
   });
 
-  it('roční kontrola: bez provozu začne chátrat, znovu navštívená přestane (stav se nezvedá)', () => {
+  it('roční kontrola: bez provozu začne chátrat, znovu navštívená přestane a dostane opravu', () => {
     const s = village();
     s.sacredBuildings = [idol(7, 20, -30, Y1 - 5 * 365), idol(8, -60, -120, Y1 - 5 * 365)];
     abandonmentCheck(s, Y1, new Map([[visitKey('idol', 7), 0.4]]));
@@ -199,7 +130,14 @@ describe('chátrání opuštěné stavby', () => {
     expect(isAbandoned(wear)).toBe(false);
     expect(wear.condition).toBeCloseTo(before, 9);
     expect(wear.condition).toBeCloseTo(1 - 5 / 20, 2);
+    // sám od sebe se stav nezvedá – zvedne ho jen práce opravy (abandonment.md – Oprava)
     expect(structureCondition(wear, 'idol', later + 30 * 365)).toBe(wear.condition);
+    expect(repairOf(s, { structure: 'idol', id: 8 })?.repair).toEqual({
+      structure: 'idol',
+      id: 8,
+      from: wear.condition,
+    });
+    expect(repairOf(s, { structure: 'idol', id: 7 })).toBeUndefined();
   });
 
   it('stavba dokončená za poslední rok a ohrada se zvířaty opuštěné nejsou', () => {
@@ -281,12 +219,17 @@ describe('chátrání opuštěné stavby', () => {
       { day: fall, kind: 'structure-fell', structure: 'cemetery-fence', id: 20 },
     ]);
     expect(s.cemeteries[0]!.fenceWear).toEqual({ condition: 0 });
-    // další dny ani roční kontrola nic nemění (plot už není)
+    // další dny nic nemění (plot už není), bez provozu ani roční kontrola
     expect(abandonmentDay(s, fall + 1, null)).toEqual([]);
-    abandonmentCheck(s, NOV1(601), new Map([[visitKey('cemetery', 20), 2]]));
+    abandonmentCheck(s, NOV1(601), new Map());
     expect(s.cemeteries[0]!.fenceWear).toEqual({ condition: 0 });
+    expect(s.constructions).toEqual([]);
     bury(s, fall + 2);
     expect(s.cemeteries[0]!.graves).toBe(4);
+    // ke hřbitovu se zase chodí – spadlý plot vesničané postaví znovu (abandonment.md – Oprava)
+    abandonmentCheck(s, NOV1(602), new Map([[visitKey('cemetery', 20), 2]]));
+    expect(s.cemeteries[0]!.fenceWear).toEqual({ condition: 0 });
+    expect(repairOf(s, { structure: 'cemetery-fence', id: 20 })?.repair?.from).toBe(0);
   });
 
   it('ohrada se rozpadne a zmizí; když se do ní vrátí zvířata, chátrat přestane', () => {
@@ -303,6 +246,9 @@ describe('chátrání opuštěné stavby', () => {
     expect(s.pens.map((p) => p.id)).toEqual([2]);
     expect(isAbandoned(s.pens[0]!.wear)).toBe(false);
     expect(s.pens[0]!.wear!.condition).toBeGreaterThan(0);
+    // a vesničané ji hned začnou opravovat; spadlá ohrada 1 zmizela i bez opravy
+    expect(repairOf(s, { structure: 'pen', id: 2 })).toBeDefined();
+    expect(repairOf(s, { structure: 'pen', id: 1 })).toBeUndefined();
   });
 
   it('staré vsi bez záznamů se nemění; bez krajiny se nic neopouští', () => {

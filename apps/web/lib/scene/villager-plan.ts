@@ -840,7 +840,8 @@ function placer(ctx: Context, share: SceneLaborShare, count: number): Placer {
       if (t.kind === 'road') return roadWork(ctx, t.id);
       return t.kind === 'site' || t.kind === 'dwelling' ? building(ctx, t, 'build') : none;
     case 'repair':
-      return t.kind === 'dwelling' ? building(ctx, t, 'build') : none;
+      // opravy obydlí, oprava modly a svatyně (abandonment.md – Oprava) – lidé kolem stavby
+      return t.kind === 'dwelling' || t.kind === 'sacred' ? building(ctx, t, 'build') : none;
     case 'craft':
       if (t.kind === 'kiln') return kilnWorkers(ctx, t);
       return t.kind === 'dwelling' ? craftsmen(ctx, t.id) : none;
@@ -897,7 +898,7 @@ function constructionAnchors(
       const tree = ctx.ground.tree(id);
       if (tree) anchors.push({ at: tree, clip: 'fell' });
     }
-  } else if (t.kind === 'site' || t.kind === 'dwelling') {
+  } else if (t.kind === 'site' || t.kind === 'dwelling' || t.kind === 'sacred') {
     houseAt(t.id);
   } else if (t.kind === 'field') {
     const parts = ctx.village.fields.find((f) => f.id === t.id)?.parts ?? [];
@@ -1456,17 +1457,16 @@ function craftsmen(ctx: Context, dwellingId: number): Placer {
 }
 
 /**
- * Stavba a opravy: lidé kolem domu (vně jámy a šíje) čelem k němu. Staveniště v první
- * čtvrtině průběhu se kope motykou (jáma), pak se staví.
+ * Stavba a opravy: lidé kolem domu (vně jámy a šíje) čelem k němu – i kolem opravované modly
+ * a svatyně (abandonment.md – Oprava). Staveniště v první čtvrtině průběhu se kope motykou
+ * (jáma), pak se staví.
  */
 function building(
   ctx: Context,
-  target: Extract<LaborTarget, { kind: 'site' | 'dwelling' }>,
+  target: Extract<LaborTarget, { kind: 'site' | 'dwelling' | 'sacred' }>,
   clip: VillagerClip,
 ): Placer {
-  const house = ctx.houses.find(
-    (h) => h.id === target.id && h.built === (target.kind === 'dwelling'),
-  );
+  const house = ctx.houses.find((h) => h.id === target.id && h.built === (target.kind !== 'site'));
   if (!house) return none;
   const digging = !house.built && house.progress < 0.25;
   // polozemnice na pozemku staví plot a záhony až na konci (village-construction.ts)

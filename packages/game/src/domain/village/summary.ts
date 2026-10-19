@@ -52,6 +52,7 @@ import {
 } from './sacred';
 import { sacredOakNow, type SacredOakNow } from './sacred-life';
 import type {
+  AbandonedStructure,
   CharcoalKiln,
   KilnStage,
   Construction,
@@ -125,6 +126,11 @@ export interface ConstructionSummary {
    */
   roadIds: number[] | null;
   roadGrade: RoadGrade | null;
+  /**
+   * Oprava stavby, ke které se zase chodí (abandonment.md – Oprava) – druh a id opravované
+   * stavby; jinak null.
+   */
+  repair: { structure: AbandonedStructure; id: number } | null;
 }
 
 /** Pohřebiště pro panel – kolik místa zbývá (hygienu hráč nevidí – cemetery.md). */
@@ -465,6 +471,7 @@ function constructionSummary(state: VillageState, c: Construction): Construction
     treesToFell: treesToFell(c),
     roadIds: c.kind === 'road' || c.kind === 'road-apples' ? [...(c.roadIds ?? [])] : null,
     roadGrade: c.kind === 'road' ? (c.roadGrade ?? null) : null,
+    repair: c.repair ? { structure: c.repair.structure, id: c.repair.id } : null,
   };
 }
 

@@ -200,8 +200,8 @@ export class SacredRenderer {
   smokeSources(): SmokeSource[] {
     const sources: SmokeSource[] = [];
     for (const b of this.sacred?.buildings ?? []) {
-      // opuštěná svatyně má ohniště studená (abandonment.md)
-      if (!b.built || b.kind !== 'shrine' || b.abandoned) continue;
+      // opuštěná svatyně má ohniště studená, opravovaná se rozhoří až po opravě (abandonment.md)
+      if (!b.built || b.kind !== 'shrine' || b.abandoned || b.repairing) continue;
       shrineFiresWorld(b.position, this.fireSpots).forEach(([x, z], k) => {
         sources.push({
           seed: SHRINE_SMOKE_SEED + b.id * 8 + k,
@@ -494,7 +494,7 @@ export class SacredRenderer {
     const stage = decayStage(b.condition);
     const parts: SacredDecayPart[] = state
       ? state.parts.map((part) => ({ key: `${kind}-${part}` }))
-      : sacredDecayParts(b.kind, stage, b.abandoned === true);
+      : sacredDecayParts(b.kind, stage, b.abandoned === true || b.repairing === true);
     const lean = sacredLean(b.id, stage);
     for (const part of parts) {
       const template = this.decayTemplate(part.key);
@@ -732,7 +732,7 @@ function fireSpotsOf(nodes: ReadonlyMap<string, { x: number; z: number }>): Poin
 function hasDecay(sacred: SceneSacred): boolean {
   return (
     (sacred.ruins?.length ?? 0) > 0 ||
-    sacred.buildings.some((b) => b.built && (b.abandoned || (b.condition ?? 1) < 1))
+    sacred.buildings.some((b) => b.built && (b.abandoned || b.repairing || (b.condition ?? 1) < 1))
   );
 }
 

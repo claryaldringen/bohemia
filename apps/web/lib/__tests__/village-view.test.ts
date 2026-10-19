@@ -740,6 +740,7 @@ describe('hřbitov v pohledu na ves', () => {
         yearsLeft: null,
         fenceCondition: 1,
         abandoned: false,
+        repair: null,
       },
     ]);
     expect(view.scene.cemeteries).toEqual([
@@ -1163,6 +1164,7 @@ describe('štěstí a posvátná místa v pohledu na ves', () => {
         oaksToFell: 0,
         condition: 1,
         abandoned: false,
+        repair: null,
       },
       {
         id: 41,
@@ -1173,6 +1175,7 @@ describe('štěstí a posvátná místa v pohledu na ves', () => {
         oaksToFell: 2,
         condition: 1,
         abandoned: false,
+        repair: null,
       },
     ]);
     expect(view.scene.sacred).toEqual({
@@ -1572,6 +1575,57 @@ describe('opuštěné stavby v pohledu na ves (abandonment.md)', () => {
     const fell = view.chronicle.find((e) => e.kind === 'structure-fell')!;
     expect(fell.structure).toBe('pen');
     expect(fell.text).toBe('Opuštěná ohrada se rozpadla.');
+  });
+
+  it('oprava (abandonment.md – Oprava): průběh v panelu, studená ohniště svatyně, kronika', () => {
+    const s = settled();
+    s.sacredBuildings = [
+      {
+        id: 41,
+        kind: 'shrine',
+        position: { x: 0, z: 90, rotation: 0 },
+        builtDay: DAY - 9000,
+        wear: { condition: 0.8 },
+      },
+    ];
+    s.pens = [
+      {
+        id: 70,
+        cell: { x: 2, y: 2 },
+        x: -82.5,
+        z: -82.5,
+        builtDay: DAY - 4000,
+        team: null,
+        training: null,
+        wear: { condition: 0.3 },
+      },
+    ];
+    const repair = (id: number, structure: 'shrine' | 'pen', from: number, done: number) => ({
+      id,
+      kind: 'repair' as const,
+      startedDay: DAY - 10,
+      cost: 10,
+      done,
+      dwellingType: null,
+      position: null,
+      dwellingId: null,
+      fieldId: null,
+      repair: { structure, id: structure === 'shrine' ? 41 : 70, from },
+    });
+    s.constructions.push(repair(500, 'shrine', 0.6, 5), repair(501, 'pen', 0.3, 0));
+    s.chronicle.push({ day: DAY - 1, kind: 'structure-repaired', structure: 'idol', id: 40 });
+    const view = buildVillageView(record(s), landscape, DAY);
+    const shrine = view.sacred.buildings.find((b) => b.id === 41)!;
+    expect(shrine).toMatchObject({ condition: 0.8, abandoned: false, repair: 0.5 });
+    expect(view.pens[0]).toMatchObject({ condition: 0.3, repair: 0 });
+    // stav roste s prací, ohniště se rozhoří až po opravě
+    expect(view.scene.sacred!.buildings[0]).toMatchObject({ condition: 0.8, repairing: true });
+    expect(view.scene.sacred!.buildings[0]).not.toHaveProperty('abandoned');
+    const label = view.constructions.find((c) => c.id === 500)!;
+    expect(label.label).toBe('Oprava – svatyně');
+    const repaired = view.chronicle.find((e) => e.kind === 'structure-repaired')!;
+    expect(repaired.structure).toBe('idol');
+    expect(repaired.text).toBe('Vesničané modlu znovu usadili a opravili.');
   });
 });
 

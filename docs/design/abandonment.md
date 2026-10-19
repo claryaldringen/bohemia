@@ -5,7 +5,9 @@ a rozpadnou se“ a k návrhu „Ano, udělej to tak“), **implementováno 18. 
 `domain/village/abandonment.ts` (roční kontrola a pád, provoz ke stavbám z roční sítě cest
 `PathNetwork.visits`), scéna `apps/web/lib/scene/structure-decay.ts` (stupně rozpadu) a díly
 modelů z `tools/blender/sacred.py` a `pen.py`. Čísla jsou návrh Clauda ověřený rešerší
-[research/2026-10-18-abandonment.md](research/2026-10-18-abandonment.md).
+[research/2026-10-18-abandonment.md](research/2026-10-18-abandonment.md). **Oprava** staveb, ke
+kterým se zase chodí (Martin 19. 10. 2026), je **implementovaná 19. 10. 2026** – jádro
+`domain/village/repair.ts` (sekce Oprava).
 
 ## Proč
 
@@ -19,8 +21,10 @@ krajina si pamatuje, kudy ves žila, a hráč vidí, co opustil.
 - **Cíl:** stavba, ke které léta nikdo nechodí, viditelně chátrá a nakonec spadne (Martin).
 - **Cíl:** „kam nikdo nechodí“ se pozná ze stejného výpočtu jako pevné cesty – z roční sítě cest
   ([roads.md](roads.md)), ne z nového pravidla.
-- **Ne-cíl (teď):** údržba staveb jako práce, oprava zchátralé stavby hráčem, chátrání polí,
-  sadů, cest a řemeslných dílen (dílny čekají na díly rozpadu – population.md).
+- **Cíl:** stavbu, ke které se lidé vrátí, vesničané sami opraví (Martin, 19. 10. 2026 – Oprava).
+- **Ne-cíl (teď):** běžná údržba navštěvované stavby jako práce, oprava na pokyn hráče (opravují
+  vesničané sami), obnova spadlé modly, svatyně a ohrady (staví se znovu), chátrání polí, sadů,
+  cest a řemeslných dílen (dílny čekají na díly rozpadu – population.md).
 - **Anti-cíl:** stavba, která spadne, i když k ní lidé chodí; stavba, která chátrá skokem.
 
 ## Opuštěná stavba
@@ -53,9 +57,10 @@ krajina si pamatuje, kudy ves žila, a hráč vidí, co opustil.
   | plot hřbitova     | **10 let** (návrh byl 15)   | pletený lískový plot na kůlech – bez údržby 7–8 let, kůly déle |
   | ohrada bez zvířat | **10 let**                  | pletený plot a přístřešek s doškovou pultovou střechou         |
 
-- **Znovu navštívená** stavba chátrat přestane – stav se **nezvedá** (jako u obydlí: obyvatelé
-  opravují, ale co spadlo, nepostaví). Když ji pozdější kontrola zase uzná za opuštěnou, chátrá
-  dál od stavu, na kterém se zastavila.
+- **Znovu navštívená** stavba chátrat přestane a vesničané ji **opraví** (sekce Oprava –
+  Martin 19. 10. 2026); sám od sebe se stav nezvedá, roste jen s prací opravy. Když ji pozdější
+  kontrola zase uzná za opuštěnou, chátrá dál od stavu, na kterém se zastavila (i rozpracovaná
+  oprava).
 - Stavba se mezi kontrolami nemění skokem – stav je čistá funkce dne (stav v den opuštění
   − uplynulé dny / doba pádu); ves si pamatuje jen stav a den opuštění.
 
@@ -68,13 +73,60 @@ krajina si pamatuje, kudy ves žila, a hráč vidí, co opustil.
   let, archeologicky by zůstal staletí – ve hře zmizí kvůli přehlednosti). Zbytky jsou jen vzhled
   – na jejich místo jde stavět a stavba je odstraní (jako zbytek jámy obydlí).
 - **Hřbitov:** rozpadne se jen **plot** – mohylky zůstanou a zarostou, **pohřbívat se dá dál**
-  a hygiena se nemění. **Oprava plotu – návrh Clauda: nic.** Plot se sám neobnoví; když se ke
-  hřbitovu začne znovu chodit, chátrání se zastaví na tom, co z plotu zbylo. Až to Martin bude
-  chtít, oprava plotu jako malá stavba ze společné práce (≈ 3 člověkodny na čtverec – třetina
-  vytyčení a ohrazení), kterou hráč zadá v panelu hřbitova.
+  a hygiena se nemění. Když se ke hřbitovu začne znovu chodit, vesničané plot opraví a **spadlý
+  postaví znovu** (sekce Oprava – Martin, 19. 10. 2026).
 - **Ohrada** se rozpadne a **zmizí** – čtverec je volný.
 - **Kronika a krátké mizející řádky** (fakt): „Modla padla“, „Svatyně se rozpadla“, „Plot hřbitova
-  se rozpadl“, „Ohrada se rozpadla“.
+  se rozpadl“, „Ohrada se rozpadla“; po opravě „Modla opravena“, „Svatyně opravena“, „Plot
+  hřbitova opraven“, „Ohrada opravena“.
+
+## Oprava
+
+Martin (19. 10. 2026) vybral pro plot hřbitova variantu a: **vesničané plot opraví sami, jakmile
+se ke hřbitovu zase chodí – postupně, z práce vsi, a spadlý plot postaví znovu** (stejný princip
+jako „obydlená budova nechátrá – obyvatelé ji opravují“ a jako obnova sadu, kterou vesničané
+dělají sami – [orchard.md](orchard.md)). Na otázku „Chceš, aby si vesničané stejně opravovali
+i modlu, svatyni a ohradu, ke kterým se zase začne chodit?“ odpověděl „ano“. Podrobnosti jsou
+návrh Clauda.
+
+- **Kdy:** stavba, kterou roční kontrola cest (1. 11.) uzná za **navštěvovanou** a která má **stav
+  pod 100 %**, dostane opravu – hned při kontrole, která chátrání zastavila; ohrada už v den, kdy
+  se do ní vrátí zvířata (chátrání se tehdy zastaví hned). Opravuje se jen **stojící stavba**:
+  padlá modla, svatyně a ohrada zmizely a zbyl po nich jen zbytek – hráč je staví znovu jako
+  dřív. **Plot hřbitova se postaví znovu i spadlý** – hřbitov dál stojí. Dokud oprava běží, další
+  se nezakládá.
+- **Jak:** oprava je **stavba ze společné práce** jako obnova sadu – nečeká na hráče ani na
+  suroviny a bere společnou práci rovným dílem s ostatními stavbami. **Kdykoli v roce** (návrh
+  Clauda): společná práce je jen to, co zbude po polích, takže v polních špičkách oprava sama
+  počká – okno navíc by nic nepřidalo; začíná 1. 11. po sklizni, kdy je volné práce nejvíc
+  a proutí na pletení se řeže v době vegetačního klidu. **Dřevo nebere** – pruty, sláma a drn
+  nejsou surovina, nosné kůly, sloupy a jesle vydrží.
+- **Cena** = podíl z ceny stavby bez kácení × chybějící stav (návrh Clauda – opravuje se jen to,
+  co chátrá; `STRUCTURE_REPAIR` v `rules.ts`):
+
+  | Stavba        | Podíl | Plná oprava (ze stavu 0)           | Co se opravuje                                                                                                                    |
+  | ------------- | ----- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+  | plot hřbitova | 0,3   | 3 čd na hotový čtverec (z 10 čd)   | plot je třetina vytyčení a ohrazení; spadlý plot celý znovu – kůly i pletení                                                      |
+  | modla         | 0,25  | 7 čd (z 28 čd bez kácení dubu)     | řezba a dubový kůl vydrží – vyprostit a znovu usadit nakloněný kůl, zaklínovat kameny, očistit od mechu, nové obětiny a stužka    |
+  | svatyně       | 0,25  | ≈ 98 čd (z 394 čd bez kácení dubů) | příkop, val a ústřední modla vydrží – vyčistit zanesený příkop, narovnat a usadit modlu, založit ohniště                          |
+  | ohrada        | 0,5   | 14 čd (z 28 čd bez kácení stromů)  | pletený plot (7–8 let) a došky (sláma bez údržby 15–20 let – rešerše) hnijí – nové pletení a krytina; sloupy, jesle a žlab vydrží |
+
+  Příklad: modla se stavem 45 % – 7 × 0,55 ≈ 3,9 čd; spadlý plot hřbitova o 6 čtvercích 18 čd.
+
+- **Průběh:** stav stavby roste s prací rovnoměrně od stavu při zahájení do 100 %; po dokončení je
+  stavba celá (záznam chátrání zmizí) – kronika a krátký mizející řádek „Modla opravena“,
+  „Svatyně opravena“, „Plot hřbitova opraven“, „Ohrada opravena“.
+- **Znovu opuštěná:** když stavbu během opravy pozdější roční kontrola uzná za opuštěnou, oprava
+  se zruší – **co vesničané spravili, zůstane** (stav, na kterém oprava skončila) a stavba od
+  něj chátrá dál (návrh Clauda – spravené proutí nezmizí). Práce opravy vede ke stavbě cesty
+  roční sítě – oprava, na které se pracuje, drží stavbu navštěvovanou.
+- **Co hráč vidí:** díly rozpadu se vracejí podle rostoucího stavu – stupně jdou opačně
+  (rozpadlá → nakloněná → sešlá → celá), pletený plot se splétá zpět (větve přibývají, kůly se
+  narovnají, spadlý plot vyroste z pahýlů), mohylky přestanou zarůstat. **Ohniště svatyně se
+  rozhoří až po opravě.** Panel výběru ukáže opravu jako průběh stavby (pruh „Oprava“, u hřbitova
+  „Oprava plotu“) vedle ikony stavu; lidé pracují u stavby – u plotu hřbitova po obvodu jako při
+  ohrazení, u ohrady za plotem, u modly a svatyně kolem půdorysu.
+- **Starší vsi** se načtou beze změny – oprava začne až nejbližší roční kontrolou.
 
 ## Co hráč vidí
 
@@ -91,7 +143,7 @@ krajina si pamatuje, kudy ves žila, a hráč vidí, co opustil.
   - **ohrada:** přístřešek s vybledlými a prořídlými došky, pak propadlá střecha a nakonec jen
     sloupy; jesle a žlab zarůstají.
 - **Panel výběru** modly, svatyně, hřbitova a ohrady: ikona stavu s procenty (jako u obydlí)
-  a ikona **opuštěno**, když stavba chátrá – bez textů navíc.
+  a ikona **opuštěno**, když stavba chátrá – bez textů navíc; při opravě pruh průběhu (Oprava).
 - Mění se jen při změně dat (stupeň po krocích stavu), nic se nepřekresluje každý snímek.
 
 ## Ve Vlkově (18. 10. 2026)
@@ -105,21 +157,27 @@ domů u potoka a jednu ≈ 330 m. Každý dům má nejblíž tu jednu – ke sku
 - Modla ≈ 330 m od domů, ohrada se spřežením a hřbitov dál navštěvované – nechátrají.
 - **Štěstí se nezmění:** posvátná místa dávají +40 (strop) před i po – počítají se nejvýš 2 modly,
   po pádu zůstane jedna (+8 místo +16), duby (17) a háje (30) strop drží samy.
+- **Oprava (19. 10. 2026) na tom nic nemění:** k sedmi modlám nikdo nechodí, takže opravu
+  nedostanou, a navštěvované stavby jsou celé.
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                          | Kdo                            |
-| --------------------------------------------------------------------------------------------------- | ------------------------------ |
-| Stavby, kam nikdo nechodí, postupně chátrají a rozpadnou se                                         | Martin                         |
-| Opuštěná = za uplynulý rok k ní podle roční sítě cest nevedla žádná cesta                           | Martin                         |
-| Ohrada se zvířaty se nepovažuje za opuštěnou; znovu navštívená stavba přestane chátrat (nezvedá se) | Martin                         |
-| Modla 20, svatyně 30, plot hřbitova 10 (místo 15), ohrada bez zvířat 10 let do pádu                 | návrh Clauda (rešerše)         |
-| Zbytek modly 10 let, zarostlý příkop svatyně 20 let; zbytky jen vzhled                              | návrh Clauda (rešerše)         |
-| Štěstí z modly a svatyně, dokud stojí; hřbitov bez plotu pohřbívá dál; ohrada zmizí                 | Martin (zadání)                |
-| Do ohrady bez zvířat se krmit nechodí (síť pěšin) – zvířata se vrátí → chátrání se zastaví hned     | návrh Clauda                   |
-| Stavba dokončená za poslední rok opuštěná není                                                      | návrh Clauda                   |
-| Oprava plotu hřbitova zatím žádná (možná malá stavba z panelu)                                      | návrh Clauda – rozhodne Martin |
-| Stupně rozpadu ≥ 70 / 45 / 20 % jako u obydlí; panel – ikona stavu s % a ikona opuštěno             | návrh Clauda                   |
+| Rozhodnutí                                                                                           | Kdo                    |
+| ---------------------------------------------------------------------------------------------------- | ---------------------- |
+| Stavby, kam nikdo nechodí, postupně chátrají a rozpadnou se                                          | Martin                 |
+| Opuštěná = za uplynulý rok k ní podle roční sítě cest nevedla žádná cesta                            | Martin                 |
+| Ohrada se zvířaty se nepovažuje za opuštěnou; znovu navštívená stavba přestane chátrat               | Martin                 |
+| Modla 20, svatyně 30, plot hřbitova 10 (místo 15), ohrada bez zvířat 10 let do pádu                  | návrh Clauda (rešerše) |
+| Zbytek modly 10 let, zarostlý příkop svatyně 20 let; zbytky jen vzhled                               | návrh Clauda (rešerše) |
+| Štěstí z modly a svatyně, dokud stojí; hřbitov bez plotu pohřbívá dál; ohrada zmizí                  | Martin (zadání)        |
+| Do ohrady bez zvířat se krmit nechodí (síť pěšin) – zvířata se vrátí → chátrání se zastaví hned      | návrh Clauda           |
+| Stavba dokončená za poslední rok opuštěná není                                                       | návrh Clauda           |
+| Plot hřbitova vesničané opraví sami, jakmile se ke hřbitovu zase chodí – z práce vsi, i spadlý       | Martin, 19. 10. 2026   |
+| Stejně se opravuje modla, svatyně a ohrada; spadlé se neobnovují (staví se znovu)                    | Martin, 19. 10. 2026   |
+| Oprava od roční kontroly (ohrada i po návratu zvířat), stavba ze společné práce kdykoli v roce       | návrh Clauda           |
+| Cena = podíl ceny bez kácení × chybějící stav: plot 0,3, modla a svatyně 0,25, ohrada 0,5; bez dřeva | návrh Clauda           |
+| Znovu opuštěná: oprava se zruší, spravené zůstane; ohniště svatyně se rozhoří až po opravě           | návrh Clauda           |
+| Stupně rozpadu ≥ 70 / 45 / 20 % jako u obydlí; panel – ikona stavu s % a ikona opuštěno              | návrh Clauda           |
 
 ## Na stavitelích
 
@@ -127,6 +185,12 @@ domů u potoka a jednu ≈ 330 m. Každý dům má nejblíž tu jednu – ke sku
   (pád, zbytky) z `simulateDay`; stav `SacredBuilding.wear`, `Cemetery.fenceWear`, `Pen.wear`
   (`StructureWear` – stav a den opuštění), `VillageState.sacredRuins`; čísla `ABANDONMENT`
   v `rules.ts`. Staré vsi záznamy nemají – začínají s plným stavem.
+- Oprava: `repair.ts` – stavba `kind: 'repair'` s `Construction.repair` (`StructureRepair` – druh,
+  id a stav při zahájení), `startRepair` / `cancelRepair` z roční kontroly a z `abandonmentDay`
+  (ohrada se zvířaty), `workRepair` (stav roste s prací) a `finishRepair` (kronika
+  `structure-repaired`) přes stavby ze společné práce v `simulate.ts`; čísla `STRUCTURE_REPAIR`
+  v `rules.ts`. Rozdělení práce: plot hřbitova `cemetery`, ohrada `pen`, modla a svatyně
+  `repair` u cíle `{ kind: 'sacred', id }` – i to je v síti pěšin provoz ke stavbě.
 - Síť pěšin: `TripGroup.visit` → `PathNetwork.visits`, `PathVillage.pens[].stocked`.
 - Zbytek pod novou stavbou zmizí při dopočtu dalšího dne (kontrola jen kolem zbytků – ≈ 30 ms za
   rok i ve Vlkově s 1 800 díly polí). Ohrada, do které se vrátila zvířata, má stav aspoň 1 %
@@ -134,4 +198,6 @@ domů u potoka a jednu ≈ 330 m. Každý dům má nejblíž tu jednu – ke sku
 - Scéna: `structure-decay.ts` (stupně a díly), `sacred-renderer.ts` (díly rozpadu se načtou až
   s první chátrající stavbou – `sacred-decay.glb`, zarostlý příkop svatyně dostane trávu terénu),
   `pen-renderer.ts` (`pen-decay.glb`), `cemetery-renderer.ts` (plot `decayFence`, mohylky
-  zarůstají). Ukázka **Rozpad staveb** na `/dev/buildings` se stejným posuvníkem jako obydlí.
+  zarůstají). Ukázka **Rozpad staveb** na `/dev/buildings` se stejným posuvníkem jako obydlí,
+  přepínač **Oprava staveb** ukáže opravu (posuvník = průběh opravy, ohniště až po opravě –
+  `SceneSacred.buildings[].repairing`).

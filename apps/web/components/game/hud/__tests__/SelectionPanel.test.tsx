@@ -26,6 +26,7 @@ const pen = (over: Partial<Extract<SelectionDetails, { kind: 'pen' }>> = {}): Se
   trainBlocked: null,
   condition: 1,
   abandoned: false,
+  repair: null,
   ...over,
 });
 
@@ -324,6 +325,7 @@ describe('SelectionPanel – opuštěné stavby (abandonment.md)', () => {
     oaksToFell: 0,
     condition: 1,
     abandoned: false,
+    repair: null,
     ...over,
   });
 
@@ -356,10 +358,39 @@ describe('SelectionPanel – opuštěné stavby (abandonment.md)', () => {
       building: null,
       condition: 0,
       abandoned: false,
+      repair: null,
     };
     const html = render(cemetery);
     expect(html).toContain('Plot – stav');
     expect(html).toMatch(/text-red-400[^>]*>0 %/);
+    expect(html).not.toContain('selection-repair');
+  });
+
+  it('oprava (abandonment.md – Oprava): průběh jako stavba u modly, ohrady i plotu hřbitova', () => {
+    const idol = render(sacred({ condition: 0.62, repair: 0.4 }));
+    expect(idol).toContain('data-testid="selection-repair"');
+    expect(idol).toContain('aria-valuenow="40"');
+    expect(idol).toContain('Oprava 40 %');
+    expect(idol).not.toContain('selection-abandoned');
+    expect(render(sacred())).not.toContain('selection-repair');
+    expect(render(pen({ condition: 0.8, repair: 0.5 }))).toContain(
+      'data-testid="selection-repair"',
+    );
+    const fence = render({
+      kind: 'cemetery',
+      id: 30,
+      squares: 2,
+      capacity: 112,
+      graves: 20,
+      freeGraves: 92,
+      yearsLeft: 9,
+      built: true,
+      building: null,
+      condition: 0.25,
+      abandoned: false,
+      repair: 0.25,
+    });
+    expect(fence).toContain('Oprava plotu 25 %');
   });
 });
 

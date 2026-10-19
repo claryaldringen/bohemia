@@ -65,6 +65,15 @@ další rozhodnutí o místě v krajině – vedle obydlí a polí.
 - **Opuštěný hřbitov** ([abandonment.md](abandonment.md), Martin 18. 10. 2026): ke hřbitovu, kam
   za rok nevede žádná cesta, plot chátrá a za ≈ 10 let se rozpadne – mohylky zůstanou a zarostou,
   pohřbívá se do něj dál a hygiena se nemění.
+- **Oprava plotu** ([abandonment.md](abandonment.md) – Oprava; Martin 19. 10. 2026, varianta a):
+  jakmile se ke hřbitovu zase chodí, **vesničané plot opraví sami – postupně, z práce vsi,
+  a spadlý postaví znovu**. Roční kontrola cest (1. 11.), která chátrání zastaví, založí opravu
+  jako stavbu ze společné práce (jako obnova sadu); cena podle chybějícího stavu – plot je
+  třetina vytyčení a ohrazení, tedy **3 člověkodny na hotový čtverec × (1 − stav)**, spadlý plot
+  celé 3 čd na čtverec (návrh Clauda). Stav plotu roste s prací, plot se ve scéně splétá zpět
+  a mohylky přestanou zarůstat; po dokončení kronika a řádek „Plot hřbitova opraven“. Když
+  hřbitov během opravy znovu opustí, oprava se zruší a co se spravilo, zůstane. Natočený hřbitov
+  se opravuje stejně (cena jde po čtvercích, plot po natočeném obrysu).
 
 ## Co hráč vidí
 
@@ -96,3 +105,5 @@ nasycení ≥ 0,95 u ní 97,6 % let místo 98,2 %. Čísla se neladila.
 | Hrob 4 m², hroby se neopakují; extra úmrtnost 0,3 / 0,5; hájení chrání; 10 čd/čtverec | návrh Clauda, Martin potvrdil |
 | Plot hřbitova = pletený plot jako polský plot (hustší), rohy zakulacené               | Martin, 18. 10. 2026          |
 | Hřbitov smí na pole – čtverec pole pod ním z pole zmizí                               | Martin, 18. 10. 2026          |
+| Plot opuštěného hřbitova vesničané opraví sami, když se k němu zase chodí – i spadlý  | Martin, 19. 10. 2026          |
+| Oprava plotu 3 čd na hotový čtverec × chybějící stav, stavba ze společné práce        | návrh Clauda                  |
