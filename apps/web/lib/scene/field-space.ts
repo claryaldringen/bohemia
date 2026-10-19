@@ -17,9 +17,11 @@ export interface FieldSpace {
   square<T extends CellSquare>(square: T): T;
   /** Bod světa do rovného prostoru. */
   point(p: { x: number; z: number }): { x: number; z: number };
+  /** Směr (jednotkový vektor) z rovného prostoru do světa. */
+  direction(d: readonly [number, number]): Point;
   /** Síť obtisku z rovného prostoru do světa (kopie). */
   grid(grid: DecalGrid): DecalGrid;
-  /** Koruna porostu z rovného prostoru do světa (kopie – výšky a barvy beze změny). */
+  /** Koruna porostu z rovného prostoru do světa (kopie – výšky a barvy beze změny, směry řádků otočené). */
   canopy(canopy: CanopyMesh): CanopyMesh;
   /** Rostliny z rovného prostoru do světa. */
   plants(plants: FieldPlants): FieldPlants;
@@ -36,6 +38,11 @@ export function fieldSpace(squares: readonly CellSquare[]): FieldSpace | null {
   const frame = gridFrame(first);
   const rotation = first.rotation!;
   const toWorld = (x: number, z: number): Point => frame.toWorld(x, z);
+  const [ox, oz] = toWorld(0, 0);
+  const direction = (dx: number, dz: number): Point => {
+    const [x, z] = toWorld(dx, dz);
+    return [x - ox, z - oz];
+  };
   const plant = (p: PlantInstance): PlantInstance => {
     const [x, z] = toWorld(p.x, p.z);
     return { ...p, x, z, rotation: p.rotation + rotation };
@@ -53,6 +60,7 @@ export function fieldSpace(squares: readonly CellSquare[]): FieldSpace | null {
       const [x, z] = frame.toSpace(p.x, p.z);
       return { x, z };
     },
+    direction: (d) => direction(d[0], d[1]),
     grid: (grid) => {
       const positions = new Float32Array(grid.positions.length);
       for (let k = 0; k < positions.length; k += 2) {
@@ -69,7 +77,13 @@ export function fieldSpace(squares: readonly CellSquare[]): FieldSpace | null {
         positions[k] = x;
         positions[k + 1] = z;
       }
-      return { ...canopy, positions };
+      const rows = new Float32Array(canopy.rows.length);
+      for (let k = 0; k < rows.length; k += 2) {
+        const [x, z] = direction(canopy.rows[k]!, canopy.rows[k + 1]!);
+        rows[k] = x;
+        rows[k + 1] = z;
+      }
+      return { ...canopy, positions, rows };
     },
     plants: (plants) => ({
       crops: Object.fromEntries(

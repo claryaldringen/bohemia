@@ -39,6 +39,8 @@ export interface DecalLayer {
   grids: DecalGrid[];
   colors: (readonly [number, number, number])[];
   alphas: number[];
+  /** Směr řádků každé sítě (`DecalPiece.rows`) – textury s řádky podél něj. */
+  rows: (readonly [number, number])[];
 }
 
 /** Obtisky a rostliny bloku dílů. */
@@ -105,7 +107,7 @@ export function fieldBlockContent(
     const key = `${texture}|${patches ? 1 : 0}`;
     let entry = layers.get(key);
     if (!entry) {
-      entry = { texture, patches, grids: [], colors: [], alphas: [] };
+      entry = { texture, patches, grids: [], colors: [], alphas: [], rows: [] };
       layers.set(key, entry);
     }
     return entry;
@@ -124,6 +126,7 @@ export function fieldBlockContent(
     ground.grids.push(grid);
     ground.colors.push(style.tint);
     ground.alphas.push(style.alpha);
+    ground.rows.push(piece.rows);
     if (style.patches) {
       // skvrny jemnější sítí – šum je menší než krok obtisku
       const even = style.patches.even ?? false;
@@ -137,6 +140,7 @@ export function fieldBlockContent(
         patches.grids.push(fine);
         patches.colors.push(style.patches.tint);
         patches.alphas.push(style.patches.alpha);
+        patches.rows.push(piece.rows);
       }
     }
   }
@@ -188,12 +192,14 @@ export function mergeFieldBlocks(
           grids: [],
           colors: [],
           alphas: [],
+          rows: [],
         };
         layers.set(key, entry);
       }
       appendAll(entry.grids, layer.grids);
       appendAll(entry.colors, layer.colors);
       appendAll(entry.alphas, layer.alphas);
+      appendAll(entry.rows, layer.rows);
     }
     appendAll(swaths, block.swaths);
     for (const [cell, part] of block.plants) byCell.set(cell, part);

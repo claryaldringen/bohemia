@@ -83,6 +83,23 @@ describe('obtisky dílů', () => {
     // zakládaný díl: zbytek je louka (nekreslí se)
     expect(decalPieces([view(p, 'bare', { work: 0.5 })], ROWS, CENTER)).toHaveLength(1);
   });
+
+  it('řádky textury podél brázdy dílu orby, jinak podél řádků pole (oxen.md – osa bloku)', () => {
+    const p = part(0, 0);
+    expect(decalPieces([view(p, 'plowed')], ROWS, CENTER)[0]!.rows).toEqual(ROWS);
+    // blok orby východ – západ v poli, jehož řádky vedou sever – jih (ROWS podél z)
+    const ew = { ...p, furrow: { axis: 'x' as const, sweep: 1 as const } };
+    const pieces = decalPieces(
+      [view(ew, 'plowed', { work: 0.5, before: 'stubble' })],
+      ROWS,
+      CENTER,
+    );
+    expect(pieces).toHaveLength(2);
+    for (const piece of pieces) {
+      expect(piece.rows[0]).toBeCloseTo(1, 12);
+      expect(piece.rows[1]).toBeCloseTo(0, 12);
+    }
+  });
 });
 
 describe('trsy obilí, panáky a plevel', () => {
