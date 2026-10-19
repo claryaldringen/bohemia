@@ -655,10 +655,13 @@ Luštěniny). Čísla podle [rešerše](research/2026-10-18-legumes.md), kde chy
 - **Úrodnost:** osev luštěniny úrodnost dílu neubere (obilí −0,12), ale **vrátí 0,03** – poutá
   dusík, ≈ rok přílohu (nejvýš plná úrodnost). Opatrná hodnota: dnešní pokusy dávají obilí po
   luštěnině víc, středověké výnosy z Winchesteru přínos nenašly.
-- **Kolik ves oseje (k 1. 9.):** cíl luštěnin = kolik jich ves chce sníst za rok (bílkoviny, které
-  chybí po obilí, mléku stád a vejcích, nejvýš strop stravy – diet.md) bez toho, co ze zásoby
-  luštěnin k jejich sklizni zbude (od 19. 10. 2026 – Osev podle zásob; dřív + rezerva 15 %, při
-  zásobě nad 1,5 roku jen potřeba). **Obilí má přednost:** ves nejdřív vybere obilí
+- **Kolik ves oseje (k 1. 9.):** cíl luštěnin = kolik jich ves chce sníst za rok bez toho, co ze
+  zásoby luštěnin k jejich sklizni zbude (od 19. 10. 2026 – Osev podle zásob; dřív + rezerva 15 %,
+  při zásobě nad 1,5 roku jen potřeba). Kolik jich chce sníst, rozhodne od 19. 10. 2026
+  **rovnovážné hospodaření** (diet.md): luštěniny soupeří cenou v práci se stády o bílkoviny,
+  které chybí po obilí – ves je oseje, jen kde jsou levnější (typicky až když pastva a les
+  neunesou víc ovcí, koz a prasat); dřív všechny bílkoviny chybějící po obilí, mléku stád
+  a vejcích, nejvýš strop stravy (luštěniny šly ke stropu skoro vždy). **Obilí má přednost:** ves nejdřív vybere obilí
   na celý cíl osevu jako dřív, pak luštěniny dostanou díly toho výběru od domu (díly, které měly
   luštěniny loni, až nakonec – střídání plodin) a obilí doplní další díly, kolik energie
   luštěniny dají méně. Když na doplnění nestačí půda nebo práce, smí plán jít na rezervu osevu

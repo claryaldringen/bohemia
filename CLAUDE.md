@@ -781,7 +781,7 @@ rozhraní částí v
   prochází `planCrops`, všechny díly `planPartIds`. **Luštěniny** (fields.md – Luštěniny, Martin 18. 10. 2026): třetí plodina `legume` (`YearPlan.legume?`, `LEGUME_WINDOWS` – jař se sklizní
   v červenci, `LEGUMES` a `LEGUME_WORK_PER_HA` v `rules.ts`, úroda `cropGrossPerHa` /
   `cropSeedPerHa`, `partWork(…, crop)`); `chooseCrops` dostane `legumeTargetKg`
-  (`legumeNeedPerYear` + rezerva) a `energyFloorKg` – obilí napřed na celý cíl, pak luštěniny na
+  (`plannedLegumeKg` – rovnovážné hospodaření, diet.md, bez zásoby – `sowingTargets`) a `energyFloorKg` – obilí napřed na celý cíl, pak luštěniny na
   díly výběru od domu (loňské luštěniny až nakonec) a obilí doplní energii (`chooseLegumes`);
   sklizeň 31. 7. do `VillageState.legumesKg` (`harvestWinter`), osev úrodnost vrátí
   (`LEGUMES.fertilityGain` v `endOfSeason`). Scéna: `SceneFieldPart.crop: 'legume'` – trsy
@@ -945,9 +945,20 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   kozy – napřed zarůstající příloh `goatBrowseHa`, zbytek krav), seno po ztrátách ve stohu
   (`winterHayAvailable`), prasata podle lesa celý rok, nejvýš podíl uhlídaný pasáky (`herding`);
   **chovné stádo podle potřeby** `sizeHerdsToNeed` – pár a krávy `breedingCows` (husbandry.ts:
-  kráva na 2 domácnosti, 3 na ohradu), pak `BREEDING_ORDER` ovce → kozy → krávy → prasata, dokud
-  `proteinPerHead` (mléko × 0,85 + maso z mláďat po ztrátách – `yearlyMeatPerHead`) nepokryje
-  `herdProteinNeed` × 1,25 (`needReserve`); zbytek i dospělé kusy na maso; stádo pod potřebou dá na
+  kráva na 2 domácnosti, 3 na ohradu), pak **rovnovážné hospodaření** (diet.md – Rovnovážné
+  hospodaření; Martin 19. 10. 2026: „aby byla sytá, měla ± ideální kombinaci stravy, ale aby jí
+  zároveň zbylo co nejvíc volného času na rozvoj“): cena jídla v práci `foodCosts` (`economy.ts` –
+  čd na kg obilí a luštěnin z dílů v osevu, sena z plánu seče; ve vsi `villageFoodCosts`
+  v husbandry.ts), kus za rok `headEconomy` (maso z mláďat, mléko × 0,85, práce sena, péče,
+  dojení, sýra a porážky, pasáci – dospělí stojí 365 čd, děti a starší `freeHerderCapacity`
+  zdarma); hladový výběr po kusech (luštěniny po `BALANCE.legumeStepKg`) podle práce mínus
+  ušetřené obilí na kg bílkovin navíc proti obilí – napřed co práci šetří, vždy, v pořadí
+  `BREEDING_ORDER` (ovce → kozy → krávy → prasata – Martin: ovce napřed) do nosnosti a stropů
+  `DIET.caps`; pak do potřeby × 1,1 (`BALANCE.proteinReserve`) nejlevnější (přežvýkavci
+  v pořadí, prasata a luštěniny cenou), nad 88 % (`minProteinCoverage`) jen bílkoviny levnější
+  než z obilí. Týž plán `balancedPlan` (s luštěninami – zásoba luštěnin stádo
+  nezmenší) řídí seč 1. 6. (`wantedWinterHerds`), luštěniny osevu 1. 9. (`plannedLegumeKg` →
+  `sowingTargets`) i porážku 1. 11.; zbytek i dospělé kusy na maso; stádo pod potřebou dá na
   maso navíc mláďata v pořadí prasata, krávy, kozy, ovce (`MEAT_ORDER`). Zimní úhyn 1. 3.
   (`starveHerds` z `herdHayCoverage` – pod polovinou přídělu, chovný pár přežije, kronika
   `herd-starved`). **Pasáci** (`herding.ts`, `HERDING`): dospělý pasák 40 krav (i voli), 100 ovcí či
@@ -1099,7 +1110,9 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   `--out soubor.jsonl` si hotové vsi ukládá – přerušený běh (Ctrl+C) stejný příkaz dokončí, po
   změně pravidel nový soubor; `--report-only` vypíše tabulku z hotových vsí bez počítání (i u
   běhu, který stojí). Varianty pravidel jen pro kalibraci: `--variant meadow-burn` (pálení
-  drnu). Ustálený stav bez simulace (osev, pole, práce po měsících, špičky, zásoby, dřevo, sad)
+  drnu). Řádek **Práce – hráč staví** sčítá rozdělení práce dne po skupinách (volná práce, pole,
+  seč, zvířata, pasáci, domácí – hráč, který staví, se proto dopočítává den po dni – `trackLabor`).
+  Ustálený stav bez simulace (osev, pole, práce po měsících, špičky, zásoby, dřevo, sad)
   okamžitě: `village-calculator.ts` (jádro `scripts/lib/steady-state.ts`). Kopii stavu na začátku
   `advanceVillage` dělá `cloneState` (`clone.ts` – ručně, stav jsou data jako v JSON) a stavby polí
   hledají zakládané díly v indexu po polích – obojí kvůli rychlosti, výsledky stejné.
