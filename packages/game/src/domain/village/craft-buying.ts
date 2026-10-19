@@ -56,7 +56,7 @@ const DAYS_PER_YEAR = 365;
 /** Výrobek řemeslníků, který ves kupuje (kg v zásobách řemesel). */
 export type CraftProduct = keyof CraftPurchaseGoods;
 
-/** Výrobky v pořadí rozhodování (nejcennější první – platba se dělí z jednoho přebytku). */
+/** Výrobky řemeslníků (pořadí při shodě – nákup jde podle poměru ušetřené práce k ceně). */
 export const CRAFT_PRODUCTS: readonly CraftProduct[] = ['toolsKg', 'potteryKg', 'woodToolsKg'];
 
 /** Kdo výrobek dělá. */
@@ -347,12 +347,18 @@ export interface PurchasePlan {
   worthIt: boolean;
 }
 
+/** Kolik práce nákup ušetří na čd, které stojí (platba a cesta). */
+function ratio(plan: PurchasePlan): number {
+  return plan.savedManDays / Math.max(EPSILON, plan.costManDays);
+}
+
 /**
  * Co by ves dnes nakoupila (crafts.md – Nákup u sousedů; stav nemění): u každého výrobku bez
  * vlastního pracujícího řemeslníka chybí do zásoby (`craftTargets`) – u nejbližšího souseda
  * s řemeslníkem by koupila, kolik zaplatí z přebytku, a porovnala práci, kterou to za dobu služby
  * výrobku (1 ÷ opotřebení let) ušetří, s prací za platbu a cestu (každý výrobek s vlastní cestou
- * – spojená cesta je levnější). Výrobky v pořadí CRAFT_PRODUCTS (z jednoho přebytku).
+ * – spojená cesta je levnější). Z jednoho přebytku napřed výrobek, který ušetří nejvíc práce na
+ * práci, kterou stojí; ostatní pak podle zbylého přebytku (nevýhodné v plánu s `worthIt` false).
  */
 export function planPurchases(
   state: VillageState,
@@ -382,46 +388,71 @@ export function planPurchases(
   };
   const pool = paymentPool(state, day, coverage);
   const cap = groupCap(state, day);
-  const plans: PurchasePlan[] = [];
-  for (const product of CRAFT_PRODUCTS) {
+  // nákup výrobku při dnešním přebytku `from` – na zkoušku (`trial` – přebytek po platbě)
+  const consider = (
+    product: CraftProduct,
+    from: PaymentPool,
+  ): { plan: PurchasePlan; trial: PaymentPool } | null => {
     const craft = PRODUCT_CRAFT[product];
-    if (ownCraftsmanWorks(state, craft)) continue;
+    if (ownCraftsmanWorks(state, craft)) return null;
     const stock = stocks[product] ?? 0;
     const wanted = targets[product] - stock;
-    if (wanted < CRAFT_BUYING.minKg) continue;
+    if (wanted < CRAFT_BUYING.minKg) return null;
     const route = nearestCraftsman(state, craft, landscape);
-    if (!route) continue;
+    if (!route) return null;
     const price = productPrice(product);
     const need = needs[product];
     // obilí na platbu ves vypěstuje znovu – u nástrojů už s nimi (cena jídla v práci při pokrytí
     // po nákupu), u ostatních výrobků při dnešním pokrytí nástroji
     const payCtx =
       product === 'toolsKg' ? withToolCoverage(state, ctx, coverageOf(stock + wanted, need)) : ctx;
-    // platba z přebytku – na zkoušku, ves ji použije jen když se nákup vyplatí
     // skupina unese za nejvýš CRAFT_BUYING.maxDays dní jen tolik – víc ves koupí příští rok
     const carryKg =
       cap * Math.max(1, Math.floor(CRAFT_BUYING.maxDays / route.days)) * TRADE.porterKg;
-    const trial = { ...pool };
+    const trial = { ...from };
     const paid = pay(payCtx, trial, Math.min(wanted * price, carryKg), route.days);
     const kg = paid.paidKg / price;
-    if (kg < CRAFT_BUYING.minKg) continue;
+    if (kg < CRAFT_BUYING.minKg) return null;
     const trip = tripOf(Math.max(paid.weightKg, kg), route.days, cap);
     const years = 1 / WEAR_PER_YEAR[product];
     const saved =
       yearlySaving(state, ctx, product, coverageOf(stock, need), coverageOf(stock + kg, need)) *
       years;
     const cost = paid.labor + trip.labor;
-    const worthIt = saved > cost + EPSILON;
-    if (worthIt) Object.assign(pool, trial);
-    plans.push({
-      product,
-      route,
-      kg,
-      pay: paid.pay,
-      savedManDays: saved,
-      costManDays: cost,
-      worthIt,
-    });
+    return {
+      plan: {
+        product,
+        route,
+        kg,
+        pay: paid.pay,
+        savedManDays: saved,
+        costManDays: cost,
+        worthIt: saved > cost + EPSILON,
+      },
+      trial,
+    };
+  };
+  // z jednoho přebytku napřed to, co ušetří nejvíc práce na práci, kterou stojí (rozhodnutí
+  // Clauda – crafts.md, Nákup u sousedů); po každém nákupu ostatní znovu podle zbylého přebytku
+  const plans: PurchasePlan[] = [];
+  let left: CraftProduct[] = [...CRAFT_PRODUCTS];
+  while (left.length > 0) {
+    const options = left
+      .map((product) => consider(product, pool))
+      .filter((o): o is NonNullable<typeof o> => o !== null);
+    const best = options
+      .filter((o) => o.plan.worthIt)
+      .reduce<(typeof options)[number] | null>(
+        (top, o) => (top === null || ratio(o.plan) > ratio(top.plan) + EPSILON ? o : top),
+        null,
+      );
+    if (!best) {
+      plans.push(...options.map((o) => o.plan));
+      break;
+    }
+    Object.assign(pool, best.trial);
+    plans.push(best.plan);
+    left = options.filter((o) => o !== best).map((o) => o.plan.product);
   }
   return plans;
 }
@@ -469,6 +500,7 @@ export function startPurchases(
       startedDay: day,
       group: trip.group,
       days: trip.days,
+      tripDays: route.days,
       done: 0,
       trailId: route.trailId,
       edge: { x: Math.round(route.edge.x * 10) / 10, z: Math.round(route.edge.z * 10) / 10 },
@@ -481,6 +513,18 @@ export function startPurchases(
 /** Lidé, kteří jsou dnes s nákupem pryč (práce vsi bez nich – crafts.md, Nákup u sousedů). */
 export function purchaseTravelers(state: Pick<VillageState, 'purchases'>): number {
   return (state.purchases ?? []).reduce((sum, p) => sum + (p.done < p.days ? p.group : 0), 0);
+}
+
+/**
+ * Čára cesty nákupu krajinou bez stezky – od vsi (dvorec, první obydlí) rovně k bodu na kraji mapy
+ * (karavana ve scéně – crafts.md, Nákup u sousedů).
+ */
+export function purchaseLine(
+  state: VillageState,
+  purchase: Pick<CraftPurchase, 'edge'>,
+): { x: number; z: number }[] {
+  const from = villageCenter(state);
+  return [{ x: from.x, z: from.z }, { ...purchase.edge }];
 }
 
 /** Kam skupina nákupu jde – po zemské stezce, nebo krajinou ke kraji mapy (scéna). */

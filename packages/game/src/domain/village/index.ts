@@ -108,6 +108,7 @@ export {
   planPurchases,
   productPrice,
   purchaseDaysLeft,
+  purchaseLine,
   purchaseRoute,
   purchaseTarget,
   purchaseTravelers,

@@ -1427,6 +1427,11 @@ export interface CraftPurchase {
   startedDay: number;
   group: number;
   days: number;
+  /**
+   * Dny jedné cesty tam a zpět – `days` je jejich násobek, když skupina jde vícekrát (karavana ve
+   * scéně jde každou cestu zvlášť); chybí = jedna cesta (`days`).
+   */
+  tripDays?: number;
   done: number;
   trailId: number | null;
   edge: { x: number; z: number };

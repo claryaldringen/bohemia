@@ -7,6 +7,7 @@ import {
   ownCraftsmanWorks,
   planPurchases,
   productPrice,
+  type PurchasePlan,
   purchaseRoute,
   purchaseTravelers,
 } from '../craft-buying';
@@ -114,12 +115,35 @@ describe('rozhodnutí vesničanů', () => {
   it('bez řemeslníků ve vsi se vyplatí koupit nástroje, keramiku i dřevěné nářadí', () => {
     const s = village();
     const plans = planPurchases(s, NOV15, craftCoverage(s, NOV15), null);
-    expect(plans.map((p) => p.product)).toEqual([...CRAFT_PRODUCTS]);
+    expect(plans.map((p) => p.product).sort()).toEqual([...CRAFT_PRODUCTS].sort());
+    // napřed to, co ušetří nejvíc práce na práci, kterou stojí (rozhodnutí Clauda)
+    const ratios = plans.map((p) => p.savedManDays / p.costManDays);
+    expect(ratios).toEqual([...ratios].sort((a, b) => b - a));
     for (const plan of plans) {
       expect(plan.worthIt).toBe(true);
       expect(plan.savedManDays).toBeGreaterThan(plan.costManDays);
       expect(neighbourCrafts(s.seed, plan.route.direction).length).toBeGreaterThan(0);
     }
+  });
+
+  it('z malého přebytku koupí napřed nejvýhodnější výrobek, ne první v pořadí', () => {
+    const rich = planPurchases(village(), NOV15, craftCoverage(village(), NOV15), null);
+    const best = rich.reduce((a, b) =>
+      a.savedManDays / a.costManDays >= b.savedManDays / b.costManDays ? a : b,
+    );
+    // přebytek jen na kus nákupu – dostane ho výrobek s nejlepším poměrem
+    const worth = (storesKg: number): PurchasePlan[] => {
+      const s = village(3, storesKg);
+      return planPurchases(s, NOV15, craftCoverage(s, NOV15), null).filter((p) => p.worthIt);
+    };
+    let storesKg = 8000;
+    while (worth(storesKg).length > 1) storesKg -= 250;
+    storesKg += 250;
+    while (worth(storesKg).length > 1) storesKg -= 10;
+    const bought = worth(storesKg);
+    expect(bought).toHaveLength(1);
+    expect(bought[0]!.product).toBe(best.product);
+    expect(best.product).not.toBe(CRAFT_PRODUCTS[0]);
   });
 
   it('bez přebytku nad pojistkou zásob nekupuje', () => {
