@@ -1,8 +1,10 @@
 # Vozy a tesař
 
 Stav: **schváleno** (Martin, 19. 10. 2026: „Ano, schvaluji“). Co řekl Martin, je u bodu označeno;
-ostatní je návrh Clauda. Čísla s poznámkou „rešerše“ se před implementací ověří v
-`docs/design/research/` (vzor: [řemesla](crafts.md) – Meze produktivity).
+ostatní je návrh Clauda. Čísla ověřila [rešerše](research/2026-10-19-carts-carpentry.md).
+**Fáze 1 implementovaná (19. 10. 2026)** – tesař a vozy v jádru a rozhraní, dosah vozu zatím
+zástupný (část [Jak je postavené – fáze 1](#jak-je-postavené--fáze-1)); fáze 2 je vozová síť,
+fáze 3 vozy ve scéně.
 
 ## Proč
 
@@ -113,6 +115,83 @@ Z 0 A.D. (CC BY-SA 3.0, převod jako spřežení – `tools/blender/people_from_
 `wagon_four_wheel_empty`) – s loukoťovými koly, ojí a jhem; ruční vozíky jen jako ozdoba. Měřítko
 0 A.D. se zmenší na skutečnou velikost (dvoukolák ≈ 3,5 m i s ojí, čtyřkolák ≈ 5 m).
 
+## Jak je postavené – fáze 1
+
+Návrh Clauda (19. 10. 2026) – detaily, které návrh výš nechal otevřené; čísla z
+[rešerše](research/2026-10-19-carts-carpentry.md), v `rules.ts` (`CARPENTRY`, `WOODWORK_LABOR`,
+`CARPENTER_TOOLS_WORK`, `WOOD_TOOLS`, `WOOD_TOOLS_LABOR`, `CARTS`, `CART_ACCESS`). Jádro:
+`carpentry.ts` (tesař), `carts.ts` (vozy, svoz, dosah), svoz a pomoc stavbám v kroku práce
+(`simulate.ts`).
+
+- **Dílna tesaře** jako hrnčíř a kovář: polozemnice s předsazenou střechou (přístřešek 3,2 m),
+  cena 286 čd a 23 stromů (obydlí + 30 %), jedna domácnost k osídlení, v mřížce staveb **Tesař
+  [T]**. Ve scéně se zatím kreslí a staví jako polozemnice (model dílny tesaře přidá jen záznam
+  v `CRAFT_MODEL`), dílna nekouří.
+- **Co tesař dělá – v tomto pořadí:**
+  1. **Pomoc stavbám** (stavby nečekají): člověkoden tesaře vede **4 čd dřevěné práce** vsi
+     (tesařská parta – mistr a 3 pomocníci, i jeho vlastní). Tesaři dají stavbám tolik, kolik
+     dřevěná práce dne chce (nejvýš svou práci po minimu a domácí výrobě); tesař, který nemá co
+     vyrábět, je na stavbě celý den. Jeho práce jde do staveb se společnou prací vsi.
+     **Pokrytí tesařem** = vedení, které tesaři dali ÷ kolik ho dřevěná práce dne chtěla (nejvýš
+     1); dřevěná práce dne = podíl dřevěné práce staveb z práce, kterou stavby dnes dostanou
+     (rozdělení rovným dílem jako ve stavbách).
+  2. **Vozy** – rozdělaný vůz, pak chybějící vůz: **dvoukolák na každé vycvičené spřežení**,
+     s hotovou zemskou stezkou navíc **jeden čtyřkolák** (obchod). Dvoukolák 25 čd a 1 kláda,
+     čtyřkolák 50 čd a 2 klády; vůz slouží **10 let**, pak dosloužil (kronika, upozornění)
+     a tesař udělá nový.
+  3. **Dřevěné nářadí** do zásoby: potřeba **4 kg na pracujícího** (od 14 let), opotřebení
+     **30 % ročně** (jen v užívání, jako nástroje), zásoba = potřeba × 1,3; **0,5 čd na kg,
+     100 kg z klády**.
+- **Dřevo:** klády v dílně, pak celé klády z hromady, bez nich si tesař skácí nejbližší strom sám
+  (vyhrazený dílnou, pařez – jako hrnčíř). Bez klád i stromů hlásí „Tesař nemá klády“.
+- **Nástroje od kováře:** všechna práce tesaře (výroba i vedení staveb) podle pokrytí nástroji
+  – **meze 1,5 → 1**.
+- **Volný čas:** tesař odpočívá (pracuje se vsí) jen když nemá co vyrábět (nebo z čeho) **a**
+  žádná stavba nečeká na dřevěnou práci.
+- **Účinek – meze produktivity:**
+  - **stavby:** dřevěná část práce stavby **1 → 0,6** podle pokrytí tesařem. Podíl dřevěné
+    práce na ceně stavby (i s kácením): zemnice 40 %, polozemnice a dílny 50 %, dvorec 60 %,
+    ohrada 40 %, rádlo 100 %, modla 80 %, svatyně 30 %, vylepšení cesty a zemská stezka (hať,
+    lávka) 30 %, oprava stavby 30 %; pole, sad, hřbitov a jabloně u cest 0. S plným pokrytím
+    stojí polozemnice o 20 % méně práce.
+  - **práce vsi:** dřevěné nářadí násobí veškerou práci vsi (háček štěstí) – práce stojí **1 →
+    0,95** podle pokrytí nářadím.
+  - Ves bez tesaře platí nejhorší meze jako dřív – kalibrace (`measure-village 20 20`) vyšla
+    s tesařem v kódu bit po bitu stejně.
+- **Vůz = zásoba vsi** (`VillageState.carts` – druh, den výroby), stojí u ohrady se spřežením.
+  **Vozí dvoukoláky** se spřežením, které dnes neorá (ve dny orby orají) a není s výpravou;
+  čtyřkolák jezdí jen s výpravami. Vůz za den odveze tolik jako **8 nosičů** a jdou s ním **2 lidé**
+  (honák a nakladač – činnost `haul` v rozdělení práce dne), kde dojede, ušetří 6 čd denně.
+- **Svoz** (kam vůz dojede, nejvýš podíl nošení úlohy a nejvýš ten podíl zbývající práce – vůz
+  sám úlohu nedodělá): **odnos snopů** (podíl odnosu na sklizni – fields.md), **čtvrtina seče**
+  (svoz a stohování) a **polovina kácení a dovozu klád ke stavbám**. Vozy jedou v pořadí úloh dne
+  (sklizeň a seč podle konce okna), zbytek vozí klády. Klády z mýcení na hromadu se nenosí zvlášť
+  (jsou v ceně založení) – vůz je nezkrátí.
+- **Obchodní výprava** vezme vozy, které jsou doma se spřežením (čtyřkoláky napřed): náklad na voze
+  (400 / 800 kg), s vozem 2 lidé místo nosičů po 25 kg; vozů jede tolik, aby lidí bylo nejméně.
+  Vozy a jejich spřežení jsou do návratu pryč – doma nevozí a spřežení neorá. Stezka je pro vozy
+  zatím sjízdná vždy (je upravená cesta).
+- **Dosah vozu je rozhraní** (`CartAccess` – „dojede vůz k místu a za kolik metrů“). Fáze 1 dává
+  **zástupnou odpověď** (`straightCartAccess`): vůz jede od ohrady rovně, jen po louce nebo po
+  políčku vsi (pole, ohrada), ne lesem ani vodou, se sklonem ve směru jízdy nejvýš 12 %; lesem
+  jen posledních 30 m ke stromu (kládu ke kraji vlečou lidé). Pevné cesty, brody a hať nezná –
+  je spíš přísná: kde vůz rovně nedojede, nosí se jako dřív (anti-cíl). Bez krajiny (testy,
+  kalibrace) dojede všude. Vozová síť (fáze 2) ho nahradí skutečnými trasami.
+- **Rozhraní:** panel dílny tesaře – co dělá (vyrábí vůz s průběhem, nářadí, pomáhá stavbám,
+  kácí), vozy proti potřebě po druzích (kolik na cestě), dřevěné nářadí s pokrytím, pokrytí
+  dřevěné práce staveb. Horní lišta – dřevěné nářadí (s tesařem) a vozy (jen když jsou).
+  Upozornění „Tesař vyrobil vůz“, „Vůz dosloužil“, „Tesař nemá klády“. Panel obchodu ukáže vozy
+  výpravy. `/dev/panels` – Tesař, Tesař pomáhá stavbám.
+- **Scéna (data pro fázi 3):** `SceneVillage.carts` – vůz, kde stojí (u ohrady), stav a cíl dne
+  (svoz – pole, louka, stromy; výprava – stezka). Postavy posádky vozu stojí u svozu jako nosiči,
+  sekáči a dřevorubci; vozy se zatím nekreslí.
+- **Ikony:** `build/tesar.png` (polozemnice s kozlíky, trámem a dvoukolákem), `resources/cart.png`,
+  `resources/wood-tools.png` – `tools/blender/icons.py`.
+
+**Zbývá:** fáze 2 – vozová síť (sklon ve směru jízdy – běžně 8 %, mez 12 %, serpentiny, vyjeté
+cesty, brody a hať, poloměr otáčení čtyřkoláku) nahradí `straightCartAccess`; fáze 3 – vozy se
+spřežením a honákem ve scéně podle `SceneVillage.carts`, model dílny tesaře.
+
 ## Rozhodnutí
 
 | Rozhodnutí                                                                                | Kdo                   |
@@ -129,3 +208,7 @@ Z 0 A.D. (CC BY-SA 3.0, převod jako spřežení – `tools/blender/people_from_
 | Most zatím ne – vůz přejede potok brodem nebo po hati                                     | Martin (19. 10. 2026) |
 | Jeden vůz na spřežení                                                                     | návrh Clauda          |
 | Dva vozy z 0 A.D. – dvoukolák (základní) a čtyřkolák (víc nákladu, obchod)                | Martin (19. 10. 2026) |
+| Fáze 1: čísla podle rešerše, pořadí práce tesaře, pokrytí tesařem z vedení party          | návrh Clauda          |
+| Čtyřkolák navíc k dvoukolákům, jen s hotovou stezkou; vůz slouží 10 let                   | návrh Clauda          |
+| Vůz za den = 8 nosičů se 2 lidmi; odnos snopů, čtvrtina seče, polovina dovozu klád        | návrh Clauda          |
+| Dosah vozu jako rozhraní; fáze 1 zástupně rovně po louce, bez lesa a vody, sklon do 12 %  | návrh Clauda          |

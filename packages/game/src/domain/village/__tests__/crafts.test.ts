@@ -442,7 +442,7 @@ describe('souhrn řemesel pro panel (crafts.md – Co hráč vidí)', () => {
     s.crafts = { charcoalKg: 0, toolsKg: 9, potteryKg: 0 };
     const after = advanceVillage(s, DAY + 1, null);
     const { crafts } = summarizeVillage(after, DAY + 1);
-    expect(crafts.needs).toEqual({ toolsKg: 18, potteryKg: 40 });
+    expect(crafts.needs).toEqual({ toolsKg: 18, potteryKg: 40, woodToolsKg: 24 });
     expect(crafts.coverage.tools).toBeCloseTo(after.crafts!.toolsKg / 18, 9);
     expect(crafts.workshops).toEqual([
       {
@@ -454,8 +454,10 @@ describe('souhrn řemesel pro panel (crafts.md – Co hráč vidí)', () => {
         oreFactor: 1,
         kiln: null,
         toPlant: 0,
+        carpenter: null,
       },
     ]);
+    expect(crafts.carts).toEqual([]);
   });
 });
 
@@ -509,11 +511,12 @@ describe('umístění dílny (crafts.md – Budovy)', () => {
 describe('řemeslníci vyrábějí podle potřeby, volný čas pracují pro ves (crafts.md – Podle potřeby)', () => {
   it('zásoba do potřeby vsi a opotřebení za rok – nástroje × 1,3, keramika × 1,4', () => {
     const s = fullVillage();
-    // 4 pracující a 6 lidí
-    expect(craftNeeds(s, DAY)).toEqual({ toolsKg: 12, potteryKg: 30 });
+    // 4 pracující a 6 lidí; dřevěné nářadí od tesaře 4 kg na pracujícího (wagons.md)
+    expect(craftNeeds(s, DAY)).toEqual({ toolsKg: 12, potteryKg: 30, woodToolsKg: 16 });
     const targets = craftTargets(s, DAY);
     expect(targets.toolsKg).toBeCloseTo(12 * 1.3, 9);
     expect(targets.potteryKg).toBeCloseTo(30 * 1.4, 9);
+    expect(targets.woodToolsKg).toBeCloseTo(16 * 1.3, 9);
   });
 
   it('kovář s plnou zásobou nástrojů nekuje a jeho domácnost pracuje se vsí', () => {

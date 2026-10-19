@@ -1,10 +1,14 @@
 import {
+  CARPENTER_TOOLS_WORK,
   DAILY_MIN_PER_HOUSEHOLD,
   FIELD_WORK_PER_HA,
   FOUNDING_COST_PER_HA,
+  HARVEST_WORK_PER_HA,
   HAY_WORK_PER_HA,
   LEGUME_WORK_PER_HA,
   STORAGE_LOSS_PER_YEAR,
+  WOODWORK_LABOR,
+  WOOD_TOOLS_LABOR,
 } from './rules';
 import type { Bounds, CraftCoverage, Crop, FieldSurface, FieldTask } from './types';
 
@@ -44,6 +48,15 @@ export function hayWorkPerHa(toolCoverage: number): number {
   return withinBounds(HAY_WORK_PER_HA, toolCoverage);
 }
 
+/**
+ * Podíl odnosu na práci sklizně podle pokrytí nástroji (srp s železem žne rychleji – meze;
+ * fields.md – Práce) – rozdělení práce pro postavy a svoz snopů vozem (wagons.md).
+ */
+export function harvestCarryShare(toolCoverage: number): number {
+  const carry = withinBounds(HARVEST_WORK_PER_HA.carry, toolCoverage);
+  return carry / (withinBounds(HARVEST_WORK_PER_HA.reap, toolCoverage) + carry);
+}
+
 /** Roční ztráta zásob obilí (podíl) podle pokrytí nádobami. */
 export function storageLossPerYear(potteryCoverage: number): number {
   return withinBounds(STORAGE_LOSS_PER_YEAR, potteryCoverage);
@@ -52,4 +65,28 @@ export function storageLossPerYear(potteryCoverage: number): number {
 /** Denní minimum domácnosti (člověkodny) podle pokrytí nádobami. */
 export function dailyMinPerHousehold(potteryCoverage: number): number {
   return withinBounds(DAILY_MIN_PER_HOUSEHOLD, potteryCoverage);
+}
+
+/**
+ * Násobek práce vsi podle pokrytí dřevěným nářadím od tesaře (wagons.md – Tesař, Účinek): práce
+ * stojí `WOOD_TOOLS_LABOR` (1 → 0,95) – stejná práce jde o tolik rychleji. Bez tesaře 1.
+ */
+export function woodToolsLaborFactor(woodToolsCoverage: number): number {
+  return 1 / withinBounds(WOOD_TOOLS_LABOR, woodToolsCoverage);
+}
+
+/**
+ * Podíl práce dřevěné části stavby podle pokrytí tesařem (wagons.md – Tesař, Účinek): 1 bez
+ * tesaře, s plným pokrytím 0,6.
+ */
+export function woodworkLabor(carpentryCoverage: number): number {
+  return withinBounds(WOODWORK_LABOR, carpentryCoverage);
+}
+
+/**
+ * Práce tesaře na jednotku výroby i pomoci stavbám podle pokrytí nástroji od kováře (wagons.md –
+ * Tesař): bez nástrojů 1,5×, s plným pokrytím 1×.
+ */
+export function carpenterWorkFactor(toolCoverage: number): number {
+  return withinBounds(CARPENTER_TOOLS_WORK, toolCoverage);
 }

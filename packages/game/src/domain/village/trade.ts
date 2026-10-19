@@ -8,6 +8,7 @@
 // Se sousedem jdou vyměnit i lidé – rodiny a svobodní dospělí (trade.md – Výměna lidí,
 // `people-trade.ts`): odejdou hned s výpravou, lidé od souseda přijdou s jejím návratem.
 // Čisté funkce bez I/O.
+import { tradeCarts } from './carts';
 import { removePeople } from './kinship';
 import { startingLivestock } from './livestock';
 import {
@@ -19,9 +20,10 @@ import {
 } from './people-trade';
 import { addLogs, woodLogs } from './wood';
 import { TRADE_GOODS, neighbourOf, neighbourStock } from './neighbours';
-import { PEOPLE_TRADE, TRADE, TRADE_GOOD_VALUES } from './rules';
+import { CARTS, PEOPLE_TRADE, TRADE, TRADE_GOOD_VALUES } from './rules';
 import { builtTrail, trailTripDays } from './trail';
 import type {
+  CartKind,
   ChronicleEvent,
   DietDay,
   Direction8,
@@ -136,21 +138,58 @@ function entries(goods: TradeGoods): [TradeGood, number][] {
   );
 }
 
-/** Nosiči výpravy – víc z cesty tam a zpět, aspoň jeden (i pro prohlížeč – náhled v panelu). */
-export function expeditionPorters(give: TradeGoods, get: TradeGoods): number {
-  return Math.max(1, carriers(give), carriers(get));
+/**
+ * Nosiči výpravy – víc z cesty tam a zpět, aspoň jeden (i pro prohlížeč – náhled v panelu).
+ * S vozy (`carts` – druhy vozů, které má ves pro výpravu, v pořadí výběru – `tradeCarts`) jde
+ * náklad na vozy a s každým vozem 2 lidé (wagons.md – Obchod) – `expeditionTransport`.
+ */
+export function expeditionPorters(
+  give: TradeGoods,
+  get: TradeGoods,
+  carts: readonly CartKind[] = [],
+): number {
+  return expeditionTransport(give, get, carts).porters;
 }
 
-/** Nosiči na jednu cestu: náklad po 25 kg na člověka, dobytek žene honák na 10 kusů. */
-function carriers(goods: TradeGoods): number {
+/**
+ * Doprava výpravy (wagons.md – Obchod, návrh Clauda): kolik vozů z nabídnutých (`carts` – v pořadí
+ * výběru, čtyřkoláky napřed) jede a kolik lidí jde – vůz bere CARTS.loadKg nákladu místo nosičů
+ * po 25 kg a jdou s ním CARTS.tradeCrew lidé (honák a pomocník), dobytek se žene jako dřív.
+ * Vozů jede tolik z prvních, aby lidí bylo nejméně (při shodě méně vozů).
+ */
+export function expeditionTransport(
+  give: TradeGoods,
+  get: TradeGoods,
+  carts: readonly CartKind[] = [],
+): { porters: number; carts: number } {
+  let best = { porters: Math.max(1, carriers(give, []), carriers(get, [])), carts: 0 };
+  for (let n = 1; n <= carts.length; n++) {
+    const used = carts.slice(0, n);
+    const porters = Math.max(1, carriers(give, used), carriers(get, used));
+    if (porters < best.porters) best = { porters, carts: n };
+  }
+  return best;
+}
+
+/**
+ * Lidé na jednu cestu: náklad po 25 kg na člověka (co se nevejde na vozy), dobytek žene honák na
+ * 10 kusů, s každým vozem jeho posádka.
+ */
+function carriers(goods: TradeGoods, carts: readonly CartKind[]): number {
   let kg = 0;
   let heads = 0;
   for (const [good, amount] of entries(goods)) {
     if (good === 'cattle') heads += amount;
     else kg += amount * TRADE_GOOD_VALUES[good].carryKg;
   }
+  const onCarts = Math.min(
+    kg,
+    carts.reduce((sum, kind) => sum + CARTS.loadKg[kind], 0),
+  );
   return (
-    Math.ceil(kg / TRADE.porterKg - EPSILON) + Math.ceil(heads / TRADE.headsPerDrover - EPSILON)
+    Math.ceil((kg - onCarts) / TRADE.porterKg - EPSILON) +
+    Math.ceil(heads / TRADE.headsPerDrover - EPSILON) +
+    carts.length * CARTS.tradeCrew
   );
 }
 
@@ -175,6 +214,8 @@ export interface TradeQuote {
   balance: number;
   /** Nosiči (víc z cesty tam a zpět, aspoň 1), dny cesty tam a zpět a práce (lidé × dny). */
   porters: number;
+  /** Vozy, které s výpravou pojedou (wagons.md – Obchod; druhy v pořadí výběru). */
+  carts: CartKind[];
   days: number;
   manDays: number;
   /** Proč výprava nejde (česky), nebo null. */
@@ -230,12 +271,16 @@ export function tradeQuote(state: VillageState, offer: TradeOffer, day: number):
     Math.min(getPeople.adults, people.adults) * adultBuyPrice();
   const trail = builtTrail(state, offer.direction);
   const days = trail ? trailTripDays(trail.lengthM) : 0;
-  const porters = expeditionPorters(offer.give, offer.get);
+  // vozy se spřežením, které jsou doma – náklad místo nosičů (wagons.md – Obchod)
+  const available = tradeCarts(state).map((c) => c.kind);
+  const transport = expeditionTransport(offer.give, offer.get, available);
+  const porters = transport.porters;
   const quote = {
     credit: round2(credit),
     price: round2(price),
     balance: round2(credit - price),
     porters,
+    carts: available.slice(0, transport.carts),
     days,
     manDays: porters * days,
   };
@@ -352,6 +397,10 @@ export function startExpedition(state: VillageState, day: number, offer: TradeOf
   const sent = givePeople.families + givePeople.adults > 0;
   const fetched = getPeople.families + getPeople.adults > 0;
   const trade = tradeOf(next);
+  // vozy výpravy (s nimi jejich spřežení) jsou do návratu pryč (wagons.md – Obchod)
+  const carts = tradeCarts(state)
+    .slice(0, quote.carts.length)
+    .map((c) => c.id);
   trade.expeditions.push({
     id: trade.nextId++,
     direction: offer.direction,
@@ -360,6 +409,7 @@ export function startExpedition(state: VillageState, day: number, offer: TradeOf
     give,
     get,
     porters: quote.porters,
+    ...(carts.length > 0 ? { carts } : {}),
     days: quote.days,
     cost: quote.manDays,
     done: 0,
@@ -384,8 +434,8 @@ export function startExpedition(state: VillageState, day: number, offer: TradeOf
 export function workExpeditions(
   state: VillageState,
   common: number,
-): { used: number; shares: { trailId: number; manDays: number }[] } {
-  const shares: { trailId: number; manDays: number }[] = [];
+): { used: number; shares: { trailId: number; manDays: number; carts?: number }[] } {
+  const shares: { trailId: number; manDays: number; carts?: number }[] = [];
   let left = common;
   for (const e of state.trade?.expeditions ?? []) {
     if (left <= EPSILON) break;
@@ -393,7 +443,11 @@ export function workExpeditions(
     if (take <= 0) continue;
     e.done += take;
     left -= take;
-    shares.push({ trailId: e.trailId, manDays: take });
+    shares.push({
+      trailId: e.trailId,
+      manDays: take,
+      ...(e.carts && e.carts.length > 0 ? { carts: e.carts.length } : {}),
+    });
   }
   return { used: common - left, shares };
 }

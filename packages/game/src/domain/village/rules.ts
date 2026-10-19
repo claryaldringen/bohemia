@@ -1,6 +1,8 @@
 import type { ObstacleKind } from '../landscape';
 import type {
   Bounds,
+  CartKind,
+  ConstructionKind,
   Craft,
   Crop,
   DwellingType,
@@ -719,15 +721,20 @@ export const SACRED_BUILDINGS = {
 
 // crafts.md – Budovy (Martin; +30 % návrh Clauda): dílna je obydlí – hrnčíř a kovář stojí na
 // polozemnici, uhlíř na zemnici – a stojí jako základní obydlí + 30 % práce i dřeva za pec, výheň
-// nebo milíř. Umisťuje se volně jako zemnice (bez pozemku).
+// nebo milíř. Umisťuje se volně jako zemnice (bez pozemku). Tesař (wagons.md – Tesař, návrh
+// Clauda): polozemnice s předsazenou střechou jako hrnčíř a kovář.
 export const CRAFT_BASE: Readonly<Record<Craft, DwellingType>> = {
   potter: 'polozemnice',
   smith: 'polozemnice',
   burner: 'zemnice',
+  carpenter: 'polozemnice',
 };
 export const WORKSHOP_EXTRA = 0.3;
-/** Pořadí řemesel – nabídka staveb a výroba dne (uhlíř první, jeho uhlí může kovář hned použít). */
-export const CRAFTS: readonly Craft[] = ['burner', 'potter', 'smith'];
+/**
+ * Pořadí řemesel – nabídka staveb a výroba dne (uhlíř první, jeho uhlí může kovář hned použít;
+ * tesař poslední – jeho pomoc stavbám se rozdělí už před stavbami dne).
+ */
+export const CRAFTS: readonly Craft[] = ['burner', 'potter', 'smith', 'carpenter'];
 // crafts.md – Výroba: uhlíř 10 kg uhlí za člověkoden, ze stromu 120 kg; kovář 1 kg nástrojů za
 // 10 člověkodní a 50 kg uhlí; hrnčíř 1 kg keramiky za člověkoden a 1 strom paliva na 500 kg.
 // Ruda a hlína dál od vody: +1 % za 10 m nad 100 m od dílny k potoku (DISTANCE jako u polí).
@@ -787,6 +794,8 @@ export const WORKSHOP_PORCH_M: Readonly<Record<Craft, number>> = {
   potter: 3.2,
   smith: 3.2,
   burner: 0,
+  // wagons.md – Tesař: předsazená střecha jako u hrnčíře a kováře (pod ní kozlíky a rozdělaný vůz)
+  carpenter: 3.2,
 };
 // crafts.md – Účinek, orchard.md: jablka v nádobách vydrží do 1. 5. místo 1. 3. – s plným pokrytím
 // nádobami; při částečném se den zkažení posouvá poměrně (pokrytí × dny od 1. 3. do 1. 5.)
@@ -806,6 +815,64 @@ export function workshopTrees(craft: Craft): number {
 export function workshopBuildLabor(craft: Craft): number {
   return workshopCost(craft) - workshopTrees(craft) * FELLING_MAN_DAYS_PER_TREE;
 }
+
+// wagons.md – Tesař (Martin 19. 10. 2026: tesař vyrábí vozy, dřevěné nářadí a výrazně zrychlí
+// dřevěné části staveb; čísla návrh Clauda podle rešerše research/2026-10-19-carts-carpentry.md):
+// - výroba: dvoukolák 25 čd a 1 kláda, čtyřkolák 50 čd a 2 klády; dřevěné nářadí 0,5 čd na kg,
+//   100 kg ze stromu (klády bere z hromady, bez nich si skácí strom sám jako hrnčíř),
+// - práce tesaře (výroba i pomoc stavbám) podle pokrytí nástroji od kováře – meze 1,5 → 1,
+// - pomoc stavbám: člověkoden tesaře vede `crew` člověkodny dřevěné práce (tesařská parta, i jeho
+//   vlastní); dřevěná část práce stavby podle pokrytí tesařem – meze 1 → 0,6 (WOODWORK_LABOR),
+// - podíl dřevěné práce na ceně stavby (i s kácením) podle druhu stavby (`woodShare`; obydlí
+//   a dílny podle typu obydlí); pole, sad, hřbitov a jabloně u cest dřevo neopracovávají.
+export const CARPENTRY = {
+  cartManDays: { 'two-wheel': 25, 'four-wheel': 50 },
+  cartLogs: { 'two-wheel': 1, 'four-wheel': 2 },
+  woodToolsManDaysPerKg: 0.5,
+  woodToolsKgPerLog: 100,
+  crew: 4,
+  dwellingWoodShare: { zemnice: 0.4, polozemnice: 0.5, dvorec: 0.6 },
+  woodShare: { pen: 0.4, ard: 1, idol: 0.8, shrine: 0.3, road: 0.3, repair: 0.3 },
+} as const satisfies {
+  cartManDays: Record<CartKind, number>;
+  cartLogs: Record<CartKind, number>;
+  dwellingWoodShare: Record<DwellingType, number>;
+  woodShare: Partial<Record<ConstructionKind, number>>;
+} & Record<string, unknown>;
+// wagons.md – Tesař, Účinek (návrh Clauda podle rešerše): dřevěná část práce stavby s plným
+// pokrytím tesařem o 40 % levnější
+export const WOODWORK_LABOR: Bounds = { worst: 1, best: 0.6 };
+// wagons.md – Tesař (návrh Clauda podle rešerše): práce tesaře bez nástrojů od kováře o polovinu
+// pomalejší (sekery, tesly, nebozezy, dláta jsou železné)
+export const CARPENTER_TOOLS_WORK: Bounds = { worst: 1.5, best: 1 };
+// wagons.md – Tesař, dřevěné nářadí (návrh Clauda podle rešerše): hrábě, vidle, lopaty, cepy,
+// násady, kádě – 4 kg na pracujícího od 14 let, 30 % ročně se opotřebí; tesař vyrábí do zásoby =
+// potřeba + opotřebení za `reserveYears` (jako kovář – crafts.md, Podle potřeby). Práce vsi podle
+// pokrytí – meze 1 → 0,95 (mírně, o jednotky procent – Martin).
+export const WOOD_TOOLS = { kgPerWorker: 4, wearPerYear: 0.3, reserveYears: 1 } as const;
+export const WOOD_TOOLS_LABOR: Bounds = { worst: 1, best: 0.95 };
+// wagons.md – Vůz (Martin 19. 10. 2026: vozy vozí seno, snopy, klády a zboží výprav místo nosičů;
+// jeden vůz na spřežení – návrh Clauda; čísla návrh Clauda podle rešerše): dvoukolák 400 kg,
+// čtyřkolák 800 kg (jen po stezce – obchod), vůz slouží 10 let. Vůz za den odveze tolik jako
+// `carrierManDays` nosičů a jdou s ním `crew` lidé (honák a nakladač) – kde dojede, ušetří 6 čd.
+// Převezme odnos snopů (podíl odnosu na sklizni – HARVEST_WORK_PER_HA), `haulShare.hay` seče
+// (svoz a stohování) a `haulShare.logs` kácení a dovozu klád ke stavbám. Ves s vycvičeným spřežením
+// chce dvoukolák na každé spřežení a s hotovou zemskou stezkou navíc jeden čtyřkolák.
+// Kládu z lesa ke kraji, kam vůz dojede, vlečou lidé – `dragM`.
+export const CARTS = {
+  loadKg: { 'two-wheel': 400, 'four-wheel': 800 },
+  lifespanYears: 10,
+  carrierManDays: 8,
+  crew: 2,
+  haulShare: { hay: 0.25, logs: 0.5 },
+  dragM: 30,
+  tradeCrew: 2,
+} as const satisfies { loadKg: Record<CartKind, number> } & Record<string, unknown>;
+// wagons.md – Vozová síť (rešerše 2026-10-19-carts-carpentry.md – Practical Action: vozy se
+// zvířaty do 8 %, Tillers: tah do svahu): zástupná dostupnost vozu (fáze 1, `CartAccess` – dokud
+// není vozová síť) – vůz jede rovně jen po louce (ne les, ne voda), sklon ve směru jízdy nejvýš
+// `maxGrade`; krok vzorkování `stepM`. Fáze 2 (vozová síť) vezme běžné stoupání 8 % a mez 12 %.
+export const CART_ACCESS = { maxGrade: 0.12, comfortGrade: 0.08, stepM: 5 } as const;
 
 // migration.md – Odchod do nové vsi (návrh Clauda): první zemnice nové vsi na téže mapě stojí
 // nejméně 300 m od staveb jiných vsí.

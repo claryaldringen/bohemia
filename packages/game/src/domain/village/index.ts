@@ -92,6 +92,39 @@ export * from './sacred-life';
 export * from './happiness';
 export * from './crafts';
 export * from './charcoal';
+// tesař a vozy (wagons.md) – kroky simulace (pomoc stavbám, výroba, svoz) volá simulate.ts
+export {
+  NO_HELP,
+  carpentryHelp,
+  constructionLaborFactor,
+  constructionWoodShare,
+  restingCarpenters,
+  woodworkPending,
+  type CarpentryHelp,
+} from './carpentry';
+export {
+  CART_KINDS,
+  CART_NAMES,
+  EVERYWHERE,
+  cartCondition,
+  cartOrigin,
+  cartTargets,
+  cartsAway,
+  expeditionCartKinds,
+  haulAvailable,
+  haulCartsToday,
+  haulPlan,
+  haulProgress,
+  hauledBy,
+  missingCart,
+  straightCartAccess,
+  teamsAway,
+  tradeCarts,
+  villageCartAccess,
+  villageCarts,
+  type CartAccess,
+  type HaulPlan,
+} from './carts';
 export * from './paths';
 export * from './road-trees';
 export * from './road-upgrades';

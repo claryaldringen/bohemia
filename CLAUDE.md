@@ -456,7 +456,8 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   opravy – `showcaseRepair`). Opravovaná svatyně (`SceneSacred.buildings[].repairing`) má ohniště
   studená až do konce opravy (`sacredDecayParts(…, cold)`, bez dýmu).
 - **Řemeslné dílny** (ve hře od 18. 10. 2026, pravidla v [docs/design/crafts.md](docs/design/crafts.md),
-  jádro a rozhraní viz Ves – Řemesla): `public/models/crafts/`
+  jádro a rozhraní viz Ves – Řemesla; tesař – wagons.md – zatím model polozemnice, `CRAFT_MODEL`
+  null): `public/models/crafts/`
   hrnčíř a kovář (polozemnice s přístřeškem o `PORCH` 3,6 m vpředu, pod ním pec / výheň
   s kovadlinou), uhlíř (zemnice s mechovou střechou) a samostatný milíř ≈ 9,5 m od ní
   (`MILIR_OFFSET` v `tools/blender/crafts.py` = `MILIR.offset` v `rules.ts` jádra – podle něj
@@ -501,7 +502,8 @@ rozhraní částí v
   (`VillageState.cemeteries?`, `orchards?`, `applesKg?`, `orchardWork?`, `starvationDays?`,
   `extinctDay?`, `crafts?`, `Dwelling.workshop?`, `livestock?`, `meatKg?`, `cheeseKg?`,
   `legumesKg?`, `hay?`, `pens?`, `diet?`, `ruins?`, `woods?`, `FieldPart.overgrowthYears?`,
-  `manorId?`, `trails?`, `trade?`, `DwellingPlot.yard?`, `Construction.trail?`) – vsi
+  `manorId?`, `trails?`, `trade?`, `DwellingPlot.yard?`, `Construction.trail?`, `carts?`,
+  `CraftStocks.woodToolsKg?`, `Workshop.timber?` / `cart?`) – vsi
   `sacredRuins?`, `SacredBuilding.wear?`, `Cemetery.fenceWear?`, `Pen.wear?`) – vsi
   uložené dřív se načtou a beze sadů či dílen se jejich stav nemění.
 - **Hlad a vymření** (population.md, Martin 18. 10. 2026): nahromaděný hlad
@@ -672,6 +674,36 @@ rozhraní částí v
   scéna kreslí lesní milíř funkcemi milíře u dílny přes kotvu `forestKilnAnchor`
   (`workshop-layout.ts`), postavy u lesního milíře `kilnWorkers`, sázení `planting`, polena nosí
   k lesnímu milíři (`felling`).
+- **Tesař a vozy** ([wagons.md](docs/design/wagons.md) – fáze 1, Martin 19. 10. 2026; čísla
+  `CARPENTRY`, `WOODWORK_LABOR`, `CARPENTER_TOOLS_WORK`, `WOOD_TOOLS`, `WOOD_TOOLS_LABOR`, `CARTS`,
+  `CART_ACCESS` v `rules.ts`, rešerše `research/2026-10-19-carts-carpentry.md`): řemeslo
+  `carpenter` (polozemnice + přístřešek, [T], ikona `tesar`) – `carpentry.ts`. Krok práce
+  (`simulate.ts`): `restingCarpenters` (odpočívá jen bez výroby i bez stavby s dřevěnou prací),
+  `carpentryHelp` před stavbami (čd tesaře vede `crew` čd dřevěné práce dne – `woodworkToday`
+  rozdělí práci rovným dílem jako `build`; jeho práce jde do staveb a `build` s pokrytím násobí
+  práci stavby `constructionLaborFactor` – podíl dřevěné práce `constructionWoodShare` od 1
+  k 0,6), pak `workCarpenters` (vůz – `missingCart`, `addCart`,
+  kronika `cart-made` –, pak dřevěné nářadí `CraftStocks.woodToolsKg`; klády `Workshop.timber`
+  z hromady, jinak kácí – `nextTree`; práce × `carpenterWorkFactor` podle nástrojů). `workCrafts`
+  tesaře přeskakuje. Dřevěné nářadí: `craftNeeds` / `craftTargets` / `craftCoverage.woodTools?`
+  (jen když nějaké je) a `woodToolsLaborFactor` násobí práci vsi s `villageLaborFactor`
+  (`villageProductivity` v `simulate.ts` – i plán osevu). **Vozy** (`carts.ts`):
+  `VillageState.carts` (`Cart` – druh, `builtDay`), `cartTargets` (dvoukolák na spřežení,
+  čtyřkolák s hotovou stezkou), `retireCarts` (10 let, `cart-worn-out`); svoz – `haulCartsToday`
+  (dvoukoláky doma se spřežením, ne ve dny orby), `planTaskHauls` v `simulate.ts` (sklizeň –
+  `harvestCarryShare`, seč – `haulShare.hay`; `haulPlan` / `haulProgress` / `haulAvailable` –
+  nejvýš podíl celé úlohy, převzaté v `CropWork.hauled`, `HayMowing.hauled`), `haulLogs` (klády
+  ke stavbám – `fellingHaulable`, `ConstructionWood.hauled`), rozdělení práce `haul` s
+  `LaborShare.carts`. Výprava: `expeditionTransport` / `tradeCarts` (`TradeQuote.carts`,
+  `TradeExpedition.carts` – spřežení je pryč, `teamsHomeShare` krátí orbu). **Dosah vozu je
+  rozhraní `CartAccess`** – zatím zástupné `straightCartAccess` (rovně od ohrady, louka a políčka
+  vsi, ne les a voda, sklon do 12 %; bez krajiny `EVERYWHERE`), vozová síť (fáze 2) ho nahradí.
+  Web: `VillageCrafts.carts` / `cartTargets`, `VillageWorkshop.carpenter`, lišta dřevěné nářadí
+  a vozy (`showsWoodTools`, `cartsLabel`), panel dílny (`CarpenterStats`), upozornění
+  `cart-made`, `cart-worn-out`, `carpenter-no-wood`, náhled obchodu s vozy
+  (`VillageNeighbour.carts`), `SceneVillage.carts` (`sceneCarts` – u ohrady a cíl dne; scéna
+  vozy zatím nekreslí). Dílna tesaře se kreslí jako polozemnice (`CRAFT_MODEL.carpenter` null,
+  `workshopModelOf`) – model doplní záznam.
 - **Ozim a jař** (fields.md – Ozim a jař): roční plán (`YearPlan`) nese práci jaře nahoře (tvar
   plánu z doby před ozimem) a ozimu v `winter?` (`CropWork`); díly osevu mají `crop?` (chybí =
   jař). Okna prací po plodinách `CROP_WINDOWS` (`WINDOWS` = jař, `WINTER_WINDOWS`) v `rules.ts`.

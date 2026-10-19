@@ -7,7 +7,15 @@ import {
   readySquares,
   villageCemeteries,
 } from './cemetery';
-import { craftCoverage, craftNeeds, craftStocks, oreFactor, workshopLabor } from './crafts';
+import { cartCondition, cartTargets, cartsAway, villageCarts } from './carts';
+import {
+  craftCoverage,
+  craftNeeds,
+  craftStocks,
+  oreFactor,
+  workshopLabor,
+  type CraftNeeds,
+} from './crafts';
 import { isFull, isOvercrowded } from './dwellings';
 import { waitingHouseholds } from './households';
 import { familyCounts, type FamilyCounts } from './kinship';
@@ -42,7 +50,7 @@ import {
   villageOrchards,
 } from './orchard';
 import { ageGroup, foodNeedPerDay, occupants } from './people';
-import { CHARCOAL_KILN, CHRONICLE_MAX_EVENTS, DWELLINGS, STARVATION } from './rules';
+import { CARPENTRY, CHARCOAL_KILN, CHRONICLE_MAX_EVENTS, DWELLINGS, STARVATION } from './rules';
 import {
   groveHappiness,
   sacredBuildingHappiness,
@@ -57,6 +65,7 @@ import type {
   KilnStage,
   Construction,
   ConstructionKind,
+  CartKind,
   Craft,
   CraftCoverage,
   CraftStocks,
@@ -186,14 +195,34 @@ export interface WorkshopSummary {
   } | null;
   /** Uhlíř: pařezy buků, na které ještě zasadí mladý buk; ostatní dílny 0. */
   toPlant: number;
+  /**
+   * Tesař (wagons.md – Tesař): rozdělaný vůz (druh a průběh 0–1), klády v dílně a pokrytí dřevěné
+   * práce staveb posledního dne 0–1; ostatní dílny null.
+   */
+  carpenter: {
+    cart: { kind: CartKind; progress: number } | null;
+    timber: number;
+    woodworkCoverage: number;
+  } | null;
+}
+
+/** Vůz vsi pro panel (wagons.md – Vůz): druh, stav 0–1 a jestli je s výpravou na cestě. */
+export interface CartSummary {
+  id: number;
+  kind: CartKind;
+  condition: number;
+  away: boolean;
 }
 
 /** Řemesla vsi – zásoby, potřeba, pokrytí (meze produktivity) a dílny. */
 export interface CraftsSummary {
   stocks: CraftStocks;
-  needs: { toolsKg: number; potteryKg: number };
+  needs: CraftNeeds;
   coverage: CraftCoverage;
   workshops: WorkshopSummary[];
+  /** Vozy vsi a kolik jich ves potřebuje (wagons.md – Vůz). */
+  carts: CartSummary[];
+  cartTargets: Readonly<Record<CartKind, number>>;
 }
 
 /** Štěstí obyvatel pro horní lištu (happiness.md). */
@@ -598,6 +627,7 @@ export function summarizeVillage(
 /** Řemesla vsi: zásoby, potřeba a pokrytí, dílny s tím, co dělají (crafts.md – Co hráč vidí). */
 function craftsSummary(state: VillageState, day: number): CraftsSummary {
   const coverage = craftCoverage(state, day);
+  const away = cartsAway(state);
   const productivity = happinessLaborFactor(villageHappiness(state));
   return {
     stocks: { ...craftStocks(state) },
@@ -620,9 +650,32 @@ function craftsSummary(state: VillageState, day: number): CraftsSummary {
           oreFactor: oreFactor(workshop),
           kiln: workshop.kiln ? kilnSummary(workshop.kiln) : null,
           toPlant: workshop.toPlant?.length ?? 0,
+          carpenter:
+            workshop.craft === 'carpenter'
+              ? {
+                  cart: workshop.cart
+                    ? {
+                        kind: workshop.cart.kind,
+                        progress: Math.min(
+                          1,
+                          workshop.cart.done / CARPENTRY.cartManDays[workshop.cart.kind],
+                        ),
+                      }
+                    : null,
+                  timber: workshop.timber ?? 0,
+                  woodworkCoverage: workshop.woodworkCoverage ?? 0,
+                }
+              : null,
         },
       ];
     }),
+    carts: villageCarts(state).map((cart) => ({
+      id: cart.id,
+      kind: cart.kind,
+      condition: cartCondition(cart, day),
+      away: away.has(cart.id),
+    })),
+    cartTargets: cartTargets(state),
   };
 }
 

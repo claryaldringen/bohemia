@@ -126,6 +126,34 @@ describe('ocenění a kontrola výměny', () => {
   });
 });
 
+describe('výprava s vozem (wagons.md – Obchod)', () => {
+  it('vůz se spřežením vezme náklad místo nosičů a je do návratu pryč', () => {
+    const s = trading();
+    s.pens = [
+      {
+        id: 900,
+        cell: { x: 3, y: 4 },
+        x: 50,
+        z: 60,
+        builtDay: DAY - 800,
+        team: { readyDay: DAY - 10 },
+        training: null,
+      },
+    ];
+    s.carts = [{ id: 1, kind: 'two-wheel', builtDay: DAY - 10 }];
+    const n = neighbourOf(s.seed, 'S');
+    const heavy = n.demands.find((g) => g === 'grain' || g === 'legumes' || g === 'meat');
+    if (!heavy) return;
+    const quote = tradeQuote(s, { direction: 'S', give: { [heavy]: 200 }, get: {} }, DAY);
+    expect(quote.carts).toEqual(['two-wheel']);
+    // 200 kg na voze – jen honák a pomocník místo 8 nosičů
+    expect(quote.porters).toBe(2);
+    const next = startExpedition(s, DAY, { direction: 'S', give: { [heavy]: 200 }, get: {} });
+    expect(next.trade!.expeditions[0]!.carts).toEqual([1]);
+    expect(tradeQuote(next, { direction: 'S', give: {}, get: {} }, DAY).carts).toEqual([]);
+  });
+});
+
 describe('výprava', () => {
   it('zboží odejde, soused ho odepíše; druhá výprava k témuž sousedovi nejde', () => {
     const s = trading();
