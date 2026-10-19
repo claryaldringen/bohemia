@@ -226,8 +226,8 @@ v `paths/roads.ts`, čísla `CART_ROUTES` a `CART_ROADS` v `rules.ts`.
   pod ní stoupání zdražuje se čtvercem (u meze 5×), takže nejlevnější je stoupat ≈ 5 % – do svahu
   vede trasa šikmo a **serpentiny vzniknou samy**. Mez (návrh před rešerší) leží v rozmezí
   [rešerše](research/2026-10-19-carts-carpentry.md) – vozy se zvířaty běžně do 8 %, krátce do 12 %
-  (Practical Action, tah volů podle Tillers) – a je spodní hranicí rozmezí 10–12 % ze zadání: volský potah s nákladem na hliněné cestě,
-  i za mokra. Spodní, protože krajiny hry jsou mírné: sklon mezi políčky má medián ≈ 3 %, 99 %
+  (Practical Action, tah volů podle Tillers) – a je spodní hranicí rozmezí 10–12 % ze zadání:
+  volský potah s nákladem na hliněné cestě, i za mokra. Spodní, protože krajiny hry jsou mírné: sklon mezi políčky má medián ≈ 3 %, 99 %
   políček pod 10–13 % a nejprudší louky (≈ 15 %) leží 700–1400 m od místa vsi (seedy 7, 8, 9, 42,
   43, 44 a Vlkov); scéna terén převyšuje 3× (`HEIGHT_SCALE`), takže svah, který na obrazovce
   vypadá na 30 %, má ve hře 10 %. **Při 12 % by se serpentiny u vsí skoro neobjevily** (u Vlkova
