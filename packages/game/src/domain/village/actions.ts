@@ -14,6 +14,13 @@ import { isVillageExtinct } from './extinction';
 import { winterHayKg } from './hay';
 import { foundingLivestock } from './livestock';
 import { ableTeams, startPen, type PenInput } from './oxen';
+import {
+  MAX_PEN_SQUARES,
+  PEN_SPECIES,
+  connectedCells,
+  penSquares,
+  touchingPens,
+} from './pens';
 import { fieldsTouching, mergeFields, partFoundingCost } from './fields';
 import { normalizeGrid, rotationTurn, squareKey } from './square-grid';
 import { fieldGrids } from './squares';
@@ -1050,8 +1057,11 @@ export function startSacredBuilding(
 }
 
 /**
- * Zahájí stavbu ohrady s přístřeškem (oxen.md) na čtverci z `checkPenPlacement`. RangeError, když
- * je den mimo vsi, ves nemá dřevo předem nebo je vstup neplatný. Konvence dne jako u ostatních
+ * Zahájí stavbu ohrady s přístřeškem (oxen.md – Ohrady podle druhu) na čtvercích
+ * z `penSquaresFromCells`: čtverce navazující stranou na ohradu téhož druhu (ve stejné mřížce) ji
+ * rozšíří (stejné id, stavba rozšíření), jinak vznikne nová ohrada daného druhu. Ohrada má nejvýš
+ * MAX_PEN_SQUARES čtverců, souvislých stranou; na dvě ohrady navázat nejde. RangeError, když je
+ * den mimo vsi, ves nemá dřevo předem, nebo je vstup neplatný. Konvence dne jako u ostatních
  * staveb – práci stavba dostane od dne `day + 1`.
  */
 export function foundPen(
@@ -1062,24 +1072,49 @@ export function foundPen(
   walk?: Walk,
 ): VillageState {
   validateActionDay(state, day);
-  if (!Number.isInteger(input.cell.x) || !Number.isInteger(input.cell.y)) {
-    throw new RangeError('Políčko ohrady musí mít celočíselné souřadnice.');
+  if (!PEN_SPECIES.includes(input.species)) throw new RangeError('Neznámý druh ohrady.');
+  if (input.squares.length === 0) throw new RangeError('Ohrada musí mít aspoň jeden čtverec.');
+  const keys = new Set<string>();
+  for (const q of input.squares) {
+    if (!Number.isInteger(q.cell.x) || !Number.isInteger(q.cell.y)) {
+      throw new RangeError('Políčko ohrady musí mít celočíselné souřadnice.');
+    }
+    if (!Number.isFinite(q.x) || !Number.isFinite(q.z)) {
+      throw new RangeError('Střed ohrady musí mít konečné souřadnice.');
+    }
+    validateObstacleCost(q.obstacleCost);
+    validateObstacleIds(q.obstacleIds);
+    validateTrees(q.clearedTrees);
+    keys.add(`${q.cell.x},${q.cell.y}`);
   }
-  if (!Number.isFinite(input.x) || !Number.isFinite(input.z)) {
-    throw new RangeError('Střed ohrady musí mít konečné souřadnice.');
-  }
-  validateObstacleCost(input.obstacleCost);
-  validateObstacleIds(input.obstacleIds);
-  validateTrees(input.clearedTrees);
+  if (keys.size !== input.squares.length) throw new RangeError('Čtverce ohrady se opakují.');
   validateTakenLand(input.takenLand ?? []);
   validateGrid(input.grid);
   const grid = input.grid ? (normalizeGrid(input.grid) ?? undefined) : undefined;
-  if ((state.pens ?? []).some((p) => squareKey(p.grid, p.cell) === squareKey(grid, input.cell))) {
+  const pens = state.pens ?? [];
+  const taken = new Set(pens.flatMap((p) => penSquares(p).map((q) => squareKey(p.grid, q.cell))));
+  if (input.squares.some((q) => taken.has(squareKey(grid, q.cell)))) {
     throw new RangeError('Na čtverci už ohrada stojí.');
   }
+  const cells = input.squares.map((q) => q.cell);
+  const touching = touchingPens(pens, cells, input.species, grid);
+  if (touching.length > 1) throw new RangeError('Ohrada smí navazovat jen na jednu ohradu.');
+  const extended = touching[0];
+  const all = [...(extended ? penSquares(extended).map((q) => q.cell) : []), ...cells];
+  if (all.length > MAX_PEN_SQUARES) {
+    throw new RangeError(`Ohrada může mít nejvýš ${MAX_PEN_SQUARES} čtverce.`);
+  }
+  if (!connectedCells(all)) throw new RangeError('Čtverce ohrady musí navazovat stranou.');
   requireAffordable(state, 'pen', obstacles ?? undefined);
-  const next = startPen(state, day, { ...input, ...(grid ? { grid } : {}) }, obstacles, walk);
-  // čtverec pole pod ohradou z pole zmizí (fields.md – Pole jako krajina)
+  const next = startPen(
+    state,
+    day,
+    { ...input, ...(grid ? { grid } : {}) },
+    obstacles,
+    walk,
+    extended?.id,
+  );
+  // čtverce pole pod ohradou z pole zmizí (fields.md – Pole jako krajina)
   giveWayToBuilding(next, day, input.takenLand ?? [], 'pen');
   return next;
 }

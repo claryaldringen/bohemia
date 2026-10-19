@@ -489,6 +489,31 @@ export const EMERGENCY_SLAUGHTER = {
   pigForestShare: 0.5,
   pigletsFromMonth: 9,
 } as const;
+/**
+ * oxen.md – Ohrady podle druhu (Martin 19. 10. 2026: „Zvířata je potřeba na noc zavírat do ohrad.
+ * Každý druh zvířete by měl mít vlastní ohradu, ať se nemíchají. Velikost ohrady by mělo jít
+ * určovat podobně, jako když se staví hřbitov. Velikost ohrady bude mít vliv na velikost stáda.
+ * Zároveň velikost ohrady bude omezená – má to být ohrada, ne výběh.“; čísla návrh Clauda podle
+ * rešerše research/2026-10-19-pens.md): ohrada má nejvýš `max` čtverců 15 × 15 m (≈ 900 m²).
+ */
+export const PEN_SQUARES = { max: 4 } as const;
+/**
+ * oxen.md – Kapacita ohrady (návrh Clauda, rešerše research/2026-10-19-pens.md): kolik kusů pojme
+ * hotový čtverec ohrady na noc – plocha uvnitř plotu ≈ 196 m² (14 × 14 m) ÷ místo na kus: ovce
+ * ≈ 1,5 m², koza ≈ 2 m², prase ≈ 2,5 m², kráva ≈ 4,5 m² (malá zvířata raného středověku – kráva
+ * 200–250 kg; dnešní minima ustájení: ovce 1–1,5 m², koza 1,5–2 m², kráva bez telete 3,5–5 m²
+ * i s krmištěm). Místa jsou pro dospělé kusy i jarní mláďata (stádo v létě). Ohrada spřežení
+ * (`team`) pojme jedno spřežení a výcvik nového – kapacitu stáda nemá.
+ */
+export const PEN_PLACES_PER_SQUARE = { sheep: 130, goat: 100, pig: 80, cow: 45 } as const;
+/**
+ * diet.md – Bez ohrady u domu (Martin 19. 10. 2026: „Ano, udělej to tak, jak navrhuješ“; čísla
+ * návrh Clauda): bez ohrady svého druhu udrží každá domácnost u domu jen pár kusů – 2 ovce, 1 kozu
+ * a 1 prase (místa pro dospělé i mláďata jako v ohradě); krávy jen v ohradě. Chovný pár druhu,
+ * který ves má, zůstane u domů vždy (LIVESTOCK.breedingMin) – jinak by druh bez ohrady vymřel
+ * a ohrada by už neměla co chovat.
+ */
+export const HOMESTEAD_HERD = { sheep: 2, goat: 1, pig: 1, cow: 0 } as const;
 // population.md – Nové obydlí (společná práce za posledních 30 dní pro „má na to“)
 export const COMMON_LABOR_HISTORY_DAYS = 30;
 // population.md – Chátrání a přestavba (oprava podle hlášení Martina 18. 10. 2026): přestavba na

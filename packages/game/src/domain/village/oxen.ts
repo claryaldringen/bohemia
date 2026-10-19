@@ -5,14 +5,24 @@ import { butcher, ensureLivestock, LIVESTOCK } from './livestock';
 import { obstacleChangesAt, recordClearedObstacles } from './obstacles';
 import { PLOUGH_HA_PER_DAY, ploughWorkPerHa } from './plough';
 import { FELLING_MAN_DAYS_PER_TREE, PLANNING_DAY } from './rules';
+import { penSpecies } from './pens';
 import { copyGrid } from './square-grid';
-import type { ChronicleEvent, Pen, SquareGrid, TileCell, VillageState } from './types';
+import type {
+  ChronicleEvent,
+  Pen,
+  PenSpecies,
+  PenSquare,
+  SquareGrid,
+  TileCell,
+  VillageState,
+} from './types';
 import type { Walk } from './paths/walking';
 import { addLogs, claimedObstacles, planWoodFrom, takeWood, woodLogs, type WoodPlan } from './wood';
 import { planCrops, ploughToHoe } from './year-plan';
 
-// Ohrada, spřežení volů a orba rádlem (oxen.md, schváleno 18. 10. 2026). Ohrada je stavba na
-// jednom čtverci louky (40 člověkodní a 6 stromů). V ohradě hráč zadá výcvik spřežení: dvě telata
+// Ohrada, spřežení volů a orba rádlem (oxen.md, schváleno 18. 10. 2026). Ohrada je stavba po
+// čtvercích louky pro jeden druh zvířat (40 člověkodní a 6 stromů na čtverec, nejvýš 4 čtverce –
+// oxen.md, Ohrady podle druhu; pens.ts). V ohradě spřežení se cvičí spřežení samo: dvě telata
 // z vlastního stáda krav se za 2 roky vycvičí, vesničané k tomu vyrobí rádlo (1 strom
 // a 5 člověkodní). Spřežení orá ≈ 10 let, pak voli zestárnou a jdou na maso. Přes zimu voli žerou
 // seno – když chybí přes polovinu, jeden uhyne a spřežení se rozpadne; když chybí méně, slabí voli
@@ -25,7 +35,7 @@ import { planCrops, ploughToHoe } from './year-plan';
  * kráva zůstane – návrh Clauda při implementaci).
  */
 export const OXEN = { trainingYears: 2, serviceYears: 10, teamSize: 2, minCows: 3 } as const;
-/** oxen.md – Ohrada: 40 člověkodní a 6 stromů (kůly, přístřešek). */
+/** oxen.md – Ohrada: 40 člověkodní a 6 stromů (kůly, přístřešek) na čtverec ohrady. */
 export const PEN = { laborManDays: 40, trees: 6 } as const;
 /** oxen.md – Spřežení: rádlo z 1 stromu za 5 člověkodní. */
 export const ARD = { laborManDays: 5, trees: 1 } as const;
@@ -47,6 +57,11 @@ export function penOxen(pen: Pen): number {
 /** Voli vsi (spřežení i výcvik) – žerou seno a spásají pastvu jako krávy. */
 export function villageOxen(state: Pick<VillageState, 'pens'>): number {
   return villagePens(state).reduce((sum, pen) => sum + penOxen(pen), 0);
+}
+
+/** Ohrady spřežení (oxen.md – Ohrady podle druhu: voli a výcvik mají vlastní ohradu). */
+export function teamPens(state: Pick<VillageState, 'pens'>): Pen[] {
+  return villagePens(state).filter((pen) => penSpecies(pen) === 'team');
 }
 
 /** Kolik spřežení ves má – kolik ohrad má vycvičené voly. */
@@ -236,7 +251,7 @@ function hayWinterDaysLeft(day: number): number {
 
 /**
  * Proč v ohradě teď nezačne výcvik spřežení (česky), nebo null – výcvik začne sám
- * (`trainTeamsWhenReady`): ohrada stojí, nic se v ní necvičí, vycvičené spřežení je v posledních
+ * (`trainTeamsWhenReady`): ohrada spřežení stojí, nic se v ní necvičí, vycvičené spřežení je v posledních
  * 2 letech služby (náhrada naváže, když starý pár doslouží – Martin; kdo chce dvě spřežení,
  * postaví druhou ohradu), stádo má aspoň 3 krávy (dvě telata), na rádlo je strom (kláda, nebo
  * strom ke kácení) a v zimě vystačí seno volům i telatům do konce března.
@@ -249,6 +264,8 @@ export function trainingBlock(
 ): string | null {
   const pen = villagePens(state).find((p) => p.id === penId);
   if (!pen) return 'Ohrada neexistuje.';
+  // voli se cvičí jen v ohradě spřežení (oxen.md – Ohrady podle druhu)
+  if (penSpecies(pen) !== 'team') return 'Ohrada není pro spřežení.';
   if (pen.builtDay === null) return 'Ohrada se ještě staví.';
   if (pen.training) return 'Spřežení se už cvičí.';
   const serving = serviceYearsBeforeTraining(pen, day);
@@ -276,7 +293,7 @@ export function trainTeamsWhenReady(
   obstacles: ObstacleLayer | null,
   walk?: () => Walk,
 ): void {
-  for (const pen of villagePens(state)) {
+  for (const pen of teamPens(state)) {
     if (trainingBlock(state, pen.id, day, obstacles) === null) {
       startTraining(state, day, pen, obstacles, walk?.());
     }
@@ -310,12 +327,10 @@ function startTraining(
   });
 }
 
-/** Ohrada k zahájení – čtverec, jeho střed a překážky na něm (`checkPenPlacement`). */
-export interface PenInput {
-  /** Čtverec ohrady v mřížce `grid`; bez ní políčko krajiny. */
+/** Čtverec ohrady k zahájení – střed a překážky na něm (`checkPenPlacement`). */
+export interface PenSquareInput {
+  /** Čtverec ohrady v mřížce `PenInput.grid`; bez ní políčko krajiny. */
   cell: TileCell;
-  /** Natočená mřížka ohrady (fields.md – Natočené stavby); bez ní mřížka krajiny. */
-  grid?: SquareGrid;
   /** Střed čtverce ve světě (m). */
   x: number;
   z: number;
@@ -325,8 +340,20 @@ export interface PenInput {
   obstacleIds: readonly number[];
   /** Dospělé stromy mezi nimi – dají klády na hromadu. */
   clearedTrees: number;
+}
+
+/**
+ * Ohrada k zahájení (oxen.md – Ohrady podle druhu): druh zvířat a čtverce (`penSquaresFromCells`) –
+ * nová ohrada, nebo rozšíření ohrady téhož druhu, na kterou čtverce navazují.
+ */
+export interface PenInput {
+  species: PenSpecies;
+  /** Čtverce v pořadí – u nové ohrady první nese přístřešek a jesle. */
+  squares: readonly PenSquareInput[];
+  /** Natočená mřížka ohrady (fields.md – Natočené stavby); bez ní mřížka krajiny. */
+  grid?: SquareGrid;
   /**
-   * Čtverec pole pod ohradou (`takenLand` z kontroly) – z pole zmizí (fields.md – Pole jako
+   * Čtverce pole pod ohradou (`takenLand` z kontroly) – z pole zmizí (fields.md – Pole jako
    * krajina; `foundPen`).
    */
   takenLand?: readonly {
@@ -337,41 +364,63 @@ export interface PenInput {
   }[];
 }
 
-/** Práce na ohradě bez dřeva – cena ohrady minus kácení jejích stromů u blízkého lesa. */
+/** Práce na čtverci ohrady bez dřeva – cena čtverce minus kácení jeho stromů u blízkého lesa. */
 export function penBuildLabor(): number {
   return PEN.laborManDays - PEN.trees * FELLING_MAN_DAYS_PER_TREE;
 }
 
-/** Práce na ohradě jako při zahájení stavby: stavba, překážky a kácení stromů z plánu dřeva. */
-export function penLaborManDays(obstacleCost: number, wood: Pick<WoodPlan, 'fell'>): number {
-  return penBuildLabor() + obstacleCost + wood.fell.reduce((sum, t) => sum + t.cost, 0);
+/**
+ * Práce na ohradě jako při zahájení stavby: stavba `squares` čtverců, překážky a kácení stromů
+ * z plánu dřeva.
+ */
+export function penLaborManDays(
+  obstacleCost: number,
+  wood: Pick<WoodPlan, 'fell'>,
+  squares = 1,
+): number {
+  return penBuildLabor() * squares + obstacleCost + wood.fell.reduce((sum, t) => sum + t.cost, 0);
 }
 
-/** Plán dřeva ohrady (6 stromů – klády z hromady, zbytek nejbližší stromy k ohradě). */
+/** Střed čtverců (m) – odtud se hledají stromy ke kácení. */
+function squaresCenter(squares: readonly { x: number; z: number }[]): { x: number; z: number } {
+  const n = Math.max(1, squares.length);
+  return {
+    x: squares.reduce((sum, q) => sum + q.x, 0) / n,
+    z: squares.reduce((sum, q) => sum + q.z, 0) / n,
+  };
+}
+
+/**
+ * Plán dřeva ohrady (6 stromů na čtverec – klády z hromady, zbytek nejbližší stromy k ohradě);
+ * stromy na čtvercích dají klády.
+ */
 export function planPenWood(
   state: VillageState,
-  input: Pick<PenInput, 'x' | 'z' | 'obstacleIds' | 'clearedTrees'>,
+  squares: readonly Pick<PenSquareInput, 'x' | 'z' | 'obstacleIds' | 'clearedTrees'>[],
   day: number,
   obstacles: ObstacleLayer | null,
   walk?: Walk,
 ): WoodPlan {
   return penWood(
     state,
-    PEN.trees,
-    input,
+    PEN.trees * squares.length,
+    squaresCenter(squares),
     day,
     obstacles,
-    input.obstacleIds,
-    input.clearedTrees,
+    squares.flatMap((q) => q.obstacleIds),
+    squares.reduce((sum, q) => sum + q.clearedTrees, 0),
     walk,
   );
 }
 
 /**
- * Zahájí stavbu ohrady (oxen.md): čtverec louky s pleteným plotem a přístřeškem – stavba ze
- * společné práce (osadníci nejsou potřeba). Překážky na čtverci osadníci odstraní hned, dospělé
- * stromy z něj dají klády; dřevo (6 stromů) vezme stavba z hromady, zbytek vyhradí ke kácení.
- * RangeError, když dřevo nestačí. Umístění ověří `checkPenPlacement`.
+ * Zahájí stavbu ohrady (oxen.md – Ohrady podle druhu): čtverce louky s pleteným plotem
+ * a přístřeškem – stavba ze společné práce (osadníci nejsou potřeba). Nová ohrada dostane druh
+ * a čtverce (první s přístřeškem); rozšíření (`extendId` – ohrada téhož druhu, na kterou čtverce
+ * navazují) přidá čtverce na konec, do dokončení stavby se nepočítají. Překážky na čtvercích
+ * osadníci odstraní hned, dospělé stromy z nich dají klády; dřevo (6 stromů na čtverec) vezme
+ * stavba z hromady, zbytek vyhradí ke kácení. RangeError, když dřevo nestačí. Umístění ověří
+ * `penSquaresFromCells` (placement.ts), vstup `foundPen`.
  */
 export function startPen(
   state: VillageState,
@@ -379,28 +428,56 @@ export function startPen(
   input: PenInput,
   obstacles: ObstacleLayer | null,
   walk?: Walk,
+  extendId?: number,
 ): VillageState {
-  const plan = planPenWood(state, input, day, obstacles, walk);
+  const plan = planPenWood(state, input.squares, day, obstacles, walk);
   if (plan.missing > 0) throw new RangeError('Na ohradu chybí dřevo – klády ani stromy nestačí.');
   const next = structuredClone(state);
-  recordClearedObstacles(next, input.obstacleIds, day);
+  recordClearedObstacles(
+    next,
+    input.squares.flatMap((q) => q.obstacleIds),
+    day,
+  );
   const wood = takeWood(next, plan);
-  const penId = next.nextId++;
-  (next.pens ??= []).push({
-    id: penId,
-    cell: { x: input.cell.x, y: input.cell.y },
-    ...(input.grid ? { grid: copyGrid(input.grid) } : {}),
-    x: input.x,
-    z: input.z,
-    builtDay: null,
-    team: null,
-    training: null,
+  const pens = (next.pens ??= []);
+  const target = extendId === undefined ? undefined : pens.find((p) => p.id === extendId);
+  const constructionId = target ? next.nextId++ : undefined;
+  const square = (q: PenSquareInput, building?: number): PenSquare => ({
+    cell: { x: q.cell.x, y: q.cell.y },
+    x: q.x,
+    z: q.z,
+    ...(building === undefined ? {} : { constructionId: building }),
   });
+  let penId: number;
+  if (target) {
+    penId = target.id;
+    (target.extraSquares ??= []).push(...input.squares.map((q) => square(q, constructionId)));
+  } else {
+    const [first, ...rest] = input.squares;
+    if (!first) throw new RangeError('Ohrada musí mít aspoň jeden čtverec.');
+    penId = next.nextId++;
+    pens.push({
+      id: penId,
+      species: input.species,
+      cell: { x: first.cell.x, y: first.cell.y },
+      ...(rest.length > 0 ? { extraSquares: rest.map((q) => square(q)) } : {}),
+      ...(input.grid ? { grid: copyGrid(input.grid) } : {}),
+      x: first.x,
+      z: first.z,
+      builtDay: null,
+      team: null,
+      training: null,
+    });
+  }
   next.constructions.push({
-    id: next.nextId++,
+    id: constructionId ?? next.nextId++,
     kind: 'pen',
     startedDay: day,
-    cost: penLaborManDays(input.obstacleCost, plan),
+    cost: penLaborManDays(
+      input.squares.reduce((sum, q) => sum + q.obstacleCost, 0),
+      plan,
+      input.squares.length,
+    ),
     done: 0,
     dwellingType: null,
     position: null,
@@ -412,8 +489,24 @@ export function startPen(
   return next;
 }
 
-/** Dostavěná ohrada (mutuje stav). */
-export function finishPen(state: VillageState, penId: number, day: number): void {
+/**
+ * Dostavěná ohrada, nebo její rozšíření (mutuje stav): čtverce rozšíření stavby `constructionId`
+ * se začnou počítat; jinak je hotová celá ohrada.
+ */
+export function finishPen(
+  state: VillageState,
+  penId: number,
+  day: number,
+  constructionId?: number,
+): void {
   const pen = villagePens(state).find((p) => p.id === penId);
-  if (pen) pen.builtDay = day;
+  if (!pen) return;
+  const extension = (pen.extraSquares ?? []).filter(
+    (q) => constructionId !== undefined && q.constructionId === constructionId,
+  );
+  if (extension.length === 0) {
+    pen.builtDay = day;
+    return;
+  }
+  for (const q of extension) delete q.constructionId;
 }

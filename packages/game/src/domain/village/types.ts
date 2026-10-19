@@ -1846,19 +1846,49 @@ export interface HaySquare {
 }
 
 /**
- * Ohrada s přístřeškem (oxen.md) – čtverec 15 × 15 m, spřežení volů a výcvik nového. Stavba
- * a rádlo jsou stavby (`Construction.penId`).
+ * Druh ohrady (oxen.md – Ohrady podle druhu; Martin 19. 10. 2026: „Každý druh zvířete by měl mít
+ * vlastní ohradu, ať se nemíchají.“): ovce, kozy, prasata, skot (krávy a telata) a spřežení volů
+ * (výcvik a voli – s kravami se nemíchají).
+ */
+export type PenSpecies = 'sheep' | 'goat' | 'pig' | 'cattle' | 'team';
+
+/**
+ * Další čtverec ohrady za prvním (oxen.md – Ohrady podle druhu): ohrada se maluje po čtvercích
+ * jako hřbitov, nejvýš PEN_SQUARES.max čtverců. Rozšíření ve stavbě nese `constructionId` – do
+ * dokončení se čtverec nepočítá do kapacity.
+ */
+export interface PenSquare {
+  /** Čtverec v mřížce ohrady (`Pen.grid`); bez ní políčko krajiny. */
+  cell: TileCell;
+  /** Střed čtverce ve světě (m). */
+  x: number;
+  z: number;
+  /** Rozšíření ve stavbě – id stavby, která čtverec ohrazuje; bez údaje hotový s ohradou. */
+  constructionId?: number;
+}
+
+/**
+ * Ohrada s přístřeškem (oxen.md) – čtverce 15 × 15 m pro jeden druh zvířat; u spřežení voli
+ * a výcvik nového. Stavba a rádlo jsou stavby (`Construction.penId`). První čtverec (`cell`, `x`,
+ * `z`) nese přístřešek a jesle, další čtverce jsou v `extraSquares`.
  */
 export interface Pen {
   id: number;
-  /** Čtverec ohrady v její mřížce (`grid`); bez ní políčko krajiny. */
+  /**
+   * Druh zvířat (oxen.md – Ohrady podle druhu); ohrady uložené dřív ho dostanou při načtení
+   * (`withPenSpecies` – se spřežením nebo výcvikem `team`, jinak `cattle`).
+   */
+  species?: PenSpecies;
+  /** První čtverec ohrady (přístřešek a jesle) v její mřížce (`grid`); bez ní políčko krajiny. */
   cell: TileCell;
+  /** Další čtverce ohrady (rozšíření i čtverce namalované najednou); bez údaje jen první. */
+  extraSquares?: PenSquare[];
   /**
    * Natočená mřížka ohrady (fields.md – Natočené stavby, oxen.md) – natočený čtverec ohrady je
    * její čtverec `cell`; bez ní políčko krajiny.
    */
   grid?: SquareGrid;
-  /** Střed čtverce ve světě (m). */
+  /** Střed prvního čtverce ve světě (m). */
   x: number;
   z: number;
   /** Den dostavění; dokud se staví, null. */

@@ -419,6 +419,24 @@ export interface WinterInput {
   minSheep?: number;
   /** Cena jídla v práci (`foodCosts` – Rovnovážné hospodaření); bez údaje typická. */
   costs?: FoodCosts;
+  /**
+   * Místa na noc po druzích – ohrady svého druhu a pár kusů u domů (`herdRoom` v pens.ts – oxen.md,
+   * Ohrady podle druhu; diet.md, Bez ohrady u domu); bez údaje neomezeně. Místa jsou pro dospělé
+   * i jarní mláďata – přes zimu jich zůstane nejvýš `room ÷ (1 + růst)` (`roomForWinter`).
+   */
+  room?: Record<HerdSpecies, number>;
+}
+
+/**
+ * Kolik kusů druhu smí přes zimu zůstat, aby se do míst na noc (`room`) vešli i s jarními
+ * mláďaty (oxen.md – Kapacita ohrady); bez údaje neomezeně.
+ */
+export function roomForWinter(
+  room: Record<HerdSpecies, number> | undefined,
+  species: HerdSpecies,
+): number {
+  if (!room) return Infinity;
+  return Math.max(0, room[species]) / (1 + LIVESTOCK.growth[species]);
 }
 
 /**
@@ -475,7 +493,9 @@ function watchedShares(
  * dělí podle přednosti (`GRAZING_ORDER` – voli první, pak ovce na vlnu, krávy na mléko a voly,
  * další ovce, kozy – ty spásají napřed křoviny –, zbytek krav); prasata podle lesa (pasou se v něm
  * celý rok – žaludy, bukvice, kořínky); a jen tolik, kolik pasáci uhlídali (`herding` – co nikdo
- * neuhlídal, jde na maso) – pasáci hlídají napřed ovce na vlnu (`watchedShares`).
+ * neuhlídal, jde na maso) – pasáci hlídají napřed ovce na vlnu (`watchedShares`). Nejvýš tolik,
+ * kolik se i s jarními mláďaty vejde do ohrad svého druhu a u domů (`room` – oxen.md, Ohrady podle
+ * druhu; co se nevejde, jde na maso).
  */
 export function winterTargets(
   state: VillageState,
@@ -523,7 +543,10 @@ export function winterTargets(
     else take(step, Infinity);
   }
   targets.pig = Math.min(herds.pig * watched.rest, pigForestHa(state) / LIVESTOCK.forestHaPerPig);
-  return herdRecord((s) => Math.max(breeding(s), targets[s]));
+  // ohrady svého druhu a pár kusů u domů (oxen.md – Ohrady podle druhu) – chovný pár zůstane vždy
+  return herdRecord((s) =>
+    Math.max(breeding(s), Math.min(targets[s], roomForWinter(input.room, s))),
+  );
 }
 
 /**
