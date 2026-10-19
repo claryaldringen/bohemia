@@ -228,8 +228,6 @@ export interface VillagePen {
   team: { ageYears: number; yearsLeft: number } | null;
   /** Výcvik spřežení – průběh 0–1 a zbývající dny; bez výcviku null. */
   training: { progress: number; daysLeft: number } | null;
-  /** Proč teď nejde začít výcvik (česky), nebo null – tlačítko „Vycvičit spřežení“. */
-  trainBlocked: string | null;
   /** Kolik krav a volů v ohradě právě stojí (krávy jen v zimě). */
   cows: number;
   oxen: number;
@@ -2354,7 +2352,6 @@ function penViews(state: VillageState, day: number, summary: VillageSummary): Vi
       progress,
       team: pen.team,
       training: pen.training,
-      trainBlocked: pen.trainBlocked,
       cows: winter && pen.built && built > 0 ? Math.round(summary.livestock.herds.cow / built) : 0,
       oxen: (pen.team ? 2 : 0) + (pen.training ? 2 : 0),
       condition: structureCondition(wear, 'pen', day),

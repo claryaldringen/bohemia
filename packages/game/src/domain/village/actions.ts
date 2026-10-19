@@ -12,7 +12,7 @@ import {
 import { craftCoverage } from './crafts';
 import { isVillageExtinct } from './extinction';
 import { startingLivestock } from './livestock';
-import { startPen, startTeamTraining, type PenInput } from './oxen';
+import { startPen, type PenInput } from './oxen';
 import { fieldsTouching, mergeFields, partFoundingCost } from './fields';
 import { normalizeGrid, rotationTurn, squareKey } from './square-grid';
 import { fieldGrids } from './squares';
@@ -1066,19 +1066,4 @@ export function foundPen(
   // čtverec pole pod ohradou z pole zmizí (fields.md – Pole jako krajina)
   giveWayToBuilding(next, day, input.takenLand ?? [], 'pen');
   return next;
-}
-
-/**
- * Hráč zadá v ohradě výcvik spřežení (oxen.md – „Vycvičit spřežení“). RangeError, když je den
- * mimo vsi nebo výcvik nejde (`trainingBlock`).
- */
-export function trainTeam(
-  state: VillageState,
-  day: number,
-  penId: number,
-  obstacles: ObstacleLayer | null,
-  walk?: Walk,
-): VillageState {
-  validateActionDay(state, day);
-  return startTeamTraining(state, day, penId, obstacles, walk);
 }

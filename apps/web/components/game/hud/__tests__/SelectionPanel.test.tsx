@@ -23,7 +23,6 @@ const pen = (over: Partial<Extract<SelectionDetails, { kind: 'pen' }>> = {}): Se
   team: null,
   training: null,
   hayKg: 3200,
-  trainBlocked: null,
   condition: 1,
   abandoned: false,
   repair: null,
@@ -34,15 +33,10 @@ const render = (details: SelectionDetails): string =>
   renderToStaticMarkup(
     <SelectionPanel
       details={details}
-      onTrainTeam={() => Promise.resolve()}
       onRelocate={() => undefined}
       onCancelRelocation={() => Promise.resolve()}
     />,
   );
-
-/** Atributy tlačítka výcviku. */
-const trainButton = (html: string): string | undefined =>
-  /<button([^>]*data-testid="train-team"[^>]*)>/.exec(html)?.[1];
 
 const text = (html: string, testId: string): string | undefined =>
   new RegExp(`data-testid="${testId}"[^>]*>([^<]*)<`).exec(html)?.[1];
@@ -62,29 +56,17 @@ describe('SelectionPanel – ohrada', () => {
     expect(text(render(pen({ milkLPerDay: 14.2 })), 'selection-milk')).toBe('14');
   });
 
-  it('výcvik jde – tlačítko „Vycvičit spřežení“ je aktivní', () => {
-    const html = render(pen());
-    expect(trainButton(html)).toBeDefined();
-    expect(trainButton(html)).not.toContain(' disabled=""');
+  it('spřežení se cvičí samo – tlačítko výcviku v panelu není (Martin 19. 10. 2026)', () => {
+    expect(render(pen())).not.toContain('Vycvičit spřežení');
+    expect(render(pen({ team: { ageYears: 1, yearsLeft: 9 } }))).not.toContain('<button');
   });
 
-  it('výcvik nejde – tlačítko zašedlé, důvod červeně', () => {
-    const html = render(
-      pen({ trainBlocked: 'Na výcvik chybí telata – stádo potřebuje aspoň 3 krávy.' }),
-    );
-    expect(trainButton(html)).toContain(' disabled=""');
-    expect(text(html, 'train-blocked')).toBe(
-      'Na výcvik chybí telata – stádo potřebuje aspoň 3 krávy.',
-    );
-  });
-
-  it('výcvik běží – průběh a zbývající dny, bez tlačítka; spřežení stáří a zbývající roky', () => {
+  it('výcvik běží – průběh a zbývající dny; spřežení stáří a zbývající roky', () => {
     const html = render(
       pen({ training: { progress: 0.4, daysLeft: 438 }, team: { ageYears: 8, yearsLeft: 2 } }),
     );
     expect(html).toContain('aria-valuenow="40"');
     expect(text(html, 'selection-training-days')).toBe('438');
-    expect(html).not.toContain('data-testid="train-team"');
     expect(text(html, 'selection-team-age')).toBe('8');
     expect(text(html, 'selection-team-left')).toBe('2');
   });
@@ -95,14 +77,6 @@ describe('SelectionPanel – ohrada', () => {
     );
     const icons = html.match(/src="\/icons\/resources\/hourglass\.png"/g) ?? [];
     expect(icons).toHaveLength(2);
-  });
-
-  it('spřežení slouží dlouho – výcvik náhrady zašedlý s důvodem', () => {
-    const html = render(
-      pen({ team: { ageYears: 1, yearsLeft: 9 }, trainBlocked: 'Spřežení slouží ještě 9 let.' }),
-    );
-    expect(trainButton(html)).toContain(' disabled=""');
-    expect(text(html, 'train-blocked')).toBe('Spřežení slouží ještě 9 let.');
   });
 
   it('rozestavěná ohrada jen průběh stavby', () => {
@@ -457,9 +431,7 @@ describe('SelectionPanel – rozvržení', () => {
   });
 
   it('popisky v panelu se zalomit smí – delší důvod, proč akce nejde', () => {
-    const html = render(
-      pen({ trainBlocked: 'Na výcvik chybí telata – stádo potřebuje aspoň 3 krávy.' }),
-    );
+    const html = render(pen());
     const tooltip = /<span role="tooltip" class="([^"]*)"/.exec(html)?.[1] ?? '';
     expect(tooltip.split(' ')).toContain('whitespace-normal');
   });

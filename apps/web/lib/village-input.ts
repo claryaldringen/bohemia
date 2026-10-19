@@ -160,13 +160,6 @@ export function parsePlacePenInput(
   return input !== null && input.cells.length > 0 ? input : null;
 }
 
-/** Vstup výcviku spřežení `{ penId }` – kladné celé číslo, jinak null. */
-export function parseTrainTeamInput(value: unknown): { penId: number } | null {
-  if (!isRecord(value)) return null;
-  const { penId } = value;
-  return Number.isInteger(penId) && (penId as number) > 0 ? { penId: penId as number } : null;
-}
-
 /** Vstup vylepšení pevné cesty `{ roadId, upgrade }` (roads.md), jinak null. */
 export function parseUpgradeRoadInput(
   value: unknown,

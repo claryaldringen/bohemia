@@ -52,7 +52,37 @@ půdy na seno. Dobytek, dosud jen ozdoba, se tím poprvé zapojí do hry.
   bez spřežení, výcviku a zimních krav se krmit nechodí; když k ní za rok nevede žádná cesta,
   chátrá a za ≈ 10 let se rozpadne a zmizí. Ohrada se zvířaty opuštěná není.
 
-## Spřežení (cvičí hráč)
+## Spřežení (cvičí se samo)
+
+**Změna (Martin, 19. 10. 2026):** „Ať se spřežení cvičí automaticky, bez zásahu hráče. Prostě ve
+chvíli, kdy mají vesničané k dispozici cokoliv, co jim ulehčí práci – zde rádlo a voly – začnou to
+automaticky používat.“
+
+**Princip pro celou hru** (Martin): co vesničanům ulehčí práci a mají to k dispozici, začnou
+používat sami – hráč staví a rozhoduje o velkých věcech (stavby, pole, odchod, obchod), každodenní
+využití toho, co ves má, je na vesničanech. Tak už fungují nástroje a nádoby od řemeslníků, klády
+z hromady, orba spřežením, seč, porážka i obnova sadu; od 19. 10. 2026 i výcvik spřežení.
+
+Výcvik (návrh Clauda):
+
+- **Začne sám** kterýkoli den, kdy ohrada stojí, nic se v ní necvičí, nemá spřežení (nebo je
+  spřežení v posledních 2 letech služby – náhrada), stádo má aspoň **3 krávy** (dvě telata do
+  výcviku a chovná kráva), na rádlo je dřevo (kláda z hromady, nebo strom ke kácení) a v zimě
+  (listopad–březen) vystačí seno volům i telatům do konce března.
+- **Proč kterýkoli den a ne jednou ročně (třeba 1. 4. s mláďaty):** náhrada musí začít přesně
+  8 let po vycvičení, aby starý pár dosloužil celých 10 let a nový navázal týž den (rozhodnutí
+  Martina z 18. 10.); nová ohrada nečeká na jaro; „telata“ jsou mladé kusy stáda – hra věk kusů
+  nevede, mláďata 1. 4. jen zvětší stádo.
+- **Když telata chybí** (méně než 3 krávy): ohrada čeká a výcvik začne první den, kdy je stádo má
+  – nejčastěji 1. 4. s mláďaty. Ves s ohradou drží aspoň 3 krávy na ohradu
+  ([strava – Skladba stáda](diet.md)), takže telata zase přibudou.
+- **Rádlo** postaví ves sama jako součást výcviku – stavba ze společné práce (5 člověkodní
+  a strom), jako dřív.
+- Hráč výcvik nezadává – tlačítko „Vycvičit spřežení“ zmizelo; panel ohrady ukazuje průběh výcviku
+  a stáří spřežení, upozornění „Spřežení je vycvičené“ zůstává. Výcvik zadaný hráčem ve starší vsi
+  doběhne beze změny, ohrada, která na hráče čekala, začne sama od dalšího vhodného dne.
+
+Původní pravidla (18. 10. 2026; zadávání hráčem výš nahrazeno):
 
 - V ohradě hráč zadá **„Vycvičit spřežení“** – z telat vlastního stáda se za **2 roky** vycvičí pár
   volů (Martin – směr). Mezitím je potřeba je krmit (pastva, v zimě seno); práce na péči je malá –
@@ -133,7 +163,8 @@ Rozhodnutí kontroléru tam, kde návrh nedává postup (Martin je může změni
   smí cvičit náhradu až v posledních 2 letech jeho služby (`trainingBlock` –
   `serviceYearsBeforeTraining`); nové spřežení vystřídá staré (staré jde na maso), spřežení
   starší 10 let zestárne a jde na maso (2 × 120 kg) – náhrada zadaná hned, jak smí, naváže týž
-  den.
+  den. **Od 19. 10. 2026** výcvik začne sám první vhodný den (Spřežení výš) – náhrada tak naváže
+  vždy, když jsou telata, dřevo a seno.
 - **Seno:** 1. 6. ves naplánuje seč – seno pro krávy a voly na zimu (≈ 1,5 t na kus, ohrada bez
   spřežení a výcviku počítá se dvěma voly – výcvik jde zadat kdykoli) bez zásoby, z dílů úhoru ve
   fázi louky a z přirozených luk do 600 m od nejbližší k obydlí – vzdálenost je **chůze po
@@ -201,7 +232,7 @@ orba skutečně postupuje, stejně jako se mění vzhled dílů ([fields.md](fie
 - V nabídce staveb **ohrada** (název a cena v tooltipu).
 - V panelu ohrady: zvířata (ikony + čísla), průběh cvičení spřežení, zásoba sena na zimu; kolik
   let spřežení ještě slouží a kolik dní výcviku zbývá – ikona přesýpacích hodin (Martin: slunce
-  nebylo srozumitelné).
+  nebylo srozumitelné). Tlačítko výcviku není – spřežení se cvičí samo (Martin, 19. 10. 2026).
 - V horní liště **seno** (ikona + číslo), když ves má dobytek v ohradě.
 - Ve scéně: ohrada s přístřeškem, v zimě voli a krávy v ohradě, stohy sena, na jaře a na podzim
   spřežení orá pole čtverec po čtverci – na čele orby u čáry, kde se zem mění na zoranou, a každý
@@ -228,3 +259,5 @@ orba skutečně postupuje, stejně jako se mění vzhled dílů ([fields.md](fie
 | Seno i pro ovce a kozy; dávky malého dobytka; práce seče se sušením a svozem                | Martin (19. 10. 2026)         |
 | Kráva 5, vůl 6, ovce a koza 1 kg denně; seč 15 → 10 čd/ha; stoh 10 %/rok                    | návrh Clauda (rešerše)        |
 | Staré seno se k nové seči zkazí; seče se na zimní stádo podle potřeby                       | návrh Clauda                  |
+| Spřežení se cvičí samo – co ulehčí práci a ves to má, vesničané používají sami              | Martin (19. 10. 2026)         |
+| Výcvik začne první vhodný den (telata, dřevo, v zimě seno), rádlo staví ves sama            | návrh Clauda                  |

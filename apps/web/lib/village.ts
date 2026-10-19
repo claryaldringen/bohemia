@@ -22,7 +22,6 @@ import {
   relocateHousehold,
   renameVillage,
   plantApplesAlongRoad,
-  trainTeamInPen,
   upgradeRoad,
   buildTrail,
   sendExpedition,
@@ -435,25 +434,6 @@ export function placePenForPlayer(
         today: ctx.day,
         cell,
         ...(grid ? { grid } : {}),
-      },
-    ),
-  );
-}
-
-/** Výcvik spřežení v ohradě (oxen.md – „Vycvičit spřežení“). */
-export function trainTeamForPlayer(
-  playerId: string,
-  villageId: string,
-  input: { penId: number },
-): Promise<VillageActionResult> {
-  return actOn(playerId, villageId, (ctx) =>
-    trainTeamInPen(
-      { villages: villages() },
-      {
-        villageId: ctx.villageId,
-        landscape: ctx.landscape,
-        today: ctx.day,
-        penId: input.penId,
       },
     ),
   );
