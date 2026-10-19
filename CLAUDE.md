@@ -694,12 +694,13 @@ rozhraní částí v
   pracují v dílně (`workshopLabor`, `workCrafts` v kroku práce – mimo `allocateDay`, do sil
   plánu osevu se nepočítají), jen dokud je co dělat: **podle potřeby** (Martin 18. 10. 2026 –
   volný čas na poli) kovář a hrnčíř vyrábějí do zásoby `craftTargets` (potřeba + opotřebení za
-  rok), uhlíř do zásoby uhlí na rok spotřeby kovářů (`smithsCharcoalPerYear` – opotřebení
-  a chybějící zásoba nástrojů); s plnou zásobou nebo bez vstupu je dílna v `restingCrafters`
+  rok), uhlíř má vždy milíř a z vypáleného nosí uhlí podle kování (Uhlíř níž); s plnou zásobou
+  nebo bez vstupu je dílna v `restingCrafters`
   (na začátku kroku práce, hodnota `resting` / `no-charcoal` / `no-wood`) a její domácnost
   pracuje v `allocateDay` se vsí (`craftHouseholds(state, resting)`); uhlíř a hrnčíř kácejí strom po stromu (`Workshop.felling` je
   vyhrazený – `reservedTrees` / `claimedObstacles` ho znají), zásoby `VillageState.crafts`
-  (kg uhlí, nástrojů, keramiky; opotřebení `wearCraftStocks` jen v užívání). **Pokrytí**
+  (kg uhlí u kováře, nástrojů, keramiky; opotřebení `wearCraftStocks` jen v užívání, uhlí
+  neubývá; celá zásoba uhlí i s vypálenými milíři `charcoalStockKg`). **Pokrytí**
   `craftCoverage` se spočítá na začátku dne a jde všude, kde platí meze (plán osevu, přidané díly,
   založení pole – i `PlacementVillage.toolCoverage` pro náhled –, denní minimum, ztráty zásob,
   jablka v nádobách `applesSpoiled` / `appleKeepDays`). Rozdělení práce dne má `craft` (u dílny)
@@ -714,15 +715,33 @@ rozhraní částí v
   doma, dál milíř v lese (`kiln.site`, přirážka chůze `kilnWalkFactor` – `kiln.walkM` po pevných
   cestách s půdou `villageRoadWalk`, dovoz dřeva `fellingsOf` jako u staveb; bez krajiny
   vzdušně). Na pařezy sází mladé buky (`Workshop.toPlant`, `plantOnStump` → `ObstacleChange.planted`; `felledTreeStage` – sazenice
-  dospěje za `BEECH_PLANTING.matureYears`, bez sazenice nálet jako dřív; `saplingGrowth`). Pálí
-  jen do zásoby na rok spotřeby kovářů (`charcoalShortfallKg`, `smithsCharcoalPerYear`); bez
-  milíře a sázení odpočívá (`restingCrafters`, viz výš). Starší dílna uhlíře se převede
-  (`migrateBurner`). Rozdělení práce: `fell` u buků (i příprava dřeva), `craft` u milíře – v lese
-  cíl `{ kind: 'kiln', id, x, z }`, `plant` u pařezů. Web: `VillageWorkshop.kiln` / `toPlant`,
-  `SceneVillage.kilns` (lesní milíře – fáze, průběh) a `plantedSaplings` (velikost mladých buků);
-  scéna kreslí lesní milíř funkcemi milíře u dílny přes kotvu `forestKilnAnchor`
-  (`workshop-layout.ts`), postavy u lesního milíře `kilnWorkers`, sázení `planting`, polena nosí
-  k lesnímu milíři (`felling`).
+  dospěje za `BEECH_PLANTING.matureYears`, bez sazenice nálet jako dřív; `saplingGrowth`).
+  **Milíř stojí vždy** (crafts.md – Milíř stojí vždy; Martin 19. 10. 2026: „Uhlíř: měl by vždy
+  postavit milíř, z hotového milíře by se mělo kouřit a pak by jej měl rozebírat podle toho, jak
+  mu bude uhlí odebírat kovář.“): uhlíř má jeden milíř (`Workshop.kiln`) – bez něj začne nový
+  (bez buků `no-wood`), vypálený (`draw`, `CharcoalKiln.charcoalKg` – uhlí v něm) je zásobou uhlí:
+  uhlí jde do `crafts.charcoalKg` („u kováře“) jen tak, jak ho kovář odebírá – `charcoalDrawKg`:
+  když u kováře nestačí na dnešní kování (`smithsForgeCharcoalKg` – kovající kováři na plný
+  úvazek), donese uhlí na `CHARCOAL_KILN.drawBatchDays` (30) dní kování (2 čd na 120 kg, v lese
+  s přirážkou); zbytek, který stačí jen na přípravu a pálení dalšího milíře (`kilnLeadKg` –
+  `smithsCharcoalPerYear` po dnech × `kilnLeadDays`), vytahá celý. Rozebraný milíř zmizí, nový od
+  dalšího dne. Bez kováře (rozhodnutí Clauda) vypálený milíř čeká a další se nestaví. S vypáleným
+  milířem a uhlím u kováře uhlíř odpočívá (`restingBurners` v `restingCrafters` – napřed uhlíři,
+  kovář `no-charcoal` jen, když mu dnes nikdo nedonese). Obchod prodává uhlí u kováře i z milířů
+  (`takeCharcoal` – milíř se rozebírá), koupené jde ke kováři. Starší dílna uhlíře se převede
+  v kroku práce (`migrateBurner` – palivo a kácení; `migrateKiln` – vytahovaný milíř bez
+  `charcoalKg` je vypálený s celou dávkou; čtení přes `kilnCharcoalKg` platí i před převodem). Rozdělení práce: `fell` u buků (i příprava dřeva), `craft` u milíře – v lese
+  cíl `{ kind: 'kiln', id, x, z }`, `plant` u pařezů. Web: `VillageWorkshop.kiln` (i `charcoalKg`)
+  / `toPlant`, lišta a panel uhlí = `charcoalStockKg`, `SceneVillage.kilns` (lesní milíře)
+  a `SceneVillage.dwellings[].kiln` (milíř u dílny) – `SceneKilnState`: fáze, průběh a u vypáleného
+  podíl uhlí `charcoal` (po 2 %), `plantedSaplings` (velikost mladých buků). Scéna: vzhled podle
+  fáze jedna čistá funkce `kilnLook` (`workshop-layout.ts` – staveniště `constructionState('milir')`,
+  hráň polen, hotový milíř se `scale` / `scaleY` – vypálený sesedne, rozebíraný se zmenšuje,
+  `ModelInstance.scaleY` –, dým jen při pálení, koše u rozebíraného); milířiště se staví se zemnicí
+  (`milirGroundProgress`), milíř na něm až z buků; lesní milíř kreslí funkce milíře u dílny přes
+  kotvu `forestKilnAnchor` (`VillageRenderer.kilnPlaces` – oba druhy), postavy u lesního milíře
+  `kilnWorkers`, sázení `planting`, polena nosí k lesnímu milíři (`felling`). Ukázka /dev/buildings
+  **Cyklus milíře** (posuvník ▶ Milíř – `showcaseKiln`, `kilnCycleAt`).
 - **Nákup u sousedů** ([crafts.md](docs/design/crafts.md) – Nákup u sousedů, Martin 19. 10. 2026:
   „Nástroje ať vesničané obchodují individuálně… Sami si spočítají, jestli se jim to vyplatí.“;
   čísla `CRAFT_BUYING` v `rules.ts`, rešerše `research/2026-10-19-craft-buying.md`):
