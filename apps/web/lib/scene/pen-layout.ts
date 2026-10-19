@@ -6,7 +6,7 @@
 // v metrech (x, z); natočení jako `Position.rotation` (+z modelu míří do (sin r, cos r)).
 // Natočená ohrada (fields.md – Natočené stavby, oxen.md): rozmístění se spočítá v „rovném
 // prostoru“ kolem středu čtverce (svět otočený zpět o natočení ohrady) a otočí se do světa.
-import { rotationCosSin, type Position } from '@bohemia/game';
+import { PEN_GATE, penEntrance, rotationCosSin, type Position } from '@bohemia/game';
 import { isRotatedSquare } from './field-cells';
 import { FENCE_INSET_M, type PlotSquare } from './homestead-layout';
 import { valueNoise } from './livestock-motion';
@@ -35,9 +35,9 @@ export interface Direction {
  * pozemku, o něco řidší než proutěný plot hřbitova – dobytek se o něj opírá) a branka 1,6 m.
  */
 export const PEN_FENCE: FenceStyle = {
-  postStep: 1,
+  postStep: PEN_GATE.postStep,
   rails: [0.14, 0.24, 0.34, 0.44, 0.54, 0.64, 0.74, 0.84, 0.94],
-  gateWidth: 1.6,
+  gateWidth: PEN_GATE.gateWidth,
 };
 
 /**
@@ -139,19 +139,22 @@ function alongX(d: Direction): number {
 
 /**
  * Ohrada na čtverci: branka na straně, kam míří `facing` (ke vsi / nejbližšímu obydlí), posunutá
- * po té straně k cíli; přístřešek v zadním rohu na opačné straně, než kam se `facing` stáčí
- * (při směru přesně podél osy podle čtverce), otevřený dopředu; jesle pod ním u zadní stěny,
- * žlab před přístřeškem podél bočního plotu, stoh vedle přístřešku; dva voli (u žlabu a u jeslí)
- * a kráva, která se pase. Stejný čtverec a směr = stejná ohrada.
+ * po té straně k cíli – vchod z jádra (`penEntrance`, paths.md – Vchody: pěšina vede k ní);
+ * přístřešek v zadním rohu na opačné straně, než kam se `facing` stáčí (při směru přesně podél
+ * osy podle čtverce), otevřený dopředu; jesle pod ním u zadní stěny, žlab před přístřeškem podél
+ * bočního plotu, stoh vedle přístřešku; dva voli (u žlabu a u jeslí) a kráva, která se pase.
+ * Stejný čtverec a směr = stejná ohrada.
  */
 export function penLayout(square: PenSquare, facing: Direction): PenLayout {
+  const gate = penEntrance(square, facing);
   if (square.rotation === undefined || !isRotatedSquare(square))
-    return flatPenLayout(square, facing);
+    return flatPenLayout(square, facing, { x: gate.x, z: gate.z });
   // natočená ohrada: rozmístění v rovném prostoru, pak otočit do světa
   const turn = turner(square.x, square.z, square.rotation);
   const flat = flatPenLayout(
     { x: square.x, z: square.z, size: square.size },
     turn.toFlatDir(facing),
+    turn.toFlat(gate.x, gate.z),
   );
   return turnedLayout(flat, square, square.rotation, turn);
 }
@@ -243,8 +246,12 @@ function penToWorld(layout: PenLayout, x: number, z: number): { x: number; z: nu
   return turner(layout.square.x, layout.square.z, layout.rotation).toWorld(x, z);
 }
 
-/** Ohrada v osách krajiny (i rovný prostor natočené ohrady). */
-function flatPenLayout(square: PenSquare, facing: Direction): PenLayout {
+/** Ohrada v osách krajiny (i rovný prostor natočené ohrady); `gateAt` – střed branky z jádra. */
+function flatPenLayout(
+  square: PenSquare,
+  facing: Direction,
+  gateAt: { x: number; z: number },
+): PenLayout {
   const c = { x: square.x, z: square.z };
   const half = square.size / 2 - FENCE_INSET_M;
   const f0 = unit(facing);
@@ -285,7 +292,7 @@ function flatPenLayout(square: PenSquare, facing: Direction): PenLayout {
       },
     ],
     PEN_FENCE,
-    { toward: { x: c.x + f0.x * (half + 1), z: c.z + f0.z * (half + 1) } },
+    { toward: gateAt },
   );
   const run = fence.runs[0]!.posts;
   const a = run[0]!;

@@ -84,6 +84,12 @@ další rozhodnutí o místě v krajině – vedle obydlí a polí.
   pozemku polozemnice, jen s hustším pletivem; rohy zakulacené (vnitřní roh tvaru L malým
   obloukem), branka k vsi (Martin). Podle doby by mohlo vypadat jinak – v 6.–8. století žárové
   hroby a mohylky, od 9. století kostrové hroby (nápad na později).
+- **Pěšina vede k brance** (Martin, 19. 10. 2026: „každá budova by měla mít nějaký vchod, od
+  kterého cesta povede“): branka stojí na rovném úseku plotu nejblíž k nejbližšímu hotovému
+  obydlí (od středu hotových čtverců), aspoň kůl od zakulaceného rohu; počítá ji herní jádro
+  (`cemeteryEntrance`) pro síť pěšin i pro scénu. Návštěvy hrobů chodí brankou, práce na plotu
+  (založení, rozšíření, oprava) ze všech stran. Rozšíření ve stavbě branku nemá – zůstává
+  v plotu hotových čtverců ([paths.md](paths.md) – Vchody).
 
 ## Naměřeno
 
@@ -107,3 +113,4 @@ nasycení ≥ 0,95 u ní 97,6 % let místo 98,2 %. Čísla se neladila.
 | Hřbitov smí na pole – čtverec pole pod ním z pole zmizí                               | Martin, 18. 10. 2026          |
 | Plot opuštěného hřbitova vesničané opraví sami, když se k němu zase chodí – i spadlý  | Martin, 19. 10. 2026          |
 | Oprava plotu 3 čd na hotový čtverec × chybějící stav, stavba ze společné práce        | návrh Clauda                  |
+| Pěšina vede k brance hřbitova; branku počítá jádro pro síť i scénu                    | Martin, 19. 10. 2026          |

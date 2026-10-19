@@ -3,12 +3,16 @@
 // proplétané větve, liší se nejvýš hustotou (`FenceStyle`). V pleteném plotu se hranaté rohy
 // dělají špatně, proto jsou všechny rohy zakulacené: vnější oblouk o poloměru ≈ 1,25 m s kůly
 // po oblouku, vnitřní roh (tvar L) malý oblouk. Souřadnice světa scény v metrech (x, z).
+import { WOVEN_FENCE_CORNER_M } from '@bohemia/game';
 import { seededRandom, type Point } from './village-layout';
 
-/** Poloměr zakulacených vnějších rohů (m). */
-export const WOVEN_CORNER_RADIUS_M = 1.25;
+/**
+ * Poloměr zakulacených vnějších rohů (m) – z jádra, kde se počítá i branka (vchod stavby,
+ * paths.md – Vchody: entrances.ts).
+ */
+export const WOVEN_CORNER_RADIUS_M = WOVEN_FENCE_CORNER_M.outer;
 /** Poloměr vnitřních rohů (m) – plot nesahá daleko do sousedního políčka. */
-export const WOVEN_INNER_CORNER_RADIUS_M = 0.5;
+export const WOVEN_INNER_CORNER_RADIUS_M = WOVEN_FENCE_CORNER_M.inner;
 /** O kolik větev obchází kůl (m) – střídavě vně a uvnitř ohrazení. */
 export const RAIL_WEAVE_M = 0.065;
 
