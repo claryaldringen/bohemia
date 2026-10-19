@@ -249,6 +249,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         fields: [...base.fields, cartDemo.field],
         roads: [...(base.roads ?? []), ...cartDemo.roads],
         labor: base.labor ?? cartDemo.labor,
+        carts: cartDemo.carts,
       };
     }
     if (!people) return base;
@@ -1250,8 +1251,12 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     const kind = next[cartDemo?.kind ?? 'off'] ?? null;
     if (!kind) {
       setCartDemo(null);
+      scene?.setWorkDayClock(null);
       return;
     }
+    // svoz zrychleně za „den“ ukázky 86 s (jako herní den – PLOUGH_DAY_DEBUG), stránka hodiny
+    // světa nemá
+    scene?.setWorkDayClock(() => ({ startMs: 0, endMs: 86_000 }));
     const sample = demoCartSlope(decoded, obstaclesOf(decoded), kind, {
       dwelling: 9_000_001,
       pen: 9_000_002,

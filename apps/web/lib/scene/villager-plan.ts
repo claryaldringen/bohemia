@@ -883,12 +883,26 @@ function placer(ctx: Context, share: SceneLaborShare, count: number): Placer {
     case 'trade':
       // nosiči výpravy k sousedovi po zemské stezce (trade.md)
       return t.kind === 'trail' ? porters(ctx, t.id) : none;
-    case 'haul':
-      // honák a nakladač s vozem (wagons.md – Vůz): vozy scéna zatím nekreslí (fáze 3) – posádka
-      // vozu stojí u svozu jako nosiči snopů, sekáči na louce a dřevorubci u stromů
-      if (t.kind === 'field') return carriers(ctx, share, t.id);
-      if (t.kind === 'meadow') return meadowRows(ctx, t.cells, count);
-      return t.kind === 'trees' ? felling(ctx, t.ids, false) : none;
+    case 'haul': {
+      // honák a nakladač s vozem (wagons.md – Vůz): nakladač u svozu jako nosiči snopů, sekáči
+      // na louce a dřevorubci u stromů; honák jde s vozem (kreslí ho cart-renderer.ts – fáze 3)
+      const crew =
+        t.kind === 'field'
+          ? carriers(ctx, share, t.id)
+          : t.kind === 'meadow'
+            ? meadowRows(ctx, t.cells, count)
+            : t.kind === 'trees'
+              ? felling(ctx, t.ids, false)
+              : none;
+      const key = targetKey(t);
+      const drovers = (ctx.village.carts ?? []).filter(
+        (c) =>
+          c.job?.activity === 'haul' &&
+          (c.route?.length ?? 0) >= 2 &&
+          targetKey(c.job.target) === key,
+      ).length;
+      return drovers > 0 ? (i, who) => (i < drovers ? null : crew(i, who)) : crew;
+    }
     case 'idle':
       return idlers(ctx);
   }
