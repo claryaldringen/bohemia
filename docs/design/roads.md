@@ -184,7 +184,8 @@ stezka leží.“
   zarůstání po kusech drží jabloň kus cesty u sebe), nezaroste ani při malém provozu – stejně jako upravená cesta, hať s lávkou a hotová zemská stezka
   (stupeň nad vyšlapanou) a cesta, která se vylepšuje. Až všechny jabloně dožijí (souš), může
   zarůst jako jiná.
-- **Díl pole pod cestou o plochu nepřichází** (návrh Clauda) – na rozdíl od stromu na poli
+- ~~**Díl pole pod cestou o plochu nepřichází**~~ (návrh Clauda; **zrušeno** 19. 10. 2026 –
+  Martin: cesta poli plochu ubírá, viz [Cesta přes pole](#cesta-přes-pole)) – na rozdíl od stromu na poli
   (20 m²): (1) pevná cesta vzniká a zaniká sama provozem, hráč o ní nerozhoduje – ubírat pole by
   byla neviditelná ztráta, kterou nemůže ovlivnit, a při zarůstání, spojování a dělení úseků by
   se plocha musela vracet a přepočítávat (`giveWayToBuilding` umí jen ubrat); (2) je to málo –
@@ -281,8 +282,8 @@ nám pak hezky s orbou ustálí tvar polí, který je nyní příliš hranatý.�
   a pevná cesta vznikne. Zarůstající příloh (křoviny, mladý les) je vegetace – zdržuje dál. Chůze
   pro práci (`walking.ts`) pole nepočítala ani dřív.
 - **Vozy** přes osetý díl dál nejezdí ([wagons.md](wagons.md)).
-- **Tvar polí:** pevné cesty pole rozčlení. Pod pevnou cestou obilí neroste (jen vzhled – maska ve
-  scéně), plocha dílu se neubírá (Cesta je cesta – Díl pole pod cestou o plochu nepřichází).
+- **Tvar polí:** pevné cesty pole rozčlení. Pod pevnou cestou obilí neroste a od 19. 10. 2026 cesta
+  dílu ubírá plochu a odřízne malý růžek ([Cesta přes pole](#cesta-přes-pole)).
 - **Vlkov** (kopie stavu z 3. 1. 765, dopočet do 2. 11. 776): pevná cesta od domů k brance nového
   hřbitova vznikne **1. 11. 766** – úsek 183 (dřív 70 m od vsi k severozápadu) se prodlouží na
   144 m až k brance (116 m přes pole). Bez připojení po souběžném kusu (Úseky a rozcestí) by
@@ -291,9 +292,46 @@ nám pak hezky s orbou ustálí tvar polí, který je nyní příliš hranatý.�
   765–766 po strništi a po cestě 183). Ostatní cesty přes pole: úsek 59 se prodlouží ze 70 na
   91 m (89 m přes pole), krátký úsek 122 u vsi zaroste (jako dřív), zemská stezka 131 (234 m přes
   pole) a ostatní beze změny; do roku 776 už žádná další cesta nevznikne ani nezaroste.
-- **Otevřené – k rozhodnutí:** „ustálí tvar polí“ chápu tak, že cesty pole rozčlení (obilí pod
-  cestou se ve scéně nekreslí). Mělo by se dílu pod pevnou cestou ubrat i plochu (dnes ne –
-  zdůvodnění v Cesta je cesta)?
+- **Rozhodnuto** (Martin, 19. 10. 2026 – „Ano má.“): cesta dílu pod sebou plochu ubírá – [Cesta
+  přes pole](#cesta-přes-pole).
+
+## Cesta přes pole
+
+Martin (19. 10. 2026) na otázku, jestli má cesta dílu ubírat plochu: „Ano má. Ono to stejně ve
+výsledku bude tak, že pokud oráč narazí na cestu, tak spřežení otočí. Nebude pak moci vzniknout
+takový růžek…“ Podrobnosti návrh Clauda.
+
+- **Pás cesty se neorá:** díl přijde o plochu pod pásem pevné cesty v šířce obtisku (vyšlapaná
+  1,9 m, vozová 2,6 m, upravená a hať 3 m – `ROAD_LAND`) a pod plácky rozcestí (poloměr 1,3 ×
+  šířka nejširší cesty). Na přeťatém dílu 15 m vyšlapaná cesta vezme ≈ 30 m² z 225 m².
+- **Růžek za cestou zůstane loukou:** kus pole, který cesty oddělí od zbytku (cestou a okrajem
+  pole), se obdělává jen, když je aspoň **80 m²** (vejde se do něj obrat spřežení – kruh
+  o poloměru ≈ 5 m) a má místo **širší než 3 m** (jinak je to jen proužek podél cesty). Jinak
+  zůstane loukou – mez u cesty. Kus, který na pole navazuje dalšími čtverci (cesta přes roh
+  čtverce uprostřed pole), je obyčejné pole. Bez spřežení platí totéž: ostrůvek za cestou menší
+  než obrat nebo proužek u cesty se motykou nevyplatí – leží u cesty, šlape se po něm, stáda
+  hnaná po cestě ho spasou; sedlák ho nechá jako mez. Pravidlo tak nezávisí na tom, jestli ves
+  zrovna orá rádlem, a tvar pole se s cestami ustálí.
+- **Kdy:** v den po každé změně pevných cest nebo čtverců polí (vznik a zarůstání 1. 11.,
+  dokončené vylepšení, zemská stezka, nové či sloučené pole) – `roadFieldsDay` podle otisku cest
+  a polí, jinak nic. Co cesta brala dřív, se nejdřív vrátí: cesta, která zaroste nebo se
+  přesune, půdu vrátí. Výpočet po buňkách 0,5 m v mřížce pole (`roadLand`, `paths/road-land.ts`,
+  přesná aritmetika – stejně na serveru i ve scéně).
+- **Rozjetý rok:** zmenšený díl ubere plánu osevu (i orbě rádlem), seči a založení podíl jako pod
+  stavbou (`giveWayToRoads` jako `giveWayToBuilding` – hotová práce zůstane, zasetá plodina na ubrané ploše se nesklidí);
+  vrácená půda je obdělaná jako zbytek dílu. Díl, kterému zbude méně než 20 % políčka, z pole
+  vypadne jako pod stavbou (kronika „Pole ustoupilo cestě“).
+- **Starší vsi** dostanou plochu pod cestami při prvním dopočtu. **Kalibrace** (`--land real`)
+  cesty má – 20 vsí na 20 let: žádný cíl nezměnil stav, rozdíly v desetinách (osev 1,52 → 1,53 ha
+  na domácnost, bílkoviny 91,5 → 91,6 %).
+- **Scéna:** pás cesty maskuje track-mask.ts (od teď i vozová cesta), oddělené kousky dílu nesou
+  `SceneFieldPart.roadCut` (buňky z jádra) – obtisk, obilí ani koruna porostu tam nejsou
+  (`road-cut-mask.ts`). Brázdy a dráha spřežení (plough-front.ts) zatím oddělené kousky neznají.
+  Ukázka na `/dev/landscape` – **Cesta**: zralé pole přes rozcestí a krátká cesta přes roh pole
+  (růžek za ní zůstane loukou), **Cesta: přechod stupňů** (upravená půlka navazuje na vyšlapanou,
+  vozová cesta).
+- **Vlkov** (stav 19. 10. 2026): 1 022 m pevných cest, přes pole vedou na 39 čtvercích – pás vezme
+  1 146 m² a 2 růžky za cestou (20 a 21 m²) zůstanou loukou; celkem 1 186 m², 0,29 % ze 40,3 ha.
 
 ## Fáze 1 – jak je postavená
 

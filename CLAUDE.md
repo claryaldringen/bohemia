@@ -1715,6 +1715,19 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   `VillageRoad` = cesta (`segments`, `grades`, `cartM`), výběr `{ kind: 'road', id }` s id
   prvního úseku (`pickVillageTarget`), zvýraznění celé cesty, `SceneRoad.upgrade.fromEnd`;
   přechod pásů různé šířky se zúží (`RibbonLine.narrowStart` / `narrowEnd`, `NARROW_M`).
+- **Cesta přes pole** ([roads.md](docs/design/roads.md) – Cesta přes pole; Martin 19. 10. 2026:
+  „Ano má. … pokud oráč narazí na cestu, tak spřežení otočí. Nebude pak moci vzniknout takový
+  růžek…“): pás pevné cesty (šířky `ROAD_LAND.widthM` = obtisk, i `ROAD_WIDTH_M` ve scéně)
+  a plácky rozcestí se neorou; kus pole oddělený cestami pod `cornerMinM2` (80 m²) nebo bez místa
+  širšího než `stripMinM` (3 m) zůstane loukou. `roadLand` (`paths/road-land.ts`, buňky 0,5 m
+  v mřížce pole, `fieldFrame`) → `PartRoadLand`; krok dne `roadFieldsDay` (`road-fields.ts`, jen
+  s krajinou – i kalibrace `--land real`) při změně otisku `roadLandKey` (cesty + čtverce polí,
+  `VillageState.roadLandKey`) zavolá `giveWayToRoads` (`land-taken.ts`, `resizeParts` –
+  zmenšení i vrácení plochy s plánem, sečí a založením; pod 20 % políčka díl vypadne, kronika
+  `land-taken` s `by: 'road'`). Díl nese `roadM2` (už odečtené z `areaM2`) a `roadCut` (řádky
+  bitů buněk); scéna `SceneFieldPart.roadCut` → `roadCutMask` (`road-cut-mask.ts`) v krytí pole,
+  dev ukázka Cesta (`withRoadCuts`). Brázdy a spřežení (plough-front.ts) oddělené kousky zatím
+  neznají.
 - **Jabloně podél pevné cesty** ([roads.md](docs/design/roads.md) – fáze 3): `VillageRoads.apples`
   (`RoadApple` – místo, úsek, `distanceM` vzdušnou čarou, `plantedDay` null = čeká na výsadbu,
   `constructionId`). `road-apples.ts`: `roadAppleSpots` (po 10 m střídavě – `roadTreeSpots`

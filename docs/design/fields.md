@@ -1227,8 +1227,8 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
   pole vsi, která kope motykou, mají rohy ostré – i pole z doby před spřežením, dokud je ves
   neoře (stav vsi „letos orá rádlem“, ne paměť po dílech).
   **Pod cestou obilí neroste** (Martin, 19. 10. 2026: „Vzrostlé obilí přerůstá cestu. Tam, kde je
-  cesta, prostě obilí neroste.“; podrobnosti návrh Clauda, jen vzhled – plochu dílu cesta
-  neubírá, [roads.md](roads.md) – Cesta je cesta): pod pásem pevné cesty (vyšlapaná 1,9 m,
+  cesta, prostě obilí neroste.“; podrobnosti návrh Clauda – plochu dílu cesta od 19. 10. 2026
+  ubírá, viz Cesta přes pole níž): pod pásem pevné cesty (vyšlapaná 1,9 m, vozová 2,6 m,
   upravená 3 m – šířka prošlapané trávy obtisku i s vlněním osy) a pod plácky rozcestí scéna
   nekreslí trsy obilí ani luštěnin, panáky, plevel, korunu porostu ani obtisk pole; za okrajem
   pásu se pole vrací do 0,8 m a koruna tam vystoupá ze země **svahem** jako na okraji pole (ne
@@ -1239,6 +1239,13 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
   nebo nové síti pěšin (odloženě s přepočtem pěšin, nikdy za snímek) a jen ty, kudy pás vede.
   Kus pole, přes který pás vede, má jemnější síť koruny (≈ 0,47 m) a obtisku (≈ 0,94 m), jinak by
   úzkou stopu přerostla.
+  **Cesta přes pole** (Martin, 19. 10. 2026: „Ano má. Ono to stejně ve výsledku bude tak, že
+  pokud oráč narazí na cestu, tak spřežení otočí. Nebude pak moci vzniknout takový růžek…“;
+  pravidla [roads.md](roads.md) – Cesta přes pole): díl přijde o plochu pod pásem pevné cesty
+  a plácky rozcestí a kus pole, který cesta oddělí a který je menší než obrat spřežení (80 m²)
+  nebo užší než 3 m, zůstane loukou – úroda i práce jen z obdělané části (`FieldPart.roadM2`
+  odečtené z plochy). Scéna na odděleném kousku nekreslí obtisk, obilí ani korunu
+  (`SceneFieldPart.roadCut`).
   Kolem vsi se navíc seče pár luk na seno (jen vzhled, na dvě domácnosti jedna louka).
   **Zarůstání** (viz Zarůstání, Les vsi): stáda se pasou jen na dílech, kam dojdou (nejbližší
   napřed). Na nepaseném a nesečeném přílohu od 3. roku přibývají keře, které rostou (plné
@@ -1386,6 +1393,8 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Řádky sena zelenožluté, širší, nepravidelné, kratší dobu – pak kupky                                                              | Martin (19. 10. 2026)                           |
 | Řádky ≈ 1,1 m (okraj do 2 m), rozestup ± 15 %, trhliny; seno v řádcích 3 dny, ve vsi jen díly dnešní seče                         | návrh Clauda                                    |
 | Maska v šířce obtisku cesty, okraj 0,8 m (pěšina 0,5 m) svahem; přestavba jen bloků u změněných pásů; jemnější síť pod pásem      | návrh Clauda                                    |
+| Cesta dílu ubírá plochu a odřízne růžek, do kterého se nevejde obrat spřežení                                                     | Martin (19. 10. 2026)                           |
+| Pás v šířce obtisku a plácky rozcestí; oddělený kus pod 80 m² nebo užší než 3 m loukou; i bez spřežení; přepočet při změně cest   | návrh Clauda                                    |
 | Cíl = rok spotřeby z pole a pojistka po příští sklizni bez toho, co zbude; pojistka ~~0,3~~ 0,5 roční potřeby celé energie        | návrh Clauda                                    |
 | Volná práce pro plán osevu po dospělých pasácích (se stády podle bílkovin)                                                        | návrh Clauda                                    |
 | Přebytek nad pojistku za 3 roky, chybějící hned; luštěniny podle své zásoby bez rezervy; bez měření podílu podíl 1                | návrh Clauda                                    |

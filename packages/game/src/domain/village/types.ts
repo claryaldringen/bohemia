@@ -325,6 +325,17 @@ export interface FieldPart {
    * louky. Smaže se na konci hospodářského roku, ve kterém byl díl v osevu; chybí = drn není.
    */
   sod?: true;
+  /**
+   * Kolik čtverce dílu berou pevné cesty (m² – roads.md a fields.md, Cesta přes pole): pás cest,
+   * plácky rozcestí a kousky oddělené cestou, které zůstaly loukou. Už je odečtené z `areaM2`
+   * (`giveWayToRoads`) – cesta, která zaroste nebo se přesune, půdu vrátí. Chybí = nic.
+   */
+  roadM2?: number;
+  /**
+   * Oddělené kousky dílu, které zůstaly loukou (`roadLand` – řádky buněk po ROAD_LAND.cells
+   * bitech) – scéna na nich nekreslí obilí ani obtisk pole. Chybí = žádné.
+   */
+  roadCut?: number[];
 }
 /**
  * Les vsi (fields.md – Zarůstání, Les vsi): čtverec pole, který zarostl lesem a z pole vypadl. Les
@@ -519,7 +530,16 @@ export type ConstructionKind =
  * sad, hřbitov, ohrada, modla, svatyně, jabloně u cesty a stromy u cesty – cokoli kromě pole.
  */
 export type LandTaker =
-  'dwelling' | 'orchard' | 'cemetery' | 'pen' | 'idol' | 'shrine' | 'road-apples' | 'road-trees';
+  | 'dwelling'
+  | 'orchard'
+  | 'cemetery'
+  | 'pen'
+  | 'idol'
+  | 'shrine'
+  | 'road-apples'
+  | 'road-trees'
+  /** Pevná cesta přes pole – pás, rozcestí a oddělené kousky (roads.md – Cesta přes pole). */
+  | 'road';
 /** Posvátná stavba, kterou staví hráč (happiness.md). */
 export type SacredBuildingKind = 'idol' | 'shrine';
 export interface Construction {
@@ -1103,6 +1123,11 @@ export interface VillageState {
    * a ve vsích simulovaných bez krajiny (kalibrace, testy) – začnou při prvním dopočtu s krajinou.
    */
   roads?: VillageRoads;
+  /**
+   * Otisk pevných cest a čtverců polí, pro který naposledy platí plocha dílů pod cestami
+   * (`roadFieldsDay` – roads.md a fields.md, Cesta přes pole); chybí = ještě se nepočítala.
+   */
+  roadLandKey?: number;
   /**
    * Zbytky jam po zaniklých obydlích (population.md – Chátrání a přestavba, Po zániku) – zarůstají
    * RUIN_YEARS let, pak zmizí (ruins.ts). Chybí = žádné (i u vsí uložených před nimi).

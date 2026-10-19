@@ -2,6 +2,7 @@ import type { RoadGrade } from '@bohemia/game';
 import type { SceneRoad, SceneRoadApple } from '../village-view';
 import {
   CART_RUT_OFFSET_M,
+  CART_WORN_LAYER,
   IMPROVED_WORN_LAYER,
   JUNCTION,
   ROAD_WIDTH_M,
@@ -296,36 +297,34 @@ export function roadJunctions(roads: readonly SceneRoad[]): {
 }
 
 /**
- * Pás pevných cest pro masku polí (track-mask.ts – pod cestou obilí neroste): vyšlapané a upravené
- * úseky v šířce prošlapané trávy obtisku (`ROAD_WORN_LAYER`, `IMPROVED_WORN_LAYER`) a plácky
- * rozcestí – stejné průřezy jako obtisk cesty (`roadRibbonMeshes`).
+ * Pás pevných cest pro masku polí (track-mask.ts – pod cestou obilí neroste): vyšlapané, upravené
+ * a vozové úseky v šířce prošlapané trávy obtisku (`ROAD_WORN_LAYER`, `IMPROVED_WORN_LAYER`,
+ * `CART_WORN_LAYER` – šířky ROAD_LAND jako plocha, kterou cesta poli bere) a plácky rozcestí –
+ * stejné průřezy jako obtisk cesty (`roadRibbonMeshes`).
  */
 export function roadTrack(roads: readonly SceneRoad[]): Track {
   const bands = roadBands(roads);
   const junctions = roadJunctions(roads);
-  const trodden = ribbonTrack(
-    bands.trodden,
-    ROAD_WORN_LAYER,
-    undefined,
-    undefined,
-    junctions.trodden,
-  );
-  const improved = ribbonTrack(
-    bands.improved,
-    IMPROVED_WORN_LAYER,
-    undefined,
-    undefined,
-    junctions.improved,
-  );
-  // čáry upravených úseků za vyšlapanými (klíče bloků podle čar)
-  const offset = bands.trodden.length + junctions.trodden.length;
-  return {
-    segments: [
-      ...trodden.segments,
-      ...improved.segments.map((s) => ({ ...s, line: s.line + offset })),
-    ],
-    discs: [...trodden.discs, ...improved.discs.map((d) => ({ ...d, line: d.line + offset }))],
-  };
+  const parts = [
+    ribbonTrack(bands.trodden, ROAD_WORN_LAYER, undefined, undefined, junctions.trodden),
+    ribbonTrack(bands.improved, IMPROVED_WORN_LAYER, undefined, undefined, junctions.improved),
+    ribbonTrack(bands.cart, CART_WORN_LAYER, undefined, undefined, junctions.cart),
+  ];
+  const counts = [
+    bands.trodden.length + junctions.trodden.length,
+    bands.improved.length + junctions.improved.length,
+    bands.cart.length + junctions.cart.length,
+  ];
+  // čáry každé vrstvy za předchozími (klíče bloků podle čar)
+  const segments: Track['segments'] = [];
+  const discs: Track['discs'] = [];
+  let offset = 0;
+  parts.forEach((track, k) => {
+    segments.push(...track.segments.map((s) => ({ ...s, line: s.line + offset })));
+    discs.push(...track.discs.map((d) => ({ ...d, line: d.line + offset })));
+    offset += counts[k]!;
+  });
+  return { segments, discs };
 }
 
 /** Lomená čára posunutá o `offset` m kolmo k ose (vlevo kladně). */

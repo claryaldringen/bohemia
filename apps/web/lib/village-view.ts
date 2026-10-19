@@ -1210,6 +1210,12 @@ export interface SceneFieldPart {
    * Luštěniny): zelené, zralé a sklizené luštěniny vypadají jinak než obilí. Bez údaje obilí.
    */
   crop?: 'legume';
+  /**
+   * Kousky dílu, které cesta oddělila od pole a zůstaly loukou (roads.md a fields.md – Cesta
+   * přes pole; `FieldPart.roadCut` – řádky buněk po ROAD_LAND.cells bitech v mřížce dílu): scéna
+   * na nich nekreslí obtisk, obilí ani korunu porostu. Bez údaje žádné.
+   */
+  roadCut?: number[];
 }
 
 /**
@@ -1318,6 +1324,7 @@ const LAND_TAKERS: Record<LandTaker, string> = {
   shrine: 'svatyni',
   'road-apples': 'jabloním u cesty',
   'road-trees': 'stromům u cesty',
+  road: 'cestě',
 };
 
 function landTakenText(
@@ -1620,6 +1627,7 @@ function sceneVillage(
           ...(p.state === 'sown' && p.crop === 'legume' ? { crop: 'legume' as const } : {}),
           ...(years > 0 ? { overgrowth: years } : {}),
           ...(grazed && isGrazeableFallow(p) ? { grazed: grazed.has(p.id) } : {}),
+          ...(p.roadCut ? { roadCut: [...p.roadCut] } : {}),
         },
       ];
     }),
