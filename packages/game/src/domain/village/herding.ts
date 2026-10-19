@@ -57,11 +57,6 @@ export function isYoungster(person: Person, day: number): boolean {
   return ageGroup(person, day) === 'child' && ageYears(person.bornDay, day) >= AGE.olderChild;
 }
 
-/** Kolik pasáků (plných) dají výrostci 7–13 let. */
-export function childHerderCapacity(state: Pick<VillageState, 'people'>, day: number): number {
-  return state.people.filter((p) => isYoungster(p, day)).length * HERDING.childShare;
-}
-
 /** Pasení dne – potřeba a co výrostci uhlídají. */
 export interface HerdingDay {
   /** Potřeba pasáků (plných). */

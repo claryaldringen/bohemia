@@ -1082,15 +1082,17 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   zároveň zbylo co nejvíc volného času na rozvoj“): cena jídla v práci `foodCosts` (`economy.ts` –
   čd na kg obilí a luštěnin z dílů v osevu, sena z plánu seče; ve vsi `villageFoodCosts`
   v husbandry.ts), kus za rok `headEconomy` (maso z mláďat, mléko × 0,85, práce vsi jen na seno
-  a porážku; pasáci nic nestojí, ale `sizeHerdsToNeed` přidá nejvýš kolik kusů uhlídají výrostci
-  – `childHerderCapacity`, `HeadEconomy.herders` v době pastvy); hladový výběr po kusech (luštěniny po `BALANCE.legumeStepKg`) podle práce mínus
+  a porážku; pasáci nic nestojí a plán je nepočítá – výrostci omezí stádo jen přes nosnost
+  `winterTargets` s `herdingCoverage`); hladový výběr po kusech (luštěniny po `BALANCE.legumeStepKg`) podle práce mínus
   ušetřené obilí na kg bílkovin navíc proti obilí – napřed co práci šetří, vždy, v pořadí
   `BREEDING_ORDER` (ovce → kozy → krávy → prasata – Martin: ovce napřed) do nosnosti a stropů
   `DIET.caps`; pak do potřeby × 1,1 (`BALANCE.proteinReserve`) nejlevnější (přežvýkavci
   v pořadí, prasata a luštěniny cenou), nad 88 % (`minProteinCoverage`) jen bílkoviny levnější
   než z obilí. Týž plán `balancedPlan` (s luštěninami – zásoba luštěnin stádo
   nezmenší) řídí seč 1. 6. (`wantedWinterHerds`), luštěniny osevu 1. 9. (`plannedLegumeKg` →
-  `sowingTargets`) i porážku 1. 11.; zbytek i dospělé kusy na maso; stádo pod potřebou dá na
+  `sowingTargets`) i porážku 1. 11.; zbytek i dospělé kusy na maso, ale stádo v nosnosti jen
+  o tolik masa, kolik ves do 31. 8. sní pod stropem (`keepUneatable`, `meatEatableKg` – zbytek
+  žije; co přeroste nosnost, jde vždy – diet.md, Chovné stádo podle potřeby); stádo pod potřebou dá na
   maso navíc mláďata v pořadí prasata, krávy, kozy, ovce (`MEAT_ORDER`).
   **Nouzová porážka** (diet.md – Nouzová porážka, Martin 19. 10. 2026; `emergency-slaughter.ts`,
   `EMERGENCY_SLAUGHTER` v `rules.ts`): v `eat` před jídlem dne, když výhled do sklizně nevychází
