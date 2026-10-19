@@ -146,6 +146,7 @@ import {
   abandonedVillageAt,
   withNeighbours,
   type NeighbourSnapshot,
+  type PenSpecies,
 } from '@bohemia/game';
 import { formatGameDate } from './game-date';
 import { fruitVisible, treeGrowth } from './orchard-look';
@@ -263,6 +264,16 @@ export interface VillageSacred {
 /** Ohrada pro panel výběru (oxen.md – Co hráč vidí): stavba, spřežení, výcvik a seno. */
 export interface VillagePen {
   id: number;
+  /** Druh zvířat ohrady (oxen.md – Ohrady podle druhu). */
+  species: PenSpecies;
+  /** Čtverce ohrady (i rozšíření ve stavbě) – nejvýš 4. */
+  squares: number;
+  /** Místa na noc pro stádo svého druhu (hotové čtverce); u spřežení 0. */
+  places: number;
+  /** Kolik zvířat v ohradě v noci stojí (u spřežení voli a telata). */
+  animals: number;
+  /** Rozšíření ve stavbě – průběh 0–1; bez rozšíření null. */
+  extension: number | null;
   built: boolean;
   /** Průběh stavby 0–1 (hotová 1). */
   progress: number;
@@ -1139,8 +1150,23 @@ export interface SceneHayMeadow {
  */
 export interface ScenePen {
   id: number;
-  /** Čtverec ohrady v mřížce `grid`; bez ní políčko krajiny. */
+  /**
+   * Druh zvířat ohrady (oxen.md – Ohrady podle druhu); bez údaje (ukázky) jako u starých ohrad –
+   * se spřežením nebo výcvikem spřežení, jinak skot (`scenePenSpecies`).
+   */
+  species?: PenSpecies;
+  /** První čtverec ohrady (přístřešek a jesle) v mřížce `grid`; bez ní políčko krajiny. */
   cell: TileCell;
+  /**
+   * Další čtverce ohrady (`pending` – rozšíření ve stavbě, plot kolem nich se teprve staví); bez
+   * údaje jen první.
+   */
+  extraSquares?: { cell: TileCell; x: number; z: number; pending?: true }[];
+  /**
+   * Kolik zvířat svého druhu v ohradě stojí v noci (oxen.md – Na noc v ohradě, `penOccupancy`) –
+   * pro zahánění stád ve scéně (den a noc); u spřežení voli a telata. Bez údaje 0.
+   */
+  night?: number;
   /** Natočená mřížka ohrady (fields.md – Natočené stavby); bez údaje mřížka krajiny. */
   grid?: SquareGrid;
   x: number;
@@ -1150,6 +1176,8 @@ export interface ScenePen {
   rotation?: number;
   built: boolean;
   progress: number;
+  /** Rozšíření ve stavbě (čtverce `pending`) – průběh 0–1; bez rozšíření chybí. */
+  extension?: number;
   oxen: number;
   trainees: number;
   cows: number;
@@ -2519,9 +2547,9 @@ function douglasPeucker<P extends { x: number; z: number }>(
 }
 
 /**
- * Ohrady pro scénu: stavba (průběh z rozestavěné stavby) a zvířata – voli spřežení, telata ve
- * výcviku a v zimě krávy stáda (do hotových ohrad rovným dílem – oxen.md: přes zimu stojí
- * v ohradě).
+ * Ohrady pro scénu: druh, čtverce, stavba (průběh z rozestavěné stavby) a zvířata – voli
+ * spřežení, telata ve výcviku a v zimě krávy v ohradách skotu (oxen.md: přes zimu stojí v ohradě –
+ * kolik se jich v noci do ohrady vejde, `penOccupancy`); u každé ohrady i počet zvířat na noc.
  */
 function scenePens(
   state: VillageState,
@@ -2530,17 +2558,19 @@ function scenePens(
   summary: VillageSummary,
 ): ScenePen[] {
   const winter = HAY_WINTER_MONTHS.includes(dateOfDayIndex(day).month);
-  const built = summary.pens.filter((p) => p.built).length;
-  const cows = winter && built > 0 ? summary.livestock.herds.cow : 0;
   const stocked = stockedPenIds(state);
-  let builtIndex = 0;
   return summary.pens.map((pen) => {
-    const construction = state.constructions.find((c) => c.kind === 'pen' && c.penId === pen.id);
-    const share = pen.built ? Math.floor(cows / built) + (builtIndex++ < cows % built ? 1 : 0) : 0;
+    const building = pen.built
+      ? undefined
+      : state.constructions.find((c) => c.kind === 'pen' && c.penId === pen.id);
     const wear = (state.pens ?? []).find((p) => p.id === pen.id)?.wear;
+    const cows = winter && pen.built && pen.species === 'cattle' ? pen.animals : 0;
     return {
       id: pen.id,
+      species: pen.species,
       cell: { x: pen.cell.x, y: pen.cell.y },
+      ...(pen.extraSquares ? { extraSquares: pen.extraSquares } : {}),
+      night: pen.animals,
       ...(pen.grid ? { grid: pen.grid, rotation: pen.grid.rotation } : {}),
       x: pen.x,
       z: pen.z,
@@ -2548,14 +2578,42 @@ function scenePens(
       built: pen.built,
       progress: pen.built
         ? 1
-        : (summary.constructions.find((c) => c.id === construction?.id)?.buildProgress ?? 0),
+        : (summary.constructions.find((c) => c.id === building?.id)?.buildProgress ?? 0),
+      // rozšíření ve stavbě – průběh plotu kolem nových čtverců
+      ...extensionProgress(state, summary, pen),
       oxen: pen.team ? 2 : 0,
       trainees: pen.training ? 2 : 0,
-      cows: share,
+      cows,
       ...wearOf(structureCondition(wear, 'pen', day), 'condition'),
       ...(pen.built && !stocked.has(pen.id) ? { stocked: false as const } : {}),
     };
   });
+}
+
+/** Druh ohrady ve scéně – bez údaje (ukázky) se spřežením nebo výcvikem spřežení, jinak skot. */
+export function scenePenSpecies(
+  pen: Pick<ScenePen, 'species' | 'oxen' | 'trainees'>,
+): PenSpecies {
+  return pen.species ?? (pen.oxen > 0 || pen.trainees > 0 ? 'team' : 'cattle');
+}
+
+/**
+ * Průběh rozšíření ohrady ve stavbě (oxen.md – Ohrady podle druhu): stavba čtverců `pending` –
+ * plot kolem nich se staví po fázích jako u nové ohrady. Bez rozšíření nic.
+ */
+function extensionProgress(
+  state: VillageState,
+  summary: VillageSummary,
+  pen: VillageSummary['pens'][number],
+): { extension?: number } {
+  if (!pen.built || !pen.extraSquares?.some((q) => q.pending)) return {};
+  const pending = new Set(
+    (state.pens ?? [])
+      .find((p) => p.id === pen.id)
+      ?.extraSquares?.flatMap((q) => (q.constructionId === undefined ? [] : [q.constructionId])),
+  );
+  const c = summary.constructions.find((x) => pending.has(x.id));
+  return { extension: c?.buildProgress ?? 0 };
 }
 
 /**
@@ -3241,7 +3299,6 @@ function purchaseViews(state: VillageState): VillagePurchase[] {
 /** Ohrady pro panel výběru – stavba, spřežení, výcvik a zvířata v ohradě. */
 function penViews(state: VillageState, day: number, summary: VillageSummary): VillagePen[] {
   const winter = HAY_WINTER_MONTHS.includes(dateOfDayIndex(day).month);
-  const built = summary.pens.filter((p) => p.built).length;
   return summary.pens.map((pen) => {
     const construction = state.constructions.find((c) => c.kind === 'pen' && c.penId === pen.id);
     const progress = pen.built
@@ -3250,11 +3307,16 @@ function penViews(state: VillageState, day: number, summary: VillageSummary): Vi
     const wear = (state.pens ?? []).find((p) => p.id === pen.id)?.wear;
     return {
       id: pen.id,
+      species: pen.species,
+      squares: 1 + (pen.extraSquares?.length ?? 0),
+      places: pen.places,
+      animals: pen.animals,
+      extension: extensionProgress(state, summary, pen).extension ?? null,
       built: pen.built,
       progress,
       team: pen.team,
       training: pen.training,
-      cows: winter && pen.built && built > 0 ? Math.round(summary.livestock.herds.cow / built) : 0,
+      cows: winter && pen.built && pen.species === 'cattle' ? pen.animals : 0,
       oxen: (pen.team ? 2 : 0) + (pen.training ? 2 : 0),
       condition: structureCondition(wear, 'pen', day),
       abandoned: isAbandoned(wear),
@@ -3313,8 +3375,12 @@ function scenePlacementVillage(scene: SceneVillage): PlacementVillage {
       ...(o.grid ? { grid: o.grid } : {}),
       squares: o.squares.map((s) => ({ cell: s.cell, areaM2: s.size * s.size })),
     })),
+    // ohrady po čtvercích s druhem – rozšíření jen ohrady téhož druhu (oxen.md)
     pens: (scene.pens ?? []).map((pen) => ({
+      id: pen.id,
+      species: scenePenSpecies(pen),
       cell: pen.cell,
+      ...(pen.extraSquares ? { extraSquares: pen.extraSquares } : {}),
       ...(pen.grid ? { grid: pen.grid } : {}),
     })),
     // les vsi – pole ho vymýtí jako les, ostatní stavby ho vyklučí jako les krajiny (fields.md)

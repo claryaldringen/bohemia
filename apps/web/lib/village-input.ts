@@ -1,6 +1,7 @@
 import {
   CRAFTS,
   DIRECTIONS,
+  PEN_SPECIES,
   PLOT_VARIANTS,
   TRADE_GOOD_VALUES,
   type Craft,
@@ -10,6 +11,7 @@ import {
   type TradePeople,
   type DwellingPlot,
   type LeaveDestination,
+  type PenSpecies,
   type BuildableDwellingType,
   type Position,
   type SacredBuildingKind,
@@ -150,14 +152,19 @@ export function parsePlaceOrchardInput(
 }
 
 /**
- * Vstup stavby ohrady `{ cells, grid? }` – jeden čtverec (staví se jako pole po čtvercích, i
- * v natočené mřížce), jinak null. Víc čtverců odmítne až kontrola umístění s důvodem pro hráče.
+ * Vstup stavby ohrady `{ cells, species, grid? }` – čtverce po políčkách jako hřbitov (i v natočené
+ * mřížce) a druh zvířat (oxen.md – Ohrady podle druhu), jinak null. Víc než 4 čtverce odmítne až
+ * kontrola umístění s důvodem pro hráče.
  */
 export function parsePlacePenInput(
   value: unknown,
-): { cells: TileCell[]; grid?: SquareGrid } | null {
+): { cells: TileCell[]; species: PenSpecies; grid?: SquareGrid } | null {
   const input = parsePlaceFieldInput(value);
-  return input !== null && input.cells.length > 0 ? input : null;
+  if (input === null || input.cells.length === 0 || !isRecord(value)) return null;
+  // druh ohrady (oxen.md – Ohrady podle druhu); bez údaje skot jako dřívější jediná ohrada
+  const species = value.species === undefined ? 'cattle' : value.species;
+  const known = PEN_SPECIES.find((s) => s === species);
+  return known ? { ...input, species: known } : null;
 }
 
 /** Vstup vylepšení pevné cesty `{ roadId, upgrade }` (roads.md), jinak null. */
