@@ -10,6 +10,7 @@ import {
   craftTargets,
   restingCrafters,
   smithsCharcoalPerYear,
+  smithsForgeCharcoalKg,
   newWorkshop,
   wearCraftStocks,
   workCrafts,
@@ -562,16 +563,39 @@ describe('řemeslníci vyrábějí podle potřeby, volný čas pracují pro ves 
     expect(restingCrafters(s, DAY + 1, NO_CRAFTS).has(WORKSHOP_ID)).toBe(false);
   });
 
-  it('uhlíř pálí podle potřeby kováře – s plnou zásobou nástrojů jen na jejich opotřebení', () => {
+  it('uhlíř nosí uhlí z vypáleného milíře, jen když u kováře nestačí na dnešní kování', () => {
     const s = withWorkshop(fullVillage(), 'smith', 51, { x: 40, z: 30, rotation: 0 }, 70);
     withWorkshop(s, 'burner', 52, { x: 40, z: -30, rotation: 0 }, 80);
-    // 8 pracujících → potřeba 24 kg nástrojů, opotřebení 7,2 kg ročně → 360 kg uhlí
+    s.dwellings.find((d) => d.id === 52)!.workshop!.kiln = {
+      site: null,
+      trees: Array.from({ length: 15 }, () => ({ id: null, cost: 2 })),
+      stage: 'draw',
+      prepared: 15,
+      done: 0,
+      charcoalKg: 1800,
+    };
+    // kovář kove (nástroje chybí) – dnes spálí práci ÷ 10 čd × 50 kg uhlí
+    s.crafts = { charcoalKg: 0, toolsKg: 0, potteryKg: 0 };
+    const forge = smithsForgeCharcoalKg(s, DAY + 1, NO_CRAFTS);
+    const smithLabor = workshopLabor(s, DAY + 1, 51, 0).craft;
+    expect(forge).toBeCloseTo((smithLabor / 10) * 50, 9);
+    // u kováře uhlí nestačí – uhlíř dnes nosí, kovář na uhlí nečeká
+    const short = restingCrafters(s, DAY + 1, NO_CRAFTS);
+    expect(short.has(52)).toBe(false);
+    expect(short.has(51)).toBe(false);
+    // u kováře stačí na dnešek – vypálený milíř čeká, uhlíř pomáhá vsi
+    s.crafts.charcoalKg = forge;
+    expect(restingCrafters(s, DAY + 1, NO_CRAFTS).get(52)).toBe('resting');
+    // roční spotřeba podle potřeby – s plnou zásobou nástrojů jen na jejich opotřebení
+    // (8 pracujících → potřeba 24 kg nástrojů, opotřebení 7,2 kg ročně → 360 kg uhlí)
     s.crafts = { charcoalKg: 0, toolsKg: 31.3, potteryKg: 0 };
     expect(smithsCharcoalPerYear(s, DAY + 1, NO_CRAFTS)).toBeCloseTo(24 * 0.3 * 50, 6);
-    s.crafts.charcoalKg = 400;
-    expect(restingCrafters(s, DAY + 1, NO_CRAFTS).get(52)).toBe('resting');
-    s.crafts.charcoalKg = 300;
-    expect(restingCrafters(s, DAY + 1, NO_CRAFTS).has(52)).toBe(false);
+    // plná zásoba nástrojů – kovář nekove, uhlí se nenosí
+    s.crafts = { charcoalKg: 0, toolsKg: 1000, potteryKg: 0 };
+    expect(smithsForgeCharcoalKg(s, DAY + 1, NO_CRAFTS)).toBe(0);
+    const full = restingCrafters(s, DAY + 1, NO_CRAFTS);
+    expect(full.get(51)).toBe('resting');
+    expect(full.get(52)).toBe('resting');
   });
 
   it('výsledek nezávisí na kouscích dopočítání', () => {

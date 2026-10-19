@@ -134,8 +134,8 @@ export type Craft = 'potter' | 'smith' | 'burner' | 'carpenter';
  * uhlí nebo palivo, čeká na uhlí (kovář), čeká na dřevo (uhlíř a hrnčíř – není co kácet), nemá
  * kdo pracovat (domácnost bez práce po minimu a domácí výrobě), nebo je prázdná. Uhlíř
  * (crafts.md – Uhlíř): kácí a připravuje dřevo (`felling`), staví milíř (`building`), pálí
- * a hlídá ho (`burning`), vytahuje uhlí (`drawing`), sází mladé buky (`planting`), nebo má uhlí
- * dost a pomáhá vsi (`resting`). Tesař (wagons.md – Tesař) dnes jen pomáhá stavbám (`helping`).
+ * a hlídá ho (`burning`), rozebírá vypálený milíř a nosí uhlí kováři (`drawing`), sází mladé buky
+ * (`planting`), nebo má vypálený milíř a uhlí u kováře dost a pomáhá vsi (`resting`). Tesař (wagons.md – Tesař) dnes jen pomáhá stavbám (`helping`).
  */
 export type WorkshopActivity =
   | 'producing'
@@ -150,12 +150,16 @@ export type WorkshopActivity =
   | 'no-wood'
   | 'idle'
   | 'empty';
-/** Fáze milíře (crafts.md – Uhlíř): kácení a příprava dřeva, stavba, pálení, vytahání uhlí. */
+/**
+ * Fáze milíře (crafts.md – Uhlíř, Milíř stojí vždy): kácení a příprava dřeva, stavba, pálení
+ * a vypálený milíř, který se rozebírá podle odběru kovářů (`draw`).
+ */
 export type KilnStage = 'wood' | 'build' | 'burn' | 'draw';
 /**
- * Milíř uhlíře – jedna dávka buků od výběru po vytahání uhlí (crafts.md – Uhlíř). Stojí u dílny
- * (`site` null – milíř kus od zemnice), nebo v lese u dávky (`site` – střed milíře ve světě, m).
- * Buky dávky jsou od výběru vyhrazené; kácí se a připravují strom po stromu v pořadí `trees`.
+ * Milíř uhlíře – jedna dávka buků od výběru po rozebrání (crafts.md – Uhlíř, Milíř stojí vždy).
+ * Stojí u dílny (`site` null – milíř kus od zemnice), nebo v lese u dávky (`site` – střed milíře
+ * ve světě, m). Buky dávky jsou od výběru vyhrazené; kácí se a připravují strom po stromu
+ * v pořadí `trees`. Uhlíř má nejvýš jeden milíř – rozebraný zmizí a uhlíř staví nový.
  */
 export interface CharcoalKiln {
   site: { x: number; z: number } | null;
@@ -167,8 +171,17 @@ export interface CharcoalKiln {
   stage: KilnStage;
   /** Kolik buků dávky je skácených a připravených (fáze `wood`). */
   prepared: number;
-  /** Práce odvedená v rozdělané části fáze (čd; u buku kácení a pak příprava), u pálení dny. */
+  /**
+   * Práce odvedená v rozdělané části fáze (čd; u buku kácení a pak příprava), u pálení dny;
+   * u vypáleného milíře 0.
+   */
   done: number;
+  /**
+   * Vypálený milíř (`draw`): uhlí, které v něm ještě zbývá (kg) – uhlíř ho donese kovářům, jak
+   * ho spotřebují. Bez údaje celá dávka (milíř ze starší vsi, kde se uhlí vytahovalo najednou –
+   * `migrateKiln`).
+   */
+  charcoalKg?: number;
   /**
    * Milíř v lese: vzdálenost chůze z dílny k němu (m – po pevných cestách s půdou, paths/walking.ts)
    * pro přirážku za chůzi; bez údaje vzdušná vzdálenost (vsi bez krajiny, kalibrace).
@@ -199,7 +212,10 @@ export interface Workshop {
   fuelKg: number;
   /** Co dílna dělala poslední odsimulovaný den (panel výběru, dým ve scéně). */
   activity: WorkshopActivity;
-  /** Uhlíř: rozdělaný milíř (crafts.md – Uhlíř); bez údaje nebo null žádný. */
+  /**
+   * Uhlíř: jeho milíř – staví se, pálí, nebo vypálený čeká na odběr (crafts.md – Milíř stojí
+   * vždy); bez údaje nebo null žádný (rozebraný, nebo nejsou buky).
+   */
   kiln?: CharcoalKiln | null;
   /**
    * Uhlíř: pařezy buků, které skácel a na které ještě zasadí mladý buk (id z vrstvy překážek,
@@ -232,8 +248,10 @@ export interface Cart {
   builtDay: number;
 }
 /**
- * Zásoby výrobků řemeslníků (crafts.md, kg): uhlí pro kováře, nástroje a keramika. Co ves
- * nespotřebuje, zůstane v zásobě.
+ * Zásoby výrobků řemeslníků (crafts.md, kg): uhlí u kováře (crafts.md – Milíř stojí vždy: co uhlíř
+ * donesl z vypáleného milíře a kovář ještě nespálil, koupené; uhlí ve vypálených milířích nese
+ * milíř – celá zásoba `charcoalStockKg`), nástroje a keramika. Co ves nespotřebuje, zůstane
+ * v zásobě.
  */
 export interface CraftStocks {
   charcoalKg: number;

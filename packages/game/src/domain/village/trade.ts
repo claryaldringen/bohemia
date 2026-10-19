@@ -10,6 +10,7 @@
 // Čisté funkce bez I/O.
 import type { Landscape } from '../landscape';
 import { tradeCarts, trailCartPassable } from './carts';
+import { charcoalStockKg, takeCharcoal } from './charcoal';
 import { removePeople } from './kinship';
 import { ageGroup } from './people';
 import { startingLivestock } from './livestock';
@@ -100,7 +101,8 @@ export function villageGoodStock(state: VillageState, good: TradeGood): number {
     case 'tools':
       return Math.floor(state.crafts?.toolsKg ?? 0);
     case 'charcoal':
-      return Math.floor(state.crafts?.charcoalKg ?? 0);
+      // uhlí u kováře i ve vypálených milířích (crafts.md – Milíř stojí vždy)
+      return Math.floor(charcoalStockKg(state));
   }
 }
 
@@ -130,11 +132,17 @@ function addGood(state: VillageState, good: TradeGood, amount: number): void {
       else state.woodLogs = Math.max(0, woodLogs(state) + amount);
       return;
     case 'pottery':
-    case 'tools':
-    case 'charcoal': {
+    case 'tools': {
       const crafts = (state.crafts ??= { charcoalKg: 0, toolsKg: 0, potteryKg: 0 });
-      const key = good === 'pottery' ? 'potteryKg' : good === 'tools' ? 'toolsKg' : 'charcoalKg';
+      const key = good === 'pottery' ? 'potteryKg' : 'toolsKg';
       crafts[key] = Math.max(0, crafts[key] + amount);
+      return;
+    }
+    case 'charcoal': {
+      // prodané uhlí napřed od kováře, pak z vypálených milířů; koupené jde ke kováři
+      // (crafts.md – Milíř stojí vždy)
+      if (amount < 0) takeCharcoal(state, -amount);
+      else (state.crafts ??= { charcoalKg: 0, toolsKg: 0, potteryKg: 0 }).charcoalKg += amount;
     }
   }
 }

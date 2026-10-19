@@ -17,6 +17,7 @@ import {
   workshopLabor,
   type CraftNeeds,
 } from './crafts';
+import { charcoalStockKg, kilnCharcoalKg, kilnCharcoalShare } from './charcoal';
 import { isFull, isOvercrowded } from './dwellings';
 import { waitingHouseholds } from './households';
 import { familyCounts, type FamilyCounts } from './kinship';
@@ -188,14 +189,17 @@ export interface WorkshopSummary {
   /** Přirážka za rudu nebo hlínu dál od potoka (1 = voda blízko). */
   oreFactor: number;
   /**
-   * Uhlíř: rozdělaný milíř (crafts.md – Uhlíř) – fáze, kolik buků dávky je připravených z kolika,
-   * průběh fáze 0–1 (u pálení dny ÷ CHARCOAL_KILN.burnDays) a jestli stojí v lese; jinak null.
+   * Uhlíř: jeho milíř (crafts.md – Uhlíř, Milíř stojí vždy) – fáze, kolik buků dávky je
+   * připravených z kolika, průběh fáze 0–1 (u pálení dny ÷ CHARCOAL_KILN.burnDays, u vypáleného
+   * milíře podíl už rozebraného uhlí), uhlí, které ve vypáleném milíři zbývá (kg), a jestli stojí
+   * v lese; jinak null.
    */
   kiln: {
     stage: KilnStage;
     prepared: number;
     trees: number;
     progress: number;
+    charcoalKg: number;
     forest: boolean;
   } | null;
   /** Uhlíř: pařezy buků, na které ještě zasadí mladý buk; ostatní dílny 0. */
@@ -639,7 +643,8 @@ function craftsSummary(state: VillageState, day: number): CraftsSummary {
   const away = cartsAway(state);
   const productivity = happinessLaborFactor(villageHappiness(state));
   return {
-    stocks: { ...craftStocks(state) },
+    // uhlí u kováře i ve vypálených milířích (crafts.md – Milíř stojí vždy)
+    stocks: { ...craftStocks(state), charcoalKg: charcoalStockKg(state) },
     needs: craftNeeds(state, day),
     coverage,
     workshops: state.dwellings.flatMap((d) => {
@@ -692,20 +697,23 @@ function craftsSummary(state: VillageState, day: number): CraftsSummary {
 function kilnSummary(kiln: CharcoalKiln): NonNullable<WorkshopSummary['kiln']> {
   const n = kiln.trees.length;
   const total =
-    kiln.stage === 'wood'
-      ? 0
-      : kiln.stage === 'burn'
-        ? CHARCOAL_KILN.burnDays
-        : (kiln.stage === 'build'
-            ? CHARCOAL_KILN.buildManDaysPerTree
-            : CHARCOAL_KILN.drawManDaysPerTree) * n;
+    kiln.stage === 'burn' ? CHARCOAL_KILN.burnDays : CHARCOAL_KILN.buildManDaysPerTree * n;
   const progress =
-    kiln.stage === 'wood' ? (n > 0 ? kiln.prepared / n : 1) : total > 0 ? kiln.done / total : 1;
+    kiln.stage === 'wood'
+      ? n > 0
+        ? kiln.prepared / n
+        : 1
+      : kiln.stage === 'draw'
+        ? 1 - kilnCharcoalShare(kiln)
+        : total > 0
+          ? kiln.done / total
+          : 1;
   return {
     stage: kiln.stage,
     prepared: kiln.prepared,
     trees: n,
     progress: Math.min(1, Math.max(0, progress)),
+    charcoalKg: kilnCharcoalKg(kiln),
     forest: kiln.site !== null,
   };
 }
