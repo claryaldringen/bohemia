@@ -99,8 +99,14 @@ Raně středověká strava nebyla jen obilí. Plné nasycení potřebuje kombina
 
 ### Mléko a sýr (Martin: „Ovce, kozy i krávy jsou mléčná zvířata“; čísla rešerše)
 
-- **Dojí se dojné kusy stáda:** skot **40 %**, ovce a kozy **50 %** stáda (návrh Clauda – hra
-  nevede samice po kusech). Mléko pro lidi (po vykrmení mláděte) za rok na dojný kus: kráva
+- **Dojí se samice, které letos rodily** (od 19. 10. 2026 – Porážka v zimě, Martin: „Navíc ovce,
+  krávy i kozy musí být neustále březí aby dávaly mléko.“): rodí všechny chovné samice, takže dojné
+  jsou dospělé kusy stáda bez letošních mláďat × podíl chovných samic (krávy 50 %, ovce a kozy
+  70 % – Rodí všechny samice); mléka je úměrně letošním porodům. Dřív pevný podíl celého stáda
+  i s mláďaty – skot **40 %**, ovce a kozy **50 %** (návrh Clauda – hra nevede samice po kusech);
+  s novými podíly vyjde stejně, u krav o 4 % víc. V listopadu (krávy napůl) se počítají i letošní
+  jalovice – mláďata se 1. 11. přestanou vést zvlášť. Mléko pro lidi (po vykrmení mláděte) za rok
+  na dojnou samici: kráva
   **300 l** (květen–září naplno, říjen–listopad napůl), ovce **25 l** (15. 5. – 31. 8., po
   odstavu jehňat), koza **60 l** (květen–září). Energie mléka 640 / 700 / 1 050 kcal na litr.
 - **Čerstvé mléko se pije hned** – do stropu mléka a sýra (30 % energie); co se nevypije, zpracuje
@@ -127,8 +133,9 @@ Raně středověká strava nebyla jen obilí. Plné nasycení potřebuje kombina
 ### Dobytek – stáda a maso
 
 - **Výchozí stádo** (dnes ozdoba – stane se skutečným): na domácnost 3 ovce, 1 koza, 2 prasata,
-  slepice u obydlí; jedna kráva na 2 domácnosti. Stáda **rostou** (ovce a kozy +40 % ročně,
-  prasata +100 %, krávy +20 % – mláďata; návrh Clauda) až do **nosnosti**:
+  slepice u obydlí; jedna kráva na 2 domácnosti. Stáda **rostou** (od 19. 10. 2026 rodí všechny
+  chovné samice – ovce +64 %, kozy +78 %, prasata +144 %, krávy +40 % ročně, Porážka v zimě; dřív
+  ovce a kozy +40 %, prasata +100 %, krávy +20 % – návrh Clauda) až do **nosnosti**:
   - **ovce, kozy, krávy:** pastva na úhoru a loukách – ≈ **1 ha na krávu, 0,2 ha na ovci
     nebo kozu**; krávy, voli, ovce a kozy navíc potřebují na zimu **seno** ([orání
     rádlem](oxen.md) – Seno; od 19. 10. 2026 kráva 5, vůl 6, ovce a koza 1 kg denně, dřív jen
@@ -136,7 +143,8 @@ Raně středověká strava nebyla jen obilí. Plné nasycení potřebuje kombina
   - **prasata:** les do 600 m od vsi – ≈ **1 ha lesa na prase** (žaludy, bukvice, kořínky –
     pasou se v něm celý rok, Martin 19. 10. 2026),
   - **pasáci** (od 19. 10. 2026 – Pasáci níž).
-- **Porážka na podzim** (listopad): co přeroste nosnost a mladé kusy navíc jdou na maso:
+- **Porážka v zimě** (od 19. 10. 2026 po celou zimu – Porážka v zimě; dřív v listopadu): co
+  přeroste nosnost, staré kusy a mladé kusy navíc jdou na maso:
   **prase ≈ 50 kg, ovce ≈ 15 kg, koza ≈ 12 kg, kráva ≈ 120 kg** masa (návrh Clauda). Ves si nechá
   chovné kusy (nejméně pár od každého druhu).
 - **Vejce:** slepice dají celý rok ≈ **5 kg vajec na slepici**, jí se čerstvá (návrh Clauda).
@@ -200,7 +208,8 @@ rok.**“
 Martin na otázku „Má se chovné stádo zmenšovat podle toho, kolik masa ves potřebuje?“: „**ano**“.
 
 - Při porážce (1. 11.) si ves nechá **chovný pár** od každého druhu a krávy na mléko a voly, a k nim
-  ze stáda v nosnosti (pastva, les, seno, pasáci) tolik kusů, aby jejich **mléko** (85 % bílkovin
+  ze stáda v nosnosti (pastva, les, seno, pasáci a od 19. 10. 2026 místo pro jarní mláďata a bez
+  starých kusů – Porážka v zimě) tolik kusů, aby jejich **mléko** (85 % bílkovin
   – syrovátka odteče) a **maso z mláďat po ročních ztrátách** dalo bílkoviny, které ves potřebuje
   po obilí a vejcích, s rezervou. Které kusy a kolik, rozhoduje od 19. 10. 2026 **Rovnovážné
   hospodaření** (níž – cena v práci, rezerva 10 %; dřív pořadí ovce → kozy → krávy → prasata
@@ -253,6 +262,9 @@ mohou pást jen 2 malí kluci, nezvládne udržet stádo 100 krav**“.
 - **Nosnost:** ves sčítá od porážky do porážky, jaký podíl potřeby pasáci uhlídali; při porážce
   si nechá nejvýš ten podíl každého stáda – **co nikdo neuhlídal, jde na maso** a stádo nad to
   neroste. S chovným stádem podle potřeby se to skládá: stádo je nejvýš menší z obojího.
+- **Místo pro mláďata** (od 19. 10. 2026 – Porážka v zimě): stádo přes zimu i s jarními mláďaty
+  nesmí přesáhnout, co uhlídají výrostci příštího léta (odhad z věku dnešních dětí). Porody
+  výrostci neomezují – rodí všechny samice.
 - **Ve scéně** stojí u stád pasáčci z jádra – výrostci, kteří dnes pasou, nejvýš jeden u každého
   stáda; stádo, na které výrostci nestačí, zůstane u domů (Pastva a vždy s pasákem). Rozdělení
   práce z doby před pasáky ukáže děti jako dřív, z doby před 19. 10. 2026 i starší a dospělé.
@@ -312,6 +324,8 @@ Martin: „**Nezdá se mi, že bychom sklízeli tolik sena, že by to stáda už
 
 Martin: „**A uzené maso určitě také nevydrží 3 roky.**“
 
+- Od 19. 10. 2026 se v zimě jí **čerstvé maso** a udí se jen přebytek (Porážka v zimě); uzené
+  maso se jí, až čerstvé dojde nebo nestačí do stropu masa.
 - Uzené a sušené maso z podzimní porážky se jí **rovným dílem do 31. 8.** (šetřilo se na žně)
   a **1. 9. ráno se zbytek zkazí** – v létě žlukne tuk a maso napadá hmyz, soli bylo málo. Kronika
   a krátký řádek „Maso se zkazilo – N kg“. Vysychání 20 % ročně zůstává.
@@ -319,6 +333,63 @@ Martin: „**A uzené maso určitě také nevydrží 3 roky.**“
 - Výhled energie do sklizně počítá maso jen do jeho zkažení.
 - **Důsledek:** v září a říjnu ves uzené maso nemá – bílkoviny jen z obilí, luštěnin, mléka, sýra
   a vajec, nasycení ty dva měsíce kleslo (Vlkov ≈ 0,85).
+
+#### Porážka v zimě
+
+Martin, 19. 10. 2026: „**Tak většinou se v zimě porážejí staré kusy a na jaře některá mláďata
+pokud je jich moc. Navíc ovce, krávy i kozy musí být neustále březí aby dávaly mléko.**“ K návrhu
+jarní porážky: „**No hele porážky probíhaly jenom v zimě, v létě se maso rychle kazí. Navíc když
+porazíš zvíře hned na začátku zimy, nemusíš ho krmit senem.**“ A dál: „**A pastevci by se měli
+snažit, aby rodily všechny samice. A nemusí se porážet jen 1. 11. ale po celou zimu, aby
+vesničané jedli maso ideálně čerstvé. Uzení je spíš jen nouzový způsob, jak naložit
+s přebytky.**“ Platí i dřívější „Když bude ve vsi málo vhodných dětí na pasení, tak to omezí
+i velikost stád.“ (Pasáci). Podrobnosti jsou návrh Clauda; nahrazuje omezení porodů podle
+výrostků, které se do hry nedostalo.
+
+- **Rodí všechny samice** (čísla podle [rešerše](research/2026-10-19-breeding-culling.md)): 1. 4.
+  rodí každá chovná samice jednou, bez ohledu na výrostky – pastevci se o to starají. Chovné
+  samice ve stádu přes zimu: krávy 50 %, ovce a kozy 70 %, prasata 40 % (zbytek býci, berani,
+  kanci, skopci, jalovice a čuníci na druhý podzim). Odchovaná mláďata na samici: kráva 0,8 (tele,
+  úhyn 20 %), ovce 0,92 (1,15 jehněte), koza 1,12 (1,4 kůzlete), prasnice 3,6 (vrh 6 selat, přežije
+  60 %). Na kus stáda tak ovce +64 % (dřív 40 %), kozy +78 % (40 %), prasata +144 % (100 %), krávy
+  +40 % (20 %).
+- **Mléko jen od samic, které letos rodily** (Mléko a sýr): dojné samice = dospělé kusy bez
+  letošních mláďat × podíl chovných samic – mléka úměrně porodům.
+- **Porážka jen v zimě** – od 1. 11. do konce zimního krmení (31. 3.); na jaře ani v létě ne.
+  Výjimkou zůstává nouzová porážka (Nouzová porážka, selata od 1. 9.).
+- **1. 11. ves rozhodne, co nechá přes zimu:**
+  - nejvýš tolik, kolik uživí pastva, seno a les a kolik výrostci přes rok uhlídali (Stáda
+    realističtěji, Pasáci);
+  - **místo pro mláďata:** stádo přes zimu i s jarními mláďaty (porody z pravidel) nesmí
+    přesáhnout, co uhlídají výrostci příštího léta – ves je odhadne z věku dnešních dětí (kdo
+    bude 1. 7. příštího roku 7–13 let), voli z ohrad na pastvě napřed. Když výrostci nestačí,
+    ubere z každého druhu stejný podíl (jako podíl uhlídaný pasáky);
+  - **staré kusy** jdou na maso vždy – každý rok doslouží ovce a kozy 1/8, krávy 1/10, prasnice
+    1/4 dospělých kusů ([rešerše](research/2026-10-19-breeding-culling.md)); letošní mláďata je
+    nahradí;
+  - **chovné minimum zůstává vždy** – chovný pár, krávy na mléko a voly, ovce na vlnu (když na ně
+    nestačí mladé kusy, i staré);
+  - v tom chovné stádo podle potřeby (Chovné stádo podle potřeby, Rovnovážné hospodaření).
+- **Co jde na maso:** staré kusy a kusy nad nosnost (i nad místo pro mláďata) **vždy, i když se
+  maso nestihne sníst**. Pravidlo „porazit nejvýš tolik, kolik ves do 31. 8. sní“ platí jen pro
+  ostatní kusy v nosnosti, které by ves porazit nemusela.
+- **Porážka po dnech přes zimu:** kusy na maso ves neporáží najednou. Kolik masa přes zimu sní
+  čerstvého (denně strop masa ve stravě, 40 % energie), tolik kusů počká živých a porazí se
+  postupně – denně jen tolik, kolik toho dne sní. Čekají napřed kusy, které žerou nejméně sena na
+  kg masa (prasata v lese, krávy, ovce, kozy), porážejí se v opačném pořadí (kozy, ovce, krávy,
+  prasata nakonec), aby spotřebovaly co nejméně sena – tak se vyváží „porazíš hned na začátku
+  zimy – nemusíš ho krmit senem“ s „ideálně čerstvé“. Kus čekající na porážku žere seno nebo les
+  (prasata jen do nosnosti lesa vedle stáda přes zimu) až do dne porážky.
+- **Seno:** když seno na čekající kusy nestačí, ves ty, které neuživí, porazí hned (od posledních
+  na řadě – krávy, ovce, kozy) a jejich maso udí. Seč 1. 6. počítá i se senem pro kusy, které
+  budou čekat (odhad z dnešního stáda a plánu stáda přes zimu).
+- **Uzení jen na přebytek:** udí se jen maso, které ves nestihne sníst čerstvé – kusy, na které
+  přes zimu nezbude čerstvá spotřeba, a zbytek čekajících kusů na konci zimy (31. 3.). Uzené
+  maso dál vydrží do 31. 8., ztrácí 20 % ročně a 1. 9. se zkazí. **Ves jí napřed čerstvé maso**,
+  uzené až do stropu masa po něm; výhled jídla do sklizně počítá i s čerstvým masem do konce zimy.
+- **Práce porážky** (1 člověkoden na 20 kg masa) je rozložená do dnů porážek – denně za dnešní
+  maso, hned před polními úlohami.
+- **Kronika** `slaughter` 1. 11. – kg masa celkem a z toho přes zimu (`fresh`), kusy celkem.
 
 #### Nouzová porážka
 
@@ -368,8 +439,9 @@ zásoby ≈ 3,6 t na ≈ 4,2 t potřeby do žní, jí 94 % přídělu – a při
   dojnic ubude i mléka do sklizně, výhled s tím počítá.
 - **Maso** jde do zásoby jako z podzimní porážky – stejná výtěžnost (prase 50, koza 12, kráva
   120, ovce 15 kg), stejné uzení 20 % ročně, jí se rovným dílem do zkažení 1. 9. Porážka a uzení
-  stojí 1 člověkoden na 20 kg; mimo listopad se udělá hned další dny (nedodělek listopadové
-  porážky propadá). Mláďata ubudou poměrně.
+  stojí 1 člověkoden na 20 kg; mimo zimní porážku (od 19. 10. 2026 listopad–březen) se udělá hned
+  další dny jako nouzová práce, v zimě s prací zimní porážky (nedodělek předchozí porážky
+  propadá). Kusy čekající na zimní porážku jdou v nouzi první. Mláďata ubudou poměrně.
 - **Strop masa ve stravě 40 % energie platí i v nouzi.** Ves porazí jen tolik, kolik pod stropem
   pomůže; když schodek ani tak nepokryje (nebo jí dojdou zvířata navíc), dál šetří přídělem.
   Taková porážka, která schodek celý nepokryje, se udělá, jen když zvedne příděl **aspoň o 2
@@ -401,6 +473,11 @@ zásoby ≈ 3,6 t na ≈ 4,2 t potřeby do žní, jí 94 % přídělu – a při
   přebytek sukna jako zboží k sousedům (trade.md) a oděv z kůží z porážky.
 - **Kozy brzdí zarůstání:** pastva koz na křovinách by mohla zarůstání přílohu zpomalit (dnes ho
   zastaví jen pastva nebo seč ve fázi louky). Zasáhla by do zarůstání a sítě pěšin – zatím ne.
+- ~~**Místo pro mláďata**~~ – od 19. 10. 2026 ve hře (Porážka v zimě): porážka 1. 11. nechá na
+  zimu jen tolik dospělých kusů, aby na jaře výrostci uhlídali i mláďata. Návrh vznikl při
+  měření omezení porodů podle výrostků (to by ve vsi s málo výrostky ubralo většinu masa –
+  dospělé kusy vyplnily, co výrostci uhlídají, a mláďat se rodilo málo); místo omezení porodů
+  rodí všechny samice a stádo přes zimu nechá místo.
 - **Podzimní porážka jehňat a kůzlat:** čerstvé maso v září a říjnu, kdy uzené došlo.
 - **Nákazy:** výjimečný rok (dobytčí mor – Winchester 1319–1320 přišel o víc než polovinu skotu).
 
@@ -901,6 +978,39 @@ a říjnu 782 klesnou na polovinu a za pět let žijí 3 lidé navíc (nasycení
 jsou proto o něco nižší). **Vlkov 21. 9. 792** a **27. 4. 796** (24 lidí) vyjdou se selaty
 přesně stejně jako dřív – selata v nouzi potřeba nebyla.
 
+## Naměřeno – porážka v zimě (19. 10. 2026)
+
+Dopočet s krajinou bez hráče z uložených kopií stavu Vlkova, pět let, po dnech. Varianty: D =
+pravidla před porážkou v zimě (se selaty od 1. 9.), M = omezení porodů podle výrostků (větev,
+která se do hry nedostala), Z = porážka v zimě. Maso z porážek = podzimní a zimní porážka
+(u Z i kusy poražené po dnech), nasycení, bílkoviny a podíly průměrem po dnech, seno = zásoba 31. 10. průměrem za roky.
+
+| Vlkov                               | 16. 11. 781 (47 lidí) D / M / Z | 21. 9. 792 (24) D / M / Z   | 27. 4. 796 (24) D / M / Z   |
+| ----------------------------------- | ------------------------------- | --------------------------- | --------------------------- |
+| maso z porážek (kg za 5 let)        | 5 507 / 1 804 / 9 307           | 8 112 / 3 282 / 6 011       | 8 913 / 2 957 / 9 814       |
+| nouzové porážky (kg)                | 2 672 / 3 205 / 4 837           | 236 / 236 / 293             | 0 / 499 / 0                 |
+| z toho snědeno čerstvé (kg)         | – / – / 3 626                   | – / – / 2 220               | – / – / 4 877               |
+| zkažené maso (kg)                   | 0 / 0 / 0                       | 1 118 / 38 / 2 330          | 0 / 0 / 0                   |
+| mléko (l za rok)                    | 1 424 / 1 357 / 1 469           | 1 265 / 998 / 1 215         | 1 499 / 1 347 / 1 254       |
+| ovce / prasata přes zimu (poslední) | 63 / 50 – 52 / 35 – 62 / 25     | 62 / 53 – 39 / 25 – 57 / 11 | 84 / 53 – 68 / 53 – 49 / 21 |
+| z toho čeká na zimní porážku (Z)    | 4 ovce, 28 prasat               | 14 ovcí, 4 prasata          | 22 prasat                   |
+| seno 31. 10. (kg)                   | 15 269 / 15 199 / 15 121        | 13 473 / 12 263 / 14 282    | 16 327 / 15 656 / 12 800    |
+| nasycení                            | 0,88 / 0,87 / 0,90              | 0,92 / 0,87 / 0,86          | 0,93 / 0,88 / 0,94          |
+| pokrytí bílkovin                    | 0,78 / 0,75 / 0,87              | 0,86 / 0,71 / 0,72          | 0,87 / 0,74 / 0,90          |
+| podíl masa / z toho čerstvého       | 17 / 15 / 25 % (8 %)            | 25 / 13 / 13 % (8 %)        | 25 / 11 / 28 % (16 %)       |
+| úmrtí hladem (z toho září–říjen)    | 16 (9) / 16 (9) / 11 (10)       | 0 / 0 / 0                   | 0 / 0 / 0                   |
+| lidé na konci                       | 32 / 32 / 39                    | 25 / 25 / 26                | 27 / 27 / 27                |
+
+**Vlkov 781 a 796** (5–7 výrostků): víc masa než dřív a většinu zimy čerstvé, nasycení
+a bílkoviny nahoru, nic se nezkazí; ve Vlkově 781 o 5 úmrtí hladem méně a o 7 lidí víc. Méně ovcí
+přes zimu (místo pro jehňata), u 796 proto i méně mléka (−16 %).
+
+**Vlkov 792** (2–3 výrostci): místo pro mláďata zmenší první zimu stádo na chovné minimum (ovce na
+vlnu, pár prasat) – 81 prasat na maso, 3,6 t do uzení a 2,3 t se 1. 9. zkazí (staré kusy a kusy
+nad nosnost jdou na maso vždy). Pak stádo roste jen pomalu a masa je jako s omezením porodů –
+nasycení 0,86 proti 0,92. Dřív ves držela přes léto i kusy, které výrostci neuhlídali (podíl
+uhlídaný přes rok se počítal i za zimu, kdy se pasou jen prasata).
+
 ## Co hráč vidí
 
 - V horní liště **obilí, luštěniny, maso, mléko a sýr, ovoce** (ikony + čísla) a nasycení;
@@ -913,65 +1023,72 @@ přesně stejně jako dřív – selata v nouzi potřeba nebyla.
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                                                                      | Kdo                    |
-| ----------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
-| Jablka → „ovoce“ (ikona zůstane); ovoce zvyšuje nasycení i štěstí                                                                               | Martin                 |
-| Plné nasycení jen z kombinace obilí–maso–ovoce; samo obilí ani ovoce nestačí                                                                    | Martin                 |
-| Maso z dobytka (prasata v lese, přebytky ovcí, koz, krav), vejce; lov a rybolov později                                                         | Martin potvrdil směr   |
-| ~~Podíly 75 / 20 / 5 %, pestrost 0,80 + 0,14 × maso + 0,06 × ovoce~~; strop ovoce 25 %, masa 40 %                                               | návrh Clauda           |
-| Maso a mléko kvůli bílkovinám – 1,6 g na kg tělesné váhy; mléko a sýr ze všech dojných zvířat                                                   | Martin (18. 10. 2026)  |
-| Práce se zvířaty se počítá (dojení, sýr, zimní péče, prasata a slepice), pasení bez práce                                                       | Martin (18. 10. 2026)  |
-| Kvalita stravy 0,60 + 0,34 × bílkoviny + 0,06 × ovoce; strop mléka a sýra 30 % energie                                                          | návrh Clauda           |
-| Váhy 20 / 60 / 58 kg, bílkoviny potravin, dojivost, sýr, práce – podle rešerše 18. 10. 2026                                                     | návrh Clauda (rešerše) |
-| Dojí se 40 % skotu a 50 % ovcí a koz; sýr do 1. 5., ztráta 15 %/rok; potřeba masa z bílkovin                                                    | návrh Clauda           |
-| Hladem se umírá jen z nedostatku energie, pestrost řídí porody a štěstí                                                                         | návrh Clauda           |
-| Růst stád, nosnost (pastva, les, seno), porážka a výtěžnost masa, vejce, uzení 20 %/rok                                                         | návrh Clauda           |
-| ~~Potřeba masa z podílu 20 % energie (≈ 60 kg na dospělého)~~ – nahrazeno bílkovinami                                                           | rozhodnutí kontroléru  |
-| Ovoce do zkažení a maso do porážky rovným dílem; stropy z potřeby energie                                                                       | rozhodnutí kontroléru  |
-| Pastva = louka do 600 m bez polí a staveb + příloh; na maso navíc nejvýš polovina mláďat                                                        | rozhodnutí kontroléru  |
-| Ves chová, kolik potřebuje – stádo dávající 1,5× potřeby masa neroste (krávy ano)                                                               | rozhodnutí kontroléru  |
-| Pastva po dílech přílohu od nejbližšího; zarůstající příloh a les vsi nejsou pastvinou                                                          | návrh Clauda           |
-| 1,6 g/kg zůstává, přidají se luštěniny jako plodina na poli; maso mírně zvyšuje štěstí                                                          | Martin (18. 10. 2026)  |
-| Luštěniny 22 % bílkovin, energie jako obilí; strop 25 % energie; jí se rovným dílem do sklizně                                                  | návrh Clauda (rešerše) |
-| Cíl luštěnin z bílkovin po obilí, mléku a vejcích; potřeba masa až po luštěninách (podle zásoby)                                                | návrh Clauda           |
-| Maso štěstí až +3 – plně od 20 % energie z masa, méně poměrně                                                                                   | návrh Clauda           |
-| Osev podle stravy – ves seje obilí a luštěniny jen na energii, kterou nedá maso, mléko a ostatní                                                | Martin (19. 10. 2026)  |
-| Výhled jídla do sklizně s mlékem stád podle doby dojení a s celou zásobou sýra                                                                  | návrh Clauda           |
-| Doplnit roční ztráty stáda; seno i pro ovce a kozy; uzené maso nevydrží roky                                                                    | Martin (19. 10. 2026)  |
-| Ztráty ovce 12, kozy 10, prasata 12, skot 6 % ročně po dnech; mláďata jsou po zmetání                                                           | návrh Clauda (rešerše) |
-| Skladba: ovce napřed, kozy mléko a křoviny, krávy voly a mléko, prasata maso, les celý rok                                                      | Martin (19. 10. 2026)  |
-| Chovné stádo se zmenšuje podle potřeby masa (bílkovin) – i dospělé kusy jdou na maso                                                            | Martin (19. 10. 2026)  |
-| ~~Rezerva 25 %; chov ovce → kozy → krávy → prasata~~; krávy aspoň 1 na 2 domácnosti a 3 na ohradu                                               | návrh Clauda           |
-| Pasáci omezují stádo – co nikdo neuhlídá, jde na maso; pasou děti, starší, pak dospělí                                                          | Martin – nápad         |
-| Pasák 40 krav, 100 ovcí či koz, 50 prasat (pes v číslech); dítě 40 %, starší 75 %                                                               | návrh Clauda (rešerše) |
-| Dospělý pasák nejvýš jeden z domácnosti, pasení hned po dojení (stáda nepočkají)                                                                | návrh Clauda           |
-| Seno denně: kráva 5, vůl 6, ovce a koza 1 kg; zimní úhyn pod půlkou přídělu, pár přežije                                                        | návrh Clauda (rešerše) |
-| Uzené maso se jí do 31. 8., pak se zkazí; seno ztrácí 10 % ročně, staré do nové seče shnije                                                     | návrh Clauda (rešerše) |
-| Mláďata navíc na maso: prasata, krávy, kozy, ovce; porážka před polními úlohami listopadu                                                       | návrh Clauda           |
-| Stádo vždy s pasákem; pase se na loukách určených ke spásání, ne na jídle pro lidi                                                              | Martin (19. 10. 2026)  |
-| Mladý příloh a otava luk letošní seče třetinou píce; strniště po sklizni ano, bez nosnosti                                                      | návrh Clauda (rešerše) |
-| Pastviny: louka přílohu mimo seč, přirozené louky, mladý příloh, otava – od nejbližšího                                                         | návrh Clauda           |
-| Málo pasáků – pasák vede víc zvířat; bez pasáka stádo stojí u domů; v zimě u domů                                                               | návrh Clauda           |
-| Ves hospodaří rovnovážně – sytá, ± ideální strava a co nejvíc volného času na rozvoj                                                            | Martin (19. 10. 2026)  |
-| Cena jídla v práci za podmínek vsi; plán po kusech podle ceny kg bílkovin navíc proti obilí                                                     | návrh Clauda           |
-| Co práci šetří, vždy – v pořadí ovce → kozy → krávy → prasata, do nosnosti a stropů                                                             | návrh Clauda           |
-| Pak do potřeby + 10 % nejlevnější (prasata a luštěniny po 25 kg soupeří cenou), nad 88 % jen levnější než obilí; zásoba luštěnin stádo nezmenší | návrh Clauda           |
-| Ovce jsou hlavně kvůli vlně – aby se lidé mohli vůbec oblékat                                                                                   | Martin (19. 10. 2026)  |
-| Vlna 1,6 kg na dospělého (dítě 0,8), ovce 0,8 kg – 2 ovce na dospělého jako spodní hranice stáda                                                | návrh Clauda (rešerše) |
-| Pastva a seno: voli, ovce na vlnu, krávy na mléko a voly; pasáci napřed ovce na vlnu                                                            | návrh Clauda           |
-| Bez vlny jen štěstí až −6 a upozornění; práce na vlně v domácí výrobě (přerozdělení, ne navíc)                                                  | Martin (19. 10. 2026)  |
-| Osadníci mají ovce na vlnu a seno na první zimu; jehňata ovcí na vlnu nejdou na maso navíc                                                      | Martin (19. 10. 2026)  |
-| Na částech pole musí být zasetý len                                                                                                             | Martin (19. 10. 2026)  |
-| Len 2 kg třeného lnu na dospělého (dítě 1); bez lnu štěstí až −4; zpracování v domácí výrobě                                                    | návrh Clauda (rešerše) |
-| Nouzová porážka – ves, které výhled jídla do sklizně nevychází, napřed porazí zvířata navíc, pak šetří                                          | Martin (19. 10. 2026)  |
-| Pořadí prasata → kozy → krávy nad chovné → ovce nad ovce na vlnu; chovný pár, spřežení a telata zůstanou                                        | Martin (19. 10. 2026)  |
-| Kontrola každý den před jídlem; porazí, aby výhled vyšel s rezervou 5 % potřeby do sklizně; částečně jen o 2 body přídělu a víc                 | návrh Clauda           |
-| Maso, uzení, zkažení 1. 9. a práce jako z podzimní porážky; strop masa 40 % platí i v nouzi                                                     | návrh Clauda           |
-| Dojení, sýr a péče o zvířata bokem, mimo práci vsi – obstarají ženy; bez omezení                                                                | Martin, 19. 10. 2026   |
-| Pasou jen výrostci 7–13 let, mimo práci vsi; jejich počet dál omezuje stáda                                                                     | Martin, 19. 10. 2026   |
-| Dospělí ani starší nepasou; v rovnovážném hospodaření pasáci nestojí práci, omezují počet kusů                                                  | návrh Clauda           |
-| Nouzová porážka – prasata jen nad polovinu toho, kolik prasat uživí les (chovné prasnice)                                                       | Martin (19. 10. 2026)  |
-| Chovné prasnice z nosnosti lesa jako u podzimní porážky, aspoň chovný pár; letošní selata se do 31. 8. nepočítají                               | návrh Clauda           |
-| „Ano ke všem návrhům“: letošní selata smějí od 1. 9. na nouzovou porážku; jehňata, kůzlata a telata dál ne                                      | Martin (19. 10. 2026)  |
-| Porážka zmenší stádo v nosnosti jen o maso, které ves do 31. 8. sní pod stropem; zbytek žije (Martin: co nejvíc jídla)                          | návrh Clauda           |
-| Plán stáda bez stropu výrostků v den rozhodnutí – výrostci omezí stádo jen přes podíl, který uhlídali                                           | návrh Clauda           |
+| Rozhodnutí                                                                                                                                                                                                       | Kdo                    |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| Jablka → „ovoce“ (ikona zůstane); ovoce zvyšuje nasycení i štěstí                                                                                                                                                | Martin                 |
+| Plné nasycení jen z kombinace obilí–maso–ovoce; samo obilí ani ovoce nestačí                                                                                                                                     | Martin                 |
+| Maso z dobytka (prasata v lese, přebytky ovcí, koz, krav), vejce; lov a rybolov později                                                                                                                          | Martin potvrdil směr   |
+| ~~Podíly 75 / 20 / 5 %, pestrost 0,80 + 0,14 × maso + 0,06 × ovoce~~; strop ovoce 25 %, masa 40 %                                                                                                                | návrh Clauda           |
+| Maso a mléko kvůli bílkovinám – 1,6 g na kg tělesné váhy; mléko a sýr ze všech dojných zvířat                                                                                                                    | Martin (18. 10. 2026)  |
+| Práce se zvířaty se počítá (dojení, sýr, zimní péče, prasata a slepice), pasení bez práce                                                                                                                        | Martin (18. 10. 2026)  |
+| Kvalita stravy 0,60 + 0,34 × bílkoviny + 0,06 × ovoce; strop mléka a sýra 30 % energie                                                                                                                           | návrh Clauda           |
+| Váhy 20 / 60 / 58 kg, bílkoviny potravin, dojivost, sýr, práce – podle rešerše 18. 10. 2026                                                                                                                      | návrh Clauda (rešerše) |
+| Dojí se 40 % skotu a 50 % ovcí a koz; sýr do 1. 5., ztráta 15 %/rok; potřeba masa z bílkovin                                                                                                                     | návrh Clauda           |
+| Hladem se umírá jen z nedostatku energie, pestrost řídí porody a štěstí                                                                                                                                          | návrh Clauda           |
+| Růst stád, nosnost (pastva, les, seno), porážka a výtěžnost masa, vejce, uzení 20 %/rok                                                                                                                          | návrh Clauda           |
+| ~~Potřeba masa z podílu 20 % energie (≈ 60 kg na dospělého)~~ – nahrazeno bílkovinami                                                                                                                            | rozhodnutí kontroléru  |
+| Ovoce do zkažení a maso do porážky rovným dílem; stropy z potřeby energie                                                                                                                                        | rozhodnutí kontroléru  |
+| Pastva = louka do 600 m bez polí a staveb + příloh; na maso navíc nejvýš polovina mláďat                                                                                                                         | rozhodnutí kontroléru  |
+| Ves chová, kolik potřebuje – stádo dávající 1,5× potřeby masa neroste (krávy ano)                                                                                                                                | rozhodnutí kontroléru  |
+| Pastva po dílech přílohu od nejbližšího; zarůstající příloh a les vsi nejsou pastvinou                                                                                                                           | návrh Clauda           |
+| 1,6 g/kg zůstává, přidají se luštěniny jako plodina na poli; maso mírně zvyšuje štěstí                                                                                                                           | Martin (18. 10. 2026)  |
+| Luštěniny 22 % bílkovin, energie jako obilí; strop 25 % energie; jí se rovným dílem do sklizně                                                                                                                   | návrh Clauda (rešerše) |
+| Cíl luštěnin z bílkovin po obilí, mléku a vejcích; potřeba masa až po luštěninách (podle zásoby)                                                                                                                 | návrh Clauda           |
+| Maso štěstí až +3 – plně od 20 % energie z masa, méně poměrně                                                                                                                                                    | návrh Clauda           |
+| Osev podle stravy – ves seje obilí a luštěniny jen na energii, kterou nedá maso, mléko a ostatní                                                                                                                 | Martin (19. 10. 2026)  |
+| Výhled jídla do sklizně s mlékem stád podle doby dojení a s celou zásobou sýra                                                                                                                                   | návrh Clauda           |
+| Doplnit roční ztráty stáda; seno i pro ovce a kozy; uzené maso nevydrží roky                                                                                                                                     | Martin (19. 10. 2026)  |
+| Ztráty ovce 12, kozy 10, prasata 12, skot 6 % ročně po dnech; mláďata jsou po zmetání                                                                                                                            | návrh Clauda (rešerše) |
+| Skladba: ovce napřed, kozy mléko a křoviny, krávy voly a mléko, prasata maso, les celý rok                                                                                                                       | Martin (19. 10. 2026)  |
+| Chovné stádo se zmenšuje podle potřeby masa (bílkovin) – i dospělé kusy jdou na maso                                                                                                                             | Martin (19. 10. 2026)  |
+| ~~Rezerva 25 %; chov ovce → kozy → krávy → prasata~~; krávy aspoň 1 na 2 domácnosti a 3 na ohradu                                                                                                                | návrh Clauda           |
+| Pasáci omezují stádo – co nikdo neuhlídá, jde na maso; pasou děti, starší, pak dospělí                                                                                                                           | Martin – nápad         |
+| Pasák 40 krav, 100 ovcí či koz, 50 prasat (pes v číslech); dítě 40 %, starší 75 %                                                                                                                                | návrh Clauda (rešerše) |
+| Dospělý pasák nejvýš jeden z domácnosti, pasení hned po dojení (stáda nepočkají)                                                                                                                                 | návrh Clauda           |
+| Seno denně: kráva 5, vůl 6, ovce a koza 1 kg; zimní úhyn pod půlkou přídělu, pár přežije                                                                                                                         | návrh Clauda (rešerše) |
+| Uzené maso se jí do 31. 8., pak se zkazí; seno ztrácí 10 % ročně, staré do nové seče shnije                                                                                                                      | návrh Clauda (rešerše) |
+| Mláďata navíc na maso: prasata, krávy, kozy, ovce; porážka před polními úlohami listopadu                                                                                                                        | návrh Clauda           |
+| Stádo vždy s pasákem; pase se na loukách určených ke spásání, ne na jídle pro lidi                                                                                                                               | Martin (19. 10. 2026)  |
+| Mladý příloh a otava luk letošní seče třetinou píce; strniště po sklizni ano, bez nosnosti                                                                                                                       | návrh Clauda (rešerše) |
+| Pastviny: louka přílohu mimo seč, přirozené louky, mladý příloh, otava – od nejbližšího                                                                                                                          | návrh Clauda           |
+| Málo pasáků – pasák vede víc zvířat; bez pasáka stádo stojí u domů; v zimě u domů                                                                                                                                | návrh Clauda           |
+| Ves hospodaří rovnovážně – sytá, ± ideální strava a co nejvíc volného času na rozvoj                                                                                                                             | Martin (19. 10. 2026)  |
+| Cena jídla v práci za podmínek vsi; plán po kusech podle ceny kg bílkovin navíc proti obilí                                                                                                                      | návrh Clauda           |
+| Co práci šetří, vždy – v pořadí ovce → kozy → krávy → prasata, do nosnosti a stropů                                                                                                                              | návrh Clauda           |
+| Pak do potřeby + 10 % nejlevnější (prasata a luštěniny po 25 kg soupeří cenou), nad 88 % jen levnější než obilí; zásoba luštěnin stádo nezmenší                                                                  | návrh Clauda           |
+| Ovce jsou hlavně kvůli vlně – aby se lidé mohli vůbec oblékat                                                                                                                                                    | Martin (19. 10. 2026)  |
+| Vlna 1,6 kg na dospělého (dítě 0,8), ovce 0,8 kg – 2 ovce na dospělého jako spodní hranice stáda                                                                                                                 | návrh Clauda (rešerše) |
+| Pastva a seno: voli, ovce na vlnu, krávy na mléko a voly; pasáci napřed ovce na vlnu                                                                                                                             | návrh Clauda           |
+| Bez vlny jen štěstí až −6 a upozornění; práce na vlně v domácí výrobě (přerozdělení, ne navíc)                                                                                                                   | Martin (19. 10. 2026)  |
+| Osadníci mají ovce na vlnu a seno na první zimu; jehňata ovcí na vlnu nejdou na maso navíc                                                                                                                       | Martin (19. 10. 2026)  |
+| Na částech pole musí být zasetý len                                                                                                                                                                              | Martin (19. 10. 2026)  |
+| Len 2 kg třeného lnu na dospělého (dítě 1); bez lnu štěstí až −4; zpracování v domácí výrobě                                                                                                                     | návrh Clauda (rešerše) |
+| Nouzová porážka – ves, které výhled jídla do sklizně nevychází, napřed porazí zvířata navíc, pak šetří                                                                                                           | Martin (19. 10. 2026)  |
+| Pořadí prasata → kozy → krávy nad chovné → ovce nad ovce na vlnu; chovný pár, spřežení a telata zůstanou                                                                                                         | Martin (19. 10. 2026)  |
+| Kontrola každý den před jídlem; porazí, aby výhled vyšel s rezervou 5 % potřeby do sklizně; částečně jen o 2 body přídělu a víc                                                                                  | návrh Clauda           |
+| Maso, uzení, zkažení 1. 9. a práce jako z podzimní porážky; strop masa 40 % platí i v nouzi                                                                                                                      | návrh Clauda           |
+| Dojení, sýr a péče o zvířata bokem, mimo práci vsi – obstarají ženy; bez omezení                                                                                                                                 | Martin, 19. 10. 2026   |
+| Pasou jen výrostci 7–13 let, mimo práci vsi; jejich počet dál omezuje stáda                                                                                                                                      | Martin, 19. 10. 2026   |
+| Dospělí ani starší nepasou; v rovnovážném hospodaření pasáci nestojí práci, omezují počet kusů                                                                                                                   | návrh Clauda           |
+| Nouzová porážka – prasata jen nad polovinu toho, kolik prasat uživí les (chovné prasnice)                                                                                                                        | Martin (19. 10. 2026)  |
+| Chovné prasnice z nosnosti lesa jako u podzimní porážky, aspoň chovný pár; letošní selata se do 31. 8. nepočítají                                                                                                | návrh Clauda           |
+| „Ano ke všem návrhům“: letošní selata smějí od 1. 9. na nouzovou porážku; jehňata, kůzlata a telata dál ne                                                                                                       | Martin (19. 10. 2026)  |
+| „Tak většinou se v zimě porážejí staré kusy a na jaře některá mláďata pokud je jich moc. Navíc ovce, krávy i kozy musí být neustále březí aby dávaly mléko.“                                                     | Martin (19. 10. 2026)  |
+| „No hele porážky probíhaly jenom v zimě, v létě se maso rychle kazí. Navíc když porazíš zvíře hned na začátku zimy, nemusíš ho krmit senem.“                                                                     | Martin (19. 10. 2026)  |
+| „A pastevci by se měli snažit, aby rodily všechny samice. A nemusí se porážet jen 1. 11. ale po celou zimu, aby vesničané jedli maso ideálně čerstvé. Uzení je spíš jen nouzový způsob, jak naložit s přebytky.“ | Martin (19. 10. 2026)  |
+| Rodí všechny samice (podíl samic, mláďata na samici – rešerše), mléko jen od samic, které letos rodily                                                                                                           | návrh Clauda           |
+| Stádo přes zimu s místem pro jarní mláďata podle výrostků příštího léta (věk dnešních dětí), z každého druhu stejný podíl                                                                                        | návrh Clauda           |
+| Staré kusy na maso (ovce a kozy 1/8, krávy 1/10, prasnice 1/4); staré a nad nosnost vždy, „jen co ves sní“ jen pro ostatní                                                                                       | návrh Clauda           |
+| Kusy na maso čekají a porážejí se po dnech přes zimu podle čerstvé spotřeby; přebytek a kusy, na které nestačí seno, hned do uzení                                                                               | návrh Clauda           |
+| Porážka zmenší stádo v nosnosti jen o maso, které ves do 31. 8. sní pod stropem; zbytek žije (Martin: co nejvíc jídla)                                                                                           | návrh Clauda           |
+| Plán stáda bez stropu výrostků v den rozhodnutí – výrostci omezí stádo jen přes podíl, který uhlídali                                                                                                            | návrh Clauda           |
