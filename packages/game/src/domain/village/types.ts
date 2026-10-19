@@ -868,6 +868,16 @@ export type ChronicleEvent = { day: number } & (
    * nikdo).
    */
   | { kind: 'trade-returned'; direction: Direction8; get: TradeGoods; people?: TradePeople }
+  /**
+   * Vesničané koupili výrobky řemeslníků u souseda (crafts.md – Nákup u sousedů) – kg nástrojů,
+   * keramiky a dřevěného nářadí, čím platili (kg obilí a luštěnin).
+   */
+  | {
+      kind: 'crafts-bought';
+      direction: Direction8;
+      get: CraftPurchaseGoods;
+      pay: CraftPurchasePay;
+    }
   /** Tesař vyrobil vůz (wagons.md – Tesař). */
   | { kind: 'cart-made'; cart: CartKind }
   /** Vůz dosloužil (wagons.md – Vůz) – tesař vyrobí nový, když ho ves potřebuje. */
@@ -992,6 +1002,11 @@ export type LaborTarget =
   | { kind: 'kiln'; id: number; x: number; z: number }
   /** Zemská stezka (id) – nosiči výpravy k sousedovi (trade.md – Obchod). */
   | { kind: 'trail'; id: number }
+  /**
+   * Cesta krajinou ke kraji mapy ve směru (bez zemské stezky) – nákup u souseda (crafts.md –
+   * Nákup u sousedů); bod na kraji mapy (m).
+   */
+  | { kind: 'edge'; direction: Direction8; x: number; z: number }
   /** Ves celkově – výmlat, domácí práce, nevyužitá společná práce. */
   | { kind: 'village' };
 
@@ -1174,6 +1189,10 @@ export interface VillageState {
   /** Vozy vsi (wagons.md – Vůz) – vyrábí je tesař; chybí = žádné. */
   carts?: Cart[];
   /**
+   * Nákupy výrobků řemeslníků u sousedů na cestě (crafts.md – Nákup u sousedů); chybí = žádný.
+   */
+  purchases?: CraftPurchase[];
+  /**
    * Ves je opuštěná (migration.md – Odchod do nové vsi): odešli z ní všichni lidé. Dál se
    * nesimuluje, obydlí se rozpadají podle dne odchodu (`abandonedVillageAt`). Žijící ves ho nemá.
    */
@@ -1343,6 +1362,35 @@ export interface TradeExpedition {
    * neorají, dokud se výprava nevrátí. Chybí = výprava bez vozů.
    */
   carts?: number[];
+}
+
+/** Výrobky řemeslníků, které ves kupuje u sousedů (kg – crafts.md, Nákup u sousedů). */
+export interface CraftPurchaseGoods {
+  toolsKg?: number;
+  potteryKg?: number;
+  woodToolsKg?: number;
+}
+/** Čím ves platí (kg) – obilí a luštěniny z přebytku nad pojistkou zásob. */
+export interface CraftPurchasePay {
+  grainKg?: number;
+  legumesKg?: number;
+}
+/**
+ * Nákup u souseda na cestě (crafts.md – Nákup u sousedů): malá skupina `group` lidí jde ve směru
+ * `direction` po zemské stezce (`trailId`), nebo krajinou ke kraji mapy (`edge` – bod na kraji),
+ * `days` dní (i s opakovanými cestami, když nesou víc, než unesou naráz); platbu nese tam, výrobky
+ * přinesou zpět. `done` = dny, které už šli – lidé jsou celé dny pryč (práce vsi bez nich).
+ */
+export interface CraftPurchase {
+  direction: Direction8;
+  startedDay: number;
+  group: number;
+  days: number;
+  done: number;
+  trailId: number | null;
+  edge: { x: number; z: number };
+  get: CraftPurchaseGoods;
+  pay: CraftPurchasePay;
 }
 
 /** Obchod vsi se sousedy (trade.md). */

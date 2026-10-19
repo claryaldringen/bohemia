@@ -953,6 +953,40 @@ export const CARPENTER_TOOLS_WORK: Bounds = { worst: 1.5, best: 1 };
 // pokrytí – meze 1 → 0,95 (mírně, o jednotky procent – Martin).
 export const WOOD_TOOLS = { kgPerWorker: 4, wearPerYear: 0.3, reserveYears: 1 } as const;
 export const WOOD_TOOLS_LABOR: Bounds = { worst: 1, best: 0.95 };
+// crafts.md – Nákup u sousedů (Martin 19. 10. 2026: „Nástroje ať vesničané obchodují individuálně…
+// Sami si spočítají, jestli se jim to vyplatí. Až bude kovář u nás, budou pravděpodobněji nakupovat
+// u něj, protože si ušetří cestu. S ostatními řemesly to bude stejné.“; čísla návrh Clauda podle
+// rešerše research/2026-10-19-craft-buying.md):
+// - `day` – ves se rozhoduje jednou za rok po sklizni, kdy je volno a přebytek (15. 11. – po ozimu,
+//   sklizni jablek a porážce),
+// - `crafts` – řemeslníci souseda podle toho, čím se živí (trade.md – Sousedé): řemeslníci mají
+//   kováře, hrnčíře i tesaře jistě, ostatní někdy (pravděpodobnost, ze seedu vsi a směru),
+// - `woodToolsValueKg` – hodnota kg dřevěného nářadí v kg obilí (≈ 0,5 čd na kg – rešerše vozů;
+//   nástroje 60 a keramika 3 – TRADE_GOOD_VALUES),
+// - cesta po hotové zemské stezce `trailTripDays`, bez stezky lidé jdou krajinou ke kraji mapy –
+//   delší cesta (× `offTrailFactor`) a den navíc (`offTrailExtraDays`),
+// - jde malá skupina – nejvýš `groupShare` dospělých vsi (aspoň 1, nejvýš `maxGroup`); kdo nese
+//   víc, jde vícekrát (dny × kola), ale nejvýš `maxDays` dní (přes zimu) – víc ves koupí příští
+//   rok; nosič unese TRADE.porterKg,
+// - výrobek slouží 1 ÷ opotřebení let – ves porovná práci ušetřenou za ty roky s prací za platbu
+//   (obilí a luštěniny – cena jídla v práci, economy.ts) a cestu (lidé × dny tam a zpět),
+// - `minKg` – menší nákup nemá smysl.
+export const CRAFT_BUYING = {
+  day: { month: 11, day: 15 },
+  crafts: {
+    crafters: { smith: 1, potter: 1, carpenter: 1 },
+    farmers: { smith: 0.5, potter: 0.4, carpenter: 0.3 },
+    herders: { smith: 0.3, potter: 0.4, carpenter: 0.2 },
+    woodsmen: { smith: 0.4, potter: 0.2, carpenter: 0.6 },
+  },
+  woodToolsValueKg: 2,
+  offTrailFactor: 1.5,
+  offTrailExtraDays: 1,
+  groupShare: 0.5,
+  maxGroup: 8,
+  maxDays: 60,
+  minKg: 0.5,
+} as const;
 // wagons.md – Vůz (Martin 19. 10. 2026: vozy vozí seno, snopy, klády a zboží výprav místo nosičů;
 // jeden vůz na spřežení – návrh Clauda; čísla návrh Clauda podle rešerše): dvoukolák 400 kg,
 // čtyřkolák 800 kg (jen po stezce – obchod), vůz slouží 10 let. Vůz za den odveze tolik jako
