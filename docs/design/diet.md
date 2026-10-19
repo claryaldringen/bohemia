@@ -232,6 +232,27 @@ kalibrace poběží v noci):
   kg luštěnin ročně; na dospělého (výpočet při ≈ 100 l mléka) ≈ **80 kg masa** (dřív ≈ 110)
   a ≈ 45 kg luštěnin (strop) ročně.
 
+## Naměřeno v noci (19. 10. 2026)
+
+`measure-village.ts 200 60` na kódu s bílkovinami, luštěninami a příbuzenstvím (977c18e; skutečné
+krajiny, hráč skriptu ohrady ani dílny nestaví). Srovnání s měřením stravy výš (v závorce):
+
+- **energie** (hráč staví): z masa **40 %** (21 %) – strop, z mléka a sýra **30 %** – strop,
+  z luštěnin 14 %, obilí dorovná zbytek (≈ 16 %); bílkoviny medián 100 %, nasycení medián 0,94,
+- **zásoby po sklizni:** p10 1,48, medián **3,55**, p90 5,91 (1,16 / 2,13 / 3,32) – **MIMO**;
+  ves dál oseje podle potřeby obilí, ale jí hlavně maso a mléko,
+- **práce na obživu:** startovní ves **93,9 %** (89,8 %), plná domácnost **89,9 %** (85,9 %) –
+  **MIMO** (dojení, péče o zvířata, luštěniny),
+- **oběh dílu:** osev / příloh **5 / 13 let** (3 / 13) – **MIMO**; nejspíš luštěniny vracejí
+  úrodnost, takže díl se oseje déle,
+- **po 60 letech (hráč staví):** medián 4 domácnosti a 19 lidí (4 a 19), vymřelo 1,0 % vsí
+  (0,5 %) – příbuzenství růst vsi nezměnilo; nasycení ≥ 0,95 celý rok 99,4 % let – **OK**,
+- **štěstí** medián 53,3 (46,5).
+
+Závěr (k rozhodnutí Martina): maso a mléko na stropech jsou na rané Slovany hodně – strava byla
+převážně obilná. K doladění: cíl osevu podle stravy, nižší stropy masa a mléka, nebo menší potřeba
+bílkovin pokrytá luštěninami.
+
 ## Co hráč vidí
 
 - V horní liště **obilí, luštěniny, maso, mléko a sýr, ovoce** (ikony + čísla) a nasycení;
