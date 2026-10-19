@@ -1664,6 +1664,17 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   nezaroste, vozová a pěší se nespojují. Scéna: `roadBands` → `cart` (širší pás) a `ruts` (dvě
   koleje ±0,65 m, `CART_RUT_LAYER` bez vlnění), `roadsKey` nese `:v`. Ves bez vozů beze změny.
   `/dev/landscape` tlačítko **Vozy ve svahu** (`dev-cart.ts`).
+- **Cesta pro hráče** ([roads.md](docs/design/roads.md) – Cesta pro hráče; Martin 19. 10. 2026:
+  „tohle by rozhodně neměly být dvě cesty, ale měly by se spojit do jedné“): řetěz úseků mezi
+  rozcestími (uzel ≥ 3 konců) a volnými konci bez ohledu na stupeň a vozovou – `roadChain` /
+  `roadChains` / `roadChainIds` (`paths/road-chains.ts`, začíná koncem s menším id úseku, okruh
+  nejmenším id). Data zůstávají po úsecích. Vylepšení (`roadUpgradeOptions`, `startRoadUpgrade`)
+  i jabloně (`roadApplesOption`, `startRoadApples`, `chainAppleSpots`) berou `roadId` kteréhokoli
+  úseku a pracují s celou cestou – stavba `roadIds` v pořadí cesty, průběh po úsecích
+  `roadUpgradeProgress`, čelo `roadWorkFront` / `roadApplesWorkRoad` (labor-report). Web:
+  `VillageRoad` = cesta (`segments`, `grades`, `cartM`), výběr `{ kind: 'road', id }` s id
+  prvního úseku (`pickVillageTarget`), zvýraznění celé cesty, `SceneRoad.upgrade.fromEnd`;
+  přechod pásů různé šířky se zúží (`RibbonLine.narrowStart` / `narrowEnd`, `NARROW_M`).
 - **Jabloně podél pevné cesty** ([roads.md](docs/design/roads.md) – fáze 3): `VillageRoads.apples`
   (`RoadApple` – místo, úsek, `distanceM` vzdušnou čarou, `plantedDay` null = čeká na výsadbu,
   `constructionId`). `road-apples.ts`: `roadAppleSpots` (po 10 m střídavě – `roadTreeSpots`

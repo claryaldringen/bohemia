@@ -1540,6 +1540,72 @@ describe('pevné cesty v pohledu na ves (roads.md)', () => {
     expect(view.constructions.at(-1)!.label).toBe('Jabloně u cesty');
   });
 
+  it('navazující úseky různého stupně jsou jedna cesta (Martin, Vlkov 103 a 183)', () => {
+    const s = withRoads();
+    const first = s.roads!.roads[0]!;
+    first.grade = 'improved';
+    s.roads!.roads.push(
+      {
+        id: 4,
+        // navazuje koncem své osy na konec úseku 1
+        points: [
+          { x: 80, z: 60 },
+          { x: 80, z: 0 },
+        ],
+        bornDay: DAY - 6000,
+        grade: 'trodden',
+        cart: true,
+        traffic: [4.5],
+        spots: [],
+      },
+      {
+        id: 6,
+        points: [
+          { x: 80, z: 60 },
+          { x: 140, z: 60 },
+        ],
+        bornDay: DAY - 1000,
+        grade: 'trodden',
+        traffic: [4.5],
+        spots: [],
+      },
+    );
+    const view = buildVillageView(record(s), landscape, DAY);
+    expect(view.roads).toHaveLength(1);
+    const road = view.roads[0]!;
+    expect(road).toMatchObject({
+      id: 1,
+      segments: [1, 4, 6],
+      grade: 'trodden',
+      lengthM: 200,
+      grades: [
+        { grade: 'trodden', lengthM: 120 },
+        { grade: 'improved', lengthM: 80 },
+      ],
+      cartM: 60,
+      ageYears: Math.floor(6000 / YEAR),
+    });
+    // úprava celé cesty – oba vyšlapané úseky, cena za ně dohromady
+    expect(road.upgrades.map((u) => u.upgrade)).toEqual(['improved']);
+    expect(road.upgrades[0]!.laborManDays).toBe(18);
+    const started = startRoadUpgrade(s, DAY, 6, 'improved', null);
+    expect(started.constructions.at(-1)!.roadIds).toEqual([4, 6]);
+    // stavba jde po cestě: úsek 4 leží obráceně – práce od konce jeho osy
+    const later = buildVillageView(
+      record({
+        ...started,
+        constructions: started.constructions.map((c) => ({ ...c, done: 4.5 })),
+      }),
+      landscape,
+      DAY,
+    );
+    const scene = new Map(later.scene.roads!.map((r) => [r.id, r.upgrade]));
+    expect(scene.get(1)).toBeUndefined();
+    expect(scene.get(4)).toEqual({ grade: 'improved', progress: 0.5, fromEnd: true });
+    expect(scene.get(6)).toEqual({ grade: 'improved', progress: 0 });
+    expect(later.roads[0]!.building).toMatchObject({ grade: 'improved', progress: 0.25 });
+  });
+
   it('ves bez pevných cest je ve scéně nemá', () => {
     const view = buildVillageView(record(settled()), landscape, DAY);
     expect(view.scene.roads).toBeUndefined();

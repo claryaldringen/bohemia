@@ -707,10 +707,14 @@ export function roadsInWork(constructions: readonly Construction[]): Set<number>
   return new Set(constructions.flatMap((c) => c.roadIds ?? []));
 }
 
-/** Úsek `from` se rozdělil – stavby na něm patří i novému úseku `to` (mutuje). */
+/**
+ * Úsek `from` se rozdělil – stavby na něm patří i novému úseku `to` hned za ním (pořadí po cestě
+ * – průběh vylepšení po úsecích, `roadUpgradeProgress`; mutuje).
+ */
 function splitRoadWork(constructions: Construction[], from: number, to: number): void {
   for (const c of constructions) {
-    if (c.roadIds?.includes(from)) c.roadIds.push(to);
+    const k = c.roadIds?.indexOf(from) ?? -1;
+    if (k >= 0) c.roadIds!.splice(k + 1, 0, to);
   }
 }
 

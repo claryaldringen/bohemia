@@ -1,4 +1,4 @@
-import type { PathLine, RoadGrade } from '@bohemia/game';
+import type { RoadGrade } from '@bohemia/game';
 import type { SceneRoad, SceneRoadApple } from '../village-view';
 import {
   CART_RUT_OFFSET_M,
@@ -8,6 +8,7 @@ import {
   ROAD_WORN_LAYER,
   ribbonTrack,
   type RibbonJunction,
+  type RibbonLine,
 } from './path-ribbon';
 import type { Track } from './track-mask';
 import { hash01 } from './smoke-schedule';
@@ -100,26 +101,49 @@ export function roadLength(road: Pick<SceneRoad, 'points'>): number {
   return at[at.length - 1] ?? 0;
 }
 
-/** Stupeň, který úsek ukazuje do vzdálenosti `d` od začátku (rozestavěná úprava roste od začátku). */
-function shownGrade(road: SceneRoad, d: number): RoadGrade {
+/**
+ * Upravená část rozestavěné úpravy úseku [od, do] (m po ose): roste od začátku osy, nebo od konce
+ * (`upgrade.fromEnd` – úsek leží v cestě hráče obráceně, stavba jde po cestě); jinak null.
+ */
+function improvedPart(road: SceneRoad, length: number): [number, number] | null {
   const up = road.upgrade;
-  if (!up || up.grade !== 'improved') return road.grade;
-  return d <= up.progress * roadLength(road) ? 'improved' : road.grade;
+  if (!up || up.grade !== 'improved' || road.grade !== 'trodden') return null;
+  const done = up.progress * length;
+  return up.fromEnd ? [length - done, length] : [0, done];
 }
+
+/** Stupeň, který úsek ukazuje ve vzdálenosti `d` od začátku (rozestavěná úprava roste po cestě). */
+function shownGrade(road: SceneRoad, d: number): RoadGrade {
+  const part = improvedPart(road, roadLength(road));
+  if (!part) return road.grade;
+  return d >= part[0] - 1e-6 && d <= part[1] + 1e-6 ? 'improved' : road.grade;
+}
+
+/** Pás cesty: vyšlapaná, upravená (širší), vyšlapaná vozová (wagons.md). */
+type BandKind = 'trodden' | 'improved' | 'cart';
+
+/** Šířka pásu (m) – jako obtisk plné síly (ROAD_WORN_LAYER, IMPROVED_*, CART_WORN_LAYER). */
+const BAND_WIDTH_M: Record<BandKind, number> = {
+  trodden: ROAD_WIDTH_M.trodden,
+  improved: ROAD_WIDTH_M.improved,
+  cart: ROAD_WIDTH_M.cart,
+};
 
 /**
  * Pásy cest pro obtisk: vyšlapané (plně vyšlapaná pěšina) a upravené (širší) – rozestavěná
- * úprava je upravená od začátku úseku do průběhu stavby, dál vyšlapaná. Vytrácí se jen skutečný
- * volný konec (brána domu, cíl – `SceneRoad.openEnds`), ne konec, kde navazuje jiný úsek nebo
- * pěšina dne.
+ * úprava je upravená od začátku úseku (nebo konce – `fromEnd`) do průběhu stavby, dál vyšlapaná.
+ * Vytrácí se jen skutečný volný konec (brána domu, cíl – `SceneRoad.openEnds`), ne konec, kde
+ * navazuje jiný úsek nebo pěšina dne. Kde na sebe navazují pásy různé šířky (jiný stupeň či
+ * vozová – cesta hráče, roads.md), širší se k užšímu plynule zúží (`narrowStart` / `narrowEnd`)
+ * a koleje vozové cesty se vytratí.
  */
 export function roadBands(roads: readonly SceneRoad[]): {
-  trodden: PathLine[];
-  improved: PathLine[];
+  trodden: RibbonLine[];
+  improved: RibbonLine[];
   /** Vyšlapaná vozová cesta (wagons.md – Vyjeté cesty) – širší, bez holé hlíny uprostřed. */
-  cart: PathLine[];
+  cart: RibbonLine[];
   /** Koleje vozových cest (i upravených) – po CART_RUT_OFFSET_M na obě strany osy. */
-  ruts: PathLine[];
+  ruts: RibbonLine[];
 } {
   const ends = roads.flatMap((r) => [r.points[0], r.points[r.points.length - 1]]);
   const joined = (p: { x: number; z: number } | undefined, own: number): boolean =>
@@ -135,45 +159,97 @@ export function roadBands(roads: readonly SceneRoad[]): {
     if (joined(p, k)) return false;
     return road.openEnds ? road.openEnds[end] : true;
   };
-  const out = {
-    trodden: [] as PathLine[],
-    improved: [] as PathLine[],
-    cart: [] as PathLine[],
-    ruts: [] as PathLine[],
-  };
+  interface Piece {
+    points: { x: number; z: number }[];
+    kind: BandKind;
+    cart: boolean;
+    openStart: boolean;
+    openEnd: boolean;
+  }
+  const pieces: Piece[] = [];
   roads.forEach((road, k) => {
     if (road.points.length < 2) return;
     const length = roadLength(road);
-    const cut =
-      road.upgrade?.grade === 'improved' && road.grade === 'trodden'
-        ? road.upgrade.progress * length
-        : null;
-    const pieces: { from: number; to: number; improved: boolean }[] =
-      cut === null
-        ? [{ from: 0, to: length, improved: road.grade !== 'trodden' }]
-        : [
-            { from: 0, to: cut, improved: true },
-            { from: cut, to: length, improved: false },
-          ];
-    for (const piece of pieces) {
-      const points = axisPart(road.points, piece.from, piece.to);
+    const part = improvedPart(road, length);
+    const plain: BandKind = road.grade !== 'trodden' ? 'improved' : road.cart ? 'cart' : 'trodden';
+    const spans: { from: number; to: number; kind: BandKind }[] = part
+      ? [
+          { from: 0, to: part[0], kind: plain },
+          { from: part[0], to: part[1], kind: 'improved' as const },
+          { from: part[1], to: length, kind: plain },
+        ].filter((p) => p.to - p.from > 1e-6)
+      : [{ from: 0, to: length, kind: plain }];
+    for (const span of spans) {
+      const points = axisPart(road.points, span.from, span.to);
       if (points.length < 2) continue;
-      const line: PathLine = {
+      pieces.push({
         points,
-        strength: points.map(() => 1),
-        years: points.map(() => 0),
-        openStart: piece.from < 1e-6 && isOpen(road, k, 0),
-        openEnd: piece.to > length - 1e-6 && isOpen(road, k, 1),
-      };
-      (piece.improved ? out.improved : road.cart ? out.cart : out.trodden).push(line);
-      if (road.cart) {
-        for (const offset of [CART_RUT_OFFSET_M, -CART_RUT_OFFSET_M]) {
-          const rut = offsetPolyline(points, offset).map(([x, z]) => ({ x, z }));
-          out.ruts.push({ ...line, points: rut });
-        }
-      }
+        kind: span.kind,
+        cart: road.cart === true,
+        openStart: span.from < 1e-6 && isOpen(road, k, 0),
+        openEnd: span.to > length - 1e-6 && isOpen(road, k, 1),
+      });
     }
   });
+  // konce pásů po uzlech – přechod mezi dvěma pásy (právě dva konce), ne rozcestí
+  const key = (p: { x: number; z: number }): string =>
+    `${Math.round(p.x * 100)},${Math.round(p.z * 100)}`;
+  const nodes = new Map<string, Piece[]>();
+  for (const piece of pieces) {
+    for (const p of [piece.points[0]!, piece.points[piece.points.length - 1]!]) {
+      const list = nodes.get(key(p));
+      if (list) list.push(piece);
+      else nodes.set(key(p), [piece]);
+    }
+  }
+  const neighbour = (piece: Piece, p: { x: number; z: number }): Piece | null => {
+    const list = nodes.get(key(p)) ?? [];
+    if (list.length !== 2) return null;
+    const other = list[0] === piece ? list[1]! : list[0]!;
+    return other === piece ? null : other;
+  };
+  const narrowing = (piece: Piece, other: Piece | null): number | undefined => {
+    if (!other) return undefined;
+    const ratio = BAND_WIDTH_M[other.kind] / BAND_WIDTH_M[piece.kind];
+    return ratio < 1 - 1e-6 ? ratio : undefined;
+  };
+  const out = {
+    trodden: [] as RibbonLine[],
+    improved: [] as RibbonLine[],
+    cart: [] as RibbonLine[],
+    ruts: [] as RibbonLine[],
+  };
+  for (const piece of pieces) {
+    const { points } = piece;
+    const before = neighbour(piece, points[0]!);
+    const after = neighbour(piece, points[points.length - 1]!);
+    const narrowStart = narrowing(piece, before);
+    const narrowEnd = narrowing(piece, after);
+    const line: RibbonLine = {
+      points,
+      strength: points.map(() => 1),
+      years: points.map(() => 0),
+      openStart: piece.openStart,
+      openEnd: piece.openEnd,
+      ...(narrowStart !== undefined ? { narrowStart } : {}),
+      ...(narrowEnd !== undefined ? { narrowEnd } : {}),
+    };
+    out[piece.kind].push(line);
+    if (piece.cart) {
+      // koleje se vytratí, kde vozová cesta přechází v jinou
+      const rutLine = {
+        ...line,
+        openStart: line.openStart || (before !== null && !before.cart),
+        openEnd: line.openEnd || (after !== null && !after.cart),
+      };
+      delete rutLine.narrowStart;
+      delete rutLine.narrowEnd;
+      for (const offset of [CART_RUT_OFFSET_M, -CART_RUT_OFFSET_M]) {
+        const rut = offsetPolyline(points, offset).map(([x, z]) => ({ x, z }));
+        out.ruts.push({ ...rutLine, points: rut });
+      }
+    }
+  }
   return out;
 }
 
@@ -360,9 +436,10 @@ export function stakingLines(roads: readonly SceneRoad[]): Point[][] {
     const up = road.upgrade;
     if (!up) continue;
     const length = roadLength(road);
+    const done = up.progress * length;
     const spans: [number, number][] =
       up.grade === 'improved'
-        ? [[up.progress * length, length]]
+        ? [up.fromEnd ? [0, length - done] : [done, length]]
         : [
             ...(road.ground?.wet ?? []),
             ...(road.ground?.fords ?? []).map((f): [number, number] => [
@@ -437,7 +514,7 @@ export function roadWorksKey(roads: readonly SceneRoad[] | undefined): string {
   return (roads ?? [])
     .map(
       (r) =>
-        `${r.id}:${r.grade}:${r.points.length}:${r.upgrade ? `${r.upgrade.grade}@${Math.round(r.upgrade.progress * 100)}` : ''}:${(r.ground?.wet ?? []).length},${(r.ground?.fords ?? []).length}`,
+        `${r.id}:${r.grade}:${r.points.length}:${r.upgrade ? `${r.upgrade.grade}@${Math.round(r.upgrade.progress * 100)}${r.upgrade.fromEnd ? '<' : ''}` : ''}:${(r.ground?.wet ?? []).length},${(r.ground?.fords ?? []).length}`,
     )
     .join(';');
 }

@@ -149,10 +149,12 @@ export {
 } from './people-trade';
 // jabloně u cest – kroky simulace (práce a dokončení výsadby) zůstávají uvnitř
 export {
+  chainAppleSpots,
   roadAppleSpots,
   roadApplesOption,
   startRoadApples,
   villageRoadApples,
+  type ChainAppleSpot,
   type RoadApplesOption,
 } from './road-apples';
 export * from './overgrowth';

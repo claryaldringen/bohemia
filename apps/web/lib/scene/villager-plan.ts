@@ -1833,8 +1833,10 @@ function roadWork(ctx: Context, roadId: number): Placer {
     at.push(at[k - 1]! + Math.hypot(b.x - a.x, b.z - a.z));
   }
   const length = at[at.length - 1]!;
-  // práce postupuje od začátku úseku – lidé u čela práce, kousek před ním a za ním
-  const front = (road.upgrade?.progress ?? 0) * length;
+  // práce postupuje po cestě – od začátku osy úseku, nebo od konce (`fromEnd`); lidé u čela
+  // práce, kousek před ním a za ním
+  const done = (road.upgrade?.progress ?? 0) * length;
+  const front = road.upgrade?.fromEnd ? length - done : done;
   for (let k = 0; k < 12; k++) {
     const d = Math.min(length, Math.max(0, front + (k - 4) * 3));
     let seg = 1;
