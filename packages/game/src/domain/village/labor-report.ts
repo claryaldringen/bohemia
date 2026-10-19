@@ -89,8 +89,20 @@ export interface DayWork {
    * celé dny pryč (mimo práci vsi); bez údaje žádné.
    */
   purchases?: { target: LaborTarget; manDays: number }[];
-  /** Děti od 7 let a starší, kteří dnes pasou (diet.md – Pasáci); bez údaje se neví. */
-  herders?: { children: number; elders: number };
+  /** Výrostci 7–13 let, kteří dnes pasou (diet.md – Pasáci); bez údaje se neví. */
+  herders?: { children: number };
+  /** Práce bokem – mimo práci vsi, jen pro postavy (`AsideWork`); bez údaje žádná. */
+  aside?: AsideWork;
+}
+
+/**
+ * Práce bokem dne (člověkodny) – mimo práci vsi (population.md – Práce; Martin 19. 10. 2026):
+ * dojení a sýr, péče o zvířata (ženy), domácí výroba žen a denní minimum, které pokryli starší.
+ */
+export interface AsideWork {
+  milking: number;
+  care: number;
+  domestic: number;
 }
 
 /** Kolik kácených stromů jedné stavby rozdělení ukáže. */
@@ -166,16 +178,6 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
   haulTo('mow', mowTarget?.target ?? null);
   haulTo('logs', null);
   add('slaughter', { kind: 'village' }, allocation.tasks.slaughter);
-  // dojení u domů, zimní péče o krávy a voly u ohrady (když ves nějakou má – diet.md)
-  const pen = (state.pens ?? []).find((p) => p.builtDay !== null);
-  add('milking', { kind: 'village' }, allocation.tasks.milking);
-  // dospělí pasáci – u stád (diet.md – Pasáci)
-  add('herding', { kind: 'village' }, allocation.tasks.herding);
-  add(
-    'animal-care',
-    pen ? { kind: 'pen', id: pen.id } : { kind: 'village' },
-    allocation.tasks['animal-care'],
-  );
   const orchards = orchardAreas(state);
   for (const task of ['orchard-care', 'orchard-harvest'] as const) {
     for (const { target, share } of orchards) {
@@ -187,11 +189,11 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
     add('repair', { kind: 'dwelling', id: repair.dwellingId }, repair.manDays);
   }
   const workshops = work.workshops ?? [];
-  // minimum a domácí výroba vsi i domácností dílen
+  // denní minimum vsi i domácností dílen (z práce dospělých – co po starších zbude)
   add(
     'domestic',
     { kind: 'village' },
-    allocation.dailyMin + allocation.domestic + workshops.reduce((sum, w) => sum + w.domestic, 0),
+    allocation.dailyMin + workshops.reduce((sum, w) => sum + w.domestic, 0),
   );
   // řemeslníci: uhlíř a hrnčíř kácejí u svého stromu, výroba v dílně – uhlíř u milíře, v lese
   // u lesního milíře, a sází mladé buky na pařezy (crafts.md – Uhlíř)
@@ -219,7 +221,8 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
   }
   // nákup u sousedů – malá skupina po stezce nebo krajinou ke kraji mapy (crafts.md)
   for (const p of work.purchases ?? []) add('trade', p.target, p.manDays);
-  let invested = 0;
+  // opravy obydlí jdou ze společné práce po stavbách (population.md – Práce)
+  let invested = work.repairs.reduce((sum, r) => sum + r.manDays, 0);
   // honáci a nakladači klád jdou ze společné práce (wagons.md)
   for (const haul of hauls) if (haul.job === 'logs') invested += haul.manDays;
   for (const c of work.constructions) {
@@ -229,7 +232,29 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
     }
   }
   add('idle', { kind: 'village' }, allocation.common - invested);
-  return { day, shares, ...(work.herders !== undefined ? { herders: work.herders } : {}) };
+  return {
+    day,
+    shares,
+    ...(work.herders !== undefined ? { herders: work.herders } : {}),
+    ...(work.aside ? { aside: asideShares(state, work.aside) } : {}),
+  };
+}
+
+/**
+ * Práce bokem jako podíly pro postavy: dojení u domů, péče o zvířata v zimě u ohrady (když ves
+ * nějakou má – diet.md), jinak u domů, domácí výroba u domů.
+ */
+function asideShares(state: VillageState, aside: AsideWork): LaborShare[] {
+  const pen = (state.pens ?? []).find((p) => p.builtDay !== null);
+  const shares: LaborShare[] = [];
+  const add = (activity: LaborActivity, target: LaborTarget, manDays: number): void => {
+    const rounded = Math.round(manDays * 1000) / 1000;
+    if (rounded >= MIN_MAN_DAYS) shares.push({ activity, target, manDays: rounded });
+  };
+  add('milking', { kind: 'village' }, aside.milking);
+  add('animal-care', pen ? { kind: 'pen', id: pen.id } : { kind: 'village' }, aside.care);
+  add('domestic', { kind: 'village' }, aside.domestic);
+  return shares;
 }
 
 /**

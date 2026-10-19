@@ -207,9 +207,9 @@ describe('uhlíř – práce po fázích', () => {
     const n = CHARCOAL_KILN.trees;
     // kácení a dovoz 2 čd + příprava 6 čd na buk
     expect(sum('felling')).toBeCloseTo(n * (2 + CHARCOAL_KILN.prepManDaysPerTree), 6);
-    // stavba 2 čd na buk, pálení 8 dní celou prací domácnosti (0,9 čd)
+    // stavba 2 čd na buk, pálení 8 dní celou prací domácnosti (1,5 čd)
     expect(sum('making')).toBeCloseTo(
-      n * CHARCOAL_KILN.buildManDaysPerTree + CHARCOAL_KILN.burnDays * 0.9,
+      n * CHARCOAL_KILN.buildManDaysPerTree + CHARCOAL_KILN.burnDays * 1.5,
       6,
     );
     // uhlí zůstává ve vypáleném milíři – u kováře nic, zásoba vsi 1,8 t
@@ -229,7 +229,7 @@ describe('uhlíř – práce po fázích', () => {
       if (burnerOf(s).activity === 'burning') {
         burningDays++;
         // hlídání vezme celou práci dne – nic se nekácí ani nesází
-        expect(burner!.making).toBeCloseTo(0.9, 9);
+        expect(burner!.making).toBeCloseTo(1.5, 9);
         expect(burner!.felling).toBe(0);
       }
       if (burnerOf(s).kiln?.stage === 'draw') break;
@@ -249,8 +249,8 @@ describe('uhlíř – práce po fázích', () => {
     for (const t of kiln.trees) expect(t.cost).toBeCloseTo(2, 9);
     const factor = kilnWalkFactor(kiln, FAR_FROM_FOREST);
     expect(factor).toBeGreaterThan(1.1);
-    // práce dne jde na kácení prvního buku – efektivně 0,9 / přirážka
-    expect(kiln.done).toBeCloseTo(0.9 / factor, 9);
+    // práce dne jde na kácení prvního buku – efektivně 1,5 / přirážka
+    expect(kiln.done).toBeCloseTo(1.5 / factor, 9);
     expect(days[0]!.kilnSite).toEqual(kiln.site);
   });
 
@@ -339,9 +339,9 @@ describe('uhlíř – milíř stojí vždy (crafts.md – Milíř stojí vždy)'
     expect(restingCrafters(s, day, NO_CRAFTS).get(BURNER)).toBe('resting');
     // kolik uhlí kovář spálí, než uhlíř připraví a vypálí nový milíř
     const perDay = smithsCharcoalPerYear(s, day, NO_CRAFTS) / 365;
-    const lead = kilnLeadDays(kiln, NEAR_FOREST, 0.9);
-    // 15 buků × (2 + 6 + 2) čd po 0,9 čd za den + 8 dní pálení
-    expect(lead).toBeCloseTo((15 * 10) / 0.9 + CHARCOAL_KILN.burnDays, 6);
+    const lead = kilnLeadDays(kiln, NEAR_FOREST, 1.5);
+    // 15 buků × (2 + 6 + 2) čd po 1,5 čd za den + 8 dní pálení
+    expect(lead).toBeCloseTo((15 * 10) / 1.5 + CHARCOAL_KILN.burnDays, 6);
     expect(kilnLeadDays(kiln, NEAR_FOREST, 0)).toBe(0);
     expect(charcoalDrawKg(kiln, 1, 0.5, 0)).toBe(0);
     expect(charcoalDrawKg(kiln, 1, 0.5, 1801)).toBe(1800);

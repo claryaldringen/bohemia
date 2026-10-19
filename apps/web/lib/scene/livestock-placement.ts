@@ -74,12 +74,13 @@ export interface LivestockVillage {
   pens?: readonly { x: number; z: number; size: number; rotation?: number }[];
   /**
    * Rozdělení práce dne: herní den (na louce na seno se pase jen po seči; bez něj se tam nepase)
-   * a pasáci (`herders` – děti a starší, dospělí v podílech `herding`; diet.md – Pasáci). Bez
-   * údaje o pasácích (starší data) jdou na pastvu všechna stáda.
+   * a pasáci (`herders` – výrostci 7–13 let; starší a dospělí v podílech `herding` jen v datech
+   * z doby před 19. 10. 2026; diet.md – Pasáci). Bez údaje o pasácích (starší data) jdou na
+   * pastvu všechna stáda.
    */
   labor?: {
     day: number;
-    herders?: { children: number; elders: number };
+    herders?: { children: number; elders?: number };
     shares?: readonly { activity: string; manDays: number }[];
   };
   /**
@@ -134,15 +135,18 @@ export function grazedMeadow(
 }
 
 /**
- * Kolik lidí dnes pase (diet.md – Pasáci): děti a starší z rozdělení práce a dospělí podle
- * člověkodní činnosti `herding` (člověkoden = jeden pasák). Bez údaje (starší data) neomezeně.
+ * Kolik lidí dnes pase (diet.md – Pasáci): výrostci 7–13 let z rozdělení práce; v datech z doby
+ * před 19. 10. 2026 i starší a dospělí podle člověkodní činnosti `herding` (člověkoden = jeden
+ * pasák). Bez údaje (starší data) neomezeně.
  */
 export function herderCount(labor: LivestockVillage['labor']): number {
   if (!labor?.herders) return Infinity;
   const adults = (labor.shares ?? [])
     .filter((share) => share.activity === 'herding')
     .reduce((sum, share) => sum + share.manDays, 0);
-  return labor.herders.children + labor.herders.elders + Math.max(0, Math.ceil(adults - 1e-6));
+  return (
+    labor.herders.children + (labor.herders.elders ?? 0) + Math.max(0, Math.ceil(adults - 1e-6))
+  );
 }
 
 /** Terén pro zvířata (bez vsi). */

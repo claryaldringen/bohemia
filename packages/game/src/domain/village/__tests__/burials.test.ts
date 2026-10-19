@@ -352,7 +352,8 @@ describe('mohyly v simulaci', () => {
 
   it('lidé dostanou mohyly podle významu; nezávisí na kouscích dopočtu', () => {
     const start = aging();
-    const end = DAY + Math.round(4 * YEAR);
+    // starší pracují jen na denním minimu (population.md – Práce) – za 8 let umře i někdo z dvorce
+    const end = DAY + Math.round(8 * YEAR);
     const whole = advanceVillage(start, end, null);
     const c = whole.cemeteries![0]!;
     expect(oldGraves(c)).toBe(9);

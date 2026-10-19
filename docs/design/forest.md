@@ -39,14 +39,13 @@ k lesu stojí práci a mýcení pro pole dá klády na stavby.
 ### Palivo
 
 - **Dřevo na topení sbírají vesničané sami** – klestí a odřezky, žádné kácení (Martin). Je to
-  část domácí výroby ([fields.md](fields.md) – Práce).
-- Sběr paliva se prodraží, když je ves daleko od lesa: palivová část domácí výroby (návrh Clauda:
-  třetina) je o 1 % dražší za každých 10 m nad 100 m od obydlí k nejbližšímu okraji lesa – stejně
-  jako vzdálenost u polí. Počítá se po domácnostech, okraj lesa = nejbližší lesní políčko
-  krajiny (vzdálenost se uloží při zahájení stavby obydlí – návrh Clauda). S krajinou se měří
-  **chůzí** k nejbližšímu okraji lesa – po pěšinách a pevných cestách, mokřina ×2, brod + 30 m
-  ([roads.md](roads.md) – Rychlejší chůze); přepočítá se se změnou rozložení vsi (i po vylepšení
-  cesty).
+  část domácí výroby, a ta jde od 19. 10. 2026 bokem – z práce vsi nebere ([fields.md](fields.md)
+  – Práce; Martin: „Domácí výrobu z většiny obstarají ženy, takže to do práce stavby taky
+  nemusíme počítat.“).
+- **Přirážka za les daleko od vsi zmizela s ní** (návrh Clauda): dřív byla palivová část domácí
+  výroby (třetina) o 1 % dražší za každých 10 m nad 100 m od obydlí k okraji lesa. Vzdálenost
+  obydlí k okraji lesa se dál ukládá a měří **chůzí** (po pěšinách a pevných cestách, mokřina ×2,
+  brod + 30 m – [roads.md](roads.md), Rychlejší chůze), práci vsi ale neubírá.
 
 ### Stavby a kácení
 
@@ -165,3 +164,4 @@ k lesu stojí práci a mýcení pro pole dá klády na stavby.
 | Stromy jako herní data (vrstva překážek) jsou předpoklad                       | návrh Clauda                               |
 | Obydlí i ostatní stavby smí do lesa – les se vyklučí                           | Martin, 19. 10. 2026                       |
 | Les pod stavbou za sazbu lesa jako pole, pruh 4 m pod korunami, stromy = klády | návrh Clauda                               |
+| Palivo s domácí výrobou bokem, přirážka za les daleko zmizela                  | Martin / Claude, 19. 10. 2026              |

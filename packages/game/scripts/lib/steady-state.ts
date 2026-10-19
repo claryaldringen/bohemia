@@ -7,13 +7,11 @@ import {
   APPLE_FOOD_VALUE,
   CROP_ORDER,
   CROP_WINDOWS,
-  DOMESTIC,
   DWELLINGS,
   DWELLING_TREES,
   FELLING_MAN_DAYS_PER_TREE,
   FERTILITY,
   FOOD_NEED_KG_PER_YEAR,
-  FUEL_DOMESTIC_SHARE,
   LABOR_PER_DAY,
   NO_CRAFTS,
   ORCHARD,
@@ -21,6 +19,7 @@ import {
   SEED_KG_PER_HA,
   TASK_ORDER,
   YOUNG_FALLOW_YEARS,
+  adultDailyMin,
   bufferKg,
   dailyMinPerHousehold,
   distanceFactor,
@@ -111,13 +110,12 @@ export function foodNeedKg(h: Household): number {
   );
 }
 
-/** Práce za den (člověkodny) – bez štěstí. */
+/**
+ * Práce vsi za den (člověkodny) – bez štěstí: jen dospělí (population.md – Práce; výrostci pasou,
+ * starší kryjí denní minimum domácnosti – `adultDailyMin`).
+ */
 export function laborPerDay(h: Household): number {
-  return (
-    h.adults * LABOR_PER_DAY.adult +
-    h.elders * LABOR_PER_DAY.elder +
-    h.olderChildren * LABOR_PER_DAY.olderChild
-  );
+  return h.adults * LABOR_PER_DAY.adult;
 }
 
 /**
@@ -152,13 +150,13 @@ export function harvestForStores(stores: number): number {
 
 export interface SteadyInput {
   household: Household;
-  /** Stejných domácností ve vsi (denní minimum a domácí výroba jsou za domácnost). */
+  /** Stejných domácností ve vsi (denní minimum je za domácnost). */
   households: number;
   /** Přirozená úrodnost dílů (0–100). */
   fertility: number;
   /** Průměrná vzdálenost dílů od obydlí (m). */
   distanceM: number;
-  /** Od obydlí k okraji lesa (m) – palivo. */
+  /** Od obydlí k okraji lesa (m) – jen do výpisu; palivo práci vsi nebere (forest.md – Palivo). */
   forestDistanceM: number;
   dwelling: DwellingType;
   /** Plocha sadu v plné úrodě (ha) – nejí se místo obilí, jen práce a jablka navíc. */
@@ -186,10 +184,8 @@ export interface MonthLabor {
   dailyMin: number;
   field: Record<TaskName, number>;
   orchard: number;
+  /** Opravy obydlí – z práce, kterou stavby nespotřebují (v ustáleném stavu se nestaví). */
   repairs: number;
-  domestic: number;
-  /** Domácí výroba, která se odkládá na další měsíce (nejvýš 60 dní potřeby). */
-  domesticBacklog: number;
   common: number;
 }
 
@@ -213,7 +209,6 @@ export interface SteadyResult {
   fieldWork: Record<TaskName, number>;
   orchardWork: number;
   repairsPerYear: number;
-  domesticPerYear: number;
   commonPerYear: number;
   /** Podíl práce na obživu – 1 − (společná práce + opravy) ÷ práce (jako v kalibraci). */
   subsistence: number;
@@ -284,7 +279,7 @@ export function steadyState(input: SteadyInput): SteadyResult {
   const sown = input.sownHaOverride ?? sownHa(need, input.fertility, buffer);
   const factor = distanceFactor(input.distanceM);
   const capacityPerDay = laborPerDay(h) * count;
-  const dailyMinPerDay = dailyMinPerHousehold(NO_CRAFTS.pottery) * count;
+  const dailyMinPerDay = adultDailyMin(dailyMinPerHousehold(NO_CRAFTS.pottery), h.elders) * count;
   const free = Math.max(0, capacityPerDay - dailyMinPerDay);
   // vrácení přílohu po ROTATION.fallow letech – drn pastviny (spásaný příloh nezarůstá)
   const reclaimPerHa = reclaimCostPerHa(
@@ -351,12 +346,6 @@ export function steadyState(input: SteadyInput): SteadyResult {
   );
 
   const repairsPerDay = (DWELLINGS[input.dwelling].repairAtEndOfLifePerYear / 3 / 365) * count;
-  const domesticPerDay =
-    (DOMESTIC.perHousehold + DOMESTIC.perPerson * people(h)) *
-    count *
-    (1 + FUEL_DOMESTIC_SHARE * (distanceFactor(input.forestDistanceM) - 1));
-
-  let backlog = 0;
   let unfinished = 0;
   const months: MonthLabor[] = SEASON_MONTHS.map(({ month, days }, index) => {
     const capacity = capacityPerDay * days;
@@ -389,22 +378,7 @@ export function steadyState(input: SteadyInput): SteadyResult {
     }
     const repairs = Math.min(left, repairsPerDay * days);
     left -= repairs;
-    const domesticNeed = domesticPerDay * days;
-    const domestic = Math.min(left, domesticNeed + backlog);
-    left -= domestic;
-    backlog = Math.min(DOMESTIC.backlogMaxDays * domesticPerDay, backlog + domesticNeed - domestic);
-    return {
-      month,
-      days,
-      capacity,
-      dailyMin,
-      field,
-      orchard,
-      repairs,
-      domestic,
-      domesticBacklog: backlog,
-      common: left,
-    };
+    return { month, days, capacity, dailyMin, field, orchard, repairs, common: left };
   });
 
   const sum = (pick: (m: MonthLabor) => number): number =>
@@ -469,7 +443,6 @@ export function steadyState(input: SteadyInput): SteadyResult {
     fieldWork,
     orchardWork,
     repairsPerYear,
-    domesticPerYear: sum((m) => m.domestic),
     commonPerYear,
     subsistence: 1 - (commonPerYear + repairsPerYear) / capacityPerYear,
     months,

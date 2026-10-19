@@ -345,7 +345,7 @@ export interface VillageWorkshop {
   /** Co dílna dělala poslední den – vyrábí, kácí, čeká na uhlí / dřevo, nemá kdo, prázdná. */
   activity: WorkshopActivity;
   occupants: number;
-  /** Práce řemeslu za den (člověkodny po minimu a domácí výrobě). */
+  /** Práce řemeslu za den (člověkodny po denním minimu). */
   laborPerDay: number;
   /** Výroba za den při této práci, když jsou vstupy (kg výrobku). */
   outputPerDayKg: number;
@@ -1408,12 +1408,17 @@ export interface SceneLabor {
    * muži a ženy v poměru, jaký ves má (`villager-plan.ts`); bez údaje půl na půl.
    */
   people: { children: number; adults: number; elders: number } & Partial<FamilyCounts>;
+  /**
+   * Podíly práce dne – práce vsi i práce bokem (dojení, péče o zvířata a domácí výroba žen,
+   * denní minimum, které pokryli starší – `LaborDay.aside`; population.md – Práce), jen pro postavy.
+   */
   shares: SceneLaborShare[];
   /**
-   * Děti od 7 let a starší, kteří dnes pasou (diet.md – Pasáci) – postavy u stád; dospělí pasáci
-   * jsou podíl `herding`. Bez údaje (dřívější rozdělení práce) pasou děti.
+   * Výrostci 7–13 let, kteří dnes pasou (diet.md – Pasáci) – postavy u stád; starší (`elders`)
+   * a dospělí pasáci (podíl `herding`) jen v rozdělení práce z doby před 19. 10. 2026. Bez údaje
+   * (dřívější rozdělení práce) pasou děti.
    */
-  herders?: { children: number; elders: number };
+  herders?: { children: number; elders?: number };
 }
 
 export const CHRONICLE_LENGTH = 8;
@@ -2709,7 +2714,7 @@ function sceneLabor(state: VillageState, people: SceneLabor['people']): SceneLab
   // na setiny, ale nic, co dnes práci dostalo, nezmizí – i drobná práce na stavbě je stavba,
   // která roste, a u ní má někdo stát (villagers.md); díly čela polní práce jdou do podílu
   // (`parts`), cíl zůstane pole
-  const shares = labor.shares.flatMap((share): SceneLaborShare[] => {
+  const shares = [...labor.shares, ...(labor.aside ?? [])].flatMap((share): SceneLaborShare[] => {
     if (share.manDays <= 0) return [];
     const manDays = Math.max(0.01, Math.round(share.manDays * 100) / 100);
     if (share.target.kind === 'field' && share.target.parts) {

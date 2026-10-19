@@ -184,7 +184,7 @@ export interface WorkshopSummary {
   activity: WorkshopActivity;
   /** Kolik lidí v dílně bydlí. */
   occupants: number;
-  /** Práce řemeslu za den po minimu a domácí výrobě (člověkodny, se štěstím). */
+  /** Práce řemeslu za den po denním minimu (člověkodny, se štěstím). */
   laborPerDay: number;
   /** Přirážka za rudu nebo hlínu dál od potoka (1 = voda blízko). */
   oreFactor: number;

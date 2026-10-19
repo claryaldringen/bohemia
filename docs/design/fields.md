@@ -616,22 +616,40 @@ Výchozí osevní systém je přílohová soustava raných Slovanů (Martin). Pr
 
 ### Práce
 
-Navazuje na pracovní sílu z [populace](population.md) (dospělý 1 člověkoden za den, starší
-0,5, dítě 7–13 let 0,3). Pole jsou společná, a proto se práce počítá **za celou ves**:
-dospělí všech domácností pracují na společných polích (Martin). Ves práci rozděluje v tomto
-pořadí (návrh Clauda; nahrazuje pevných 85 % a dělení práce po domácnostech v populaci):
+Navazuje na pracovní sílu z [populace](population.md) – Práce (na polích a stavbách jen dospělý
+1 člověkoden za den; starší 0,5 jen na denní minimum své domácnosti, výrostci 7–13 let jen pasou).
+Pole jsou společná, a proto se práce počítá **za celou ves**: dospělí všech domácností pracují na
+společných polích (Martin). Martin (19. 10. 2026): „Vesničané se snaží vyrobit co nejvíce jídla
+(později přibudou nejspíš i jiné suroviny), ale pokud se něco staví, tak čas věnují primárně té
+stavbě – zemědělství jenom natolik, aby vesnice neměla hlad.“ Ves práci rozděluje v tomto pořadí
+(Martin 19. 10. 2026, podrobnosti návrh Clauda; nahrazuje pevných 85 % a dělení práce po
+domácnostech v populaci):
 
 1. **Denní minimum domácností** – vaření, voda, oheň, péče o malé děti: 0,5 člověkodne denně
-   na každou domácnost (s hrnčířem 0,45; FAO: venkovské ženy 0,5–0,6 dne).
+   na každou domácnost (s hrnčířem 0,45; FAO: venkovské ženy 0,5–0,6 dne). Napřed ho kryjí
+   **starší** domácnosti (Martin: „Starší lidé se zase starají o malé děti, a uvolňují práci
+   zbytku rodiny.“) – každý 0,5 člověkodne; dospělí dají jen zbytek, max(0, minimum − 0,5 ×
+   starší). Co starším nad minimum zbude, propadne (návrh Clauda).
 2. **Lidé na výpravách k sousedům** – každá výprava na cestě tolik člověkodní, kolik s ní jde
    lidí, nejvýš kolik má ves dospělých ([obchod](trade.md) – Doprava; Martin 19. 10. 2026).
-3. **Polní práce v jejich období** (tabulka níže) – a sezónní práce v sadech (sklizeň jablek,
-   péče) podle konce svého okna ([sad](orchard.md)).
-4. **Opravy obydlí** (populace).
-5. **Domácí výroba** – oděv, nádobí, jednoduché železné předměty, palivo: v průměru 0,3
-   člověkodne denně na domácnost + 0,15 na člověka. Dá se odkládat a dělá se hlavně v zimě;
-   nedodělaná se přenáší, nejvýš za 60 dní, a má přednost před společnou prací.
-6. Zbytek je **společná práce vsi** – stavby obydlí a zakládání polí (populace).
+3. **Potřebné sezónní úlohy** podle konce svého okna – polní práce v jejich období (tabulka
+   níže), sezónní práce v sadech (sklizeň jablek, péče – [sad](orchard.md)), seč sena
+   ([oxen.md](oxen.md) – Seno) a porážka s uzením ([diet.md](diet.md)).
+4. **Společná práce vsi do staveb** – stavby hráče i přestavby obyvatel, zakládání polí, rovným
+   dílem (populace). To je i **volná práce** v liště – práce, kterou dnes dostanou nebo by
+   dostaly stavby.
+5. **Opravy obydlí** – jen z práce, kterou stavby nespotřebovaly (Martin: „Opravy obydlí zařaď
+   až za stavbu.“).
+6. **Polní práce navíc** – viz Kolik ves oseje, Osev navíc.
+7. Co zbude, propadne.
+
+**Bokem – mimo práci vsi** (Martin 19. 10. 2026: „Zvířata a pasáci – to obstarají výrostci, takže
+do práce je nemusíme počítat, jsou úplně bokem. Domácí výrobu z většiny obstarají ženy, takže to
+do práce stavby taky nemusíme počítat.“ a „Dojení a péče o zvířata – to obvykle dělají ženy.“):
+dojení a péče o zvířata (ženy), pasení (výrostci – [diet.md](diet.md), Pasáci) a **domácí výroba**
+(oděv i zpracování vlny a lnu, nádobí, jednoduché železné předměty, palivo – ≈ 0,3 člověkodne
+denně na domácnost + 0,15 na člověka, jen pro postavy žen u domů ve scéně). Dřív šly dojení,
+péče a dospělí pasáci hned po denním minimu, domácí výroba s odkládáním až 60 dní po opravách.
 
 **Polní práce při ruční práci** (člověkodny na osetý hektar za rok, v závorce s řemesly – oprava
 podle rešerše, dřív 200 – kopání 80, výmlat 30). Ves bez spřežení kope motykou; **ves se
@@ -810,10 +828,10 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
 - **Trhání** jde v červenci napřed (před sklizní ozimu a luštěnin – je ho málo, bez něj chybí
   oděv).
 - **Zpracování** – rosení (máčení), sušení, lámání, třepení, vochlování, předení, tkaní a šití – je
-  součástí **domácí výroby** (`DOMESTIC`, Práce – bod 4: „oděv, …“): **přerozdělení, ne práce navíc**
-  (rozhodnutí Clauda jako u vlny). Dospělý ≈ 1 kg látky × ≈ 200 h ≈ 20 člověkodní za rok – s vlnou
-  ≈ 45 z ≈ 125 člověkodní domácí výroby na dospělého. Práce navíc by oděv počítala dvakrát a ubrala
-  volnou práci, se kterou kalibrace domácí výroby už počítá.
+  součástí **domácí výroby** (`DOMESTIC`, Práce – Bokem: „oděv, …“): **přerozdělení, ne práce
+  navíc** (rozhodnutí Clauda jako u vlny). Dospělý ≈ 1 kg látky × ≈ 200 h ≈ 20 člověkodní za rok –
+  s vlnou ≈ 45 z ≈ 125 člověkodní domácí výroby na dospělého. Od 19. 10. 2026 jde domácí výroba
+  celá bokem – z práce vsi nebere (Práce).
 - **Žádná zásoba v liště** (Martin nechce nové suroviny): len se v rámci roku zpracuje. Při
   trhání 31. 7. se zapíše, **na jaký podíl oděvu len je** (sklizený len ÷ potřeba při plánu
   k 1. 9.) – platí do dalšího trhání.
@@ -871,8 +889,8 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
   stravy).
 - **Zbytek stravy** – maso a ovoce řeší [strava](diet.md) (od 18. 10. 2026: potřeba níže je
   potřeba energie v kg obilí, maso a ovoce z ní pokryjí část); zahrada, sběr a ryby se zatím
-  nemodelují. Domácí výroba je jen spotřeba práce – její nedodělání nasycení nesnižuje (návrh
-  Clauda). Nasycení počítá [strava](diet.md) – energie (obilí, maso, ovoce) × pestrost; dřív
+  nemodelují. Domácí výroba jde bokem, mimo práci vsi (Práce – Bokem) – nasycení nesnižuje
+  (návrh Clauda). Nasycení počítá [strava](diet.md) – energie (obilí, maso, ovoce) × pestrost; dřív
   záviselo jen na obilí a jablcích ([sad](orchard.md)).
 - **Ztráty při skladování:** 10 % zásob za rok (myši, plíseň), rozložené rovnoměrně; s hrnčířem
   5 % (meze – dobře utěsněná jáma ztrácí málo, Butser; rozpětí návrh Clauda).
@@ -1596,3 +1614,6 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Zpracování lnu v domácí výrobě (přerozdělení); bez lnu jen štěstí až −4 a upozornění                                              | návrh Clauda                                    |
 | Osev podle růstu vsi – ves seje na lidi v době, kdy úrodu jí, ne na dnešní                                                        | Martin (19. 10. 2026)                           |
 | Výhled po měsících: věk, běžná úmrtnost, porody manželských párů; do sklizně a rok po ní                                          | návrh Clauda                                    |
+| Pořadí práce: minimum, výpravy, potřebné úlohy, stavby, opravy obydlí, pole navíc, zbytek propadne                                | Martin, 19. 10. 2026                            |
+| Zvířata (dojení, péče – ženy; pasení – výrostci) a domácí výroba bokem, mimo práci vsi                                            | Martin, 19. 10. 2026                            |
+| Starší kryjí denní minimum své domácnosti (0,5 čd), dospělí dají zbytek; přebytek starších propadne                               | návrh Clauda                                    |

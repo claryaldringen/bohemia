@@ -209,7 +209,6 @@ export function simulateHoldings(
     plan: null,
     threshingFromPlan: null,
     storesKg: 500 * built.length,
-    domesticBacklog: 0,
     hungry: false,
     commonLaborHistory: [],
     chronicle: [],

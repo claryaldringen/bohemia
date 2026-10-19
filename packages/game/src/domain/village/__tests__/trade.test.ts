@@ -228,12 +228,10 @@ describe('výprava', () => {
     const e = s.trade!.expeditions[0]!;
     expect(e.porters).toBeGreaterThan(2);
     expect(expeditionLaborNeed(s)).toBe(e.porters);
-    s.domesticBacklog = 1e6;
     const whole = advanceVillage(s, DAY + e.days + 2, null, LANDSCAPE);
     const returned = whole.chronicle.find((ev) => ev.kind === 'trade-returned');
-    // přesně dny z náhledu – i když ves neměla žádnou volnou práci
+    // přesně dny z náhledu – nosiči jdou před úlohami dne, společná práce na ně nečeká
     expect(returned!.day).toBe(DAY + e.days);
-    expect(whole.commonLaborHistory.slice(-e.days).every((c) => c < 1e-9)).toBe(true);
     // nezávisle na kouscích dopočtu
     let parts = s;
     for (const step of [1, 2, 3, e.days, e.days + 2]) {
@@ -245,13 +243,18 @@ describe('výprava', () => {
   it('nosiči jsou dospělí – víc, než kolik jich ves má, nejde; denní minimum má přednost', () => {
     const s = startExpedition(trading(), DAY, { direction: 'S', give: { meat: 300 }, get: {} });
     const e = s.trade!.expeditions[0]!;
-    // zakladatelé: 2 dospělí (13 a 12 let jsou děti) – výprava jde po dvou člověkodnech
+    // zakladatelé: 2 dospělí (13 a 12 let jsou výrostci u stád) – výprava chce dva člověkodny
     expect(expeditionLaborToday(s, s.people, DAY + 1)).toBe(Math.min(e.porters, 2));
     expect(expeditionLaborToday(trading(), trading().people, DAY + 1)).toBe(0);
     const next = advanceVillage(s, DAY + 1, null, LANDSCAPE);
-    expect(next.trade!.expeditions[0]!.done).toBeCloseTo(Math.min(e.porters, 2) * 1, 6);
+    // denní minimum má přednost – výpravě zbude práce dvou dospělých (× štěstí) bez minima
+    // domácnosti 0,5
+    const away = next.trade!.expeditions[0]!.done;
+    expect(away).toBeLessThan(Math.min(e.porters, 2));
+    expect(away + 0.5).toBeGreaterThan(2 * 0.8);
+    expect(away + 0.5).toBeLessThan(2 * 1.1);
     const share = next.labor!.shares.find((x) => x.activity === 'trade');
-    expect(share!.manDays).toBeCloseTo(Math.min(e.porters, 2), 6);
+    expect(share!.manDays).toBeCloseTo(away, 2);
     // denní minimum domácností dostane práci vždy
     expect(next.labor!.shares.some((x) => x.activity === 'domestic')).toBe(true);
     // lidé na výpravě společnou práci neberou – volná práce dne zůstane celá nevyužitá (bez staveb)

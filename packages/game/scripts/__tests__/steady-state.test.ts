@@ -68,7 +68,8 @@ describe('ustálený oběh z pravidel', () => {
 
   it('práce po měsících sedí s ročními součty a denním minimem', () => {
     const r = steadyState(START);
-    expect(r.capacityPerYear).toBeCloseTo((2 + 2 * 0.3) * 365);
+    // jen dospělí – výrostci 7–13 let pasou (population.md – Práce)
+    expect(r.capacityPerYear).toBeCloseTo(2 * 365);
     expect(r.dailyMinPerYear).toBeCloseTo(DAILY_MIN_PER_HOUSEHOLD.worst * 365);
     const monthField = r.months.reduce(
       (sum, m) => sum + Object.values(m.field).reduce((a, b) => a + b, 0),
@@ -84,7 +85,6 @@ describe('ustálený oběh z pravidel', () => {
         Object.values(m.field).reduce((a, b) => a + b, 0) +
         m.orchard +
         m.repairs +
-        m.domestic +
         m.common;
       expect(used).toBeCloseTo(m.capacity);
     }

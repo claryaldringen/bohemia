@@ -14,7 +14,9 @@ Hráč má vidět, **kde ves dnes pracuje** – kam jde práce lidí, kterou po�
 
 - **Jedna postava ≈ jeden pracující** (člověkoden dne). Postavy vycházejí z rozdělení práce
   posledního odsimulovaného dne – ze stejného výpočtu, který použila simulace (pořadí: denní
-  minimum → polní a sadové práce → opravy → domácí výroba → společná práce do staveb).
+  minimum → výpravy → potřebné sezónní úlohy → společná práce do staveb → opravy obydlí; dojení,
+  péče o zvířata a domácí výroba žen jdou bokem, mimo práci vsi, a ukazují se jen jako postavy –
+  population.md, Práce).
 - **Nejvýš 60 pracujících** – větší ves se poměrně zmenší. Lidé pracují pohromadě: v každé
   činnosti po skupinách až čtyř tam, kde je práce nejvíc (ne každý na jiném z desítek polí).
 - **Stavba neroste sama od sebe** (Martin, 18. 10. 2026): u každé stavby, která dnes dostala práci

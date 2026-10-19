@@ -435,7 +435,6 @@ export function foundVillage(input: {
     plan: null,
     threshingFromPlan: null,
     storesKg: food ? food.grainKg : (annualNeed * START_STORES_MONTHS) / MONTHS_PER_YEAR,
-    domesticBacklog: 0,
     hungry: false,
     commonLaborHistory: [],
     chronicle: [{ day, kind: 'village-founded' }],

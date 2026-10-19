@@ -10,8 +10,6 @@ import {
 } from '../../landscape';
 import { foundCemetery, foundField, foundVillage, startNewDwelling } from '../actions';
 import { dwellingLaborManDays, villageStock } from '../costs';
-import { allocateDay } from '../labor';
-import { NO_CRAFTS } from '../productivity';
 import {
   countMatureTrees,
   matureTreesByDistance,
@@ -27,7 +25,6 @@ import {
   withForestDistances,
 } from '../placement';
 import {
-  DOMESTIC,
   DWELLINGS,
   DWELLING_TREES,
   FELLING_MAN_DAYS_PER_TREE,
@@ -43,7 +40,6 @@ import {
   claimedObstacles,
   fellAsWorked,
   fellingCost,
-  fuelExtraPerDay,
   nearestMatureTrees,
   planDwellingWood,
   planDwellingWoodFrom,
@@ -675,36 +671,14 @@ describe('hromada klád', () => {
 });
 
 describe('palivo', () => {
-  it('palivová třetina domácí výroby: +1 % za 10 m nad 100 m od obydlí k lesu', () => {
-    const s = fullVillage();
-    expect(fuelExtraPerDay(s)).toBe(0);
-    s.dwellings[0]!.forestDistanceM = 300;
-    const domestic = DOMESTIC.perHousehold + DOMESTIC.perPerson * s.people.length;
-    expect(fuelExtraPerDay(s)).toBeCloseTo((domestic / 3) * 0.2, 12);
-    s.dwellings[0]!.forestDistanceM = 80;
-    expect(fuelExtraPerDay(s)).toBe(0);
-  });
-
-  it('zakladatelé na staveništi se počítají od staveniště první zemnice', () => {
-    const s = foundVillage({ seed: 1, day: DAY, dwellingPosition: SITE, forestDistanceM: 200 });
-    const domestic = DOMESTIC.perHousehold + DOMESTIC.perPerson * 4;
-    expect(fuelExtraPerDay(s)).toBeCloseTo((domestic / 3) * 0.1, 12);
-  });
-
-  it('práce na palivu navíc ubere společnou práci', () => {
-    const base = {
-      capacity: 5,
-      households: 1,
-      people: 6,
-      tasks: [],
-      repairNeed: 0,
-      domesticBacklog: 0,
-      potteryCoverage: NO_CRAFTS.pottery,
-    };
-    const near = allocateDay(base);
-    const far = allocateDay({ ...base, fuelExtra: 0.1 });
-    expect(far.domestic).toBeCloseTo(near.domestic + 0.1, 12);
-    expect(far.common).toBeCloseTo(near.common - 0.1, 12);
+  it('vzdálenost od lesa práci vsi nebere – domácí výroba i palivo jdou bokem (forest.md)', () => {
+    const near = fullVillage();
+    const far = fullVillage();
+    for (const d of far.dwellings) d.forestDistanceM = 400;
+    const day = DAY + 1;
+    const common = (s: VillageState): number =>
+      advanceVillage(s, day, null).commonLaborHistory.at(-1) ?? 0;
+    expect(common(far)).toBeCloseTo(common(near), 12);
   });
 
   it('vzdálenost k okraji lesa – k nejbližšímu políčku lesa, v lese 0', () => {

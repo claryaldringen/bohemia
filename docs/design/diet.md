@@ -117,8 +117,12 @@ Raně středověká strava nebyla jen obilí. Plné nasycení potřebuje kombina
 - **Zimní péče** (listopad–březen) o krávu nebo vola – krmení, voda, kydání – **20 min denně**
   (≈ 5 člověkodní za zimu). **Prase** u domu **2 min**, **slepice** půl minuty denně (návrh
   Clauda).
-- Práce se zvířaty jde **hned po denním minimu** – zvířata nepočkají; co se nepodojí, to se
-  nenadojí. **Pasení zůstává bez práce** – pasou děti (Martin).
+- **Bokem – mimo práci vsi** (Martin, 19. 10. 2026: „Zvířata a pasáci – to obstarají výrostci,
+  takže do práce je nemusíme počítat, jsou úplně bokem.“ a „Dojení a péče o zvířata – to obvykle
+  dělají ženy.“): dojení, sýr a péči obstarají ženy, pasení výrostci (Pasáci). Z práce vsi neberou
+  a nic je neomezuje – podojí se vždy celé dojné stádo. Sazby výše se počítají dál jen pro postavy
+  ve scéně (ženy u domů dojí, v zimě u ohrady). Dřív šla práce se zvířaty hned po denním minimu
+  a co se nepodojilo, to se nenadojilo ([fields.md](fields.md) – Práce).
 
 ### Dobytek – stáda a maso
 
@@ -223,27 +227,27 @@ Martin na otázku „Má se chovné stádo zmenšovat podle toho, kolik masa ves
 Martin: „**jeden ovčák/pasák krav – zvládne kočírovat jen omezené stádo ne? Že třeba vesnice, kde
 mohou pást jen 2 malí kluci, nezvládne udržet stádo 100 krav**“.
 
-- Jeden dospělý pasák uhlídá **40 krav** (i voli na pastvě), **100 ovcí nebo koz**, **50 prasat
-  v lese**; **dítě 7–13 let 40 %** toho, **starší člověk 75 %**. Stádo potřebuje pasáků součet
-  podílů (20 krav a 50 ovcí = 1 pasák).
+- Jeden plný pasák uhlídá **40 krav** (i voli na pastvě), **100 ovcí nebo koz**, **50 prasat
+  v lese**; **výrostek 7–13 let 40 %** toho. Stádo potřebuje pasáků součet podílů (20 krav a 50
+  ovcí = 1 plný pasák = 2,5 výrostka).
 - **Pes** (hra ho nevede) je v číslech – kosti psů jsou na raně středověkých sídlištích běžné
   (rozhodnutí Clauda). Literatura dává velké rozpětí (obecní pastýř pozdějších staletí pásl stovky
   kusů), ale s řemesly nesouvisí – jedno číslo, ne meze.
-- **Kdo pase:** napřed děti od 7 let, pak starší – pasou při své malé práci, z práce vsi se jejich
-  pasení neodečítá (jako dosud: „pasou děti“). Co nezvládnou, **pasou dospělí ze společné práce**
-  (činnost `herding` v rozdělení práce dne), **nejvýš jeden dospělý z domácnosti** – ostatní jsou
-  na poli. Stáda nepočkají, takže pasení jde jako dojení hned po denním minimu (rozhodnutí Clauda:
-  při řazení podle konce pastevní sezóny na pasení v polní špičce nezbylo nic a startovní ves bez
-  dětí 7–13 let – zakladatelské děti brzy dospějí – přicházela každý rok o čtvrtinu stáda
-  s hodinou pasení denně).
+- **Kdo pase:** jen **výrostci 7–13 let** (Martin, 19. 10. 2026: „Zvířata a pasáci – to
+  obstarají výrostci, takže do práce je nemusíme počítat, jsou úplně bokem.“; „Když bude ve vsi
+  málo vhodných dětí na pasení, tak to omezí i velikost stád.“). Do práce vsi nejdou vůbec
+  ([population.md](population.md) – Práce). Dospělí ani starší pasáky nejsou (návrh Clauda –
+  starší zůstávají u denního minima domácnosti, dospělí na polích a stavbách). Dřív pasli
+  napřed děti a starší a co nezvládli, dospělí ze společné práce (nejvýš jeden z domácnosti) –
+  ves bez dětí tak stáda uhlídala za práci; teď je bez dětí neuhlídá.
 - **Kdy:** krávy, voli, ovce a kozy od dubna do října (v zimě jsou v ohradě a u domů na seně),
   prasata v lese celý rok.
 - **Nosnost:** ves sčítá od porážky do porážky, jaký podíl potřeby pasáci uhlídali; při porážce
   si nechá nejvýš ten podíl každého stáda – **co nikdo neuhlídal, jde na maso** a stádo nad to
   neroste. S chovným stádem podle potřeby se to skládá: stádo je nejvýš menší z obojího.
-- **Ve scéně** stojí u stád pasáci z jádra – děti a starší, kteří dnes pasou, a dospělí pasáci
-  (člověkoden = jeden), nejvýš jeden u každého stáda; rozdělení práce z doby před pasáky ukáže děti
-  jako dřív.
+- **Ve scéně** stojí u stád pasáčci z jádra – výrostci, kteří dnes pasou, nejvýš jeden u každého
+  stáda; stádo, na které výrostci nestačí, zůstane u domů (Pastva a vždy s pasákem). Rozdělení
+  práce z doby před pasáky ukáže děti jako dřív, z doby před 19. 10. 2026 i starší a dospělé.
 
 #### Pastva a vždy s pasákem
 
@@ -382,23 +386,26 @@ podle zásob – beze změny), stropy podílů energie a 1,6 g/kg zůstávají.
   - **seno** – sazba seče na hektar, vzdálenost luk letošní seče, výnos 1,5 t/ha a ztráta ve stohu
     do zkrmení: ≈ 0,013 (0,008) čd/kg.
 - **Co dá a stojí chovný kus za rok** (`headEconomy`): maso z mláďat po ročních ztrátách a mléko
-  dojných kusů (bílkoviny mléka 85 %); práce – seno na zimu, zimní péče (prasata celý rok, bez
-  sena), dojení a sýr z poloviny mléka, porážka a uzení. Pasení: děti a starší pasou zdarma,
-  dospělý pasák (když děti a starší nestačí) stojí celý den. **Maso a mléko nahradí obilí se
+  dojných kusů (bílkoviny mléka 85 %); práce vsi – seno na zimu (prasata bez sena), porážka
+  a uzení. **Dojení, sýr, péče a pasení nic nestojí** – jdou bokem (ženy a výrostci, Práce se
+  zvířaty, Pasáci; Martin 19. 10. 2026); dřív kus platil i zimní péči, dojení a sýr z poloviny
+  mléka a dospělého pasáka, když děti a starší nestačili. **Maso a mléko nahradí obilí se
   stejnou energií** – kus tím ušetří práci na obilí, které ves nemusí vypěstovat. Za typické ceny
   (bez řemesel / s plnými řemesly):
 
   | Zdroj          | Práce za rok (čd) | Energie (kg obilí) | Bílkoviny navíc proti obilí (kg) | Cena kg bílkovin navíc (čd) |
   | -------------- | ----------------- | ------------------ | -------------------------------- | --------------------------- |
-  | prase          | 3,7               | 22,8               | 4,2                              | šetří 10 / 5 čd za rok      |
-  | ovce           | 3,2 / 2,5         | 6,0                | 0,6                              | šetří / 0,4                 |
-  | koza           | 4,0 / 3,3         | 8,2                | 0,6                              | šetří / 0,3                 |
-  | kráva          | 17,4 / 14,2       | 32,0               | 2,8                              | šetří / 0,65                |
+  | prase          | 1,9               | 22,8               | 4,2                              | šetří 12 / 7 čd za rok      |
+  | ovce           | 2,1 / 1,4         | 6,0                | 0,6                              | šetří 1,6 / 1,0 čd za rok   |
+  | koza           | 2,1 / 1,4         | 8,2                | 0,6                              | šetří 3,0 / 1,8 čd za rok   |
+  | kráva          | 10,4 / 6,8        | 32,0               | 2,8                              | šetří 9,5 / 5,7 čd za rok   |
   | luštěniny 1 kg | 0,83 / 0,52       | 1                  | 0,12                             | 1,8 / 1,1                   |
   | obilí samo     | 10 kg obilí       | 10                 | 1 (10 %)                         | 6,2 / 3,9                   |
 
-  Prasata práci šetří vždy (žaludy v lese, bez sena), přežvýkavci bez řemesel taky, s řemesly
-  (levnější obilí) stojí kilogram bílkovin desetiny člověkodne; luštěniny jsou nejdražší zdroj
+  Prasata práci šetří vždy (žaludy v lese, bez sena), od 19. 10. 2026 (dojení, péče a pasení
+  bokem) i přežvýkavci s řemesly – stádo pak omezuje nosnost, kolik kusů výrostci uhlídají
+  a stropy podílů energie (dřív s řemesly stál kilogram bílkovin přežvýkavců desetiny
+  člověkodne); luštěniny jsou nejdražší zdroj
   bílkovin navíc, ale pořád několikrát levnější než bílkoviny ze samotného obilí. **1,6 g/kg tak
   není absurdně drahé** – drahé je jen tam, kde ves nemá pastvu ani les a bílkoviny musí dát
   luštěniny (≈ 1–2 čd na kg, potřeba ≈ 17 kg na dospělého nad obilí).
@@ -408,12 +415,14 @@ podle zásob – beze změny), stropy podílů energie a 1,6 g/kg zůstávají.
   maso), pokaždé stejně:
   1. **chovný pár** od každého druhu a **krávy na mléko a voly** (1 na 2 domácnosti, 3 na ohradu)
      vždy;
-  2. **cena zdroje** = práce kusu (i dospělí pasáci) mínus práce na obilí, které jeho maso a mléko
-     nahradí, na kilogram bílkovin navíc proti obilí; ves přidává po kusech (luštěniny po
-     **25 kg**);
+  2. **cena zdroje** = práce vsi na kus (seno, porážka) mínus práce na obilí, které jeho maso
+     a mléko nahradí, na kilogram bílkovin navíc proti obilí; ves přidává po kusech (luštěniny po
+     **25 kg**), **nejvýš kolik kusů výrostci uhlídají** (pasák na kus v době pastvy i s mláďaty;
+     chovný pár, krávy a ovce na vlnu se drží vždy – Martin: „Když bude ve vsi málo vhodných dětí
+     na pasení, tak to omezí i velikost stád.“);
   3. **co práci šetří** (záporná cena), přidá vždy, i nad potřebu – **v pořadí ovce → kozy →
-     krávy → prasata** (Martin – Skladba stáda: ovce napřed; ovce si tak berou i pasáky z dětí
-     a starších první), až po nosnost (pastva, les, seno, pasáci) a stropy podílů energie (maso
+     krávy → prasata** (Martin – Skladba stáda: ovce napřed; ovce si tak berou i pasáky
+     z výrostků první), až po nosnost (pastva, les, seno, pasáci) a stropy podílů energie (maso
      40 %, mléko a sýr 30 %, luštěniny 25 % – nad strop dá kus jen zbytek pod ním);
   4. pak do **potřeby bílkovin s rezervou 10 %** (růst vsi do příští porážky – dřív 25 %)
      **nejlevnější zdroj** – přežvýkavci v pořadí ovce → kozy → krávy, prasata a luštěniny s nimi
@@ -873,3 +882,6 @@ nasycení ≥ 0,95 celý rok 96,6 → 96,8 % let, nejnižší nasycení roku p1 
 | Pořadí prasata → kozy → krávy nad chovné → ovce nad ovce na vlnu; chovný pár, spřežení a telata zůstanou                                        | Martin (19. 10. 2026)  |
 | Kontrola každý den před jídlem; porazí, aby výhled vyšel s rezervou 5 % potřeby do sklizně; částečně jen o 2 body přídělu a víc                 | návrh Clauda           |
 | Maso, uzení, zkažení 1. 9. a práce jako z podzimní porážky; strop masa 40 % platí i v nouzi                                                     | návrh Clauda           |
+| Dojení, sýr a péče o zvířata bokem, mimo práci vsi – obstarají ženy; bez omezení                                                                | Martin, 19. 10. 2026   |
+| Pasou jen výrostci 7–13 let, mimo práci vsi; jejich počet dál omezuje stáda                                                                     | Martin, 19. 10. 2026   |
+| Dospělí ani starší nepasou; v rovnovážném hospodaření pasáci nestojí práci, omezují počet kusů                                                  | návrh Clauda           |

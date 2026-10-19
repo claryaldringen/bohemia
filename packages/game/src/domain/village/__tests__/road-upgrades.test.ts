@@ -20,7 +20,7 @@ import { roadUpgradeCost, roadUpgradeOptions, startRoadUpgrade } from '../road-u
 import { ORCHARD, ROAD_UPGRADES, ROAD_WALK } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { Dwelling, Person, Road, RoadApple, VillageState } from '../types';
-import { dwellingForestDistance, fuelExtraPerDay } from '../wood';
+import { dwellingForestDistance } from '../wood';
 import { LANDSCAPE, pathTestTerrain } from './paths-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
@@ -440,10 +440,9 @@ describe('vzdálenost práce chůzí – pole, sad, palivo', () => {
     expect(causeway).toBeLessThan(improved);
   });
 
-  it('palivo: chůze k okraji lesa místo vzdušné vzdálenosti', () => {
+  it('les: chůze k okraji lesa místo vzdušné vzdálenosti', () => {
     const s = village();
     for (const d of s.dwellings) d.forestDistanceM = 50;
-    expect(fuelExtraPerDay(s)).toBe(0);
     refreshWalkDistances(s, DAY, LANDSCAPE, null);
     // les x < −90 – k okraji lesa ≈ 90 m, chůzí aspoň vzdušnou čarou
     for (const d of s.dwellings) {

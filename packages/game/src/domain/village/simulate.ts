@@ -87,8 +87,14 @@ import { copyPlot, relocationPlot } from './plots';
 import { trimPlanToTarget } from './plan-trim';
 import { villageSacredOaks } from './sacred';
 import { sacredOakEvents } from './sacred-life';
-import { allocateDay, type LaborTaskName } from './labor';
-import { laborDay, type ConstructionWork, type HaulWork } from './labor-report';
+import {
+  adultDailyMin,
+  afterConstructions,
+  allocateDay,
+  householdElders,
+  type LaborTaskName,
+} from './labor';
+import { laborDay, type AsideWork, type ConstructionWork, type HaulWork } from './labor-report';
 import {
   ORCHARD_TASK_NAMES,
   isOrchardPlanted,
@@ -118,6 +124,7 @@ import {
   CHRONICLE_MAX_EVENTS,
   COMMON_LABOR_HISTORY_DAYS,
   CROP_ORDER,
+  DOMESTIC,
   FIELD_STORES,
   FOREST_BONUS,
   HARVEST_DAY,
@@ -152,7 +159,6 @@ import type {
 import {
   addLogs,
   fellAsWorked,
-  fuelExtraPerDay,
   logsFromClearedTrees,
   planDwellingWood,
   rotLogs,
@@ -296,7 +302,7 @@ function simulateDay(
   // nákup výrobků řemeslníků u sousedů – jednou za rok po sklizni, ves se rozhodne sama
   // (crafts.md – Nákup u sousedů); skupina vyrazí hned
   startPurchases(state, day, coverage, landscape);
-  const { toil, milking } = work(state, day, obstacles, coverage, landscape);
+  const { toil } = work(state, day, obstacles, coverage, landscape);
   // nástroje a nádoby v užívání se opotřebí (crafts.md – Účinek)
   wearCraftStocks(state, day);
   // zemské stezky – dostavěné úseky od vsi ven hned vylepšené, vrácené výpravy (trade.md)
@@ -314,7 +320,7 @@ function simulateDay(
   updateRuins(state, day, landscape);
   // sňatky mezi domy – svobodní ve dvou domech se vezmou (population.md – Sňatky mezi domy)
   state.chronicle.push(...arrangeMarriages(state, day));
-  const { satiation, energy, fruit, meat } = eat(state, day, coverage, milking);
+  const { satiation, energy, fruit, meat } = eat(state, day, coverage);
   // nahromaděný hlad se počítá z dnešní energie (hladem se umírá z energie, ne z pestrosti –
   // diet.md) – úmrtí dne podle něj (population.md); v hájení zůstává pod prahem, aby po něm lidé
   // umírali postupně
@@ -504,24 +510,18 @@ function sowingCapacity(
   landscape: Landscape | null = null,
 ): SowingCapacity {
   const crafts = craftHouseholds(state);
-  // práci násobí štěstí vsi (happiness.md) a dřevěné nářadí od tesaře (wagons.md)
+  // práci násobí štěstí vsi (happiness.md) a dřevěné nářadí od tesaře (wagons.md); zvířata
+  // a domácí výroba jdou bokem, denní minimum kryjí napřed starší (population.md – Práce)
+  const productivity = villageProductivity(state, coverage);
   const capacity =
     state.people.reduce((sum, p) => sum + (crafts.has(p.dwellingId) ? 0 : laborPerDay(p, day)), 0) *
-    villageProductivity(state, coverage);
-  const dailyMin = dailyMinPerHousehold(coverage.pottery) * (householdCount(state) - crafts.size);
-  // práce se zvířaty jde před polní práce (dojení, péče – diet.md); odhad podle dneška
-  const animals = animalCareNeed(
-    villageHerds(state),
-    villageOxen(state),
-    villageChickens(state),
-    day,
+    productivity;
+  const minimum = dailyMinPerHousehold(coverage.pottery);
+  const dailyMin = householdElders(state.people, day, crafts).reduce(
+    (sum, elders) => sum + adultDailyMin(minimum, elders, productivity),
+    0,
   );
-  // dospělí pasáci jdou před polní práce taky (diet.md – Pasáci; fields.md – Osev podle zásob) –
-  // bez nich by ves zasela víc, než v červenci sklidí; odhad podle dneška
-  const herders = herdingDay(state, day, villageOxen(state), householdCount(state)).adults;
-  const free =
-    Math.max(0, capacity - dailyMin - animals.milking - animals.care - herders) *
-    PEAK_CAPACITY_SHARE;
+  const free = Math.max(0, capacity - dailyMin) * PEAK_CAPACITY_SHARE;
   const days = (segments: Parameters<typeof windowDaysLeft>[1], sowing = false): number =>
     free * Math.max(0, windowDaysLeft(day, segments) - (sowing ? SOW_AFTER_DIG_DAYS : 0));
   const people: SowingCapacity = {
@@ -678,8 +678,7 @@ function fieldTasks(
 }
 
 /**
- * Sezónní úloha dne v rozdělení práce: práce se zvířaty (dojení, péče, dospělí pasáci – hned po
- * denním minimu), polní úloha, práce v sadech, seč sena nebo porážka. Řadí se podle konce okna; při
+ * Sezónní úloha dne v rozdělení práce: polní úloha, práce v sadech, seč sena nebo porážka. Řadí se podle konce okna; při
  * shodě sklizeň jablek a porážka (maso se musí zpracovat hned) před polními úlohami (jablka zrají
  * v září a do konce října spadnou – ozim dostane zbytek podzimu, se kterým plán osevu počítá),
  * péče o sad a seč až po nich.
@@ -694,14 +693,16 @@ interface DayTask {
 }
 
 /**
- * Krok 3: rozdělení práce vsi. Polní úlohy obou plodin a orba (`fieldTasks`), sezónní práce
- * v sadech, seč sena a porážka podle konce svého okna; opravy obydlí poměrně k potřebě (obydlený
- * dům stav drží i s nedodělkem oprav – chátrá jen prázdný, population.md); společná práce do
- * staveb. Veškerou práci násobí štěstí (happiness.md). Domácnosti obývaných dílen
- * pracují zvlášť – jen v dílně (crafts.md, `workCrafts`); opravy jejich obydlí platí ves. Práce
- * se zvířaty (dojení, zimní péče, prasata a slepice – diet.md) jde hned po denním minimu – zvířata
- * nepočkají. Vrací, jestli ves dnes nestíhá polní práce v období (dřina), a jaký podíl dojných
- * samic se podojil (bez dojení 1).
+ * Krok 3: rozdělení práce vsi (population.md – Práce; Martin 19. 10. 2026: „pokud se něco staví,
+ * tak čas věnují primárně té stavbě – zemědělství jenom natolik, aby vesnice neměla hlad“).
+ * Polní úlohy obou plodin a orba (`fieldTasks`), sezónní práce v sadech, seč sena a porážka podle
+ * konce svého okna; společná práce do staveb; z toho, co stavby nespotřebovaly, opravy obydlí
+ * poměrně k potřebě (obydlený dům stav drží i s nedodělkem oprav – chátrá jen prázdný,
+ * population.md). Veškerou práci násobí štěstí (happiness.md). Domácnosti obývaných dílen
+ * pracují zvlášť – jen v dílně (crafts.md, `workCrafts`); opravy jejich obydlí platí ves. Zvířata
+ * (dojení a péči ženy, pasení výrostci) a domácí výrobu ženy – obojí bokem, z práce vsi
+ * nebere (rozdělení práce je má jen pro postavy – `LaborDay.aside`). Vrací, jestli ves dnes
+ * nestíhá polní práce v období (dřina).
  */
 function work(
   state: VillageState,
@@ -709,7 +710,7 @@ function work(
   obstacles: ObstacleLayer | null,
   coverage: CraftCoverage,
   landscape: Landscape | null,
-): { toil: boolean; milking: number } {
+): { toil: boolean } {
   const month = dateOfDayIndex(day).month;
   // orba: spřežení s rádlem, se železnou špičkou od kováře rychleji (oxen.md); slabí voli po
   // zimě pomaleji; spřežení s vozem na výpravě neorá (wagons.md)
@@ -728,24 +729,6 @@ function work(
     rank: field.rank,
     field,
   }));
-  // dojení, sýr z mléka, které se nevypije (strop mléka a sýra – diet.md), a péče o zvířata
-  const herds = villageHerds(state);
-  const milk = dailyMilk(herds, day);
-  const drinkable = DIET.caps.dairy * villageFoodNeed(state, day);
-  const cheeseMilkL = milk.energy > drinkable ? milk.liters * (1 - drinkable / milk.energy) : 0;
-  const animals = animalCareNeed(
-    herds,
-    villageOxen(state),
-    villageChickens(state),
-    day,
-    cheeseMilkL,
-  );
-  if (animals.milking > 0) {
-    dayTasks.push({ name: 'milking', remaining: animals.milking, end: -1, tie: 0, rank: 0 });
-  }
-  if (animals.care > 0) {
-    dayTasks.push({ name: 'animal-care', remaining: animals.care, end: -1, tie: 0, rank: 1 });
-  }
   const orchard = orchardTask(state, day);
   if (orchard) {
     const tie = orchard.name === ORCHARD_TASK_NAMES.harvest ? 0 : 2;
@@ -767,12 +750,6 @@ function work(
       tie: 0,
       rank: 1,
     });
-  }
-  // pasení: co děti od 7 let a starší nezvládnou, pasou dospělí (nejvýš jeden z domácnosti) –
-  // stáda nepočkají, jde se zvířaty hned po dojení a péči (diet.md – Pasáci)
-  const herding = herdingDay(state, day, villageOxen(state), householdCount(state));
-  if (herding.adults > 0) {
-    dayTasks.push({ name: 'herding', remaining: herding.adults, end: -1, tie: 0, rank: 2 });
   }
   dayTasks.sort((a, b) => a.end - b.end || a.tie - b.tie || a.rank - b.rank);
   // vozy (wagons.md – Vůz): dvoukoláky se spřežením, které dnes neorá, vozí snopy a seno tam, kam
@@ -797,13 +774,9 @@ function work(
     crafts.size > 0 ? state.people.filter((p) => !crafts.has(p.dwellingId)) : state.people;
   const allocation = allocateDay({
     capacity: villagers.reduce((sum, p) => sum + laborPerDay(p, day), 0),
-    households: householdCount(state) - crafts.size,
-    people: villagers.length,
+    householdElders: householdElders(villagers, day),
     tasks: dayTasks.map(({ name, remaining }) => ({ name, remaining })),
-    repairNeed,
-    domesticBacklog: state.domesticBacklog,
     potteryCoverage: coverage.pottery,
-    fuelExtra: fuelExtraPerDay(state, (id) => !crafts.has(id)),
     productivity,
     // lidé na výpravách k sousedům (trade.md – Doprava, Martin 19. 10. 2026): jejich práce jde po
     // denním minimu, před úlohami dne – nosiči jsou dospělí, nejvýš kolik jich ves má
@@ -824,8 +797,6 @@ function work(
   const haulWork: HaulWork[] = [];
   let mowLabor: number | undefined;
   const mowingBefore = state.hay?.mowing?.done ?? 0;
-  let milked = animals.milking > 0 ? 0 : 1;
-  let herdedByAdults = 0;
   dayTasks.forEach((task, i) => {
     const labor = allocation.taskAmounts[i] ?? 0;
     // s vozy úloha postoupí víc, než na ni ves dala práce (wagons.md – Vůz)
@@ -847,11 +818,7 @@ function work(
         if (owner.cartReach) addHaulTrips(state, owner.cartReach, hauled);
       }
     }
-    if (task.name === 'milking') {
-      milked = Math.min(1, amount / animals.milking);
-    } else if (task.name === 'animal-care') {
-      // zimní krmení, voda a kydání – bez následků, když nezbude práce (zatím)
-    } else if (task.field) {
+    if (task.field) {
       const before = cropTaskDone(task.field.work, task.field.name);
       addCropTaskWork(task.field.work, task.field.name, amount);
       const after = cropTaskDone(task.field.work, task.field.name);
@@ -868,23 +835,13 @@ function work(
       if (haul) mowLabor = labor - crew;
     } else if (task.name === 'slaughter') {
       workSlaughter(state, amount);
-    } else if (task.name === 'herding') {
-      herdedByAdults += amount;
     } else {
       workOrchards(state, amount);
     }
   });
-  // opravy berou práci vsi podle potřeby; obydlený dům stav neztrácí ani s nedodělkem (Martin:
-  // „obydlená budova nechátrá – obyvatelé ji opravují. Chátrá jenom prázdná.“)
-  const repairs = households.map((d, i) => {
-    const need = repairNeeds[i] ?? 0;
-    const manDays = repairNeed > 0 ? (allocation.repairs * need) / repairNeed : 0;
-    return { dwellingId: d.id, manDays };
-  });
-  decayEmptyDwellings(state, day, new Set(households.map((d) => d.id)));
-  state.domesticBacklog = allocation.domesticBacklog;
-  // co dnes pasáci uhlídali – podle toho ves při porážce drží stádo (diet.md – Pasáci)
-  recordHerding(state, herding, herdedByAdults);
+  // co dnes výrostci uhlídali – podle toho ves při porážce drží stádo (diet.md – Pasáci)
+  const herding = herdingDay(state, day, villageOxen(state));
+  recordHerding(state, herding);
   // lidé na cestách k sousedům – podíl z rozdělení dne (trade.md – Doprava): skupiny nákupu
   // u sousedů ujdou den napřed (jdou pevně dny cesty – crafts.md, Nákup u sousedů), zbytek
   // dostanou výpravy obchodu
@@ -909,6 +866,22 @@ function work(
     woodworkToday(state, day, common + extra),
   );
   const constructions = build(state, day, common + help.labor, help.coverage);
+  // opravy obydlí až z práce, kterou stavby nespotřebovaly (Martin 19. 10. 2026: „Opravy obydlí
+  // zařaď až za stavbu.“) – tesařova pomoc jde jen do staveb; obydlený dům stav neztrácí ani
+  // s nedodělkem (Martin: „obydlená budova nechátrá – obyvatelé ji opravují. Chátrá jenom
+  // prázdná.“)
+  const invested = constructions.reduce((sum, c) => sum + c.manDays, 0);
+  const afterBuild = afterConstructions(
+    Math.min(common, common + help.labor - invested),
+    repairNeed,
+  );
+  const repairs = households.map((d, i) => {
+    const need = repairNeeds[i] ?? 0;
+    const manDays = repairNeed > 0 ? (afterBuild.repairs * need) / repairNeed : 0;
+    return { dwellingId: d.id, manDays };
+  });
+  decayEmptyDwellings(state, day, new Set(households.map((d) => d.id)));
+  // co zbude po opravách, propadne (`afterBuild.left`)
   const workshops = [
     ...workCrafts(state, day, obstacles, coverage, productivity, resting, landscape),
     ...workCarpenters(state, day, obstacles, coverage, productivity, resting, help),
@@ -925,6 +898,7 @@ function work(
     hauls: haulWork,
     toolCoverage: coverage.tools,
     herders: herding.freeHerders,
+    aside: asideWork(state, day, allocation.eldersDailyMin),
     ...(hayMowing
       ? {
           mowing: {
@@ -948,7 +922,35 @@ function work(
     remaining: cropTaskRemaining(task.work, task.name),
     endDay: windowEndDay(cropTaskWindows(task.crop, task.name), day) ?? day,
   }));
-  return { toil: isToilDay(seasonTasks, pace, day), milking: milked };
+  return { toil: isToilDay(seasonTasks, pace, day) };
+}
+
+/**
+ * Práce bokem dne – mimo práci vsi, jen pro postavy (population.md – Práce): dojení a sýr
+ * z mléka, které se nevypije (strop mléka a sýra – diet.md), a péče o zvířata (ženy); domácí
+ * výroba žen (`DOMESTIC` po domácnostech a lidech) a denní minimum, které pokryli starší
+ * (`eldersDailyMin`).
+ */
+function asideWork(state: VillageState, day: number, eldersDailyMin: number): AsideWork {
+  const herds = villageHerds(state);
+  const milk = dailyMilk(herds, day);
+  const drinkable = DIET.caps.dairy * villageFoodNeed(state, day);
+  const cheeseMilkL = milk.energy > drinkable ? milk.liters * (1 - drinkable / milk.energy) : 0;
+  const animals = animalCareNeed(
+    herds,
+    villageOxen(state),
+    villageChickens(state),
+    day,
+    cheeseMilkL,
+  );
+  return {
+    milking: animals.milking,
+    care: animals.care,
+    domestic:
+      eldersDailyMin +
+      DOMESTIC.perHousehold * householdCount(state) +
+      DOMESTIC.perPerson * state.people.length,
+  };
 }
 
 /** Sezónní práce v sadech dnes (sklizeň, nebo péče) s koncem okna pro pořadí; jinak null. */
@@ -1583,8 +1585,8 @@ function endThreshing(state: VillageState): void {
 }
 
 /**
- * Krok 8: jídlo dne ze zásob (diet.md) – ovoce přednostně do zkažení, čerstvé mléko (podojená část
- * – `milked`) a vejce, maso do porážky, sýr do dojení a luštěniny do sklizně, obilí dorovná;
+ * Krok 8: jídlo dne ze zásob (diet.md) – ovoce přednostně do zkažení, čerstvé mléko (dojí se
+ * vždy celé – ženy bokem, population.md – Práce) a vejce, maso do porážky, sýr do dojení a luštěniny do sklizně, obilí dorovná;
  * vrací nasycení (energie × kvalita stravy), energii, jestli se jedlo ovoce, a podíl energie
  * z masa (štěstí) a zapíše začátek a konec hladu. Hlad začíná
  * už tehdy, když příděl energie podle výhledu do sklizně klesne pod plný – i když se dnes jí
@@ -1594,8 +1596,8 @@ function eat(
   state: VillageState,
   day: number,
   coverage: CraftCoverage,
-  milked: number,
 ): { satiation: number; energy: number; fruit: boolean; meat: number } {
+  const milked = 1;
   const need = villageFoodNeed(state, day);
   // nevychází-li výhled do sklizně, ves napřed porazí zvířata navíc – teprve pak šetří přídělem
   // (diet.md – Nouzová porážka)

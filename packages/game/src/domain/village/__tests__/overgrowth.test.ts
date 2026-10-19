@@ -406,6 +406,8 @@ describe('les vsi – stromy', () => {
     const landscape = makeLandscape();
     const layer = packObstacles([], 16, 15);
     const s = village(at(660, 11, 1));
+    // zakladatelé ve věku jako při založení – staří by na poli nepracovali (population.md – Práce)
+    for (const p of s.people) p.bornDay += s.lastDay - at(600, 9, 2);
     s.parts = [];
     s.fields = [];
     s.woods = [{ ...wood, cell: { x: 9, y: 9 }, x: 15 + 7.5, z: 15 + 7.5 }];

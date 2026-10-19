@@ -165,8 +165,6 @@ function main(): void {
       ...tasks.map((t) => TASK_LABELS[t]),
       'sad',
       'opravy',
-      'domácí',
-      'odloženo',
       'společná',
       'využití',
     ],
@@ -180,8 +178,6 @@ function main(): void {
       ...tasks.map((t) => fmt(m.field[t], 0)),
       fmt(m.orchard, 0),
       fmt(m.repairs, 0),
-      fmt(m.domestic, 0),
-      fmt(m.domesticBacklog, 0),
       fmt(m.common, 0),
       pct((m.dailyMin + fieldTotal + m.orchard) / m.capacity),
     ]);
@@ -194,8 +190,6 @@ function main(): void {
     ...tasks.map((t) => fmt(r.fieldWork[t], 0)),
     fmt(r.orchardWork, 0),
     fmt(r.repairsPerYear, 0),
-    fmt(r.domesticPerYear, 0),
-    '',
     fmt(r.commonPerYear, 0),
     pct((r.dailyMinPerYear + fieldYear + r.orchardWork) / r.capacityPerYear),
   ]);

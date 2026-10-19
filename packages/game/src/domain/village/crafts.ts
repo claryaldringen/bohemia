@@ -1,6 +1,7 @@
 import { detCos, detSin, type Landscape, type ObstacleLayer } from '../landscape';
 import { distanceFactor } from './fields';
 import { buildingLocalToWorld, fellTrees, obstacleChangesAt } from './obstacles';
+import { adultDailyMin } from './labor';
 import { ageGroup, laborPerDay } from './people';
 import { rectangleCorners, type Point } from './polygon';
 import { NO_CRAFTS, dailyMinPerHousehold } from './productivity';
@@ -9,7 +10,6 @@ import {
   CRAFT_BASE,
   CRAFT_NEEDS,
   CRAFT_PRODUCTION,
-  DOMESTIC,
   DWELLING_FOOTPRINT_M,
   MILIR,
   WOOD_TOOLS,
@@ -39,13 +39,12 @@ import {
   availableTrees,
   claimedObstacles,
   fellingCost,
-  fuelExtraPerDay,
   isTreeStanding,
   nearestMatureTrees,
 } from './wood';
 
 // Řemesla (crafts.md): dílna je obydlí s řemeslem (hrnčíř, kovář, uhlíř), domácnost, která v ní
-// bydlí, pracuje na plný úvazek jen v dílně (po denním minimu a domácí výrobě, nikdy na poli ani
+// bydlí, pracuje na plný úvazek jen v dílně (po denním minimu, nikdy na poli ani
 // ve společné práci) a jí ze společných zásob. Výroba se nezastaví, dokud jsou vstupy – co ves
 // nespotřebuje, zůstane v zásobě; bez vstupu dílna stojí. Výrobky ve vsi se opotřebují a jejich
 // zásoba proti potřebě dává pokrytí 0–1, které posouvá meze produktivity (productivity.ts).
@@ -365,19 +364,18 @@ function restingBurners(
   return loose;
 }
 
-/** Práce domácnosti dílny za den: celkem (se štěstím), minimum, domácí výroba a řemeslo. */
+/** Práce domácnosti dílny za den: celkem (se štěstím), denní minimum a řemeslo. */
 export interface WorkshopLabor {
   capacity: number;
   dailyMin: number;
-  domestic: number;
   craft: number;
 }
 
 /**
  * Práce domácnosti dílny `dwellingId` v den `day`: všechna práce jejích lidí krát `productivity`
- * (štěstí) – nejdřív denní minimum (meze podle pokrytí nádobami), pak domácí výroba (i palivo
- * dál od lesa), zbytek dostane řemeslo (crafts.md – řemeslník na plný úvazek). Dílnu provozuje
- * celá domácnost – starší děti a starší pomáhají jako na poli.
+ * (štěstí) – nejdřív denní minimum (meze podle pokrytí nádobami), zbytek dostane řemeslo
+ * (crafts.md – řemeslník na plný úvazek). Dílnu provozuje celá domácnost – starší pomáhají jako
+ * na poli; domácí výrobu obstarají ženy bokem a výrostci jsou u zvířat (population.md – Práce).
  */
 export function workshopLabor(
   state: VillageState,
@@ -397,20 +395,17 @@ export function workshopLabor(
     left -= amount;
     return amount;
   };
-  const dailyMin = take(dailyMinPerHousehold(potteryCoverage));
-  const domestic = take(
-    DOMESTIC.perHousehold +
-      DOMESTIC.perPerson * members.length +
-      fuelExtraPerDay(state, (id) => id === dwellingId),
-  );
-  return { capacity, dailyMin, domestic, craft: left };
+  // denní minimum kryjí napřed starší domácnosti, dospělí dají zbytek (population.md – Práce)
+  const elders = members.filter((p) => ageGroup(p, day) === 'elder').length;
+  const dailyMin = take(adultDailyMin(dailyMinPerHousehold(potteryCoverage), elders, productivity));
+  return { capacity, dailyMin, craft: left };
 }
 
 /** Kam práce dílny dnes šla – rozdělení práce dne pro postavy (labor-report.ts). */
 export interface WorkshopDay {
   dwellingId: number;
   craft: Craft;
-  /** Denní minimum a domácí výroba domácnosti dílny (člověkodny). */
+  /** Denní minimum domácnosti dílny (člověkodny). */
   domestic: number;
   /** Kácení stromů na uhlí nebo palivo (člověkodny) a stromy, u kterých se kácelo. */
   felling: number;
@@ -556,7 +551,7 @@ function workshopOrder(a: Dwelling, b: Dwelling): number {
 
 /**
  * Krok práce řemeslníků (mutuje stav): každá obývaná dílna dá řemeslu práci své domácnosti po
- * minimu a domácí výrobě (`workshopLabor`) – uhlíř pálí buky v milířích a sází mladé buky
+ * denním minimu (`workshopLabor`) – uhlíř pálí buky v milířích a sází mladé buky
  * (charcoal.ts), hrnčíř kácí na palivo a vypaluje nádoby, kovář kuje z uhlí ze zásob. Prázdná
  * dílna nic nevyrábí, řemeslník bez práce v dílně (`resting` – spočítá ho volající před
  * rozdělením práce vsi) pracuje se vsí. Vrací, kam práce šla (rozdělení práce dne pro scénu).
@@ -631,7 +626,7 @@ export function workCrafts(
       days.push({
         dwellingId: dwelling.id,
         craft: workshop.craft,
-        domestic: labor.dailyMin + labor.domestic,
+        domestic: labor.dailyMin,
         felling: burner.felling,
         fellingTrees: burner.fellingTrees,
         making: burner.making,
@@ -663,7 +658,7 @@ export function workCrafts(
     days.push({
       dwellingId: dwelling.id,
       craft: workshop.craft,
-      domestic: labor.dailyMin + labor.domestic,
+      domestic: labor.dailyMin,
       felling: output.felling,
       fellingTrees: output.fellingTrees,
       making: output.making,

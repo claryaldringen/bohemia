@@ -131,7 +131,7 @@ export const NO_HELP: CarpentryHelp = { labor: 0, coverage: 0, byWorkshop: new M
  * Pomoc tesařů stavbám dne (wagons.md – Tesař, pomoc stavbám; návrh Clauda): stavby mají
  * přednost před výrobou – člověkoden tesaře vede CARPENTRY.crew člověkodnů dřevěné práce vsi
  * (bez nástrojů od kováře méně – CARPENTER_TOOLS_WORK), takže tesaři dají stavbám tolik, kolik
- * dřevěná práce dne potřebuje, nejvýš svou práci po minimu a domácí výrobě. Tesař, který nemá co
+ * dřevěná práce dne potřebuje, nejvýš svou práci po denním minimu. Tesař, který nemá co
  * vyrábět, je na stavbě celý den. Jeho práce jde do staveb se společnou prací vsi. Pokrytí =
  * kolik vedení tesaři dali ÷ kolik ho dřevěná práce chtěla (nejvýš 1).
  * `woodwork(extra)` = dřevěná práce staveb dne (čd bez tesaře), když stavby dostanou společnou
@@ -227,7 +227,7 @@ export function workCarpenters(
     days.push({
       dwellingId: dwelling.id,
       craft: 'carpenter',
-      domestic: labor.dailyMin + labor.domestic,
+      domestic: labor.dailyMin,
       felling: output.felling,
       fellingTrees: output.fellingTrees,
       making: output.making,

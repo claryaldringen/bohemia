@@ -97,7 +97,6 @@ describe('foundVillage', () => {
       lastDay: DAY - 1,
       plan: null,
       threshingFromPlan: null,
-      domesticBacklog: 0,
       hungry: false,
       commonLaborHistory: [],
       chronicle: [{ day: DAY, kind: 'village-founded' }],

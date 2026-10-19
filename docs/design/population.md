@@ -73,6 +73,7 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
 
 - **Plná domácnost** – žije v ní tolik lidí, kolik má obydlí míst. **Přeplněná** – víc.
 - **Člověkoden** – práce jednoho dospělého za herní den.
+- **Výrostek** – dítě 7–13 let; pase stáda, do práce vsi nejde (Práce).
 
 ## Pravidla
 
@@ -228,13 +229,36 @@ zmenší o plochu domu“. Podrobnosti jsou návrh Clauda:
 
 ### Práce
 
-- Pracovní síla za den: dospělý 1 člověkoden, starší 0,5, dítě 7–13 let 0,3, mladší 0
-  (návrh Clauda).
+Martin (19. 10. 2026): „Vesničané se snaží vyrobit co nejvíce jídla (později přibudou nejspíš
+i jiné suroviny), ale pokud se něco staví, tak čas věnují primárně té stavbě – zemědělství jenom
+natolik, aby vesnice neměla hlad.“ A k pořadí práce: „Zvířata a pasáci – to obstarají výrostci,
+takže do práce je nemusíme počítat, jsou úplně bokem. Domácí výrobu z většiny obstarají ženy,
+takže to do práce stavby taky nemusíme počítat. Opravy obydlí zařaď až za stavbu.“ A dál: „Když
+bude ve vsi málo vhodných dětí na pasení, tak to omezí i velikost stád.“ a „Dojení a péče
+o zvířata – to obvykle dělají ženy. Starší lidé se zase starají o malé děti, a uvolňují práci
+zbytku rodiny.“
+
+- **Pracovní síla vsi** (pole, stavby, opravy) za den: **dospělý 1 člověkoden**, nikdo jiný.
+  - **Starší** dají 0,5 člověkodne, ale jen na **denní minimum své domácnosti** – hlídání malých
+    dětí, oheň, vaření (návrh Clauda). Dospělí domácnosti dají na denní minimum jen zbytek:
+    max(0, minimum domácnosti − 0,5 × starší v domácnosti). Co starším nad minimum zbude, do
+    práce vsi nejde a propadne – ves, kde má každá domácnost nejvýš jednoho staršího, má na
+    polích a stavbách stejně práce jako dřív, ves s víc staršími v domě o jejich přebytek
+    přijde.
+  - **Děti 7–13 let (výrostci)** jen pasou – do práce vsi nejdou vůbec (dřív 0,3 člověkodne;
+    návrh Clauda). Jejich počet omezuje velikost stád ([diet.md](diet.md) – Pasáci).
+  - Mladší děti nepracují.
+- **Bokem – mimo práci vsi:** dojení a péče o zvířata (ženy), pasení (výrostci) a domácí výroba
+  (z většiny ženy – i zpracování vlny a lnu na oděv a palivo, forest.md – Palivo). Práci vsi
+  neberou; ve scéně jsou ženy dál u domů a dojí, výrostci u stád (jen zobrazení).
 - Pole jsou společná, a proto se práce počítá **za celou ves** – dospělí všech domácností
-  pracují pro ves. Pořadí (denní minimum domácností, lidé na výpravách k sousedům, polní práce,
-  opravy obydlí, domácí výroba, zbytek **společná práce vsi**) popisuje [fields.md](fields.md).
-- Společná práce se nedá schovat na později – každý den jde do rozestavěných staveb (stavby
-  hráče i přestavby obyvatel, rovným dílem), a když žádná není, propadne.
+  pracují pro ves. Pořadí práce dne (denní minimum domácností, lidé na výpravách k sousedům,
+  potřebné sezónní úlohy, **společná práce vsi** do staveb, opravy obydlí, zbytek) popisuje
+  [fields.md](fields.md) – Práce.
+- Společná práce se nedá schovat na později – každý den jde napřed do rozestavěných staveb
+  (stavby hráče i přestavby obyvatel, rovným dílem), co stavby nespotřebují, do oprav obydlí,
+  a co zbude i po nich, propadne (místo pro polní práci navíc – [fields.md](fields.md), Kolik
+  ves oseje, Osev navíc).
 
 ### Růst populace
 
@@ -732,3 +756,7 @@ před → po:
 | Obyvatelé sami les nevyklučí; stavba na poli v lese za les neplatí                   | návrh Clauda                               |
 | Upozornění na hlad ve stupních: šetří jídlem (90–100 %), hladoví (pod 90 %), umírají | Martin (19. 10. 2026)                      |
 | Jen nejvyšší stupeň, ohlásí se při zhoršení; „šetří jídlem“ mírně jako zpráva        | návrh Clauda                               |
+| Práce: stavby mají přednost před polem navíc; opravy obydlí až po stavbách           | Martin, 19. 10. 2026                       |
+| Zvířata (dojení, péče – ženy; pasení – výrostci) a domácí výroba bokem, mimo práci   | Martin, 19. 10. 2026                       |
+| Výrostci 7–13 let jen pasou, mimo práci vsi; jejich počet omezuje stáda              | Martin, 19. 10. 2026 (mimo práci – Claude) |
+| Starší jen na denní minimum své domácnosti (0,5 čd), přebytek propadne               | návrh Clauda                               |
