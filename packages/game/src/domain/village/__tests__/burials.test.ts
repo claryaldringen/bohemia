@@ -61,8 +61,12 @@ function centerOf(c: Cemetery, m: GraveMound): { x: number; z: number } {
 }
 
 describe('místa na hroby a velikosti mohyl (rules.ts)', () => {
-  it('mřížka 7 × 8 na čtverec; vojvodova rodina 2 × 2, hlava rodiny 2, ostatní a dítě 1', () => {
+  it('mřížka 7 × 8 na čtverec; vojvoda 2 × 2, ostatní z dvorce a hlava rodiny 2, ostatní 1', () => {
     expect(GRAVE_PLACES.columns * GRAVE_PLACES.rows).toBe(CEMETERY.gravesPerSquare);
+    expect(moundPlaces(moundSizeOf('voivode'))).toBe(4);
+    expect(moundPlaces(moundSizeOf('manor-adult'))).toBe(2);
+    expect(moundSizeOf('manor-child')).toBe('normal');
+    // první pravidlo (celá vojvodova rodina 2 × 2) – jen mohyly uložené tehdy
     expect(moundPlaces(moundSizeOf('manor'))).toBe(4);
     expect(moundPlaces(moundSizeOf('head'))).toBe(2);
     expect(moundPlaces(moundSizeOf('adult'))).toBe(1);
@@ -116,6 +120,7 @@ describe('druh pohřbeného (graveRank)', () => {
       person(10, 50, 1, { sex: 'male', spouseId: 11 }),
       person(11, 48, 1, { sex: 'female', spouseId: 10 }),
       person(12, 6, 1, { sex: 'male', motherId: 11, fatherId: 10 }),
+      person(13, 20, 1, { sex: 'male', motherId: 11, fatherId: 10 }),
       person(20, 66, 2, { sex: 'male' }),
       person(21, 40, 2, { sex: 'male', spouseId: 22, fatherId: 20 }),
       person(22, 38, 2, { sex: 'female', spouseId: 21 }),
@@ -138,9 +143,20 @@ describe('druh pohřbeného (graveRank)', () => {
       DAY,
     );
 
-  it('celá domácnost dvorce je vojvodova rodina – i dítě', () => {
+  it('vojvodova rodina odstupňovaná: vojvoda a jeho žena, ostatní dospělí z dvorce, děti z dvorce', () => {
     const s = family();
-    expect([10, 11, 12].map((id) => rank(s, id))).toEqual(['manor', 'manor', 'manor']);
+    expect([10, 11, 13, 12].map((id) => rank(s, id))).toEqual([
+      'voivode',
+      'voivode',
+      'manor-adult',
+      'manor-child',
+    ]);
+    // vojvoda zemřel – vojvodou je dospělý syn, vdova je jen z vojvodovy rodiny
+    s.people = s.people.filter((p) => p.id !== 10);
+    expect([13, 11].map((id) => rank(s, id))).toEqual(['voivode', 'manor-adult']);
+    // dvorec bez muže – vojvodou je nejstarší žena
+    s.people = s.people.filter((p) => p.id !== 13);
+    expect(rank(s, 11)).toBe('voivode');
   });
 
   it('hlava rodiny: nejstarší muž domácnosti s dítětem od 35 let a jeho žena; děti v dětském věku', () => {
@@ -170,12 +186,12 @@ describe('místo mohyly (placeMound)', () => {
       SOUTH.map((position) => ({ position, built: true })),
     )!;
 
-  it('vojvodova rodina a hlava rodiny u branky na ose, dospělý mimo osu, dítě vzadu na okraji', () => {
+  it('vojvoda a hlava rodiny u branky na ose, dospělý mimo osu, dítě vzadu na okraji', () => {
     const c = one();
     const gate = gateOf(c);
     expect(gate.outZ).toBe(-1);
-    const manor = placeMound(c, 'manor', DAY, SOUTH)!;
-    expect(manor).toMatchObject({ size: 'great', rank: 'manor', row: 0 });
+    const manor = placeMound(c, 'voivode', DAY, SOUTH)!;
+    expect(manor).toMatchObject({ size: 'great', rank: 'voivode', row: 0 });
     const m = centerOf(c, manor);
     expect(Math.abs(m.x - gate.x)).toBeLessThanOrEqual(1);
     (c.mounds ??= []).push(manor);
@@ -196,6 +212,32 @@ describe('místo mohyly (placeMound)', () => {
     expect(m.z).toBeLessThan(centerOf(c, child).z);
   });
 
+  it('začátek osy u branky drží vojvodova rodina; dítě z dvorce leží líp než ostatní děti', () => {
+    const front = (m: GraveMound, c: Cemetery): boolean => {
+      const gate = gateOf(c);
+      const p = centerOf(c, m);
+      return (
+        Math.abs(p.x - gate.x) < GRAVE_RANKS.laneHalfWidthM &&
+        p.z - gate.z < GRAVE_RANKS.manorFrontM
+      );
+    };
+    // hlava rodiny, která zemře první, začátek osy vynechá – dospělý z dvorce ho dostane
+    const c = one();
+    const head = placeMound(c, 'head', DAY, SOUTH)!;
+    expect(front(head, c)).toBe(false);
+    (c.mounds ??= []).push(head);
+    const kin = placeMound(c, 'manor-adult', DAY, SOUTH)!;
+    expect(kin.size).toBe('large');
+    expect(front(kin, c)).toBe(true);
+    expect(centerOf(c, kin).z).toBeLessThan(centerOf(c, head).z);
+    // dítě z dvorce: běžná mohyla u branky mimo osu; ostatní dítě malá vzadu
+    const heir = placeMound(c, 'manor-child', DAY, SOUTH)!;
+    const child = placeMound(c, 'child', DAY, SOUTH)!;
+    expect(heir).toMatchObject({ size: 'normal', row: 0 });
+    expect(child.size).toBe('small');
+    expect(centerOf(c, heir).z).toBeLessThan(centerOf(c, child).z);
+  });
+
   it('velká mohyla, která se nevejde, se zmenší – prominentní místo zůstává', () => {
     // šachovnice běžných mohyl – žádný blok 2 míst není volný
     const mounds: GraveMound[] = [];
@@ -207,8 +249,8 @@ describe('místo mohyly (placeMound)', () => {
       }
     }
     const c = cemetery([square(0, 0, 7.5, 7.5)], { graves: mounds.length, mounds });
-    const manor = placeMound(c, 'manor', DAY, SOUTH)!;
-    expect(manor).toMatchObject({ size: 'normal', rank: 'manor', row: 0 });
+    const manor = placeMound(c, 'voivode', DAY, SOUTH)!;
+    expect(manor).toMatchObject({ size: 'normal', rank: 'voivode', row: 0 });
     const head = placeMound(c, 'head', DAY, SOUTH)!;
     expect(head.size).toBe('normal');
     // plný hřbitov místo nemá
@@ -220,7 +262,7 @@ describe('místo mohyly (placeMound)', () => {
     const c = cemetery([square(0, 0, 7.5, 7.5)], { graves: 10 });
     const taken = new Set(Array.from({ length: 10 }, (_, i) => `${i % 7},${Math.floor(i / 7)}`));
     for (let k = 0; k < 12; k++) {
-      const m = placeMound(c, k % 3 === 0 ? 'manor' : 'adult', DAY, SOUTH)!;
+      const m = placeMound(c, k % 3 === 0 ? 'voivode' : 'adult', DAY, SOUTH)!;
       const { columns, rows } = MOUND_SIZES[m.size];
       for (let r = m.row; r < m.row + rows; r++) {
         for (let col = m.column; col < m.column + columns; col++) {
@@ -242,7 +284,7 @@ describe('místo mohyly (placeMound)', () => {
       return square(cx, cy, p.x, p.z);
     };
     const c = cemetery([sq(0, 0), sq(0, 1)], { grid });
-    const manor = placeMound(c, 'manor', DAY, SOUTH)!;
+    const manor = placeMound(c, 'voivode', DAY, SOUTH)!;
     const child = placeMound(c, 'child', DAY, SOUTH)!;
     const gate = cemeteryEntrance(
       {
@@ -269,7 +311,9 @@ describe('pohřeb (bury)', () => {
     const lord = s.people.find((p) => p.dwellingId === 1)!;
     expect(bury(s, DAY, lord)).toBeNull();
     const c = s.cemeteries[0]!;
-    expect(c.mounds).toEqual([expect.objectContaining({ rank: 'manor', size: 'great', day: DAY })]);
+    expect(c.mounds).toEqual([
+      expect.objectContaining({ rank: 'voivode', size: 'great', day: DAY }),
+    ]);
     expect(c.graves).toBe(47);
     expect(freePlaces(c)).toBe(6);
     // šest běžných dospělých místa dobere – hřbitov je plný (žádné volné místo)

@@ -584,20 +584,20 @@ export const LEGUME_SHOWCASE_PHASES: readonly (ShowcasePhase & {
 const CEMETERY_FOUNDED_AT = 0.5;
 /**
  * Kdo umírá v ukázce hřbitova (cemetery.md – Mohyly podle významu): dokola dospělí, děti, hlavy
- * rodin a občas někdo z vojvodovy rodiny.
+ * rodin a občas někdo z vojvodovy rodiny – vojvoda, dospělý a dítě z dvorce.
  */
 const SHOWCASE_DEATHS: readonly GraveRank[] = [
   'head',
   'child',
   'adult',
   'child',
-  'manor',
+  'voivode',
   'adult',
-  'child',
+  'manor-child',
   'adult',
   'head',
+  'manor-adult',
   'child',
-  'adult',
   'adult',
 ];
 /** Kolik posledních mohyl ukázky je čerstvých (z holé hlíny). */
@@ -766,7 +766,7 @@ export function showcaseGrounds(progress: number): {
     : { mounds: [], burials: 0 };
   const cemeteryLabel = built
     ? p >= 1
-      ? `plný hřbitov – ${burials} pohřbených na ${capacity} místech (u branky vojvodova rodina a hlavy rodin, vzadu děti)`
+      ? `plný hřbitov – ${burials} pohřbených na ${capacity} místech (u branky vojvoda a jeho rodina, po ose hlavy rodin, vzadu děti)`
       : `pohřby – mohyly podle významu přibývají (${burials} pohřbených)`
     : (CEMETERY_PHASES.find((phase) => founding < phase.to)?.label ?? '');
 

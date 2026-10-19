@@ -2,6 +2,8 @@ import type { ObstacleKind } from '../landscape';
 import type {
   Bounds,
   Craft,
+  GraveRank,
+  MoundSize,
   Crop,
   DwellingType,
   FallowStage,
@@ -343,8 +345,8 @@ export const CEMETERY = { costPerSquare: 10, graveM2: 4, gravesPerSquare: 56 } a
 // cemetery.md – Mohyly podle významu (Martin 19. 10. 2026: „Významnější lidé budou mít větší
 // mohyly a na prominentnějších místech… Největší mohyly bude mít vojvodova rodina.“; velikosti
 // „Ano, udělej to tak.“): místa na hroby ve čtverci po řadách 7 × 8 (= CEMETERY.gravesPerSquare)
-// s okrajem 0,5 m od plotu; mohyla zabere `MOUND_SIZES` míst – vojvodova rodina 2 × 2 (`great`),
-// hlava rodiny 2 místa za sebou (`large`), ostatní 1 (`normal`), dítě 1 malá (`small`).
+// s okrajem 0,5 m od plotu; mohyla zabere `MOUND_SIZES` míst – 2 × 2 (`great`), 2 místa za sebou
+// (`large`), 1 (`normal`), 1 malá (`small`).
 export const GRAVE_PLACES = { columns: 7, rows: 8, marginM: 0.5 } as const;
 export const MOUND_SIZES = {
   great: { columns: 2, rows: 2 },
@@ -360,7 +362,23 @@ export const GRAVE_RANKS = {
   headMinAgeYears: 35,
   lateralWeight: 2,
   laneHalfWidthM: 2,
+  manorFrontM: 4,
 } as const;
+// cemetery.md – Mohyly podle významu, Vojvodova rodina (Martin 19. 10. 2026: „I ve vojvodově
+// rodině jsou významnější a méně významní členové.“): velikost mohyly podle druhu pohřbeného
+// a menší náhrady, když se nevejde. Vojvoda a jeho žena 2 × 2 s kůlem, ostatní dospělí z dvorce
+// 2 místa (jako hlava rodiny), děti z dvorce běžná mohyla na 1 místo, hlava rodiny 2 místa, ostatní
+// dospělí 1, děti 1 malá; `manor` – celá vojvodova rodina podle prvního pravidla (jen staré mohyly)
+// a pruh podél osy do `manorFrontM` od branky drží vojvodově rodině, dokud mají hlavy rodin jinde.
+export const GRAVE_RANK_MOUNDS: Readonly<Record<GraveRank, readonly MoundSize[]>> = {
+  voivode: ['great', 'large', 'normal'],
+  'manor-adult': ['large', 'normal'],
+  'manor-child': ['normal'],
+  manor: ['great', 'large', 'normal'],
+  head: ['large', 'normal'],
+  adult: ['normal'],
+  child: ['small'],
+};
 // cemetery.md – Hygiena (pohřebiště s volným místem: od nejbližšího obydlí v pořádku od 150 m,
 // nejhorší pod 50 m; od vody v pořádku od 100 m, nejhorší pod 30 m; mezi tím plynule, násobí se)
 export const CEMETERY_DISTANCE_M = {

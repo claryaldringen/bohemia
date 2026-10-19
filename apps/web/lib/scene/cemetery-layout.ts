@@ -98,7 +98,7 @@ export function gravePlacements(
 /**
  * Tvar mohyly podle velikosti (cemetery.md – Mohyly podle významu): poloměr napříč, poloměr podél
  * řad (podlouhlá mohyla hlavy rodiny leží přes dvě místa za sebou) a výška (m). Běžná = dřívější
- * mohylka; vojvodova rodina výrazně větší a s dřevěným kůlem na vrcholu.
+ * mohylka; mohyla vojvody a jeho ženy výrazně větší a s dřevěným kůlem na vrcholu.
  */
 export const MOUND_SHAPES: Record<
   MoundSize,

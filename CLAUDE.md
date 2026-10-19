@@ -399,8 +399,8 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   zůstane; místo branky = vchod z jádra `cemeteryEntrance`, paths.md – Vchody), uvnitř mohyly
   podle významu (`SceneVillage.cemeteries[].mounds` – místo, velikost, `fresh` první rok –
   `FRESH_MOUND_DAYS`; `moundPlacements` se středem z jádra `gravePlaceCenter`, tvary
-  `MOUND_SHAPES`: malá dítěte, běžná, podlouhlá hlavy rodiny po řadách, největší vojvodovy
-  rodiny s dřevěným kůlem; sítě po vzhledu a velikosti) a staré hroby (`graves` – pohřbení před
+  `MOUND_SHAPES`: malá dítěte, běžná, podlouhlá hlavy rodiny po řadách, největší vojvody
+  a jeho ženy s dřevěným kůlem; sítě po vzhledu a velikosti) a staré hroby (`graves` – pohřbení před
   mohylami, mřížka 7 × 8 po řadách jako dřív, `gravePlacements`, čerstvé jen bez mohyl);
   založení vytyčení (kolíky a provázek po ostrém obrysu) → kůly → pletení; rozšíření ve stavbě
   má vlastní kus plotu bez branky jen tam, kde plot ještě není (na starý jen navazuje), po
@@ -620,12 +620,19 @@ rozhraní částí v
   života, před `removePeople`), kronika `cemetery-full` (žádné volné místo). **Mohyly podle
   významu** (cemetery.md; Martin 19. 10. 2026: „Významnější lidé budou mít větší mohyly a na
   prominentnějších místech… Největší mohyly bude mít vojvodova rodina.“, velikosti schválil):
-  `burials.ts` – `graveRank` (celá domácnost dvorce `manor`, dítě do 14 let `child`, hlava
-  domácnosti od 35 let s dítětem `head` – nejstarší muž a jeho žena, bez muže nejstarší žena,
-  jinak `adult`), `placeMound` (místo v mřížce 7 × 8 čtverce – `GRAVE_PLACES`; mohyla zabere
+  `burials.ts` – `graveRank` (domácnost dvorce odstupňovaná – Martin 19. 10. 2026: „I ve
+  vojvodově rodině jsou významnější a méně významní členové.“: vojvoda – hlava domácnosti dvorce
+  i ovdovělý – a jeho žena `voivode`, ostatní dospělí z dvorce `manor-adult`, děti z dvorce
+  `manor-child`; jinak dítě do 14 let `child`, hlava domácnosti od 35 let s dítětem `head` –
+  nejstarší muž a jeho žena, bez muže nejstarší žena –, jinak `adult`; `manor` = celá vojvodova
+  rodina podle prvního pravidla, jen staré mohyly), velikosti po druzích `GRAVE_RANK_MOUNDS`
+  (vojvoda 2 × 2, dospělí z dvorce a hlava 2, dítě z dvorce a dospělý 1, dítě 1 malá – i menší
+  náhrady), `placeMound` (místo v mřížce 7 × 8 čtverce – `GRAVE_PLACES`; mohyla zabere
   `MOUND_SIZES` míst: `great` 2 × 2, `large` 2 za sebou, `normal` a `small` 1; prominence =
-  hloubka od branky `cemeteryEntrance` + 2 × od osy – `GRAVE_RANKS`; vojvodova rodina a hlavy
-  nejprominentněji, dospělí u branky mimo pruh osy, děti vzadu; velká se zmenší, když se nevejde)
+  hloubka od branky `cemeteryEntrance` + 2 × od osy – `GRAVE_RANKS`; vojvodova rodina
+  nejprominentněji, hlavy rodin hned za ní – začátek osy do `manorFrontM` od branky jim nechávají,
+  dospělí a děti z dvorce u branky mimo pruh osy, ostatní děti vzadu; velká se zmenší, když se
+  nevejde)
   → `Cemetery.mounds` (`GraveMound`: čtverec, sloupec, řada, velikost, druh, den). `graves` =
   pohřbení celkem; staré hroby (`oldGraves` = `graves` − mohyly) leží po jednom místě na prvních
   místech po řadách jako dřív – hřbitov uložený dřív se načte a vypadá stejně. Kapacita

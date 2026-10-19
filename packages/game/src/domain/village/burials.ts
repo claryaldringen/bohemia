@@ -1,7 +1,7 @@
 import { villageManorId } from './manor';
 import { cemeteryEntrance, type Entrance } from './paths/entrances';
 import { ageGroup, ageYears } from './people';
-import { GRAVE_PLACES, GRAVE_RANKS, MOUND_SIZES } from './rules';
+import { GRAVE_PLACES, GRAVE_RANK_MOUNDS, GRAVE_RANKS, MOUND_SIZES } from './rules';
 import { rotationCosSin } from './square-grid';
 import type {
   Cemetery,
@@ -19,22 +19,19 @@ import type {
 // než např. dítě zemřelé v dětském věku. Největší mohyly bude mít vojvodova rodina.“). Hřbitov má
 // ve čtverci místa na hroby po řadách (GRAVE_PLACES – 7 × 8); mohyla zabere podle velikosti víc
 // míst (MOUND_SIZES), takže hřbitov se zaplní dřív, když umírají významní. Významní leží blízko
-// branky (`cemeteryEntrance`) a na hlavní ose od ní, děti vzadu a na okrajích. Staré hroby
-// (uložené před mohylami) leží po jednom místě na prvních místech po řadách – jako dřív.
-// Deterministicky ze stavu a dne.
+// branky (`cemeteryEntrance`) a na hlavní ose od ní, děti vzadu a na okrajích. I vojvodova rodina
+// je odstupňovaná (Martin 19. 10. 2026: „I ve vojvodově rodině jsou významnější a méně významní
+// členové.“) – vojvoda a jeho žena, ostatní dospělí z dvorce, děti z dvorce. Staré hroby (uložené
+// před mohylami) leží po jednom místě na prvních místech po řadách – jako dřív; mohyly uložené
+// podle dřívějšího pravidla se nemění. Deterministicky ze stavu a dne.
 
-/** Velikost mohyly podle druhu pohřbeného – a menší náhrady, když se nevejde. */
-const MOUND_OF_RANK: Record<GraveRank, readonly MoundSize[]> = {
-  manor: ['great', 'large', 'normal'],
-  head: ['large', 'normal'],
-  adult: ['normal'],
-  child: ['small'],
-};
-
-/** Velikost mohyly druhu pohřbeného (když se vejde). */
+/** Velikost mohyly druhu pohřbeného (když se vejde – GRAVE_RANK_MOUNDS). */
 export function moundSizeOf(rank: GraveRank): MoundSize {
-  return MOUND_OF_RANK[rank][0]!;
+  return GRAVE_RANK_MOUNDS[rank][0]!;
 }
+
+/** Druhy pohřbených z vojvodovy rodiny (i podle prvního pravidla). */
+const MANOR_RANKS: ReadonlySet<GraveRank> = new Set(['voivode', 'manor-adult', 'manor']);
 
 /** Kolik míst na hroby mohyla zabere. */
 export function moundPlaces(size: MoundSize): number {
@@ -80,16 +77,21 @@ function hasChildren(state: Pick<VillageState, 'people' | 'emigrants'>, id: numb
 }
 
 /**
- * Druh pohřbeného (cemetery.md – Mohyly podle významu): celá domácnost dvorce je vojvodova
- * rodina; jinak dítě (dětský věk), zasloužilá hlava rodiny (hlava domácnosti od 35 let s dítětem),
- * nebo ostatní dospělý. Volá se za života – ve stavu ještě je.
+ * Druh pohřbeného (cemetery.md – Mohyly podle významu): domácnost dvorce je vojvodova rodina –
+ * vojvoda (hlava domácnosti dvorce – nejstarší muž i ovdovělý, bez muže nejstarší žena) a jeho
+ * žena, ostatní dospělí z dvorce, děti z dvorce; jinak dítě (dětský věk), zasloužilá hlava rodiny
+ * (hlava domácnosti od 35 let s dítětem), nebo ostatní dospělý. Volá se za života – ve stavu ještě
+ * je.
  */
 export function graveRank(
   state: Pick<VillageState, 'people' | 'emigrants' | 'manorId' | 'dwellings' | 'constructions'>,
   person: Person,
   day: number,
 ): GraveRank {
-  if (person.dwellingId === villageManorId(state)) return 'manor';
+  if (person.dwellingId === villageManorId(state)) {
+    if (isChild(person, day)) return 'manor-child';
+    return isHouseholdHead(state.people, person, day) ? 'voivode' : 'manor-adult';
+  }
   if (isChild(person, day)) return 'child';
   if (
     ageYears(person.bornDay, day) >= GRAVE_RANKS.headMinAgeYears &&
@@ -155,6 +157,8 @@ interface Spot {
   score: number;
   /** Vzdálenost středu od hlavní osy od branky (m). */
   lateral: number;
+  /** Hloubka nejbližšího místa bloku od branky dovnitř hřbitova (m). */
+  near: number;
 }
 
 /**
@@ -217,17 +221,26 @@ function freeSpots(
           columns,
           rows,
         );
-        const dx = p.x - gate.x;
-        const dz = p.z - gate.z;
         // dovnitř = proti směru ven z branky
-        const depth = -(dx * gate.outX + dz * gate.outZ);
-        const lateral = Math.abs(dx * gate.outZ - dz * gate.outX);
+        const depthOf = (q: { x: number; z: number }): number =>
+          -((q.x - gate.x) * gate.outX + (q.z - gate.z) * gate.outZ);
+        const depth = depthOf(p);
+        const lateral = Math.abs((p.x - gate.x) * gate.outZ - (p.z - gate.z) * gate.outX);
+        // nejbližší místo bloku k brance – začátek osy zabírá i blok, který do něj jen zasahuje
+        let near = depth;
+        for (let r = row; r < row + rows; r++) {
+          for (let c = column; c < column + columns; c++) {
+            const q = gravePlaceCenter(square, cemetery.squareSizeM, rotation, c, r);
+            near = Math.min(near, depthOf(q));
+          }
+        }
         spots.push({
           square: k,
           column,
           row,
           score: depth + GRAVE_RANKS.lateralWeight * lateral,
           lateral,
+          near,
         });
       }
     }
@@ -240,12 +253,19 @@ function byScore(a: Spot, b: Spot): number {
   return a.score - b.score || a.square - b.square || a.row - b.row || a.column - b.column;
 }
 
+/** Zasahuje místo do začátku osy u branky, který patří vojvodově rodině? */
+function inManorFront(spot: Spot): boolean {
+  return spot.lateral < GRAVE_RANKS.laneHalfWidthM && spot.near < GRAVE_RANKS.manorFrontM;
+}
+
 /**
  * Místo pro mohylu pohřbeného druhu `rank` (cemetery.md – Mohyly podle významu; nemění stav):
- * vojvodova rodina a hlava rodiny co nejprominentněji (blízko branky a na hlavní ose), ostatní
- * dospělí co nejblíž branky mimo pruh podél osy (ten nechávají velkým mohylám, dokud mají kde
- * jinde), děti co nejdál – vzadu a na okrajích. Velká mohyla, která se nevejde, se zmenší
- * (2 × 2 → 2 místa → 1 místo – prominentní místo zůstává). Bez volného místa null.
+ * vojvoda a jeho žena nejprominentněji (blízko branky a na hlavní ose), ostatní dospělí z dvorce
+ * hned za nimi; hlava rodiny co nejprominentněji, ale mimo začátek osy u branky (ten drží
+ * vojvodově rodině, dokud má kam jinam); ostatní dospělí a děti z dvorce co nejblíž branky mimo
+ * pruh podél osy (ten nechávají velkým mohylám, dokud mají kde jinde); děti co nejdál – vzadu
+ * a na okrajích. Velká mohyla, která se nevejde, se zmenší (2 × 2 → 2 místa → 1 místo –
+ * prominentní místo zůstává). Bez volného místa null.
  */
 export function placeMound(
   cemetery: Cemetery,
@@ -257,13 +277,14 @@ export function placeMound(
   if (ready.length === 0) return null;
   const taken = occupancy(cemetery, ready);
   const gate = entranceOf(cemetery, ready, dwellings);
-  for (const size of MOUND_OF_RANK[rank]) {
+  for (const size of GRAVE_RANK_MOUNDS[rank]) {
     const spots = freeSpots(cemetery, ready, taken, gate, size).sort(byScore);
     let spot: Spot | undefined;
     if (rank === 'child') spot = spots[spots.length - 1];
-    else if (rank === 'adult') {
+    else if (rank === 'adult' || rank === 'manor-child') {
       spot = spots.find((s) => s.lateral >= GRAVE_RANKS.laneHalfWidthM) ?? spots[0];
-    } else spot = spots[0];
+    } else if (MANOR_RANKS.has(rank)) spot = spots[0];
+    else spot = spots.find((s) => !inManorFront(s)) ?? spots[0];
     if (!spot) continue;
     const square = ready[spot.square]!;
     return {

@@ -379,10 +379,13 @@ export interface Cemetery {
   fenceWear?: StructureWear;
 }
 /**
- * Druh pohřbeného (cemetery.md – Mohyly podle významu): vojvodova rodina (domácnost dvorce),
- * zasloužilá hlava rodiny, dítě (zemřelé v dětském věku), ostatní dospělí.
+ * Druh pohřbeného (cemetery.md – Mohyly podle významu): vojvoda a jeho žena (`voivode`), ostatní
+ * dospělí a děti vojvodovy rodiny (`manor-adult`, `manor-child` – domácnost dvorce), zasloužilá
+ * hlava rodiny, ostatní dospělí a dítě (zemřelé v dětském věku). `manor` = celá vojvodova rodina
+ * podle prvního pravidla (19. 10. 2026, před odstupňováním) – jen v mohylách uložených tehdy.
  */
-export type GraveRank = 'manor' | 'head' | 'adult' | 'child';
+export type GraveRank =
+  'voivode' | 'manor-adult' | 'manor-child' | 'manor' | 'head' | 'adult' | 'child';
 /** Velikost mohyly – kolik míst na hroby zabere (`MOUND_SIZES` v rules.ts). */
 export type MoundSize = 'great' | 'large' | 'normal' | 'small';
 /**

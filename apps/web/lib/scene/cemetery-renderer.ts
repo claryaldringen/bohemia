@@ -39,7 +39,7 @@ const MOUND_RINGS = 5;
 const GREAT_MOUND_SEGMENTS = 20;
 const GREAT_MOUND_RINGS = 8;
 /**
- * Dřevěný kůl na vrcholu mohyly vojvodovy rodiny (cemetery.md – inspirace: Pověst dávných let –
+ * Dřevěný kůl na vrcholu mohyly vojvody (cemetery.md – inspirace: Pověst dávných let –
  * Vjatičové kladli ostatky na sloup u cest): výška nad vrcholem, poloměr u paty a nahoře (m).
  */
 const POST = { heightM: 1.7, sinkM: 0.25, baseRadiusM: 0.1, topRadiusM: 0.075, sides: 8 } as const;
@@ -66,7 +66,7 @@ interface CemeteryView {
   pegs: ModelInstance[];
   /** Mohyly po sítích (`${vzhled}-${velikost}` – zarostlé a čerstvé, podle velikosti). */
   mounds: Map<string, ModelInstance[]>;
-  /** Kůly na mohylách vojvodovy rodiny. */
+  /** Kůly na mohylách vojvodů (největší mohyly). */
   posts: ModelInstance[];
 }
 
@@ -390,7 +390,7 @@ export class CemeteryRenderer {
   }
 
   /**
-   * Dřevěný kůl na mohyle vojvodovy rodiny: osmiboký, ke špičce se zužuje, pata v mohyle (počátek
+   * Dřevěný kůl na mohyle vojvody: osmiboký, ke špičce se zužuje, pata v mohyle (počátek
    * = pata kůlu).
    */
   private createPostMesh(): Mesh {

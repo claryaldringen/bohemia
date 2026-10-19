@@ -596,8 +596,9 @@ export interface SceneKiln {
 
 /**
  * Mohyla na hřbitově pro scénu (cemetery.md – Mohyly podle významu): čtverec hřbitova, první místo
- * mřížky 7 × 8 (sloupec, řada) a velikost – vojvodova rodina `great` (2 × 2 místa, s kůlem), hlava
- * rodiny `large` (2 místa za sebou), dospělý `normal`, dítě `small`. Čerstvá = z holé hlíny.
+ * mřížky 7 × 8 (sloupec, řada) a velikost – vojvoda a jeho žena `great` (2 × 2 místa, s kůlem),
+ * dospělí z dvorce a hlava rodiny `large` (2 místa za sebou), dospělý a dítě z dvorce `normal`,
+ * dítě `small`. Čerstvá = z holé hlíny.
  */
 export interface SceneGraveMound {
   cell: TileCell;

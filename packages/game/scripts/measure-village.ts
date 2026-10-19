@@ -405,7 +405,8 @@ interface RunResult {
     graves: number;
     places: number;
     squares: number;
-    ranks: Record<GraveRank, number>;
+    /** Mohyly podle druhu pohřbeného (starší kontrolní body nemají všechny druhy). */
+    ranks: Partial<Record<GraveRank, number>>;
   };
 }
 
@@ -870,7 +871,7 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
 
 /** Hřbitovy na konci běhu – pohřbení, místa, mohyly podle druhu a čtverce. */
 function cemeteryAtEnd(state: VillageState): NonNullable<RunResult['cemetery']> {
-  const ranks: Record<GraveRank, number> = { manor: 0, head: 0, adult: 0, child: 0 };
+  const ranks: Partial<Record<GraveRank, number>> = {};
   let graves = 0;
   let places = 0;
   let squares = 0;
@@ -878,7 +879,7 @@ function cemeteryAtEnd(state: VillageState): NonNullable<RunResult['cemetery']> 
     graves += c.graves;
     places += usedPlaces(c);
     squares += c.squares.length;
-    for (const m of c.mounds ?? []) ranks[m.rank] += 1;
+    for (const m of c.mounds ?? []) ranks[m.rank] = (ranks[m.rank] ?? 0) + 1;
   }
   return { graves, places, squares, ranks };
 }
@@ -1504,11 +1505,14 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
     r.cemetery && r.cemetery.graves > 0 ? [r.cemetery] : [],
   );
   const mounds = graveyards.reduce(
-    (sum, c) => sum + c.ranks.manor + c.ranks.head + c.ranks.adult + c.ranks.child,
+    (sum, c) => sum + Object.values(c.ranks).reduce((a, b) => a + (b ?? 0), 0),
     0,
   );
-  const rankShare = (rank: GraveRank): string =>
-    pct(graveyards.reduce((sum, c) => sum + c.ranks[rank], 0) / Math.max(1, mounds));
+  const rankShare = (...ranks: GraveRank[]): string =>
+    pct(
+      graveyards.reduce((sum, c) => sum + ranks.reduce((a, r) => a + (c.ranks[r] ?? 0), 0), 0) /
+        Math.max(1, mounds),
+    );
   row(
     `Hřbitov – mohyly podle významu, hráč staví (${config.years} let)`,
     'jen informace (cemetery.md)',
@@ -1519,7 +1523,7 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
           graveyards.reduce((sum, c) => sum + c.graves, 0),
         ),
       2,
-    )} (1 = jako dřív) | vojvodova rodina ${rankShare('manor')}, hlavy rodin ${rankShare('head')}, dospělí ${rankShare('adult')}, děti ${rankShare('child')} | čtverce na ves medián ${fmt(
+    )} (1 = jako dřív) | vojvoda a žena ${rankShare('voivode')}, dospělí z dvorce ${rankShare('manor-adult')}, děti z dvorce ${rankShare('manor-child')}, hlavy rodin ${rankShare('head')}, dospělí ${rankShare('adult')}, děti ${rankShare('child')} | čtverce na ves medián ${fmt(
       quantile(
         graveyards.map((c) => c.squares),
         0.5,
