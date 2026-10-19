@@ -659,11 +659,15 @@ První sezónu po vymýcení lesa se díl **neplete** (viz Úroda).
 
 - **Vzdálenost:** práce na dílu je o 1 % dražší za každých 10 m nad 100 m od nejbližšího
   obydlí (chůze, nošení v nůších – návrh Clauda). Díl 500 m daleko stojí o 40 % víc práce.
-  Vzdálenost se měří chůzí: po vyšlapané pěšině se chodí o čtvrtinu rychleji (podle její síly),
-  úsek po pěšině se tak počítá 0,75–1 × délka (paths.md – Pěšiny a práce, Martin 18. 10. 2026);
-  po pevné cestě podle stupně – vyšlapaná 1,2×, upravená 1,5× (roads.md – Rychlejší chůze).
-  Mokřina se počítá dvojnásobně (po hati 1,5× rychleji než louka), brod + 30 m (po lávce bez
-  zdržení) – i rovně mimo cestu, takže pole za potokem bez cesty zdraží, s hatí a lávkou zlevní.
+  Vzdálenost se měří chůzí, rychlost proti louce (Martin, 19. 10. 2026 – roads.md, Rychlejší
+  chůze): po plně prošlapané pěšině dne 1,3× (slabší úměrně síle – paths.md, Pěšiny a práce), po
+  pevné cestě podle stupně – vyšlapaná i vyježděná 1,5×, upravená 1,7×, hať a lávka 1,7× i přes
+  mokřinu. **Pole zdržuje:** díl v osevu od orby nebo kopání po sklizeň 0,5× („Pole, které zrovna
+  neleží ladem: 0.5.“ – pěšina dne přes něj nezrychlí), strniště 0,8× („Neber strniště jako louku,
+  ale dej mu drobný postih. Ber to třeba jako 0.8.“), úhor, příloh a zakládaný díl jako louka;
+  pevná cesta přes pole jde rychlostí cesty. Mokřina 0,5×, brod + 30 m (po lávce bez zdržení) –
+  i rovně mimo cestu, takže pole za potokem bez cesty zdraží, s hatí a lávkou zlevní, a díl
+  uprostřed oseté plochy je dál než na jejím kraji.
   Stejně se měří vzdálenost čtverce sadu (orchard.md). Bez krajiny (kalibrace) vzdušnou čarou.
   **Chůze se přepočítává měsíčně** (Martin, 18. 10. 2026): hned po změně rozložení vsi (obydlí,
   nové díly a čtverce, cesty, ohrady, sady, hřbitov, stáda), změny stadií dílů (osev, úhor,
@@ -1596,3 +1600,5 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Zpracování lnu v domácí výrobě (přerozdělení); bez lnu jen štěstí až −4 a upozornění                                              | návrh Clauda                                    |
 | Osev podle růstu vsi – ves seje na lidi v době, kdy úrodu jí, ne na dnešní                                                        | Martin (19. 10. 2026)                           |
 | Výhled po měsících: věk, běžná úmrtnost, porody manželských párů; do sklizně a rok po ní                                          | návrh Clauda                                    |
+| „Pole, které zrovna neleží ladem: 0.5.“ – chůze přes díl v osevu 0,5× i pro vzdálenost práce, pěšina dne přes osev nezrychlí      | Martin (19. 10. 2026)                           |
+| „Neber strniště jako louku, ale dej mu drobný postih. Ber to třeba jako 0.8.“                                                     | Martin (19. 10. 2026)                           |

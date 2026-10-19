@@ -1,7 +1,7 @@
 import { detCos, detSin, length2 } from '../../landscape';
 import { milirPosition } from '../crafts';
 import { rotatedSquareCorners, rotationCosSin, rotationTurn } from '../square-grid';
-import { DWELLING_CLEARING_M, SACRED_BUILDINGS } from '../rules';
+import { DWELLING_CLEARING_M, ROAD_WALK, SACRED_BUILDINGS } from '../rules';
 import type { ObstacleChanges } from '../obstacles';
 import type { PartStage } from '../summary';
 import type {
@@ -23,7 +23,20 @@ import {
   type Entrance,
 } from './entrances';
 import { nearestPartFinder } from './nearest';
-import { PATH_FOREST_EDGE, PATH_WATER, PATH_WATER_SPOT, type PathTerrain } from './terrain';
+import {
+  PATH_FOREST_EDGE,
+  PATH_WATER,
+  PATH_WATER_SPOT,
+  PATH_WETLAND,
+  type PathTerrain,
+} from './terrain';
+import {
+  isCropPart,
+  partWalkSpeed,
+  pathCostFactor,
+  roadWalkSpeed,
+  type WalkPart,
+} from './walk-speed';
 
 // Vyšlapané pěšiny (docs/design/paths.md). Čistá deterministická funkce vsi a terénu – počítá ji
 // server (cesta na pole po pěšině je rychlejší – fields.md – Vzdálenost) i prohlížeč (vzhled,
@@ -137,13 +150,14 @@ export interface PathVillage {
     };
   }[];
   /**
-   * Pole – díly se stadiem; `grazed` u přílohu ve fázi louky = pasou se na něm stáda (fields.md –
-   * Zarůstání, `pastureGrazedParts`): kam stáda nedojdou, tam pasáček nechodí. Bez údaje se pase
-   * na každém přílohu.
+   * Pole – díly se stadiem a vzhledem (`look` – chůze podle něj: v osevu, strniště – walk-speed.ts);
+   * `grazed` u přílohu ve fázi louky = pasou se na něm stáda (fields.md – Zarůstání,
+   * `pastureGrazedParts`): kam stáda nedojdou, tam pasáček nechodí. Bez údaje se pase na každém
+   * přílohu.
    */
   fields: readonly {
     id: number;
-    parts: readonly (PathSquare & { stage: PartStage; grazed?: boolean })[];
+    parts: readonly (PathSquare & WalkPart & { grazed?: boolean })[];
   }[];
   orchards?: readonly { id: number; squares: readonly PathSquare[] }[];
   /**
@@ -222,21 +236,22 @@ export interface PathNetworkInput {
 
 /** Kola hledání: první trasy (každá další se přidá k už vyšlapaným) a jedno kolo se slevou z prvního. */
 const PASSES = 2;
-/** Vyšlapaná buňka stojí (1 − PATH_DISCOUNT × síla) – po silné pěšině se jde i oklikou. */
-const PATH_DISCOUNT = 0.5;
 /** Kupa milíře uhlíře (crafts.py MILIR_R) – pěšina ji obejde. */
 const MILIR_RADIUS_M = 2.3;
-/** Pevná cesta (roads.md): sleva jako po plné pěšině – trasy se k ní stahují. */
+/** Pevná cesta (roads.md): síla pěšiny pod ní – od začátku jako plná pěšina (provoz, kreslení). */
 const ROAD_STRENGTH = 1;
 /**
- * Buňka pod osou pevné cesty stojí jako rovná louka – bez ohledu na povrch pod ní (Martin,
- * 19. 10. 2026: „Když už někde vyšlapaná cesta je, ať po ní lidé chodí bez ohledu na to, na čem
- * ta stezka leží.“ – paths.md, roads.md – Cesta je cesta): díl pole v jakémkoli stadiu, sad, les
- * vsi i krajiny, křoviny, svah ani překážky krajiny ji neprodraží. Brod zůstává (cena brodu
+ * Buňka pod osou pevné cesty stojí 1 / rychlost chůze po cestě (`roadWalkSpeed` – stupeň
+ * a mokřina, ROAD_WALK) – bez ohledu na povrch pod ní (Martin, 19. 10. 2026: „Když už někde
+ * vyšlapaná cesta je, ať po ní lidé chodí bez ohledu na to, na čem ta stezka leží.“ – paths.md,
+ * roads.md – Cesta je cesta): díl pole v jakémkoli stadiu, sad, les vsi i krajiny, křoviny, svah
+ * ani překážky krajiny ji neprodraží, pěšina dne ji nezrychlí. Brod zůstává (cena brodu
  * z terénu), neprůchodná buňka (voda, sráz, balvan) neprůchodnou a ploty hřbitova a ohrady,
  * okrsek svatyně a stavby vsi zůstávají překážkou.
  */
-const ROAD_CELL_COST = 1;
+function roadCellCost(grade: RoadGrade | undefined, flags: number): number {
+  return 1 / roadWalkSpeed(grade ?? 'trodden', (flags & PATH_WETLAND) !== 0);
+}
 /**
  * Provoz v cestách za den: pod `min` se pěšina nevyšlape (jednotlivé cesty nekreslí), od `full`
  * je plná; mezi tím síla roste s odmocninou provozu (pomalu – přesná aritmetika místo logaritmu).
@@ -292,19 +307,13 @@ const ERRAND_REACH = { factor: 1.25, extra: 30 } as const;
 /** Do takové ceny cesty se pro vodu a dřevo chodí naplno, dál úměrně méně často. */
 const ERRAND_NEAR_COST = 130;
 /**
- * Cena chůze přes díl pole podle stadia (násobek terénu). Pole lidi nezdržuje (Martin,
- * 19. 10. 2026: „Ať lidé chodí vždy nejkratší možnou cestou a oseté pole ať neřeší. Aspoň se nám
- * pak hezky s orbou ustálí tvar polí, který je nyní příliš hranatý.“ – paths.md): osetý, zralý,
- * zoraný i zakládaný díl jako úhor, louka na přílohu o kousek víc (vysoká tráva). Zarůstající
- * příloh je vegetace, ne pole – křoviny a mladý les zdržují.
+ * Zarůstající příloh je vegetace, ne pole (fields.md – Zarůstání) – trnité křoviny a houština
+ * mladého lesa zdržují (násobek terénu, jako les). Chůze přes díl pole jinak podle rychlosti
+ * (`partWalkSpeed` – v osevu 0,5, strniště 0,8, úhor a louka jako louka; Martin, 19. 10. 2026:
+ * „Pole, které zrovna neleží ladem: 0.5.“ – pole není zákaz, jen cena: nejkratší cesta je ta
+ * nejrychlejší, přes pole se jde, když je obcházení delší).
  */
-const STAGE_COST: Record<PartStage, number> = {
-  founding: 1.1,
-  ready: 1.1,
-  sown: 1.1,
-  'young-fallow': 1.1,
-  meadow: 1.25,
-  // zarůstající příloh (fields.md – Zarůstání): trnité křoviny, houština mladého lesa
+const OVERGROWN_COST: Partial<Record<PartStage, number>> = {
   shrubs: 2.2,
   'young-forest': 1.8,
 };
@@ -452,7 +461,7 @@ export function pathNetworkKey(village: PathVillage): string {
   });
   const fields = village.fields.map(
     (f) =>
-      `${f.id}:${f.parts.map((p) => `${squareKeyOf(p)},${p.stage}${p.grazed === false ? ',-' : ''}`).join(';')}`,
+      `${f.id}:${f.parts.map((p) => `${squareKeyOf(p)},${p.stage}/${partWalkSpeed(p)}${p.grazed === false ? ',-' : ''}`).join(';')}`,
   );
   const woods = (village.woods ?? []).map(
     (w) => `${squareKeyOf(w)}${w.surface === 'forest' ? 'f' : ''}`,
@@ -585,6 +594,11 @@ interface Grid {
   village: Uint8Array;
   /** Buňka leží pod osou pevné cesty (`roadMask`); bez pevných cest null. */
   road: Uint8Array | null;
+  /**
+   * Pěšina dne buňku nezrychlí (pevná cesta – jde se rychlostí cesty, díl pole v osevu – platí
+   * cena pole); bez takových buněk null.
+   */
+  plain: Uint8Array | null;
 }
 
 /** Okno mřížky – rozměry, počátek a krok (terén pěšin, mřížka sítě i vozů). */
@@ -822,9 +836,10 @@ function gateOf(b: Building): PathPoint {
 }
 
 /**
- * Mřížka pro hledání: terén (i s překážkami krajiny), k němu stavby vsi (pole podle stadia, sad,
- * hřbitov) a neprůchodné domy. Pod pevnou cestou platí cena cesty (`ROAD_CELL_COST`) místo terénu,
- * pole, sadu a lesa vsi; ploty hřbitova a ohrady, okrsek svatyně a domy platí i tam.
+ * Mřížka pro hledání: terén (i s překážkami krajiny), mokřina (ROAD_WALK.wetSpeed), k nim stavby
+ * vsi (pole podle rychlosti chůze – `partWalkSpeed`, sad, hřbitov) a neprůchodné domy. Pod pevnou
+ * cestou platí cena cesty (`roadCellCost`) místo terénu, mokřiny, pole, sadu a lesa vsi; ploty
+ * hřbitova a ohrady, okrsek svatyně a domy platí i tam.
  */
 function villageGrid(input: PathNetworkInput, buildings: readonly Building[]): Grid {
   const t = input.terrain;
@@ -838,29 +853,53 @@ function villageGrid(input: PathNetworkInput, buildings: readonly Building[]): G
     flags: t.flags,
     village: new Uint8Array(t.width * t.height),
     road: null,
+    plain: null,
   };
+  const all = t.width * t.height;
   const v = input.village;
   const road = roadMask(grid, v.roads);
   grid.road = road;
-  if (road) {
-    for (let c = 0; c < road.length; c++) {
-      // brod (voda) a neprůchodné buňky zůstávají, jinak cesta jako louka (roads.md)
-      if (road[c] && Number.isFinite(grid.base[c]!) && !(grid.flags[c]! & PATH_WATER)) {
-        grid.base[c] = ROAD_CELL_COST;
-      }
-    }
-  }
+  const plain = new Uint8Array(all);
+  let anyPlain = false;
   const onRoad = (c: number): boolean => road !== null && road[c] === 1;
+  // rychlost chůze proti louce (walk-speed.ts): mokřina (bahno) a pole podle stadia – nejpomalejší
+  // platí; pod pevnou cestou jen cesta
+  const speed = new Float32Array(all).fill(1);
+  for (let c = 0; c < all; c++) {
+    if (t.flags[c]! & PATH_WETLAND) speed[c] = ROAD_WALK.wetSpeed;
+  }
   for (const field of v.fields) {
     // hrana mezi díly téhož pole je uvnitř pole (meze nejsou) – cena podle nejbližšího dílu
     const nearestPart = nearestPartFinder(field.parts, field.parts[0]?.size ?? 0);
     for (const c of squareCells(grid, field.parts).inside) {
       grid.village[c] = 1;
       if (onRoad(c)) continue;
-      const stage = nearestPart(cellX(grid, c), cellZ(grid, c)).stage;
-      grid.base[c] = grid.base[c]! * STAGE_COST[stage];
+      const part = nearestPart(cellX(grid, c), cellZ(grid, c));
+      speed[c] = Math.min(speed[c]!, partWalkSpeed(part));
+      grid.base[c] = grid.base[c]! * (OVERGROWN_COST[part.stage] ?? 1);
+      // pěšina dne přes díl v osevu nezrychlí – platí cena pole
+      if (isCropPart(part)) {
+        plain[c] = 1;
+        anyPlain = true;
+      }
     }
   }
+  for (let c = 0; c < all; c++) {
+    if (speed[c]! < 1 && !onRoad(c)) grid.base[c] = grid.base[c]! / speed[c]!;
+  }
+  if (road) {
+    // brod (voda) a neprůchodné buňky zůstávají, jinak cena cesty podle stupně (roads.md);
+    // v buňce víc cest – nejrychlejší
+    const roads = roadGradeMask(grid, v.roads);
+    for (let c = 0; c < road.length; c++) {
+      if (road[c] && Number.isFinite(grid.base[c]!) && !(grid.flags[c]! & PATH_WATER)) {
+        grid.base[c] = roadCellCost(ROAD_GRADES[roads[c]!], grid.flags[c]!);
+        plain[c] = 1;
+        anyPlain = true;
+      }
+    }
+  }
+  if (anyPlain) grid.plain = plain;
   for (const orchard of v.orchards ?? []) {
     for (const c of squareCells(grid, orchard.squares).inside) {
       grid.village[c] = 1;
@@ -962,6 +1001,37 @@ export function roadMask(grid: GridWindow, roads: PathVillage['roads']): Uint8Ar
     mask[j * grid.width + i] = 1;
   };
   for (const road of roads) {
+    const pts = road.points;
+    if (pts.length === 1) mark(pts[0]!.x, pts[0]!.z);
+    for (let k = 1; k < pts.length; k++) {
+      const a = pts[k - 1]!;
+      const b = pts[k]!;
+      const n = Math.max(1, Math.ceil(length2(b.x - a.x, b.z - a.z) / step));
+      for (let s = 0; s <= n; s++) mark(a.x + ((b.x - a.x) * s) / n, a.z + ((b.z - a.z) * s) / n);
+    }
+  }
+  return mask;
+}
+
+/** Stupně cest od nejpomalejšího – index v masce `roadGradeMask`. */
+const ROAD_GRADES: readonly RoadGrade[] = ['trodden', 'improved', 'causeway'];
+
+/**
+ * Nejvyšší stupeň pevné cesty po buňkách (index v ROAD_GRADES) – buňky jako `roadMask`; mimo
+ * cesty 0. Cesta bez stupně je vyšlapaná.
+ */
+function roadGradeMask(grid: GridWindow, roads: PathVillage['roads']): Uint8Array {
+  const mask = new Uint8Array(grid.width * grid.height);
+  const step = grid.cellM / 3;
+  for (const road of roads ?? []) {
+    const grade = Math.max(0, ROAD_GRADES.indexOf(road.grade ?? 'trodden'));
+    const mark = (x: number, z: number): void => {
+      const i = Math.round((x - grid.originX) / grid.cellM);
+      const j = Math.round((z - grid.originZ) / grid.cellM);
+      if (i < 0 || j < 0 || i >= grid.width || j >= grid.height) return;
+      const c = j * grid.width + i;
+      if (grade > mask[c]!) mask[c] = grade;
+    };
     const pts = road.points;
     if (pts.length === 1) mark(pts[0]!.x, pts[0]!.z);
     for (let k = 1; k < pts.length; k++) {
@@ -1619,7 +1689,17 @@ function edgeOther(width: number, slot: number): [number, number] {
 function treadCell(traffic: Traffic, costs: PassCosts, c: number, weight: number): void {
   traffic.cells[c] = traffic.cells[c]! + weight;
   const strength = Math.max(costs.previous[c]!, pathStrength(traffic.cells[c]!));
-  costs.cost[c] = costs.base[c]! * (1 - PATH_DISCOUNT * strength);
+  costs.cost[c] = trodden(costs, c, strength);
+}
+
+/**
+ * Cena buňky s pěšinou dne síly `strength` – po pěšině se jde rychleji (PATH_WALK, `pathCostFactor`
+ * – stejně jako vzdálenost chůze), kromě buněk, které pěšina nezrychlí (pevná cesta, osev).
+ */
+function trodden(costs: PassCosts, c: number, strength: number): number {
+  const base = costs.base[c]!;
+  if (strength <= 0 || costs.plain?.[c]) return base;
+  return base * pathCostFactor(strength);
 }
 
 /** Ceny kola: základ, síla pěšin z minulého kola a ceny se slevou, které se průběžně snižují. */
@@ -1627,6 +1707,8 @@ interface PassCosts {
   base: Float32Array;
   previous: Float32Array;
   cost: Float32Array;
+  /** Buňky, které pěšina dne nezrychlí (`Grid.plain`). */
+  plain: Uint8Array | null;
 }
 
 /**
@@ -2032,10 +2114,11 @@ export function computePathNetwork(input: PathNetworkInput): PathNetwork {
     base: grid.base,
     previous: fixed ? new Float32Array(fixed) : new Float32Array(all),
     cost: new Float32Array(grid.base),
+    plain: grid.plain,
   };
   if (fixed) {
     for (let c = 0; c < all; c++) {
-      if (fixed[c]! > 0) costs.cost[c] = grid.base[c]! * (1 - PATH_DISCOUNT * fixed[c]!);
+      if (fixed[c]! > 0) costs.cost[c] = trodden(costs, c, fixed[c]!);
     }
   }
   let result: Traffic = {
@@ -2051,7 +2134,7 @@ export function computePathNetwork(input: PathNetworkInput): PathNetwork {
       for (let c = 0; c < all; c++) {
         const s = fixed ? Math.max(fixed[c]!, pathStrength(smooth[c]!)) : pathStrength(smooth[c]!);
         costs.previous[c] = s;
-        costs.cost[c] = s > 0 ? grid.base[c]! * (1 - PATH_DISCOUNT * s) : grid.base[c]!;
+        costs.cost[c] = trodden(costs, c, s);
       }
     }
     const last = pass === PASSES - 1;

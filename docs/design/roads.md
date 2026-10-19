@@ -83,11 +83,11 @@ hráče](#cesta-pro-hráče)), v panelu je stupeň, délka, stáří, stromy a j
 vylepšení (ikony, cena v popisku – jako v 0 A.D.). Vylepšení je stavba ze
 společné práce vsi; stromy bere jako obydlí (klády z hromady, pak nejbližší dospělé stromy).
 
-| Stupeň                     | Co se udělá                                                 | Cena (návrh Clauda)                                       | Rychlost chůze (návrh Clauda)             |
-| -------------------------- | ----------------------------------------------------------- | --------------------------------------------------------- | ----------------------------------------- |
-| 1. **Vyšlapaná cesta**     | vznikne sama                                                | –                                                         | 1,2× proti louce                          |
-| 2. **Upravená cesta**      | vyrovnaná a rozšířená – širší vyšlapaná cesta (bez strouhy) | **15 člověkodní na 100 m**                                | 1,5×                                      |
-| 3. **Hať a lávka** (po 2.) | povalový chodník přes mokřinu, lávka z kmenů přes potok     | hať **1 strom a 2 čd na 2 m**, lávka **4 stromy a 15 čd** | mokřina 1,5× místo 0,5×; brod bez zdržení |
+| Stupeň                     | Co se udělá                                                 | Cena (návrh Clauda)                                       | Rychlost chůze (návrh Clauda)         |
+| -------------------------- | ----------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------- |
+| 1. **Vyšlapaná cesta**     | vznikne sama                                                | –                                                         | 1,5× proti louce (i vyježděná)        |
+| 2. **Upravená cesta**      | vyrovnaná a rozšířená – širší vyšlapaná cesta (bez strouhy) | **15 člověkodní na 100 m**                                | 1,7×                                  |
+| 3. **Hať a lávka** (po 2.) | povalový chodník přes mokřinu, lávka z kmenů přes potok     | hať **1 strom a 2 čd na 2 m**, lávka **4 stromy a 15 čd** | 1,7× i přes mokřinu; brod bez zdržení |
 
 - **Stupeň 3** jde jen na úseku, který vede mokřinou (rovina podél potoka) nebo brodí potok –
   jinak se nenabízí.
@@ -100,10 +100,40 @@ společné práce vsi; stromy bere jako obydlí (klády z hromady, pak nejbliž�
 
 ## Rychlejší chůze (Martin – efekt vylepšení)
 
+Martin (19. 10. 2026), rychlost chůze proti louce: „berme louku za výchozí: 1 vyšlapaná denní
+cesta 1.3 stálá vyšlapaná cesta 1.5. Pole, které zrovna neleží ladem: 0.5. Upravená cesta: 1.7 –
+tyhle hodnoty se týkají chůze.“ A dál: „Neber strniště jako louku, ale dej mu drobný postih. Ber to
+třeba jako 0.8.“ K obcházení polí: „když použiješ třeba dijkstrův algoritmus pro procházení
+ohodnoceného grafu, tak nejkratší cesta je ta nejrychlejší. Tj. může se stát, že někde bude
+jednodušší jít přes pole, než ho obcházet i když je cesta přes pole pomalejší.“
+
+| Kudy                                                                | Rychlost proti louce                               |
+| ------------------------------------------------------------------- | -------------------------------------------------- |
+| louka (výchozí), úhor, příloh, zakládaný díl                        | 1                                                  |
+| pěšina dne plně prošlapaná                                          | 1,3 – slabší úměrně méně podle síly (návrh Clauda) |
+| stálá vyšlapaná cesta i vyježděná cesta                             | 1,5                                                |
+| upravená cesta                                                      | 1,7                                                |
+| hať a lávka                                                         | 1,7, i přes mokřinu (návrh Clauda)                 |
+| díl pole v osevu – od orby nebo kopání po sklizeň (zoraný … ve žni) | 0,5                                                |
+| strniště po sklizni                                                 | 0,8                                                |
+| mokřina bez cesty i po vyšlapané či upravené cestě                  | 0,5                                                |
+| brod bez lávky                                                      | + 30 m                                             |
+
+- **Stejné rychlosti v síti pěšin i ve vzdálenosti chůze** (`walk-speed.ts` – `partWalkSpeed`,
+  `pathCostFactor`, `roadWalkSpeed`; čísla `PATH_WALK`, `FIELD_WALK`, `ROAD_WALK` v `rules.ts`):
+  buňka sítě stojí 1 / rychlost (krát les, svah a překážky jako dřív), chůze rovně, po pěšině i po
+  pevné cestě se počítá stejně. Pole není zákaz, jen cena – síť hledá nejrychlejší cestu, takže
+  díl v osevu obejde, když je obcházení krátké, a jde přes něj, když je dlouhé. Pěšina dne přes
+  díl v osevu nezrychlí (platí cena pole), pevná cesta přes pole jde rychlostí cesty (pás cesty se
+  neorá – Cesta přes pole). Nejpomalejší z mokřiny a pole platí (ne součin). Díl pole pozná chůze
+  podle vzhledu (`fieldPartLooks` – jako scéna; rozpracovaný díl podle větší části), do klíče
+  přepočtu chůze se rychlost dílu promítá jako stadium – 1. dne v měsíci (paths.md – Pěšiny
+  a práce). Brod v síti pěšin stojí jako dřív (cena buňky brodu), les, svah a překážky taky.
+
 - Dnes práce zdražuje **vzdušná vzdálenost** od obydlí: +1 % za každých 10 m nad 100 m (pole
   a sad – [fields.md](fields.md); kácení a palivo – [forest.md](forest.md)).
 - Nově se měří **chůzí** (návrh Clauda): délka trasy, kudy lidé skutečně jdou (roční síť),
-  a úsek po cestě se započítá zkráceně podle rychlosti (po upravené cestě 300 m jako 200 m).
+  a úsek po cestě se započítá zkráceně podle rychlosti (po upravené cestě 340 m jako 200 m).
   Mokřina se počítá dvojnásobně (bahno), brod + 30 m (zout se, přebrodit). Vzdálenosti se
   přepočítají jednou za rok a po dokončení vylepšení.
 - Pole za potokem nebo za mokřinou tak bez cesty zdraží, s hatí a lávkou zlevní. Pole 400 m
@@ -148,12 +178,17 @@ společné práce vsi; stromy bere jako obydlí (klády z hromady, pak nejbliž�
 | Cesta s jabloněmi nezaroste (jako upravená, hať a stezka); díl pole o cestu nepřichází   | návrh Clauda |
 | Zarůstá jen nepoužívaný kus úseku, zbytek zůstane se starým id                           | Martin       |
 | Kusy ≈ 25 m, historie jen tichých kusů (střed a roky), volný konec u zarostlého kusu     | návrh Clauda |
-| Pole lidi nezdržuje – nejkratší cesta i přes osetý díl                                   | Martin       |
+| ~~Pole lidi nezdržuje – nejkratší cesta i přes osetý díl~~ (změněno – rychlosti chůze)   | Martin       |
 | Připojení nové cesty po souběžném kusu do 14 m                                           | návrh Clauda |
 | Vozy vyjezdí vlastní cesty, ve svahu serpentiny                                          | Martin       |
 | Vozová cesta = pevná cesta s příznakem z ročního provozu vozů, pro lidi stejná           | návrh Clauda |
 | Vyjezdí-li vůz cestu, je to vyježděná cesta; vyšlapanou cestu vozová přebije             | Martin       |
 | Vyježděná = druh cesty pro hráče (vyšlapaná s vozy); upravená a hať zůstanou             | návrh Clauda |
+| „berme louku za výchozí: 1 vyšlapaná denní cesta 1.3 stálá vyšlapaná cesta 1.5“          | Martin       |
+| „Pole, které zrovna neleží ladem: 0.5. Upravená cesta: 1.7“                              | Martin       |
+| „Neber strniště jako louku, ale dej mu drobný postih. Ber to třeba jako 0.8.“            | Martin       |
+| „nejkratší cesta je ta nejrychlejší“ – pole je cena, ne zákaz                            | Martin       |
+| Hať 1,7× i přes mokřinu; pěšina úměrně síle; stejné rychlosti v síti pěšin i chůzi       | návrh Clauda |
 
 ## Cesta je cesta – povrch pod ní a zarůstání
 
@@ -288,6 +323,13 @@ vůz takhle vyjezdí vyšlapanou cestu, tak to vozová cesta přebije.“
 
 Martin (19. 10. 2026): „Ať lidé chodí vždy nejkratší možnou cestou a oseté pole ať neřeší. Aspoň se
 nám pak hezky s orbou ustálí tvar polí, který je nyní příliš hranatý.“ Podrobnosti návrh Clauda.
+
+**Změněno týž den (Martin, 19. 10. 2026 – [Rychlejší chůze](#rychlejší-chůze-martin--efekt-vylepšení)):**
+„Pole, které zrovna neleží ladem: 0.5.“ a „nejkratší cesta je ta nejrychlejší“ – díl v osevu
+stojí v síti pěšin i ve vzdálenosti chůze 2× louku (rychlost 0,5), strniště 1,25× (0,8); úhor,
+příloh a zakládaný díl jako louka. Pole není zákaz: pěšina jde přes osev, když je obcházení delší.
+Trasy přes pole se tak zase mění s osevem; pevná cesta, která přes pole už vede, jde dál rychlostí
+cesty. Níž popsaný stav platil od rána do večera 19. 10. 2026.
 
 - **Pěšiny přes pole:** osetý, zralý, zoraný i zakládaný díl stojí v síti pěšin jako úhor
   ([paths.md](paths.md) – Kudy), lidé jdou nejkratší cestou. Dřív stál osetý díl 12× a zoraný 3×
@@ -464,9 +506,11 @@ Návrh Clauda (18. 10. 2026):
 - **Vylepšení je stavba** ze společné práce (lidé pracují podél úseku u čela práce); úsek během
   stavby nezaroste; když se rozdělí, stavba platí pro oba kusy. Po dokončení dostane úsek nový
   stupeň a kronika „Cesta je vylepšená – chodí se po ní rychleji.“
-- **Chůze** (walking.ts – jediné místo výpočtu): po pevné cestě podle stupně (vyšlapaná 1,2×,
-  upravená i hať a lávka 1,5×), mokřinou 0,5× (po hati 1,5×), brod + 30 m (po lávce nic);
-  mokřina a brod platí i pro chůzi rovně mimo cestu a po pěšinách dne. Okno terénu pro chůzi je
+- **Chůze** (walking.ts – jediné místo výpočtu, rychlosti z walk-speed.ts): po pevné cestě podle
+  stupně (vyšlapaná i vyježděná 1,5×, upravená 1,7×, hať a lávka 1,7× i přes mokřinu), mokřinou
+  0,5×, brod + 30 m (po lávce nic); mokřina, brod a pole (v osevu 0,5×, strniště 0,8× –
+  `withFieldWalk`) platí i pro chůzi rovně mimo cestu a po pěšinách dne (přes osev pěšina
+  nezrychlí). Okno terénu pro chůzi je
   pevné – 1,4 × 1,4 km kolem místa vsi (stejné na serveru i v prohlížeči).
 - **Vzdálenost práce chůzí:** díly pole a čtverce sadu z nejbližšího obydlí po pěšinách
   a pevných cestách, palivo z obydlí k nejbližšímu okraji lesa, kácení dřeva staveb od stavby ke

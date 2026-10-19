@@ -170,25 +170,27 @@ describe('chůze podle stupně cesty, mokřiny a brodů', () => {
     expect(across).toBeLessThan(40 + 10 + ROAD_WALK.fordExtraM + 2);
   });
 
-  it('po cestě: vyšlapaná 1,2×, upravená 1,5×, mokřina 0,5× (s hatí 1,5×), brod + 30 m bez lávky', () => {
+  it('po cestě: vyšlapaná 1,5×, upravená 1,7×, mokřina 0,5× (s hatí 1,7×), brod + 30 m bez lávky', () => {
     const plain = (grade: Road['grade']): WalkRoad => ({
       points: [],
       grade,
       ground: { wet: [], fords: [] },
     });
-    expect(roadPieceCost(plain('trodden'), 0, 120)).toBeCloseTo(100, 9);
-    expect(roadPieceCost(plain('improved'), 0, 150)).toBeCloseTo(100, 9);
+    // Martin (19. 10. 2026): „stálá vyšlapaná cesta 1.5“, „Upravená cesta: 1.7“
+    expect(roadPieceCost(plain('trodden'), 0, 150)).toBeCloseTo(100, 9);
+    expect(roadPieceCost(plain('improved'), 0, 170)).toBeCloseTo(100, 9);
+    expect(roadPieceCost(plain('causeway'), 0, 170)).toBeCloseTo(100, 9);
     const wet = (grade: Road['grade']): WalkRoad => ({
       points: [],
       grade,
       ground: { wet: [[10, 20]], fords: [30] },
     });
-    // 30 m sucho po upravené (20) + 10 m mokřiny po upravené (20) + brod 30
-    expect(roadPieceCost(wet('improved'), 0, 40)).toBeCloseTo(30 / 1.5 + 10 / 0.5 + 30, 9);
-    // hať a lávka: mokřina 1,5×, brod bez zdržení
-    expect(roadPieceCost(wet('causeway'), 0, 40)).toBeCloseTo(40 / 1.5, 9);
+    // 30 m sucho po upravené + 10 m mokřiny po upravené + brod 30
+    expect(roadPieceCost(wet('improved'), 0, 40)).toBeCloseTo(30 / 1.7 + 10 / 0.5 + 30, 9);
+    // hať a lávka: i přes mokřinu 1,7×, brod bez zdržení
+    expect(roadPieceCost(wet('causeway'), 0, 40)).toBeCloseTo(40 / 1.7, 9);
     // kus osy jen zčásti v mokřině
-    expect(roadPieceCost(wet('trodden'), 15, 25)).toBeCloseTo(5 / 0.5 + 5 / 1.2, 9);
+    expect(roadPieceCost(wet('trodden'), 15, 25)).toBeCloseTo(5 / 0.5 + 5 / 1.5, 9);
   });
 
   it('po pevné cestě bez ohledu na povrch – pole, les ani svah chůzi nezdraží (Martin)', () => {
@@ -244,7 +246,7 @@ describe('chůze podle stupně cesty, mokřiny a brodů', () => {
     )[0]!;
     expect(trodden).toBeLessThan(none);
     expect(causeway).toBeLessThan(trodden);
-    expect(causeway).toBeCloseTo(70 / 1.5, 0);
+    expect(causeway).toBeCloseTo(70 / 1.7, 0);
   });
 });
 

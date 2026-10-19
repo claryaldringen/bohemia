@@ -27,7 +27,7 @@ describe('pathRouter – chůze postav po pěšinách', () => {
     expect(r.pace[0]).toBe(1);
     expect(r.pace[r.pace.length - 1]).toBe(1);
     const inner = r.pace.slice(1, -1);
-    for (const p of inner) expect(p).toBeCloseTo(1 / (1 - PATH_WALK.speedup), 9);
+    for (const p of inner) expect(p).toBeCloseTo(PATH_WALK.speed, 9);
   });
 
   it('daleko od pěšin nebo bez sítě se jde rovnou', () => {

@@ -102,28 +102,67 @@ describe('computePathNetwork – pěšiny vsi', () => {
     }
   });
 
-  it('pole lidi nezdržuje – přes osetý, zoraný i zakládaný díl jdou rovně (Martin)', () => {
-    // Martin, 19. 10. 2026: „Ať lidé chodí vždy nejkratší možnou cestou a oseté pole ať neřeší.“
-    // pole přes cestu k vodě: tři řady dílů z = 22,5–52,5, x od −37,5 do 37,5
-    const across = (stage: 'sown' | 'ready' | 'founding' | 'young-fallow'): PathVillage =>
+  it('díl v osevu obejde, když je obcházení krátké, a jde přes něj, když je dlouhé (Martin)', () => {
+    // Martin, 19. 10. 2026: „Pole, které zrovna neleží ladem: 0.5.“ a „nejkratší cesta je ta
+    // nejrychlejší. Tj. může se stát, že někde bude jednodušší jít přes pole, než ho obcházet
+    // i když je cesta přes pole pomalejší.“ – pole není zákaz, jen cena
+    const narrow = (stage: 'sown' | 'young-fallow' | 'founding'): PathVillage =>
       village({
         fields: [
           {
             id: 9,
-            parts: [22.5, 37.5, 52.5].flatMap((z) =>
-              [-37.5, -22.5, -7.5, 7.5, 22.5, 37.5].map((x) => part(x, z, stage)),
-            ),
+            // úzký hluboký blok mezi vsí a vodou – obejít je kousek
+            parts: [22.5, 37.5, 52.5].flatMap((z) => [-7.5, 7.5].map((x) => part(x, z, stage))),
           },
         ],
       });
-    const deepInside = (network: PathNetwork): number =>
-      samples(network).filter((p) => Math.abs(p.x) < 25 && Math.abs(p.z - 37.5) < 10).length;
-    for (const stage of ['sown', 'ready', 'founding', 'young-fallow'] as const) {
-      expect(
-        deepInside(computePathNetwork({ village: across(stage), terrain })),
-        stage,
-      ).toBeGreaterThan(0);
-    }
+    const inside = (network: PathNetwork): number =>
+      samples(network).filter((p) => Math.abs(p.x) < 6 && Math.abs(p.z - 37.5) < 10).length;
+    const fallow = inside(computePathNetwork({ village: narrow('young-fallow'), terrain }));
+    expect(fallow).toBeGreaterThan(0);
+    // úhor a zakládaný díl jako louka – rovně; v osevu obejde
+    expect(inside(computePathNetwork({ village: narrow('founding'), terrain }))).toBe(fallow);
+    expect(inside(computePathNetwork({ village: narrow('sown'), terrain }))).toBeLessThan(fallow);
+    // pás osevu přes celou louku (na západě les) – obcházet nejde, k vodě se jde přes pole
+    const wide = village({
+      fields: [
+        {
+          id: 9,
+          parts: Array.from({ length: 16 }, (_, k) => part(-82.5 + k * 15, 37.5, 'sown')),
+        },
+      ],
+    });
+    const across = samples(computePathNetwork({ village: wide, terrain })).filter(
+      (p) => p.z > 31 && p.z < 44 && p.x > -75,
+    );
+    expect(across.length).toBeGreaterThan(0);
+  });
+
+  it('pevná cesta přes díl v osevu jde rychlostí cesty, pěšina dne přes osev nezrychlí', () => {
+    const narrow = (roads?: PathVillage['roads']): PathVillage =>
+      village({
+        fields: [
+          {
+            id: 9,
+            parts: [22.5, 37.5, 52.5].flatMap((z) => [-7.5, 7.5].map((x) => part(x, z, 'sown'))),
+          },
+        ],
+        ...(roads ? { roads } : {}),
+      });
+    const inside = (network: PathNetwork): number =>
+      samples(network).filter((p) => Math.abs(p.x) < 6 && Math.abs(p.z - 37.5) < 10).length;
+    const road = [
+      {
+        points: [
+          { x: 0, z: 8 },
+          { x: 0, z: 72 },
+        ],
+        grade: 'trodden' as const,
+      },
+    ];
+    expect(inside(computePathNetwork({ village: narrow(road), terrain }))).toBeGreaterThan(
+      inside(computePathNetwork({ village: narrow(), terrain })),
+    );
   });
 
   it('zarůstající příloh (křoviny, mladý les) zdržuje – je to vegetace, ne pole', () => {

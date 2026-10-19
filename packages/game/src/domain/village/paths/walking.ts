@@ -1,7 +1,8 @@
 import { length2, type Landscape } from '../../landscape';
 import { PATH_WALK, ROAD_WALK } from '../rules';
 import type { RoadGrade, RoadGround } from '../types';
-import { PathHeap, type PathLine, type PathPoint } from './network';
+import { nearestPartFinder } from './nearest';
+import { PathHeap, squareCells, type PathLine, type PathPoint, type PathVillage } from './network';
 import {
   PATH_WATER,
   PATH_WETLAND,
@@ -9,14 +10,18 @@ import {
   pathWindowFor,
   type PathTerrain,
 } from './terrain';
+import { isCropPart, partWalkSpeed, pathCostFactor, roadWalkSpeed } from './walk-speed';
 
 // Chůze po vyšlapaných pěšinách a pevných cestách (paths.md – Pěšiny a práce, roads.md –
 // Rychlejší chůze): vzdálenost chůze = nejkratší z: rovně, nebo rovně k pěšině či cestě, po ní
-// a rovně od ní k cíli. Po pěšině se chodí rychleji (PATH_WALK podle síly), po pevné cestě podle
-// stupně (ROAD_WALK – vyšlapaná 1,2×, upravená 1,5×). Mokřina se počítá dvojnásobně (bahno – po
-// hati 1,5×), brod + 30 m (po lávce bez zdržení). S krajinou (`WalkGround`) se mokřina a voda
-// počítají i rovně; bez ní (kalibrace) jen délka – jako dřív. Čistá deterministická funkce –
-// stejně na serveru i v prohlížeči; použije ji každý, kdo měří cestu na pole, do sadu, do lesa.
+// a rovně od ní k cíli. Rychlosti proti louce jsou stejné jako v síti pěšin (walk-speed.ts –
+// Martin, 19. 10. 2026): po plné pěšině dne 1,3× (slabší úměrně síle – PATH_WALK), po pevné cestě
+// podle stupně (ROAD_WALK – vyšlapaná i vyježděná 1,5×, upravená 1,7×, hať a lávka 1,7× i přes
+// mokřinu). Mokřina 0,5× (bahno), brod + 30 m (po lávce bez zdržení), díl pole v osevu 0,5×
+// a strniště 0,8× (FIELD_WALK – pěšina dne přes osev nezrychlí, pevná cesta jde rychlostí cesty).
+// S krajinou (`WalkGround`) se mokřina, voda a pole počítají i rovně; bez ní (kalibrace) jen
+// délka. Čistá deterministická funkce – stejně na serveru i v prohlížeči; použije ji každý, kdo
+// měří cestu na pole, do sadu, do lesa.
 
 /** Graf chůze – body a úseky s délkou a cenou chůze (rozcestí sdílejí bod). */
 export interface WalkGraph {
@@ -39,6 +44,11 @@ export interface WalkRoad {
  */
 export interface WalkGround {
   terrain: PathTerrain;
+  /**
+   * Pole vsi po buňkách terénu (`withFieldWalk`): rychlost chůze přes díl (`partWalkSpeed` – v osevu
+   * 0,5, strniště 0,8; jinde 1) a díly v osevu, které pěšina dne nezrychlí. Bez údaje bez polí.
+   */
+  fields?: { speed: Float32Array; crop: Uint8Array };
 }
 
 /** Okno půdy pro chůzi: tolik metrů od středu místa vsi na každou stranu. */
@@ -64,17 +74,47 @@ export function walkGroundOf(landscape: Landscape): WalkGround {
 }
 
 /**
- * Délka chůze rovně z `a` do `b` (m): po půlbuňkách terénu – mokřina dvojnásobně, každé vstoupení
- * do vody (brod, potok) + ROAD_WALK.fordExtraM. Bez půdy délka úsečky.
+ * Půda pro chůzi s poli vsi (fields.md – Vzdálenost): rychlost chůze přes díly polí podle stadia
+ * a vzhledu (`partWalkSpeed`) po buňkách terénu půdy – stejně jako cena buněk sítě pěšin. Bez polí
+ * půda beze změny.
+ */
+export function withFieldWalk(ground: WalkGround, fields: PathVillage['fields']): WalkGround {
+  if (fields.every((f) => f.parts.length === 0)) return ground;
+  const t = ground.terrain;
+  const speed = new Float32Array(t.width * t.height).fill(1);
+  const crop = new Uint8Array(t.width * t.height);
+  for (const field of fields) {
+    // hrana mezi díly téhož pole je uvnitř pole – podle nejbližšího dílu (jako síť pěšin)
+    const nearestPart = nearestPartFinder(field.parts, field.parts[0]?.size ?? 0);
+    for (const c of squareCells(t, field.parts).inside) {
+      const part = nearestPart(
+        t.originX + (c % t.width) * t.cellM,
+        t.originZ + Math.floor(c / t.width) * t.cellM,
+      );
+      speed[c] = Math.min(speed[c]!, partWalkSpeed(part));
+      if (isCropPart(part)) crop[c] = 1;
+    }
+  }
+  return { terrain: t, fields: { speed, crop } };
+}
+
+/**
+ * Délka chůze rovně z `a` do `b` (m) – po pěšině dne síly `strength` (bez údaje bez pěšiny): po
+ * půlbuňkách terénu – mokřina a díl pole podle rychlosti (nejpomalejší platí; přes díl v osevu
+ * pěšina nezrychlí), každé vstoupení do vody (brod, potok) + ROAD_WALK.fordExtraM. Bez půdy délka
+ * úsečky (po pěšině zkrácená).
  */
 export function groundWalkLength(
   ground: WalkGround | null | undefined,
   a: PathPoint,
   b: PathPoint,
+  strength = 0,
 ): number {
   const length = length2(b.x - a.x, b.z - a.z);
-  if (!ground || length === 0) return length;
+  if (!ground || length === 0) return pathWalkLength(length, strength);
   const t = ground.terrain;
+  const fields = ground.fields;
+  const tread = pathCostFactor(strength);
   const n = Math.max(1, Math.ceil(length / (t.cellM / 2)));
   const piece = length / n;
   let cost = 0;
@@ -83,24 +123,29 @@ export function groundWalkLength(
     const u = (k + 0.5) / n;
     const i = Math.round((a.x + (b.x - a.x) * u - t.originX) / t.cellM);
     const j = Math.round((a.z + (b.z - a.z) * u - t.originZ) / t.cellM);
-    let factor = 1;
+    let speed = 1;
     let water = false;
+    let factor = tread;
     if (i >= 0 && j >= 0 && i < t.width && j < t.height) {
       const c = j * t.width + i;
       const flags = t.flags[c]!;
       water = (flags & PATH_WATER) !== 0;
-      if (flags & PATH_WETLAND) factor = 1 / ROAD_WALK.wetSpeed;
+      if (flags & PATH_WETLAND) speed = ROAD_WALK.wetSpeed;
+      if (fields) {
+        speed = Math.min(speed, fields.speed[c]!);
+        if (fields.crop[c]) factor = 1;
+      }
     }
     if (water && !inWater) cost += ROAD_WALK.fordExtraM;
     inWater = water;
-    cost += piece * factor;
+    cost += (piece / speed) * factor;
   }
   return cost;
 }
 
 /** Délka chůze úsekem pěšiny se silou `strength` 0–1 (m) – po pěšině se jde rychleji. */
 export function pathWalkLength(length: number, strength: number): number {
-  return length * (1 - PATH_WALK.speedup * Math.min(1, Math.max(0, strength)));
+  return length * pathCostFactor(strength);
 }
 
 /**
@@ -109,16 +154,10 @@ export function pathWalkLength(length: number, strength: number): number {
  * podíl. Kdo měří jen kandidáty v dosahu (seč luk – hay.ts), podle něj odhadne, co měřit.
  */
 export const FASTEST_WALK_SHARE = Math.min(
-  1 - PATH_WALK.speedup,
+  1 / PATH_WALK.speed,
   ...Object.values(ROAD_WALK.speed).map((speed) => 1 / speed),
   1 / ROAD_WALK.causewayWetSpeed,
 );
-
-/** Rychlost chůze po pevné cestě proti louce – podle stupně a mokřiny. */
-export function roadWalkSpeed(grade: RoadGrade, wet: boolean): number {
-  if (!wet) return ROAD_WALK.speed[grade];
-  return grade === 'causeway' ? ROAD_WALK.causewayWetSpeed : ROAD_WALK.wetSpeed;
-}
 
 /**
  * Cena chůze úsekem osy pevné cesty od `from` do `to` m od začátku osy: kusy v mokřině a mimo ni
@@ -181,8 +220,7 @@ export function walkGraph(
         const a = { x: graph.x[prev]!, z: graph.z[prev]! };
         const length = length2(p.x - a.x, p.z - a.z);
         const strength = (line.strength[k - 1]! + line.strength[k]!) / 2;
-        const walk = options.ground ? groundWalkLength(options.ground, a, p) : length;
-        link(prev, id, length, pathWalkLength(walk, strength));
+        link(prev, id, length, groundWalkLength(options.ground, a, p, strength));
       }
       prev = id;
     });
@@ -219,13 +257,43 @@ export function walkingDistances(
   const heap = new PathHeap();
   const straight = (a: PathPoint, x: number, z: number): number =>
     ground ? groundWalkLength(ground, a, { x, z }) : length2(x - a.x, z - a.z);
-  for (let id = 0; id < n; id++) {
-    let best = Infinity;
-    for (const o of origins) {
-      // rovně je vždy aspoň délka úsečky – dražší výpočet půdy jen u kandidátů
-      if (length2(graph.x[id]! - o.x, graph.z[id]! - o.z) >= best) continue;
-      best = Math.min(best, straight(o, graph.x[id]!, graph.z[id]!));
+  /**
+   * Nejmenší z `lower[k] + straight(k)` – rovně je vždy aspoň délka úsečky (rychlosti nejvýš
+   * louka), takže dražší výpočet půdy jen u kandidátů v pořadí dolní meze, dokud může vyjít
+   * méně (výsledek jako průchod všemi).
+   */
+  const cheapest = (
+    count: number,
+    lower: (k: number) => number,
+    exact: (k: number) => number,
+    start = Infinity,
+  ): number => {
+    let best = start;
+    const order: number[] = [];
+    const bound: number[] = [];
+    for (let k = 0; k < count; k++) {
+      const lb = lower(k);
+      if (lb < best) {
+        order.push(k);
+        bound[k] = lb;
+      }
     }
+    order.sort((a, b) => bound[a]! - bound[b]! || a - b);
+    for (const k of order) {
+      if (bound[k]! >= best) break;
+      const value = exact(k);
+      if (value < best) best = value;
+    }
+    return best;
+  };
+  for (let id = 0; id < n; id++) {
+    const x = graph.x[id]!;
+    const z = graph.z[id]!;
+    const best = cheapest(
+      origins.length,
+      (k) => length2(x - origins[k]!.x, z - origins[k]!.z),
+      (k) => straight(origins[k]!, x, z),
+    );
     dist[id] = best;
     if (best < Infinity) heap.push(id, best);
   }
@@ -242,18 +310,19 @@ export function walkingDistances(
     }
   }
   return targets.map((t) => {
-    let best = Infinity;
-    for (const o of origins) {
-      if (length2(t.x - o.x, t.z - o.z) >= best) continue;
-      best = Math.min(best, straight(o, t.x, t.z));
-    }
-    for (let id = 0; id < n; id++) {
-      const reached = dist[id]!;
-      if (reached + length2(t.x - graph.x[id]!, t.z - graph.z[id]!) >= best) continue;
-      const via = reached + straight({ x: graph.x[id]!, z: graph.z[id]! }, t.x, t.z);
-      if (via < best) best = via;
-    }
-    return best;
+    // napřed přes pěšiny a cesty (krátké úsečky od bodů u cíle), pak rovně z obydlí – dlouhé
+    // úsečky už jen, když můžou vyjít kratší
+    const via = cheapest(
+      n,
+      (id) => dist[id]! + length2(t.x - graph.x[id]!, t.z - graph.z[id]!),
+      (id) => dist[id]! + straight({ x: graph.x[id]!, z: graph.z[id]! }, t.x, t.z),
+    );
+    return cheapest(
+      origins.length,
+      (k) => length2(t.x - origins[k]!.x, t.z - origins[k]!.z),
+      (k) => straight(origins[k]!, t.x, t.z),
+      via,
+    );
   });
 }
 
