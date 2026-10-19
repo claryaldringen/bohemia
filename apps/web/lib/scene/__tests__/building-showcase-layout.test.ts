@@ -12,6 +12,8 @@ import {
   showcasePlough,
   showcasePloughDay,
   structureRepairLabel,
+  kilnCycleAt,
+  showcaseKiln,
 } from '../building-showcase-layout';
 import { decayStage } from '../dwelling-decay';
 import { ploughFront } from '../plough-front';
@@ -205,5 +207,25 @@ describe('ukázka rozpadu obydlí', () => {
     }
     // mimo ostatní stavby ukázky (řada staveb z = 0, pozemky z = −26)
     for (const p of spots) expect(p.z).toBeLessThan(-40);
+  });
+});
+
+describe('ukázka cyklu milíře (crafts.md – Milíř stojí vždy)', () => {
+  it('posuvník projde přípravu dřeva, stavbu, pálení, vypálený, rozebírání a rozebraný', () => {
+    const stages = [0.1, 0.3, 0.5, 0.6, 0.8, 0.99].map((t) => kilnCycleAt(t).kiln?.stage ?? null);
+    expect(stages).toEqual(['wood', 'build', 'burn', 'draw', 'draw', null]);
+    expect(kilnCycleAt(0.6).kiln?.charcoal).toBe(1);
+    const less = [0.65, 0.8, 0.95].map((t) => kilnCycleAt(t).kiln!.charcoal!);
+    expect(less[0]!).toBeGreaterThan(less[1]!);
+    expect(less[1]!).toBeGreaterThan(less[2]!);
+  });
+
+  it('milíř u dílny i v lese ve stejné fázi, u dílny při pálení dým', () => {
+    const burning = showcaseKiln(0.5);
+    expect(burning.dwellings[0]).toMatchObject({ craft: 'burner', working: true });
+    expect(burning.kilns?.[0]?.stage).toBe('burn');
+    const empty = showcaseKiln(1);
+    expect(empty.dwellings[0]!.kiln).toBeUndefined();
+    expect(empty.kilns).toBeUndefined();
   });
 });

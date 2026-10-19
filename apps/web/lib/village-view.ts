@@ -131,6 +131,7 @@ import {
   type VillageSummary,
   type WorkshopActivity,
   type KilnStage,
+  kilnCharcoalShare,
   saplingGrowth,
   hasShrine,
   villageCemeteries,
@@ -773,16 +774,31 @@ export function scenePlot(landscape: Landscape, plot: DwellingPlot): ScenePlot {
   };
 }
 
+/**
+ * Milíř uhlíře ve scéně (crafts.md – Uhlíř, Milíř stojí vždy) – fáze, průběh a uhlí; u dílny ho
+ * nese obydlí (`SceneVillage.dwellings[].kiln`), v lese `SceneKiln`.
+ */
+export interface SceneKilnState {
+  /**
+   * Fáze: kácení a příprava dřeva (hromada polen), stavba, pálení (kouří), vypálený milíř, který
+   * se rozebírá podle odběru kováře.
+   */
+  stage: KilnStage;
+  /** Průběh fáze 0–1 (stavba po fázích staveniště milíře, pálení po dnech). */
+  progress: number;
+  /**
+   * Vypálený milíř: podíl uhlí, které v něm zbývá, 0–1 po 2 % – milíř se při rozebírání
+   * zmenšuje. Bez údaje celý (ostatní fáze).
+   */
+  charcoal?: number;
+}
+
 /** Milíř uhlíře v lese ve scéně (crafts.md – Uhlíř). */
-export interface SceneKiln {
+export interface SceneKiln extends SceneKilnState {
   /** Id dílny uhlíře. */
   id: number;
   x: number;
   z: number;
-  /** Fáze: kácení a příprava dřeva (hromada polen), stavba, pálení (kouří), vytahání. */
-  stage: KilnStage;
-  /** Průběh fáze 0–1 (stavba po fázích staveniště milíře). */
-  progress: number;
 }
 
 /**
@@ -826,6 +842,11 @@ export interface SceneVillage {
     progress: number;
     /** Řemeslná dílna (crafts.md) – `type` je pak obydlí, na kterém stojí. */
     craft?: Craft;
+    /**
+     * Hotová dílna uhlíře: milíř u dílny (crafts.md – Milíř stojí vždy) – fáze, průběh a uhlí. Bez
+     * údaje na milířišti nic nestojí (milíř je v lese, rozebraný, nebo nejsou buky).
+     */
+    kiln?: SceneKilnState;
     /**
      * Hotová dílna dnes vyrábí – z pece, výhně nebo milíře stoupá dým (u uhlíře jen při pálení,
      * ne při kácení). Bez údaje ne.
@@ -1739,6 +1760,9 @@ function sceneVillage(
     // stav po tisícinách – rozpad ve scéně jde po stupních (dwelling-decay.ts)
     ...(d.condition < 1 ? { condition: Math.round(d.condition * 1000) / 1000 } : {}),
     ...(d.workshop ? { craft: d.workshop.craft } : {}),
+    ...(d.workshop?.kiln && d.workshop.kiln.site === null
+      ? { kiln: sceneKilnState(d.id, d.workshop.kiln, summary) }
+      : {}),
     ...(d.workshop && occupied.has(d.id) && workshopSmokes(d.workshop) ? { working: true } : {}),
   }));
   // staveniště ukazuje samotnou stavbu – dřevo se kácí v lese, než se začne stavět; přestavba
@@ -2148,23 +2172,30 @@ function workshopSmokes(
   return workshop.kiln?.stage === 'burn' && workshop.kiln.site === null;
 }
 
-/** Milíře uhlířů v lese pro scénu – fáze a průběh (crafts.md – Uhlíř). */
+/** Milíře uhlířů v lese pro scénu – fáze, průběh a uhlí (crafts.md – Uhlíř). */
 function sceneKilns(state: VillageState, summary: VillageSummary): SceneKiln[] {
   return state.dwellings.flatMap((d) => {
     const kiln = d.workshop?.kiln;
     if (!kiln?.site) return [];
-    const info = summary.crafts.workshops.find((w) => w.dwellingId === d.id)?.kiln;
-    return [
-      {
-        id: d.id,
-        x: kiln.site.x,
-        z: kiln.site.z,
-        stage: kiln.stage,
-        // po 2 % – milíř se nepřestavuje při každém dotazu
-        progress: Math.round((info?.progress ?? 0) * 50) / 50,
-      },
-    ];
+    return [{ id: d.id, x: kiln.site.x, z: kiln.site.z, ...sceneKilnState(d.id, kiln, summary) }];
   });
+}
+
+/**
+ * Fáze milíře pro scénu (crafts.md – Milíř stojí vždy): průběh fáze a u vypáleného milíře podíl
+ * uhlí, které v něm zbývá – obojí po 2 %, ať se milíř nepřestavuje při každém dotazu.
+ */
+function sceneKilnState(
+  dwellingId: number,
+  kiln: NonNullable<NonNullable<VillageState['dwellings'][number]['workshop']>['kiln']>,
+  summary: VillageSummary,
+): SceneKilnState {
+  const info = summary.crafts.workshops.find((w) => w.dwellingId === dwellingId)?.kiln;
+  return {
+    stage: kiln.stage,
+    progress: Math.round((info?.progress ?? 0) * 50) / 50,
+    ...(kiln.stage === 'draw' ? { charcoal: Math.round(kilnCharcoalShare(kiln) * 50) / 50 } : {}),
+  };
 }
 
 /** Velikost mladých buků od uhlíře 0–1 po setinách (instance se nepřestavují při každém dotazu). */

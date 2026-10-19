@@ -1849,6 +1849,43 @@ describe('buildVillageView – uhlíř (crafts.md – Uhlíř)', () => {
     expect(workshop?.kiln).toMatchObject({ stage: 'burn', forest: true, progress: 0.5 });
   });
 
+  it('milíř u dílny nese obydlí – fáze, průběh a u vypáleného podíl uhlí (Milíř stojí vždy)', () => {
+    const burning = buildVillageView(record(burnerVillage(kiln(null))), landscape, DAY);
+    expect(burning.scene.dwellings.find((d) => d.id === 50)?.kiln).toEqual({
+      stage: 'burn',
+      progress: 0.5,
+    });
+    // vypálený milíř se 120 kg uhlí z dávky 15 buků (1,8 t) – zbývá 1/15 po 2 %
+    const burnt = burnerVillage({
+      site: null,
+      trees: Array.from({ length: 15 }, () => ({ id: null, cost: 2 })),
+      stage: 'draw',
+      prepared: 15,
+      done: 0,
+      charcoalKg: 1200,
+    });
+    burnt.crafts = { charcoalKg: 30, toolsKg: 0, potteryKg: 0 };
+    const view = buildVillageView(record(burnt), landscape, DAY);
+    const home = view.scene.dwellings.find((d) => d.id === 50)!;
+    expect(home.kiln).toEqual({ stage: 'draw', progress: 0.34, charcoal: 0.66 });
+    // vypálený milíř nekouří
+    expect(home.working).toBeUndefined();
+    // zásoba uhlí vsi = uhlí v milíři + u kováře
+    expect(view.crafts.stocks.charcoalKg).toBe(1230);
+    expect(view.crafts.workshops.find((w) => w.dwellingId === 50)?.kiln).toMatchObject({
+      stage: 'draw',
+      charcoalKg: 1200,
+    });
+    // lesní milíř totéž v `kilns`
+    const forest = structuredClone(burnt);
+    forest.dwellings.find((d) => d.id === 50)!.workshop!.kiln!.site = { x: 90, z: 10 };
+    const inForest = buildVillageView(record(forest), landscape, DAY);
+    expect(inForest.scene.kilns).toEqual([
+      { id: 50, x: 90, z: 10, stage: 'draw', progress: 0.34, charcoal: 0.66 },
+    ]);
+    expect(inForest.scene.dwellings.find((d) => d.id === 50)?.kiln).toBeUndefined();
+  });
+
   it('mladé buky od uhlíře rostou – velikost podle stáří (za 60 let dospělé)', () => {
     const view = buildVillageView(record(burnerVillage(null)), landscape, DAY);
     const sapling = view.scene.plantedSaplings?.find((p) => p.id === 7);

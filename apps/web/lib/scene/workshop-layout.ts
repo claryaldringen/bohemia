@@ -2,7 +2,7 @@
 // milíř uhlíře, odkud stoupá dým z pece, výhně a milíře a kde v dílně stojí řemeslníci. Souřadnice
 // modelu jako `localToWorld` (x napříč, z k vchodu); modely z tools/blender/crafts.py (tam
 // Blender: x napříč, y podél hřebene s vchodem v −y – ve scéně x → −x, y → −z).
-import { MILIR, milirPosition, type Craft, type Position } from '@bohemia/game';
+import { MILIR, milirPosition, type Craft, type KilnStage, type Position } from '@bohemia/game';
 import type { CraftKind } from './village-construction';
 import { localToWorld, type HideShape, type Point } from './village-layout';
 
@@ -30,6 +30,62 @@ export function hasPorch(kind: string): boolean {
 export const PORCH_FRONT_M = 2.1 + 3.6;
 /** Kupa milíře (crafts.py MILIR_R, MILIR_H) – poloměr a výška nad patou (m). */
 export const MILIR_SHAPE_M = { radius: 2.3, height: 2.15 } as const;
+
+/**
+ * Milíř ve scéně podle fáze z jádra (crafts.md – Milíř stojí vždy) – u dílny i v lese stejně:
+ * - `site` – průběh staveniště milíře (`constructionState('milir', …)`): při přípravě dřeva jen
+ *   vytyčení a milířiště, při stavbě věnec, polena a kryt až po průduchy; jinak null,
+ * - `timber` – velikost hráně polen na staveništi (při přípravě dřeva roste s připravenými buky),
+ * - `model` – hotový milíř a jeho měřítko (šířka, výška): pálí se celý, vypálený trochu sesedne
+ *   a při rozebírání se zmenšuje podle podílu uhlí, které v něm zbývá; jinak null,
+ * - `smoke` – dým jen při pálení, `baskets` – koše na uhlí u rozebíraného milíře.
+ * Bez milíře (rozebraný, v lese, nejsou buky) jen ušlapané milířiště.
+ */
+export interface KilnLook {
+  site: number | null;
+  timber: number;
+  model: { scale: number; scaleY: number } | null;
+  smoke: boolean;
+  baskets: boolean;
+}
+
+/** Fáze milíře pro scénu (podmnožina `SceneKilnState` z village-view.ts). */
+export interface KilnPhase {
+  stage: KilnStage;
+  progress: number;
+  charcoal?: number;
+}
+
+/** Konec milířiště v `constructionState('milir', …)` – vytyčení a srovnaná zem. */
+const KILN_GROUND_END = 0.13;
+/** Vypálený milíř sesedne – výška celého vypáleného milíře proti pálícímu. */
+export const KILN_SETTLED = 0.88;
+/** Rozebíraný milíř: šířka a výška při posledním uhlí (podíl celého milíře). */
+const KILN_LAST = { scale: 0.45, scaleY: 0.2 } as const;
+
+/** Jak milíř ve fázi `kiln` vypadá (bez milíře `null` – jen milířiště). */
+export function kilnLook(kiln: KilnPhase | null | undefined): KilnLook {
+  const none = { site: null, timber: 1, model: null, smoke: false, baskets: false };
+  if (!kiln) return none;
+  const p = Math.min(1, Math.max(0, kiln.progress));
+  if (kiln.stage === 'wood') return { ...none, site: KILN_GROUND_END * p, timber: 0.3 + 0.7 * p };
+  if (kiln.stage === 'build') return { ...none, site: KILN_GROUND_END + 0.01 + 0.79 * p };
+  if (kiln.stage === 'burn') return { ...none, model: { scale: 1, scaleY: 1 }, smoke: true };
+  const share = Math.min(1, Math.max(0, kiln.charcoal ?? 1));
+  return {
+    ...none,
+    model: {
+      scale: KILN_LAST.scale + (1 - KILN_LAST.scale) * share,
+      scaleY: KILN_LAST.scaleY + (KILN_SETTLED - KILN_LAST.scaleY) * share,
+    },
+    baskets: share < 1,
+  };
+}
+
+/** Milířiště stavěné spolu se zemnicí uhlíře – vytyčení a srovnaná zem podle průběhu stavby. */
+export function milirGroundProgress(progress: number): number {
+  return KILN_GROUND_END * Math.min(1, Math.max(0, progress));
+}
 
 /** Poloha milíře uhlíře u zemnice (střed a natočení zemnice) – herní jádro, MILIR.offset. */
 export function milirPlace(position: Position): Position {

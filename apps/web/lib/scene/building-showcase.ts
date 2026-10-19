@@ -20,10 +20,12 @@ import {
   SHOWCASE_ROADS,
   SHOWCASE_DECOR,
   SHOWCASE_GROUNDS,
+  SHOWCASE_KILN,
   SHOWCASE_PEN,
   showcaseCartGround,
   showcaseCarts,
   showcaseDecay,
+  showcaseKiln,
   showcaseRoads,
   showcaseGrounds,
   showcaseHayMeadows,
@@ -176,6 +178,13 @@ export class BuildingShowcase {
   private decayT = 0;
   /** Řada opuštěných staveb ukazuje místo rozpadu opravu (abandonment.md – Oprava). */
   private repair = false;
+  /**
+   * Cyklus milíře (crafts.md – Milíř stojí vždy) – herní renderer vsi s uhlířem, milířem u dílny
+   * a v lese (showcaseKiln); posuvník 0–1 a poslední snímek dýmu (ms).
+   */
+  private kilnDemo: VillageRenderer | null = null;
+  private kilnT = 0.45;
+  private lastKilnSmoke = 0;
   /** Pozemky polozemnic – plot a záhony po fázích jako ve vsi (homestead.ts). */
   private plots: HomesteadRenderer | null = null;
   private fences: WovenFenceRenderer | null = null;
@@ -299,6 +308,7 @@ export class BuildingShowcase {
       ...SHOWCASE_DECAY,
       SHOWCASE_ROADS,
       SHOWCASE_CARTS,
+      SHOWCASE_KILN,
     ].find((b) => b.id === id);
     if (!target) return;
     this.setView(target.focus);
@@ -409,6 +419,7 @@ export class BuildingShowcase {
     this.sites?.dispose();
     this.grounds?.dispose();
     this.decay?.dispose();
+    this.kilnDemo?.dispose();
     this.plots?.dispose();
     this.fences?.dispose();
     this.ploughDemo?.dispose();
@@ -450,6 +461,17 @@ export class BuildingShowcase {
     this.applyDecay();
   }
 
+  /**
+   * Posuvník cyklu milíře 0–1 (building-showcase-layout.ts – kilnCycleAt): příprava dřeva, stavba,
+   * pálení s dýmem, vypálený, rozebírání podle odběru kováře, rozebraný.
+   */
+  setKilnCycle(t: number): void {
+    this.kilnT = Math.min(1, Math.max(0, t));
+    if (!this.kilnDemo?.update(showcaseKiln(this.kilnT))) return;
+    this.kilnDemo.animateSmoke(Date.now(), null);
+    this.burst(300);
+  }
+
   private applyDecay(): void {
     if (!this.decay?.update(showcaseDecay(this.decayT, this.repair))) return;
     this.shadows?.refresh();
@@ -461,9 +483,11 @@ export class BuildingShowcase {
     const models = SHOWCASE_BUILDINGS.flatMap((b) => b.models);
     // louka se prořízne jámami stavenišť i rozpadlých obydlí a zbytků jam
     const pitCuts = new PitCuts();
-    const mergeCuts = (): void => pitCuts.set([...siteCuts.list, ...decayCuts.list]);
+    const mergeCuts = (): void =>
+      pitCuts.set([...siteCuts.list, ...decayCuts.list, ...kilnCuts.list]);
     const siteCuts = new PitCutsPart(mergeCuts);
     const decayCuts = new PitCutsPart(mergeCuts);
+    const kilnCuts = new PitCutsPart(mergeCuts);
 
     const ground = CreateGround(
       'showcase-ground',
@@ -619,6 +643,23 @@ export class BuildingShowcase {
       sunDirection: SUN_DIRECTION,
     });
     this.decay.update(showcaseDecay(this.decayT, this.repair));
+    // cyklus milíře – uhlíř s milířem u dílny a lesní milíř kreslí herní renderer vsi
+    this.kilnDemo = new VillageRenderer(scene, {
+      groundHeight: () => 0,
+      decalHeight: () => 0,
+      addShadowCaster: (mesh) => {
+        if (this.shadows) this.shadows.addCaster(mesh);
+        else casters.push(mesh);
+      },
+      onAsyncChange: () => {
+        this.shadows?.refresh();
+        this.burst(600);
+      },
+      requestRender: () => this.burst(300),
+      pitCuts: kilnCuts,
+      sunDirection: SUN_DIRECTION,
+    });
+    this.kilnDemo.update(showcaseKiln(this.kilnT));
     this.grounds.setHayMeadows(showcaseHayMeadows());
     this.grounds.setSeason(showcaseMeadowDay(this.progress), this.snow());
     this.grounds.update(showcaseGrounds(this.progress).village);
@@ -846,6 +887,15 @@ export class BuildingShowcase {
           this.camera.target.set(center.x, y, center.z);
         }
       }
+    }
+    // dým pálícího milíře v ukázce cyklu milíře (při omezeném pohybu stojí)
+    if (
+      this.kilnDemo &&
+      !this.reducedMotion?.matches &&
+      now - this.lastKilnSmoke >= 1000 / WATER_FPS
+    ) {
+      this.lastKilnSmoke = now;
+      if (this.kilnDemo.animateSmoke(Date.now(), this.camera)) animated = true;
     }
     if (this.penAnimals) {
       if (this.reducedMotion?.matches) {

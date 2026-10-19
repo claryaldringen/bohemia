@@ -204,6 +204,8 @@ function activityLook(workshop: SelectionWorkshop): {
   const perDay = `${formatDecimal(workshop.outputPerDayKg, 1)} kg/den`;
   const kiln = workshop.kiln;
   const percent = kiln ? formatPercent(kiln.progress) : '–';
+  // vypálený milíř je zásobou uhlí – uhlíř z něj nosí kováři (crafts.md – Milíř stojí vždy)
+  const inKiln = kiln?.stage === 'draw' ? formatInteger(kiln.charcoalKg) : null;
   // tesař (wagons.md): rozdělaný vůz, pomoc stavbám
   const making = workshop.carpenter?.making ?? null;
   const looks: Record<WorkshopActivity, { icon: string; name: string; value: string }> = {
@@ -235,13 +237,24 @@ function activityLook(workshop: SelectionWorkshop): {
     },
     building: { icon: 'wood', name: 'Staví milíř', value: percent },
     burning: { icon: 'charcoal', name: 'Pálí milíř – hlídá ve dne i v noci', value: percent },
-    drawing: { icon: 'charcoal', name: 'Vytahuje uhlí z milíře', value: percent },
-    planting: { icon: 'labor', name: 'Sází mladé buky na pařezy', value: `${workshop.toPlant}` },
-    resting: {
-      icon: 'people',
-      name: `${ENOUGH[workshop.craft]} je dost na rok – pomáhá vsi na poli a se stavbami`,
-      value: '–',
+    drawing: {
+      icon: 'charcoal',
+      name: 'Rozebírá milíř a nosí uhlí kováři (kg uhlí, které v milíři zbývá)',
+      value: inKiln ?? percent,
     },
+    planting: { icon: 'labor', name: 'Sází mladé buky na pařezy', value: `${workshop.toPlant}` },
+    resting:
+      workshop.craft === 'burner' && inKiln !== null
+        ? {
+            icon: 'charcoal',
+            name: 'Milíř je vypálený – uhlí z něj nosí, jak ho kovář spotřebuje; zatím pomáhá vsi (kg uhlí v milíři)',
+            value: inKiln,
+          }
+        : {
+            icon: 'people',
+            name: `${ENOUGH[workshop.craft]} je dost na rok – pomáhá vsi na poli a se stavbami`,
+            value: '–',
+          },
     'no-charcoal': { icon: 'charcoal', name: 'Čeká na uhlí – zatím pomáhá vsi', value: '0' },
     'no-wood': {
       icon: 'wood',

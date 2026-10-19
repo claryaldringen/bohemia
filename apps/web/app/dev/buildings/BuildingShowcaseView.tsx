@@ -9,6 +9,8 @@
 // Před pozemky rozpad obydlí: posuvník stavu opuštěné zemnice a polozemnice 100 → 0 % a zbytek
 // jámy po zániku, za nimi řada všech stupňů rozpadu. Přepínač Oprava ukáže u opuštěných staveb (modla, svatyně, hřbitov,
 // ohrada) místo rozpadu jejich opravu – posuvník je průběh opravy (abandonment.md – Oprava).
+// Cyklus milíře (crafts.md – Milíř stojí vždy): posuvník projde u uhlířovy zemnice i u lesního
+// milíře přípravu dřeva, stavbu, pálení s dýmem, vypálený milíř a jeho rozebírání.
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import {
   MILIR_OFFSET_M,
@@ -18,8 +20,10 @@ import {
   SHOWCASE_ROADS,
   SHOWCASE_DECOR,
   SHOWCASE_GROUNDS,
+  SHOWCASE_KILN,
   SHOWCASE_PEN,
   decayLabel,
+  kilnCycleAt,
   structureDecayLabel,
   structureRepairLabel,
   showcaseGrounds,
@@ -32,6 +36,8 @@ import { constructionPhase, type ConstructionKind } from '@/lib/scene/village-co
 const BUILD_SECONDS = 40;
 /** Jak dlouho trvá přehrání rozpadu – od celého domu po zarostlý zbytek jámy (s). */
 const DECAY_SECONDS = 40;
+/** Jak dlouho trvá přehrání cyklu milíře – od přípravy dřeva po rozebrané milířiště (s). */
+const KILN_SECONDS = 40;
 const KIND_LABELS: Record<ConstructionKind, string> = {
   zemnice: 'Zemnice',
   polozemnice: 'Polozemnice',
@@ -65,6 +71,8 @@ export function BuildingShowcaseView(): ReactElement {
   const [decay, setDecay] = useState(0);
   const [decaying, setDecaying] = useState(false);
   const [repair, setRepair] = useState(false);
+  const [kiln, setKiln] = useState(0.45);
+  const [kilnPlaying, setKilnPlaying] = useState(false);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -136,6 +144,34 @@ export function BuildingShowcaseView(): ReactElement {
     showcase?.setRepair(repair);
   }, [showcase, repair]);
 
+  useEffect(() => {
+    showcase?.setKilnCycle(kiln);
+  }, [showcase, kiln]);
+
+  // přehrání cyklu milíře: od přípravy dřeva po rozebrané milířiště
+  useEffect(() => {
+    if (!kilnPlaying) return;
+    let frame = 0;
+    let last = performance.now();
+    const step = (now: number): void => {
+      const dt = (now - last) / 1000;
+      last = now;
+      setKiln((t) => Math.min(1, t + dt / KILN_SECONDS));
+      frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [kilnPlaying]);
+
+  useEffect(() => {
+    if (kilnPlaying && kiln >= 1) setKilnPlaying(false);
+  }, [kilnPlaying, kiln]);
+
+  const toggleKiln = (): void => {
+    if (!kilnPlaying && kiln >= 1) setKiln(0);
+    setKilnPlaying(!kilnPlaying);
+  };
+
   // přehrání rozpadu: od celého domu po zarostlý zbytek jámy
   useEffect(() => {
     if (!decaying) return;
@@ -185,6 +221,7 @@ export function BuildingShowcaseView(): ReactElement {
           ...SHOWCASE_DECAY,
           SHOWCASE_ROADS,
           SHOWCASE_CARTS,
+          SHOWCASE_KILN,
         ].map((target) => (
           <button
             key={target.id}
@@ -346,6 +383,29 @@ export function BuildingShowcaseView(): ReactElement {
             {repair ? 'Oprava staveb:' : 'Opuštěné stavby:'}
           </span>{' '}
           {repair ? structureRepairLabel(decay) : structureDecayLabel(decay)}
+        </p>
+        <div className="mt-2 flex items-center gap-2 border-t border-stone-300 pt-2 dark:border-stone-700">
+          <button type="button" className={buttonClass} disabled={!showcase} onClick={toggleKiln}>
+            {kilnPlaying ? '❚❚ Pauza' : '▶ Milíř'}
+          </button>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={0.5}
+            value={Math.round(kiln * 200) / 2}
+            disabled={!showcase}
+            aria-label="Cyklus milíře"
+            className="min-w-0 flex-1 accent-stone-700"
+            onChange={(event) => {
+              setKilnPlaying(false);
+              setKiln(Number(event.target.value) / 100);
+            }}
+          />
+        </div>
+        <p className="mt-1 text-xs" data-testid="kiln-cycle-label">
+          <span className="text-stone-900 dark:text-stone-100">Milíř:</span>{' '}
+          {kilnCycleAt(kiln).label}
         </p>
       </section>
       <p className="fixed bottom-0 left-0 z-10 rounded-tr bg-stone-100/80 px-4 py-2 text-xs text-stone-600 backdrop-blur dark:bg-stone-950/70 dark:text-stone-400">
