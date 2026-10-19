@@ -6,10 +6,12 @@ import {
   cemeteryPartsFromCells,
   checkDwellingPlacement,
   checkPlotPlacement,
+  checkWorkshopPlacement,
   dwellingFootprint,
   dwellingPlot,
   fieldPartsFromCells,
   plotHousePosition,
+  rotatedPlot,
   villageDwellingPositions,
   waterDistanceM,
   type PlacementVillage,
@@ -21,6 +23,7 @@ import {
   PLOT_TYPES,
   PLOT_VARIANTS,
 } from '../rules';
+import { dwellingGatePoint } from '../paths/network';
 import type { DwellingPlot, PlotVariant, Position, TileCell } from '../types';
 import { block, makeLandscape } from './placement-fixtures';
 
@@ -151,6 +154,100 @@ describe('checkDwellingPlacement – překryv', () => {
   it('díl bez políčka (stará data) nic nezabírá', () => {
     const old: PlacementVillage = { ...EMPTY, parts: [{}] };
     expect(checkDwellingPlacement(landscape, old, 'zemnice', at(-40, 50)).ok).toBe(true);
+  });
+});
+
+// Martin, 19. 10. 2026: „Ano, zakaž to“ – na otázku, jestli zakázat umístění domu, jehož branka
+// vede do cizího pozemku (population.md – Umístění obydlí, paths.md – Vchody)
+describe('branka a vchod obydlí', () => {
+  const landscape = makeLandscape();
+  // políčko (8, 8) = svět x 0 … 15, z 0 … 15; pozemek má branku vpředu (−z), brána je 1 m před
+  // ní – v políčku (8, 7)
+  const plot = (x = 8, y = 8): DwellingPlot => ({ cell: { x, y }, variant: 'center' });
+  const neighbour = (x: number, y: number): PlacementVillage['dwellings'][number] => ({
+    type: 'polozemnice',
+    plot: plot(x, y),
+    position: plotHousePosition(landscape, plot(x, y)),
+  });
+  const reason = (village: PlacementVillage): string | null =>
+    checkPlotPlacement(landscape, village, 'polozemnice', plot()).reason;
+
+  it('branka do cizího pozemku, dvora dvorce, hřbitova, ohrady či vody se odmítne', () => {
+    expect(reason({ ...EMPTY, dwellings: [neighbour(8, 7)] })).toBe(
+      'Branka by vedla do cizího pozemku.',
+    );
+    // rozestavěné obydlí na pozemku taky
+    const site = { dwellingType: 'polozemnice' as const, ...neighbour(8, 7) };
+    expect(reason({ ...EMPTY, constructions: [site] })).toBe('Branka by vedla do cizího pozemku.');
+    // dvůr dvorce vojvody (trade.md) – dům na (9, 7), dvůr na (8, 7)
+    const manor: DwellingPlot = { cell: { x: 9, y: 7 }, variant: 'center', yard: { x: 8, y: 7 } };
+    const dvorec = {
+      type: 'dvorec' as const,
+      plot: manor,
+      position: plotHousePosition(landscape, manor),
+    };
+    expect(reason({ ...EMPTY, dwellings: [dvorec] })).toBe('Branka by vedla do cizího pozemku.');
+    const cemetery = { squares: [{ cell: { x: 8, y: 7 } }] };
+    expect(reason({ ...EMPTY, cemeteries: [cemetery] })).toBe('Branka by vedla do hřbitova.');
+    expect(reason({ ...EMPTY, pens: [{ cell: { x: 8, y: 7 } }] })).toBe(
+      'Branka by vedla do ohrady.',
+    );
+    const water = makeLandscape({ surface: (_x, y) => (y === 7 ? 'water' : 'meadow') });
+    expect(checkPlotPlacement(water, EMPTY, 'polozemnice', plot()).reason).toBe(
+      'Branka by vedla do vody.',
+    );
+  });
+
+  it('branka na pole, do sadu, lesa i na louku projde', () => {
+    expect(reason(EMPTY)).toBeNull();
+    expect(reason({ ...EMPTY, parts: [{ cell: { x: 8, y: 7 } }] })).toBeNull();
+    expect(reason({ ...EMPTY, orchards: [{ squares: [{ cell: { x: 8, y: 7 } }] }] })).toBeNull();
+    const forest = makeLandscape({ surface: (_x, y) => (y === 7 ? 'forest' : 'meadow') });
+    expect(checkPlotPlacement(forest, EMPTY, 'polozemnice', plot()).ok).toBe(true);
+  });
+
+  it('vchod volného obydlí do cizího pozemku se odmítne, natočený pozemek taky', () => {
+    // zemnice vchodem k +z: brána 5,2 m před středem – v pozemku na (8, 8)
+    const village = { ...EMPTY, dwellings: [neighbour(8, 8)] };
+    expect(checkDwellingPlacement(landscape, village, 'zemnice', at(7.5, -4)).reason).toBe(
+      'Vchod by vedl do cizího pozemku.',
+    );
+    expect(checkDwellingPlacement(landscape, village, 'zemnice', at(7.5, -4, Math.PI)).reason).toBe(
+      null,
+    );
+    // dílna uhlíře (zemnice, milíř vlevo) vchodem k vodě – políčko (8, 8)
+    const water = makeLandscape({ surface: (x, y) => (x === 8 && y === 8 ? 'water' : 'meadow') });
+    expect(checkWorkshopPlacement(water, EMPTY, 'burner', at(2, -3)).reason).toBe(
+      'Vchod by vedl do vody.',
+    );
+    // pozemek natočený o 15° – před brankou (stejné místo jako brána sítě pěšin) stojí zemnice
+    const turned = rotatedPlot(landscape, { x: 37.5, z: 37.5, rotation: Math.PI / 12 }, 'center')!;
+    const position = plotHousePosition(landscape, turned);
+    const gate = dwellingGatePoint(landscape, { type: 'polozemnice', position, plot: turned });
+    const hut = { type: 'zemnice' as const, position: at(gate.x, gate.z - 1.9, Math.PI) };
+    expect(checkPlotPlacement(landscape, EMPTY, 'polozemnice', turned).reason).toBeNull();
+    expect(
+      checkPlotPlacement(landscape, { ...EMPTY, dwellings: [hut] }, 'polozemnice', turned).reason,
+    ).toBe('Branka by vedla do jiného obydlí.');
+  });
+
+  it('stavba nesmí zatarasit branku obydlí, které už stojí – domy postavené dřív se nemění', () => {
+    // obydlí na (8, 9) má branku do (8, 8)
+    const village = { ...EMPTY, dwellings: [neighbour(8, 9)] };
+    expect(reason(village)).toBe('Zatarasí sousedům branku.');
+    expect(checkDwellingPlacement(landscape, village, 'zemnice', at(7.5, 13)).reason).toBe(
+      'Zatarasí sousedům branku.',
+    );
+    const cemetery = cemeteryPartsFromCells(landscape, village, [{ x: 8, y: 8 }], [], undefined);
+    expect(cemetery.check.reason).toBe('Zatarasí sousedům branku.');
+    // pole před brankou smí (pole je krajina)
+    const field = fieldPartsFromCells(
+      landscape,
+      village,
+      [6, 7, 8, 9, 10].map((x) => ({ x, y: 8 })),
+      villageDwellingPositions(village),
+    );
+    expect(field.check.reason).toBeNull();
   });
 });
 

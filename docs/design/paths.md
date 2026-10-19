@@ -124,7 +124,11 @@ povede.“ Podrobnosti návrh Clauda.
   pozemku nebo domu (Vlkov, 19. 10. 2026: polozemnice přední stranou k pozemku dvorce – domácnost
   vypadla ze sítě a neměla žádnou pochůzku, ani pro vodu a dřevo), vyjde domácnost z nejbližšího
   volného místa do 7,5 m kolem svého obydlí (`gateAround`, návrh Clauda). Bez volného místa kolem
-  (obydlí celé obestavěné) zůstává mimo síť.
+  (obydlí celé obestavěné) zůstává mimo síť. **Nová obydlí to mít nesmí** (Martin, 19. 10. 2026:
+  „Ano, zakaž to“): kontrola umístění se ptá stejného místa (`dwellingGatePoint`) a odmítne
+  branku či vchod do cizího pozemku, obydlí, modly, svatyně, hřbitova, ohrady i vody – a novou
+  stavbu, která by branku stojícího obydlí zatarasila ([population.md](population.md) – Umístění
+  obydlí).
 - **Hřbitov:** branka v pleteném plotu na rovném úseku nejblíž k nejbližšímu hotovému obydlí (od
   středu hotových čtverců), aspoň kůl od zakulaceného rohu. Dřív ji počítala jen scéna a nikde se
   neukládala – teď ji počítá jádro (`cemeteryEntrance`) a scéna ji převezme. Hotový hřbitov má
