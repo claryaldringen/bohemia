@@ -4,12 +4,17 @@ import {
   TEAM_PARTS,
   TEAM_SCALE,
   TEAM_SPEED_M_S,
+  TRANSIT_M,
+  TRANSIT_SPEED_M_S,
   TURN_RADIUS_M,
   ardReach,
   createTeamPose,
   pathAt,
   ploughPath,
   teamPose,
+  teamSpot,
+  trackPose,
+  transitTrack,
   writePartMatrix,
   writeSegmentMatrix,
   type PathPoint,
@@ -38,6 +43,10 @@ describe('plough-team – dráha spřežení po poli', () => {
     ['řady daleko od sebe (půlkruh)', { ...FIELD, rows: 2 }],
     ['řady blízko (kapka ze tří oblouků)', FIELD],
     ['šikmé pole', { ...FIELD, dirX: 0.6, dirZ: -0.8, rows: 6 }],
+    [
+      'pruh čtverce, řady přibývají na druhou stranu',
+      { ...FIELD, rows: 2, from: -4, to: 1, acrossX: 0, acrossZ: -1 },
+    ],
   ] as const) {
     it(`${label}: uzavřená, spojitá dráha bez zlomů`, () => {
       const path = ploughPath(field);
@@ -71,6 +80,18 @@ describe('plough-team – dráha spřežení po poli', () => {
     expect(Math.min(...offsets)).toBeCloseTo(FIELD.z - FIELD.size / 2 + FIELD.size / 12);
     expect(Math.max(...offsets)).toBeCloseTo(FIELD.z + FIELD.size / 2 - FIELD.size / 12);
     // řada jde tak daleko za okraj, aby radlice (o ardReach za jhem) dojela k okraji
+    for (const r of rows) expect(r.length).toBeCloseTo(FIELD.size + 2 * ardReach());
+  });
+
+  it('pruh čtverce: řady jen mezi from a to, od from dál ve směru napříč', () => {
+    const strip: PloughField = { ...FIELD, rows: 4, from: -2, to: 6, acrossX: 0, acrossZ: -1 };
+    const path = ploughPath(strip);
+    const rows = path.segments.filter((s) => s.kind === 'line' && Math.abs(s.dz) < 1e-9);
+    expect(rows).toHaveLength(4);
+    // napříč = −z: řady v z od 25 + 2 (from) k 25 − 6 (to), první u from
+    const offsets = rows.map((r) => (r.kind === 'line' ? r.z : 0));
+    expect(offsets[0]).toBeCloseTo(FIELD.z + 2 - 1, 9);
+    expect(offsets[3]).toBeCloseTo(FIELD.z - 6 + 1, 9);
     for (const r of rows) expect(r.length).toBeCloseTo(FIELD.size + 2 * ardReach());
   });
 
@@ -256,5 +277,58 @@ describe('plough-team – rozměry sedí s modely (tools/blender)', () => {
     const hand = TEAM_PARTS.boyHand;
     expect(Math.hypot(-lead[0] - hand.x, lead[2] - hand.y, lead[1] - hand.z)).toBeLessThan(0.1);
     expect(spec.find((s) => s.name === 'ox')!.clips.map((c) => c.name)).toContain('walk');
+  });
+});
+
+describe('plough-team – přechod na nové místo', () => {
+  const path = ploughPath(FIELD);
+  const far = { x: FIELD.x - 30, z: FIELD.z - 12, hx: 0, hz: -1, lift: 0 };
+
+  it('dojde rovně krokem a na dráhu naváže bez skoku; rádlo cestou nahoře', () => {
+    const t0 = 500;
+    const track = transitTrack(path, far, t0);
+    const transit = track.transit!;
+    expect(transit).not.toBeNull();
+    const length = Math.hypot(transit.to.x - far.x, transit.to.z - far.z);
+    expect(transit.arriveS - t0).toBeCloseTo(length / TRANSIT_SPEED_M_S, 3);
+    const pose = createTeamPose();
+    const start = trackPose(track, t0, pose);
+    expect(start.yoke.x).toBeCloseTo(far.x, 9);
+    expect(start.yoke.z).toBeCloseTo(far.z, 9);
+    // na začátku ještě hledí, kam jelo, a rádlo má dole
+    expect(start.yoke.fz).toBeCloseTo(-1, 6);
+    expect(start.lift).toBeCloseTo(0, 9);
+    expect(trackPose(track, (t0 + transit.arriveS) / 2, pose).lift).toBe(1);
+    // plynule – poloha nejvýš krokem, směr bez trhnutí – a po příchodu po dráze
+    const a = createTeamPose();
+    const dt = 0.05;
+    trackPose(track, t0, a);
+    let prev = { x: a.yoke.x, z: a.yoke.z, hx: a.yoke.fx, hz: a.yoke.fz };
+    for (let t = t0 + dt; t < transit.arriveS + 20; t += dt) {
+      trackPose(track, t, a);
+      const step = Math.hypot(a.yoke.x - prev.x, a.yoke.z - prev.z);
+      expect(step).toBeLessThanOrEqual(TRANSIT_SPEED_M_S * dt * 1.01 + 1e-6);
+      const turn = Math.acos(Math.min(1, a.yoke.fx * prev.hx + a.yoke.fz * prev.hz));
+      expect(turn).toBeLessThan(0.12);
+      prev = { x: a.yoke.x, z: a.yoke.z, hx: a.yoke.fx, hz: a.yoke.fz };
+    }
+    const after = trackPose(track, transit.arriveS + 7, createTeamPose());
+    expect(after).toEqual(teamPose(path, transit.arriveS + 7, createTeamPose()));
+  });
+
+  it('čistá funkce času – stejný čas, stejná póza', () => {
+    const track = transitTrack(path, far, 100);
+    const a = trackPose(track, 112.3, createTeamPose());
+    const b = trackPose(track, 140, createTeamPose());
+    trackPose(track, 112.3, b);
+    expect(b).toEqual(a);
+  });
+
+  it('nepatrný ani dlouhý posun přechod nemá (dlouhý – spřežení je rovnou na místě)', () => {
+    const t = 42;
+    const here = teamSpot(teamPose(path, t, createTeamPose()));
+    expect(transitTrack(path, here, t).transit).toBeNull();
+    const away = { ...far, x: FIELD.x - TRANSIT_M.max - 30 };
+    expect(transitTrack(path, away, t).transit).toBeNull();
   });
 });

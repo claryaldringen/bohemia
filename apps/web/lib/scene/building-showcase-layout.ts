@@ -2,7 +2,8 @@
 // Jen pro prohlídku modelů (řemesla a posvátná místa staví hráč ve vsi). Za řadou
 // staveb pole, hřbitov, sad a louka na seno po čtvercích – jejich fáze podle průběhu stavby
 // (showcaseGrounds); vpravo modla, svatyně, posvátný dub a dubový háj (dekorace bez staveniště);
-// vlevo od pole čtverec, který orá spřežení volů s rádlem (ukázka „Orání“, plough-team.ts),
+// vlevo od pole tři čtverce, které po čtvercích orá spřežení volů s rádlem (ukázka „Orání“ –
+// orba postupuje po dnech ukázky jako ve hře, plough-front.ts),
 // vlevo od zemnice ohrada s přístřeškem (ukázka „Ohrada“, pen-layout.ts); před pozemky rozpad
 // obydlí – opuštěná zemnice a polozemnice podle posuvníku stavu a řada všech stupňů rozpadu
 // (showcaseDecay, dwelling-decay.ts).
@@ -16,7 +17,13 @@ import {
   type PlotVariant,
   type TileCell,
 } from '@bohemia/game';
-import type { FieldLook, SceneFieldPart, SceneRoad, SceneVillage } from '../village-view';
+import type {
+  FieldLook,
+  SceneFieldPart,
+  SceneLabor,
+  SceneRoad,
+  SceneVillage,
+} from '../village-view';
 import { CEMETERY_PHASES } from './cemetery-layout';
 import { DECAY_LABELS, DECAY_STAGES, decayStage, type DecayStage } from './dwelling-decay';
 import { hayPhase, meadowLook, type HayMeadow } from './hay-meadows';
@@ -24,7 +31,6 @@ import { STRUCTURE_STAGE_LABELS } from './structure-decay';
 import { plotHouse } from './homestead-layout';
 import { TREE_GROWTH_YEARS, treeGrowth } from './orchard-layout';
 import { penFacing, type Direction, type PenSquare } from './pen-layout';
-import type { PloughField } from './plough-team';
 import type { ConstructionKind } from './village-construction';
 
 /**
@@ -358,23 +364,72 @@ export const SHOWCASE_GROUNDS: readonly ShowcaseGround[] = [
   ground('cemetery', 'Hřbitov', 4, 0, 2, 1),
   ground('orchard', 'Sad', 7, 0, 2, 2),
   ground('meadow', 'Louka na seno', 10, 0, 3, 2),
-  // vlevo od pole ob čtverec – spřežení se na souvratích otáčí za okrajem pole
-  ground('plowing', 'Orání', -2, 0, 1, 1),
+  // vlevo od pole ob čtverec tři čtverce vedle sebe – spřežení se na souvratích otáčí za
+  // okrajem pole a orba jde po čtvercích (řady podél x – z výchozí kamery z boku)
+  ground('plowing', 'Orání', -4, 0, 3, 1),
   // za polem ob řadu – pole s luštěninami (hrách – fields.md, Luštěniny)
   ground('legumes', 'Luštěniny', 0, 3, 3, 2),
 ];
 
-/**
- * Čtverec, který orá spřežení: řady napříč obrazovkou (podél x – z výchozí kamery je spřežení
- * vidět z boku), čtyři řady tam a zpět.
- */
-export function showcasePloughField(): PloughField {
-  const square = SHOWCASE_GROUNDS.find((g) => g.id === 'plowing')!.squares[0]!;
-  return { x: square.x, z: square.z, size: square.size, dirX: 1, dirZ: 0, rows: 4 };
+/** Den ukázky orby (s skutečného času) – ve hře je herní den ≈ 86 s, tady kratší. */
+export const SHOWCASE_PLOUGH_DAY_S = 40;
+/** O kolik dílu orba za den ukázky postoupí (po pruzích obtisku – WORK_STEPS). */
+export const SHOWCASE_PLOUGH_STEP = 3 / 8;
+/** Id pole a dílů ukázky orby (díly jako od herního jádra – fronta práce jde po id). */
+const PLOUGH_FIELD_ID = 2;
+const PLOUGH_PART_ID = 200;
+/** Den rozdělení práce ukázky – září (podzimní orba). */
+const PLOUGH_LABOR_DAY = 250;
+
+/** Den ukázky orby v okamžiku `nowMs` (epoch ms – skutečný čas jako spřežení). */
+export function showcasePloughDay(nowMs: number): number {
+  return Math.floor(nowMs / 1000 / SHOWCASE_PLOUGH_DAY_S);
 }
 
-/** Popisek ukázky orby v liště (průběh stavby ji neovlivní – orá se pořád). */
-export const PLOWING_LABEL = 'spřežení volů s rádlem orá tam a zpět (ve hře zatím ne)';
+/**
+ * Ukázka „Orání“ v den ukázky `day`: tři čtverce vedle sebe, orba za den postoupí o
+ * SHOWCASE_PLOUGH_STEP čtverce (od strany ke kameře dál, čtverec po čtverci zleva), po zorání
+ * všech začne znovu. Díly mají vzhled jako od herního jádra (zoraný, rozpracovaný s čárou práce,
+ * strniště) a rozdělení práce dne podíl orby s frontou dílů, přes které dnes orba postoupila –
+ * kde spřežení orá, určí stejně jako ve hře `ploughFront` (plough-front.ts).
+ */
+export function showcasePlough(day: number): Pick<SceneVillage, 'fields' | 'dwellings'> & {
+  labor: SceneLabor;
+} {
+  const squares = SHOWCASE_GROUNDS.find((g) => g.id === 'plowing')!.squares;
+  const cycle = Math.round(squares.length / SHOWCASE_PLOUGH_STEP);
+  const d = ((day % cycle) + cycle) % cycle;
+  const from = d * SHOWCASE_PLOUGH_STEP;
+  const to = (d + 1) * SHOWCASE_PLOUGH_STEP;
+  const parts = squares.map((square, i): SceneFieldPart => {
+    const base = { ...square, id: PLOUGH_PART_ID + i, stage: 'sown' as const };
+    if (to >= i + 1 - 1e-9) return { ...base, look: 'plowed' };
+    if (to > i) return { ...base, look: 'plowed', work: to - i, before: 'stubble' };
+    return { ...base, look: 'stubble' };
+  });
+  const worked = parts.filter((_, i) => i < to - 1e-9 && i + 1 > from + 1e-9).map((p) => p.id!);
+  return {
+    dwellings: [],
+    fields: [{ id: PLOUGH_FIELD_ID, parts }],
+    labor: {
+      day: PLOUGH_LABOR_DAY,
+      month: 9,
+      people: { children: 0, adults: 2, elders: 0 },
+      shares: [
+        {
+          activity: 'plough',
+          target: { kind: 'field', id: PLOUGH_FIELD_ID },
+          manDays: 1,
+          parts: worked,
+        },
+      ],
+    },
+  };
+}
+
+/** Popisek ukázky orby v liště (průběh stavby ji neovlivní – orá se pořád dokola). */
+export const PLOWING_LABEL =
+  'spřežení orá pruh u čáry orby, za den ukázky (40 s) zorá 3/8 čtverce a dojde dál';
 
 /** Fáze stavby po čtvercích pro lištu (průběh 0–1, navazují na sebe). */
 export interface ShowcasePhase {
@@ -580,7 +635,10 @@ export function showcaseHayMeadows(): HayMeadow[] {
  * Pole, hřbitov, sad a louka na seno na vývojové stránce při průběhu `progress` (0–1): ves pro
  * scénu (`VillageRenderer` – kreslí je stejně jako ve hře) a popisek fáze každého z nich.
  */
-export function showcaseGrounds(progress: number): {
+export function showcaseGrounds(
+  progress: number,
+  ploughDay = 0,
+): {
   village: SceneVillage;
   labels: Record<ShowcaseGroundId, string>;
 } {
@@ -637,19 +695,16 @@ export function showcaseGrounds(progress: number): {
     crop: 'legume',
   }));
 
-  // orané pole: brázdy (vzhled po orbě), stále – nezávisí na průběhu
-  const plowing = of('plowing').squares.map((square): SceneFieldPart => ({
-    ...square,
-    stage: 'ready',
-    look: 'plowed',
-  }));
+  // orba po čtvercích podle dne ukázky – nezávisí na průběhu (rozdělení práce ve vsi ukázky
+  // není: den práce by přebil den sena a odhadu vzhledu ostatních polí)
+  const plowing = showcasePlough(ploughDay).fields[0]!.parts;
 
   return {
     village: {
       dwellings: [],
       fields: [
         { id: 1, parts },
-        { id: 2, parts: plowing },
+        { id: PLOUGH_FIELD_ID, parts: plowing },
         { id: 3, parts: legumes },
       ],
       cemeteries: [{ id: 1, squares: cemetery, built, progress: built ? 1 : founding, graves }],

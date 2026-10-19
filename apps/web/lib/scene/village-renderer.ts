@@ -56,9 +56,10 @@ import { OrchardRenderer } from './orchard-renderer';
 import { PenAnimals } from './pen-animals';
 import { penAnimalsFor } from './pen-layout';
 import { PenRenderer } from './pen-renderer';
+import { ploughFront } from './plough-front';
 import { ploughPath } from './plough-team';
 import { PloughTeams } from './plough-team-renderer';
-import { penHerds, ploughFields, scenePenViews } from './village-pens';
+import { penHerds, scenePenViews } from './village-pens';
 import { SACRED_SITE_KIND, sacredBuildingKey } from './sacred-layout';
 import { SacredRenderer } from './sacred-renderer';
 import { applyPitCut, type PitCuts } from './pit-cut';
@@ -352,26 +353,29 @@ export class VillageRenderer {
   }
 
   /**
-   * Ohrady (stavba po fázích), zvířata v nich a spřežení na čele orby (oxen.md). Vrátí true, když
-   * se něco změnilo.
+   * Ohrady (stavba po fázích), zvířata v nich a spřežení na čele orby (oxen.md – Spřežení
+   * postupuje s orbou: pruh u čáry práce, další den dojde na nové čelo). Vrátí true, když se
+   * něco změnilo.
    */
   private updatePens(village: SceneVillage): boolean {
     const pens = this.pens.update(scenePenViews(village));
-    const herds = penHerds(village);
+    const front = ploughFront(village);
+    const herds = penHerds(village, front.length);
     const animals = this.penAnimals.set(
       this.pens.builtPens().flatMap(({ id, layout }) => {
         const herd = herds.get(id);
         return herd ? penAnimalsFor(layout, herd) : [];
       }),
     );
-    const fields = ploughFields(village);
-    const key = fields.map((f) => `${f.x},${f.z},${f.size},${f.dirX},${f.dirZ}`).join(';');
+    const key = JSON.stringify(front.map((a) => a.field));
     let teams = false;
     if (key !== this.teamsKey) {
       this.teamsKey = key;
-      this.teams.setPaths(fields.map((f) => ploughPath(f)));
-      // stálá póza hned – při omezeném pohybu zůstane, jinak ji hned přepíše animace
-      this.teams.animate(0, null, true);
+      // spřežení, které už orá, dojde na nový pruh pěšky (skutečný čas jako zvířata)
+      this.teams.setPaths(
+        front.map((a) => ploughPath(a.field)),
+        Date.now(),
+      );
       teams = true;
     }
     return pens || animals || teams;

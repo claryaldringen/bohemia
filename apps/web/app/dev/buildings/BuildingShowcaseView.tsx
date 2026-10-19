@@ -292,7 +292,7 @@ export function BuildingShowcaseView(): ReactElement {
       </section>
       <p className="fixed bottom-0 left-0 z-10 rounded-tr bg-stone-100/80 px-4 py-2 text-xs text-stone-600 backdrop-blur dark:bg-stone-950/70 dark:text-stone-400">
         Levé tlačítko otáčí, pravé posouvá, kolečko přibližuje. Milíř stojí {distance} m od uhlířovy
-        zemnice (doporučeno 8–12 m, vpředu stranou). Orba volů ani ohrada zatím nejsou ve hře.
+        zemnice (doporučeno 8–12 m, vpředu stranou).
       </p>
       {failed && (
         <div className="fixed inset-0 flex items-center justify-center px-4">

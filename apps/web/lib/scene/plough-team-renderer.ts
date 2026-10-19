@@ -1,10 +1,12 @@
-// Spřežení volů s rádlem ve scéně (zatím jen ukázka „Orání“ na /dev/buildings): voli a lidé
-// jako postavy ve vsi – GLB s kostrou z tools/blender/people_from_0ad.py (plough-team.json),
-// animace zapečené do textury matic kostí (VAT) a thin instances, jeden draw call na model
+// Spřežení volů s rádlem ve scéně (ve vsi na čele orby – plough-front.ts, na /dev/buildings
+// ukázka „Orání“): voli a lidé jako postavy ve vsi – GLB s kostrou
+// z tools/blender/people_from_0ad.py (plough-team.json), animace zapečené do textury matic
+// kostí (VAT) a thin instances, jeden draw call na model
 // (vůl; oráč a honáček sdílí model muže). Rádlo, jho, oj a provaz (tools/blender/plough.py)
 // jsou pevné díly v instancích, které se každým snímkem přestaví podle teamPose
 // (plough-team.ts). Pod voly, lidmi a rádlem měkký stín (statická stínová mapa pohyblivé
-// věci nezachytí – jako u lidí ve vsi).
+// věci nezachytí – jako u lidí ve vsi). Když spřežení dostane novou dráhu (další den orby),
+// dojde na ni pěšky z místa, kde právě je (`transitTrack`).
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import { BakedVertexAnimationManager } from '@babylonjs/core/BakedVertexAnimation/bakedVertexAnimationManager';
 import { Bone } from '@babylonjs/core/Bones/bone';
@@ -27,13 +29,20 @@ import {
   TEAM_PARTS,
   TEAM_SCALE,
   createTeamPose,
+  pathAt,
   teamPose,
+  teamSpot,
+  teamTrack,
+  trackPose,
+  transitTrack,
   writePartMatrix,
   writeSegmentMatrix,
   type FigurePose,
   type GroundFn,
+  type PathPoint,
   type PloughPath,
   type TeamPose,
+  type TeamTrack,
 } from './plough-team';
 import { villagerSeconds } from './villager-motion';
 import { VillagerPlugin, loadBakedModel } from './villagers';
@@ -46,6 +55,15 @@ const ANIMATE_RANGE_M = 700;
 const HEAD_ROOM_M = 2.4;
 /** Čas (s), ve kterém spřežení stojí při omezeném pohybu – jho uprostřed první řady, rádlo v zemi. */
 const FROZEN_T = 17;
+/**
+ * Animace běží, když ji scéna posunula nejdéle před touto dobou (ms) – jen pak spřežení na nové
+ * místo dojde (při omezeném pohybu, ve skryté záložce stojí rovnou na novém).
+ */
+const LIVE_MS = 3000;
+/** Krok (m), po kterém se dráhy projdou kvůli obalu spřežení. */
+const BOUNDS_STEP_M = 1;
+/** Kam spřežení od jha sahá (m, ve scéně) – rádlo a oráč za ním jedou po dráze. */
+const BODY_M = 2;
 /** Pevné díly v ard.glb (tools/blender/plough.py). */
 const PARTS = ['ard', 'yoke', 'pole', 'rope'] as const;
 type PartName = (typeof PARTS)[number];
@@ -87,7 +105,9 @@ export interface BakedKind {
  * (skutečný čas, jako zvířata) – jen v záběru; `frozen` = omezený pohyb, stojí.
  */
 export class PloughTeams {
-  private paths: readonly PloughPath[] = [];
+  private tracks: TeamTrack[] = [];
+  /** Kdy scéna naposledy posunula animaci (ms, epoch) – jestli animace běží. */
+  private liveAt = -Infinity;
   private ox: BakedKind | null = null;
   private man: BakedKind | null = null;
   private readonly parts = new Map<PartName, { mesh: Mesh; matrices: Float32Array }>();
@@ -102,18 +122,33 @@ export class PloughTeams {
     private readonly env: PloughTeamsEnvironment,
   ) {}
 
-  /** Dráhy spřežení (jedno spřežení na dráhu); modely se stáhnou s prvním spřežením. */
-  setPaths(paths: readonly PloughPath[]): void {
-    this.paths = paths;
+  /**
+   * Dráhy spřežení (jedno spřežení na dráhu – `i`-té spřežení je i dál `i`-té); modely se
+   * stáhnou s prvním spřežením. Spřežení, které už ve scéně je, dojde na novou dráhu z místa,
+   * kde je v okamžiku `nowMs` (jen když animace běží – jinak stojí rovnou na novém místě).
+   */
+  setPaths(paths: readonly PloughPath[], nowMs = Date.now()): void {
+    const t = villagerSeconds(nowMs);
+    const live = nowMs - this.liveAt < LIVE_MS && this.count > 0;
+    const probe = createTeamPose();
+    const before = this.tracks;
+    this.tracks = paths.map((path, i) => {
+      const old = before[i];
+      if (!live || !old) return teamTrack(path);
+      return transitTrack(path, teamSpot(trackPose(old, t, probe, this.env.groundHeight)), t);
+    });
     while (this.poses.length < paths.length) this.poses.push(createTeamPose());
     this.poses.length = paths.length;
     if (paths.length > 0) void this.load();
     this.allocate();
+    this.updateBounds();
+    // póza hned – při omezeném pohybu stálá na novém místě, jinak tam, kde spřežení právě je
+    if (this.count > 0) this.write(live ? t : FROZEN_T, !live);
   }
 
   /** Počet spřežení s načtenými modely (pro testy a měření). */
   get count(): number {
-    return this.ox && this.man ? this.paths.length : 0;
+    return this.ox && this.man ? this.tracks.length : 0;
   }
 
   /** Střed spřežení `index` (jho) v posledním zapsaném okamžiku – kam namířit kameru. */
@@ -128,6 +163,7 @@ export class PloughTeams {
    * zapíše vždy (první snímek po načtení). `frozen` = omezený pohyb: stálá póza, nohy stojí.
    */
   animate(nowMs: number, camera: Camera | null, frozen = false): boolean {
+    this.liveAt = frozen ? -Infinity : nowMs;
     if (this.count === 0) return false;
     if (camera) {
       if (!camera.isInFrustum(this.bounds)) return false;
@@ -157,9 +193,50 @@ export class PloughTeams {
     this.shadow = null;
   }
 
+  /**
+   * Obal všech spřežení na celých drahách i s přechody (stálý, dokud se dráhy nezmění) – podle
+   * něj se spřežení mimo záběr nehýbe, ať je zrovna kdekoli na dráze.
+   */
+  private updateBounds(): void {
+    let minX = Infinity;
+    let minZ = Infinity;
+    let maxX = -Infinity;
+    let maxZ = -Infinity;
+    let low = Infinity;
+    let high = -Infinity;
+    const extend = (x: number, z: number): void => {
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minZ = Math.min(minZ, z);
+      maxZ = Math.max(maxZ, z);
+      const y = this.env.groundHeight(x, z);
+      low = Math.min(low, y);
+      high = Math.max(high, y);
+    };
+    const at: PathPoint = { x: 0, z: 0, hx: 0, hz: 1 };
+    for (const track of this.tracks) {
+      const { path, transit } = track;
+      const steps = Math.max(1, Math.ceil(path.length / BOUNDS_STEP_M));
+      for (let i = 0; i <= steps; i++) {
+        pathAt(path, (i / steps) * path.length, at);
+        extend(at.x, at.z);
+      }
+      if (transit) {
+        extend(transit.from.x, transit.from.z);
+        extend(transit.to.x, transit.to.z);
+      }
+    }
+    if (minX > maxX) return;
+    const pad = BODY_M * TEAM_SCALE + 1;
+    this.bounds.reConstruct(
+      new Vector3(minX - pad, low - 1, minZ - pad),
+      new Vector3(maxX + pad, high + HEAD_ROOM_M * TEAM_SCALE, maxZ + pad),
+    );
+  }
+
   /** Buffery instancí podle počtu spřežení (voli 2, lidé 2, díly 1, stíny 5 na spřežení). */
   private allocate(): void {
-    const n = this.paths.length;
+    const n = this.tracks.length;
     for (const [kind, per] of [
       [this.ox, 2],
       [this.man, 2],
@@ -202,28 +279,22 @@ export class PloughTeams {
     }
   }
 
-  /** Zapíše pózy všech spřežení v čase `t` (s) do instancí a přepočítá obal. */
+  /**
+   * Zapíše pózy všech spřežení v čase `t` (s) do instancí. `frozen` = omezený pohyb: stálá póza
+   * na dráze (bez přechodu), nohy stojí.
+   */
   private write(t: number, frozen: boolean): void {
     const ox = this.ox!;
     const man = this.man!;
-    let minX = Infinity;
-    let minZ = Infinity;
-    let maxX = -Infinity;
-    let maxZ = -Infinity;
-    let low = Infinity;
-    const extend = (x: number, y: number, z: number): void => {
-      minX = Math.min(minX, x);
-      maxX = Math.max(maxX, x);
-      minZ = Math.min(minZ, z);
-      maxZ = Math.max(maxZ, z);
-      low = Math.min(low, y);
-    };
-    this.paths.forEach((path, i) => {
-      const pose = teamPose(path, t, this.poses[i]!, this.env.groundHeight);
+    this.tracks.forEach((track, i) => {
+      const out = this.poses[i]!;
+      const ground = this.env.groundHeight;
+      const pose = frozen
+        ? teamPose(track.path, t, out, ground, track.offsetM)
+        : trackPose(track, t, out, ground);
       pose.oxen.forEach((o, j) => {
         writeFigure(ox, i * 2 + j, o, TEAM_SCALE, 'walk', j * 0.37, frozen);
         this.writeShadow(i * 5 + j, o, SHADOW.ox);
-        extend(o.x, o.y, o.z);
       });
       writeFigure(man, i * 2, pose.plowman, TEAM_SCALE, 'plough', 0.2, frozen);
       writeFigure(
@@ -245,8 +316,6 @@ export class PloughTeams {
         { x: ard.x, y: ardGround, z: ard.z, hx: ard.fx / len, hz: ard.fz / len, pace: 0 },
         SHADOW.ard,
       );
-      extend(pose.plowman.x, pose.plowman.y, pose.plowman.z);
-      extend(pose.boy.x, pose.boy.y, pose.boy.z);
       const part = (name: PartName): Float32Array | null => this.parts.get(name)?.matrices ?? null;
       const ardM = part('ard');
       if (ardM) writePartMatrix(ardM, i * 16, ard, TEAM_SCALE);
@@ -265,13 +334,6 @@ export class PloughTeams {
     }
     for (const { mesh } of this.parts.values()) mesh.thinInstanceBufferUpdated('matrix');
     this.shadow?.mesh.thinInstanceBufferUpdated('matrix');
-    if (minX <= maxX) {
-      const pad = 3 * TEAM_SCALE;
-      this.bounds.reConstruct(
-        new Vector3(minX - pad, low - 1, minZ - pad),
-        new Vector3(maxX + pad, low + HEAD_ROOM_M * TEAM_SCALE, maxZ + pad),
-      );
-    }
   }
 
   /** Stín pod volem / postavou / rádlem: elipsa natočená ve směru pohledu. */
@@ -345,7 +407,9 @@ export class PloughTeams {
       this.shadow = createBlobShadow(this.scene, 'plough-shadow', SHADOW_OPACITY);
       this.allocate();
       if (this.count > 0) {
-        this.write(villagerSeconds(Date.now()), false);
+        const nowMs = Date.now();
+        const live = nowMs - this.liveAt < LIVE_MS;
+        this.write(live ? villagerSeconds(nowMs) : FROZEN_T, !live);
         this.env.onLoaded();
       }
     })();

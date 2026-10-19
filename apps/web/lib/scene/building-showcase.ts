@@ -23,7 +23,8 @@ import {
   showcaseGrounds,
   showcaseHayMeadows,
   showcaseMeadowDay,
-  showcasePloughField,
+  showcasePlough,
+  showcasePloughDay,
   type ShowcaseDecorModel,
 } from './building-showcase-layout';
 import { SUN_DIRECTION, WATER_FPS } from './constants';
@@ -43,6 +44,7 @@ import { TREE_MODELS, type TreeModel } from './obstacle-scenery';
 import { PenAnimals } from './pen-animals';
 import { PenRenderer } from './pen-renderer';
 import { PitCuts, applyPitCut } from './pit-cut';
+import { ploughFront } from './plough-front';
 import { ploughPath } from './plough-team';
 import { PloughTeams } from './plough-team-renderer';
 import { RoadWorks, roadRibbonMeshes } from './road-works';
@@ -147,8 +149,9 @@ function decorInstance(m: ShowcaseDecorModel): ModelInstance {
  * polozemnice jako ve vsi, stíny od slunce. Za stavbami pole, hřbitov, sad a louka na seno –
  * kreslí je herní `VillageRenderer` podle `showcaseGrounds`; vpravo posvátný dub s obětinami
  * a dubový háj s kameny (`SHOWCASE_DECOR`, bez staveniště); vlevo orá spřežení volů s rádlem
- * (`PloughTeams`) a vedle zemnice stojí ohrada s přístřeškem, dvěma voly a krávou
- * (`PenRenderer`, `PenAnimals`). `setWinter` přepne světlo a uniformy období na zimu (sníh na
+ * (`PloughTeams`) po čtvercích – orba postupuje po dnech ukázky a spřežení stojí na čele jako ve
+ * hře (`ploughFront`, další den dojde dál) – a vedle zemnice stojí ohrada s přístřeškem, dvěma
+ * voly a krávou (`PenRenderer`, `PenAnimals`). `setWinter` přepne světlo a uniformy období na zimu (sníh na
  * střechách a louce). Kamera se otáčí levým tlačítkem, posouvá pravým, kolečko přibližuje.
  * Kreslí se jen při změně pohledu – výjimka je spřežení a zvířata v ohradě v záběru
  * (WATER_FPS jako voda, při omezeném pohybu stojí).
@@ -178,6 +181,8 @@ export class BuildingShowcase {
   private readonly tufts: Mesh[] = [];
   /** Spřežení volů s rádlem (ukázka „Orání“). */
   private teams: PloughTeams | null = null;
+  /** Den ukázky orby (showcasePloughDay) – po něm se posune čelo orby a spřežení dojde dál. */
+  private ploughDay = showcasePloughDay(Date.now());
   /** Ohrada s přístřeškem a zvířata v ní (ukázka „Ohrada“). */
   private pens: PenRenderer | null = null;
   private penAnimals: PenAnimals | null = null;
@@ -548,7 +553,7 @@ export class BuildingShowcase {
     this.decay.update(showcaseDecay(this.decayT));
     this.grounds.setHayMeadows(showcaseHayMeadows());
     this.grounds.setSeason(showcaseMeadowDay(this.progress), this.snow());
-    this.grounds.update(showcaseGrounds(this.progress).village);
+    this.grounds.update(showcaseGrounds(this.progress, this.ploughDay).village);
     const pathMaterial = createDecalMaterial(scene, 'showcase-plot-path', {
       texture: 'grass-dirt',
     });
@@ -584,7 +589,7 @@ export class BuildingShowcase {
       prepareMaterial: prepareModelMaterial,
       onLoaded: () => this.burst(600),
     });
-    this.teams.setPaths([ploughPath(showcasePloughField())]);
+    this.teams.setPaths(this.ploughPaths());
     const mudMaterial = createDecalMaterial(scene, 'showcase-pen-mud', { texture: 'mud' });
     // ušlapaný sníh v ohradě – bláto pod ním prosvítá
     applySeasonGround(mudMaterial, 0.45);
@@ -638,7 +643,7 @@ export class BuildingShowcase {
     for (const mesh of this.tufts) mesh.setEnabled(built);
     this.sites.update(this.progress);
     this.grounds?.setSeason(showcaseMeadowDay(this.progress), this.snow());
-    this.grounds?.update(showcaseGrounds(this.progress).village);
+    this.grounds?.update(showcaseGrounds(this.progress, this.ploughDay).village);
     this.plots?.update(this.plotViews());
     this.pens?.update([
       {
@@ -685,13 +690,34 @@ export class BuildingShowcase {
     });
   }
 
+  /** Dráhy spřežení v dnešní den ukázky orby – stejně jako ve vsi (`ploughFront`). */
+  private ploughPaths(): ReturnType<typeof ploughPath>[] {
+    const village = showcasePlough(this.ploughDay);
+    return ploughFront({ ...village, pens: [] }).map((a) => ploughPath(a.field));
+  }
+
+  /**
+   * Další den ukázky orby: čelo orby se posune (obtisk pole) a spřežení dojde na nový pruh.
+   * Vrátí true, když se den změnil.
+   */
+  private advancePlough(nowMs: number): boolean {
+    const day = showcasePloughDay(nowMs);
+    if (day === this.ploughDay || !this.teams) return false;
+    this.ploughDay = day;
+    this.grounds?.update(showcaseGrounds(this.progress, day).village);
+    this.teams.setPaths(this.ploughPaths(), nowMs);
+    this.frozenWritten = false;
+    this.burst(600);
+    return true;
+  }
+
   /**
    * Kreslí jen při změně pohledu (a chvíli po načtení, než se dokončí shadery a textury) –
    * výjimka je spřežení v záběru: hýbe se samo, nejvýš WATER_FPS snímků za sekundu.
    */
   private frame(): void {
     const now = performance.now();
-    let animated = false;
+    let animated = this.advancePlough(Date.now());
     if (this.teams) {
       if (this.reducedMotion?.matches) {
         // omezený pohyb: spřežení stojí uprostřed první řady

@@ -647,7 +647,8 @@ Stav: **Martin, 18. 10. 2026:** „Chtěl bych, aby pole neměnilo fáze, které
   scéna podle data.
 - **Postavy na čelech:** rozdělení práce dne (pro postavy) posílá u polních prací díly, přes které
   práce ten den postoupila (v pořadí postupu, poslední je rozpracovaný), a postavy pracují na
-  těch čtvercích.
+  těch čtvercích. Spřežení s rádlem orá na čele orby pruh u čáry práce a každý den dojde dál
+  ([oxen.md](oxen.md) – Spřežení postupuje s orbou).
 - **Datový kontrakt pro scénu** (`VillageView.scene`): díl pole (`SceneFieldPart`) má `id`,
   `stage`, `look`, `work` a `before` (`FieldLook` – 13 vzhledů, jádro posílá deset výše; bez
   `look` scéna odhadne vzhled ze stadia a data); podíl práce (`SceneLaborShare`) má u polních

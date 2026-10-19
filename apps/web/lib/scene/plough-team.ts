@@ -1,6 +1,6 @@
 // Spřežení volů s rádlem a oráčem – rozestavění dílů a pohyb po brázdách jako čistá funkce
-// času (bez Babylonu, jako villager-motion.ts). Zatím jen pro vývojovou stránku /dev/buildings
-// (ukázka „Orání“) – herní mechanika volů a orby přijde později.
+// času (bez Babylonu, jako villager-motion.ts). Ve vsi orá pruh u čela orby (plough-front.ts –
+// oxen.md, Spřežení postupuje s orbou), na vývojové stránce /dev/buildings ukázka „Orání“.
 //
 // Kdo kde je: dva voli vedle sebe pod šíjovým jhem, od jha oj dozadu k hřídeli rádla, za
 // rádlem oráč, který drží příčnou rukojeť (klip „plough“ – chůze s rukama na rukojeti
@@ -112,6 +112,15 @@ export interface PloughField {
   dirZ: number;
   /** Počet řad (sudý – po poslední řadě je spřežení zpět na straně, kde začalo). */
   rows: number;
+  /**
+   * Pruh čtverce, který spřežení orá: od–do napříč řadami (m od středu čtverce ve směru
+   * `acrossX`, `acrossZ`; řady přibývají od `from` k `to`). Bez údaje celý čtverec.
+   */
+  from?: number;
+  to?: number;
+  /** Napříč řadami (jednotkový, kolmo na směr řad); bez údaje (−dirZ, dirX). */
+  acrossX?: number;
+  acrossZ?: number;
 }
 
 /** Bod dráhy: poloha a směr jízdy (jednotkový). */
@@ -130,10 +139,10 @@ export function ardReach(): number {
 }
 
 /**
- * Dráha jha přes čtverec pole: `rows` řad střídavě tam a zpět (řady jdou tak daleko za okraj,
- * aby radlice dojela až k okraji – je o `ardReach` za jhem), mezi nimi obrat na souvrati
- * (půlkruh, nebo „kapka“ ze tří oblouků, když jsou řady blíž než dva poloměry obratu) a po
- * poslední řadě návrat po souvrati na začátek první řady.
+ * Dráha jha přes čtverec pole (nebo jeho pruh – `from`, `to`): `rows` řad střídavě tam a zpět
+ * (řady jdou tak daleko za okraj, aby radlice dojela až k okraji – je o `ardReach` za jhem),
+ * mezi nimi obrat na souvrati (půlkruh, nebo „kapka“ ze tří oblouků, když jsou řady blíž než
+ * dva poloměry obratu) a po poslední řadě návrat po souvrati na začátek první řady.
  */
 export function ploughPath(field: PloughField, turnRadius = TURN_RADIUS_M): PloughPath {
   const rows = Math.max(2, Math.round(field.rows / 2) * 2);
@@ -141,12 +150,15 @@ export function ploughPath(field: PloughField, turnRadius = TURN_RADIUS_M): Plou
   const dx = field.dirX / len;
   const dz = field.dirZ / len;
   // napříč řadami (řady přibývají tímto směrem)
-  const sx = -dz;
-  const sz = dx;
-  const spacing = field.size / rows;
+  const across = Math.hypot(field.acrossX ?? 0, field.acrossZ ?? 0);
+  const sx = across > 1e-9 ? field.acrossX! / across : -dz;
+  const sz = across > 1e-9 ? field.acrossZ! / across : dx;
+  const from = field.from ?? -field.size / 2;
+  const to = field.to ?? field.size / 2;
+  const spacing = (to - from) / rows;
   const reach = field.size / 2 + ardReach();
   const segments: PathSegment[] = [];
-  const offset = (k: number): number => -field.size / 2 + (k + 0.5) * spacing;
+  const offset = (k: number): number => from + (k + 0.5) * spacing;
   for (let k = 0; k < rows; k++) {
     const dir = k % 2 === 0 ? 1 : -1;
     const o = offset(k);
@@ -420,10 +432,37 @@ export function teamPose(
   ground: GroundFn = FLAT,
   offsetM = 0,
 ): TeamPose {
-  const p = TEAM_PARTS;
-  const k = TEAM_SCALE;
   const s = t * TEAM_SPEED_M_S + offsetM;
   const yoke = pathAt(path, s, TMP_YOKE);
+  // Rádlo: počátek na dráze za jhem, natočené ke jhu (oj a hřídel v jedné čáře).
+  const back = pointBehind(path, s, yoke, ardReach(), TMP_BACK);
+  // Na souvrati (radlice za okrajem pole) oráč rádlo nadzvedne.
+  const f = path.field;
+  const flen = Math.hypot(f.dirX, f.dirZ) || 1;
+  const du = ((back.x - f.x) * f.dirX + (back.z - f.z) * f.dirZ) / flen;
+  const dv = (-(back.x - f.x) * f.dirZ + (back.z - f.z) * f.dirX) / flen;
+  const outside = Math.max(Math.abs(du), Math.abs(dv)) - f.size / 2;
+  const lift = smoothstep(0, LIFT_RAMP_M, outside);
+  return composePose(yoke, back, lift, t, TEAM_SPEED_M_S, out, ground);
+}
+
+/**
+ * Spřežení podle polohy a směru jha, místa rádla (`back` – jeho počátek na zemi) a toho, jak je
+ * rádlo nadzvednuté (`lift`): voli pod jhem, oj, oráč u rukojeti, honáček s provazem. `speed` je
+ * rychlost chůze (m/s) – podle ní se přehrávají klipy chůze, ať nohy neklouzají.
+ */
+function composePose(
+  yoke: PathPoint,
+  back: PathPoint,
+  lift: number,
+  t: number,
+  speed: number,
+  out: TeamPose,
+  ground: GroundFn,
+): TeamPose {
+  const p = TEAM_PARTS;
+  const k = TEAM_SCALE;
+  const tempo = speed / TEAM_SPEED_M_S;
   const fx = yoke.hx;
   const fz = yoke.hz;
   // vpravo od směru jízdy (osy scény: x vpravo, z vpřed)
@@ -438,7 +477,7 @@ export function teamPose(
     ox.y = ground(ox.x, ox.z);
     ox.hx = fx;
     ox.hz = fz;
-    ox.pace = TEAM_PACE.ox;
+    ox.pace = TEAM_PACE.ox * tempo;
   });
 
   // Jho: na šíjích volů, kymácí se s jejich krokem.
@@ -457,8 +496,7 @@ export function teamPose(
   yf.uy = V1[1];
   yf.uz = V1[2];
 
-  // Rádlo: počátek na dráze za jhem, natočené ke jhu (oj a hřídel v jedné čáře).
-  const back = pointBehind(path, s, yoke, ardReach(), TMP_BACK);
+  // Rádlo: počátek za jhem, natočené ke jhu (oj a hřídel v jedné čáře).
   let ahx = yoke.x - back.x;
   let ahz = yoke.z - back.z;
   const al = Math.hypot(ahx, ahz) || 1;
@@ -468,13 +506,6 @@ export function teamPose(
   const arz = -ahx;
   const ardGround = ground(back.x, back.z);
 
-  // Na souvrati (radlice za okrajem pole) oráč rádlo nadzvedne.
-  const f = path.field;
-  const flen = Math.hypot(f.dirX, f.dirZ) || 1;
-  const du = ((back.x - f.x) * f.dirX + (back.z - f.z) * f.dirZ) / flen;
-  const dv = (-(back.x - f.x) * f.dirZ + (back.z - f.z) * f.dirX) / flen;
-  const outside = Math.max(Math.abs(du), Math.abs(dv)) - f.size / 2;
-  const lift = smoothstep(0, LIFT_RAMP_M, outside);
   out.lift = lift;
   const plough = 1 - lift;
   // kymácení v brázdě (kameny, kořeny) – jen když radlice jede v zemi
@@ -526,7 +557,7 @@ export function teamPose(
   pl.y = ground(pl.x, pl.z);
   pl.hx = ahx;
   pl.hz = ahz;
-  pl.pace = TEAM_PACE.plowman;
+  pl.pace = TEAM_PACE.plowman * tempo;
 
   // Honáček vlevo od levého vola, kousek vpředu; provaz z ruky k hlavě vola.
   const boy = out.boy;
@@ -535,7 +566,7 @@ export function teamPose(
   boy.y = ground(boy.x, boy.z);
   boy.hx = fx;
   boy.hz = fz;
-  boy.pace = TEAM_PACE.boy;
+  boy.pace = TEAM_PACE.boy * tempo;
   const bs = k * p.boy.scale;
   const rope = out.rope;
   rope.ax = boy.x + (rx * p.boyHand.x + fx * p.boyHand.z) * bs;
@@ -546,6 +577,160 @@ export function teamPose(
   rope.by = lead.y + (p.oxHead.y + neckBob) * k;
   rope.bz = lead.z + (rz * p.oxHead.x + fz * p.oxHead.z) * k;
   return out;
+}
+
+// --- přechod na nové místo -----------------------------------------------------------------
+
+/**
+ * Rychlost spřežení při přechodu na nové místo orby (m/s) – voli bez tahu rádla jdou krokem
+ * jako v klipu chůze (CLIP_WALK_M_S × TEAM_SCALE), rádlo nese oráč nadzvednuté.
+ */
+export const TRANSIT_SPEED_M_S = 1;
+/**
+ * Kdy spřežení na nové místo dojde (m): kratší posun se nepozná, delší by trval přes půl
+ * herního dne – spřežení se pak objeví rovnou na novém místě (jako lidé – villagers.ts).
+ */
+export const TRANSIT_M = { min: 0.3, max: 60 } as const;
+/** Na jak dlouhém kusu (m) se spřežení na začátku a konci přechodu natočí. */
+const TRANSIT_TURN_M = 3;
+
+/** Kde spřežení je: poloha a směr jha, jak je rádlo nadzvednuté. */
+export interface TeamSpot {
+  x: number;
+  z: number;
+  hx: number;
+  hz: number;
+  lift: number;
+}
+
+/**
+ * Přechod na nové místo: od `startS` jde jho rovně z `from` do `to`, kam v `arriveS` dojde
+ * (čas příchodu je dopočítaný, ať spřežení naváže na dráhu bez skoku), rádlo nadzvednuté.
+ */
+export interface TeamTransit {
+  startS: number;
+  arriveS: number;
+  from: TeamSpot;
+  to: TeamSpot;
+}
+
+/** Spřežení na dráze (`offsetM` – posun po dráze), případně s přechodem z dřívějšího místa. */
+export interface TeamTrack {
+  path: PloughPath;
+  offsetM: number;
+  transit: TeamTransit | null;
+}
+
+/** Spřežení na dráze bez přechodu. */
+export function teamTrack(path: PloughPath, offsetM = 0): TeamTrack {
+  return { path, offsetM, transit: null };
+}
+
+/** Kde spřežení v póze je (jho a rádlo) – odtud jde na nové místo. */
+export function teamSpot(pose: TeamPose): TeamSpot {
+  const len = Math.hypot(pose.yoke.fx, pose.yoke.fz) || 1;
+  return {
+    x: pose.yoke.x,
+    z: pose.yoke.z,
+    hx: pose.yoke.fx / len,
+    hz: pose.yoke.fz / len,
+    lift: pose.lift,
+  };
+}
+
+const TRANSIT_PROBE = createTeamPose();
+
+/**
+ * Spřežení na dráze `path`, které v čase `startS` stojí jinde (`from`) a na dráhu dojde pěšky
+ * (jako postavy – `walkThen` ve villager-motion.ts): jde rovně rychlostí `speed` tam, kde ho
+ * dráha v čase příchodu čeká, a odtud orá dál. Čas příchodu se dopočítá (dráha se mezitím
+ * posune – voli na ní jdou pomaleji než při přechodu, výpočet se ustálí); konec přechodu je
+ * přesně bod dráhy, takže spřežení na ni naváže bez skoku. Posun kratší než `TRANSIT_M.min`
+ * nebo delší než `TRANSIT_M.max` přechod nemá.
+ */
+export function transitTrack(
+  path: PloughPath,
+  from: TeamSpot,
+  startS: number,
+  offsetM = 0,
+  speed = TRANSIT_SPEED_M_S,
+): TeamTrack {
+  const v = Math.max(0.1, speed);
+  const at = TMP_YOKE;
+  let arriveS = startS;
+  for (let i = 0; i < 32; i++) {
+    pathAt(path, arriveS * TEAM_SPEED_M_S + offsetM, at);
+    const next = startS + Math.hypot(at.x - from.x, at.z - from.z) / v;
+    if (Math.abs(next - arriveS) < 1e-6) {
+      arriveS = next;
+      break;
+    }
+    arriveS = next;
+  }
+  const pose = teamPose(path, arriveS, TRANSIT_PROBE, FLAT, offsetM);
+  const to = teamSpot(pose);
+  const length = Math.hypot(to.x - from.x, to.z - from.z);
+  if (length < TRANSIT_M.min || length > TRANSIT_M.max || arriveS <= startS) {
+    return teamTrack(path, offsetM);
+  }
+  return { path, offsetM, transit: { startS, arriveS, from: { ...from }, to } };
+}
+
+/** Úhel o kolik se natočit z `a` do `b` (nejkratší cestou, −π…π). */
+function turnBetween(a: number, b: number): number {
+  let d = (b - a) % (2 * Math.PI);
+  if (d > Math.PI) d -= 2 * Math.PI;
+  if (d < -Math.PI) d += 2 * Math.PI;
+  return d;
+}
+
+const TMP_TRANSIT_YOKE: PathPoint = { x: 0, z: 0, hx: 0, hz: 1 };
+const TMP_TRANSIT_BACK: PathPoint = { x: 0, z: 0, hx: 0, hz: 1 };
+
+/**
+ * Póza spřežení na dráze v čase `t` (s) – během přechodu na rovné čáře k dráze: rádlo
+ * nadzvednuté za jhem, na začátku a konci se spřežení plynule natočí (ze směru, kterým jelo,
+ * do směru dráhy) a rádlo zvedne a zase spustí. Po příchodu `teamPose`. Čistá funkce času.
+ */
+export function trackPose(
+  track: TeamTrack,
+  t: number,
+  out: TeamPose,
+  ground: GroundFn = FLAT,
+): TeamPose {
+  const transit = track.transit;
+  if (!transit || t >= transit.arriveS) {
+    return teamPose(track.path, t, out, ground, track.offsetM);
+  }
+  const { from, to } = transit;
+  const lx = to.x - from.x;
+  const lz = to.z - from.z;
+  const length = Math.hypot(lx, lz);
+  const speed = length / (transit.arriveS - transit.startS);
+  const d = Math.min(length, Math.max(0, (t - transit.startS) * speed));
+  const yoke = TMP_TRANSIT_YOKE;
+  yoke.x = from.x + (lx / length) * d;
+  yoke.z = from.z + (lz / length) * d;
+  // natočení: ze směru jízdy do čáry přechodu a před příchodem do směru dráhy
+  const turn = Math.min(TRANSIT_TURN_M, length / 2);
+  const line = Math.atan2(lz, lx);
+  let angle = Math.atan2(from.hz, from.hx);
+  angle += turnBetween(angle, line) * smoothstep(0, turn, d);
+  angle += turnBetween(angle, Math.atan2(to.hz, to.hx)) * smoothstep(length - turn, length, d);
+  yoke.hx = Math.cos(angle);
+  yoke.hz = Math.sin(angle);
+  // rádlo rovně za jhem; zvedne se hned na začátku a spustí až v cíli (jak ho čeká dráha)
+  const reach = ardReach();
+  const back = TMP_TRANSIT_BACK;
+  back.x = yoke.x - yoke.hx * reach;
+  back.z = yoke.z - yoke.hz * reach;
+  back.hx = yoke.hx;
+  back.hz = yoke.hz;
+  const lift = Math.min(
+    from.lift + (1 - from.lift) * smoothstep(0, LIFT_RAMP_M, d),
+    to.lift + (1 - to.lift) * smoothstep(0, LIFT_RAMP_M, length - d),
+  );
+  return composePose(yoke, back, lift, t, speed, out, ground);
 }
 
 // --- matice instancí -----------------------------------------------------------------------
