@@ -5,6 +5,7 @@ import {
   fieldFrontiers,
   fieldPartLooks,
   frontierPart,
+  partYearWork,
   partsWorked,
   taskPosition,
   taskSpans,
@@ -230,5 +231,77 @@ describe('přirozená stadia podle kalendáře', () => {
     expect(looks.get(s.parts[1]!.id)).toEqual({ look: 'young-fallow' });
     // starší příloh (louka) se letos neseče – pase se (oxen.md – Seno)
     expect(looks.get(s.parts[2]!.id)).toEqual({ look: 'pasture' });
+  });
+});
+
+describe('letošní práce na dílu (panel dílu – fields.md, Co hráč vidí)', () => {
+  it('podzim: kopání, pak setí ozimu po dílech od obydlí; vzhled dílu odpovídá práci', () => {
+    const s = advanceVillage(village(), at(601, 9, 20), null);
+    const winter = s.plan!.winter!;
+    const work = partYearWork(s, s.lastDay);
+    const looks = fieldPartLooks(s, s.lastDay);
+    const seen = new Set(winter.partIds.map((id) => looks.get(id)!.look));
+    expect([...seen]).toEqual(expect.arrayContaining(['sown', 'plowed', 'stubble']));
+    for (const id of winter.partIds) {
+      const crop = work.get(id)!.crop!;
+      expect(crop.crop).toBe('winter');
+      expect(crop.harvest).toBe(0);
+      const look = looks.get(id)!;
+      // zasetý díl má hotovou přípravu, zkopaný kopání, nezačatý (strniště) nic
+      if (look.look === 'sown' && look.work === undefined) {
+        expect(crop.sow).toBeGreaterThan(1 - 1e-6);
+        expect(crop.prep).toEqual({ task: 'dig', share: 1 });
+      }
+      if (look.look === 'stubble') expect(crop.prep).toEqual({ task: 'dig', share: 0 });
+      if (look.look === 'plowed' && look.work === undefined) {
+        expect(crop.prep!.share).toBeCloseTo(1, 6);
+        expect(crop.sow).toBeLessThan(1);
+      }
+    }
+    // díly mimo plán (připravené, příloh) letošní osevní práci nemají
+    for (const part of s.parts.filter((p) => !planPartIds(s.plan!).includes(p.id))) {
+      expect(work.get(part.id)?.crop).toBeUndefined();
+    }
+  });
+
+  it('orba rádlem: příprava je orba, díl vrácený motyce se kope; po sklizni vše hotové', () => {
+    const s = advanceVillage(village(), at(601, 9, 20), null);
+    const winter = s.plan!.winter!;
+    const [first, second] = winter.partIds;
+    winter.plough = {
+      partIds: [first!, second!],
+      required: 10,
+      done: 0,
+      weight: 1,
+      digWeight: 0,
+      returned: [second!],
+    };
+    const work = partYearWork(s, s.lastDay);
+    expect(work.get(first!)!.crop!.prep).toEqual({ task: 'plough', share: 0 });
+    expect(work.get(second!)!.crop!.prep!.task).toBe('dig');
+    winter.harvestedKg = 1000;
+    for (const id of winter.partIds) {
+      expect(partYearWork(s, s.lastDay).get(id)!.crop).toMatchObject({
+        prep: { share: 1 },
+        sow: 1,
+        harvest: 1,
+      });
+    }
+  });
+
+  it('sklizeň ozimu v červenci po dílech: sklizené díly 1, nezačaté 0', () => {
+    const s = advanceVillage(village(), at(602, 7, 10), null);
+    const looks = fieldPartLooks(s, s.lastDay);
+    const work = partYearWork(s, s.lastDay);
+    const harvests = s.plan!.winter!.partIds.map((id) => work.get(id)!.crop!.harvest);
+    expect(harvests).toContain(0);
+    expect(harvests).toContain(1);
+    for (const id of s.plan!.winter!.partIds) {
+      const { harvest, sow } = work.get(id)!.crop!;
+      expect(sow).toBe(1);
+      const look = looks.get(id)!;
+      if (look.look === 'ripe') expect(harvest).toBe(0);
+      if (look.look === 'harvesting' && look.work === undefined) expect(harvest).toBe(1);
+    }
   });
 });

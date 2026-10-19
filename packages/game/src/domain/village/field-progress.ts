@@ -395,6 +395,73 @@ function hayLook(mown: number | null, day: number): PartView {
 /** Krok podílu práce rozpracovaného dílu – scéna se nepřestavuje při každém dotazu. */
 const WORK_STEP = 20;
 
+/** Příprava půdy dílu před setím: rozrytí drnu přílohu, orba rádlem, nebo kopání motykou. */
+export type PrepTask = 'reclaim' | 'plough' | 'dig';
+
+/**
+ * Letošní práce na dílu (fields.md – Co hráč vidí, panel dílu): díl plánu osevu – plodina,
+ * příprava půdy (úloha, která je na řadě, a kolik z ní je na dílu hotovo; všechno hotové –
+ * poslední úloha s 1), setí a sklizeň; díl letošní seče sena – kolik je posečeno. Podíly 0–1
+ * stejně jako vzhled dílu (`fieldPartLooks`): práce mění díl, až když k němu dojde.
+ */
+export interface PartYearWork {
+  crop?: {
+    crop: Crop;
+    prep: { task: PrepTask; share: number } | null;
+    sow: number;
+    harvest: number;
+  };
+  mow?: number;
+}
+
+/**
+ * Letošní práce na dílech pole v den `day` (díl id → práce) – jen díly plánu osevu (po sklizni
+ * jaře plán u výmlatu) a díly letošní seče sena. Jen čte stav.
+ */
+export function partYearWork(state: VillageState, day: number): Map<number, PartYearWork> {
+  const result = new Map<number, PartYearWork>();
+  const partsById = new Map(state.parts.map((p) => [p.id, p]));
+  const plan = state.plan ?? state.threshingFromPlan;
+  for (const { crop, work } of plan ? planCrops(plan) : []) {
+    const tasks = ['reclaim', 'plough', 'dig', 'sow', 'harvest'] as const;
+    const spans = new Map(
+      tasks.map((task) => [
+        task,
+        { byId: spansById(work, partsById, task, day), at: taskPosition(work, task) },
+      ]),
+    );
+    const share = (task: (typeof tasks)[number], id: number): number | null => {
+      const t = spans.get(task)!;
+      return shareOn(t.byId.get(id), t.at);
+    };
+    const returned = new Set(work.plough?.returned ?? []);
+    const harvested = work.harvestedKg !== null;
+    for (const id of work.partIds) {
+      const part = partsById.get(id);
+      if (!part || part.state !== 'sown') continue;
+      // díl vrácený motyce se kope, i když ho spřežení začalo orat (oxen.md)
+      const steps = (['reclaim', 'plough', 'dig'] as const).flatMap((task) => {
+        const done = share(task, id);
+        if (done === null || (task === 'plough' && returned.has(id))) return [];
+        return [{ task, share: harvested ? 1 : done }];
+      });
+      const prep = steps.find((s) => s.share < DONE) ?? steps.at(-1) ?? null;
+      result.set(id, {
+        crop: {
+          crop,
+          prep,
+          sow: harvested ? 1 : (share('sow', id) ?? 0),
+          harvest: harvested ? 1 : (share('harvest', id) ?? 0),
+        },
+      });
+    }
+  }
+  for (const [id, mown] of mownShares(state, partsById)) {
+    result.set(id, { ...result.get(id), mow: mown });
+  }
+  return result;
+}
+
 /**
  * Vzhled dílů pole v den `day` (fields.md – Postup práce po čtvercích): díl id → vzhled.
  * Zakládané díly (rozrytý drn, rozpracovaný s podílem založení – zakládá se od nejbližšího

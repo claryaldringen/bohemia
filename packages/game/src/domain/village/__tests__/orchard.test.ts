@@ -16,6 +16,7 @@ import {
   orchardYieldShare,
   renewalQuota,
   squareDueForRenewal,
+  squareExpectedYieldKg,
   villageOrchards,
 } from '../orchard';
 import { MAX_ORCHARD_CELLS, orchardPartsFromCells, type PlacementVillage } from '../placement';
@@ -149,6 +150,11 @@ describe('rok sadu a úroda (orchard.md – oprava podle rešerše)', () => {
     expect(orchardExpectedYieldKg(orchard, at(604, 12, 1))).toBeCloseTo(3000 / 20);
     expect(orchardExpectedYieldKg(orchard, at(604, 9, 1))).toBe(0);
     expect(orchardAgeYears(orchard, at(610, 4, 2))).toBe(10);
+    // panel čtverce sadu: odhad jednoho čtverce, mladší (obnovený) čtverec ještě nerodí
+    const young = { ...orchard.squares[0]!, cell: { x: 1, y: 0 }, plantedDay: at(603, 4, 1) };
+    expect(squareExpectedYieldKg(orchard.squares[0]!, at(604, 12, 1))).toBeCloseTo(3000 / 20);
+    expect(squareExpectedYieldKg(young, at(604, 12, 1))).toBe(0);
+    expect(squareExpectedYieldKg({ ...young, plantedDay: null }, at(604, 12, 1))).toBe(0);
   });
 
   it('výsadba 80 člověkodní na hektar + překážky', () => {

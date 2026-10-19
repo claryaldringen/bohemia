@@ -136,8 +136,15 @@ export function nextHarvestSeason(day: number): number {
  * příští (orchard.md – panel sadu: odhad úrody).
  */
 export function orchardExpectedYieldKg(orchard: Orchard, day: number): number {
-  const season = nextHarvestSeason(day);
-  return orchard.squares.reduce((sum, s) => sum + squareYieldKgInSeason(s, season), 0);
+  return orchard.squares.reduce((sum, s) => sum + squareExpectedYieldKg(s, day), 0);
+}
+
+/**
+ * Očekávaná úroda čtverce sadu při plné sklizni (kg jablek) nejbližší sklizně – panel čtverce sadu
+ * (orchard.md – Co hráč vidí); čtverce se liší stářím (obnova sadu).
+ */
+export function squareExpectedYieldKg(square: OrchardSquare, day: number): number {
+  return squareYieldKgInSeason(square, nextHarvestSeason(day));
 }
 
 /** Plodí čtverec v hospodářském roce dne `day` (vysazený a úroda větší než nula)? */
