@@ -48,4 +48,11 @@ describe('ScenePerfReadout – vývojový ukazatel výkonu', () => {
       ['Pick', '0.03 ms'],
     ]);
   });
+
+  it('se stínovou mapou ukáže i její obnovy za sekundu a CPU vykreslení', () => {
+    const html = renderToStaticMarkup(
+      <ScenePerfReadout stats={{ ...STATS, shadows: { perSec: 2, cpuMs: 1.234 } }} />,
+    );
+    expect(rows(html).at(-1)).toEqual(['Stínová mapa', '2.0 /s · CPU 1.23 ms']);
+  });
 });

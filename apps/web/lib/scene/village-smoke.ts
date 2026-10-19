@@ -5,6 +5,7 @@ import type { Scene } from '@babylonjs/core/scene';
 import { Sprite } from '@babylonjs/core/Sprites/sprite';
 import { SpriteManager } from '@babylonjs/core/Sprites/spriteManager';
 import { OFFICIAL_WORLD, type WorldClock } from '@bohemia/game';
+import type { Rgb } from './season-look';
 import {
   PLUME_REACH_M,
   PUFFS_PER_PLUME,
@@ -60,6 +61,8 @@ export class VillageSmoke {
   private plumes: Plume[] = [];
   private always = false;
   private world: WorldClock = OFFICIAL_WORLD;
+  /** Den a noc: dým je bez světla – v soumraku a v noci se přibarví (day-light.ts, tón). */
+  private tone: Rgb = [1, 1, 1];
 
   constructor(
     private readonly scene: Scene,
@@ -109,6 +112,11 @@ export class VillageSmoke {
     this.world = world;
   }
 
+  /** Tón denní doby (bílá = přes den) – obláčky se přebarví při dalším posunu dýmu. */
+  setTone(tone: Rgb): void {
+    this.tone = tone;
+  }
+
   /**
    * Posune dým v záběru `camera` na okamžik `nowMs` (skutečný čas – rozvrh ohně jde podle
    * herního dne). Vrátí true, když se v záběru něco změnilo (je co překreslit). Bez kamery
@@ -145,7 +153,8 @@ export class VillageSmoke {
         sprite.angle = puff.angle;
         // šedomodrý dým ze dřeva, výš světlejší
         const shade = puff.shade + 0.08 * Math.min(1, puff.dy / 8);
-        sprite.color.set(shade * 0.96, shade * 0.97, shade, alpha);
+        const [r, g, b] = this.tone;
+        sprite.color.set(shade * 0.96 * r, shade * 0.97 * g, shade * b, alpha);
       });
       if (visible || plume.visible) changed = true;
       plume.visible = visible;

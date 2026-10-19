@@ -65,6 +65,11 @@ export interface ScenePerfStats {
   triangles: number;
   /** Doba picku terénu pod kurzorem – průměr posledních (ms); bez picku null. */
   pickMs: number | null;
+  /**
+   * Stínová mapa (den a noc – obnovuje se s pohybem slunce): obnov za sekundu a CPU jednoho
+   * vykreslení mapy (průměr posledních, ms; bez obnovy null). Bez stínové mapy chybí.
+   */
+  shadows?: { perSec: number; cpuMs: number | null };
 }
 
 /** Řádky ukazatele: popisek a hodnota (česky, čísla zaokrouhlená). */
@@ -82,6 +87,14 @@ export function perfStatsRows(stats: ScenePerfStats): [string, string][] {
     ['Meshe', String(stats.activeMeshes)],
     ['Trojúhelníky', formatCount(stats.triangles)],
     ['Pick', ms(stats.pickMs)],
+    ...(stats.shadows
+      ? ([
+          [
+            'Stínová mapa',
+            `${stats.shadows.perSec.toFixed(1)} /s · CPU ${ms(stats.shadows.cpuMs)}`,
+          ],
+        ] as [string, string][])
+      : []),
   ];
 }
 
