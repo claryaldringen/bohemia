@@ -77,7 +77,7 @@ describe('mléko stád', () => {
 });
 
 describe('práce se zvířaty', () => {
-  it('dojení v době dojení, zimní péče o krávy a voly, prasata a slepice celý rok', () => {
+  it('dojení v době dojení, zimní péče o krávy, voly, ovce a kozy, prasata a slepice celý rok', () => {
     const h = herds({ cow: 2, goat: 2, sheep: 4, pig: 3 });
     const summer = animalCareNeed(h, 2, 5, at(600, 6, 15));
     expect(summer.milking).toBeCloseTo(
@@ -89,8 +89,12 @@ describe('práce se zvířaty', () => {
     expect(summer.care).toBeCloseTo(3 * ANIMAL_CARE.pigPerHead + 5 * ANIMAL_CARE.henPerHead, 9);
     const winter = animalCareNeed(h, 2, 5, at(600, 12, 15));
     expect(winter.milking).toBe(0);
+    // v zimě se krmí krávy a voli, ovce a kozy (Martin 19. 10. 2026 – seno i pro ně)
     expect(winter.care).toBeCloseTo(
-      (2 + 2) * ANIMAL_CARE.winterPerHead + 3 * ANIMAL_CARE.pigPerHead + 5 * ANIMAL_CARE.henPerHead,
+      (2 + 2) * ANIMAL_CARE.winterPerHead +
+        (2 + 4) * ANIMAL_CARE.smallWinterPerHead +
+        3 * ANIMAL_CARE.pigPerHead +
+        5 * ANIMAL_CARE.henPerHead,
       9,
     );
   });

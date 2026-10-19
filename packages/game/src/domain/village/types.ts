@@ -654,6 +654,16 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'apple-harvest'; kg: number }
   /** Podzimní porážka (diet.md – 1. 11.): kolik kg masa a kolik kusů kterého druhu. */
   | { kind: 'slaughter'; kg: number; animals: Partial<Record<HerdSpecies, number>> }
+  /**
+   * Zbytek uzeného masa se zkazil (diet.md – Trvanlivost masa, 1. 9.) – kolik kg; méně než kilo
+   * se nezapíše.
+   */
+  | { kind: 'meat-spoiled'; kg: number }
+  /**
+   * Přes zimu chybělo přes polovinu sena – část stáda uhynula (diet.md – Zimní úhyn, 1. 3.); kusy
+   * po druzích na setiny.
+   */
+  | { kind: 'herd-starved'; animals: Partial<Record<HerdSpecies, number>> }
   /** Spřežení volů v ohradě je vycvičené a orá (oxen.md). */
   | { kind: 'team-ready'; penId: number }
   /** Spřežení dosloužilo – voli zestárli (oxen.md, ≈ 10 let), šli na maso. */
@@ -745,6 +755,8 @@ export type LaborActivity =
   | 'slaughter'
   /** Dojení a zpracování mléka na sýr (diet.md – Práce se zvířaty). */
   | 'milking'
+  /** Pasení – dospělí pasáci, kde děti a starší nestačí (diet.md – Pasáci). */
+  | 'herding'
   /** Péče o zvířata – zimní krmení, voda a kydání krav a volů, prasata a slepice. */
   | 'animal-care'
   /** Sezónní práce v sadech (orchard.md). */
@@ -820,6 +832,11 @@ export interface LaborShare {
 export interface LaborDay {
   day: number;
   shares: LaborShare[];
+  /**
+   * Kolik dětí od 7 let a starších dnes pase (diet.md – Pasáci) – pasou bez práce vsi, proto nejsou
+   * v `shares`; dospělí pasáci jsou podíl `herding`. Bez údaje se neví (dřívější rozdělení).
+   */
+  herders?: { children: number; elders: number };
 }
 
 export interface VillageState {
@@ -1295,6 +1312,11 @@ export interface LivestockState {
   land?: { meadowHa: number; forestHa: number };
   /** Porážka a uzení (listopad) – potřebné a odvedené člověkodny; chybí = žádná. */
   slaughterWork?: { required: number; done: number } | null;
+  /**
+   * Pasení od poslední porážky (diet.md – Pasáci): součet denní potřeby pasáků a co z ní děti,
+   * starší a dospělí uhlídali (v plných pasácích). Chybí = zatím nic (vsi uložené dřív).
+   */
+  herding?: { needDays: number; watchedDays: number };
 }
 
 /** Seno (oxen.md – Seno): zásoba, letošní seč a zima. */
@@ -1304,9 +1326,11 @@ export interface HayState {
   mowing: HayMowing | null;
   /**
    * Zima (listopad–březen): kolik sena voli potřebovali a dostali do včerejška – pokrytí rozhodne
-   * o jarní orbě a úhynu (oxen.md). Chybí mimo zimu.
+   * o jarní orbě a úhynu (oxen.md) – a totéž pro krávy, ovce a kozy (`herdNeedKg`,
+   * `herdEatenKg` – zimní úhyn, diet.md; zimy začaté před senem pro ovce a kozy je nemají).
+   * Chybí mimo zimu.
    */
-  winter?: { oxenNeedKg: number; oxenEatenKg: number };
+  winter?: { oxenNeedKg: number; oxenEatenKg: number; herdNeedKg?: number; herdEatenKg?: number };
 }
 
 /**

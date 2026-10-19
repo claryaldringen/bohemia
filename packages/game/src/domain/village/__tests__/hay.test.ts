@@ -2,15 +2,38 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
 import { fieldPartLooks, hayMeadowLooks } from '../field-progress';
-import { HAY, feedHay, isHayMeadow, mow, oxenHayCoverage, planMowing } from '../hay';
+import {
+  HAY,
+  HAY_WINTER_DAYS,
+  PLAN_HAY_KEEP,
+  feedHay,
+  herdHayCoverage,
+  isHayMeadow,
+  mow,
+  oxenHayCoverage,
+  planMowing,
+  rotHay,
+  spoilOldHay,
+  winterHayKg,
+} from '../hay';
+import { HAY_WORK_PER_HA } from '../rules';
 import { advanceVillage } from '../simulate';
-import type { FieldPart, VillageState } from '../types';
+import type { FieldPart, HerdSpecies, VillageState } from '../types';
 import { makeLandscape } from './placement-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
 // Seno (oxen.md – Seno): seč úhoru ve fázi louky podle potřeby stáda, zásoba a zimní krmení.
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
+/** Plán seče na `kg` sena v době zkrmení (seče se o ztrátu ve stohu víc). */
+const fed = (kg: number): number => kg * PLAN_HAY_KEEP;
+const herds = (over: Partial<Record<HerdSpecies, number>>): Record<HerdSpecies, number> => ({
+  sheep: 0,
+  goat: 0,
+  pig: 0,
+  cow: 0,
+  ...over,
+});
 
 function meadow(id: number, distanceM: number, sinceYear = 595): FieldPart {
   return {
@@ -46,17 +69,35 @@ describe('plán seče', () => {
     const s = village(day);
     s.parts = [meadow(1, 300), meadow(2, 100), meadow(3, 200), meadow(4, 50, 599)];
     expect(isHayMeadow(s.parts[3]!, day)).toBe(false); // mladý příloh
-    // 2 kusy × 1,5 t = 3 t → dva hektary nejblíž
-    const mowing = planMowing(s, day, 2)!;
+    // 3 t sena v zimě → dva hektary nejblíž
+    const mowing = planMowing(s, day, fed(3000))!;
     expect(mowing.partIds).toEqual([2, 3]);
     expect(mowing.yieldKg).toBeCloseTo(2 * HAY.yieldKgPerHa, 9);
-    // 6 čd/ha, díl 200 m od obydlí o 10 % dráž
-    expect(mowing.required).toBeCloseTo(6 + 6 * 1.1, 9);
+    // bez kovářových kos 15 čd/ha, díl 200 m od obydlí o 10 % dráž; s kosami 10 čd/ha
+    const worst = HAY_WORK_PER_HA.worst;
+    expect(mowing.required).toBeCloseTo(worst + worst * 1.1, 9);
+    expect(planMowing(s, day, fed(3000), 1)!.required).toBeCloseTo(HAY_WORK_PER_HA.best * 2.1, 9);
     // zásoba se odečte, bez potřeby se neseče
     s.hay = { kg: 2500, mowing: null };
-    expect(planMowing(s, day, 2)!.partIds).toEqual([2]);
+    expect(planMowing(s, day, fed(3000))!.partIds).toEqual([2]);
     s.hay.kg = 5000;
-    expect(planMowing(s, day, 2)).toBeNull();
+    expect(planMowing(s, day, fed(3000))).toBeNull();
+  });
+
+  it('seno na zimu: kráva 5, vůl 6, ovce a koza 1 kg denně listopad–březen; prasata nic', () => {
+    expect(winterHayKg(herds({ cow: 2, sheep: 10, goat: 4, pig: 30 }), 2)).toBeCloseTo(
+      (2 * 5 + 10 + 4 + 2 * 6) * HAY_WINTER_DAYS,
+      9,
+    );
+  });
+
+  it('stoh ztrácí 10 % ročně, zbytek loňského sena se k plánu seče zkazí', () => {
+    const s = village(at(600, 6, 1));
+    s.hay = { kg: 1000, mowing: null };
+    for (let i = 0; i < 365; i++) rotHay(s);
+    expect(s.hay.kg).toBeCloseTo(900, 6);
+    expect(spoilOldHay(s)).toBeCloseTo(900, 6);
+    expect(s.hay.kg).toBe(0);
   });
 
   it('posečené seno přibude do zásoby poměrně k práci', () => {
@@ -70,17 +111,33 @@ describe('plán seče', () => {
 });
 
 describe('zimní krmení', () => {
-  it('voli dostanou seno první, krávy zbytek; pokrytí volů k 1. 3. i se zbytkem zimy', () => {
+  it('voli dostanou seno první, krávy, ovce a kozy zbytek; pokrytí k 1. 3. i se zbytkem zimy', () => {
     const s = village(at(600, 11, 1));
-    s.hay = { kg: 50, mowing: null };
-    feedHay(s, 2, 3);
-    expect(s.hay.winter).toEqual({ oxenNeedKg: 20, oxenEatenKg: 20 });
+    const herd = herds({ cow: 3, sheep: 4, goat: 1, pig: 9 });
+    s.hay = { kg: 20, mowing: null };
+    feedHay(s, 2, herd);
+    // voli 2 × 6 kg, stádo by chtělo 3 × 5 + 4 + 1 = 20 kg, zbylo 8
+    expect(s.hay.winter).toEqual({
+      oxenNeedKg: 12,
+      oxenEatenKg: 12,
+      herdNeedKg: 20,
+      herdEatenKg: 8,
+    });
     expect(s.hay.kg).toBeCloseTo(0, 9);
-    feedHay(s, 2, 3);
-    expect(s.hay.winter).toEqual({ oxenNeedKg: 40, oxenEatenKg: 20 });
-    // březen bez sena: (20 + 0) / (40 + 2 × 10 × 31)
-    expect(oxenHayCoverage(s, 2)).toBeCloseTo(20 / 660, 9);
+    feedHay(s, 2, herd);
+    expect(s.hay.winter).toEqual({
+      oxenNeedKg: 24,
+      oxenEatenKg: 12,
+      herdNeedKg: 40,
+      herdEatenKg: 8,
+    });
+    // březen bez sena: (12 + 0) / (24 + 2 × 6 × 31), stádo (8 + 0) / (40 + 20 × 31)
+    expect(oxenHayCoverage(s, 2)).toBeCloseTo(12 / 396, 9);
+    expect(herdHayCoverage(s, 2, herd)).toBeCloseTo(8 / 660, 9);
     expect(oxenHayCoverage(village(at(600, 3, 1)), 0)).toBe(1);
+    // na březen zbude stádu jen seno po volech
+    s.hay.kg = 12 * 31 + 10 * 31;
+    expect(herdHayCoverage(s, 2, herd)).toBeCloseTo((8 + 310) / 660, 9);
   });
 });
 
@@ -95,7 +152,9 @@ describe('simulace – seno za rok', () => {
     expect(looks.get(1)?.look).toBe('mown');
     expect(looks.get(3)?.look).toBe('pasture');
     const summer = advanceVillage(june, at(600, 8, 1), null);
-    expect(summer.hay!.kg).toBeCloseTo(3000, 6);
+    // posečené seno už ve stohu trochu ztratilo
+    expect(summer.hay!.kg).toBeGreaterThan(2950);
+    expect(summer.hay!.kg).toBeLessThan(3000);
     expect(summer.labor).toBeDefined();
     expect(fieldPartLooks(summer, summer.lastDay).get(2)?.look).toBe('haystacks');
     const spring = advanceVillage(summer, at(601, 4, 1), null);
@@ -111,7 +170,7 @@ describe('seno ze všech luk', () => {
     s.dwellings[0]!.position = { x: 0, z: 0, rotation: 0 };
     s.parts = [meadow(1, 400)];
     const landscape = makeLandscape({ surface: (x) => (x < 4 ? 'forest' : 'meadow') });
-    const mowing = planMowing(s, day, 2, landscape)!;
+    const mowing = planMowing(s, day, fed(3000), 0, landscape)!;
     // 3 t sena = 2 ha ≈ 89 políček přirozené louky nejblíž obydlí (díl úhoru je dál)
     expect(mowing.squares!.length).toBeGreaterThan(80);
     expect(mowing.squares![0]!.cell).toBeDefined();
@@ -136,7 +195,7 @@ describe('seno ze všech luk', () => {
       measured.push(targets.length);
       return targets.map((t) => Math.hypot(t.x, t.z) * (t.x > 0 ? 0.8 : 1));
     };
-    const mowing = planMowing(s, day, 2, landscape, walk)!;
+    const mowing = planMowing(s, day, fed(3000), 0, landscape, walk)!;
     expect(mowing.squares![0]!.partId).toBe(1);
     expect(mowing.squares![0]!.distanceM).toBe(5);
     const natural = mowing.squares!.filter((sq) => sq.cell !== undefined);
@@ -149,7 +208,7 @@ describe('seno ze všech luk', () => {
     expect(measured[0]!).toBeGreaterThan(natural.length);
     expect(measured[0]!).toBeLessThan(16 * 16 - 1);
     // bez sítě pěšin (null) se měří rovně
-    const straight = planMowing(s, day, 2, landscape, () => null)!;
+    const straight = planMowing(s, day, fed(3000), 0, landscape, () => null)!;
     const straightNatural = straight.squares!.filter((sq) => sq.cell !== undefined);
     const straightEast = straightNatural.filter((sq) => sq.cell!.x >= 8).length;
     expect(Math.abs(2 * straightEast - straightNatural.length)).toBeLessThan(

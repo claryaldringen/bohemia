@@ -61,6 +61,8 @@ export interface DayWork {
   toolCoverage?: number;
   /** Nosiči výprav k sousedům po zemských stezkách (trade.md); bez údaje žádní. */
   trade?: { trailId: number; manDays: number }[];
+  /** Děti od 7 let a starší, kteří dnes pasou (diet.md – Pasáci); bez údaje se neví. */
+  herders?: { children: number; elders: number };
 }
 
 /** Kolik kácených stromů jedné stavby rozdělení ukáže. */
@@ -117,6 +119,8 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
   // dojení u domů, zimní péče o krávy a voly u ohrady (když ves nějakou má – diet.md)
   const pen = (state.pens ?? []).find((p) => p.builtDay !== null);
   add('milking', { kind: 'village' }, allocation.tasks.milking);
+  // dospělí pasáci – u stád (diet.md – Pasáci)
+  add('herding', { kind: 'village' }, allocation.tasks.herding);
   add(
     'animal-care',
     pen ? { kind: 'pen', id: pen.id } : { kind: 'village' },
@@ -171,7 +175,7 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
     }
   }
   add('idle', { kind: 'village' }, allocation.common - invested);
-  return { day, shares };
+  return { day, shares, ...(work.herders !== undefined ? { herders: work.herders } : {}) };
 }
 
 /**

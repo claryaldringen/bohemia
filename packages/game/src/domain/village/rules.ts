@@ -909,3 +909,10 @@ export const LEAVING = {
   carryFromAge: 7,
   travelDays: { min: 1, max: 3, perDayM: 400 },
 } as const;
+
+// oxen.md – Seno (Martin 19. 10. 2026: „Nezdá se mi, že bychom sklízeli tolik sena, že by to stáda
+// uživilo“; čísla návrh Clauda podle rešerše research/2026-10-19-herds-hay-meat.md): seč kosou
+// ≈ akr (0,4 ha) za den, krátkou kosou a srpem méně, obracení, sušení, hrabání do kup, svoz
+// a stohování – celkem 10–15 člověkodní na hektar louky. Nejlepší mez s nástroji od kováře (kosy),
+// nejhorší bez nich. Dřív 6 člověkodní (jen seč).
+export const HAY_WORK_PER_HA: Bounds = { worst: 15, best: 10 };

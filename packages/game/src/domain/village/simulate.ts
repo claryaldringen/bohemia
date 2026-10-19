@@ -29,7 +29,7 @@ import {
 } from './dairy';
 import {
   DIET,
-  daysUntilSlaughter,
+  daysUntilMeatEnd,
   eatDiet,
   villageFoodNeed,
   villageMeatKg,
@@ -46,6 +46,7 @@ import { endOfSeason, expectedNetKg, fallowStage, partOvergrowthYears } from './
 import { daysUntilAppleRot } from './food';
 import { isToilDay, updateHappiness, villageLaborFactor, windowEndDay } from './happiness';
 import { MOWING_WINDOWS, mow, mowingRemaining } from './hay';
+import { herdingDay, recordHerding } from './herding';
 import { sowingBlocks, villageHoldings, workOrder } from './holdings';
 import { occupyEmptyDwellings, settleNewDwelling } from './households';
 import { withKinship } from './kinship';
@@ -584,10 +585,11 @@ function fieldTasks(state: VillageState, day: number, ploughCap: number): FieldT
 }
 
 /**
- * Sezónní úloha dne v rozdělení práce: polní úloha, práce v sadech, seč sena nebo porážka. Řadí
- * se podle konce okna; při shodě sklizeň jablek před polními úlohami (jablka zrají v září a do
- * konce října spadnou – ozim dostane zbytek podzimu, se kterým plán osevu počítá), péče o sad,
- * seč a porážka až po nich.
+ * Sezónní úloha dne v rozdělení práce: práce se zvířaty (dojení, péče, dospělí pasáci – hned po
+ * denním minimu), polní úloha, práce v sadech, seč sena nebo porážka. Řadí se podle konce okna; při
+ * shodě sklizeň jablek a porážka (maso se musí zpracovat hned) před polními úlohami (jablka zrají
+ * v září a do konce října spadnou – ozim dostane zbytek podzimu, se kterým plán osevu počítá),
+ * péče o sad a seč až po nich.
  */
 interface DayTask {
   name: LaborTaskName;
@@ -654,15 +656,22 @@ function work(
     const end = windowEndOf(MOWING_WINDOWS, month) ?? month;
     dayTasks.push({ name: 'mow', remaining: mowing, end, tie: 2, rank: 1 });
   }
+  // porážka a uzení – maso se musí zpracovat hned, před polními úlohami téhož měsíce (diet.md)
   const butchery = slaughterRemaining(state, day);
   if (butchery > 0) {
     dayTasks.push({
       name: 'slaughter',
       remaining: butchery,
       end: SLAUGHTER_MONTH,
-      tie: 2,
-      rank: 2,
+      tie: 0,
+      rank: 1,
     });
+  }
+  // pasení: co děti od 7 let a starší nezvládnou, pasou dospělí (nejvýš jeden z domácnosti) –
+  // stáda nepočkají, jde se zvířaty hned po dojení a péči (diet.md – Pasáci)
+  const herding = herdingDay(state, day, villageOxen(state), householdCount(state));
+  if (herding.adults > 0) {
+    dayTasks.push({ name: 'herding', remaining: herding.adults, end: -1, tie: 0, rank: 2 });
   }
   dayTasks.sort((a, b) => a.end - b.end || a.tie - b.tie || a.rank - b.rank);
 
@@ -698,6 +707,7 @@ function work(
   }[] = [];
   const mowingBefore = state.hay?.mowing?.done ?? 0;
   let milked = animals.milking > 0 ? 0 : 1;
+  let herdedByAdults = 0;
   dayTasks.forEach((task, i) => {
     const amount = allocation.taskAmounts[i] ?? 0;
     if (task.name === 'milking') {
@@ -713,6 +723,8 @@ function work(
       mow(state, amount);
     } else if (task.name === 'slaughter') {
       workSlaughter(state, amount);
+    } else if (task.name === 'herding') {
+      herdedByAdults += amount;
     } else {
       workOrchards(state, amount);
     }
@@ -726,6 +738,8 @@ function work(
   });
   decayEmptyDwellings(state, day, new Set(households.map((d) => d.id)));
   state.domesticBacklog = allocation.domesticBacklog;
+  // co dnes pasáci uhlídali – podle toho ves při porážce drží stádo (diet.md – Pasáci)
+  recordHerding(state, herding, herdedByAdults);
   // nosiči výprav k sousedům jdou ze společné práce před stavbami (trade.md – Doprava)
   const trade = workExpeditions(state, allocation.common);
   const constructions = build(state, day, allocation.common - trade.used);
@@ -739,6 +753,7 @@ function work(
     workshops,
     trade: trade.shares,
     toolCoverage: coverage.tools,
+    herders: herding.freeHerders,
     ...(hayMowing
       ? { mowing: { mowing: hayMowing, before: mowingBefore, after: hayMowing.done } }
       : {}),
@@ -1281,7 +1296,7 @@ function eat(
     daysToHarvest,
     // jablka v nádobách od hrnčíře vydrží déle (crafts.md)
     daysToRot: daysUntilAppleRot(day, coverage.pottery),
-    daysToSlaughter: daysUntilSlaughter(day),
+    daysToMeatEnd: daysUntilMeatEnd(day),
     potteryCoverage: coverage.pottery,
   });
   state.storesKg = meal.grainKg;

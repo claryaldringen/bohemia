@@ -10,6 +10,11 @@ import { smoothstep, type DecalGrid } from './village-layout';
 // nejvyšlapanější místo pěšin (Martin), kruh širší než nejsilnější přicházející pěšina, do kterého
 // pásy plynule vbíhají. Výsledek je síť pro createDecalMesh (village-meshes.ts) – výšky, normály
 // a UV doplní ta. Čisté funkce, bez Babylonu.
+//
+// Vrstvy (Martin, 19. 10. 2026: „denní pěšina ať je nevýrazná. Vyšlapanou cestu nechme jako teď
+// a upravená cesta ať je prostě jenom širší“): pěšina dne je slabě prošlapaná tráva (PATH_*),
+// pevná vyšlapaná cesta plný pás jako dřív silná pěšina (ROAD_*), upravená cesta tytéž obtisky,
+// jen širší (IMPROVED_* – ROAD_WIDTH_M).
 
 /** Vrstva pásu: šířka (m) slabé a silné pěšiny, měkký okraj, krytí a od jaké síly se kreslí. */
 export interface RibbonLayer {
@@ -19,46 +24,70 @@ export interface RibbonLayer {
   alpha(strength: number): number;
   /** Šířka pásu jako násobek šířky pěšiny (jádro holé hlíny je užší). */
   widthFactor: number;
+  /**
+   * Plácek rozcestí: poloměr jako násobek šířky (bez údaje JUNCTION.scale) a násobek krytí (bez
+   * údaje 1) – u pěšin dne jen jemně.
+   */
+  junction?: { scale: number; alpha: number };
 }
 
 /**
- * Prošlapaná tráva – široký měkký pás (0,9–1,9 m podle síly), z výchozí kamery (120 m) má být
- * pěšina čitelná (Martin).
+ * Pěšina dne – slabě prošlapaná tráva (Martin, 19. 10. 2026: „denní pěšina ať je nevýrazná“):
+ * úzký průhledný pás 0,6–1,2 m podle síly, krytí 0,2–0,45 (dřív 0,5–0,95) – pevná cesta vedle ní
+ * je jasně výraznější (krytí 0,95, šířka 1,9 m).
  */
-export const WORN_LAYER: RibbonLayer = {
-  width: { weak: 0.9, strong: 1.9 },
+export const PATH_WORN_LAYER: RibbonLayer = {
+  width: { weak: 0.6, strong: 1.2 },
+  softM: 0.45,
+  alpha: (s) => (s <= 0 ? 0 : 0.2 + 0.25 * s),
+  widthFactor: 1,
+  junction: { scale: 1, alpha: 0.85 },
+};
+
+/** Holá hlína pěšiny dne – jen u silné pěšiny, úzká (do 0,35 m) a slabá. */
+export const PATH_EARTH_LAYER: RibbonLayer = {
+  width: { weak: 0.6, strong: 1.2 },
+  softM: 0.2,
+  alpha: (s) => 0.35 * smoothstep(0.45, 1, s),
+  widthFactor: 0.3,
+  junction: { scale: 1, alpha: 0.7 },
+};
+
+/**
+ * Šířka pevné cesty (m): vyšlapaná jako dřív silná pěšina, upravená širší – vozová cesta ≈ 3 m
+ * (Martin, 19. 10. 2026: „upravená cesta ať je prostě jenom širší“; šířka návrh Clauda –
+ * o 60 % víc, z herní kamery jasně širší). Podle ní i délka kmenů hatě a vytyčení úpravy
+ * (road-works-layout.ts).
+ */
+export const ROAD_WIDTH_M = { trodden: 1.9, improved: 3 } as const;
+
+/**
+ * Vyšlapaná pevná cesta – plně prošlapaná tráva (krytí 0,95), jako dřív nejsilnější pěšina; kreslí
+ * se se silou 1 (vzhled se nemění – Martin: „Vyšlapanou cestu nechme jako teď“).
+ */
+export const ROAD_WORN_LAYER: RibbonLayer = {
+  width: { weak: 0.9, strong: ROAD_WIDTH_M.trodden },
   softM: 0.6,
   alpha: (s) => (s <= 0 ? 0 : 0.5 + 0.45 * s),
   widthFactor: 1,
 };
 
-/** Holá udusaná hlína uprostřed pěšiny – už u středně silné, u silné skoro plná. */
-export const EARTH_LAYER: RibbonLayer = {
-  width: { weak: 0.9, strong: 1.9 },
+/** Holá udusaná hlína uprostřed pevné cesty (krytí 0,95, 55 % šířky). */
+export const ROAD_EARTH_LAYER: RibbonLayer = {
+  width: { weak: 0.9, strong: ROAD_WIDTH_M.trodden },
   softM: 0.35,
   alpha: (s) => 0.95 * smoothstep(0.2, 0.75, s),
   widthFactor: 0.55,
 };
 
-/** Upravená cesta (roads.md) – širší udusaný pás (2,6 m), hlína skoro po celé šířce. */
+/** Upravená cesta (roads.md) – tytéž obtisky jako vyšlapaná, jen širší (ROAD_WIDTH_M). */
 export const IMPROVED_WORN_LAYER: RibbonLayer = {
-  width: { weak: 2.6, strong: 2.6 },
-  softM: 0.55,
-  alpha: () => 0.92,
-  widthFactor: 1,
+  ...ROAD_WORN_LAYER,
+  width: { weak: ROAD_WIDTH_M.improved, strong: ROAD_WIDTH_M.improved },
 };
 export const IMPROVED_EARTH_LAYER: RibbonLayer = {
-  width: { weak: 2.6, strong: 2.6 },
-  softM: 0.3,
-  alpha: () => 0.95,
-  widthFactor: 0.8,
-};
-/** Strouha po straně upravené cesty – úzký tmavý pás bahna. */
-export const DITCH_LAYER: RibbonLayer = {
-  width: { weak: 0.55, strong: 0.55 },
-  softM: 0.18,
-  alpha: () => 0.9,
-  widthFactor: 1,
+  ...ROAD_EARTH_LAYER,
+  width: { weak: ROAD_WIDTH_M.improved, strong: ROAD_WIDTH_M.improved },
 };
 
 /** Krok průřezů podél osy (m). */
@@ -248,10 +277,10 @@ function addRibbon(
 }
 
 /**
- * Plácek rozcestí: kruh o poloměru JUNCTION.scale × šířka pěšiny síly plácku (vrstva holé hlíny
- * podle svého podílu šířky – `widthFactor`), uvnitř
- * plné krytí, k okraji měkký přechod (`softM` vrstvy) – okraj lehce nepravidelný (podle polohy,
- * stejný plácek = stejný tvar).
+ * Plácek rozcestí: kruh o poloměru JUNCTION.scale (u vrstvy s `junction` její `scale`) × šířka
+ * pěšiny síly plácku (vrstva holé hlíny podle svého podílu šířky – `widthFactor`), uvnitř
+ * plné krytí (krát `junction.alpha`), k okraji měkký přechod (`softM` vrstvy) – okraj lehce
+ * nepravidelný (podle polohy, stejný plácek = stejný tvar).
  */
 function addJunction(
   junction: RibbonJunction,
@@ -264,8 +293,9 @@ function addJunction(
 ): void {
   const { x, z, strength } = junction;
   const width = layer.width.weak + (layer.width.strong - layer.width.weak) * strength;
-  const radius = width * layer.widthFactor * widthAt(x, z) * JUNCTION.scale;
-  const alpha = layer.alpha(strength) * alphaAt(x, z);
+  const radius =
+    width * layer.widthFactor * widthAt(x, z) * (layer.junction?.scale ?? JUNCTION.scale);
+  const alpha = layer.alpha(strength) * (layer.junction?.alpha ?? 1) * alphaAt(x, z);
   if (radius <= 0 || alpha <= 0) return;
   const seed = (Math.round(x * 2) * 73856093) ^ (Math.round(z * 2) * 19349663);
   const center = positions.length / 2;

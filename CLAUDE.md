@@ -831,7 +831,9 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   souš už posvátným dubem není (panel, výběr, štěstí), místo ale zůstává chráněné vrstvou.
 - **Strava a dobytek** ([diet.md](docs/design/diet.md)): jídlo dne `eatDiet` / `villageMeal`
   (`diet.ts`) – ovoce (jablka; v rozhraní „ovoce“) rovným dílem do zkažení 1. 3., čerstvé mléko
-  a vejce, maso rovným dílem do porážky 1. 11., sýr do 1. 5. (`daysUntilMilking`), obilí
+  a vejce, maso rovným dílem do zkažení 31. 8. (`daysUntilMeatEnd`; 1. 9. ráno se zbytek zkazí –
+  `spoilMeat`, kronika `meat-spoiled`, upozornění; maso ze září a října do porážky – Martin:
+  „uzené maso určitě také nevydrží 3 roky“), sýr do 1. 5. (`daysUntilMilking`), obilí
   dorovná; stropy ovoce 25 %, maso 40 %, mléko a sýr 30 %, luštěniny 25 % potřeby energie
   (`DIET`); luštěniny (`legumes.ts`) rovným dílem do sklizně 31. 7. (`daysUntilLegumeHarvest`).
   **Bílkoviny** (Martin 18. 10. 2026): 1,6 g na kg tělesné váhy (`PROTEIN`, `proteinNeedPerDay`
@@ -840,32 +842,56 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   a koz v době dojení (`dailyMilk`, `DAIRY`), nevypité mléko → sýr (`cheeseFromMilk`,
   `VillageState.cheeseKg`, ztráta 15 %/rok). **Práce se zvířaty** (`animalCareNeed`,
   `ANIMAL_CARE`): úlohy `milking` a `animal-care` jdou v `allocateDay` hned po denním minimu
-  (činnosti `milking`, `animal-care` v rozdělení práce), pasení bez práce. `VillageState.diet`
-  nese jídlo posledního dne (energie, bílkoviny, kvalita, nasycení, podíly obilí / maso / mléko
-  / vejce / ovoce / luštěniny – `legumes?`, starší jídlo bez něj). **Hlad z energie:**
+  (činnosti `milking`, `animal-care` v rozdělení práce; zimní péče i o ovce a kozy).
+  `VillageState.diet` nese jídlo posledního dne (energie, bílkoviny, kvalita, nasycení, podíly
+  obilí / maso / mléko / vejce / ovoce / luštěniny – `legumes?`, starší jídlo bez něj). **Hlad z energie:**
   `nextStarvationDays` a přirážka úmrtnosti dostávají energii, porody a štěstí nasycení
   (`populationDay(state, day, satiation, energy)`, ovoce štěstí +5 – `HappinessFactors.fruit`,
   maso až +3 – `meatHappiness`, `HappinessFactors.meat`). Stáda `VillageState.livestock` (`livestock.ts`: počty
   s podílem kusu, mláďata 1. 4., porážka 1. 11. – nad nosnost a nejvýš polovina mláďat na maso,
   chovný pár zůstane; potřeba masa z bílkovin, které chybí i po luštěninách ze zásoby
-  `meatNeedPerYear` / `proteinBudget`,
-  „ves chová, kolik potřebuje“ podle chovných kusů; nosnost pastvy `pastureHa`, lesa `pigForestHa` a sena; vejce denně;
-  `meatKg` se uzí 20 %/rok). Louka a les do 600 m pro pastvu jsou z krajiny ve stavu
+  `meatNeedPerYear` / `proteinBudget`; vejce denně; `meatKg` se uzí 20 %/rok).
+  **Stáda realističtěji** (diet.md, Martin 19. 10. 2026; čísla návrh Clauda podle rešerše
+  `research/2026-10-19-herds-hay-meat.md`): roční ztráty `LIVESTOCK.lossPerYear` (ovce 12, kozy
+  10, prasata 12, skot 6 %) po dnech (`herdLosses`, i z `young`); nosnost `winterTargets` –
+  pastva a seno podle přednosti (`GRAZING_ORDER`: voli, krávy `minCows`, ovce,
+  kozy – napřed zarůstající příloh `goatBrowseHa`, zbytek krav), seno po ztrátách ve stohu
+  (`winterHayAvailable`), prasata podle lesa celý rok, nejvýš podíl uhlídaný pasáky (`herding`);
+  **chovné stádo podle potřeby** `sizeHerdsToNeed` – pár a krávy `breedingCows` (husbandry.ts:
+  kráva na 2 domácnosti, 3 na ohradu), pak `BREEDING_ORDER` ovce → kozy → krávy → prasata, dokud
+  `proteinPerHead` (mléko × 0,85 + maso z mláďat po ztrátách – `yearlyMeatPerHead`) nepokryje
+  `herdProteinNeed` × 1,25 (`needReserve`); zbytek i dospělé kusy na maso; stádo pod potřebou dá na
+  maso navíc mláďata v pořadí prasata, krávy, kozy, ovce (`MEAT_ORDER`). Zimní úhyn 1. 3.
+  (`starveHerds` z `herdHayCoverage` – pod polovinou přídělu, chovný pár přežije, kronika
+  `herd-starved`). **Pasáci** (`herding.ts`, `HERDING`): dospělý pasák 40 krav (i voli), 100 ovcí či
+  koz, 50 prasat, dítě 7–13 40 %, starší 75 %; `herdingDay` – děti a starší bez práce vsi, zbytek
+  dospělí (nejvýš jeden z domácnosti) úlohou `herding` hned po dojení; přežvýkavci duben–říjen,
+  prasata celý rok; `recordHerding` sčítá `LivestockState.herding` od porážky do porážky,
+  `herdingCoverage` jde do porážky; `LaborDay.herders` (děti a starší u stád) → `SceneLabor.herders`
+  → `herderKinds` ve `villager-plan.ts`. Porážka a uzení jdou před polními úlohami listopadu.
+  Louka a les do 600 m pro pastvu jsou z krajiny ve stavu
   (`LivestockState.land`) – doplní je `withLivestockLand` (založení vsi i migrace v
   `updateVillage`); bez nich výchozí `LIVESTOCK.defaultLand`. Den hospodářství `husbandryDay`
-  (`husbandry.ts`) běží před plánem osevu: ohrady, mláďata, plán seče, porážka, vejce, zimní seno.
+  (`husbandry.ts`) běží před plánem osevu: ztráty stád a seno ve stohu, ohrady a zimní úhyn,
+  mláďata, zkažené staré seno a plán seče, zkažené maso, porážka, zimní seno.
 - **Ohrada, spřežení a orba rádlem** ([oxen.md](docs/design/oxen.md), `oxen.ts`, `plough.ts`,
   `hay.ts`): ohrada (`BuildKind` `'pen'`, `checkPenPlacement`, `foundPen`, use-case `placePen`)
   je čtverec louky, stavba se dřevem jako obydlí; `trainTeam` (use-case `trainTeamInPen`,
   `trainingBlock` = důvod pro tlačítko) vezme 2 telata ze stáda a postaví rádlo (stavba `'ard'`);
   po 2 letech `Pen.team`, po 10 letech na maso; náhradu jde cvičit jen v posledních 2 letech
   služby (`serviceYearsBeforeTraining`, Martin – druhé spřežení = druhá ohrada). Seno `VillageState.hay` (seč 1. 6. z úhoru ve
-  fázi louky a přirozených luk do 600 m od obydlí – `planMowing` s krajinou, `HayMowing.squares`,
+  fázi louky a přirozených luk do 600 m od obydlí – `planMowing` s potřebou `winterHayNeedKg`
+  (zimní stádo podle potřeby `wantedWinterHerds` + voli ohrad, se ztrátou do zkrmení
+  `PLAN_HAY_KEEP`), práce `HAY_WORK_PER_HA` meze 15 → 10 čd/ha
+  (`hayWorkPerHa`), dávky `HAY.dailyKg` kráva 5, vůl 6, ovce a koza 1 kg, stoh 10 %/rok (`rotHay`),
+  zbytek loňského k 1. 6. shnije (`spoilOldHay`) – oxen.md, Seno, Martin 19. 10. 2026;
+  `HayMowing.squares`,
   od nejbližší po pěšinách a pevných cestách (`partWalkDistance`, přirozené louky
   `walkDistancesTo` z `paths/village.ts` přes `walking.ts` – měří se jen louky v dosahu podle
   `FASTEST_WALK_SHARE`), jen kolik je třeba; pěšina k sečeným loukám – `PathVillage.hayMeadows`
-  a práce `meadow`; sezónní úloha `mow`, vzhled políček `hayMeadowLooks`; zimní krmení, pokrytí volů `oxenHayCoverage`
-  k 1. 3.). **Orba:** plán s vycvičeným spřežením dá díly bez drnu (`isPloughable`) do
+  a práce `meadow`; sezónní úloha `mow`, vzhled políček `hayMeadowLooks`; zimní krmení `feedHay` –
+  voli první, krávy, ovce a kozy poměrně; pokrytí volů `oxenHayCoverage` a stáda
+  `herdHayCoverage` k 1. 3.). **Orba:** plán s vycvičeným spřežením dá díly bez drnu (`isPloughable`) do
   `CropWork.plough` (jejich kopání v `required.dig` není); úloha `plough` v oknech kopání, nejvýš
   `ploughCapacityPerDay`; setí jde za `tilledShare`; `returnPloughToHoe` vrátí díly motyce
   (konec řady kopání – `PloughWork.returned`). Postup po dílech zná úlohu `plough`
@@ -1352,8 +1378,13 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   `pathNetworkKey`, odloženě) – obtisky `paths-worn` / `paths-earth` z `path-ribbon.ts` **nad**
   obtisky polí a vsi (alphaIndex 3 / 3,5, lift 0,05 / 0,055, zOffset −3,5 / −4; přes osetý díl
   úzká stopa; v pevné cestě se pěšina dne ztrácí – `roadFade`; rozcestí – konec aspoň tří čar –
-  je udusaný plácek `ribbonJunctions` / `JUNCTION`, u pevných cest `roadJunctions`), sníh přes
-  `applySeasonGround` (0,55 – stopa prosvítá). Pěšiny dne stromy nemají (stromy jsou jen u pevných cest – níž).
+  je udusaný plácek `ribbonJunctions` / `JUNCTION`, u pevných cest `roadJunctions`). **Pěšina dne
+  je nevýrazná** (Martin, 19. 10. 2026: „denní pěšina ať je nevýrazná“): vrstvy `PATH_WORN_LAYER`
+  / `PATH_EARTH_LAYER` – slabě prošlapaná tráva 0,6–1,2 m, krytí 0,2–0,45, holá hlína jen u silné
+  pěšiny, úzká a slabá, rozcestí jen jemně (`RibbonLayer.junction`); pevná cesta (`ROAD_*`) je vedle
+  ní jasně výraznější. Sníh přes `applySeasonGround` – materiály pěšin a cest zvlášť
+  (`decalMaterial(group, kind)`, `SNOW`: pěšina dne 0,3, ať stopa ve sněhu trochu prosvítá, cesta
+  0,55). Pěšiny dne stromy nemají (stromy jsou jen u pevných cest – níž).
   Postavy: `path-router.ts` (trasa s tempem úseků) → `VillagerPaths.route` →
   `route(points, pace)` – `shuttle` jde po pěšině rychleji. Vývojová stránka: tlačítka
   **Pěšiny**, **Cesta** (ukázka pevné cesty se stromy v každém stadiu – `dev-road.ts`), **Provoz**
@@ -1395,9 +1426,11 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   zapíše do `clearedObstacles`. Na dřevo se nekácí (nejsou ve vrstvě – `nearestMatureTrees` je
   nevidí). Kronika `road-formed`, `road-overgrown`. Web: `SceneVillage.roads` (`SceneRoad`)
   a `roadTrees` (`SceneRoadTree` – stadium a velikost po dvacetinách z `sceneRoadTrees`), typy
-  odvozené z jádra. Scéna `path-renderer.ts`: pevné cesty z dat (`roadLines` v `path-ribbon.ts`
-  – plně vyšlapaná pěšina `roads-worn` / `roads-earth`, volný konec se vytrácí, přestaví se jen
-  při změně `roadsKey`), stromy z dat (`path-trees.ts`: `roadsideInstance` – keř `shrub-*`
+  odvozené z jádra. Scéna `path-renderer.ts`: pevné cesty z dat (`roadBands` v
+  `road-works-layout.ts` – plně vyšlapaný pás `roads-worn` / `roads-earth`, vrstvy `ROAD_WORN_LAYER`
+  / `ROAD_EARTH_LAYER` v `path-ribbon.ts` – vzhled jako dřív silná pěšina, Martin 19. 10. 2026:
+  „Vyšlapanou cestu nechme jako teď“; volný konec se vytrácí, přestaví se jen při změně
+  `roadsKey`), stromy z dat (`path-trees.ts`: `roadsideInstance` – keř `shrub-*`
   z dekorací, strom podle druhu z `ROAD_TREE_MODELS`, souš `snag-*` / `snag-oak`, pařez `stump`;
   meshe `pathside-<model>` – roční období a stíny jako stromy krajiny; přestaví se jen při změně
   `roadTreesKey`).
@@ -1420,11 +1453,16 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   s `PlacementVillage.walkRoads`). Bez krajiny (kalibrace) se nic z toho nepočítá. Web:
   `VillageView.roads` (`VillageRoad` – panel), `SceneRoad.ground` a `upgrade` (průběh pro fáze),
   výběr `{ kind: 'road' }` (`nearestRoad`, `ROAD_PICK_M`), panel `RoadBody` (ikony `cesta`,
-  `cesta-upravena`, `hat`). Scéna: `road-works-layout.ts` (čisté funkce – pásy `roadBands`,
-  strouha `ditchLines`, kameny, kmeny hatě, lávky, vytyčení), `road-works.ts` (`RoadWorks` –
-  modely `public/models/roads/` z `tools/blender/roads.py` v instancích, `roadRibbonMeshes`
-  i pro `/dev/buildings` – ukázka **Cesty** s posuvníkem stavby); `/dev/landscape` tlačítko
-  **Cesta: …** přepíná stupně a rozestavěné fáze (i cesta k nejbližšímu brodu).
+  `cesta-upravena`, `hat`). **Upravená cesta je jen širší vyšlapaná** (Martin, 19. 10. 2026:
+  „upravená cesta ať je prostě jenom širší – ta odvodňovací strouha vypadá divně, zrušíme ji“):
+  tytéž obtisky, pás `ROAD_WIDTH_M.improved` 3 m místo 1,9 m (`IMPROVED_WORN_LAYER` /
+  `IMPROVED_EARTH_LAYER`), žádná strouha ani kameny (zrušené i s `road-stone.glb`). Scéna:
+  `road-works-layout.ts` (čisté funkce – pásy `roadBands` – rozestavěná úprava širší od začátku
+  úseku –, kmeny hatě na šířku upravené cesty – `LOG_SCALE`, lávky, vytyčení po okrajích širší
+  cesty – `STAKING_OFFSET_M`), `road-works.ts` (`RoadWorks` – modely `public/models/roads/`
+  z `tools/blender/roads.py` v instancích, `roadRibbonMeshes` i pro `/dev/buildings` – ukázka
+  **Cesty** s posuvníkem stavby); `/dev/landscape` tlačítko **Cesta: …** přepíná stupně
+  a rozestavěné fáze (i cesta k nejbližšímu brodu).
 - **Jabloně podél pevné cesty** ([roads.md](docs/design/roads.md) – fáze 3): `VillageRoads.apples`
   (`RoadApple` – místo, úsek, `distanceM` vzdušnou čarou, `plantedDay` null = čeká na výsadbu,
   `constructionId`). `road-apples.ts`: `roadAppleSpots` (po 10 m střídavě – `roadTreeSpots`

@@ -7,11 +7,12 @@ import type { Construction, Road, RoadGrade, VillageState } from './types';
 import { claimedObstacles, planWoodFrom, takeWood, woodLogs, type WoodPlan } from './wood';
 
 // Vylepšení pevné cesty (roads.md – Vylepšení cesty, schváleno 18. 10. 2026): hráč vybere úsek
-// a zadá vylepšení – stavba ze společné práce vsi. Upravená cesta (vyšlapaná → upravená: srovnat,
-// strouha, kameny do bláta a brodu) 15 člověkodní na 100 m; hať a lávka (po upravené, jen na úseku
-// přes mokřinu nebo brod) – hať 1 strom a 2 člověkodny na 2 m mokřiny, lávka 4 stromy
-// a 15 člověkodní na brod. Dřevo jako obydlí: klády z hromady, pak nejbližší dospělé stromy
-// k úseku. Rychlejší chůze po vylepšené cestě počítá walking.ts (ROAD_WALK).
+// a zadá vylepšení – stavba ze společné práce vsi. Upravená cesta (vyšlapaná → upravená: srovnat
+// a rozšířit – Martin, 19. 10. 2026: jen širší, bez strouhy) 15 člověkodní na 100 m; hať a lávka
+// (po upravené, jen na úseku přes mokřinu nebo brod) – hať 1 strom a 2 člověkodny na 2 m
+// mokřiny, lávka 4 stromy a 15 člověkodní na brod. Dřevo jako obydlí: klády z hromady, pak
+// nejbližší dospělé stromy k úseku. Rychlejší chůze po vylepšené cestě počítá walking.ts
+// (ROAD_WALK).
 
 /** Vylepšení úseku – na upravenou cestu, nebo hať a lávka. */
 export type RoadUpgrade = Exclude<RoadGrade, 'trodden'>;

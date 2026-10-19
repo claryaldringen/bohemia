@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dayIndexOf } from '../../calendar';
+import { dateOfDayIndex, dayIndexOf } from '../../calendar';
 import { foundPen, foundVillage, trainTeam } from '../actions';
 import { fieldPartLooks } from '../field-progress';
 import { LIVESTOCK } from '../livestock';
@@ -42,6 +42,22 @@ function village(day: number): VillageState {
   s.storesKg = 50_000;
   s.woodLogs = 20;
   return s;
+}
+
+/**
+ * Dopočítá ves do `toDay` a každé léto (1. 8., po seči) doplní seno na `hayKg` – ves v testu nemá
+ * louky na seč a loňské seno se k nové seči zkazí (oxen.md – Seno).
+ */
+function advanceWithHay(s: VillageState, toDay: number, hayKg: number): VillageState {
+  let state = s;
+  while (state.lastDay < toDay) {
+    const { year } = dateOfDayIndex(state.lastDay);
+    let august = at(year, 8, 1);
+    if (august <= state.lastDay) august = at(year + 1, 8, 1);
+    state = advanceVillage(state, Math.min(toDay, august), null);
+    if (state.lastDay === august) state.hay = { ...(state.hay ?? { mowing: null }), kg: hayKg };
+  }
+  return state;
 }
 
 function part(id: number, over: Partial<FieldPart> = {}): FieldPart {
@@ -125,9 +141,9 @@ describe('ohrada', () => {
     s.pens![0]!.team = null;
     s.pens![0]!.training = { startDay: day };
     s.hay = { kg: 20_000, mowing: null }; // telata přes zimu potřebují seno
-    const before = advanceVillage(s, day + 700, null);
+    const before = advanceWithHay(s, day + 700, 20_000);
     expect(before.pens![0]!.team).toBeNull();
-    const ready = advanceVillage(before, day + 732, null);
+    const ready = advanceWithHay(before, day + 732, 20_000);
     expect(ready.pens![0]!.team).not.toBeNull();
     expect(ready.chronicle.some((e) => e.kind === 'team-ready')).toBe(true);
     const old = structuredClone(ready);
@@ -169,7 +185,7 @@ describe('náhrada spřežení (Martin 18. 10. 2026)', () => {
     const readyDay = day - Math.ceil((OXEN.serviceYears - OXEN.trainingYears) * YEAR);
     s.pens![0]!.team = { readyDay };
     const training = trainTeam(s, day, 900, null);
-    const after = advanceVillage(training, day + Math.ceil(OXEN.trainingYears * YEAR) + 30, null);
+    const after = advanceWithHay(training, day + Math.ceil(OXEN.trainingYears * YEAR) + 30, 30_000);
     const teamEvents = after.chronicle.filter(
       (e) => (e.kind === 'team-retired' || e.kind === 'team-ready') && e.day > day,
     );

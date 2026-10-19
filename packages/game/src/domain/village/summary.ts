@@ -294,7 +294,10 @@ export interface VillageSummary {
   livestock: LivestockSummary;
   /** Ohrady v pořadí založení. */
   pens: PenSummary[];
-  /** Průměrná společná práce za den (posledních 30 dní). */
+  /**
+   * Volná (společná) práce posledního dne – kolik ves dnes nechá na stavby; na jaře a v žních
+   * bývá nula (Martin, 19. 10. 2026 – ukazatel v liště, dřív průměr 30 dní zaostával o týdny).
+   */
   commonLaborPerDay: number;
   /**
    * Některá domácnost je plná (4 dospělí 14–44) a nečeká na ni žádné nové obydlí – upozornění
@@ -568,7 +571,7 @@ export function summarizeVillage(
     hayKg: villageHayKg(state),
     livestock: livestockSummary(state, day),
     pens: penSummaries(state, day),
-    commonLaborPerDay: history.length > 0 ? history.reduce((s, v) => s + v, 0) / history.length : 0,
+    commonLaborPerDay: history.at(-1) ?? 0,
     fullHousehold: waitingHouseholds(state, day) > 0,
     constructions: state.constructions.map((c) => constructionSummary(state, c)),
     hungry: state.hungry,

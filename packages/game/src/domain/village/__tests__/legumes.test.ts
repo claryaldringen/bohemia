@@ -190,7 +190,7 @@ describe('jídlo s luštěninami (eatDiet)', () => {
     proteinNeedPerDay: 0.4,
     daysToHarvest: 100,
     daysToRot: 0,
-    daysToSlaughter: 100,
+    daysToMeatEnd: 100,
     potteryCoverage: NO_CRAFTS.pottery,
   };
 

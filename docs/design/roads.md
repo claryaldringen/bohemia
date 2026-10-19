@@ -76,11 +76,11 @@ Hráč klikne na pevnou cestu – vybere se úsek, v panelu je stupeň, délka, 
 a jabloně a tlačítka vylepšení (ikony, cena v popisku – jako v 0 A.D.). Vylepšení je stavba ze
 společné práce vsi; stromy bere jako obydlí (klády z hromady, pak nejbližší dospělé stromy).
 
-| Stupeň                     | Co se udělá                                                          | Cena (návrh Clauda)                                       | Rychlost chůze (návrh Clauda)             |
-| -------------------------- | -------------------------------------------------------------------- | --------------------------------------------------------- | ----------------------------------------- |
-| 1. **Vyšlapaná cesta**     | vznikne sama                                                         | –                                                         | 1,2× proti louce                          |
-| 2. **Upravená cesta**      | vyrovnaná, odvodňovací strouha po straně, kameny do bláta a do brodu | **15 člověkodní na 100 m**                                | 1,5×                                      |
-| 3. **Hať a lávka** (po 2.) | povalový chodník přes mokřinu, lávka z kmenů přes potok              | hať **1 strom a 2 čd na 2 m**, lávka **4 stromy a 15 čd** | mokřina 1,5× místo 0,5×; brod bez zdržení |
+| Stupeň                     | Co se udělá                                                 | Cena (návrh Clauda)                                       | Rychlost chůze (návrh Clauda)             |
+| -------------------------- | ----------------------------------------------------------- | --------------------------------------------------------- | ----------------------------------------- |
+| 1. **Vyšlapaná cesta**     | vznikne sama                                                | –                                                         | 1,2× proti louce                          |
+| 2. **Upravená cesta**      | vyrovnaná a rozšířená – širší vyšlapaná cesta (bez strouhy) | **15 člověkodní na 100 m**                                | 1,5×                                      |
+| 3. **Hať a lávka** (po 2.) | povalový chodník přes mokřinu, lávka z kmenů přes potok     | hať **1 strom a 2 čd na 2 m**, lávka **4 stromy a 15 čd** | mokřina 1,5× místo 0,5×; brod bez zdržení |
 
 - **Stupeň 3** jde jen na úseku, který vede mokřinou (rovina podél potoka) nebo brodí potok –
   jinak se nenabízí.
@@ -104,8 +104,10 @@ společné práce vsi; stromy bere jako obydlí (klády z hromady, pak nejbliž�
 
 ## Co hráč vidí
 
-- **Pevná cesta** je silnější a stálá – vyšlapaná hlína (dnešní silná pěšina), upravená cesta
-  širší se strouhou po straně a kameny, hať z kmenů napříč, lávka přes potok (modely nové).
+- **Pevná cesta** je silnější a stálá – vyšlapaná hlína (jako dřív silná pěšina; pěšiny dne jsou
+  vedle ní nevýrazné – [paths.md](paths.md)), upravená cesta je jen širší (Martin, 19. 10. 2026:
+  „Vyšlapanou cestu nechme jako teď a upravená cesta ať je prostě jenom širší – ta odvodňovací
+  strouha vypadá divně, zrušíme ji“), hať z kmenů napříč, lávka přes potok (modely nové).
 - **Stromy** u cest od keře po plný strom, souše a pařezy; jabloně s jablky od srpna.
 - **Výběr** pevné cesty kliknutím (zvýrazní se úsek), panel: stupeň (ikona), délka, stáří,
   stromy a jabloně (ikony + čísla), tlačítka vylepšení.
@@ -131,6 +133,8 @@ společné práce vsi; stromy bere jako obydlí (klády z hromady, pak nejbliž�
 | Spojení – id a den vzniku staršího, provoz vážený délkou; různý stupeň zůstane rozdělen  | návrh Clauda |
 | Jabloně a stromy u cest i na poli (pole jako krajina)                                    | Martin       |
 | Strom na poli vezme dílu 20 m²; nálet jen na mezi – místa 2,5–4 m od osy                 | návrh Clauda |
+| Pěšina dne nevýrazná; vyšlapaná cesta beze změny; upravená jen širší, strouha zrušená    | Martin       |
+| Upravená cesta 3 m (vyšlapaná 1,9 m), bez kamenů; kmeny hatě na šířku upravené cesty     | návrh Clauda |
 
 ## Fáze 1 – jak je postavená
 
@@ -216,12 +220,16 @@ Návrh Clauda (18. 10. 2026):
 - **Příklad:** pole 400 m od vsi, kam se jde 300 m po cestě přes 20 m mokřiny a brod a 100 m
   rovně: bez cesty 450 m chůze (+35 % práce), vyšlapaná cesta ≈ 403 m (+30 %), upravená ≈ 357 m
   (+26 %), s hatí a lávkou 300 m (+20 %).
-- **Scéna:** upravená cesta je pás 2,6 m s udusanou hlínou skoro po celé šířce, strouha 1,75 m
-  vlevo od osy (přes brod ne), kameny v mokřině a u brodu hustě, jinde řídce; hať jsou kmeny
-  napříč po 0,24 m, lávka 5,2 m ze tří kmenů na prazích a kůlech se zábradlím (modely
+- **Scéna:** upravená cesta je jen širší vyšlapaná cesta (Martin, 19. 10. 2026: „upravená cesta
+  ať je prostě jenom širší – ta odvodňovací strouha vypadá divně, zrušíme ji“) – tytéž obtisky
+  (prošlapaná tráva a holá hlína na 55 % šířky), pás **3 m** místo 1,9 m (návrh Clauda – vozová
+  cesta, o 60 % širší, z herní kamery jasně širší); strouha i kameny do bláta a brodu jsou
+  zrušené. Hať jsou kmeny napříč na celou šířku upravené cesty (model 2,6 m zvětšený na 3 m,
+  po 0,28 m), lávka 5,2 m ze tří kmenů na prazích a kůlech se zábradlím (modely
   `tools/blender/roads.py`). Rozestavěné vylepšení: vytyčení kolíky a provázkem od zadání
-  (Martin), úprava roste od začátku úseku, kmeny hatě se kladou po mokřině podle průběhu, lávka
-  nejdřív kůly a prahy (od 25 %), celá od 90 %. Ikony `cesta`, `cesta-upravena`, `hat`.
+  (Martin) po okrajích širší cesty (1,7 m od osy), úprava – širší pás – roste od začátku úseku,
+  kmeny hatě se kladou po mokřině podle průběhu, lávka nejdřív kůly a prahy (od 25 %), celá od
+  90 %. Ikony `cesta`, `cesta-upravena` (širší pás), `hat`.
 
 ## Fáze 3 – jak je postavená
 

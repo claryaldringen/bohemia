@@ -2,6 +2,7 @@ import {
   DAILY_MIN_PER_HOUSEHOLD,
   FIELD_WORK_PER_HA,
   FOUNDING_COST_PER_HA,
+  HAY_WORK_PER_HA,
   LEGUME_WORK_PER_HA,
   STORAGE_LOSS_PER_YEAR,
 } from './rules';
@@ -36,6 +37,11 @@ export function fieldWorkPerHa(
 /** Člověkodny založení hektaru pole podle povrchu a pokrytí nástroji. */
 export function foundingCostPerHa(surface: FieldSurface, toolCoverage: number): number {
   return withinBounds(FOUNDING_COST_PER_HA[surface], toolCoverage);
+}
+
+/** Člověkodny seče, sušení a svozu sena na hektar louky podle pokrytí nástroji (oxen.md – Seno). */
+export function hayWorkPerHa(toolCoverage: number): number {
+  return withinBounds(HAY_WORK_PER_HA, toolCoverage);
 }
 
 /** Roční ztráta zásob obilí (podíl) podle pokrytí nádobami. */
