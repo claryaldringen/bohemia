@@ -102,18 +102,46 @@ describe('computePathNetwork – pěšiny vsi', () => {
     }
   });
 
-  it('osetý díl obchází po okraji, přes úhor jde rovně', () => {
-    // pole přes cestu k vodě: díly v řadě z = 37,5, x od −22,5 do 22,5
-    const across = (stage: 'sown' | 'young-fallow'): PathVillage =>
+  it('pole lidi nezdržuje – přes osetý, zoraný i zakládaný díl jdou rovně (Martin)', () => {
+    // Martin, 19. 10. 2026: „Ať lidé chodí vždy nejkratší možnou cestou a oseté pole ať neřeší.“
+    // pole přes cestu k vodě: tři řady dílů z = 22,5–52,5, x od −37,5 do 37,5
+    const across = (stage: 'sown' | 'ready' | 'founding' | 'young-fallow'): PathVillage =>
       village({
-        fields: [{ id: 9, parts: [-22.5, -7.5, 7.5, 22.5].map((x) => part(x, 37.5, stage)) }],
+        fields: [
+          {
+            id: 9,
+            parts: [22.5, 37.5, 52.5].flatMap((z) =>
+              [-37.5, -22.5, -7.5, 7.5, 22.5, 37.5].map((x) => part(x, z, stage)),
+            ),
+          },
+        ],
       });
     const deepInside = (network: PathNetwork): number =>
-      samples(network).filter((p) => Math.abs(p.x) < 25 && Math.abs(p.z - 37.5) < 4.5).length;
-    const sown = computePathNetwork({ village: across('sown'), terrain });
-    const fallow = computePathNetwork({ village: across('young-fallow'), terrain });
-    expect(deepInside(sown)).toBe(0);
-    expect(deepInside(fallow)).toBeGreaterThan(0);
+      samples(network).filter((p) => Math.abs(p.x) < 25 && Math.abs(p.z - 37.5) < 10).length;
+    for (const stage of ['sown', 'ready', 'founding', 'young-fallow'] as const) {
+      expect(
+        deepInside(computePathNetwork({ village: across(stage), terrain })),
+        stage,
+      ).toBeGreaterThan(0);
+    }
+  });
+
+  it('zarůstající příloh (křoviny, mladý les) zdržuje – je to vegetace, ne pole', () => {
+    const across = (stage: 'shrubs' | 'young-fallow'): PathVillage =>
+      village({
+        fields: [
+          {
+            id: 9,
+            // úzký hluboký blok – obejít je kratší než prodírat se křovím
+            parts: [22.5, 37.5, 52.5].flatMap((z) => [-7.5, 7.5].map((x) => part(x, z, stage))),
+          },
+        ],
+      });
+    const deepInside = (network: PathNetwork): number =>
+      samples(network).filter((p) => Math.abs(p.x) < 6 && Math.abs(p.z - 37.5) < 10).length;
+    expect(
+      deepInside(computePathNetwork({ village: across('young-fallow'), terrain })),
+    ).toBeGreaterThan(deepInside(computePathNetwork({ village: across('shrubs'), terrain })));
   });
 
   it('na pole se chodí podle práce dne – pěšina tam vede, s prací silnější', () => {
@@ -359,23 +387,14 @@ describe('pevná cesta – chodí se po ní bez ohledu na povrch (Martin, 19. 10
   const onRoad = (network: PathNetwork, z: number, half: number): number =>
     samples(network).filter((p) => Math.abs(p.x) < 2 && Math.abs(p.z - z) < half).length;
 
-  it('pevná cesta přes osetý díl: lidé jdou po ní, ne kolem pole', () => {
-    // tři řady osetých dílů mezi vsí a potokem (z od 15 do 60, x od −45 do 45)
-    const parts = [22.5, 37.5, 52.5].flatMap((z) =>
-      [-37.5, -22.5, -7.5, 7.5, 22.5, 37.5].map((x) => part(x, z)),
-    );
+  it('pevná cesta přes křoviny na přílohu: lidé jdou po ní, ne kolem', () => {
+    // úzký hluboký blok křovin mezi vsí a potokem (z od 15 do 60, x od −15 do 15)
+    const parts = [22.5, 37.5, 52.5].flatMap((z) => [-7.5, 7.5].map((x) => part(x, z, 'shrubs')));
     const fields = [{ id: 9, parts }];
     const withRoad = computePathNetwork({ village: village({ fields, roads: north }), terrain });
     const without = computePathNetwork({ village: village({ fields }), terrain });
+    expect(onRoad(withRoad, 37.5, 20)).toBeGreaterThan(onRoad(without, 37.5, 20));
     expect(onRoad(withRoad, 37.5, 20)).toBeGreaterThan(0);
-    expect(onRoad(without, 37.5, 20)).toBe(0);
-    // zoraný a zakládaný díl taky
-    const ready = [{ id: 9, parts: parts.map((p) => ({ ...p, stage: 'ready' as const })) }];
-    const readyNet = computePathNetwork({
-      village: village({ fields: ready, roads: north }),
-      terrain,
-    });
-    expect(onRoad(readyNet, 37.5, 20)).toBeGreaterThan(0);
   });
 
   it('drahý terén pod cestou (svah, les, překážky) ji neprodraží', () => {

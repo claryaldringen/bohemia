@@ -142,6 +142,8 @@ describe('síť pěšin na skutečné krajině – zlatý otisk', () => {
       tree: (id) => obstaclePosition(layer, id),
     });
     expect(network.lines.length).toBeGreaterThan(0);
-    expect(networkFingerprint(network)).toBe('75243:71dfcee8');
+    // 19. 10. 2026 přepsáno záměrně: pole lidi nezdržuje (Martin – osetý, zoraný a zakládaný díl
+    // stojí jako úhor, dřív 12 a 3); v otisku jsou díly ve všech stadiích, cena se změnila
+    expect(networkFingerprint(network)).toBe('75243:c7d79a96');
   }, 30_000);
 });

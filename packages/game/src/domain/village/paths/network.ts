@@ -292,14 +292,16 @@ const ERRAND_REACH = { factor: 1.25, extra: 30 } as const;
 /** Do takové ceny cesty se pro vodu a dřevo chodí naplno, dál úměrně méně často. */
 const ERRAND_NEAR_COST = 130;
 /**
- * Cena chůze přes díl pole podle stadia (násobek terénu): přes osetý díl se nechodí (obchází se
- * po okraji), zoraný a zakládaný díl je hrubá hlína, přes úhor a pastvinu se chodí volně (nálet
- * ani les na přílohu není).
+ * Cena chůze přes díl pole podle stadia (násobek terénu). Pole lidi nezdržuje (Martin,
+ * 19. 10. 2026: „Ať lidé chodí vždy nejkratší možnou cestou a oseté pole ať neřeší. Aspoň se nám
+ * pak hezky s orbou ustálí tvar polí, který je nyní příliš hranatý.“ – paths.md): osetý, zralý,
+ * zoraný i zakládaný díl jako úhor, louka na přílohu o kousek víc (vysoká tráva). Zarůstající
+ * příloh je vegetace, ne pole – křoviny a mladý les zdržují.
  */
 const STAGE_COST: Record<PartStage, number> = {
-  founding: 3,
-  ready: 3,
-  sown: 12,
+  founding: 1.1,
+  ready: 1.1,
+  sown: 1.1,
   'young-fallow': 1.1,
   meadow: 1.25,
   // zarůstající příloh (fields.md – Zarůstání): trnité křoviny, houština mladého lesa

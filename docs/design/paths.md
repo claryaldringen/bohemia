@@ -42,8 +42,14 @@ A po vyšlapané pěšině se chodí lépe – cesta na vzdálené pole po ní s
   na stádo: mladý úhor vždy, louka na seno až po seči (srpen–listopad); v zimě stojí krávy
   v ohradě, prasata jdou do lesa (návrh Clauda).
 - **Kudy:** lidé obcházejí prudké svahy, vodu (kromě mělkých brodů), domy se zahrádkami,
-  kmeny, keře, balvany a skály, plot ohrady a hřbitova, přes oseté pole nechodí (jdou po jeho
-  okraji), přes úhor a louku ano, lesem neradi. **Po pevné cestě ([roads.md](roads.md)) se jde
+  kmeny, keře, balvany a skály, plot ohrady a hřbitova, lesem a zarůstajícím přílohem (křoviny,
+  mladý les) neradi. ~~Přes oseté pole nechodí (jdou po jeho okraji).~~ **Pole lidi nezdržuje**
+  (Martin, 19. 10. 2026: „Ať lidé chodí vždy nejkratší možnou cestou a oseté pole ať neřeší.
+  Aspoň se nám pak hezky s orbou ustálí tvar polí, který je nyní příliš hranatý.“): přes osetý,
+  zralý, zoraný i zakládaný díl jdou jako přes úhor (`STAGE_COST` 1,1, louka na přílohu 1,25 –
+  vysoká tráva) nejkratší cestou. Trasy přes pole se proto rok od roku nemění podle osevu
+  a vznikají po nich pevné cesty, které pole rozčlení ([roads.md](roads.md) – Pole lidi
+  nezdržuje). Vozy přes osetý díl dál nejezdí ([wagons.md](wagons.md)) – Martin mluvil o lidech. **Po pevné cestě ([roads.md](roads.md)) se jde
   bez ohledu na to, na čem leží** (Martin, 19. 10. 2026, Vlkov: „Je tam vidět, že na nový hřbitov
   vedla nejkratší cesta, kolem které dokonce byly nějaké stromy (jabloně) a ta zanikla a lidé to
   začali obcházet divnou delší cestou.“ a „Když už někde vyšlapaná cesta je, ať po ní lidé chodí
@@ -78,8 +84,8 @@ A po vyšlapané pěšině se chodí lépe – cesta na vzdálené pole po ní s
 - **Objevuje se a mizí:** spojení nového obydlí se vyšlapává dva roky, zrušené místo pěšinu
   ztratí (v prototypu hned). Práce se mění s rokem – pěšina na pole je v žních silnější.
 - **Vidět jsou i v polích:** pěšina se kreslí nad poli – přes úhor a pastvinu jako prošlapaný
-  pás; přes osetý díl pěšiny nevedou (obcházejí ho – kromě pevné cesty, po které se jde i přes
-  osetý díl), kdyby přece, jen úzká stopa (Martin: stromy u cesty bez cesty mátly).
+  pás; přes osetý díl jen úzká stopa (Martin: stromy u cesty bez cesty mátly). Od 19. 10. 2026
+  vedou pěšiny přes pole nejkratší cestou (Kudy – pole lidi nezdržuje).
 - **Roční období:** tráva v pěšinách usychá jako louka, v zimě je zasype sníh – stopa pěšiny
   dne ve sněhu pořád trochu prosvítá (sníh ji zasype jen ze 30 %, pevnou cestu z 55 % – ta
   prosvítá zřetelně).
