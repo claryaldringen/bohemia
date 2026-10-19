@@ -91,6 +91,7 @@ import { recordClearedObstacles } from './obstacles';
 import { overgrowthDay } from './overgrowth';
 import { mergeRoadChains, roadsDay } from './paths/roads';
 import { refreshWalkDistances } from './paths/village';
+import { roadFieldsDay } from './road-fields';
 import { roadWalk, walkGroundOf } from './paths/walking';
 import { finishRoadApples, workRoadApples, roadApplesNeed } from './road-apples';
 import { finishRoadUpgrade } from './road-upgrades';
@@ -276,6 +277,9 @@ function simulateDay(
   const date = dateOfDayIndex(day);
   // vzdálenosti chůze dílů po pěšinách – jen když se změnilo rozložení vsi (paths.md); bez
   // krajiny (kalibrace, testy) zůstávají přímé vzdálenosti
+  // pevné cesty ubírají polím plochu (roads.md a fields.md – Cesta přes pole) – jen když se od
+  // včerejška změnily cesty nebo čtverce polí
+  if (landscape) roadFieldsDay(state, day, landscape);
   if (landscape) refreshWalkDistances(state, day, landscape, obstacles);
   // pokrytí výrobky řemeslníků ze včerejších zásob – meze produktivity celého dne (crafts.md)
   const coverage = craftCoverage(state, day);

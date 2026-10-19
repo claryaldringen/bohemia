@@ -225,21 +225,84 @@ export function giveWayToBuilding(
   state.chronicle.push(...events);
 }
 
+/**
+ * Pole ustoupí pevným cestám (roads.md a fields.md – Cesta přes pole; mutuje stav – volat na
+ * klonu): díl dostane plochu bez toho, co mu cesty berou podle `land` (pás cest, plácky rozcestí
+ * a oddělené kousky – `roadLand`; díl, který v `land` není, nic). Co cesty braly dřív
+ * (`FieldPart.roadM2`), se nejdřív vrátí – cesta, která zarostla nebo se přesunula, půdu vrátí
+ * (zvětšený díl je obdělaný jako zbytek dílu). S plochou se úměrně změní plán osevu, seč
+ * a založení (`resizeParts`). Díl, kterému cesty vezmou tolik, že zbude méně než
+ * TAKEN_LAND_MIN_SHARE políčka, zmizí celý (jako pod stavbou). Kronika `land-taken` (`by: 'road'`)
+ * u polí, která se zmenšila.
+ */
+export function giveWayToRoads(
+  state: VillageState,
+  day: number,
+  land: ReadonlyMap<number, { roadM2: number; cutM2: number; cut: number[] | null }>,
+  cellAreaM2: number,
+): void {
+  const taken = new Map<number, number>();
+  const loss = resizeParts(state, day, (part) => {
+    if (!part.cell) return null;
+    const old = part.roadM2 ?? 0;
+    const entry = land.get(part.id);
+    const whole = part.areaM2 + old;
+    const next = Math.min(whole, entry ? entry.roadM2 + entry.cutM2 : 0);
+    taken.set(part.id, next);
+    if (Math.abs(next - old) <= EPSILON) return null;
+    const left = whole - next;
+    return next > old && left < TAKEN_LAND_MIN_SHARE * cellAreaM2 - EPSILON ? 0 : left;
+  });
+  for (const part of state.parts) {
+    const next = taken.get(part.id);
+    if (next === undefined) continue;
+    if (next > EPSILON) part.roadM2 = next;
+    else delete part.roadM2;
+    const cut = land.get(part.id)?.cut;
+    if (next > EPSILON && cut) part.roadCut = [...cut];
+    else delete part.roadCut;
+  }
+  const events: ChronicleEvent[] = [];
+  for (const [id, areaM2] of [...loss].sort((a, b) => a[0] - b[0])) {
+    if (areaM2 <= EPSILON) continue;
+    const gone = !state.parts.some((p) => p.fieldId === id);
+    if (gone) dropField(state, id);
+    events.push({ day, kind: 'land-taken', land: 'field', id, areaM2, gone, by: 'road' });
+  }
+  state.chronicle.push(...events);
+}
+
 /** Díly polí na zabraných políčkách – zmenší je nebo odeberou; vrátí ztrátu plochy po polích. */
 function shrinkParts(
   state: VillageState,
   day: number,
   byCell: ReadonlyMap<string, TakenLand>,
 ): Map<number, number> {
+  const grids = new Map(state.fields.map((f) => [f.id, f.grid]));
+  return resizeParts(state, day, (part) => {
+    const t = part.cell ? byCell.get(squareKey(grids.get(part.fieldId), part.cell)) : undefined;
+    return t ? landLeftM2(part.areaM2, t.areaM2, t.cellAreaM2) : null;
+  });
+}
+
+/**
+ * Díly polí dostanou novou plochu `areaOf` (null = beze změny, 0 = díl zmizí; mutuje stav): s plochou
+ * se úměrně změní plán osevu i s orbou, seč sena a rozestavěné založení (`shrinkInPlan` – zmenšení
+ * i zvětšení, vrácená půda je obdělaná jako zbytek dílu); zmizelý díl odejde z plánů, seče
+ * i rozdělení práce a předá překážky. Vrátí změnu plochy po polích (ztráta kladně).
+ */
+function resizeParts(
+  state: VillageState,
+  day: number,
+  areaOf: (part: FieldPart) => number | null,
+): Map<number, number> {
   const loss = new Map<number, number>();
   const removed = new Set<number>();
-  const grids = new Map(state.fields.map((f) => [f.id, f.grid]));
   for (const part of state.parts) {
-    const t = part.cell ? byCell.get(squareKey(grids.get(part.fieldId), part.cell)) : undefined;
-    if (!t) continue;
-    const left = landLeftM2(part.areaM2, t.areaM2, t.cellAreaM2);
+    const left = areaOf(part);
+    if (left === null) continue;
     const lost = part.areaM2 - left;
-    if (lost <= EPSILON) continue;
+    if (Math.abs(lost) <= EPSILON) continue;
     const share = left > 0 ? lost / part.areaM2 : 1;
     // plán, seč a založení podle plochy před zmenšením (váha dílu v pořadí práce)
     if (state.plan) shrinkInPlan(state, state.plan, part, share, day);

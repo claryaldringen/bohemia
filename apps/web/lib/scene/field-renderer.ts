@@ -57,6 +57,7 @@ import {
 import { loadMergedModel, loadModelParts } from './instanced-model';
 import { PLOUGH_CORNER_M, type FurrowBand } from './plough-team';
 import { applyPitCut, type PitCuts } from './pit-cut';
+import { roadCutKey, roadCutMask } from './road-cut-mask';
 import { roadTrack, roadWorksKey } from './road-works-layout';
 import { applySeasonGround, applySeasonModel, applySeasonSnow } from './season-materials';
 import { trackMask, type Track, type TrackBounds, type TrackMask } from './track-mask';
@@ -544,6 +545,8 @@ export class FieldRenderer {
         hay ? day : null,
         neighbours.map((p) => [p.cell.x, p.cell.y]),
         clearingsKey(built),
+        // kousky oddělené cestou zůstaly loukou (roads.md – Cesta přes pole)
+        roadCutKey(field.parts),
       ]);
       const grouped = groupFieldBlocks(views);
       // pásy cest a pěšin v bloku – blok se přestaví, jen když se změní ty jeho
@@ -584,13 +587,16 @@ export class FieldRenderer {
             : undefined,
         );
         const clearing = clearingMask(built, CLEARING_SOFT_M);
-        // obydlí na poli a pásy cest a pěšin (ve světě)
-        const mask =
+        // kousky pole oddělené cestou – louka (roads.md a fields.md – Cesta přes pole)
+        const cuts = roadCutMask(field.parts);
+        // obydlí na poli, pásy cest a pěšin a oddělené kousky (ve světě)
+        const base =
           tracks && built.length > 0
             ? (x: number, z: number): number => clearing(x, z) * tracks.at(x, z)
             : tracks
               ? (x: number, z: number): number => tracks.at(x, z)
               : clearing;
+        const mask = cuts ? (x: number, z: number): number => base(x, z) * cuts(x, z) : base;
         const maskIn = space
           ? (u: number, v: number): number => {
               const [x, z] = space.frame.toWorld(u, v);
@@ -598,7 +604,7 @@ export class FieldRenderer {
             }
           : mask;
         coverage =
-          built.length > 0 || tracks
+          built.length > 0 || tracks || cuts
             ? (x: number, z: number): number => ragged(x, z) * maskIn(x, z)
             : ragged;
         return coverage;

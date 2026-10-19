@@ -159,3 +159,4 @@ export {
 } from './road-apples';
 export * from './overgrowth';
 export * from './woods';
+export * from './road-fields';

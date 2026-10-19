@@ -80,6 +80,7 @@ import {
   demoRoad,
   demoRoadGap,
   demoRoadStage,
+  withRoadCuts,
 } from './dev-road';
 import { demoCartSlope, type CartDemo } from './dev-cart';
 import type { CartKind } from '@bohemia/game';
@@ -241,6 +242,10 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         ? { sacred: { oaks: sacredOaks, groves, buildings: sacredBuildings } }
         : {}),
     };
+    // kousky pole oddělené cestou zůstanou loukou (roads.md a fields.md – Cesta přes pole)
+    if (base.roads && base.roads.length > 0) {
+      base.fields = withRoadCuts(base.fields, base.roads, decoded);
+    }
     if (cartDemo) {
       // ukázka vozů na svahu: obydlí, ohrada se spřežením, díl nahoře a vozová cesta jádra
       return {
@@ -1283,8 +1288,23 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     if (fieldId !== null) {
       setFields((list) => [...list, { id: fieldId, parts, sample: { look: 'ripe' } }]);
     }
+    // krátká cesta přes roh pole – růžek za ní (odvěsny ≈ 8 m) zůstane loukou (roads.md – Cesta
+    // přes pole)
+    const corner = focus ? tileCenter(decoded, focus.x + 7, focus.y + 7) : null;
+    const cut: NonNullable<SceneVillage['roads']> = corner
+      ? [
+          {
+            id: 95,
+            points: [
+              { x: corner.worldX + 7.5 - 14, z: corner.worldZ + 7.5 + 6 },
+              { x: corner.worldX + 7.5 + 6, z: corner.worldZ + 7.5 - 14 },
+            ],
+            grade: 'trodden',
+          },
+        ]
+      : [];
     setRoad({
-      roads: sample.roads,
+      roads: [...sample.roads, ...cut],
       roadTrees: sample.trees,
       roadApples: sample.apples,
       fieldId,

@@ -18,6 +18,9 @@ import {
   tileCenterWorld,
   tileOfWorldPoint,
   joinedRoadsOf,
+  fieldFrame,
+  roadLand,
+  type GridGeometry,
   type Landscape,
   type PathTerrain,
   type Road,
@@ -26,6 +29,7 @@ import {
   type RoadTreeSpecies,
 } from '@bohemia/game';
 import type { SceneRoad, SceneRoadApple, SceneRoadTree } from '@/lib/village-view';
+import type { SceneField } from '@/lib/scene/village-types';
 
 /** Stadia stromů na ukázce po řadě (keř malý a velký, strom mladý, poloviční a plný, souš, pařez). */
 const DEMO_STAGES: Pick<SceneRoadTree, 'stage' | 'growth'>[] = [
@@ -280,4 +284,35 @@ export function demoRoadGap(
       ...(openEnds ? { openEnds } : {}),
     }),
   );
+}
+
+/**
+ * Pole ukázky s kousky oddělenými cestou (roads.md a fields.md – Cesta přes pole): stejná funkce
+ * jádra jako simulace (`roadLand`) – kde jádro kousek oddělí, scéna tam nekreslí obilí.
+ */
+export function withRoadCuts(
+  fields: readonly SceneField[],
+  roads: readonly SceneRoad[],
+  geo: GridGeometry,
+): SceneField[] {
+  if (roads.length === 0) return [...fields];
+  return fields.map((field) => {
+    const land = roadLand(
+      [
+        {
+          frame: fieldFrame(geo, field.grid),
+          squares: field.parts.map((p, k) => ({ id: k, cell: p.cell })),
+        },
+      ],
+      roads,
+    );
+    if (![...land.values()].some((v) => v.cut)) return field;
+    return {
+      ...field,
+      parts: field.parts.map((p, k) => {
+        const cut = land.get(k)?.cut;
+        return cut ? { ...p, roadCut: cut } : p;
+      }),
+    };
+  });
 }

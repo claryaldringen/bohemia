@@ -1,4 +1,4 @@
-import type { PathLine } from '@bohemia/game';
+import { ROAD_LAND, type PathLine } from '@bohemia/game';
 import type { SceneRoad } from '../village-view';
 import type { Track, TrackDisc, TrackSegment } from './track-mask';
 import { hash01 } from './smoke-schedule';
@@ -62,7 +62,11 @@ export const PATH_EARTH_LAYER: RibbonLayer = {
  * o 60 % víc, z herní kamery jasně širší). Podle ní i délka kmenů hatě a vytyčení úpravy
  * (road-works-layout.ts).
  */
-export const ROAD_WIDTH_M = { trodden: 1.9, improved: 3, cart: 2.6 } as const;
+export const ROAD_WIDTH_M = {
+  trodden: ROAD_LAND.widthM.trodden,
+  improved: ROAD_LAND.widthM.improved,
+  cart: ROAD_LAND.widthM.cart,
+} as const;
 
 /**
  * Vyšlapaná pevná cesta – plně prošlapaná tráva (krytí 0,95), jako dřív nejsilnější pěšina; kreslí

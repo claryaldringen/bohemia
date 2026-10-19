@@ -304,6 +304,23 @@ export const ROAD_UPGRADES = {
   causewayPer2M: { trees: 1, manDays: 2 },
   footbridge: { trees: 4, manDays: 15 },
 } as const;
+/**
+ * roads.md a fields.md – Cesta ubírá poli plochu (Martin, 19. 10. 2026: „Ano má. Ono to stejně ve
+ * výsledku bude tak, že pokud oráč narazí na cestu, tak spřežení otočí. Nebude pak moci vzniknout
+ * takový růžek…“; čísla návrh Clauda): pás pevné cesty v šířce obtisku (vyšlapaná 1,9 m, vozová
+ * 2,6 m, upravená a hať 3 m) a plácek rozcestí (poloměr 1,3 × šířka nejširší cesty) se neorou.
+ * Kus pole, který cesty oddělí od zbytku, se obdělává, jen když se do něj vejde obrat spřežení
+ * (kruh o poloměru ≈ 5 m – plocha `cornerMinM2`) a není to jen proužek užší než `stripMinM` podél
+ * cesty – jinak zůstane loukou (mez u cesty). Počítá se po buňkách `cells` × `cells` na čtverec.
+ */
+export const ROAD_LAND = {
+  widthM: { trodden: 1.9, cart: 2.6, improved: 3, causeway: 3 },
+  junctionScale: 1.3,
+  turnRadiusM: 5,
+  cornerMinM2: 80,
+  stripMinM: 3,
+  cells: 30,
+} as const;
 // roads.md – Vysazení jabloní (Martin; čísla návrh Clauda): podél úseku po obou stranách po 10 m
 // střídavě (2,6–3,4 m od osy), jabloně nejméně 8 m od sebe a 6 m od stromu u cesty; jako sad na
 // strom – ≈ 180 stromů na hektar (výsadba 80 čd/ha ≈ 0,45 čd na strom, péče a sklizeň jako v sadu,

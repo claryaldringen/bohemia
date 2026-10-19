@@ -1175,6 +1175,16 @@ describe('sad v pohledu na ves', () => {
     expect(by('shrine')).toBe('Pole ustoupilo svatyni – zmenšilo se o 20 m².');
     expect(by('road-apples')).toBe('Pole ustoupilo jabloním u cesty – zmenšilo se o 20 m².');
     expect(by('road-trees')).toBe('Pole ustoupilo stromům u cesty – zmenšilo se o 20 m².');
+    expect(by('road')).toBe('Pole ustoupilo cestě – zmenšilo se o 20 m².');
+  });
+
+  it('scéna: kousky dílu oddělené cestou (roads.md – Cesta přes pole) jdou s dílem', () => {
+    const s = settled();
+    s.parts[0]!.roadM2 = 40;
+    s.parts[0]!.roadCut = [0, 3];
+    const parts = buildVillageView(record(s), landscape, DAY).scene.fields[0]!.parts;
+    expect(parts[0]!.roadCut).toEqual([0, 3]);
+    expect(parts.slice(1).every((p) => p.roadCut === undefined)).toBe(true);
   });
 
   it('kronika: sklizeň jablek a dosloužilý sad', () => {
