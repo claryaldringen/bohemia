@@ -154,6 +154,7 @@ import {
 import { manorView, type VillageManor } from './manor-view';
 import { foreignFromScene, plotOfScene } from './scene/neighbour-villages';
 import { sceneTrails, trailRoadWork } from './trail-view';
+import { sceneExpeditions } from './caravan-view';
 import { DIRECTION_NAMES, NEWCOMER_TEXTS, goodsText, peopleText } from './trade-names';
 import { formatCells, formatHa, formatInteger, plural } from './village-format';
 import type { VillageListItem } from './village-list';
@@ -466,7 +467,7 @@ export interface VillageView {
   storesMonths: number;
   satiation: number;
   commonLaborPerDay: number;
-  /** Některá domácnost je plná a nečeká na ni žádné nové obydlí (upozornění). */
+  /** Některá rodina se může oddělit a nečeká na ni žádné obydlí (upozornění „Rodina čeká na dům“). */
   fullHousehold: boolean;
   /** Nabídka staveb – hráč staví kdy chce, předem musí ves mít suroviny a lidi k osídlení. */
   build: Record<BuildKind, BuildOption>;
@@ -996,6 +997,11 @@ export interface SceneVillage {
    */
   trails?: SceneTrail[];
   /**
+   * Výpravy k sousedům na cestě (trade.md – Ve scéně): karavana po zemské stezce – kdo jde tam
+   * a kdo zpátky, vozy a postup (`caravan.ts`). Bez údaje karavany nejsou (nosiči podle práce dne).
+   */
+  expeditions?: SceneExpedition[];
+  /**
    * Stromy u pevných cest (roads.md) – stadium (keř, strom, souš, pařez) a velikost 0–1 v den
    * pohledu. Bez údaje žádné.
    */
@@ -1136,7 +1142,33 @@ export interface SceneTrail {
   built: boolean;
 }
 
-export type SceneRoad = Pick<Road, 'id' | 'points' | 'grade' | 'ground' | 'openEnds' | 'cart'> & {
+/**
+ * Výprava k sousedovi pro karavanu ve scéně (trade.md – Ve scéně, `scene/caravan.ts`): stezka,
+ * kolik lidí jde (nosiči, s vozy honáci a pomocníci – `cartCrew` na vůz), vozy (id), kdo odchází
+ * k sousedovi a kdo s výpravou přijde (pohlaví a věk z jádra), jestli se nese náklad tam a zpátky,
+ * postup 0–1 na konci dne `day`, denní přírůstek postupu (dnešní tempo, výprava vyslaná dnes plné)
+ * a podíl cesty na mapě (bez dne za krajem mapy).
+ */
+export interface SceneExpedition {
+  id: number;
+  trailId: number;
+  porters: number;
+  carts: number[];
+  cartCrew: number;
+  leaving: { sex: 'male' | 'female'; age: number }[];
+  coming: { sex: 'male' | 'female'; age: number }[];
+  carriesOut: boolean;
+  carriesBack: boolean;
+  progress: number;
+  rate: number;
+  day: number;
+  onMap: number;
+}
+
+export type SceneRoad = Pick<
+  Road,
+  'id' | 'points' | 'grade' | 'ground' | 'openEnds' | 'cart' | 'swath'
+> & {
   /**
    * Rozestavěné vylepšení úseku – stupeň a průběh 0–1 na tomto úseku (vylepšení cesty hráče jde
    * po úsecích – `roadUpgradeProgress`); `fromEnd` – úsek leží v cestě obráceně, práce jde od
@@ -1497,6 +1529,21 @@ function newcomerText(direction: Direction8, group: NewcomerGroup, people: numbe
   return `${lead} – ${formatInteger(people)} ${plural(people, 'člověk', 'lidé', 'lidí')}.`;
 }
 
+/** Věta kroniky o svatbě ve vsi (kinship.md – Sňatky): kdo se k komu stěhoval, vdova. */
+function marriageText(event: Extract<ChronicleEvent, { kind: 'marriage' }>): string {
+  if (event.groomMoved) {
+    return event.widow
+      ? 'Svatba – k vdově se přiženil muž ze vsi.'
+      : 'Svatba – ženich se přiženil k nevěstě.';
+  }
+  if (event.fromDwellingId === event.toDwellingId) {
+    return event.widow ? 'Svatba – vdova se znovu vdala.' : 'Svatba ve vsi.';
+  }
+  return event.widow
+    ? 'Svatba – vdova se přestěhovala k ženichovi.'
+    : 'Svatba – nevěsta se přestěhovala k ženichovi.';
+}
+
 /** Text události kroniky česky. */
 export function chronicleText(event: ChronicleEvent, villageName: string): string {
   switch (event.kind) {
@@ -1513,9 +1560,13 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
     case 'household-merged':
       return 'Zbytek domácnosti se přestěhoval k příbuzným nebo sousedům.';
     case 'marriage':
-      return 'Svatba – nevěsta se přestěhovala k ženichovi.';
+      return marriageText(event);
     case 'bride-from-outside':
       return 'Muž si přivedl nevěstu ze sousední vsi.';
+    case 'groom-from-outside':
+      return event.widow
+        ? 'K vdově se přiženil muž ze sousední vsi.'
+        : 'K ženě se přiženil muž ze sousední vsi.';
     case 'married-away':
       return 'Dcera se vdala do sousední vsi.';
     case 'construction-finished':
@@ -1884,6 +1935,8 @@ export function sceneRoads(
       grade: r.grade,
       // vozová cesta (wagons.md – Vyjeté cesty) – dvě koleje
       ...(r.cart ? { cart: true as const } : {}),
+      // průsek lesem (roads.md – Průsek lesem) – plocha korun nad ním zapadne
+      ...(r.swath ? { swath: true as const } : {}),
       ...(r.ground
         ? {
             ground: {
@@ -1999,7 +2052,7 @@ function roadViews(
         work && work.roadGrade
           ? { grade: work.roadGrade, progress: work.progress, treesToFell: work.treesToFell }
           : null,
-      upgrades: roadUpgradeOptions(state, r.id, day, obstacles, walk),
+      upgrades: roadUpgradeOptions(state, r.id, day, obstacles, walk, landscape),
       apples: {
         trees: living.length,
         bearing: living.filter((a) => roadAppleBearing(a, day)).length,
@@ -2733,19 +2786,11 @@ const HARVEST_NAMES: Record<Crop | 'any', string> = {
   any: 'Sklizeň',
 };
 
-const BUILD_KINDS: readonly BuildKind[] = [
-  'zemnice',
-  'polozemnice',
-  'field',
-  'cemetery',
-  'orchard',
-  'idol',
-  'shrine',
-  'potter',
-  'smith',
-  'burner',
-  'pen',
-];
+/**
+ * Nabízené stavby = všechny s cenou – ručně psaný seznam už jednou zapomněl tesaře; pořadí
+ * v mřížce dává katalog staveb (`build-items.ts`).
+ */
+const BUILD_KINDS = Object.keys(BUILD_COSTS) as BuildKind[];
 /** Kolik štěstí přidá modla a svatyně (happiness.md). */
 const SACRED_HAPPINESS: Record<SacredBuildingKind, number> = {
   idol: sacredBuildingHappiness('idol'),
@@ -3086,6 +3131,7 @@ export function buildVillageView(
     scene: {
       ...sceneVillage(state, landscape, day, summary),
       trails: sceneTrails(state),
+      expeditions: sceneExpeditions(state),
       ...(context.neighbourScenes?.length ? { neighbours: context.neighbourScenes } : {}),
     },
     chronicle: chronicle(state, name),

@@ -43,6 +43,12 @@ export interface Person {
    * trade.md – Výměna lidí, war.md – příbuzní v cílové vsi); narození ve vsi ho nemají.
    */
   origin?: NeighborDirection;
+  /**
+   * Den, od kterého žena může znovu porodit (population.md – Růst populace, rozestup porodů): po
+   * porodu za BIRTH_SPACING.afterBirthDays, po svatbě za afterWeddingDays. Chybí – kdykoli (i ve
+   * vsích uložených dřív).
+   */
+  nextBirthFrom?: number;
 }
 /**
  * Dcera, která se vdala pryč (kinship.md – Sňatky z okolí), nebo člověk, kterého ves dala sousedovi
@@ -758,12 +764,24 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'household-founded'; dwellingId: number }
   | { kind: 'household-merged'; fromDwellingId: number; toDwellingId: number }
   /**
-   * Svatba ve vsi (kinship.md – Sňatky) – nevěsta z domu `from` se přestěhovala k muži do domu
-   * `to` (ze stejného domu from = to).
+   * Svatba ve vsi (kinship.md – Sňatky) – nevěsta (s vlastními dětmi do 16 let) z domu `from` se
+   * přestěhovala k muži do domu `to` (ze stejného domu from = to); `groomMoved` – naopak ženich se
+   * přiženil k nevěstě, která drží dům; `widow` – vdávala se vdova (už má děti).
    */
-  | { kind: 'marriage'; fromDwellingId: number; toDwellingId: number }
+  | {
+      kind: 'marriage';
+      fromDwellingId: number;
+      toDwellingId: number;
+      groomMoved?: true;
+      widow?: true;
+    }
   /** Muž z domu `dwellingId` si přivedl nevěstu z okolí (kinship.md – Sňatky z okolí). */
   | { kind: 'bride-from-outside'; dwellingId: number }
+  /**
+   * K ženě z domu `dwellingId` se přiženil muž z okolí (kinship.md – Sňatky z okolí); `widow` –
+   * k vdově.
+   */
+  | { kind: 'groom-from-outside'; dwellingId: number; widow?: true }
   /** Dcera z domu `dwellingId` se vdala pryč – odešla ze vsi (kinship.md – Sňatky z okolí). */
   | { kind: 'married-away'; dwellingId: number }
   | {
@@ -1307,25 +1325,43 @@ export interface NeighbourStock {
   people?: NeighbourPeople;
 }
 
-/** Lidé ve výměně se sousedem (trade.md – Výměna lidí): rodiny a svobodní dospělí. */
+/**
+ * Lidé ve výměně se sousedem (trade.md – Výměna lidí): rodiny a svobodní muži a ženy zvlášť
+ * (Martin 19. 10. 2026). Kronika uložená dřív může mít místo mužů a žen `adults`.
+ */
 export interface TradePeople {
   families: number;
-  adults: number;
+  men: number;
+  women: number;
+}
+
+/**
+ * Kdo s výpravou přijde (`TradeExpedition.getPeople`): rodiny souseda (počet dětí v každé)
+ * a svobodní muži a ženy; výprava uložená před muži a ženami zvlášť má `adults` (pohlaví se losuje
+ * při příchodu jako dřív).
+ */
+export interface ComingPeople {
+  families: readonly number[];
+  men?: number;
+  women?: number;
+  adults?: number;
 }
 
 /** Kdo přišel od souseda (trade.md – Výměna lidí): rodina, svobodný muž, svobodná žena. */
 export type NewcomerGroup = 'family' | 'man' | 'woman';
 
 /**
- * Lidé souseda na rok obchodu (trade.md – Výměna lidí): rodiny a svobodní dospělí, které neuživí
- * a dá je, a kolik lidí naopak vezme.
+ * Lidé souseda na rok obchodu (trade.md – Výměna lidí): rodiny a svobodní muži a ženy, které
+ * neuživí a dá je, a kolik lidí naopak vezme. Zbytek roku uložený před muži a ženami zvlášť má
+ * `adults` – převede ho `storedNeighbourPeople`.
  */
 export interface NeighbourPeople {
   /** Rodiny, které soused dá – počet dětí v každé; ves bere od první. */
   families: number[];
-  /** Svobodní dospělí, které soused dá. */
-  adults: number;
-  /** Kolik rodin a svobodných dospělých soused vezme. */
+  /** Svobodní muži a ženy, které soused dá. */
+  men: number;
+  women: number;
+  /** Kolik rodin a svobodných mužů a žen soused vezme. */
   takes: TradePeople;
 }
 
@@ -1348,15 +1384,20 @@ export interface TradeExpedition {
   cost: number;
   done: number;
   /**
-   * Kdo s výpravou odešel do sousední vsi (trade.md – Výměna lidí) – rodiny, dospělí a lidí
-   * celkem; už nejsou ve vsi. Chybí = nikdo (i u výprav uložených dřív).
+   * Kdo s výpravou odešel do sousední vsi (trade.md – Výměna lidí) – rodiny, muži, ženy a lidí
+   * celkem; už nejsou ve vsi. `members` – pohlaví a den narození každého (postavy karavany ve
+   * scéně jdou tam s ní). Chybí = nikdo; výprava uložená dřív má místo mužů a žen `adults` a nemá
+   * `members`.
    */
-  givePeople?: TradePeople & { people: number };
+  givePeople?: TradePeople & {
+    people: number;
+    members?: { sex: Sex; bornDay: number; group: NewcomerGroup }[];
+  };
   /**
-   * Kdo s výpravou přijde – rodiny souseda (počet dětí v každé) a svobodní dospělí; ve vsi se
+   * Kdo s výpravou přijde – rodiny souseda (počet dětí v každé) a svobodní muži a ženy; ve vsi se
    * objeví po návratu. Chybí = nikdo.
    */
-  getPeople?: { families: number[]; adults: number };
+  getPeople?: { families: number[]; men?: number; women?: number; adults?: number };
   /**
    * Vozy, které jedou s výpravou (wagons.md – Vůz, id) – s nimi jejich spřežení; doma nevozí ani
    * neorají, dokud se výprava nevrátí. Chybí = výprava bez vozů.
@@ -1467,6 +1508,12 @@ export interface Road {
    * CART_ROADS.dropYears) – podle něj cesta příznak vozová dostane a ztratí. Chybí = bez vozů.
    */
   cartTraffic?: number[];
+  /**
+   * Průsek lesem je vykácený (trade.md – Zemská stezka, roads.md – Průsek lesem; Martin,
+   * 19. 10. 2026: „Tam, kde zemská stezka prochází lesem, ať se les vykácí.“) – upravená cesta
+   * a stezka v pruhu ROAD_SWATH kolem osy. Rozdělený i spojený úsek ho zdědí; chybí = ne.
+   */
+  swath?: true;
 }
 
 /** Tichý kus osy pevné cesty – střed kusu a roky po sobě pod polovinou prahu. */
@@ -1556,6 +1603,14 @@ export interface VillageRoads {
    * i letos, vznikne vozová cesta (wagons.md – Vyjeté cesty). Chybí = žádné.
    */
   cartCandidates?: RoadPoint[][];
+  /**
+   * Pařezy v průsecích lesem (roads.md – Průsek lesem): stromy pokácené v pruhu kolem osy upravené
+   * cesty – dokud cesta stojí, nedorostou (zůstanou pařezem, nesází se na ně). Vzestupně; chybí =
+   * žádné.
+   */
+  swath?: number[];
+  /** Hotové upravené cesty a stezky dostaly průsek převodem starší vsi (`withRoadSwaths`). */
+  swathChecked?: true;
 }
 
 /** Druh vozu (wagons.md – Vůz): dvoukolák (svoz), čtyřkolák (obchod – hůř se otáčí). */

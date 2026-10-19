@@ -165,10 +165,17 @@ export * from './trade';
 export {
   NO_PEOPLE,
   emigrantGroups,
+  emigrantList,
   neighbourFamilyValue,
   neighbourPeople,
+  newcomerProfiles,
   personValue,
+  storedNeighbourPeople,
+  tradePeopleCount,
   type EmigrantGroup,
+  type Emigrants,
+  type NewcomerMember,
+  type NewcomerProfile,
 } from './people-trade';
 // jabloně u cest – kroky simulace (práce a dokončení výsadby) zůstávají uvnitř
 export {
@@ -184,3 +191,4 @@ export * from './overgrowth';
 export * from './pasture';
 export * from './woods';
 export * from './road-fields';
+export * from './road-swath';

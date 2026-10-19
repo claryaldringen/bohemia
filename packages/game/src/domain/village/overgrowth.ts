@@ -4,6 +4,7 @@ import { mownPartIds } from './hay';
 import { herdingCoverage } from './herding';
 import { grazingDemandHa, naturalPastureHa, villageHerds } from './livestock';
 import { pastureGrazing } from './pasture';
+import { keepSwathsClearOfWoods } from './road-swath';
 import { villageOxen } from './oxen';
 import { OVERGROWTH } from './rules';
 import { copyGrid, squareCenter } from './square-grid';
@@ -108,6 +109,7 @@ function dropForestParts(
   if (forest.length === 0) return [];
   const removed = new Set(forest.map((p) => p.id));
   const woods: VillageWood[] = [...(state.woods ?? [])];
+  const before = woods.length;
   for (const part of forest) {
     if (!part.cell) continue;
     // les z natočeného pole leží v jeho mřížce (fields.md – Natočené stavby)
@@ -127,6 +129,8 @@ function dropForestParts(
     });
   }
   if (woods.length > 0) state.woods = woods;
+  // les vsi do průseku lesem nevstoupí (roads.md – Průsek lesem)
+  keepSwathsClearOfWoods(state, woods.slice(before), day);
   state.parts = state.parts.filter((p) => !removed.has(p.id));
   const hay = state.hay;
   const mowing = hay?.mowing;

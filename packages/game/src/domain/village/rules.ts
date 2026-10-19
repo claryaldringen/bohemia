@@ -81,8 +81,27 @@ export const START_AGES = [25, 25, 13, 12] as const;
 // a chlapec 13 a dívka 12 let (nepříbuzní, rodiče neznámí – vezmou se, až dorostou); pohlaví
 // v pořadí START_AGES
 export const START_SEXES = ['male', 'female', 'male', 'female'] as const;
-// population.md – Růst populace (porodnost, úmrtnost dětí a dospělých, štěstí)
-export const BIRTHS_PER_PAIR_PER_YEAR = 1 / 3;
+// population.md – Růst populace (porodnost podle věku ženy a rozestup porodů – rešerše
+// research/2026-10-19-population-growth.md, návrh Clauda 19. 10. 2026; dřív 1/3 porodu ročně
+// v každém věku a bez rozestupu): přirozená manželská plodnost (Coale a Trussell 1974 – Henryho
+// průměr 13 populací bez plánování rodiny; 16–19 let ≈ 0,9 × 20–24 kvůli nižší plodnosti
+// dospívajících) × MARITAL_FERTILITY_LEVEL – manželská plodnost 20–44 let ≈ 7,5 dítěte jako ve
+// středoevropských vsích před plánováním rodiny (Henryho průměr ≈ 8,9). Porody na vdanou ženu za
+// rok od věku `fromAge` do dalšího pásma, od AGE.elder žádné.
+export const NATURAL_MARITAL_FERTILITY = [
+  { fromAge: 16, perYear: 0.41 },
+  { fromAge: 20, perYear: 0.46 },
+  { fromAge: 25, perYear: 0.431 },
+  { fromAge: 30, perYear: 0.395 },
+  { fromAge: 35, perYear: 0.322 },
+  { fromAge: 40, perYear: 0.167 },
+] as const;
+export const MARITAL_FERTILITY_LEVEL = 0.85;
+// Rozestup porodů: po porodu nejdřív za 21 měsíců (9 měsíců těhotenství + rok neplodnosti při
+// kojení – kojilo se 2–3 roky), po svatbě za 9 měsíců (těhotenství); mezitím žena nerodí, potom
+// rodí s denní šancí, při které průměrný odstup porodů vyjde 1 / plodnost věku (při 20–24 letech
+// ≈ 31 měsíců – Macfarlane 2002: 24–39 měsíců).
+export const BIRTH_SPACING = { afterBirthDays: 639, afterWeddingDays: 274 } as const;
 export const CHILD_DEATH_BEFORE_ADULT = 0.4; // → ročně 1 − 0,6^(1/14)
 export const ADULT_DEATHS_PER_YEAR = 0.02; // oprava podle rešerše (bylo 0,015; Lahovice)
 export const ELDER_DEATHS_PER_YEAR = 0.08;
@@ -112,15 +131,23 @@ export const STARVATION = {
 // kinship.md – Pohlaví (návrh Clauda): chlapců se rodí 105 na 100 dívek; rodit může žena 16–44
 // s manželem, muž je plodný od 16 let bez horní meze (AGE.fertile, AGE.elder)
 export const BOY_SHARE = 105 / 205;
-// kinship.md – Sňatky (návrh Clauda): věkový rozdíl snoubenců nejvýš 15 let; z okolí si svobodný
-// muž od 18 let bez možné nevěsty ve vsi přivede ženu 16–22 let s pravděpodobností 30 % ročně,
-// svobodná žena od 18 let bez možného ženicha se s 30 % ročně vdá pryč (Martin – varianta c,
-// čísla návrh Clauda); vdova s dětmi do 14 let (AGE.adult) zůstává v domě manžela a nevdává se
+// kinship.md – Sňatky (návrh Clauda): věkový rozdíl snoubenců nejvýš 15 let, když je jeden z nich
+// vdovec nebo vdova (už má děti), nejvýš 20 let (Martin, 19. 10. 2026: „Vdova by se měla snažit co
+// nejdříve vdát, ideálně ve vesnici.“ – vdovec si bral mladší ženu, mladý muž se přiženil
+// k vdově). Z okolí (Martin – varianta c, čísla návrh Clauda): svobodný muž od 18 let bez možné
+// nevěsty ve vsi si přivede ženu (16–22 let, starší muž nejvýš o povolený rozdíl mladší, ale do
+// 44 let) s pravděpodobností 30 % ročně. Ke svobodné ženě od 18 let bez možného ženicha ve vsi se
+// přižení muž z okolí (o 2 roky mladší až o 8 let starší, od 18 let) s 10 % ročně, nebo se s 20 %
+// ročně vdá pryč; k vdově, dědičce, která drží dům, nebo k ženě z domu bez mužů se přižení
+// s 50 % ročně a pryč se nevdává (Martin, 19. 10. 2026: „aby se populace co nejvíce rozrůstala“ –
+// dřív 30 % ročně jen pryč).
 export const MARRIAGE = {
   maxAgeGapYears: 15,
-  outsidePerYear: 0.3,
+  maxAgeGapWidowedYears: 20,
   outsideFromAge: 18,
   brideAge: { from: 16, to: 22 },
+  groomAge: { below: 2, above: 8 },
+  outside: { bridePerYear: 0.3, groomPerYear: 0.1, awayPerYear: 0.2, favouredGroomPerYear: 0.5 },
 } as const;
 // kinship.md – Sňatky z okolí (návrh Clauda, kvůli válce – war.md): nevěsta z okolí si pamatuje,
 // ze které sousední vsi přišla, a dcera, kam se vdala – směr je los z osmi sousedů
@@ -333,6 +360,14 @@ export const ROAD_LAND = {
   stripMinM: 3,
   cells: 30,
 } as const;
+/**
+ * roads.md – Průsek lesem a trade.md – Zemská stezka (Martin, 19. 10. 2026: „Tam, kde zemská
+ * stezka prochází lesem, ať se les vykácí.“; čísla návrh Clauda): kde upravená cesta nebo stezka
+ * vede lesem (i lemem do 6 m před ním), vykácí se pruh `halfM` od osy na každou stranu – pás
+ * upravené cesty 3 m a 2 m z každé strany, ať se vůz i lidé vejdou a nejdou pod větvemi. V pásu
+ * cesty (`roadbedM` od osy) se vyklučí i pařezy a vyberou kameny, po stranách zůstanou pařezy.
+ */
+export const ROAD_SWATH = { halfM: 3.5, roadbedM: 1.5 } as const;
 // roads.md – Vysazení jabloní (Martin; čísla návrh Clauda): podél úseku po obou stranách po 10 m
 // střídavě (2,6–3,4 m od osy), jabloně nejméně 8 m od sebe a 6 m od stromu u cesty; jako sad na
 // strom – ≈ 180 stromů na hektar (výsadba 80 čd/ha ≈ 0,45 čd na strom, péče a sklizeň jako v sadu,
@@ -552,6 +587,15 @@ export const THRESH_END_DAY = { month: 3, day: 1 } as const;
 /** Roční úmrtnost dětí – za AGE.adult let vymře CHILD_DEATH_BEFORE_ADULT dětí. */
 export function childDeathsPerYear(): number {
   return 1 - (1 - CHILD_DEATH_BEFORE_ADULT) ** (1 / AGE.adult);
+}
+
+// population.md – Růst populace (porodnost podle věku ženy, NATURAL_MARITAL_FERTILITY)
+/** Porody na vdanou ženu věku `age` za rok (0 mimo 16–44 let). */
+export function maritalFertility(age: number): number {
+  if (age < AGE.fertile || age >= AGE.elder) return 0;
+  let perYear = 0;
+  for (const band of NATURAL_MARITAL_FERTILITY) if (age >= band.fromAge) perYear = band.perYear;
+  return perYear * MARITAL_FERTILITY_LEVEL;
 }
 
 // population.md – Umístění obydlí (půdorys zemnice ≈ 4 × 4 m, polozemnice 5 × 5 m, rovina ≤ 0,5 m)
@@ -1104,7 +1148,8 @@ export const TRADE_GOOD_VALUES = {
 // (0–2 rodiny a 0–3 svobodné dospělé, aspoň jednoho člověka), s 30 % lidi shání (vezme 0–2 rodiny
 // a 0–3 dospělé, aspoň jednoho), jinak lidi nemění. Rodina souseda: muž 24–38 let, žena o 0–6 let
 // mladší (nejméně 18 + 3 roky na dítě), 0–3 děti – nejmladší 0–2 roky, mezi dětmi 2–3 roky;
-// svobodný dospělý muž nebo žena 16–26 let.
+// svobodný dospělý muž nebo žena 16–26 let. Muži a ženy zvlášť (Martin 19. 10. 2026): pohlaví
+// každého svobodného dospělého souseda se losuje 1 : 1 už v nabídce a poptávce.
 export const PEOPLE_TRADE = {
   adultValueKg: 360,
   childShare: 0.5,

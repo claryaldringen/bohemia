@@ -154,11 +154,10 @@ export function createCropWork(
   plough = false,
   order: WorkOrder = nearestFirst,
   crop: Crop = 'spring',
-  fieldParts: FieldPartsOf = partsOfFields(selected),
 ): CropWork {
   const required = emptyTaskRecord();
   // spřežení orá po souvislých blocích a pásech podél brázdy (oxen.md – Co nejdelší brázda)
-  const layout = plough ? ploughLayout(selected, fieldParts) : null;
+  const layout = plough ? ploughLayout(selected) : null;
   const ordered = layout ? layout.order : order(selected);
   const reclaimIds: number[] = [];
   const sodIds: number[] = [];
@@ -195,20 +194,6 @@ export function createCropWork(
   };
 }
 
-/** Všechny díly pole (podle id pole) – osa brázd se počítá z celého pole (`furrowAxis`). */
-export type FieldPartsOf = (fieldId: number) => readonly FieldPart[];
-
-/** Díly polí jen z `parts` (bez stavu vsi – osa brázd podle vybraných dílů). */
-export function partsOfFields(parts: readonly FieldPart[]): FieldPartsOf {
-  const byField = new Map<number, FieldPart[]>();
-  for (const part of parts) {
-    const list = byField.get(part.fieldId);
-    if (list) list.push(part);
-    else byField.set(part.fieldId, [part]);
-  }
-  return (fieldId) => byField.get(fieldId) ?? [];
-}
-
 /**
  * Plán prací na rok jen s jaří (tvar plánu z doby před ozimem); s `plough` ves letos orá rádlem
  * (`ard`).
@@ -219,12 +204,11 @@ export function createPlan(
   toolCoverage: number,
   plough = false,
   order: WorkOrder = nearestFirst,
-  fieldParts: FieldPartsOf = partsOfFields(selected),
 ): YearPlan {
   return {
     plannedDay: day,
     ...(plough ? { ard: true as const } : {}),
-    ...createCropWork(selected, day, toolCoverage, plough, order, 'spring', fieldParts),
+    ...createCropWork(selected, day, toolCoverage, plough, order, 'spring'),
   };
 }
 
@@ -238,16 +222,13 @@ export function createYearPlan(
   toolCoverage: number,
   plough = false,
   order: WorkOrder = nearestFirst,
-  fieldParts?: FieldPartsOf,
 ): YearPlan {
-  const all =
-    fieldParts ?? partsOfFields([...crops.winter, ...crops.spring, ...(crops.legume ?? [])]);
-  const plan = createPlan(crops.spring, day, toolCoverage, plough, order, all);
+  const plan = createPlan(crops.spring, day, toolCoverage, plough, order);
   if (crops.winter.length > 0) {
-    plan.winter = createCropWork(crops.winter, day, toolCoverage, plough, order, 'winter', all);
+    plan.winter = createCropWork(crops.winter, day, toolCoverage, plough, order, 'winter');
   }
   if (crops.legume && crops.legume.length > 0) {
-    plan.legume = createCropWork(crops.legume, day, toolCoverage, plough, order, 'legume', all);
+    plan.legume = createCropWork(crops.legume, day, toolCoverage, plough, order, 'legume');
   }
   return plan;
 }
@@ -263,18 +244,9 @@ export function addToCropWork(
   day: number,
   toolCoverage: number,
   order: WorkOrder = nearestFirst,
-  fieldParts: FieldPartsOf = partsOfFields(added),
 ): void {
   const plough = work.plough;
-  const extra = createCropWork(
-    added,
-    day,
-    toolCoverage,
-    plough !== undefined,
-    order,
-    'spring',
-    fieldParts,
-  );
+  const extra = createCropWork(added, day, toolCoverage, plough !== undefined, order, 'spring');
   for (const task of TASK_ORDER) work.required[task] += extra.required[task];
   work.partIds.push(...extra.partIds);
   if (extra.reclaimIds) work.reclaimIds = [...(work.reclaimIds ?? []), ...extra.reclaimIds];

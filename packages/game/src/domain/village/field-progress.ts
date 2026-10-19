@@ -319,7 +319,9 @@ function shareOn(
   position: number,
 ): number | null {
   if (!span) return null;
-  return Math.min(1, Math.max(0, (position - span.start) / (span.end - span.start)));
+  const share = (position - span.start) / (span.end - span.start);
+  // zaokrouhlovací zbytek součtů úseků – hotové a nezačaté jako u vzhledu dílu (DONE)
+  return share >= DONE ? 1 : share <= EPSILON ? 0 : share;
 }
 
 /** Úseky dílů úlohy podle id. */

@@ -8,6 +8,7 @@ import {
 } from '@bohemia/game';
 import type { SceneFieldPart, SceneVillage, SceneWood } from '../village-view';
 import { hash01 } from './smoke-schedule';
+import { swathBands, swathBandsKey, swathDistance } from './swath-bands';
 
 // Zarůstání přílohu ve scéně (fields.md – Zarůstání, Les vsi): na dílu, který stáda nespásají
 // a ves neseče, přibývají keře a mladé stromky, které rostou s léty bez pastvy a seče (herní data
@@ -228,9 +229,12 @@ function woodTreesByCell(village: Pick<SceneVillage, 'obstacles'>): Map<string, 
   return byCell;
 }
 
-/** Všechny rostliny zarůstání ve vsi – zarůstající díly polí a les vsi. */
+/**
+ * Všechny rostliny zarůstání ve vsi – zarůstající díly polí a les vsi; do průseku lesem
+ * (roads.md – Průsek lesem) nevstoupí.
+ */
 export function wildPlants(
-  village: Pick<SceneVillage, 'fields' | 'woods' | 'obstacles'>,
+  village: Pick<SceneVillage, 'fields' | 'woods' | 'obstacles' | 'roads'>,
 ): WildPlant[] {
   const plants: WildPlant[] = [];
   for (const field of village.fields) {
@@ -244,11 +248,15 @@ export function wildPlants(
     const id = woodIdCell(wood);
     plants.push(...woodWildPlants(wood, trees.get(`${id.x},${id.y}`) ?? []));
   }
-  return plants;
+  const bands = swathBands(village.roads);
+  if (bands.length === 0) return plants;
+  return plants.filter((p) => !(swathDistance(bands, p.x, p.z, 0) <= 0));
 }
 
 /** Klíč zarůstání – rostliny se přestaví, jen když se změní (roky dílů, les, jeho stromy). */
-export function wildKey(village: Pick<SceneVillage, 'fields' | 'woods' | 'obstacles'>): string {
+export function wildKey(
+  village: Pick<SceneVillage, 'fields' | 'woods' | 'obstacles' | 'roads'>,
+): string {
   const parts = village.fields.flatMap((f) =>
     f.parts.flatMap((p) =>
       p.overgrowth && p.overgrowth >= SHRUBS.fromYears
@@ -260,5 +268,5 @@ export function wildKey(village: Pick<SceneVillage, 'fields' | 'woods' | 'obstac
   const trees = (village.obstacles?.added ?? [])
     .filter((o) => isWoodTreeId(o.id))
     .map((o) => `${o.id}:${o.kind}`);
-  return JSON.stringify([parts, woods, trees]);
+  return JSON.stringify([parts, woods, trees, swathBandsKey(swathBands(village.roads))]);
 }

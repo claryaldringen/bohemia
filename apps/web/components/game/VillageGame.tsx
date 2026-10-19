@@ -965,8 +965,9 @@ export function VillageGame({
         }}
         onSendExpedition={(direction, give, get, people) => {
           const villageId = viewRef.current?.id;
+          // chyba zůstane v panelu obchodu (vrácený důvod) i jako krátký řádek nahoře
           return villageId
-            ? runBuildAction(() =>
+            ? runAction(() =>
                 sendExpedition({
                   villageId,
                   direction,
@@ -975,8 +976,11 @@ export function VillageGame({
                   givePeople: people.give,
                   getPeople: people.get,
                 }),
-              )
-            : Promise.resolve();
+              ).then((failure) => {
+                if (failure !== null) pushNotice({ kind: 'error', tone: 'error', text: failure });
+                return failure;
+              })
+            : Promise.resolve(null);
         }}
       />
       <BuildGrid

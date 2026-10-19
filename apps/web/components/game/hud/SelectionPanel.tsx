@@ -45,7 +45,7 @@ import {
 } from '@/lib/village-view';
 import type { Direction8, RoadGrade, RoadUpgrade, TradeGoods } from '@bohemia/game';
 import type { PreviewPeople } from '@/lib/trade-quote';
-import { ManorUpgrades } from './ManorPanel';
+import { ManorUpgrades, SwathTrees } from './ManorPanel';
 import { TradePanel } from './TradePanel';
 import {
   CancelRelocationButton,
@@ -438,13 +438,16 @@ interface RelocationActions {
 interface ManorActions {
   /** Zadá stavbu zemské stezky do směru (server action) – hotovo, až se vrátí. */
   onBuildTrail?: (direction: Direction8) => Promise<void>;
-  /** Vyšle výpravu k sousedovi (server action) – hotovo, až se vrátí. */
+  /**
+   * Vyšle výpravu k sousedovi (server action) – hotovo, až se vrátí; vrátí důvod, proč ji server
+   * odmítl, nebo null (panel obchodu ho ukáže pod tlačítkem).
+   */
   onSendExpedition?: (
     direction: Direction8,
     give: TradeGoods,
     get: TradeGoods,
     people: PreviewPeople,
-  ) => Promise<void>;
+  ) => Promise<string | null | void>;
 }
 
 function DwellingBody({
@@ -512,11 +515,10 @@ function DwellingBody({
             <ManorUpgrades
               manor={details.manor}
               onBuildTrail={onBuildTrail}
-              trade={(close) => (
+              trade={() => (
                 <TradePanel
                   neighbours={details.manor?.neighbours ?? []}
                   onSend={onSendExpedition}
-                  onClose={close}
                 />
               )}
             />
@@ -1340,6 +1342,7 @@ function RoadBody({
                       {option.trees}
                     </span>
                   )}
+                  {option.swathTrees > 0 && <SwathTrees trees={option.swathTrees} />}
                 </span>
                 {option.blocked && (
                   <span data-testid="road-upgrade-blocked" className="font-semibold text-red-400">

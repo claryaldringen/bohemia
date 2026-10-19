@@ -466,3 +466,26 @@ export function obstaclePosition(
   const i = obstacleIndex(layer, id);
   return i >= 0 ? { x: layer.x[i]!, z: layer.z[i]! } : null;
 }
+
+/**
+ * Terén pěšin přes celou krajinu s překážkami (bez změn vsi – trasa se nemění s kácením) – pro
+ * zemské stezky (trade.md), vozy a průseky lesem (roads.md).
+ */
+const trailTerrainCache = new WeakMap<Landscape, Map<ObstacleLayer | null, PathTerrain>>();
+
+/** Terén pro stezky – celá krajina, v mezipaměti podle krajiny a vrstvy překážek. */
+export function trailTerrain(landscape: Landscape, obstacles: ObstacleLayer | null): PathTerrain {
+  let byLayer = trailTerrainCache.get(landscape);
+  if (!byLayer) {
+    byLayer = new Map();
+    trailTerrainCache.set(landscape, byLayer);
+  }
+  const cached = byLayer.get(obstacles);
+  if (cached) return cached;
+  const half = (landscape.size * landscape.cellSizeM) / 2;
+  const window = pathWindowFor(landscape, { minX: -half, minZ: -half, maxX: half, maxZ: half });
+  const base = pathTerrainOf(landscape, window);
+  const terrain = obstacles ? withObstacles(base, obstacles) : base;
+  byLayer.set(obstacles, terrain);
+  return terrain;
+}

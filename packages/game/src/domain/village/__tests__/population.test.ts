@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   LUCKY_STARVATION_CAP,
   birthChancePerDay,
+  birthRatePerYear,
   deathChancePerDay,
   deathChances,
   luckyStarvationCap,
@@ -10,7 +11,7 @@ import {
   starvationDeathChance,
 } from '../population';
 import { ageYears } from '../people';
-import { START_AGES, STARVATION } from '../rules';
+import { BIRTH_SPACING, START_AGES, STARVATION, maritalFertility } from '../rules';
 import type { ChronicleEvent, Dwelling, Person, VillageState } from '../types';
 
 const YEAR = 365.25;
@@ -71,23 +72,40 @@ const ctx = {
 };
 
 describe('birthChancePerDay', () => {
-  it('při plném nasycení je třetina porodu ročně', () => {
-    expect(birthChancePerDay({ satiation: 1, overcrowded: false })).toBeCloseTo(1 / 3 / 365, 8);
+  // population.md – Růst populace: plodnost podle věku ženy, po porodu pauza 21 měsíců – průměrný
+  // odstup porodů = 1 / plodnost věku (rešerše 2026-10-19-population-growth.md)
+  const at25 = { satiation: 1, overcrowded: false, motherAge: 25 };
+  const rate25 = birthRatePerYear(25);
+  it('průměrný odstup porodů = pauza + čekání = 1 / plodnost věku', () => {
+    for (const age of [16, 22, 27, 33, 38, 42]) {
+      const interval = BIRTH_SPACING.afterBirthDays / YEAR + 1 / birthRatePerYear(age);
+      expect(interval).toBeCloseTo(1 / maritalFertility(age), 8);
+    }
+    // 20–24 let ≈ 31 měsíců (Macfarlane 2002: 24–39 měsíců)
+    expect(12 / maritalFertility(22)).toBeCloseTo(30.7, 1);
+  });
+  it('plodnost podle věku: nejvyšší 20–24, po čtyřicítce nízká, mimo 16–44 nula', () => {
+    expect(maritalFertility(22)).toBeCloseTo(0.46 * 0.85, 8);
+    expect(maritalFertility(42)).toBeCloseTo(0.167 * 0.85, 8);
+    expect(maritalFertility(15)).toBe(0);
+    expect(maritalFertility(45)).toBe(0);
+    expect(birthRatePerYear(45)).toBe(0);
+    // manželská plodnost 20–44 let ≈ 7,5 dítěte
+    const total = [20, 25, 30, 35, 40].reduce((sum, age) => sum + 5 * maritalFertility(age), 0);
+    expect(total).toBeGreaterThan(7.4);
+    expect(total).toBeLessThan(7.7);
+  });
+  it('při plném nasycení denní šance podle věku ženy', () => {
+    expect(birthChancePerDay(at25)).toBeCloseTo(rate25 / 365, 10);
   });
   it('při nasycení 0,5 se nerodí', () => {
-    expect(birthChancePerDay({ satiation: 0.5, overcrowded: false })).toBe(0);
+    expect(birthChancePerDay({ ...at25, satiation: 0.5 })).toBe(0);
   });
   it('mezi 0,5 a 0,95 roste lineárně', () => {
-    expect(birthChancePerDay({ satiation: 0.725, overcrowded: false })).toBeCloseTo(
-      1 / 3 / 365 / 2,
-      8,
-    );
+    expect(birthChancePerDay({ ...at25, satiation: 0.725 })).toBeCloseTo(rate25 / 365 / 2, 10);
   });
   it('přeplněnost násobí 0,3', () => {
-    expect(birthChancePerDay({ satiation: 1, overcrowded: true })).toBeCloseTo(
-      (1 / 3 / 365) * 0.3,
-      8,
-    );
+    expect(birthChancePerDay({ ...at25, overcrowded: true })).toBeCloseTo((rate25 / 365) * 0.3, 10);
   });
 });
 
@@ -333,6 +351,30 @@ describe('populationDay', () => {
     }
     expect(born).toBeDefined();
   });
+
+  it('rozestup porodů: po porodu 21 měsíců, po svatbě 9 měsíců žena nerodí (population.md)', () => {
+    let gaps = 0;
+    for (let seed = 1; seed <= 30; seed++) {
+      const state = village(seed, spouses(24, 22, FOUNDED), [dwelling(1, 'polozemnice')]);
+      state.people[1]!.nextBirthFrom = FOUNDED + BIRTH_SPACING.afterWeddingDays;
+      const births: number[] = [];
+      for (let day = FOUNDED; day < FOUNDED + 12 * 365; day++) {
+        if (populationDay(state, day, 1).some((e) => e.kind === 'birth')) births.push(day);
+      }
+      expect(births[0]).toBeGreaterThanOrEqual(FOUNDED + BIRTH_SPACING.afterWeddingDays);
+      for (let i = 1; i < births.length; i++) {
+        expect(births[i]! - births[i - 1]!).toBeGreaterThanOrEqual(BIRTH_SPACING.afterBirthDays);
+        gaps++;
+      }
+      expect(state.people[1]!.nextBirthFrom).toBe(
+        births.length > 0
+          ? births.at(-1)! + BIRTH_SPACING.afterBirthDays
+          : FOUNDED + BIRTH_SPACING.afterWeddingDays,
+      );
+    }
+    // za 12 let ≈ 4 porody (≈ 31 měsíců od sebe) – rozestupů přes sto
+    expect(gaps).toBeGreaterThan(70);
+  }, 60_000);
 
   it('chlapců se rodí 105 na 100 dívek', () => {
     let boys = 0;

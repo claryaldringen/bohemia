@@ -10,8 +10,9 @@ import type { Person, VillageState } from '../types';
 import { DAY, type KinSpec, couple, dwelling, kin, village } from './kin-fixtures';
 
 // Domácnosti po rodinách (kinship.md – Domácnosti; population.md – Nové obydlí, Martin): novou
-// domácnost zakládá ženatý syn se ženou, nejstarší ženatý syn zůstává (dědic), z přeplněného domu
-// smí odejít svobodný nejstarší syn; dcery odcházejí sňatkem.
+// domácnost zakládá ženatý syn se ženou (z jakéhokoli domu – Martin, 19. 10. 2026), nejstarší
+// ženatý syn zůstává (dědic), z plného domu smí odejít svobodný nejstarší syn; dcery odcházejí
+// sňatkem.
 
 /** Rodiče (otec 10, matka 11) v domě 1. */
 const parents = (fatherAge = 50, motherAge = 40): KinSpec[] =>
@@ -105,26 +106,52 @@ describe('rodiny, které se mohou oddělit', () => {
     expect(familiesOf(s, s.dwellings[0]!, DAY)).toEqual([]);
   });
 
-  it('z neplného domu žádná rodina – lidé k osídlení jen z plné domácnosti', () => {
+  it('i z neplného domu smí ženatý pár, který dům nedrží, odejít (Martin, 19. 10. 2026)', () => {
     // dva páry ve 4 lidech v zemnici pro 6 – jako zakladatelé, když se jejich děti vezmou
     const notFull = build([
       ...couple({ id: 20, age: 30, mother: 91, father: 90 }, { id: 21, age: 27 }),
       ...couple({ id: 30, age: 26, mother: 91, father: 90 }, { id: 31, age: 24 }),
     ]);
     expect(familiesOf(notFull, notFull.dwellings[0]!, DAY)).toHaveLength(1);
-    expect(leavingFamilies(notFull, DAY)).toEqual([]);
-    expect(availableSettlers(notFull, DAY)).toBe(0);
+    expect(leavingFamilies(notFull, DAY).map((f) => ids(f.people))).toEqual([[30, 31]]);
+    expect(availableSettlers(notFull, DAY)).toBe(1);
+    // svobodný syn sám ale jen z plného domu
+    const son = build([...parents(), child(20, 18, 'male'), child(21, 12, 'female')]);
+    expect(loneSonOf(son, son.dwellings[0]!, DAY)).toBeUndefined();
+    expect(availableSettlers(son, DAY)).toBe(0);
   });
 
-  it('z plného domu odejde jen tolik rodin, dokud dům zůstává plný – obvykle jedna', () => {
-    // tři páry v plné zemnici: po odchodu první rodiny zbydou 4 lidé, druhá už nejde
+  it('odejít smí všechny rodiny kromě toho, kdo dům drží – zbytek se nesmí rozpadnout', () => {
+    // tři páry bratrů v plné zemnici: nejstarší zůstává, oba mladší smí odejít
     const s = build([
       ...couple({ id: 20, age: 32, mother: 91, father: 90 }, { id: 21, age: 29 }),
       ...couple({ id: 30, age: 28, mother: 91, father: 90 }, { id: 31, age: 25 }),
       ...couple({ id: 40, age: 24, mother: 91, father: 90 }, { id: 41, age: 22 }),
     ]);
     expect(familiesOf(s, s.dwellings[0]!, DAY)).toHaveLength(2);
-    expect(availableSettlers(s, DAY)).toBe(1);
+    expect(availableSettlers(s, DAY)).toBe(2);
+    // z každého domu se do prázdného domu stěhuje jen první rodina dne
+    expect(leavingFamilies(s, DAY).map((f) => ids(f.people))).toEqual([[30, 31]]);
+  });
+
+  it('starší pár ani starší svobodný muž neodejdou – nový dům by neudrželi (tam a zpět)', () => {
+    // nejstarší ženatý bratr 40 drží dům; mladší bratr 46 se ženou 45 by se v novém domě
+    // rozpadl, vrátil k příbuzným a druhý den odešel znovu
+    const s = build([
+      ...couple({ id: 20, age: 40, mother: 91, father: 90 }, { id: 21, age: 38 }),
+      ...couple({ id: 30, age: 46, mother: 91, father: 90 }, { id: 31, age: 45 }),
+      { id: 40, age: 10, sex: 'male', mother: 21, father: 20 },
+      { id: 41, age: 8, sex: 'female', mother: 21, father: 20 },
+    ]);
+    expect(familiesOf(s, s.dwellings[0]!, DAY)).toEqual([]);
+    expect(availableSettlers(s, DAY)).toBe(0);
+    // svobodný muž 50 bez rodičů v plném domě taky ne
+    const lodger = build([
+      ...couple({ id: 20, age: 30 }, { id: 21, age: 28 }),
+      { id: 30, age: 50, sex: 'male' },
+      ...[40, 41, 42].map((id) => ({ id, age: 5, sex: 'male' as const, mother: 21, father: 20 })),
+    ]);
+    expect(loneSonOf(lodger, lodger.dwellings[0]!, DAY)).toBeUndefined();
   });
 
   it('rodina neodejde, když by se zbytek domácnosti rozpadl', () => {

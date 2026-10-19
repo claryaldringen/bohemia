@@ -5,9 +5,19 @@
 // spřežení dnes táhne vůz a kolik orá (voli nejsou zároveň u vozu, u rádla a v ohradě). Kreslí
 // village-renderer.ts (cart-renderer.ts, plough-team-renderer.ts, pen-animals.ts).
 import { CARTS } from '@bohemia/game';
-import type { SceneCart, SceneVillage } from '../village-view';
-import { shuttleRoute, type CartPlan, type CartSpot } from './cart-layout';
+import type { SceneCart, SceneExpedition, SceneVillage } from '../village-view';
+import {
+  CART_TURN_M,
+  cartRoute,
+  nearestOnRoute,
+  shuttleRoute,
+  type CartCaravan,
+  type CartPlan,
+  type CartSpot,
+} from './cart-layout';
+import { caravanHead, caravanPlan, caravanProgress, type DayWindow } from './caravan';
 import type { PenLayout } from './pen-layout';
+import { route as walkRoute } from './villager-motion';
 
 /** Vůz stojí u boční stěny ohrady venku – od plotu (m) a rozestup víc vozů vedle sebe (m). */
 const PARKED_M = { fromFence: 2.3, apart: 2.6, back: 1.5 } as const;
@@ -58,9 +68,10 @@ export function parkedCartSpot(
  * ohrady se nekreslí.
  */
 export function villageCartPlans(
-  village: Pick<SceneVillage, 'carts'>,
+  village: Pick<SceneVillage, 'carts' | 'expeditions' | 'trails'>,
   pens: readonly { id: number; layout: PenLayout }[],
   window: { startMs: number; endMs: number } | null,
+  dayWindow: (day: number) => DayWindow | null = () => null,
 ): CartPlan[] {
   const carts = village.carts ?? [];
   const driving = new Set(drivingCarts(village).map((c) => c.id));
@@ -75,6 +86,19 @@ export function villageCartPlans(
   const plans: CartPlan[] = [];
   for (const cart of carts) {
     const job = cart.job;
+    // vůz výpravy jede v karavaně podle postupu výpravy (trade.md – Ve scéně, caravan.ts)
+    const expedition =
+      job?.activity === 'trade'
+        ? village.expeditions?.find((e) => e.carts.includes(cart.id))
+        : undefined;
+    const caravan =
+      expedition && driving.has(cart.id)
+        ? caravanCartPlan(village, cart, expedition, dayWindow(expedition.day))
+        : null;
+    if (caravan) {
+      plans.push(caravan);
+      continue;
+    }
     if (job && driving.has(cart.id)) {
       const group = sameRoute.get(JSON.stringify(cart.route))!;
       plans.push({
@@ -97,6 +121,50 @@ export function villageCartPlans(
     plans.push({ kind: cart.kind, parked: parkedCartSpot(pen.layout, index) });
   }
   return plans;
+}
+
+/**
+ * Vůz v karavaně výpravy (caravan.ts): jede od ohrady na začátek zemské stezky a po ní v čele
+ * karavany (vozy za sebou po CARAVAN_GAP_M.cart), za krajem mapy zmizí a za dny výpravy se vrátí
+ * po stezce a k ohradě (trasa zpět je obrácená – voli jdou vpřed). Bez stezky null.
+ */
+export function caravanCartPlan(
+  village: Pick<SceneVillage, 'trails'>,
+  cart: SceneCart,
+  e: SceneExpedition,
+  window: DayWindow | null,
+): CartCaravan | null {
+  const trail = (village.trails ?? []).find((t) => t.id === e.trailId);
+  if (!trail || trail.points.length < 2 || !cart.route || cart.route.length < 2) return null;
+  const L = walkRoute(trail.points.map((p) => [p.x, p.z] as const)).length;
+  const radius = CART_TURN_M[cart.kind];
+  const out = cartRoute(cart.route, { closed: false, turnRadius: radius });
+  const back = cartRoute([...cart.route].reverse(), { closed: false, turnRadius: radius });
+  // kde na trase vozu začíná stezka (před ní jede od ohrady)
+  const start = nearestOnRoute(out, trail.points[0]!);
+  const plan = caravanPlan(e);
+  const columns = { out: plan.out.length, back: plan.back.length };
+  const k = Math.max(0, e.carts.indexOf(cart.id));
+  const daySeconds = window ? Math.max(1, (window.endMs - window.startMs) / 1000) : 86;
+  return {
+    kind: cart.kind,
+    cargo: 'goods',
+    routes: { out, back },
+    at: (nowMs) => {
+      const head = caravanHead(e, caravanProgress(e, window, nowMs), L, columns);
+      if (head.leg === 'away') return { leg: 'back', s: 0, speed: 0, visible: false };
+      const behind = plan[head.leg].carts[k] ?? 0;
+      const onTrail = head.leg === 'out' ? head.head - behind : head.head + behind;
+      const s = Math.min(out.length, Math.max(0, start + onTrail));
+      const moving = head.perDay > 0 && s > 0 && s < out.length;
+      return {
+        leg: head.leg,
+        s: head.leg === 'out' ? s : Math.max(0, back.length - s),
+        speed: moving ? head.perDay / daySeconds : 0,
+        visible: onTrail <= L,
+      };
+    },
+  };
 }
 
 function nearestPen(

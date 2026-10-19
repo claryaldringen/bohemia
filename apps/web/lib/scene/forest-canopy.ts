@@ -9,6 +9,7 @@ import { createNoise2D } from 'simplex-noise';
 import { HEIGHT_SCALE } from './constants';
 import type { ForestField } from '@bohemia/game';
 import { clearingDistance, type ClearedForest } from './cleared-forest';
+import { swathBandsKey, swathDistance, type SwathBand } from './swath-bands';
 import type { RenderSurface } from './render-surface';
 import { applySeasonCanopy } from './season-materials';
 
@@ -38,15 +39,22 @@ const CANOPY_TEXTURE_REPEAT_M = 48;
  */
 const CLEARING_START_M = 4;
 const CLEARING_FULL_M = 16;
+/**
+ * U průseku lesem (roads.md – Průsek lesem) plocha korun vystupuje hned za jeho okrajem (m od
+ * okraje pruhu) – průsek je úzký a na jeho kraji stojí les jako stěna.
+ */
+const SWATH_START_M = 0.5;
+const SWATH_FULL_M = 5;
 
 /** Plocha korun lesa – po vymýcení části lesa ji jde nad pasekou zanořit pod zem. */
 export interface ForestCanopy {
   readonly mesh: Mesh;
   /**
-   * Plocha korun nad vymýceným lesem a kolem něj zapadne pod zem (null = nic vymýcené). Mění
-   * jen výšky vrcholů, síť zůstává. Vrátí true, když se plocha změnila.
+   * Plocha korun nad vymýceným lesem a kolem něj zapadne pod zem (null = nic vymýcené), stejně
+   * nad průseky lesem (`swaths` – pásy podél os cest). Mění jen výšky vrcholů, síť zůstává.
+   * Vrátí true, když se plocha změnila.
    */
-  setCleared(cleared: ClearedForest | null): boolean;
+  setCleared(cleared: ClearedForest | null, swaths?: readonly SwathBand[]): boolean;
 }
 
 /** Výška plochy korun nad zemí podle vzdálenosti `t` od hranice (lesa nebo paseky). */
@@ -140,8 +148,8 @@ export function createForestCanopy(
   let clearedKey = '';
   return {
     mesh,
-    setCleared(cleared) {
-      const key = cleared ? cleared.tiles.join(',') : '';
+    setCleared(cleared, swaths = []) {
+      const key = `${cleared ? cleared.tiles.join(',') : ''}#${swathBandsKey(swaths)}`;
       if (key === clearedKey) return false;
       clearedKey = key;
       for (let k = 0; k < grid.length; k++) {
@@ -154,7 +162,12 @@ export function createForestCanopy(
         const clearing = Number.isFinite(distance)
           ? canopyAbove(distance, CLEARING_START_M, CLEARING_FULL_M, crowns)
           : Infinity;
-        positions[k * 3 + 1] = surface.heights[v]! * HEIGHT_SCALE + Math.min(forest, clearing);
+        const fromSwath = swaths.length > 0 ? swathDistance(swaths, x, z, SWATH_FULL_M) : Infinity;
+        const swath = Number.isFinite(fromSwath)
+          ? canopyAbove(fromSwath, SWATH_START_M, SWATH_FULL_M, crowns)
+          : Infinity;
+        positions[k * 3 + 1] =
+          surface.heights[v]! * HEIGHT_SCALE + Math.min(forest, clearing, swath);
       }
       VertexData.ComputeNormals(positions, indices, normals);
       mesh.updateVerticesData(VertexBuffer.PositionKind, positions);

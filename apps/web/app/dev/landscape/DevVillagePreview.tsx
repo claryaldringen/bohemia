@@ -83,10 +83,13 @@ import {
   demoApplesStage,
   demoRoad,
   demoRoadGap,
+  demoRoadPlough,
   demoRoadStage,
   withRoadCuts,
 } from './dev-road';
+import { FOREST_TRAIL_STAGES, forestTrailDemo, type ForestTrailDemo } from './dev-forest-trail';
 import { demoCartSlope, type CartDemo } from './dev-cart';
+import { demoCaravan, type CaravanDemo } from './dev-caravan';
 import { devSelectionView } from './dev-selection';
 import type { CartKind } from '@bohemia/game';
 import {
@@ -193,11 +196,17 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   >(null);
   // ukázka vozové sítě na svahu vedle pěšin (wagons.md, dev-cart.ts) – dvoukolák, pak čtyřkolák
   const [cartDemo, setCartDemo] = useState<CartDemo | null>(null);
+  // ukázka zemské stezky lesem s průsekem (roads.md – Průsek lesem, dev-forest-trail.ts)
+  const [forestTrail, setForestTrail] = useState<ForestTrailDemo | null>(null);
+  // ukázka karavany výpravy k sousedovi (trade.md – Ve scéně, dev-caravan.ts) – nosiči, pak vůz
+  const [caravanDemo, setCaravanDemo] = useState<CaravanDemo | null>(null);
   // stupeň vylepšení ukázkových cest (dev-road.ts – DEMO_ROAD_STAGES) a stadium jabloní u cesty
   const [roadStage, setRoadStage] = useState(0);
   const [appleStage, setAppleStage] = useState(0);
   // díra mezi úseky ukázky – zacelená jádrem jako v roční kontrole, nebo jak byla (dev-road.ts)
   const [gapClosed, setGapClosed] = useState(true);
+  // orba přes pole ukázky cesty – brázdy končí na cestě (oxen.md, dev-road.ts – demoRoadPlough)
+  const [roadPlough, setRoadPlough] = useState(false);
   // ukázka zarůstání přílohu a lesa vsi (fields.md – Zarůstání, dev-overgrowth.ts)
   const [overgrowth, setOvergrowth] = useState<OvergrowthDemo | null>(null);
   // hospodaření podle polohy domů (fields.md): obrysy úseků a vzorec polí ze simulace jádra
@@ -251,9 +260,38 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         ? { sacred: { oaks: sacredOaks, groves, buildings: sacredBuildings } }
         : {}),
     };
+    // stezka lesem – osa a vykácený průsek z jádra (roads.md – Průsek lesem)
+    if (forestTrail) {
+      const changes = base.obstacles ?? NO_OBSTACLE_CHANGES;
+      base.roads = [...(base.roads ?? []), forestTrail.road];
+      base.obstacles = {
+        ...changes,
+        removed: [...new Set([...changes.removed, ...forestTrail.cleared])].sort((a, b) => a - b),
+        stumps: [...new Set([...changes.stumps, ...forestTrail.felled])].sort((a, b) => a - b),
+      };
+    }
     // kousky pole oddělené cestou zůstanou loukou (roads.md a fields.md – Cesta přes pole)
     if (base.roads && base.roads.length > 0) {
       base.fields = withRoadCuts(base.fields, base.roads, decoded);
+    }
+    // orba přes cestu: pole ukázky cesty po žni orá spřežení, brázdy končí na cestě
+    const ploughed = roadPlough ? base.fields.find((f) => f.id === road?.fieldId) : undefined;
+    if (ploughed) {
+      const demo = demoRoadPlough(ploughed);
+      base.fields = base.fields.map((f) => (f.id === ploughed.id ? demo.field : f));
+      base.labor = demo.labor;
+    }
+    if (caravanDemo) {
+      // karavana výpravy: dvorec, zemská stezka, výprava (a vůz) – zboží a lidé tam a zpět
+      return {
+        ...base,
+        dwellings: [...base.dwellings, ...caravanDemo.dwellings],
+        trails: [caravanDemo.trail],
+        roads: [...(base.roads ?? []), caravanDemo.road],
+        expeditions: [caravanDemo.expedition],
+        carts: caravanDemo.carts,
+        labor: base.labor ?? caravanDemo.labor,
+      };
     }
     if (cartDemo) {
       // ukázka vozů na svahu: obydlí, ohrada se spřežením, díl nahoře a vozová cesta jádra
@@ -306,12 +344,15 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     sacredBuildings,
     pathAge,
     road,
+    forestTrail,
     roadStage,
     appleStage,
     gapClosed,
     simulated,
     overgrowth,
     cartDemo,
+    caravanDemo,
+    roadPlough,
   ]);
 
   useEffect(() => {
@@ -1304,6 +1345,18 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
    * Ukázka vozové sítě na svahu vedle pěšin (wagons.md): vypnuto → jen pěšina (bez vozové cesty)
    * → dvoukolák → čtyřkolák → vypnuto; kamera ke svahu.
    */
+  /** Stezka lesem: vyšlapaná cesta lesem → upravená s průsekem → nic (kamera k lesu). */
+  const toggleForestTrail = (): void => {
+    const next = forestTrail === null ? 0 : forestTrail.stage + 1;
+    if (next >= FOREST_TRAIL_STAGES.length) {
+      setForestTrail(null);
+      return;
+    }
+    const demo = forestTrailDemo(decoded, obstaclesOf(decoded), next);
+    setForestTrail(demo);
+    if (next === 0) scene?.moveCameraTo(demo.focus.x, demo.focus.z);
+  };
+
   const toggleCarts = (): void => {
     const next: Record<string, CartKind | 'none' | null> = {
       off: 'none',
@@ -1331,12 +1384,33 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   };
 
   /**
+   * Ukázka karavany výpravy (trade.md – Ve scéně): vypnuto → nosiči se zbožím → vůz → vypnuto.
+   * Výprava vyrazí hned a za „den“ ukázky (90 s) se vrátí; kamera k půlce stezky.
+   */
+  const toggleCaravan = (): void => {
+    const next = caravanDemo === null ? 'porters' : !caravanDemo.cart ? 'cart' : null;
+    if (!next) {
+      setCaravanDemo(null);
+      scene?.setWorkDayClock(null);
+      return;
+    }
+    const sample = demoCaravan(decoded, next === 'cart', Date.now());
+    scene?.setWorkDayClock(() => sample.window);
+    setCaravanDemo(sample);
+    scene?.moveCameraTo(sample.focus.x, sample.focus.z);
+  };
+
+  /**
    * Ukázka pevné cesty se stromy (keř, mladý a plný strom, souš, pařez) a se zralým polem 15 × 15
    * čtverců přes rozcestí (pod cestou obilí neroste – fields.md, Co hráč vidí) – kamera k ní.
    */
   const toggleRoad = (): void => {
     if (road) {
       setRoad(null);
+      if (roadPlough) {
+        setRoadPlough(false);
+        scene?.setWorkDayClock(null);
+      }
       if (road.fieldId !== null) setFields((list) => list.filter((f) => f.id !== road.fieldId));
       return;
     }
@@ -1373,6 +1447,23 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     });
     // kamera k rozcestí uprostřed první cesty
     scene?.moveCameraTo(sample.focus.x, sample.focus.z);
+  };
+
+  /**
+   * Orba přes cestu (oxen.md – Brázdy končí na cestě): pole ukázky cesty (zapne ji) po žni orá
+   * spřežení – pás přes rozcestí; spřežení projede dnešní orbu za 4 minuty od zapnutí (stránka
+   * hodiny světa nemá).
+   */
+  const toggleRoadPlough = (): void => {
+    if (roadPlough) {
+      setRoadPlough(false);
+      scene?.setWorkDayClock(null);
+      return;
+    }
+    if (!road) toggleRoad();
+    const start = Date.now();
+    scene?.setWorkDayClock(() => ({ startMs: start, endMs: start + 240_000 }));
+    setRoadPlough(true);
   };
 
   /**
@@ -1544,6 +1635,33 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
           data-testid="dev-road"
         >
           {road ? 'Cesta ✓' : 'Cesta'}
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={toggleForestTrail}
+          title="Zemská stezka lesem – vyšlapaná cesta, pak upravená s vykáceným průsekem"
+          data-testid="dev-forest-trail"
+        >
+          {forestTrail ? `Stezka lesem: ${FOREST_TRAIL_STAGES[forestTrail.stage]}` : 'Stezka lesem'}
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={toggleCaravan}
+          title="Karavana výpravy k sousedovi – zboží a lidé tam a zpět, nejdřív nosiči, pak vůz (výprava trvá 90 s)"
+          data-testid="dev-caravan"
+        >
+          {caravanDemo ? `Karavana: ${caravanDemo.cart ? 'vůz' : 'nosiči'}` : 'Karavana'}
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={toggleRoadPlough}
+          title="Orba přes pole ukázky cesty – brázdy končí na cestě, spřežení se na ní otočí"
+          data-testid="dev-road-plough"
+        >
+          {roadPlough ? 'Orba přes cestu ✓' : 'Orba přes cestu'}
         </button>
         <button
           className={buttonClass}

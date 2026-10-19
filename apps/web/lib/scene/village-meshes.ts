@@ -22,8 +22,8 @@ export interface DecalOptions {
   color: [number, number, number] | ((x: number, z: number, v: number) => [number, number, number]);
   /** Násobek krytí všech vrcholů. */
   alpha?: number;
-  /** Mapování textury: světové souřadnice / délka opakování, nebo vlastní UV. */
-  uv?: number | ((x: number, z: number) => [number, number]);
+  /** Mapování textury: světové souřadnice / délka opakování, nebo vlastní UV (i podle vrcholu). */
+  uv?: number | ((x: number, z: number, v: number) => [number, number]);
 }
 
 /** Obtisk na terénu ze sítě bodů (`decalGrid`, `earthPatch`) – výšky, normály, UV, barvy. */
@@ -53,7 +53,7 @@ export function createDecalMesh(
     normals[v * 3 + 1] = (2 * e) / length;
     normals[v * 3 + 2] = nz / length;
     if (typeof o.uv === 'function') {
-      const [u, w] = o.uv(x, z);
+      const [u, w] = o.uv(x, z, v);
       uvs[v * 2] = u;
       uvs[v * 2 + 1] = w;
     } else {

@@ -26,7 +26,22 @@ function Cost({ icon, children }: { icon: string; children: ReactNode }): ReactE
   );
 }
 
-/** Popisek směru stezky: název, cena (práce, dřevo), délka a dny cesty nosičů, důvod červeně. */
+/**
+ * Stromy v průseku lesem (roads.md – Průsek lesem) – vykácí se se stavbou, klády na hromadu.
+ */
+export function SwathTrees({ trees }: { trees: number }): ReactElement {
+  return (
+    <span className="flex items-center gap-1" data-testid="swath-trees">
+      <img src="/icons/build/dub.png" alt="Průsek lesem" width={16} height={16} />
+      {trees}
+    </span>
+  );
+}
+
+/**
+ * Popisek směru stezky: název, cena (práce, dřevo hatě), stromy v průseku lesem, délka a dny
+ * cesty nosičů, důvod červeně.
+ */
 function TrailTooltip({ option }: { option: TrailOption }): ReactElement {
   const name = DIRECTION_NAMES[option.direction].name;
   return (
@@ -36,6 +51,7 @@ function TrailTooltip({ option }: { option: TrailOption }): ReactElement {
         <span className="flex items-center gap-2 tabular-nums">
           <Cost icon="labor">{formatDecimal(option.laborManDays, 0)}</Cost>
           {option.trees > 0 && <Cost icon="wood">{option.trees}</Cost>}
+          {option.swathTrees > 0 && <SwathTrees trees={option.swathTrees} />}
           <span>{formatInteger(option.lengthM)} m</span>
           {option.tripDays !== null && <Cost icon="date">{option.tripDays}</Cost>}
         </span>

@@ -1030,7 +1030,8 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   (slabí voli po zimě `team.weak` od 1. 3.). Ztráta posledního spřežení: `finishPlanByHoe` →
   `ploughToHoe` – letošní plán dokončí motyka (kopání s hotovým podílem, kam došla orba). Starší
   plán s částí kopanou motykou doběhne (`digWeight`). **Co nejdelší brázda** (oxen.md; Martin 19. 10. 2026): `plough-blocks.ts` – `ploughLayout` rozloží díly plodiny na bloky (sousední díly
-  pole) a pásy podél osy pole (`furrowAxis` – delší rozloha, jako řádky ve scéně), bloky od
+  pole) a pásy podél osy bloku (`furrowAxis` – delší průměrná brázda, Martin: i sever – jih;
+  ve scéně textury a koruna dílu orby podél brázdy – `DecalPiece.rows`), bloky od
   nejbližšího, pásy napříč od vsi (`sweep`), U rameno po rameni; `CropWork.partIds` ve vsi s orbou
   v pořadí orby, `PloughWork.bands` (`PloughBand` – díly, osa, směr, blok). Díly pásu mají ve
   `field-progress` úsek celého pásu (`bandSpans`, `PartSpan.share` – podíl dílu; orba i setí),
@@ -1045,8 +1046,8 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   k osídlení** (`settlers` = `availableSettlers` v `households.ts`: možné nové domácnosti
   `possibleNewHouseholds` − prázdná − rozestavěná nová obydlí); pole a hřbitov lidi nechtějí.
   Tlačítko je pak zašedlé, zkratka nic nespustí, v popisku chybějící část červeně; server odmítne
-  (`NO_SETTLERS`, `CANNOT_AFFORD`). `waitingHouseholds` (upozornění „Domácnost je plná“) =
-  kladní lidé k osídlení.
+  (`NO_SETTLERS`, `CANNOT_AFFORD`). `waitingHouseholds` (upozornění „Rodina čeká na dům“, dřív
+  „Domácnost je plná“; `VillageSummary.fullHousehold`) = kladní lidé k osídlení.
 - **Příbuzenství a pohlaví** ([kinship.md](docs/design/kinship.md), Martin 18. 10. 2026;
   `kinship.ts`): `Person.sex`, `motherId`, `fatherId`, `spouseId`, u nevěsty z okolí a lidí od
   souseda (výměna lidí – trade.md) `origin` (směr sousední vsi – válka); zemřelí a odešlí rodiče
@@ -1056,31 +1057,49 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   Staré vsi převede `withKinship` (v `updateVillage` i na začátku `advanceVillage`, bez příznaku –
   ves, kde mají všichni pohlaví, se nemění; `availableSettlers` počítá na převedené).
   **Porody** (`population.ts`) jen manželským párům: žena 16–44 s manželem od 16 let v témže domě,
-  chlapec `BOY_SHARE` (105/205). **Domácnost drží člověk 16–44** (`householdBreaksUp` v `people.ts`;
+  chlapec `BOY_SHARE` (105/205); šance podle věku ženy (`maritalFertility` – přirozená plodnost
+  `NATURAL_MARITAL_FERTILITY` × `MARITAL_FERTILITY_LEVEL` 0,85, Martin 19. 10. 2026 „aby se
+  populace co nejvíce rozrůstala“, čísla návrh Clauda – rešerše
+  `research/2026-10-19-population-growth.md`) a **rozestup** `BIRTH_SPACING` (po porodu 21 měsíců,
+  po svatbě a od založení vsi 9 měsíců – `Person.nextBirthFrom`; ve vsích uložených dřív od
+  nejmladšího žijícího dítěte – `birthPauses`), potom `birthRatePerYear` (průměrný odstup =
+  1 / plodnost věku). **Domácnost drží člověk 16–44** (`householdBreaksUp` v `people.ts`;
   osamělý 16–44 zůstává), rozpadlá jde k příbuzným (syn, dcera, sourozenec), jinak do domu
   s nejvíc místy – jen kam se vejde bez přeplnění, jinak zůstane doma (Martin; samotné děti jdou
   i do přeplněného).
 - **Osídlení obydlí** (`households.ts`; population.md – Nové obydlí, kinship.md – Domácnosti): nové
   obydlí po dokončení (`settleNewDwelling`) a prázdné v kroku 6 (`occupyEmptyDwellings`) osídlí
   **rodina ženatého syna** (muž, žena, jejich svobodné děti – `familiesOf` / `leavingFamilies`)
-  jen z plné či přeplněné domácnosti, dokud dům zůstává plný (`departingFamilies` – i lidé
-  k osídlení);
+  **z jakéhokoli domu** (Martin, 19. 10. 2026 – „ženatý pár, který dům nedrží, smí odejít kdykoli“;
+  dřív jen z plné domácnosti), dokud se zbytek nerozpadá (`departingFamilies` – i lidé k osídlení;
+  prázdný dům nejdřív rodina z nejvíc přeplněného domu, v něm od nejstaršího muže);
   dům drží jeden dědic – nejstarší ženatý syn s rodiči, v domě bez ženatého syna vdova s vlastními dětmi, jinak nejstarší ženatý muž; ostatní ženatí se oddělí (i muž bez rodičů v domě vedle dědice). Co zůstane prázdné,
-  osídlí **svobodný nejstarší syn z plného domu** (`loneSonOf`, Martin – „nejstarší dítě může
+  osídlí **svobodný nejstarší syn – jen z plného domu** (`loneSonOf`, Martin – „nejstarší dítě může
   odejít“, „ať prázdný dům obsadí i plná domácnost“; od 16 let, bez ženatého dědice a s neplodnou matkou zůstává nejstarší a jde druhý; bez syna jiný svobodný muž od 16 let bez rodičů v domě, ne otec dětí z domu – `lodgerOf`).
-  Dcery odcházejí sňatkem. Ne z domácnosti, jejíž zbytek by se rozpadl. **Chátrá jen prázdné
+  Dcery odcházejí sňatkem. Ne z domácnosti, jejíž zbytek by se rozpadl, a jen kdo nový dům udrží
+  (rodina i svobodný muž s někým 16–44 – starší pár by se v novém domě rozpadl, vrátil a odešel
+  znovu: stěhování tam a zpět, kalibrace 19. 10. 2026). **Chátrá jen prázdné
   obydlí** (Martin: „obydlená budova nechátrá – obyvatelé ji opravují“): `decayEmptyDwelling` – bez
   oprav podle stáří a navíc pevný denní podíl, nové zanikne za `DWELLINGS[type].emptyLifespanYears`
   (zemnice 5, polozemnice 8 let). Obydlené stav neztrácí – opravy podle stáří (`repairNeedPerDay`)
   dál berou práci vsi, nedodělek se jen neudělá; přestavbu rozhoduje jen stáří (`wantsRebuild`).
-- **Sňatky** (`marriage.ts`, kinship.md – Sňatky; Martin, varianta c): svobodný = muž od 16 / žena
-  16–44 bez manžela (vdova s dětmi do 14 ne – `isSingle`); v kroku 6 po osídlení obydlí se berou
-  nepříbuzní muž a žena s rozdílem do `MARRIAGE.maxAgeGapYears` (od nejstaršího, nejbližší věkem –
-  `bestMatch`), **žena se stěhuje k muži** (`canWed`: její dům se nesmí rozpadnout, ženichův nesmí
-  být přeplněný). Kdo nemá s kým, tomu okolí s 30 % ročně (`MARRIAGE.outsidePerYear`, los ze seedu
-  a dne): muži od 18 nevěsta 16–22 s `origin` (ne v hladu, ne do přeplněného domu), žena od 18 se
-  vdá pryč (záznam v `emigrants`). Kronika `marriage`, `bride-from-outside`, `married-away`;
-  upozornění „Svatba“ (`VillageView.lastMarriageDay`), „Nevěsta z okolí“, „Dcera se vdala pryč“.
+- **Sňatky** (`marriage.ts`, kinship.md – Sňatky; Martin, varianta c; 19. 10. 2026: „Vdova by se
+  měla snažit co nejdříve vdát, ideálně ve vesnici.“): svobodný = muž od 16 / žena 16–44 bez
+  manžela, i vdova s malými dětmi (`isSingle`); vdova / vdovec = svobodný s dítětem
+  (`isWidowed`, `parentIds` – bez příznaku, pozná se i ve starých vsích). V kroku 6 po osídlení
+  obydlí se berou nepříbuzní muž a žena – **vdovy a vdovci první**, pak od nejstaršího, nejbližší
+  věkem (`bestMatch`), rozdíl do `MARRIAGE.maxAgeGapYears` (s vdovou či vdovcem
+  `maxAgeGapWidowedYears` 20). Kam (`weddingHome`): **žena k muži**, i do přeplněného domu; drží-li
+  dům ona a on ne (`holdsHome` – po jeho odchodu s dětmi do 16 by doma nezůstal nikdo 16–44), **on
+  k ní**; drží-li oba, kde bude méně těsno, při shodě žena. Stěhuje se i s vlastními dětmi do 16
+  (`dependants`); nevěsta dostane `nextBirthFrom` (9 měsíců). Okolí (`MARRIAGE.outside`, los ze
+  seedu a dne, kdo nemá s kým): muž od 18 nevěsta 30 % ročně (16–22, staršímu nejvýš o povolený
+  rozdíl mladší, `origin`); žena od 18 ženich z okolí 10 % ročně (vdova, dědička – `holdsHome`
+  – a žena z domu bez mužů 50 %, `favouredBride`), jinak pryč 20 % ročně (záznam v `emigrants`;
+  vdova, dědička ani žena z domu bez mužů ne); v hladu a do přeplněného domu z okolí nikdo.
+  Kronika `marriage` (`groomMoved`, `widow`), `bride-from-outside`, `groom-from-outside`
+  (`widow`), `married-away`; upozornění „Svatba“ (`VillageView.lastMarriageDay`), „Nevěsta
+  z okolí“, „Ženich z okolí“, „Dcera se vdala pryč“.
 - **Přestěhování domácnosti** ([migration.md](docs/design/migration.md), fáze 1): akce
   `startRelocation` (`actions.ts`) = nová stavba obydlí (`kind: 'dwelling'`) s
   `Construction.relocates` = id domácnosti – dřevo, pozemek polozemnice, překážky a cena jako
@@ -1465,9 +1484,9 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   práce podle `forestDistanceM` obydlí. Scéna: hromada klád `lib/scene/log-pile.ts` (místo
   a hranice v `log-pile-layout.ts`, bez volného místa se nekreslí), staveniště ukazuje průběh
   bez kácení (`buildProgress`).
-- **Upozornění** (`lib/village-notices.ts`): plná domácnost (fakt), lidé umírají hlady, hlad,
+- **Upozornění** (`lib/village-notices.ts`): rodina čeká na dům (fakt), lidé umírají hlady, hlad,
   stojící stavby, plný hřbitov (žádný hotový nemá volný hrob), vesničané ušetřili posvátný dub
-  / dubový háj, svatba, nevěsta z okolí a dcera vdaná pryč, přišla rodina / muž / žena od souseda
+  / dubový háj, svatba, nevěsta a ženich z okolí a dcera vdaná pryč, přišla rodina / muž / žena od souseda
   (`newcomer` – trade.md, Výměna lidí) (fakt, když přibude – svatba podle
   `VillageView.lastMarriageDay`), podzimní porážka, spřežení vycvičené / dosloužilo, vůl
   uhynul, vesničané obnovují starý sad a starý sad dosloužil (nové události kroniky –
@@ -1764,6 +1783,20 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   `VillageRoad` = cesta (`segments`, `grades`, `cartM`), výběr `{ kind: 'road', id }` s id
   prvního úseku (`pickVillageTarget`), zvýraznění celé cesty, `SceneRoad.upgrade.fromEnd`;
   přechod pásů různé šířky se zúží (`RibbonLine.narrowStart` / `narrowEnd`, `NARROW_M`).
+- **Průsek lesem** ([roads.md](docs/design/roads.md) – Průsek lesem, trade.md – Zemská stezka;
+  Martin 19. 10. 2026: „Tam, kde zemská stezka prochází lesem, ať se les vykácí.“): upravená
+  cesta a stezka lesem (`PATH_WOODLAND`, les vsi) vykácí pruh `ROAD_SWATH.halfM` (3,5 m) od osy
+  – v pásu cesty (`roadbedM` 1,5 m) i pařezy a kameny, po stranách pařezy (`road-swath.ts`:
+  `swathTally`, `roadSwathTally`, `cutRoadSwath`). Cena v úseku stezky (`pieceOf`) a vylepšení
+  (`roadUpgradeOptions(…, walk, landscape)`, `swathTrees`); kácí krok dne `roadSwathDay`
+  s `swathRoadsInWork` (trail.ts), klády na hromadu, `Road.swath`. Pařezy průseků
+  (`VillageRoads.swath`) nedorostou (`obstacleChangesAt`, `fellTrees`, `plantOnStump`,
+  `isTreeStanding`), nový les vsi do pruhu nevstoupí (`keepSwathsClearOfWoods`). Posvátné duby
+  a háje: trasa stezky se jim vyhne (`sacredMask` v `trailRoutes`), v pásu cesty úpravu
+  nedovolí (`ROAD_SACRED`, `TRAIL_SACRED`). Starší vsi `withRoadSwaths` (bez klád, příznak
+  `swathChecked`). `trailTerrain` je v `paths/terrain.ts`. Scéna: `SceneRoad.swath` →
+  `swath-bands.ts` (plocha korun `setCleared(…, swaths)`, zarůstání `wildPlants`), dev ukázka
+  Stezka lesem (`dev-forest-trail.ts`). Vozová cesta průsek nedostane.
 - **Cesta přes pole** ([roads.md](docs/design/roads.md) – Cesta přes pole; Martin 19. 10. 2026:
   „Ano má. … pokud oráč narazí na cestu, tak spřežení otočí. Nebude pak moci vzniknout takový
   růžek…“): pás pevné cesty (šířky `ROAD_LAND.widthM` = obtisk, i `ROAD_WIDTH_M` ve scéně)
@@ -1775,8 +1808,12 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   zmenšení i vrácení plochy s plánem, sečí a založením; pod 20 % políčka díl vypadne, kronika
   `land-taken` s `by: 'road'`). Díl nese `roadM2` (už odečtené z `areaM2`) a `roadCut` (řádky
   bitů buněk); scéna `SceneFieldPart.roadCut` → `roadCutMask` (`road-cut-mask.ts`) v krytí pole,
-  dev ukázka Cesta (`withRoadCuts`). Brázdy a spřežení (plough-front.ts) oddělené kousky zatím
-  neznají.
+  dev ukázka Cesta (`withRoadCuts`). **Brázdy končí na cestě** (oxen.md): jádro – výkon orby
+  s průměrnou délkou kusu pásu mezi cestami (`bandFurrowM` v `plough-trip.ts`, `roadCapsules` /
+  `roadFreeRuns` v `road-land.ts`, i plán osevu `plannedFurrowEfficiency(…, state, landscape)`);
+  scéna – `roadPieces` (`plough-roads.ts`): pruh dne po kusech mezi cestami (`PloughField.rowRuns`,
+  `fillLo` / `fillHi` – brázda řady po celé šířce až k cestě), oddělený kousek (`roadCut`) se
+  neorá, v `dayStints` i `ploughFront`; `/dev/landscape` **Orba přes cestu** (`demoRoadPlough`).
 - **Jabloně podél pevné cesty** ([roads.md](docs/design/roads.md) – fáze 3): `VillageRoads.apples`
   (`RoadApple` – místo, úsek, `distanceM` vzdušnou čarou, `plantedDay` null = čeká na výsadbu,
   `constructionId`). `road-apples.ts`: `roadAppleSpots` (po 10 m střídavě – `roadTreeSpots`
@@ -1844,7 +1881,15 @@ směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, 
   výpravu (`TradeExpedition`), `workExpeditions` (v kroku práce před stavbami – nejvýš nosiči za
   den ze společné práce) a `finishExpeditions` (po práci – zboží do zásob, kronika
   `trade-departed` / `trade-returned`). Rozdělení práce: činnost `trade`, cíl `{ kind: 'trail' }`
-  – nosiči ve scéně chodí po stezce (`porters` ve `villager-plan.ts`). Use-case `sendExpedition`,
+  – ve scéně jde výprava jako **karavana** (`scene/caravan.ts`, data `SceneVillage.expeditions`
+  z `lib/caravan-view.ts`): jedna skupina po zemské stezce podle postupu výpravy v herním čase
+  (`caravanProgress` – postup dne plynule dnešním tempem, `caravanHead` – tam, den za krajem mapy
+  pryč, zpátky), ne podle práce dne – nosiči nezmizí, když výprava nedostala volné ruce; tam
+  nosiči s nákladem a lidé, kteří odcházejí (`givePeople.members`), zpátky nosiči a lidé od
+  souseda (`newcomerProfiles`); postavy `caravanFigures` ve `villager-plan.ts` (podíl `trade`
+  se pak nekreslí; `VillagerPose.hidden` za krajem mapy), vůz v čele `caravanCartPlan`
+  (`CartCaravan` v `cart-layout.ts`, `CartPose.hidden`); obal postav zahrne celé stezky
+  s karavanou (`caravanExtent`). Ukázka `/dev/landscape` – **Karavana**. Use-case `sendExpedition`,
   server action `sendExpedition` (`{ villageId, direction, give, get, givePeople?, getPeople? }` –
   `parseSendExpeditionInput`).
   Web: `VillageManor.neighbours` (`neighbourViews`), panel `hud/TradePanel.tsx` (soused a směr,
@@ -1852,7 +1897,14 @@ směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, 
   sloupce v `hud-inset` s viditelnými hlavičkami „Dáš“ / „Dostaneš“ a portrétem dvorce, řádky
   `TradeRow` s popiskem „Soused shání – vezme ještě …“ / „Soused nabízí – má ještě …“
   – `tradeAmountText`; záložky sousedů jen při víc sousedech; náhled `lib/trade-quote.ts`),
-  upozornění, ikona `icons/build/obchod.png`.
+  upozornění, ikona `icons/build/obchod.png`. **Po odeslání** (Martin 19. 10. 2026 – „dál nějak
+  nevím, co se bude dít“): výběr se s novým pohledem ořízne na meze souseda (`clampSelection`,
+  `tradeLimits` – úprava stavu během renderu při změně `neighbour`), náhled `tradePreview` dělá
+  všechny kontroly `tradeQuote` se stejnými důvody (konstanty z jádra), `onSend` vrací důvod
+  odmítnutí – panel zůstane otevřený a ukáže ho červeně (`trade-error`), dokud se výběr nezmění;
+  výprava na cestě `ExpeditionView` (`expeditionView` v `manor-view.ts`: `daysLeft`, `pace`
+  `full` / `slow` / `waiting` / `starting` z podílu `trade` v rozdělení práce dne, přesýpací
+  hodiny „Čeká na volné ruce“); u práce kolik vozy ušetří (`savedManDays`).
 - **Jen společné suroviny** (trade.md – Jen společné suroviny; Martin 19. 10. 2026: „Nech jen
   společné suroviny, nezaváděj nové.“): obchod zná jen zboží, které má i ves (`TradeGood` – obilí,
   luštěniny, maso, sýr, dobytek, klády, keramika, nástroje, uhlí; `TRADE_GOODS`). Zboží zvenku
@@ -1864,21 +1916,27 @@ směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, 
 - **Výměna lidí** (trade.md – Výměna lidí; Martin 19. 10. 2026: „Se sousedem půjde vyměnit
   i lidi…“, „Mohou se stěhovat celé rodiny i jen dospělí. Podle toho, co je v nabídce.“;
   `people-trade.ts`): soused má na rok obchodu lidi navíc, nebo je shání (`neighbourPeople` – ze
-  seedu, směru a roku; `NeighbourStock.people` – `families` počty dětí rodin, které dá, `adults`,
-  `takes`; chybí u zbytku roku uloženého dřív – doplní `neighbourStock`). Cena `PEOPLE_TRADE`
+  seedu, směru a roku; `NeighbourStock.people` – `families` počty dětí rodin, které dá, `men`,
+  `women`, `takes`; chybí u zbytku roku uloženého dřív – doplní `neighbourStock`, uložený
+  s `adults` převede `storedNeighbourPeople`). **Muži a ženy zvlášť** (Martin 19. 10. 2026 – dvě
+  ženy od souseda neměly s kým založit domácnost): `TradePeople` = `families`, `men`, `women`,
+  pohlaví svobodných souseda se losuje v nabídce (na konci losu – rodiny a počty beze změny);
+  výprava s `getPeople.adults` (uložená dřív) losuje pohlaví při příchodu jako dřív. Cena `PEOPLE_TRADE`
   (dospělý 360 kg obilí, dítě polovina – `personValue`, `neighbourFamilyValue`, přirážky
-  `sellValue` / `buyValue`). `TradeOffer.givePeople` / `getPeople` (`TradePeople` – rodiny
-  a dospělí); `tradeQuote` je ocení a zkontroluje (`NO_PEOPLE_WANTED`, `OVER_PEOPLE_DEMAND`,
-  `NO_EMIGRANTS`…). Koho ves dá, vybere `emigrantGroups` (rodiny podle `familiesOf`, pak svobodní
-  16–44, z nejvíc přeplněného domu, ne dvorec, ne dědic – `unmarriedHeir` v `households.ts` –,
-  ne rozpad domácnosti; postupně, prefix stálý); odejdou hned v `startExpedition` (`removePeople`
-  se směrem, `TradeExpedition.givePeople`). Lidé souseda (`TradeExpedition.getPeople`) přijdou
-  v `finishExpeditions` – `settleNewcomers` (rodina do prázdného obydlí, jinak do domu s nejvíc
-  místy mimo dvorec, dospělý do obydleného domu s nejvíc místy; kronika `newcomer`, los ze seedu
-  a id výpravy). Lidé nosiče nepotřebují. Web: `VillageNeighbour.people` (`neighbourViews` –
-  `offers`, `takes`, `have` po výběru jádra), náhled `tradePreview(…, people)`, řádky rodina /
-  dospělý v `TradePanel` (ikony `resources/family.png`, `man.png`), upozornění „Přišla rodina ze
-  severu“.
+  `sellValue` / `buyValue`). `TradeOffer.givePeople` / `getPeople` (`TradePeople`);
+  `tradeQuote` je ocení a zkontroluje (`NO_PEOPLE_WANTED`, `OVER_PEOPLE_DEMAND`,
+  `NO_EMIGRANTS`…). Koho ves dá, vybere `emigrantGroups` (`Emigrants` – rodiny podle
+  `familiesOf`, pak svobodní muži, pak ženy 16–44 – `nextSingle`, z nejvíc přeplněného domu, ne
+  dvorec, ne dědic – `unmarriedHeir` v `households.ts` –, ne rozpad domácnosti; postupně, prefix
+  stálý); odejdou hned v `startExpedition` (`removePeople` se směrem, `TradeExpedition.givePeople`
+  i s `members` – pohlaví a den narození pro postavy karavany). Lidé souseda
+  (`TradeExpedition.getPeople`, `ComingPeople`) přijdou v `finishExpeditions` – `settleNewcomers`
+  podle `newcomerProfiles` (pohlaví a věk z losu ze seedu a id výpravy – stejně pro postavy ve
+  scéně; rodina do prázdného obydlí, jinak do domu s nejvíc místy mimo dvorec, svobodný do
+  obydleného domu s nejvíc místy; kronika `newcomer`). Lidé nosiče nepotřebují. Web:
+  `VillageNeighbour.people` (`neighbourViews` – `offers`, `takes`, `have` po výběru jádra), náhled
+  `tradePreview(…, people)`, řádky rodina / muž / žena v `TradePanel` (ikony
+  `resources/family.png`, `man.png`, `woman.png`), upozornění „Přišla rodina ze severu“.
 - **Ohrada s přístřeškem** ([oxen.md](docs/design/oxen.md); ve vsi `SceneVillage.pens` –
   `village-pens.ts` ve `VillageRenderer`: fáze podle `progress`, branka k nejbližšímu obydlí
   (vchod z jádra – `penEntrance`, `penEntranceFacing`; paths.md – Vchody),

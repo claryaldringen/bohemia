@@ -3,14 +3,14 @@ import { DIRECTION_NAMES, NEWCOMER_TEXTS } from './trade-names';
 import { formatInteger } from './village-format';
 import { productList, type VillageView } from './village-view';
 
-// Upozornění vsi (population.md – Co hráč vidí): plná domácnost, ves hladoví, lidé umírají hlady
+// Upozornění vsi (population.md – Co hráč vidí): rodina čeká na dům, ves hladoví, lidé umírají hlady
 // (Hlad a vymření), stavby stojí, hřbitov je plný (cemetery.md), vesničané ušetřili posvátný dub
 // nebo dubový háj (happiness.md – jen když přibude), kovář nemá uhlí a dílna nemá co kácet
 // (crafts.md), tesař nemá klády, vyrobil vůz a vůz dosloužil (wagons.md), svatba mezi domy (population.md – Sňatky mezi domy, když přibude), podzimní porážka,
 // zkažené maso a zimní úhyn stáda (diet.md), spřežení volů – vycvičené, dosloužilo, vůl uhynul pro
 // nedostatek sena (oxen.md) –, vesničané obnovují starý sad a starý sad dosloužil (orchard.md –
-// Obnova sadu), posvátný dub uschl a posvátná souš padla (happiness.md), nevěsta z okolí a dcera
-// vdaná pryč (kinship.md – Sňatky z okolí), lidé od souseda – rodina, muž, žena (trade.md – Výměna
+// Obnova sadu), posvátný dub uschl a posvátná souš padla (happiness.md), nevěsta a ženich z okolí
+// a dcera vdaná pryč (kinship.md – Sňatky z okolí), lidé od souseda – rodina, muž, žena (trade.md – Výměna
 // lidí), opuštěná modla padla, svatyně, plot hřbitova či ohrada
 // se rozpadly a vesničané je opravili (abandonment.md – Oprava) – nové události kroniky. Vymřelá
 // ves žádná nemá. Odvozují se z pohledu na ves a ukážou se jednou, když nově vzniknou – jako
@@ -44,6 +44,8 @@ export type NoticeKind =
   | 'orchard-renewal'
   | 'orchard-gone'
   | 'bride-from-outside'
+  /** K ženě se přiženil muž z okolí (kinship.md – Sňatky z okolí, Martin 19. 10. 2026). */
+  | 'groom-from-outside'
   | 'married-away'
   | 'part-forest'
   /** Zemská stezka a obchod se sousedy (trade.md). */
@@ -101,8 +103,10 @@ export function villageNotices(view: VillageView): VillageNotice[] {
   if (view.crafts.workshops.some((w) => w.activity === 'no-wood' && w.craft === 'carpenter')) {
     notices.push({ kind: 'carpenter-no-wood', tone: 'warn', text: 'Tesař nemá klády' });
   }
+  // rodina, která smí odejít, nemá kam (dřív „Domácnost je plná“ – od 19. 10. 2026 smí ženatý pár
+  // odejít i z neplného domu, kinship.md – Lidé k osídlení)
   if (view.fullHousehold) {
-    notices.push({ kind: 'full-household', tone: 'info', text: 'Domácnost je plná' });
+    notices.push({ kind: 'full-household', tone: 'info', text: 'Rodina čeká na dům' });
   }
   return notices;
 }
@@ -199,6 +203,11 @@ const CHRONICLE_NOTICES: Partial<
     kind: 'bride-from-outside',
     tone: 'info',
     text: 'Nevěsta z okolí',
+  }),
+  'groom-from-outside': () => ({
+    kind: 'groom-from-outside',
+    tone: 'info',
+    text: 'Ženich z okolí',
   }),
   'married-away': () => ({ kind: 'married-away', tone: 'info', text: 'Dcera se vdala pryč' }),
   'team-retired': () => ({ kind: 'team-retired', tone: 'info', text: 'Spřežení dosloužilo' }),

@@ -203,16 +203,22 @@ export function parseTradeGoods(value: unknown): TradeGoods | null {
 const MAX_RAW_TRADE_PEOPLE = 100;
 
 /**
- * Lidé ve výměně `{ families, adults }` (trade.md – Výměna lidí) – celá nezáporná čísla; chybí =
- * nikdo (undefined), jinak null.
+ * Lidé ve výměně `{ families, men, women }` (trade.md – Výměna lidí – muži a ženy zvlášť) – celá
+ * nezáporná čísla, chybějící druh 0; chybí celé = nikdo (undefined), jinak null.
  */
 export function parseTradePeople(value: unknown): TradePeople | undefined | null {
   if (value === undefined) return undefined;
   if (!isRecord(value)) return null;
-  const { families, adults } = value;
-  const valid = (n: unknown): n is number =>
-    Number.isInteger(n) && (n as number) >= 0 && (n as number) <= MAX_RAW_TRADE_PEOPLE;
-  return valid(families) && valid(adults) ? { families, adults } : null;
+  const count = (n: unknown): number | null =>
+    n === undefined
+      ? 0
+      : Number.isInteger(n) && (n as number) >= 0 && (n as number) <= MAX_RAW_TRADE_PEOPLE
+        ? (n as number)
+        : null;
+  const families = count(value.families);
+  const men = count(value.men);
+  const women = count(value.women);
+  return families === null || men === null || women === null ? null : { families, men, women };
 }
 
 /**

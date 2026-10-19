@@ -40,14 +40,27 @@ export function upgradeRoad(
       const day = state.lastDay;
       const obstacles = obstaclesOf(input.landscape);
       const walk = villageRoadWalk(state, input.landscape);
-      const option = roadUpgradeOptions(state, input.roadId, day, obstacles, walk).find(
-        (o) => o.upgrade === input.upgrade,
-      );
+      const option = roadUpgradeOptions(
+        state,
+        input.roadId,
+        day,
+        obstacles,
+        walk,
+        input.landscape,
+      ).find((o) => o.upgrade === input.upgrade);
       if (!option) return { ok: false, reason: NO_UPGRADE };
       if (option.blocked) return { ok: false, reason: option.blocked };
       return {
         ok: true,
-        state: startRoadUpgrade(state, day, input.roadId, input.upgrade, obstacles, walk),
+        state: startRoadUpgrade(
+          state,
+          day,
+          input.roadId,
+          input.upgrade,
+          obstacles,
+          walk,
+          input.landscape,
+        ),
       };
     },
   );
