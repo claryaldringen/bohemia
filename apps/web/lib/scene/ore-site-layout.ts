@@ -214,6 +214,21 @@ export function oreSitePits<P extends { x: number; z: number }>(
   return (pits ?? []).filter((p) => Math.hypot(p.x - site.x, p.z - site.z) <= ORE_SITE_PIT_REACH_M);
 }
 
+/**
+ * Jámy místa `site` jedné suroviny – rudiště jen jámy rudy, hliniště (`clay`) jen jámy hlíny
+ * (crafts.md – Hlína hrnčíře), do ORE_SITE_PIT_REACH_M od místa.
+ */
+export function dugSitePits<P extends { x: number; z: number; clay?: boolean }>(
+  site: { x: number; z: number },
+  pits: readonly P[] | undefined,
+  clay: boolean,
+): P[] {
+  return oreSitePits(
+    site,
+    pits?.filter((p) => (p.clay === true) === clay),
+  );
+}
+
 /** Kruh na zemi (m) – tvar rudiště pro výběr a obrys. */
 export interface OreSiteDisc {
   x: number;
@@ -222,8 +237,9 @@ export interface OreSiteDisc {
 }
 
 /**
- * Tvary rudiště (výběr kliknutím a obrys – village-picking.ts, selection-highlight.ts): jámy i
- * s valem (PIT_PROFILE), hromada rudy a místo samo (aspoň ORE_SITE_CORE_M kolem něj).
+ * Tvary rudiště či hliniště (výběr kliknutím a obrys – village-picking.ts, selection-highlight.ts):
+ * jámy téže suroviny i s valem (PIT_PROFILE – `dugSitePits`), hromada a místo samo (aspoň
+ * ORE_SITE_CORE_M kolem něj). `pits` = všechny jámy vsi.
  */
 export function oreSiteDiscs(
   site: SceneOreSite,
@@ -231,7 +247,11 @@ export function oreSiteDiscs(
 ): OreSiteDisc[] {
   return [
     { x: site.x, z: site.z, r: Math.max(ORE_SITE_CORE_M, oreHeapRadius(site)) },
-    ...oreSitePits(site, pits).map((p) => ({ x: p.x, z: p.z, r: orePitRadius(p.kg) * PIT_OUTER })),
+    ...dugSitePits(site, pits, site.clay === true).map((p) => ({
+      x: p.x,
+      z: p.z,
+      r: orePitRadius(p.kg) * PIT_OUTER,
+    })),
   ];
 }
 

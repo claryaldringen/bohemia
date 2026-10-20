@@ -454,6 +454,12 @@ zásobu (≈ 270 kg) za ≈ 9 měsíců, pak hrnčíř odpočíval a pomáhal vs
 
 - **Panel dílny hrnčíře:** hlína v dílně (kg, ikona `resources/clay`), hliniště – cesta z dílny
   (m, v bublině kolik hlíny zbývá), vůz se sedlákem; činnosti „Kope hlínu“ a „Nemá hlínu“.
+- **Výběr hliniště** (jako rudiště – návrh Clauda): klik na jámy hlíny nebo hromadu hlíny
+  hliniště vybere a obtáhne obrysem; panel ukáže portrét **Hliniště**, hlínu v hliništi (zbývá /
+  20 000 kg), hromadu vykopané hlíny u jámy, počet jam, dílnu hrnčíře (ikona – kliknutím ji
+  vybere), cestu z ní a hlínu u ní a kdo tu dnes pracuje – hrnčíř a synové s věkem (kope, nosí,
+  jede s vozem) a vůz se sedlákem. Jámy rudiště k hliništi nepatří a naopak. Ukázka
+  `/dev/panels?panel=hliniste`.
 - **Ve scéně:** jámy hliniště jako jámy rudiště, jen se šedookrovou stěnou jílu, a hromada hlíny
   u jámy; kopáči u jámy, nosiči s koši a vůz s hromadou hlíny (`wagon2-clay` – hladké hroudy
   seříznuté rýčem, `tools/blender/wagons_from_0ad.py`).
@@ -468,6 +474,7 @@ zásobu (≈ 270 kg) za ≈ 9 měsíců, pak hrnčíř odpočíval a pomáhal vs
 | Přirážka za vodu daleko u hrnčíře zmizela (cesta na hliniště)                                  | návrh Clauda                                      |
 | Rudiště a hliniště aspoň 20 m od míst, kde kopou jiné dílny                                    | rozhodnutí Clauda                                 |
 | Hlína jen dvoukolákem, v pořadí jízd po rudě                                                   | rozhodnutí Clauda                                 |
+| Hliniště jde vybrat jako rudiště – stejný panel s hlínou a dílnou hrnčíře                      | návrh Clauda                                      |
 
 ## Učení řemesla
 

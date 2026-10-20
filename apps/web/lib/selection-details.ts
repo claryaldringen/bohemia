@@ -25,10 +25,11 @@ import {
 } from '@bohemia/game';
 import type { LeaveDirection } from './departure-view';
 import type { VillageManor } from './manor-view';
-import type { VillageOreSite } from './ore-site-view';
+import type { VillageDugSite } from './ore-site-view';
 import type { HouseholdRelocation } from './relocation-view';
 import { TREE_GROWTH_YEARS } from './orchard-look';
 import {
+  dugSiteOf,
   selectedFieldPart,
   selectedOrchardSquare,
   type VillageTarget,
@@ -404,11 +405,13 @@ export type SelectionDetails =
   | ({
       /**
        * Rudiště kováře (crafts.md – Uhlí a ruda kováře; Martin 20. 10. 2026: „Půjde rudiště také
-       * označit?“): ložisko, hromada u jámy, zásoba v kovárně, cesta z kovárny, jámy a kdo tu dnes
-       * kope a nosí; `smithId` = kovárna (tlačítko ji vybere).
+       * označit?“) nebo hliniště hrnčíře (`clay-site` – Hlína hrnčíře): ložisko, hromada u jámy,
+       * zásoba v dílně, cesta z dílny, jámy a kdo tu dnes kope a nosí; `workshopId` = kovárna či
+       * dílna hrnčíře (tlačítko ji vybere).
        */
       kind: 'ore-site';
-    } & VillageOreSite);
+    } & VillageDugSite)
+  | ({ kind: 'clay-site' } & VillageDugSite);
 
 /** Pořadí stád v panelu ohrady (diet.md – Dobytek). */
 export const HERD_ORDER: readonly HerdSpecies[] = ['sheep', 'goat', 'pig', 'cow'];
@@ -638,10 +641,14 @@ export function selectionDetails(
     return square ? { kind: 'orchard-square', id: target.id, ...square } : null;
   }
   if (target.kind === 'pen') return penDetails(view, target.id);
-  if (target.kind === 'ore-site') {
-    if (!scene.oreSites?.some((s) => s.dwellingId === target.id)) return null;
-    const site = view?.oreSites?.find((s) => s.smithId === target.id);
-    return site ? { kind: 'ore-site', ...site } : null;
+  if (target.kind === 'ore-site' || target.kind === 'clay-site') {
+    if (!dugSiteOf(scene, target)) return null;
+    const sites = target.kind === 'clay-site' ? view?.claySites : view?.oreSites;
+    const site = sites?.find((s) => s.workshopId === target.id);
+    if (!site) return null;
+    return target.kind === 'clay-site'
+      ? { kind: 'clay-site', ...site }
+      : { kind: 'ore-site', ...site };
   }
   if (target.kind === 'road') {
     // cesta hráče – vybraný kterýkoli úsek řetězu (roads.md – Cesta pro hráče)

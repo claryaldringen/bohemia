@@ -819,7 +819,12 @@ rozhraní částí v
   obrys `oreSiteOutline` (konvexní obal); panel z `VillageView.oreSites` (`lib/ore-site-view.ts` –
   ložisko, hromada, zásoba v kovárně, cesta, jámy, kdo tu dnes kope / nosí / jede s vozem z rozdělení
   práce dne a vůz se sedlákem), `OreSiteBody` s tlačítkem kovárny, portrét `icons/build/rudiste.png`
-  (`icons.py rudiste`), `/dev/panels?panel=rudiste`.
+  (`icons.py rudiste`), `/dev/panels?panel=rudiste`. **Hliniště** stejně (návrh Clauda): cíl
+  `{ kind: 'clay-site', id: dílna hrnčíře }` (`dugSiteOf`), tvary `oreSiteDiscs` jen s jámami téže
+  suroviny (`dugSitePits`), panel z `VillageView.claySites`; jeden kód pro obě místa – pohled
+  `dugSiteViews(state, day, material)` / `dugSitesField` (`VillageDugSite` – `workshopId`,
+  `DugSiteWorker.craftsman`), panel `DugSiteBody` s texty `DUG_SITE_TEXTS`, portrét
+  `icons/build/hliniste.png` (`icons.py hliniste`), `/dev/panels?panel=hliniste`.
 - **Hlína hrnčíře** ([crafts.md](docs/design/crafts.md) – Hlína hrnčíře; Martin 20. 10. 2026:
   „Ano, udělej to jak říkáš“ – wagons.md, Co se vozí a na čem; čísla `CLAY` v `rules.ts`, návrh
   Clauda): jako ruda kováře – jedna funkce `workDug` (`DugMaterial` `ore` / `clay`: zásoba, místo,

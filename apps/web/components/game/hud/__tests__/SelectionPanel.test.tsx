@@ -942,7 +942,7 @@ describe('SelectionPanel – rudiště (crafts.md – Uhlí a ruda kováře)', (
     over: Partial<Extract<SelectionDetails, { kind: 'ore-site' }>> = {},
   ): SelectionDetails => ({
     kind: 'ore-site',
-    smithId: 12,
+    workshopId: 12,
     leftKg: 2140,
     depositKg: 3000,
     heapKg: 35,
@@ -950,8 +950,8 @@ describe('SelectionPanel – rudiště (crafts.md – Uhlí a ruda kováře)', (
     walkM: 1186,
     pits: 5,
     workers: [
-      { age: 41, smith: true, digs: true, carries: true, rides: false },
-      { age: 15, smith: false, digs: true, carries: false, rides: false },
+      { age: 41, craftsman: true, digs: true, carries: true, rides: false },
+      { age: 15, craftsman: false, digs: true, carries: false, rides: false },
     ],
     cart: false,
     ...over,
@@ -967,7 +967,7 @@ describe('SelectionPanel – rudiště (crafts.md – Uhlí a ruda kováře)', (
     expect(text(html, 'selection-ore-heap')).toBe('35');
     expect(text(html, 'selection-ore-pits')).toBe('5');
     expect(html).toMatch(
-      /data-testid="selection-ore-smith"[^>]*><img src="\/icons\/build\/kovar\.png"/,
+      /data-testid="selection-ore-workshop"[^>]*><img src="\/icons\/build\/kovar\.png"/,
     );
     expect(text(html, 'selection-ore-walk')).toBe('1 186 m');
     expect(text(html, 'selection-ore-stock')).toBe('96');
@@ -982,7 +982,7 @@ describe('SelectionPanel – rudiště (crafts.md – Uhlí a ruda kováře)', (
     expect(html).not.toContain('selection-ore-cart');
     const cart = render(
       ore({
-        workers: [{ age: 41, smith: true, digs: false, carries: false, rides: true }],
+        workers: [{ age: 41, craftsman: true, digs: false, carries: false, rides: true }],
         cart: true,
       }),
     );
@@ -994,5 +994,43 @@ describe('SelectionPanel – rudiště (crafts.md – Uhlí a ruda kováře)', (
     const html = render(ore({ workers: [], leftKg: 0 }));
     expect(html).not.toContain('selection-ore-today');
     expect(html).toMatch(/data-testid="selection-ore-deposit"[^>]*data-alert/);
+  });
+});
+
+describe('SelectionPanel – hliniště (crafts.md – Hlína hrnčíře)', () => {
+  const clay: SelectionDetails = {
+    kind: 'clay-site',
+    workshopId: 14,
+    leftKg: 17_460,
+    depositKg: 20_000,
+    heapKg: 260,
+    stockKg: 142,
+    walkM: 238,
+    pits: 4,
+    workers: [
+      { age: 38, craftsman: true, digs: false, carries: false, rides: true },
+      { age: 16, craftsman: false, digs: true, carries: true, rides: false },
+    ],
+    cart: true,
+  };
+
+  it('portrét Hliniště, hlína v hliništi, hromada, jámy, dílna hrnčíře, cesta a zásoba', () => {
+    const html = render(clay);
+    expect(html).toContain('data-kind="clay-site"');
+    expect(html).toContain('src="/icons/build/hliniste.png"');
+    expect(html).toContain('>Hliniště</h2>');
+    expect(html).toContain('/icons/resources/clay.png');
+    expect(text(html, 'selection-clay-deposit')).toBe('17 460 / 20 000');
+    expect(text(html, 'selection-clay-heap')).toBe('260');
+    expect(text(html, 'selection-clay-pits')).toBe('4');
+    expect(html).toMatch(
+      /data-testid="selection-clay-workshop"[^>]*><img src="\/icons\/build\/hrncir\.png"/,
+    );
+    expect(text(html, 'selection-clay-walk')).toBe('238 m');
+    expect(text(html, 'selection-clay-stock')).toBe('142');
+    expect(html).toContain('Hrnčíř (věk) dnes jede s vozem pro hlínu');
+    expect(html).toContain('Syn hrnčíře (věk) dnes kope hlínu a nosí ji v koších k dílně');
+    expect(html).toContain('data-testid="selection-clay-cart"');
+    expect(html).not.toContain('selection-ore-');
   });
 });
