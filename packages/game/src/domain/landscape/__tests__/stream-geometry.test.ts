@@ -1,11 +1,47 @@
 import { describe, it, expect } from 'vitest';
 import { generateLandscape } from '../generate';
 import { streamCenterline } from '../stream-geometry';
-import { SURFACE_CODES } from '../types';
+import { PREVIOUS_LAYER_VERSIONS, SURFACE_CODES } from '../types';
 import { tileCenterWorld } from '../world';
 
 const landscape = generateLandscape(3);
 const stream = streamCenterline(landscape);
+
+describe('streamCenterline – výšky stěn u potoka (terén 2)', () => {
+  const rocky = generateLandscape(16);
+  const centerline = streamCenterline(rocky);
+
+  it('nese výšky stěn z dat krajiny a dotaz vrátí stěnu na své straně', () => {
+    // Bod, kde je stěna jen na jedné straně (nejvyšší rozdíl stran).
+    const lean = (i: number): number =>
+      (rocky.stream[i]!.bankLeft ?? 0) - (rocky.stream[i]!.bankRight ?? 0);
+    let k = 1;
+    for (let i = 1; i < rocky.stream.length - 1; i++) {
+      if (Math.abs(lean(i)) > Math.abs(lean(k))) k = i;
+    }
+    expect(Math.abs(lean(k))).toBeGreaterThan(3);
+    const side = Math.sign(lean(k));
+    const half = (rocky.size * rocky.cellSizeM) / 2;
+    const p = rocky.stream[k]!;
+    const a = rocky.stream[k - 1]!;
+    const b = rocky.stream[k + 1]!;
+    const length = Math.hypot(b.x - a.x, b.y - a.y);
+    // Levá normála toku × strana se stěnou.
+    const nx = (-(b.y - a.y) / length) * side;
+    const nz = ((b.x - a.x) / length) * side;
+    const x = -half + (p.x + 0.5) * rocky.cellSizeM;
+    const z = -half + (p.y + 0.5) * rocky.cellSizeM;
+    const wall = side > 0 ? p.bankLeft! : p.bankRight!;
+    const off = (side > 0 ? p.halfWidthLeft : p.halfWidthRight) * rocky.cellSizeM + 2;
+    expect(centerline.nearest(x + nx * off, z + nz * off).bank).toBeCloseTo(wall, 0);
+    expect(centerline.nearest(x - nx * off, z - nz * off).bank).toBeLessThan(wall - 2);
+  });
+
+  it('krajina terénu 1 stěny nemá', () => {
+    const plain = streamCenterline(generateLandscape(16, PREVIOUS_LAYER_VERSIONS));
+    expect(plain.points.every((p) => p.bankLeft === 0 && p.bankRight === 0)).toBe(true);
+  });
+});
 
 describe('streamCenterline', () => {
   it('vede od okraje k okraji krajiny', () => {

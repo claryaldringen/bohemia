@@ -3,7 +3,7 @@ import type { HoldingsOverlaySector } from '@/lib/scene/holdings-overlay';
 import type { Point } from '@/lib/scene/village-layout';
 
 /** Seedy, jejichž krajina (nové vrstvy) má ostrožnu nad zaříznutým meandrem – hlídá test. */
-export const PROMONTORY_SEEDS = [0, 3, 10, 16, 38, 45, 51] as const;
+export const PROMONTORY_SEEDS = [2, 16, 25, 38, 39, 51, 65] as const;
 
 /** Barvy překryvu: obrys plochy ostrožny a šíje. */
 const OUTLINE_COLOR = [1, 0.62, 0.12] as const;

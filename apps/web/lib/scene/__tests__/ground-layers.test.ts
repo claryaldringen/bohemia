@@ -338,10 +338,12 @@ describe('povrchy luk podle tvaru terénu', () => {
     expect(share).toBeLessThan(0.45);
   });
 
-  it('hluboko v lese ani na břehu potoka nové povrchy nejsou', () => {
-    const outside = texels.filter(
-      (t) => field.distanceAt(t.x, t.z) > 5 || stream.nearest(t.x, t.z).bankDistance < 3,
-    );
+  it('hluboko v lese ani na břehu potoka nové povrchy nejsou (kromě skalních stěn u vody)', () => {
+    const outside = texels.filter((t) => {
+      const near = stream.nearest(t.x, t.z);
+      if (near.bank > 0) return false;
+      return field.distanceAt(t.x, t.z) > 5 || near.bankDistance < 3;
+    });
     expect(outside.length).toBeGreaterThan(1000);
     for (const t of outside) expect(flowers[t.i]! + dry[t.i]! + rocky[t.i]!).toBe(0);
   });

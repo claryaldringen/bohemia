@@ -51,7 +51,7 @@ describe('cachedLandscapes', () => {
     });
     source.landscapeOf(7, CURRENT_LAYER_VERSIONS);
     source.landscapeOf(8, CURRENT_LAYER_VERSIONS);
-    source.landscapeOf(7, { ...CURRENT_LAYER_VERSIONS, terrain: 2 } as unknown as LayerVersions);
-    expect(calls).toEqual(['7/1', '8/1', '7/2']);
+    source.landscapeOf(7, { ...CURRENT_LAYER_VERSIONS, terrain: 1 } as unknown as LayerVersions);
+    expect(calls).toEqual(['7/2', '8/2', '7/1']);
   });
 });

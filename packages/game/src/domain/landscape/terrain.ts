@@ -78,6 +78,9 @@ export function generateTerrain(seed: number, version: 1 | 2): Terrain {
   flattenAround(heights, size, villageSite);
   const before = rocks ? heights.slice() : null;
   const levels = carveStream(heights, water, samples, size, 0.8 + random.next() * 0.6);
+  // Nejnižší políčko před skalami – skály terén jen zvedají, výšky a hladina zůstanou jako v terénu 1.
+  let min = Infinity;
+  for (const h of heights) min = Math.min(min, h);
   const sculpted =
     rocks && before
       ? sculptStreamRocks(
@@ -93,8 +96,6 @@ export function generateTerrain(seed: number, version: 1 | 2): Terrain {
         )
       : null;
 
-  let min = Infinity;
-  for (const h of heights) min = Math.min(min, h);
   for (let i = 0; i < heights.length; i++) heights[i] = heights[i]! - min;
   const stream = samples.map((p, k): StreamPoint => {
     const point = {

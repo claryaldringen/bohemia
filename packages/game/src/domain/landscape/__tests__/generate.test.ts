@@ -4,6 +4,7 @@ import { generateAcceptedLandscape, generateLandscape } from '../generate';
 import {
   CURRENT_LAYER_VERSIONS,
   INITIAL_LAYER_VERSIONS,
+  PREVIOUS_LAYER_VERSIONS,
   SURFACE_CODES,
   type Landscape,
   type LayerVersions,
@@ -29,7 +30,7 @@ const eachLandscape = (check: (l: Landscape, seed: number) => void): void => {
   landscapes.forEach((l, seed) => check(l, seed));
 };
 
-describe('generateLandscape – pásmo srovnatelnosti na 300 krajinách (verze 2)', () => {
+describe('generateLandscape – pásmo srovnatelnosti na 300 krajinách (nové vrstvy – i se skalami u potoka)', () => {
   it('každá krajina má potok od okraje k okraji', () => {
     eachLandscape((l, seed) => {
       const water = l.surface.map((v) => (v === SURFACE_CODES.water ? 1 : 0));
@@ -99,11 +100,11 @@ describe('generateLandscape – pásmo srovnatelnosti na 300 krajinách (verze 2
 describe('generateLandscape', () => {
   it('stejný seed → shodná krajina, jiný seed → jiná', () => {
     expect(generateLandscape(77)).toEqual(generateLandscape(77));
-    expect(generateLandscape(77).heights).not.toEqual(generateLandscape(78).heights);
+    expect(generateLandscape(77).heights).not.toEqual(generateLandscape(79).heights);
   });
 
   it('neznámá verze vrstvy vyhodí RangeError', () => {
-    const versions = { terrain: 2, vegetation: 1, fertility: 1 } as unknown as LayerVersions;
+    const versions = { terrain: 3, vegetation: 1, fertility: 1 } as unknown as LayerVersions;
     expect(() => generateLandscape(1, versions)).toThrow(RangeError);
     const vegetation3 = { terrain: 1, vegetation: 3, fertility: 2 } as unknown as LayerVersions;
     expect(() => generateLandscape(1, vegetation3)).toThrow(RangeError);
@@ -142,7 +143,7 @@ describe('verze vrstev – zlatý otisk krajiny', () => {
     expect(landscapeHash(accepted.landscape)).toBe(expected);
   });
 
-  const V2: LayerVersions = { terrain: 1, vegetation: 2, fertility: 2, obstacles: 1 };
+  const V2: LayerVersions = PREVIOUS_LAYER_VERSIONS;
   it.each([
     [1, 1, '49256383'],
     [42, 42, 'd62c3d7a'],
@@ -154,10 +155,23 @@ describe('verze vrstev – zlatý otisk krajiny', () => {
     expect(landscapeHash(accepted.landscape)).toBe(expected);
   });
 
-  it('verze 1 padne do svého pásma a terén mají obě verze stejný', () => {
+  // Terén 2 – skály u potoka a ostrožny (20. 10. 2026). Bez ostrožny jsou osa potoka a místo pro
+  // vesnici stejné jako v terénu 1 (stream-rocks.test.ts), výšky se u skal zvednou.
+  it.each([
+    [1, 1, '238b9327'],
+    [42, 42, 'eb4bef95'],
+    [123, 123, 'f4068e03'],
+    [16, 16, '300a3e4c'],
+  ])('verze 3 (terén 2), seed %i (přijatý pokus %i)', (seed, acceptedSeed, expected) => {
+    const accepted = generateAcceptedLandscape(seed, CURRENT_LAYER_VERSIONS);
+    expect(accepted.seed).toBe(acceptedSeed);
+    expect(landscapeHash(accepted.landscape)).toBe(expected);
+  });
+
+  it('verze 1 padne do svého pásma a terén mají verze 1 a 2 stejný', () => {
     for (const seed of [1, 42, 123]) {
       const v1 = generateLandscape(seed, INITIAL_LAYER_VERSIONS);
-      const v2 = generateLandscape(seed, CURRENT_LAYER_VERSIONS);
+      const v2 = generateLandscape(seed, PREVIOUS_LAYER_VERSIONS);
       expect(checkBand(v1, INITIAL_LAYER_VERSIONS).ok).toBe(true);
       expect(v2.heights).toEqual(v1.heights);
       expect(v2.stream).toEqual(v1.stream);

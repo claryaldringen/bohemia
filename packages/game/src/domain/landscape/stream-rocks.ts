@@ -15,10 +15,11 @@ import type { Promontory } from './types';
 // při generování terénu (výšky jdou do prohlížeče hotové), proto tu smí být Math.hypot apod.
 
 /**
- * Ostrý ohyb: poloměr osy pod `radiusPerWidth` šířek koryta a stočení přes `minTurnDeg` – volný
- * meandr má poloměr 2–3 šířky (Leopold a Wolman), takhle ostře potok zahne jen o skálu.
+ * Ostrý ohyb: poloměr osy pod `radiusPerWidth` šířek koryta a stočení oblouku (úsek s poloměrem
+ * pod `bendPerWidth` šířek) přes `minTurnDeg` – volný meandr má poloměr 2–3 šířky (Leopold
+ * a Wolman), takhle ostře potok zahne jen o skálu.
  */
-export const SHARP_BEND = { radiusPerWidth: 1.5, minTurnDeg: 50 } as const;
+export const SHARP_BEND = { radiusPerWidth: 1.5, minTurnDeg: 50, bendPerWidth: 3 } as const;
 /**
  * Skalní ostroh na vnější straně ostrého ohybu (tam, kam by potok jinak tekl rovně): výška nad
  * hladinou (m) podle okolí – `minM` + `perRiseM` na metr, o který okolí převyšuje hladinu, nejvýš
@@ -85,7 +86,7 @@ export const PROMONTORY = {
   siteLoopDistance: 32,
   uplandMargin: 1.5,
   uplandFade: 9,
-  hillMinM: 10,
+  hillMinM: 8,
 } as const;
 
 /** Naplánovaná ostrožna – smyčka potoka a její geometrie (políčka). */
@@ -110,7 +111,8 @@ export interface PromontoryPlan {
 
 /**
  * Najde úsek potoka, kde se může zaříznout meandr s ostrožnou: dost rovná trasa ve zvlněné
- * krajině, daleko od místa pro vesnici, od okrajů mapy i od ostatních částí potoka. Náhoda
+ * krajině bez tůní a brodů, daleko od místa pro vesnici, od okrajů mapy i od ostatních částí
+ * potoka. Náhoda
  * (velikost, šíje, výška) se losuje vždy stejně, výběr místa je deterministický.
  */
 export function planPromontory(
@@ -162,6 +164,13 @@ export function planPromontory(
       level = Math.min(level, heightAt(heights, size, p));
     }
     if (!straight) continue;
+    // Tůně a mělčiny (brody) zůstanou, kde jsou – smyčka nenahradí úsek s nimi.
+    let keepsSpots = true;
+    for (let j = 0; j < base.length && keepsSpots; j++) {
+      if (Math.abs(along[j]! - s0) > half + 1) continue;
+      if (plan.pool[j] || plan.shallow[j]) keepsSpots = false;
+    }
+    if (!keepsSpots) continue;
     for (const side of [1, -1]) {
       const n = { x: -t.y * side, y: t.x * side };
       const center = { x: origin.x + n.x * c, y: origin.y + n.y * c };
@@ -237,6 +246,59 @@ export function planPromontory(
     uplandRadius,
     hillM: best.score,
   };
+}
+
+/** Zakřivení osy potoka v každém bodě (rad na políčko, kladné doleva) – stočení na ± 1 políčku. */
+export function axisCurvature(samples: readonly ChannelSample[]): number[] {
+  const angle = samples.map((p) => Math.atan2(p.ty, p.tx));
+  return samples.map((_, k) => {
+    if (k < 2 || k >= samples.length - 2) return 0;
+    return wrapAngle(angle[k + 2]! - angle[k - 2]!) / (4 * SAMPLE_STEP);
+  });
+}
+
+/** Ostrý ohyb osy: bod největšího zakřivení, vnější strana (1 = levá) a stočení (rad). */
+export interface SharpBend {
+  apex: number;
+  outer: 1 | -1;
+  turn: number;
+}
+
+/**
+ * Ostré ohyby osy (`SHARP_BEND`): oblouk (poloměr pod `bendPerWidth` šířek koryta), ve kterém
+ * poloměr klesne pod 1,5 šířky koryta a směr se stočí celkem přes 50°. Vnější strana je ta, kam
+ * by potok tekl rovně.
+ */
+export function sharpBends(
+  samples: readonly ChannelSample[],
+  curvature: readonly number[] = axisCurvature(samples),
+): SharpBend[] {
+  const n = samples.length;
+  const minTurn = (SHARP_BEND.minTurnDeg * Math.PI) / 180;
+  const width = (k: number): number => samples[k]!.left + samples[k]!.right;
+  const within = (k: number, perWidth: number): boolean =>
+    Math.abs(curvature[k]!) * perWidth * width(k) > 1;
+  const bends: SharpBend[] = [];
+  for (let k = 0; k < n;) {
+    if (!within(k, SHARP_BEND.bendPerWidth)) {
+      k++;
+      continue;
+    }
+    const sign = Math.sign(curvature[k]!);
+    let j = k;
+    let turn = 0;
+    let apex = k;
+    while (j < n && Math.sign(curvature[j]!) === sign && within(j, SHARP_BEND.bendPerWidth)) {
+      turn += Math.abs(curvature[j]!) * SAMPLE_STEP;
+      if (Math.abs(curvature[j]!) > Math.abs(curvature[apex]!)) apex = j;
+      j++;
+    }
+    if (turn >= minTurn && within(apex, SHARP_BEND.radiusPerWidth)) {
+      bends.push({ apex, outer: sign > 0 ? -1 : 1, turn });
+    }
+    k = j;
+  }
+  return bends;
 }
 
 /** Skalní ostroh v ostrém ohybu. */
@@ -344,11 +406,7 @@ export function sculptStreamRocks(
     (1 + WALL.innerWiden * Math.min(1, Math.max(0, (bendTurn[k]! / BEND_SIDE.full) * s)));
 
   // Zakřivení osy (rad na políčko, kladné doleva) a jeho vyhlazení.
-  const angle = samples.map((p) => Math.atan2(p.ty, p.tx));
-  const curvature = samples.map((_, k) => {
-    if (k < 2 || k >= n - 2) return 0;
-    return wrapAngle(angle[k + 2]! - angle[k - 2]!) / (4 * SAMPLE_STEP);
-  });
+  const curvature = axisCurvature(samples);
   const smooth = curvature.map((_, k) => {
     let sum = 0;
     let count = 0;
@@ -394,46 +452,27 @@ export function sculptStreamRocks(
 
   // Skalní ostroh: ostrý ohyb (poloměr pod 1,5 šířky koryta, stočení přes 50°).
   const spurs: RockSpur[] = [];
-  const minTurn = (SHARP_BEND.minTurnDeg * Math.PI) / 180;
-  const sharp = (k: number): boolean =>
-    Math.abs(curvature[k]!) * SHARP_BEND.radiusPerWidth * (samples[k]!.left + samples[k]!.right) >
-    1;
-  for (let k = 0; k < n;) {
-    if (!sharp(k)) {
-      k++;
-      continue;
-    }
-    const sign = Math.sign(curvature[k]!);
-    let j = k;
-    let turn = 0;
-    let apex = k;
-    while (j < n && Math.sign(curvature[j]!) === sign && sharp(j)) {
-      turn += Math.abs(curvature[j]!) * SAMPLE_STEP;
-      if (Math.abs(curvature[j]!) > Math.abs(curvature[apex]!)) apex = j;
-      j++;
-    }
-    const p = samples[apex]!;
-    if (turn >= minTurn && !nearPromontory(p) && siteFree(p.x, p.y) > 0) {
-      const outer = -sign;
-      const d = side(apex, outer);
-      const height =
-        Math.min(
-          ROCK_SPUR.maxM,
-          ROCK_SPUR.minM + ROCK_SPUR.perRiseM * Math.max(0, rise(apex, outer) - 1),
-        ) *
-        (0.9 + 0.2 * random.next());
-      spurs.push({
-        x: p.x + d.x * (d.half + ROCK_SPUR.offset),
-        y: p.y + d.y * (d.half + ROCK_SPUR.offset),
-        top: levels[apex]! + height,
-      });
-      for (let m = 0; m < n; m++) {
-        const apart = Math.abs(samples[m]!.s - p.s);
-        if (apart < ROCK_SPUR.wallHalf)
-          want(m, outer, height * (1 - smoothstep(apart / ROCK_SPUR.wallHalf)));
+  for (const bend of sharpBends(samples, curvature)) {
+    const p = samples[bend.apex]!;
+    if (nearPromontory(p) || siteFree(p.x, p.y) <= 0) continue;
+    const d = side(bend.apex, bend.outer);
+    const height =
+      Math.min(
+        ROCK_SPUR.maxM,
+        ROCK_SPUR.minM + ROCK_SPUR.perRiseM * Math.max(0, rise(bend.apex, bend.outer) - 1),
+      ) *
+      (0.9 + 0.2 * random.next());
+    spurs.push({
+      x: p.x + d.x * (d.half + ROCK_SPUR.offset),
+      y: p.y + d.y * (d.half + ROCK_SPUR.offset),
+      top: levels[bend.apex]! + height,
+    });
+    for (let m = 0; m < n; m++) {
+      const apart = Math.abs(samples[m]!.s - p.s);
+      if (apart < ROCK_SPUR.wallHalf) {
+        want(m, bend.outer, height * (1 - smoothstep(apart / ROCK_SPUR.wallHalf)));
       }
     }
-    k = j;
   }
   const knob = new Float64Array(size * size).fill(-Infinity);
   for (const spur of spurs) {
@@ -495,45 +534,42 @@ export function sculptStreamRocks(
   const second = new Int32Array(total).fill(-1);
   const secondD = new Float64Array(total).fill(Infinity);
   const secondSide = new Int8Array(total);
-  const visit = (fn: (i: number, k: number, d: number, s: number) => void): void => {
-    samples.forEach((p, k) => {
-      const reach = Math.ceil(Math.max(p.left, p.right) + REACH);
-      for (
-        let y = Math.max(0, Math.floor(p.y) - reach);
-        y <= Math.min(size - 1, Math.ceil(p.y) + reach);
-        y++
-      ) {
-        for (
-          let x = Math.max(0, Math.floor(p.x) - reach);
-          x <= Math.min(size - 1, Math.ceil(p.x) + reach);
-          x++
-        ) {
+  // Dva průchody přes body osy: nejbližší bod, pak nejbližší z jiné části toku.
+  for (let pass = 0; pass < 2; pass++) {
+    for (let k = 0; k < n; k++) {
+      const p = samples[k]!;
+      const widest = Math.max(p.left, p.right) + REACH;
+      const reach = Math.ceil(widest);
+      const y0 = Math.max(0, Math.floor(p.y) - reach);
+      const y1 = Math.min(size - 1, Math.ceil(p.y) + reach);
+      const x0 = Math.max(0, Math.floor(p.x) - reach);
+      const x1 = Math.min(size - 1, Math.ceil(p.x) + reach);
+      for (let y = y0; y <= y1; y++) {
+        const dy = y - p.y;
+        for (let x = x0; x <= x1; x++) {
           const dx = x - p.x;
-          const dy = y - p.y;
+          const squared = dx * dx + dy * dy;
+          if (squared > widest * widest) continue;
           const lateral = -dx * p.ty + dy * p.tx;
           const s = lateral >= 0 ? 1 : -1;
-          const d = Math.hypot(dx, dy) - (s > 0 ? p.left : p.right);
-          if (d <= REACH) fn(y * size + x, k, d, s);
+          const d = Math.sqrt(squared) - (s > 0 ? p.left : p.right);
+          if (d > REACH) continue;
+          const i = y * size + x;
+          if (pass === 0) {
+            if (d < firstD[i]!) {
+              firstD[i] = d;
+              first[i] = k;
+              firstSide[i] = s;
+            }
+          } else if (d < secondD[i]! && Math.abs(p.s - samples[first[i]!]!.s) > OTHER_PART) {
+            secondD[i] = d;
+            second[i] = k;
+            secondSide[i] = s;
+          }
         }
       }
-    });
-  };
-  visit((i, k, d, s) => {
-    if (d < firstD[i]!) {
-      firstD[i] = d;
-      first[i] = k;
-      firstSide[i] = s;
     }
-  });
-  visit((i, k, d, s) => {
-    const own = first[i]!;
-    if (own < 0 || Math.abs(samples[k]!.s - samples[own]!.s) <= OTHER_PART) return;
-    if (d < secondD[i]!) {
-      secondD[i] = d;
-      second[i] = k;
-      secondSide[i] = s;
-    }
-  });
+  }
 
   /** Terén u stěny části toku (bod k, strana s, vzdálenost d od okraje vody), nikdy pod korytem. */
   const shapeAt = (i: number, k: number, d: number, s: number): number => {
@@ -544,7 +580,8 @@ export function sculptStreamRocks(
     const width = wallWidth(k, s);
     const cap = level + h * smoothstep(d / width) + WALL.slope * Math.max(0, d - width - WALL.top);
     const behind = 1 - smoothstep((d - width - WALL.top) / WALL.fade);
-    const terrace = level + h * behind;
+    // Terasa nad stěnou dozní do terénu za ní (ne k hladině – sníženina dál od vody zůstane).
+    const terrace = carved[i]! + Math.max(0, level + h - carved[i]!) * behind;
     // Hned za stěnou původní terén (svah, do kterého se potok zařízl); dál údolí jako dřív.
     const ground = carved[i]! + Math.max(0, orig[i]! - carved[i]!) * behind;
     const envelope = Math.max(h > 0 ? ground : -Infinity, terrace, extra);
@@ -625,6 +662,7 @@ function describePromontory(
     return { x: mid.x + along.x * dir * u, y: mid.y + along.y * dir * u };
   };
   return {
+    kind: 'meander',
     outline,
     neck: [walk(-1), walk(1)],
     center: { x: center.x, y: center.y },

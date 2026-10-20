@@ -74,11 +74,18 @@ export interface StreamPoint {
 }
 
 /**
- * Ostrožna (terén 2): výběžek nad zaříznutým meandrem potoka – plocha nahoře rovná nebo mírná,
- * ze 2–3 stran prudké svahy a skalní stěny k vodě, na jedné straně úzká šíje. Zatím bez herní
- * funkce – místo pro budoucí hradiště (vision.md). Souřadnice v políčkách jako `villageSite`.
+ * Ostrožna (terén 2): výběžek nad tokem – plocha nahoře rovná nebo mírná, ze 2–3 stran prudké
+ * svahy a skalní stěny k vodě, na jedné straně úzká šíje do okolí. Zatím bez herní funkce – místo
+ * pro budoucí hradiště (vision.md) a základ zvláštních míst krajiny. Souřadnice v políčkách jako
+ * `villageSite`.
  */
 export interface Promontory {
+  /**
+   * Jak ostrožna vznikla: `meander` = jádro zaříznutého meandru (smyčka potoka). Další druhy
+   * (soutok dvou toků, vyvýšenina nad brodem) přibudou s dalšími toky – data jsou pro všechny
+   * stejná.
+   */
+  readonly kind: 'meander';
   /** Obrys plochy nahoře (políčka), uzavřený mnohoúhelník. */
   readonly outline: readonly { x: number; y: number }[];
   /** Šíje – konce nejužšího místa, kudy ostrožna souvisí s okolím (políčka). */
