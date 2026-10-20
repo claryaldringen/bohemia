@@ -425,7 +425,7 @@ describe('náhrada volů (Martin 18. 10. 2026)', () => {
     expect(oxenTraining(s, day, goal(2, 1), null)).toEqual({ calves: 2, ards: 0 });
   });
 
-  it('náhrada posledního páru i pod cílem krav: ves neorá motykou ani den (koordinátor 20. 10. 2026)', () => {
+  it('náhrada posledního páru i pod cílem krav: ves neorá motykou ani den (návrh Clauda 20. 10. 2026)', () => {
     const day = at(600, 5, 1);
     const s = withTeam(day);
     // chovné stádo 3,5 krávy, ve stádu jen 4,1 – přírůstek na pár nemá, chovný pár ale zůstane

@@ -650,7 +650,7 @@ export const DRAFT_OXEN = { ard: 2, 'four-wheel': 2, 'two-wheel': 1 } as const s
  */
 export const HOMESTEAD_HERD = { sheep: 2, goat: 1, pig: 1, cow: 0 } as const;
 /**
- * oxen.md – Ohrady podle druhu, roční odklad (návrh Clauda, koordinátor za Martina 19. 10. 2026):
+ * oxen.md – Ohrady podle druhu, roční odklad (návrh Clauda 19. 10. 2026):
  * místa ohrad a u domů omezí stádo až u porážky aspoň `graceDays` dní po založení vsi, u vsi
  * uložené dřív po zavedení pravidla – hráč má rok na stavbu ohrad (nová ves založená na podzim by
  * ohradu před 1. 11. nestihla, Vlkov by přišel o stáda přes noc).

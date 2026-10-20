@@ -534,7 +534,7 @@ export function oxenTraining(
   const cows = state.livestock?.herds.cow ?? 0;
   // telata jen z přírůstku nad chovnými kravami; náhrada posledního páru k orbě (pár dosluhuje,
   // jiný ves nemá ani necvičí) má přednost – telata se pro ni vezmou, dokud zůstane chovný pár
-  // krav (koordinátor za Martina 20. 10. 2026 – ať ves neorá motykou)
+  // krav (návrh Clauda 20. 10. 2026 – ať ves neorá motykou)
   const lasting = lastingOxen(state, day);
   const lastPair = goal.ploughPairs > 0 && ableTeams(state, day) > 0 && lasting < DRAFT_OXEN.ard;
   const spare = Math.floor(cows - goal.breedingCows + EPSILON);

@@ -43,7 +43,7 @@ export function wantedPloughPairs(state: Pick<VillageState, 'pens' | 'draft'>): 
 }
 
 /**
- * Páry k rádlům s hysterezí (oxen.md – Kolik volů ves chce; koordinátor za Martina 20. 10. 2026:
+ * Páry k rádlům s hysterezí (oxen.md – Kolik volů ves chce; návrh Clauda 20. 10. 2026:
  * páry se nemají měnit rok od roku – rozhodnutí Clauda): `need` = kolik párů by letos stačilo
  * zorat celý osev. Ves páry změní, jen když potřeba leží dva plány po sobě na téže straně – zvýší
  * je na menší z obou potřeb, sníží na větší z nich; jinak drží, kolik má. Jednoletý výkyv tak
