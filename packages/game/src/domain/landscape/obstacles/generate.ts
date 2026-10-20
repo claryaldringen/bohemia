@@ -6,6 +6,7 @@ import type { Landscape } from '../types';
 import type { ScatterContext } from './context';
 import { edgeTreePlacements, forestScatter, impostorTreePlacements } from './forest-trees';
 import { meadowTreePlacements } from './meadow-trees';
+import { cliffRockPlacements } from './cliff-rocks';
 import { rockAndShrubPlacements } from './rocks-shrubs';
 import {
   OBSTACLE_KINDS,
@@ -31,6 +32,8 @@ export interface ObstacleGroups {
   deadwood: ObstaclePlacement[];
   /** Keře, kameny, balvany, skalní výchozy a vrby. */
   rocksAndShrubs: ObstaclePlacement[];
+  /** Skály a suť na stěnách u potoka – jen vrstva 2 (jinak prázdné). */
+  cliffRocks: ObstaclePlacement[];
 }
 
 /** Kontext rozmisťovačů – pole lesa, osa potoka a tvar terénu z krajiny s přesností prohlížeče. */
@@ -46,10 +49,14 @@ export function scatterContext(landscape: Landscape, seed: number): ScatterConte
     relief: buildRelief(l),
     seed,
     maxHeight,
+    version: landscape.obstacleLayer?.version ?? 1,
   };
 }
 
-/** Všechny překážky po skupinách (pro testy a měření; vrstvu skládá `generateObstacles`). */
+/**
+ * Všechny překážky po skupinách (pro testy a měření; vrstvu skládá `generateObstacles`). Verze 2
+ * přidá skály a suť na stěnách u potoka; verze 1 je bit po bitu jako dřív.
+ */
 export function obstacleGroups(ctx: ScatterContext): ObstacleGroups {
   const forest = forestScatter(ctx);
   const meadow = meadowTreePlacements(ctx);
@@ -62,6 +69,7 @@ export function obstacleGroups(ctx: ScatterContext): ObstacleGroups {
     young: youngTreePlacements(ctx),
     deadwood: deadwoodPlacements(ctx),
     rocksAndShrubs: rockAndShrubPlacements(ctx, [...meadow, ...pines]),
+    cliffRocks: ctx.version === 2 ? cliffRockPlacements(ctx) : [],
   };
 }
 
@@ -76,7 +84,7 @@ const EMPTY_LAYER_CACHE = new Map<string, ObstacleLayer>();
 export function generateObstacles(landscape: Landscape): ObstacleLayer {
   const layer = landscape.obstacleLayer;
   if (layer === null) return emptyLayer(landscape.size, landscape.cellSizeM);
-  if (layer.version !== 1) {
+  if (layer.version !== 1 && layer.version !== 2) {
     throw new RangeError(`Neznámá verze vrstvy překážek: ${String(layer.version)}`);
   }
   const groups = obstacleGroups(scatterContext(landscape, layer.seed));
@@ -89,9 +97,11 @@ export function generateObstacles(landscape: Landscape): ObstacleLayer {
       ...groups.young,
       ...groups.deadwood,
       ...groups.rocksAndShrubs,
+      ...groups.cliffRocks,
     ],
     landscape.size,
     landscape.cellSizeM,
+    layer.version,
   );
 }
 
@@ -129,6 +139,7 @@ export function packObstacles(
   placements: readonly ObstaclePlacement[],
   size: number,
   cellSizeM: number,
+  version: 1 | 2 = 1,
 ): ObstacleLayer {
   const count = placements.length;
   const id = new Uint32Array(count);
@@ -167,7 +178,7 @@ export function packObstacles(
   const fill = tileStart.slice(0, size * size);
   for (let i = 0; i < count; i++) tileItems[fill[tileOf[i]!]!++] = i;
   return {
-    version: 1,
+    version,
     count,
     id,
     x,

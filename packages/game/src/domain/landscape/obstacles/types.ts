@@ -135,7 +135,7 @@ export interface ObstaclePlacement {
  * překážky je pořadí ve vrstvě; id roste s indexem (hledá se půlením – `obstacleIndex`).
  */
 export interface ObstacleLayer {
-  readonly version: 1;
+  readonly version: 1 | 2;
   readonly count: number;
   readonly id: Uint32Array;
   readonly x: Float32Array;
@@ -178,6 +178,8 @@ export const OBSTACLE_SOURCES = {
   bankBoulder: 14,
   stone: 15,
   willow: 16,
+  /** Skály a suť na stěnách u potoka (vrstva 2). */
+  cliffRock: 17,
 } as const;
 
 export type ObstacleSource = keyof typeof OBSTACLE_SOURCES;

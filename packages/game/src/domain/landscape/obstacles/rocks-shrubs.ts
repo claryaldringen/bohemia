@@ -31,6 +31,8 @@ const STONE_SPACING_M = 40;
 /** Skalní výchozy: rozteč kandidátních míst (m) a nejmenší „skalnatost“ (`Relief.rockinessAt`). */
 const OUTCROP_SPACING_M = 14;
 const OUTCROP_MIN_ROCKINESS = 0.45;
+/** Pás kolem stěn u potoka (m od okraje vody), kde výchozy podle sklonu nejsou (vrstva 2). */
+const CLIFF_ZONE_M = 25;
 /** Keře v loukách: podíl osamělých stromů obrostlých keři; ostrůvky keřů (rozteč v m, šance). */
 const TREE_SHRUB_CHANCE = 0.45;
 const SHRUB_ISLAND_SPACING_M = 30;
@@ -199,7 +201,12 @@ export function rockAndShrubPlacements(
       if (rockiness < OUTCROP_MIN_ROCKINESS || outcropHash(gx, gz, 113) >= 0.4 * rockiness) {
         continue;
       }
-      if (!onLand(x, z) || stream.nearest(x, z).bankDistance <= 4) continue;
+      if (!onLand(x, z)) continue;
+      const near = stream.nearest(x, z);
+      if (near.bankDistance <= 4) continue;
+      // Vrstva 2: u stěn potoka skály klade `cliffRockPlacements` – sklon stěny jinak zaplní
+      // celý pás kolem ní výchozy.
+      if (ctx.version === 2 && near.bank > 0 && near.bankDistance < CLIFF_ZONE_M) continue;
       if (field.distanceAt(x, z) >= 6 || !clearOfTrees(x, z, 5)) continue;
       const cell = gz * outcropCells + gx;
       const pick = outcropHash(gx, gz, 114);

@@ -7,7 +7,11 @@ const SURFACES_BY_CODE: readonly Surface[] = ['water', 'forest', 'meadow'];
 
 /** Verze vrstev generátoru – ukládají se u sídla, aby změna generátoru nepřepsala jeho krajinu. */
 export interface LayerVersions {
-  terrain: 1;
+  /**
+   * 2 = skály u potoka (20. 10. 2026): skalní ostroh v ostrém ohybu, strmý nárazový břeh nebo
+   * skalní stěna na vnější straně oblouku a na části map zaříznutý meandr s ostrožnou.
+   */
+  terrain: 1 | 2;
   /** 2 = víc kvalitní louky kolem vsi (18. 10. 2026). */
   vegetation: 1 | 2;
   /** 2 = úrodná niva a mírné svahy (18. 10. 2026). */
@@ -16,10 +20,18 @@ export interface LayerVersions {
    * Vrstva překážek (stromy, keře, kameny – `generateObstacles`). Chybí u sídel založených před
    * jejím vznikem – nová vrstva platí pro všechna sídla, takže u nich je to verze 1.
    */
-  obstacles?: 1;
+  /** 2 = navíc suť a skály na skalních stěnách u potoka (s terénem 2, 20. 10. 2026). */
+  obstacles?: 1 | 2;
 }
 /** Verze vrstev pro nová sídla. */
 export const CURRENT_LAYER_VERSIONS: LayerVersions = {
+  terrain: 2,
+  vegetation: 2,
+  fertility: 2,
+  obstacles: 2,
+};
+/** Verze vrstev nových sídel do 20. 10. 2026 (víc louky, bez skal u potoka) – pro srovnání. */
+export const PREVIOUS_LAYER_VERSIONS: LayerVersions = {
   terrain: 1,
   vegetation: 2,
   fertility: 2,
@@ -36,7 +48,7 @@ export const INITIAL_LAYER_VERSIONS: LayerVersions = {
 /** Seed a verze vrstvy překážek, ze kterých ji `generateObstacles` vygeneruje (líně). */
 export interface ObstacleLayerSeed {
   readonly seed: number;
-  readonly version: 1;
+  readonly version: 1 | 2;
 }
 
 /**
@@ -53,6 +65,30 @@ export interface StreamPoint {
   readonly level: number;
   /** Mělčina nebo brod – široký mělký úsek (rákos, štěrk), ne tůň. */
   readonly shallow: boolean;
+  /**
+   * Výška strmého břehu nad hladinou vlevo a vpravo (m) – nárazový břeh, skalní stěna, skalní
+   * ostroh nebo stěna ostrožny (terén 2, 0 = bez stěny). Chybí u krajin terénu 1.
+   */
+  readonly bankLeft?: number;
+  readonly bankRight?: number;
+}
+
+/**
+ * Ostrožna (terén 2): výběžek nad zaříznutým meandrem potoka – plocha nahoře rovná nebo mírná,
+ * ze 2–3 stran prudké svahy a skalní stěny k vodě, na jedné straně úzká šíje. Zatím bez herní
+ * funkce – místo pro budoucí hradiště (vision.md). Souřadnice v políčkách jako `villageSite`.
+ */
+export interface Promontory {
+  /** Obrys plochy nahoře (políčka), uzavřený mnohoúhelník. */
+  readonly outline: readonly { x: number; y: number }[];
+  /** Šíje – konce nejužšího místa, kudy ostrožna souvisí s okolím (políčka). */
+  readonly neck: readonly [{ x: number; y: number }, { x: number; y: number }];
+  /** Střed plochy (políčka). */
+  readonly center: { x: number; y: number };
+  /** Výška plochy nad hladinou potoka u ostrožny (m). */
+  readonly heightM: number;
+  /** Plocha nahoře (ha). */
+  readonly areaHa: number;
 }
 
 /** Krajina sídla – mřížka size × size, index políčka y * size + x. */
@@ -74,6 +110,13 @@ export interface Landscape {
    * (`obstaclesOf`). null = krajina bez překážek (ručně vyrobená krajina v testech).
    */
   readonly obstacleLayer: ObstacleLayerSeed | null;
+  /** Ostrožny (terén 2, může být prázdné); chybí u krajin terénu 1. */
+  readonly promontories?: readonly Promontory[];
+}
+
+/** Ostrožny krajiny – u krajin bez nich (terén 1) prázdný seznam. */
+export function promontoriesOf(landscape: Landscape): readonly Promontory[] {
+  return landscape.promontories ?? [];
 }
 
 export function surfaceAt(landscape: Landscape, x: number, y: number): Surface {

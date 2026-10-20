@@ -218,7 +218,7 @@ export function buildStream(
   size: number,
   loop: StreamLoop | null,
 ): { samples: ChannelSample[]; water: Uint8Array } | null {
-  const { base, along, flat, left, right, pool, shallow } = plan;
+  const { base, along, flat } = plan;
   const { longWave, shortWave, longPhase, shortPhase, amplitude } = plan;
   const total = along.at(-1)!;
   const normals = base.map((_, k) => tangent(base, k));

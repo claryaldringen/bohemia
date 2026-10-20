@@ -32,6 +32,9 @@ export interface StreamCenterPoint {
   shallow: number;
   /** Stočení toku (rad na BEND_WINDOW_M): kladné doleva. */
   turn: number;
+  /** Výška strmého břehu nebo skalní stěny nad hladinou vlevo a vpravo (m, terén 2; jinak 0). */
+  bankLeft: number;
+  bankRight: number;
 }
 
 /** Odpověď na dotaz „co je tady za potok“. Daleko od potoka je `distance` Infinity. */
@@ -51,6 +54,8 @@ export interface StreamSample {
   shallow: number;
   /** Strana oblouku −1 (vnější, nárazový břeh) … +1 (vnitřní, náplav); v rovném úseku 0. */
   innerBend: number;
+  /** Výška strmého břehu nebo skalní stěny na straně dotazovaného bodu (m, terén 2; jinak 0). */
+  bank: number;
 }
 
 export interface StreamCenterline {
@@ -76,6 +81,7 @@ const FAR: StreamSample = {
   pool: 0,
   shallow: 0,
   innerBend: 0,
+  bank: 0,
 };
 
 /**
@@ -98,6 +104,8 @@ export function streamCenterline(l: Landscape): StreamCenterline {
       pool: smoothstep(1.2, 1.6, width),
       shallow: p.shallow ? 1 : 0,
       turn: 0,
+      bankLeft: p.bankLeft ?? 0,
+      bankRight: p.bankRight ?? 0,
     };
   });
   for (let k = 1; k < points.length; k++) {
@@ -215,6 +223,9 @@ function withNearestQuery(points: StreamCenterPoint[]): StreamCenterline {
       ? a.halfLeft + (b.halfLeft - a.halfLeft) * t
       : a.halfRight + (b.halfRight - a.halfRight) * t;
     const turn = a.turn + (b.turn - a.turn) * t;
+    const bank = left
+      ? a.bankLeft + (b.bankLeft - a.bankLeft) * t
+      : a.bankRight + (b.bankRight - a.bankRight) * t;
     return {
       distance,
       level: a.level + (b.level - a.level) * t,
@@ -226,6 +237,7 @@ function withNearestQuery(points: StreamCenterPoint[]): StreamCenterline {
       pool: a.pool + (b.pool - a.pool) * t,
       shallow: a.shallow + (b.shallow - a.shallow) * t,
       innerBend: Math.max(-1, Math.min(1, (turn / FULL_BEND_RAD) * (left ? 1 : -1))),
+      bank,
     };
   };
 

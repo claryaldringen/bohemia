@@ -1,11 +1,11 @@
-import type { Landscape, ObstacleLayerSeed, StreamPoint } from '@bohemia/game';
+import type { Landscape, ObstacleLayerSeed, Promontory, StreamPoint } from '@bohemia/game';
 
 /** Čísel na bod osy potoka: x, y, levá a pravá poloviční šířka, hladina, mělčina (0/1). */
 const STREAM_FIELDS = 6;
 
 /**
  * Krajina ve tvaru, který jde poslat v props ze serveru do klientské komponenty (≈ 100 kB,
- * ≈ 50 kB po kompresi). Přesnost (výšky na cm, osa potoka ve Float32) odpovídá
+ * ≈ 50 kB po kompresi). Přesnost (výšky na cm, osa potoka i výšky stěn u potoka ve Float32) odpovídá
  * `transferPrecision` z herního jádra – vrstvu překážek (desítky tisíc stromů) si prohlížeč
  * vygeneruje sám ze seedu vrstvy a vyjde mu přesně stejná jako serveru.
  */
@@ -23,6 +23,13 @@ export interface LandscapeTransfer {
   stream: string;
   /** Seed a verze vrstvy překážek (null = krajina bez překážek). */
   obstacleLayer: ObstacleLayerSeed | null;
+  /**
+   * Base64 Float32 little-endian – výšky stěn u potoka po dvou číslech na bod osy (vlevo,
+   * vpravo); jen terén 2, u terénu 1 chybí.
+   */
+  banks?: string;
+  /** Ostrožny (terén 2); u terénu 1 chybí. */
+  promontories?: readonly Promontory[];
 }
 
 export function encodeLandscape(l: Landscape): LandscapeTransfer {
@@ -37,6 +44,10 @@ export function encodeLandscape(l: Landscape): LandscapeTransfer {
     fertility: bytesToBase64(l.fertility),
     stream: bytesToBase64(encodeStream(l.stream)),
     obstacleLayer: l.obstacleLayer,
+    ...(l.stream.some((p) => p.bankLeft !== undefined)
+      ? { banks: bytesToBase64(encodeBanks(l.stream)) }
+      : {}),
+    ...(l.promontories ? { promontories: l.promontories } : {}),
   };
 }
 
@@ -57,6 +68,7 @@ function decode(t: LandscapeTransfer): Landscape {
   const view = new DataView(heightBytes.buffer);
   const heights = new Float32Array(t.size * t.size);
   for (let i = 0; i < heights.length; i++) heights[i] = view.getUint16(i * 2, true) / 100;
+  const stream = decodeStream(base64ToBytes(t.stream));
   return {
     size: t.size,
     cellSizeM: t.cellSizeM,
@@ -64,9 +76,28 @@ function decode(t: LandscapeTransfer): Landscape {
     heights,
     surface: base64ToBytes(t.surface),
     fertility: base64ToBytes(t.fertility),
-    stream: decodeStream(base64ToBytes(t.stream)),
+    stream: t.banks ? withBanks(stream, base64ToBytes(t.banks)) : stream,
     obstacleLayer: t.obstacleLayer,
+    ...(t.promontories ? { promontories: t.promontories } : {}),
   };
+}
+
+function encodeBanks(stream: readonly StreamPoint[]): Uint8Array {
+  const view = new DataView(new ArrayBuffer(stream.length * 8));
+  stream.forEach((p, k) => {
+    view.setFloat32(k * 8, p.bankLeft ?? 0, true);
+    view.setFloat32(k * 8 + 4, p.bankRight ?? 0, true);
+  });
+  return new Uint8Array(view.buffer);
+}
+
+function withBanks(stream: readonly StreamPoint[], bytes: Uint8Array): StreamPoint[] {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  return stream.map((p, k) => ({
+    ...p,
+    bankLeft: view.getFloat32(k * 8, true),
+    bankRight: view.getFloat32(k * 8 + 4, true),
+  }));
 }
 
 function encodeStream(stream: readonly StreamPoint[]): Uint8Array {

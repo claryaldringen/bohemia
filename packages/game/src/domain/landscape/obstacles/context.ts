@@ -17,6 +17,8 @@ export interface ScatterContext {
   seed: number;
   /** Nejvyšší políčko krajiny (m) – pro skladbu lesa podle výšky. */
   maxHeight: number;
+  /** Verze vrstvy překážek – 2 přidává skály a suť na stěnách u potoka. */
+  version: 1 | 2;
 }
 
 /** Bez stromů, keřů a kamenů mimo les do této vzdálenosti (políčka) od místa pro vesnici. */
