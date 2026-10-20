@@ -129,6 +129,28 @@ describe('departVillage', () => {
     expect(leavingFood(s, leavers, DAY).grainKg).toBeCloseTo(30, 6);
   });
 
+  it('snopy, které ves smí vymlátit, se dělí jako zásoby – bez humna zůstanou ve vsi', () => {
+    const s = twoHouseholds();
+    s.storesKg = 35;
+    s.meatKg = 0;
+    s.legumesKg = 0;
+    s.sheaves = { grainKg: 35, legumesKg: 0, work: { spring: 10 } };
+    s.threshingFloors = [{ id: 900, position: { x: 200, z: 0, rotation: 0 }, builtDay: DAY - 30 }];
+    // 3 ze 7 lidí: (35 + 35) × 3/7 = 30 kg – unesou (2 × 25 kg)
+    const { state, settlers } = departVillage(s, DAY, [sonHome(s)]);
+    expect(settlers.food.grainKg).toBeCloseTo(30, 6);
+    expect(state.storesKg).toBeCloseTo(20, 6);
+    expect(state.sheaves!.grainKg).toBeCloseTo(20, 6);
+    expect(state.sheaves!.work!.spring).toBeCloseTo((10 * 4) / 7, 6);
+    // bez humna a odkladu snopy jídlem nejsou – zůstanou celé
+    const bare = structuredClone(s);
+    delete bare.threshingFloors;
+    const left = departVillage(bare, DAY, [sonHome(bare)]);
+    expect(left.settlers.food.grainKg).toBeCloseTo(15, 6);
+    expect(left.state.storesKg).toBeCloseTo(20, 6);
+    expect(left.state.sheaves).toEqual(s.sheaves);
+  });
+
   it('na novou mapu: ve staré vsi zůstanou jako odešlí ve směru (war.md)', () => {
     const s = twoHouseholds();
     const { state } = departVillage(s, DAY, [sonHome(s)], 'N');

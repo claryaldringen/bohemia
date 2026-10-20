@@ -29,6 +29,19 @@ const SATIATION_GLOW: Record<ReturnType<typeof satiationState>, string> = {
   starving: 'drop-shadow(0 0 4px rgb(235 70 50 / 1)) saturate(0.6)',
 };
 
+/** Snopy, které ves nesmí vymlátit (production-chains.md – Humno) – ikona do červena. */
+const SHEAVES_WAITING_GLOW = 'drop-shadow(0 0 4px rgb(235 70 50 / 1)) saturate(0.6)';
+
+/**
+ * Popisek snopů v liště (production-chains.md – Humno): nevymlácené zrno; bez humna čekají a kazí
+ * se.
+ */
+export function sheavesName(threshing: NonNullable<VillageView['threshing']>): string {
+  return threshing.waiting
+    ? 'Snopy čekají na humno – kazí se (kg zrna)'
+    : 'Snopy – nevymláceno (kg zrna)';
+}
+
 function Resource({
   icon,
   name,
@@ -387,6 +400,16 @@ export function TopBar({
           {showsLegumes(view) && (
             <Resource icon="legumes" name="Luštěniny (kg)" testId="village-legumes">
               {formatInteger(view.legumesKg)}
+            </Resource>
+          )}
+          {view.threshing?.sheavesKg !== undefined && (
+            <Resource
+              icon="sheaves"
+              name={sheavesName(view.threshing)}
+              testId="village-sheaves"
+              {...(view.threshing.waiting ? { filter: SHEAVES_WAITING_GLOW } : {})}
+            >
+              {formatInteger(view.threshing.sheavesKg)}
             </Resource>
           )}
           <Resource icon="meat" name="Maso" testId="village-meat">

@@ -475,7 +475,8 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     const s = advanceVillage(s0, day, null);
     expect(s.storesKg).toBeCloseTo(eaten, 9);
     expect(villageSheaves(s).grainKg).toBeCloseTo(500 * 0.9 ** (12 / 365), 9);
-    expect(sheafWork(s, 'spring')).toBe(15);
+    // práce výmlatu ubývá se snopy – shnilé snopy se nemlátí
+    expect(sheafWork(s, 'spring')).toBeCloseTo(15 * 0.9 ** (12 / 365), 9);
   });
 
   it('pole nedokopané do 30. 4.: zkopaná část se zaseje a sklidí (Ruling 14)', () => {

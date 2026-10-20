@@ -101,7 +101,10 @@ export type NoticeKind =
   | 'other-rationing'
   | 'other-hungry'
   | 'other-starving'
-  | 'other-extinct';
+  | 'other-extinct'
+  /** Humno z jiné vsi hráče (production-chains.md – Humno). */
+  | 'other-threshing-floor-needed'
+  | 'other-sheaves-waiting';
 
 export interface VillageNotice {
   kind: NoticeKind;
@@ -228,18 +231,42 @@ export function villageNotices(view: VillageView): VillageNotice[] {
 }
 
 /**
+ * Upozornění, která se ohlásí i při prvním pohledu na ves – po načtení i přepnutí vsi
+ * (production-chains.md – Humno, anti-cíl „vždy jasné upozornění“): bez humna ves nemlátí a hráč
+ * se to nesmí dozvědět pozdě.
+ */
+const FIRST_LOOK_NOTICES: ReadonlySet<NoticeKind> = new Set([
+  'threshing-floor-needed',
+  'sheaves-waiting',
+]);
+
+/**
  * Upozornění, která mezi dvěma pohledy na ves nově vznikla (dřív neplatila). Bez předchozího
- * pohledu (první načtení) žádná; po přepnutí na jinou ves (jiné id) také žádná – porovnává se ves
- * sama se sebou. Přidá i upozornění z ostatních vsí hráče (`otherVillageNotices`).
+ * pohledu (první načtení) a po přepnutí na jinou ves (jiné id) jen humno a čekající snopy
+ * (`FIRST_LOOK_NOTICES`) – jinak se porovnává ves sama se sebou. Přidá i upozornění z ostatních
+ * vsí hráče (`otherVillageNotices`).
  */
 export function newNotices(previous: VillageView | null, next: VillageView): VillageNotice[] {
-  if (previous === null || previous.id !== next.id) return [];
+  if (previous === null || previous.id !== next.id) {
+    return villageNotices(next).filter((n) => FIRST_LOOK_NOTICES.has(n.kind));
+  }
   return [...ownNotices(previous, next), ...otherVillageNotices(previous, next)];
 }
 
+/** Humno z jiné vsi – krátký řádek se jménem vsi (production-chains.md – Humno). */
+const OTHER_THRESHING_NOTICES = {
+  floorNeeded: {
+    kind: 'other-threshing-floor-needed',
+    tone: 'warn',
+    text: 'před žněmi postav humno',
+  },
+  waiting: { kind: 'other-sheaves-waiting', tone: 'warn', text: 'snopy čekají na humno' },
+} as const satisfies Record<string, VillageNotice>;
+
 /**
- * Upozornění z jiných vsí hráče (migration.md – návrh Clauda): hlad, vymírání hladem a vymření –
- * krátký řádek se jménem vsi, jen když u té vsi nově vzniklo.
+ * Upozornění z jiných vsí hráče (migration.md – návrh Clauda): hlad, vymírání hladem a vymření,
+ * humno před žněmi a čekající snopy (production-chains.md – Humno) – krátký řádek se jménem vsi,
+ * jen když u té vsi nově vzniklo.
  */
 export function otherVillageNotices(previous: VillageView, next: VillageView): VillageNotice[] {
   const notices: VillageNotice[] = [];
@@ -253,6 +280,13 @@ export function otherVillageNotices(previous: VillageView, next: VillageView): V
       // jen když se hlad v té vsi zhoršil – zlepšení se neohlašuje
       const notice = OTHER_HUNGER_NOTICES[village.hunger];
       notices.push({ ...notice, text: `${village.name}: ${notice.text}` });
+    }
+    // humno – když nově vznikne (production-chains.md – Humno)
+    for (const key of ['floorNeeded', 'waiting'] as const) {
+      if (village.threshing?.[key] && !before.threshing?.[key]) {
+        const notice = OTHER_THRESHING_NOTICES[key];
+        notices.push({ ...notice, text: `${village.name}: ${notice.text}` });
+      }
     }
   }
   return notices;

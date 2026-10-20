@@ -82,11 +82,11 @@ zhruba třetina až polovina samotného mlácení cepem – zbytek je práce kol
 
 ### Odhad
 
-- **Kolik lidí naráz na humně 8 × 10 m:** mlatci mlátí v párech proti sobě (cep ≈ 1,5 m násada
-  - 0,7 m tlouk – každý potřebuje ≈ 2,5 m prostoru); na mlatu 8 × 7 m (bez přístřešku 8 × 3 m)
-    se vejdou **≈ 4 páry**, k nim **≈ 4 pomocníci** (snopy na mlat, obracení a odhrabování slámy,
-    odvívání lopatou proti větru na kraji, odnos zrna). Celkem **≈ 12 lidí, tedy 12 člověkodní
-    výmlatu za den**.
+- **Kolik lidí naráz na humně 8 × 10 m:** mlatci mlátí v párech proti sobě (cep – násada ≈ 1,5 m
+  a tlouk ≈ 0,7 m, každý potřebuje ≈ 2,5 m prostoru); na mlatu 8 × 7 m (bez přístřešku 8 × 3 m)
+  se vejdou **≈ 4 páry**, k nim **≈ 4 pomocníci** (snopy na mlat, obracení a odhrabování slámy,
+  odvívání lopatou proti větru na kraji, odnos zrna). Celkem **≈ 12 lidí, tedy 12 člověkodní
+  výmlatu za den**.
 - **Kolik osevu humno stačí vymlátit:** v srpnu a září (61 dní) ≈ 730 člověkodní – při 15 / 10
   člověkodnech na hektar **≈ 50–75 ha osevu, tedy humno na ≈ 60 ha** (návrh v production-chains.md
   sedí). Ves s větším osevem potřebuje další humno, jinak výmlat přeteče za okno a snopy se kazí.
@@ -103,7 +103,7 @@ zhruba třetina až polovina samotného mlácení cepem – zbytek je práce kol
 
 `THRESHING` v `rules.ts`: `floorManDaysPerDay` 12, `graceDays` 365, `emergencyWork` 0,3,
 `emergencyLoss` 0,1, `spoilPerMonth` 0,1; upozornění „Před žněmi postav humno“ `noticeDaysBefore`
-31 dní před sklizní.
+90 dní před sklizní (humno za 75 čd malá ves za měsíc nestihne – v létě bere práci žeň).
 
 ### Zdroje
 

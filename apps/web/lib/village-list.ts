@@ -4,6 +4,7 @@ import {
   isVillageExtinct,
   isVillageTravelling,
   summarizeVillage,
+  threshingStatus,
   type HungerLevel,
   type VillageRecord,
 } from '@bohemia/game';
@@ -31,6 +32,11 @@ export interface VillageListItem {
    * upozornění z jiné vsi.
    */
   hunger: HungerLevel;
+  /**
+   * Humno (production-chains.md – Humno): před žněmi ves bez humna (`floorNeeded`), snopy čekají
+   * na humno (`waiting`) – pro upozornění z jiné vsi; nic z toho – bez údaje.
+   */
+  threshing?: { floorNeeded?: true; waiting?: true };
 }
 
 /** Položka přepínače z uložené vsi dopočítané do dne `day`. */
@@ -38,6 +44,7 @@ export function villageListItem(record: VillageRecord, day: number): VillageList
   const extinct = isVillageExtinct(record.state);
   const dormant = isVillageDormant(record.state);
   const summary = dormant ? null : summarizeVillage(record.state, day);
+  const threshing = dormant ? null : threshingStatus(record.state, day);
   return {
     id: record.id,
     settlementId: record.settlementId,
@@ -47,5 +54,13 @@ export function villageListItem(record: VillageRecord, day: number): VillageList
     abandoned: isVillageAbandoned(record.state),
     travelling: isVillageTravelling(record.state),
     hunger: summary?.hunger ?? 'fed',
+    ...(threshing && (threshing.floorNeeded || threshing.waiting)
+      ? {
+          threshing: {
+            ...(threshing.floorNeeded ? { floorNeeded: true as const } : {}),
+            ...(threshing.waiting ? { waiting: true as const } : {}),
+          },
+        }
+      : {}),
   };
 }

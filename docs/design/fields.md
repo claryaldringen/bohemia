@@ -785,17 +785,23 @@ První sezónu po vymýcení lesa se díl **neplete** (viz Úroda).
   v **srpnu**, jař v **září** (dřív listopad–únor). Mlátí se jen na **hotovém humnu** (staví ho
   hráč): humno zvládne **12 člověkodní výmlatu za den** (≈ 4 páry mlatců a 4 pomocníci – v srpnu
   a září ≈ 60 ha osevu), víc humen se sčítá. Žeň má v témže měsíci přednost, výmlat ji následuje;
-  co okno nestihne, mlátí se dál (zpožděný výmlat je nejnaléhavější úloha měsíce, kopání a setí
-  ozimu v říjnu ale před ním). **Snopy, které se nemlátí** (ves bez humna, nebo výmlat okno
-  nestihl), se **kazí 10 % za měsíc** – klasy se neskladovaly; snopy, které se v okně právě mlátí,
-  na řadu čekají bez ztráty (návrh Clauda). **Starší vsi** (uložené před snopy) mají od převodu
+  co okno nestihne, mlátí se dál (zpožděný výmlat je v září–únoru nejnaléhavější úloha měsíce,
+  kopání a setí ozimu v říjnu ale před ním; v březnu–srpnu až po všech ostatních pracích – zbytky
+  nepředběhnou setí ani žeň). **Výmlat na dnešní jídlo** má přednost před vším: chybí-li
+  v zásobách zrno na jídlo na dva dny, ves ho ze snopů vymlátí napřed (návrh Clauda). Výmlat ve
+  svém okně se počítá do dřiny jako ostatní polní práce. **Snopy, které se nemlátí** (ves bez
+  humna, nebo výmlat okno nestihl), se **kazí 10 % za měsíc** – klasy se neskladovaly, práce
+  výmlatu ubývá s nimi; snopy, které se v okně právě mlátí, na řadu čekají bez ztráty (návrh
+  Clauda). **Starší vsi** (uložené před snopy) mají od převodu
   **rok odkladu**: bez humna mlátí nouzově na udusané zemi u domů – bez omezení místa, ale
   o **30 % víc práce** a o **10 % zrna méně** (humno, které v odkladu nestačí, mlátí zbytek také
   nouzově). Nová ves odklad nemá – mlátí, až hráč postaví humno (upozornění „Před žněmi postav
-  humno“ měsíc před žní, „Snopy čekají na humno“ po ní; nouzový výmlat „Mlátí se na udusané zemi –
-  postav humno“; humno nestačí „Humno nestačí na výmlat“). Výhled jídla, plán osevu a dobré
-  zásoby (štěstí) počítají snopy jako zrno, jen když je smí vymlátit (humno nebo odklad; nouzově
-  o ztrátu méně); jí se jen vymlácené. Plán osevu odečte čekající výmlat z podzimní práce (září
+  humno“ 90 dní před žní, „Snopy čekají na humno“ po ní – obě i při prvním pohledu na ves a z jiné
+  vsi, snopy v horní liště; nouzový výmlat „Mlátí se na udusané zemi – postav humno“; humno
+  nestačí „Humno nestačí na výmlat“ – jen když humno stálo celé okno výmlatu). Výhled jídla, plán
+  osevu a dobré zásoby (štěstí) počítají snopy jako zrno, jen když je smí vymlátit (humno nebo
+  odklad), se ztrátami (nouzově o 10 % méně, pomalé humno o snopy, které se za oknem zkazí); jí se
+  jen vymlácené – hlad a šetření jdou i podle snědené energie. Plán osevu odečte čekající výmlat z podzimní práce (září
   – mlátí se před setím ozimu) a výmlat ozimu a luštěnin z práce srpna (vedle žně jaře). Úroda
   sklizená do zásob před převodem tam zůstane. Čísla v `THRESHING` (rules.ts), rešerše
   [2026-10-20-production-chains.md](research/2026-10-20-production-chains.md) – Výmlat na humně.

@@ -33,7 +33,8 @@ a tobolkami, fields.md – Len), charcoal (hromádka dřevěného uhlí), tools
 (kovaná sekera zkřížená se srpem) a pottery (dva hrnce pražského typu, větší s vlnovkou) –
 suroviny řemesel (crafts.md) –, ore (hromádka rezavých hrud bahenní rudy – crafts.md, Uhlí a ruda
 kováře), clay (hromádka hladkých hrud vlhké hlíny seříznutých rýčem – crafts.md, Hlína hrnčíře), harvest (sklizeň – srp zkřížený s uříznutou hrstí zralých klasů,
-panel dílu pole – fields.md), walk (cesta z domu – dvě šlépěje bosých nohou ve vyšlapané hlíně, chůze
+panel dílu pole – fields.md), sheaves (dva svázané snopy – nevymlácené zrno v horní liště,
+production-chains.md – Humno), walk (cesta z domu – dvě šlépěje bosých nohou ve vyšlapané hlíně, chůze
 po pěšinách – paths.md), cart (dvoukolák s loukoťovými koly) a wood-tools (hrábě zkřížené
 s dřevěnými vidlemi) – vozy a dřevěné nářadí od tesaře (wagons.md) –, skill (zkušenost
 řemeslníka – dřevěná palička zkřížená s dlátem, crafts.md – Učení řemesla), overgrowth (zarůstání – keře
@@ -2161,6 +2162,53 @@ def icon_harvest():
     return True
 
 
+def icon_sheaves():
+    """Snopy (production-chains.md – Humno): dva svázané snopy zralého obilí stojící opřené
+    o sebe jako v panáku – stébla svázaná povříslem, nahoře hustý chochol klasů s osinami –
+    nevymlácené zrno v horní liště."""
+    rng = random.Random(41)
+    stems, ears, awns, ties = bmesh.new(), bmesh.new(), bmesh.new(), bmesh.new()
+
+    def sheaf(base, axis, length, radius):
+        """Snop od uříznutých stébel `base` ve směru `axis`: stébla, povříslo, chochol klasů."""
+        axis = Vector(axis).normalized()
+        side = axis.cross(Vector((0, 1, 0)))
+        if side.length < 1e-6:
+            side = Vector((1, 0, 0))
+        side.normalize()
+        up = side.cross(axis).normalized()
+        tie_at = 0.42
+        for k in range(48):
+            a = rng.uniform(0, 2 * math.pi)
+            r = radius * rng.uniform(0.15, 1.0) ** 0.5
+            off = side * math.cos(a) * r + up * math.sin(a) * r
+            # u povřísla stažené, k uříznutým koncům a ke klasům se rozevírají
+            b = Vector(base) + off * 1.15
+            m = Vector(base) + axis * length * tie_at + off * 0.55
+            t = Vector(base) + axis * length * rng.uniform(0.9, 1.0) + off * 1.9
+            cyl(stems, b, m, 0.016, 0.014, 4)
+            cyl(stems, m, t, 0.014, 0.012, 4)
+            d = (t - m).normalized()
+            for j in range(4):
+                c = t + d * (0.04 + 0.06 * j)
+                q = d.to_track_quat("Z", "Y").to_euler()
+                blob(ears, (c[:], tuple(q)), (0.055, 0.055, 0.085), 7, 4)
+            tip = t + d * 0.27
+            cyl(awns, tip, tip + d * 0.22 + off * 0.4, 0.008, 0.0, 3)
+        mid = Vector(base) + axis * length * tie_at
+        cyl(ties, mid - axis * 0.05, mid + axis * 0.05, radius * 0.62, radius * 0.62, 16)
+
+    sheaf((-0.42, 0.0, -0.95), (0.28, 0.0, 1.0), 1.45, 0.24)
+    sheaf((0.42, 0.12, -0.95), (-0.28, 0.0, 1.0), 1.45, 0.24)
+    to_obj(stems, "stems", mat("straw", (0.86, 0.66, 0.28), 0.8, noise=60, bump=0.35))
+    to_obj(ears, "ears", mat("ear", (0.95, 0.74, 0.27), 0.65, noise=30))
+    to_obj(awns, "awns", mat("awn", (0.92, 0.76, 0.4), 0.6))
+    to_obj(ties, "ties", mat("tie", (0.56, 0.41, 0.18), 0.85, noise=40))
+    sun(az=-35, el=45, strength=4.4)
+    camera([Vector((-1.0, -0.4, -1.0)), Vector((1.0, 0.4, 1.0))], az=0, el=8, margin=1.02)
+    return True
+
+
 # Hrnec pražského typu: vnější profil (poloměr, výška) od dna k okraji, pak vnitřek zpět ke dnu
 POT_OUTER = [(0.0, 0.0), (0.3, 0.0), (0.36, 0.05), (0.48, 0.25), (0.57, 0.5), (0.58, 0.6),
              (0.53, 0.76), (0.45, 0.86), (0.43, 0.9), (0.47, 0.97), (0.51, 1.0)]
@@ -2589,6 +2637,7 @@ RESOURCES = {
     "clay": icon_clay,
     "tools": icon_tools,
     "harvest": icon_harvest,
+    "sheaves": icon_sheaves,
     "walk": icon_walk,
     "pottery": icon_pottery,
     "cart": icon_cart,

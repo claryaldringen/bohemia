@@ -323,8 +323,19 @@ describe('newNotices', () => {
     expect(newNotices(calm, stalled)).toHaveLength(1);
   });
 
-  it('první pohled na ves nic neohlásí', () => {
+  it('první pohled na ves nic neohlásí – kromě humna a čekajících snopů', () => {
     expect(newNotices(null, view({ hungry: true }))).toEqual([]);
+    // humno (production-chains.md – Humno): bez něj ves nemlátí – hráč se to dozví hned
+    expect(
+      newNotices(null, view({ hungry: true, threshing: { floorNeeded: true } })).map((n) => n.kind),
+    ).toEqual(['threshing-floor-needed']);
+    expect(
+      newNotices(null, view({ threshing: { sheavesKg: 500, waiting: true } })).map((n) => n.kind),
+    ).toEqual(['sheaves-waiting']);
+    // nouzový výmlat a humno, které nestačí, až když nově vzniknou
+    expect(
+      newNotices(null, view({ threshing: { sheavesKg: 500, emergency: true, floorShort: true } })),
+    ).toEqual([]);
   });
 
   it('svatba mezi domy – krátký fakt, jen když od minulého pohledu přibude', () => {
@@ -722,6 +733,29 @@ describe('upozornění z jiných vsí (migration.md)', () => {
       villages: [self, item()],
     });
     expect(newNotices(libice, budec)).toEqual([]);
+    // humno a čekající snopy se ohlásí i po přepnutí (production-chains.md – Humno)
+    const waiting = { ...budec, threshing: { sheavesKg: 400, waiting: true as const } };
+    expect(newNotices(libice, waiting)).toEqual([
+      { kind: 'sheaves-waiting', tone: 'warn', text: 'Snopy čekají na humno' },
+    ]);
+  });
+
+  it('humno jiné vsi – před žněmi a čekající snopy, jednou, se jménem vsi', () => {
+    const before = view({ villages: [self, item()] });
+    const needed = view({ villages: [self, item({ threshing: { floorNeeded: true } })] });
+    expect(newNotices(before, needed)).toEqual([
+      {
+        kind: 'other-threshing-floor-needed',
+        tone: 'warn',
+        text: 'Budeč: před žněmi postav humno',
+      },
+    ]);
+    expect(newNotices(needed, needed)).toEqual([]);
+    const waiting = view({ villages: [self, item({ threshing: { waiting: true } })] });
+    expect(otherVillageNotices(needed, waiting)).toEqual([
+      { kind: 'other-sheaves-waiting', tone: 'warn', text: 'Budeč: snopy čekají na humno' },
+    ]);
+    expect(otherVillageNotices(waiting, before)).toEqual([]);
   });
 });
 

@@ -1,0 +1,56 @@
+import { describe, expect, it } from 'vitest';
+import { advanceVillage, dayIndexOf, foundVillage, type VillageState } from '@bohemia/game';
+import { villageListItem } from '../village-list';
+
+// Položka přepínače vsí (migration.md – Víc vsí jednoho hráče): humno pro upozornění z jiné vsi
+// (production-chains.md – Humno).
+
+const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
+
+const record = (state: VillageState): Parameters<typeof villageListItem>[0] => ({
+  id: 'v-2',
+  settlementId: 's-1',
+  name: 'Budeč',
+  state,
+  version: 1,
+});
+
+describe('villageListItem – humno', () => {
+  it('ves bez humna před žněmi, snopy čekají; s humnem nic', () => {
+    const founded = at(600, 3, 15);
+    const parts = Array.from({ length: 40 }, (_, i) => ({
+      areaM2: 225,
+      distanceM: 50 + i,
+      naturalFertility: 70,
+      surface: 'meadow' as const,
+      obstacleCost: 0,
+    }));
+    const outline: [number, number][] = [
+      [0, 0],
+      [10, 0],
+      [10, 10],
+    ];
+    const s = advanceVillage(
+      foundVillage({
+        seed: 7,
+        day: founded,
+        dwellingPosition: { x: 0, z: 0, rotation: 0 },
+        firstField: { outline, parts },
+      }),
+      at(600, 6, 9),
+      null,
+    );
+    // nová ves nemá odklad – 90 dní před žní upozorní
+    expect(villageListItem(record(s), at(600, 6, 10)).threshing).toEqual({ floorNeeded: true });
+    const waiting = structuredClone(s);
+    waiting.lastDay = at(600, 9, 9);
+    waiting.sheaves = { grainKg: 400, legumesKg: 0, work: { spring: 20 } };
+    // po žni čekají snopy – další žně až za rok
+    expect(villageListItem(record(waiting), at(600, 9, 10)).threshing).toEqual({ waiting: true });
+    const floor = structuredClone(waiting);
+    floor.threshingFloors = [
+      { id: 900, position: { x: 50, z: 0, rotation: 0 }, builtDay: founded },
+    ];
+    expect(villageListItem(record(floor), at(600, 9, 10)).threshing).toBeUndefined();
+  });
+});

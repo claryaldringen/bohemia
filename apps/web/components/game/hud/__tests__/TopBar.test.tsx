@@ -6,6 +6,7 @@ import {
   cartsLabel,
   dairyName,
   satiationState,
+  sheavesName,
   showsDairy,
   showsHay,
   showsLegumes,
@@ -165,5 +166,14 @@ describe('vozy a dřevěné nářadí v liště (wagons.md)', () => {
         { id: 2, kind: 'four-wheel', condition: 1, away: true },
       ]),
     ).toBe('Vozy – dvoukoláky 1, čtyřkoláky 1 (na cestě 1)');
+  });
+});
+
+describe('snopy v liště (production-chains.md – Humno)', () => {
+  it('popisek: nevymláceno, bez humna čekají a kazí se', () => {
+    expect(sheavesName({ sheavesKg: 400 })).toBe('Snopy – nevymláceno (kg zrna)');
+    expect(sheavesName({ sheavesKg: 400, waiting: true })).toBe(
+      'Snopy čekají na humno – kazí se (kg zrna)',
+    );
   });
 });

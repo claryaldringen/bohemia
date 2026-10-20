@@ -1478,19 +1478,26 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   část práce `thresh` plánu; `addSheaves` v `harvestWinter` / `harvest`), ne do `storesKg`.
   Okna `thresh`: ozim a luštěniny srpen, jař září (`WINTER_WINDOWS`, `LEGUME_WINDOWS`,
   `WINDOWS`); `threshTasks` (úlohy dne v `work()` – za polními úlohami téhož konce okna, žeň má
-  přednost – `THRESH_RANK`; po konci okna se mlátí dál s koncem v dnešním měsíci) a `threshCrop`
-  převede snopy do zásob podílem postupu na práci druhu (obilí ozimu a jaře spolu). Mlátí se jen
+  přednost – `THRESH_RANK`; po konci okna se mlátí dál – září–únor s koncem v dnešním měsíci,
+  březen–srpen `THRESH_OVERDUE_END` po všech pracích; **výmlat na dnešní jídlo** napřed –
+  `threshForFoodKg`: chybí-li zrno na 2 dny jídla, úloha `urgent` s `THRESH_URGENT_END` před
+  žní) a `threshCrop` převede snopy do zásob podílem postupu na práci druhu (obilí ozimu a jaře
+  spolu). Úroda bez práce výmlatu jde rovnou do zásob (`addSheaves`). Výmlat v okně je dřina
+  (`threshSeasonTasks` v `isToilDay`). Mlátí se jen
   s hotovým humnem (`threshingCapacity` – `floorManDaysPerDay` 12 čd na humno, humna se sčítají),
   nebo v roce odkladu starší vsi (`threshingGraceUntil`, `inThreshingGrace`) nouzově na udusané
   zemi – bez omezení místa, o 30 % víc práce a 10 % zrna méně (humno v odkladu mlátí plným tempem,
-  zbytek nouzově). Snopy, které dnes nikdo v okně nemlátí, se kazí 10 % za měsíc (`spoilSheaves`
-  na začátku dne). Nová ves (`foundVillage`) má prázdné snopy bez odkladu; ves uložená dřív
+  zbytek nouzově). Snopy, které dnes nikdo v okně nemlátí, se kazí 10 % za měsíc i s prací výmlatu
+  (`spoilSheaves` na začátku dne). Nová ves (`foundVillage`) má prázdné snopy bez odkladu; ves uložená dřív
   dostane `withThreshingGrace` (v `updateVillage` od dneška, v `advanceVillageSteps` od dne po
   dopočtu) – prázdné snopy a rok odkladu, úroda už v zásobách zůstane. `threshingFromPlan` se
   zahodí 1. 10. (`THRESH_END_DAY`, bez ztráty – dřívější „nevymlácené 1. 3. propadne“ zmizelo).
   Výhled jídla (`DietInput.sheavesGrainKg` / `sheavesLegumesKg` – `sheavesOutlook`, jen když ves
-  smí mlátit, nouzově o ztrátu méně), plán osevu (`sowingTargets`, `fieldStoresKg(state, day)`)
-  a dobré zásoby štěstí počítají snopy jako zrno; jí se jen vymlácené. Plán osevu odečte
+  smí mlátit, se ztrátami `sheafYield` – nouzově −10 % podílu mimo humna, pomalé humno o snopy
+  zkažené za oknem), plán osevu (`sowingTargets`, `fieldStoresKg(state, day)`) a dobré zásoby
+  štěstí počítají snopy jako zrno; jí se jen vymlácené. Hlad a příděl (`eat` – `state.ration`)
+  jdou podle menšího z výhledu a snědené energie. Odchod do nové vsi dělí snopy jako zásoby
+  (`leavingFood`, `takeSheaves`). Plán osevu odečte
   čekající výmlat (`pendingThreshLabor` – na humnech nejvýš kapacita za dny okna) z podzimní
   kapacity (`sowingCapacity`) a výmlat ozimu a luštěnin přičte k srpnu (`CropLoad.august` ve
   `sowing.ts`). Rozdělení práce: výmlat na hotová humna rovným dílem (cíl `threshing-floor`),
@@ -1500,10 +1507,13 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   i zemská stezka (`trailRoutes(…, floors)`); svoz snopů vozem jede i k humnu
   (`threshingFloorHaulPoints` – jízdy do ročního provozu cest). Stav pro upozornění
   `threshingStatus` → `VillageView.threshing` (`threshingOf` ve `village-view.ts`): „Před žněmi
-  postav humno“ (`floorNeeded` – nejvýš 31 dní před sklizní ves bez humna i rozestavěného, která
-  po sklizni nesmí mlátit), „Snopy čekají na humno“ (`waiting`), „Mlátí se na udusané zemi –
-  postav humno“ (`emergency`), „Humno nestačí na výmlat“ (`floorShort`). Scéna výmlatu je úloha
-  5 plánu.
+  postav humno“ (`floorNeeded` – nejvýš 90 dní před sklizní ves bez humna i rozestavěného, která
+  po sklizni nesmí mlátit), „Snopy čekají na humno“ (`waiting`) – obě i při prvním pohledu
+  a přepnutí vsi (`FIRST_LOOK_NOTICES` v `newNotices`) a z jiné vsi (`VillageListItem.threshing`,
+  `otherVillageNotices`) –, „Mlátí se na udusané zemi – postav humno“ (`emergency`), „Humno
+  nestačí na výmlat“ (`floorShort` – výmlat po okně plodiny, jejíž celé okno humno stálo). Horní
+  lišta: snopy s kg zrna (`resources/sheaves.png`, `icons.py sheaves`; do červena při `waiting`).
+  Scéna výmlatu je úloha 5 plánu.
 - **Příbuzenství a pohlaví** ([kinship.md](docs/design/kinship.md), Martin 18. 10. 2026;
   `kinship.ts`): `Person.sex`, `motherId`, `fatherId`, `spouseId`, u nevěsty z okolí a lidí od
   souseda (výměna lidí – trade.md) `origin` (směr sousední vsi – válka); zemřelí a odešlí rodiče

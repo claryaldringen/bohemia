@@ -155,6 +155,8 @@ import { villageSacredOaks } from './sacred';
 import { finishThreshingFloor, threshingFloorHaulPoints } from './threshing-floors';
 import {
   addSheaves,
+  threshForFoodKg,
+  threshSeasonTasks,
   withThreshingGrace,
   pendingThreshLabor,
   spoilSheaves,
@@ -891,13 +893,15 @@ function work(
   }));
   // výmlat snopů na humnech, v roce odkladu i nouzově na udusané zemi (production-chains.md –
   // Humno): ozim a luštěniny v srpnu, jař v září – za polními úlohami téhož konce okna (žeň má
-  // přednost); výmlat, který okno nestihl, má konec v dnešním měsíci
-  for (const thresh of threshTasks(state, day)) {
+  // přednost); výmlat, který okno nestihl, po všech pracích. Chybí-li v zásobách zrno na dnešní
+  // jídlo, vymlátí se napřed – před žní i ostatními úlohami (výmlat na dnešní jídlo)
+  const threshes = threshTasks(state, day, threshForFoodKg(state, villageFoodNeed(state, day)));
+  for (const thresh of threshes) {
     dayTasks.push({
       name: 'thresh',
       remaining: thresh.remaining,
       end: thresh.end,
-      tie: 1,
+      tie: thresh.urgent ? 0 : 1,
       rank: THRESH_RANK + CROP_ORDER.indexOf(thresh.crop),
       thresh,
     });
@@ -1330,12 +1334,19 @@ function work(
   if (state.commonLaborHistory.length > COMMON_LABOR_HISTORY_DAYS) {
     state.commonLaborHistory.splice(0, state.commonLaborHistory.length - COMMON_LABOR_HISTORY_DAYS);
   }
-  // dřina: stihne ves dnešním tempem polní práce obou plodin do konce jejich oken?
-  const pace = fieldWork.reduce((sum, task) => sum + task.amount, 0);
-  const seasonTasks = owned.map((task) => ({
-    remaining: neededTaskRemaining(task.work, task.name),
-    endDay: windowEndDay(cropTaskWindows(task.crop, task.name), day) ?? day,
-  }));
+  // dřina: stihne ves dnešním tempem polní práce obou plodin do konce jejich oken? I výmlat ve
+  // svém okně jako ostatní polní práce (production-chains.md – Humno); výmlat po okně termín nemá
+  const pace = fieldWork.reduce(
+    (sum, task) => sum + task.amount,
+    threshing.floor + threshing.ground,
+  );
+  const seasonTasks = [
+    ...owned.map((task) => ({
+      remaining: neededTaskRemaining(task.work, task.name),
+      endDay: windowEndDay(cropTaskWindows(task.crop, task.name), day) ?? day,
+    })),
+    ...threshSeasonTasks(state, day),
+  ];
   return { toil: isToilDay(seasonTasks, pace, day) };
 }
 
@@ -2622,9 +2633,13 @@ function eat(
   // kolik z dnešní potřeby musí dát pole – podle toho ves k 1. 9. oseje (fields.md – Kolik ves
   // oseje, Osev podle stravy)
   recordFieldFood(state, need, meal.diet);
-  const hungry = meal.outlook < 1 - SATIATION_EPSILON;
+  // příděl do sklizně podle výhledu, nebo méně, když se dnes snědlo méně energie (zásoby došly
+  // a snopy se nestihly vymlátit – production-chains.md, Humno) – ves šetří i hladoví podle toho,
+  // co opravdu snědla
+  const ration = Math.min(meal.outlook, meal.diet.energy);
+  const hungry = ration < 1 - SATIATION_EPSILON;
   // příděl do sklizně, když ves šetří – stupeň upozornění (population.md – Co hráč vidí)
-  if (hungry) state.ration = meal.outlook;
+  if (hungry) state.ration = ration;
   else delete state.ration;
   if (hungry !== state.hungry) {
     state.hungry = hungry;

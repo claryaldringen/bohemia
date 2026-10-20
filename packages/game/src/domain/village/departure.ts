@@ -8,6 +8,7 @@ import { ageYears, occupants } from './people';
 import { relocationBlock } from './relocation';
 import { leavingCart, takeLeavingCart } from './carts';
 import { CARTS, DWELLINGS, LEAVING, RUIN_YEARS } from './rules';
+import { sheavesOutlook, takeSheaves } from './threshing';
 import { DIRECTION_VECTORS } from './trail';
 import type {
   Ancestor,
@@ -106,7 +107,9 @@ export function departureBlock(state: VillageState, dwellingIds: readonly number
  * Kolik jídla si lidé `leavers` vezmou (migration.md, návrh Clauda): unesou LEAVING.carryKgPerPerson
  * na člověka od LEAVING.carryFromAge let a s vozem (`cart` – migration.md, Vůz při odchodu) navíc
  * jeho náklad (CARTS.loadKg), nejvýš poměrný díl zásob vsi podle počtu lidí. Když neunesou celý
- * díl, berou z každé zásoby (obilí, maso, sýr, luštěniny, ovoce) stejný podíl.
+ * díl, berou z každé zásoby (obilí, maso, sýr, luštěniny, ovoce) stejný podíl. Snopy, které ves smí
+ * vymlátit, jsou zásobou jako zrno (production-chains.md – Humno – výhled se ztrátami): svůj díl si
+ * vymlátí a vezmou stejným podílem.
  */
 export function leavingFood(
   state: VillageState,
@@ -114,24 +117,38 @@ export function leavingFood(
   day: number,
   cart: CartKind | null = null,
 ): LeavingFood {
+  return leavingShare(state, leavers, day, cart).food;
+}
+
+/** Jídlo, které lidé `leavers` vezmou, a jaký podíl každé zásoby to je (`leavingFood`). */
+function leavingShare(
+  state: VillageState,
+  leavers: readonly Person[],
+  day: number,
+  cart: CartKind | null,
+): { food: LeavingFood; fraction: number } {
   const share = state.people.length > 0 ? leavers.length / state.people.length : 0;
   const carriers = leavers.filter((p) => ageYears(p.bornDay, day) >= LEAVING.carryFromAge).length;
+  const sheaves = sheavesOutlook(state, day);
   const shares: LeavingFood = {
-    grainKg: Math.max(0, state.storesKg) * share,
+    grainKg: (Math.max(0, state.storesKg) + sheaves.grainKg) * share,
     meatKg: Math.max(0, state.meatKg ?? 0) * share,
     cheeseKg: Math.max(0, state.cheeseKg ?? 0) * share,
-    legumesKg: Math.max(0, state.legumesKg ?? 0) * share,
+    legumesKg: (Math.max(0, state.legumesKg ?? 0) + sheaves.legumesKg) * share,
     applesKg: Math.max(0, state.applesKg ?? 0) * share,
   };
   const total = Object.values(shares).reduce((sum, kg) => sum + kg, 0);
   const budget = carriers * LEAVING.carryKgPerPerson + (cart ? CARTS.loadKg[cart] : 0);
   const scale = total > budget && total > 0 ? budget / total : 1;
   return {
-    grainKg: shares.grainKg * scale,
-    meatKg: shares.meatKg * scale,
-    cheeseKg: shares.cheeseKg * scale,
-    legumesKg: shares.legumesKg * scale,
-    applesKg: shares.applesKg * scale,
+    food: {
+      grainKg: shares.grainKg * scale,
+      meatKg: shares.meatKg * scale,
+      cheeseKg: shares.cheeseKg * scale,
+      legumesKg: shares.legumesKg * scale,
+      applesKg: shares.applesKg * scale,
+    },
+    fraction: share * scale,
   };
 }
 
@@ -217,15 +234,18 @@ export function departVillage(
   const share = leavers.length / state.people.length;
   // volný vůz s voly (migration.md – Vůz při odchodu) – uveze víc jídla
   const cart = leavingCart(state, day, leavers.length === state.people.length);
-  const food = leavingFood(state, leavers, day, cart?.cart.kind ?? null);
+  const { food, fraction } = leavingShare(state, leavers, day, cart?.cart.kind ?? null);
   const kin = settlerKin(state, leavers);
   const next = cloneState(state);
   if (cart) takeLeavingCart(next, cart);
-  next.storesKg -= food.grainKg;
+  // z každé zásoby stejný podíl – i ze snopů, které ves smí vymlátit (production-chains.md – Humno)
+  next.storesKg -= Math.max(0, state.storesKg) * fraction;
   if (next.meatKg !== undefined) next.meatKg -= food.meatKg;
   if (next.cheeseKg !== undefined) next.cheeseKg -= food.cheeseKg;
-  if (next.legumesKg !== undefined) next.legumesKg -= food.legumesKg;
+  if (next.legumesKg !== undefined) next.legumesKg -= Math.max(0, state.legumesKg ?? 0) * fraction;
   if (next.applesKg !== undefined) next.applesKg -= food.applesKg;
+  const sheaves = sheavesOutlook(state, day);
+  takeSheaves(next, sheaves.grainKg > 0 ? fraction : 0, sheaves.legumesKg > 0 ? fraction : 0);
   const herds = Object.fromEntries(HERDS.map((s) => [s, 0])) as Record<HerdSpecies, number>;
   const young = Object.fromEntries(HERDS.map((s) => [s, 0])) as Record<HerdSpecies, number>;
   if (next.livestock) {
