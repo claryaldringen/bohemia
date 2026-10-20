@@ -24,6 +24,7 @@ import { buildingClearings } from './building-clearings';
 import { CemeteryRenderer } from './cemetery-renderer';
 import { withoutHiddenMounds, type FuneralPlan } from './funeral-plan';
 import { FuneralRenderer } from './funeral-renderer';
+import { OreSiteRenderer } from './ore-sites';
 import {
   DECAY_LOOKS,
   decayModelParts,
@@ -266,6 +267,8 @@ export class VillageRenderer {
   private readonly funerals: FuneralRenderer;
   /** Mohyly, které hranice ještě nenechala nasypat (klíč pro změnu). */
   private hiddenMoundsKey = '';
+  /** Rudiště kovářů – jámy a hromady rudy (crafts.md – Uhlí a ruda kováře). */
+  private readonly ores: OreSiteRenderer;
   private readonly pegs: StakingPegs;
   private readonly orchards: OrchardRenderer;
   private readonly sacred: SacredRenderer;
@@ -312,6 +315,10 @@ export class VillageRenderer {
     this.funerals = new FuneralRenderer(scene, {
       groundHeight: context.groundHeight,
       onLoaded: () => context.requestRender(),
+    });
+    this.ores = new OreSiteRenderer(scene, {
+      decalHeight: context.decalHeight,
+      addShadowCaster: (mesh) => context.addShadowCaster(mesh),
     });
     this.orchards = new OrchardRenderer(scene, context);
     this.plots = new HomesteadRenderer(scene, {
@@ -377,6 +384,7 @@ export class VillageRenderer {
     );
     const wild = this.wild.update(village);
     const cemeteries = this.cemeteries.update(this.shownCemeteries(Date.now()), village.dwellings);
+    const ores = this.ores.update(village.oreSites, village.orePits);
     const orchards = this.orchards.update(
       village.orchards ?? [],
       buildingClearings(village.dwellings),
@@ -394,6 +402,7 @@ export class VillageRenderer {
       fields ||
       wild ||
       cemeteries ||
+      ores ||
       orchards ||
       plots ||
       sacred ||
@@ -807,6 +816,7 @@ export class VillageRenderer {
     this.smoke.dispose();
     this.funerals.dispose();
     this.cemeteries.dispose();
+    this.ores.dispose();
     this.plots.dispose();
     // ohrady uvolní své ploty – před sdílenými ploty
     this.pens.dispose();

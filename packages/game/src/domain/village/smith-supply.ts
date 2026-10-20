@@ -1,6 +1,7 @@
 import { createRandom, deriveSeed } from '../landscape/random';
 import { detCos, detSin, length2, type Landscape } from '../landscape';
 import { distanceFactor } from './fields';
+import { PolygonIndex, villageLandSquares } from './squares';
 import { ageGroup, ageYears } from './people';
 import { PATH_WATER_SPOT, PATH_WETLAND } from './paths/terrain';
 import { groundSpots, villageRoadWalk, walkGroundOf } from './paths/walking';
@@ -282,6 +283,9 @@ export function migrateSmith(workshop: Workshop, labor: number, batchDays: numbe
   workshop.oreKg = footOreBatchKg(labor, batchDays);
 }
 
+/** Rudiště nejméně tak daleko od obydlí (m – dům, pozemek). */
+const ORE_SITE_HOME_M = 12;
+
 /** Je bod `p` aspoň SMITH_SUPPLY.siteSpacingM od všech vyčerpaných ložisek? */
 function awayFromUsed(
   p: { x: number; z: number },
@@ -294,7 +298,8 @@ function awayFromUsed(
  * Nové rudiště kovárny `smith` (crafts.md – Uhlí a ruda kováře): buňka mokřiny u potoka
  * (PATH_WETLAND terénu pěšin – suchá rovina u vody) nejblíž kovárně vzdušnou čarou (při shodě
  * menší x, z) aspoň SMITH_SUPPLY.siteSpacingM od vyčerpaných ložisek; bez mokřiny suchý břeh
- * (PATH_WATER_SPOT). Vzdálenost chůze po pevných cestách s půdou krajiny (mokřina a brody –
+ * (PATH_WATER_SPOT). Ne na čtvercích staveb vsi (pole, sad, hřbitov, ohrada, les vsi) ani u domů.
+ * Vzdálenost chůze po pevných cestách s půdou krajiny (mokřina a brody –
  * paths/walking.ts). Bez krajiny (testy, kalibrace) místo bez polohy ve vzdálenosti dílny k vodě
  * (`waterDistanceM`). Když není mokřina ani voda, null.
  */
@@ -314,6 +319,12 @@ export function chooseOreSite(
   }
   const ground = walkGroundOf(landscape);
   const from = smith.position;
+  // na poli, v sadu, na hřbitově, v ohradě ani v lese vsi se nekope, u domů taky ne
+  const land = new PolygonIndex(landscape, villageLandSquares(landscape, state));
+  const homes = state.dwellings.map((d) => d.position);
+  const free = (p: { x: number; z: number }): boolean =>
+    land.containing(p.x, p.z).length === 0 &&
+    homes.every((h) => length2(h.x - p.x, h.z - p.z) >= ORE_SITE_HOME_M);
   const nearest = (flag: number): { x: number; z: number } | null => {
     let best: { x: number; z: number } | null = null;
     let bestD = Infinity;
@@ -321,7 +332,7 @@ export function chooseOreSite(
       if (!awayFromUsed(p, used)) continue;
       const d = (p.x - from.x) * (p.x - from.x) + (p.z - from.z) * (p.z - from.z);
       // body jdou po řádcích – při shodě vyhraje první
-      if (d < bestD) {
+      if (d < bestD && free(p)) {
         best = p;
         bestD = d;
       }

@@ -92,6 +92,7 @@ import { demoCartSlope, type CartDemo } from './dev-cart';
 import { demoCaravan, type CaravanDemo } from './dev-caravan';
 import { demoFuneral, windowAt, type FuneralDemo } from './dev-funeral';
 import { FuneralControls } from './FuneralControls';
+import { ORE_DEMO_STAGES, demoOre, type OreDemo } from './dev-ore';
 import { devSelectionView } from './dev-selection';
 import { DayTimeControls } from './DayTimeControls';
 import type { CartKind } from '@bohemia/game';
@@ -205,6 +206,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [caravanDemo, setCaravanDemo] = useState<CaravanDemo | null>(null);
   // ukázka pohřbu (cemetery.md – Pohřeb ve scéně, dev-funeral.ts) – hlava rodiny, pak vojvoda
   const [funeralDemo, setFuneralDemo] = useState<FuneralDemo | null>(null);
+  // ukázka rudiště kováře (crafts.md – Uhlí a ruda kováře, dev-ore.ts) – pěšky, pak s vozem
+  const [oreDemo, setOreDemo] = useState<OreDemo | null>(null);
   // stupeň vylepšení ukázkových cest (dev-road.ts – DEMO_ROAD_STAGES) a stadium jabloní u cesty
   const [roadStage, setRoadStage] = useState(0);
   const [appleStage, setAppleStage] = useState(0);
@@ -296,6 +299,18 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         labor: funeralDemo.labor,
       };
     }
+    if (oreDemo) {
+      // rudiště: kovárna, uhlíř s milířem, jámy v různém stáří, kopáči a nosiči (a vůz)
+      return {
+        ...base,
+        dwellings: [...base.dwellings, ...oreDemo.dwellings],
+        pens: [...(base.pens ?? []), ...oreDemo.pens],
+        oreSites: oreDemo.oreSites,
+        orePits: oreDemo.orePits,
+        carts: oreDemo.carts,
+        labor: oreDemo.labor,
+      };
+    }
     if (caravanDemo) {
       // karavana výpravy: dvorec, zemská stezka, výprava (a vůz) – zboží a lidé tam a zpět
       return {
@@ -368,6 +383,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     cartDemo,
     caravanDemo,
     funeralDemo,
+    oreDemo,
     roadPlough,
   ]);
 
@@ -1445,6 +1461,27 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   };
 
   /**
+   * Ukázka rudiště (crafts.md – Uhlí a ruda kováře): vypnuto → pěšky (kopáči u jámy, syn nosí
+   * uhlí, kovář rudu) → s vozem (vůz se sedlákem jede pro hromadu rudy) → vypnuto; kamera mezi
+   * kovárnu a rudiště.
+   */
+  const toggleOre = (): void => {
+    const next = oreDemo === null ? 'foot' : oreDemo.stage === 'foot' ? 'cart' : null;
+    if (!next) {
+      setOreDemo(null);
+      return;
+    }
+    const sample = demoOre(decoded, obstaclesOf(decoded), next, {
+      smith: 9_200_001,
+      burner: 9_200_002,
+      pen: 9_200_003,
+      cart: 9_200_004,
+    });
+    setOreDemo(sample);
+    if (sample) scene?.moveCameraTo(sample.focus.x, sample.focus.z);
+  };
+
+  /**
    * Ukázka karavany výpravy (trade.md – Ve scéně): vypnuto → nosiči se zbožím → vůz → vypnuto.
    * Výprava vyrazí hned a za „den“ ukázky (90 s) se vrátí; kamera k půlce stezky.
    */
@@ -1725,6 +1762,15 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
           {funeralDemo ? `Pohřeb: ${funeralDemo.voivode ? 'vojvoda' : 'hlava rodiny'}` : 'Pohřeb'}
         </button>
         {funeralDemo && <FuneralControls scene={scene} buttonClass={buttonClass} />}
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={toggleOre}
+          title="Rudiště kováře – jámy v různém stáří, kopáči a nosiči uhlí a rudy, pak vůz se sedlákem pro rudu"
+          data-testid="dev-ore"
+        >
+          {oreDemo ? `Rudiště: ${ORE_DEMO_STAGES[oreDemo.stage]}` : 'Rudiště'}
+        </button>
         <button
           className={buttonClass}
           disabled={!scene}

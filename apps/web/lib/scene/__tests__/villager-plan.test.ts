@@ -29,6 +29,7 @@ import {
   type VillagerGround,
   type VillagerPaths,
 } from '../villager-plan';
+import { orePitRadius } from '../ore-site-layout';
 
 /** Potok v pásu z ∈ (60, 70) – jinak všude suchá schůdná louka; strom 501 a 502 v lese. */
 const GROUND: VillagerGround = {
@@ -1181,6 +1182,104 @@ describe('uhlíř – milíř v lese a sázení buků (crafts.md – Uhlíř)', 
         expect(Math.hypot(x - KILN.x, z - KILN.z)).toBeLessThan(45);
       }
     }
+  });
+});
+
+describe('kovář – rudiště a nošení (crafts.md – Uhlí a ruda kováře)', () => {
+  const PIT = { x: 50, z: 40 };
+  const KILN = { x: -30, z: -20 };
+  function smithVillage(shares: LaborShare[]): SceneVillage {
+    const base = village(shares);
+    return {
+      ...base,
+      dwellings: [
+        ...base.dwellings,
+        { ...house(31, 40, -20, 0, true, 'polozemnice'), craft: 'smith' as const },
+      ],
+      orePits: [{ x: PIT.x, z: PIT.z, kg: 200, overgrowth: 0 }],
+      oreSites: [{ dwellingId: 31, x: PIT.x - 2, z: PIT.z - 2, heapKg: 0, digging: true }],
+    };
+  }
+
+  it('kopáči stojí na valu jámy čelem do ní s motykou – syn od 14 let i kovář', () => {
+    const people = planVillagers(
+      smithVillage([
+        {
+          activity: 'ore',
+          target: { kind: 'ore', id: 31, x: PIT.x - 2, z: PIT.z - 2 },
+          manDays: 2,
+          ages: [36, 15],
+        },
+      ]),
+      GROUND,
+      { seed: 5, herds: 0 },
+    );
+    const diggers = people.filter((p) => p.key.startsWith('ore:'));
+    expect(diggers.length).toBe(2);
+    const radius = orePitRadius(200);
+    for (const p of diggers) {
+      const pose = at(p, 5);
+      expect(pose.clip).toBe('hoe');
+      const d = Math.hypot(pose.x - PIT.x, pose.z - PIT.z);
+      expect(d).toBeGreaterThan(radius - 0.5);
+      expect(d).toBeLessThan(radius + 2);
+      // dospělí – syn od 14 let není dítě
+      expect(p.scale).toBeGreaterThan(1);
+    }
+  });
+
+  it('syn 11 let nosí uhlí od milíře – menší postava mezi kovárnou a milířem, tam a zpět', () => {
+    const people = planVillagers(
+      smithVillage([
+        {
+          activity: 'fetch',
+          target: { kind: 'kiln', id: 21, x: KILN.x, z: KILN.z, from: 31 },
+          manDays: 0.23,
+          ages: [11],
+        },
+        {
+          activity: 'fetch',
+          target: { kind: 'kiln', id: 21, x: KILN.x, z: KILN.z, from: 31 },
+          manDays: 0.1,
+          ages: [36],
+        },
+      ]),
+      GROUND,
+      { seed: 5, herds: 0 },
+    );
+    const carriers = people.filter((p) => p.key.startsWith('fetch:'));
+    expect(carriers.length).toBe(2);
+    const son = carriers.find((p) => p.key.includes(':11:'))!;
+    const father = carriers.find((p) => p.key.includes(':36:'))!;
+    expect(son.scale).toBeLessThan(father.scale);
+    expect(son.kind).toBe('man');
+    // chodí mezi kovárnou (40, −20) a milířem – s košem zpátky
+    const clips = new Set<string>();
+    let nearKiln = false;
+    for (let t = 0; t < 400; t += 1.7) {
+      const pose = at(son, t);
+      clips.add(pose.clip);
+      if (Math.hypot(pose.x - KILN.x, pose.z - KILN.z) < 6) nearKiln = true;
+      expect(pose.z).toBeGreaterThan(-35);
+      expect(pose.z).toBeLessThan(0);
+    }
+    expect(nearKiln).toBe(true);
+    expect(clips.has('carry')).toBe(true);
+    // s vozem jede kovář vozem – pěšky nikdo
+    const riding = planVillagers(
+      smithVillage([
+        {
+          activity: 'fetch',
+          target: { kind: 'ore', id: 31, x: PIT.x, z: PIT.z },
+          manDays: 0.1,
+          ages: [36],
+          carts: 1,
+        },
+      ]),
+      GROUND,
+      { seed: 5, herds: 0 },
+    );
+    expect(riding.some((p) => p.key.startsWith('fetch:'))).toBe(false);
   });
 });
 
