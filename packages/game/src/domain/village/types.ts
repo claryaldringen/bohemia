@@ -625,6 +625,11 @@ export interface Construction {
    * (`Trail.pieces`) se svým stupněm a prací, staví se po úsecích od vsi ven. Jen u stavby `road`.
    */
   trail?: number;
+  /**
+   * Stavba vozové cesty (roads.md – Vozová cesta): id zemních prací (`VillageRoads.earthworks`) –
+   * úseky se staví od vsi ven, hotový úsek je hned pevná cesta stupně `wagon`. Jen u stavby `road`.
+   */
+  earthwork?: number;
   /** Dřevo obydlí, přestavby, modly a svatyně (forest.md); u starších staveb a polí chybí. */
   wood?: ConstructionWood;
   /** Nové obydlí: vzdálenost k nejbližšímu okraji lesa (m) – obydlí ji po dostavění převezme. */
@@ -1126,6 +1131,11 @@ export type LaborTarget =
   | { kind: 'pen'; id: number }
   /** Pevná cesta (id úseku) – vylepšení a jabloně podél ní (roads.md). */
   | { kind: 'road'; id: number }
+  /**
+   * Stavba vozové cesty (roads.md – Vozová cesta) – id stavby a čelo práce na ose (m): úsek, který
+   * ještě není cestou.
+   */
+  | { kind: 'wagon'; id: number; x: number; z: number }
   /** Přirozená louka – políčka, na kterých se dnes seče seno (oxen.md – Seno). */
   | { kind: 'meadow'; cells: TileCell[] }
   /** Stromy z vrstvy překážek, které se pro stavbu nebo dílnu právě kácejí (i pařezy k sázení). */
@@ -1610,10 +1620,11 @@ export interface RoadPoint {
 }
 
 /**
- * Stupeň pevné cesty (roads.md – Vylepšení cesty): vyšlapaná (vznikne sama), upravená a hať
- * s lávkou (staví hráč – zatím jen vyšlapaná).
+ * Stupeň pevné cesty (roads.md – Vylepšení cesty): vyšlapaná (vznikne sama), upravená, hať
+ * s lávkou a vozová cesta (staví hráč – roads.md, Vozová cesta: vlastní přímější trasa se zemními
+ * pracemi a zpevněnými kolejemi).
  */
-export type RoadGrade = 'trodden' | 'improved' | 'causeway';
+export type RoadGrade = 'trodden' | 'improved' | 'causeway' | 'wagon';
 
 /** Místo na strom u pevné cesty – určené jednou při vzniku cesty (roads.md – Stromy). */
 export interface RoadTreeSpot {
@@ -1770,6 +1781,45 @@ export interface VillageRoads {
   swath?: number[];
   /** Hotové upravené cesty a stezky dostaly průsek převodem starší vsi (`withRoadSwaths`). */
   swathChecked?: true;
+  /**
+   * Zemní práce vozových cest (roads.md – Vozová cesta): profil osy s navrženými výškami pláně –
+   * terén se v úvozu sníží a v náspu zvedne (`terrainEditsOf` – čistá funkce stavu). Zůstávají
+   * i bez cesty (úvoz je v krajině). Chybí = žádné.
+   */
+  earthworks?: RoadEarthwork[];
+}
+
+/** Bod profilu vozové cesty – osa (m, na cm) a navržená výška pláně (m, na cm). */
+export interface RoadProfilePoint {
+  x: number;
+  z: number;
+  y: number;
+}
+
+/** Úsek stavby vozové cesty – konec (m od začátku osy), práce (čd) a den dostavění. */
+export interface RoadEarthworkPiece {
+  toM: number;
+  manDays: number;
+  /** Den dostavění (úsek je pevná cesta – `Road` stupně `wagon`); dokud se staví, null. */
+  builtDay: number | null;
+}
+
+/**
+ * Zemní práce vozové cesty (roads.md – Vozová cesta): osa od vsi ven s navrženou výškou pláně
+ * v každém bodě (po ≈ WAGON_ROAD.profileStepM), úseky stavby a body osy v brodu (tam se terén
+ * neupravuje – brod zůstává brodem). Terén scény i sítí upravuje jen hotová část osy a rozestavěný
+ * úsek podle průběhu (`terrainEditsOf`).
+ */
+export interface RoadEarthwork {
+  id: number;
+  profile: RoadProfilePoint[];
+  pieces: RoadEarthworkPiece[];
+  /** Indexy bodů profilu v brodu (vzestupně); chybí = žádné. */
+  fords?: number[];
+  /** Den zadání stavby. */
+  startedDay: number;
+  /** Stavba (id), dokud se staví; pak chybí. */
+  constructionId?: number;
 }
 
 /** Druh vozu (wagons.md – Vůz): dvoukolák (svoz), čtyřkolák (obchod – hůř se otáčí). */

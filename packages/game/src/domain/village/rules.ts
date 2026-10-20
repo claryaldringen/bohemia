@@ -326,11 +326,14 @@ export const CART_ROUTES = {
 // vyšlapaná cesta 1,3, vyježděná (vyšlapaná s příznakem vozová) 1,6, upravená 1,8, hať 1,8 i přes
 // mokřinu; vyšlapaná, vyježděná i upravená cesta přes mokřinu jako mokřina bez cesty. Na poli
 // platí nejpomalejší z povrchu a dílu; pod pevnou cestou jen cesta
+// roads.md – Vozová cesta (Martin, 20. 10. 2026: „Ta bude vozu dávat ještě větší rychlost, bude
+// mít vyježděné, ale zpevněné koleje.“; číslo návrh Clauda, schváleno): vozová cesta 2,2 i přes
+// mokřinu (zpevněné koleje drží jako hať), brod zůstává brodem (`CART_ROUTES.fordCost`)
 export const CART_SPEED = {
   stubble: 0.8,
   ploughed: 0.6,
   wet: 0.55,
-  road: { trodden: 1.3, cart: 1.6, improved: 1.8, causeway: 1.8 },
+  road: { trodden: 1.3, cart: 1.6, improved: 1.8, causeway: 1.8, wagon: 2.2 },
 } as const;
 // wagons.md – Vyjeté cesty (návrh Clauda): úsek, kudy vozy dva roky po sobě jezdí aspoň
 // `tripsPerDay` jízd denně (roční průměr – ≈ 90 jízd za rok), se stane vozovou cestou; vozová cesta,
@@ -374,16 +377,61 @@ export const ROAD_UPGRADES = {
   footbridge: { trees: 4, manDays: 15 },
 } as const;
 /**
+ * roads.md – Vozová cesta (Martin, 20. 10. 2026: „tato cesta spojí dva body, které spojuje stará
+ * cesta pro pěší, ale co nejvíc přímo tak, aby vůz projel. Pokud budou překážet svahy, vyhloubí se
+ * úvoz nebo udělá násep. Samozřejmě, některé svahy budou tak velké, že se budou muset kombinovat
+ * serpentiny, úvozy a náspy.“; čísla návrh Clauda, schválený 20. 10. 2026 – rešerše
+ * research/2026-10-20-earthworks.md):
+ * - sklon trasy po úpravě nejvýš `maxGrade` (6 % – přísněji než „žádoucí mez“ 8 % pro povozy
+ *   tažené zvířaty, Practical Action: Improving paths and tracks; vůz naložený do kopce i z kopce
+ *   s brzděním); úvoz (výkop) a násep zarovnají podélný profil nejvýš o `maxCutM` / `maxFillM` –
+ *   kde by bylo potřeba víc, trasa jde jinudy (serpentiny vzniknou samy);
+ * - příčný řez: vozovka 2 × `bedHalfM` (3,5 m) a po 1 m krajnice – pláň 2 × `flatHalfM` (5,5 m)
+ *   v navržené výšce, svahy výkopu a náspu 1 : 1 (`sideSlope`); u staveb, plotů a vody se terén
+ *   neupravuje víc, než se vejde (`clearanceM` – půl metru od nich);
+ * - práce: výkop s naložením `digPerM3` (ILO 2002, Best Practice Guide – Labour-based methods,
+ *   Table M15: výkop 3,0–3,5 m³ a naložení 8,5 m³ na člověkoden – s dřevěnou rýčí a motykou
+ *   ≈ 2 m³), uložení a udusání násypu `placePerM3` (rozhrnutí 13,5 a hutnění 9 m³ za čd), převoz
+ *   `haulPerM3` – nošení v koších a na nosítkách o polovinu pomaleji než kolečko (kolečko 8,5 m³
+ *   za čd do 20 m, 4,5 m³ do 150 m – Table M7); hlína z úvozu jde přednostně do náspu na téže
+ *   cestě, kde je převoz levnější než nová hlína z boku (výkop + krátký převoz + uložení), jinak
+ *   se nasype z boku a přebytek výkopu se rozhrne vedle; zpevnění kolejí kamenem a štěrkem
+ *   a úprava pláně `pavingPerM` na metr (sběr a donesení kamene 2,5 m³ za čd, ILO Table K2);
+ *   kácení jako průsek lesem (ROAD_SWATH, OBSTACLE_COST);
+ * - trasa: nejlevnější součet práce stavby a času jízdy vozem po `trafficYears` let provozu podle
+ *   loňských jízd cesty (`Road.cartTraffic`, nejméně `minTripsPerDay` – bez provozu malá váha):
+ *   den vozky `dayHours` h, vůz po louce TEAM_TRAVEL.speedMps;
+ * - stavba po úsecích ≈ `pieceM` od vsi ven, hotový úsek je hned cesta; profil po `profileStepM`.
+ */
+export const WAGON_ROAD = {
+  maxGrade: 0.06,
+  maxCutM: 3,
+  maxFillM: 3,
+  bedHalfM: 1.75,
+  flatHalfM: 2.75,
+  sideSlope: 1,
+  clearanceM: 0.5,
+  digPerM3: 0.5,
+  placePerM3: 0.2,
+  haulPerM3: { base: 0.15, per100M: 0.15 },
+  pavingPerM: 0.3,
+  trafficYears: 10,
+  minTripsPerDay: 0.05,
+  dayHours: 10,
+  pieceM: 60,
+  profileStepM: 2,
+} as const;
+/**
  * roads.md a fields.md – Cesta ubírá poli plochu (Martin, 19. 10. 2026: „Ano má. Ono to stejně ve
  * výsledku bude tak, že pokud oráč narazí na cestu, tak spřežení otočí. Nebude pak moci vzniknout
- * takový růžek…“; čísla návrh Clauda): pás pevné cesty v šířce obtisku (vyšlapaná 1,9 m, vozová
- * 2,6 m, upravená a hať 3 m) a plácek rozcestí (poloměr 1,3 × šířka nejširší cesty) se neorou.
+ * takový růžek…“; čísla návrh Clauda): pás pevné cesty v šířce obtisku (vyšlapaná 1,9 m, vyježděná
+ * 2,6 m, upravená a hať 3 m, vozová cesta 3,5 m) a plácek rozcestí (poloměr 1,3 × šířka nejširší cesty) se neorou.
  * Kus pole, který cesty oddělí od zbytku, se obdělává, jen když se do něj vejde obrat spřežení
  * (kruh o poloměru ≈ 5 m – plocha `cornerMinM2`) a není to jen proužek užší než `stripMinM` podél
  * cesty – jinak zůstane loukou (mez u cesty). Počítá se po buňkách `cells` × `cells` na čtverec.
  */
 export const ROAD_LAND = {
-  widthM: { trodden: 1.9, cart: 2.6, improved: 3, causeway: 3 },
+  widthM: { trodden: 1.9, cart: 2.6, improved: 3, causeway: 3, wagon: 3.5 },
   junctionScale: 1.3,
   turnRadiusM: 5,
   cornerMinM2: 80,
@@ -416,8 +464,10 @@ export const ROAD_APPLES = {
 // a lávka 1,7× i přes mokřinu (návrh Clauda); mokřina bez cesty i po vyšlapané či upravené cestě
 // 0,5× (bahno); brod + 30 m (zout se, přebrodit), po lávce bez zdržení. Pevná cesta přes pole jde
 // rychlostí cesty (pás cesty se neorá – roads.md, Cesta přes pole)
+// Vozová cesta (roads.md – Vozová cesta; návrh Clauda, schváleno 20. 10. 2026) pěšky 1,7 jako
+// upravená, v mokřině drží jako hať (zpevněné koleje), brod zůstává brodem (+ 30 m)
 export const ROAD_WALK = {
-  speed: { trodden: 1.5, improved: 1.7, causeway: 1.7 },
+  speed: { trodden: 1.5, improved: 1.7, causeway: 1.7, wagon: 1.7 },
   wetSpeed: 0.5,
   causewayWetSpeed: 1.7,
   fordExtraM: 30,
