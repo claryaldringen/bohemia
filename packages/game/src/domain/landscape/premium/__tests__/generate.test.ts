@@ -1,23 +1,27 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { landscapeHash } from '../../__tests__/landscape-checks';
-import { checkBand } from '../../band';
+import { BAND_V2, checkBand } from '../../band';
 import {
-  BandFailureError,
   generateAcceptedLandscape,
   generateLandscape,
   generateLandscapeAttempt,
 } from '../../generate';
+import { deriveSeed } from '../../random';
+import type { Terrain } from '../../terrain';
 import { CURRENT_LAYER_VERSIONS, type Landscape, type LayerVersions } from '../../types';
 import { tileCenterWorld } from '../../world';
 import { PREMIUM_TYPES } from '../catalog';
 import {
   checkPremium,
   checkPremiumFeatures,
+  PREMIUM_LAND_KINDS,
   PREMIUM_VILLAGE_CLEARANCE_M,
   siteIntrudes,
 } from '../check';
-import { hasPremiumPass, PREMIUM_LAYER_VERSION, premiumFeaturesOf } from '../generate';
+import { hasPremiumPass, PREMIUM_LAYER_VERSION, premiumBand, premiumFeaturesOf } from '../generate';
+import { SOIL_FOREST_PASSES } from '../soil-forest';
 import type { PremiumFeatures, PremiumSite, PremiumType } from '../types';
+import { describeTypeBands, GROUPED_TYPES, SOIL_FOREST_TYPES } from './type-band';
 
 const UNKNOWN = 'atlantis' as PremiumType;
 
@@ -28,6 +32,10 @@ describe('prémiový typ jako třetí vstup generátoru', () => {
     expect('premium' in average).toBe(false);
     expect(premiumFeaturesOf(average)).toBeNull();
     expect(checkPremium(average)).toEqual({ ok: true });
+  });
+
+  it('typy půdy a lesa mají průchod', () => {
+    for (const type of SOIL_FOREST_TYPES) expect(hasPremiumPass(type), type).toBe(true);
   });
 
   it('krajina s typem nese typ – i typ, který ještě nemá průchod', () => {
@@ -62,8 +70,68 @@ describe('prémiový typ jako třetí vstup generátoru', () => {
   });
 
   it('prvky se počítají jednou na objekt krajiny', () => {
-    const l = generateLandscapeAttempt(7, CURRENT_LAYER_VERSIONS, PREMIUM_TYPES[0]);
-    expect(premiumFeaturesOf(l)).toBe(premiumFeaturesOf(l));
+    const l = generateLandscapeAttempt(7, CURRENT_LAYER_VERSIONS, 'fertile');
+    const features = premiumFeaturesOf(l);
+    expect(features).not.toBeNull();
+    expect(premiumFeaturesOf(l)).toBe(features);
+    // Jiný objekt téže krajiny – spočítá se znovu, vyjde stejně.
+    const copy = { ...l };
+    expect(premiumFeaturesOf(copy)).not.toBe(features);
+    expect(premiumFeaturesOf(copy)).toEqual(features);
+  });
+});
+
+describe('napojení průchodu typu na generátor', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+  const seed = 7;
+  const average = generateLandscapeAttempt(seed, CURRENT_LAYER_VERSIONS);
+  const ctx = {
+    version: PREMIUM_LAYER_VERSION,
+    seed: deriveSeed(seed, 'premium'),
+    versions: CURRENT_LAYER_VERSIONS,
+  };
+
+  it('vegetace dostane terén a povrch průměrné krajiny a její výsledek je povrch krajiny', () => {
+    const vegetation = vi.spyOn(SOIL_FOREST_PASSES.floodplain, 'vegetation');
+    const l = generateLandscapeAttempt(seed, CURRENT_LAYER_VERSIONS, 'floodplain');
+    expect(vegetation).toHaveBeenCalledTimes(1);
+    const [surface, terrain, passCtx] = vegetation.mock.calls[0]!;
+    expect(surface).toEqual(average.surface);
+    expect(terrain.heights).toEqual(average.heights);
+    expect(terrain.villageSite).toEqual(average.villageSite);
+    expect(passCtx).toEqual({ ...ctx, type: 'floodplain' });
+    expect(l.surface).toBe(vegetation.mock.results[0]!.value);
+    expect(l.heights).toEqual(average.heights);
+  });
+
+  it('úrodnost běží po vegetaci – dostane hotový povrch a její výsledek je úrodnost krajiny', () => {
+    const fertility = vi.spyOn(SOIL_FOREST_PASSES.fertile, 'fertility');
+    const l = generateLandscapeAttempt(seed, CURRENT_LAYER_VERSIONS, 'fertile');
+    expect(fertility).toHaveBeenCalledTimes(1);
+    // Průchod typu kontext nepotřebuje – generátor ho předá i tak (čtvrtý argument).
+    const [base, terrain, surface, passCtx] = fertility.mock.calls[0]! as unknown as [
+      Uint8Array,
+      Terrain,
+      Uint8Array,
+      unknown,
+    ];
+    expect(base).toEqual(average.fertility);
+    expect(terrain.heights).toEqual(average.heights);
+    expect(surface).toBe(l.surface);
+    expect(passCtx).toEqual({ ...ctx, type: 'fertile' });
+    expect(l.fertility).toBe(fertility.mock.results[0]!.value);
+  });
+
+  it('pásmo prémiové krajiny – míry výhody typu nemají horní mez, dolní meze platí', () => {
+    expect(premiumBand(BAND_V2, undefined)).toBe(BAND_V2);
+    expect(premiumBand(BAND_V2, 'oak-beech')).toEqual(BAND_V2);
+    const fertile = premiumBand(BAND_V2, 'fertile');
+    expect(fertile.fertileCells).toEqual([BAND_V2.fertileCells[0], Infinity]);
+    expect(fertile.nearGoodMeadowCells).toEqual([BAND_V2.nearGoodMeadowCells![0], Infinity]);
+    expect(fertile.forestShare).toEqual(BAND_V2.forestShare);
+    expect(fertile.nearMeadowCells).toEqual(BAND_V2.nearMeadowCells);
   });
 });
 
@@ -91,6 +159,22 @@ describe('kontrola typu – prvek existuje a nezasahuje do místa vsi', () => {
   it('typ bez prvků neprojde', () => {
     expect(checkPremiumFeatures(l, null)).toEqual({ ok: false, reason: 'no-features' });
     expect(checkPremiumFeatures(l, features())).toEqual({ ok: false, reason: 'no-sites' });
+  });
+
+  it('druhy půdy (louka, les, svah, honitba, brtě) okruh vsi nemají – obrys kolem vsi smí', () => {
+    expect([...PREMIUM_LAND_KINDS].sort()).toEqual(
+      ['bee-trees', 'hunting-ground', 'meadow', 'slope', 'woodland'].sort(),
+    );
+    const [x, z] = at(0);
+    const around: PremiumSite = { kind: 'meadow', x, z, outline: square(x, z, 600) };
+    expect(checkPremiumFeatures(l, features(around))).toEqual({ ok: true });
+    const across: PremiumSite = { kind: 'woodland', x, z, outline: square(x, z, 30) };
+    expect(checkPremiumFeatures(l, features(across))).toEqual({ ok: true });
+    const quarry: PremiumSite = { kind: 'quarry', x, z, outline: square(x, z, 30) };
+    expect(checkPremiumFeatures(l, features(across, quarry))).toEqual({
+      ok: false,
+      reason: 'village-site',
+    });
   });
 
   it('obrys přes místo vsi nebo kolem něj zasahuje, obrys dál ne', () => {
@@ -145,125 +229,5 @@ describe('kontrola typu – prvek existuje a nezasahuje do místa vsi', () => {
   });
 });
 
-// Každý typ na 300 seedech – typy, které ještě nemají průchod, jsou `todo` a zapnou se samy, až
-// průchod dostanou. Krajiny se nedrží (vrstva překážek v mezipaměti by zabrala stovky MB) – jen
-// výsledek kontroly a prvky.
-const SEEDS = Array.from({ length: 300 }, (_, i) => i + 1);
-const PASS_SHARE = 0.95;
-const TYPE_TIMEOUT_MS = 600_000;
-
-interface Outcome {
-  readonly check: ReturnType<typeof checkPremium>;
-  readonly features: PremiumFeatures | null;
-  readonly village: { readonly x: number; readonly z: number };
-}
-
-const outcomeCache = new Map<PremiumType, readonly (Outcome | null)[]>();
-
-/** Přijaté krajiny typu po seedech (null = pásmem neprošla ani na MAX_ATTEMPTS pokusů). */
-function outcomes(type: PremiumType): readonly (Outcome | null)[] {
-  const cached = outcomeCache.get(type);
-  if (cached) return cached;
-  const result = SEEDS.map((seed): Outcome | null => {
-    let landscape: Landscape;
-    try {
-      landscape = generateAcceptedLandscape(seed, CURRENT_LAYER_VERSIONS, type).landscape;
-    } catch (error) {
-      // Jen „pásmem neprošla“ – jiná chyba (i pád průchodu na části seedů) test shodí.
-      if (!(error instanceof BandFailureError)) throw error;
-      return null;
-    }
-    return {
-      check: checkPremium(landscape),
-      features: premiumFeaturesOf(landscape),
-      village: tileCenterWorld(landscape, landscape.villageSite.x, landscape.villageSite.y),
-    };
-  });
-  outcomeCache.set(type, result);
-  return result;
-}
-
-describe('každý typ projde pásmem na 300 seedech', () => {
-  for (const type of PREMIUM_TYPES) {
-    const name = `${type} – pásmo i kontrola typu na ≥ 95 % seedů`;
-    if (!hasPremiumPass(type)) {
-      it.todo(name);
-      continue;
-    }
-    it(
-      name,
-      () => {
-        const accepted = outcomes(type).filter((o): o is Outcome => o !== null);
-        expect(accepted.length / SEEDS.length).toBeGreaterThanOrEqual(PASS_SHARE);
-        for (const o of accepted) {
-          expect(o.check).toEqual({ ok: true });
-          expect(o.features?.type).toBe(type);
-        }
-      },
-      TYPE_TIMEOUT_MS,
-    );
-  }
-});
-
-/** Nejmenší vzdálenost bodu od úsečky (m). */
-function segmentDistance(
-  a: readonly number[],
-  b: readonly number[],
-  c: Outcome['village'],
-): number {
-  const [ax, az] = a as [number, number];
-  const [bx, bz] = b as [number, number];
-  const dx = bx - ax;
-  const dz = bz - az;
-  const length2 = dx * dx + dz * dz;
-  const t =
-    length2 === 0 ? 0 : Math.min(1, Math.max(0, ((c.x - ax) * dx + (c.z - az) * dz) / length2));
-  return Math.hypot(ax + t * dx - c.x, az + t * dz - c.z);
-}
-
-/** Ovíjecí číslo mnohoúhelníku kolem bodu – nenulové = bod uvnitř. */
-function windingNumber(points: readonly (readonly number[])[], c: Outcome['village']): number {
-  let winding = 0;
-  for (let i = 0; i < points.length; i++) {
-    const [ax, az] = points[i] as [number, number];
-    const [bx, bz] = points[(i + 1) % points.length] as [number, number];
-    const side = (bx - ax) * (c.z - az) - (c.x - ax) * (bz - az);
-    if (az <= c.z && bz > c.z && side > 0) winding++;
-    if (az > c.z && bz <= c.z && side < 0) winding--;
-  }
-  return winding;
-}
-
-describe('místo vsi zůstane volné', () => {
-  for (const type of PREMIUM_TYPES) {
-    const name = `${type} – prvky s obrysem nebo osou nezasahují do 120 m od místa vsi (stezka smí k okraji)`;
-    if (!hasPremiumPass(type)) {
-      it.todo(name);
-      continue;
-    }
-    it(
-      name,
-      () => {
-        const accepted = outcomes(type).filter((o): o is Outcome => o !== null);
-        for (const [k, o] of accepted.entries()) {
-          for (const site of o.features?.sites ?? []) {
-            const label = `${type} #${k} ${site.kind}`;
-            const line = site.line ?? [];
-            for (let i = 0; i + 1 < line.length; i++) {
-              const d = segmentDistance(line[i]!, line[i + 1]!, o.village);
-              expect(d, label).toBeGreaterThanOrEqual(PREMIUM_VILLAGE_CLEARANCE_M - 0.01);
-            }
-            const outline = site.outline ?? [];
-            if (outline.length === 0) continue;
-            expect(windingNumber(outline, o.village), label).toBe(0);
-            for (let i = 0; i < outline.length; i++) {
-              const d = segmentDistance(outline[i]!, outline[(i + 1) % outline.length]!, o.village);
-              expect(d, label).toBeGreaterThanOrEqual(PREMIUM_VILLAGE_CLEARANCE_M - 0.01);
-            }
-          }
-        }
-      },
-      TYPE_TIMEOUT_MS,
-    );
-  }
-});
+// Pásmo a místo vsi po typech (300 seedů) – typy se skupinou mají vlastní soubor (`type-band.ts`).
+describeTypeBands(PREMIUM_TYPES.filter((type) => !GROUPED_TYPES.has(type)));

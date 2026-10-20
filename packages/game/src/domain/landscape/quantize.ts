@@ -6,11 +6,9 @@ import type { Landscape, StreamPoint } from './types';
  * (překážky), vycházejí z ní – oba tak počítají ze stejných čísel. Opakované použití nic nemění.
  */
 export function transferPrecision(l: Landscape): Landscape {
-  const heights = new Float32Array(l.heights.length);
-  for (let i = 0; i < heights.length; i++) heights[i] = Math.round(l.heights[i]! * 100) / 100;
   return {
     ...l,
-    heights,
+    heights: transferHeights(l.heights),
     stream: l.stream.map((p): StreamPoint => {
       const point = {
         x: Math.fround(p.x),
@@ -30,4 +28,11 @@ export function transferPrecision(l: Landscape): Landscape {
           };
     }),
   };
+}
+
+/** Výšky s přesností prohlížeče – na centimetry ve Float32 (`transferPrecision`). */
+export function transferHeights(heights: Float32Array): Float32Array {
+  const rounded = new Float32Array(heights.length);
+  for (let i = 0; i < rounded.length; i++) rounded[i] = Math.round(heights[i]! * 100) / 100;
+  return rounded;
 }

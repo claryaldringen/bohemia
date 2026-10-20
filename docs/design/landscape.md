@@ -53,7 +53,32 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
   ukládá ve verzích vrstev (`premium`, chybí = 1 – návrh Clauda); krajina bez typu se nemění.
   Pásmo platí i pro prémiovou krajinu a navíc kontrola typu: prvek existuje a jeho obrys ani
   osa nezasahují do 120 m od místa pro vesnici, stezka smí vést k okraji tohoto okruhu (návrh
-  Clauda).
+  Clauda). Druhy prvků, které popisují půdu a les kolem vsi (louka, les, svah, honitba, brtě),
+  okruh nemají – nejsou to stavby v cestě (návrh Clauda). Míry pásma, které typ záměrně zvedá
+  (jeho výhoda – úrodná políčka, louky u vsi, místo pro vesnici), nemají u prémiové krajiny horní
+  mez; dolní meze platí, start tedy není horší než průměrný (návrh Clauda).
+- **Typy půdy a lesa** (`premium/soil-forest.ts`, hodnoty návrh Clauda – doladí kalibrace):
+  - **Velmi úrodná krajina:** přirozená úrodnost do 600 m od vsi +15 bodů (strop 100), za 600 m
+    plynule do 750 m. Prvek louka – kruh 600 m.
+  - **Doubravy a bučiny:** do 900 m od vsi ustoupí jedle a bříza dubu a buku (zůstane desetina
+    jedlí a pětina bříz), do 1000 m plynule zpět – dub a buk ≈ 90 % stromů lesa (průměrná
+    krajina ≈ 70 %). Mění se jen dřevina stromů vrstvy překážek, ne jejich místa. Prvek les –
+    kruh 900 m.
+  - **Rozsáhlé nivní louky:** louka v pásu ±60 m od vody podél celého potoka a louky do 600 m od
+    vsi o 30 % víc (nejnižší políčka nad potokem se zvlněným okrajem). Les ubraný nivou doroste
+    na suchých loukách daleko od vsi (nejvzdálenější první), podíl lesa zůstane – když suché
+    louky nestačí, je nižší nejvýš o pár procent. Prvek louka – osa potoka.
+  - **Teplé jižní svahy:** největší souvislý svah 5–15 % ke slunci (odchylka spádu od směru ke
+    slunci – `SUN_RAYS` – do 45°) do 500 m od vsi je louka, les z něj ustoupí na odvrácené svahy
+    do 600 m – louk u vsi je stejně. Svahová louka aspoň 2 ha, jinak pokus neprojde. Prvek svah –
+    obrys svahové louky.
+  - **Hojná zvěř a kožešiny:** honitba je největší souvislý les dál než 600 m od vsi, který sahá
+    k potoku, aspoň 60 ha. Paseky v ní do 1 ha zarostou, nízká rovina u vody podél ní je mokřad
+    (louka – rákosí). Prvek honitba – obrys lesa a osa mokřadu (úsek potoka podél honitby, aspoň
+    200 m).
+  - **Brtě a lesní včely:** 16 starých dubů s dutinou v lese do 900 m od vsi (30–90 m od okraje
+    lesa, aspoň 45 m od sebe), kolem každého 6,5 m volno; lípa nemá model, brtě jsou zatím duby.
+    Prvek brť – každý strom zvlášť, aspoň 12, jinak pokus neprojde.
 - **Verze vrstev:** do ostrého spuštění se generátor smí měnit libovolně (krajiny se prostě
   vygenerují znovu jinak). Po spuštění nesmí změna existující vrstvy přepsat stávající krajiny –
   u sídla se ukládají verze vrstev (např. `{ terrain: 1, vegetation: 1, fertility: 1 }`) a nová

@@ -168,8 +168,17 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   vrstvě (ESLint). Kontrola typu `checkPremium` (prvek existuje, obrys ani osa nezasahuje do
   120 m od místa vsi – `PREMIUM_VILLAGE_CLEARANCE_M`, stezka smí k okraji) je součástí
   `checkBand` – počítá se až u pokusu, který jinak prošel, selhání `premium-<důvod>`. Přenos do
-  prohlížeče nese typ (`LandscapeTransfer.premium`). Test pásma po typech
-  (`premium/__tests__/generate.test.ts`, 300 seedů, ≥ 95 %) se typu zapne sám, až má průchod.
+  prohlížeče nese typ (`LandscapeTransfer.premium`). Test pásma po typech (300 seedů, ≥ 95 %,
+  `premium/__tests__/type-band.ts` – skupina typů má vlastní soubor, ostatní
+  `generate.test.ts`) se typu zapne sám, až má průchod. Druhy prvků půdy a lesa
+  (`PREMIUM_LAND_KINDS` – louka, les, svah, honitba, brtě) okruh vsi nemají; míry pásma, které
+  typ zvedá (`PremiumPass.advantage`), nemají u prémiové krajiny horní mez (`premiumBand`).
+  **Typy půdy a lesa** (`premium/soil-forest.ts`, landscape.md – Typy půdy a lesa): úrodnost
+  a vegetace v průchodu; doubravy (`premiumForestSpecies`) a brtě (`beeTreeSpots`, zdroj
+  překážek `beeTree`, kolem 6,5 m volno) v `premium/trees.ts` čtou rozmisťovače překážek podle
+  `landscape.premium` – krajina bez typu má vrstvu bit po bitu stejnou. Obrysy prvků
+  `premium/geometry.ts` (`cellsOutline`, `circleOutline`); úklid drobných skvrn povrchu je
+  v `patches.ts` (sdílí ho vegetace).
 - **Use-case** `enterGame` (sídelní sídlo hráče, atomicky přes unikátní index); ve webu
   `enterGameForPlayer` v `lib/game.ts`. Restart hry (`restartGame`, viz Ves – Hlad a vymření)
   sídla archivuje (`settlement.archived_at`, `is_seat` false) – port vrací jen aktivní sídla. Krajinu generuje server, do prohlížeče jde zakódovaná

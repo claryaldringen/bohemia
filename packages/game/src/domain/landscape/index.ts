@@ -36,6 +36,7 @@ export { PREMIUM_CATALOG, PREMIUM_TYPES } from './premium/catalog';
 export { hasPremiumPass, PREMIUM_LAYER_VERSION, premiumFeaturesOf } from './premium/generate';
 export {
   checkPremium,
+  PREMIUM_LAND_KINDS,
   PREMIUM_VILLAGE_CLEARANCE_M,
   type PremiumCheck,
   type PremiumFailure,

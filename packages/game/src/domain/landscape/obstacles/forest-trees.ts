@@ -1,6 +1,7 @@
 import { createNoise2D } from 'simplex-noise';
 import { noiseRandom } from '../det-math';
 import { SURFACE_CODES } from '../types';
+import { premiumForestSpecies } from '../premium/trees';
 import { heightAtWorld } from '../world';
 import { hashFor, nearVillageSite, seedFor, surfaceCodeAt, type ScatterContext } from './context';
 import { forestSpecies, pickForestLook, type ForestSpecies } from './species';
@@ -46,10 +47,11 @@ export interface ForestScatter {
   species: ForestSpecies;
 }
 
+/** Skladba lesa je průměrné krajiny, prémiový typ ji může změnit (doubravy a bučiny). */
 export function forestScatter(ctx: ScatterContext): ForestScatter {
   return {
     edgeDensity: edgeDensityField(seedFor(ctx, 'edge-clumps')),
-    species: forestSpecies(seedFor(ctx, 'species-clusters')),
+    species: premiumForestSpecies(ctx.landscape, forestSpecies(seedFor(ctx, 'species-clusters'))),
   };
 }
 

@@ -142,6 +142,31 @@ describe('přenos prémiové krajiny', () => {
     }
   });
 
+  // Typy, které mění vrstvu překážek (rozmisťovače čtou typ krajiny): dřeviny lesa a brtě.
+  for (const type of ['oak-beech', 'wild-bees'] as const) {
+    it(`${type} – prohlížeč dostane stejné prvky i vrstvu překážek jako server`, () => {
+      const server = generateLandscape(42, CURRENT_LAYER_VERSIONS, type);
+      const decoded = decodeLandscape(encodeLandscape(server));
+      expect(premiumFeaturesOf(server)).not.toBeNull();
+      expect(premiumFeaturesOf(decoded)).toEqual(premiumFeaturesOf(server));
+      const a = obstaclesOf(server);
+      const b = obstaclesOf(decoded);
+      expect(b.count).toBe(a.count);
+      for (const key of [
+        'id',
+        'x',
+        'z',
+        'kind',
+        'look',
+        'rotation',
+        'scale',
+        'impostor',
+      ] as const) {
+        expect(b[key]).toEqual(a[key]);
+      }
+    });
+  }
+
   it('průměrná krajina jde přenosem bez typu', () => {
     const transfer = encodeLandscape(generateLandscape(42));
     expect('premium' in transfer).toBe(false);

@@ -2,6 +2,7 @@ import { createNoise2D, type NoiseFunction2D } from 'simplex-noise';
 import { NEAR_SITE_RADIUS_CELLS } from './band';
 import { alluvialness, clamp01, heightAboveStream } from './floodplain';
 import { distanceToMask, maxStep } from './grid';
+import { removeSmallForestPatches, removeSmallMeadowPatches } from './patches';
 import { createRandom } from './random';
 import type { Terrain } from './terrain';
 import { SURFACE_CODES } from './types';
@@ -12,8 +13,6 @@ const { water: WATER, forest: FOREST, meadow: MEADOW } = SURFACE_CODES;
 const WET_MEADOW_DISTANCE = 1.5;
 /** Suché louky na vršcích jen dál od vody – nespojí se s místem pro vesnici. */
 const UPLAND_MEADOW_MIN_WATER_DISTANCE = 22;
-const MIN_FOREST_PATCH = 4;
-const MIN_MEADOW_PATCH = 4;
 
 /**
  * Verze 2 (18. 10. 2026, Martin – víc kvalitní louky): do 600 m od místa pro vesnici (dosah
@@ -195,71 +194,4 @@ function nearMeadowScore(noise: NoiseFunction2D, x: number, y: number, cell: Nea
     0.55 * noise(x / 14 + 300, y / 14) +
     0.35 * noise(x / 7 + 400, y / 7)
   );
-}
-
-/** Osamělé skvrny louky v lese menší než MIN_MEADOW_PATCH políček zarostou lesem (verze 2). */
-function removeSmallMeadowPatches(surface: Uint8Array, size: number): void {
-  for (const patch of patches(surface, size, MEADOW)) {
-    if (patch.length < MIN_MEADOW_PATCH) for (const i of patch) surface[i] = FOREST;
-  }
-}
-
-/** 4-souvislé celky políček s daným povrchem. */
-function patches(surface: Uint8Array, size: number, code: number): number[][] {
-  const seen = new Uint8Array(surface.length);
-  const result: number[][] = [];
-  for (let start = 0; start < surface.length; start++) {
-    if (surface[start] !== code || seen[start]) continue;
-    const patch = [start];
-    seen[start] = 1;
-    for (let k = 0; k < patch.length; k++) {
-      const i = patch[k]!;
-      const x = i % size;
-      const y = Math.floor(i / size);
-      for (const [nx, ny] of [
-        [x + 1, y],
-        [x - 1, y],
-        [x, y + 1],
-        [x, y - 1],
-      ] as const) {
-        if (nx < 0 || ny < 0 || nx >= size || ny >= size) continue;
-        const n = ny * size + nx;
-        if (surface[n] === code && !seen[n]) {
-          seen[n] = 1;
-          patch.push(n);
-        }
-      }
-    }
-    result.push(patch);
-  }
-  return result;
-}
-
-/** Lesní ostrůvky menší než MIN_FOREST_PATCH políček se stanou loukou. */
-function removeSmallForestPatches(surface: Uint8Array, size: number): void {
-  const seen = new Uint8Array(surface.length);
-  for (let start = 0; start < surface.length; start++) {
-    if (surface[start] !== FOREST || seen[start]) continue;
-    const patch = [start];
-    seen[start] = 1;
-    for (let k = 0; k < patch.length; k++) {
-      const i = patch[k]!;
-      const x = i % size;
-      const y = Math.floor(i / size);
-      for (const [nx, ny] of [
-        [x + 1, y],
-        [x - 1, y],
-        [x, y + 1],
-        [x, y - 1],
-      ] as const) {
-        if (nx < 0 || ny < 0 || nx >= size || ny >= size) continue;
-        const n = ny * size + nx;
-        if (surface[n] === FOREST && !seen[n]) {
-          seen[n] = 1;
-          patch.push(n);
-        }
-      }
-    }
-    if (patch.length < MIN_FOREST_PATCH) for (const i of patch) surface[i] = MEADOW;
-  }
 }

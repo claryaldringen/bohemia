@@ -1,13 +1,25 @@
 import type { Landscape } from '../types';
 import { tileCenterWorld } from '../world';
 import { premiumFeaturesOf } from './generate';
-import type { PremiumFeatures, PremiumSite } from './types';
+import type { PremiumFeatures, PremiumSite, PremiumSiteKind } from './types';
 
 /**
  * Okruh kolem místa pro vesnici (m), kam prvky typu s plochou nebo osou nesmí – ves a louka
  * u ní zůstanou volné (návrh Clauda).
  */
 export const PREMIUM_VILLAGE_CLEARANCE_M = 120;
+/**
+ * Druhy prvků, které popisují kvalitu půdy a lesa kolem vsi (úrodné louky, les, svah, honitba,
+ * brtě) – okruh vsi pro ně neplatí: nejsou to stavby v cestě, ale půda a les, na kterých ves
+ * hospodaří (návrh Clauda).
+ */
+export const PREMIUM_LAND_KINDS: ReadonlySet<PremiumSiteKind> = new Set<PremiumSiteKind>([
+  'meadow',
+  'woodland',
+  'slope',
+  'hunting-ground',
+  'bee-trees',
+]);
 /** Tolerance zaokrouhlení – prvek (i stezka) smí ležet přesně na okraji okruhu. */
 const EDGE_TOLERANCE_M = 0.01;
 
@@ -25,7 +37,8 @@ export type PremiumCheck =
 
 /**
  * Kontrola prémiového typu (část pásma srovnatelnosti – `checkBand`): prvek typu existuje
- * a nezasahuje do okruhu místa pro vesnici. Krajina bez typu projde vždy.
+ * a nezasahuje do okruhu místa pro vesnici (kromě druhů půdy – `PREMIUM_LAND_KINDS`). Krajina
+ * bez typu projde vždy.
  */
 export function checkPremium(landscape: Landscape): PremiumCheck {
   if (landscape.premium === undefined) return { ok: true };
@@ -41,6 +54,7 @@ export function checkPremiumFeatures(
   if (features.sites.length === 0) return { ok: false, reason: 'no-sites' };
   const village = tileCenterWorld(landscape, landscape.villageSite.x, landscape.villageSite.y);
   for (const site of features.sites) {
+    if (PREMIUM_LAND_KINDS.has(site.kind)) continue;
     if (siteIntrudes(site, village, PREMIUM_VILLAGE_CLEARANCE_M)) {
       return { ok: false, reason: 'village-site' };
     }

@@ -1,9 +1,11 @@
+import type { Band } from '../band';
 import { obstaclesOf, type ObstacleLayer } from '../obstacles';
 import { transferPrecision } from '../quantize';
 import { deriveSeed } from '../random';
 import type { Terrain } from '../terrain';
 import type { Landscape, LayerVersions } from '../types';
 import { PREMIUM_TYPES } from './catalog';
+import { SOIL_FOREST_PASSES } from './soil-forest';
 import type { PremiumFeatures, PremiumSite, PremiumType } from './types';
 
 /**
@@ -63,13 +65,23 @@ export interface PremiumPass {
   ) => Uint8Array;
   /** Prvky typu; null = prvek v krajině chybí (pokus neprojde kontrolou typu – `checkPremium`). */
   readonly sites: (ctx: PremiumSiteContext) => readonly PremiumSite[] | null;
+  /**
+   * Míry pásma, které typ záměrně zvedá – jeho výhoda (např. úrodnost u velmi úrodné krajiny).
+   * U krajiny s typem nemají horní mez, dolní mez platí (`premiumBand`).
+   */
+  readonly advantage?: readonly BandMeasure[];
 }
+
+/** Míra pásma srovnatelnosti (`Band` v `band.ts`). */
+export type BandMeasure = keyof Band;
 
 /**
  * Průchody po typech. Typ, který ještě není napsaný, průchod nemá: krajina s ním je průměrná,
  * nemá prvky a kontrolou typu neprojde.
  */
-const PREMIUM_PASSES: Partial<Record<PremiumType, PremiumPass>> = {};
+const PREMIUM_PASSES: Partial<Record<PremiumType, PremiumPass>> = {
+  ...SOIL_FOREST_PASSES,
+};
 
 const KNOWN_TYPES: ReadonlySet<string> = new Set(PREMIUM_TYPES);
 
@@ -98,8 +110,8 @@ export function premiumGeneration(
   versions: LayerVersions,
 ): PremiumGeneration {
   const pass = premiumPassOf(type);
-  const version = versions.premium ?? 1;
-  if (version !== 1) {
+  const version = versions.premium ?? PREMIUM_LAYER_VERSION;
+  if (version !== PREMIUM_LAYER_VERSION) {
     throw new RangeError(`Neznámá verze prémiového průchodu: ${String(version)}`);
   }
   const ctx: PremiumPassContext = {
@@ -114,6 +126,23 @@ export function premiumGeneration(
     fertility: (fertility, terrain, surface) =>
       pass?.fertility?.(fertility, terrain, surface, ctx) ?? fertility,
   };
+}
+
+/**
+ * Pásmo srovnatelnosti krajiny s typem (návrh Clauda – výhoda je navíc, start není horší): míry,
+ * které typ záměrně zvedá (`PremiumPass.advantage`), nemají horní mez; jejich dolní mez a ostatní
+ * míry platí beze změny. Krajina bez typu (a typ bez výhody v pásmu) má pásmo beze změny.
+ */
+export function premiumBand(band: Band, type: PremiumType | undefined): Band {
+  if (type === undefined) return band;
+  const advantage = premiumPassOf(type)?.advantage ?? [];
+  if (advantage.length === 0) return band;
+  const lifted: { -readonly [K in keyof Band]: Band[K] } = { ...band };
+  for (const measure of advantage) {
+    const range = band[measure];
+    if (range) lifted[measure] = [range[0], Infinity];
+  }
+  return lifted;
 }
 
 const featuresCache = new WeakMap<Landscape, PremiumFeatures | null>();
