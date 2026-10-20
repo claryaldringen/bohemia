@@ -189,19 +189,33 @@ function chainEnds(chain: readonly ChainLink<WagonPlanRoad>[]): [PathPoint, Path
   return [a, b];
 }
 
-/** Zemní práce, které se staví mezi konci `a` a `b` (v kterémkoli směru)? */
-function buildingBetween(
-  earthworks: readonly WagonPlanEarthwork[],
-  a: PathPoint,
-  b: PathPoint,
-): boolean {
-  const ends = new Set([cmKey(a), cmKey(b)]);
-  return earthworks.some((e) => {
-    if (!e.building || e.profile.length < 2) return false;
-    const p = e.profile[0]!;
-    const q = e.profile[e.profile.length - 1]!;
-    return ends.has(cmKey(p)) || ends.has(cmKey(q));
-  });
+/** Uzly řetězu – konce všech jeho úseků (na cm). */
+function chainNodes(chain: readonly ChainLink<WagonPlanRoad>[]): Set<string> {
+  const out = new Set<string>();
+  for (const link of chain) {
+    out.add(cmKey(link.road.points[0]!));
+    out.add(cmKey(link.road.points[link.road.points.length - 1]!));
+  }
+  return out;
+}
+
+/**
+ * Zemní práce vozové cesty k řetězu: oba konce profilu leží v uzlech řetězu (konce cesty, ze které
+ * se plánovala – i když se k ní mezitím připojily hotové úseky vozové cesty). Cesta, která s ní
+ * sdílí jen rozcestí, ji nemá.
+ */
+function chainEarthwork<E extends { profile: readonly PathPoint[] }>(
+  earthworks: readonly E[],
+  chain: readonly ChainLink<WagonPlanRoad>[],
+): E | null {
+  const nodes = chainNodes(chain);
+  for (const e of earthworks) {
+    if (e.profile.length < 2) continue;
+    if (nodes.has(cmKey(e.profile[0]!)) && nodes.has(cmKey(e.profile[e.profile.length - 1]!))) {
+      return e;
+    }
+  }
+  return null;
 }
 
 /** Stav vozové cesty u cesty hráče bez hledání trasy – hotová, staví se, nebo proč nejde. */
@@ -213,8 +227,9 @@ export function wagonChainStatus(
   const chain = roadChain(roads, roadId);
   if (chain.length === 0) return { status: 'none', blocked: WAGON_NO_ROAD };
   const [a, b] = chainEnds(chain);
-  if (buildingBetween(earthworks, a, b)) return { status: 'building', blocked: WAGON_BUILDING };
-  if (chain.some((link) => link.road.grade === 'wagon')) {
+  const earthwork = chainEarthwork(earthworks, chain);
+  if (earthwork?.building) return { status: 'building', blocked: WAGON_BUILDING };
+  if (earthwork || chain.some((link) => link.road.grade === 'wagon')) {
     return { status: 'built', blocked: WAGON_EXISTS };
   }
   if (cmKey(a) === cmKey(b)) return { status: 'none', blocked: WAGON_LOOP };
@@ -805,23 +820,17 @@ export function wagonWorkTarget(
 }
 
 /**
- * Rozestavěná vozová cesta u cesty hráče `roadId` – stavba, jejíž zemní práce začínají nebo
- * končí v konci řetězu (panel – průběh); jinak null.
+ * Rozestavěná vozová cesta u cesty hráče `roadId` – stavba zemních prací cesty (`chainEarthwork`
+ * – panel, průběh); jinak null.
  */
 export function wagonChainConstruction(state: VillageState, roadId: number): Construction | null {
   const chain = roadChain(state.roads?.roads ?? [], roadId);
   if (chain.length === 0) return null;
-  const [a, b] = chainEnds(chain);
-  const ends = new Set([cmKey(a), cmKey(b)]);
-  for (const e of state.roads?.earthworks ?? []) {
-    if (e.constructionId === undefined || e.profile.length < 2) continue;
-    if (!ends.has(cmKey(e.profile[0]!)) && !ends.has(cmKey(e.profile[e.profile.length - 1]!))) {
-      continue;
-    }
-    const c = state.constructions.find((x) => x.id === e.constructionId);
-    if (c) return c;
-  }
-  return null;
+  const building = (state.roads?.earthworks ?? []).filter((e) => e.constructionId !== undefined);
+  const earthwork = chainEarthwork(building, chain);
+  return earthwork
+    ? (state.constructions.find((x) => x.id === earthwork.constructionId) ?? null)
+    : null;
 }
 
 /** Průběh stavby vozové cesty 0–1 (panel). */

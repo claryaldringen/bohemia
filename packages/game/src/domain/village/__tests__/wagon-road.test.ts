@@ -23,6 +23,7 @@ import { CART_SPEED, ROAD_WALK, WAGON_ROAD } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { Road, RoadProfilePoint, VillageState } from '../types';
 import {
+  WAGON_BUILDING,
   WAGON_EXISTS,
   WAGON_LOOP,
   planWagonRoad,
@@ -205,6 +206,40 @@ describe('trasa a profil vozové cesty', () => {
     expect(planWagonRoad(input(FLAT, loop))).toEqual({ ok: false, reason: WAGON_LOOP });
     const wagon: Road = { ...oldRoad(), grade: 'wagon' };
     expect(wagonChainStatus([wagon], [], 1)).toEqual({ status: 'built', blocked: WAGON_EXISTS });
+  });
+
+  it('zemní práce patří jen své cestě – sousední cesta přes rozcestí jde upravit dál', () => {
+    const road = (id: number, points: { x: number; z: number }[]): Road => ({
+      ...oldRoad(points),
+      id,
+    });
+    // rozcestí (0, 200): tři konce
+    const roads = [
+      road(1, [
+        { x: 0, z: 0 },
+        { x: 0, z: 200 },
+      ]),
+      road(2, [
+        { x: 0, z: 200 },
+        { x: 200, z: 200 },
+      ]),
+      road(3, [
+        { x: 0, z: 200 },
+        { x: -100, z: 300 },
+      ]),
+    ];
+    const profile = [
+      { x: 0, z: 0, y: 20 },
+      { x: 3, z: 100, y: 21 },
+      { x: 0, z: 200, y: 22 },
+    ];
+    const building = [{ profile, reachedM: 0, building: true }];
+    expect(wagonChainStatus(roads, building, 1).blocked).toBe(WAGON_BUILDING);
+    expect(wagonChainStatus(roads, building, 2)).toEqual({ status: 'none', blocked: null });
+    // hotová – stará cesta je upravená pro vozy, i když vozová cesta je samostatná cesta
+    const done = [{ profile, reachedM: 200 }];
+    expect(wagonChainStatus(roads, done, 1)).toEqual({ status: 'built', blocked: WAGON_EXISTS });
+    expect(wagonChainStatus(roads, done, 3)).toEqual({ status: 'none', blocked: null });
   });
 });
 
