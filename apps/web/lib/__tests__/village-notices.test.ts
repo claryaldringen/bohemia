@@ -521,6 +521,11 @@ describe('villageNotices – řemesla (crafts.md)', () => {
       { kind: 'no-charcoal', tone: 'warn', text: 'Kovář nemá uhlí' },
       { kind: 'no-wood', tone: 'warn', text: 'Dílna nemá co kácet' },
     ]);
+    // kovář bez rudy a bez místa, kde ji kopat (crafts.md – Uhlí a ruda kováře); kope-li, nic
+    expect(villageNotices(view({ crafts: crafts(['digging']) }))).toEqual([]);
+    expect(villageNotices(view({ crafts: crafts(['no-ore']) }))).toEqual([
+      { kind: 'no-ore', tone: 'warn', text: 'Kovář nemá rudu' },
+    ]);
   });
 });
 

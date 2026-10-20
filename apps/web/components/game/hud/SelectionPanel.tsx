@@ -299,6 +299,46 @@ function activityLook(workshop: SelectionWorkshop): {
   return { ...look, stalled };
 }
 
+/**
+ * Kovárna (crafts.md – Uhlí a ruda kováře): zásoba rudy, rudiště (vzdálenost chůze) a kdo nosí
+ * uhlí od milíře – synové 10–13 let, kovář sám, nebo vůz se sedlákem.
+ */
+function SmithOreStats({ ore }: { ore: NonNullable<SelectionWorkshop['ore']> }): ReactElement {
+  const sons = ore.sons.map((age) => `${age}`).join(', ');
+  const carrier = ore.cart
+    ? {
+        icon: 'cart',
+        name: 'Uhlí od milíře a rudu z rudiště přiveze sedlák s vozem, když to ušetří práci',
+        value: '',
+      }
+    : ore.sons.length > 0
+      ? {
+          icon: 'child',
+          name: `Uhlí od milíře nosí ${ore.sons.length > 1 ? 'synové' : 'syn'} (věk) – ten den nepasou`,
+          value: sons,
+        }
+      : { icon: 'man', name: 'Uhlí od milíře nosí kovář sám – ten den kove méně', value: '' };
+  return (
+    <>
+      <Stat icon="ore" name="Ruda v kovárně (kg)" testId="selection-workshop-ore">
+        {formatInteger(ore.stockKg)}
+      </Stat>
+      {ore.site && (
+        <Stat
+          icon="walk"
+          name={`Rudiště v mokřině u potoka – cesta z kovárny (m), v ložisku zbývá ${formatInteger(ore.site.leftKg)} kg rudy`}
+          testId="selection-workshop-ore-site"
+        >
+          {`${formatInteger(ore.site.walkM)} m`}
+        </Stat>
+      )}
+      <Stat icon={carrier.icon} name={carrier.name} testId="selection-workshop-carrier">
+        {carrier.value}
+      </Stat>
+    </>
+  );
+}
+
 /** Dílna v panelu výběru: co dělá, práce za den, zásoba výrobku (a pokrytí potřeby vsi). */
 function WorkshopRow({ workshop }: { workshop: SelectionWorkshop }): ReactElement {
   const activity = activityLook(workshop);
@@ -332,6 +372,7 @@ function WorkshopRow({ workshop }: { workshop: SelectionWorkshop }): ReactElemen
         </Stat>
       )}
       {workshop.carpenter && <CarpenterStats carpenter={workshop.carpenter} />}
+      {workshop.ore && <SmithOreStats ore={workshop.ore} />}
       {workshop.buying && (
         <Stat
           icon={product.icon}

@@ -2238,6 +2238,42 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
       job: 'water',
     });
     expect(water.job).toMatchObject({ load: 'water', target: { kind: 'water' } });
+    // ruda z rudiště (crafts.md – Uhlí a ruda kováře) – hromada rudy na korbě, trasa k rudišti
+    const ore = job({
+      activity: 'haul',
+      target: { kind: 'ore', id: 50, x: 20, z: -20 },
+      manDays: 0.05,
+      carts: 1,
+      job: 'ore',
+    });
+    expect(ore.job).toMatchObject({ load: 'ore', target: { kind: 'ore' } });
+    const oreRoute = ore.route!;
+    const end = oreRoute[oreRoute.length - 1]!;
+    expect(Math.hypot(end.x - 20, end.z + 20)).toBeLessThanOrEqual(CART_JOBS.ore.reachM);
+  });
+
+  it('rudiště a jámy po rudě (crafts.md – Uhlí a ruda kováře): hromada, zarůstání po dvacetinách', () => {
+    const s = carpenterVillage();
+    const smith = s.dwellings.find((d) => d.id === 50)!;
+    smith.workshop = {
+      ...smith.workshop!,
+      craft: 'smith',
+      oreKg: 20,
+      oreSite: { x: 30, z: -40, minedKg: 400, day: DAY - 100, walkM: 80 },
+      oreBatch: { kg: 400, dug: 400, heap: 391.6, cart: true },
+    };
+    s.orePits = [
+      { x: 31, z: -41, smithId: 50, kg: 400.4, day: DAY - 10 },
+      { x: 28, z: -38, smithId: 50, kg: 36, day: DAY - 5 * 365 },
+    ];
+    const scene = buildVillageView(record(s), landscape, DAY).scene;
+    expect(scene.oreSites).toEqual([
+      { dwellingId: 50, x: 30, z: -40, heapKg: 392, digging: false },
+    ]);
+    expect(scene.orePits).toEqual([
+      { x: 31, z: -41, kg: 400, overgrowth: 0 },
+      { x: 28, z: -38, kg: 36, overgrowth: 0.5 },
+    ]);
   });
 
   it('domácnosti pro provoz na cestách: lidé po obydlích, vodu vzdálených přivezl vůz (villagers.md)', () => {

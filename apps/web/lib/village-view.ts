@@ -64,6 +64,7 @@ import {
   type RoadKind,
   villageRoadWalk,
   ruinOvergrowth,
+  orePitOvergrowth,
   isAbandoned,
   oldGraves,
   sacredRuinOvergrowth,
@@ -929,6 +930,17 @@ export interface SceneVillage {
     craft?: Craft;
   }[];
   /**
+   * Rudiště kovářů (crafts.md – Uhlí a ruda kováře): místo (m), kovárna, vykopaná ruda na hromadě
+   * u jámy (kg, po celých) a jestli se tu právě kope (rozdělaná dávka). Bez údaje žádná.
+   */
+  oreSites?: SceneOreSite[];
+  /**
+   * Jámy po kopání rudy (crafts.md – Uhlí a ruda kováře): poloha, kolik rudy z nich vzešlo (kg, po
+   * celých – velikost jámy) a jak zarostly 0–1 (po dvacetinách; po SMITH_SUPPLY.pitYears zmizí).
+   * Bez údaje žádné.
+   */
+  orePits?: SceneOrePit[];
+  /**
    * Pole po čtvercích – díl = políčko krajiny `cell`, jeho střed (x, z) ve světě, strana
    * políčka `size` v m a stadium.
    */
@@ -1121,6 +1133,23 @@ export interface SceneVillage {
   ploughApproach?: { x: number; z: number }[];
 }
 
+/** Rudiště kováře ve scéně (crafts.md – Uhlí a ruda kováře). */
+export interface SceneOreSite {
+  dwellingId: number;
+  x: number;
+  z: number;
+  heapKg: number;
+  digging: boolean;
+}
+
+/** Jáma po kopání rudy ve scéně (crafts.md – Uhlí a ruda kováře). */
+export interface SceneOrePit {
+  x: number;
+  z: number;
+  kg: number;
+  overgrowth: number;
+}
+
 /** Vůz ve scéně (wagons.md – Vůz). */
 export interface SceneCart {
   id: number;
@@ -1153,9 +1182,9 @@ export interface SceneCart {
 
 /**
  * Náklad vozu na cestě zpátky (u výpravy tam i zpět, osivo tam); voda v sudech – sudy jsou na voze
- * tam i zpět (wagons.md – Co vozy vozí).
+ * tam i zpět (wagons.md – Co vozy vozí); ruda z rudiště (crafts.md – Uhlí a ruda kováře).
  */
-export type CartLoad = 'sheaves' | 'hay' | 'logs' | 'goods' | 'water';
+export type CartLoad = 'sheaves' | 'hay' | 'logs' | 'goods' | 'water' | 'ore';
 
 /** Čtverec lesa vsi ve scéně (fields.md – Les vsi). */
 export interface SceneWood {
@@ -1961,6 +1990,7 @@ function sceneVillage(
   const kilns = sceneKilns(state, summary);
   const plantedSaplings = plantedSaplingViews(state, day);
   const roadApples = sceneRoadApples(state, day, obstacles);
+  const { oreSites, orePits } = sceneOre(state, day);
   const ruins = (state.ruins ?? []).map((r) => ({
     id: r.id,
     type: r.type,
@@ -1990,6 +2020,8 @@ function sceneVillage(
   return {
     dwellings: [...built, ...sites],
     ...(ruins.length > 0 ? { ruins } : {}),
+    ...(oreSites.length > 0 ? { oreSites } : {}),
+    ...(orePits.length > 0 ? { orePits } : {}),
     fields,
     cemeteries,
     ...(funerals.length > 0 ? { funerals } : {}),
@@ -2013,6 +2045,38 @@ function sceneVillage(
     ...(carts.length > 0 ? { carts } : {}),
     ...(ploughApproach ? { ploughApproach } : {}),
   };
+}
+
+/**
+ * Rudiště a jámy kovářů pro scénu (crafts.md – Uhlí a ruda kováře): rudiště obývaných i prázdných
+ * kováren s hromadou rudy u jámy a jámy se zarůstáním – po celých kg a dvacetinách, ať se scéna
+ * nepřestavuje každý den.
+ */
+function sceneOre(
+  state: VillageState,
+  day: number,
+): { oreSites: SceneOreSite[]; orePits: SceneOrePit[] } {
+  const oreSites = state.dwellings.flatMap((d): SceneOreSite[] => {
+    const site = d.workshop?.craft === 'smith' ? d.workshop.oreSite : null;
+    if (!site) return [];
+    const batch = d.workshop!.oreBatch ?? null;
+    return [
+      {
+        dwellingId: d.id,
+        x: site.x,
+        z: site.z,
+        heapKg: Math.round(batch?.heap ?? 0),
+        digging: batch !== null && batch.dug < batch.kg,
+      },
+    ];
+  });
+  const orePits = (state.orePits ?? []).map((p) => ({
+    x: p.x,
+    z: p.z,
+    kg: Math.round(p.kg),
+    overgrowth: Math.round(orePitOvergrowth(p, day) * 20) / 20,
+  }));
+  return { oreSites, orePits };
 }
 
 /**
@@ -2473,10 +2537,11 @@ function scenePloughApproach(
 
 /**
  * Co vůz při svozu veze: klády ke stavbě, seno ze seče (louka, díl úhoru v seči), jinak snopy;
- * mimo svoz (wagons.md – Co vozy vozí) uhlí a osivo jako zboží, vodu v sudech.
+ * mimo svoz (wagons.md – Co vozy vozí) uhlí a osivo jako zboží, vodu v sudech, rudu z rudiště.
  */
 function haulLoad(state: VillageState, share: LaborShare): CartLoad {
   if (share.job === 'water') return 'water';
+  if (share.job === 'ore') return 'ore';
   if (share.job === 'seed' || share.job === 'charcoal') return 'goods';
   const t = share.target;
   if (t.kind === 'meadow') return 'hay';
@@ -2555,6 +2620,9 @@ function cartRouteToday(
   } else if (t.kind === 'water') {
     // voda v sudech – na břeh, kde trasa jádra končí (waterCartDrive)
     axis = routeTo(state, t, CART_JOBS.water.reachM);
+  } else if (t.kind === 'ore') {
+    // ruda z rudiště (crafts.md – Uhlí a ruda kováře) – k hromadě u jámy jako jádro (oreCartDrive)
+    axis = routeTo(state, t, CART_JOBS.ore.reachM);
   }
   return axis ? simplifiedRoute(axis) : null;
 }
