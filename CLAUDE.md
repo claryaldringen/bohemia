@@ -921,11 +921,19 @@ rozhraní částí v
   (`IronTrip`): syn tesaře od 14 (`ironCarrier`), nebo tesař jde do nejbližší vsi s kovářem
   (`ironRoute` – kovárny jiných vsí mapy `NeighbourSnapshot.smithies` s jménem – `neighbourSnapshot(…,
 names)` –, dny `mapTripDays`; sousedé `neighbourCrafts` přes `purchaseRoute(…, from)` od dílny),
-  platba obilím `ironPriceKg` ze zásob, jen když ves nešetří jídlem (`hungry`); kronika `iron-trip`,
-  `iron-brought`. Na cestě chybí v dílně (`workshopLabor` – `away`) i ve vsi (`ironTravellers`
-  v `work`). Web: `carpenter.iron` (`ironSummary` v summary.ts), panel `IronStat` („Čeká na kování“,
-  „Syn tesaře jde pro kování…“ s dny), upozornění, scéna jedna postava (`ironCaravan`
-  v `caravan-view.ts` – `ironTripLine`, porters 0).
+  platba obilím `ironPriceKg` ze zásob, jen když ves nešetří jídlem (`hungry`); kronika `iron-trip`
+  (`porters`, `byCart`), `iron-brought`. Na cestě chybí v dílně (`workshopLabor` – `away`) i ve vsi
+  (`ironTravellers` v `work`). **Platbu sám neunese** (Martin: „Buď si musel půjčit vůz nebo muselo
+  jít alespoň 6 lidí“): volný vůz s voly po zemské stezce sjízdné pro vozy (`ironCart` – dvoukolák
+  napřed, `IronTrip.cartId`, sedlák z vsi `CART_IRON.cartCrew`; vůz a vůl pryč – `cartsAway`
+  a `oxenAway` čtou i `dwellings`), jinak nosiči po 25 kg jako nákup u sousedů (`tripOf`,
+  `groupCap` z craft-buying – 173 kg = tesař a 6 nosičů, `IronTrip.porters`; málo dospělých →
+  víckrát, `tripDays`). Nosiči a sedlák chybí v práci vsi (`ironTripHelpers` do `away`,
+  `ironTripShares` – podíl `trade`). Web: `carpenter.iron` (`ironSummary` v summary.ts – i `porters`
+  a `cart`), panel `IronStat` („Čeká na kování“, „Syn tesaře jde se 6 nosiči…“, „Tesař jede s vozem
+  a sedlákem…“ s dny), upozornění (`ironTripWho`), scéna skupina nosičů nebo vůz (`ironCaravan`
+  v `caravan-view.ts` – `ironTripLine`, cesty po `tripDays`; vůz jede jako vůz výpravy – job `trade`
+  v `sceneCarts`).
 - **Ozim a jař** (fields.md – Ozim a jař): roční plán (`YearPlan`) nese práci jaře nahoře (tvar
   plánu z doby před ozimem) a ozimu v `winter?` (`CropWork`); díly osevu mají `crop?` (chybí =
   jař). Okna prací po plodinách `CROP_WINDOWS` (`WINDOWS` = jař, `WINTER_WINDOWS`) v `rules.ts`.
