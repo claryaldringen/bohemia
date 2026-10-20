@@ -367,6 +367,70 @@ od něj s vypáleným milířem, dvoukolák a spřežení), dva roky simulace se
 | Rudiště ne na poli, v sadu, na hřbitově, v ohradě, v lese vsi ani u domů                    | rozhodnutí Clauda                                                             |
 | Přirážka za rudu u kováře zmizela (cesta na rudiště), u hrnčíře zůstává                     | návrh Clauda                                                                  |
 
+## Učení řemesla
+
+Martin (20. 10. 2026): „Každý řemeslník vychovává svého nástupce - syna. Pokud je řemeslník úplně
+nový, trvá mu, než se řemeslo naučí“
+
+Platí pro všechna řemesla – hrnčíře, kováře, uhlíře i tesaře. Podrobnosti jsou návrh Clauda
+(čísla `CRAFT_SKILL` v `rules.ts`).
+
+- **Praxe** je u člověka v letech (`Person.practice` – po řemeslech, nejvýš 5 let). Dospělý
+  z domácnosti dílny (14–44 let), který v dílně pracuje, ji získává **za dny, kdy dílna pracuje** –
+  ne ve dnech, kdy řemeslník odpočívá a pracuje se vsí (plná zásoba, chybí vstup).
+- **Syn řemeslníka** (otec nebo matka v domácnosti dílny – jako synové kováře) se učí **od 10 let**,
+  dokud v domácnosti žije: ve dny, kdy dílna pracuje, a u kováře i ve dny, kdy nosí uhlí od milíře,
+  i když kovář sám ten den pracuje se vsí. Dcery se řemeslu neučí (ženy z domácnosti dílny praxi
+  získávají jako dospělé, když v dílně pracují).
+- **Výkon dílny** jde podle **nejzkušenějšího dospělého** z domácnosti, který je doma: **50 %** bez
+  praxe, lineárně do **100 % po 5 letech** praxe. Násobí jen práci řemesla, vedle meze nástrojů:
+  - kovář – kování (práce na kg nástrojů ÷ výkon), nošení uhlí a kopání rudy ne,
+  - hrnčíř – točení a vypalování, kácení dřeva na pec ne,
+  - uhlíř – všechnu práci u milíře (příprava, stavba, pálení a rozebírání),
+  - tesař – vozy, dřevěné nářadí i vedení party na stavbách (`carpenterWorkFactor` ÷ výkon),
+    kácení ne.
+
+  Denní minimum domácnosti ani práce, když řemeslník pracuje se vsí, se nemění.
+
+- **Nový řemeslník:** kdo se nastěhuje do dílny bez praxe – mladý pár do nové dílny, cizí rodina do
+  prázdné dílny – začne na 50 %.
+- **Nástupce:** syn, který dílnu převezme (dědic domu – [příbuzenství](kinship.md)), má praxi za roky
+  učení; po 5 letech učení (od 10 do 15 let, když dílna pracuje) jede naplno hned po otci.
+- **Starší vsi** (převod `withCraftSkill`, jednou): dnešní řemeslníci jsou vyučení – dospělí
+  a synové od 10 let dílen z doby před učením dostanou praxi za dobu, co domácnost dílnu drží
+  (podle kroniky – dostavění dílny nebo nastěhování domácnosti; dílna starší než kronika 5 let),
+  nejvýš kolik let jim je přes 10. Dílna z doby před učením do převodu pracuje jako vyučená.
+  **Ves bez dílny je beze změny bit po bitu** (zlatý otisk `craft-skill-golden.test.ts`) a ves
+  s vyučenými řemeslníky simuluje stejně jako dřív (otisk `smith-golden.test.ts` bez nových polí).
+
+### Vlkov – učení řemesla
+
+Čerstvý stav Vlkova ze 7. 1. 801 (34 lidí): tesař (20 let) má dílnu od 29. 6. 800 – **praxe
+0,53 roku, výkon 55 %**; kovář (36 let) a uhlíř jsou vyučení (100 %), kovářův syn (11 let) se učí
+(praxe 1 rok). Za dva roky: tesař 2,4 roku praxe (74 %) – třetí vůz dodělal o 8 dní později než
+vyučený; syn kováře 2 roky praxe (kovář s plnou zásobou nástrojů často pracuje se vsí, syn se pak
+neučí).
+
+### Co hráč vidí – učení
+
+- **Panel dílny:** zkušenost řemeslníka – ikona `skill` (dřevěná palička zkřížená s dlátem)
+  a výkon v % (červeně, dokud se řemeslník učí; v bublině praxe v letech), a kdo se učí – syn nebo
+  synové (věk; v bublině praxe). Práce za den a výroba za den v panelu už výkon podle praxe
+  zahrnují.
+
+### Rozhodnutí – učení řemesla
+
+| Rozhodnutí                                                                                        | Kdo                   |
+| ------------------------------------------------------------------------------------------------- | --------------------- |
+| Řemeslník vychovává nástupce – syna; nový řemeslník se řemeslo teprve učí                         | Martin (20. 10. 2026) |
+| Praxe v letech u člověka; dospělí ji získávají za dny, kdy dílna pracuje                          | návrh Clauda          |
+| Syn řemeslníka se učí od 10 let, u kováře i ve dny, kdy nosí uhlí                                 | návrh Clauda          |
+| Výkon podle nejzkušenějšího dospělého: 50 % bez praxe, 100 % po 5 letech, lineárně                | návrh Clauda          |
+| Výkon násobí výrobu kováře a hrnčíře, práci u milíře a práci tesaře; kácení, nošení a kopání ne   | rozhodnutí Clauda     |
+| Učí se jen ve dny, kdy dílna pracuje – u kováře i ve dny nošení uhlí, i když kovář pracuje se vsí | rozhodnutí Clauda     |
+| Učí se syn, kterému v dílně bydlí otec nebo matka (jako synové kováře); dcery ne                  | rozhodnutí Clauda     |
+| Starší vsi: praxe za dobu, co domácnost dílnu drží (kronika), jinak 5 let                         | rozhodnutí Clauda     |
+
 ## Podle potřeby a volný čas
 
 Martin (18. 10. 2026): „Ano, pokud uhlíř a kovář budou mít volný čas, ať pracují na poli jako
@@ -589,6 +653,7 @@ Rozhodnutí kontroléru při implementaci (18. 10. 2026) – kde návrh necháva
 | Do budoucna: řemeslník vyrábí i pro ostatní vsi hráče, s financemi prodává přebytky                      | Martin (18. 10. 2026)                        |
 | Tesař – vozy, dřevěné nářadí, pomoc stavbám (wagons.md)                                                  | Martin (19. 10. 2026)                        |
 | Výrobky řemeslníků vesničané kupují u sousedů sami, když se jim to vyplatí; vlastní řemeslník přednost   | Martin (19. 10. 2026)                        |
+| Řemeslník vychovává nástupce – syna; nový se řemeslo učí (výkon 50 → 100 % za 5 let praxe)               | Martin (20. 10. 2026)                        |
 | Nákup 15. 11., u nejbližšího souseda, platba obilím z přebytku, skupina s předností, doba služby         | návrh Clauda (19. 10. 2026)                  |
 | Pořadí nákupu podle poměru ušetřené práce k ceně (z jednoho přebytku)                                    | rozhodnutí Clauda (19. 10. 2026)             |
 | Milíř stojí vždy, kouří při pálení, vypálený se rozebírá podle toho, jak kovář uhlí odebírá              | Martin (19. 10. 2026)                        |

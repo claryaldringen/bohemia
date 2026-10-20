@@ -833,6 +833,22 @@ rozhraní částí v
   koupili nástroje u souseda (sever)“, `VillageCrafts.sources` (`craftSources`),
   `VillageView.purchases`, panel dvorce `BuyingRow` (výrobky se šipkou ke zdroji, nákup na cestě),
   panel dílny bez vstupů `SelectionWorkshop.buying`; řádek kalibrace „Nákup u sousedů“.
+- **Učení řemesla** ([crafts.md](docs/design/crafts.md) – Učení řemesla; Martin 20. 10. 2026:
+  „Každý řemeslník vychovává svého nástupce - syna. Pokud je řemeslník úplně nový, trvá mu, než se
+  řemeslo naučí“; čísla `CRAFT_SKILL`): `craft-skill.ts`. Praxe v letech u člověka
+  (`Person.practice` po řemeslech, nejvýš 5) – `gainPractice` v kroku práce: dospělí z dílen, které
+  dnes pracovaly (`crafts` – ne `resting`), a učni `craftApprentices` (synové od 10 let jako
+  `smithSons`; u kováře i ve dny nošení uhlí – `restingFetch`); kdo jde pro kování, ne. Výkon dílny
+  `workshopSkill` (nejzkušenější dospělý doma, 0,5 → 1 za 5 let) je `WorkshopLabor.skill`: kovář
+  kove pomaleji (`workSmith`, `smithForgeCharcoalKg` přes `forgeLabor`), hrnčíř vypaluje
+  (`workWithWood` – kácení ne), uhlíř celá práce u milíře (`forgeLabor`, i `kilnLeadKg`), tesař
+  `carpenterWorkFactor ÷ skill` (i vedení party v `carpentryHelp`). Dílna bez `Workshop.skillTracked`
+  (z doby před učením) pracuje jako vyučená; převod `withCraftSkill` (na začátku
+  `advanceVillageSteps`) dá jejím lidem praxi za dobu, co domácnost dílnu drží (kronika), jinak 5 let;
+  nová dílna z `finishConstructions` má `skillTracked` – nový řemeslník 50 %. Ves bez dílen bit po
+  bitu (`craft-skill-golden.test.ts`). Web: `VillageWorkshop.skill` (`craftSkillSummary` – výkon,
+  praxe, učni), panel `SkillStats` (ikona `resources/skill`, %, synové s věkem), výroba za den
+  × výkon.
 - **Tesař a vozy** ([wagons.md](docs/design/wagons.md) – fáze 1, Martin 19. 10. 2026; čísla
   `CARPENTRY`, `WOODWORK_LABOR`, `CARPENTER_TOOLS_WORK`, `WOOD_TOOLS`, `WOOD_TOOLS_LABOR`, `CARTS`,
   `CART_ACCESS` v `rules.ts`, rešerše `research/2026-10-19-carts-carpentry.md`): řemeslo
@@ -894,6 +910,22 @@ rozhraní částí v
   v `village-carts.ts`), ne v okně herního dne jako svoz úrody. Komu vůz vodu přivezl, ukazuje
   `SceneLabor.homes[].cartWater` (týž `waterCartPlan` ve `village-view.ts`) – pěšky pro ni chodí
   méně lidí (Postavy – Provoz na cestách).
+- **Kování vozů** ([wagons.md](docs/design/wagons.md) – Kování vozů; Martin 20. 10. 2026: „…vozy
+  mají železnou složku. Pokud vesnice nemá kováře, musí tesař (nebo jeho syn, pokud ho má) dojít do
+  nejbližší vesnice, kde kovář je“; čísla `CART_IRON`): `cart-iron.ts`. Dvoukolák 3 kg, čtyřkolák
+  6 kg kování ze zásoby nástrojů. Vůz s hotovou dřevěnou prací čeká (`cartAwaitingIron` v crafts.ts –
+  `workCarpenter` ho nedokončí, tesař dělá nářadí, `nextProduct` ho nepočítá); krok dne
+  `cartIronDay` (po `finishPurchases`) vezme kování ze zásoby a vůz dokončí (`cart-made`), vlastní
+  kovář (`smithAtHome`) ho vyrobí jako zakázku (`ironOrderKg` → `smithToolsTarget` v
+  `restingCrafters`, `smithsForgeCharcoalKg`, `smithsCharcoalPerYear`), jinak `Workshop.ironTrip`
+  (`IronTrip`): syn tesaře od 14 (`ironCarrier`), nebo tesař jde do nejbližší vsi s kovářem
+  (`ironRoute` – kovárny jiných vsí mapy `NeighbourSnapshot.smithies` s jménem – `neighbourSnapshot(…,
+names)` –, dny `mapTripDays`; sousedé `neighbourCrafts` přes `purchaseRoute(…, from)` od dílny),
+  platba obilím `ironPriceKg` ze zásob, jen když ves nešetří jídlem (`hungry`); kronika `iron-trip`,
+  `iron-brought`. Na cestě chybí v dílně (`workshopLabor` – `away`) i ve vsi (`ironTravellers`
+  v `work`). Web: `carpenter.iron` (`ironSummary` v summary.ts), panel `IronStat` („Čeká na kování“,
+  „Syn tesaře jde pro kování…“ s dny), upozornění, scéna jedna postava (`ironCaravan`
+  v `caravan-view.ts` – `ironTripLine`, porters 0).
 - **Ozim a jař** (fields.md – Ozim a jař): roční plán (`YearPlan`) nese práci jaře nahoře (tvar
   plánu z doby před ozimem) a ozimu v `winter?` (`CropWork`); díly osevu mají `crop?` (chybí =
   jař). Okna prací po plodinách `CROP_WINDOWS` (`WINDOWS` = jař, `WINTER_WINDOWS`) v `rules.ts`.

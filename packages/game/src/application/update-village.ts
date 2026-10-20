@@ -179,6 +179,7 @@ async function neighboursOf(
   return neighbourSnapshot(
     others.map((v) => v.state),
     today,
+    others.map((v) => v.name),
   );
 }
 

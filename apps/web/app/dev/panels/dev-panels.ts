@@ -287,6 +287,7 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
         coverage: null,
         kiln: { stage: 'wood', prepared: 3, trees: 8, progress: 0.4, charcoalKg: 0, forest: true },
         toPlant: 12,
+        skill: { share: 1, years: 5, apprentices: [] },
         carpenter: null,
       },
     }),
@@ -317,6 +318,8 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
           forest: false,
         },
         toPlant: 0,
+        // nový uhlíř se teprve učí (crafts.md – Učení řemesla)
+        skill: { share: 0.62, years: 1.2, apprentices: [] },
         carpenter: null,
       },
     }),
@@ -334,6 +337,8 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
         coverage: 0.64,
         kiln: null,
         toPlant: 0,
+        // kovář vychovává nástupce – syn 11 let se učí (crafts.md – Učení řemesla)
+        skill: { share: 1, years: 5, apprentices: [{ age: 11, years: 1.4 }] },
         carpenter: null,
         // kovář nemá uhlí – vesničané dokupují nástroje u souseda (crafts.md)
         buying: { direction: 'N', days: 6 },
@@ -354,6 +359,8 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
         coverage: 0.72,
         kiln: null,
         toPlant: 0,
+        // nový tesař (crafts.md – Učení řemesla)
+        skill: { share: 0.55, years: 0.5, apprentices: [] },
         carpenter: {
           carts: [
             { id: 1, kind: 'two-wheel', condition: 0.6, away: false },
@@ -362,6 +369,7 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
           cartTargets: { 'two-wheel': 2, 'four-wheel': 1 },
           making: { kind: 'two-wheel', progress: 0.35 },
           woodworkCoverage: 0.8,
+          iron: null,
         },
       },
     }),
@@ -379,11 +387,72 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
         coverage: 1,
         kiln: null,
         toPlant: 0,
+        skill: { share: 1, years: 5, apprentices: [] },
         carpenter: {
           carts: [{ id: 1, kind: 'two-wheel', condition: 0.9, away: false }],
           cartTargets: { 'two-wheel': 1, 'four-wheel': 0 },
           making: null,
           woodworkCoverage: 0.45,
+          iron: null,
+        },
+      },
+    }),
+  },
+  {
+    // wagons.md – Kování vozů: ves bez kováře – syn tesaře jde pro kování k sousedovi
+    key: 'tesar-kovani',
+    label: 'Tesař – syn jde pro kování',
+    details: dwelling({
+      workshop: {
+        craft: 'carpenter',
+        activity: 'producing',
+        laborPerDay: 0.8,
+        outputPerDayKg: 1.6,
+        stockKg: 52,
+        coverage: 0.8,
+        kiln: null,
+        toPlant: 0,
+        skill: {
+          share: 1,
+          years: 5,
+          apprentices: [
+            { age: 15, years: 4.1 },
+            { age: 10, years: 0.2 },
+          ],
+        },
+        carpenter: {
+          carts: [],
+          cartTargets: { 'two-wheel': 1, 'four-wheel': 0 },
+          making: { kind: 'two-wheel', progress: 1 },
+          woodworkCoverage: 0,
+          iron: {
+            kg: 3,
+            trip: { to: 'Lhota', direction: 'NE', daysLeft: 3, son: true, age: 15 },
+          },
+        },
+      },
+    }),
+  },
+  {
+    key: 'tesar-ceka',
+    label: 'Tesař – vůz čeká na kování',
+    details: dwelling({
+      workshop: {
+        craft: 'carpenter',
+        activity: 'resting',
+        laborPerDay: 1.6,
+        outputPerDayKg: 3.2,
+        stockKg: 80,
+        coverage: 1,
+        kiln: null,
+        toPlant: 0,
+        skill: { share: 1, years: 5, apprentices: [] },
+        carpenter: {
+          carts: [],
+          cartTargets: { 'two-wheel': 1, 'four-wheel': 0 },
+          making: { kind: 'two-wheel', progress: 1 },
+          woodworkCoverage: 0,
+          iron: { kg: 3, trip: null },
         },
       },
     }),

@@ -6,7 +6,8 @@ import { productList, type VillageView } from './village-view';
 // Upozornění vsi (population.md – Co hráč vidí): rodina čeká na dům, ves šetří jídlem, hladoví,
 // lidé umírají hlady – vždy jen nejvyšší stupeň (Hlad a vymření), stavby stojí, hřbitov je plný (cemetery.md), vesničané ušetřili posvátný dub
 // nebo dubový háj (happiness.md – jen když přibude), kovář nemá uhlí a dílna nemá co kácet
-// (crafts.md), tesař nemá klády, vyrobil vůz a vůz dosloužil (wagons.md), svatba mezi domy (population.md – Sňatky mezi domy, když přibude), podzimní porážka,
+// (crafts.md), tesař nemá klády, vyrobil vůz, vůz dosloužil, šel pro kování a přinesl ho
+// (wagons.md), svatba mezi domy (population.md – Sňatky mezi domy, když přibude), podzimní porážka,
 // nouzová porážka, zkažené maso a zimní úhyn stáda (diet.md), spřežení volů – vycvičené, dosloužilo, vůl uhynul pro
 // nedostatek sena (oxen.md) –, vesničané obnovují starý sad a starý sad dosloužil (orchard.md –
 // Obnova sadu), posvátný dub uschl a posvátná souš padla (happiness.md), nevěsta a ženich z okolí
@@ -36,6 +37,9 @@ export type NoticeKind =
   | 'carpenter-no-wood'
   | 'cart-made'
   | 'cart-worn-out'
+  /** Ves nemá kováře – tesař šel pro kování k vozu, přinesl ho (wagons.md – Kování vozů). */
+  | 'iron-trip'
+  | 'iron-brought'
   /** Vesničané koupili výrobky řemeslníků u souseda (crafts.md – Nákup u sousedů). */
   | 'crafts-bought'
   | 'sacred-oak'
@@ -331,6 +335,19 @@ const CHRONICLE_NOTICES: Partial<
   // vozy od tesaře (wagons.md – Vůz)
   'cart-made': () => ({ kind: 'cart-made', tone: 'info', text: 'Tesař vyrobil vůz' }),
   'cart-worn-out': () => ({ kind: 'cart-worn-out', tone: 'warn', text: 'Vůz dosloužil' }),
+  // kování vozů (wagons.md) – jen fakt: kdo šel a kam, kdo přinesl
+  'iron-trip': (entry) => ({
+    kind: 'iron-trip',
+    tone: 'info',
+    text: `${entry.son ? 'Syn tesaře šel' : 'Tesař šel'} pro kování k vozu do vsi ${entry.place ?? ''}${
+      entry.direction ? ` (${DIRECTION_NAMES[entry.direction].name})` : ''
+    }`,
+  }),
+  'iron-brought': (entry) => ({
+    kind: 'iron-brought',
+    tone: 'info',
+    text: `${entry.son ? 'Syn tesaře přinesl' : 'Tesař přinesl'} kování`,
+  }),
   // nákup u sousedů (crafts.md) – jen fakt: co a u koho
   'crafts-bought': (entry) => ({
     kind: 'crafts-bought',

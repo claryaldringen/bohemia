@@ -58,11 +58,14 @@ import {
 } from './smith-supply';
 import { villageCemeteries } from './cemetery';
 import { finishPurchases, purchaseTravelers, startPurchases, walkPurchases } from './craft-buying';
+import { gainPractice, withCraftSkill } from './craft-skill';
+import { cartIronDay } from './cart-iron';
 import { cloneState } from './clone';
 import {
   burnerDraws,
   craftCoverage,
   craftHouseholds,
+  ironTravellers,
   newWorkshop,
   restingCrafters,
   wearCraftStocks,
@@ -310,9 +313,12 @@ export function* advanceVillageSteps(
   if (toDay < state.lastDay) {
     throw new RangeError(`Ves je dopočítaná do dne ${state.lastDay}, nelze zpět na ${toDay}.`);
   }
-  // ves z doby před příbuzenstvím dostane pohlaví a manžele (kinship.md) a ves ze zboží zvenku
-  // o něj přijde (trade.md – Jen společné suroviny) – jednou, idempotentně
-  const next = cloneState(withOxen(withPenSpecies(withoutForeignGoods(withKinship(state)))));
+  // ves z doby před příbuzenstvím dostane pohlaví a manžele (kinship.md), ves ze zboží zvenku
+  // o něj přijde (trade.md – Jen společné suroviny) a řemeslníci z doby před učením řemesla
+  // praxi (crafts.md – Učení řemesla) – jednou, idempotentně
+  const next = cloneState(
+    withCraftSkill(withOxen(withPenSpecies(withoutForeignGoods(withKinship(state))))),
+  );
   // vymřelá, opuštěná a ves na cestě se nesimulují – jen se posune den (migration.md)
   for (let day = next.lastDay + 1; day <= toDay && !isVillageDormant(next); day++) {
     simulateDay(next, day, obstacles, landscape);
@@ -376,6 +382,9 @@ function simulateDay(
   roadSwathDay(state, day, obstacles, landscape, swathRoadsInWork(state));
   state.chronicle.push(...finishExpeditions(state, day));
   state.chronicle.push(...finishPurchases(state, day));
+  // kování vozů (wagons.md – Kování vozů): vůz s hotovou dřevěnou prací ze zásoby nástrojů, ves bez
+  // kováře pošle tesaře nebo jeho syna do nejbližší vsi s kovářem; kdo se vrátil, vůz dokončí
+  state.chronicle.push(...cartIronDay(state, day, landscape));
   finishConstructions(state, day);
   // dvorec vojvody – po zániku dvorce nejstarší obydlí, starší ves dvorec dostane (trade.md)
   keepManor(state);
@@ -886,8 +895,12 @@ function work(
   const resting = restingCrafters(state, day, coverage, productivity, obstacles);
   for (const [id, activity] of restingCarpenters(state, day, obstacles)) resting.set(id, activity);
   const crafts = craftHouseholds(state, resting);
+  // kdo jde pro kování k vozu, ve vsi ani v dílně nepracuje (wagons.md – Kování vozů)
+  const travelling = ironTravellers(state);
   const villagers =
-    crafts.size > 0 ? state.people.filter((p) => !crafts.has(p.dwellingId)) : state.people;
+    crafts.size > 0 || travelling.size > 0
+      ? state.people.filter((p) => !crafts.has(p.dwellingId) && !travelling.has(p.id))
+      : state.people;
   const waterNeeds = householdWater(villagers, state.dwellings);
   // uhlí ke kováři (crafts.md – Uhlí a ruda kováře): co dnes uhlíři vytahají z vypálených milířů
   // a do které kovárny se to nese
@@ -1137,6 +1150,11 @@ function work(
   if (access) {
     demand.jobs.push(...oreDemand(state, workshops, drivesOf));
     addCartDemand(state, day, demand, ploughing);
+  }
+  // praxe řemeslníků a učňů (crafts.md – Učení řemesla): dílny, které dnes pracovaly, a kovárny,
+  // kde synové nosili uhlí, i když kovář pracoval se vsí
+  if (crafts.size > 0 || restingFetch.size > 0) {
+    gainPractice(state, day, crafts, restingFetch, travelling);
   }
   // uhlí a ruda vozem – sedlák ze společné práce, jízdy do ročního provozu cest (wagons.md – Co
   // vozy vozí, crafts.md – Uhlí a ruda kováře)
@@ -2164,8 +2182,11 @@ function finishConstructions(state: VillageState, day: number): void {
       position: { ...c.position },
       ...(c.plot ? { plot: copyPlot(c.plot) } : {}),
       ...(c.forestDistanceM === undefined ? {} : { forestDistanceM: c.forestDistanceM }),
-      // řemeslná dílna – řemeslo patří budově (crafts.md)
-      ...(c.craft ? { workshop: newWorkshop(c.craft, c.waterDistanceM) } : {}),
+      // řemeslná dílna – řemeslo patří budově (crafts.md); nový řemeslník se teprve učí
+      // (crafts.md – Učení řemesla)
+      ...(c.craft
+        ? { workshop: { ...newWorkshop(c.craft, c.waterDistanceM), skillTracked: true as const } }
+        : {}),
     };
     state.dwellings.push(dwelling);
     state.chronicle.push(finishedEvent(day, c, dwelling.id));

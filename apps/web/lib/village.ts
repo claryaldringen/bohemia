@@ -129,6 +129,7 @@ async function viewOf(
     neighbours: neighbourSnapshot(
       sameMap.map((v) => v.state),
       ctx.day,
+      sameMap.map((v) => v.name),
     ),
     neighbourScenes: sameMap
       .filter((v) => !isVillageTravelling(v.state))

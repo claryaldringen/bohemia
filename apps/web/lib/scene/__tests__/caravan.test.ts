@@ -1,4 +1,4 @@
-import type { CraftPurchase, VillageState } from '@bohemia/game';
+import type { CraftPurchase, IronTrip, VillageState } from '@bohemia/game';
 import { describe, expect, it } from 'vitest';
 import { sceneExpeditions } from '../../caravan-view';
 import type { SceneCart, SceneExpedition, SceneVillage } from '../../village-view';
@@ -334,5 +334,95 @@ describe('nákup u souseda jako karavana (crafts.md – Nákup u sousedů)', () 
     const back = caravanAt(scene(purchase({ done: 5 })), at(0.5)).filter((p) => !p.hidden);
     expect(back).toHaveLength(3);
     expect(back.every((p) => p.key.includes(':back:'))).toBe(true);
+  });
+});
+
+describe('tesař pro kování jako jedna postava (wagons.md – Kování vozů)', () => {
+  const trip = (over: Partial<IronTrip> = {}): IronTrip => ({
+    personId: 62,
+    son: true,
+    startedDay: 496,
+    days: 4,
+    done: 1,
+    kg: 3,
+    grainKg: 173,
+    to: {
+      kind: 'neighbour',
+      name: 'Lhota',
+      direction: 'N',
+      trailId: null,
+      edge: { x: 40, z: 960 },
+    },
+    ...over,
+  });
+  /** Ves s dílnou tesaře na (40, 0) a synem na cestě pro kování. */
+  const state = (t: IronTrip): VillageState =>
+    ({
+      lastDay: 500,
+      seed: 1,
+      dwellings: [
+        {
+          id: 50,
+          type: 'polozemnice',
+          builtDay: 0,
+          condition: 1,
+          position: { x: 40, z: 0, rotation: 0 },
+          workshop: {
+            craft: 'carpenter',
+            felling: null,
+            fuelKg: 0,
+            activity: 'producing',
+            ironTrip: t,
+          },
+        },
+      ],
+      constructions: [],
+      people: [{ id: 62, bornDay: 500 - 15 * 365 - 10, dwellingId: 50, sex: 'male' }],
+    }) as unknown as VillageState;
+  const scene = (t: IronTrip): SceneVillage => ({
+    ...village(expedition()),
+    trails: [],
+    expeditions: sceneExpeditions(state(t)),
+    labor: {
+      day: 500,
+      month: 11,
+      people: { children: 0, adults: 2, elders: 0 },
+      shares: [],
+    },
+  });
+
+  it('od dílny po čáře ke kraji mapy, tam i zpět jen syn – bez nosičů', () => {
+    const [e] = sceneExpeditions(state(trip()));
+    expect(e).toMatchObject({
+      id: 'iron:50:496',
+      trailId: null,
+      line: [
+        { x: 40, z: 0 },
+        { x: 40, z: 960 },
+      ],
+      porters: 0,
+      leaving: [{ sex: 'male', age: 15 }],
+      coming: [{ sex: 'male', age: 15 }],
+    });
+    expect(e!.progress).toBeCloseTo(1 / 4, 6);
+    expect(e!.rate).toBeCloseTo(1 / 4, 6);
+    // první den cesty jde jedna postava ke kraji mapy
+    const out = caravanAt(scene(trip({ done: 0 })), at(0.5)).filter((p) => !p.hidden);
+    expect(out).toHaveLength(1);
+    expect(out[0]!.clip).toBe('walk');
+  });
+
+  it('do jiné vsi na téže mapě – celou cestu vidět, ke kovárně a zpět', () => {
+    const t = trip({ days: 2, to: { kind: 'village', name: 'Lhota', x: 340, z: 0 } });
+    const [e] = sceneExpeditions(state(t));
+    expect(e!.line).toEqual([
+      { x: 40, z: 0 },
+      { x: 340, z: 0 },
+    ]);
+    expect(e!.onMap).toBe(1);
+    // druhý den jde zpátky
+    const back = caravanAt(scene({ ...t, done: 1 }), at(0.5)).filter((p) => !p.hidden);
+    expect(back).toHaveLength(1);
+    expect(back[0]!.key).toContain(':back:');
   });
 });
