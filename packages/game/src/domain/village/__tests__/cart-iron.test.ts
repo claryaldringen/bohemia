@@ -6,7 +6,8 @@ import {
   cartIronKg,
   ironCarrier,
   ironPriceKg,
-  ironRoute,
+  ironOptions,
+  ironPlan,
   mapTripDays,
   smithAtHome,
   ironTripHelpers,
@@ -121,6 +122,7 @@ function withTeamPen(s: VillageState): VillageState {
   s.pens = [
     {
       id: 900,
+      species: 'team',
       cell: { x: 3, y: 4 },
       x: 50,
       z: 60,
@@ -353,9 +355,12 @@ describe('ves bez kováře – tesař jde pro kování (wagons.md – Kování v
       reserved: [],
       smithies: [{ x: 340, z: 0, name: 'Lhota' }],
     };
-    const near = ironRoute(s, { x: 40, z: 0 }, null)!;
+    const options = ironOptions(s, DAY, { x: 40, z: 0 }, null, ironPriceKg(3));
+    const near = ironPlan(options, false)!;
     expect(near.to).toEqual({ kind: 'village', name: 'Lhota', x: 340, z: 0 });
     expect(near.days).toBe(mapTripDays(300));
+    // 7 lidí × dny cesty
+    expect(near.labor).toBe(7 * mapTripDays(300));
     const events = cartIronDay(s, DAY + 1, null);
     expect(events).toEqual([
       { day: DAY + 1, kind: 'iron-trip', cart: 'two-wheel', to: 'Lhota', son: true, porters: 6 },
@@ -369,11 +374,54 @@ describe('ves bez kováře – tesař jde pro kování (wagons.md – Kování v
     ];
     s.neighbours.smithies = [{ x: 2_000, z: 0, name: 'Daleko' }];
     expect(mapTripDays(1_960)).toBeGreaterThan(purchaseRoute(s, direction, null).days);
-    expect(ironRoute(s, { x: 40, z: 0 }, null)!.to).toMatchObject({
-      kind: 'neighbour',
-      direction,
-      trailId: 1,
+    const far = ironOptions(s, DAY, { x: 40, z: 0 }, null, ironPriceKg(3));
+    expect(ironPlan(far, false)!.to).toMatchObject({ kind: 'neighbour', direction, trailId: 1 });
+  });
+
+  it('ves volí nejmenší práci celkem – vozem k dalšímu kováři místo nosičů k nejbližšímu', () => {
+    // nejbližší kovář: ves na téže mapě 300 m (pěšky 7 lidí × 3 dny = 21 čd); soused po stezce
+    // sjízdné pro vozy (3 dny) – vozem tesař a sedlák × 3 dny = 6 čd
+    const base = withTeamPen(crowd(withWaitingCart(village(), [16]), 9));
+    base.carts = [{ id: 7, kind: 'two-wheel', builtDay: DAY - 10 }];
+    base.neighbours = {
+      dwellings: [],
+      sacredBuildings: [],
+      cells: [],
+      cleared: [],
+      felled: [],
+      reserved: [],
+      smithies: [{ x: 340, z: 0, name: 'Lhota' }],
+    };
+    const direction = NEIGHBOR_DIRECTIONS.find((d) =>
+      neighbourCrafts(base.seed, d).includes('smith'),
+    )!;
+    // delší stezka – soused je dál (dny) než ves na mapě
+    base.trails = [
+      { id: 1, direction, pieces: [], lengthM: 900, startedDay: DAY - 50, builtDay: DAY - 10 },
+    ];
+    const s = withOxen(base);
+    const options = ironOptions(s, DAY, { x: 40, z: 0 }, null, ironPriceKg(3));
+    const foot = ironPlan(options, false)!;
+    const any = ironPlan(options, true)!;
+    expect(foot).toMatchObject({ to: { kind: 'village' }, cart: false, porters: 6 });
+    expect(any).toMatchObject({ to: { kind: 'neighbour', direction }, cart: true, porters: 0 });
+    expect(any.days).toBeGreaterThan(foot.days);
+    expect(any.labor).toBe(2 * any.days);
+    expect(any.labor).toBeLessThan(foot.labor);
+    cartIronDay(s, DAY + 1, null);
+    expect(carpenter(s).ironTrip).toMatchObject({
+      cartId: 7,
+      to: { kind: 'neighbour', direction },
     });
+    // rok vozů vidí, kolik práce vůz ušetřil (wagons.md – Kolik vozů ves chce)
+    expect(s.draft!.demand!['two-wheel'][0]).toBeCloseTo(foot.labor - any.labor, 9);
+  });
+
+  it('při shodě práce kratší cesta', () => {
+    const s = crowd(withWaitingCart(village(), [16]), 9);
+    const options = ironOptions(s, DAY, { x: 40, z: 0 }, null, ironPriceKg(3));
+    const best = ironPlan(options, false)!;
+    expect(options.every((o) => o.labor > best.labor || o.days >= best.days)).toBe(true);
   });
 
   it('kdo cestou zemřel, kování nepřinese – vůz čeká a jde jiný', () => {

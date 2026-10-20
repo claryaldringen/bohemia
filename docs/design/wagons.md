@@ -244,7 +244,11 @@ Podrobnosti jsou návrh Clauda (čísla `CART_IRON` v `rules.ts`, modul `cart-ir
   - **soused za krajem mapy** s kovářem (`neighbourCrafts` – u sousedů řemeslníků jistě) – po hotové
     zemské stezce, nebo krajinou ke kraji mapy od dílny tesaře (`purchaseRoute`).
 
-  Vybere se nejméně dní cesty; při shodě ves na téže mapě. **Platba obilím** jako nákup nástrojů
+  **Cíl a dopravu ves volí podle nejmenší práce vsi celkem** (`ironOptions`, `ironPlan`): ze všech
+  vsí s kovářem (sousedé, jiná ves na téže mapě) a obou způsobů – vozem po stezce sjízdné pro vozy
+  (tesař a sedlák × dny cesty), nebo pěšky s nosiči (tesař a nosiči × dny, víc cest u malé vsi) –
+  ta s nejmenšími člověkodny; při shodě kratší cesta. Vozem jen s volným vozem. Proto může ves jet
+  vozem k dalšímu kováři místo s nosiči k nejbližšímu. **Platba obilím** jako nákup nástrojů
   u souseda (`productPrice` – 0,96 hodnoty; 3 kg ≈ 173 kg obilí, 6 kg ≈ 346 kg) – ves zaplatí
   ze zásob hned při odchodu, ale jen když nešetří jídlem (výhled jídla do sklizně vychází); jinak
   vůz čeká. Druhá ves hráče se platbou nemění (vsi se simulují každá zvlášť). Tesař nebo syn
@@ -266,6 +270,9 @@ Podrobnosti jsou návrh Clauda (čísla `CART_IRON` v `rules.ts`, modul `cart-ir
     u nákupu u sousedů.
   - Nosiči a sedlák **chybí v práci vsi po celou cestu** – jako skupiny nákupu u sousedů jdou do
     `away` v rozdělení práce dne (`ironTripHelpers`), podíl `trade` (`ironTripShares`).
+  - **Rok vozů** (Kolik vozů ves chce) vidí i cestu pro kování: když by vůz ušetřil práci proti
+    nejlevnější cestě pěšky, zapíše se úspora k dvoukolákům (`addCartDemand`) – i když volný vůz
+    zrovna nebyl, ať si ves spočítá, že další vůz se vyplatí. Jen ves s ohradou volů.
 
 - **Kronika a upozornění:** „Tesař šel se 6 nosiči pro kování k vozu do vsi Lhota (sever)“, „Tesař
   jel s vozem pro kování…“ (u syna „Syn tesaře šel…“, u vsi na téže mapě bez směru), po návratu
@@ -294,29 +301,32 @@ Sondy bez kováře (kovárna zrušená) na čerstvém stavu z 31. 1. 801, kdy ve
 - **bez volného vozu:** 10. 3. 801 šel tesař (bez syna od 14 let) **se 6 nosiči** po zemské stezce
   do vsi Olšany (východ, 5 dní, 172,8 kg obilí); v rozdělení práce dne bylo 6 čd na cestě
   (podíl `trade` na stezce), 15. 3. přinesl kování a vůz byl hotový,
-- **s volnými vozy** (dvoukolák a čtyřkolák u ohrady volů): stezka na východ **není sjízdná pro
-  vozy** (`trailCartPassable`), takže šli zase nosiči – stejně jako bez vozu,
-- **s volnými vozy a bez stezky na východ:** nejblíž byl kovář ve vsi Chotěšov na severu po stezce
-  sjízdné pro vozy (7 dní) – 10. 3. jel tesař **s dvoukolákem a sedlákem** (1 čd z práce vsi
-  denně, vůz s volem pryč), 17. 3. byl vůz hotový.
+- **s volnými vozy** (dvoukolák a čtyřkolák u ohrady volů): nejbližší kovář (Olšany, 5 dní) je po
+  stezce na východ, která **není sjízdná pro vozy** – pěšky by to stálo 7 lidí × 5 dní = 35 čd.
+  Ves proto 10. 3. 801 poslala tesaře **s dvoukolákem a sedlákem** po stezce sjízdné pro vozy na
+  sever do vsi Chotěšov (7 dní, 2 lidé × 7 dní = **14 čd**; 1 čd z práce vsi denně, vůz s volem
+  pryč), 17. 3. byl vůz hotový. Rok vozů si zapsal, že vůz ušetřil 21 čd (35 − 14).
 
 ### Rozhodnutí – kování vozů
 
-| Rozhodnutí                                                                                        | Kdo                   |
-| ------------------------------------------------------------------------------------------------- | --------------------- |
-| Vozy mají železnou složku; ves bez kováře pošle tesaře (nebo syna) do nejbližší vsi s kovářem     | Martin (20. 10. 2026) |
-| ~~Cesta je vidět jako karavana – jen jedna postava~~ – nahrazeno: skupina nosičů, nebo vůz        | Martin (20. 10. 2026) |
-| Tesař 173 kg obilí sám neunese – vůz, nebo aspoň 6 lidí                                           | Martin (20. 10. 2026) |
-| Volný vůz s voly jede se sedlákem z vsi, jen po zemské stezce sjízdné pro vozy; dvoukolák napřed  | rozhodnutí Clauda     |
-| Jinak nosiči po 25 kg (tesař nese taky), nejvýš polovina dospělých; málo lidí – jdou víckrát      | rozhodnutí Clauda     |
-| Nosiči a sedlák chybí v práci vsi po celou cestu (jako nákup u sousedů)                           | návrh Clauda          |
-| Dvoukolák 3 kg, čtyřkolák 6 kg kování                                                             | návrh Clauda          |
-| Kování ze zásoby nástrojů (žádná nová zásoba)                                                     | rozhodnutí Clauda     |
-| Vůz bez kování čeká, tesař dělá nářadí; kovář kování vyrobí přednostně jako zakázku               | návrh Clauda          |
-| Jde syn tesaře od 14 let, jinak tesař; nejbližší ves s kovářem podle dní cesty, při shodě na mapě | návrh Clauda          |
-| Cesta a platba obilím jako nákup u sousedů; platí ze zásob jen ves, která nešetří jídlem          | rozhodnutí Clauda     |
-| Ves s kovářem = kovárna má rudiště a uhlí (bez uhlí jen s uhlířem ve vsi)                         | rozhodnutí Clauda     |
-| Druhá ves hráče se platbou nemění (vsi se simulují zvlášť)                                        | rozhodnutí Clauda     |
+| Rozhodnutí                                                                                          | Kdo                        |
+| --------------------------------------------------------------------------------------------------- | -------------------------- |
+| Vozy mají železnou složku; ves bez kováře pošle tesaře (nebo syna) do nejbližší vsi s kovářem       | Martin (20. 10. 2026)      |
+| ~~Cesta je vidět jako karavana – jen jedna postava~~ – nahrazeno: skupina nosičů, nebo vůz          | Martin (20. 10. 2026)      |
+| Tesař 173 kg obilí sám neunese – vůz, nebo aspoň 6 lidí                                             | Martin (20. 10. 2026)      |
+| Volný vůz s voly jede se sedlákem z vsi, jen po zemské stezce sjízdné pro vozy; dvoukolák napřed    | rozhodnutí Clauda          |
+| Jinak nosiči po 25 kg (tesař nese taky), nejvýš polovina dospělých; málo lidí – jdou víckrát        | rozhodnutí Clauda          |
+| Nosiči a sedlák chybí v práci vsi po celou cestu (jako nákup u sousedů)                             | návrh Clauda               |
+| Dvoukolák 3 kg, čtyřkolák 6 kg kování                                                               | návrh Clauda               |
+| Kování ze zásoby nástrojů (žádná nová zásoba)                                                       | rozhodnutí Clauda          |
+| Vůz bez kování čeká, tesař dělá nářadí; kovář kování vyrobí přednostně jako zakázku                 | návrh Clauda               |
+| Jde syn tesaře od 14 let, jinak tesař                                                               | návrh Clauda               |
+| ~~Nejbližší ves s kovářem podle dní cesty~~ – nahrazeno: cíl a doprava podle nejmenší práce vsi     | návrh Clauda               |
+| Cíl a doprava podle nejmenší práce vsi celkem (všechny vsi s kovářem, vůz i nosiči); shoda – kratší | koordinátor (20. 10. 2026) |
+| Cesta vozu pro kování do roku vozů (kolik práce vůz ušetřil proti cestě pěšky)                      | koordinátor (20. 10. 2026) |
+| Cesta a platba obilím jako nákup u sousedů; platí ze zásob jen ves, která nešetří jídlem            | rozhodnutí Clauda          |
+| Ves s kovářem = kovárna má rudiště a uhlí (bez uhlí jen s uhlířem ve vsi)                           | rozhodnutí Clauda          |
+| Druhá ves hráče se platbou nemění (vsi se simulují zvlášť)                                          | rozhodnutí Clauda          |
 
 ## Vozová síť a vyjeté cesty
 

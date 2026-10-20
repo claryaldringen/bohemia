@@ -918,13 +918,15 @@ rozhraní částí v
   `cartIronDay` (po `finishPurchases`) vezme kování ze zásoby a vůz dokončí (`cart-made`), vlastní
   kovář (`smithAtHome`) ho vyrobí jako zakázku (`ironOrderKg` → `smithToolsTarget` v
   `restingCrafters`, `smithsForgeCharcoalKg`, `smithsCharcoalPerYear`), jinak `Workshop.ironTrip`
-  (`IronTrip`): syn tesaře od 14 (`ironCarrier`), nebo tesař jde do nejbližší vsi s kovářem
-  (`ironRoute` – kovárny jiných vsí mapy `NeighbourSnapshot.smithies` s jménem – `neighbourSnapshot(…,
-names)` –, dny `mapTripDays`; sousedé `neighbourCrafts` přes `purchaseRoute(…, from)` od dílny),
+  (`IronTrip`): syn tesaře od 14 (`ironCarrier`), nebo tesař jde do vsi s kovářem s nejmenší prací
+  vsi celkem (`ironDestinations` – kovárny jiných vsí mapy `NeighbourSnapshot.smithies` s jménem –
+  `neighbourSnapshot(…, names)` –, dny `mapTripDays`; sousedé `neighbourCrafts` přes
+  `purchaseRoute(…, from)` od dílny; `ironOptions` – pěšky s nosiči i vozem, `ironPlan` – nejméně
+  čd, při shodě kratší cesta; úspora vozu proti cestě pěšky do roku vozů – `addCartDemand`),
   platba obilím `ironPriceKg` ze zásob, jen když ves nešetří jídlem (`hungry`); kronika `iron-trip`
   (`porters`, `byCart`), `iron-brought`. Na cestě chybí v dílně (`workshopLabor` – `away`) i ve vsi
   (`ironTravellers` v `work`). **Platbu sám neunese** (Martin: „Buď si musel půjčit vůz nebo muselo
-  jít alespoň 6 lidí“): volný vůz s voly po zemské stezce sjízdné pro vozy (`ironCart` – dvoukolák
+  jít alespoň 6 lidí“): volný vůz s voly po zemské stezce sjízdné pro vozy (`freeIronCart` – dvoukolák
   napřed, `IronTrip.cartId`, sedlák z vsi `CART_IRON.cartCrew`; vůz a vůl pryč – `cartsAway`
   a `oxenAway` čtou i `dwellings`), jinak nosiči po 25 kg jako nákup u sousedů (`tripOf`,
   `groupCap` z craft-buying – 173 kg = tesař a 6 nosičů, `IronTrip.porters`; málo dospělých →

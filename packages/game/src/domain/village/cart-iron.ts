@@ -1,6 +1,7 @@
 import { length2, type Landscape } from '../landscape';
 import { addCart, cartOxen, cartsAway, trailCartPassable, villageCarts } from './carts';
-import { oxenHome } from './oxen';
+import { addCartDemand } from './draft';
+import { oxPens, oxenHome } from './oxen';
 import { groupCap, neighbourCrafts, productPrice, purchaseRoute, tripOf } from './craft-buying';
 import { NO_STOCKS, cartAwaitingIron, occupiedWorkshops } from './crafts';
 import { neighbourOf } from './neighbours';
@@ -88,29 +89,28 @@ export interface IronRoute {
 }
 
 /**
- * Nejbližší ves s kovářem pro tesaře z `from` (wagons.md – Kování vozů): obývané kovárny jiných
- * vsí hráče na téže mapě (`neighbourSnapshot` – smithies; jde se k nim krajinou, celou cestu je
- * vidět) a sousedé za krajem mapy s kovářem (`neighbourCrafts` – po hotové stezce, nebo krajinou
- * ke kraji mapy jako nákup u sousedů). Nejméně dní cesty; při shodě ves na téže mapě, pak pořadí
- * směrů. Bez vsi s kovářem null.
+ * Vsi s kovářem, kam může tesař z `from` jít pro kování (wagons.md – Kování vozů): obývané kovárny
+ * jiných vsí hráče na téže mapě (`neighbourSnapshot` – smithies; jde se k nim krajinou, celou
+ * cestu je vidět) a sousedé za krajem mapy s kovářem (`neighbourCrafts` – po hotové stezce, nebo
+ * krajinou ke kraji mapy jako nákup u sousedů), s dny cesty tam a zpět. V pořadí: vsi na téže mapě,
+ * pak směry.
  */
-export function ironRoute(
+export function ironDestinations(
   state: VillageState,
   from: { x: number; z: number },
   landscape: Landscape | null,
-): IronRoute | null {
-  let best: IronRoute | null = null;
+): IronRoute[] {
+  const out: IronRoute[] = [];
   for (const smithy of state.neighbours?.smithies ?? []) {
-    const days = mapTripDays(length2(smithy.x - from.x, smithy.z - from.z));
-    if (!best || days < best.days) {
-      best = { to: { kind: 'village', name: smithy.name, x: smithy.x, z: smithy.z }, days };
-    }
+    out.push({
+      to: { kind: 'village', name: smithy.name, x: smithy.x, z: smithy.z },
+      days: mapTripDays(length2(smithy.x - from.x, smithy.z - from.z)),
+    });
   }
   for (const direction of NEIGHBOR_DIRECTIONS) {
     if (!neighbourCrafts(state.seed, direction).includes('smith')) continue;
     const route = purchaseRoute(state, direction, landscape, from);
-    if (best && route.days >= best.days) continue;
-    best = {
+    out.push({
       to: {
         kind: 'neighbour',
         name: neighbourOf(state.seed, direction).name,
@@ -119,29 +119,28 @@ export function ironRoute(
         edge: { x: Math.round(route.edge.x * 10) / 10, z: Math.round(route.edge.z * 10) / 10 },
       },
       days: route.days,
-    };
+    });
   }
-  return best;
+  return out;
 }
 
 /**
- * Vůz, který veze platbu za kování (wagons.md – Kování vozů): jen po hotové zemské stezce sjízdné
- * pro vozy (jako vozy výprav – `trailCartPassable`), volný vůz doma (ne na výpravě ani s jinou
- * platbou; vůz, na který se kování dělá, ještě mezi vozy vsi není), pro který jsou doma voli
- * (`oxenHome`, `cartOxen`) a který platbu unese – dvoukolák napřed (jeden vůl), pak podle id.
- * Krajinou ke kraji mapy a do vsi na téže mapě vůz nejede – jdou nosiči. Jinak null.
+ * Projede vůz cestou pro kování (wagons.md – Kování vozů): jen po hotové zemské stezce sjízdné pro
+ * vozy (jako vozy výprav – `trailCartPassable`); krajinou ke kraji mapy a do vsi na téže mapě ne.
  */
-export function ironCart(
-  state: VillageState,
-  day: number,
-  route: IronRoute,
-  grainKg: number,
-  landscape: Landscape | null,
-): Cart | null {
-  if (route.to.kind !== 'neighbour' || route.to.trailId === null) return null;
+function cartCanGo(state: VillageState, route: IronRoute, landscape: Landscape | null): boolean {
+  if (route.to.kind !== 'neighbour' || route.to.trailId === null) return false;
   const trailId = route.to.trailId;
   const trail = (state.trails ?? []).find((t) => t.id === trailId);
-  if (!trail || !trailCartPassable(state, trail, landscape)) return null;
+  return !!trail && trailCartPassable(state, trail, landscape);
+}
+
+/**
+ * Volný vůz pro platbu za kování (wagons.md – Kování vozů): doma (ne na výpravě ani s jinou
+ * platbou; vůz, na který se kování dělá, ještě mezi vozy vsi není), s voly doma (`oxenHome`,
+ * `cartOxen`) a s nákladem na platbu – dvoukolák napřed (jeden vůl), pak podle id. Jinak null.
+ */
+export function freeIronCart(state: VillageState, day: number, grainKg: number): Cart | null {
   const away = cartsAway(state);
   const oxen = oxenHome(state, day);
   const free = villageCarts(state)
@@ -151,6 +150,83 @@ export function ironCart(
     )
     .sort((a, b) => cartOxen(a.kind) - cartOxen(b.kind) || a.id - b.id);
   return free[0] ?? null;
+}
+
+/**
+ * Jak jde tesař pro kování (wagons.md – Kování vozů): kam, dny jedné cesty tam a zpět, dny celkem
+ * (nosiči víckrát), kolik nosičů z vsi jde s ním, vůz (null – pěšky) a práce vsi celkem (čd – tesař
+ * nebo syn a nosiči, nebo sedlák, krát dny).
+ */
+export interface IronPlan {
+  to: IronTripTarget;
+  tripDays: number;
+  days: number;
+  porters: number;
+  cart: boolean;
+  labor: number;
+}
+
+/**
+ * Možnosti cesty pro kování (wagons.md – Kování vozů; stav nemění): do každé vsi s kovářem
+ * (`ironDestinations`) **pěšky s nosiči** – skupina jako nákup u sousedů (`tripOf`: lidí = nákladů
+ * obilí po 25 kg, tesař nese taky, nejvýš `groupCap`; když jich ves tolik nemá, jdou víckrát) –
+ * a kam projede vůz (`cartCanGo`), i **vozem se sedlákem** (tesař a CART_IRON.cartCrew sedlák,
+ * jedna cesta). Vozem bez ohledu na to, jestli je dnes vůz volný – to rozhodne `ironPlan`.
+ */
+export function ironOptions(
+  state: VillageState,
+  day: number,
+  from: { x: number; z: number },
+  landscape: Landscape | null,
+  grainKg: number,
+): IronPlan[] {
+  const cap = groupCap(state, day);
+  const out: IronPlan[] = [];
+  for (const route of ironDestinations(state, from, landscape)) {
+    const walk = tripOf(grainKg, route.days, cap);
+    out.push({
+      to: route.to,
+      tripDays: route.days,
+      days: walk.days,
+      porters: walk.group - 1,
+      cart: false,
+      labor: walk.labor,
+    });
+    if (cartCanGo(state, route, landscape)) {
+      out.push({
+        to: route.to,
+        tripDays: route.days,
+        days: route.days,
+        porters: 0,
+        cart: true,
+        labor: (1 + CART_IRON.cartCrew) * route.days,
+      });
+    }
+  }
+  return out;
+}
+
+/** Levnější možnost: méně práce vsi celkem, při shodě kratší cesta, pak dřív v pořadí. */
+function cheaper(a: IronPlan, b: IronPlan | null): boolean {
+  if (!b) return true;
+  if (a.labor < b.labor - EPSILON) return true;
+  return Math.abs(a.labor - b.labor) <= EPSILON && a.days < b.days;
+}
+
+/** Nejlevnější z možností (`cheaper`); bez možností null. */
+function cheapest(options: readonly IronPlan[]): IronPlan | null {
+  let best: IronPlan | null = null;
+  for (const o of options) if (cheaper(o, best)) best = o;
+  return best;
+}
+
+/**
+ * Cesta pro kování, kterou ves zvolí (wagons.md – Kování vozů): ze všech vsí s kovářem a obou
+ * způsobů nejméně práce vsi celkem (tesař nebo syn a nosiči, nebo sedlák, krát dny cesty), při shodě
+ * kratší cesta. Vozem jen s volným vozem (`hasCart`). Bez vsi s kovářem null.
+ */
+export function ironPlan(options: readonly IronPlan[], hasCart: boolean): IronPlan | null {
+  return cheapest(options.filter((o) => hasCart || !o.cart));
 }
 
 /**
@@ -296,32 +372,38 @@ function startIronTrip(
 ): IronTrip | null {
   const carrier = ironCarrier(state, dwelling.id, day);
   if (!carrier) return null;
-  const route = ironRoute(state, dwelling.position, landscape);
-  if (!route) return null;
   const grainKg = ironPriceKg(kg);
   if (state.hungry || state.storesKg + EPSILON < grainKg) return null;
-  const cart = ironCart(state, day, route, grainKg, landscape);
+  const options = ironOptions(state, day, dwelling.position, landscape, grainKg);
+  const cart = freeIronCart(state, day, grainKg);
+  const plan = ironPlan(options, cart !== null);
+  if (!plan) return null;
+  // rok vozů vidí i cestu pro kování (wagons.md – Kolik vozů ves chce): kolik práce by vůz
+  // ušetřil proti nejlevnější cestě pěšky – i když dnes volný vůz není
+  const foot = cheapest(options.filter((o) => !o.cart));
+  const byCart = cheapest(options.filter((o) => o.cart));
+  if (
+    foot &&
+    byCart &&
+    foot.labor > byCart.labor + EPSILON &&
+    oxPens(state).some((p) => p.builtDay !== null)
+  ) {
+    addCartDemand(state, day, [foot.labor - byCart.labor], false);
+  }
   state.storesKg = Math.max(0, state.storesKg - grainKg);
   const trip: IronTrip = {
     personId: carrier.person.id,
     son: carrier.son,
     startedDay: day,
-    days: route.days,
+    days: plan.days,
     done: 0,
     kg,
     grainKg: Math.round(grainKg * 100) / 100,
-    to: route.to,
+    to: plan.to,
   };
-  if (cart) {
-    trip.cartId = cart.id;
-  } else {
-    const walk = tripOf(grainKg, route.days, groupCap(state, day));
-    if (walk.group > 1) trip.porters = walk.group - 1;
-    if (walk.days > route.days) {
-      trip.tripDays = route.days;
-      trip.days = walk.days;
-    }
-  }
+  if (plan.cart) trip.cartId = cart!.id;
+  if (plan.porters > 0) trip.porters = plan.porters;
+  if (plan.days > plan.tripDays) trip.tripDays = plan.tripDays;
   dwelling.workshop!.ironTrip = trip;
   return trip;
 }
