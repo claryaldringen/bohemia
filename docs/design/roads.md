@@ -846,8 +846,16 @@ Krátké cesty mezi domy (4 a 417) by vedly velkou oklikou, okruhy a cesty pod 1
 **Zemní práce na Vlkově skoro nejsou:** svahy jsou mírné a vozy po cestách skoro nejezdí, takže
 serpentina nebo mírná oklika vyjde levněji než úvoz – metr úvozu 2 m hlubokého je ≈ 15 m³
 a 10–14 čd, metr cesty navíc 0,3 čd. Úvoz a násep se vyplatí jen u krátkého prudkého svahu na
-cestě s hodně jízdami (ukázka). Stavba 431 trvá ≈ 30 dní, 372 ≈ 60 dní; dopočet vsi během stavby se nezpomalí (síť se
-přepočítá jen po dostavění úseku).
+cestě s hodně jízdami (ukázka). Stavba 431 trvá ≈ 30 dní, 372 ≈ 60 dní; dopočet vsi během
+stavby se nezpomalí (síť se přepočítá jen po dostavění úseku).
+
+**Kam dojede čtyřkolák** (jezdí jen po pevných cestách a 40 m kolem ohrady volů – wagons.md):
+po čtyřech vozových cestách (372, 431, 329, 432) k 5,3 % plochy polí Vlkova místo 4,0 % (stejný
+stav bez vozových cest; dvoukolák 84,5 → 85,3 %). Vozová cesta spojuje tytéž konce jako stará
+cesta a pole leží stranou cest – otevře jen díly podél nové trasy a za místy, kudy stará cesta
+vedla prudčeji než 10 %.
+Kdyby čtyřkolák směl z vozové cesty sjet 40 m jako od ohrady, dojel by k 26 % plochy polí (80 m –
+41 %) – otevřená otázka pro Martina.
 
 ### Rozhodnutí
 
