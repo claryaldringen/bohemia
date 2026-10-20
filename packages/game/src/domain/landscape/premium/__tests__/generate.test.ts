@@ -26,7 +26,13 @@ import {
 import { hasPremiumPass, PREMIUM_LAYER_VERSION, premiumFeaturesOf } from '../generate';
 import { SOIL_FOREST_PASSES } from '../soil-forest';
 import type { PremiumFeatures, PremiumSite, PremiumType } from '../types';
-import { describeTypeBands, GROUPED_TYPES, SOIL_FOREST_TYPES, WATER_TYPES } from './type-band';
+import {
+  DEPOSIT_TYPES,
+  GROUPED_TYPES,
+  RELIEF_TYPES,
+  SOIL_FOREST_TYPES,
+  WATER_TYPES,
+} from './type-band';
 
 const UNKNOWN = 'atlantis' as PremiumType;
 
@@ -45,6 +51,19 @@ describe('prémiový typ jako třetí vstup generátoru', () => {
 
   it('typy vody mají průchod', () => {
     for (const type of WATER_TYPES) expect(hasPremiumPass(type), type).toBe(true);
+  });
+
+  it('typy reliéfu a nalezišť mají průchod', () => {
+    for (const type of [...RELIEF_TYPES, ...DEPOSIT_TYPES]) {
+      expect(hasPremiumPass(type), type).toBe(true);
+    }
+  });
+
+  it('každý typ má průchod a test pásma ve své skupině', () => {
+    for (const type of PREMIUM_TYPES) {
+      expect(hasPremiumPass(type), type).toBe(true);
+      expect(GROUPED_TYPES.has(type), type).toBe(true);
+    }
   });
 
   it('krajina s typem nese typ – i typ, který ještě nemá průchod', () => {
@@ -295,5 +314,4 @@ describe('kontrola typu – prvek existuje a nezasahuje do místa vsi', () => {
   });
 });
 
-// Pásmo a místo vsi po typech (300 seedů) – typy se skupinou mají vlastní soubor (`type-band.ts`).
-describeTypeBands(PREMIUM_TYPES.filter((type) => !GROUPED_TYPES.has(type)));
+// Pásmo a místo vsi po typech (300 seedů) má každá skupina typů vlastní soubor (`type-band.ts`).

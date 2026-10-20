@@ -1,6 +1,11 @@
 import { checkBand } from './band';
 import { computeFertility } from './fertility';
-import { hasPremiumPass, PREMIUM_LAYER_VERSION, premiumGeneration } from './premium/generate';
+import {
+  hasPremiumPass,
+  PREMIUM_LAYER_VERSION,
+  premiumGeneration,
+  type PremiumGeneration,
+} from './premium/generate';
 import type { PremiumType } from './premium/types';
 import { deriveSeed } from './random';
 import { generateTerrain, type Terrain } from './terrain';
@@ -112,6 +117,27 @@ function averageTerrain(attemptSeed: number, versions: LayerVersions): Terrain {
   return generateTerrain(deriveSeed(attemptSeed, 'terrain'), versions.terrain);
 }
 
+/**
+ * Terén, který dostane průchod typu: vlastní terén typu (`terrainOptions` – generuje se znovu
+ * ze seedu terénu pokusu), kopie terénu průměrné krajiny (přijetí – ten zůstane pro pásmo),
+ * nebo terén průměrné krajiny spočítaný jednou (uložené sídlo).
+ */
+function passTerrain(
+  attemptSeed: number,
+  versions: LayerVersions,
+  pass: PremiumGeneration,
+  average: Layers | null,
+): Terrain {
+  if (pass.terrainOptions) {
+    return generateTerrain(
+      deriveSeed(attemptSeed, 'terrain'),
+      versions.terrain,
+      pass.terrainOptions,
+    );
+  }
+  return average ? cloneTerrain(average.terrain) : averageTerrain(attemptSeed, versions);
+}
+
 function averageVegetation(
   attemptSeed: number,
   versions: LayerVersions,
@@ -137,9 +163,10 @@ function averageFertility(
 /**
  * Vrstvy prémiové krajiny pokusu: průchod typu po každé vrstvě. Se zadanými vrstvami průměrné
  * krajiny (přijetí – měří se na nich pásmo) se použijí znovu ty, které průchod nemění; průchod
- * dostane vlastní kopie (terén zkopírovaný, povrch a úrodnost `slice()`), takže průměrné vrstvy
- * zůstanou, jak byly. Bez nich (uložené sídlo) se každá vrstva spočítá jen jednou – vegetace
- * a úrodnost průměrné krajiny jen tam, kde z nich průchod vychází.
+ * dostane vlastní kopie (terén zkopírovaný – nebo vlastní terén typu, `passTerrain` –, povrch
+ * a úrodnost `slice()`), takže průměrné vrstvy zůstanou, jak byly. Bez nich (uložené sídlo) se
+ * každá vrstva spočítá jen jednou – vegetace a úrodnost průměrné krajiny jen tam, kde z nich
+ * průchod vychází.
  */
 function premiumLayers(
   attemptSeed: number,
@@ -149,7 +176,7 @@ function premiumLayers(
 ): Layers {
   const pass = premiumGeneration(type, attemptSeed, versions);
   const terrain = pass.changesTerrain
-    ? pass.terrain(average ? cloneTerrain(average.terrain) : averageTerrain(attemptSeed, versions))
+    ? pass.terrain(passTerrain(attemptSeed, versions, pass, average))
     : (average?.terrain ?? averageTerrain(attemptSeed, versions));
   const ownSurface = pass.changesTerrain || average === null;
   const baseSurface = ownSurface

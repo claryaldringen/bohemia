@@ -184,6 +184,10 @@ export const OBSTACLE_SOURCES = {
   beeTree: 18,
   /** Skalka posvátného pramene – prémiová krajina „Posvátný pramen“ (`premium/water.ts`). */
   springRock: 19,
+  /** Výchozy a suť lomu – prémiová krajina „Stavební kámen a vápenec“ (`premium/deposits.ts`). */
+  quarryRock: 20,
+  /** Rudné výchozy žíly – prémiová krajina „Hluboká ložiska drahých kovů“ (`premium/deposits.ts`). */
+  oreRock: 21,
 } as const;
 
 export type ObstacleSource = keyof typeof OBSTACLE_SOURCES;

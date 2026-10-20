@@ -163,3 +163,35 @@ export function polygonAreaM2(points: readonly (readonly [number, number])[]): n
   }
   return Math.abs(twice) / 2;
 }
+
+/**
+ * Elipsa (čočka) ve světě po 45° – osa `(tx, tz)` (jednotkový směr) s poloosou `halfLength`,
+ * napříč `halfWidth`. Cos a sin násobků 45° přesně: 0, ±√½, ±1.
+ */
+export function ellipseOutline(
+  x: number,
+  z: number,
+  tx: number,
+  tz: number,
+  halfLength: number,
+  halfWidth: number,
+): WorldPoint[] {
+  const out: WorldPoint[] = [];
+  const r = Math.SQRT1_2;
+  const steps: [number, number][] = [
+    [1, 0],
+    [r, r],
+    [0, 1],
+    [-r, r],
+    [-1, 0],
+    [-r, -r],
+    [0, -1],
+    [r, -r],
+  ];
+  for (const [c, s] of steps) {
+    const u = c * halfLength;
+    const v = s * halfWidth;
+    out.push([x + tx * u - tz * v, z + tz * u + tx * v]);
+  }
+  return out;
+}

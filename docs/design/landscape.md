@@ -58,6 +58,9 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
   Clauda): celé pásmo (horní i dolní meze) se měří na průměrné krajině pokusu – vrstvách před
   prémiovým průchodem –, takže bonus typu nevytáhne do pásma základ, který by neprošel; na
   prémiové krajině se kontrolují jen dolní meze (start není horší než průměrný) a kontrola typu.
+  Typ, který potřebuje jiný terén už při jeho generování (přirozená pevnost – jistá ostrožna),
+  dá generátoru vlastní meze terénu (`terrainOptions`): terén se pak generuje se stejným seedem
+  znovu s nimi, náhoda zůstane (návrh Clauda).
 - **Typy půdy a lesa** (`premium/soil-forest.ts`, hodnoty návrh Clauda – doladí kalibrace):
   - **Velmi úrodná krajina:** přirozená úrodnost do 600 m od vsi +15 bodů (strop 100), za 600 m
     plynule do 750 m. Prvek louka – kruh 600 m.
@@ -126,6 +129,52 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
     vody, ve skalce – vrstva překážek přidá nad pramen do svahu skalní výchoz a kolem pramene tři
     balvany (zdroj překážek `springRock`), do 4 m kolem pramene nic jiného. Les vsi to není:
     pramen leží na okraji lesa ve skalce (háj by byl jen u dubů – návrh Clauda: skalka).
+- **Typy reliéfu a nalezišť** (`premium/relief.ts`, `premium/deposits.ts`, hodnoty návrh Clauda –
+  doladí kalibrace). Kde prvek leží, je čistá funkce vody a místa pro vesnici (plán prvku), takže
+  ho server při generování i prohlížeč v hotové krajině najdou stejně; terén mění jen server.
+  Úpravy reliéfu nemění rovinu kolem místa pro vesnici (17 políček, plně od 27 – jako řeka) ani
+  okolí vody (u vody nic, plně od 10 políček), vodu, potok ani místo vsi; vegetace a úrodnost se
+  nad novým terénem spočítají znovu. Úrodnost bere průměrnou výšku souše – hory ji zvednou a jinde
+  je půda o kousek lepší (dobré louky do 600 m medián +1 %, nejvýš +4 %; kalibrace).
+  - **Horský průsmyk se stezkou:** pohraniční hory – hřeben rovnoběžně s okrajem mapy 105 m od
+    něj, v hřebeni sedlo a po stranách dva hřbety 360–600 m dlouhé, 68–80 m nad sedlem (od sedla
+    stoupají na 180 m, na koncích dozní na 120 m, svahy 240 m). Sedlo 6–10 m nad nejvyšším
+    terénem kolem, na straně potoka se vsí; hřbet končí 180 m od vody (potok pohořím neprochází)
+    a hřeben je aspoň 840 m od vsi, takže pohoří leží za loukami vsi (louky do 600 m beze změny).
+    Stezka (prvek `route`) vede od okraje mapy za sedlem přes sedlo dolů kolem vsi (obchází ji
+    ≈ 200 m, nejblíž 150 m – jako stezka přes brod, `premium/route.ts`) k okraji za vsí, po souši
+    mimo břehy. Prvky: sedlo (`pass` – bod a osa hřebene obou hřbetů) a stezka. Plán vyjde na
+    ≈ 75 % pokusů (jinak pokus neprojde – voda nebo roh mapy nedá hřbetům místo).
+  - **Posvátná hora:** osamělý vrch 650–950 m od vsi (nejraději 800 m), aspoň 240 m od vody,
+    vrcholová plošina o poloměru 52 m (0,8 ha), úpatí 330 m od středu. Plošina 56–64 m nad
+    průměrem terénu na úpatí, svahy od plošiny strmé a k úpatí mírné. Prvek vrchol (`summit`) –
+    obrys plošiny (místa do 1 m pod vrcholem); kontrola: plošina aspoň 0,5 ha a 50 m nad úpatím,
+    nejvýš 1 km od vsi.
+  - **Přirozená pevnost:** jistá ostrožna nad zaříznutým meandrem (Skály u potoka) s plochou
+    aspoň 1 ha. Terén se generuje se stejným seedem s jinými mezemi ostrožny
+    (`PremiumPass.terrainOptions` → `generateTerrain(…, options)`): smyčka o poloměru 6–6,8 políčka
+    (plocha 1,0–1,8 ha), plocha 10–14 m nad potokem, i v rovině (bez převýšení okolí) a smyčka smí
+    nahradit úsek s tůní nebo mělčinou. Místo chráněné bažinou se nedělá – ostrožna je jistější
+    a scéna ji umí (návrh Clauda). Prvek ostrožna (`promontory`) – obrys plochy; potok ji obtéká
+    z ≈ 90 % směrů. Ostrožna vyjde na ≈ 85 % terénů.
+  - **Stavební kámen a vápenec:** lom ve skalní stěně 550–900 m od vsi (nejraději 700 m), čelem
+    ke vsi – stěna 240 m dlouhá a 13–17 m vysoká (terén za hranou zvednutý, plně 75 m dozadu,
+    pak do 120 m dozní; čelo spadne na 12 m, konce stěny dozní na 60 m). Vrstva překážek: na
+    čele skalní výchozy po 8 m a pod ním suť (zdroj `quarryRock`), na čele nic jiného neroste.
+    Prvek lom (`quarry`) – pás od hrany stěny k úpatí se sutí; kontrola: stěna aspoň 10 m.
+  - **Hluboká ložiska drahých kovů:** skalnatý hřbet 330 m dlouhý bokem ke vsi 600–1000 m od ní
+    (nejraději 800 m), hřeben 24–32 m nad terénem (ke koncům o třetinu nižší), ostré svahy do
+    75 m. Podél hřebene žíla – rudné výchozy po 12 m a rudné balvany na svazích (zdroj
+    `oreRock`), na hřebeni nerostou stromy. Prvek naleziště (`deposit`) – žíla (osa) a pás 22 m
+    kolem ní; kontrola: hřeben aspoň 18 m nad úpatím.
+  - **Bohatá železná ruda:** rudiště (bažinná ruda s krevelem) na mokré rovné louce u potoka
+    200–480 m od vsi (nejraději 320 m) na straně vsi, nejraději u klidné vody – 9 m od okraje
+    vody. Prvek rudiště (`iron-ore`) – elipsa 36 × 20 m podél toku, celá do 500 m od vsi. Krajina
+    zůstane průměrná; kovář sem bude chodit kopat (účinky typu).
+  - **Dobrá keramická hlína:** hliniště na louce u potoka 200–480 m od vsi (nejraději 360 m) na
+    straně vsi, nejraději na vnitřní straně oblouku v klidné vodě (povodňová hlína) – 6 m od
+    okraje vody. Prvek hliniště (`clay`) – elipsa 40 × 16 m podél toku, celá do 500 m od vsi.
+    Krajina zůstane průměrná.
 - **Verze vrstev:** do ostrého spuštění se generátor smí měnit libovolně (krajiny se prostě
   vygenerují znovu jinak). Po spuštění nesmí změna existující vrstvy přepsat stávající krajiny –
   u sídla se ukládají verze vrstev (např. `{ terrain: 1, vegetation: 1, fertility: 1 }`) a nová

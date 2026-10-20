@@ -2,9 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   CURRENT_LAYER_VERSIONS,
   generateLandscape,
-  generateLandscapeAttempt,
   generateObstacles,
-  hasPremiumPass,
   INITIAL_LAYER_VERSIONS,
   OBSTACLE_SOURCES,
   obstaclesOf,
@@ -120,8 +118,8 @@ describe('přenos krajiny se skalami u potoka (terén 2)', () => {
 });
 
 describe('přenos prémiové krajiny', () => {
-  // Pokus bez kontroly pásma – typ ještě nemusí mít průchod (pak je krajina průměrná a bez prvků).
-  const premium = generateLandscapeAttempt(42, CURRENT_LAYER_VERSIONS, 'mountain-pass');
+  // Přijatá krajina – pokus bez kontroly pásma by prvky typu mít nemusel.
+  const premium = generateLandscape(42, CURRENT_LAYER_VERSIONS, 'mountain-pass');
 
   it('přenos nese prémiový typ', () => {
     const transfer = encodeLandscape(premium);
@@ -131,8 +129,8 @@ describe('přenos prémiové krajiny', () => {
 
   it('prohlížeč dostane stejnou prémiovou krajinu – prvky typu i vrstvu překážek', () => {
     const decoded = decodeLandscape(encodeLandscape(premium));
-    // Jakmile má typ průchod, prvky musí existovat – jinak by se porovnávalo null s null.
-    if (hasPremiumPass('mountain-pass')) expect(premiumFeaturesOf(premium)).not.toBeNull();
+    // Prvky musí existovat – jinak by se porovnávalo null s null.
+    expect(premiumFeaturesOf(premium)).not.toBeNull();
     expect(premiumFeaturesOf(decoded)).toEqual(premiumFeaturesOf(premium));
     const server = obstaclesOf(premium);
     const browser = obstaclesOf(decoded);
@@ -173,9 +171,28 @@ describe('přenos prémiové krajiny', () => {
     }
   });
 
-  // Typy, které mění vrstvu překážek (rozmisťovače čtou typ krajiny): dřeviny lesa, brtě
-  // a skalka posvátného pramene.
-  for (const type of ['oak-beech', 'wild-bees', 'sacred-spring'] as const) {
+  it('rudiště a hliniště – prohlížeč dostane stejné prvky', () => {
+    for (const type of ['iron-ore', 'fine-clay'] as const) {
+      const server = generateLandscape(42, CURRENT_LAYER_VERSIONS, type);
+      expect(premiumFeaturesOf(server), type).not.toBeNull();
+      expect(premiumFeaturesOf(decodeLandscape(encodeLandscape(server))), type).toEqual(
+        premiumFeaturesOf(server),
+      );
+    }
+  });
+
+  // Typy, které mění vrstvu překážek (rozmisťovače čtou typ krajiny): dřeviny lesa, brtě,
+  // skalka posvátného pramene, skály lomu a rudné výchozy žíly; a typy, které mění terén (hora,
+  // pevnost) – prvky hledá prohlížeč ve výškách z přenosu.
+  for (const type of [
+    'oak-beech',
+    'wild-bees',
+    'sacred-spring',
+    'building-stone',
+    'deep-gold',
+    'sacred-mountain',
+    'natural-fortress',
+  ] as const) {
     it(`${type} – prohlížeč dostane stejné prvky i vrstvu překážek jako server`, () => {
       const server = generateLandscape(42, CURRENT_LAYER_VERSIONS, type);
       const decoded = decodeLandscape(encodeLandscape(server));

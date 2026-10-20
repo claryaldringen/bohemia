@@ -194,7 +194,21 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   `springRock`, `obstacles/spring-rocks.ts`). Typ, který mění terén, nepočítá průměrné vrstvy
   zbytečně: uložené sídlo každou vrstvu jednou, přijetí terén jednou (průchodu kopie
   `cloneTerrain`) – hlídá `premium/__tests__/attempt-layers.test.ts`. Pro scénu (úloha 6) řeka
-  zatím není voda – jen data.
+  zatím není voda – jen data. Stezky od okraje k okraji (brod, průsmyk) sdílí `premium/route.ts`
+  (`routeLeg`, `villageBypass`, `trailCellCost`, `smoothLine`, `lineToEdges`). **Typy reliéfu
+  a nalezišť** (landscape.md – Typy reliéfu a nalezišť): kde prvek leží, je čistá funkce vody
+  a místa vsi (`PlanInput` z terénu i z hotové krajiny – `planInputOfTerrain` / `planInputOf`;
+  `passPlan`, `mountainPlan`, `quarryPlan`, `veinPlan`, obecně `pickSite`), terén mění jen server
+  (`reliefKeep` – rovina vsi a okolí vody beze změny). `premium/relief.ts`: horský průsmyk
+  (pohoří podél okraje mapy, sedlo a dva hřbety ≥ 60 m nad ním, stezka `route` přes sedlo, prvek
+  `pass` s osou hřebene), posvátná hora (`summit` – plošina ≥ 0,5 ha ≥ 50 m nad úpatím do 1 km),
+  přirozená pevnost (ostrožna nad meandrem ≥ 1 ha – `PremiumPass.terrainOptions` →
+  `generateTerrain(seed, version, options)` a `planPromontory(…, options)` s jinými mezemi
+  `PromontoryOptions`; terén typu se generuje znovu ze seedu terénu, přijetí tedy terén dvakrát).
+  `premium/deposits.ts`: lom ve skalní stěně (`quarry`), skalnatý hřbet se žílou (`deposit`),
+  rudiště (`iron-ore`) a hliniště (`clay`) u potoka do 500 m od vsi (jen místa). Skály lomu a žíly
+  ve vrstvě překážek (`obstacles/premium-rocks.ts`, zdroje `quarryRock` a `oreRock`); skupiny
+  vrstvy jdou v pořadí zdrojů (`GROUP_ORDER`), kolem prémiových překážek uvolní místo `mapGroups`.
 - **Use-case** `enterGame` (sídelní sídlo hráče, atomicky přes unikátní index); ve webu
   `enterGameForPlayer` v `lib/game.ts`. Restart hry (`restartGame`, viz Ves – Hlad a vymření)
   sídla archivuje (`settlement.archived_at`, `is_seat` false) – port vrací jen aktivní sídla. Krajinu generuje server, do prohlížeče jde zakódovaná

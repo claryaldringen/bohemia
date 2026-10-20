@@ -3,7 +3,12 @@ import { distanceToMask, MinHeap, smoothstep } from './grid';
 import { createRandom, type Random } from './random';
 import { buildStream, heightAt, planStream, SAMPLE_STEP, type ChannelSample } from './stream';
 import { deriveSeed } from './random';
-import { planPromontory, sculptStreamRocks, type PromontoryPlan } from './stream-rocks';
+import {
+  planPromontory,
+  sculptStreamRocks,
+  type PromontoryOptions,
+  type PromontoryPlan,
+} from './stream-rocks';
 import { LANDSCAPE_SIZE, type Promontory, type StreamPoint } from './types';
 
 /** Vrstva terénu: výšky, potok a místo pro vesnici. */
@@ -45,12 +50,29 @@ const RELIEF_RANGE_M: readonly [number, number] = [18, 28];
 const MAX_SLOPE_M = 2.4;
 
 /**
+ * Parametry terénu prémiového typu (`PremiumPass.terrainOptions`); bez nich terén průměrné
+ * krajiny. Mění jen meze, ne náhodu – terén s nimi vychází ze stejných losů.
+ */
+export interface TerrainOptions {
+  /**
+   * Ostrožna nad zaříznutým meandrem (terén 2) s jinými rozměry a převýšením okolí – „Přirozená
+   * pevnost“ ji chce jistou a velkou.
+   */
+  readonly promontory?: PromontoryOptions;
+}
+
+/**
  * Terén krajiny. Verze 1 se generuje dál bit po bitu stejně; verze 2 (20. 10. 2026) přidá skály
  * u potoka – skalní ostroh v ostrém ohybu, strmý nárazový břeh nebo skalní stěnu na vnější
  * straně oblouků a kde terén dovolí zaříznutý meandr s ostrožnou (`stream-rocks.ts`). Náhoda
  * verze 2 jde z vlastního generátoru – bez ostrožny je osa potoka stejná jako ve verzi 1.
+ * Parametry prémiového typu (`options`) mění jen meze ostrožny; bez nich je terén průměrné krajiny.
  */
-export function generateTerrain(seed: number, version: 1 | 2): Terrain {
+export function generateTerrain(
+  seed: number,
+  version: 1 | 2,
+  options: TerrainOptions = {},
+): Terrain {
   if (version !== 1 && version !== 2) {
     throw new RangeError(`Neznámá verze vrstvy terénu: ${String(version)}`);
   }
@@ -68,7 +90,7 @@ export function generateTerrain(seed: number, version: 1 | 2): Terrain {
   const rocks = version === 2 ? createRandom(deriveSeed(seed, 'stream-rocks')) : null;
   let promontory: PromontoryPlan | null = null;
   if (rocks) {
-    promontory = planPromontory(plan, heights, size, villageSite, rocks);
+    promontory = planPromontory(plan, heights, size, villageSite, rocks, options.promontory);
     const looped = promontory ? buildStream(plan, heights, size, promontory.loop) : null;
     if (looped && siteKeepsWater(looped.water, size, villageSite)) {
       samples = looped.samples;

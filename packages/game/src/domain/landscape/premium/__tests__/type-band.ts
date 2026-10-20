@@ -36,10 +36,33 @@ export const WATER_OTHER_TYPES: readonly PremiumType[] = [
 /** Typy vody (úloha 4) – dva soubory testu pásma, ať běží souběžně. */
 export const WATER_TYPES: readonly PremiumType[] = [...WATER_RIVER_TYPES, ...WATER_OTHER_TYPES];
 
+/** Hory (úloha 5) – test pásma v `relief-band.test.ts`. */
+export const RELIEF_MOUNTAIN_TYPES: readonly PremiumType[] = ['mountain-pass', 'sacred-mountain'];
+
+/** Přirozená pevnost (úloha 5) – test pásma v `relief-fortress-band.test.ts`. */
+export const RELIEF_FORTRESS_TYPES: readonly PremiumType[] = ['natural-fortress'];
+
+/** Typy reliéfu (úloha 5) – dva soubory testu pásma, ať běží souběžně. */
+export const RELIEF_TYPES: readonly PremiumType[] = [
+  ...RELIEF_MOUNTAIN_TYPES,
+  ...RELIEF_FORTRESS_TYPES,
+];
+
+/** Naleziště ve skále (úloha 5) – test pásma v `deposit-band.test.ts`. */
+export const DEPOSIT_ROCK_TYPES: readonly PremiumType[] = ['building-stone', 'deep-gold'];
+
+/** Naleziště u potoka (úloha 5) – test pásma v `deposit-bank-band.test.ts`. */
+export const DEPOSIT_BANK_TYPES: readonly PremiumType[] = ['iron-ore', 'fine-clay'];
+
+/** Typy nalezišť (úloha 5) – dva soubory testu pásma, ať běží souběžně. */
+export const DEPOSIT_TYPES: readonly PremiumType[] = [...DEPOSIT_ROCK_TYPES, ...DEPOSIT_BANK_TYPES];
+
 /** Typy, jejichž test pásma běží ve vlastním souboru skupiny – `generate.test.ts` je vynechá. */
 export const GROUPED_TYPES: ReadonlySet<PremiumType> = new Set([
   ...SOIL_FOREST_TYPES,
   ...WATER_TYPES,
+  ...RELIEF_TYPES,
+  ...DEPOSIT_TYPES,
 ]);
 
 // Krajiny se nedrží (vrstva překážek v mezipaměti by zabrala stovky MB) – jen výsledek kontroly

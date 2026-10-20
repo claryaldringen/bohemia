@@ -41,6 +41,18 @@ vi.mock('../../fertility', async (importOriginal) => {
   };
 });
 
+/** Typy, jejichž průchod mění terén – řeka, reliéf a naleziště ve skále. */
+const TERRAIN_TYPES = [
+  'navigable-river',
+  'ford-hill',
+  'confluence',
+  'mountain-pass',
+  'sacred-mountain',
+  'natural-fortress',
+  'building-stone',
+  'deep-gold',
+] as const satisfies readonly PremiumType[];
+
 const reset = (): void => {
   calls.terrain = 0;
   calls.vegetation = 0;
@@ -51,7 +63,7 @@ describe('vrstvy pokusu prémiové krajiny', () => {
   beforeEach(reset);
 
   it('uložené sídlo s typem, který mění terén, generuje každou vrstvu jednou', () => {
-    for (const type of ['navigable-river', 'ford-hill', 'confluence'] as const) {
+    for (const type of TERRAIN_TYPES) {
       reset();
       generateLandscapeAttempt(3, CURRENT_LAYER_VERSIONS, type);
       expect({ ...calls }, type).toEqual({ terrain: 1, vegetation: 1, fertility: 1 });
@@ -59,7 +71,7 @@ describe('vrstvy pokusu prémiové krajiny', () => {
   });
 
   it('uložené sídlo s typem vegetace nebo úrodnosti – každá vrstva jednou', () => {
-    for (const type of ['floodplain', 'fertile', 'gold-stream'] as const) {
+    for (const type of ['floodplain', 'fertile', 'gold-stream', 'iron-ore', 'fine-clay'] as const) {
       reset();
       generateLandscapeAttempt(3, CURRENT_LAYER_VERSIONS, type);
       expect({ ...calls }, type).toEqual({ terrain: 1, vegetation: 1, fertility: 1 });
@@ -83,8 +95,19 @@ describe('vrstvy pokusu prémiové krajiny', () => {
     expect({ ...calls }).toEqual({ terrain: 1, vegetation: 2, fertility: 2 });
   });
 
+  it('přijetí s vlastním terénem typu (přirozená pevnost): terén dvakrát – průměrný a typu', () => {
+    const type: PremiumType = 'natural-fortress';
+    let seed = 1;
+    for (; seed < 40; seed++) {
+      reset();
+      if (generateAcceptedLandscape(seed, CURRENT_LAYER_VERSIONS, type).seed === seed) break;
+    }
+    expect(seed).toBeLessThan(40);
+    expect({ ...calls }).toEqual({ terrain: 2, vegetation: 2, fertility: 2 });
+  });
+
   it('přijatá prémiová krajina je bit po bitu krajina uloženého sídla (pokus bez pásma)', () => {
-    for (const type of ['navigable-river', 'ford-hill', 'confluence', 'floodplain'] as const) {
+    for (const type of [...TERRAIN_TYPES, 'floodplain'] as const) {
       const accepted = generateAcceptedLandscape(5, CURRENT_LAYER_VERSIONS, type);
       const saved = generateLandscapeAttempt(accepted.seed, CURRENT_LAYER_VERSIONS, type);
       expect(landscapeHash(saved), type).toBe(landscapeHash(accepted.landscape));

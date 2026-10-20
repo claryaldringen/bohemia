@@ -1,9 +1,11 @@
 import { obstaclesOf, type ObstacleLayer } from '../obstacles';
 import { transferPrecision } from '../quantize';
 import { deriveSeed } from '../random';
-import type { Terrain } from '../terrain';
+import type { Terrain, TerrainOptions } from '../terrain';
 import type { Landscape, LayerVersions } from '../types';
 import { PREMIUM_TYPES } from './catalog';
+import { DEPOSIT_PASSES } from './deposits';
+import { RELIEF_PASSES } from './relief';
 import { SOIL_FOREST_PASSES } from './soil-forest';
 import { WATER_PASSES } from './water';
 import type { PremiumFeatures, PremiumSite, PremiumType } from './types';
@@ -48,6 +50,12 @@ export interface PremiumSiteContext {
  * (`landscape.premium` jde přenosem i do prohlížeče). Chybějící úprava = vrstva průměrné krajiny.
  */
 export interface PremiumPass {
+  /**
+   * Parametry terénu typu (`generateTerrain`) – terén se pak generuje ze seedu terénu pokusu
+   * s nimi, ne z terénu průměrné krajiny (přirozená pevnost – jistá velká ostrožna). Mění jen
+   * meze, náhoda zůstane.
+   */
+  readonly terrainOptions?: TerrainOptions;
   /** Terén před vegetací – výšky, voda, potok, místo pro vesnici (smí upravit předaný objekt). */
   readonly terrain?: (terrain: Terrain, ctx: PremiumPassContext) => Terrain;
   /** Povrch (kódy `SURFACE_CODES`) před úrodností. */
@@ -74,6 +82,8 @@ export interface PremiumPass {
 const PREMIUM_PASSES: Partial<Record<PremiumType, PremiumPass>> = {
   ...SOIL_FOREST_PASSES,
   ...WATER_PASSES,
+  ...RELIEF_PASSES,
+  ...DEPOSIT_PASSES,
 };
 
 const KNOWN_TYPES: ReadonlySet<string> = new Set(PREMIUM_TYPES);
@@ -94,6 +104,11 @@ export interface PremiumGeneration {
   /** Průchod mění terén / povrch – vrstvy průměrné krajiny pak nejde použít znovu. */
   readonly changesTerrain: boolean;
   readonly changesVegetation: boolean;
+  /**
+   * Parametry terénu typu – terén se generuje s nimi znovu ze seedu terénu (ne kopie terénu
+   * průměrné krajiny); null = terén průměrné krajiny.
+   */
+  readonly terrainOptions: TerrainOptions | null;
   terrain(terrain: Terrain): Terrain;
   vegetation(surface: Uint8Array, terrain: Terrain): Uint8Array;
   fertility(fertility: Uint8Array, terrain: Terrain, surface: Uint8Array): Uint8Array;
@@ -117,8 +132,9 @@ export function premiumGeneration(
     versions,
   };
   return {
-    changesTerrain: pass?.terrain !== undefined,
+    changesTerrain: pass?.terrain !== undefined || pass?.terrainOptions !== undefined,
     changesVegetation: pass?.vegetation !== undefined,
+    terrainOptions: pass?.terrainOptions ?? null,
     terrain: (terrain) => pass?.terrain?.(terrain, ctx) ?? terrain,
     vegetation: (surface, terrain) => pass?.vegetation?.(surface, terrain, ctx) ?? surface,
     fertility: (fertility, terrain, surface) =>

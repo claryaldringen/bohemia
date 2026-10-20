@@ -7,15 +7,26 @@ import type { Terrain } from '../terrain';
 import { promontoriesOf, SURFACE_CODES, type Landscape, type StreamPoint } from '../types';
 import { sampleTilesAtWorld, tileCenterWorld, tileOfWorldPoint } from '../world';
 import type { PremiumPass, PremiumPassContext } from './generate';
-import { streamPointWorld, type WorldPoint } from './geometry';
+import { ellipseOutline, streamPointWorld, type WorldPoint } from './geometry';
 import {
   addConfluence,
   addSideRiver,
-  cheapestPath,
   landRegion,
   NAVIGABLE_FLOODPLAIN_CELLS,
   RIVER,
 } from './river';
+import {
+  cellWorld,
+  cellXY,
+  lineKeepsAway,
+  lineToEdges,
+  onBorder,
+  routeLeg,
+  smoothLine,
+  trailCellCost,
+  VILLAGE_ROUTE,
+  villageBypass,
+} from './route';
 import type { PremiumSite } from './types';
 
 // Prémiové typy vody (premium-landscapes.md – Typy krajin): splavná řeka, vyvýšenina nad brodem
@@ -61,14 +72,11 @@ export const SPRINGS = {
 } as const;
 
 /**
- * Stezka přes brod (ford-hill): nejblíž 150 m od vsi – obchází ji ve vzdálenosti `passCells`
- * políček (≈ 200 m), ať ves leží u stezky.
+ * Stezka přes brod (ford-hill): kolem vsi jako každá stezka (`VILLAGE_ROUTE` – nejblíž 150 m,
+ * bod obejití ≈ 200 m od vsi); kolem brodu smí k vodě.
  */
 export const FORD_ROUTE = {
-  villageMinM: 150,
-  /** Hledá se po políčkách s rezervou na vyhlazení (políčka od vsi). */
-  villageMinCells: 11,
-  passCells: 13,
+  ...VILLAGE_ROUTE,
   /** Kolem brodu se smí k vodě (políčka). */
   fordReachCells: 3,
 } as const;
@@ -102,24 +110,6 @@ function cellOf(l: Landscape, x: number, z: number): number {
   const tx = Math.min(l.size - 1, Math.max(0, Math.floor((x + h) / l.cellSizeM)));
   const ty = Math.min(l.size - 1, Math.max(0, Math.floor((z + h) / l.cellSizeM)));
   return ty * l.size + tx;
-}
-
-/** Konec čáry posunutý na nejbližší okraj mapy (čára pak vede přesně od okraje k okraji). */
-function toEdge(l: Landscape, [x, z]: WorldPoint): WorldPoint {
-  const h = half(l);
-  const options: [number, WorldPoint][] = [
-    [x + h, [-h, z]],
-    [h - x, [h, z]],
-    [z + h, [x, -h]],
-    [h - z, [x, h]],
-  ];
-  options.sort((a, b) => a[0] - b[0]);
-  return options[0]![1];
-}
-
-function lineToEdges(l: Landscape, line: WorldPoint[]): WorldPoint[] {
-  if (line.length < 2) return line;
-  return [toEdge(l, line[0]!), ...line.slice(1, -1), toEdge(l, line.at(-1)!)];
 }
 
 // ── Řeka: prvky ──────────────────────────────────────────────────────────────────────────────
@@ -214,7 +204,7 @@ function promontorySite(l: Landscape, kind: 'ford-hill' | 'confluence'): Premium
  * vyhlazená, konce na okraji mapy.
  */
 function fordRoute(l: Landscape, ford: number): WorldPoint[] | null {
-  const { size, surface, cellSizeM } = l;
+  const { size } = l;
   const river = l.river!;
   const water = waterMask(l);
   const nearWater = distanceToMask(water, size);
@@ -236,106 +226,43 @@ function fordRoute(l: Landscape, ford: number): WorldPoint[] | null {
   if (near < 0) return null;
   const far = near === left ? right : left;
   if (side[far]) return null;
-  const farSide = landRegion(water, size, { x: far % size, y: Math.floor(far / size) });
-  const relief = buildRelief(l);
-  const extent = (size * cellSizeM) / 2;
-  const cellCost = (i: number): number => {
-    const wx = -extent + ((i % size) + 0.5) * cellSizeM;
-    const wz = -extent + (Math.floor(i / size) + 0.5) * cellSizeM;
-    const s = relief.slopeAt(wx, wz) / 0.1;
-    return 1 + s * s + (surface[i] === FOREST ? 0.35 : 0);
-  };
-  const xy = (i: number): { x: number; y: number } => ({ x: i % size, y: Math.floor(i / size) });
+  const farSide = landRegion(water, size, cellXY(far, size));
+  const cellCost = trailCellCost(l);
   const allowedIn =
     (region: Uint8Array) =>
     (i: number): boolean => {
       if (!region[i] || water[i]) return false;
-      const c = xy(i);
+      const c = cellXY(i, size);
       const fordNear = length2(c.x - p.x, c.y - p.y) <= FORD_ROUTE.fordReachCells + 1.5;
       if (nearWater[i]! < 1.5 && !fordNear) return false;
       return length2(c.x - village.x, c.y - village.y) >= FORD_ROUTE.villageMinCells;
     };
-  const leg = (from: number, region: Uint8Array, goal: (i: number) => boolean): number[] | null => {
-    const allowed = allowedIn(region);
-    return cheapestPath(
-      size,
-      [from],
-      (_, to, length) => (allowed(to) ? length * cellCost(to) : Infinity),
-      (i) => allowed(i) && goal(i),
-    );
-  };
-  const onBorder = (i: number): boolean => {
-    const c = xy(i);
-    return c.x === 0 || c.y === 0 || c.x === size - 1 || c.y === size - 1;
-  };
+  const leg = (from: number, region: Uint8Array, goal: (i: number) => boolean): number[] | null =>
+    routeLeg(size, from, allowedIn(region), cellCost, goal);
+  const border = (i: number): boolean => onBorder(i, size);
   // Bod obejití vsi: na kružnici kolem vsi bokem ke směru od brodu, na straně vsi.
-  const bank = xy(near);
-  const ux = village.x - bank.x;
-  const uy = village.y - bank.y;
-  const ul = length2(ux, uy) || 1;
-  const allowedA = allowedIn(side);
-  let pass = -1;
-  for (const turn of [1, -1] as const) {
-    for (let r = FORD_ROUTE.passCells; r <= FORD_ROUTE.passCells + 4 && pass < 0; r++) {
-      const x = Math.round(village.x + ((-uy * turn) / ul) * r);
-      const y = Math.round(village.y + ((ux * turn) / ul) * r);
-      if (x < 0 || y < 0 || x >= size || y >= size) continue;
-      if (allowedA(y * size + x)) pass = y * size + x;
-    }
-    if (pass >= 0) break;
-  }
+  const bank = cellXY(near, size);
+  const pass = villageBypass(size, village, bank, allowedIn(side));
   if (pass < 0) return null;
   const toPass = leg(near, side, (i) => i === pass);
   // Za obejitím dál od brodu – k okraji za vsí.
+  const ux = village.x - bank.x;
+  const uy = village.y - bank.y;
   const beyondVillage = (i: number): boolean => {
-    const c = xy(i);
-    return onBorder(i) && (c.x - village.x) * ux + (c.y - village.y) * uy > 0;
+    const c = cellXY(i, size);
+    return border(i) && (c.x - village.x) * ux + (c.y - village.y) * uy > 0;
   };
-  const onward = leg(pass, side, beyondVillage) ?? leg(pass, side, onBorder);
-  const across = leg(far, farSide, onBorder);
+  const onward = leg(pass, side, beyondVillage) ?? leg(pass, side, border);
+  const across = leg(far, farSide, border);
   if (!toPass || !onward || !across) return null;
-  const toWorld = (i: number): WorldPoint => {
-    const c = tileCenterWorld(l, i % size, Math.floor(i / size));
-    return [c.x, c.z];
-  };
+  const toWorld = (i: number): WorldPoint => cellWorld(l, i);
   const [fx, fz] = streamPointWorld(l, p);
   // Od okraje za vsí přes obejití k brodu, přes brod a za řekou k okraji.
   const villageLeg = [...[...onward].reverse(), ...[...toPass].reverse().slice(1)].map(toWorld);
   const legA = smoothLine(villageLeg, 2);
   const legB = smoothLine(across.map(toWorld), 2);
   const line = lineToEdges(l, [...legA, [fx, fz], ...legB]);
-  const c = villageWorld(l);
-  for (let i = 0; i + 1 < line.length; i++) {
-    const d = segmentDistance(line[i]!, line[i + 1]!, c.x, c.z);
-    if (d < FORD_ROUTE.villageMinM) return null;
-  }
-  return line;
-}
-
-/** Chaikinovo vyhlazení lomené čáry (konce zůstanou). */
-function smoothLine(points: WorldPoint[], passes: number): WorldPoint[] {
-  let line = points;
-  for (let pass = 0; pass < passes; pass++) {
-    if (line.length < 3) return line;
-    const next: WorldPoint[] = [line[0]!];
-    for (let i = 0; i < line.length - 1; i++) {
-      const a = line[i]!;
-      const b = line[i + 1]!;
-      if (i > 0) next.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25]);
-      if (i < line.length - 2) next.push([a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]);
-    }
-    next.push(line.at(-1)!);
-    line = next;
-  }
-  return line;
-}
-
-function segmentDistance(a: WorldPoint, b: WorldPoint, x: number, z: number): number {
-  const dx = b[0] - a[0];
-  const dz = b[1] - a[1];
-  const l2 = dx * dx + dz * dz;
-  const t = l2 === 0 ? 0 : Math.min(1, Math.max(0, ((x - a[0]) * dx + (z - a[1]) * dz) / l2));
-  return length2(a[0] + t * dx - x, a[1] + t * dz - z);
+  return lineKeepsAway(line, villageWorld(l), FORD_ROUTE.villageMinM) ? line : null;
 }
 
 // ── Průchody typů s řekou ────────────────────────────────────────────────────────────────────
@@ -452,25 +379,7 @@ export function goldPlacerSites(l: Landscape): PremiumSite[] | null {
 
 /** Čočka náplavu podél břehu (8 vrcholů). */
 function lens(x: number, z: number, tx: number, tz: number): WorldPoint[] {
-  const out: WorldPoint[] = [];
-  // Body na elipse po 45° – cos/sin násobků 45° přesně: 0, ±√½, ±1.
-  const r = Math.SQRT1_2;
-  const steps: [number, number][] = [
-    [1, 0],
-    [r, r],
-    [0, 1],
-    [-r, r],
-    [-1, 0],
-    [-r, -r],
-    [0, -1],
-    [r, -r],
-  ];
-  for (const [c, s] of steps) {
-    const u = c * GOLD_PLACERS.halfLengthM;
-    const v = s * GOLD_PLACERS.halfWidthM;
-    out.push([x + tx * u - tz * v, z + tz * u + tx * v]);
-  }
-  return out;
+  return ellipseOutline(x, z, tx, tz, GOLD_PLACERS.halfLengthM, GOLD_PLACERS.halfWidthM);
 }
 
 const goldStream = {
