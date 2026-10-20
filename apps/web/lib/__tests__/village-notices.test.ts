@@ -509,6 +509,7 @@ describe('villageNotices – řemesla (crafts.md)', () => {
       outputPerDayKg: 0.09,
       kiln: null,
       toPlant: 0,
+      skill: { share: 1, years: 5, apprentices: [] },
       carpenter: null,
     });
     const crafts = (activities: VillageView['crafts']['workshops'][number]['activity'][]) => ({
@@ -644,6 +645,7 @@ describe('tesař a vozy (wagons.md)', () => {
       outputPerDayKg: 1,
       kiln: null,
       toPlant: 0,
+      skill: { share: 1, years: 5, apprentices: [] },
       carpenter: null,
     });
     const crafts = (crafts: ('carpenter' | 'potter')[]) => ({
@@ -672,6 +674,30 @@ describe('tesař a vozy (wagons.md)', () => {
     expect(newNotices(view({ dayIndex: 1000 }), after)).toEqual([
       { kind: 'cart-worn-out', tone: 'warn', text: 'Vůz dosloužil' },
       { kind: 'cart-made', tone: 'info', text: 'Tesař vyrobil vůz' },
+    ]);
+  });
+});
+
+describe('kování vozů (wagons.md – Kování vozů)', () => {
+  it('tesař šel pro kování k vozu do vsi souseda a syn ho přinesl – krátký fakt z kroniky', () => {
+    const after = view({
+      dayIndex: 1010,
+      chronicle: [
+        { day: 1009, kind: 'iron-brought', son: true, dateLabel: '', text: '' },
+        {
+          day: 1002,
+          kind: 'iron-trip',
+          place: 'Lhota',
+          son: false,
+          direction: 'N',
+          dateLabel: '',
+          text: '',
+        },
+      ],
+    });
+    expect(newNotices(view({ dayIndex: 1000 }), after)).toEqual([
+      { kind: 'iron-trip', tone: 'info', text: 'Tesař šel pro kování k vozu do vsi Lhota (sever)' },
+      { kind: 'iron-brought', tone: 'info', text: 'Syn tesaře přinesl kování' },
     ]);
   });
 });

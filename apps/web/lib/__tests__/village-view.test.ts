@@ -2132,6 +2132,8 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
       cart: { kind: 'two-wheel', progress: 0.4 },
       timber: 0,
       woodworkCoverage: 0.5,
+      // vůz ještě nečeká na kování (wagons.md – Kování vozů)
+      iron: null,
     });
     expect(view.crafts.present).toBe(true);
     expect(view.crafts.stocks.woodToolsKg).toBe(12);

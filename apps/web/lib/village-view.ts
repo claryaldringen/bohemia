@@ -384,8 +384,14 @@ export interface VillageWorkshop {
   /** Uhlíř: pařezy buků, na které ještě zasadí mladý buk; ostatní 0. */
   toPlant: number;
   /**
-   * Tesař (wagons.md – Tesař): rozdělaný vůz (druh a průběh 0–1), klády v dílně a pokrytí dřevěné
-   * práce staveb posledního dne 0–1; ostatní dílny null.
+   * Učení řemesla (crafts.md – Učení řemesla): výkon dílny podle praxe 0–1 (po setinách), praxe
+   * řemeslníka (roky, po desetinách) a synové, kteří se učí (věk, praxe).
+   */
+  skill: VillageSummary['crafts']['workshops'][number]['skill'];
+  /**
+   * Tesař (wagons.md – Tesař): rozdělaný vůz (druh a průběh 0–1), klády v dílně, pokrytí dřevěné
+   * práce staveb posledního dne 0–1 a kování k vozu (čeká, nebo cesta pro ně – wagons.md, Kování
+   * vozů); ostatní dílny null.
    */
   carpenter: VillageSummary['crafts']['workshops'][number]['carpenter'];
   /**
@@ -610,6 +616,12 @@ export interface VillageView {
     direction?: Direction8;
     /** Co ves koupila u souseda (`crafts-bought` – crafts.md, Nákup u sousedů). */
     products?: CraftProduct[];
+    /**
+     * Cesta pro kování k vozu (`iron-trip`, `iron-brought` – wagons.md, Kování vozů): do které vsi
+     * (jméno) a jestli šel syn tesaře.
+     */
+    place?: string;
+    son?: boolean;
     dateLabel: string;
     text: string;
   }[];
@@ -1731,6 +1743,10 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return finishedText(event.constructionKind, event.craft);
     case 'cart-made':
       return `Tesař vyrobil ${CART_NAMES[event.cart].toLowerCase()}.`;
+    case 'iron-trip':
+      return `Ves nemá kováře – ${event.son ? 'syn tesaře šel' : 'tesař šel'} pro kování k vozu do vsi ${event.to}.`;
+    case 'iron-brought':
+      return `${event.son ? 'Syn tesaře přinesl' : 'Tesař přinesl'} kování k vozu.`;
     case 'cart-worn-out':
       return `${CART_NAMES[event.cart]} dosloužil – tesař vyrobí nový.`;
     case 'rebuild-decided':
@@ -2426,9 +2442,19 @@ function craftsView(
       activity: w.activity,
       occupants: w.occupants,
       laborPerDay: w.laborPerDay,
-      outputPerDayKg: workshopOutputKg(w.craft, w.laborPerDay, w.oreFactor, coverage),
+      // výroba podle praxe řemeslníka (crafts.md – Učení řemesla)
+      outputPerDayKg:
+        workshopOutputKg(w.craft, w.laborPerDay, w.oreFactor, coverage) * w.skill.share,
       kiln: w.kiln,
       toPlant: w.toPlant,
+      skill: {
+        share: Math.round(w.skill.share * 100) / 100,
+        years: Math.round(w.skill.years * 10) / 10,
+        apprentices: w.skill.apprentices.map((a) => ({
+          age: a.age,
+          years: Math.round(a.years * 10) / 10,
+        })),
+      },
       carpenter: w.carpenter,
       ...(w.ore
         ? {
@@ -3135,6 +3161,14 @@ function chronicle(state: VillageState, name: string): VillageView['chronicle'] 
       ...(event.kind === 'crafts-bought'
         ? { direction: event.direction, products: boughtProducts(event.get) }
         : {}),
+      ...(event.kind === 'iron-trip'
+        ? {
+            place: event.to,
+            son: event.son,
+            ...(event.direction ? { direction: event.direction } : {}),
+          }
+        : {}),
+      ...(event.kind === 'iron-brought' ? { son: event.son } : {}),
       dateLabel: formatGameDate(dateOfDayIndex(event.day)),
       text: chronicleText(event, name),
     }));

@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import type { SelectionDetails } from '@/lib/selection-details';
+import type { SelectionDetails, SelectionWorkshop } from '@/lib/selection-details';
 import type { BuildOption } from '@/lib/village-view';
 import { JourneyBanner, LeaveCompass } from '../RelocationControls';
 import { SelectionPanel } from '../SelectionPanel';
@@ -676,9 +676,12 @@ describe('SelectionPanel – rozvržení', () => {
 });
 
 describe('SelectionPanel – dílna tesaře (wagons.md – Tesař)', () => {
+  type Iron = NonNullable<NonNullable<SelectionWorkshop['carpenter']>['iron']>;
   const carpenter = (
     activity: 'producing' | 'helping',
     making: { kind: 'two-wheel'; progress: number } | null,
+    iron: Iron | null = null,
+    skill: SelectionWorkshop['skill'] = { share: 1, years: 5, apprentices: [] },
   ): SelectionDetails =>
     dwelling({
       type: 'polozemnice',
@@ -691,11 +694,13 @@ describe('SelectionPanel – dílna tesaře (wagons.md – Tesař)', () => {
         coverage: 0.72,
         kiln: null,
         toPlant: 0,
+        skill,
         carpenter: {
           carts: [{ id: 1, kind: 'two-wheel', condition: 0.6, away: true }],
           cartTargets: { 'two-wheel': 2, 'four-wheel': 0 },
           making,
           woodworkCoverage: 0.45,
+          iron,
         },
       },
     });
@@ -715,6 +720,50 @@ describe('SelectionPanel – dílna tesaře (wagons.md – Tesař)', () => {
     expect(html).toContain('data-activity="helping"');
     expect(html).toContain('Pomáhá se stavbami');
   });
+
+  it('vůz čeká na kování – tesař mezitím dělá nářadí (wagons.md – Kování vozů)', () => {
+    const html = render(
+      carpenter('producing', { kind: 'two-wheel', progress: 1 }, { kg: 3, trip: null }),
+    );
+    expect(html).toContain('Čeká na kování k vozu (3 kg)');
+    expect(html).toMatch(/data-testid="selection-workshop-iron"[^>]*data-alert[^>]*>3 kg</);
+    // aktivita ukazuje nářadí, ne hotový vůz
+    expect(html).not.toContain('Vyrábí vůz');
+  });
+
+  it('syn tesaře jde pro kování do vsi souseda – dny do návratu', () => {
+    const html = render(
+      carpenter(
+        'producing',
+        { kind: 'two-wheel', progress: 1 },
+        { kg: 3, trip: { to: 'Lhota', direction: 'N', daysLeft: 3, son: true, age: 15 } },
+      ),
+    );
+    expect(html).toContain('Syn tesaře (15 let) jde pro kování k vozu do vsi Lhota (sever)');
+    expect(html).toContain('zpět za 3 dny');
+    expect(html).toMatch(/data-testid="selection-workshop-iron"[^>]*>[^<]*3 d</);
+  });
+
+  it('nový tesař – zkušenost v % červeně, syn, který se učí', () => {
+    const html = render(
+      carpenter('producing', null, null, {
+        share: 0.55,
+        years: 0.5,
+        apprentices: [{ age: 11, years: 1.4 }],
+      }),
+    );
+    expect(html).toContain('/icons/resources/skill.png');
+    expect(html).toMatch(/data-testid="selection-workshop-skill"[^>]*data-alert[^>]*>55 %</);
+    expect(html).toContain('tesař se teprve učí (praxe 0,5 roku z 5 let)');
+    expect(html).toMatch(/data-testid="selection-workshop-apprentices"[^>]*>11</);
+    expect(html).toContain('Řemeslu se učí syn (věk) – 11 let, praxe 1,4 roku');
+  });
+
+  it('vyučený tesař – 100 % bez učňů', () => {
+    const html = render(carpenter('producing', null));
+    expect(html).toMatch(/data-testid="selection-workshop-skill"[^>]*>100 %</);
+    expect(html).not.toContain('selection-workshop-apprentices');
+  });
 });
 
 describe('SelectionPanel – kovárna (crafts.md – Uhlí a ruda kováře)', () => {
@@ -733,6 +782,7 @@ describe('SelectionPanel – kovárna (crafts.md – Uhlí a ruda kováře)', ()
         coverage: 0.6,
         kiln: null,
         toPlant: 0,
+        skill: { share: 1, years: 5, apprentices: [] },
         carpenter: null,
         ore: { stockKg: 18, site: { walkM: 423, leftKg: 2200 }, heapKg: 0, ...ore },
       },

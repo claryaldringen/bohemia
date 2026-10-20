@@ -67,9 +67,12 @@ export interface SelectionWorkshop {
   kiln: VillageView['crafts']['workshops'][number]['kiln'];
   /** Uhlíř: pařezy buků, na které ještě zasadí mladý buk. */
   toPlant: number;
+  /** Učení řemesla (crafts.md): výkon dílny podle praxe, praxe řemeslníka a kdo se učí. */
+  skill: VillageView['crafts']['workshops'][number]['skill'];
   /**
    * Tesař (wagons.md – Tesař): vozy vsi (doma / na cestě) a kolik jich ves potřebuje, rozdělaný
-   * vůz (druh, průběh 0–1) a pokrytí dřevěné práce staveb posledního dne 0–1; ostatní dílny null.
+   * vůz (druh, průběh 0–1), pokrytí dřevěné práce staveb posledního dne 0–1 a kování k vozu
+   * (wagons.md – Kování vozů); ostatní dílny null.
    */
   /**
    * Ves výrobek dílny dokupuje u souseda (vlastní řemeslník nemá vstupy – crafts.md, Nákup
@@ -81,6 +84,7 @@ export interface SelectionWorkshop {
     cartTargets: VillageView['crafts']['cartTargets'];
     making: { kind: CartKind; progress: number } | null;
     woodworkCoverage: number;
+    iron: NonNullable<VillageView['crafts']['workshops'][number]['carpenter']>['iron'];
   } | null;
   /** Kovář: ruda, rudiště a kdo nosí uhlí (crafts.md – Uhlí a ruda kováře); jinak chybí. */
   ore?: NonNullable<VillageView['crafts']['workshops'][number]['ore']>;
@@ -801,6 +805,7 @@ function workshopDetails(view: VillageView, dwellingId: number): SelectionWorksh
     coverage,
     kiln: workshop.kiln,
     toPlant: workshop.toPlant,
+    skill: workshop.skill,
     ...(workshop.ore ? { ore: workshop.ore } : {}),
     carpenter: carpenter
       ? {
@@ -808,6 +813,7 @@ function workshopDetails(view: VillageView, dwellingId: number): SelectionWorksh
           cartTargets: view.crafts.cartTargets,
           making: carpenter.cart,
           woodworkCoverage: carpenter.woodworkCoverage,
+          iron: carpenter.iron,
         }
       : null,
   };
