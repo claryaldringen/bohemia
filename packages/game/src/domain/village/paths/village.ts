@@ -163,6 +163,7 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
       since: d.builtDay,
       ...plotOf(d.plot),
       ...(d.workshop ? { craft: d.workshop.craft } : {}),
+      ...(d.plainShape ? { plainShape: true } : {}),
     })),
     ...state.constructions.flatMap((c) =>
       c.kind === 'dwelling' && c.dwellingType !== null && c.position !== null
@@ -175,6 +176,7 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
               since: c.startedDay,
               ...plotOf(c.plot),
               ...(c.craft ? { craft: c.craft } : {}),
+              ...(c.plainShape ? { plainShape: true } : {}),
             },
           ]
         : [],
@@ -395,11 +397,13 @@ export function walkLayoutKey(state: VillageState, day: number): string {
   const at = (p: Position): string => `${p.x},${p.z},${p.rotation}`;
   const dwellings = state.dwellings.map(
     (d) =>
-      `${d.id}:${d.type}${d.workshop ? `/${d.workshop.craft}` : ''}:${at(d.position)}:${d.plot ? `${d.plot.cell.x},${d.plot.cell.y}${d.plot.yard ? `+${d.plot.yard.x},${d.plot.yard.y}` : ''}${d.plot.square ? `@${d.plot.square.x},${d.plot.square.z},${d.plot.square.rotation}` : ''}` : ''}:${occupied.has(d.id) ? 1 : 0}:${age(d.builtDay)}`,
+      `${d.id}:${d.type}${d.workshop ? `/${d.workshop.craft}` : ''}:${at(d.position)}:${d.plot ? `${d.plot.cell.x},${d.plot.cell.y}${d.plot.yard ? `+${d.plot.yard.x},${d.plot.yard.y}` : ''}${d.plot.square ? `@${d.plot.square.x},${d.plot.square.z},${d.plot.square.rotation}` : ''}` : ''}:${occupied.has(d.id) ? 1 : 0}:${age(d.builtDay)}${d.plainShape ? ':plain' : ''}`,
   );
   const sites = state.constructions.flatMap((c) =>
     c.position !== null && (c.kind === 'dwelling' || c.kind === 'idol' || c.kind === 'shrine')
-      ? [`${c.id}:${c.kind}${c.craft ? `/${c.craft}` : ''}:${at(c.position)}:${age(c.startedDay)}`]
+      ? [
+          `${c.id}:${c.kind}${c.craft ? `/${c.craft}` : ''}:${at(c.position)}:${age(c.startedDay)}${c.plainShape ? ':plain' : ''}`,
+        ]
       : [],
   );
   // natočená pole, sady a les z nich nesou mřížku (fields.md – Natočené stavby) – klíč starých
@@ -544,10 +548,10 @@ export function walkDistancesTo(
 
 /**
  * Verze měření chůze v otisku rozložení – po přidání nové vzdálenosti (voda – `waterWalkM`) nebo
- * rychlosti (stromy u cest – `Road.lined`) se vsi uložené dřív přepočítají hned při dalším dni, ne
- * až při změně rozložení.
+ * rychlosti (stromy u cest – `Road.lined`) a po změně tvaru domů (varianty rozměrů – population.md)
+ * se vsi uložené dřív přepočítají hned při dalším dni, ne až při změně rozložení.
  */
-export const WALK_VERSION = 'road-trees';
+export const WALK_VERSION = 'dwelling-shapes';
 
 /**
  * Vzdálenosti chůze po pěšinách a pevných cestách (mutuje stav – paths.md, roads.md – Rychlejší

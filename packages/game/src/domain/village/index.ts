@@ -74,6 +74,8 @@ export * from './actions';
 export * from './simulate';
 export * from './polygon';
 export * from './placement';
+export * from './dwelling-shape';
+export { withDwellingShapes } from './shape-migration';
 export * from './plots';
 export * from './plot-cells';
 export * from './square-grid';

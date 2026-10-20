@@ -81,6 +81,8 @@ const DETERMINISTIC_LAYER_FILES = [
   'packages/game/src/domain/village/paths/**/*.ts',
   // natočené stavby – mřížky čtverců (fields.md – Natočené stavby) jdou do sítě pěšin
   'packages/game/src/domain/village/square-grid.ts',
+  // varianty rozměrů obydlí (population.md – Varianty rozměrů) – tvar staveb u kurzoru i na serveru
+  'packages/game/src/domain/village/dwelling-shape.ts',
 ];
 
 export default defineConfig(

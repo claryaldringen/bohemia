@@ -905,6 +905,29 @@ export const DWELLING_FOOTPRINT_M: Record<DwellingType, { width: number; depth: 
   dvorec: { width: 6, depth: 9.6 },
 };
 export const DWELLING_MAX_HEIGHT_DIFF_M = 0.5;
+// population.md – Varianty rozměrů (Martin, GitHub #1, 20. 10. 2026: „Udělejme různé kombinace
+// výšky, poměru stěn a plochy. Oproti současnému stavu smí být každý z těchto rozměrů jiný max
+// o 10%.“; podrobnosti návrh Clauda): zemnice, polozemnice a dílny mají každá svou plochu, poměr
+// stěn a výšku – odchylky nejvýš ±10 % proti tvaru z DWELLING_FOOTPRINT_M (dvorec ne, je jen
+// jeden). Dveře a vstupní šíje se schody se nenatahují: pás |x| < doorHalfM zůstává, šíje
+// (od `frontM` dál) se jen posune se štítem. Rozměry sedí s tools/blender/dwellings.py (DOOR)
+// a s jámami ve scéně (PIT_SHAPES.halfZ – kde šíje začíná).
+export const DWELLING_SHAPE = {
+  /** Největší odchylka plochy, poměru stěn i výšky (podíl). */
+  spread: 0.1,
+  /** Polovina šířky dveří a vstupní šíje (m, dwellings.py – DOOR). */
+  doorHalfM: 0.42,
+  /** Kde (z, m od středu k vchodu) začíná vstupní šíje – PIT_SHAPES.halfZ ve scéně. */
+  frontM: { zemnice: 1.98, polozemnice: 2.04, dvorec: 4.14 } as Readonly<
+    Record<DwellingType, number>
+  >,
+  /**
+   * Dům v rohu pozemku (PLOT_HOUSE_OFFSET_M) má k plotu napříč jen ≈ 0,35 m – smí se rozšířit
+   * nejvýš tolikrát (škála šířky půdorysu), jinak by valy a trsy u okapu sahaly do plotu; plocha
+   * se pro takovou variantu zmenší (`dwellingShape`). Hlídá test pozemku ve scéně.
+   */
+  plotCornerMaxWidth: 1.07,
+} as const;
 // population.md – Umístění obydlí (překážky na místě osadníci odstraní), fields.md – Co je
 // překážka (obydlí: kusy na ploše ≈ 10 × 10 m kolem půdorysu). Plocha v souřadnicích modelu
 // (x napříč, z k vchodu, m) – staveniště s hromadou hlíny a střecha předsazená před štíty;

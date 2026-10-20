@@ -56,6 +56,7 @@ export function neighbourSnapshot(
         position: { ...d.position },
         ...(d.plot ? { plot: d.plot } : {}),
         ...(d.workshop ? { craft: d.workshop.craft } : {}),
+        ...(d.plainShape ? { plainShape: true as const } : {}),
       });
       if (d.plot) addPlot(d.plot);
     }
@@ -71,6 +72,7 @@ export function neighbourSnapshot(
         position: { ...c.position },
         ...(c.plot ? { plot: c.plot } : {}),
         ...(c.craft ? { craft: c.craft } : {}),
+        ...(c.plainShape ? { plainShape: true as const } : {}),
       });
       if (c.plot) addPlot(c.plot);
     }

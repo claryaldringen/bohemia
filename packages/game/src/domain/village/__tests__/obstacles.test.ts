@@ -396,7 +396,8 @@ describe('hřbitov – překážky na čtvercích jako u pole', () => {
     // bez hřbitova by obydlí strom na čtverci platilo
     const alone = checkDwellingPlacement(landscape, village(), 'zemnice', aside, layer);
     expect(alone.obstacleIds).toContain(100);
-    const facing = checkDwellingPlacement(landscape, withCemetery, 'zemnice', at(3, -2), layer);
+    // půdorys (i větší varianty – population.md, Varianty rozměrů) končí před hřbitovem
+    const facing = checkDwellingPlacement(landscape, withCemetery, 'zemnice', at(3, -2.5), layer);
     expect(facing.reason).toBe('Vchod by vedl do hřbitova.');
   });
 });

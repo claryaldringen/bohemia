@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { packObstacles, type ObstacleLayer, type ObstaclePlacement } from '../../landscape';
 import { foundField, foundVillage, startWorkshop } from '../actions';
+import { PLAIN_SHAPE } from '../dwelling-shape';
 import { BUILD_COSTS } from '../costs';
 import {
   craftCoverage,
@@ -504,7 +505,7 @@ describe('umístění dílny (crafts.md – Budovy)', () => {
     expect(checkDwellingPlacement(water, null, 'zemnice', HOUSE, empty).ok).toBe(true);
     expect(checkWorkshopPlacement(water, null, 'smith', HOUSE, empty).ok).toBe(true);
     expect(checkWorkshopPlacement(water, null, 'burner', HOUSE, empty).ok).toBe(true);
-    expect(workshopFootprints('burner', HOUSE)).toHaveLength(1);
+    expect(workshopFootprints('burner', HOUSE, PLAIN_SHAPE)).toHaveLength(1);
   });
 
   it('jiné obydlí se nesmí překrývat s milířem – milíř je samostatná stavba', () => {

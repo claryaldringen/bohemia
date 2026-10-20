@@ -139,6 +139,12 @@ export interface Dwelling {
    * prázdná dílna nic nevyrábí. Obyčejné obydlí ji nemá.
    */
   workshop?: Workshop;
+  /**
+   * Dnešní tvar bez varianty rozměrů (population.md – Varianty rozměrů): stavba ve vsi uložené
+   * před variantami, které by větší varianta zasáhla jinou stavbu (`withDwellingShapes`). Jinak
+   * chybí – tvar je varianta podle polohy (`dwellingShape`).
+   */
+  plainShape?: true;
 }
 /** Řemeslo dílny (crafts.md): hrnčíř, kovář, uhlíř, tesař (wagons.md – Tesař). */
 export type Craft = 'potter' | 'smith' | 'burner' | 'carpenter';
@@ -911,6 +917,8 @@ export interface Construction {
   forestDistanceM?: number;
   /** Nová řemeslná dílna (crafts.md) – obydlí po dostavění převezme řemeslo; jinak chybí. */
   craft?: Craft;
+  /** Rozestavěné obydlí s dnešním tvarem (jako `Dwelling.plainShape`) – obydlí ho převezme. */
+  plainShape?: true;
   /** Nová dílna: vzdálenost k potoku (m) – dílna ji po dostavění převezme. */
   waterDistanceM?: number;
   /**
@@ -1676,6 +1684,11 @@ export interface VillageState {
   emigrants?: Emigrant[];
   plotsMigrated?: true;
   /**
+   * Stavby uložené před variantami rozměrů (population.md – Varianty rozměrů) prošly kontrolou,
+   * jestli se do své varianty vejdou (`withDwellingShapes`) – nové vsi ho mají od založení.
+   */
+  shapesChecked?: true;
+  /**
    * Otisk rozložení vsi (`walkLayoutKey` se stadii `walkStages`), pro které se naposledy spočítaly
    * vzdálenosti chůze po pěšinách (`FieldPart.walkDistanceM`…). Chybí, dokud se nespočítaly
    * (starší vsi, simulace bez krajiny); klíč z doby před měsíčními stadii se jednou přepočítá.
@@ -1779,7 +1792,13 @@ export interface VillageJourney {
  * překážky krajiny už odstranily, pokácely nebo si vyhradily.
  */
 export interface NeighbourSnapshot {
-  dwellings: { type: DwellingType; position: Position; plot?: DwellingPlot; craft?: Craft }[];
+  dwellings: {
+    type: DwellingType;
+    position: Position;
+    plot?: DwellingPlot;
+    craft?: Craft;
+    plainShape?: true;
+  }[];
   sacredBuildings: { kind: SacredBuildingKind; position: Position }[];
   /** Políčka krajiny, která zabírají (v mřížce krajiny). */
   cells: TileCell[];
@@ -2277,6 +2296,8 @@ export interface DwellingRuin {
   position: Position;
   plot?: DwellingPlot;
   craft?: Craft;
+  /** Zaniklé obydlí mělo dnešní tvar (`Dwelling.plainShape`) – jáma také. */
+  plainShape?: true;
   /** Den zániku obydlí – od něj jáma zarůstá. */
   day: number;
 }

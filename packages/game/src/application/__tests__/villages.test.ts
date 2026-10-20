@@ -27,7 +27,11 @@ import {
   type Position,
   type VillageState,
 } from '../../domain/village';
-import { block, makeLandscape } from '../../domain/village/__tests__/placement-fixtures';
+import {
+  block,
+  clearingRect,
+  makeLandscape,
+} from '../../domain/village/__tests__/placement-fixtures';
 import { withBuiltFirstDwelling } from '../../domain/village/__tests__/village-fixtures';
 import { foundVillageForSettlement, type FoundVillageInput } from '../found-village';
 import { loadVillage } from '../load-village';
@@ -415,9 +419,10 @@ describe('placeDwelling', () => {
     if (!result.ok) return;
     const area = (x: number, y: number): number | undefined =>
       result.village.state.parts.find((p) => p.cell?.x === x && p.cell.y === y)?.areaM2;
-    // každý díl přijde o půlku vyklízené plochy: 4,8 × 11,9 m
-    expect(area(7, 7)).toBeCloseTo(225 - 4.8 * 11.9, 6);
-    expect(area(8, 7)).toBeCloseTo(225 - 4.8 * 11.9, 6);
+    // každý díl přijde o půlku vyklízené plochy: ≈ 4,8 × 11,9 m (s variantou rozměrů podle polohy)
+    const r = clearingRect('zemnice', position);
+    expect(area(7, 7)).toBeCloseTo(225 - -r.minX * r.depth, 6);
+    expect(area(8, 7)).toBeCloseTo(225 - r.maxX * r.depth, 6);
     expect(area(6, 7)).toBe(225);
   });
 

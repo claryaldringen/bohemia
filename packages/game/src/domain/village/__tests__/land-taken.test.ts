@@ -32,7 +32,7 @@ import {
   planPartIds,
   tilledShare,
 } from '../year-plan';
-import { block, makeLandscape } from './placement-fixtures';
+import { block, clearingRect, makeLandscape } from './placement-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
 // Obydlí na poli a v sadu (population.md; Martin, 18. 10. 2026: „domy by měly jít stavět na
@@ -448,9 +448,13 @@ describe('kontrola umístění – obydlí na poli a v sadu', () => {
     );
     expect(check.ok).toBe(true);
     expect(check.warning).toBe('Pole se zmenší');
-    // vyklízená plocha x 10,2 … 19,8, z −1,4 … 10,5 – v každém dílu 4,8 × 10,5 m
+    // vyklízená plocha ≈ x 10,2 … 19,8, z −1,4 … 10,5 (s variantou rozměrů podle polohy) – v každém
+    // dílu ≈ 4,8 × 10,5 m
+    const r = clearingRect('zemnice', { x: 15, z: 3 });
+    const depth = Math.min(15, r.maxZ) - Math.max(0, r.minZ);
     expect(check.takenLand.map((t) => t.cell)).toEqual(block(8, 8, 2, 1));
-    for (const t of check.takenLand) expect(t.areaM2).toBeCloseTo(4.8 * 10.5, 9);
+    expect(check.takenLand[0]!.areaM2).toBeCloseTo((15 - r.minX) * depth, 9);
+    expect(check.takenLand[1]!.areaM2).toBeCloseTo((r.maxX - 15) * depth, 9);
     expect(check.obstacleIds).toEqual([2]);
   });
 
