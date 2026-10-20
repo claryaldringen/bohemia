@@ -433,7 +433,9 @@ export interface OxenGoal {
  * a počítá s telaty ve výcviku a voly mimo posledních 2 let služby (`lastingOxen`); do výcviku jde
  * tolik telat, kolik chybí, kolik se jich vejde do hotových ohrad volů, kolik jich je ve stádu krav
  * nad chovnými kravami (`goal.breedingCows` – telata jen z přírůstku, stádo pod cíl neklesne; jinak
- * výcvik počká na mláďata 1. 4.) a v zimě kolik jich seno uživí do konce března. Rádlo se vyrobí,
+ * výcvik počká na mláďata 1. 4.) a v zimě kolik jich seno uživí do konce března. Výjimka: náhrada
+ * posledního páru k orbě (ves orá, pár dosluhuje a jiný nemá ani necvičí) vezme telata, dokud zůstane
+ * chovný pár krav (LIVESTOCK.breedingMin) – ať ves po dosloužení páru neorá motykou. Rádlo se vyrobí,
  * jen když s novými voly vznikne pár k orbě, na který rádlo chybí (`goal.ploughPairs`); na rádlo
  * musí být dřevo.
  */
@@ -452,7 +454,16 @@ export function oxenTraining(
   const room = oxPlaces(state) - villageOxen(state);
   if (room <= 0) return 'Ohrada volů je plná.';
   const cows = state.livestock?.herds.cow ?? 0;
-  const calves = Math.floor(cows - goal.breedingCows + EPSILON);
+  // telata jen z přírůstku nad chovnými kravami; náhrada posledního páru k orbě (pár dosluhuje,
+  // jiný ves nemá ani necvičí) má přednost – telata se pro ni vezmou, dokud zůstane chovný pár
+  // krav (koordinátor za Martina 20. 10. 2026 – ať ves neorá motykou)
+  const lasting = lastingOxen(state, day);
+  const lastPair = goal.ploughPairs > 0 && ableTeams(state, day) > 0 && lasting < DRAFT_OXEN.ard;
+  const spare = Math.floor(cows - goal.breedingCows + EPSILON);
+  const urgent = lastPair
+    ? Math.min(DRAFT_OXEN.ard - lasting, Math.floor(cows - LIVESTOCK.breedingMin + EPSILON))
+    : 0;
+  const calves = Math.max(spare, urgent);
   if (calves <= 0) return 'Na výcvik chybí telata – krávy nemají přírůstek nad chovné stádo.';
   let n = Math.min(missing, room, calves);
   const winterDays = hayWinterDaysLeft(day);

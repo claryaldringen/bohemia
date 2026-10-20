@@ -73,14 +73,18 @@ export function breedingCows(state: VillageState): number {
   );
 }
 
+/** Na jak dlouho dopředu (dní) ves při porážce myslí na telata do výcviku – do dalších mláďat. */
+const CALVES_AHEAD_DAYS = 365;
+
 /**
  * Telata, která ves potřebuje do výcviku volů (oxen.md – Voli po kusech): kolik volů chce v místech
- * ohrad (`oxenTrainingTarget`) bez těch, se kterými už počítá (`lastingOxen` – telata ve výcviku
- * a voli mimo posledních 2 let služby). Ves si na ně přes zimu nechá tolik krav navíc nad chovné
- * stádo (`farmInput` – `minCows`), aby na jaře z přírůstku byla (diet.md – Krávy na obměnu volů).
+ * ohrad (`oxenTrainingTarget`) bez těch, se kterými počítá i za rok (`lastingOxen` – telata ve
+ * výcviku a voli mimo posledních 2 let služby; náhrada, která přijde na řadu do dalších mláďat, se
+ * počítá už teď). Ves si na ně přes zimu nechá tolik krav navíc nad chovné stádo (`farmInput` –
+ * `minCows`), aby na jaře z přírůstku byla a výcvik začal včas (diet.md – Krávy na obměnu volů).
  */
 export function oxenCalvesWanted(state: VillageState, day: number): number {
-  return Math.max(0, oxenTrainingTarget(state) - lastingOxen(state, day));
+  return Math.max(0, oxenTrainingTarget(state) - lastingOxen(state, day + CALVES_AHEAD_DAYS));
 }
 
 /**

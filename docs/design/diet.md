@@ -214,10 +214,12 @@ a potah; „Ano, udělej to jak říkáš“). Návrh Clauda:
 - **Telata na voly jen z přírůstku nad chovnými kravami** (koordinátor za Martina 20. 10. 2026 –
   dřív aspoň jedna kráva zůstala a Vlkov klesl na 1,2 krávy z cíle 4): výcvik vezme jen tolik
   telat, kolik je krav nad cílem `breedingCows`; jinak počká na mláďata 1. 4. Voli se cvičí i po
-  jednom (dvoukolák táhne jeden vůl).
-- **Krávy navíc na telata** (rozhodnutí Clauda): když ves telata do výcviku potřebuje (voli, kteří
-  jí chybí do cíle – `oxenCalvesWanted`), nechá si při porážce 1. 11. tolik krav navíc nad chovné
-  stádo (`minCows` plánu stáda), aby na jaře z přírůstku byla.
+  jednom (dvoukolák táhne jeden vůl). Výjimka: náhrada posledního páru k orbě vezme telata, dokud
+  zůstane chovný pár krav ([orba](oxen.md) – Náhrada posledního páru má přednost).
+- **Krávy navíc na telata** (rozhodnutí Clauda): když ves telata do výcviku potřebuje nebo bude
+  potřebovat do dalších mláďat (voli, kteří jí za rok budou chybět do cíle – `oxenCalvesWanted`),
+  nechá si při porážce 1. 11. tolik krav navíc nad chovné stádo (`minCows` plánu stáda), aby na
+  jaře z přírůstku byla.
 - **Prasata jen na maso**, v lese celý rok – bez sena a zimního krmení; nosnost dál určuje les
   (1 ha na prase) a pasáci.
 - **Pořadí, v jakém si stáda berou pastvu a seno:** voli (orají), krávy na mléko a voly, ovce,
