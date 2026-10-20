@@ -1,4 +1,10 @@
-import type { Landscape, ObstacleLayerSeed, Promontory, StreamPoint } from '@bohemia/game';
+import type {
+  Landscape,
+  ObstacleLayerSeed,
+  PremiumType,
+  Promontory,
+  StreamPoint,
+} from '@bohemia/game';
 
 /** Čísel na bod osy potoka: x, y, levá a pravá poloviční šířka, hladina, mělčina (0/1). */
 const STREAM_FIELDS = 6;
@@ -30,6 +36,11 @@ export interface LandscapeTransfer {
   banks?: string;
   /** Ostrožny (terén 2); u terénu 1 chybí. */
   promontories?: readonly Promontory[];
+  /**
+   * Prémiový typ krajiny; u průměrné krajiny chybí. Prvky typu (`premiumFeaturesOf`) si prohlížeč
+   * spočítá sám jako vrstvu překážek – z typu a krajiny s přesností přenosu.
+   */
+  premium?: PremiumType;
 }
 
 export function encodeLandscape(l: Landscape): LandscapeTransfer {
@@ -48,6 +59,7 @@ export function encodeLandscape(l: Landscape): LandscapeTransfer {
       ? { banks: bytesToBase64(encodeBanks(l.stream)) }
       : {}),
     ...(l.promontories ? { promontories: l.promontories } : {}),
+    ...(l.premium !== undefined ? { premium: l.premium } : {}),
   };
 }
 
@@ -79,6 +91,7 @@ function decode(t: LandscapeTransfer): Landscape {
     stream: t.banks ? withBanks(stream, base64ToBytes(t.banks)) : stream,
     obstacleLayer: t.obstacleLayer,
     ...(t.promontories ? { promontories: t.promontories } : {}),
+    ...(t.premium !== undefined ? { premium: t.premium } : {}),
   };
 }
 

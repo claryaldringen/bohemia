@@ -46,6 +46,14 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
   a vlastní verzí: **terén a voda → vegetace → úrodnost**, později bonusové vrstvy (černozem,
   naleziště, stezky, řeky). Díky tomu půjde po spuštění přidat novou vrstvu i do existujících
   krajin, aniž by se jim změnil terén.
+- **Prémiový průchod** ([premium-landscapes.md](premium-landscapes.md) – Generátor): typ prémie
+  lidského hráče je třetí vstup generátoru vedle seedu a verzí vrstev. Průchod typu upraví vrstvy
+  průměrné krajiny vlastním seedem (náhoda vrstev se nepřelosuje) a prvky typu (naleziště, brod,
+  průsmyk…) se z hotové krajiny počítají stejně na serveru i v prohlížeči. Verze průchodu se
+  ukládá ve verzích vrstev (`premium`, chybí = 1 – návrh Clauda); krajina bez typu se nemění.
+  Pásmo platí i pro prémiovou krajinu a navíc kontrola typu: prvek existuje a jeho obrys ani
+  osa nezasahují do 120 m od místa pro vesnici, stezka smí vést k okraji tohoto okruhu (návrh
+  Clauda).
 - **Verze vrstev:** do ostrého spuštění se generátor smí měnit libovolně (krajiny se prostě
   vygenerují znovu jinak). Po spuštění nesmí změna existující vrstvy přepsat stávající krajiny –
   u sídla se ukládají verze vrstev (např. `{ terrain: 1, vegetation: 1, fertility: 1 }`) a nová

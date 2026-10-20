@@ -155,6 +155,21 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   `generateLandscapeAttempt` bez kontroly pásma. Změna pásma (`band.ts`) proto platí jen pro nová
   sídla. **Po ostrém spuštění** se existující vrstva nesmí změnit (přepsala by krajiny hráčů) –
   nová verze vrstvy, nebo nová vrstva.
+- **Prémiové krajiny** ([premium-landscapes.md](docs/design/premium-landscapes.md)): typ prémie
+  (`PremiumType`, katalog `premium/catalog.ts`) je třetí vstup generátoru –
+  `generateLandscapeAttempt(seed, versions, premium?)` a
+  `generateAcceptedLandscape(seed, versions?, premium?)`; bez typu bit po bitu jako dřív (zlaté
+  otisky i s třetím parametrem `undefined`). Průchod typu (`PremiumPass` v `premium/generate.ts` – úpravy terénu, vegetace
+  a úrodnosti s vlastním seedem `deriveSeed(seed, 'premium')` a hledání prvků `sites`) se
+  zapisuje do `PREMIUM_PASSES`; typ bez průchodu nemá prvky a pásmem neprojde. Verze průchodu
+  `LayerVersions.premium` (`PREMIUM_LAYER_VERSION` = 1, chybí = 1), krajina nese
+  `Landscape.premium`. Prvky `premiumFeaturesOf(landscape)` – čistá funkce krajiny s přesností
+  prohlížeče, mezipaměť podle objektu jako `obstaclesOf`; složka `premium/` je v deterministické
+  vrstvě (ESLint). Kontrola typu `checkPremium` (prvek existuje, obrys ani osa nezasahuje do
+  120 m od místa vsi – `PREMIUM_VILLAGE_CLEARANCE_M`, stezka smí k okraji) je součástí
+  `checkBand` – počítá se až u pokusu, který jinak prošel, selhání `premium-<důvod>`. Přenos do
+  prohlížeče nese typ (`LandscapeTransfer.premium`). Test pásma po typech
+  (`premium/__tests__/generate.test.ts`, 300 seedů, ≥ 95 %) se typu zapne sám, až má průchod.
 - **Use-case** `enterGame` (sídelní sídlo hráče, atomicky přes unikátní index); ve webu
   `enterGameForPlayer` v `lib/game.ts`. Restart hry (`restartGame`, viz Ves – Hlad a vymření)
   sídla archivuje (`settlement.archived_at`, `is_seat` false) – port vrací jen aktivní sídla. Krajinu generuje server, do prohlížeče jde zakódovaná

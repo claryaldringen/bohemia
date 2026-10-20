@@ -1,3 +1,5 @@
+import type { PremiumType } from './premium/types';
+
 export const LANDSCAPE_SIZE = 128;
 export const CELL_SIZE_M = 15;
 
@@ -22,6 +24,11 @@ export interface LayerVersions {
    */
   /** 2 = navíc suť a skály na skalních stěnách u potoka (s terénem 2, 20. 10. 2026). */
   obstacles?: 1 | 2;
+  /**
+   * Prémiový průchod (premium-landscapes.md – Generátor) – platí jen pro krajinu s prémiovým
+   * typem, chybí = 1. Průměrná krajina (bez typu) ho nemá a nic se jí nemění.
+   */
+  premium?: 1;
 }
 /** Verze vrstev pro nová sídla. */
 export const CURRENT_LAYER_VERSIONS: LayerVersions = {
@@ -119,6 +126,12 @@ export interface Landscape {
   readonly obstacleLayer: ObstacleLayerSeed | null;
   /** Ostrožny (terén 2, může být prázdné); chybí u krajin terénu 1. */
   readonly promontories?: readonly Promontory[];
+  /**
+   * Prémiový typ krajiny lidského hráče (premium-landscapes.md); chybí = průměrná krajina.
+   * Jde přenosem i do prohlížeče – prvky typu (`premiumFeaturesOf`) i vrstva překážek krajiny
+   * s typem tak vyjdou na obou stranách stejně.
+   */
+  readonly premium?: PremiumType;
 }
 
 /** Ostrožny krajiny – u krajin bez nich (terén 1) prázdný seznam. */

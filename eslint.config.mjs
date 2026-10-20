@@ -77,6 +77,8 @@ const DETERMINISTIC_LAYER_FILES = [
   'packages/game/src/domain/landscape/det-math.ts',
   'packages/game/src/domain/landscape/quantize.ts',
   'packages/game/src/domain/landscape/world.ts',
+  // prémiové krajiny – průchody generátoru a prvky typu, které hledá server i prohlížeč
+  'packages/game/src/domain/landscape/premium/**/*.ts',
   // vyšlapané pěšiny – síť počítá server (vzdálenost chůze na pole) i prohlížeč (vzhled)
   'packages/game/src/domain/village/paths/**/*.ts',
   // natočené stavby – mřížky čtverců (fields.md – Natočené stavby) jdou do sítě pěšin

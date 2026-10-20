@@ -1,4 +1,5 @@
 import { distanceToMask, maxStep } from './grid';
+import { checkPremium } from './premium/check';
 import { SURFACE_CODES, type Landscape, type LayerVersions } from './types';
 
 // Pásmo srovnatelnosti startovních krajin (docs/design/landscape.md).
@@ -117,7 +118,11 @@ export function measureLandscape(l: Landscape): LandscapeMetrics {
   };
 }
 
-/** Padne krajina do pásma srovnatelnosti verzí, ze kterých vznikla? */
+/**
+ * Padne krajina do pásma srovnatelnosti verzí, ze kterých vznikla? Prémiová krajina musí navíc
+ * projít kontrolou svého typu (`checkPremium`, premium-landscapes.md – Generátor) – ta se
+ * počítá až u pokusu, který jinak pásmem prošel (hledání prvků může být drahé).
+ */
 export function checkBand(
   l: Landscape,
   versions: LayerVersions,
@@ -135,6 +140,10 @@ export function checkBand(
     !within(m.nearMeadowCells, band.nearMeadowCells) && 'near-meadow',
     !within(m.nearGoodMeadowCells, band.nearGoodMeadowCells) && 'near-good-meadow',
   ].filter((failure): failure is string => failure !== false);
+  if (failures.length === 0) {
+    const premium = checkPremium(l);
+    if (!premium.ok) failures.push(`premium-${premium.reason}`);
+  }
   return { ok: failures.length === 0, failures };
 }
 

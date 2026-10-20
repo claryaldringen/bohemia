@@ -1,9 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import {
+  CURRENT_LAYER_VERSIONS,
   generateLandscape,
+  generateLandscapeAttempt,
   generateObstacles,
   INITIAL_LAYER_VERSIONS,
   OBSTACLE_SOURCES,
+  obstaclesOf,
+  premiumFeaturesOf,
   promontoriesOf,
   transferPrecision,
   type ObstacleLayer,
@@ -111,5 +115,34 @@ describe('přenos krajiny se skalami u potoka (terén 2)', () => {
     const decoded = decodeLandscape(transfer);
     expect(decoded.stream.every((p) => !('bankLeft' in p))).toBe(true);
     expect('promontories' in decoded).toBe(false);
+  });
+});
+
+describe('přenos prémiové krajiny', () => {
+  // Pokus bez kontroly pásma – typ ještě nemusí mít průchod (pak je krajina průměrná a bez prvků).
+  const premium = generateLandscapeAttempt(42, CURRENT_LAYER_VERSIONS, 'mountain-pass');
+
+  it('přenos nese prémiový typ', () => {
+    const transfer = encodeLandscape(premium);
+    expect(transfer.premium).toBe('mountain-pass');
+    expect(decodeLandscape(transfer).premium).toBe('mountain-pass');
+  });
+
+  it('prohlížeč dostane stejnou prémiovou krajinu – prvky typu i vrstvu překážek', () => {
+    const decoded = decodeLandscape(encodeLandscape(premium));
+    expect(premiumFeaturesOf(decoded)).toEqual(premiumFeaturesOf(premium));
+    const server = obstaclesOf(premium);
+    const browser = obstaclesOf(decoded);
+    expect(browser.count).toBe(server.count);
+    for (const key of ['id', 'x', 'z', 'kind', 'look', 'rotation', 'scale', 'impostor'] as const) {
+      expect(browser[key]).toEqual(server[key]);
+    }
+  });
+
+  it('průměrná krajina jde přenosem bez typu', () => {
+    const transfer = encodeLandscape(generateLandscape(42));
+    expect('premium' in transfer).toBe(false);
+    expect('premium' in decodeLandscape(transfer)).toBe(false);
+    expect(premiumFeaturesOf(decodeLandscape(transfer))).toBeNull();
   });
 });
