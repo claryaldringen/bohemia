@@ -6,6 +6,7 @@ import {
   obstacleChangesAt,
   startRoadApples,
   startRoadUpgrade,
+  startThreshingFloor,
   checkDwellingPlacement,
   checkPlotPlacement,
   checkSacredBuildingPlacement,
@@ -217,6 +218,28 @@ describe('buildVillageView – zarůstání (fields.md)', () => {
   });
 });
 
+describe('humno (production-chains.md – Humno)', () => {
+  it('scéna zná humno i rozestavěné, nabídka staveb ho má, kontrola umístění ho zná', () => {
+    const s = state();
+    // dřevo na humno a ještě na další (nabídka staveb)
+    s.woodLogs = 20;
+    const position = { x: 60, z: -60, rotation: 0.25 };
+    const started = startThreshingFloor(s, DAY, position, null);
+    const view = buildVillageView(record(started), landscape, DAY);
+    const id = started.threshingFloors![0]!.id;
+    expect(view.scene.threshingFloors).toEqual([{ id, position, built: false, progress: 0 }]);
+    expect(view.build['threshing-floor']).toMatchObject({ laborManDays: 75, affordable: true });
+    expect(view.constructions.at(-1)).toMatchObject({ kind: 'threshing-floor', label: 'Humno' });
+    expect(placementVillageFromScene(view.scene).threshingFloors).toEqual([{ position }]);
+    const built = advanceVillage(started, DAY + 400, null);
+    const later = buildVillageView(record(built), landscape, DAY + 400);
+    expect(later.scene.threshingFloors).toEqual([{ id, position, built: true, progress: 1 }]);
+    expect(
+      later.chronicle.some((e) => e.text === 'Humno je dostavěné – dá se na něm mlátit.'),
+    ).toBe(true);
+  });
+});
+
 describe('buildVillageView', () => {
   it('pole: oseté díly podle plodiny – ozim, jař (díl bez plodiny je jař)', () => {
     const s = settled();
@@ -330,6 +353,15 @@ describe('buildVillageView', () => {
       // ohrada s přístřeškem (oxen.md) – 40 čd a 6 stromů předem, osadníci ne
       pen: {
         laborManDays: 40,
+        perHa: false,
+        perSquare: false,
+        upfront: [{ resource: 'wood', amount: 6, missing: 6 }],
+        blocked: null,
+        affordable: false,
+      },
+      // humno (production-chains.md – Humno) – 75 čd a 6 stromů předem, osadníci ne
+      'threshing-floor': {
+        laborManDays: 75,
         perHa: false,
         perSquare: false,
         upfront: [{ resource: 'wood', amount: 6, missing: 6 }],

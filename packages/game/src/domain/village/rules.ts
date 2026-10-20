@@ -1190,6 +1190,19 @@ export const SACRED_BUILDINGS = {
   },
 } as const;
 
+// production-chains.md – Humno (stavba hráče; čísla návrh Clauda podle rešerše
+// research/2026-10-20-production-chains.md – Humno): udusaná a vymazaná mlatová plocha 8 × 10 m
+// s lehkým přístřeškem vzadu; 75 člověkodní i s kácením blízkého lesa jako cena obydlí (samotná
+// stavba laborManDays − trees × FELLING_MAN_DAYS_PER_TREE), 6 stromů dřeva předem, rozdíl výšek
+// pod plochou nejvýš 1 m (mlat se při stavbě srovná). Osa x = šířka, z = délka (natočení jako
+// obydlí – `Position.rotation`).
+export const HUMNO = {
+  sizeM: { x: 8, z: 10 },
+  laborManDays: 75,
+  trees: 6,
+  maxHeightDiffM: 1,
+} as const;
+
 // crafts.md – Budovy (Martin; +30 % návrh Clauda): dílna je obydlí – hrnčíř a kovář stojí na
 // polozemnici, uhlíř na zemnici – a stojí jako základní obydlí + 30 % práce i dřeva za pec nebo
 // výheň. Uhlíř stojí jako zemnice (crafts.md – Milíř u skácených buků, návrh Clauda 20. 10. 2026):

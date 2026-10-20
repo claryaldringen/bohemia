@@ -100,6 +100,7 @@ export * from './costs';
 export * from './wood';
 export * from './sacred';
 export * from './sacred-life';
+export * from './threshing-floors';
 export * from './happiness';
 export * from './crafts';
 // kování vozů (wagons.md – Kování vozů) – krok dne volá simulate.ts

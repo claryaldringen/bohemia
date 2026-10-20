@@ -14,6 +14,7 @@ import {
   checkSacredBuildingPlacement,
   checkWorkshopPlacement,
   DWELLING_TREES,
+  HUMNO,
   dwellingBuildLabor,
   fellingCost,
   isOak,
@@ -41,6 +42,7 @@ import { placeField } from '../place-field';
 import { placeOrchard } from '../place-orchard';
 import { UNKNOWN_CRAFT, placeWorkshop } from '../place-workshop';
 import { placeSacredBuilding, SHRINE_EXISTS } from '../place-sacred';
+import { placeThreshingFloor } from '../place-threshing-floor';
 import { renameVillage } from '../rename-village';
 import type { SeedSource } from '../settlements';
 import { InMemoryVillages } from './in-memory-villages';
@@ -487,6 +489,43 @@ describe('placeWorkshop', () => {
     const site = result.village.state.constructions.find((c) => c.craft === 'burner');
     expect(site).toMatchObject({ kind: 'dwelling', dwellingType: 'zemnice', dwellingId: null });
     expect(site?.waterDistanceM).toBeGreaterThan(100);
+  });
+});
+
+describe('placeThreshingFloor', () => {
+  it('humno: dřevo předem, server ověří místo, díly pole pod ním se zmenší', async () => {
+    const villages = await foundedVillages();
+    const deps = { villages };
+    const base = { villageId: VID, landscape, today: TODAY + 1 };
+    // ruční krajina nemá stromy – bez klád na hromadě dřevo není
+    expect(await placeThreshingFloor(deps, { ...base, position: at(-80, 40) })).toEqual({
+      ok: false,
+      reason: NO_WOOD,
+    });
+    villages.edit(VID, (s) => {
+      s.woodLogs = 20;
+    });
+    expect(await placeThreshingFloor(deps, { ...base, position: at(112, 0) })).toEqual({
+      ok: false,
+      reason: 'Humno nemůže stát ve vodě.',
+    });
+    // na prvním poli (−30 … 30 m): humno x −4 … 4, z 2,5 … 12,5 – po 40 m² ze dvou dílů
+    const position = at(0, 7.5);
+    const result = await placeThreshingFloor(deps, { ...base, position });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const state = result.village.state;
+    const c = state.constructions.at(-1)!;
+    expect(c).toMatchObject({ kind: 'threshing-floor', position });
+    expect(c.wood).toMatchObject({ trees: HUMNO.trees, fromPile: HUMNO.trees, fell: [] });
+    expect(state.threshingFloors).toEqual([{ id: c.id, position, builtDay: null }]);
+    expect(state.woodLogs).toBeLessThanOrEqual(20 - HUMNO.trees);
+    expect(state.parts.reduce((sum, p) => sum + p.areaM2, 0)).toBeCloseTo(16 * 225 - 80, 6);
+    // druhé humno přes první nejde
+    expect(await placeThreshingFloor(deps, { ...base, position: at(2, 9) })).toEqual({
+      ok: false,
+      reason: 'Překrývá se s humnem.',
+    });
   });
 });
 

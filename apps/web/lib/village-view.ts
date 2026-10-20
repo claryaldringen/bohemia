@@ -967,6 +967,15 @@ export function sceneMound(m: GraveMound, day: number): SceneGraveMound {
   };
 }
 
+/** Humno pro scénu (production-chains.md – Humno). */
+export interface SceneThreshingFloor {
+  id: number;
+  position: Position;
+  built: boolean;
+  /** Průběh stavby 0–1 (hotové 1). */
+  progress: number;
+}
+
 export interface SceneVillage {
   /**
    * Hotová obydlí (`built: true`, id obydlí) i rozestavěná (`built: false`, id stavby); řemeslná
@@ -1147,6 +1156,12 @@ export interface SceneVillage {
   labor?: SceneLabor;
   /** Posvátná místa (happiness.md) – bez údaje žádná. */
   sacred?: SceneSacred;
+  /**
+   * Humna i rozestavěná (production-chains.md – Humno) – id (= id stavby), střed s natočením
+   * a průběh stavby 0–1 (`built` = hotové). Kontrola umístění v prohlížeči podle nich zná půdorys
+   * humna; kreslí je scéna humna. Bez údaje žádná.
+   */
+  threshingFloors?: SceneThreshingFloor[];
   /**
    * Pokrytí nástroji 0–1 (crafts.md) – kontrola umístění pole v prohlížeči podle něj počítá cenu
    * založení jako server. Bez údaje 0.
@@ -1741,6 +1756,7 @@ function finishedText(kind: ConstructionKind, craft?: Craft, wagon?: boolean): s
   if (kind === 'ard') return 'Vesničané vyrobili rádlo.';
   if (kind === 'road') return 'Cesta je vylepšená – chodí se po ní rychleji.';
   if (kind === 'road-apples') return 'Jabloně podél cesty jsou vysazené.';
+  if (kind === 'threshing-floor') return 'Humno je dostavěné – dá se na něm mlátit.';
   return 'Pole je založené – dá se osévat.';
 }
 
@@ -1756,6 +1772,7 @@ const LAND_TAKERS: Record<LandTaker, string> = {
   'road-apples': 'jabloním u cesty',
   'road-trees': 'stromům u cesty',
   road: 'cestě',
+  'threshing-floor': 'humnu',
 };
 
 function landTakenText(
@@ -2052,6 +2069,7 @@ function constructionLabel(c: ConstructionSummary): string {
   if (c.kind === 'road' && c.wagon) return 'Vozová cesta';
   if (c.kind === 'road') return c.roadGrade === 'causeway' ? 'Hať a lávka' : 'Úprava cesty';
   if (c.kind === 'road-apples') return 'Jabloně u cesty';
+  if (c.kind === 'threshing-floor') return 'Humno';
   if (c.kind === 'repair') return `Oprava – ${REPAIR_NAMES[c.repair?.structure ?? 'idol']}`;
   const type = c.dwellingType ?? 'zemnice';
   if (c.kind === 'rebuild') return `Přestavba na ${DWELLING_NAMES[type].accusative}`;
@@ -2204,6 +2222,7 @@ function sceneVillage(
   });
   const penned = pens.reduce((sum, pen) => sum + pen.cows, 0);
   const herds = summary.livestock.herds;
+  const threshingFloors = sceneThreshingFloors(state, constructions);
   return {
     dwellings: [...built, ...sites],
     ...(ruins.length > 0 ? { ruins } : {}),
@@ -2219,6 +2238,7 @@ function sceneVillage(
     woodLogs: wholeLogs(state.woodLogs ?? 0),
     ...(labor ? { labor } : {}),
     ...(sacred ? { sacred } : {}),
+    ...(threshingFloors.length > 0 ? { threshingFloors } : {}),
     livestock: { ...herds, cow: Math.max(0, herds.cow - penned) },
     ...(hayMeadows.length > 0 ? { hayMeadows } : {}),
     ...(pens.length > 0 ? { pens } : {}),
@@ -2239,6 +2259,22 @@ function sceneVillage(
       ? { home: { x: Math.round(home.x * 100) / 100, z: Math.round(home.z * 100) / 100 } }
       : {}),
   };
+}
+
+/** Humna pro scénu (production-chains.md – Humno) – rozestavěná s průběhem stavby. */
+function sceneThreshingFloors(
+  state: VillageState,
+  constructions: readonly ConstructionSummary[],
+): SceneThreshingFloor[] {
+  return (state.threshingFloors ?? []).map((f) => {
+    const built = f.builtDay !== null;
+    return {
+      id: f.id,
+      position: f.position,
+      built,
+      progress: built ? 1 : (constructions.find((c) => c.id === f.id)?.buildProgress ?? 0),
+    };
+  });
 }
 
 /**
@@ -4023,6 +4059,10 @@ function scenePlacementVillage(scene: SceneVillage): PlacementVillage {
             position: b.position,
           })),
         }
+      : {}),
+    // humna i rozestavěná – zabírají půdorys (production-chains.md – Humno)
+    ...(scene.threshingFloors
+      ? { threshingFloors: scene.threshingFloors.map((f) => ({ position: f.position })) }
       : {}),
     ...(scene.toolCoverage ? { toolCoverage: scene.toolCoverage } : {}),
     ...(scene.ploughTeam ? { ploughTeam: true } : {}),

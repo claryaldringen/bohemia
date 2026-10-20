@@ -14,7 +14,7 @@ import { claimedObstacles } from './wood';
 
 /**
  * Přehled vsí `others` na téže mapě v den `day`: obydlí a rozestavěná obydlí (s pozemky
- * a řemesly), modly a svatyně (i rozestavěné), políčka polí, sadů, hřbitovů, ohrad, lesa vsi
+ * a řemesly), modly, svatyně a humna (i rozestavěné), políčka polí, sadů, hřbitovů, ohrad, lesa vsi
  * a pozemků (natočené čtverce zvlášť v `squares` – fields.md, Natočené stavby), odstraněné
  * a pokácené překážky a stromy, které si vyhradily jejich stavby, a obývané kovárny se jménem vsi
  * (`names` – po vsích `others`; wagons.md, Kování vozů). Opuštěná ves zabírá jen to, co z ní ještě
@@ -66,6 +66,8 @@ export function neighbourSnapshot(
         snapshot.sacredBuildings.push({ kind: c.kind, position: { ...c.position } });
         continue;
       }
+      // humno má záznam hned od zahájení stavby (níž)
+      if (c.kind === 'threshing-floor') continue;
       if (c.dwellingType === null) continue;
       snapshot.dwellings.push({
         type: c.dwellingType,
@@ -78,6 +80,10 @@ export function neighbourSnapshot(
     }
     for (const b of state.sacredBuildings ?? []) {
       snapshot.sacredBuildings.push({ kind: b.kind, position: { ...b.position } });
+    }
+    // humna i rozestavěná (production-chains.md – Humno)
+    for (const f of state.threshingFloors ?? []) {
+      (snapshot.threshingFloors ??= []).push({ position: { ...f.position } });
     }
     const grids = fieldGrids(state);
     for (const p of state.parts) if (p.cell) addCell(p.cell, grids.get(p.fieldId));

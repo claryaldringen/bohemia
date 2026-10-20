@@ -5,6 +5,7 @@ import {
   parsePlaceDwellingInput,
   parsePlaceFieldInput,
   parsePlaceSacredInput,
+  parsePlaceThreshingFloorInput,
   parsePlaceWorkshopInput,
   parseRenameVillageInput,
   parseRestartGameInput,
@@ -134,6 +135,18 @@ describe('vstup stavby modly a svatyně', () => {
       parsePlaceSacredInput({ kind: 'idol', position: { x: 1, z: NaN, rotation: 0 } }),
     ).toBeNull();
     expect(parsePlaceSacredInput(null)).toBeNull();
+  });
+});
+
+describe('vstup stavby humna', () => {
+  it('poloha s konečnými čísly (přebytečné klíče zahodí), jinak null', () => {
+    const position = { x: 1, z: 2, rotation: 0.5 };
+    expect(parsePlaceThreshingFloorInput({ position, kind: 'idol' })).toEqual({ position });
+    expect(
+      parsePlaceThreshingFloorInput({ position: { x: 1, z: 2, rotation: Infinity } }),
+    ).toBeNull();
+    expect(parsePlaceThreshingFloorInput({})).toBeNull();
+    expect(parsePlaceThreshingFloorInput('humno')).toBeNull();
   });
 });
 

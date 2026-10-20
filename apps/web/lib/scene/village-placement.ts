@@ -5,6 +5,7 @@ import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
 import {
   CRAFT_NAMES,
+  HUMNO,
   SACRED_BUILDINGS,
   WORKSHOP_PORCH_M,
   dwellingFrame,
@@ -77,9 +78,12 @@ export interface ActivePlacement {
 
 /**
  * Stavba s půdorysem u kurzoru – obydlí (volně nebo na pozemku), řemeslná dílna (crafts.md),
- * modla či svatyně (happiness.md).
+ * modla či svatyně (happiness.md) a humno (production-chains.md – Humno).
  */
-type FootprintMode = Extract<PlacementMode, { kind: 'dwelling' | 'plot' | 'sacred' | 'workshop' }>;
+type FootprintMode = Extract<
+  PlacementMode,
+  { kind: 'dwelling' | 'plot' | 'sacred' | 'workshop' | 'threshing-floor' }
+>;
 /** Model ducha: obydlí, dílna nebo milíř uhlíře, modla či svatyně. */
 export type GhostType = DwellingType | SacredBuildingKind | WorkshopModel | 'milir';
 
@@ -95,6 +99,11 @@ function footprintOf(
   if (mode.kind === 'sacred') {
     const half = SACRED_BUILDINGS[mode.type].footprintM / 2;
     return { minX: -half, maxX: half, minZ: -half, maxZ: half };
+  }
+  if (mode.kind === 'threshing-floor') {
+    const x = HUMNO.sizeM.x / 2;
+    const z = HUMNO.sizeM.z / 2;
+    return { minX: -x, maxX: x, minZ: -z, maxZ: z };
   }
   const porch = mode.kind === 'workshop' ? WORKSHOP_PORCH_M[mode.craft] : 0;
   return footprintRect({ type: mode.type, position, ...(plot ? { plot } : {}) }, porch);
@@ -295,6 +304,7 @@ export class PlacementController implements ActivePlacement {
     const position = this.position(point);
     if (!mode.check(position).ok) return null;
     if (mode.kind === 'workshop') return { kind: 'workshop', craft: mode.craft, position };
+    if (mode.kind === 'threshing-floor') return { kind: 'threshing-floor', position };
     return mode.kind === 'sacred'
       ? { kind: 'sacred', type: mode.type, position }
       : { kind: 'dwelling', type: mode.type, position };
@@ -322,8 +332,14 @@ export class PlacementController implements ActivePlacement {
   }
 
   private refreshDwelling(mode: FootprintMode): void {
-    const ghostType: GhostType = mode.kind === 'workshop' ? CRAFT_MODEL[mode.craft] : mode.type;
-    this.model ??= this.context.ghostModel(ghostType);
+    // humno zatím nemá model – duch je jen obrys půdorysu (model přinese scéna humna)
+    const ghostType: GhostType | null =
+      mode.kind === 'workshop'
+        ? CRAFT_MODEL[mode.craft]
+        : mode.kind === 'threshing-floor'
+          ? null
+          : mode.type;
+    if (ghostType !== null) this.model ??= this.context.ghostModel(ghostType);
     if (mode.kind === 'workshop' && mode.craft === 'burner') {
       this.milir ??= this.context.ghostModel('milir');
     }
@@ -336,7 +352,12 @@ export class PlacementController implements ActivePlacement {
     let position: Position;
     let plot: DwellingPlot | null = null;
     let check: PlacementCheck & { cost?: PlacementCost | null };
-    let label = mode.kind === 'workshop' ? CRAFT_NAMES[mode.craft] : FOOTPRINT_NAMES[mode.type];
+    let label =
+      mode.kind === 'workshop'
+        ? CRAFT_NAMES[mode.craft]
+        : mode.kind === 'threshing-floor'
+          ? 'Humno'
+          : FOOTPRINT_NAMES[mode.type];
     if (mode.kind === 'plot') {
       const at = this.plotAt(this.cursor);
       if (!at) {
@@ -392,7 +413,7 @@ export class PlacementController implements ActivePlacement {
         this.addStrip(stripSegments(world, false, 0.12, 1), look);
       }
     }
-    if (this.model) {
+    if (this.model && ghostType !== null && mode.kind !== 'threshing-floor') {
       // duch má tvar varianty u kurzoru (population.md – Varianty rozměrů)
       if (mode.kind !== 'sacred') {
         shapeGhost(

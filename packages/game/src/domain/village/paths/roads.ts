@@ -16,6 +16,7 @@ import { plotSquareTile, rotationCosSin, squareCenter } from '../square-grid';
 import { ROAD_TREE_ID_BASE, roadAppleStage, roadTreeLook } from '../road-trees';
 import {
   CART_ROADS,
+  HUMNO,
   MILIR,
   ROADS,
   ROAD_APPLES,
@@ -2246,8 +2247,8 @@ function spotsForRoad(roads: VillageRoads, road: Road, context: SpotContext): Ro
 /**
  * Stavby vsi, u kterých strom u cesty nevyroste (roads.md – ne ve vsi, na pozemcích, hřbitově
  * ani v sadu): čtverce sadů, hřbitovů, hájů, ohrad, pozemků a lesa vsi i s okrajem, okolí
- * obydlí, stavenišť a zbytků jam, modly a svatyně, milíře a posvátných dubů. Mimo krajinu taky
- * ne. Na poli ano (fields.md – Pole jako krajina; Martin 18. 10. 2026): strom u cesty i jabloň
+ * obydlí, stavenišť a zbytků jam, modly, svatyně a humna, milíře a posvátných dubů. Mimo krajinu
+ * taky ne. Na poli ano (fields.md – Pole jako krajina; Martin 18. 10. 2026): strom u cesty i jabloň
  * stojí 2,5–4 m od osy – na mezi podél cesty, kam se neorá, a dílu vezme TAKEN_LAND_TREE_M2.
  */
 export function plantingBlocker(
@@ -2317,6 +2318,9 @@ export function plantingBlocker(
     z: b.position.z,
     half: SACRED_BUILDINGS[b.kind].footprintM / 2 + SACRED_MARGIN_M,
   }));
+  // humna i rozestavěná (production-chains.md – Humno) – kruh přes celý natočený půdorys
+  const floorReach = Math.sqrt(HUMNO.sizeM.x * HUMNO.sizeM.x + HUMNO.sizeM.z * HUMNO.sizeM.z) / 2;
+  const floors = (state.threshingFloors ?? []).map((f) => f.position);
   // milíře uhlířů – samostatné stavby u skácených buků (crafts.md – Milíř u skácených buků)
   const milirs = state.dwellings.flatMap((d) =>
     workshopKilns(d.workshop).flatMap((k) => (k.site ? [[k.site.x, k.site.z] as const] : [])),
@@ -2338,6 +2342,7 @@ export function plantingBlocker(
     if (turned.length > 0 && inTurned(x, z)) return true;
     if (homes.some((h) => length2(h.x - x, h.z - z) < HOMESTEAD_M)) return true;
     if (sacred.some((b) => Math.abs(b.x - x) < b.half && Math.abs(b.z - z) < b.half)) return true;
+    if (floors.some((f) => length2(f.x - x, f.z - z) < floorReach + SACRED_MARGIN_M)) return true;
     const milirReach = MILIR.clearingRadiusM + MILIR_MARGIN_M;
     if (milirs.some(([mx, mz]) => length2(mx - x, mz - z) < milirReach)) return true;
     return oaks.some((o) => length2(o.x - x, o.z - z) < SACRED_OAK_M);

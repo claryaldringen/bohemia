@@ -113,8 +113,14 @@ Beze změny (milíř u buků – crafts.md); nošení uhlí ke kováři je dnes 
 
 ### Humno (staví hráč)
 
-- **Stavba** v mřížce staveb (návrh Clauda: udusaná a vymazaná mlatová plocha ≈ 8 × 10 m
-  s přístřeškem a stohem slámy vedle; cena jako polozemnice bez jámy – upřesní rešerše).
+- **Stavba** v mřížce staveb (zkratka K; návrh Clauda: udusaná a vymazaná mlatová plocha 8 × 10 m
+  s přístřeškem vzadu a stohem slámy vedle). Cena podle rešerše
+  ([2026-10-20-production-chains.md](research/2026-10-20-production-chains.md) – Humno):
+  **75 člověkodní** ze společné práce (i s kácením blízkého lesa jako obydlí) a **6 stromů**
+  dřeva předem, osadníci ne – přístřešek je lehký a otevřený, bez stěn a jámy, takže nová ves
+  ho postaví do první žně. Umístění volně jako dílna (půdorys u kurzoru, otáčí se): louka i les
+  (Stavba v lese), na poli pole ustoupí (Pole jako krajina), ne do vody, na výchoz, do jiné
+  stavby ani na nerovnou zem (rozdíl výšek nejvýš 1 m – mlat se srovná).
 - **Podmínka:** bez humna se nemlátí. Snopy po žni čekají ve stozích na poli (panáky → stohy)
   a kazí se (návrh Clauda: 10 % za měsíc – klasy se neskladovaly); upozornění „Snopy čekají na
   humno“.
@@ -177,8 +183,8 @@ postav. Nejdelší snímek se nesmí zhoršit.
 
 ## Otevřené otázky
 
-- Čísla tavby (výtěžek rudy → houba → hřivna), kapacita jámy, ztráty v jámě a cena humna –
-  rešerše.
+- Čísla tavby (výtěžek rudy → houba → hřivna), kapacita jámy a ztráty v jámě – rešerše (cena
+  humna je dohledaná – Humno).
 
 ## Rozhodnutí
 
@@ -190,6 +196,7 @@ postav. Nejdelší snímek se nesmí zhoršit.
 | Mlácení na humně, humno je podmínka, staví ho hráč                                                | Martin (20. 10. 2026)                     |
 | Obilné jámy kopou vesničané sami, zavřená jáma není vidět, otevřenou jde označit, jámy opakovaně  | Martin (20. 10. 2026)                     |
 | Mletí a pečení neviditelně v domácnosti                                                           | návrh Clauda                              |
+| Humno 75 čd a 6 stromů, 8 × 10 m, nerovnost do 1 m, zkratka K (rešerše)                           | návrh Clauda                              |
 | Starší vsi rok odkladu – nouzový výmlat na udusané zemi                                           | Martin (20. 10. 2026), čísla návrh Clauda |
 | Výmlat hned po žni, klasy se neskladují (okno výmlatu hned za sklizní)                            | Martin (20. 10. 2026)                     |
 | Snopy bez humna čekají a kazí se 10 % za měsíc, upozornění                                        | návrh Clauda                              |

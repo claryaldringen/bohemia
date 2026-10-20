@@ -5,6 +5,7 @@ import {
   checkDwellingPlacement,
   checkPlotPlacement,
   checkSacredBuildingPlacement,
+  checkThreshingFloorPlacement,
   checkWorkshopPlacement,
   dwellingLaborManDays,
   workshopLaborManDays,
@@ -17,11 +18,13 @@ import {
   penSquaresFromCells,
   planDwellingWoodFrom,
   planSacredWood,
+  planThreshingFloorWoodFrom,
   planWoodFrom,
   placementWalk,
   PEN,
   sacredLaborManDays,
   sameGrid,
+  threshingFloorLaborManDays,
   type BuildKind,
   type Craft,
   type DwellingPlacementCheck,
@@ -38,6 +41,7 @@ import {
   type SacredBuildingKind,
   type SacredPlacementCheck,
   type SquareGrid,
+  type ThreshingFloorPlacementCheck,
   type TileCell,
   type Walk,
 } from '@bohemia/game';
@@ -51,7 +55,8 @@ import type { PlacementCost, SquaresVariant } from './scene/village-types';
 // Zkratky jsou spodní řada levé ruky jako fronta výroby v 0 A.D. (Z X C V B N M) – WASD, Q/E
 // a R patří kameře. Sad [B] staví se jako pole (orchard.md), modla [N] a svatyně [M] půdorysem
 // u kurzoru jako obydlí (happiness.md). Řemeslné dílny (crafts.md) na volných klávesách
-// prostřední řady – hrnčíř [F], kovář [G], uhlíř [H] – volně u kurzoru jako zemnice.
+// prostřední řady – hrnčíř [F], kovář [G], uhlíř [H] – volně u kurzoru jako zemnice. Humno [K]
+// (production-chains.md – Humno) půdorysem u kurzoru jako dílna.
 
 /**
  * Kontrola stavby po čtvercích: projde? a které čtverce jsou zakázané (červeně); u prošlé
@@ -143,6 +148,19 @@ export type BuildItem =
       craft: Craft;
       /** Obydlí, na kterém dílna stojí (půdorys, jáma). */
       dwellingType: DwellingType;
+      check(
+        landscape: Landscape,
+        village: PlacementVillage,
+        position: Position,
+        woodLogs: number,
+      ): FootprintCheck;
+    })
+  | (BuildItemBase & {
+      /**
+       * Humno (production-chains.md – Humno) – obdélníkový půdorys u kurzoru (otáčí se jako
+       * obydlí), volně jako dílna.
+       */
+      placement: 'threshing-floor';
       check(
         landscape: Landscape,
         village: PlacementVillage,
@@ -353,6 +371,60 @@ const sacred = (
 });
 
 /**
+ * Cena humna u kurzoru: práce celkem jako při zahájení stavby (`threshingFloorLaborManDays` –
+ * stavba, překážky a les pod půdorysem a kácení) a kolik stromů se skácí, když klády na hromadě
+ * nestačí – nejbližší dospělé stromy jako na serveru (`planThreshingFloorWoodFrom`; stromy
+ * jiných staveb zná jen server – jako u obydlí).
+ */
+export function threshingFloorPlacementCost(
+  landscape: Landscape,
+  village: PlacementVillage,
+  position: Position,
+  check: Pick<ThreshingFloorPlacementCheck, 'obstacleCost' | 'obstacleIds' | 'clearedTrees'>,
+  woodLogs: number,
+  obstacles: ObstacleLayer = obstaclesOf(landscape),
+): PlacementCost {
+  const plan = planThreshingFloorWoodFrom(
+    position,
+    {
+      logs: woodLogs,
+      changes: () => village.obstacleChanges ?? NO_OBSTACLE_CHANGES,
+      claimed: () => new Set(village.reservedTrees ?? []),
+    },
+    {
+      obstacles,
+      clearedTrees: check.clearedTrees,
+      clearedIds: check.obstacleIds,
+      walk: placementWalk(landscape, village),
+    },
+  );
+  return {
+    laborManDays: threshingFloorLaborManDays(check.obstacleCost, plan),
+    trees: plan.fell.length,
+  };
+}
+
+/** Humno (production-chains.md – Humno) – půdorys u kurzoru, zkratka K. */
+const THRESHING_FLOOR: BuildItem & { placement: 'threshing-floor' } = {
+  kind: 'threshing-floor',
+  name: 'Humno',
+  icon: 'humno',
+  hotkey: 'KeyK',
+  hotkeyLabel: 'K',
+  placement: 'threshing-floor',
+  check: (landscape, village, position, woodLogs) => {
+    const obstacles = obstaclesOf(landscape);
+    const check = checkThreshingFloorPlacement(landscape, village, position, obstacles);
+    return {
+      ...check,
+      cost: check.ok
+        ? threshingFloorPlacementCost(landscape, village, position, check, woodLogs, obstacles)
+        : null,
+    };
+  },
+};
+
+/**
  * Druhy ohrady v pořadí rozcestníku mřížky staveb (oxen.md – Ohrady podle druhu): ovce, kozy, prasata,
  * skot, voli (ohrada volů – oxen.md, Ohrada volů; v kódu druh `team`) – ikony zvířat
  * (`public/icons/resources/`).
@@ -511,6 +583,7 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
       };
     },
   },
+  THRESHING_FLOOR,
 ];
 
 /**

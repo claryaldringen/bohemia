@@ -272,6 +272,13 @@ export function parsePlaceSacredInput(
   return kind !== null && position !== null ? { kind, position } : null;
 }
 
+/** Vstup stavby humna `{ position }` (production-chains.md – Humno), jinak null. */
+export function parsePlaceThreshingFloorInput(value: unknown): { position: Position } | null {
+  if (!isRecord(value)) return null;
+  const position = parsePosition(value.position);
+  return position !== null ? { position } : null;
+}
+
 /** Vstup stavby řemeslné dílny `{ craft, position }`, jinak null. */
 export function parsePlaceWorkshopInput(
   value: unknown,

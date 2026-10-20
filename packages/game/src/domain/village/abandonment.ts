@@ -9,8 +9,9 @@ import { pointsBounds, squareCenter, squareCorners } from './square-grid';
 import { fieldGrids } from './squares';
 import { polygonsOverlap, type Point } from './polygon';
 import { cancelRepair, startRepair, type StructureRef } from './repair';
-import { ABANDONMENT, SACRED_BUILDINGS } from './rules';
+import { ABANDONMENT, HUMNO, SACRED_BUILDINGS } from './rules';
 import { sacredBuildingPlots, sacredFootprint } from './sacred';
+import { threshingFloorFootprint, villageThreshingFloors } from './threshing-floors';
 import type {
   AbandonedStructure,
   ChronicleEvent,
@@ -266,7 +267,7 @@ function updateSacredRuins(state: VillageState, day: number, landscape: Landscap
 }
 
 /**
- * Zbytky, přes které nestojí ani se nestaví jiná stavba (obydlí, modla, svatyně; s krajinou
+ * Zbytky, přes které nestojí ani se nestaví jiná stavba (obydlí, modla, svatyně, humno; s krajinou
  * i čtverce polí, hřbitovů, sadů, ohrad a pozemky) – na místo zbytku jde stavět a stavba ho
  * odstraní (jako zbytek jámy obydlí – ruins.ts).
  */
@@ -303,6 +304,13 @@ function withoutBuiltOver(
   for (const b of sacredBuildingPlots(state)) {
     const half = (SACRED_BUILDINGS[b.kind].footprintM * Math.SQRT2) / 2;
     if (near(b.position.x, b.position.z, half)) shapes.push(sacredFootprint(b.kind, b.position));
+  }
+  // humno (production-chains.md – Humno) – poloviční úhlopříčka půdorysu
+  const floorReach = Math.hypot(HUMNO.sizeM.x, HUMNO.sizeM.z) / 2;
+  for (const f of villageThreshingFloors(state)) {
+    if (near(f.position.x, f.position.z, floorReach)) {
+      shapes.push(threshingFloorFootprint(f.position));
+    }
   }
   if (landscape) {
     const reach = (landscape.cellSizeM * Math.SQRT2) / 2;

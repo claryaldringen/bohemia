@@ -35,6 +35,7 @@ import {
   placeOrchard,
   placePen,
   placeSacred,
+  placeThreshingFloor,
   placeWorkshop,
   plantRoadApples,
   relocateHousehold,
@@ -191,8 +192,8 @@ function isVillageView(state: VillageData): state is VillageView {
 }
 
 /**
- * Obydlí, dílna, modla nebo svatyně odeslané na server, na jehož odpověď se čeká – ve scéně už
- * stojí jako staveniště (záporné id). Obydlí na pozemku nese i pozemek, dílna řemeslo.
+ * Obydlí, dílna, modla, svatyně nebo humno odeslané na server, na jehož odpověď se čeká – ve
+ * scéně už stojí jako staveniště (záporné id). Obydlí na pozemku nese i pozemek, dílna řemeslo.
  */
 type PendingSite =
   | {
@@ -203,7 +204,8 @@ type PendingSite =
       plot?: ScenePlot;
       craft?: Craft;
     }
-  | { kind: 'sacred'; id: number; type: SacredBuildingKind; position: Position };
+  | { kind: 'sacred'; id: number; type: SacredBuildingKind; position: Position }
+  | { kind: 'threshing-floor'; id: number; position: Position };
 
 /** Ves pro scénu: stav ze serveru a stavby, které ještě čekají na odpověď serveru. */
 function withPending(scene: SceneVillage, pending: readonly PendingSite[]): SceneVillage {
@@ -229,9 +231,17 @@ function withPending(scene: SceneVillage, pending: readonly PendingSite[]): Scen
       ? [{ id: d.id, kind: d.type, position: d.position, built: false, progress: 0 }]
       : [],
   );
+  const floors = pending.flatMap((d) =>
+    d.kind === 'threshing-floor'
+      ? [{ id: d.id, position: d.position, built: false, progress: 0 }]
+      : [],
+  );
   return {
     ...scene,
     dwellings: [...scene.dwellings, ...dwellings],
+    ...(floors.length > 0
+      ? { threshingFloors: [...(scene.threshingFloors ?? []), ...floors] }
+      : {}),
     ...(sacred.length > 0
       ? {
           sacred: {
@@ -592,6 +602,17 @@ export function VillageGame({
     );
   };
 
+  /** Zahájí stavbu humna (production-chains.md – Humno) – v kontrole umístění hned zabírá místo. */
+  const buildThreshingFloor = (position: Position): void => {
+    const entry: PendingSite = { kind: 'threshing-floor', id: -1 - pendingId.current++, position };
+    setPendingList([...pendingRef.current, entry]);
+    const villageId = viewRef.current?.id;
+    if (!villageId) return;
+    void runBuildAction(() => placeThreshingFloor({ villageId, position })).finally(() =>
+      setPendingList(pendingRef.current.filter((d) => d.id !== entry.id)),
+    );
+  };
+
   // vymřelá a opuštěná ves nic nestaví – nabídka staveb je prázdná (i zkratky); lidé na cestě
   // po příjezdu umisťují první zemnici (migration.md – fáze 4)
   const options: Partial<Record<BuildKind, BuildOption | null>> = view
@@ -801,6 +822,19 @@ export function VillageGame({
       );
       return;
     }
+    if (item.placement === 'threshing-floor') {
+      placement.start(
+        {
+          kind: 'threshing-floor',
+          check: (position) =>
+            item.check(decoded, placementVillage(), position, viewRef.current?.woodLogs ?? 0),
+        },
+        (result) => {
+          if (result.kind === 'threshing-floor') buildThreshingFloor(result.position);
+        },
+      );
+      return;
+    }
   };
   const startBuildRef = useRef(startBuild);
   useEffect(() => {
@@ -822,7 +856,7 @@ export function VillageGame({
   });
   const closeMenu = useCallback((): void => setMenuOpen(false), []);
 
-  // Klávesy rozhraní: F10 otevře nabídku, zkratky staveb (Z, X, C, V, B, N, M, F, G, H, T, O – O
+  // Klávesy rozhraní: F10 otevře nabídku, zkratky staveb (Z, X, C, V, B, N, M, F, G, H, T, K, O – O
   // otevře rozcestník druhů ohrady), Esc zruší výběr a zavře rozcestník.
   // Otevřená nabídka klávesy zachytí dřív (GameMenu) – sem pak nedojdou.
   const placingRef = useRef(placement.active);

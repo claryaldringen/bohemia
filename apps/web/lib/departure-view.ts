@@ -57,11 +57,11 @@ export interface VillageAbandonment {
 
 /**
  * Stavby jiné vsi na téže mapě pro scénu (migration.md – Vsi na téže mapě): jen pohled – obydlí,
- * díly polí, hřbitovy, sady, ohrady, zbytky jam a modly se svatyněmi; v prohlížeči se jiná ves
- * nesimuluje.
+ * díly polí, hřbitovy, sady, ohrady, zbytky jam, humna a modly se svatyněmi; v prohlížeči se
+ * jiná ves nesimuluje.
  */
 export type SceneNeighbour = Pick<SceneVillage, 'dwellings' | 'fields'> &
-  Partial<Pick<SceneVillage, 'cemeteries' | 'orchards' | 'pens' | 'ruins'>> & {
+  Partial<Pick<SceneVillage, 'cemeteries' | 'orchards' | 'pens' | 'ruins' | 'threshingFloors'>> & {
     sacredBuildings?: SceneSacred['buildings'];
   };
 
@@ -74,6 +74,7 @@ export function neighbourScene(scene: SceneVillage): SceneNeighbour {
     ...(scene.orchards ? { orchards: scene.orchards } : {}),
     ...(scene.pens ? { pens: scene.pens } : {}),
     ...(scene.ruins ? { ruins: scene.ruins } : {}),
+    ...(scene.threshingFloors ? { threshingFloors: scene.threshingFloors } : {}),
     ...(scene.sacred?.buildings.length ? { sacredBuildings: scene.sacred.buildings } : {}),
   };
 }

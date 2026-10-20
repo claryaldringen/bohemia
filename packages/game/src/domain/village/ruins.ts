@@ -7,6 +7,7 @@ import { polygonsOverlap, type Point } from './polygon';
 import { RUIN_YEARS } from './rules';
 import { sacredBuildingPlots, sacredFootprint } from './sacred';
 import { PolygonIndex, villageLandSquares, type LandSquare } from './squares';
+import { threshingFloorFootprint, villageThreshingFloors } from './threshing-floors';
 import type { Dwelling, DwellingRuin, VillageState } from './types';
 
 // Zbytky jam po zaniklých obydlích (population.md – Chátrání a přestavba, Po zániku – Martin
@@ -105,7 +106,7 @@ function builtOverRuins(state: VillageState, landscape: Landscape | null): Set<D
 
 /**
  * Půdorysy obydlí a staveb s polohou (i rozestavěných – obydlí, dílny, přestavby na novém
- * pozemku, modly a svatyně); s krajinou i celá políčka pozemků.
+ * pozemku, modly, svatyně a humna); s krajinou i celá políčka pozemků.
  */
 function structureShapes(state: VillageState, landscape: Landscape | null): Point[][] {
   const shapes: Point[][] = [];
@@ -141,5 +142,6 @@ function structureShapes(state: VillageState, landscape: Landscape | null): Poin
     });
   }
   for (const b of sacredBuildingPlots(state)) shapes.push(sacredFootprint(b.kind, b.position));
+  for (const f of villageThreshingFloors(state)) shapes.push(threshingFloorFootprint(f.position));
   return shapes;
 }

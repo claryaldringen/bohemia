@@ -1453,6 +1453,22 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   Tlačítko je pak zašedlé, zkratka nic nespustí, v popisku chybějící část červeně; server odmítne
   (`NO_SETTLERS`, `CANNOT_AFFORD`). `waitingHouseholds` (upozornění „Rodina čeká na dům“, dřív
   „Domácnost je plná“; `VillageSummary.fullHousehold`) = kladní lidé k osídlení.
+- **Humno** ([production-chains.md](docs/design/production-chains.md) – Humno, úloha 1; čísla
+  návrh Clauda podle rešerše `research/2026-10-20-production-chains.md`): stavba hráče –
+  `threshing-floors.ts`, `HUMNO` v `rules.ts` (8 × 10 m, 75 čd i s kácením, 6 stromů předem,
+  nerovnost do 1 m). `BuildKind` / `ConstructionKind` `'threshing-floor'`, kontrola
+  `checkThreshingFloorPlacement` (volně jako dílna: louka i les – Stavba v lese –, na poli pole
+  ustoupí – `takenLand`, ne voda, výchoz, posvátný dub a háj, jiná stavba ani nerovná zem),
+  akce `startThreshingFloor(state, day, position, obstacles, site)` – humno vznikne hned
+  ve `VillageState.threshingFloors` (`ThreshingFloor`, id = id stavby, `builtDay` null), po
+  dostavění dostane den (`finishThreshingFloor`, `builtThreshingFloors`); půdorys
+  `threshingFloorFootprint` znají kontroly ostatních staveb (`PlacementVillage.threshingFloors`,
+  čtverce – příznak `threshing`), jiné vsi (`NeighbourSnapshot.threshingFloors`), zbytky jam,
+  stromy u cest a vzdálenost vsí. Use-case `placeThreshingFloor`, server action
+  `placeThreshingFloor` (`{ villageId, position }`), mřížka staveb [K] (umístění i `PlacementMode`
+  `threshing-floor` – duch jen obrys půdorysu), ikona
+  `icons/build/humno.png`. Scéna zatím jen zástupný obtisk mlatu (`SceneVillage.threshingFloors`,
+  `VillageRenderer.updateThreshingFloors`) – model, výběr a výmlat přinesou další úlohy plánu.
 - **Příbuzenství a pohlaví** ([kinship.md](docs/design/kinship.md), Martin 18. 10. 2026;
   `kinship.ts`): `Person.sex`, `motherId`, `fatherId`, `spouseId`, u nevěsty z okolí a lidí od
   souseda (výměna lidí – trade.md) `origin` (směr sousední vsi – válka); zemřelí a odešlí rodiče
@@ -1691,7 +1707,7 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   `public/icons/build/` a `public/icons/resources/`. Panely, nad kterými se krajina neposouvá
   okrajem okna, mají `data-hud-block`.
 - **Katalog staveb** `lib/build-items.ts` (název, ikona, zkratka, umístění `footprint` /
-  `plot` / `squares` / `sacred` / `workshop`, kontrola) – nová stavba = záznam tam, cena v `BUILD_COSTS` a server action
+  `plot` / `squares` / `sacred` / `workshop` / `threshing-floor`, kontrola) – nová stavba = záznam tam, cena v `BUILD_COSTS` a server action
   v `SUBMIT_SQUARES` (`VillageGame`); mřížka, zkratky i malování po čtvercích se nemění. Stavba
   po čtvercích s druhy (`variants` – ohrada: `PEN_VARIANTS` ovce, kozy, prasata, skot, spřežení)
   dostane v kontrole druh; tlačítko stavby je jen **rozcestník** (oxen.md – Ohrady podle druhu,
@@ -1742,8 +1758,8 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   drží ji i mimo ni – rozšíření), vybraná stavba dá mřížku hned (`PlacementMode.squares.grid`);
   natočená mřížka má čtverec pod kurzorem ve středu políčka. Ctrl ve výběru obydlí platí i jako Cmd; Ctrl / Shift + klik na cestu či
   pole vybraná obydlí nezruší; Ctrl + A při umisťování nic nevybere. Zkratky staveb Z zemnice, X polozemnice, C pole, V hřbitov, B sad,
-  N modla, M svatyně, O ohrada (modla a svatyně se umisťují půdorysem jako obydlí – `PlacementMode`
-  `sacred`; ohrada po čtvercích – O i tlačítko otevřou v mřížce rozcestník druhů zvířat (ovce,
+  N modla, M svatyně, K humno, O ohrada (modla, svatyně a humno se umisťují půdorysem jako obydlí – `PlacementMode`
+  `sacred` a `threshing-floor`; ohrada po čtvercích – O i tlačítko otevřou v mřížce rozcestník druhů zvířat (ovce,
   kozy, prasata, skot, spřežení – bez zkratek), nad ohradou téhož druhu se chytí její mřížky). V otevřené nabídce hry žádná klávesa hry neběží – F10 nebo Esc ji zavře (Tab jen
   po jejích položkách). Rozhraní
   obydlí hned ukáže jako staveniště a akce posílá na server za sebou (fronta v `VillageGame`).

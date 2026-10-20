@@ -19,6 +19,7 @@ export * from './place-cemetery';
 export * from './place-orchard';
 export * from './place-sacred';
 export * from './place-pen';
+export * from './place-threshing-floor';
 export * from './upgrade-road';
 export * from './build-wagon-road';
 export * from './build-trail';

@@ -153,6 +153,7 @@ import {
   unqueueExtraParts,
 } from './extra-sowing';
 import { villageSacredOaks } from './sacred';
+import { finishThreshingFloor } from './threshing-floors';
 import { sacredOakEvents } from './sacred-life';
 import {
   adultDailyMin,
@@ -2303,6 +2304,12 @@ function finishConstructions(state: VillageState, day: number): void {
         finishPen(state, c.penId, day, c.id);
       }
       if (c.kind === 'ard') finishArd(state);
+      state.chronicle.push(finishedEvent(day, c, null));
+      continue;
+    }
+    if (c.kind === 'threshing-floor') {
+      // dostavěné humno – mlátí se na něm (production-chains.md – Humno)
+      finishThreshingFloor(state, c, day);
       state.chronicle.push(finishedEvent(day, c, null));
       continue;
     }

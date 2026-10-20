@@ -16,6 +16,7 @@ import {
   placeOrchardForPlayer,
   placePenForPlayer,
   placeSacredForPlayer,
+  placeThreshingFloorForPlayer,
   placeWorkshopForPlayer,
   relocateHouseholdForPlayer,
   leaveVillageForPlayer,
@@ -42,6 +43,7 @@ import {
   parsePlaceOrchardInput,
   parsePlacePenInput,
   parsePlaceSacredInput,
+  parsePlaceThreshingFloorInput,
   parsePlaceWorkshopInput,
   parseRelocateHouseholdInput,
   parseLeaveVillageInput,
@@ -222,6 +224,14 @@ export async function placeOrchard(input: unknown): Promise<VillageActionResult>
  */
 export async function placeSacred(input: unknown): Promise<VillageActionResult> {
   return villageAction(input, parsePlaceSacredInput, placeSacredForPlayer);
+}
+
+/**
+ * Stavba humna (production-chains.md – Humno): `{ villageId, position }`. Server umístění ověří
+ * znovu (`checkThreshingFloorPlacement`).
+ */
+export async function placeThreshingFloor(input: unknown): Promise<VillageActionResult> {
+  return villageAction(input, parsePlaceThreshingFloorInput, placeThreshingFloorForPlayer);
 }
 
 /**

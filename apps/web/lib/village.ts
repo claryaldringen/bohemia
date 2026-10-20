@@ -18,6 +18,7 @@ import {
   placeOrchard,
   placePen,
   placeSacredBuilding,
+  placeThreshingFloor,
   placeWorkshop,
   relocateHousehold,
   renameVillage,
@@ -384,6 +385,19 @@ export function placeSacredForPlayer(
 ): Promise<VillageActionResult> {
   return actOn(playerId, villageId, (ctx) =>
     placeSacredBuilding(
+      { villages: villages() },
+      { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, ...input },
+    ),
+  );
+}
+
+export function placeThreshingFloorForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { position: Position },
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, (ctx) =>
+    placeThreshingFloor(
       { villages: villages() },
       { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, ...input },
     ),

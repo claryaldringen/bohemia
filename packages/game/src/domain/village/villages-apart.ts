@@ -16,8 +16,8 @@ export interface VillagePoint {
 }
 
 /**
- * Stavby vsi jako body ve světě: obydlí, staveniště, posvátné stavby, čtverce polí, hřbitovů,
- * sadů a ohrad (střed čtverce – `cellCenter` převede čtverec na bod; natočené pole a sad předají
+ * Stavby vsi jako body ve světě: obydlí, staveniště, posvátné stavby, humna, čtverce polí,
+ * hřbitovů, sadů a ohrad (střed čtverce – `cellCenter` převede čtverec na bod; natočené pole a sad předají
  * i svou mřížku – fields.md, Natočené stavby).
  */
 export function villagePoints(
@@ -31,6 +31,7 @@ export function villagePoints(
     if (c.position) points.push({ x: c.position.x, z: c.position.z });
   }
   for (const b of state.sacredBuildings ?? []) points.push({ x: b.position.x, z: b.position.z });
+  for (const f of state.threshingFloors ?? []) points.push({ x: f.position.x, z: f.position.z });
   for (const p of state.parts) {
     if (p.cell) points.push(cellCenter(p.cell.x, p.cell.y, grids.get(p.fieldId)));
   }

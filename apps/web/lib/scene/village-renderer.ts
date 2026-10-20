@@ -14,13 +14,20 @@ import {
   DRAFT_OXEN,
   realTimeOf,
   rotationCosSin,
+  threshingFloorFootprint,
   type DwellingType,
   type Landscape,
   type ObstacleLayer,
   type SacredBuildingKind,
   type WorldClock,
 } from '@bohemia/game';
-import type { SceneKiln, SceneKilnRemnant, SceneKilnState, SceneVillage } from '../village-view';
+import type {
+  SceneKiln,
+  SceneKilnRemnant,
+  SceneKilnState,
+  SceneThreshingFloor,
+  SceneVillage,
+} from '../village-view';
 import { buildingClearings } from './building-clearings';
 import { CemeteryRenderer } from './cemetery-renderer';
 import { withoutHiddenMounds, type FuneralPlan } from './funeral-plan';
@@ -265,6 +272,8 @@ export class VillageRenderer {
   >();
   /** Milířiště po rozebraných milířích – černá uhlíkatá zem, která zarůstá (crafts.md). */
   private readonly kilnRemnants = new Map<number, { key: string; mesh: Mesh }>();
+  /** Humna – zatím jen obtisk mlatové plochy (`updateThreshingFloors`). */
+  private readonly threshingFloors = new Map<number, { key: string; mesh: Mesh }>();
   private readonly models = new Map<ModelKey, Mesh | null>();
   private readonly ghosts = new Map<ModelKey, Mesh>();
   /** Modely dílen a milíře se načítají, až jsou potřeba (dílna ve vsi, duch při umisťování). */
@@ -423,6 +432,7 @@ export class VillageRenderer {
     const dwellings = this.updateDwellings(village.dwellings);
     const kilns = this.updateKilns(village.kilns ?? []);
     const remnants = this.updateKilnRemnants(village.kilnRemnants ?? []);
+    const floors = this.updateThreshingFloors(village.threshingFloors ?? []);
     const ruins = this.updateRuins(village.ruins ?? []);
     if (dwellings || ruins) this.updatePitCuts();
     // ladicí orba za herní den: dnešní díly orby na začátku dne, zbytek přibývá brázdou za rádlem
@@ -460,7 +470,8 @@ export class VillageRenderer {
       decay ||
       smoke ||
       kilns ||
-      remnants
+      remnants ||
+      floors
     );
   }
 
@@ -950,6 +961,8 @@ export class VillageRenderer {
     this.kilns.clear();
     for (const view of this.kilnRemnants.values()) view.mesh.dispose();
     this.kilnRemnants.clear();
+    for (const view of this.threshingFloors.values()) view.mesh.dispose();
+    this.threshingFloors.clear();
     for (const view of this.ruins.values()) for (const mesh of view.meshes) mesh.dispose();
     this.ruins.clear();
   }
@@ -1039,6 +1052,56 @@ export class VillageRenderer {
       if (seen.has(id)) continue;
       view.mesh.dispose();
       this.kilnRemnants.delete(id);
+      changed = true;
+    }
+    return changed;
+  }
+
+  /**
+   * Humna (production-chains.md – Humno) – zatím jen zástupný obtisk udusané mlatové plochy přes
+   * půdorys, staveniště slaběji podle průběhu stavby (po desetinách). Model, výběr a postavy
+   * přinese scéna humna. Vrátí true při změně.
+   */
+  private updateThreshingFloors(floors: readonly SceneThreshingFloor[]): boolean {
+    let changed = false;
+    const seen = new Set<number>();
+    for (const f of floors) {
+      seen.add(f.id);
+      const progress = f.built ? 1 : Math.round(f.progress * 10) / 10;
+      const { x, z, rotation } = f.position;
+      const key = [x, z, rotation, progress].join('|');
+      const current = this.threshingFloors.get(f.id);
+      if (current?.key === key) continue;
+      changed = true;
+      current?.mesh.dispose();
+      const area = threshingFloorFootprint(f.position).map(([px, pz]): Point => [px, pz]);
+      const b = polygonBounds(area);
+      const pad = THRESHING_FLOOR_SOFT_M;
+      const mesh = createDecalMesh(
+        this.scene,
+        `village-threshing-floor-${f.id}`,
+        decalGrid(
+          { minX: b.minX - pad, maxX: b.maxX + pad, minZ: b.minZ - pad, maxZ: b.maxZ + pad },
+          0.5,
+          softCoverage(area, THRESHING_FLOOR_SOFT_M),
+        ),
+        {
+          height: this.context.decalHeight,
+          smoothHeight: this.context.groundHeight,
+          lift: LIFT.earth,
+          color: THRESHING_FLOOR_COLOR,
+          alpha: THRESHING_FLOOR_ALPHA * (0.3 + 0.7 * progress),
+          uv: 20,
+        },
+      );
+      mesh.material = this.decalMaterial('mud');
+      mesh.alphaIndex = 1;
+      this.threshingFloors.set(f.id, { key, mesh });
+    }
+    for (const [id, view] of this.threshingFloors) {
+      if (seen.has(id)) continue;
+      view.mesh.dispose();
+      this.threshingFloors.delete(id);
       changed = true;
     }
     return changed;
@@ -1983,6 +2046,10 @@ const FOREST_KILN_MESH_ID = 3_000_000;
 /** Milířiště (crafts.md – Milíř u skácených buků): poloměr černé země, krytí a barva (tón bahna). */
 const KILN_REMNANT_RADIUS_M = 3.4;
 const KILN_REMNANT_ALPHA = 0.75;
+/** Zástupná mlatová plocha humna – udusaná světlá hlína (model přinese scéna humna). */
+const THRESHING_FLOOR_ALPHA = 0.9;
+const THRESHING_FLOOR_COLOR: [number, number, number] = [0.72, 0.6, 0.46];
+const THRESHING_FLOOR_SOFT_M = 0.6;
 const KILN_REMNANT_COLOR: [number, number, number] = [0.5, 0.42, 0.35];
 
 /** Rekvizity u rozebíraného milíře – koše na uhlí a rýč (hrabice). */

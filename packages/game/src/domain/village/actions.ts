@@ -47,6 +47,7 @@ import {
   workshopTrees,
 } from './rules';
 import { hasShrine, recordSpared, validateSpared, type SparedSacred } from './sacred';
+import { planThreshingFloorWood, threshingFloorLaborManDays } from './threshing-floors';
 import type {
   CemeterySquare,
   Craft,
@@ -1063,6 +1064,83 @@ export function startSacredBuilding(
   });
   // díly polí pod půdorysem se zmenší (fields.md – Pole jako krajina) – po plánu dřeva
   giveWayToBuilding(next, day, site.takenLand ?? [], kind);
+  return next;
+}
+
+/** Staveniště humna – překážky a les pod půdorysem, pole pod ním a chůze ke stromům. */
+export interface ThreshingFloorSiteOptions {
+  /** Práce navíc za překážky a les pod půdorysem (`checkThreshingFloorPlacement`); bez údaje 0. */
+  obstacleCost?: number;
+  /** Překážky na půdorysu – osadníci je odstraní hned při zahájení stavby. */
+  obstacleIds?: readonly number[];
+  /** Dospělé stromy mezi `obstacleIds` – osadníci je skácí na hromadu klád. */
+  clearedTrees?: number;
+  /**
+   * Kusy dílů polí pod půdorysem (`takenLand` z kontroly) – díly se zmenší, pod prahem zmizí
+   * (fields.md – Pole jako krajina).
+   */
+  takenLand?: readonly TakenLand[];
+  /** Chůze ke stromům ke kácení po pevných cestách (roads.md); bez ní vzdušná vzdálenost. */
+  walk?: Walk;
+}
+
+/**
+ * Zahájí stavbu humna (production-chains.md – Humno) – stavba ze společné práce vsi, osadníci
+ * nejsou potřeba. Dřevo (HUMNO.trees) jako u ostatních staveb: celé klády z hromady, zbytek
+ * vyhradí mezi nejbližšími dospělými stromy a skácí je jako první část práce. Překážky na půdorysu
+ * (`site.obstacleIds`, cena v `site.obstacleCost`) osadníci odstraní hned, dospělé stromy z nich
+ * dají klády. Humno vznikne hned (`VillageState.threshingFloors`, id = id stavby, `builtDay`
+ * null) a zabírá půdorys; po dostavění dostane den. Díly polí pod půdorysem se zmenší
+ * (`site.takenLand`) – až po plánu dřeva, ať cena sedí s cenou u kurzoru. `obstacles` = vrstva
+ * překážek krajiny (null jen v testech – kácení bez polohy). RangeError, když ves nemá dřevo nebo
+ * je vstup neplatný.
+ *
+ * Konvence dne (jako u `startNewDwelling`): akce se volá na ves dopočítanou do dne `day` a patří
+ * na konec toho dne. Den před `state.lastDay` → RangeError.
+ */
+export function startThreshingFloor(
+  state: VillageState,
+  day: number,
+  position: Position,
+  obstacles: ObstacleLayer | null,
+  site: ThreshingFloorSiteOptions = {},
+): VillageState {
+  validateActionDay(state, day);
+  validatePosition(position);
+  const obstacleCost = site.obstacleCost ?? 0;
+  const obstacleIds = site.obstacleIds ?? [];
+  validateObstacleCost(obstacleCost);
+  validateObstacleIds(obstacleIds);
+  validateTrees(site.clearedTrees ?? 0);
+  validateTakenLand(site.takenLand ?? []);
+  requireAffordable(state, 'threshing-floor', obstacles ?? undefined);
+  const plan = planThreshingFloorWood(state, position, day, {
+    obstacles,
+    clearedTrees: site.clearedTrees ?? 0,
+    clearedIds: obstacleIds,
+    ...(site.walk ? { walk: site.walk } : {}),
+  });
+  if (plan.missing > 0) throw new RangeError('Na humno ves nemá dřevo – není z čeho kácet.');
+  const next = structuredClone(state);
+  payUpfront(next, 'threshing-floor');
+  recordClearedObstacles(next, obstacleIds, day);
+  const wood = takeWood(next, plan);
+  const id = next.nextId++;
+  next.constructions.push({
+    id,
+    kind: 'threshing-floor',
+    startedDay: day,
+    cost: threshingFloorLaborManDays(obstacleCost, plan),
+    done: 0,
+    dwellingType: null,
+    position: { ...position },
+    dwellingId: null,
+    fieldId: null,
+    wood,
+  });
+  (next.threshingFloors ??= []).push({ id, position: { ...position }, builtDay: null });
+  // díly polí pod půdorysem se zmenší (fields.md – Pole jako krajina) – po plánu dřeva
+  giveWayToBuilding(next, day, site.takenLand ?? [], 'threshing-floor');
   return next;
 }
 

@@ -1,4 +1,10 @@
-import type { DwellingPlot, ForeignStructures, SquareGrid, TileCell } from '@bohemia/game';
+import type {
+  DwellingPlot,
+  ForeignStructures,
+  Position,
+  SquareGrid,
+  TileCell,
+} from '@bohemia/game';
 import type { SceneNeighbour } from '../departure-view';
 import { scenePenSquares, type ScenePlot, type SceneVillage } from '../village-view';
 import type { VillageTarget } from './village-picking';
@@ -45,6 +51,7 @@ export function withNeighbourVillages(scene: SceneVillage): SceneVillage {
   const pens = [...(scene.pens ?? [])];
   const ruins = [...(scene.ruins ?? [])];
   const buildings = [...(scene.sacred?.buildings ?? [])];
+  const threshingFloors = [...(scene.threshingFloors ?? [])];
   neighbours.forEach((n: SceneNeighbour, k) => {
     const base = (k + 1) * NEIGHBOUR_ID_BASE;
     dwellings.push(...n.dwellings.map((d) => ({ ...d, id: base + d.id })));
@@ -60,6 +67,7 @@ export function withNeighbourVillages(scene: SceneVillage): SceneVillage {
     pens.push(...(n.pens ?? []).map((p) => ({ ...p, id: base + p.id })));
     ruins.push(...(n.ruins ?? []).map((r) => ({ ...r, id: base + r.id })));
     buildings.push(...(n.sacredBuildings ?? []).map((b) => ({ ...b, id: base + b.id })));
+    threshingFloors.push(...(n.threshingFloors ?? []).map((f) => ({ ...f, id: base + f.id })));
   });
   return {
     ...scene,
@@ -69,6 +77,7 @@ export function withNeighbourVillages(scene: SceneVillage): SceneVillage {
     orchards,
     pens,
     ruins,
+    ...(threshingFloors.length > 0 ? { threshingFloors } : {}),
     ...(buildings.length > 0
       ? {
           sacred: {
@@ -110,6 +119,7 @@ export function foreignFromScene(scene: SceneVillage): ForeignStructures | undef
   const squares: { cell: TileCell; grid: SquareGrid }[] = [];
   const dwellings: ForeignStructures['dwellings'][number][] = [];
   const sacredBuildings: ForeignStructures['sacredBuildings'][number][] = [];
+  const threshingFloors: { position: Position }[] = [];
   // čtverec v mřížce stavby – natočený zvlášť, jinak políčko krajiny
   const add = (cell: TileCell, grid: SquareGrid | undefined): void => {
     if (grid) squares.push({ cell, grid });
@@ -138,8 +148,15 @@ export function foreignFromScene(scene: SceneVillage): ForeignStructures | undef
     for (const b of n.sacredBuildings ?? []) {
       sacredBuildings.push({ kind: b.kind, position: b.position });
     }
+    for (const f of n.threshingFloors ?? []) threshingFloors.push({ position: f.position });
   }
-  return { dwellings, sacredBuildings, cells, ...(squares.length > 0 ? { squares } : {}) };
+  return {
+    dwellings,
+    sacredBuildings,
+    ...(threshingFloors.length > 0 ? { threshingFloors } : {}),
+    cells,
+    ...(squares.length > 0 ? { squares } : {}),
+  };
 }
 
 /** Bod stavby ve světě (m). */
@@ -159,6 +176,7 @@ export function scenePoints(scene: SceneVillage): Point[] {
     for (const p of s.pens ?? [])
       for (const q of scenePenSquares(p)) points.push({ x: q.x, z: q.z });
     for (const b of s.sacredBuildings ?? []) points.push({ x: b.position.x, z: b.position.z });
+    for (const f of s.threshingFloors ?? []) points.push({ x: f.position.x, z: f.position.z });
   };
   add({ ...scene, sacredBuildings: scene.sacred?.buildings ?? [] });
   for (const n of scene.neighbours ?? []) add(n);

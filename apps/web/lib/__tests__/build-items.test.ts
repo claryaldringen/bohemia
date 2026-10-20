@@ -5,6 +5,7 @@ import {
   dwellingBuildLabor,
   fieldPartsFromCells,
   sacredBuildLabor,
+  threshingFloorBuildLabor,
   orchardPartsFromCells,
   packObstacles,
   penSquaresFromCells,
@@ -43,6 +44,7 @@ describe('zkratky staveb', () => {
     expect(buildItemForKey(key('KeyB'))?.kind).toBe('orchard');
     expect(buildItemForKey(key('KeyN'))?.kind).toBe('idol');
     expect(buildItemForKey(key('KeyM'))?.kind).toBe('shrine');
+    expect(buildItemForKey(key('KeyK'))?.kind).toBe('threshing-floor');
     expect(new Set(BUILD_ITEMS.map((item) => item.hotkey)).size).toBe(BUILD_ITEMS.length);
     const camera = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'KeyR'];
     expect(BUILD_ITEMS.filter((item) => camera.includes(item.hotkey))).toEqual([]);
@@ -268,6 +270,37 @@ describe('modla a svatyně', () => {
       sacredBuildings: [{ kind: 'shrine', position: { x: -100, z: -100, rotation: 0 } }],
     };
     expect(item.check(landscape, withShrine, { x: 60, z: 60, rotation: 0 }).ok).toBe(false);
+  });
+});
+
+describe('humno (production-chains.md – Humno)', () => {
+  const SIZE = 32;
+  const landscape: Landscape = {
+    size: SIZE,
+    cellSizeM: 15,
+    heights: new Float32Array(SIZE * SIZE),
+    surface: new Uint8Array(SIZE * SIZE).fill(2),
+    fertility: new Uint8Array(SIZE * SIZE).fill(50),
+    villageSite: { x: 16, y: 16 },
+    stream: [],
+    obstacleLayer: null,
+  };
+  const village: PlacementVillage = {
+    dwellings: [{ type: 'zemnice', position: { x: 0, z: 0, rotation: 0 } }],
+    constructions: [],
+    parts: [],
+  };
+
+  it('půdorys u kurzoru jako dílna; dřevo z hromady práci nestojí, přes obydlí ne', () => {
+    const item = buildItem('threshing-floor');
+    if (item.placement !== 'threshing-floor') throw new Error('Humno se umisťuje půdorysem.');
+    expect(item).toMatchObject({ name: 'Humno', icon: 'humno', hotkeyLabel: 'K' });
+    const free = item.check(landscape, village, { x: 60, z: 60, rotation: 0 }, 10);
+    expect(free.ok).toBe(true);
+    expect(free.cost).toEqual({ laborManDays: threshingFloorBuildLabor(), trees: 0 });
+    const over = item.check(landscape, village, { x: 0, z: 0, rotation: 0 }, 10);
+    expect(over.ok).toBe(false);
+    expect(over.cost).toBeNull();
   });
 });
 

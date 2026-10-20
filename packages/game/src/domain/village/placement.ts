@@ -85,6 +85,7 @@ import {
   DWELLING_MAX_HEIGHT_DIFF_M,
   FIELD_LIMITS,
   FOREST_CROWN_MARGIN_M,
+  HUMNO,
   KILN_SITE,
   MILIR,
   PLOT_HOUSE_OFFSET_M,
@@ -128,6 +129,7 @@ import type {
   TileCell,
   VillageState,
 } from './types';
+import { threshingFloorFootprint } from './threshing-floors';
 import { reservedTrees } from './wood';
 
 // Umisťování obydlí, polí, sadů a pohřebišť (population.md – Umístění obydlí, fields.md –
@@ -152,7 +154,7 @@ export interface PlacementCheck {
  * a natočené čtverce polí, sadů a lesa v jejich mřížce (`squares` – fields.md, Natočené stavby).
  */
 export type ForeignStructures = Readonly<
-  Pick<NeighbourSnapshot, 'dwellings' | 'sacredBuildings' | 'cells' | 'squares'>
+  Pick<NeighbourSnapshot, 'dwellings' | 'sacredBuildings' | 'threshingFloors' | 'cells' | 'squares'>
 >;
 
 /** Stavba zasahuje na stavbu nebo půdu jiné vsi na téže mapě (migration.md). */
@@ -248,6 +250,11 @@ export interface PlacementVillage {
     readonly kind: SacredBuildingKind;
     readonly position: Position;
   }[];
+  /**
+   * Humna i rozestavěná (production-chains.md – Humno) – zabírají svůj půdorys
+   * (`threshingFloorFootprint`). Bez údaje žádná.
+   */
+  readonly threshingFloors?: readonly { readonly position: Position }[];
   /**
    * Pokrytí nástroji 0–1 (crafts.md) – cena založení pole a povrch čtverce (křoviny) podle mezí
    * produktivity. Bez údaje 0 (ves bez kováře).
@@ -775,6 +782,11 @@ function foreignIndex(
       tiles.add(index);
     }
   }
+  for (const f of foreign.threshingFloors ?? []) {
+    for (const index of cellsUnderPolygon(landscape, threshingFloorFootprint(f.position))) {
+      tiles.add(index);
+    }
+  }
   for (const tile of [...tiles].sort((a, b) => a - b)) {
     const cell = { x: tile % landscape.size, y: Math.floor(tile / landscape.size) };
     shapes.push({ corners: cellCorners(landscape, cell), tile });
@@ -934,6 +946,8 @@ function gateProblem(
     if (!hits([sacredFootprint(b.kind, b.position)])) continue;
     return b.kind === 'idol' ? `${what} na modlu.` : `${what} do svatyně.`;
   }
+  const floors = [...(village.threshingFloors ?? []), ...(village.foreign?.threshingFloors ?? [])];
+  if (floors.some((f) => hits([threshingFloorFootprint(f.position)]))) return `${what} na humno.`;
   const under = new Set(squaresUnder(landscape, village, freeShape(probe)).map((q) => q.kind));
   if (under.has('cemetery')) return `${what} do hřbitova.`;
   if (under.has('pen')) return `${what} do ohrady.`;
@@ -978,8 +992,8 @@ const FIELD_LAND: LandUse = { fields: true, woods: true };
 
 /**
  * Půdorys nebo pozemek (tvary `shapes`) se nepřekrývá s obydlím či rozestavěným obydlím (i jejich
- * pozemky), modlou, svatyní, ohradou ani se čtvercem pohřebiště – a podle `land` ani se čtvercem
- * pole, sadu či lesa vsi. Čtverce staveb i natočené (fields.md – Natočené stavby).
+ * pozemky), modlou, svatyní, humnem, ohradou ani se čtvercem pohřebiště – a podle `land` ani se
+ * čtvercem pole, sadu či lesa vsi. Čtverce staveb i natočené (fields.md – Natočené stavby).
  */
 function checkFootprintFree(
   landscape: Landscape,
@@ -1012,6 +1026,10 @@ function checkFootprintFree(
     if (overlaps([sacredFootprint(b.kind, b.position)])) {
       return fail(b.kind === 'idol' ? 'Překrývá se s modlou.' : 'Překrývá se se svatyní.');
     }
+  }
+  // humno – mlatová plocha s přístřeškem (production-chains.md – Humno)
+  for (const f of village.threshingFloors ?? []) {
+    if (overlaps([threshingFloorFootprint(f.position)])) return fail('Překrývá se s humnem.');
   }
   // milíř uhlíře je samostatná stavba (crafts.md – Milíř u skácených buků)
   for (const k of village.kilns ?? []) {
@@ -2545,9 +2563,9 @@ function dwellingShapes(
 
 /**
  * Co je pod čtvercem stavby: voda, les (krajiny i les vsi – nebrání, osadníci ho vyklučí –
- * `ForestUse`), obydlí, pole, pohřebiště, sad, ohrada, modla, svatyně; `woodEdge` – čtverec
- * zasahuje do lesa vsi jinak než přesně jeho čtvercem (natočené stavby – pole les vsi vymýtí jen
- * po jeho čtvercích, ostatním stavbám to nevadí).
+ * `ForestUse`), obydlí, pole, pohřebiště, sad, ohrada, modla, svatyně, humno; `woodEdge` –
+ * čtverec zasahuje do lesa vsi jinak než přesně jeho čtvercem (natočené stavby – pole les vsi
+ * vymýtí jen po jeho čtvercích, ostatním stavbám to nevadí).
  */
 interface SquareFlags {
   water: boolean;
@@ -2558,6 +2576,8 @@ interface SquareFlags {
   orchard: boolean;
   pen: boolean;
   sacred: boolean;
+  /** Humno i rozestavěné (production-chains.md – Humno). */
+  threshing: boolean;
   woodEdge: boolean;
   /** Stavby a půda jiné vsi na téže mapě (migration.md). */
   foreign: boolean;
@@ -2587,6 +2607,10 @@ function squareFlags(
     landscape,
     (village?.sacredBuildings ?? []).map((b) => freeShape(sacredFootprint(b.kind, b.position))),
   );
+  const floors = new PolygonIndex(
+    landscape,
+    (village?.threshingFloors ?? []).map((f) => freeShape(threshingFloorFootprint(f.position))),
+  );
   return (square) => {
     const ground = squareGround(landscape, square);
     const under = index.overlapping(square.corners, square.tile);
@@ -2603,6 +2627,7 @@ function squareFlags(
       orchard: kinds.has('orchard'),
       pen: kinds.has('pen'),
       sacred: sacred.overlapping(square.corners, square.tile).length > 0,
+      threshing: floors.overlapping(square.corners, square.tile).length > 0,
       woodEdge: woods.some((w) => !sameSquare(w, square)),
       foreign: onForeignLand(landscape, village, square),
       ground,
@@ -2785,6 +2810,7 @@ function buildSquares(
     orchard: false,
     pen: false,
     sacred: false,
+    threshing: false,
     woodEdge: false,
     foreign: false,
     far: false,
@@ -3075,6 +3101,7 @@ export function fieldPartsFromCells(
     [problems.orchard, () => 'Pole se překrývá se sadem.'],
     [problems.pen, () => 'Pole se překrývá s ohradou.'],
     [problems.sacred, () => 'Pole se překrývá s posvátným místem.'],
+    [problems.threshing, () => 'Pole se překrývá s humnem.'],
     [problems.foreign, () => FOREIGN_LAND],
     [problems.woodEdge, () => 'Les vsi pole vymýtí jen po jeho čtvercích – natoč pole jako les.'],
     [problems.far, () => `Pole je dál než ${FIELD_LIMITS.maxDistanceM} m od nejbližšího obydlí.`],
@@ -3178,6 +3205,7 @@ export function orchardPartsFromCells(
     [problems.orchard, 'Sad se překrývá s jiným sadem.'],
     [problems.pen, 'Sad se překrývá s ohradou.'],
     [problems.sacred, 'Sad se překrývá s posvátným místem.'],
+    [problems.threshing, 'Sad se překrývá s humnem.'],
     [problems.foreign, FOREIGN_LAND],
     [problems.far, `Sad je dál než ${FIELD_LIMITS.maxDistanceM} m od nejbližšího obydlí.`],
     [sacred.squares.length === 0, 'Roste tu posvátný dubový háj – ten vesničané nevykácejí.'],
@@ -3290,6 +3318,7 @@ export function cemeteryPartsFromCells(
     orchard: false,
     pen: false,
     sacred: false,
+    threshing: false,
     woodEdge: false,
     foreign: false,
     outcrop: false,
@@ -3314,6 +3343,7 @@ export function cemeteryPartsFromCells(
       orchard: raw.orchard,
       pen: raw.pen,
       sacred: raw.sacred,
+      threshing: raw.threshing,
       woodEdge: false,
       // na pole hřbitov smí (fields.md – Pole jako krajina) – čtverec z pole zmizí
       field: false,
@@ -3381,6 +3411,7 @@ export function cemeteryPartsFromCells(
     [problems.orchard, 'Hřbitov se překrývá se sadem.'],
     [problems.pen, 'Hřbitov se překrývá s ohradou.'],
     [problems.sacred, 'Hřbitov se překrývá s posvátným místem.'],
+    [problems.threshing, 'Hřbitov se překrývá s humnem.'],
     [problems.foreign, FOREIGN_LAND],
     [problems.outcrop, 'Stojí tu skalní výchoz – ten osadníci neodstraní.'],
     [problems.oak, 'Stojí tu posvátný dub – mezi hroby ho vesničané nenechají.'],
@@ -3424,14 +3455,16 @@ export function cemeteryPartsFromCells(
 /** Názvy posvátných staveb (důvody kontroly umístění). */
 const SACRED_NAMES: Record<SacredBuildingKind, string> = { idol: 'Modla', shrine: 'Svatyně' };
 
-/** Půdorys modly nebo svatyně v krajině, ne ve vodě (louka i les), a u svatyně dost rovný. */
-function checkSacredTerrain(
+/**
+ * Půdorys volně stojící stavby `name` (modla, svatyně, humno) v krajině, ne ve vodě (louka i les)
+ * a s rozdílem výšek nejvýš `limit` m (null = bez meze).
+ */
+function checkStructureTerrain(
   landscape: Landscape,
-  kind: SacredBuildingKind,
+  name: string,
+  limit: number | null,
   samples: readonly Point[],
 ): PlacementCheck {
-  const name = SACRED_NAMES[kind];
-  const limit = SACRED_BUILDINGS[kind].maxHeightDiffM;
   let lowest = Infinity;
   let highest = -Infinity;
   for (const [x, z] of samples) {
@@ -3484,7 +3517,12 @@ export function checkSacredBuildingPlacement(
     return { ...fail('Ves už svatyni má – svatyně je jedna na ves.'), ...none };
   }
   const size = SACRED_BUILDINGS[kind].footprintM;
-  const terrain = checkSacredTerrain(landscape, kind, rectangleSamples(size, size, position));
+  const terrain = checkStructureTerrain(
+    landscape,
+    SACRED_NAMES[kind],
+    SACRED_BUILDINGS[kind].maxHeightDiffM,
+    rectangleSamples(size, size, position),
+  );
   if (!terrain.ok) return { ...terrain, ...none };
   const footprint = sacredFootprint(kind, position);
   const free = checkFootprintFree(landscape, village, [freeShape(footprint)], FIELD_LAND);
@@ -3498,6 +3536,91 @@ export function checkSacredBuildingPlacement(
   if (sacredProblem) return { ...fail(sacredProblem), ...none };
   // překážky vrstvy na čtvercích polí patří poli (založený díl je už nemá)
   const crowned = sacredCrowned(kind, position);
+  const fields = ownedLand(
+    landscape,
+    village,
+    ['field'],
+    groveTilesUnder(landscape, sites, [crowned]),
+  );
+  const forest = freeForestClearing(landscape, village, [footprint], [crowned], fields);
+  const tally = polygonsObstacles(
+    obstacles,
+    status,
+    forest.polygons,
+    fields,
+    sites.protectedTrees,
+    forest.options,
+  );
+  const takenLand = takenLandUnder(landscape, village, [footprint]);
+  return {
+    ...withWarning(takenLandWarning(landscape, village, takenLand)),
+    obstacleCost: tally.cost + forest.cost,
+    obstacleIds: tally.ids,
+    clearedTrees: unreservedTrees(village, tally.treeIds),
+    obstacleCounts: tally.counts,
+    takenLand,
+  };
+}
+
+/**
+ * Kontrola umístění humna s cenou překážek a lesa na půdorysu – stejné údaje jako u modly
+ * a svatyně (`startThreshingFloor` je dostane v `site`).
+ */
+export type ThreshingFloorPlacementCheck = SacredPlacementCheck;
+
+/** Půdorys humna rozšířený o pruh pod korunami (FOREST_CROWN_MARGIN_M) – paseka v lese. */
+function threshingFloorCrowned(position: Position): Point[] {
+  const margin = 2 * FOREST_CROWN_MARGIN_M;
+  const { x, z } = HUMNO.sizeM;
+  return rectangleCorners(position.x, position.z, x + margin, z + margin, position.rotation);
+}
+
+/**
+ * Smí humno stát na místě (production-chains.md – Humno)? Volně jako řemeslná dílna: půdorys
+ * HUMNO.sizeM natočený jako obydlí na louce nebo v lese (Stavba v lese – les i les vsi osadníci
+ * vyklučí za sazbu lesa i s pruhem pod korunami), ne ve vodě, s rozdílem výšek nejvýš
+ * HUMNO.maxHeightDiffM; nepřekrývá obydlí (i rozestavěná a jejich pozemky), jiné humno, modlu,
+ * svatyni, hřbitov, ohradu, sad, milíř ani stavby jiné vsi, nezatarasí branku a nestojí na
+ * skalním výchozu, čtverci háje ani pod korunou posvátného dubu. Na pole smí (fields.md – Pole
+ * jako krajina): díly pod půdorysem se o průnik zmenší (`takenLand`, varování „Pole se zmenší“),
+ * překážky na nich stavba neplatí – patří poli. Ostatní překážky na půdorysu osadníci odstraní za
+ * práci po kusech (fields.md), dospělé stromy dají klády. `obstacles` = vrstva překážek krajiny.
+ */
+export function checkThreshingFloorPlacement(
+  landscape: Landscape,
+  village: PlacementVillage | null,
+  position: Position,
+  obstacles: ObstacleLayer = obstaclesOf(landscape),
+): ThreshingFloorPlacementCheck {
+  const none = {
+    obstacleCost: 0,
+    obstacleIds: [],
+    clearedTrees: 0,
+    obstacleCounts: {},
+    takenLand: [],
+  };
+  if (![position.x, position.z, position.rotation].every(Number.isFinite)) {
+    return { ...fail('Neplatná poloha – humno.'), ...none };
+  }
+  const terrain = checkStructureTerrain(
+    landscape,
+    'Humno',
+    HUMNO.maxHeightDiffM,
+    rectangleSamples(HUMNO.sizeM.x, HUMNO.sizeM.z, position),
+  );
+  if (!terrain.ok) return { ...terrain, ...none };
+  const footprint = threshingFloorFootprint(position);
+  const free = checkFootprintFree(landscape, village, [freeShape(footprint)], FIELD_LAND);
+  if (!free.ok) return { ...free, ...none };
+  const status = obstacleStatus(village?.obstacleChanges);
+  if (outcropUnder(obstacles, status, footprint)) {
+    return { ...fail('Stojí tu skalní výchoz – ten osadníci neodstraní.'), ...none };
+  }
+  const sites = sacredSitesOf(obstacles);
+  const sacredProblem = sacredUnder(landscape, obstacles, sites, [footprint]);
+  if (sacredProblem) return { ...fail(sacredProblem), ...none };
+  // překážky vrstvy na čtvercích polí patří poli (založený díl je už nemá)
+  const crowned = threshingFloorCrowned(position);
   const fields = ownedLand(
     landscape,
     village,

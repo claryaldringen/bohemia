@@ -852,6 +852,11 @@ export type ConstructionKind =
   /** Výsadba jabloní podél pevné cesty `roadIds` (roads.md – Vysazení jabloní). */
   | 'road-apples'
   /**
+   * Humno (production-chains.md – Humno) – stavba se polohou v `position`; humno má id stavby
+   * (`VillageState.threshingFloors`).
+   */
+  | 'threshing-floor'
+  /**
    * Oprava stavby, ke které se zase chodí (abandonment.md – Oprava): modla, svatyně, plot
    * hřbitova a ohrada v `repair` – vesničané ji založí sami ze společné práce.
    */
@@ -870,7 +875,9 @@ export type LandTaker =
   | 'road-apples'
   | 'road-trees'
   /** Pevná cesta přes pole – pás, rozcestí a oddělené kousky (roads.md – Cesta přes pole). */
-  | 'road';
+  | 'road'
+  /** Humno (production-chains.md – Humno). */
+  | 'threshing-floor';
 /** Posvátná stavba, kterou staví hráč (happiness.md). */
 export type SacredBuildingKind = 'idol' | 'shrine';
 export interface Construction {
@@ -880,7 +887,7 @@ export interface Construction {
   cost: number;
   done: number;
   dwellingType: DwellingType | null;
-  position: Position | null; // dwelling, idol, shrine
+  position: Position | null; // dwelling, idol, shrine, threshing-floor
   /** Nové obydlí na pozemku – obydlí ho po dostavění převezme (u volných obydlí chybí). */
   plot?: DwellingPlot;
   /** rebuild: přestavované obydlí; dwelling: domácnost zakladatelů (první zemnice), jinak null. */
@@ -1639,6 +1646,11 @@ export interface VillageState {
   /** Hotové modly a svatyně (happiness.md); chybí = žádné. */
   sacredBuildings?: SacredBuilding[];
   /**
+   * Humna (production-chains.md – Humno) – hotová i rozestavěná (`builtDay` null). U vsí
+   * uložených dřív chybí (= žádné).
+   */
+  threshingFloors?: ThreshingFloor[];
+  /**
    * Dobytek (diet.md – Dobytek): stáda ovcí, koz, prasat a krav. U vsí uložených před dobytkem
    * chybí – výchozí stádo z domácností doplní `withLivestock` (nebo první dopočítaný den).
    */
@@ -1816,6 +1828,8 @@ export interface NeighbourSnapshot {
     plainShape?: true;
   }[];
   sacredBuildings: { kind: SacredBuildingKind; position: Position }[];
+  /** Humna i rozestavěná (production-chains.md – Humno) – zabírají půdorys. Chybí = žádná. */
+  threshingFloors?: { position: Position }[];
   /** Políčka krajiny, která zabírají (v mřížce krajiny). */
   cells: TileCell[];
   /**
@@ -2570,6 +2584,17 @@ export interface Grove {
   z: number;
   cells: TileCell[];
   oaks: number;
+}
+
+/**
+ * Humno (production-chains.md – Humno): udusaná a vymazaná mlatová plocha s přístřeškem, kterou
+ * staví hráč – půdorys HUMNO.sizeM natočený jako obydlí (`position`). Id = id stavby humna; dokud
+ * se staví, `builtDay` je null.
+ */
+export interface ThreshingFloor {
+  id: number;
+  position: Position;
+  builtDay: number | null;
 }
 
 /** Hotová dřevěná modla nebo svatyně (happiness.md). */

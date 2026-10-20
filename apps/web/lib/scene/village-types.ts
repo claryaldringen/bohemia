@@ -136,6 +136,14 @@ export type PlacementMode =
       craft: Craft;
       type: DwellingType;
       check(position: Position): PlacementCheck & { cost?: PlacementCost | null };
+    }
+  | {
+      /**
+       * Humno (production-chains.md – Humno) – obdélníkový půdorys u kurzoru jako dílna ([ a ]
+       * otáčejí); duch je zatím jen obrys půdorysu.
+       */
+      kind: 'threshing-floor';
+      check(position: Position): PlacementCheck & { cost?: PlacementCost | null };
     };
 
 /**
@@ -146,7 +154,8 @@ export type PlacementResult =
   | { kind: 'dwelling'; type: DwellingType; position: Position; plot?: DwellingPlot }
   | { kind: 'squares'; cells: TileCell[]; grid?: SquareGrid; variant?: string }
   | { kind: 'sacred'; type: SacredBuildingKind; position: Position }
-  | { kind: 'workshop'; craft: Craft; position: Position };
+  | { kind: 'workshop'; craft: Craft; position: Position }
+  | { kind: 'threshing-floor'; position: Position };
 
 /**
  * Průběžný stav umisťování pro rozhraní: kontrola, popisek (u pole výměra a cena z `preview`,
