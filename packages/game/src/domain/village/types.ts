@@ -1124,6 +1124,16 @@ export interface ExtraPart {
   id: number;
   sownYears?: number;
 }
+
+/**
+ * Kdo se vzal (id ženicha a nevěsty) – u událostí svatby v kronice (kinship.md – Svatba ve scéně:
+ * svatebčané ve scéně); události zapsané dřív je nemají.
+ */
+export interface WeddingCouple {
+  groomId?: number;
+  brideId?: number;
+}
+
 export type ChronicleEvent = { day: number } & (
   | { kind: 'village-founded' }
   | { kind: 'birth' }
@@ -1138,20 +1148,26 @@ export type ChronicleEvent = { day: number } & (
    * přestěhovala k muži do domu `to` (ze stejného domu from = to); `groomMoved` – naopak ženich se
    * přiženil k nevěstě, která drží dům; `widow` – vdávala se vdova (už má děti).
    */
-  | {
+  | ({
       kind: 'marriage';
       fromDwellingId: number;
       toDwellingId: number;
       groomMoved?: true;
       widow?: true;
-    }
+      /**
+       * Domy ženicha a nevěsty před svatbou (id obydlí – kinship.md, Svatba ve scéně: odkud jde
+       * průvod); události zapsané dřív je nemají – odvodí se z `fromDwellingId` / `toDwellingId`.
+       */
+      groomFromDwellingId?: number;
+      brideFromDwellingId?: number;
+    } & WeddingCouple)
   /** Muž z domu `dwellingId` si přivedl nevěstu z okolí (kinship.md – Sňatky z okolí). */
-  | { kind: 'bride-from-outside'; dwellingId: number }
+  | ({ kind: 'bride-from-outside'; dwellingId: number } & WeddingCouple)
   /**
    * K ženě z domu `dwellingId` se přiženil muž z okolí (kinship.md – Sňatky z okolí); `widow` –
    * k vdově.
    */
-  | { kind: 'groom-from-outside'; dwellingId: number; widow?: true }
+  | ({ kind: 'groom-from-outside'; dwellingId: number; widow?: true } & WeddingCouple)
   /** Dcera z domu `dwellingId` se vdala pryč – odešla ze vsi (kinship.md – Sňatky z okolí). */
   | { kind: 'married-away'; dwellingId: number }
   | {

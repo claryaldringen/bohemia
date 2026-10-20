@@ -64,9 +64,17 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
     const next = advanceVillage(village(), DAY + 730, null);
     expect(next.people.length).toBeGreaterThan(3);
     expect(next.people.some((p) => 'practice' in p)).toBe(false);
-    // příznak převodu dosahů čtyřkoláku (wagons.md – Co se vozí a na čem) – jen značka ve stavu
+    // příznak převodu dosahů čtyřkoláku (wagons.md – Co se vozí a na čem) – jen značka ve stavu;
+    // pár a domy před svatbou v kronice (kinship.md – Svatba ve scéně) – jen zápis pro scénu
+    const marks = new Set([
+      'fourWheelOffRoad',
+      'groomId',
+      'brideId',
+      'groomFromDwellingId',
+      'brideFromDwellingId',
+    ]);
     const stripped = JSON.stringify(next, (key, value: unknown) =>
-      key === 'fourWheelOffRoad' ? undefined : value,
+      marks.has(key) ? undefined : value,
     );
     expect(hash(stripped)).toBe('f0150b51');
   }, 120_000);
