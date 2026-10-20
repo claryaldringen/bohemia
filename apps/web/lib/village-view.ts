@@ -150,7 +150,9 @@ import {
   withNeighbours,
   type NeighbourSnapshot,
   type PenSpecies,
+  type HerdPlaces,
   herdsOverRoom,
+  penHerdSpecies,
 } from '@bohemia/game';
 import { formatGameDate } from './game-date';
 import { fruitVisible, treeGrowth } from './orchard-look';
@@ -276,6 +278,11 @@ export interface VillagePen {
   places: number;
   /** Kolik zvířat v ohradě v noci stojí (u spřežení voli a telata). */
   animals: number;
+  /**
+   * Místa stáda svého druhu celé vsi – ve všech ohradách druhu, u domů a kolik míst v ohradách by
+   * stádo potřebovalo (oxen.md – Co hráč vidí, `herdPlaces`); u spřežení null.
+   */
+  herdPlaces: HerdPlaces | null;
   /** Rozšíření ve stavbě – průběh 0–1; bez rozšíření null. */
   extension: number | null;
   built: boolean;
@@ -3426,6 +3433,12 @@ function purchaseViews(state: VillageState): VillagePurchase[] {
   }));
 }
 
+/** Místa stáda druhu ohrady (`VillagePen.herdPlaces`) – u spřežení null. */
+function herdPlacesOf(summary: VillageSummary, species: PenSpecies): HerdPlaces | null {
+  const herd = penHerdSpecies(species);
+  return herd ? { ...summary.herdPlaces[herd] } : null;
+}
+
 /** Ohrady pro panel výběru – stavba, spřežení, výcvik a zvířata v ohradě. */
 function penViews(state: VillageState, day: number, summary: VillageSummary): VillagePen[] {
   const winter = HAY_WINTER_MONTHS.includes(dateOfDayIndex(day).month);
@@ -3441,6 +3454,7 @@ function penViews(state: VillageState, day: number, summary: VillageSummary): Vi
       squares: 1 + (pen.extraSquares?.length ?? 0),
       places: pen.places,
       animals: pen.animals,
+      herdPlaces: herdPlacesOf(summary, pen.species),
       extension: extensionProgress(state, summary, pen).extension ?? null,
       built: pen.built,
       progress,

@@ -15,6 +15,7 @@ const pen = (over: Partial<Extract<SelectionDetails, { kind: 'pen' }>> = {}): Se
   squares: 2,
   places: 90,
   animals: 4,
+  herdPlaces: { pens: 90, home: 0, needed: 6 },
   extension: null,
   built: true,
   progress: 1,
@@ -67,6 +68,22 @@ describe('SelectionPanel – ohrada', () => {
     // mimo dobu dojení se mléko neukazuje
     expect(text(html, 'selection-milk')).toBeUndefined();
     expect(text(render(pen({ milkLPerDay: 14.2 })), 'selection-milk')).toBe('14');
+  });
+
+  it('místa všech ohrad druhu / potřeba stáda – červeně, když chybí (Martin 20. 10. 2026)', () => {
+    const html = render(pen());
+    expect(text(html, 'selection-pen-need')).toBe('90/6');
+    expect(html).not.toContain('data-alert');
+    const short = render(
+      pen({ species: 'sheep', places: 130, herdPlaces: { pens: 130, home: 12, needed: 168 } }),
+    );
+    expect(text(short, 'selection-pen-need')).toBe('130/168');
+    expect(short).toContain('data-alert');
+    expect(short).toContain('u domů 12');
+    // ohrada spřežení stádo nemá
+    expect(text(render(pen({ species: 'team', herdPlaces: null })), 'selection-pen-need')).toBe(
+      undefined,
+    );
   });
 
   it('spřežení se cvičí samo – tlačítko výcviku v panelu není (Martin 19. 10. 2026)', () => {

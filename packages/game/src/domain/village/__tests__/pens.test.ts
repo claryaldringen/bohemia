@@ -3,6 +3,7 @@ import { dayIndexOf } from '../../calendar';
 import { packObstacles } from '../../landscape';
 import { foundPen, foundVillage } from '../actions';
 import { stockedPenIds } from '../abandonment';
+import { herdPlaces } from '../husbandry';
 import { LIVESTOCK, winterTargets } from '../livestock';
 import { PEN, trainingBlock, type PenInput } from '../oxen';
 import {
@@ -380,5 +381,44 @@ describe('branka ohrady o víc čtvercích (paths.md – Vchody)', () => {
     expect(gate.x).toBeLessThan(29.5);
     // cíl branky od středu čtverců k nejbližšímu obydlí
     expect(penGateToward(two, [{ position: dwelling }])).toEqual(dwelling);
+  });
+});
+
+describe('místa stáda pro panel ohrady (Martin 20. 10. 2026)', () => {
+  it('ohrady druhu, kusy u domů a potřeba – nejméně dnešní stádo bez kusů u domů', () => {
+    const s = village();
+    s.livestock!.herds = { sheep: 150, goat: 3, pig: 2, cow: 2 };
+    s.pens = [pen(1, 'sheep', 1, 6)];
+    const before = JSON.stringify(s);
+    const places = herdPlaces(s, DAY);
+    const home = homesteadRoom(s);
+    expect(places.sheep.pens).toBe(PEN_PLACES_PER_SQUARE.sheep);
+    expect(places.sheep.home).toBe(home.sheep);
+    // dnešní stádo bez kusů u domů a bez chovného páru s jarními mláďaty
+    const free = Math.max(home.sheep, LIVESTOCK.breedingMin * (1 + LIVESTOCK.growth.sheep));
+    expect(places.sheep.needed).toBeGreaterThanOrEqual(Math.floor(150 - free));
+    // chovný pár koz s mláďaty zůstane vždy – ohrada koz netřeba
+    expect(places.goat).toEqual({ pens: 0, home: home.goat, needed: 0 });
+    // stav se nemění
+    expect(JSON.stringify(s)).toBe(before);
+  });
+
+  it('potřeba počítá s jarními mláďaty stáda, které by si ves nechala bez omezení ohradami', () => {
+    const s = village();
+    s.livestock!.land = { meadowHa: 1000, forestHa: 1000 };
+    s.livestock!.herds = { sheep: 40, goat: 0, pig: 0, cow: 0 };
+    s.pens = [];
+    const places = herdPlaces(s, DAY);
+    // bez ohrady ovcí by stádo omezila místa u domů – potřeba je i tak podle stáda bez omezení
+    expect(places.sheep.pens).toBe(0);
+    expect(places.sheep.needed).toBeGreaterThan(40 - places.sheep.home);
+  });
+
+  it('ves bez dobytka nic nepotřebuje', () => {
+    const s = village();
+    delete s.livestock;
+    const places = herdPlaces(s, DAY);
+    expect(places.sheep.needed).toBe(0);
+    expect(s.livestock).toBeUndefined();
   });
 });

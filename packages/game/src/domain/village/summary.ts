@@ -49,6 +49,7 @@ import {
   villageHerds,
 } from './livestock';
 import { OXEN, teamAgeYears, trainingProgress, villagePens } from './oxen';
+import { herdPlaces, type HerdPlaces } from './husbandry';
 import { penOccupancy, penPlaces, penSpecies } from './pens';
 import {
   orchardAgeYears,
@@ -345,6 +346,11 @@ export interface VillageSummary {
   livestock: LivestockSummary;
   /** Ohrady v pořadí založení. */
   pens: PenSummary[];
+  /**
+   * Místa na noc po druzích stáda – ohrady svého druhu, domy a kolik míst v ohradách by stádo
+   * potřebovalo (oxen.md – Ohrady podle druhu, Co hráč vidí; `herdPlaces`).
+   */
+  herdPlaces: Record<HerdSpecies, HerdPlaces>;
   /**
    * Volná (společná) práce posledního dne – kolik ves dnes nechá na stavby; na jaře a v žních
    * bývá nula (Martin, 19. 10. 2026 – ukazatel v liště, dřív průměr 30 dní zaostával o týdny).
@@ -675,6 +681,7 @@ export function summarizeVillage(
     hayKg: villageHayKg(state),
     livestock: livestockSummary(state, day),
     pens: penSummaries(state, day),
+    herdPlaces: herdPlaces(state, day, craftCoverage(state, day).tools),
     commonLaborPerDay: history.at(-1) ?? 0,
     fullHousehold: waitingHouseholds(state, day) > 0,
     constructions: state.constructions.map((c) => constructionSummary(state, c)),

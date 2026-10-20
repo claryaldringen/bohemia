@@ -15,7 +15,7 @@ export * from './plough-blocks';
 export * from './plough-trip';
 export * from './oxen';
 export * from './pens';
-export { breedingCows, winterHayNeedKg } from './husbandry';
+export { breedingCows, herdPlaces, winterHayNeedKg, type HerdPlaces } from './husbandry';
 export * from './herding';
 export { woolCoverage, woolNeedKg, woolSheep, woolUnhappiness } from './wool';
 export * from './dwellings';

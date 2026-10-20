@@ -31,7 +31,7 @@ import {
   winterWaitHayKg,
 } from './livestock';
 import { OXEN, ableTeams, penDay, penOxen, oxPens, trainTeamsWhenReady, villageOxen } from './oxen';
-import { herdRoom, pensLimitHerds } from './pens';
+import { herdRoom, homesteadRoom, penCapacity, pensLimitHerds } from './pens';
 import { walkDistancesTo } from './paths/village';
 import { villageRoadWalk } from './paths/walking';
 import type { ChronicleEvent, HerdSpecies, VillageState } from './types';
@@ -123,6 +123,56 @@ function farmInput(
     // ročním odkladu (nová ves, převod)
     ...(pensLimitHerds(state, day) ? { room: herdRoom(state) } : {}),
   };
+}
+
+/** Místa na noc jednoho druhu stáda – pro panel ohrady (`herdPlaces`). */
+export interface HerdPlaces {
+  /** Místa hotových ohrad svého druhu (`penCapacity`). */
+  pens: number;
+  /** Kusy, které udrží domy bez ohrady (`homesteadRoom`). */
+  home: number;
+  /**
+   * Kolik míst v ohradách svého druhu by stádo potřebovalo: stádo, které by si ves chtěla nechat
+   * přes zimu, kdyby ji ohrady neomezovaly (`wantedWinterHerds` bez míst – pastva, seno, les,
+   * pasáci a potřeba jídla platí dál), s jarními mláďaty – nejméně dnešní stádo; bez kusů u domů
+   * a bez chovného páru s mláďaty (zůstane vždy).
+   */
+  needed: number;
+}
+
+/**
+ * Místa na noc po druzích stáda (oxen.md – Ohrady podle druhu, Co hráč vidí): co mají ohrady, co
+ * udrží domy a kolik míst v ohradách by stádo potřebovalo (`HerdPlaces`). Ves bez dobytka nic
+ * nepotřebuje. Stav nemění.
+ */
+export function herdPlaces(
+  state: VillageState,
+  day: number,
+  toolCoverage = 0,
+): Record<HerdSpecies, HerdPlaces> {
+  const pens = penCapacity(state);
+  const home = homesteadRoom(state);
+  const herds = state.livestock?.herds;
+  const species = ['sheep', 'goat', 'pig', 'cow'] as const;
+  if (!herds) {
+    return Object.fromEntries(
+      species.map((s) => [s, { pens: pens[s], home: home[s], needed: 0 }]),
+    ) as Record<HerdSpecies, HerdPlaces>;
+  }
+  // stádo podle potřeby, jako by místa ohrad nebyla
+  const input = { ...farmInput(state, day, toolCoverage) };
+  delete input.room;
+  const wanted = wantedWinterHerds(state, day, input);
+  return Object.fromEntries(
+    species.map((s) => {
+      const growth = 1 + LIVESTOCK.growth[s];
+      const peak = Math.max(Math.round(herds[s]), wanted[s] * growth);
+      // chovný pár i s mláďaty zůstane vždy, ohradu nepotřebuje (diet.md – Místa na noc)
+      const free = Math.max(home[s], LIVESTOCK.breedingMin * growth);
+      const needed = Math.max(0, Math.ceil(peak - free - 1e-9));
+      return [s, { pens: pens[s], home: home[s], needed }];
+    }),
+  ) as Record<HerdSpecies, HerdPlaces>;
 }
 
 /**

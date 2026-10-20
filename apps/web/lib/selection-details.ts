@@ -11,6 +11,7 @@ import {
   type DwellingType,
   type FamilyCounts,
   type FieldSurface,
+  type HerdPlaces,
   type HerdSpecies,
   type PenSpecies,
   type PartStage,
@@ -327,6 +328,8 @@ export type SelectionDetails =
       places: number;
       /** Kolik zvířat v ohradě v noci stojí. */
       animals: number;
+      /** Místa stáda druhu – všechny ohrady druhu, u domů a potřeba (`VillagePen.herdPlaces`). */
+      herdPlaces: HerdPlaces | null;
       /** Rozšíření ve stavbě – průběh 0–1; bez rozšíření null. */
       extension: number | null;
       built: boolean;
@@ -856,6 +859,7 @@ function penDetails(view: VillageView | null, id: number): SelectionDetails | nu
     squares: pen.squares,
     places: pen.places,
     animals: pen.animals,
+    herdPlaces: pen.herdPlaces,
     extension: pen.extension,
     built: pen.built,
     progress: pen.progress,

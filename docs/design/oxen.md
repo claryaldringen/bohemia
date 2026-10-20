@@ -487,7 +487,11 @@ a nechávalo za sebou brázdu. Tak budu moci určit, jak se to chová.“ – **
 - V nabídce staveb **ohrada** – rozcestník druhů zvířat (ikona druhu u kurzoru), maluje se po
   čtvercích (nejvýš 4) a rozšiřuje jako hřbitov.
 - V panelu ohrady: druh, zvířata v ohradě na noc / místa, čtverce (ikony + čísla), průběh cvičení
-  spřežení, zásoba sena na zimu; kolik
+  spřežení; u ohrady stáda i **místa všech ohrad druhu / kolik jich stádo potřebuje** (Martin 20. 10. 2026: „když kliknu na ohradu, chtěl bych vidět, kolik obhospodařuje kusů od daného
+  zvířectva a kolik by bylo potřeba“) – červeně, když chybí, v popisku kusy u domů. Potřeba (návrh
+  Clauda): stádo, které by si ves nechala přes zimu, kdyby ji ohrady neomezovaly (pastva, seno, les,
+  pasáci a potřeba jídla platí dál), s jarními mláďaty, nejméně dnešní stádo – bez kusů u domů
+  a bez chovného páru s mláďaty (zůstane vždy). Dál zásoba sena na zimu, kolik
   let spřežení ještě slouží a kolik dní výcviku zbývá – ikona přesýpacích hodin (Martin: slunce
   nebylo srozumitelné). Tlačítko výcviku není – spřežení se cvičí samo (Martin, 19. 10. 2026).
 - V horní liště **seno** (ikona + číslo), když ves má dobytek v ohradě.

@@ -173,6 +173,7 @@ const pen = (over: Partial<Extract<SelectionDetails, { kind: 'pen' }>> = {}): Se
   squares: 1,
   places: 0,
   animals: 4,
+  herdPlaces: null,
   extension: null,
   built: true,
   progress: 1,
@@ -376,6 +377,21 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
     }),
   },
   { key: 'ohrada', label: 'Ohrada', details: pen() },
+  {
+    // ohrada ovcí, do které se stádo nevejde (oxen.md – Co hráč vidí)
+    key: 'ohrada-ovce',
+    label: 'Ohrada ovcí',
+    details: pen({
+      species: 'sheep',
+      places: 130,
+      animals: 130,
+      herdPlaces: { pens: 130, home: 12, needed: 168 },
+      oxen: 0,
+      cows: 0,
+      team: null,
+      training: null,
+    }),
+  },
   {
     key: 'ohrada-opustena',
     label: 'Ohrada opuštěná',

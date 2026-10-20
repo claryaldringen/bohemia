@@ -107,6 +107,7 @@ describe('showsHay', () => {
     squares: 1,
     places: 45,
     animals: 0,
+    herdPlaces: null,
     extension: null,
     built,
     progress: built ? 1 : 0.3,

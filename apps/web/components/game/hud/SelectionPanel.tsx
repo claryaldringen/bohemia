@@ -82,6 +82,7 @@ function Stat({
   src,
   name,
   testId,
+  alert = false,
   children,
 }: {
   /** Ikona suroviny v `public/icons/resources/` bez přípony. */
@@ -90,13 +91,19 @@ function Stat({
   src?: string;
   name: string;
   testId?: string;
+  /** Číslo červeně (něco chybí). */
+  alert?: boolean;
   children: ReactNode;
 }): ReactElement {
   return (
     <Tooltip content={name} placement="above">
       <span className="flex shrink-0 items-center gap-1 whitespace-nowrap" tabIndex={0}>
         <img src={src ?? `/icons/resources/${icon}.png`} alt="" width={20} height={20} />
-        <span data-testid={testId} className="text-sm font-semibold tabular-nums">
+        <span
+          data-testid={testId}
+          {...(alert ? { 'data-alert': true } : {})}
+          className={`text-sm font-semibold tabular-nums ${alert ? 'text-red-400' : ''}`}
+        >
           {children}
         </span>
       </span>
@@ -1118,7 +1125,8 @@ function formatTons(kg: number): string {
 
 /**
  * Ohrada (oxen.md – Co hráč vidí, Ohrady podle druhu): rozestavěná jen průběh stavby; hotová druh
- * zvířat s obsazením a místy na noc (v ohradě / místa), čtverce (nejvýš 4), rozšíření ve stavbě,
+ * zvířat s obsazením a místy na noc (v ohradě / místa), místa všech ohrad druhu / kolik jich stádo
+ * potřebuje (červeně, když chybí – Martin 20. 10. 2026), čtverce (nejvýš 4), rozšíření ve stavbě,
  * seno, stav (chátrání, oprava), stáda vsi s pastvou; ohrada spřežení voly, stáří spřežení (kolik
  * let ještě slouží) a průběh výcviku. Spřežení se cvičí samo (Martin 19. 10. 2026) – tlačítko není.
  */
@@ -1161,6 +1169,16 @@ function PenBody({
             testId="selection-pen-animals"
           >
             {formatInteger(details.animals)}/{formatInteger(details.places)}
+          </Stat>
+        )}
+        {details.herdPlaces && (
+          <Stat
+            src="/icons/build/ohrada.png"
+            name={`Místa v ohradách – ${animal.name.toLowerCase()}: všechny ohrady / potřeba (u domů ${formatInteger(details.herdPlaces.home)})`}
+            testId="selection-pen-need"
+            alert={details.herdPlaces.pens < details.herdPlaces.needed}
+          >
+            {formatInteger(details.herdPlaces.pens)}/{formatInteger(details.herdPlaces.needed)}
           </Stat>
         )}
         {squares}
