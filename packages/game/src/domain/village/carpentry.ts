@@ -1,5 +1,6 @@
 import type { ObstacleLayer } from '../landscape';
-import { addCart, missingCart } from './carts';
+import { addCart } from './carts';
+import { missingCart } from './draft';
 import {
   NO_STOCKS,
   craftStocks,

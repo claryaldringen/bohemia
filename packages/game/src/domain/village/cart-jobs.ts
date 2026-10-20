@@ -103,6 +103,8 @@ export function cartTripsPerDay(costM: number, stopS: number): number {
  */
 export interface KilnCart {
   manDaysPerKg: number;
+  /** Kolik práce vůz na kg uhlí ušetří (čd – odnos v koších bez práce posádky). */
+  savedPerKg: number;
   maxKg: number;
   x: number;
   z: number;
@@ -122,6 +124,7 @@ export function kilnCartOffer(drive: CartDrive | null, walkFactor: number): Kiln
   if (perKg + EPSILON >= saved) return null;
   return {
     manDaysPerKg: perKg,
+    savedPerKg: saved - perKg,
     maxKg: job.loadKg * cartTripsPerDay(drive.costM, job.stopS),
     x: drive.x,
     z: drive.z,

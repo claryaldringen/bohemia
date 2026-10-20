@@ -27,6 +27,7 @@ import {
   type CartAccess,
   type HaulPlan,
 } from './carts';
+import { addCartDemand } from './draft';
 import {
   kilnCartDrive,
   kilnCartOffer,
@@ -91,6 +92,7 @@ import {
   ableTeams,
   finishArd,
   finishPen,
+  oxPens,
   ploughCapacityPerDay,
   villageOxen,
   withOxen,
@@ -154,6 +156,7 @@ import { isVillageDormant } from './departure';
 import { recordRuins, updateRuins } from './ruins';
 import {
   CARTS,
+  CART_DEMAND,
   CART_JOBS,
   CHRONICLE_MAX_EVENTS,
   COMMON_LABOR_HISTORY_DAYS,
@@ -163,6 +166,7 @@ import {
   FOREST_BONUS,
   HARVEST_DAY,
   ORCHARD_WINDOWS,
+  OXEN,
   PEAK_CAPACITY_SHARE,
   PLANNING_DAY,
   THRESH_END_DAY,
@@ -437,6 +441,13 @@ function planYear(
     flaxSpareKg: Math.max(0, targets.leftKg - targets.bufferKg),
   };
   let crops = chooseCrops(blocks, choice);
+  // páry k rádlům, které ves chce (oxen.md – Kolik volů ves chce) – podle nich cvičí voly
+  if (oxPens(state).length > 0) {
+    state.draft = {
+      ...state.draft,
+      ploughPairs: wantedPloughPairsOf(state, day, coverage, landscape, blocks, choice),
+    };
+  }
   // nouzový osev (fields.md – Přílohová soustava, Nouzový osev): když díly od 70 % nedají energii,
   // kterou ves potřebuje sklidit, vezme i přílohy 40–70 % – za ostatními díly, jen s kladnou
   // čistou úrodou; luštěniny, len ani osev navíc je neberou
@@ -575,6 +586,7 @@ function sowingCapacity(
   coverage: CraftCoverage,
   plough = false,
   landscape: Landscape | null = null,
+  pairs?: number,
 ): SowingCapacity {
   const crafts = craftHouseholds(state);
   // práci násobí štěstí vsi (happiness.md) a dřevěné nářadí od tesaře (wagons.md); zvířata
@@ -604,7 +616,7 @@ function sowingCapacity(
   // výkon podle délky brázd polí, na která ves může zasít – na pevných cestách se brázda láme
   // (oxen.md – Co nejdelší brázda, Brázdy končí na cestě)
   const perDay =
-    ploughCapacityPerDay(state, coverage.tools, day) *
+    ploughCapacityPerDay(state, coverage.tools, day, pairs) *
     plannedFurrowEfficiency(
       state.parts.filter((p) => sowingGroup(p) !== null),
       state,
@@ -621,6 +633,35 @@ function sowingCapacity(
       spring: ploughDays(WINDOWS.sow, true),
     },
   };
+}
+
+/** Výběr osevu jako text – díly po plodinách (porovnání dvou výběrů). */
+function cropsKey(crops: ReturnType<typeof chooseCrops>): string {
+  const ids = (parts: readonly FieldPart[]): string => parts.map((p) => p.id).join(',');
+  return [crops.winter, crops.spring, crops.legume, crops.flax].map(ids).join('|');
+}
+
+/**
+ * Páry k rádlům, které ves chce (oxen.md – Kolik volů ves chce; Martin 20. 10. 2026): nejméně
+ * párů (nejvýš OXEN.maxPairs), se kterými plán osevu (`choice`, `blocks`) vybere totéž jako bez meze
+ * orby – voli zorají celý osev v oknech orby. Kapacita páru jako dřív spřežení
+ * (`ploughCapacityPerDay`, délka brázdy).
+ */
+function wantedPloughPairsOf(
+  state: VillageState,
+  day: number,
+  coverage: CraftCoverage,
+  landscape: Landscape | null,
+  blocks: Parameters<typeof chooseCrops>[0],
+  choice: CropChoiceInput,
+): number {
+  const people = sowingCapacity(state, day, coverage, false, landscape);
+  const free = cropsKey(chooseCrops(blocks, { ...choice, capacity: people, plough: true }));
+  for (let pairs = 1; pairs < OXEN.maxPairs; pairs++) {
+    const capacity = sowingCapacity(state, day, coverage, true, landscape, pairs);
+    if (cropsKey(chooseCrops(blocks, { ...choice, capacity, plough: true })) === free) return pairs;
+  }
+  return OXEN.maxPairs;
 }
 
 /** Zbývající sklizeň jablek (září–říjen) – ves s ní při plánu osevu počítá (orchard.md). */
@@ -799,7 +840,10 @@ function work(
   const ploughing =
     owned.some((task) => task.name === 'plough') || extraSowingWantsTeam(state, day);
   let cartsLeft = haulCartsToday(state, day, ploughing);
-  const access = cartsLeft > 0 ? villageCartAccess(state, day, landscape, obstacles) : null;
+  // dosah vozů má ves s hotovou ohradou volů i bez vozů – měří, co by dnes vozy ušetřily
+  // (wagons.md – Kolik vozů ves chce): nošení, které dnes opravdu proběhlo, a jízdy pro uhlí a vodu
+  const access = villageCartAccess(state, day, landscape, obstacles);
+  const demand: number[] = [];
   const hauls = new Map<DayTask, HaulPlan>();
   if (access)
     cartsLeft = planTaskHauls(state, dayTasks, hauls, cartsLeft, access, coverage, landscape);
@@ -816,6 +860,18 @@ function work(
   const villagers =
     crafts.size > 0 ? state.people.filter((p) => !crafts.has(p.dwellingId)) : state.people;
   const waterNeeds = householdWater(villagers, state.dwellings);
+  if (access) {
+    demand.push(
+      ...jobsDemand(state, day, {
+        access,
+        landscape,
+        obstacles,
+        coverage,
+        productivity,
+        water: waterNeeds,
+      }),
+    );
+  }
   // klády ke stavbám mají před ostatními jízdami přednost – kolik vozů si vezmou, se ví už teď
   // (náklad až z práce, která zbude po úlohách dne); vozy, které zbudou, jedou pro uhlí, s osivem,
   // nebo pro vodu (wagons.md – Co vozy vozí)
@@ -868,6 +924,7 @@ function work(
     // s vozy úloha postoupí víc, než na ni ves dala práce (wagons.md – Vůz)
     const haul = hauls.get(task);
     const amount = haul ? haulProgress(labor, haul) : labor;
+    if (access) demand.push(...taskCarryDemand(state, task, amount, access, coverage, landscape));
     const crew = haul ? Math.min(labor, haul.crew) : 0;
     if (haul && crew > 0) {
       const seed = task.field?.name === 'sow';
@@ -925,6 +982,10 @@ function work(
   );
   const trade = workExpeditions(state, allocation.away - purchaseLabor);
   let common = allocation.common;
+  // kácení u stromů, kam vůz dojede, před dnešní prací – co se dnes skácí, mohly odvézt vozy
+  const fellingBefore = access
+    ? reachableFelling(state, day, access, landscape, obstacles)
+    : new Map<Construction, number>();
   // klády ke stavbám vozem tam, kam vůz dojede (wagons.md – Vůz) – honák a nakladač ze společné
   // práce; vozy, které jely jinam (Co vozy vozí), je nevozí
   if (logs.length > 0) {
@@ -952,6 +1013,10 @@ function work(
     woodworkToday(state, day, common + extra),
   );
   const constructions = build(state, day, common + help.labor, help.coverage);
+  if (access) {
+    demand.push(...logsDemand(fellingBefore));
+    addCartDemand(state, day, demand, ploughing);
+  }
   // opravy obydlí až z práce, kterou stavby nespotřebovaly (Martin 19. 10. 2026: „Opravy obydlí
   // zařaď až za stavbu.“) – tesařova pomoc jde jen do staveb; obydlený dům stav neztrácí ani
   // s nedodělkem (Martin: „obydlená budova nechátrá – obyvatelé ji opravují. Chátrá jenom
@@ -1418,6 +1483,128 @@ function planCartJobs(
     }
   }
   return { carts: input.carts - left, kilns, water: null };
+}
+
+/**
+ * Úspory jednotlivých vozů z plánu svozu (čd): vůz za den převezme nejvýš CARTS.carrierManDays
+ * nošení a jde s ním posádka (poměrně – CARTS.crew na plný vůz).
+ */
+function haulSavings(plan: HaulPlan): number[] {
+  const out: number[] = [];
+  let work = plan.work;
+  for (let k = 0; k < plan.carts && work > 1e-9; k++) {
+    const carried = Math.min(CARTS.carrierManDays, work);
+    out.push(carried * (1 - CARTS.crew / CARTS.carrierManDays));
+    work -= carried;
+  }
+  return out;
+}
+
+/** Úspory jednotlivých vozů, které by převzaly `carried` čd nošení (`haulSavings`). */
+function carrySavings(carried: number): number[] {
+  if (carried <= 1e-9) return [];
+  return haulSavings(haulPlan(carried, CART_DEMAND.probeCarts));
+}
+
+/**
+ * Nošení, které dnes na úloze proběhlo (wagons.md – Kolik vozů ves chce): úloha postoupila
+ * o `amount` čd a jeho podíl je nošení tam, kam vůz dojede – odnos snopů při sklizni, svoz sena při
+ * seči, osivo při setí (jako svoz – `planTaskHauls`, `planSeedHauls`); úspory vozů, které by ho
+ * převzaly. Dosah vozu se u úlohy spočítá a uloží jako při svozu.
+ */
+function taskCarryDemand(
+  state: VillageState,
+  task: DayTask,
+  amount: number,
+  access: CartAccess,
+  coverage: CraftCoverage,
+  landscape: Landscape | null,
+): number[] {
+  if (amount <= 1e-9) return [];
+  if (task.field?.name === 'harvest') {
+    const work = task.field.work;
+    work.cartReach ??= cropCartReach(state, work, landscape, access);
+    return carrySavings(amount * harvestCarryShare(coverage.tools) * work.cartReach.share);
+  }
+  if (task.field?.name === 'sow') {
+    const work = task.field.work;
+    work.seedReach ??= sowingCartReach(state, work, landscape, access);
+    return carrySavings(amount * CART_JOBS.seed.carryShare * work.seedReach.share);
+  }
+  if (task.name === 'mow' && state.hay?.mowing) {
+    const mowing = state.hay.mowing;
+    mowing.cartReach ??= mowingCartReach(state, mowing, landscape, access);
+    return carrySavings(amount * CARTS.haulShare.hay * mowing.cartReach.share);
+  }
+  return [];
+}
+
+/**
+ * Kácení a dovoz klád stavby, které zbývá u stromů, kam vůz dojede (čd po stavbách; dosah se
+ * spočítá a uloží jako při svozu klád – `logHaulCandidates`).
+ */
+function reachableFelling(
+  state: VillageState,
+  day: number,
+  access: CartAccess,
+  landscape: Landscape | null,
+  obstacles: ObstacleLayer | null,
+): Map<Construction, number> {
+  const out = new Map<Construction, number>();
+  const founding = foundingIndex(state);
+  for (const c of state.constructions) {
+    if (!c.wood || c.done + 1e-9 >= woodFellingCost(c.wood)) continue;
+    if (constructionNeed(state, c, day, founding) <= 0) continue;
+    c.wood.cartReach ??= logsCartReach(state, c.wood, landscape, obstacles, access);
+    out.set(c, fellingHaulable(c, c.wood.cartReach.trees).remaining);
+  }
+  return out;
+}
+
+/**
+ * Klády, které se dnes u stromů, kam vůz dojede, skácely a odvezly (wagons.md – Kolik vozů ves
+ * chce): CARTS.haulShare.logs dnešního kácení a dovozu (`before` – co u staveb zbývalo ráno,
+ * `reachableFelling`); úspory vozů.
+ */
+function logsDemand(before: ReadonlyMap<Construction, number>): number[] {
+  let felled = 0;
+  for (const [c, remaining] of before) {
+    const reach = c.wood?.cartReach?.trees;
+    const after = reach ? fellingHaulable(c, reach).remaining : 0;
+    felled += Math.max(0, remaining - after);
+  }
+  return carrySavings(felled * CARTS.haulShare.logs);
+}
+
+/**
+ * Jízdy pro uhlí a vodu, kdyby vozů bylo dost (wagons.md – Kolik vozů ves chce): stejné plány jako
+ * skutečné vozy (`planCartJobs` bez úloh dne – osivo měří `taskCarryDemand`) s CART_DEMAND.probeCarts
+ * vozy; úspory jednotlivých vozů (čd).
+ */
+function jobsDemand(
+  state: VillageState,
+  day: number,
+  input: Omit<Parameters<typeof planCartJobs>[2], 'carts' | 'tasks' | 'hauls'>,
+): number[] {
+  const jobs = planCartJobs(state, day, {
+    ...input,
+    carts: CART_DEMAND.probeCarts,
+    tasks: [],
+    hauls: new Map(),
+  });
+  const savings: number[] = [];
+  if (jobs.kilns.size > 0) {
+    const draws = burnerDraws(state, day, input.coverage, input.productivity);
+    for (const [id, offer] of jobs.kilns) {
+      savings.push(Math.min(draws.get(id) ?? 0, offer.maxKg) * offer.savedPerKg);
+    }
+  }
+  const water = jobs.water;
+  if (water) {
+    const each = (water.saved - water.crew) / water.carts;
+    for (let k = 0; k < water.carts; k++) savings.push(each);
+  }
+  return savings;
 }
 
 /**

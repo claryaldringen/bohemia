@@ -310,21 +310,23 @@ const TEAM_PEN_ID = 2_000_000;
 const TEAM_HAY_KG = 10_000;
 
 /**
- * Sonda se spřežením (oxen.md – Jen rádlo): ohrada s vycvičeným spřežením, které nikdy
- * nedoslouží (vycvičené před rokem), a seno na zimu – ves orá rádlem celý běh.
+ * Sonda se spřežením (oxen.md – Jen rádlo): ohrada volů s párem vycvičených volů, kteří nikdy
+ * nedoslouží (vycvičení před rokem), rádlo a seno na zimu – ves orá rádlem celý běh.
  */
 function pinTeam(state: VillageState, day: number): void {
+  const trainedDay = Math.floor(day - DAYS_PER_YEAR);
   state.pens = [
     {
       id: TEAM_PEN_ID,
+      species: 'team',
       cell: { x: -1, y: -1 },
       x: -40,
       z: -40,
       builtDay: day - 3 * DAYS_PER_YEAR,
-      team: { readyDay: Math.floor(day - DAYS_PER_YEAR) },
-      training: null,
+      oxen: [{ trainedDay }, { trainedDay }],
     },
   ];
+  state.ards = 1;
   const hay = state.hay ?? { kg: 0, mowing: null };
   state.hay = { ...hay, kg: Math.max(hay.kg, TEAM_HAY_KG) };
 }

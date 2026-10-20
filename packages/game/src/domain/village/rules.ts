@@ -1276,6 +1276,18 @@ export const CARTS = {
   loadsPerCartDay: 8,
   tradeCrew: 2,
 } as const satisfies { loadKg: Record<CartKind, number> } & Record<string, unknown>;
+/**
+ * wagons.md – Kolik vozů ves chce (Martin 20. 10. 2026: „Ano, udělej to jak říkáš“; čísla návrh
+ * Clauda): ves si podle loňského provozu (rok vozů od 1. 11.) spočítá, kolik práce by ušetřil
+ * k-tý vůz – nejvýš `maxCarts` vozů každého druhu. Rok vozů kratší než `minDays` (ohrada volů
+ * postavená během roku, ves uložená dřív) běží do dalšího 1. 11. Úspory dne se měří, jako by vozů
+ * bylo `probeCarts`.
+ */
+export const CART_DEMAND = {
+  maxCarts: { 'two-wheel': 12, 'four-wheel': 4 },
+  minDays: 300,
+  probeCarts: 64,
+} as const satisfies { maxCarts: Record<CartKind, number> } & Record<string, unknown>;
 // wagons.md – Co vozy vozí (Martin 19. 10. 2026: „Pokud budou mít k dispozici vůz, ať na pole, pro
 // vodu nebo pro dřevěné uhlí jede vůz.“; čísla návrh Clauda): dvoukolák, který dnes nesváží úrodu,
 // seno ani klády a jehož voli neorají (ani orbu navíc – fields.md, Osev navíc), jede v pořadí:

@@ -9,13 +9,11 @@ import {
 } from '../carpentry';
 import {
   EVERYWHERE,
-  cartTargets,
   haulAvailable,
   haulCartsToday,
   haulPlan,
   haulProgress,
   cropCartReach,
-  missingCart,
   networkCartAccess,
   retireCarts,
   villageCartAccess,
@@ -24,12 +22,20 @@ import {
   trailCartPassable,
 } from '../carts';
 import { BUILD_COSTS } from '../costs';
+import {
+  cartTargets,
+  cartYearCost,
+  chooseCarts,
+  missingCart,
+  oxenOverRoom,
+  wantedOxen,
+} from '../draft';
 import { craftCoverage, craftTargets, newWorkshop } from '../crafts';
 import { carpenterWorkFactor, woodToolsLaborFactor, woodworkLabor } from '../productivity';
 import { CARPENTRY, CARTS, CRAFT_BASE, workshopCost, workshopTrees } from '../rules';
 import { advanceVillage } from '../simulate';
 import { expeditionTransport } from '../trade';
-import type { Construction, FieldPart, VillageState } from '../types';
+import type { CartDemand, Construction, FieldPart, VillageState } from '../types';
 import { LANDSCAPE } from './paths-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
@@ -95,6 +101,21 @@ function withTeam(s: VillageState): VillageState {
   return s;
 }
 
+/** Loňský rok vozů – co ušetřil k-tý dvoukolák a čtyřkolák (čd za rok). */
+function withCartYear(s: VillageState, twoWheel: number[], fourWheel: number[] = []): VillageState {
+  s.draft = {
+    ...s.draft,
+    lastYear: {
+      from: s.lastDay - 365,
+      'two-wheel': twoWheel,
+      'four-wheel': fourWheel,
+      plough: [],
+      oxCost: 12,
+    },
+  };
+  return s;
+}
+
 /** Rozestavěná polozemnice bez kácení (dřevo z hromady). */
 function polozemnice(day: number, cost = 200): Construction {
   return {
@@ -148,8 +169,8 @@ describe('dílna tesaře (wagons.md – Tesař)', () => {
     expect(woodToolsLaborFactor(0)).toBe(1);
   });
 
-  it('vyrobí dvoukolák pro spřežení – 25 čd a kláda, kronika', () => {
-    const s = withTeam(withCarpenter(village()));
+  it('vyrobí dvoukolák, který se vyplatí – 25 čd a kláda, kronika', () => {
+    const s = withCartYear(withTeam(withCarpenter(village())), [100]);
     expect(missingCart(s)).toBe('two-wheel');
     const next = advanceVillage(s, DAY + 90, null);
     expect(next.carts).toHaveLength(1);
@@ -219,15 +240,52 @@ describe('pomoc stavbám – dřevěná část práce (wagons.md – Tesař, Ú�
 });
 
 describe('vozy (wagons.md – Vůz)', () => {
-  it('dvoukolák na spřežení, čtyřkolák s hotovou stezkou', () => {
+  it('ves chce vozy, které se loni vyplatily; bez roku vozů jen ty, které má', () => {
     const s = village();
     expect(cartTargets(s)).toEqual({ 'two-wheel': 0, 'four-wheel': 0 });
     withTeam(s);
+    expect(cartTargets(s)).toEqual({ 'two-wheel': 0, 'four-wheel': 0 });
+    s.carts = [{ id: 1, kind: 'two-wheel', builtDay: DAY }];
     expect(cartTargets(s)).toEqual({ 'two-wheel': 1, 'four-wheel': 0 });
-    s.trails = [
-      { id: 1, direction: 'S', pieces: [], lengthM: 500, startedDay: DAY, builtDay: DAY },
-    ];
-    expect(cartTargets(s)).toEqual({ 'two-wheel': 1, 'four-wheel': 1 });
+    expect(missingCart(withCarpenter(s))).toBeNull();
+    // 3. dvoukolák potřebuje vola navíc (12 čd za rok) – ušetří 20, vyplatí se; 4. ne
+    withCartYear(s, [200, 50, 20, 4], [300]);
+    expect(cartTargets(s)).toEqual({ 'two-wheel': 3, 'four-wheel': 1 });
+    expect(wantedOxen(s)).toBe(5);
+    expect(oxenOverRoom(s)).toBe(false);
+    expect(missingCart(s)).toBe('two-wheel');
+  });
+
+  it('vůz, který ušetří méně, než stojí, ves nechce; voli navíc se platí senem', () => {
+    const year = (two: number[]): CartDemand & { oxCost: number } => ({
+      from: 0,
+      'two-wheel': two,
+      'four-wheel': [],
+      plough: [],
+      oxCost: 12,
+    });
+    // dva voli k rádlu táhnou v létě dva dvoukoláky zadarmo – stačí víc, než stojí vůz
+    expect(cartYearCost('two-wheel')).toBeCloseTo((25 + 2) / 10, 9);
+    expect(chooseCarts(year([2]), 1, 6).carts['two-wheel']).toBe(0);
+    expect(chooseCarts(year([3, 3]), 1, 6).carts['two-wheel']).toBe(2);
+    // třetí potřebuje vola navíc
+    expect(chooseCarts(year([30, 30, 14]), 1, 6).carts['two-wheel']).toBe(2);
+    expect(chooseCarts(year([30, 30, 15]), 1, 6).carts['two-wheel']).toBe(3);
+    // strop je místo v ohradách volů – voli vozů se musí vejít
+    expect(chooseCarts(year([30, 30, 30, 30]), 1, 6).carts['two-wheel']).toBe(4);
+    expect(chooseCarts(year([30, 30, 30, 30, 30, 30, 30]), 1, 6).oxen).toBe(6);
+    const four = { ...year([200, 50, 20, 4]), 'four-wheel': [300] };
+    expect(chooseCarts(four, 1, 4).carts).toEqual({ 'two-wheel': 2, 'four-wheel': 1 });
+    // ve dny orby jezdí jen voli, kteří neorají – na vůz ve dny orby vůl navíc
+    expect(chooseCarts(year([3]), 1, 6).oxen).toBe(2);
+    const plough = { ...year([3]), plough: [40] };
+    expect(chooseCarts(plough, 1, 6)).toEqual({
+      pairs: 1,
+      carts: { 'two-wheel': 1, 'four-wheel': 0 },
+      oxen: 3,
+    });
+    const busy = { ...year([3, 3, 30]), plough: [40] };
+    expect(chooseCarts(busy, 1, 6).carts['two-wheel']).toBe(3);
   });
 
   it('vůz za den odveze jako 8 nosičů, jdou s ním 2 lidé; nejvýš podíl nošení úlohy', () => {
@@ -481,7 +539,7 @@ describe('dosah vozu – vozová síť (wagons.md – fáze 2)', () => {
 
 describe('determinismus – tesař a vozy na kouscích nezávisí', () => {
   it('dopočet najednou = po kouscích', () => {
-    const s = withTeam(withCarpenter(village()));
+    const s = withCartYear(withTeam(withCarpenter(village())), [100]);
     s.constructions = [polozemnice(DAY, 300)];
     const whole = advanceVillage(s, DAY + 200, null);
     let pieces = s;

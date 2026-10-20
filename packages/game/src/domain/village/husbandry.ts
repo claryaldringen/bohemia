@@ -30,7 +30,13 @@ import {
   winterSlaughterDay,
   winterWaitHayKg,
 } from './livestock';
-import { oxenCows, oxenTrainingTarget, wantedPloughPairs } from './draft';
+import {
+  closeCartYear,
+  oxenCows,
+  oxenTrainingTarget,
+  oxYearCost,
+  wantedPloughPairs,
+} from './draft';
 import { ableTeams, penDay, trainTeamsWhenReady, villageOxen } from './oxen';
 import { herdRoom, homesteadRoom, penCapacity, pensLimitHerds } from './pens';
 import { walkDistancesTo } from './paths/village';
@@ -261,6 +267,9 @@ export function husbandryDay(
     if (wool) events.push(wool);
     // nový rok pasení – od porážky do porážky
     delete livestock.herding;
+    // rok vozů – podle loňského provozu ves ví, kolik vozů se vyplatí (wagons.md – Kolik vozů
+    // ves chce); vůl stojí seno v práci za dnešních cen
+    closeCartYear(state, day, oxYearCost(villageFoodCosts(state, day, toolCoverage).hayPerKg));
     if (state.hay)
       state.hay.winter = { oxenNeedKg: 0, oxenEatenKg: 0, herdNeedKg: 0, herdEatenKg: 0 };
   }

@@ -54,36 +54,6 @@ export function cartCondition(cart: Pick<Cart, 'builtDay'>, day: number): number
   return Math.min(1, Math.max(0, 1 - age));
 }
 
-/**
- * Kolik vozů ves potřebuje (wagons.md – návrh Clauda): dvoukolák na každé vycvičené spřežení
- * (jeden vůz na spřežení) a s hotovou zemskou stezkou navíc jeden čtyřkolák na obchodní výpravy.
- * Bez spřežení žádný – vůz bez volů stojí.
- */
-export function cartTargets(
-  state: Pick<VillageState, 'pens' | 'trails' | 'ards' | 'lastDay'>,
-): Readonly<Record<CartKind, number>> {
-  const teams = ableTeams(state, state.lastDay);
-  const trail = (state.trails ?? []).some((t) => t.builtDay !== null);
-  return { 'two-wheel': teams, 'four-wheel': teams > 0 && trail ? 1 : 0 };
-}
-
-/**
- * Vůz, který ves potřebuje a nemá (ani se nevyrábí v žádné dílně tesaře) – dvoukolák napřed;
- * jinak null.
- */
-export function missingCart(
-  state: Pick<VillageState, 'pens' | 'trails' | 'carts' | 'dwellings' | 'ards' | 'lastDay'>,
-): CartKind | null {
-  const targets = cartTargets(state);
-  const have: Record<CartKind, number> = { 'two-wheel': 0, 'four-wheel': 0 };
-  for (const cart of villageCarts(state)) have[cart.kind]++;
-  for (const d of state.dwellings) {
-    const making = d.workshop?.cart;
-    if (making) have[making.kind]++;
-  }
-  return CART_KINDS.find((kind) => have[kind] < targets[kind]) ?? null;
-}
-
 /** Přidá hotový vůz (mutuje stav); id = největší + 1. */
 export function addCart(state: VillageState, kind: CartKind, day: number): Cart {
   const carts = (state.carts ??= []);

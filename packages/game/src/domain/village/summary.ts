@@ -8,7 +8,7 @@ import {
   readySquares,
   villageCemeteries,
 } from './cemetery';
-import { cartCondition, cartTargets, cartsAway, villageCarts } from './carts';
+import { cartCondition, cartsAway, villageCarts } from './carts';
 import {
   craftCoverage,
   craftNeeds,
@@ -61,7 +61,7 @@ import {
   villageOxen,
   villagePens,
 } from './oxen';
-import { oxenOverRoom, wantedOxen, wantedPloughPairs } from './draft';
+import { cartTargets, oxenOverRoom, wantedOxen, wantedPloughPairs } from './draft';
 import { herdPlaces, type HerdPlaces } from './husbandry';
 import { oxenOf, penOccupancy, penPlaces, penSpecies } from './pens';
 import {
