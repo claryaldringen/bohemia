@@ -1163,6 +1163,13 @@ export const SMITH_SUPPLY = {
   pitSpreadM: 6,
   pitYears: 10,
 } as const;
+/**
+ * crafts.md – Učení řemesla (Martin 20. 10. 2026: „Každý řemeslník vychovává svého nástupce - syna.
+ * Pokud je řemeslník úplně nový, trvá mu, než se řemeslo naučí“; čísla návrh Clauda): výkon dílny
+ * podle praxe nejzkušenějšího dospělého z domácnosti – `startShare` (50 %) bez praxe, lineárně
+ * do 100 % po `fullYears` (5) letech praxe; syn řemeslníka se učí od `apprenticeFromAge` (10) let.
+ */
+export const CRAFT_SKILL = { startShare: 0.5, fullYears: 5, apprenticeFromAge: 10 } as const;
 // crafts.md – Budovy: přístřešek hrnčíře a kováře sahá před půdorys polozemnice o tolik (m) –
 // půdorys dílny je o něj delší (vpředu, +z modelu; přední okraj přístřešku 5,7 m od středu,
 // tools/blender/crafts.py PZ_O + PORCH)

@@ -51,6 +51,7 @@ import {
 } from './smith-supply';
 import { villageCemeteries } from './cemetery';
 import { finishPurchases, purchaseTravelers, startPurchases, walkPurchases } from './craft-buying';
+import { gainPractice, withCraftSkill } from './craft-skill';
 import { cloneState } from './clone';
 import {
   burnerDraws,
@@ -291,9 +292,10 @@ export function* advanceVillageSteps(
   if (toDay < state.lastDay) {
     throw new RangeError(`Ves je dopočítaná do dne ${state.lastDay}, nelze zpět na ${toDay}.`);
   }
-  // ves z doby před příbuzenstvím dostane pohlaví a manžele (kinship.md) a ves ze zboží zvenku
-  // o něj přijde (trade.md – Jen společné suroviny) – jednou, idempotentně
-  const next = cloneState(withPenSpecies(withoutForeignGoods(withKinship(state))));
+  // ves z doby před příbuzenstvím dostane pohlaví a manžele (kinship.md), ves ze zboží zvenku
+  // o něj přijde (trade.md – Jen společné suroviny) a řemeslníci z doby před učením řemesla
+  // praxi (crafts.md – Učení řemesla) – jednou, idempotentně
+  const next = cloneState(withCraftSkill(withPenSpecies(withoutForeignGoods(withKinship(state)))));
   // vymřelá, opuštěná a ves na cestě se nesimulují – jen se posune den (migration.md)
   for (let day = next.lastDay + 1; day <= toDay && !isVillageDormant(next); day++) {
     simulateDay(next, day, obstacles, landscape);
@@ -1039,6 +1041,11 @@ function work(
     ...workCrafts(state, day, obstacles, coverage, productivity, resting, landscape, supply),
     ...workCarpenters(state, day, obstacles, coverage, productivity, resting, help),
   ];
+  // praxe řemeslníků a učňů (crafts.md – Učení řemesla): dílny, které dnes pracovaly, a kovárny,
+  // kde synové nosili uhlí, i když kovář pracoval se vsí
+  if (crafts.size > 0 || restingFetch.size > 0) {
+    gainPractice(state, day, crafts, restingFetch);
+  }
   // uhlí a ruda vozem – sedlák ze společné práce, jízdy do ročního provozu cest (wagons.md – Co
   // vozy vozí, crafts.md – Uhlí a ruda kováře)
   for (const c of smithCarts.charcoal) {
@@ -1837,8 +1844,11 @@ function finishConstructions(state: VillageState, day: number): void {
       position: { ...c.position },
       ...(c.plot ? { plot: copyPlot(c.plot) } : {}),
       ...(c.forestDistanceM === undefined ? {} : { forestDistanceM: c.forestDistanceM }),
-      // řemeslná dílna – řemeslo patří budově (crafts.md)
-      ...(c.craft ? { workshop: newWorkshop(c.craft, c.waterDistanceM) } : {}),
+      // řemeslná dílna – řemeslo patří budově (crafts.md); nový řemeslník se teprve učí
+      // (crafts.md – Učení řemesla)
+      ...(c.craft
+        ? { workshop: { ...newWorkshop(c.craft, c.waterDistanceM), skillTracked: true as const } }
+        : {}),
     };
     state.dwellings.push(dwelling);
     state.chronicle.push(finishedEvent(day, c, dwelling.id));

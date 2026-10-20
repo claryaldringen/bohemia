@@ -147,20 +147,25 @@ export function carpentryHelp(
 ): CarpentryHelp {
   const working = occupiedWorkshops(state, 'carpenter').filter((d) => !resting.has(d.id));
   if (working.length === 0 || !woodworkPending(state)) return NO_HELP;
-  const carpenters = working.map((d) => ({
-    id: d.id,
-    labor: workshopLabor(state, day, d.id, coverage.pottery, productivity).craft,
-    idle: nextProduct(state, day, d.workshop!) === null,
-  }));
+  const carpenters = working.map((d) => {
+    const labor = workshopLabor(state, day, d.id, coverage.pottery, productivity);
+    return {
+      id: d.id,
+      labor: labor.craft,
+      skill: labor.skill,
+      idle: nextProduct(state, day, d.workshop!) === null,
+    };
+  });
   const total = carpenters.reduce((sum, c) => sum + c.labor, 0);
   if (total <= EPSILON) return NO_HELP;
+  // vedení v čd vyučeného tesaře – tesař bez praxe vede pomaleji (crafts.md – Učení řemesla)
   const needed = (woodwork(total) * carpenterWorkFactor(coverage.tools)) / CARPENTRY.crew;
   const byWorkshop = new Map<number, number>();
   let leading = 0;
   let given = 0;
   for (const c of carpenters) {
-    const lead = Math.min(c.labor, Math.max(0, needed - leading));
-    leading += lead;
+    const lead = Math.min(c.labor, Math.max(0, needed - leading) / c.skill);
+    leading += lead * c.skill;
     const give = c.idle ? c.labor : lead;
     if (give > EPSILON) byWorkshop.set(c.id, give);
     given += give;
@@ -213,6 +218,7 @@ export function workCarpenters(
       day,
       obstacles,
       coverage.tools,
+      labor.skill,
     );
     workshop.activity =
       output.making > EPSILON
@@ -248,8 +254,8 @@ interface CarpenterOutput {
 
 /**
  * Den jednoho tesaře (mutuje stav): práce `labor` po pomoci stavbám jde do vozu a nářadí; práce na
- * jednotku podle pokrytí nástroji (CARPENTER_TOOLS_WORK). Hotový vůz přibude do vozů vsi
- * (kronika `cart-made`).
+ * jednotku podle pokrytí nástroji (CARPENTER_TOOLS_WORK) a praxe (`skill` – crafts.md, Učení
+ * řemesla; kácení ne). Hotový vůz přibude do vozů vsi (kronika `cart-made`).
  */
 function workCarpenter(
   state: VillageState,
@@ -258,9 +264,10 @@ function workCarpenter(
   day: number,
   obstacles: ObstacleLayer | null,
   toolCoverage: number,
+  skill = 1,
 ): CarpenterOutput {
   const workshop = dwelling.workshop!;
-  const factor = carpenterWorkFactor(toolCoverage);
+  const factor = carpenterWorkFactor(toolCoverage) / skill;
   const stocks = (state.crafts ??= { ...NO_STOCKS });
   let left = labor;
   let felling = 0;

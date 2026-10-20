@@ -78,6 +78,13 @@ describe('ves bez kováře beze změny (crafts.md – Uhlí a ruda kováře)', (
   it('uhlíř, hrnčíř, tesař a vůz – stav po dvou letech jako před rudou', () => {
     const next = advanceVillage(village(), DAY + 730, null);
     expect(next.orePits).toBeUndefined();
-    expect(hash(JSON.stringify(next))).toBe('68420cbd');
+    // učení řemesla (crafts.md – Učení řemesla, Starší vsi): dnešní řemeslníci jsou vyučení – jen
+    // přibude praxe u lidí a příznak u dílen, simulace jde bit po bitu jako dřív
+    expect(next.people.find((p) => p.id === 100)?.practice).toEqual({ burner: 5 });
+    const learning = new Set(['practice', 'skillTracked']);
+    const stripped = JSON.stringify(next, (key, value: unknown) =>
+      learning.has(key) ? undefined : value,
+    );
+    expect(hash(stripped)).toBe('68420cbd');
   }, 120_000);
 });

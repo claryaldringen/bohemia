@@ -99,6 +99,16 @@ export * from './sacred';
 export * from './sacred-life';
 export * from './happiness';
 export * from './crafts';
+// učení řemesla (crafts.md – Učení řemesla) – den praxe volá simulate.ts
+export {
+  craftApprentices,
+  craftSkillSummary,
+  practiceOf,
+  skillShare,
+  withCraftSkill,
+  workshopSkill,
+  type CraftSkillSummary,
+} from './craft-skill';
 export * from './charcoal';
 export * from './smith-supply';
 // nákup u sousedů (crafts.md) – kroky simulace (odchod, cesta, návrat) volá simulate.ts

@@ -3,6 +3,7 @@ import { distanceFactor } from './fields';
 import { buildingLocalToWorld, fellTrees, obstacleChangesAt } from './obstacles';
 import { adultDailyMin, waterFetchingLabor } from './labor';
 import { ageGroup, laborPerDay } from './people';
+import { workshopSkill } from './craft-skill';
 import { rectangleCorners, type Point } from './polygon';
 import { NO_CRAFTS, dailyMinPerHousehold } from './productivity';
 import {
@@ -237,7 +238,7 @@ export function smithsCharcoalPerYear(
   const fullTime =
     smithForgeCharcoalKg(
       smiths.map((d) => ({
-        labor: workshopLabor(state, day, d.id, coverage.pottery, productivity).craft,
+        labor: forgeLabor(workshopLabor(state, day, d.id, coverage.pottery, productivity)),
         oreFactor: oreFactor(d.workshop!),
       })),
     ) * DAYS_PER_YEAR;
@@ -262,7 +263,8 @@ function kilnLeadKg(
 ): number {
   const kiln = dwelling.workshop?.kiln;
   if (!kiln || smithsPerYearKg <= 0) return 0;
-  const labor = workshopLabor(state, day, dwelling.id, coverage.pottery, productivity).craft;
+  // uhlíř bez praxe všechno u milíře dělá pomaleji (crafts.md – Učení řemesla)
+  const labor = forgeLabor(workshopLabor(state, day, dwelling.id, coverage.pottery, productivity));
   return (smithsPerYearKg / DAYS_PER_YEAR) * kilnLeadDays(kiln, dwelling.position, labor);
 }
 
@@ -283,7 +285,7 @@ export function smithsForgeCharcoalKg(
   if (craftStocks(state).toolsKg >= craftTargets(state, day).toolsKg) return 0;
   return smithForgeCharcoalKg(
     smiths.map((d) => ({
-      labor: workshopLabor(state, day, d.id, coverage.pottery, productivity).craft,
+      labor: forgeLabor(workshopLabor(state, day, d.id, coverage.pottery, productivity)),
       oreFactor: oreFactor(d.workshop!),
     })),
   );
@@ -407,11 +409,21 @@ export function burnerDraws(
   return draws;
 }
 
-/** Práce domácnosti dílny za den: celkem (se štěstím), denní minimum a řemeslo. */
+/**
+ * Práce domácnosti dílny za den: celkem (se štěstím), denní minimum a řemeslo; `skill` = výkon
+ * dílny podle praxe 0,5–1 (crafts.md – Učení řemesla) – násobí výrobu (kovář, hrnčíř), práci
+ * u milíře (uhlíř) a práci tesaře; kácení, nošení a kopání rudy ne.
+ */
 export interface WorkshopLabor {
   capacity: number;
   dailyMin: number;
   craft: number;
+  skill: number;
+}
+
+/** Práce řemesla dílny po výkonu podle praxe (čd vyučeného) – kování a milíř. */
+export function forgeLabor(labor: Pick<WorkshopLabor, 'craft' | 'skill'>): number {
+  return labor.craft * labor.skill;
 }
 
 /**
@@ -447,7 +459,7 @@ export function workshopLabor(
   );
   const minimum = dailyMinPerHousehold(potteryCoverage) + water;
   const dailyMin = take(adultDailyMin(minimum, elders, productivity));
-  return { capacity, dailyMin, craft: left };
+  return { capacity, dailyMin, craft: left, skill: workshopSkill(state, dwellingId, day) };
 }
 
 /** Kam práce dílny dnes šla – rozdělení práce dne pro postavy (labor-report.ts). */
@@ -621,6 +633,7 @@ function workSmith(
   day: number,
   supply: SmithSupply,
   landscape: Landscape | null,
+  skill = 1,
 ): SmithOutput {
   const workshop = dwelling.workshop!;
   migrateSmith(workshop, labor, CHARCOAL_KILN.drawBatchDays);
@@ -652,7 +665,8 @@ function workSmith(
       cart: true,
     });
   }
-  const manDaysPerKg = CRAFT_PRODUCTION.toolManDaysPerKg;
+  // kovář bez praxe kove pomaleji (crafts.md – Učení řemesla); nošení a kopání rudy ne
+  const manDaysPerKg = CRAFT_PRODUCTION.toolManDaysPerKg / skill;
   const oreKg = workshop.oreKg ?? 0;
   const kg = Math.max(
     0,
@@ -811,7 +825,8 @@ export function workCrafts(
         state,
         dwelling,
         stocks,
-        labor.craft,
+        // uhlíř bez praxe všechno u milíře dělá pomaleji (crafts.md – Učení řemesla)
+        forgeLabor(labor),
         day,
         obstacles,
         // z vypáleného milíře vytahá uhlí, když u kovářů nestačí na dnešní kování, a zbytek
@@ -847,7 +862,7 @@ export function workCrafts(
     let output: WorkshopOutput;
     let smith: SmithOutput | null = null;
     if (workshop.craft === 'smith') {
-      smith = workSmith(state, dwelling, stocks, labor.craft, day, supply, landscape);
+      smith = workSmith(state, dwelling, stocks, labor.craft, day, supply, landscape, labor.skill);
       output = smith;
     } else {
       output = workWithWood(
@@ -857,7 +872,8 @@ export function workCrafts(
         labor.craft,
         day,
         obstacles,
-        CRAFT_PRODUCTION.potteryManDaysPerKg * oreFactor(workshop),
+        // hrnčíř bez praxe točí a vypaluje pomaleji, kácí stejně (crafts.md – Učení řemesla)
+        (CRAFT_PRODUCTION.potteryManDaysPerKg * oreFactor(workshop)) / labor.skill,
         CRAFT_PRODUCTION.potteryKgPerTree,
       );
       stocks.potteryKg += output.producedKg;

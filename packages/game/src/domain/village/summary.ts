@@ -19,6 +19,7 @@ import {
 } from './crafts';
 import { charcoalStockKg, kilnCharcoalKg, kilnCharcoalShare } from './charcoal';
 import { smithOreSummary, type SmithOreSummary } from './smith-supply';
+import { craftSkillSummary, type CraftSkillSummary } from './craft-skill';
 import { isFull, isOvercrowded } from './dwellings';
 import { waitingHouseholds } from './households';
 import { familyCounts, type FamilyCounts } from './kinship';
@@ -218,6 +219,8 @@ export interface WorkshopSummary {
   } | null;
   /** Uhlíř: pařezy buků, na které ještě zasadí mladý buk; ostatní dílny 0. */
   toPlant: number;
+  /** Učení řemesla (crafts.md): výkon dílny podle praxe, praxe řemeslníka a kdo se učí. */
+  skill: CraftSkillSummary;
   /**
    * Tesař (wagons.md – Tesař): rozdělaný vůz (druh a průběh 0–1), klády v dílně a pokrytí dřevěné
    * práce staveb posledního dne 0–1; ostatní dílny null.
@@ -750,6 +753,7 @@ function craftsSummary(state: VillageState, day: number): CraftsSummary {
               : null,
           kiln: workshop.kiln ? kilnSummary(workshop.kiln) : null,
           toPlant: workshop.toPlant?.length ?? 0,
+          skill: craftSkillSummary(state, d.id, day),
           carpenter:
             workshop.craft === 'carpenter'
               ? {

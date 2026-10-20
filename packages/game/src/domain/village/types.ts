@@ -49,6 +49,12 @@ export interface Person {
    * vsích uložených dřív).
    */
   nextBirthFrom?: number;
+  /**
+   * Praxe v řemeslech (crafts.md – Učení řemesla): roky práce v dílně daného řemesla – dospělý ji
+   * získává za dny, kdy dílna pracuje, syn řemeslníka jako učeň od 10 let; nejvýš
+   * CRAFT_SKILL.fullYears (vyučený). Chybí – žádná praxe (i lidé ve vsích bez dílen).
+   */
+  practice?: Partial<Record<Craft, number>>;
 }
 /**
  * Dcera, která se vdala pryč (kinship.md – Sňatky z okolí), nebo člověk, kterého ves dala sousedovi
@@ -318,6 +324,12 @@ export interface Workshop {
   oreBatch?: OreBatch | null;
   /** Kovář: vyčerpaná ložiska (m) – další rudiště aspoň SMITH_SUPPLY.siteSpacingM od nich. */
   oreSitesUsed?: { x: number; z: number }[];
+  /**
+   * Dílna zná učení řemesla (crafts.md – Učení řemesla): výkon dílny jde podle praxe jejích lidí
+   * (`workshopSkill`). Dílna z doby před učením ho nemá – do převodu (`withCraftSkill`) pracuje
+   * jako vyučená.
+   */
+  skillTracked?: true;
 }
 /**
  * Vůz vsi – zásoba, ne stavba ve scéně (stojí u ohrady se spřežením): vyrobil ho tesař v den
