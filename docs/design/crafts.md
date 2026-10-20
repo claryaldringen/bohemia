@@ -353,19 +353,19 @@ od něj s vypáleným milířem, dvoukolák a spřežení), dva roky simulace se
 
 ### Rozhodnutí – uhlí a ruda
 
-| Rozhodnutí                                                                                  | Kdo                   |
-| ------------------------------------------------------------------------------------------- | --------------------- |
-| Kovář nosí uhlí od uhlíře; má-li syny, pošle je; kope rudu na místě, které je vidět na mapě | Martin (20. 10. 2026) |
-| S vozem přiveze uhlí sedlák (jeho práce se odečte), stejně u rudy – kovář a sedlák s vozem  | Martin (20. 10. 2026) |
-| Synové nosí uhlí od 10 let, rudu kopou od 14 let, ten den nepasou; kovárnu drží dědic domu  | Martin (20. 10. 2026) |
-| 8 kg rudy na kg nástrojů, 60 kg rudy za čd + přirážka za chůzi, koš uhlí 15 kg a rudy 25 kg | návrh Clauda (odhad)  |
-| Rudiště: mokřina nejblíž kovárně, ložisko 3 t, další aspoň 20 m, jámy zarostou za 10 let    | návrh Clauda (odhad)  |
-| Dávky rudy na 30 dní kování, s vozem na celý dvoukolák (začne dřív, hromada počká 15 dní)   | návrh Clauda          |
-| Napřed synové 10–13 (mimo práci dílny), pak domácnost – 14letí jsou ve hře dospělí          | rozhodnutí Clauda     |
-| Sedlák z práce vsi před úlohami dne (jako výprava), ne ze společné práce                    | rozhodnutí Clauda     |
-| Sedlák nečeká na kopání – ruda leží na hromadě u jámy, vůz přijede pro vykopanou dávku      | rozhodnutí Clauda     |
-| Rudiště ne na poli, v sadu, na hřbitově, v ohradě, v lese vsi ani u domů                    | rozhodnutí Clauda     |
-| Přirážka za rudu u kováře zmizela (cesta na rudiště), u hrnčíře zůstává                     | návrh Clauda          |
+| Rozhodnutí                                                                                  | Kdo                                                                           |
+| ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Kovář nosí uhlí od uhlíře; má-li syny, pošle je; kope rudu na místě, které je vidět na mapě | Martin (20. 10. 2026)                                                         |
+| S vozem přiveze uhlí sedlák (jeho práce se odečte), stejně u rudy – kovář a sedlák s vozem  | Martin (20. 10. 2026)                                                         |
+| Synové nosí uhlí od 10 let, rudu kopou od 14 let, ten den nepasou; kovárnu drží dědic domu  | Martin (20. 10. 2026)                                                         |
+| 8 kg rudy na kg nástrojů, 60 kg rudy za čd + přirážka za chůzi, koš uhlí 15 kg a rudy 25 kg | návrh Clauda (odhad)                                                          |
+| Rudiště: mokřina nejblíž kovárně, ložisko 3 t, další aspoň 20 m, jámy zarostou za 10 let    | návrh Clauda (odhad)                                                          |
+| Dávky rudy na 30 dní kování, s vozem na celý dvoukolák (začne dřív, hromada počká 15 dní)   | návrh Clauda                                                                  |
+| Napřed synové 10–13 (mimo práci dílny), pak domácnost – 14letí jsou ve hře dospělí          | návrh Clauda, Martin („Jo, souhlasím s tím, jak jsi to navrhl“, 20. 10. 2026) |
+| Sedlák z práce vsi před úlohami dne (jako výprava), ne ze společné práce                    | návrh Clauda, Martin („Jo, souhlasím s tím, jak jsi to navrhl“, 20. 10. 2026) |
+| Sedlák nečeká na kopání – ruda leží na hromadě u jámy, vůz přijede pro vykopanou dávku      | návrh Clauda, Martin („Jo, souhlasím s tím, jak jsi to navrhl“, 20. 10. 2026) |
+| Rudiště ne na poli, v sadu, na hřbitově, v ohradě, v lese vsi ani u domů                    | rozhodnutí Clauda                                                             |
+| Přirážka za rudu u kováře zmizela (cesta na rudiště), u hrnčíře zůstává                     | návrh Clauda                                                                  |
 
 ## Podle potřeby a volný čas
 
