@@ -404,9 +404,14 @@ export const ROAD_UPGRADES = {
  *   se nasype z boku a přebytek výkopu se rozhrne vedle; zpevnění kolejí kamenem a štěrkem
  *   a úprava pláně `pavingPerM` na metr (sběr a donesení kamene 2,5 m³ za čd, ILO Table K2);
  *   kácení jako průsek lesem (ROAD_SWATH, OBSTACLE_COST);
- * - trasa: nejlevnější součet práce stavby a času jízdy vozem po `trafficYears` let provozu podle
- *   loňských jízd cesty (`Road.cartTraffic`, nejméně `minTripsPerDay` – bez provozu malá váha):
- *   den vozky `dayHours` h, vůz po louce TEAM_TRAVEL.speedMps;
+ * - trasa co nejpříměji (Martin, 20. 10. 2026: „Co nejpříměji“ – přímá trasa má přednost, svah se
+ *   srovná úvozem nebo náspem do 3 m, oklika nebo serpentina jen tam, kde by bylo potřeba víc):
+ *   při hledání stojí každý metr délky navíc `directPerM` čd – víc než metr nejhlubšího úvozu
+ *   (pláň 5,5 m a svahy 1 : 1 v hloubce 3 m = 25,5 m³ na metr ≈ 23 čd), takže se trasa svahu
+ *   nevyhne, dokud ho jde srovnat; jen pro výběr trasy, cena v panelu je skutečná práce. Mezi
+ *   trasami stejné délky rozhodne práce stavby a čas jízdy vozem po `trafficYears` let provozu
+ *   podle loňských jízd cesty (`Road.cartTraffic`, nejméně `minTripsPerDay`): den vozky
+ *   `dayHours` h, vůz po louce TEAM_TRAVEL.speedMps;
  * - zatáčení: čtyřkolák s otočnou přední nápravou a spřežením zatočí na poloměru ≈ 6–8 m – na
  *   mřížce terénu pěšin ze 16 směrů o `turnSteps` směry na krok (vozová síť po louce počítá
  *   opatrněji o jeden – cart.ts); úvrať serpentiny tak vyjde ≈ 15 m široká;
@@ -424,6 +429,7 @@ export const WAGON_ROAD = {
   placePerM3: 0.2,
   haulPerM3: { base: 0.15, per100M: 0.15 },
   pavingPerM: 0.3,
+  directPerM: 25,
   trafficYears: 10,
   minTripsPerDay: 0.05,
   dayHours: 10,

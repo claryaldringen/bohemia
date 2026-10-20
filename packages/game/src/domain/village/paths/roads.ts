@@ -1762,6 +1762,15 @@ function axisSlice(points: readonly RoadPoint[], from: number, to: number): Road
 }
 
 /**
+ * Po dostavění úseku vozové cesty (roads.md – Vozová cesta; mutuje): kusy slabších cest souběžné
+ * s ní se vyříznou hned, ne až při roční kontrole (`mergeParallelRoads`), a navazující úseky se
+ * spojí – kde vozová cesta vede po ose staré cesty, nahradí ji bez dočasného rozcestí.
+ */
+export function absorbParallelRoads(roads: VillageRoads, constructions: Construction[]): void {
+  if (mergeParallelRoads(roads, constructions)) mergeRoadChains(roads, constructions);
+}
+
+/**
  * Souběžné pevné cesty se sloučí (mutuje): z mladší / slabší cesty se vyřízne kus, který vede
  * souběžně se silnější (`parallelRun`) – zbytky kratší než MIN_ROAD_M zmizí, delší zůstanou jako
  * úseky (první s id cesty, další s novým) a jejich konce u silnější cesty pak napojí

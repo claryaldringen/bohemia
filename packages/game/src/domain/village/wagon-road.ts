@@ -24,12 +24,13 @@ import {
 } from './paths/earthworks';
 import { simplifyPathLine, type PathPoint, type PathVillage } from './paths/network';
 import { roadChain, type ChainLink } from './paths/road-chains';
-import { addWagonRoad } from './paths/roads';
+import { absorbParallelRoads, addWagonRoad } from './paths/roads';
 import { pathTerrainOf, pathWindowFor, PATH_WOODLAND, withObstacles } from './paths/terrain';
 import { pathVillageOf } from './paths/village';
 import {
   WAGON_BIN_M,
   findWagonRoute,
+  straightenWagonRoute,
   profileCartMinutes,
   profileEdits,
   roadsCartMinutes,
@@ -504,7 +505,8 @@ export function planWagonRoad(input: WagonPlanInput): WagonRoadPlan {
   );
   const route = findWagonRoute(grid, from, to, trips);
   if (!route) return { ok: false, reason: WAGON_NO_ROUTE };
-  const profile = wagonProfile(grid, route.points);
+  // co nejpříměji – přímé úseky, kudy vůz projede a profil vyjde
+  const profile = wagonProfile(grid, straightenWagonRoute(grid, route.points));
   if (!profile) return { ok: false, reason: WAGON_NO_ROUTE };
   const oldLengthM = chain.reduce((sum, link) => sum + profileLength(link.road.points), 0);
   const links = chain.map((link) => link.road);
@@ -782,12 +784,18 @@ export function wagonRoadsDay(
     const earthwork = earthworkOf(state, c);
     if (!earthwork) continue;
     let left = Math.min(c.done, c.cost);
+    let built = false;
     for (let k = 0; k < earthwork.pieces.length; k++) {
       const piece = earthwork.pieces[k]!;
       if (left + 1e-9 < piece.manDays) break;
       left -= piece.manDays;
-      if (piece.builtDay === null) buildPiece(state, earthwork, k, day, landscape, obstacles);
+      if (piece.builtDay === null) {
+        buildPiece(state, earthwork, k, day, landscape, obstacles);
+        built = true;
+      }
     }
+    // stará cesta po ose vozové cesty zmizí hned, úseky se spojí
+    if (built && state.roads) absorbParallelRoads(state.roads, state.constructions);
   }
 }
 
