@@ -1,5 +1,6 @@
 import { TOTAL_GAME_DAYS, dateOfDayIndex, dayIndexOf } from '../calendar';
 import { daysUntilHarvest, daysUntilWinterHarvest } from './food';
+import { addThreshedGrain } from './grain-pits';
 import { villageLegumesKg } from './legumes';
 import { CROP_ORDER, CROP_WINDOWS, THRESHING, type WindowSegment } from './rules';
 import type { Sheaves, ThreshedCrop, VillageState, YearPlan } from './types';
@@ -173,8 +174,11 @@ export function addSheaves(
 ): void {
   const kind = sheafKind(crop);
   if (threshWork <= EPSILON) {
-    if (kind === 'grain') state.storesKg += Math.max(0, kg);
-    else state.legumesKg = (state.legumesKg ?? 0) + Math.max(0, kg);
+    if (kind === 'grain') {
+      state.storesKg += Math.max(0, kg);
+      // vymlácené zrno čeká na humně na uložení do jam (production-chains.md – Obilné jámy)
+      addThreshedGrain(state, Math.max(0, kg));
+    } else state.legumesKg = (state.legumesKg ?? 0) + Math.max(0, kg);
     return;
   }
   const sheaves = villageSheaves(state);
@@ -429,8 +433,11 @@ export function threshCrop(state: VillageState, task: ThreshTask, labor: number)
     legumesKg: kind === 'legumes' ? Math.max(0, pool - taken) : sheaves.legumesKg,
     ...(Object.keys(work).length > 0 ? { work } : {}),
   };
-  if (kind === 'grain') state.storesKg += threshed;
-  else state.legumesKg = villageLegumesKg(state) + threshed;
+  if (kind === 'grain') {
+    state.storesKg += threshed;
+    // vymlácené zrno čeká na humně na uložení do jam (production-chains.md – Obilné jámy)
+    addThreshedGrain(state, threshed);
+  } else state.legumesKg = villageLegumesKg(state) + threshed;
   return { floor, ground };
 }
 

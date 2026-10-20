@@ -1000,6 +1000,25 @@ describe('SelectionPanel – rudiště (crafts.md – Uhlí a ruda kováře)', (
   });
 });
 
+describe('SelectionPanel – obilná jáma (production-chains.md – Obilné jámy)', () => {
+  it('portrét Obilná jáma, zrno v jámě v kg, stáří a plnost', () => {
+    const html = render({
+      kind: 'grain-pit',
+      id: 820,
+      grainKg: 1264,
+      capacityKg: 1500,
+      ageYears: 3,
+    });
+    expect(html).toContain('data-kind="grain-pit"');
+    expect(html).toContain('src="/icons/build/obilna-jama.png"');
+    expect(html).toContain('>Obilná jáma</h2>');
+    expect(text(html, 'selection-grain-pit-kg')).toBe('1 264 kg');
+    expect(text(html, 'selection-grain-pit-age')).toBe('3');
+    expect(html).toMatch(/data-testid="selection-grain-pit-fill"[^>]*/);
+    expect(html).toContain('aria-valuenow="84"');
+  });
+});
+
 describe('SelectionPanel – milíř (crafts.md – Milíř u skácených buků)', () => {
   const kiln = (
     over: Partial<Extract<SelectionDetails, { kind: 'kiln' }>> = {},

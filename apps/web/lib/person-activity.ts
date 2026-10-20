@@ -232,6 +232,8 @@ function shareText(
       return 'kope rudu';
     case 'clay':
       return 'kope hlínu';
+    case 'grain-pit':
+      return 'ukládá zrno do obilné jámy';
     case 'fetch':
       return 'nosí uhlí';
     case 'idle':

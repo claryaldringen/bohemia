@@ -7,6 +7,7 @@ import {
 } from '@bohemia/game';
 import { isRotatedSquare, squareContains, type CellSquare } from './field-cells';
 import { insideOreSite, oreHeapRadius, oreSiteDiscs } from './ore-site-layout';
+import { insideGrainPit } from './grain-pit-layout';
 import { scenePenSquares, type SceneVillage } from '../village-view';
 import { footprintRect } from './village-layout';
 
@@ -20,7 +21,8 @@ import { footprintRect } from './village-layout';
  * dubový háj (id středového dubu), modla či svatyně (id stavby – hotová i rozestavěná,
  * happiness.md), ohrada (id ohrady – oxen.md), rudiště kováře (id kovárny – crafts.md, Uhlí
  * a ruda kováře), hliniště hrnčíře (id dílny – crafts.md, Hlína hrnčíře), nebo milíř či milířiště
- * uhlíře (id milíře – crafts.md, Milíř u skácených buků).
+ * uhlíře (id milíře – crafts.md, Milíř u skácených buků), nebo otevřená obilná jáma (id jámy –
+ * production-chains.md, Obilné jámy).
  */
 export type VillageTarget =
   | { kind: 'dwelling'; id: number }
@@ -49,6 +51,11 @@ export type VillageTarget =
   | { kind: 'clay-site'; id: number }
   /** Milíř nebo milířiště uhlíře (id milíře – crafts.md, Milíř u skácených buků). */
   | { kind: 'kiln'; id: number }
+  /**
+   * Otevřená obilná jáma (id jámy – production-chains.md, Obilné jámy); zapečetěné nejsou vidět
+   * a vybrat nejdou.
+   */
+  | { kind: 'grain-pit'; id: number }
   /**
    * Člověk vsi (id – villagers.md, Výběr postavy): klik na jeho postavu; výběr zůstane, i když
    * postava zmizí (vejde domů, za kraj mapy).
@@ -231,6 +238,9 @@ export function pickVillageTarget(
       return { kind: 'kiln', id: r.id };
     }
   }
+  // otevřená obilná jáma na zemi (production-chains.md – Obilné jámy) – zapečetěné scéna nemá
+  const pit = (village.grainPits ?? []).find((p) => insideGrainPit(ground, p));
+  if (pit) return { kind: 'grain-pit', id: pit.id };
   const cell = options.cellOf(ground.x, ground.z);
   if (!cell) return null;
   // čtverec v mřížce krajiny podle políčka, natočený čtverec (fields.md – Natočené stavby)
@@ -364,6 +374,9 @@ export function targetExists(village: SceneVillage, target: VillageTarget): bool
       (village.kilns ?? []).some((k) => k.id === target.id) ||
       (village.kilnRemnants ?? []).some((r) => r.id === target.id)
     );
+  }
+  if (target.kind === 'grain-pit') {
+    return (village.grainPits ?? []).some((p) => p.id === target.id);
   }
   if (target.kind === 'person') return personExists(village, target.id);
   if (target.kind === 'plough-team') return ploughsToday(village);

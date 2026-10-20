@@ -177,19 +177,45 @@ Beze změny (milíř u buků – crafts.md); nošení uhlí ke kováři je dnes 
 
 ### Obilné jámy (kopou vesničané sami)
 
-- **Po výmlatu** vesničané vykopou na vhodném místě (suché, vyvýšené, mimo pole a cesty, blízko
-  humna nebo domů) jámy, naplní je zrnem, utěsní a zamaskují (návrh Clauda: jáma ≈ 1,5 t zrna,
-  hruškovitý tvar, vymazaná – rešerše). Zavřená jáma **není vidět**.
-- **Během roku** otvírají jednu jámu po druhé a zrno spotřebovávají (jídlo, osivo). Otevřená
-  jáma je vidět a jde označit – panel ukáže, kolik v ní je zrna.
+- **Po výmlatu** vesničané vykopou na vhodném místě jámy, naplní je zrnem, utěsní a zamaskují
+  (rešerše – Obilné jámy: jáma na **1 500 kg** zrna, hruškovitý tvar, vypálená, pečeť z hlíny).
+  Zavřená jáma **není vidět**. Vymlácené zrno čeká na humně, jámy se plní od srpna do listopadu
+  (po výmlatu, než zamrzne zem): po plných jamách, neúplnou jámu (aspoň 300 kg) až po výmlatu
+  letošní úrody (snopy vymlácené a jař sklizená), v listopadu vždy; menší zbytek zůstane doma
+  a sní se napřed (návrh Clauda). Mimo tuto dobu se jámy neplní – obilí koupené v zimě leží doma.
+- **Práce** (rešerše – Obilné jámy): vykopat novou jámu **2,5 člověkodne**, vyčistit a vypálit
+  jámu, nanosit do ní zrno z humna a zapečetit **1 člověkoden** (i stará jáma). Je to sezónní
+  práce dne jako výmlat – v době plnění jam za polními pracemi a výmlatem (s koncem v listopadu –
+  setí ozimu má přednost), před stavbami; práce se střádá, jáma je hotová, až na ni stačí
+  (návrh Clauda). Ves s 10 t úrody vykope první rok ≈ 7 jam (≈ 25 čd), pak jen plní staré.
+- **Kde** (návrh Clauda): nejbližší vhodné místo od humna (bez humna od dvorce vojvody) po
+  kružnicích do 60 m – suché (ne voda, břeh, brod ani mokřina), ne v lese, mimo pole, sady,
+  hřbitovy, ohrady a les vsi, mimo obydlí, pozemky, stavby, humna a jejich vstup, milíře a pevné
+  cesty, bez stromu, keře či kamene na místě, aspoň 3 m od ostatních jam – jámy se drží pohromadě.
+  Místo vybírá jen server (simulace), scéna dostane polohy jam – výsledek nezávisí na prohlížeči.
+- **Během roku** otvírají jednu jámu po druhé a zrno spotřebovávají (jídlo, osivo): co zásoby
+  ubude (jídlo, prodej, platby), jde napřed ze zrna mimo jámy (humno, doma), pak z otevřené jámy;
+  když se vyprázdní, otevře se jáma zapečetěná nejdéle. Otevřená jáma je vidět a jde označit –
+  panel ukáže, kolik v ní je zrna (ikona zrna s kg, stáří jámy a jak je plná). K otevřené jámě
+  vede pěšina (domácnosti si z ní berou zrno), k jámě, kterou kopou, za prací dne.
 - **Stavba na zavřené jámě** (návrh Clauda): hráč ji nevidí, takže stavbu nezakazuje – vesničané
-  zrno přendají do jiné jámy nebo domů bez ztráty a jáma zmizí.
-- **Opakovaně:** prázdná jáma se znovu naplní příští sklizní; nové se kopou, jen když staré
-  nestačí. Jámy časem chátrají (návrh Clauda: po 10 letech zasypat, vykopat novou).
-- **Zásoby obilí v liště** = zrno v jamách + v otevřené jámě + na humně (nevymláceno ne).
-- **Ztráty skladováním** (dnes `storageLossPerYear` podle keramiky): v utěsněné jámě nižší
-  (návrh Clauda – rešerše), v otevřené jámě a doma jako dnes.
-- Luštěniny a len zatím ne (jen obilí).
+  zrno přendají do prázdné jámy nebo domů bez ztráty a jáma zmizí (i otevřená – její zrno jde
+  domů). Platí pro každou stavbu hráče i vsi (obydlí, pozemek, dílna, modla, svatyně, humno,
+  milíř, čtverce pole, sadu, hřbitova a ohrady).
+- **Opakovaně:** prázdná jáma se znovu naplní příští sklizní (jen naplnit a zapečetit); nové se
+  kopou, jen když staré nestačí. Prázdná jáma po **10 letech** od vykopání se zasype a kope se
+  nová (rešerše: jámy na Butser vydržely i 17 let – stěny se ale čištěním a vypalováním drolí).
+- **Zásoby obilí v liště** = zrno v jamách + v otevřené jámě + na humně a doma (nevymláceno ne).
+  Zásoba vsi zůstává jedno číslo (`storesKg`) – jídlo, osev, obchod a platby o jamách nevědí;
+  jámy jen říkají, kde zrno leží a jak rychle ubývá (návrh Clauda).
+- **Ztráty skladováním:** v zapečetěné jámě **3 % za rok** (slupka vyklíčeného zrna u stěn –
+  Reynolds), v otevřené jámě a doma jako dnes (`storageLossPerYear` podle keramiky – 10 % bez
+  hrnčíře, 5 % s ním). Plán osevu a cílová zásoba dál počítají ztráty jako doma (opatrnější
+  odhad – návrh Clauda).
+- **Starší vsi** (návrh Clauda): ves uložená před jamami uloží při načtení dnešní zásoby do jam
+  u humna (bez humna u dvorce) bez práce – po plných jamách, všechny zapečetěné kromě poslední
+  (neúplné), ze které se jí. Zásoby se nemění; jednou.
+- Luštěniny a len zatím ne (jen obilí) – luštěniny se skladují doma (návrh Clauda).
 
 ## Co je vidět – nošení
 
@@ -213,8 +239,8 @@ postav. Nejdelší snímek se nesmí zhoršit.
 
 ## Otevřené otázky
 
-- Čísla tavby (výtěžek rudy → houba → hřivna), kapacita jámy a ztráty v jámě – rešerše (cena
-  humna je dohledaná – Humno).
+- Čísla tavby (výtěžek rudy → houba → hřivna) – rešerše (cena humna, kapacita jámy a ztráty
+  v jámě jsou dohledané – Humno, Obilné jámy).
 
 ## Rozhodnutí
 
@@ -238,6 +264,12 @@ postav. Nejdelší snímek se nesmí zhoršit.
 | Upozornění na humno 90 dní před žní, i při prvním pohledu a z jiné vsi; snopy v liště             | návrh Clauda                              |
 | Zpožděný výmlat na jaře a v létě až po ostatních pracích; výmlat v okně je dřina                  | návrh Clauda                              |
 | Stavba na zavřené jámě dovolená – zrno se přendá                                                  | návrh Clauda                              |
+| Jáma 1 500 kg, kopání 2,5 čd, plnění a pečeť 1 čd, v zapečetěné jámě 3 % za rok (rešerše)         | návrh Clauda                              |
+| Jámy se plní srpen–listopad, neúplná až po výmlatu letošní úrody, zbytek pod 300 kg doma          | návrh Clauda                              |
+| Místo jam u humna (bez humna u dvorce) do 60 m, suché, mimo stavby a cesty; vybírá server         | návrh Clauda                              |
+| Zásoba zůstává `storesKg`; odběr napřed mimo jámy, pak z otevřené, otevře se nejdéle zapečetěná   | návrh Clauda                              |
+| Starší vsi uloží zásoby do jam bez práce, otevřená jen poslední; prázdná jáma po 10 letech pryč   | návrh Clauda                              |
+| Luštěniny bez jam (doma); plán osevu počítá ztráty jako doma                                      | návrh Clauda                              |
 | Obchod s hřivnami, nástroje u sousedů jako dnes; zásoba hřiven na rok obnovy, bez přebytků        | návrh Clauda                              |
 | Měchař u tavby – dospělý nebo syn od 10 let, sám kovář polovičním tempem                          | návrh Clauda                              |
 | Rozdělení ceny kování na tavbu, překování a nástroje; 1,2 kg hřiven na kg nástrojů                | návrh Clauda                              |

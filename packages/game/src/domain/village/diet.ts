@@ -1,6 +1,7 @@
 import { dateOfDayIndex, dayIndexOf, isLeapYear } from '../calendar';
 import { fieldFoodShare } from './field-food';
 import { applesSpoiled, daysUntilAppleRot } from './food';
+import { grainKeepInput } from './grain-pits';
 import { villageApplesKg } from './orchard';
 import {
   DAIRY,
@@ -194,6 +195,11 @@ export function dietOf(needPerDay: number, proteinNeedKg: number, eaten: Eaten):
 export interface DietInput {
   grainKg: number;
   /**
+   * Denní podíl zásob obilí, který zbude po ztrátách skladováním (production-chains.md – Obilné
+   * jámy – `grainStoresKeep`: zapečetěné jámy ztrácí méně); bez údaje podle nádob jako dřív.
+   */
+  grainKeepPerDay?: number;
+  /**
    * Nevymlácené snopy, které ves vymlátí (kg zrna – production-chains.md, Humno; `sheavesOutlook`):
    * výhled do sklizně s nimi počítá, jí se jen vymlácené obilí (`grainKg`). Bez údaje žádné.
    */
@@ -277,7 +283,9 @@ export interface DietResult {
  * do zkažení ovoce nebylo potřeba, jí se do té doby jen ostatní a obilí zůstane na dobu po něm.
  */
 export function eatDiet(input: DietInput): DietResult {
-  const grain = input.grainKg * (1 - storageLossPerYear(input.potteryCoverage)) ** (1 / 365);
+  const grain =
+    input.grainKg *
+    (input.grainKeepPerDay ?? (1 - storageLossPerYear(input.potteryCoverage)) ** (1 / 365));
   const meat = Math.max(0, input.meatKg) * DAILY_MEAT_KEEP;
   const fresh = Math.max(0, input.freshMeatKg ?? 0);
   const freshAhead = Math.max(0, input.freshAheadEnergy ?? 0);
@@ -506,6 +514,8 @@ export function villageMeal(
   const sheaves = sheavesOutlook(state, day);
   return eatDiet({
     grainKg: state.storesKg,
+    // zapečetěné obilné jámy ztrácí méně (production-chains.md – Obilné jámy)
+    ...grainKeepInput(state, potteryCoverage),
     sheavesGrainKg: sheaves.grainKg,
     sheavesLegumesKg: sheaves.legumesKg,
     meatKg: isMeatSpoilDay(day) ? 0 : villageMeatKg(state),

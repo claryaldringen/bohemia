@@ -20,6 +20,8 @@ import { withBuiltFirstDwelling } from './village-fixtures';
 
 // Snopy a výmlat hned po žni (production-chains.md – Humno, 20. 10. 2026): ves bez pole nesklízí –
 // přibude jen značka nové vsi `sheaves` (prázdné snopy), stav bez ní vyšel stejně jako předtím.
+// Obilné jámy (production-chains.md – Obilné jámy, 20. 10. 2026): ves bez výmlatu jámy nekope –
+// přibude jen značka nové vsi `grainPits` (žádné jámy), zásoby leží doma jako dřív.
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 const DAY = at(601, 3, 1);
@@ -102,6 +104,8 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
       'brideFromDwellingId',
       // prázdné snopy nové vsi (production-chains.md – Humno) – bez sklizně jen značka
       'sheaves',
+      // nová ves bez jam (production-chains.md – Obilné jámy) – bez výmlatu se nic neukládá
+      'grainPits',
     ]);
     const stripped = JSON.stringify(next, (key, value: unknown) =>
       learning.has(key) ? undefined : value,

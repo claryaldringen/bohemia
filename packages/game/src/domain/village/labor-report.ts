@@ -1,5 +1,6 @@
 import type { WorkshopDay } from './crafts';
 import { isVillageExtinct } from './extinction';
+import type { GrainPitDay } from './grain-pits';
 import type { DayAllocation, LaborTaskName } from './labor';
 import { villageOrchards } from './orchard';
 import { NO_CRAFTS, harvestCarryShare } from './productivity';
@@ -110,6 +111,11 @@ export interface DayWork {
    * u domů (rok odkladu starší vsi); bez údaje celý výmlat u vsi.
    */
   threshing?: { floor: number; ground: number };
+  /**
+   * Práce na obilných jamách (production-chains.md – Obilné jámy): kopání, vypalování, nošení zrna
+   * z humna a pečetění – u jámy, do které jde dávka (i nové, kterou kopou); bez údaje žádná.
+   */
+  grainPits?: GrainPitDay;
   /** Práce bokem – mimo práci vsi, jen pro postavy (`AsideWork`); bez údaje žádná. */
   aside?: AsideWork;
 }
@@ -219,6 +225,11 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
   haulTo('harvest', harvestTarget?.target ?? null);
   haulTo('seed', sowTarget?.target ?? null);
   threshShares(state, work.threshing, allocation.tasks.thresh, add);
+  // obilné jámy – u jámy, do které se dnes ukládá zrno (production-chains.md – Obilné jámy)
+  if (work.grainPits) {
+    const { pit, manDays } = work.grainPits;
+    add('grain-pit', { kind: 'grain-pit', id: pit.id, x: pit.x, z: pit.z }, manDays);
+  }
   let mowTarget: { target: LaborTarget; manDays: number } | null = null;
   for (const share of mowingShares(state, work)) {
     add('mow', share.target, share.manDays);

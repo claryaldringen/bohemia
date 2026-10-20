@@ -153,8 +153,12 @@ import {
 } from './extra-sowing';
 import { villageSacredOaks } from './sacred';
 import { finishThreshingFloor, threshingFloorHaulPoints } from './threshing-floors';
+import { drawGrainPits, grainPitTask, settleGrainPits, workGrainPits } from './grain-pits';
+import { chooseGrainPitSite, moveGrainFromCoveredPits } from './grain-pit-site';
 import {
   addSheaves,
+  canThresh,
+  villageSheaves,
   threshForFoodKg,
   threshSeasonTasks,
   withThreshingGrace,
@@ -212,6 +216,7 @@ import {
   DOMESTIC,
   FIELD_STORES,
   FOREST_BONUS,
+  GRAIN_PITS,
   HARVEST_DAY,
   ORCHARD,
   ORCHARD_WINDOWS,
@@ -375,6 +380,8 @@ function simulateDay(
   landscape: Landscape | null,
 ): void {
   const date = dateOfDayIndex(day);
+  // nové stavby dne (id z `nextId`) – jámy pod nimi se vyprázdní (production-chains.md – Obilné jámy)
+  const idsBefore = state.nextId;
   // vzdálenosti chůze dílů po pěšinách – jen když se změnilo rozložení vsi (paths.md); bez
   // krajiny (kalibrace, testy) zůstávají přímé vzdálenosti
   // pevné cesty ubírají polím plochu (roads.md a fields.md – Cesta přes pole) – jen když se od
@@ -430,6 +437,9 @@ function simulateDay(
   updateRuins(state, day, landscape);
   updateOrePits(state, day);
   updateKilnRemnants(state, day);
+  // obilné jámy pod stavbou, kterou ves dnes začala (přestavba na novém pozemku, milíř), zmizí –
+  // vesničané zrno přendají (production-chains.md – Obilné jámy)
+  if (state.nextId !== idsBefore) moveGrainFromCoveredPits(state, day, landscape);
   // sňatky mezi domy – svobodní ve dvou domech se vezmou (population.md – Sňatky mezi domy)
   state.chronicle.push(...arrangeMarriages(state, day));
   const { satiation, energy, fruit, meat } = eat(state, day, coverage);
@@ -851,6 +861,20 @@ interface DayTask {
 }
 
 /**
+ * Čeká ves letos ještě na žeň jaře (plán letošního roku jař nesklidil – do HARVEST_DAY)? Pak
+ * přijde další vymlácené zrno a neúplná obilná jáma počká (production-chains.md – Obilné jámy).
+ */
+function springHarvestAhead(state: VillageState, month: number): boolean {
+  const plan = state.plan;
+  return (
+    month <= HARVEST_DAY.month &&
+    plan !== null &&
+    plan.harvestedKg === null &&
+    plan.partIds.length > 0
+  );
+}
+
+/**
  * Výmlat jde při shodě konce okna za polními úlohami (žeň má přednost, výmlat ji následuje) – pořadí
  * za všemi úlohami všech plodin.
  */
@@ -904,6 +928,22 @@ function work(
       tie: thresh.urgent ? 0 : 1,
       rank: THRESH_RANK + CROP_ORDER.indexOf(thresh.crop),
       thresh,
+    });
+  }
+  // obilné jámy (production-chains.md – Obilné jámy): vymlácené zrno z humna do jam po polních
+  // pracích a výmlatu – v době plnění jam (do zámrazu) za setím ozimu, před stavbami; neúplnou
+  // jámu až po výmlatu letošní úrody (ve snopech nic, co ves vymlátí, a jař sklizená)
+  const moreGrain =
+    (villageSheaves(state).grainKg > EPSILON && canThresh(state, day)) ||
+    springHarvestAhead(state, month);
+  const pitWork = grainPitTask(state, day, moreGrain);
+  if (pitWork > EPSILON) {
+    dayTasks.push({
+      name: 'grain-pit',
+      remaining: pitWork,
+      end: GRAIN_PITS.fillTo,
+      tie: 1,
+      rank: THRESH_RANK + CROP_ORDER.length,
     });
   }
   const orchard = orchardTask(state, day);
@@ -1061,6 +1101,8 @@ function work(
   const haulWork: HaulWork[] = [];
   // výmlat dne – na humnech a nouzově na udusané zemi (rozdělení práce – labor-report.ts)
   const threshing = { floor: 0, ground: 0 };
+  // práce dne na obilných jamách – u které jámy (rozdělení práce)
+  let grainPits = null as ReturnType<typeof workGrainPits>;
   let mowLabor: number | undefined;
   const mowingBefore = state.hay?.mowing?.done ?? 0;
   dayTasks.forEach((task, i) => {
@@ -1142,6 +1184,10 @@ function work(
       if (haul) mowLabor = labor - crew;
     } else if (task.name === 'slaughter') {
       workSlaughter(state, amount);
+    } else if (task.name === 'grain-pit') {
+      grainPits = workGrainPits(state, day, amount, moreGrain, () =>
+        chooseGrainPitSite(state, day, landscape, obstacles),
+      );
     } else {
       workOrchards(state, amount);
     }
@@ -1316,6 +1362,7 @@ function work(
     toolCoverage: coverage.tools,
     herders: herding.freeHerders,
     threshing,
+    ...(grainPits ? { grainPits } : {}),
     aside: asideWork(state, day, allocation.eldersDailyMin),
     ...(hayMowing
       ? {
@@ -2617,12 +2664,17 @@ function eat(
 ): { satiation: number; energy: number; fruit: boolean; meat: number } {
   const milked = 1;
   const need = villageFoodNeed(state, day);
+  // co zásoby ubyly dnes (prodej, platby), jde z otevřené obilné jámy (production-chains.md –
+  // Obilné jámy) – ztráta zásob v jídle dne podle jam
+  drawGrainPits(state);
   // nevychází-li výhled do sklizně, ves napřed porazí zvířata navíc – teprve pak šetří přídělem
   // (diet.md – Nouzová porážka)
   const emergency = emergencySlaughter(state, day, coverage.pottery, milked);
   if (emergency) state.chronicle.push(emergency);
   const meal = eatDiet(dayMealInput(state, day, coverage.pottery, milked));
   state.storesKg = meal.grainKg;
+  // jámy po ztrátách a jídle dne – snědené zrno z otevřené jámy, dosloužilé prázdné se zasypou
+  settleGrainPits(state, day, coverage.pottery);
   // čerstvé maso dne se snědlo, zbytek je v uzeném (diet.md – Porážka v zimě)
   delete state.freshMeatKg;
   if (state.meatKg !== undefined || meal.meatKg > 0) state.meatKg = meal.meatKg;

@@ -268,6 +268,12 @@ export interface PathVillage {
    * stran. Bez údaje žádná.
    */
   threshingFloors?: readonly { id: number; position: Position; built: boolean }[];
+  /**
+   * Otevřené obilné jámy (production-chains.md – Obilné jámy) – id a střed (m): domácnosti si
+   * z nich berou zrno (pěšina k jámě); zavřené jámy nejsou vidět a nechodí se k nim. Bez údaje
+   * žádné.
+   */
+  grainPits?: readonly { id: number; x: number; z: number }[];
 }
 
 export interface PathNetworkInput {
@@ -285,6 +291,8 @@ export interface PathNetworkInput {
 
 /** Kola hledání: první trasy (každá další se přidá k už vyšlapaným) a jedno kolo se slevou z prvního. */
 const PASSES = 2;
+/** Obilná jáma: pěšina vede k buňkám do tolika metrů od středu jámy. */
+const GRAIN_PIT_REACH_M = 3;
 /** Kupa milíře uhlíře (crafts.py MILIR_R) – pěšina ji obejde. */
 const MILIR_RADIUS_M = 2.3;
 /** Pevná cesta (roads.md): síla pěšiny pod ní – od začátku jako plná pěšina (provoz, kreslení). */
@@ -348,6 +356,8 @@ const BASE_TRIPS = {
   site: 0.6,
   sacred: 0.6,
   pen: 0.8,
+  // pro zrno z otevřené obilné jámy (production-chains.md – Obilné jámy; návrh Clauda)
+  grainPit: 0.6,
 } as const;
 /**
  * Stáda na pastvě (diet.md, jako scéna – livestock-placement.ts): ovce s kozami po 20 kusech,
@@ -625,6 +635,8 @@ export function pathNetworkKey(village: PathVillage): string {
     ...((village.threshingFloors?.length ?? 0) > 0
       ? [threshingFloorsKey(village.threshingFloors!)]
       : []),
+    // otevřené obilné jámy (production-chains.md – Obilné jámy) – bez nich klíč beze změny
+    ...((village.grainPits?.length ?? 0) > 0 ? [grainPitsKey(village.grainPits!)] : []),
     // zemní práce vozových cest (roads.md – Vozová cesta) – terén pěšin; bez nich beze změny
     ...(village.earthworks && village.earthworks.length > 0
       ? [
@@ -646,6 +658,11 @@ export function threshingFloorsKey(
         `${f.id}:${f.position.x.toFixed(1)},${f.position.z.toFixed(1)},${f.position.rotation.toFixed(2)}:${f.built ? 1 : 0}`,
     )
     .join(';');
+}
+
+/** Klíč otevřených obilných jam pro síť pěšin – id a střed na decimetry. */
+export function grainPitsKey(pits: readonly { id: number; x: number; z: number }[]): string {
+  return pits.map((p) => `${p.id}:${p.x.toFixed(1)},${p.z.toFixed(1)}`).join(';');
 }
 
 /** Klíč milířů pro síť pěšin – středy na decimetry. */
@@ -1555,6 +1572,22 @@ function tripGroups(
       cellsAround(grid, floor.position, HUMNO.sizeM.z / 2 + grid.cellM),
       BASE_TRIPS.site + work(`site:${floor.id}`),
     );
+  }
+  // obilné jámy (production-chains.md – Obilné jámy): k otevřené jámě pro zrno, k jámě, do které se
+  // dnes ukládá zrno z humna, za prací dne
+  const pitsDone = new Set<number>();
+  for (const pit of v.grainPits ?? []) {
+    pitsDone.add(pit.id);
+    target(
+      cellsAround(grid, pit, GRAIN_PIT_REACH_M),
+      BASE_TRIPS.grainPit + work(`grain-pit:${pit.id}`),
+    );
+  }
+  for (const share of v.labor?.shares ?? []) {
+    const t = share.target;
+    if (t.kind !== 'grain-pit' || pitsDone.has(t.id)) continue;
+    pitsDone.add(t.id);
+    target(cellsAround(grid, t, GRAIN_PIT_REACH_M), work(`grain-pit:${t.id}`));
   }
   // stáda na pastvu – na úhor vsi (louka na seno až po seči; v roční síti obojí)
   const herds = pastureHerds(v.livestock);

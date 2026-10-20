@@ -35,6 +35,7 @@ import { FuneralRenderer } from './funeral-renderer';
 import type { WeddingPlan } from './wedding-plan';
 import { WeddingRenderer } from './wedding-renderer';
 import { OreSiteRenderer } from './ore-sites';
+import { GrainPitRenderer } from './grain-pits';
 import {
   DECAY_LOOKS,
   decayModelParts,
@@ -309,6 +310,8 @@ export class VillageRenderer {
   private hiddenMoundsKey = '';
   /** Rudiště kovářů – jámy a hromady rudy (crafts.md – Uhlí a ruda kováře). */
   private readonly ores: OreSiteRenderer;
+  /** Otevřené obilné jámy (production-chains.md – Obilné jámy). */
+  private readonly grainPits: GrainPitRenderer;
   private readonly pegs: StakingPegs;
   private readonly orchards: OrchardRenderer;
   private readonly sacred: SacredRenderer;
@@ -368,6 +371,7 @@ export class VillageRenderer {
       decalHeight: context.decalHeight,
       addShadowCaster: (mesh) => context.addShadowCaster(mesh),
     });
+    this.grainPits = new GrainPitRenderer(scene, { decalHeight: context.decalHeight });
     this.orchards = new OrchardRenderer(scene, context);
     this.plots = new HomesteadRenderer(scene, {
       groundHeight: context.groundHeight,
@@ -443,6 +447,7 @@ export class VillageRenderer {
     const wild = this.wild.update(village);
     const cemeteries = this.cemeteries.update(this.shownCemeteries(Date.now()), village.dwellings);
     const ores = this.ores.update(village.oreSites, village.orePits);
+    const grainPits = this.grainPits.update(village.grainPits);
     const orchards = this.orchards.update(
       village.orchards ?? [],
       buildingClearings(village.dwellings),
@@ -461,6 +466,7 @@ export class VillageRenderer {
       wild ||
       cemeteries ||
       ores ||
+      grainPits ||
       orchards ||
       plots ||
       sacred ||
@@ -943,6 +949,7 @@ export class VillageRenderer {
     this.weddings.dispose();
     this.cemeteries.dispose();
     this.ores.dispose();
+    this.grainPits.dispose();
     this.plots.dispose();
     // ohrady uvolní své ploty – před sdílenými ploty
     this.pens.dispose();

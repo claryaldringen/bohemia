@@ -19,6 +19,7 @@ import {
 } from './diet';
 import { fieldFoodShare } from './field-food';
 import { daysUntilAppleRot } from './food';
+import { grainKeepInput } from './grain-pits';
 import { breedingCows } from './husbandry';
 import { daysUntilLegumeHarvest, villageLegumesKg } from './legumes';
 import {
@@ -86,6 +87,8 @@ export function dayMealInput(
   const sheaves = sheavesOutlook(state, day);
   return {
     grainKg: state.storesKg,
+    // zapečetěné obilné jámy ztrácí méně (production-chains.md – Obilné jámy)
+    ...grainKeepInput(state, potteryCoverage),
     sheavesGrainKg: sheaves.grainKg,
     sheavesLegumesKg: sheaves.legumesKg,
     meatKg: villageMeatKg(state),

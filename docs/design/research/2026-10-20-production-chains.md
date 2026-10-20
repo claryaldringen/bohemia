@@ -116,3 +116,56 @@ zhruba třetina až polovina samotného mlácení cepem – zbytek je práce kol
 - [FAO – Post-harvest losses (Agricultural engineering in development)](https://www.fao.org/docrep/t0522e/T0522E04.htm)
 - [AGRIS – Al-Rawi 1989, Harvest and post-harvest grain losses (Jordánsko)](https://agris.fao.org/search/en/records/6471cbde2a40512c710e5a6a)
 - [AGRIS – mykotoxiny v čiroku mláceném na holé zemi (Etiopie, East Hararghe)](https://agris.fao.org/search/fr/records/68dbb2c62caea822a8e3495c)
+
+## Obilné jámy – kapacita, práce a ztráty
+
+Obilné jámy kopou vesničané sami (production-chains.md – Obilné jámy): po výmlatu jámu vykopou,
+naplní zrnem a zapečetí, během roku otvírají jednu po druhé. Čísla, která návrh nechal na
+rešerši: kolik zrna se do jámy vejde, kolik práce stojí vykopat a naplnit ji a o kolik méně zrna
+se ztratí v zapečetěné jámě než v otevřené.
+
+### Co víme
+
+| Zdroj                                                                                  | Co říká                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Reynolds 1974 – Experimental Iron Age Storage Pits: An Interim Report (PPS 40, Butser) | Standardní pokusná jáma – válec 1,25 × 1,5 m nebo hruškovitá (hrdlo 1 m, dno 1,5 m, hloubka 1,5 m) – má ≈ 1,2 m³, tedy 1,12 t vymláceného ječmene. Vykopat ji v křídě nebo vápenci stálo zkušeného kopáče 25 člověkohodin (Bowen a Wood u dvou stejných jam 6 a 16 hodin). Pečeť z čerstvé hlíny přímo na zrno. Ztráta je jen slupka vyklíčeného zrna u stěn, obvykle 2 cm: průměrně 5 % u válcové a **3 % u hruškovité** jámy, u větší jámy méně. Otevřít jámu a znovu zapečetit zrnu škodí (zvýší ztrátu u stěn); jáma se má otevřít a spotřebovat celá. |
+| Reynolds 1979 – A general report of underground grain storage experiments (Butser)     | Hruškovitá jáma plýtvá zrnem méně než válcová; nejdůležitější je dobrá pečeť z hlíny nahoře (déšť). Zrno po uskladnění klíčí průměrně skoro z 90 %. Otevřít jámu, vzít část zrna a znovu zapečetit „zvýšilo ztrátu zrna na nepřijatelnou úroveň“.                                                                                                                                                                                                                                                                                                          |
+| Butser Ancient Farm – Grain storage                                                    | Jámy na Little Butser sloužily 17 let po sobě a zrno v nich mělo v posledním roce stejnou klíčivost (přes 95 %) jako v prvním – jámu jde používat opakovaně s malou údržbou.                                                                                                                                                                                                                                                                                                                                                                               |
+| Digital Digging – Iron Age grain storage pits at Danebury                              | Průměrná jáma na Danebury rostla z 2,18 m³ (starší fáze) na 4,35 m³; hruškovité jámy jsou 72 % ze 2 400. Kůrka zkaženého zrna u stěn 1–2 cm, zrno čerstvé i po roce. Průměrnou jámu „vykopou dva nebo tři muži za den“. Po použití jámy často zůstaly otevřené a zasypaly se odpadem.                                                                                                                                                                                                                                                                      |
+| Grain Storage in Iron Age Britain (LacusCurtius)                                       | Jámy jsou hluboké, nahoře užší a dole širší, ucpané a zakryté, aby byly vzduchotěsné; kůrka zkaženého zrna u stěn se při otevření vyhodí, zbytek zrna je dobrý.                                                                                                                                                                                                                                                                                                                                                                                            |
+| Raně středověká sídliště v Čechách (Líbivá u Mělníka, přednášky SLU)                   | Zásobní (obilní) jámy jsou na slovanských sídlištích od 8. století běžné, často ve skupinách na okraji sídliště na suchém písečném podloží.                                                                                                                                                                                                                                                                                                                                                                                                                |
+
+### Odhad
+
+- **Kapacita:** jáma hry má ≈ 1,6 m³ (mezi Butserem 1,2 m³ a průměrem Danebury 2,18 m³) –
+  **1 500 kg zrna** (návrh v production-chains.md sedí).
+- **Kopání:** 25 člověkohodin na 1,2 m³ v křídě, v hlinité půdě rychleji, jáma hry je větší –
+  **2,5 člověkodne** (10hodinový člověkoden – population.md).
+- **Plnění a pečeť:** vyčistit a vypálit jámu (vysuší ji a zabije plísně – Reynolds), nanosit
+  1,5 t zrna z humna v koších po 25 kg (≈ 60 cest po desítkách metrů ≈ 3 hodiny), vykopat
+  a donést hlínu na pečeť, zamazat ji a zakrýt drnem – **1 člověkoden** na dávku (i u staré jámy).
+- **Ztráty v zapečetěné jámě:** slupka u stěn **3 % za uložení** (hruškovitá jáma, Reynolds) – hra
+  ji počítá spojitě jako 3 % za rok v zapečetěné jámě (jámy se obvykle otevřou do roka). Otevřená
+  jáma a zrno doma ztrácí jako dosud (`STORAGE_LOSS_PER_YEAR` – 10 % bez nádob, 5 % s hrnčířem).
+- **Opakovaně a stáří:** jáma vydrží i 17 let (Butser), návrh v production-chains.md počítá s 10
+  lety – stěny se čištěním a vypalováním rozšiřují a drolí (Reynolds – eroze otevřené jámy); prázdná
+  jáma starší **10 let** se zasype a kope se nová.
+- **Kdy:** po výmlatu, než zamrzne zem – **srpen až listopad**; mimo tuto dobu zrno čeká doma.
+
+### Návrh pro hru (návrh Clauda)
+
+`GRAIN_PITS` v `rules.ts`: `capacityKg` 1 500, `digManDays` 2,5, `fillManDays` 1,
+`sealedLossPerYear` 0,03, `fillFrom` 8 a `fillTo` 11 (měsíce), `minFillKg` 300 (menší zbytek
+zůstane doma a sní se napřed), `lifeYears` 10, místo do `siteM` 60 m od humna, jámy `spacingM` 3 m
+od sebe, hledá se po kružnicích po `stepM` 2,5 m. Ves s 10 t úrody tak vykope první rok ≈ 7 jam
+(≈ 25 čd), další roky jen plní staré (≈ 7 čd) – proti výmlatu (≈ 150 čd) drobnost.
+
+### Zdroje
+
+- [Reynolds 1974 – Experimental Iron Age Storage Pits: An Interim Report (Butser Ancient Farm)](http://www.butser.org.uk/Pits%20PPS.pdf)
+- [Reynolds 1979 – A general report of underground grain storage experiments at the Butser Ancient Farm](http://butser.org.uk/Gen%20Rep%20Underground%20Grain%20Storage.pdf)
+- [Butser Ancient Farm – Grain storage](https://butser.org.uk/grainstorage.html)
+- [Digital Digging – Iron Age grain storage pits, Danebury Ring hillfort](https://www.digitaldigging.net/iron-age-grain-storage-pits-danebury-ring-hillfort/)
+- [LacusCurtius – Grain storage in Iron Age Britain](https://penelope.uchicago.edu/Thayer/E/Journals/LacusCurtius/Grain_Storage_in_Iron_Age_Britain**.html)
+- [Sborník prací FF MU – raně středověké sídliště Líbivá u Mělníka](https://digilib.phil.muni.cz/cs/_flysystem/fedora/pdf/133130.pdf)
+- [SLU Opava – Vesnice raného a vrcholného středověku (přednáška)](https://is.slu.cz/el/fpf/zima2025/ARCHSTN007/6_Vesnice_RS_a_VS_2025_pdf.pdf)

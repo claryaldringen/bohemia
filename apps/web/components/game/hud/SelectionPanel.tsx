@@ -2449,6 +2449,38 @@ function KilnBody({
 }
 
 /**
+ * Otevřená obilná jáma (production-chains.md – Obilné jámy; Martin 20. 10. 2026: „v označení se
+ * ukáže kolik v ní je zrní“): zrno v jámě (kg), jak je plná a stáří jámy – bez textů navíc.
+ */
+function GrainPitBody({
+  details,
+}: {
+  details: Extract<SelectionDetails, { kind: 'grain-pit' }>;
+}): ReactElement {
+  return (
+    <div className="flex min-w-0 flex-col justify-center gap-1.5">
+      <div className={ROW}>
+        <Stat
+          icon="food"
+          name={`Zrno v jámě (kg) – vejde se ${formatInteger(details.capacityKg)} kg`}
+          testId="selection-grain-pit-kg"
+        >
+          {`${formatInteger(details.grainKg)} kg`}
+        </Stat>
+        <Stat icon="date" name="Stáří jámy (roky)" testId="selection-grain-pit-age">
+          {formatInteger(details.ageYears)}
+        </Stat>
+      </div>
+      <Bar
+        value={details.capacityKg > 0 ? details.grainKg / details.capacityKg : 0}
+        name="Zrno v jámě"
+        testId="selection-grain-pit-fill"
+      />
+    </div>
+  );
+}
+
+/**
  * Panel výběru dole uprostřed (jako v 0 A.D.) – jen když je něco vybrané: portrét, typ
  * a ikony s čísly. Obydlí: obyvatelé, věk obyvatel, stav, stáří (u přestavby i stromy ke
  * skácení), dílna navíc co dělá, práci za den a zásobu výrobku (crafts.md); staveniště: průběh
@@ -2518,6 +2550,9 @@ export function SelectionPanel({
   } else if (details.kind === 'kiln') {
     portrait = <Portrait icon="milir" name={details.stage === 'remnant' ? 'Milířiště' : 'Milíř'} />;
     body = <KilnBody details={details} onSelectTarget={onSelectTarget} />;
+  } else if (details.kind === 'grain-pit') {
+    portrait = <Portrait icon="obilna-jama" name="Obilná jáma" />;
+    body = <GrainPitBody details={details} />;
   } else if (details.kind === 'road') {
     portrait = (
       <Portrait icon={ROAD_KIND_ICONS[details.roadKind]} name={ROAD_KIND_NAMES[details.roadKind]} />

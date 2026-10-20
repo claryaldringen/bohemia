@@ -94,6 +94,7 @@ import { isMarriedWomanRole } from '../person-roles';
 import type { ScenePerson } from '../person-view';
 import { ADULTS, DayRoster, ELDERS, YOUNGSTERS, type PersonJob } from './villager-roster';
 import { orePitRadius } from './ore-site-layout';
+import { GRAIN_PIT_RADIUS_M } from './grain-pit-layout';
 
 // Postavy ve vsi (docs/design/villagers.md): kdo kde je a co dělá, jako čistá funkce vsi pro
 // scénu – z rozdělení práce posledního dne (herní jádro, labor-report.ts), ne z vlastních
@@ -163,6 +164,8 @@ const WOMEN: Record<LaborActivity, number> = {
   // kovář a jeho synové (crafts.md – Uhlí a ruda kováře) – muži
   ore: 0,
   clay: 0.2,
+  // obilné jámy – kopání, nošení zrna z humna a pečetění (production-chains.md – Obilné jámy)
+  'grain-pit': 0.3,
   fetch: 0,
   domestic: 0.85,
   trade: 0.3,
@@ -1604,6 +1607,10 @@ function placer(ctx: Context, share: SceneLaborShare, count: number): Placer {
     case 'clay':
       // hrnčíř a synové od 14 let kopou hlínu u jámy na hliništi (crafts.md – Hlína hrnčíře)
       return t.kind === 'clay' ? oreDiggers(ctx, t) : none;
+    case 'grain-pit':
+      // vesničané kopou obilnou jámu, nosí do ní zrno a pečetí ji (production-chains.md – Obilné
+      // jámy) – kolem hrdla
+      return t.kind === 'grain-pit' ? grainPitWorkers(ctx, t) : none;
     case 'fetch':
       // nošení uhlí a rudy v koších jde jako provoz na cestách (`smithFetchFigures`)
       return none;
@@ -2196,6 +2203,20 @@ function oreDiggers(ctx: Context, site: { x: number; z: number }): Placer {
     const x = pit.x + Math.cos(a) * radius;
     const z = pit.z + Math.sin(a) * radius;
     const spot = nearestFree(ctx, x, z, 3);
+    if (!spot) return null;
+    const h = unit(pit.x - spot.x, pit.z - spot.z);
+    return stand(spot.x, spot.z, h.x, h.z, 'hoe');
+  };
+}
+/**
+ * Lidé u obilné jámy (production-chains.md – Obilné jámy): stojí kolem hrdla čelem k němu
+ * a pracují motykou (kopání, pečetění hlínou) – nošení zrna z humna přinese úloha scény.
+ */
+function grainPitWorkers(ctx: Context, pit: { x: number; z: number }): Placer {
+  const radius = GRAIN_PIT_RADIUS_M + gap(0.35);
+  return (i) => {
+    const a = 0.4 + i * 2.1;
+    const spot = nearestFree(ctx, pit.x + Math.cos(a) * radius, pit.z + Math.sin(a) * radius, 3);
     if (!spot) return null;
     const h = unit(pit.x - spot.x, pit.z - spot.z);
     return stand(spot.x, spot.z, h.x, h.z, 'hoe');

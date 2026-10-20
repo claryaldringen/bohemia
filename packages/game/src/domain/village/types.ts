@@ -1431,6 +1431,11 @@ export type LaborActivity =
   /** Kopání hlíny na hliništi – hrnčíř a synové od 14 let (crafts.md – Hlína hrnčíře). */
   | 'clay'
   /**
+   * Obilné jámy (production-chains.md – Obilné jámy): vesničané kopou jámu, vypalují ji, nosí do
+   * ní vymlácené zrno z humna a zapečetí ji.
+   */
+  | 'grain-pit'
+  /**
    * Nošení uhlí od milíře a rudy z rudiště do kovárny v koších – synové kováře (uhlí od 10 let,
    * rudu od 14) nebo kovář sám (crafts.md – Uhlí a ruda kováře); kdo nese, je v `LaborShare.ages`.
    */
@@ -1520,6 +1525,11 @@ export type LaborTarget =
    * něj nosí z polí, zrno z něj do zásob.
    */
   | { kind: 'threshing-floor'; id: number }
+  /**
+   * Obilná jáma (production-chains.md – Obilné jámy) – id jámy (i nové, kterou vesničané teprve
+   * kopou) a její střed (m): kopání, plnění a pečetění jámy.
+   */
+  | { kind: 'grain-pit'; id: number; x: number; z: number }
   /**
    * Ves celkově – nouzový výmlat na udusané zemi u domů (rok odkladu starší vsi), porážka, domácí
    * práce, nevyužitá společná práce.
@@ -1669,6 +1679,15 @@ export interface VillageState {
    * mlátí ves bez humna nouzově na udusané zemi; od něj platí podmínka humna. Nová ves ho nemá.
    */
   threshingGraceUntil?: number;
+  /**
+   * Obilné jámy (production-chains.md – Obilné jámy) – zapečetěné, otevřená a prázdné. Zásoba
+   * obilí `storesKg` zůstává celá (zrno v jamách i mimo ně – na humně a doma); jámy jen říkají, kde
+   * zrno leží a jak rychle ubývá. U vsí uložených dřív chybí – převod (`withGrainPits`) uloží
+   * zásoby do jam; nová ves začíná bez jam (`[]`).
+   */
+  grainPits?: GrainPit[];
+  /** Ukládání vymláceného obilí do jam (production-chains.md – Obilné jámy); chybí = nic nečeká. */
+  grainPitWork?: GrainPitWork;
   /**
    * Dobytek (diet.md – Dobytek): stáda ovcí, koz, prasat a krav. U vsí uložených před dobytkem
    * chybí – výchozí stádo z domácností doplní `withLivestock` (nebo první dopočítaný den).
@@ -2614,6 +2633,52 @@ export interface ThreshingFloor {
   id: number;
   position: Position;
   builtDay: number | null;
+}
+
+/**
+ * Stav obilné jámy (production-chains.md – Obilné jámy): zapečetěná se zrnem (není vidět),
+ * otevřená – jí se z ní (je vidět a jde označit), prázdná – čeká na další sklizeň.
+ */
+export type GrainPitState = 'sealed' | 'open' | 'empty';
+
+/**
+ * Obilná jáma (production-chains.md – Obilné jámy; Martin 20. 10. 2026: „na příhodném místě obilné
+ * jámy po sklizni vykopou, naplní obilím a utěsní/zamaskují“): vesničané ji vykopou u humna,
+ * naplní vymláceným zrnem a zapečetí; během roku otvírají jednu jámu po druhé a zrno z ní
+ * spotřebovávají. Prázdná jáma se příští sklizní naplní znovu, po GRAIN_PITS.lifeYears od
+ * vykopání se zasype. Id z `VillageState.nextId`.
+ */
+export interface GrainPit {
+  id: number;
+  /** Střed jámy ve světě (m, na cm). */
+  x: number;
+  z: number;
+  /** Kolik zrna se do jámy vejde (kg). */
+  capacityKg: number;
+  /** Zrno v jámě (kg). */
+  grainKg: number;
+  state: GrainPitState;
+  /** Den, kdy jámu vykopali – po GRAIN_PITS.lifeYears se prázdná zasype. */
+  dugDay: number;
+  /**
+   * Den, kdy jámu naposledy naplnili a zapečetili – otvírá se ta, která je zapečetěná nejdéle;
+   * prázdná ho nemá.
+   */
+  filledDay?: number;
+}
+
+/**
+ * Ukládání vymláceného obilí do jam (production-chains.md – Obilné jámy): co z vymláceného zrna
+ * ještě čeká na humně, kolik práce už vesničané vložili do další dávky (vykopat jámu, vypálit ji,
+ * nanosit do ní zrno a zapečetit) a kde kopou novou jámu.
+ */
+export interface GrainPitWork {
+  /** Vymlácené obilí, které čeká na uložení do jam (kg – část zásob mimo jámy). */
+  queueKg: number;
+  /** Práce vložená do další dávky (člověkodny). */
+  manDays: number;
+  /** Nová jáma, kterou vesničané kopou – id (z `nextId`) a místo; chybí, když se plní stará. */
+  site?: { id: number; x: number; z: number };
 }
 
 /** Plodina, jejíž snopy se mlátí – ozim, jař a luštěniny (len se nemlátí – fields.md, Len). */

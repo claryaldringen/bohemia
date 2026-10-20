@@ -805,6 +805,18 @@ První sezónu po vymýcení lesa se díl **neplete** (viz Úroda).
   – mlátí se před setím ozimu) a výmlat ozimu a luštěnin z práce srpna (vedle žně jaře). Úroda
   sklizená do zásob před převodem tam zůstane. Čísla v `THRESHING` (rules.ts), rešerše
   [2026-10-20-production-chains.md](research/2026-10-20-production-chains.md) – Výmlat na humně.
+- **Obilné jámy** ([production-chains.md](production-chains.md) – Obilné jámy; Martin, 20. 10.
+  2026: „na příhodném místě obilné jámy po sklizni vykopou, naplní obilím a utěsní/zamaskují“):
+  vymlácené obilí čeká na humně a vesničané ho od srpna do listopadu uloží do jam na 1 500 kg
+  u humna – sezónní práce dne za polními pracemi a výmlatem (s koncem v listopadu – setí ozimu má
+  přednost), před stavbami: nová jáma 2,5 čd, naplnit a zapečetit 1 čd; po plných jamách, neúplnou
+  až po výmlatu letošní úrody (zbytek pod 300 kg zůstane doma). Prázdná jáma se znovu naplní, po
+  10 letech se zasype. Zásoby obilí zůstávají jedno číslo (jámy + zrno na humně a doma); jí se
+  napřed zrno mimo jámy, pak z jedné otevřené jámy, po ní se otevře další. V zapečetěné jámě ubývá
+  3 % zrna za rok, v otevřené jámě a doma jako dosud (Ztráty při skladování). Plán osevu ztráty
+  v jamách nezná – počítá jako doma (opatrnější, návrh Clauda). Čísla v `GRAIN_PITS` (rules.ts),
+  rešerše [2026-10-20-production-chains.md](research/2026-10-20-production-chains.md) – Obilné
+  jámy.
 - **Na jaře se nejdřív seje, co je zkopané,** a teprve zbytek práce jde do dalšího kopání
   (kalibrace). Pole, které se do konce dubna nedokope, tak dá aspoň úrodu zkopané části – dřív
   kopání předbíhalo setí a nedokopané pole nedalo nic.
@@ -1035,7 +1047,8 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
   (návrh Clauda). Nasycení počítá [strava](diet.md) – energie (obilí, maso, ovoce) × pestrost; dřív
   záviselo jen na obilí a jablcích ([sad](orchard.md)).
 - **Ztráty při skladování:** 10 % zásob za rok (myši, plíseň), rozložené rovnoměrně; s hrnčířem
-  5 % (meze – dobře utěsněná jáma ztrácí málo, Butser; rozpětí návrh Clauda).
+  5 % (meze – dobře utěsněná jáma ztrácí málo, Butser; rozpětí návrh Clauda). Zrno
+  v **zapečetěné obilné jámě** jen 3 % za rok (Výmlat hned po žni – Obilné jámy).
 - **Přídělový systém:** dokud zásoby vystačí do příští sklizně, jí ves dosyta (nasycení 1).
   Když nevystačí, obyvatelé rozdělí to, co zbývá, rovnoměrně do sklizně – nasycení je podíl
   zásob a potřeby do sklizně (návrh Clauda). Ves tak hladoví postupně, ne ze dne na den.
@@ -1775,3 +1788,4 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Snopy, které se nemlátí, se kazí 10 % za měsíc; v okně výmlatu na řadu čekají bez ztráty                                          | návrh Clauda                                    |
 | Starší vsi rok odkladu – nouzový výmlat na udusané zemi +30 % práce, −10 % zrna                                                   | Martin (20. 10. 2026), čísla návrh Clauda       |
 | Výhled jídla a plán osevu počítají snopy, jen když je ves smí vymlátit; plán odečte výmlat z podzimu a srpna                      | návrh Clauda                                    |
+| Obilné jámy srpen–listopad po polních pracích, v zapečetěné jámě 3 % za rok; plán osevu ztráty jako doma                          | návrh Clauda                                    |

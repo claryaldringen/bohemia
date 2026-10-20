@@ -1514,6 +1514,48 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   nestačí na výmlat“ (`floorShort` – výmlat po okně plodiny, jejíž celé okno humno stálo). Horní
   lišta: snopy s kg zrna (`resources/sheaves.png`, `icons.py sheaves`; do červena při `waiting`).
   Scéna výmlatu je úloha 5 plánu.
+- **Obilné jámy** ([production-chains.md](docs/design/production-chains.md) – Obilné jámy, úloha 3;
+  Martin 20. 10. 2026: „Obilné jámy by asi neměl řešit hráč, ale vesničané sami… Označit půjde
+  jen otevřená jáma“; čísla `GRAIN_PITS` v `rules.ts` – návrh Clauda podle rešerše – Obilné
+  jámy): `grain-pits.ts` (zásoba a práce), `grain-pit-site.ts` (místo, převod, jáma pod stavbou).
+  `VillageState.grainPits` (`GrainPit` – id z `nextId`, střed, `capacityKg` 1 500, `grainKg`,
+  `state` `sealed` / `open` / `empty`, `dugDay`, `filledDay`) a `grainPitWork` (`GrainPitWork` –
+  vymlácené zrno čekající na humně `queueKg`, práce vložená do další dávky, místo kopané jámy
+  `site` s id). **Zásoba zůstává `storesKg`** – jídlo, osev, obchod, platby i odchod o jamách
+  nevědí; zrno mimo jámy = `storesKg` − jámy (`looseGrainKg`). Odběr `drawGrainPits`: co zásoby
+  ubyly víc, než bylo mimo jámy, jde z otevřené jámy, prázdná → `empty`, otevře se zapečetěná
+  nejdéle (jedna otevřená); v `eat` napřed (prodej a platby dne) a po jídle `settleGrainPits`
+  (ztráty jam – zapečetěná `sealedLossPerYear` 3 %, otevřená jako doma –, odběr, prázdné po
+  `lifeYears` 10 let se zasypou). Jídlo dne bere ztrátu podle jam (`grainKeepInput` →
+  `DietInput.grainKeepPerDay` v `villageMeal` a `dayMealInput`; bez zapečetěného zrna jako dřív
+  bit po bitu); plán osevu a cílová zásoba počítají ztráty jako doma. Výmlat (`threshCrop`,
+  `addSheaves` bez práce) přidá zrno do fronty (`addThreshedGrain` – jen ves s jamami). Práce dne
+  `grain-pit` (`LaborTaskName`, `grainPitTask` / `workGrainPits` ve `work()`): v době plnění
+  (`fillFrom`–`fillTo` srpen–listopad, `isPitFillingDay`) dávky po plných jamách, napřed do
+  prázdných (jen naplnit `fillManDays` 1 čd), pak nové (+ `digManDays` 2,5 čd); neúplná (aspoň
+  `minFillKg`) až po výmlatu letošní úrody (snopy, které ves vymlátí, a `springHarvestAhead` –
+  jař do 31. 8.), v listopadu vždy; konec úlohy listopad – za setím ozimu, před stavbami; práce se
+  střádá. Místo nové jámy `chooseGrainPitSite` / `grainPitSites` (jen server – scéna dostane
+  polohy): od humna (bez humna od dvorce – `grainPitCenter`) po kružnicích do 60 m, suché (terén
+  pěšin – ne voda, břeh, brod, mokřina, les), mimo čtverce staveb, `structureShapes` (ruins.ts –
+  obydlí, pozemky, stavby, humna), milíře, pevné cesty, vstup humna, překážky a ostatní jámy; bez
+  krajiny řada jam kus od humna. **Stavba na jámě** (hráč zavřenou nevidí – kontrola umístění jámy
+  nezná): `withoutBuiltOverGrainPits` po akci v `updateVillage` a `moveGrainFromCoveredPits`
+  v simulaci (jen den, kdy přibylo id – nová stavba vsi) – `moveGrainFromPits` přendá zrno do
+  prázdných jam nebo domů bez ztráty, jáma zmizí. Nová ves `grainPits: []` (zásoby osadníků doma),
+  ves uložená dřív `withGrainPits` v `updateVillage` (zásoby do jam bez práce, zapečetěné kromě
+  poslední, ke dni `lastDay`; jednou). Rozdělení práce: činnost a cíl `grain-pit`
+  (`{ kind: 'grain-pit', id, x, z }` – `DayWork.grainPits`); síť pěšin vede k otevřené jámě pro zrno
+  (`PathVillage.grainPits`, `BASE_TRIPS.grainPit`, klíč `grainPitsKey` – ne v klíči chůze) a k jámě,
+  kterou kopou, za prací. Web: `lib/grain-pit-view.ts` (`openGrainPits` z jádra – jámy po odběru
+  i před dalším dnem) → `VillageView.grainPits` (`VillageGrainPit` – kg, kapacita, stáří)
+  a `SceneVillage.grainPits` (`SceneGrainPit` – jen otevřené, plnost po 5 %); scéna
+  `scene/grain-pits.ts` (`GrainPitRenderer` ve `VillageRenderer`, geometrie `grain-pit-layout.ts` –
+  hrdlo s valem, zrno podle plnosti, hroudy pečeti; zástupný vzhled, model přinese úloha 5),
+  výběr `{ kind: 'grain-pit', id }` (`pickVillageTarget` na zemi, kruh v `selection-highlight.ts`),
+  panel `GrainPitBody` (zrno v kg, stáří, plnost; portrét `icons/build/obilna-jama.png` –
+  `icons.py obilna-jama`), postavy u hrdla (`grainPitWorkers` ve `villager-plan.ts`, činnost
+  „ukládá zrno do obilné jámy“), ukázka `/dev/panels?panel=jama`.
 - **Příbuzenství a pohlaví** ([kinship.md](docs/design/kinship.md), Martin 18. 10. 2026;
   `kinship.ts`): `Person.sex`, `motherId`, `fatherId`, `spouseId`, u nevěsty z okolí a lidí od
   souseda (výměna lidí – trade.md) `origin` (směr sousední vsi – válka); zemřelí a odešlí rodiče

@@ -183,6 +183,12 @@ import {
 import { manorView, type VillageManor } from './manor-view';
 import { dugSitesField, type VillageDugSite } from './ore-site-view';
 import { kilnsField, type VillageKiln } from './kiln-view';
+import {
+  grainPitsField,
+  sceneGrainPits,
+  type SceneGrainPit,
+  type VillageGrainPit,
+} from './grain-pit-view';
 import { foreignFromScene, plotOfScene } from './scene/neighbour-villages';
 import { sceneTrails, trailRoadWork } from './trail-view';
 import { sceneExpeditions } from './caravan-view';
@@ -707,6 +713,11 @@ export interface VillageView {
    * cesty a kdo sem dnes chodí pro uhlí; chybí = žádné.
    */
   kilns?: VillageKiln[];
+  /**
+   * Otevřené obilné jámy (production-chains.md – Obilné jámy) pro panel výběru – zrno v jámě;
+   * zapečetěné jámy nejsou vidět. Chybí = žádná.
+   */
+  grainPits?: VillageGrainPit[];
 }
 
 /** Nákup u souseda na cestě (crafts.md – Nákup u sousedů). */
@@ -1188,6 +1199,12 @@ export interface SceneVillage {
   kilns?: SceneKiln[];
   /** Milířiště po rozebraných milířích – černá zem, která zarůstá. Bez údaje žádná. */
   kilnRemnants?: SceneKilnRemnant[];
+  /**
+   * Otevřené obilné jámy (production-chains.md – Obilné jámy) – id, střed (m) a jak je plná:
+   * kreslí je scéna a jdou vybrat; k otevřené jámě vede pěšina (domácnosti si berou zrno).
+   * Zapečetěné jámy nejsou vidět – nejsou tu. Bez údaje žádné.
+   */
+  grainPits?: SceneGrainPit[];
   /**
    * Mladé buky, které zasadil uhlíř (crafts.md – Uhlíř, obnova lesa): id stromu z vrstvy
    * překážek a velikost 0–1 podle stáří (za 60 let dospělý). Bez údaje žádné – ostatní nálet
@@ -2193,6 +2210,7 @@ function sceneVillage(
   const roadTrees = sceneRoadTrees(state, day, obstacles);
   const kilns = sceneKilns(state, summary);
   const kilnRemnants = sceneKilnRemnants(state, day);
+  const grainPits = sceneGrainPits(state);
   const plantedSaplings = plantedSaplingViews(state, day);
   const roadApples = sceneRoadApples(state, day, obstacles);
   const { oreSites, orePits } = sceneOre(state, day);
@@ -2253,6 +2271,7 @@ function sceneVillage(
     ...(woods.length > 0 ? { woods } : {}),
     ...(kilns.length > 0 ? { kilns } : {}),
     ...(kilnRemnants.length > 0 ? { kilnRemnants } : {}),
+    ...(grainPits.length > 0 ? { grainPits } : {}),
     ...(plantedSaplings.length > 0 ? { plantedSaplings } : {}),
     ...(roadApples.length > 0 ? { roadApples } : {}),
     ...(carts.length > 0 ? { carts } : {}),
@@ -3966,6 +3985,7 @@ export function buildVillageView(
     manor: manorView(state, landscape, day, context.ownMaps ?? {}),
     ...dugSitesField(state, day),
     ...kilnsField(state, day),
+    ...grainPitsField(state, day),
   };
 }
 

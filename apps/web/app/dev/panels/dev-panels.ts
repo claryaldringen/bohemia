@@ -6,7 +6,7 @@ import type { BuildOption } from '@/lib/village-view';
 
 // Ukázková data panelu výběru pro vývojovou stránku /dev/panels – nejbohatší objekty (dvorec
 // s vylepšeními a obchodem, obydlí s rodinami a přestavbou, víc obydlí, dílny, ohrada, pole a díly
-// pole, sad a čtverec sadu, cesta, rudiště kováře)
+// pole, sad a čtverec sadu, cesta, rudiště kováře, otevřená obilná jáma)
 // i malé (posvátný dub, staveniště) vedle sebe, ať jde rozvržení panelu zkontrolovat bez hry.
 
 const option = (affordable: boolean, wood: number, missing = 0): BuildOption => ({
@@ -643,6 +643,12 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       cart: false,
       burnerHere: false,
     },
+  },
+  {
+    // otevřená obilná jáma – zrno v jámě (production-chains.md – Obilné jámy)
+    key: 'jama',
+    label: 'Obilná jáma',
+    details: { kind: 'grain-pit', id: 820, grainKg: 864, capacityKg: 1500, ageYears: 3 },
   },
   {
     // rudiště s vozem – hromada u jámy, sedlák s vozem a kovář s ním odváží rudu

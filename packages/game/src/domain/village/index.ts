@@ -117,6 +117,25 @@ export {
   type ThreshingCapacity,
   type ThreshingStatus,
 } from './threshing';
+// obilné jámy (production-chains.md – Obilné jámy) – kroky dne (ztráty, odběr, plnění jam,
+// jámy pod stavbou) volá simulate.ts
+export {
+  currentGrainPits,
+  grainInPitsKg,
+  grainStoresKeep,
+  isPitFillingDay,
+  looseGrainKg,
+  openGrainPits,
+  villageGrainPits,
+} from './grain-pits';
+export {
+  chooseGrainPitSite,
+  coveredGrainPitIds,
+  grainPitCenter,
+  grainPitSites,
+  withGrainPits,
+  withoutBuiltOverGrainPits,
+} from './grain-pit-site';
 export * from './happiness';
 export * from './crafts';
 // kování vozů (wagons.md – Kování vozů) – krok dne volá simulate.ts

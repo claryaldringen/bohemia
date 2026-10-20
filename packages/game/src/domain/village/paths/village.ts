@@ -4,6 +4,7 @@ import { workshopKilns } from '../charcoal';
 import { tileCenterWorld, type Landscape, type ObstacleLayer } from '../../landscape';
 import { villageCemeteries } from '../cemetery';
 import { fieldPartLooks } from '../field-progress';
+import { openGrainPits } from '../grain-pits';
 import { HAY_WINTER_MONTHS } from '../hay';
 import { grazingDemandHa, villageHerds } from '../livestock';
 import { obstacleChangesAt } from '../obstacles';
@@ -266,6 +267,7 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
   );
   // do ohrady bez zvířat se krmit nechodí (abandonment.md)
   const stocked = stockedPenIds(state);
+  const openPits = openGrainPits(state);
   const pens = villagePens(state).map((p) => ({
     id: p.id,
     cell: { x: p.cell.x, y: p.cell.y },
@@ -330,6 +332,10 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
     // zemní práce vozových cest (roads.md – Vozová cesta) – ves bez nich beze změny
     ...(state.roads?.earthworks && state.roads.earthworks.length > 0
       ? { earthworks: earthworkSpansOf(state) }
+      : {}),
+    // otevřené obilné jámy (production-chains.md – Obilné jámy) – ves bez nich beze změny
+    ...(openPits.length > 0
+      ? { grainPits: openPits.map((p) => ({ id: p.id, x: p.x, z: p.z })) }
       : {}),
     // humna (production-chains.md – Humno) – ves bez nich beze změny
     ...((state.threshingFloors ?? []).length > 0

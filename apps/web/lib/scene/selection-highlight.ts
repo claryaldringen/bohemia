@@ -7,6 +7,7 @@ import { SACRED_BUILDINGS, roadChain } from '@bohemia/game';
 import { scenePenSquares, type SceneVillage } from '../village-view';
 import { cellsBoundary, type CellSquare } from './field-cells';
 import { oreSiteDiscs, oreSiteOutline } from './ore-site-layout';
+import { GRAIN_PIT_RING_M } from './grain-pit-layout';
 import {
   footprintCorners,
   footprintRect,
@@ -49,6 +50,8 @@ const SEE_THROUGH: ReadonlySet<VillageTarget['kind']> = new Set([
   'clay-site',
   // milířiště zarůstá trávou, kupu milíře zakrývají stromy kolem
   'kiln',
+  // hrdlo obilné jámy je nízko u země za valem
+  'grain-pit',
 ]);
 /** Poloměr obrysu milíře a milířiště (m) – kousek za kupou (MILIR_SHAPE_M.radius 2,3 m). */
 const KILN_RING_M = 3.6;
@@ -202,6 +205,17 @@ export function targetOutline(village: SceneVillage, target: VillageTarget): Poi
     const ring: Point[] = Array.from({ length: n + 1 }, (_, i) => {
       const a = (2 * Math.PI * (i % n)) / n;
       return [at.x + KILN_RING_M * Math.cos(a), at.z + KILN_RING_M * Math.sin(a)];
+    });
+    return [ring];
+  }
+  if (target.kind === 'grain-pit') {
+    // otevřená obilná jáma (production-chains.md – Obilné jámy) – kruh kolem hrdla a hrud pečeti
+    const pit = village.grainPits?.find((p) => p.id === target.id);
+    if (!pit) return [];
+    const n = 24;
+    const ring: Point[] = Array.from({ length: n + 1 }, (_, i) => {
+      const a = (2 * Math.PI * (i % n)) / n;
+      return [pit.x + GRAIN_PIT_RING_M * Math.cos(a), pit.z + GRAIN_PIT_RING_M * Math.sin(a)];
     });
     return [ring];
   }

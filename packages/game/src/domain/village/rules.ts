@@ -905,6 +905,33 @@ export const THRESHING = {
   noticeDaysBefore: 90,
   noticeMinKg: 1,
 } as const;
+/**
+ * production-chains.md – Obilné jámy (Martin 20. 10. 2026: „na příhodném místě obilné jámy po
+ * sklizni vykopou, naplní obilím a utěsní/zamaskují … Jámy lze používat opakovaně.“; čísla návrh
+ * Clauda podle rešerše 2026-10-20-production-chains.md – Obilné jámy): jáma na `capacityKg` zrna
+ * (≈ 1,6 m³ – Butser 1,2 m³ = 1,12 t ječmene, Danebury průměrně 2,18 m³). Vykopat novou jámu stojí
+ * `digManDays` (Reynolds 1974: standardní jáma 25 člověkohodin zkušeného kopáče), vyčistit
+ * a vypálit jámu, nanosit do ní zrno z humna a zapečetit ji hlínou `fillManDays` (i stará jáma).
+ * V zapečetěné jámě se ztrácí jen slupka vyklíčeného zrna u stěn – `sealedLossPerYear` (Reynolds:
+ * 3 % u hruškovité jámy za uložení); otevřená jáma a zrno mimo jámy ztrácí jako dosud
+ * (STORAGE_LOSS_PER_YEAR). Jámy se plní od `fillFrom` do `fillTo` (měsíce – po výmlatu, než
+ * zamrzne zem): plné dávky průběžně, zbytek aspoň `minFillKg` až po výmlatu (v posledním měsíci
+ * vždy); prázdná jáma `lifeYears` let od vykopání se zasype a kope se nová. Místo do `siteM` od
+ * humna (bez humna od dvorce), jámy aspoň `spacingM` od sebe, hledá se po kružnicích po `stepM`.
+ */
+export const GRAIN_PITS = {
+  capacityKg: 1500,
+  digManDays: 2.5,
+  fillManDays: 1,
+  sealedLossPerYear: 0.03,
+  fillFrom: 8,
+  fillTo: 11,
+  minFillKg: 300,
+  lifeYears: 10,
+  siteM: 60,
+  spacingM: 3,
+  stepM: 2.5,
+} as const;
 
 // population.md – Růst populace (roční úmrtnost dětí: za AGE.adult let vymře CHILD_DEATH_BEFORE_ADULT dětí)
 /** Roční úmrtnost dětí – za AGE.adult let vymře CHILD_DEATH_BEFORE_ADULT dětí. */

@@ -202,6 +202,7 @@ describe('práce opravy', () => {
           plough: 0,
           mow: 0,
           slaughter: 0,
+          'grain-pit': 0,
           'orchard-care': 0,
           'orchard-harvest': 0,
         },

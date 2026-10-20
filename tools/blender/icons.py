@@ -20,7 +20,9 @@ stezka od brány dvorce – trade.md), obchod (pytle obilí, hrnce, klády a sý
 s vodou a valem, hromádka bahenní rudy a motyka – crafts.md, Uhlí a ruda kováře), humno (mlatová
 plocha s přístřeškem, stohem slámy, snopy a cepem – production-chains.md, Humno), hliniste (jámy
 se šedookrovou stěnou jílu, hromádka hlíny a rýč – crafts.md, Hlína hrnčíře) a milir (kouřící milíř
-mezi pařezy skácených buků – crafts.md, Milíř u skácených buků) – portréty do panelu výběru;
+mezi pařezy skácených buků – crafts.md, Milíř u skácených buků) a obilna-jama (otevřená obilná
+jáma se zrnem, hroudami pečeti a lopatou – production-chains.md, Obilné jámy) – portréty do panelu
+výběru;
 (64 × 64 PNG) – `resources/` people, food, wood, labor, satiation, date, apples, happiness
 (štěstí – plamen ohniště nad zkříženými poleny v kruhu kamenů), hay (seno – kupka sena
 z `apps/web/public/models/fields/haystack.glb`), meat (maso – uzená kýta s kostí a provázkem),
@@ -2037,6 +2039,73 @@ def icon_hliniste():
     camera([Vector((-2.3, -1.9, 0)), Vector((2.8, 2.2, 0)), Vector((0, 0, 1.0))], az=14, el=38, margin=0.84)
 
 
+def icon_obilna_jama():
+    """Otevřená obilná jáma (production-chains.md – Obilné jámy): hrdlo hruškovité jámy v drnu
+    s nízkým valem hlíny, uvnitř tmavá vypálená stěna a zrno, vedle hroudy hlíny z odkryté pečeti
+    a dřevěná lopata – portrét panelu výběru otevřené jámy."""
+    g = ground(3.4, mat("g", tex=f"{TEX}/grass-lush.jpg", scale=0.35, tint=(0.72, 0.8, 0.56)), z=0.0, fade=0.7)
+    # v drnu díra pro hrdlo – země jako mezikruží (kraj díry schová val)
+    ann = bmesh.new()
+    radii = [0.7] + [0.9 + 0.25 * k for k in range(11)]
+    rings_g = [
+        [ann.verts.new((math.cos(2 * math.pi * s_ / 96) * r, math.sin(2 * math.pi * s_ / 96) * r, 0.0)) for s_ in range(96)]
+        for r in radii
+    ]
+    for inner, outer in zip(rings_g, rings_g[1:]):
+        for s_ in range(96):
+            j = (s_ + 1) % 96
+            ann.faces.new((inner[s_], outer[s_], outer[j], inner[j]))
+    ann.to_mesh(g.data)
+    ann.free()
+    # stěna hrdla (tmavá, vypálená) a val z hlíny – prstence od zrna ven pod drn
+    profile = [(0.55, -0.3), (0.66, -0.12), (0.74, 0.04), (0.86, 0.15), (1.0, 0.17), (1.45, -0.04)]
+    seg = 48
+    rings = []
+    bm = bmesh.new()
+    for t, up in profile:
+        ring = []
+        for s_ in range(seg):
+            a = 2 * math.pi * s_ / seg
+            wob = 1 + (0.06 * math.sin(3 * a + 0.7) if t >= 0.86 else 0.0)
+            r = 1.0 * t * wob
+            x, y = math.cos(a) * r, math.sin(a) * r
+            lump = 0.025 * noise.noise(Vector((x * 3.3, y * 3.3, 1.7))) if t >= 0.86 else 0.0
+            ring.append(bm.verts.new((x, y, up + lump)))
+        rings.append(ring)
+    wall_faces, rim_faces = [], []
+    for k, (inner, outer) in enumerate(zip(rings, rings[1:])):
+        for s_ in range(seg):
+            j = (s_ + 1) % seg
+            f = bm.faces.new((inner[s_], outer[s_], outer[j], inner[j]))
+            (wall_faces if k < 2 else rim_faces).append(f)
+    wall = mat("wall", (0.12, 0.085, 0.055), 0.95, noise=30, bump=0.4)
+    clay = mat("rim", tex=f"{TEX}/mud.jpg", scale=0.9, tint=(0.7, 0.55, 0.36))
+    pit = to_obj(bm, "pit", clay)
+    pit.data.materials.append(wall)
+    for f in pit.data.polygons:
+        f.material_index = 1 if f.index < len(wall_faces) else 0
+    # zrno v jámě – hrbolatá hladina, ze hrdla prosvítá
+    grain = bmesh.new()
+    blob(grain, ((0.0, 0.0, -0.24), (0, 0, 0)), (0.6, 0.6, 0.1), 40, 12)
+    to_obj(grain, "grain", mat("grain", (0.78, 0.56, 0.22), 0.65, noise=160, bump=0.8))
+    # hroudy pečeti vedle hrdla
+    rng = random.Random(23)
+    lumps = bmesh.new()
+    for k in range(16):
+        a = rng.uniform(0, 2 * math.pi)
+        d = rng.uniform(0, 0.42)
+        size = rng.uniform(0.15, 0.24)
+        clay_lump(lumps, (1.6 + math.cos(a) * d, -0.5 + math.sin(a) * d, 0.1 + (0.42 - d) * 0.45), (size, size * 0.85, size * 0.62), rng)
+    to_obj(lumps, "seal", mat("seal", (0.36, 0.25, 0.14), 0.5, noise=12, bump=0.3), smooth=True)
+    # dřevěná lopata opřená o val
+    wood = bmesh.new()
+    cyl(wood, (-1.8, 1.25, 0.1), (-0.6, 0.55, 0.3), 0.05, 0.05, 10)
+    box(wood, (-0.47, 0.47, 0.29), (0.34, 0.27, 0.04), (0.0, -0.2, -0.52))
+    to_obj(wood, "shovel", mat("wood", (0.42, 0.28, 0.14), 0.8, noise=50, bump=0.3))
+    sun(az=-50, el=55)
+    sun(az=150, el=30, strength=1.5, color=(0.8, 0.88, 1.0))
+    camera([Vector((-1.7, -1.3, 0)), Vector((2.05, 1.3, 0)), Vector((0, 0, 0.4))], az=14, el=55, margin=0.84)
+
 def flat_plate(bm, pts, y, thickness):
     """Plochý díl (list sekery) z obrysu `pts` v rovině XZ, tloušťka ve směru Y."""
     front = [bm.verts.new((x, y - thickness / 2, z)) for x, z in pts]
@@ -2485,6 +2554,7 @@ BUILD = {
     "hliniste": icon_hliniste,
     "humno": icon_humno,
     "milir": icon_milir,
+    "obilna-jama": icon_obilna_jama,
 }
 
 # ------------------------------------------------------------- rodiny ----

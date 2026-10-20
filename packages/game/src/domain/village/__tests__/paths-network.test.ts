@@ -382,6 +382,35 @@ describe('computePathNetwork – pěšiny vsi', () => {
     expect(pathNetworkKey({ ...village(), threshingFloors: [] })).toBe(pathNetworkKey(village()));
   });
 
+  it('k otevřené obilné jámě vede pěšina pro zrno, k jámě, kterou kopou, za prací (production-chains.md – Obilné jámy)', () => {
+    const pit = { id: 31, x: -60, z: 30 };
+    const near = (network: PathNetwork, x: number, z: number): number =>
+      samples(network).filter((q) => Math.hypot(q.x - x, q.z - z) < 4).length;
+    expect(near(computePathNetwork({ village: village(), terrain }), pit.x, pit.z)).toBe(0);
+    expect(
+      near(computePathNetwork({ village: village({ grainPits: [pit] }), terrain }), pit.x, pit.z),
+    ).toBeGreaterThan(0);
+    // nová jáma, kterou dnes kopou (zavřené ani rozkopané jámy scéna nemá) – za prací dne
+    const digging = village({
+      labor: {
+        day: 4000,
+        month: 9,
+        people: { children: 4, adults: 8, elders: 2 },
+        shares: [
+          {
+            activity: 'grain-pit',
+            target: { kind: 'grain-pit', id: 32, x: 60, z: 30 },
+            manDays: 3,
+          },
+        ],
+      },
+    });
+    expect(near(computePathNetwork({ village: digging, terrain }), 60, 30)).toBeGreaterThan(0);
+    // klíč sítě otevřené jámy zná – bez nich stejný jako dřív
+    expect(pathNetworkKey(village({ grainPits: [pit] }))).not.toBe(pathNetworkKey(village()));
+    expect(pathNetworkKey({ ...village(), grainPits: [] })).toBe(pathNetworkKey(village()));
+  });
+
   it('k přirozené louce, kde se dnes seče, vede pěšina (oxen.md – Seno)', () => {
     // louka na východ od vsi – bez seče tam nikdo nechodí
     const meadow = part(82.5, -37.5);

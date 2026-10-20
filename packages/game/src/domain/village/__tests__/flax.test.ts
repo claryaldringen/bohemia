@@ -372,8 +372,11 @@ describe('len napřed – ves, které len za obilím vycházel, má plán beze z
     }
     expect(state.chronicle.some((e) => e.kind === 'linen-short')).toBe(false);
     // přepsáno s výmlatem hned po žni (production-chains.md – Humno, 20. 10. 2026): ves s humnem
-    // mlátí v srpnu a září – plán osevu odečte výmlat z podzimu a srpna, snopy jsou zásobou
-    expect(fingerprint(plans)).toBe('672:0c163225');
+    // mlátí v srpnu a září – plán osevu odečte výmlat z podzimu a srpna, snopy jsou zásobou;
+    // a s obilnými jámami (Obilné jámy, 20. 10. 2026): vymlácené zrno v zapečetěných jamách ubývá
+    // méně (zásoby k 1. 9. jsou vyšší) a ukládání do jam bere na podzim práci před osevem navíc –
+    // mění se výběr dílů, len dál bez nedostatku
+    expect(fingerprint(plans)).toBe('672:29d2c15d');
   });
 });
 

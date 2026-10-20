@@ -450,6 +450,9 @@ export function foundVillage(input: {
     storesKg: food ? food.grainKg : (annualNeed * START_STORES_MONTHS) / MONTHS_PER_YEAR,
     // nová ves mlátí až na humně, které postaví hráč – bez odkladu (production-chains.md – Humno)
     sheaves: { grainKg: 0, legumesKg: 0 },
+    // zásoby osadníků jsou doma; jámy vesničané vykopou po prvním výmlatu (production-chains.md –
+    // Obilné jámy)
+    grainPits: [],
     hungry: false,
     commonLaborHistory: [],
     chronicle: [{ day, kind: 'village-founded' }],

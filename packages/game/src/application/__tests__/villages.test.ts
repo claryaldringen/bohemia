@@ -285,6 +285,29 @@ describe('loadVillage', () => {
     expect(again!.state.threshingGraceUntil).toBe(today + THRESHING.graceDays);
   });
 
+  it('ves uložená před obilnými jámami uloží zásoby do jam a uloží se – zásoby beze změny, jednou', async () => {
+    const villages = await foundedVillages();
+    // nová ves (production-chains.md – Obilné jámy) – bez jam, zásoby doma
+    expect(villages.records.get(VID)!.state.grainPits).toEqual([]);
+    villages.edit(VID, (s) => {
+      delete s.grainPits;
+      s.storesKg = 4000;
+    });
+    const today = villages.records.get(VID)!.state.lastDay;
+    const record = await loadVillage({ villages }, { villageId: VID, today, landscape });
+    const pits = record!.state.grainPits!;
+    expect(pits.map((p) => [p.state, p.grainKg])).toEqual([
+      ['sealed', 1500],
+      ['sealed', 1500],
+      ['open', 1000],
+    ]);
+    expect(record!.state.storesKg).toBe(4000);
+    expect(villages.records.get(VID)!.state.grainPits).toEqual(pits);
+    // jednou – další načtení jámy nemění
+    const again = await loadVillage({ villages }, { villageId: VID, today, landscape });
+    expect(again!.state.grainPits).toEqual(pits);
+  });
+
   it('při souběžném uložení to zkusí znovu nad čerstvou vsí', async () => {
     const villages = await foundedVillages();
     let interfered = false;

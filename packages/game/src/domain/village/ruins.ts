@@ -106,9 +106,10 @@ function builtOverRuins(state: VillageState, landscape: Landscape | null): Set<D
 
 /**
  * Půdorysy obydlí a staveb s polohou (i rozestavěných – obydlí, dílny, přestavby na novém
- * pozemku, modly, svatyně a humna); s krajinou i celá políčka pozemků.
+ * pozemku, modly, svatyně a humna); s krajinou i celá políčka pozemků. I pro obilné jámy
+ * (grain-pit-site.ts – místo jámy, jáma pod stavbou).
  */
-function structureShapes(state: VillageState, landscape: Landscape | null): Point[][] {
+export function structureShapes(state: VillageState, landscape: Landscape | null): Point[][] {
   const shapes: Point[][] = [];
   const dwelling = (d: {
     type: Dwelling['type'];

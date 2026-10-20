@@ -2359,6 +2359,11 @@ export function placementVillageOf(state: VillageState, day: number): PlacementV
     ploughTeam: ableTeams(state, day) > 0,
     walkRoads: state.roads?.roads ?? [],
     kilns: activeKilnPoints(state),
+    // humna i rozestavěná (production-chains.md – Humno) – zabírají půdorys; obilné jámy kontrola
+    // umístění nezná – hráč zavřenou jámu nevidí, stavba ji smí zabrat (Obilné jámy)
+    ...(state.threshingFloors
+      ? { threshingFloors: state.threshingFloors.map((f) => ({ position: f.position })) }
+      : {}),
   };
 }
 

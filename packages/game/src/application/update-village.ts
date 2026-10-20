@@ -24,6 +24,8 @@ import {
   withPlots,
   withDwellingShapes,
   withoutBuiltOverRuins,
+  withoutBuiltOverGrainPits,
+  withGrainPits,
   withoutForeignGoods,
   withThreshingGrace,
   type VillageState,
@@ -92,11 +94,13 @@ async function advancedToTodayWithPauses(
  * (`withoutForeignGoods`), ohrady uložené bez druhu ho dostanou (`withPenSpecies` – oxen.md,
  * Ohrady podle druhu), spřežení voly po kusech (`withOxen`), stáda roční odklad míst ohrad od
  * dneška (`withPenGrace`) a ves z doby před snopy rok odkladu mlácení bez humna od dneška
- * (`withThreshingGrace` – production-chains.md, Starší vsi) – před dopočtem,
+ * (`withThreshingGrace` – production-chains.md, Starší vsi) a zásoby obilí z doby před jamami
+ * se uloží do obilných jam (`withGrainPits` – production-chains.md, Obilné jámy) – před dopočtem,
  * aby se s nimi už počítalo; pak se uloží.
  * Ves se dopočítává s vrstvou překážek a krajinou sídla (přestavby kácí stromy, polozemnice bez
  * pozemku se přestaví na volném políčku). Zbytky jam po zaniklých obydlích pod novou stavbou po
- * změně zmizí (`withoutBuiltOverRuins`). S `pause` dělá dopočet mezi dny přestávky.
+ * změně zmizí (`withoutBuiltOverRuins`), obilné jámy taky – zrno se přendá
+ * (`withoutBuiltOverGrainPits`). S `pause` dělá dopočet mezi dny přestávky.
  */
 export async function updateVillage(
   villages: VillageRepository,
@@ -154,17 +158,19 @@ export async function updateVillage(
       today,
     );
     // dvorec vojvody – starší ves ho dostane (nejstarší obydlí, trade.md); spřežení ohrad uložených
-    // dřív se převedou na voly po kusech (oxen.md – Voli po kusech)
-    const base = withManor(withOxen(migrated));
+    // dřív se převedou na voly po kusech (oxen.md – Voli po kusech); ves z doby před obilnými
+    // jámami uloží zásoby do jam u humna nebo dvorce (production-chains.md – Obilné jámy)
+    const base = withGrainPits(withManor(withOxen(migrated)), landscape, obstacles);
     // jiné vsi na téže mapě – kontroly umístění a kácení o nich vědí (migration.md); přehled se
     // neukládá
     const attached = withNeighbours(base, await neighboursOf(villages, record, today));
     const current = await advancedToTodayWithPauses(attached, today, obstacles, landscape, pause);
     const changed = change(current);
     if (!changed.ok) return changed;
-    // na místo zříceniny jde stavět – stavba zbytek jámy odstraní (ruins.ts)
+    // na místo zříceniny jde stavět – stavba zbytek jámy odstraní (ruins.ts); stavba na obilné
+    // jámě taky – vesničané zrno přendají (production-chains.md – Obilné jámy)
     const stripped = withoutNeighbours(changed.state);
-    const next = withoutBuiltOverRuins(stripped, landscape);
+    const next = withoutBuiltOverGrainPits(withoutBuiltOverRuins(stripped, landscape), landscape);
     const untouched = changed.state === attached && base === record.state && next === stripped;
     if (next === record.state || untouched) return { ok: true, village: record };
     const saved: VillageRecord | null = await villages.save(villageId, next, record.version);

@@ -396,6 +396,31 @@ describe('výběr milíře a milířiště (crafts.md – Milíř u skácených 
   });
 });
 
+describe('výběr otevřené obilné jámy (production-chains.md – Obilné jámy)', () => {
+  const withPit: SceneVillage = {
+    ...village,
+    grainPits: [{ id: 820, x: 60, z: 40, fill: 0.6 }],
+  };
+  const pick = (x: number, z: number): VillageTarget | null =>
+    pickVillageTarget(withPit, rayTo(x, z), { ground: { x, z }, groundHeight: flat, cellOf });
+
+  it('klik na hrdlo nebo hroudy vedle vybere jámu podle id; zapečetěná ve scéně není', () => {
+    expect(pick(60, 40)).toEqual({ kind: 'grain-pit', id: 820 });
+    expect(pick(61.4, 40)).toEqual({ kind: 'grain-pit', id: 820 });
+    expect(pick(63, 40)).toBeNull();
+    expect(targetExists(withPit, { kind: 'grain-pit', id: 820 })).toBe(true);
+    expect(targetExists(village, { kind: 'grain-pit', id: 820 })).toBe(false);
+  });
+
+  it('obrys – uzavřený kruh kolem hrdla', () => {
+    const [ring, ...rest] = targetOutline(withPit, { kind: 'grain-pit', id: 820 });
+    expect(rest).toEqual([]);
+    expect(ring![0]).toEqual(ring![ring!.length - 1]);
+    for (const [x, z] of ring!) expect(Math.hypot(x - 60, z - 40)).toBeCloseTo(1.9, 6);
+    expect(targetOutline(village, { kind: 'grain-pit', id: 820 })).toEqual([]);
+  });
+});
+
 describe('výběr hliniště (crafts.md – Hlína hrnčíře)', () => {
   // rudiště kovárny 12 a hliniště dílny hrnčíře 14 kus od sebe
   const withClay: SceneVillage = {
