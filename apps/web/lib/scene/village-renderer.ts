@@ -23,6 +23,9 @@ import {
 import type { SceneKiln, SceneKilnState, SceneVillage } from '../village-view';
 import { buildingClearings } from './building-clearings';
 import { CemeteryRenderer } from './cemetery-renderer';
+import { withoutHiddenMounds, type FuneralPlan } from './funeral-plan';
+import { FuneralRenderer } from './funeral-renderer';
+import { OreSiteRenderer } from './ore-sites';
 import {
   DECAY_LOOKS,
   decayModelParts,
@@ -261,6 +264,12 @@ export class VillageRenderer {
   private readonly ruins = new Map<string, RuinView>();
   private readonly smoke: VillageSmoke;
   private readonly cemeteries: CemeteryRenderer;
+  /** Pohřby – máry, hranice, oheň a dým (cemetery.md – Pohřeb ve scéně). */
+  private readonly funerals: FuneralRenderer;
+  /** Mohyly, které hranice ještě nenechala nasypat (klíč pro změnu). */
+  private hiddenMoundsKey = '';
+  /** Rudiště kovářů – jámy a hromady rudy (crafts.md – Uhlí a ruda kováře). */
+  private readonly ores: OreSiteRenderer;
   private readonly pegs: StakingPegs;
   private readonly orchards: OrchardRenderer;
   private readonly sacred: SacredRenderer;
@@ -303,6 +312,14 @@ export class VillageRenderer {
       addShadowCaster: (mesh) => context.addShadowCaster(mesh),
       requestRender: () => context.requestRender(),
       fences: this.fences,
+    });
+    this.funerals = new FuneralRenderer(scene, {
+      groundHeight: context.groundHeight,
+      onLoaded: () => context.requestRender(),
+    });
+    this.ores = new OreSiteRenderer(scene, {
+      decalHeight: context.decalHeight,
+      addShadowCaster: (mesh) => context.addShadowCaster(mesh),
     });
     this.orchards = new OrchardRenderer(scene, context);
     this.plots = new HomesteadRenderer(scene, {
@@ -367,7 +384,8 @@ export class VillageRenderer {
       this.ploughDay ? startOfDayVillage(village, this.ploughDay.stints) : village,
     );
     const wild = this.wild.update(village);
-    const cemeteries = this.cemeteries.update(village.cemeteries ?? [], village.dwellings);
+    const cemeteries = this.cemeteries.update(this.shownCemeteries(Date.now()), village.dwellings);
+    const ores = this.ores.update(village.oreSites, village.orePits);
     const orchards = this.orchards.update(
       village.orchards ?? [],
       buildingClearings(village.dwellings),
@@ -385,6 +403,7 @@ export class VillageRenderer {
       fields ||
       wild ||
       cemeteries ||
+      ores ||
       orchards ||
       plots ||
       sacred ||
@@ -550,7 +569,40 @@ export class VillageRenderer {
    * Vrátí true, když je co překreslit.
    */
   animateSmoke(nowMs: number, camera: Camera | null): boolean {
-    return this.smoke.animate(nowMs, camera);
+    const smoke = this.smoke.animate(nowMs, camera);
+    // pohřební hranice a máry; mohyla se nasype, až hranice vychladne
+    const funerals = this.funerals.animate(nowMs, camera);
+    const mounds = this.refreshMounds(nowMs);
+    return smoke || funerals || mounds;
+  }
+
+  /**
+   * Pohřby (cemetery.md – Pohřeb ve scéně): plány s průvodem z villagers.ts – máry, hranice
+   * a oheň; mohylu pohřbu skryje, dokud hranice nevychladne. Vrátí true, když je co překreslit.
+   */
+  setFunerals(plans: readonly FuneralPlan[], nowMs: number): boolean {
+    const funerals = this.funerals.set(plans, nowMs);
+    const mounds = this.refreshMounds(nowMs);
+    return funerals || mounds;
+  }
+
+  /** Kam namířit kameru na pohřeb – máry v průvodu, jinak hranice (vývojová ukázka). */
+  funeralFocus(nowMs: number): ReturnType<FuneralRenderer['focus']> {
+    return this.funerals.focus(nowMs);
+  }
+
+  /** Hřbitovy bez mohyl, které ještě nejsou nasypané (hranice hoří nebo doutná). */
+  private shownCemeteries(nowMs: number): NonNullable<SceneVillage['cemeteries']> {
+    const hidden = this.funerals.hiddenMounds(nowMs);
+    this.hiddenMoundsKey = [...hidden].sort().join('|');
+    return withoutHiddenMounds(this.village.cemeteries ?? [], hidden);
+  }
+
+  /** Mohyla se nasype po dohoření – překreslí hřbitovy, když se to změnilo. */
+  private refreshMounds(nowMs: number): boolean {
+    const hidden = [...this.funerals.hiddenMounds(nowMs)].sort().join('|');
+    if (hidden === this.hiddenMoundsKey) return false;
+    return this.cemeteries.update(this.shownCemeteries(nowMs), this.village.dwellings);
   }
 
   /** Vývojová volba: dým ze všech hotových obydlí pořád. */
@@ -561,6 +613,7 @@ export class VillageRenderer {
   /** Den a noc: tón materiálů bez světla (dým) – day-light.ts. */
   setLightTone(tone: Rgb): void {
     this.smoke.setTone(tone);
+    this.funerals.setTone(tone);
   }
 
   /**
@@ -763,7 +816,9 @@ export class VillageRenderer {
   dispose(): void {
     this.disposed = true;
     this.smoke.dispose();
+    this.funerals.dispose();
     this.cemeteries.dispose();
+    this.ores.dispose();
     this.plots.dispose();
     // ohrady uvolní své ploty – před sdílenými ploty
     this.pens.dispose();

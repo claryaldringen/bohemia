@@ -8,7 +8,7 @@ import {
   readySquares,
   villageCemeteries,
 } from './cemetery';
-import { cartCondition, cartsAway, villageCarts } from './carts';
+import { cartCondition, cartsAway, haulCartsToday, villageCarts } from './carts';
 import {
   craftCoverage,
   craftNeeds,
@@ -18,6 +18,7 @@ import {
   type CraftNeeds,
 } from './crafts';
 import { charcoalStockKg, kilnCharcoalKg, kilnCharcoalShare } from './charcoal';
+import { smithOreSummary, type SmithOreSummary } from './smith-supply';
 import { isFull, isOvercrowded } from './dwellings';
 import { waitingHouseholds } from './households';
 import { familyCounts, type FamilyCounts } from './kinship';
@@ -207,8 +208,13 @@ export interface WorkshopSummary {
   occupants: number;
   /** Práce řemeslu za den po denním minimu (člověkodny, se štěstím). */
   laborPerDay: number;
-  /** Přirážka za rudu nebo hlínu dál od potoka (1 = voda blízko). */
+  /** Přirážka za hlínu dál od potoka u hrnčíře (1 = voda blízko; kovář 1). */
   oreFactor: number;
+  /**
+   * Kovář (crafts.md – Uhlí a ruda kováře): zásoba rudy, rudiště, hromada u jámy a kdo nosí uhlí;
+   * ostatní dílny null.
+   */
+  ore: SmithOreSummary | null;
   /**
    * Uhlíř: jeho milíř (crafts.md – Uhlíř, Milíř stojí vždy) – fáze, kolik buků dávky je
    * připravených z kolika, průběh fáze 0–1 (u pálení dny ÷ CHARCOAL_KILN.burnDays, u vypáleného
@@ -812,6 +818,10 @@ function craftsSummary(state: VillageState, day: number): CraftsSummary {
               ? workshopLabor(state, day, d.id, coverage.pottery, productivity).craft
               : 0,
           oreFactor: oreFactor(workshop),
+          ore:
+            workshop.craft === 'smith'
+              ? smithOreSummary(state, d, day, haulCartsToday(state, day, false) > 0)
+              : null,
           kiln: workshop.kiln ? kilnSummary(workshop.kiln) : null,
           toPlant: workshop.toPlant?.length ?? 0,
           carpenter:

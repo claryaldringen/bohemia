@@ -752,6 +752,43 @@ describe('SelectionPanel – dílna tesaře (wagons.md – Tesař)', () => {
   });
 });
 
+describe('SelectionPanel – kovárna (crafts.md – Uhlí a ruda kováře)', () => {
+  const smith = (
+    activity: 'producing' | 'digging',
+    ore: { sons: number[]; cart: boolean },
+  ): SelectionDetails =>
+    dwelling({
+      type: 'polozemnice',
+      workshop: {
+        craft: 'smith',
+        activity,
+        laborPerDay: 1.7,
+        outputPerDayKg: 0.17,
+        stockKg: 42,
+        coverage: 0.6,
+        kiln: null,
+        toPlant: 0,
+        carpenter: null,
+        ore: { stockKg: 18, site: { walkM: 423, leftKg: 2200 }, heapKg: 0, ...ore },
+      },
+    });
+
+  it('zásoba rudy, cesta na rudiště a kdo nosí uhlí – syn, kovář, vůz', () => {
+    const son = render(smith('producing', { sons: [11], cart: false }));
+    expect(son).toMatch(/data-testid="selection-workshop-ore"[^>]*>18</);
+    expect(son).toMatch(/data-testid="selection-workshop-ore-site"[^>]*>423 m</);
+    expect(son).toContain('/icons/resources/ore.png');
+    expect(son).toMatch(/data-testid="selection-workshop-carrier"[^>]*>11</);
+    expect(son).toContain('/icons/resources/child.png');
+    const alone = render(smith('producing', { sons: [], cart: false }));
+    expect(alone).toContain('/icons/resources/man.png');
+    const cart = render(smith('digging', { sons: [11], cart: true }));
+    expect(cart).toContain('/icons/resources/cart.png');
+    expect(cart).toContain('data-activity="digging"');
+    expect(cart).toContain('Kope rudu');
+  });
+});
+
 describe('SelectionPanel – nákup u sousedů (crafts.md)', () => {
   it('dvorec ukáže, kde ves bere výrobky, a nákup na cestě – jen ikony', () => {
     const html = render(

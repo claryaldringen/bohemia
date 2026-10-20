@@ -5,6 +5,7 @@ import type { PartInput } from '../actions';
 import { endOfSeason, expectedNetKg } from '../fields';
 import { expectedFlaxKg, flaxNeedKg, harvestFlax, linenCoverage, linenUnhappiness } from '../flax';
 import { happinessFactors } from '../happiness';
+import { sowingTargets } from '../field-food';
 import { expectedLegumeKg, legumeEnergy } from '../legumes';
 import { ageGroup } from '../people';
 import { NO_CRAFTS } from '../productivity';
@@ -12,7 +13,15 @@ import { FERTILITY, FLAX, YIELD_BASE_KG_PER_HA } from '../rules';
 import { advanceVillage } from '../simulate';
 import { chooseCrops, orchardOnlyLoad, type CropChoiceInput } from '../sowing';
 import type { FieldPart, VillageState } from '../types';
-import { cropGrossPerHa, cropSeedPerHa, harvestKg, partWork, planPartIds } from '../year-plan';
+import {
+  cropGrossPerHa,
+  cropSeedPerHa,
+  harvestKg,
+  partWork,
+  planCrops,
+  planPartIds,
+  type PartWork,
+} from '../year-plan';
 
 // Len (fields.md – Len, diet.md – Oděv; Martin 19. 10. 2026: „na částech pole musí být zasetý
 // len“): plodina na dílech pole podle potřeby lnu na oděv; obilí má přednost; len vysiluje půdu;
@@ -65,7 +74,7 @@ const bigField = (count = 180): PartInput[] =>
     obstacleCost: 0,
   }));
 
-const found = (day: number): VillageState =>
+const found = (day: number, fieldParts = 180): VillageState =>
   foundVillage({
     seed: 7,
     day,
@@ -76,7 +85,7 @@ const found = (day: number): VillageState =>
         [10, 0],
         [10, 10],
       ],
-      parts: bigField(),
+      parts: bigField(fieldParts),
     },
   });
 
@@ -174,26 +183,88 @@ describe('plán osevu se lnem (chooseCrops)', () => {
     expect(next.flax.some((p) => lastYear.has(p.id))).toBe(false);
   });
 
-  it('když půda na doplnění obilí nestačí, len ubere obilí o své díly – jen ze zásob nad pojistku', () => {
+  it('když půda na doplnění obilí nestačí, len ubere obilí o své díly – i se zásobami pod pojistkou', () => {
     const candidates = parts(40);
     const all = candidates.reduce((sum, p) => sum + expectedNetKg(p, DAY), 0);
-    const spare = chooseCrops(
-      candidates,
-      input({ targetKg: all, flaxTargetKg: 20, flaxSpareKg: BIG }),
-    );
-    const flaxKg = spare.flax.reduce((sum, p) => sum + expectedFlaxKg(p, DAY), 0);
-    expect(flaxKg).toBeGreaterThanOrEqual(20);
-    expect(spare.winter.length + spare.spring.length + spare.flax.length).toBe(40);
-    // zásoby na pojistce – obilí má přednost, lnu je méně (nebo žádný)
+    // zásoby pod pojistkou (Len napřed – Martin 20. 10. 2026: „občas mi to píše chybí len na
+    // oděv“): len dostane díly i tak, obilí přijde jen o ně
     const tight = chooseCrops(candidates, input({ targetKg: all, flaxTargetKg: 20 }));
-    expect(tight.flax).toEqual([]);
-    expect(tight.winter.length + tight.spring.length).toBe(40);
-    // zásoby nad pojistku jen na jeden díl obilí
-    const one = chooseCrops(
-      candidates,
-      input({ targetKg: all, flaxTargetKg: 20, flaxSpareKg: expectedNetKg(candidates[0]!, DAY) }),
+    const flaxKg = tight.flax.reduce((sum, p) => sum + expectedFlaxKg(p, DAY), 0);
+    expect(flaxKg).toBeGreaterThanOrEqual(20);
+    expect(tight.winter.length + tight.spring.length + tight.flax.length).toBe(40);
+    const grainKg = [...tight.winter, ...tight.spring].reduce(
+      (sum, p) => sum + expectedNetKg(p, DAY),
+      0,
     );
-    expect(one.flax).toHaveLength(1);
+    const flaxAsGrain = tight.flax.reduce((sum, p) => sum + expectedNetKg(p, DAY), 0);
+    expect(grainKg).toBeCloseTo(all - flaxAsGrain, 6);
+    // len od konce výběru obilí
+    expect(tight.flax.map((p) => p.id)).toEqual([40, 39]);
+  });
+
+  it('ves bez volné práce (červenec plný ozimu, srpen jaře) – len napřed, obilí po něm', () => {
+    const candidates = parts(200);
+    const winter = (p: FieldPart): PartWork => partWork(p, DAY, NO_CRAFTS.tools, false, 'winter');
+    const flaxWork = (p: FieldPart): PartWork => partWork(p, DAY, NO_CRAFTS.tools, false, 'flax');
+    const harvest = winter(candidates[0]!).harvest;
+    // sklizeň ozimu na 30 dílů zaplní červenec, jař na 20 dílů srpen – volná práce nezbude
+    const capacity = {
+      autumnWinter: BIG,
+      autumn: BIG,
+      spring: BIG,
+      july: 30 * harvest,
+      august: 20 * harvest,
+    };
+    const grain = chooseCrops(candidates, input({ capacity }));
+    expect(grain.winter).toHaveLength(30);
+    expect(grain.spring).toHaveLength(20);
+    // trhání lnu je pracnější než žeň ozimu – za obilím se len nevejde nikam (dřív žádný len)
+    expect(flaxWork(candidates[0]!).harvest).toBeGreaterThan(harvest);
+    const r = chooseCrops(candidates, input({ capacity, flaxTargetKg: 15 }));
+    const flaxKg = r.flax.reduce((sum, p) => sum + expectedFlaxKg(p, DAY), 0);
+    expect(flaxKg).toBeGreaterThanOrEqual(15);
+    // jen na potřebu
+    expect(flaxKg - expectedFlaxKg(r.flax.at(-1)!, DAY)).toBeLessThan(15);
+    // len od konce výběru obilí
+    expect(r.flax.map((p) => p.id)).toEqual([50, 49]);
+    // obilí přijde jen o práci, kterou len vezme: červenec nese trhání lnu a zbytek ozim
+    const july =
+      r.winter.reduce((sum, p) => sum + winter(p).harvest, 0) +
+      r.flax.reduce((sum, p) => sum + flaxWork(p).harvest, 0);
+    expect(july).toBeLessThanOrEqual(capacity.july + 1e-9);
+    const lost = Math.ceil((r.flax.length * flaxWork(candidates[0]!).harvest) / harvest - 1e-9);
+    expect(r.winter).toHaveLength(30 - lost);
+    expect(r.spring).toHaveLength(20);
+    const ids = [...r.winter, ...r.spring, ...r.flax].map((p) => p.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('práce: díl lnu, jehož práce se nevejde, přeskočí – zkusí bližší (méně chůze)', () => {
+    // konec výběru obilí je daleko (chůze zdvojí práci) – trhání tam se do července nevejde
+    const candidates = parts(60).map((p) => ({ ...p, distanceM: p.id <= 20 ? 100 : 1100 }));
+    const winter = (p: FieldPart): PartWork => partWork(p, DAY, NO_CRAFTS.tools, false, 'winter');
+    const flaxWork = (p: FieldPart): PartWork => partWork(p, DAY, NO_CRAFTS.tools, false, 'flax');
+    // červenec pojme žeň ozimu na 2 blízké díly – víc volné práce nezbude
+    const capacity = {
+      autumnWinter: BIG,
+      autumn: BIG,
+      spring: BIG,
+      july: 2 * winter(candidates[0]!).harvest,
+      august: BIG,
+    };
+    const grain = chooseCrops(candidates, input({ targetKg: 500, capacity }));
+    expect(grain.winter.map((p) => p.id)).toEqual([1, 2]);
+    expect(grain.spring.at(-1)!.distanceM).toBe(1100);
+    expect(flaxWork(candidates[59]!).harvest).toBeGreaterThan(capacity.july);
+    // za obilím se len nevejde (výměna za ozim přidá červenci práci), napřed jen na blízký díl
+    expect(winter(candidates[0]!).harvest + flaxWork(candidates[0]!).harvest).toBeGreaterThan(
+      capacity.july,
+    );
+    const r = chooseCrops(candidates, input({ targetKg: 500, capacity, flaxTargetKg: 25 }));
+    expect(r.flax.map((p) => p.id)).toEqual([20]);
+    expect(r.winter).toEqual([]);
+    const ids = [...r.winter, ...r.spring, ...r.flax].map((p) => p.id);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 
   it('práce: když se len nevejde na poslední díl (jař, červenec plný ozimu), zkusí ozim', () => {
@@ -234,6 +305,67 @@ describe('plán osevu se lnem (chooseCrops)', () => {
     );
     expect(b).toEqual(a);
     expect(a.flax).toEqual([]);
+  });
+});
+
+/** Otisk FNV-1a 32 bitů z JSON – pozná i nejmenší změnu výběru. */
+function fingerprint(value: unknown): string {
+  const text = JSON.stringify(value);
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193);
+  return `${text.length}:${(h >>> 0).toString(16).padStart(8, '0')}`;
+}
+
+const cropIds = (r: ReturnType<typeof chooseCrops>): Record<string, number[]> => ({
+  winter: r.winter.map((p) => p.id),
+  spring: r.spring.map((p) => p.id),
+  legume: r.legume.map((p) => p.id),
+  flax: r.flax.map((p) => p.id),
+});
+
+describe('len napřed – ves, které len za obilím vycházel, má plán beze změny', () => {
+  // Otisky jsou z doby před „Len napřed“ (20. 10. 2026) – výběr, ve kterém len pokryl potřebu,
+  // se nesmí změnit. Spadne-li po záměrné změně pravidel osevu, vědomě se přepíše.
+  it('výběr chooseCrops – len za obilím, s luštěninami, výměna za ozim', () => {
+    const candidates = parts(200);
+    const autumn = (p: FieldPart): number => {
+      const w = partWork(p, DAY, NO_CRAFTS.tools, false, 'winter');
+      return w.reclaim + w.dig + w.sow;
+    };
+    const capacity = {
+      autumnWinter: 20 * autumn(candidates[0]!),
+      autumn: BIG,
+      spring: BIG,
+      july: BIG,
+      august: BIG,
+    };
+    const tightJuly = chooseCrops(candidates.slice(0, 60), input({ targetKg: 400, capacity }));
+    const july = tightJuly.winter.reduce(
+      (sum, p) => sum + partWork(p, DAY, NO_CRAFTS.tools, false, 'winter').harvest,
+      0,
+    );
+    const runs = [
+      chooseCrops(candidates, input({ targetKg: 600, flaxTargetKg: 15 })),
+      chooseCrops(candidates, input({ targetKg: 600, flaxTargetKg: 15, legumeTargetKg: 60 })),
+      chooseCrops(
+        candidates.slice(0, 60),
+        input({ targetKg: 400, flaxTargetKg: 5, capacity: { ...capacity, july: july + 0.5 } }),
+      ),
+    ].map(cropIds);
+    expect(fingerprint(runs)).toBe('611:f286a27f');
+  });
+
+  it('plány vsi k 1. 9. tří let', () => {
+    let state = found(at(600, 3, 1));
+    const plans: Record<string, number[]>[] = [];
+    for (const year of [601, 602, 603]) {
+      state = advanceVillage(state, at(year, 9, 2), null);
+      plans.push(
+        Object.fromEntries(planCrops(state.plan!).map(({ crop, work }) => [crop, work.partIds])),
+      );
+    }
+    expect(state.chronicle.some((e) => e.kind === 'linen-short')).toBe(false);
+    expect(fingerprint(plans)).toBe('636:46e003a7');
   });
 });
 
@@ -287,6 +419,29 @@ describe('len v simulaci', () => {
     // len se nejí ani nejde do zásob
     expect(harvestKg(work, pulled.parts, pulled.lastDay, 'flax')).toBeCloseTo(work.harvestedKg!, 6);
     expect(happinessFactors(pulled, pulled.lastDay, 1).linen).toBe(0);
+  });
+
+  it('ves se zásobami pod pojistkou a malým polem ho k 1. 9. zaseje na potřebu (Len napřed)', () => {
+    // pole na roční potřebu nestačí – obilí nemá z čeho len doplnit (dřív žádný len)
+    const before = advanceVillage(found(at(600, 3, 1), 24), at(601, 8, 31), null);
+    const poor = JSON.parse(JSON.stringify(before)) as VillageState;
+    poor.storesKg = 0;
+    poor.legumesKg = 0;
+    const targets = sowingTargets(poor, at(601, 9, 1), 0, NO_CRAFTS.pottery);
+    expect(targets.leftKg).toBeLessThan(targets.bufferKg);
+    const all = poor.parts.reduce((sum, p) => sum + expectedNetKg(p, at(601, 9, 1)), 0);
+    expect(all).toBeLessThan(targets.energyFloorKg);
+    const planned = advanceVillage(poor, at(601, 9, 2), null);
+    const flax = planned.plan?.flax;
+    expect(flax).toBeDefined();
+    const byId = new Map(planned.parts.map((p) => [p.id, p]));
+    const expected = flax!.partIds.reduce(
+      (sum, id) => sum + expectedFlaxKg(byId.get(id)!, planned.lastDay),
+      0,
+    );
+    expect(expected).toBeGreaterThanOrEqual(planned.plan!.flaxNeedKg! - 1e-9);
+    const pulled = advanceVillage(planned, at(602, 8, 1), null);
+    expect(pulled.linen).toBe(1);
   });
 
   it('po kouscích s JSON mezi nimi dá stejný stav jako jedním voláním (3 roky)', () => {

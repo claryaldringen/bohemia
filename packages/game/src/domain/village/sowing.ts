@@ -16,7 +16,9 @@ import { emptyTaskRecord, partWork, ploughRemaining, type PartWork } from './yea
 // (sklizeň v červenci), a obilí doplní energii, kterou luštěniny dají méně. Len (fields.md – Len)
 // stejně, jen před luštěninami a od konce výběru obilí (vysiluje půdu – jeho delší příloh neleží
 // domům v cestě): dostane díly, dokud nepokryje potřebu vsi na oděv, a obilí doplní celou energii
-// dílu (len se nejí).
+// dílu (len se nejí). Len je povinný (Len napřed): když za obilím potřebu nepokryje – ves nemá
+// volnou práci, sklizeň ozimu zaplní červenec –, vyhradí se jeho díly a práce napřed a obilí se
+// vybere až po něm.
 // Ves se spřežením (oxen.md – Jen rádlo) orá všechno a nekope: díl se vejde, jen když ho spřežení
 // v oknech orby stihnou zorat (orba ozimu v září–říjnu, jaře na podzim, kolik po ozimu zbude,
 // a zbytek na jaře) – víc ohrad se spřežením = víc kapacity. Orbu přitom dělají i lidé (oráč
@@ -96,11 +98,6 @@ export interface CropChoiceInput {
   legumeTargetKg?: number;
   /** Cíl lnu (kg třeného lnu – fields.md, Len); bez údaje žádný len. */
   flaxTargetKg?: number;
-  /**
-   * O kolik energie (kg obilí) smí len plán obilí ubrat, když ho obilí nedoplní – zásoby z pole,
-   * které k příští sklizni zbudou nad pojistku (fields.md – Len); bez údaje nic.
-   */
-  flaxSpareKg?: number;
   /**
    * Pod kolik energie (kg obilí) luštěniny plán nesmí stáhnout – roční potřeba bez rezervy; bez
    * údaje celý cíl osevu.
@@ -402,11 +399,11 @@ function fitsSideCrop(
 /**
  * Luštěniny nebo len na díly vybrané pro obilí – luštěniny od domu (díl obilí první v pořadí
  * bloků), len od konce výběru; střídání plodin – díly, které měly tutéž plodinu loni, až nakonec –,
- * dokud očekávaná úroda plodiny
- * nepokryje `targetKg`. Po každém dílu obilí doplní další díly, kolik energie díl dá méně (len
- * celou – nejí se); když energie plánu i tak klesne pod roční potřebu (`energyFloorKg` – smí jít
- * na rezervu osevu; obilí má přednost), díl zůstane obilím a výběr plodiny končí – len smí obilí
- * ubrat nejvýš o svůj díl ze zásob nad pojistku (`flaxSpareKg` – je ho málo, bez něj chybí oděv). Díly plodiny tak zůstanou souvislé.
+ * dokud očekávaná úroda plodiny nepokryje `targetKg`. Po každém dílu obilí doplní další díly, kolik
+ * energie díl dá méně (len celou – nejí se); když energie plánu i tak klesne pod roční potřebu
+ * (`energyFloorKg` – smí jít na rezervu osevu; obilí má přednost), díl zůstane obilím a výběr
+ * plodiny končí – len smí obilí ubrat nejvýš o svůj díl, i se zásobami pod pojistkou (je ho málo,
+ * bez něj chybí oděv – fields.md, Len napřed). Díly plodiny tak zůstanou souvislé.
  */
 function chooseSideCrop(
   blocks: readonly (readonly FieldPart[])[],
@@ -418,7 +415,6 @@ function chooseSideCrop(
 ): Choice {
   let choice = start;
   let cropNet = 0;
-  let spare = crop === 'flax' ? (input.flaxSpareKg ?? 0) : 0;
   while (cropNet < targetKg - EPSILON) {
     const grain = new Set([...choice.winter, ...choice.spring]);
     // nouzový příloh pod 70 % (fields.md – Nouzový osev) jen na obilí – kvůli hladu
@@ -443,16 +439,84 @@ function chooseSideCrop(
     const trial = copyChoice(choice);
     const floor = Math.min(input.energyFloorKg ?? input.targetKg, trial.net);
     // len smí ubrat obilí nejvýš o svůj díl, když ho obilí nedoplní (chybí půda či práce) – je ho
-    // málo (≈ 1–2 % osevu) – a jen ze zásob nad pojistku (fields.md – Len, Osev podle zásob)
-    const energy = floor - Math.min(expectedNetKg(next, input.day), spare);
+    // málo (≈ 1–2 % osevu), i se zásobami pod pojistkou (fields.md – Len napřed)
+    const energy = floor - (crop === 'flax' ? expectedNetKg(next, input.day) : 0);
     if (!moveToSideCrop(trial, next, crop, input, workOf)) break;
     chooseGrain(blocks, trial, input.targetKg, input, workOf);
     if (trial.net < energy - EPSILON) break;
-    spare = Math.max(0, spare - Math.max(0, floor - trial.net));
     choice = trial;
     cropNet += sideCropKg(crop, next, input.day);
   }
   return choice;
+}
+
+/** Očekávaný třený len dílů (kg). */
+function flaxKgOf(parts: readonly FieldPart[], day: number): number {
+  return parts.reduce((sum, part) => sum + expectedFlaxKg(part, day), 0);
+}
+
+/**
+ * Len napřed (fields.md – Len, Len napřed): díly lnu se vyberou dřív než obilí – jeho práce se
+ * vyhradí v oknech (`base` – výběr před obilím) a obilí se vybere až po něm na volnou práci, která
+ * zbude. Kandidáti jako u lnu za obilím: díly výběru obilí `grain` od konce (nejdál od domu
+ * napřed, k domu bližší potom), za nimi ostatní díly od domu; díly, které měly len loni, až
+ * nakonec. Díl, jehož práce se nevejde, se přeskočí – zkusí se další, bližší (méně chůze) nebo
+ * menší. Nouzový příloh pod 70 % len nedostane (jen obilí – fields.md, Nouzový osev). Zásoby ani
+ * roční potřeba výběr nebrzdí – len je povinný (oděv) a je ho málo (≈ 1–2 % osevu).
+ */
+function flaxFirst(
+  blocks: readonly (readonly FieldPart[])[],
+  base: Choice,
+  grain: Choice,
+  targetKg: number,
+  input: CropChoiceInput,
+  workOf: (part: FieldPart) => PartWork,
+): Choice {
+  const choice = copyChoice(base);
+  const selected = new Set([...grain.winter, ...grain.spring]);
+  const sowable = blocks.flatMap((block) => block.filter(isSowableFertility));
+  const order = [
+    ...sowable.filter((p) => selected.has(p)).reverse(),
+    ...sowable.filter((p) => !selected.has(p)),
+  ];
+  const rotated = [
+    ...order.filter((p) => p.crop !== 'flax'),
+    ...order.filter((p) => p.crop === 'flax'),
+  ];
+  let kg = 0;
+  for (const part of rotated) {
+    if (kg >= targetKg - EPSILON) break;
+    const work = partWork(part, input.day, input.toolCoverage, input.plough ?? false, 'flax');
+    if (!fitsLegume(choice.load, work, input.capacity)) continue;
+    addLegume(choice.load, work);
+    choice.flax.push(part);
+    choice.used.add(part.id);
+    kg += expectedFlaxKg(part, input.day);
+  }
+  chooseGrain(blocks, choice, input.targetKg, input, workOf);
+  return choice;
+}
+
+/**
+ * Len (fields.md – Len): napřed jako dřív – na díly výběru obilí `grain` od konce
+ * (`chooseSideCrop`). Když tak potřebu oděvu nepokryje (ves, které na obilí nestačí práce – sklizeň
+ * ozimu zaplní červenec a obilí doplněné za každý díl lnu uvolněnou práci hned zase zabere; nebo
+ * zásoby pod pojistkou), dostane len díly napřed (`flaxFirst`) – vybere se, co dá víc lnu. Ves,
+ * které len za obilím vycházel, má plán beze změny.
+ */
+function chooseFlax(
+  blocks: readonly (readonly FieldPart[])[],
+  base: Choice,
+  grain: Choice,
+  targetKg: number,
+  input: CropChoiceInput,
+  workOf: (part: FieldPart) => PartWork,
+): Choice {
+  const after = chooseSideCrop(blocks, grain, 'flax', targetKg, input, workOf);
+  const afterKg = flaxKgOf(after.flax, input.day);
+  if (afterKg >= targetKg - EPSILON) return after;
+  const first = flaxFirst(blocks, base, grain, targetKg, input, workOf);
+  return flaxKgOf(first.flax, input.day) > afterKg + EPSILON ? first : after;
 }
 
 /** Očekávaná energie výběru `chooseCrops` (kg obilí; luštěniny svou energií, len se nejí). */
@@ -478,7 +542,7 @@ export function chosenEnergyKg(
  * od domu (`chooseLegumes`) na cíl luštěnin (`legumeTargetKg`) a obilí doplní další díly, kolik
  * energie luštěniny dají méně – obilí má přednost: když půda nebo práce na doplnění nestačí,
  * luštěnin je méně. Len (fields.md – Len) stejně před luštěninami, od konce výběru – na cíl lnu
- * (`flaxTargetKg`).
+ * (`flaxTargetKg`); když tak cíl nepokryje, len napřed před obilím (`chooseFlax`).
  * Bez cíle luštěnin a lnu jen obilí. Díly nemění; vrací je v pořadí výběru.
  */
 export function chooseCrops(
@@ -519,12 +583,13 @@ export function chooseCrops(
     partWork(part, input.day, input.toolCoverage, input.plough ?? false);
   const legumeTarget = input.legumeTargetKg ?? 0;
   const flaxTarget = input.flaxTargetKg ?? 0;
+  // výběr před obilím – len napřed z něj vychází (`flaxFirst`)
+  const base = copyChoice(choice);
   chooseGrain(blocks, choice, input.targetKg, input, workOf);
-  // len na díly obilí od konce výběru, obilí doplní energii dílu (len se nejí – fields.md, Len)
+  // len na díly obilí od konce výběru, obilí doplní energii dílu (len se nejí – fields.md, Len);
+  // když to potřebu nepokryje, len napřed před obilím
   const withFlax =
-    flaxTarget > EPSILON
-      ? chooseSideCrop(blocks, choice, 'flax', flaxTarget, input, workOf)
-      : choice;
+    flaxTarget > EPSILON ? chooseFlax(blocks, base, choice, flaxTarget, input, workOf) : choice;
   // luštěniny na další díly obilí od domu, obilí doplní, co luštěniny dají méně energie
   const result =
     legumeTarget > EPSILON

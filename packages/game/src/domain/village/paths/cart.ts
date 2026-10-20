@@ -18,6 +18,7 @@ import {
   type PathVillage,
 } from './network';
 import { PATH_FORD, PATH_FOREST, PATH_WATER, PATH_WETLAND, type PathTerrain } from './terrain';
+import { roadTreeSpeed } from './walk-speed';
 
 // Vozová síť (docs/design/wagons.md – Vozová síť a vyjeté cesty; Martin, 19. 10. 2026: „Vozy
 // mohou cestu vyjezdit, ale nemají takovou prostupnost jako lidé, kteří chodí pěšky. Bude to
@@ -31,7 +32,8 @@ import { PATH_FORD, PATH_FOREST, PATH_WATER, PATH_WETLAND, type PathTerrain } fr
 // (vykácené) cestě, křoviny a mladý les ne, voda jen brodem, lávka (jen pro pěší) ne, přes osetý
 // díl ne (po pevné cestě přes pole ano – jako lidé), kolem domů a plotů jen kudy se vůz vejde.
 // Rychlost podle povrchu a druhu cesty (CART_SPEED – vyšlapaná, vyježděná, upravená, hať; mokřina
-// na ose cesty z `Road.ground` jako u chůze). Čistá deterministická funkce (jen přesná aritmetika –
+// na ose cesty z `Road.ground` jako u chůze; stromy u cesty přidají jako chůzi – roads.md, Stromy
+// u cesty zrychlí chůzi). Čistá deterministická funkce (jen přesná aritmetika –
 // soubor hlídá ESLint jako síť pěšin), stejně na serveru i v prohlížeči.
 
 /** 16 směrů jízdy po mřížce v pořadí úhlu (krok 18,4–26,6°): osy, úhlopříčky, skoky (2, 1). */
@@ -154,19 +156,25 @@ export function cartPartSpeed(stage: PartStage): number {
 /**
  * Rychlost vozu po pevné cestě proti louce (CART_SPEED.road): vyšlapaná, vyježděná (vyšlapaná
  * s příznakem vozová), upravená, hať; v mokřině (`wet`) jen hať, jinak bahno jako mokřina bez
- * cesty.
+ * cesty. Mimo mokřinu se přičtou stromy u cesty (`treeSpeed` – `roadTreeSpeed`, stejně jako
+ * u chůze; roads.md – Stromy u cesty zrychlí chůzi).
  */
-export function cartRoadSpeed(grade: RoadGrade, cart: boolean, wet: boolean): number {
-  if (grade === 'causeway') return CART_SPEED.road.causeway;
+export function cartRoadSpeed(
+  grade: RoadGrade,
+  cart: boolean,
+  wet: boolean,
+  treeSpeed = 0,
+): number {
+  if (grade === 'causeway') return CART_SPEED.road.causeway + (wet ? 0 : treeSpeed);
   if (wet) return CART_SPEED.wet;
   const speed = CART_SPEED.road[grade];
-  return cart ? Math.max(speed, CART_SPEED.road.cart) : speed;
+  return (cart ? Math.max(speed, CART_SPEED.road.cart) : speed) + treeSpeed;
 }
 
 /**
  * Cena metru po pevných cestách po buňkách (buňky jako `roadMask` – body osy po třetině buňky,
- * mokřina podle polohy na ose z `ground.wet`); mimo cesty 0, v buňce víc cest nejrychlejší.
- * Bez cest null.
+ * mokřina podle polohy na ose z `ground.wet`, mimo ni i se stromy u cesty – `lined`); mimo cesty
+ * 0, v buňce víc cest nejrychlejší. Bez cest null.
  */
 function cartRoadCosts(grid: GridWindow, roads: CartVillage['roads']): Float32Array | null {
   if (!roads || roads.length === 0) return null;
@@ -175,7 +183,7 @@ function cartRoadCosts(grid: GridWindow, roads: CartVillage['roads']): Float32Ar
   for (const road of roads) {
     const grade = road.grade ?? 'trodden';
     const cart = road.cart === true;
-    const dryCost = 1 / cartRoadSpeed(grade, cart, false);
+    const dryCost = 1 / cartRoadSpeed(grade, cart, false, roadTreeSpeed(road.lined));
     const wetCost = 1 / cartRoadSpeed(grade, cart, true);
     const wet = road.ground?.wet ?? [];
     const mark = (x: number, z: number, along: number): void => {

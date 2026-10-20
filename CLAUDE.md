@@ -695,6 +695,15 @@ rozhraní částí v
   násobí úmrtnost, hájení chrání. Je jen vnitřní – **nikdy ji neukazovat hráči** (Martin), panel
   ukáže jen místa na hroby (obsazená / všechna, v bublině pohřbení) a na kolik let
   (`CemeterySummary.yearsLeft` z úmrtí v kronice).
+  **Pohřeb ve scéně** (cemetery.md – Pohřeb ve scéně; Martin 20. 10. 2026: „Když je pohřeb, chtěl
+  bych vidět průvod lidí na hřbitov a pak na hřbitově hranici.“ – jen zobrazení): mohyla nese
+  domácnost zemřelého `GraveMound.from` (zapíše `bury`); `lib/funeral-view.ts` →
+  `SceneVillage.funerals` (posledních 7 dnů, lidé za márami `funeralMourners`); scéna
+  `funeral-plan.ts` (čisté funkce času z okna dne pohřbu – průvod skutečnou chůzí po pěšinách
+  k brance, hranice hoří do konce dne, herní den doutná, mohyla až po vychladnutí –
+  `withoutHiddenMounds`), plány `planFunerals` ve `villager-plan.ts` → `onFunerals` →
+  `funeral-renderer.ts` (máry, hranice a zbytky z `tools/blender/funeral.py`, oheň `pyre-fire.ts`,
+  dým `PYRE_PLUME`). Ukázka **Pohřeb** na `/dev/landscape`.
 - **Sad** (`orchard.ts`, orchard.md): staví se po čtvercích jako pole (`orchardPartsFromCells`,
   sad a hřbitov se nepřekrývají, na pole sad smí – Pole jako krajina, obydlí do sadu smí –
   Obydlí na poli a v sadu). Výsadba je
@@ -758,8 +767,8 @@ rozhraní částí v
   (bez buků `no-wood`), vypálený (`draw`, `CharcoalKiln.charcoalKg` – uhlí v něm) je zásobou uhlí:
   uhlí jde do `crafts.charcoalKg` („u kováře“) jen tak, jak ho kovář odebírá – `charcoalDrawKg`:
   když u kováře nestačí na dnešní kování (`smithsForgeCharcoalKg` – kovající kováři na plný
-  úvazek), donese uhlí na `CHARCOAL_KILN.drawBatchDays` (30) dní kování (2 čd na 120 kg, v lese
-  s přirážkou); zbytek, který stačí jen na přípravu a pálení dalšího milíře (`kilnLeadKg` –
+  úvazek), vytahá a protřídí uhlí na `CHARCOAL_KILN.drawBatchDays` (30) dní kování (2 čd na 120 kg
+  bez pětiny odnosu – ten od 20. 10. 2026 dělá kovářova domácnost, níž; v lese s přirážkou); zbytek, který stačí jen na přípravu a pálení dalšího milíře (`kilnLeadKg` –
   `smithsCharcoalPerYear` po dnech × `kilnLeadDays`), vytahá celý. Rozebraný milíř zmizí, nový od
   dalšího dne. Bez kováře (rozhodnutí Clauda) vypálený milíř čeká a další se nestaví. S vypáleným
   milířem a uhlím u kováře uhlíř odpočívá (`restingBurners` v `restingCrafters` – napřed uhlíři,
@@ -778,6 +787,28 @@ rozhraní částí v
   kotvu `forestKilnAnchor` (`VillageRenderer.kilnPlaces` – oba druhy), postavy u lesního milíře
   `kilnWorkers`, sázení `planting`, polena nosí k lesnímu milíři (`felling`). Ukázka /dev/buildings
   **Cyklus milíře** (posuvník ▶ Milíř – `showcaseKiln`, `kilnCycleAt`).
+- **Uhlí a ruda kováře** ([crafts.md](docs/design/crafts.md) – Uhlí a ruda kováře;
+  Martin 20. 10. 2026: „Pokud má dostatečně starého syna nebo syny, pošle pro uhlí jeho/je. Taky
+  musí někam chodit kopat rudu. To místo, kde kope rudu, chci na mapě vidět.“; čísla
+  `SMITH_SUPPLY` v `rules.ts`, rešerše `research/2026-10-20-bog-ore.md` – většinou odhad): `smith-supply.ts`.
+  Uhlí, které uhlíř vytahá (`burnerDraws`), nese do nejbližší kovárny (`charcoalDeliveries`,
+  chůze `CharcoalKiln.carry` po pevných cestách s půdou) kovářova domácnost v koších po 15 kg
+  (`basketManDaysPerKg`): napřed synové 10–13 let (`charcoalYoungsters`, 40 % práce dospělého – ten
+  den nepasou: `herdingDay(…, busy)`), zbytek domácnost z práce dílny (`smithFetchDay`; synové od
+  14 jsou ve hře dospělí – rozhodnutí Clauda), u odpočívajícího kováře z práce vsi (kapacita
+  `allocateDay`). Ruda: 8 kg na kg nástrojů (`Workshop.oreKg`, bez rudy kovář nekove – `workSmith`
+  v crafts.ts), kopání 60 kg/čd s přirážkou za chůzi (`workOre` – dávka na 30 dní kování pěšky,
+  s vozem na celý dvoukolák a dřív o `CART_JOBS.ore.reserveDays`, hromada u jámy `OreBatch.heap`),
+  rudiště `chooseOreSite` (nejbližší `PATH_WETLAND`, jinak břeh; ne na čtvercích staveb ani u domů;
+  `Workshop.oreSite`, ložisko 3 t, další 20 m od `oreSitesUsed`), jámy `VillageState.orePits`
+  (`openOrePit` ze seedu, `updateOrePits` – 10 let). `oreFactor` kováře 1 (hrnčíř dál). Starší
+  kovárny `migrateSmith` (zásoba na dávku). Činnosti `digging`, `no-ore`; podíly práce `ore` (cíl
+  `{ kind: 'ore', id, x, z }`) a `fetch` (cíl rudiště, nebo milíř s `from` = kovárna) s věky
+  `LaborShare.ages`; v síti pěšin jen z kovárny (`smithWalks` v network.ts). Web: panel
+  `SmithOreStats` (`VillageWorkshop.ore` ze `smithOreSummary`), upozornění `no-ore`, scéna
+  `SceneVillage.oreSites` / `orePits` → `OreSiteRenderer` (`ore-sites.ts`, geometrie
+  `ore-site-layout.ts` – val, voda, zarůstání, hromada rudy), ikona `resources/ore.png`; ukázka
+  `/dev/landscape` **Rudiště** (`dev-ore.ts`). Ves bez kováře beze změny (`smith-golden.test.ts`).
 - **Nákup u sousedů** ([crafts.md](docs/design/crafts.md) – Nákup u sousedů, Martin 19. 10. 2026:
   „Nástroje ať vesničané obchodují individuálně… Sami si spočítají, jestli se jim to vyplatí.“;
   čísla `CRAFT_BUYING` v `rules.ts`, rešerše `research/2026-10-19-craft-buying.md`):
@@ -841,21 +872,25 @@ rozhraní částí v
   čísla `CART_JOBS` v `rules.ts`, návrh Clauda): `cart-jobs.ts` + `planCartJobs` v `simulate.ts`.
   Dvoukolák, který dnes nesváží úrodu ani seno (`planTaskHauls`) a nevozí klády (ty mají přednost
   – `logHaulCandidates` / `logHaulPlan` před rozdělením práce, `haulLogs` po něm), jede v pořadí
-  `CART_JOBS.order` – ne když voli orají ani orbu navíc (`extraSowingWantsTeam`): **uhlí** –
-  uhlíři, který dnes nosí (`burnerDraws` v crafts.ts), jízda k milíři (`kilnCartDrive`, uložená
-  v `CharcoalKiln.cart`), `kilnCartOffer` (jen když je jízda levnější než odnos) → `workBurner`
-  (`BurnerPlan.cart` – odnos `carryShare` nahradí posádka z práce uhlíře, `BurnerDay.cart` /
-  `WorkshopDay.cart`); **osivo** – `planSeedHauls` na úlohu `sow` jako svoz (`CropWork.seedHauled`,
+  `CART_JOBS.order` – ne když voli orají ani orbu navíc (`extraSowingWantsTeam`): **uhlí** – kam
+  dnes uhlíř vytahal uhlí (`charcoalDeliveries`), jízda k milíři (`kilnCartDrive`, uložená
+  v `CharcoalKiln.cart`), `kilnCartOffer` (jen když je práce sedláka na kg menší než nošení
+  kovářovou domácností – Martin 20. 10. 2026: „přiveze uhlí sedlák s vozem (a odečte se jeho
+  práce)“); **ruda** – hromada vykopané dávky na celý vůz (`oreCartDrive`, `oreCartOffer` – sedlák
+  a kovář, `SmithSupply.oreCarts`); sedlák s uhlím a rudou jde z práce vsi před úlohami dne
+  (`DayAllocation.carting`, `paySmithCarts`), kovář z práce dílny; **osivo** – `planSeedHauls` na úlohu `sow` jako svoz (`CropWork.seedHauled`,
   `seedReach` – `sowingCartReach`); **voda** – `waterCartDrive` (břeh nejblíž ohradě, kam vůz
   sjede, uložený ve `VillageState.waterCart` podle klíče chůze) a `waterCartPlan` z
   `householdWater` (labor.ts) – přirážka za vodu se zmenší a přičte se díl posádky (v denním
   minimu). Jízdy vozí `villageCartDrives` (vozová síť – cena v m po louce a konec trasy, bez
   krajiny vzdušně), do ročního provozu cest `addRoadCartTrips`. Rozdělení práce: `haul`
-  s `LaborShare.job` (`charcoal` / `seed` / `water`), cíl milíř (`kiln` i u dílny), díl pole, břeh
+  s `LaborShare.job` (`charcoal` / `ore` / `seed` / `water`), cíl milíř (`kiln` i u dílny), rudiště
+  (`ore`), díl pole, břeh
   (`LaborTarget` `{ kind: 'water', x, z }`); voda v práci `domestic` ubere posádku. Web:
-  `SceneCart.job.load` – uhlí a osivo `goods`, voda `water` (sudy `wagon{2,4}-water` tam i zpět),
+  `SceneCart.job.load` – uhlí a osivo `goods`, ruda `ore` (hromada `wagon{2,4}-ore`), voda `water`
+  (sudy `wagon{2,4}-water` tam i zpět),
   osivo `outbound` (`CartShuttle.loadedOut` – naložené tam), trasa k milíři a břehu
-  (`cartRouteToday`); voda, uhlí a osivo jezdí tempem volů ve skutečném čase (`steadyJob`
+  (`cartRouteToday`); voda, uhlí, ruda a osivo jezdí tempem volů ve skutečném čase (`steadyJob`
   v `village-carts.ts`), ne v okně herního dne jako svoz úrody. Komu vůz vodu přivezl, ukazuje
   `SceneLabor.homes[].cartWater` (týž `waterCartPlan` ve `village-view.ts`) – pěšky pro ni chodí
   méně lidí (Postavy – Provoz na cestách).
@@ -922,12 +957,16 @@ rozhraní částí v
   (31. 7. v `harvestWinter` – `VillageState.linen` = podíl oděvu vůči `YearPlan.flaxNeedKg`
   zapsané v `planYear`; plán bez ní – starší ves, ves založená během roku – nic nezapíše, kronika
   `linen-short`), `linenUnhappiness` (`HappinessFactors.linen`, až `FLAX.unhappiness` 4).
-  `chooseCrops` dostane `flaxTargetKg` – `chooseSideCrop` dá len napřed (před luštěninami) na díly
-  výběru obilí **od konce** (vysiluje půdu, delší příloh neleží domům v cestě; loňský len až
-  nakonec; když se práce nevejde, zkusí další díl – `fitsSideCrop`), obilí doplní energii, a když
-  nejde, len ubere obilí nejvýš o svůj díl ze zásob nad pojistku (`flaxSpareKg` = `leftKg` −
-  `bufferKg` ze `sowingTargets`); trhání v červenci napřed (`CROP_ORDER` – len první);
-  `trimPlan` len neubírá. Zpracování je v domácí výrobě
+  `chooseCrops` dostane `flaxTargetKg` – `chooseFlax`: napřed `chooseSideCrop` (před luštěninami)
+  na díly výběru obilí **od konce** (vysiluje půdu, delší příloh neleží domům v cestě; loňský len
+  až nakonec; když se práce nevejde, zkusí další díl – `fitsSideCrop`), obilí doplní energii, a
+  když nejde, len ubere obilí nejvýš o svůj díl – i se zásobami pod pojistkou. **Len napřed**
+  (fields.md, Martin 20. 10. 2026 – „občas mi to píše chybí len na oděv“): když to potřebu
+  nepokryje (ves bez volné práce – červenec plný ozimu, obilí doplněné za díl lnu práci hned zabere),
+  `flaxFirst` vyhradí díly a práci lnu před obilím (výběr `base` před `chooseGrain`; díl, který se
+  nevejde, přeskočí – bližší či menší) a obilí vybere po něm; bere se, co dá víc lnu – ves, které
+  len za obilím vycházel, má plán beze změny (zlatý otisk ve `flax.test.ts`). Trhání v červenci
+  napřed (`CROP_ORDER` – len první); `trimPlan` ani osev navíc len neubírají. Zpracování je v domácí výrobě
   (přerozdělení), žádná zásoba v liště. Web: `SceneFieldPart.crop: 'flax'` a `bloom` (červen –
   `FLAX_BLOOM_MONTH` ve `village-view.ts`), scéna `FLAX_STYLES` / `FLAX_BLOOM` ve `field-crops.ts`
   (druhy trsů `flax-green` / `flax-bloom` / `flax-ripe` – kopie uzlu `crop-sprout` s vlastní
@@ -1795,6 +1834,9 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   se jen v záběru (`WATER_FPS`), při omezeném pohybu stojí. Ve vývojovém náhledu tlačítko
   **Lidé** (ukázkové rozdělení práce podle měsíce – `app/dev/landscape/dev-labor.ts`, i lidé po
   obydlích pro provoz na cestách).
+  **Pohřeb** (villagers.md – Pohřeb): průvod s márami a kruh kolem hranice jsou postavy s klíčem
+  `funeral:` z `funeral-plan.ts` (`funeralFigures` ve `villager-plan.ts`) – jdou mimo rozpočet
+  `MAX_WORKERS`, ve dnech obřadu se o ně sníží počet pracujících postav (`funeralActiveIn`).
   **Provoz na cestách** (villagers.md – Provoz na cestách; Martin 19. 10. 2026: „Chci vidět
   vesničany, jak chodí pro vodu nebo na pole.“): `road-traffic.ts` (čisté funkce) – proud lidí
   pro vodu (`waterTrips` – `WATER_FETCHING.tripsPerPerson` × lidé z `SceneLabor.homes`, bez vody
@@ -1809,6 +1851,9 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   `people_from_0ad.py`, ruce `reach` na provazech). Schůdná země postav přes celou krajinu líně
   po 4 m (`lazyWalkable`, `VillageLivestock.walkGroundFor`) – pole až 800 m od obydlí; `inBox`
   má rychlé odmítnutí podle dosahu domu, hledání po pěšinách si trasy pamatuje (`pathRouter`).
+  **Kovář** (crafts.md – Uhlí a ruda kováře): kopáči na valu jámy s motykou (`oreDiggers`), nosiči
+  uhlí a rudy s košem (`smithFetchFigures` – postava na každého nosiče z `LaborShare.ages`, nejvýš
+  `FETCH_MAX`, ne proud; synové pod 14 let menší postavy dětí); kovář s vozem se nekreslí.
 - **Spřežení volů s rádlem** (oxen.md – Spřežení postupuje s orbou; Martin 19. 10. 2026,
   podrobnosti návrh Clauda): ve vsi orá na čele orby – `plough-front.ts` (`ploughFront`, čisté
   funkce bez Babylonu): díl s čárou práce z fronty `SceneLaborShare.parts` podílu `plough` (bez fronty odhad
@@ -2021,7 +2066,8 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   (labor-report, postavy `roadWork`, pěšina k polovině úseku). **Chůze** jen ve `walking.ts`:
   `walkGraph(lines, { roads, ground })` – pěšiny dne, pevné cesty podle `ROAD_WALK`
   (`roadPieceCost` – stupeň: vyšlapaná i vyježděná 1,5×, upravená 1,7×, hať a lávka 1,7× i přes
-  mokřinu; mokřina 0,5×, brod + 30 m bez lávky), `groundWalkLength` (rovně: mokřina 0,5×, pole
+  mokřinu; mokřina 0,5×, brod + 30 m bez lávky; stromy u cesty přidají – Stromy u cesty zrychlí
+  chůzi níž), `groundWalkLength` (rovně: mokřina 0,5×, pole
   podle `WalkGround.fields`, vstup do vody + 30 m), `walkingDistances(graph, origins, targets,
 ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole do ní přidá
   `withFieldWalk` (vzdálenosti dílů, sadu, paliva a luk; kácení staveb po pevných cestách bez
@@ -2135,6 +2181,17 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   `pathside-apple-*` s materiálem `prepareAppleMaterial` ze sadu, kůly `createTreeStakeMesh`),
   vytyčení `appleStaking` v `RoadWorks`, postavy `roadApples` ve `villager-plan.ts`;
   `/dev/landscape` tlačítko **Jabloně: …** (s **Cesta**) přepíná stadia.
+- **Stromy u cesty zrychlí chůzi** ([roads.md](docs/design/roads.md); Martin 20. 10. 2026:
+  „…přidat třeba 0.03? A pokud to budou jabloně, přidalo by se 0.05.“; čísla `ROAD_TREE_SPEED`):
+  přírůstek k rychlosti cesty pro chodce i vůz (+0,03 stromy, +0,05 jabloně) × olemovaný podíl
+  délky po desetinách – `Road.lined` (`RoadLining`, `paths/road-lining.ts`: `roadLining` –
+  místa `Road.spots` se stromem ve stadiu `tree`, živé jabloně úseku, jabloně mají přednost;
+  `lineRoads` v `refreshWalkDistances` 1. dne v měsíci, chybějící hned – rozdělený či spojený úsek
+  ho smaže; klíč `walkStageKey` a `liningKey` v `pathNetworkKey`). Rychlost `roadTreeSpeed`
+  (walk-speed.ts) bere `roadWalkSpeed` / `roadPieceCost` (walking.ts), `cartRoadSpeed` (cart.ts)
+  a buňky sítě pěšin (`roadTreeSpeedMask` → `roadCellCost`) – mimo mokřinu a brod; dosah seče
+  `fastestWalkShare`. Do sítě (`pathVillageOf`) a scény (`SceneRoad.lined`) jde jen nenulové –
+  ves bez stromů beze změny. Panel cesty: `VillageRoad.treeSpeed` (ikona `walk`, „+0,03“).
 - **Dvorec vojvody** ([trade.md](docs/design/trade.md) – Dvorec vojvody, Jak je postavené;
   `manor.ts`): `VillageState.manorId` = obydlí (domácnost), odkud jdou vylepšení vsi – nová ves
   první zemnice zakladatelů (`foundVillage`), starší nejstarší obydlí (`withManor` v

@@ -81,16 +81,23 @@ export interface HerdingDay {
   freeHerders: { children: number };
 }
 
-/** Pasení dne: výrostci 7–13 let – jen kolik jich stáda potřebují. */
+/**
+ * Pasení dne: výrostci 7–13 let – jen kolik jich stáda potřebují. Synové kováře, kteří dnes nosí
+ * uhlí (`busy` – id; crafts.md – Uhlí a ruda kováře), nepasou.
+ */
 export function herdingDay(
   state: Pick<VillageState, 'people' | 'livestock'>,
   day: number,
   oxen: number,
+  busy: ReadonlySet<number> = new Set(),
 ): HerdingDay {
   const herds = state.livestock?.herds;
   const demand = herds ? herdingDemand(herds, oxen, day) : 0;
   if (demand <= EPSILON) return { demand: 0, free: 0, freeHerders: { children: 0 } };
-  const youngsters = youngsterCount(state, day);
+  const youngsters =
+    busy.size > 0
+      ? state.people.filter((p) => isYoungster(p, day) && !busy.has(p.id)).length
+      : youngsterCount(state, day);
   const children = Math.min(youngsters, Math.ceil(demand / HERDING.childShare - EPSILON));
   const free = Math.min(demand, children * HERDING.childShare);
   return { demand, free, freeHerders: { children } };

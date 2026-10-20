@@ -28,6 +28,7 @@ import type {
 import { villageWoods } from '../woods';
 import {
   computePathNetwork,
+  liningKey,
   pathAgeFactor,
   pastureHerds,
   pathPlotOf,
@@ -56,7 +57,8 @@ import {
   withFieldWalk,
   type Walk,
 } from './walking';
-import { partWalkSpeed } from './walk-speed';
+import { lineRoads } from './road-lining';
+import { partWalkSpeed, roadTreeSpeed } from './walk-speed';
 
 // Pěšiny ze stavu vsi (paths.md – Pěšiny a práce): server skládá ves pro pěšiny stejně jako
 // scéna (village-view.ts – SceneVillage), spočítá stejnou síť a z ní vzdálenosti chůze dílů
@@ -307,6 +309,8 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
             grade: r.grade,
             // vozová cesta (wagons.md) – ves bez vozových cest beze změny
             ...(r.cart ? { cart: true } : {}),
+            // stromy u cesty (roads.md – Stromy u cesty zrychlí chůzi) – jen kde nějaké jsou
+            ...(roadTreeSpeed(r.lined) > 0 ? { lined: { ...r.lined! } } : {}),
           })),
         }
       : {}),
@@ -438,14 +442,17 @@ export function walkLayoutKey(state: VillageState, day: number): string {
 
 /**
  * Stadia dílů pole pro vzdálenosti chůze (paths.md, fields.md – Vzdálenost): stadium, rychlost
- * chůze přes díl (v osevu, strniště – `partWalkSpeed` ze vzhledu dílu) a jestli se na úhoru pase.
- * Osev a zakládání postupují po dílech den po dni – síť by se jinak přepočítávala každých pár dní;
- * do klíče chůze se proto promítají jen 1. dne v měsíci (`refreshWalkDistances`).
+ * chůze přes díl (v osevu, strniště – `partWalkSpeed` ze vzhledu dílu) a jestli se na úhoru pase;
+ * k nim olemování pevných cest stromy (`Road.lined` – roads.md, Stromy u cesty zrychlí chůzi;
+ * bez stromů u cest nic). Osev a zakládání postupují po dílech den po dni, stromy u cest rostou
+ * a odumírají – síť by se jinak přepočítávala každých pár dní; do klíče chůze se proto promítají
+ * jen 1. dne v měsíci (`refreshWalkDistances`).
  */
 export function walkStageKey(state: VillageState, day: number): string {
   const grazed = pastureGrazedParts(state, day);
   const looks = state.parts.length > 0 ? fieldPartLooks(state, day) : null;
-  return state.parts
+  const lining = liningKey(state.roads?.roads);
+  const parts = state.parts
     .map((p) => {
       const stage = partStage(p, day);
       const view = looks?.get(p.id);
@@ -458,6 +465,7 @@ export function walkStageKey(state: VillageState, day: number): string {
       return `${p.id}:${stage}/${speed}${isGrazeableFallow(p) && !grazed.has(p.id) ? ':-' : ''}`;
     })
     .join(';');
+  return lining ? `${parts}|${lining}` : parts;
 }
 
 /**
@@ -510,10 +518,11 @@ export function walkDistancesTo(
 }
 
 /**
- * Verze měření chůze v otisku rozložení – po přidání nové vzdálenosti (voda – `waterWalkM`) se
- * vsi uložené dřív přepočítají hned při dalším dni, ne až při změně rozložení.
+ * Verze měření chůze v otisku rozložení – po přidání nové vzdálenosti (voda – `waterWalkM`) nebo
+ * rychlosti (stromy u cest – `Road.lined`) se vsi uložené dřív přepočítají hned při dalším dni, ne
+ * až při změně rozložení.
  */
-export const WALK_VERSION = 'water';
+export const WALK_VERSION = 'road-trees';
 
 /**
  * Vzdálenosti chůze po pěšinách a pevných cestách (mutuje stav – paths.md, roads.md – Rychlejší
@@ -523,7 +532,8 @@ export const WALK_VERSION = 'water';
  * se od posledního výpočtu změnilo rozložení vsi (`walkLayoutKey` – i pevné cesty a jejich stupeň,
  * takže i po dokončení vylepšení) nebo stadia dílů (`walkStageKey`), ta ale jen 1. dne v měsíci
  * (Martin – chůze se přepočítává měsíčně; otisk stadií z posledního 1. dne je ve stavu
- * `walkStages`, ve stavu jen otisky `walkLayoutHash`). Chůze rovně počítá mokřinu a brody
+ * `walkStages`, ve stavu jen otisky `walkLayoutHash`) – stejně olemování pevných cest stromy
+ * (`lineRoads`, roads.md – Stromy u cesty zrychlí chůzi). Chůze rovně počítá mokřinu a brody
  * (`walkGroundOf`) – pole za potokem bez cesty zdraží, s hatí a lávkou zlevní.
  */
 export function refreshWalkDistances(
@@ -532,10 +542,11 @@ export function refreshWalkDistances(
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
 ): void {
-  // stadia dílů jen 1. dne v měsíci (a poprvé) – jinak platí otisk z posledního 1. dne
-  if (state.walkStages === undefined || dateOfDayIndex(day).day === 1) {
-    state.walkStages = walkLayoutHash(walkStageKey(state, day));
-  }
+  // stadia dílů a olemování cest stromy jen 1. dne v měsíci (a poprvé) – jinak platí otisk
+  // z posledního 1. dne; nový úsek cesty (a cesty starší vsi) dostane olemování hned
+  const monthly = state.walkStages === undefined || dateOfDayIndex(day).day === 1;
+  lineRoads(state, day, monthly);
+  if (monthly) state.walkStages = walkLayoutHash(walkStageKey(state, day));
   const key = walkLayoutHash(`${walkLayoutKey(state, day)}|${state.walkStages}|${WALK_VERSION}`);
   const unchanged = state.walkLayoutKey === key;
   state.walkLayoutKey = key;

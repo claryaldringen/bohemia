@@ -37,6 +37,12 @@ export interface DayAllocationInput {
    * úlohami dne (`expeditionLaborToday`); bez údaje 0.
    */
   away?: number;
+  /**
+   * Sedláci s vozy pro uhlí a rudu kováře (crafts.md – Uhlí a ruda kováře; Martin 20. 10. 2026:
+   * „přiveze uhlí sedlák s vozem (a odečte se jeho práce)“): jízda je domluvená předem – jde
+   * z práce vsi po výpravách, před úlohami dne; bez údaje 0.
+   */
+  carting?: number;
 }
 
 export interface DayAllocation {
@@ -46,6 +52,8 @@ export interface DayAllocation {
   eldersDailyMin: number;
   /** Práce lidí na výpravách (nejvýš `away`, po denním minimu). */
   away: number;
+  /** Práce sedláků s vozy pro uhlí a rudu (nejvýš `carting`, po výpravách). */
+  carting: number;
   tasks: Record<LaborTaskName, number>;
   /** Práce pro jednotlivé úlohy vstupu v jejich pořadí (stejný název může být víckrát – plodiny). */
   taskAmounts: number[];
@@ -60,7 +68,7 @@ export interface DayAllocation {
  * Denní rozdělení práce (population.md – Práce; Martin 19. 10. 2026: „pokud se něco staví, tak čas
  * věnují primárně té stavbě – zemědělství jenom natolik, aby vesnice neměla hlad“): minimum
  * (s přirážkou za chůzi pro vodu – `householdWater`) →
- * lidé na výpravách → potřebné sezónní úlohy (polní, v sadech, seč, porážka) v daném pořadí →
+ * lidé na výpravách → sedláci s vozy pro kováře → potřebné sezónní úlohy (polní, v sadech, seč, porážka) v daném pořadí →
  * společná práce (stavby, po nich opravy obydlí – `afterConstructions`). Denní minimum domácnosti
  * kryjí napřed její starší (`adultDailyMin`).
  */
@@ -87,6 +95,8 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
   // výpravy (trade.md – Doprava): nosiči jsou na cestě celé dny – po denním minimu, před vším
   // ostatním
   const away = take(input.away ?? 0);
+  // sedláci s vozy pro kováře (crafts.md – Uhlí a ruda kováře) – po výpravách, před úlohami
+  const carting = take(input.carting ?? 0);
   const tasks: Record<LaborTaskName, number> = {
     reclaim: 0,
     dig: 0,
@@ -105,7 +115,7 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     tasks[task.name] += amount;
     return amount;
   });
-  return { dailyMin, eldersDailyMin, away, tasks, taskAmounts, common: left };
+  return { dailyMin, eldersDailyMin, away, carting, tasks, taskAmounts, common: left };
 }
 
 /**

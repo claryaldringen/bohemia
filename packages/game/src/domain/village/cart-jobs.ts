@@ -5,20 +5,15 @@ import type { CartTarget } from './paths/cart';
 import { villageCartRoutes } from './paths/roads';
 import { PATH_WATER_SPOT } from './paths/terrain';
 import { groundSpots, walkGroundOf } from './paths/walking';
-import {
-  CARTS,
-  CART_JOBS,
-  CHARCOAL_KILN,
-  CRAFT_PRODUCTION,
-  TEAM_TRAVEL,
-  WATER_FETCHING,
-} from './rules';
-import type { CartDrive, CartKind, VillageState } from './types';
+import { CARTS, CART_JOBS, TEAM_TRAVEL, WATER_FETCHING } from './rules';
+import type { CartDrive, CartKind, OreSite, VillageState } from './types';
 
 // Co vozy vozí mimo svoz (wagons.md – Co vozy vozí; Martin 19. 10. 2026: „Pokud budou mít
-// k dispozici vůz, ať na pole, pro vodu nebo pro dřevěné uhlí jede vůz.“; podrobnosti návrh
-// Clauda): dvoukolák, který dnes nesváží úrodu, seno ani klády a jehož voli neorají, jede pro uhlí
-// k milíři, s osivem na pole, nebo pro vodu v sudech (CART_JOBS.order). Tady jsou jízdy – kam vůz
+// k dispozici vůz, ať na pole, pro vodu nebo pro dřevěné uhlí jede vůz.“; 20. 10. 2026: „Pokud
+// bude ve vesnici vůz, tak kováři přiveze uhlí sedlák s vozem (a odečte se jeho práce). To samé
+// u těžení rudy.“; podrobnosti návrh Clauda): dvoukolák, který dnes nesváží úrodu, seno ani klády
+// a jehož voli neorají, jede pro uhlí k milíři, pro rudu na rudiště, s osivem na pole, nebo pro
+// vodu v sudech (CART_JOBS.order). Tady jsou jízdy – kam vůz
 // dojede a za kolik, kolik práce posádky stojí a kolik ušetří; krok práce simulace (simulate.ts)
 // z nich skládá den. Vůz jede jen tam, kam ho pustí vozová síť, a jen když ušetří práci.
 
@@ -26,8 +21,6 @@ import type { CartDrive, CartKind, VillageState } from './types';
 const EPSILON = 1e-9;
 /** Délka pracovního dne v sekundách (jako chůze pro vodu – WATER_FETCHING.dayHours). */
 const DAY_S = WATER_FETCHING.dayHours * 3600;
-/** Vytahání, třídění a odnos uhlí z vypáleného milíře – čd na kg (charcoal.ts). */
-const DRAW_MAN_DAYS_PER_KG = CHARCOAL_KILN.drawManDaysPerTree / CRAFT_PRODUCTION.charcoalKgPerTree;
 /** Břehy pro vodu vozem nejméně tak daleko od sebe (m) – hledá se podél vody, ne v jednom místě. */
 const WATER_SPOT_SPACING_M = 15;
 
@@ -85,9 +78,9 @@ export function cartTripSeconds(costM: number, stopS: number): number {
   return (2 * Math.max(0, costM)) / TEAM_TRAVEL.speedMps + stopS;
 }
 
-/** Práce posádky vozu (CARTS.crew lidí) na jednu jízdu (čd). */
-export function cartTripManDays(costM: number, stopS: number): number {
-  return (CARTS.crew * cartTripSeconds(costM, stopS)) / DAY_S;
+/** Práce posádky vozu (`crew` lidí – bez údaje CARTS.crew) na jednu jízdu (čd). */
+export function cartTripManDays(costM: number, stopS: number, crew: number = CARTS.crew): number {
+  return (crew * cartTripSeconds(costM, stopS)) / DAY_S;
 }
 
 /** Kolik jízd vůz za den zvládne – co se vejde do dne, nejvýš CARTS.loadsPerCartDay. */
@@ -95,37 +88,60 @@ export function cartTripsPerDay(costM: number, stopS: number): number {
   return Math.min(CARTS.loadsPerCartDay, DAY_S / Math.max(1, cartTripSeconds(costM, stopS)));
 }
 
-// --- uhlí z milíře ----------------------------------------------------------------------------
+// --- uhlí z milíře a ruda z rudiště -----------------------------------------------------------
 
 /**
- * Odvoz uhlí vozem z milíře ke kováři (crafts.md – Uhlíř): práce posádky na kg uhlí, kolik uhlí
- * vůz za den nejvýš odveze a kde jeho trasa u milíře končí (m – jízdy do ročního provozu cest).
+ * Vůz se sedlákem pro uhlí nebo rudu (crafts.md – Uhlí a ruda kováře): práce sedláka ze společné
+ * práce vsi na kg, u rudy i práce kováře, který jede s ním (čd na kg – z práce dílny), kolik vůz
+ * za den nejvýš odveze (kg) a kde jeho trasa u milíře nebo rudiště končí (m – jízdy do ročního
+ * provozu cest).
  */
-export interface KilnCart {
+export interface SmithCart {
   manDaysPerKg: number;
-  /** Kolik práce vůz na kg uhlí ušetří (čd – odnos v koších bez práce posádky). */
-  savedPerKg: number;
+  riderManDaysPerKg: number;
   maxKg: number;
   x: number;
   z: number;
 }
 
 /**
- * Vůz pro uhlí (wagons.md – Co vozy vozí, crafts.md – Uhlíř): s vozem odpadne odnos v koších –
- * CART_JOBS.charcoal.carryShare vytahání (u lesního milíře s přirážkou za chůzi `walkFactor`) –
- * a přibude práce posádky na jízdy (náklad CART_JOBS.charcoal.loadKg). Vůz se vezme, jen když tím
- * práce na kg uhlí klesne; kam nedojede (`drive` null), null.
+ * Vůz pro uhlí od milíře ke kováři (wagons.md – Co vozy vozí, crafts.md – Uhlí a ruda kováře): sedlák
+ * (CART_JOBS.charcoal.crew) jede k milíři, uhlíř nakládá při vytahání, u kovárny složí kovář –
+ * náklad CART_JOBS.charcoal.loadKg. Vůz se vezme, jen když práce sedláka na kg uhlí je menší než
+ * nošení v koších kovářovou domácností (`footPerKg` – čd na kg); kam nedojede (`drive` null), null.
  */
-export function kilnCartOffer(drive: CartDrive | null, walkFactor: number): KilnCart | null {
+export function kilnCartOffer(drive: CartDrive | null, footPerKg: number): SmithCart | null {
   if (!drive) return null;
   const job = CART_JOBS.charcoal;
-  const perKg = cartTripManDays(drive.costM, job.stopS) / job.loadKg;
-  const saved = DRAW_MAN_DAYS_PER_KG * walkFactor * job.carryShare;
-  if (perKg + EPSILON >= saved) return null;
+  const perKg = cartTripManDays(drive.costM, job.stopS, job.crew) / job.loadKg;
+  if (perKg + EPSILON >= footPerKg) return null;
   return {
     manDaysPerKg: perKg,
-    savedPerKg: saved - perKg,
+    riderManDaysPerKg: 0,
     maxKg: job.loadKg * cartTripsPerDay(drive.costM, job.stopS),
+    x: drive.x,
+    z: drive.z,
+  };
+}
+
+/**
+ * Vůz pro rudu z rudiště do kovárny (crafts.md – Uhlí a ruda kováře; Martin 20. 10. 2026: „Kovář
+ * a sedlák s vozem dojedou na místo, kde se ruda těží, … a pak s plným vozem přijedou zase do
+ * kovárny.“): sedlák a kovář (CART_JOBS.ore.crew) jedou k hromadě rudy u jámy, naloží plný
+ * dvoukolák (CARTS.loadKg) a vrátí se – sedlák ze společné práce, kovář z práce dílny. Vůz se
+ * vezme, jen když práce obou na kg rudy je menší než nošení v koších (`footPerKg`); kam nedojede,
+ * null.
+ */
+export function oreCartOffer(drive: CartDrive | null, footPerKg: number): SmithCart | null {
+  if (!drive) return null;
+  const job = CART_JOBS.ore;
+  const loadKg = CARTS.loadKg['two-wheel'];
+  const trip = cartTripManDays(drive.costM, job.stopS, 1) / loadKg;
+  if (trip * job.crew + EPSILON >= footPerKg) return null;
+  return {
+    manDaysPerKg: trip * (job.crew - 1),
+    riderManDaysPerKg: trip,
+    maxKg: loadKg * cartTripsPerDay(drive.costM, job.stopS),
     x: drive.x,
     z: drive.z,
   };
@@ -141,6 +157,18 @@ export function kilnCartDrive(
   drives: CartDrives,
 ): CartDrive | null {
   return drives(state, [{ x: at.x, z: at.z, reachM: CART_JOBS.charcoal.reachM }])[0] ?? null;
+}
+
+/**
+ * Jízda vozu k rudišti (uloží se u rudiště – `OreSite.cart`): k místu do CART_JOBS.ore.reachM
+ * (mokřina – vůz sjede po suchém, ne do vody).
+ */
+export function oreCartDrive(
+  state: VillageState,
+  site: Pick<OreSite, 'x' | 'z'>,
+  drives: CartDrives,
+): CartDrive | null {
+  return drives(state, [{ x: site.x, z: site.z, reachM: CART_JOBS.ore.reachM }])[0] ?? null;
 }
 
 // --- voda v sudech ---------------------------------------------------------------------------

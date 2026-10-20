@@ -12,6 +12,7 @@ import {
   smithsCharcoalPerYear,
   smithsForgeCharcoalKg,
   newWorkshop,
+  oreFactor,
   wearCraftStocks,
   workCrafts,
   workshopLabor,
@@ -216,12 +217,15 @@ describe('výroba (crafts.md – Výroba)', () => {
     expect(workshop.activity).toBe('no-charcoal');
   });
 
-  it('ruda dál od potoka stojí víc práce (+1 % za 10 m nad 100 m)', () => {
+  it('hlína dál od potoka stojí hrnčíře víc práce, kovář přirážku nemá – kope rudu na rudišti', () => {
+    expect(oreFactor({ craft: 'potter', waterDistanceM: 300 })).toBeCloseTo(1.2, 9);
+    expect(oreFactor({ craft: 'smith', waterDistanceM: 300 })).toBe(1);
     const s = withWorkshop(fullVillage(), 'smith');
     s.dwellings.find((d) => d.id === WORKSHOP_ID)!.workshop!.waterDistanceM = 300;
     s.crafts = { charcoalKg: 1000, toolsKg: 0, potteryKg: 0 };
     craftDays(s, 1, null);
-    expect(s.crafts.toolsKg).toBeCloseTo(1.5 / 12, 9);
+    // kovárna z doby před rudou dostane rudu na dávku – první den kove celý den
+    expect(s.crafts.toolsKg).toBeCloseTo(1.5 / 10, 9);
   });
 
   it('hrnčíř vypálí 1 kg keramiky za člověkoden a na 500 kg skácí strom', () => {
@@ -477,6 +481,8 @@ describe('souhrn řemesel pro panel (crafts.md – Co hráč vidí)', () => {
         occupants: 2,
         laborPerDay: expect.closeTo(1.5, 1),
         oreFactor: 1,
+        // kovář bez uhlí odpočívá – rudu ještě nekopal (crafts.md – Uhlí a ruda kováře)
+        ore: { stockKg: 0, site: null, heapKg: 0, sons: [], cart: false },
         kiln: null,
         toPlant: 0,
         carpenter: null,

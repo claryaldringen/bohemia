@@ -3,7 +3,14 @@ import type { LaborShare, SceneLaborShare, SceneVillage } from '../../village-vi
 import { chickenBox } from '../livestock-placement';
 import { localToWorld } from '../village-layout';
 import { MILIR_SHAPE_M, milirPlace } from '../workshop-layout';
-import { createVillagerPose, walkThen, type HerdView, type VillagerPose } from '../villager-motion';
+import {
+  createVillagerPose,
+  villagerSeconds,
+  walkThen,
+  type HerdView,
+  type VillagerPose,
+} from '../villager-motion';
+import { LIVESTOCK_EPOCH_MS } from '../livestock-motion';
 import {
   FIGURE_SCALE,
   MAX_ELDERS,
@@ -15,12 +22,14 @@ import {
   herderKinds,
   womenChance,
   shareCounts,
+  planFunerals,
   planVillagers,
   walkRoute,
   type PlannedVillager,
   type VillagerGround,
   type VillagerPaths,
 } from '../villager-plan';
+import { orePitRadius } from '../ore-site-layout';
 
 /** Potok v pásu z ∈ (60, 70) – jinak všude suchá schůdná louka; strom 501 a 502 v lese. */
 const GROUND: VillagerGround = {
@@ -1176,6 +1185,104 @@ describe('uhlíř – milíř v lese a sázení buků (crafts.md – Uhlíř)', 
   });
 });
 
+describe('kovář – rudiště a nošení (crafts.md – Uhlí a ruda kováře)', () => {
+  const PIT = { x: 50, z: 40 };
+  const KILN = { x: -30, z: -20 };
+  function smithVillage(shares: LaborShare[]): SceneVillage {
+    const base = village(shares);
+    return {
+      ...base,
+      dwellings: [
+        ...base.dwellings,
+        { ...house(31, 40, -20, 0, true, 'polozemnice'), craft: 'smith' as const },
+      ],
+      orePits: [{ x: PIT.x, z: PIT.z, kg: 200, overgrowth: 0 }],
+      oreSites: [{ dwellingId: 31, x: PIT.x - 2, z: PIT.z - 2, heapKg: 0, digging: true }],
+    };
+  }
+
+  it('kopáči stojí na valu jámy čelem do ní s motykou – syn od 14 let i kovář', () => {
+    const people = planVillagers(
+      smithVillage([
+        {
+          activity: 'ore',
+          target: { kind: 'ore', id: 31, x: PIT.x - 2, z: PIT.z - 2 },
+          manDays: 2,
+          ages: [36, 15],
+        },
+      ]),
+      GROUND,
+      { seed: 5, herds: 0 },
+    );
+    const diggers = people.filter((p) => p.key.startsWith('ore:'));
+    expect(diggers.length).toBe(2);
+    const radius = orePitRadius(200);
+    for (const p of diggers) {
+      const pose = at(p, 5);
+      expect(pose.clip).toBe('hoe');
+      const d = Math.hypot(pose.x - PIT.x, pose.z - PIT.z);
+      expect(d).toBeGreaterThan(radius - 0.5);
+      expect(d).toBeLessThan(radius + 2);
+      // dospělí – syn od 14 let není dítě
+      expect(p.scale).toBeGreaterThan(1);
+    }
+  });
+
+  it('syn 11 let nosí uhlí od milíře – menší postava mezi kovárnou a milířem, tam a zpět', () => {
+    const people = planVillagers(
+      smithVillage([
+        {
+          activity: 'fetch',
+          target: { kind: 'kiln', id: 21, x: KILN.x, z: KILN.z, from: 31 },
+          manDays: 0.23,
+          ages: [11],
+        },
+        {
+          activity: 'fetch',
+          target: { kind: 'kiln', id: 21, x: KILN.x, z: KILN.z, from: 31 },
+          manDays: 0.1,
+          ages: [36],
+        },
+      ]),
+      GROUND,
+      { seed: 5, herds: 0 },
+    );
+    const carriers = people.filter((p) => p.key.startsWith('fetch:'));
+    expect(carriers.length).toBe(2);
+    const son = carriers.find((p) => p.key.includes(':11:'))!;
+    const father = carriers.find((p) => p.key.includes(':36:'))!;
+    expect(son.scale).toBeLessThan(father.scale);
+    expect(son.kind).toBe('man');
+    // chodí mezi kovárnou (40, −20) a milířem – s košem zpátky
+    const clips = new Set<string>();
+    let nearKiln = false;
+    for (let t = 0; t < 400; t += 1.7) {
+      const pose = at(son, t);
+      clips.add(pose.clip);
+      if (Math.hypot(pose.x - KILN.x, pose.z - KILN.z) < 6) nearKiln = true;
+      expect(pose.z).toBeGreaterThan(-35);
+      expect(pose.z).toBeLessThan(0);
+    }
+    expect(nearKiln).toBe(true);
+    expect(clips.has('carry')).toBe(true);
+    // s vozem jede kovář vozem – pěšky nikdo
+    const riding = planVillagers(
+      smithVillage([
+        {
+          activity: 'fetch',
+          target: { kind: 'ore', id: 31, x: PIT.x, z: PIT.z },
+          manDays: 0.1,
+          ages: [36],
+          carts: 1,
+        },
+      ]),
+      GROUND,
+      { seed: 5, herds: 0 },
+    );
+    expect(riding.some((p) => p.key.startsWith('fetch:'))).toBe(false);
+  });
+});
+
 describe('nosiči výpravy po zemské stezce (trade.md)', () => {
   it('s nákladem jdou po stezce od dvorce ke kraji mapy a zpět', () => {
     const base = village([{ activity: 'trade', target: { kind: 'trail', id: 5 }, manDays: 4 }]);
@@ -1349,5 +1456,82 @@ describe('provoz na cestách – pro vodu, k lesu a na pole (villagers.md)', () 
     }
     expect(nearField).toBeGreaterThan(0);
     expect(nearHome).toBeGreaterThan(0);
+  });
+});
+
+describe('pohřeb – průvod mimo rozpočet pracujících (cemetery.md – Pohřeb ve scéně)', () => {
+  const DAY = 1000;
+  const START = LIVESTOCK_EPOCH_MS + 5_000_000;
+  const dayWindow = (day: number): { startMs: number; endMs: number } => ({
+    startMs: START + (day - DAY) * 86_000,
+    endMs: START + (day - DAY + 1) * 86_000,
+  });
+  const v: SceneVillage = {
+    ...village(SHARES),
+    funerals: [
+      {
+        key: '8:-3:-3:3:4',
+        cemeteryId: 8,
+        cell: { x: -3, y: -3 },
+        column: 3,
+        row: 4,
+        size: 'normal',
+        rank: 'adult',
+        day: DAY,
+        x: -37,
+        z: -36,
+        from: 2,
+        mourners: Array.from({ length: 10 }, (_, i) => ({
+          sex: i % 2 ? ('female' as const) : ('male' as const),
+          age: 8 + i * 6,
+          home: 1 + (i % 3),
+        })),
+      },
+    ],
+  };
+  const plans = planFunerals(v, GROUND, { seed: 3, dayWindow });
+  const work = (list: PlannedVillager[]): number =>
+    list.filter((p) => !/^(funeral|elder|herder|traffic):/.test(p.key)).length;
+
+  it('průvod: 4 nosiči a lidé za márami; o ně méně pracujících postav', () => {
+    expect(plans).toHaveLength(1);
+    const without = planVillagers(v, GROUND, { seed: 3, herds: 0, maxWorkers: 20, dayWindow });
+    const people = planVillagers(v, GROUND, {
+      seed: 3,
+      herds: 0,
+      maxWorkers: 20,
+      dayWindow,
+      funerals: plans,
+    });
+    const funeral = people.filter((p) => p.key.startsWith('funeral:'));
+    expect(funeral).toHaveLength(14);
+    expect(funeral.filter((p) => p.key.includes(':bearer:')).every((p) => p.kind === 'man')).toBe(
+      true,
+    );
+    // dvě stavby (stavba a kácení) mají vždy někoho
+    expect(work(people)).toBeLessThanOrEqual(Math.max(2, 20 - 14));
+    expect(work(people)).toBeLessThan(work(without));
+  });
+
+  it('průvod vychází od vchodu domu zemřelého; mimo dny obřadu nikdo', () => {
+    const plan = plans[0]!;
+    const door = plan.path.points[0]!;
+    expect(Math.hypot(door[0] - 14, door[1] - 3)).toBeLessThan(16);
+    const bearer = planVillagers(v, GROUND, { seed: 3, herds: 0, dayWindow, funerals: plans }).find(
+      (p) => p.key.endsWith(':bearer:0'),
+    )!;
+    const pose = bearer.pose(
+      villagerSeconds(plan.timeline.departMs + 4000),
+      [],
+      createVillagerPose(),
+    );
+    expect(pose.hidden).toBe(false);
+    const later = planVillagers({ ...v, labor: { ...v.labor!, day: DAY + 6 } }, GROUND, {
+      seed: 3,
+      herds: 0,
+      dayWindow,
+      funerals: plans,
+    });
+    expect(later.some((p) => p.key.startsWith('funeral:'))).toBe(false);
   });
 });

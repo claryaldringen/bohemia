@@ -51,6 +51,7 @@ import { terrainMeshHeight } from './drape';
 import { InstanceHider } from './instance-hider';
 import { VillageLivestock } from './livestock';
 import { VillageVillagers } from './villagers';
+import type { FuneralTimeline } from './funeral-plan';
 import { VillagePaths, type PathStats } from './path-renderer';
 import { PitCuts, applyPitCut } from './pit-cut';
 import { ColorCurves } from '@babylonjs/core/Materials/colorCurves';
@@ -399,6 +400,10 @@ export class LandscapeScene {
       onLoaded: () => this.renderWhenReady(),
       // karavany výprav jdou v herním čase (caravan.ts) – okno herního dne jako orba za den
       dayWindow: (day) => this.village?.gameDayWindow(day) ?? null,
+      // pohřby (cemetery.md – Pohřeb ve scéně): máry, hranice a oheň kreslí ves
+      onFunerals: (plans) => {
+        if (this.village?.setFunerals(plans, Date.now())) this.renderWhenReady();
+      },
     });
     // Vyšlapané pěšiny – síť se počítá z vsi a krajiny (odloženě), lidé po ní chodí; pevné cesty
     // a stromy u nich z dat vsi (roads.md).
@@ -685,6 +690,8 @@ export class LandscapeScene {
     this.village?.setWorldClock(world);
     this.worldClock = world;
     this.updateSeason(true);
+    // karavany a pohřby jdou podle okna herního dne – rozmístit lidi podle nových hodin
+    if (this.villagers?.clockChanged(Date.now())) this.renderWhenReady();
   }
 
   /**
@@ -696,6 +703,7 @@ export class LandscapeScene {
     this.workDayClock = clock;
     this.village?.setPloughClock(clock);
     if (this.villageState) this.setVillage(this.villageState);
+    if (this.villagers?.clockChanged(Date.now())) this.renderWhenReady();
   }
 
   /**
@@ -819,6 +827,14 @@ export class LandscapeScene {
   moveCameraTo(x: number, z: number): void {
     this.rtsCamera?.moveTo(x, z);
     this.needsRender = true;
+  }
+
+  /**
+   * Kam se dívat na pohřeb (vývojová ukázka – cemetery.md, Pohřeb ve scéně): máry v průvodu,
+   * jinak hranice, a časy obřadu prvního pohřbu; bez pohřbu null.
+   */
+  funeralFocus(nowMs = Date.now()): { x: number; z: number; timeline: FuneralTimeline } | null {
+    return this.village?.funeralFocus(nowMs) ?? null;
   }
 
   /** Kam vrátí pohled klávesa R – ves (první obydlí). */
