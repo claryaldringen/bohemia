@@ -346,9 +346,7 @@ export function planVillagers(
     figureSexes(labor.people),
   );
   // pohřby dne (cemetery.md – Pohřeb ve scéně): lidé průvodu ubírají z pracujících postav
-  const funerals = (options.funerals ?? []).filter((plan) =>
-    funeralActiveIn(plan, options.dayWindow?.(labor.day) ?? null),
-  );
+  const funerals = activeFunerals(options.funerals ?? [], options.dayWindow?.(labor.day) ?? null);
   const mourning = funerals.reduce((sum, plan) => sum + plan.members.length, 0);
   const counts = shareCounts(
     labor.shares,
@@ -386,6 +384,25 @@ export function planVillagers(
   people.push(...trafficFigures(ctx, labor, options.maxTraffic ?? MAX_TRAFFIC));
   for (const plan of funerals) people.push(...funeralFigures(ctx, plan));
   return people;
+}
+
+/** Nejvýš tolik postav všech pohřbů dne (víc pohřbů naráz – nejnovější napřed). */
+export const MAX_FUNERAL_FIGURES_TOTAL = 60;
+
+/**
+ * Pohřby, jejichž lidé jsou vidět během dne `window` – nejnovější napřed, dokud se jejich lidé
+ * vejdou do MAX_FUNERAL_FIGURES_TOTAL (hranice ostatních kreslí ves dál).
+ */
+function activeFunerals(plans: readonly FuneralPlan[], window: DayWindow | null): FuneralPlan[] {
+  let total = 0;
+  return [...plans]
+    .filter((plan) => funeralActiveIn(plan, window))
+    .sort((a, b) => b.timeline.startMs - a.timeline.startMs)
+    .filter((plan) => {
+      if (total + plan.members.length > MAX_FUNERAL_FIGURES_TOTAL) return false;
+      total += plan.members.length;
+      return true;
+    });
 }
 
 /**

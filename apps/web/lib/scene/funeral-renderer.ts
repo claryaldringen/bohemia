@@ -95,6 +95,8 @@ export class FuneralRenderer {
   private readonly bounds = new BoundingInfo(Vector3.Zero(), Vector3.Zero());
   private readonly bier = createBierPose();
   private tone: Rgb = [1, 1, 1];
+  /** Při posledním zápisu běžel obřad (oheň, máry) – po konci se zapíše ještě jednou. */
+  private live = true;
   private disposed = false;
 
   constructor(
@@ -121,6 +123,7 @@ export class FuneralRenderer {
     this.allocate();
     this.updateBounds();
     this.write(nowMs);
+    this.live = true;
     return had || this.views.length > 0;
   }
 
@@ -137,14 +140,14 @@ export class FuneralRenderer {
   /** Posune máry, hranici a oheň na okamžik `nowMs`; vrátí true, když se v záběru něco hnulo. */
   animate(nowMs: number, camera: Camera | null): boolean {
     if (this.views.length === 0) return false;
-    if (
-      !this.views.some(
-        (v) => nowMs >= v.plan.timeline.startMs - 1000 && nowMs < v.plan.timeline.coldMs + 1000,
-      )
-    ) {
-      return false;
-    }
-    if (camera) {
+    // mimo obřad nic nehoří ani se nehýbe – po konci (i po skryté záložce) se jednou zapíše
+    // klidový stav, pak už nic
+    const live = this.views.some(
+      (v) => nowMs >= v.plan.timeline.startMs - 1000 && nowMs < v.plan.timeline.coldMs + 1000,
+    );
+    if (!live && !this.live) return false;
+    this.live = live;
+    if (live && camera) {
       if (!camera.isInFrustum(this.bounds)) return false;
       const c = this.bounds.boundingSphere.centerWorld;
       if (Vector3.Distance(camera.globalPosition, c) > ANIMATE_RANGE_M) return false;
