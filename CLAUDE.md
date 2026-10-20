@@ -809,6 +809,13 @@ rozhraní částí v
   `SceneVillage.oreSites` / `orePits` → `OreSiteRenderer` (`ore-sites.ts`, geometrie
   `ore-site-layout.ts` – val, voda, zarůstání, hromada rudy), ikona `resources/ore.png`; ukázka
   `/dev/landscape` **Rudiště** (`dev-ore.ts`). Ves bez kováře beze změny (`smith-golden.test.ts`).
+  **Výběr rudiště** (Martin 20. 10. 2026: „Půjde rudiště také označit?“): `VillageTarget`
+  `{ kind: 'ore-site', id: kovárna }` – `pickVillageTarget` po posvátném dubu paprskem přes tvary
+  `oreSiteDiscs` (jámy do `ORE_SITE_PIT_REACH_M` od místa – `oreSitePits`, s valem, hromada, místo),
+  obrys `oreSiteOutline` (konvexní obal); panel z `VillageView.oreSites` (`lib/ore-site-view.ts` –
+  ložisko, hromada, zásoba v kovárně, cesta, jámy, kdo tu dnes kope / nosí / jede s vozem z rozdělení
+  práce dne a vůz se sedlákem), `OreSiteBody` s tlačítkem kovárny, portrét `icons/build/rudiste.png`
+  (`icons.py rudiste`), `/dev/panels?panel=rudiste`.
 - **Nákup u sousedů** ([crafts.md](docs/design/crafts.md) – Nákup u sousedů, Martin 19. 10. 2026:
   „Nástroje ať vesničané obchodují individuálně… Sami si spočítají, jestli se jim to vyplatí.“;
   čísla `CRAFT_BUYING` v `rules.ts`, rešerše `research/2026-10-19-craft-buying.md`):
@@ -1547,7 +1554,7 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   55–72rem pod údaji; rozbalené nabídky (růžice stezek a odchodu, obchod) nad panelem u pravého
   okraje – `hud-popup`, zavře je stisk myši mimo ně (`hooks/use-dismiss.ts`); popisky (`Tooltip`)
   se zalomit smí – `whitespace-normal`; náhled bez hry s nejbohatšími daty:
-  http://localhost:3010/dev/panels (`?panel=dvorec`, `ohrada`, `pole`, `pole-dil`… – `app/dev/panels/dev-panels.ts`,
+  http://localhost:3010/dev/panels (`?panel=dvorec`, `ohrada`, `pole`, `pole-dil`, `rudiste`… – `app/dev/panels/dev-panels.ts`,
   i seznam vsí a nabídka hry); u obydlí a víc vybraných obydlí – počet domácností a lidí –
   tlačítka Přestěhovat po typu nového domu a Odejít – růžice odchodu `LeaveCompass`: uprostřed
   nová ves na téže mapě (umístění první zemnice nejméně 300 m od staveb všech vsí mapy, pak se

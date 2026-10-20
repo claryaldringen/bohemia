@@ -345,6 +345,12 @@ od něj s vypáleným milířem, dvoukolák a spřežení), dva roky simulace se
 - **Panel kovárny:** ruda v kovárně (kg), rudiště – cesta z kovárny (m, v bublině kolik rudy
   v ložisku zbývá) a kdo nosí uhlí: syn (věk), kovář sám, nebo vůz se sedlákem; činnosti „Kope
   rudu“ a „Nemá rudu“. Upozornění jen „Kovář nemá rudu“ (jako „Kovář nemá uhlí“).
+- **Výběr rudiště** (Martin, 20. 10. 2026: „Půjde rudiště také označit?“): klik na jámy nebo
+  hromadu rudy rudiště vybere a obtáhne obrysem kolem jam a hromady; panel dole ukáže portrét
+  **Rudiště**, rudu v ložisku (zbývá / 3 000 kg), hromadu vykopané rudy u jámy, počet jam, kovárnu
+  (ikona – kliknutím ji vybere), cestu z ní a rudu v ní a kdo tu dnes pracuje – kovář a synové
+  s věkem (v bublině kope, nosí, jede s vozem) a vůz se sedlákem. Jámy vyčerpaných ložisek
+  k rudišti nepatří a nevybírají se. Ukázka `/dev/panels?panel=rudiste` (i `rudiste-vuz`).
 - **Ve scéně:** rudiště – mělké jámy v drnu s valem vykopané hlíny, rezavou stěnou a vodou na dně,
   které léty zarůstají (val se slehne, voda vyschne, zezelenají), u místa hromádka rezavé rudy;
   kopáči u jámy s motykou, nosiči s koši mezi kovárnou a milířem nebo rudištěm (synové jako menší
@@ -366,6 +372,7 @@ od něj s vypáleným milířem, dvoukolák a spřežení), dva roky simulace se
 | Sedlák nečeká na kopání – ruda leží na hromadě u jámy, vůz přijede pro vykopanou dávku      | návrh Clauda, Martin („Jo, souhlasím s tím, jak jsi to navrhl“, 20. 10. 2026) |
 | Rudiště ne na poli, v sadu, na hřbitově, v ohradě, v lese vsi ani u domů                    | rozhodnutí Clauda                                                             |
 | Přirážka za rudu u kováře zmizela (cesta na rudiště), u hrnčíře zůstává                     | návrh Clauda                                                                  |
+| Rudiště jde vybrat – panel s ložiskem, hromadou, jámami, kovárnou a dnešními kopáči         | Martin (20. 10. 2026), podoba panelu návrh Clauda                             |
 
 ## Učení řemesla
 
