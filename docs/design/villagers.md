@@ -129,6 +129,91 @@ postavy (návrh Clauda, jen zobrazení).
 - Nosiči mají klip chůze – klip s rukama nahoře na márách by znamenal nové GLB postav (a další
   větve na postavách běží souběžně); přijde později.
 
+## Výběr postavy
+
+Martin (20. 10. 2026):
+
+> „Jak moc náročné by bylo moci označit jednotlivé lidi ve vsi a vidět, co zrovna dělají?“
+
+> „Já měl na mysli spíš jak to bude náročné z pohledu hry. Jestli to nezabije výkon. Stačí mi
+> jenom vědět info typu - žena rolníka, jde pro vodu. kovář - jde pro uhlí, uhlíř - staví milíř,
+> tesař - jde do vesnice XY pro kování k vozu (protože ve vsi není kovář)“
+
+Na návrh zařazení: „Ano.“ Podrobnosti jsou návrh Clauda – jen zobrazení, pravidla simulace se
+nemění.
+
+- **Postava = konkrétní člověk.** Server posílá scéně úsporně lidi vsi (`SceneLabor.persons` – id,
+  věk, pohlaví, domácnost a hotová role; `lib/person-view.ts`, ≈ 60 B na člověka) a scéna každé
+  postavě dne přiřadí skutečného člověka (`villager-roster.ts`): nikdo není ve dvou postavách
+  naráz, pohlaví a velikost postavy jsou jeho, vdaná žena nosí šátek, starší šediny. Přiřazení
+  sedí s fakty dne – v tomto pořadí:
+  1. průvod pohřbu (lidé za márami podle id z jádra, máry nesou muži vsi),
+  2. karavany – tesař nebo jeho syn na cestě pro kování (id z jádra – tam i zpátky je to on),
+     nosiči a pomocníci u vozů výprav a nákupu (dospělí vsi); lidé, kteří se stěhují k sousedovi
+     nebo od něj přicházejí, nejsou lidé vsi (postava je, vybrat nejde),
+  3. synové kováře a hrnčíře, kteří nosí uhlí, rudu a hlínu (podle věku z jádra),
+  4. výrostci 7–13 let, kteří dnes pasou (kolik – z jádra),
+  5. domácnosti dílen, které dnes pracují v dílně, kopou nebo nosí – jen u své práce, do práce
+     vsi ne,
+  6. u každé stavby s dnešní prací první člověk, pak ostatní práce vsi (dospělí 14–44 let),
+  7. provoz na cestách – člověk z domácnosti, od jejíchž dveří proud vychází (pro vodu i výrostci),
+  8. domácí práce, dojení, péče o zvířata a nečinní – kdo zbude (u domu přednostně z toho domu),
+  9. starší u domů (u svého domu).
+- **Na koho nezbude člověk, ta postava není.** Dřív měl Vlkov (34 lidí) až o třetinu postav víc,
+  než má lidí – domácí výroba žen jde bokem (mimo práci vsi) a postavy ji ukazovaly navíc. Teď je
+  ve vsi s málo lidmi postav nejvýš tolik, kolik lidí; napřed odpadnou domácí práce a nečinní.
+- **Deterministicky:** pořadí lidí je los ze seedu vsi a dne – během herního dne stejné.
+  Přiřazení se počítá s rozmístěním postav jednou za herní den (a když dorazí síť pěšin – pak se
+  přidá provoz na cestách), nikdy za snímek. Bez lidí ve scéně (dřívější pohled, vývojové
+  ukázky) jsou postavy jako dřív a vybrat nejdou.
+- **Role** (`lib/person-roles.ts`) z domácnosti, pohlaví, věku a příbuzenství:
+
+  | Kdo                                                                    | Role                                        |
+  | ---------------------------------------------------------------------- | ------------------------------------------- |
+  | hlava dvorce (jako u mohyl: nejstarší muž od 14 let i ve stáří) a žena | vojvoda, vojvodova žena                     |
+  | starší od 45 let                                                       | stařec, stařena                             |
+  | dítě do 7 let                                                          | dítě                                        |
+  | hlava dílny – nejstarší muž 14–44 s praxí v řemesle, jinak nejstarší   | kovář, hrnčíř, uhlíř, tesař                 |
+  | jeho žena, syn a dcera (i vnuci)                                       | kovářova žena, kovářův syn, kovářova dcera… |
+  | hlava ostatních domácností – nejstarší muž 14–44 let, žena, děti       | rolník, žena rolníka, syn a dcera rolníka   |
+  | žena bez manžela s dítětem                                             | vdova                                       |
+  | manžel syna či dcery hlavy                                             | snacha, zeť                                 |
+  | z okolí (nevěsta, ženich, od souseda) – jen když nic lepšího           | nevěsta z okolí, ženich z okolí             |
+  | výrostek 7–13 let, který dnes pase                                     | pasáček, pasačka                            |
+
+  Ostatní muži jsou rolníci, vdané ženy ženy rolníka, svobodné dcery rolníka.
+
+- **Činnost** (`lib/person-activity.ts`) – krátká věta z úlohy postavy a úseku pochůzky: „jde pro
+  vodu“ / „nabírá vodu“ / „nese vodu“, „seje“, „žne“, „seče“, „pase ovce“, „staví zemnici“,
+  „kácí strom“, „nese uhlí od uhlíře“, „kope rudu“, „kope hlínu“, „staví milíř“, „hlídá milíř“,
+  „rozebírá milíř“, „jde do vesnice Olšany pro kování k vozu“, „jde v pohřebním průvodu“, „vrací se
+  domů“, „odpočívá“. Jméno vsi se neskloňuje („do vesnice Olšany“). Postava, která vešla domů,
+  je „doma“, karavana za krajem mapy „pryč – ve vesnici Olšany“; člověk bez postavy dne „doma“.
+- **Výběr:** kliknutí na postavu ji vybere (`{ kind: 'person', id }`) – postavy mají přednost před
+  stavbami pod nimi; hledá se nejbližší vidět postava ke kurzoru do 12 px od jejího průmětu od
+  nohou po hlavu (`villager-pick.ts`, polohy z posledního zápisu póz). Vybraná postava má pod
+  nohama žlutý kroužek, který ji sleduje. Když postava zmizí, výběr zůstane a panel řekne „doma“
+  nebo „pryč“; Esc nebo klik jinam výběr zruší, zemřelý člověk výběr zruší sám.
+- **Panel postavy** (jako ostatní, bez dalších slov): portrét podle pohlaví a věku (muž, žena,
+  dítě, starší), role pod portrétem, činnost na jednom řádku, věk, tlačítko domu (vybere obydlí)
+  a u pasáka ikona zvířete stáda. Ukázka `/dev/panels?panel=postava` (i `postava-tesar`,
+  `postava-pasacek`), ve vsi `/dev/landscape` tlačítko **Lidé** (ukázkoví lidé po domech).
+- **Výkon** (Martin se ptal výslovně): přiřazení jednou za herní den – Vlkov (34 lidí, 19 postav)
+  ≈ 0,03 ms, ves 10× větší ≈ 0,6 ms; rozmístění postav i s přiřazením 0,8 ms (dřív 0,76 ms). Výběr
+  jen při kliknutí (O(postav)), kroužek je jedna instance, žádný nový atribut na vrchol postav
+  (WebGPU limit 8 vertex bufferů), stav vybraného člověka scéna hlásí jen při změně (vejde domů,
+  vyjde, nový den).
+
+| Rozhodnutí (návrh Clauda)                                                        | Proč                                                            |
+| -------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| Roli počítá server, scéna dostane jen hotovou                                    | úsporně (bez rodičů a manželů), stejná pravidla jako ve hře     |
+| Postava bez volného člověka není                                                 | postava = člověk; dřív měla malá ves víc postav než lidí        |
+| Pořadí: pevné místo dne → dílny → stavby → práce → cesty → domácí práce → starší | kdo co dnes dělá podle jádra má přednost, domácí práce je bokem |
+| Lidé, kteří se stěhují k sousedovi nebo od něj, nejdou vybrat                    | nejsou lidé vsi                                                 |
+| Hlava dvorce jako u mohyl (i starší), hlava dílny a rolníka 14–44                | vojvoda zůstává vojvodou, pracující řemeslník je dospělý        |
+| Snacha a zeť navíc k rolím ze zadání                                             | žena syna hlavy by jinak byla „žena rolníka“ vedle matky        |
+| Jméno vsi „do vesnice Olšany“                                                    | jména vsí nejdou skloňovat                                      |
+
 ## Zjednodušení a co chybí
 
 - Noc se nemodeluje – lidé pracují pořád (herní den trvá ≈ 86 s).
@@ -137,6 +222,6 @@ postavy (návrh Clauda, jen zobrazení).
 - Animace z 0 A.D.: žeň je klečící práce srpem (`gather_meat`), pletí sběr bobulí, výmlat
   palička (`citizen/build`), sklizeň jablek nízký sběr ovoce – vlastní animace (žeň vestoje,
   cep, česání z žebříku, sezení starších) přijdou později.
-- Postava neví, komu patří – domácnosti a jména se nezobrazují.
-- Provoz na cestách je proud, ne jednotliví lidé domácnosti – člověk v proudu může jít pro vodu
-  i ve chvíli, kdy jeho postava zároveň stojí na poli.
+- Jména lidí se nezobrazují – panel postavy ukáže roli, činnost, věk a dům.
+- Provoz na cestách je proud (kolik lidí je na cestě, určí cesty za den a délka cesty) – postava
+  v proudu je člověk z té domácnosti, ale jeho práce na poli se pak neukazuje.
