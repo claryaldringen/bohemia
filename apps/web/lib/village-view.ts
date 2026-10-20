@@ -167,6 +167,7 @@ import { manorView, type VillageManor } from './manor-view';
 import { foreignFromScene, plotOfScene } from './scene/neighbour-villages';
 import { sceneTrails, trailRoadWork } from './trail-view';
 import { sceneExpeditions } from './caravan-view';
+import { sceneFunerals, type SceneFuneral } from './funeral-view';
 import { DIRECTION_NAMES, NEWCOMER_TEXTS, goodsText, peopleText } from './trade-names';
 import { formatAnimals, formatCells, formatHa, formatInteger, plural } from './village-format';
 import type { VillageListItem } from './village-list';
@@ -940,6 +941,12 @@ export interface SceneVillage {
      */
     ard?: true;
   }[];
+  /**
+   * Pohřby posledních dnů (cemetery.md – Pohřeb ve scéně, funeral-view.ts): průvod od domu
+   * zemřelého na hřbitov a hranice na místě mohyly – mohylu scéna kreslí až po dohoření. Bez
+   * údaje žádné.
+   */
+  funerals?: SceneFuneral[];
   /**
    * Hřbitovy po čtvercích (střed políčka ve světě a strana jako u pole) – průběh stavby
    * (založení, u hotového rozšíření; `built` hotový), počet obsazených hrobů a čtverce
@@ -1938,6 +1945,7 @@ function sceneVillage(
       sceneOrchardSquare(landscape, s, day, state.orchardWork ?? null, o.grid),
     ),
   }));
+  const funerals = sceneFunerals(state, day);
   const reserved = [...reservedTrees(state)].sort((a, b) => a - b);
   const labor = sceneLabor(state, { ...summary.people, ...summary.family });
   const sacred = sceneSacred(state, landscape, day, summary);
@@ -1978,6 +1986,7 @@ function sceneVillage(
     ...(ruins.length > 0 ? { ruins } : {}),
     fields,
     cemeteries,
+    ...(funerals.length > 0 ? { funerals } : {}),
     ...(orchards.length > 0 ? { orchards } : {}),
     obstacles,
     ...(reserved.length > 0 ? { reservedTrees: reserved } : {}),
