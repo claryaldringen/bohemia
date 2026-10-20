@@ -192,6 +192,7 @@ export {
   startWagonRoad,
   villageWagonEarthworks,
   wagonDetourReason,
+  wagonChainConstruction,
   wagonChainStatus,
   wagonHome,
   wagonPlanInputOf,

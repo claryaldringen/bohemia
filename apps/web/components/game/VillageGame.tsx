@@ -19,6 +19,7 @@ import {
   type TileCell,
   type TimeSkip,
   type WorldClock,
+  type WagonRoadPlan,
 } from '@bohemia/game';
 import {
   buildTrail,
@@ -43,6 +44,7 @@ import {
   sendExpedition,
   skipTime,
   upgradeRoad,
+  buildWagonRoad,
 } from '@/app/game/actions';
 import { usePlacement } from '@/hooks/use-placement';
 import { usePolling } from '@/hooks/use-polling';
@@ -391,6 +393,26 @@ export function VillageGame({
   useEffect(() => {
     scene?.setSelection(current);
   }, [scene, current]);
+  // Náhled vozové cesty (roads.md – Vozová cesta): vybraná cesta hráče, která vozovou cestu
+  // nemá – trasu, cenu a co přinese spočítá scéna stejnou funkcí jako server a vytyčí ji; až po
+  // vykreslení výběru (hledání trvá desetiny sekundy)
+  const [wagonPlan, setWagonPlan] = useState<{ roadId: number; plan: WagonRoadPlan } | null>(null);
+  const wagonRoadId = current?.kind === 'road' ? current.id : null;
+  const wagonRoad =
+    wagonRoadId !== null ? view?.roads.find((r) => r.id === wagonRoadId)?.wagon : undefined;
+  const wagonOpen = wagonRoad?.status === 'none' && wagonRoad.blocked === null;
+  useEffect(() => {
+    if (!scene) return;
+    if (wagonRoadId === null || !wagonOpen) {
+      scene.previewWagonRoad(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      const plan = scene.previewWagonRoad(wagonRoadId);
+      if (plan) setWagonPlan({ roadId: wagonRoadId, plan });
+    }, 30);
+    return () => clearTimeout(timer);
+  }, [scene, wagonRoadId, wagonOpen, drawnVillage]);
 
   // Testovací háček: kde je bod krajiny na obrazovce (kliknutí na obydlí v e2e testu).
   useEffect(() => {
@@ -992,6 +1014,13 @@ export function VillageGame({
             ? runBuildAction(() => plantRoadApples({ villageId, roadId }))
             : Promise.resolve();
         }}
+        onBuildWagonRoad={(roadId) => {
+          const villageId = viewRef.current?.id;
+          return villageId
+            ? runBuildAction(() => buildWagonRoad({ villageId, roadId }))
+            : Promise.resolve();
+        }}
+        wagonPlan={wagonPlan && wagonPlan.roadId === wagonRoadId ? wagonPlan.plan : null}
         onBuildTrail={(direction) => {
           const villageId = viewRef.current?.id;
           return villageId

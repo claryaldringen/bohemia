@@ -45,7 +45,7 @@ import {
   type Craft,
   type WorkshopActivity,
 } from '@/lib/village-view';
-import type { Direction8, RoadKind, RoadUpgrade, TradeGoods } from '@bohemia/game';
+import type { Direction8, RoadKind, RoadUpgrade, TradeGoods, WagonRoadPlan } from '@bohemia/game';
 import type { PreviewPeople } from '@/lib/trade-quote';
 import { ManorUpgrades, SwathTrees } from './ManorPanel';
 import { TradePanel } from './TradePanel';
@@ -1324,16 +1324,91 @@ export const ROAD_KIND_ICONS: Record<RoadKind, string> = {
  * mokřina a brody; rozestavěné vylepšení a výsadba jabloní průběh; tlačítka vylepšení a „Vysadit
  * jabloně“ (ikony, cena v popisku jako v 0 A.D.) – když nejde, zašedlé s důvodem červeně.
  */
+/** Procenta sklonu na desetiny (6 %, 7,2 %). */
+function gradeText(grade: number): string {
+  const v = Math.round(grade * 1000) / 10;
+  return `${Number.isInteger(v) ? formatInteger(v) : formatDecimal(v, 1)} %`;
+}
+
+/** Minuty jízdy vozu na desetiny; vůz neprojede. */
+function minutesText(minutes: number | null): string {
+  if (minutes === null) return 'neprojede';
+  return `${minutes < 10 ? formatDecimal(minutes, 1) : formatInteger(minutes)} min`;
+}
+
+/**
+ * Popisek tlačítka „Upravit pro vozy“ (roads.md – Vozová cesta): cena (práce, stromy v průseku),
+ * délka nové trasy proti staré, nejprudší místo, největší úvoz a násep a doba jízdy vozem dřív
+ * a teď – z náhledu (`plan`, stejná funkce jako server); než se trasa najde, „Hledá se trasa“.
+ */
+function WagonTooltip({
+  blocked,
+  plan,
+}: {
+  blocked: string | null;
+  plan: WagonRoadPlan | null | undefined;
+}): ReactElement {
+  const reason = blocked ?? (plan && !plan.ok ? plan.reason : null);
+  return (
+    <span className="flex flex-col gap-0.5">
+      <span>Upravit pro vozy</span>
+      {!reason && plan?.ok && (
+        <>
+          <span className="flex items-center gap-2 tabular-nums">
+            <span className="flex items-center gap-1">
+              <img src="/icons/resources/labor.png" alt="" width={16} height={16} />
+              {formatDecimal(plan.laborManDays, 0)}
+            </span>
+            {plan.trees > 0 && <SwathTrees trees={plan.trees} />}
+          </span>
+          <span data-testid="wagon-length" className="tabular-nums">
+            {formatInteger(plan.oldLengthM)} → {formatInteger(plan.lengthM)} m
+          </span>
+          <span data-testid="wagon-grade" className="tabular-nums">
+            sklon {gradeText(plan.oldMaxGrade)} → {gradeText(plan.maxGrade)}
+          </span>
+          {(plan.maxCutM > 0 || plan.maxFillM > 0) && (
+            <span data-testid="wagon-earthworks" className="tabular-nums">
+              úvoz {formatDecimal(plan.maxCutM, 1)} m · násep {formatDecimal(plan.maxFillM, 1)} m
+            </span>
+          )}
+          <span data-testid="wagon-minutes" className="flex items-center gap-1 tabular-nums">
+            <img src="/icons/resources/cart.png" alt="" width={16} height={16} />
+            {minutesText(plan.minutesBefore)} → {minutesText(plan.minutesAfter)}
+          </span>
+        </>
+      )}
+      {!reason && !plan && <span data-testid="wagon-pending">Hledá se trasa…</span>}
+      {reason && (
+        <span data-testid="road-wagon-blocked" className="font-semibold text-red-400">
+          {reason}
+        </span>
+      )}
+    </span>
+  );
+}
+
 function RoadBody({
   details,
   onUpgrade,
   onPlantApples,
+  onBuildWagon,
+  wagonPlan,
 }: {
   details: Extract<SelectionDetails, { kind: 'road' }>;
   onUpgrade?: (roadId: number, upgrade: RoadUpgrade) => Promise<void>;
   onPlantApples?: (roadId: number) => Promise<void>;
+  onBuildWagon?: (roadId: number) => Promise<void>;
+  wagonPlan?: WagonRoadPlan | null;
 }): ReactElement {
   const [busy, setBusy] = useState(false);
+  const buildWagon = (): void => {
+    if (!onBuildWagon || busy) return;
+    setBusy(true);
+    void onBuildWagon(details.id).finally(() => setBusy(false));
+  };
+  const wagonBlocked =
+    details.wagon.blocked ?? (wagonPlan && !wagonPlan.ok ? wagonPlan.reason : null);
   const run = (upgrade: RoadUpgrade): void => {
     if (!onUpgrade || busy) return;
     setBusy(true);
@@ -1402,6 +1477,15 @@ function RoadBody({
             {details.building.treesToFell > 0 && (
               <WoodToFell trees={details.building.treesToFell} />
             )}
+          </div>
+        )}
+        {details.wagon.status === 'building' && (
+          <div className={ROW}>
+            <Bar
+              value={details.wagon.progress}
+              name="Vozová cesta"
+              testId="selection-wagon-progress"
+            />
           </div>
         )}
         {apples.planting && (
@@ -1474,6 +1558,30 @@ function RoadBody({
             </button>
           </Tooltip>
         ))}
+        {details.wagon.status !== 'built' && (
+          <Tooltip
+            placement="above"
+            content={<WagonTooltip blocked={details.wagon.blocked} plan={wagonPlan} />}
+          >
+            <button
+              type="button"
+              data-testid="road-wagon"
+              aria-label="Upravit pro vozy"
+              disabled={wagonBlocked !== null || !wagonPlan?.ok || busy || !onBuildWagon}
+              aria-busy={busy}
+              onClick={buildWagon}
+              className={`hud-inset h-10 w-10 overflow-hidden rounded ${busy ? 'disabled:cursor-wait disabled:opacity-60' : 'disabled:cursor-not-allowed disabled:opacity-45 disabled:grayscale'}`}
+            >
+              <img
+                src={`/icons/build/${ROAD_KIND_ICONS.wagon}.png`}
+                alt=""
+                width={40}
+                height={40}
+                className="h-full w-full"
+              />
+            </button>
+          </Tooltip>
+        )}
         <Tooltip
           placement="above"
           content={
@@ -1580,7 +1688,8 @@ function SacredBody({
  * posvátný dub, háj, modla a svatyně: kolik přidávají štěstí (háj i počet dubů), rozestavěná
  * modla a svatyně průběh stavby a duby ke skácení; ohrada: zvířata, seno, stáda, spřežení
  * a výcvik (cvičí se samo); pevná cesta: délka, stáří, stromy,
- * vylepšení (`onUpgradeRoad`) a výsadba jabloní (`onPlantRoadApples`). Obydlí a víc vybraných
+ * vylepšení (`onUpgradeRoad`), vozová cesta (`onBuildWagonRoad` s náhledem `wagonPlan`)
+ * a výsadba jabloní (`onPlantRoadApples`). Obydlí a víc vybraných
  * obydlí: Přestěhovat (`onRelocate`), Odejít (zatím zašedlé) a průběh stěhování se zrušením
  * (`onCancelRelocation` – migration.md).
  */
@@ -1592,6 +1701,8 @@ export function SelectionPanel({
   onLeave,
   onUpgradeRoad,
   onPlantRoadApples,
+  onBuildWagonRoad,
+  wagonPlan,
   onBuildTrail,
   onSendExpedition,
 }: {
@@ -1602,6 +1713,10 @@ export function SelectionPanel({
   onUpgradeRoad?: (roadId: number, upgrade: RoadUpgrade) => Promise<void>;
   /** Zadá výsadbu jabloní podél pevné cesty (server action) – hotovo, až se vrátí. */
   onPlantRoadApples?: (roadId: number) => Promise<void>;
+  /** Zadá vozovou cestu (server action) – hotovo, až se vrátí (roads.md – Vozová cesta). */
+  onBuildWagonRoad?: (roadId: number) => Promise<void>;
+  /** Náhled vozové cesty vybrané cesty (`planWagonRoad` ve scéně); null – ještě se hledá. */
+  wagonPlan?: WagonRoadPlan | null;
 } & RelocationActions &
   ManorActions): ReactElement | null {
   const [panelRef, scroll] = useOverflowScroll();
@@ -1618,6 +1733,8 @@ export function SelectionPanel({
         details={details}
         onUpgrade={onUpgradeRoad}
         onPlantApples={onPlantRoadApples}
+        onBuildWagon={onBuildWagonRoad}
+        wagonPlan={wagonPlan}
       />
     );
   } else if (details.kind === 'pen') {

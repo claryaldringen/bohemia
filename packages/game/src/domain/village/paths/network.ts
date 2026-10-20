@@ -604,6 +604,14 @@ export function pathNetworkKey(village: PathVillage): string {
     ...(woods.length > 0 ? [woods] : []),
     // stromy u cest (roads.md – Stromy u cesty zrychlí chůzi) – bez nich klíč beze změny
     ...(lining ? [lining] : []),
+    // zemní práce vozových cest (roads.md – Vozová cesta) – terén pěšin; bez nich beze změny
+    ...(village.earthworks && village.earthworks.length > 0
+      ? [
+          village.earthworks
+            .map((e) => `${e.profile.length}:${Math.round(e.reachedM * 10)}`)
+            .join(';'),
+        ]
+      : []),
   ]);
 }
 

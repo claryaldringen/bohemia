@@ -1,4 +1,10 @@
 import {
+  earthworkSpansOf,
+  villageWagonEarthworks,
+  wagonChainConstruction,
+  wagonChainStatus,
+  wagonHome,
+  type RoadProfilePoint,
   BUILD_COSTS,
   CRAFT_PRODUCTS,
   craftSources,
@@ -340,6 +346,12 @@ export interface VillageRoad {
   /** Rozestavěné vylepšení – na jaký stupeň, průběh 0–1 a stromy ke skácení; jinak null. */
   building: { grade: RoadGrade; progress: number; treesToFell: number } | null;
   upgrades: RoadUpgradeOption[];
+  /**
+   * Vozová cesta (roads.md – Vozová cesta): hotová, staví se (průběh 0–1), nebo zatím žádná –
+   * a proč ji teď nejde zadat (bez hledání trasy; trasu, cenu a co přinese spočítá náhled ve
+   * scéně stejnou funkcí jako server – `planWagonRoad`).
+   */
+  wagon: { status: 'none' | 'building' | 'built'; progress: number; blocked: string | null };
   /**
    * Jabloně podél cesty (roads.md – Vysazení jabloní): živé stromy, z nich plodící, rozestavěná
    * výsadba (kolik jabloní a průběh 0–1) a „Vysadit jabloně“ – kolik přibude, práce a proč ne.
@@ -1138,6 +1150,13 @@ export interface SceneVillage {
    * orby dne nebo když spřežení k bloku nedojede, chybí.
    */
   ploughApproach?: { x: number; z: number }[];
+  /**
+   * Zemní práce vozových cest (roads.md – Vozová cesta) – úvozy a náspy: terén scény, síť pěšin
+   * a vozů jedou po upraveném terénu (`PathVillage.earthworks`). Bez údaje žádné.
+   */
+  earthworks?: SceneEarthwork[];
+  /** Střed vsi (dvorec) – vozová cesta se staví od konce blíž k němu (náhled). */
+  home?: { x: number; z: number };
 }
 
 /** Rudiště kováře ve scéně (crafts.md – Uhlí a ruda kováře). */
@@ -1318,7 +1337,26 @@ export type SceneRoad = Pick<
    * konce jeho osy.
    */
   upgrade?: { grade: RoadGrade; progress: number; fromEnd?: true };
+  /**
+   * Loňské jízdy vozů po úseku (jízd za den, na setiny – `Road.cartTraffic`) – náhled vozové cesty
+   * podle nich váží čas jízdy (roads.md – Vozová cesta). Bez vozů chybí.
+   */
+  cartTrips?: number;
 };
+
+/**
+ * Zemní práce vozové cesty pro scénu (roads.md – Vozová cesta): profil osy, brody a hotová délka
+ * (terén scény i sítě pěšin – `terrainEditsFrom`), úseky stavby se stářím (svahy úvozu a náspu
+ * zarůstají trávou – celé roky; null = ještě se staví) a jestli se ještě staví.
+ */
+export interface SceneEarthwork {
+  id: number;
+  profile: RoadProfilePoint[];
+  fords?: number[];
+  reachedM: number;
+  pieces: { toM: number; ageYears: number | null }[];
+  building?: true;
+}
 /** Strom u pevné cesty pro scénu – poloha, druh a vzhled v den pohledu (`roadTreeLook`). */
 export type SceneRoadTree = Pick<RoadTree, 'id' | 'x' | 'z' | 'species'> & RoadTreeLook;
 /** Jabloň u pevné cesty pro scénu – stadium, velikost stromu 0–1 (po setinách) a plody. */
@@ -2008,6 +2046,8 @@ function sceneVillage(
     ...(r.craft ? { craft: r.craft } : {}),
   }));
   const pens = scenePens(state, landscape, day, summary);
+  const earthworks = sceneEarthworks(state, day);
+  const home = wagonHome(state);
   const carts = sceneCarts(state, day, landscape, fields);
   const ploughApproach = scenePloughApproach(state, day, landscape, fields);
   const hayMeadows = hayMeadowLooks(state, day).map((view): SceneHayMeadow => {
@@ -2051,7 +2091,31 @@ function sceneVillage(
     ...(roadApples.length > 0 ? { roadApples } : {}),
     ...(carts.length > 0 ? { carts } : {}),
     ...(ploughApproach ? { ploughApproach } : {}),
+    ...(earthworks.length > 0 ? { earthworks } : {}),
+    ...(home
+      ? { home: { x: Math.round(home.x * 100) / 100, z: Math.round(home.z * 100) / 100 } }
+      : {}),
   };
+}
+
+/**
+ * Zemní práce vozových cest pro scénu (roads.md – Vozová cesta): profily, hotová délka (jako
+ * terén sítě pěšin na serveru – `earthworkSpansOf`), úseky se stářím v celých letech.
+ */
+export function sceneEarthworks(state: VillageState, day: number): SceneEarthwork[] {
+  const spans = earthworkSpansOf(state);
+  return (state.roads?.earthworks ?? []).map((e, k) => ({
+    id: e.id,
+    profile: e.profile.map((p) => ({ x: p.x, z: p.z, y: p.y })),
+    ...(e.fords ? { fords: [...e.fords] } : {}),
+    reachedM: spans[k]!.reachedM,
+    pieces: e.pieces.map((p) => ({
+      toM: p.toM,
+      ageYears:
+        p.builtDay === null ? null : Math.max(0, Math.floor((day - p.builtDay) / DAYS_PER_YEAR)),
+    })),
+    ...(e.constructionId !== undefined ? { building: true as const } : {}),
+  }));
 }
 
 /**
@@ -2173,6 +2237,10 @@ export function sceneRoads(
         : {}),
       // skutečné volné konce (brána, cíl) – jen tam se pás cesty vytrácí
       ...(r.openEnds ? { openEnds: [r.openEnds[0], r.openEnds[1]] as [boolean, boolean] } : {}),
+      // loňské jízdy vozů – náhled vozové cesty (roads.md – Vozová cesta); jen kde vozy jezdí
+      ...((r.cartTraffic?.at(-1) ?? 0) > 0
+        ? { cartTrips: Math.round(r.cartTraffic!.at(-1)! * 100) / 100 }
+        : {}),
       ...(work?.roadGrade
         ? {
             upgrade: {
@@ -2224,6 +2292,23 @@ function chainTreeSpeed(members: readonly Road[]): number {
   return length > 0 ? Math.round((sum / length) * 1000) / 1000 : 0;
 }
 
+/** Vozová cesta u cesty hráče pro panel – stav, průběh stavby a proč ji teď nejde zadat. */
+function wagonView(
+  state: VillageState,
+  roadId: number,
+  earthworks: ReturnType<typeof villageWagonEarthworks>,
+): VillageRoad['wagon'] {
+  const status = wagonChainStatus(state.roads?.roads ?? [], earthworks, roadId);
+  const c = status.status === 'building' ? wagonChainConstruction(state, roadId) : null;
+  const progress =
+    status.status === 'built' ? 1 : c && c.cost > 0 ? Math.min(1, c.done / c.cost) : 0;
+  return {
+    status: status.status,
+    progress: Math.round(progress * 1000) / 1000,
+    blocked: status.blocked,
+  };
+}
+
 /**
  * Pevné cesty pro panel výběru – cesta hráče = řetěz úseků (roads.md – Cesta pro hráče), i
  * vylepšení, která nabízí (s cenou a důvodem).
@@ -2244,6 +2329,7 @@ function roadViews(
   });
   const removed = new Set(obstacleChangesAt(state, day).removed);
   const apples = (state.roads?.apples ?? []).filter((a) => !removed.has(a.id));
+  const earthworks = villageWagonEarthworks(state);
   return roadChains(roads).map((chain) => {
     const members = chain.map((link) => link.road);
     const ids = new Set(members.map((r) => r.id));
@@ -2290,6 +2376,7 @@ function roadViews(
           ? { grade: work.roadGrade, progress: work.progress, treesToFell: work.treesToFell }
           : null,
       upgrades: roadUpgradeOptions(state, r.id, day, obstacles, walk, landscape),
+      wagon: wagonView(state, r.id, earthworks),
       apples: {
         trees: living.length,
         bearing: living.filter((a) => roadAppleBearing(a, day)).length,

@@ -3,7 +3,7 @@ import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
 import type { PathLine } from '@bohemia/game';
-import type { SceneRoad, SceneRoadApple } from '../village-view';
+import type { SceneEarthwork, SceneRoad, SceneRoadApple } from '../village-view';
 import { applyGammaFog } from './gamma-fog';
 import { instanceMatrices, loadMergedModel, type ModelInstance } from './instanced-model';
 import {
@@ -27,6 +27,8 @@ import {
   roadJunctions,
   roadWorksKey,
   stakingLines,
+  wagonStakingKey,
+  wagonStakingLines,
   type RoadPiece,
 } from './road-works-layout';
 import { applySeasonSnow } from './season-materials';
@@ -77,8 +79,18 @@ export class RoadWorks {
     this.pegs = new StakingPegs(scene, (mesh) => env.addShadowCaster(mesh));
   }
 
-  update(roads: readonly SceneRoad[], apples: readonly SceneRoadApple[] = []): void {
-    const key = `${roadWorksKey(roads)}|${appleStakingKey(apples)}`;
+  update(
+    roads: readonly SceneRoad[],
+    apples: readonly SceneRoadApple[] = [],
+    wagon: {
+      earthworks: readonly SceneEarthwork[];
+      preview: readonly { x: number; z: number }[] | null;
+    } = {
+      earthworks: [],
+      preview: null,
+    },
+  ): void {
+    const key = `${roadWorksKey(roads)}|${appleStakingKey(apples)}|${wagonStakingKey(wagon.earthworks, wagon.preview)}`;
     if (key === this.key) return;
     this.key = key;
     const h = this.env.groundHeight;
@@ -109,7 +121,8 @@ export class RoadWorks {
     for (const model of MODELS) this.showModel(model);
     // vytyčení rozestavěného vylepšení a výsadby jabloní – kolíky a provázek
     const apple = appleStaking(roads, apples);
-    this.lines = stakingLines(roads);
+    // vozová cesta (roads.md – Vozová cesta) – nehotová část osy a náhled trasy
+    this.lines = [...stakingLines(roads), ...wagonStakingLines(wagon.earthworks, wagon.preview)];
     this.applePegs = apple.pegs;
     // provázek i přes místa jabloní – kolíky jen na místech (ne po 3 m)
     const lines = [...this.lines, ...apple.lines];

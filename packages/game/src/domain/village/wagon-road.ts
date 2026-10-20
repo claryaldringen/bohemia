@@ -746,6 +746,26 @@ export function wagonWorkTarget(
   return { kind: 'wagon', id: c.id, x: at.x, z: at.z };
 }
 
+/**
+ * Rozestavěná vozová cesta u cesty hráče `roadId` – stavba, jejíž zemní práce začínají nebo
+ * končí v konci řetězu (panel – průběh); jinak null.
+ */
+export function wagonChainConstruction(state: VillageState, roadId: number): Construction | null {
+  const chain = roadChain(state.roads?.roads ?? [], roadId);
+  if (chain.length === 0) return null;
+  const [a, b] = chainEnds(chain);
+  const ends = new Set([cmKey(a), cmKey(b)]);
+  for (const e of state.roads?.earthworks ?? []) {
+    if (e.constructionId === undefined || e.profile.length < 2) continue;
+    if (!ends.has(cmKey(e.profile[0]!)) && !ends.has(cmKey(e.profile[e.profile.length - 1]!))) {
+      continue;
+    }
+    const c = state.constructions.find((x) => x.id === e.constructionId);
+    if (c) return c;
+  }
+  return null;
+}
+
 /** Průběh stavby vozové cesty 0–1 (panel). */
 export function wagonProgress(c: Pick<Construction, 'done' | 'cost'>): number {
   return c.cost > 0 ? Math.min(1, c.done / c.cost) : 1;

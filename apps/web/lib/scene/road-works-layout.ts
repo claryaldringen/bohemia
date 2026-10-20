@@ -1,5 +1,5 @@
-import type { RoadGrade } from '@bohemia/game';
-import type { SceneRoad, SceneRoadApple } from '../village-view';
+import { WAGON_ROAD, type RoadGrade } from '@bohemia/game';
+import type { SceneEarthwork, SceneRoad, SceneRoadApple } from '../village-view';
 import {
   CART_RUT_OFFSET_M,
   CART_WORN_LAYER,
@@ -453,6 +453,46 @@ export function stakingLines(roads: readonly SceneRoad[]): Point[][] {
     }
   }
   return out;
+}
+
+/** Vytyčení vozové cesty – po okrajích vozovky (m od osy). */
+export const WAGON_STAKING_OFFSET_M = WAGON_ROAD.bedHalfM + 0.25;
+
+/**
+ * Vytyčení vozové cesty (roads.md – Vozová cesta; Martin – kolíky a provázek hned od zadání): po
+ * obou okrajích vozovky na ose zemních prací, která ještě není hotová (od hotové délky dál), a na
+ * celé trase náhledu (`preview` – vybraná cesta hráče před zadáním).
+ */
+export function wagonStakingLines(
+  earthworks: readonly Pick<SceneEarthwork, 'profile' | 'reachedM' | 'building'>[],
+  preview: readonly { x: number; z: number }[] | null,
+): Point[][] {
+  const out: Point[][] = [];
+  const stake = (points: readonly { x: number; z: number }[], from: number): void => {
+    const length = lengthsAlong(points).at(-1) ?? 0;
+    if (length - from < 1) return;
+    const part = axisPart(points, from, length);
+    out.push(
+      offsetPolyline(part, WAGON_STAKING_OFFSET_M),
+      offsetPolyline(part, -WAGON_STAKING_OFFSET_M),
+    );
+  };
+  for (const e of earthworks) if (e.building) stake(e.profile, e.reachedM);
+  if (preview && preview.length >= 2) stake(preview, 0);
+  return out;
+}
+
+/** Klíč vytyčení vozových cest – hotová délka po decimetrech a náhled. */
+export function wagonStakingKey(
+  earthworks: readonly Pick<SceneEarthwork, 'id' | 'reachedM' | 'building'>[],
+  preview: readonly { x: number; z: number }[] | null,
+): string {
+  const works = earthworks
+    .filter((e) => e.building)
+    .map((e) => `${e.id}@${Math.round(e.reachedM * 10)}`)
+    .join(',');
+  const p = preview && preview.length >= 2 ? preview : null;
+  return `${works}|${p ? `${p.length}:${p[0]!.x},${p[0]!.z}:${p.at(-1)!.x},${p.at(-1)!.z}` : ''}`;
 }
 
 /**

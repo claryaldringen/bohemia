@@ -384,6 +384,8 @@ export type SelectionDetails =
       building: { grade: RoadGrade; progress: number; treesToFell: number } | null;
       /** Vylepšení, která úsek nabízí – cena a proč teď nejde. */
       upgrades: RoadUpgradeOption[];
+      /** Vozová cesta (roads.md – Vozová cesta) – stav, průběh stavby a proč teď nejde. */
+      wagon: VillageRoad['wagon'];
       /** Jabloně podél úseku a „Vysadit jabloně“ (roads.md – Vysazení jabloní). */
       apples: VillageRoad['apples'];
     };

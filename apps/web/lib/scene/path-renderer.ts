@@ -131,6 +131,8 @@ export interface PathStats {
  */
 export class VillagePaths {
   private village: SceneVillage | null = null;
+  /** Náhled trasy vozové cesty (vytyčení) – vybraná cesta hráče; jinak null. */
+  private wagonPreview: { x: number; z: number }[] | null = null;
   private key = '';
   private timer: ReturnType<typeof setTimeout> | null = null;
   /** Odložené obtisky nové sítě (`recompute` – síť a obtisky ve dvou úlohách). */
@@ -209,6 +211,16 @@ export class VillagePaths {
     return this.router;
   }
 
+  /**
+   * Náhled vozové cesty (roads.md – Vozová cesta): osa trasy se vytyčí kolíky a provázkem jako
+   * stavba; null náhled zruší.
+   */
+  setWagonPreview(points: readonly { x: number; z: number }[] | null): void {
+    this.wagonPreview =
+      points && points.length >= 2 ? points.map((p) => ({ x: p.x, z: p.z })) : null;
+    if (this.village) this.updateRoads(this.village);
+  }
+
   /** Vývojová volba: pěšiny a pevné cesty (obtisky i stromy) vidět / skrýt. */
   setVisible(visible: boolean): void {
     this.visible = visible;
@@ -267,7 +279,10 @@ export class VillagePaths {
       this.env.requestRender();
     }
     // kameny, hať, lávky a vytyčení (i jabloní, které čekají na výsadbu) – při změně dat
-    this.works.update(roads, village.roadApples ?? []);
+    this.works.update(roads, village.roadApples ?? [], {
+      earthworks: village.earthworks ?? [],
+      preview: this.wagonPreview,
+    });
     const treeKey = `${roadTreesKey(village.roadTrees)}|${roadApplesKey(village.roadApples)}`;
     if (treeKey !== this.treeKey) {
       this.treeKey = treeKey;

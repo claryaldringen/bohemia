@@ -23,6 +23,8 @@ import {
   type Landscape,
   type ObstacleLayer,
   type WorldClock,
+  planWagonRoad,
+  type WagonRoadPlan,
 } from '@bohemia/game';
 import type { TileInfo } from '../tile-info';
 import { AmbientSound } from './ambient-sound';
@@ -124,6 +126,8 @@ export class LandscapeScene {
   private readonly selectListeners = new Set<SelectListener>();
   private readonly viewListeners = new Set<ViewListener>();
   private readonly clearedListeners = new Set<ClearedListener>();
+  /** Poslední náhled vozové cesty – pro stejnou ves a cestu se nepočítá znovu. */
+  private wagonPlan: { key: string; plan: WagonRoadPlan } | null = null;
   /** Vymýcený les podle posledního stavu vsi (applyVillage). */
   private cleared: ClearedForest | null = null;
   /** Stisknutá tlačítka myši nad plátnem: kde a jestli zrovna běželo umisťování. */
@@ -567,6 +571,43 @@ export class LandscapeScene {
     if (this.disposed) return;
     this.villageState = village;
     this.applyVillage();
+  }
+
+  /**
+   * Náhled vozové cesty (roads.md – Vozová cesta) pro cestu hráče `roadId`: stejná funkce jako
+   * server při zahájení stavby (`planWagonRoad`) nad vsí scény, krajinou a vrstvou překážek scény;
+   * trasa se vytyčí kolíky a provázkem (`show`). Pro stejnou ves a cestu z mezipaměti. `null` –
+   * náhled zruší. Bez krajiny null.
+   */
+  previewWagonRoad(roadId: number | null, show = true): WagonRoadPlan | null {
+    if (roadId === null || !this.landscape || !this.villageState) {
+      this.paths?.setWagonPreview(null);
+      return null;
+    }
+    const village = this.villageState;
+    const cached = this.wagonPlan;
+    const key = wagonPreviewKey(village, roadId);
+    const plan =
+      cached && cached.key === key
+        ? cached.plan
+        : planWagonRoad({
+            landscape: this.landscape,
+            layer: this.obstacles,
+            changes: village.obstacles ?? NO_OBSTACLE_CHANGES,
+            claimed: new Set(village.reservedTrees ?? []),
+            village,
+            roads: (village.roads ?? []).map((r) => ({
+              ...r,
+              ...(r.cartTrips ? { cartTraffic: [r.cartTrips] } : {}),
+            })),
+            earthworks: village.earthworks ?? [],
+            roadId,
+            home: village.home ?? null,
+          });
+    this.wagonPlan = { key, plan };
+    this.paths?.setWagonPreview(show && plan.ok ? plan.profile : null);
+    this.renderWhenReady();
+    return plan;
   }
 
   /**
@@ -1392,4 +1433,29 @@ function nextPaint(): Promise<void> {
       setTimeout(resolve, 0);
     });
   });
+}
+
+/**
+ * Klíč náhledu vozové cesty – na čem trasa závisí (cesty, zemní práce, stavby, díly polí, ploty
+ * a překážky), bez práce dne: vybraná cesta se nepřepočítává každý herní den.
+ */
+function wagonPreviewKey(village: SceneVillage, roadId: number): string {
+  const changes = village.obstacles;
+  return JSON.stringify([
+    roadId,
+    (village.roads ?? []).map((r) => [
+      r.id,
+      r.points.length,
+      r.grade,
+      r.cart ?? 0,
+      r.cartTrips ?? 0,
+    ]),
+    (village.earthworks ?? []).map((e) => [e.id, Math.round(e.reachedM)]),
+    village.dwellings.map((d) => [d.id, d.built, d.position.x, d.position.z]),
+    village.fields.map((f) => f.parts.map((p) => `${p.cell.x},${p.cell.y},${p.stage}`).join(';')),
+    (village.orchards ?? []).map((o) => o.squares.length),
+    (village.cemeteries ?? []).map((c) => c.squares.length),
+    (village.pens ?? []).map((p) => [p.id, p.x, p.z]),
+    changes ? [changes.removed.length, changes.stumps.length, (changes.added ?? []).length] : 0,
+  ]);
 }

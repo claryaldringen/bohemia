@@ -555,6 +555,7 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
           blocked: 'Vylepšení cesty se už staví.',
         },
       ],
+      wagon: { status: 'building', progress: 0.38, blocked: 'Cesta se už upravuje pro vozy.' },
       apples: {
         trees: 64,
         bearing: 41,

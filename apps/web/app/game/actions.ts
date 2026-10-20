@@ -5,6 +5,7 @@ import { restartGameForPlayer } from '@/lib/game';
 import { getSession } from '@/lib/session';
 import {
   buildTrailForPlayer,
+  buildWagonRoadForPlayer,
   cancelRelocationForPlayer,
   sendExpeditionForPlayer,
   foundDevVillageForPlayer,
@@ -255,6 +256,14 @@ export async function buildTrail(input: unknown): Promise<VillageActionResult> {
  */
 export async function sendExpedition(input: unknown): Promise<VillageActionResult> {
   return villageAction(input, parseSendExpeditionInput, sendExpeditionForPlayer);
+}
+
+/**
+ * Vozová cesta (roads.md – Vozová cesta): `{ villageId, roadId }` – kterýkoli úsek cesty hráče;
+ * server trasu najde znovu (`planWagonRoad` – stejně jako náhled) a zahájí stavbu.
+ */
+export async function buildWagonRoad(input: unknown): Promise<VillageActionResult> {
+  return villageAction(input, parsePlantRoadApplesInput, buildWagonRoadForPlayer);
 }
 
 /**
