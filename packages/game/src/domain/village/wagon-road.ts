@@ -1,6 +1,7 @@
 import {
   length2,
   obstaclesNear,
+  transferPrecision,
   type Landscape,
   type ObstacleKind,
   type ObstacleLayer,
@@ -242,13 +243,31 @@ function searchBox(
   };
 }
 
+/** Krajiny s přesností prohlížeče podle objektu krajiny (`planGrid`). */
+const browserLandscapes = new WeakMap<Landscape, Landscape>();
+
+/**
+ * Krajina s přesností prohlížeče (`transferPrecision` – výšky na cm): náhled v prohlížeči i stavba
+ * na serveru tak naplánují bit po bitu stejnou trasu a cenu (prohlížeč dostane krajinu už v této
+ * přesnosti – převod je tam beze změny).
+ */
+function browserLandscape(landscape: Landscape): Landscape {
+  let out = browserLandscapes.get(landscape);
+  if (!out) {
+    out = transferPrecision(landscape);
+    browserLandscapes.set(landscape, out);
+  }
+  return out;
+}
+
 /** Mřížka hledání vozové cesty pro vstup a okno – terén s úpravami vsi. */
 function planGrid(
   input: WagonPlanInput,
   box: { minX: number; minZ: number; maxX: number; maxZ: number },
 ): WagonGrid {
   // terén okna (z mezipaměti podle krajiny) s překážkami krajiny – balvany a výchozy neprůchodné
-  const window = pathTerrainOf(input.landscape, pathWindowFor(input.landscape, box));
+  const landscape = browserLandscape(input.landscape);
+  const window = pathTerrainOf(landscape, pathWindowFor(landscape, box));
   const withLayer = input.layer ? withObstacles(window, input.layer, input.changes) : window;
   const terrain = withTerrainEdits(withLayer, terrainEditsFrom(input.earthworks));
   return wagonRoadGrid({
