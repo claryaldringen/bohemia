@@ -800,7 +800,9 @@ export type DraftPose = Pick<TeamPose, 'oxen' | 'boy' | 'yoke' | 'rope'>;
 /**
  * Voli pod jhem v bodě dráhy `yoke`, jho na jejich šíjích (kymácí se s krokem), honák vlevo od
  * levého vola a provaz z jeho ruky k hlavě vola. `tempo` = rychlost chůze ÷ TEAM_SPEED_M_S (podle
- * ní se přehrávají klipy chůze). Zapisuje do `out`, nic nealokuje.
+ * ní se přehrávají klipy chůze). `oxen` = 1 – jeden vůl pod jednoduchým jhem uprostřed (dvoukolák
+ * – oxen.md, Potah); druhý vůl pózy pak stojí na jeho místě a kreslí se skrytý. Zapisuje do `out`,
+ * nic nealokuje.
  */
 export function composeDraft(
   yoke: PathPoint,
@@ -809,6 +811,7 @@ export function composeDraft(
   out: DraftPose,
   ground: GroundFn = FLAT,
   leader: TeamLeader = TEAM_PARTS.boy,
+  oxen: 1 | 2 = 2,
 ): DraftPose {
   const p = TEAM_PARTS;
   const k = TEAM_SCALE;
@@ -820,7 +823,7 @@ export function composeDraft(
 
   // Voli: počátek o kus za jhem, do stran od středu.
   out.oxen.forEach((ox, i) => {
-    const side = i === 0 ? -1 : 1;
+    const side = oxen === 1 ? 0 : i === 0 ? -1 : 1;
     ox.x = yoke.x - fx * p.oxYokeZ * k + rx * side * p.oxSpan * k;
     ox.z = yoke.z - fz * p.oxYokeZ * k + rz * side * p.oxSpan * k;
     ox.y = ground(ox.x, ox.z);

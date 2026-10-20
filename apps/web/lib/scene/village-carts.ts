@@ -4,7 +4,7 @@
 // výprava: po zemské stezce ke kraji mapy a zpět, naložený), nebo stojí u ohrady bez volů – a kolik
 // spřežení dnes táhne vůz a kolik orá (voli nejsou zároveň u vozu, u rádla a v ohradě). Kreslí
 // village-renderer.ts (cart-renderer.ts, plough-team-renderer.ts, pen-animals.ts).
-import { CARTS } from '@bohemia/game';
+import { CARTS, DRAFT_OXEN } from '@bohemia/game';
 import type { SceneCart, SceneExpedition, SceneVillage } from '../village-view';
 import {
   CART_TURN_M,
@@ -22,23 +22,30 @@ import { route as walkRoute } from './villager-motion';
 /** Vůz stojí u boční stěny ohrady venku – od plotu (m) a rozestup víc vozů vedle sebe (m). */
 const PARKED_M = { fromFence: 2.3, apart: 2.6, back: 1.5 } as const;
 
-/** Vozy, které dnes jedou (mají úlohu i trasu) – každý táhne jedno spřežení. */
+/** Vozy, které dnes jedou (mají úlohu i trasu) – dvoukolák táhne vůl, čtyřkolák pár. */
 export function drivingCarts(village: Pick<SceneVillage, 'carts'>): SceneCart[] {
   return (village.carts ?? []).filter((c) => c.job !== null && (c.route?.length ?? 0) >= 2);
 }
 
 /**
- * Spřežení dne (wagons.md – Vůz: ve dny orby orají, jinak vozí): kolik jich táhne vůz a kolik
- * jich smí orat – orba dostane jen spřežení, která nejedou s vozem (`ploughTeams` = kolik jich
- * scéna k orbě má). Jádro vozí jen se spřežením, které ten den neorá; scéna to respektuje, i když
- * by data nesouhlasila – voli nejsou zároveň u vozu a u rádla.
+ * Voli dne (oxen.md – Voli se sdílí, wagons.md – Vůz): kolik vozů jede a kolik volů je táhne
+ * (dvoukolák jeden, čtyřkolák dva – DRAFT_OXEN), a kolik párů smí orat – jen z volů, kteří nejedou
+ * s vozem (`ploughTeams` = kolik párů s rádlem scéna k orbě má; vycvičení voli ohrad, bez údaje –
+ * ukázky – pár za každé dva voly vozu). Jádro ve dny orby dává vozům jen voly, kteří neorají;
+ * scéna to respektuje, i když by data nesouhlasila – vůl není zároveň u vozu a u rádla.
  */
 export function draftTeamsToday(
-  village: Pick<SceneVillage, 'carts'>,
+  village: Pick<SceneVillage, 'carts' | 'pens'>,
   ploughTeams: number,
-): { carts: number; plough: number } {
-  const carts = drivingCarts(village).length;
-  return { carts, plough: Math.max(0, ploughTeams - carts) };
+): { carts: number; cartOxen: number; plough: number } {
+  const driving = drivingCarts(village);
+  const cartOxen = driving.reduce((sum, c) => sum + DRAFT_OXEN[c.kind], 0);
+  const trained = (village.pens ?? []).reduce((sum, p) => sum + p.oxen, 0);
+  const free =
+    trained > 0
+      ? Math.floor(Math.max(0, trained - cartOxen) / DRAFT_OXEN.ard)
+      : Math.max(0, ploughTeams - Math.ceil(cartOxen / DRAFT_OXEN.ard));
+  return { carts: driving.length, cartOxen, plough: Math.min(ploughTeams, free) };
 }
 
 /**

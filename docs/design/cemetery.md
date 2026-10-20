@@ -211,9 +211,10 @@ hranici a popel uložili pod mohylu nebo do jámy; kostrové hroby přicházejí
 v 9.–10. století (Lutovský, M.: Hroby předků. Sonda do života a smrti dávných Slovanů. Praha:
 Academia 1996). Hra začíná v roce 500, proto žárový pohřeb.
 
-**Otevřená otázka pro Martina:** má ves s postupem doby (9.–10. století – ve hře zhruba po
-čtyřech měsících skutečného času) přejít na kostrové pohřby (hrob v zemi místo hranice
-a mohyly)? Zatím ne.
+**Kostrové pohřby později** (Martin, 20. 10. 2026: „Křesťanství bude později samostatná velká
+vývojová kapitola, takže to necháme na později“): přechod na kostrové hroby (9.–10. století – ve
+hře zhruba po čtyřech měsících skutečného času) patří ke křesťanství – do té doby žárový pohřeb
+a mohyly.
 
 ## Naměřeno
 
@@ -236,35 +237,35 @@ dospělých po hájení. Dlouhá kalibrace (200 × 60) zatím neběžela.
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                                                                         | Kdo                           |
-| -------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
-| Hráč staví hřbitov; musí být dobře umístěný a dost velký                                                                                           | Martin                        |
-| Blízko vsi, blízko vody, plný nebo žádný → horší hygiena → vyšší úmrtnost                                                                          | Martin                        |
-| Žádný ukazatel hygieny, jen vliv na populaci                                                                                                       | Martin                        |
-| Po čtvercích jako pole; vzdálenosti 150 / 50 m od obydlí a 100 / 30 m od vody                                                                      | návrh Clauda, Martin potvrdil |
-| Hrob 4 m², hroby se neopakují; extra úmrtnost 0,3 / 0,5; hájení chrání; 10 čd/čtverec                                                              | návrh Clauda, Martin potvrdil |
-| Plot hřbitova = pletený plot jako polský plot (hustší), rohy zakulacené                                                                            | Martin, 18. 10. 2026          |
-| Hřbitov smí na pole – čtverec pole pod ním z pole zmizí                                                                                            | Martin, 18. 10. 2026          |
-| Plot opuštěného hřbitova vesničané opraví sami, když se k němu zase chodí – i spadlý                                                               | Martin, 19. 10. 2026          |
-| Oprava plotu 3 čd na hotový čtverec × chybějící stav, stavba ze společné práce                                                                     | návrh Clauda                  |
-| Starému hřbitovu plot zmizí úplně, zůstanou jen mohylky                                                                                            | Martin, 19. 10. 2026          |
-| Významnější lidé větší mohyly na prominentnějších místech; největší vojvodova rodina                                                               | Martin, 19. 10. 2026          |
-| Vojvodova rodina 2 × 2 místa, hlava rodiny 2, ostatní 1, dítě 1 malá; kapacita v místech                                                           | Martin schválil, 19. 10. 2026 |
-| Vojvodova rodina = celá domácnost dvorce; hlava rodiny od 35 let s dítětem                                                                         | návrh Clauda                  |
-| I vojvodova rodina odstupňovaná – významnější a méně významní členové                                                                              | Martin, 19. 10. 2026          |
-| Vojvoda a žena 2 × 2 s kůlem, ostatní dospělí z dvorce 2 místa, děti z dvorce běžná na 1 místo                                                     | návrh Clauda                  |
-| Vojvoda = hlava domácnosti dvorce (i vdovec); začátek osy u branky drží vojvodova rodina, děti z dvorce u branky mimo osu; staré mohyly beze změny | návrh Clauda                  |
-| Prominence = hloubka od branky + 2 × od osy; dospělí mimo pruh osy, děti vzadu na okrajích                                                         | návrh Clauda                  |
-| Velká mohyla, která se nevejde, se zmenší; staré hroby zůstanou po řadách jako dřív                                                                | návrh Clauda                  |
-| Kůl na mohyle vojvodovy rodiny; čerstvá mohyla první rok z holé hlíny                                                                              | návrh Clauda                  |
-| Pěšina vede k brance hřbitova; branku počítá jádro pro síť i scénu                                                                                 | Martin, 19. 10. 2026          |
-| Když je pohřeb, vidět průvod lidí na hřbitov a pak na hřbitově hranici                                                                             | Martin, 20. 10. 2026          |
-| Pohřeb jen zobrazení; mohyla si pamatuje domácnost zemřelého, starší mohyly – průvod od obydlí nejblíž k brance                                    | návrh Clauda                  |
-| Průvod skutečnou chůzí 0,6 m/s, ke vzdálenému hřbitovu rychleji (nejvýš 1,1 m/s, ať dojde za ≈ 3 minuty)                                           | rozhodnutí Clauda             |
-| Hranice hoří do konce dne pohřbu (nejméně 45 s), další herní den doutná, mohyla až po vychladnutí                                                  | návrh Clauda                  |
-| Do scény pohřby posledních 7 herních dnů – obřad u vzdáleného hřbitova trvá déle než 2 dny; konec pozná scéna                                      | rozhodnutí Clauda             |
-| 4 nosiči s márami, domácnost zemřelého a 1–2 lidé z každé další domácnosti, nejvýš 24 postav; za vojvodu celá ves, nejvýš 40                       | návrh Clauda                  |
-| Postavy pohřbu mimo rozpočet pracujících – o ně méně pracujících postav ve dnech obřadu                                                            | návrh Clauda                  |
-| Lidé v kruhu kolem hranice mimo mohyly a plot; domů domácnost po trase průvodu, ostatní od branky ke svému domu                                    | rozhodnutí Clauda             |
-| Nosiči jdou klipem chůze – klip s rukama u már by znamenal nové GLB postav (souběžná práce na postavách)                                           | rozhodnutí Clauda             |
-| Žárový pohřeb (6.–9. století); přechod na kostrové hroby zatím ne – otevřená otázka                                                                | návrh Clauda                  |
+| Rozhodnutí                                                                                                                                         | Kdo                                 |
+| -------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| Hráč staví hřbitov; musí být dobře umístěný a dost velký                                                                                           | Martin                              |
+| Blízko vsi, blízko vody, plný nebo žádný → horší hygiena → vyšší úmrtnost                                                                          | Martin                              |
+| Žádný ukazatel hygieny, jen vliv na populaci                                                                                                       | Martin                              |
+| Po čtvercích jako pole; vzdálenosti 150 / 50 m od obydlí a 100 / 30 m od vody                                                                      | návrh Clauda, Martin potvrdil       |
+| Hrob 4 m², hroby se neopakují; extra úmrtnost 0,3 / 0,5; hájení chrání; 10 čd/čtverec                                                              | návrh Clauda, Martin potvrdil       |
+| Plot hřbitova = pletený plot jako polský plot (hustší), rohy zakulacené                                                                            | Martin, 18. 10. 2026                |
+| Hřbitov smí na pole – čtverec pole pod ním z pole zmizí                                                                                            | Martin, 18. 10. 2026                |
+| Plot opuštěného hřbitova vesničané opraví sami, když se k němu zase chodí – i spadlý                                                               | Martin, 19. 10. 2026                |
+| Oprava plotu 3 čd na hotový čtverec × chybějící stav, stavba ze společné práce                                                                     | návrh Clauda                        |
+| Starému hřbitovu plot zmizí úplně, zůstanou jen mohylky                                                                                            | Martin, 19. 10. 2026                |
+| Významnější lidé větší mohyly na prominentnějších místech; největší vojvodova rodina                                                               | Martin, 19. 10. 2026                |
+| Vojvodova rodina 2 × 2 místa, hlava rodiny 2, ostatní 1, dítě 1 malá; kapacita v místech                                                           | Martin schválil, 19. 10. 2026       |
+| Vojvodova rodina = celá domácnost dvorce; hlava rodiny od 35 let s dítětem                                                                         | návrh Clauda                        |
+| I vojvodova rodina odstupňovaná – významnější a méně významní členové                                                                              | Martin, 19. 10. 2026                |
+| Vojvoda a žena 2 × 2 s kůlem, ostatní dospělí z dvorce 2 místa, děti z dvorce běžná na 1 místo                                                     | návrh Clauda                        |
+| Vojvoda = hlava domácnosti dvorce (i vdovec); začátek osy u branky drží vojvodova rodina, děti z dvorce u branky mimo osu; staré mohyly beze změny | návrh Clauda                        |
+| Prominence = hloubka od branky + 2 × od osy; dospělí mimo pruh osy, děti vzadu na okrajích                                                         | návrh Clauda                        |
+| Velká mohyla, která se nevejde, se zmenší; staré hroby zůstanou po řadách jako dřív                                                                | návrh Clauda                        |
+| Kůl na mohyle vojvodovy rodiny; čerstvá mohyla první rok z holé hlíny                                                                              | návrh Clauda                        |
+| Pěšina vede k brance hřbitova; branku počítá jádro pro síť i scénu                                                                                 | Martin, 19. 10. 2026                |
+| Když je pohřeb, vidět průvod lidí na hřbitov a pak na hřbitově hranici                                                                             | Martin, 20. 10. 2026                |
+| Pohřeb jen zobrazení; mohyla si pamatuje domácnost zemřelého, starší mohyly – průvod od obydlí nejblíž k brance                                    | návrh Clauda                        |
+| Průvod skutečnou chůzí 0,6 m/s, ke vzdálenému hřbitovu rychleji (nejvýš 1,1 m/s, ať dojde za ≈ 3 minuty)                                           | rozhodnutí Clauda                   |
+| Hranice hoří do konce dne pohřbu (nejméně 45 s), další herní den doutná, mohyla až po vychladnutí                                                  | návrh Clauda                        |
+| Do scény pohřby posledních 7 herních dnů – obřad u vzdáleného hřbitova trvá déle než 2 dny; konec pozná scéna                                      | rozhodnutí Clauda                   |
+| 4 nosiči s márami, domácnost zemřelého a 1–2 lidé z každé další domácnosti, nejvýš 24 postav; za vojvodu celá ves, nejvýš 40                       | návrh Clauda                        |
+| Postavy pohřbu mimo rozpočet pracujících – o ně méně pracujících postav ve dnech obřadu                                                            | návrh Clauda                        |
+| Lidé v kruhu kolem hranice mimo mohyly a plot; domů domácnost po trase průvodu, ostatní od branky ke svému domu                                    | rozhodnutí Clauda                   |
+| Nosiči jdou klipem chůze – klip s rukama u már by znamenal nové GLB postav (souběžná práce na postavách)                                           | rozhodnutí Clauda                   |
+| Žárový pohřeb (6.–9. století); kostrové hroby až s křesťanstvím – samostatná kapitola později                                                      | návrh Clauda, Martin (20. 10. 2026) |

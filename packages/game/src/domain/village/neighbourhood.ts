@@ -16,14 +16,17 @@ import { claimedObstacles } from './wood';
  * Přehled vsí `others` na téže mapě v den `day`: obydlí a rozestavěná obydlí (s pozemky
  * a řemesly), modly a svatyně (i rozestavěné), políčka polí, sadů, hřbitovů, ohrad, lesa vsi
  * a pozemků (natočené čtverce zvlášť v `squares` – fields.md, Natočené stavby), odstraněné
- * a pokácené překážky a stromy, které si vyhradily jejich stavby. Opuštěná ves zabírá jen to, co
- * z ní ještě stojí (`abandonedVillageAt`); ves na cestě nic. Bez vsí null.
+ * a pokácené překážky a stromy, které si vyhradily jejich stavby, a obývané kovárny se jménem vsi
+ * (`names` – po vsích `others`; wagons.md, Kování vozů). Opuštěná ves zabírá jen to, co z ní ještě
+ * stojí (`abandonedVillageAt`); ves na cestě nic. Bez vsí null.
  */
 export function neighbourSnapshot(
   others: readonly VillageState[],
   day: number,
+  names: readonly string[] = [],
 ): NeighbourSnapshot | null {
-  const standing = others.filter((v) => !isVillageTravelling(v));
+  const named = others.map((state, i) => ({ state, name: names[i] ?? 'Vedlejší ves' }));
+  const standing = named.filter((v) => !isVillageTravelling(v.state)).map((v) => v.state);
   if (standing.length === 0) return null;
   const snapshot: NeighbourSnapshot = {
     dwellings: [],
@@ -94,6 +97,15 @@ export function neighbourSnapshot(
     );
   }
   snapshot.reserved = [...reserved].sort((a, b) => a - b);
+  // obývané kovárny – tesař ves bez kováře pro kování dojde k nejbližší (wagons.md – Kování vozů)
+  const smithies = named.flatMap(({ state, name }) => {
+    if (isVillageTravelling(state)) return [];
+    const occupied = new Set(state.people.map((p) => p.dwellingId));
+    return state.dwellings
+      .filter((d) => d.workshop?.craft === 'smith' && occupied.has(d.id))
+      .map((d) => ({ x: d.position.x, z: d.position.z, name }));
+  });
+  if (smithies.length > 0) snapshot.smithies = smithies;
   return snapshot;
 }
 

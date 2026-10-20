@@ -21,10 +21,11 @@ model rozdělí na korbu a kolo – kola ve scéně otáčí matice instance pod
 nesešla a postava s kostrou má ve WebGPU vyčerpaný limit 8 vertex bufferů).
 
 Úpravy: koňský postroj 0 A.D. (dvě oje dvoukoláku s chomoutem, zakřivená oj čtyřkoláku
-s dvojitým chomoutem a železná pouzdra ojí) je pryč – vozy táhne pár volů ve šíjovém jhu
-spřežení (tools/blender/plough.py), proto vlastní rovná oj ke středu jha: u dvoukoláku pevná
-(pod korbou, vpředu zahnutá nahoru ke jhu – korba se podle jha naklápí), u čtyřkoláku na čepu
-předku (díl wagon4-pole, scéna ji natahuje od špičky rozvory ke jhu). Měřítko 0 A.D. se zmenší
+s dvojitým chomoutem a železná pouzdra ojí) je pryč. Čtyřkolák táhne pár volů ve šíjovém jhu
+spřežení (tools/blender/plough.py) – vlastní rovná oj na čepu předku (díl wagon4-pole, scéna ji
+natahuje od špičky rozvory ke jhu). Dvoukolák táhne jeden vůl (oxen.md – Potah, Martin 20. 10.
+2026) – vlastní oplení: dvě pevné oje po stranách vola (pod korbou, vpředu zahnuté nahoru k bokům
+jednoduchého jha wagon2-yoke – korba se podle jha naklápí). Měřítko 0 A.D. se zmenší
 na skutečnou velikost: kolo ⌀ 0,98 m (WHEEL_R), tím i korba (dvoukolák ≈ 1,0 × 2,0 m a se
 zahnutou ojí ke jhu ≈ 3,9 m, čtyřkolák ≈ 1,25 × 3,2 m, rozvor 1,5 m). Oj je delší než u koně:
 korba musí být za zadky volů (≈ 1,6 m za jhem – ox.glb), proto vpředu ≈ 1,9–2 m za jhem.
@@ -34,8 +35,11 @@ stejně jako 0 A.D. (koně vpředu v −Y, levé kolo v +X). Rozměry níže (WH
 sedět s CART_PARTS v apps/web/lib/scene/cart-layout.ts (hlídá test podle obalu dílů v GLB).
 
 Výstup wagons.glb – díly (uzly), každý s vlastním počátkem, jeden materiál (atlas 512 × 512):
-  wagon2-body    dvoukolák: korba s nápravou a oj; počátek na zemi pod středem nápravy, špička
-                 oje (střed jejího konce) v POLE2_TIP (vpřed, výška) – tam leží spodek jha
+  wagon2-body    dvoukolák: korba s nápravou a oplením (dvě oje po stranách vola – dvoukolák
+                 táhne jeden vůl, oxen.md – Potah); počátek na zemi pod středem nápravy, střed
+                 mezi špičkami ojí v POLE2_TIP (vpřed, výška) – tam leží spodek jha
+  wagon2-yoke    jednoduché šíjové jho pro jednoho vola, oje oplení přivázané na koncích
+                 (±SHAFT2_X); počátek = spodek středu jha (jako `yoke` v ard.glb)
   wagon4-body    čtyřkolák bez předku: korba, zadní náprava; počátek na zemi uprostřed mezi
                  nápravami (náprava vpředu WHEELBASE4 / 2, vzadu − WHEELBASE4 / 2)
   wagon4-front   předek čtyřkoláku (otáčí se na čepu kolem svislice): přední náprava,
@@ -82,6 +86,9 @@ POLE2_TIP = 2.9  # dvoukolák: od nápravy vpřed ke jhu (korba vpředu ≈ 2 m 
 POLE4_M = 1.5  # čtyřkolák: délka oje modelu (scéna ji natáhne na skutečnou vzdálenost)
 POLE4_R = 0.045  # poloměr oje
 POLE2_R = 0.05
+# dvoukolák táhne jeden vůl (oxen.md – Potah, Martin 20. 10. 2026): oplení – dvě oje po stranách
+# vola (osy ±SHAFT2_X; vůl ox.glb je široký ± 0,35 m), na konci jednoduché šíjové jho (wagon2-yoke)
+SHAFT2_X = 0.45
 
 # --- atlas ---------------------------------------------------------------------------------
 W = H = 512
@@ -644,26 +651,67 @@ def wagon_parts():
     return S, wheel, body2, bed2, body4, front, bed4
 
 
-def pole2(b, bed):
-    """Oj dvoukoláku: pod podlahou od nápravy dopředu, za předkem korby zahnutá nahoru ke jhu;
-    na špičce železná objímka a ovinutí provazem (sem se přiváže jho)."""
+def shafts2(b, bed):
+    """Oplení dvoukoláku (oxen.md – Potah: dvoukolák táhne jeden vůl): dvě oje po stranách vola
+    (±SHAFT2_X) – pod podlahou od nápravy dopředu, za předkem korby zahnuté nahoru k bokům jha na
+    šíji vola; na špičkách železné objímky a ovinutí provazem (sem se přiváže jho), před korbou
+    rozpěra. Střed mezi špičkami leží v (POLE2_TIP, YOKE_Y) jako dřív špička oje – scéna naklápí
+    korbu stejně."""
     z = bed["floor"] - 0.12  # pod příčnými trámy podlahy
-    pts = bezier(F(-0.25, z), F(bed["front"] + 0.25, z), F(bed["front"] + 1.0, z + 0.25), F(POLE2_TIP, YOKE_Y), 14)
-    # rovný kus pod korbou zvlášť (ať se oj pod podlahou nekřiví)
-    path = [F(-0.25, z), F(bed["front"] * 0.5, z)] + [p for p in pts if -p.y > bed["front"] * 0.5 + 0.05]
-    radii = [POLE2_R * (1 - 0.18 * max(0.0, -p.y) / POLE2_TIP) for p in path]
-    b.rod(path, radii, "plank", sides=8, u_len=3.4)
-    tip_dir = (path[-1] - path[-2]).normalized()
-    tip = path[-1]
-    b.rod([tip - tip_dir * 0.2, tip - tip_dir * 0.12], [POLE2_R * 0.95, POLE2_R * 0.95], "iron", sides=8, caps=None)
-    lashing(b, tip - tip_dir * 0.06, tip_dir, POLE2_R * 0.95, 0.09)
-    # oj je přibitá k příčníkům podlahy – dva železné pásy kolem
-    for f in (0.05, bed["front"] * 0.55):
-        p = F(f, z)
-        b.rod([p - Vector((0, 0.025, 0)), p + Vector((0, 0.025, 0))], [POLE2_R * 1.12, POLE2_R * 1.12], "iron", sides=8, caps=None)
-    for p in path:
-        if p.z > YOKE_Y + 0.02:
-            print("POZOR: oj dvoukoláku nad jhem")
+    for side in (-1, 1):
+        x = side * SHAFT2_X
+        pts = bezier(F(-0.25, z, x), F(bed["front"] + 0.25, z, x), F(bed["front"] + 1.0, z + 0.25, x), F(POLE2_TIP, YOKE_Y, x), 14)
+        # rovný kus pod korbou zvlášť (ať se oj pod podlahou nekřiví)
+        path = [F(-0.25, z, x), F(bed["front"] * 0.5, z, x)] + [p for p in pts if -p.y > bed["front"] * 0.5 + 0.05]
+        radii = [POLE2_R * 0.9 * (1 - 0.18 * max(0.0, -p.y) / POLE2_TIP) for p in path]
+        b.rod(path, radii, "plank", sides=8, u_len=3.4)
+        tip_dir = (path[-1] - path[-2]).normalized()
+        tip = path[-1]
+        b.rod([tip - tip_dir * 0.2, tip - tip_dir * 0.12], [POLE2_R * 0.85, POLE2_R * 0.85], "iron", sides=8, caps=None)
+        lashing(b, tip - tip_dir * 0.06, tip_dir, POLE2_R * 0.85, 0.09)
+        # oj je přibitá k příčníkům podlahy – dva železné pásy kolem
+        for f in (0.05, bed["front"] * 0.55):
+            p = F(f, z, x)
+            b.rod([p - Vector((0, 0.025, 0)), p + Vector((0, 0.025, 0))], [POLE2_R * 1.02, POLE2_R * 1.02], "iron", sides=8, caps=None)
+        for p in path:
+            if p.z > YOKE_Y + 0.02:
+                print("POZOR: oj dvoukoláku nad jhem")
+    # rozpěra mezi ojemi těsně před korbou (za zadkem vola)
+    f = bed["front"] + 0.12
+    b.rod([F(f, z + 0.01, -SHAFT2_X), F(f, z + 0.01, SHAFT2_X)], [POLE2_R * 0.7, POLE2_R * 0.7], "plank", sides=6)
+
+
+def yoke1():
+    """Jednoduché šíjové jho pro jednoho vola (dvoukolák – oxen.md, Potah): břevno napříč šíjí se
+    sedlem uprostřed, kolíky (houžve) po stranách krku a podbradní provaz (jako jho páru –
+    plough.py), na koncích ovinutí, kde jsou přivázané oje oplení (±SHAFT2_X). Počátek = spodek
+    středu jha (jako díl `yoke` v ard.glb)."""
+    b = Builder("wagon2-yoke")
+    end = SHAFT2_X + 0.07
+    xs = [-end, -SHAFT2_X, -0.3, -0.16, 0.0, 0.16, 0.3, SHAFT2_X, end]
+
+    def lift(x):
+        d = min(abs(x), 0.3) / 0.3
+        return 0.05 * (1 - d * d)  # sedlo nad šíjí výš
+
+    half_h = 0.05
+    path = [Vector((x, 0, half_h + lift(x))) for x in xs]
+    radii = [0.05] * len(xs)
+    radii[0] = radii[-1] = 0.038
+    b.rod(path, radii, "plank", sides=8, squash=0.8)
+    pegs = []
+    for side in (-1, 1):
+        x = side * 0.17
+        top = Vector((x, 0, 0.1))
+        bottom = Vector((x - side * 0.03, 0.0, -0.48))
+        b.rod([top, bottom], [0.017, 0.015], "plank", sides=6)
+        pegs.append(bottom)
+    a, c = pegs
+    sag = [a.lerp(c, t) + Vector((0, 0, -0.04 * math.sin(math.pi * t))) for t in (0, 0.25, 0.5, 0.75, 1)]
+    b.rod(sag, [0.014] * 5, "rope", sides=5, caps=None)
+    for side in (-1, 1):
+        lashing(b, Vector((side * SHAFT2_X, 0, half_h)), Vector((1, 0, 0)), 0.062, 0.1)
+    return b
 
 
 def pole4(b):
@@ -1058,10 +1106,10 @@ def main():
     image = build_atlas()
     mat = make_material(image)
     S, wheel, body2, bed2, body4, front4, bed4 = wagon_parts()
-    pole2(body2, bed2)
+    shafts2(body2, bed2)
     pole = Builder("wagon4-pole")
     pole4(pole)
-    builders = [body2, body4, front4, pole, wheel] + cargo("wagon2", {**bed2, "bed_front": bed2["front"], "bed_back": bed2["back"]}, False) + cargo("wagon4", bed4, True)
+    builders = [body2, body4, front4, pole, wheel, yoke1()] + cargo("wagon2", {**bed2, "bed_front": bed2["front"], "bed_back": bed2["back"]}, False) + cargo("wagon4", bed4, True)
     objs = [b.build(mat) for b in builders]
     path = os.path.join(OUT, "wagons.glb")
     export(objs, path)

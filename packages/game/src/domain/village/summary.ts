@@ -8,8 +8,9 @@ import {
   readySquares,
   villageCemeteries,
 } from './cemetery';
-import { cartCondition, cartTargets, cartsAway, haulCartsToday, villageCarts } from './carts';
+import { cartCondition, cartsAway, haulCartsToday, villageCarts } from './carts';
 import {
+  cartAwaitingIron,
   craftCoverage,
   craftNeeds,
   craftStocks,
@@ -17,8 +18,10 @@ import {
   workshopLabor,
   type CraftNeeds,
 } from './crafts';
+import { ironTripDaysLeft } from './cart-iron';
 import { charcoalStockKg, kilnCharcoalKg, kilnCharcoalShare } from './charcoal';
 import { smithOreSummary, type SmithOreSummary } from './smith-supply';
+import { craftSkillSummary, type CraftSkillSummary } from './craft-skill';
 import { isFull, isOvercrowded } from './dwellings';
 import { waitingHouseholds } from './households';
 import { familyCounts, type FamilyCounts } from './kinship';
@@ -49,9 +52,22 @@ import {
   villageDams,
   villageHerds,
 } from './livestock';
-import { OXEN, teamAgeYears, trainingProgress, villagePens } from './oxen';
+import {
+  ableTeams,
+  isTrained,
+  oxAgeYears,
+  oxPens,
+  oxPlaces,
+  oxRetireDay,
+  oxTrainingProgress,
+  trainedOxen,
+  villageArds,
+  villageOxen,
+  villagePens,
+} from './oxen';
+import { cartTargets, oxenOverRoom, wantedOxen, wantedPloughPairs } from './draft';
 import { herdPlaces, type HerdPlaces } from './husbandry';
-import { penOccupancy, penPlaces, penSpecies } from './pens';
+import { oxenOf, penOccupancy, penPlaces, penSpecies } from './pens';
 import {
   orchardAgeYears,
   orchardAreaM2,
@@ -59,8 +75,15 @@ import {
   villageApplesKg,
   villageOrchards,
 } from './orchard';
-import { ageGroup, foodNeedPerDay, occupants } from './people';
-import { CARPENTRY, CHARCOAL_KILN, CHRONICLE_MAX_EVENTS, DWELLINGS, STARVATION } from './rules';
+import { ageGroup, ageYears, foodNeedPerDay, occupants } from './people';
+import {
+  CARPENTRY,
+  CART_IRON,
+  CHARCOAL_KILN,
+  CHRONICLE_MAX_EVENTS,
+  DWELLINGS,
+  STARVATION,
+} from './rules';
 import {
   groveHappiness,
   sacredBuildingHappiness,
@@ -80,6 +103,7 @@ import type {
   CraftCoverage,
   CraftStocks,
   DietDay,
+  Direction8,
   DwellingType,
   FallowStage,
   FieldPart,
@@ -90,6 +114,7 @@ import type {
   SquareGrid,
   TileCell,
   VillageState,
+  Workshop,
   WorkshopActivity,
   RoadGrade,
 } from './types';
@@ -218,6 +243,8 @@ export interface WorkshopSummary {
   } | null;
   /** Uhlíř: pařezy buků, na které ještě zasadí mladý buk; ostatní dílny 0. */
   toPlant: number;
+  /** Učení řemesla (crafts.md): výkon dílny podle praxe, praxe řemeslníka a kdo se učí. */
+  skill: CraftSkillSummary;
   /**
    * Tesař (wagons.md – Tesař): rozdělaný vůz (druh a průběh 0–1), klády v dílně a pokrytí dřevěné
    * práce staveb posledního dne 0–1; ostatní dílny null.
@@ -226,6 +253,21 @@ export interface WorkshopSummary {
     cart: { kind: CartKind; progress: number } | null;
     timber: number;
     woodworkCoverage: number;
+    /**
+     * Kování k vozu (wagons.md – Kování vozů): vůz s hotovou dřevěnou prací čeká na kování (kg),
+     * nebo pro něj tesař či jeho syn (věk) jde do vsi `to` (jméno, soused ve směru, nebo ves na
+     * téže mapě) a vrátí se za `daysLeft` dní; jinak null.
+     */
+    iron: {
+      kg: number;
+      trip: {
+        to: string;
+        direction: Direction8 | null;
+        daysLeft: number;
+        son: boolean;
+        age: number;
+      } | null;
+    } | null;
   } | null;
 }
 
@@ -309,19 +351,46 @@ export interface PenSummary {
   cell: TileCell;
   /** Další čtverce ohrady (`pending` – rozšíření ve stavbě); bez údaje jen první. */
   extraSquares?: { cell: TileCell; x: number; z: number; pending?: true }[];
-  /** Místa na noc pro stádo svého druhu (hotové čtverce – `penPlaces`); spřežení 0. */
+  /** Místa na noc pro stádo svého druhu, u ohrady volů pro voly (hotové čtverce – `penPlaces`). */
   places: number;
-  /** Kolik zvířat v ohradě v noci stojí (`penOccupancy` – u spřežení voli a telata). */
+  /** Kolik zvířat v ohradě v noci stojí (`penOccupancy` – u ohrady volů voli i telata). */
   animals: number;
   /** Natočená mřížka ohrady (fields.md – Natočené stavby); bez ní políčko krajiny. */
   grid?: SquareGrid;
   x: number;
   z: number;
   built: boolean;
-  /** Vycvičené spřežení: stáří v letech a kolik let ještě slouží; bez spřežení null. */
+  /**
+   * Nejstarší vycvičený vůl ohrady (oxen.md – Voli po kusech): stáří v letech a kolik let ještě
+   * slouží; bez vycvičených volů null.
+   */
   team: { ageYears: number; yearsLeft: number } | null;
-  /** Výcvik spřežení (začíná sám – oxen.md): průběh 0–1 a zbývající dny; bez výcviku null. */
+  /**
+   * Výcvik volů (začíná sám – oxen.md): tele, které se vycvičí nejdřív – průběh 0–1 a zbývající
+   * dny; bez telat ve výcviku null.
+   */
   training: { progress: number; daysLeft: number } | null;
+  /** Voli ohrady volů – vycvičení a telata ve výcviku; jiné ohrady bez údaje. */
+  oxen?: { trained: number; training: number };
+}
+
+/**
+ * Voli vsi (oxen.md – Ohrada volů, Co hráč vidí): vycvičení, ve výcviku, místa ohrad volů, kolik
+ * volů ves chce (páry k rádlům, nebo voli vozů naráz – víc z toho), páry s rádlem a rádla.
+ */
+export interface OxenSummary {
+  trained: number;
+  training: number;
+  places: number;
+  /** Kolik volů ves chce bez ohledu na místo (`wantedOxen`). */
+  wanted: number;
+  /** Ves chce víc volů, než se vejde do ohrad volů (upozornění). */
+  overRoom: boolean;
+  /** Páry k rádlům, které ves chce (`wantedPloughPairs`). */
+  ploughPairs: number;
+  /** Páry vycvičených volů s rádlem (`ableTeams`). */
+  teams: number;
+  ards: number;
 }
 
 export interface VillageSummary {
@@ -357,6 +426,8 @@ export interface VillageSummary {
    * potřebovalo (oxen.md – Ohrady podle druhu, Co hráč vidí; `herdPlaces`).
    */
   herdPlaces: Record<HerdSpecies, HerdPlaces>;
+  /** Voli vsi a kolik jich ves chce; bez ohrady volů null. */
+  oxen: OxenSummary | null;
   /**
    * Volná (společná) práce posledního dne – kolik ves dnes nechá na stavby; na jaře a v žních
    * bývá nula (Martin, 19. 10. 2026 – ukazatel v liště, dřív průměr 30 dní zaostával o týdny).
@@ -493,8 +564,19 @@ const DAYS_PER_SERVICE_YEAR = 365.25;
 function penSummaries(state: VillageState, day: number): PenSummary[] {
   const occupancy = penOccupancy(state);
   return villagePens(state).map((pen) => {
-    const age = teamAgeYears(pen, day);
-    const progress = trainingProgress(pen, day);
+    const oxen = oxenOf(pen);
+    const trained = oxen.filter((ox) => isTrained(ox, day));
+    const calves = oxen.filter((ox) => !isTrained(ox, day));
+    // nejstarší vůl doslouží první, nejstarší tele se vycvičí první
+    const oldest = trained.reduce<(typeof trained)[number] | null>(
+      (best, ox) => (best === null || ox.trainedDay < best.trainedDay ? ox : best),
+      null,
+    );
+    const nextReady = calves.reduce<(typeof calves)[number] | null>(
+      (best, ox) => (best === null || ox.trainedDay < best.trainedDay ? ox : best),
+      null,
+    );
+    const age = oldest ? oxAgeYears(oldest, day) : null;
     return {
       id: pen.id,
       species: penSpecies(pen),
@@ -516,28 +598,48 @@ function penSummaries(state: VillageState, day: number): PenSummary[] {
       z: pen.z,
       built: pen.builtDay !== null,
       team:
-        age === null ? null : { ageYears: age, yearsLeft: Math.max(0, OXEN.serviceYears - age) },
-      training:
-        progress === null || !pen.training
-          ? null
-          : {
-              progress,
-              daysLeft: Math.max(
+        oldest && age !== null
+          ? {
+              ageYears: age,
+              yearsLeft: Math.max(
                 0,
-                Math.ceil(pen.training.startDay + OXEN.trainingYears * DAYS_PER_SERVICE_YEAR - day),
+                Math.ceil((oxRetireDay(oldest) - day) / DAYS_PER_SERVICE_YEAR),
               ),
-            },
+            }
+          : null,
+      training: nextReady
+        ? {
+            progress: oxTrainingProgress(nextReady, day),
+            daysLeft: Math.max(0, nextReady.trainedDay - day),
+          }
+        : null,
+      ...(penSpecies(pen) === 'team'
+        ? { oxen: { trained: trained.length, training: calves.length } }
+        : {}),
     };
   });
+}
+
+/** Voli vsi pro panel ohrady volů a upozornění; bez ohrady volů null. */
+function oxenSummary(state: VillageState, day: number): OxenSummary | null {
+  if (oxPens(state).length === 0) return null;
+  const trained = trainedOxen(state, day);
+  return {
+    trained,
+    training: villageOxen(state) - trained,
+    places: oxPlaces(state),
+    wanted: wantedOxen(state),
+    overRoom: oxenOverRoom(state),
+    ploughPairs: wantedPloughPairs(state),
+    teams: ableTeams(state, day),
+    ards: villageArds(state),
+  };
 }
 
 /** Dobytek pro panel – stáda zaokrouhleně, nosnost pastvy a lesa. */
 function livestockSummary(state: VillageState, day: number): LivestockSummary {
   const herds = villageHerds(state);
-  const oxen = villagePens(state).reduce(
-    (sum, pen) => sum + (pen.team ? OXEN.teamSize : 0) + (pen.training ? OXEN.teamSize : 0),
-    0,
-  );
+  const oxen = villageOxen(state);
   return {
     herds: {
       sheep: Math.round(herds.sheep),
@@ -688,6 +790,7 @@ export function summarizeVillage(
     livestock: livestockSummary(state, day),
     pens: penSummaries(state, day),
     herdPlaces: herdPlaces(state, day, craftCoverage(state, day).tools),
+    oxen: oxenSummary(state, day),
     commonLaborPerDay: history.at(-1) ?? 0,
     fullHousehold: waitingHouseholds(state, day) > 0,
     constructions: state.constructions.map((c) => constructionSummary(state, c)),
@@ -746,10 +849,11 @@ function craftsSummary(state: VillageState, day: number): CraftsSummary {
           oreFactor: oreFactor(workshop),
           ore:
             workshop.craft === 'smith'
-              ? smithOreSummary(state, d, day, haulCartsToday(state, false) > 0)
+              ? smithOreSummary(state, d, day, haulCartsToday(state, day, false) > 0)
               : null,
           kiln: workshop.kiln ? kilnSummary(workshop.kiln) : null,
           toPlant: workshop.toPlant?.length ?? 0,
+          skill: craftSkillSummary(state, d.id, day),
           carpenter:
             workshop.craft === 'carpenter'
               ? {
@@ -764,6 +868,7 @@ function craftsSummary(state: VillageState, day: number): CraftsSummary {
                     : null,
                   timber: workshop.timber ?? 0,
                   woodworkCoverage: workshop.woodworkCoverage ?? 0,
+                  iron: ironSummary(state, workshop, day),
                 }
               : null,
         },
@@ -776,6 +881,30 @@ function craftsSummary(state: VillageState, day: number): CraftsSummary {
       away: away.has(cart.id),
     })),
     cartTargets: cartTargets(state),
+  };
+}
+
+/** Kování k vozu tesaře pro panel (wagons.md – Kování vozů); bez čekajícího vozu a cesty null. */
+function ironSummary(
+  state: VillageState,
+  workshop: Workshop,
+  day: number,
+): NonNullable<WorkshopSummary['carpenter']>['iron'] {
+  const trip = workshop.ironTrip ?? null;
+  if (!trip && !cartAwaitingIron(workshop)) return null;
+  const kind = workshop.cart?.kind;
+  const kg = trip?.kg ?? (kind ? CART_IRON.kg[kind] : 0);
+  if (!trip) return { kg, trip: null };
+  const traveller = state.people.find((p) => p.id === trip.personId);
+  return {
+    kg,
+    trip: {
+      to: trip.to.name,
+      direction: trip.to.kind === 'neighbour' ? trip.to.direction : null,
+      daysLeft: ironTripDaysLeft(trip),
+      son: trip.son,
+      age: traveller ? ageYears(traveller.bornDay, day) : 0,
+    },
   };
 }
 

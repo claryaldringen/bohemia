@@ -9,7 +9,9 @@ import { withBuiltFirstDwelling } from './village-fixtures';
 
 // Uhlí a ruda kováře (crafts.md – Uhlí a ruda kováře, Starší vsi): ves bez kováře se nemění bit po
 // bitu – uhlíř, hrnčíř, tesař i vůz se spřežením jako dřív. Otisk stavu po dvou letech je
-// spočítaný kódem před rudou (commit před zavedením rudy).
+// spočítaný kódem před rudou (commit před zavedením rudy); s voly po kusech a rokem vozů
+// (oxen.md – Voli po kusech, wagons.md – Kolik vozů ves chce) přepočítaný kódem bez rudy
+// (feat/oxen-carts 656dec4) – vyšel stejně jako se rudou.
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 const DAY = at(601, 3, 1);
@@ -78,6 +80,13 @@ describe('ves bez kováře beze změny (crafts.md – Uhlí a ruda kováře)', (
   it('uhlíř, hrnčíř, tesař a vůz – stav po dvou letech jako před rudou', () => {
     const next = advanceVillage(village(), DAY + 730, null);
     expect(next.orePits).toBeUndefined();
-    expect(hash(JSON.stringify(next))).toBe('68420cbd');
+    // učení řemesla (crafts.md – Učení řemesla, Starší vsi): dnešní řemeslníci jsou vyučení – jen
+    // přibude praxe u lidí a příznak u dílen, simulace jde bit po bitu jako dřív
+    expect(next.people.find((p) => p.id === 100)?.practice).toEqual({ burner: 5 });
+    const learning = new Set(['practice', 'skillTracked']);
+    const stripped = JSON.stringify(next, (key, value: unknown) =>
+      learning.has(key) ? undefined : value,
+    );
+    expect(hash(stripped)).toBe('4faa0291');
   }, 120_000);
 });

@@ -31,13 +31,15 @@ suroviny řemesel (crafts.md) –, ore (hromádka rezavých hrud bahenní rudy �
 kováře), harvest (sklizeň – srp zkřížený s uříznutou hrstí zralých klasů,
 panel dílu pole – fields.md), walk (cesta z domu – dvě šlépěje bosých nohou ve vyšlapané hlíně, chůze
 po pěšinách – paths.md), cart (dvoukolák s loukoťovými koly) a wood-tools (hrábě zkřížené
-s dřevěnými vidlemi) – vozy a dřevěné nářadí od tesaře (wagons.md) –, overgrowth (zarůstání – keře
+s dřevěnými vidlemi) – vozy a dřevěné nářadí od tesaře (wagons.md) –, skill (zkušenost
+řemeslníka – dřevěná palička zkřížená s dlátem, crafts.md – Učení řemesla), overgrowth (zarůstání – keře
 a mladá bříza z modelů krajiny
 `apps/web/public/models/decor/` a `trees/`, fields.md – Zarůstání), condition (stav stavby –
 zšedlý rozštípnutý kůl s prasklinou a mechem) a abandoned (opuštěná stavba – padlý kůl
 v kopřivách z `apps/web/public/models/dwellings/decay.glb`, abandonment.md) a zvířata stád do panelu
 ohrady – sheep, goat, pig, cow, chicken
-(modely `apps/web/public/models/fauna/`) a ox (vůl ze spřežení `apps/web/public/models/plough/ox.glb`)
+(modely `apps/web/public/models/fauna/`) a ox (vůl ze spřežení `apps/web/public/models/plough/ox.glb`),
+ard (rádlo z `apps/web/public/models/plough/ard.glb` – páry s rádlem v panelu ohrady volů)
 a rodiny do panelu obydlí (kinship.md) – man, woman, child (chlapec a dívka), elder (starší s holí
 a šedinami; vesničané z `apps/web/public/models/people/`) a ring (bronzový prsten – manželské
 páry) a family (muž, žena a dítě – výměna lidí se sousedem, trade.md).
@@ -1612,6 +1614,26 @@ def icon_balance():
     return True
 
 
+def icon_ard():
+    """Rádlo (oxen.md – Ohrada volů, panel ohrady volů – páry s rádlem): dřevěné rádlo spřežení
+    z `models/plough/ard.glb` (díl `ard` – tools/blender/plough.py) z boku ve 3/4, bez jha a oje."""
+    objs = []
+    for o in place_model("ard", folder=PLOUGH):
+        if o.name.startswith("ard"):
+            objs.append(o)
+        else:
+            bpy.data.objects.remove(o, do_unlink=True)
+    for o in objs:
+        for slot in o.material_slots:
+            bsdf = next((n for n in slot.material.node_tree.nodes if n.type == "BSDF_PRINCIPLED"), None)
+            if bsdf:  # dřevo rádla světlejší, ať je v malé ikoně vidět
+                bsdf.inputs["Emission Color"].default_value = (0.45, 0.3, 0.16, 1)
+                bsdf.inputs["Emission Strength"].default_value = 0.35
+    sun(az=-30, el=50, strength=5.2)
+    camera(world_points(objs), az=-70, el=30, margin=1.0)
+    return True
+
+
 def icon_animal(name, folder=FAUNA, tint=None, turn=-115):
     """Zvíře stáda (model z `models/fauna/`, vůl ze spřežení `models/plough/`) z boku ve 3/4:
     morph targety pózy (krok, pastva) vypnuté – stojí; pomocná koule v GLB vola pryč."""
@@ -2078,6 +2100,57 @@ def icon_wood_tools():
     return True
 
 
+def icon_skill():
+    """Zkušenost řemeslníka (crafts.md – Učení řemesla): dřevěná palička zkřížená s dlátem –
+    nářadí, se kterým se učeň učí od mistra."""
+    wood, light, iron, edge = bmesh.new(), bmesh.new(), bmesh.new(), bmesh.new()
+    # palička: násada zprava dole doleva nahoru, soudkovitá hlava napříč na horním konci
+    h0, h1 = Vector((0.78, 0.0, -0.86)), Vector((-0.26, 0.0, 0.36))
+    cyl(wood, h0, h1, 0.07, 0.064, 10)
+    d = (h1 - h0).normalized()
+    n = Vector((-d.z, 0, d.x))
+    head = h1 + d * 0.16
+    steps = 8
+    prev = head - n * 0.4
+    for i in range(1, steps + 1):
+        t = i / steps
+        q = head - n * 0.4 + n * (0.8 * t)
+        r0 = 0.2 + 0.05 * math.sin(math.pi * (i - 1) / steps)
+        r1 = 0.2 + 0.05 * math.sin(math.pi * t)
+        cyl(light, prev, q, r0, r1, 18)
+        prev = q
+    # dláto: dřevěná rukojeť vlevo dole, železná čepel doprava nahoru, u rukojeti kroužek
+    c0, c1 = Vector((-0.86, -0.22, -0.86)), Vector((-0.34, -0.22, -0.3))
+    cyl(wood, c0, c1, 0.09, 0.075, 12)
+    e = (c1 - c0).normalized()
+    m = Vector((-e.z, 0, e.x))
+    ring = c1 + e * 0.02
+    cyl(iron, c1 - e * 0.03, ring + e * 0.04, 0.085, 0.085, 12)
+    tip = c1 + e * 1.05
+    shank = c1 + e * 0.16
+    to_xz = lambda p: (p.x, p.z)  # noqa: E731
+    blade = [
+        shank - m * 0.04, shank + e * 0.1 - m * 0.07, tip - m * 0.075,
+        tip + m * 0.075, shank + e * 0.1 + m * 0.07, shank + m * 0.04,
+    ]
+    flat_plate(iron, [to_xz(p) for p in blade], -0.22, 0.05)
+    bevel = [tip - e * 0.12 - m * 0.075, tip - m * 0.075, tip + m * 0.075, tip - e * 0.12 + m * 0.075]
+    flat_plate(edge, [to_xz(p) for p in bevel], -0.22, 0.055)
+    bmesh.ops.recalc_face_normals(iron, faces=iron.faces)
+    bmesh.ops.recalc_face_normals(edge, faces=edge.faces)
+    to_obj(wood, "handles", mat("haft", (0.62, 0.42, 0.22), 0.75, noise=18, bump=0.3))
+    to_obj(light, "mallet", mat("beech", (0.66, 0.46, 0.25), 0.7, noise=22, bump=0.25))
+    ir = mat("forged", (0.36, 0.36, 0.38), 0.42, noise=14, bump=0.4)
+    next(x for x in ir.node_tree.nodes if x.type == "BSDF_PRINCIPLED").inputs["Metallic"].default_value = 0.65
+    to_obj(iron, "iron", ir, smooth=False)
+    ed = mat("edge", (0.72, 0.72, 0.74), 0.3)
+    next(x for x in ed.node_tree.nodes if x.type == "BSDF_PRINCIPLED").inputs["Metallic"].default_value = 0.8
+    to_obj(edge, "edge", ed, smooth=False)
+    sun(az=-35, el=45, strength=4.4)
+    camera([Vector((-1.0, -0.3, -1.0)), Vector((0.95, 0.3, 1.0))], az=0, el=8, margin=1.02)
+    return True
+
+
 # --------------------------------------------------------------- hlavní ----
 
 BUILD = {
@@ -2227,6 +2300,7 @@ def icon_ring():
 
 RESOURCES = {
     "food": icon_food,
+    "skill": icon_skill,
     "wood": icon_wood,
     "labor": icon_labor,
     "satiation": icon_satiation,
@@ -2246,6 +2320,7 @@ RESOURCES = {
     "cow": lambda: icon_animal("cow"),
     "chicken": lambda: icon_animal("chicken"),
     "ox": lambda: icon_animal("ox", folder=PLOUGH),
+    "ard": icon_ard,
     "ozim": icon_ozim,
     "jar": icon_jar,
     "flax": icon_flax,

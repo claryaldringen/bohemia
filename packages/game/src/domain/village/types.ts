@@ -49,6 +49,12 @@ export interface Person {
    * vsích uložených dřív).
    */
   nextBirthFrom?: number;
+  /**
+   * Praxe v řemeslech (crafts.md – Učení řemesla): roky práce v dílně daného řemesla – dospělý ji
+   * získává za dny, kdy dílna pracuje, syn řemeslníka jako učeň od 10 let; nejvýš
+   * CRAFT_SKILL.fullYears (vyučený). Chybí – žádná praxe (i lidé ve vsích bez dílen).
+   */
+  practice?: Partial<Record<Craft, number>>;
 }
 /**
  * Dcera, která se vdala pryč (kinship.md – Sňatky z okolí), nebo člověk, kterého ves dala sousedovi
@@ -318,6 +324,46 @@ export interface Workshop {
   oreBatch?: OreBatch | null;
   /** Kovář: vyčerpaná ložiska (m) – další rudiště aspoň SMITH_SUPPLY.siteSpacingM od nich. */
   oreSitesUsed?: { x: number; z: number }[];
+  /**
+   * Tesař (wagons.md – Kování vozů): cesta pro kování k vozu do nejbližší vsi s kovářem – ves
+   * vlastního kováře nemá; bez údaje nebo null nikdo nejde.
+   */
+  ironTrip?: IronTrip | null;
+  /**
+   * Dílna zná učení řemesla (crafts.md – Učení řemesla): výkon dílny jde podle praxe jejích lidí
+   * (`workshopSkill`). Dílna z doby před učením ho nemá – do převodu (`withCraftSkill`) pracuje
+   * jako vyučená.
+   */
+  skillTracked?: true;
+}
+/**
+ * Kam jde tesař pro kování (wagons.md – Kování vozů): k sousedovi za krajem mapy (směr, hotová
+ * zemská stezka, nebo bod na kraji mapy, kam se jde krajinou), nebo do jiné vsi hráče na téže mapě
+ * (kovárna – m). `name` = jméno vsi.
+ */
+export type IronTripTarget =
+  | {
+      kind: 'neighbour';
+      name: string;
+      direction: Direction8;
+      trailId: number | null;
+      edge: { x: number; z: number };
+    }
+  | { kind: 'village'; name: string; x: number; z: number };
+/**
+ * Cesta pro kování k vozu (wagons.md – Kování vozů): kdo jde (syn tesaře od 14 let, nebo tesař –
+ * id), den odchodu, dny cesty tam a zpět a kolik jich už ušel, kolik kování nese (kg) a kolik obilí
+ * za ně dal (kg), kam jde.
+ */
+export interface IronTrip {
+  personId: number;
+  son: boolean;
+  startedDay: number;
+  days: number;
+  done: number;
+  kg: number;
+  grainKg: number;
+  to: IronTripTarget;
 }
 /**
  * Vůz vsi – zásoba, ne stavba ve scéně (stojí u ohrady se spřežením): vyrobil ho tesař v den
@@ -327,6 +373,38 @@ export interface Cart {
   id: number;
   kind: CartKind;
   builtDay: number;
+}
+
+/**
+ * Rok provozu vozů (wagons.md – Kolik vozů ves chce): co by za rok ušetřil k-tý vůz každého
+ * druhu (čd, index 0 = první vůz) – všechno, co by vozy toho dne mohly vozit, seřazené od největší
+ * úspory, bez ohledu na to, kolik vozů ves měla. `plough` – totéž ve dny orby (dvoukoláky): ty
+ * jezdí jen s voly, kteří neorají.
+ */
+export interface CartDemand {
+  /** Den začátku roku vozů (1. 11.). */
+  from: number;
+  'two-wheel': number[];
+  'four-wheel': number[];
+  plough: number[];
+}
+
+/** Kolik volů a vozů ves chce (oxen.md – Kolik volů ves chce, wagons.md – Kolik vozů ves chce). */
+export interface DraftState {
+  /**
+   * Páry k rádlům, které ves drží (plán osevu k 1. 9., s hysterezí – `nextPloughPairs`): mění se,
+   * jen když potřeba dva roky po sobě leží nad nebo pod nimi.
+   */
+  ploughPairs?: number;
+  /** Kolik párů by loni stačilo zorat celý osev (potřeba z plánu k 1. 9. – pro hysterezi). */
+  ploughNeed?: number;
+  /** Rok vozů, který běží (od 1. 11.). */
+  demand?: CartDemand;
+  /**
+   * Uzavřený loňský rok vozů (k 1. 11.) a cena vola za rok (čd – seno přes zimu i výcvik): podle
+   * něj ves chce vozy. Chybí = ves zatím chce jen vozy, které má.
+   */
+  lastYear?: CartDemand & { oxCost: number };
 }
 /**
  * Zásoby výrobků řemeslníků (crafts.md, kg): uhlí u kováře (crafts.md – Milíř stojí vždy: co uhlíř
@@ -1000,12 +1078,18 @@ export type ChronicleEvent = { day: number } & (
    * všechny – potřeba by byla `needed` ovcí (diet.md – Oděv).
    */
   | { kind: 'wool-short'; sheep: number; needed: number }
-  /** Spřežení volů v ohradě je vycvičené a orá (oxen.md). */
-  | { kind: 'team-ready'; penId: number }
-  /** Spřežení dosloužilo – voli zestárli (oxen.md, ≈ 10 let), šli na maso. */
-  | { kind: 'team-retired'; penId: number }
-  /** Přes zimu chybělo přes polovinu sena – vůl uhynul, spřežení (nebo výcvik) se rozpadlo. */
-  | { kind: 'ox-died'; penId: number; training: boolean }
+  /**
+   * Voli v ohradě jsou vycvičení – táhnou rádla a vozy (oxen.md; `oxen` – kolik, chybí = pár ve
+   * vsích uložených dřív).
+   */
+  | { kind: 'team-ready'; penId: number; oxen?: number }
+  /** Voli dosloužili – zestárli (oxen.md, ≈ 10 let), šli na maso (`oxen` jako u `team-ready`). */
+  | { kind: 'team-retired'; penId: number; oxen?: number }
+  /**
+   * Přes zimu chybělo přes polovinu sena – voli (`training` – telata ve výcviku) uhynuli
+   * (`oxen` – kolik; chybí = spřežení se rozpadlo ve vsích uložených dřív).
+   */
+  | { kind: 'ox-died'; penId: number; training: boolean; oxen?: number }
   /** Sad dosloužil (60. rok) a vrátil se v louku. */
   | { kind: 'orchard-gone'; orchardId: number }
   /** Vesničané zařadili čtverce starého sadu do obnovy (orchard.md – Obnova sadu). */
@@ -1071,6 +1155,14 @@ export type ChronicleEvent = { day: number } & (
     }
   /** Tesař vyrobil vůz (wagons.md – Tesař). */
   | { kind: 'cart-made'; cart: CartKind }
+  /**
+   * Ves nemá kováře – tesař (`son` – jeho syn) šel pro kování k vozu do nejbližší vsi s kovářem
+   * `to` (jméno; soused za krajem mapy ve směru `direction`, jinak jiná ves hráče na téže mapě –
+   * wagons.md, Kování vozů).
+   */
+  | { kind: 'iron-trip'; cart: CartKind; to: string; son: boolean; direction?: Direction8 }
+  /** Tesař (`son` – jeho syn) přinesl kování k vozu – vůz je hotový (wagons.md – Kování vozů). */
+  | { kind: 'iron-brought'; cart: CartKind; son: boolean }
   /** Vůz dosloužil (wagons.md – Vůz) – tesař vyrobí nový, když ho ves potřebuje. */
   | { kind: 'cart-worn-out'; cart: CartKind }
   /**
@@ -1383,6 +1475,14 @@ export interface VillageState {
   /** Ohrady s přístřeškem (oxen.md); chybí = žádné. */
   pens?: Pen[];
   /**
+   * Hotová rádla vsi (oxen.md – Voli po kusech): pár vycvičených volů orá, jen když má rádlo; ves
+   * staví rádlo s výcvikem nového páru k orbě. Chybí = žádné – u vsí uložených dřív jedno na každé
+   * vycvičené spřežení (`withOxen`).
+   */
+  ards?: number;
+  /** Kolik volů a vozů ves chce (oxen.md – Kolik volů ves chce, wagons.md); chybí = nic. */
+  draft?: DraftState;
+  /**
    * Zbytky padlých model a svatyní (abandonment.md – Následky) – zarůstají a zmizí. Chybí =
    * žádné (i u vsí uložených před chátráním staveb).
    */
@@ -1509,6 +1609,11 @@ export interface NeighbourSnapshot {
    * žádné.
    */
   squares?: { cell: TileCell; grid: SquareGrid }[];
+  /**
+   * Obývané kovárny jiných vsí (wagons.md – Kování vozů): poloha (m) a jméno vsi – tesař ves bez
+   * kováře pro kování dojde k nejbližší. Chybí = žádné.
+   */
+  smithies?: { x: number; z: number; name: string }[];
   cleared: ObstacleChange[];
   felled: ObstacleChange[];
   reserved: number[];
@@ -2110,6 +2215,17 @@ export interface PenSquare {
  * a výcvik nového. Stavba a rádlo jsou stavby (`Construction.penId`). První čtverec (`cell`, `x`,
  * `z`) nese přístřešek a jesle, další čtverce jsou v `extraSquares`.
  */
+/**
+ * Vůl v ohradě volů (oxen.md – Voli po kusech): od `trainedDay` je vycvičený a táhne rádlo nebo
+ * vůz (do té doby je to tele ve výcviku – OXEN.trainingYears), slouží OXEN.serviceYears let, pak
+ * jde na maso. `weak` – slabý vůl po zimě bez dost sena (pokrytí sena k 1. 3., 0,5–1): na jaře orá
+ * jen tímto podílem své denní kapacity (oxen.md – Jen rádlo); chybí = plná síla.
+ */
+export interface Ox {
+  trainedDay: number;
+  weak?: number;
+}
+
 export interface Pen {
   id: number;
   /**
@@ -2132,13 +2248,18 @@ export interface Pen {
   /** Den dostavění; dokud se staví, null. */
   builtDay: number | null;
   /**
-   * Vycvičené spřežení (2 voli) – den, kdy začalo orat; úhyn vola ho rozpadne. `weak` – slabí
-   * voli po zimě bez dost sena (pokrytí sena k 1. 3., 0,5–1): na jaře orají jen tímto podílem své
-   * denní kapacity (oxen.md – Jen rádlo); chybí = plná síla.
+   * Voli ohrady volů po kusech (oxen.md – Voli po kusech, Martin 20. 10. 2026) – vycvičení
+   * i telata ve výcviku; jiné druhy ohrad bez údaje. Ohrady uložené dřív mají místo nich
+   * spřežení a výcvik (`team`, `training`) – převede je `withOxen`.
    */
-  team: { readyDay: number; weak?: number } | null;
-  /** Výcvik dvou telat – den zadání (spřežení za OXEN.trainingYears let a s hotovým rádlem). */
-  training: { startDay: number } | null;
+  oxen?: Ox[];
+  /**
+   * Jen ohrady uložené před voly po kusech (do převodu `withOxen`): vycvičené spřežení (2 voli) –
+   * den, kdy začalo orat, `weak` jako u vola.
+   */
+  team?: { readyDay: number; weak?: number } | null;
+  /** Jen ohrady uložené před voly po kusech: výcvik dvou telat – den zadání. */
+  training?: { startDay: number } | null;
   /** Překážky na čtverci (id z vrstvy) – zmizí se zahájením stavby. */
   obstacles?: number[];
   /** Chátrání ohrady bez zvířat, kam nikdo nechodí (abandonment.md); chybí = celá. */

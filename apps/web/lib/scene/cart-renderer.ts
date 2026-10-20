@@ -1,9 +1,10 @@
 // Vozy se spřežením volů ve scéně (docs/design/wagons.md – fáze 3): ve vsi svoz a výprava podle
 // `SceneVillage.carts` (village-carts.ts – jízda tam a zpět po trase dne, vůz bez jízdy stojí
 // u ohrady), na /dev/buildings ukázka „Vozy“ (dokola po trase). Voli a honák jako u spřežení
-// s rádlem (plough-team-renderer.ts – GLB s kostrou, animace ve VAT, thin instances), jho
-// a vodicí provaz z ard.glb (tools/blender/plough.py), vůz z wagons.glb
-// (tools/blender/wagons_from_0ad.py) po dílech: korba, předek a oj čtyřkoláku, kolo a náklad –
+// s rádlem (plough-team-renderer.ts – GLB s kostrou, animace ve VAT, thin instances) – čtyřkolák
+// táhne pár, dvoukolák jeden vůl (oxen.md – Potah); jho páru a vodicí provaz z ard.glb
+// (tools/blender/plough.py), vůz z wagons.glb (tools/blender/wagons_from_0ad.py) po dílech:
+// korba (dvoukolák s oplením), jednoduché jho dvoukoláku, předek a oj čtyřkoláku, kolo a náklad –
 // každý díl jeden mesh v instancích (jeden draw call na díl pro všechny vozy). Matice se každým
 // snímkem přestaví podle cartPlanPose (cart-layout.ts) – kola se točí podle ujeté dráhy maticí
 // instance, ne zapečenou animací; skrytý díl (náklad prázdného vozu, voli stojícího) má nulovou
@@ -49,8 +50,16 @@ const HEAD_ROOM_M = 2.6;
 const BOUNDS_STEP_M = 1;
 /** Kam spřežení sahá před jho (hlavy volů, m). */
 const AHEAD_M = 1.5;
-/** Díly z ard.glb, které vůz potřebuje: šíjové jho a vodicí provaz (rádlo a oj ne). */
+/**
+ * Díly z ard.glb, které vůz potřebuje: šíjové jho páru (čtyřkolák) a vodicí provaz (rádlo a oj
+ * ne). Dvoukolák má jednoduché jho jednoho vola z wagons.glb (`wagon2-yoke` – oxen.md, Potah).
+ */
 const DRAFT_PARTS = ['yoke', 'rope'] as const;
+/** Jho podle druhu vozu – dvoukolák táhne jeden vůl, čtyřkolák pár. */
+const YOKE_PART: Record<CartPlan['kind'], string> = {
+  'two-wheel': 'wagon2-yoke',
+  'four-wheel': 'yoke',
+};
 const DROVER_LOOK = [0.78, 0.7, 0.58, 0] as const;
 /** Měkký stín: délka a šířka (m při CART_SCALE 1), krytí uprostřed. */
 const SHADOW = { ox: [2.4, 1.0], man: [1.0, 1.0] } as const;
@@ -198,8 +207,8 @@ export class CartRenderer {
   }
 
   /**
-   * Které díly má který vůz: korba (a předek s ojí), kola, náklad; jho a provaz jen vůz, který
-   * jezdí (stojící vůz voly nemá).
+   * Které díly má který vůz: korba (a předek s ojí), kola, náklad; jho (dvoukolák jednoduché,
+   * čtyřkolák páru) a provaz jen vůz, který jezdí (stojící vůz voly nemá).
    */
   private partSlots(): Map<string, { cart: number; index: number }[]> {
     const out = new Map<string, { cart: number; index: number }[]>();
@@ -218,7 +227,8 @@ export class CartRenderer {
       for (let w = 0; w < cartWheelCount(plan.kind); w++) add('wagon-wheel', cart, w);
       if ('parked' in plan) return;
       if (plan.cargo !== 'empty') add(`${prefix}-${plan.cargo}`, cart);
-      for (const name of DRAFT_PARTS) add(name, cart);
+      add(YOKE_PART[plan.kind], cart);
+      add('rope', cart);
     });
     return out;
   }
@@ -291,6 +301,12 @@ export class CartRenderer {
       }
       if (pose.hitched) {
         pose.oxen.forEach((o, j) => {
+          if (j >= pose.team) {
+            // dvoukolák táhne jeden vůl (oxen.md – Potah) – druhý se nekreslí
+            hideFigure(ox, i * 2 + j);
+            this.hideShadow(i * SHADOWS_PER_CART + j);
+            return;
+          }
           writeFigure(
             ox,
             i * 2 + j,
@@ -343,8 +359,9 @@ export class CartRenderer {
         const pose = this.poses[cart]!;
         const o = slot * 16;
         if (pose.hidden) part.matrices.fill(0, o, o + 16);
-        else if (name === 'yoke') writePartMatrix(part.matrices, o, pose.yoke, CART_SCALE);
-        else if (name === 'rope') writeSegmentMatrix(part.matrices, o, pose.rope, 1, CART_SCALE);
+        else if (name === 'yoke' || name === 'wagon2-yoke') {
+          writePartMatrix(part.matrices, o, pose.yoke, CART_SCALE);
+        } else if (name === 'rope') writeSegmentMatrix(part.matrices, o, pose.rope, 1, CART_SCALE);
         else if (name === 'wagon4-pole') {
           writeSegmentMatrix(
             part.matrices,

@@ -6,7 +6,8 @@ import { productList, type VillageView } from './village-view';
 // Upozornění vsi (population.md – Co hráč vidí): rodina čeká na dům, ves šetří jídlem, hladoví,
 // lidé umírají hlady – vždy jen nejvyšší stupeň (Hlad a vymření), stavby stojí, hřbitov je plný (cemetery.md), vesničané ušetřili posvátný dub
 // nebo dubový háj (happiness.md – jen když přibude), kovář nemá uhlí a dílna nemá co kácet
-// (crafts.md), tesař nemá klády, vyrobil vůz a vůz dosloužil (wagons.md), svatba mezi domy (population.md – Sňatky mezi domy, když přibude), podzimní porážka,
+// (crafts.md), tesař nemá klády, vyrobil vůz, vůz dosloužil, šel pro kování a přinesl ho
+// (wagons.md), svatba mezi domy (population.md – Sňatky mezi domy, když přibude), podzimní porážka,
 // nouzová porážka, zkažené maso a zimní úhyn stáda (diet.md), spřežení volů – vycvičené, dosloužilo, vůl uhynul pro
 // nedostatek sena (oxen.md) –, vesničané obnovují starý sad a starý sad dosloužil (orchard.md –
 // Obnova sadu), posvátný dub uschl a posvátná souš padla (happiness.md), nevěsta a ženich z okolí
@@ -20,6 +21,8 @@ export type NoticeKind =
   | 'full-household'
   /** Stádo se na noc nevejde do ohrad svého druhu (oxen.md – Ohrady podle druhu). */
   | 'pen-short'
+  /** Ves chce víc volů, než se vejde do ohrad volů (oxen.md – Kolik volů ves chce). */
+  | 'oxen-short'
   /** Stupně hladu (population.md – Co hráč vidí): šetří jídlem, hladoví, umírají hlady. */
   | 'rationing'
   | 'hungry'
@@ -34,6 +37,9 @@ export type NoticeKind =
   | 'carpenter-no-wood'
   | 'cart-made'
   | 'cart-worn-out'
+  /** Ves nemá kováře – tesař šel pro kování k vozu, přinesl ho (wagons.md – Kování vozů). */
+  | 'iron-trip'
+  | 'iron-brought'
   /** Vesničané koupili výrobky řemeslníků u souseda (crafts.md – Nákup u sousedů). */
   | 'crafts-bought'
   | 'sacred-oak'
@@ -127,6 +133,12 @@ const PEN_SHORT_NAMES: Record<HerdSpecies, string> = {
   cow: 'Krávy',
 };
 
+/** Text o volech podle počtu (kronika uložená dřív bez počtu – `legacy`). */
+function oxenText(oxen: number | undefined, legacy: string, one: string, many: string): string {
+  if (oxen === undefined) return legacy;
+  return oxen === 1 ? one : many;
+}
+
 /** Upozornění, která pro ves právě platí (pořadí: problémy, pak zprávy). */
 export function villageNotices(view: VillageView): VillageNotice[] {
   const notices: VillageNotice[] = [];
@@ -167,6 +179,11 @@ export function villageNotices(view: VillageView): VillageNotice[] {
         ? `${PEN_SHORT_NAMES[short[0]!]} se nevejdou do ohrad`
         : 'Stáda se nevejdou do ohrad';
     notices.push({ kind: 'pen-short', tone: 'warn', text });
+  }
+  // ves chce víc volů, než se vejde do ohrad volů – má méně vozů nebo orá pomaleji (oxen.md –
+  // Kolik volů ves chce)
+  if (view.oxen?.overRoom) {
+    notices.push({ kind: 'oxen-short', tone: 'warn', text: 'Voli se nevejdou do ohrady' });
   }
   return notices;
 }
@@ -278,7 +295,12 @@ const CHRONICLE_NOTICES: Partial<
   }),
   // ovcí přes zimu méně, než je třeba na vlnu pro oděv všech (diet.md – Oděv)
   'wool-short': () => ({ kind: 'wool-short', tone: 'warn', text: 'Chybí vlna na oděv' }),
-  'team-ready': () => ({ kind: 'team-ready', tone: 'info', text: 'Spřežení je vycvičené' }),
+  // voli po kusech (oxen.md); kronika uložená dřív – spřežení
+  'team-ready': (entry) => ({
+    kind: 'team-ready',
+    tone: 'info',
+    text: oxenText(entry.oxen, 'Spřežení je vycvičené', 'Vůl je vycvičený', 'Voli jsou vycvičení'),
+  }),
   'bride-from-outside': () => ({
     kind: 'bride-from-outside',
     tone: 'info',
@@ -290,8 +312,16 @@ const CHRONICLE_NOTICES: Partial<
     text: 'Ženich z okolí',
   }),
   'married-away': () => ({ kind: 'married-away', tone: 'info', text: 'Dcera se vdala pryč' }),
-  'team-retired': () => ({ kind: 'team-retired', tone: 'info', text: 'Spřežení dosloužilo' }),
-  'ox-died': () => ({ kind: 'ox-died', tone: 'warn', text: 'Vůl uhynul – chybělo seno' }),
+  'team-retired': (entry) => ({
+    kind: 'team-retired',
+    tone: 'info',
+    text: oxenText(entry.oxen, 'Spřežení dosloužilo', 'Vůl dosloužil', 'Voli dosloužili'),
+  }),
+  'ox-died': (entry) => ({
+    kind: 'ox-died',
+    tone: 'warn',
+    text: `${oxenText(entry.oxen, 'Vůl uhynul', 'Vůl uhynul', 'Voli uhynuli')} – chybělo seno`,
+  }),
   'orchard-renewal-started': () => ({
     kind: 'orchard-renewal',
     tone: 'info',
@@ -305,6 +335,19 @@ const CHRONICLE_NOTICES: Partial<
   // vozy od tesaře (wagons.md – Vůz)
   'cart-made': () => ({ kind: 'cart-made', tone: 'info', text: 'Tesař vyrobil vůz' }),
   'cart-worn-out': () => ({ kind: 'cart-worn-out', tone: 'warn', text: 'Vůz dosloužil' }),
+  // kování vozů (wagons.md) – jen fakt: kdo šel a kam, kdo přinesl
+  'iron-trip': (entry) => ({
+    kind: 'iron-trip',
+    tone: 'info',
+    text: `${entry.son ? 'Syn tesaře šel' : 'Tesař šel'} pro kování k vozu do vsi ${entry.place ?? ''}${
+      entry.direction ? ` (${DIRECTION_NAMES[entry.direction].name})` : ''
+    }`,
+  }),
+  'iron-brought': (entry) => ({
+    kind: 'iron-brought',
+    tone: 'info',
+    text: `${entry.son ? 'Syn tesaře přinesl' : 'Tesař přinesl'} kování`,
+  }),
   // nákup u sousedů (crafts.md) – jen fakt: co a u koho
   'crafts-bought': (entry) => ({
     kind: 'crafts-bought',

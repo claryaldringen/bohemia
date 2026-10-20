@@ -38,6 +38,7 @@ import {
   type SceneVillage,
   type VillageCraftSource,
   type VillagePurchase,
+  type VillageOxen,
   type VillageRoad,
   type VillageView,
 } from './village-view';
@@ -67,9 +68,12 @@ export interface SelectionWorkshop {
   kiln: VillageView['crafts']['workshops'][number]['kiln'];
   /** Uhlíř: pařezy buků, na které ještě zasadí mladý buk. */
   toPlant: number;
+  /** Učení řemesla (crafts.md): výkon dílny podle praxe, praxe řemeslníka a kdo se učí. */
+  skill: VillageView['crafts']['workshops'][number]['skill'];
   /**
    * Tesař (wagons.md – Tesař): vozy vsi (doma / na cestě) a kolik jich ves potřebuje, rozdělaný
-   * vůz (druh, průběh 0–1) a pokrytí dřevěné práce staveb posledního dne 0–1; ostatní dílny null.
+   * vůz (druh, průběh 0–1), pokrytí dřevěné práce staveb posledního dne 0–1 a kování k vozu
+   * (wagons.md – Kování vozů); ostatní dílny null.
    */
   /**
    * Ves výrobek dílny dokupuje u souseda (vlastní řemeslník nemá vstupy – crafts.md, Nákup
@@ -81,6 +85,7 @@ export interface SelectionWorkshop {
     cartTargets: VillageView['crafts']['cartTargets'];
     making: { kind: CartKind; progress: number } | null;
     woodworkCoverage: number;
+    iron: NonNullable<VillageView['crafts']['workshops'][number]['carpenter']>['iron'];
   } | null;
   /** Kovář: ruda, rudiště a kdo nosí uhlí (crafts.md – Uhlí a ruda kováře); jinak chybí. */
   ore?: NonNullable<VillageView['crafts']['workshops'][number]['ore']>;
@@ -326,7 +331,7 @@ export type SelectionDetails =
       species: PenSpecies;
       /** Čtverce ohrady (nejvýš 4). */
       squares: number;
-      /** Místa na noc pro stádo svého druhu; u spřežení 0. */
+      /** Místa na noc pro stádo svého druhu, u ohrady volů pro voly i telata. */
       places: number;
       /** Kolik zvířat v ohradě v noci stojí. */
       animals: number;
@@ -337,8 +342,13 @@ export type SelectionDetails =
       built: boolean;
       /** Průběh stavby 0–1 (hotová 1). */
       progress: number;
-      /** Voli v ohradě – spřežení i telata ve výcviku. */
+      /** Voli v ohradě – vycvičení i telata ve výcviku. */
       oxen: number;
+      /**
+       * Voli vsi a kolik jich ves chce, páry s rádlem a vozy (oxen.md – Ohrada volů, Co hráč
+       * vidí) – jen u ohrady volů, jinak null.
+       */
+      oxenVillage: VillageOxen | null;
       /** Krávy v ohradě (v zimě). */
       cows: number;
       /** Stáda vsi (kusy) a slepice u obydlí. */
@@ -349,9 +359,9 @@ export type SelectionDetails =
       grazingHa: number;
       /** Mléko stád dnes (l, v době dojení – diet.md). */
       milkLPerDay: number;
-      /** Vycvičené spřežení – stáří a kolik let ještě slouží; bez spřežení null. */
+      /** Nejstarší vycvičený vůl – stáří a kolik let ještě slouží; bez vycvičených volů null. */
       team: { ageYears: number; yearsLeft: number } | null;
-      /** Výcvik spřežení – průběh 0–1 a zbývající dny; bez výcviku null. */
+      /** Výcvik volů – tele, které se vycvičí nejdřív: průběh 0–1 a zbývající dny; jinak null. */
       training: { progress: number; daysLeft: number } | null;
       /** Zásoba sena vsi (kg). */
       hayKg: number;
@@ -805,6 +815,7 @@ function workshopDetails(view: VillageView, dwellingId: number): SelectionWorksh
     coverage,
     kiln: workshop.kiln,
     toPlant: workshop.toPlant,
+    skill: workshop.skill,
     ...(workshop.ore ? { ore: workshop.ore } : {}),
     carpenter: carpenter
       ? {
@@ -812,6 +823,7 @@ function workshopDetails(view: VillageView, dwellingId: number): SelectionWorksh
           cartTargets: view.crafts.cartTargets,
           making: carpenter.cart,
           woodworkCoverage: carpenter.woodworkCoverage,
+          iron: carpenter.iron,
         }
       : null,
   };
@@ -871,6 +883,7 @@ function penDetails(view: VillageView | null, id: number): SelectionDetails | nu
     built: pen.built,
     progress: pen.progress,
     oxen: pen.oxen,
+    oxenVillage: pen.species === 'team' ? (view.oxen ?? null) : null,
     cows: pen.cows,
     herds: view.livestock.herds,
     chickens: view.livestock.chickens,

@@ -6,9 +6,12 @@ import {
   CARTS,
   TRADE,
   ageYears,
+  ironTripLine,
   newcomerProfiles,
   purchaseLine,
   type CraftPurchase,
+  type Dwelling,
+  type IronTrip,
   type TradeExpedition,
   type VillageState,
 } from '@bohemia/game';
@@ -30,12 +33,17 @@ function leavingOf(e: TradeExpedition, day: number): SceneExpedition['leaving'] 
 
 /**
  * Výpravy vsi na cestě pro scénu – karavany po zemských stezkách; i skupiny nákupu u sousedů
- * (crafts.md – Nákup u sousedů), bez stezky po přímce krajinou ke kraji mapy.
+ * (crafts.md – Nákup u sousedů), bez stezky po přímce krajinou ke kraji mapy, a tesař nebo jeho
+ * syn na cestě pro kování k vozu (wagons.md – Kování vozů).
  */
 export function sceneExpeditions(state: VillageState): SceneExpedition[] {
   return [
     ...tradeCaravans(state),
     ...(state.purchases ?? []).map((p) => purchaseCaravan(state, p)),
+    ...state.dwellings.flatMap((d) => {
+      const trip = d.workshop?.ironTrip;
+      return trip ? [ironCaravan(state, d, trip)] : [];
+    }),
   ];
 }
 
@@ -90,5 +98,39 @@ function purchaseCaravan(state: VillageState, p: CraftPurchase): SceneExpedition
     rate: p.done < p.days ? Math.round((1 / trip) * 1e4) / 1e4 : 0,
     day: state.lastDay,
     onMap: Math.max(0.2, (trip - TRADE.beyondEdgeDays) / trip),
+  };
+}
+
+/**
+ * Cesta pro kování k vozu jako karavana (wagons.md – Kování vozů; Martin 20. 10. 2026: „Ano, pokud
+ * to bude jen jedna postava, je to v pořádku.“): jedna postava – tesař nebo jeho syn (pohlaví a věk
+ * z jádra) – bez nosičů jde od dílny po zemské stezce, nebo krajinou rovně ke kraji mapy (za krajem
+ * zmizí), nebo do jiné vsi na téže mapě ke kovárně a zpět (celou cestu vidět). Postup den za dnem
+ * 1 ÷ dny cesty jako nákup u sousedů.
+ */
+function ironCaravan(state: VillageState, dwelling: Dwelling, trip: IronTrip): SceneExpedition {
+  const traveller = state.people.find((p) => p.id === trip.personId);
+  const who = {
+    sex: traveller?.sex ?? 'male',
+    age: traveller ? ageYears(traveller.bornDay, state.lastDay) : 30,
+  };
+  const line = ironTripLine(dwelling, trip);
+  const days = Math.max(1, trip.days);
+  return {
+    id: `iron:${dwelling.id}:${trip.startedDay}`,
+    trailId: trip.to.kind === 'neighbour' ? trip.to.trailId : null,
+    ...(line ? { line } : {}),
+    porters: 0,
+    carts: [],
+    cartCrew: CARTS.tradeCrew,
+    leaving: [who],
+    coming: [who],
+    carriesOut: false,
+    carriesBack: false,
+    progress: Math.round(Math.min(1, trip.done / days) * 1e4) / 1e4,
+    rate: trip.done < days ? Math.round((1 / days) * 1e4) / 1e4 : 0,
+    day: state.lastDay,
+    // do vsi na téže mapě je celá cesta vidět, k sousedovi den za krajem mapy (jako nákup)
+    onMap: trip.to.kind === 'village' ? 1 : Math.max(0.2, (days - TRADE.beyondEdgeDays) / days),
   };
 }

@@ -215,8 +215,9 @@ function activityLook(workshop: SelectionWorkshop): {
   const percent = kiln ? formatPercent(kiln.progress) : '–';
   // vypálený milíř je zásobou uhlí – uhlíř z něj nosí kováři (crafts.md – Milíř stojí vždy)
   const inKiln = kiln?.stage === 'draw' ? formatInteger(kiln.charcoalKg) : null;
-  // tesař (wagons.md): rozdělaný vůz, pomoc stavbám
-  const making = workshop.carpenter?.making ?? null;
+  // tesař (wagons.md): rozdělaný vůz, pomoc stavbám; vůz, který čeká na kování, se nevyrábí –
+  // tesař dělá nářadí (wagons.md – Kování vozů)
+  const making = workshop.carpenter?.iron ? null : (workshop.carpenter?.making ?? null);
   const looks: Record<WorkshopActivity, { icon: string; name: string; value: string }> = {
     producing: making
       ? {
@@ -355,6 +356,7 @@ function WorkshopRow({ workshop }: { workshop: SelectionWorkshop }): ReactElemen
       <Stat icon="labor" name="Práce v dílně za den" testId="selection-workshop-labor">
         {formatDecimal(workshop.laborPerDay, 1)}
       </Stat>
+      <SkillStats craft={workshop.craft} skill={workshop.skill} />
       <Stat
         icon={product.icon}
         name={
@@ -395,9 +397,103 @@ function WorkshopRow({ workshop }: { workshop: SelectionWorkshop }): ReactElemen
   );
 }
 
+/** Řemeslník jako učeň – „hrnčíř“ ve větě (1. pád malým). */
+const CRAFTSMAN: Record<Craft, string> = {
+  burner: 'uhlíř',
+  smith: 'kovář',
+  potter: 'hrnčíř',
+  carpenter: 'tesař',
+};
+
+/** Roky praxe česky – „1,4 roku“, „5 let“. */
+function practiceYears(years: number): string {
+  const whole = Math.abs(years - Math.round(years)) < 1e-9;
+  return whole
+    ? `${formatInteger(years)} ${plural(years, 'rok', 'roky', 'let')}`
+    : `${formatDecimal(years, 1)} roku`;
+}
+
+/**
+ * Učení řemesla v panelu dílny (crafts.md – Učení řemesla): zkušenost řemeslníka – výkon dílny
+ * podle praxe (ikona a %) – a synové, kteří se učí (věk; praxe v popisku).
+ */
+function SkillStats({
+  craft,
+  skill,
+}: {
+  craft: Craft;
+  skill: SelectionWorkshop['skill'];
+}): ReactElement {
+  const learning = skill.share < 1;
+  const sons = skill.apprentices;
+  return (
+    <>
+      <Stat
+        icon="skill"
+        name={
+          learning
+            ? `Zkušenost řemeslníka – ${CRAFTSMAN[craft]} se teprve učí (praxe ${practiceYears(skill.years)} z 5 let), dílna pracuje pomaleji`
+            : `Zkušenost řemeslníka – vyučený ${CRAFTSMAN[craft]}, dílna pracuje naplno`
+        }
+        testId="selection-workshop-skill"
+        alert={learning}
+      >
+        {formatPercent(skill.share)}
+      </Stat>
+      {sons.length > 0 && (
+        <Stat
+          icon={sons.every((s) => s.age >= 14) ? 'man' : 'child'}
+          name={`Řemeslu se učí ${sons.length > 1 ? 'synové' : 'syn'} (věk) – ${sons
+            .map((s) => `${s.age} let, praxe ${practiceYears(s.years)}`)
+            .join('; ')}`}
+          testId="selection-workshop-apprentices"
+        >
+          {sons.map((s) => `${s.age}`).join(', ')}
+        </Stat>
+      )}
+    </>
+  );
+}
+
+/**
+ * Kování k vozu v panelu tesaře (wagons.md – Kování vozů): vůz čeká na kování, nebo pro něj tesař
+ * či jeho syn jde do nejbližší vsi s kovářem – dny do návratu.
+ */
+function IronStat({
+  iron,
+}: {
+  iron: NonNullable<NonNullable<SelectionWorkshop['carpenter']>['iron']>;
+}): ReactElement {
+  const trip = iron.trip;
+  if (!trip) {
+    return (
+      <Stat
+        icon="tools"
+        name={`Čeká na kování k vozu (${formatInteger(iron.kg)} kg) – mezitím dělá dřevěné nářadí`}
+        testId="selection-workshop-iron"
+        alert
+      >
+        {`${formatInteger(iron.kg)} kg`}
+      </Stat>
+    );
+  }
+  const who = trip.son ? `Syn tesaře (${trip.age} let)` : 'Tesař';
+  const where = `do vsi ${trip.to}${trip.direction ? ` (${DIRECTION_NAMES[trip.direction].name})` : ''}`;
+  const days = `${trip.daysLeft} ${plural(trip.daysLeft, 'den', 'dny', 'dní')}`;
+  return (
+    <Stat
+      icon="walk"
+      name={`${who} jde pro kování k vozu ${where} – zpět za ${days}`}
+      testId="selection-workshop-iron"
+    >
+      {`${trip.direction ? `${DIRECTION_NAMES[trip.direction].arrow} ` : ''}${trip.daysLeft} d`}
+    </Stat>
+  );
+}
+
 /**
  * Tesař v panelu dílny (wagons.md – Co hráč vidí): vozy vsi proti potřebě (dvoukolák na spřežení,
- * čtyřkolák se stezkou) a pokrytí dřevěné práce staveb.
+ * čtyřkolák se stezkou), kování k vozu a pokrytí dřevěné práce staveb.
  */
 function CarpenterStats({
   carpenter,
@@ -424,6 +520,7 @@ function CarpenterStats({
           </Stat>
         );
       })}
+      {carpenter.iron && <IronStat iron={carpenter.iron} />}
       <Stat
         src="/icons/build/tesar.png"
         name="Pokrytí dřevěné práce staveb tesařem (stavby dnes)"
@@ -1213,13 +1310,26 @@ function PenBody({
   }
   const animal = penVariant(details.species);
   const team = details.species === 'team';
+  const oxen = details.oxenVillage;
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
       <div className="flex items-center gap-3">
         {team ? (
-          <Stat icon="ox" name="Voli v ohradě" testId="selection-oxen">
-            {details.oxen}
-          </Stat>
+          <>
+            <Stat icon="ox" name="Voli v ohradě" testId="selection-oxen">
+              {details.oxen}
+            </Stat>
+            {oxen && (
+              <Stat
+                src="/icons/build/ohrada.png"
+                name={`Místa v ohradách volů / kolik volů ves chce (vycvičení ${formatInteger(oxen.trained)}, ve výcviku ${formatInteger(oxen.training)})`}
+                testId="selection-oxen-need"
+                alert={oxen.places < oxen.wanted}
+              >
+                {formatInteger(oxen.places)}/{formatInteger(oxen.wanted)}
+              </Stat>
+            )}
+          </>
         ) : (
           <Stat
             icon={animal.icon}
@@ -1283,23 +1393,47 @@ function PenBody({
           </Tooltip>
         </li>
       </ul>
+      {oxen && (
+        <div className="flex items-center gap-3">
+          <Stat
+            icon="ard"
+            name="Páry volů s rádlem / páry k orbě, které ves chce"
+            testId="selection-oxen-ploughs"
+            alert={oxen.teams < oxen.ploughPairs}
+          >
+            {formatInteger(oxen.teams)}/{formatInteger(oxen.ploughPairs)}
+          </Stat>
+          {(['two-wheel', 'four-wheel'] as const).map((kind) =>
+            oxen.carts[kind] > 0 || oxen.cartTargets[kind] > 0 ? (
+              <Stat
+                key={kind}
+                icon="cart"
+                name={`${CART_NAMES[kind]} – má / chce`}
+                testId={`selection-oxen-carts-${kind}`}
+              >
+                {formatInteger(oxen.carts[kind])}/{formatInteger(oxen.cartTargets[kind])}
+              </Stat>
+            ) : null,
+          )}
+        </div>
+      )}
       {details.team && (
         <div className="flex items-center gap-3">
-          <Stat icon="ox" name="Spřežení – stáří (roky)" testId="selection-team-age">
+          <Stat icon="ox" name="Nejstarší vůl – stáří (roky)" testId="selection-team-age">
             {details.team.ageYears}
           </Stat>
-          <Stat icon="hourglass" name="Spřežení – slouží ještě (roky)" testId="selection-team-left">
+          <Stat
+            icon="hourglass"
+            name="Nejstarší vůl – slouží ještě (roky)"
+            testId="selection-team-left"
+          >
             {details.team.yearsLeft}
           </Stat>
         </div>
       )}
       {details.training && (
         <div className="flex items-center gap-1.5">
-          <Bar
-            value={details.training.progress}
-            name="Výcvik spřežení"
-            testId="selection-training"
-          />
+          <Bar value={details.training.progress} name="Výcvik volů" testId="selection-training" />
           <Stat icon="hourglass" name="Výcvik – zbývá dní" testId="selection-training-days">
             {formatInteger(details.training.daysLeft)}
           </Stat>

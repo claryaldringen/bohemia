@@ -485,6 +485,8 @@ describe('souhrn řemesel pro panel (crafts.md – Co hráč vidí)', () => {
         ore: { stockKg: 0, site: null, heapKg: 0, sons: [], cart: false },
         kiln: null,
         toPlant: 0,
+        // kovář z doby před učením řemesla je vyučený (crafts.md – Učení řemesla)
+        skill: { share: 1, years: 5, apprentices: [] },
         carpenter: null,
       },
     ]);

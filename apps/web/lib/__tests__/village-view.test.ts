@@ -2149,6 +2149,8 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
       cart: { kind: 'two-wheel', progress: 0.4 },
       timber: 0,
       woodworkCoverage: 0.5,
+      // vůz ještě nečeká na kování (wagons.md – Kování vozů)
+      iron: null,
     });
     expect(view.crafts.present).toBe(true);
     expect(view.crafts.stocks.woodToolsKg).toBe(12);
@@ -2157,6 +2159,29 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
     // tesař netopí – dílna nekouří; model zatím polozemnice (scéna)
     expect(view.scene.dwellings.find((d) => d.id === 50)).toMatchObject({ craft: 'carpenter' });
     expect(view.scene.dwellings.find((d) => d.id === 50)?.working).toBeUndefined();
+  });
+
+  it('ohrada volů: voli vsi, místa, kolik volů ves chce, páry s rádlem a vozy (oxen.md)', () => {
+    const view = buildVillageView(record(carpenterVillage()), landscape, DAY);
+    expect(view.oxen).toEqual({
+      trained: 2,
+      training: 0,
+      places: 6,
+      wanted: 2,
+      overRoom: false,
+      ploughPairs: 1,
+      teams: 1,
+      ards: 1,
+      carts: { 'two-wheel': 1, 'four-wheel': 0 },
+      cartTargets: { 'two-wheel': 1, 'four-wheel': 0 },
+    });
+    expect(view.pens[0]).toMatchObject({ species: 'team', places: 6, animals: 2, oxen: 2 });
+    expect(view.scene.ploughPairs).toBe(1);
+    expect(view.scene.pens![0]).toMatchObject({ oxen: 2, trainees: 0 });
+    // ves bez ohrady volů údaj nemá
+    const plain = buildVillageView(record(settled()), landscape, DAY);
+    expect(plain.oxen).toBeUndefined();
+    expect(plain.scene.ploughPairs).toBeUndefined();
   });
 
   it('vozy ve scéně stojí u ohrady se spřežením a nesou cíl svozu dne', () => {

@@ -281,10 +281,10 @@ function addField(state: VillageState, day: number, field: FieldInput): void {
   if (extended !== undefined && joined.length > 1) mergeFields(state, extended, joined.slice(1));
   const fieldId = extended ?? state.nextId++;
   if (extended === undefined) state.fields.push({ id: fieldId, ...(grid ? { grid } : {}) });
-  // založení podle dnešního pokrytí nástroji (crafts.md – meze produktivity); ves se spřežením
-  // louku motykou nezakládá – drn rozorá rádlo při první orbě (oxen.md – Jen rádlo)
+  // založení podle dnešního pokrytí nástroji (crafts.md – meze produktivity); ves s párem volů
+  // a rádlem louku motykou nezakládá – drn rozorá rádlo při první orbě (oxen.md – Jen rádlo)
   const tools = craftCoverage(state, day).tools;
-  const ard = ableTeams(state) > 0;
+  const ard = ableTeams(state, day) > 0;
   let cost = 0;
   for (const input of field.parts) {
     const foundingCost = partFoundingCost(

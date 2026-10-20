@@ -14,6 +14,7 @@ export * from './plough';
 export * from './plough-blocks';
 export * from './plough-trip';
 export * from './oxen';
+export * from './draft';
 export * from './pens';
 export { breedingCows, herdPlaces, winterHayNeedKg, type HerdPlaces } from './husbandry';
 export * from './herding';
@@ -99,6 +100,28 @@ export * from './sacred';
 export * from './sacred-life';
 export * from './happiness';
 export * from './crafts';
+// kování vozů (wagons.md – Kování vozů) – krok dne volá simulate.ts
+export {
+  cartIronKg,
+  ironCarrier,
+  ironPriceKg,
+  ironRoute,
+  ironTripDaysLeft,
+  ironTripLine,
+  mapTripDays,
+  smithAtHome,
+  type IronRoute,
+} from './cart-iron';
+// učení řemesla (crafts.md – Učení řemesla) – den praxe volá simulate.ts
+export {
+  craftApprentices,
+  craftSkillSummary,
+  practiceOf,
+  skillShare,
+  withCraftSkill,
+  workshopSkill,
+  type CraftSkillSummary,
+} from './craft-skill';
 export * from './charcoal';
 export * from './smith-supply';
 // nákup u sousedů (crafts.md) – kroky simulace (odchod, cesta, návrat) volá simulate.ts
@@ -137,7 +160,6 @@ export {
   EVERYWHERE,
   cartCondition,
   cartOrigin,
-  cartTargets,
   cartsAway,
   cropCartReach,
   expeditionCartKinds,
@@ -149,11 +171,10 @@ export {
   haulProgress,
   hauledBy,
   logsCartReach,
-  missingCart,
   mowingCartReach,
   networkCartAccess,
   sowingCartReach,
-  teamsAway,
+  cartOxen,
   tradeCarts,
   trailCartPassable,
   villageCartAccess,

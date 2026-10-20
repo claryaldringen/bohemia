@@ -354,14 +354,15 @@ const sacred = (
 
 /**
  * Druhy ohrady v pořadí rozcestníku mřížky staveb (oxen.md – Ohrady podle druhu): ovce, kozy, prasata,
- * skot, spřežení – ikony zvířat (`public/icons/resources/`).
+ * skot, voli (ohrada volů – oxen.md, Ohrada volů; v kódu druh `team`) – ikony zvířat
+ * (`public/icons/resources/`).
  */
 export const PEN_VARIANTS: readonly (SquaresVariant & { id: PenSpecies })[] = [
   { id: 'sheep', icon: 'sheep', name: 'Ovce' },
   { id: 'goat', icon: 'goat', name: 'Kozy' },
   { id: 'pig', icon: 'pig', name: 'Prasata' },
   { id: 'cattle', icon: 'cow', name: 'Skot' },
-  { id: 'team', icon: 'ox', name: 'Spřežení' },
+  { id: 'team', icon: 'ox', name: 'Voli' },
 ];
 
 /** Název ohrady podle druhu – portrét panelu (oxen.md – Ohrady podle druhu). */
@@ -370,7 +371,7 @@ export const PEN_NAMES: Record<PenSpecies, string> = {
   goat: 'Ohrada koz',
   pig: 'Ohrada prasat',
   cattle: 'Ohrada skotu',
-  team: 'Ohrada spřežení',
+  team: 'Ohrada volů',
 };
 
 /** Ikona a název zvířat ohrady podle druhu (ikony `public/icons/resources/`). */

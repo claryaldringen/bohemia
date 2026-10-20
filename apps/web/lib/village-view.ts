@@ -14,6 +14,8 @@ import {
   CELL_SIZE_M,
   CART_NAMES,
   ableTeams,
+  oxPens,
+  ploughPairsHome,
   ploughsThisYear,
   CRAFT_NAMES,
   CRAFT_PRODUCTION,
@@ -91,6 +93,7 @@ import {
   type DietDay,
   type HerdSpecies,
   type LivestockSummary,
+  type OxenSummary,
   type ChronicleEvent,
   type LandTaker,
   type FamilyCounts,
@@ -276,16 +279,26 @@ export interface VillageSacred {
   }[];
 }
 
-/** Ohrada pro panel výběru (oxen.md – Co hráč vidí): stavba, spřežení, výcvik a seno. */
+/**
+ * Voli vsi (oxen.md – Ohrada volů, Co hráč vidí): vycvičení a ve výcviku, místa ohrad volů, kolik
+ * volů ves chce (páry k rádlům, nebo voli vozů naráz), páry s rádlem a vozy, které ves má a chce
+ * (wagons.md – Kolik vozů ves chce).
+ */
+export interface VillageOxen extends OxenSummary {
+  carts: Record<CartKind, number>;
+  cartTargets: Readonly<Record<CartKind, number>>;
+}
+
+/** Ohrada pro panel výběru (oxen.md – Co hráč vidí): stavba, voli, výcvik a seno. */
 export interface VillagePen {
   id: number;
   /** Druh zvířat ohrady (oxen.md – Ohrady podle druhu). */
   species: PenSpecies;
   /** Čtverce ohrady (i rozšíření ve stavbě) – nejvýš 4. */
   squares: number;
-  /** Místa na noc pro stádo svého druhu (hotové čtverce); u spřežení 0. */
+  /** Místa na noc pro stádo svého druhu, u ohrady volů pro voly (hotové čtverce). */
   places: number;
-  /** Kolik zvířat v ohradě v noci stojí (u spřežení voli a telata). */
+  /** Kolik zvířat v ohradě v noci stojí (u ohrady volů voli a telata). */
   animals: number;
   /**
    * Místa stáda svého druhu celé vsi – ve všech ohradách druhu, u domů a kolik míst v ohradách by
@@ -297,9 +310,9 @@ export interface VillagePen {
   built: boolean;
   /** Průběh stavby 0–1 (hotová 1). */
   progress: number;
-  /** Vycvičené spřežení – stáří a kolik let ještě slouží; bez spřežení null. */
+  /** Nejstarší vycvičený vůl – stáří a kolik let ještě slouží; bez vycvičených volů null. */
   team: { ageYears: number; yearsLeft: number } | null;
-  /** Výcvik spřežení – průběh 0–1 a zbývající dny; bez výcviku null. */
+  /** Výcvik volů – tele, které se vycvičí nejdřív: průběh 0–1 a zbývající dny; jinak null. */
   training: { progress: number; daysLeft: number } | null;
   /** Kolik krav a volů v ohradě právě stojí (krávy jen v zimě). */
   cows: number;
@@ -403,8 +416,14 @@ export interface VillageWorkshop {
   /** Uhlíř: pařezy buků, na které ještě zasadí mladý buk; ostatní 0. */
   toPlant: number;
   /**
-   * Tesař (wagons.md – Tesař): rozdělaný vůz (druh a průběh 0–1), klády v dílně a pokrytí dřevěné
-   * práce staveb posledního dne 0–1; ostatní dílny null.
+   * Učení řemesla (crafts.md – Učení řemesla): výkon dílny podle praxe 0–1 (po setinách), praxe
+   * řemeslníka (roky, po desetinách) a synové, kteří se učí (věk, praxe).
+   */
+  skill: VillageSummary['crafts']['workshops'][number]['skill'];
+  /**
+   * Tesař (wagons.md – Tesař): rozdělaný vůz (druh a průběh 0–1), klády v dílně, pokrytí dřevěné
+   * práce staveb posledního dne 0–1 a kování k vozu (čeká, nebo cesta pro ně – wagons.md, Kování
+   * vozů); ostatní dílny null.
    */
   carpenter: VillageSummary['crafts']['workshops'][number]['carpenter'];
   /**
@@ -517,6 +536,11 @@ export interface VillageView {
    * druhu) – co se nevejde, půjde při porážce na maso; bez údaje se vejdou všechna.
    */
   penShort?: HerdSpecies[];
+  /**
+   * Voli vsi a kolik jich ves chce (oxen.md – Ohrada volů, Co hráč vidí) – panel ohrady volů
+   * a upozornění „Voli se nevejdou do ohrady“; bez ohrady volů bez údaje.
+   */
+  oxen?: VillageOxen;
   /** Pevné cesty (roads.md) – úseky pro panel výběru: stupeň, délka, stáří, stromy, vylepšení. */
   roads: VillageRoad[];
   /** Klády na hromadě u vsi v kusech (forest.md). */
@@ -629,6 +653,14 @@ export interface VillageView {
     direction?: Direction8;
     /** Co ves koupila u souseda (`crafts-bought` – crafts.md, Nákup u sousedů). */
     products?: CraftProduct[];
+    /**
+     * Cesta pro kování k vozu (`iron-trip`, `iron-brought` – wagons.md, Kování vozů): do které vsi
+     * (jméno) a jestli šel syn tesaře.
+     */
+    place?: string;
+    son?: boolean;
+    /** Kolik volů se vycvičilo, dosloužilo nebo uhynulo (oxen.md – Voli po kusech). */
+    oxen?: number;
     dateLabel: string;
     text: string;
   }[];
@@ -1077,6 +1109,11 @@ export interface SceneVillage {
    * počítá louku bez motyky (jen překážky) jako server. Bez údaje ne.
    */
   ploughTeam?: true;
+  /**
+   * Páry volů s rádlem doma (oxen.md – Voli po kusech, `ploughPairsHome`) – kolik spřežení scéna
+   * pošle k orbě; bez údaje (ukázky) ohrady s vycvičenými voly.
+   */
+  ploughPairs?: number;
   /**
    * Milíře uhlíře v lese (crafts.md – Uhlíř) – id dílny, střed (m), fáze a její průběh 0–1
    * (stavba po fázích staveniště, pálení kouří). Milíř u dílny nese dílna (`working`). Bez údaje
@@ -1776,6 +1813,10 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return finishedText(event.constructionKind, event.craft);
     case 'cart-made':
       return `Tesař vyrobil ${CART_NAMES[event.cart].toLowerCase()}.`;
+    case 'iron-trip':
+      return `Ves nemá kováře – ${event.son ? 'syn tesaře šel' : 'tesař šel'} pro kování k vozu do vsi ${event.to}.`;
+    case 'iron-brought':
+      return `${event.son ? 'Syn tesaře přinesl' : 'Tesař přinesl'} kování k vozu.`;
     case 'cart-worn-out':
       return `${CART_NAMES[event.cart]} dosloužil – tesař vyrobí nový.`;
     case 'rebuild-decided':
@@ -1813,13 +1854,30 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
         Object.values(event.animals).reduce((sum, n) => sum + n, 0),
       )} kusů dobytka.`;
     case 'team-ready':
-      return 'Spřežení volů je vycvičené – orá rádlem.';
+      // voli po kusech (oxen.md); kronika uložená dřív – spřežení
+      if (event.oxen === undefined) return 'Spřežení volů je vycvičené – orá rádlem.';
+      return event.oxen === 1
+        ? 'Vůl je vycvičený – táhne dvoukolák, s druhým rádlo.'
+        : `Voli jsou vycvičení (${event.oxen}) – táhnou rádla a vozy.`;
     case 'team-retired':
-      return 'Spřežení dosloužilo – voli zestárli a šli na maso.';
+      if (event.oxen === undefined) return 'Spřežení dosloužilo – voli zestárli a šli na maso.';
+      return event.oxen === 1
+        ? 'Vůl dosloužil – zestárl a šel na maso.'
+        : `Voli dosloužili (${event.oxen}) – zestárli a šli na maso.`;
     case 'ox-died':
-      return event.training
-        ? 'Přes zimu chybělo seno – tele ve výcviku uhynulo.'
-        : 'Přes zimu chybělo seno – vůl uhynul a spřežení se rozpadlo.';
+      if (event.oxen === undefined) {
+        return event.training
+          ? 'Přes zimu chybělo seno – tele ve výcviku uhynulo.'
+          : 'Přes zimu chybělo seno – vůl uhynul a spřežení se rozpadlo.';
+      }
+      if (event.training) {
+        return event.oxen === 1
+          ? 'Přes zimu chybělo seno – tele ve výcviku uhynulo.'
+          : `Přes zimu chybělo seno – uhynula telata ve výcviku (${event.oxen}).`;
+      }
+      return event.oxen === 1
+        ? 'Přes zimu chybělo seno – vůl uhynul.'
+        : `Přes zimu chybělo seno – uhynuli voli (${event.oxen}).`;
     case 'orchard-gone':
       return 'Starý sad dosloužil a zarostl loukou.';
     case 'orchard-renewal-started':
@@ -2082,7 +2140,8 @@ function sceneVillage(
     ...(hayMeadows.length > 0 ? { hayMeadows } : {}),
     ...(pens.length > 0 ? { pens } : {}),
     ...(summary.crafts.coverage.tools > 0 ? { toolCoverage: summary.crafts.coverage.tools } : {}),
-    ...(ableTeams(state) > 0 ? { ploughTeam: true as const } : {}),
+    ...(ableTeams(state, day) > 0 ? { ploughTeam: true as const } : {}),
+    ...(oxPens(state).length > 0 ? { ploughPairs: ploughPairsHome(state, day) } : {}),
     ...(roads.length > 0 ? { roads } : {}),
     ...(roadTrees.length > 0 ? { roadTrees } : {}),
     ...(woods.length > 0 ? { woods } : {}),
@@ -2539,9 +2598,19 @@ function craftsView(
       activity: w.activity,
       occupants: w.occupants,
       laborPerDay: w.laborPerDay,
-      outputPerDayKg: workshopOutputKg(w.craft, w.laborPerDay, w.oreFactor, coverage),
+      // výroba podle praxe řemeslníka (crafts.md – Učení řemesla)
+      outputPerDayKg:
+        workshopOutputKg(w.craft, w.laborPerDay, w.oreFactor, coverage) * w.skill.share,
       kiln: w.kiln,
       toPlant: w.toPlant,
+      skill: {
+        share: Math.round(w.skill.share * 100) / 100,
+        years: Math.round(w.skill.years * 10) / 10,
+        apprentices: w.skill.apprentices.map((a) => ({
+          age: a.age,
+          years: Math.round(a.years * 10) / 10,
+        })),
+      },
       carpenter: w.carpenter,
       ...(w.ore
         ? {
@@ -2848,8 +2917,8 @@ function scenePens(
         : (summary.constructions.find((c) => c.id === building?.id)?.buildProgress ?? 0),
       // rozšíření ve stavbě – průběh plotu kolem nových čtverců
       ...extensionProgress(state, summary, pen),
-      oxen: pen.team ? 2 : 0,
-      trainees: pen.training ? 2 : 0,
+      oxen: pen.oxen?.trained ?? 0,
+      trainees: pen.oxen?.training ?? 0,
       cows,
       ...wearOf(structureCondition(wear, 'pen', day), 'condition'),
       ...(pen.built && !stocked.has(pen.id) ? { stocked: false as const } : {}),
@@ -2884,6 +2953,14 @@ export function scenePenSquares(
 function penShortOf(state: VillageState): { penShort?: HerdSpecies[] } {
   const short = herdsOverRoom(state);
   return short.length > 0 ? { penShort: short } : {};
+}
+
+/** Voli vsi pro panel ohrady volů (`VillageView.oxen`); bez ohrady volů nic. */
+function oxenViewOf(summary: VillageSummary): { oxen?: VillageOxen } {
+  if (!summary.oxen) return {};
+  const carts: Record<CartKind, number> = { 'two-wheel': 0, 'four-wheel': 0 };
+  for (const cart of summary.crafts.carts) carts[cart.kind]++;
+  return { oxen: { ...summary.oxen, carts, cartTargets: { ...summary.crafts.cartTargets } } };
 }
 
 /** Druh ohrady ve scéně – bez údaje (ukázky) se spřežením nebo výcvikem spřežení, jinak skot. */
@@ -3245,9 +3322,23 @@ function chronicle(state: VillageState, name: string): VillageView['chronicle'] 
         : {}),
       ...(event.kind === 'newcomer' ? { group: event.group, direction: event.direction } : {}),
       ...(event.kind === 'emergency-slaughter' ? { animals: event.animals } : {}),
+      ...((event.kind === 'team-ready' ||
+        event.kind === 'team-retired' ||
+        event.kind === 'ox-died') &&
+      event.oxen !== undefined
+        ? { oxen: event.oxen }
+        : {}),
       ...(event.kind === 'crafts-bought'
         ? { direction: event.direction, products: boughtProducts(event.get) }
         : {}),
+      ...(event.kind === 'iron-trip'
+        ? {
+            place: event.to,
+            son: event.son,
+            ...(event.direction ? { direction: event.direction } : {}),
+          }
+        : {}),
+      ...(event.kind === 'iron-brought' ? { son: event.son } : {}),
       dateLabel: formatGameDate(dateOfDayIndex(event.day)),
       text: chronicleText(event, name),
     }));
@@ -3616,6 +3707,7 @@ export function buildVillageView(
     }),
     pens: penViews(state, day, summary),
     ...penShortOf(state),
+    ...oxenViewOf(summary),
     roads: roadViews(state, landscape, day, summary),
     scene: {
       ...sceneVillage(state, landscape, day, summary),
@@ -3642,13 +3734,13 @@ function purchaseViews(state: VillageState): VillagePurchase[] {
   }));
 }
 
-/** Místa stáda druhu ohrady (`VillagePen.herdPlaces`) – u spřežení null. */
+/** Místa stáda druhu ohrady (`VillagePen.herdPlaces`) – u ohrady volů null. */
 function herdPlacesOf(summary: VillageSummary, species: PenSpecies): HerdPlaces | null {
   const herd = penHerdSpecies(species);
   return herd ? { ...summary.herdPlaces[herd] } : null;
 }
 
-/** Ohrady pro panel výběru – stavba, spřežení, výcvik a zvířata v ohradě. */
+/** Ohrady pro panel výběru – stavba, voli, výcvik a zvířata v ohradě. */
 function penViews(state: VillageState, day: number, summary: VillageSummary): VillagePen[] {
   const winter = HAY_WINTER_MONTHS.includes(dateOfDayIndex(day).month);
   return summary.pens.map((pen) => {
@@ -3670,7 +3762,7 @@ function penViews(state: VillageState, day: number, summary: VillageSummary): Vi
       team: pen.team,
       training: pen.training,
       cows: winter && pen.built && pen.species === 'cattle' ? pen.animals : 0,
-      oxen: (pen.team ? 2 : 0) + (pen.training ? 2 : 0),
+      oxen: (pen.oxen?.trained ?? 0) + (pen.oxen?.training ?? 0),
       condition: structureCondition(wear, 'pen', day),
       abandoned: isAbandoned(wear),
       repair: repairProgress(summary.constructions, 'pen', pen.id),

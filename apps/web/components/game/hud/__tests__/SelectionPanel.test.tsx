@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import type { SelectionDetails } from '@/lib/selection-details';
+import type { SelectionDetails, SelectionWorkshop } from '@/lib/selection-details';
 import type { BuildOption } from '@/lib/village-view';
 import { JourneyBanner, LeaveCompass } from '../RelocationControls';
 import { SelectionPanel } from '../SelectionPanel';
@@ -20,6 +20,7 @@ const pen = (over: Partial<Extract<SelectionDetails, { kind: 'pen' }>> = {}): Se
   built: true,
   progress: 1,
   oxen: 2,
+  oxenVillage: null,
   cows: 4,
   herds: { sheep: 9, goat: 3, pig: 7, cow: 4 },
   chickens: 6,
@@ -56,9 +57,9 @@ describe('SelectionPanel – ohrada', () => {
     expect(text(html, 'selection-pen-animals')).toBe('4/90');
     expect(text(html, 'selection-pen-squares')).toBe('2/4');
     expect(text(html, 'selection-oxen')).toBeUndefined();
-    // ohrada spřežení ukazuje voly
-    const team = render(pen({ species: 'team', places: 0, animals: 2 }));
-    expect(team).toContain('Ohrada spřežení');
+    // ohrada volů ukazuje voly
+    const team = render(pen({ species: 'team', places: 6, animals: 2, herdPlaces: null }));
+    expect(team).toContain('Ohrada volů');
     expect(text(team, 'selection-oxen')).toBe('2');
     expect(text(team, 'selection-pen-animals')).toBeUndefined();
     expect(text(html, 'selection-hay')).toBe('3,2 t');
@@ -68,6 +69,40 @@ describe('SelectionPanel – ohrada', () => {
     // mimo dobu dojení se mléko neukazuje
     expect(text(html, 'selection-milk')).toBeUndefined();
     expect(text(render(pen({ milkLPerDay: 14.2 })), 'selection-milk')).toBe('14');
+  });
+
+  it('ohrada volů: místa / kolik volů ves chce, páry s rádlem a vozy (Martin 20. 10. 2026)', () => {
+    const oxenVillage = {
+      trained: 2,
+      training: 1,
+      places: 6,
+      wanted: 8,
+      overRoom: true,
+      ploughPairs: 2,
+      teams: 1,
+      ards: 1,
+      carts: { 'two-wheel': 2, 'four-wheel': 0 },
+      cartTargets: { 'two-wheel': 4, 'four-wheel': 0 },
+    };
+    const html = render(
+      pen({ species: 'team', places: 6, animals: 3, oxen: 3, herdPlaces: null, oxenVillage }),
+    );
+    expect(text(html, 'selection-oxen-need')).toBe('6/8');
+    expect(html).toContain('data-testid="selection-oxen-need" data-alert="true"');
+    expect(html).toContain('vycvičení 2, ve výcviku 1');
+    expect(text(html, 'selection-oxen-ploughs')).toBe('1/2');
+    expect(text(html, 'selection-oxen-carts-two-wheel')).toBe('2/4');
+    // čtyřkolák ves nemá ani nechce – neukazuje se
+    expect(text(html, 'selection-oxen-carts-four-wheel')).toBeUndefined();
+    expect(html).toContain('/icons/resources/ard.png');
+    const roomy = render(
+      pen({
+        species: 'team',
+        herdPlaces: null,
+        oxenVillage: { ...oxenVillage, places: 12, overRoom: false, teams: 2 },
+      }),
+    );
+    expect(roomy).not.toContain('data-alert');
   });
 
   it('místa všech ohrad druhu / potřeba stáda – červeně, když chybí (Martin 20. 10. 2026)', () => {
@@ -676,9 +711,12 @@ describe('SelectionPanel – rozvržení', () => {
 });
 
 describe('SelectionPanel – dílna tesaře (wagons.md – Tesař)', () => {
+  type Iron = NonNullable<NonNullable<SelectionWorkshop['carpenter']>['iron']>;
   const carpenter = (
     activity: 'producing' | 'helping',
     making: { kind: 'two-wheel'; progress: number } | null,
+    iron: Iron | null = null,
+    skill: SelectionWorkshop['skill'] = { share: 1, years: 5, apprentices: [] },
   ): SelectionDetails =>
     dwelling({
       type: 'polozemnice',
@@ -691,11 +729,13 @@ describe('SelectionPanel – dílna tesaře (wagons.md – Tesař)', () => {
         coverage: 0.72,
         kiln: null,
         toPlant: 0,
+        skill,
         carpenter: {
           carts: [{ id: 1, kind: 'two-wheel', condition: 0.6, away: true }],
           cartTargets: { 'two-wheel': 2, 'four-wheel': 0 },
           making,
           woodworkCoverage: 0.45,
+          iron,
         },
       },
     });
@@ -715,6 +755,50 @@ describe('SelectionPanel – dílna tesaře (wagons.md – Tesař)', () => {
     expect(html).toContain('data-activity="helping"');
     expect(html).toContain('Pomáhá se stavbami');
   });
+
+  it('vůz čeká na kování – tesař mezitím dělá nářadí (wagons.md – Kování vozů)', () => {
+    const html = render(
+      carpenter('producing', { kind: 'two-wheel', progress: 1 }, { kg: 3, trip: null }),
+    );
+    expect(html).toContain('Čeká na kování k vozu (3 kg)');
+    expect(html).toMatch(/data-testid="selection-workshop-iron"[^>]*data-alert[^>]*>3 kg</);
+    // aktivita ukazuje nářadí, ne hotový vůz
+    expect(html).not.toContain('Vyrábí vůz');
+  });
+
+  it('syn tesaře jde pro kování do vsi souseda – dny do návratu', () => {
+    const html = render(
+      carpenter(
+        'producing',
+        { kind: 'two-wheel', progress: 1 },
+        { kg: 3, trip: { to: 'Lhota', direction: 'N', daysLeft: 3, son: true, age: 15 } },
+      ),
+    );
+    expect(html).toContain('Syn tesaře (15 let) jde pro kování k vozu do vsi Lhota (sever)');
+    expect(html).toContain('zpět za 3 dny');
+    expect(html).toMatch(/data-testid="selection-workshop-iron"[^>]*>[^<]*3 d</);
+  });
+
+  it('nový tesař – zkušenost v % červeně, syn, který se učí', () => {
+    const html = render(
+      carpenter('producing', null, null, {
+        share: 0.55,
+        years: 0.5,
+        apprentices: [{ age: 11, years: 1.4 }],
+      }),
+    );
+    expect(html).toContain('/icons/resources/skill.png');
+    expect(html).toMatch(/data-testid="selection-workshop-skill"[^>]*data-alert[^>]*>55 %</);
+    expect(html).toContain('tesař se teprve učí (praxe 0,5 roku z 5 let)');
+    expect(html).toMatch(/data-testid="selection-workshop-apprentices"[^>]*>11</);
+    expect(html).toContain('Řemeslu se učí syn (věk) – 11 let, praxe 1,4 roku');
+  });
+
+  it('vyučený tesař – 100 % bez učňů', () => {
+    const html = render(carpenter('producing', null));
+    expect(html).toMatch(/data-testid="selection-workshop-skill"[^>]*>100 %</);
+    expect(html).not.toContain('selection-workshop-apprentices');
+  });
 });
 
 describe('SelectionPanel – kovárna (crafts.md – Uhlí a ruda kováře)', () => {
@@ -733,6 +817,7 @@ describe('SelectionPanel – kovárna (crafts.md – Uhlí a ruda kováře)', ()
         coverage: 0.6,
         kiln: null,
         toPlant: 0,
+        skill: { share: 1, years: 5, apprentices: [] },
         carpenter: null,
         ore: { stockKg: 18, site: { walkM: 423, leftKg: 2200 }, heapKg: 0, ...ore },
       },

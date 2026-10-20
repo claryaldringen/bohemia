@@ -40,7 +40,7 @@ describe('BuildGrid – rozcestník ohrady', () => {
       'Ohrada koz',
       'Ohrada prasat',
       'Ohrada skotu',
-      'Ohrada spřežení',
+      'Ohrada volů',
     ]);
     expect(html).toContain('data-group="pen"');
     expect(html).toContain('/icons/resources/sheep.png');
