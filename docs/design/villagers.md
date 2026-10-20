@@ -129,6 +129,24 @@ postavy (návrh Clauda, jen zobrazení).
 - Nosiči mají klip chůze – klip s rukama nahoře na márách by znamenal nové GLB postav (a další
   větve na postavách běží souběžně); přijde později.
 
+## Svatba
+
+Martin (GitHub issue #2, 20. 10. 2026): „Jako máme pohřeb, udělej i svatbu. Svatebčané půjdou na
+některé z posvátných míst v okolí, kde budou oddáni.“ Místo, časy a kdo jde jsou v
+[kinship.md](kinship.md) – Svatba ve scéně, tady jen postavy (návrh Clauda, jen zobrazení).
+
+- **Průvod** od vchodu domu nevěsty po pěšinách k posvátnému místu: vpředu **nevěsta s věncem
+  z kvítků v běleném lnu a ženich**, za nimi po dvou svatebčané v **pestřejších šatech** (barva
+  instance). Nevěsta nebo ženich z okolí jde se svými lidmi od kraje mapy; obě skupiny dojdou
+  naráz.
+- U místa obřadu stojí svatebčané **v podkově kolem páru** a hledí na něj; pár hledí k modle,
+  kmeni dubu, do háje nebo do ohně, pak k sobě. Po obřadu jde pár s domácností nového domova
+  průvodem domů, ostatní každý ke svému domu, lidé z okolí spolu ke kraji mapy – a zmizí.
+- Postavy svatby (klíč `wedding:`) jdou **mimo rozpočet 60 pracujících**; lidé vsi na svatbě ubírají
+  z pracujících postav ve dnech, kdy jsou vidět.
+- Věnec je kód vlasů v barvě instance (shader maluje kvítky po masce vlasů) – nový atribut
+  vrcholů nejde (WebGPU – 8 vertex bufferů). Hudebníci nejsou – sada klipů nemá hru na nástroj.
+
 ## Zjednodušení a co chybí
 
 - Noc se nemodeluje – lidé pracují pořád (herní den trvá ≈ 86 s).

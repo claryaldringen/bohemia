@@ -1474,6 +1474,20 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   Kronika `marriage` (`groomMoved`, `widow`), `bride-from-outside`, `groom-from-outside`
   (`widow`), `married-away`; upozornění „Svatba“ (`VillageView.lastMarriageDay`), „Nevěsta
   z okolí“, „Ženich z okolí“, „Dcera se vdala pryč“.
+  **Svatba ve scéně** (kinship.md – Svatba ve scéně; Martin, GitHub issue #2: „Jako máme pohřeb,
+  udělej i svatbu. Svatebčané půjdou na některé z posvátných míst v okolí, kde budou oddáni.“ –
+  jen zobrazení): události svatby nesou `groomId` / `brideId` (`WeddingCouple`) a `marriage`
+  i domy před svatbou (`groomFromDwellingId`, `brideFromDwellingId`; starší z `from` / `to`);
+  `lib/wedding-view.ts` → `SceneVillage.weddings` (posledních 40 dnů, svatebčané `weddingGuests`,
+  lidé z okolí `weddingCompanions` a bod na kraji mapy); scéna `wedding-plan.ts` (místo
+  `weddingSiteCandidates` / `pickWeddingSite` – stojící navštěvovaná modla a svatyně, živý dub,
+  háj do 600 m, váha 1 ÷ (d + 40 m)², jinak ohniště na návsi; průvod od domu nevěsty, lidé z okolí
+  od kraje mapy po stezce, obě skupiny naráz; podkova `horseshoeSpots`; cesta do nového domova –
+  čisté funkce času, sdílí pomocníky průvodu z `funeral-plan.ts`), plány `planWeddings` ve
+  `villager-plan.ts` → `onWeddings` → `wedding-renderer.ts` (oheň v ohništích svatyně u vstupu
+  a na návsi – `pyre-fire.ts` menší, věnec s pentlemi na kmeni dubu jen při obřadu – poloměr kmene
+  podle modelu `OAK_TRUNK_M`). Ukázka **Svatba** na `/dev/landscape` (dub, svatyně, nevěsta
+  z okolí, náves).
 - **Přestěhování domácnosti** ([migration.md](docs/design/migration.md), fáze 1): akce
   `startRelocation` (`actions.ts`) = nová stavba obydlí (`kind: 'dwelling'`) s
   `Construction.relocates` = id domácnosti – dřevo, pozemek polozemnice, překážky a cena jako
@@ -1942,6 +1956,11 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   **Pohřeb** (villagers.md – Pohřeb): průvod s márami a kruh kolem hranice jsou postavy s klíčem
   `funeral:` z `funeral-plan.ts` (`funeralFigures` ve `villager-plan.ts`) – jdou mimo rozpočet
   `MAX_WORKERS`, ve dnech obřadu se o ně sníží počet pracujících postav (`funeralActiveIn`).
+  **Svatba** (villagers.md – Svatba): průvod, pár a podkova svatebčanů jsou postavy s klíčem
+  `wedding:` (`weddingFigures`, nejvýš `MAX_WEDDING_FIGURES_TOTAL` = 60) – mimo `MAX_WORKERS`,
+  lidé vsi ubírají z pracujících ve dnech, kdy jsou vidět (`weddingVillagersIn`); nevěsta má kód
+  vlasů `wreath` (věnec z kvítků – shader po masce vlasů, villagerLook.w = 4), svatebčané pestřejší
+  oděv (`WEDDING_CLOTH`).
   **Provoz na cestách** (villagers.md – Provoz na cestách; Martin 19. 10. 2026: „Chci vidět
   vesničany, jak chodí pro vodu nebo na pole.“): `road-traffic.ts` (čisté funkce) – proud lidí
   pro vodu (`waterTrips` – `WATER_FETCHING.tripsPerPerson` × lidé z `SceneLabor.homes`, bez vody
