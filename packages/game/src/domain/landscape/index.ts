@@ -30,3 +30,5 @@ export {
   type StreamStation,
 } from './stream-geometry';
 export * from './obstacles';
+export * from './premium/types';
+export { PREMIUM_CATALOG, PREMIUM_TYPES } from './premium/catalog';
