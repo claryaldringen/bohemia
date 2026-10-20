@@ -271,11 +271,23 @@ function activityLook(workshop: SelectionWorkshop): {
       name: 'Nemá rudu – v okolí není mokřina ani potok, kde ji kopat; zatím pomáhá vsi',
       value: '0',
     },
-    digging: {
-      icon: 'ore',
-      name: 'Kope rudu na rudišti a nosí ji do kovárny (kg rudy v kovárně)',
-      value: formatInteger(workshop.ore?.stockKg ?? 0),
+    'no-clay': {
+      icon: 'clay',
+      name: 'Nemá hlínu – v okolí není mokřina ani potok, kde ji kopat; zatím pomáhá vsi',
+      value: '0',
     },
+    digging:
+      workshop.craft === 'potter'
+        ? {
+            icon: 'clay',
+            name: 'Kope hlínu na hliništi a nosí ji do dílny (kg hlíny v dílně)',
+            value: formatInteger(workshop.clay?.stockKg ?? 0),
+          }
+        : {
+            icon: 'ore',
+            name: 'Kope rudu na rudišti a nosí ji do kovárny (kg rudy v kovárně)',
+            value: formatInteger(workshop.ore?.stockKg ?? 0),
+          },
     'no-wood': {
       icon: 'wood',
       name:
@@ -294,10 +306,43 @@ function activityLook(workshop: SelectionWorkshop): {
   const stalled =
     workshop.activity === 'no-charcoal' ||
     workshop.activity === 'no-ore' ||
+    workshop.activity === 'no-clay' ||
     workshop.activity === 'no-wood' ||
     workshop.activity === 'idle' ||
     workshop.activity === 'empty';
   return { ...look, stalled };
+}
+
+/**
+ * Dílna hrnčíře (crafts.md – Hlína hrnčíře): zásoba hlíny, hliniště (vzdálenost chůze) a kdo hlínu
+ * nosí – hrnčíř, nebo vůz se sedlákem.
+ */
+function PotterClayStats({ clay }: { clay: NonNullable<SelectionWorkshop['clay']> }): ReactElement {
+  return (
+    <>
+      <Stat icon="clay" name="Hlína v dílně (kg)" testId="selection-workshop-clay">
+        {formatInteger(clay.stockKg)}
+      </Stat>
+      {clay.site && (
+        <Stat
+          icon="walk"
+          name={`Hliniště u potoka – cesta z dílny (m), zbývá ${formatInteger(clay.site.leftKg)} kg hlíny`}
+          testId="selection-workshop-clay-site"
+        >
+          {`${formatInteger(clay.site.walkM)} m`}
+        </Stat>
+      )}
+      {clay.cart && (
+        <Stat
+          icon="cart"
+          name="Hlínu z hliniště přiveze sedlák s vozem, když to ušetří práci"
+          testId="selection-workshop-clay-cart"
+        >
+          {''}
+        </Stat>
+      )}
+    </>
+  );
 }
 
 /**
@@ -375,6 +420,7 @@ function WorkshopRow({ workshop }: { workshop: SelectionWorkshop }): ReactElemen
       )}
       {workshop.carpenter && <CarpenterStats carpenter={workshop.carpenter} />}
       {workshop.ore && <SmithOreStats ore={workshop.ore} />}
+      {workshop.clay && <PotterClayStats clay={workshop.clay} />}
       {workshop.buying && (
         <Stat
           icon={product.icon}

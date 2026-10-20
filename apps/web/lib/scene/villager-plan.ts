@@ -143,6 +143,7 @@ const WOMEN: Record<LaborActivity, number> = {
   plant: 0.4,
   // kovář a jeho synové (crafts.md – Uhlí a ruda kováře) – muži
   ore: 0,
+  clay: 0.2,
   fetch: 0,
   domestic: 0.85,
   trade: 0.3,
@@ -1154,6 +1155,9 @@ function placer(ctx: Context, share: SceneLaborShare, count: number): Placer {
     case 'ore':
       // kovář a synové od 14 let kopou rudu u jámy na rudišti (crafts.md – Uhlí a ruda kováře)
       return t.kind === 'ore' ? oreDiggers(ctx, t) : none;
+    case 'clay':
+      // hrnčíř a synové od 14 let kopou hlínu u jámy na hliništi (crafts.md – Hlína hrnčíře)
+      return t.kind === 'clay' ? oreDiggers(ctx, t) : none;
     case 'fetch':
       // nošení uhlí a rudy v koších jde jako provoz na cestách (`smithFetchFigures`)
       return none;
@@ -1766,8 +1770,8 @@ function smithFetchFigures(ctx: Context, labor: SceneLabor): PlannedVillager[] {
   for (const share of labor.shares) {
     if (share.activity !== 'fetch' || share.carts) continue;
     const t = share.target;
-    if (t.kind !== 'ore' && t.kind !== 'kiln') continue;
-    const from = t.kind === 'ore' ? t.id : t.from;
+    if (t.kind !== 'ore' && t.kind !== 'clay' && t.kind !== 'kiln') continue;
+    const from = t.kind === 'kiln' ? t.from : t.id;
     if (from === undefined) continue;
     const home = ctx.houses.find((h) => h.id === from && h.built);
     if (!home) continue;

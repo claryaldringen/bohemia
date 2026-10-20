@@ -52,11 +52,13 @@ import {
 import {
   basketManDaysPerKg,
   charcoalDeliveries,
+  dugBasketManDaysPerKg,
   occupiedSmiths,
   smithFetchDay,
   updateOrePits,
   type CharcoalDelivery,
   type CharcoalFetch,
+  type DugMaterial,
   type OreCartToday,
   type SmithFetchDay,
 } from './smith-supply';
@@ -71,6 +73,7 @@ import {
   craftHouseholds,
   ironTravellers,
   newWorkshop,
+  occupiedWorkshops,
   restingCrafters,
   wearCraftStocks,
   workCrafts,
@@ -975,7 +978,8 @@ function work(
     // předem, z práce vsi před úlohami dne
     carting:
       jobs.charcoal.reduce((sum, c) => sum + c.manDays, 0) +
-      jobs.ore.reduce((sum, o) => sum + o.manDays, 0),
+      jobs.ore.reduce((sum, o) => sum + o.manDays, 0) +
+      jobs.clay.reduce((sum, o) => sum + o.manDays, 0),
   });
 
   // polní práce dne – i odkud kam došla (rozdělení práce po dílech pro postavy, labor-report.ts);
@@ -1143,14 +1147,20 @@ function work(
         { kg: o.kg, riderManDays: o.riderManDays },
       ]),
     ),
+    clayCarts: new Map(
+      smithCarts.clay.map((o): [number, OreCartToday] => [
+        o.smithId,
+        { kg: o.kg, riderManDays: o.riderManDays },
+      ]),
+    ),
     // dávka rudy na celý vůz, když ves má vůz doma a jízda k rudišti ušetří práci proti nošení
-    cartBatch: (_smith, site) => {
+    cartBatch: (_dwelling, site, material) => {
       if (haulCartsToday(state, day, false) <= 0) return null;
       const all = drivesOf();
       if (!all) return null;
-      if (site.cart === undefined) site.cart = oreCartDrive(state, site, all);
-      const footPerKg = basketManDaysPerKg(site.walkM, SMITH_SUPPLY.basketKg.ore);
-      return oreCartOffer(site.cart, footPerKg) ? CARTS.loadKg['two-wheel'] : null;
+      if (site.cart === undefined) site.cart = oreCartDrive(state, site, all, material);
+      const footPerKg = dugBasketManDaysPerKg(material, site.walkM);
+      return oreCartOffer(site.cart, footPerKg, material) ? CARTS.loadKg['two-wheel'] : null;
     },
   };
   const workshops = [
@@ -1181,17 +1191,19 @@ function work(
       target: { kind: 'kiln', id: c.burnerId, ...c.at },
     });
   }
-  for (const o of smithCarts.ore) {
-    if (state.roads) {
-      const trips = o.kg / CARTS.loadKg['two-wheel'];
-      addRoadCartTrips(state.roads, [{ x: o.x, z: o.z, kind: 'two-wheel', trips }]);
+  for (const material of ['ore', 'clay'] as const) {
+    for (const o of smithCarts[material]) {
+      if (state.roads) {
+        const trips = o.kg / CARTS.loadKg['two-wheel'];
+        addRoadCartTrips(state.roads, [{ x: o.x, z: o.z, kind: 'two-wheel', trips }]);
+      }
+      haulWork.push({
+        job: material,
+        manDays: o.manDays,
+        carts: 1,
+        target: { kind: material, id: o.smithId, ...o.site },
+      });
     }
-    haulWork.push({
-      job: 'ore',
-      manDays: o.manDays,
-      carts: 1,
-      target: { kind: 'ore', id: o.smithId, ...o.site },
-    });
   }
   const hayMowing = state.hay?.mowing;
   state.labor = laborDay(state, day, {
@@ -1641,11 +1653,13 @@ interface CartJobsDay {
   charcoal: CharcoalCartJob[];
   /** Ruda z rudišť do kováren. */
   ore: OreCartJob[];
+  /** Hlína z hlinišť k hrnčířům (crafts.md – Hlína hrnčíře; `smithId` = dílna hrnčíře). */
+  clay: OreCartJob[];
   /** Voda v sudech; bez ní null. */
   water: WaterCartPlan | null;
 }
 
-const NO_CART_JOBS: CartJobsDay = { carts: 0, charcoal: [], ore: [], water: null };
+const NO_CART_JOBS: CartJobsDay = { carts: 0, charcoal: [], ore: [], clay: [], water: null };
 
 /**
  * Jízdy vozů, které nesvážejí úrodu, seno ani klády (wagons.md – Co vozy vozí; mutuje `tasks`,
@@ -1677,7 +1691,7 @@ function planCartJobs(
   if (!any()) return NO_CART_JOBS;
   let used = 0;
   const charcoal: CharcoalCartJob[] = [];
-  const ore: OreCartJob[] = [];
+  const dug: Record<DugMaterial, OreCartJob[]> = { ore: [], clay: [] };
   for (const job of CART_JOBS.order) {
     if (!any()) break;
     if (job === 'charcoal') {
@@ -1716,24 +1730,26 @@ function planCartJobs(
         takeCart(fleet, best.kind);
         used++;
       }
-    } else if (job === 'ore') {
-      for (const smith of occupiedSmiths(state)) {
+    } else if (job === 'ore' || job === 'clay') {
+      // ruda kovářům a hlína hrnčířům (crafts.md – Uhlí a ruda kováře, Hlína hrnčíře)
+      const dwellings = job === 'ore' ? occupiedSmiths(state) : occupiedWorkshops(state, 'potter');
+      for (const smith of dwellings) {
         if (fleetCarts(fleet, 'two-wheel') <= 0) break;
         if (input.resting.has(smith.id)) continue;
         const workshop = smith.workshop!;
-        const batch = workshop.oreBatch;
-        const site = workshop.oreSite;
+        const batch = job === 'ore' ? workshop.oreBatch : workshop.clayBatch;
+        const site = job === 'ore' ? workshop.oreSite : workshop.claySite;
         if (!batch?.cart || !site || batch.dug + EPSILON < batch.kg || batch.heap <= EPSILON) {
           continue;
         }
         const all = input.drives();
         if (!all) continue;
-        if (site.cart === undefined) site.cart = oreCartDrive(state, site, all);
-        const footPerKg = basketManDaysPerKg(site.walkM, SMITH_SUPPLY.basketKg.ore);
-        const offer = oreCartOffer(site.cart, footPerKg);
+        if (site.cart === undefined) site.cart = oreCartDrive(state, site, all, job);
+        const footPerKg = dugBasketManDaysPerKg(job, site.walkM);
+        const offer = oreCartOffer(site.cart, footPerKg, job);
         if (!offer) continue;
         const kg = Math.min(batch.heap, offer.maxKg);
-        ore.push({
+        dug[job].push({
           smithId: smith.id,
           site: { x: site.x, z: site.z },
           kg,
@@ -1776,17 +1792,18 @@ function planCartJobs(
       const water = plans.sort((a, b) => b.saved - b.crew - (a.saved - a.crew))[0] ?? null;
       if (water) {
         takeCart(fleet, water.kind, water.carts);
-        return { carts: used + water.carts, charcoal, ore, water };
+        return { carts: used + water.carts, charcoal, ...dug, water };
       }
     }
   }
-  return { carts: used, charcoal, ore, water: null };
+  return { carts: used, charcoal, ...dug, water: null };
 }
 
-/** Vozy pro uhlí a rudu, na které dnes zbyl sedlák ze společné práce. */
+/** Vozy pro uhlí, rudu a hlínu, na které dnes zbyl sedlák ze společné práce. */
 interface SmithCartsDay {
   charcoal: CharcoalCartJob[];
   ore: OreCartJob[];
+  clay: OreCartJob[];
   /** Práce sedláků celkem (čd – z práce vsi). */
   manDays: number;
 }
@@ -1804,12 +1821,14 @@ function paySmithCarts(jobs: CartJobsDay, carting: number): SmithCartsDay {
     left -= c.manDays;
     return true;
   });
-  const ore = jobs.ore.filter((o) => {
+  const pay = (o: OreCartJob): boolean => {
     if (o.manDays > left + EPSILON) return false;
     left -= o.manDays;
     return true;
-  });
-  return { charcoal, ore, manDays: Math.max(0, carting) - left };
+  };
+  const ore = jobs.ore.filter(pay);
+  const clay = jobs.clay.filter(pay);
+  return { charcoal, ore, clay, manDays: Math.max(0, carting) - left };
 }
 
 /**
@@ -1957,10 +1976,10 @@ function logsDemand(
 }
 
 /**
- * Jízdy pro rudu, kdyby vozů bylo dost (wagons.md – Kolik vozů ves chce): ruda, kterou dnes
- * kovárny odnesly z rudiště v koších nebo přivezly vozem (`workshops` – nošení a jízdy rudy),
- * proti jízdě se sedlákem a kovářem (`oreCartOffer` – jízda k rudišti se uloží u něj); úspory
- * vozů po plných dnech jízd (čd).
+ * Jízdy pro rudu a hlínu, kdyby vozů bylo dost (wagons.md – Kolik vozů ves chce): ruda a hlína,
+ * kterou dnes kovárny a hrnčíři odnesli z rudiště či hliniště v koších nebo přivezli vozem
+ * (`workshops` – nošení a jízdy), proti jízdě se sedlákem a řemeslníkem (`oreCartOffer` – jízda
+ * k místu se uloží u něj); úspory vozů po plných dnech jízd (čd).
  */
 function oreDemand(
   state: VillageState,
@@ -1969,14 +1988,16 @@ function oreDemand(
 ): number[] {
   const savings: number[] = [];
   for (const w of workshops) {
-    const fetch = (w.fetch ?? []).filter((f) => f.target.kind === 'ore');
+    const material: DugMaterial = w.craft === 'potter' ? 'clay' : 'ore';
+    const fetch = (w.fetch ?? []).filter((f) => f.target.kind === material);
     if (fetch.length === 0) continue;
-    const site = state.dwellings.find((d) => d.id === w.dwellingId)?.workshop?.oreSite;
+    const workshop = state.dwellings.find((d) => d.id === w.dwellingId)?.workshop;
+    const site = material === 'clay' ? workshop?.claySite : workshop?.oreSite;
     const all = drives();
     if (!site || !all) continue;
-    if (site.cart === undefined) site.cart = oreCartDrive(state, site, all);
-    const footPerKg = basketManDaysPerKg(site.walkM, SMITH_SUPPLY.basketKg.ore);
-    const offer = oreCartOffer(site.cart, footPerKg);
+    if (site.cart === undefined) site.cart = oreCartDrive(state, site, all, material);
+    const footPerKg = dugBasketManDaysPerKg(material, site.walkM);
+    const offer = oreCartOffer(site.cart, footPerKg, material);
     if (!offer) continue;
     let kg = 0;
     for (const f of fetch) {

@@ -12,7 +12,6 @@ import {
   smithsCharcoalPerYear,
   smithsForgeCharcoalKg,
   newWorkshop,
-  oreFactor,
   wearCraftStocks,
   workCrafts,
   workshopLabor,
@@ -217,9 +216,7 @@ describe('výroba (crafts.md – Výroba)', () => {
     expect(workshop.activity).toBe('no-charcoal');
   });
 
-  it('hlína dál od potoka stojí hrnčíře víc práce, kovář přirážku nemá – kope rudu na rudišti', () => {
-    expect(oreFactor({ craft: 'potter', waterDistanceM: 300 })).toBeCloseTo(1.2, 9);
-    expect(oreFactor({ craft: 'smith', waterDistanceM: 300 })).toBe(1);
+  it('přirážka za vodu daleko zmizela – kovář a hrnčíř kopou rudu a hlínu u potoka', () => {
     const s = withWorkshop(fullVillage(), 'smith');
     s.dwellings.find((d) => d.id === WORKSHOP_ID)!.workshop!.waterDistanceM = 300;
     s.crafts = { charcoalKg: 1000, toolsKg: 0, potteryKg: 0 };
@@ -480,9 +477,9 @@ describe('souhrn řemesel pro panel (crafts.md – Co hráč vidí)', () => {
         activity: 'no-charcoal',
         occupants: 2,
         laborPerDay: expect.closeTo(1.5, 1),
-        oreFactor: 1,
         // kovář bez uhlí odpočívá – rudu ještě nekopal (crafts.md – Uhlí a ruda kováře)
         ore: { stockKg: 0, site: null, heapKg: 0, sons: [], cart: false },
+        clay: null,
         kiln: null,
         toPlant: 0,
         // kovář z doby před učením řemesla je vyučený (crafts.md – Učení řemesla)

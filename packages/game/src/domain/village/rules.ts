@@ -1215,6 +1215,26 @@ export const SMITH_SUPPLY = {
   pitYears: 10,
 } as const;
 /**
+ * crafts.md – Hlína hrnčíře (Martin 20. 10. 2026: „Ano, udělej to jak říkáš“ – návrh Clauda nových
+ * nákladů vozů, wagons.md – Co se vozí a na čem; čísla návrh Clauda, odhad): hrnčíř kope hlínu na
+ * hliništi u potoka jako kovář rudu (smith-supply.ts – stejné nošení v koších, dávky, vůz se
+ * sedlákem, jámy):
+ * - `kgPerPotteryKg` – 1,5 kg vlhké hlíny na kg vypálené keramiky (voda ≈ 20 % a ztráta žíháním,
+ *   čištění od kamínků a kořenů, zmetky při sušení a výpalu),
+ * - `kgPerManDay` – vykopat a nakopat do košů 300 kg hlíny za člověkoden (odhad – hlína se jen
+ *   kope; plavení, hnětení a ostřivo jsou v práci hrnčíře CRAFT_PRODUCTION.potteryManDaysPerKg),
+ *   k tomu přirážka za chůzi na hliniště (DISTANCE),
+ * - `basketKg` – koš hlíny 25 kg (jako ruda – váha),
+ * - `depositKg` – hliniště vydrží 20 t (odhad – jílové vrstvy u potoka jsou mocné; vesnický hrnčíř
+ *   s ≈ 300–600 kg keramiky ročně vydrží na jednom místě desítky let).
+ */
+export const CLAY = {
+  kgPerPotteryKg: 1.5,
+  kgPerManDay: 300,
+  basketKg: 25,
+  depositKg: 20_000,
+} as const;
+/**
  * crafts.md – Učení řemesla (Martin 20. 10. 2026: „Každý řemeslník vychovává svého nástupce - syna.
  * Pokud je řemeslník úplně nový, trvá mu, než se řemeslo naučí“; čísla návrh Clauda): výkon dílny
  * podle praxe nejzkušenějšího dospělého z domácnosti – `startShare` (50 %) bez praxe, lineárně
@@ -1382,6 +1402,8 @@ export const CART_DEMAND = {
 //   `crew` = sedlák z práce vsi a kovář z práce dílny, `stopS` nakládka a složení; na celý vůz
 //   kovář začne kopat, když mu ruda vystačí už jen na kopání dávky a `reserveDays` dní kování –
 //   hromada u jámy pak počká, až bude vůz volný (ve žni a při orbě vozí jinde),
+// - `clay` – hlína z hliniště k hrnčíři (crafts.md – Hlína hrnčíře): jako ruda – hrnčíř (nebo syn
+//   od 14) a sedlák s vozem pro hromadu hlíny u jámy, `reserveDays` jako u rudy,
 // - `seed` – osivo na pole: z práce setí (FIELD_WORK_PER_HA.sow – 10 čd/ha) je `carryShare` nošení
 //   osiva v pytlích ze sýpky na pole a doplňování osévací plachty (SEED_KG_PER_HA ≈ 5 pytlů po
 //   35 kg na hektar, pole 100–600 m od domů),
@@ -1398,9 +1420,10 @@ export const CART_DEMAND = {
 // rychleji, svah a strniště pomaleji), jdou s ním CARTS.crew lidé (honák a nakladač; u uhlí
 // a rudy `crew`), den má WATER_FETCHING.dayHours hodin; jízd za den nejvýš CARTS.loadsPerCartDay.
 export const CART_JOBS = {
-  order: ['charcoal', 'ore', 'seed', 'water'],
+  order: ['charcoal', 'ore', 'clay', 'seed', 'water'],
   charcoal: { carryShare: 0.2, loadKg: 300, stopS: 900, reachM: 12, crew: 1 },
   ore: { stopS: 900, reachM: 12, crew: 2, reserveDays: 15 },
+  clay: { stopS: 900, reachM: 12, crew: 2, reserveDays: 15 },
   seed: { carryShare: 0.1 },
   water: {
     litresPerPerson: 10,

@@ -28,7 +28,7 @@ ozim (osení pod sněhem), jar (klasy jarního ječmene), flax (len – hrst sto
 a tobolkami, fields.md – Len), charcoal (hromádka dřevěného uhlí), tools
 (kovaná sekera zkřížená se srpem) a pottery (dva hrnce pražského typu, větší s vlnovkou) –
 suroviny řemesel (crafts.md) –, ore (hromádka rezavých hrud bahenní rudy – crafts.md, Uhlí a ruda
-kováře), harvest (sklizeň – srp zkřížený s uříznutou hrstí zralých klasů,
+kováře), clay (hromádka hladkých hrud vlhké hlíny seříznutých rýčem – crafts.md, Hlína hrnčíře), harvest (sklizeň – srp zkřížený s uříznutou hrstí zralých klasů,
 panel dílu pole – fields.md), walk (cesta z domu – dvě šlépěje bosých nohou ve vyšlapané hlíně, chůze
 po pěšinách – paths.md), cart (dvoukolák s loukoťovými koly) a wood-tools (hrábě zkřížené
 s dřevěnými vidlemi) – vozy a dřevěné nářadí od tesaře (wagons.md) –, skill (zkušenost
@@ -1781,6 +1781,45 @@ def icon_ore():
     return True
 
 
+def clay_lump(bm, centre, size, rng):
+    """Hrouda vlhké hlíny: oblá a hladká, místy seříznutá rýčem (rovná plocha nahoře)."""
+    first = len(bm.verts)
+    bmesh.ops.create_icosphere(bm, subdivisions=3, radius=1.0)
+    bm.verts.ensure_lookup_table()
+    cut = rng.uniform(0.35, 0.7)
+    for v in list(bm.verts)[first:]:
+        k = 1.0 + rng.uniform(-0.04, 0.04) + 0.08 * noise.noise(v.co * 1.6 + Vector(centre) * 3)
+        co = Vector((v.co.x * size[0], v.co.y * size[1], min(v.co.z, cut) * size[2])) * k
+        v.co = Vector(centre) + co
+
+
+def icon_clay():
+    """Hlína: hromádka hladkých hrud vlhké hlíny, seříznutých rýčem (crafts.md – Hlína hrnčíře) –
+    šedookrová, matná, s lesklejšími seříznutými plochami."""
+    rng = random.Random(37)
+    bm = bmesh.new()
+    lumps = [
+        ((-0.44, 0.02, 0.15), (0.3, 0.24, 0.2)),
+        ((0.0, -0.22, 0.14), (0.32, 0.24, 0.19)),
+        ((0.44, 0.0, 0.15), (0.28, 0.24, 0.2)),
+        ((-0.2, 0.3, 0.14), (0.27, 0.22, 0.18)),
+        ((0.22, 0.3, 0.14), (0.28, 0.22, 0.18)),
+        ((-0.2, 0.04, 0.4), (0.28, 0.23, 0.19)),
+        ((0.2, 0.02, 0.41), (0.28, 0.23, 0.2)),
+        ((0.0, 0.18, 0.62), (0.25, 0.21, 0.18)),
+        ((0.64, -0.3, 0.08), (0.12, 0.1, 0.08)),
+    ]
+    for c, size in lumps:
+        clay_lump(bm, c, size, rng)
+    m = mat("clay", (0.34, 0.2, 0.09), 0.45, noise=10, bump=0.25)
+    o = to_obj(bm, "clay", m, smooth=True)
+    o.data.update()
+    sun(az=-45, el=42, strength=4.2, color=(1.0, 0.9, 0.75))
+    sun(az=150, el=25, strength=2.5, color=(0.8, 0.88, 1.0))
+    camera([Vector((-0.8, -0.45, 0)), Vector((0.8, 0.5, 0.82))], az=0, el=24, margin=1.04)
+    return True
+
+
 def flat_plate(bm, pts, y, thickness):
     """Plochý díl (list sekery) z obrysu `pts` v rovině XZ, tloušťka ve směru Y."""
     front = [bm.verts.new((x, y - thickness / 2, z)) for x, z in pts]
@@ -2326,6 +2365,7 @@ RESOURCES = {
     "flax": icon_flax,
     "charcoal": icon_charcoal,
     "ore": icon_ore,
+    "clay": icon_clay,
     "tools": icon_tools,
     "harvest": icon_harvest,
     "walk": icon_walk,

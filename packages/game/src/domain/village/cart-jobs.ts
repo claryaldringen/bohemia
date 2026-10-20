@@ -141,9 +141,14 @@ export function kilnCartOffer(
  * vezme, jen když práce obou na kg rudy je menší než nošení v koších (`footPerKg`); kam nedojede,
  * null.
  */
-export function oreCartOffer(drive: CartDrive | null, footPerKg: number): SmithCart | null {
+export function oreCartOffer(
+  drive: CartDrive | null,
+  footPerKg: number,
+  material: 'ore' | 'clay' = 'ore',
+): SmithCart | null {
   if (!drive) return null;
-  const job = CART_JOBS.ore;
+  // hlína hrnčíři stejně (crafts.md – Hlína hrnčíře): hrnčíř a sedlák pro hromadu u jámy
+  const job = CART_JOBS[material];
   const loadKg = CARTS.loadKg['two-wheel'];
   const trip = cartTripManDays(drive.costM, job.stopS, 1) / loadKg;
   if (trip * job.crew + EPSILON >= footPerKg) return null;
@@ -176,8 +181,9 @@ export function oreCartDrive(
   state: VillageState,
   site: Pick<OreSite, 'x' | 'z'>,
   drives: CartDrives,
+  material: 'ore' | 'clay' = 'ore',
 ): CartDrive | null {
-  return drives(state, [{ x: site.x, z: site.z, reachM: CART_JOBS.ore.reachM }])[0] ?? null;
+  return drives(state, [{ x: site.x, z: site.z, reachM: CART_JOBS[material].reachM }])[0] ?? null;
 }
 
 // --- voda v sudech ---------------------------------------------------------------------------

@@ -62,7 +62,7 @@ export interface FieldTaskWork {
  * před úlohami (`DayAllocation.carting` – crafts.md, Uhlí a ruda kováře), ostatní v práci úlohy.
  */
 export interface HaulWork {
-  job: 'harvest' | 'mow' | 'logs' | 'charcoal' | 'ore' | 'seed' | 'water';
+  job: 'harvest' | 'mow' | 'logs' | 'charcoal' | 'ore' | 'clay' | 'seed' | 'water';
   manDays: number;
   carts: number;
   /** Z vozů čtyřkoláky (svoz podél cest); chybí = žádný. */
@@ -174,7 +174,9 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
       const manDays = Math.min(haul.manDays, limit - total);
       total += manDays;
       const cartJob =
-        job === 'seed' || job === 'water' || job === 'charcoal' || job === 'ore' ? job : undefined;
+        job === 'seed' || job === 'water' || job === 'charcoal' || job === 'ore' || job === 'clay'
+          ? job
+          : undefined;
       add(
         'haul',
         place ?? { kind: 'village' },
@@ -220,6 +222,7 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
   // uhlí a ruda ke kováři vozem se sedlákem (crafts.md – Uhlí a ruda kováře) – u milíře a rudiště
   haulTo('charcoal', null);
   haulTo('ore', null);
+  haulTo('clay', null);
   add('slaughter', { kind: 'village' }, allocation.tasks.slaughter);
   const orchards = orchardAreas(state);
   for (const task of ['orchard-care', 'orchard-harvest'] as const) {
@@ -260,6 +263,19 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
       add(
         'ore',
         { kind: 'ore', id: w.dwellingId, x, z },
+        manDays,
+        undefined,
+        undefined,
+        undefined,
+        ages,
+      );
+    }
+    // hrnčíř: kopání hlíny na hliništi (crafts.md – Hlína hrnčíře)
+    if (w.clay) {
+      const { manDays, ages, x, z } = w.clay;
+      add(
+        'clay',
+        { kind: 'clay', id: w.dwellingId, x, z },
         manDays,
         undefined,
         undefined,

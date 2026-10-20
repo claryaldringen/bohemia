@@ -579,6 +579,10 @@ describe('villageNotices – řemesla (crafts.md)', () => {
     expect(villageNotices(view({ crafts: crafts(['no-ore']) }))).toEqual([
       { kind: 'no-ore', tone: 'warn', text: 'Kovář nemá rudu' },
     ]);
+    // hrnčíř bez hlíny a bez místa, kde ji kopat (crafts.md – Hlína hrnčíře)
+    expect(villageNotices(view({ crafts: crafts(['no-clay']) }))).toEqual([
+      { kind: 'no-clay', tone: 'warn', text: 'Hrnčíř nemá hlínu' },
+    ]);
   });
 });
 

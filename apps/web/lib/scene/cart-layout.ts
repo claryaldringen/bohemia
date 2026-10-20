@@ -38,11 +38,13 @@ export const CART_SPEED_M_S = 0.85;
 /** Druh vozu (wagons.md – Dva druhy vozů): dvoukolák, nebo čtyřkolák – stejně jako herní jádro. */
 export type { CartKind };
 /**
- * Náklad na korbě (wagons.md – Co vozí, Co vozy vozí): seno, snopy, klády, zboží (i uhlí a osivo),
- * sudy na vodu a bahenní ruda z rudiště (crafts.md – Uhlí a ruda kováře); prázdný vůz bez
- * nákladu.
+ * Náklad na korbě (wagons.md – Co vozí, Co vozy vozí): seno, snopy, klády, zboží (i uhlí, osivo
+ * a věci stěhujících se – migration.md), sudy na vodu, bahenní ruda z rudiště (crafts.md – Uhlí
+ * a ruda kováře), hlína z hliniště (crafts.md – Hlína hrnčíře) a koše jablek ze sadu (orchard.md –
+ * Jablka vozem); prázdný vůz bez nákladu.
  */
-export type CartCargo = 'empty' | 'hay' | 'sheaves' | 'logs' | 'goods' | 'water' | 'ore';
+export type CartCargo =
+  'empty' | 'hay' | 'sheaves' | 'logs' | 'goods' | 'water' | 'ore' | 'clay' | 'apples';
 export const CART_CARGOES: readonly CartCargo[] = [
   'empty',
   'hay',
@@ -51,6 +53,8 @@ export const CART_CARGOES: readonly CartCargo[] = [
   'goods',
   'water',
   'ore',
+  'clay',
+  'apples',
 ];
 
 /**

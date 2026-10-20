@@ -14,13 +14,17 @@ import {
   craftCoverage,
   craftNeeds,
   craftStocks,
-  oreFactor,
   workshopLabor,
   type CraftNeeds,
 } from './crafts';
 import { ironTripDaysLeft } from './cart-iron';
 import { charcoalStockKg, kilnCharcoalKg, kilnCharcoalShare } from './charcoal';
-import { smithOreSummary, type SmithOreSummary } from './smith-supply';
+import {
+  potterClaySummary,
+  smithOreSummary,
+  type PotterClaySummary,
+  type SmithOreSummary,
+} from './smith-supply';
 import { craftSkillSummary, type CraftSkillSummary } from './craft-skill';
 import { isFull, isOvercrowded } from './dwellings';
 import { waitingHouseholds } from './households';
@@ -220,13 +224,13 @@ export interface WorkshopSummary {
   occupants: number;
   /** Práce řemeslu za den po denním minimu (člověkodny, se štěstím). */
   laborPerDay: number;
-  /** Přirážka za hlínu dál od potoka u hrnčíře (1 = voda blízko; kovář 1). */
-  oreFactor: number;
   /**
    * Kovář (crafts.md – Uhlí a ruda kováře): zásoba rudy, rudiště, hromada u jámy a kdo nosí uhlí;
    * ostatní dílny null.
    */
   ore: SmithOreSummary | null;
+  /** Hrnčíř (crafts.md – Hlína hrnčíře): zásoba hlíny, hliniště a hromada u jámy; jinak null. */
+  clay: PotterClaySummary | null;
   /**
    * Uhlíř: jeho milíř (crafts.md – Uhlíř, Milíř stojí vždy) – fáze, kolik buků dávky je
    * připravených z kolika, průběh fáze 0–1 (u pálení dny ÷ CHARCOAL_KILN.burnDays, u vypáleného
@@ -846,10 +850,13 @@ function craftsSummary(state: VillageState, day: number): CraftsSummary {
             occupied > 0
               ? workshopLabor(state, day, d.id, coverage.pottery, productivity).craft
               : 0,
-          oreFactor: oreFactor(workshop),
           ore:
             workshop.craft === 'smith'
               ? smithOreSummary(state, d, day, haulCartsToday(state, day, false) > 0)
+              : null,
+          clay:
+            workshop.craft === 'potter'
+              ? potterClaySummary(d, haulCartsToday(state, day, false) > 0)
               : null,
           kiln: workshop.kiln ? kilnSummary(workshop.kiln) : null,
           toPlant: workshop.toPlant?.length ?? 0,

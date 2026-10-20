@@ -162,8 +162,13 @@ export type WorkshopActivity =
   | 'no-charcoal'
   /** Kovář nemá rudu a není kde ji kopat (crafts.md – Uhlí a ruda kováře). */
   | 'no-ore'
-  /** Kovář (a synové) kope rudu na rudišti (crafts.md – Uhlí a ruda kováře). */
+  /**
+   * Kovář (a synové) kope rudu na rudišti, hrnčíř hlínu na hliništi (crafts.md – Uhlí a ruda
+   * kováře, Hlína hrnčíře).
+   */
   | 'digging'
+  /** Hrnčíř nemá hlínu a není kde ji kopat (crafts.md – Hlína hrnčíře). */
+  | 'no-clay'
   | 'no-wood'
   | 'idle'
   | 'empty'
@@ -255,9 +260,10 @@ export interface OreBatch {
   readyDay?: number;
 }
 /**
- * Jáma po kopání rudy (crafts.md – Uhlí a ruda kováře): poloha (m) kousek kolem rudiště, kovárna
- * (id obydlí), kolik rudy z ní vzešlo (kg) a den, kdy se v ní naposledy kopalo – od něj zarůstá
- * a po SMITH_SUPPLY.pitYears zmizí.
+ * Jáma po kopání rudy (crafts.md – Uhlí a ruda kováře) nebo hlíny (`clay` – crafts.md, Hlína
+ * hrnčíře): poloha (m) kousek kolem rudiště či hliniště, dílna (id obydlí – `smithId`), kolik
+ * suroviny z ní vzešlo (kg) a den, kdy se v ní naposledy kopalo – od něj zarůstá a po
+ * SMITH_SUPPLY.pitYears zmizí.
  */
 export interface OrePit {
   x: number;
@@ -265,6 +271,7 @@ export interface OrePit {
   smithId: number;
   kg: number;
   day: number;
+  clay?: true;
 }
 /**
  * Strom, který dílna kácí (uhlíř na uhlí, hrnčíř na palivo pece – forest.md, kácení): id z vrstvy
@@ -329,6 +336,20 @@ export interface Workshop {
   oreBatch?: OreBatch | null;
   /** Kovář: vyčerpaná ložiska (m) – další rudiště aspoň SMITH_SUPPLY.siteSpacingM od nich. */
   oreSitesUsed?: { x: number; z: number }[];
+  /**
+   * Hrnčíř (crafts.md – Hlína hrnčíře): zásoba hlíny u dílny (kg). Bez údaje dílna z doby před
+   * hlínou – při prvním dni kroku práce dostane zásobu na dávku (`migratePotter`).
+   */
+  clayKg?: number;
+  /**
+   * Hrnčíř: hliniště, kde kope hlínu (jako rudiště – `OreSite`); null = v okolí není mokřina ani
+   * voda (`no-clay`); bez údaje se ještě nevybíralo.
+   */
+  claySite?: OreSite | null;
+  /** Hrnčíř: rozdělaná dávka hlíny (jako dávka rudy); bez údaje nebo null žádná. */
+  clayBatch?: OreBatch | null;
+  /** Hrnčíř: vyčerpaná hliniště (m) – další aspoň SMITH_SUPPLY.siteSpacingM od nich. */
+  claySitesUsed?: { x: number; z: number }[];
   /**
    * Tesař (wagons.md – Kování vozů): cesta pro kování k vozu do nejbližší vsi s kovářem – ves
    * vlastního kováře nemá; bez údaje nebo null nikdo nejde.
@@ -1280,6 +1301,8 @@ export type LaborActivity =
    * a ruda kováře).
    */
   | 'ore'
+  /** Kopání hlíny na hliništi – hrnčíř a synové od 14 let (crafts.md – Hlína hrnčíře). */
+  | 'clay'
   /**
    * Nošení uhlí od milíře a rudy z rudiště do kovárny v koších – synové kováře (uhlí od 10 let,
    * rudu od 14) nebo kovář sám (crafts.md – Uhlí a ruda kováře); kdo nese, je v `LaborShare.ages`.
@@ -1346,6 +1369,11 @@ export type LaborTarget =
    * (m): kopání u jámy, nošení rudy z něj do kovárny, jízda vozu pro rudu.
    */
   | { kind: 'ore'; id: number; x: number; z: number }
+  /**
+   * Hliniště hrnčíře (crafts.md – Hlína hrnčíře) – dílna (id obydlí) a místo, kde se kope (m):
+   * kopání u jámy, nošení hlíny k dílně, jízda vozu pro hlínu.
+   */
+  | { kind: 'clay'; id: number; x: number; z: number }
   /** Zemská stezka (id) – nosiči výpravy k sousedovi (trade.md – Obchod). */
   | { kind: 'trail'; id: number }
   /**
@@ -1575,8 +1603,8 @@ export interface VillageState {
    */
   ruins?: DwellingRuin[];
   /**
-   * Jámy po kopání rudy kovářů (crafts.md – Uhlí a ruda kováře) – zarůstají SMITH_SUPPLY.pitYears
-   * let, pak zmizí. Chybí = žádné (i u vsí uložených před rudou).
+   * Jámy po kopání rudy kovářů a hlíny hrnčířů (crafts.md – Uhlí a ruda kováře, Hlína hrnčíře) –
+   * zarůstají SMITH_SUPPLY.pitYears let, pak zmizí. Chybí = žádné (i u vsí uložených před rudou).
    */
   orePits?: OrePit[];
   /**
@@ -2035,10 +2063,11 @@ export type CartKind = 'two-wheel' | 'four-wheel';
 
 /**
  * Jízda vozu, když nesváží úrodu, seno ani klády (wagons.md – Co vozy vozí): uhlí z milíře ke
- * kováři, ruda z rudiště do kovárny (crafts.md – Uhlí a ruda kováře), osivo na pole, voda v sudech
- * – v tomto pořadí přednosti (CART_JOBS.order).
+ * kováři, ruda z rudiště do kovárny (crafts.md – Uhlí a ruda kováře), hlína z hliniště k hrnčíři
+ * (crafts.md – Hlína hrnčíře), osivo na pole, voda v sudech – v tomto pořadí přednosti
+ * (CART_JOBS.order).
  */
-export type CartJob = 'charcoal' | 'ore' | 'seed' | 'water';
+export type CartJob = 'charcoal' | 'ore' | 'clay' | 'seed' | 'water';
 
 /**
  * Jízda vozu od ohrady se spřežením k cíli (wagons.md – Co vozy vozí): cena trasy vozové sítě (m

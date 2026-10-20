@@ -801,6 +801,41 @@ describe('SelectionPanel – dílna tesaře (wagons.md – Tesař)', () => {
   });
 });
 
+describe('SelectionPanel – hrnčíř a hlína (crafts.md – Hlína hrnčíře)', () => {
+  const potter = (
+    activity: 'digging' | 'no-clay',
+    clay: { site: { walkM: number; leftKg: number } | null; cart: boolean },
+  ): SelectionDetails =>
+    dwelling({
+      type: 'polozemnice',
+      workshop: {
+        craft: 'potter',
+        activity,
+        laborPerDay: 1.6,
+        outputPerDayKg: 1.6,
+        stockKg: 46,
+        coverage: 0.9,
+        kiln: null,
+        toPlant: 0,
+        skill: { share: 1, years: 5, apprentices: [] },
+        carpenter: null,
+        clay: { stockKg: 18, heapKg: 0, ...clay },
+      },
+    });
+
+  it('zásoba hlíny, cesta na hliniště a vůz se sedlákem; bez hlíny stojí', () => {
+    const html = render(potter('digging', { site: { walkM: 420, leftKg: 19_350 }, cart: true }));
+    expect(html).toMatch(/data-testid="selection-workshop-clay"[^>]*>18</);
+    expect(html).toMatch(/data-testid="selection-workshop-clay-site"[^>]*>420 m</);
+    expect(html).toContain('selection-workshop-clay-cart');
+    expect(html).toContain('Kope hlínu na hliništi');
+    const none = render(potter('no-clay', { site: null, cart: false }));
+    expect(none).toContain('Nemá hlínu');
+    expect(none).not.toContain('selection-workshop-clay-site');
+    expect(none).not.toContain('selection-workshop-clay-cart');
+  });
+});
+
 describe('SelectionPanel – kovárna (crafts.md – Uhlí a ruda kováře)', () => {
   const smith = (
     activity: 'producing' | 'digging',

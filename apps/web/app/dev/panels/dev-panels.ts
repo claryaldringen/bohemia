@@ -457,6 +457,26 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       },
     }),
   },
+  {
+    // crafts.md – Hlína hrnčíře: hrnčíř kope hlínu na hliništi u potoka, vůz ji přiveze
+    key: 'hrncir',
+    label: 'Hrnčíř – hlína',
+    details: dwelling({
+      workshop: {
+        craft: 'potter',
+        activity: 'digging',
+        laborPerDay: 1.6,
+        outputPerDayKg: 1.6,
+        stockKg: 46,
+        coverage: 0.9,
+        kiln: null,
+        toPlant: 0,
+        skill: { share: 0.8, years: 3, apprentices: [{ age: 12, years: 1.5 }] },
+        carpenter: null,
+        clay: { stockKg: 18, site: { walkM: 420, leftKg: 19_350 }, heapKg: 120, cart: true },
+      },
+    }),
+  },
   { key: 'ohrada', label: 'Ohrada', details: pen() },
   {
     // ohrada ovcí, do které se stádo nevejde (oxen.md – Co hráč vidí)

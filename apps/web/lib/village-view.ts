@@ -420,6 +420,11 @@ export interface VillageWorkshop {
    * dílna jiného řemesla.
    */
   ore?: VillageSummary['crafts']['workshops'][number]['ore'];
+  /**
+   * Hrnčíř (crafts.md – Hlína hrnčíře): zásoba hlíny (kg), hliniště (vzdálenost chůze, kolik hlíny
+   * zbývá) a hromada u jámy; bez údaje dílna jiného řemesla.
+   */
+  clay?: VillageSummary['crafts']['workshops'][number]['clay'];
 }
 
 /** Vůz vsi pro lištu a panel (wagons.md – Vůz): druh, stav 0–1 a jestli je s výpravou pryč. */
@@ -1184,14 +1189,17 @@ export interface SceneOreSite {
   z: number;
   heapKg: number;
   digging: boolean;
+  /** Hliniště hrnčíře (crafts.md – Hlína hrnčíře) – hromada hlíny místo rudy. */
+  clay?: true;
 }
 
-/** Jáma po kopání rudy ve scéně (crafts.md – Uhlí a ruda kováře). */
+/** Jáma po kopání rudy (nebo hlíny – `clay`) ve scéně (crafts.md – Uhlí a ruda kováře). */
 export interface SceneOrePit {
   x: number;
   z: number;
   kg: number;
   overgrowth: number;
+  clay?: true;
 }
 
 /** Vůz ve scéně (wagons.md – Vůz). */
@@ -1228,7 +1236,7 @@ export interface SceneCart {
  * Náklad vozu na cestě zpátky (u výpravy tam i zpět, osivo tam); voda v sudech – sudy jsou na voze
  * tam i zpět (wagons.md – Co vozy vozí); ruda z rudiště (crafts.md – Uhlí a ruda kováře).
  */
-export type CartLoad = 'sheaves' | 'hay' | 'logs' | 'goods' | 'water' | 'ore';
+export type CartLoad = 'sheaves' | 'hay' | 'logs' | 'goods' | 'water' | 'ore' | 'clay' | 'apples';
 
 /** Čtverec lesa vsi ve scéně (fields.md – Les vsi). */
 export interface SceneWood {
@@ -2122,10 +2130,13 @@ function sceneOre(
   state: VillageState,
   day: number,
 ): { oreSites: SceneOreSite[]; orePits: SceneOrePit[] } {
+  // rudiště kovářů a hliniště hrnčířů (crafts.md – Hlína hrnčíře)
   const oreSites = state.dwellings.flatMap((d): SceneOreSite[] => {
-    const site = d.workshop?.craft === 'smith' ? d.workshop.oreSite : null;
+    const craft = d.workshop?.craft;
+    const clay = craft === 'potter';
+    const site = craft === 'smith' ? d.workshop!.oreSite : clay ? d.workshop!.claySite : null;
     if (!site) return [];
-    const batch = d.workshop!.oreBatch ?? null;
+    const batch = (clay ? d.workshop!.clayBatch : d.workshop!.oreBatch) ?? null;
     return [
       {
         dwellingId: d.id,
@@ -2133,6 +2144,7 @@ function sceneOre(
         z: site.z,
         heapKg: Math.round(batch?.heap ?? 0),
         digging: batch !== null && batch.dug < batch.kg,
+        ...(clay ? { clay: true as const } : {}),
       },
     ];
   });
@@ -2141,6 +2153,7 @@ function sceneOre(
     z: p.z,
     kg: Math.round(p.kg),
     overgrowth: Math.round(orePitOvergrowth(p, day) * 20) / 20,
+    ...(p.clay ? { clay: true as const } : {}),
   }));
   return { oreSites, orePits };
 }
@@ -2470,22 +2483,17 @@ function plantedSaplingViews(state: VillageState, day: number): { id: number; gr
 }
 
 /**
- * Výroba dílny za den při práci `labor` (kg) – uhlíř bez kácení, kovář bez rudy (kope zvlášť –
- * crafts.md, Uhlí a ruda kováře), hrnčíř s přirážkou za hlínu, tesař dřevěné nářadí podle
+ * Výroba dílny za den při práci `labor` (kg) – uhlíř bez kácení, kovář bez rudy a hrnčíř bez hlíny
+ * (kopou zvlášť – crafts.md, Uhlí a ruda kováře, Hlína hrnčíře), tesař dřevěné nářadí podle
  * nástrojů od kováře (wagons.md).
  */
-function workshopOutputKg(
-  craft: Craft,
-  labor: number,
-  oreFactor: number,
-  coverage: CraftCoverage,
-): number {
+function workshopOutputKg(craft: Craft, labor: number, coverage: CraftCoverage): number {
   if (craft === 'carpenter') {
     return labor / (CARPENTRY.woodToolsManDaysPerKg * carpenterWorkFactor(coverage.tools));
   }
   if (craft === 'burner') return labor * CRAFT_PRODUCTION.charcoalKgPerManDay;
-  if (craft === 'smith') return labor / (CRAFT_PRODUCTION.toolManDaysPerKg * oreFactor);
-  return labor / (CRAFT_PRODUCTION.potteryManDaysPerKg * oreFactor);
+  if (craft === 'smith') return labor / CRAFT_PRODUCTION.toolManDaysPerKg;
+  return labor / CRAFT_PRODUCTION.potteryManDaysPerKg;
 }
 
 /** Řemesla pro lištu a panel výběru. */
@@ -2512,8 +2520,7 @@ function craftsView(
       occupants: w.occupants,
       laborPerDay: w.laborPerDay,
       // výroba podle praxe řemeslníka (crafts.md – Učení řemesla)
-      outputPerDayKg:
-        workshopOutputKg(w.craft, w.laborPerDay, w.oreFactor, coverage) * w.skill.share,
+      outputPerDayKg: workshopOutputKg(w.craft, w.laborPerDay, coverage) * w.skill.share,
       kiln: w.kiln,
       toPlant: w.toPlant,
       skill: {
@@ -2533,6 +2540,18 @@ function craftsView(
               heapKg: Math.round(w.ore.heapKg * 10) / 10,
               site: w.ore.site
                 ? { walkM: Math.round(w.ore.site.walkM), leftKg: Math.round(w.ore.site.leftKg) }
+                : null,
+            },
+          }
+        : {}),
+      ...(w.clay
+        ? {
+            clay: {
+              ...w.clay,
+              stockKg: Math.round(w.clay.stockKg * 10) / 10,
+              heapKg: Math.round(w.clay.heapKg * 10) / 10,
+              site: w.clay.site
+                ? { walkM: Math.round(w.clay.site.walkM), leftKg: Math.round(w.clay.site.leftKg) }
                 : null,
             },
           }
@@ -2641,6 +2660,7 @@ function scenePloughApproach(
 function haulLoad(state: VillageState, share: LaborShare): CartLoad {
   if (share.job === 'water') return 'water';
   if (share.job === 'ore') return 'ore';
+  if (share.job === 'clay') return 'clay';
   if (share.job === 'seed' || share.job === 'charcoal') return 'goods';
   const t = share.target;
   if (t.kind === 'meadow') return 'hay';
@@ -2747,9 +2767,10 @@ function cartRouteToday(
   } else if (t.kind === 'water') {
     // voda v sudech – na břeh, kde trasa jádra končí (waterCartDrive)
     axis = routeTo(state, t, CART_JOBS.water.reachM);
-  } else if (t.kind === 'ore') {
-    // ruda z rudiště (crafts.md – Uhlí a ruda kováře) – k hromadě u jámy jako jádro (oreCartDrive)
-    axis = routeTo(state, t, CART_JOBS.ore.reachM);
+  } else if (t.kind === 'ore' || t.kind === 'clay') {
+    // ruda z rudiště a hlína z hliniště (crafts.md – Uhlí a ruda kováře, Hlína hrnčíře) – k hromadě
+    // u jámy jako jádro (oreCartDrive)
+    axis = routeTo(state, t, CART_JOBS[t.kind].reachM);
   }
   return axis ? simplifiedRoute(axis) : null;
 }

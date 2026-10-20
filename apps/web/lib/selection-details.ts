@@ -89,6 +89,8 @@ export interface SelectionWorkshop {
   } | null;
   /** Kovář: ruda, rudiště a kdo nosí uhlí (crafts.md – Uhlí a ruda kováře); jinak chybí. */
   ore?: NonNullable<VillageView['crafts']['workshops'][number]['ore']>;
+  /** Hrnčíř: hlína a hliniště (crafts.md – Hlína hrnčíře); jinak chybí. */
+  clay?: NonNullable<VillageView['crafts']['workshops'][number]['clay']>;
 }
 
 /** Nákup u sousedů v panelu dvorce (crafts.md – Nákup u sousedů). */
@@ -815,6 +817,7 @@ function workshopDetails(view: VillageView, dwellingId: number): SelectionWorksh
     toPlant: workshop.toPlant,
     skill: workshop.skill,
     ...(workshop.ore ? { ore: workshop.ore } : {}),
+    ...(workshop.clay ? { clay: workshop.clay } : {}),
     carpenter: carpenter
       ? {
           carts: view.crafts.carts,
