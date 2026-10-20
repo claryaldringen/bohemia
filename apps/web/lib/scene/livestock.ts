@@ -198,6 +198,12 @@ export class VillageLivestock {
     return { walkable: walk };
   }
 
+  /** Je bod na schůdné souši (ne voda, ne strmý svah)? Bez obydlí nezávisle na vsi. */
+  isWalkable(x: number, z: number): boolean {
+    this.walk ??= lazyWalkable(this.env.landscape, this.env);
+    return this.walk(x, z);
+  }
+
   /**
    * Terén kolem vsi (rastr schůdné země, luk a okraje lesa pro zvířata). Bez obydlí null.
    */

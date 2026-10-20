@@ -707,11 +707,17 @@ export interface ShuttleRoute {
  * Smyčka obratiště za koncem `end` osy jedoucí směrem `dir` (jednotkový): kus doprava, velkým
  * obloukem doleva přes osu a zpět na konec – vůz se vrací čelem vzad. Body bez konce osy.
  */
-function turnLoop(end: Point, dir: Point, radius: number): { points: Point[]; middle: Point } {
+function turnLoop(
+  end: Point,
+  dir: Point,
+  radius: number,
+  aheadFactor = 3,
+  sideSign = 1,
+): { points: Point[]; middle: Point } {
   // vpravo od směru (osy scény: x vpravo, z vpřed)
-  const rx = dir.z;
-  const rz = -dir.x;
-  const ahead = 3 * radius;
+  const rx = dir.z * sideSign;
+  const rz = -dir.x * sideSign;
+  const ahead = aheadFactor * radius;
   const side = 2 * radius;
   const middle = { x: end.x + dir.x * ahead, z: end.z + dir.z * ahead };
   return {
@@ -722,6 +728,62 @@ function turnLoop(end: Point, dir: Point, radius: number): { points: Point[]; mi
     ],
     middle,
   };
+}
+
+/** Pořadí zkoušených obratišť: nejdřív výchozí, pak zrcadlově, pak kratší (násobek poloměru). */
+const TURN_VARIANTS: readonly (readonly [number, number])[] = [
+  [3, 1],
+  [3, -1],
+  [1.5, 1],
+  [1.5, -1],
+  [0.5, 1],
+  [0.5, -1],
+];
+
+/** Kolik vzorků (po ≈ 1 m) smyčky včetně příjezdu z konce osy neleží na souši. */
+function wetSamples(
+  end: Point,
+  loop: { points: Point[] },
+  walkable: (x: number, z: number) => boolean,
+): number {
+  const line = [end, ...loop.points, end];
+  let wet = 0;
+  for (let i = 1; i < line.length; i++) {
+    const a = line[i - 1]!;
+    const b = line[i]!;
+    const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z)));
+    for (let k = 0; k <= steps; k++) {
+      const t = k / steps;
+      if (!walkable(a.x + (b.x - a.x) * t, a.z + (b.z - a.z) * t)) wet++;
+    }
+  }
+  return wet;
+}
+
+/**
+ * Obratiště za koncem osy, které leží celé na souši (`walkable`): výchozí smyčka, jinak
+ * zrcadlová, jinak kratší; když žádná nevyhoví, ta s nejméně vzorky mimo souš. Bez `walkable`
+ * výchozí.
+ */
+function dryTurnLoop(
+  end: Point,
+  dir: Point,
+  radius: number,
+  walkable?: (x: number, z: number) => boolean,
+): { points: Point[]; middle: Point } {
+  if (!walkable) return turnLoop(end, dir, radius);
+  let best = turnLoop(end, dir, radius);
+  let bestWet = Infinity;
+  for (const [ahead, side] of TURN_VARIANTS) {
+    const loop = turnLoop(end, dir, radius, ahead, side);
+    const wet = wetSamples(end, loop, walkable);
+    if (wet === 0) return loop;
+    if (wet < bestWet) {
+      best = loop;
+      bestWet = wet;
+    }
+  }
+  return best;
 }
 
 function unit2(x: number, z: number): Point {
@@ -748,8 +810,13 @@ export function nearestOnRoute(route: CartRoute, p: Point, step = 0.25): number 
 /**
  * Jízda tam a zpět po ose `points` (od ohrady k cíli – trasa vozové sítě, SceneCart.route) se
  * smyčkami obratišť za cílem a u ohrady; rohy osy zaoblené obloukem vozu (CART_TURN_M).
+ * Obratiště se podle `walkable` (souš) nepokládá do vody ani na neprůjezdný terén.
  */
-export function shuttleRoute(points: readonly Point[], kind: CartKind): ShuttleRoute {
+export function shuttleRoute(
+  points: readonly Point[],
+  kind: CartKind,
+  walkable?: (x: number, z: number) => boolean,
+): ShuttleRoute {
   const axis = points.filter(
     (p, i) => i === 0 || Math.hypot(p.x - points[i - 1]!.x, p.z - points[i - 1]!.z) > 0.01,
   );
@@ -757,9 +824,19 @@ export function shuttleRoute(points: readonly Point[], kind: CartKind): ShuttleR
   const radius = CART_TURN_M[kind];
   const n = axis.length;
   const end = axis[n - 1]!;
-  const far = turnLoop(end, unit2(end.x - axis[n - 2]!.x, end.z - axis[n - 2]!.z), radius);
+  const far = dryTurnLoop(
+    end,
+    unit2(end.x - axis[n - 2]!.x, end.z - axis[n - 2]!.z),
+    radius,
+    walkable,
+  );
   const start = axis[0]!;
-  const home = turnLoop(start, unit2(start.x - axis[1]!.x, start.z - axis[1]!.z), radius);
+  const home = dryTurnLoop(
+    start,
+    unit2(start.x - axis[1]!.x, start.z - axis[1]!.z),
+    radius,
+    walkable,
+  );
   const back = [...axis].reverse();
   const route = cartRoute([...axis, ...far.points, ...back, ...home.points], {
     closed: true,

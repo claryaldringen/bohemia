@@ -344,6 +344,7 @@ export class LandscapeScene {
       pitCuts: this.pitCuts,
       sunDirection: SUN_DIRECTION,
       landscape,
+      walkable: (x, z) => this.livestock?.isWalkable(x, z) ?? true,
       animated: () => !this.reducedMotion?.matches,
       // vybrané spřežení nebo vůz (villagers.md – Výběr postavy) – co dělá, panel výběru
       onDraftState: (state) => {

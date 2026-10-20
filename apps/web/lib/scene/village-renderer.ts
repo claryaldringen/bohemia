@@ -230,6 +230,8 @@ interface VillageContext {
   sunDirection: { x: number; y: number; z: number };
   /** Krajina sídla – louky na seno se vybírají na louce (bez ní žádné). */
   landscape?: Landscape;
+  /** Je bod na souši (ne ve vodě, ne neprůjezdný)? Obratiště vozů se do vody nekladou. Bez ní vše. */
+  walkable?: (x: number, z: number) => boolean;
   /**
    * Smí se scéna hýbat (bez omezeného pohybu)? Orba za herní den (ladicí) jen s animací – při
    * omezeném pohybu pole ukáže stav na konci dne a spřežení stojí na čele. Bez údaje ano.
@@ -532,7 +534,13 @@ export class VillageRenderer {
     ]);
     if (key === this.cartsKey) return false;
     this.cartsKey = key;
-    const plans = villageCartPlans(village, pens, window, (day) => this.dayWindow(day));
+    const plans = villageCartPlans(
+      village,
+      pens,
+      window,
+      (day) => this.dayWindow(day),
+      this.context.walkable,
+    );
     // vůz se spřežením má vozku (jede, nebo v karavaně), stojící u ohrady ne
     this.cartCrews = plans.flatMap((p) => (!('parked' in p) && p.id !== undefined ? [p.id] : []));
     this.carts.setCarts(plans, Date.now());

@@ -428,3 +428,37 @@ describe('jízda tam a zpět (svoz – fáze 3)', () => {
     expect(four.pole.bx).toBeGreaterThan(four.pole.ax);
   });
 });
+
+describe('obratiště vozu u vody', () => {
+  const AXIS = [
+    { x: 0, z: 0 },
+    { x: 0, z: 40 },
+  ];
+  // potok napříč za koncem osy: voda od z = 44 dál
+  const dry = (_x: number, z: number): boolean => z < 44;
+
+  it('obratiště u břehu leží celé na souši', () => {
+    const wet = shuttleRoute(AXIS, 'two-wheel');
+    const sh = shuttleRoute(AXIS, 'two-wheel', dry);
+    const at: RoutePoint = { x: 0, z: 0, hx: 0, hz: 1, heading: 0 };
+    let maxZ = -Infinity;
+    for (let s = 0; s < sh.route.length; s += 0.25) {
+      routeAt(sh.route, s, at);
+      maxZ = Math.max(maxZ, at.z);
+    }
+    expect(maxZ).toBeLessThan(44);
+    let wetMax = -Infinity;
+    for (let s = 0; s < wet.route.length; s += 0.25) {
+      routeAt(wet.route, s, at);
+      wetMax = Math.max(wetMax, at.z);
+    }
+    expect(wetMax).toBeGreaterThan(44);
+  });
+
+  it('na souši (nebo bez testu) je trasa beze změny', () => {
+    const base = shuttleRoute(AXIS, 'four-wheel');
+    const land = shuttleRoute(AXIS, 'four-wheel', () => true);
+    expect(land.route.length).toBe(base.route.length);
+    expect(land.farM).toBe(base.farM);
+  });
+});
