@@ -1171,6 +1171,11 @@ function OakAge({ years }: { years: number | null }): ReactElement | null {
   );
 }
 
+/** Přírůstek rychlosti chůze (roads.md – Stromy u cesty zrychlí chůzi) – „+0,03“. */
+function formatSpeedGain(gain: number): string {
+  return `+${String(Math.round(gain * 1000) / 1000).replace('.', ',')}`;
+}
+
 /** Seno v tunách s jedním desetinným místem – „3,0 t“. */
 function formatTons(kg: number): string {
   return `${formatDecimal(Math.max(0, kg) / 1000, 1)} t`;
@@ -1371,6 +1376,11 @@ function RoadBody({
             <Stat icon="apples" name="Jabloně (plodí)" testId="selection-road-apples">
               {apples.trees}
               {apples.bearing < apples.trees ? ` (${apples.bearing})` : ''}
+            </Stat>
+          )}
+          {details.treeSpeed > 0 && (
+            <Stat icon="walk" name="Stromy zrychlí chůzi i vozy" testId="selection-road-tree-speed">
+              {formatSpeedGain(details.treeSpeed)}
             </Stat>
           )}
           {(details.wetM > 0 || details.fords > 0) && (

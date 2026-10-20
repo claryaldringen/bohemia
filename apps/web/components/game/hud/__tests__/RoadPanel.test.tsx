@@ -16,6 +16,7 @@ const road = (
   kinds: [{ kind: 'trodden', lengthM: 120 }],
   ageYears: 7,
   trees: 3,
+  treeSpeed: 0,
   wetM: 18,
   fords: 1,
   building: null,
@@ -184,6 +185,17 @@ describe('SelectionPanel – pevná cesta', () => {
     expect(html).toContain('data-testid="selection-apples-progress"');
     expect(html).toContain('data-testid="selection-apples-waits"');
     expect(plantButton(html)).toContain('disabled=""');
+  });
+
+  it('stromy u cesty zrychlí chůzi – ikona chůze s přírůstkem, jen když nějaký je (roads.md)', () => {
+    expect(render(road())).not.toContain('data-testid="selection-road-tree-speed"');
+    const html = render(road({ treeSpeed: 0.03 }));
+    expect(html).toMatch(/data-testid="selection-road-tree-speed"[^>]*>\+0,03</);
+    expect(html).toContain('/icons/resources/walk.png');
+    expect(html).toContain('Stromy zrychlí chůzi i vozy');
+    expect(render(road({ treeSpeed: 0.041 }))).toMatch(
+      /data-testid="selection-road-tree-speed"[^>]*>\+0,041</,
+    );
   });
 
   it('tlačítka vylepšení a jabloní jsou vpravo za čarou vedle sebe, údaje vlevo', () => {

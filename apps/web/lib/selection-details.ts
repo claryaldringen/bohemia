@@ -375,6 +375,8 @@ export type SelectionDetails =
       ageYears: number;
       /** Stojící stromy u cesty. */
       trees: number;
+      /** O kolik stromy u cesty zrychlí chůzi i vozy (roads.md); bez stromů 0. */
+      treeSpeed: number;
       /** Mokřina na ose (m) a brody – kde se hodí hať a lávka. */
       wetM: number;
       fords: number;

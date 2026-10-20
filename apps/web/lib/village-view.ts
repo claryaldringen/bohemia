@@ -56,6 +56,7 @@ import {
   roadApplesOption,
   roadLengthM,
   roadTreeLook,
+  roadTreeSpeed,
   roadUpgradeOptions,
   roadUpgradeProgress,
   roadChains,
@@ -328,6 +329,11 @@ export interface VillageRoad {
   ageYears: number;
   /** Stojící stromy u cesty (keře a stromy, ne souše a pařezy). */
   trees: number;
+  /**
+   * O kolik stromy a jabloně u cesty zrychlí chůzi i jízdu vozem (roads.md – Stromy u cesty
+   * zrychlí chůzi): průměr úseků podle délky (`roadTreeSpeed`), na tisíciny; bez stromů 0.
+   */
+  treeSpeed: number;
   /** Cesta vede mokřinou (m) a přes brody. */
   wetM: number;
   fords: number;
@@ -1303,7 +1309,7 @@ export interface SceneExpedition {
 
 export type SceneRoad = Pick<
   Road,
-  'id' | 'points' | 'grade' | 'ground' | 'openEnds' | 'cart' | 'swath'
+  'id' | 'points' | 'grade' | 'ground' | 'openEnds' | 'cart' | 'swath' | 'lined'
 > & {
   /**
    * Rozestavěné vylepšení úseku – stupeň a průběh 0–1 na tomto úseku (vylepšení cesty hráče jde
@@ -2153,6 +2159,9 @@ export function sceneRoads(
       ...(r.cart ? { cart: true as const } : {}),
       // průsek lesem (roads.md – Průsek lesem) – plocha korun nad ním zapadne
       ...(r.swath ? { swath: true as const } : {}),
+      // stromy u cesty zrychlí chůzi (roads.md) – síť pěšin a cena kácení u kurzoru jako na
+      // serveru; jen kde nějaké jsou
+      ...(roadTreeSpeed(r.lined) > 0 ? { lined: { ...r.lined! } } : {}),
       ...(r.ground
         ? {
             ground: {
@@ -2198,6 +2207,21 @@ export function sceneWoods(
 }
 
 /** Pořadí stupňů cesty – od vyšlapané po hať (panel, převládající stupeň při shodě lepší). */
+
+/**
+ * Zrychlení chůze od stromů u cesty pro panel (roads.md – Stromy u cesty zrychlí chůzi): průměr
+ * úseků cesty podle délky, na tisíciny.
+ */
+function chainTreeSpeed(members: readonly Road[]): number {
+  let length = 0;
+  let sum = 0;
+  for (const m of members) {
+    const l = roadLengthM(m);
+    length += l;
+    sum += l * roadTreeSpeed(m.lined);
+  }
+  return length > 0 ? Math.round((sum / length) * 1000) / 1000 : 0;
+}
 
 /**
  * Pevné cesty pro panel výběru – cesta hráče = řetěz úseků (roads.md – Cesta pro hráče), i
@@ -2252,6 +2276,7 @@ function roadViews(
         Math.floor((day - Math.min(...members.map((m) => m.bornDay))) / DAYS_PER_YEAR),
       ),
       trees: standing.filter((t) => spots.has(t.spot) && !removed.has(t.id)).length,
+      treeSpeed: chainTreeSpeed(members),
       wetM: Math.round(
         members.reduce(
           (sum, m) => sum + (m.ground?.wet ?? []).reduce((acc, [a, b]) => acc + (b - a), 0),

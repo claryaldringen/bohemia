@@ -1637,6 +1637,23 @@ describe('pevné cesty v pohledu na ves (roads.md)', () => {
     expect(trees[1]!.growth).toBeLessThan(0.5);
   });
 
+  it('stromy u cesty zrychlí chůzi: olemování jde do scény a panelu, nulové ne (roads.md)', () => {
+    const s = withRoads();
+    s.roads!.roads[0]!.lined = { trees: 0, apples: 0 };
+    const plain = buildVillageView(record(s), landscape, DAY);
+    expect(plain.scene.roads![0]!.lined).toBeUndefined();
+    expect(plain.roads[0]!.treeSpeed).toBe(0);
+    s.roads!.roads[0]!.lined = { trees: 1, apples: 0 };
+    const lined = buildVillageView(record(s), landscape, DAY);
+    expect(lined.scene.roads![0]!.lined).toEqual({ trees: 1, apples: 0 });
+    expect(lined.roads[0]!.treeSpeed).toBe(0.03);
+    // cena kácení u kurzoru chodí po cestách stejně rychle jako na serveru
+    expect(placementVillageFromScene(lined.scene).walkRoads![0]!.lined).toEqual({
+      trees: 1,
+      apples: 0,
+    });
+  });
+
   it('stromy u cest jsou překážky i pro kontrolu umístění v prohlížeči', () => {
     const s = withRoads();
     const view = buildVillageView(record(s), landscape, DAY);
