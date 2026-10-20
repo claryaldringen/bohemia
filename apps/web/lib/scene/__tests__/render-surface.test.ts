@@ -153,7 +153,14 @@ describe('buildRenderSurface – skály u potoka (terén 2)', () => {
   // Táž krajina bez výšek stěn – scéna by kreslila břehy jako v terénu 1.
   const withoutBanks: Landscape = {
     ...rocky,
-    stream: rocky.stream.map(({ bankLeft: _l, bankRight: _r, ...p }) => p),
+    stream: rocky.stream.map((p) => ({
+      x: p.x,
+      y: p.y,
+      halfWidthLeft: p.halfWidthLeft,
+      halfWidthRight: p.halfWidthRight,
+      level: p.level,
+      shallow: p.shallow,
+    })),
   };
   const plain = buildRenderSurface(withoutBanks);
 

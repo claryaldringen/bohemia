@@ -133,11 +133,24 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   Pásmo srovnatelnosti hlídá `checkBand(landscape, versions)` (pásmo podle verzí – `bandFor`,
   `BAND_V1` / `BAND_V2` v `band.ts`) a testy na 300 seedech. Po změně generátoru pusť
   `measure-landscapes` a zkontroluj podíl krajin na první pokus, čas a louky do 600 m od vsi.
-- **Verze vrstev:** nová sídla `CURRENT_LAYER_VERSIONS` (vegetace a úrodnost 2 – víc kvalitní
-  louky kolem vsi, 18. 10. 2026), sídla založená dřív `INITIAL_LAYER_VERSIONS` (vše 1). Stará
-  verze se generuje dál beze změny (`vegetationV1`, `byWaterDistance`) – zlatý otisk krajiny
-  (`generate.test.ts`) i vrstvy překážek (`obstacles.test.ts`) hlídá obě verze. Původní
-  krajinu ukáže `/dev/landscape?seed=…&layers=initial`.
+- **Verze vrstev:** nová sídla `CURRENT_LAYER_VERSIONS` – terén 2 a překážky 2 (skály u potoka, 20. 10. 2026), vegetace a úrodnost 2 (víc kvalitní louky kolem vsi, 18. 10. 2026); nová sídla do 20. 10. `PREVIOUS_LAYER_VERSIONS` (`{ 1, 2, 2, 1 }`), sídla založená do 18. 10.
+  `INITIAL_LAYER_VERSIONS` (vše 1, Vlkov). Staré verze se generují dál beze změny (`vegetationV1`,
+  `byWaterDistance`, terén bez `sculptStreamRocks`) – zlatý otisk krajiny (`generate.test.ts`)
+  i vrstvy překážek (`obstacles.test.ts`) hlídá všechny tři. Na stejném seedu je porovná
+  `/dev/landscape?seed=…&layers=previous` / `layers=initial`.
+- **Skály u potoka** (landscape.md – Skály u potoka, terén 2 – `stream-rocks.ts`, jen server):
+  v ostrém ohybu (poloměr osy pod 1,5 šířky koryta, stočení přes 50° – `sharpBends`) skalní ostroh
+  4–9 m, na vnější straně oblouků nárazový břeh podle výšky okolí (v rovině 1,5 m hlinitý, nejvýš
+  8 m skála), na ≈ 1 z 7–8 map zaříznutý meandr (smyčka Ω vložená do osy – `planPromontory`,
+  `buildStream` se `StreamLoop`) s ostrožnou 0,7–1,4 ha, 8–12 m nad potokem. Terén se jen zvedá –
+  osa, hladina, brody, tůně a voda zůstanou (bez ostrožny bit po bitu jako terén 1), do 450 m od
+  místa pro vesnici nic. Data: `StreamPoint.bankLeft` / `bankRight` (výška stěny, přenos ve
+  Float32 – `landscape-transfer.ts`, `StreamSample.bank`) a `Landscape.promontories` /
+  `promontoriesOf` (druh, obrys plochy, šíje, výška, plocha – obecná data pro budoucí hradiště
+  a zvláštní místa). Scéna: čelo stěny se suťovým svahem od okraje vody (`render-surface.ts` –
+  `cliffBank`, `cliffFaceM`), skála a suť v `ground-layers.ts`, balvany v korytě
+  (`decor-placement.ts`); vrstva překážek 2 výchozy a suť na stěnách (`cliff-rocks.ts`, zdroj
+  `cliffRock`). Náhled `/dev/landscape` – seedy s ostrožnou a tlačítko **Ostrožna** (obrys).
 - **Uložené sídlo nese seed přijatého pokusu** a jeho krajina se generuje přes
   `generateLandscapeAttempt` bez kontroly pásma. Změna pásma (`band.ts`) proto platí jen pro nová
   sídla. **Po ostrém spuštění** se existující vrstva nesmí změnit (přepsala by krajiny hráčů) –

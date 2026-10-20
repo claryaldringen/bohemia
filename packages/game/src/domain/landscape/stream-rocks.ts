@@ -72,7 +72,7 @@ export const ROCK_FREE_SITE = { from: 30, to: 42 } as const;
 /**
  * Ostrožna nad zaříznutým meandrem (smyčka Ω): poloměr osy smyčky, vzdálenost os ramen v šíji
  * (políčka), poloměr ohybů u paty smyčky, výška plochy nad hladinou (m); ostrožna nejméně
- * `siteDistance` od místa pro vesnici (střed) a `siteLoopDistance` (kterýkoli bod smyčky);
+ * `siteDistance` od místa pro vesnici (střed) a `siteLoopDistance` (bod trasy pod šíjí);
  * vyvýšené okolí (návrší, do kterého se meandr zařízl) sahá `uplandMargin` políček za šíji
  * a do `uplandFade` dozní. Ostrožna jen kde terén dovolí – průměrné okolí smyčky aspoň `hillMinM`
  * nad potokem (zvlněnější krajina).

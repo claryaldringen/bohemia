@@ -93,9 +93,9 @@ Kocába). Scéna převyšuje terén 3× (`HEIGHT_SCALE`), takže 10 m v datech v
 | Skalní ostroh     | na vnější straně ohybu (kam by potok tekl rovně), **4–9 m** nad hladinou podle výšky okolí                                          | výchoz, o který se proud opírá; ve scéně 12–27 m                                          |
 | Nárazový břeh     | vnější strana oblouků (poloměr do 10 políček, stočení od 40°): v rovině **1,5 m** hlinitý, s výškou okolí víc, **nejvýš 8 m** skála | výška podle místa – rovina nízký břeh, zaříznutý potok stěna                              |
 | Skála, nebo hlína | od **2,5 m** přibývá skály, od **5 m** skalní stěna se sutí a balvany v korytě                                                      | malé potoky mají hlinitý břeh do 1–2 m                                                    |
-| Ostrožna          | smyčka Ω, plocha **0,6–1,6 ha** nahoře, **8–12 m** nad potokem, šíje ≈ 55–70 m souše mezi rameny                                    | skutečné akropole 2–4 ha a 30–70 m nad tokem, zmenšeno na měřítko mapy                    |
-| Kde ostrožna      | jen kde je okolí smyčky v původním terénu aspoň **10 m** nad potokem – vychází na **≈ 1 z 6 map**                                   | ostrožna je zvláštní místo, ne na každé mapě; jen ve zvlněnější krajině                   |
-| Kolem vsi         | do **450 m** od místa pro vesnici žádné skály, plně až od 630 m; ostrožna nejméně 660 m od vsi                                      | místo vsi a louky u vsi skály nezaberou                                                   |
+| Ostrožna          | smyčka Ω, plocha **0,7–1,4 ha** nahoře, **8–12 m** nad potokem, šíje nahoře 35–50 m                                                 | skutečné akropole 2–4 ha a 30–70 m nad tokem, zmenšeno na měřítko mapy                    |
+| Kde ostrožna      | jen kde je okolí smyčky v původním terénu aspoň **8 m** nad potokem a úsek je bez tůní a brodů – vychází na **≈ 1 z 7–8 map**       | ostrožna je zvláštní místo, ne na každé mapě; jen ve zvlněnější krajině                   |
+| Kolem vsi         | do **450 m** od místa pro vesnici žádné skály, plně až od 630 m; střed ostrožny nejméně 660 m od vsi                                | místo vsi a louky u vsi skály nezaberou                                                   |
 
 ## Zdroje
 

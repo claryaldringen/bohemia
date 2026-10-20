@@ -1,6 +1,7 @@
 # Krajina sídla
 
-Stav: schváleno 16. 10. 2026, víc kvalitní louky kolem vsi 18. 10. 2026 (vegetace a úrodnost 2).
+Stav: schváleno 16. 10. 2026, víc kvalitní louky kolem vsi 18. 10. 2026 (vegetace a úrodnost 2),
+skály u potoka a ostrožny 20. 10. 2026 (terén 2 a vrstva překážek 2 – [Skály u potoka](#skály-u-potoka)).
 
 ## Proč
 
@@ -277,6 +278,107 @@ později.
   po čtvercích jako `scenery-culling.ts` – námět, kdyby obnova na slabších GPU drhla).
 - Vývojový ukazatel výkonu ukazuje obnovy stínové mapy za sekundu a CPU jednoho vykreslení.
 
+## Skály u potoka
+
+Martin (20. 10. 2026):
+
+> „Chtěl bych si ještě pohrát s krajinou. Měli bychom přidat nějaké skály. Např potok, když velmi
+> prudce mění směr jako tady ([snímek: potok, který se v lese stočí skoro v pravém úhlu]) tak by to
+> v přírodě nejspíš neudělal, kdyby tam netrčela nějaká skála. Tam kde je naopak oblouk větší, tak
+> to bývá na skálu vymleté na vnější straně toho oblouku. Koukni se na mapu, jak třeba vypadá údolí
+> Berounky.“
+
+> „Vlastně mě k těm potokům napadá ještě něco. Koukni se na pravěká a slovanská hradiště v Čechách
+> a na Moravě. Většinou se nacházela na nějakém vhodném ostrohu. Potok by měl být schopný takový
+> ostroh vytvořit.“
+
+Na doplňující otázky: **jen nová sídla** – Vlkov a uložená sídla zůstanou beze změny. Výška
+skalních břehů: „Podle mě to může být různé. Koukni se na nějaké potoky v Čechách jako příklad“.
+Rešerše (údolí Berounky, Prokopské údolí, Divoká Šárka, Kocába, Doubrava, hradiště na ostrožnách):
+[research/2026-10-20-stream-rocks.md](research/2026-10-20-stream-rocks.md). Podrobnosti jsou
+návrh Clauda, čísla v `stream-rocks.ts` (`SHARP_BEND`, `ROCK_SPUR`, `CUT_BANK`, `PROMONTORY`,
+`ROCK_FREE_SITE`).
+
+- **Ostrý ohyb = skalní ostroh.** Volný meandr má poloměr oblouku 2–3 šířky koryta; kde poloměr osy
+  klesne pod **1,5 šířky koryta** a oblouk se stočí přes **50°** (`sharpBends`), potok se opírá
+  o skálu. Na vnější straně ohybu – tam, kam by jinak tekl rovně – vyroste skalní ostroh **4–9 m**
+  nad hladinou (víc, když je okolí vyšší): zvýšené temeno (střed ≈ 20 m za okrajem vody) a skalní stěna
+  podél ohybu (± 50 m).
+- **Velký oblouk = nárazový břeh.** Na vnější straně oblouků (poloměr do ≈ 10 políček, stočení od
+  40°, plně od 80°) se terén u vody zvedne do strmého břehu. **Výška podle místa:** v rovině 1,5 m
+  hlinitý nárazový břeh, s každým metrem, o který okolí (2–5 políček za vodou v původním terénu)
+  převyšuje hladinu nad 2 m, o 0,45 m víc, nejvýš **8 m**; podél toku se mírně mění (± 15 %). Za
+  stěnou je terasa, která do ≈ 75 m dozní do okolního terénu – ne val, ani schod. Vnitřní strana
+  oblouku zůstane mírná s náplavem (jako dřív).
+- **Skála, nebo hlína:** od stěny ≈ 2,5 m přibývá skály, od 5 m je to skalní stěna – textura skály
+  na čele a horní hraně, pod čelem suťový svah (štěrk), na hraně skalní výchozy a pod stěnou suť
+  (balvany, mechem porostlé kameny) ve vrstvě překážek a balvany v korytě (ozdoba vody). Nižší
+  břeh je hlinitý (textura břehu).
+- **Ostrožna nad zaříznutým meandrem.** Hradiště stála na ostrožnách – výběžek nad tokem se
+  2–3 prudkými stranami a úzkou šíjí (Levý Hradec, Tetín, Budeč, Libušín, sv. Hypolit); vzniká na
+  soutoku nebo v jádru zaříznutého meandru. Krajina má jeden potok, a tak hra dělá jádro meandru:
+  potok se zařízne smyčkou tvaru Ω (poloměr osy 5–6,2 políčka, ramena u šíje 5,6–6,4 políčka od
+  sebe) do návrší a uprostřed zůstane ostrožna – plocha nahoře **0,7–1,4 ha** (rovná, jen
+  s původním zvlněním), **8–12 m** nad potokem, ze 2–3 stran prudké svahy a skalní stěny, na jedné
+  straně šíje – nahoře 35–50 m široká. Vnější strana smyčky je skalní stěna (nárazový břeh), strana
+  ostrožny mírnější svah. Okolí smyčky se srovná do výšky plochy a za ≈ 135 m dozní do původního
+  terénu (návrší, do kterého se meandr zařízl). **Jen kde to terén dovolí** – okolí smyčky je
+  v původním terénu aspoň 8 m nad potokem, úsek trasy je skoro rovný, bez tůní a brodů, daleko
+  od místa pro vesnici, od okrajů mapy i od ostatních částí potoka – vychází na **≈ 1 z 7–8 map**
+  (13,5 % přijatých krajin). Ostrožna je zvláštní místo, ne na každé mapě.
+- **Data ostrožny** (pro budoucí hradiště a zvláštní místa krajiny, zatím bez herní funkce):
+  `Landscape.promontories` / `promontoriesOf(landscape)` – druh (`kind: 'meander'`; soutok
+  a vyvýšenina nad brodem přibudou s dalšími toky), obrys plochy nahoře (políčka), šíje (dva body
+  napříč nejužším místem), střed, výška nad potokem a plocha. Krajina terénu 1 ostrožny nemá.
+- **Co se nemění:** osa potoka, šířky, hladina, brody a tůně jsou stejné jako v terénu 1 (bez
+  ostrožny bit po bitu – výšky jen přibudou, nejnižší místo krajiny zůstane), vodní políčka i jejich
+  dno, skála do koryta nezasáhne (čelo stěny začíná přesně na okraji vody). Smyčka ostrožny
+  nahradí jen úsek bez tůní a brodů. **Místo vsi a louky u vsi skály nezaberou:** do 450 m od
+  místa pro vesnici žádné skály, plně až od 630 m; střed ostrožny nejméně 660 m od vsi, trasa pod šíjí nejméně 480 m.
+- **Herní důsledky** stávajícími mechanismy: skalní výchozy jsou překážky (stavět ani zakládat pole
+  na nich nejde), prudký svah blokuje pole a pastvu, pěšiny ho obcházejí (cena chůze podle sklonu),
+  vozová síť nevyjede nad 10 %.
+- **Data a scéna:** výška stěny u každého bodu osy (`StreamPoint.bankLeft` / `bankRight`, m nad
+  hladinou, terén 2) – jde do prohlížeče ve Float32 s osou (`landscape-transfer.ts`), osa potoka ve
+  světě ji vrací v dotazu (`StreamSample.bank`). Scéna (`render-surface.ts`) postaví čelo stěny od
+  okraje vody: suťový svah do 30 % šířky čela a 20 % výšky, pak čelo (šířka 0,8 × výška, 1,5–9 m;
+  na vnitřní straně oblouku – svah ostrožny – až 3× širší), nahoře drží výšku stěny a naváže na
+  terén krajiny. Shadery terénu stejné – skála podle `rockinessAt` (sklon) a na stěnách textura
+  skály a suti (`ground-layers.ts`). Vrstva překážek 2 (`cliff-rocks.ts`, zdroj `cliffRock`)
+  přidá výchozy na hranu skalních stěn a suť pod ně; výchozy podle sklonu se do 25 m od stěn
+  nekladou (zaplnily by celý pás kolem stěny).
+- **Verze:** **terén 2** (skály, ostrožna) a **vrstva překážek 2** (skály a suť na stěnách) pro nová
+  sídla – `CURRENT_LAYER_VERSIONS = { terrain: 2, vegetation: 2, fertility: 2, obstacles: 2 }`.
+  Vegetace a úrodnost zůstaly ve verzi 2: jsou to stejné funkce, jen nad jiným terénem (jako vrstva
+  překážek 1 nad vegetací 2). Vrstva překážek dostala novou verzi, protože přibyl rozmisťovač
+  (pravidlo „Co vrstvu překážek mění“). Předchozí verze nových sídel jsou
+  `PREVIOUS_LAYER_VERSIONS` (`{ 1, 2, 2, 1 }`), původní `INITIAL_LAYER_VERSIONS` – obě se generují
+  dál bit po bitu stejně (zlaté otisky v `generate.test.ts`, `obstacles.test.ts`). Terén 2 má
+  v otiscích vlastní hodnoty.
+- **Pásmo srovnatelnosti** platí dál beze změny (`BAND_V2` – pásmo se vybírá podle vegetace
+  a úrodnosti). Úrodných políček je o ≈ 3 % méně (skály a terasy na vnější straně oblouků),
+  louky u vsi stejně.
+- **Náhled:** `/dev/landscape?seed=…` (nové vrstvy), `&layers=previous` (bez skal – na stejném
+  seedu), `&layers=initial`; v liště seedy s ostrožnou a tlačítko **Ostrožna** (kamera k ní,
+  obrys plochy oranžově, šíje červeně).
+
+**Naměřeno** (`measure-landscapes.ts 200`, 20. 10. 2026):
+
+| Metrika                              | Předchozí (terén 1) | Nové (terén 2)          |
+| ------------------------------------ | ------------------- | ----------------------- |
+| krajiny v pásmu na první pokus       | 95,0 %              | 93,0 %                  |
+| nejvíc pokusů                        | 2                   | 2                       |
+| čas jednoho pokusu                   | 34,8 ms             | 39,1 ms                 |
+| louka do 600 m od vsi (medián)       | 60,1 ha             | 60,1 ha                 |
+| z toho úrodnost ≥ 60 (medián)        | 34,4 ha             | 34,3 ha                 |
+| úrodná políčka v krajině (medián)    | 3 036               | 2 956                   |
+| podíl lesa (medián)                  | 62,3 %              | 62,3 %                  |
+| ostrožna                             | –                   | 13,5 % krajin           |
+| plocha / výška ostrožny (medián)     | –                   | 1,06 ha / 9,8 m         |
+| nejvyšší stěna na mapě (p10–p90)     | –                   | 6,3–9,7 m (max 14,6)    |
+| podíl osy se stěnou nad 3 m (medián) | –                   | 10 % (s ostrožnou 34 %) |
+| vrstva překážek (medián kusů, čas)   | 66 409, 248 ms      | 66 435, 247 ms          |
+
 ## Úpravy terénu (vozová cesta)
 
 Vozová cesta ([roads.md](roads.md) – Vozová cesta; Martin, 20. 10. 2026: „Pokud budou překážet
@@ -340,6 +442,16 @@ návrh Clauda.
 | Jako nové verze vegetace a úrodnosti – stávající sídla si krajinu nechají    | návrh Clauda (podle pravidla o verzích)         |
 | Den a noc: pohyb slunce podle dne v roce a hodiny, měsíčně modrá čitelná noc | Martin (19. 10. 2026), podrobnosti návrh Clauda |
 | Den a noc nejdřív jen na vývojovém náhledu, do hry po schválení vzhledu      | Martin (19. 10. 2026)                           |
+| Skály u potoka – ostrý ohyb o skálu, vymletý břeh na vnější straně oblouku   | Martin (20. 10. 2026)                           |
+| Ostrožna, kterou vytvoří potok (místo pro hradiště)                          | Martin (20. 10. 2026)                           |
+| Skály jen pro nová sídla, výška skalních břehů různá podle místa             | Martin (20. 10. 2026)                           |
+| Ostrý ohyb = poloměr pod 1,5 šířky koryta a stočení přes 50°                 | návrh Clauda (rešerše)                          |
+| Nárazový břeh 1,5 m v rovině až 8 m v zaříznutém údolí, skála od 2,5–5 m     | návrh Clauda (rešerše)                          |
+| Ostrožna v jádru zaříznutého meandru (smyčka Ω), soutok až s druhým tokem    | návrh Clauda                                    |
+| Ostrožna 0,7–1,4 ha, 8–12 m nad potokem, na ≈ 1 z 7–8 map                    | návrh Clauda (rešerše zmenšená na mapu)         |
+| Kolem vsi do 450 m bez skal, ostrožna nejméně 660 m od vsi                   | návrh Clauda (místo vsi a louky u vsi)          |
+| Terén 2 a vrstva překážek 2, vegetace a úrodnost beze změny verze            | návrh Clauda (podle pravidla o verzích)         |
+| Balvany v korytě pod stěnou jen jako ozdoba vody, ne překážka                | návrh Clauda                                    |
 
 ## Stav implementace (v1)
 
