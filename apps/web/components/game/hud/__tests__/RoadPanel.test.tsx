@@ -230,6 +230,8 @@ describe('SelectionPanel – vozová cesta (roads.md – Vozová cesta)', () => 
     movedM3: 650,
     laborManDays: 640.3,
     trees: 12,
+    cleared: [],
+    felled: [],
     minutesBefore: null,
     minutesAfter: 7.4,
   };

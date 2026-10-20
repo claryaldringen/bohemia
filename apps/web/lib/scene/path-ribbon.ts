@@ -66,6 +66,7 @@ export const ROAD_WIDTH_M = {
   trodden: ROAD_LAND.widthM.trodden,
   improved: ROAD_LAND.widthM.improved,
   cart: ROAD_LAND.widthM.cart,
+  wagon: ROAD_LAND.widthM.wagon,
 } as const;
 
 /**
@@ -115,6 +116,31 @@ export const CART_RUT_LAYER: RibbonLayer = {
 };
 /** Koleje jsou od osy cesty tolik (m) – rozchod vozu ≈ 1,3 m. */
 export const CART_RUT_OFFSET_M = 0.65;
+
+/**
+ * Vozová cesta (roads.md – Vozová cesta; Martin, 20. 10. 2026: „bude mít vyježděné, ale zpevněné
+ * koleje“; návrh Clauda): pás 3,5 m – po krajích prošlapaná tráva, uprostřed udusaná hlína,
+ * v kolejích štěrk a kameny (textura štěrku z 0 A.D.) – nevlní se, je stavěná.
+ */
+export const WAGON_WORN_LAYER: RibbonLayer = {
+  ...ROAD_WORN_LAYER,
+  width: { weak: ROAD_WIDTH_M.wagon, strong: ROAD_WIDTH_M.wagon },
+  wobble: 0.08,
+};
+export const WAGON_EARTH_LAYER: RibbonLayer = {
+  ...ROAD_EARTH_LAYER,
+  width: { weak: ROAD_WIDTH_M.wagon, strong: ROAD_WIDTH_M.wagon },
+  widthFactor: 0.72,
+  wobble: 0.04,
+};
+/** Zpevněné koleje vozové cesty – štěrk a kameny po CART_RUT_OFFSET_M od osy. */
+export const WAGON_GRAVEL_LAYER: RibbonLayer = {
+  width: { weak: 0.55, strong: 0.55 },
+  softM: 0.12,
+  alpha: (s) => (s <= 0 ? 0 : 0.97),
+  widthFactor: 1,
+  wobble: 0,
+};
 
 /**
  * Čára pásu – pěšina z jádra, u pevné cesty navíc zúžení konců (roads.md – Cesta pro hráče;

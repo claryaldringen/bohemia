@@ -1021,6 +1021,8 @@ export type ChronicleEvent = { day: number } & (
       fieldId: number | null;
       /** Dostavěná řemeslná dílna (crafts.md); u ostatních staveb chybí. */
       craft?: Craft;
+      /** Dostavěná vozová cesta (roads.md – Vozová cesta); u ostatních staveb chybí. */
+      wagon?: true;
     }
   | { kind: 'rebuild-decided'; dwellingId: number; type: DwellingType }
   /** Domácnost obydlí `dwellingId` si začala stavět nový dům typu `type` (migration.md). */

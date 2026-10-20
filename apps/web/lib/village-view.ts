@@ -1,4 +1,5 @@
 import {
+  earthworkProgressOf,
   earthworkSpansOf,
   villageWagonEarthworks,
   wagonChainConstruction,
@@ -1382,8 +1383,9 @@ export type SceneRoad = Pick<
 };
 
 /**
- * Zemní práce vozové cesty pro scénu (roads.md – Vozová cesta): profil osy, brody a hotová délka
- * (terén scény i sítě pěšin – `terrainEditsFrom`), úseky stavby se stářím (svahy úvozu a náspu
+ * Zemní práce vozové cesty pro scénu (roads.md – Vozová cesta): profil osy, brody, hotová délka
+ * po celých úsecích (`reachedM` – terén sítě pěšin a vozů jako na serveru) a podle průběhu stavby
+ * (`shownM` – terén, svahy a vytyčení ve scéně), úseky stavby se stářím (svahy úvozu a náspu
  * zarůstají trávou – celé roky; null = ještě se staví) a jestli se ještě staví.
  */
 export interface SceneEarthwork {
@@ -1391,6 +1393,7 @@ export interface SceneEarthwork {
   profile: RoadProfilePoint[];
   fords?: number[];
   reachedM: number;
+  shownM: number;
   pieces: { toM: number; ageYears: number | null }[];
   building?: true;
 }
@@ -1659,7 +1662,8 @@ const WORKSHOP_FINISHED: Record<Craft, string> = {
   carpenter: 'Dostavěli tesařskou dílnu s přístřeškem.',
 };
 
-function finishedText(kind: ConstructionKind, craft?: Craft): string {
+function finishedText(kind: ConstructionKind, craft?: Craft, wagon?: boolean): string {
+  if (wagon) return 'Vozová cesta je hotová – vůz po ní jede rychleji.';
   if (craft && (kind === 'dwelling' || kind === 'rebuild')) {
     return kind === 'dwelling' ? WORKSHOP_FINISHED[craft] : 'Dokončili přestavbu dílny.';
   }
@@ -1810,7 +1814,7 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
     case 'married-away':
       return 'Dcera se vdala do sousední vsi.';
     case 'construction-finished':
-      return finishedText(event.constructionKind, event.craft);
+      return finishedText(event.constructionKind, event.craft, event.wagon);
     case 'cart-made':
       return `Tesař vyrobil ${CART_NAMES[event.cart].toLowerCase()}.`;
     case 'iron-trip':
@@ -1970,6 +1974,7 @@ function constructionLabel(c: ConstructionSummary): string {
   if (c.kind === 'orchard') return `Sad ${formatHa(c.areaM2 ?? 0)}`;
   if (c.kind === 'pen') return 'Ohrada';
   if (c.kind === 'ard') return 'Rádlo';
+  if (c.kind === 'road' && c.wagon) return 'Vozová cesta';
   if (c.kind === 'road') return c.roadGrade === 'causeway' ? 'Hať a lávka' : 'Úprava cesty';
   if (c.kind === 'road-apples') return 'Jabloně u cesty';
   if (c.kind === 'repair') return `Oprava – ${REPAIR_NAMES[c.repair?.structure ?? 'idol']}`;
@@ -2163,11 +2168,13 @@ function sceneVillage(
  */
 export function sceneEarthworks(state: VillageState, day: number): SceneEarthwork[] {
   const spans = earthworkSpansOf(state);
+  const shown = earthworkProgressOf(state);
   return (state.roads?.earthworks ?? []).map((e, k) => ({
     id: e.id,
     profile: e.profile.map((p) => ({ x: p.x, z: p.z, y: p.y })),
     ...(e.fords ? { fords: [...e.fords] } : {}),
     reachedM: spans[k]!.reachedM,
+    shownM: Math.round(shown[k]!.reachedM * 10) / 10,
     pieces: e.pieces.map((p) => ({
       toM: p.toM,
       ageYears:

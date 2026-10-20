@@ -212,7 +212,7 @@ export class BuildingShowcase {
   /** Pevné cesty – vyšlapaná, úprava a hať s lávkou po fázích (ukázka „Cesty“). */
   private roadWorks: RoadWorks | null = null;
   private roadMeshes: Mesh[] = [];
-  private roadMaterials: { worn: Material; earth: Material } | null = null;
+  private roadMaterials: { worn: Material; earth: Material; gravel: Material } | null = null;
   /** Zimní vzhled (sníh na střechách a louce) – jinak léto. */
   private winter = false;
   /** Poslední snímek animace spřežení (ms) – nejvýš WATER_FPS za sekundu. */
@@ -745,7 +745,14 @@ export class BuildingShowcase {
     });
     applySeasonGround(roadWorn, 0.55);
     applySeasonGround(roadEarth, 0.55);
-    this.roadMaterials = { worn: roadWorn, earth: roadEarth };
+    this.roadMaterials = {
+      worn: roadWorn,
+      earth: roadEarth,
+      gravel: createDecalMaterial(scene, 'showcase-road-gravel', {
+        texture: 'gravel',
+        zOffset: -4.5,
+      }),
+    };
     this.roadWorks = new RoadWorks(scene, {
       groundHeight: () => 0,
       addShadowCaster: addCaster,
@@ -801,8 +808,8 @@ export class BuildingShowcase {
       height: () => 0,
       smoothHeight: () => 0,
       material: (kind) => materials[kind],
-      lift: { worn: 0.05, earth: 0.055 },
-      alphaIndex: { worn: 3, earth: 3.5 },
+      lift: { worn: 0.05, earth: 0.055, gravel: 0.06 },
+      alphaIndex: { worn: 3, earth: 3.5, gravel: 3.7 },
     });
     this.roadWorks?.update(roads);
   }

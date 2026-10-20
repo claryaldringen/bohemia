@@ -13,6 +13,7 @@ import {
   type ObstacleChanges,
 } from './obstacles';
 import {
+  earthworkReachedM,
   earthworkSpansOf,
   editedHeight,
   profileLength,
@@ -23,7 +24,7 @@ import {
 import { simplifyPathLine, type PathPoint, type PathVillage } from './paths/network';
 import { roadChain, type ChainLink } from './paths/road-chains';
 import { addWagonRoad } from './paths/roads';
-import { cropPathTerrain, pathWindowFor, PATH_WOODLAND, trailTerrain } from './paths/terrain';
+import { pathTerrainOf, pathWindowFor, PATH_WOODLAND, withObstacles } from './paths/terrain';
 import { pathVillageOf } from './paths/village';
 import {
   WAGON_BIN_M,
@@ -84,8 +85,9 @@ const MIN_CHAIN_M = 15;
 /** Okno hledání kolem staré cesty a spojnice konců: násobek spojnice + rezerva, meze (m). */
 const WINDOW_PAD = { share: 0.4, extraM: 60, minM: 60, maxM: 220 } as const;
 /**
- * Oklika: nová trasa delší než `factor` × stará a zároveň o víc než `extraM` – vozová cesta se
- * mezi stavbami nevejde (krátké cesty mezi domy; serpentina do svahu vyjde ≈ 2× delší).
+ * Oklika: nová trasa delší než `factor` × stará a zároveň o víc než `extraM`, přestože stará cesta
+ * je dost mírná i pro vozovou cestu (nejprudší místo do WAGON_ROAD.maxGrade) – délku tedy nedělá
+ * svah (serpentiny), ale stavby: vozová cesta se mezi nimi nevejde (krátké cesty mezi domy).
  */
 const DETOUR = { factor: 3, extraM: 60 } as const;
 /** Úprava terénu menší než tolik (m) nechá překážku stát. */
@@ -155,6 +157,12 @@ export type WagonRoadPlan =
       laborManDays: number;
       /** Dospělé stromy kácené v průseku (klády na hromadu). */
       trees: number;
+      /**
+       * Co stavba vykácí a odklidí (id překážek – vzestupně): odstraněné natrvalo (pláň, zemní
+       * práce, pás cesty) a pokácené stromy po stranách průseku (zůstane pařez).
+       */
+      cleared: number[];
+      felled: number[];
       /** Doba jízdy vozu (min): stará cesta (null – vůz po ní neprojede) a nová. */
       minutesBefore: number | null;
       minutesAfter: number;
@@ -239,12 +247,10 @@ function planGrid(
   input: WagonPlanInput,
   box: { minX: number; minZ: number; maxX: number; maxZ: number },
 ): WagonGrid {
-  const full = trailTerrain(input.landscape, input.layer);
-  const window = pathWindowFor(input.landscape, box);
-  const terrain = withTerrainEdits(
-    cropPathTerrain(full, window),
-    terrainEditsFrom(input.earthworks),
-  );
+  // terén okna (z mezipaměti podle krajiny) s překážkami krajiny – balvany a výchozy neprůchodné
+  const window = pathTerrainOf(input.landscape, pathWindowFor(input.landscape, box));
+  const withLayer = input.layer ? withObstacles(window, input.layer, input.changes) : window;
+  const terrain = withTerrainEdits(withLayer, terrainEditsFrom(input.earthworks));
   return wagonRoadGrid({
     village: input.village,
     terrain,
@@ -304,6 +310,25 @@ function wagonClearing(
     for (let k = 0; k < bounds.length; k++) if (arc <= bounds[k]! + 1e-9) return k;
     return bounds.length - 1;
   };
+  const corner = { arc: 0, d: 0 };
+  const cornersChanged = (x: number, z: number): boolean => {
+    const i0 = Math.floor((x - grid.originX) / grid.cellM);
+    const j0 = Math.floor((z - grid.originZ) / grid.cellM);
+    for (const [di, dj] of [
+      [0, 0],
+      [1, 0],
+      [0, 1],
+      [1, 1],
+    ] as const) {
+      const cx = grid.originX + (i0 + di) * grid.cellM;
+      const cz = grid.originZ + (j0 + dj) * grid.cellM;
+      const natural = wagonGridHeight(grid, cx, cz);
+      if (Math.abs(editedHeight(edits, cx, cz, natural, corner) - natural) > FOOTPRINT_M) {
+        return true;
+      }
+    }
+    return false;
+  };
   const woodlandAt = (x: number, z: number): boolean => {
     const i = Math.round((x - grid.originX) / grid.cellM);
     const j = Math.round((z - grid.originZ) / grid.cellM);
@@ -321,8 +346,14 @@ function wagonClearing(
     const base = wagonGridHeight(grid, x, z);
     const h = editedHeight(edits, x, z, base, near);
     if (near.arc < 0) return;
-    const footprint = Math.abs(h - base) > FOOTPRINT_M || near.d <= WAGON_ROAD.flatHalfM;
-    const bed = near.d <= WAGON_ROAD.bedHalfM || Math.abs(h - base) > FOOTPRINT_M;
+    const nearest = { arc: near.arc, d: near.d };
+    // terén se upraví pod překážkou, nebo v bodech sítě kolem ní (síť terénu scény má krok
+    // buňky – svah úvozu tam vyjde širší): překážka by visela nad terénem nebo v něm vězela
+    const changed = Math.abs(h - base) > FOOTPRINT_M || cornersChanged(x, z);
+    const footprint = changed || nearest.d <= WAGON_ROAD.flatHalfM;
+    const bed = nearest.d <= WAGON_ROAD.bedHalfM || changed;
+    near.arc = nearest.arc;
+    near.d = nearest.d;
     const woodland = wood || woodlandAt(x, z);
     const swath = woodland && near.d <= ROAD_SWATH.halfM;
     const tally = out.pieces[pieceOf(near.arc)]!;
@@ -390,6 +421,29 @@ function pieceBounds(lengthM: number): number[] {
   );
 }
 
+/** Nejprudší místo staré cesty (m/m) – sklon terénu mřížky po kusech ≈ 7,5 m po osách úseků. */
+function chainMaxGrade(grid: WagonGrid, roads: readonly WagonPlanRoad[]): number {
+  let max = 0;
+  for (const road of roads) {
+    for (let k = 1; k < road.points.length; k++) {
+      const a = road.points[k - 1]!;
+      const b = road.points[k]!;
+      const d = length2(b.x - a.x, b.z - a.z);
+      if (d <= 0) continue;
+      const n = Math.max(1, Math.ceil(d / 7.5));
+      for (let q = 0; q < n; q++) {
+        const x0 = a.x + ((b.x - a.x) * q) / n;
+        const z0 = a.z + ((b.z - a.z) * q) / n;
+        const x1 = a.x + ((b.x - a.x) * (q + 1)) / n;
+        const z1 = a.z + ((b.z - a.z) * (q + 1)) / n;
+        const rise = Math.abs(wagonGridHeight(grid, x1, z1) - wagonGridHeight(grid, x0, z0));
+        max = Math.max(max, rise / (d / n));
+      }
+    }
+  }
+  return max;
+}
+
 /**
  * Naplánuje vozovou cestu pro cestu hráče `roadId` (roads.md – Vozová cesta): trasa mezi konci
  * řetězu (`findWagonRoute`), profil (`wagonProfile`), zemní práce s převozem hlíny
@@ -419,9 +473,12 @@ export function planWagonRoad(input: WagonPlanInput): WagonRoadPlan {
   const profile = wagonProfile(grid, route.points);
   if (!profile) return { ok: false, reason: WAGON_NO_ROUTE };
   const oldLengthM = chain.reduce((sum, link) => sum + profileLength(link.road.points), 0);
+  const links = chain.map((link) => link.road);
+  const oldMaxGrade = chainMaxGrade(grid, links);
   if (
     profile.lengthM > oldLengthM * DETOUR.factor &&
-    profile.lengthM - oldLengthM > DETOUR.extraM
+    profile.lengthM - oldLengthM > DETOUR.extraM &&
+    oldMaxGrade <= WAGON_ROAD.maxGrade
   ) {
     return { ok: false, reason: wagonDetourReason(profile.lengthM, oldLengthM) };
   }
@@ -450,25 +507,6 @@ export function planWagonRoad(input: WagonPlanInput): WagonRoadPlan {
   });
   // poslední úsek končí přesně na konci osy
   pieces[pieces.length - 1]!.toM = profile.lengthM;
-  const links = chain.map((link) => link.road);
-  let oldMaxGrade = 0;
-  for (const road of links) {
-    for (let k = 1; k < road.points.length; k++) {
-      const a = road.points[k - 1]!;
-      const b = road.points[k]!;
-      const d = length2(b.x - a.x, b.z - a.z);
-      if (d <= 0) continue;
-      const n = Math.max(1, Math.ceil(d / 7.5));
-      for (let q = 0; q < n; q++) {
-        const x0 = a.x + ((b.x - a.x) * q) / n;
-        const z0 = a.z + ((b.z - a.z) * q) / n;
-        const x1 = a.x + ((b.x - a.x) * (q + 1)) / n;
-        const z1 = a.z + ((b.z - a.z) * (q + 1)) / n;
-        const rise = Math.abs(wagonGridHeight(grid, x1, z1) - wagonGridHeight(grid, x0, z0));
-        oldMaxGrade = Math.max(oldMaxGrade, rise / (d / n));
-      }
-    }
-  }
   return {
     ok: true,
     chain: links.map((r) => r.id),
@@ -488,6 +526,8 @@ export function planWagonRoad(input: WagonPlanInput): WagonRoadPlan {
     movedM3: Math.round(earth.movedM3),
     laborManDays: tenths(pieces.reduce((sum, p) => sum + p.manDays, 0)),
     trees: pieces.reduce((sum, p) => sum + p.trees, 0),
+    cleared: clearing.pieces.flatMap((t) => t.cleared).sort((a, b) => a - b),
+    felled: clearing.pieces.flatMap((t) => t.felled).sort((a, b) => a - b),
     minutesBefore: roundMinutes(roadsCartMinutes(grid, links)),
     minutesAfter: roundMinutes(profileCartMinutes(profile.profile, profile.fords))!,
   };
@@ -662,7 +702,7 @@ function buildPiece(
     };
     const grid = wagonRoadGrid({
       village: { dwellings: [], fields: [] },
-      terrain: cropPathTerrain(trailTerrain(landscape, obstacles), pathWindowFor(landscape, box)),
+      terrain: pathTerrainOf(landscape, pathWindowFor(landscape, box)),
       layer: obstacles,
       changes: obstacleChangesAt(state, day),
     });
@@ -741,8 +781,7 @@ export function wagonWorkTarget(
   if (c.earthwork === undefined) return null;
   const earthwork = state.roads?.earthworks?.find((e) => e.id === c.earthwork);
   if (!earthwork || earthwork.profile.length < 2) return null;
-  const spans = earthworkSpansOf({ roads: { earthworks: [earthwork] }, constructions: [c] });
-  const at = profileAt(earthwork.profile, spans[0]!.reachedM);
+  const at = profileAt(earthwork.profile, earthworkReachedM(earthwork, c));
   return { kind: 'wagon', id: c.id, x: at.x, z: at.z };
 }
 

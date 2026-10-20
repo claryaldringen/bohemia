@@ -199,10 +199,41 @@ export function profileLength(profile: readonly { x: number; z: number }[]): num
 }
 
 /**
- * Kusy osy vsi – zemní práce vozových cest s hotovou délkou (rozestavěné podle průběhu své
- * stavby). Bez zemních prací prázdné.
+ * Hotová délka osy po celých úsecích (m) – terén sítí pěšin a vozů se mění, až je úsek hotový
+ * (je pak cestou); bez stavby celá osa.
+ */
+export function earthworkBuiltM(
+  earthwork: Pick<RoadEarthwork, 'profile' | 'pieces' | 'constructionId'>,
+): number {
+  if (earthwork.constructionId === undefined) return profileLength(earthwork.profile);
+  let built = 0;
+  for (const piece of earthwork.pieces) {
+    if (piece.builtDay === null) break;
+    built = piece.toM;
+  }
+  return built;
+}
+
+/**
+ * Kusy osy vsi – zemní práce vozových cest po hotových úsecích (`earthworkBuiltM`): terén sítí
+ * pěšin a vozů (úsek je sjízdný, až je hotový – síť se tak nepřepočítává každý den stavby).
+ * Rozestavěný úsek podle průběhu ukazuje scéna (`earthworkReachedM`). Bez zemních prací prázdné.
  */
 export function earthworkSpansOf(state: {
+  roads?: Pick<VillageRoads, 'earthworks'>;
+}): EarthworkSpan[] {
+  return (state.roads?.earthworks ?? []).map((e) => ({
+    profile: e.profile,
+    ...(e.fords ? { fords: e.fords } : {}),
+    reachedM: earthworkBuiltM(e),
+  }));
+}
+
+/**
+ * Kusy osy vsi i s rozestavěným úsekem podle průběhu stavby (`earthworkReachedM`) – terén scény
+ * a čelo práce. Bez zemních prací prázdné.
+ */
+export function earthworkProgressOf(state: {
   roads?: Pick<VillageRoads, 'earthworks'>;
   constructions: readonly Construction[];
 }): EarthworkSpan[] {
@@ -219,11 +250,8 @@ export function earthworkSpansOf(state: {
   });
 }
 
-/** Úpravy terénu vsi (roads.md – Vozová cesta) – čistá funkce stavu. */
-export function terrainEditsOf(state: {
-  roads?: Pick<VillageRoads, 'earthworks'>;
-  constructions: readonly Construction[];
-}): TerrainEdits {
+/** Úpravy terénu vsi (roads.md – Vozová cesta) – čistá funkce stavu (po hotových úsecích). */
+export function terrainEditsOf(state: { roads?: Pick<VillageRoads, 'earthworks'> }): TerrainEdits {
   if (!state.roads?.earthworks || state.roads.earthworks.length === 0) return NO_TERRAIN_EDITS;
   return terrainEditsFrom(earthworkSpansOf(state));
 }

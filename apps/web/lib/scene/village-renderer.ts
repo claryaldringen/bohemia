@@ -655,6 +655,14 @@ export class VillageRenderer {
     return this.fields.setPaths(track);
   }
 
+  /**
+   * Terén se změnil (úvoz a násep vozové cesty – roads.md, Vozová cesta) v obdélníku `bounds` (m):
+   * pole tam se přestaví na novém terénu. Vrátí true, když je co překreslit.
+   */
+  terrainChanged(bounds: { minX: number; minZ: number; maxX: number; maxZ: number }): boolean {
+    return this.fields.terrainChanged(bounds);
+  }
+
   /** Vývojový náhled: louky na seno dané přímo (bez krajiny). */
   setHayMeadows(meadows: HayMeadow[] | null): boolean {
     return this.fields.setHayMeadows(meadows);

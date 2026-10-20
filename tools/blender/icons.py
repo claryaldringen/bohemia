@@ -12,8 +12,9 @@ přístřeškem s kozlíky a koly – wagons.md, uhlíř s milířem), sad
 (posvátný dub s obětinami), sous (posvátná souš – uschlý dub z `apps/web/public/models/decor/`
 s obětinami), haj (dubový háj s kameny) a ohrada (přístřešek, žlab a branka
 z `apps/web/public/models/pen/`, kráva ze stáda vsi, stoh sena), cesta, cesta-vyjezdena,
-cesta-upravena a hat (druhy pevné cesty – pás cesty, vyježděná se dvěma kolejemi, upravená širší,
-hať a lávka z `apps/web/public/models/roads/`)
+cesta-upravena, hat a cesta-vozova (druhy pevné cesty – pás cesty, vyježděná se dvěma kolejemi,
+upravená širší, hať a lávka z `apps/web/public/models/roads/`, vozová cesta se zpevněnými
+kolejemi v úvozu)
 a jablone (jabloně s jablky střídavě podél cesty – tlačítko „Vysadit jabloně“), stezka (zemská
 stezka od brány dvorce – trade.md) a obchod (pytle obilí, hrnce, klády a sýr) – portréty do
 panelu výběru;
@@ -712,6 +713,33 @@ def icon_road(grade):
     rng = random.Random(11)
     gr = ground(6.4, mat("g", tex=f"{TEX}/grass-dirt.jpg", scale=0.25, tint=(0.8, 0.82, 0.6)), z=-0.02, fade=0.72)
     earth = mat("earth", tex=f"{TEX}/mud.jpg", scale=0.5, tint=(0.82, 0.66, 0.48))
+    if grade == "cesta-vozova":
+        # vozová cesta (roads.md – Vozová cesta): pás 3,5 m udusané hlíny se zpevněnými kolejemi
+        # (štěrk a kameny – WAGON_GRAVEL_LAYER) v úvozu – svahy holé hlíny po obou stranách
+        scale = 1.6 / 1.9
+        road_strip(3.5 * scale, 12.0, earth)
+        gravel = mat("gravel", tex=f"{TEX}/gravel.jpg", scale=0.6, tint=(0.86, 0.84, 0.8))
+        for side in (-1, 1):
+            road_strip(0.5 * scale, 12.0, gravel, z=0.008, wobble=0.0, seed=7 + side, offset=side * 0.65 * scale)
+        bank = mat("bank", tex=f"{TEX}/mud.jpg", scale=0.45, tint=(0.66, 0.52, 0.38))
+        for side in (-1, 1):
+            bm = bmesh.new()
+            n = 24
+            rows = []
+            for i in range(n + 1):
+                y = -6.0 + 12.0 * i / n
+                dx = math.sin(y * 0.6) * 0.25
+                inner = dx + side * (3.5 * scale / 2 + 0.35)
+                outer = dx + side * (3.5 * scale / 2 + 1.6)
+                rows.append((bm.verts.new((inner, y, 0.0)), bm.verts.new((outer, y, 1.1))))
+            for i in range(n):
+                a, b = rows[i]
+                c, d = rows[i + 1]
+                bm.faces.new((a, b, d, c) if side < 0 else (a, c, d, b))
+            to_obj(bm, f"bank{side}", bank, smooth=True)
+        sun(az=-55, el=46)
+        camera([Vector((-3.2, -4.6, 0)), Vector((3.2, 4.6, 1.4)), Vector((-3.2, 4.6, 0)), Vector((3.2, -4.6, 0))], az=24, el=42, margin=0.92)
+        return
     if grade == "cesta-vyjezdena":
         # vyježděná cesta (ROAD_WIDTH_M ve scéně: 2,6 m proti 1,9 m vyšlapané): prošlapaná tráva,
         # uprostřed tráva, dvě koleje 0,65 m od osy (CART_RUT_LAYER)
@@ -2172,6 +2200,7 @@ BUILD = {
     "ohrada": icon_ohrada,
     "cesta": lambda: icon_road("cesta"),
     "cesta-vyjezdena": lambda: icon_road("cesta-vyjezdena"),
+    "cesta-vozova": lambda: icon_road("cesta-vozova"),
     "cesta-upravena": lambda: icon_road("cesta-upravena"),
     "hat": lambda: icon_road("hat"),
     "jablone": icon_jablone,

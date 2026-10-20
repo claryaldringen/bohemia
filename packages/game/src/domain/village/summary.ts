@@ -171,6 +171,8 @@ export interface ConstructionSummary {
    */
   roadIds: number[] | null;
   roadGrade: RoadGrade | null;
+  /** Stavba vozové cesty (roads.md – Vozová cesta); u ostatních chybí. */
+  wagon?: true;
   /**
    * Oprava stavby, ke které se zase chodí (abandonment.md – Oprava) – druh a id opravované
    * stavby; jinak null.
@@ -686,6 +688,7 @@ function constructionSummary(state: VillageState, c: Construction): Construction
     treesToFell: treesToFell(c),
     roadIds: c.kind === 'road' || c.kind === 'road-apples' ? [...(c.roadIds ?? [])] : null,
     roadGrade: c.kind === 'road' ? (c.roadGrade ?? null) : null,
+    ...(c.earthwork !== undefined ? { wagon: true as const } : {}),
     repair: c.repair ? { structure: c.repair.structure, id: c.repair.id } : null,
   };
 }

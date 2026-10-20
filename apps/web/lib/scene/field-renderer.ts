@@ -339,6 +339,9 @@ export class FieldRenderer {
   private tracksStale = true;
   /** Výšky a normály sítí obtisků (`drapedGrid`) – podle sítě, dokud žije. */
   private readonly draped = new WeakMap<DecalGrid, DrapedPoints & { noise: Float64Array }>();
+  /** Změny terénu pod poli (úvozy a náspy vozových cest) – obdélník a verze. */
+  private terrainMarks: { bounds: TrackBounds; version: number }[] = [];
+  private terrainVersion = 0;
   private disposed = false;
 
   constructor(
@@ -367,6 +370,32 @@ export class FieldRenderer {
     this.paths = track;
     this.tracksStale = true;
     return this.rebuild();
+  }
+
+  /**
+   * Terén se pod poli změnil (úvoz a násep vozové cesty – roads.md, Vozová cesta) v obdélníku
+   * `bounds` (m): bloky polí, které do něj zasahují, se přestaví na novém terénu (obtisky
+   * a rostliny), ostatní zůstanou. Vrátí true, když se něco změnilo.
+   */
+  terrainChanged(bounds: TrackBounds): boolean {
+    this.terrainMarks.push({ bounds, version: ++this.terrainVersion });
+    return this.rebuild();
+  }
+
+  /** Verze terénu pod obdélníkem – nejnovější změna, která do něj zasahuje (0 = žádná). */
+  private terrainStamp(b: TrackBounds): number {
+    let version = 0;
+    for (const m of this.terrainMarks) {
+      if (
+        m.bounds.maxX >= b.minX &&
+        m.bounds.minX <= b.maxX &&
+        m.bounds.maxZ >= b.minZ &&
+        m.bounds.minZ <= b.maxZ
+      ) {
+        version = Math.max(version, m.version);
+      }
+    }
+    return version;
   }
 
   /** Den v roce podle scény (roční období) – bez rozdělení práce podle něj odhad vzhledu a seno. */
@@ -628,7 +657,9 @@ export class FieldRenderer {
         [...grouped].map(([block, blockViews]) => [
           block,
           JSON.stringify(partViewsKey(blockViews)) +
-            (tracks ? `#${tracks.keyNear(viewsBounds(blockViews))}` : ''),
+            (tracks ? `#${tracks.keyNear(viewsBounds(blockViews))}` : '') +
+            // úvoz a násep vozové cesty pod blokem (terrainChanged) – přestaví se jen on
+            (this.terrainMarks.length > 0 ? `#t${this.terrainStamp(viewsBounds(blockViews))}` : ''),
         ]),
       );
       const key = `${context}|${[...blockKeys].map(([block, k]) => `${block}:${k}`).join('|')}`;

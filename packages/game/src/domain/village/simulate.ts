@@ -1993,7 +1993,14 @@ function finishConstructions(state: VillageState, day: number): void {
     if (c.kind === 'road' && c.earthwork !== undefined) {
       // dostavěná vozová cesta (roads.md – Vozová cesta) – úseky jsou cestou od dostavění
       finishWagonRoad(state, c, day);
-      state.chronicle.push(finishedEvent(day, c, null));
+      state.chronicle.push({
+        day,
+        kind: 'construction-finished',
+        constructionKind: c.kind,
+        dwellingId: null,
+        fieldId: null,
+        wagon: true,
+      });
       roadUpgraded = true;
       continue;
     }
