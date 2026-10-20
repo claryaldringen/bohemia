@@ -1,4 +1,3 @@
-import { homeKilnCenter } from './charcoal';
 import type { WorkshopDay } from './crafts';
 import { isVillageExtinct } from './extinction';
 import type { DayAllocation, LaborTaskName } from './labor';
@@ -56,13 +55,14 @@ export interface FieldTaskWork {
 
 /**
  * Svoz vozy dne (wagons.md – Vůz): na co vozy jely (snopy ze sklizně, seno ze seče, klády ke
- * stavbám, osivo na setí a voda v sudech – Co vozy vozí), práce honáků a nakladačů a kolik vozů
- * jelo; u klád stromy, u kterých se nakládalo, u vody břeh (`target`). Posádka vozu s vodou je
- * v denním minimu (přirážka za vodu), ostatní v práci úlohy, klády ze společné práce. Uhlí z milíře
- * je u dílny uhlíře (`WorkshopDay.cart`).
+ * stavbám, uhlí od milíře a ruda z rudiště ke kováři, osivo na setí a voda v sudech – Co vozy
+ * vozí), práce honáků, nakladačů a sedláků a kolik vozů jelo; u klád stromy, u kterých se
+ * nakládalo, u uhlí milíř, u rudy rudiště a u vody břeh (`target`). Posádka vozu s vodou je
+ * v denním minimu (přirážka za vodu), klády ze společné práce, sedlák s uhlím a rudou z práce vsi
+ * před úlohami (`DayAllocation.carting` – crafts.md, Uhlí a ruda kováře), ostatní v práci úlohy.
  */
 export interface HaulWork {
-  job: 'harvest' | 'mow' | 'logs' | 'seed' | 'water';
+  job: 'harvest' | 'mow' | 'logs' | 'charcoal' | 'ore' | 'seed' | 'water';
   manDays: number;
   carts: number;
   trees?: number[];
@@ -138,6 +138,7 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
     construction?: number,
     carts?: number,
     job?: CartJob,
+    ages?: readonly number[],
   ): void => {
     const rounded = Math.round(manDays * 1000) / 1000;
     if (rounded < MIN_MAN_DAYS) return;
@@ -148,6 +149,7 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
       ...(construction === undefined ? {} : { construction }),
       ...(carts ? { carts } : {}),
       ...(job ? { job } : {}),
+      ...(ages && ages.length > 0 ? { ages: [...ages] } : {}),
     });
   };
   const { allocation } = work;
@@ -167,7 +169,8 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
           : (haul.target ?? target);
       const manDays = Math.min(haul.manDays, limit - total);
       total += manDays;
-      const cartJob = job === 'seed' || job === 'water' ? job : undefined;
+      const cartJob =
+        job === 'seed' || job === 'water' || job === 'charcoal' || job === 'ore' ? job : undefined;
       add('haul', place ?? { kind: 'village' }, manDays, undefined, haul.carts, cartJob);
     }
     return total;
@@ -201,6 +204,9 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
   }
   haulTo('mow', mowTarget?.target ?? null);
   haulTo('logs', null);
+  // uhlí a ruda ke kováři vozem se sedlákem (crafts.md – Uhlí a ruda kováře) – u milíře a rudiště
+  haulTo('charcoal', null);
+  haulTo('ore', null);
   add('slaughter', { kind: 'village' }, allocation.tasks.slaughter);
   const orchards = orchardAreas(state);
   for (const task of ['orchard-care', 'orchard-harvest'] as const) {
@@ -234,11 +240,22 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
       ? { kind: 'kiln', id: w.dwellingId, x: w.kilnSite.x, z: w.kilnSite.z }
       : place;
     add('craft', kiln, w.making);
-    // uhlí ke kováři vozem (wagons.md – Co vozy vozí) – posádka vozu u milíře
-    if (w.cart) {
-      const site = w.kilnSite ?? kilnCenterOf(state, w.dwellingId);
-      const target: LaborTarget = site ? { kind: 'kiln', id: w.dwellingId, ...site } : place;
-      add('haul', target, w.cart.manDays, undefined, 1, 'charcoal');
+    // kovář: kopání rudy na rudišti, nošení uhlí od milíře a rudy z rudiště (crafts.md – Uhlí
+    // a ruda kováře) – kdo to dělá (věky); jízda s vozem pro rudu s vozem
+    if (w.ore) {
+      const { manDays, ages, x, z } = w.ore;
+      add(
+        'ore',
+        { kind: 'ore', id: w.dwellingId, x, z },
+        manDays,
+        undefined,
+        undefined,
+        undefined,
+        ages,
+      );
+    }
+    for (const f of w.fetch ?? []) {
+      add('fetch', f.target, f.manDays, undefined, f.cart ? 1 : undefined, undefined, f.ages);
     }
     if (w.planting) {
       const stumps = w.plantedTrees ?? [];
@@ -256,7 +273,8 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
   // opravy obydlí jdou ze společné práce po stavbách (population.md – Práce), polní práce navíc
   // z toho, co zbude po nich (fields.md – Osev navíc)
   let invested = work.repairs.reduce((sum, r) => sum + r.manDays, 0) + (work.extraField ?? 0);
-  // honáci a nakladači klád jdou ze společné práce (wagons.md)
+  // honáci a nakladači klád jdou ze společné práce (wagons.md); sedláci s uhlím a rudou mají
+  // vlastní podíl práce vsi před úlohami (`allocation.carting` – crafts.md, Uhlí a ruda kováře)
   for (const haul of hauls) if (haul.job === 'logs') invested += haul.manDays;
   for (const c of work.constructions) {
     invested += c.manDays;
@@ -271,12 +289,6 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
     ...(work.herders !== undefined ? { herders: work.herders } : {}),
     ...(work.aside ? { aside: asideShares(state, work.aside) } : {}),
   };
-}
-
-/** Střed milíře u dílny uhlíře (id obydlí); bez obydlí null. */
-function kilnCenterOf(state: VillageState, dwellingId: number): { x: number; z: number } | null {
-  const dwelling = state.dwellings.find((d) => d.id === dwellingId);
-  return dwelling ? homeKilnCenter(dwelling.position) : null;
 }
 
 /**

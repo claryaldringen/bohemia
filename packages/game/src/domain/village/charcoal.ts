@@ -3,7 +3,6 @@ import { length2, obstacleIndex, type ObstacleLayer } from '../landscape';
 import { distanceFactor } from './fields';
 import { buildingLocalToWorld, fellTrees, obstacleChangesAt, plantOnStump } from './obstacles';
 import { monthInWindow } from './orchard';
-import type { KilnCart } from './cart-jobs';
 import {
   BEECH_PLANTING,
   CART_JOBS,
@@ -45,8 +44,14 @@ import {
 const EPSILON = 1e-9;
 /** Nejvýš tolik kroků práce uhlíře za den (sázení, buky, fáze milíře). */
 const MAX_STEPS = 64;
-/** Vytahání, třídění a odnos uhlí z vypáleného milíře – čd na kg (2 čd na buk po 120 kg). */
-const DRAW_MAN_DAYS_PER_KG = CHARCOAL_KILN.drawManDaysPerTree / CRAFT_PRODUCTION.charcoalKgPerTree;
+/**
+ * Vytahání a třídění uhlí z vypáleného milíře – čd na kg: z 2 čd na buk po 120 kg (vytahání,
+ * třídění a odnos) bez odnosu v koších (CART_JOBS.charcoal.carryShare) – ten dělá kovářova
+ * domácnost, nebo vůz se sedlákem (crafts.md – Uhlí a ruda kováře).
+ */
+const DRAW_MAN_DAYS_PER_KG =
+  (CHARCOAL_KILN.drawManDaysPerTree / CRAFT_PRODUCTION.charcoalKgPerTree) *
+  (1 - CART_JOBS.charcoal.carryShare);
 
 /** Střed milíře u uhlířovy zemnice ve světě (MILIR.offset v souřadnicích modelu). */
 export function homeKilnCenter(position: Position): { x: number; z: number } {
@@ -252,22 +257,15 @@ export interface BurnerDay {
   /** Milíř v lese, u kterého se dnes pracovalo (střed, m); u dílny null. */
   site: { x: number; z: number } | null;
   activity: WorkshopActivity;
-  /**
-   * Uhlí dnes odvezl vůz (wagons.md – Co vozy vozí): práce posádky (čd – v `making` není), kolik
-   * uhlí vůz odvezl (kg) a kde jeho trasa u milíře končí (m). Bez vozu chybí.
-   */
-  cart?: { manDays: number; kg: number; x: number; z: number };
 }
 
 /** Co uhlíř dnes dělá s vypáleným milířem (crafts.md – Milíř stojí vždy). */
 export interface BurnerPlan {
-  /** Kolik uhlí dnes donese kovářům z vypáleného milíře (kg – `charcoalDrawKg`); 0 = nenosí. */
-  drawKg: number;
   /**
-   * Vůz, který dnes uhlí odveze ke kováři (wagons.md – Co vozy vozí – `kilnCartOffer`): odnos
-   * v koších (CART_JOBS.charcoal.carryShare vytahání) nahradí jízdy vozu. Bez údaje se nosí.
+   * Kolik uhlí dnes vytahá z vypáleného milíře pro kováře (kg – `charcoalDrawKg`); 0 = nevytahá.
+   * Do kovárny ho donese kovářova domácnost nebo vůz (crafts.md – Uhlí a ruda kováře).
    */
-  cart?: KilnCart;
+  drawKg: number;
 }
 
 /**
@@ -289,10 +287,10 @@ export function migrateBurner(workshop: Workshop, stocks: CraftStocks): void {
  * Pálící milíř zabere celý den (hlídání ve dne i v noci) – po CHARCOAL_KILN.burnDays dnech je
  * vypálený. Jinak v okně výsadby nejdřív sází mladé buky na pařezy, pak pokračuje v milíři (buky
  * strom po stromu: kácení a dovoz, pak příprava dřeva; stavba), a když žádný nemá, začne nový –
- * milíř stojí vždy (crafts.md – Milíř stojí vždy). Z vypáleného milíře donese kovářům
- * `plan.drawKg` uhlí (vytahání, třídění a odnos – u milíře v lese s přirážkou za chůzi) do zásoby
- * u kováře – s vozem (`plan.cart`) místo odnosu v koších jízdy vozu, nejvýš kolik vůz za den
- * odveze; rozebraný milíř zmizí a nový začne od zítřka.
+ * milíř stojí vždy (crafts.md – Milíř stojí vždy). Z vypáleného milíře vytahá a vytřídí pro
+ * kováře `plan.drawKg` uhlí (u milíře v lese s přirážkou za chůzi) do zásoby u kováře – donese ho
+ * kovářova domácnost nebo vůz se sedlákem (crafts.md – Uhlí a ruda kováře); rozebraný milíř
+ * zmizí a nový začne od zítřka.
  */
 export function workBurner(
   state: VillageState,
@@ -399,26 +397,14 @@ export function workBurner(
       kiln.done = 0;
       break;
     }
-    // vypálený milíř: uhlíř donese kovářům uhlí podle plánu dne, jinak milíř stojí a čeká; s vozem
-    // odpadne odnos v koších a přibude práce posádky (wagons.md – Co vozy vozí)
+    // vypálený milíř: uhlíř vytahá a vytřídí uhlí pro kováře podle plánu dne, jinak milíř stojí
+    // a čeká; do kovárny ho donese kovářova domácnost nebo vůz (crafts.md – Uhlí a ruda kováře)
     const inKiln = kilnCharcoalKg(kiln);
-    const cart = plan.cart;
-    const draw = DRAW_MAN_DAYS_PER_KG * factor * (cart ? 1 - CART_JOBS.charcoal.carryShare : 1);
-    const perKg = draw + (cart?.manDaysPerKg ?? 0);
-    const kg = Math.min(
-      plan.drawKg - out.producedKg,
-      inKiln,
-      left / perKg,
-      cart ? cart.maxKg - (out.cart?.kg ?? 0) : Infinity,
-    );
+    const perKg = DRAW_MAN_DAYS_PER_KG * factor;
+    const kg = Math.min(plan.drawKg - out.producedKg, inKiln, left / perKg);
     if (kg <= EPSILON) break;
     left -= kg * perKg;
-    out.making += kg * draw;
-    if (cart) {
-      const hauled = (out.cart ??= { manDays: 0, kg: 0, x: cart.x, z: cart.z });
-      hauled.manDays += kg * cart.manDaysPerKg;
-      hauled.kg += kg;
-    }
+    out.making += kg * perKg;
     out.producedKg += kg;
     stocks.charcoalKg += kg;
     worked = 'drawing';

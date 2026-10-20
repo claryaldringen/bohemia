@@ -154,6 +154,10 @@ export type WorkshopActivity =
   | 'planting'
   | 'resting'
   | 'no-charcoal'
+  /** Kovář nemá rudu a není kde ji kopat (crafts.md – Uhlí a ruda kováře). */
+  | 'no-ore'
+  /** Kovář (a synové) kope rudu na rudišti (crafts.md – Uhlí a ruda kováře). */
+  | 'digging'
   | 'no-wood'
   | 'idle'
   | 'empty'
@@ -204,6 +208,52 @@ export interface CharcoalKiln {
    * kudy vůz dojede, null = nedojede (uhlí se nosí v koších). Bez údaje se ještě nepočítala.
    */
   cart?: CartDrive | null;
+  /**
+   * Kdo z milíře nosí uhlí ke kováři (crafts.md – Uhlí a ruda kováře): kovárna (id obydlí – nejbližší
+   * kovář) a vzdálenost chůze od ní k milíři (m po pevných cestách s půdou – paths/walking.ts;
+   * bez krajiny vzdušně). Spočítá se při prvním nošení a uloží; jiný kovář = přepočet.
+   */
+  carry?: { smithId: number; walkM: number };
+}
+/**
+ * Rudiště kováře (crafts.md – Uhlí a ruda kováře, návrh Clauda): místo v mokřině u potoka nejblíž
+ * kovárně, kde kovář kope bahenní rudu – poloha (m), kolik rudy se z ložiska už vytěžilo (kg), den
+ * výběru a vzdálenost chůze z kovárny (m po pevných cestách s půdou; bez krajiny vzdálenost
+ * k vodě). Ložisko vydrží SMITH_SUPPLY.depositKg, pak kovář vybere další místo. `cart` = jízda
+ * vozu k rudišti (null = vůz nedojede; bez údaje se ještě nepočítala).
+ */
+export interface OreSite {
+  x: number;
+  z: number;
+  minedKg: number;
+  day: number;
+  walkM: number;
+  cart?: CartDrive | null;
+}
+/**
+ * Rozdělaná dávka rudy (crafts.md – Uhlí a ruda kováře): kolik rudy kovář nakope (kg), kolik už
+ * vykopal a kolik vykopané rudy leží na hromadě u jámy (kg – čeká na odnos nebo vůz) a jestli se
+ * kope na celý vůz (`cart` – rudu pak odveze vůz se sedlákem).
+ */
+export interface OreBatch {
+  kg: number;
+  dug: number;
+  heap: number;
+  cart: boolean;
+  /** Den, kdy se dávka dokopala (hromada pak čeká na vůz nejvýš do dalšího dne); jinak chybí. */
+  readyDay?: number;
+}
+/**
+ * Jáma po kopání rudy (crafts.md – Uhlí a ruda kováře): poloha (m) kousek kolem rudiště, kovárna
+ * (id obydlí), kolik rudy z ní vzešlo (kg) a den, kdy se v ní naposledy kopalo – od něj zarůstá
+ * a po SMITH_SUPPLY.pitYears zmizí.
+ */
+export interface OrePit {
+  x: number;
+  z: number;
+  smithId: number;
+  kg: number;
+  day: number;
 }
 /**
  * Strom, který dílna kácí (uhlíř na uhlí, hrnčíř na palivo pece – forest.md, kácení): id z vrstvy
@@ -254,6 +304,20 @@ export interface Workshop {
    * Tesař, pomoc stavbám) – panel dílny; bez údaje 0.
    */
   woodworkCoverage?: number;
+  /**
+   * Kovář (crafts.md – Uhlí a ruda kováře): zásoba bahenní rudy u kovárny (kg). Bez údaje dílna
+   * z doby před rudou – při prvním dni kroku práce dostane zásobu na dávku (`migrateSmith`).
+   */
+  oreKg?: number;
+  /**
+   * Kovář: rudiště, kde kope rudu; null = v okolí není mokřina ani voda (kovář nemá kde kopat –
+   * `no-ore`); bez údaje se ještě nevybíralo (vybere se při prvním kopání).
+   */
+  oreSite?: OreSite | null;
+  /** Kovář: rozdělaná dávka rudy; bez údaje nebo null žádná. */
+  oreBatch?: OreBatch | null;
+  /** Kovář: vyčerpaná ložiska (m) – další rudiště aspoň SMITH_SUPPLY.siteSpacingM od nich. */
+  oreSitesUsed?: { x: number; z: number }[];
 }
 /**
  * Vůz vsi – zásoba, ne stavba ve scéně (stojí u ohrady se spřežením): vyrobil ho tesař v den
@@ -1081,6 +1145,16 @@ export type LaborActivity =
   /** Uhlíř sází mladé buky na pařezy (crafts.md – Uhlíř, obnova lesa). */
   | 'plant'
   /**
+   * Kopání, praní a pražení bahenní rudy na rudišti – kovář a synové od 14 let (crafts.md – Uhlí
+   * a ruda kováře).
+   */
+  | 'ore'
+  /**
+   * Nošení uhlí od milíře a rudy z rudiště do kovárny v koších – synové kováře (uhlí od 10 let,
+   * rudu od 14) nebo kovář sám (crafts.md – Uhlí a ruda kováře); kdo nese, je v `LaborShare.ages`.
+   */
+  | 'fetch'
+  /**
    * Denní minimum domácností (fields.md – Práce, bod 1); domácí výroba žen jde bokem
    * (`LaborDay.aside`).
    */
@@ -1130,8 +1204,17 @@ export type LaborTarget =
   | { kind: 'meadow'; cells: TileCell[] }
   /** Stromy z vrstvy překážek, které se pro stavbu nebo dílnu právě kácejí (i pařezy k sázení). */
   | { kind: 'trees'; ids: number[] }
-  /** Milíř uhlíře v lese (crafts.md – Uhlíř) – dílna (id obydlí) a střed milíře ve světě (m). */
-  | { kind: 'kiln'; id: number; x: number; z: number }
+  /**
+   * Milíř uhlíře (crafts.md – Uhlíř) – dílna (id obydlí) a střed milíře ve světě (m): lesní milíř,
+   * a odkud se nosí uhlí ke kováři (`from` = id kovárny – nosí se z milíře do ní; crafts.md – Uhlí
+   * a ruda kováře) i milíř u dílny.
+   */
+  | { kind: 'kiln'; id: number; x: number; z: number; from?: number }
+  /**
+   * Rudiště kováře (crafts.md – Uhlí a ruda kováře) – kovárna (id obydlí) a místo, kde se kope
+   * (m): kopání u jámy, nošení rudy z něj do kovárny, jízda vozu pro rudu.
+   */
+  | { kind: 'ore'; id: number; x: number; z: number }
   /** Zemská stezka (id) – nosiči výpravy k sousedovi (trade.md – Obchod). */
   | { kind: 'trail'; id: number }
   /**
@@ -1162,6 +1245,11 @@ export interface LaborShare {
    * osivo na pole, vodu v sudech. U svozu a ostatní práce chybí.
    */
   job?: CartJob;
+  /**
+   * Kdo práci dělá (věk v letech, od nejstaršího) – u kopání a nošení kováře (crafts.md – Uhlí
+   * a ruda kováře): kovář, nebo jeho synové; postavy pod 14 let jsou děti. U ostatní práce chybí.
+   */
+  ages?: number[];
 }
 
 /** Rozdělení práce jednoho dne – uložené ve stavu vsi (`VillageState.labor`). */
@@ -1343,6 +1431,11 @@ export interface VillageState {
    * RUIN_YEARS let, pak zmizí (ruins.ts). Chybí = žádné (i u vsí uložených před nimi).
    */
   ruins?: DwellingRuin[];
+  /**
+   * Jámy po kopání rudy kovářů (crafts.md – Uhlí a ruda kováře) – zarůstají SMITH_SUPPLY.pitYears
+   * let, pak zmizí. Chybí = žádné (i u vsí uložených před rudou).
+   */
+  orePits?: OrePit[];
   /**
    * Les vsi – čtverce polí, které zarostly lesem a z pole vypadly (fields.md – Zarůstání). Chybí
    * = žádný (i u vsí uložených před zarůstáním).
@@ -1777,9 +1870,10 @@ export type CartKind = 'two-wheel' | 'four-wheel';
 
 /**
  * Jízda vozu, když nesváží úrodu, seno ani klády (wagons.md – Co vozy vozí): uhlí z milíře ke
- * kováři, osivo na pole, voda v sudech – v tomto pořadí přednosti (CART_JOBS.order).
+ * kováři, ruda z rudiště do kovárny (crafts.md – Uhlí a ruda kováře), osivo na pole, voda v sudech
+ * – v tomto pořadí přednosti (CART_JOBS.order).
  */
-export type CartJob = 'charcoal' | 'seed' | 'water';
+export type CartJob = 'charcoal' | 'ore' | 'seed' | 'water';
 
 /**
  * Jízda vozu od ohrady se spřežením k cíli (wagons.md – Co vozy vozí): cena trasy vozové sítě (m

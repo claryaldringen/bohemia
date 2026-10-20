@@ -82,6 +82,8 @@ export interface SelectionWorkshop {
     making: { kind: CartKind; progress: number } | null;
     woodworkCoverage: number;
   } | null;
+  /** Kovář: ruda, rudiště a kdo nosí uhlí (crafts.md – Uhlí a ruda kováře); jinak chybí. */
+  ore?: NonNullable<VillageView['crafts']['workshops'][number]['ore']>;
 }
 
 /** Nákup u sousedů v panelu dvorce (crafts.md – Nákup u sousedů). */
@@ -799,6 +801,7 @@ function workshopDetails(view: VillageView, dwellingId: number): SelectionWorksh
     coverage,
     kiln: workshop.kiln,
     toPlant: workshop.toPlant,
+    ...(workshop.ore ? { ore: workshop.ore } : {}),
     carpenter: carpenter
       ? {
           carts: view.crafts.carts,

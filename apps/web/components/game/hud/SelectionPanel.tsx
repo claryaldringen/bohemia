@@ -248,7 +248,7 @@ function activityLook(workshop: SelectionWorkshop): {
     burning: { icon: 'charcoal', name: 'Pálí milíř – hlídá ve dne i v noci', value: percent },
     drawing: {
       icon: 'charcoal',
-      name: 'Rozebírá milíř a nosí uhlí kováři (kg uhlí, které v milíři zbývá)',
+      name: 'Rozebírá milíř a třídí uhlí pro kováře (kg uhlí, které v milíři zbývá)',
       value: inKiln ?? percent,
     },
     planting: { icon: 'labor', name: 'Sází mladé buky na pařezy', value: `${workshop.toPlant}` },
@@ -256,7 +256,7 @@ function activityLook(workshop: SelectionWorkshop): {
       workshop.craft === 'burner' && inKiln !== null
         ? {
             icon: 'charcoal',
-            name: 'Milíř je vypálený – uhlí z něj nosí, jak ho kovář spotřebuje; zatím pomáhá vsi (kg uhlí v milíři)',
+            name: 'Milíř je vypálený – uhlí z něj vytahá, jak ho kovář spotřebuje; zatím pomáhá vsi (kg uhlí v milíři)',
             value: inKiln,
           }
         : {
@@ -265,6 +265,16 @@ function activityLook(workshop: SelectionWorkshop): {
             value: '–',
           },
     'no-charcoal': { icon: 'charcoal', name: 'Čeká na uhlí – zatím pomáhá vsi', value: '0' },
+    'no-ore': {
+      icon: 'ore',
+      name: 'Nemá rudu – v okolí není mokřina ani potok, kde ji kopat; zatím pomáhá vsi',
+      value: '0',
+    },
+    digging: {
+      icon: 'ore',
+      name: 'Kope rudu na rudišti a nosí ji do kovárny (kg rudy v kovárně)',
+      value: formatInteger(workshop.ore?.stockKg ?? 0),
+    },
     'no-wood': {
       icon: 'wood',
       name:
@@ -282,6 +292,7 @@ function activityLook(workshop: SelectionWorkshop): {
   const look = looks[workshop.activity];
   const stalled =
     workshop.activity === 'no-charcoal' ||
+    workshop.activity === 'no-ore' ||
     workshop.activity === 'no-wood' ||
     workshop.activity === 'idle' ||
     workshop.activity === 'empty';

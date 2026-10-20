@@ -387,6 +387,12 @@ export interface VillageWorkshop {
    * práce staveb posledního dne 0–1; ostatní dílny null.
    */
   carpenter: VillageSummary['crafts']['workshops'][number]['carpenter'];
+  /**
+   * Kovář (crafts.md – Uhlí a ruda kováře): zásoba rudy (kg), rudiště (vzdálenost chůze, kolik rudy
+   * v ložisku zbývá), hromada u jámy a kdo nosí uhlí (synové 10–13, vůz se sedlákem); bez údaje
+   * dílna jiného řemesla.
+   */
+  ore?: VillageSummary['crafts']['workshops'][number]['ore'];
 }
 
 /** Vůz vsi pro lištu a panel (wagons.md – Vůz): druh, stav 0–1 a jestli je s výpravou pryč. */
@@ -2315,8 +2321,9 @@ function plantedSaplingViews(state: VillageState, day: number): { id: number; gr
 }
 
 /**
- * Výroba dílny za den při práci `labor` (kg) – uhlíř bez kácení, kovář a hrnčíř s přirážkou,
- * tesař dřevěné nářadí podle nástrojů od kováře (wagons.md).
+ * Výroba dílny za den při práci `labor` (kg) – uhlíř bez kácení, kovář bez rudy (kope zvlášť –
+ * crafts.md, Uhlí a ruda kováře), hrnčíř s přirážkou za hlínu, tesař dřevěné nářadí podle
+ * nástrojů od kováře (wagons.md).
  */
 function workshopOutputKg(
   craft: Craft,
@@ -2359,6 +2366,18 @@ function craftsView(
       kiln: w.kiln,
       toPlant: w.toPlant,
       carpenter: w.carpenter,
+      ...(w.ore
+        ? {
+            ore: {
+              ...w.ore,
+              stockKg: Math.round(w.ore.stockKg * 10) / 10,
+              heapKg: Math.round(w.ore.heapKg * 10) / 10,
+              site: w.ore.site
+                ? { walkM: Math.round(w.ore.site.walkM), leftKg: Math.round(w.ore.site.leftKg) }
+                : null,
+            },
+          }
+        : {}),
     })),
     carts: carts.map((c) => ({ ...c, condition: Math.round(c.condition * 100) / 100 })),
     cartTargets,

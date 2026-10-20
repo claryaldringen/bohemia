@@ -139,6 +139,9 @@ const WOMEN: Record<LaborActivity, number> = {
   repair: 0.2,
   craft: 0.25,
   plant: 0.4,
+  // kovář a jeho synové (crafts.md – Uhlí a ruda kováře) – muži
+  ore: 0,
+  fetch: 0,
   domestic: 0.85,
   trade: 0.3,
   haul: 0.1,
@@ -1140,6 +1143,10 @@ function placer(ctx: Context, share: SceneLaborShare, count: number): Placer {
       ).length;
       return drovers > 0 ? (i, who) => (i < drovers ? null : crew(i, who)) : crew;
     }
+    case 'ore':
+    case 'fetch':
+      // kopání rudy a nošení uhlí a rudy kováři – postavy kreslí `smithFigures` podle věku
+      return none;
     case 'idle':
       return idlers(ctx);
   }
