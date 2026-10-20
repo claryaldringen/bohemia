@@ -380,7 +380,8 @@ function simulateDay(
   landscape: Landscape | null,
 ): void {
   const date = dateOfDayIndex(day);
-  // nové stavby dne (id z `nextId`) – jámy pod nimi se vyprázdní (production-chains.md – Obilné jámy)
+  // nové stavby dne – jámy pod nimi se vyprázdní (production-chains.md – Obilné jámy): stavby vsi
+  // vznikají jen s novým id z `nextId`, viz kontrola níž
   const idsBefore = state.nextId;
   // vzdálenosti chůze dílů po pěšinách – jen když se změnilo rozložení vsi (paths.md); bez
   // krajiny (kalibrace, testy) zůstávají přímé vzdálenosti
@@ -437,8 +438,15 @@ function simulateDay(
   updateRuins(state, day, landscape);
   updateOrePits(state, day);
   updateKilnRemnants(state, day);
-  // obilné jámy pod stavbou, kterou ves dnes začala (přestavba na novém pozemku, milíř), zmizí –
-  // vesničané zrno přendají (production-chains.md – Obilné jámy)
+  // obilné jámy pod stavbou, kterou ves dnes začala, zmizí – vesničané zrno přendají
+  // (production-chains.md – Obilné jámy). Podmínka: každá stavba, kterou ves založí sama, dostane
+  // id z `nextId` a všechny kroky, které je zakládají, běží před touto kontrolou – obnova sadu
+  // (`orchardSeasonDay`), rádla při výcviku (`husbandryDay`), práce dne (`work()` – milíře
+  // `startKiln`, místo nové jámy), dokončení staveb (`finishConstructions`) a přestavby
+  // (`decideRebuilds` – i na novém pozemku). Stavby hráče a zemní práce vozové cesty kontroluje akce
+  // (`withoutBuiltOverGrainPits` v updateVillage). Co bere id až po kontrole (porody, sňatky,
+  // nevěsty z okolí), nic nestaví. Nový krok, který staví bez nového id nebo po kontrole, musí
+  // kontrolu spustit sám.
   if (state.nextId !== idsBefore) moveGrainFromCoveredPits(state, day, landscape);
   // sňatky mezi domy – svobodní ve dvou domech se vezmou (population.md – Sňatky mezi domy)
   state.chronicle.push(...arrangeMarriages(state, day));
@@ -936,7 +944,10 @@ function work(
   const moreGrain =
     (villageSheaves(state).grainKg > EPSILON && canThresh(state, day)) ||
     springHarvestAhead(state, month);
-  const pitWork = grainPitTask(state, day, moreGrain);
+  // místo nové jámy (jen server – krajina a stavby vsi); bez vhodného místa se letos nekope
+  const pitSite = (): { x: number; z: number } | null =>
+    chooseGrainPitSite(state, day, landscape, obstacles);
+  const pitWork = grainPitTask(state, day, moreGrain, pitSite);
   if (pitWork > EPSILON) {
     dayTasks.push({
       name: 'grain-pit',
@@ -1185,9 +1196,7 @@ function work(
     } else if (task.name === 'slaughter') {
       workSlaughter(state, amount);
     } else if (task.name === 'grain-pit') {
-      grainPits = workGrainPits(state, day, amount, moreGrain, () =>
-        chooseGrainPitSite(state, day, landscape, obstacles),
-      );
+      grainPits = workGrainPits(state, day, amount, moreGrain, pitSite);
     } else {
       workOrchards(state, amount);
     }

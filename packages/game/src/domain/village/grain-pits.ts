@@ -183,17 +183,22 @@ interface PitLoad {
  * vymlácené zrno čekající na humně – po plných jamách, napřed do prázdných (ne dosloužilých), pak do
  * nových. Neúplnou dávku (aspoň GRAIN_PITS.minFillKg) až po výmlatu (`moreGrain` – ve snopech je
  * obilí, které ves ještě vymlátí), v posledním měsíci plnění vždy; menší zbytek zůstane doma.
+ * Když letos pro novou jámu místo není (`GrainPitWork.noSiteYear`), nové jámy se letos nekopou –
+ * zrno navíc zůstane mimo jámy.
  */
 function pitLoads(state: PitsState, day: number, moreGrain: boolean): PitLoad[] {
   const pits = state.grainPits;
   const work = state.grainPitWork;
   if (!pits || !work || work.queueKg <= EPSILON_KG || !isPitFillingDay(day)) return [];
   let queue = Math.min(work.queueKg, Math.max(0, state.storesKg - grainInPitsKg(pits)));
-  const lastMonth = dateOfDayIndex(day).month === GRAIN_PITS.fillTo;
+  const { year, month } = dateOfDayIndex(day);
+  const lastMonth = month === GRAIN_PITS.fillTo;
+  const digging = work.noSiteYear !== year;
   const empties = pits.filter((p) => p.state === 'empty' && !pitWornOut(p, day));
   const loads: PitLoad[] = [];
   while (queue > EPSILON_KG) {
     const pit = empties[loads.length] ?? null;
+    if (!pit && !digging) break;
     const capacity = pit?.capacityKg ?? GRAIN_PITS.capacityKg;
     const kg = Math.min(queue, capacity);
     const partial = kg < capacity - EPSILON_KG;
@@ -208,12 +213,46 @@ function pitLoads(state: PitsState, day: number, moreGrain: boolean): PitLoad[] 
   return loads;
 }
 
+/** Místo nové jámy (grain-pit-site.ts – `chooseGrainPitSite`); null = vhodné místo není. */
+export type GrainPitSiteFn = () => { x: number; z: number } | null;
+
+/**
+ * Místo nové jámy pro dávku, která ji potřebuje (mutuje stav): drží se místo, které vesničané už
+ * kopou; jinak se vybere (`site`) a dostane id z `nextId`. Když vhodné místo není, letos se nové
+ * jámy nekopou (`noSiteYear`) a vrátí null.
+ */
+function reserveSite(
+  state: VillageState,
+  day: number,
+  site: GrainPitSiteFn,
+): { id: number; x: number; z: number } | null {
+  const work = state.grainPitWork!;
+  if (work.site) return work.site;
+  const spot = site();
+  if (!spot) {
+    work.noSiteYear = dateOfDayIndex(day).year;
+    return null;
+  }
+  work.site = { id: state.nextId++, x: spot.x, z: spot.z };
+  return work.site;
+}
+
 /**
  * Práce dne na obilných jamách (člověkodny – úloha `grain-pit`): dávky, které vesničané dnes chtějí
  * uložit (`pitLoads`), bez práce, kterou do další dávky už vložili. Mimo dobu plnění jam 0.
+ * Potřebuje-li první nová jáma místo (`site`), vybere se hned (mutuje stav); bez vhodného místa
+ * jen dávky do prázdných jam (zrno navíc zůstane mimo jámy).
  */
-export function grainPitTask(state: VillageState, day: number, moreGrain: boolean): number {
-  const loads = pitLoads(state, day, moreGrain);
+export function grainPitTask(
+  state: VillageState,
+  day: number,
+  moreGrain: boolean,
+  site?: GrainPitSiteFn,
+): number {
+  let loads = pitLoads(state, day, moreGrain);
+  if (site && loads.some((l) => l.pit === null) && !reserveSite(state, day, site)) {
+    loads = pitLoads(state, day, moreGrain);
+  }
   if (loads.length === 0) return 0;
   const cost = loads.reduce((sum, l) => sum + l.cost, 0);
   return Math.max(0, cost - (state.grainPitWork?.manDays ?? 0));
@@ -230,15 +269,16 @@ export interface GrainPitDay {
  * Práce dne na obilných jamách (mutuje stav – production-chains.md, Obilné jámy): `labor`
  * člověkodnů přibude k práci vložené do další dávky; každá dávka, na kterou práce stačí, se uloží –
  * do prázdné jámy, nebo do nové (vykopané na místě `site()` – vybere se, když se na ní začne
- * pracovat, a drží se, dokud se jáma nevykope); jáma se zapečetí. Vrátí, kde se dnes pracovalo
- * (jáma první dávky dne), bez práce null.
+ * pracovat, a drží se, dokud se jáma nevykope; bez vhodného místa se letos nové jámy nekopou
+ * a dávka zůstane mimo jámy); jáma se zapečetí. Vrátí, kde se dnes pracovalo (jáma první dávky
+ * dne), bez práce null.
  */
 export function workGrainPits(
   state: VillageState,
   day: number,
   labor: number,
   moreGrain: boolean,
-  site: () => { x: number; z: number },
+  site: GrainPitSiteFn,
 ): GrainPitDay | null {
   const work = state.grainPitWork;
   const pits = state.grainPits;
@@ -248,7 +288,8 @@ export function workGrainPits(
   for (;;) {
     const load = pitLoads(state, day, moreGrain)[0];
     if (!load) break;
-    const where = load.pit ?? (work.site ??= { id: state.nextId++, ...site() });
+    const where = load.pit ?? reserveSite(state, day, site);
+    if (!where) continue;
     place ??= { id: where.id, x: where.x, z: where.z };
     if (work.manDays + EPSILON < load.cost) break;
     work.manDays -= load.cost;

@@ -756,7 +756,7 @@ const foreignIndexCache = new WeakMap<
  */
 function foreignIndex(
   landscape: Landscape,
-  village: PlacementVillage | null,
+  village: Pick<PlacementVillage, 'foreign'> | null,
 ): PolygonIndex<Placed> | null {
   const foreign = village?.foreign;
   if (!foreign) return null;
@@ -799,11 +799,23 @@ function foreignIndex(
 /** Zasahuje tvar na stavbu nebo půdu jiné vsi na téže mapě (dotyk hranou ne)? */
 function onForeignLand(
   landscape: Landscape,
-  village: PlacementVillage | null,
+  village: Pick<PlacementVillage, 'foreign'> | null,
   shape: Pick<Shape, 'corners' | 'tile'>,
 ): boolean {
   const index = foreignIndex(landscape, village);
   return index !== null && index.overlapping(shape.corners, shape.tile).length > 0;
+}
+
+/**
+ * Zasahuje mnohoúhelník (svět, m) na stavbu nebo půdu jiné vsi na téže mapě (migration.md –
+ * `foreign` = přehled ostatních vsí)? Pro místa, která ves vybírá sama (obilné jámy).
+ */
+export function onForeignGround(
+  landscape: Landscape,
+  foreign: PlacementVillage['foreign'],
+  corners: readonly Point[],
+): boolean {
+  return foreign !== undefined && onForeignLand(landscape, { foreign }, { corners, tile: null });
 }
 
 /** Body mřížky po FOOTPRINT_SAMPLE_STEP_M přes otočený půdorys obydlí, včetně okrajů. */

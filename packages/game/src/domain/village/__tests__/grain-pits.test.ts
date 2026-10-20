@@ -27,9 +27,10 @@ import { HUMNO, GRAIN_PITS } from '../rules';
 import { advanceVillage } from '../simulate';
 import { threshingFloorFootprint } from '../threshing-floors';
 import { pointInPolygon } from '../polygon';
-import type { GrainPit, VillageState } from '../types';
+import type { GrainPit, RoadProfilePoint, VillageRoads, VillageState } from '../types';
+import { neighbourSnapshot } from '../neighbourhood';
 import { makeLandscape } from './placement-fixtures';
-import { withThreshingFloor } from './village-fixtures';
+import { withBuiltFirstDwelling, withThreshingFloor } from './village-fixtures';
 
 // Obilné jámy (production-chains.md – Obilné jámy): vesničané po výmlatu vykopou jámy, naplní je
 // zrnem a zapečetí; během roku otvírají jednu jámu po druhé. Zásoba obilí `storesKg` zůstává celá
@@ -75,6 +76,25 @@ const pit = (
   dugDay: DUG,
   ...(state === 'empty' ? {} : { filledDay }),
 });
+/** Pevné cesty vsi s jednou rozestavěnou vozovou cestou (zemní práce) po ose `profile`. */
+function roadsWith(profile: RoadProfilePoint[]): VillageRoads {
+  return {
+    nextId: 1,
+    roads: [],
+    trees: [],
+    candidates: [],
+    labor: { from: 0, days: 0, shares: [] },
+    earthworks: [
+      {
+        id: 900,
+        profile,
+        pieces: [{ toM: 200, manDays: 100, builtDay: null }],
+        startedDay: 0,
+        constructionId: 900,
+      },
+    ],
+  };
+}
 /** Ves uložená před jamami (převod – `withGrainPits`). */
 const oldVillage = (day: number, withField = true): VillageState => {
   const s = village(day, withField);
@@ -360,9 +380,16 @@ describe('místo jámy', () => {
     return s;
   };
 
+  /** Místa jam – všechna nalezená. */
+  const found = (sites: ({ x: number; z: number } | null)[]): { x: number; z: number }[] =>
+    sites.map((p) => {
+      expect(p).not.toBeNull();
+      return p!;
+    });
+
   it('u humna (do GRAIN_PITS.siteM), mimo humno, jeho vstup, pole a vodu, jámy od sebe', () => {
     const s = withFloor();
-    const sites = grainPitSites(s, at(600, 9, 1), landscape, null, 6);
+    const sites = found(grainPitSites(s, at(600, 9, 1), landscape, null, 6));
     const footprint = threshingFloorFootprint(floor);
     for (const p of sites) {
       expect(Math.hypot(p.x - floor.x, p.z - floor.z)).toBeLessThanOrEqual(GRAIN_PITS.siteM);
@@ -387,13 +414,135 @@ describe('místo jámy', () => {
   it('bez humna u dvorce; bez krajiny řada jam kus od humna', () => {
     const s = village(at(600, 3, 1));
     s.grainPits = [];
-    const site = chooseGrainPitSite(s, at(600, 9, 1), landscape);
+    const site = chooseGrainPitSite(s, at(600, 9, 1), landscape)!;
     expect(Math.hypot(site.x - HOME.x, site.z - HOME.z)).toBeLessThanOrEqual(GRAIN_PITS.siteM);
     const flat = grainPitSites(withFloor(), at(600, 9, 1), null, null, 2);
     expect(flat).toEqual([
       { x: floor.x + 12, z: floor.z },
       { x: floor.x + 12 + GRAIN_PITS.spacingM, z: floor.z },
     ]);
+  });
+
+  it('mimo zemní práce vozové cesty – pláň i svah úvozu celé plánované osy', () => {
+    const before = found(grainPitSites(withFloor(), at(600, 9, 1), landscape, null, 6));
+    // osa vozové cesty přes první místo jámy, úvoz 2 m (svah 1 : 1 do 4,75 m od osy), nehotová
+    const z = before[0]!.z;
+    const s = withFloor();
+    s.roads = roadsWith([
+      { x: -100, z, y: -2 },
+      { x: 100, z, y: -2 },
+    ]);
+    const sites = found(grainPitSites(s, at(600, 9, 1), landscape, null, 6));
+    // jáma s okrajem (2,2 m) ani nezasahuje do svahu úvozu
+    for (const p of sites) expect(Math.abs(p.z - z)).toBeGreaterThanOrEqual(4.75 + 2.2 - 0.01);
+    expect(before.some((p) => Math.abs(p.z - z) < 6.9)).toBe(true);
+  });
+
+  it('mimo stavby a půdu jiné vsi na téže mapě', () => {
+    const before = found(grainPitSites(withFloor(), at(600, 9, 1), landscape, null, 6));
+    // jiná ves postavila obydlí přímo na prvním místě jámy – celé políčko pod ním je její
+    const first = before[0]!;
+    const other = withBuiltFirstDwelling(
+      foundVillage({
+        seed: 7,
+        day: at(600, 3, 1),
+        dwellingPosition: { x: first.x, z: first.z, rotation: 0 },
+      }),
+    );
+    const s = withFloor();
+    s.neighbours = neighbourSnapshot([other], at(600, 9, 1))!;
+    const sites = found(grainPitSites(s, at(600, 9, 1), landscape, null, 6));
+    const tile = (v: number): number => Math.floor((v + 120) / 15);
+    for (const p of sites) {
+      // čtverec jámy s okrajem (2,2 m) leží mimo cizí políčko
+      const inside =
+        tile(p.x - 2.2) <= tile(first.x) &&
+        tile(p.x + 2.2) >= tile(first.x) &&
+        tile(p.z - 2.2) <= tile(first.z) &&
+        tile(p.z + 2.2) >= tile(first.z);
+      expect(inside).toBe(false);
+    }
+  });
+
+  it('bez vhodného místa do 180 m jámu nevykopou – zrno zůstane mimo jámy', () => {
+    const forest = makeLandscape({ surface: () => 'forest' });
+    const s = withFloor();
+    expect(grainPitSites(s, at(600, 9, 1), forest, null, 2)).toEqual([null, null]);
+    expect(chooseGrainPitSite(s, at(600, 9, 1), forest)).toBeNull();
+    // převod: zásoby zůstanou doma, jámy žádné
+    const old = oldVillage(at(600, 3, 1));
+    old.storesKg = 3000;
+    const converted = withGrainPits(old, forest);
+    expect(converted.grainPits).toEqual([]);
+    expect(looseGrainKg(converted)).toBe(3000);
+  });
+});
+
+describe('bez místa pro novou jámu', () => {
+  it('letos jen do prázdných jam, zbytek mimo jámy; příští rok se místo hledá znovu', () => {
+    const day = at(600, 9, 15);
+    const s = withPits(day, [pit(1, 0, 'empty')]);
+    s.storesKg = 3000;
+    addThreshedGrain(s, 3000);
+    let asked = 0;
+    const none = (): null => {
+      asked++;
+      return null;
+    };
+    expect(grainPitTask(s, day, false, none)).toBeCloseTo(GRAIN_PITS.fillManDays, 9);
+    expect(asked).toBe(1);
+    expect(s.grainPitWork!.noSiteYear).toBe(600);
+    expect(s.grainPitWork!.site).toBeUndefined();
+    workGrainPits(s, day, GRAIN_PITS.fillManDays, false, none);
+    expect(s.grainPits!.map((p) => [p.id, p.grainKg, p.state])).toEqual([[1, 1500, 'sealed']]);
+    expect(looseGrainKg(s)).toBe(1500);
+    // letos už nic – místo se nehledá znovu
+    expect(grainPitTask(s, day + 1, false, none)).toBe(0);
+    expect(asked).toBe(1);
+    // příští rok znovu
+    const next = at(601, 8, 20);
+    expect(grainPitTask(s, next, false, () => ({ x: 9, z: 9 }))).toBeCloseTo(
+      GRAIN_PITS.digManDays + GRAIN_PITS.fillManDays,
+      9,
+    );
+    expect(s.grainPitWork!.site).toMatchObject({ x: 9, z: 9 });
+  });
+});
+
+describe('zemní práce vozové cesty přes jámu', () => {
+  const landscape = makeLandscape();
+  const sealed = (): VillageState => {
+    const s = withPits(at(600, 12, 1), [pit(1, 1500, 'sealed'), pit(2, 0, 'empty')]);
+    s.grainPits![0]!.x = 60;
+    s.grainPits![0]!.z = 60;
+    return s;
+  };
+
+  it('pláň nebo svah úvozu přes zavřenou jámu – zrno se přendá jako pod stavbou', () => {
+    // pláň přes jámu (bez úpravy výšky)
+    const flat = sealed();
+    flat.roads = roadsWith([
+      { x: 0, z: 61, y: 0 },
+      { x: 100, z: 61, y: 0 },
+    ]);
+    expect(coveredGrainPitIds(flat, landscape)).toEqual(new Set([1]));
+    expect(coveredGrainPitIds(flat, null)).toEqual(new Set([1]));
+    // osa 4 m vedle: pláň (2,75 m) jámu (1,2 m) mine, úvoz 2 m se svahem ji zasáhne
+    const cut = sealed();
+    cut.roads = roadsWith([
+      { x: 0, z: 64, y: -2 },
+      { x: 100, z: 64, y: -2 },
+    ]);
+    expect(coveredGrainPitIds(cut, landscape)).toEqual(new Set([1]));
+    const level = sealed();
+    level.roads = roadsWith([
+      { x: 0, z: 64, y: 0 },
+      { x: 100, z: 64, y: 0 },
+    ]);
+    expect(coveredGrainPitIds(level, landscape)).toEqual(new Set());
+    const next = withoutBuiltOverGrainPits(cut, landscape);
+    expect(next.grainPits).toEqual([expect.objectContaining({ id: 2, grainKg: 1500 })]);
+    expect(next.storesKg).toBe(cut.storesKg);
   });
 });
 

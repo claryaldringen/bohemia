@@ -158,12 +158,14 @@ export async function updateVillage(
       today,
     );
     // dvorec vojvody – starší ves ho dostane (nejstarší obydlí, trade.md); spřežení ohrad uložených
-    // dřív se převedou na voly po kusech (oxen.md – Voli po kusech); ves z doby před obilnými
-    // jámami uloží zásoby do jam u humna nebo dvorce (production-chains.md – Obilné jámy)
-    const base = withGrainPits(withManor(withOxen(migrated)), landscape, obstacles);
+    // dřív se převedou na voly po kusech (oxen.md – Voli po kusech)
+    const base = withManor(withOxen(migrated));
     // jiné vsi na téže mapě – kontroly umístění a kácení o nich vědí (migration.md); přehled se
     // neukládá
-    const attached = withNeighbours(base, await neighboursOf(villages, record, today));
+    const neighbours = withNeighbours(base, await neighboursOf(villages, record, today));
+    // ves z doby před obilnými jámami uloží zásoby do jam u humna nebo dvorce – jámy ne na půdě
+    // jiných vsí (production-chains.md – Obilné jámy)
+    const attached = withGrainPits(neighbours, landscape, obstacles);
     const current = await advancedToTodayWithPauses(attached, today, obstacles, landscape, pause);
     const changed = change(current);
     if (!changed.ok) return changed;
@@ -171,7 +173,11 @@ export async function updateVillage(
     // jámě taky – vesničané zrno přendají (production-chains.md – Obilné jámy)
     const stripped = withoutNeighbours(changed.state);
     const next = withoutBuiltOverGrainPits(withoutBuiltOverRuins(stripped, landscape), landscape);
-    const untouched = changed.state === attached && base === record.state && next === stripped;
+    const untouched =
+      changed.state === attached &&
+      attached === neighbours &&
+      base === record.state &&
+      next === stripped;
     if (next === record.state || untouched) return { ok: true, village: record };
     const saved: VillageRecord | null = await villages.save(villageId, next, record.version);
     if (saved !== null) return { ok: true, village: saved };

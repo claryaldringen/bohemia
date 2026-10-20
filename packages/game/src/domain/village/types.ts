@@ -2679,6 +2679,11 @@ export interface GrainPitWork {
   manDays: number;
   /** Nová jáma, kterou vesničané kopou – id (z `nextId`) a místo; chybí, když se plní stará. */
   site?: { id: number; x: number; z: number };
+  /**
+   * Rok, kdy pro novou jámu nebylo vhodné místo (do 180 m od humna) – letos se nové jámy nekopou,
+   * zrno navíc zůstane mimo jámy; chybí = místo se hledá.
+   */
+  noSiteYear?: number;
 }
 
 /** Plodina, jejíž snopy se mlátí – ozim, jař a luštěniny (len se nemlátí – fields.md, Len). */

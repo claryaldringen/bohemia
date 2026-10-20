@@ -190,9 +190,13 @@ Beze změny (milíř u buků – crafts.md); nošení uhlí ke kováři je dnes 
   (návrh Clauda). Ves s 10 t úrody vykope první rok ≈ 7 jam (≈ 25 čd), pak jen plní staré.
 - **Kde** (návrh Clauda): nejbližší vhodné místo od humna (bez humna od dvorce vojvody) po
   kružnicích do 60 m – suché (ne voda, břeh, brod ani mokřina), ne v lese, mimo pole, sady,
-  hřbitovy, ohrady a les vsi, mimo obydlí, pozemky, stavby, humna a jejich vstup, milíře a pevné
-  cesty, bez stromu, keře či kamene na místě, aspoň 3 m od ostatních jam – jámy se drží pohromadě.
-  Místo vybírá jen server (simulace), scéna dostane polohy jam – výsledek nezávisí na prohlížeči.
+  hřbitovy, ohrady a les vsi, mimo obydlí, pozemky, stavby, humna a jejich vstup, milíře, pevné
+  cesty a zemní práce vozových cest (pláň i svahy úvozu a náspu celé plánované osy), mimo stavby
+  a půdu jiných vsí na téže mapě, bez stromu, keře či kamene na místě, aspoň 3 m od ostatních
+  jam – jámy se drží pohromadě. Když do 60 m nic není, hledá se dál až do 180 m; ani tam nic –
+  novou jámu letos nevykopou a zrno navíc zůstane mimo jámy (do prázdných jam se plní dál; příští
+  rok se místo hledá znovu). Místo vybírá jen server (simulace), scéna dostane polohy jam –
+  výsledek nezávisí na prohlížeči.
 - **Během roku** otvírají jednu jámu po druhé a zrno spotřebovávají (jídlo, osivo): co zásoby
   ubude (jídlo, prodej, platby), jde napřed ze zrna mimo jámy (humno, doma), pak z otevřené jámy;
   když se vyprázdní, otevře se jáma zapečetěná nejdéle. Otevřená jáma je vidět a jde označit –
@@ -201,7 +205,10 @@ Beze změny (milíř u buků – crafts.md); nošení uhlí ke kováři je dnes 
 - **Stavba na zavřené jámě** (návrh Clauda): hráč ji nevidí, takže stavbu nezakazuje – vesničané
   zrno přendají do prázdné jámy nebo domů bez ztráty a jáma zmizí (i otevřená – její zrno jde
   domů). Platí pro každou stavbu hráče i vsi (obydlí, pozemek, dílna, modla, svatyně, humno,
-  milíř, čtverce pole, sadu, hřbitova a ohrady).
+  milíř, čtverce pole, sadu, hřbitova a ohrady) i pro zemní práce vozové cesty – pláň a svahy úvozu
+  a náspu celé plánované osy, hotové i rozestavěné. Stavba **jiné vsi** na téže mapě jámu
+  neodstraní – změnila by stav dvou vsí naráz; jámy se proto kopou jen na vlastní půdě, mimo
+  stavby a půdu jiných vsí (návrh Clauda).
 - **Opakovaně:** prázdná jáma se znovu naplní příští sklizní (jen naplnit a zapečetit); nové se
   kopou, jen když staré nestačí. Prázdná jáma po **10 letech** od vykopání se zasype a kope se
   nová (rešerše: jámy na Butser vydržely i 17 let – stěny se ale čištěním a vypalováním drolí).
