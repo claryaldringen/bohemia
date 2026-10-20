@@ -63,10 +63,13 @@ export function pathCostFactor(strength: number): number {
 /**
  * Rychlost chůze po pevné cestě proti louce – podle stupně a mokřiny (ROAD_WALK); mimo mokřinu
  * i se stromy u cesty (`treeSpeed` – `roadTreeSpeed`, roads.md – Stromy u cesty zrychlí chůzi).
+ * Hať a vozová cesta (zpevněné koleje – roads.md, Vozová cesta) drží rychlost i v mokřině.
  */
 export function roadWalkSpeed(grade: RoadGrade, wet: boolean, treeSpeed = 0): number {
   if (!wet) return ROAD_WALK.speed[grade] + treeSpeed;
-  return grade === 'causeway' ? ROAD_WALK.causewayWetSpeed : ROAD_WALK.wetSpeed;
+  return grade === 'causeway' || grade === 'wagon'
+    ? ROAD_WALK.causewayWetSpeed
+    : ROAD_WALK.wetSpeed;
 }
 
 /**

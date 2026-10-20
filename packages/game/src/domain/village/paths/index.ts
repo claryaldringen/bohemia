@@ -10,4 +10,6 @@ export * from './cart';
 export * from './road-chains';
 export * from './road-land';
 export * from './walk-speed';
+export * from './earthworks';
+export * from './wagon-route';
 export * from './road-lining';

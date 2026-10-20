@@ -155,6 +155,7 @@ import {
 } from './trade';
 import { finishTrail, swathRoadsInWork, trailsDay } from './trail';
 import { roadSwathDay } from './road-swath';
+import { finishWagonRoad, wagonRoadsDay } from './wagon-road';
 import { isVillageDormant } from './departure';
 import { recordRuins, updateRuins } from './ruins';
 import {
@@ -353,6 +354,8 @@ function simulateDay(
   wearCraftStocks(state, day);
   // zemské stezky – dostavěné úseky od vsi ven hned vylepšené, vrácené výpravy (trade.md)
   trailsDay(state);
+  // vozové cesty – hotové úseky od vsi ven jsou hned pevnou cestou (roads.md – Vozová cesta)
+  wagonRoadsDay(state, day, landscape, obstacles);
   // průsek lesem – úseky, na které vylepšení cesty došlo (roads.md – Průsek lesem)
   roadSwathDay(state, day, obstacles, landscape, swathRoadsInWork(state));
   state.chronicle.push(...finishExpeditions(state, day));
@@ -1767,6 +1770,13 @@ function finishConstructions(state: VillageState, day: number): void {
       // opravená stavba je celá – „Modla opravena“ ap. (abandonment.md – Oprava)
       const repaired = finishRepair(state, day, c);
       if (repaired) state.chronicle.push(repaired);
+      continue;
+    }
+    if (c.kind === 'road' && c.earthwork !== undefined) {
+      // dostavěná vozová cesta (roads.md – Vozová cesta) – úseky jsou cestou od dostavění
+      finishWagonRoad(state, c, day);
+      state.chronicle.push(finishedEvent(day, c, null));
+      roadUpgraded = true;
       continue;
     }
     if (c.kind === 'road' && c.trail !== undefined) {

@@ -14,7 +14,15 @@ import { villagePens } from '../oxen';
 import { plotShapes } from '../plot-cells';
 import { plotSquareTile, rotationCosSin, squareCenter } from '../square-grid';
 import { ROAD_TREE_ID_BASE, roadAppleStage, roadTreeLook } from '../road-trees';
-import { CART_ROADS, MILIR, ROADS, ROAD_APPLES, ROAD_TREES, SACRED_BUILDINGS } from '../rules';
+import {
+  CART_ROADS,
+  MILIR,
+  ROADS,
+  ROAD_APPLES,
+  ROAD_TREES,
+  SACRED_BUILDINGS,
+  WAGON_ROAD,
+} from '../rules';
 import type {
   CartKind,
   ChronicleEvent,
@@ -25,6 +33,7 @@ import type {
   LaborTarget,
   Road,
   RoadCartTrips,
+  RoadGrade,
   RoadGround,
   RoadPoint,
   RoadQuietPiece,
@@ -1669,9 +1678,17 @@ function alongsideRoad(
   return false;
 }
 
+/** Síla stupně cesty – vozová cesta (roads.md – Vozová cesta) je nejsilnější. */
+const GRADE_RANK: Readonly<Record<RoadGrade, number>> = {
+  trodden: 0,
+  improved: 1,
+  causeway: 2,
+  wagon: 3,
+};
+
 /** Pořadí síly cest: vyšší stupeň, starší, víc provozu loni, menší id – silnější dřív. */
 function strongerRoad(a: Road, b: Road): number {
-  const grade = (r: Road): number => (r.grade === 'trodden' ? 0 : r.grade === 'improved' ? 1 : 2);
+  const grade = (r: Road): number => GRADE_RANK[r.grade];
   return (
     grade(b) - grade(a) ||
     // vozová cesta před pěší (wagons.md – Vyjeté cesty)
@@ -1758,20 +1775,12 @@ function mergeParallelRoads(roads: VillageRoads, constructions: readonly Constru
     // od nejslabší – se silnějšími než ona
     for (let i = order.length - 1; i > 0 && !cut; i--) {
       const road = order[i]!;
-      if (building.has(road.id) || road.points.length < 2) continue;
+      // vozová cesta (roads.md – Vozová cesta) má vlastní zemní práce – nevyřízne se
+      if (building.has(road.id) || road.points.length < 2 || road.grade === 'wagon') continue;
       const run = parallelRun(road, order.slice(0, i));
       if (run) cut = { road, ...run };
     }
     if (!cut) break;
-    console.log(
-      'CUTPAR',
-      cut.road.id,
-      Math.round(cut.from),
-      Math.round(cut.to),
-      'by',
-      cut.partner.id,
-      cut.partner.cart,
-    );
     cutRoad(roads, cut.road, cut.from, cut.to, cut.partner);
     merged = true;
   }
@@ -1841,7 +1850,7 @@ function cutRoad(roads: VillageRoads, road: Road, from: number, to: number, part
  * BRAID_LONGER je oklika), pak silnější (`strongerRoad`) – ta dřív.
  */
 function braidOrder(a: Road, b: Road): number {
-  const grade = (r: Road): number => (r.grade === 'trodden' ? 0 : r.grade === 'improved' ? 1 : 2);
+  const grade = (r: Road): number => GRADE_RANK[r.grade];
   const la = roadLengthM(a);
   const lb = roadLengthM(b);
   const shorter = la > lb * BRAID_LONGER ? 1 : lb > la * BRAID_LONGER ? -1 : 0;
@@ -1864,7 +1873,7 @@ function removeBraids(roads: VillageRoads, constructions: readonly Construction[
     let braid: { weak: Road; strong: Road } | null = null;
     for (let i = order.length - 1; i > 0 && !braid; i--) {
       const weak = order[i]!;
-      if (building.has(weak.id)) continue;
+      if (building.has(weak.id) || weak.grade === 'wagon') continue;
       const key = endsOf(weak);
       const [a, b] = key.split('|');
       if (a === b) continue;
@@ -1979,7 +1988,8 @@ function firstGap(
 ): { road: Road; atStart: boolean; hit: RoadHit } | null {
   const degrees = endDegrees(roads.roads);
   for (const road of roads.roads) {
-    if (road.points.length < 2) continue;
+    // vozová cesta končí, kde ji stavba vede (rozestavěná uprostřed trasy) – osa se neprodlouží
+    if (road.points.length < 2 || road.grade === 'wagon') continue;
     for (const atStart of [true, false]) {
       const p = atStart ? road.points[0]! : road.points[road.points.length - 1]!;
       if ((degrees.get(endKey(p)) ?? 0) !== 1 || isTerminus(p, termini)) continue;
@@ -2478,4 +2488,65 @@ export function addTrailRoads(
     })
     .sort((a, b) => a.along - b.along || a.id - b.id)
     .map((r) => r.id);
+}
+
+/** Strom u vozové cesty stojí za plání (m od osy) – ne na krajnici (roads.md – Vozová cesta). */
+const WAGON_SPOT_M = WAGON_ROAD.flatHalfM + 0.5;
+
+/**
+ * Hotový úsek vozové cesty (roads.md – Vozová cesta) – nová pevná cesta stupně `wagon` po ose
+ * `points` (mutuje stav – `state.roads`): konce leží v uzlech (rozcestí, konec staré cesty, konec
+ * předchozího úseku), takže se nepřipojuje ani nerozděluje jiná cesta. Mokřina a brody z terénu,
+ * průsek je vykácený (stavba), místa na stromy jako u nové cesty, jen za plání. Volná místa jiných
+ * cest, přes která vede, zmizí. Vrátí úsek.
+ */
+export function addWagonRoad(
+  state: VillageState,
+  points: readonly RoadPoint[],
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer | null,
+): Road {
+  const roads = (state.roads ??= emptyRoads(day));
+  const xs = points.map((p) => p.x);
+  const zs = points.map((p) => p.z);
+  const pad = 20;
+  const terrain = pathTerrainOf(
+    landscape,
+    pathWindowFor(landscape, {
+      minX: Math.min(...xs) - pad,
+      minZ: Math.min(...zs) - pad,
+      maxX: Math.max(...xs) + pad,
+      maxZ: Math.max(...zs) + pad,
+    }),
+  );
+  const axis = points.map((p) => ({ x: cm(p.x), z: cm(p.z) }));
+  const road: Road = {
+    id: roads.nextId++,
+    points: axis,
+    bornDay: day,
+    grade: 'wagon',
+    traffic: [],
+    spots: [],
+    ground: roadGroundOf(axis, terrain),
+    swath: true,
+  };
+  roads.roads.push(road);
+  const occupied = new Set(roads.trees.map((t) => t.spot));
+  const alongNew = axisDistance([axis]);
+  for (const other of roads.roads) {
+    other.spots = other.spots.filter(
+      (s) => occupied.has(s.id) || alongNew(s.x, s.z) >= Math.max(ROAD_CLEAR_M, WAGON_SPOT_M),
+    );
+  }
+  const context: SpotContext = {
+    terrain,
+    blocked: plantingBlocker(state, landscape),
+    layer: obstacles,
+    changes: obstacleChangesAt(state, day),
+    seed: state.seed,
+    split: () => undefined,
+  };
+  road.spots = spotsForRoad(roads, road, context).filter((s) => alongNew(s.x, s.z) >= WAGON_SPOT_M);
+  return road;
 }

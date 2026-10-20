@@ -401,6 +401,9 @@ export const ROAD_UPGRADES = {
  * - trasa: nejlevnější součet práce stavby a času jízdy vozem po `trafficYears` let provozu podle
  *   loňských jízd cesty (`Road.cartTraffic`, nejméně `minTripsPerDay` – bez provozu malá váha):
  *   den vozky `dayHours` h, vůz po louce TEAM_TRAVEL.speedMps;
+ * - zatáčení: čtyřkolák s otočnou přední nápravou a spřežením zatočí na poloměru ≈ 6–8 m – na
+ *   mřížce terénu pěšin ze 16 směrů o `turnSteps` směry na krok (vozová síť po louce počítá
+ *   opatrněji o jeden – cart.ts); úvrať serpentiny tak vyjde ≈ 15 m široká;
  * - stavba po úsecích ≈ `pieceM` od vsi ven, hotový úsek je hned cesta; profil po `profileStepM`.
  */
 export const WAGON_ROAD = {
@@ -418,6 +421,7 @@ export const WAGON_ROAD = {
   trafficYears: 10,
   minTripsPerDay: 0.05,
   dayHours: 10,
+  turnSteps: 2,
   pieceM: 60,
   profileStepM: 2,
 } as const;

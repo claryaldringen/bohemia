@@ -31,6 +31,7 @@ import {
   sacredEntrance,
   type Entrance,
 } from './entrances';
+import { terrainEditsFrom, withTerrainEdits, type EarthworkSpan } from './earthworks';
 import { nearestPartFinder } from './nearest';
 import {
   PATH_FOREST_EDGE,
@@ -247,6 +248,11 @@ export interface PathVillage {
    * (práce `meadow` v rozdělení práce). Bez údaje žádné.
    */
   hayMeadows?: readonly PathSquare[];
+  /**
+   * Zemní práce vozových cest (roads.md – Vozová cesta) – profily a hotová délka: terén pěšin
+   * i vozů se podle nich upraví (`withTerrainEdits` – sklon v úvozu a na náspu). Bez údaje žádné.
+   */
+  earthworks?: readonly EarthworkSpan[];
 }
 
 export interface PathNetworkInput {
@@ -707,6 +713,15 @@ interface Grid {
   plain: Uint8Array | null;
 }
 
+/**
+ * Terén pěšin a vozů s úpravami terénu vsi (`PathVillage.earthworks` – úvozy a náspy vozových
+ * cest); bez zemních prací týž objekt.
+ */
+export function villageTerrain(village: PathVillage, terrain: PathTerrain): PathTerrain {
+  if (!village.earthworks || village.earthworks.length === 0) return terrain;
+  return withTerrainEdits(terrain, terrainEditsFrom(village.earthworks));
+}
+
 /** Okno mřížky – rozměry, počátek a krok (terén pěšin, mřížka sítě i vozů). */
 export type GridWindow = Pick<Grid, 'width' | 'height' | 'originX' | 'originZ' | 'cellM'>;
 
@@ -994,7 +1009,8 @@ function gateOf(b: Building): PathPoint {
  * hřbitova a ohrady, okrsek svatyně a domy platí i tam.
  */
 function villageGrid(input: PathNetworkInput, buildings: readonly Building[]): Grid {
-  const t = input.terrain;
+  // úpravy terénu vozových cest – ves bez nich beze změny (týž terén)
+  const t = villageTerrain(input.village, input.terrain);
   const grid: Grid = {
     width: t.width,
     height: t.height,
@@ -1191,7 +1207,7 @@ export function roadMask(grid: GridWindow, roads: PathVillage['roads']): Uint8Ar
 }
 
 /** Stupně cest od nejpomalejšího – index v masce `roadGradeMask`. */
-const ROAD_GRADES: readonly RoadGrade[] = ['trodden', 'improved', 'causeway'];
+const ROAD_GRADES: readonly RoadGrade[] = ['trodden', 'improved', 'causeway', 'wagon'];
 
 /**
  * Nejvyšší stupeň pevné cesty po buňkách (index v ROAD_GRADES) – buňky jako `roadMask`; mimo
@@ -1448,6 +1464,15 @@ function tripGroups(
     if (road.id === undefined || road.points.length === 0) continue;
     const trips = work(`road:${road.id}`);
     if (trips > 0) target(cellsAround(grid, middleOf(road.points), 3), trips);
+  }
+  // stavba vozové cesty (roads.md – Vozová cesta) – k čelu práce na nové trase
+  const wagons = new Set<number>();
+  for (const share of v.labor?.shares ?? []) {
+    const t = share.target;
+    if (t.kind !== 'wagon' || wagons.has(t.id)) continue;
+    wagons.add(t.id);
+    const trips = work(`wagon:${t.id}`);
+    if (trips > 0) target(cellsAround(grid, t, 3), trips);
   }
   // ohrada: krmení a napájení dobytka, stavba a rádlo (práce dne na ohradě); do ohrady bez
   // zvířat se krmit nechodí (abandonment.md)

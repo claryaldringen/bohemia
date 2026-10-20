@@ -403,6 +403,8 @@ export function builtTrail(
 
 /** Stupeň po vylepšení – vyšší ze stávajícího a cílového. */
 function upgradedGrade(current: RoadGrade, target: TrailPiece['grade']): RoadGrade {
+  // vozová cesta (roads.md – Vozová cesta) zůstane vozovou – je víc než upravená i hať
+  if (current === 'wagon' || target === 'wagon') return 'wagon';
   if (current === 'causeway' || target === 'causeway') return 'causeway';
   return 'improved';
 }
@@ -415,7 +417,9 @@ function pieceOf(
   road: Road,
   swath: { cost: number; trees: number; sacred: boolean } | null,
 ): { piece: TrailPiece; trees: number; swathTrees: number; sacred: boolean } {
-  const grade = roadNeedsCauseway(road) ? 'causeway' : 'improved';
+  // po vozové cestě stezka vede bez práce – je zpevněná (roads.md – Vozová cesta)
+  const grade =
+    road.grade === 'wagon' ? 'wagon' : roadNeedsCauseway(road) ? 'causeway' : 'improved';
   const improve = road.grade === 'trodden' ? roadUpgradeCost(road, 'improved') : null;
   const causeway =
     grade === 'causeway' && road.grade !== 'causeway' ? roadUpgradeCost(road, 'causeway') : null;

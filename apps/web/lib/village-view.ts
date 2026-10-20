@@ -359,6 +359,7 @@ export const ROAD_KIND_NAMES: Record<RoadKind, string> = {
   cart: 'Vyježděná cesta',
   improved: 'Upravená cesta',
   causeway: 'Cesta s hatí a lávkou',
+  wagon: 'Vozová cesta',
 };
 
 /** Tlačítka vylepšení – název akce. */

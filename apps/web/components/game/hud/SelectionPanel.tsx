@@ -1315,6 +1315,7 @@ export const ROAD_KIND_ICONS: Record<RoadKind, string> = {
   cart: 'cesta-vyjezdena',
   improved: 'cesta-upravena',
   causeway: 'hat',
+  wagon: 'cesta-vozova',
 };
 
 /**
