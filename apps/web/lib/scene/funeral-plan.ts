@@ -158,12 +158,12 @@ export interface FuneralEnv {
   figureScale: number;
 }
 
-function smooth(u: number): number {
+export function smooth(u: number): number {
   const t = Math.min(1, Math.max(0, u));
   return t * t * (3 - 2 * t);
 }
 
-function unit(x: number, z: number): Point {
+export function unit(x: number, z: number): Point {
   const l = Math.hypot(x, z);
   return l > 1e-6 ? { x: x / l, z: z / l } : { x: 0, z: 1 };
 }
@@ -371,7 +371,7 @@ function aroundPyre(a: Point, b: Point, c: Point): Point[] {
   return [a, { x: c.x + n.x * r, z: c.z + n.z * r }, b];
 }
 
-function routeOf(points: readonly Point[]): Route {
+export function routeOf(points: readonly Point[]): Route {
   const clean: [number, number][] = [];
   for (const p of points) {
     const last = clean[clean.length - 1];
@@ -704,7 +704,7 @@ export function funeralPlan(
 const SLOWEST_M_S = 0.6;
 
 /** Body trasy od vzdálenosti `from` do `to` (včetně krajních bodů). */
-function subPath(path: Route, from: number, to: number): Point[] {
+export function subPath(path: Route, from: number, to: number): Point[] {
   const a = Math.max(0, Math.min(path.length, from));
   const b = Math.max(a, Math.min(path.length, to));
   alongRoute(path, a, false, TMP_POSE);
@@ -730,7 +730,7 @@ function columnPoint(path: Route, stopS: number, behind: number, side: number, w
 }
 
 /** Místa u vchodu, kde lidé čekají, než na ně v průvodu přijde řada (půlkruh před vchodem). */
-function doorWaits(
+export function doorWaits(
   door: Point,
   path: Route,
   count: number,

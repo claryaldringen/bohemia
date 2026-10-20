@@ -186,6 +186,7 @@ import { foreignFromScene, plotOfScene } from './scene/neighbour-villages';
 import { sceneTrails, trailRoadWork } from './trail-view';
 import { sceneExpeditions } from './caravan-view';
 import { sceneFunerals, type SceneFuneral } from './funeral-view';
+import { sceneWeddings, type SceneWedding } from './wedding-view';
 import { DIRECTION_NAMES, NEWCOMER_TEXTS, goodsText, peopleText } from './trade-names';
 import { formatAnimals, formatCells, formatHa, formatInteger, plural } from './village-format';
 import type { VillageListItem } from './village-list';
@@ -1050,6 +1051,12 @@ export interface SceneVillage {
    * údaje žádné.
    */
   funerals?: SceneFuneral[];
+  /**
+   * Svatby posledních dnů (kinship.md – Svatba ve scéně, wedding-view.ts): průvod od domu nevěsty
+   * (nevěsta nebo ženich z okolí se svými lidmi od kraje mapy) na posvátné místo, obřad a cesta
+   * do nového domova. Bez údaje žádné.
+   */
+  weddings?: SceneWedding[];
   /**
    * Hřbitovy po čtvercích (střed políčka ve světě a strana jako u pole) – průběh stavby
    * (založení, u hotového rozšíření; `built` hotový), počet obsazených hrobů a čtverce
@@ -2135,6 +2142,7 @@ function sceneVillage(
     ),
   }));
   const funerals = sceneFunerals(state, day);
+  const weddings = sceneWeddings(state, day, landscape);
   const reserved = [...reservedTrees(state)].sort((a, b) => a - b);
   const labor = sceneLabor(state, { ...summary.people, ...summary.family });
   const sacred = sceneSacred(state, landscape, day, summary);
@@ -2182,6 +2190,7 @@ function sceneVillage(
     fields,
     cemeteries,
     ...(funerals.length > 0 ? { funerals } : {}),
+    ...(weddings.length > 0 ? { weddings } : {}),
     ...(orchards.length > 0 ? { orchards } : {}),
     obstacles,
     ...(reserved.length > 0 ? { reservedTrees: reserved } : {}),

@@ -34,6 +34,7 @@ import { obstacleIndex, obstacleStatus, obstaclesNear, type ObstacleLayer } from
 import type { SceneVillage } from '../village-view';
 import { caravanPoints } from './caravan';
 import type { FuneralPlan } from './funeral-plan';
+import type { WeddingPlan } from './wedding-plan';
 import {
   createVillagerPose,
   villagerSeconds,
@@ -45,6 +46,7 @@ import {
 import {
   planFunerals,
   planVillagers,
+  planWeddings,
   type HairLook,
   type PlannedVillager,
   type VillagerGround,
@@ -70,8 +72,13 @@ const SHADOW_LIFT_M = 0.04;
  * než `to` (m) – další čtverec pole, další strom; dál (jiná práce jinde ve vsi) se objeví hned.
  */
 const WALK_OVER_M = { from: 2.5, to: 90 };
+/**
+ * Svatební věnec nevěsty (kinship.md – Svatba ve scéně): vlasy po buňkách textury – kolik buněk
+ * na šířku textury (kvítek nebo lístek na buňku, GLSL i WGSL číslo s tečkou).
+ */
+const WREATH_CELLS = '90.0';
 /** Kód vlasů pro shader (villagerLook.w). */
-const HAIR_CODE: Record<HairLook, number> = { natural: 0, grey: 1, linen: 2, madder: 3 };
+const HAIR_CODE: Record<HairLook, number> = { natural: 0, grey: 1, linen: 2, madder: 3, wreath: 4 };
 
 export interface VillagersEnvironment {
   /** Vrstva překážek krajiny – stromy ke kácení. */
@@ -93,6 +100,11 @@ export interface VillagersEnvironment {
    * a mohylu pohřbu do dohoření skryje. Volá se jen při změně.
    */
   onFunerals?(plans: readonly FuneralPlan[]): void;
+  /**
+   * Nové plány svateb (wedding-plan.ts – průvod, obřad u posvátného místa): oheň obřadu a věnec
+   * s pentlemi na posvátném dubu kreslí ves. Volá se jen při změně.
+   */
+  onWeddings?(plans: readonly WeddingPlan[]): void;
 }
 
 /** Zapečený model: geometrie, textura matic kostí a rozsahy snímků klipů v ní. */
@@ -132,6 +144,9 @@ export class VillageVillagers {
   /** Pohřby (cemetery.md – Pohřeb ve scéně) – průvod a kruh kolem hranice. */
   private funerals: FuneralPlan[] = [];
   private funeralsKey = '';
+  /** Svatby (kinship.md – Svatba ve scéně) – průvod, pár a podkova svatebčanů. */
+  private weddings: WeddingPlan[] = [];
+  private weddingsKey = '';
   private readonly kinds = new Map<VillagerKind, Kind>();
   private shadow: { mesh: Mesh; matrices: Float32Array } | null = null;
   private models: Map<VillagerKind, BakedModel> | null = null;
@@ -326,13 +341,24 @@ export class VillageVillagers {
     const herds = this.env.herds(nowMs);
     this.herdCount = herds.length;
     const ground =
-      village && (this.models || (village.funerals?.length ?? 0) > 0)
+      village &&
+      (this.models || (village.funerals?.length ?? 0) > 0 || (village.weddings?.length ?? 0) > 0)
         ? this.groundFor(village)
         : null;
     // pohřby i bez modelů postav – hranici a máry kreslí ves, mohylu do dohoření skryje
     this.setFunerals(
       village && ground
         ? planFunerals(village, ground, {
+            seed: villageSeed(village),
+            paths: this.paths,
+            dayWindow: (day) => this.env.dayWindow?.(day) ?? null,
+          })
+        : [],
+    );
+    // svatby i bez modelů postav – oheň obřadu a věnec na dubu kreslí ves
+    this.setWeddings(
+      village && ground
+        ? planWeddings(village, ground, {
             seed: villageSeed(village),
             paths: this.paths,
             dayWindow: (day) => this.env.dayWindow?.(day) ?? null,
@@ -362,6 +388,7 @@ export class VillageVillagers {
       paths: this.paths,
       dayWindow: (day) => this.env.dayWindow?.(day) ?? null,
       funerals: this.funerals,
+      weddings: this.weddings,
     })
       .filter((p) => this.models?.has(p.kind))
       .map((p) => {
@@ -370,7 +397,13 @@ export class VillageVillagers {
         probe.hidden = false;
         const to = p.pose(t, herds, probe);
         // karavana (caravan.ts) jde podle výpravy a pohřeb podle obřadu – nepřecházejí pěšky
-        if (p.key.startsWith('caravan:') || p.key.startsWith('funeral:')) return p;
+        if (
+          p.key.startsWith('caravan:') ||
+          p.key.startsWith('funeral:') ||
+          p.key.startsWith('wedding:')
+        ) {
+          return p;
+        }
         const distance = Math.hypot(to.x - from.x, to.z - from.z);
         if (distance < WALK_OVER_M.from || distance > WALK_OVER_M.to) return p;
         return {
@@ -378,7 +411,11 @@ export class VillageVillagers {
           pose: walkThen(from.x, from.z, p.pose, t, walkSpeed(p.kind, 'walk', p.scale)),
         };
       });
-    this.extent = unionExtent(caravanExtent(village), ...this.funerals.map((f) => f.extent));
+    this.extent = unionExtent(
+      caravanExtent(village),
+      ...this.funerals.map((f) => f.extent),
+      ...this.weddings.map((w) => w.extent),
+    );
     for (const name of KINDS) {
       const people = this.people.filter((p) => p.kind === name);
       const model = this.models.get(name);
@@ -427,6 +464,21 @@ export class VillageVillagers {
     if (key === this.funeralsKey) return;
     this.funeralsKey = key;
     this.env.onFunerals?.(plans);
+  }
+
+  /** Nové plány svateb – ohlásí je scéně (`onWeddings`), jen když se změnily. */
+  private setWeddings(plans: WeddingPlan[]): void {
+    this.weddings = plans;
+    const key = plans
+      .map(
+        (p) =>
+          `${p.key}:${p.timeline.startMs}:${p.site.kind}:${p.site.couple.x},${p.site.couple.z}:` +
+          `${p.members.length}`,
+      )
+      .join('|');
+    if (key === this.weddingsKey) return;
+    this.weddingsKey = key;
+    this.env.onWeddings?.(plans);
   }
 
   /** Terén pro plán: schůdná země z rastru zvířat, stromy z vrstvy překážek. */
@@ -639,6 +691,7 @@ function villageKey(village: SceneVillage): string {
     village.labor ?? null,
     village.expeditions ?? null,
     village.funerals ?? null,
+    village.weddings ?? null,
     (village.trails ?? []).map((t) => [t.id, t.points.length]),
     dwellings,
     fields,
@@ -836,9 +889,10 @@ export async function loadBakedModel(scene: Scene, url: string): Promise<BakedMo
 /**
  * Materiál postav (GLSL i WGSL): lineárně čtenou texturu z GLB převede zpět do barev obrazovky
  * (jako u dobytka), oděv obarví barvou instance podle masky látky (villagerMask.r) a vlasy podle
- * kódu (villagerLook.w: 1 šediny, 2 lněný šátek, 3 šátek barvený mořenou) podle masky vlasů
- * (villagerMask.g) – stínování textury zůstane. Maska je textura, ne atribut vrcholů: WebGPU
- * dovoluje nejvýš 8 vertex bufferů a postava (kostra, VAT, barva instance) jich má právě 8.
+ * kódu (villagerLook.w: 1 šediny, 2 lněný šátek, 3 šátek barvený mořenou, 4 svatební věnec
+ * z kvítků) podle masky vlasů (villagerMask.g) – stínování textury zůstane. Maska je textura, ne
+ * atribut vrcholů: WebGPU dovoluje nejvýš 8 vertex bufferů a postava (kostra, VAT, barva
+ * instance) jich má právě 8.
  */
 export class VillagerPlugin extends MaterialPluginBase {
   constructor(
@@ -923,6 +977,20 @@ baseColor = vec4f(pow(baseColor.rgb, vec3f(1.0 / 2.2)), baseColor.a);
     villagerHair = vec3f(0.6, 0.58, 0.55);
   } else if (villagerLook.w < 2.5) {
     villagerHair = vec3f(0.86, 0.82, 0.72);
+  } else if (villagerLook.w > 3.5) {
+    // svatební věnec – kvítky a listí po buňkách textury
+    let villagerCell = floor(fragmentInputs.vDiffuseUV * ${WREATH_CELLS});
+    let villagerPick = fract(sin(dot(villagerCell, vec2f(12.9898, 78.233))) * 43758.5453);
+    villagerHair = vec3f(0.36, 0.56, 0.22);
+    if (villagerPick > 0.84) {
+      villagerHair = vec3f(0.98, 0.82, 0.25);
+    } else if (villagerPick > 0.68) {
+      villagerHair = vec3f(0.36, 0.5, 0.95);
+    } else if (villagerPick > 0.5) {
+      villagerHair = vec3f(0.92, 0.2, 0.12);
+    } else if (villagerPick > 0.3) {
+      villagerHair = vec3f(0.98, 0.96, 0.86);
+    }
   }
   let villagerLuma = dot(villagerRgb, vec3f(0.299, 0.587, 0.114));
   let villagerHairMix = villagerPart.y * step(0.5, villagerLook.w);
@@ -944,6 +1012,11 @@ baseColor.rgb = pow(baseColor.rgb, vec3(1.0 / 2.2));
   vec2 villagerPart = texture2D(villagerMask, vDiffuseUV).rg;
   baseColor.rgb *= mix(vec3(1.0), vVillagerLook.rgb, villagerPart.x);
   vec3 villagerHair = vVillagerLook.w < 1.5 ? vec3(0.6, 0.58, 0.55) : vVillagerLook.w < 2.5 ? vec3(0.86, 0.82, 0.72) : vec3(0.6, 0.3, 0.22);
+  if (vVillagerLook.w > 3.5) {
+    // svatební věnec – kvítky a listí po buňkách textury
+    float villagerPick = fract(sin(dot(floor(vDiffuseUV * ${WREATH_CELLS}), vec2(12.9898, 78.233))) * 43758.5453);
+    villagerHair = villagerPick > 0.84 ? vec3(0.98, 0.82, 0.25) : villagerPick > 0.68 ? vec3(0.36, 0.5, 0.95) : villagerPick > 0.5 ? vec3(0.92, 0.2, 0.12) : villagerPick > 0.3 ? vec3(0.98, 0.96, 0.86) : vec3(0.36, 0.56, 0.22);
+  }
   float villagerLuma = dot(baseColor.rgb, vec3(0.299, 0.587, 0.114));
   float villagerHairMix = villagerPart.y * step(0.5, vVillagerLook.w);
   baseColor.rgb = mix(baseColor.rgb, villagerHair * clamp(villagerLuma / 0.27, 0.55, 1.35), villagerHairMix);

@@ -30,6 +30,16 @@ import {
   type DayWindow,
 } from './caravan';
 import { funeralActiveIn, funeralPlan, funeralPose, type FuneralPlan } from './funeral-plan';
+import {
+  BRIDE_CLOTH,
+  weddingActiveIn,
+  weddingCloth,
+  weddingLookRoll,
+  weddingPlan,
+  weddingPose,
+  weddingVillagersIn,
+  type WeddingPlan,
+} from './wedding-plan';
 import { LIVESTOCK_EPOCH_MS } from './livestock-motion';
 import { TREE_CLEARANCE_M, buildingClearings, insideClearings } from './building-clearings';
 import { cellsBoundary, rowDirection, type CellSquare } from './field-cells';
@@ -183,7 +193,8 @@ const SITE_FRONT_M = 5;
 /** Krok kontroly trasy (m). */
 const ROUTE_STEP_M = 1.5;
 
-export type HairLook = 'natural' | 'grey' | 'linen' | 'madder';
+/** Vlasy postavy: přirozené, šediny, šátek (lněný, mořenou), svatební věnec z květů (nevěsta). */
+export type HairLook = 'natural' | 'grey' | 'linen' | 'madder' | 'wreath';
 
 export interface VillagerLook {
   /** Násobek barvy oděvu (RGB). */
@@ -250,6 +261,11 @@ export interface VillagerPlanOptions {
    * jdou mimo rozpočet pracujících a v den obřadu se o ně počet pracujících postav sníží.
    */
   funerals?: readonly FuneralPlan[];
+  /**
+   * Svatby (`planWeddings` – kinship.md, Svatba ve scéně): průvod, pár a podkova svatebčanů jdou
+   * mimo rozpočet pracujících – lidé vsi na svatbě ubírají z pracujících postav.
+   */
+  weddings?: readonly WeddingPlan[];
 }
 
 /** Obdélník domu v jeho souřadnicích (x napříč, z k vchodu). */
@@ -354,10 +370,14 @@ export function planVillagers(
   // pohřby dne (cemetery.md – Pohřeb ve scéně): lidé průvodu ubírají z pracujících postav
   const funerals = activeFunerals(options.funerals ?? [], options.dayWindow?.(labor.day) ?? null);
   const mourning = funerals.reduce((sum, plan) => sum + plan.members.length, 0);
+  // svatby dne (kinship.md – Svatba ve scéně): lidé vsi na svatbě ubírají z pracujících postav
+  const dayWindow = options.dayWindow?.(labor.day) ?? null;
+  const weddings = activeWeddings(options.weddings ?? [], dayWindow);
+  const celebrating = weddings.reduce((sum, plan) => sum + weddingVillagersIn(plan, dayWindow), 0);
   const counts = shareCounts(
     labor.shares,
     labor.month,
-    Math.max(0, (options.maxWorkers ?? MAX_WORKERS) - mourning),
+    Math.max(0, (options.maxWorkers ?? MAX_WORKERS) - mourning - celebrating),
   );
   const people: PlannedVillager[] = [];
   // výpravy k sousedům jdou jako karavany podle stavu výpravy (trade.md – Ve scéně), ne podle
@@ -394,6 +414,7 @@ export function planVillagers(
   }
   people.push(...trafficFigures(ctx, labor, options.maxTraffic ?? MAX_TRAFFIC));
   for (const plan of funerals) people.push(...funeralFigures(ctx, plan));
+  for (const plan of weddings) people.push(...weddingFigures(ctx, plan));
   people.push(...smithFetchFigures(ctx, labor));
   return people;
 }
@@ -2762,4 +2783,84 @@ function aroundHouse(h: House, p: Point, q: Point): Point {
   const halfZ = (h.box.maxZ - h.box.minZ) / 2;
   const reach = Math.hypot(halfX, halfZ) + 1;
   return { x: center.x + n.x * reach, z: center.z + n.z * reach };
+}
+
+/** Nejvýš tolik postav všech svateb dne (víc svateb naráz – nejnovější napřed). */
+export const MAX_WEDDING_FIGURES_TOTAL = 60;
+
+/**
+ * Svatby, jejichž lidé jsou vidět během dne `window` – nejnovější napřed, dokud se jejich lidé
+ * vejdou do MAX_WEDDING_FIGURES_TOTAL.
+ */
+function activeWeddings(plans: readonly WeddingPlan[], window: DayWindow | null): WeddingPlan[] {
+  let total = 0;
+  return [...plans]
+    .filter((plan) => weddingActiveIn(plan, window))
+    .sort((a, b) => b.timeline.startMs - a.timeline.startMs)
+    .filter((plan) => {
+      if (total + plan.members.length > MAX_WEDDING_FIGURES_TOTAL) return false;
+      total += plan.members.length;
+      return true;
+    });
+}
+
+/**
+ * Svatby vsi pro scénu (kinship.md – Svatba ve scéně, wedding-plan.ts): průvod vychází od vchodu
+ * domu nevěsty (volné místo před vchodem jako provoz na cestách) po pěšinách; lidé stojí na
+ * schůdné zemi mimo domy a pozemky (modla a svatyně se nepočítají – okolí hlídá místo obřadu).
+ * Bez svateb, obydlí nebo hodin světa nic.
+ */
+export function planWeddings(
+  village: SceneVillage,
+  ground: VillagerGround,
+  options: Pick<VillagerPlanOptions, 'seed' | 'paths' | 'dayWindow'>,
+): WeddingPlan[] {
+  const weddings = village.weddings ?? [];
+  const dayWindow = options.dayWindow;
+  if (weddings.length === 0 || village.dwellings.length === 0 || !dayWindow) return [];
+  const ctx = context(village, ground, options.seed, 0, options.paths ?? null);
+  // obydlí jsou v seznamu staveb první (pak milíře, modly a ohrady – id se mohou krýt)
+  const dwellings = ctx.houses.slice(0, village.dwellings.length);
+  const sacred = new Set((village.sacred?.buildings ?? []).map((b) => b.position));
+  const blocking = ctx.houses.filter((h) => !sacred.has(h.position));
+  return weddings.flatMap((wedding) => {
+    const plan = weddingPlan(wedding, village, {
+      dayWindow,
+      door: (id) => {
+        const house = dwellings.find((h) => h.id === id);
+        return house ? trafficDoor(ctx, house) : null;
+      },
+      route: (a, b) => ctx.paths?.route(a, b)?.points ?? null,
+      standable: (x, z) =>
+        ctx.ground.walkable(x, z) && !blocking.some((h) => inBox(h, x, z, HOUSE_MARGIN_M)),
+      figureScale: FIGURE_SCALE,
+      seed: options.seed,
+    });
+    return plan ? [plan] : [];
+  });
+}
+
+/**
+ * Lidé svatby (wedding-plan.ts): nevěsta s věncem v běleném lnu, ostatní pestřeji oblečení
+ * (barva instance), podle pohlaví a věku z jádra – vdané ženy v šátcích, starší s šedinami.
+ */
+function weddingFigures(ctx: Context, plan: WeddingPlan): PlannedVillager[] {
+  return plan.members.map((member, index) => {
+    const who = identity(ctx.seed, `wedding:${plan.key}:${member.key}`, {
+      women: member.sex === 'female' ? 1 : 0,
+      child: member.child,
+    });
+    const hair: HairLook =
+      member.role === 'bride'
+        ? 'wreath'
+        : member.elder
+          ? 'grey'
+          : member.child
+            ? 'natural'
+            : adultHair(who, ctx.sexes.married);
+    const figure = villager(who, weddingPose(plan, index, who.kind, who.scale), hair);
+    const cloth =
+      member.role === 'bride' ? BRIDE_CLOTH : weddingCloth(weddingLookRoll(plan, index));
+    return { ...figure, look: { cloth, hair } };
+  });
 }

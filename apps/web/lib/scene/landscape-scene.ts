@@ -55,6 +55,7 @@ import { InstanceHider } from './instance-hider';
 import { VillageLivestock } from './livestock';
 import { VillageVillagers } from './villagers';
 import type { FuneralTimeline } from './funeral-plan';
+import type { WeddingPlan } from './wedding-plan';
 import { VillagePaths, type PathStats } from './path-renderer';
 import { PitCuts, applyPitCut } from './pit-cut';
 import { ColorCurves } from '@babylonjs/core/Materials/colorCurves';
@@ -411,6 +412,10 @@ export class LandscapeScene {
       // pohřby (cemetery.md – Pohřeb ve scéně): máry, hranice a oheň kreslí ves
       onFunerals: (plans) => {
         if (this.village?.setFunerals(plans, Date.now())) this.renderWhenReady();
+      },
+      // svatby (kinship.md – Svatba ve scéně): oheň obřadu a věnec na dubu kreslí ves
+      onWeddings: (plans) => {
+        if (this.village?.setWeddings(plans, Date.now())) this.renderWhenReady();
       },
     });
     // Vyšlapané pěšiny – síť se počítá z vsi a krajiny (odloženě), lidé po ní chodí; pevné cesty
@@ -889,6 +894,14 @@ export class LandscapeScene {
    */
   funeralFocus(nowMs = Date.now()): { x: number; z: number; timeline: FuneralTimeline } | null {
     return this.village?.funeralFocus(nowMs) ?? null;
+  }
+
+  /**
+   * Kam se dívat na svatbu (vývojová ukázka – kinship.md, Svatba ve scéně): průvod, pár u místa
+   * obřadu, cesta domů – a plán první svatby; bez svatby null.
+   */
+  weddingFocus(nowMs = Date.now()): { x: number; z: number; plan: WeddingPlan } | null {
+    return this.village?.weddingFocus(nowMs) ?? null;
   }
 
   /** Kam vrátí pohled klávesa R – ves (první obydlí). */

@@ -98,6 +98,14 @@ import {
 import { demoCaravan, type CaravanDemo } from './dev-caravan';
 import { demoFuneral, windowAt, type FuneralDemo } from './dev-funeral';
 import { FuneralControls } from './FuneralControls';
+import {
+  WEDDING_DEMO_NAMES,
+  demoWedding,
+  nextWeddingDemo,
+  weddingWindowAt,
+  type WeddingDemo,
+} from './dev-wedding';
+import { WeddingControls } from './WeddingControls';
 import { ORE_DEMO_STAGES, demoOre, type OreDemo } from './dev-ore';
 import { devSelectionView } from './dev-selection';
 import { DayTimeControls } from './DayTimeControls';
@@ -214,6 +222,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [caravanDemo, setCaravanDemo] = useState<CaravanDemo | null>(null);
   // ukázka pohřbu (cemetery.md – Pohřeb ve scéně, dev-funeral.ts) – hlava rodiny, pak vojvoda
   const [funeralDemo, setFuneralDemo] = useState<FuneralDemo | null>(null);
+  // ukázka svatby (kinship.md – Svatba ve scéně, dev-wedding.ts) – dub, svatyně, z okolí, náves
+  const [weddingDemo, setWeddingDemo] = useState<WeddingDemo | null>(null);
   // ukázka rudiště kováře (crafts.md – Uhlí a ruda kováře, dev-ore.ts) – pěšky, pak s vozem
   const [oreDemo, setOreDemo] = useState<OreDemo | null>(null);
   // stupeň vylepšení ukázkových cest (dev-road.ts – DEMO_ROAD_STAGES) a stadium jabloní u cesty
@@ -305,6 +315,16 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         cemeteries: [...(base.cemeteries ?? []), funeralDemo.cemetery],
         funerals: [funeralDemo.funeral],
         labor: funeralDemo.labor,
+      };
+    }
+    if (weddingDemo) {
+      // svatba: domy nevěsty, ženicha a souseda, posvátné místo ukázky, průvod a obřad
+      return {
+        ...base,
+        dwellings: [...base.dwellings, ...weddingDemo.dwellings],
+        ...(weddingDemo.sacred ? { sacred: weddingDemo.sacred } : {}),
+        weddings: [weddingDemo.wedding],
+        labor: weddingDemo.labor,
       };
     }
     if (oreDemo) {
@@ -411,6 +431,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     wagonDemo,
     caravanDemo,
     funeralDemo,
+    weddingDemo,
     oreDemo,
     roadPlough,
   ]);
@@ -1507,6 +1528,24 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   };
 
   /**
+   * Ukázka svatby (kinship.md – Svatba ve scéně): vypnuto → u posvátného dubu → ve svatyni →
+   * nevěsta z okolí → na návsi → vypnuto. Svatba začne hned (den ukázky je zkrácený), kamera
+   * k domu nevěsty.
+   */
+  const toggleWedding = (): void => {
+    const next = nextWeddingDemo(weddingDemo?.kind ?? null);
+    if (!next) {
+      setWeddingDemo(null);
+      scene?.setWorkDayClock(null);
+      return;
+    }
+    const sample = demoWedding(decoded, next);
+    scene?.setWorkDayClock(weddingWindowAt(Date.now(), 0));
+    setWeddingDemo(sample);
+    scene?.moveCameraTo(sample.focus.x, sample.focus.z);
+  };
+
+  /**
    * Ukázka rudiště (crafts.md – Uhlí a ruda kováře): vypnuto → pěšky (kopáči u jámy, syn nosí
    * uhlí, kovář rudu) → s vozem (vůz se sedlákem jede pro hromadu rudy) → vypnuto; kamera mezi
    * kovárnu a rudiště.
@@ -1808,6 +1847,16 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
           {funeralDemo ? `Pohřeb: ${funeralDemo.voivode ? 'vojvoda' : 'hlava rodiny'}` : 'Pohřeb'}
         </button>
         {funeralDemo && <FuneralControls scene={scene} buttonClass={buttonClass} />}
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={toggleWedding}
+          title="Svatba – průvod od domu nevěsty k posvátnému dubu, do svatyně, nevěsta z okolí, nebo ohniště na návsi (den ukázky 30 s)"
+          data-testid="dev-wedding"
+        >
+          {weddingDemo ? `Svatba: ${WEDDING_DEMO_NAMES[weddingDemo.kind]}` : 'Svatba'}
+        </button>
+        {weddingDemo && <WeddingControls scene={scene} buttonClass={buttonClass} />}
         <button
           className={buttonClass}
           disabled={!scene}
