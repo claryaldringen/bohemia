@@ -1,4 +1,5 @@
 import {
+  CARTS,
   LEAVING,
   ORCHARD,
   PRODUCT_CRAFT,
@@ -24,6 +25,7 @@ import {
 } from '@bohemia/game';
 import type { LeaveDirection } from './departure-view';
 import type { VillageManor } from './manor-view';
+import type { VillageOreSite } from './ore-site-view';
 import type { HouseholdRelocation } from './relocation-view';
 import { TREE_GROWTH_YEARS } from './orchard-look';
 import {
@@ -46,8 +48,8 @@ import {
 // Co ukáže panel výběru (dole uprostřed, jako v 0 A.D.) o vybraném obydlí (i řemeslné dílně –
 // crafts.md), dílu pole a celém poli (fields.md – Co hráč vidí), hřbitovu, čtverci sadu a celém
 // sadu, posvátném místě (posvátný dub, dubový háj, modla, svatyně – happiness.md) nebo ohradě
-// (oxen.md – zvířata, spřežení, výcvik a seno; diet.md – stáda vsi). Čistý modul – data z pohledu
-// na ves a scény vsi.
+// (oxen.md – zvířata, spřežení, výcvik a seno; diet.md – stáda vsi) nebo rudišti kováře (crafts.md
+// – Uhlí a ruda kováře). Čistý modul – data z pohledu na ves a scény vsi.
 
 /** Řemeslná dílna v panelu výběru – co dělá, kolik vyrobí a zásoba jejího výrobku. */
 export interface SelectionWorkshop {
@@ -89,6 +91,8 @@ export interface SelectionWorkshop {
   } | null;
   /** Kovář: ruda, rudiště a kdo nosí uhlí (crafts.md – Uhlí a ruda kováře); jinak chybí. */
   ore?: NonNullable<VillageView['crafts']['workshops'][number]['ore']>;
+  /** Hrnčíř: hlína a hliniště (crafts.md – Hlína hrnčíře); jinak chybí. */
+  clay?: NonNullable<VillageView['crafts']['workshops'][number]['clay']>;
 }
 
 /** Nákup u sousedů v panelu dvorce (crafts.md – Nákup u sousedů). */
@@ -398,7 +402,15 @@ export type SelectionDetails =
       wagon: VillageRoad['wagon'];
       /** Jabloně podél úseku a „Vysadit jabloně“ (roads.md – Vysazení jabloní). */
       apples: VillageRoad['apples'];
-    };
+    }
+  | ({
+      /**
+       * Rudiště kováře (crafts.md – Uhlí a ruda kováře; Martin 20. 10. 2026: „Půjde rudiště také
+       * označit?“): ložisko, hromada u jámy, zásoba v kovárně, cesta z kovárny, jámy a kdo tu dnes
+       * kope a nosí; `smithId` = kovárna (tlačítko ji vybere).
+       */
+      kind: 'ore-site';
+    } & VillageOreSite);
 
 /** Pořadí stád v panelu ohrady (diet.md – Dobytek). */
 export const HERD_ORDER: readonly HerdSpecies[] = ['sheep', 'goat', 'pig', 'cow'];
@@ -628,6 +640,11 @@ export function selectionDetails(
     return square ? { kind: 'orchard-square', id: target.id, ...square } : null;
   }
   if (target.kind === 'pen') return penDetails(view, target.id);
+  if (target.kind === 'ore-site') {
+    if (!scene.oreSites?.some((s) => s.dwellingId === target.id)) return null;
+    const site = view?.oreSites?.find((s) => s.smithId === target.id);
+    return site ? { kind: 'ore-site', ...site } : null;
+  }
   if (target.kind === 'road') {
     // cesta hráče – vybraný kterýkoli úsek řetězu (roads.md – Cesta pro hráče)
     const road = view?.roads.find((r) => r.id === target.id || r.segments.includes(target.id));
@@ -753,8 +770,12 @@ export interface SelectionLeave {
   /** Obydlí, jejichž domácnosti odejdou. */
   households: readonly number[];
   people: number;
-  /** Jídlo s sebou (kg) – kolik unesou lidé od 7 let, nejvýš poměrný díl zásob. */
+  /**
+   * Jídlo s sebou (kg) – kolik unesou lidé od 7 let a vůz (`cart`), nejvýš poměrný díl zásob.
+   */
   foodKg: number;
+  /** Vůz s voly, který si vezmou (migration.md – Vůz při odchodu); bez vozu null. */
+  cart: CartKind | null;
   /** Na novou mapu po směrech – dny cesty, nebo proč tím směrem nejde. */
   directions: readonly LeaveDirection[];
 }
@@ -777,10 +798,14 @@ function leaveDetails(view: VillageView, ids: readonly number[]): SelectionLeave
   const total = view.people.children + view.people.adults + view.people.elders;
   const food = view.storesKg + view.meatKg + view.cheeseKg + view.legumesKg + view.applesKg;
   const share = total > 0 ? people / total : 0;
+  // odchází-li celá ves, vezme si vůz i s voly, které by jinak orali (migration.md)
+  const cart = people >= total ? view.leave.allCart : view.leave.cart;
+  const budget = carriers * LEAVING.carryKgPerPerson + (cart ? CARTS.loadKg[cart] : 0);
   return {
     households: leaving.map((h) => h.dwellingId),
     people,
-    foodKg: Math.min(carriers * LEAVING.carryKgPerPerson, Math.max(0, food) * share),
+    foodKg: Math.min(budget, Math.max(0, food) * share),
+    cart,
     directions: view.leave.directions,
   };
 }
@@ -817,6 +842,7 @@ function workshopDetails(view: VillageView, dwellingId: number): SelectionWorksh
     toPlant: workshop.toPlant,
     skill: workshop.skill,
     ...(workshop.ore ? { ore: workshop.ore } : {}),
+    ...(workshop.clay ? { clay: workshop.clay } : {}),
     carpenter: carpenter
       ? {
           carts: view.crafts.carts,

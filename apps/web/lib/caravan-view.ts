@@ -4,6 +4,7 @@
 // zemské stezce. Čistý modul na serveru.
 import {
   CARTS,
+  CART_IRON,
   TRADE,
   ageYears,
   ironTripLine,
@@ -102,11 +103,13 @@ function purchaseCaravan(state: VillageState, p: CraftPurchase): SceneExpedition
 }
 
 /**
- * Cesta pro kování k vozu jako karavana (wagons.md – Kování vozů; Martin 20. 10. 2026: „Ano, pokud
- * to bude jen jedna postava, je to v pořádku.“): jedna postava – tesař nebo jeho syn (pohlaví a věk
- * z jádra) – bez nosičů jde od dílny po zemské stezce, nebo krajinou rovně ke kraji mapy (za krajem
- * zmizí), nebo do jiné vsi na téže mapě ke kovárně a zpět (celou cestu vidět). Postup den za dnem
- * 1 ÷ dny cesty jako nákup u sousedů.
+ * Cesta pro kování k vozu jako karavana (wagons.md – Kování vozů; Martin 20. 10. 2026: „pokud
+ * zaplatil 173 kg obilí, tak nemohl jít sám. Buď si musel půjčit vůz nebo muselo jít alespoň 6 lidí,
+ * aby to obilí unesli“): s vozem jede po zemské stezce vůz se sedlákem (honák u spřežení) a tesař
+ * nebo jeho syn vedle vozu; pěšky tesař nebo syn (pohlaví a věk z jádra) a nosiči s obilím tam
+ * – zpátky jdou s kováním bez nákladu. Po stezce, nebo krajinou rovně ke kraji mapy (za krajem
+ * zmizí), nebo do jiné vsi na téže mapě ke kovárně a zpět (celou cestu vidět). Jde-li skupina
+ * víckrát, každou cestu zvlášť jako nákup u sousedů.
  */
 function ironCaravan(state: VillageState, dwelling: Dwelling, trip: IronTrip): SceneExpedition {
   const traveller = state.people.find((p) => p.id === trip.personId);
@@ -116,21 +119,26 @@ function ironCaravan(state: VillageState, dwelling: Dwelling, trip: IronTrip): S
   };
   const line = ironTripLine(dwelling, trip);
   const days = Math.max(1, trip.days);
+  const leg = Math.max(1, Math.min(days, trip.tripDays ?? days));
+  const round = Math.floor(trip.done / leg);
+  const progress = Math.min(1, (trip.done - round * leg) / leg);
+  const byCart = trip.cartId !== undefined;
   return {
     id: `iron:${dwelling.id}:${trip.startedDay}`,
     trailId: trip.to.kind === 'neighbour' ? trip.to.trailId : null,
     ...(line ? { line } : {}),
-    porters: 0,
-    carts: [],
-    cartCrew: CARTS.tradeCrew,
-    leaving: [who],
-    coming: [who],
-    carriesOut: false,
+    // s vozem jde vedle vozu tesař (pomocník) a honák u spřežení je sedlák
+    porters: byCart ? 0 : (trip.porters ?? 0),
+    carts: byCart ? [trip.cartId!] : [],
+    cartCrew: CART_IRON.cartCrew,
+    leaving: byCart ? [] : [who],
+    coming: byCart ? [] : [who],
+    carriesOut: true,
     carriesBack: false,
-    progress: Math.round(Math.min(1, trip.done / days) * 1e4) / 1e4,
-    rate: trip.done < days ? Math.round((1 / days) * 1e4) / 1e4 : 0,
+    progress: Math.round(progress * 1e4) / 1e4,
+    rate: trip.done < days ? Math.round((1 / leg) * 1e4) / 1e4 : 0,
     day: state.lastDay,
     // do vsi na téže mapě je celá cesta vidět, k sousedovi den za krajem mapy (jako nákup)
-    onMap: trip.to.kind === 'village' ? 1 : Math.max(0.2, (days - TRADE.beyondEdgeDays) / days),
+    onMap: trip.to.kind === 'village' ? 1 : Math.max(0.2, (leg - TRADE.beyondEdgeDays) / leg),
   };
 }

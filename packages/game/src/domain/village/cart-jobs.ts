@@ -1,5 +1,5 @@
 import { length2, type Landscape, type ObstacleLayer } from '../landscape';
-import { cartOrigin } from './carts';
+import { cartLoadRatio, cartOrigin } from './carts';
 import type { HouseholdWater } from './labor';
 import type { CartTarget } from './paths/cart';
 import { villageCartRoutes } from './paths/roads';
@@ -36,17 +36,20 @@ function cm(value: number): number {
 }
 
 /**
- * Jízdy vozů vsi (wagons.md – Co vozy vozí): s krajinou trasy dvoukoláku vozovou sítí
- * (`villageCartRoutes` – cena v m po louce, konec trasy), bez krajiny (testy, kalibrace) vzdušnou
- * čarou od ohrady ke kraji cíle. Bez ohrady se spřežením null.
+ * Jízdy vozů vsi (wagons.md – Co vozy vozí): s krajinou trasy vozu druhu `kind` vozovou sítí
+ * (`villageCartRoutes` – cena v m po louce, konec trasy; čtyřkolák jen po pevných cestách), bez
+ * krajiny (testy, kalibrace) dvoukolák vzdušnou čarou od ohrady ke kraji cíle a čtyřkolák nikam
+ * (cesty nejsou). Bez ohrady se spřežením null.
  */
 export function villageCartDrives(
   state: VillageState,
   day: number,
   landscape: Landscape | null,
   obstacles: ObstacleLayer | null,
+  kind: CartKind = 'two-wheel',
 ): CartDrives | null {
   if (!cartOrigin(state)) return null;
+  if (!landscape && kind === 'four-wheel') return null;
   if (!landscape) {
     return (s, targets) => {
       const origin = cartOrigin(s);
@@ -63,7 +66,7 @@ export function villageCartDrives(
   }
   return (s, targets) => {
     if (targets.length === 0) return [];
-    const routes = villageCartRoutes(s, day, landscape, obstacles, 'two-wheel', targets);
+    const routes = villageCartRoutes(s, day, landscape, obstacles, kind, targets);
     return targets.map((t, k) => {
       const route = routes?.[k];
       if (!route?.reached) return null;
@@ -107,18 +110,24 @@ export interface SmithCart {
 /**
  * Vůz pro uhlí od milíře ke kováři (wagons.md – Co vozy vozí, crafts.md – Uhlí a ruda kováře): sedlák
  * (CART_JOBS.charcoal.crew) jede k milíři, uhlíř nakládá při vytahání, u kovárny složí kovář –
- * náklad CART_JOBS.charcoal.loadKg. Vůz se vezme, jen když práce sedláka na kg uhlí je menší než
- * nošení v koších kovářovou domácností (`footPerKg` – čd na kg); kam nedojede (`drive` null), null.
+ * náklad CART_JOBS.charcoal.loadKg (čtyřkolák – `kind` – dvakrát tolik se stejnou posádkou). Vůz
+ * se vezme, jen když práce sedláka na kg uhlí je menší než nošení v koších kovářovou domácností
+ * (`footPerKg` – čd na kg); kam nedojede (`drive` null), null.
  */
-export function kilnCartOffer(drive: CartDrive | null, footPerKg: number): SmithCart | null {
+export function kilnCartOffer(
+  drive: CartDrive | null,
+  footPerKg: number,
+  kind: CartKind = 'two-wheel',
+): SmithCart | null {
   if (!drive) return null;
   const job = CART_JOBS.charcoal;
-  const perKg = cartTripManDays(drive.costM, job.stopS, job.crew) / job.loadKg;
+  const loadKg = job.loadKg * cartLoadRatio(kind);
+  const perKg = cartTripManDays(drive.costM, job.stopS, job.crew) / loadKg;
   if (perKg + EPSILON >= footPerKg) return null;
   return {
     manDaysPerKg: perKg,
     riderManDaysPerKg: 0,
-    maxKg: job.loadKg * cartTripsPerDay(drive.costM, job.stopS),
+    maxKg: loadKg * cartTripsPerDay(drive.costM, job.stopS),
     x: drive.x,
     z: drive.z,
   };
@@ -132,9 +141,14 @@ export function kilnCartOffer(drive: CartDrive | null, footPerKg: number): Smith
  * vezme, jen když práce obou na kg rudy je menší než nošení v koších (`footPerKg`); kam nedojede,
  * null.
  */
-export function oreCartOffer(drive: CartDrive | null, footPerKg: number): SmithCart | null {
+export function oreCartOffer(
+  drive: CartDrive | null,
+  footPerKg: number,
+  material: 'ore' | 'clay' = 'ore',
+): SmithCart | null {
   if (!drive) return null;
-  const job = CART_JOBS.ore;
+  // hlína hrnčíři stejně (crafts.md – Hlína hrnčíře): hrnčíř a sedlák pro hromadu u jámy
+  const job = CART_JOBS[material];
   const loadKg = CARTS.loadKg['two-wheel'];
   const trip = cartTripManDays(drive.costM, job.stopS, 1) / loadKg;
   if (trip * job.crew + EPSILON >= footPerKg) return null;
@@ -167,8 +181,9 @@ export function oreCartDrive(
   state: VillageState,
   site: Pick<OreSite, 'x' | 'z'>,
   drives: CartDrives,
+  material: 'ore' | 'clay' = 'ore',
 ): CartDrive | null {
-  return drives(state, [{ x: site.x, z: site.z, reachM: CART_JOBS.ore.reachM }])[0] ?? null;
+  return drives(state, [{ x: site.x, z: site.z, reachM: CART_JOBS[material].reachM }])[0] ?? null;
 }
 
 // --- voda v sudech ---------------------------------------------------------------------------
@@ -184,11 +199,14 @@ export function waterCartDrive(
   state: VillageState,
   landscape: Landscape | null,
   drives: CartDrives,
+  kind: CartKind = 'two-wheel',
 ): CartDrive | null {
   const origin = cartOrigin(state);
   if (!landscape || !origin) return null;
+  // čtyřkolák má vlastní břeh – jen kam sjede po pevné cestě (wagons.md – Co se vozí a na čem)
+  const field = kind === 'four-wheel' ? 'waterCart4' : 'waterCart';
   const key = `${state.walkLayoutKey ?? ''}|${origin.x},${origin.z}`;
-  if (state.waterCart?.key === key) return state.waterCart.drive;
+  if (state[field]?.key === key) return state[field].drive;
   const spots = [...groundSpots(walkGroundOf(landscape), PATH_WATER_SPOT)]
     .map((p) => ({ p, d: length2(p.x - origin.x, p.z - origin.z) }))
     .sort((a, b) => a.d - b.d || a.p.x - b.p.x || a.p.z - b.p.z);
@@ -206,7 +224,7 @@ export function waterCartDrive(
   for (const drive of found) {
     if (drive && (!best || drive.costM < best.costM)) best = drive;
   }
-  state.waterCart = { key, drive: best };
+  state[field] = { key, drive: best };
   return best;
 }
 
@@ -224,8 +242,9 @@ export interface WaterCartPlan {
   /** Kolik vody vůz přivezl (l) a za kolik jízd (podíl na náklad – jako svoz). */
   litres: number;
   trips: number;
-  /** Kolik vozů jelo. */
+  /** Kolik vozů jelo a jakých. */
   carts: number;
+  kind: CartKind;
   /** Kam vůz jezdí – konec trasy u břehu (m). */
   spot: { x: number; z: number };
 }
@@ -276,6 +295,7 @@ export function waterCartPlan(
     litres,
     trips,
     carts: Math.min(carts, Math.max(1, Math.ceil(trips / tripsPerCart - EPSILON))),
+    kind,
     spot: { x: drive.x, z: drive.z },
   };
 }

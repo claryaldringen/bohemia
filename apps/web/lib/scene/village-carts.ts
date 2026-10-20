@@ -76,6 +76,7 @@ export function steadyJob(job: NonNullable<SceneCart['job']>): boolean {
     job.load === 'water' ||
     job.target.kind === 'kiln' ||
     job.target.kind === 'ore' ||
+    job.target.kind === 'clay' ||
     job.outbound === true
   );
 }

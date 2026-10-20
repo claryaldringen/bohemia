@@ -1,8 +1,10 @@
 import { obstacleIndex, type Landscape, type ObstacleLayer } from '../landscape';
-import { ableTeams, oxenHome, oxPens, ploughPairsHome } from './oxen';
+import { ableTeams, isTrained, oxenHome, oxenToEdit, oxPens, ploughPairsHome } from './oxen';
+import { oxenOf } from './pens';
 import { axisCartCheck, type CartTarget } from './paths/cart';
 import { addRoadCartTrips, villageCartRoutes } from './paths/roads';
 import { CARTS, DRAFT_OXEN } from './rules';
+import { villageOrchards } from './orchard';
 import { squareCenter } from './square-grid';
 import { fieldGridOf } from './squares';
 import type {
@@ -14,6 +16,7 @@ import type {
   CropWork,
   FieldPart,
   HayMowing,
+  Ox,
   TradeExpedition,
   Trail,
   VillageState,
@@ -63,10 +66,19 @@ export function addCart(state: VillageState, kind: CartKind, day: number): Cart 
   return cart;
 }
 
-/** Vozy, které jsou s výpravou na cestě (id). */
-export function cartsAway(state: Pick<VillageState, 'trade'>): Set<number> {
+/**
+ * Vozy, které jsou s výpravou na cestě (id) – i vůz, který veze platbu za kování k vozu (wagons.md
+ * – Kování vozů; `ironTrip.cartId` u dílny tesaře – bez obydlí ve vstupu jen výpravy).
+ */
+export function cartsAway(
+  state: Pick<VillageState, 'trade'> & { dwellings?: VillageState['dwellings'] },
+): Set<number> {
   const away = new Set<number>();
   for (const e of state.trade?.expeditions ?? []) for (const id of e.carts ?? []) away.add(id);
+  for (const d of state.dwellings ?? []) {
+    const id = d.workshop?.ironTrip?.cartId;
+    if (id !== undefined) away.add(id);
+  }
   return away;
 }
 
@@ -105,22 +117,58 @@ export function teamsHomeShare(
 }
 
 /**
+ * Vozy, které dnes můžou vozit, a voli pro ně (oxen.md – Voli se sdílí): vozy doma (ne na výpravě)
+ * po druzích a vycvičení voli doma, kteří neorají – ve dny orby (`ploughing`) jdou páry napřed
+ * k rádlům, vozy táhne zbytek volů. Plány svozu flotilu ubírají (`takeCart`).
+ */
+export interface CartFleet {
+  'two-wheel': number;
+  'four-wheel': number;
+  oxen: number;
+}
+
+/** Flotila dne (`CartFleet`). */
+export function cartFleetToday(
+  state: Pick<VillageState, 'carts' | 'pens' | 'ards' | 'trade'>,
+  day: number,
+  ploughing: boolean,
+): CartFleet {
+  const away = cartsAway(state);
+  const fleet: CartFleet = { 'two-wheel': 0, 'four-wheel': 0, oxen: 0 };
+  for (const cart of villageCarts(state)) if (!away.has(cart.id)) fleet[cart.kind]++;
+  if (fleet['two-wheel'] + fleet['four-wheel'] === 0) return fleet;
+  const ploughOxen = ploughing ? DRAFT_OXEN.ard * ploughPairsHome(state, day) : 0;
+  fleet.oxen = Math.max(0, oxenHome(state, day) - ploughOxen);
+  return fleet;
+}
+
+/** Kolik vozů druhu `kind` z flotily může jet – každý se svými voly (dvoukolák 1, čtyřkolák 2). */
+export function fleetCarts(fleet: Readonly<CartFleet>, kind: CartKind): number {
+  return Math.max(0, Math.min(fleet[kind], Math.floor(fleet.oxen / DRAFT_OXEN[kind])));
+}
+
+/** Vůz druhu `kind` i se svými voly jede (mutuje flotilu). */
+export function takeCart(fleet: CartFleet, kind: CartKind, count = 1): void {
+  fleet[kind] -= count;
+  fleet.oxen -= count * DRAFT_OXEN[kind];
+}
+
+/**
  * Kolik dvoukoláků dnes může vozit (oxen.md – Voli se sdílí): doma (ne na výpravě) a s vlastním
  * vycvičeným volem, který je doma a neorá – ve dny orby (`ploughing`) jdou páry napřed k rádlům,
- * vozy táhne zbytek volů. Čtyřkolák jezdí jen s výpravami.
+ * vozy táhne zbytek volů.
  */
 export function haulCartsToday(
   state: Pick<VillageState, 'carts' | 'pens' | 'ards' | 'trade'>,
   day: number,
   ploughing: boolean,
 ): number {
-  const carts = villageCarts(state);
-  if (carts.length === 0) return 0;
-  const away = cartsAway(state);
-  const home = carts.filter((c) => c.kind === 'two-wheel' && !away.has(c.id)).length;
-  const ploughOxen = ploughing ? DRAFT_OXEN.ard * ploughPairsHome(state, day) : 0;
-  const oxen = oxenHome(state, day) - ploughOxen;
-  return Math.max(0, Math.min(home, Math.floor(oxen / DRAFT_OXEN['two-wheel'])));
+  return fleetCarts(cartFleetToday(state, day, ploughing), 'two-wheel');
+}
+
+/** Kolikrát víc nákladu vůz uveze proti dvoukoláku (čtyřkolák 800 kg – dvakrát). */
+export function cartLoadRatio(kind: CartKind): number {
+  return CARTS.loadKg[kind] / CARTS.loadKg['two-wheel'];
 }
 
 /**
@@ -150,12 +198,15 @@ export function tradeCarts(
 
 /**
  * Svoz vozy na jednu úlohu dne: kolik práce nošení vozy převezmou (`work` – člověkodny nošení),
- * kolik práce stojí honáci a nakladači (`crew`) a kolik vozů jede.
+ * kolik práce stojí honáci a nakladači (`crew`) a kolik vozů jede; z toho čtyřkoláky (`four`)
+ * a jejich díl nošení (`fourWork`) – chybí = jen dvoukoláky.
  */
 export interface HaulPlan {
   work: number;
   crew: number;
   carts: number;
+  four?: number;
+  fourWork?: number;
 }
 
 export const NO_HAUL: HaulPlan = { work: 0, crew: 0, carts: 0 };
@@ -172,6 +223,43 @@ export function haulPlan(available: number, carts: number): HaulPlan {
     work,
     crew: (work * CARTS.crew) / CARTS.carrierManDays,
     carts: Math.min(carts, Math.ceil(work / CARTS.carrierManDays - EPSILON)),
+  };
+}
+
+/**
+ * Svoz z flotily (wagons.md – Co se vozí a na čem, Martin 20. 10. 2026: „Ano, udělej to jak
+ * říkáš“ – ves vybere levnější vůz pro každou práci): čtyřkoláky napřed na nošení podél cest
+ * (`road` – kam dojede čtyřkolák; za den uveze dvakrát víc se stejnou posádkou), dvoukoláky na
+ * zbytek (`available` – kam dojede dvoukolák, i co čtyřkoláky nepobraly). Vůz za den odveze
+ * CARTS.carrierManDays × poměr nákladu nosičů, posádka CARTS.crew poměrně k nákladu. Mutuje
+ * flotilu (`takeCart`).
+ */
+export function fleetHaulPlan(available: number, road: number, fleet: CartFleet): HaulPlan {
+  if (available <= EPSILON) return NO_HAUL;
+  const cap4 = CARTS.carrierManDays * cartLoadRatio('four-wheel');
+  let fourWork = 0;
+  let four = 0;
+  const roadLeft = Math.min(road, available);
+  while (fourWork + EPSILON < roadLeft && fleetCarts(fleet, 'four-wheel') > 0) {
+    fourWork += Math.min(cap4, roadLeft - fourWork);
+    four++;
+    takeCart(fleet, 'four-wheel');
+  }
+  const rest = available - fourWork;
+  let twoWork = 0;
+  let two = 0;
+  while (twoWork + EPSILON < rest && fleetCarts(fleet, 'two-wheel') > 0) {
+    twoWork += Math.min(CARTS.carrierManDays, rest - twoWork);
+    two++;
+    takeCart(fleet, 'two-wheel');
+  }
+  if (four + two === 0) return NO_HAUL;
+  const crew = (fourWork / cap4 + twoWork / CARTS.carrierManDays) * CARTS.crew;
+  return {
+    work: fourWork + twoWork,
+    crew,
+    carts: four + two,
+    ...(four > 0 ? { four, fourWork } : {}),
   };
 }
 
@@ -241,6 +329,58 @@ export function networkCartAccess(
   };
 }
 
+/**
+ * Vůz s voly, který si vezmou odcházející (migration.md – Vůz při odchodu; Martin 20. 10. 2026:
+ * „Ano, udělej to jak říkáš“ – návrh nových nákladů vozů, wagons.md): vůz doma (ne na výpravě)
+ * a vycvičení voli pro něj (DRAFT_OXEN), bez kterých ves udrží páry k rádlům, které má
+ * (`ableTeams`); odchází-li celá ves (`all`), páry nedrží. Napřed čtyřkolák (uveze víc jídla), pak
+ * dvoukolák, nejmladší vůz; voli s nejdelší zbývající službou (nejpozději vycvičení). Bez vozu nebo
+ * volů null. Nemění stav – vůz a voly odebere `takeLeavingCart`.
+ */
+export function leavingCart(
+  state: Pick<VillageState, 'pens' | 'ards' | 'carts' | 'trade'>,
+  day: number,
+  all: boolean,
+): { cart: Cart; oxen: Ox[] } | null {
+  const away = cartsAway(state);
+  const home = villageCarts(state).filter((c) => !away.has(c.id));
+  if (home.length === 0) return null;
+  const trained = oxPens(state)
+    .flatMap((pen) => oxenOf(pen).filter((ox) => isTrained(ox, day)))
+    .sort((a, b) => b.trainedDay - a.trainedDay);
+  const spare = trained.length - (all ? 0 : DRAFT_OXEN.ard * ableTeams(state, day));
+  for (const kind of ['four-wheel', 'two-wheel'] as const) {
+    if (spare < DRAFT_OXEN[kind]) continue;
+    const cart = home
+      .filter((c) => c.kind === kind)
+      .sort((a, b) => b.builtDay - a.builtDay || b.id - a.id)[0];
+    if (cart) return { cart, oxen: trained.slice(0, DRAFT_OXEN[kind]).map((ox) => ({ ...ox })) };
+  }
+  return null;
+}
+
+/**
+ * Vůz a voly `taken` (`leavingCart`) odvezou odcházející (mutuje stav): vůz zmizí z vozů vsi,
+ * voli z ohrad (stejný den vycvičení – z ohrady s nejvyšším id napřed).
+ */
+export function takeLeavingCart(
+  state: VillageState,
+  taken: { cart: Cart; oxen: readonly Ox[] },
+): void {
+  state.carts = villageCarts(state).filter((c) => c.id !== taken.cart.id);
+  if (state.carts.length === 0) delete state.carts;
+  const pens = [...oxPens(state)].sort((a, b) => b.id - a.id);
+  for (const ox of taken.oxen) {
+    for (const pen of pens) {
+      const oxen = oxenToEdit(pen);
+      const k = oxen.findIndex((o) => o.trainedDay === ox.trainedDay);
+      if (k < 0) continue;
+      oxen.splice(k, 1);
+      break;
+    }
+  }
+}
+
 /** Odkud vozy vyjíždějí – hotová ohrada volů (nejnižší id); bez ní null. */
 export function cartOrigin(state: Pick<VillageState, 'pens'>): { x: number; z: number } | null {
   const pen = oxPens(state)
@@ -250,17 +390,19 @@ export function cartOrigin(state: Pick<VillageState, 'pens'>): { x: number; z: n
 }
 
 /**
- * Dosah vozů vsi dnes: s krajinou vozová síť (`networkCartAccess`), bez krajiny všude (testy,
- * kalibrace – jako chůze bez krajiny vzdušně); bez hotové ohrady volů null.
+ * Dosah vozů vsi dnes (`kind` – čtyřkolák jen po pevných cestách): s krajinou vozová síť
+ * (`networkCartAccess`), bez krajiny všude (testy, kalibrace – jako chůze bez krajiny vzdušně); bez
+ * hotové ohrady volů null.
  */
 export function villageCartAccess(
   state: VillageState,
   day: number,
   landscape: Landscape | null,
   obstacles: ObstacleLayer | null,
+  kind: CartKind = 'two-wheel',
 ): CartAccess | null {
   if (!cartOrigin(state)) return null;
-  return landscape ? networkCartAccess(day, landscape, obstacles) : EVERYWHERE;
+  return landscape ? networkCartAccess(day, landscape, obstacles, kind) : EVERYWHERE;
 }
 
 /** Střed dílu pole ve světě. */
@@ -406,6 +548,27 @@ export function mowingCartReach(
 }
 
 /**
+ * Kam vůz při sklizni jablek dojede (orchard.md – Jablka vozem): podíl plochy vysazených čtverců
+ * sadů, ke kterým vůz dojede (do CARTS.reachM od středu čtverce – do sadu nevjede, staví na kraji)
+ * a body jízd po sadech. Bez krajiny všude (body žádné).
+ */
+export function orchardCartReach(
+  state: VillageState,
+  landscape: Landscape | null,
+  access: CartAccess,
+): CartReach {
+  if (!landscape) return { share: 1, points: [] };
+  const spots = villageOrchards(state).flatMap((orchard) =>
+    orchard.squares.flatMap((sq): HaulSpot[] => {
+      if (sq.plantedDay === null) return [];
+      const at = squareCenter(landscape, orchard.grid, sq.cell);
+      return [{ ...at, weight: sq.areaM2, group: `orchard:${orchard.id}` }];
+    }),
+  );
+  return reachOf(state, spots, access);
+}
+
+/**
  * Ke kterým stromům stavby vůz dojede (wagons.md – Svoz klád): k dospělému stromu do
  * CARTS.dragM (kládu ke kraji lesa vlečou lidé). Stromy bez polohy (ves bez vrstvy překážek) vždy,
  * stromy mimo vrstvu (les vsi) nikdy – vozová síť je stejně do lesa nepustí. Body jízd = stromy.
@@ -479,7 +642,7 @@ export function addHaulTrips(
   kind: CartKind = 'two-wheel',
 ): void {
   if (!state.roads || hauled <= EPSILON || reach.points.length === 0) return;
-  const trips = (hauled * CARTS.loadsPerCartDay) / CARTS.carrierManDays;
+  const trips = (hauled * CARTS.loadsPerCartDay) / (CARTS.carrierManDays * cartLoadRatio(kind));
   addRoadCartTrips(
     state.roads,
     reach.points.map((p) => ({ x: p.x, z: p.z, kind, trips: trips * p.weight })),

@@ -1,5 +1,4 @@
 import { detCos, detSin, type Landscape, type ObstacleLayer } from '../landscape';
-import { distanceFactor } from './fields';
 import { buildingLocalToWorld, fellTrees, obstacleChangesAt } from './obstacles';
 import { adultDailyMin, waterFetchingLabor } from './labor';
 import { ageGroup, laborPerDay } from './people';
@@ -11,6 +10,7 @@ import {
   CART_IRON,
   CHARCOAL_KILN,
   CRAFTS,
+  CLAY,
   CRAFT_BASE,
   CRAFT_NEEDS,
   CRAFT_PRODUCTION,
@@ -34,10 +34,15 @@ import type {
   WorkshopFelling,
 } from './types';
 import {
+  migratePotter,
   migrateSmith,
+  potteryClayKg,
   smithCrewAges,
+  workDug,
   workOre,
+  type DugMaterial,
   type OreCartToday,
+  type OreDay,
   type SmithFetchDay,
 } from './smith-supply';
 import {
@@ -281,7 +286,6 @@ export function smithsCharcoalPerYear(
     smithForgeCharcoalKg(
       smiths.map((d) => ({
         labor: forgeLabor(workshopLabor(state, day, d.id, coverage.pottery, productivity)),
-        oreFactor: oreFactor(d.workshop!),
       })),
     ) * DAYS_PER_YEAR;
   const needs = craftNeeds(state, day);
@@ -328,7 +332,6 @@ export function smithsForgeCharcoalKg(
   return smithForgeCharcoalKg(
     smiths.map((d) => ({
       labor: forgeLabor(workshopLabor(state, day, d.id, coverage.pottery, productivity)),
-      oreFactor: oreFactor(d.workshop!),
     })),
   );
 }
@@ -383,6 +386,10 @@ export function restingCrafters(
       availableTrees(obstacles, state, day) <= 0;
     if (stocks.potteryKg >= targets.potteryKg) resting.set(d.id, 'resting');
     else if (noWood) resting.set(d.id, 'no-wood');
+    // bez hlíny a bez místa, kde ji kopat (crafts.md – Hlína hrnčíře)
+    else if (workshop.claySite === null && (workshop.clayKg ?? 1) <= 0) {
+      resting.set(d.id, 'no-clay');
+    }
   }
   return resting;
 }
@@ -532,6 +539,8 @@ export interface WorkshopDay {
   fetch?: { target: LaborTarget; manDays: number; ages: number[]; cart?: true }[];
   /** Kovář: kopání, praní a pražení rudy na rudišti (čd), kdo kope (věky) a místo (m). */
   ore?: { manDays: number; ages: number[]; x: number; z: number };
+  /** Hrnčíř: kopání hlíny na hliništi (čd), kdo kope (věky) a místo (m – crafts.md, Hlína). */
+  clay?: { manDays: number; ages: number[]; x: number; z: number };
 }
 
 /** Odkud dílna kácí: uhlíř od milíře (tam polena skládá), hrnčíř od dílny. */
@@ -578,7 +587,8 @@ interface WorkshopOutput {
 /**
  * Den uhlíře nebo hrnčíře – dílny, které kácejí (mutuje stav): práce jde do výroby, dokud
  * skácené dřevo stačí (`fuelKg`), pak do kácení dalšího stromu (pařez, vzdálenost); skácený strom
- * dá `kgPerTree` výrobku. Když není z čeho kácet, zbytek práce propadne.
+ * dá `kgPerTree` výrobku. Když není z čeho kácet, zbytek práce propadne. Výroby nejvýš `maxKg`
+ * (hrnčíř – z hlíny, kterou má; crafts.md, Hlína hrnčíře) – pak dílna přestane a dál nekácí.
  */
 function workWithWood(
   state: VillageState,
@@ -589,6 +599,7 @@ function workWithWood(
   obstacles: ObstacleLayer | null,
   manDaysPerKg: number,
   kgPerTree: number,
+  maxKg = Infinity,
 ): WorkshopOutput {
   let left = labor;
   let felling = 0;
@@ -597,8 +608,9 @@ function workWithWood(
   let noWood = false;
   const fellingTrees: number[] = [];
   for (let step = 0; step < MAX_STEPS && left > EPSILON; step++) {
+    if (producedKg + EPSILON >= maxKg) break;
     if (workshop.fuelKg > EPSILON) {
-      const kg = Math.min(workshop.fuelKg, left / manDaysPerKg);
+      const kg = Math.min(workshop.fuelKg, left / manDaysPerKg, maxKg - producedKg);
       workshop.fuelKg = Math.max(0, workshop.fuelKg - kg);
       left -= kg * manDaysPerKg;
       making += kg * manDaysPerKg;
@@ -637,10 +649,114 @@ function workWithWood(
   return { felling, fellingTrees, making, producedKg, activity };
 }
 
-/** Den kováře pro rozdělení práce dne. */
+/** Den kováře nebo hrnčíře pro rozdělení práce dne. */
 interface SmithOutput extends WorkshopOutput {
   fetch: NonNullable<WorkshopDay['fetch']>;
   ore?: WorkshopDay['ore'];
+  clay?: WorkshopDay['clay'];
+}
+
+/**
+ * Nošení suroviny z místa, kde se kope (ruda, hlína), jako záznamy rozdělení práce: pěšky v koších
+ * a jízda řemeslníka s vozem se sedlákem (`cart`).
+ */
+function dugFetchEntries(
+  state: VillageState,
+  dwellingId: number,
+  day: number,
+  material: DugMaterial,
+  dug: OreDay,
+): NonNullable<WorkshopDay['fetch']> {
+  const site = dug.site;
+  if (!site) return [];
+  const target: LaborTarget =
+    material === 'clay'
+      ? { kind: 'clay', id: dwellingId, ...site }
+      : { kind: 'ore', id: dwellingId, ...site };
+  const out: NonNullable<WorkshopDay['fetch']> = [];
+  if (dug.carry > 0) {
+    out.push({
+      target,
+      manDays: dug.carry,
+      ages: smithCrewAges(state, dwellingId, day, dug.carry),
+    });
+  }
+  if (dug.ride > 0) {
+    out.push({
+      target,
+      manDays: dug.ride,
+      ages: smithCrewAges(state, dwellingId, day, 0),
+      cart: true,
+    });
+  }
+  return out;
+}
+
+/**
+ * Den hrnčíře (mutuje stav; crafts.md – Hlína hrnčíře): z práce dílny napřed hlína (`workDug` –
+ * jízda s vozem pro hromadu u jámy, kopání a nošení v koších jako ruda kováře; kolik hlíny dílna
+ * potřebuje, jde podle výkonu dílny podle praxe – crafts.md, Učení řemesla), zbytek točí
+ * a vypaluje (bez praxe pomaleji) a kácí na palivo – nejvýš z hlíny, kterou má (CLAY.kgPerPotteryKg
+ * na kg keramiky). Bez hlíny a bez místa, kde ji kopat, stojí (`no-clay`).
+ */
+function workPotter(
+  state: VillageState,
+  dwelling: Dwelling,
+  stocks: CraftStocks,
+  labor: WorkshopLabor,
+  day: number,
+  obstacles: ObstacleLayer | null,
+  supply: SmithSupply,
+  landscape: Landscape | null,
+): SmithOutput {
+  const workshop = dwelling.workshop!;
+  migratePotter(workshop, labor.craft, labor.skill, CHARCOAL_KILN.drawBatchDays);
+  const cartBatch = supply.cartBatch;
+  const cart = supply.clayCarts?.get(dwelling.id);
+  const clay = workDug(state, dwelling, 'clay', labor.craft, day, {
+    landscape,
+    batchDays: CHARCOAL_KILN.drawBatchDays,
+    ...(cart ? { cart } : {}),
+    ...(cartBatch ? { cartBatch: (site: OreSite) => cartBatch(dwelling, site, 'clay') } : {}),
+    needKg: (left) => potteryClayKg(left, labor.skill),
+  });
+  const output = workWithWood(
+    state,
+    dwelling,
+    workshop,
+    clay.left,
+    day,
+    obstacles,
+    // hrnčíř bez praxe točí a vypaluje pomaleji, kácí stejně (crafts.md – Učení řemesla)
+    CRAFT_PRODUCTION.potteryManDaysPerKg / labor.skill,
+    CRAFT_PRODUCTION.potteryKgPerTree,
+    (workshop.clayKg ?? 0) / CLAY.kgPerPotteryKg,
+  );
+  workshop.clayKg = Math.max(0, (workshop.clayKg ?? 0) - output.producedKg * CLAY.kgPerPotteryKg);
+  stocks.potteryKg += output.producedKg;
+  const dug = clay.dig > EPSILON || clay.carry > EPSILON || clay.ride > EPSILON;
+  const activity: WorkshopActivity =
+    output.producedKg > EPSILON || output.felling > EPSILON || output.activity === 'no-wood'
+      ? output.activity
+      : dug
+        ? 'digging'
+        : labor.craft > EPSILON && workshop.claySite === null
+          ? 'no-clay'
+          : output.activity;
+  return {
+    ...output,
+    activity,
+    fetch: dugFetchEntries(state, dwelling.id, day, 'clay', clay),
+    ...(clay.site && clay.dig > 0
+      ? {
+          clay: {
+            manDays: clay.dig,
+            ages: smithCrewAges(state, dwelling.id, day, clay.dig),
+            ...clay.site,
+          },
+        }
+      : {}),
+  };
 }
 
 /**
@@ -653,11 +769,14 @@ export interface SmithSupply {
   fetch: ReadonlyMap<number, SmithFetchDay>;
   /** Vůz pro rudu dnes po kovárnách (sedlák přijel k hromadě u jámy). */
   oreCarts: ReadonlyMap<number, OreCartToday>;
+  /** Vůz pro hlínu dnes po dílnách hrnčířů (crafts.md – Hlína hrnčíře); bez údaje žádný. */
+  clayCarts?: ReadonlyMap<number, OreCartToday>;
   /**
-   * Dávka rudy na celý vůz pro kovárnu a rudiště – kg vozu, nebo null (ves nemá vůz doma, vůz
-   * k rudišti nedojede nebo jízda neušetří práci proti nošení). Bez údaje vždy pěšky.
+   * Dávka suroviny `material` (ruda, hlína) na celý vůz pro dílnu a místo – kg vozu, nebo null
+   * (ves nemá vůz doma, vůz k místu nedojede nebo jízda neušetří práci proti nošení). Bez údaje
+   * vždy pěšky.
    */
-  cartBatch?: (smith: Dwelling, site: OreSite) => number | null;
+  cartBatch?: (dwelling: Dwelling, site: OreSite, material: DugMaterial) => number | null;
 }
 
 /** Bez plánu kováren – synové nenosí, vůz nejede, ruda pěšky. */
@@ -690,25 +809,11 @@ function workSmith(
     landscape,
     batchDays: CHARCOAL_KILN.drawBatchDays,
     ...(oreCart ? { cart: oreCart } : {}),
-    ...(cartBatch ? { cartBatch: (site: OreSite) => cartBatch(dwelling, site) } : {}),
+    ...(cartBatch ? { cartBatch: (site: OreSite) => cartBatch(dwelling, site, 'ore') } : {}),
   });
   left = ore.left;
   const site = ore.site;
-  if (site && ore.carry > 0) {
-    fetch.push({
-      target: { kind: 'ore', id: dwelling.id, ...site },
-      manDays: ore.carry,
-      ages: smithCrewAges(state, dwelling.id, day, ore.carry),
-    });
-  }
-  if (site && ore.ride > 0) {
-    fetch.push({
-      target: { kind: 'ore', id: dwelling.id, ...site },
-      manDays: ore.ride,
-      ages: smithCrewAges(state, dwelling.id, day, 0),
-      cart: true,
-    });
-  }
+  fetch.push(...dugFetchEntries(state, dwelling.id, day, 'ore', ore));
   // kovář bez praxe kove pomaleji (crafts.md – Učení řemesla); nošení a kopání rudy ne
   const manDaysPerKg = CRAFT_PRODUCTION.toolManDaysPerKg / skill;
   const oreKg = workshop.oreKg ?? 0;
@@ -779,15 +884,6 @@ function charcoalFetchEntries(
     }
   }
   return out;
-}
-
-/**
- * Přirážka za hlínu dál od potoka u hrnčíře (+1 % za 10 m nad 100 m – crafts.md). Kovář ji nemá –
- * rudu kope na rudišti a chodí tam (crafts.md – Uhlí a ruda kováře).
- */
-export function oreFactor(workshop: Pick<Workshop, 'craft' | 'waterDistanceM'>): number {
-  if (workshop.craft === 'smith') return 1;
-  return distanceFactor(workshop.waterDistanceM ?? 0);
 }
 
 /** Pořadí dílen ve výrobě dne: uhlíři první (jejich uhlí kovář hned použije), pak podle id. */
@@ -909,18 +1005,8 @@ export function workCrafts(
       smith = workSmith(state, dwelling, stocks, labor.craft, day, supply, landscape, labor.skill);
       output = smith;
     } else {
-      output = workWithWood(
-        state,
-        dwelling,
-        workshop,
-        labor.craft,
-        day,
-        obstacles,
-        // hrnčíř bez praxe točí a vypaluje pomaleji, kácí stejně (crafts.md – Učení řemesla)
-        (CRAFT_PRODUCTION.potteryManDaysPerKg * oreFactor(workshop)) / labor.skill,
-        CRAFT_PRODUCTION.potteryKgPerTree,
-      );
-      stocks.potteryKg += output.producedKg;
+      smith = workPotter(state, dwelling, stocks, labor, day, obstacles, supply, landscape);
+      output = smith;
     }
     workshop.activity = output.activity;
     days.push({
@@ -933,6 +1019,7 @@ export function workCrafts(
       producedKg: output.producedKg,
       ...(smith && smith.fetch.length > 0 ? { fetch: smith.fetch } : {}),
       ...(smith?.ore ? { ore: smith.ore } : {}),
+      ...(smith?.clay ? { clay: smith.clay } : {}),
     });
   }
   return days;

@@ -1,7 +1,7 @@
 import type { AbandonedStructure, HerdSpecies, HungerLevel, NewcomerGroup } from '@bohemia/game';
 import { DIRECTION_NAMES, NEWCOMER_TEXTS } from './trade-names';
 import { formatAnimals, formatInteger } from './village-format';
-import { productList, type VillageView } from './village-view';
+import { ironTripWho, productList, type VillageView } from './village-view';
 
 // Upozornění vsi (population.md – Co hráč vidí): rodina čeká na dům, ves šetří jídlem, hladoví,
 // lidé umírají hlady – vždy jen nejvyšší stupeň (Hlad a vymření), stavby stojí, hřbitov je plný (cemetery.md), vesničané ušetřili posvátný dub
@@ -32,6 +32,8 @@ export type NoticeKind =
   | 'no-charcoal'
   /** Kovář nemá rudu a není kde ji kopat (crafts.md – Uhlí a ruda kováře). */
   | 'no-ore'
+  /** Hrnčíř nemá hlínu a není kde ji kopat (crafts.md – Hlína hrnčíře). */
+  | 'no-clay'
   | 'no-wood'
   /** Tesař (wagons.md): nemá klády ani co kácet, vyrobil vůz, vůz dosloužil. */
   | 'carpenter-no-wood'
@@ -159,6 +161,9 @@ export function villageNotices(view: VillageView): VillageNotice[] {
   if (view.crafts.workshops.some((w) => w.activity === 'no-ore')) {
     notices.push({ kind: 'no-ore', tone: 'warn', text: 'Kovář nemá rudu' });
   }
+  if (view.crafts.workshops.some((w) => w.activity === 'no-clay')) {
+    notices.push({ kind: 'no-clay', tone: 'warn', text: 'Hrnčíř nemá hlínu' });
+  }
   if (view.crafts.workshops.some((w) => w.activity === 'no-wood' && w.craft !== 'carpenter')) {
     notices.push({ kind: 'no-wood', tone: 'warn', text: 'Dílna nemá co kácet' });
   }
@@ -256,6 +261,11 @@ function ownNotices(previous: VillageView, next: VillageView): VillageNotice[] {
  */
 type ChronicleEntry = VillageView['chronicle'][number];
 
+/** První písmeno velké (věta upozornění). */
+function capitalize(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 const CHRONICLE_NOTICES: Partial<
   Record<ChronicleEntry['kind'], (entry: ChronicleEntry) => VillageNotice>
 > = {
@@ -339,7 +349,7 @@ const CHRONICLE_NOTICES: Partial<
   'iron-trip': (entry) => ({
     kind: 'iron-trip',
     tone: 'info',
-    text: `${entry.son ? 'Syn tesaře šel' : 'Tesař šel'} pro kování k vozu do vsi ${entry.place ?? ''}${
+    text: `${capitalize(ironTripWho(entry.son === true, entry.porters ?? 0, entry.byCart === true))} pro kování k vozu do vsi ${entry.place ?? ''}${
       entry.direction ? ` (${DIRECTION_NAMES[entry.direction].name})` : ''
     }`,
   }),

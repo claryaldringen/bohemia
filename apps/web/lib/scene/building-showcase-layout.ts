@@ -1383,9 +1383,9 @@ export function showcaseCartGround(x: number, z: number): number {
 }
 
 /**
- * Vozy ukázky: tři dvoukoláky po kruhu přes úbočí pahorku (prázdný, se senem a se snopy) a tři
- * čtyřkoláky tam a zpět přes jeho úpatí (klády, zboží obchodní výpravy a seno) – na každé trase
- * rovnoměrně za sebou.
+ * Vozy ukázky: dvoukoláky po kruhu přes úbočí pahorku (prázdný, se senem, se snopy, se sudy na
+ * vodu, s hlínou z hliniště a s koši jablek) a čtyřkoláky tam a zpět přes jeho úpatí (klády, zboží
+ * obchodní výpravy, seno, sudy a jablka) – na každé trase rovnoměrně za sebou.
  */
 export function showcaseCarts(): CartTrack[] {
   const circle = cartRoute(
@@ -1412,7 +1412,7 @@ export function showcaseCarts(): CartTrack[] {
       offsetM: (route.length * i) / cargoes.length,
     }));
   return [
-    ...along(circle, 'two-wheel', ['empty', 'hay', 'sheaves', 'water']),
-    ...along(shuttle, 'four-wheel', ['logs', 'goods', 'hay', 'water']),
+    ...along(circle, 'two-wheel', ['empty', 'hay', 'sheaves', 'water', 'clay', 'apples']),
+    ...along(shuttle, 'four-wheel', ['logs', 'goods', 'hay', 'water', 'apples']),
   ];
 }

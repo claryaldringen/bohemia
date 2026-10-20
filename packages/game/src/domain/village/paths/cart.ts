@@ -230,6 +230,11 @@ export interface CartRoutesInput {
   /** Odkud vozy vyjíždějí (u ohrady se spřežením – `cartDepots`). */
   depots: readonly PathPoint[];
   targets: readonly CartTarget[];
+  /**
+   * Jen po pevných cestách a kolem depa (CART_ROUTES.fourWheelOffRoadM) – čtyřkolák vsi (wagons.md
+   * – Co se vozí a na čem); bez údaje všude, kam vůz projede.
+   */
+  roadsOnly?: boolean;
 }
 
 /**
@@ -242,7 +247,10 @@ export interface CartRoutesInput {
  * (`cartRoadSpeed` – v mokřině na ose jen hať rychle); voda jen brodem a sráz ani po ní. Domy, pozemky,
  * staveniště, milíř a modla ne – i s půl šířkou vozu.
  */
-export function cartGrid(input: Omit<CartRoutesInput, 'kind' | 'depots' | 'targets'>): CartGrid {
+export function cartGrid(
+  input: Omit<CartRoutesInput, 'kind' | 'depots' | 'targets'> &
+    Partial<Pick<CartRoutesInput, 'depots'>>,
+): CartGrid {
   // úpravy terénu vozových cest (roads.md – Vozová cesta) – po úvozu vůz jede rovně
   const t = villageTerrain(input.village, input.terrain);
   const all = t.width * t.height;
@@ -333,7 +341,45 @@ export function cartGrid(input: Omit<CartRoutesInput, 'kind' | 'depots' | 'targe
       if (inBuilding(b, x, z, margin)) cost[c] = Infinity;
     });
   }
+  // čtyřkolák jen po pevných cestách (pás buňky kolem osy) a kolem ohrady volů, odkud vyjíždí
+  // (wagons.md – Co se vozí a na čem)
+  if (input.roadsOnly) onlyAlongRoads(grid, roads, input.depots ?? []);
   return grid;
+}
+
+/**
+ * Mřížka jen po cestách (čtyřkolák vsi – mutuje `grid.cost`): průchodné zůstanou jen buňky pevných cest a jejich
+ * sousedé (pás cesty – osa jde po buňkách schodovitě) a buňky do CART_ROUTES.fourWheelOffRoadM od
+ * ohrad volů (`depots`); bez cest jen okolí ohrad.
+ */
+function onlyAlongRoads(
+  grid: CartGrid,
+  roads: Float32Array | null,
+  depots: readonly PathPoint[],
+): void {
+  const { width: w, height: h, cost } = grid;
+  const allowed = new Uint8Array(w * h);
+  if (roads) {
+    for (let c = 0; c < w * h; c++) {
+      if (!roads[c]) continue;
+      const i = c % w;
+      const j = (c - i) / w;
+      for (let dj = -1; dj <= 1; dj++) {
+        for (let di = -1; di <= 1; di++) {
+          const ii = i + di;
+          const jj = j + dj;
+          if (ii >= 0 && jj >= 0 && ii < w && jj < h) allowed[jj * w + ii] = 1;
+        }
+      }
+    }
+  }
+  const r = CART_ROUTES.fourWheelOffRoadM;
+  for (const d of depots) {
+    cellsIn(grid, d.x - r, d.z - r, d.x + r, d.z + r, (c, x, z) => {
+      if (length2(x - d.x, z - d.z) <= r) allowed[c] = 1;
+    });
+  }
+  for (let c = 0; c < w * h; c++) if (!allowed[c]) cost[c] = Infinity;
 }
 
 /** Průchodné buňky do `radius` m od bodu (aspoň nejbližší průchodná do 3 buněk). */

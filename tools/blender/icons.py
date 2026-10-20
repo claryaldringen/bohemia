@@ -16,7 +16,8 @@ cesta-upravena, hat a cesta-vozova (druhy pevné cesty – pás cesty, vyježdě
 upravená širší, hať a lávka z `apps/web/public/models/roads/`, vozová cesta se zpevněnými
 kolejemi v úvozu)
 a jablone (jabloně s jablky střídavě podél cesty – tlačítko „Vysadit jabloně“), stezka (zemská
-stezka od brány dvorce – trade.md) a obchod (pytle obilí, hrnce, klády a sýr) – portréty do
+stezka od brány dvorce – trade.md), obchod (pytle obilí, hrnce, klády a sýr) a rudiste (jámy
+s vodou a valem, hromádka bahenní rudy a motyka – crafts.md, Uhlí a ruda kováře) – portréty do
 panelu výběru;
 (64 × 64 PNG) – `resources/` people, food, wood, labor, satiation, date, apples, happiness
 (štěstí – plamen ohniště nad zkříženými poleny v kruhu kamenů), hay (seno – kupka sena
@@ -29,7 +30,7 @@ ozim (osení pod sněhem), jar (klasy jarního ječmene), flax (len – hrst sto
 a tobolkami, fields.md – Len), charcoal (hromádka dřevěného uhlí), tools
 (kovaná sekera zkřížená se srpem) a pottery (dva hrnce pražského typu, větší s vlnovkou) –
 suroviny řemesel (crafts.md) –, ore (hromádka rezavých hrud bahenní rudy – crafts.md, Uhlí a ruda
-kováře), harvest (sklizeň – srp zkřížený s uříznutou hrstí zralých klasů,
+kováře), clay (hromádka hladkých hrud vlhké hlíny seříznutých rýčem – crafts.md, Hlína hrnčíře), harvest (sklizeň – srp zkřížený s uříznutou hrstí zralých klasů,
 panel dílu pole – fields.md), walk (cesta z domu – dvě šlépěje bosých nohou ve vyšlapané hlíně, chůze
 po pěšinách – paths.md), cart (dvoukolák s loukoťovými koly) a wood-tools (hrábě zkřížené
 s dřevěnými vidlemi) – vozy a dřevěné nářadí od tesaře (wagons.md) –, skill (zkušenost
@@ -1809,6 +1810,102 @@ def icon_ore():
     return True
 
 
+def clay_lump(bm, centre, size, rng):
+    """Hrouda vlhké hlíny: oblá a hladká, místy seříznutá rýčem (rovná plocha nahoře)."""
+    first = len(bm.verts)
+    bmesh.ops.create_icosphere(bm, subdivisions=3, radius=1.0)
+    bm.verts.ensure_lookup_table()
+    cut = rng.uniform(0.35, 0.7)
+    for v in list(bm.verts)[first:]:
+        k = 1.0 + rng.uniform(-0.04, 0.04) + 0.08 * noise.noise(v.co * 1.6 + Vector(centre) * 3)
+        co = Vector((v.co.x * size[0], v.co.y * size[1], min(v.co.z, cut) * size[2])) * k
+        v.co = Vector(centre) + co
+
+
+def icon_clay():
+    """Hlína: hromádka hladkých hrud vlhké hlíny, seříznutých rýčem (crafts.md – Hlína hrnčíře) –
+    šedookrová, matná, s lesklejšími seříznutými plochami."""
+    rng = random.Random(37)
+    bm = bmesh.new()
+    lumps = [
+        ((-0.44, 0.02, 0.15), (0.3, 0.24, 0.2)),
+        ((0.0, -0.22, 0.14), (0.32, 0.24, 0.19)),
+        ((0.44, 0.0, 0.15), (0.28, 0.24, 0.2)),
+        ((-0.2, 0.3, 0.14), (0.27, 0.22, 0.18)),
+        ((0.22, 0.3, 0.14), (0.28, 0.22, 0.18)),
+        ((-0.2, 0.04, 0.4), (0.28, 0.23, 0.19)),
+        ((0.2, 0.02, 0.41), (0.28, 0.23, 0.2)),
+        ((0.0, 0.18, 0.62), (0.25, 0.21, 0.18)),
+        ((0.64, -0.3, 0.08), (0.12, 0.1, 0.08)),
+    ]
+    for c, size in lumps:
+        clay_lump(bm, c, size, rng)
+    m = mat("clay", (0.34, 0.2, 0.09), 0.45, noise=10, bump=0.25)
+    o = to_obj(bm, "clay", m, smooth=True)
+    o.data.update()
+    sun(az=-45, el=42, strength=4.2, color=(1.0, 0.9, 0.75))
+    sun(az=150, el=25, strength=2.5, color=(0.8, 0.88, 1.0))
+    camera([Vector((-0.8, -0.45, 0)), Vector((0.8, 0.5, 0.82))], az=0, el=24, margin=1.04)
+    return True
+def ore_pit(bm, centre, radius, phase):
+    """Jáma po rudě jako ve hře (ore-site-layout.ts – PIT_PROFILE): mokré dno těsně nad zemí,
+    stěna, hřbet valu vykopané hlíny a vnější svah zanořený do drnu; okraj nepravidelný."""
+    profile = [(0.0, 0.03), (0.3, 0.04), (0.55, 0.09), (0.8, 0.2), (1.0, 0.32), (1.3, 0.15), (1.7, -0.04)]
+    seg = 40
+    first = bm.verts.new((centre[0], centre[1], profile[0][1]))
+    rings = []
+    for t, up in profile[1:]:
+        ring = []
+        for s_ in range(seg):
+            a = 2 * math.pi * s_ / seg
+            wob = 1 + 0.12 * math.sin(3 * a + phase) + 0.06 * math.sin(5 * a + 2 * phase)
+            r = radius * t * wob
+            x, y = centre[0] + math.cos(a) * r, centre[1] + math.sin(a) * r
+            lump = 0.03 * noise.noise(Vector((x * 3.1, y * 3.1, phase)))
+            ring.append(bm.verts.new((x, y, up + (lump if t >= 0.8 else 0.0))))
+        rings.append(ring)
+    for s_ in range(seg):
+        bm.faces.new((first, rings[0][s_], rings[0][(s_ + 1) % seg]))
+    for inner, outer in zip(rings, rings[1:]):
+        for s_ in range(seg):
+            j = (s_ + 1) % seg
+            bm.faces.new((inner[s_], outer[s_], outer[j], inner[j]))
+
+
+def icon_rudiste():
+    """Rudiště kováře (crafts.md – Uhlí a ruda kováře): mělké jámy v mokřině s kalnou vodou a valem
+    vykopané hlíny, u nich hromádka rezavých hrud bahenní rudy a motyka – portrét panelu výběru."""
+    ground(4.2, mat("g", tex=f"{TEX}/grass-lush.jpg", scale=0.35, tint=(0.72, 0.8, 0.56)), z=0.0, fade=0.7)
+    pits = [((-1.2, 0.6), 0.9, 0.4), ((1.0, 1.25), 0.72, 2.1), ((-0.1, -1.1), 0.6, 4.0)]
+    earth = mat("pit", tex=f"{TEX}/mud.jpg", scale=0.9, tint=(0.66, 0.44, 0.27))
+    pit_bm = bmesh.new()
+    for c, r, ph in pits:
+        ore_pit(pit_bm, c, r, ph)
+    to_obj(pit_bm, "pits", earth)
+    water = mat("water", (0.08, 0.075, 0.035), 0.12)
+    for c, r, ph in pits:
+        wb = bmesh.new()
+        bmesh.ops.create_circle(wb, cap_ends=True, radius=r * 0.5, segments=32)
+        w = to_obj(wb, "water", water, smooth=False)
+        w.location = (c[0], c[1], 0.075)
+    rng = random.Random(7)
+    heap = bmesh.new()
+    for k in range(22):
+        a = rng.uniform(0, 2 * math.pi)
+        d = rng.uniform(0, 0.55)
+        z = 0.12 + (0.55 - d) * 0.8 + rng.uniform(-0.04, 0.04)
+        size = rng.uniform(0.14, 0.21)
+        ore_nodule(heap, (1.45 + math.cos(a) * d, -0.45 + math.sin(a) * d, z), (size, size * 0.9, size * 0.75), rng)
+    to_obj(heap, "ore", mat("ore", (0.25, 0.1, 0.038), 0.95, noise=38, bump=1.6), smooth=False)
+    hoe = bmesh.new()
+    cyl(hoe, (2.15, -1.25, 0.05), (2.75, 0.1, 1.45), 0.05, 0.045, 10)
+    box(hoe, (2.14, -1.3, 0.12), (0.09, 0.36, 0.26), (0.35, 0.0, 0.45))
+    to_obj(hoe, "hoe", mat("wood", (0.33, 0.21, 0.11), 0.8, noise=60), smooth=True)
+    sun(az=-50, el=44)
+    sun(az=150, el=25, strength=1.4, color=(0.8, 0.88, 1.0))
+    camera([Vector((-2.3, -1.9, 0)), Vector((2.8, 2.2, 0)), Vector((0, 0, 1.0))], az=14, el=38, margin=0.84)
+
+
 def flat_plate(bm, pts, y, thickness):
     """Plochý díl (list sekery) z obrysu `pts` v rovině XZ, tloušťka ve směru Y."""
     front = [bm.verts.new((x, y - thickness / 2, z)) for x, z in pts]
@@ -2206,6 +2303,7 @@ BUILD = {
     "jablone": icon_jablone,
     "stezka": icon_stezka,
     "obchod": icon_obchod,
+    "rudiste": icon_rudiste,
 }
 
 # ------------------------------------------------------------- rodiny ----
@@ -2355,6 +2453,7 @@ RESOURCES = {
     "flax": icon_flax,
     "charcoal": icon_charcoal,
     "ore": icon_ore,
+    "clay": icon_clay,
     "tools": icon_tools,
     "harvest": icon_harvest,
     "walk": icon_walk,

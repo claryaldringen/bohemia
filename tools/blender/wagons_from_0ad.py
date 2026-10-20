@@ -48,20 +48,23 @@ Výstup wagons.glb – díly (uzly), každý s vlastním počátkem, jeden mater
                  scéna ji natáčí od špičky rozvory (HOUNDS_TIP) ke spodku jha
   wagon-wheel    kolo (levé – náboj ven v +X), počátek ve středu náboje, osa X; pravé kolo je
                  totéž otočené o 180° kolem svislice
-  wagon2-hay, wagon2-sheaves, wagon2-logs, wagon2-goods, wagon2-water, wagon2-ore   náklad
-                 dvoukoláku (počátek jako korba)
-  wagon4-hay, wagon4-sheaves, wagon4-logs, wagon4-goods, wagon4-water, wagon4-ore   náklad
-                 čtyřkoláku
+  wagon2-hay, wagon2-sheaves, wagon2-logs, wagon2-goods, wagon2-water, wagon2-ore, wagon2-clay,
+  wagon2-apples   náklad dvoukoláku (počátek jako korba)
+  wagon4-hay, wagon4-sheaves, wagon4-logs, wagon4-goods, wagon4-water, wagon4-ore, wagon4-clay,
+  wagon4-apples   náklad čtyřkoláku
     hay      kupa sena přes korbu s pavuzou (žerď přes kupu přivázaná vpředu a vzadu)
     sheaves  snopy napříč v řadách, klasy dovnitř, po vrstvách
     logs     klády podél, v pyramidě, přes ně řetěz z provazu; přečnívají dozadu
     goods    pytle, soudek a balík kožešin (zboží obchodní výpravy)
     water    stojící sudy na vodu s víkem a čepem, převázané provazem (voda v sudech)
     ore      nízká hromada rezavých hrud bahenní rudy z rudiště (crafts.md – Uhlí a ruda kováře)
+    clay     hladká hromada hrud vlhké hlíny z hliniště, seříznutých rýčem (crafts.md – Hlína
+             hrnčíře)
+    apples   proutěné koše s jablky ze sadu (orchard.md – Jablka vozem)
 
 Atlas: výřez textury vozu (wooden_wagon.png celá), seno a sláma (iber_struct.png – výřez slámy,
 seno přebarvené do zelena), kůra a čelo klády (atlas řemesel), pytlovina, kožešina a provaz
-a rezavá bahenní ruda (procedurálně).
+rezavá bahenní ruda, hlína a jablka (procedurálně).
 """
 import json
 import math
@@ -103,6 +106,8 @@ REGIONS = {
     "rope": {"x0": 4, "x1": 260, "r0": 388, "r1": 404},
     "fur": {"x0": 4, "x1": 132, "r0": 412, "r1": 508},
     "ore": {"x0": 276, "x1": 404, "r0": 452, "r1": 500},
+    "clay": {"x0": 140, "x1": 268, "r0": 412, "r1": 460},
+    "apples": {"x0": 140, "x1": 268, "r0": 468, "r1": 508},
 }
 # výřezy textury vozu (px 256 × 256, řádky shora) – oj, soudek, kování
 WAGON_SUB = {
@@ -212,6 +217,25 @@ def build_atlas():
         [0.55, 0.36, 0.14], np.float32
     ) * (0.45 * ochre[..., None])
     put("ore", np.clip(rust * (0.45 + 0.7 * crev) * (0.8 + 0.4 * tone[..., None]), 0, 1))
+    # hlína: hladké šedookrové hroudy, světlejší seříznuté plochy a mělké spáry (crafts.md – Hlína
+    # hrnčíře)
+    lumps = value_noise(48, 128, 8, 31)
+    tone = value_noise(48, 128, 20, 37)
+    crev = np.clip((lumps - 0.22) * 4.0, 0, 1)[..., None]
+    loam = np.array([0.5, 0.39, 0.25], np.float32) * (0.82 + 0.25 * tone[..., None])
+    put("clay", np.clip(loam * (0.7 + 0.3 * crev), 0, 1))
+    # jablka: kulaté plody v řadách – červená a žlutozelená, světlý odlesk, tmavé mezery
+    yy, xx = np.mgrid[0:40, 0:128].astype(np.float32)
+    cx = (xx % 10) - 5 + 0.5
+    cy = (yy % 10) - 5 + 0.5
+    d = np.sqrt(cx * cx + cy * cy) / 5
+    which = value_noise(40, 128, 6, 41)[..., None]
+    red = np.array([0.72, 0.12, 0.06], np.float32)
+    green = np.array([0.6, 0.7, 0.18], np.float32)
+    fruit = red * (1 - which) + green * which
+    shade = np.clip(1.15 - d, 0, 1)[..., None]
+    gloss = np.clip(1 - np.sqrt((cx + 1.8) ** 2 + (cy + 1.8) ** 2) / 1.6, 0, 1)[..., None] * 0.35
+    put("apples", np.clip(fruit * (0.5 + 0.6 * shade) + gloss, 0, 1))
 
     im = bpy.data.images.new("wagon-atlas", W, H, alpha=False)
     rgba = np.concatenate([np.clip(atlas[::-1], 0, 1), np.ones((H, W, 1), np.float32)], axis=2)
@@ -963,6 +987,63 @@ def ore_load(b, front, back, half_w, floor, big=False):
         b.rod([p - d, p + d], [r, r * 0.75], "ore", sides=6, caps="ore", squash=0.7)
 
 
+def clay_load(b, front, back, half_w, floor, big=False):
+    """Hlína z hliniště (crafts.md – Hlína hrnčíře; CARTS.loadKg): hladká nízká hromada hrud
+    vlhké hlíny v korbě (400 kg ≈ 0,25 m³ – stylizovaně vyšší) a navrchu hroudy seříznuté rýčem."""
+    ni, nj = 20, 12
+    length = front + back - 0.1
+    w = half_w - 0.02
+    h = 0.38 if big else 0.34
+
+    def shape(u, phi):
+        f = max(0.0, 1 - abs(u) ** 2.4) ** (1 / 2.4)
+        r_side = math.sin(phi) ** 0.8
+        x = math.cos(phi) * w * (0.82 + 0.18 * f)
+        bump = 0.06 * math.sin(7 * u + 3 * phi) + 0.04 * math.sin(13 * u - 5 * phi + 1)
+        y = back - 0.05 - (u + 1) / 2 * length
+        return Vector((x, y, floor - 0.01 + h * f * r_side * (1 + bump)))
+
+    grid = []
+    for i in range(ni + 1):
+        u = -1 + 2 * i / ni
+        grid.append([shape(u, math.pi * j / nj) for j in range(nj + 1)])
+    b.surface(grid, "clay")
+    count = 18 if big else 12
+    for k in range(count):
+        u = -0.8 + 1.6 * seeded(k * 3 + 51)
+        phi = math.pi * (0.2 + 0.6 * seeded(k * 3 + 52))
+        p = shape(u, phi)
+        r = 0.07 + 0.04 * seeded(k * 3 + 53)
+        a = 2 * math.pi * seeded(k * 5 + 57)
+        d = Vector((math.cos(a), math.sin(a), 0.1)) * r * 0.9
+        b.rod([p - d, p + d], [r, r * 0.85], "clay", sides=8, caps="clay", squash=0.55)
+
+
+def apples_load(b, front, back, half_w, floor, big=False):
+    """Jablka ze sadu (orchard.md – Jablka vozem): proutěné koše (sláma jako výplet) plné jablek
+    – dvoukolák šest ve dvou řadách, čtyřkolák dvanáct."""
+    r, h = (0.22, 0.34) if big else (0.2, 0.32)
+    rows = 6 if big else 3
+    length = front + back - 0.2
+    sides = (-half_w + r + 0.02, half_w - r - 0.02)
+    spots = [(front - 0.1 - r - (length - 2 * r) * k / max(1, rows - 1), side) for k in range(rows) for side in sides]
+    for i, (f, side) in enumerate(spots):
+        base = F(f, floor, side)
+        prof = [(0.0, 0.78), (0.5, 0.95), (1.0, 1.0)]
+        nj = 12
+        grid = []
+        for t, k in prof:
+            grid.append([base + Vector((math.cos(2 * math.pi * j / nj) * r * k, math.sin(2 * math.pi * j / nj) * r * k, t * h)) for j in range(nj)])
+        b.surface(grid, "straw", closed_v=True)
+        # okraj koše – stočený proutek
+        rim = [base + Vector((math.cos(2 * math.pi * j / 12) * r * 1.02, math.sin(2 * math.pi * j / 12) * r * 1.02, h)) for j in range(13)]
+        b.rod(rim, [0.018] * len(rim), "straw", sides=4, caps=None)
+        # jablka nad okrajem – deska s jablky v rovině (mapování shora, ať jablka nejsou v kruzích)
+        top = [base + Vector((math.cos(2 * math.pi * j / nj) * r * 0.98, math.sin(2 * math.pi * j / nj) * r * 0.98, h + 0.03)) for j in range(nj)]
+        uvs = [(0.5 + 0.14 * math.cos(2 * math.pi * j / nj), 0.5 + 0.45 * math.sin(2 * math.pi * j / nj)) for j in range(nj)]
+        b.poly(top, "apples", uvs, out=(0, 0, 1))
+
+
 def cargo(prefix, bed, big):
     front, back = bed["bed_front"], bed["bed_back"]
     hw, floor = bed["half_w"], bed["floor"]
@@ -987,6 +1068,12 @@ def cargo(prefix, bed, big):
     out.append(b)
     b = Builder(f"{prefix}-ore")
     ore_load(b, front, back, hw, floor, big)
+    out.append(b)
+    b = Builder(f"{prefix}-clay")
+    clay_load(b, front, back, hw, floor, big)
+    out.append(b)
+    b = Builder(f"{prefix}-apples")
+    apples_load(b, front, back, hw, floor, big)
     out.append(b)
     return out
 
@@ -1049,7 +1136,7 @@ def render_preview(objs, bed2, bed4, render_dir):
 
     for o in objs:
         o.hide_render = True
-    loads = [None, "hay", "sheaves", "logs", "goods", "water", "ore"]
+    loads = [None, "hay", "sheaves", "logs", "goods", "water", "ore", "clay", "apples"]
     for k, load in enumerate(loads):
         o2 = Vector((k * 3.0, 0, 0))
         place("wagon2-body", o2)
@@ -1083,6 +1170,8 @@ def render_preview(objs, bed2, bed4, render_dir):
         ("wagons-top.png", Vector((6.0, 3.5, 22.0)), Vector((6.0, 3.5, 0.0)), 30),
         ("water-close.png", Vector((19.5, -4.0, 3.4)), Vector((15.0, 3.0, 0.8)), 28),
         ("ore-close.png", Vector((22.5, -4.0, 3.4)), Vector((18.0, 3.0, 0.8)), 28),
+        ("clay-close.png", Vector((25.5, -4.0, 3.4)), Vector((21.0, 3.0, 0.8)), 28),
+        ("apples-close.png", Vector((28.5, -4.0, 3.4)), Vector((24.0, 3.0, 0.8)), 28),
     ):
         cam.location = loc
         cam.rotation_euler = (target - loc).to_track_quat("-Z", "Y").to_euler()

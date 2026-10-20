@@ -211,7 +211,7 @@ a potah; „Ano, udělej to jak říkáš“). Návrh Clauda:
   a na voly se nesčítají – ves drží víc z toho, telata dají i krávy na mléko.
 - **Bez ohrady skotu krávy nejsou** (dnešní pravidlo – Místa na noc): u domů jen chovný pár krav,
   telata na voly pak chybí.
-- **Telata na voly jen z přírůstku nad chovnými kravami** (koordinátor za Martina 20. 10. 2026 –
+- **Telata na voly jen z přírůstku nad chovnými kravami** (návrh Clauda, 20. 10. 2026 –
   dřív aspoň jedna kráva zůstala a Vlkov klesl na 1,2 krávy z cíle 4): výcvik vezme jen tolik
   telat, kolik je krav nad cílem `breedingCows`; jinak počká na mláďata 1. 4. Voli se cvičí i po
   jednom (dvoukolák táhne jeden vůl). Výjimka: náhrada posledního páru k orbě vezme telata, dokud
@@ -438,7 +438,7 @@ ohrad jsou v [oxen.md](oxen.md) – Ohrady podle druhu; čísla návrh Clauda po
   ale místa jsou tvrdá mez: ves bez ohrady ovcí si nechá jen pár ovcí u domů a vlna chybí
   („Chybí vlna na oděv“), ves bez ohrady skotu má jen chovný pár krav – na výcvik volů (aspoň
   2 krávy na tele, 3 na pár) potřebuje ohradu skotu.
-- **Roční odklad** (návrh Clauda, koordinátor za Martina 19. 10. 2026): místa stádo omezí až
+- **Roční odklad** (návrh Clauda, 19. 10. 2026): místa stádo omezí až
   u porážky 1. 11., která přijde aspoň 365 dní po založení vsi, u vsi uložené dřív po zavedení
   pravidla (den převodu – `LivestockState.pensFromDay`, `withPenGrace` při načtení). Do té doby
   se plán stáda, seč i porážka řídí jen pastvou, senem, lesem a pasáky jako dřív.
@@ -1152,5 +1152,5 @@ uhlídaný přes rok se počítal i za zimu, kdy se pasou jen prasata).
 | „Zvířata je potřeba na noc zavírat do ohrad. … Velikost ohrady bude mít vliv na velikost stáda.“ – stádo přes zimu i s jarními mláďaty jen do míst ohrad svého druhu                                             | Martin (19. 10. 2026)                             |
 | Bez ohrady u domu 2 ovce, 1 koza, 1 prase na domácnost, krávy jen v ohradě; chovný pár druhu zůstane vždy                                                                                                        | návrh Clauda, Martin schválil                     |
 | Místa jsou tvrdá mez i pro ovce na vlnu a krávy na mléko a voly; kusy čekající na zimní porážku jen do volných míst                                                                                              | rozhodnutí Clauda                                 |
-| Roční odklad míst – porážka aspoň 365 dní po založení vsi nebo zavedení pravidla; upozornění i během odkladu                                                                                                     | návrh Clauda (koordinátor za Martina)             |
+| Roční odklad míst – porážka aspoň 365 dní po založení vsi nebo zavedení pravidla; upozornění i během odkladu                                                                                                     | návrh Clauda                                      |
 | Kráva navíc na každé 4 voly (býčci ≈ 0,4 na krávu a rok, obměna desetiny volů ročně); bez ohrady skotu krávy nejsou                                                                                              | návrh Clauda, Martin („Ano, udělej to jak říkáš“) |

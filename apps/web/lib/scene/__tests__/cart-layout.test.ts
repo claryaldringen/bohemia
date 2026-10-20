@@ -262,7 +262,7 @@ describe('rozměry sedí s modely (tools/blender/wagons_from_0ad.py)', () => {
   it('díly a náklady obou vozů', () => {
     const names = json.nodes.map((n) => n.name);
     for (const prefix of ['wagon2', 'wagon4']) {
-      for (const cargo of ['hay', 'sheaves', 'logs', 'goods', 'water']) {
+      for (const cargo of ['hay', 'sheaves', 'logs', 'goods', 'water', 'ore', 'clay', 'apples']) {
         expect(names).toContain(`${prefix}-${cargo}`);
       }
     }

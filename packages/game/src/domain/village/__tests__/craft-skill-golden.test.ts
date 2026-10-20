@@ -7,7 +7,9 @@ import { withBuiltFirstDwelling } from './village-fixtures';
 
 // Učení řemesla a kování vozů (crafts.md – Učení řemesla, wagons.md – Kování vozů): ves bez dílen
 // se nemění bit po bitu – lidé nemají praxi, vůz se spřežením jezdí jako dřív. Otisk stavu po dvou
-// letech je spočítaný kódem před učením řemesla (commit před zavedením praxe).
+// letech je spočítaný kódem před učením řemesla (commit před zavedením praxe). Rok vozů po dnech
+// a tabulka úspor (wagons.md – Co se vozí a na čem) mění jen záznam roku vozů (`draft.demand`,
+// `draft.lastYear`) – stav bez nich vyšel stejně jako předtím (bd776511).
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 const DAY = at(601, 3, 1);
@@ -62,6 +64,6 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
     const next = advanceVillage(village(), DAY + 730, null);
     expect(next.people.length).toBeGreaterThan(3);
     expect(next.people.some((p) => 'practice' in p)).toBe(false);
-    expect(hash(JSON.stringify(next))).toBe('4b528a0a');
+    expect(hash(JSON.stringify(next))).toBe('f0150b51');
   }, 120_000);
 });

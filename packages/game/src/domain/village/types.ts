@@ -162,8 +162,13 @@ export type WorkshopActivity =
   | 'no-charcoal'
   /** Kovář nemá rudu a není kde ji kopat (crafts.md – Uhlí a ruda kováře). */
   | 'no-ore'
-  /** Kovář (a synové) kope rudu na rudišti (crafts.md – Uhlí a ruda kováře). */
+  /**
+   * Kovář (a synové) kope rudu na rudišti, hrnčíř hlínu na hliništi (crafts.md – Uhlí a ruda
+   * kováře, Hlína hrnčíře).
+   */
   | 'digging'
+  /** Hrnčíř nemá hlínu a není kde ji kopat (crafts.md – Hlína hrnčíře). */
+  | 'no-clay'
   | 'no-wood'
   | 'idle'
   | 'empty'
@@ -215,6 +220,11 @@ export interface CharcoalKiln {
    */
   cart?: CartDrive | null;
   /**
+   * Totéž pro čtyřkolák – jen po pevných cestách (wagons.md – Co se vozí a na čem: uhlí z lesního
+   * milíře po cestě). Bez údaje se ještě nepočítala.
+   */
+  cart4?: CartDrive | null;
+  /**
    * Kdo z milíře nosí uhlí ke kováři (crafts.md – Uhlí a ruda kováře): kovárna (id obydlí – nejbližší
    * kovář) a vzdálenost chůze od ní k milíři (m po pevných cestách s půdou – paths/walking.ts;
    * bez krajiny vzdušně). Spočítá se při prvním nošení a uloží; jiný kovář = přepočet.
@@ -250,9 +260,10 @@ export interface OreBatch {
   readyDay?: number;
 }
 /**
- * Jáma po kopání rudy (crafts.md – Uhlí a ruda kováře): poloha (m) kousek kolem rudiště, kovárna
- * (id obydlí), kolik rudy z ní vzešlo (kg) a den, kdy se v ní naposledy kopalo – od něj zarůstá
- * a po SMITH_SUPPLY.pitYears zmizí.
+ * Jáma po kopání rudy (crafts.md – Uhlí a ruda kováře) nebo hlíny (`clay` – crafts.md, Hlína
+ * hrnčíře): poloha (m) kousek kolem rudiště či hliniště, dílna (id obydlí – `smithId`), kolik
+ * suroviny z ní vzešlo (kg) a den, kdy se v ní naposledy kopalo – od něj zarůstá a po
+ * SMITH_SUPPLY.pitYears zmizí.
  */
 export interface OrePit {
   x: number;
@@ -260,6 +271,7 @@ export interface OrePit {
   smithId: number;
   kg: number;
   day: number;
+  clay?: true;
 }
 /**
  * Strom, který dílna kácí (uhlíř na uhlí, hrnčíř na palivo pece – forest.md, kácení): id z vrstvy
@@ -325,6 +337,20 @@ export interface Workshop {
   /** Kovář: vyčerpaná ložiska (m) – další rudiště aspoň SMITH_SUPPLY.siteSpacingM od nich. */
   oreSitesUsed?: { x: number; z: number }[];
   /**
+   * Hrnčíř (crafts.md – Hlína hrnčíře): zásoba hlíny u dílny (kg). Bez údaje dílna z doby před
+   * hlínou – při prvním dni kroku práce dostane zásobu na dávku (`migratePotter`).
+   */
+  clayKg?: number;
+  /**
+   * Hrnčíř: hliniště, kde kope hlínu (jako rudiště – `OreSite`); null = v okolí není mokřina ani
+   * voda (`no-clay`); bez údaje se ještě nevybíralo.
+   */
+  claySite?: OreSite | null;
+  /** Hrnčíř: rozdělaná dávka hlíny (jako dávka rudy); bez údaje nebo null žádná. */
+  clayBatch?: OreBatch | null;
+  /** Hrnčíř: vyčerpaná hliniště (m) – další aspoň SMITH_SUPPLY.siteSpacingM od nich. */
+  claySitesUsed?: { x: number; z: number }[];
+  /**
    * Tesař (wagons.md – Kování vozů): cesta pro kování k vozu do nejbližší vsi s kovářem – ves
    * vlastního kováře nemá; bez údaje nebo null nikdo nejde.
    */
@@ -351,9 +377,11 @@ export type IronTripTarget =
     }
   | { kind: 'village'; name: string; x: number; z: number };
 /**
- * Cesta pro kování k vozu (wagons.md – Kování vozů): kdo jde (syn tesaře od 14 let, nebo tesař –
+ * Cesta pro kování k vozu (wagons.md – Kování vozů): kdo vede (syn tesaře od 14 let, nebo tesař –
  * id), den odchodu, dny cesty tam a zpět a kolik jich už ušel, kolik kování nese (kg) a kolik obilí
- * za ně dal (kg), kam jde.
+ * za ně dal (kg), kam jde. Platbu veze vůz se sedlákem (`cartId`), nebo ji nesou nosiči z vsi
+ * (`porters` navíc k tesaři, po TRADE.porterKg) – když jich ves tolik nemá, jdou víckrát
+ * (`tripDays` – dny jedné cesty tam a zpět; `days` = všechny cesty).
  */
 export interface IronTrip {
   personId: number;
@@ -364,6 +392,12 @@ export interface IronTrip {
   kg: number;
   grainKg: number;
   to: IronTripTarget;
+  /** Nosiči z vsi navíc k tesaři (chybí v práci vsi po celou cestu); bez údaje 0. */
+  porters?: number;
+  /** Vůz (id), který veze platbu – jede s ním sedlák z vsi; bez údaje pěšky. */
+  cartId?: number;
+  /** Dny jedné cesty tam a zpět, když se jde víckrát; bez údaje jedna cesta (`days`). */
+  tripDays?: number;
 }
 /**
  * Vůz vsi – zásoba, ne stavba ve scéně (stojí u ohrady se spřežením): vyrobil ho tesař v den
@@ -376,17 +410,44 @@ export interface Cart {
 }
 
 /**
- * Rok provozu vozů (wagons.md – Kolik vozů ves chce): co by za rok ušetřil k-tý vůz každého
- * druhu (čd, index 0 = první vůz) – všechno, co by vozy toho dne mohly vozit, seřazené od největší
- * úspory, bez ohledu na to, kolik vozů ves měla. `plough` – totéž ve dny orby (dvoukoláky): ty
- * jezdí jen s voly, kteří neorají.
+ * Den roku vozů (wagons.md – Kolik vozů ves chce): nošení, které dnes proběhlo tam, kam dojede vůz
+ * (čd) – podél pevných cest, kam dojede i čtyřkolák (`r`), a jinam jen dvoukolákem (`o`) –, úspory
+ * jízd dvoukoláku pro uhlí, rudu, hlínu a vodu (`j` – čd na vůz) a den orby (`p` – vozy táhnou jen
+ * voli, kteří neorají). Chybějící údaj = 0.
+ */
+export interface CartDemandDay {
+  r?: number;
+  o?: number;
+  j?: number[];
+  p?: 1;
+}
+
+/**
+ * Rok provozu vozů, který běží (wagons.md – Kolik vozů ves chce): dny s prací pro vozy (`days`)
+ * a co by ušetřil k-tý čtyřkolák na výpravách (`'four-wheel'` – čd, index 0 = první vůz). Rok
+ * uložený před dny (do 20. 10. 2026) má místo dnů úspory k-tého dvoukoláku mimo dny orby
+ * (`'two-wheel'`) a ve dny orby (`plough`).
  */
 export interface CartDemand {
   /** Den začátku roku vozů (1. 11.). */
   from: number;
-  'two-wheel': number[];
+  days?: CartDemandDay[];
   'four-wheel': number[];
-  plough: number[];
+  'two-wheel'?: number[];
+  plough?: number[];
+}
+
+/**
+ * Uzavřený rok vozů (wagons.md – Kolik vozů ves chce): úspora za rok (čd, přepočtená na rok) podle
+ * počtu dvoukoláků × čtyřkoláků mimo dny orby i s výpravami (`base[dvoukoláky][čtyřkoláky]`) a ve
+ * dny orby podle volů, kteří neorají (`plough[dvoukoláky][čtyřkoláky][voli]`), a cena vola za rok
+ * (`oxCost` – čd, seno přes zimu i výcvik).
+ */
+export interface CartYear {
+  from: number;
+  oxCost: number;
+  base: number[][];
+  plough: number[][][];
 }
 
 /** Kolik volů a vozů ves chce (oxen.md – Kolik volů ves chce, wagons.md – Kolik vozů ves chce). */
@@ -404,7 +465,7 @@ export interface DraftState {
    * Uzavřený loňský rok vozů (k 1. 11.) a cena vola za rok (čd – seno přes zimu i výcvik): podle
    * něj ves chce vozy. Chybí = ves zatím chce jen vozy, které má.
    */
-  lastYear?: CartDemand & { oxCost: number };
+  lastYear?: CartYear | (CartDemand & { oxCost: number });
 }
 /**
  * Zásoby výrobků řemeslníků (crafts.md, kg): uhlí u kováře (crafts.md – Milíř stojí vždy: co uhlíř
@@ -695,6 +756,14 @@ export interface OrchardWork {
   done: number;
   /** Sklizeň: kg jablek při plné sklizni (péče 0). */
   yieldKg: number;
+  /**
+   * Odnos jablek, který převzaly vozy (orchard.md – Jablka vozem; čd sklizně) – nejvýš
+   * ORCHARD.harvestCarryShare sklizně na čtvercích, kam vůz dojede. Chybí = 0.
+   */
+  hauled?: number;
+  /** Kam vůz při sklizni dojede (dvoukolák, čtyřkolák – `cartReach4`); chybí = ještě ne. */
+  cartReach?: CartReach;
+  cartReach4?: CartReach;
 }
 export type ConstructionKind =
   | 'dwelling'
@@ -827,6 +896,11 @@ export interface ConstructionWood {
    * (wagons.md). Chybí = ještě ne.
    */
   cartReach?: { trees: boolean[]; points: CartReach['points'] };
+  /**
+   * Totéž pro čtyřkolák – jen po pevných cestách (wagons.md – Co se vozí a na čem); chybí = ještě
+   * ne.
+   */
+  cartReach4?: { trees: boolean[]; points: CartReach['points'] };
 }
 export type TaskName = 'reclaim' | 'dig' | 'sow' | 'weed' | 'harvest' | 'thresh';
 /** Polní práce s pevnou sazbou na osetý hektar (vracení přílohu se počítá podle stáří přílohu). */
@@ -876,6 +950,8 @@ export interface CropWork {
   hauled?: number;
   /** Kam vůz při žni dojede – spočítá se při prvním svozu (wagons.md – Svoz). Chybí = ještě ne. */
   cartReach?: CartReach;
+  /** Kam při žni dojede čtyřkolák – jen podél pevných cest. Chybí = ještě ne. */
+  cartReach4?: CartReach;
   /**
    * Nošení osiva, které převzaly vozy (wagons.md – Co vozy vozí; člověkodny setí) – nejvýš podíl
    * CART_JOBS.seed.carryShare setí na dílech, kam vůz dojede. Chybí = 0.
@@ -1162,7 +1238,16 @@ export type ChronicleEvent = { day: number } & (
    * `to` (jméno; soused za krajem mapy ve směru `direction`, jinak jiná ves hráče na téže mapě –
    * wagons.md, Kování vozů).
    */
-  | { kind: 'iron-trip'; cart: CartKind; to: string; son: boolean; direction?: Direction8 }
+  | {
+      kind: 'iron-trip';
+      cart: CartKind;
+      to: string;
+      son: boolean;
+      direction?: Direction8;
+      /** Kolik nosičů šlo s tesařem; `byCart` – platbu vezl vůz se sedlákem. */
+      porters?: number;
+      byCart?: true;
+    }
   /** Tesař (`son` – jeho syn) přinesl kování k vozu – vůz je hotový (wagons.md – Kování vozů). */
   | { kind: 'iron-brought'; cart: CartKind; son: boolean }
   /** Vůz dosloužil (wagons.md – Vůz) – tesař vyrobí nový, když ho ves potřebuje. */
@@ -1248,6 +1333,8 @@ export type LaborActivity =
    * a ruda kováře).
    */
   | 'ore'
+  /** Kopání hlíny na hliništi – hrnčíř a synové od 14 let (crafts.md – Hlína hrnčíře). */
+  | 'clay'
   /**
    * Nošení uhlí od milíře a rudy z rudiště do kovárny v koších – synové kováře (uhlí od 10 let,
    * rudu od 14) nebo kovář sám (crafts.md – Uhlí a ruda kováře); kdo nese, je v `LaborShare.ages`.
@@ -1319,6 +1406,11 @@ export type LaborTarget =
    * (m): kopání u jámy, nošení rudy z něj do kovárny, jízda vozu pro rudu.
    */
   | { kind: 'ore'; id: number; x: number; z: number }
+  /**
+   * Hliniště hrnčíře (crafts.md – Hlína hrnčíře) – dílna (id obydlí) a místo, kde se kope (m):
+   * kopání u jámy, nošení hlíny k dílně, jízda vozu pro hlínu.
+   */
+  | { kind: 'clay'; id: number; x: number; z: number }
   /** Zemská stezka (id) – nosiči výpravy k sousedovi (trade.md – Obchod). */
   | { kind: 'trail'; id: number }
   /**
@@ -1344,6 +1436,8 @@ export interface LaborShare {
   construction?: number;
   /** Svoz a výprava s vozy (wagons.md): kolik vozů tu dnes jezdí; u ostatní práce chybí. */
   carts?: number;
+  /** Z nich čtyřkoláky (svoz podél cest – wagons.md, Co se vozí a na čem); chybí = žádný. */
+  fourWheel?: number;
   /**
    * Co vůz veze, když nesváží úrodu, seno ani klády (wagons.md – Co vozy vozí): uhlí z milíře,
    * osivo na pole, vodu v sudech. U svozu a ostatní práce chybí.
@@ -1429,6 +1523,12 @@ export interface VillageState {
   orchards?: Orchard[];
   /** Zásoby jablek (kg) – jí se před obilím, 1. 3. shnijí. Chybí = žádná. */
   applesKg?: number;
+  /**
+   * Voli bez ohrady (migration.md – Vůz při odchodu): přišli s vozem osadníků do vsi, která ještě
+   * nemá ohradu volů – s první hotovou ohradou volů do ní přejdou (`looseOxenDay`), do té doby jen
+   * žerou seno. Chybí = žádní.
+   */
+  looseOxen?: Ox[];
   /** Rozběhnutá sezónní práce v sadech (sklizeň, péče); chybí nebo null = žádná. */
   orchardWork?: OrchardWork | null;
   /**
@@ -1528,6 +1628,8 @@ export interface VillageState {
    * a ohrada – přepočítá se, když se změní). Chybí, dokud vůz pro vodu nejel.
    */
   waterCart?: { key: string; drive: CartDrive | null };
+  /** Totéž pro čtyřkolák – jen po pevných cestách (wagons.md – Co se vozí a na čem). */
+  waterCart4?: { key: string; drive: CartDrive | null };
   /**
    * Pevné cesty, stromy u nich a roční součty práce (roads.md). Chybí u vsí uložených před nimi
    * a ve vsích simulovaných bez krajiny (kalibrace, testy) – začnou při prvním dopočtu s krajinou.
@@ -1544,8 +1646,8 @@ export interface VillageState {
    */
   ruins?: DwellingRuin[];
   /**
-   * Jámy po kopání rudy kovářů (crafts.md – Uhlí a ruda kováře) – zarůstají SMITH_SUPPLY.pitYears
-   * let, pak zmizí. Chybí = žádné (i u vsí uložených před rudou).
+   * Jámy po kopání rudy kovářů a hlíny hrnčířů (crafts.md – Uhlí a ruda kováře, Hlína hrnčíře) –
+   * zarůstají SMITH_SUPPLY.pitYears let, pak zmizí. Chybí = žádné (i u vsí uložených před rudou).
    */
   orePits?: OrePit[];
   /**
@@ -2044,10 +2146,11 @@ export type CartKind = 'two-wheel' | 'four-wheel';
 
 /**
  * Jízda vozu, když nesváží úrodu, seno ani klády (wagons.md – Co vozy vozí): uhlí z milíře ke
- * kováři, ruda z rudiště do kovárny (crafts.md – Uhlí a ruda kováře), osivo na pole, voda v sudech
- * – v tomto pořadí přednosti (CART_JOBS.order).
+ * kováři, ruda z rudiště do kovárny (crafts.md – Uhlí a ruda kováře), hlína z hliniště k hrnčíři
+ * (crafts.md – Hlína hrnčíře), osivo na pole, voda v sudech – v tomto pořadí přednosti
+ * (CART_JOBS.order).
  */
-export type CartJob = 'charcoal' | 'ore' | 'seed' | 'water';
+export type CartJob = 'charcoal' | 'ore' | 'clay' | 'seed' | 'water';
 
 /**
  * Jízda vozu od ohrady se spřežením k cíli (wagons.md – Co vozy vozí): cena trasy vozové sítě (m
@@ -2176,6 +2279,8 @@ export interface HayMowing {
   hauled?: number;
   /** Kam vůz při seči dojede – spočítá se při prvním svozu (wagons.md). Chybí = ještě ne. */
   cartReach?: CartReach;
+  /** Kam při seči dojede čtyřkolák – jen podél pevných cest. Chybí = ještě ne. */
+  cartReach4?: CartReach;
 }
 
 /** Louka v seči: díl úhoru ve fázi louky, nebo políčko přirozené louky krajiny (oxen.md – Seno). */

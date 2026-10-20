@@ -59,7 +59,7 @@ const view = {
   cheeseKg: 0,
   legumesKg: 0,
   applesKg: 0,
-  leave: { directions: LEAVE_DIRECTIONS },
+  leave: { directions: LEAVE_DIRECTIONS, cart: null, allCart: null },
   extinct: null,
   abandoned: null,
   journey: null,
@@ -305,7 +305,19 @@ describe('selectionDetails', () => {
       relocate: view.relocation,
       manor: null,
       // odejít smí: 4 lidé, unesou 3 od 7 let (75 kg), díl zásob 4/6 by byl víc
-      leave: { households: [1], people: 4, foodKg: 75, directions: LEAVE_DIRECTIONS },
+      leave: { households: [1], people: 4, foodKg: 75, cart: null, directions: LEAVE_DIRECTIONS },
+    });
+  });
+
+  it('odchod s vozem s voly: vůz uveze víc jídla (migration.md – Vůz při odchodu)', () => {
+    const withCart = {
+      ...view,
+      storesKg: 10_000,
+      leave: { directions: LEAVE_DIRECTIONS, cart: 'two-wheel' as const, allCart: null },
+    };
+    // 3 nosiči po 25 kg + dvoukolák 400 kg; díl zásob 4/6 je víc
+    expect(selectionDetails(withCart, scene, { kind: 'dwelling', id: 1 })).toMatchObject({
+      leave: { cart: 'two-wheel', foodKg: 475 },
     });
   });
 
@@ -326,7 +338,7 @@ describe('selectionDetails', () => {
       relocatable: [1],
       relocate: view.relocation,
       // domácnost, která si staví nový dům, zůstává
-      leave: { households: [1], people: 4, foodKg: 75, directions: LEAVE_DIRECTIONS },
+      leave: { households: [1], people: 4, foodKg: 75, cart: null, directions: LEAVE_DIRECTIONS },
     });
     expect(selectionDetails(view, scene, { kind: 'dwellings', ids: [77, 78] })).toBeNull();
     // jen stěhující se domácnost – přestěhovat nejde
@@ -760,5 +772,36 @@ describe('selectionDetails – posvátná místa', () => {
     });
     expect(selectionDetails(view, scene, { kind: 'pen', id: 99 })).toBeNull();
     expect(selectionDetails(null, scene, { kind: 'pen', id: 90 })).toBeNull();
+  });
+});
+
+describe('selectionDetails – rudiště (crafts.md – Uhlí a ruda kováře)', () => {
+  const site = {
+    smithId: 2,
+    leftKg: 2140,
+    depositKg: 3000,
+    heapKg: 35,
+    stockKg: 96,
+    walkM: 186,
+    pits: 3,
+    workers: [{ age: 41, smith: true, digs: true, carries: false, rides: false }],
+    cart: false,
+  };
+  const withOre: SceneVillage = {
+    ...scene,
+    oreSites: [{ dwellingId: 2, x: 30, z: -40, heapKg: 35, digging: true }],
+  };
+  const oreView = { oreSites: [site] } as unknown as VillageView;
+
+  it('údaje rudiště z pohledu na ves podle kovárny; bez rudiště ve scéně nebo v pohledu nic', () => {
+    expect(selectionDetails(oreView, withOre, { kind: 'ore-site', id: 2 })).toEqual({
+      kind: 'ore-site',
+      ...site,
+    });
+    expect(selectionDetails(oreView, scene, { kind: 'ore-site', id: 2 })).toBeNull();
+    expect(selectionDetails(null, withOre, { kind: 'ore-site', id: 2 })).toBeNull();
+    expect(
+      selectionDetails({} as unknown as VillageView, withOre, { kind: 'ore-site', id: 2 }),
+    ).toBeNull();
   });
 });

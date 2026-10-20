@@ -1612,13 +1612,14 @@ function tripGroups(
     );
   }
   // kovář (crafts.md – Uhlí a ruda kováře): z kovárny na rudiště kopat a pro rudu, k milíři pro
-  // uhlí – jen jeho domácnost; nošení v koších po cestách tam a zpět (cest za den podle délky),
-  // kopání jedna cesta na člověkoden; s vozem jede kovář vozem (bez pěšiny)
+  // uhlí – jen jeho domácnost; hrnčíř stejně na hliniště (crafts.md – Hlína hrnčíře); nošení
+  // v koších po cestách tam a zpět (cest za den podle délky), kopání jedna cesta na člověkoden;
+  // s vozem jede řemeslník vozem (bez pěšiny)
   const smithWalks = new Map<string, { home: number; at: PathPoint; trips: number }>();
   for (const share of v.labor?.shares ?? []) {
     const t = share.target;
-    if (share.carts || (t.kind !== 'ore' && t.kind !== 'kiln')) continue;
-    const from = t.kind === 'ore' ? t.id : (t.from ?? null);
+    if (share.carts || (t.kind !== 'ore' && t.kind !== 'clay' && t.kind !== 'kiln')) continue;
+    const from = t.kind === 'kiln' ? (t.from ?? null) : t.id;
     if (from === null) continue;
     // roční součet práce činnost nezná – u milíře se jen nosí, na rudišti hlavně kope
     const carrying =

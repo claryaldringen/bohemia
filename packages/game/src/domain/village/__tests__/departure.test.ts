@@ -13,9 +13,9 @@ import {
 } from '../departure';
 import { isGameOver } from '../extinction';
 import { occupants } from '../people';
-import { DWELLINGS, LEAVING } from '../rules';
+import { CARTS, DWELLINGS, LEAVING } from '../rules';
 import { advanceVillage } from '../simulate';
-import type { Person, VillageState } from '../types';
+import type { CartKind, Person, VillageState } from '../types';
 import { directionBetween, neighbourCell, OPPOSITE, SEAT_CELL } from '../world-grid';
 import { makeLandscape } from './placement-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
@@ -214,6 +214,88 @@ describe('nová ves z osadníků', () => {
     expect(back.people.map((p) => p.id)).toEqual(settlers.people.map((p) => p.id));
     expect(back.food.grainKg).toBeCloseTo(settlers.food.grainKg, 6);
     expect(back.herds).toEqual(settlers.herds);
+  });
+});
+
+describe('vůz s voly při odchodu (migration.md – Vůz při odchodu)', () => {
+  /** Ohrada volů se `trained` vycvičenými voly a rádlem, vozy `carts`. */
+  function withDraft(s: VillageState, trained: number, carts: CartKind[]): VillageState {
+    s.pens = [
+      {
+        id: 900,
+        cell: { x: 8, y: 9 },
+        x: -22.5,
+        z: -7.5,
+        builtDay: DAY - 800,
+        species: 'team',
+        oxen: Array.from({ length: trained }, (_, k) => ({ trainedDay: DAY - 400 + k * 10 })),
+      },
+    ];
+    s.ards = 1;
+    s.carts = carts.map((kind, k) => ({ id: 950 + k, kind, builtDay: DAY - 100 + k }));
+    return s;
+  }
+
+  it('volný vůz s voly odejde s nimi – uveze víc jídla; ves si nechá pár k rádlu', () => {
+    const s = withDraft(twoHouseholds(), 3, ['two-wheel', 'four-wheel']);
+    const { state, settlers } = departVillage(s, DAY, [sonHome(s)]);
+    // 3 voli, pár orá – zbude jeden vůl na dvoukolák (čtyřkolák chce dva)
+    expect(settlers.cart).toMatchObject({ id: 950, kind: 'two-wheel' });
+    expect(settlers.oxen).toEqual([{ trainedDay: DAY - 380 }]);
+    expect(state.carts!.map((c) => c.id)).toEqual([951]);
+    expect(state.pens![0]!.oxen!.map((ox) => ox.trainedDay)).toEqual([DAY - 400, DAY - 390]);
+    // jídlo: dva nosiči a dvoukolák (díl zásob 3/7 je víc)
+    const food = settlers.food;
+    const carried = food.grainKg + food.meatKg + food.legumesKg + food.cheeseKg + food.applesKg;
+    expect(carried).toBeCloseTo(2 * LEAVING.carryKgPerPerson + CARTS.loadKg['two-wheel'], 6);
+    expect(leavingFood(s, [], DAY, 'four-wheel').grainKg).toBe(0);
+  });
+
+  it('bez volných volů vůz zůstane; odchází-li celá ves, vezme si čtyřkolák i s páry', () => {
+    const tight = withDraft(twoHouseholds(), 2, ['four-wheel']);
+    expect(departVillage(tight, DAY, [sonHome(tight)]).settlers.cart).toBeUndefined();
+    const s = withDraft(twoHouseholds(), 2, ['four-wheel']);
+    const all = departVillage(s, DAY, [1, sonHome(s)]);
+    expect(all.settlers.cart).toMatchObject({ kind: 'four-wheel' });
+    expect(all.settlers.oxen).toHaveLength(2);
+    expect(all.state.carts).toBeUndefined();
+  });
+
+  it('v nové vsi je vůz její, voli čekají bez ohrady a s první ohradou volů do ní přejdou', () => {
+    const s = withDraft(twoHouseholds(), 3, ['two-wheel']);
+    const { settlers } = departVillage(s, DAY, [sonHome(s)]);
+    const fresh = foundVillage({
+      seed: 9,
+      day: DAY,
+      dwellingPosition: { x: -200, z: -200, rotation: 0 },
+      settlers,
+    });
+    expect(fresh.carts).toHaveLength(1);
+    expect(fresh.carts![0]!.kind).toBe('two-wheel');
+    expect(fresh.looseOxen).toEqual(settlers.oxen);
+    // ves na cestě je nese s sebou
+    const travelling = travellingVillage(settlers, 42, DAY, {
+      direction: 'E',
+      departedDay: DAY,
+      arrivalDay: DAY + 2,
+    });
+    expect(settlersOf(travelling).cart).toMatchObject({ kind: 'two-wheel' });
+    expect(settlersOf(travelling).oxen).toEqual(settlers.oxen);
+    // hotová ohrada volů – voli do ní přejdou
+    fresh.pens = [
+      {
+        id: 990,
+        cell: { x: 3, y: 3 },
+        x: -200,
+        z: -170,
+        builtDay: DAY,
+        species: 'team',
+        oxen: [],
+      },
+    ];
+    const later = advanceVillage(fresh, DAY + 1, null);
+    expect(later.looseOxen).toBeUndefined();
+    expect(later.pens![0]!.oxen).toEqual(settlers.oxen);
   });
 });
 

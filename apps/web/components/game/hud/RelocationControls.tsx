@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState, type ReactElement } from 'react';
-import type { BuildableDwellingType, Direction8 } from '@bohemia/game';
+import { CART_NAMES, type BuildableDwellingType, type Direction8 } from '@bohemia/game';
 import { useDismiss } from '@/hooks/use-dismiss';
 import type { LeaveDirection, VillageJourneyView } from '@/lib/departure-view';
 import { RELOCATION_TYPES } from '@/lib/relocation-view';
@@ -143,6 +143,21 @@ function LeaveTooltip({
           <img src="/icons/resources/food.png" alt="Jídlo s sebou (kg)" width={16} height={16} />
           {formatInteger(leave.foodKg)} kg
         </span>
+        {leave.cart && (
+          <span className="flex items-center gap-1" data-testid="leave-cart">
+            <img
+              src="/icons/resources/cart.png"
+              alt={
+                leave.cart === 'four-wheel'
+                  ? 'Čtyřkolák s voly s sebou'
+                  : 'Dvoukolák s volem s sebou'
+              }
+              width={16}
+              height={16}
+            />
+            {CART_NAMES[leave.cart]}
+          </span>
+        )}
         {target !== 'here' && (
           <span className="flex items-center gap-1">
             <img src="/icons/resources/date.png" alt="Dny cesty" width={16} height={16} />

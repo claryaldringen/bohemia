@@ -20,7 +20,7 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
   relocation: { zemnice: workshop(60), polozemnice: workshop(220) },
   abandoned: null,
   journey: null,
-  leave: { directions: [] },
+  leave: { directions: [], cart: null, allCart: null },
   manor: null,
   dayIndex: 1000,
   people: { children: 2, adults: 2, elders: 0 },
@@ -579,6 +579,10 @@ describe('villageNotices – řemesla (crafts.md)', () => {
     expect(villageNotices(view({ crafts: crafts(['no-ore']) }))).toEqual([
       { kind: 'no-ore', tone: 'warn', text: 'Kovář nemá rudu' },
     ]);
+    // hrnčíř bez hlíny a bez místa, kde ji kopat (crafts.md – Hlína hrnčíře)
+    expect(villageNotices(view({ crafts: crafts(['no-clay']) }))).toEqual([
+      { kind: 'no-clay', tone: 'warn', text: 'Hrnčíř nemá hlínu' },
+    ]);
   });
 });
 
@@ -742,13 +746,18 @@ describe('kování vozů (wagons.md – Kování vozů)', () => {
           place: 'Lhota',
           son: false,
           direction: 'N',
+          porters: 6,
           dateLabel: '',
           text: '',
         },
       ],
     });
     expect(newNotices(view({ dayIndex: 1000 }), after)).toEqual([
-      { kind: 'iron-trip', tone: 'info', text: 'Tesař šel pro kování k vozu do vsi Lhota (sever)' },
+      {
+        kind: 'iron-trip',
+        tone: 'info',
+        text: 'Tesař šel se 6 nosiči pro kování k vozu do vsi Lhota (sever)',
+      },
       { kind: 'iron-brought', tone: 'info', text: 'Syn tesaře přinesl kování' },
     ]);
   });

@@ -159,14 +159,23 @@ a potah, Kolik volů ves chce; podrobnosti níž jsou návrh Clauda.
   jen vozy, které má – nové nestaví, staré doslouží.
 - **Úspora z loňského provozu** (rozhodnutí Clauda): ves s hotovou ohradou volů každý den měří, co
   by vozy ušetřily, kdyby jich bylo dost – **nošení, které ten den opravdu proběhlo**, tam, kam
-  vůz dojede (odnos snopů – podíl odnosu na sklizni, svoz sena – čtvrtina seče, osivo – desetina
-  setí, klády ke stavbám – polovina dnešního kácení a dovozu), **jízdy pro uhlí a vodu** (stejný
-  plán jako skutečné vozy, jen s dostatkem vozů) a **u výpravy**, kolik nosičů by nahradily
-  čtyřkoláky (nosiči × dny cesty). Vůz za den převezme nejvýš 8 čd nošení a jdou s ním 2 lidé –
-  ušetří tedy nejvýš 6 čd. Úspory dne se seřadí od největší a přičtou k-tému vozu (rok vozů –
-  `CartDemand`; dny orby zvlášť – tehdy jezdí jen voli, kteří neorají). Rok vozů běží od 1. 11.
-  (jako rok cest a porážka): 1. 11. se uzavře a přepočte na rok – kratší než 300 dní (ohrada volů
-  postavená během roku, ves uložená dřív) běží do dalšího 1. 11. – a podle něj ves rok rozhoduje.
+  vůz dojede (odnos snopů – podíl odnosu na sklizni, svoz sena – čtvrtina seče, odnos jablek –
+  čtvrtina sklizně sadu, osivo – desetina setí, klády ke stavbám – polovina dnešního kácení
+  a dovozu), a z toho **podél pevných cest**, kam dojede i čtyřkolák; **jízdy pro uhlí, rudu,
+  hlínu a vodu** (stejný plán jako skutečné vozy, jen s dostatkem vozů – ruda a hlína z toho, co
+  dnes kovárny a hrnčíři odnesli z rudiště a hliniště) a **u výpravy**, kolik nosičů by nahradily
+  čtyřkoláky (nosiči × dny cesty). Dvoukolák za den převezme nejvýš 8 čd nošení a jdou s ním
+  2 lidé – ušetří tedy nejvýš 6 čd; čtyřkolák 16 čd se stejnou posádkou – ušetří 14 čd. Den se
+  zapíše do roku vozů (`CartDemand.days` – nošení podél cest a jinam, úspory jízd, den orby – tehdy
+  jezdí jen voli, kteří neorají). Rok vozů běží od 1. 11. (jako rok cest a porážka): 1. 11. se
+  uzavře do **tabulky úspor** podle počtu dvoukoláků a čtyřkoláků (`CartYear.base`, ve dny orby
+  i podle volů, kteří neorají – `plough`; čtyřkoláky napřed na nošení podél cest, dvoukoláky na
+  zbytek a na jízdy – `cartDayValue`) přepočtené na rok – kratší než 300 dní (ohrada volů
+  postavená během roku, ves uložená dřív) běží do dalšího 1. 11. – a podle ní ves rok rozhoduje.
+  Rok uložený před tabulkou (úspory k-tých vozů) se čte dál.
+- **Čtyřkolák v odhadu** (rozhodnutí Clauda): úspory čtyřkoláku jsou nošení podél cest a výpravy;
+  jízdy pro uhlí a vodu umí i dvoukolák a ves kvůli nim čtyřkolák nestaví – když ho má, veze je
+  ten levnější (Co se vozí a na čem).
 - **Proč z loňského provozu, ne z plánu práce:** plán osevu k 1. 9. nezná seč (plánuje se 1. 6.),
   stavby ani výpravy, a dosah vozu po vozové síti zná až svoz; den simulace zná všechno, co vozy
   vozí, i kam dojedou. Je to levné (úspory dne z plánů, které simulace počítá tak jako tak, jedno
@@ -196,18 +205,38 @@ Návrh Clauda, Martin schválil („Ano, udělej to jak říkáš“) včetně v
 **Čtyřkolák** (2 voli, 800 kg): jen po pevných cestách, širší oblouk, dvakrát víc s jednou
 posádkou. Ves vybere levnější vůz pro každou práci.
 
-| Náklad                             | Dvoukolák | Čtyřkolák                                | Stav                                                                 |
-| ---------------------------------- | --------- | ---------------------------------------- | -------------------------------------------------------------------- |
-| Snopy ze žní, seno                 | ano       | ano, podél cest                          | ve hře (dvoukolák; čtyřkolák podél cest – fáze 2)                    |
-| Klády ke stavbám                   | krátké    | dlouhé, výhodnější                       | ve hře (dvoukolák; čtyřkolák – fáze 2)                               |
-| Uhlí, osivo, voda                  | ano       | uhlí z lesního milíře po cestě, voda ano | ve hře (dvoukolák; čtyřkolák – fáze 2)                               |
-| Ruda z rudiště                     | ano       | –                                        | ve hře (crafts.md – Uhlí a ruda kováře)                              |
-| Výpravy po stezce, nákup u sousedů | –         | ano                                      | ve hře                                                               |
-| **Hlína pro hrnčíře** od potoka    | ano       | –                                        | **nové – fáze 2**: místo u potoka, hrnčíř kope, vůz se sedlákem      |
-| **Jablka ze sadu** do vsi          | ano       | ano, podél cest                          | **nové – fáze 2**: podíl odnosu při sklizni jako u snopů             |
-| **Stěhování do nové vsi**          | ano       | ano                                      | **nové – fáze 2**: odcházející si vezmou volný vůz s voly, víc jídla |
+| Náklad                             | Dvoukolák | Čtyřkolák                                | Stav                                                                      |
+| ---------------------------------- | --------- | ---------------------------------------- | ------------------------------------------------------------------------- |
+| Snopy ze žní, seno                 | ano       | ano, podél cest                          | ve hře                                                                    |
+| Klády ke stavbám                   | krátké    | dlouhé, výhodnější                       | ve hře (čtyřkolák ke stromům u pevných cest)                              |
+| Uhlí, osivo, voda                  | ano       | uhlí z lesního milíře po cestě, voda ano | ve hře (uhlí a vodu levnější vůz; osivo dvoukolák)                        |
+| Ruda z rudiště                     | ano       | –                                        | ve hře (crafts.md – Uhlí a ruda kováře)                                   |
+| Výpravy po stezce, nákup u sousedů | –         | ano                                      | ve hře                                                                    |
+| **Hlína pro hrnčíře** od potoka    | ano       | –                                        | ve hře (crafts.md – Hlína hrnčíře): hliniště, hrnčíř kope, sedlák s vozem |
+| **Jablka ze sadu** do vsi          | ano       | ano, podél cest                          | ve hře (orchard.md – Jablka vozem): čtvrtina sklizně jako odnos snopů     |
+| **Stěhování do nové vsi**          | ano       | ano                                      | ve hře (migration.md – Vůz při odchodu): volný vůz s voly, víc jídla      |
 
-**Hnůj a palivové dříví se nevozí** (hnůj bude samostatná mechanika později).
+- **Čtyřkolák jen po pevných cestách** (`CART_ROUTES.fourWheelOffRoadM`, rozhodnutí Clauda):
+  vozová síť čtyřkoláku zná jen buňky pevných cest (pás buňky kolem osy – osa jde po buňkách
+  schodovitě) a 40 m kolem ohrady volů, odkud vyjíždí (cesta k nejbližší pevné cestě); do pole,
+  na louku ani k lesu mimo cestu nesjede. Ke čtverci pole a louky dojede, když cesta vede do
+  `CARTS.reachM` od jeho středu (kraj čtverce u cesty). Zemská stezka pro výpravu zůstává
+  (`trailCartPassable`).
+- **Levnější vůz pro každou práci** (`fleetHaulPlan`, `planCartJobs`): flotila dne (`CartFleet`
+  – vozy doma po druzích a voli, kteří neorají) – na snopy, seno, jablka a klády jedou napřed
+  čtyřkoláky na nošení podél cest (dvakrát víc se stejnou posádkou), dvoukoláky na zbytek; uhlí
+  od milíře a vodu veze ten vůz, který za kg stojí méně práce (čtyřkolák, když k milíři či břehu
+  dojede po cestě – vlastní jízda `CharcoalKiln.cart4`, `VillageState.waterCart4`); ruda, hlína
+  a osivo jen dvoukolákem. Svoz počítá dosah obou druhů jednou za úlohu (`cartReach4`).
+- **Vlkov** (20. 10. 2026): pevné cesty vedou k vodě a mezi domy, k polím jen málo – čtyřkolák by
+  dojel k **≈ 4 %** plochy polí (geometricky je do 13 m od cesty 6 %), takže ves chce dvoukoláky
+  (tabulka úspor za rok 804/805: dvoukoláky 1–4 ≈ 194, 221, 221, 221 čd, čtyřkolák ≈ 4) – stávající
+  čtyřkolák doslouží a nový tesař nepostaví. Ve vsi s cestami přes pole se čtyřkolák vyplatí
+  (test: 60 dní po 16 čd nošení podél cest – čtyřkolák místo dvou dvoukoláků).
+
+**Hnůj a palivové dříví se nevozí.** Hnůj z ohrad na pole se nedělá vůbec – Martin (20. 10. 2026):
+„Hnůj z ohrad na pole - tohle zatím úplně vynecháme, nejsem si jistý, jestli to staří slované tak
+dělali“.
 
 ## Kování vozů
 
@@ -217,6 +246,9 @@ kovář je“
 
 K návrhu, že cesta bude vidět jako karavana: „Ano, pokud to bude jen jedna postava, je to
 v pořádku.“
+
+K sondě na Vlkově, kde tesař šel sám a zaplatil 173 kg obilí: „pokud zaplatil 173 kg obilí, tak
+nemohl jít sám. Buď si musel půjčit vůz nebo muselo jít alespoň 6 lidí, aby to obilí unesli“
 
 Podrobnosti jsou návrh Clauda (čísla `CART_IRON` v `rules.ts`, modul `cart-iron.ts`).
 
@@ -241,45 +273,89 @@ Podrobnosti jsou návrh Clauda (čísla `CART_IRON` v `rules.ts`, modul `cart-ir
   - **soused za krajem mapy** s kovářem (`neighbourCrafts` – u sousedů řemeslníků jistě) – po hotové
     zemské stezce, nebo krajinou ke kraji mapy od dílny tesaře (`purchaseRoute`).
 
-  Vybere se nejméně dní cesty; při shodě ves na téže mapě. **Platba obilím** jako nákup nástrojů
+  **Cíl a dopravu ves volí podle nejmenší práce vsi celkem** (`ironOptions`, `ironPlan`): ze všech
+  vsí s kovářem (sousedé, jiná ves na téže mapě) a obou způsobů – vozem po stezce sjízdné pro vozy
+  (tesař a sedlák × dny cesty), nebo pěšky s nosiči (tesař a nosiči × dny, víc cest u malé vsi) –
+  ta s nejmenšími člověkodny; při shodě kratší cesta. Vozem jen s volným vozem. Proto může ves jet
+  vozem k dalšímu kováři místo s nosiči k nejbližšímu. **Platba obilím** jako nákup nástrojů
   u souseda (`productPrice` – 0,96 hodnoty; 3 kg ≈ 173 kg obilí, 6 kg ≈ 346 kg) – ves zaplatí
   ze zásob hned při odchodu, ale jen když nešetří jídlem (výhled jídla do sklizně vychází); jinak
-  vůz čeká. Druhá ves hráče se platbou nemění (vsi se simulují každá zvlášť). Kdo jde, **chybí
-  v práci dílny** (i ve vsi, když tesař s domácností pracuje se vsí) a praxi ten den nezíská.
-  Kdo cestou zemře nebo odejde, kování nepřinese – vůz čeká a jde jiný.
+  vůz čeká. Druhá ves hráče se platbou nemění (vsi se simulují každá zvlášť). Tesař nebo syn
+  **chybí v práci dílny** (i ve vsi, když tesař s domácností pracuje se vsí) a praxi ten den
+  nezíská. Kdo cestou zemře nebo odejde, kování nepřinese – vůz čeká a jde jiný.
 
-- **Kronika a upozornění:** „Tesař šel pro kování k vozu do vsi Lhota (sever)“ (u syna „Syn tesaře
-  šel…“, u vsi na téže mapě bez směru), po návratu „Tesař přinesl kování“ – a vůz je hotový.
-- **Ve scéně jen jedna postava** (tesař nebo syn – pohlaví a věk z jádra) jako karavana nákupu
-  u sousedů bez nosičů: od dílny po zemské stezce, nebo krajinou rovně k okraji mapy (za okrajem
-  zmizí), nebo do druhé vsi ke kovárně a zpět (`sceneExpeditions` – `ironCaravan`).
+- **Kdo nese platbu** (Martin – sám 173 kg obilí neunese):
+  - **vůz se sedlákem** – když ves má doma volný vůz (ne na výpravě; vůz, na který se kování dělá,
+    ještě hotový není) a doma voly, kteří ho utáhnou, a cesta vede **po hotové zemské stezce
+    sjízdné pro vozy** (jako vozy výprav – `trailCartPassable`). Dvoukolák napřed (jeden vůl),
+    platbu unese každý vůz (400 / 800 kg). Jede s ním **sedlák z vsi** (`CART_IRON.cartCrew`)
+    a tesař nebo syn; vůz i vůl jsou celou cestu pryč (`cartsAway`, `oxenAway` – vozit ani orat
+    nemohou). Krajinou ke kraji mapy a do jiné vsi na téže mapě vůz nejede.
+  - **jinak nosiči** – skupina jako nákup u sousedů (`tripOf`): tolik lidí, kolik je nákladů po
+    25 kg (TRADE.porterKg), tesař nebo syn nese taky – **173 kg = tesař a 6 nosičů** (7 lidí),
+    346 kg za čtyřkolák = 14 nákladů. Skupina je nejvýš malá skupina vsi (`groupCap` – polovina
+    dospělých, aspoň 1, nejvýš 8); **když ves tolik dospělých nemá, jdou víckrát** – dny cesty ×
+    počet cest (`IronTrip.tripDays`). Vůz pak nečeká navždy a malá ves platí časem, stejně jako
+    u nákupu u sousedů.
+  - Nosiči a sedlák **chybí v práci vsi po celou cestu** – jako skupiny nákupu u sousedů jdou do
+    `away` v rozdělení práce dne (`ironTripHelpers`), podíl `trade` (`ironTripShares`).
+  - **Rok vozů** (Kolik vozů ves chce) vidí i cestu pro kování: když by vůz ušetřil práci proti
+    nejlevnější cestě pěšky, zapíše se úspora k dvoukolákům (`addCartDemand`) – i když volný vůz
+    zrovna nebyl, ať si ves spočítá, že další vůz se vyplatí. Jen ves s ohradou volů.
+
+- **Kronika a upozornění:** „Tesař šel se 6 nosiči pro kování k vozu do vsi Lhota (sever)“, „Tesař
+  jel s vozem pro kování…“ (u syna „Syn tesaře šel…“, u vsi na téže mapě bez směru), po návratu
+  „Tesař přinesl kování“ – a vůz je hotový.
+- **Ve scéně skupina, nebo vůz** (místo jedné postavy – Martin, sonda Vlkov) jako karavana nákupu
+  u sousedů: pěšky tesař nebo syn (pohlaví a věk z jádra) a nosiči, tam s obilím, zpátky bez
+  nákladu; s vozem vůz se spřežením po zemské stezce, sedlák u volů a tesař vedle vozu. Od dílny po
+  zemské stezce, nebo krajinou rovně k okraji mapy (za okrajem zmizí), nebo do druhé vsi ke kovárně
+  a zpět; jde-li skupina víckrát, každou cestu zvlášť (`sceneExpeditions` – `ironCaravan`; vůz
+  jede jako vůz výpravy – `sceneCarts`).
 - **Panel dílny tesaře:** „Čeká na kování k vozu (3 kg)“ (červeně), nebo „Syn tesaře (15 let) jde
-  pro kování k vozu do vsi Lhota (sever) – zpět za 3 dny“ (šipka směru a dny); vůz, který čeká na
-  kování, se v činnosti dílny neukazuje jako vyráběný.
+  se 6 nosiči (nesou obilí na platbu) pro kování k vozu do vsi Lhota (sever) – zpět za 3 dny“,
+  „Tesař jede s vozem a sedlákem (dvoukolák veze obilí na platbu) …“ (šipka směru a dny); vůz,
+  který čeká na kování, se v činnosti dílny neukazuje jako vyráběný.
 
 ### Vlkov – kování vozů
 
 Vlkov má kováře (zásoba nástrojů ≈ 50 kg) – za dva roky simulace dostal nový dvoukolák kování ze
-zásoby a kovář ho hned dokoval (nástroje 76,6 kg proti 76,7 kg bez pravidla). Sondy od 7. 1. 801,
-kdy ves chce dvoukolák a žádný nemá:
+zásoby a kovář ho hned dokoval (nástroje 76,6 kg proti 76,7 kg bez pravidla). S kovářem a prázdnou
+zásobou nástrojů (1 kg) kovář kování vykoval jako zakázku a nikdo nikam nešel.
 
-- **bez kováře** (kovárna zrušená): tesař (bez syna od 14 let) odešel 15. 2. 801 po zemské stezce
-  na východ do vsi Olšany (5 dní), zaplatil 173 kg obilí a 20. 2. vůz dokončil,
-- **s kovářem a bez nástrojů** (zásoba 1 kg): kovář kování vykoval jako zakázku a vůz byl hotový 14. 2. 801, nikdo nikam nešel.
+Sondy bez kováře (kovárna zrušená) na čerstvém stavu z 31. 1. 801, kdy ves chce další dvoukolák:
+
+- **první sonda (20. 10. 2026, tesař sám):** tesař šel po zemské stezce na východ do vsi Olšany
+  (5 dní) a zaplatil 173 kg obilí – Martin: tolik obilí sám neunese. Opraveno:
+- **bez volného vozu:** 10. 3. 801 šel tesař (bez syna od 14 let) **se 6 nosiči** po zemské stezce
+  do vsi Olšany (východ, 5 dní, 172,8 kg obilí); v rozdělení práce dne bylo 6 čd na cestě
+  (podíl `trade` na stezce), 15. 3. přinesl kování a vůz byl hotový,
+- **s volnými vozy** (dvoukolák a čtyřkolák u ohrady volů): nejbližší kovář (Olšany, 5 dní) je po
+  stezce na východ, která **není sjízdná pro vozy** – pěšky by to stálo 7 lidí × 5 dní = 35 čd.
+  Ves proto 10. 3. 801 poslala tesaře **s dvoukolákem a sedlákem** po stezce sjízdné pro vozy na
+  sever do vsi Chotěšov (7 dní, 2 lidé × 7 dní = **14 čd**; 1 čd z práce vsi denně, vůz s volem
+  pryč), 17. 3. byl vůz hotový. Rok vozů si zapsal, že vůz ušetřil 21 čd (35 − 14).
 
 ### Rozhodnutí – kování vozů
 
-| Rozhodnutí                                                                                        | Kdo                   |
-| ------------------------------------------------------------------------------------------------- | --------------------- |
-| Vozy mají železnou složku; ves bez kováře pošle tesaře (nebo syna) do nejbližší vsi s kovářem     | Martin (20. 10. 2026) |
-| Cesta je vidět jako karavana – jen jedna postava                                                  | Martin (20. 10. 2026) |
-| Dvoukolák 3 kg, čtyřkolák 6 kg kování                                                             | návrh Clauda          |
-| Kování ze zásoby nástrojů (žádná nová zásoba)                                                     | rozhodnutí Clauda     |
-| Vůz bez kování čeká, tesař dělá nářadí; kovář kování vyrobí přednostně jako zakázku               | návrh Clauda          |
-| Jde syn tesaře od 14 let, jinak tesař; nejbližší ves s kovářem podle dní cesty, při shodě na mapě | návrh Clauda          |
-| Cesta a platba obilím jako nákup u sousedů; platí ze zásob jen ves, která nešetří jídlem          | rozhodnutí Clauda     |
-| Ves s kovářem = kovárna má rudiště a uhlí (bez uhlí jen s uhlířem ve vsi)                         | rozhodnutí Clauda     |
-| Druhá ves hráče se platbou nemění (vsi se simulují zvlášť)                                        | rozhodnutí Clauda     |
+| Rozhodnutí                                                                                          | Kdo                   |
+| --------------------------------------------------------------------------------------------------- | --------------------- |
+| Vozy mají železnou složku; ves bez kováře pošle tesaře (nebo syna) do nejbližší vsi s kovářem       | Martin (20. 10. 2026) |
+| ~~Cesta je vidět jako karavana – jen jedna postava~~ – nahrazeno: skupina nosičů, nebo vůz          | Martin (20. 10. 2026) |
+| Tesař 173 kg obilí sám neunese – vůz, nebo aspoň 6 lidí                                             | Martin (20. 10. 2026) |
+| Volný vůz s voly jede se sedlákem z vsi, jen po zemské stezce sjízdné pro vozy; dvoukolák napřed    | rozhodnutí Clauda     |
+| Jinak nosiči po 25 kg (tesař nese taky), nejvýš polovina dospělých; málo lidí – jdou víckrát        | rozhodnutí Clauda     |
+| Nosiči a sedlák chybí v práci vsi po celou cestu (jako nákup u sousedů)                             | návrh Clauda          |
+| Dvoukolák 3 kg, čtyřkolák 6 kg kování                                                               | návrh Clauda          |
+| Kování ze zásoby nástrojů (žádná nová zásoba)                                                       | rozhodnutí Clauda     |
+| Vůz bez kování čeká, tesař dělá nářadí; kovář kování vyrobí přednostně jako zakázku                 | návrh Clauda          |
+| Jde syn tesaře od 14 let, jinak tesař                                                               | návrh Clauda          |
+| ~~Nejbližší ves s kovářem podle dní cesty~~ – nahrazeno: cíl a doprava podle nejmenší práce vsi     | návrh Clauda          |
+| Cíl a doprava podle nejmenší práce vsi celkem (všechny vsi s kovářem, vůz i nosiči); shoda – kratší | návrh Clauda          |
+| Cesta vozu pro kování do roku vozů (kolik práce vůz ušetřil proti cestě pěšky)                      | návrh Clauda          |
+| Cesta a platba obilím jako nákup u sousedů; platí ze zásob jen ves, která nešetří jídlem            | rozhodnutí Clauda     |
+| Ves s kovářem = kovárna má rudiště a uhlí (bez uhlí jen s uhlířem ve vsi)                           | rozhodnutí Clauda     |
+| Druhá ves hráče se platbou nemění (vsi se simulují zvlášť)                                          | rozhodnutí Clauda     |
 
 ## Vozová síť a vyjeté cesty
 
@@ -692,3 +768,7 @@ Návrh Clauda (19. 10. 2026) – jen zobrazení, simulace se nemění.
 | Další vůz, když ušetří víc práce za rok, než stojí (tesař na 10 let, seno a výcvik volů navíc); tabulka nákladů                                                                                                                                                                                                                                | návrh Clauda, Martin („Ano, udělej to jak říkáš“)                  |
 | Úspora z loňského provozu: dnešní nošení, jízdy pro uhlí a vodu, nosiči výprav; rok vozů od 1. 11., aspoň 300 dní                                                                                                                                                                                                                              | rozhodnutí Clauda                                                  |
 | Dvoukolák s oplením a jednoduchým jhem pro jednoho vola                                                                                                                                                                                                                                                                                        | rozhodnutí Clauda                                                  |
+| Čtyřkolák jen po pevných cestách a 40 m kolem ohrady volů; flotila dne – čtyřkoláky napřed podél cest                                                                                                                                                                                                                                          | návrh Clauda, Martin („Ano, udělej to jak říkáš“)                  |
+| Uhlí a vodu veze levnější vůz (práce na kg); ruda, hlína a osivo dvoukolák                                                                                                                                                                                                                                                                     | návrh Clauda, Martin („Ano, udělej to jak říkáš“)                  |
+| Rok vozů po dnech (nošení podél cest a jinam, jízdy, den orby), 1. 11. tabulka úspor podle počtu vozů a volů                                                                                                                                                                                                                                   | rozhodnutí Clauda                                                  |
+| Čtyřkolák v odhadu jen za nošení podél cest a výpravy, ne za jízdy pro uhlí a vodu                                                                                                                                                                                                                                                             | rozhodnutí Clauda                                                  |

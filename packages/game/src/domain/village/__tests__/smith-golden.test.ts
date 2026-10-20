@@ -11,7 +11,11 @@ import { withBuiltFirstDwelling } from './village-fixtures';
 // bitu – uhlíř, hrnčíř, tesař i vůz se spřežením jako dřív. Otisk stavu po dvou letech je
 // spočítaný kódem před rudou (commit před zavedením rudy); s voly po kusech a rokem vozů
 // (oxen.md – Voli po kusech, wagons.md – Kolik vozů ves chce) přepočítaný kódem bez rudy
-// (feat/oxen-carts 656dec4) – vyšel stejně jako se rudou.
+// (feat/oxen-carts 656dec4) – vyšel stejně jako se rudou. Rok vozů po dnech a tabulka úspor
+// (wagons.md – Co se vozí a na čem) mění jen záznam roku vozů (`draft.demand`, `draft.lastYear`)
+// – stav bez nich vyšel stejně jako předtím (5d100038). Hrnčíř od hlíny (crafts.md – Hlína
+// hrnčíře) kope a nosí hlínu jako kovář rudu – ve zlaté vsi proto už není; ves bez kováře
+// a hrnčíře vyšla bez záznamu roku vozů a praxe stejně kódem před hlínou i s ní (f49f757d).
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 const DAY = at(601, 3, 1);
@@ -45,7 +49,6 @@ function village(): VillageState {
   s.nextId = 1000;
   const crafts: [Craft, number, number][] = [
     ['burner', 40, 0],
-    ['potter', -40, 0],
     ['carpenter', 0, -40],
   ];
   crafts.forEach(([craft, x, z], k) => {
@@ -76,8 +79,8 @@ function village(): VillageState {
   return s;
 }
 
-describe('ves bez kováře beze změny (crafts.md – Uhlí a ruda kováře)', () => {
-  it('uhlíř, hrnčíř, tesař a vůz – stav po dvou letech jako před rudou', () => {
+describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda kováře)', () => {
+  it('uhlíř, tesař a vůz – stav po dvou letech jako před rudou', () => {
     const next = advanceVillage(village(), DAY + 730, null);
     expect(next.orePits).toBeUndefined();
     // učení řemesla (crafts.md – Učení řemesla, Starší vsi): dnešní řemeslníci jsou vyučení – jen
@@ -87,6 +90,6 @@ describe('ves bez kováře beze změny (crafts.md – Uhlí a ruda kováře)', (
     const stripped = JSON.stringify(next, (key, value: unknown) =>
       learning.has(key) ? undefined : value,
     );
-    expect(hash(stripped)).toBe('4faa0291');
+    expect(hash(stripped)).toBe('16363dad');
   }, 120_000);
 });
