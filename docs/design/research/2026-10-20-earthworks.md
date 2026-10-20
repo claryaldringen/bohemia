@@ -2,7 +2,7 @@
 
 Krátká rešerše k [roads.md](../roads.md) – Vozová cesta, stav 20. 10. 2026. Martin: „Pokud budou
 překážet svahy, vyhloubí se úvoz nebo udělá násep. Samozřejmě, některé svahy budou tak velké, že
-se budou muset kombinovat serpentiny, úvozy a náspy.“ Zadání koordinátora dalo orientačně
+se budou muset kombinovat serpentiny, úvozy a náspy.“ Návrh Clauda dal orientačně
 ≈ 0,5 člověkodne na m³ zemních prací a ≈ 0,3 člověkodne na metr zpevnění kolejí – tady je ověření.
 
 **Jak číst:** u každého čísla co uvádí literatura, odkud, a co hra použije. **Omezení:** normy
