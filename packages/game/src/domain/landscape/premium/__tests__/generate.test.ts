@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { landscapeHash } from '../../__tests__/landscape-checks';
-import { BAND_V2, checkBand } from '../../band';
+import { checkBand } from '../../band';
 import {
   generateAcceptedLandscape,
   generateLandscape,
@@ -8,7 +8,12 @@ import {
 } from '../../generate';
 import { deriveSeed } from '../../random';
 import type { Terrain } from '../../terrain';
-import { CURRENT_LAYER_VERSIONS, type Landscape, type LayerVersions } from '../../types';
+import {
+  CURRENT_LAYER_VERSIONS,
+  SURFACE_CODES,
+  type Landscape,
+  type LayerVersions,
+} from '../../types';
 import { tileCenterWorld } from '../../world';
 import { PREMIUM_TYPES } from '../catalog';
 import {
@@ -18,7 +23,7 @@ import {
   PREMIUM_VILLAGE_CLEARANCE_M,
   siteIntrudes,
 } from '../check';
-import { hasPremiumPass, PREMIUM_LAYER_VERSION, premiumBand, premiumFeaturesOf } from '../generate';
+import { hasPremiumPass, PREMIUM_LAYER_VERSION, premiumFeaturesOf } from '../generate';
 import { SOIL_FOREST_PASSES } from '../soil-forest';
 import type { PremiumFeatures, PremiumSite, PremiumType } from '../types';
 import { describeTypeBands, GROUPED_TYPES, SOIL_FOREST_TYPES } from './type-band';
@@ -123,15 +128,72 @@ describe('napojení průchodu typu na generátor', () => {
     expect(passCtx).toEqual({ ...ctx, type: 'fertile' });
     expect(l.fertility).toBe(fertility.mock.results[0]!.value);
   });
+});
 
-  it('pásmo prémiové krajiny – míry výhody typu nemají horní mez, dolní meze platí', () => {
-    expect(premiumBand(BAND_V2, undefined)).toBe(BAND_V2);
-    expect(premiumBand(BAND_V2, 'oak-beech')).toEqual(BAND_V2);
-    const fertile = premiumBand(BAND_V2, 'fertile');
-    expect(fertile.fertileCells).toEqual([BAND_V2.fertileCells[0], Infinity]);
-    expect(fertile.nearGoodMeadowCells).toEqual([BAND_V2.nearGoodMeadowCells![0], Infinity]);
-    expect(fertile.forestShare).toEqual(BAND_V2.forestShare);
-    expect(fertile.nearMeadowCells).toEqual(BAND_V2.nearMeadowCells);
+describe('pásmo prémiové krajiny – celé na průměrné krajině pokusu, na prémiové dolní meze', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** První pokus od `seed`, jehož průměrná krajina projde celým pásmem. */
+  const firstAverageInBand = (seed: number): number => {
+    for (let s = seed; ; s++) {
+      if (
+        checkBand(generateLandscapeAttempt(s, CURRENT_LAYER_VERSIONS), CURRENT_LAYER_VERSIONS).ok
+      ) {
+        return s;
+      }
+    }
+  };
+
+  it('základ pod dolní mezí neprojde ani s bonusem typu', () => {
+    // Pokus 59: průměrná krajina má málo úrodných políček, +15 úrodnosti by ji do pásma vytáhlo.
+    const average = generateLandscapeAttempt(59, CURRENT_LAYER_VERSIONS);
+    expect(checkBand(average, CURRENT_LAYER_VERSIONS).failures).toEqual(['fertile-cells']);
+    const fertile = generateLandscapeAttempt(59, CURRENT_LAYER_VERSIONS, 'fertile');
+    expect(checkBand(fertile, CURRENT_LAYER_VERSIONS).ok).toBe(true);
+    const accepted = generateAcceptedLandscape(59, CURRENT_LAYER_VERSIONS, 'fertile');
+    expect(accepted.seed).not.toBe(59);
+    expect(accepted.seed).toBe(generateAcceptedLandscape(59).seed);
+  });
+
+  it('prémiová krajina, která po průchodu poruší dolní mez, neprojde', () => {
+    expect(firstAverageInBand(1)).toBe(1);
+    const original = SOIL_FOREST_PASSES.floodplain.vegetation;
+    const broken = deriveSeed(1, 'premium');
+    // Pokus 1: průchod (naschvál) vykácí všechen les – podíl lesa pod dolní mezí.
+    vi.spyOn(SOIL_FOREST_PASSES.floodplain, 'vegetation').mockImplementation(
+      (surface, terrain, ctx) =>
+        ctx.seed === broken
+          ? surface.map((v) => (v === SURFACE_CODES.forest ? SURFACE_CODES.meadow : v))
+          : original(surface, terrain, ctx),
+    );
+    const attempt = generateLandscapeAttempt(1, CURRENT_LAYER_VERSIONS, 'floodplain');
+    expect(checkBand(attempt, CURRENT_LAYER_VERSIONS).failures).toContain('forest-share');
+    const accepted = generateAcceptedLandscape(1, CURRENT_LAYER_VERSIONS, 'floodplain');
+    expect(accepted.seed).toBeGreaterThan(1);
+    expect(checkBand(accepted.landscape, CURRENT_LAYER_VERSIONS).ok).toBe(true);
+  });
+
+  it('na prémiové krajině neplatí horní meze, dolní ano', () => {
+    const average = generateLandscapeAttempt(1, CURRENT_LAYER_VERSIONS);
+    const lush = { ...average, fertility: average.fertility.map((v) => (v > 0 ? 100 : 0)) };
+    expect(checkBand(lush, CURRENT_LAYER_VERSIONS).failures).toContain('fertile-cells');
+    expect(checkBand({ ...lush, premium: 'fertile' }, CURRENT_LAYER_VERSIONS).ok).toBe(true);
+    const bare = {
+      ...average,
+      surface: average.surface.map((v) => (v === SURFACE_CODES.forest ? SURFACE_CODES.meadow : v)),
+      premium: 'fertile' as const,
+    };
+    expect(checkBand(bare, CURRENT_LAYER_VERSIONS).failures).toContain('forest-share');
+  });
+
+  it('průměrná krajina beze změny – první pokus v celém pásmu', () => {
+    for (let seed = 55; seed <= 62; seed++) {
+      const accepted = generateAcceptedLandscape(seed);
+      expect(accepted.seed).toBe(firstAverageInBand(seed));
+      expect('premium' in accepted.landscape).toBe(false);
+    }
   });
 });
 

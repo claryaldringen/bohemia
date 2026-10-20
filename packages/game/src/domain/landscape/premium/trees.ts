@@ -1,6 +1,7 @@
 import { length2, scatterHash, smoothstep } from '../det-math';
 import { distanceToMask } from '../grid';
-import type { ForestSpecies } from '../obstacles/species';
+import type { SpeciesWeights } from '../obstacles/species';
+import type { TreeLook } from '../obstacles/types';
 import { deriveSeed } from '../random';
 import { SURFACE_CODES, type Landscape } from '../types';
 import { tileCenterWorld } from '../world';
@@ -13,26 +14,43 @@ import { tileDistance } from './geometry';
 
 /**
  * Doubravy a bučiny (návrh Clauda): do 900 m od vsi je les dubový a bukový – jedle a bříza
- * ustoupí, za 900 m se skladba plynule vrátí k průměrné krajině (do 1000 m), ať kolem není ostrý
- * kruh.
+ * ustoupí buku (zůstane desetina jedlí a pětina bříz). Duby jsou tytéž stromy jako v průměrné
+ * krajině – víc dubů by z lesa u vsi udělalo samé posvátné háje (nekácí se a vyjmou se z polí
+ * a staveb). Za 900 m se skladba plynule vrátí k průměrné krajině (do 1000 m), ať kolem není
+ * ostrý kruh.
  */
 export const OAK_BEECH = {
   radiusM: 900,
   fadeM: 1000,
-  /** Kolik jedlí a bříz v dosahu zůstane (podíl jejich váhy v průměrné krajině). */
+  /** Kolik jedlí a bříz v dosahu zůstane (podíl z průměrné krajiny). */
   coniferKept: 0.1,
   birchKept: 0.2,
 } as const;
 
+/** Výběr modelu stromu lesa – `pickForestLook` a poloha stromu ve světě. */
+export type ForestLook = (
+  kind: number,
+  weights: SpeciesWeights,
+  variant: number,
+  worldX: number,
+  worldZ: number,
+) => TreeLook;
+
 /**
- * Skladba lesa typu `oak-beech` – jedle a bříza ustoupí dubu a buku (v poměru, jaký mají
- * v průměrné krajině). Ostatní typy (a krajina bez typu) mají skladbu průměrné krajiny.
+ * Model stromu lesa typu `oak-beech`: strom vybere `pick` průměrné krajiny, jedle a bříza
+ * v dosahu se změní na buk (tutéž podobu 1 či 2) – kromě dolní části jejich intervalu losu
+ * (`coniferKept`, `birchKept`), takže zůstane jejich podíl. Dub, buk ani místa stromů se nemění.
+ * Ostatní typy (a krajina bez typu) mají výběr průměrné krajiny.
  */
-export function premiumForestSpecies(landscape: Landscape, base: ForestSpecies): ForestSpecies {
-  if (landscape.premium !== 'oak-beech') return base;
+export function premiumForestLook(
+  landscape: Landscape,
+  pick: (kind: number, weights: SpeciesWeights, variant: number) => TreeLook,
+): ForestLook {
+  if (landscape.premium !== 'oak-beech')
+    return (kind, weights, variant) => pick(kind, weights, variant);
   const village = tileCenterWorld(landscape, landscape.villageSite.x, landscape.villageSite.y);
-  return (distanceM, heightFraction, worldX, worldZ) => {
-    const weights = base(distanceM, heightFraction, worldX, worldZ);
+  return (kind, weights, variant, worldX, worldZ) => {
+    const look = pick(kind, weights, variant);
     const reach =
       1 -
       smoothstep(
@@ -40,17 +58,19 @@ export function premiumForestSpecies(landscape: Landscape, base: ForestSpecies):
         OAK_BEECH.fadeM,
         length2(worldX - village.x, worldZ - village.z),
       );
-    if (reach === 0) return weights;
-    const conifer = weights.conifer * (1 - (1 - OAK_BEECH.coniferKept) * reach);
-    const birch = weights.birch * (1 - (1 - OAK_BEECH.birchKept) * reach);
-    const freed = weights.conifer - conifer + (weights.birch - birch);
-    const oakBeech = weights.oak + weights.beech;
-    return {
-      conifer,
-      oak: weights.oak + (freed * weights.oak) / oakBeech,
-      beech: weights.beech + (freed * weights.beech) / oakBeech,
-      birch,
-    };
+    if (reach === 0) return look;
+    const v = variant < 0.5 ? 1 : 2;
+    if (look.startsWith('spruce')) {
+      const kept = 1 - (1 - OAK_BEECH.coniferKept) * reach;
+      return kind < weights.conifer * kept ? look : `beech-${v}`;
+    }
+    if (look.startsWith('birch')) {
+      const kept = 1 - (1 - OAK_BEECH.birchKept) * reach;
+      // Začátek intervalu bříz stejně jako v `pickForestLook` (sčítá se v tomtéž pořadí).
+      const birchFrom = weights.conifer + weights.oak + weights.beech;
+      return kind - birchFrom < weights.birch * kept ? look : `beech-${v}`;
+    }
+    return look;
   };
 }
 

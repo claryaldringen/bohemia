@@ -54,16 +54,19 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
   Pásmo platí i pro prémiovou krajinu a navíc kontrola typu: prvek existuje a jeho obrys ani
   osa nezasahují do 120 m od místa pro vesnici, stezka smí vést k okraji tohoto okruhu (návrh
   Clauda). Druhy prvků, které popisují půdu a les kolem vsi (louka, les, svah, honitba, brtě),
-  okruh nemají – nejsou to stavby v cestě (návrh Clauda). Míry pásma, které typ záměrně zvedá
-  (jeho výhoda – úrodná políčka, louky u vsi, místo pro vesnici), nemají u prémiové krajiny horní
-  mez; dolní meze platí, start tedy není horší než průměrný (návrh Clauda).
+  okruh nemají – nejsou to stavby v cestě (návrh Clauda). **Pásmo prémiové krajiny** (návrh
+  Clauda): celé pásmo (horní i dolní meze) se měří na průměrné krajině pokusu – vrstvách před
+  prémiovým průchodem –, takže bonus typu nevytáhne do pásma základ, který by neprošel; na
+  prémiové krajině se kontrolují jen dolní meze (start není horší než průměrný) a kontrola typu.
 - **Typy půdy a lesa** (`premium/soil-forest.ts`, hodnoty návrh Clauda – doladí kalibrace):
   - **Velmi úrodná krajina:** přirozená úrodnost do 600 m od vsi +15 bodů (strop 100), za 600 m
     plynule do 750 m. Prvek louka – kruh 600 m.
-  - **Doubravy a bučiny:** do 900 m od vsi ustoupí jedle a bříza dubu a buku (zůstane desetina
-    jedlí a pětina bříz), do 1000 m plynule zpět – dub a buk ≈ 90 % stromů lesa (průměrná
-    krajina ≈ 70 %). Mění se jen dřevina stromů vrstvy překážek, ne jejich místa. Prvek les –
-    kruh 900 m.
+  - **Doubravy a bučiny:** do 900 m od vsi ustoupí jedle a bříza buku (zůstane desetina jedlí
+    a pětina bříz), do 1000 m plynule zpět – dub a buk ≈ 90 % stromů lesa (průměrná krajina
+    ≈ 70 %). Duby jsou tytéž stromy jako v průměrné krajině – víc dubů by z lesa u vsi udělalo
+    samé posvátné háje (nekácí se, vyjmou se z polí a staveb), takže posvátné duby a háje vyjdou
+    jako v průměrné krajině. Mění se jen dřevina stromů vrstvy překážek, ne jejich místa. Prvek
+    les – kruh 900 m.
   - **Rozsáhlé nivní louky:** louka v pásu ±60 m od vody podél celého potoka a louky do 600 m od
     vsi o 30 % víc (nejnižší políčka nad potokem se zvlněným okrajem). Les ubraný nivou doroste
     na suchých loukách daleko od vsi (nejvzdálenější první), podíl lesa zůstane – když suché

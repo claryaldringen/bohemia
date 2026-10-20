@@ -1,9 +1,9 @@
 import { checkBand } from './band';
 import { computeFertility } from './fertility';
-import { PREMIUM_LAYER_VERSION, premiumGeneration } from './premium/generate';
+import { hasPremiumPass, PREMIUM_LAYER_VERSION, premiumGeneration } from './premium/generate';
 import type { PremiumType } from './premium/types';
 import { deriveSeed } from './random';
-import { generateTerrain } from './terrain';
+import { generateTerrain, type Terrain } from './terrain';
 import { CELL_SIZE_M, CURRENT_LAYER_VERSIONS, type Landscape, type LayerVersions } from './types';
 import { generateVegetation } from './vegetation';
 
@@ -30,8 +30,10 @@ const KNOWN_VERSIONS: { readonly [K in keyof LayerVersions]-?: readonly LayerVer
  * Krajina pro nové sídlo: první pokus (seed, seed+1, …), který padne do pásma srovnatelnosti.
  * Vrací i seed přijatého pokusu – ten se ukládá u sídla, aby krajinu ukotvil i při pozdějším
  * ladění pásma (uložené sídlo se pak generuje jen přes generateLandscapeAttempt). S prémiovým
- * typem musí pokus projít i kontrolou typu (`checkPremium` – součást pásma); neznámý typ vyhodí
- * RangeError jako neznámá verze.
+ * typem (návrh Clauda) se celé pásmo měří na průměrné krajině pokusu – vrstvách před prémiovým
+ * průchodem –, takže bonus typu nevytáhne do pásma základ, který by neprošel; prémiová krajina
+ * pak musí splnit dolní meze pásma (start není horší) a kontrolu typu (`checkPremium`). Neznámý
+ * typ vyhodí RangeError jako neznámá verze.
  */
 export function generateAcceptedLandscape(
   seed: number,
@@ -44,9 +46,15 @@ export function generateAcceptedLandscape(
       throw new RangeError(`Neznámá verze vrstvy ${layer}: ${String(version)}`);
     }
   }
+  if (premium !== undefined) hasPremiumPass(premium); // neznámý typ → RangeError hned
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const attemptSeed = (seed + attempt) >>> 0;
-    const landscape = generateLandscapeAttempt(attemptSeed, versions, premium);
+    const average = averageLayers(attemptSeed, versions);
+    const plain = assemble(attemptSeed, versions, average);
+    if (!checkBand(plain, versions).ok) continue;
+    if (premium === undefined) return { seed: attemptSeed, landscape: plain };
+    const layers = premiumLayers(attemptSeed, versions, premium, average);
+    const landscape = assemble(attemptSeed, versions, layers, premium);
     if (checkBand(landscape, versions).ok) return { seed: attemptSeed, landscape };
   }
   throw new BandFailureError(seed);
@@ -72,22 +80,76 @@ export function generateLandscapeAttempt(
   versions: LayerVersions,
   premium?: PremiumType,
 ): Landscape {
-  const pass = premium === undefined ? null : premiumGeneration(premium, attemptSeed, versions);
-  const baseTerrain = generateTerrain(deriveSeed(attemptSeed, 'terrain'), versions.terrain);
-  const terrain = pass ? pass.terrain(baseTerrain) : baseTerrain;
-  const baseSurface = generateVegetation(
+  const average = averageLayers(attemptSeed, versions);
+  if (premium === undefined) return assemble(attemptSeed, versions, average);
+  return assemble(
+    attemptSeed,
+    versions,
+    premiumLayers(attemptSeed, versions, premium, average),
+    premium,
+  );
+}
+
+/** Vrstvy pokusu před sestavením krajiny. */
+interface Layers {
+  readonly terrain: Terrain;
+  readonly surface: Uint8Array;
+  readonly fertility: Uint8Array;
+}
+
+/** Vrstvy průměrné krajiny pokusu – terén a voda → vegetace → úrodnost. */
+function averageLayers(attemptSeed: number, versions: LayerVersions): Layers {
+  const terrain = generateTerrain(deriveSeed(attemptSeed, 'terrain'), versions.terrain);
+  const surface = generateVegetation(
     deriveSeed(attemptSeed, 'vegetation'),
     terrain,
     versions.vegetation,
   );
-  const surface = pass ? pass.vegetation(baseSurface, terrain) : baseSurface;
-  const baseFertility = computeFertility(
+  const fertility = computeFertility(
     deriveSeed(attemptSeed, 'fertility'),
     terrain,
     surface,
     versions.fertility,
   );
-  const fertility = pass ? pass.fertility(baseFertility, terrain, surface) : baseFertility;
+  return { terrain, surface, fertility };
+}
+
+/**
+ * Vrstvy prémiové krajiny pokusu: průchod typu po každé vrstvě. Vrstvy průměrné krajiny, které
+ * průchod nemění, se použijí znovu; průchod dostane vlastní kopie (terén vygenerovaný znovu,
+ * povrch a úrodnost zkopírované), takže průměrné vrstvy zůstanou, jak byly (měří se na nich
+ * pásmo).
+ */
+function premiumLayers(
+  attemptSeed: number,
+  versions: LayerVersions,
+  type: PremiumType,
+  average: Layers,
+): Layers {
+  const pass = premiumGeneration(type, attemptSeed, versions);
+  const terrain = pass.changesTerrain
+    ? pass.terrain(generateTerrain(deriveSeed(attemptSeed, 'terrain'), versions.terrain))
+    : average.terrain;
+  const baseSurface = pass.changesTerrain
+    ? generateVegetation(deriveSeed(attemptSeed, 'vegetation'), terrain, versions.vegetation)
+    : average.surface;
+  const surface = pass.vegetation(baseSurface.slice(), terrain);
+  // Úrodnost průměrné krajiny platí, jen když terén i povrch zůstaly.
+  const baseFertility =
+    pass.changesTerrain || pass.changesVegetation
+      ? computeFertility(deriveSeed(attemptSeed, 'fertility'), terrain, surface, versions.fertility)
+      : average.fertility;
+  const fertility = pass.fertility(baseFertility.slice(), terrain, surface);
+  return { terrain, surface, fertility };
+}
+
+/** Krajina z vrstev pokusu (s prémiovým typem i typ). */
+function assemble(
+  attemptSeed: number,
+  versions: LayerVersions,
+  { terrain, surface, fertility }: Layers,
+  premium?: PremiumType,
+): Landscape {
   return {
     size: terrain.size,
     cellSizeM: CELL_SIZE_M,

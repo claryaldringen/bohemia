@@ -1,6 +1,5 @@
 import { distanceToMask, maxStep } from './grid';
 import { checkPremium } from './premium/check';
-import { premiumBand } from './premium/generate';
 import { SURFACE_CODES, type Landscape, type LayerVersions } from './types';
 
 // Pásmo srovnatelnosti startovních krajin (docs/design/landscape.md).
@@ -120,19 +119,21 @@ export function measureLandscape(l: Landscape): LandscapeMetrics {
 }
 
 /**
- * Padne krajina do pásma srovnatelnosti verzí, ze kterých vznikla? Prémiová krajina musí navíc
- * projít kontrolou svého typu (`checkPremium`, premium-landscapes.md – Generátor) – ta se
- * počítá až u pokusu, který jinak pásmem prošel (hledání prvků může být drahé). Míry, které typ
- * záměrně zvedá (jeho výhoda), nemají u prémiové krajiny horní mez (`premiumBand`).
+ * Padne krajina do pásma srovnatelnosti verzí, ze kterých vznikla? Prémiová krajina (návrh
+ * Clauda): celé pásmo se měří na průměrné krajině jejího pokusu (`generateAcceptedLandscape`),
+ * tady jen dolní meze – výhoda typu je navíc, start ale není horší – a kontrola typu
+ * (`checkPremium`, premium-landscapes.md – Generátor). Ta se počítá až u pokusu, který jinak
+ * prošel (hledání prvků může být drahé).
  */
 export function checkBand(
   l: Landscape,
   versions: LayerVersions,
 ): { ok: boolean; failures: string[] } {
-  const band = premiumBand(bandFor(versions), l.premium);
+  const band = bandFor(versions);
+  const lowerOnly = l.premium !== undefined;
   const m = measureLandscape(l);
   const within = (value: number, range: readonly [number, number] | null): boolean =>
-    range === null || (value >= range[0] && value <= range[1]);
+    range === null || (value >= range[0] && (lowerOnly || value <= range[1]));
   const failures = [
     !m.waterSpansEdges && 'water-edges',
     !within(m.forestShare, band.forestShare) && 'forest-share',

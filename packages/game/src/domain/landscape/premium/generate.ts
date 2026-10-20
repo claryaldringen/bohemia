@@ -1,4 +1,3 @@
-import type { Band } from '../band';
 import { obstaclesOf, type ObstacleLayer } from '../obstacles';
 import { transferPrecision } from '../quantize';
 import { deriveSeed } from '../random';
@@ -65,15 +64,7 @@ export interface PremiumPass {
   ) => Uint8Array;
   /** Prvky typu; null = prvek v krajině chybí (pokus neprojde kontrolou typu – `checkPremium`). */
   readonly sites: (ctx: PremiumSiteContext) => readonly PremiumSite[] | null;
-  /**
-   * Míry pásma, které typ záměrně zvedá – jeho výhoda (např. úrodnost u velmi úrodné krajiny).
-   * U krajiny s typem nemají horní mez, dolní mez platí (`premiumBand`).
-   */
-  readonly advantage?: readonly BandMeasure[];
 }
-
-/** Míra pásma srovnatelnosti (`Band` v `band.ts`). */
-export type BandMeasure = keyof Band;
 
 /**
  * Průchody po typech. Typ, který ještě není napsaný, průchod nemá: krajina s ním je průměrná,
@@ -98,6 +89,9 @@ export function hasPremiumPass(type: PremiumType): boolean {
 
 /** Úpravy vrstev jednoho pokusu – bez úpravy vrací vrstvu beze změny. */
 export interface PremiumGeneration {
+  /** Průchod mění terén / povrch – vrstvy průměrné krajiny pak nejde použít znovu. */
+  readonly changesTerrain: boolean;
+  readonly changesVegetation: boolean;
   terrain(terrain: Terrain): Terrain;
   vegetation(surface: Uint8Array, terrain: Terrain): Uint8Array;
   fertility(fertility: Uint8Array, terrain: Terrain, surface: Uint8Array): Uint8Array;
@@ -121,28 +115,13 @@ export function premiumGeneration(
     versions,
   };
   return {
+    changesTerrain: pass?.terrain !== undefined,
+    changesVegetation: pass?.vegetation !== undefined,
     terrain: (terrain) => pass?.terrain?.(terrain, ctx) ?? terrain,
     vegetation: (surface, terrain) => pass?.vegetation?.(surface, terrain, ctx) ?? surface,
     fertility: (fertility, terrain, surface) =>
       pass?.fertility?.(fertility, terrain, surface, ctx) ?? fertility,
   };
-}
-
-/**
- * Pásmo srovnatelnosti krajiny s typem (návrh Clauda – výhoda je navíc, start není horší): míry,
- * které typ záměrně zvedá (`PremiumPass.advantage`), nemají horní mez; jejich dolní mez a ostatní
- * míry platí beze změny. Krajina bez typu (a typ bez výhody v pásmu) má pásmo beze změny.
- */
-export function premiumBand(band: Band, type: PremiumType | undefined): Band {
-  if (type === undefined) return band;
-  const advantage = premiumPassOf(type)?.advantage ?? [];
-  if (advantage.length === 0) return band;
-  const lifted: { -readonly [K in keyof Band]: Band[K] } = { ...band };
-  for (const measure of advantage) {
-    const range = band[measure];
-    if (range) lifted[measure] = [range[0], Infinity];
-  }
-  return lifted;
 }
 
 const featuresCache = new WeakMap<Landscape, PremiumFeatures | null>();

@@ -136,7 +136,6 @@ const fertile = {
     const outline = circleOutline(landscape, c.x, c.z, NEAR_CELLS * landscape.cellSizeM);
     return [{ kind: 'meadow', x: c.x, z: c.z, outline }];
   },
-  advantage: ['fertileCells', 'nearGoodMeadowCells', 'villageSiteCells'],
 } satisfies PremiumPass;
 
 // ── Doubravy a bučiny ─────────────────────────────────────────────────────────────────────────
@@ -242,7 +241,6 @@ const floodplain = {
     }
     return [{ kind: 'meadow', x: nearest[0], z: nearest[1], line }];
   },
-  advantage: ['nearMeadowCells', 'nearGoodMeadowCells', 'villageSiteCells'],
 } satisfies PremiumPass;
 
 // ── Teplé jižní svahy ─────────────────────────────────────────────────────────────────────────

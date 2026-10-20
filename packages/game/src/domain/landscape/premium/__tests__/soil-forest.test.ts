@@ -5,12 +5,13 @@ import { NEAR_SITE_RADIUS_CELLS } from '../../band';
 import { generateAcceptedLandscape, generateLandscapeAttempt } from '../../generate';
 import { distanceToMask } from '../../grid';
 import { obstaclesOf } from '../../obstacles/generate';
-import { obstacleKind, obstacleSpecies } from '../../obstacles/query';
+import { obstacleIndex, obstacleKind, obstacleSpecies } from '../../obstacles/query';
 import { OBSTACLE_SOURCES } from '../../obstacles/types';
 import { transferPrecision } from '../../quantize';
 import { buildRelief } from '../../relief';
 import { CURRENT_LAYER_VERSIONS, SURFACE_CODES, type Landscape } from '../../types';
 import { tileCenterWorld, tileOfWorldPoint } from '../../world';
+import { sacredSitesOf } from '../../../village/sacred';
 import { premiumFeaturesOf } from '../generate';
 import type { PremiumSite, PremiumSiteKind, PremiumType } from '../types';
 
@@ -109,6 +110,18 @@ function oakBeechShare(l: Landscape, radiusM: number): number {
   return oakBeech / all;
 }
 
+/** Stromy, které se nikdy nekácí (posvátné duby, stromy hájů – `protectedTrees`), do 600 m od vsi. */
+function protectedNearVillage(l: Landscape): number {
+  const layer = obstaclesOf(l);
+  const c = village(l);
+  let n = 0;
+  for (const id of sacredSitesOf(layer).protectedTrees) {
+    const i = obstacleIndex(layer, id);
+    if (Math.hypot(layer.x[i]! - c.x, layer.z[i]! - c.z) <= 600) n++;
+  }
+  return n;
+}
+
 describe('fertile – velmi úrodná krajina', () => {
   it(
     'úrodnost do 600 m je v průměru aspoň o 12 vyšší než v průměrné krajině téhož seedu',
@@ -176,7 +189,7 @@ describe('oak-beech – doubravy a bučiny', () => {
   );
 
   it(
-    'krajina je jako průměrná, ve vrstvě překážek se mění jen dřeviny lesa u vsi',
+    'krajina je jako průměrná, ve vrstvě překážek se jedle a bříza u vsi mění na buk, duby zůstanou',
     () => {
       for (const { premium, average } of pairs('oak-beech', OBSTACLE_SAMPLE)) {
         expect(premium.heights).toEqual(average.heights);
@@ -192,13 +205,29 @@ describe('oak-beech – doubravy a bučiny', () => {
         const c = village(premium);
         let changed = 0;
         for (let i = 0; i < a.count; i++) {
+          // Duby jsou tytéž stromy jako v průměrné krajině (posvátné duby a háje se nemnoží).
+          expect(obstacleSpecies(a, i) === 'oak').toBe(obstacleSpecies(b, i) === 'oak');
           if (a.look[i] === b.look[i]) continue;
           changed++;
-          // Dřevina se mění jen do 1000 m od vsi (900 m naplno, pak plynule zpět).
+          // Dřevina se mění jen do 1000 m od vsi (900 m naplno, pak plynule zpět), jedle
+          // a bříza na buk.
           expect(Math.hypot(a.x[i]! - c.x, a.z[i]! - c.z)).toBeLessThanOrEqual(1000);
-          expect(['oak', 'beech']).toContain(obstacleSpecies(a, i));
+          expect(['fir', 'birch']).toContain(obstacleSpecies(b, i));
+          expect(obstacleSpecies(a, i)).toBe('beech');
         }
         expect(changed).toBeGreaterThan(1000);
+      }
+    },
+    TIMEOUT_MS,
+  );
+
+  it(
+    'chráněných stromů (posvátné duby a háje) do 600 m je nejvýš 1,5× víc než v průměrné krajině',
+    () => {
+      for (const { premium, average } of pairs('oak-beech', OBSTACLE_SAMPLE)) {
+        expect(protectedNearVillage(premium)).toBeLessThanOrEqual(
+          1.5 * protectedNearVillage(average),
+        );
       }
     },
     TIMEOUT_MS,

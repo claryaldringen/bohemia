@@ -171,10 +171,12 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   prohlížeče nese typ (`LandscapeTransfer.premium`). Test pásma po typech (300 seedů, ≥ 95 %,
   `premium/__tests__/type-band.ts` – skupina typů má vlastní soubor, ostatní
   `generate.test.ts`) se typu zapne sám, až má průchod. Druhy prvků půdy a lesa
-  (`PREMIUM_LAND_KINDS` – louka, les, svah, honitba, brtě) okruh vsi nemají; míry pásma, které
-  typ zvedá (`PremiumPass.advantage`), nemají u prémiové krajiny horní mez (`premiumBand`).
-  **Typy půdy a lesa** (`premium/soil-forest.ts`, landscape.md – Typy půdy a lesa): úrodnost
-  a vegetace v průchodu; doubravy (`premiumForestSpecies`) a brtě (`beeTreeSpots`, zdroj
+  (`PREMIUM_LAND_KINDS` – louka, les, svah, honitba, brtě) okruh vsi nemají. Pásmo s typem:
+  `generateAcceptedLandscape` měří celé pásmo na průměrné krajině pokusu (vrstvy před průchodem),
+  `checkBand` na prémiové krajině jen dolní meze a kontrolu typu; průchod dostane vlastní kopie
+  vrstev. **Typy půdy a lesa** (`premium/soil-forest.ts`, landscape.md – Typy půdy a lesa):
+  úrodnost a vegetace v průchodu; doubravy (`premiumForestLook` – jedle a bříza na buk, duby
+  beze změny) a brtě (`beeTreeSpots`, zdroj
   překážek `beeTree`, kolem 6,5 m volno) v `premium/trees.ts` čtou rozmisťovače překážek podle
   `landscape.premium` – krajina bez typu má vrstvu bit po bitu stejnou. Obrysy prvků
   `premium/geometry.ts` (`cellsOutline`, `circleOutline`); úklid drobných skvrn povrchu je
