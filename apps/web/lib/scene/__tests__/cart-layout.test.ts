@@ -124,6 +124,19 @@ describe('dvoukolák', () => {
     expect(front).toBeGreaterThan(1.7 * k);
   });
 
+  it('táhne jeden vůl mezi ojemi oplení, čtyřkolák pár (oxen.md – Potah)', () => {
+    const p = pose('two-wheel', STRAIGHT, 100);
+    expect(p.team).toBe(1);
+    // vůl uprostřed pod jhem, za jhem o kus jako vůl spřežení
+    expect(p.oxen[0].x).toBeCloseTo(p.yoke.x, 9);
+    expect(p.yoke.z - p.oxen[0].z).toBeCloseTo(TEAM_PARTS.oxYokeZ * k, 9);
+    // oje po stranách vola – vůl (≈ ± 0,35 m) se mezi ně vejde
+    expect(CART_PARTS['two-wheel'].shaftX).toBeGreaterThan(0.35 + 0.05);
+    const four = pose('four-wheel', STRAIGHT, 100);
+    expect(four.team).toBe(2);
+    expect(four.oxen[1].x - four.oxen[0].x).toBeCloseTo(2 * TEAM_PARTS.oxSpan * k, 9);
+  });
+
   it('do kopce: oj pořád pod jhem, korba nakloněná', () => {
     const slope = (_x: number, z: number): number => 0.12 * z;
     const p = pose('two-wheel', STRAIGHT, 230, slope);
@@ -255,6 +268,7 @@ describe('rozměry sedí s modely (tools/blender/wagons_from_0ad.py)', () => {
     }
     for (const part of [
       'wagon2-body',
+      'wagon2-yoke',
       'wagon4-body',
       'wagon4-front',
       'wagon4-pole',
@@ -274,6 +288,12 @@ describe('rozměry sedí s modely (tools/blender/wagons_from_0ad.py)', () => {
     expect(two.max[1]).toBeGreaterThan(TEAM_PARTS.yokeY);
     expect(two.max[1]).toBeLessThan(TEAM_PARTS.yokeY + 0.1);
     expect(two.max[0]).toBeCloseTo(CART_PARTS['two-wheel'].halfWidth, 1);
+    // oplení: oje po stranách vola až k bokům jednoduchého jha (oxen.md – Potah)
+    expect(two.max[0]).toBeGreaterThan(CART_PARTS['two-wheel'].shaftX);
+    const yoke = bounds('wagon2-yoke');
+    expect(yoke.max[0]).toBeGreaterThan(CART_PARTS['two-wheel'].shaftX);
+    expect(yoke.max[0]).toBeLessThan(CART_PARTS['two-wheel'].shaftX + 0.1);
+    expect(-yoke.min[0]!).toBeCloseTo(yoke.max[0]!, 3);
     const front = bounds('wagon4-front');
     expect(front.max[2]).toBeCloseTo(CART_PARTS['four-wheel'].houndsTip.z, 2);
     expect(front.max[1]).toBeGreaterThan(CART_PARTS['four-wheel'].houndsTip.y);

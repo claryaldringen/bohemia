@@ -36,7 +36,8 @@ a mladá bříza z modelů krajiny
 zšedlý rozštípnutý kůl s prasklinou a mechem) a abandoned (opuštěná stavba – padlý kůl
 v kopřivách z `apps/web/public/models/dwellings/decay.glb`, abandonment.md) a zvířata stád do panelu
 ohrady – sheep, goat, pig, cow, chicken
-(modely `apps/web/public/models/fauna/`) a ox (vůl ze spřežení `apps/web/public/models/plough/ox.glb`)
+(modely `apps/web/public/models/fauna/`) a ox (vůl ze spřežení `apps/web/public/models/plough/ox.glb`),
+ard (rádlo z `apps/web/public/models/plough/ard.glb` – páry s rádlem v panelu ohrady volů)
 a rodiny do panelu obydlí (kinship.md) – man, woman, child (chlapec a dívka), elder (starší s holí
 a šedinami; vesničané z `apps/web/public/models/people/`) a ring (bronzový prsten – manželské
 páry) a family (muž, žena a dítě – výměna lidí se sousedem, trade.md).
@@ -1611,6 +1612,26 @@ def icon_balance():
     return True
 
 
+def icon_ard():
+    """Rádlo (oxen.md – Ohrada volů, panel ohrady volů – páry s rádlem): dřevěné rádlo spřežení
+    z `models/plough/ard.glb` (díl `ard` – tools/blender/plough.py) z boku ve 3/4, bez jha a oje."""
+    objs = []
+    for o in place_model("ard", folder=PLOUGH):
+        if o.name.startswith("ard"):
+            objs.append(o)
+        else:
+            bpy.data.objects.remove(o, do_unlink=True)
+    for o in objs:
+        for slot in o.material_slots:
+            bsdf = next((n for n in slot.material.node_tree.nodes if n.type == "BSDF_PRINCIPLED"), None)
+            if bsdf:  # dřevo rádla světlejší, ať je v malé ikoně vidět
+                bsdf.inputs["Emission Color"].default_value = (0.45, 0.3, 0.16, 1)
+                bsdf.inputs["Emission Strength"].default_value = 0.35
+    sun(az=-30, el=50, strength=5.2)
+    camera(world_points(objs), az=-70, el=30, margin=1.0)
+    return True
+
+
 def icon_animal(name, folder=FAUNA, tint=None, turn=-115):
     """Zvíře stáda (model z `models/fauna/`, vůl ze spřežení `models/plough/`) z boku ve 3/4:
     morph targety pózy (krok, pastva) vypnuté – stojí; pomocná koule v GLB vola pryč."""
@@ -2206,6 +2227,7 @@ RESOURCES = {
     "cow": lambda: icon_animal("cow"),
     "chicken": lambda: icon_animal("chicken"),
     "ox": lambda: icon_animal("ox", folder=PLOUGH),
+    "ard": icon_ard,
     "ozim": icon_ozim,
     "jar": icon_jar,
     "flax": icon_flax,

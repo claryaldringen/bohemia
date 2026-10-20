@@ -1156,13 +1156,26 @@ function PenBody({
   }
   const animal = penVariant(details.species);
   const team = details.species === 'team';
+  const oxen = details.oxenVillage;
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
       <div className="flex items-center gap-3">
         {team ? (
-          <Stat icon="ox" name="Voli v ohradě" testId="selection-oxen">
-            {details.oxen}
-          </Stat>
+          <>
+            <Stat icon="ox" name="Voli v ohradě" testId="selection-oxen">
+              {details.oxen}
+            </Stat>
+            {oxen && (
+              <Stat
+                src="/icons/build/ohrada.png"
+                name={`Místa v ohradách volů / kolik volů ves chce (vycvičení ${formatInteger(oxen.trained)}, ve výcviku ${formatInteger(oxen.training)})`}
+                testId="selection-oxen-need"
+                alert={oxen.places < oxen.wanted}
+              >
+                {formatInteger(oxen.places)}/{formatInteger(oxen.wanted)}
+              </Stat>
+            )}
+          </>
         ) : (
           <Stat
             icon={animal.icon}
@@ -1226,23 +1239,47 @@ function PenBody({
           </Tooltip>
         </li>
       </ul>
+      {oxen && (
+        <div className="flex items-center gap-3">
+          <Stat
+            icon="ard"
+            name="Páry volů s rádlem / páry k orbě, které ves chce"
+            testId="selection-oxen-ploughs"
+            alert={oxen.teams < oxen.ploughPairs}
+          >
+            {formatInteger(oxen.teams)}/{formatInteger(oxen.ploughPairs)}
+          </Stat>
+          {(['two-wheel', 'four-wheel'] as const).map((kind) =>
+            oxen.carts[kind] > 0 || oxen.cartTargets[kind] > 0 ? (
+              <Stat
+                key={kind}
+                icon="cart"
+                name={`${CART_NAMES[kind]} – má / chce`}
+                testId={`selection-oxen-carts-${kind}`}
+              >
+                {formatInteger(oxen.carts[kind])}/{formatInteger(oxen.cartTargets[kind])}
+              </Stat>
+            ) : null,
+          )}
+        </div>
+      )}
       {details.team && (
         <div className="flex items-center gap-3">
-          <Stat icon="ox" name="Spřežení – stáří (roky)" testId="selection-team-age">
+          <Stat icon="ox" name="Nejstarší vůl – stáří (roky)" testId="selection-team-age">
             {details.team.ageYears}
           </Stat>
-          <Stat icon="hourglass" name="Spřežení – slouží ještě (roky)" testId="selection-team-left">
+          <Stat
+            icon="hourglass"
+            name="Nejstarší vůl – slouží ještě (roky)"
+            testId="selection-team-left"
+          >
             {details.team.yearsLeft}
           </Stat>
         </div>
       )}
       {details.training && (
         <div className="flex items-center gap-1.5">
-          <Bar
-            value={details.training.progress}
-            name="Výcvik spřežení"
-            testId="selection-training"
-          />
+          <Bar value={details.training.progress} name="Výcvik volů" testId="selection-training" />
           <Stat icon="hourglass" name="Výcvik – zbývá dní" testId="selection-training-days">
             {formatInteger(details.training.daysLeft)}
           </Stat>

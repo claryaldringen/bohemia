@@ -203,6 +203,28 @@ describe('villageNotices – hlad a vymření', () => {
     ]);
   });
 
+  it('voli se nevejdou do ohrady (oxen.md – Kolik volů ves chce)', () => {
+    const oxen = {
+      trained: 2,
+      training: 0,
+      places: 6,
+      wanted: 8,
+      overRoom: true,
+      ploughPairs: 1,
+      teams: 1,
+      ards: 1,
+      carts: { 'two-wheel': 1, 'four-wheel': 0 },
+      cartTargets: { 'two-wheel': 6, 'four-wheel': 0 },
+    };
+    expect(villageNotices(view({ oxen }))).toEqual([
+      { kind: 'oxen-short', tone: 'warn', text: 'Voli se nevejdou do ohrady' },
+    ]);
+    expect(villageNotices(view({ oxen: { ...oxen, overRoom: false } }))).toEqual([]);
+    expect(newNotices(view(), view({ oxen })).map((n) => n.text)).toEqual([
+      'Voli se nevejdou do ohrady',
+    ]);
+  });
+
   it('vymřelá ves žádná upozornění nemá', () => {
     const extinct = { foundedYear: 512, extinctYear: 587, years: 74 };
     expect(
@@ -368,6 +390,36 @@ describe('newNotices – porážka a spřežení (diet.md, oxen.md)', () => {
     // stejný pohled podruhé nic, první načtení nic
     expect(newNotices(after, after)).toEqual([]);
     expect(newNotices(null, after)).toEqual([]);
+  });
+
+  it('voli po kusech (oxen.md): vycvičení, dosloužilí a uhynulí podle počtu', () => {
+    const before = view({ dayIndex: 2000 });
+    const oxen = (
+      day: number,
+      kind: VillageView['chronicle'][number]['kind'],
+      n: number,
+    ): VillageView['chronicle'][number] => ({ day, kind, dateLabel: '', text: '', oxen: n });
+    expect(
+      newNotices(
+        before,
+        view({
+          dayIndex: 2010,
+          chronicle: [oxen(2009, 'ox-died', 2), oxen(2005, 'team-ready', 1)],
+        }),
+      ),
+    ).toEqual([
+      { kind: 'team-ready', tone: 'info', text: 'Vůl je vycvičený' },
+      { kind: 'ox-died', tone: 'warn', text: 'Voli uhynuli – chybělo seno' },
+    ]);
+    expect(
+      newNotices(
+        before,
+        view({
+          dayIndex: 2010,
+          chronicle: [oxen(2003, 'team-retired', 2), oxen(2001, 'team-ready', 3)],
+        }),
+      ).map((n) => n.text),
+    ).toEqual(['Voli jsou vycvičení', 'Voli dosloužili']);
   });
 
   it('zkažené maso a zimní úhyn stáda – fakt (diet.md)', () => {

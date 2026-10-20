@@ -86,18 +86,20 @@ describe('ohrady ve vsi', () => {
     expect(penHerds(ploughing).get(9)).toEqual({ oxen: 0, trainees: 2, cows: 1 });
   });
 
-  it('voli, kteří se na čelo orby nevešli, zůstanou v ohradě (spřežení po ohradách podle id)', () => {
+  it('voli, kteří dnes neorají ani nevozí, zůstanou v ohradě (venku po ohradách podle id)', () => {
     const pens = [
       { ...village.pens![0]!, id: 12 },
       { ...village.pens![0]!, id: 7, oxen: 2 },
       { ...village.pens![0]!, id: 3, oxen: 0 },
     ];
     const two: SceneVillage = { ...ploughing, pens };
-    // na poli jedno spřežení – voli první ohrady s voly (id 7)
-    const herds = penHerds(two, 1);
+    // na poli jeden pár – voli první ohrady s voly (id 7)
+    const herds = penHerds(two, 2);
     expect(herds.get(7)!.oxen).toBe(0);
     expect(herds.get(12)!.oxen).toBe(2);
     expect(herds.get(3)!.oxen).toBe(0);
+    // pár a vůl u dvoukoláku – z druhé ohrady jeden
+    expect(penHerds(two, 3).get(12)!.oxen).toBe(1);
     // bez orby jsou všichni doma, bez údaje v den orby všichni na poli
     expect(penHerds(two, 0).get(7)!.oxen).toBe(2);
     expect([...penHerds(two).values()].map((h) => h.oxen)).toEqual([0, 0, 0]);

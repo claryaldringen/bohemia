@@ -20,6 +20,8 @@ export type NoticeKind =
   | 'full-household'
   /** Stádo se na noc nevejde do ohrad svého druhu (oxen.md – Ohrady podle druhu). */
   | 'pen-short'
+  /** Ves chce víc volů, než se vejde do ohrad volů (oxen.md – Kolik volů ves chce). */
+  | 'oxen-short'
   /** Stupně hladu (population.md – Co hráč vidí): šetří jídlem, hladoví, umírají hlady. */
   | 'rationing'
   | 'hungry'
@@ -125,6 +127,12 @@ const PEN_SHORT_NAMES: Record<HerdSpecies, string> = {
   cow: 'Krávy',
 };
 
+/** Text o volech podle počtu (kronika uložená dřív bez počtu – `legacy`). */
+function oxenText(oxen: number | undefined, legacy: string, one: string, many: string): string {
+  if (oxen === undefined) return legacy;
+  return oxen === 1 ? one : many;
+}
+
 /** Upozornění, která pro ves právě platí (pořadí: problémy, pak zprávy). */
 export function villageNotices(view: VillageView): VillageNotice[] {
   const notices: VillageNotice[] = [];
@@ -162,6 +170,11 @@ export function villageNotices(view: VillageView): VillageNotice[] {
         ? `${PEN_SHORT_NAMES[short[0]!]} se nevejdou do ohrad`
         : 'Stáda se nevejdou do ohrad';
     notices.push({ kind: 'pen-short', tone: 'warn', text });
+  }
+  // ves chce víc volů, než se vejde do ohrad volů – má méně vozů nebo orá pomaleji (oxen.md –
+  // Kolik volů ves chce)
+  if (view.oxen?.overRoom) {
+    notices.push({ kind: 'oxen-short', tone: 'warn', text: 'Voli se nevejdou do ohrady' });
   }
   return notices;
 }
@@ -273,7 +286,12 @@ const CHRONICLE_NOTICES: Partial<
   }),
   // ovcí přes zimu méně, než je třeba na vlnu pro oděv všech (diet.md – Oděv)
   'wool-short': () => ({ kind: 'wool-short', tone: 'warn', text: 'Chybí vlna na oděv' }),
-  'team-ready': () => ({ kind: 'team-ready', tone: 'info', text: 'Spřežení je vycvičené' }),
+  // voli po kusech (oxen.md); kronika uložená dřív – spřežení
+  'team-ready': (entry) => ({
+    kind: 'team-ready',
+    tone: 'info',
+    text: oxenText(entry.oxen, 'Spřežení je vycvičené', 'Vůl je vycvičený', 'Voli jsou vycvičení'),
+  }),
   'bride-from-outside': () => ({
     kind: 'bride-from-outside',
     tone: 'info',
@@ -285,8 +303,16 @@ const CHRONICLE_NOTICES: Partial<
     text: 'Ženich z okolí',
   }),
   'married-away': () => ({ kind: 'married-away', tone: 'info', text: 'Dcera se vdala pryč' }),
-  'team-retired': () => ({ kind: 'team-retired', tone: 'info', text: 'Spřežení dosloužilo' }),
-  'ox-died': () => ({ kind: 'ox-died', tone: 'warn', text: 'Vůl uhynul – chybělo seno' }),
+  'team-retired': (entry) => ({
+    kind: 'team-retired',
+    tone: 'info',
+    text: oxenText(entry.oxen, 'Spřežení dosloužilo', 'Vůl dosloužil', 'Voli dosloužili'),
+  }),
+  'ox-died': (entry) => ({
+    kind: 'ox-died',
+    tone: 'warn',
+    text: `${oxenText(entry.oxen, 'Vůl uhynul', 'Vůl uhynul', 'Voli uhynuli')} – chybělo seno`,
+  }),
   'orchard-renewal-started': () => ({
     kind: 'orchard-renewal',
     tone: 'info',
