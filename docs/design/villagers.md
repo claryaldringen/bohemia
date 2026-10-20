@@ -159,9 +159,10 @@ nemění.
   7. provoz na cestách – člověk z domácnosti, od jejíchž dveří proud vychází (pro vodu i výrostci),
   8. domácí práce, dojení, péče o zvířata a nečinní – kdo zbude (u domu přednostně z toho domu),
   9. starší u domů (u svého domu).
-- **Na koho nezbude člověk, ta postava není.** Dřív měl Vlkov (34 lidí) až o třetinu postav víc,
-  než má lidí – domácí výroba žen jde bokem (mimo práci vsi) a postavy ji ukazovaly navíc. Teď je
-  ve vsi s málo lidmi postav nejvýš tolik, kolik lidí; napřed odpadnou domácí práce a nečinní.
+- **Na koho nezbude člověk, ta postava není.** Domácí výroba žen jde bokem (mimo práci vsi)
+  a postavy ji ukazovaly navíc – ve vsi s málo lidmi tak bylo víc postav, než mohlo být venku
+  lidí. Teď je postav nejvýš tolik, kolik je lidí, kteří ten den můžou být venku; napřed odpadnou
+  domácí práce a nečinní (Vlkov, 34 lidí, v den měření bez provozu na cestách 26 → 20 postav).
 - **Deterministicky:** pořadí lidí je los ze seedu vsi a dne – během herního dne stejné.
   Přiřazení se počítá s rozmístěním postav jednou za herní den (a když dorazí síť pěšin – pak se
   přidá provoz na cestách), nikdy za snímek. Bez lidí ve scéně (dřívější pohled, vývojové
@@ -198,11 +199,14 @@ nemění.
   dítě, starší), role pod portrétem, činnost na jednom řádku, věk, tlačítko domu (vybere obydlí)
   a u pasáka ikona zvířete stáda. Ukázka `/dev/panels?panel=postava` (i `postava-tesar`,
   `postava-pasacek`), ve vsi `/dev/landscape` tlačítko **Lidé** (ukázkoví lidé po domech).
-- **Výkon** (Martin se ptal výslovně): přiřazení jednou za herní den – Vlkov (34 lidí, 19 postav)
-  ≈ 0,03 ms, ves 10× větší ≈ 0,6 ms; rozmístění postav i s přiřazením 0,8 ms (dřív 0,76 ms). Výběr
-  jen při kliknutí (O(postav)), kroužek je jedna instance, žádný nový atribut na vrchol postav
-  (WebGPU limit 8 vertex bufferů), stav vybraného člověka scéna hlásí jen při změně (vejde domů,
-  vyjde, nový den).
+- **Výkon** (Martin se ptal výslovně; Vlkov 20. 10. 2026, Chromium s WebGL 2, M1 Pro): přiřazení
+  jednou za herní den ≈ 0,03 ms (34 lidí), ves 10× větší ≈ 0,6 ms (cíl ≤ 2 ms); rozmístění postav
+  i s přiřazením 0,8 ms (dřív 0,76 ms), přestavba lidí v prohlížeči po novém dni 3–5 ms jako dřív;
+  zápis póz za snímek i s kroužkem ≤ 0,2 ms jako dřív; čas snímku a nejdelší snímek bez změny
+  (klid 16,8 ms, nový den 116,7 ms před i po). Výběr jen při kliknutí (O(postav)), kroužek je
+  jedna instance, žádný nový atribut na vrchol postav (WebGPU limit 8 vertex bufferů), stav
+  vybraného člověka scéna hlásí jen při změně (vejde domů, vyjde, nový den). Lidé navíc ve
+  scéně ≈ 60 B na člověka (Vlkov +2 kB).
 
 | Rozhodnutí (návrh Clauda)                                                        | Proč                                                            |
 | -------------------------------------------------------------------------------- | --------------------------------------------------------------- |
