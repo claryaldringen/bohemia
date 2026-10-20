@@ -1,6 +1,6 @@
 # Výrobní řetězy – celý postup práce je vidět
 
-Stav k 20. 10. 2026 – **návrh ke schválení** (po recenzi). Každé řemeslo i zpracování úrody ukazuje celý
+Stav k 20. 10. 2026 – **schváleno** (Martin: „Schváleno“). Každé řemeslo i zpracování úrody ukazuje celý
 postup od suroviny po výrobek: kdo co nese, kde to zpracuje a kam výrobek putuje – jako
 v Knights and Merchants nebo Stronghold. Kovář vytaví železnou houbu a překove ji na hřivny,
 v liště surovin jsou místo nástrojů hřivny. Přibývá humno (staví hráč) a obilné jámy (kopou

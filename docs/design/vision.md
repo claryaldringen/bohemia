@@ -37,31 +37,32 @@ ne jeden pán.
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                                           | Kdo                              |
-| -------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
-| Hra v prohlížeči, jméno Bohemia, spuštění 1. 1. 2027                                                                 | Martin                           |
-| Roky 500–1500 za jeden skutečný rok, plynou dny a roční období                                                       | Martin                           |
-| Registrace, sdílený svět, vazalství přes pozvánky                                                                    | Martin                           |
-| Kód na GitHubu (veřejné repo), později běh na vlastním Hetzner VPS                                                   | Martin                           |
-| Zatím se vyvíjí a běží jen lokálně, nasazení až později                                                              | Martin                           |
-| Databáze PostgreSQL (na Hetzneru už běží)                                                                            | Martin                           |
-| Rod jako hlavní postava, vazalství není trvalé                                                                       | návrh Clauda, Martin potvrdil    |
-| Stack: Turborepo, Next.js, TypeScript, Drizzle, PM2 + Caddy                                                          | návrh Clauda                     |
-| Herní kalendář: juliánský, roční období podle měsíců, datum malé v rohu ([calendar.md](calendar.md))                 | návrh Clauda, Martin schválil    |
-| Obyvatelstvo a obydlí vesnice: domácnosti, růst, stavby hráče, přestavby obyvateli ([population.md](population.md))  | Martin, čísla návrh Clauda       |
-| Pole a jídlo: společná pole vsi, přílohová soustava, ruční práce, zásoby a nasycení ([fields.md](fields.md))         | Martin, čísla návrh Clauda       |
-| Hřbitov: poloha a velikost ovlivňují úmrtnost, bez ukazatele hygieny ([cemetery.md](cemetery.md))                    | Martin, čísla návrh Clauda       |
-| Les a dřevo: palivo sbírají vesničané, kácí se na stavby, klády z mýcení ([forest.md](forest.md))                    | Martin, čísla návrh Clauda       |
-| Jabloňový sad: staví se po čtvercích jako pole, plodí od 6. roku ([orchard.md](orchard.md))                          | Martin, čísla návrh Clauda       |
-| Štěstí obyvatel a posvátná místa – duby, háje, modla, svatyně ([happiness.md](happiness.md))                         | Martin, čísla návrh Clauda       |
-| Orání rádlem – voli z vlastních telat, ohrada s přístřeškem, seno ([oxen.md](oxen.md))                               | Martin, čísla návrh Clauda       |
-| Strava z obilí, masa a ovoce; dobytek jako zdroj masa ([diet.md](diet.md))                                           | Martin, čísla návrh Clauda       |
-| Hlad zabíjí, ves může vymřít; komu vymřou všechny vsi, začíná znovu ([population.md](population.md))                 | Martin, čísla návrh Clauda       |
-| Nabídka hry (F10): začít znovu jde i se živou vsí, po potvrzení ([population.md](population.md))                     | Martin                           |
-| Prémiové krajiny lidských hráčů, NPC průměrná krajina, kostra světa ([premium-landscapes.md](premium-landscapes.md)) | Martin, podrobnosti návrh Clauda |
-| Hexagonální architektura (porty a adaptéry), hranice hlídá ESLint                                                    | návrh Clauda, Martin schválil    |
-| UI česky, kód anglicky                                                                                               | návrh Clauda                     |
-| Herní čas jako čistá funkce skutečného času, pravidla v `packages/game`, server je autorita                          | návrh Clauda                     |
+| Rozhodnutí                                                                                                                  | Kdo                              |
+| --------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| Hra v prohlížeči, jméno Bohemia, spuštění 1. 1. 2027                                                                        | Martin                           |
+| Roky 500–1500 za jeden skutečný rok, plynou dny a roční období                                                              | Martin                           |
+| Registrace, sdílený svět, vazalství přes pozvánky                                                                           | Martin                           |
+| Kód na GitHubu (veřejné repo), později běh na vlastním Hetzner VPS                                                          | Martin                           |
+| Zatím se vyvíjí a běží jen lokálně, nasazení až později                                                                     | Martin                           |
+| Databáze PostgreSQL (na Hetzneru už běží)                                                                                   | Martin                           |
+| Rod jako hlavní postava, vazalství není trvalé                                                                              | návrh Clauda, Martin potvrdil    |
+| Stack: Turborepo, Next.js, TypeScript, Drizzle, PM2 + Caddy                                                                 | návrh Clauda                     |
+| Herní kalendář: juliánský, roční období podle měsíců, datum malé v rohu ([calendar.md](calendar.md))                        | návrh Clauda, Martin schválil    |
+| Obyvatelstvo a obydlí vesnice: domácnosti, růst, stavby hráče, přestavby obyvateli ([population.md](population.md))         | Martin, čísla návrh Clauda       |
+| Pole a jídlo: společná pole vsi, přílohová soustava, ruční práce, zásoby a nasycení ([fields.md](fields.md))                | Martin, čísla návrh Clauda       |
+| Hřbitov: poloha a velikost ovlivňují úmrtnost, bez ukazatele hygieny ([cemetery.md](cemetery.md))                           | Martin, čísla návrh Clauda       |
+| Les a dřevo: palivo sbírají vesničané, kácí se na stavby, klády z mýcení ([forest.md](forest.md))                           | Martin, čísla návrh Clauda       |
+| Jabloňový sad: staví se po čtvercích jako pole, plodí od 6. roku ([orchard.md](orchard.md))                                 | Martin, čísla návrh Clauda       |
+| Štěstí obyvatel a posvátná místa – duby, háje, modla, svatyně ([happiness.md](happiness.md))                                | Martin, čísla návrh Clauda       |
+| Orání rádlem – voli z vlastních telat, ohrada s přístřeškem, seno ([oxen.md](oxen.md))                                      | Martin, čísla návrh Clauda       |
+| Strava z obilí, masa a ovoce; dobytek jako zdroj masa ([diet.md](diet.md))                                                  | Martin, čísla návrh Clauda       |
+| Hlad zabíjí, ves může vymřít; komu vymřou všechny vsi, začíná znovu ([population.md](population.md))                        | Martin, čísla návrh Clauda       |
+| Nabídka hry (F10): začít znovu jde i se živou vsí, po potvrzení ([population.md](population.md))                            | Martin                           |
+| Prémiové krajiny lidských hráčů, NPC průměrná krajina, kostra světa ([premium-landscapes.md](premium-landscapes.md))        | Martin, podrobnosti návrh Clauda |
+| Výrobní řetězy – celý postup práce vidět, kovář a hřivny, humno, obilné jámy ([production-chains.md](production-chains.md)) | Martin, podrobnosti návrh Clauda |
+| Hexagonální architektura (porty a adaptéry), hranice hlídá ESLint                                                           | návrh Clauda, Martin schválil    |
+| UI česky, kód anglicky                                                                                                      | návrh Clauda                     |
+| Herní čas jako čistá funkce skutečného času, pravidla v `packages/game`, server je autorita                                 | návrh Clauda                     |
 
 ## Otevřené otázky
 
