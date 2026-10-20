@@ -28,8 +28,8 @@ import { claimedObstacles, planWoodFrom, takeWood, woodLogs, type WoodPlan } fro
 import { planCrops, ploughToHoe } from './year-plan';
 
 // Ohrada volů a orba rádlem (oxen.md, schváleno 18. 10. 2026; voli po kusech – Martin 20. 10. 2026:
-// „Ať to funguje jako se stády – ohrada pro voly udrží určitý počet spřežení a když bude vesnice
-// potřebovat víc vozů, ohrada se musí zvětšit. Zároveň to udělej tak, že rádlo táhnou 2 voli,
+// „Ať to funguje jako se stády - ohrada pro voly udrží určitý počet spřežení a když bude vesnice
+// potřebovat víc vozů, ohrada se musí zvětšit. Zaároveň to udělej tak, že rádlo táhnou 2 voli,
 // 4kolový vůz také dva voli a dvoukolový vůz jeden vůl.“). Ohrada je stavba po čtvercích louky pro
 // jeden druh zvířat (40 člověkodní a 6 stromů na čtverec, nejvýš 4 čtverce – oxen.md, Ohrady podle
 // druhu; pens.ts). Ohrada volů pojme 6 volů na čtverec i s telaty ve výcviku; voli se počítají po

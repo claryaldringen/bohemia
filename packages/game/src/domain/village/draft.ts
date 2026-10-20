@@ -12,7 +12,7 @@ import {
 import type { CartDemand, CartKind, DraftState, VillageState } from './types';
 
 // Kolik volů a vozů ves chce (oxen.md – Kolik volů ves chce, wagons.md – Kolik vozů ves chce;
-// Martin 20. 10. 2026: „Vesnice určitě potřebuje více vozů. Ať to funguje jako se stády – ohrada
+// Martin 20. 10. 2026: „Vesnice určitě potřebuje více vozů. Ať to funguje jako se stády - ohrada
 // pro voly udrží určitý počet spřežení a když bude vesnice potřebovat víc vozů, ohrada se musí
 // zvětšit.“). Páry k rádlům podle plánu osevu (1. 9.), vozy podle loňského provozu (rok vozů od
 // 1. 11.): další vůz se vyplatí, když loni ušetřil (nebo by ušetřil) víc práce, než stojí – práce

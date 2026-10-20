@@ -816,9 +816,9 @@ rozhraní částí v
   tesaře přeskakuje. Dřevěné nářadí: `craftNeeds` / `craftTargets` / `craftCoverage.woodTools?`
   (jen když nějaké je) a `woodToolsLaborFactor` násobí práci vsi s `villageLaborFactor`
   (`villageProductivity` v `simulate.ts` – i plán osevu). **Vozy** (`carts.ts`):
-  `VillageState.carts` (`Cart` – druh, `builtDay`), `cartTargets` (dvoukolák na spřežení,
-  čtyřkolák s hotovou stezkou), `retireCarts` (10 let, `cart-worn-out`); svoz – `haulCartsToday`
-  (dvoukoláky doma se spřežením, ne ve dny orby), `planTaskHauls` v `simulate.ts` (sklizeň –
+  `VillageState.carts` (`Cart` – druh, `builtDay`), `cartTargets` (vozy, které se vyplatí –
+  `draft.ts`, Ohrada volů níž), `retireCarts` (10 let, `cart-worn-out`); svoz – `haulCartsToday`
+  (dvoukoláky doma s volem, který neorá – ve dny orby jdou páry napřed), `planTaskHauls` v `simulate.ts` (sklizeň –
   `harvestCarryShare`, seč – `haulShare.hay`; `haulPlan` / `haulProgress` / `haulAvailable` –
   nejvýš podíl celé úlohy, převzaté v `CropWork.hauled`, `HayMowing.hauled`), `haulLogs` (klády
   ke stavbám – `fellingHaulable`, `ConstructionWood.hauled`), rozdělení práce `haul` s
@@ -1121,7 +1121,8 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   `herdRoom` (pens.ts – ohrady svého druhu `penCapacity` + pár kusů u domů `homesteadRoom`) – přes
   zimu nejvýš `roomForWinter` (místa ÷ (1 + mláďata na kus)), chovný pár vždy, čekající kusy
   `winterWait` jen do volných míst; **chovné stádo podle potřeby** `sizeHerdsToNeed` – pár a krávy
-  `breedingCows` (husbandry.ts: kráva na 2 domácnosti, 3 na ohradu spřežení), pak **rovnovážné hospodaření** (diet.md – Rovnovážné
+  `breedingCows` (husbandry.ts: kráva na 2 domácnosti, s ohradou volů 3 + kráva na 4 voly –
+  `oxenCows`), pak **rovnovážné hospodaření** (diet.md – Rovnovážné
   hospodaření; Martin 19. 10. 2026: „aby byla sytá, měla ± ideální kombinaci stravy, ale aby jí
   zároveň zbylo co nejvíc volného času na rozvoj“): cena jídla v práci `foodCosts` (`economy.ts` –
   čd na kg obilí a luštěnin z dílů v osevu, sena z plánu seče; ve vsi `villageFoodCosts`
@@ -1254,6 +1255,24 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   `TEAM_TRAVEL`) násobí denní kapacitu v `fieldTasks`; plán osevu `plannedFurrowEfficiency`.
   Postup po dílech zná úlohu `plough`
   (`field-progress.ts`), rozdělení práce posílá činnosti `plough`, `mow`, `slaughter`, `pen`.
+- **Ohrada volů a kolik volů a vozů ves chce** ([oxen.md](docs/design/oxen.md) – Ohrada volů,
+  voli po kusech a potah, Kolik volů ves chce; [wagons.md](docs/design/wagons.md) – Kolik vozů ves
+  chce; Martin 20. 10. 2026: „Ať to funguje jako se stády - ohrada pro voly udrží určitý počet
+  spřežení a když bude vesnice potřebovat víc vozů, ohrada se musí zvětšit.“): ohrada spřežení je
+  ohrada volů (druh `team`, hráč „Ohrada volů“ / „Voli“), voli po kusech `Pen.oxen` (`Ox.trainedDay`
+  – výcvik 2 roky, služba 10 let), 6 volů na čtverec (`PEN_PLACES_PER_SQUARE.team`, `oxPlaces`),
+  rádla `VillageState.ards`, potah `DRAFT_OXEN` (rádlo 2, čtyřkolák 2, dvoukolák 1); páry s rádlem
+  `ableTeams` / `ploughPairsHome`, výcvik `oxenTraining` / `trainTeamsWhenReady` k cíli
+  `oxenTrainingTarget`, převod starých vsí `withOxen` (spřežení = 2 voli, výcvik = 2 telata – čtení
+  přes `oxenOf` funguje i bez převodu). `draft.ts`: páry k rádlům k 1. 9. (`DraftState.ploughPairs`
+  – nejméně párů, se kterými plán osevu vybere totéž jako bez meze orby), rok vozů
+  (`DraftState.demand` – každý den úspory vozů z dnešního nošení, jízd pro uhlí a vodu
+  a čtyřkoláků výprav, `addCartDemand`, `addExpeditionDemand`; 1. 11. `closeCartYear` →
+  `lastYear` s cenou vola `oxYearCost`), volba `chooseCarts` (úspora mínus cena vozu na 10 let
+  a volů navíc, v místech ohrad) → `draftChoice`, `cartTargets`, `missingCart`, `wantedOxen`
+  (víc z párů a volů vozů – voli se sdílí), upozornění `oxenOverRoom` („Voli se nevejdou do
+  ohrady“), krávy `oxenCows`. Web: `VillageView.oxen` (`VillageOxen`), panel ohrady volů (ikona
+  `resources/ard.png`), `SceneVillage.ploughPairs`.
 - **Hráč staví kdy chce** (Martin) – stavbu smí zablokovat jen **cena předem** (`costs.ts`:
   `BUILD_COSTS`, `buildAffordability`): suroviny ze zásob (dnes žádné) a u obydlí **lidé
   k osídlení** (`settlers` = `availableSettlers` v `households.ts`: možné nové domácnosti
@@ -1794,8 +1813,9 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   jako u kopání – `workedParts`), na něm **pruh u čáry práce** ve stejném rámci jako obtisk
   (`workFrame`, `workSteps` – řady podél `rowDirection`, napříč od vsi; `frontStrip`: končí na
   čáře, nejvýš 4 řady zpět, aspoň 2 – `ploughedTo`, `stripRows`, řady po 2,5 m). Jen čelo dne,
-  ne všechny dnešní díly (0,3 ha ≈ 13 čtverců za ≈ 86 s by voly hnalo 13× rychleji). Kolik ohrad
-  s voly, tolik spřežení (`ploughTeamCount`): každé na jiném dílu fronty, kam jeho dráha i se
+  ne všechny dnešní díly (0,3 ha ≈ 13 čtverců za ≈ 86 s by voly hnalo 13× rychleji). Kolik párů
+  s rádlem doma (`SceneVillage.ploughPairs`), tolik spřežení (`ploughTeamCount`; páry jen z volů,
+  kteří netáhnou vůz – `draftTeamsToday`, v ohradě stojí zbytek – `penHerds(…, oxenOut)`): každé na jiném dílu fronty, kam jeho dráha i se
   souvratěmi nesahá (obdélníky `footprint`, `overlaps`), jinak dvě na jednom dílu v půlkách
   (`SHARED_STRIP_M`, stejná dráha posunutá napříč – v zákrytu), kdo se nevejde, zůstane v ohradě
   (`penHerds(village, teamsOut)`). Natočené pole v osách mřížky (`rowDirection` natočených dílů).
@@ -1833,7 +1853,8 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
 - **Vozy se spřežením** ([docs/design/wagons.md](docs/design/wagons.md) – modely fáze 3a, ve vsi
   fáze 3; ukázka **Vozy** na `/dev/buildings`): dvoukolák a čtyřkolák z 0 A.D. převádí
   `tools/blender/wagons_from_0ad.py` (vlastní parser skinovaného COLLADA, model rozdělený podle
-  kostí, koňský postroj pryč, vlastní oj ke jhu, náklad modelovaný ve skriptu) do
+  kostí, koňský postroj pryč, vlastní oj ke jhu – dvoukolák oplení a jednoduché jho `wagon2-yoke`
+  pro jednoho vola, `composeDraft(…, 1)`, `CartPose.team` –, náklad modelovaný ve skriptu) do
   `public/models/wagons/wagons.glb` – díly `wagon2-body`, `wagon4-body`, `wagon4-front` (předek na
   čepu), `wagon4-pole`, `wagon-wheel` (levé kolo, pravé = otočené o 180°) a náklad
   `wagon{2,4}-{hay,sheaves,logs,goods,water}` (voda = stojící sudy s víkem a provazem). **Kola se
