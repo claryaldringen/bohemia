@@ -1,5 +1,4 @@
 import { detCos, detSin, length2, tileCenterWorld, type Landscape } from '../../landscape';
-import { milirPosition } from '../crafts';
 import { rotatedSquareCorners, rotationCosSin, rotationTurn } from '../square-grid';
 import {
   DWELLING_CLEARING_M,
@@ -139,7 +138,7 @@ export interface PathVillage {
    * Hotová obydlí (id obydlí) i staveniště (id stavby). `inhabited` – bydlí v něm někdo (bez
    * údaje ano), `since` – herní den, od kdy stojí (dostavění / zahájení stavby; bez údaje
    * odjakživa), `plot` – pozemek polozemnice (střed políčka a strana), `craft` – řemeslná dílna
-   * (u uhlíře stojí kus od zemnice milíř – crafts.md).
+   * (crafts.md).
    */
   dwellings: readonly {
     id: number;
@@ -247,6 +246,11 @@ export interface PathVillage {
    * (práce `meadow` v rozdělení práce). Bez údaje žádné.
    */
   hayMeadows?: readonly PathSquare[];
+  /**
+   * Milíře uhlířů (crafts.md – Milíř u skácených buků) – samostatné stavby, střed (m): pěšina kupu
+   * obejde, k milíři se chodí za prací dne (uhlíř ze zemnice, pro uhlí z kovárny). Bez údaje žádné.
+   */
+  kilns?: readonly { x: number; z: number }[];
 }
 
 export interface PathNetworkInput {
@@ -598,7 +602,14 @@ export function pathNetworkKey(village: PathVillage): string {
     ...(woods.length > 0 ? [woods] : []),
     // stromy u cest (roads.md – Stromy u cesty zrychlí chůzi) – bez nich klíč beze změny
     ...(lining ? [lining] : []),
+    // milíře uhlířů (crafts.md – Milíř u skácených buků) – bez nich klíč beze změny
+    ...((village.kilns?.length ?? 0) > 0 ? [kilnsKey(village.kilns!)] : []),
   ]);
+}
+
+/** Klíč milířů pro síť pěšin – středy na decimetry. */
+export function kilnsKey(kilns: readonly { x: number; z: number }[]): string {
+  return kilns.map((k) => `${k.x.toFixed(1)},${k.z.toFixed(1)}`).join(';');
 }
 
 /** Bod v polovině lomené čáry. */
@@ -2307,12 +2318,12 @@ export function villageBuildings(v: PathVillage): {
     dwellings.set(d.id, { position: d.position, box: dwellingBox(d) });
   }
   const all: Building[] = [...dwellings.values()];
-  // milíř uhlíře kus od zemnice – pěšina ho obejde (crafts.md)
-  for (const d of v.dwellings) {
-    if (d.craft !== 'burner') continue;
+  // milíř uhlíře – samostatná stavba u skácených buků, pěšina ho obejde (crafts.md – Milíř
+  // u skácených buků)
+  for (const k of v.kilns ?? []) {
     const half = MILIR_RADIUS_M;
     all.push({
-      position: milirPosition(d.position),
+      position: { x: k.x, z: k.z, rotation: 0 },
       box: { minX: -half, maxX: half, minZ: -half, maxZ: half },
     });
   }

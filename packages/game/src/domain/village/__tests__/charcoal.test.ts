@@ -9,17 +9,24 @@ import {
 } from '../../landscape';
 import { foundVillage } from '../actions';
 import {
+  charcoalFetchKg,
   charcoalStockKg,
+  charcoalUsePerDay,
   homeKilnCenter,
-  charcoalDrawKg,
   kilnCharcoalKg,
+  kilnCycleDays,
   kilnLeadDays,
+  kilnRemnantOvergrowth,
   kilnWalkFactor,
   migrateKiln,
+  recordCharcoalUse,
   startKiln,
+  startsNextKiln,
   takeCharcoal,
+  updateKilnRemnants,
 } from '../charcoal';
 import {
+  burnerPlans,
   craftStocks,
   newWorkshop,
   restingCrafters,
@@ -28,11 +35,21 @@ import {
   workCrafts,
   type WorkshopDay,
 } from '../crafts';
+import { findKilnSite } from '../kiln-site';
 import { felledTreeStage, obstacleChangesAt, plantOnStump, saplingGrowth } from '../obstacles';
+import { checkKilnSite, type PlacementVillage } from '../placement';
 import { NO_CRAFTS } from '../productivity';
-import { BEECH_PLANTING, CART_JOBS, CHARCOAL_KILN, CRAFT_BASE } from '../rules';
+import {
+  BEECH_PLANTING,
+  CART_JOBS,
+  CHARCOAL_BALANCE,
+  CHARCOAL_KILN,
+  CRAFT_BASE,
+  KILN_SITE,
+  MILIR,
+} from '../rules';
 import { advanceVillage } from '../simulate';
-import type { Craft, Person, Position, VillageState } from '../types';
+import type { CharcoalKiln, Craft, Person, Position, VillageState } from '../types';
 import { isTreeStanding, nearestMatureTrees, reservedTrees } from '../wood';
 import { makeLandscape } from './placement-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
@@ -43,9 +60,9 @@ const DAY = at(600, 10, 1);
 const YEAR = 365.25;
 const BURNER = 50;
 const SMITH = 51;
-/** Uhlíř 40 m na východ – milíř u zemnice (−9, +3 m) ≈ 29 m od okraje lesa. */
+/** Uhlíř 40 m na východ – první buky ≈ 20 m od zemnice, milíř uprostřed dávky. */
 const NEAR_FOREST = { x: 40, z: 0, rotation: 0 };
-/** Uhlíř daleko od lesa – první buk ≈ 270 m od milíře u dílny, milíř bude v lese. */
+/** Uhlíř daleko od lesa – první buk ≈ 260 m od zemnice. */
 const FAR_FROM_FOREST = { x: -200, z: 0, rotation: 0 };
 
 /** Les na východ: stromy po 4 m od x = 60 m do 340 m, buky (sudé id) a duby (liché) střídavě. */
@@ -116,6 +133,8 @@ function village(burnerAt: Position = NEAR_FOREST, smith = true, day = DAY): Vil
 
 const burnerOf = (s: VillageState): NonNullable<VillageState['dwellings'][number]['workshop']> =>
   s.dwellings.find((d) => d.id === BURNER)!.workshop!;
+const kilnsOf = (s: VillageState): CharcoalKiln[] => burnerOf(s).kilns ?? [];
+const firstKiln = (s: VillageState): CharcoalKiln | undefined => kilnsOf(s)[0];
 
 /** Dny práce dílen (bez zbytku simulace) – vrátí práci uhlíře po dnech. */
 function burnerDays(s: VillageState, days: number, layer: ObstacleLayer | null): WorkshopDay[] {
@@ -129,10 +148,10 @@ function burnerDays(s: VillageState, days: number, layer: ObstacleLayer | null):
   return out;
 }
 
-/** Dny práce dílen, dokud milíř uhlíře není vypálený – vrátí práci uhlíře po dnech. */
+/** Dny práce dílen, dokud první milíř uhlíře není vypálený – vrátí práci uhlíře po dnech. */
 function untilBurnt(s: VillageState, layer: ObstacleLayer | null): WorkshopDay[] {
   const out: WorkshopDay[] = [];
-  for (let i = 1; i <= 400 && burnerOf(s).kiln?.stage !== 'draw'; i++) {
+  for (let i = 1; i <= 400 && firstKiln(s)?.stage !== 'draw'; i++) {
     out.push(
       ...workCrafts(s, s.lastDay + i, layer, NO_CRAFTS, 1).filter((w) => w.dwellingId === BURNER),
     );
@@ -141,9 +160,10 @@ function untilBurnt(s: VillageState, layer: ObstacleLayer | null): WorkshopDay[]
   return out;
 }
 
-/** Vypálený milíř s celou dávkou (15 buků, 1,8 t uhlí) u dílny – bez polohy buků. */
-const burntKiln = (): NonNullable<ReturnType<typeof burnerOf>['kiln']> => ({
-  site: null,
+/** Vypálený milíř s celou dávkou (15 buků, 1,8 t uhlí) u dávky na východ – bez polohy buků. */
+const burntKiln = (id = 90): CharcoalKiln => ({
+  id,
+  site: { x: 70, z: 0 },
   trees: Array.from({ length: CHARCOAL_KILN.trees }, () => ({ id: null, cost: 2 })),
   stage: 'draw',
   prepared: CHARCOAL_KILN.trees,
@@ -151,39 +171,61 @@ const burntKiln = (): NonNullable<ReturnType<typeof burnerOf>['kiln']> => ({
   charcoalKg: CHARCOAL_KILN.trees * 120,
 });
 
-describe('uhlíř – buky do milíře (crafts.md – Uhlíř)', () => {
-  it('vybere nejbližší dospělé nevyhrazené buky a vyhradí je', () => {
+/** Změřená spotřeba kovářů `perDay` kg za den za celý rok (crafts.md – Rovnováha). */
+function measuredUse(s: VillageState, perDay: number, day: number): void {
+  const size = CHARCOAL_BALANCE.bucketDays;
+  const buckets = Math.floor(CHARCOAL_BALANCE.windowDays / size);
+  s.charcoalUse = {
+    from: day - 10,
+    currentKg: perDay * 10,
+    buckets: Array.from({ length: buckets }, () => perDay * size),
+  };
+}
+
+describe('milíř u skácených buků (crafts.md – Milíř u skácených buků)', () => {
+  it('vybere dávku buků u zemnice a milíř postaví uprostřed nich', () => {
     const s = village();
     burnerDays(s, 1, forest);
-    const kiln = burnerOf(s).kiln!;
-    expect(kiln.site).toBeNull();
+    const kiln = firstKiln(s)!;
+    expect(kiln.id).toBeDefined();
+    expect(kiln.startDay).toBe(DAY + 1);
     expect(kiln.trees).toHaveLength(CHARCOAL_KILN.trees);
     const ids = kiln.trees.map((t) => t.id!);
     for (const id of ids) expect(obstacleSpecies(forest, obstacleIndex(forest, id))).toBe('beech');
-    // právě ty nejbližší buky k milíři u dílny
+    // dávka = buky nejblíž prvnímu buku u zemnice
+    const changes = obstacleChangesAt(s, DAY);
+    const isBeech = (layer: ObstacleLayer, i: number): boolean =>
+      obstacleSpecies(layer, i) === 'beech';
+    const [first] = nearestMatureTrees(forest, changes, NEAR_FOREST, 1, new Set(), isBeech);
     const nearest = nearestMatureTrees(
       forest,
-      obstacleChangesAt(s, DAY),
-      homeKilnCenter(NEAR_FOREST),
+      changes,
+      first!,
       CHARCOAL_KILN.trees,
       new Set(),
-      (layer, i) => obstacleSpecies(layer, i) === 'beech',
+      isBeech,
     ).map((t) => t.id);
     expect(ids).toEqual(nearest);
+    // milíř stojí uprostřed skácených buků
+    const xs = ids.map((id) => forest.x[obstacleIndex(forest, id)]!);
+    const zs = ids.map((id) => forest.z[obstacleIndex(forest, id)]!);
+    const mean = (v: number[]): number => v.reduce((a, b) => a + b, 0) / v.length;
+    expect(kiln.site!.x).toBeCloseTo(mean(xs), 1);
+    expect(kiln.site!.z).toBeCloseTo(mean(zs), 1);
     const reserved = reservedTrees(s);
     for (const id of ids) expect(reserved.has(id)).toBe(true);
-    // blízké buky – kácení a dovoz bez přirážky
+    // dřevo se k milíři nosí jen pár metrů – kácení a dovoz bez přirážky
     for (const t of kiln.trees) expect(t.cost).toBeCloseTo(2, 9);
   });
 
   it('jiný uhlíř vyhrazené buky nekácí', () => {
     const s = village();
     addWorkshop(s, 'burner', 52, { x: 40, z: -20, rotation: 0 }, 80);
-    // dva kováři – uhlí je potřeba na dva milíře
-    addWorkshop(s, 'smith', 53, { x: 40, z: 70, rotation: 0 }, 90);
     burnerDays(s, 1, forest);
-    const first = burnerOf(s).kiln!.trees.map((t) => t.id);
-    const second = s.dwellings.find((d) => d.id === 52)!.workshop!.kiln!.trees.map((t) => t.id);
+    const first = firstKiln(s)!.trees.map((t) => t.id);
+    const second = s.dwellings
+      .find((d) => d.id === 52)!
+      .workshop!.kilns![0]!.trees.map((t) => t.id);
     expect(first.filter((id) => second.includes(id))).toEqual([]);
   });
 
@@ -191,8 +233,137 @@ describe('uhlíř – buky do milíře (crafts.md – Uhlíř)', () => {
     const s = village();
     burnerDays(s, 2, oaksOnly);
     expect(burnerOf(s).activity).toBe('no-wood');
-    expect(burnerOf(s).kiln ?? null).toBeNull();
+    expect(kilnsOf(s)).toEqual([]);
     expect(s.felledTrees ?? []).toEqual([]);
+  });
+
+  it('místo milíře – ne na poli, na cestě, u domů ani u jiného milíře, ne ve vodě a na svahu', () => {
+    const landscape = makeLandscape({
+      size: 128,
+      // políčko (40, 64) je voda, políčka x ≥ 80 stoupají po 2 m na metr
+      surface: (x, y) => (x === 40 && y === 64 ? 'water' : 'meadow'),
+      height: (x) => (x >= 80 ? (x - 80) * 30 : 0),
+    });
+    const empty: PlacementVillage = { dwellings: [], constructions: [], parts: [] };
+    const center = { x: 64, z: 7 };
+    expect(checkKilnSite(landscape, empty, center, forest).ok).toBe(true);
+    // čtverec pole pod kruhem milíře (políčko 68, 64: x 60–75, z 0–15)
+    const field = { ...empty, parts: [{ cell: { x: 68, y: 64 } }] };
+    expect(checkKilnSite(landscape, field, center, forest).reason).toBe('Překrývá se s polem.');
+    // obydlí do KILN_SITE.homeM
+    const home = {
+      ...empty,
+      dwellings: [
+        { type: 'zemnice' as const, position: { x: 64, z: 7 + KILN_SITE.homeM - 1, rotation: 0 } },
+      ],
+    };
+    expect(checkKilnSite(landscape, home, center, forest).reason).toBe('Milíř nesmí stát u domů.');
+    // pevná cesta kolem středu
+    const road = {
+      ...empty,
+      walkRoads: [
+        {
+          points: [
+            { x: 50, z: 9 },
+            { x: 80, z: 9 },
+          ],
+          grade: 'trodden' as const,
+        },
+      ],
+    };
+    expect(checkKilnSite(landscape, road, center, forest).reason).toBe(
+      'Milíř nesmí stát na cestě.',
+    );
+    // jiný milíř
+    const kiln = { ...empty, kilns: [{ x: 75, z: 7 }] };
+    expect(checkKilnSite(landscape, kiln, center, forest).reason).toBe('Stojí tu jiný milíř.');
+    // voda a svah
+    expect(checkKilnSite(landscape, empty, { x: -352, z: 7 }, forest).ok).toBe(false);
+    expect(checkKilnSite(landscape, empty, { x: 250, z: 7 }, forest).ok).toBe(false);
+  });
+
+  it('střed dávky na poli – milíř stojí na nejbližším volném místě vedle', () => {
+    const landscape = makeLandscape({ size: 128 });
+    const s = village();
+    const center = { x: 67, z: 7 };
+    expect(findKilnSite(s, DAY, landscape, forest, center)).toEqual(center);
+    // pole na políčku pod středem
+    s.parts.push({
+      id: 500,
+      fieldId: 501,
+      areaM2: 225,
+      distanceM: 50,
+      naturalFertility: 50,
+      fertilityShare: 1,
+      bonusUntilDay: null,
+      state: 'fallow',
+      sownYears: 0,
+      fallowSinceDay: DAY - 400,
+      foundingCost: 0,
+      foundingDone: 0,
+      surface: 'meadow',
+      cell: { x: 68, y: 64 },
+    });
+    const site = findKilnSite(s, DAY, landscape, forest, center);
+    expect(site).not.toEqual(center);
+    expect(checkKilnSite(landscape, null, site, forest).ok).toBe(true);
+    const radius = MILIR.clearingRadiusM + KILN_SITE.marginM;
+    // kruh milíře mimo políčko pole
+    const outside =
+      site.x + radius <= 60 ||
+      site.x - radius >= 75 ||
+      site.z + radius <= 0 ||
+      site.z - radius >= 15;
+    expect(outside).toBe(true);
+    expect(Math.hypot(site.x - center.x, site.z - center.z)).toBeLessThanOrEqual(KILN_SITE.searchM);
+  });
+
+  it('uhlíř chodí k milíři ze zemnice – přirážka za chůzi na veškerou práci u milíře', () => {
+    const s = village(FAR_FROM_FOREST);
+    const days = burnerDays(s, 1, forest);
+    const kiln = firstKiln(s)!;
+    for (const t of kiln.trees) expect(t.cost).toBeCloseTo(2, 9);
+    const factor = kilnWalkFactor(kiln, FAR_FROM_FOREST);
+    expect(factor).toBeGreaterThan(1.1);
+    // práce dne jde na kácení prvního buku – efektivně 1,5 / přirážka
+    expect(kiln.done).toBeCloseTo(1.5 / factor, 9);
+    expect(days[0]!.felling).toBeCloseTo(1.5, 9);
+    // blízko zemnice přirážka není
+    const near = village();
+    burnerDays(near, 1, forest);
+    expect(kilnWalkFactor(firstKiln(near)!, NEAR_FOREST)).toBe(1);
+  });
+
+  it('s krajinou měří chůzi ze zemnice k milíři po cestách s půdou', () => {
+    const s = village(FAR_FROM_FOREST);
+    const after = advanceVillage(s, DAY + 1, forest, makeLandscape({ size: 128 }));
+    const kiln = firstKiln(after)!;
+    const straight = Math.hypot(kiln.site!.x - FAR_FROM_FOREST.x, kiln.site!.z - FAR_FROM_FOREST.z);
+    // na louce bez cest je chůze aspoň vzdušná vzdálenost
+    expect(kiln.walkM).toBeGreaterThanOrEqual(straight - 0.01);
+    expect(kiln.walkM).toBeLessThan(straight * 1.2);
+    expect(kilnWalkFactor(kiln, FAR_FROM_FOREST)).toBeGreaterThan(1.1);
+  });
+
+  it('práce u milíře jde do rozdělení práce dne k milíři (id milíře)', () => {
+    const s = village(FAR_FROM_FOREST);
+    for (let i = 1; i <= 400; i++) {
+      const next = advanceVillage(s, DAY + i, forest);
+      Object.assign(s, next);
+      const shares = s.labor?.shares ?? [];
+      const craft = shares.find((x) => x.activity === 'craft' && x.target.kind === 'kiln');
+      if (craft) {
+        const kiln = firstKiln(s)!;
+        expect(craft.target).toMatchObject({
+          kind: 'kiln',
+          id: BURNER,
+          kiln: kiln.id,
+          ...kiln.site,
+        });
+        return;
+      }
+    }
+    throw new Error('Uhlíř u milíře nepracoval.');
   });
 });
 
@@ -201,7 +372,7 @@ describe('uhlíř – práce po fázích', () => {
     // bez kováře – uhlí nikdo neodebírá, práce jde jen do milíře
     const s = village(NEAR_FOREST, false);
     const days = untilBurnt(s, forest);
-    expect(burnerOf(s).kiln?.stage).toBe('draw');
+    expect(firstKiln(s)?.stage).toBe('draw');
     const sum = (key: 'felling' | 'making' | 'planting'): number =>
       days.reduce((total, d) => total + (d[key] ?? 0), 0);
     const n = CHARCOAL_KILN.trees;
@@ -213,12 +384,14 @@ describe('uhlíř – práce po fázích', () => {
       6,
     );
     // uhlí zůstává ve vypáleném milíři – u kováře nic, zásoba vsi 1,8 t
-    expect(kilnCharcoalKg(burnerOf(s).kiln)).toBe(n * 120);
+    expect(kilnCharcoalKg(firstKiln(s))).toBe(n * 120);
     expect(craftStocks(s).charcoalKg).toBe(0);
     expect(charcoalStockKg(s)).toBe(n * 120);
     expect(days.every((d) => d.producedKg === 0)).toBe(true);
     // buky skácené – pařezy, které uhlíř zapsal k obnově
     expect(s.felledTrees).toHaveLength(n);
+    // doba cyklu se změřila – od výběru buků po vypálení
+    expect(burnerOf(s).kilnCycles).toEqual([days.length]);
   });
 
   it('pálící milíř zabere celý den – uhlíř ho hlídá ve dne i v noci 8 dní', () => {
@@ -228,142 +401,135 @@ describe('uhlíř – práce po fázích', () => {
       const [burner] = workCrafts(s, DAY + i, forest, NO_CRAFTS, 1);
       if (burnerOf(s).activity === 'burning') {
         burningDays++;
-        // hlídání vezme celou práci dne – nic se nekácí ani nesází
+        // hlídání vezme celou práci dne – nic se nekácí, nesází ani nevytahá
         expect(burner!.making).toBeCloseTo(1.5, 9);
         expect(burner!.felling).toBe(0);
+        expect(burner!.kilns).toHaveLength(1);
       }
-      if (burnerOf(s).kiln?.stage === 'draw') break;
+      if (firstKiln(s)?.stage === 'draw') break;
     }
     expect(burningDays).toBe(CHARCOAL_KILN.burnDays);
   });
-
-  it('daleko od lesa staví milíř v lese u dávky a za chůzi platí přirážku', () => {
-    const s = village(FAR_FROM_FOREST);
-    const days = burnerDays(s, 1, forest);
-    const kiln = burnerOf(s).kiln!;
-    expect(kiln.site).not.toBeNull();
-    // milíř stojí u prvního buku, ostatní buky dávky jsou blízko něj
-    const first = kiln.trees[0]!.id!;
-    const index = obstacleIndex(forest, first);
-    expect(kiln.site).toEqual({ x: forest.x[index]!, z: forest.z[index]! });
-    for (const t of kiln.trees) expect(t.cost).toBeCloseTo(2, 9);
-    const factor = kilnWalkFactor(kiln, FAR_FROM_FOREST);
-    expect(factor).toBeGreaterThan(1.1);
-    // práce dne jde na kácení prvního buku – efektivně 1,5 / přirážka
-    expect(kiln.done).toBeCloseTo(1.5 / factor, 9);
-    expect(days[0]!.kilnSite).toEqual(kiln.site);
-  });
-
-  it('s krajinou měří chůzi k lesnímu milíři a dovoz dřeva přes výpočet chůze', () => {
-    const s = village(FAR_FROM_FOREST);
-    const after = advanceVillage(s, DAY + 1, forest, makeLandscape({ size: 128 }));
-    const kiln = burnerOf(after).kiln!;
-    expect(kiln.site).not.toBeNull();
-    const straight = Math.hypot(kiln.site!.x - FAR_FROM_FOREST.x, kiln.site!.z - FAR_FROM_FOREST.z);
-    // na louce bez cest je chůze aspoň vzdušná vzdálenost
-    expect(kiln.walkM).toBeGreaterThanOrEqual(straight - 1e-6);
-    expect(kiln.walkM).toBeLessThan(straight * 1.2);
-    expect(kilnWalkFactor(kiln, FAR_FROM_FOREST)).toBeGreaterThan(1.1);
-  });
-
-  it('práce u lesního milíře jde do rozdělení práce dne k milíři', () => {
-    const s = village(FAR_FROM_FOREST);
-    for (let i = 1; i <= 400; i++) {
-      const next = advanceVillage(s, DAY + i, forest);
-      Object.assign(s, next);
-      const shares = s.labor?.shares ?? [];
-      const craft = shares.find((x) => x.activity === 'craft' && x.target.kind === 'kiln');
-      if (craft) {
-        expect(craft.target).toMatchObject({ kind: 'kiln', id: BURNER });
-        return;
-      }
-    }
-    throw new Error('Uhlíř u lesního milíře nepracoval.');
-  });
 });
 
-describe('uhlíř – milíř stojí vždy (crafts.md – Milíř stojí vždy)', () => {
-  it('vypálený milíř se rozebírá, jak kovář uhlí spotřebuje – rozebraný zmizí, staví se nový', () => {
+describe('rovnováha uhlíř – kovář (crafts.md – Rovnováha uhlíř – kovář)', () => {
+  it('spotřeba se měří klouzavě za rok – nová ves začne odhadem', () => {
     const s = village();
-    burnerOf(s).kiln = burntKiln();
-    s.crafts = { charcoalKg: 0, toolsKg: 0, potteryKg: 0 };
-    const forge = smithsForgeCharcoalKg(s, DAY + 1, NO_CRAFTS);
-    const total = charcoalStockKg(s);
-    let drawn = 0;
-    let drawLabor = 0;
-    let drawDays = 0;
-    let previous = kilnCharcoalKg(burnerOf(s).kiln);
-    let forged = 0;
-    let day = DAY;
-    for (; day < DAY + 2000 && burnerOf(s).kiln?.stage === 'draw';) {
-      day++;
-      const done = workCrafts(s, day, forest, NO_CRAFTS, 1);
-      const burner = done.find((w) => w.dwellingId === BURNER);
-      forged += done.find((w) => w.dwellingId === SMITH)?.producedKg ?? 0;
-      // ves nástroje hned rozdá a opotřebí – kovář kove dál
-      s.crafts!.toolsKg = 0;
-      const inKiln = kilnCharcoalKg(burnerOf(s).kiln);
-      if (burner && burner.producedKg > 0) {
-        drawDays++;
-        drawn += burner.producedKg;
-        drawLabor += burner.making;
-        // nejvýš uhlí na 30 dní kování
-        expect(burner.producedKg).toBeLessThanOrEqual(forge * CHARCOAL_KILN.drawBatchDays + 1e-6);
-        expect(burnerOf(s).activity).toBe('drawing');
-      } else if (burnerOf(s).kiln?.stage === 'draw') {
-        // milíř stojí a čeká – uhlí v něm neubývá
-        expect(inKiln).toBe(previous);
-      }
-      previous = inKiln;
-      // uhlí se neztrácí: v milíři + u kováře + spálené v nástrojích
-      expect(charcoalStockKg(s) + forged * 50).toBeCloseTo(total, 6);
-    }
-    expect(burnerOf(s).kiln ?? null).toBeNull();
-    expect(drawn).toBeCloseTo(total, 6);
-    // nosí jednou za čas, ne každý den
-    expect(drawDays).toBeLessThan((day - DAY) / 5);
-    // vytahání a třídění – 2 čd na 120 kg uhlí bez odnosu v koších (ten dělá kovářova domácnost –
-    // crafts.md, Uhlí a ruda kováře)
-    expect(drawLabor).toBeCloseTo(
-      (total / 120) * CHARCOAL_KILN.drawManDaysPerTree * (1 - CART_JOBS.charcoal.carryShare),
-      6,
-    );
-    // milíř stojí vždy – rozebraný zmizí a od dalšího dne uhlíř staví nový
-    workCrafts(s, day + 1, forest, NO_CRAFTS, 1);
-    expect(burnerOf(s).kiln?.stage).toBe('wood');
+    expect(charcoalUsePerDay(undefined, DAY, 3)).toBe(3);
+    // 10 dní po 4 kg za den – do prvního období (30 dní) doplní zbytek odhad
+    for (let d = DAY; d < DAY + 10; d++) recordCharcoalUse(s, d, 4);
+    const start = charcoalUsePerDay(s.charcoalUse, DAY + 10, 2);
+    expect(start).toBeCloseTo((10 * 4 + 2 * 20) / 30, 6);
+    // půl roku – už jen měření
+    for (let d = DAY + 10; d < DAY + 180; d++) recordCharcoalUse(s, d, 4);
+    expect(charcoalUsePerDay(s.charcoalUse, DAY + 180, 2)).toBeCloseTo(4, 6);
+    // po roce a půl už jen měření (okno 12 období po 30 dnech a rozběhnuté)
+    for (let d = DAY + 180; d < DAY + 545; d++) recordCharcoalUse(s, d, 6);
+    expect(s.charcoalUse!.buckets.length).toBeLessThanOrEqual(12);
+    expect(charcoalUsePerDay(s.charcoalUse, DAY + 545, 100)).toBeCloseTo(6, 6);
   });
 
-  it('zbytek, který stačí jen na přípravu dalšího milíře, vytahá celý a začne nový', () => {
+  it('doba cyklu milíře – průměr posledních cyklů, bez měření odhad z práce', () => {
+    const workshop = newWorkshop('burner');
+    // 15 buků × (2 + 6 + 2) čd po 1,5 čd za den + 8 dní pálení
+    expect(kilnCycleDays(workshop, NEAR_FOREST, 1.5)).toBeCloseTo(
+      (15 * 10) / 1.5 + CHARCOAL_KILN.burnDays,
+      6,
+    );
+    expect(kilnLeadDays(burntKiln(), NEAR_FOREST, 0)).toBe(CHARCOAL_KILN.burnDays);
+    workshop.kilnCycles = [80, 100];
+    expect(kilnCycleDays(workshop, NEAR_FOREST, 1.5)).toBe(90);
+  });
+
+  it('kovář si drží zásobu – pro uhlí jde, když vystačí jen na cestu a rezervu, dávka na 60 dní', () => {
+    const reserve = CHARCOAL_BALANCE.reserveDays;
+    // 5 kg za den, cesta den: jde při ≤ 80 kg, donese 300 kg
+    expect(charcoalFetchKg(1800, 5 * (1 + reserve) + 1, 0, 5, 1)).toBe(0);
+    expect(charcoalFetchKg(1800, 5 * (1 + reserve), 0, 5, 1)).toBe(5 * CHARCOAL_BALANCE.fetchDays);
+    // nejvýš co v milíři je
+    expect(charcoalFetchKg(120, 0, 0, 5, 1)).toBe(120);
+    // dnešní kování nestačí – aspoň na dnešek
+    expect(charcoalFetchKg(1800, 10, 400, 5, 1)).toBe(400);
+    // bez spotřeby a kování nic
+    expect(charcoalFetchKg(1800, 0, 0, 0, 1)).toBe(0);
+  });
+
+  it('uhlíř začne další milíř, až uhlí stačí jen na dobu cyklu a rezervu – stojí pak dva', () => {
     const s = village(NEAR_FOREST, true, at(601, 1, 10));
     const day = s.lastDay + 1;
-    const kiln = burntKiln();
-    burnerOf(s).kiln = kiln;
-    // u kováře uhlí na dnešek dost – plný milíř stojí a čeká
-    s.crafts = { charcoalKg: smithsForgeCharcoalKg(s, day, NO_CRAFTS), toolsKg: 0, potteryKg: 0 };
-    expect(restingCrafters(s, day, NO_CRAFTS).get(BURNER)).toBe('resting');
-    // kolik uhlí kovář spálí, než uhlíř připraví a vypálí nový milíř
-    const perDay = smithsCharcoalPerYear(s, day, NO_CRAFTS) / 365;
-    const lead = kilnLeadDays(kiln, NEAR_FOREST, 1.5);
-    // 15 buků × (2 + 6 + 2) čd po 1,5 čd za den + 8 dní pálení
-    expect(lead).toBeCloseTo((15 * 10) / 1.5 + CHARCOAL_KILN.burnDays, 6);
-    expect(kilnLeadDays(kiln, NEAR_FOREST, 0)).toBe(0);
-    expect(charcoalDrawKg(kiln, 1, 0.5, 0)).toBe(0);
-    expect(charcoalDrawKg(kiln, 1, 0.5, 1801)).toBe(1800);
-    // v milíři zbývá méně – uhlíř vytahá zbytek, ač u kováře na dnešek stačí
-    kiln.charcoalKg = Math.max(1, perDay * lead - s.crafts.charcoalKg - 1);
+    const workshop = burnerOf(s);
+    workshop.kilnCycles = [80];
+    measuredUse(s, 5, day);
+    const need = 5 * (80 + CHARCOAL_BALANCE.reserveDays);
+    // zásoba nad potřebou – další milíř ještě ne
+    workshop.kilns = [{ ...burntKiln(), charcoalKg: need + 100 }];
+    s.crafts = { charcoalKg: 200, toolsKg: 0, potteryKg: 0 };
+    expect(burnerPlans(s, day, NO_CRAFTS).get(BURNER)!.start).toBe(false);
+    expect(startsNextKiln(workshop, need + 300, 5, 80)).toBe(false);
+    // uhlí ve vsi stačí jen na cyklus a rezervu – začne další, i když vypálený milíř ještě stojí
+    workshop.kilns = [{ ...burntKiln(), charcoalKg: need - 300 }];
+    expect(burnerPlans(s, day, NO_CRAFTS).get(BURNER)!.start).toBe(true);
     expect(restingCrafters(s, day, NO_CRAFTS).has(BURNER)).toBe(false);
-    // vytahá ho den po dni, kolik stihne (kovář dál kove z uhlí u sebe)
-    const total = charcoalStockKg(s);
-    let d = day;
-    for (; d < day + 60 && burnerOf(s).kiln; d++) {
-      workCrafts(s, d, forest, NO_CRAFTS, 1);
-      if (burnerOf(s).kiln) expect(burnerOf(s).activity).toBe('drawing');
+    workCrafts(s, day, forest, NO_CRAFTS, 1);
+    expect(kilnsOf(s).map((k) => k.stage)).toEqual(['draw', 'wood']);
+    // nový milíř stojí jinde než vypálený a má své id
+    expect(kilnsOf(s)[1]!.site).not.toEqual(kilnsOf(s)[0]!.site);
+    expect(kilnsOf(s)[1]!.id).not.toBe(kilnsOf(s)[0]!.id);
+    // třetí nezačne – nejvýš dva najednou, rozdělaný dodělá
+    expect(startsNextKiln(workshop, 0, 5, 80)).toBe(false);
+    for (let d = day + 1; d < day + 60; d++) workCrafts(s, d, forest, NO_CRAFTS, 1);
+    expect(kilnsOf(s).length).toBeLessThanOrEqual(CHARCOAL_BALANCE.maxKilns);
+  });
+
+  it('uhlíř odpočívá, když kováři spotřebují málo', () => {
+    const s = village(NEAR_FOREST, true, at(601, 1, 10));
+    const day = s.lastDay + 1;
+    burnerOf(s).kilns = [burntKiln()];
+    burnerOf(s).kilnCycles = [90];
+    measuredUse(s, 1, day);
+    s.crafts = { charcoalKg: 100, toolsKg: 0, potteryKg: 0 };
+    expect(burnerPlans(s, day, NO_CRAFTS).get(BURNER)).toEqual({
+      draws: [],
+      orderKg: 0,
+      start: false,
+    });
+    expect(restingCrafters(s, day, NO_CRAFTS).get(BURNER)).toBe('resting');
+  });
+
+  it('vypálený milíř se rozebírá po dávkách – nejstarší napřed, rozebraný zmizí', () => {
+    const s = village(NEAR_FOREST, true, at(601, 1, 10));
+    const day = s.lastDay + 1;
+    measuredUse(s, 5, day);
+    burnerOf(s).kilnCycles = [90];
+    burnerOf(s).kilns = [
+      { ...burntKiln(90), charcoalKg: 50 },
+      { ...burntKiln(91), site: { x: 90, z: 30 } },
+    ];
+    s.crafts = { charcoalKg: 0, toolsKg: 0, potteryKg: 0 };
+    const plan = burnerPlans(s, day, NO_CRAFTS).get(BURNER)!;
+    // dávka na 60 dní (300 kg): 50 kg ze staršího, zbytek z mladšího – kolik dnes stihne
+    const want = Math.max(5 * CHARCOAL_BALANCE.fetchDays, smithsForgeCharcoalKg(s, day, NO_CRAFTS));
+    const perKg = (CHARCOAL_KILN.drawManDaysPerTree / 120) * (1 - CART_JOBS.charcoal.carryShare);
+    const today = 1.5 / perKg;
+    expect(plan.orderKg).toBeCloseTo(want, 6);
+    expect(plan.draws[0]).toEqual({ kilnId: 90, kg: 50 });
+    expect(plan.draws[1]!.kilnId).toBe(91);
+    expect(plan.draws[0]!.kg + plan.draws[1]!.kg).toBeCloseTo(today, 6);
+    const [burner] = workCrafts(s, day, forest, NO_CRAFTS, 1);
+    expect(burner!.producedKg).toBeCloseTo(today, 6);
+    // vytahání a třídění – 2 čd na 120 kg bez odnosu v koších – celý den
+    expect(burner!.making).toBeCloseTo(1.5, 6);
+    // starší je rozebraný – zůstalo milířiště
+    expect(kilnsOf(s).map((k) => k.id)).toEqual([91]);
+    expect(s.kilnRemnants).toEqual([{ id: 90, burnerId: BURNER, x: 70, z: 0, day }]);
+    // zbytek dávky vytahá další dny
+    expect(burnerOf(s).charcoalOrderKg).toBeCloseTo(want - today, 6);
+    let total = today;
+    for (let d = day + 1; burnerOf(s).charcoalOrderKg !== undefined && d < day + 10; d++) {
+      const [next] = workCrafts(s, d, forest, NO_CRAFTS, 1);
+      total += next!.producedKg;
     }
-    expect(burnerOf(s).kiln ?? null).toBeNull();
-    expect(craftStocks(s).charcoalKg + craftStocks(s).toolsKg * 50).toBeCloseTo(total, 6);
-    // od dalšího dne staví nový
-    workCrafts(s, d, forest, NO_CRAFTS, 1);
-    expect(burnerOf(s).kiln?.stage).toBe('wood');
+    expect(total).toBeCloseTo(want, 6);
   });
 
   it('bez kováře vypálený milíř stojí a čeká – další uhlíř nestaví a pracuje se vsí', () => {
@@ -379,36 +545,17 @@ describe('uhlíř – milíř stojí vždy (crafts.md – Milíř stojí vždy)'
     expect(restingCrafters(s, winter, NO_CRAFTS)).toEqual(new Map([[BURNER, 'resting']]));
     const after = advanceVillage(s, winter + 30, forest);
     expect(burnerOf(after).activity).toBe('resting');
-    expect(kilnCharcoalKg(burnerOf(after).kiln)).toBe(CHARCOAL_KILN.trees * 120);
+    expect(kilnCharcoalKg(burnerOf(after).kilns![0])).toBe(CHARCOAL_KILN.trees * 120);
     expect(after.felledTrees!.length).toBe(felled);
-    // domácnost uhlíře přidá vsi práci
-    const working = structuredClone(s);
-    working.people = working.people.filter((p) => p.dwellingId !== BURNER);
-    const without = advanceVillage(working, winter, forest);
-    const withBurner = advanceVillage(s, winter, forest);
-    expect(withBurner.commonLaborHistory.at(-1)!).toBeGreaterThan(
-      without.commonLaborHistory.at(-1)!,
-    );
-  });
-
-  it('uhlí u kováře stačí na dnešní kování – uhlíř nenosí a pracuje se vsí', () => {
-    const s = village(NEAR_FOREST, true, at(601, 1, 10));
-    burnerOf(s).kiln = burntKiln();
-    const day = s.lastDay + 1;
-    s.crafts = { charcoalKg: 0, toolsKg: 0, potteryKg: 0 };
-    expect(restingCrafters(s, day, NO_CRAFTS).has(BURNER)).toBe(false);
-    s.crafts.charcoalKg = smithsForgeCharcoalKg(s, day, NO_CRAFTS);
-    const resting = restingCrafters(s, day, NO_CRAFTS);
-    expect(resting.get(BURNER)).toBe('resting');
-    // kovář má uhlí – kove
-    expect(resting.has(SMITH)).toBe(false);
+    // spotřeba se měří jen ve vsi s uhlířem – bez kováře nula
+    expect(after.charcoalUse!.buckets.every((b) => b === 0)).toBe(true);
   });
 
   it('kovář bez uhlí u sebe nečeká, když mu uhlíř dnes donese z vypáleného milíře', () => {
     const s = village(NEAR_FOREST, true, at(601, 1, 10));
     s.crafts = { charcoalKg: 0, toolsKg: 0, potteryKg: 0 };
     expect(restingCrafters(s, s.lastDay + 1, NO_CRAFTS).get(SMITH)).toBe('no-charcoal');
-    burnerOf(s).kiln = burntKiln();
+    burnerOf(s).kilns = [burntKiln()];
     expect(restingCrafters(s, s.lastDay + 1, NO_CRAFTS).has(SMITH)).toBe(false);
     const [burner, smith] = workCrafts(s, s.lastDay + 1, forest, NO_CRAFTS, 1);
     expect(burner!.producedKg).toBeGreaterThan(0);
@@ -418,21 +565,63 @@ describe('uhlíř – milíř stojí vždy (crafts.md – Milíř stojí vždy)'
   it('rozdělaný milíř dodělá, i když uhlí přibylo', () => {
     const s = village();
     burnerDays(s, 1, forest);
-    expect(burnerOf(s).kiln).toBeTruthy();
+    expect(firstKiln(s)).toBeTruthy();
     s.crafts = { charcoalKg: 10_000, toolsKg: 0, potteryKg: 0 };
     expect(restingCrafters(s, DAY + 2, NO_CRAFTS).has(BURNER)).toBe(false);
   });
 
-  it('prodané uhlí se bere napřed u kováře, pak z vypáleného milíře – rozebraný zmizí', () => {
+  it('kovář v rovnováze nečeká – uhlíř začne další milíř včas', () => {
+    let s = village();
+    s.crafts = { charcoalKg: 0, toolsKg: 0, potteryKg: 0 };
+    const waiting: number[] = [];
+    let twoKilns = 0;
+    let firstDraw: number | null = null;
+    const end = DAY + 4 * 365;
+    for (let d = DAY + 1; d <= end; d++) {
+      s = advanceVillage(s, d, forest);
+      // ves nástroje hned rozdá a opotřebí – kovář kove dál celý den
+      s.crafts!.toolsKg = 0;
+      if (s.dwellings.find((x) => x.id === SMITH)!.workshop!.activity === 'no-charcoal') {
+        waiting.push(d - DAY);
+      }
+      if (kilnsOf(s).length === 2) twoKilns++;
+      if (firstDraw === null && kilnsOf(s).some((k) => k.stage === 'draw')) firstDraw = d - DAY;
+    }
+    // kovář čeká jen na úplně první milíř – pak má uhlí vždy
+    expect(firstDraw).not.toBeNull();
+    expect(waiting.length).toBeGreaterThan(0);
+    expect(waiting.filter((d) => d > firstDraw!)).toEqual([]);
+    // další milíř se chystá, zatímco vypálený se rozebírá
+    expect(twoKilns).toBeGreaterThan(0);
+    expect(burnerOf(s).kilnCycles!.length).toBe(CHARCOAL_BALANCE.cycles);
+  }, 120_000);
+
+  it('prodané uhlí se bere napřed u kováře, pak z vypálených milířů – rozebraný zmizí', () => {
     const s = village();
-    burnerOf(s).kiln = burntKiln();
+    burnerOf(s).kilns = [burntKiln()];
     s.crafts = { charcoalKg: 100, toolsKg: 0, potteryKg: 0 };
-    expect(takeCharcoal(s, 300)).toBe(300);
+    expect(takeCharcoal(s, 300, DAY)).toBe(300);
     expect(craftStocks(s).charcoalKg).toBe(0);
-    expect(kilnCharcoalKg(burnerOf(s).kiln)).toBe(1800 - 200);
-    expect(takeCharcoal(s, 5000)).toBe(1600);
-    expect(burnerOf(s).kiln).toBeNull();
+    expect(kilnCharcoalKg(firstKiln(s))).toBe(1800 - 200);
+    expect(takeCharcoal(s, 5000, DAY)).toBe(1600);
+    expect(kilnsOf(s)).toEqual([]);
     expect(charcoalStockKg(s)).toBe(0);
+  });
+});
+
+describe('milířiště (crafts.md – Milíř u skácených buků)', () => {
+  it('po rozebraném milíři zůstane milířiště, které za 10 let zaroste a zmizí', () => {
+    const s = village();
+    burnerOf(s).kilns = [burntKiln()];
+    takeCharcoal(s, 5000, DAY);
+    const [remnant] = s.kilnRemnants!;
+    expect(remnant).toEqual({ id: 90, burnerId: BURNER, x: 70, z: 0, day: DAY });
+    expect(kilnRemnantOvergrowth(remnant!, DAY)).toBe(0);
+    expect(kilnRemnantOvergrowth(remnant!, DAY + 5 * 365)).toBeCloseTo(0.5, 6);
+    updateKilnRemnants(s, DAY + 9 * 365);
+    expect(s.kilnRemnants).toHaveLength(1);
+    updateKilnRemnants(s, DAY + CHARCOAL_BALANCE.remnantYears * 365);
+    expect(s.kilnRemnants).toBeUndefined();
   });
 });
 
@@ -476,15 +665,14 @@ describe('uhlíř – obnova lesa (mladé buky)', () => {
     expect(felledTreeStage(natural, DAY + Math.ceil(70 * YEAR) + 1)).toBe('grown');
   });
 
-  it('mýtina roste – další milíře mají buky dál a uhlíř chodí dál', () => {
+  it('mýtina roste – další milíře stojí dál a uhlíř chodí dál', () => {
     const s = village();
     const meanDistance: number[] = [];
-    const home = homeKilnCenter(NEAR_FOREST);
     for (let batch = 0; batch < 4; batch++) {
       const kiln = startKiln(s, { position: NEAR_FOREST }, DAY, forest)!;
       const distances = kiln.trees.map((t) => {
         const i = obstacleIndex(forest, t.id!);
-        return Math.hypot(forest.x[i]! - home.x, forest.z[i]! - home.z);
+        return Math.hypot(forest.x[i]! - NEAR_FOREST.x, forest.z[i]! - NEAR_FOREST.z);
       });
       meanDistance.push(distances.reduce((a, b) => a + b, 0) / distances.length);
       // dávku rovnou skácet (pařezy)
@@ -494,12 +682,13 @@ describe('uhlíř – obnova lesa (mladé buky)', () => {
       ];
     }
     for (let i = 1; i < meanDistance.length; i++) {
-      expect(meanDistance[i]!).toBeGreaterThan(meanDistance[i - 1]!);
+      expect(meanDistance[i]!).toBeGreaterThan(meanDistance[i - 1]! - 1e-9);
     }
+    expect(meanDistance.at(-1)!).toBeGreaterThan(meanDistance[0]! + 5);
   });
 });
 
-describe('uhlíř – simulace', () => {
+describe('uhlíř – simulace a převod starších vsí', () => {
   it('výsledek nezávisí na kouscích dopočítání – i přes rozebírání a nový milíř', () => {
     const end = DAY + 3 * 365;
     const whole = advanceVillage(village(), end, forest);
@@ -508,7 +697,7 @@ describe('uhlíř – simulace', () => {
       chunked = advanceVillage(chunked, to, forest);
     }
     expect(chunked).toEqual(whole);
-    // uhlí vzniklo, kovář z něj kuje a první milíř je rozebraný – stojí další
+    // uhlí vzniklo, kovář z něj kuje a další milíře stojí u dalších dávek
     expect(whole.crafts!.toolsKg).toBeGreaterThan(0);
     expect((whole.felledTrees ?? []).length).toBeGreaterThan(CHARCOAL_KILN.trees);
     expect((whole.felledTrees ?? []).some((f) => f.planted !== undefined)).toBe(true);
@@ -516,7 +705,7 @@ describe('uhlíř – simulace', () => {
 
   it('stav po JSON (uložení do databáze) se dopočítá stejně', () => {
     const s = advanceVillage(village(), DAY + 100, forest);
-    expect(burnerOf(s).kiln).toBeTruthy();
+    expect(firstKiln(s)).toBeTruthy();
     const stored = JSON.parse(JSON.stringify(s)) as VillageState;
     expect(advanceVillage(stored, DAY + 300, forest)).toEqual(advanceVillage(s, DAY + 300, forest));
   });
@@ -535,17 +724,47 @@ describe('uhlíř – simulace', () => {
     expect(craftStocks(after).charcoalKg + craftStocks(after).toolsKg * 50).toBeCloseTo(50, 1);
   });
 
+  it('milíř u zemnice ze starší vsi se dodělá a rozebere na svém místě, další stojí u dávky', () => {
+    const s = village(NEAR_FOREST, true, at(601, 1, 10));
+    const old: CharcoalKiln = {
+      site: null,
+      trees: Array.from({ length: CHARCOAL_KILN.trees }, () => ({ id: null, cost: 2 })),
+      stage: 'build',
+      prepared: CHARCOAL_KILN.trees,
+      done: 3,
+    };
+    const workshop = burnerOf(s);
+    workshop.kiln = old;
+    const after = advanceVillage(s, s.lastDay + 1, forest);
+    const migrated = burnerOf(after);
+    expect(migrated.kiln).toBeUndefined();
+    expect(migrated.kilns).toHaveLength(1);
+    const kiln = migrated.kilns![0]!;
+    expect(kiln.site).toEqual(homeKilnCenter(NEAR_FOREST));
+    expect(kiln.id).toBeDefined();
+    expect(kiln.stage).toBe('build');
+    // jednou – další den nic nepřevádí
+    const again = advanceVillage(after, after.lastDay + 1, forest);
+    expect(burnerOf(again).kilns![0]!.id).toBe(kiln.id);
+    // lesní milíř zůstane v lese
+    const forestKiln = village(FAR_FROM_FOREST, true, at(601, 1, 10));
+    burnerOf(forestKiln).kiln = { ...old, site: { x: 70, z: 0 }, walkM: 270 };
+    const moved = advanceVillage(forestKiln, forestKiln.lastDay + 1, forest);
+    expect(burnerOf(moved).kilns![0]).toMatchObject({ site: { x: 70, z: 0 }, walkM: 270 });
+  });
+
   it('starší milíř, ze kterého se uhlí vytahovalo najednou, je vypálený s celou dávkou', () => {
     const s = village(NEAR_FOREST, false, at(601, 1, 10));
     const old = burntKiln();
     delete old.charcoalKg;
+    delete old.id;
     old.done = 17;
     burnerOf(s).kiln = old;
     s.crafts = { charcoalKg: 400, toolsKg: 0, potteryKg: 0 };
     // před převodem se počítá stejně – celá dávka v milíři, uhlí v zásobě je u kováře
     expect(charcoalStockKg(s)).toBe(1800 + 400);
     const after = advanceVillage(s, s.lastDay + 1, forest);
-    const kiln = burnerOf(after).kiln!;
+    const kiln = burnerOf(after).kilns![0]!;
     expect(kiln).toMatchObject({ stage: 'draw', done: 0, charcoalKg: 1800 });
     expect(craftStocks(after).charcoalKg).toBe(400);
     // jednou – další převod nic nezmění
@@ -559,5 +778,13 @@ describe('uhlíř – simulace', () => {
       chunked = JSON.parse(JSON.stringify(advanceVillage(chunked, to, forest))) as VillageState;
     }
     expect(chunked).toEqual(advanceVillage(s, end, forest));
+  });
+
+  it('odhad spotřeby bez měření je roční spotřeba kovářů z opotřebení nástrojů', () => {
+    const s = village(NEAR_FOREST, true, at(601, 1, 10));
+    const day = s.lastDay + 1;
+    const estimate = smithsCharcoalPerYear(s, day, NO_CRAFTS) / 365;
+    expect(estimate).toBeGreaterThan(0);
+    expect(charcoalUsePerDay(s.charcoalUse, day, estimate)).toBe(estimate);
   });
 });

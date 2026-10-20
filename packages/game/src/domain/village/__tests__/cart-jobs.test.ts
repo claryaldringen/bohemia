@@ -75,14 +75,18 @@ function village(day = DAY, home: Position = { x: 0, z: 0, rotation: 0 }): Villa
 function withCharcoal(s: VillageState): VillageState {
   addWorkshop(s, 'burner', BURNER, { x: 40, z: 0, rotation: 0 });
   addWorkshop(s, 'smith', SMITH, { x: 40, z: 40, rotation: 0 });
-  s.dwellings.find((d) => d.id === BURNER)!.workshop!.kiln = {
-    site: null,
-    trees: Array.from({ length: CHARCOAL_KILN.trees }, () => ({ id: null, cost: 2 })),
-    stage: 'draw',
-    prepared: CHARCOAL_KILN.trees,
-    done: 0,
-    charcoalKg: CHARCOAL_KILN.trees * 120,
-  };
+  s.dwellings.find((d) => d.id === BURNER)!.workshop!.kilns = [
+    {
+      id: 990,
+      // milíř u dávky buků kus za zemnicí (crafts.md – Milíř u skácených buků)
+      site: { x: 70, z: 0 },
+      trees: Array.from({ length: CHARCOAL_KILN.trees }, () => ({ id: null, cost: 2 })),
+      stage: 'draw',
+      prepared: CHARCOAL_KILN.trees,
+      done: 0,
+      charcoalKg: CHARCOAL_KILN.trees * 120,
+    },
+  ];
   s.crafts = { charcoalKg: 0, toolsKg: 0, potteryKg: 0 };
   return s;
 }
@@ -124,7 +128,7 @@ describe('uhlí z milíře ke kováři (wagons.md – Co vozy vozí, crafts.md �
   it('vůz, který nesváží, odveze uhlí – jízda k milíři se uloží, posádka u milíře', () => {
     const s = withCharcoal(village());
     const next = advanceVillage(s, DAY + 1, null);
-    const kiln = next.dwellings.find((d) => d.id === BURNER)!.workshop!.kiln!;
+    const kiln = next.dwellings.find((d) => d.id === BURNER)!.workshop!.kilns![0]!;
     expect(kiln.cart).toBeTruthy();
     const haul = hauls(next).find((share) => share.job === 'charcoal');
     expect(haul?.carts).toBe(1);

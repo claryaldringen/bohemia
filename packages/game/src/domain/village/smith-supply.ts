@@ -5,7 +5,7 @@ import { PolygonIndex, villageLandSquares } from './squares';
 import { ageGroup, ageYears } from './people';
 import { PATH_WATER_SPOT, PATH_WETLAND } from './paths/terrain';
 import { groundSpots, villageRoadWalk, walkGroundOf } from './paths/walking';
-import { homeKilnCenter } from './charcoal';
+import { kilnPoint, workshopKilns } from './charcoal';
 import { CARTS, CART_JOBS, CRAFT_PRODUCTION, SMITH_SUPPLY, WATER_FETCHING } from './rules';
 import type {
   CharcoalKiln,
@@ -138,24 +138,15 @@ export function occupiedSmiths(state: Pick<VillageState, 'dwellings' | 'people'>
 
 // --- uhlí z milíře ----------------------------------------------------------------------------
 
-/** Kde stojí milíř uhlíře – v lese, nebo u dílny. */
-export function kilnPoint(
-  burner: Dwelling,
-  kiln: Pick<CharcoalKiln, 'site'>,
-): {
-  x: number;
-  z: number;
-} {
-  return kiln.site ?? homeKilnCenter(burner.position);
-}
-
 /**
  * Uhlí, které dnes někdo donese z milíře do kovárny (crafts.md – Uhlí a ruda kováře): uhlíř
- * `burnerId` dnes vytahá `kg` uhlí (`burnerDraws`), nese se do nejbližší kovárny `smithId`
- * (`walkM` – vzdálenost chůze kovárna ↔ milíř) od milíře v bodě `at`.
+ * `burnerId` dnes vytahá `kg` uhlí z milíře `kilnId` (`burnerDraws`), nese se do nejbližší
+ * kovárny `smithId` (`walkM` – vzdálenost chůze kovárna ↔ milíř) od milíře v bodě `at`.
  */
 export interface CharcoalDelivery {
   burnerId: number;
+  /** Id milíře (chybí u milíře ze starší vsi před převodem). */
+  kilnId?: number;
   smithId: number;
   kg: number;
   at: { x: number; z: number };
@@ -164,22 +155,23 @@ export interface CharcoalDelivery {
 
 /**
  * Dodávky uhlí dne (mutuje stav – uloží vzdálenost chůze u milíře `CharcoalKiln.carry`): ke
- * každému uhlíři, který dnes nosí (`draws` – kg po id dílny uhlíře), nejbližší obývaná kovárna
- * (vzdušnou čarou, při shodě menší id) a vzdálenost chůze z ní k milíři – po pevných cestách
- * s půdou krajiny (paths/walking.ts), bez krajiny vzdušně. Bez kovárny nic.
+ * každému milíři, ze kterého uhlíř dnes vytahá uhlí (`draws` – v pořadí plánu uhlířů), nejbližší
+ * obývaná kovárna (vzdušnou čarou, při shodě menší id) a vzdálenost chůze z ní k milíři – po
+ * pevných cestách s půdou krajiny (paths/walking.ts), bez krajiny vzdušně. Pro uhlí se chodí
+ * k milíři (crafts.md – Milíř u skácených buků). Bez kovárny nic.
  */
 export function charcoalDeliveries(
   state: VillageState,
-  draws: ReadonlyMap<number, number>,
+  draws: readonly { burnerId: number; kilnId?: number; kg: number }[],
   landscape: Landscape | null,
 ): CharcoalDelivery[] {
-  if (draws.size === 0) return [];
+  if (draws.length === 0) return [];
   const smiths = occupiedSmiths(state);
   if (smiths.length === 0) return [];
   const out: CharcoalDelivery[] = [];
-  for (const [burnerId, kg] of [...draws.entries()].sort((a, b) => a[0] - b[0])) {
+  for (const { burnerId, kilnId, kg } of draws) {
     const burner = state.dwellings.find((d) => d.id === burnerId);
-    const kiln = burner?.workshop?.kiln;
+    const kiln = findKiln(burner, kilnId);
     if (!burner || !kiln || kg <= EPSILON) continue;
     const at = kilnPoint(burner, kiln);
     let smith = smiths[0]!;
@@ -197,16 +189,36 @@ export function charcoalDeliveries(
         : length2(smith.position.x - at.x, smith.position.z - at.z);
       kiln.carry = { smithId: smith.id, walkM: Math.round(walkM * 100) / 100 };
     }
-    out.push({ burnerId, smithId: smith.id, kg, at, walkM: kiln.carry.walkM });
+    out.push({
+      burnerId,
+      ...(kilnId !== undefined ? { kilnId } : {}),
+      smithId: smith.id,
+      kg,
+      at,
+      walkM: kiln.carry.walkM,
+    });
   }
   return out;
+}
+
+/**
+ * Milíř uhlíře `burner` s id `kilnId` (bez id první milíř – starší ves před převodem); jinak
+ * undefined.
+ */
+export function findKiln(
+  burner: Pick<Dwelling, 'workshop'> | undefined,
+  kilnId: number | undefined,
+): CharcoalKiln | undefined {
+  const kilns = workshopKilns(burner?.workshop);
+  return kilnId === undefined ? kilns[0] : kilns.find((k) => k.id === kilnId);
 }
 
 /** Nošení uhlí kovárny na dnešek (crafts.md – Uhlí a ruda kováře). */
 export interface CharcoalFetch {
   smithId: number;
-  /** Odkud se nosí: milíř uhlíře (id dílny uhlíře, bod). */
+  /** Odkud se nosí: milíř uhlíře (id dílny uhlíře, id milíře, bod). */
   burnerId: number;
+  kilnId?: number;
   at: { x: number; z: number };
   /** Kolik uhlí se nese pěšky (kg) a kolik práce to dá (čd dospělého). */
   kg: number;
@@ -222,6 +234,7 @@ export interface SmithFetchDay {
   /** Po milířích: kolik práce (čd) udělali synové 10–13 a kolik domácnost. */
   sources: {
     burnerId: number;
+    kilnId?: number;
     at: { x: number; z: number };
     youngsters: number;
     household: number;
@@ -250,7 +263,13 @@ export function smithFetchDay(
   const sources = own.map((f) => {
     const y = Math.min(f.manDays, young);
     young -= y;
-    return { burnerId: f.burnerId, at: f.at, youngsters: y, household: f.manDays - y };
+    return {
+      burnerId: f.burnerId,
+      ...(f.kilnId !== undefined ? { kilnId: f.kilnId } : {}),
+      at: f.at,
+      youngsters: y,
+      household: f.manDays - y,
+    };
   });
   return { youngsters, household: Math.max(0, total - youngsters.manDays), sources };
 }
@@ -266,8 +285,7 @@ export function forgeOreKg(labor: number): number {
 }
 
 /**
- * Dávka rudy pěšky (kg): na CHARCOAL_KILN.drawBatchDays dní kování na plný úvazek (jako uhlí –
- * crafts.md, Milíř stojí vždy), aspoň jeden koš.
+ * Dávka rudy pěšky (kg): na SMITH_SUPPLY.oreBatchDays dní kování na plný úvazek, aspoň jeden koš.
  */
 export function footOreBatchKg(labor: number, batchDays: number): number {
   return Math.max(SMITH_SUPPLY.basketKg.ore, forgeOreKg(labor) * batchDays);

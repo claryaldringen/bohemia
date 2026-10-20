@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
 import { cartTripManDays, oreCartOffer } from '../cart-jobs';
-import { homeKilnCenter } from '../charcoal';
 import { newWorkshop } from '../crafts';
 import { PATH_WETLAND } from '../paths/terrain';
 import { groundSpots, walkGroundOf } from '../paths/walking';
@@ -81,14 +80,18 @@ function withBurner(s: VillageState, stage: 'draw' | 'burn' = 'draw'): VillageSt
   addWorkshop(s, 'burner', BURNER, { x: 40, z: 0, rotation: 0 });
   s.people.push(person(500, 30, BURNER, s.lastDay, { sex: 'male' }));
   s.people.push(person(501, 28, BURNER, s.lastDay, { sex: 'female' }));
-  s.dwellings.find((d) => d.id === BURNER)!.workshop!.kiln = {
-    site: null,
-    trees: Array.from({ length: CHARCOAL_KILN.trees }, () => ({ id: null, cost: 2 })),
-    stage,
-    prepared: CHARCOAL_KILN.trees,
-    done: 0,
-    ...(stage === 'draw' ? { charcoalKg: CHARCOAL_KILN.trees * 120 } : {}),
-  };
+  s.dwellings.find((d) => d.id === BURNER)!.workshop!.kilns = [
+    {
+      id: 990,
+      // milíř u dávky buků kus za zemnicí (crafts.md – Milíř u skácených buků)
+      site: { x: 70, z: 0 },
+      trees: Array.from({ length: CHARCOAL_KILN.trees }, () => ({ id: null, cost: 2 })),
+      stage,
+      prepared: CHARCOAL_KILN.trees,
+      done: 0,
+      ...(stage === 'draw' ? { charcoalKg: CHARCOAL_KILN.trees * 120 } : {}),
+    },
+  ];
   return s;
 }
 
@@ -186,11 +189,12 @@ describe('synové kováře (crafts.md – Uhlí a ruda kováře)', () => {
       )?.manDays ?? 0;
     expect(forged(alone)).toBeLessThan(forged(helped));
     expect(forged(helped) - forged(alone)).toBeCloseTo(own[0]!.manDays, 3);
-    // nošení podle vzdálenosti chůze kovárna ↔ milíř u dílny uhlíře (bez krajiny vzdušně)
-    const kiln = alone.dwellings.find((d) => d.id === BURNER)!.workshop!.kiln!;
-    const at = homeKilnCenter({ x: 40, z: 0, rotation: 0 });
+    // pro uhlí se chodí k milíři – nošení podle vzdálenosti chůze kovárna ↔ milíř (bez krajiny
+    // vzdušně; crafts.md – Milíř u skácených buků)
+    const kiln = alone.dwellings.find((d) => d.id === BURNER)!.workshop!.kilns![0]!;
     expect(kiln.carry!.smithId).toBe(SMITH);
-    expect(kiln.carry!.walkM).toBeCloseTo(Math.hypot(at.x - 40, at.z - 40), 2);
+    expect(kiln.carry!.walkM).toBeCloseTo(Math.hypot(70 - 40, 0 - 40), 2);
+    expect(own[0]!.target).toMatchObject({ kind: 'kiln', id: BURNER, kiln: 990, x: 70, z: 0 });
   });
 });
 

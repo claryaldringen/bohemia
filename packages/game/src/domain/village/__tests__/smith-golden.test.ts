@@ -11,7 +11,9 @@ import { withBuiltFirstDwelling } from './village-fixtures';
 // bitu – uhlíř, hrnčíř, tesař i vůz se spřežením jako dřív. Otisk stavu po dvou letech je
 // spočítaný kódem před rudou (commit před zavedením rudy); s voly po kusech a rokem vozů
 // (oxen.md – Voli po kusech, wagons.md – Kolik vozů ves chce) přepočítaný kódem bez rudy
-// (feat/oxen-carts 656dec4) – vyšel stejně jako se rudou.
+// (feat/oxen-carts 656dec4) – vyšel stejně jako se rudou. Milíř u skácených buků a rovnováha
+// uhlíř – kovář (crafts.md, 20. 10. 2026) mění uhlíře záměrně – otisk přepočítaný s nimi; ves bez
+// uhlíře hlídají zlaté otisky bez dílen (craft-skill-golden.test.ts) beze změny.
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 const DAY = at(601, 3, 1);
@@ -87,6 +89,6 @@ describe('ves bez kováře beze změny (crafts.md – Uhlí a ruda kováře)', (
     const stripped = JSON.stringify(next, (key, value: unknown) =>
       learning.has(key) ? undefined : value,
     );
-    expect(hash(stripped)).toBe('4faa0291');
+    expect(hash(stripped)).toBe('1d536a77');
   }, 120_000);
 });

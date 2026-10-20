@@ -178,12 +178,21 @@ export type WorkshopActivity =
  */
 export type KilnStage = 'wood' | 'build' | 'burn' | 'draw';
 /**
- * Milíř uhlíře – jedna dávka buků od výběru po rozebrání (crafts.md – Uhlíř, Milíř stojí vždy).
- * Stojí u dílny (`site` null – milíř kus od zemnice), nebo v lese u dávky (`site` – střed milíře
- * ve světě, m). Buky dávky jsou od výběru vyhrazené; kácí se a připravují strom po stromu
- * v pořadí `trees`. Uhlíř má nejvýš jeden milíř – rozebraný zmizí a uhlíř staví nový.
+ * Milíř uhlíře – samostatná stavba, jedna dávka buků od výběru po rozebrání (crafts.md – Milíř
+ * u skácených buků): stojí na rovném volném místě uprostřed skácených buků (`site` – střed milíře
+ * ve světě, m; null jen u vsi bez vrstvy překážek – testy – milíř bez polohy u zemnice). Buky
+ * dávky jsou od výběru vyhrazené; kácí se a připravují strom po stromu v pořadí `trees`. Uhlíř
+ * smí mít najednou CHARCOAL_BALANCE.maxKilns milíře – jeden se rozebírá, druhý se připravuje nebo
+ * pálí (crafts.md – Rovnováha uhlíř – kovář); rozebraný zmizí a zůstane po něm milířiště.
  */
 export interface CharcoalKiln {
+  /**
+   * Id milíře (z `VillageState.nextId` – výběr ve scéně, milířiště); chybí jen u milíře ze starší
+   * vsi před převodem (`migrateKilns`).
+   */
+  id?: number;
+  /** Den výběru dávky buků – od něj se měří doba cyklu milíře (`Workshop.kilnCycles`). */
+  startDay?: number;
   site: { x: number; z: number } | null;
   /**
    * Buky dávky: id z vrstvy překážek (null = kácení bez polohy – ves bez vrstvy, jen testy)
@@ -205,8 +214,9 @@ export interface CharcoalKiln {
    */
   charcoalKg?: number;
   /**
-   * Milíř v lese: vzdálenost chůze z dílny k němu (m – po pevných cestách s půdou, paths/walking.ts)
-   * pro přirážku za chůzi; bez údaje vzdušná vzdálenost (vsi bez krajiny, kalibrace).
+   * Vzdálenost chůze ze zemnice uhlíře k milíři (m – po pevných cestách s půdou, paths/walking.ts)
+   * pro přirážku za chůzi na veškerou práci u milíře; bez údaje vzdušná vzdálenost (vsi bez
+   * krajiny, kalibrace).
    */
   walkM?: number;
   /**
@@ -262,6 +272,28 @@ export interface OrePit {
   day: number;
 }
 /**
+ * Milířiště po rozebraném milíři (crafts.md – Milíř u skácených buků): milíř (id), uhlíř (id
+ * obydlí), střed (m) a den, kdy se rozebral – od něj zarůstá a po CHARCOAL_BALANCE.remnantYears
+ * zmizí.
+ */
+export interface KilnRemnant {
+  id: number;
+  burnerId: number;
+  x: number;
+  z: number;
+  day: number;
+}
+/**
+ * Měření spotřeby uhlí kovářů (crafts.md – Rovnováha uhlíř – kovář): kg uhlí po obdobích
+ * CHARCOAL_BALANCE.bucketDays dní – dokončená období (`buckets`, nejstarší první, nejvýš tolik, kolik
+ * se vejde do CHARCOAL_BALANCE.windowDays) a rozběhnuté od dne `from` (`currentKg`).
+ */
+export interface CharcoalUse {
+  from: number;
+  currentKg: number;
+  buckets: number[];
+}
+/**
  * Strom, který dílna kácí (uhlíř na uhlí, hrnčíř na palivo pece – forest.md, kácení): id z vrstvy
  * překážek (null = kácení bez polohy – ves bez vrstvy, jen testy), práce za skácení a dovoz
  * (člověkodny, i se vzdáleností) a kolik je hotovo. Strom je od výběru vyhrazený.
@@ -286,10 +318,28 @@ export interface Workshop {
   /** Co dílna dělala poslední odsimulovaný den (panel výběru, dým ve scéně). */
   activity: WorkshopActivity;
   /**
-   * Uhlíř: jeho milíř – staví se, pálí, nebo vypálený čeká na odběr (crafts.md – Milíř stojí
-   * vždy); bez údaje nebo null žádný (rozebraný, nebo nejsou buky).
+   * Uhlíř: jeho milíře (crafts.md – Milíř u skácených buků, Rovnováha uhlíř – kovář) – nejvýš
+   * CHARCOAL_BALANCE.maxKilns: staví se, pálí, nebo vypálený čeká na odběr; v pořadí, jak je začal.
+   * Bez údaje žádný (u starší vsi se převede z `kiln` – `migrateKilns`).
+   */
+  kilns?: CharcoalKiln[];
+  /**
+   * Uhlíř ve vsi uložené před samostatnými milíři: jeho jediný milíř (u zemnice – `site` null –,
+   * nebo v lese). Převede se do `kilns` v prvním dopočítaném dni (`migrateKilns`).
    */
   kiln?: CharcoalKiln | null;
+  /**
+   * Uhlíř: doby posledních cyklů milíře (dny od výběru buků po vypálení, nejvýš
+   * CHARCOAL_BALANCE.cycles – nejstarší první); podle nich začne další milíř včas. Bez údaje se
+   * doba odhadne z práce (`kilnCycleDays`).
+   */
+  kilnCycles?: number[];
+  /**
+   * Uhlíř: kolik uhlí z dávky pro kováře (crafts.md – Rovnováha uhlíř – kovář – dávka na
+   * CHARCOAL_BALANCE.fetchDays dní) ještě zbývá vytahat (kg) – uhlíř ji tahá den po dni, kolik
+   * stihne, a kovář nosí, co je vytahané. Bez údaje žádná dávka.
+   */
+  charcoalOrderKg?: number;
   /**
    * Uhlíř: pařezy buků, které skácel a na které ještě zasadí mladý buk (id z vrstvy překážek,
    * v pořadí kácení – obnova lesa). Bez údaje žádné.
@@ -1297,11 +1347,11 @@ export type LaborTarget =
   /** Stromy z vrstvy překážek, které se pro stavbu nebo dílnu právě kácejí (i pařezy k sázení). */
   | { kind: 'trees'; ids: number[] }
   /**
-   * Milíř uhlíře (crafts.md – Uhlíř) – dílna (id obydlí) a střed milíře ve světě (m): lesní milíř,
-   * a odkud se nosí uhlí ke kováři (`from` = id kovárny – nosí se z milíře do ní; crafts.md – Uhlí
-   * a ruda kováře) i milíř u dílny.
+   * Milíř uhlíře (crafts.md – Milíř u skácených buků) – dílna (id obydlí), střed milíře ve světě (m)
+   * a id milíře (`kiln`; chybí jen u rozdělení práce ze starší vsi); odkud se nosí uhlí ke kováři
+   * (`from` = id kovárny – nosí se z milíře do ní; crafts.md – Uhlí a ruda kováře).
    */
-  | { kind: 'kiln'; id: number; x: number; z: number; from?: number }
+  | { kind: 'kiln'; id: number; x: number; z: number; from?: number; kiln?: number }
   /**
    * Rudiště kováře (crafts.md – Uhlí a ruda kováře) – kovárna (id obydlí) a místo, kde se kope
    * (m): kopání u jámy, nošení rudy z něj do kovárny, jízda vozu pro rudu.
@@ -1536,6 +1586,18 @@ export interface VillageState {
    * let, pak zmizí. Chybí = žádné (i u vsí uložených před rudou).
    */
   orePits?: OrePit[];
+  /**
+   * Milířiště po rozebraných milířích uhlířů (crafts.md – Milíř u skácených buků): černá kruhová
+   * plocha uhlíkaté zeminy – zarůstá CHARCOAL_BALANCE.remnantYears let, pak zmizí. Jen vzhled.
+   * Chybí = žádná.
+   */
+  kilnRemnants?: KilnRemnant[];
+  /**
+   * Spotřeba uhlí kovářů (crafts.md – Rovnováha uhlíř – kovář) – klouzavě za posledních
+   * CHARCOAL_BALANCE.windowDays dní; podle ní uhlíř začne další milíř a kovář si drží zásobu.
+   * Měří se jen ve vsi s uhlířem; chybí = ještě se neměřila.
+   */
+  charcoalUse?: CharcoalUse;
   /**
    * Les vsi – čtverce polí, které zarostly lesem a z pole vypadly (fields.md – Zarůstání). Chybí
    * = žádný (i u vsí uložených před zarůstáním).

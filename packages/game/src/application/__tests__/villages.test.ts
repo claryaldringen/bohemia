@@ -453,7 +453,7 @@ describe('placeDwelling', () => {
 });
 
 describe('placeWorkshop', () => {
-  it('dílna se staví jako obydlí – chce mladý pár, místo pro milíř a změří vodu', async () => {
+  it('dílna se staví jako obydlí – chce mladý pár a změří vodu', async () => {
     const villages = await foundedVillages();
     const deps = { villages };
     const base = { villageId: VID, landscape, today: TODAY + 1 };
@@ -466,15 +466,16 @@ describe('placeWorkshop', () => {
       position: at(-80, -50),
     });
     expect(unknown).toEqual({ ok: false, reason: UNKNOWN_CRAFT });
-    // milíř (−9, +3 m od zemnice) by stál na prvním poli – smí, pole se o vyklízenou plochu zmenší
-    const onField = checkWorkshopPlacement(
+    // dílna uhlíře je jen zemnice – kde dřív stál milíř (−9, +3 m od zemnice) na prvním poli, pole
+    // zůstane celé (milíř staví u dávky buků – crafts.md, Milíř u skácených buků)
+    const besideField = checkWorkshopPlacement(
       landscape,
       placementVillageOf(villages.records.get(VID)!.state, TODAY + 1),
       'burner',
       at(36, 0),
     );
-    expect(onField).toMatchObject({ ok: true, warning: 'Pole se zmenší' });
-    expect(onField.takenLand.length).toBeGreaterThan(0);
+    expect(besideField.ok).toBe(true);
+    expect(besideField.takenLand).toEqual([]);
     const result = await placeWorkshop(deps, { ...base, craft: 'burner', position: at(-80, -50) });
     expect(result.ok).toBe(true);
     if (!result.ok) return;

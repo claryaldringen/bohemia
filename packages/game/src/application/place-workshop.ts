@@ -22,7 +22,7 @@ export interface PlaceWorkshopInput {
   /** Dnešní herní den (index dne). */
   today: number;
   craft: Craft;
-  /** Volná poloha dílny jako u zemnice (u uhlíře milíř kus od ní – MILIR). */
+  /** Volná poloha dílny jako u zemnice (milíř uhlíř staví zvlášť u dávky buků – crafts.md). */
   position: Position;
 }
 

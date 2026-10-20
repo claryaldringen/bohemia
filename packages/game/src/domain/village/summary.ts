@@ -1,5 +1,5 @@
 import { TOTAL_GAME_DAYS } from '../calendar';
-import type { ObstacleLayer } from '../landscape';
+import { length2, type ObstacleLayer } from '../landscape';
 import { moundPlaces, usedPlaces } from './burials';
 import {
   burialOrder,
@@ -19,7 +19,14 @@ import {
   type CraftNeeds,
 } from './crafts';
 import { ironTripDaysLeft } from './cart-iron';
-import { charcoalStockKg, kilnCharcoalKg, kilnCharcoalShare } from './charcoal';
+import {
+  charcoalStockKg,
+  kilnCharcoalKg,
+  kilnCharcoalShare,
+  kilnPoint,
+  kilnYieldKg,
+  workshopKilns,
+} from './charcoal';
 import { smithOreSummary, type SmithOreSummary } from './smith-supply';
 import { craftSkillSummary, type CraftSkillSummary } from './craft-skill';
 import { isFull, isOvercrowded } from './dwellings';
@@ -97,6 +104,7 @@ import type {
   CharcoalKiln,
   KilnStage,
   Construction,
+  Dwelling,
   ConstructionKind,
   CartKind,
   Craft,
@@ -211,6 +219,28 @@ export interface OrchardSummary {
   expectedYieldKg: number;
 }
 
+/**
+ * Milíř uhlíře pro panel (crafts.md – Milíř u skácených buků): id (null jen u milíře ze starší vsi
+ * před převodem), fáze, kolik buků dávky je připravených z kolika, průběh fáze 0–1 (u pálení dny ÷
+ * CHARCOAL_KILN.burnDays, u vypáleného milíře podíl už rozebraného uhlí), uhlí, které ve
+ * vypáleném milíři zbývá, a kolik dá celý (kg), střed (m), chůze ze zemnice uhlíře (m) a kovárna,
+ * odkud se pro uhlí chodí (id, chůze m – po prvním nošení), den výběru dávky.
+ */
+export interface KilnSummary {
+  id: number | null;
+  stage: KilnStage;
+  prepared: number;
+  trees: number;
+  progress: number;
+  charcoalKg: number;
+  yieldKg: number;
+  x: number;
+  z: number;
+  walkM: number;
+  carry: { smithId: number; walkM: number } | null;
+  startDay?: number;
+}
+
 /** Řemeslná dílna pro panel výběru (crafts.md – Co hráč vidí). */
 export interface WorkshopSummary {
   dwellingId: number;
@@ -228,19 +258,10 @@ export interface WorkshopSummary {
    */
   ore: SmithOreSummary | null;
   /**
-   * Uhlíř: jeho milíř (crafts.md – Uhlíř, Milíř stojí vždy) – fáze, kolik buků dávky je
-   * připravených z kolika, průběh fáze 0–1 (u pálení dny ÷ CHARCOAL_KILN.burnDays, u vypáleného
-   * milíře podíl už rozebraného uhlí), uhlí, které ve vypáleném milíři zbývá (kg), a jestli stojí
-   * v lese; jinak null.
+   * Uhlíř: jeho milíře (crafts.md – Milíř u skácených buků, Rovnováha uhlíř – kovář) v pořadí, jak
+   * je začal; ostatní dílny prázdné.
    */
-  kiln: {
-    stage: KilnStage;
-    prepared: number;
-    trees: number;
-    progress: number;
-    charcoalKg: number;
-    forest: boolean;
-  } | null;
+  kilns: KilnSummary[];
   /** Uhlíř: pařezy buků, na které ještě zasadí mladý buk; ostatní dílny 0. */
   toPlant: number;
   /** Učení řemesla (crafts.md): výkon dílny podle praxe, praxe řemeslníka a kdo se učí. */
@@ -851,7 +872,7 @@ function craftsSummary(state: VillageState, day: number): CraftsSummary {
             workshop.craft === 'smith'
               ? smithOreSummary(state, d, day, haulCartsToday(state, day, false) > 0)
               : null,
-          kiln: workshop.kiln ? kilnSummary(workshop.kiln) : null,
+          kilns: workshopKilns(workshop).map((k) => kilnSummary(d, k)),
           toPlant: workshop.toPlant?.length ?? 0,
           skill: craftSkillSummary(state, d.id, day),
           carpenter:
@@ -908,8 +929,11 @@ function ironSummary(
   };
 }
 
-/** Rozdělaný milíř pro panel: fáze, buky a průběh fáze 0–1. */
-function kilnSummary(kiln: CharcoalKiln): NonNullable<WorkshopSummary['kiln']> {
+/**
+ * Milíř pro panel (crafts.md – Milíř u skácených buků): fáze, buky a průběh fáze 0–1, uhlí ve
+ * vypáleném milíři, kde stojí a jak daleko se k němu chodí.
+ */
+function kilnSummary(burner: Dwelling, kiln: CharcoalKiln): KilnSummary {
   const n = kiln.trees.length;
   const total =
     kiln.stage === 'burn' ? CHARCOAL_KILN.burnDays : CHARCOAL_KILN.buildManDaysPerTree * n;
@@ -923,13 +947,20 @@ function kilnSummary(kiln: CharcoalKiln): NonNullable<WorkshopSummary['kiln']> {
         : total > 0
           ? kiln.done / total
           : 1;
+  const at = kilnPoint(burner, kiln);
   return {
+    id: kiln.id ?? null,
     stage: kiln.stage,
     prepared: kiln.prepared,
     trees: n,
     progress: Math.min(1, Math.max(0, progress)),
     charcoalKg: kilnCharcoalKg(kiln),
-    forest: kiln.site !== null,
+    yieldKg: kilnYieldKg(kiln),
+    x: at.x,
+    z: at.z,
+    walkM: kiln.walkM ?? length2(at.x - burner.position.x, at.z - burner.position.z),
+    carry: kiln.carry ? { smithId: kiln.carry.smithId, walkM: kiln.carry.walkM } : null,
+    ...(kiln.startDay !== undefined ? { startDay: kiln.startDay } : {}),
   };
 }
 

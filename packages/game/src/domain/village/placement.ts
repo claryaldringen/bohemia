@@ -1,6 +1,9 @@
 import {
   SURFACE_CODES,
+  detCos,
+  detSin,
   heightAtWorld,
+  length2,
   obstaclesOf,
   surfaceAt,
   tileCenterWorld,
@@ -11,7 +14,7 @@ import {
 } from '../landscape';
 import type { CemeterySquareInput, OrchardSquareInput, PartInput } from './actions';
 import { cemeteryFoundingCost, distanceToSquare, touchingCemeteries } from './cemetery';
-import { craftCoverage, milirClearing, workshopFootprints } from './crafts';
+import { craftCoverage, workshopFootprints } from './crafts';
 import { fieldSquareSurface, fieldsTouching, partFoundingCost } from './fields';
 import { TAKEN_LAND_EPSILON_M2, landTakenWarning, type TakenLand } from './land-taken';
 import { LIVESTOCK, withLivestock } from './livestock';
@@ -73,6 +76,7 @@ import {
   DWELLING_MAX_HEIGHT_DIFF_M,
   FIELD_LIMITS,
   FOREST_CROWN_MARGIN_M,
+  KILN_SITE,
   MILIR,
   PLOT_HOUSE_OFFSET_M,
   PLOT_HOUSE_ROTATION,
@@ -247,6 +251,11 @@ export interface PlacementVillage {
    * kácení u kurzoru jako na serveru (`placementWalk`). Bez údaje žádné.
    */
   readonly walkRoads?: readonly WalkRoad[];
+  /**
+   * Milíře uhlířů (crafts.md – Milíř u skácených buků) – samostatné stavby, střed (m); stavět přes
+   * ně nejde. Bez údaje žádné.
+   */
+  readonly kilns?: readonly { readonly x: number; readonly z: number }[];
 }
 
 /** Kontrola umístění obydlí s cenou překážek na vyklízené ploše. */
@@ -972,6 +981,10 @@ function checkFootprintFree(
       return fail(b.kind === 'idol' ? 'Překrývá se s modlou.' : 'Překrývá se se svatyní.');
     }
   }
+  // milíř uhlíře je samostatná stavba (crafts.md – Milíř u skácených buků)
+  for (const k of village.kilns ?? []) {
+    if (overlaps([kilnCircle(k, MILIR.clearingRadiusM)])) return fail('Stojí tu milíř.');
+  }
   // místo před brankou sousedního obydlí (population.md – Umístění obydlí)
   if (
     blocksGate(
@@ -1209,19 +1222,18 @@ function squareFreeArea(landscape: Landscape, taken: readonly TakenLand[]): numb
 
 /**
  * Vyklízená plocha obydlí bez pozemku (`DWELLING_CLEARING_M` – staveniště s hromadou hlíny
- * a střechou předsazenou před štíty), u řemeslné dílny `craft` i kruh kolem milíře (crafts.md).
- * Tolik obydlí sebere z polí a sadů; podle ní scéna pod domem nekreslí obilí ani jabloně.
- * `margin` (m) plochy rozšíří – v lese pruh pod korunami (FOREST_CROWN_MARGIN_M).
+ * a střechou předsazenou před štíty); dílna stejně (milíř uhlíře je samostatná stavba – crafts.md,
+ * Milíř u skácených buků). Tolik obydlí sebere z polí a sadů; podle ní scéna pod domem nekreslí
+ * obilí ani jabloně. `margin` (m) plochy rozšíří – v lese pruh pod korunami
+ * (FOREST_CROWN_MARGIN_M).
  */
 export function freeDwellingClearings(
   type: DwellingType,
   position: Position,
-  craft?: Craft,
+  _craft?: Craft,
   margin = 0,
 ): Point[][] {
-  const clearing = dwellingClearing(type, position, margin);
-  if (!craft || workshopFootprints(craft, position).length < 2) return [clearing];
-  return [clearing, milirClearing(position, margin)];
+  return [dwellingClearing(type, position, margin)];
 }
 
 /**
@@ -1456,12 +1468,12 @@ function centroid(polygon: readonly Point[]): { x: number; z: number } {
 
 /**
  * Smí řemeslná dílna `craft` stát na místě (crafts.md – Budovy)? Umisťuje se volně jako zemnice:
- * obydlí řemesla (hrnčíř a kovář polozemnice s přístřeškem vpředu, uhlíř zemnice) jako
- * `checkDwellingPlacement` a u uhlíře navíc milíř kus od zemnice (MILIR) – i pod ním louka nebo
- * les (ne voda), dost rovná zem, žádný překryv, skalní výchoz ani posvátné místo. Překážky na
- * vyklízené ploše dílny a v kruhu kolem milíře osadníci odstraní (cena po kusech), les vyklučí za
- * sazbu lesa (`ForestUse`). Na pole a do sadu smí jako zemnice – zmenší je o průnik vyklízených
- * ploch (`takenLand`).
+ * obydlí řemesla (hrnčíř a kovář polozemnice s přístřeškem vpředu, uhlíř zemnice – milíř staví
+ * u každé dávky buků zvlášť, crafts.md – Milíř u skácených buků) jako `checkDwellingPlacement` –
+ * louka nebo les (ne voda), dost rovná zem, žádný překryv, skalní výchoz ani posvátné místo.
+ * Překážky na vyklízené ploše dílny osadníci odstraní (cena po kusech), les vyklučí za sazbu lesa
+ * (`ForestUse`). Na pole a do sadu smí jako zemnice – zmenší je o průnik vyklízených ploch
+ * (`takenLand`).
  */
 export function checkWorkshopPlacement(
   landscape: Landscape,
@@ -1488,13 +1500,6 @@ export function checkWorkshopPlacement(
   const house = { ...centroid(footprints[0]!), rotation: position.rotation };
   const terrain = checkFootprintTerrain(landscape, rectangleSamples(width, depth + porch, house));
   if (!terrain.ok) return { ...terrain, ...none };
-  const milir = footprints[1];
-  if (milir) {
-    const center = { ...centroid(milir), rotation: position.rotation };
-    const samples = rectangleSamples(MILIR.footprintM, MILIR.footprintM, center);
-    const ground = checkFootprintTerrain(landscape, samples, 'Milíř');
-    if (!ground.ok) return { ...ground, ...none };
-  }
   const free = checkFootprintFree(landscape, village, footprints.map(freeShape), DWELLING_LAND);
   if (!free.ok) return { ...free, ...none };
   const status = obstacleStatus(village?.obstacleChanges);
@@ -1544,6 +1549,82 @@ export function checkWorkshopPlacement(
     spared,
     takenLand,
   };
+}
+
+const KILN_CIRCLE_SIDES = 12;
+
+/** Mnohoúhelník kruhu milíře se středem `center` a poloměrem `radius` (m) – 12 vrcholů. */
+export function kilnCircle(center: { x: number; z: number }, radius: number): Point[] {
+  return Array.from({ length: KILN_CIRCLE_SIDES }, (_, i) => {
+    const angle = (2 * Math.PI * i) / KILN_CIRCLE_SIDES;
+    return [center.x + radius * detCos(angle), center.z + radius * detSin(angle)];
+  });
+}
+
+/** Nejkratší vzdálenost bodu od lomené čáry (m). */
+function polylineDistance(
+  p: { x: number; z: number },
+  points: readonly { x: number; z: number }[],
+): number {
+  let best = Infinity;
+  for (let i = 0; i + 1 < points.length; i++) {
+    const a = points[i]!;
+    const b = points[i + 1]!;
+    const dx = b.x - a.x;
+    const dz = b.z - a.z;
+    const len2 = dx * dx + dz * dz;
+    const t = len2 > 0 ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.z - a.z) * dz) / len2)) : 0;
+    best = Math.min(best, length2(p.x - (a.x + t * dx), p.z - (a.z + t * dz)));
+  }
+  if (points.length === 1) best = length2(p.x - points[0]!.x, p.z - points[0]!.z);
+  return best;
+}
+
+/**
+ * Smí milíř stát na místě se středem `center` (crafts.md – Milíř u skácených buků; návrh Clauda)?
+ * Milíř je samostatná stavba uprostřed skácených buků: pod čtvercem milíře (MILIR.footprintM)
+ * krajina, ne voda a dost rovná zem (jako u obydlí, les smí – uhlíř ho stejně kácí); kruh milíře
+ * s pruhem kolem (MILIR.clearingRadiusM + KILN_SITE.marginM) nezasahuje na pole, do sadu, na
+ * hřbitov, do ohrady, na obydlí ani pozemek, na modlu či svatyni, před branku ani na půdu jiné vsi;
+ * aspoň KILN_SITE.homeM od obydlí (i rozestavěných), KILN_SITE.kilnM od jiného milíře a kruh
+ * s KILN_SITE.roadM od osy pevné cesty; ne na skalním výchozu, pod posvátným dubem ani na háji.
+ * Kontrola je deterministická (stejně v prohlížeči i na serveru).
+ */
+export function checkKilnSite(
+  landscape: Landscape,
+  village: PlacementVillage | null,
+  center: { x: number; z: number },
+  obstacles: ObstacleLayer = obstaclesOf(landscape),
+): PlacementCheck {
+  if (![center.x, center.z].every(Number.isFinite)) return fail('Neplatná poloha milíře.');
+  const square = { x: center.x, z: center.z, rotation: 0 };
+  const samples = rectangleSamples(MILIR.footprintM, MILIR.footprintM, square);
+  const terrain = checkFootprintTerrain(landscape, samples, 'Milíř');
+  if (!terrain.ok) return terrain;
+  const circle = kilnCircle(center, MILIR.clearingRadiusM + KILN_SITE.marginM);
+  const free = checkFootprintFree(landscape, village, [freeShape(circle)], { woods: true });
+  if (!free.ok) return free;
+  if (village) {
+    const homes = villageDwellingPositions(village);
+    if (homes.some((h) => length2(h.x - center.x, h.z - center.z) < KILN_SITE.homeM)) {
+      return fail('Milíř nesmí stát u domů.');
+    }
+    if (
+      (village.kilns ?? []).some((k) => length2(k.x - center.x, k.z - center.z) < KILN_SITE.kilnM)
+    ) {
+      return fail('Stojí tu jiný milíř.');
+    }
+    const reach = MILIR.clearingRadiusM + KILN_SITE.roadM;
+    if ((village.walkRoads ?? []).some((r) => polylineDistance(center, r.points) < reach)) {
+      return fail('Milíř nesmí stát na cestě.');
+    }
+  }
+  const status = obstacleStatus(village?.obstacleChanges);
+  if (outcropUnder(obstacles, status, circle)) {
+    return fail('Stojí tu skalní výchoz – ten osadníci neodstraní.');
+  }
+  const sacred = sacredUnder(landscape, obstacles, sacredSitesOf(obstacles), [circle]);
+  return sacred ? fail(sacred) : OK;
 }
 
 /** Kontrola pozemku obydlí – navíc poloha domu na něm (null, když pozemek neprošel). */
@@ -2182,7 +2263,21 @@ export function placementVillageOf(state: VillageState, day: number): PlacementV
     toolCoverage: craftCoverage(state, day).tools,
     ploughTeam: ableTeams(state, day) > 0,
     walkRoads: state.roads?.roads ?? [],
+    kilns: activeKilnPoints(state),
   };
+}
+
+/** Středy milířů uhlířů vsi (crafts.md – Milíř u skácených buků); milíř bez polohy se nepočítá. */
+function activeKilnPoints(state: VillageState): { x: number; z: number }[] {
+  const out: { x: number; z: number }[] = [];
+  for (const d of state.dwellings) {
+    const w = d.workshop;
+    if (w?.craft !== 'burner') continue;
+    for (const k of [...(w.kilns ?? []), ...(w.kiln ? [w.kiln] : [])]) {
+      if (k.site) out.push({ x: k.site.x, z: k.site.z });
+    }
+  }
+  return out;
 }
 
 /**
