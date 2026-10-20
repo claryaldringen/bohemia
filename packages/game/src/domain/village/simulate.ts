@@ -52,11 +52,13 @@ import {
 import { villageCemeteries } from './cemetery';
 import { finishPurchases, purchaseTravelers, startPurchases, walkPurchases } from './craft-buying';
 import { gainPractice, withCraftSkill } from './craft-skill';
+import { cartIronDay } from './cart-iron';
 import { cloneState } from './clone';
 import {
   burnerDraws,
   craftCoverage,
   craftHouseholds,
+  ironTravellers,
   newWorkshop,
   restingCrafters,
   wearCraftStocks,
@@ -359,6 +361,9 @@ function simulateDay(
   roadSwathDay(state, day, obstacles, landscape, swathRoadsInWork(state));
   state.chronicle.push(...finishExpeditions(state, day));
   state.chronicle.push(...finishPurchases(state, day));
+  // kování vozů (wagons.md – Kování vozů): vůz s hotovou dřevěnou prací ze zásoby nástrojů, ves bez
+  // kováře pošle tesaře nebo jeho syna do nejbližší vsi s kovářem; kdo se vrátil, vůz dokončí
+  state.chronicle.push(...cartIronDay(state, day, landscape));
   finishConstructions(state, day);
   // dvorec vojvody – po zániku dvorce nejstarší obydlí, starší ves dvorec dostane (trade.md)
   keepManor(state);
@@ -821,8 +826,12 @@ function work(
   const resting = restingCrafters(state, day, coverage, productivity, obstacles);
   for (const [id, activity] of restingCarpenters(state, day, obstacles)) resting.set(id, activity);
   const crafts = craftHouseholds(state, resting);
+  // kdo jde pro kování k vozu, ve vsi ani v dílně nepracuje (wagons.md – Kování vozů)
+  const travelling = ironTravellers(state);
   const villagers =
-    crafts.size > 0 ? state.people.filter((p) => !crafts.has(p.dwellingId)) : state.people;
+    crafts.size > 0 || travelling.size > 0
+      ? state.people.filter((p) => !crafts.has(p.dwellingId) && !travelling.has(p.id))
+      : state.people;
   const waterNeeds = householdWater(villagers, state.dwellings);
   // uhlí ke kováři (crafts.md – Uhlí a ruda kováře): co dnes uhlíři vytahají z vypálených milířů
   // a do které kovárny se to nese
@@ -1044,7 +1053,7 @@ function work(
   // praxe řemeslníků a učňů (crafts.md – Učení řemesla): dílny, které dnes pracovaly, a kovárny,
   // kde synové nosili uhlí, i když kovář pracoval se vsí
   if (crafts.size > 0 || restingFetch.size > 0) {
-    gainPractice(state, day, crafts, restingFetch);
+    gainPractice(state, day, crafts, restingFetch, travelling);
   }
   // uhlí a ruda vozem – sedlák ze společné práce, jízdy do ročního provozu cest (wagons.md – Co
   // vozy vozí, crafts.md – Uhlí a ruda kováře)

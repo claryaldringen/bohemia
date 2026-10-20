@@ -325,11 +325,45 @@ export interface Workshop {
   /** Kovář: vyčerpaná ložiska (m) – další rudiště aspoň SMITH_SUPPLY.siteSpacingM od nich. */
   oreSitesUsed?: { x: number; z: number }[];
   /**
+   * Tesař (wagons.md – Kování vozů): cesta pro kování k vozu do nejbližší vsi s kovářem – ves
+   * vlastního kováře nemá; bez údaje nebo null nikdo nejde.
+   */
+  ironTrip?: IronTrip | null;
+  /**
    * Dílna zná učení řemesla (crafts.md – Učení řemesla): výkon dílny jde podle praxe jejích lidí
    * (`workshopSkill`). Dílna z doby před učením ho nemá – do převodu (`withCraftSkill`) pracuje
    * jako vyučená.
    */
   skillTracked?: true;
+}
+/**
+ * Kam jde tesař pro kování (wagons.md – Kování vozů): k sousedovi za krajem mapy (směr, hotová
+ * zemská stezka, nebo bod na kraji mapy, kam se jde krajinou), nebo do jiné vsi hráče na téže mapě
+ * (kovárna – m). `name` = jméno vsi.
+ */
+export type IronTripTarget =
+  | {
+      kind: 'neighbour';
+      name: string;
+      direction: Direction8;
+      trailId: number | null;
+      edge: { x: number; z: number };
+    }
+  | { kind: 'village'; name: string; x: number; z: number };
+/**
+ * Cesta pro kování k vozu (wagons.md – Kování vozů): kdo jde (syn tesaře od 14 let, nebo tesař –
+ * id), den odchodu, dny cesty tam a zpět a kolik jich už ušel, kolik kování nese (kg) a kolik obilí
+ * za ně dal (kg), kam jde.
+ */
+export interface IronTrip {
+  personId: number;
+  son: boolean;
+  startedDay: number;
+  days: number;
+  done: number;
+  kg: number;
+  grainKg: number;
+  to: IronTripTarget;
 }
 /**
  * Vůz vsi – zásoba, ne stavba ve scéně (stojí u ohrady se spřežením): vyrobil ho tesař v den
@@ -1078,6 +1112,14 @@ export type ChronicleEvent = { day: number } & (
     }
   /** Tesař vyrobil vůz (wagons.md – Tesař). */
   | { kind: 'cart-made'; cart: CartKind }
+  /**
+   * Ves nemá kováře – tesař (`son` – jeho syn) šel pro kování k vozu do nejbližší vsi s kovářem
+   * `to` (jméno; soused za krajem mapy ve směru `direction`, jinak jiná ves hráče na téže mapě –
+   * wagons.md, Kování vozů).
+   */
+  | { kind: 'iron-trip'; cart: CartKind; to: string; son: boolean; direction?: Direction8 }
+  /** Tesař (`son` – jeho syn) přinesl kování k vozu – vůz je hotový (wagons.md – Kování vozů). */
+  | { kind: 'iron-brought'; cart: CartKind; son: boolean }
   /** Vůz dosloužil (wagons.md – Vůz) – tesař vyrobí nový, když ho ves potřebuje. */
   | { kind: 'cart-worn-out'; cart: CartKind }
   /**
@@ -1511,6 +1553,11 @@ export interface NeighbourSnapshot {
    * žádné.
    */
   squares?: { cell: TileCell; grid: SquareGrid }[];
+  /**
+   * Obývané kovárny jiných vsí (wagons.md – Kování vozů): poloha (m) a jméno vsi – tesař ves bez
+   * kováře pro kování dojde k nejbližší. Chybí = žádné.
+   */
+  smithies?: { x: number; z: number; name: string }[];
   cleared: ObstacleChange[];
   felled: ObstacleChange[];
   reserved: number[];

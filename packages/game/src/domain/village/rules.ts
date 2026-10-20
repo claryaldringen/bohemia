@@ -1268,6 +1268,17 @@ export const CRAFT_BUYING = {
   maxDays: 60,
   minKg: 0.5,
 } as const;
+/**
+ * wagons.md – Kování vozů (Martin 20. 10. 2026: „Ano. A taky přidej tedy pravidlo, že vozy mají
+ * železnou složku. Pokud vesnice nemá kováře, musí tesař (nebo jeho syn, pokud ho má) dojít do
+ * nejbližší vesnice, kde kovář je“; čísla návrh Clauda): kování vozu – osy, hřeby, obruče a kování
+ * nábojů – dvoukolák 3 kg, čtyřkolák 6 kg ze zásoby nástrojů od kováře; pro kování jde syn tesaře
+ * od `fetchFromAge` let, jinak tesař sám.
+ */
+export const CART_IRON = {
+  kg: { 'two-wheel': 3, 'four-wheel': 6 },
+  fetchFromAge: 14,
+} as const satisfies { kg: Record<CartKind, number> } & Record<string, unknown>;
 // wagons.md – Vůz (Martin 19. 10. 2026: vozy vozí seno, snopy, klády a zboží výprav místo nosičů;
 // jeden vůz na spřežení – návrh Clauda; čísla návrh Clauda podle rešerše): dvoukolák 400 kg,
 // čtyřkolák 800 kg (jen po stezce – obchod), vůz slouží 10 let. Vůz za den odveze tolik jako

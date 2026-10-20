@@ -10,6 +10,7 @@ import {
 } from './cemetery';
 import { cartCondition, cartTargets, cartsAway, haulCartsToday, villageCarts } from './carts';
 import {
+  cartAwaitingIron,
   craftCoverage,
   craftNeeds,
   craftStocks,
@@ -17,6 +18,7 @@ import {
   workshopLabor,
   type CraftNeeds,
 } from './crafts';
+import { ironTripDaysLeft } from './cart-iron';
 import { charcoalStockKg, kilnCharcoalKg, kilnCharcoalShare } from './charcoal';
 import { smithOreSummary, type SmithOreSummary } from './smith-supply';
 import { craftSkillSummary, type CraftSkillSummary } from './craft-skill';
@@ -60,8 +62,15 @@ import {
   villageApplesKg,
   villageOrchards,
 } from './orchard';
-import { ageGroup, foodNeedPerDay, occupants } from './people';
-import { CARPENTRY, CHARCOAL_KILN, CHRONICLE_MAX_EVENTS, DWELLINGS, STARVATION } from './rules';
+import { ageGroup, ageYears, foodNeedPerDay, occupants } from './people';
+import {
+  CARPENTRY,
+  CART_IRON,
+  CHARCOAL_KILN,
+  CHRONICLE_MAX_EVENTS,
+  DWELLINGS,
+  STARVATION,
+} from './rules';
 import {
   groveHappiness,
   sacredBuildingHappiness,
@@ -81,6 +90,7 @@ import type {
   CraftCoverage,
   CraftStocks,
   DietDay,
+  Direction8,
   DwellingType,
   FallowStage,
   FieldPart,
@@ -91,6 +101,7 @@ import type {
   SquareGrid,
   TileCell,
   VillageState,
+  Workshop,
   WorkshopActivity,
   RoadGrade,
 } from './types';
@@ -229,6 +240,21 @@ export interface WorkshopSummary {
     cart: { kind: CartKind; progress: number } | null;
     timber: number;
     woodworkCoverage: number;
+    /**
+     * Kování k vozu (wagons.md – Kování vozů): vůz s hotovou dřevěnou prací čeká na kování (kg),
+     * nebo pro něj tesař či jeho syn (věk) jde do vsi `to` (jméno, soused ve směru, nebo ves na
+     * téže mapě) a vrátí se za `daysLeft` dní; jinak null.
+     */
+    iron: {
+      kg: number;
+      trip: {
+        to: string;
+        direction: Direction8 | null;
+        daysLeft: number;
+        son: boolean;
+        age: number;
+      } | null;
+    } | null;
   } | null;
 }
 
@@ -768,6 +794,7 @@ function craftsSummary(state: VillageState, day: number): CraftsSummary {
                     : null,
                   timber: workshop.timber ?? 0,
                   woodworkCoverage: workshop.woodworkCoverage ?? 0,
+                  iron: ironSummary(state, workshop, day),
                 }
               : null,
         },
@@ -780,6 +807,30 @@ function craftsSummary(state: VillageState, day: number): CraftsSummary {
       away: away.has(cart.id),
     })),
     cartTargets: cartTargets(state),
+  };
+}
+
+/** Kování k vozu tesaře pro panel (wagons.md – Kování vozů); bez čekajícího vozu a cesty null. */
+function ironSummary(
+  state: VillageState,
+  workshop: Workshop,
+  day: number,
+): NonNullable<WorkshopSummary['carpenter']>['iron'] {
+  const trip = workshop.ironTrip ?? null;
+  if (!trip && !cartAwaitingIron(workshop)) return null;
+  const kind = workshop.cart?.kind;
+  const kg = trip?.kg ?? (kind ? CART_IRON.kg[kind] : 0);
+  if (!trip) return { kg, trip: null };
+  const traveller = state.people.find((p) => p.id === trip.personId);
+  return {
+    kg,
+    trip: {
+      to: trip.to.name,
+      direction: trip.to.kind === 'neighbour' ? trip.to.direction : null,
+      daysLeft: ironTripDaysLeft(trip),
+      son: trip.son,
+      age: traveller ? ageYears(traveller.bornDay, day) : 0,
+    },
   };
 }
 

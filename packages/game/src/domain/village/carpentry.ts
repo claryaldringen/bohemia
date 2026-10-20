@@ -1,7 +1,8 @@
 import type { ObstacleLayer } from '../landscape';
-import { addCart, missingCart } from './carts';
+import { missingCart } from './carts';
 import {
   NO_STOCKS,
+  cartAwaitingIron,
   craftStocks,
   craftTargets,
   nextTree,
@@ -67,13 +68,16 @@ export function woodworkPending(state: Pick<VillageState, 'constructions'>): boo
   return state.constructions.some((c) => constructionWoodShare(c) > 0 && c.cost - c.done > EPSILON);
 }
 
-/** Co tesař vyrobí dál: rozdělaný vůz, chybějící vůz, nebo dřevěné nářadí do zásoby; jinak null. */
+/**
+ * Co tesař vyrobí dál: rozdělaný vůz, chybějící vůz, nebo dřevěné nářadí do zásoby; jinak null.
+ * Vůz, který čeká na kování, se nepočítá – tesař mezitím dělá nářadí (wagons.md – Kování vozů).
+ */
 function nextProduct(
   state: VillageState,
   day: number,
   workshop: Workshop,
 ): 'cart' | 'tools' | null {
-  if (workshop.cart || missingCart(state)) return 'cart';
+  if (workshop.cart ? !cartAwaitingIron(workshop) : missingCart(state)) return 'cart';
   const target = craftTargets(state, day).woodToolsKg;
   return (craftStocks(state).woodToolsKg ?? 0) + EPSILON < target ? 'tools' : null;
 }
@@ -255,7 +259,8 @@ interface CarpenterOutput {
 /**
  * Den jednoho tesaře (mutuje stav): práce `labor` po pomoci stavbám jde do vozu a nářadí; práce na
  * jednotku podle pokrytí nástroji (CARPENTER_TOOLS_WORK) a praxe (`skill` – crafts.md, Učení
- * řemesla; kácení ne). Hotový vůz přibude do vozů vsi (kronika `cart-made`).
+ * řemesla; kácení ne). Vůz s hotovou dřevěnou prací čeká na kování a tesař dělá nářadí – kování
+ * přidá a vůz dokončí krok dne `cartIronDay` (wagons.md – Kování vozů).
  */
 function workCarpenter(
   state: VillageState,
@@ -318,17 +323,13 @@ function workCarpenter(
       }
     }
     const cart = workshop.cart;
-    if (cart) {
+    if (cart && !cartAwaitingIron(workshop)) {
       const total = CARPENTRY.cartManDays[cart.kind];
       const progress = Math.min(left / factor, Math.max(0, total - cart.done));
       cart.done += progress;
       left -= progress * factor;
       making += progress * factor;
-      if (cart.done + EPSILON >= total) {
-        addCart(state, cart.kind, day);
-        state.chronicle.push({ day, kind: 'cart-made', cart: cart.kind });
-        workshop.cart = null;
-      }
+      // hotová dřevěná práce – vůz čeká na kování (cartIronDay), tesař pokračuje nářadím
       continue;
     }
     const short = craftTargets(state, day).woodToolsKg - (stocks.woodToolsKg ?? 0);

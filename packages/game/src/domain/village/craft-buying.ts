@@ -118,13 +118,14 @@ function villageCenter(state: VillageState): { x: number; z: number } {
  * Cesta k sousedovi ve směru (crafts.md – Nákup u sousedů): po hotové zemské stezce dny jako
  * výprava (`trailTripDays`); bez ní lidé jdou krajinou rovně ke kraji mapy – delší (× CRAFT_BUYING.
  * offTrailFactor) a den navíc. Bez krajiny (kalibrace) se počítá s mapou obvyklé velikosti.
+ * `from` – odkud se jde krajinou (výchozí dvorec – nákup; tesař pro kování od dílny – wagons.md).
  */
 export function purchaseRoute(
   state: VillageState,
   direction: Direction8,
   landscape: Landscape | null,
+  from: { x: number; z: number } = villageCenter(state),
 ): PurchaseRoute {
-  const from = villageCenter(state);
   const half = landscape
     ? (landscape.size * landscape.cellSizeM) / 2
     : (LANDSCAPE_SIZE * CELL_SIZE_M) / 2;
@@ -255,6 +256,15 @@ interface PaymentPool {
   energyKg: number;
   grainKg: number;
   legumesKg: number;
+}
+
+/**
+ * Kolik obilí ves může dát (kg – přebytek nad pojistkou zásob k příští sklizni, nejvýš obilí
+ * v zásobě): platba za kování k vozu (wagons.md – Kování vozů) jako za nákup u sousedů.
+ */
+export function spareGrainKg(state: VillageState, day: number, coverage: CraftCoverage): number {
+  const pool = paymentPool(state, day, coverage);
+  return Math.max(0, Math.min(pool.grainKg, pool.energyKg));
 }
 
 /** Přebytek obilí a luštěnin nad pojistkou zásob (field-food.ts – `sowingTargets`). */
