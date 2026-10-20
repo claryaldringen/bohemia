@@ -1,11 +1,20 @@
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
-import type { Landscape } from '@bohemia/game';
+import { VertexBuffer } from '@babylonjs/core/Buffers/buffer';
+import type { Landscape, TerrainEdits } from '@bohemia/game';
 import { HEIGHT_SCALE } from './constants';
 import type { ForestGround } from './ground-layers';
 import type { RenderSurface } from './render-surface';
+import { terrainMeshHeight } from './drape';
 import { createTerrainMaterial } from './terrain-material';
+import {
+  editSurfaceHeights,
+  recomputeNormals,
+  surfaceRegion,
+  unionRegion,
+  type SurfaceRegion,
+} from './terrain-edits';
 import { createTerrainPicker, type TerrainPicker } from './terrain-pick';
 
 /** Síť terénu, pick po výškové síti a přepočet ztmavení pod vykácenými stromy. */
@@ -14,6 +23,15 @@ export interface TerrainMesh {
   /** Bod terénu na paprsku – stejné trojúhelníky jako `scene.pick` na síti (terrain-pick.ts). */
   pick: TerrainPicker;
   setHiddenTrees(hidden: ReadonlySet<number>): boolean;
+  /**
+   * Úpravy terénu vozových cest (roads.md – Vozová cesta): síť se v úvozu sníží a v náspu zvedne
+   * (výšková síť `surface` se mění na místě – výška terénu ve scéně, pick i obtisky podle ní).
+   * Přepočet jen kolem cest a jen při změně (`edits.key`). Vrátí obdélník vrcholů, kde se terén
+   * změnil, nebo null.
+   */
+  setTerrainEdits(edits: TerrainEdits): SurfaceRegion | null;
+  /** Výška vykresleného terénu bez úprav (m s převýšením – na trojúhelnících sítě). */
+  baseHeightAt(x: number, z: number): number;
 }
 
 /**
@@ -70,9 +88,46 @@ export function createTerrainMesh(
   const material = createTerrainMaterial(scene, l, surface.stream, forest);
   mesh.material = material.material;
   mesh.freezeWorldMatrix();
+  let picker = createTerrainPicker(positions, surface.resolution);
+  // původní výšky (bez úprav terénu) – úpravy se počítají vždy z nich
+  const base = new Float32Array(surface.heights);
+  let editsKey = '';
+  let edited: SurfaceRegion | null = null;
+  const n = surface.resolution;
   return {
     mesh,
-    pick: createTerrainPicker(positions, surface.resolution),
+    pick: (ray) => picker(ray),
+    baseHeightAt: (x, z) =>
+      terrainMeshHeight({ resolution: n, heights: base, position: surface.position }, x, z),
     setHiddenTrees: (hidden) => material.setHiddenTrees(hidden),
+    setTerrainEdits: (edits) => {
+      if (edits.key === editsKey) return null;
+      editsKey = edits.key;
+      const next = edits.count > 0 ? surfaceRegion(surface, edits.bounds) : null;
+      // i kde úpravy byly a už nejsou – terén se tam vrátí
+      const scan = unionRegion(edited, next);
+      edited = next;
+      const region = scan ? editSurfaceHeights(surface, base, edits, scan) : null;
+      if (!region) return null;
+      for (let j = region.j0; j <= region.j1; j++) {
+        for (let i = region.i0; i <= region.i1; i++) {
+          const v = j * n + i;
+          positions[v * 3 + 1] = surface.heights[v]! * HEIGHT_SCALE;
+        }
+      }
+      const around = {
+        i0: Math.max(0, region.i0 - 1),
+        j0: Math.max(0, region.j0 - 1),
+        i1: Math.min(n - 1, region.i1 + 1),
+        j1: Math.min(n - 1, region.j1 + 1),
+      };
+      recomputeNormals(positions, normals, n, around);
+      // buffery sítě nejsou dynamické – nové (jednou za změnu profilu, nejvýš jednou za den)
+      mesh.setVerticesData(VertexBuffer.PositionKind, positions, false);
+      mesh.setVerticesData(VertexBuffer.NormalKind, normals, false);
+      mesh.refreshBoundingInfo();
+      picker = createTerrainPicker(positions, n);
+      return region;
+    },
   };
 }

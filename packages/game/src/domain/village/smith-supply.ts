@@ -1,12 +1,29 @@
 import { createRandom, deriveSeed } from '../landscape/random';
-import { detCos, detSin, length2, type Landscape } from '../landscape';
+import {
+  detCos,
+  detSin,
+  length2,
+  obstaclesNear,
+  obstaclesOf,
+  type Landscape,
+  type ObstacleLayer,
+} from '../landscape';
 import { distanceFactor } from './fields';
+import { obstacleChangesAt, obstacleStatus, type ObstacleStatus } from './obstacles';
 import { PolygonIndex, villageLandSquares } from './squares';
 import { ageGroup, ageYears } from './people';
-import { PATH_WATER_SPOT, PATH_WETLAND } from './paths/terrain';
+import { PATH_FOREST, PATH_WATER_SPOT, PATH_WETLAND } from './paths/terrain';
 import { groundSpots, villageRoadWalk, walkGroundOf } from './paths/walking';
 import { kilnPoint, workshopKilns } from './charcoal';
-import { CARTS, CART_JOBS, CLAY, CRAFT_PRODUCTION, SMITH_SUPPLY, WATER_FETCHING } from './rules';
+import {
+  CARTS,
+  CART_JOBS,
+  CLAY,
+  CRAFT_PRODUCTION,
+  DUG_SITE_VIEW,
+  SMITH_SUPPLY,
+  WATER_FETCHING,
+} from './rules';
 import type {
   CharcoalKiln,
   Dwelling,
@@ -399,17 +416,49 @@ function awayFromUsed(
  * (PATH_WETLAND terénu pěšin – suchá rovina u vody) nejblíž kovárně vzdušnou čarou (při shodě
  * menší x, z) aspoň SMITH_SUPPLY.siteSpacingM od vyčerpaných ložisek; bez mokřiny suchý břeh
  * (PATH_WATER_SPOT). Ne na čtvercích staveb vsi (pole, sad, hřbitov, ohrada, les vsi) ani u domů.
+ * Místo má být na mapě vidět (crafts.md – Rudiště a hliniště na očích): mimo les a koruny stromů
+ * (`inView`), les a koruny jen když volné místo není do rozumné vzdálenosti (DUG_SITE_VIEW).
  * Vzdálenost chůze po pevných cestách s půdou krajiny (mokřina a brody –
  * paths/walking.ts). Bez krajiny (testy, kalibrace) místo bez polohy ve vzdálenosti dílny k vodě
- * (`waterDistanceM`). Když není mokřina ani voda, null.
+ * (`waterDistanceM`). Když není mokřina ani voda, null. `obstacles` = vrstva překážek krajiny
+ * (koruny stromů); bez ní `obstaclesOf(landscape)`.
  */
 export function chooseOreSite(
   state: VillageState,
   smith: Dwelling,
   day: number,
   landscape: Landscape | null,
+  obstacles?: ObstacleLayer | null,
 ): OreSite | null {
-  return chooseDugSite(state, smith, day, landscape, 'ore');
+  return chooseDugSite(state, smith, day, landscape, 'ore', obstacles);
+}
+
+/**
+ * Stojí místo `p` na očích – shora vidět (crafts.md – Rudiště a hliniště na očích)? Mimo les
+ * krajiny (PATH_FOREST terénu pěšin) a bez dospělého stromu do DUG_SITE_VIEW.treeClearM – stromy
+ * vrstvy překážek, které dnes stojí (`status` – pokácený strom je pařez), i stromy, které přidala
+ * ves (stromy u cest, les vsi).
+ */
+function inView(
+  p: { x: number; z: number },
+  ground: ReturnType<typeof walkGroundOf>,
+  layer: ObstacleLayer,
+  status: ObstacleStatus,
+): boolean {
+  const t = ground.terrain;
+  const i = Math.round((p.x - t.originX) / t.cellM);
+  const j = Math.round((p.z - t.originZ) / t.cellM);
+  if (i >= 0 && j >= 0 && i < t.width && j < t.height && t.flags[j * t.width + i]! & PATH_FOREST) {
+    return false;
+  }
+  const r = DUG_SITE_VIEW.treeClearM;
+  for (const k of obstaclesNear(layer, p.x - r, p.z - r, p.x + r, p.z + r)) {
+    if (length2(layer.x[k]! - p.x, layer.z[k]! - p.z) >= r) continue;
+    if (status.kindOf(layer, k) === 'tree') return false;
+  }
+  return status
+    .addedIn(p.x - r, p.z - r, p.x + r, p.z + r)
+    .every((o) => o.kind !== 'tree' || length2(o.x - p.x, o.z - p.z) >= r);
 }
 
 /**
@@ -423,6 +472,7 @@ export function chooseDugSite(
   day: number,
   landscape: Landscape | null,
   material: DugMaterial,
+  obstacles?: ObstacleLayer | null,
 ): OreSite | null {
   const workshop = dwelling.workshop!;
   const spec = DUG[material];
@@ -455,22 +505,39 @@ export function chooseDugSite(
   const free = (p: { x: number; z: number }): boolean =>
     land.containing(p.x, p.z).length === 0 &&
     homes.every((h) => length2(h.x - p.x, h.z - p.z) >= ORE_SITE_HOME_M);
-  const nearest = (flag: number): { x: number; z: number } | null => {
+  const nearest = (
+    flag: number,
+    ok?: (p: { x: number; z: number }) => boolean,
+    reachM = Infinity,
+  ): { x: number; z: number } | null => {
     let best: { x: number; z: number } | null = null;
     let bestD = Infinity;
+    const limit = reachM * reachM;
     for (const p of groundSpots(ground, flag)) {
       if (!awayFromUsed(p, avoid)) continue;
       const d = (p.x - from.x) * (p.x - from.x) + (p.z - from.z) * (p.z - from.z);
       // body jdou po řádcích – při shodě vyhraje první
-      if (d < bestD && free(p)) {
+      if (d < bestD && d <= limit && free(p) && (!ok || ok(p))) {
         best = p;
         bestD = d;
       }
     }
     return best;
   };
-  const spot = nearest(PATH_WETLAND) ?? nearest(PATH_WATER_SPOT);
-  if (!spot) return null;
+  const closest = nearest(PATH_WETLAND) ?? nearest(PATH_WATER_SPOT);
+  if (!closest) return null;
+  // na očích (crafts.md – Rudiště a hliniště na očích): mimo les a koruny stromů, napřed mokřina,
+  // pak břeh – nejvýš o DUG_SITE_VIEW dál než nejbližší místo; jinak to nejbližší
+  let spot = closest;
+  const layer = obstacles ?? obstaclesOf(landscape);
+  const status = obstacleStatus(obstacleChangesAt(state, day));
+  const visible = (p: { x: number; z: number }): boolean => inView(p, ground, layer, status);
+  if (!visible(closest)) {
+    const d = length2(closest.x - from.x, closest.z - from.z);
+    const reach = Math.max(d * DUG_SITE_VIEW.openFarther, d + DUG_SITE_VIEW.openSlackM);
+    spot =
+      nearest(PATH_WETLAND, visible, reach) ?? nearest(PATH_WATER_SPOT, visible, reach) ?? closest;
+  }
   const walkM = villageRoadWalk(state, landscape)(from, [spot])[0]!;
   if (!Number.isFinite(walkM)) return null;
   return {
@@ -619,6 +686,8 @@ export function workOre(
 /** Volby dne dílny se surovinou (`workOre`, `workDug`). */
 export interface DugOptions {
   landscape: Landscape | null;
+  /** Vrstva překážek krajiny – koruny stromů u nového místa (`chooseDugSite`). */
+  obstacles?: ObstacleLayer | null;
   batchDays: number;
   cart?: OreCartToday;
   /** Vyplatí se dávka na celý vůz? (kg vozu); null = ves vůz nemá nebo jízda neušetří. */
@@ -680,7 +749,7 @@ export function workDug(
     }
     if (stock + EPSILON < need || cartKg !== null) {
       if (site === undefined) {
-        site = chooseDugSite(state, smith, day, options.landscape, material);
+        site = chooseDugSite(state, smith, day, options.landscape, material, options.obstacles);
         workshop[spec.site] = site;
       }
       if (site) {

@@ -777,14 +777,14 @@ describe('selectionDetails – posvátná místa', () => {
 
 describe('selectionDetails – rudiště (crafts.md – Uhlí a ruda kováře)', () => {
   const site = {
-    smithId: 2,
+    workshopId: 2,
     leftKg: 2140,
     depositKg: 3000,
     heapKg: 35,
     stockKg: 96,
     walkM: 186,
     pits: 3,
-    workers: [{ age: 41, smith: true, digs: true, carries: false, rides: false }],
+    workers: [{ age: 41, craftsman: true, digs: true, carries: false, rides: false }],
     cart: false,
   };
   const withOre: SceneVillage = {
@@ -803,5 +803,25 @@ describe('selectionDetails – rudiště (crafts.md – Uhlí a ruda kováře)',
     expect(
       selectionDetails({} as unknown as VillageView, withOre, { kind: 'ore-site', id: 2 }),
     ).toBeNull();
+  });
+
+  it('hliniště hrnčíře (crafts.md – Hlína hrnčíře) z `claySites`, ne z rudišť', () => {
+    const clay = { ...site, workshopId: 3, depositKg: 20000, leftKg: 17460 };
+    const withClay: SceneVillage = {
+      ...withOre,
+      oreSites: [
+        ...withOre.oreSites!,
+        { dwellingId: 3, x: 60, z: -40, heapKg: 260, digging: false, clay: true },
+      ],
+    };
+    const view = { oreSites: [site], claySites: [clay] } as unknown as VillageView;
+    expect(selectionDetails(view, withClay, { kind: 'clay-site', id: 3 })).toEqual({
+      kind: 'clay-site',
+      ...clay,
+    });
+    // dílna hrnčíře nemá rudiště, kovárna hliniště
+    expect(selectionDetails(view, withClay, { kind: 'ore-site', id: 3 })).toBeNull();
+    expect(selectionDetails(view, withClay, { kind: 'clay-site', id: 2 })).toBeNull();
+    expect(selectionDetails(view, withOre, { kind: 'clay-site', id: 3 })).toBeNull();
   });
 });

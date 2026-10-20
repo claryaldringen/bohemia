@@ -22,6 +22,7 @@ import {
   relocateHousehold,
   renameVillage,
   plantApplesAlongRoad,
+  buildWagonRoad,
   upgradeRoad,
   buildTrail,
   sendExpedition,
@@ -456,6 +457,20 @@ export function upgradeRoadForPlayer(
         roadId: input.roadId,
         upgrade: input.upgrade,
       },
+    ),
+  );
+}
+
+/** Vozová cesta – vlastní trasa mezi konci cesty hráče (roads.md – Vozová cesta). */
+export function buildWagonRoadForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { roadId: number },
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, (ctx) =>
+    buildWagonRoad(
+      { villages: villages() },
+      { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, roadId: input.roadId },
     ),
   );
 }

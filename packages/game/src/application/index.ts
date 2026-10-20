@@ -20,6 +20,7 @@ export * from './place-orchard';
 export * from './place-sacred';
 export * from './place-pen';
 export * from './upgrade-road';
+export * from './build-wagon-road';
 export * from './build-trail';
 export * from './send-expedition';
 export * from './plant-road-apples';

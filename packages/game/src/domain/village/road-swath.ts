@@ -181,7 +181,7 @@ export function roadSwathTally(
 }
 
 /** Přidá pařezy, které nedorostou, do průseků vsi (mutuje – vzestupně, bez opakování). */
-function keepClear(state: VillageState, ids: readonly number[]): void {
+export function keepClear(state: VillageState, ids: readonly number[]): void {
   const roads = state.roads;
   if (!roads || ids.length === 0) return;
   const all = new Set([...(roads.swath ?? []), ...ids]);

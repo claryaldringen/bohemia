@@ -19,8 +19,11 @@ import { claimedObstacles, planWoodFrom, takeWood, woodLogs, type WoodPlan } fro
 // cesta lesem vykácí průsek (road-swath.ts – kácení je součást práce, klády na hromadu); posvátný
 // dub v pásu cesty úpravu nedovolí.
 
-/** Vylepšení úseku – na upravenou cestu, nebo hať a lávka. */
-export type RoadUpgrade = Exclude<RoadGrade, 'trodden'>;
+/**
+ * Vylepšení úseku – na upravenou cestu, nebo hať a lávka. Vozová cesta (roads.md – Vozová cesta)
+ * má vlastní trasu a stavbu (wagon-road.ts).
+ */
+export type RoadUpgrade = Exclude<RoadGrade, 'trodden' | 'wagon'>;
 
 /** Vylepšení, které úsek nabízí: práce celkem (i s kácením), dřevo a proč teď nejde. */
 export interface RoadUpgradeOption {
@@ -150,7 +153,7 @@ function chainTargets(state: VillageState, roadId: number, upgrade: RoadUpgrade)
     .filter((road) =>
       upgrade === 'improved'
         ? road.grade === 'trodden'
-        : road.grade !== 'causeway' && roadNeedsCauseway(road),
+        : road.grade !== 'causeway' && road.grade !== 'wagon' && roadNeedsCauseway(road),
     );
 }
 
@@ -301,7 +304,7 @@ export function roadUpgradeProgress(
   });
   const grade = c.roadGrade;
   const byCost = roads.map((road) =>
-    grade && grade !== 'trodden' ? roadUpgradeCost(road, grade).manDays : 0,
+    grade && grade !== 'trodden' && grade !== 'wagon' ? roadUpgradeCost(road, grade).manDays : 0,
   );
   // bez ceny (krátké úseky) po délce
   const weights = byCost.some((w) => w > 0) ? byCost : roads.map((road) => roadLengthM(road));

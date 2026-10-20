@@ -277,6 +277,34 @@ později.
   po čtvercích jako `scenery-culling.ts` – námět, kdyby obnova na slabších GPU drhla).
 - Vývojový ukazatel výkonu ukazuje obnovy stínové mapy za sekundu a CPU jednoho vykreslení.
 
+## Úpravy terénu (vozová cesta)
+
+Vozová cesta ([roads.md](roads.md) – Vozová cesta; Martin, 20. 10. 2026: „Pokud budou překážet
+svahy, vyhloubí se úvoz nebo udělá násep.“) je první stavba, která mění tvar terénu. Podrobnosti
+návrh Clauda.
+
+- **Krajina se nemění.** Výšky krajiny (`Landscape.heights`) zůstanou, jak je vygeneroval
+  generátor. Úpravy jsou **čistá funkce stavu vsi**: stav ukládá jen profil osy vozové cesty
+  (body a navržené výšky pláně na cm, brody) a úseky stavby (`VillageRoads.earthworks`), ne
+  mřížku. Z nich `terrainEditsOf` / `terrainEditsFrom` (`paths/earthworks.ts`) složí úsečky pláně
+  v rejstříku po 16 m a `editedHeight(edits, x, z, natural)` dá výšku v bodě: pláň 5,5 m
+  v navržené výšce, za ní svah 1 : 1 k původnímu terénu (úvoz dolů, násep nahoru), dál beze změny.
+  Kde se úpravy dvou cest potkají, platí bližší. Brod se neupravuje. `groundHeightAt` = upravená
+  výška nad terénem krajiny – jen deterministická matematika (soubor je v deterministické vrstvě,
+  hlídá ESLint), stejně na serveru i v prohlížeči.
+- **Kdo je používá:** terén pěšin (`withTerrainEdits` přepočítá výšky a sklon buněk v dosahu
+  úprav) – síť pěšin, vzdálenosti chůze a vozová síť (po úvozu vůz jede rovně), hledání trasy
+  další vozové cesty. Sítě berou jen **hotové úseky** (síť se nepřepočítává každý den stavby),
+  scéna i rozestavěný kus podle průběhu.
+- **Scéna:** jemná výšková síť scény (`render-surface.ts`) se upraví stejnou funkcí nad
+  vyhlazeným terénem scény (`terrain-edits.ts` – jen obdélník kolem cest a jen při změně profilu,
+  ve vodě nic), síť terénu dostane nové výšky a normály (`TerrainMesh.setTerrainEdits`), pick
+  terénu (`terrain-pick.ts`) jde po upravené síti. Pole, pěšiny, cesty, stromy u cest a kolíky
+  se přestaví jen tam, kde se terén změnil; postavy, zvířata, vozy a stromy stojí na upraveném
+  terénu (výška scény). Svahy úvozu a náspu mají obtisk holé hlíny, který za 6 let zaroste.
+- **Ves bez vozové cesty** má terén bit po bitu jako dřív (bez úprav se nic nepřepočítává –
+  hlídají testy).
+
 ## Testy
 
 - **Doména:** stejný seed → shodná krajina, jiný seed → jiná; na stovkách seedů splněny dolní

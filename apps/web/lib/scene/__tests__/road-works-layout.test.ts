@@ -2,7 +2,7 @@ import { NullEngine } from '@babylonjs/core/Engines/nullEngine';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Scene } from '@babylonjs/core/scene';
 import { describe, expect, it } from 'vitest';
-import type { SceneRoad, SceneRoadApple } from '../../village-view';
+import type { SceneEarthwork, SceneRoad, SceneRoadApple } from '../../village-view';
 import { IMPROVED_WORN_LAYER, ROAD_WIDTH_M, ribbonSections } from '../path-ribbon';
 import { roadRibbonMeshes } from '../road-works';
 import {
@@ -19,6 +19,10 @@ import {
   roadBands,
   roadWorksKey,
   stakingLines,
+  SLOPE_GRASS_YEARS,
+  WAGON_STAKING_OFFSET_M,
+  earthworkSlopeGrid,
+  wagonStakingLines,
 } from '../road-works-layout';
 import { nearestRoad, pickVillageTarget } from '../village-picking';
 
@@ -145,11 +149,17 @@ describe('vylepšené cesty ve scéně (road-works-layout)', () => {
         height: () => 0,
         smoothHeight: () => 0,
         material: () => material,
-        lift: { worn: 0.05, earth: 0.055 },
-        alphaIndex: { worn: 3, earth: 3.5 },
+        lift: { worn: 0.05, earth: 0.055, gravel: 0.06 },
+        alphaIndex: { worn: 3, earth: 3.5, gravel: 3.7 },
       }).map((m) => m.name);
     expect(meshes('trodden')).toEqual(['roads-worn', 'roads-earth']);
     expect(meshes('improved')).toEqual(['roads-improved-worn', 'roads-improved-earth']);
+    // vozová cesta (roads.md – Vozová cesta): pás 3,5 m a zpevněné koleje se štěrkem
+    expect(meshes('wagon')).toEqual([
+      'roads-wagon-worn',
+      'roads-wagon-earth',
+      'roads-wagon-gravel',
+    ]);
     // rozestavěná úprava: od začátku úseku širší, dál vyšlapaná – žádný další pás
     expect(meshes('trodden', { grade: 'improved', progress: 0.4 }).sort()).toEqual(
       ['roads-earth', 'roads-improved-earth', 'roads-improved-worn', 'roads-worn'].sort(),
@@ -292,5 +302,51 @@ describe('výběr úseku cesty kliknutím', () => {
       kind: 'road',
       id: 2,
     });
+  });
+});
+
+describe('vozová cesta ve scéně (roads.md – Vozová cesta)', () => {
+  const profile = [
+    { x: 0, z: 0, y: 1 },
+    { x: 0, z: 20, y: 1 },
+    { x: 0, z: 40, y: 1 },
+  ];
+  const earthwork = (over: Partial<SceneEarthwork> = {}): SceneEarthwork => ({
+    id: 1,
+    profile,
+    reachedM: 40,
+    shownM: 40,
+    pieces: [{ toM: 40, ageYears: 0 }],
+    ...over,
+  });
+  // terén 2 m nad plání (úvoz), dál od osy svah 1 : 1 k terénu
+  const base = (): number => 3;
+  const height = (x: number): number => Math.min(3, 1 + Math.max(0, Math.abs(x) - 2.75));
+
+  it('hlína na svazích podle úpravy terénu, s věkem zaroste trávou', () => {
+    const fresh = earthworkSlopeGrid([earthwork()], (x) => height(x), base, 1)!;
+    const old = earthworkSlopeGrid(
+      [earthwork({ pieces: [{ toM: 40, ageYears: SLOPE_GRASS_YEARS }] })],
+      (x) => height(x),
+      base,
+      1,
+    )!;
+    const max = (a: Float32Array): number => Math.max(...a);
+    expect(max(fresh.alphas)).toBeGreaterThan(0.9);
+    expect(max(old.alphas)).toBeLessThan(0.2);
+    // kde se terén nezměnil, hlína není
+    const lanes = fresh.positions.length / 2 / profile.length;
+    expect(fresh.alphas[0]).toBe(0);
+    expect(fresh.alphas[lanes - 1]).toBe(0);
+    // nehotová část osy svahy nemá
+    expect(earthworkSlopeGrid([earthwork({ shownM: 0 })], (x) => height(x), base, 1)).toBeNull();
+  });
+
+  it('vytyčení: nehotová část stavby a náhled trasy po obou okrajích vozovky', () => {
+    expect(wagonStakingLines([earthwork({ shownM: 10, building: true })], [])).toHaveLength(2);
+    expect(wagonStakingLines([earthwork()], [])).toHaveLength(0);
+    expect(wagonStakingLines([], [profile])).toHaveLength(2);
+    const [left] = wagonStakingLines([], [profile]);
+    expect(Math.abs(left![0]![0])).toBeCloseTo(WAGON_STAKING_OFFSET_M, 6);
   });
 });

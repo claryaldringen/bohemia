@@ -83,11 +83,12 @@ hráče](#cesta-pro-hráče)), v panelu je stupeň, délka, stáří, stromy a j
 vylepšení (ikony, cena v popisku – jako v 0 A.D.). Vylepšení je stavba ze
 společné práce vsi; stromy bere jako obydlí (klády z hromady, pak nejbližší dospělé stromy).
 
-| Stupeň                     | Co se udělá                                                 | Cena (návrh Clauda)                                       | Rychlost chůze (návrh Clauda)         |
-| -------------------------- | ----------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------- |
-| 1. **Vyšlapaná cesta**     | vznikne sama                                                | –                                                         | 1,5× proti louce (i vyježděná)        |
-| 2. **Upravená cesta**      | vyrovnaná a rozšířená – širší vyšlapaná cesta (bez strouhy) | **15 člověkodní na 100 m**                                | 1,7×                                  |
-| 3. **Hať a lávka** (po 2.) | povalový chodník přes mokřinu, lávka z kmenů přes potok     | hať **1 strom a 2 čd na 2 m**, lávka **4 stromy a 15 čd** | 1,7× i přes mokřinu; brod bez zdržení |
+| Stupeň                     | Co se udělá                                                                                               | Cena (návrh Clauda)                                       | Rychlost chůze (návrh Clauda)         |
+| -------------------------- | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------- |
+| 1. **Vyšlapaná cesta**     | vznikne sama                                                                                              | –                                                         | 1,5× proti louce (i vyježděná)        |
+| 2. **Upravená cesta**      | vyrovnaná a rozšířená – širší vyšlapaná cesta (bez strouhy)                                               | **15 člověkodní na 100 m**                                | 1,7×                                  |
+| 3. **Hať a lávka** (po 2.) | povalový chodník přes mokřinu, lávka z kmenů přes potok                                                   | hať **1 strom a 2 čd na 2 m**, lávka **4 stromy a 15 čd** | 1,7× i přes mokřinu; brod bez zdržení |
+| **Vozová cesta**           | nová přímější trasa s úvozy, náspy a serpentinami do 6 %, zpevněné koleje – [Vozová cesta](#vozová-cesta) | zemní práce 0,5 čd/m³, zpevnění 0,3 čd/m, kácení          | 1,7× i přes mokřinu; vůz 2,2×         |
 
 - **Stupeň 3** jde jen na úseku, který vede mokřinou (rovina podél potoka) nebo brodí potok –
   jinak se nenabízí.
@@ -709,6 +710,174 @@ neměly být dvě cesty, ale měly by se spojit do jedné“ a „cesty by se na
 - **Vlkov:** 8 úseků = 6 cest hráče – 103 (upravená) + 183 (vyšlapaná) a 59 + 131 jsou každá
   jedna cesta; úprava se z obou úseků nabízí stejně (jen vyšlapaný úsek, 21,6 čd).
 
+## Vozová cesta
+
+Martin (20. 10. 2026): „Měla by přibýt cesta upravená pro vůz. Ta bude vozu dávat ještě větší
+rychlost, bude mít vyježděné, ale zpevněné koleje. Zároveň dojde k podsattné změně - tato cesta
+spojí dva body, které spojuje stará cesta pro pěší, ale co nejvíc přímo tak, aby vůz projel. Pokud
+budou překážet svahy, vyhloubí se úvoz nebo udělá násep. Samozřejmě, některé svahy budou tak
+velké, že se budou muset kombinovat serpentiny, úvozy a náspy.“
+
+Na doplňující otázky Martin odpověděl:
+
+- **Stará cesta pro pěší zůstane.** Chodí po ní dál, kdo to má blíž. Kusy, kterými nikdo nechodí,
+  po 5 letech zarostou (dnešní pravidlo – [Zarůstá jen nepoužívaný kus](#zarůstá-jen-nepoužívaný-kus)).
+- **Rozhoduje hráč v panelu cesty**, stejně jako u dnešních vylepšení: vybere cestu, uvidí trasu
+  a cenu a potvrdí.
+
+Podrobnosti a čísla jsou **návrh Clauda** schválený 20. 10. 2026 (čísla `WAGON_ROAD` v `rules.ts`,
+rešerše [research/2026-10-20-earthworks.md](research/2026-10-20-earthworks.md)); co Claude
+rozhodl sám při stavbě, je v tabulce na konci.
+
+### Co to je
+
+- **Nový stupeň pevné cesty** `wagon` – „Vozová cesta“: pás 3,5 m udusané hlíny s kolejemi
+  vyztuženými kamenem a štěrkem, po 1 m krajnice – pláň 5,5 m.
+- **Rychlost:** vůz **2,2** (upravená 1,8, vyježděná 1,6), pěšky **1,7** jako upravená. V mokřině
+  drží rychlost jako hať (zpevněná) – chůze i vůz. Brod zůstává brodem (most je samostatné
+  vylepšení později). Stromy a jabloně u cesty přidají jako u ostatních cest.
+- **Vlastní trasa** mezi konci vybrané cesty hráče (rozcestí nebo volné konce –
+  [Cesta pro hráče](#cesta-pro-hráče)) – nevede po ose staré cesty, ale co nejpříměji, kudy vůz
+  projede.
+- **Stará cesta zůstane** jako samostatná pevná cesta s dnešními pravidly. Provoz se sám přesune
+  na rychlejší cestu (síť pěšin, vozová síť), nepoužívané kusy staré cesty zarostou. Souběžný kus
+  staré cesty těsně vedle vozové se vyřízne jako každá souběžná cesta – vozová se nikdy neřeže.
+- **Vozová cesta nezarůstá** (jako upravená a hať) a její volné konce se nenapojují samy
+  (díry – [Úseky a rozcestí](#úseky-a-rozcestí)) – napojí je stavba.
+
+### Trasa
+
+- **Hledání:** A\* po mřížce terénu pěšin (3,75 m) ze 16 směrů jako vozová síť, zatáčení
+  o 2 směry na krok (čtyřkolák se spřežením zatočí na poloměru ≈ 6–8 m – úvrať serpentiny
+  ≈ 15 m; vozová síť po louce počítá opatrněji o jeden), změna směru stojí 0,5 čd navíc (trasa se
+  zbytečně nevlní). Hledá se v okně kolem staré cesty a konců (rezerva 40 % spojnice + 60 m,
+  60–220 m).
+- **Cena trasy** = práce stavby (zemní práce, zpevnění, kácení) + čas jízdy vozem za **10 let**
+  provozu podle loňských jízd cesty (`Road.cartTraffic`, nejméně 0,05 jízdy denně – bez provozu
+  malá váha; den vozky 10 h). Nejlevnější trasa vyhraje.
+- **Sklon po úpravě nejvýš 6 %** (žádoucí mez pro povozy tažené zvířaty je 8 % – naložený
+  čtyřkolák s brzděním smykem chce méně). Úvoz (výkop) nebo násep zarovná podélný profil
+  nejvýš o **3 m**. Kde by bylo potřeba víc, trasa jde jinudy – serpentiny vzniknou samy
+  z omezení sklonu a zatáčení, velké svahy dostanou serpentiny, úvozy i náspy.
+- **Kudy ne** (jako vozová síť): voda mimo brod, osetý díl, sad, hřbitov, ohrada, stavby, pozemky
+  a staveniště (s půl vozovkou), posvátné duby a háje (pláň a 2 m) a okrsek svatyně. U staveb,
+  plotů a vody se terén upraví jen tolik, kolik se vejde (srovnání pláně 0,3 m jde všude), brody
+  se neupravují. **Les ano** – průsek ([Průsek lesem](#průsek-lesem)). **Pole** – cesta přes pole
+  jako dnes ([Cesta přes pole](#cesta-přes-pole), pás 3,5 m).
+- **Kdy úprava nejde:** cesta je okruh, kratší než 15 m, už je vozová nebo se upravuje, žádná
+  trasa do 6 % se nenašla, nebo by vedla velkou oklikou mezi stavbami (víc než 3× delší a o víc
+  než 60 m, přestože stará cesta není prudší než 6 % – délku pak nedělá svah, ale domy) – důvod
+  česky v popisku.
+
+### Profil a zemní práce
+
+- **Profil:** osa trasy se vyhladí (zubaté kroky mřížky zmizí; zkusí se víc stupňů vyhlazení
+  a vybere se nejlevnější, hladší má přednost do 15 % ceny), body po 2 m, navržená výška pláně na
+  cm – nejmenší zemní práce při sklonu do 6 % a v mezích úvozu a náspu. Stav vsi ukládá jen
+  profil osy, ne mřížku.
+- **Příčný řez:** pláň 5,5 m v navržené výšce, svahy výkopu a náspu 1 : 1 k původnímu terénu.
+- **Objemy** výkopu a náspu (m³) na rastru 1 m po kusech 5 m. Hlína z úvozu jde přednostně do
+  náspu na téže cestě – tam, kde je převoz levnější než nová hlína z boku; jinak se nasype z boku
+  a přebytek výkopu se rozhrne vedle.
+- **Práce:**
+
+  | Co                             | Cena                                   | Zdroj (rešerše)                                                      |
+  | ------------------------------ | -------------------------------------- | -------------------------------------------------------------------- |
+  | výkop s naložením              | 0,5 čd/m³                              | ILO: ulehlá hlína 2,7–3,5 m³ za čd, dřevěné nářadí ≈ 2 m³            |
+  | uložení a udusání násypu       | 0,2 čd/m³                              | ILO: rozhrnutí 13,5 a ruční hutnění 9 m³ za čd                       |
+  | převoz hlíny (koše, nosítka)   | 0,15 + 0,15 čd na každých 100 m, na m³ | ILO: kolečko 8,5 m³ do 20 m, 4,5 m³ do 150 m – nošení o půl pomaleji |
+  | zpevnění kolejí a úprava pláně | 0,3 čd na metr                         | zadání; ILO: sběr kamene 2,5 m³ za čd (odhad Clauda 0,25–0,3)        |
+  | kácení                         | jako průsek (tabulka překážek)         | fields.md – tabulka překážek                                         |
+
+- **Kácení:** v lese průsek 3,5 m od osy jako upravená cesta; všude navíc pláň a místa, kde se
+  terén upraví (o víc než 10 cm) – stromy, mladé stromky, keře, souše a padlé kmeny, na vozovce
+  a pod zemními pracemi i pařezy a kameny (strom tam dá i práci pařezu). Po stranách průseku
+  pařezy zůstanou a nedorostou. Stromy u cest, jabloně a les vsi taky; klády za dospělé stromy
+  na hromadu. Posvátný strom na pláni nebo pod zemními pracemi – úprava nejde.
+
+### Stavba
+
+- **Panel cesty:** tlačítko **Upravit pro vozy** (ikona `cesta-vozova`) vedle ostatních vylepšení.
+  Popisek: cena (práce, stromy), délka nové trasy proti staré, nejprudší místo dřív a teď, největší
+  úvoz a násep, doba jízdy vozem dřív a teď (stará cesta prudší než 10 % – „neprojede“). Najetím
+  na tlačítko (a výběrem cesty) se nová trasa ukáže ve scéně jako vytyčení – kolíky a provázek po
+  okrajích pláně. Rozestavěná vozová cesta má v panelu průběh.
+- **Stavba ze společné práce** vsi (`build`) po úsecích ≈ 60 m **od vsi ven** (od konce bližšího
+  dvorci). Hotový úsek je hned pevná cesta stupně `wagon` – sjízdná, terén upravený, kácení hotové
+  (jako úseky [zemské stezky](trade.md)); napojí se na staré cesty a rozcestí a se sousedním
+  hotovým úsekem se spojí do jednoho. Po posledním úseku kronika „Vozová cesta postavena“.
+- **Use-case** `buildWagonRoad`, server action `buildWagonRoad({ villageId, roadId })` (kterýkoli
+  úsek cesty hráče).
+
+### Výšky terénu jako herní data
+
+[landscape.md](landscape.md) – Úpravy terénu. Úpravy jsou čistá funkce stavu vsi: profil vozových
+cest → `groundHeightAt(x, z)` (jen deterministická matematika, stejně na serveru i v prohlížeči).
+Terén pěšin a vozové sítě bere upravené výšky **hotových úseků** – po úvozu vůz jede rovně
+a sklon pláně platí i pro chůzi; scéna ukazuje rozestavěné podle průběhu. Ves bez vozové cesty se
+nemění ani o bit.
+
+### Co hráč vidí
+
+- Terén se v úvozu skutečně sníží a v náspu zvedne – stromy, keře, postavy, zvířata, vozy i
+  výběr (pick terénu) sedí na upraveném terénu.
+- Pás 3,5 m udusané hlíny se štěrkem a kameny v kolejích; svahy úvozu a náspu holá hlína, která
+  za **6 let** zaroste trávou (rozhodnutí Clauda). Pařezy v průseku.
+- Vytyčení nehotové části stavby a náhledu trasy kolíky a provázkem.
+- Ukázka na `/dev/landscape` – **Vozová cesta**: krátký prudký svah na obchodní cestě (80 jízd
+  denně – vyplatí se úvoz 2,8 m a násep 2,4 m, 150 → 164 m, sklon 16 % → 6 %, 853 čd) a dlouhý
+  svah bez vozů (serpentina, 120 → 199 m, 12 % → 6 %, 89 čd); stadia náhled, stavba 50 %, hotová,
+  po 8 letech.
+
+### Vlkov
+
+Kopie stavu (den 109 947), 22 úseků. Plán jedné cesty na serveru 3–940 ms (nejdelší 372), náhled
+v prohlížeči stejnou funkcí 0,2–0,9 s – trasa i cena vyjdou bit po bitu stejně (krajina
+s přesností prohlížeče).
+
+| Cesta | Stará → nová  | Sklon     | Úvoz / násep | Výkop / násep | Práce  | Stromy | Jízda vozu           |
+| ----- | ------------- | --------- | ------------ | ------------- | ------ | ------ | -------------------- |
+| 372   | 1216 → 1399 m | 14 → 6 %  | 0,1 / 0,1 m  | 91 / 105 m³   | 818 čd | 80     | neprojede → 19,6 min |
+| 431   | 663 → 686 m   | 7,2 → 6 % | 0,1 / 0 m    | 36 / 43 m³    | 310 čd | 17     | 10,5 → 9,5 min       |
+| 329   | 602 → 614 m   | 6,6 → 6 % | 0,1 / 0 m    | 44 / 37 m³    | 338 čd | 29     | 10,2 → 8,9 min       |
+| 432   | 428 → 441 m   | 7,1 → 6 % | 0,1 / 0,1 m  | 26 / 23 m³    | 155 čd | 0      | 7,8 → 6,5 min        |
+
+Krátké cesty mezi domy (4 a 417) by vedly velkou oklikou, okruhy a cesty pod 15 m úpravu nemají.
+**Zemní práce na Vlkově skoro nejsou:** svahy jsou mírné a vozy po cestách skoro nejezdí, takže
+serpentina nebo mírná oklika vyjde levněji než úvoz – metr úvozu 2 m hlubokého je ≈ 15 m³
+a 10–14 čd, metr cesty navíc 0,3 čd. Úvoz a násep se vyplatí jen u krátkého prudkého svahu na
+cestě s hodně jízdami (ukázka). Stavba 431 trvá ≈ 30 dní, 372 ≈ 60 dní; dopočet vsi během
+stavby se nezpomalí (síť se přepočítá jen po dostavění úseku).
+
+**Kam dojede čtyřkolák** (jezdí jen po pevných cestách a 40 m kolem ohrady volů – wagons.md):
+po čtyřech vozových cestách (372, 431, 329, 432) k 5,3 % plochy polí Vlkova místo 4,0 % (stejný
+stav bez vozových cest; dvoukolák 84,5 → 85,3 %). Vozová cesta spojuje tytéž konce jako stará
+cesta a pole leží stranou cest – otevře jen díly podél nové trasy a za místy, kudy stará cesta
+vedla prudčeji než 10 %.
+Kdyby čtyřkolák směl z vozové cesty sjet 40 m jako od ohrady, dojel by k 26 % plochy polí (80 m –
+41 %) – otevřená otázka pro Martina.
+
+### Rozhodnutí
+
+| Rozhodnutí                                                                                          | Kdo                     |
+| --------------------------------------------------------------------------------------------------- | ----------------------- |
+| Cesta upravená pro vůz – větší rychlost, zpevněné koleje, co nejpřímější trasa s úvozy a náspy      | Martin                  |
+| Stará cesta pro pěší zůstane, nepoužívané kusy zarostou                                             | Martin                  |
+| Rozhoduje hráč v panelu cesty – trasa a cena, potvrzení                                             | Martin                  |
+| Vůz 2,2, pěšky 1,7, mokřina jako hať, brod zůstává; šířka 3,5 m                                     | návrh Clauda, schválený |
+| Trasa: nejlevnější součet stavby a jízdy za 10 let; sklon 6 %, úvoz a násep 3 m; zákazy vozové sítě | návrh Clauda, schválený |
+| Zemní práce 0,5 čd/m³, zpevnění 0,3 čd/m, svahy 1 : 1, hlína z úvozu do náspu, stavba od vsi ven    | návrh Clauda, schválený |
+| Úpravy terénu jako herní data (jen profil osy), sítě i scéna z nich                                 | návrh Clauda, schválený |
+| Zatáčení o 2 z 16 směrů na krok, změna směru 0,5 čd, okno hledání kolem staré cesty                 | rozhodnutí Clauda       |
+| Uložení 0,2 čd/m³ a převoz 0,15 + 0,15 na 100 m (koše a nosítka) – rozpad ceny zemních prací        | rozhodnutí Clauda       |
+| Oklika mezi stavbami (> 3× a + 60 m při staré cestě do 6 %) – úprava se nenabídne                   | rozhodnutí Clauda       |
+| Pláň 5,5 m (vozovka a krajnice), u staveb a vody jen co se vejde, brody bez úprav                   | rozhodnutí Clauda       |
+| Kácení i pod zemními pracemi mimo les; pařezy průseku nedorostou                                    | rozhodnutí Clauda       |
+| Sítě (pěšiny, vozy, chůze) berou terén hotových úseků, scéna podle průběhu                          | rozhodnutí Clauda       |
+| Trasa se plánuje na krajině s přesností prohlížeče – náhled a stavba stejně                         | rozhodnutí Clauda       |
+| Úseky ≈ 60 m; vozová cesta nezarůstá, neřeže se souběhem, konce se nenapojují samy                  | rozhodnutí Clauda       |
+| Svahy zarostou trávou za 6 let                                                                      | rozhodnutí Clauda       |
+
 ## Na stavitelích
 
 - Výpočet sítě je v herním jádru (`domain/village/paths/`), volá ho simulace (roční síť) i scéna
@@ -716,4 +885,5 @@ neměly být dvě cesty, ale měly by se spojit do jedné“ a „cesty by se na
 - Stav vsi má pevné cesty, jejich stromy a roční součty práce po místech; staré vsi začnou bez
   pevných cest (vzniknou do dvou let). Jabloně jsou v `VillageRoads.apples` (chybí = žádné).
 - Pořadí implementace: (1) pevné cesty a stromy – **hotovo**, (2) výběr, vylepšení a chůze –
-  **hotovo**, (3) jabloně – **hotovo**.
+  **hotovo**, (3) jabloně – **hotovo**, (4) vozová cesta – **hotovo** (`wagon-road.ts`,
+  `paths/wagon-route.ts`, `paths/earthworks.ts`; zemní práce ve stavu `VillageRoads.earthworks`).

@@ -19,7 +19,8 @@ import { scenePenSquares, type SceneVillage } from '../village-view';
  * fields.md, Co hráč vidí), celé pole nebo sad (dvojklik), hřbitov, posvátný dub (id stromu),
  * dubový háj (id středového dubu), modla či svatyně (id stavby – hotová i rozestavěná,
  * happiness.md), ohrada (id ohrady – oxen.md), rudiště kováře (id kovárny – crafts.md, Uhlí
- * a ruda kováře), nebo milíř či milířiště uhlíře (id milíře – crafts.md, Milíř u skácených buků).
+ * a ruda kováře), hliniště hrnčíře (id dílny – crafts.md, Hlína hrnčíře), nebo milíř či milířiště
+ * uhlíře (id milíře – crafts.md, Milíř u skácených buků).
  */
 export type VillageTarget =
   | { kind: 'dwelling'; id: number }
@@ -44,6 +45,8 @@ export type VillageTarget =
   | { kind: 'road'; id: number }
   /** Rudiště kováře – jámy a hromada rudy (id kovárny – crafts.md, Uhlí a ruda kováře). */
   | { kind: 'ore-site'; id: number }
+  /** Hliniště hrnčíře – jámy a hromada hlíny (id dílny hrnčíře – crafts.md, Hlína hrnčíře). */
+  | { kind: 'clay-site'; id: number }
   /** Milíř nebo milířiště uhlíře (id milíře – crafts.md, Milíř u skácených buků). */
   | { kind: 'kiln'; id: number };
 
@@ -128,8 +131,8 @@ export function insideSacredFootprint(
 /**
  * Co je pod kurzorem: obydlí, které paprsek protne od země do výšky střechy (nejbližší ke
  * kameře), pak modla nebo svatyně (paprsek přes půdorys do výšky modly), posvátný dub (paprsek
- * do 4 m od kmene od země do koruny), rudiště kováře (paprsek přes jámy a hromadu rudy do její
- * výšky – `oreSiteDiscs`), jinak obydlí, jehož pozemek (políčko) nebo ohrada leží pod
+ * do 4 m od kmene od země do koruny), rudiště kováře či hliniště hrnčíře (paprsek přes jámy
+ * a hromadu do její výšky – `oreSiteDiscs`), jinak obydlí, jehož pozemek (políčko) nebo ohrada leží pod
  * bodem terénu `ground`, úsek pevné cesty do ROAD_PICK_M od osy, pak díl pole, hřbitov, čtverec
  * sadu nebo dubový háj pod bodem (celé pole a sad vybere dvojklik – `wholeTarget`); null =
  * prázdná zem.
@@ -178,24 +181,23 @@ export function pickVillageTarget(
     }
   }
   if (best) return { kind: 'sacred-oak', id: best.id };
+  // rudiště kovářů a hliniště hrnčířů (crafts.md – Hlína hrnčíře) – stejné tvary
+  let dug: { id: number; t: number; clay: boolean } | null = null;
   for (const site of village.oreSites ?? []) {
-    // hliniště hrnčíře (crafts.md – Hlína hrnčíře) se zatím nevybírá – klik projde dál
-    if (site.clay) continue;
-    const discs = oreSiteDiscs(
-      site,
-      village.orePits?.filter((p) => !p.clay),
-    );
+    const discs = oreSiteDiscs(site, village.orePits);
     const base = options.groundHeight(site.x, site.z);
     // jámy leží na zemi, hromada rudy je vysoká ≈ 0,55 poloměru
     const top = oreHeapRadius(site) * 0.55;
     for (let h = 0; h <= top + 1e-9; h += ORE_SITE_PICK_STEP_M) {
       const point = rayAtHeight(ray, base + h);
       if (!point || !insideOreSite(point, discs)) continue;
-      if (best === null || point.t < best.t) best = { id: site.dwellingId, t: point.t };
+      if (dug === null || point.t < dug.t) {
+        dug = { id: site.dwellingId, t: point.t, clay: site.clay === true };
+      }
       break;
     }
   }
-  if (best) return { kind: 'ore-site', id: best.id };
+  if (dug) return { kind: dug.clay ? 'clay-site' : 'ore-site', id: dug.id };
   // milíř uhlíře – kupa od země do výšky (crafts.md – Milíř u skácených buků)
   const kiln = KILN_PICK;
   for (const k of village.kilns ?? []) {
@@ -341,8 +343,8 @@ export function targetExists(village: SceneVillage, target: VillageTarget): bool
   }
   if (target.kind === 'pen') return (village.pens ?? []).some((p) => p.id === target.id);
   if (target.kind === 'road') return (village.roads ?? []).some((r) => r.id === target.id);
-  if (target.kind === 'ore-site') {
-    return (village.oreSites ?? []).some((s) => s.dwellingId === target.id);
+  if (target.kind === 'ore-site' || target.kind === 'clay-site') {
+    return dugSiteOf(village, target) !== undefined;
   }
   if (target.kind === 'kiln') {
     return (
@@ -351,4 +353,13 @@ export function targetExists(village: SceneVillage, target: VillageTarget): bool
     );
   }
   return village.fields.some((f) => f.id === target.id);
+}
+
+/** Rudiště (`ore-site`) nebo hliniště (`clay-site`) vybrané ve scéně, nebo undefined. */
+export function dugSiteOf(
+  village: SceneVillage,
+  target: Extract<VillageTarget, { kind: 'ore-site' | 'clay-site' }>,
+): NonNullable<SceneVillage['oreSites']>[number] | undefined {
+  const clay = target.kind === 'clay-site';
+  return village.oreSites?.find((s) => s.dwellingId === target.id && (s.clay === true) === clay);
 }

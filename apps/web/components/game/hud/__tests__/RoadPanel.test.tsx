@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
+import type { WagonRoadPlan } from '@bohemia/game';
 import type { SelectionDetails } from '@/lib/selection-details';
 import { SelectionPanel } from '../SelectionPanel';
 
@@ -38,6 +39,7 @@ const road = (
       blocked: 'Nejdřív je potřeba cestu upravit.',
     },
   ],
+  wagon: { status: 'none', progress: 0, blocked: null },
   apples: {
     trees: 0,
     bearing: 0,
@@ -205,5 +207,76 @@ describe('SelectionPanel – pevná cesta', () => {
     expect(html.indexOf('data-testid="selection-length"')).toBeLessThan(commands);
     expect(html.indexOf('data-testid="road-upgrade-improved"')).toBeGreaterThan(commands);
     expect(html.indexOf('data-testid="road-plant-apples"')).toBeGreaterThan(commands);
+  });
+});
+
+describe('SelectionPanel – vozová cesta (roads.md – Vozová cesta)', () => {
+  const plan: WagonRoadPlan = {
+    ok: true,
+    chain: [4],
+    from: { x: 0, z: 0 },
+    to: { x: 0, z: 300 },
+    profile: [],
+    fords: [],
+    pieces: [],
+    lengthM: 412.4,
+    oldLengthM: 300.2,
+    maxGrade: 0.06,
+    oldMaxGrade: 0.142,
+    maxCutM: 2.4,
+    maxFillM: 1.1,
+    cutM3: 900,
+    fillM3: 700,
+    movedM3: 650,
+    laborManDays: 640.3,
+    trees: 12,
+    cleared: [],
+    felled: [],
+    minutesBefore: null,
+    minutesAfter: 7.4,
+  };
+  const wagonButton = (html: string): string | undefined =>
+    /<button[^>]*data-testid="road-wagon"[^>]*>/.exec(html)?.[0];
+  const renderWith = (details: SelectionDetails, wagonPlan: WagonRoadPlan | null): string =>
+    renderToStaticMarkup(
+      <SelectionPanel
+        details={details}
+        onBuildWagonRoad={() => Promise.resolve()}
+        wagonPlan={wagonPlan}
+      />,
+    );
+
+  it('popisek: cena, délka nové a staré trasy, sklon, úvoz a násep, jízda vozem', () => {
+    const html = renderWith(road(), plan);
+    expect(wagonButton(html)).not.toContain('disabled=""');
+    expect(html).toContain('/icons/build/cesta-vozova.png');
+    expect(html).toContain('Upravit pro vozy');
+    expect(html).toMatch(/data-testid="wagon-length"[^>]*>300 → 412 m</);
+    expect(html).toMatch(/data-testid="wagon-grade"[^>]*>sklon 14,2 % → 6 %</);
+    expect(html).toMatch(/data-testid="wagon-earthworks"[^>]*>úvoz 2,4 m · násep 1,1 m</);
+    expect(html).toContain('neprojede → 7,4 min');
+  });
+
+  it('než se trasa najde, tlačítko čeká; trasa nejde – důvod červeně', () => {
+    const pending = renderWith(road(), null);
+    expect(wagonButton(pending)).toContain('disabled=""');
+    expect(pending).toContain('data-testid="wagon-pending"');
+    const blocked = renderWith(road(), { ok: false, reason: 'Vůz tudy neprojede.' });
+    expect(wagonButton(blocked)).toContain('disabled=""');
+    expect(blocked).toContain('Vůz tudy neprojede.');
+  });
+
+  it('staví se – průběh v panelu; hotová – tlačítko není', () => {
+    const building = renderWith(
+      road({ wagon: { status: 'building', progress: 0.3, blocked: 'Cesta se už upravuje.' } }),
+      null,
+    );
+    expect(building).toContain('data-testid="selection-wagon-progress"');
+    expect(wagonButton(building)).toContain('disabled=""');
+    const built = renderWith(
+      road({ wagon: { status: 'built', progress: 1, blocked: 'Hotovo.' } }),
+      null,
+    );
+    expect(wagonButton(built)).toBeUndefined();
   });
 });

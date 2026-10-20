@@ -12,12 +12,19 @@ import type { Road, RoadPoint } from '../types';
  * „pokud nějakou cestu vyjezdí vůz, bude to vyježděná cesta“): vyšlapaná, vyježděná (vyšlapaná
  * s příznakem vozová – `Road.cart`), upravená, hať a lávka. Upravená cesta a hať jsou víc než
  * vyježděná – vozy po nich jezdí (koleje ve scéně), ale druh zůstane. V datech zůstává stupeň
- * a příznak (stupeň řídí chůzi a vylepšení), druh je jen pohled.
+ * a příznak (stupeň řídí chůzi a vylepšení), druh je jen pohled. Vozová cesta (roads.md –
+ * Vozová cesta) je vlastní druh i stupeň.
  */
-export type RoadKind = 'trodden' | 'cart' | 'improved' | 'causeway';
+export type RoadKind = 'trodden' | 'cart' | 'improved' | 'causeway' | 'wagon';
 
-/** Pořadí druhů cest v panelu – od vyšlapané po hať. */
-export const ROAD_KIND_ORDER: readonly RoadKind[] = ['trodden', 'cart', 'improved', 'causeway'];
+/** Pořadí druhů cest v panelu – od vyšlapané po vozovou cestu. */
+export const ROAD_KIND_ORDER: readonly RoadKind[] = [
+  'trodden',
+  'cart',
+  'improved',
+  'causeway',
+  'wagon',
+];
 
 /** Druh úseku pro hráče: vyšlapaný s vozy je vyježděný, jinak podle stupně. */
 export function roadKind(road: Pick<Road, 'grade' | 'cart'>): RoadKind {

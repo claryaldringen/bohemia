@@ -818,6 +818,7 @@ function workPotter(
   const cart = supply.clayCarts?.get(dwelling.id);
   const clay = workDug(state, dwelling, 'clay', labor.craft, day, {
     landscape,
+    obstacles,
     batchDays: SMITH_SUPPLY.oreBatchDays,
     ...(cart ? { cart } : {}),
     ...(cartBatch ? { cartBatch: (site: OreSite) => cartBatch(dwelling, site, 'clay') } : {}),
@@ -905,6 +906,7 @@ function workSmith(
   supply: SmithSupply,
   landscape: Landscape | null,
   skill = 1,
+  obstacles: ObstacleLayer | null = null,
 ): SmithOutput {
   const workshop = dwelling.workshop!;
   migrateSmith(workshop, labor, SMITH_SUPPLY.oreBatchDays);
@@ -915,6 +917,7 @@ function workSmith(
   const oreCart = supply.oreCarts.get(dwelling.id);
   const ore = workOre(state, dwelling, left, day, {
     landscape,
+    obstacles,
     batchDays: SMITH_SUPPLY.oreBatchDays,
     ...(oreCart ? { cart: oreCart } : {}),
     ...(cartBatch ? { cartBatch: (site: OreSite) => cartBatch(dwelling, site, 'ore') } : {}),
@@ -1121,7 +1124,17 @@ export function workCrafts(
     let output: WorkshopOutput;
     let smith: SmithOutput | null = null;
     if (workshop.craft === 'smith') {
-      smith = workSmith(state, dwelling, stocks, labor.craft, day, supply, landscape, labor.skill);
+      smith = workSmith(
+        state,
+        dwelling,
+        stocks,
+        labor.craft,
+        day,
+        supply,
+        landscape,
+        labor.skill,
+        obstacles,
+      );
       burnt += smith.charcoalDemandKg ?? 0;
       output = smith;
     } else {

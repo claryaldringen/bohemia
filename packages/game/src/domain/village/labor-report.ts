@@ -21,6 +21,7 @@ import type {
 import { roadApplesWorkRoad } from './road-apples';
 import { roadWorkFront } from './road-upgrades';
 import { trailWorkRoad } from './trail';
+import { wagonWorkTarget } from './wagon-road';
 import { woodFellingCost } from './wood';
 import { partsWorked, type PartTask } from './field-progress';
 import { planPartIds, type CropTask } from './year-plan';
@@ -552,6 +553,11 @@ function constructionShares(work: ConstructionWork, state: VillageState): LaborS
             manDays: work.manDays,
           },
         ];
+  }
+  if (c.kind === 'road' && c.earthwork !== undefined) {
+    // vozová cesta (roads.md – Vozová cesta) – na čele práce, úsek ještě není cestou
+    const target = wagonWorkTarget(state, c);
+    return target ? penShares(work, target, 'build') : [];
   }
   if (c.kind === 'road') {
     // vylepšení pevné cesty (roads.md) – kácení dřeva hatě, pak práce na úseku, kam stavba po

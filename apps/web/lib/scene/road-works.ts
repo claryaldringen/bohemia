@@ -3,11 +3,14 @@ import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
 import type { PathLine } from '@bohemia/game';
-import type { SceneRoad, SceneRoadApple } from '../village-view';
+import type { SceneEarthwork, SceneRoad, SceneRoadApple } from '../village-view';
 import { applyGammaFog } from './gamma-fog';
 import { instanceMatrices, loadMergedModel, type ModelInstance } from './instanced-model';
 import {
   CART_RUT_LAYER,
+  WAGON_EARTH_LAYER,
+  WAGON_GRAVEL_LAYER,
+  WAGON_WORN_LAYER,
   CART_WORN_LAYER,
   IMPROVED_EARTH_LAYER,
   IMPROVED_WORN_LAYER,
@@ -27,6 +30,8 @@ import {
   roadJunctions,
   roadWorksKey,
   stakingLines,
+  wagonStakingKey,
+  wagonStakingLines,
   type RoadPiece,
 } from './road-works-layout';
 import { applySeasonSnow } from './season-materials';
@@ -77,8 +82,18 @@ export class RoadWorks {
     this.pegs = new StakingPegs(scene, (mesh) => env.addShadowCaster(mesh));
   }
 
-  update(roads: readonly SceneRoad[], apples: readonly SceneRoadApple[] = []): void {
-    const key = `${roadWorksKey(roads)}|${appleStakingKey(apples)}`;
+  update(
+    roads: readonly SceneRoad[],
+    apples: readonly SceneRoadApple[] = [],
+    wagon: {
+      earthworks: readonly SceneEarthwork[];
+      preview: readonly (readonly { x: number; z: number }[])[];
+    } = {
+      earthworks: [],
+      preview: [],
+    },
+  ): void {
+    const key = `${roadWorksKey(roads)}|${appleStakingKey(apples)}|${wagonStakingKey(wagon.earthworks, wagon.preview)}`;
     if (key === this.key) return;
     this.key = key;
     const h = this.env.groundHeight;
@@ -109,7 +124,8 @@ export class RoadWorks {
     for (const model of MODELS) this.showModel(model);
     // vytyčení rozestavěného vylepšení a výsadby jabloní – kolíky a provázek
     const apple = appleStaking(roads, apples);
-    this.lines = stakingLines(roads);
+    // vozová cesta (roads.md – Vozová cesta) – nehotová část osy a náhled trasy
+    this.lines = [...stakingLines(roads), ...wagonStakingLines(wagon.earthworks, wagon.preview)];
     this.applePegs = apple.pegs;
     // provázek i přes místa jabloní – kolíky jen na místech (ne po 3 m)
     const lines = [...this.lines, ...apple.lines];
@@ -128,6 +144,11 @@ export class RoadWorks {
       this.stringMesh.setEnabled(this.visible);
     }
     this.env.requestRender();
+  }
+
+  /** Terén se změnil – při dalším `update` se díly a kolíky položí znovu. */
+  invalidate(): void {
+    this.key = '';
   }
 
   setVisible(visible: boolean): void {
@@ -201,12 +222,15 @@ export class RoadWorks {
 }
 
 /** Jak kreslit obtisky pevných cest – výšky, materiály vrstev a jejich pořadí. */
+/** Druh obtisku pevné cesty – prošlapaná tráva, holá hlína, štěrk zpevněných kolejí. */
+export type RoadDecalKind = 'worn' | 'earth' | 'gravel';
+
 export interface RoadRibbonOptions {
   height: HeightFn;
   smoothHeight: HeightFn;
-  material(kind: 'worn' | 'earth'): Material;
-  lift: { worn: number; earth: number };
-  alphaIndex: { worn: number; earth: number };
+  material(kind: RoadDecalKind): Material;
+  lift: Record<RoadDecalKind, number>;
+  alphaIndex: Record<RoadDecalKind, number>;
 }
 
 /**
@@ -224,7 +248,7 @@ export function roadRibbonMeshes(
   const ribbons: [
     string,
     readonly PathLine[],
-    'worn' | 'earth',
+    RoadDecalKind,
     RibbonLayer,
     [number, number, number],
     readonly RibbonJunction[],
@@ -252,6 +276,10 @@ export function roadRibbonMeshes(
     ['roads-cart-worn', bands.cart, 'worn', CART_WORN_LAYER, WORN_COLOR, junctions.cart],
     ['roads-cart-hub', [], 'earth', CART_HUB_LAYER, EARTH_COLOR, junctions.cart],
     ['roads-cart-ruts', bands.ruts, 'earth', CART_RUT_LAYER, EARTH_COLOR, []],
+    // vozová cesta (roads.md – Vozová cesta): pás 3,5 m a zpevněné koleje se štěrkem a kameny
+    ['roads-wagon-worn', bands.wagon, 'worn', WAGON_WORN_LAYER, WORN_COLOR, []],
+    ['roads-wagon-earth', bands.wagon, 'earth', WAGON_EARTH_LAYER, EARTH_COLOR, []],
+    ['roads-wagon-gravel', bands.gravel, 'gravel', WAGON_GRAVEL_LAYER, GRAVEL_COLOR, []],
   ];
   const meshes: Mesh[] = [];
   for (const [name, lines, kind, layer, color, nodes] of ribbons) {
@@ -263,7 +291,7 @@ export function roadRibbonMeshes(
       smoothHeight: o.smoothHeight,
       lift: o.lift[kind],
       color,
-      uv: kind === 'worn' ? 20 : 14,
+      uv: kind === 'worn' ? 20 : kind === 'gravel' ? 6 : 14,
     });
     mesh.material = o.material(kind);
     mesh.alphaIndex = o.alphaIndex[kind];
@@ -281,6 +309,8 @@ const CART_HUB_LAYER: RibbonLayer = {
 /** Prošlapaná tráva do hněda, holá udusaná hlína tmavší a teplejší (jako pěšiny). */
 const WORN_COLOR: [number, number, number] = [0.92, 0.84, 0.7];
 const EARTH_COLOR: [number, number, number] = [0.9, 0.74, 0.58];
+/** Štěrk v kolejích vozové cesty – světlejší, šedavý. */
+const GRAVEL_COLOR: [number, number, number] = [0.95, 0.92, 0.86];
 
 /** Materiál dílů cesty – dřevo a kámen tlumeně jako dekorace, v zimě sníh navrchu. */
 function prepareRoadMaterial(material: Material): void {

@@ -12,12 +12,14 @@ přístřeškem s kozlíky a koly – wagons.md, uhlíř s milířem), sad
 (posvátný dub s obětinami), sous (posvátná souš – uschlý dub z `apps/web/public/models/decor/`
 s obětinami), haj (dubový háj s kameny) a ohrada (přístřešek, žlab a branka
 z `apps/web/public/models/pen/`, kráva ze stáda vsi, stoh sena), cesta, cesta-vyjezdena,
-cesta-upravena a hat (druhy pevné cesty – pás cesty, vyježděná se dvěma kolejemi, upravená širší,
-hať a lávka z `apps/web/public/models/roads/`)
+cesta-upravena, hat a cesta-vozova (druhy pevné cesty – pás cesty, vyježděná se dvěma kolejemi,
+upravená širší, hať a lávka z `apps/web/public/models/roads/`, vozová cesta se zpevněnými
+kolejemi v úvozu)
 a jablone (jabloně s jablky střídavě podél cesty – tlačítko „Vysadit jabloně“), stezka (zemská
 stezka od brány dvorce – trade.md), obchod (pytle obilí, hrnce, klády a sýr) a rudiste (jámy
-s vodou a valem, hromádka bahenní rudy a motyka – crafts.md, Uhlí a ruda kováře) a milir (kouřící
-milíř mezi pařezy skácených buků – crafts.md, Milíř u skácených buků) – portréty do panelu výběru;
+s vodou a valem, hromádka bahenní rudy a motyka – crafts.md, Uhlí a ruda kováře), hliniste (jámy
+se šedookrovou stěnou jílu, hromádka hlíny a rýč – crafts.md, Hlína hrnčíře) a milir (kouřící milíř
+mezi pařezy skácených buků – crafts.md, Milíř u skácených buků) – portréty do panelu výběru;
 (64 × 64 PNG) – `resources/` people, food, wood, labor, satiation, date, apples, happiness
 (štěstí – plamen ohniště nad zkříženými poleny v kruhu kamenů), hay (seno – kupka sena
 z `apps/web/public/models/fields/haystack.glb`), meat (maso – uzená kýta s kostí a provázkem),
@@ -713,6 +715,33 @@ def icon_road(grade):
     rng = random.Random(11)
     gr = ground(6.4, mat("g", tex=f"{TEX}/grass-dirt.jpg", scale=0.25, tint=(0.8, 0.82, 0.6)), z=-0.02, fade=0.72)
     earth = mat("earth", tex=f"{TEX}/mud.jpg", scale=0.5, tint=(0.82, 0.66, 0.48))
+    if grade == "cesta-vozova":
+        # vozová cesta (roads.md – Vozová cesta): pás 3,5 m udusané hlíny se zpevněnými kolejemi
+        # (štěrk a kameny – WAGON_GRAVEL_LAYER) v úvozu – svahy holé hlíny po obou stranách
+        scale = 1.6 / 1.9
+        road_strip(3.5 * scale, 12.0, earth)
+        gravel = mat("gravel", tex=f"{TEX}/gravel.jpg", scale=0.6, tint=(0.86, 0.84, 0.8))
+        for side in (-1, 1):
+            road_strip(0.5 * scale, 12.0, gravel, z=0.008, wobble=0.0, seed=7 + side, offset=side * 0.65 * scale)
+        bank = mat("bank", tex=f"{TEX}/mud.jpg", scale=0.45, tint=(0.66, 0.52, 0.38))
+        for side in (-1, 1):
+            bm = bmesh.new()
+            n = 24
+            rows = []
+            for i in range(n + 1):
+                y = -6.0 + 12.0 * i / n
+                dx = math.sin(y * 0.6) * 0.25
+                inner = dx + side * (3.5 * scale / 2 + 0.35)
+                outer = dx + side * (3.5 * scale / 2 + 1.6)
+                rows.append((bm.verts.new((inner, y, 0.0)), bm.verts.new((outer, y, 1.1))))
+            for i in range(n):
+                a, b = rows[i]
+                c, d = rows[i + 1]
+                bm.faces.new((a, b, d, c) if side < 0 else (a, c, d, b))
+            to_obj(bm, f"bank{side}", bank, smooth=True)
+        sun(az=-55, el=46)
+        camera([Vector((-3.2, -4.6, 0)), Vector((3.2, 4.6, 1.4)), Vector((-3.2, 4.6, 0)), Vector((3.2, -4.6, 0))], az=24, el=42, margin=0.92)
+        return
     if grade == "cesta-vyjezdena":
         # vyježděná cesta (ROAD_WIDTH_M ve scéně: 2,6 m proti 1,9 m vyšlapané): prošlapaná tráva,
         # uprostřed tráva, dvě koleje 0,65 m od osy (CART_RUT_LAYER)
@@ -1905,6 +1934,56 @@ def icon_milir():
     camera(pts, az=28, el=34, margin=0.9)
 
 
+def icon_hliniste():
+    """Hliniště hrnčíře (crafts.md – Hlína hrnčíře): mělké jámy u potoka se šedookrovou stěnou
+    jílu, kalnou vodou a valem, u nich hromádka hladkých hrud vlhké hlíny seříznutých rýčem a rýč
+    zabodnutý v hromadě – portrét panelu výběru (jako rudiště, jen hlína místo rudy)."""
+    ground(4.2, mat("g", tex=f"{TEX}/grass-lush.jpg", scale=0.35, tint=(0.72, 0.8, 0.56)), z=0.0, fade=0.7)
+    pits = [((-1.2, 0.6), 0.9, 1.1), ((1.0, 1.25), 0.72, 2.9), ((-0.1, -1.1), 0.6, 4.6)]
+    earth = mat("pit", tex=f"{TEX}/mud.jpg", scale=0.9, tint=(0.82, 0.72, 0.56))
+    pit_bm = bmesh.new()
+    for c, r, ph in pits:
+        ore_pit(pit_bm, c, r, ph)
+    to_obj(pit_bm, "pits", earth)
+    water = mat("water", (0.13, 0.12, 0.08), 0.12)
+    for c, r, ph in pits:
+        wb = bmesh.new()
+        bmesh.ops.create_circle(wb, cap_ends=True, radius=r * 0.5, segments=32)
+        w = to_obj(wb, "water", water, smooth=False)
+        w.location = (c[0], c[1], 0.075)
+    rng = random.Random(11)
+    heap = bmesh.new()
+    for k in range(26):
+        a = rng.uniform(0, 2 * math.pi)
+        d = rng.uniform(0, 0.55)
+        z = 0.1 + (0.55 - d) * 0.8 + rng.uniform(-0.03, 0.03)
+        size = rng.uniform(0.13, 0.19)
+        clay_lump(heap, (1.45 + math.cos(a) * d, -0.45 + math.sin(a) * d, z), (size, size * 0.85, size * 0.7), rng)
+    to_obj(heap, "clay", mat("clay", (0.27, 0.19, 0.11), 0.4, noise=10, bump=0.25), smooth=True)
+    # rýč: násada s příčnou rukojetí, dřevěný list s okovaným ostřím zabodnutý šikmo v hromadě
+    wood, iron = bmesh.new(), bmesh.new()
+    top, foot = Vector((2.4, 0.5, 2.0)), Vector((1.75, -0.35, 0.95))
+    cyl(wood, top, foot, 0.06, 0.065, 10)
+    d = (foot - top).normalized()
+    side = d.cross(Vector((0, 0, 1))).normalized()
+    cyl(wood, top - side * 0.2, top + side * 0.2, 0.05, 0.05, 8)
+    # list v rovině násady a příčky: šířka podél `side`, délka podél násady, tloušťka kolmo
+    axes = Matrix((side, side.cross(d).normalized(), d)).transposed()
+
+    def blade(bm, centre, size):
+        r = bmesh.ops.create_cube(bm, size=1.0)
+        for v in r["verts"]:
+            v.co = centre + axes @ Vector((v.co.x * size[0], v.co.y * size[1], v.co.z * size[2]))
+
+    blade(wood, foot + d * 0.2, (0.36, 0.06, 0.42))
+    blade(iron, foot + d * 0.45, (0.37, 0.065, 0.1))
+    to_obj(wood, "spade", mat("wood", (0.33, 0.21, 0.11), 0.8, noise=60), smooth=True)
+    to_obj(iron, "spade-edge", mat("iron", (0.16, 0.15, 0.14), 0.45), smooth=False)
+    sun(az=-50, el=44)
+    sun(az=150, el=25, strength=1.4, color=(0.8, 0.88, 1.0))
+    camera([Vector((-2.3, -1.9, 0)), Vector((2.8, 2.2, 0)), Vector((0, 0, 1.0))], az=14, el=38, margin=0.84)
+
+
 def flat_plate(bm, pts, y, thickness):
     """Plochý díl (list sekery) z obrysu `pts` v rovině XZ, tloušťka ve směru Y."""
     front = [bm.verts.new((x, y - thickness / 2, z)) for x, z in pts]
@@ -2296,12 +2375,14 @@ BUILD = {
     "ohrada": icon_ohrada,
     "cesta": lambda: icon_road("cesta"),
     "cesta-vyjezdena": lambda: icon_road("cesta-vyjezdena"),
+    "cesta-vozova": lambda: icon_road("cesta-vozova"),
     "cesta-upravena": lambda: icon_road("cesta-upravena"),
     "hat": lambda: icon_road("hat"),
     "jablone": icon_jablone,
     "stezka": icon_stezka,
     "obchod": icon_obchod,
     "rudiste": icon_rudiste,
+    "hliniste": icon_hliniste,
     "milir": icon_milir,
 }
 

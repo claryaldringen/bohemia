@@ -49,12 +49,16 @@ export const PATH_GRID_PER_TILE = 4;
 const SLOPE_REF = 0.1;
 /** Prudší svah (m/m) je neprůchodný. */
 const SLOPE_MAX = 0.45;
+/** Sklon a les pro úpravy terénu (earthworks.ts – cena chůze po úvozu a náspu jako tady). */
+export const PATH_SLOPE_REF = SLOPE_REF;
+export const PATH_SLOPE_MAX = SLOPE_MAX;
 /** Brodit se je dražší než jít po louce (mokro, kluzké kameny). */
 const FORD_COST = 5;
 /** Brod: mělký (0–1) a úzký úsek potoka (poloviční šířka vody v m). */
 const FORD = { shallow: 0.55, halfWidthM: 2.4 } as const;
 /** Les: kolikrát dražší je chůze uvnitř lesa (podrost, kořeny) – stromy přidají překážky zvlášť. */
 const FOREST_COST = 1.35;
+export const PATH_FOREST_COST = FOREST_COST;
 /** Okraj lesa, kam se chodí pro dřevo: znaménková vzdálenost od hranice (m, záporná v louce). */
 const FOREST_EDGE_M = { from: -4, to: 1 } as const;
 /** Les a jeho okraj pro stromy u cest – znaménková vzdálenost od hranice lesa nad tuto (m). */

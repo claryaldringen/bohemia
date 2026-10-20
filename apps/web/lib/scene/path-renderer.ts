@@ -43,7 +43,8 @@ import {
 } from './path-ribbon';
 import type { Track } from './track-mask';
 import { RoadWorks, roadRibbonMeshes } from './road-works';
-import { roadWorksKey } from './road-works-layout';
+import { earthworkSlopeGrid, earthworkSlopeKey, roadWorksKey } from './road-works-layout';
+import { HEIGHT_SCALE } from './constants';
 import { pathRouter } from './path-router';
 import {
   ROADSIDE_MODELS,
@@ -81,17 +82,19 @@ const RECOMPUTE_DELAY_MS = 250;
  * Výška obtisků pěšin nad terénem (m) – nad obtisky polí (do 0,045) a vsi (0,03–0,045), aby
  * pěšina přes úhor a pastvinu nezmizela pod polem (Martin).
  */
-const LIFT = { worn: 0.05, earth: 0.055, heatmap: 0.12 };
+const LIFT = { worn: 0.05, earth: 0.055, gravel: 0.06, slope: 0.045, heatmap: 0.12 };
 /** Pořadí průhledných obtisků – po polích (1–2) a vsi (1–2), před postavami (5). */
-const ALPHA_INDEX = { worn: 3, earth: 3.5 };
+const ALPHA_INDEX = { worn: 3, earth: 3.5, gravel: 3.7, slope: 2.8 };
 /** Posun hloubky – vyhraje nad poli (−2 / −3) i v dálce. */
-const Z_OFFSET = { worn: -3.5, earth: -4 };
+const Z_OFFSET = { worn: -3.5, earth: -4, gravel: -4.5, slope: -3.2 };
 /**
  * Sníh na obtiscích (podíl zasypání – menší = víc prosvítá): pevná cesta pod sněhem zřetelně
  * prosvítá (ušlapaný sníh), nevýrazná pěšina dne se zasype méně, ať její stopa ve sněhu pořád
  * trochu prosvítá.
  */
 const SNOW = { roads: 0.55, paths: 0.3 } as const;
+/** Holá hlína svahů úvozu a náspu – o něco tmavší než udusaná cesta. */
+const SLOPE_COLOR: [number, number, number] = [0.78, 0.64, 0.5];
 /** Přes osetý díl (pěšina ho obchází – výjimečně) jen úzká stopa: násobek šířky. */
 const SOWN_WIDTH = 0.45;
 
@@ -101,6 +104,11 @@ export interface PathsEnvironment {
   /** Přesná výška vykresleného terénu (obtisky) a hladký terén (normály, paty stromů). */
   decalHeight: HeightFn;
   groundHeight: HeightFn;
+  /**
+   * Výška vykresleného terénu bez úprav vozových cest (roads.md – Vozová cesta) – krytí hlíny
+   * na svazích úvozu a náspu podle rozdílu. Bez údaje bez svahů.
+   */
+  baseHeight?: HeightFn;
   pitCuts: PitCuts;
   addShadowCaster(mesh: Mesh): void;
   /** Nová síť pěšin (postavy chodí po ní) – překreslit. */
@@ -131,6 +139,8 @@ export interface PathStats {
  */
 export class VillagePaths {
   private village: SceneVillage | null = null;
+  /** Náhled tras vozových cest (vytyčení) – vybraná cesta hráče; jinak prázdné. */
+  private wagonPreview: { x: number; z: number }[][] = [];
   private key = '';
   private timer: ReturnType<typeof setTimeout> | null = null;
   /** Odložené obtisky nové sítě (`recompute` – síť a obtisky ve dvou úlohách). */
@@ -209,6 +219,41 @@ export class VillagePaths {
     return this.router;
   }
 
+  /**
+   * Terén se změnil (úvoz a násep vozové cesty): obtisky pevných cest, kolíky a díly a pěšiny dne
+   * se přestaví na novém terénu (stromy u cest taky) – při další aktualizaci vsi.
+   */
+  terrainChanged(bounds: { minX: number; minZ: number; maxX: number; maxZ: number }): void {
+    const near = (points: readonly { x: number; z: number }[], pad: number): boolean =>
+      points.some(
+        (p) =>
+          p.x >= bounds.minX - pad &&
+          p.x <= bounds.maxX + pad &&
+          p.z >= bounds.minZ - pad &&
+          p.z <= bounds.maxZ + pad,
+      );
+    // obtisky cest a svahy, kolíky a díly, stromy u cest – jen kde se terén pod nimi změnil
+    const roads = this.village?.roads ?? [];
+    const earthworks = this.village?.earthworks ?? [];
+    if (roads.some((r) => near(r.points, 8)) || earthworks.some((e) => near(e.profile, 12))) {
+      this.roadKey = '';
+      this.treeKey = '';
+    }
+    this.works.invalidate();
+    if (this.village) this.updateRoads(this.village);
+  }
+
+  /**
+   * Náhled vozové cesty (roads.md – Vozová cesta): osa trasy se vytyčí kolíky a provázkem jako
+   * stavba; null náhled zruší.
+   */
+  setWagonPreview(lines: readonly (readonly { x: number; z: number }[])[]): void {
+    this.wagonPreview = lines
+      .filter((line) => line.length >= 2)
+      .map((line) => line.map((p) => ({ x: p.x, z: p.z })));
+    if (this.village) this.updateRoads(this.village);
+  }
+
   /** Vývojová volba: pěšiny a pevné cesty (obtisky i stromy) vidět / skrýt. */
   setVisible(visible: boolean): void {
     this.visible = visible;
@@ -248,7 +293,7 @@ export class VillagePaths {
   /** Pevné cesty a stromy u nich z dat vsi – přestaví se jen při změně. */
   private updateRoads(village: SceneVillage): void {
     const roads = village.roads ?? [];
-    const roadKey = `${roadsKey(roads)}|${roadWorksKey(roads)}`;
+    const roadKey = `${roadsKey(roads)}|${roadWorksKey(roads)}|${earthworkSlopeKey(village.earthworks ?? [])}`;
     if (roadKey !== this.roadKey) {
       this.roadKey = roadKey;
       this.roads = roads;
@@ -260,14 +305,36 @@ export class VillagePaths {
         height: this.env.decalHeight,
         smoothHeight: this.env.groundHeight,
         material: (kind) => this.decalMaterial('roads', kind),
-        lift: { worn: LIFT.worn, earth: LIFT.earth },
+        lift: { worn: LIFT.worn, earth: LIFT.earth, gravel: LIFT.gravel },
         alphaIndex: ALPHA_INDEX,
       });
+      // svahy úvozu a náspu vozových cest – holá hlína, zarůstá trávou podle stáří (roads.md)
+      const slopes = earthworkSlopeGrid(
+        village.earthworks ?? [],
+        this.env.decalHeight,
+        this.env.baseHeight ?? this.env.decalHeight,
+        HEIGHT_SCALE,
+      );
+      if (slopes) {
+        const mesh = createDecalMesh(this.scene, 'roads-slopes', slopes, {
+          height: this.env.decalHeight,
+          smoothHeight: this.env.groundHeight,
+          lift: LIFT.slope,
+          color: SLOPE_COLOR,
+          uv: 9,
+        });
+        mesh.material = this.decalMaterial('roads', 'slope');
+        mesh.alphaIndex = ALPHA_INDEX.slope;
+        this.roadMeshes.push(mesh);
+      }
       for (const mesh of this.roadMeshes) mesh.setEnabled(this.visible);
       this.env.requestRender();
     }
     // kameny, hať, lávky a vytyčení (i jabloní, které čekají na výsadbu) – při změně dat
-    this.works.update(roads, village.roadApples ?? []);
+    this.works.update(roads, village.roadApples ?? [], {
+      earthworks: village.earthworks ?? [],
+      preview: this.wagonPreview,
+    });
     const treeKey = `${roadTreesKey(village.roadTrees)}|${roadApplesKey(village.roadApples)}`;
     if (treeKey !== this.treeKey) {
       this.treeKey = treeKey;
@@ -426,12 +493,18 @@ export class VillagePaths {
   }
 
   /** Materiál obtisku pěšin dne (`paths`) nebo pevných cest (`roads`) – liší se sněhem. */
-  private decalMaterial(group: 'paths' | 'roads', kind: 'worn' | 'earth'): Material {
+  private decalMaterial(
+    group: 'paths' | 'roads',
+    kind: 'worn' | 'earth' | 'gravel' | 'slope',
+  ): Material {
     const name = `${group}-${kind}`;
     let material = this.materials.get(name);
     if (!material) {
+      // štěrk zpevněných kolejí vozové cesty a holá hlína svahů úvozu a náspu (roads.md –
+      // Vozová cesta) – textury terénu z 0 A.D.
+      const file = kind === 'worn' ? 'grass-dirt' : kind === 'gravel' ? 'gravel' : 'mud';
       const decal = createDecalMaterial(this.scene, name, {
-        texture: kind === 'worn' ? 'grass-dirt' : 'mud',
+        texture: file,
         zOffset: Z_OFFSET[kind],
       });
       applyPitCut(decal, this.env.pitCuts);

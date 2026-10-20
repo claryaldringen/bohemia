@@ -800,6 +800,9 @@ rozhraní částí v
   v crafts.ts), kopání 60 kg/čd s přirážkou za chůzi (`workOre` – dávka na 30 dní kování pěšky,
   s vozem na celý dvoukolák a dřív o `CART_JOBS.ore.reserveDays`, hromada u jámy `OreBatch.heap`),
   rudiště `chooseOreSite` (nejbližší `PATH_WETLAND`, jinak břeh; ne na čtvercích staveb ani u domů;
+  na očích – Martin: „chci na mapě vidět“, návrh Clauda `DUG_SITE_VIEW`: mimo les `PATH_FOREST`
+  a bez dospělého stromu vrstvy překážek, stromu u cesty či lesa vsi do 8 m – `inView`; les jen
+  když volné místo není do 1,5× vzdálenosti nejbližšího (aspoň +30 m), uložená místa se nemění;
   `Workshop.oreSite`, ložisko 3 t, další 20 m od `oreSitesUsed`), jámy `VillageState.orePits`
   (`openOrePit` ze seedu, `updateOrePits` – 10 let). Přirážka za vodu daleko (`oreFactor`)
   zmizela u kováře i hrnčíře. Starší kovárny `migrateSmith` (zásoba na dávku). Činnosti `digging`, `no-ore`; podíly práce `ore` (cíl
@@ -816,7 +819,12 @@ rozhraní částí v
   obrys `oreSiteOutline` (konvexní obal); panel z `VillageView.oreSites` (`lib/ore-site-view.ts` –
   ložisko, hromada, zásoba v kovárně, cesta, jámy, kdo tu dnes kope / nosí / jede s vozem z rozdělení
   práce dne a vůz se sedlákem), `OreSiteBody` s tlačítkem kovárny, portrét `icons/build/rudiste.png`
-  (`icons.py rudiste`), `/dev/panels?panel=rudiste`.
+  (`icons.py rudiste`), `/dev/panels?panel=rudiste`. **Hliniště** stejně (návrh Clauda): cíl
+  `{ kind: 'clay-site', id: dílna hrnčíře }` (`dugSiteOf`), tvary `oreSiteDiscs` jen s jámami téže
+  suroviny (`dugSitePits`), panel z `VillageView.claySites`; jeden kód pro obě místa – pohled
+  `dugSiteViews(state, day, material)` / `dugSitesField` (`VillageDugSite` – `workshopId`,
+  `DugSiteWorker.craftsman`), panel `DugSiteBody` s texty `DUG_SITE_TEXTS`, portrét
+  `icons/build/hliniste.png` (`icons.py hliniste`), `/dev/panels?panel=hliniste`.
 - **Hlína hrnčíře** ([crafts.md](docs/design/crafts.md) – Hlína hrnčíře; Martin 20. 10. 2026:
   „Ano, udělej to jak říkáš“ – wagons.md, Co se vozí a na čem; čísla `CLAY` v `rules.ts`, návrh
   Clauda): jako ruda kováře – jedna funkce `workDug` (`DugMaterial` `ore` / `clay`: zásoba, místo,
@@ -2262,6 +2270,39 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   `pathside-apple-*` s materiálem `prepareAppleMaterial` ze sadu, kůly `createTreeStakeMesh`),
   vytyčení `appleStaking` v `RoadWorks`, postavy `roadApples` ve `villager-plan.ts`;
   `/dev/landscape` tlačítko **Jabloně: …** (s **Cesta**) přepíná stadia.
+- **Vozová cesta** ([roads.md](docs/design/roads.md) – Vozová cesta; Martin 20. 10. 2026: „tato
+  cesta spojí dva body, které spojuje stará cesta pro pěší, ale co nejvíc přímo tak, aby vůz
+  projel“; čísla `WAGON_ROAD` v `rules.ts`, rešerše `research/2026-10-20-earthworks.md`): stupeň
+  `wagon` (`RoadGrade`, `RoadKind`, vůz `CART_SPEED.road.wagon` 2,2, pěšky 1,7, v mokřině jako hať,
+  brod zůstává; pás `ROAD_LAND.widthM.wagon` 3,5 m). **Trasa** `paths/wagon-route.ts`
+  (deterministická vrstva): `wagonRoadGrid` (zákazy jako vozová síť, mez úprav terénu `limit`
+  u staveb a vody), `findWagonRoute` – A\* po terénu pěšin × 16 směrů (`CART_HEADINGS`), zatáčení
+  `WAGON_ROAD.turnSteps`, štítky s rozsahem výšky pláně (sklon hledání 5,5 %), cena = stavba + čas
+  vozu za `trafficYears` podle `Road.cartTraffic`; `wagonProfile` (víc stupňů vyhlazení osy,
+  `profileHeights` – DP po cm, sklon ≤ 6 %, úvoz a násep ≤ 3 m), `wagonEarthworks` (objemy na
+  rastru 1 m, `balanceEarth` – hlína z úvozu do náspu), `roadsCartMinutes` / `profileCartMinutes`.
+  **Plán** `wagon-road.ts`: `planWagonRoad(WagonPlanInput)` – stejně na serveru
+  (`wagonPlanInputOf`) i v prohlížeči (`LandscapeScene.previewWagonRoad`), krajina s přesností
+  prohlížeče (`browserLandscape` – bit po bitu stejně), důvody česky (`WAGON_*`, oklika
+  `wagonDetourReason`), kácení `wagonClearing` (průsek, pláň a zemní práce); `wagonChainStatus`
+  (zemní práce k cestě – `chainEarthwork`, oba konce profilu v uzlech řetězu). **Stavba**
+  `startWagonRoad` → `VillageRoads.earthworks` (`RoadEarthwork` – profil, úseky ≈ 60 m od vsi ven
+  `pieces`, `constructionId`) a stavba `road` s `Construction.earthwork`; krok `wagonRoadsDay`
+  (po `trailsDay`) dá dostavěné úseky hned jako pevnou cestu (`addWagonRoad` v `paths/roads.ts`),
+  `finishWagonRoad`; vozová cesta nezarůstá, souběhem se neřeže, konce se nenapojují samy. Práce
+  `{ kind: 'wagon' }` (`wagonWorkTarget`). **Výšky jako herní data** (landscape.md – Úpravy
+  terénu): `paths/earthworks.ts` – `terrainEditsOf` / `terrainEditsFrom` (mezipaměť),
+  `editedHeight`, `groundHeightAt`, `withTerrainEdits`; síť pěšin a vozová síť (`villageTerrain`
+  v `network.ts`, `cartGrid`) berou hotové úseky (`earthworkBuiltM`), scéna průběh
+  (`earthworkReachedM`, `SceneEarthwork.shownM`). Use-case `buildWagonRoad`, server action
+  `buildWagonRoad({ villageId, roadId })`. Web: `VillageRoad.wagon` (`wagonView`), panel – tlačítko
+  „Upravit pro vozy“ (`road-wagon`, ikona `cesta-vozova`, `WagonTooltip`), náhled trasy
+  `VillageGame` → `LandscapeScene.previewWagonRoad` (plán i vytyčení – `setWagonPreview`), průběh `selection-wagon-progress`. Scéna: `terrain-edits.ts`
+  (`editSurfaceHeights`, `recomputeNormals` jako Babylon), `TerrainMesh.setTerrainEdits`,
+  `applyTerrainEdits` v `landscape-scene.ts` před obnovou vsi, `terrainChanged` (pole po blocích –
+  `#t` v klíči bloku, pěšiny, cesty), pás `roadBands` `wagon` + `gravel` (`WAGON_*_LAYER`), svahy
+  `earthworkSlopeGrid` (`roads-slopes`, zarostou za `SLOPE_GRASS_YEARS`), vytyčení
+  `wagonStakingLines`. Ukázka `/dev/landscape` **Vozová cesta** (`dev-wagon-road.ts`).
 - **Stromy u cesty zrychlí chůzi** ([roads.md](docs/design/roads.md); Martin 20. 10. 2026:
   „…přidat třeba 0.03? A pokud to budou jabloně, přidalo by se 0.05.“; čísla `ROAD_TREE_SPEED`):
   přírůstek k rychlosti cesty pro chodce i vůz (+0,03 stromy, +0,05 jabloně) × olemovaný podíl

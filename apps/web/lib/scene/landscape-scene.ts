@@ -23,6 +23,9 @@ import {
   type Landscape,
   type ObstacleLayer,
   type WorldClock,
+  planWagonRoad,
+  terrainEditsFrom,
+  type WagonRoadPlan,
 } from '@bohemia/game';
 import type { TileInfo } from '../tile-info';
 import { AmbientSound } from './ambient-sound';
@@ -44,7 +47,7 @@ import { addImpostors, type ImpostorForest } from './impostors';
 import { obstacleScenery } from './obstacle-scenery';
 import { createTerrainMesh, type TerrainMesh } from './terrain-mesh';
 import { animationFps, loopStep, nextTick, tickDue } from './render-loop';
-import { buildRenderSurface } from './render-surface';
+import { buildRenderSurface, type RenderSurface } from './render-surface';
 import { chunkGrid } from './scenery-chunks';
 import { SceneryCulling } from './scenery-culling';
 import { terrainMeshHeight } from './drape';
@@ -124,6 +127,10 @@ export class LandscapeScene {
   private readonly selectListeners = new Set<SelectListener>();
   private readonly viewListeners = new Set<ViewListener>();
   private readonly clearedListeners = new Set<ClearedListener>();
+  /** Výšková síť terénu (i s úpravami vozových cest). */
+  private surface: RenderSurface | null = null;
+  /** Poslední náhled vozové cesty – pro stejnou ves a cestu se nepočítá znovu. */
+  private wagonPlan: { key: string; plan: WagonRoadPlan } | null = null;
   /** Vymýcený les podle posledního stavu vsi (applyVillage). */
   private cleared: ClearedForest | null = null;
   /** Stisknutá tlačítka myši nad plátnem: kde a jestli zrovna běželo umisťování. */
@@ -309,6 +316,7 @@ export class LandscapeScene {
     await report('terrain', 0.3);
     if (this.disposed) return;
     const surface = buildRenderSurface(landscape);
+    this.surface = surface;
     const groundHeight = (x: number, z: number): number => surface.heightAt(x, z) * HEIGHT_SCALE;
     this.groundHeight = groundHeight;
     this.village = new VillageRenderer(this.scene, {
@@ -413,6 +421,9 @@ export class LandscapeScene {
       layer: obstacles,
       decalHeight: (x, z) => terrainMeshHeight(surface, x, z),
       groundHeight,
+      // původní terén (bez úvozů a náspů vozových cest) – hlína na svazích podle rozdílu
+      baseHeight: (x, z) =>
+        this.terrainGround?.baseHeightAt(x, z) ?? terrainMeshHeight(surface, x, z),
       pitCuts: this.pitCuts,
       addShadowCaster: (mesh) => this.addVillageCaster(mesh),
       // nová síť pěšin mění jen obtisky a trasy postav – stromy u cest obnoví stíny samy
@@ -567,6 +578,49 @@ export class LandscapeScene {
     if (this.disposed) return;
     this.villageState = village;
     this.applyVillage();
+  }
+
+  /** Vytyčení tras vozových cest (vývojová ukázka – osy bez plánu); prázdné zruší. */
+  setWagonPreview(lines: readonly (readonly { x: number; z: number }[])[]): void {
+    this.paths?.setWagonPreview(lines);
+    this.renderWhenReady();
+  }
+
+  /**
+   * Náhled vozové cesty (roads.md – Vozová cesta) pro cestu hráče `roadId`: stejná funkce jako
+   * server při zahájení stavby (`planWagonRoad`) nad vsí scény, krajinou a vrstvou překážek scény;
+   * trasa se vytyčí kolíky a provázkem (`show`). Pro stejnou ves a cestu z mezipaměti. `null` –
+   * náhled zruší. Bez krajiny null.
+   */
+  previewWagonRoad(roadId: number | null, show = true): WagonRoadPlan | null {
+    if (roadId === null || !this.landscape || !this.villageState) {
+      this.paths?.setWagonPreview([]);
+      return null;
+    }
+    const village = this.villageState;
+    const cached = this.wagonPlan;
+    const key = wagonPreviewKey(village, roadId);
+    const plan =
+      cached && cached.key === key
+        ? cached.plan
+        : planWagonRoad({
+            landscape: this.landscape,
+            layer: this.obstacles,
+            changes: village.obstacles ?? NO_OBSTACLE_CHANGES,
+            claimed: new Set(village.reservedTrees ?? []),
+            village,
+            roads: (village.roads ?? []).map((r) => ({
+              ...r,
+              ...(r.cartTrips ? { cartTraffic: [r.cartTrips] } : {}),
+            })),
+            earthworks: village.earthworks ?? [],
+            roadId,
+            home: village.home ?? null,
+          });
+    this.wagonPlan = { key, plan };
+    this.paths?.setWagonPreview(show && plan.ok ? [plan.profile] : []);
+    this.renderWhenReady();
+    return plan;
   }
 
   /**
@@ -1019,7 +1073,10 @@ export class LandscapeScene {
   private applyVillage(): void {
     const village = this.village;
     if (!village || !this.villageState) return;
-    const changed = village.update(this.villageState);
+    // úvozy a náspy vozových cest (roads.md – Vozová cesta) – terén napřed, ať se pole, cesty
+    // a pařezy položí už na nový
+    const terrainChanged = this.applyTerrainEdits();
+    const changed = village.update(this.villageState) || terrainChanged;
     const changes = this.villageState.obstacles ?? NO_OBSTACLE_CHANGES;
     const sacred = this.villageState.sacred;
     // uschlý posvátný dub kreslí posvátná místa jako souš, padlý jako padlý kmen – strom zmizí
@@ -1069,6 +1126,29 @@ export class LandscapeScene {
     const scene = { village: changed, hidden, felled, logs, shade: shaded, canopy: cleared };
     if (castersChanged({ ...scene, animals, people })) this.shadows?.refresh();
     this.renderWhenReady();
+  }
+
+  /**
+   * Úpravy terénu vozových cest ze vsi (`SceneVillage.earthworks` – stejná funkce jako jádro):
+   * síť terénu, pick a výšky scény se změní jen kolem cest a jen při změně profilu; pole a cesty
+   * tam se přestaví. Vrátí, jestli se terén změnil.
+   */
+  private applyTerrainEdits(): boolean {
+    const ground = this.terrainGround;
+    if (!ground || !this.villageState) return false;
+    // terén scény i s rozestavěným úsekem podle průběhu (`shownM`)
+    const edits = terrainEditsFrom(
+      (this.villageState.earthworks ?? []).map((e) => ({ ...e, reachedM: e.shownM })),
+    );
+    const region = ground.setTerrainEdits(edits);
+    if (!region || !this.surface) return false;
+    const a = this.surface.position(region.j0 * this.surface.resolution + region.i0);
+    const b = this.surface.position(region.j1 * this.surface.resolution + region.i1);
+    const bounds = { minX: a.x, minZ: a.z, maxX: b.x, maxZ: b.z };
+    this.village?.terrainChanged(bounds);
+    this.paths?.terrainChanged(bounds);
+    this.shadows?.refresh();
+    return true;
   }
 
   /**
@@ -1392,4 +1472,29 @@ function nextPaint(): Promise<void> {
       setTimeout(resolve, 0);
     });
   });
+}
+
+/**
+ * Klíč náhledu vozové cesty – na čem trasa závisí (cesty, zemní práce, stavby, díly polí, ploty
+ * a překážky), bez práce dne: vybraná cesta se nepřepočítává každý herní den.
+ */
+function wagonPreviewKey(village: SceneVillage, roadId: number): string {
+  const changes = village.obstacles;
+  return JSON.stringify([
+    roadId,
+    (village.roads ?? []).map((r) => [
+      r.id,
+      r.points.length,
+      r.grade,
+      r.cart ?? 0,
+      r.cartTrips ?? 0,
+    ]),
+    (village.earthworks ?? []).map((e) => [e.id, Math.round(e.reachedM)]),
+    village.dwellings.map((d) => [d.id, d.built, d.position.x, d.position.z]),
+    village.fields.map((f) => f.parts.map((p) => `${p.cell.x},${p.cell.y},${p.stage}`).join(';')),
+    (village.orchards ?? []).map((o) => o.squares.length),
+    (village.cemeteries ?? []).map((c) => c.squares.length),
+    (village.pens ?? []).map((p) => [p.id, p.x, p.z]),
+    changes ? [changes.removed.length, changes.stumps.length, (changes.added ?? []).length] : 0,
+  ]);
 }

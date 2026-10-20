@@ -16,6 +16,7 @@ import {
   type PathPoint,
   type PathTraffic,
   type PathVillage,
+  villageTerrain,
 } from './network';
 import { PATH_FORD, PATH_FOREST, PATH_WATER, PATH_WETLAND, type PathTerrain } from './terrain';
 import { roadTreeSpeed } from './walk-speed';
@@ -78,6 +79,11 @@ const DIR_VIA: readonly (readonly (readonly [number, number])[])[] = DIRS.map(([
     [i, j / 2],
   ];
 });
+
+/** Směry jízdy, jejich délky a buňky, přes které vedou – i pro trasu vozové cesty (wagon-route.ts). */
+export const CART_HEADINGS = DIRS;
+export const CART_HEADING_LENGTHS = DIR_LEN;
+export const CART_HEADING_VIA = DIR_VIA;
 
 /**
  * Vůz stojí u ohrady se spřežením – vyjede z kterékoli průjezdné buňky do tolika metrů od středu
@@ -155,8 +161,8 @@ export function cartPartSpeed(stage: PartStage): number {
 
 /**
  * Rychlost vozu po pevné cestě proti louce (CART_SPEED.road): vyšlapaná, vyježděná (vyšlapaná
- * s příznakem vozová), upravená, hať; v mokřině (`wet`) jen hať, jinak bahno jako mokřina bez
- * cesty. Mimo mokřinu se přičtou stromy u cesty (`treeSpeed` – `roadTreeSpeed`, stejně jako
+ * s příznakem vozová), upravená, hať, vozová cesta; v mokřině (`wet`) jen hať a vozová cesta,
+ * jinak bahno jako mokřina bez cesty. Mimo mokřinu se přičtou stromy u cesty (`treeSpeed` – `roadTreeSpeed`, stejně jako
  * u chůze; roads.md – Stromy u cesty zrychlí chůzi).
  */
 export function cartRoadSpeed(
@@ -165,7 +171,10 @@ export function cartRoadSpeed(
   wet: boolean,
   treeSpeed = 0,
 ): number {
-  if (grade === 'causeway') return CART_SPEED.road.causeway + (wet ? 0 : treeSpeed);
+  // hať i vozová cesta (zpevněné koleje – roads.md, Vozová cesta) drží rychlost i v mokřině
+  if (grade === 'causeway' || grade === 'wagon') {
+    return CART_SPEED.road[grade] + (wet ? 0 : treeSpeed);
+  }
   if (wet) return CART_SPEED.wet;
   const speed = CART_SPEED.road[grade];
   return (cart ? Math.max(speed, CART_SPEED.road.cart) : speed) + treeSpeed;
@@ -242,7 +251,8 @@ export function cartGrid(
   input: Omit<CartRoutesInput, 'kind' | 'depots' | 'targets'> &
     Partial<Pick<CartRoutesInput, 'depots'>>,
 ): CartGrid {
-  const t = input.terrain;
+  // úpravy terénu vozových cest (roads.md – Vozová cesta) – po úvozu vůz jede rovně
+  const t = villageTerrain(input.village, input.terrain);
   const all = t.width * t.height;
   const grid: CartGrid = {
     width: t.width,

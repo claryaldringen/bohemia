@@ -1,5 +1,5 @@
-import type { RoadGrade } from '@bohemia/game';
-import type { SceneRoad, SceneRoadApple } from '../village-view';
+import { WAGON_ROAD, type RoadGrade } from '@bohemia/game';
+import type { SceneEarthwork, SceneRoad, SceneRoadApple } from '../village-view';
 import {
   CART_RUT_OFFSET_M,
   CART_WORN_LAYER,
@@ -7,6 +7,7 @@ import {
   JUNCTION,
   ROAD_WIDTH_M,
   ROAD_WORN_LAYER,
+  WAGON_WORN_LAYER,
   ribbonTrack,
   type RibbonJunction,
   type RibbonLine,
@@ -120,14 +121,15 @@ function shownGrade(road: SceneRoad, d: number): RoadGrade {
   return d >= part[0] - 1e-6 && d <= part[1] + 1e-6 ? 'improved' : road.grade;
 }
 
-/** Pás cesty: vyšlapaná, upravená (širší), vyšlapaná vozová (wagons.md). */
-type BandKind = 'trodden' | 'improved' | 'cart';
+/** Pás cesty: vyšlapaná, upravená (širší), vyšlapaná vozová (wagons.md), vozová cesta (roads.md). */
+type BandKind = 'trodden' | 'improved' | 'cart' | 'wagon';
 
 /** Šířka pásu (m) – jako obtisk plné síly (ROAD_WORN_LAYER, IMPROVED_*, CART_WORN_LAYER). */
 const BAND_WIDTH_M: Record<BandKind, number> = {
   trodden: ROAD_WIDTH_M.trodden,
   improved: ROAD_WIDTH_M.improved,
   cart: ROAD_WIDTH_M.cart,
+  wagon: ROAD_WIDTH_M.wagon,
 };
 
 /**
@@ -145,6 +147,10 @@ export function roadBands(roads: readonly SceneRoad[]): {
   cart: RibbonLine[];
   /** Koleje vozových cest (i upravených) – po CART_RUT_OFFSET_M na obě strany osy. */
   ruts: RibbonLine[];
+  /** Vozová cesta (roads.md – Vozová cesta) – pás 3,5 m. */
+  wagon: RibbonLine[];
+  /** Zpevněné koleje vozové cesty – štěrk a kameny po CART_RUT_OFFSET_M od osy. */
+  gravel: RibbonLine[];
 } {
   const ends = roads.flatMap((r) => [r.points[0], r.points[r.points.length - 1]]);
   const joined = (p: { x: number; z: number } | undefined, own: number): boolean =>
@@ -172,7 +178,14 @@ export function roadBands(roads: readonly SceneRoad[]): {
     if (road.points.length < 2) return;
     const length = roadLength(road);
     const part = improvedPart(road, length);
-    const plain: BandKind = road.grade !== 'trodden' ? 'improved' : road.cart ? 'cart' : 'trodden';
+    const plain: BandKind =
+      road.grade === 'wagon'
+        ? 'wagon'
+        : road.grade !== 'trodden'
+          ? 'improved'
+          : road.cart
+            ? 'cart'
+            : 'trodden';
     const spans: { from: number; to: number; kind: BandKind }[] = part
       ? [
           { from: 0, to: part[0], kind: plain },
@@ -219,6 +232,8 @@ export function roadBands(roads: readonly SceneRoad[]): {
     improved: [] as RibbonLine[],
     cart: [] as RibbonLine[],
     ruts: [] as RibbonLine[],
+    wagon: [] as RibbonLine[],
+    gravel: [] as RibbonLine[],
   };
   for (const piece of pieces) {
     const { points } = piece;
@@ -236,7 +251,20 @@ export function roadBands(roads: readonly SceneRoad[]): {
       ...(narrowEnd !== undefined ? { narrowEnd } : {}),
     };
     out[piece.kind].push(line);
-    if (piece.cart) {
+    if (piece.kind === 'wagon') {
+      // zpevněné koleje se vytratí, kde vozová cesta přechází v jinou
+      const rutLine = {
+        ...line,
+        openStart: line.openStart || (before !== null && before.kind !== 'wagon'),
+        openEnd: line.openEnd || (after !== null && after.kind !== 'wagon'),
+      };
+      delete rutLine.narrowStart;
+      delete rutLine.narrowEnd;
+      for (const offset of [CART_RUT_OFFSET_M, -CART_RUT_OFFSET_M]) {
+        const rut = offsetPolyline(points, offset).map(([x, z]) => ({ x, z }));
+        out.gravel.push({ ...rutLine, points: rut });
+      }
+    } else if (piece.cart) {
       // koleje se vytratí, kde vozová cesta přechází v jinou
       const rutLine = {
         ...line,
@@ -309,11 +337,13 @@ export function roadTrack(roads: readonly SceneRoad[]): Track {
     ribbonTrack(bands.trodden, ROAD_WORN_LAYER, undefined, undefined, junctions.trodden),
     ribbonTrack(bands.improved, IMPROVED_WORN_LAYER, undefined, undefined, junctions.improved),
     ribbonTrack(bands.cart, CART_WORN_LAYER, undefined, undefined, junctions.cart),
+    ...(bands.wagon.length > 0 ? [ribbonTrack(bands.wagon, WAGON_WORN_LAYER)] : []),
   ];
   const counts = [
     bands.trodden.length + junctions.trodden.length,
     bands.improved.length + junctions.improved.length,
     bands.cart.length + junctions.cart.length,
+    bands.wagon.length,
   ];
   // čáry každé vrstvy za předchozími (klíče bloků podle čar)
   const segments: Track['segments'] = [];
@@ -455,6 +485,49 @@ export function stakingLines(roads: readonly SceneRoad[]): Point[][] {
   return out;
 }
 
+/** Vytyčení vozové cesty – po okrajích vozovky (m od osy). */
+export const WAGON_STAKING_OFFSET_M = WAGON_ROAD.bedHalfM + 0.25;
+
+/**
+ * Vytyčení vozové cesty (roads.md – Vozová cesta; Martin – kolíky a provázek hned od zadání): po
+ * obou okrajích vozovky na ose zemních prací, která ještě není hotová (od hotové délky dál), a na
+ * celé trase náhledu (`preview` – vybraná cesta hráče před zadáním).
+ */
+export function wagonStakingLines(
+  earthworks: readonly Pick<SceneEarthwork, 'profile' | 'shownM' | 'building'>[],
+  preview: readonly (readonly { x: number; z: number }[])[],
+): Point[][] {
+  const out: Point[][] = [];
+  const stake = (points: readonly { x: number; z: number }[], from: number): void => {
+    const length = lengthsAlong(points).at(-1) ?? 0;
+    if (length - from < 1) return;
+    const part = axisPart(points, from, length);
+    out.push(
+      offsetPolyline(part, WAGON_STAKING_OFFSET_M),
+      offsetPolyline(part, -WAGON_STAKING_OFFSET_M),
+    );
+  };
+  for (const e of earthworks) if (e.building) stake(e.profile, e.shownM);
+  for (const line of preview) if (line.length >= 2) stake(line, 0);
+  return out;
+}
+
+/** Klíč vytyčení vozových cest – hotová délka po decimetrech a náhled. */
+export function wagonStakingKey(
+  earthworks: readonly Pick<SceneEarthwork, 'id' | 'shownM' | 'building'>[],
+  preview: readonly (readonly { x: number; z: number }[])[],
+): string {
+  const works = earthworks
+    .filter((e) => e.building)
+    .map((e) => `${e.id}@${Math.round(e.shownM * 10)}`)
+    .join(',');
+  const lines = preview
+    .filter((p) => p.length >= 2)
+    .map((p) => `${p.length}:${p[0]!.x},${p[0]!.z}:${p.at(-1)!.x},${p.at(-1)!.z}`)
+    .join(',');
+  return `${works}|${lines}`;
+}
+
 /**
  * Vytyčení výsadby jabloní u cesty (Martin – u všech staveb hned od zadání kolíky a provázkem):
  * po každé straně úseku provázek přes místa jabloní, které na výsadbu teprve čekají, kolík na
@@ -514,6 +587,92 @@ export function roadWorksKey(roads: readonly SceneRoad[] | undefined): string {
     .map(
       (r) =>
         `${r.id}:${r.grade}:${r.points.length}:${r.upgrade ? `${r.upgrade.grade}@${Math.round(r.upgrade.progress * 100)}${r.upgrade.fromEnd ? '<' : ''}` : ''}:${(r.ground?.wet ?? []).length},${(r.ground?.fords ?? []).length}`,
+    )
+    .join(';');
+}
+
+/** Svahy úvozu a náspu sahají nejvýš tolik od osy (m) – jako úpravy terénu v jádru. */
+const SLOPE_REACH_M = WAGON_ROAD.flatHalfM + 7;
+/** Krok příčného řezu svahů (m). */
+const SLOPE_STEP_M = 0.5;
+/** Za kolik let svahy úvozu a náspu zarostou trávou (holá hlína zmizí – návrh Clauda). */
+export const SLOPE_GRASS_YEARS = 6;
+/** Hlína prosvítá i na zarostlém svahu (podíl krytí). */
+const SLOPE_OLD_ALPHA = 0.12;
+
+/**
+ * Holá hlína na svazích úvozu a náspu vozové cesty (roads.md – Vozová cesta): síť příčných řezů
+ * podél hotové části osy (`shownM` – i rozestavěný úsek podle průběhu) po bodech profilu, krytí podle toho, o kolik se terén
+ * upravil (`height` po úpravě proti `base` původnímu – m s převýšením scény, `scale` převýšení),
+ * a podle stáří úseku – svah zarůstá trávou za SLOPE_GRASS_YEARS let. Bez svahů null.
+ */
+export function earthworkSlopeGrid(
+  earthworks: readonly SceneEarthwork[],
+  height: (x: number, z: number) => number,
+  base: (x: number, z: number) => number,
+  scale: number,
+): { positions: Float32Array; alphas: Float32Array; indices: Uint32Array } | null {
+  const positions: number[] = [];
+  const alphas: number[] = [];
+  const indices: number[] = [];
+  const lanes = Math.round((2 * SLOPE_REACH_M) / SLOPE_STEP_M) + 1;
+  for (const e of earthworks) {
+    const profile = e.profile;
+    if (profile.length < 2 || e.shownM <= 0) continue;
+    const at = lengthsAlong(profile);
+    const ageAt = (d: number): number => {
+      let from = 0;
+      for (const piece of e.pieces) {
+        if (d <= piece.toM + 1e-6) return d >= from ? (piece.ageYears ?? 0) : 0;
+        from = piece.toM;
+      }
+      return 0;
+    };
+    let previous = -1;
+    for (let k = 0; k < profile.length; k++) {
+      if (at[k]! > e.shownM + 1e-6) break;
+      const p = profile[k]!;
+      const a = profile[Math.max(0, k - 1)]!;
+      const b = profile[Math.min(profile.length - 1, k + 1)]!;
+      const tl = Math.hypot(b.x - a.x, b.z - a.z) || 1;
+      const nx = -(b.z - a.z) / tl;
+      const nz = (b.x - a.x) / tl;
+      const grass = Math.min(1, ageAt(at[k]!) / SLOPE_GRASS_YEARS);
+      const fade = 1 - (1 - SLOPE_OLD_ALPHA) * grass * grass * (3 - 2 * grass);
+      const start = positions.length / 2;
+      for (let l = 0; l < lanes; l++) {
+        const t = -SLOPE_REACH_M + l * SLOPE_STEP_M;
+        const x = p.x + nx * t;
+        const z = p.z + nz * t;
+        const diff = Math.abs(height(x, z) - base(x, z)) / scale;
+        const s = Math.min(1, Math.max(0, (diff - 0.08) / 0.4));
+        positions.push(x, z);
+        alphas.push(s * s * (3 - 2 * s) * fade);
+      }
+      if (previous >= 0) {
+        for (let l = 0; l < lanes - 1; l++) {
+          const a0 = previous + l;
+          const b0 = start + l;
+          indices.push(a0, b0, a0 + 1, a0 + 1, b0, b0 + 1);
+        }
+      }
+      previous = start;
+    }
+  }
+  if (indices.length === 0) return null;
+  return {
+    positions: new Float32Array(positions),
+    alphas: new Float32Array(alphas),
+    indices: new Uint32Array(indices),
+  };
+}
+
+/** Klíč svahů vozových cest – hotová délka po decimetrech a stáří úseků. */
+export function earthworkSlopeKey(earthworks: readonly SceneEarthwork[]): string {
+  return earthworks
+    .map(
+      (e) =>
+        `${e.id}@${Math.round(e.shownM * 10)}:${e.pieces.map((p) => Math.min(SLOPE_GRASS_YEARS, p.ageYears ?? 0)).join(',')}`,
     )
     .join(';');
 }

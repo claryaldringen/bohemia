@@ -89,6 +89,12 @@ import {
 } from './dev-road';
 import { FOREST_TRAIL_STAGES, forestTrailDemo, type ForestTrailDemo } from './dev-forest-trail';
 import { demoCartSlope, type CartDemo } from './dev-cart';
+import {
+  WAGON_DEMO_STAGES,
+  demoWagonRoads,
+  wagonDemoVillage,
+  type WagonDemo,
+} from './dev-wagon-road';
 import { demoCaravan, type CaravanDemo } from './dev-caravan';
 import { demoFuneral, windowAt, type FuneralDemo } from './dev-funeral';
 import { FuneralControls } from './FuneralControls';
@@ -200,6 +206,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   >(null);
   // ukázka vozové sítě na svahu vedle pěšin (wagons.md, dev-cart.ts) – dvoukolák, pak čtyřkolák
   const [cartDemo, setCartDemo] = useState<CartDemo | null>(null);
+  // ukázka vozové cesty přes svah (roads.md – Vozová cesta, dev-wagon-road.ts) – po stadiích
+  const [wagonDemo, setWagonDemo] = useState<WagonDemo | null>(null);
   // ukázka zemské stezky lesem s průsekem (roads.md – Průsek lesem, dev-forest-trail.ts)
   const [forestTrail, setForestTrail] = useState<ForestTrailDemo | null>(null);
   // ukázka karavany výpravy k sousedovi (trade.md – Ve scéně, dev-caravan.ts) – nosiči, pak vůz
@@ -324,6 +332,24 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         labor: base.labor ?? caravanDemo.labor,
       };
     }
+    if (wagonDemo) {
+      // vozová cesta přes svah: stará cesta, hotové úseky, zemní práce (úvozy, náspy)
+      const demo = wagonDemoVillage(wagonDemo, { earthwork: 9_100_100, road: 9_100_200 });
+      return {
+        ...base,
+        roads: [...(base.roads ?? []), ...demo.roads],
+        earthworks: demo.earthworks,
+        obstacles: {
+          ...base.obstacles!,
+          removed: [...new Set([...(base.obstacles?.removed ?? []), ...demo.removed])].sort(
+            (x, y) => x - y,
+          ),
+          stumps: [...new Set([...(base.obstacles?.stumps ?? []), ...demo.stumps])].sort(
+            (x, y) => x - y,
+          ),
+        },
+      };
+    }
     if (cartDemo) {
       // ukázka vozů na svahu: obydlí, ohrada se spřežením, díl nahoře a vozová cesta jádra
       return {
@@ -382,6 +408,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     simulated,
     overgrowth,
     cartDemo,
+    wagonDemo,
     caravanDemo,
     funeralDemo,
     oreDemo,
@@ -1418,6 +1445,24 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     if (next === 0) scene?.moveCameraTo(demo.focus.x, demo.focus.z);
   };
 
+  const toggleWagonRoad = (): void => {
+    const next = wagonDemo ? wagonDemo.stage + 1 : 0;
+    if (next >= WAGON_DEMO_STAGES.length) {
+      setWagonDemo(null);
+      scene?.setWagonPreview([]);
+      return;
+    }
+    const routes = wagonDemo?.routes ?? demoWagonRoads(decoded, obstaclesOf(decoded), 9_100_000);
+    if (routes.length === 0) return;
+    const demo: WagonDemo = { routes, stage: next };
+    setWagonDemo(demo);
+    // náhled – vytyčení celých tras; stavba – vytyčení nehotové části kreslí zemní práce
+    scene?.setWagonPreview(
+      wagonDemoVillage(demo, { earthwork: 9_100_100, road: 9_100_200 }).preview,
+    );
+    if (next === 0) scene?.moveCameraTo(routes[0]!.focus.x, routes[0]!.focus.z);
+  };
+
   const toggleCarts = (): void => {
     const next: Record<string, CartKind | 'none' | null> = {
       off: 'none',
@@ -1789,6 +1834,17 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
           data-testid="dev-carts"
         >
           {cartDemo ? `Vozy: ${cartDemo.note}` : 'Vozy ve svahu'}
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={toggleWagonRoad}
+          title="Vozová cesta přes svah – náhled trasy, stavba, hotová, po letech (úvozy, náspy, serpentiny)"
+          data-testid="dev-wagon-road"
+        >
+          {wagonDemo
+            ? `Vozová cesta: ${WAGON_DEMO_STAGES[wagonDemo.stage]!.label} – ${wagonDemo.routes.map((r) => r.note).join(' · ')}`
+            : 'Vozová cesta'}
         </button>
         {road && (
           <button

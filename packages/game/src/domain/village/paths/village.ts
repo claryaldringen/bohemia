@@ -27,6 +27,7 @@ import type {
   VillageState,
 } from '../types';
 import { villageWoods } from '../woods';
+import { earthworkSpansOf } from './earthworks';
 import {
   computePathNetwork,
   kilnsKey,
@@ -323,6 +324,10 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
     ...(hayMeadows.length > 0 ? { hayMeadows } : {}),
     // milíře uhlířů – samostatné stavby (crafts.md – Milíř u skácených buků)
     ...(kilns.length > 0 ? { kilns } : {}),
+    // zemní práce vozových cest (roads.md – Vozová cesta) – ves bez nich beze změny
+    ...(state.roads?.earthworks && state.roads.earthworks.length > 0
+      ? { earthworks: earthworkSpansOf(state) }
+      : {}),
   };
 }
 

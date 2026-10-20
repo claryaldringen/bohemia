@@ -414,7 +414,7 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
     label: 'Rudiště',
     details: {
       kind: 'ore-site',
-      smithId: 12,
+      workshopId: 12,
       leftKg: 2140,
       depositKg: 3000,
       heapKg: 35,
@@ -422,8 +422,8 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       walkM: 186,
       pits: 5,
       workers: [
-        { age: 41, smith: true, digs: true, carries: true, rides: false },
-        { age: 15, smith: false, digs: true, carries: false, rides: false },
+        { age: 41, craftsman: true, digs: true, carries: true, rides: false },
+        { age: 15, craftsman: false, digs: true, carries: false, rides: false },
       ],
       cart: false,
     },
@@ -521,14 +521,35 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
     label: 'Rudiště – vůz',
     details: {
       kind: 'ore-site',
-      smithId: 12,
+      workshopId: 12,
       leftKg: 380,
       depositKg: 3000,
       heapKg: 412,
       stockKg: 8,
       walkM: 342,
       pits: 9,
-      workers: [{ age: 41, smith: true, digs: false, carries: false, rides: true }],
+      workers: [{ age: 41, craftsman: true, digs: false, carries: false, rides: true }],
+      cart: true,
+    },
+  },
+  {
+    // crafts.md – Hlína hrnčíře: hliniště – syn kope, hrnčíř jede se sedlákem a vozem pro hromadu
+    // hlíny u jámy
+    key: 'hliniste',
+    label: 'Hliniště',
+    details: {
+      kind: 'clay-site',
+      workshopId: 14,
+      leftKg: 17_460,
+      depositKg: 20_000,
+      heapKg: 260,
+      stockKg: 142,
+      walkM: 238,
+      pits: 4,
+      workers: [
+        { age: 38, craftsman: true, digs: false, carries: false, rides: true },
+        { age: 16, craftsman: false, digs: true, carries: false, rides: false },
+      ],
       cart: true,
     },
   },
@@ -856,6 +877,7 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
           blocked: 'Vylepšení cesty se už staví.',
         },
       ],
+      wagon: { status: 'building', progress: 0.38, blocked: 'Cesta se už upravuje pro vozy.' },
       apples: {
         trees: 64,
         bearing: 41,

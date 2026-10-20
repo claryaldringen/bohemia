@@ -298,7 +298,8 @@ nejsou ověřené).
   dávka vykopaná. Nepřijede-li den po vykopání a kovář nemá rudu na dnešek, donese ji pěšky.
 - **Přirážka za rudu u kováře zmizela** – nahradila ji skutečná cesta na rudiště. U hrnčíře od 20. 10. 2026 taky ([Hlína hrnčíře](#hlína-hrnčíře)) – `oreFactor` je pryč.
 - **Rudiště:** buňka mokřiny u potoka (`PATH_WETLAND` terénu pěšin – suchá rovina do 3 buněk od
-  vody) **nejblíž kovárně** vzdušnou čarou; bez mokřiny suchý břeh (`PATH_WATER_SPOT`). Ne na poli,
+  vody) **nejblíž kovárně** vzdušnou čarou; bez mokřiny suchý břeh (`PATH_WATER_SPOT`); přednost má
+  místo na očích mimo les a koruny ([níž](#rudiště-a-hliniště-na-očích)). Ne na poli,
   v sadu, na hřbitově, v ohradě, v lese vsi ani do 12 m od domů (rozhodnutí Clauda – jámy v poli
   by vypadaly divně). Vzdálenost chůze po pevných cestách s půdou krajiny – vede-li tam cesta,
   je kratší. Vybere se při prvním kopání a uloží (`Workshop.oreSite` – poloha, vytěženo, den,
@@ -314,6 +315,21 @@ nejsou ověřené).
 - **Cesty:** kopání a nošení jde v síti pěšin z kovárny (jen domácnost kováře) – k rudišti
   a k milíři vznikne pěšina; jízdy vozu pro rudu a uhlí jdou do ročního provozu cest (vyjeté
   cesty). Kovář, který jede s vozem, pěšinu nevyšlape.
+
+### Rudiště a hliniště na očích
+
+Martin (20. 10. 2026): „**To místo, kde kope rudu, chci na mapě vidět.**“ Nejbližší mokřina ale
+mohla vyjít v lese u potoka pod korunami stromů – jámy shora nebyly vidět. Návrh Clauda
+(`DUG_SITE_VIEW` v `rules.ts`, `chooseDugSite`):
+
+- Nové rudiště i hliniště má přednost **mimo les** (`PATH_FOREST` terénu pěšin) a **mimo koruny** –
+  žádný dospělý strom do **8 m** od místa (koruna ≈ 4–5 m a jámy kolem místa): stromy vrstvy
+  překážek, které dnes stojí (pokácený strom je pařez), stromy u cest i les vsi. Louka, mokřina
+  i břeh bez stromů.
+- Napřed volná mokřina, pak volný břeh – **nejvýš o polovinu dál** než nejbližší místo (a aspoň
+  o 30 m dál). Když volné místo tak blízko není, kope se v lese nebo pod korunou jako dřív.
+- Už vybraná místa ve starších vsích se nemění (jsou uložená u dílny) – pravidlo platí až pro
+  nové ložisko.
 
 ### Starší vsi a ves bez kováře
 
@@ -375,12 +391,13 @@ od něj s vypáleným milířem, dvoukolák a spřežení), dva roky simulace se
 | Rudiště ne na poli, v sadu, na hřbitově, v ohradě, v lese vsi ani u domů                    | rozhodnutí Clauda                                                             |
 | Přirážka za rudu u kováře zmizela (cesta na rudiště), u hrnčíře zůstává                     | návrh Clauda                                                                  |
 | Rudiště jde vybrat – panel s ložiskem, hromadou, jámami, kovárnou a dnešními kopáči         | Martin (20. 10. 2026), podoba panelu návrh Clauda                             |
+| Rudiště a hliniště na očích – mimo les a koruny, les jen když volné není o polovinu dál     | Martin („chci na mapě vidět“, 20. 10. 2026), pravidlo návrh Clauda            |
 
 ## Hlína hrnčíře
 
 Martin (20. 10. 2026) k návrhu nových nákladů vozů ([vozy](wagons.md) – Co se vozí a na čem):
 „**Ano, udělej to jak říkáš**“ – hlína pro hrnčíře od potoka, hrnčíř kope, vůz se sedlákem.
-Koordinátor: hlínu stejným vzorem jako rudu ([Uhlí a ruda kováře](#uhlí-a-ruda-kováře)) – hlína se
+Návrh Clauda: hlínu stejným vzorem jako rudu ([Uhlí a ruda kováře](#uhlí-a-ruda-kováře)) – hlína se
 nakope napřed na hromadu u jámy a vůz pro ni přijede; kolik hlíny hrnčíř potřebuje, jde podle
 výkonu dílny podle praxe ([Učení řemesla](#učení-řemesla)), jako ostatní výroba. Čísla návrh
 Clauda (odhad, `CLAY` v `rules.ts`).
@@ -408,7 +425,8 @@ Clauda (odhad, `CLAY` v `rules.ts`).
   Vydrží **20 t hlíny** (jílové vrstvy u potoka jsou mocné – vesnický hrnčíř s ≈ 300–600 kg
   keramiky ročně vydrží na jednom místě desítky let), pak další aspoň 20 m od vyčerpaného
   (`Workshop.claySite`, `claySitesUsed`). Bez mokřiny i vody – `no-clay`, hrnčíř pracuje se vsí,
-  upozornění „Hrnčíř nemá hlínu“.
+  upozornění „Hrnčíř nemá hlínu“. Na očích jako rudiště ([Rudiště a hliniště na
+  očích](#rudiště-a-hliniště-na-očích)).
 - **Jámy:** každá dávka otevře jámu hlíny kousek kolem hliniště (`VillageState.orePits` s `clay`),
   zarůstá a po 10 letech zmizí jako jámy rudiště.
 - **Kód:** rudu i hlínu kope jedna funkce `workDug` (`smith-supply.ts` – `DugMaterial`: zásoba,
@@ -436,6 +454,12 @@ zásobu (≈ 270 kg) za ≈ 9 měsíců, pak hrnčíř odpočíval a pomáhal vs
 
 - **Panel dílny hrnčíře:** hlína v dílně (kg, ikona `resources/clay`), hliniště – cesta z dílny
   (m, v bublině kolik hlíny zbývá), vůz se sedlákem; činnosti „Kope hlínu“ a „Nemá hlínu“.
+- **Výběr hliniště** (jako rudiště – návrh Clauda): klik na jámy hlíny nebo hromadu hlíny
+  hliniště vybere a obtáhne obrysem; panel ukáže portrét **Hliniště**, hlínu v hliništi (zbývá /
+  20 000 kg), hromadu vykopané hlíny u jámy, počet jam, dílnu hrnčíře (ikona – kliknutím ji
+  vybere), cestu z ní a hlínu u ní a kdo tu dnes pracuje – hrnčíř a synové s věkem (kope, nosí,
+  jede s vozem) a vůz se sedlákem. Jámy rudiště k hliništi nepatří a naopak. Ukázka
+  `/dev/panels?panel=hliniste`.
 - **Ve scéně:** jámy hliniště jako jámy rudiště, jen se šedookrovou stěnou jílu, a hromada hlíny
   u jámy; kopáči u jámy, nosiči s koši a vůz s hromadou hlíny (`wagon2-clay` – hladké hroudy
   seříznuté rýčem, `tools/blender/wagons_from_0ad.py`).
@@ -450,6 +474,7 @@ zásobu (≈ 270 kg) za ≈ 9 měsíců, pak hrnčíř odpočíval a pomáhal vs
 | Přirážka za vodu daleko u hrnčíře zmizela (cesta na hliniště)                                  | návrh Clauda                                      |
 | Rudiště a hliniště aspoň 20 m od míst, kde kopou jiné dílny                                    | rozhodnutí Clauda                                 |
 | Hlína jen dvoukolákem, v pořadí jízd po rudě                                                   | rozhodnutí Clauda                                 |
+| Hliniště jde vybrat jako rudiště – stejný panel s hlínou a dílnou hrnčíře                      | návrh Clauda                                      |
 
 ## Učení řemesla
 

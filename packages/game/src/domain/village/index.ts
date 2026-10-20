@@ -207,6 +207,31 @@ export {
 export * from './paths';
 export * from './road-trees';
 export * from './road-upgrades';
+// vozová cesta (roads.md – Vozová cesta) – kroky simulace (úseky, dokončení) zůstávají uvnitř
+export {
+  WAGON_BUILDING,
+  WAGON_EXISTS,
+  WAGON_LOOP,
+  WAGON_NO_ROAD,
+  WAGON_NO_ROUTE,
+  WAGON_SACRED,
+  WAGON_SHORT,
+  planWagonRoad,
+  startWagonRoad,
+  villageWagonEarthworks,
+  wagonDetourReason,
+  wagonChainConstruction,
+  wagonChainStatus,
+  wagonHome,
+  wagonPlanInputOf,
+  wagonProgress,
+  wagonWorkTarget,
+  type WagonPiecePlan,
+  type WagonPlanEarthwork,
+  type WagonPlanInput,
+  type WagonPlanRoad,
+  type WagonRoadPlan,
+} from './wagon-road';
 export * from './trail';
 export * from './neighbours';
 export * from './trade';
