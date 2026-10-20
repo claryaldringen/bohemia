@@ -96,6 +96,29 @@ vodu a dřevo, vozy) už jsou v jádru.
   4–8 ms s polovinou postav – bez lidí na vzdáleném poli), zápis póz za snímek pod 0,1 ms; zoom
   bez nových dlouhých snímků. Trasy po pěšinách si hledání pamatuje.
 
+## Pohřeb
+
+Martin (20. 10. 2026): „Když je pohřeb, chtěl bych vidět průvod lidí na hřbitov a pak na hřbitově
+hranici.“ Pravidla a časy obřadu jsou v [cemetery.md](cemetery.md) – Pohřeb ve scéně, tady jen
+postavy (návrh Clauda, jen zobrazení).
+
+- **Průvod** vychází od vchodu domu zemřelého po pěšinách a cestách k brance hřbitova a k hranici:
+  vpředu **čtyři muži s márami na ramenou** (zemřelý zabalený v plátně – máry jsou samostatný
+  díl, který se pohybuje mezi nimi), za nimi po dvou **domácnost zemřelého** a **1–2 lidé
+  z každé další domácnosti** (pohlaví a věk z jádra – ženy v šátcích, starší s šedinami), nejvýš
+  24 postav; **za vojvodu a jeho ženu celá ves**, nejvýš 40.
+- Jde se pomalu (0,6 m/s, ke vzdálenému hřbitovu rychleji – nejvýš 1,1 m/s) skutečnou chůzí jako
+  ostatní postavy; kdo se do řady ještě nevešel, čeká před domem a zařadí se, jak průvod
+  postupuje.
+- U hranice nosiči položí máry nahoru a ostatní obejdou hranici **do kruhu kolem ní** (ne na
+  mohyly, ne na plot); stojí, dokud hoří. Druhý den, když uhlíky dohasínají, **odcházejí** –
+  domácnost zemřelého po trase průvodu domů, ostatní od branky každý ke svému domu – a doma
+  zmizí.
+- Postavy pohřbu jdou **mimo rozpočet 60 pracujících**; ve dnech obřadu se o ně sníží počet
+  pracujících postav (stavby si člověka nechají).
+- Nosiči mají klip chůze – klip s rukama nahoře na márách by znamenal nové GLB postav (a další
+  větve na postavách běží souběžně); přijde později.
+
 ## Zjednodušení a co chybí
 
 - Noc se nemodeluje – lidé pracují pořád (herní den trvá ≈ 86 s).

@@ -915,6 +915,22 @@ describe('hřbitov v pohledu na ves', () => {
       ],
     });
     expect(view.scene.cemeteries?.[0]?.mounds?.[0]).not.toHaveProperty('fresh');
+    // pohřby posledních dnů jdou do scény – průvod a hranice (cemetery.md – Pohřeb ve scéně)
+    expect(view.scene).not.toHaveProperty('funerals');
+    c.mounds.push({
+      cell: { x: 0, y: 0 },
+      column: 0,
+      row: 5,
+      size: 'normal',
+      rank: 'adult',
+      day: DAY,
+      from: s.people[0]!.dwellingId,
+    });
+    const after = buildVillageView(record(s), landscape, DAY);
+    expect(after.scene.funerals).toEqual([
+      expect.objectContaining({ cemeteryId: c.id, column: 0, row: 5, day: DAY }),
+    ]);
+    expect(after.scene.funerals![0]!.mourners.length).toBeGreaterThan(0);
   });
 });
 

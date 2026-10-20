@@ -161,6 +161,60 @@ významní členové.“ **Implementováno 19. 10. 2026** – jádro `domain/vil
   (založení, rozšíření, oprava) ze všech stran. Rozšíření ve stavbě branku nemá – zůstává
   v plotu hotových čtverců ([paths.md](paths.md) – Vchody).
 
+## Pohřeb ve scéně
+
+Stav: Martin 20. 10. 2026 – „Když je pohřeb, chtěl bych vidět průvod lidí na hřbitov a pak na
+hřbitově hranici.“ Podrobnosti jsou návrh Clauda. **Implementováno 20. 10. 2026** – data
+`apps/web/lib/funeral-view.ts`, plán `apps/web/lib/scene/funeral-plan.ts`, kreslení
+`funeral-renderer.ts` a `pyre-fire.ts`, modely `tools/blender/funeral.py`
+(`public/models/cemetery/funeral.glb`), ukázka **Pohřeb** na `/dev/landscape`.
+
+Jen zobrazení – **pravidla simulace se nemění**. Jádro si u mohyly navíc pamatuje domácnost
+zemřelého (`GraveMound.from` – zapíše ji `bury` ještě za života); mohyly uložené dřív ji nemají
+a průvod pak vyjde od obydlí nejblíž k brance.
+
+- **Kdy:** v den pohřbu (= den úmrtí). Všechno je čistá funkce skutečného času jako pohyb lidí
+  a zvířat – začátek je začátek herního dne pohřbu (okno dne z hodin světa), stejný okamžik dá
+  stejnou pózu. Bez hodin světa se pohřeb nekreslí.
+  - Průvod se ráno schází před domem (8 s) a jde **skutečnou chůzí**: pomalu 0,6 m/s, k hřbitovu
+    dál než ≈ 110 m rychleji, ať dojde nejvýš za ≈ 3 minuty (nejvýš běžnou chůzí 1,1 m/s).
+  - Nosiči položí máry na hranici (8 s) a hranice se zapálí; **hoří do konce dne pohřbu**, nejméně
+    45 s. Pak **herní den** (nejméně 40 s) uhlíky dohasínají – žhavé, pak šedé, slabý dým – a lidé
+    odejdou domů. **Mohyla se nasype až potom** – scéna ji do té doby nekreslí, pak je normálně
+    čerstvá.
+  - U blízkého hřbitova trvá obřad ≈ 3 minuty (jako dva herní dny); u vzdáleného kvůli chůzi
+    déle. Do scény proto jdou pohřby **posledních 7 herních dnů** a scéna sama pozná, které už
+    skončily (pohřeb u hřbitova 200 m daleko trvá ≈ 5,5 minuty – necelé 4 herní dny).
+- **Průvod:** od vchodu domu zemřelého (volné místo před vchodem jako u lidí na cestách) po
+  pěšinách a cestách k brance hřbitova (`cemeteryEntrance`) a dovnitř k místu hrobu. Vpředu
+  **4 muži nesou na ramenou máry** se zemřelým zabaleným v plátně, za nimi po dvou **domácnost
+  zemřelého** a **z každé další domácnosti 1–2 lidé** (napřed dospělí), nejvýš **24 postav** i s
+  nosiči; **za vojvodu a jeho ženu jde celá ves**, nejvýš **40 postav**. Když je lidí víc, jde
+  z ostatních domácností napřed po jednom. Kdo se na trasu ještě nevešel, čeká u vchodu a zařadí
+  se. Ženy v šátcích jako jinde, starší s šedinami.
+- **Postavy pohřbu jdou mimo rozpočet** běžných postav (60 pracujících) – v den obřadu se o ně
+  sníží počet pracujících postav.
+- **Hranice** na místě mohyly: polena do kříže 2 × 1,2 m, výška 1 m, natočená podél příchodu.
+  Máry se zemřelým leží nahoře, propadají se do ohně a shoří, hranice sesedá. Oheň jsou plameny,
+  jiskry a záře (sprity – svítí i v noci), nad ním **hustší a vyšší dým** než z obydlí (druh
+  `pyre`). Lidé stojí **v kruhu kolem** (≈ 3,8 m od středu, víc lidí ve druhé řadě), ne na
+  mohylách ani na plotu.
+- **Druhý den** zbude kupa popela s ohořelými pahýly polen, uhlíky v ní žhnou a chladnou, popel
+  šedne. Domácnost zemřelého odchází po trase průvodu, ostatní od branky každý ke svému domu.
+- **Výkon** (Vlkov, Chromium s WebGL 2, M1 Pro, hřbitov 200 m od dvorce): kreslený snímek s
+  průvodem nebo hořící hranicí v záběru CPU 1,2–1,5 ms a GPU 8,8–10,2 ms (bez pohřbu ve stejném
+  pohledu 1,3–1,6 ms a 9,5–10 ms), +3 až 5 draw callů; krok animace (lidé, dým, oheň) p95 0,2 ms;
+  přeplánování lidí s pohřbem 2,5–3,8 ms (bez pohřbu 1,3–1,4 ms), nejvýš 8 ms; žádný dlouhý snímek.
+
+**Historie:** raní Slované v Čechách v 6.–9. století pohřbívali **žárem** – zemřelého spálili na
+hranici a popel uložili pod mohylu nebo do jámy; kostrové hroby přicházejí s křesťanstvím
+v 9.–10. století (Lutovský, M.: Hroby předků. Sonda do života a smrti dávných Slovanů. Praha:
+Academia 1996). Hra začíná v roce 500, proto žárový pohřeb.
+
+**Otevřená otázka pro Martina:** má ves s postupem doby (9.–10. století – ve hře zhruba po
+čtyřech měsících skutečného času) přejít na kostrové pohřby (hrob v zemi místo hranice
+a mohyly)? Zatím ne.
+
 ## Naměřeno
 
 `measure-village.ts 200 60` (17. 10. 2026). Hráč, který staví, založí hřbitov hned po první
@@ -204,3 +258,13 @@ dospělých po hájení. Dlouhá kalibrace (200 × 60) zatím neběžela.
 | Velká mohyla, která se nevejde, se zmenší; staré hroby zůstanou po řadách jako dřív                                                                | návrh Clauda                  |
 | Kůl na mohyle vojvodovy rodiny; čerstvá mohyla první rok z holé hlíny                                                                              | návrh Clauda                  |
 | Pěšina vede k brance hřbitova; branku počítá jádro pro síť i scénu                                                                                 | Martin, 19. 10. 2026          |
+| Když je pohřeb, vidět průvod lidí na hřbitov a pak na hřbitově hranici                                                                             | Martin, 20. 10. 2026          |
+| Pohřeb jen zobrazení; mohyla si pamatuje domácnost zemřelého, starší mohyly – průvod od obydlí nejblíž k brance                                    | návrh Clauda                  |
+| Průvod skutečnou chůzí 0,6 m/s, ke vzdálenému hřbitovu rychleji (nejvýš 1,1 m/s, ať dojde za ≈ 3 minuty)                                           | rozhodnutí Clauda             |
+| Hranice hoří do konce dne pohřbu (nejméně 45 s), další herní den doutná, mohyla až po vychladnutí                                                  | návrh Clauda                  |
+| Do scény pohřby posledních 7 herních dnů – obřad u vzdáleného hřbitova trvá déle než 2 dny; konec pozná scéna                                      | rozhodnutí Clauda             |
+| 4 nosiči s márami, domácnost zemřelého a 1–2 lidé z každé další domácnosti, nejvýš 24 postav; za vojvodu celá ves, nejvýš 40                       | návrh Clauda                  |
+| Postavy pohřbu mimo rozpočet pracujících – o ně méně pracujících postav ve dnech obřadu                                                            | návrh Clauda                  |
+| Lidé v kruhu kolem hranice mimo mohyly a plot; domů domácnost po trase průvodu, ostatní od branky ke svému domu                                    | rozhodnutí Clauda             |
+| Nosiči jdou klipem chůze – klip s rukama u már by znamenal nové GLB postav (souběžná práce na postavách)                                           | rozhodnutí Clauda             |
+| Žárový pohřeb (6.–9. století); přechod na kostrové hroby zatím ne – otevřená otázka                                                                | návrh Clauda                  |

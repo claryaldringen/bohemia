@@ -488,6 +488,12 @@ export interface GraveMound {
   size: MoundSize;
   rank: GraveRank;
   day: number;
+  /**
+   * Domácnost (id obydlí) zemřelého v den pohřbu – odtud vychází pohřební průvod ve scéně
+   * (cemetery.md – Pohřeb ve scéně). Mohyly uložené dřív ho nemají (průvod pak vyjde od obydlí
+   * nejblíž k brance hřbitova); bez člověka (testy) taky ne.
+   */
+  from?: number;
 }
 /**
  * Čtverec jabloňového sadu – políčko krajiny (orchard.md). Sází se jako stavba ze společné práce
