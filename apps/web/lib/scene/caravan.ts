@@ -13,6 +13,9 @@
 // za krajem mapy – karavana je u souseda, není vidět. Lidé na výpravě mají vlastní podíl práce, jde
 // plným tempem; stojí jen výjimečně (ves bez dospělých – tempo 0). Rychlost
 // je tak vyšší než chůze (časosběr jako jednotky v 0 A.D.), klip se přehrává rychleji.
+// Dobytek (trade.md – Dobytek ve třech druzích; Martin 20. 10. 2026: „s dobytkem by také mělo jít
+// obchodovat“) jde po svých za vozy po dvou vedle sebe – prodaný tam, koupený zpátky – a za ním
+// honák (nosič výpravy); kreslí ho stádo vsi (livestock.ts) podle týchž míst jako lidi.
 import type { SceneExpedition } from '../village-view';
 
 /**
@@ -27,8 +30,10 @@ export function caravanPoints(
   return (trails ?? []).find((t) => t.id === e.trailId)?.points ?? [];
 }
 
-/** Rozestup lidí v karavaně (m, postavy jsou zvětšené) a vozů za sebou (m). */
-export const CARAVAN_GAP_M = { person: 1.9, cart: 9 } as const;
+/** Rozestup lidí v karavaně (m, postavy jsou zvětšené), vozů a řad dobytka za sebou (m). */
+export const CARAVAN_GAP_M = { person: 1.9, cart: 9, animal: 3.2 } as const;
+/** Dobytek jde po dvou vedle sebe – vlevo a vpravo od osy (m). */
+export const CARAVAN_ANIMAL_SIDE_M = 0.95;
 /** Pomocník u vozu jde vedle něj (m vlevo od osy). */
 export const CART_HELPER_SIDE_M = 1.7;
 
@@ -55,10 +60,19 @@ export interface CaravanMember {
   loaded: boolean;
 }
 
-/** Karavana jedním směrem: lidé, vozy (vzdálenost za čelem) a délka zástupu. */
+/** Kus dobytka v karavaně: kráva nebo vůl, jak daleko za čelem (m) a vedle osy (m). */
+export interface CaravanAnimal {
+  key: string;
+  kind: 'cow' | 'ox';
+  behind: number;
+  side: number;
+}
+
+/** Karavana jedním směrem: lidé, vozy (vzdálenost za čelem), dobytek a délka zástupu. */
 export interface CaravanColumn {
   members: CaravanMember[];
   carts: number[];
+  animals: CaravanAnimal[];
   length: number;
 }
 
@@ -75,7 +89,8 @@ function helpersPerCart(): number {
 
 /**
  * Zástup jedním směrem: vozy v čele (po CARAVAN_GAP_M.cart), u každého pomocník vedle, za nimi
- * nosiči s nákladem (`loaded`), na konci lidé, kteří se stěhují (bez nákladu).
+ * dobytek po dvou (krávy, pak voli), za ním nosiči s nákladem (`loaded`) – s dobytkem i honák –,
+ * na konci lidé, kteří se stěhují (bez nákladu).
  */
 function column(
   e: SceneExpedition,
@@ -101,6 +116,16 @@ function column(
   // lidé výpravy bez vozů nesou náklad; s vozy jde s každým vozem honák (u spřežení) a pomocník
   const walkers = Math.max(0, e.porters - e.carts.length * e.cartCrew);
   let behind = e.carts.length > 0 ? e.carts.length * CARAVAN_GAP_M.cart : 0;
+  // dobytek po dvou za vozy, honák (první nosič) za ním
+  const herd = e.cattle?.[direction] ?? { cows: 0, oxen: 0 };
+  const kinds = [...Array<'cow'>(herd.cows).fill('cow'), ...Array<'ox'>(herd.oxen).fill('ox')];
+  const animals: CaravanAnimal[] = kinds.map((kind, i) => ({
+    key: `${direction}:animal:${i}`,
+    kind,
+    behind: behind + Math.floor(i / 2) * CARAVAN_GAP_M.animal,
+    side: kinds.length === 1 ? 0 : i % 2 === 0 ? CARAVAN_ANIMAL_SIDE_M : -CARAVAN_ANIMAL_SIDE_M,
+  }));
+  if (animals.length > 0) behind += Math.ceil(animals.length / 2) * CARAVAN_GAP_M.animal;
   for (let i = 0; i < walkers; i++) {
     members.push({
       key: `${direction}:porter:${i}`,
@@ -125,13 +150,13 @@ function column(
     });
     behind += CARAVAN_GAP_M.person;
   });
-  return { members, carts, length: Math.max(0, behind - CARAVAN_GAP_M.person) };
+  return { members, carts, animals, length: Math.max(0, behind - CARAVAN_GAP_M.person) };
 }
 
 /**
- * Kdo v karavaně jde: tam nosiči se zbožím (s vozy jen pomocníci u vozů – náklad veze vůz)
- * a lidé, které ves dává sousedovi; zpátky tíž nosiči (s nákladem, jen když výprava něco veze)
- * a lidé od souseda, kteří s výpravou přijdou.
+ * Kdo v karavaně jde: tam nosiči se zbožím (s vozy jen pomocníci u vozů – náklad veze vůz),
+ * prodaný dobytek a lidé, které ves dává sousedovi; zpátky tíž nosiči (s nákladem, jen když
+ * výprava něco veze), koupený dobytek a lidé od souseda, kteří s výpravou přijdou.
  */
 export function caravanPlan(e: SceneExpedition): CaravanPlan {
   return {

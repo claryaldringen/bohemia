@@ -193,6 +193,7 @@ import { laborPerDay } from './people';
 import { inLuckyYears, nextStarvationDays, populationDay } from './population';
 import { dailyMinPerHousehold, harvestCarryShare, woodToolsLaborFactor } from './productivity';
 import { moveRelocatedHousehold, relocatingHouseholds } from './relocation';
+import { withCattleKinds } from './cattle-trade';
 import { keepManor, villageManorId } from './manor';
 import {
   expeditionLaborToday,
@@ -345,13 +346,16 @@ export function* advanceVillageSteps(
   if (toDay < state.lastDay) {
     throw new RangeError(`Ves je dopočítaná do dne ${state.lastDay}, nelze zpět na ${toDay}.`);
   }
-  // ves z doby před příbuzenstvím dostane pohlaví a manžele (kinship.md), ves ze zboží zvenku
-  // o něj přijde (trade.md – Jen společné suroviny), řemeslníci z doby před učením řemesla
-  // praxi (crafts.md – Učení řemesla) a ves z doby před snopy rok odkladu mlácení
-  // (production-chains.md – Starší vsi) – jednou, idempotentně
+  // ves z doby před příbuzenstvím dostane pohlaví a manžele (kinship.md), dobytek v obchodu tři
+  // druhy (trade.md – Dobytek ve třech druzích), ves ze zboží zvenku o něj přijde (trade.md – Jen
+  // společné suroviny), řemeslníci z doby před učením řemesla praxi (crafts.md – Učení řemesla)
+  // a ves z doby před snopy rok odkladu mlácení (production-chains.md – Starší vsi) – jednou,
+  // idempotentně
   const next = cloneState(
     withThreshingGrace(
-      withCraftSkill(withOxen(withPenSpecies(withoutForeignGoods(withKinship(state))))),
+      withCraftSkill(
+        withOxen(withPenSpecies(withoutForeignGoods(withCattleKinds(withKinship(state))))),
+      ),
     ),
   );
   // dosahy čtyřkoláku z doby „jen po pevných cestách“ se spočítají znovu (wagons.md)

@@ -197,10 +197,21 @@ volů (`draft.ts`).
   **„Voli se nevejdou do ohrady“** (jako „Stáda se nevejdou do ohrad“) a ves má méně vozů (vybere
   ty, které se v místech vyplatí nejvíc) nebo méně párů (orá pomaleji). Cvičí a krmí jen tolik
   volů, kolik se vejde (`oxenTrainingTarget`).
-- **Krávy na obměnu volů** ([strava](diet.md) – Krávy na obměnu volů): 3 krávy a kráva navíc na
-  každé 4 voly, které ves cvičí a krmí; telata na voly jen z přírůstku nad nimi. Když ves telata do
+- **Krávy na obměnu volů** ([strava](diet.md) – Krávy na obměnu volů): ~~3 krávy a kráva navíc na
+  každé 4 voly, které ves cvičí a krmí~~ **cíl krav podle volů** (Martin, 20. 10. 2026: „Dejme
+  možnost 1.“ – podrobnosti návrh Clauda): ke kravám na mléko 3 krávy a **půl krávy na každého
+  vola**, kterého ves chce na rádla i vozy (voli jsou býčci – polovina telat; vůl slouží 10 let),
+  ves si je nechá při porážce; telata na voly jen z přírůstku nad nimi. Když ves telata do
   výcviku potřebuje (`oxenCalvesWanted` – voli, kteří jí chybí do cíle), nechá si při porážce
   1. 11. tolik krav navíc nad chovné stádo, aby na jaře z přírůstku byla.
+- **Dobytek od sousedů** ([obchod](trade.md) – Dobytek ve třech druzích; Martin, 20. 10. 2026:
+  „s dobytkem by také mělo jít obchodovat. Představuju si tři kategorie - krávy, mladé voly (musí
+  se vycvičit) a vycvičené voly“): mladí voli jdou do ohrady volů na výcvik (vycvičí se 2 roky od
+  příchodu), vycvičení voli táhnou hned a mají za sebou 3 roky služby; oba potřebují místo
+  v ohradě volů. Voli na cestě se počítají do volů, se kterými ves při výcviku počítá, a do míst
+  – výcvik pro ně telata nebere. **Rádlo k páru bez výcviku** (návrh Clauda): když ves má pár
+  k orbě, na který rádlo chybí (koupený vycvičený vůl k vlastnímu), vyrobí ho bez výcviku. Ves
+  prodá voly ve výcviku a vycvičené voly mimo posledních 2 let služby.
 - **Seno:** seč 1. 6. počítá s voly, které ves cvičí a krmí, aspoň s těmi, které má.
 - **Panel ohrady volů:** voli v ohradě, místa / kolik volů ves chce (červeně, když chybí;
   v popisku vycvičení a ve výcviku – jako `herdPlaces` u stád), páry s rádlem / páry k orbě

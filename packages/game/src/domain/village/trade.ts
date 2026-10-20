@@ -6,7 +6,9 @@
 // výprava na souseda naráz. Obchoduje se jen zbožím, které má i ves (Martin 19. 10. 2026: „Nech jen
 // společné suroviny, nezaváděj nové.“) – starší vsi o zboží zvenku přijdou (`withoutForeignGoods`).
 // Se sousedem jdou vyměnit i lidé – rodiny a svobodní dospělí (trade.md – Výměna lidí,
-// `people-trade.ts`): odejdou hned s výpravou, lidé od souseda přijdou s jejím návratem.
+// `people-trade.ts`): odejdou hned s výpravou, lidé od souseda přijdou s jejím návratem. Dobytek ve
+// třech druzích – krávy, mladí a vycvičení voli (trade.md – Dobytek ve třech druzích,
+// `cattle-trade.ts`) – jde po svých s honákem a potřebuje místo v ohradě svého druhu.
 // Čisté funkce bez I/O.
 import type { Landscape } from '../landscape';
 import { tradeCarts, trailCartPassable } from './carts';
@@ -14,7 +16,13 @@ import { charcoalStockKg, takeCharcoal } from './charcoal';
 import { addExpeditionDemand } from './draft';
 import { removePeople } from './kinship';
 import { ageGroup } from './people';
-import { startingLivestock } from './livestock';
+import {
+  addCattle,
+  cattleForSale,
+  cattleRoomBlocked,
+  removeCattle,
+  withoutSoldOxen,
+} from './cattle-trade';
 import {
   NO_PEOPLE,
   emigrantGroups,
@@ -27,7 +35,7 @@ import {
   type Emigrants,
 } from './people-trade';
 import { addLogs, woodLogs } from './wood';
-import { TRADE_GOODS, neighbourOf, neighbourStock } from './neighbours';
+import { TRADE_GOODS, isCattleGood, neighbourOf, neighbourStock } from './neighbours';
 import { CARTS, CART_DEMAND, PEOPLE_TRADE, TRADE, TRADE_GOOD_VALUES } from './rules';
 import { builtTrail, trailTripDays } from './trail';
 import type {
@@ -80,10 +88,16 @@ export function familyBuyPrice(children: number): number {
 }
 
 /**
- * Kolik zboží ves má k obchodu (celé kusy a kg): obilí, maso, sýr a luštěniny ze zásob, krávy
- * (chovný pár zůstane – TRADE.keepCows), celé klády z hromady a výrobky řemesel.
+ * Kolik zboží ves má k obchodu v den `day` (celé kusy a kg): obilí, maso, sýr a luštěniny ze
+ * zásob, dobytek (`cattleForSale` – krávy bez chovného páru, mladí voli ve výcviku, vycvičení voli
+ * doma mimo posledních let služby), celé klády z hromady a výrobky řemesel.
  */
-export function villageGoodStock(state: VillageState, good: TradeGood): number {
+export function villageGoodStock(
+  state: VillageState,
+  good: TradeGood,
+  day: number = state.lastDay,
+): number {
+  if (isCattleGood(good)) return cattleForSale(state, good, day);
   switch (good) {
     case 'grain':
       return Math.floor(state.storesKg);
@@ -93,8 +107,6 @@ export function villageGoodStock(state: VillageState, good: TradeGood): number {
       return Math.floor(state.cheeseKg ?? 0);
     case 'legumes':
       return Math.floor(state.legumesKg ?? 0);
-    case 'cattle':
-      return Math.max(0, Math.floor(state.livestock?.herds.cow ?? 0) - TRADE.keepCows);
     case 'logs':
       return Math.floor(woodLogs(state));
     case 'pottery':
@@ -107,8 +119,14 @@ export function villageGoodStock(state: VillageState, good: TradeGood): number {
   }
 }
 
-/** Přičte (záporně ubere) zboží ve vsi (mutuje stav). */
-function addGood(state: VillageState, good: TradeGood, amount: number): void {
+/** Přičte (záporně ubere) zboží ve vsi v den `day` (mutuje stav). */
+function addGood(state: VillageState, good: TradeGood, amount: number, day: number): void {
+  if (isCattleGood(good)) {
+    // dobytek do stáda a ohrad volů, prodaný z nich (cattle-trade.ts)
+    if (amount > 0) addCattle(state, good, amount, day);
+    else removeCattle(state, good, -amount, day);
+    return;
+  }
   switch (good) {
     case 'grain':
       state.storesKg = Math.max(0, state.storesKg + amount);
@@ -122,12 +140,6 @@ function addGood(state: VillageState, good: TradeGood, amount: number): void {
     case 'legumes':
       state.legumesKg = Math.max(0, (state.legumesKg ?? 0) + amount);
       return;
-    case 'cattle': {
-      // starší ves bez stád dostane výchozí stádo (diet.md – jako první dopočítaný den)
-      const livestock = (state.livestock ??= startingLivestock(state));
-      livestock.herds.cow = Math.max(0, livestock.herds.cow + amount);
-      return;
-    }
     case 'logs':
       if (amount > 0) addLogs(state, amount);
       else state.woodLogs = Math.max(0, woodLogs(state) + amount);
@@ -207,14 +219,14 @@ export function fourWheelSavings(give: TradeGoods, get: TradeGoods, days: number
 }
 
 /**
- * Lidé na jednu cestu: náklad po 25 kg na člověka (co se nevejde na vozy), dobytek žene honák na
- * 10 kusů, s každým vozem jeho posádka.
+ * Lidé na jednu cestu: náklad po 25 kg na člověka (co se nevejde na vozy), dobytek (krávy i voli)
+ * jde po svých – honák na 10 kusů, s každým vozem jeho posádka.
  */
 function carriers(goods: TradeGoods, carts: readonly CartKind[]): number {
   let kg = 0;
   let heads = 0;
   for (const [good, amount] of entries(goods)) {
-    if (good === 'cattle') heads += amount;
+    if (isCattleGood(good)) heads += amount;
     else kg += amount * TRADE_GOOD_VALUES[good].carryKg;
   }
   const onCarts = Math.min(
@@ -284,8 +296,9 @@ export function expeditionTo(
 /**
  * Ocení výměnu v den `day` a zkontroluje ji: hotová stezka, žádná výprava na cestě, soused dané
  * zboží shání (nejvýš zbytek roční poptávky) a nabízené má (nejvýš zbytek zásoby), ves má, co dává,
- * a bilance pro souseda ≥ 0. Nosiči a práce i u zamítnuté výměny (náhled v panelu). Vozy jedou
- * jen po stezce sjízdné pro vozy (`landscape` – `trailCartPassable`; bez krajiny vždy).
+ * koupený dobytek se vejde do ohrad svého druhu (`cattleRoomBlocked`) a bilance pro souseda ≥ 0.
+ * Nosiči a práce i u zamítnuté výměny (náhled v panelu). Vozy jedou jen po stezce sjízdné pro
+ * vozy (`landscape` – `trailCartPassable`; bez krajiny vždy) a jen s voly, které ves neprodává.
  */
 export function tradeQuote(
   state: VillageState,
@@ -317,7 +330,7 @@ export function tradeQuote(
   // Obchod, axisCartCheck)
   const available =
     trail && trailCartPassable(state, trail, landscape)
-      ? tradeCarts(state, day).map((c) => c.kind)
+      ? tradeCarts(withoutSoldOxen(state, offer.give, day), day).map((c) => c.kind)
       : [];
   const transport = expeditionTransport(offer.give, offer.get, available);
   const porters = transport.porters;
@@ -340,12 +353,14 @@ export function tradeQuote(
     for (const [g, n] of give) {
       if (!neighbour.demands.includes(g)) return NOT_WANTED;
       if (n > (stock.demand[g] ?? 0)) return OVER_DEMAND;
-      if (n > villageGoodStock(state, g)) return OVER_STOCK;
+      if (n > villageGoodStock(state, g, day)) return OVER_STOCK;
     }
     for (const [g, n] of get) {
       if (!neighbour.offers.includes(g)) return NOT_OFFERED;
       if (n > (stock.supply[g] ?? 0)) return OVER_SUPPLY;
     }
+    const room = cattleRoomBlocked(state, offer.get);
+    if (room) return room;
     if (credit + EPSILON < price) return UNFAIR;
     return null;
   })();
@@ -424,7 +439,7 @@ export function startExpedition(
   const give = Object.fromEntries(entries(offer.give)) as TradeGoods;
   const get = Object.fromEntries(entries(offer.get)) as TradeGoods;
   for (const [g, n] of entries(give)) {
-    addGood(next, g, -n);
+    addGood(next, g, -n, day);
     stock.demand[g] = (stock.demand[g] ?? 0) - n;
   }
   for (const [g, n] of entries(get)) stock.supply[g] = (stock.supply[g] ?? 0) - n;
@@ -459,8 +474,9 @@ export function startExpedition(
   const sent = tradePeopleCount(givePeople) > 0;
   const fetched = tradePeopleCount(getPeople) > 0;
   const trade = tradeOf(next);
-  // vozy výpravy (s nimi jejich voli) jsou do návratu pryč (wagons.md – Obchod)
-  const carts = tradeCarts(state, day)
+  // vozy výpravy (s nimi jejich voli) jsou do návratu pryč (wagons.md – Obchod) – jen s voly,
+  // které ves neprodala
+  const carts = tradeCarts(withoutSoldOxen(state, give, day), day)
     .slice(0, quote.carts.length)
     .map((c) => c.id);
   // co by výpravě ušetřily čtyřkoláky – do roku vozů (wagons.md – Kolik vozů ves chce)
@@ -562,7 +578,7 @@ export function finishExpeditions(state: VillageState, day: number): ChronicleEv
   const events: ChronicleEvent[] = [];
   trade.expeditions = trade.expeditions.filter((e) => {
     if (e.done + EPSILON < e.cost) return true;
-    for (const [g, n] of entries(e.get)) addGood(state, g, n);
+    for (const [g, n] of entries(e.get)) addGood(state, g, n, day);
     const coming = e.getPeople;
     events.push({
       day,

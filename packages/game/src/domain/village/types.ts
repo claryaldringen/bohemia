@@ -1923,13 +1923,27 @@ export interface Trail {
 }
 
 /**
+ * Dobytek v obchodu (trade.md – Dobytek ve třech druzích; Martin 20. 10. 2026: „s dobytkem by také
+ * mělo jít obchodovat. Představuju si tři kategorie - krávy, mladé voly (musí se vycvičit)
+ * a vycvičené voly“): krávy (do stáda skotu), mladí voli (do ohrady volů na výcvik) a vycvičení
+ * voli (do ohrady volů, táhnou hned) – kusy. Dřív jeden druh `cattle` = krávy (`withCattleKinds`).
+ */
+export type CattleGood = 'cows' | 'youngOxen' | 'trainedOxen';
+
+/**
  * Zboží obchodu (trade.md – Sousedé): jen to, co ves sama má – obilí, maso, sýr, luštěniny (kg),
- * dobytek (kusy – krávy), klády (kusy), keramika, nástroje, uhlí (kg). Zboží zvenku (sůl, železo,
- * med, kožešiny) obchod od 19. 10. 2026 nezná (Martin: „Nech jen společné suroviny, nezaváděj
- * nové.“) – starší vsi o něj přijdou (`withoutForeignGoods`).
+ * dobytek (kusy – krávy, mladí a vycvičení voli – `CattleGood`), klády (kusy), keramika, nástroje,
+ * uhlí (kg). Zboží zvenku (sůl, železo, med, kožešiny) obchod od 19. 10. 2026 nezná (Martin: „Nech
+ * jen společné suroviny, nezaváděj nové.“) – starší vsi o něj přijdou (`withoutForeignGoods`).
  */
 export type TradeGood =
-  'grain' | 'meat' | 'cheese' | 'legumes' | 'cattle' | 'logs' | 'pottery' | 'tools' | 'charcoal';
+  'grain' | 'meat' | 'cheese' | 'legumes' | CattleGood | 'logs' | 'pottery' | 'tools' | 'charcoal';
+
+/**
+ * Zboží v povaze souseda (NEIGHBOURS.kinds): zboží obchodu, nebo dobytek vcelku (`cattle`) – ten
+ * se podle druhu souseda rozloží na krávy a voly (`NEIGHBOURS.cattleKinds`, `neighbourOf`).
+ */
+export type NeighbourGood = Exclude<TradeGood, CattleGood> | 'cattle';
 
 /** Množství zboží (jen uvedené druhy, kg nebo kusy podle druhu). */
 export type TradeGoods = Partial<Record<TradeGood, number>>;

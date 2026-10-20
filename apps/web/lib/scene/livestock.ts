@@ -18,6 +18,13 @@ import {
   type Landscape,
   type Relief,
 } from '@bohemia/game';
+import {
+  CARAVAN_OX_SCALE,
+  caravanAnimalPose,
+  caravanHerds,
+  caravanHerdsKey,
+  type CaravanHerd,
+} from './caravan-cattle';
 import { loadGeometry, writeInstanceMatrix, type FaunaGeometry } from './fauna';
 import {
   chickenArea,
@@ -75,7 +82,15 @@ export interface LivestockEnvironment {
   baseUrl: string;
   /** Dočetly se modely a zvířata se objevila – překreslit. */
   onLoaded(): void;
+  /**
+   * Okno herního dne (skutečný čas) – dobytek karavan výprav jde v herním čase jako lidé
+   * (caravan.ts); bez hodin null, bez funkce stojí na postupu dne dat.
+   */
+  dayWindow?(day: number): { startMs: number; endMs: number } | null;
 }
+
+/** Co ze scény potřebuje dobytek karavan výprav (trade.md – Dobytek ve třech druzích). */
+type CaravanVillage = Parameters<typeof caravanHerds>[0];
 
 /** Jeden druh: mesh s instancemi, matice a stav pózy (krok, hlava) instancí. */
 interface Kind {
@@ -92,6 +107,11 @@ interface Group {
   /** Připraví čas (stav stáda) a vrátí, kde zvířata právě jsou. */
   prepare(clock: LivestockClock): Area;
   pose(index: number, clock: LivestockClock, out: LivestockPose): LivestockPose;
+  /**
+   * Zvíře teď není vidět (dobytek karavany za krajem mapy nebo na cestě druhým směrem) – zapíše
+   * se s nulovým měřítkem. Bez funkce vidět vždy.
+   */
+  hidden?(index: number): boolean;
   /** Kde byla zvířata naposled zapsaná – i odtud je musí kamera „pustit“. */
   written: BoundingInfo | null;
   current: BoundingInfo;
@@ -111,6 +131,12 @@ export class VillageLivestock {
   private walk: ((x: number, z: number) => boolean) | null = null;
   private village: LivestockVillage | null = null;
   private key = '';
+  /** Dobytek karavan výprav a jeho klíč (trade.md – Dobytek ve třech druzích). */
+  private caravans: CaravanHerd[] = [];
+  private caravansKey = '';
+  /** Poslední rozmístění kuřat a stád – dobytek karavan ho nepřeplánuje. */
+  private plan: { chickens: ReturnType<typeof planLivestock>['chickens']; herds: Herd[] } | null =
+    null;
   private groups: Group[] = [];
   /** Stáda posledního rozmístění – nová stáda po přepočtu zůstanou na své pastvině. */
   private herds: Herd[] = [];
@@ -129,14 +155,20 @@ export class VillageLivestock {
    * Zvířata podle vsi – rozmístění se přepočítá, jen když se změnila obydlí, pole nebo
    * hřbitovy. Vrátí true, když se ve scéně něco změnilo (je co překreslit).
    */
-  update(village: LivestockVillage, nowMs: number): boolean {
+  update(village: LivestockVillage & CaravanVillage, nowMs: number): boolean {
     if (this.disposed) return false;
     const key = villageKey(village);
-    if (key === this.key) return false;
+    // dobytek karavan výprav (trade.md – Dobytek ve třech druzích) – jen přidá skupiny
+    const caravans = caravanHerds(village);
+    const caravansKey = caravanHerdsKey(caravans);
+    if (key === this.key && caravansKey === this.caravansKey) return false;
+    const replan = key !== this.key;
     this.key = key;
+    this.caravansKey = caravansKey;
+    this.caravans = caravans;
     this.village = village;
-    if (village.dwellings.some((d) => d.built)) void this.load();
-    return this.rebuild(nowMs);
+    if (village.dwellings.some((d) => d.built) || caravans.length > 0) void this.load();
+    return this.rebuild(nowMs, replan);
   }
 
   /**
@@ -228,8 +260,11 @@ export class VillageLivestock {
     return livestockClock(nowMs);
   }
 
-  /** Nové rozmístění podle poslední vsi (po změně vsi a po načtení modelů). */
-  private rebuild(nowMs: number): boolean {
+  /**
+   * Nové rozmístění podle poslední vsi (po změně vsi a po načtení modelů); `replan` false –
+   * změnil se jen dobytek karavan, kuřata a stáda zůstanou, jak byla rozmístěná.
+   */
+  private rebuild(nowMs: number, replan = true): boolean {
     const village = this.village;
     if (!village || !this.geometries) {
       const had = this.groups.length > 0;
@@ -237,22 +272,26 @@ export class VillageLivestock {
       for (const kind of this.kinds.values()) kind.mesh.setEnabled(false);
       return had;
     }
-    const built = village.dwellings.filter((d) => d.built);
-    const planned =
-      built.length > 0
-        ? planLivestock(village, this.groundAround(built), villageSeed(this.env.landscape))
-        : { chickens: [], herds: [] };
-    // Stádo stejného druhu a pořadí zůstane na pastvině, kde právě je (když ji nová trasa má).
     const clock = this.clock(nowMs);
-    const plan = {
-      ...planned,
-      herds: planned.herds.map((herd) => {
-        const same = (h: Herd): boolean => h.kind === herd.kind && h.tended === herd.tended;
-        const sameKind = planned.herds.filter(same);
-        const previous = this.herds.filter(same)[sameKind.indexOf(herd)];
-        return previous ? keepRouteSpot(previous, herd, clock) : herd;
-      }),
-    };
+    let plan = this.plan;
+    if (replan || !plan) {
+      const built = village.dwellings.filter((d) => d.built);
+      const planned =
+        built.length > 0
+          ? planLivestock(village, this.groundAround(built), villageSeed(this.env.landscape))
+          : { chickens: [], herds: [] };
+      // Stádo stejného druhu a pořadí zůstane na pastvině, kde právě je (když ji nová trasa má).
+      plan = {
+        chickens: planned.chickens,
+        herds: planned.herds.map((herd) => {
+          const same = (h: Herd): boolean => h.kind === herd.kind && h.tended === herd.tended;
+          const sameKind = planned.herds.filter(same);
+          const previous = this.herds.filter(same)[sameKind.indexOf(herd)];
+          return previous ? keepRouteSpot(previous, herd, clock) : herd;
+        }),
+      };
+      this.plan = plan;
+    }
     this.herds = plan.herds;
 
     const counts = new Map<LivestockSpecies, number>();
@@ -295,6 +334,28 @@ export class VillageLivestock {
         })),
         prepare: (clock) => herdArea(herd, herdState(herd, clock, state)),
         pose: (index, clock, out) => herdAnimalPose(herd, index, clock, state, out),
+        written: null,
+        current: new BoundingInfo(Vector3.Zero(), Vector3.Zero()),
+      });
+    }
+    // dobytek karavan výprav – krávy i voli modelem krávy (vůl o kus větší) po zemské stezce
+    for (const herd of this.caravans) {
+      const area = herd.area;
+      addArea('cow', area);
+      const shown = herd.animals.map(() => true);
+      const window = this.env.dayWindow?.(herd.expedition.day) ?? null;
+      groups.push({
+        members: herd.animals.map((a) => ({
+          species: 'cow',
+          slot: slot('cow'),
+          scale: a.animal.kind === 'ox' ? CARAVAN_OX_SCALE : 1,
+        })),
+        prepare: () => area,
+        pose: (index, clock, out) => {
+          shown[index] = caravanAnimalPose(herd, index, window, clock, out);
+          return out;
+        },
+        hidden: (index) => !shown[index],
         written: null,
         current: new BoundingInfo(Vector3.Zero(), Vector3.Zero()),
       });
@@ -410,6 +471,7 @@ export class VillageLivestock {
       const kind = this.kinds.get(member.species);
       if (!kind) return;
       const pose = group.pose(index, clock, this.pose);
+      const scale = group.hidden?.(index) ? 0 : member.scale;
       const { x, z } = pose;
       const e = SLOPE_STEP_M;
       const gx = (height(x + e, z) - height(x - e, z)) / (2 * e);
@@ -433,7 +495,7 @@ export class VillageLivestock {
           tiltX: (nx / nLength) * SIDE_TILT,
           tiltZ: (nz / nLength) * SIDE_TILT,
         },
-        member.scale,
+        scale,
       );
       kind.states[member.slot * 2] = pose.stride;
       kind.states[member.slot * 2 + 1] = pose.head;

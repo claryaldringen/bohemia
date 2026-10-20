@@ -43,7 +43,7 @@ export function wantedPloughPairs(state: Pick<VillageState, 'pens' | 'draft'>): 
 }
 
 /**
- * Páry k rádlům s hysterezí (oxen.md – Kolik volů ves chce; koordinátor za Martina 20. 10. 2026:
+ * Páry k rádlům s hysterezí (oxen.md – Kolik volů ves chce; návrh Clauda 20. 10. 2026:
  * páry se nemají měnit rok od roku – rozhodnutí Clauda): `need` = kolik párů by letos stačilo
  * zorat celý osev. Ves páry změní, jen když potřeba leží dva plány po sobě na téže straně – zvýší
  * je na menší z obou potřeb, sníží na větší z nich; jinak drží, kolik má. Jednoletý výkyv tak
@@ -220,10 +220,12 @@ export function oxenOverRoom(state: Pick<VillageState, 'pens' | 'draft' | 'carts
 }
 
 /**
- * Krávy na voly (diet.md – Krávy na obměnu volů; Martin 20. 10. 2026 – návrh Clauda): ves
- * s ohradou volů drží OXEN.minCows krav (pár telat do výcviku a chovná kráva) a na obměnu volů
- * OXEN.cowsPerOx krávy na každého vola, kterého cvičí a krmí (býčci ≈ 0,4 na krávu a rok, obměna
- * desetiny volů ročně). Bez ohrady volů 0.
+ * Krávy na voly (diet.md – Krávy na obměnu volů; cíl krav podle volů – Martin 20. 10. 2026: „Dejme
+ * možnost 1.“, podrobnosti návrh Clauda): ves s ohradou volů drží OXEN.minCows krav (pár telat do
+ * výcviku a chovná kráva) a na obměnu volů OXEN.cowsPerOx krávy na každého vola, kterého chce na
+ * rádla i vozy (`oxenTrainingTarget` – páry k rádlům s hysterezí a voli vozů v místech ohrad volů):
+ * voli jsou býčci (≈ 0,2 na kus stáda skotu a rok), vůl slouží 10 let – obměna desetiny volů ročně.
+ * Ke kravám na mléko se přičítají (`breedingCows`). Bez ohrady volů 0.
  */
 export function oxenCows(state: Pick<VillageState, 'pens' | 'draft' | 'carts'>): number {
   if (oxPens(state).length === 0) return 0;

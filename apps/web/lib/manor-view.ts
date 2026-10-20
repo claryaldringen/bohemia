@@ -8,6 +8,7 @@ import {
   PEOPLE_TRADE,
   adultBuyPrice,
   buyPrice,
+  cattleRoom,
   emigrantGroups,
   expeditionTo,
   familyBuyPrice,
@@ -111,6 +112,12 @@ export interface VillageNeighbour {
    * napřed) – náhled nosičů je počítá jako server (`expeditionTransport`).
    */
   carts: CartKind[];
+  /**
+   * Kolik koupeného dobytka se do vsi vejde (trade.md – Dobytek ve třech druzích; `cattleRoom`):
+   * krávy do ohrad skotu, voli (mladí i vycvičení dohromady) do ohrad volů – bez dobytka, který
+   * výpravy na cestě teprve přivedou.
+   */
+  room: { cows: number; oxen: number };
 }
 
 /** Dvorec vojvody pro panel výběru. */
@@ -157,6 +164,7 @@ export function neighbourViews(
         lengthM: Math.round(trail.lengthM),
         tripDays: trailTripDays(trail.lengthM),
         carts: trailCartPassable(state, trail, landscape) ? carts : [],
+        room: { cows: cattleRoom(state, 'cows'), oxen: cattleRoom(state, 'youngOxen') },
         offers: neighbour.offers.map((good) => ({
           good,
           price: Math.round(buyPrice(good) * 100) / 100,
@@ -166,7 +174,7 @@ export function neighbourViews(
           good,
           price: Math.round(sellPrice(good) * 100) / 100,
           left: Math.max(0, stock.demand[good] ?? 0),
-          have: villageGoodStock(state, good),
+          have: villageGoodStock(state, good, day),
         })),
         people: {
           offers: {

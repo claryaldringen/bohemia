@@ -23,7 +23,7 @@ import { fourWheelSavings } from '../trade';
 import { HAY, HAY_WINTER_DAYS } from '../hay';
 import { OXEN } from '../rules';
 import type { CartYear, FieldPart, Pen, VillageState } from '../types';
-import { withBuiltFirstDwelling } from './village-fixtures';
+import { withBuiltFirstDwelling, withRoomyPens } from './village-fixtures';
 
 // Kolik volů a vozů ves chce (oxen.md – Kolik volů ves chce, wagons.md – Kolik vozů ves chce).
 
@@ -119,12 +119,15 @@ describe('ves bez ohrady volů (beze změny)', () => {
 });
 
 describe('krávy na obměnu volů (diet.md)', () => {
-  it('3 krávy a kráva navíc na 4 voly, které ves cvičí a krmí', () => {
+  it('krávy na mléko a k nim 3 krávy a půl krávy na každého vola, kterého ves chce (cíl krav podle volů)', () => {
     const s = withOxPen(village());
+    expect(OXEN.cowsPerOx).toBe(0.5);
     expect(oxenTrainingTarget(s)).toBe(2);
     expect(oxenCows(s)).toBeCloseTo(OXEN.minCows + 2 * OXEN.cowsPerOx, 9);
-    expect(breedingCows(s)).toBeCloseTo(3.5, 9);
-    // vozy chtějí 6 volů → 4,5 krávy
+    // jedna domácnost – půl krávy na mléko, k ní krávy na voly (Martin 20. 10. 2026: „Dejme
+    // možnost 1.“ – dřív víc z obojího)
+    expect(breedingCows(s)).toBeCloseTo(0.5 + 4, 9);
+    // vozy chtějí 6 volů → 0,5 + 3 + 3 krávy
     s.draft = {
       lastYear: {
         from: DAY - 365,
@@ -135,7 +138,49 @@ describe('krávy na obměnu volů (diet.md)', () => {
       },
     };
     expect(oxenTrainingTarget(s)).toBe(6);
-    expect(breedingCows(s)).toBeCloseTo(4.5, 9);
+    expect(breedingCows(s)).toBeCloseTo(6.5, 9);
+  });
+
+  it('ves, která chce víc volů, si při porážce nechá víc krav (Martin 20. 10. 2026: „Dejme možnost 1.“)', () => {
+    const autumn = at(600, 10, 25);
+    /** Krávy, které ves po porážce 1. 11. nechá přes zimu (bez kusů na zimní porážku). */
+    const kept = (wantsCarts: boolean): { kept: number; target: number } => {
+      const s = withRoomyPens(village(autumn));
+      s.pens = [...s.pens!, oxPen(autumn, 2)];
+      s.ards = 1;
+      // výrostci pasou (diet.md – Pasáci); stádo mezi oběma cíli – staré krávy (desetina) jdou na
+      // maso, jen dokud stádo neklesne pod cíl krav
+      s.people.push(person(7, 10, 1, autumn), person(8, 11, 1, autumn));
+      s.livestock!.herds.cow = 5;
+      s.livestock!.young.cow = 0;
+      s.hay = { kg: 60_000, mowing: null };
+      if (wantsCarts) {
+        // loňský provoz – vyplatí se 4 dvoukoláky (ves chce 4 voly – voli se sdílí s rádlem)
+        s.draft = {
+          lastYear: {
+            from: autumn - 365,
+            'two-wheel': [90, 80, 70, 60],
+            'four-wheel': [],
+            plough: [],
+            oxCost: 10,
+          },
+        };
+      }
+      expect(oxenTrainingTarget(s)).toBe(wantsCarts ? 4 : 2);
+      const after = advanceVillage(s, at(600, 11, 2), null);
+      const herd = after.livestock!;
+      return { kept: herd.herds.cow - (herd.culling?.cow ?? 0), target: breedingCows(after) };
+    };
+    const plough = kept(false);
+    const carts = kept(true);
+    // půl krávy na mléko + 3 + půl krávy na vola: 4,5 a 5,5 krávy
+    expect(plough.target).toBeCloseTo(4.5, 9);
+    expect(carts.target).toBeCloseTo(5.5, 9);
+    // ves s párem k rádlu porazí staré krávy až k cíli, ves, která chce i voly na vozy, si nechá
+    // všech 5 (pod cílem – krávy i na telata do výcviku)
+    expect(plough.kept).toBeCloseTo(4.5, 1);
+    expect(carts.kept).toBeGreaterThan(4.95);
+    expect(carts.kept).toBeGreaterThan(plough.kept + 0.4);
   });
 
   it('telata na voly: ves si přes zimu nechá krávy navíc na telata, která do výcviku potřebuje', () => {

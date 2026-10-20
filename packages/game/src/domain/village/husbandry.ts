@@ -67,16 +67,17 @@ function isOn(date: CalendarDate, target: { month: number; day: number }): boole
 
 /**
  * Krávy, které ves drží vždy (diet.md – Skladba stáda; Martin 19. 10. 2026: krávy „potřebujeme
- * kvůli tažným volům“): kráva na 2 domácnosti (mléko – jako výchozí stádo) a s ohradou volů tolik
- * krav, aby šlo cvičit voly a obměňovat je (`oxenCows` – diet.md, Krávy na obměnu volů); aspoň
- * chovný pár. Krávy stojí na noc jen v ohradě skotu – bez ní jen chovný pár (oxen.md – Ohrady
- * podle druhu).
+ * kvůli tažným volům“): kráva na 2 domácnosti (mléko – jako výchozí stádo) a k nim s ohradou volů
+ * krávy na telata pro všechny voly, které ves chce na rádla i vozy, i s obměnou (`oxenCows` –
+ * diet.md, Krávy na obměnu volů; cíl krav podle volů – Martin 20. 10. 2026: „Dejme možnost 1.“,
+ * dřív víc z obojího); aspoň chovný pár. Ves si je nechá při porážce (`farmInput` – `minCows`);
+ * pastva, seno, pasáci a místa v ohradách stádo omezují dál. Krávy stojí na noc jen v ohradě skotu
+ * – bez ní jen chovný pár (oxen.md – Ohrady podle druhu).
  */
 export function breedingCows(state: VillageState): number {
   return Math.max(
     LIVESTOCK.breedingMin,
-    householdCount(state) / LIVESTOCK.householdsPerCow,
-    oxenCows(state),
+    householdCount(state) / LIVESTOCK.householdsPerCow + oxenCows(state),
   );
 }
 

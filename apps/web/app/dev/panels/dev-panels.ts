@@ -57,6 +57,32 @@ const NOBODY = { families: 0, men: 0, women: 0 };
 
 const neighbours: VillageNeighbour[] = [
   {
+    // pastevci – krávy, mladí voli do výcviku a vycvičení voli (trade.md – Dobytek ve třech
+    // druzích); do ohrady volů se vejdou ještě 3 voli
+    direction: 'N',
+    name: 'Lhota',
+    lengthM: 640,
+    tripDays: 4,
+    offers: [
+      { good: 'meat', price: 2.88, left: 420 },
+      { good: 'cows', price: 576, left: 2 },
+      { good: 'youngOxen', price: 336, left: 3 },
+      { good: 'trainedOxen', price: 1152, left: 1 },
+    ],
+    demands: [
+      { good: 'grain', price: 1, left: 1700, have: 12400 },
+      { good: 'legumes', price: 1, left: 900, have: 640 },
+    ],
+    people: {
+      offers: { families: [], men: 0, women: 0, adultPrice: 345.6 },
+      takes: NOBODY,
+      have: { families: [], men: 0, women: 0, adultCredit: 360 },
+    },
+    expedition: null,
+    carts: [],
+    room: { cows: 38, oxen: 3 },
+  },
+  {
     direction: 'E',
     name: 'Stará Boleslav',
     lengthM: 820,
@@ -80,15 +106,19 @@ const neighbours: VillageNeighbour[] = [
     expedition: null,
     // ves má čtyřkolák a spřežení doma – náklad jde na vůz (wagons.md – Obchod)
     carts: ['four-wheel'],
+    room: { cows: 38, oxen: 4 },
   },
   {
     direction: 'S',
     name: 'Kouřim',
     lengthM: 1200,
     tripDays: 7,
+    // pastevci – krávy, mladí a vycvičení voli (trade.md – Dobytek ve třech druzích)
     offers: [
-      { good: 'cattle', price: 576, left: 2 },
       { good: 'meat', price: 2.88, left: 350 },
+      { good: 'cows', price: 576, left: 2 },
+      { good: 'youngOxen', price: 336, left: 3 },
+      { good: 'trainedOxen', price: 1152, left: 1 },
     ],
     demands: [{ good: 'grain', price: 1, left: 1800, have: 12400 }],
     // soused lidi shání – ves by dala rodinu ze tří a svobodnou ženu
@@ -112,6 +142,7 @@ const neighbours: VillageNeighbour[] = [
       today: 0,
     },
     carts: [],
+    room: { cows: 38, oxen: 4 },
   },
   {
     direction: 'W',
@@ -140,6 +171,7 @@ const neighbours: VillageNeighbour[] = [
       today: 2.6,
     },
     carts: [],
+    room: { cows: 38, oxen: 3 },
   },
 ];
 

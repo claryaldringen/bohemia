@@ -71,7 +71,9 @@ describe('ceny výměny', () => {
   it('sháněné zboží soused bere za hodnotu, nabízené prodá za 0,96 hodnoty', () => {
     expect(sellPrice('cheese')).toBeCloseTo(4);
     expect(buyPrice('tools')).toBeCloseTo(60 * 1.2 * 0.8);
-    expect(buyPrice('cattle')).toBeCloseTo(600 * 0.96);
+    expect(buyPrice('cows')).toBeCloseTo(600 * 0.96);
+    expect(buyPrice('youngOxen')).toBeCloseTo(350 * 0.96);
+    expect(buyPrice('trainedOxen')).toBeCloseTo(1200 * 0.96);
     expect(TRADE.markup).toBe(0.2);
   });
 });
@@ -350,7 +352,7 @@ describe('starší vsi bez zboží zvenku (trade.md – Jen společné suroviny)
       parts = advanceVillage(parts, DAY + step, null, LANDSCAPE);
     expect(parts).toEqual(whole);
     // zboží se vrátilo (obilí, maso a sýr se mezitím jedí – jen krávy, klády a výrobky drží)
-    if (good === 'cattle' || good === 'logs' || good === 'tools' || good === 'pottery') {
+    if (good === 'cows' || good === 'logs' || good === 'tools' || good === 'pottery') {
       expect(villageGoodStock(whole, good)).toBeGreaterThanOrEqual(before - 1);
     }
   });

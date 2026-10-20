@@ -195,8 +195,9 @@ rok.**“
 - **Krávy na voly a mléko:** nejvíc mléka a masa na kus, ale nejnáročnější – 1 ha pastvy (5× ovce),
   5 kg sena denně v zimě (5× ovce), pasák jich uhlídá nejméně. Ves drží vždy aspoň **krávu na
   2 domácnosti** (mléko – jako výchozí stádo) a ~~na každou ohradu **3 krávy** (dvě telata do
-  výcviku a chovná kráva – oxen.md)~~ s ohradou volů **3 krávy a krávu navíc na každé 4 voly**
-  (Krávy na obměnu volů níž, od 20. 10. 2026), nejméně chovný pár.
+  výcviku a chovná kráva – oxen.md)~~ ~~s ohradou volů **3 krávy a krávu navíc na každé 4 voly**~~
+  k nim s ohradou volů **3 krávy a půl krávy na každého vola**, kterého chce na rádla i vozy (Krávy
+  na obměnu volů níž – cíl krav podle volů od 20. 10. 2026), nejméně chovný pár.
 
 #### Krávy na obměnu volů (20. 10. 2026)
 
@@ -207,8 +208,9 @@ a potah; „Ano, udělej to jak říkáš“). Návrh Clauda:
   spřežení) a na obměnu volů **krávu navíc na každé 4 voly**, které cvičí a krmí (kolik volů ves
   chce v místech ohrad volů – oxen.md, Kolik volů ves chce): býčků se narodí ≈ 0,4 na krávu a rok
   (polovina telat, ≈ 80 % krav rodí) a vůl slouží 10 let – obměna desetiny volů ročně = 0,1 ÷ 0,4
-  = 0,25 krávy na vola (`OXEN.cowsPerOx`, `oxenCows`). Krávy na mléko (kráva na 2 domácnosti)
-  a na voly se nesčítají – ves drží víc z toho, telata dají i krávy na mléko.
+  = 0,25 krávy na vola (`OXEN.cowsPerOx`, `oxenCows`). ~~Krávy na mléko (kráva na 2 domácnosti)
+  a na voly se nesčítají – ves drží víc z toho, telata dají i krávy na mléko.~~ Od 20. 10. 2026
+  0,5 krávy na vola a krávy na voly se ke kravám na mléko přičítají (cíl krav podle volů výš).
 - **Bez ohrady skotu krávy nejsou** (dnešní pravidlo – Místa na noc): u domů jen chovný pár krav,
   telata na voly pak chybí.
 - **Telata na voly jen z přírůstku nad chovnými kravami** (návrh Clauda, 20. 10. 2026 –
@@ -226,6 +228,34 @@ a potah; „Ano, udělej to jak říkáš“). Návrh Clauda:
   kozy (napřed křoviny), zbytek krav. Dřív se pastva dělila poměrně a seno měly jen krávy.
 - **Pořadí chovu podle potřeby** (níž): přežvýkavci ovce, kozy, krávy; prasata a luštěniny s nimi
   od 19. 10. 2026 soupeří cenou v práci (Rovnovážné hospodaření – dřív prasata naposled).
+
+**Cíl krav podle volů – Martin, 20. 10. 2026.** Na otázku, jak zvětšit stádo krav (možnost 1 = cíl
+krav podle volů, které ves chce na vozy): „**Dejme možnost 1. s dobytkem by také mělo jít
+obchodovat. Představuju si tři kategorie - krávy, mladé voly (musí se vycvičit) a vycvičené
+voly**“ (obchod – [obchod](trade.md), Dobytek ve třech druzích). Podrobnosti návrh Clauda:
+
+- **Krávy na voly se ke kravám na mléko přičítají** (`breedingCows` – kráva na 2 domácnosti
+  a k ní `oxenCows`; dřív víc z obojího – ves s 8 domácnostmi a 3 voly držela 4 krávy na mléko
+  a krávy na voly se v nich ztratily): ves, která chce víc volů, drží víc krav.
+- **Kolik volů:** všichni voli, které ves chce na rádla i vozy – páry k rádlům s hysterezí a voli
+  vozů v místech ohrad volů (`oxenTrainingTarget` – [orba](oxen.md), Kolik volů ves chce).
+- **Obměna:** voli jsou býčci – polovina telat, ≈ 0,2 býčka na kus stáda skotu a rok
+  (LIVESTOCK.growth 0,4 × polovina); vůl slouží 10 let (výcvik 2 roky se kryje s posledními 2 lety
+  služby starého vola), takže obměna desetiny volů ročně chce 0,1 ÷ 0,2 = **0,5 krávy na vola**
+  (`OXEN.cowsPerOx`; ~~0,25 – počítalo se se všemi telaty~~) a k tomu **3 krávy** (pár telat do
+  výcviku a chovná kráva – pár k rádlu dosluhuje naráz).
+- **Ves si je nechá při porážce** – cíl je spodní hranice stáda v plánu chovu i porážky 1. 11.
+  (`minCows`; staré krávy jdou na maso, jen dokud stádo neklesne pod cíl) i v nouzové porážce;
+  pastva, seno, pasáci a místa v ohradách stádo omezují dál (krávy na voly jsou v pořadí pastvy
+  a sena hned za voly a ovcemi na vlnu).
+- **Telata z přírůstku nad cílem** platí dál – větší cíl znamená, že malé stádo napřed roste
+  a teprve pak dává telata na voly navíc; náhrada posledního páru k orbě má přednost jako dřív.
+  Rychleji jde dokoupit krávy nebo voly od sousedů ([obchod](trade.md) – Dobytek ve třech
+  druzích). **Vlkov** (20. 10. 2026, 8 domácností, voli 2, chce 3, ohrada volů 6 míst): cíl
+  ~~4~~ **8,5** krávy, stádo 2,6 krávy. Za 3 roky bez obchodu ≈ 3 krávy a od dubna 803 do dubna
+  805 žádný pár k orbě (starý pár dosloužil, z malého stáda šlo jen tele ročně); s koupí mladého
+  a vycvičeného vola od pastevců hned po načtení ≈ 6 krav (telata na voly nejdou) a pár chybí jen
+  od dubna do prosince 803.
 
 #### Chovné stádo podle potřeby (porážka)
 

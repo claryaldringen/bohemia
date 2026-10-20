@@ -1281,8 +1281,8 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   `herdRoom` (pens.ts – ohrady svého druhu `penCapacity` + pár kusů u domů `homesteadRoom`) – přes
   zimu nejvýš `roomForWinter` (místa ÷ (1 + mláďata na kus)), chovný pár vždy, čekající kusy
   `winterWait` jen do volných míst; **chovné stádo podle potřeby** `sizeHerdsToNeed` – pár a krávy
-  `breedingCows` (husbandry.ts: kráva na 2 domácnosti, s ohradou volů 3 + kráva na 4 voly –
-  `oxenCows`), pak **rovnovážné hospodaření** (diet.md – Rovnovážné
+  `breedingCows` (husbandry.ts: kráva na 2 domácnosti a k ní s ohradou volů 3 + půl krávy na
+  každého vola, kterého ves chce na rádla i vozy – `oxenCows`, cíl krav podle volů; Martin 20. 10. 2026: „Dejme možnost 1.“ – dřív víc z obojího), pak **rovnovážné hospodaření** (diet.md – Rovnovážné
   hospodaření; Martin 19. 10. 2026: „aby byla sytá, měla ± ideální kombinaci stravy, ale aby jí
   zároveň zbylo co nejvíc volného času na rozvoj“): cena jídla v práci `foodCosts` (`economy.ts` –
   čd na kg obilí a luštěnin z dílů v osevu, sena z plánu seče; ve vsi `villageFoodCosts`
@@ -2616,6 +2616,27 @@ směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, 
   idempotentně): zahodí `goods` a podíl medu v jídle, uložený zbytek roku souseda, který nesedí na
   jeho povahu, a výpravu na cestě pro zboží zvenku zruší – nosiči přinesou zpět, co nesli
   (`get` = `give`); z kroniky výprav zboží zvenku zmizí.
+- **Dobytek ve třech druzích** (trade.md – Dobytek ve třech druzích; Martin 20. 10. 2026: „s
+  dobytkem by také mělo jít obchodovat. Představuju si tři kategorie - krávy, mladé voly (musí se
+  vycvičit) a vycvičené voly“; `cattle-trade.ts`): `CattleGood` = `cows` / `youngOxen` /
+  `trainedOxen` (`CATTLE_GOODS`, `isCattleGood`) místo `cattle`; hodnoty 600 / 350 / 1 200 kg obilí
+  (rešerše `research/2026-10-20-cattle-trade.md`). Koupené krávy do stáda skotu jen do volných míst
+  ohrad skotu, voli do ohrad volů (mladí i vycvičení sdílejí místa) – `cattleRoom`,
+  `cattleRoomBlocked` v `tradeQuote` (`NO_COW_ROOM`, `NO_OX_ROOM`), bez dobytka na cestě; po návratu
+  `addCattle` (mladý vůl `oxTrainedDay` od příchodu, vycvičený se `CATTLE_TRADE.servedYears` 3 roky
+  služby – `boughtOxTrainedDay`; kdo se nevejde, do `looseOxen`). Prodej `cattleForSale` /
+  `removeCattle` (krávy bez chovného páru, mladí voli z výcviku – nejdelší výcvik napřed, vycvičení
+  doma mimo posledních 2 let služby – nejstarší napřed); `villageGoodStock(state, good, day)`.
+  Voli na cestě (`oxenComing`) jsou v `lastingOxen` a místech výcviku; pár bez rádla dostane rádlo
+  bez výcviku (`ardsWithoutTraining` v `trainTeamsWhenReady`). Prodaní vycvičení voli vůz výpravy
+  netáhnou (`withoutSoldOxen`). Dobytek jde po svých s honákem (`carriers`). Sousedé: v povaze
+  zůstává `cattle` (`NeighbourGood`, pořadí losu beze změny – ostatní zboží souseda stejné) a rozloží
+  se podle druhu (`NEIGHBOURS.cattleKinds` – pastevci všechny tři vždy, obilnáři krávy a mladé
+  voly, řemeslníci shánějí všechny tři). Převod `withCattleKinds` (před `withoutForeignGoods`,
+  v `updateVillage` i `advanceVillage`). Web: `VillageNeighbour.room`, `tradeLimits` / `tradePreview`
+  s místy, řádky s ikonami `cow`, `young-ox` (menší světlejší vůl – `icons.py`), `ox` a popiskem
+  místa v ohradě; karavana – `SceneExpedition.cattle`, `CaravanColumn.animals` po dvou za vozy,
+  kreslí `VillageLivestock` modelem krávy (`caravan-cattle.ts`).
 - **Výměna lidí** (trade.md – Výměna lidí; Martin 19. 10. 2026: „Se sousedem půjde vyměnit
   i lidi…“, „Mohou se stěhovat celé rodiny i jen dospělí. Podle toho, co je v nabídce.“;
   `people-trade.ts`): soused má na rok obchodu lidi navíc, nebo je shání (`neighbourPeople` – ze

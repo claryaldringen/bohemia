@@ -1446,6 +1446,11 @@ export interface SceneExpedition {
   coming: { sex: 'male' | 'female'; age: number }[];
   carriesOut: boolean;
   carriesBack: boolean;
+  /**
+   * Dobytek, který jde s karavanou po svých (trade.md – Dobytek ve třech druzích): tam prodaný,
+   * zpátky koupený – krávy a voli (mladí i vycvičení). Chybí = žádný.
+   */
+  cattle?: { out: { cows: number; oxen: number }; back: { cows: number; oxen: number } };
   progress: number;
   rate: number;
   day: number;
