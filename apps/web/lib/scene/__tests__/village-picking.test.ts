@@ -328,3 +328,42 @@ describe('výběr ohrady (oxen.md)', () => {
     expect(Math.max(...xs)).toBeCloseTo(30, 9);
   });
 });
+
+describe('výběr rudiště (crafts.md – Uhlí a ruda kováře)', () => {
+  const withOre: SceneVillage = {
+    ...village,
+    oreSites: [{ dwellingId: 12, x: 10, z: 40, heapKg: 120, digging: true }],
+    orePits: [
+      { x: 12, z: 41, kg: 400, overgrowth: 0 },
+      { x: 8, z: 37, kg: 100, overgrowth: 0.4 },
+      // jáma vyčerpaného ložiska – 30 m od rudiště, k němu nepatří
+      { x: 40, z: 40, kg: 3000, overgrowth: 0.8 },
+    ],
+  };
+  const pick = (x: number, z: number): VillageTarget | null =>
+    pickVillageTarget(withOre, rayTo(x, z), { ground: { x, z }, groundHeight: flat, cellOf });
+
+  it('klik na hromadu rudy nebo jámu vybere rudiště kovárny, stará jáma ani zem vedle ne', () => {
+    expect(pick(10, 40)).toEqual({ kind: 'ore-site', id: 12 });
+    // val čerstvé jámy (400 kg – poloměr 1,5 m, val do 2,5 m)
+    expect(pick(14.2, 41)).toEqual({ kind: 'ore-site', id: 12 });
+    expect(pick(8, 36)).toEqual({ kind: 'ore-site', id: 12 });
+    expect(pick(40, 40)).toBeNull();
+    expect(pick(10, 46)).toBeNull();
+    expect(targetExists(withOre, { kind: 'ore-site', id: 12 })).toBe(true);
+    expect(targetExists(village, { kind: 'ore-site', id: 12 })).toBe(false);
+  });
+
+  it('obrys je uzavřený a obepíná jámy i hromadu, starou jámu ne', () => {
+    const [outline, ...rest] = targetOutline(withOre, { kind: 'ore-site', id: 12 });
+    expect(rest).toEqual([]);
+    expect(outline![0]).toEqual(outline![outline!.length - 1]);
+    const xs = outline!.map((p) => p[0]);
+    const zs = outline!.map((p) => p[1]);
+    // jáma 400 kg: val do 1,65 × 1,5 m, obrys o 0,8 m dál
+    expect(Math.max(...xs)).toBeGreaterThan(12 + 2.47 + 0.79);
+    expect(Math.min(...zs)).toBeLessThan(37 - 1.7 - 0.79);
+    expect(Math.max(...xs)).toBeLessThan(20);
+    expect(targetOutline(village, { kind: 'ore-site', id: 12 })).toEqual([]);
+  });
+});

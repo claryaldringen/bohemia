@@ -8,6 +8,7 @@ import {
   type TileCell,
 } from '@bohemia/game';
 import { isRotatedSquare, squareContains, type CellSquare } from './field-cells';
+import { insideOreSite, oreHeapRadius, oreSiteDiscs } from './ore-site-layout';
 import { scenePenSquares, type SceneVillage } from '../village-view';
 
 // Výběr obydlí, polí, sadů a hřbitovů kliknutím do scény – čisté funkce bez Babylonu (paprsek
@@ -18,7 +19,8 @@ import { scenePenSquares, type SceneVillage } from '../village-view';
  * (Ctrl/Shift + klik, Ctrl + A – migration.md; aspoň dvě), díl pole nebo čtverec sadu (klik –
  * fields.md, Co hráč vidí), celé pole nebo sad (dvojklik), hřbitov, posvátný dub (id stromu),
  * dubový háj (id středového dubu), modla či svatyně (id stavby – hotová i rozestavěná,
- * happiness.md), nebo ohrada (id ohrady – oxen.md).
+ * happiness.md), ohrada (id ohrady – oxen.md), nebo rudiště kováře (id kovárny – crafts.md, Uhlí
+ * a ruda kováře).
  */
 export type VillageTarget =
   | { kind: 'dwelling'; id: number }
@@ -40,7 +42,9 @@ export type VillageTarget =
    * Pevná cesta – cesta hráče (roads.md – Cesta pro hráče): řetěz úseků, id = jeho první úsek
    * (`roadChainIds`), ať se klikne na kterýkoli.
    */
-  | { kind: 'road'; id: number };
+  | { kind: 'road'; id: number }
+  /** Rudiště kováře – jámy a hromada rudy (id kovárny – crafts.md, Uhlí a ruda kováře). */
+  | { kind: 'ore-site'; id: number };
 
 export interface Vec3 {
   x: number;
@@ -63,6 +67,8 @@ const DWELLING_PICK_MARGIN_M = 1;
 const SACRED_PICK_HEIGHT_M = { idol: 3, shrine: 4.5 } as const;
 /** Úsek pevné cesty: zásah do tolika metrů od osy (pás cesty a kousek vedle). */
 export const ROAD_PICK_M = 2.5;
+/** Rudiště: krok výšky paprsku přes hromadu rudy (m). */
+const ORE_SITE_PICK_STEP_M = 0.25;
 /** Posvátný dub: zásah do `radius` od kmene, od země do koruny (m). */
 export const SACRED_OAK_PICK = { radiusM: 4, heightM: 12, stepM: 1 } as const;
 
@@ -122,7 +128,8 @@ export function insideSacredFootprint(
 /**
  * Co je pod kurzorem: obydlí, které paprsek protne od země do výšky střechy (nejbližší ke
  * kameře), pak modla nebo svatyně (paprsek přes půdorys do výšky modly), posvátný dub (paprsek
- * do 4 m od kmene od země do koruny), jinak obydlí, jehož pozemek (políčko) nebo ohrada leží pod
+ * do 4 m od kmene od země do koruny), rudiště kováře (paprsek přes jámy a hromadu rudy do její
+ * výšky – `oreSiteDiscs`), jinak obydlí, jehož pozemek (políčko) nebo ohrada leží pod
  * bodem terénu `ground`, úsek pevné cesty do ROAD_PICK_M od osy, pak díl pole, hřbitov, čtverec
  * sadu nebo dubový háj pod bodem (celé pole a sad vybere dvojklik – `wholeTarget`); null =
  * prázdná zem.
@@ -171,6 +178,19 @@ export function pickVillageTarget(
     }
   }
   if (best) return { kind: 'sacred-oak', id: best.id };
+  for (const site of village.oreSites ?? []) {
+    const discs = oreSiteDiscs(site, village.orePits);
+    const base = options.groundHeight(site.x, site.z);
+    // jámy leží na zemi, hromada rudy je vysoká ≈ 0,55 poloměru
+    const top = oreHeapRadius(site) * 0.55;
+    for (let h = 0; h <= top + 1e-9; h += ORE_SITE_PICK_STEP_M) {
+      const point = rayAtHeight(ray, base + h);
+      if (!point || !insideOreSite(point, discs)) continue;
+      if (best === null || point.t < best.t) best = { id: site.dwellingId, t: point.t };
+      break;
+    }
+  }
+  if (best) return { kind: 'ore-site', id: best.id };
   if (!options.ground) return null;
   const ground = options.ground;
   const cell = options.cellOf(ground.x, ground.z);
@@ -298,5 +318,8 @@ export function targetExists(village: SceneVillage, target: VillageTarget): bool
   }
   if (target.kind === 'pen') return (village.pens ?? []).some((p) => p.id === target.id);
   if (target.kind === 'road') return (village.roads ?? []).some((r) => r.id === target.id);
+  if (target.kind === 'ore-site') {
+    return (village.oreSites ?? []).some((s) => s.dwellingId === target.id);
+  }
   return village.fields.some((f) => f.id === target.id);
 }
