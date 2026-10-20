@@ -1115,6 +1115,23 @@ rozhraní částí v
   jako dřív (`clearedTrees`), les vsi bez stromů zmizí. Scéna: paseka podle tvaru
   (`cleared-forest.ts` – `areas`), podrost a zarůstání pod stavbou neroste (`wildPlants`
   s `buildingClearings`), `/dev/landscape` odstraní překážky postavené stavby jako hra.
+- **Varianty rozměrů** (population.md – Varianty rozměrů; Martin, GitHub #1: plocha, poměr stěn
+  a výška „jiný max o 10%“, i dílny): `dwelling-shape.ts` (deterministická vrstva) – varianta je
+  čistá funkce polohy na cm (`dwellingShapeAt`, `dwellingShape(d)` – dvorec a `plainShape` bez
+  varianty, dům v rohu pozemku nejvýš `DWELLING_SHAPE.plotCornerMaxWidth` širší), zobrazení
+  souřadnic modelu `shapeFrame` / `shapeX` / `shapeY` / `shapeZ` / `shapeRect`: pás dveří
+  `doorHalfM` zůstává, šíje od `frontM` (= `PIT_SHAPES.halfZ`) se jen posune, pod terénem beze
+  změny; bez varianty přesně identita. Půdorys (`dwellingFootprint(type, position, shape)`,
+  `workshopFootprints`, `shapedFootprint`), vyklízená plocha (`dwellingClearing(…, shape)`),
+  kontroly umístění a obdélníky domů pro pěšiny jdou podle něj. Starší vsi `withDwellingShapes`
+  (příznak `shapesChecked`; srážka s jinou stavbou → `plainShape` na obydlí, stavbě i zbytku
+  jámy; nově zabrané překážky zmizí – `dwellingShapeFits`). Scéna: model domu, díly staveniště
+  a rozpadu mají kosti 12 oblastí (`shape-bones.ts`) a VAT se snímkem na variantu
+  (`shaped-model.ts` – `makeShapeable` při načtení, `ModelInstance.shape`, `setShapeFrames`
+  v `setInstances`; duch u kurzoru `shapeGhost` do vrcholů); jáma `pitShapeOf` / `shapedPit`,
+  `sceneFrame(d)` a `shapedToWorld` pro hlínu, trsy, dým (`smokeVent`), rekvizity, místa
+  řemeslníků, `footprintRect` / `clearanceRect` pro výběr, minimapu, slepice a postavy. Ukázka
+  `/dev/buildings` **Varianty** (`showcaseVariants`).
 - **Obydlí na poli a v sadu** (population.md – Obydlí na poli a v sadu; Martin 18. 10. 2026:
   „Pole a sad se prostě zmenší o plochu domu“): `checkDwellingPlacement`, `checkPlotPlacement`
   a `checkWorkshopPlacement` pole a sad nezakazují (`checkFootprintFree(…, DWELLING_LAND)`,

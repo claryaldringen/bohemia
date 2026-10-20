@@ -68,6 +68,12 @@ Vzhled podle Martina (modely se připravují v `tools/blender/`):
   nastěhovali – v dílně začnou zítra“ (ne „Prázdná“ – Martin 20. 10. 2026: „Proč mi tesař hlásí, že
   tam nikdo nebydlí, když je tam muž a žena?“).
 - **Chátrání a přestavba** jako u základního obydlí; přestavba zachová řemeslo.
+- **Varianty rozměrů** jako u obydlí (Martin, GitHub #1: „Toto pravidlo aplikuj i na obydlí
+  řemeslníků.“ – [population.md](population.md#varianty-rozměrů)): plocha, poměr stěn a výška
+  dílny jiné nejvýš o 10 % podle polohy. Přístřešek s pecí, výhní nebo tesařským pracovištěm se
+  podél nenatahuje – jen se posune se štítem (jako šíje), napříč je široký jako dům; místa
+  řemeslníků i dým pod ním jdou s ním. Milíř uhlíře je samostatná stavba a variantu nemá (návrh
+  Clauda).
 
 ## Práce a jídlo
 
