@@ -429,6 +429,54 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
     },
   },
   {
+    // villagers.md – Výběr postavy: žena rolníka jde pro vodu
+    key: 'postava',
+    label: 'Postava – žena rolníka',
+    details: {
+      kind: 'person',
+      id: 202,
+      portrait: 'woman',
+      role: 'Žena rolníka',
+      activity: 'jde pro vodu',
+      age: 28,
+      home: 2,
+      homeIcon: 'zemnice',
+      herd: null,
+    },
+  },
+  {
+    // tesař na cestě pro kování k vozu (ves nemá kováře – wagons.md, Kování vozů)
+    key: 'postava-tesar',
+    label: 'Postava – tesař pro kování',
+    details: {
+      kind: 'person',
+      id: 401,
+      portrait: 'man',
+      role: 'Tesař',
+      activity: 'jde do vesnice Olšany pro kování k vozu',
+      age: 34,
+      home: 4,
+      homeIcon: 'tesar',
+      herd: null,
+    },
+  },
+  {
+    // pasáček u stáda ovcí (diet.md – Pasáci)
+    key: 'postava-pasacek',
+    label: 'Postava – pasáček',
+    details: {
+      kind: 'person',
+      id: 204,
+      portrait: 'child',
+      role: 'Pasáček',
+      activity: 'pase ovce',
+      age: 10,
+      home: 2,
+      homeIcon: 'zemnice',
+      herd: 'sheep',
+    },
+  },
+  {
     // crafts.md – Milíř u skácených buků: vypálený milíř se rozebírá, syn kováře (11) nosí uhlí
     key: 'milir',
     label: 'Milíř',

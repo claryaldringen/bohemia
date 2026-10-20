@@ -54,7 +54,16 @@ describe('svatba ve vsi', () => {
       [dwelling(1), dwelling(2)],
     );
     expect(arrangeMarriages(s, DAY)).toEqual([
-      { day: DAY, kind: 'marriage', fromDwellingId: 2, toDwellingId: 1 },
+      {
+        day: DAY,
+        kind: 'marriage',
+        fromDwellingId: 2,
+        toDwellingId: 1,
+        groomId: 3,
+        brideId: 6,
+        groomFromDwellingId: 1,
+        brideFromDwellingId: 2,
+      },
     ]);
     expect(person(s, 6)).toMatchObject({ dwellingId: 1, spouseId: 3 });
     expect(person(s, 3).spouseId).toBe(6);
@@ -104,7 +113,16 @@ describe('svatba ve vsi', () => {
       dwellingId: 1,
     });
     expect(arrangeMarriages(crowded, DAY).filter((e) => e.kind === 'marriage')).toEqual([
-      { day: DAY, kind: 'marriage', fromDwellingId: 2, toDwellingId: 1 },
+      {
+        day: DAY,
+        kind: 'marriage',
+        fromDwellingId: 2,
+        toDwellingId: 1,
+        groomId: 1,
+        brideId: 2,
+        groomFromDwellingId: 1,
+        brideFromDwellingId: 2,
+      },
     ]);
   });
 
@@ -122,7 +140,17 @@ describe('svatba ve vsi', () => {
     expect(holdsHome(s, person(s, 2), DAY)).toBe(true);
     expect(holdsHome(s, person(s, 1), DAY)).toBe(false); // doma zůstane matka 44
     expect(arrangeMarriages(s, DAY).filter((e) => e.kind === 'marriage')).toEqual([
-      { day: DAY, kind: 'marriage', fromDwellingId: 1, toDwellingId: 2, groomMoved: true },
+      {
+        day: DAY,
+        kind: 'marriage',
+        fromDwellingId: 1,
+        toDwellingId: 2,
+        groomMoved: true,
+        groomId: 1,
+        brideId: 2,
+        groomFromDwellingId: 1,
+        brideFromDwellingId: 2,
+      },
     ]);
     expect(occupants(s, 2).map((p) => p.id)).toEqual([1, 2, 3, 4]);
     expect(occupants(s, 1).map((p) => p.id)).toEqual([30, 31]);
@@ -154,6 +182,10 @@ describe('vdovy a vdovci (Martin, 19. 10. 2026)', () => {
         toDwellingId: 1,
         groomMoved: true,
         widow: true,
+        groomId: 6,
+        brideId: 1,
+        groomFromDwellingId: 2,
+        brideFromDwellingId: 1,
       },
     ]);
     expect(occupants(s, 1).map((p) => p.id)).toEqual([1, 2, 3, 6]);
@@ -174,7 +206,17 @@ describe('vdovy a vdovci (Martin, 19. 10. 2026)', () => {
     expect(holdsHome(s, person(s, 6), DAY)).toBe(true);
     const events = arrangeMarriages(s, DAY);
     expect(events).toEqual([
-      { day: DAY, kind: 'marriage', fromDwellingId: 1, toDwellingId: 2, widow: true },
+      {
+        day: DAY,
+        kind: 'marriage',
+        fromDwellingId: 1,
+        toDwellingId: 2,
+        widow: true,
+        groomId: 4,
+        brideId: 1,
+        groomFromDwellingId: 2,
+        brideFromDwellingId: 1,
+      },
     ]);
     // děti do 16 let jdou s matkou, 17letý syn zůstává a drží dům
     expect(occupants(s, 2).map((p) => p.id)).toEqual([1, 2, 3, 4, 6, 7, 8, 9]);
@@ -333,6 +375,36 @@ describe('sňatky s okolím', () => {
       expect(grooms / 300).toBeGreaterThan(0.42);
       expect(grooms / 300).toBeLessThan(0.58);
     }
+  });
+
+  it('svatba s okolím nese v kronice ženicha a nevěstu (kinship.md – Svatba ve scéně)', () => {
+    const first = (s: VillageState): ChronicleEvent | undefined => {
+      for (let day = DAY; day < DAY + 365; day++) {
+        const events = arrangeMarriages(s, day);
+        if (events.length > 0) return events[0];
+      }
+      return undefined;
+    };
+    let brides = 0;
+    let grooms = 0;
+    for (let seed = 1; seed <= 60; seed++) {
+      const b = bachelor(seed);
+      const bride = first(b);
+      if (bride) {
+        brides++;
+        const id = b.people.find((p) => p.id >= 1000)!.id;
+        expect(bride).toMatchObject({ kind: 'bride-from-outside', groomId: 3, brideId: id });
+      }
+      const m = maiden(seed);
+      const groom = first(m);
+      if (groom?.kind === 'groom-from-outside') {
+        grooms++;
+        const id = m.people.find((p) => p.id >= 1000)!.id;
+        expect(groom).toMatchObject({ dwellingId: 1, groomId: id, brideId: 3 });
+      }
+    }
+    expect(brides).toBeGreaterThan(0);
+    expect(grooms).toBeGreaterThan(0);
   });
 
   it('vdovec si z okolí přivede ženu nejvýš o 20 let mladší', () => {

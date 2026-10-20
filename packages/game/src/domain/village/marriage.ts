@@ -194,6 +194,8 @@ function wed(
   bride: Person,
   widow: boolean,
 ): ChronicleEvent {
+  const groomFrom = groom.dwellingId;
+  const brideFrom = bride.dwellingId;
   const home = weddingHome(state, day, groom, bride);
   const mover = home?.mover ?? bride;
   const to = home?.dwellingId ?? groom.dwellingId;
@@ -210,6 +212,10 @@ function wed(
     toDwellingId: to,
     ...(mover === groom && from !== to ? { groomMoved: true as const } : {}),
     ...(widow ? { widow: true as const } : {}),
+    groomId: groom.id,
+    brideId: bride.id,
+    groomFromDwellingId: groomFrom,
+    brideFromDwellingId: brideFrom,
   };
 }
 
@@ -319,7 +325,13 @@ function outsideMarriages(
       startMarriage(bride, day);
       p.spouseId = bride.id;
       state.people.push(bride);
-      events.push({ day, kind: 'bride-from-outside', dwellingId: p.dwellingId });
+      events.push({
+        day,
+        kind: 'bride-from-outside',
+        dwellingId: p.dwellingId,
+        groomId: p.id,
+        brideId: bride.id,
+      });
       continue;
     }
     const favoured = favouredBride(state, p, day, parents);
@@ -348,6 +360,8 @@ function outsideMarriages(
         kind: 'groom-from-outside',
         dwellingId: p.dwellingId,
         ...(widowed ? { widow: true as const } : {}),
+        groomId: groom.id,
+        brideId: p.id,
       });
     } else if (roll < groomChance + awayChance) {
       const staying = occupants(state, p.dwellingId).filter(

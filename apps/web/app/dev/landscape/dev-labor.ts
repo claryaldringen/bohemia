@@ -1,6 +1,8 @@
 // VÝVOJOVÝ NÁSTROJ – ukázkové rozdělení práce pro lidi ve vsi na /dev/landscape (bez
 // databáze a simulace). Skutečné rozdělení počítá herní jádro (labor-report.ts) – tady jen
 // zhruba podle měsíce a toho, co ve vývojové vsi stojí, ať jdou vidět všechny činnosti.
+import { personRoles, type RolePerson } from '@/lib/person-roles';
+import type { ScenePerson } from '@/lib/person-view';
 import type { LaborShare, SceneLabor, SceneVillage } from '@/lib/village-view';
 
 /** Lidí v obydlí ukázkové vsi – podle nich chodí pro vodu (provoz na cestách). */
@@ -92,5 +94,50 @@ export function demoLabor(
     shares,
     herders: { children: homes },
     homes: built.map((d) => ({ id: d.id, people: PEOPLE_PER_HOME })),
+    persons: demoPersons(built),
   };
+}
+
+/**
+ * Ukázkoví lidé obydlí (villagers.md – Výběr postavy – postavy jdou vybrat): v každém domě muž
+ * a žena, výrostek a malé dítě, v každém druhém domě starší; první dům je dvorec vojvody, dílny
+ * podle řemesla obydlí. Role jako ve hře (person-roles.ts).
+ */
+export function demoPersons(
+  dwellings: readonly Pick<SceneVillage['dwellings'][number], 'id' | 'type' | 'craft'>[],
+): ScenePerson[] {
+  const people: RolePerson[] = [];
+  dwellings.forEach((d, k) => {
+    const id = 1000 + k * 10;
+    const man = { id, age: 30 + (k % 9), sex: 'male' as const, home: d.id, spouse: id + 1 };
+    const woman = { id: id + 1, age: 27 + (k % 7), sex: 'female' as const, home: d.id };
+    people.push(
+      { ...man, practice: d.craft ? { [d.craft]: 5 } : {} },
+      { ...woman, spouse: id },
+      {
+        id: id + 2,
+        age: 8 + (k % 5),
+        sex: k % 2 === 0 ? 'male' : 'female',
+        home: d.id,
+        father: id,
+        mother: id + 1,
+      },
+      { id: id + 3, age: 3 + (k % 3), sex: 'female', home: d.id, father: id, mother: id + 1 },
+    );
+    if (k % 2 === 0) {
+      people.push({ id: id + 4, age: 52 + k, sex: k % 4 === 0 ? 'female' : 'male', home: d.id });
+    }
+  });
+  const manor = dwellings.find((d) => d.type === 'dvorec') ?? dwellings[0];
+  const roles = personRoles(people, {
+    manor: manor?.id ?? null,
+    craft: (home) => dwellings.find((d) => d.id === home)?.craft ?? null,
+  });
+  return people.map((p) => ({
+    id: p.id,
+    age: p.age,
+    sex: p.sex,
+    home: p.home,
+    role: roles.get(p.id)!,
+  }));
 }

@@ -1,4 +1,5 @@
 import {
+  AGE,
   CARTS,
   LEAVING,
   ORCHARD,
@@ -29,6 +30,8 @@ import type { VillageDugSite } from './ore-site-view';
 import type { VillageKiln } from './kiln-view';
 import type { HouseholdRelocation } from './relocation-view';
 import { TREE_GROWTH_YEARS } from './orchard-look';
+import { personActivity, type PersonFigureState } from './person-activity';
+import { ROLE_NAMES, herdRole } from './person-roles';
 import {
   dugSiteOf,
   selectedFieldPart,
@@ -421,6 +424,24 @@ export type SelectionDetails =
       kind: 'ore-site';
     } & VillageDugSite)
   | ({ kind: 'clay-site' } & VillageDugSite)
+  | {
+      /**
+       * Člověk vsi (villagers.md – Výběr postavy; Martin 20. 10. 2026: „Stačí mi jenom vědět info
+       * typu – žena rolníka, jde pro vodu.“): portrét podle pohlaví a věku, role pod portrétem,
+       * co právě dělá, věk, dům (tlačítko ho vybere – null, když dům ve scéně není) a u výrostka,
+       * který pase, zvíře stáda.
+       */
+      kind: 'person';
+      id: number;
+      portrait: 'man' | 'woman' | 'child' | 'elder';
+      role: string;
+      activity: string;
+      age: number;
+      home: number | null;
+      /** Ikona domu (`public/icons/build/` – typ obydlí nebo dílna). */
+      homeIcon: string | null;
+      herd: HerdSpecies | null;
+    }
   | ({
       /**
        * Milíř nebo milířiště uhlíře (crafts.md – Milíř u skácených buků; Martin 20. 10. 2026:
@@ -553,8 +574,10 @@ export function selectionDetails(
   view: VillageView | null,
   scene: SceneVillage,
   target: VillageTarget | null,
+  person: PersonFigureState | null = null,
 ): SelectionDetails | null {
   if (!target) return null;
+  if (target.kind === 'person') return personDetails(scene, target.id, person);
   if (target.kind === 'dwellings') return dwellingsDetails(view, scene, target.ids);
   if (target.kind === 'dwelling') {
     const dwelling = scene.dwellings.find((d) => d.id === target.id);
@@ -720,6 +743,41 @@ export function selectionDetails(
     ashBonus: field.ashBonus,
     overgrowingM2: field.overgrowingM2,
     founding: founding ? founding.progress : null,
+  };
+}
+
+/**
+ * Člověk vsi (villagers.md – Výběr postavy): kdo to je z lidí ve scéně (`labor.persons`), co dělá
+ * ze stavu jeho postavy (`person` – hlásí scéna; jiný člověk nebo nic – „doma“). Výrostek, který
+ * dnes pase, je pasáček / pasačka.
+ */
+function personDetails(
+  scene: SceneVillage,
+  id: number,
+  state: PersonFigureState | null,
+): SelectionDetails | null {
+  const person = scene.labor?.persons?.find((p) => p.id === id);
+  if (!person) return null;
+  const figure = state?.id === id ? state : null;
+  const herding = figure?.job?.kind === 'herd';
+  const home = scene.dwellings.find((d) => d.id === person.home) ?? null;
+  return {
+    kind: 'person',
+    id,
+    portrait:
+      person.age >= AGE.elder
+        ? 'elder'
+        : person.age < AGE.adult
+          ? 'child'
+          : person.sex === 'female'
+            ? 'woman'
+            : 'man',
+    role: ROLE_NAMES[herding && person.age < AGE.adult ? herdRole(person.sex) : person.role],
+    activity: personActivity(figure, scene),
+    age: person.age,
+    home: home ? home.id : null,
+    homeIcon: home ? (home.craft ? CRAFT_LOOKS[home.craft].icon : home.type) : null,
+    herd: herding ? (figure?.herd ?? null) : null,
   };
 }
 

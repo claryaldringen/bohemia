@@ -201,7 +201,8 @@ pravidlo aplikuj i na obydlí řemeslníků.“
 - **Ve scéně** jde všechno kolem domu podle varianty jedním zobrazením: model hotového domu, díly
   staveniště i rozpadu, jáma a řez terénu se šíjí a schody, hlína u vchodu, trsy pod okapem, dým
   z dýmníku, rekvizity staveniště, místa řemeslníků pod přístřeškem, výběr a obrys, minimapa,
-  slepice a postavy kolem domu i zbytek jámy po zániku. Přístřešek dílny se podél nenatahuje –
+  slepice a postavy kolem domu (i vchod, odkud vycházejí průvody pohřbu a svatby) i zbytek jámy
+  po zániku. Přístřešek dílny se podél nenatahuje –
   jen se posune se štítem (jako šíje), napříč je široký jako dům. Ukázka: `/dev/buildings` – **Varianty** (řady zemnic, polozemnic a dílen,
   vlevo dnešní tvar).
 

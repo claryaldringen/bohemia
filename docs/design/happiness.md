@@ -210,6 +210,12 @@ Každé místo přidá k cílovému štěstí; posvátná místa dohromady nejv�
   Návštěvy a oprava chodí vstupem, staveniště ze všech stran ([paths.md](paths.md) – Vchody).
 - Ve scéně stojí místo uschlého dubu souš (o čtvrtinu nižší než dub v den uschnutí), padlá souš
   je padlý kmen přes místo dubu (modely dekorací 0 A.D.).
+- **Svatby** (Martin, GitHub issue #2: „Svatebčané půjdou na některé z posvátných míst v okolí,
+  kde budou oddáni.“ – [kinship.md](kinship.md), Svatba ve scéně): posvátná místa jsou místa
+  svatebního obřadu – stojící navštěvovaná modla nebo svatyně, živý posvátný dub nebo háj do
+  600 m od domu nevěsty, nejbližší nejčastěji. Ve svatyni při obřadu hoří ohniště u vstupu, na
+  posvátném dubu visí jen při obřadu věnec a pentle. Jen zobrazení – štěstí ani chátrání se
+  svatbou nemění (svatba není návštěva v síti pěšin).
 
 ## Navazuje
 

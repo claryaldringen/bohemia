@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { LaborShare, SceneLaborShare, SceneVillage } from '../../village-view';
 import { chickenBox } from '../livestock-placement';
-import { localToWorld } from '../village-layout';
+import { localToWorld, sceneFrame } from '../village-layout';
+import { worldToLocal } from '../dwelling-pit';
 import { MILIR_SHAPE_M, milirPlace } from '../workshop-layout';
 import {
   createVillagerPose,
@@ -20,9 +21,11 @@ import {
   figureCounts,
   figureSexes,
   herderKinds,
+  houseBox,
   womenChance,
   shareCounts,
   planFunerals,
+  planWeddings,
   planVillagers,
   walkRoute,
   type PlannedVillager,
@@ -1533,5 +1536,180 @@ describe('pohřeb – průvod mimo rozpočet pracujících (cemetery.md – Poh�
       funerals: plans,
     });
     expect(later.some((p) => p.key.startsWith('funeral:'))).toBe(false);
+  });
+});
+
+describe('vchody domů podle varianty rozměrů (population.md – Varianty rozměrů)', () => {
+  const DAY = 1000;
+  const START = LIVESTOCK_EPOCH_MS + 5_000_000;
+  const dayWindow = (day: number): { startMs: number; endMs: number } => ({
+    startMs: START + (day - DAY) * 86_000,
+    endMs: START + (day - DAY + 1) * 86_000,
+  });
+  const base = village(SHARES);
+  const plain: SceneVillage = {
+    ...base,
+    dwellings: base.dwellings.map((d) => ({ ...d, plainShape: true as const })),
+  };
+  const funerals = (v: SceneVillage): SceneVillage => ({
+    ...v,
+    funerals: [
+      {
+        key: '8:-3:-3:3:4',
+        cemeteryId: 8,
+        cell: { x: -3, y: -3 },
+        column: 3,
+        row: 4,
+        size: 'normal',
+        rank: 'adult',
+        day: DAY,
+        x: -37,
+        z: -36,
+        from: 2,
+        mourners: [{ sex: 'male', age: 30, home: 2 }],
+      },
+    ],
+  });
+  const weddings = (v: SceneVillage): SceneVillage => ({
+    ...v,
+    sacred: { oaks: [{ id: 77, x: 10, z: 60 }], groves: [], buildings: [] },
+    weddings: [
+      {
+        key: `${DAY}:0`,
+        day: DAY,
+        bride: { id: 50, age: 19, from: 2 },
+        groom: { id: 51, age: 23, from: 2 },
+        home: 2,
+        guests: [],
+      },
+    ],
+  });
+  /** Vchod průvodu (první bod cesty) v osách domu 2 a přední okraj jeho obdélníku. */
+  const doorOf = (
+    points: readonly (readonly [number, number])[],
+    v: SceneVillage,
+  ): [number, number] => {
+    const home = v.dwellings.find((d) => d.id === 2)!;
+    const [, lz] = worldToLocal(home.position, points[0]![0], points[0]![1]);
+    return [lz, houseBox(home.type, sceneFrame(home)).maxZ];
+  };
+
+  it('pohřeb i svatba vycházejí před šíjí domu v jeho variantě – vchod se posune s domem', () => {
+    const [plainDoor, plainFront] = doorOf(
+      planFunerals(funerals(plain), GROUND, { seed: 3, dayWindow })[0]!.path.points,
+      plain,
+    );
+    const [door, front] = doorOf(
+      planFunerals(funerals(base), GROUND, { seed: 3, dayWindow })[0]!.path.points,
+      base,
+    );
+    expect(front).not.toBeCloseTo(plainFront, 3);
+    expect(door - front).toBeCloseTo(plainDoor - plainFront, 6);
+    const wedding = planWeddings(weddings(base), GROUND, { seed: 3, dayWindow })[0]!;
+    const plainWedding = planWeddings(weddings(plain), GROUND, { seed: 3, dayWindow })[0]!;
+    const [wDoor, wFront] = doorOf(wedding.village.path.points, base);
+    const [pDoor, pFront] = doorOf(plainWedding.village.path.points, plain);
+    expect(wDoor - wFront).toBeCloseTo(pDoor - pFront, 6);
+  });
+});
+
+describe('svatba – průvod mimo rozpočet pracujících (kinship.md – Svatba ve scéně)', () => {
+  const DAY = 1000;
+  const START = LIVESTOCK_EPOCH_MS + 5_000_000;
+  const dayWindow = (day: number): { startMs: number; endMs: number } => ({
+    startMs: START + (day - DAY) * 86_000,
+    endMs: START + (day - DAY + 1) * 86_000,
+  });
+  const base = village(SHARES);
+  const v: SceneVillage = {
+    ...base,
+    sacred: { oaks: [{ id: 77, x: 10, z: 60 }], groves: [], buildings: [] },
+    weddings: [
+      {
+        key: `${DAY}:0`,
+        day: DAY,
+        bride: { id: 50, age: 19, from: 1 },
+        groom: { id: 51, age: 23, from: 2 },
+        home: 2,
+        guests: Array.from({ length: 8 }, (_, i) => ({
+          sex: i % 2 ? ('female' as const) : ('male' as const),
+          age: 10 + i * 6,
+          home: 1 + (i % 3),
+        })),
+      },
+    ],
+  };
+  const weddings = planWeddings(v, GROUND, { seed: 3, dayWindow });
+  const work = (list: PlannedVillager[]): number =>
+    list.filter((p) => !/^(funeral|wedding|elder|herder|traffic):/.test(p.key)).length;
+
+  it('pár a svatebčané k posvátnému dubu; nevěsta s věncem v běleném lnu; o ně méně pracujících', () => {
+    expect(weddings).toHaveLength(1);
+    expect(weddings[0]!.site.kind).toBe('oak');
+    const without = planVillagers(v, GROUND, { seed: 3, herds: 0, maxWorkers: 20, dayWindow });
+    const people = planVillagers(v, GROUND, {
+      seed: 3,
+      herds: 0,
+      maxWorkers: 20,
+      dayWindow,
+      weddings,
+    });
+    const wedding = people.filter((p) => p.key.startsWith('wedding:'));
+    expect(wedding).toHaveLength(10);
+    const bride = wedding.find((p) => p.look.hair === 'wreath')!;
+    expect(bride.kind).toBe('woman');
+    expect(wedding.filter((p) => p.look.hair === 'wreath')).toHaveLength(1);
+    expect(work(people)).toBeLessThanOrEqual(Math.max(2, 20 - 10));
+    expect(work(people)).toBeLessThan(work(without));
+    // mimo dny svatby nikdo
+    const later = planVillagers({ ...v, labor: { ...v.labor!, day: DAY + 40 } }, GROUND, {
+      seed: 3,
+      herds: 0,
+      dayWindow,
+      weddings,
+    });
+    expect(later.some((p) => p.key.startsWith('wedding:'))).toBe(false);
+  });
+
+  it('pohřeb beze změny – se svatbou stejní lidé průvodu a stejné pózy', () => {
+    const withFuneral: SceneVillage = {
+      ...v,
+      funerals: [
+        {
+          key: '8:-3:-3:3:4',
+          cemeteryId: 8,
+          cell: { x: -3, y: -3 },
+          column: 3,
+          row: 4,
+          size: 'normal',
+          rank: 'adult',
+          day: DAY,
+          x: -37,
+          z: -36,
+          from: 2,
+          mourners: Array.from({ length: 6 }, (_, i) => ({
+            sex: i % 2 ? ('female' as const) : ('male' as const),
+            age: 8 + i * 6,
+            home: 1 + (i % 3),
+          })),
+        },
+      ],
+    };
+    const funerals = planFunerals(withFuneral, GROUND, { seed: 3, dayWindow });
+    const options = { seed: 3, herds: 0, dayWindow, funerals };
+    const alone = planVillagers(withFuneral, GROUND, options).filter((p) =>
+      p.key.startsWith('funeral:'),
+    );
+    const both = planVillagers(withFuneral, GROUND, { ...options, weddings }).filter((p) =>
+      p.key.startsWith('funeral:'),
+    );
+    expect(both.map((p) => p.key)).toEqual(alone.map((p) => p.key));
+    const t = villagerSeconds(funerals[0]!.timeline.departMs + 9000);
+    for (let i = 0; i < alone.length; i++) {
+      expect(both[i]!.pose(t, [], createVillagerPose())).toEqual(
+        alone[i]!.pose(t, [], createVillagerPose()),
+      );
+      expect(both[i]!.look).toEqual(alone[i]!.look);
+    }
   });
 });

@@ -80,6 +80,92 @@ function Portrait({ icon, name }: { icon: string; name: string }): ReactElement 
   );
 }
 
+/**
+ * Portrét člověka (villagers.md – Výběr postavy): muž, žena, dítě nebo starší (ikony lidí
+ * z `public/icons/resources/`), pod ním role.
+ */
+function PersonPortrait({ icon, name }: { icon: string; name: string }): ReactElement {
+  return (
+    <div className="flex min-w-20 shrink-0 flex-col items-center gap-1">
+      <div className="hud-inset h-20 w-20 overflow-hidden rounded">
+        <img
+          src={`/icons/resources/${icon}.png`}
+          alt=""
+          width={64}
+          height={64}
+          data-testid="selection-person-portrait"
+          data-portrait={icon}
+          className="h-full w-full"
+        />
+      </div>
+      <h2 className="text-center font-serif text-sm leading-tight whitespace-nowrap text-[#f3dfb0]">
+        {name}
+      </h2>
+    </div>
+  );
+}
+
+/**
+ * Člověk vsi (villagers.md – Výběr postavy): co právě dělá (jediný řádek slov), věk, dům (tlačítko
+ * ho vybere) a u pasáka zvíře stáda.
+ */
+function PersonBody({
+  details,
+  onSelectTarget,
+}: {
+  details: Extract<SelectionDetails, { kind: 'person' }>;
+  onSelectTarget?: ((target: VillageTarget) => void) | undefined;
+}): ReactElement {
+  const home = details.home;
+  return (
+    <div className="flex min-w-0 flex-col justify-center gap-1.5">
+      <p
+        data-testid="selection-person-activity"
+        className="text-sm whitespace-nowrap text-[#ecdfc4]"
+      >
+        {details.activity}
+      </p>
+      <div className={ROW}>
+        <Stat icon="date" name="Věk (roky)" testId="selection-person-age">
+          {formatInteger(details.age)}
+        </Stat>
+        {home !== null && details.homeIcon && (
+          <Tooltip content="Dům" placement="above">
+            <button
+              type="button"
+              data-testid="selection-person-home"
+              aria-label="Dům"
+              className="hud-icon-button h-7 w-7"
+              onClick={() => onSelectTarget?.({ kind: 'dwelling', id: home })}
+            >
+              <img
+                src={`/icons/build/${details.homeIcon}.png`}
+                alt=""
+                width={128}
+                height={128}
+                className="h-full w-full"
+              />
+            </button>
+          </Tooltip>
+        )}
+        {details.herd && (
+          <Tooltip content={HERD_LABELS[details.herd].name} placement="above">
+            <img
+              src={`/icons/resources/${HERD_LABELS[details.herd].icon}.png`}
+              alt=""
+              width={20}
+              height={20}
+              data-testid="selection-person-herd"
+              data-herd={details.herd}
+              tabIndex={0}
+            />
+          </Tooltip>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Stat({
   icon,
   src,
@@ -2237,6 +2323,9 @@ export function SelectionPanel({
     const texts = DUG_SITE_TEXTS[details.kind];
     portrait = <Portrait icon={texts.portrait} name={texts.name} />;
     body = <DugSiteBody details={details} onSelectTarget={onSelectTarget} />;
+  } else if (details.kind === 'person') {
+    portrait = <PersonPortrait icon={details.portrait} name={details.role} />;
+    body = <PersonBody key={details.id} details={details} onSelectTarget={onSelectTarget} />;
   } else if (details.kind === 'kiln') {
     portrait = <Portrait icon="milir" name={details.stage === 'remnant' ? 'Milířiště' : 'Milíř'} />;
     body = <KilnBody details={details} onSelectTarget={onSelectTarget} />;

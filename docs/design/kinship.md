@@ -72,6 +72,77 @@ dědictví, sňatky a nástupnictví potřebují vědět, kdo je čí. Postavy v
 - **Vdovy a vdovci** se znovu žení a vdávají co nejdřív – žádná čekací doba; dítě s novým mužem
   nejdřív za 9 měsíců (population.md – rozestup porodů).
 
+### Svatba ve scéně
+
+Martin (GitHub issue #2 „Svatba“, 20. 10. 2026): „Jako máme pohřeb, udělej i svatbu. Svatebčané
+půjdou na některé z posvátných míst v okolí, kde budou oddáni.“ Podrobnosti jsou návrh Clauda.
+**Implementováno 20. 10. 2026** – data `apps/web/lib/wedding-view.ts`, plán
+`apps/web/lib/scene/wedding-plan.ts`, kreslení `wedding-renderer.ts` (oheň obřadu, věnec
+s pentlemi na dubu), ukázka **Svatba** na `/dev/landscape`.
+
+Jen zobrazení – **pravidla sňatků se nemění**. Jádro si u událostí svatby v kronice navíc pamatuje
+ženicha a nevěstu (`groomId`, `brideId` – i u nevěsty a ženicha z okolí) a u svatby ve vsi jejich
+domy před svatbou (`groomFromDwellingId`, `brideFromDwellingId`). Události zapsané dřív je nemají:
+domy se odvodí z `fromDwellingId` / `toDwellingId` (kdo se stěhoval, šel z `from` do `to`), věk
+je odhadnutý (nevěsta 19, ženich 23) a směr člověka z okolí je podle losu svatby.
+
+- **Kdy:** v den svatby (`marriage`, `bride-from-outside`, `groom-from-outside`); dcera vdaná pryč
+  svatbu ve scéně nemá – odchází ze vsi. Všechno je čistá funkce skutečného času jako pohřeb –
+  začátek je začátek herního dne svatby (okno dne z hodin světa), stejný okamžik dá stejnou pózu.
+  Průvod jde skutečnou chůzí, takže svatba trvá i desítky herních dnů (lidé z okolí od kraje mapy
+  a zpátky); do scény jdou svatby **posledních 40 herních dnů** a scéna pozná, které skončily.
+- **Místo obřadu:** posvátné místo vsi do **600 m** od domu nevěsty – **stojící navštěvovaná
+  modla nebo svatyně** (rozestavěné, opuštěné a padlé ne), **živý posvátný dub** (souš ne) nebo
+  **dubový háj**. Vybere se deterministicky losem ze seedu vsi a klíče svatby s vahou
+  1 ÷ (vzdálenost + 40 m)² – nejbližší nejčastěji, vzdálenější někdy. U svatyně a modly se jde
+  k předku (`sacredEntrance`): ve svatyni přes příkop na plochu, pár stojí 5,5 m před modlou,
+  u modly 3,2 m před ní; u dubu stojí pár na kraji koruny ze strany od domu nevěsty, u háje kus
+  před jeho krajem nejblíž domu. **Bez posvátného místa** se oddávají **u ohniště na návsi** 7 m
+  před vchodem domu nevěsty (ne na poli) – otevřená otázka pro Martina, zatím takhle.
+- **Průvod:** od vchodu domu nevěsty (nevěsta z okolí – od domu ženicha) po pěšinách a cestách.
+  Vpředu **nevěsta s věncem a ženich**, za nimi po dvou **domácnosti obou** a **z každé další
+  domácnosti 1–2 lidé** (napřed dospělí), nejvýš **30 postav** i s párem a lidmi z okolí; **ve
+  vojvodově rodině jde celá ves**, nejvýš **40**. Tempo jako průvod pohřbu (0,6 m/s, ke
+  vzdálenějšímu místu rychleji, nejvýš 1,1 m/s); kdo se do řady nevešel, čeká před domem a zařadí
+  se.
+- **Nevěsta nebo ženich z okolí** přijde **se svými lidmi** (otec, matka, sourozenci – 2–5 lidí)
+  **od kraje mapy** ve směru, odkud je (`origin`) – po hotové zemské stezce v tom směru, jinak
+  krajinou rovně – přímo k místu obřadu. Průvod ze vsi vyjde tak, aby obě skupiny došly naráz.
+- **Obřad:** svatebčané stojí **v podkově kolem páru** (strana k modle, kmeni, háji nebo ohni
+  zůstane volná; ve svatyni jen na ploše uvnitř příkopu), pár hledí k místu obřadu, od 60 %
+  obřadu k sobě; obřad trvá 40 s, začne, až jsou všichni na místě (nejvýš 30 s po příchodu).
+  **Ve svatyni hoří obě ohniště u vstupu**, na návsi ohniště z kamenů a polen (od 20 s před
+  příchodem do 20 s po obřadu); u modly, dubu a háje se nehoří. **Na posvátném dubu je při
+  obřadu věnec a pentle** – po svatbě zmizí.
+- **Zpátky:** pár jde **průvodem do nového domova** (`weddingHome`) a za ním lidé, kteří tam
+  bydlí; ostatní se rozejdou každý ke svému domu a doma zmizí. Lidé z okolí odejdou **spolu zpět
+  ke kraji mapy** a zmizí; nevěsta nebo ženich z okolí jde s párem.
+- **Vzhled:** nevěsta v běleném lnu s **věncem z kvítků** (kód vlasů v barvě instance – žádný
+  nový atribut vrcholů, WebGPU má limit 8 vertex bufferů), svatebčané **pestřeji oblečení**
+  (mořena, boryt, rezeda, zelená, okr, bělený len). **Hudebníci ne** – sada klipů z 0 A.D.
+  (`people.json`) nemá klip hry na nástroj a nový by znamenal znovu převést postavy.
+- **Postavy svatby jdou mimo rozpočet** běžných postav (60 pracujících); lidé vsi na svatbě ubírají
+  z pracujících postav ve dnech, kdy jsou vidět (lidé z okolí ne); nejvýš 60 postav svateb naráz
+  (nejnovější svatby napřed).
+- **Výkon** (Vlkov, Chromium s WebGL 2, M1 Pro – harness `scratchpad/zoom-perf/harness/`): snímek
+  s průvodem, s obřadem a ohněm ve svatyni i s průvodem celé vsi (34 lidí) v záběru CPU
+  1,1–1,4 ms, GPU 8,8–11,3 ms (bez svatby v pohledu na ves 1,45 ms a 10,1 ms); nejdelší snímek
+  16,8 ms (vsync), žádný dlouhý snímek; krok animace nejvýš 0,2 ms; přeplánování lidí se svatbou
+  nejvýš 4 ms (bez ní 3,1 ms).
+
+| Rozhodnutí                                                                                | Kdo                     |
+| ----------------------------------------------------------------------------------------- | ----------------------- |
+| Svatba ve scéně, svatebčané jdou na posvátné místo v okolí                                | Martin (20. 10. 2026)   |
+| Jen zobrazení; kronika navíc nese pár a domy před svatbou, starší zápisy z `from` / `to`  | návrh Clauda            |
+| Místo do 600 m: stojící navštěvovaná modla / svatyně, živý dub, háj; váha 1 ÷ (d + 40 m)² | návrh Clauda            |
+| Svatyně a modla k předku, dub na kraj koruny, háj na kraj; bez místa ohniště na návsi     | návrh Clauda (otevřené) |
+| Průvod od domu nevěsty, vpředu pár; domácnosti obou a 1–2 z dalších, nejvýš 30, dvorec 40 | návrh Clauda            |
+| Z okolí se 2–5 svými lidmi od kraje mapy (po stezce), obě skupiny dojdou naráz            | návrh Clauda            |
+| Podkova kolem páru, obřad 40 s, pár k sobě; ohniště svatyně u vstupu hoří; věnec na dubu  | návrh Clauda            |
+| Zpátky průvodem do nového domova, ostatní domů, lidé z okolí spolu ke kraji               | návrh Clauda            |
+| Nevěsta s věncem v běleném lnu, svatebčané pestřeji; hudebníci ne (chybí klip)            | návrh Clauda            |
+| Dcera vdaná pryč svatbu ve scéně nemá; svatby posledních 40 dnů, mimo rozpočet postav     | návrh Clauda            |
+
 ## Domácnosti
 
 Dnešní pravidla domácností (population.md – Martinova rozhodnutí 18. 10. 2026) se přeloží na
@@ -126,6 +197,7 @@ vsi blízké příbuzné, nebudou chtít útočit):
 - Panel obydlí: muži, ženy, děti a starší (ikony + čísla); páry (ikona prstenu + počet).
 - Upozornění: „Svatba“ (ve vsi, i vdovy), „Nevěsta z okolí“, „Ženich z okolí“, „Dcera se vdala pryč“
   (fakty, krátké řádky) a „Rodina čeká na dům“ (rodina, která smí odejít, nemá kam).
+- Ve scéně svatební průvod na posvátné místo, obřad a cesta do nového domova (Svatba ve scéně).
 
 ## Implementace – doplněné detaily (návrh Clauda)
 

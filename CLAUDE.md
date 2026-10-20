@@ -1130,7 +1130,8 @@ rozhraní částí v
   (`shaped-model.ts` – `makeShapeable` při načtení, `ModelInstance.shape`, `setShapeFrames`
   v `setInstances`; duch u kurzoru `shapeGhost` do vrcholů); jáma `pitShapeOf` / `shapedPit`,
   `sceneFrame(d)` a `shapedToWorld` pro hlínu, trsy, dým (`smokeVent`), rekvizity, místa
-  řemeslníků, `footprintRect` / `clearanceRect` pro výběr, minimapu, slepice a postavy. Ukázka
+  řemeslníků, `footprintRect` / `clearanceRect` pro výběr, minimapu, slepice a postavy (`houseBox`
+  / `siteBox(type, frame)` – vchod `trafficDoor` i průvody pohřbu a svatby z jejich `maxZ`). Ukázka
   `/dev/buildings` **Varianty** (`showcaseVariants`).
 - **Obydlí na poli a v sadu** (population.md – Obydlí na poli a v sadu; Martin 18. 10. 2026:
   „Pole a sad se prostě zmenší o plochu domu“): `checkDwellingPlacement`, `checkPlotPlacement`
@@ -1491,6 +1492,20 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   Kronika `marriage` (`groomMoved`, `widow`), `bride-from-outside`, `groom-from-outside`
   (`widow`), `married-away`; upozornění „Svatba“ (`VillageView.lastMarriageDay`), „Nevěsta
   z okolí“, „Ženich z okolí“, „Dcera se vdala pryč“.
+  **Svatba ve scéně** (kinship.md – Svatba ve scéně; Martin, GitHub issue #2: „Jako máme pohřeb,
+  udělej i svatbu. Svatebčané půjdou na některé z posvátných míst v okolí, kde budou oddáni.“ –
+  jen zobrazení): události svatby nesou `groomId` / `brideId` (`WeddingCouple`) a `marriage`
+  i domy před svatbou (`groomFromDwellingId`, `brideFromDwellingId`; starší z `from` / `to`);
+  `lib/wedding-view.ts` → `SceneVillage.weddings` (posledních 40 dnů, svatebčané `weddingGuests`,
+  lidé z okolí `weddingCompanions` a bod na kraji mapy); scéna `wedding-plan.ts` (místo
+  `weddingSiteCandidates` / `pickWeddingSite` – stojící navštěvovaná modla a svatyně, živý dub,
+  háj do 600 m, váha 1 ÷ (d + 40 m)², jinak ohniště na návsi; průvod od domu nevěsty, lidé z okolí
+  od kraje mapy po stezce, obě skupiny naráz; podkova `horseshoeSpots`; cesta do nového domova –
+  čisté funkce času, sdílí pomocníky průvodu z `funeral-plan.ts`), plány `planWeddings` ve
+  `villager-plan.ts` → `onWeddings` → `wedding-renderer.ts` (oheň v ohništích svatyně u vstupu
+  a na návsi – `pyre-fire.ts` menší, věnec s pentlemi na kmeni dubu jen při obřadu – poloměr kmene
+  podle modelu `OAK_TRUNK_M`). Ukázka **Svatba** na `/dev/landscape` (dub, svatyně, nevěsta
+  z okolí, náves).
 - **Přestěhování domácnosti** ([migration.md](docs/design/migration.md), fáze 1): akce
   `startRelocation` (`actions.ts`) = nová stavba obydlí (`kind: 'dwelling'`) s
   `Construction.relocates` = id domácnosti – dřevo, pozemek polozemnice, překážky a cena jako
@@ -1955,10 +1970,32 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   na vrchol nepřidávat, patří do textury. Klipy se střídají střihem (VAT prolínat neumí). Hýbou
   se jen v záběru (`WATER_FPS`), při omezeném pohybu stojí. Ve vývojovém náhledu tlačítko
   **Lidé** (ukázkové rozdělení práce podle měsíce – `app/dev/landscape/dev-labor.ts`, i lidé po
-  obydlích pro provoz na cestách).
+  obydlích pro provoz na cestách a ukázkoví lidé – `demoPersons`).
+  **Výběr postavy** (villagers.md – Výběr postavy; Martin 20. 10. 2026: „Stačí mi jenom vědět info
+  typu - žena rolníka, jde pro vodu.“): **postava = konkrétní člověk** – server posílá
+  `SceneLabor.persons` (`lib/person-view.ts`: id, věk, pohlaví, domácnost, role z
+  `lib/person-roles.ts`), `planVillagers` přiřadí každé postavě člověka (`DayRoster` ve
+  `villager-roster.ts` – los ze seedu a dne, nikdo dvakrát; `cast` ve `villager-plan.ts`) v pořadí
+  pohřeb → karavany (tesař na cestě pro kování podle `SceneExpedition.trip.travellerId`) → nosiči
+  kováře podle věku → pasáci → dílny u své práce → první člověk u stavby → práce vsi → provoz na
+  cestách (z domácnosti proudu) → domácí práce a nečinní → starší; na koho nezbude člověk, ta
+  postava není. Postava nese `person` a `job` (`PersonJob`), póza úsek pochůzky
+  (`VillagerPose.stage`). Výběr `{ kind: 'person', id }` – `VillageVillagers.pick` (do 12 px od
+  průmětu, `villager-pick.ts`, jen při kliknutí) má přednost před `pickVillageTarget`; žlutý
+  kroužek `villagers-ring` (jedna instance), stav vybraného člověka `onPersonState` jen při změně →
+  `selectionDetails(…, personState)` → panel `PersonBody` (činnost `lib/person-activity.ts`).
+  Bez `persons` jsou postavy jako dřív (nejdou vybrat). Ukázka `/dev/panels?panel=postava`.
   **Pohřeb** (villagers.md – Pohřeb): průvod s márami a kruh kolem hranice jsou postavy s klíčem
   `funeral:` z `funeral-plan.ts` (`funeralFigures` ve `villager-plan.ts`) – jdou mimo rozpočet
   `MAX_WORKERS`, ve dnech obřadu se o ně sníží počet pracujících postav (`funeralActiveIn`).
+  **Svatba** (villagers.md – Svatba): průvod, pár a podkova svatebčanů jsou postavy s klíčem
+  `wedding:` (`weddingFigures`, nejvýš `MAX_WEDDING_FIGURES_TOTAL` = 60) – mimo `MAX_WORKERS`,
+  lidé vsi ubírají z pracujících ve dnech, kdy jsou vidět (`weddingVillagersIn`); nevěsta má kód
+  vlasů `wreath` (věnec z kvítků – shader po masce vlasů, villagerLook.w = 4), svatebčané pestřejší
+  oděv (`WEDDING_CLOTH`). Svatebčan je člověk vsi (`WeddingMember.person` → `roster.takeId`,
+  jen kdo je ten den vidět – `weddingMembersIn`; lidé z okolí jako cizí postavy), jde vybrat
+  kliknutím; činnost `PersonJob` `wedding` – „jde na svatbu“, „je oddávána“ / „je oddáván“,
+  „stojí u obřadu“, „vrací se ze svatby“ (úseky `wait` / `ring` / `home` ve `weddingPose`).
   **Provoz na cestách** (villagers.md – Provoz na cestách; Martin 19. 10. 2026: „Chci vidět
   vesničany, jak chodí pro vodu nebo na pole.“): `road-traffic.ts` (čisté funkce) – proud lidí
   pro vodu (`waterTrips` – `WATER_FETCHING.tripsPerPerson` × lidé z `SceneLabor.homes`, bez vody

@@ -19,7 +19,9 @@ export function isNeighbourId(id: number): boolean {
 /** Je vybraný cíl stavba jiné vsi (ta se nevybírá)? */
 export function isNeighbourTarget(target: VillageTarget): boolean {
   if (target.kind === 'dwellings') return target.ids.some(isNeighbourId);
-  if (target.kind === 'sacred-oak' || target.kind === 'grove') return false;
+  if (target.kind === 'sacred-oak' || target.kind === 'grove' || target.kind === 'person') {
+    return false;
+  }
   return isNeighbourId(target.id);
 }
 

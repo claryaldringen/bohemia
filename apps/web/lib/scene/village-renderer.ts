@@ -25,6 +25,8 @@ import { buildingClearings } from './building-clearings';
 import { CemeteryRenderer } from './cemetery-renderer';
 import { withoutHiddenMounds, type FuneralPlan } from './funeral-plan';
 import { FuneralRenderer } from './funeral-renderer';
+import type { WeddingPlan } from './wedding-plan';
+import { WeddingRenderer } from './wedding-renderer';
 import { OreSiteRenderer } from './ore-sites';
 import {
   DECAY_LOOKS,
@@ -277,6 +279,8 @@ export class VillageRenderer {
   private readonly cemeteries: CemeteryRenderer;
   /** Pohřby – máry, hranice, oheň a dým (cemetery.md – Pohřeb ve scéně). */
   private readonly funerals: FuneralRenderer;
+  /** Svatby – oheň obřadu a věnec na posvátném dubu (kinship.md – Svatba ve scéně). */
+  private readonly weddings: WeddingRenderer;
   /** Mohyly, které hranice ještě nenechala nasypat (klíč pro změnu). */
   private hiddenMoundsKey = '';
   /** Rudiště kovářů – jámy a hromady rudy (crafts.md – Uhlí a ruda kováře). */
@@ -328,6 +332,7 @@ export class VillageRenderer {
       groundHeight: context.groundHeight,
       onLoaded: () => context.requestRender(),
     });
+    this.weddings = new WeddingRenderer(scene, { groundHeight: context.groundHeight });
     this.ores = new OreSiteRenderer(scene, {
       decalHeight: context.decalHeight,
       addShadowCaster: (mesh) => context.addShadowCaster(mesh),
@@ -586,7 +591,22 @@ export class VillageRenderer {
     // pohřební hranice a máry; mohyla se nasype, až hranice vychladne
     const funerals = this.funerals.animate(nowMs, camera);
     const mounds = this.refreshMounds(nowMs);
-    return smoke || funerals || mounds;
+    // svatby: oheň obřadu, věnec na dubu
+    const weddings = this.weddings.animate(nowMs, camera);
+    return smoke || funerals || mounds || weddings;
+  }
+
+  /**
+   * Svatby (kinship.md – Svatba ve scéně): plány s průvodem z villagers.ts – oheň obřadu a věnec
+   * s pentlemi na posvátném dubu. Vrátí true, když je co překreslit.
+   */
+  setWeddings(plans: readonly WeddingPlan[], nowMs: number): boolean {
+    return this.weddings.set(plans, nowMs);
+  }
+
+  /** Kam namířit kameru na svatbu – průvod, pár (vývojová ukázka). */
+  weddingFocus(nowMs: number): ReturnType<WeddingRenderer['focus']> {
+    return this.weddings.focus(nowMs);
   }
 
   /**
@@ -636,6 +656,8 @@ export class VillageRenderer {
   setObstacles(layer: ObstacleLayer): boolean {
     const orchards = this.orchards.setObstacles(layer);
     const meadows = this.fields.setLandscape(this.context.landscape ?? null, layer);
+    // věnec na kmeni posvátného dubu podle modelu a měřítka stromu (svatba)
+    this.weddings.setObstacles(layer);
     return orchards || meadows;
   }
 
@@ -820,6 +842,7 @@ export class VillageRenderer {
     this.disposed = true;
     this.smoke.dispose();
     this.funerals.dispose();
+    this.weddings.dispose();
     this.cemeteries.dispose();
     this.ores.dispose();
     this.plots.dispose();
