@@ -106,6 +106,8 @@ export interface FuneralTimeline {
 export interface FuneralMember {
   key: string;
   bearer: boolean;
+  /** Člověk vsi za márami (id – `SceneMourner.id`; villagers.md, Výběr postavy); nosiči nemají. */
+  person?: number;
   sex: SceneMourner['sex'];
   child: boolean;
   elder: boolean;
@@ -158,12 +160,12 @@ export interface FuneralEnv {
   figureScale: number;
 }
 
-function smooth(u: number): number {
+export function smooth(u: number): number {
   const t = Math.min(1, Math.max(0, u));
   return t * t * (3 - 2 * t);
 }
 
-function unit(x: number, z: number): Point {
+export function unit(x: number, z: number): Point {
   const l = Math.hypot(x, z);
   return l > 1e-6 ? { x: x / l, z: z / l } : { x: 0, z: 1 };
 }
@@ -371,7 +373,7 @@ function aroundPyre(a: Point, b: Point, c: Point): Point[] {
   return [a, { x: c.x + n.x * r, z: c.z + n.z * r }, b];
 }
 
-function routeOf(points: readonly Point[]): Route {
+export function routeOf(points: readonly Point[]): Route {
   const clean: [number, number][] = [];
   for (const p of points) {
     const last = clean[clean.length - 1];
@@ -651,6 +653,7 @@ export function funeralPlan(
     members.push({
       key: bearer ? `bearer:${i}` : `mourner:${i - FUNERAL_BEARERS}`,
       bearer,
+      ...(mourner?.id !== undefined ? { person: mourner.id } : {}),
       sex: mourner?.sex ?? 'male',
       child: (mourner?.age ?? 30) < 14,
       elder: (mourner?.age ?? 30) >= 45,
@@ -704,7 +707,7 @@ export function funeralPlan(
 const SLOWEST_M_S = 0.6;
 
 /** Body trasy od vzdálenosti `from` do `to` (včetně krajních bodů). */
-function subPath(path: Route, from: number, to: number): Point[] {
+export function subPath(path: Route, from: number, to: number): Point[] {
   const a = Math.max(0, Math.min(path.length, from));
   const b = Math.max(a, Math.min(path.length, to));
   alongRoute(path, a, false, TMP_POSE);
@@ -730,7 +733,7 @@ function columnPoint(path: Route, stopS: number, behind: number, side: number, w
 }
 
 /** Místa u vchodu, kde lidé čekají, než na ně v průvodu přijde řada (půlkruh před vchodem). */
-function doorWaits(
+export function doorWaits(
   door: Point,
   path: Route,
   count: number,
@@ -799,10 +802,12 @@ export function funeralPose(
       o.clip = 'walk';
       o.pace = own / walk;
       o.hidden = d >= m.home.length + 0.5;
+      o.stage = 'home';
       return o;
     }
     // v kruhu kolem hranice (po příchodu)
     if (nowMs >= m.ringMs) {
+      o.stage = 'ring';
       const d = ((nowMs - m.ringMs) / 1000) * own;
       alongRoute(m.toRing, d, false, o);
       if (d >= m.toRing.length) {

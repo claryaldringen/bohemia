@@ -1,5 +1,7 @@
 import { SURFACE_CODES, type Landscape, type Surface } from '../../landscape';
-import type { TileCell } from '../types';
+import { dwellingFrame, shapeRect } from '../dwelling-shape';
+import { DWELLING_CLEARING_M } from '../rules';
+import type { DwellingType, TileCell } from '../types';
 
 // Ručně vyrobená krajina pro testy umisťování: políčka 15 m, střed krajiny v počátku.
 // Při velikosti 16 leží hranice políček na násobcích 15 m (…, −15, 0, 15, …).
@@ -42,4 +44,21 @@ export function block(x: number, y: number, width: number, height: number): Tile
   for (let j = 0; j < height; j++)
     for (let i = 0; i < width; i++) cells.push({ x: x + i, y: y + j });
   return cells;
+}
+
+/**
+ * Vyklízená plocha obydlí bez natočení ve světě i s variantou rozměrů podle polohy (population.md
+ * – Varianty rozměrů), rozšířená o `margin` – jako `dwellingClearing`, jen obdélník s rozměry.
+ */
+export function clearingRect(
+  type: DwellingType,
+  position: { x: number; z: number },
+  margin = 0,
+): { minX: number; maxX: number; minZ: number; maxZ: number; width: number; depth: number } {
+  const c = shapeRect(dwellingFrame({ type, position }), DWELLING_CLEARING_M[type]);
+  const minX = position.x + c.minX - margin;
+  const maxX = position.x + c.maxX + margin;
+  const minZ = position.z + c.minZ - margin;
+  const maxZ = position.z + c.maxZ + margin;
+  return { minX, maxX, minZ, maxZ, width: maxX - minX, depth: maxZ - minZ };
 }

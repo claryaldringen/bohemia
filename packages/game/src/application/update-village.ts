@@ -22,6 +22,7 @@ import {
   withPenSpecies,
   withOxen,
   withPlots,
+  withDwellingShapes,
   withoutBuiltOverRuins,
   withoutForeignGoods,
   type VillageState,
@@ -80,7 +81,8 @@ async function advancedToTodayWithPauses(
  * (verze nesouhlasí) to zkusí znovu nad čerstvým stavem. Nezměněný stav se neukládá.
  * Vsi z doby před vrstvou překážek nejdřív doplní odstraněné překážky (`withObstacleClearing`)
  * a obydlím z doby před palivem vzdálenost k lesu (`withForestDistances`), polozemnicím z doby
- * před pozemky pozemek (`withPlots`), stará navazující pole se sloučí (`withMergedFields`) a vsím
+ * před pozemky pozemek (`withPlots`), stavby z doby před variantami rozměrů variantu, nebo příznak
+ * dnešního tvaru (`withDwellingShapes` – population.md), stará navazující pole se sloučí (`withMergedFields`) a vsím
  * z doby před dobytkem se doplní výchozí stádo a louka a les pro pastvu (`withLivestockLand`)
  * a pevné cesty z doby před slučováním úseků se spojí ve falešných rozcestích (`withMergedRoads`)
  * a zacelí se díry mezi nimi (`withJoinedRoads`), hotové upravené cesty a stezky lesem dostanou
@@ -117,10 +119,15 @@ export async function updateVillage(
                 withMergedRoads(
                   withLivestockLand(
                     withMergedFields(
-                      withPlots(
-                        withForestDistances(
-                          withObstacleClearing(record.state, obstacles),
+                      // varianty rozměrů domů (population.md) – po pozemcích, ať dům zná svůj
+                      withDwellingShapes(
+                        withPlots(
+                          withForestDistances(
+                            withObstacleClearing(record.state, obstacles),
+                            landscape,
+                          ),
                           landscape,
+                          obstacles,
                         ),
                         landscape,
                         obstacles,

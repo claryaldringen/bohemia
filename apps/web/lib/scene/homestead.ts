@@ -47,6 +47,8 @@ export interface PlotView {
   house?: Position;
   /** Rozpad pozemku chátrajícího obydlí (plot, zarostlé záhony); bez údaje celý. */
   decay?: PlotDecay;
+  /** Dům má dnešní tvar bez varianty rozměrů (population.md – Varianty rozměrů). */
+  plainShape?: boolean;
 }
 
 interface PlotEntry {
@@ -100,7 +102,7 @@ export class HomesteadRenderer {
       const turned = view.square.rotation ? `@${view.square.rotation}` : '';
       const layoutKey = `${view.square.x},${view.square.z},${view.square.size},${view.variant}${
         h ? `|${h.x},${h.z},${h.rotation}` : ''
-      }${y ? `|${y.x},${y.z}` : ''}${turned}`;
+      }${y ? `|${y.x},${y.z}` : ''}${turned}${view.plainShape ? '|plain' : ''}`;
       const p = view.progress;
       const d = view.decay;
       const decayKey = d ? `|${round(d.fence)}|${round(d.beds)}|${d.seed}` : '';
@@ -111,7 +113,7 @@ export class HomesteadRenderer {
       const layout =
         current?.layoutKey === layoutKey
           ? current.layout
-          : homesteadLayout(view.square, view.variant, view.id, view.house);
+          : homesteadLayout(view.square, view.variant, view.id, view.house, view.plainShape);
       // cestička až s hotovým plotem (branka)
       const wantsPath = p.rails >= 1;
       let path = current?.layoutKey === layoutKey ? current.path : null;

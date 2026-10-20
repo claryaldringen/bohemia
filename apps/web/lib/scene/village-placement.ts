@@ -5,9 +5,10 @@ import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
 import {
   CRAFT_NAMES,
-  DWELLING_FOOTPRINT_M,
   SACRED_BUILDINGS,
   WORKSHOP_PORCH_M,
+  dwellingFrame,
+  dwellingShape,
   rotatedSquareCorners,
   workshopFootprints,
   type DwellingPlot,
@@ -22,9 +23,10 @@ import { nextPlotVariant, plotHouse, type PlotSquare } from './homestead-layout'
 import { sacredStakeLines } from './sacred-layout';
 import {
   decalGrid,
-  footprintCorners,
+  footprintRect,
   localToWorld,
   polygonBounds,
+  rectCorners,
   softCoverage,
   stripSegments,
   type Point,
@@ -42,6 +44,7 @@ import type {
   PlacementResult,
 } from './village-types';
 import { CRAFT_MODEL, milirPlace, type WorkshopModel } from './workshop-layout';
+import { shapeGhost } from './shaped-model';
 
 /** Krok otáčení obydlí klávesami [ a ] (jako otáčení budovy v 0 A.D.). */
 const ROTATE_STEP = Math.PI / 12;
@@ -80,15 +83,21 @@ type FootprintMode = Extract<PlacementMode, { kind: 'dwelling' | 'plot' | 'sacre
 /** Model ducha: obydlí, dílna nebo milíř uhlíře, modla či svatyně. */
 export type GhostType = DwellingType | SacredBuildingKind | WorkshopModel | 'milir';
 
-/** Šířka a hloubka půdorysu stavby (m); dílna s přístřeškem (vpředu delší). */
-function footprintSize(mode: FootprintMode): { width: number; depth: number } {
-  if (mode.kind === 'workshop') {
-    const { width, depth } = DWELLING_FOOTPRINT_M[mode.type];
-    return { width, depth: depth + WORKSHOP_PORCH_M[mode.craft] };
+/**
+ * Půdorys stavby u kurzoru v souřadnicích modelu (m): obydlí a dílna s variantou rozměrů podle
+ * polohy (population.md – Varianty rozměrů; dílna i s přístřeškem vpředu), modla a svatyně.
+ */
+function footprintOf(
+  mode: FootprintMode,
+  position: Position,
+  plot: DwellingPlot | null,
+): { minX: number; maxX: number; minZ: number; maxZ: number } {
+  if (mode.kind === 'sacred') {
+    const half = SACRED_BUILDINGS[mode.type].footprintM / 2;
+    return { minX: -half, maxX: half, minZ: -half, maxZ: half };
   }
-  if (mode.kind !== 'sacred') return DWELLING_FOOTPRINT_M[mode.type];
-  const size = SACRED_BUILDINGS[mode.type].footprintM;
-  return { width: size, depth: size };
+  const porch = mode.kind === 'workshop' ? WORKSHOP_PORCH_M[mode.craft] : 0;
+  return footprintRect({ type: mode.type, position, ...(plot ? { plot } : {}) }, porch);
 }
 /** Česky pojmenované varianty pozemku pro bublinu u kurzoru. */
 const VARIANT_NAMES: Record<PlotVariant, string> = {
@@ -325,6 +334,7 @@ export class PlacementController implements ActivePlacement {
       return;
     }
     let position: Position;
+    let plot: DwellingPlot | null = null;
     let check: PlacementCheck & { cost?: PlacementCost | null };
     let label = mode.kind === 'workshop' ? CRAFT_NAMES[mode.craft] : FOOTPRINT_NAMES[mode.type];
     if (mode.kind === 'plot') {
@@ -334,7 +344,8 @@ export class PlacementController implements ActivePlacement {
         this.handlers.onPreview?.(null);
         return;
       }
-      const { plot, square } = at;
+      const { square } = at;
+      plot = at.plot;
       const plotCheck = mode.check(plot);
       check = plotCheck;
       position = plotCheck.position ?? plotHouse(square, this.variant);
@@ -354,21 +365,22 @@ export class PlacementController implements ActivePlacement {
       check = mode.check(position);
     }
     const look = check.ok ? 'ok' : 'bad';
-    const { width, depth } = footprintSize(mode);
-    // dílna: půdorys s přístřeškem vpředu a u uhlíře i čtverec milíře (herní jádro)
+    const rect = footprintOf(mode, position, plot);
+    // dílna: půdorys s přístřeškem vpředu (herní jádro – i s variantou rozměrů)
     const outlines =
       mode.kind === 'workshop'
-        ? workshopFootprints(mode.craft, position).map((polygon) =>
-            polygon.map(([x, z]): Point => [x, z]),
-          )
-        : [footprintCorners(position, width, depth)];
+        ? workshopFootprints(
+            mode.craft,
+            position,
+            dwellingShape({ type: mode.type, position }),
+          ).map((polygon) => polygon.map(([x, z]): Point => [x, z]))
+        : [rectCorners(position, rect)];
     for (const corners of outlines) {
       this.addFill(corners, look, 0.35);
       this.addStrip(stripSegments(corners, true, 0.2, 1), look);
     }
     // Šipka před vchodem – kam bude obydlí otevřené (dílna: před přístřeškem).
-    const front =
-      mode.kind === 'workshop' ? depth - DWELLING_FOOTPRINT_M[mode.type].depth / 2 : depth / 2;
+    const front = rect.maxZ;
     const tip = localToWorld(position, 0, front + 1.6);
     const left = localToWorld(position, -0.7, front + 0.5);
     const right = localToWorld(position, 0.7, front + 0.5);
@@ -381,6 +393,13 @@ export class PlacementController implements ActivePlacement {
       }
     }
     if (this.model) {
+      // duch má tvar varianty u kurzoru (population.md – Varianty rozměrů)
+      if (mode.kind !== 'sacred') {
+        shapeGhost(
+          this.model,
+          dwellingFrame({ type: mode.type, position, ...(plot ? { plot } : {}) }),
+        );
+      }
       this.model.position.set(position.x, this.context.baseHeight(ghostType, position), position.z);
       this.model.rotation.set(0, position.rotation, 0);
       showGhost(this.model, check.ok);

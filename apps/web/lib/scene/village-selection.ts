@@ -1,5 +1,6 @@
 import type { SceneVillage } from '../village-view';
 import {
+  personExists,
   selectedFieldPart,
   selectedOrchardSquare,
   wholeTarget,
@@ -74,6 +75,8 @@ export function presentTarget(
     if (target.kind === 'orchard-square') {
       return selectedOrchardSquare(village, target) ? target : null;
     }
+    // zemřelý člověk (villagers.md – Výběr postavy)
+    if (target.kind === 'person') return personExists(village, target.id) ? target : null;
     return target;
   }
   const ids = target.ids.filter((id) => village.dwellings.some((d) => d.id === id));

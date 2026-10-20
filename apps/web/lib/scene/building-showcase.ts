@@ -22,6 +22,7 @@ import {
   SHOWCASE_GROUNDS,
   SHOWCASE_KILN,
   SHOWCASE_PEN,
+  SHOWCASE_VARIANTS,
   showcaseCartGround,
   showcaseCarts,
   showcaseDecay,
@@ -33,6 +34,7 @@ import {
   showcasePlough,
   showcasePloughDay,
   showcasePloughWindow,
+  showcaseVariants,
   type ShowcaseDecorModel,
 } from './building-showcase-layout';
 import { CartRenderer } from './cart-renderer';
@@ -185,6 +187,11 @@ export class BuildingShowcase {
   private kilnDemo: VillageRenderer | null = null;
   private kilnT = 0.45;
   private lastKilnSmoke = 0;
+  /**
+   * Varianty rozměrů zemnic, polozemnic a dílen (population.md – Varianty rozměrů) – herní renderer
+   * vsi s řadami hotových staveb (showcaseVariants).
+   */
+  private variants: VillageRenderer | null = null;
   /** Pozemky polozemnic – plot a záhony po fázích jako ve vsi (homestead.ts). */
   private plots: HomesteadRenderer | null = null;
   private fences: WovenFenceRenderer | null = null;
@@ -309,6 +316,7 @@ export class BuildingShowcase {
       SHOWCASE_ROADS,
       SHOWCASE_CARTS,
       SHOWCASE_KILN,
+      SHOWCASE_VARIANTS,
     ].find((b) => b.id === id);
     if (!target) return;
     this.setView(target.focus);
@@ -420,6 +428,7 @@ export class BuildingShowcase {
     this.grounds?.dispose();
     this.decay?.dispose();
     this.kilnDemo?.dispose();
+    this.variants?.dispose();
     this.plots?.dispose();
     this.fences?.dispose();
     this.ploughDemo?.dispose();
@@ -484,10 +493,11 @@ export class BuildingShowcase {
     // louka se prořízne jámami stavenišť i rozpadlých obydlí a zbytků jam
     const pitCuts = new PitCuts();
     const mergeCuts = (): void =>
-      pitCuts.set([...siteCuts.list, ...decayCuts.list, ...kilnCuts.list]);
+      pitCuts.set([...siteCuts.list, ...decayCuts.list, ...kilnCuts.list, ...variantCuts.list]);
     const siteCuts = new PitCutsPart(mergeCuts);
     const decayCuts = new PitCutsPart(mergeCuts);
     const kilnCuts = new PitCutsPart(mergeCuts);
+    const variantCuts = new PitCutsPart(mergeCuts);
 
     const ground = CreateGround(
       'showcase-ground',
@@ -660,6 +670,23 @@ export class BuildingShowcase {
       sunDirection: SUN_DIRECTION,
     });
     this.kilnDemo.update(showcaseKiln(this.kilnT));
+    // varianty rozměrů – řady hotových staveb jako ve hře
+    this.variants = new VillageRenderer(scene, {
+      groundHeight: () => 0,
+      decalHeight: () => 0,
+      addShadowCaster: (mesh) => {
+        if (this.shadows) this.shadows.addCaster(mesh);
+        else casters.push(mesh);
+      },
+      onAsyncChange: () => {
+        this.shadows?.refresh();
+        this.burst(600);
+      },
+      requestRender: () => this.burst(300),
+      pitCuts: variantCuts,
+      sunDirection: SUN_DIRECTION,
+    });
+    this.variants.update(showcaseVariants());
     this.grounds.setHayMeadows(showcaseHayMeadows());
     this.grounds.setSeason(showcaseMeadowDay(this.progress), this.snow());
     this.grounds.update(showcaseGrounds(this.progress).village);
@@ -903,6 +930,7 @@ export class BuildingShowcase {
     ) {
       this.lastKilnSmoke = now;
       if (this.kilnDemo.animateSmoke(Date.now(), this.camera)) animated = true;
+      if (this.variants?.animateSmoke(Date.now(), this.camera)) animated = true;
     }
     if (this.penAnimals) {
       if (this.reducedMotion?.matches) {

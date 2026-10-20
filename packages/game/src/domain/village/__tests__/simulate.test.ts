@@ -903,6 +903,10 @@ describe('advanceVillage – obydlí', () => {
       kind: 'marriage',
       fromDwellingId: 2,
       toDwellingId: 50,
+      groomId: 20,
+      brideId: 42,
+      groomFromDwellingId: 50,
+      brideFromDwellingId: 2,
     });
     // za rok nikdo zpátky – ani sestra (15) neodešla, dcery odcházejí sňatkem
     const later = advanceVillage(s, day + 365, null);
@@ -1131,7 +1135,16 @@ describe('advanceVillage – obydlí', () => {
     const s = advanceVillage(s0, day + Math.ceil(6 * YEAR), null);
     const wedding = s.chronicle.find((e) => e.kind === 'marriage');
     // 19letá z zemnice se hned provdá za 27letého do polozemnice (v zemnici zůstane 43letý)
-    expect(wedding).toEqual({ day, kind: 'marriage', fromDwellingId: 2, toDwellingId: 1 });
+    expect(wedding).toEqual({
+      day,
+      kind: 'marriage',
+      fromDwellingId: 2,
+      toDwellingId: 1,
+      groomId: 102,
+      brideId: 201,
+      groomFromDwellingId: 1,
+      brideFromDwellingId: 2,
+    });
     expect(s.people.find((p) => p.id === 102)?.spouseId).toBe(201);
     const born = s.people.filter((p) => p.motherId === 201 && p.fatherId === 102);
     expect(born.length).toBeGreaterThanOrEqual(1);

@@ -2,8 +2,8 @@
 // složené. Vesničané ji založí u obydlí nejblíž lesu na volném místě vedle něj (návrh Clauda);
 // kláda = jeden velký strom. Hromada roste s mýcením a ubývá, jak se staví.
 import {
-  DWELLING_FOOTPRINT_M,
   dwellingClearing,
+  dwellingShape,
   forestEdgeDistanceM,
   obstacleStatus,
   obstaclesNear,
@@ -20,7 +20,7 @@ import {
 } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 import { isRotatedSquare, squareContains } from './field-cells';
-import { dwellingArea, localToWorld } from './village-layout';
+import { dwellingArea, footprintRect, localToWorld } from './village-layout';
 
 /** Kláda – délka a poloměr (m): kmen velkého stromu přeřezaný na délku srubu. */
 export const LOG_LENGTH_M = 4.2;
@@ -162,15 +162,16 @@ export function logPileSite(
       home = d;
     }
   }
-  const footprint = DWELLING_FOOTPRINT_M[home.type];
+  // půdorys podle varianty rozměrů domu (population.md – Varianty rozměrů)
+  const footprint = footprintRect(home);
   // obydlí na pozemku: hromada za plotem (místní osy domu – pozemek je kolem něj souměrně
   // jen u varianty uprostřed, proto od okraje políčka, ne od stěny)
   const reach = home.plot
     ? plotReach(home.position, home.plot)
     : {
-        right: footprint.width / 2,
-        left: footprint.width / 2,
-        back: footprint.depth / 2,
+        right: footprint.maxX,
+        left: -footprint.minX,
+        back: -footprint.minZ,
       };
   const side = (half: number): number => half + SITE_GAP_M + PILE_DEPTH_M / 2;
   const behind = -reach.back - SITE_GAP_M - PILE_DEPTH_M / 2;
@@ -216,7 +217,7 @@ function isFree(
   for (const d of village.dwellings) {
     // vlastní pozemek je oplocený a plný záhonů – hromada leží za plotem
     if (d.id === homeId && !d.plot) continue;
-    const area = d.plot ? dwellingArea(d) : dwellingClearing(d.type, d.position);
+    const area = d.plot ? dwellingArea(d) : dwellingClearing(d.type, d.position, dwellingShape(d));
     if (polygonsOverlap(corners, area)) return false;
   }
   const margin = rectangleCorners(

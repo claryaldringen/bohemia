@@ -8,6 +8,13 @@ import {
   type ObstacleKind,
   type ObstacleLayer,
 } from '../landscape';
+import {
+  dwellingShape,
+  shapeFrame,
+  shapeRect,
+  type DwellingShape,
+  type ShapedDwelling,
+} from './dwelling-shape';
 import { pointInPolygon, type Point } from './polygon';
 import {
   roadAppleObstacleKind,
@@ -443,8 +450,14 @@ function localToWorld(position: Position, lx: number, lz: number): Point {
  * Plocha, kterou osadníci kolem obydlí vyklidí (staveniště) – rohy ve světě. `margin` (m) ji
  * rozšíří na všechny strany (v lese pruh pod korunami – FOREST_CROWN_MARGIN_M).
  */
-export function dwellingClearing(type: DwellingType, position: Position, margin = 0): Point[] {
-  const c = DWELLING_CLEARING_M[type];
+export function dwellingClearing(
+  type: DwellingType,
+  position: Position,
+  shape: DwellingShape,
+  margin = 0,
+): Point[] {
+  // varianta rozměrů (population.md – Varianty rozměrů): staveniště roste s domem, šíje ne
+  const c = shapeRect(shapeFrame(type, shape), DWELLING_CLEARING_M[type]);
   return [
     localToWorld(position, c.minX - margin, c.minZ - margin),
     localToWorld(position, c.maxX + margin, c.minZ - margin),
@@ -476,10 +489,11 @@ export function dwellingObstacles(
   status: ObstacleStatus,
   type: DwellingType,
   position: Position,
+  shape: DwellingShape,
   fieldTiles: OwnedLand = new Set(),
   keep: ReadonlySet<number> = NO_IDS,
 ): ObstacleTally {
-  return polygonObstacles(layer, status, dwellingClearing(type, position), fieldTiles, keep);
+  return polygonObstacles(layer, status, dwellingClearing(type, position, shape), fieldTiles, keep);
 }
 
 /**
@@ -700,11 +714,18 @@ export function withObstacleClearing(state: VillageState, layer: ObstacleLayer):
   next.felledTrees ??= [];
   const status = obstacleStatus();
   const day = Math.max(0, state.lastDay);
-  const sites: { type: DwellingType; position: Position }[] = [
+  const sites: (ShapedDwelling & { position: Position })[] = [
     ...next.dwellings,
     ...next.constructions.flatMap((c) =>
       c.kind === 'dwelling' && c.dwellingType !== null && c.position !== null
-        ? [{ type: c.dwellingType, position: c.position }]
+        ? [
+            {
+              type: c.dwellingType,
+              position: c.position,
+              ...(c.plot ? { plot: c.plot } : {}),
+              ...(c.plainShape ? { plainShape: true } : {}),
+            },
+          ]
         : [],
     ),
   ];
@@ -716,7 +737,14 @@ export function withObstacleClearing(state: VillageState, layer: ObstacleLayer):
     ...cemeteries.flatMap((c) => c.squares.map((s) => s.cell.y * layer.size + s.cell.x)),
   ]);
   for (const site of sites) {
-    const tally = dwellingObstacles(layer, status, site.type, site.position, fieldTiles);
+    const tally = dwellingObstacles(
+      layer,
+      status,
+      site.type,
+      site.position,
+      dwellingShape(site),
+      fieldTiles,
+    );
     for (const id of tally.ids) removed.add(id);
   }
   for (const part of next.parts) {

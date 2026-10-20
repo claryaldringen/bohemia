@@ -1,5 +1,6 @@
 import type { Landscape } from '../landscape';
 import { villageCemeteries } from './cemetery';
+import { dwellingShape, type ShapedDwelling } from './dwelling-shape';
 import { villagePens } from './oxen';
 import { penOccupancy } from './pens';
 import { dwellingFootprint } from './placement';
@@ -13,7 +14,6 @@ import { sacredBuildingPlots, sacredFootprint } from './sacred';
 import type {
   AbandonedStructure,
   ChronicleEvent,
-  Dwelling,
   DwellingPlot,
   Pen,
   Position,
@@ -284,14 +284,21 @@ function withoutBuiltOver(
       (b) => x + reach > b.minX && x - reach < b.maxX && z + reach > b.minZ && z - reach < b.maxZ,
     );
   const shapes: Point[][] = [];
-  const building = (type: Dwelling['type'], position: Position): void => {
-    if (near(position.x, position.z, DWELLING_REACH_M)) {
-      shapes.push(dwellingFootprint(type, position));
+  const building = (d: ShapedDwelling & { position: Position }): void => {
+    if (near(d.position.x, d.position.z, DWELLING_REACH_M)) {
+      shapes.push(dwellingFootprint(d.type, d.position, dwellingShape(d)));
     }
   };
-  for (const d of state.dwellings) building(d.type, d.position);
+  for (const d of state.dwellings) building(d);
   for (const c of state.constructions) {
-    if (c.position !== null && c.dwellingType !== null) building(c.dwellingType, c.position);
+    if (c.position !== null && c.dwellingType !== null) {
+      building({
+        type: c.dwellingType,
+        position: c.position,
+        ...(c.plot ? { plot: c.plot } : {}),
+        ...(c.plainShape ? { plainShape: true } : {}),
+      });
+    }
   }
   for (const b of sacredBuildingPlots(state)) {
     const half = (SACRED_BUILDINGS[b.kind].footprintM * Math.SQRT2) / 2;

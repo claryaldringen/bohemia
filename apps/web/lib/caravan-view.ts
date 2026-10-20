@@ -8,6 +8,7 @@ import {
   TRADE,
   ageYears,
   ironTripLine,
+  neighbourOf,
   newcomerProfiles,
   purchaseLine,
   type CraftPurchase,
@@ -70,6 +71,7 @@ function tradeCaravans(state: VillageState): SceneExpedition[] {
       rate: e.cost > 0 ? Math.round((perDay / e.cost) * 1e4) / 1e4 : 0,
       day,
       onMap: e.days > 0 ? Math.max(0.2, (e.days - TRADE.beyondEdgeDays) / e.days) : 1,
+      trip: { kind: 'trade', to: neighbourOf(state.seed, e.direction).name },
     };
   });
 }
@@ -99,6 +101,7 @@ function purchaseCaravan(state: VillageState, p: CraftPurchase): SceneExpedition
     rate: p.done < p.days ? Math.round((1 / trip) * 1e4) / 1e4 : 0,
     day: state.lastDay,
     onMap: Math.max(0.2, (trip - TRADE.beyondEdgeDays) / trip),
+    trip: { kind: 'purchase', to: neighbourOf(state.seed, p.direction).name },
   };
 }
 
@@ -140,5 +143,10 @@ function ironCaravan(state: VillageState, dwelling: Dwelling, trip: IronTrip): S
     day: state.lastDay,
     // do vsi na téže mapě je celá cesta vidět, k sousedovi den za krajem mapy (jako nákup)
     onMap: trip.to.kind === 'village' ? 1 : Math.max(0.2, (leg - TRADE.beyondEdgeDays) / leg),
+    trip: {
+      kind: 'iron',
+      to: trip.to.name,
+      ...(traveller ? { travellerId: traveller.id } : {}),
+    },
   };
 }

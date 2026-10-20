@@ -1,10 +1,14 @@
 import {
   DWELLING_FOOTPRINT_M,
   HAY_WINTER_MONTHS,
+  PLAIN_FRAME,
   SURFACE_CODES,
   dateOfDayIndex,
   rotationCosSin,
+  shapeX,
+  shapeZ,
   type DwellingType,
+  type ShapeFrame,
   type ForestField,
   type Landscape,
   type Position,
@@ -18,7 +22,7 @@ import { hash01 } from './smoke-schedule';
 import type { SceneFieldPart } from '../village-view';
 import type { StreamCenterline } from './stream-geometry';
 import { tileAt } from './tile-at';
-import { localToWorld } from './village-layout';
+import { localToWorld, sceneFrame } from './village-layout';
 
 // Domácí zvířata vsi: slepice kolem obydlí, ovce s kozami a krávy na loukách a úhoru, prasata
 // v lese u okraje. Kolik jich je, říká herní jádro (diet.md – skutečná stáda, `livestock`;
@@ -289,14 +293,20 @@ export function householdCount(village: LivestockVillage): number {
   return village.dwellings.filter((d) => d.built && d.inhabited !== false).length;
 }
 
-/** Obdélník, kam slepice nesmí: dům se střechou a šíje před vchodem (souřadnice modelu). */
-export function chickenBox(type: DwellingType): ChickenFlock['box'] {
+/**
+ * Obdélník, kam slepice nesmí: dům se střechou a šíje před vchodem (souřadnice modelu) – podle
+ * varianty rozměrů domu (`frame` – population.md, Varianty rozměrů).
+ */
+export function chickenBox(
+  type: DwellingType,
+  frame: ShapeFrame = PLAIN_FRAME,
+): ChickenFlock['box'] {
   const footprint = DWELLING_FOOTPRINT_M[type];
   const pit = PIT_SHAPES[type];
   return {
-    halfX: footprint.width / 2 + 0.9,
-    minZ: -(footprint.depth / 2 + 1.3),
-    maxZ: Math.max(footprint.depth / 2 + 1.3, pit.rampEndZ + 0.5),
+    halfX: shapeX(frame, footprint.width / 2 + 0.9),
+    minZ: shapeZ(frame, -(footprint.depth / 2 + 1.3)),
+    maxZ: shapeZ(frame, Math.max(footprint.depth / 2 + 1.3, pit.rampEndZ + 0.5)),
   };
 }
 
@@ -359,7 +369,7 @@ function obstacles(village: LivestockVillage): Obstacles {
   const houses = village.dwellings.map((d) => ({
     id: d.id,
     position: d.position,
-    box: chickenBox(d.type),
+    box: chickenBox(d.type, sceneFrame(d)),
   }));
   const onGrazed = squareLookup([...grazed, ...aftermath]);
   const onSquares = squareLookup(squares);
@@ -690,7 +700,10 @@ function chickenFlock(
   seed: number,
 ): ChickenFlock | null {
   const count = chickensFor(dwelling.type);
-  const base = { position: dwelling.position, box: chickenBox(dwelling.type) };
+  const base = {
+    position: dwelling.position,
+    box: chickenBox(dwelling.type, sceneFrame(dwelling)),
+  };
   // na pozemku jen uvnitř plotu (kratší odstup od domu)
   const plot = dwelling.plot;
   const reach = plot ? PLOT_CHICKEN_REACH_M : CHICKEN_REACH_M;

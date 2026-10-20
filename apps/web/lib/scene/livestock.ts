@@ -14,6 +14,7 @@ import {
   HAY_WINTER_MONTHS,
   dateOfDayIndex,
   type ForestField,
+  type HerdSpecies,
   type Landscape,
   type Relief,
 } from '@bohemia/game';
@@ -170,15 +171,19 @@ export class VillageLivestock {
   }
 
   /** Střed, poloměr a stěhování stád v okamžiku `nowMs` – pasáčci (villagers.ts). */
-  herdViews(
-    nowMs: number,
-  ): (HerdState & { kind: Herd['kind']; radiusM: number; tended: boolean })[] {
+  herdViews(nowMs: number): (HerdState & {
+    kind: Herd['kind'];
+    radiusM: number;
+    tended: boolean;
+    species: HerdSpecies;
+  })[] {
     const clock = this.clock(nowMs);
     return this.herds.map((herd) => ({
       ...herdState(herd, clock, createHerdState()),
       kind: herd.kind,
       radiusM: herd.radiusM,
       tended: herd.tended,
+      species: herdSpecies(herd),
     }));
   }
 
@@ -573,4 +578,12 @@ attribute vec2 livestockState;`,
 }`,
         };
   }
+}
+
+/** Kterých zvířat je ve stádě nejvíc (pasák „pase ovce“ – villagers.md, Výběr postavy). */
+export function herdSpecies(herd: Pick<Herd, 'kind' | 'animals'>): HerdSpecies {
+  if (herd.kind === 'cattle') return 'cow';
+  if (herd.kind === 'swine') return 'pig';
+  const sheep = herd.animals.filter((a) => a.species === 'sheep').length;
+  return sheep * 2 >= herd.animals.length ? 'sheep' : 'goat';
 }

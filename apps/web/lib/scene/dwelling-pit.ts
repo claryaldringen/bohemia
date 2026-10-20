@@ -3,8 +3,15 @@
 // (ornice nahoře, podloží níž, stín slunce a tma pod střechou). Souřadnice modelu jako
 // v `localToWorld`: x napříč, z k vchodu; výšky ve scéně (terén s převýšením, model ve skutečné
 // velikosti – jáma 1 m je metr vůči modelu).
-import { signedDistance, smoothstep } from './village-layout';
-import type { DwellingType, Position } from '@bohemia/game';
+import {
+  PLAIN_FRAME,
+  shapeX,
+  shapeZ,
+  type DwellingType,
+  type Position,
+  type ShapeFrame,
+} from '@bohemia/game';
+import { sceneFrame, signedDistance, smoothstep, type ShapedSceneDwelling } from './village-layout';
 
 export interface PitShape {
   /** Polovina šířky (x) a délky (z) jámy. */
@@ -57,6 +64,29 @@ export const PIT_SHAPES: Record<DwellingType, PitShape> = {
     roofEndZ: 5.25,
   },
 };
+
+/**
+ * Jáma varianty rozměrů (population.md – Varianty rozměrů) – stejné zobrazení jako model: jáma
+ * pod domem roste s domem, šíje (šířka dveří, délka a schody) se jen posune se štítem, hloubka
+ * zůstává. Jáma je souměrná podél (−halfZ … halfZ) – přední okraj je přesně začátek šíje, kde
+ * zobrazení přechází z měřítka na posun (DWELLING_SHAPE.frontM = halfZ).
+ */
+export function shapedPit(shape: PitShape, frame: ShapeFrame): PitShape {
+  if (frame === PLAIN_FRAME) return shape;
+  return {
+    ...shape,
+    halfX: shapeX(frame, shape.halfX),
+    halfZ: shapeZ(frame, shape.halfZ),
+    rampHalfX: shapeX(frame, shape.rampHalfX),
+    rampEndZ: shapeZ(frame, shape.rampEndZ),
+    roofEndZ: shapeZ(frame, shape.roofEndZ),
+  };
+}
+
+/** Jáma obydlí podle jeho varianty rozměrů. */
+export function pitShapeOf(d: ShapedSceneDwelling): PitShape {
+  return shapedPit(PIT_SHAPES[d.type], sceneFrame(d));
+}
 
 /** Bod v jámě nebo šíji (souřadnice modelu). */
 export function insidePit(shape: PitShape, lx: number, lz: number): boolean {

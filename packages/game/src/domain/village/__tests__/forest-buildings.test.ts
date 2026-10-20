@@ -25,7 +25,7 @@ import {
 import { sacredSitesOf } from '../sacred';
 import { advanceVillage } from '../simulate';
 import type { Person, Position, VillageState, VillageWood } from '../types';
-import { block, makeLandscape } from './placement-fixtures';
+import { block, clearingRect, makeLandscape } from './placement-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
 // Stavby v lese (Martin, 19. 10. 2026: „obydlí může jít postavit i v lese – les se prostě
@@ -43,13 +43,11 @@ const HOME: Position = { x: -60, z: 0, rotation: 0 };
 const FOREST_SQUARE = foundingCostPerHa('forest', NO_CRAFTS.tools) * 0.0225;
 const FOREST_SQUARE_TOOLS = foundingCostPerHa('forest', 1) * 0.0225;
 /**
- * Vyklízená plocha zemnice 9,6 × 11,9 m (DWELLING_CLEARING_M) s pruhem pod korunami 4 m
- * (FOREST_CROWN_MARGIN_M) – 17,6 × 19,9 m.
+ * Vyklízená plocha zemnice ≈ 9,6 × 11,9 m (DWELLING_CLEARING_M s variantou rozměrů podle polohy –
+ * population.md) s pruhem pod korunami 4 m (FOREST_CROWN_MARGIN_M) – ≈ 17,6 × 19,9 m.
  */
-const ZEMNICE_CROWNED = {
-  width: 9.6 + 2 * FOREST_CROWN_MARGIN_M,
-  depth: 11.9 + 2 * FOREST_CROWN_MARGIN_M,
-};
+const zemniceCrowned = (position: { x: number; z: number }): ReturnType<typeof clearingRect> =>
+  clearingRect('zemnice', position, FOREST_CROWN_MARGIN_M);
 const forestCost = (areaM2: number, tools = NO_CRAFTS.tools): number =>
   (foundingCostPerHa('forest', tools) * areaM2) / 10_000;
 
@@ -99,7 +97,7 @@ const layer: ObstacleLayer = packObstacles(
  * korunami x −1,3–16,3 m, z −3,4–16,5 m (v lese x ≥ 0 – 16,3 × 19,9 m).
  */
 const IN_FOREST: Position = { x: 7.5, z: 5, rotation: 0 };
-const IN_FOREST_M2 = 16.3 * ZEMNICE_CROWNED.depth;
+const IN_FOREST_M2 = zemniceCrowned(IN_FOREST).maxX * zemniceCrowned(IN_FOREST).depth;
 
 /** Ves s hotovou zemnicí na louce, dospělými a lidmi k osídlení, bez staveb. */
 function village(day = DAY): VillageState {
@@ -327,8 +325,9 @@ describe('ostatní stavby v lese', () => {
     );
     expect(burner.ok).toBe(true);
     // uhlíř je jen zemnice – milíř staví u dávky buků (crafts.md – Milíř u skácených buků)
+    const burnerCrowned = zemniceCrowned({ x: 60, z: 60 });
     expect(burner.obstacleCost).toBeCloseTo(
-      forestCost(ZEMNICE_CROWNED.width * ZEMNICE_CROWNED.depth),
+      forestCost(burnerCrowned.width * burnerCrowned.depth),
       0,
     );
     const orchard = orchardPartsFromCells(landscape, null, block(8, 9, 2, 1), [HOME], layer);
@@ -406,9 +405,10 @@ describe('posvátné duby a háje se v lese nikdy nekácí', () => {
     const check = checkDwellingPlacement(forest, null, 'zemnice', position, oaks);
     expect(check.ok).toBe(true);
     for (const id of groveIds) expect(check.obstacleIds).not.toContain(id);
-    // v háji leží 5,8 × 15 m plochy – ta se nevyklučí
-    const crowned = ZEMNICE_CROWNED.width * ZEMNICE_CROWNED.depth;
-    expect(check.obstacleCost).toBeCloseTo(forestCost(crowned - 5.8 * 15));
+    // v háji leží ≈ 5,8 × 15 m plochy – ta se nevyklučí
+    const crowned = zemniceCrowned(position);
+    const inGrove = (-45 - crowned.minX) * 15;
+    expect(check.obstacleCost).toBeCloseTo(forestCost(crowned.width * crowned.depth - inGrove));
   });
 });
 

@@ -13,6 +13,7 @@ import {
   withLivestockLand,
   normalizeVillageName,
   withPlots,
+  withDwellingShapes,
   type FieldInput,
   type PlacementVillage,
   type Position,
@@ -149,10 +150,18 @@ export function foundedVillageState(
     dwellingSpared: dwelling.spared,
     ...(input.settlers ? { settlers: input.settlers } : {}),
   });
-  // nová ves nemá polozemnice bez pozemku – rovnou převedená (`withPlots` ji už nebude měnit);
+  // nová ves nemá polozemnice bez pozemku – rovnou převedená (`withPlots` ji už nebude měnit),
+  // první zemnice má svou variantu rozměrů od umístění (`withDwellingShapes` jen zapíše příznak);
   // louka a les do 600 m od první zemnice – pastva a žaludy výchozího stáda (diet.md)
   const state = advanceVillage(
-    withLivestockLand(withPlots(founded, input.landscape, obstacles), input.landscape),
+    withLivestockLand(
+      withDwellingShapes(
+        withPlots(founded, input.landscape, obstacles),
+        input.landscape,
+        obstacles,
+      ),
+      input.landscape,
+    ),
     input.today,
     obstacles,
     input.landscape,

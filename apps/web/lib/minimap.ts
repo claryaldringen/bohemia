@@ -1,7 +1,8 @@
 import {
   buildRelief,
-  DWELLING_FOOTPRINT_M,
   SACRED_BUILDINGS,
+  dwellingShape,
+  shapedFootprint,
   SURFACE_CODES,
   rotatedSquareCorners,
   type FieldSurface,
@@ -294,7 +295,10 @@ export function drawMinimapVillage(
     const p = at(dwelling.position.x, dwelling.position.z);
     const side = Math.max(
       3.5,
-      (DWELLING_FOOTPRINT_M[dwelling.type].width / landscape.cellSizeM) * cellPx * 1.6,
+      // šířka podle varianty rozměrů domu (population.md – Varianty rozměrů)
+      (shapedFootprint(dwelling.type, dwellingShape(dwelling)).width / landscape.cellSizeM) *
+        cellPx *
+        1.6,
     );
     context.fillStyle = dwelling.built ? '#f6e3b0' : 'rgb(246 227 176 / 0.55)';
     context.strokeStyle = '#2a1d10';

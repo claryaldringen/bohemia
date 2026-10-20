@@ -19,13 +19,15 @@ import {
 import {
   DWELLING_FOOTPRINT_M,
   FIELD_LIMITS,
+  FOREST_CROWN_MARGIN_M,
   PLOT_HOUSE_ROTATION,
   PLOT_TYPES,
   PLOT_VARIANTS,
 } from '../rules';
 import { dwellingGatePoint } from '../paths/network';
+import { dwellingShape } from '../dwelling-shape';
 import type { DwellingPlot, PlotVariant, Position, TileCell } from '../types';
-import { block, makeLandscape } from './placement-fixtures';
+import { block, clearingRect, makeLandscape } from './placement-fixtures';
 
 const at = (x: number, z: number, rotation = 0): Position => ({ x, z, rotation });
 const EMPTY: PlacementVillage = { dwellings: [], constructions: [], parts: [] };
@@ -70,14 +72,18 @@ describe('checkDwellingPlacement – terén', () => {
     const l = makeLandscape({ surface: (x) => (x === 8 ? 'forest' : 'meadow') });
     const inForest = checkDwellingPlacement(l, null, 'zemnice', at(7.5, 7.5));
     expect(inForest.ok).toBe(true);
-    // vyklízená plocha zemnice 9,6 × 11,9 m s pruhem pod korunami (4 m) – 17,6 × 19,9 m, v lese
-    // (sloupec 8 = x 0–15 m) 15 × 19,9 m za 250 čd/ha bez řemesel
-    expect(inForest.obstacleCost).toBeCloseTo((250 * 15 * 19.9) / 10_000, 1);
+    // vyklízená plocha zemnice ≈ 9,6 × 11,9 m (s variantou rozměrů podle polohy) s pruhem pod
+    // korunami (4 m) – ≈ 17,6 × 19,9 m, v lese (sloupec 8 = x 0–15 m) za 250 čd/ha bez řemesel
+    const inForestM2 = (r: ReturnType<typeof clearingRect>): number =>
+      (Math.min(15, r.maxX) - Math.max(0, r.minX)) * r.depth;
+    const crowned = (x: number): ReturnType<typeof clearingRect> =>
+      clearingRect('zemnice', at(x, 7.5), FOREST_CROWN_MARGIN_M);
+    expect(inForest.obstacleCost).toBeCloseTo((250 * inForestM2(crowned(7.5))) / 10_000, 1);
     // na louce les neplatí; políčko 8 začíná na x = 0 – plocha s pruhem u x = −3 sahá do 5,8 m
     expect(checkDwellingPlacement(l, null, 'zemnice', at(-14, 7.5)).obstacleCost).toBe(0);
     const edge = checkDwellingPlacement(l, null, 'zemnice', at(-3, 7.5));
     expect(edge.ok).toBe(true);
-    expect(edge.obstacleCost).toBeCloseTo((250 * 5.8 * 19.9) / 10_000, 1);
+    expect(edge.obstacleCost).toBeCloseTo((250 * inForestM2(crowned(-3))) / 10_000, 1);
     // vesničané si místo sami (bez hráče) v lese nevyberou – ani roh půdorysu
     const auto = { clearForest: false };
     const own = checkDwellingPlacement(l, null, 'zemnice', at(-1, 7.5), undefined, auto);
@@ -137,15 +143,25 @@ describe('checkDwellingPlacement – překryv', () => {
   it('smí na pole – díly pod vyklízenou plochou se zmenší (population.md, Martin)', () => {
     const inside = checkDwellingPlacement(landscape, village, 'zemnice', at(-40, 50));
     expect(inside).toMatchObject({ ok: true, warning: 'Pole se zmenší' });
-    // vyklízená plocha x −44,8 … −35,2, z 45,6 … 57,5 – celá v políčku (5, 11)
+    // vyklízená plocha ≈ x −44,8 … −35,2, z 45,6 … 57,5 – celá v políčku (5, 11)
+    const area = clearingRect('zemnice', at(-40, 50));
     expect(inside.takenLand).toEqual([
-      { cell: { x: 5, y: 11 }, areaM2: expect.closeTo(9.6 * 11.9, 9), cellAreaM2: 225 },
+      {
+        cell: { x: 5, y: 11 },
+        areaM2: expect.closeTo(area.width * area.depth, 9),
+        cellAreaM2: 225,
+      },
     ]);
     // půdorys x −15 … −11 se pole jen dotýká, vyklízená plocha (x −17,8 …) do něj zasahuje
     const beside = checkDwellingPlacement(landscape, village, 'zemnice', at(-13, 50));
     expect(beside.ok).toBe(true);
+    const besideArea = clearingRect('zemnice', at(-13, 50));
     expect(beside.takenLand).toEqual([
-      { cell: { x: 6, y: 11 }, areaM2: expect.closeTo(2.8 * 11.9, 9), cellAreaM2: 225 },
+      {
+        cell: { x: 6, y: 11 },
+        areaM2: expect.closeTo((-15 - besideArea.minX) * besideArea.depth, 9),
+        cellAreaM2: 225,
+      },
     ]);
     // daleko od pole nic nebere
     expect(checkDwellingPlacement(landscape, village, 'zemnice', at(10, 0)).takenLand).toEqual([]);
@@ -378,7 +394,11 @@ describe('pozemek polozemnice', () => {
     expect(Math.min(...xs)).toBe(0);
     expect(Math.max(...xs)).toBe(15);
     expect(dwellingPlot(landscape, { type: 'polozemnice', position: at(0, 0) })).toEqual([
-      dwellingFootprint('polozemnice', at(0, 0)),
+      dwellingFootprint(
+        'polozemnice',
+        at(0, 0),
+        dwellingShape({ type: 'polozemnice', position: at(0, 0) }),
+      ),
     ]);
   });
 });

@@ -146,7 +146,9 @@ describe('síť pěšin na skutečné krajině – zlatý otisk', () => {
     // úhor, příloh a zakládaný díl jako louka, plná pěšina dne 1,3×, mokřina 0,5× (dřív osetý díl
     // jako úhor 1,1, louka 1,25 a pěšina 2×); v otisku jsou díly ve všech stadiích, cena se změnila.
     // 19. 10. 2026 potřetí: pro vodu se chodí vždy a naplno (paths.md – Pochůzky pro vodu; dřív
-    // za 130 m chůze úměrně méně často a nejvýš 450 m) – provoz pochůzek pro vodu je vyšší
-    expect(networkFingerprint(network)).toBe('74902:d9a5024f');
+    // za 130 m chůze úměrně méně často a nejvýš 450 m) – provoz pochůzek pro vodu je vyšší.
+    // 20. 10. 2026 počtvrté: varianty rozměrů domů (population.md – Varianty rozměrů) – obdélníky
+    // domů (neprůchodné buňky a brány) jsou podle tvaru domu, ne jednoho pro všechny
+    expect(networkFingerprint(network)).toBe('74902:8362b6f6');
   }, 30_000);
 });

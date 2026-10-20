@@ -2,9 +2,17 @@
 // milíř uhlíře, odkud stoupá dým z pece, výhně a milíře a kde v dílně stojí řemeslníci. Souřadnice
 // modelu jako `localToWorld` (x napříč, z k vchodu); modely z tools/blender/crafts.py (tam
 // Blender: x napříč, y podél hřebene s vchodem v −y – ve scéně x → −x, y → −z).
-import { MILIR, type Craft, type KilnStage, type Position } from '@bohemia/game';
+import {
+  MILIR,
+  PLAIN_FRAME,
+  shapeY,
+  type Craft,
+  type KilnStage,
+  type Position,
+  type ShapeFrame,
+} from '@bohemia/game';
 import type { CraftKind } from './village-construction';
-import { localToWorld, type HideShape, type Point } from './village-layout';
+import { localToWorld, shapedToWorld, type HideShape, type Point } from './village-layout';
 
 /**
  * Model dílny podle řemesla – public/models/crafts/<model>.glb a díly staveniště „<model>-…“.
@@ -161,9 +169,14 @@ const PORCH_FIRE_X: Record<Exclude<WorkshopModel, 'uhlir'>, number | null> = {
 /**
  * Dým pracující dílny: hrnčířská pec a výheň stojí pod přístřeškem – dým vychází zpod jeho
  * předního okraje; uhlíř topí jen v milíři (samostatná stavba – `kilnVents`); tesař nekouří.
+ * Přístřešek se s variantou rozměrů domu posune a natáhne (`frame` – population.md).
  */
-export function workshopVents(craft: Craft, position: Position): WorkshopVent[] {
-  return modelVents(CRAFT_MODEL[craft], position);
+export function workshopVents(
+  craft: Craft,
+  position: Position,
+  frame: ShapeFrame = PLAIN_FRAME,
+): WorkshopVent[] {
+  return modelVents(CRAFT_MODEL[craft], position, frame);
 }
 
 /** Dým milíře při pálení – z komína navrchu kupy (kotva milíře – `forestKilnAnchor`). */
@@ -173,12 +186,16 @@ export function kilnVents(anchor: Position): WorkshopVent[] {
 }
 
 /** Dým dílny podle modelu (`workshopVents` – i pro dílnu, jejíž řemeslo jádro ještě nezná). */
-export function modelVents(model: WorkshopModel, position: Position): WorkshopVent[] {
+export function modelVents(
+  model: WorkshopModel,
+  position: Position,
+  frame: ShapeFrame = PLAIN_FRAME,
+): WorkshopVent[] {
   if (model === 'uhlir') return [];
   const lx = PORCH_FIRE_X[model];
   if (lx === null) return [];
-  const [x, z] = localToWorld(position, lx, PORCH_FRONT_M + 0.2);
-  return [{ kind: 'craft', x, z, y: 1.3 }];
+  const [x, z] = shapedToWorld(position, frame, lx, PORCH_FRONT_M + 0.2);
+  return [{ kind: 'craft', x, z, y: shapeY(frame, 1.3) }];
 }
 
 /** Kde v dílně stojí řemeslník: místo (svět), směr pohledu a práce (klip postavy). */
@@ -223,14 +240,22 @@ const PORCH_SPOTS: Record<
  * Místa řemeslníků (Martin: řemeslník pracuje v dílně) – hrnčíř u kruhu, u topeniště pece a u
  * police, kovář u kovadliny, u měchů a u koryta, tesař u trámu na kozlících, u rozdělaného kola,
  * u špalku a u zásoby trámů (PORCH_SPOTS), uhlíř kolem milíře s hrabicí. Postavy se střídají po
- * místech dokola.
+ * místech dokola. S variantou rozměrů domu (`frame`) se místa pod přístřeškem posunou s ním.
  */
-export function craftSpots(craft: Craft, position: Position): CraftSpot[] {
-  return modelSpots(CRAFT_MODEL[craft], position);
+export function craftSpots(
+  craft: Craft,
+  position: Position,
+  frame: ShapeFrame = PLAIN_FRAME,
+): CraftSpot[] {
+  return modelSpots(CRAFT_MODEL[craft], position, frame);
 }
 
 /** Místa řemeslníků podle modelu dílny (`craftSpots` – i pro tesaře před řemeslem v jádru). */
-export function modelSpots(model: WorkshopModel, position: Position): CraftSpot[] {
+export function modelSpots(
+  model: WorkshopModel,
+  position: Position,
+  frame: ShapeFrame = PLAIN_FRAME,
+): CraftSpot[] {
   if (model === 'uhlir') {
     const c = milirPlace(position);
     const r = MILIR_SHAPE_M.radius + 0.9;
@@ -246,7 +271,7 @@ export function modelSpots(model: WorkshopModel, position: Position): CraftSpot[
   const c = Math.cos(position.rotation);
   const s = Math.sin(position.rotation);
   return local.map(([lx, lz, dx, dz, clip]) => {
-    const [x, z] = localToWorld(position, lx, lz);
+    const [x, z] = shapedToWorld(position, frame, lx, lz);
     return { x, z, hx: dx * c + dz * s, hz: -dx * s + dz * c, clip };
   });
 }

@@ -2333,6 +2333,8 @@ function finishConstructions(state: VillageState, day: number): void {
           dwelling.position = { ...c.position };
           dwelling.plot = copyPlot(c.plot);
           if (c.forestDistanceM !== undefined) dwelling.forestDistanceM = c.forestDistanceM;
+          // nový dům na novém místě má svou variantu rozměrů (population.md – Varianty rozměrů)
+          delete dwelling.plainShape;
         }
       }
       state.chronicle.push(finishedEvent(day, c, c.dwellingId));
@@ -2347,6 +2349,7 @@ function finishConstructions(state: VillageState, day: number): void {
       position: { ...c.position },
       ...(c.plot ? { plot: copyPlot(c.plot) } : {}),
       ...(c.forestDistanceM === undefined ? {} : { forestDistanceM: c.forestDistanceM }),
+      ...(c.plainShape ? { plainShape: true as const } : {}),
       // řemeslná dílna – řemeslo patří budově (crafts.md); nový řemeslník se teprve učí
       // (crafts.md – Učení řemesla)
       ...(c.craft

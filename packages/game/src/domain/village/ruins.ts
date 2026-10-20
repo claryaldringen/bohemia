@@ -1,5 +1,6 @@
 import type { Landscape } from '../landscape';
 import { workshopFootprints } from './crafts';
+import { dwellingShape } from './dwelling-shape';
 import { dwellingFootprint, dwellingPlot } from './placement';
 import { copyPlot } from './plots';
 import { polygonsOverlap, type Point } from './polygon';
@@ -37,6 +38,7 @@ export function recordRuins(
       position: { ...d.position },
       ...(d.plot ? { plot: copyPlot(d.plot) } : {}),
       ...(d.workshop ? { craft: d.workshop.craft } : {}),
+      ...(d.plainShape ? { plainShape: true as const } : {}),
       day,
     });
   }
@@ -86,7 +88,7 @@ function builtOverRuins(state: VillageState, landscape: Landscape | null): Set<D
   // čtverce polí, sadů, hřbitovů a ohrad (i natočené – fields.md, Natočené stavby) až na dotaz
   let squares: PolygonIndex<LandSquare> | null = null;
   for (const ruin of ruins) {
-    const footprint = dwellingFootprint(ruin.type, ruin.position);
+    const footprint = dwellingFootprint(ruin.type, ruin.position, dwellingShape(ruin));
     if (shapes.some((shape) => polygonsOverlap(shape, footprint))) {
       covered.add(ruin);
       continue;
@@ -112,10 +114,11 @@ function structureShapes(state: VillageState, landscape: Landscape | null): Poin
     position: Dwelling['position'];
     plot?: Dwelling['plot'];
     craft?: NonNullable<Dwelling['workshop']>['craft'];
+    plainShape?: true;
   }): void => {
     if (landscape) shapes.push(...dwellingPlot(landscape, d));
-    else if (d.craft) shapes.push(...workshopFootprints(d.craft, d.position));
-    else shapes.push(dwellingFootprint(d.type, d.position));
+    else if (d.craft) shapes.push(...workshopFootprints(d.craft, d.position, dwellingShape(d)));
+    else shapes.push(dwellingFootprint(d.type, d.position, dwellingShape(d)));
   };
   for (const d of state.dwellings) {
     dwelling({
@@ -123,6 +126,7 @@ function structureShapes(state: VillageState, landscape: Landscape | null): Poin
       position: d.position,
       ...(d.plot ? { plot: d.plot } : {}),
       ...(d.workshop ? { craft: d.workshop.craft } : {}),
+      ...(d.plainShape ? { plainShape: true as const } : {}),
     });
   }
   for (const c of state.constructions) {
@@ -133,6 +137,7 @@ function structureShapes(state: VillageState, landscape: Landscape | null): Poin
       position: c.position,
       ...(c.plot ? { plot: c.plot } : {}),
       ...(c.craft ? { craft: c.craft } : {}),
+      ...(c.plainShape ? { plainShape: true as const } : {}),
     });
   }
   for (const b of sacredBuildingPlots(state)) shapes.push(sacredFootprint(b.kind, b.position));

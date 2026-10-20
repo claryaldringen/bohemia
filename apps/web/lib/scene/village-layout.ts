@@ -3,9 +3,17 @@
 // Souřadnice světa scény v metrech (x, z).
 import {
   DWELLING_CLEARING_M,
+  DWELLING_FOOTPRINT_M,
+  dwellingFrame,
   rotatedSquareCorners,
+  shapeRect,
+  shapeX,
+  shapeZ,
   type DwellingType,
+  type PlotVariant,
   type Position,
+  type ShapeFrame,
+  type ShapeRect,
 } from '@bohemia/game';
 import { cellsBounds, cellsContain } from './field-cells';
 import type { SceneField } from './village-types';
@@ -28,6 +36,61 @@ export function localToWorld(position: Position, lx: number, lz: number): Point 
   const c = Math.cos(position.rotation);
   const s = Math.sin(position.rotation);
   return [position.x + lx * c + lz * s, position.z - lx * s + lz * c];
+}
+
+/**
+ * Co určuje tvar obydlí ve scéně (population.md – Varianty rozměrů): druh, poloha, varianta
+ * pozemku a příznak dnešního tvaru – `SceneDwelling` i zbytek jámy to splňují.
+ */
+export interface ShapedSceneDwelling {
+  readonly type: DwellingType;
+  readonly position: { readonly x: number; readonly z: number };
+  readonly plot?: { readonly variant?: PlotVariant };
+  readonly plainShape?: boolean;
+}
+
+/** Zobrazení tvaru obydlí (varianta rozměrů) – jedno pro model, jámu i vše kolem domu. */
+export function sceneFrame(d: ShapedSceneDwelling): ShapeFrame {
+  return dwellingFrame(d);
+}
+
+/** Bod modelu obydlí (x napříč, z k vchodu) po změně tvaru `frame` → svět. */
+export function shapedToWorld(
+  position: Position,
+  frame: ShapeFrame,
+  lx: number,
+  lz: number,
+): Point {
+  return localToWorld(position, shapeX(frame, lx), shapeZ(frame, lz));
+}
+
+/**
+ * Půdorys domu v souřadnicích modelu podle varianty (u dílny i s přístřeškem `porchM` vpředu –
+ * přístřešek se jen posune se štítem).
+ */
+export function footprintRect(d: ShapedSceneDwelling, porchM = 0): ShapeRect {
+  const { width, depth } = DWELLING_FOOTPRINT_M[d.type];
+  return shapeRect(sceneFrame(d), {
+    minX: -width / 2,
+    maxX: width / 2,
+    minZ: -depth / 2,
+    maxZ: depth / 2 + porchM,
+  });
+}
+
+/** Vyklízená plocha (staveniště) obydlí v souřadnicích modelu podle varianty. */
+export function clearanceRect(d: ShapedSceneDwelling): ShapeRect {
+  return shapeRect(sceneFrame(d), DWELLING_CLEARANCE_M[d.type]);
+}
+
+/** Rohy obdélníku v souřadnicích modelu ve světě (po obvodu, levý zadní roh první). */
+export function rectCorners(position: Position, r: ShapeRect, margin = 0): Point[] {
+  return [
+    localToWorld(position, r.minX - margin, r.minZ - margin),
+    localToWorld(position, r.maxX + margin, r.minZ - margin),
+    localToWorld(position, r.maxX + margin, r.maxZ + margin),
+    localToWorld(position, r.minX - margin, r.maxZ + margin),
+  ];
 }
 
 /** Rohy obdélníku width × depth kolem středu obydlí, po obvodu (levý zadní roh první). */
@@ -235,6 +298,8 @@ interface PlotArea {
   z: number;
   size: number;
   rotation?: number;
+  /** Kde na pozemku dům stojí – v rohu je jeho varianta rozměrů menší (population.md). */
+  variant?: PlotVariant;
 }
 
 /**
@@ -245,6 +310,7 @@ export function dwellingArea(d: {
   type: DwellingType;
   position: Position;
   plot?: PlotArea;
+  plainShape?: boolean;
 }): Point[] {
   if (d.plot) {
     const h = d.plot.size / 2;
@@ -262,13 +328,22 @@ export function dwellingArea(d: {
       [x - h, z + h],
     ];
   }
-  const c = DWELLING_CLEARANCE_M[d.type];
-  return [
-    localToWorld(d.position, c.minX, c.minZ),
-    localToWorld(d.position, c.maxX, c.minZ),
-    localToWorld(d.position, c.maxX, c.maxZ),
-    localToWorld(d.position, c.minX, c.maxZ),
-  ];
+  return houseArea(d);
+}
+
+/**
+ * Místo domu bez pozemku – obdélník kolem modelu i s hlínou před vchodem podle varianty (u domu
+ * na pozemku se z pozemku bere jen varianta – kde na něm dům stojí).
+ */
+export function houseArea(d: {
+  type: DwellingType;
+  position: Position;
+  plot?: PlotArea;
+  plainShape?: boolean;
+}): Point[] {
+  const { plot, ...house } = d;
+  const variant = plot?.variant;
+  return rectCorners(d.position, clearanceRect(variant ? { ...house, plot: { variant } } : house));
 }
 
 /** Obydlí nebo staveniště – jeho místo (pozemek, nebo obdélník kolem modelu). */
@@ -276,13 +351,14 @@ export function dwellingHideShape(d: {
   type: DwellingType;
   position: Position;
   plot?: PlotArea;
+  plainShape?: boolean;
 }): HideShape {
   const corners = dwellingArea(d);
   if (!d.plot) {
     return { bounds: polygonBounds(corners), contains: (x, z) => pointInPolygon(corners, x, z) };
   }
   // pozemek i dům – dům převedené starší polozemnice může z políčka vyčnívat
-  const house = dwellingArea({ type: d.type, position: d.position });
+  const house = houseArea(d);
   const a = polygonBounds(corners);
   const b = polygonBounds(house);
   return {

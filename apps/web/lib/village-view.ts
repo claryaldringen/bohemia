@@ -186,6 +186,8 @@ import { foreignFromScene, plotOfScene } from './scene/neighbour-villages';
 import { sceneTrails, trailRoadWork } from './trail-view';
 import { sceneExpeditions } from './caravan-view';
 import { sceneFunerals, type SceneFuneral } from './funeral-view';
+import { scenePersons, type ScenePerson } from './person-view';
+import { sceneWeddings, type SceneWedding } from './wedding-view';
 import { DIRECTION_NAMES, NEWCOMER_TEXTS, goodsText, peopleText } from './trade-names';
 import { formatAnimals, formatCells, formatHa, formatInteger, plural } from './village-format';
 import type { VillageListItem } from './village-list';
@@ -1000,6 +1002,11 @@ export interface SceneVillage {
      * (dwelling-decay.ts). Bez údaje = celý (100 %).
      */
     condition?: number;
+    /**
+     * Dnešní tvar bez varianty rozměrů (population.md – Varianty rozměrů); bez údaje má dům
+     * variantu podle polohy (`dwellingShape`).
+     */
+    plainShape?: true;
   }[];
   /**
    * Zbytky jam po zaniklých obydlích (population.md – Po zániku): typ, poloha, den zániku
@@ -1013,6 +1020,7 @@ export interface SceneVillage {
     overgrowth: number;
     plot?: ScenePlot;
     craft?: Craft;
+    plainShape?: true;
   }[];
   /**
    * Rudiště kovářů (crafts.md – Uhlí a ruda kováře): místo (m), kovárna, vykopaná ruda na hromadě
@@ -1050,6 +1058,12 @@ export interface SceneVillage {
    * údaje žádné.
    */
   funerals?: SceneFuneral[];
+  /**
+   * Svatby posledních dnů (kinship.md – Svatba ve scéně, wedding-view.ts): průvod od domu nevěsty
+   * (nevěsta nebo ženich z okolí se svými lidmi od kraje mapy) na posvátné místo, obřad a cesta
+   * do nového domova. Bez údaje žádné.
+   */
+  weddings?: SceneWedding[];
   /**
    * Hřbitovy po čtvercích (střed políčka ve světě a strana jako u pole) – průběh stavby
    * (založení, u hotového rozšíření; `built` hotový), počet obsazených hrobů a čtverce
@@ -1401,6 +1415,12 @@ export interface SceneExpedition {
   rate: number;
   day: number;
   onMap: number;
+  /**
+   * Co je to za cestu (villagers.md – Výběr postavy): výprava k sousedovi, nákup u souseda, nebo
+   * cesta pro kování k vozu; do které vsi (jméno) a u kování kdo jde (id tesaře nebo syna – jeho
+   * postava jde s karavanou). Bez údaje (ukázky) se neví.
+   */
+  trip?: { kind: 'trade' | 'purchase' | 'iron'; to: string; travellerId?: number };
 }
 
 export type SceneRoad = Pick<
@@ -1648,6 +1668,12 @@ export interface SceneLabor {
    * lidé rozdělí na obydlí rovným dílem.
    */
   homes?: SceneLaborHome[];
+  /**
+   * Lidé vsi (villagers.md – Výběr postavy): id, věk, pohlaví, domácnost a role – scéna každé
+   * postavě přiřadí skutečného člověka (villager-roster.ts) a panel postavy ukáže, kdo to je
+   * a co dělá. Bez údaje (dřívější pohled, ukázky) jsou postavy bez lidí a nejdou vybrat.
+   */
+  persons?: ScenePerson[];
 }
 
 /** Domácnost v provozu na cestách (`SceneLabor.homes`). */
@@ -2053,6 +2079,7 @@ function sceneVillage(
     ...(d.condition < 1 ? { condition: Math.round(d.condition * 1000) / 1000 } : {}),
     ...(d.workshop ? { craft: d.workshop.craft } : {}),
     ...(d.workshop && occupied.has(d.id) && workshopSmokes(d.workshop) ? { working: true } : {}),
+    ...(d.plainShape ? { plainShape: true as const } : {}),
   }));
   // staveniště ukazuje samotnou stavbu – dřevo se kácí v lese, než se začne stavět; přestavba
   // polozemnice bez pozemku stojí na novém pozemku (domácnost zatím bydlí ve starém domě)
@@ -2071,6 +2098,7 @@ function sceneVillage(
         ...plot,
         since: c.startedDay,
         ...(c.craft ? { craft: c.craft } : {}),
+        ...(c.plainShape ? { plainShape: true as const } : {}),
       },
     ];
   });
@@ -2135,6 +2163,7 @@ function sceneVillage(
     ),
   }));
   const funerals = sceneFunerals(state, day);
+  const weddings = sceneWeddings(state, day, landscape);
   const reserved = [...reservedTrees(state)].sort((a, b) => a - b);
   const labor = sceneLabor(state, { ...summary.people, ...summary.family });
   const sacred = sceneSacred(state, landscape, day, summary);
@@ -2154,6 +2183,7 @@ function sceneVillage(
     overgrowth: Math.round(ruinOvergrowth(r, day) * 1000) / 1000,
     ...(r.plot ? { plot: scenePlot(landscape, r.plot) } : {}),
     ...(r.craft ? { craft: r.craft } : {}),
+    ...(r.plainShape ? { plainShape: true as const } : {}),
   }));
   const pens = scenePens(state, landscape, day, summary);
   const earthworks = sceneEarthworks(state, day);
@@ -2182,6 +2212,7 @@ function sceneVillage(
     fields,
     cemeteries,
     ...(funerals.length > 0 ? { funerals } : {}),
+    ...(weddings.length > 0 ? { weddings } : {}),
     ...(orchards.length > 0 ? { orchards } : {}),
     obstacles,
     ...(reserved.length > 0 ? { reservedTrees: reserved } : {}),
@@ -3293,6 +3324,7 @@ function sceneLabor(state: VillageState, people: SceneLabor['people']): SceneLab
     return [{ ...share, manDays }];
   });
   const homes = sceneLaborHomes(state, labor.shares);
+  const persons = scenePersons(state, labor.day);
   return {
     day: labor.day,
     month: dateOfDayIndex(labor.day).month,
@@ -3300,6 +3332,7 @@ function sceneLabor(state: VillageState, people: SceneLabor['people']): SceneLab
     shares,
     ...(labor.herders ? { herders: { ...labor.herders } } : {}),
     ...(homes.length > 0 ? { homes } : {}),
+    ...(persons.length > 0 ? { persons } : {}),
   };
 }
 
@@ -3942,6 +3975,7 @@ function scenePlacementVillage(scene: SceneVillage): PlacementVillage {
       // pozemek i s dvorem dvorce (trade.md) a natočením (fields.md – Natočené stavby)
       ...(d.plot ? { plot: plotOfScene(d.plot) } : {}),
       ...(d.craft ? { workshop: { craft: d.craft } } : {}),
+      ...(d.plainShape ? { plainShape: true } : {}),
     })),
     constructions: [],
     // stavby a půda jiných vsí na téže mapě (migration.md)

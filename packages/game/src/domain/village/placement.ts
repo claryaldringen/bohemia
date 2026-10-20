@@ -14,6 +14,14 @@ import type { CemeterySquareInput, OrchardSquareInput, PartInput } from './actio
 import { cemeteryFoundingCost, distanceToSquare, touchingCemeteries } from './cemetery';
 import { kilnCircle } from './charcoal';
 import { craftCoverage, workshopFootprints } from './crafts';
+import {
+  PLAIN_SHAPE,
+  dwellingShape,
+  isPlainShape,
+  shapedFootprint,
+  type DwellingShape,
+  type ShapedDwelling,
+} from './dwelling-shape';
 import { fieldSquareSurface, fieldsTouching, partFoundingCost } from './fields';
 import { TAKEN_LAND_EPSILON_M2, landTakenWarning, type TakenLand } from './land-taken';
 import { LIVESTOCK, withLivestock } from './livestock';
@@ -24,11 +32,13 @@ import { foundingCostPerHa } from './productivity';
 import { dwellingGatePoint } from './paths/network';
 import { roadWalk, walkGroundOf, type Walk, type WalkRoad } from './paths/walking';
 import {
+  buildingLocalToWorld,
   cellObstacles,
   dwellingClearing,
   obstacleChangesAt,
   obstacleStatus,
   outcropUnder,
+  polygonObstacles,
   polygonsObstacles,
   squareObstacles,
   tallyCost,
@@ -159,6 +169,8 @@ export interface PlacementVillage {
     readonly position: Position;
     readonly plot?: DwellingPlot;
     readonly workshop?: { readonly craft: Craft };
+    /** Dnešní tvar bez varianty rozměrů (`Dwelling.plainShape`). */
+    readonly plainShape?: boolean;
   }[];
   readonly constructions: readonly {
     readonly dwellingType: DwellingType | null;
@@ -166,6 +178,7 @@ export interface PlacementVillage {
     readonly plot?: DwellingPlot;
     /** Rozestavěná řemeslná dílna (crafts.md). */
     readonly craft?: Craft;
+    readonly plainShape?: boolean;
   }[];
   /**
    * Pole – id a vlastní natočená mřížka (fields.md – Natočené stavby); pole bez mřížky (i chybějící
@@ -428,10 +441,19 @@ function wholeMeters(value: number): string {
   return `${formatInteger(Math.floor(value))} m`;
 }
 
-/** Rohy půdorysu obydlí ve světě. */
-export function dwellingFootprint(type: DwellingType, position: Position): Point[] {
-  const { width, depth } = DWELLING_FOOTPRINT_M[type];
-  return rectangleCorners(position.x, position.z, width, depth, position.rotation);
+/** Rohy půdorysu obydlí ve světě – s variantou rozměrů `shape` (`dwellingShape`). */
+export function dwellingFootprint(
+  type: DwellingType,
+  position: Position,
+  shape: DwellingShape,
+): Point[] {
+  if (isPlainShape(shape)) {
+    const { width, depth } = DWELLING_FOOTPRINT_M[type];
+    return rectangleCorners(position.x, position.z, width, depth, position.rotation);
+  }
+  const { width, depth, centerZ } = shapedFootprint(type, shape);
+  const [x, z] = buildingLocalToWorld(position, 0, centerZ);
+  return rectangleCorners(x, z, width, depth, position.rotation);
 }
 
 /**
@@ -523,11 +545,12 @@ function yardTouches(cell: TileCell, yard: TileCell): boolean {
  * Obydlí, jak ho zná kontrola překryvu – na pozemku (`plot`), nebo volně (jen půdorys); řemeslná
  * dílna s řemeslem (`craft`).
  */
-interface PlacedDwelling {
+export interface PlacedDwelling {
   readonly type: DwellingType;
   readonly position: Position;
   readonly plot?: DwellingPlot;
   readonly craft?: Craft;
+  readonly plainShape?: boolean;
 }
 
 /**
@@ -537,8 +560,9 @@ interface PlacedDwelling {
  * nesmí překrývat.
  */
 export function dwellingPlot(landscape: Landscape, d: PlacedDwelling): Point[][] {
-  if (d.craft) return workshopFootprints(d.craft, d.position);
-  const footprint = dwellingFootprint(d.type, d.position);
+  const shape = dwellingShape(d);
+  if (d.craft) return workshopFootprints(d.craft, d.position, shape);
+  const footprint = dwellingFootprint(d.type, d.position, shape);
   return d.plot
     ? [...plotShapes(landscape, d.plot).map((shape) => [...shape.corners]), footprint]
     : [footprint];
@@ -551,6 +575,7 @@ function placedDwelling(d: PlacementVillage['dwellings'][number]): PlacedDwellin
     position: d.position,
     ...(d.plot ? { plot: d.plot } : {}),
     ...(d.workshop ? { craft: d.workshop.craft } : {}),
+    ...(d.plainShape ? { plainShape: true } : {}),
   };
 }
 
@@ -770,9 +795,14 @@ function onForeignLand(
 }
 
 /** Body mřížky po FOOTPRINT_SAMPLE_STEP_M přes otočený půdorys obydlí, včetně okrajů. */
-function footprintSamples(type: DwellingType, position: Position): Point[] {
-  const { width, depth } = DWELLING_FOOTPRINT_M[type];
-  return rectangleSamples(width, depth, position);
+function footprintSamples(type: DwellingType, position: Position, shape: DwellingShape): Point[] {
+  if (isPlainShape(shape)) {
+    const { width, depth } = DWELLING_FOOTPRINT_M[type];
+    return rectangleSamples(width, depth, position);
+  }
+  const { width, depth, centerZ } = shapedFootprint(type, shape);
+  const [x, z] = buildingLocalToWorld(position, 0, centerZ);
+  return rectangleSamples(width, depth, { x, z, rotation: position.rotation });
 }
 
 /** Body mřížky po FOOTPRINT_SAMPLE_STEP_M přes otočený obdélník se středem v `position`. */
@@ -837,6 +867,7 @@ interface GateOwner {
   readonly type: DwellingType;
   readonly position: Position;
   readonly plot?: DwellingPlot;
+  readonly plainShape?: boolean;
 }
 
 /** Malý čtverec kolem brány obydlí. */
@@ -862,6 +893,7 @@ function gateOwners(village: PlacementVillage): (GateOwner & { readonly craft?: 
               position: c.position,
               ...(c.plot ? { plot: c.plot } : {}),
               ...(c.craft ? { craft: c.craft } : {}),
+              ...(c.plainShape ? { plainShape: true } : {}),
             },
           ]
         : [],
@@ -970,6 +1002,7 @@ function checkFootprintFree(
       position: c.position,
       ...(c.plot ? { plot: c.plot } : {}),
       ...(c.craft ? { craft: c.craft } : {}),
+      ...(c.plainShape ? { plainShape: true } : {}),
     };
     if (overlaps(dwellingPlot(landscape, site))) {
       return fail('Překrývá se s rozestavěným obydlím.');
@@ -1229,10 +1262,10 @@ function squareFreeArea(landscape: Landscape, taken: readonly TakenLand[]): numb
 export function freeDwellingClearings(
   type: DwellingType,
   position: Position,
-  _craft?: Craft,
+  shape: DwellingShape,
   margin = 0,
 ): Point[][] {
-  return [dwellingClearing(type, position, margin)];
+  return [dwellingClearing(type, position, shape, margin)];
 }
 
 /**
@@ -1242,14 +1275,13 @@ export function freeDwellingClearings(
  */
 export function forestClearingsOf(
   building:
-    | { type: DwellingType; position: Position; craft?: Craft }
-    | { sacred: SacredBuildingKind; position: Position },
+    (ShapedDwelling & { position: Position }) | { sacred: SacredBuildingKind; position: Position },
 ): Point[][] {
   if ('sacred' in building) return [sacredCrowned(building.sacred, building.position)];
   return freeDwellingClearings(
     building.type,
     building.position,
-    building.craft,
+    dwellingShape(building),
     FOREST_CROWN_MARGIN_M,
   );
 }
@@ -1401,10 +1433,11 @@ export function checkDwellingPlacement(
   if (![position.x, position.z, position.rotation].every(Number.isFinite)) {
     return { ...fail('Neplatná poloha obydlí.'), ...none };
   }
-  const samples = footprintSamples(type, position);
+  const shape = dwellingShape({ type, position });
+  const samples = footprintSamples(type, position, shape);
   const terrain = checkFootprintTerrain(landscape, samples, 'Obydlí', clearForest);
   if (!terrain.ok) return { ...terrain, ...none };
-  const footprint = dwellingFootprint(type, position);
+  const footprint = dwellingFootprint(type, position, shape);
   const land = clearForest ? DWELLING_LAND : { ...DWELLING_LAND, woods: false };
   const free = checkFootprintFree(landscape, village, [freeShape(footprint)], land);
   if (!free.ok) return { ...free, ...none };
@@ -1419,8 +1452,8 @@ export function checkDwellingPlacement(
   if (gate) return { ...fail(gate), ...none };
   // překážky v políčkách polí, hřbitovů, sadů a hájů odstraní jejich stavba (háj nikdo), obydlí
   // je neplatí; posvátný dub na vyklízené ploše zůstane stát
-  const clearing = dwellingClearing(type, position);
-  const crowned = dwellingClearing(type, position, FOREST_CROWN_MARGIN_M);
+  const clearing = dwellingClearing(type, position, shape);
+  const crowned = dwellingClearing(type, position, shape, FOREST_CROWN_MARGIN_M);
   const clearingTiles = cellsUnderPolygon(landscape, clearing);
   const groves = grovesOfTiles(sites, clearingTiles);
   const owned = ownedLand(
@@ -1455,6 +1488,58 @@ export function checkDwellingPlacement(
     obstacleCounts: tally.counts,
     spared,
     takenLand,
+  };
+}
+
+/**
+ * Vejde se stavba `d` (obydlí, dílna) ve vsi uložené před variantami rozměrů do své varianty
+ * (population.md – Varianty rozměrů)? Větší dům nesmí zasáhnout jinou stavbu (obydlí, pozemek,
+ * modlu, svatyni, milíř, hřbitov, ohradu, branku souseda), skalní výchoz ani posvátné místo – pak
+ * zůstane v dnešním tvaru (`plainShape`). `village` je ves bez stavby `d`. Překážky, které větší
+ * vyklízená plocha volného domu nově zabere, vrací `obstacleIds` (převod je odstraní – dům v nich
+ * nesmí stát), dospělé stromy z nich `treeIds`; už vyklizené překážky menšího domu se nevracejí.
+ */
+export function dwellingShapeFits(
+  landscape: Landscape,
+  village: PlacementVillage,
+  d: PlacedDwelling,
+  obstacles: ObstacleLayer,
+): { ok: boolean; obstacleIds: number[]; treeIds: number[] } {
+  const fits = { ok: true, obstacleIds: [], treeIds: [] };
+  const shape = dwellingShape(d);
+  if (isPlainShape(shape)) return fits;
+  const houses = d.craft
+    ? workshopFootprints(d.craft, d.position, shape)
+    : [dwellingFootprint(d.type, d.position, shape)];
+  const misfit = { ok: false, obstacleIds: [], treeIds: [] };
+  if (!checkFootprintFree(landscape, village, houses.map(freeShape), DWELLING_LAND).ok) {
+    return misfit;
+  }
+  const status = obstacleStatus(village.obstacleChanges);
+  if (houses.some((f) => outcropUnder(obstacles, status, f))) return misfit;
+  const sites = sacredSitesOf(obstacles);
+  if (sacredUnder(landscape, obstacles, sites, houses)) return misfit;
+  // dům na pozemku vyklidil celé políčko – nic nového nezabere
+  if (d.plot && !d.craft) return fits;
+  const shaped = dwellingClearing(d.type, d.position, shape);
+  const owned = ownedLand(
+    landscape,
+    village,
+    ['field', 'cemetery', 'orchard', 'pen'],
+    groveTilesUnder(landscape, sites, [shaped]),
+  );
+  const plain = dwellingClearing(d.type, d.position, PLAIN_SHAPE);
+  const before = new Set(
+    polygonObstacles(obstacles, status, plain, owned, sites.protectedTrees).ids,
+  );
+  const tally = polygonObstacles(obstacles, status, shaped, owned, sites.protectedTrees);
+  // vyhrazené stromy patří své stavbě – pokácí je ona
+  const reserved = new Set(village.reservedTrees ?? []);
+  const fresh = (id: number): boolean => !before.has(id) && !reserved.has(id);
+  return {
+    ok: true,
+    obstacleIds: tally.ids.filter(fresh),
+    treeIds: tally.treeIds.filter(fresh),
   };
 }
 
@@ -1493,11 +1578,11 @@ export function checkWorkshopPlacement(
     return { ...fail('Neplatná poloha dílny.'), ...none };
   }
   const type = CRAFT_BASE[craft];
-  const { width, depth } = DWELLING_FOOTPRINT_M[type];
-  const porch = WORKSHOP_PORCH_M[craft];
-  const footprints = workshopFootprints(craft, position);
+  const shape = dwellingShape({ type, position });
+  const { width, depth } = shapedFootprint(type, shape, WORKSHOP_PORCH_M[craft]);
+  const footprints = workshopFootprints(craft, position, shape);
   const house = { ...centroid(footprints[0]!), rotation: position.rotation };
-  const terrain = checkFootprintTerrain(landscape, rectangleSamples(width, depth + porch, house));
+  const terrain = checkFootprintTerrain(landscape, rectangleSamples(width, depth, house));
   if (!terrain.ok) return { ...terrain, ...none };
   const free = checkFootprintFree(landscape, village, footprints.map(freeShape), DWELLING_LAND);
   if (!free.ok) return { ...free, ...none };
@@ -1510,8 +1595,8 @@ export function checkWorkshopPlacement(
   if (sacredProblem) return { ...fail(sacredProblem), ...none };
   const gate = gateProblem(landscape, village, { type, position });
   if (gate) return { ...fail(gate), ...none };
-  const clearings = freeDwellingClearings(type, position, craft);
-  const crowned = freeDwellingClearings(type, position, craft, FOREST_CROWN_MARGIN_M);
+  const clearings = freeDwellingClearings(type, position, shape);
+  const crowned = freeDwellingClearings(type, position, shape, FOREST_CROWN_MARGIN_M);
   const clearingTiles = clearings.flatMap((c) => cellsUnderPolygon(landscape, c));
   const groves = grovesOfTiles(sites, clearingTiles);
   const owned = ownedLand(
@@ -1678,7 +1763,8 @@ export function checkPlotPlacement(
     if (where) return { ...fail(where), ...none };
   }
   const position = plotHousePosition(landscape, plot);
-  const samples = footprintSamples(type, position);
+  const shape = dwellingShape({ type, position, plot });
+  const samples = footprintSamples(type, position, shape);
   const terrain = checkFootprintTerrain(landscape, samples, 'Obydlí', takeLand);
   if (!terrain.ok) return { ...terrain, ...none };
   const sites = sacredSitesOf(obstacles);
@@ -1687,7 +1773,9 @@ export function checkPlotPlacement(
     const taken = plotSquareProblem(landscape, village, shape, obstacles, sites, takeLand);
     if (taken) return { ...fail(taken), ...none };
   }
-  const house = sacredUnder(landscape, obstacles, sites, [dwellingFootprint(type, position)]);
+  const house = sacredUnder(landscape, obstacles, sites, [
+    dwellingFootprint(type, position, shape),
+  ]);
   if (house) return { ...fail(house), ...none };
   const gate = gateProblem(landscape, village, { type, position, plot });
   if (gate) return { ...fail(gate), ...none };
@@ -2431,8 +2519,9 @@ function dwellingShapes(
   dwellingPositions: Position[],
 ): Shape[] {
   const shapesOf = (d: PlacedDwelling): Shape[] => {
-    if (d.craft) return workshopFootprints(d.craft, d.position).map(freeShape);
-    const footprint = freeShape(dwellingFootprint(d.type, d.position));
+    const shape = dwellingShape(d);
+    if (d.craft) return workshopFootprints(d.craft, d.position, shape).map(freeShape);
+    const footprint = freeShape(dwellingFootprint(d.type, d.position, shape));
     return d.plot ? [...plotShapes(landscape, d.plot), footprint] : [footprint];
   };
   return [
@@ -2444,10 +2533,13 @@ function dwellingShapes(
             position: c.position,
             ...(c.plot ? { plot: c.plot } : {}),
             ...(c.craft ? { craft: c.craft } : {}),
+            ...(c.plainShape ? { plainShape: true } : {}),
           })
         : [],
     ) ?? []),
-    ...dwellingPositions.map((p) => freeShape(dwellingFootprint('zemnice', p))),
+    ...dwellingPositions.map((p) =>
+      freeShape(dwellingFootprint('zemnice', p, dwellingShape({ type: 'zemnice', position: p }))),
+    ),
   ];
 }
 

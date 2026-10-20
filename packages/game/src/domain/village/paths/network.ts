@@ -1,5 +1,6 @@
 import { detCos, detSin, length2, tileCenterWorld, type Landscape } from '../../landscape';
 import { rotatedSquareCorners, rotationCosSin, rotationTurn } from '../square-grid';
+import { dwellingFrame, shapeRect, shapeZ, type ShapeFrame } from '../dwelling-shape';
 import {
   DWELLING_CLEARING_M,
   ROAD_WALK,
@@ -149,6 +150,8 @@ export interface PathVillage {
     inhabited?: boolean;
     since?: number;
     craft?: Craft;
+    /** Dnešní tvar bez varianty rozměrů (population.md – Varianty rozměrů). */
+    plainShape?: boolean;
     /** `yard` – dvůr dvorce vojvody (trade.md): střed druhého políčka pozemku. */
     plot?: {
       cell: TileCell;
@@ -901,10 +904,16 @@ export function buildingBounds(b: Building, margin: number): [number, number, nu
  * straně proti vchodu), volné obydlí jako dům se šíjí, rozestavěné jako staveniště.
  */
 function dwellingBox(
-  d: Pick<PathVillage['dwellings'][number], 'type' | 'position' | 'built' | 'plot'>,
+  d: Pick<PathVillage['dwellings'][number], 'type' | 'position' | 'built' | 'plot' | 'plainShape'>,
 ): PathBox {
   if (d.plot) return plotPathBox(d.position, d.plot);
-  return d.built ? DWELLING_PATH_BOX_M[d.type] : sitePathBox(d.type);
+  // varianta rozměrů (population.md – Varianty rozměrů): dům i staveniště podle tvaru domu
+  const frame = dwellingFrame({
+    type: d.type,
+    position: d.position,
+    ...(d.plainShape ? { plainShape: true } : {}),
+  });
+  return d.built ? shapeRect(frame, DWELLING_PATH_BOX_M[d.type]) : sitePathBox(d.type, frame);
 }
 
 /**
@@ -920,13 +929,13 @@ export const DWELLING_PATH_BOX_M: Record<DwellingType, PathBox> = {
 const SITE_FRONT_M = 5;
 
 /** Staveniště: celá vyklízená plocha (jako `siteBox` postav ve scéně). */
-function sitePathBox(type: DwellingType): PathBox {
-  const clearance = DWELLING_CLEARING_M[type];
+function sitePathBox(type: DwellingType, frame: ShapeFrame): PathBox {
+  const clearance = shapeRect(frame, DWELLING_CLEARING_M[type]);
   return {
     minX: clearance.minX,
     maxX: clearance.maxX,
     minZ: clearance.minZ,
-    maxZ: Math.max(DWELLING_PATH_BOX_M[type].maxZ, SITE_FRONT_M),
+    maxZ: Math.max(shapeZ(frame, DWELLING_PATH_BOX_M[type].maxZ), SITE_FRONT_M),
   };
 }
 
@@ -1001,7 +1010,7 @@ export function pathPlotOf(landscape: Landscape, plot: DwellingPlot): PathPlot {
  */
 export function dwellingGatePoint(
   landscape: Landscape,
-  d: { type: DwellingType; position: Position; plot?: DwellingPlot },
+  d: { type: DwellingType; position: Position; plot?: DwellingPlot; plainShape?: boolean },
 ): PathPoint {
   const plot = d.plot ? pathPlotOf(landscape, d.plot) : undefined;
   return gateOf({
@@ -1011,6 +1020,7 @@ export function dwellingGatePoint(
       position: d.position,
       built: true,
       ...(plot ? { plot } : {}),
+      ...(d.plainShape ? { plainShape: true } : {}),
     }),
   });
 }

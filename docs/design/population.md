@@ -164,6 +164,60 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
 - Odstraněné kameny a stromy z krajiny sídla zmizí natrvalo – krajina sídla je vygenerovaná
   krajina plus změny, které v ní udělali lidé (návrh Clauda).
 
+### Varianty rozměrů
+
+Martin (GitHub #1 „Vylepšení zemnic a polozemnic“, 20. 10. 2026): „Teď jsou všechny zemnice
+a polozemnice (myšleno samotné stavby) stejné. Udělejme různé kombinace výšky, poměru stěn
+a plochy. Oproti současnému stavu smí být každý z těchto rozměrů jiný max o 10%. Vznikne nám tak
+hromada různých typů jednoho stavení a vesnice budou působit přirozeněji a ne unifikovaně. Toto
+pravidlo aplikuj i na obydlí řemeslníků.“
+
+- Každá zemnice, polozemnice a dílna (hrnčíř, kovář, tesař, uhlíř) má svou **plochu**, **poměr
+  stěn** (délka podél hřebene : šířka) a **výšku** stěn a střechy – každý rozměr jiný nejvýš
+  o 10 % proti dnešnímu tvaru, rovnoměrně v celém rozpětí. Dvorec ne – je jen jeden.
+- Varianta je **čistá funkce polohy stavby** (souřadnice na cm): stejný tvar spočítá server
+  i prohlížeč a hráč ho vidí už u kurzoru, dřív než stavba dostane id. Natočení na tvar nemá vliv
+  (při otáčení klávesami [ a ] se dům nemění).
+- **Přestavba na stejném místě dá stejný tvar** – rodina staví znovu dům, jaký tu stál, a dům se
+  vejde, kam se vešel (větší varianta by mohla zasáhnout stavbu postavenou mezitím vedle).
+  Přestavba na novém pozemku je nový dům – dostane variantu nového místa.
+- **Mění se jen vzhled a místo, které stavba zabere** – kapacita, cena stavby, dřevo ani pravidla
+  ne. Půdorys, vyklízená plocha (překážky, les, kus pole či sadu, který stavba zabere), kontrola
+  umístění, obdélník domu pro pěšiny a brána počítají se skutečným tvarem varianty – dům tak
+  nestojí v jiné stavbě a překážky odpovídají ploše.
+- **Dveře, schody a šíje se nenatahují:** pás dveří (0,84 m) zůstává stejně široký, prodlouží se
+  jen stěny za ním; vstupní šíje se schody má stejnou šířku, délku i schody a jen se posune se
+  štítem; jáma pod terénem má stejnou hloubku (výška se mění jen nad terénem).
+- **Pozemek polozemnice:** dům zůstane uvnitř plotu a záhony se mu vyhnou. Dům v rohu pozemku má
+  k plotu napříč jen ≈ 0,35 m – smí se rozšířit nejvýš 1,07× (škála šířky); větší varianta se mu
+  zmenší na ploše, poměr stěn a výška zůstanou. Dům uprostřed má variantu celou.
+- **Starší vsi** (uložené před variantami) dostanou variantu stavby ze své polohy (jednou při
+  načtení, hotové i rozestavěné). Kdyby větší varianta zasáhla jinou stavbu (obydlí, pozemek,
+  modlu, svatyni, milíř, hřbitov, ohradu, branku souseda), skalní výchoz nebo posvátné místo,
+  zůstane stavba v dnešním tvaru (příznak, i pro její zbytek jámy). Překážky, které větší
+  staveniště volného domu nově zabere, zmizí (dům v nich nesmí stát; práci převod nestojí, dospělé
+  stromy dají klády jako u převodu na pozemky); už vyklizené překážky menšího domu se nevracejí.
+  Pole a sad u starého domu se kvůli větší variantě nezmenší – ustoupily už jeho původní ploše.
+- **Ve scéně** jde všechno kolem domu podle varianty jedním zobrazením: model hotového domu, díly
+  staveniště i rozpadu, jáma a řez terénu se šíjí a schody, hlína u vchodu, trsy pod okapem, dým
+  z dýmníku, rekvizity staveniště, místa řemeslníků pod přístřeškem, výběr a obrys, minimapa,
+  slepice a postavy kolem domu (i vchod, odkud vycházejí průvody pohřbu a svatby) i zbytek jámy
+  po zániku. Přístřešek dílny se podél nenatahuje –
+  jen se posune se štítem (jako šíje), napříč je široký jako dům. Ukázka: `/dev/buildings` – **Varianty** (řady zemnic, polozemnic a dílen,
+  vlevo dnešní tvar).
+
+| Rozhodnutí                                                                        | Kdo                |
+| --------------------------------------------------------------------------------- | ------------------ |
+| Plocha, poměr stěn a výška každého obydlí a dílny jiné nejvýš o 10 %; dvorec ne   | Martin (GitHub #1) |
+| Varianta z polohy na cm, rovnoměrně v rozpětí; natočení na ni nemá vliv           | návrh Clauda       |
+| Přestavba na stejném místě má stejný tvar, na novém pozemku tvar nového místa     | návrh Clauda       |
+| Mění se jen vzhled a místo (půdorys, vyklízená plocha); kapacita a cena ne        | návrh Clauda       |
+| Pás dveří a šíje se schody se nenatahují, jáma má stejnou hloubku                 | návrh Clauda       |
+| Plocha = škála půdorysu, poměr = délka : šířka (podél hřebene), výška nad terénem | návrh Clauda       |
+| Dům v rohu pozemku nejvýš 1,07× širší – větší plocha se zmenší                    | návrh Clauda       |
+| Starší stavby dostanou variantu, srážka s jinou stavbou → dnešní tvar (příznak)   | návrh Clauda       |
+| Nově zabrané překážky staršího domu zmizí bez práce, vyklizené se nevracejí       | návrh Clauda       |
+
 ### Stavba v lese
 
 Martin (19. 10. 2026): „Oprav – obydlí může jít postavit i v lese – les se prostě vyklučí.“
@@ -787,3 +841,4 @@ před → po:
 | Přirážka minima za vodu nad 100 m chůze: 0,4 cesty na člověka, 1 m/s, den 10 h       | návrh Clauda                               |
 | Branka ani vchod nového obydlí nesmí vést do cizího pozemku („Ano, zakaž to“)        | Martin, 19. 10. 2026                       |
 | Branku blokuje obydlí, modla, svatyně, hřbitov, ohrada, voda; stavba ji nezataraší   | návrh Clauda                               |
+| Varianty rozměrů obydlí a dílen (plocha, poměr stěn, výška ±10 %)                    | Martin, GitHub #1                          |

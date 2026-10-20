@@ -1,3 +1,4 @@
+import type { HerdSpecies } from '@bohemia/game';
 import { LIVESTOCK_EPOCH_MS } from './livestock-motion';
 import { hash01 } from './smoke-schedule';
 
@@ -61,7 +62,16 @@ export interface VillagerPose {
    * Bez údaje vidět.
    */
   hidden?: boolean;
+  /**
+   * Kde v pochůzce postava je (panel postavy – villagers.md, Výběr postavy): cesta tam, na konci,
+   * zpět, doma (`shuttle`); karavana tam, zpátky, čeká u začátku stezky; pohřeb u hranice, cestou
+   * domů. Bez údaje – dělá svou práci (v průvodu jde za márami).
+   */
+  stage?: VillagerStage;
 }
+
+/** Úsek pochůzky postavy (`VillagerPose.stage`). */
+export type VillagerStage = 'out' | 'end' | 'back' | 'rest' | 'wait' | 'ring' | 'home';
 
 export function createVillagerPose(): VillagerPose {
   return { x: 0, z: 0, headingX: 0, headingZ: 1, clip: 'idle', pace: 1 };
@@ -77,6 +87,8 @@ export interface HerdView {
   moving: number;
   headingX: number;
   headingZ: number;
+  /** Kterých zvířat je ve stádě nejvíc – pasák „pase ovce“ (villagers.md – Výběr postavy). */
+  species?: HerdSpecies;
 }
 
 /** Póza postavy v čase `t` (s, villagerSeconds) – zapisuje do `out`, nic nealokuje. */
@@ -319,15 +331,19 @@ export function shuttle(r: Route, o: ShuttleOptions): PoseFn {
     if (time < outS) {
       out.pace = alongRouteWalk(r, (time / outS) * walk, false, out);
       out.clip = o.outClip;
+      out.stage = 'out';
     } else if (time < outS + o.endS) {
       alongRoute(r, r.length, false, out);
       out.clip = o.endClip;
+      out.stage = 'end';
     } else if (time < outS + o.endS + backS) {
       out.pace = alongRouteWalk(r, (1 - (time - outS - o.endS) / backS) * walk, true, out);
       out.clip = o.backClip;
+      out.stage = 'back';
     } else {
       alongRoute(r, 0, true, out);
       out.clip = o.restClip;
+      out.stage = 'rest';
       if (o.restHidden) out.hidden = true;
     }
     return out;

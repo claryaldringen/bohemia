@@ -3,6 +3,7 @@ import { buildingLocalToWorld, fellTrees, obstacleChangesAt } from './obstacles'
 import { adultDailyMin, waterFetchingLabor } from './labor';
 import { ageGroup, laborPerDay } from './people';
 import { workshopSkill } from './craft-skill';
+import { isPlainShape, shapedFootprint, type DwellingShape } from './dwelling-shape';
 import { rectangleCorners, type Point } from './polygon';
 import { NO_CRAFTS, dailyMinPerHousehold } from './productivity';
 import {
@@ -1168,9 +1169,20 @@ export function workCrafts(
  * vpředu; uhlíř jen zemnice – milíř je samostatná stavba u dávky buků, crafts.md – Milíř
  * u skácených buků) – nesmí se překrývat s jinou stavbou.
  */
-export function workshopFootprints(craft: Craft, position: Position): Point[][] {
-  const { width, depth } = DWELLING_FOOTPRINT_M[CRAFT_BASE[craft]];
+export function workshopFootprints(
+  craft: Craft,
+  position: Position,
+  shape: DwellingShape,
+): Point[][] {
+  const type = CRAFT_BASE[craft];
   const porch = WORKSHOP_PORCH_M[craft];
-  const [cx, cz] = buildingLocalToWorld(position, 0, porch / 2);
-  return [rectangleCorners(cx, cz, width, depth + porch, position.rotation)];
+  if (isPlainShape(shape)) {
+    const { width, depth } = DWELLING_FOOTPRINT_M[type];
+    const [cx, cz] = buildingLocalToWorld(position, 0, porch / 2);
+    return [rectangleCorners(cx, cz, width, depth + porch, position.rotation)];
+  }
+  // varianta rozměrů (population.md – Varianty rozměrů): dům se změní, přístřešek se jen posune
+  const { width, depth, centerZ } = shapedFootprint(type, shape, porch);
+  const [cx, cz] = buildingLocalToWorld(position, 0, centerZ);
+  return [rectangleCorners(cx, cz, width, depth, position.rotation)];
 }

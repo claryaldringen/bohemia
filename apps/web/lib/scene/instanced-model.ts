@@ -5,6 +5,7 @@ import { Material } from '@babylonjs/core/Materials/material';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
+import type { ShapeFrame } from '@bohemia/game';
 
 export interface ModelInstance {
   x: number;
@@ -19,6 +20,11 @@ export interface ModelInstance {
   up?: { x: number; y: number; z: number };
   /** Id překážky ve vrstvě překážek – podle něj se instance skryje (vykácený strom…). */
   id?: number;
+  /**
+   * Varianta rozměrů domu (population.md – Varianty rozměrů) – jen u meshů s kostmi oblastí
+   * (`makeShapeable`, shaped-model.ts); ostatní ji nečtou.
+   */
+  shape?: ShapeFrame;
 }
 
 /**

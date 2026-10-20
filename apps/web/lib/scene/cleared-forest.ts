@@ -167,7 +167,11 @@ export function villageClearedForest(
     ...(village.dwellings ?? []).flatMap((d) =>
       d.plot
         ? buildingClearings([d]).map((c) => c.polygon)
-        : forestClearingsOf({ type: d.type, position: d.position, craft: d.craft }),
+        : forestClearingsOf({
+            type: d.type,
+            position: d.position,
+            ...(d.plainShape ? { plainShape: true } : {}),
+          }),
     ),
     ...(village.sacred?.buildings ?? []).flatMap((b) =>
       forestClearingsOf({ sacred: b.kind, position: b.position }),
