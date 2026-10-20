@@ -156,7 +156,12 @@ export type WorkshopActivity =
   | 'no-charcoal'
   | 'no-wood'
   | 'idle'
-  | 'empty';
+  | 'empty'
+  /**
+   * Jen v souhrnu (`summarizeVillage`): obyvatelé se do dílny nastěhovali dnes po práci dne
+   * (dostavění, osídlení prázdného obydlí) – dílna začne zítra; uložená hodnota je `empty`.
+   */
+  | 'settled';
 /**
  * Fáze milíře (crafts.md – Uhlíř, Milíř stojí vždy): kácení a příprava dřeva, stavba, pálení
  * a vypálený milíř, který se rozebírá podle odběru kovářů (`draw`).

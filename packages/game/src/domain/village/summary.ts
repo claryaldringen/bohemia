@@ -725,7 +725,13 @@ function craftsSummary(state: VillageState, day: number): CraftsSummary {
         {
           dwellingId: d.id,
           craft: workshop.craft,
-          activity: occupied > 0 ? workshop.activity : 'empty',
+          // dnes nastěhovaní: práce dne proběhla před osídlením – dílna začne zítra
+          activity:
+            occupied === 0
+              ? 'empty'
+              : workshop.activity === 'empty'
+                ? 'settled'
+                : workshop.activity,
           occupants: occupied,
           laborPerDay:
             occupied > 0

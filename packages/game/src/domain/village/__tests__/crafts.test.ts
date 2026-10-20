@@ -448,6 +448,20 @@ describe('dílny a pozemky polozemnic', () => {
 });
 
 describe('souhrn řemesel pro panel (crafts.md – Co hráč vidí)', () => {
+  it('dílna, do které se lidé nastěhovali dnes po práci dne, není prázdná – začne zítra', () => {
+    // dostavěná dílna má z `newWorkshop` uloženo `empty`, lidé přijdou až po kroku práce
+    const s = withWorkshop(fullVillage(), 'carpenter');
+    expect(s.dwellings.find((d) => d.id === WORKSHOP_ID)!.workshop!.activity).toBe('empty');
+    expect(summarizeVillage(s, DAY).crafts.workshops[0]!.activity).toBe('settled');
+    // bez lidí prázdná
+    s.people = s.people.filter((p) => p.dwellingId !== WORKSHOP_ID);
+    expect(summarizeVillage(s, DAY).crafts.workshops[0]!.activity).toBe('empty');
+    // druhý den už dílna pracuje
+    const next = withWorkshop(fullVillage(), 'carpenter');
+    const after = advanceVillage(next, DAY + 1, null);
+    expect(summarizeVillage(after, DAY + 1).crafts.workshops[0]!.activity).not.toBe('settled');
+  });
+
   it('zásoby, potřeba, pokrytí a dílny s tím, co dělají', () => {
     const s = withWorkshop(fullVillage(), 'smith');
     s.crafts = { charcoalKg: 0, toolsKg: 9, potteryKg: 0 };

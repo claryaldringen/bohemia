@@ -277,6 +277,7 @@ function activityLook(workshop: SelectionWorkshop): {
     },
     idle: { icon: 'labor', name: 'Nemá kdo pracovat', value: '0' },
     empty: { icon: 'people', name: 'Prázdná – nikdo tu nebydlí', value: '0' },
+    settled: { icon: 'people', name: 'Právě se nastěhovali – v dílně začnou zítra', value: '–' },
   };
   const look = looks[workshop.activity];
   const stalled =

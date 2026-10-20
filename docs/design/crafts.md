@@ -60,7 +60,10 @@ Vzhled podle Martina (modely se připravují v `tools/blender/`):
   [lesa](forest.md) (také + 30 %). Umisťuje se jako obydlí; u uhlíře musí být volné i místo milíře.
 - **Kdo se nastěhuje:** stejně jako do nového obydlí – mladý pár z přeplněné domácnosti
   ([populace](population.md)). Prázdná dílna nic nevyrábí (Martin). Když domácnost vymře nebo
-  odejde, řemeslo přebírá další, kdo se nastěhuje – řemeslo patří budově.
+  odejde, řemeslo přebírá další, kdo se nastěhuje – řemeslo patří budově. Lidé se stěhují až po
+  práci dne, proto dílna v den nastěhování v dílně ještě nepracuje – panel ukáže „Právě se
+  nastěhovali – v dílně začnou zítra“ (ne „Prázdná“ – Martin 20. 10. 2026: „Proč mi tesař hlásí, že
+  tam nikdo nebydlí, když je tam muž a žena?“).
 - **Chátrání a přestavba** jako u základního obydlí; přestavba zachová řemeslo.
 
 ## Práce a jídlo
