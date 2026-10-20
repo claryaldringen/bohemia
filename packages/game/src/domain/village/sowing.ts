@@ -58,7 +58,7 @@ export interface SowingCapacity {
   spring: number;
   /** Červenec: sklizeň ozimu a luštěnin. */
   july: number;
-  /** Srpen: sklizeň jaře. */
+  /** Srpen: sklizeň jaře a výmlat ozimu a luštěnin hned po žni (production-chains.md – Humno). */
   august: number;
   /**
    * Orba spřežení v člověkodnech orby (oxen.md – Jen rádlo) – jen ves, která orá: září–říjen
@@ -159,13 +159,14 @@ function autumnWork(work: PartWork): number {
 }
 
 /**
- * Ozim pojme práci `work` – podzim (vrácení, kopání, setí) i červencová sklizeň; ves, která orá,
- * i orbu v září–říjnu.
+ * Ozim pojme práci `work` – podzim (vrácení, kopání, setí), červencová sklizeň i výmlat v srpnu
+ * (production-chains.md – Výmlat hned po žni); ves, která orá, i orbu v září–říjnu.
  */
 function fitsWinter(load: CropLoad, work: PartWork, capacity: SowingCapacity): boolean {
   return (
     load.winterAutumn + autumnWork(work) <= capacity.autumnWinter + EPSILON &&
     load.july + work.harvest <= capacity.july + EPSILON &&
+    load.august + work.thresh <= capacity.august + EPSILON &&
     (!capacity.plough || load.ploughWinter + work.plough <= capacity.plough.autumnWinter + EPSILON)
   );
 }
@@ -202,16 +203,17 @@ function fitsSpring(load: CropLoad, work: PartWork, capacity: SowingCapacity): b
 function addWinter(load: CropLoad, work: PartWork): void {
   load.winterAutumn += autumnWork(work);
   load.july += work.harvest;
+  load.august += work.thresh;
   load.ploughWinter += work.plough;
 }
 
 /**
  * Luštěniny (i len – stejná okna) pojmou práci `work`: jarní práce jako jař (kopání na podzim,
- * kolik zbude, setí na jaře) a sklizeň v červenci vedle ozimu.
+ * kolik zbude, setí na jaře), sklizeň v červenci vedle ozimu a výmlat v srpnu (len se nemlátí).
  */
 function fitsLegume(load: CropLoad, work: PartWork, capacity: SowingCapacity): boolean {
   return (
-    fitsSpring(load, { ...work, harvest: 0 }, capacity) &&
+    fitsSpring(load, { ...work, harvest: work.thresh }, capacity) &&
     load.july + work.harvest <= capacity.july + EPSILON
   );
 }
@@ -221,6 +223,7 @@ function addLegume(load: CropLoad, work: PartWork): void {
   load.springDig += work.dig + work.plough;
   load.springSow += work.sow;
   load.july += work.harvest;
+  load.august += work.thresh;
   load.ploughSpring += work.plough;
 }
 
@@ -311,6 +314,7 @@ function chooseGrain(
 function removeWinter(load: CropLoad, work: PartWork): void {
   load.winterAutumn -= autumnWork(work);
   load.july -= work.harvest;
+  load.august -= work.thresh;
   load.ploughWinter -= work.plough;
 }
 
@@ -553,7 +557,8 @@ export function chooseCrops(
   const blocks = (candidates as readonly (FieldPart | readonly FieldPart[])[]).map(
     (c): readonly FieldPart[] => (Array.isArray(c) ? c : [c as FieldPart]),
   );
-  // ozim na podzim: vrácení, kopání (orba) a setí; jablka se sklízejí po něm, ale v témže okně
+  // ozim na podzim: vrácení, kopání (orba) a setí; jablka se sklízejí po něm, ale v témže okně;
+  // v srpnu sklizeň jaře a výmlat ozimu (luštěniny přičte addLegume)
   const load: CropLoad = {
     winterAutumn:
       planned.orchardAutumn +
@@ -564,7 +569,7 @@ export function chooseCrops(
     springReclaim: planned.spring.reclaim,
     springDig: planned.spring.dig + planned.spring.plough,
     springSow: planned.spring.sow,
-    august: planned.spring.harvest,
+    august: planned.spring.harvest + planned.winter.thresh,
     ploughWinter: planned.winter.plough,
     ploughSpring: planned.spring.plough,
   };

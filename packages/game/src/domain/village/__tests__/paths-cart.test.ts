@@ -214,6 +214,27 @@ describe('kudy vůz projede', () => {
     expect(sown.lengthM).toBeGreaterThan(fallow.lengthM + 10);
   });
 
+  it('humno vůz objede jako stavbu (production-chains.md – Humno)', () => {
+    // humno 8 × 10 m přes přímou trasu na sever
+    const floor = { id: 5, position: { x: 0, z: 30, rotation: 0 }, built: true };
+    const target = { x: 0, z: 60 };
+    const straight = route({}, target);
+    const around = route({ threshingFloors: [floor] }, target);
+    expect(straight.reached && around.reached).toBe(true);
+    // body trasy po metru (osa má body jen v lomech)
+    const onFloor = (r: CartRoute): boolean =>
+      r.points.slice(1).some((b, k) => {
+        const a = r.points[k]!;
+        const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z)));
+        return Array.from({ length: n + 1 }, (_, i) => ({
+          x: a.x + ((b.x - a.x) * i) / n,
+          z: a.z + ((b.z - a.z) * i) / n,
+        })).some((p) => Math.abs(p.x) < 4 && Math.abs(p.z - 30) < 5);
+      });
+    expect(onFloor(straight)).toBe(true);
+    expect(onFloor(around)).toBe(false);
+  });
+
   it('mezi domy jen kudy se vůz vejde (≈ 2,5 m)', () => {
     // dva domy 7 m od sebe (mezera mezi střechami ≈ 1,2 m) – vůz kolem, pěšák mezi
     const tight = [house(1, -3.5, 30, Math.PI / 2), house(2, 3.5, 30, Math.PI / 2)];

@@ -3,6 +3,7 @@ import { rotatedSquareCorners, rotationCosSin, rotationTurn } from '../square-gr
 import { dwellingFrame, shapeRect, shapeZ, type ShapeFrame } from '../dwelling-shape';
 import {
   DWELLING_CLEARING_M,
+  HUMNO,
   ROAD_WALK,
   SACRED_BUILDINGS,
   SMITH_SUPPLY,
@@ -29,6 +30,7 @@ import {
   penGateToward,
   penSquaresEntrance,
   sacredEntrance,
+  threshingFloorEntrance,
   type Entrance,
 } from './entrances';
 import { terrainEditsFrom, withTerrainEdits, type EarthworkSpan } from './earthworks';
@@ -260,6 +262,12 @@ export interface PathVillage {
    * obejde, k milíři se chodí za prací dne (uhlíř ze zemnice, pro uhlí z kovárny). Bez údaje žádné.
    */
   kilns?: readonly { x: number; z: number }[];
+  /**
+   * Humna (production-chains.md – Humno) – hotová i rozestavěná: pěšina mlat obejde, k hotovému
+   * se chodí vstupem na předku za výmlatem (nosí se snopy, odnáší zrno), ke staveništi ze všech
+   * stran. Bez údaje žádná.
+   */
+  threshingFloors?: readonly { id: number; position: Position; built: boolean }[];
 }
 
 export interface PathNetworkInput {
@@ -613,6 +621,10 @@ export function pathNetworkKey(village: PathVillage): string {
     ...(lining ? [lining] : []),
     // milíře uhlířů (crafts.md – Milíř u skácených buků) – bez nich klíč beze změny
     ...((village.kilns?.length ?? 0) > 0 ? [kilnsKey(village.kilns!)] : []),
+    // humna (production-chains.md – Humno) – bez nich klíč beze změny
+    ...((village.threshingFloors?.length ?? 0) > 0
+      ? [threshingFloorsKey(village.threshingFloors!)]
+      : []),
     // zemní práce vozových cest (roads.md – Vozová cesta) – terén pěšin; bez nich beze změny
     ...(village.earthworks && village.earthworks.length > 0
       ? [
@@ -622,6 +634,18 @@ export function pathNetworkKey(village: PathVillage): string {
         ]
       : []),
   ]);
+}
+
+/** Klíč humen pro síť pěšin – id, poloha na decimetry, natočení a jestli stojí. */
+export function threshingFloorsKey(
+  floors: readonly { id: number; position: Position; built: boolean }[],
+): string {
+  return floors
+    .map(
+      (f) =>
+        `${f.id}:${f.position.x.toFixed(1)},${f.position.z.toFixed(1)},${f.position.rotation.toFixed(2)}:${f.built ? 1 : 0}`,
+    )
+    .join(';');
 }
 
 /** Klíč milířů pro síť pěšin – středy na decimetry. */
@@ -1519,6 +1543,19 @@ function tripGroups(
       `pen:${pen.id}`,
     );
   }
+  // humno (production-chains.md – Humno): k hotovému vstupem na předku za výmlatem – nosí se na
+  // něj snopy, odnáší zrno; staveniště ze všech stran
+  for (const floor of v.threshingFloors ?? []) {
+    if (floor.built) {
+      const trips = work(`threshing-floor:${floor.id}`);
+      if (trips > 0) target(entranceTarget(threshingFloorEntrance(floor.position)), trips);
+      continue;
+    }
+    target(
+      cellsAround(grid, floor.position, HUMNO.sizeM.z / 2 + grid.cellM),
+      BASE_TRIPS.site + work(`site:${floor.id}`),
+    );
+  }
   // stáda na pastvu – na úhor vsi (louka na seno až po seči; v roční síti obojí)
   const herds = pastureHerds(v.livestock);
   if (herds > 0) {
@@ -2379,6 +2416,12 @@ export function villageBuildings(v: PathVillage): {
       position: b.position,
       box: { minX: -half, maxX: half, minZ: -half, maxZ: half },
     });
+  }
+  // humno – mlat s přístřeškem (production-chains.md – Humno): pěšiny, vozy a cesty ho obejdou
+  for (const f of v.threshingFloors ?? []) {
+    const hx = HUMNO.sizeM.x / 2;
+    const hz = HUMNO.sizeM.z / 2;
+    all.push({ position: f.position, box: { minX: -hx, maxX: hx, minZ: -hz, maxZ: hz } });
   }
   return { dwellings, all };
 }

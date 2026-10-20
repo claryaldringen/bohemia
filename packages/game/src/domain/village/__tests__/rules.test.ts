@@ -4,6 +4,7 @@ import {
   APPLE_ROT_DAY,
   DWELLINGS,
   HARVEST_DAY,
+  LEGUME_WINDOWS,
   ORCHARD_PLANTING_WINDOWS,
   ORCHARD_SEASON,
   ORCHARD_WINDOWS,
@@ -49,7 +50,15 @@ describe('data polního roku souhlasí s okny prací', () => {
     const sowEnd = Math.max(...WINTER_WINDOWS.sow.map(([, to]) => to));
     expect(sowEnd).toBeLessThan(Math.max(...WINDOWS.dig.filter(([f]) => f >= 9).map(([, t]) => t)));
     expect(WINTER_WINDOWS.weed).toEqual(WINDOWS.weed);
-    expect(WINTER_WINDOWS.thresh).toEqual(WINDOWS.thresh);
+  });
+
+  it('výmlat hned po žni – měsíc po sklizni plodiny (production-chains.md – Výmlat hned po žni)', () => {
+    const after = (harvest: { month: number }): [number, number][] => [
+      [harvest.month + 1, harvest.month + 1],
+    ];
+    expect(WINTER_WINDOWS.thresh).toEqual(after(WINTER_HARVEST_DAY));
+    expect(WINDOWS.thresh).toEqual(after(HARVEST_DAY));
+    expect(LEGUME_WINDOWS.thresh).toEqual(after({ month: LEGUME_WINDOWS.harvest[0]![1] }));
   });
 
   it('konec výmlatu je den po konci okna výmlatu', () => {

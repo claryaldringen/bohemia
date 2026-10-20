@@ -72,3 +72,15 @@ export function withRoomyPens(state: VillageState): VillageState {
   });
   return state;
 }
+
+/**
+ * Ves s hotovým humnem daleko od vsi (production-chains.md – Humno) – snopy se mlátí hned po žni
+ * (ozim a luštěniny v srpnu, jař v září); pro testy, které na humnu nestojí a chtějí, aby ves
+ * mlátila. Mutuje stav.
+ */
+export function withThreshingFloor(state: VillageState): VillageState {
+  state.threshingFloors = [
+    { id: 60_000, position: { x: -300, z: 300, rotation: 0 }, builtDay: state.foundedDay },
+  ];
+  return state;
+}

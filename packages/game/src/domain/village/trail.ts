@@ -10,7 +10,15 @@
 import type { Landscape, ObstacleLayer } from '../landscape';
 import { villageManor } from './manor';
 import { obstacleChangesAt } from './obstacles';
-import { DWELLING_PATH_BOX_M, PathHeap, simplifyPathLine, smoothPathLine } from './paths/network';
+import {
+  DWELLING_PATH_BOX_M,
+  PathHeap,
+  buildingBounds,
+  cellsIn,
+  inBuilding,
+  simplifyPathLine,
+  smoothPathLine,
+} from './paths/network';
 import { addTrailRoads, roadLengthM, roadsInWork } from './paths/roads';
 import { trailTerrain, type PathTerrain } from './paths/terrain';
 import type { Walk } from './paths/walking';
@@ -22,13 +30,14 @@ import {
   roadUpgradeProgress,
 } from './road-upgrades';
 import { roadSwathTally } from './road-swath';
-import { ROAD_SWATH, TRADE, TRAIL } from './rules';
+import { HUMNO, ROAD_SWATH, TRADE, TRAIL } from './rules';
 import { sacredSitesOf } from './sacred';
 import type {
   ChronicleEvent,
   Construction,
   Direction8,
   Dwelling,
+  Position,
   Road,
   RoadGrade,
   RoadPoint,
@@ -292,6 +301,35 @@ function sacredMask(terrain: PathTerrain, layer: ObstacleLayer): Uint8Array {
   return mask;
 }
 
+/**
+ * Buňky terénu pod humny i s pásem stezky (production-chains.md – Humno): stezka mlat s přístřeškem
+ * obejde jako vozová cesta stavby vsi. Bez humen null.
+ */
+function floorMask(terrain: PathTerrain, floors: readonly Position[]): Uint8Array | null {
+  if (floors.length === 0) return null;
+  const mask = new Uint8Array(terrain.width * terrain.height);
+  const hx = HUMNO.sizeM.x / 2;
+  const hz = HUMNO.sizeM.z / 2;
+  for (const position of floors) {
+    const building = { position, box: { minX: -hx, maxX: hx, minZ: -hz, maxZ: hz } };
+    const margin = ROAD_SWATH.roadbedM;
+    const [x0, z0, x1, z1] = buildingBounds(building, margin);
+    cellsIn(terrain, x0, z0, x1, z1, (c, x, z) => {
+      if (inBuilding(building, x, z, margin)) mask[c] = 1;
+    });
+  }
+  return mask;
+}
+
+/** Spojí dvě masky zakázaných buněk (kterákoli může chybět). */
+function unionMask(a: Uint8Array | null, b: Uint8Array | null): Uint8Array | null {
+  if (!a) return b;
+  if (!b) return a;
+  const out = new Uint8Array(a.length);
+  for (let c = 0; c < a.length; c++) out[c] = a[c]! | b[c]!;
+  return out;
+}
+
 /** Trasy stezek do všech směrů – osa od výchozího bodu ke kraji mapy, nebo null (tudy nejde). */
 export type TrailRoutes = Readonly<Record<Direction8, RoadPoint[] | null>>;
 
@@ -310,22 +348,25 @@ function roadsKey(roads: readonly Road[]): string {
 
 /**
  * Trasy stezek od bodu `from` ke kraji mapy do všech 8 směrů (jedno hledání pro všechny směry –
- * v mezipaměti podle krajiny, bodu a sítě pevných cest). Trasa se vyhne vodě mimo brody, srázům
- * a balvanům a posvátným dubům a hájům (průsek by je musel vykácet – `sacredMask`), les a kmeny
- * ji prodraží, po pevné cestě je chůze poloviční (stezka po ní vede).
+ * v mezipaměti podle krajiny, bodu, sítě pevných cest a humen). Trasa se vyhne vodě mimo brody,
+ * srázům a balvanům, posvátným dubům a hájům (průsek by je musel vykácet – `sacredMask`) a humnům
+ * (`floors` – production-chains.md, Humno), les a kmeny ji prodraží, po pevné cestě je chůze
+ * poloviční (stezka po ní vede).
  */
 export function trailRoutes(
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
   from: { x: number; z: number },
   roads: readonly Road[],
+  floors: readonly Position[] = [],
 ): TrailRoutes {
   let cache = routeCache.get(landscape);
   if (!cache) {
     cache = new Map();
     routeCache.set(landscape, cache);
   }
-  const key = `${obstacles ? 1 : 0}|${cm(from.x)},${cm(from.z)}|${roadsKey(roads)}`;
+  const floorsKey = floors.map((f) => `${cm(f.x)},${cm(f.z)},${f.rotation}`).join(';');
+  const key = `${obstacles ? 1 : 0}|${cm(from.x)},${cm(from.z)}|${roadsKey(roads)}|${floorsKey}`;
   const hit = cache.get(key);
   if (hit) return hit;
   const terrain = trailTerrain(landscape, obstacles);
@@ -334,7 +375,10 @@ export function trailRoutes(
   if (start < 0) {
     for (const d of DIRECTIONS) routes[d] = null;
   } else {
-    const blocked = obstacles ? sacredMask(terrain, obstacles) : null;
+    const blocked = unionMask(
+      obstacles ? sacredMask(terrain, obstacles) : null,
+      floorMask(terrain, floors),
+    );
     const { dist, prev } = walkAll(terrain, roadMask(terrain, roads), start, blocked);
     for (const direction of DIRECTIONS) {
       let target = targetCell(terrain, dist, landscape, from, direction, TRAIL.coneDeg);
@@ -487,6 +531,7 @@ export function planTrail(
     obstacles,
     trailStart(landscape, manor),
     state.roads?.roads ?? [],
+    (state.threshingFloors ?? []).map((f) => f.position),
   )[direction];
   if (!route || route.length < 2) return { ok: false, reason: TRAIL_BLOCKED };
   const next: VillageState = {

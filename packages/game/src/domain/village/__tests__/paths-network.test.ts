@@ -348,6 +348,40 @@ describe('computePathNetwork – pěšiny vsi', () => {
     expect(near(working, 1)).toBe(0);
   });
 
+  it('k humnu vede pěšina za výmlatem ke vstupu na předku, přes mlat ne (production-chains.md – Humno)', () => {
+    // humno na západ od vsi, předkem (+z) k jihu – bez výmlatu tam nikdo nechodí
+    const floor = { id: 9, position: { x: -70, z: -40, rotation: 0 }, built: true };
+    const threshing = (manDays: number): PathVillage =>
+      village({
+        threshingFloors: [floor],
+        labor: {
+          day: 4000,
+          month: 8,
+          people: { children: 4, adults: 8, elders: 2 },
+          shares:
+            manDays > 0
+              ? [{ activity: 'thresh', target: { kind: 'threshing-floor', id: 9 }, manDays }]
+              : [],
+        },
+      });
+    const near = (network: PathNetwork, x: number, z: number, r: number): number =>
+      samples(network).filter((q) => Math.hypot(q.x - x, q.z - z) < r).length;
+    const idle = computePathNetwork({ village: threshing(0), terrain });
+    const working = computePathNetwork({ village: threshing(6), terrain });
+    // vstup na předku: 5 m od středu + krok
+    expect(near(idle, -70, -34, 4)).toBe(0);
+    expect(near(working, -70, -34, 4)).toBeGreaterThan(0);
+    // přes mlat s přístřeškem (8 × 10 m) pěšina nevede
+    expect(
+      samples(working).filter((q) => Math.abs(q.x + 70) < 3.5 && Math.abs(q.z + 40) < 4.5),
+    ).toEqual([]);
+    // klíč sítě humno zná – bez něj stejný jako dřív
+    expect(pathNetworkKey(village({ threshingFloors: [floor] }))).not.toBe(
+      pathNetworkKey(village()),
+    );
+    expect(pathNetworkKey({ ...village(), threshingFloors: [] })).toBe(pathNetworkKey(village()));
+  });
+
   it('k přirozené louce, kde se dnes seče, vede pěšina (oxen.md – Seno)', () => {
     // louka na východ od vsi – bez seče tam nikdo nechodí
     const meadow = part(82.5, -37.5);

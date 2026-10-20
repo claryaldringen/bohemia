@@ -13,9 +13,12 @@ import { ironTripWho, productList, type VillageView } from './village-view';
 // Obnova sadu), posvátný dub uschl a posvátná souš padla (happiness.md), nevěsta a ženich z okolí
 // a dcera vdaná pryč (kinship.md – Sňatky z okolí), lidé od souseda – rodina, muž, žena (trade.md – Výměna
 // lidí), opuštěná modla padla, svatyně, plot hřbitova či ohrada
-// se rozpadly a vesničané je opravili (abandonment.md – Oprava) – nové události kroniky. Vymřelá
-// ves žádná nemá. Odvozují se z pohledu na ves a ukážou se jednou, když nově vzniknou – jako
-// krátký mizející řádek nahoře uprostřed (jako oznámení v 0 A.D.). Jen fakt, žádná rada.
+// se rozpadly a vesničané je opravili (abandonment.md – Oprava) – nové události kroniky; před žněmi
+// ves bez humna, snopy čekají na humno, nouzový výmlat a humno nestačí (production-chains.md –
+// Humno). Vymřelá ves žádná nemá. Odvozují se z pohledu na ves a ukážou se jednou, když nově
+// vzniknou – jako krátký mizející řádek nahoře uprostřed (jako oznámení v 0 A.D.). Jen fakt, žádná
+// rada – kromě humna („Před žněmi postav humno“): bez něj ves nemlátí a nesmí zahynout hladem jen
+// proto, že hráč o humnu nevěděl (production-chains.md – anti-cíl).
 
 export type NoticeKind =
   | 'full-household'
@@ -23,6 +26,14 @@ export type NoticeKind =
   | 'pen-short'
   /** Ves chce víc volů, než se vejde do ohrad volů (oxen.md – Kolik volů ves chce). */
   | 'oxen-short'
+  /**
+   * Výmlat (production-chains.md – Humno): měsíc před žní ves bez humna, snopy čekají na humno,
+   * starší ves mlátí nouzově na udusané zemi, humno nestačí.
+   */
+  | 'threshing-floor-needed'
+  | 'sheaves-waiting'
+  | 'emergency-threshing'
+  | 'threshing-floor-short'
   /** Stupně hladu (population.md – Co hráč vidí): šetří jídlem, hladoví, umírají hlady. */
   | 'rationing'
   | 'hungry'
@@ -189,6 +200,29 @@ export function villageNotices(view: VillageView): VillageNotice[] {
   // Kolik volů ves chce)
   if (view.oxen?.overRoom) {
     notices.push({ kind: 'oxen-short', tone: 'warn', text: 'Voli se nevejdou do ohrady' });
+  }
+  // výmlat (production-chains.md – Humno): bez humna ves nemlátí – upozornění s předstihem, aby
+  // ves nezahynula hladem jen proto, že hráč o humnu nevěděl (anti-cíl)
+  const threshing = view.threshing;
+  if (threshing?.floorNeeded) {
+    notices.push({
+      kind: 'threshing-floor-needed',
+      tone: 'warn',
+      text: 'Před žněmi postav humno',
+    });
+  }
+  if (threshing?.waiting) {
+    notices.push({ kind: 'sheaves-waiting', tone: 'warn', text: 'Snopy čekají na humno' });
+  }
+  if (threshing?.emergency) {
+    notices.push({
+      kind: 'emergency-threshing',
+      tone: 'warn',
+      text: 'Mlátí se na udusané zemi – postav humno',
+    });
+  }
+  if (threshing?.floorShort) {
+    notices.push({ kind: 'threshing-floor-short', tone: 'warn', text: 'Humno nestačí na výmlat' });
   }
   return notices;
 }

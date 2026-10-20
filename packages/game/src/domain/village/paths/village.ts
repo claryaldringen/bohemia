@@ -31,6 +31,7 @@ import { earthworkSpansOf } from './earthworks';
 import {
   computePathNetwork,
   kilnsKey,
+  threshingFloorsKey,
   liningKey,
   pathAgeFactor,
   pastureHerds,
@@ -330,6 +331,16 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
     ...(state.roads?.earthworks && state.roads.earthworks.length > 0
       ? { earthworks: earthworkSpansOf(state) }
       : {}),
+    // humna (production-chains.md – Humno) – ves bez nich beze změny
+    ...((state.threshingFloors ?? []).length > 0
+      ? {
+          threshingFloors: state.threshingFloors!.map((f) => ({
+            id: f.id,
+            position: f.position,
+            built: f.builtDay !== null,
+          })),
+        }
+      : {}),
   };
 }
 
@@ -440,6 +451,11 @@ export function walkLayoutKey(state: VillageState, day: number): string {
   );
   const herds = state.livestock ? pastureHerds(pastureLivestock(state, day)) : 0;
   const kilns = villageKilnPoints(state);
+  const floors = (state.threshingFloors ?? []).map((f) => ({
+    id: f.id,
+    position: f.position,
+    built: f.builtDay !== null,
+  }));
   return JSON.stringify([
     dwellings,
     sites,
@@ -454,6 +470,8 @@ export function walkLayoutKey(state: VillageState, day: number): string {
     ...(woods.length > 0 ? [woods] : []),
     // milíře uhlířů (crafts.md – Milíř u skácených buků) – bez nich klíč beze změny
     ...(kilns.length > 0 ? [kilnsKey(kilns)] : []),
+    // humna (production-chains.md – Humno) – bez nich klíč beze změny
+    ...(floors.length > 0 ? [threshingFloorsKey(floors)] : []),
   ]);
 }
 

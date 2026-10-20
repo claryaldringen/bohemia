@@ -34,6 +34,7 @@ import {
 } from './livestock';
 import { villageApplesKg } from './orchard';
 import { EMERGENCY_SLAUGHTER } from './rules';
+import { sheavesOutlook } from './threshing';
 import type { ChronicleEvent, HerdSpecies, VillageState } from './types';
 import { woolSheep } from './wool';
 import { daysUntilFoodHarvest } from './year-plan';
@@ -81,8 +82,12 @@ export function dayMealInput(
     day,
     need * fieldFoodShare(state),
   );
+  // snopy, které ves vymlátí, jsou ve výhledu jako zrno (production-chains.md – Humno)
+  const sheaves = sheavesOutlook(state, day);
   return {
     grainKg: state.storesKg,
+    sheavesGrainKg: sheaves.grainKg,
+    sheavesLegumesKg: sheaves.legumesKg,
     meatKg: villageMeatKg(state),
     // čerstvé maso zimní porážky – dnešní a do konce zimy (diet.md – Porážka v zimě)
     freshMeatKg: state.freshMeatKg ?? 0,

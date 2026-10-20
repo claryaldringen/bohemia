@@ -8,8 +8,9 @@ import { withBuiltFirstDwelling } from './village-fixtures';
 // Učení řemesla a kování vozů (crafts.md – Učení řemesla, wagons.md – Kování vozů): ves bez dílen
 // se nemění bit po bitu – lidé nemají praxi, vůz se spřežením jezdí jako dřív. Otisk stavu po dvou
 // letech je spočítaný kódem před učením řemesla (commit před zavedením praxe). Rok vozů po dnech
-// a tabulka úspor (wagons.md – Co se vozí a na čem) mění jen záznam roku vozů (`draft.demand`,
-// `draft.lastYear`) – stav bez nich vyšel stejně jako předtím (bd776511).
+
+// Snopy a výmlat hned po žni (production-chains.md – Humno, 20. 10. 2026): ves bez pole nesklízí –
+// přibude jen značka nové vsi `sheaves` (prázdné snopy), stav bez ní vyšel stejně jako předtím.
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 const DAY = at(601, 3, 1);
@@ -72,6 +73,8 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
       'brideId',
       'groomFromDwellingId',
       'brideFromDwellingId',
+      // prázdné snopy nové vsi (production-chains.md – Humno) – bez sklizně jen značka
+      'sheaves',
     ]);
     const stripped = JSON.stringify(next, (key, value: unknown) =>
       marks.has(key) ? undefined : value,

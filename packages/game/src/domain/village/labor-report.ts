@@ -105,6 +105,11 @@ export interface DayWork {
   purchases?: { target: LaborTarget; manDays: number }[];
   /** Výrostci 7–13 let, kteří dnes pasou (diet.md – Pasáci); bez údaje se neví. */
   herders?: { children: number };
+  /**
+   * Výmlat dne (production-chains.md – Humno): práce na hotových humnech a nouzově na udusané zemi
+   * u domů (rok odkladu starší vsi); bez údaje celý výmlat u vsi.
+   */
+  threshing?: { floor: number; ground: number };
   /** Práce bokem – mimo práci vsi, jen pro postavy (`AsideWork`); bez údaje žádná. */
   aside?: AsideWork;
 }
@@ -129,8 +134,9 @@ const FIELD_ACTIVITIES: readonly LaborTaskName[] = ['reclaim', 'dig', 'sow', 'we
 /**
  * Rozdělení práce dne podle míst (stav po práci dne – mutovat se smí až potom). Polní úlohy jdou
  * na díly, přes které dnes práce postoupila (čelo práce – field-progress.ts), sečtené po polích
- * s id těch dílů v cíli; sklizeň na žeň a odnos podle sazeb (fields.md), výmlat se dělá u vsi.
- * Sezónní práce v sadech podle plochy vysazených čtverců.
+ * s id těch dílů v cíli; sklizeň na žeň a odnos podle sazeb (fields.md), výmlat na hotová humna
+ * rovným dílem (nosí se k nim snopy a odnáší zrno – production-chains.md, Humno), nouzový výmlat
+ * na udusané zemi u vsi. Sezónní práce v sadech podle plochy vysazených čtverců.
  */
 export function laborDay(state: VillageState, day: number, work: DayWork): LaborDay {
   const shares: LaborShare[] = [];
@@ -212,7 +218,7 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
   }
   haulTo('harvest', harvestTarget?.target ?? null);
   haulTo('seed', sowTarget?.target ?? null);
-  add('thresh', { kind: 'village' }, allocation.tasks.thresh);
+  threshShares(state, work.threshing, allocation.tasks.thresh, add);
   let mowTarget: { target: LaborTarget; manDays: number } | null = null;
   for (const share of mowingShares(state, work)) {
     add('mow', share.target, share.manDays);
@@ -335,6 +341,27 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
     ...(work.herders !== undefined ? { herders: work.herders } : {}),
     ...(work.aside ? { aside: asideShares(state, work.aside) } : {}),
   };
+}
+
+/**
+ * Výmlat dne po místech (production-chains.md – Humno): práce na humnech rovným dílem mezi hotová
+ * humna, nouzový výmlat na udusané zemi u vsi; bez rozdělení (starší volání) celý u vsi.
+ */
+function threshShares(
+  state: VillageState,
+  threshing: DayWork['threshing'],
+  total: number,
+  add: (activity: LaborActivity, target: LaborTarget, manDays: number) => void,
+): void {
+  const floors = (state.threshingFloors ?? []).filter((f) => f.builtDay !== null);
+  if (!threshing || floors.length === 0) {
+    add('thresh', { kind: 'village' }, total);
+    return;
+  }
+  for (const floor of floors) {
+    add('thresh', { kind: 'threshing-floor', id: floor.id }, threshing.floor / floors.length);
+  }
+  add('thresh', { kind: 'village' }, threshing.ground);
 }
 
 /**

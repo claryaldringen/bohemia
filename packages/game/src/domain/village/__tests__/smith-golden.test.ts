@@ -17,8 +17,9 @@ import { withBuiltFirstDwelling } from './village-fixtures';
 // hrnčíře) kope a nosí hlínu jako kovář rudu – ve zlaté vsi proto už není; ves bez kováře
 // a hrnčíře vyšla bez záznamu roku vozů a praxe stejně kódem před hlínou i s ní (f49f757d).
 // Milíř u skácených buků a rovnováha uhlíř – kovář (crafts.md, 20. 10. 2026) mění uhlíře záměrně
-// – otisk přepočítaný s nimi; ves bez uhlíře hlídají zlaté otisky bez dílen
-// (craft-skill-golden.test.ts) beze změny.
+
+// Snopy a výmlat hned po žni (production-chains.md – Humno, 20. 10. 2026): ves bez pole nesklízí –
+// přibude jen značka nové vsi `sheaves` (prázdné snopy), stav bez ní vyšel stejně jako předtím.
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 const DAY = at(601, 3, 1);
@@ -99,6 +100,8 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
       'brideId',
       'groomFromDwellingId',
       'brideFromDwellingId',
+      // prázdné snopy nové vsi (production-chains.md – Humno) – bez sklizně jen značka
+      'sheaves',
     ]);
     const stripped = JSON.stringify(next, (key, value: unknown) =>
       learning.has(key) ? undefined : value,

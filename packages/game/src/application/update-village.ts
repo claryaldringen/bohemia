@@ -25,6 +25,7 @@ import {
   withDwellingShapes,
   withoutBuiltOverRuins,
   withoutForeignGoods,
+  withThreshingGrace,
   type VillageState,
 } from '../domain/village';
 import type { Pause, VillageRecord, VillageRepository, VillageResult } from './villages';
@@ -89,8 +90,9 @@ async function advancedToTodayWithPauses(
  * průsek (`withRoadSwaths`) a lidem z doby před příbuzenstvím se doplní
  * pohlaví a manželé (`withKinship`) a ves přijde o zboží zvenku, které obchod už nezná
  * (`withoutForeignGoods`), ohrady uložené bez druhu ho dostanou (`withPenSpecies` – oxen.md,
- * Ohrady podle druhu), spřežení voly po kusech (`withOxen`) a stáda roční odklad míst ohrad od
- * dneška (`withPenGrace`) – před dopočtem,
+ * Ohrady podle druhu), spřežení voly po kusech (`withOxen`), stáda roční odklad míst ohrad od
+ * dneška (`withPenGrace`) a ves z doby před snopy rok odkladu mlácení bez humna od dneška
+ * (`withThreshingGrace` – production-chains.md, Starší vsi) – před dopočtem,
  * aby se s nimi už počítalo; pak se uloží.
  * Ves se dopočítává s vrstvou překážek a krajinou sídla (přestavby kácí stromy, polozemnice bez
  * pozemku se přestaví na volném políčku). Zbytky jam po zaniklých obydlích pod novou stavbou po
@@ -108,42 +110,46 @@ export async function updateVillage(
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const record = await villages.find(villageId);
     if (record === null) return { ok: false, reason: NO_VILLAGE };
-    // ohrady uložené dřív dostanou druh (oxen.md – Ohrady podle druhu)
-    const migrated = withPenGrace(
-      withPenSpecies(
-        withoutForeignGoods(
-          withKinship(
-            // hotové upravené cesty a stezky lesem dostanou průsek (roads.md – Průsek lesem)
-            withRoadSwaths(
-              withJoinedRoads(
-                withMergedRoads(
-                  withLivestockLand(
-                    withMergedFields(
-                      // varianty rozměrů domů (population.md) – po pozemcích, ať dům zná svůj
-                      withDwellingShapes(
-                        withPlots(
-                          withForestDistances(
-                            withObstacleClearing(record.state, obstacles),
+    // ohrady uložené dřív dostanou druh (oxen.md – Ohrady podle druhu); ves z doby před snopy
+    // rok odkladu mlácení od dneška (production-chains.md – Starší vsi)
+    const migrated = withThreshingGrace(
+      withPenGrace(
+        withPenSpecies(
+          withoutForeignGoods(
+            withKinship(
+              // hotové upravené cesty a stezky lesem dostanou průsek (roads.md – Průsek lesem)
+              withRoadSwaths(
+                withJoinedRoads(
+                  withMergedRoads(
+                    withLivestockLand(
+                      withMergedFields(
+                        // varianty rozměrů domů (population.md) – po pozemcích, ať dům zná svůj
+                        withDwellingShapes(
+                          withPlots(
+                            withForestDistances(
+                              withObstacleClearing(record.state, obstacles),
+                              landscape,
+                            ),
                             landscape,
+                            obstacles,
                           ),
                           landscape,
                           obstacles,
                         ),
-                        landscape,
-                        obstacles,
                       ),
+                      landscape,
                     ),
-                    landscape,
                   ),
+                  landscape,
+                  obstacles,
                 ),
-                landscape,
                 obstacles,
+                landscape,
               ),
-              obstacles,
-              landscape,
             ),
           ),
         ),
+        today,
       ),
       today,
     );

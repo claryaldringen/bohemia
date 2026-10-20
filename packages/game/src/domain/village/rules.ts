@@ -713,7 +713,10 @@ export const HYGIENE_DEATH_EXTRA = { child: 0.5, adult: 0.3, elder: 0.3 } as con
 export const CHRONICLE_MAX_EVENTS = 500;
 
 // fields.md – Práce, tabulka Kdy, a Ozim a jař (okna prací v měsících včetně). WINDOWS = jař:
-// kopá se na podzim, co se nestihne, v březnu–dubnu; seje se na jaře, sklízí v srpnu.
+// kopá se na podzim, co se nestihne, v březnu–dubnu; seje se na jaře, sklízí v srpnu a mlátí
+// hned po žni v září (production-chains.md – Výmlat hned po žni; Martin 20. 10. 2026: „Staří
+// slované se snažili dělat výmlat hned. Klasy neskladovali.“). Výmlat, který okno nestihne,
+// pokračuje dál, dokud je co mlátit (snopy čekají a kazí se – THRESHING).
 export const WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
   reclaim: [[9, 11]],
   dig: [
@@ -723,31 +726,26 @@ export const WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
   sow: [[3, 4]],
   weed: [[5, 6]],
   harvest: [[8, 8]],
-  thresh: [
-    [11, 12],
-    [1, 2],
-  ],
+  thresh: [[9, 9]],
 };
 // fields.md – Ozim a jař (návrh Clauda, Martin schválil směr 18. 10. 2026): ozim se vrací
 // z přílohu, kope a seje v září–říjnu, plete v květnu–červnu jako jař, sklízí v červenci
-// a mlátí v zimě
+// a mlátí hned po žni v srpnu (production-chains.md – Výmlat hned po žni)
 export const WINTER_WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
   reclaim: [[9, 10]],
   dig: [[9, 10]],
   sow: [[9, 10]],
   weed: [[5, 6]],
   harvest: [[7, 7]],
-  thresh: [
-    [11, 12],
-    [1, 2],
-  ],
+  thresh: [[8, 8]],
 };
 // fields.md – Luštěniny (rešerše 2026-10-18-legumes.md): luštěniny jsou jař – kopou se na podzim
 // nebo na jaře, sejí v březnu–dubnu, pletou v květnu–červnu, sklízejí (trhají) v červenci a mlátí
-// v zimě jako obilí
+// hned po sklizni v srpnu na humně jako obilí (production-chains.md – Humno, návrh Clauda)
 export const LEGUME_WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
   ...WINDOWS,
   harvest: [[7, 7]],
+  thresh: [[8, 8]],
 };
 // fields.md – Len (rešerše 2026-10-19-flax.md): jarní len se seje v dubnu (okno jaře březen–duben),
 // trhá se po ≈ 100 dnech koncem července – okna jako luštěniny; nemlátí se (semena se drhnou
@@ -874,13 +872,38 @@ export const APPLE_ROT_DAY = { month: 3, day: 1 } as const;
 export const ORCHARD_SEASON = { startMonth: 3, autumnPlantingFromMonth: 9 } as const;
 
 // fields.md – Kolik ves oseje (k 1. září), Práce a Včasnost (sklizeň jaře do konce srpna, ozimu
-// do konce července, výmlat do konce února). Musí souhlasit s okny: sklizeň je poslední den okna
-// harvest své plodiny, plán den po sklizni jaře, konec výmlatu den po konci okna thresh (hlídá
-// rules.test.ts).
+// do konce července, výmlat jaře v září). Musí souhlasit s okny: sklizeň je poslední den okna
+// harvest své plodiny, plán den po sklizni jaře, konec výmlatu den po konci okna thresh jaře
+// (hlídá rules.test.ts) – tehdy se zahodí loňský plán u výmlatu (`threshingFromPlan`); snopy, které
+// výmlat nestihl, zůstávají (Sheaves – mlátí se dál).
 export const HARVEST_DAY = { month: 8, day: 31 } as const;
 export const WINTER_HARVEST_DAY = { month: 7, day: 31 } as const;
 export const PLANNING_DAY = { month: 9, day: 1 } as const;
-export const THRESH_END_DAY = { month: 3, day: 1 } as const;
+export const THRESH_END_DAY = { month: 10, day: 1 } as const;
+/**
+ * production-chains.md – Humno, Výmlat hned po žni, Starší vsi (Martin 20. 10. 2026: „Humno je
+ * podmínka“, „Rok odkladu“; čísla návrh Clauda podle rešerše 2026-10-20-production-chains.md –
+ * Výmlat na humně): na humně 8 × 10 m mlátí naráz ≈ 4 páry mlatců s cepy a 4 pomocníci (snopy
+ * na humno, obracení slámy, odvívání lopatou proti větru) – `floorManDaysPerDay` 12 člověkodní
+ * výmlatu za den; v srpnu a září (61 dní) tak humno vymlátí ≈ 730 čd – 50–75 ha osevu podle
+ * nástrojů (`FIELD_WORK_PER_HA.thresh` 15–10 čd/ha), tedy humno na ≈ 60 ha; humna se sčítají.
+ * Starší ves má od převodu rok odkladu (`graceDays`): bez humna mlátí nouzově na udusané zemi
+ * u domů bez omezení místa, ale o `emergencyWork` víc práce a o `emergencyLoss` zrna méně (zrno
+ * se ztratí v zemi, nečistoty); s humnem, které nestačí, mlátí přes odklad zbytek také nouzově.
+ * Snopy, které se nemlátí (bez humna, po odkladu, nebo výmlat okno nestihl), se kazí
+ * `spoilPerMonth` za měsíc (myši, ptáci, vlhko – klasy se neskladovaly). Upozornění „Před žněmi
+ * postav humno“ přijde `noticeDaysBefore` dní před sklizní, kterou nebude kde mlátit; snopy pod
+ * `noticeMinKg` (kg) se neohlašují.
+ */
+export const THRESHING = {
+  floorManDaysPerDay: 12,
+  graceDays: 365,
+  emergencyWork: 0.3,
+  emergencyLoss: 0.1,
+  spoilPerMonth: 0.1,
+  noticeDaysBefore: 31,
+  noticeMinKg: 1,
+} as const;
 
 // population.md – Růst populace (roční úmrtnost dětí: za AGE.adult let vymře CHILD_DEATH_BEFORE_ADULT dětí)
 /** Roční úmrtnost dětí – za AGE.adult let vymře CHILD_DEATH_BEFORE_ADULT dětí. */

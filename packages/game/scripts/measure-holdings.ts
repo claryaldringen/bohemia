@@ -129,6 +129,11 @@ function village(l: Landscape, layout: Layout): VillageState | null {
     felledTrees: [],
     woodLogs: 100,
     plotsMigrated: true,
+    // ves mlátí na humně hned po žni (production-chains.md – Humno) – humno stranou, bez pěšin
+    sheaves: { grainKg: 0, legumesKg: 0 },
+    threshingFloors: [
+      { id: 999_999, position: { x: -5000, z: -5000, rotation: 0 }, builtDay: START - 1 },
+    ],
   };
   const preview = fieldPartsFromCells(
     l,

@@ -101,6 +101,22 @@ export * from './wood';
 export * from './sacred';
 export * from './sacred-life';
 export * from './threshing-floors';
+// snopy a výmlat (production-chains.md – Humno) – kroky dne (sklizeň do snopů, výmlat, ubytek)
+// volá simulate.ts
+export {
+  THRESHED_CROPS,
+  builtThreshingFloorCount,
+  canThresh,
+  inThreshingGrace,
+  sheafWork,
+  sheavesOutlook,
+  threshingCapacity,
+  threshingStatus,
+  villageSheaves,
+  withThreshingGrace,
+  type ThreshingCapacity,
+  type ThreshingStatus,
+} from './threshing';
 export * from './happiness';
 export * from './crafts';
 // kování vozů (wagons.md – Kování vozů) – krok dne volá simulate.ts

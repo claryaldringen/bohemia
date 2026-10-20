@@ -15,6 +15,7 @@ import {
   checkWorkshopPlacement,
   DWELLING_TREES,
   HUMNO,
+  THRESHING,
   dwellingBuildLabor,
   fellingCost,
   isOak,
@@ -264,6 +265,24 @@ describe('loadVillage', () => {
     expect(record!.state.fields.map((f) => f.id)).toEqual([older]);
     expect(record!.state.parts.every((p) => p.fieldId === older)).toBe(true);
     expect(villages.records.get(VID)!.state.fields).toHaveLength(1);
+  });
+
+  it('ves uložená před snopy dostane rok odkladu mlácení od dneška a uloží se; nová ves ne', async () => {
+    const villages = await foundedVillages();
+    // nová ves (production-chains.md – Humno) – prázdné snopy bez odkladu
+    expect(villages.records.get(VID)!.state.sheaves).toEqual({ grainKg: 0, legumesKg: 0 });
+    expect(villages.records.get(VID)!.state.threshingGraceUntil).toBeUndefined();
+    villages.edit(VID, (s) => {
+      delete s.sheaves;
+    });
+    const today = TODAY + 3;
+    const record = await loadVillage({ villages }, { villageId: VID, today, landscape });
+    expect(record!.state.sheaves).toEqual({ grainKg: 0, legumesKg: 0 });
+    expect(record!.state.threshingGraceUntil).toBe(today + THRESHING.graceDays);
+    expect(villages.records.get(VID)!.state.threshingGraceUntil).toBe(today + THRESHING.graceDays);
+    // jednou – další načtení odklad neposune
+    const again = await loadVillage({ villages }, { villageId: VID, today: today + 30, landscape });
+    expect(again!.state.threshingGraceUntil).toBe(today + THRESHING.graceDays);
   });
 
   it('při souběžném uložení to zkusí znovu nad čerstvou vsí', async () => {

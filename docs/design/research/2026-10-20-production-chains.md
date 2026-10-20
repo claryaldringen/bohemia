@@ -57,3 +57,62 @@ nová ves se dvěma dospělými ho postaví za ≈ 50 dní volné práce, takže
 - [Abrams 1994 – tabulka výkonů (doplněk článku, Cambridge)](https://static.cambridge.org/content/id/urn:cambridge.org:id:article:S1045663500008750/resource/name/S1045663500008750sup002.pdf)
 - [euroREA 3/2006 – Construction of a circular ditch system and houses of the Middle Neolithic](https://EXARC.net/sites/default/files/exarc-eurorea_3_2006-construction_of_a_circular_ditch_system_and_houses_of_the_middle_neolithic.pdf)
 - [Waldhauser 2008 – Destruction mechanisms of a sunken floored house (euroREA 5)](https://exarc.net/sites/default/files/exarc-eurorea_5_2008-destruction_mechanisms_of_a_sunken_floored_house.pdf)
+
+## Výmlat na humně – kapacita humna a nouzový výmlat
+
+Výmlat hned po žni (production-chains.md – Humno, fields.md – Výmlat hned po žni): kolik práce
+výmlatu zvládne jedno humno za den, a co stojí nouzový výmlat starší vsi na udusané zemi bez
+humna. Práce výmlatu na hektar se nemění (fields.md – Práce: výmlat cepem a převívání 15 / 10
+člověkodní na hektar, Clark 2007 podle EB 1911).
+
+### Co víme
+
+| Zdroj                                                                       | Co říká                                                                                                                                                                                           |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Encyclopaedia Britannica – Flail                                            | Jeden člověk vymlátí cepem za den ≈ 7 bušlů pšenice (≈ 190 kg), 8 bušlů žita, 15 ječmene, 18 ovsa.                                                                                                |
+| Wikipedia – Threshing (průměr z 19. st.)                                    | „Slušný průměr“ za den: 8 bušlů pšenice (≈ 220 kg), 30 ovsa, 16 ječmene, 8 žita.                                                                                                                  |
+| Image Leicestershire – Threshing With Flails                                | Jeden mlatec ≈ 4 bušly (≈ 110 kg) za den; na fotografii mlátí dva muži proti sobě.                                                                                                                |
+| Heidelberg, Tools & Tillage – Threshing machines                            | Průměrný cep 5–6 bušlů za den; žentourová mlátička se 6 muži ≈ 160 bušlů (≈ 2,4 ha pšenice) za 10hodinový den – pětinásobek.                                                                      |
+| Dúchas (irský folklór), Wikipedia – Threshing floor                         | Na mlatu stodoly se mlátilo většinou ve dvou (proti sobě, střídavé údery), mlatci stáli kolem rozložených snopů; mlat bývá v prostředním poli stodoly, velké stodoly mají dva i tři.              |
+| Al-Rawi 1989 (AGRIS, Jordánsko), FAO – Post-harvest losses; AGRIS (Etiopie) | Ztráty při výmlatu: ječmen 8,2 %, čočka 15,6 % (rozsypané a nevymlácené zrno, zlomená zrna); výmlat podporuje i hmyz. Zrno mlácené na holé zemi má víc plísní a toxinů (čirok v Etiopii – AGRIS). |
+
+Hra počítá výmlat i s odvíváním, nošením snopů na humno, obracením slámy a odnosem zrna:
+15 / 10 člověkodní na hektar při úrodě ≈ 500–760 kg zrna je ≈ 50–75 kg na člověkoden, tedy
+zhruba třetina až polovina samotného mlácení cepem – zbytek je práce kolem.
+
+### Odhad
+
+- **Kolik lidí naráz na humně 8 × 10 m:** mlatci mlátí v párech proti sobě (cep ≈ 1,5 m násada
+  - 0,7 m tlouk – každý potřebuje ≈ 2,5 m prostoru); na mlatu 8 × 7 m (bez přístřešku 8 × 3 m)
+    se vejdou **≈ 4 páry**, k nim **≈ 4 pomocníci** (snopy na mlat, obracení a odhrabování slámy,
+    odvívání lopatou proti větru na kraji, odnos zrna). Celkem **≈ 12 lidí, tedy 12 člověkodní
+    výmlatu za den**.
+- **Kolik osevu humno stačí vymlátit:** v srpnu a září (61 dní) ≈ 730 člověkodní – při 15 / 10
+  člověkodnech na hektar **≈ 50–75 ha osevu, tedy humno na ≈ 60 ha** (návrh v production-chains.md
+  sedí). Ves s větším osevem potřebuje další humno, jinak výmlat přeteče za okno a snopy se kazí.
+- **Nouzový výmlat na udusané zemi (rok odkladu starší vsi):** bez vymazaného mlatu se zrno
+  ztrácí v zemi a mezi hroudami, sláma se hůř obrací a zrno se musí víc čistit od hlíny –
+  **o 30 % víc práce** a **o 10 % zrna méně** (ztráty při výmlatu v pramenech 8–16 % i na
+  připraveném mlatu, na holé zemi víc; 10 % je mírná hodnota pro jeden přechodný rok). Místo
+  nouzový výmlat neomezuje – mlátí se u každého domu.
+- **Snopy, které čekají:** klasy se ve snopech neskladovaly (Martin) – myši, ptáci, vlhko
+  a klíčení; návrh **10 % za měsíc** (production-chains.md) zůstává, kazí se jen snopy, které se
+  nemlátí (bez humna, nebo výmlat okno nestihl).
+
+### Návrh pro hru (návrh Clauda)
+
+`THRESHING` v `rules.ts`: `floorManDaysPerDay` 12, `graceDays` 365, `emergencyWork` 0,3,
+`emergencyLoss` 0,1, `spoilPerMonth` 0,1; upozornění „Před žněmi postav humno“ `noticeDaysBefore`
+31 dní před sklizní.
+
+### Zdroje
+
+- [Encyclopaedia Britannica – Flail](https://www.britannica.com/technology/flail)
+- [Wikipedia – Threshing](https://en.wikipedia.org/wiki/Threshing)
+- [Wikipedia – Threshing floor](https://en.wikipedia.org/wiki/Threshing_floor)
+- [Image Leicestershire – Threshing With Flails](https://imageleicestershire.org.uk/view-item?i=19152)
+- [Tools & Tillage – Threshing machines (Universität Heidelberg)](https://digi.ub.uni-heidelberg.de/diglit/tools_tillage1972_1975/0023)
+- [Dúchas – Árd-chill (irský folklór o výmlatu)](https://www.duchas.ie/en/cbes/5044839/5043174/5094101)
+- [FAO – Post-harvest losses (Agricultural engineering in development)](https://www.fao.org/docrep/t0522e/T0522E04.htm)
+- [AGRIS – Al-Rawi 1989, Harvest and post-harvest grain losses (Jordánsko)](https://agris.fao.org/search/en/records/6471cbde2a40512c710e5a6a)
+- [AGRIS – mykotoxiny v čiroku mláceném na holé zemi (Etiopie, East Hararghe)](https://agris.fao.org/search/fr/records/68dbb2c62caea822a8e3495c)

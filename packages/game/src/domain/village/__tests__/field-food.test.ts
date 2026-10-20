@@ -24,6 +24,7 @@ import { expectedNetKg } from '../fields';
 import { NO_CRAFTS, storageLossPerYear } from '../productivity';
 import { FIELD_FOOD, FIELD_STORES, FOOD_NEED_KG_PER_YEAR, LEGUMES } from '../rules';
 import { advanceVillage } from '../simulate';
+import { withThreshingFloor } from './village-fixtures';
 import type { DietDay, VillageState } from '../types';
 import { planCrops } from '../year-plan';
 
@@ -48,13 +49,16 @@ const field = (count = 180): PartInput[] =>
     obstacleCost: 0,
   }));
 
+// ves s humnem – mlátí hned po žni (production-chains.md – Humno)
 const found = (day: number, parts = 180): VillageState =>
-  foundVillage({
-    seed: 42,
-    day,
-    dwellingPosition: POSITION,
-    firstField: { outline: OUTLINE, parts: field(parts) },
-  });
+  withThreshingFloor(
+    foundVillage({
+      seed: 42,
+      day,
+      dwellingPosition: POSITION,
+      firstField: { outline: OUTLINE, parts: field(parts) },
+    }),
+  );
 
 const diet = (shares: Partial<DietDay['shares']>): DietDay => ({
   energy: 1,

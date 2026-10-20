@@ -16,7 +16,7 @@ import {
   villageLaborFactor,
   windowEndDay,
 } from '../happiness';
-import { WINDOWS } from '../rules';
+import { ORCHARD_WINDOWS, WINDOWS } from '../rules';
 import { advanceVillage } from '../simulate';
 import { summarizeVillage } from '../summary';
 import type { VillageState } from '../types';
@@ -100,11 +100,12 @@ describe('štěstí – čísla z návrhu', () => {
     expect(isToilDay([], 0, DAY)).toBe(false);
   });
 
-  it('konec okna: kopání v říjnu do 30. 11., výmlat v prosinci do konce února, mimo okno null', () => {
+  it('konec okna: kopání v říjnu do 30. 11., péče o sad v prosinci do konce února, mimo okno null', () => {
     expect(windowEndDay(WINDOWS.dig, at(600, 10, 5))).toBe(at(600, 11, 30));
     expect(windowEndDay(WINDOWS.dig, at(601, 3, 5))).toBe(at(601, 4, 30));
-    expect(windowEndDay(WINDOWS.thresh, at(600, 12, 5))).toBe(at(601, 2, 28));
-    expect(windowEndDay(WINDOWS.thresh, at(601, 1, 5))).toBe(at(601, 2, 28));
+    expect(windowEndDay(ORCHARD_WINDOWS.care, at(600, 12, 5))).toBe(at(601, 2, 28));
+    expect(windowEndDay(ORCHARD_WINDOWS.care, at(601, 1, 5))).toBe(at(601, 2, 28));
+    expect(windowEndDay(WINDOWS.thresh, at(600, 9, 5))).toBe(at(600, 9, 30));
     expect(windowEndDay(WINDOWS.sow, at(600, 10, 5))).toBeNull();
   });
 });

@@ -11,6 +11,7 @@ import { ageGroup } from '../people';
 import { NO_CRAFTS } from '../productivity';
 import { FERTILITY, FLAX, YIELD_BASE_KG_PER_HA } from '../rules';
 import { advanceVillage } from '../simulate';
+import { withThreshingFloor } from './village-fixtures';
 import { chooseCrops, orchardOnlyLoad, type CropChoiceInput } from '../sowing';
 import type { FieldPart, VillageState } from '../types';
 import {
@@ -74,20 +75,23 @@ const bigField = (count = 180): PartInput[] =>
     obstacleCost: 0,
   }));
 
+// ves s humnem – mlátí hned po žni (production-chains.md – Humno)
 const found = (day: number, fieldParts = 180): VillageState =>
-  foundVillage({
-    seed: 7,
-    day,
-    dwellingPosition: { x: 0, z: 0, rotation: 0 },
-    firstField: {
-      outline: [
-        [0, 0],
-        [10, 0],
-        [10, 10],
-      ],
-      parts: bigField(fieldParts),
-    },
-  });
+  withThreshingFloor(
+    foundVillage({
+      seed: 7,
+      day,
+      dwellingPosition: { x: 0, z: 0, rotation: 0 },
+      firstField: {
+        outline: [
+          [0, 0],
+          [10, 0],
+          [10, 10],
+        ],
+        parts: bigField(fieldParts),
+      },
+    }),
+  );
 
 describe('kolik lnu ves potřebuje a výnos', () => {
   it('potřeba podle věku – dospělý a starší 2 kg, dítě 1 kg třeného lnu za rok', () => {
@@ -207,13 +211,15 @@ describe('plán osevu se lnem (chooseCrops)', () => {
     const winter = (p: FieldPart): PartWork => partWork(p, DAY, NO_CRAFTS.tools, false, 'winter');
     const flaxWork = (p: FieldPart): PartWork => partWork(p, DAY, NO_CRAFTS.tools, false, 'flax');
     const harvest = winter(candidates[0]!).harvest;
-    // sklizeň ozimu na 30 dílů zaplní červenec, jař na 20 dílů srpen – volná práce nezbude
+    const thresh = winter(candidates[0]!).thresh;
+    // sklizeň ozimu na 30 dílů zaplní červenec, jař na 20 dílů a výmlat ozimu (hned po žni –
+    // production-chains.md) srpen – volná práce nezbude
     const capacity = {
       autumnWinter: BIG,
       autumn: BIG,
       spring: BIG,
       july: 30 * harvest,
-      august: 20 * harvest,
+      august: 20 * harvest + 30 * thresh,
     };
     const grain = chooseCrops(candidates, input({ capacity }));
     expect(grain.winter).toHaveLength(30);
@@ -365,7 +371,9 @@ describe('len napřed – ves, které len za obilím vycházel, má plán beze z
       );
     }
     expect(state.chronicle.some((e) => e.kind === 'linen-short')).toBe(false);
-    expect(fingerprint(plans)).toBe('636:46e003a7');
+    // přepsáno s výmlatem hned po žni (production-chains.md – Humno, 20. 10. 2026): ves s humnem
+    // mlátí v srpnu a září – plán osevu odečte výmlat z podzimu a srpna, snopy jsou zásobou
+    expect(fingerprint(plans)).toBe('672:0c163225');
   });
 });
 

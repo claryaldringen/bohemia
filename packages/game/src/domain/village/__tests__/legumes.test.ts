@@ -15,6 +15,8 @@ import { ageGroup } from '../people';
 import { NO_CRAFTS } from '../productivity';
 import { FERTILITY, FOOD_NEED_KG_PER_YEAR, LEGUMES } from '../rules';
 import { advanceVillage } from '../simulate';
+import { villageSheaves } from '../threshing';
+import { withThreshingFloor } from './village-fixtures';
 import { chooseCrops, orchardOnlyLoad, type CropChoiceInput } from '../sowing';
 import type { ChronicleEvent, FieldPart, VillageState } from '../types';
 import { cropGrossPerHa, harvestKg, partWork, planCrops } from '../year-plan';
@@ -225,25 +227,28 @@ const bigField = (count = 180): PartInput[] =>
     obstacleCost: 0,
   }));
 
+// ves s humnem – mlátí hned po žni (production-chains.md – Humno)
 const found = (day: number): VillageState =>
-  foundVillage({
-    seed: 7,
-    day,
-    dwellingPosition: { x: 0, z: 0, rotation: 0 },
-    firstField: {
-      outline: [
-        [0, 0],
-        [10, 0],
-        [10, 10],
-      ],
-      parts: bigField(),
-    },
-  });
+  withThreshingFloor(
+    foundVillage({
+      seed: 7,
+      day,
+      dwellingPosition: { x: 0, z: 0, rotation: 0 },
+      firstField: {
+        outline: [
+          [0, 0],
+          [10, 0],
+          [10, 10],
+        ],
+        parts: bigField(),
+      },
+    }),
+  );
 
 type HarvestEvent = Extract<ChronicleEvent, { kind: 'harvest' }>;
 
 describe('luštěniny v simulaci', () => {
-  it('ves je k 1. 9. zaseje, 31. 7. sklidí do zásoby luštěnin a jí je celý rok', () => {
+  it('ves je k 1. 9. zaseje, 31. 7. sklidí do snopů, po žni vymlátí do zásoby a jí je celý rok', () => {
     // první rok jde všechna založená půda na obilí (obilí má přednost), luštěniny od druhého
     const planned = advanceVillage(found(at(600, 3, 1)), at(601, 9, 2), null);
     const legume = planned.plan?.legume;
@@ -257,12 +262,17 @@ describe('luštěniny v simulaci', () => {
     );
     expect(events.filter((e) => e.day > planned.lastDay)).toHaveLength(1);
     expect(events[0]!.kg).toBeGreaterThan(0);
-    expect(harvested.legumesKg).toBeGreaterThan(0);
+    // sklizeň jde do snopů, mlátí se v srpnu na humně (production-chains.md – Humno)
+    expect(villageSheaves(harvested).legumesKg).toBeGreaterThan(0);
     // luštěniny i obilí z plánu, ozim i jař dál
     expect(planCrops(harvested.plan!).map((c) => c.crop)).toContain('spring');
-    const later = advanceVillage(harvested, at(602, 12, 1), null);
+    // v srpnu má přednost žeň jaře – co výmlat v srpnu nestihne, vymlátí v září
+    const threshed = advanceVillage(harvested, at(602, 9, 30), null);
+    expect(villageSheaves(threshed).legumesKg).toBe(0);
+    expect(threshed.legumesKg).toBeGreaterThan(0);
+    const later = advanceVillage(threshed, at(602, 12, 1), null);
     expect(later.diet!.shares.legumes).toBeGreaterThan(0);
-    expect(later.legumesKg!).toBeLessThan(harvested.legumesKg!);
+    expect(later.legumesKg!).toBeLessThan(threshed.legumesKg!);
   });
 
   it('úroda luštěnin podle jejich výnosu a osiva (harvestKg s plodinou)', () => {

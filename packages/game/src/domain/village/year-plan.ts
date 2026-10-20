@@ -535,8 +535,3 @@ export function daysUntilFoodHarvest(
   if (early >= late) return late;
   return expectedWinterKg(winter, parts, day) >= needPerDayKg * (late - early) ? early : late;
 }
-
-/** Ztráta nevymlácené části úrody (výmlat se měří vůči sklizené části). */
-export function threshLossKg(work: CropWork, harvestedKg: number): number {
-  return harvestedKg * (1 - workedShare(work, 'thresh'));
-}

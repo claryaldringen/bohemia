@@ -1515,7 +1515,15 @@ export type LaborTarget =
   | { kind: 'edge'; direction: Direction8; x: number; z: number }
   /** Břeh vody, kam vůz jezdí pro vodu v sudech (wagons.md – Co vozy vozí); bod ve světě (m). */
   | { kind: 'water'; x: number; z: number }
-  /** Ves celkově – výmlat, domácí práce, nevyužitá společná práce. */
+  /**
+   * Hotové humno (id) – výmlat snopů a odvívání zrna (production-chains.md – Humno); snopy se na
+   * něj nosí z polí, zrno z něj do zásob.
+   */
+  | { kind: 'threshing-floor'; id: number }
+  /**
+   * Ves celkově – nouzový výmlat na udusané zemi u domů (rok odkladu starší vsi), porážka, domácí
+   * práce, nevyužitá společná práce.
+   */
   | { kind: 'village' };
 
 export interface LaborShare {
@@ -1650,6 +1658,17 @@ export interface VillageState {
    * uložených dřív chybí (= žádné).
    */
   threshingFloors?: ThreshingFloor[];
+  /**
+   * Nevymlácené snopy (production-chains.md – Humno, Výmlat hned po žni): sklizeň jde do snopů,
+   * výmlat je převádí do zásob obilí a luštěnin. U vsí uložených dřív chybí – převod
+   * (`withThreshingGrace`) je doplní s ročním odkladem; nová ves začíná prázdnými.
+   */
+  sheaves?: Sheaves;
+  /**
+   * Den, kdy končí rok odkladu starší vsi (production-chains.md – Starší vsi): do něj (bez něj)
+   * mlátí ves bez humna nouzově na udusané zemi; od něj platí podmínka humna. Nová ves ho nemá.
+   */
+  threshingGraceUntil?: number;
   /**
    * Dobytek (diet.md – Dobytek): stáda ovcí, koz, prasat a krav. U vsí uložených před dobytkem
    * chybí – výchozí stádo z domácností doplní `withLivestock` (nebo první dopočítaný den).
@@ -2595,6 +2614,22 @@ export interface ThreshingFloor {
   id: number;
   position: Position;
   builtDay: number | null;
+}
+
+/** Plodina, jejíž snopy se mlátí – ozim, jař a luštěniny (len se nemlátí – fields.md, Len). */
+export type ThreshedCrop = Extract<Crop, 'winter' | 'spring' | 'legume'>;
+
+/**
+ * Nevymlácené snopy vsi (production-chains.md – Humno): zrno ve snopech (kg čisté úrody – obilí
+ * ozimu i jaře dohromady, luštěniny zvlášť) a zbývající práce výmlatu po plodinách (člověkodny na
+ * humně – sklizená část práce `thresh` plánu). Výmlat převádí snopy do zásob podílem postupu práce
+ * svého druhu (obilí, luštěniny).
+ */
+export interface Sheaves {
+  grainKg: number;
+  legumesKg: number;
+  /** Zbývající práce výmlatu po plodinách; chybí = žádná. */
+  work?: Partial<Record<ThreshedCrop, number>>;
 }
 
 /** Hotová dřevěná modla nebo svatyně (happiness.md). */

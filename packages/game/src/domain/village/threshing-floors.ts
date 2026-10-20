@@ -1,4 +1,5 @@
 import { obstacleChangesAt } from './obstacles';
+import { threshingFloorEntrance } from './paths/entrances';
 import { rectangleCorners, type Point } from './polygon';
 import { FELLING_MAN_DAYS_PER_TREE, HUMNO } from './rules';
 import type { Construction, Position, ThreshingFloor, VillageState } from './types';
@@ -88,4 +89,18 @@ export function planThreshingFloorWoodFrom(
 export function finishThreshingFloor(state: VillageState, c: Construction, day: number): void {
   const floor = villageThreshingFloors(state).find((f) => f.id === c.id);
   if (floor) floor.builtDay = day;
+}
+
+/**
+ * Kam vozy vezou snopy z polí (production-chains.md – Humno): vstupy hotových humen, rovným dílem
+ * (váha bodu jako u dosahu vozu – CartReach). Bez humna prázdné.
+ */
+export function threshingFloorHaulPoints(
+  state: Pick<VillageState, 'threshingFloors'>,
+): { x: number; z: number; weight: number }[] {
+  const floors = builtThreshingFloors(state);
+  return floors.map((f) => {
+    const at = threshingFloorEntrance(f.position);
+    return { x: at.x, z: at.z, weight: 1 / floors.length };
+  });
 }

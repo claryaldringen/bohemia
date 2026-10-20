@@ -29,6 +29,7 @@ const DAY = at(601, 9, 1);
 const DIG = 100 * 0.0225;
 const SOW = 10 * 0.0225;
 const HARVEST = 50 * 0.0225;
+const THRESH = 15 * 0.0225;
 
 function part(id: number, over: Partial<FieldPart> = {}): FieldPart {
   return {
@@ -99,12 +100,28 @@ describe('chooseCrops', () => {
   });
 
   it('ozim nejvýš, kolik se sklidí v červenci; jař nejvýš, kolik se sklidí v srpnu', () => {
+    // v srpnu se sklízí jař a mlátí ozim hned po žni (production-chains.md – Výmlat hned po žni)
     const r = chooseCrops(
       parts(10),
-      input({ capacity: { july: 2 * HARVEST, august: 3 * HARVEST } }),
+      input({ capacity: { july: 2 * HARVEST, august: 3 * HARVEST + 2 * THRESH } }),
     );
     expect(r.winter).toHaveLength(2);
     expect(r.spring).toHaveLength(3);
+  });
+
+  it('výmlat ozimu v srpnu ubere srpen sklizni jaře (production-chains.md – Výmlat hned po žni)', () => {
+    const r = chooseCrops(
+      parts(10),
+      input({ capacity: { july: 2 * HARVEST, august: 3 * HARVEST + THRESH } }),
+    );
+    expect(r.winter).toHaveLength(2);
+    expect(r.spring).toHaveLength(2);
+    // srpen bez místa na výmlat – ozim se nevybere vůbec, jař dostane, co srpen sklidí
+    const none = chooseCrops(
+      parts(10),
+      input({ capacity: { july: 2 * HARVEST, august: 0.5 * THRESH } }),
+    );
+    expect(none.winter).toHaveLength(0);
   });
 
   it('jař kope na podzim, co po ozimu zbude – na jaro jen setí a zbytek kopání', () => {

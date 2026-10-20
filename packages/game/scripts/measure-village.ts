@@ -86,7 +86,6 @@ import {
   PLANNING_DAY,
   PLOUGH_HA_PER_DAY,
   SEED_KG_PER_HA,
-  THRESH_END_DAY,
   WINTER_HARVEST_DAY,
   advanceVillage,
   bufferKg,
@@ -132,7 +131,8 @@ import {
   furrowEfficiency,
   repairNeedPerDay,
   startNewDwelling,
-  threshLossKg,
+  sheavesOutlook,
+  villageSheaves,
   waitingHouseholds,
 } from '../src/domain/village';
 import type {
@@ -306,6 +306,8 @@ function occupiedCount(state: VillageState): number {
 /** Lidé v pevném složení – věk vztažený k začátku kroku. */
 /** Ohrada sondy se spřežením (id mimo id vsi). */
 const TEAM_PEN_ID = 2_000_000;
+/** Humno kalibrační vsi (id mimo id vsi). */
+const THRESHING_FLOOR_ID = 2_000_001;
 /** Seno, které sonda se spřežením drží v zásobě – voli nezeslábnou ani neuhynou. */
 const TEAM_HAY_KG = 10_000;
 
@@ -657,21 +659,23 @@ function satiationOf(state: VillageState): number {
   return state.diet?.energy ?? 1;
 }
 
+/** Začátek jarních prací – den před ním se měří, kolik kopání jaře stihl podzim. */
+const SPRING_START = { month: 3, day: 1 } as const;
+
 /**
  * Další konec kroku: nejvýš `stepDays` dní; sklizeň ozimu 31. 7., jaře 31. 8., plán 1. 9.
- * a 1. 3. (ztráta nevymláceného, jako samostatný den) jsou vždy konce kroků – změny zásob po
- * jídle tak padnou jen na konec kroku. Den před 1. 3. je konec kroku i kvůli kopání jaře,
- * které stihl podzim (rezervy práce na jaře).
+ * a 1. 3. jsou vždy konce kroků – změny zásob po jídle tak padnou jen na konec kroku. Den před
+ * 1. 3. je konec kroku kvůli kopání jaře, které stihl podzim (rezervy práce na jaře).
  */
 function nextStop(lastDay: number, endDay: number, stepDays: number): number {
   let stop = Math.min(lastDay + stepDays, endDay);
   const { year } = dateOfDayIndex(lastDay + 1);
   for (const y of [year, year + 1]) {
     if (y > LAST_YEAR) continue;
-    const threshEnd = dayIndexOf({ year: y, ...THRESH_END_DAY });
+    const spring = dayIndexOf({ year: y, ...SPRING_START });
     const anchors = [
-      threshEnd - 1,
-      threshEnd,
+      spring - 1,
+      spring,
       dayIndexOf({ year: y, ...WINTER_HARVEST_DAY }),
       dayIndexOf({ year: y, ...HARVEST_DAY }),
       dayIndexOf({ year: y, ...PLANNING_DAY }),
@@ -699,6 +703,11 @@ function foodTrack(
   // každý den, porážka) taky ne
   if ((before.applesKg ?? 0) > 0 || (after.applesKg ?? 0) > 0 || after.orchardWork) return null;
   if ((before.meatKg ?? 0) > 0 || (after.meatKg ?? 0) > 0) return null;
+  // výmlat převádí snopy do zásob během kroku (production-chains.md – Humno) – bez simulace práce
+  // přehrát nejde
+  const sheaves = (s: VillageState): number =>
+    villageSheaves(s).grainKg + villageSheaves(s).legumesKg;
+  if (sheaves(before) > 0 || sheaves(after) > 0) return null;
   const deathDay = new Map<number, number>();
   for (const e of events) {
     if (e.kind !== 'death') continue;
@@ -722,18 +731,7 @@ function foodTrack(
     people = people.filter((p) => deathDay.get(p.id) !== d);
     for (const p of born) if (p.bornDay === d) people.push(p);
   }
-  // sklizně 31. 7. a 31. 8. a ztráta nevymláceného 1. 3. přišly až po jídle posledního dne
-  const end = dateOfDayIndex(after.lastDay);
-  if (isOn(end, WINTER_HARVEST_DAY)) stores += after.plan?.winter?.harvestedKg ?? 0;
-  if (isOn(end, HARVEST_DAY)) stores += after.threshingFromPlan?.harvestedKg ?? 0;
-  if (isOn(end, THRESH_END_DAY) && before.threshingFromPlan) {
-    if (before.lastDay + 1 !== after.lastDay) return null;
-    const loss = planCrops(before.threshingFromPlan).reduce(
-      (sum, { work }) => sum + threshLossKg(work, work.harvestedKg ?? 0),
-      0,
-    );
-    stores = Math.max(0, stores - loss);
-  }
+  // sklizně 31. 7. a 31. 8. jdou do snopů (production-chains.md – Humno) – zásoby nemění
   const tolerance = 1e-6 * Math.max(1, after.storesKg);
   return Math.abs(stores - after.storesKg) <= tolerance ? satiation : null;
 }
@@ -876,16 +874,18 @@ function recordHarvest(
   const day = after.lastDay;
   const { year } = dateOfDayIndex(day);
   const need = annualNeed(after.people, day + 1);
-  if (need > 0) result.grainStoresRatio.set(year, after.storesKg / need);
+  // sklizeň je ve snopech (production-chains.md – Humno) – zásoba obilí i s těmi, které ves vymlátí
+  const grain = after.storesKg + sheavesOutlook(after, day + 1).grainKg;
+  if (need > 0) result.grainStoresRatio.set(year, grain / need);
   // potřeba z pole, se kterou ves zítra (1. 9.) plánuje – podíl z právě skončeného roku
   const planning = { ...after };
   closeFieldFoodYear(planning);
   const fieldNeed = yearlyFieldNeed(planning, day + 1);
-  if (fieldNeed > 0) result.storesRatio.set(year, fieldStoresKg(after) / fieldNeed);
+  if (fieldNeed > 0) result.storesRatio.set(year, fieldStoresKg(after, day + 1) / fieldNeed);
   const buffer = bufferKg(need);
   const target =
     steadyHarvestKg(fieldNeed, buffer, NO_CRAFTS.pottery) + storesTargetKg(fieldNeed, buffer);
-  if (target > 0) result.storesToTarget.set(year, fieldStoresKg(after) / target);
+  if (target > 0) result.storesToTarget.set(year, fieldStoresKg(after, day + 1) / target);
   const plan = after.threshingFromPlan;
   if (plan && after.people.length > 0) {
     const work = planCrops(plan).reduce(
@@ -1155,7 +1155,7 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
     }
 
     // poslední den února: kolik kopání jaře stihl podzim (zbytek jde na jaro)
-    if (isOn(dateOfDayIndex(day + 1), THRESH_END_DAY) && after.plan) {
+    if (isOn(dateOfDayIndex(day + 1), SPRING_START) && after.plan) {
       result.autumnDig.set(date.year, after.plan.done.dig);
     }
     if (isOn(date, HARVEST_DAY)) recordHarvest(result, after, opts.pinned);
@@ -1351,6 +1351,15 @@ function foundOn(
     forestDistanceM: land.site.forestDistanceM,
   });
   applyVariantToNewParts(state, 0, config.variant);
+  // hráč postaví humno hned (production-chains.md – Humno – bez humna nová ves nemlátí): hotové
+  // humno kus od vsi zdarma, ať kalibrace měří výmlat hned po žni, ne zapomenuté humno
+  state.threshingFloors = [
+    {
+      id: THRESHING_FLOOR_ID,
+      position: { x: land.position.x - 25, z: land.position.z - 25, rotation: 0 },
+      builtDay: day,
+    },
+  ];
   // pastva a žaludy výchozího stáda (diet.md): louka a les do 600 m od vsi – skutečná krajina,
   // nebo syntetická (louka celá, les rovnoměrně 50–800 m)
   state.livestock!.land = land.landscape

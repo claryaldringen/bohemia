@@ -1,4 +1,5 @@
 import { detCos, detSin, length2 } from '../../landscape';
+import { HUMNO } from '../rules';
 import { rotationCosSin, rotationTurn, ROTATION_TURNS } from '../square-grid';
 import type { Position, SacredBuildingKind, TileCell } from '../types';
 
@@ -381,6 +382,24 @@ export function penEntranceFacing(
     }
   }
   return { x: target.x - pen.x, z: target.z - pen.z };
+}
+
+/**
+ * Vstup na humno (production-chains.md – Humno) před předkem mlatu (m od středu): přístřešek stojí
+ * vzadu (−z), mlat je otevřený dopředu (+z) – snopy se nosí a vozí sem, zrno odtud.
+ */
+export const THRESHING_FLOOR_ENTRANCE_M = HUMNO.sizeM.z / 2 + 1;
+
+/** Vstup na humno – střed před předkem mlatu a směr ven. */
+export function threshingFloorEntrance(position: Position): Entrance {
+  const outX = detSin(position.rotation);
+  const outZ = detCos(position.rotation);
+  return {
+    x: position.x + outX * THRESHING_FLOOR_ENTRANCE_M,
+    z: position.z + outZ * THRESHING_FLOOR_ENTRANCE_M,
+    outX,
+    outZ,
+  };
 }
 
 /**

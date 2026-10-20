@@ -753,7 +753,7 @@ souvislých blocích a pásech v ose s delší brázdou (po blocích, i sever �
 | pletí                      | květen–červen | květen–červen                               | 30 (15)         | FAO                   |
 | sklizeň srpem a vázání     | červenec      | srpen                                       | 30 (15)         | Halstead a Jones 1989 |
 | odnos úrody v nůších       | červenec      | srpen                                       | 20              | nedohledáno           |
-| výmlat cepem a převívání   | listopad–únor | listopad–únor                               | 15 (10)         | Clark 2007 (EB 1911)  |
+| výmlat cepem a převívání   | srpen         | září                                        | 15 (10)         | Clark 2007 (EB 1911)  |
 | **celkem na osetý hektar** |               |                                             | **205 (120)**   |                       |
 
 Ozim a jař se liší jen kalendářem (viz Ozim a jař) – sazby práce, osivo a úroda jsou stejné.
@@ -776,8 +776,29 @@ První sezónu po vymýcení lesa se díl **neplete** (viz Úroda).
   nové díly a čtverce, cesty, ohrady, sady, hřbitov, stáda), změny stadií dílů (osev, úhor,
   pastva) se do ní promítnou až 1. dne dalšího měsíce (paths.md – Pěšiny a práce).
 - **Včasnost:** co se v období nestihne, propadá: nezasetý díl se ten rok nesklidí, neopletý
-  dá nižší úrodu, nesklizená úroda shnije na poli, nevymlácené do konce února se zkazí (návrh
-  Clauda; přesné podíly doladí kalibrace).
+  dá nižší úrodu, nesklizená úroda shnije na poli (návrh Clauda; přesné podíly doladí kalibrace).
+  Výmlat nepropadá – snopy, které okno nestihne, se mlátí dál a do té doby se kazí (viz Výmlat
+  hned po žni).
+- **Výmlat hned po žni** ([production-chains.md](production-chains.md) – Humno; Martin, 20. 10.
+  2026: „Staří slované se snažili dělat výmlat hned. Klasy neskladovali.“ a „Humno je podmínka“):
+  sklizeň jde do **snopů**, výmlat je převádí do zásob podle postupu práce – ozim a luštěniny
+  v **srpnu**, jař v **září** (dřív listopad–únor). Mlátí se jen na **hotovém humnu** (staví ho
+  hráč): humno zvládne **12 člověkodní výmlatu za den** (≈ 4 páry mlatců a 4 pomocníci – v srpnu
+  a září ≈ 60 ha osevu), víc humen se sčítá. Žeň má v témže měsíci přednost, výmlat ji následuje;
+  co okno nestihne, mlátí se dál (zpožděný výmlat je nejnaléhavější úloha měsíce, kopání a setí
+  ozimu v říjnu ale před ním). **Snopy, které se nemlátí** (ves bez humna, nebo výmlat okno
+  nestihl), se **kazí 10 % za měsíc** – klasy se neskladovaly; snopy, které se v okně právě mlátí,
+  na řadu čekají bez ztráty (návrh Clauda). **Starší vsi** (uložené před snopy) mají od převodu
+  **rok odkladu**: bez humna mlátí nouzově na udusané zemi u domů – bez omezení místa, ale
+  o **30 % víc práce** a o **10 % zrna méně** (humno, které v odkladu nestačí, mlátí zbytek také
+  nouzově). Nová ves odklad nemá – mlátí, až hráč postaví humno (upozornění „Před žněmi postav
+  humno“ měsíc před žní, „Snopy čekají na humno“ po ní; nouzový výmlat „Mlátí se na udusané zemi –
+  postav humno“; humno nestačí „Humno nestačí na výmlat“). Výhled jídla, plán osevu a dobré
+  zásoby (štěstí) počítají snopy jako zrno, jen když je smí vymlátit (humno nebo odklad; nouzově
+  o ztrátu méně); jí se jen vymlácené. Plán osevu odečte čekající výmlat z podzimní práce (září
+  – mlátí se před setím ozimu) a výmlat ozimu a luštěnin z práce srpna (vedle žně jaře). Úroda
+  sklizená do zásob před převodem tam zůstane. Čísla v `THRESHING` (rules.ts), rešerše
+  [2026-10-20-production-chains.md](research/2026-10-20-production-chains.md) – Výmlat na humně.
 - **Na jaře se nejdřív seje, co je zkopané,** a teprve zbytek práce jde do dalšího kopání
   (kalibrace). Pole, které se do konce dubna nedokope, tak dá aspoň úrodu zkopané části – dřív
   kopání předbíhalo setí a nedokopané pole nedalo nic.
@@ -814,9 +835,9 @@ pro raný středověk ale nemám – zůstává návrhem Clauda jako dosavadní 
 
 - **Dvě plodiny** (zatím bez druhů – „ozim“ je žito a pšenice, „jař“ ječmen):
   - **ozim** – vrácení přílohu, kopání a setí v **září–říjnu**, sklizeň v **červenci**, výmlat
-    v zimě (listopad–únor),
+    hned po žni v **srpnu** (viz Výmlat hned po žni),
   - **jař** – kopání na podzim (**září–listopad**), co se nestihne, v **březnu–dubnu**; setí
-    v **březnu–dubnu**, sklizeň v **srpnu**, výmlat v zimě.
+    v **březnu–dubnu**, sklizeň v **srpnu**, výmlat v **září**.
   - Pletí obou v **květnu–červnu**. Stejné osivo (175 kg/ha), stejná úroda i sazby práce;
     vymrzání ozimu zatím ne (přijde s počasím).
 - **Podzimní kopání:** díly v osevu se kopou na podzim (září–listopad); na jaře se kope jen to,
@@ -852,7 +873,8 @@ Luštěniny). Čísla podle [rešerše](research/2026-10-18-legumes.md), kde chy
 - **Plodina:** hrách a čočka jako jedna plodina „luštěniny“ (v Mikulčicích čočka ≈ 75 % nálezů
   luštěnin, hrách druhý; bob, vikev a hrachor vzácné – zatím ne). **Jař**: kopání na podzim
   (září–listopad), co se nestihne, v březnu–dubnu, setí v **březnu–dubnu**, pletí v květnu–červnu,
-  sklizeň (trhání) v **červenci**, výmlat v zimě (listopad–únor). Ozimý hrách až ve 20. století.
+  sklizeň (trhání) v **červenci**, výmlat hned po sklizni v **srpnu** na humně jako obilí
+  (production-chains.md – Humno). Ozimý hrách až ve 20. století.
 - **Úroda:** 0,8 úrody obilí při stejné úrodnosti (≈ 600 kg/ha při plné, literatura 390–680),
   osivo **150 kg/ha** (výnos ≈ 1 : 3,3 – středověké účty 3× až 5½× jako obilí). Neopletý díl dá
   **50 %** (obilí 60 % – čočka plevel snáší nejhůř).
@@ -1656,7 +1678,7 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Ozim a jař: ozim kopán a set v září–říjnu, sklizeň v červenci; jař kopán na podzim (zbytek na jaře), set na jaře, sklizeň v srpnu | návrh Clauda, Martin schválil směr 18. 10. 2026 |
 | Podzimní kopání přednostně, na jaře jen zbytek (místo poloviny kopání na jaře)                                                    | návrh Clauda, Martin schválil směr 18. 10. 2026 |
 | Ves k 1. 9. oseje ozimem, kolik podzim stihne (po sklizni jablek), zbytek jaří ve stropech jara a srpna                           | návrh Clauda, Martin schválil směr 18. 10. 2026 |
-| Stejné osivo a úroda, pletí v květnu–červnu, výmlat v zimě; vymrzání až s počasím                                                 | návrh Clauda, Martin schválil směr 18. 10. 2026 |
+| Stejné osivo a úroda, pletí v květnu–červnu, ~~výmlat v zimě~~; vymrzání až s počasím                                             | návrh Clauda, Martin schválil směr 18. 10. 2026 |
 | Sklizeň ozimu do zásob 31. 7.; příděl počítá s ní, když uživí srpen                                                               | návrh Clauda, Martin schválil směr 18. 10. 2026 |
 | Díly hotové po 1. 9. jdou do jaře; sklizeň jablek před ozimem                                                                     | návrh Clauda                                    |
 | ~~Na přílohu se pase – nálet ani les nebude; 1–2 roky mladý příloh, pak napořád pastvina~~                                        | Martin (18. 10. 2026)                           |
@@ -1742,3 +1764,8 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | „Pole, které zrovna neleží ladem: 0.5.“ – chůze přes díl v osevu 0,5× i pro vzdálenost práce, pěšina dne přes osev nezrychlí      | Martin (19. 10. 2026)                           |
 | „Neber strniště jako louku, ale dej mu drobný postih. Ber to třeba jako 0.8.“                                                     | Martin (19. 10. 2026)                           |
 | Denní minimum s přirážkou za chůzi pro vodu nad 100 m (cesty × 2 × chůze navíc ÷ 1 m/s ÷ 10 h), starší ji kryjí                   | Martin (19. 10. 2026), čísla návrh Clauda       |
+| Výmlat hned po žni na humně – ozim a luštěniny v srpnu, jař v září; klasy se neskladují                                           | Martin (20. 10. 2026)                           |
+| Humno 12 čd výmlatu za den (≈ 60 ha osevu), humna se sčítají; žeň před výmlatem, zpožděný výmlat pokračuje                        | návrh Clauda                                    |
+| Snopy, které se nemlátí, se kazí 10 % za měsíc; v okně výmlatu na řadu čekají bez ztráty                                          | návrh Clauda                                    |
+| Starší vsi rok odkladu – nouzový výmlat na udusané zemi +30 % práce, −10 % zrna                                                   | Martin (20. 10. 2026), čísla návrh Clauda       |
+| Výhled jídla a plán osevu počítají snopy, jen když je ves smí vymlátit; plán odečte výmlat z podzimu a srpna                      | návrh Clauda                                    |

@@ -127,21 +127,34 @@ Beze změny (milíř u buků – crafts.md); nošení uhlí ke kováři je dnes 
 - **Postup:** snopy se nosí nebo vezou z pole na humno (dnes nosiči a vozy – jen cíl humno),
   mlátí se cepy, pak se zrno **prohazuje lopatami** proti větru (odvívání plev), sláma na stoh.
   Výmlat je dnes úloha `thresh` – práce se nemění, jen místo (humno) a vidět je celý postup.
-- **Kapacita** (návrh Clauda): jedno humno stačí vsi do ≈ 60 ha osevu; víc polí → výmlat se
-  natáhne (zimní úloha nestihne) → upozornění, druhé humno.
+- **Kapacita** (návrh Clauda, rešerše – Výmlat na humně): na humně mlátí naráz ≈ 4 páry mlatců
+  a 4 pomocníci – **12 člověkodní výmlatu za den**; v srpnu a září tak jedno humno stačí vsi do
+  ≈ 60 ha osevu, víc humen se sčítá. Víc polí → výmlat se natáhne za okno → upozornění „Humno
+  nestačí na výmlat“, druhé humno.
 - **Nová ves** humno nemá – hráč ho postaví do první žně (upozornění s předstihem: „Před žněmi
   postav humno“).
 - **Starší vsi (Vlkov) – rok odkladu** (Martin, 20. 10. 2026: „Rok odkladu“): rok od převodu
   mlátí nouzově na udusané zemi u domů (návrh Clauda: o 30 % víc práce výmlatu a 10 % zrna
-  ztráta) a mají upozornění „Postav humno“. Po roce platí podmínka.
+  ztráta, bez omezení místa; humno, které v odkladu nestačí, mlátí zbytek také nouzově) a mají
+  upozornění „Mlátí se na udusané zemi – postav humno“. Po roce platí podmínka. Úroda sklizená do
+  zásob před převodem tam zůstane.
 - **Výmlat hned po žni** (Martin, 20. 10. 2026: „Staří slované se snažili dělat výmlat hned.
-  Klasy neskladovali.“): snopy jdou z pole rovnou na humno a mlátí se hned – ozim v srpnu, jař
-  v září (dnes se mlátí v zimě – okno úlohy `thresh` se přesune hned za sklizeň, fields.md).
-  Stohy snopů se nedělají; zrno jde rovnou do jam. Práce výmlatu je stejná, jen přijde v době
-  podzimní orby a setí – ves ji musí stihnout (plán osevu s tím počítá).
+  Klasy neskladovali.“): snopy jdou z pole rovnou na humno a mlátí se hned – ozim a luštěniny
+  v srpnu, jař v září (dřív se mlátilo v zimě – okno úlohy `thresh` je hned za sklizní, fields.md
+  – Výmlat hned po žni). Stohy snopů se nedělají; zrno jde rovnou do jam. Práce výmlatu je
+  stejná, jen přijde v době podzimní orby a setí – ves ji musí stihnout: plán osevu ji odečte
+  z podzimní práce (výmlat jaře v září se mlátí před setím ozimu) a výmlat ozimu a luštěnin
+  z práce srpna vedle žně jaře (návrh Clauda). V témže měsíci má přednost žeň.
+- **Výhled jídla** (návrh Clauda): snopy, které ves smí vymlátit (humno, nebo odklad – nouzově
+  o ztrátu méně), počítá jako zrno – ves po žni nešetří jídlem; jí se jen vymlácené. Snopy bez
+  humna výhled nezná – ves šetří včas.
 - **Když humno nestačí** (návrh Clauda): mlátí se dál, dokud je co; nevymlácené snopy čekají
   u humna a kazí se (10 % za měsíc – nejsou na skladování) a přijde upozornění, že je potřeba
-  druhé humno.
+  druhé humno. Snopy, které se v okně výmlatu právě mlátí, čekají na řadu bez ztráty.
+- **Nošení** (návrh Clauda): práce výmlatu má v rozdělení práce dne cíl humno – k němu vede
+  pěšina (vstup na předku, přístřešek vzadu) a vozy, které sváží snopy, jezdí i k humnu (vyjede
+  se cesta); humno je pro pěšiny, vozy, vozové cesty i zemskou stezku stavba, kterou obejdou.
+  Nouzový výmlat je u vsi.
 - **Luštěniny** se mlátí taky na humně (návrh Clauda); do jam jde jen obilí, luštěniny se
   skladují doma.
 
@@ -200,6 +213,9 @@ postav. Nejdelší snímek se nesmí zhoršit.
 | Starší vsi rok odkladu – nouzový výmlat na udusané zemi                                           | Martin (20. 10. 2026), čísla návrh Clauda |
 | Výmlat hned po žni, klasy se neskladují (okno výmlatu hned za sklizní)                            | Martin (20. 10. 2026)                     |
 | Snopy bez humna čekají a kazí se 10 % za měsíc, upozornění                                        | návrh Clauda                              |
+| Humno 12 čd výmlatu za den (≈ 60 ha osevu), humna se sčítají; v okně snopy čekají bez ztráty      | návrh Clauda                              |
+| Nouzový výmlat bez omezení místa; humno v odkladu, které nestačí, mlátí zbytek nouzově            | návrh Clauda                              |
+| Plán osevu odečte výmlat z podzimu a srpna; výhled jídla počítá snopy, jen když je smí mlátit     | návrh Clauda                              |
 | Humno nestačí – mlátí se dál, snopy se kazí, upozornění; luštěniny taky na humně                  | návrh Clauda                              |
 | Stavba na zavřené jámě dovolená – zrno se přendá                                                  | návrh Clauda                              |
 | Obchod s hřivnami, nástroje u sousedů jako dnes; zásoba hřiven na rok obnovy, bez přebytků        | návrh Clauda                              |

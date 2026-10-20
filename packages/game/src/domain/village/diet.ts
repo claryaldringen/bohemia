@@ -21,6 +21,7 @@ import { ageGroup, foodNeedPerDay } from './people';
 import { NO_CRAFTS, storageLossPerYear } from './productivity';
 import { APPLE_FOOD_VALUE, LEGUMES } from './rules';
 import type { ChronicleEvent, DietDay, Person, VillageState } from './types';
+import { sheavesOutlook } from './threshing';
 import { daysUntilFoodHarvest } from './year-plan';
 
 // Strava – obilí, luštěniny, maso, mléko a sýr, vejce, ovoce (diet.md). Energie (v obilních
@@ -192,6 +193,13 @@ export function dietOf(needPerDay: number, proteinNeedKg: number, eaten: Eaten):
 /** Vstup jídla dne – zásoby na konci včerejška, dnešní mléko a vejce, potřeba a výhled. */
 export interface DietInput {
   grainKg: number;
+  /**
+   * Nevymlácené snopy, které ves vymlátí (kg zrna – production-chains.md, Humno; `sheavesOutlook`):
+   * výhled do sklizně s nimi počítá, jí se jen vymlácené obilí (`grainKg`). Bez údaje žádné.
+   */
+  sheavesGrainKg?: number;
+  /** Totéž u luštěnin (kg) – příděl luštěnin do sklizně s nimi počítá. Bez údaje žádné. */
+  sheavesLegumesKg?: number;
   meatKg: number;
   fruitKg: number;
   /**
@@ -282,6 +290,10 @@ export function eatDiet(input: DietInput): DietResult {
   const legumes =
     Math.max(0, input.legumesKg ?? 0) *
     (1 - legumeStorageLossPerYear(input.potteryCoverage)) ** (1 / COMMON_YEAR_DAYS);
+  // snopy, které ves vymlátí – výhled do sklizně s nimi počítá, jí se jen vymlácené
+  // (production-chains.md – Humno)
+  const ahead = grain + Math.max(0, input.sheavesGrainKg ?? 0);
+  const legumesAhead = legumes + Math.max(0, input.sheavesLegumesKg ?? 0);
   const need = input.needPerDay;
   if (need <= 0) {
     // nikdo nejí – mléko na sýr
@@ -328,7 +340,8 @@ export function eatDiet(input: DietInput): DietResult {
   );
   const legumeRation = Math.min(
     DIET.caps.legumes * need,
-    legumeEnergy(legumes) / Math.max(1, input.daysToLegumeHarvest ?? COMMON_YEAR_DAYS),
+    legumeEnergy(legumesAhead) / Math.max(1, input.daysToLegumeHarvest ?? COMMON_YEAR_DAYS),
+    legumeEnergy(legumes),
   );
   // sýr, luštěniny a vejce se počítají i do dalších dní, maso do svého zkažení, mléko a ovoce
   // jen, jak opravdu přijdou
@@ -351,11 +364,11 @@ export function eatDiet(input: DietInput): DietResult {
     (need - daily) * days - meatUntilHarvest - fruitRation * rotDays - milkEnergy - extraDairy;
   let outlook = 1;
   let grainToday: number;
-  if (grain >= grainNeed) {
+  if (ahead >= grainNeed) {
     grainToday = need - today;
   } else {
     const even =
-      (grain + fruitRation * rotDays + milkEnergy + meatUntilHarvest + daily * days + extraDairy) /
+      (ahead + fruitRation * rotDays + milkEnergy + meatUntilHarvest + daily * days + extraDairy) /
       (need * days);
     if (even * need >= today) {
       outlook = even;
@@ -368,7 +381,7 @@ export function eatDiet(input: DietInput): DietResult {
       const laterDairy = daysAhead > 0 ? (extraDairy * after) / daysAhead : 0;
       const meatAfter = meatRation * Math.max(0, Math.min(days, meatDays) - rotDays);
       const later =
-        after > 0 ? (grain + daily * after + laterDairy + meatAfter) / (need * after) : now;
+        after > 0 ? (ahead + daily * after + laterDairy + meatAfter) / (need * after) : now;
       outlook = Math.min(now, later);
     }
   }
@@ -490,8 +503,11 @@ export function villageMeal(
     day,
     need * fieldFoodShare(state),
   );
+  const sheaves = sheavesOutlook(state, day);
   return eatDiet({
     grainKg: state.storesKg,
+    sheavesGrainKg: sheaves.grainKg,
+    sheavesLegumesKg: sheaves.legumesKg,
     meatKg: isMeatSpoilDay(day) ? 0 : villageMeatKg(state),
     freshMeatKg: fresh.meatKg ?? 0,
     freshAheadEnergy: fresh.meatAheadEnergy ?? 0,

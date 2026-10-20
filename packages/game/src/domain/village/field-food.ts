@@ -9,6 +9,7 @@ import {
 import { ageGroup } from './people';
 import { storageLossPerYear } from './productivity';
 import { FIELD_FOOD, FIELD_STORES, FOOD_NEED_KG_PER_YEAR, LEGUMES } from './rules';
+import { sheavesOutlook } from './threshing';
 import type { DietDay, VillageState } from './types';
 
 /** Dní v roce – úroda a potřeba se počítají na rok (365 dní jako roční potřeba jídla). */
@@ -58,9 +59,21 @@ export function yearlyFieldNeed(
   return fieldFoodShare(state) * yearlyFoodNeed(state, day);
 }
 
-/** Zásoby z pole (kg obilí): obilí a luštěniny jejich energií. */
-export function fieldStoresKg(state: Pick<VillageState, 'storesKg' | 'legumesKg'>): number {
-  return state.storesKg + legumeEnergy(villageLegumesKg(state));
+/** Stav vsi, ze kterého se počítají zásoby z pole – zásoby a snopy, které ves smí vymlátit. */
+export type FieldStoresState = Pick<
+  VillageState,
+  'storesKg' | 'legumesKg' | 'sheaves' | 'threshingFloors' | 'threshingGraceUntil'
+>;
+
+/**
+ * Zásoby z pole (kg obilí): obilí a luštěniny jejich energií – i nevymlácené snopy, které ves
+ * v den `day` smí vymlátit (production-chains.md – Humno; bez dne jen vymlácené zásoby).
+ */
+export function fieldStoresKg(state: FieldStoresState, day?: number): number {
+  const sheaves = day === undefined ? { grainKg: 0, legumesKg: 0 } : sheavesOutlook(state, day);
+  return (
+    state.storesKg + sheaves.grainKg + legumeEnergy(villageLegumesKg(state) + sheaves.legumesKg)
+  );
 }
 
 /** Rychlost ztrát skladováním (za rok, spojitě) při ztrátě `lossPerYear` za rok. */
@@ -135,7 +148,7 @@ export interface SowingTargets {
  * se další), ne podle dnešního počtu.
  */
 export function sowingTargets(
-  state: Pick<VillageState, 'people' | 'fieldFood' | 'storesKg' | 'legumesKg'>,
+  state: Pick<VillageState, 'people' | 'fieldFood'> & FieldStoresState,
   day: number,
   legumeNeedKg: number,
   potteryCoverage: number,
@@ -158,12 +171,15 @@ export function sowingTargets(
   // luštěnin se do jejich sklizně sní nejvýš strop – co nad něj zbude, sní se příští rok
   const legumeCapKg = (LEGUMES.energyCap * yearly) / LEGUMES.energy;
   const legumeYears = daysUntilLegumeHarvest(day) / DAYS_PER_YEAR;
-  const legumesKg = villageLegumesKg(state);
+  // nevymlácené snopy, které ves smí vymlátit, jsou zásobou (production-chains.md – Humno)
+  const sheaves = sheavesOutlook(state, day);
+  const legumesKg = villageLegumesKg(state) + sheaves.legumesKg;
   const legumesLeftKg = storesLeft(legumesKg, legumeCapKg, legumeYears, legumeLoss);
   // zásoby z pole k příští sklizni: obilí a luštěniny, které se do ní snědí, ubývají potřebou
   // z pole a ztrátami; luštěniny nad strop zůstanou celé
   const years = daysUntilHarvest(day) / DAYS_PER_YEAR;
-  const eatenStock = state.storesKg + legumeEnergy(Math.max(0, legumesKg - legumesLeftKg));
+  const eatenStock =
+    state.storesKg + sheaves.grainKg + legumeEnergy(Math.max(0, legumesKg - legumesLeftKg));
   const left = storesLeft(eatenStock, need, years, loss) + legumeEnergy(legumesLeftKg);
   const buffer = bufferKg(yearlyAfter);
   const keep = storesTargetKg(needAfter, buffer);

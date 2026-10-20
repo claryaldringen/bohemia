@@ -135,7 +135,7 @@ export function crowdedShare(state: VillageState, day: number): number {
 export function hasGoodStores(state: VillageState, day: number): boolean {
   const need =
     state.people.reduce((sum, p) => sum + foodNeedPerDay(p, day), 0) * fieldFoodShare(state);
-  return need > 0 && fieldStoresKg(state) > need * DAYS_PER_YEAR * HAPPINESS_BONUS.storesYears;
+  return need > 0 && fieldStoresKg(state, day) > need * DAYS_PER_YEAR * HAPPINESS_BONUS.storesYears;
 }
 
 /**

@@ -233,6 +233,33 @@ describe('villageNotices – hlad a vymření', () => {
     ]);
   });
 
+  it('výmlat (production-chains.md – Humno): před žněmi postav humno, snopy čekají, nouzový výmlat, humno nestačí', () => {
+    expect(villageNotices(view({ threshing: { floorNeeded: true } }))).toEqual([
+      { kind: 'threshing-floor-needed', tone: 'warn', text: 'Před žněmi postav humno' },
+    ]);
+    expect(villageNotices(view({ threshing: { sheavesKg: 800, waiting: true } }))).toEqual([
+      { kind: 'sheaves-waiting', tone: 'warn', text: 'Snopy čekají na humno' },
+    ]);
+    expect(villageNotices(view({ threshing: { sheavesKg: 800, emergency: true } }))).toEqual([
+      {
+        kind: 'emergency-threshing',
+        tone: 'warn',
+        text: 'Mlátí se na udusané zemi – postav humno',
+      },
+    ]);
+    expect(villageNotices(view({ threshing: { sheavesKg: 80, floorShort: true } }))).toEqual([
+      { kind: 'threshing-floor-short', tone: 'warn', text: 'Humno nestačí na výmlat' },
+    ]);
+    // snopy samy upozornění nejsou
+    expect(villageNotices(view({ threshing: { sheavesKg: 800 } }))).toEqual([]);
+    // ohlásí se, když nově vzniknou – měsíc před žní, při žni
+    const before = view({ threshing: { floorNeeded: true } });
+    expect(newNotices(view(), before).map((n) => n.text)).toEqual(['Před žněmi postav humno']);
+    expect(newNotices(before, view({ threshing: { sheavesKg: 900, waiting: true } }))).toEqual([
+      { kind: 'sheaves-waiting', tone: 'warn', text: 'Snopy čekají na humno' },
+    ]);
+  });
+
   it('vymřelá ves žádná upozornění nemá', () => {
     const extinct = { foundedYear: 512, extinctYear: 587, years: 74 };
     expect(

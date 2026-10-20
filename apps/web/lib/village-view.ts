@@ -169,6 +169,7 @@ import {
   type HerdPlaces,
   herdsOverRoom,
   penHerdSpecies,
+  threshingStatus,
 } from '@bohemia/game';
 import { formatGameDate } from './game-date';
 import { fruitVisible, treeGrowth } from './orchard-look';
@@ -555,6 +556,8 @@ export interface VillageView {
    * a upozornění „Voli se nevejdou do ohrady“; bez ohrady volů bez údaje.
    */
   oxen?: VillageOxen;
+  /** Snopy a výmlat (production-chains.md – Humno); ves bez snopů a upozornění bez údaje. */
+  threshing?: VillageThreshing;
   /** Pevné cesty (roads.md) – úseky pro panel výběru: stupeň, délka, stáří, stromy, vylepšení. */
   roads: VillageRoad[];
   /** Klády na hromadě u vsi v kusech (forest.md). */
@@ -3156,6 +3159,34 @@ export function scenePenSquares(
 }
 
 /**
+ * Snopy a výmlat vsi (production-chains.md – Humno): nevymlácené snopy (kg zrna obilí
+ * a luštěnin) a upozornění – „Před žněmi postav humno“ (`floorNeeded`), „Snopy čekají na humno“
+ * (`waiting`), nouzový výmlat na udusané zemi v roce odkladu (`emergency`), humno nestačí
+ * (`floorShort`). Chybí, co neplatí.
+ */
+export interface VillageThreshing {
+  sheavesKg?: number;
+  floorNeeded?: true;
+  waiting?: true;
+  emergency?: true;
+  floorShort?: true;
+}
+
+/** Snopy a upozornění výmlatu (`threshingStatus` z jádra); nic z toho – bez údaje. */
+function threshingOf(state: VillageState, day: number): { threshing?: VillageThreshing } {
+  const status = threshingStatus(state, day);
+  const kg = Math.round(status.sheavesGrainKg + status.sheavesLegumesKg);
+  const threshing: VillageThreshing = {
+    ...(kg > 0 ? { sheavesKg: kg } : {}),
+    ...(status.floorNeeded ? { floorNeeded: true as const } : {}),
+    ...(status.waiting ? { waiting: true as const } : {}),
+    ...(status.emergency ? { emergency: true as const } : {}),
+    ...(status.floorShort ? { floorShort: true as const } : {}),
+  };
+  return Object.keys(threshing).length > 0 ? { threshing } : {};
+}
+
+/**
  * Druhy stád, která se na noc nevejdou do ohrad svého druhu a k domům (`herdsOverRoom` – oxen.md,
  * Ohrady podle druhu; i během ročního odkladu, ať hráč ví, že má stavět). Vše se vejde – nic.
  */
@@ -3921,6 +3952,7 @@ export function buildVillageView(
     pens: penViews(state, day, summary),
     ...penShortOf(state),
     ...oxenViewOf(summary),
+    ...threshingOf(state, day),
     roads: roadViews(state, landscape, day, summary),
     scene: {
       ...sceneVillage(state, landscape, day, summary),

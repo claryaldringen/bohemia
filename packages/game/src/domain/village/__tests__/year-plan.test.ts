@@ -2,13 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import type { FieldPart, TaskName, YearPlan } from '../types';
 import { NO_CRAFTS } from '../productivity';
-import {
-  activeTasks,
-  createPlan as createPlanWith,
-  harvestKg,
-  taskRemaining,
-  threshLossKg,
-} from '../year-plan';
+import { activeTasks, createPlan as createPlanWith, harvestKg, taskRemaining } from '../year-plan';
 
 /** Plán bez řemesel (pokrytí nástroji 0 – horní mez práce). */
 const createPlan = (parts: FieldPart[], day: number): YearPlan =>
@@ -131,17 +125,15 @@ describe('taskRemaining a activeTasks', () => {
     expect(taskRemaining(withDone(halfHarvested, { thresh: 7.5 }), 'thresh')).toBeCloseTo(0);
     expect(taskRemaining(plan, 'thresh')).toBe(0);
   });
-  it('mlácení běží od listopadu do února jako jedno okno', () => {
+  it('mlácení jaře běží v září hned po žni (production-chains.md – Výmlat hned po žni)', () => {
     const p = withDone(plan, { harvest: 50 });
-    expect(activeTasks(p, at(500, 12, 10))).toEqual(['thresh']);
-    expect(activeTasks(p, at(501, 2, 10))).toEqual(['thresh']);
-    expect(activeTasks(p, at(501, 3, 10))).not.toContain('thresh');
+    expect(activeTasks(p, at(500, 9, 10))).toContain('thresh');
+    expect(activeTasks(p, at(500, 8, 10))).not.toContain('thresh');
+    expect(activeTasks(p, at(500, 12, 10))).not.toContain('thresh');
+    expect(activeTasks(p, at(501, 2, 10))).not.toContain('thresh');
   });
-  it('v listopadu kopání (konec 30. 11.) předchází mlácení (konec února)', () => {
-    expect(activeTasks(withDone(plan, { harvest: 50 }), at(500, 11, 10))).toEqual([
-      'dig',
-      'thresh',
-    ]);
+  it('v září mlácení (konec 30. 9.) předchází kopání (konec 30. 11.)', () => {
+    expect(activeTasks(withDone(plan, { harvest: 50 }), at(500, 9, 10))).toEqual(['thresh', 'dig']);
   });
 });
 
@@ -180,12 +172,5 @@ describe('harvestKg', () => {
     // louka bez pletí 60 %; vymýcený díl úrodnost 50 + 40, pletí nepotřebuje
     const expected = 623.2 * 0.6 - 175 + (760 * (0.4 + 0.6 * 0.9) - 175);
     expect(harvestKg(unweeded, [meadow, cleared], day)).toBeCloseTo(expected, 6);
-  });
-  it('mlátící ztráta', () => {
-    expect(threshLossKg(withDone(plan, { harvest: 50, thresh: 7.5 }), 1000)).toBeCloseTo(500);
-    expect(threshLossKg(finished(plan), 1000)).toBeCloseTo(0);
-    // sklizená polovina vymlácená celá – nic se nezkazí
-    const halfHarvested = withDone(plan, { harvest: 25, thresh: 7.5 });
-    expect(threshLossKg(halfHarvested, 1000)).toBeCloseTo(0);
   });
 });
