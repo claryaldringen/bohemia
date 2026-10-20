@@ -44,7 +44,7 @@ export const PREMIUM_CATALOG: Record<PremiumType, PremiumTypeInfo> = {
     name: 'Splavná řeka',
     skeleton: true,
     anchor: 'port',
-    immediate: false,
+    immediate: true,
   },
   fertile: {
     name: 'Velmi úrodná krajina',
@@ -110,7 +110,7 @@ export const PREMIUM_CATALOG: Record<PremiumType, PremiumTypeInfo> = {
     name: 'Soutok dvou toků',
     skeleton: true,
     anchor: 'hillfort',
-    immediate: false,
+    immediate: true,
   },
   'natural-fortress': {
     name: 'Přirozená pevnost',

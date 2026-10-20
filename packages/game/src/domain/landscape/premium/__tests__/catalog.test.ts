@@ -30,6 +30,8 @@ describe('katalog prémiových krajin', () => {
         'sacred-spring',
         'ford-hill',
         'mountain-pass',
+        'navigable-river',
+        'confluence',
       ].sort(),
     );
   });
