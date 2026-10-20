@@ -762,3 +762,34 @@ describe('selectionDetails – posvátná místa', () => {
     expect(selectionDetails(null, scene, { kind: 'pen', id: 90 })).toBeNull();
   });
 });
+
+describe('selectionDetails – rudiště (crafts.md – Uhlí a ruda kováře)', () => {
+  const site = {
+    smithId: 2,
+    leftKg: 2140,
+    depositKg: 3000,
+    heapKg: 35,
+    stockKg: 96,
+    walkM: 186,
+    pits: 3,
+    workers: [{ age: 41, smith: true, digs: true, carries: false, rides: false }],
+    cart: false,
+  };
+  const withOre: SceneVillage = {
+    ...scene,
+    oreSites: [{ dwellingId: 2, x: 30, z: -40, heapKg: 35, digging: true }],
+  };
+  const oreView = { oreSites: [site] } as unknown as VillageView;
+
+  it('údaje rudiště z pohledu na ves podle kovárny; bez rudiště ve scéně nebo v pohledu nic', () => {
+    expect(selectionDetails(oreView, withOre, { kind: 'ore-site', id: 2 })).toEqual({
+      kind: 'ore-site',
+      ...site,
+    });
+    expect(selectionDetails(oreView, scene, { kind: 'ore-site', id: 2 })).toBeNull();
+    expect(selectionDetails(null, withOre, { kind: 'ore-site', id: 2 })).toBeNull();
+    expect(
+      selectionDetails({} as unknown as VillageView, withOre, { kind: 'ore-site', id: 2 }),
+    ).toBeNull();
+  });
+});

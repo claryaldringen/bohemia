@@ -184,6 +184,97 @@ export function oreHeapGeometry(sites: readonly SceneOreSite[], height: HeightFn
   return out;
 }
 
+/**
+ * Jámy rudiště: do tolika metrů od místa (jádro je kope do SMITH_SUPPLY.pitSpreadM – jako dosah
+ * kopáčů ORE_PIT_REACH_M ve villager-plan.ts); jámy vyčerpaných ložisek leží dál (další rudiště
+ * aspoň SMITH_SUPPLY.siteSpacingM od nich) a k rudišti nepatří.
+ */
+export const ORE_SITE_PIT_REACH_M = 8;
+/** Kolem místa rudiště (hromada, i bez jam) se kliknutí počítá do tolika metrů. */
+const ORE_SITE_CORE_M = 1.5;
+/** Obrys výběru rudiště je o tolik metrů dál než jámy a hromada. */
+const ORE_SITE_OUTLINE_MARGIN_M = 0.8;
+/** Vnější okraj valu jámy jako násobek poloměru jámy (poslední prstenec PIT_PROFILE). */
+const PIT_OUTER = PIT_PROFILE[PIT_PROFILE.length - 1]![0];
+
+/** Jámy rudiště `site` (do ORE_SITE_PIT_REACH_M od místa) – ve scéně i v pohledu na ves. */
+export function oreSitePits<P extends { x: number; z: number }>(
+  site: { x: number; z: number },
+  pits: readonly P[] | undefined,
+): P[] {
+  return (pits ?? []).filter((p) => Math.hypot(p.x - site.x, p.z - site.z) <= ORE_SITE_PIT_REACH_M);
+}
+
+/** Kruh na zemi (m) – tvar rudiště pro výběr a obrys. */
+export interface OreSiteDisc {
+  x: number;
+  z: number;
+  r: number;
+}
+
+/**
+ * Tvary rudiště (výběr kliknutím a obrys – village-picking.ts, selection-highlight.ts): jámy i
+ * s valem (PIT_PROFILE), hromada rudy a místo samo (aspoň ORE_SITE_CORE_M kolem něj).
+ */
+export function oreSiteDiscs(
+  site: SceneOreSite,
+  pits: readonly SceneOrePit[] | undefined,
+): OreSiteDisc[] {
+  return [
+    { x: site.x, z: site.z, r: Math.max(ORE_SITE_CORE_M, oreHeapRadius(site)) },
+    ...oreSitePits(site, pits).map((p) => ({ x: p.x, z: p.z, r: orePitRadius(p.kg) * PIT_OUTER })),
+  ];
+}
+
+/** Leží bod (x, z) na rudišti (v některém z tvarů `discs`)? */
+export function insideOreSite(
+  point: { x: number; z: number },
+  discs: readonly OreSiteDisc[],
+): boolean {
+  return discs.some((d) => Math.hypot(point.x - d.x, point.z - d.z) <= d.r);
+}
+
+/**
+ * Obrys vybraného rudiště: uzavřená lomená čára kolem jam a hromady – konvexní obal kruhů
+ * zvětšených o ORE_SITE_OUTLINE_MARGIN_M (po 24 bodech na kruh), proti směru hodinových ručiček.
+ */
+export function oreSiteOutline(discs: readonly OreSiteDisc[]): [number, number][] {
+  const points: [number, number][] = [];
+  for (const d of discs) {
+    const r = d.r + ORE_SITE_OUTLINE_MARGIN_M;
+    for (let k = 0; k < 24; k++) {
+      const a = (k / 24) * Math.PI * 2;
+      points.push([d.x + Math.cos(a) * r, d.z + Math.sin(a) * r]);
+    }
+  }
+  const hull = convexHull(points);
+  return hull.length > 0 ? [...hull, hull[0]!] : [];
+}
+
+/** Konvexní obal bodů (Andrew – monotónní řetězec), proti směru hodinových ručiček. */
+function convexHull(points: readonly [number, number][]): [number, number][] {
+  const sorted = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  if (sorted.length < 3) return sorted;
+  const cross = (o: [number, number], a: [number, number], b: [number, number]): number =>
+    (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lower: [number, number][] = [];
+  for (const p of sorted) {
+    while (lower.length >= 2 && cross(lower[lower.length - 2]!, lower[lower.length - 1]!, p) <= 0) {
+      lower.pop();
+    }
+    lower.push(p);
+  }
+  const upper: [number, number][] = [];
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    const p = sorted[i]!;
+    while (upper.length >= 2 && cross(upper[upper.length - 2]!, upper[upper.length - 1]!, p) <= 0) {
+      upper.pop();
+    }
+    upper.push(p);
+  }
+  return [...lower.slice(0, -1), ...upper.slice(0, -1)];
+}
+
 /** Klíč rudišť a jam – síť se přestaví jen při změně (jámy a hromady jsou po celých kg). */
 export function oreSitesKey(
   sites: readonly SceneOreSite[] | undefined,
