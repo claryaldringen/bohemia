@@ -25,9 +25,9 @@ const SEGMENTS = 18;
  * dno, stěna, hřbet valu a jeho vnější svah zanořený pod terén (val navazuje na drn).
  */
 const PIT_PROFILE: readonly (readonly [number, number])[] = [
-  [0, 0.08],
-  [0.3, 0.085],
-  [0.55, 0.11],
+  [0, 0.04],
+  [0.3, 0.05],
+  [0.55, 0.09],
   [0.8, 0.17],
   [1, 0.27],
   [1.3, 0.13],
@@ -37,7 +37,7 @@ const PIT_PROFILE: readonly (readonly [number, number])[] = [
 const RIM_RING = 4;
 
 /** Barvy (RGB 0–1): mokré dno, rezavá stěna, čerstvá hlína valu, drn (zarostlá jáma). */
-const MUD = [0.2, 0.15, 0.1] as const;
+const MUD = [0.3, 0.22, 0.13] as const;
 const RUST = [0.42, 0.22, 0.1] as const;
 const EARTH = [0.4, 0.31, 0.2] as const;
 const SOD = [0.32, 0.38, 0.17] as const;
@@ -123,17 +123,17 @@ export function orePitWater(pits: readonly SceneOrePit[], height: HeightFn): Col
   for (const pit of pits) {
     const dry = Math.min(1, Math.max(0, pit.overgrowth) * 2);
     if (dry >= 1) continue;
-    const radius = orePitRadius(pit.kg) * 0.5 * (1 - dry);
+    const radius = orePitRadius(pit.kg) * 0.62 * (1 - dry);
     const phase = hash(pit.x, pit.z, 2) * Math.PI * 2;
     const base = out.positions.length / 3;
-    const y = height(pit.x, pit.z) + PIT_PROFILE[0]![1] + 0.025;
+    const y = height(pit.x, pit.z) + 0.075;
     out.positions.push(pit.x, y, pit.z);
-    out.colors.push(0.22, 0.29, 0.32);
+    out.colors.push(0.38, 0.4, 0.3);
     for (let s = 0; s < SEGMENTS; s++) {
       const a = (s / SEGMENTS) * Math.PI * 2;
       const r = radius * (1 + 0.15 * Math.sin(2 * a + phase));
       out.positions.push(pit.x + Math.cos(a) * r, y, pit.z + Math.sin(a) * r);
-      out.colors.push(0.27, 0.32, 0.33);
+      out.colors.push(0.33, 0.36, 0.28);
     }
     for (let s = 0; s < SEGMENTS; s++) {
       out.indices.push(base, base + 1 + ((s + 1) % SEGMENTS), base + 1 + s);
