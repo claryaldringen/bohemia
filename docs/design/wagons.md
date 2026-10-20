@@ -159,14 +159,23 @@ a potah, Kolik volů ves chce; podrobnosti níž jsou návrh Clauda.
   jen vozy, které má – nové nestaví, staré doslouží.
 - **Úspora z loňského provozu** (rozhodnutí Clauda): ves s hotovou ohradou volů každý den měří, co
   by vozy ušetřily, kdyby jich bylo dost – **nošení, které ten den opravdu proběhlo**, tam, kam
-  vůz dojede (odnos snopů – podíl odnosu na sklizni, svoz sena – čtvrtina seče, osivo – desetina
-  setí, klády ke stavbám – polovina dnešního kácení a dovozu), **jízdy pro uhlí a vodu** (stejný
-  plán jako skutečné vozy, jen s dostatkem vozů) a **u výpravy**, kolik nosičů by nahradily
-  čtyřkoláky (nosiči × dny cesty). Vůz za den převezme nejvýš 8 čd nošení a jdou s ním 2 lidé –
-  ušetří tedy nejvýš 6 čd. Úspory dne se seřadí od největší a přičtou k-tému vozu (rok vozů –
-  `CartDemand`; dny orby zvlášť – tehdy jezdí jen voli, kteří neorají). Rok vozů běží od 1. 11.
-  (jako rok cest a porážka): 1. 11. se uzavře a přepočte na rok – kratší než 300 dní (ohrada volů
-  postavená během roku, ves uložená dřív) běží do dalšího 1. 11. – a podle něj ves rok rozhoduje.
+  vůz dojede (odnos snopů – podíl odnosu na sklizni, svoz sena – čtvrtina seče, odnos jablek –
+  čtvrtina sklizně sadu, osivo – desetina setí, klády ke stavbám – polovina dnešního kácení
+  a dovozu), a z toho **podél pevných cest**, kam dojede i čtyřkolák; **jízdy pro uhlí, rudu,
+  hlínu a vodu** (stejný plán jako skutečné vozy, jen s dostatkem vozů – ruda a hlína z toho, co
+  dnes kovárny a hrnčíři odnesli z rudiště a hliniště) a **u výpravy**, kolik nosičů by nahradily
+  čtyřkoláky (nosiči × dny cesty). Dvoukolák za den převezme nejvýš 8 čd nošení a jdou s ním
+  2 lidé – ušetří tedy nejvýš 6 čd; čtyřkolák 16 čd se stejnou posádkou – ušetří 14 čd. Den se
+  zapíše do roku vozů (`CartDemand.days` – nošení podél cest a jinam, úspory jízd, den orby – tehdy
+  jezdí jen voli, kteří neorají). Rok vozů běží od 1. 11. (jako rok cest a porážka): 1. 11. se
+  uzavře do **tabulky úspor** podle počtu dvoukoláků a čtyřkoláků (`CartYear.base`, ve dny orby
+  i podle volů, kteří neorají – `plough`; čtyřkoláky napřed na nošení podél cest, dvoukoláky na
+  zbytek a na jízdy – `cartDayValue`) přepočtené na rok – kratší než 300 dní (ohrada volů
+  postavená během roku, ves uložená dřív) běží do dalšího 1. 11. – a podle ní ves rok rozhoduje.
+  Rok uložený před tabulkou (úspory k-tých vozů) se čte dál.
+- **Čtyřkolák v odhadu** (rozhodnutí Clauda): úspory čtyřkoláku jsou nošení podél cest a výpravy;
+  jízdy pro uhlí a vodu umí i dvoukolák a ves kvůli nim čtyřkolák nestaví – když ho má, veze je
+  ten levnější (Co se vozí a na čem).
 - **Proč z loňského provozu, ne z plánu práce:** plán osevu k 1. 9. nezná seč (plánuje se 1. 6.),
   stavby ani výpravy, a dosah vozu po vozové síti zná až svoz; den simulace zná všechno, co vozy
   vozí, i kam dojedou. Je to levné (úspory dne z plánů, které simulace počítá tak jako tak, jedno
@@ -196,16 +205,34 @@ Návrh Clauda, Martin schválil („Ano, udělej to jak říkáš“) včetně v
 **Čtyřkolák** (2 voli, 800 kg): jen po pevných cestách, širší oblouk, dvakrát víc s jednou
 posádkou. Ves vybere levnější vůz pro každou práci.
 
-| Náklad                             | Dvoukolák | Čtyřkolák                                | Stav                                                                 |
-| ---------------------------------- | --------- | ---------------------------------------- | -------------------------------------------------------------------- |
-| Snopy ze žní, seno                 | ano       | ano, podél cest                          | ve hře (dvoukolák; čtyřkolák podél cest – fáze 2)                    |
-| Klády ke stavbám                   | krátké    | dlouhé, výhodnější                       | ve hře (dvoukolák; čtyřkolák – fáze 2)                               |
-| Uhlí, osivo, voda                  | ano       | uhlí z lesního milíře po cestě, voda ano | ve hře (dvoukolák; čtyřkolák – fáze 2)                               |
-| Ruda z rudiště                     | ano       | –                                        | ve hře (crafts.md – Uhlí a ruda kováře)                              |
-| Výpravy po stezce, nákup u sousedů | –         | ano                                      | ve hře                                                               |
-| **Hlína pro hrnčíře** od potoka    | ano       | –                                        | **nové – fáze 2**: místo u potoka, hrnčíř kope, vůz se sedlákem      |
-| **Jablka ze sadu** do vsi          | ano       | ano, podél cest                          | **nové – fáze 2**: podíl odnosu při sklizni jako u snopů             |
-| **Stěhování do nové vsi**          | ano       | ano                                      | **nové – fáze 2**: odcházející si vezmou volný vůz s voly, víc jídla |
+| Náklad                             | Dvoukolák | Čtyřkolák                                | Stav                                                                      |
+| ---------------------------------- | --------- | ---------------------------------------- | ------------------------------------------------------------------------- |
+| Snopy ze žní, seno                 | ano       | ano, podél cest                          | ve hře                                                                    |
+| Klády ke stavbám                   | krátké    | dlouhé, výhodnější                       | ve hře (čtyřkolák ke stromům u pevných cest)                              |
+| Uhlí, osivo, voda                  | ano       | uhlí z lesního milíře po cestě, voda ano | ve hře (uhlí a vodu levnější vůz; osivo dvoukolák)                        |
+| Ruda z rudiště                     | ano       | –                                        | ve hře (crafts.md – Uhlí a ruda kováře)                                   |
+| Výpravy po stezce, nákup u sousedů | –         | ano                                      | ve hře                                                                    |
+| **Hlína pro hrnčíře** od potoka    | ano       | –                                        | ve hře (crafts.md – Hlína hrnčíře): hliniště, hrnčíř kope, sedlák s vozem |
+| **Jablka ze sadu** do vsi          | ano       | ano, podél cest                          | ve hře (orchard.md – Jablka vozem): čtvrtina sklizně jako odnos snopů     |
+| **Stěhování do nové vsi**          | ano       | ano                                      | ve hře (migration.md – Vůz při odchodu): volný vůz s voly, víc jídla      |
+
+- **Čtyřkolák jen po pevných cestách** (`CART_ROUTES.fourWheelOffRoadM`, rozhodnutí Clauda):
+  vozová síť čtyřkoláku zná jen buňky pevných cest (pás buňky kolem osy – osa jde po buňkách
+  schodovitě) a 40 m kolem ohrady volů, odkud vyjíždí (cesta k nejbližší pevné cestě); do pole,
+  na louku ani k lesu mimo cestu nesjede. Ke čtverci pole a louky dojede, když cesta vede do
+  `CARTS.reachM` od jeho středu (kraj čtverce u cesty). Zemská stezka pro výpravu zůstává
+  (`trailCartPassable`).
+- **Levnější vůz pro každou práci** (`fleetHaulPlan`, `planCartJobs`): flotila dne (`CartFleet`
+  – vozy doma po druzích a voli, kteří neorají) – na snopy, seno, jablka a klády jedou napřed
+  čtyřkoláky na nošení podél cest (dvakrát víc se stejnou posádkou), dvoukoláky na zbytek; uhlí
+  od milíře a vodu veze ten vůz, který za kg stojí méně práce (čtyřkolák, když k milíři či břehu
+  dojede po cestě – vlastní jízda `CharcoalKiln.cart4`, `VillageState.waterCart4`); ruda, hlína
+  a osivo jen dvoukolákem. Svoz počítá dosah obou druhů jednou za úlohu (`cartReach4`).
+- **Vlkov** (20. 10. 2026): pevné cesty vedou k vodě a mezi domy, k polím jen málo – čtyřkolák by
+  dojel k **≈ 4 %** plochy polí (geometricky je do 13 m od cesty 6 %), takže ves chce dvoukoláky
+  (tabulka úspor za rok 804/805: dvoukoláky 1–4 ≈ 194, 221, 221, 221 čd, čtyřkolák ≈ 4) – stávající
+  čtyřkolák doslouží a nový tesař nepostaví. Ve vsi s cestami přes pole se čtyřkolák vyplatí
+  (test: 60 dní po 16 čd nošení podél cest – čtyřkolák místo dvou dvoukoláků).
 
 **Hnůj a palivové dříví se nevozí** (hnůj bude samostatná mechanika později).
 
@@ -684,3 +711,7 @@ Návrh Clauda (19. 10. 2026) – jen zobrazení, simulace se nemění.
 | Další vůz, když ušetří víc práce za rok, než stojí (tesař na 10 let, seno a výcvik volů navíc); tabulka nákladů                                                                                                                                                                                                                                | návrh Clauda, Martin („Ano, udělej to jak říkáš“) |
 | Úspora z loňského provozu: dnešní nošení, jízdy pro uhlí a vodu, nosiči výprav; rok vozů od 1. 11., aspoň 300 dní                                                                                                                                                                                                                              | rozhodnutí Clauda                                 |
 | Dvoukolák s oplením a jednoduchým jhem pro jednoho vola                                                                                                                                                                                                                                                                                        | rozhodnutí Clauda                                 |
+| Čtyřkolák jen po pevných cestách a 40 m kolem ohrady volů; flotila dne – čtyřkoláky napřed podél cest                                                                                                                                                                                                                                          | návrh Clauda, Martin („Ano, udělej to jak říkáš“) |
+| Uhlí a vodu veze levnější vůz (práce na kg); ruda, hlína a osivo dvoukolák                                                                                                                                                                                                                                                                     | návrh Clauda, Martin („Ano, udělej to jak říkáš“) |
+| Rok vozů po dnech (nošení podél cest a jinam, jízdy, den orby), 1. 11. tabulka úspor podle počtu vozů a volů                                                                                                                                                                                                                                   | rozhodnutí Clauda                                 |
+| Čtyřkolák v odhadu jen za nošení podél cest a výpravy, ne za jízdy pro uhlí a vodu                                                                                                                                                                                                                                                             | rozhodnutí Clauda                                 |

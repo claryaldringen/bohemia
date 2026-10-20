@@ -152,6 +152,26 @@ po 10 m střídavě po stranách úseku. Každá jabloň je jako sad na strom (1
 v zimě a sklizeň v září–říjnu spolu se sady, jablka do stejné zásoby ovoce; po 60 letech souš
 a místo je volné. Ve scéně stejné modely a roční období jako v sadu.
 
+## Jablka vozem
+
+Martin (20. 10. 2026) k návrhu nových nákladů vozů ([vozy](wagons.md) – Co se vozí a na čem):
+„**Ano, udělej to jak říkáš**“ – jablka ze sadu do vsi vozem, čtyřkolák podél cest. Čísla návrh
+Clauda.
+
+- **Odnos jablek:** ze sklizně (8 čd/ha při plné úrodě) je **čtvrtina odnos v koších** ze sadu do
+  vsi (`ORCHARD.harvestCarryShare` – 3 t/ha ≈ 120 košů po 25 kg, při ≈ 150 m od domů ≈ 2 čd z 8).
+  Ten převezme **vůz** se spřežením, který dnes jinde nesváží (snopy a seno mají přednost
+  v pořadí úloh dne), jako odnos snopů: za den 8 čd nošení s posádkou 2 lidí; čtyřkolák podél
+  pevných cest dvakrát víc. Sklizeň pak postoupí rychleji a jablek přibude víc.
+- **Kam vůz dojede:** do sadu nevjede (stromy, plot), staví na kraji – ke čtverci, jehož střed je
+  do `CARTS.reachM` od vozové sítě (`orchardCartReach`); u ostatních čtverců se nosí jako dřív.
+  Dosah se spočítá jednou za sklizeň (`OrchardWork.cartReach`, `cartReach4`) a převzatý odnos se
+  pamatuje (`OrchardWork.hauled`).
+- **Jabloně podél cest** se sklízejí ručně (stromy jednotlivě podél cesty – vůz nepomůže).
+- **Ve scéně:** vůz s proutěnými koši jablek (`wagon2-apples`, `wagon4-apples`) jezdí z kraje sadu
+  ke vsi v okně herního dne jako svoz snopů; v roce vozů se odnos jablek počítá do úspor vozů
+  ([vozy](wagons.md) – Kolik vozů ves chce).
+
 ## Naměřeno
 
 `measure-village.ts 200 60` (18. 10. 2026) – třetí strategie: hráč staví jako dřív a hned po
@@ -168,23 +188,24 @@ Obnova sadu (18. 10. 2026) se zatím neměřila – v 60letém běhu se týká j
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                    | Kdo                                        |
-| --------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| Jabloňový sad jako stavba, staví se po čtvercích jako pole                                    | Martin                                     |
-| Výsadba 80 čd/ha, péče 10 čd/ha/rok, ~~sklizeň 25 čd/ha~~ (září–říjen) – opraveno níže        | návrh Clauda, Martin potvrdil              |
-| Plody od 6. roku, ~~plná úroda od 10. roku~~, život ≈ 60 let – opraveno níže                  | návrh Clauda, Martin potvrdil              |
-| ≈ 3 t jablek/ha = ≈ 430 kg obilí; jí se přednostně, zbytek k 1. 3. shnije; bez úhoru a osevu  | návrh Clauda, Martin potvrdil              |
-| Plná úroda až od 25. roku, do 50. roku, k nule v 60. roce, pak louka                          | Martin – oprava podle rešerše 17. 10. 2026 |
-| Sklizeň 8 čd/ha (místo 25); výsadba 80, péče 10 v zimě, sklizeň září–říjen                    | Martin – oprava podle rešerše 17. 10. 2026 |
-| Anachronismus (sady až od 9. století) se neřeší                                               | Martin                                     |
-| Rok sadu od 1. 3.; sklizeň poměrně k úrodě; bez nejmenší výměry; ~~spon 2 stromy na čtverec~~ | návrh Clauda                               |
-| Stromy v pravidelných řadách – mřížka 7,5 m, 4 stromy na čtverec, řady přes celý sad          | Martin, 18. 10. 2026                       |
-| Jablka do konce února v přídělu; při přebytku jen jablka, obilí na potom                      | návrh Clauda                               |
-| Vesničané obnovují starý sad sami, po čtvercích – jako přestavbu obydlí                       | Martin, 18. 10. 2026                       |
-| Obnova od 50. roku, za rok sadu nejvýš desetina čtverců (nahoru, aspoň 1), nejstarší první    | návrh Clauda, Martin schválil směr         |
-| Obnova = výsadba (80 čd/ha, jaro a podzim); staré stromy se kácejí s prací, po sklizni        | návrh Clauda, Martin schválil směr         |
-| Upozornění „Vesničané obnovují starý sad“ a „Starý sad dosloužil“                             | Martin, 18. 10. 2026                       |
-| Obydlí jde stavět do sadu – sad se zmenší o plochu domu                                       | Martin, 18. 10. 2026                       |
-| Pozemek sebere celý čtverec, obydlí bez pozemku průnik; pod 20 % zmizí; jablka a práce úměrně | návrh Clauda                               |
-| Sad smí na pole – čtverec pole pod ním z pole zmizí (pole jako krajina)                       | Martin, 18. 10. 2026                       |
-| Klik na sad vybere čtverec (stáří, úroda, obnova), dvojklik celý sad – jako u pole            | Martin (pole), sad návrh Clauda            |
+| Rozhodnutí                                                                                    | Kdo                                               |
+| --------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| Jabloňový sad jako stavba, staví se po čtvercích jako pole                                    | Martin                                            |
+| Výsadba 80 čd/ha, péče 10 čd/ha/rok, ~~sklizeň 25 čd/ha~~ (září–říjen) – opraveno níže        | návrh Clauda, Martin potvrdil                     |
+| Plody od 6. roku, ~~plná úroda od 10. roku~~, život ≈ 60 let – opraveno níže                  | návrh Clauda, Martin potvrdil                     |
+| ≈ 3 t jablek/ha = ≈ 430 kg obilí; jí se přednostně, zbytek k 1. 3. shnije; bez úhoru a osevu  | návrh Clauda, Martin potvrdil                     |
+| Plná úroda až od 25. roku, do 50. roku, k nule v 60. roce, pak louka                          | Martin – oprava podle rešerše 17. 10. 2026        |
+| Sklizeň 8 čd/ha (místo 25); výsadba 80, péče 10 v zimě, sklizeň září–říjen                    | Martin – oprava podle rešerše 17. 10. 2026        |
+| Anachronismus (sady až od 9. století) se neřeší                                               | Martin                                            |
+| Rok sadu od 1. 3.; sklizeň poměrně k úrodě; bez nejmenší výměry; ~~spon 2 stromy na čtverec~~ | návrh Clauda                                      |
+| Stromy v pravidelných řadách – mřížka 7,5 m, 4 stromy na čtverec, řady přes celý sad          | Martin, 18. 10. 2026                              |
+| Jablka do konce února v přídělu; při přebytku jen jablka, obilí na potom                      | návrh Clauda                                      |
+| Vesničané obnovují starý sad sami, po čtvercích – jako přestavbu obydlí                       | Martin, 18. 10. 2026                              |
+| Obnova od 50. roku, za rok sadu nejvýš desetina čtverců (nahoru, aspoň 1), nejstarší první    | návrh Clauda, Martin schválil směr                |
+| Obnova = výsadba (80 čd/ha, jaro a podzim); staré stromy se kácejí s prací, po sklizni        | návrh Clauda, Martin schválil směr                |
+| Upozornění „Vesničané obnovují starý sad“ a „Starý sad dosloužil“                             | Martin, 18. 10. 2026                              |
+| Obydlí jde stavět do sadu – sad se zmenší o plochu domu                                       | Martin, 18. 10. 2026                              |
+| Pozemek sebere celý čtverec, obydlí bez pozemku průnik; pod 20 % zmizí; jablka a práce úměrně | návrh Clauda                                      |
+| Sad smí na pole – čtverec pole pod ním z pole zmizí (pole jako krajina)                       | Martin, 18. 10. 2026                              |
+| Klik na sad vybere čtverec (stáří, úroda, obnova), dvojklik celý sad – jako u pole            | Martin (pole), sad návrh Clauda                   |
+| Jablka ze sadu vozem – čtvrtina sklizně je odnos, vůz ho převezme u čtverců, kam dojede       | návrh Clauda, Martin („Ano, udělej to jak říkáš“) |
