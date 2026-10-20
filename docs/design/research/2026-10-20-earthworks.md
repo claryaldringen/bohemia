@@ -40,11 +40,13 @@ a udusání vrchní vrstvy pláně 5,5 m × 0,1 m = 0,55 m³ → ≈ 0,1 čd; kr
 
 ## Co z toho plyne pro trasu
 
-Metr úvozu hlubokého 2 m na pláni 5,5 m se svahy 1 : 1 je ≈ 15 m³ (průřez 11 + 2 × 2 m²) – s převozem do náspu ≈ 10–14 čd
-na metr. Serpentina stejného převýšení v mírném svahu (o 50–100 m delší) stojí 15–30 čd zpevnění.
-Bez provozu se tedy úvoz skoro nikdy nevyplatí a trasa jde serpentinou; úvoz a násep vyjdou jen
-u krátkého prudkého svahu na cestě s hodně jízdami (čas vozu za 10 let – `trafficYears`) nebo
-tam, kde serpentina nemá místo. Viz Vlkov a ukázka v roads.md.
+Metr úvozu hlubokého 2 m na pláni 5,5 m se svahy 1 : 1 je ≈ 15 m³ (průřez 11 + 2 × 2 m²) –
+s převozem do náspu ≈ 10–14 čd na metr. Serpentina stejného převýšení v mírném svahu (o 50–100 m
+delší) stojí 15–30 čd zpevnění. Podle ceny by se tedy úvoz skoro nikdy nevyplatil a trasa by šla
+serpentinou – proto Martin (20. 10. 2026): „Co nejpříměji“. Hledání trasy počítá metr délky za
+25 čd (víc než metr nejhlubšího úvozu – 25,5 m³ ≈ 23 čd), takže svah se srovná úvozem a náspem
+do 3 m a oklika nebo serpentina zůstane jen tam, kde by bylo potřeba víc. Cena v panelu je
+skutečná práce podle čísel výš. Viz Vlkov a ukázka v roads.md.
 
 ## Zdroje
 

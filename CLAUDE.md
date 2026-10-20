@@ -1383,11 +1383,13 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   a volů navíc, v místech ohrad) → `draftChoice`, `cartTargets`, `missingCart`, `wantedOxen`
   (víc z párů a volů vozů – voli se sdílí), upozornění `oxenOverRoom` („Voli se nevejdou do
   ohrady“), krávy `oxenCows`. Web: `VillageView.oxen` (`VillageOxen`), panel ohrady volů (ikona
-  `resources/ard.png`), `SceneVillage.ploughPairs`. **Čtyřkolák jen po pevných cestách**
-  (wagons.md – Co se vozí a na čem; `CartRoutesInput.roadsOnly` z `villageCartRoutes` pro
-  `four-wheel`, mimo cesty jen `CART_ROUTES.fourWheelOffRoadM` kolem ohrady) a **levnější vůz pro
+  `resources/ard.png`), `SceneVillage.ploughPairs`. **Čtyřkolák po louce a strništi kamkoli**
+  (wagons.md – Co se vozí a na čem; Martin 20. 10. 2026: „Po strništích a loukách může
+  libovolně“ – dřív jen po pevných cestách; `CartRoutesInput.fourWheel` z `villageCartRoutes` pro
+  `four-wheel` – jako dvoukolák, širší oblouk, zakládaný díl objede; uložené dosahy čtyřkoláku
+  starší vsi jednou zahodí `withFourWheelReach`, příznak `DraftState.fourWheelOffRoad`) a **levnější vůz pro
   každou práci**: flotila dne `CartFleet` (`cartFleetToday`, `fleetCarts`, `takeCart`) – svoz
-  snopů, sena, jablek a klád `fleetHaulPlan` (čtyřkoláky napřed podél cest – dosah `cartReach4`
+  snopů, sena, jablek a klád `fleetHaulPlan` (čtyřkoláky napřed, kam dojedou – dosah `cartReach4`
   u úloh, `HaulPlan.four` / `fourWork`, `LaborShare.fourWheel`), uhlí a vodu veze levnější vůz
   (`kilnCartOffer(…, kind)`, `CharcoalKiln.cart4`, `waterCartPlan(…, kind)`,
   `VillageState.waterCart4`), ruda, hlína a osivo dvoukolák.
@@ -2269,8 +2271,11 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   brod zůstává; pás `ROAD_LAND.widthM.wagon` 3,5 m). **Trasa** `paths/wagon-route.ts`
   (deterministická vrstva): `wagonRoadGrid` (zákazy jako vozová síť, mez úprav terénu `limit`
   u staveb a vody), `findWagonRoute` – A\* po terénu pěšin × 16 směrů (`CART_HEADINGS`), zatáčení
-  `WAGON_ROAD.turnSteps`, štítky s rozsahem výšky pláně (sklon hledání 5,5 %), cena = stavba + čas
-  vozu za `trafficYears` podle `Road.cartTraffic`; `wagonProfile` (víc stupňů vyhlazení osy,
+  `WAGON_ROAD.turnSteps`, štítky s rozsahem výšky pláně (sklon hledání 5,5 %), **co nejpříměji**
+  (Martin 20. 10. 2026: „Co nejpříměji“ – metr délky `WAGON_ROAD.directPerM` 25 čd, víc než metr
+  nejhlubšího úvozu; mezi stejně dlouhými stavba + čas vozu za `trafficYears`),
+  `straightenWagonRoute` (přímé úseky, kudy vůz projede a profil vyjde – rozsahy výšek odpředu
+  i odzadu, rohy do 45°, posvátný strom `WagonGrid.sacred` ani u konce); `wagonProfile` (víc stupňů vyhlazení osy,
   `profileHeights` – DP po cm, sklon ≤ 6 %, úvoz a násep ≤ 3 m), `wagonEarthworks` (objemy na
   rastru 1 m, `balanceEarth` – hlína z úvozu do náspu), `roadsCartMinutes` / `profileCartMinutes`.
   **Plán** `wagon-road.ts`: `planWagonRoad(WagonPlanInput)` – stejně na serveru
@@ -2281,7 +2286,8 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   `startWagonRoad` → `VillageRoads.earthworks` (`RoadEarthwork` – profil, úseky ≈ 60 m od vsi ven
   `pieces`, `constructionId`) a stavba `road` s `Construction.earthwork`; krok `wagonRoadsDay`
   (po `trailsDay`) dá dostavěné úseky hned jako pevnou cestu (`addWagonRoad` v `paths/roads.ts`),
-  `finishWagonRoad`; vozová cesta nezarůstá, souběhem se neřeže, konce se nenapojují samy. Práce
+  `finishWagonRoad`; stará cesta po ose vozové zmizí hned (`absorbParallelRoads`); vozová cesta
+  nezarůstá, souběhem se neřeže, konce se nenapojují samy. Práce
   `{ kind: 'wagon' }` (`wagonWorkTarget`). **Výšky jako herní data** (landscape.md – Úpravy
   terénu): `paths/earthworks.ts` – `terrainEditsOf` / `terrainEditsFrom` (mezipaměť),
   `editedHeight`, `groundHeightAt`, `withTerrainEdits`; síť pěšin a vozová síť (`villageTerrain`

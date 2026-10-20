@@ -741,26 +741,40 @@ rozhodl sám při stavbě, je v tabulce na konci.
   projede.
 - **Stará cesta zůstane** jako samostatná pevná cesta s dnešními pravidly. Provoz se sám přesune
   na rychlejší cestu (síť pěšin, vozová síť), nepoužívané kusy staré cesty zarostou. Souběžný kus
-  staré cesty těsně vedle vozové se vyřízne jako každá souběžná cesta – vozová se nikdy neřeže.
+  staré cesty těsně vedle vozové se vyřízne jako každá souběžná cesta – vozová se nikdy neřeže –,
+  a to hned po dostavění úseku (kde vozová cesta vede po ose staré, nahradí ji bez dočasného
+  rozcestí).
 - **Vozová cesta nezarůstá** (jako upravená a hať) a její volné konce se nenapojují samy
   (díry – [Úseky a rozcestí](#úseky-a-rozcestí)) – napojí je stavba.
 
 ### Trasa
 
-- **Hledání:** A\* po mřížce terénu pěšin (3,75 m) ze 16 směrů jako vozová síť, zatáčení
-  o 2 směry na krok (čtyřkolák se spřežením zatočí na poloměru ≈ 6–8 m – úvrať serpentiny
-  ≈ 15 m; vozová síť po louce počítá opatrněji o jeden), změna směru stojí 0,5 čd navíc (trasa se
-  zbytečně nevlní). Hledá se v okně kolem staré cesty a konců (rezerva 40 % spojnice + 60 m,
-  60–220 m).
-- **Cena trasy** = práce stavby (zemní práce, zpevnění, kácení) + čas jízdy vozem za **10 let**
-  provozu podle loňských jízd cesty (`Road.cartTraffic`, nejméně 0,05 jízdy denně – bez provozu
-  malá váha; den vozky 10 h). Nejlevnější trasa vyhraje.
+- **Co nejpříměji** (Martin, 20. 10. 2026, na otázku, jestli má mít přednost přímá trasa se
+  zemními pracemi, nebo levnější oklika: „Co nejpříměji“): přímá trasa má přednost – svah se
+  srovná úvozem nebo náspem do 3 m, oklika nebo serpentina jen tam, kde by bylo potřeba víc.
+  Dřívější „nejlevnější trasa vyhraje“ (práce stavby + čas jízdy) neplatí – na mírném terénu
+  vycházely skoro vždy okliky bez zemních prací.
+- **Hledání** (návrh Clauda): A\* po mřížce terénu pěšin (3,75 m) ze 16 směrů jako vozová síť,
+  zatáčení o 2 směry na krok (čtyřkolák se spřežením zatočí na poloměru ≈ 6–8 m – úvrať serpentiny
+  ≈ 15 m; vozová síť po louce počítá opatrněji o jeden), v okně kolem staré cesty a konců (rezerva
+  40 % spojnice + 60 m, 60–220 m). Každý metr délky stojí v hledání **25 čd** navíc
+  (`WAGON_ROAD.directPerM`) – víc než metr nejhlubšího úvozu (pláň 5,5 m a svahy 1 : 1 v hloubce
+  3 m = 25,5 m³ ≈ 23 čd), takže se trasa svahu nevyhne, dokud ho jde srovnat; mezi trasami stejné
+  délky rozhodne práce stavby a čas jízdy vozem za 10 let (`Road.cartTraffic`). Váha je jen pro
+  výběr trasy – cena v panelu je skutečná práce jako dřív.
+- **Narovnání** (návrh Clauda): trasa z mřížky jde po krocích buněk (zuby, schody po 16 směrech).
+  Z každého bodu se vede přímý úsek co nejdál po trase, kudy vůz projede (žádná zakázaná buňka),
+  roh nejvýš 45° a kde profil vyjde – rozsah výšek pláně (sklon, úvoz a násep do 3 m) dojde od
+  začátku do bodu, odkud zbytek původní trasy dojde ke konci. Narovnaná trasa má proto profil
+  vždy, když ho měla původní. Vyhlazení pak zaoblí jen rohy (osa zhuštěná po 4 m) a do zakázané
+  buňky nesmí.
 - **Sklon po úpravě nejvýš 6 %** (žádoucí mez pro povozy tažené zvířaty je 8 % – naložený
   čtyřkolák s brzděním smykem chce méně). Úvoz (výkop) nebo násep zarovná podélný profil
   nejvýš o **3 m**. Kde by bylo potřeba víc, trasa jde jinudy – serpentiny vzniknou samy
   z omezení sklonu a zatáčení, velké svahy dostanou serpentiny, úvozy i náspy.
 - **Kudy ne** (jako vozová síť): voda mimo brod, osetý díl, sad, hřbitov, ohrada, stavby, pozemky
-  a staveniště (s půl vozovkou), posvátné duby a háje (pláň a 2 m) a okrsek svatyně. U staveb,
+  a staveniště (s půl vozovkou), posvátné duby a háje (pláň a 2 m – ani u konce cesty; zemní práce
+  nesmí ani k rohům buňky se stromem) a okrsek svatyně. U staveb,
   plotů a vody se terén upraví jen tolik, kolik se vejde (srovnání pláně 0,3 m jde všude), brody
   se neupravují. **Les ano** – průsek ([Průsek lesem](#průsek-lesem)). **Pole** – cesta přes pole
   jako dnes ([Cesta přes pole](#cesta-přes-pole), pás 3,5 m).
@@ -824,59 +838,61 @@ nemění ani o bit.
 - Pás 3,5 m udusané hlíny se štěrkem a kameny v kolejích; svahy úvozu a náspu holá hlína, která
   za **6 let** zaroste trávou (rozhodnutí Clauda). Pařezy v průseku.
 - Vytyčení nehotové části stavby a náhledu trasy kolíky a provázkem.
-- Ukázka na `/dev/landscape` – **Vozová cesta**: krátký prudký svah na obchodní cestě (80 jízd
-  denně – vyplatí se úvoz 2,8 m a násep 2,4 m, 150 → 164 m, sklon 16 % → 6 %, 853 čd) a dlouhý
-  svah bez vozů (serpentina, 120 → 199 m, 12 % → 6 %, 89 čd); stadia náhled, stavba 50 %, hotová,
+- Ukázka na `/dev/landscape` – **Vozová cesta**: krátký prudký svah na obchodní cestě (rovně
+  úvozem 2,6 m a náspem 1,9 m, 150 → 167 m, sklon 16 % → 6 %, 698 čd) a dlouhý svah, který se
+  srovnat nedá (serpentina, 120 → 174 m, 12 % → 6 %, 124 čd); stadia náhled, stavba 50 %, hotová,
   po 8 letech.
 
 ### Vlkov
 
-Kopie stavu (den 109 947), 22 úseků. Plán jedné cesty na serveru 3–940 ms (nejdelší 372), náhled
-v prohlížeči stejnou funkcí 0,2–0,9 s – trasa i cena vyjdou bit po bitu stejně (krajina
-s přesností prohlížeče).
+Kopie stavu (den 109 947), 22 úseků. Plán jedné cesty na serveru 3–620 ms (nejdelší 372), náhled
+v prohlížeči stejnou funkcí 0,1–0,3 s – trasa i cena vyjdou bit po bitu stejně (krajina
+s přesností prohlížeče). Co nejpříměji (od 20. 10. 2026; v závorce dřívější nejlevnější trasa):
 
-| Cesta | Stará → nová  | Sklon     | Úvoz / násep | Výkop / násep | Práce  | Stromy | Jízda vozu           |
-| ----- | ------------- | --------- | ------------ | ------------- | ------ | ------ | -------------------- |
-| 372   | 1216 → 1399 m | 14 → 6 %  | 0,1 / 0,1 m  | 91 / 105 m³   | 818 čd | 80     | neprojede → 19,6 min |
-| 431   | 663 → 686 m   | 7,2 → 6 % | 0,1 / 0 m    | 36 / 43 m³    | 310 čd | 17     | 10,5 → 9,5 min       |
-| 329   | 602 → 614 m   | 6,6 → 6 % | 0,1 / 0 m    | 44 / 37 m³    | 338 čd | 29     | 10,2 → 8,9 min       |
-| 432   | 428 → 441 m   | 7,1 → 6 % | 0,1 / 0,1 m  | 26 / 23 m³    | 155 čd | 0      | 7,8 → 6,5 min        |
+| Cesta | Stará → nová               | Sklon     | Úvoz / násep                | Výkop / násep | Práce            | Stromy | Jízda vozu           |
+| ----- | -------------------------- | --------- | --------------------------- | ------------- | ---------------- | ------ | -------------------- |
+| 372   | 1216 → **1200 m** (1399 m) | 14 → 6 %  | **0,8 / 1,0 m** (0,1 / 0,1) | 393 / 690 m³  | 1255 čd (818 čd) | 61     | neprojede → 16,9 min |
+| 431   | 663 → **622 m** (686 m)    | 7,2 → 6 % | 0,2 / 0,1 m                 | 99 / 84 m³    | 363 čd (310 čd)  | 19     | 10,5 → 9,5 min       |
+| 329   | 602 → **574 m** (614 m)    | 6,6 → 6 % | 0,2 / 0,2 m                 | 74 / 83 m³    | 491 čd (338 čd)  | 54     | 10,2 → 8,5 min       |
+| 432   | 428 → **432 m** (441 m)    | 7,1 → 6 % | 0 / 0 m                     | 30 / 31 m³    | 156 čd (155 čd)  | 0      | 7,8 → 6,3 min        |
 
 Krátké cesty mezi domy (4 a 417) by vedly velkou oklikou, okruhy a cesty pod 15 m úpravu nemají.
-**Zemní práce na Vlkově skoro nejsou:** svahy jsou mírné a vozy po cestách skoro nejezdí, takže
-serpentina nebo mírná oklika vyjde levněji než úvoz – metr úvozu 2 m hlubokého je ≈ 15 m³
-a 10–14 čd, metr cesty navíc 0,3 čd. Úvoz a násep se vyplatí jen u krátkého prudkého svahu na
-cestě s hodně jízdami (ukázka). Stavba 431 trvá ≈ 30 dní, 372 ≈ 60 dní; dopočet vsi během
-stavby se nezpomalí (síť se přepočítá jen po dostavění úseku).
+Nové trasy jsou kratší než staré cesty i než dřívější nejlevnější trasy a vedou rovně přes
+kopce; úvoz a násep vzniknou, kde stará cesta stoupala nad 6 % (372 – sklon 14 %, úvoz 0,8 m,
+násep 1 m). Na mírném terénu Vlkova (staré cesty 6,6–7,2 %) stačí srovnat pláň do 0,2 m. Cena
+je vyšší (372 o polovinu – zemní práce), jízda o 3 minuty kratší. Stavba 431 trvá ≈ 30 dní,
+372 ≈ 100 dní; dopočet vsi během stavby se nezpomalí (síť se přepočítá jen po dostavění úseku).
+Stará cesta po ose nové (přímý kus staré cesty) zmizí hned po dostavění úseku – souběžné kusy se
+vyříznou jako při roční kontrole, odbočky staré cesty zůstanou a napojí se v rozcestí.
 
-**Kam dojede čtyřkolák** (jezdí jen po pevných cestách a 40 m kolem ohrady volů – wagons.md):
-po čtyřech vozových cestách (372, 431, 329, 432) k 5,3 % plochy polí Vlkova místo 4,0 % (stejný
-stav bez vozových cest; dvoukolák 84,5 → 85,3 %). Vozová cesta spojuje tytéž konce jako stará
-cesta a pole leží stranou cest – otevře jen díly podél nové trasy a za místy, kudy stará cesta
-vedla prudčeji než 10 %.
-Kdyby čtyřkolák směl z vozové cesty sjet 40 m jako od ohrady, dojel by k 26 % plochy polí (80 m –
-41 %) – otevřená otázka pro Martina.
+**Kam dojede čtyřkolák:** od 20. 10. 2026 po louce a strništi kamkoli (wagons.md – Co se vozí
+a na čem) – k 84 % plochy polí Vlkova (dvoukolák 84,5 %); vozová cesta mu otevře hlavně svahy,
+kudy stará cesta vedla prudčeji než 10 % (po vozové cestě 372 85,3 % místo 84,3 %). Dřív, jen po
+pevných cestách, dojel ke 4 %.
 
 ### Rozhodnutí
 
-| Rozhodnutí                                                                                          | Kdo                     |
-| --------------------------------------------------------------------------------------------------- | ----------------------- |
-| Cesta upravená pro vůz – větší rychlost, zpevněné koleje, co nejpřímější trasa s úvozy a náspy      | Martin                  |
-| Stará cesta pro pěší zůstane, nepoužívané kusy zarostou                                             | Martin                  |
-| Rozhoduje hráč v panelu cesty – trasa a cena, potvrzení                                             | Martin                  |
-| Vůz 2,2, pěšky 1,7, mokřina jako hať, brod zůstává; šířka 3,5 m                                     | návrh Clauda, schválený |
-| Trasa: nejlevnější součet stavby a jízdy za 10 let; sklon 6 %, úvoz a násep 3 m; zákazy vozové sítě | návrh Clauda, schválený |
-| Zemní práce 0,5 čd/m³, zpevnění 0,3 čd/m, svahy 1 : 1, hlína z úvozu do náspu, stavba od vsi ven    | návrh Clauda, schválený |
-| Úpravy terénu jako herní data (jen profil osy), sítě i scéna z nich                                 | návrh Clauda, schválený |
-| Zatáčení o 2 z 16 směrů na krok, změna směru 0,5 čd, okno hledání kolem staré cesty                 | rozhodnutí Clauda       |
-| Uložení 0,2 čd/m³ a převoz 0,15 + 0,15 na 100 m (koše a nosítka) – rozpad ceny zemních prací        | rozhodnutí Clauda       |
-| Oklika mezi stavbami (> 3× a + 60 m při staré cestě do 6 %) – úprava se nenabídne                   | rozhodnutí Clauda       |
-| Pláň 5,5 m (vozovka a krajnice), u staveb a vody jen co se vejde, brody bez úprav                   | rozhodnutí Clauda       |
-| Kácení i pod zemními pracemi mimo les; pařezy průseku nedorostou                                    | rozhodnutí Clauda       |
-| Sítě (pěšiny, vozy, chůze) berou terén hotových úseků, scéna podle průběhu                          | rozhodnutí Clauda       |
-| Trasa se plánuje na krajině s přesností prohlížeče – náhled a stavba stejně                         | rozhodnutí Clauda       |
-| Úseky ≈ 60 m; vozová cesta nezarůstá, neřeže se souběhem, konce se nenapojují samy                  | rozhodnutí Clauda       |
-| Svahy zarostou trávou za 6 let                                                                      | rozhodnutí Clauda       |
+| Rozhodnutí                                                                                              | Kdo                     |
+| ------------------------------------------------------------------------------------------------------- | ----------------------- |
+| Cesta upravená pro vůz – větší rychlost, zpevněné koleje, co nejpřímější trasa s úvozy a náspy          | Martin                  |
+| Stará cesta pro pěší zůstane, nepoužívané kusy zarostou                                                 | Martin                  |
+| Rozhoduje hráč v panelu cesty – trasa a cena, potvrzení                                                 | Martin                  |
+| Vůz 2,2, pěšky 1,7, mokřina jako hať, brod zůstává; šířka 3,5 m                                         | návrh Clauda, schválený |
+| ~~Trasa: nejlevnější součet stavby a jízdy za 10 let~~; sklon 6 %, úvoz a násep 3 m; zákazy vozové sítě | návrh Clauda, schválený |
+| „Co nejpříměji“ – přímá trasa má přednost, svah se srovná úvozem nebo náspem do 3 m, oklika jen nad mez | Martin                  |
+| Metr délky v hledání 25 čd (víc než metr nejhlubšího úvozu); narovnání trasy na přímé úseky s profilem  | návrh Clauda            |
+| Zemní práce 0,5 čd/m³, zpevnění 0,3 čd/m, svahy 1 : 1, hlína z úvozu do náspu, stavba od vsi ven        | návrh Clauda, schválený |
+| Úpravy terénu jako herní data (jen profil osy), sítě i scéna z nich                                     | návrh Clauda, schválený |
+| Zatáčení o 2 z 16 směrů na krok, změna směru 0,5 čd, okno hledání kolem staré cesty                     | rozhodnutí Clauda       |
+| Uložení 0,2 čd/m³ a převoz 0,15 + 0,15 na 100 m (koše a nosítka) – rozpad ceny zemních prací            | rozhodnutí Clauda       |
+| Oklika mezi stavbami (> 3× a + 60 m při staré cestě do 6 %) – úprava se nenabídne                       | rozhodnutí Clauda       |
+| Pláň 5,5 m (vozovka a krajnice), u staveb a vody jen co se vejde, brody bez úprav                       | rozhodnutí Clauda       |
+| Kácení i pod zemními pracemi mimo les; pařezy průseku nedorostou                                        | rozhodnutí Clauda       |
+| Sítě (pěšiny, vozy, chůze) berou terén hotových úseků, scéna podle průběhu                              | rozhodnutí Clauda       |
+| Trasa se plánuje na krajině s přesností prohlížeče – náhled a stavba stejně                             | rozhodnutí Clauda       |
+| Stará cesta po ose vozové zmizí hned po dostavění úseku; posvátný strom nepustí trasu ani u konce       | návrh Clauda            |
+| Úseky ≈ 60 m; vozová cesta nezarůstá, neřeže se souběhem, konce se nenapojují samy                      | rozhodnutí Clauda       |
+| Svahy zarostou trávou za 6 let                                                                          | rozhodnutí Clauda       |
 
 ## Na stavitelích
 
