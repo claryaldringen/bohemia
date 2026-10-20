@@ -245,7 +245,7 @@ export interface PyreState {
 /** Rozhořívání a dohořívání (podíl doby hoření). */
 const BURN = { rise: 0.08, collapseFrom: 0.15, bierUntil: 0.6, remainsFrom: 0.45, fadeFrom: 0.7 };
 /** Uhlíky: žhnou první podíl doutnání, zšednou celé; slabé plameny na začátku. */
-const SMOULDER = { glowUntil: 0.6, flickerUntil: 0.25 };
+const SMOULDER = { glowUntil: 0.85, flickerUntil: 0.25 };
 
 export function pyreState(t: FuneralTimeline, nowMs: number): PyreState {
   const none = { stack: 0, bier: 0, fire: 0, remains: 0, glow: 0, ash: 0, smoke: 0 };

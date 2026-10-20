@@ -90,6 +90,8 @@ import {
 import { FOREST_TRAIL_STAGES, forestTrailDemo, type ForestTrailDemo } from './dev-forest-trail';
 import { demoCartSlope, type CartDemo } from './dev-cart';
 import { demoCaravan, type CaravanDemo } from './dev-caravan';
+import { demoFuneral, windowAt, type FuneralDemo } from './dev-funeral';
+import { FuneralControls } from './FuneralControls';
 import { devSelectionView } from './dev-selection';
 import { DayTimeControls } from './DayTimeControls';
 import type { CartKind } from '@bohemia/game';
@@ -201,6 +203,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [forestTrail, setForestTrail] = useState<ForestTrailDemo | null>(null);
   // ukázka karavany výpravy k sousedovi (trade.md – Ve scéně, dev-caravan.ts) – nosiči, pak vůz
   const [caravanDemo, setCaravanDemo] = useState<CaravanDemo | null>(null);
+  // ukázka pohřbu (cemetery.md – Pohřeb ve scéně, dev-funeral.ts) – hlava rodiny, pak vojvoda
+  const [funeralDemo, setFuneralDemo] = useState<FuneralDemo | null>(null);
   // stupeň vylepšení ukázkových cest (dev-road.ts – DEMO_ROAD_STAGES) a stadium jabloní u cesty
   const [roadStage, setRoadStage] = useState(0);
   const [appleStage, setAppleStage] = useState(0);
@@ -282,6 +286,16 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       base.fields = base.fields.map((f) => (f.id === ploughed.id ? demo.field : f));
       base.labor = demo.labor;
     }
+    if (funeralDemo) {
+      // pohřeb: obydlí zemřelého, hřbitov ukázky, průvod a hranice (rozdělení práce dne pohřbu)
+      return {
+        ...base,
+        dwellings: [...base.dwellings, ...funeralDemo.dwellings],
+        cemeteries: [...(base.cemeteries ?? []), funeralDemo.cemetery],
+        funerals: [funeralDemo.funeral],
+        labor: funeralDemo.labor,
+      };
+    }
     if (caravanDemo) {
       // karavana výpravy: dvorec, zemská stezka, výprava (a vůz) – zboží a lidé tam a zpět
       return {
@@ -353,6 +367,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     overgrowth,
     cartDemo,
     caravanDemo,
+    funeralDemo,
     roadPlough,
   ]);
 
@@ -1413,6 +1428,23 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   };
 
   /**
+   * Ukázka pohřbu (cemetery.md – Pohřeb ve scéně): vypnuto → hlava rodiny → vojvoda (celá ves) →
+   * vypnuto. Obřad začne hned (den ukázky je zkrácený), kamera k domu zemřelého.
+   */
+  const toggleFuneral = (): void => {
+    const next = funeralDemo === null ? 'head' : !funeralDemo.voivode ? 'voivode' : null;
+    if (!next) {
+      setFuneralDemo(null);
+      scene?.setWorkDayClock(null);
+      return;
+    }
+    const sample = demoFuneral(decoded, next === 'voivode');
+    scene?.setWorkDayClock(windowAt(Date.now(), 0));
+    setFuneralDemo(sample);
+    scene?.moveCameraTo(sample.focus.x, sample.focus.z);
+  };
+
+  /**
    * Ukázka karavany výpravy (trade.md – Ve scéně): vypnuto → nosiči se zbožím → vůz → vypnuto.
    * Výprava vyrazí hned a za „den“ ukázky (90 s) se vrátí; kamera k půlce stezky.
    */
@@ -1683,6 +1715,16 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         >
           {caravanDemo ? `Karavana: ${caravanDemo.cart ? 'vůz' : 'nosiči'}` : 'Karavana'}
         </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={toggleFuneral}
+          title="Pohřeb – průvod od domu na hřbitov, hranice, druhý den uhlíky a mohyla (den ukázky 30 s)"
+          data-testid="dev-funeral"
+        >
+          {funeralDemo ? `Pohřeb: ${funeralDemo.voivode ? 'vojvoda' : 'hlava rodiny'}` : 'Pohřeb'}
+        </button>
+        {funeralDemo && <FuneralControls scene={scene} buttonClass={buttonClass} />}
         <button
           className={buttonClass}
           disabled={!scene}

@@ -53,6 +53,8 @@ const AMBIENT = new Color3(0.38, 0.38, 0.36);
 /** Dým z hranice: nejvyšší krytí a tmavší odstín (hoří dřevo i tělo – hustý, šedohnědý). */
 const SMOKE_ALPHA = 0.8;
 const SMOKE_SHADE = 0.72;
+/** Síla záře žhavých uhlíků (násobek textury uhlíků – aditivně). */
+const EMBERS_GLOW = 1.6;
 /** Ohořelé zbytky: odstín při dohořívání a zšednutí popela (násobek atlasu). */
 const REMAINS_SHADE = { charred: 0.55, ash: 1.15 };
 
@@ -308,7 +310,8 @@ export class FuneralRenderer {
         [shade, shade, shade],
       );
       // žhavé uhlíky – záře (aditivně), slábne, jak chladnou
-      const glow = state.glow;
+      // aditivní záře – praskliny uhlíků svítí silněji než textura
+      const glow = state.glow * EMBERS_GLOW;
       this.writePart(
         'embers',
         i,

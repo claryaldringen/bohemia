@@ -147,7 +147,7 @@ describe('hranice (pyreState)', () => {
   it('druhý den uhlíky žhnou, pak zšednou a dým slábne; po vychladnutí nic', () => {
     const v = (u: number): number => t.outMs + (t.coldMs - t.outMs) * u;
     const hot = pyreState(t, v(0.05));
-    const grey = pyreState(t, v(0.8));
+    const grey = pyreState(t, v(0.9));
     expect(hot).toMatchObject({ stack: 0, remains: 1 });
     expect(hot.glow).toBeGreaterThan(0.9);
     expect(grey.glow).toBe(0);
