@@ -1,17 +1,20 @@
 import { length2, type Landscape } from '../landscape';
-import { addCart } from './carts';
-import { neighbourCrafts, productPrice, purchaseRoute } from './craft-buying';
+import { addCart, cartOxen, cartsAway, trailCartPassable, villageCarts } from './carts';
+import { oxenHome } from './oxen';
+import { groupCap, neighbourCrafts, productPrice, purchaseRoute, tripOf } from './craft-buying';
 import { NO_STOCKS, cartAwaitingIron, occupiedWorkshops } from './crafts';
 import { neighbourOf } from './neighbours';
-import { CART_IRON, CRAFT_BUYING, NEIGHBOR_DIRECTIONS, TRADE } from './rules';
+import { CARTS, CART_IRON, CRAFT_BUYING, NEIGHBOR_DIRECTIONS, TRADE } from './rules';
 import { smithHead, smithSons } from './smith-supply';
 import { trailTripDays } from './trail';
 import type {
+  Cart,
   CartKind,
   ChronicleEvent,
   Dwelling,
   IronTrip,
   IronTripTarget,
+  LaborTarget,
   Person,
   VillageState,
   Workshop,
@@ -24,8 +27,11 @@ import type {
 // Tesař vůz rozdělá; s hotovou dřevěnou prací čeká na kování a dělá zatím dřevěné nářadí. Ves
 // s kovářem ho má ze zásoby (chybí-li, kovář ho vyrobí přednostně – `smithToolsTarget`), ves bez
 // kováře pošle syna tesaře od 14 let, nebo tesaře, do nejbližší vsi s kovářem – jiné vsi hráče na
-// téže mapě, nebo souseda za krajem mapy (cesta a platba obilím jako nákup u sousedů). Kroky mutují
-// stav (volat na klonu), den po dni, deterministicky.
+// téže mapě, nebo souseda za krajem mapy (cesta a platba obilím jako nákup u sousedů). Platbu sám
+// neunese (Martin 20. 10. 2026: „pokud zaplatil 173 kg obilí, tak nemohl jít sám. Buď si musel
+// půjčit vůz nebo muselo jít alespoň 6 lidí, aby to obilí unesli“): veze ji volný vůz se sedlákem,
+// nebo ji nesou nosiči z vsi po 25 kg. Kroky mutují stav (volat na klonu), den po dni,
+// deterministicky.
 
 /** Tolerance proti chybám desetinných čísel. */
 const EPSILON = 1e-9;
@@ -118,6 +124,80 @@ export function ironRoute(
   return best;
 }
 
+/**
+ * Vůz, který veze platbu za kování (wagons.md – Kování vozů): jen po hotové zemské stezce sjízdné
+ * pro vozy (jako vozy výprav – `trailCartPassable`), volný vůz doma (ne na výpravě ani s jinou
+ * platbou; vůz, na který se kování dělá, ještě mezi vozy vsi není), pro který jsou doma voli
+ * (`oxenHome`, `cartOxen`) a který platbu unese – dvoukolák napřed (jeden vůl), pak podle id.
+ * Krajinou ke kraji mapy a do vsi na téže mapě vůz nejede – jdou nosiči. Jinak null.
+ */
+export function ironCart(
+  state: VillageState,
+  day: number,
+  route: IronRoute,
+  grainKg: number,
+  landscape: Landscape | null,
+): Cart | null {
+  if (route.to.kind !== 'neighbour' || route.to.trailId === null) return null;
+  const trailId = route.to.trailId;
+  const trail = (state.trails ?? []).find((t) => t.id === trailId);
+  if (!trail || !trailCartPassable(state, trail, landscape)) return null;
+  const away = cartsAway(state);
+  const oxen = oxenHome(state, day);
+  const free = villageCarts(state)
+    .filter(
+      (c) =>
+        !away.has(c.id) && oxen >= cartOxen(c.kind) && CARTS.loadKg[c.kind] + EPSILON >= grainKg,
+    )
+    .sort((a, b) => cartOxen(a.kind) - cartOxen(b.kind) || a.id - b.id);
+  return free[0] ?? null;
+}
+
+/**
+ * Kolik lidí z vsi je dnes s cestami pro kování pryč (wagons.md – Kování vozů): nosiči a sedlák
+ * s vozem – chybí v práci vsi po celou cestu jako skupiny nákupu u sousedů. Tesař nebo jeho syn
+ * se nepočítá (chybí v dílně – `ironTravellers`).
+ */
+export function ironTripHelpers(state: Pick<VillageState, 'dwellings'>): number {
+  let n = 0;
+  for (const d of state.dwellings) {
+    const trip = d.workshop?.ironTrip;
+    if (trip) n += ironTripCrew(trip);
+  }
+  return n;
+}
+
+/** Lidé z vsi u jedné cesty pro kování – nosiči, nebo sedlák s vozem. */
+function ironTripCrew(trip: Pick<IronTrip, 'porters' | 'cartId'>): number {
+  return (trip.porters ?? 0) + (trip.cartId !== undefined ? CART_IRON.cartCrew : 0);
+}
+
+/**
+ * Cesty pro kování dne v rozdělení práce (činnost `trade` – jako nákup u sousedů): kam jde skupina
+ * (stezka, kraj mapy, jiná ves na téže mapě) a kolik lidí z vsi s ní je. Jen cesty s nosiči nebo
+ * vozem.
+ */
+export function ironTripShares(
+  state: Pick<VillageState, 'dwellings'>,
+): { target: LaborTarget; manDays: number }[] {
+  const out: { target: LaborTarget; manDays: number }[] = [];
+  for (const d of state.dwellings) {
+    const trip = d.workshop?.ironTrip;
+    if (!trip) continue;
+    const manDays = ironTripCrew(trip);
+    if (manDays <= 0) continue;
+    const to = trip.to;
+    const target: LaborTarget =
+      to.kind === 'village'
+        ? { kind: 'village' }
+        : to.trailId !== null
+          ? { kind: 'trail', id: to.trailId }
+          : { kind: 'edge', direction: to.direction, ...to.edge };
+    out.push({ target, manDays });
+  }
+  return out;
+}
+
 /** Kolik obilí stojí kování (kg) – u kováře souseda jako nákup nástrojů (0,96 hodnoty). */
 export function ironPriceKg(kg: number): number {
   return kg * productPrice('toolsKg');
@@ -190,6 +270,8 @@ export function cartIronDay(
         to: trip2.to.name,
         son: trip2.son,
         ...(trip2.to.kind === 'neighbour' ? { direction: trip2.to.direction } : {}),
+        ...(trip2.porters ? { porters: trip2.porters } : {}),
+        ...(trip2.cartId !== undefined ? { byCart: true as const } : {}),
       });
     }
   }
@@ -199,9 +281,11 @@ export function cartIronDay(
 /**
  * Vyšle syna tesaře nebo tesaře pro kování (mutuje stav): kam (`ironRoute` od dílny), kdo
  * (`ironCarrier`) a platba obilím (`ironPriceKg`) ze zásob – jen ves, která nešetří jídlem
- * (`hungry` – výhled jídla do sklizně vychází; kování je malá částka, rozhodnutí Clauda). Když
- * něco chybí,
- * nic a null.
+ * (`hungry` – výhled jídla do sklizně vychází; kování je malá částka, rozhodnutí Clauda). Platbu
+ * veze volný vůz se sedlákem (`ironCart`), jinak ji nese skupina jako nákup u sousedů (`tripOf`):
+ * tolik lidí, kolik je nákladů po 25 kg (tesař nese taky – 173 kg = 7 lidí), nejvýš malá skupina
+ * vsi (`groupCap` – polovina dospělých, nejvýš 8); když jich ves tolik nemá, jdou víckrát (dny ×
+ * počet cest). Když něco chybí, nic a null.
  */
 function startIronTrip(
   state: VillageState,
@@ -216,6 +300,7 @@ function startIronTrip(
   if (!route) return null;
   const grainKg = ironPriceKg(kg);
   if (state.hungry || state.storesKg + EPSILON < grainKg) return null;
+  const cart = ironCart(state, day, route, grainKg, landscape);
   state.storesKg = Math.max(0, state.storesKg - grainKg);
   const trip: IronTrip = {
     personId: carrier.person.id,
@@ -227,6 +312,16 @@ function startIronTrip(
     grainKg: Math.round(grainKg * 100) / 100,
     to: route.to,
   };
+  if (cart) {
+    trip.cartId = cart.id;
+  } else {
+    const walk = tripOf(grainKg, route.days, groupCap(state, day));
+    if (walk.group > 1) trip.porters = walk.group - 1;
+    if (walk.days > route.days) {
+      trip.tripDays = route.days;
+      trip.days = walk.days;
+    }
+  }
   dwelling.workshop!.ironTrip = trip;
   return trip;
 }

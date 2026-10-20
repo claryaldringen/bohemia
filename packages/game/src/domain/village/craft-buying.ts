@@ -314,15 +314,15 @@ function pay(
 
 /**
  * Kolik dospělých může jít (malá skupina – CRAFT_BUYING.groupShare dospělých, aspoň 1, nejvýš
- * maxGroup).
+ * maxGroup) – i nosiči platby za kování k vozu (wagons.md – Kování vozů).
  */
-function groupCap(state: VillageState, day: number): number {
+export function groupCap(state: VillageState, day: number): number {
   const adults = state.people.filter((p) => ageGroup(p, day) === 'adult').length;
   return Math.max(1, Math.min(CRAFT_BUYING.maxGroup, Math.floor(adults * CRAFT_BUYING.groupShare)));
 }
 
 /** Skupina a dny cesty pro náklad (kg tam a zpět): víc nákladu = víc cest tam a zpět. */
-function tripOf(
+export function tripOf(
   loadKg: number,
   routeDays: number,
   cap: number,

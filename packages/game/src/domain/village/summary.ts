@@ -256,7 +256,8 @@ export interface WorkshopSummary {
     /**
      * Kování k vozu (wagons.md – Kování vozů): vůz s hotovou dřevěnou prací čeká na kování (kg),
      * nebo pro něj tesař či jeho syn (věk) jde do vsi `to` (jméno, soused ve směru, nebo ves na
-     * téže mapě) a vrátí se za `daysLeft` dní; jinak null.
+     * téže mapě) s nosiči (`porters`), nebo s vozem a sedlákem (`cart` – druh vozu), a vrátí se za
+     * `daysLeft` dní; jinak null.
      */
     iron: {
       kg: number;
@@ -266,6 +267,8 @@ export interface WorkshopSummary {
         daysLeft: number;
         son: boolean;
         age: number;
+        porters: number;
+        cart: CartKind | null;
       } | null;
     } | null;
   } | null;
@@ -896,6 +899,8 @@ function ironSummary(
   const kg = trip?.kg ?? (kind ? CART_IRON.kg[kind] : 0);
   if (!trip) return { kg, trip: null };
   const traveller = state.people.find((p) => p.id === trip.personId);
+  const cart =
+    trip.cartId === undefined ? null : (state.carts?.find((c) => c.id === trip.cartId) ?? null);
   return {
     kg,
     trip: {
@@ -904,6 +909,8 @@ function ironSummary(
       daysLeft: ironTripDaysLeft(trip),
       son: trip.son,
       age: traveller ? ageYears(traveller.bornDay, day) : 0,
+      porters: trip.porters ?? 0,
+      cart: cart ? cart.kind : null,
     },
   };
 }

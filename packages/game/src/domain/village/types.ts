@@ -351,9 +351,11 @@ export type IronTripTarget =
     }
   | { kind: 'village'; name: string; x: number; z: number };
 /**
- * Cesta pro kování k vozu (wagons.md – Kování vozů): kdo jde (syn tesaře od 14 let, nebo tesař –
+ * Cesta pro kování k vozu (wagons.md – Kování vozů): kdo vede (syn tesaře od 14 let, nebo tesař –
  * id), den odchodu, dny cesty tam a zpět a kolik jich už ušel, kolik kování nese (kg) a kolik obilí
- * za ně dal (kg), kam jde.
+ * za ně dal (kg), kam jde. Platbu veze vůz se sedlákem (`cartId`), nebo ji nesou nosiči z vsi
+ * (`porters` navíc k tesaři, po TRADE.porterKg) – když jich ves tolik nemá, jdou víckrát
+ * (`tripDays` – dny jedné cesty tam a zpět; `days` = všechny cesty).
  */
 export interface IronTrip {
   personId: number;
@@ -364,6 +366,12 @@ export interface IronTrip {
   kg: number;
   grainKg: number;
   to: IronTripTarget;
+  /** Nosiči z vsi navíc k tesaři (chybí v práci vsi po celou cestu); bez údaje 0. */
+  porters?: number;
+  /** Vůz (id), který veze platbu – jede s ním sedlák z vsi; bez údaje pěšky. */
+  cartId?: number;
+  /** Dny jedné cesty tam a zpět, když se jde víckrát; bez údaje jedna cesta (`days`). */
+  tripDays?: number;
 }
 /**
  * Vůz vsi – zásoba, ne stavba ve scéně (stojí u ohrady se spřežením): vyrobil ho tesař v den
@@ -1155,7 +1163,16 @@ export type ChronicleEvent = { day: number } & (
    * `to` (jméno; soused za krajem mapy ve směru `direction`, jinak jiná ves hráče na téže mapě –
    * wagons.md, Kování vozů).
    */
-  | { kind: 'iron-trip'; cart: CartKind; to: string; son: boolean; direction?: Direction8 }
+  | {
+      kind: 'iron-trip';
+      cart: CartKind;
+      to: string;
+      son: boolean;
+      direction?: Direction8;
+      /** Kolik nosičů šlo s tesařem; `byCart` – platbu vezl vůz se sedlákem. */
+      porters?: number;
+      byCart?: true;
+    }
   /** Tesař (`son` – jeho syn) přinesl kování k vozu – vůz je hotový (wagons.md – Kování vozů). */
   | { kind: 'iron-brought'; cart: CartKind; son: boolean }
   /** Vůz dosloužil (wagons.md – Vůz) – tesař vyrobí nový, když ho ves potřebuje. */

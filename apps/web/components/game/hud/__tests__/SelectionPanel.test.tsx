@@ -766,17 +766,43 @@ describe('SelectionPanel – dílna tesaře (wagons.md – Tesař)', () => {
     expect(html).not.toContain('Vyrábí vůz');
   });
 
-  it('syn tesaře jde pro kování do vsi souseda – dny do návratu', () => {
+  it('syn tesaře jde se 6 nosiči pro kování do vsi souseda – dny do návratu', () => {
+    const trip = { to: 'Lhota', direction: 'N' as const, daysLeft: 3, son: true, age: 15 };
     const html = render(
       carpenter(
         'producing',
         { kind: 'two-wheel', progress: 1 },
-        { kg: 3, trip: { to: 'Lhota', direction: 'N', daysLeft: 3, son: true, age: 15 } },
+        { kg: 3, trip: { ...trip, porters: 6, cart: null } },
       ),
     );
-    expect(html).toContain('Syn tesaře (15 let) jde pro kování k vozu do vsi Lhota (sever)');
+    expect(html).toContain(
+      'Syn tesaře (15 let) jde se 6 nosiči (nesou obilí na platbu) pro kování k vozu do vsi Lhota (sever)',
+    );
     expect(html).toContain('zpět za 3 dny');
     expect(html).toMatch(/data-testid="selection-workshop-iron"[^>]*>[^<]*3 d</);
+  });
+
+  it('s volným vozem jede tesař s vozem a sedlákem', () => {
+    const html = render(
+      carpenter(
+        'producing',
+        { kind: 'two-wheel', progress: 1 },
+        {
+          kg: 3,
+          trip: {
+            to: 'Lhota',
+            direction: 'N',
+            daysLeft: 2,
+            son: false,
+            age: 30,
+            porters: 0,
+            cart: 'two-wheel',
+          },
+        },
+      ),
+    );
+    expect(html).toContain('Tesař jede s vozem a sedlákem (dvoukolák veze obilí na platbu)');
+    expect(html).toContain('/icons/resources/cart.png');
   });
 
   it('nový tesař – zkušenost v % červeně, syn, který se učí', () => {

@@ -1316,13 +1316,16 @@ export const CRAFT_BUYING = {
 /**
  * wagons.md – Kování vozů (Martin 20. 10. 2026: „Ano. A taky přidej tedy pravidlo, že vozy mají
  * železnou složku. Pokud vesnice nemá kováře, musí tesař (nebo jeho syn, pokud ho má) dojít do
- * nejbližší vesnice, kde kovář je“; čísla návrh Clauda): kování vozu – osy, hřeby, obruče a kování
- * nábojů – dvoukolák 3 kg, čtyřkolák 6 kg ze zásoby nástrojů od kováře; pro kování jde syn tesaře
- * od `fetchFromAge` let, jinak tesař sám.
+ * nejbližší vesnice, kde kovář je“; „pokud zaplatil 173 kg obilí, tak nemohl jít sám. Buď si musel
+ * půjčit vůz nebo muselo jít alespoň 6 lidí, aby to obilí unesli“; čísla návrh Clauda): kování
+ * vozu – osy, hřeby, obruče a kování nábojů – dvoukolák 3 kg, čtyřkolák 6 kg ze zásoby nástrojů od
+ * kováře; pro kování jde syn tesaře od `fetchFromAge` let, jinak tesař – platbu veze vůz, se
+ * kterým jede `cartCrew` sedlák z vsi, nebo ji nesou nosiči po TRADE.porterKg.
  */
 export const CART_IRON = {
   kg: { 'two-wheel': 3, 'four-wheel': 6 },
   fetchFromAge: 14,
+  cartCrew: 1,
 } as const satisfies { kg: Record<CartKind, number> } & Record<string, unknown>;
 // wagons.md – Vůz (Martin 19. 10. 2026: vozy vozí seno, snopy, klády a zboží výprav místo nosičů;
 // jeden vůz na spřežení – návrh Clauda; čísla návrh Clauda podle rešerše): dvoukolák 400 kg,
