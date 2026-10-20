@@ -234,7 +234,9 @@ posádkou. Ves vybere levnější vůz pro každou práci.
   čtyřkolák doslouží a nový tesař nepostaví. Ve vsi s cestami přes pole se čtyřkolák vyplatí
   (test: 60 dní po 16 čd nošení podél cest – čtyřkolák místo dvou dvoukoláků).
 
-**Hnůj a palivové dříví se nevozí** (hnůj bude samostatná mechanika později).
+**Hnůj a palivové dříví se nevozí.** Hnůj z ohrad na pole se nedělá vůbec – Martin (20. 10. 2026):
+„Hnůj z ohrad na pole - tohle zatím úplně vynecháme, nejsem si jistý, jestli to staří slované tak
+dělali“.
 
 ## Kování vozů
 
