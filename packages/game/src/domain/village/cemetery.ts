@@ -171,7 +171,8 @@ export function burialOrder(
  * pohřebišti s volným místem nejblíž k obydlím dostane mohylu podle významu (burials.ts –
  * vojvodova rodina, hlava rodiny, dospělý, dítě; velká se zmenší, když se nevejde). Když se tím
  * pohřebiště zaplní (žádné volné místo), vrátí událost kroniky. Bez volného místa se nic nestane
- * – je to, jako by ves pohřebiště neměla. Bez člověka (testy) běžná mohyla dospělého.
+ * – je to, jako by ves pohřebiště neměla. Bez člověka (testy) běžná mohyla dospělého. Mohyla
+ * si zapíše domácnost zemřelého (`from`) – odtud ve scéně vyjde pohřební průvod.
  */
 export function bury(state: VillageState, day: number, person?: Person): ChronicleEvent | null {
   const open = villageCemeteries(state).filter(acceptsBurials);
@@ -182,6 +183,8 @@ export function bury(state: VillageState, day: number, person?: Person): Chronic
   const rank = person ? graveRank(state, person, day) : 'adult';
   const mound = placeMound(target, rank, day, dwellings);
   if (!mound) return null;
+  // odkud vyjde pohřební průvod – domácnost zemřelého (scéna, cemetery.md – Pohřeb ve scéně)
+  if (person) mound.from = person.dwellingId;
   (target.mounds ??= []).push(mound);
   target.graves += 1;
   if (freePlaces(target) > 0) return null;

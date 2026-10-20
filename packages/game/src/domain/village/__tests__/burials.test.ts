@@ -312,7 +312,7 @@ describe('pohřeb (bury)', () => {
     expect(bury(s, DAY, lord)).toBeNull();
     const c = s.cemeteries[0]!;
     expect(c.mounds).toEqual([
-      expect.objectContaining({ rank: 'voivode', size: 'great', day: DAY }),
+      expect.objectContaining({ rank: 'voivode', size: 'great', day: DAY, from: 1 }),
     ]);
     expect(c.graves).toBe(47);
     expect(freePlaces(c)).toBe(6);
@@ -334,6 +334,33 @@ describe('pohřeb (bury)', () => {
     const summary = summarizeVillage(s, DAY + 7).cemeteries[0]!;
     expect(summary).toMatchObject({ capacity: 56, usedPlaces: 56, freePlaces: 0, graves: 53 });
   });
+});
+
+describe('domácnost zemřelého – odkud vyjde průvod (cemetery.md – Pohřeb ve scéně)', () => {
+  it('bury zapíše domácnost zemřelého; bez člověka (testy) ji nezná', () => {
+    const s = village(DAY);
+    s.cemeteries = [cemetery([square(4, -2, 67.5, -22.5)])];
+    const other = s.people.find((p) => p.dwellingId === 2)!;
+    bury(s, DAY, other);
+    bury(s, DAY + 1);
+    const [first, second] = s.cemeteries[0]!.mounds!;
+    expect(first).toMatchObject({ day: DAY, from: 2 });
+    expect(second).toMatchObject({ day: DAY + 1 });
+    expect(second).not.toHaveProperty('from');
+  });
+
+  it('v simulaci má každá nová mohyla domácnost, ve které zemřelý bydlel', () => {
+    const s = village(DAY);
+    s.manorId = 1;
+    s.foundedDay = DAY - Math.ceil(60 * YEAR);
+    for (const p of s.people) p.bornDay -= Math.ceil(35 * YEAR);
+    s.cemeteries = [cemetery([square(4, -2, 67.5, -22.5), square(4, -1, 67.5, -7.5)])];
+    const homes = new Set(s.people.map((p) => p.dwellingId));
+    const end = advanceVillage(s, DAY + Math.round(4 * YEAR), null);
+    const mounds = end.cemeteries![0]!.mounds ?? [];
+    expect(mounds.length).toBeGreaterThan(0);
+    for (const m of mounds) expect(homes.has(m.from!)).toBe(true);
+  }, 120_000);
 });
 
 describe('mohyly v simulaci', () => {
