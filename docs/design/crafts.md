@@ -445,7 +445,7 @@ zásobu (≈ 270 kg) za ≈ 9 měsíců, pak hrnčíř odpočíval a pomáhal vs
 | Rozhodnutí                                                                                     | Kdo                                               |
 | ---------------------------------------------------------------------------------------------- | ------------------------------------------------- |
 | Hlína pro hrnčíře od potoka – hrnčíř kope, vůz se sedlákem                                     | návrh Clauda, Martin („Ano, udělej to jak říkáš“) |
-| Hlína stejným vzorem jako ruda – hromada u jámy, vůz pro ni přijede; potřeba podle praxe dílny | koordinátor (20. 10. 2026)                        |
+| Hlína stejným vzorem jako ruda – hromada u jámy, vůz pro ni přijede; potřeba podle praxe dílny | návrh Clauda                                      |
 | 1,5 kg hlíny na kg keramiky, 300 kg za čd + přirážka za chůzi, koš 25 kg, hliniště 20 t        | návrh Clauda (odhad)                              |
 | Přirážka za vodu daleko u hrnčíře zmizela (cesta na hliniště)                                  | návrh Clauda                                      |
 | Rudiště a hliniště aspoň 20 m od míst, kde kopou jiné dílny                                    | rozhodnutí Clauda                                 |
