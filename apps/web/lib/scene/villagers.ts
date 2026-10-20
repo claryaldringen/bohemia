@@ -44,6 +44,7 @@ import {
   type VillagerStage,
 } from './villager-motion';
 import { samePersonState, type PersonFigureState } from '../person-activity';
+import { pickPerson, selectedFigure, type Project } from './villager-pick';
 import {
   planFunerals,
   planVillagers,
@@ -68,12 +69,9 @@ const SHADOW_SIZE_M = 1.15;
 const SHADOW_OPACITY = 0.5;
 const SHADOW_LIFT_M = 0.04;
 /**
- * Výběr postavy (villagers.md – Výběr postavy): klik do tolika CSS px od průmětu postavy (od nohou
- * po hlavu – FIGURE_HEIGHT_M při měřítku 1) ji vybere. Žlutý kroužek pod vybranou postavou:
- * průměr (m při měřítku 1), barva, výška nad terénem.
+ * Žlutý kroužek pod vybranou postavou (villagers.md – Výběr postavy): průměr (m při měřítku 1),
+ * barva, výška nad terénem.
  */
-export const PICK_PX = 12;
-const FIGURE_HEIGHT_M = 1.7;
 const RING_SIZE_M = 1.6;
 const RING_COLOR: readonly [number, number, number] = [1, 0.85, 0.25];
 const RING_LIFT_M = 0.05;
@@ -168,6 +166,8 @@ export class VillageVillagers {
   private selected: number | null = null;
   private ring: { mesh: Mesh; matrices: Float32Array } | null = null;
   private personState: PersonFigureState | null = null;
+  /** Úsek pochůzky postav vybraného člověka z posledního zápisu (index postavy → úsek). */
+  private readonly stages = new Map<number, VillagerStage | null>();
 
   constructor(
     private readonly scene: Scene,
@@ -237,30 +237,8 @@ export class VillageVillagers {
    * průmět (od nohou po hlavu) je do PICK_PX od bodu (x, y) v CSS px plátna – `project` převede
    * bod světa na plátno (null = za kamerou). Jen při kliknutí, O(postav). Nic – null.
    */
-  pick(
-    x: number,
-    y: number,
-    project: (wx: number, wy: number, wz: number) => { x: number; y: number } | null,
-  ): number | null {
-    let best: number | null = null;
-    let bestD = PICK_PX;
-    this.people.forEach((p, i) => {
-      if (p.person === undefined) return;
-      const o = i * 3;
-      const wx = this.spots[o]!;
-      if (Number.isNaN(wx)) return;
-      const wy = this.spots[o + 1]!;
-      const wz = this.spots[o + 2]!;
-      const foot = project(wx, wy, wz);
-      const head = project(wx, wy + FIGURE_HEIGHT_M * p.scale, wz);
-      if (!foot || !head) return;
-      const d = distanceToSegment(x, y, foot, head);
-      if (d <= bestD) {
-        bestD = d;
-        best = p.person;
-      }
-    });
-    return best;
+  pick(x: number, y: number, project: Project): number | null {
+    return pickPerson(this.people, this.spots, x, y, project);
   }
 
   /** Kde naposledy stála vidět postava člověka (id) – testovací háček; jinak null. */
@@ -315,7 +293,8 @@ export class VillageVillagers {
     }
     const spots = this.spots;
     const selected = this.selected;
-    let shown: { index: number; stage: VillagerStage | null; hidden: boolean } | null = null;
+    const stages = this.stages;
+    stages.clear();
     this.people.forEach((person, index) => {
       const kind = this.kinds.get(person.kind);
       if (!kind) return;
@@ -329,10 +308,7 @@ export class VillageVillagers {
       spots[at] = pose.hidden ? NaN : pose.x;
       spots[at + 1] = y;
       spots[at + 2] = pose.z;
-      // vybraný člověk: vidět postava má přednost (karavana tam a zpět – dvě postavy)
-      if (selected !== null && person.person === selected && (!shown || shown.hidden)) {
-        shown = { index, stage: pose.stage ?? null, hidden: pose.hidden === true };
-      }
+      if (selected !== null && person.person === selected) stages.set(index, pose.stage ?? null);
       // karavana výpravy za krajem mapy (caravan.ts) – nulové měřítko, postava ani stín se nekreslí
       const scale = pose.hidden ? 0 : person.scale;
       writeFigure(kind.matrices, slot, pose.x, y, pose.z, pose.headingX, pose.headingZ, scale);
@@ -379,7 +355,7 @@ export class VillageVillagers {
         new Vector3(maxX + 2, high + HEAD_ROOM_M, maxZ + 2),
       );
     }
-    if (selected !== null) this.showSelected(shown, herds);
+    if (selected !== null) this.showSelected(herds);
   }
 
   /** Kroužek a stav vybraného člověka podle posledních poloh postav (bez nového pohybu). */
@@ -394,34 +370,26 @@ export class VillageVillagers {
     const nowMs = Date.now();
     const t = villagerSeconds(nowMs);
     const herds = this.env.herds(nowMs);
-    let shown: { index: number; stage: VillagerStage | null; hidden: boolean } | null = null;
+    this.stages.clear();
     this.people.forEach((p, index) => {
-      if (p.person !== selected || (shown && !shown.hidden)) return;
+      const o = index * 3;
+      if (p.person !== selected || o + 2 >= this.spots.length) return;
       this.pose.hidden = false;
       this.pose.stage = undefined;
       const pose = p.pose(t, herds, this.pose);
-      const o = index * 3;
-      if (o + 2 < this.spots.length) {
-        this.spots[o] = pose.hidden ? NaN : pose.x;
-        this.spots[o + 1] = this.env.groundHeight(pose.x, pose.z);
-        this.spots[o + 2] = pose.z;
-      }
-      shown = {
-        index,
-        stage: pose.stage ?? null,
-        hidden: pose.hidden === true || o >= this.spots.length,
-      };
+      this.spots[o] = pose.hidden ? NaN : pose.x;
+      this.spots[o + 1] = this.env.groundHeight(pose.x, pose.z);
+      this.spots[o + 2] = pose.z;
+      this.stages.set(index, pose.stage ?? null);
     });
-    this.showSelected(shown, herds);
+    this.showSelected(herds);
   }
 
   /** Kroužek pod postavou vybraného člověka a ohlášení jeho stavu (jen při změně). */
-  private showSelected(
-    shown: { index: number; stage: VillagerStage | null; hidden: boolean } | null,
-    herds: readonly HerdView[],
-  ): void {
+  private showSelected(herds: readonly HerdView[]): void {
     const id = this.selected;
     if (id === null) return;
+    const shown = selectedFigure(this.people, id, (i) => Number.isNaN(this.spots[i * 3] ?? NaN));
     const figure = shown ? this.people[shown.index] : undefined;
     const ring = figure && !shown!.hidden ? (this.ring ??= this.createRing()) : this.ring;
     if (ring) {
@@ -436,7 +404,7 @@ export class VillageVillagers {
     this.emitPerson({
       id,
       job,
-      stage: shown?.stage ?? null,
+      stage: shown ? (this.stages.get(shown.index) ?? null) : null,
       hidden: shown?.hidden ?? true,
       herd,
     });
@@ -820,20 +788,6 @@ function surfaceMatrix(
     1,
     out,
   );
-}
-
-/** Vzdálenost bodu (x, y) od úsečky a–b (px). */
-function distanceToSegment(
-  x: number,
-  y: number,
-  a: { x: number; y: number },
-  b: { x: number; y: number },
-): number {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const l2 = dx * dx + dy * dy;
-  const t = l2 > 0 ? Math.min(1, Math.max(0, ((x - a.x) * dx + (y - a.y) * dy) / l2)) : 0;
-  return Math.hypot(x - (a.x + dx * t), y - (a.y + dy * t));
 }
 
 /** Instance: postava na (x, y, z) natočená ve směru (hx, hz), zvětšená `scale`. */
