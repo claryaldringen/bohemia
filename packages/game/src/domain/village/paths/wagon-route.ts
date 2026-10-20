@@ -54,10 +54,20 @@ const SEARCH_GRADE = WAGON_ROAD.maxGrade - 0.005;
 /** Buňky do tolika metrů od konce cesty – odtud trasa vychází a sem dojde. */
 const END_REACH_M = 5;
 const END_REACH_FAR_M = 9;
-/** Změna směru o jeden z 16 stojí (čd) – trasa se zbytečně nekroutí. */
-const TURN_COST = 0.05;
-/** Vyhlazení osy z buněk – zjednodušení (m) a průchody (zubaté kroky mřížky zmizí). */
-const SMOOTH = { simplifyM: 2.2, passes: 3 } as const;
+/** Změna směru o jeden z 16 stojí (čd) – trasa se zbytečně nekroutí (vlnovky kolem staré cesty). */
+const TURN_COST = 0.5;
+/**
+ * Vyhlazení osy z buněk – zjednodušení (m) a průchody (zubaté kroky mřížky zmizí), od nejhladšího;
+ * hladší osa je kratší (v úvratích serpentiny víc) a potřebuje víc zemních prací – vybere se
+ * nejlevnější profil, hladší má malou přednost (`SMOOTH_BONUS`). Bez vyhlazení osa z buněk.
+ */
+const SMOOTHING: readonly { simplifyM: number; passes: number }[] = [
+  { simplifyM: 2.2, passes: 3 },
+  { simplifyM: 1.2, passes: 2 },
+  { simplifyM: 0, passes: 0 },
+];
+/** Hladší osa smí stát o tolik víc zemních prací (podíl) než méně hladká. */
+const SMOOTH_BONUS = 1.15;
 /** Nejmenší úprava terénu, která jde všude (m) – srovnání pláně; brod zůstává brodem. */
 const LIMIT_MIN_M = 0.3;
 /** Okraj domu, kam cesta nesmí (m) – jako u vozů, k tomu půl vozovky. */
@@ -589,12 +599,10 @@ export function findWagonRoute(
       const nlo = Math.max(lo - g * length, hb - Math.min(maxCut, limit[n]!));
       const nhi = Math.min(hi + g * length, hb + Math.min(maxFill, limit[n]!));
       if (nlo > nhi + 1e-9) continue;
-      // pláň co nejblíž terénu se sklonem do meze (odhad profilu – zemní práce, kde svah
+      // pláň co nejblíž terénu se sklonem do meze profilu (odhad – zemní práce, kde svah
       // stoupá rychleji, než smí cesta), v rozsahu, kudy trasa dál projde
-      const ny = Math.min(
-        nhi,
-        Math.max(nlo, Math.min(y + g * length, Math.max(y - g * length, hb))),
-      );
+      const gy = WAGON_ROAD.maxGrade * length;
+      const ny = Math.min(nhi, Math.max(nlo, Math.min(y + gy, Math.max(y - gy, hb))));
       const offset = Math.abs(ny - hb) * PROFILE_LAG;
       const ux = di / CART_HEADING_LENGTHS[k]!;
       const uz = dj / CART_HEADING_LENGTHS[k]!;
@@ -653,11 +661,15 @@ function cm(v: number): number {
  * Body osy po nejvýš WAGON_ROAD.profileStepM (na cm, bez opakování), z lomené čáry – vyhlazené
  * (`smooth`), nebo jak je.
  */
-function profileAxis(points: readonly PathPoint[], smooth: boolean): PathPoint[] {
-  const axis = smooth
-    ? smoothPathLine(simplifyPathLine(points, [], SMOOTH.simplifyM).points, [], SMOOTH.passes)
-        .points
-    : [...points];
+function profileAxis(
+  points: readonly PathPoint[],
+  smooth: { simplifyM: number; passes: number },
+): PathPoint[] {
+  const axis =
+    smooth.passes > 0
+      ? smoothPathLine(simplifyPathLine(points, [], smooth.simplifyM).points, [], smooth.passes)
+          .points
+      : [...points];
   const out: PathPoint[] = [];
   const push = (x: number, z: number): void => {
     const p = { x: cm(x), z: cm(z) };
@@ -684,7 +696,7 @@ function profileHeights(
   axis: readonly PathPoint[],
   natural: readonly number[],
   limits: readonly number[],
-): number[] | null {
+): { heights: number[]; cost: number } | null {
   const n = axis.length;
   if (n < 2) return null;
   const lo: number[] = [];
@@ -750,7 +762,7 @@ function profileHeights(
     out[i] = (lo[i]! + k) / 100;
     k = rows[i]!.parent[k]!;
   }
-  return out;
+  return { heights: out, cost: last.cost[0]! };
 }
 
 /**
@@ -759,7 +771,8 @@ function profileHeights(
  * (`profileHeights`). Bez profilu null.
  */
 export function wagonProfile(grid: WagonGrid, points: readonly PathPoint[]): WagonProfile | null {
-  for (const smooth of [true, false]) {
+  let best: { profile: WagonProfile; cost: number } | null = null;
+  for (const smooth of SMOOTHING) {
     const axis = profileAxis(points, smooth);
     if (axis.length < 2) return null;
     const natural = axis.map((p) => wagonGridHeight(grid, p.x, p.z));
@@ -772,8 +785,11 @@ export function wagonProfile(grid: WagonGrid, points: readonly PathPoint[]): Wag
       const lim = c >= 0 ? grid.limit[c]! : LIMIT_MIN_M;
       return fordAt[i] ? LIMIT_MIN_M : Math.min(lim, WAGON_ROAD.maxCutM, WAGON_ROAD.maxFillM);
     });
-    const ys = profileHeights(axis, natural, limits);
-    if (!ys) continue;
+    const solved = profileHeights(axis, natural, limits);
+    if (!solved) continue;
+    // hladší osa má přednost, dokud nestojí o víc než SMOOTH_BONUS zemních prací
+    if (best && solved.cost * SMOOTH_BONUS >= best.cost) continue;
+    const ys = solved.heights;
     const profile = axis.map((p, i) => ({ x: p.x, z: p.z, y: ys[i]! }));
     let lengthM = 0;
     let maxGrade = 0;
@@ -792,17 +808,20 @@ export function wagonProfile(grid: WagonGrid, points: readonly PathPoint[]): Wag
       lengthM += d;
       if (d > 0) maxGrade = Math.max(maxGrade, Math.abs(b.y - a.y) / d);
     }
-    return {
-      profile,
-      natural,
-      fords: fordAt.flatMap((f, i) => (f ? [i] : [])),
-      lengthM,
-      maxGrade,
-      maxCutM,
-      maxFillM,
+    best = {
+      cost: solved.cost,
+      profile: {
+        profile,
+        natural,
+        fords: fordAt.flatMap((f, i) => (f ? [i] : [])),
+        lengthM,
+        maxGrade,
+        maxCutM,
+        maxFillM,
+      },
     };
   }
-  return null;
+  return best?.profile ?? null;
 }
 
 /** Zemní práce vozové cesty – objemy a práce po kusech osy (WAGON_BIN_M). */

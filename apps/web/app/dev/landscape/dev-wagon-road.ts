@@ -43,11 +43,11 @@ export interface WagonDemo {
  * Místa ukázky: `notch` – krátký prudký svah (3–4 políčka) s největším převýšením a po 3
  * políčkách roviny kolem, obchodní cesta s `trips` jízdami vozů denně (čas jízdy váží víc než
  * stavba – úvoz a násep); `slope` – nejprudší dlouhý svah (6–12 políček, převýšení aspoň
- * `riseM`) bez vozů – serpentina.
+ * `riseM`, louka i `side` políček do stran – serpentina se vejde mimo les) bez vozů.
  */
 const PLACES = {
-  notch: { spans: [3, 4], flat: 3, riseM: 4, trips: 80, by: 'rise' },
-  slope: { spans: [6, 7, 8, 9, 10, 11, 12], flat: 1, riseM: 6, trips: 0, by: 'grade' },
+  notch: { spans: [3, 4], flat: 3, side: 0, riseM: 4, trips: 80, by: 'rise' },
+  slope: { spans: [6, 7, 8, 9, 10, 11, 12], flat: 1, side: 4, riseM: 6, trips: 0, by: 'grade' },
 } as const;
 
 type Place = (typeof PLACES)[keyof typeof PLACES];
@@ -69,7 +69,7 @@ function demoRoute(
   avoid: { x: number; z: number } | null,
 ): WagonDemoRoute | null {
   const height = (x: number, y: number): number => l.heights[y * l.size + x]!;
-  const margin = place.flat + 1;
+  const margin = Math.max(place.flat, place.side) + 1;
   const meadow = (x: number, y: number): boolean =>
     x >= margin &&
     y >= margin &&
@@ -88,7 +88,9 @@ function demoRoute(
         for (const span of place.spans) {
           let clear = true;
           for (let k = -place.flat; k <= span + place.flat && clear; k++) {
-            if (!meadow(bx + sx * k, by + sy * k)) clear = false;
+            for (let q = -place.side; q <= place.side && clear; q++) {
+              if (!meadow(bx + sx * k + sy * q, by + sy * k + sx * q)) clear = false;
+            }
           }
           if (!clear) continue;
           const rise = Math.abs(height(bx + sx * span, by + sy * span) - height(bx, by));
