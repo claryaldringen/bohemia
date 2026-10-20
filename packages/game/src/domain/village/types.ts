@@ -1766,6 +1766,23 @@ export interface Road {
    * a stezka v pruhu ROAD_SWATH kolem osy. Rozdělený i spojený úsek ho zdědí; chybí = ne.
    */
   swath?: true;
+  /**
+   * Kolik délky úseku lemují stromy u cesty a jabloně (roads.md – Stromy u cesty zrychlí chůzi)
+   * – podle toho je chůze i jízda vozem po úseku rychlejší (`roadTreeSpeed`). Určí se 1. dne
+   * v měsíci (`lineRoads`); chybí = ještě neurčeno (nový úsek, starší ves – určí se hned další
+   * den).
+   */
+  lined?: RoadLining;
+}
+
+/**
+ * Olemování úseku pevné cesty (roads.md – Stromy u cesty zrychlí chůzi): podíl délky osy, který
+ * lemují stojící stromy u cesty (bez úseků s jabloněmi) a živé jabloně – po desetinách
+ * (ROAD_TREE_SPEED.steps), dohromady nejvýš 1.
+ */
+export interface RoadLining {
+  trees: number;
+  apples: number;
 }
 
 /** Tichý kus osy pevné cesty – střed kusu a roky po sobě pod polovinou prahu. */

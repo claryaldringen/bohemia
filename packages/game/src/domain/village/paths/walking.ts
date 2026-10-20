@@ -1,6 +1,6 @@
 import { length2, type Landscape } from '../../landscape';
 import { PATH_WALK, ROAD_WALK } from '../rules';
-import type { RoadGrade, RoadGround } from '../types';
+import type { RoadGrade, RoadGround, RoadLining } from '../types';
 import { nearestPartFinder } from './nearest';
 import { PathHeap, squareCells, type PathLine, type PathPoint, type PathVillage } from './network';
 import {
@@ -11,14 +11,21 @@ import {
   pathWindowFor,
   type PathTerrain,
 } from './terrain';
-import { isCropPart, partWalkSpeed, pathCostFactor, roadWalkSpeed } from './walk-speed';
+import {
+  isCropPart,
+  partWalkSpeed,
+  pathCostFactor,
+  roadTreeSpeed,
+  roadWalkSpeed,
+} from './walk-speed';
 
 // Chůze po vyšlapaných pěšinách a pevných cestách (paths.md – Pěšiny a práce, roads.md –
 // Rychlejší chůze): vzdálenost chůze = nejkratší z: rovně, nebo rovně k pěšině či cestě, po ní
 // a rovně od ní k cíli. Rychlosti proti louce jsou stejné jako v síti pěšin (walk-speed.ts –
 // Martin, 19. 10. 2026): po plné pěšině dne 1,3× (slabší úměrně síle – PATH_WALK), po pevné cestě
 // podle stupně (ROAD_WALK – vyšlapaná i vyježděná 1,5×, upravená 1,7×, hať a lávka 1,7× i přes
-// mokřinu). Mokřina 0,5× (bahno), brod + 30 m (po lávce bez zdržení), díl pole v osevu 0,5×
+// mokřinu; stromy u cesty přidají až 0,03, jabloně 0,05 – roads.md, Stromy u cesty zrychlí chůzi).
+// Mokřina 0,5× (bahno), brod + 30 m (po lávce bez zdržení), díl pole v osevu 0,5×
 // a strniště 0,8× (FIELD_WALK – pěšina dne přes osev nezrychlí, pevná cesta jde rychlostí cesty).
 // S krajinou (`WalkGround`) se mokřina, voda a pole počítají i rovně; bez ní (kalibrace) jen
 // délka. Čistá deterministická funkce – stejně na serveru i v prohlížeči; použije ji každý, kdo
@@ -31,11 +38,13 @@ export interface WalkGraph {
   links: { to: number; length: number; cost: number }[][];
 }
 
-/** Pevná cesta pro chůzi – osa, stupeň a mokřina s brody na ose. */
+/** Pevná cesta pro chůzi – osa, stupeň, mokřina s brody na ose a stromy u cesty. */
 export interface WalkRoad {
   points: readonly PathPoint[];
   grade: RoadGrade;
   ground?: RoadGround;
+  /** Olemování stromy a jabloněmi (`Road.lined`) – zrychlí chůzi mimo mokřinu; chybí = bez. */
+  lined?: RoadLining;
 }
 
 /**
@@ -151,8 +160,9 @@ export function pathWalkLength(length: number, strength: number): number {
 
 /**
  * Nejmenší podíl přímé vzdálenosti, na který chůze může klesnout – nejrychlejší chůze (plná
- * pěšina, pevná cesta podle stupně, hať): chůze z A do B je nejméně přímá vzdálenost × tento
- * podíl. Kdo měří jen kandidáty v dosahu (seč luk – hay.ts), podle něj odhadne, co měřit.
+ * pěšina, pevná cesta podle stupně, hať – bez stromů u cest, s nimi `fastestWalkShare`): chůze
+ * z A do B je nejméně přímá vzdálenost × tento podíl. Kdo měří jen kandidáty v dosahu (seč luk –
+ * hay.ts), podle něj odhadne, co měřit.
  */
 export const FASTEST_WALK_SHARE = Math.min(
   1 / PATH_WALK.speed,
@@ -161,22 +171,40 @@ export const FASTEST_WALK_SHARE = Math.min(
 );
 
 /**
+ * Nejmenší podíl přímé vzdálenosti pro chůzi po pevných cestách `roads` – jako FASTEST_WALK_SHARE,
+ * jen se stromy u cest (roads.md – Stromy u cesty zrychlí chůzi): cesta lemovaná stromy jde
+ * rychleji než její stupeň. Bez stromů u cest přesně FASTEST_WALK_SHARE.
+ */
+export function fastestWalkShare(
+  roads: readonly Pick<WalkRoad, 'grade' | 'lined'>[] | undefined,
+): number {
+  let share = FASTEST_WALK_SHARE;
+  for (const road of roads ?? []) {
+    const trees = roadTreeSpeed(road.lined);
+    if (trees > 0) share = Math.min(share, 1 / roadWalkSpeed(road.grade, false, trees));
+  }
+  return share;
+}
+
+/**
  * Cena chůze úsekem osy pevné cesty od `from` do `to` m od začátku osy: kusy v mokřině a mimo ni
- * podle rychlosti, brody v úseku + ROAD_WALK.fordExtraM (po lávce – hať a lávka – nic).
+ * podle rychlosti (mimo mokřinu i se stromy u cesty – `roadTreeSpeed`), brody v úseku
+ * + ROAD_WALK.fordExtraM (po lávce – hať a lávka – nic).
  */
 export function roadPieceCost(road: WalkRoad, from: number, to: number): number {
   const wet = road.ground?.wet ?? [];
+  const dry = roadWalkSpeed(road.grade, false, roadTreeSpeed(road.lined));
   let cost = 0;
   let at = from;
   for (const [a, b] of wet) {
     if (b <= at || a >= to) continue;
     const start = Math.max(at, a);
     const end = Math.min(to, b);
-    cost += (start - at) / roadWalkSpeed(road.grade, false);
+    cost += (start - at) / dry;
     cost += (end - start) / roadWalkSpeed(road.grade, true);
     at = end;
   }
-  cost += Math.max(0, to - at) / roadWalkSpeed(road.grade, false);
+  cost += Math.max(0, to - at) / dry;
   if (road.grade !== 'causeway') {
     for (const ford of road.ground?.fords ?? []) {
       if (ford >= from && ford < to) cost += ROAD_WALK.fordExtraM;

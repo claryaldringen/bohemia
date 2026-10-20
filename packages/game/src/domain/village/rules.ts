@@ -422,6 +422,25 @@ export const ROAD_WALK = {
   causewayWetSpeed: 1.7,
   fordExtraM: 30,
 } as const;
+/**
+ * roads.md – Stromy u cesty zrychlí chůzi (Martin 20. 10. 2026: „Stromy u cesty musí přídat něco
+ * málo k rychlosti jak chodců tak vozů. šlo by přidat třeba 0.03? A pokud to budou jabloně,
+ * přidalo by se 0.05.“; podrobnosti návrh Clauda): úsek pevné cesty, který po celé délce lemují
+ * stromy, má rychlost chůze i jízdy vozem o `trees` vyšší (přičte se k rychlosti cesty – vyšlapaná
+ * pěšky 1,5 → 1,53, vyježděná vozem 1,6 → 1,63), s jabloněmi o `apples`; úměrně podílu délky,
+ * který lemují (jabloně, kde jsou, jinde ostatní stromy), po `steps` dílech (10 %). V mokřině
+ * a na brodu se nepřičte. Místo na strom lemuje osu na každou stranu k polovině vzdálenosti
+ * k sousednímu místu, nejvýš `reachM` – polovina největšího rozestupu míst (stromy 20 m, jabloně
+ * 10 m) + 1 m posun místa podél osy; krajní místo úseku až ke konci osy, když je konec do `endM`
+ * – rozestup + 6 m od konce, kam se stromy nesázejí, + 1 m
+ */
+export const ROAD_TREE_SPEED = {
+  trees: 0.03,
+  apples: 0.05,
+  steps: 10,
+  reachM: { trees: 11, apples: 6 },
+  endM: { trees: 27, apples: 17 },
+} as const;
 // fields.md – Založení pole (nejdál 800 m od obydlí, nejmenší výměra 0,1 ha)
 export const FIELD_LIMITS = { maxDistanceM: 800, minAreaM2: 1000 } as const;
 // fields.md – Práce (denní minimum domácností – meze: s hrnčířem 0,45); population.md – Práce

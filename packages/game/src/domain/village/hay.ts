@@ -7,7 +7,7 @@ import {
   type Landscape,
 } from '../landscape';
 import { distanceFactor, fallowStage, partWalkDistance } from './fields';
-import { FASTEST_WALK_SHARE } from './paths/walking';
+import { fastestWalkShare } from './paths/walking';
 import { plotShapes } from './plot-cells';
 import { NO_CRAFTS, hayWorkPerHa } from './productivity';
 import { tilesUnder, villageLandSquares } from './squares';
@@ -234,22 +234,21 @@ function coverDistance(sorted: readonly HaySquare[], need: number): number {
 /**
  * Vzdálenosti chůze přirozených luk (mutuje `meadows`) – po pěšinách a pevných cestách jako díly
  * pole (paths/walking.ts; přes mokřinu a brod i dál než rovně). Měří se jen louky, které můžou
- * ležet v dosahu pokrytí potřeby: chůze je nejméně FASTEST_WALK_SHARE × přímá vzdálenost, takže
- * louka, která leží rovně dál než dosah ÷ ten podíl, se do seče nedostane. Když změřené louky
- * dosah prodlouží, dorovnají se další (nejvýš pár kol).
+ * ležet v dosahu pokrytí potřeby: chůze je nejméně `share` × přímá vzdálenost (`fastestWalkShare` –
+ * nejrychlejší chůze i se stromy u cest), takže louka, která leží rovně dál než dosah ÷ ten podíl,
+ * se do seče nedostane. Když změřené louky dosah prodlouží, dorovnají se další (nejvýš pár kol).
  */
 function walkMeadows(
   meadows: (HaySquare & { x: number; z: number })[],
   parts: readonly HaySquare[],
   need: number,
   walk: MeadowWalk,
+  share: number,
 ): void {
   const measured = new Set<HaySquare>();
   for (let round = 0; round < WALK_ROUNDS; round++) {
     const reach = coverDistance([...parts, ...meadows].sort(byDistance), need);
-    const near = meadows.filter(
-      (m) => !measured.has(m) && m.distanceM * FASTEST_WALK_SHARE <= reach,
-    );
+    const near = meadows.filter((m) => !measured.has(m) && m.distanceM * share <= reach);
     if (near.length === 0) return;
     const walks = walk(near);
     if (!walks) return;
@@ -285,7 +284,9 @@ export function planMowing(
     .filter((p) => isHayMeadow(p, day))
     .map((p): HaySquare => ({ partId: p.id, areaM2: p.areaM2, distanceM: partWalkDistance(p) }));
   const meadows = naturalMeadows(state, landscape);
-  if (walk && meadows.length > 0) walkMeadows(meadows, parts, need, walk);
+  if (walk && meadows.length > 0) {
+    walkMeadows(meadows, parts, need, walk, fastestWalkShare(state.roads?.roads));
+  }
   const candidates: HaySquare[] = [
     ...parts,
     ...meadows.map(({ cell, areaM2, distanceM }): HaySquare => ({
