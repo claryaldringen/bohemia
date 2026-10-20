@@ -1294,6 +1294,15 @@ export const CLAY = {
   depositKg: 20_000,
 } as const;
 /**
+ * crafts.md – Rudiště a hliniště na očích (Martin 20. 10. 2026: „To místo, kde kope rudu, chci na
+ * mapě vidět“; čísla návrh Clauda): nové rudiště a hliniště leží mimo les a mimo koruny stromů,
+ * aby jámy byly shora vidět – žádný dospělý strom (i strom u cesty a les vsi) do `treeClearM` m
+ * od místa (koruna ≈ 4–5 m a jámy kolem místa – SMITH_SUPPLY.pitSpreadM). Místo v lese nebo pod
+ * korunou jen tehdy, když volné není do `openFarther` × vzdálenost nejbližšího místa (a aspoň do
+ * `openSlackM` m dál než ono).
+ */
+export const DUG_SITE_VIEW = { treeClearM: 8, openFarther: 1.5, openSlackM: 30 } as const;
+/**
  * crafts.md – Učení řemesla (Martin 20. 10. 2026: „Každý řemeslník vychovává svého nástupce - syna.
  * Pokud je řemeslník úplně nový, trvá mu, než se řemeslo naučí“; čísla návrh Clauda): výkon dílny
  * podle praxe nejzkušenějšího dospělého z domácnosti – `startShare` (50 %) bez praxe, lineárně

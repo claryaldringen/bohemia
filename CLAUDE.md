@@ -800,6 +800,9 @@ rozhraní částí v
   v crafts.ts), kopání 60 kg/čd s přirážkou za chůzi (`workOre` – dávka na 30 dní kování pěšky,
   s vozem na celý dvoukolák a dřív o `CART_JOBS.ore.reserveDays`, hromada u jámy `OreBatch.heap`),
   rudiště `chooseOreSite` (nejbližší `PATH_WETLAND`, jinak břeh; ne na čtvercích staveb ani u domů;
+  na očích – Martin: „chci na mapě vidět“, návrh Clauda `DUG_SITE_VIEW`: mimo les `PATH_FOREST`
+  a bez dospělého stromu vrstvy překážek, stromu u cesty či lesa vsi do 8 m – `inView`; les jen
+  když volné místo není do 1,5× vzdálenosti nejbližšího (aspoň +30 m), uložená místa se nemění;
   `Workshop.oreSite`, ložisko 3 t, další 20 m od `oreSitesUsed`), jámy `VillageState.orePits`
   (`openOrePit` ze seedu, `updateOrePits` – 10 let). Přirážka za vodu daleko (`oreFactor`)
   zmizela u kováře i hrnčíře. Starší kovárny `migrateSmith` (zásoba na dávku). Činnosti `digging`, `no-ore`; podíly práce `ore` (cíl
@@ -816,7 +819,12 @@ rozhraní částí v
   obrys `oreSiteOutline` (konvexní obal); panel z `VillageView.oreSites` (`lib/ore-site-view.ts` –
   ložisko, hromada, zásoba v kovárně, cesta, jámy, kdo tu dnes kope / nosí / jede s vozem z rozdělení
   práce dne a vůz se sedlákem), `OreSiteBody` s tlačítkem kovárny, portrét `icons/build/rudiste.png`
-  (`icons.py rudiste`), `/dev/panels?panel=rudiste`.
+  (`icons.py rudiste`), `/dev/panels?panel=rudiste`. **Hliniště** stejně (návrh Clauda): cíl
+  `{ kind: 'clay-site', id: dílna hrnčíře }` (`dugSiteOf`), tvary `oreSiteDiscs` jen s jámami téže
+  suroviny (`dugSitePits`), panel z `VillageView.claySites`; jeden kód pro obě místa – pohled
+  `dugSiteViews(state, day, material)` / `dugSitesField` (`VillageDugSite` – `workshopId`,
+  `DugSiteWorker.craftsman`), panel `DugSiteBody` s texty `DUG_SITE_TEXTS`, portrét
+  `icons/build/hliniste.png` (`icons.py hliniste`), `/dev/panels?panel=hliniste`.
 - **Hlína hrnčíře** ([crafts.md](docs/design/crafts.md) – Hlína hrnčíře; Martin 20. 10. 2026:
   „Ano, udělej to jak říkáš“ – wagons.md, Co se vozí a na čem; čísla `CLAY` v `rules.ts`, návrh
   Clauda): jako ruda kováře – jedna funkce `workDug` (`DugMaterial` `ore` / `clay`: zásoba, místo,

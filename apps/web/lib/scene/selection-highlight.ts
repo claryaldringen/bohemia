@@ -9,7 +9,12 @@ import { cellsBoundary, type CellSquare } from './field-cells';
 import { oreSiteDiscs, oreSiteOutline } from './ore-site-layout';
 import { footprintCorners, stripSegments, type Point } from './village-layout';
 import { createDecalMaterial, createStripMesh, type HeightFn } from './village-meshes';
-import { selectedFieldPart, selectedOrchardSquare, type VillageTarget } from './village-picking';
+import {
+  dugSiteOf,
+  selectedFieldPart,
+  selectedOrchardSquare,
+  type VillageTarget,
+} from './village-picking';
 
 /** Barva výběru – světlá zlatavá, jako prstenec vybrané jednotky v 0 A.D. */
 const SELECTION_COLOR = new Color3(1, 0.86, 0.45);
@@ -33,8 +38,9 @@ const SEE_THROUGH: ReadonlySet<VillageTarget['kind']> = new Set([
   'cemetery',
   'grove',
   'pen',
-  // jámy rudiště zakrývá val a rákos u vody
+  // jámy rudiště a hliniště zakrývá val a rákos u vody
   'ore-site',
+  'clay-site',
 ]);
 
 /** Lomená čára posunutá o `d` m kolmo (vlevo kladně) – v bodech zlomu podle průměru směrů. */
@@ -107,7 +113,7 @@ export class SelectionHighlight {
  * Obrys cíle jako lomené čáry: celý pozemek obydlí (polozemnice – políčko), rámeček kolem
  * půdorysu volného obydlí (u víc vybraných obydlí kolem každého), modly nebo svatyně, kroužek kolem posvátného dubu, nebo mez kolem
  * čtverců pole, hřbitova, sadu, háje či ohrady; vybraný díl pole a čtverec sadu jen jeho čtverec
- * (i natočený); rudiště kováře obrys kolem jam a hromady rudy (`oreSiteOutline`).
+ * (i natočený); rudiště kováře a hliniště hrnčíře obrys kolem jam a hromady (`oreSiteOutline`).
  */
 export function targetOutline(village: SceneVillage, target: VillageTarget): Point[][] {
   if (target.kind === 'field-part') {
@@ -171,10 +177,9 @@ export function targetOutline(village: SceneVillage, target: VillageTarget): Poi
     const pen = village.pens?.find((p) => p.id === target.id);
     return pen ? cellsBoundary(scenePenSquares(pen)) : [];
   }
-  if (target.kind === 'ore-site') {
-    const site = village.oreSites?.find((s) => s.dwellingId === target.id);
-    const pits = village.orePits?.filter((p) => !p.clay);
-    return site ? [oreSiteOutline(oreSiteDiscs(site, pits))] : [];
+  if (target.kind === 'ore-site' || target.kind === 'clay-site') {
+    const site = dugSiteOf(village, target);
+    return site ? [oreSiteOutline(oreSiteDiscs(site, village.orePits))] : [];
   }
   if (target.kind === 'road') {
     // celá cesta hráče (roads.md – Cesta pro hráče): čáry po obou stranách pásu přes všechny

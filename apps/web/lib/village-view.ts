@@ -177,7 +177,7 @@ import {
   type HouseholdRelocation,
 } from './relocation-view';
 import { manorView, type VillageManor } from './manor-view';
-import { oreSitesField, type VillageOreSite } from './ore-site-view';
+import { dugSitesField, type VillageDugSite } from './ore-site-view';
 import { foreignFromScene, plotOfScene } from './scene/neighbour-villages';
 import { sceneTrails, trailRoadWork } from './trail-view';
 import { sceneExpeditions } from './caravan-view';
@@ -690,7 +690,9 @@ export interface VillageView {
    * Rudiště kováren (crafts.md – Uhlí a ruda kováře) pro panel výběru – ložisko, hromada u jámy,
    * zásoba v kovárně, cesta, jámy a kdo tu dnes pracuje; chybí = žádné.
    */
-  oreSites?: VillageOreSite[];
+  oreSites?: VillageDugSite[];
+  /** Hliniště hrnčířů (crafts.md – Hlína hrnčíře) pro panel výběru – jako rudiště; chybí = žádné. */
+  claySites?: VillageDugSite[];
 }
 
 /** Nákup u souseda na cestě (crafts.md – Nákup u sousedů). */
@@ -3822,7 +3824,7 @@ export function buildVillageView(
     purchases: purchaseViews(state),
     lastMarriageDay: lastMarriageDay(state),
     manor: manorView(state, landscape, day, context.ownMaps ?? {}),
-    ...oreSitesField(state, day),
+    ...dugSitesField(state, day),
   };
 }
 

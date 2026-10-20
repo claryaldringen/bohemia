@@ -3,9 +3,9 @@
 // čísla dílů a čtverců sadu pro panel výběru odhaduje odsud: úrodnost z krajiny, cesta vzdušnou
 // čarou k nejbližšímu obydlí (hospodářství), letošní práce podle vzhledu dílu. Ve hře je počítá
 // jádro (`buildVillageView`).
-import { SMITH_SUPPLY, type Crop, type Landscape, type PartStage } from '@bohemia/game';
-import type { OreSiteWorker, VillageOreSite } from '@/lib/ore-site-view';
-import { oreSitePits } from '@/lib/scene/ore-site-layout';
+import { CLAY, SMITH_SUPPLY, type Crop, type Landscape, type PartStage } from '@bohemia/game';
+import type { DugSiteWorker, VillageDugSite } from '@/lib/ore-site-view';
+import { dugSitePits } from '@/lib/scene/ore-site-layout';
 import { tileAt } from '@/lib/scene/tile-at';
 import type { FieldLook, SceneVillage, VillageFieldPart, VillageView } from '@/lib/village-view';
 
@@ -125,7 +125,8 @@ export function devSelectionView(village: SceneVillage, l: Landscape): VillageVi
   return {
     fields,
     orchards,
-    oreSites: devOreSites(village),
+    oreSites: devDugSites(village, false),
+    claySites: devDugSites(village, true),
     constructions: [],
     households: [],
     cemeteries: [],
@@ -136,34 +137,40 @@ export function devSelectionView(village: SceneVillage, l: Landscape): VillageVi
 }
 
 /**
- * Rudiště ukázky pro panel výběru (crafts.md – Uhlí a ruda kováře): ložisko bez rudy z jam ukázky,
- * cesta vzdušnou čarou z kovárny, kdo tu pracuje z rozdělení práce ukázky (kovář = nejstarší).
+ * Rudiště a hliniště ukázky (`clay`) pro panel výběru (crafts.md – Uhlí a ruda kováře, Hlína
+ * hrnčíře): ložisko bez suroviny z jam ukázky, cesta vzdušnou čarou z dílny, kdo tu pracuje
+ * z rozdělení práce ukázky (řemeslník = nejstarší).
  */
-function devOreSites(village: SceneVillage): VillageOreSite[] {
+function devDugSites(village: SceneVillage, clay: boolean): VillageDugSite[] {
   const shares = village.labor?.shares ?? [];
-  return (village.oreSites ?? []).map((site) => {
-    const pits = oreSitePits(site, village.orePits);
+  const material = clay ? 'clay' : 'ore';
+  const depositKg = clay ? CLAY.depositKg : SMITH_SUPPLY.depositKg;
+  const sites = (village.oreSites ?? []).filter((site) => (site.clay === true) === clay);
+  return sites.map((site) => {
+    const pits = dugSitePits(site, village.orePits, clay);
     const smithy = village.dwellings.find((d) => d.id === site.dwellingId);
-    const here = shares.filter((s) => s.target.kind === 'ore' && s.target.id === site.dwellingId);
+    const here = shares.filter(
+      (s) => s.target.kind === material && s.target.id === site.dwellingId,
+    );
     const head = Math.max(0, ...here.flatMap((s) => s.ages ?? []));
-    const workers: OreSiteWorker[] = [];
+    const workers: DugSiteWorker[] = [];
     for (const share of here) {
-      if (share.activity !== 'ore' && share.activity !== 'fetch') continue;
+      if (share.activity !== material && share.activity !== 'fetch') continue;
       for (const age of share.ages ?? []) {
         let w = workers.find((x) => x.age === age);
         if (!w) {
-          w = { age, smith: age === head, digs: false, carries: false, rides: false };
+          w = { age, craftsman: age === head, digs: false, carries: false, rides: false };
           workers.push(w);
         }
-        if (share.activity === 'ore') w.digs = true;
+        if (share.activity === material) w.digs = true;
         else if (share.carts) w.rides = true;
         else w.carries = true;
       }
     }
     return {
-      smithId: site.dwellingId,
-      leftKg: Math.max(0, SMITH_SUPPLY.depositKg - pits.reduce((sum, p) => sum + p.kg, 0)),
-      depositKg: SMITH_SUPPLY.depositKg,
+      workshopId: site.dwellingId,
+      leftKg: Math.max(0, depositKg - pits.reduce((sum, p) => sum + p.kg, 0)),
+      depositKg,
       heapKg: site.heapKg,
       stockKg: 60,
       walkM: smithy
