@@ -1637,6 +1637,23 @@ describe('pevné cesty v pohledu na ves (roads.md)', () => {
     expect(trees[1]!.growth).toBeLessThan(0.5);
   });
 
+  it('stromy u cesty zrychlí chůzi: olemování jde do scény a panelu, nulové ne (roads.md)', () => {
+    const s = withRoads();
+    s.roads!.roads[0]!.lined = { trees: 0, apples: 0 };
+    const plain = buildVillageView(record(s), landscape, DAY);
+    expect(plain.scene.roads![0]!.lined).toBeUndefined();
+    expect(plain.roads[0]!.treeSpeed).toBe(0);
+    s.roads!.roads[0]!.lined = { trees: 1, apples: 0 };
+    const lined = buildVillageView(record(s), landscape, DAY);
+    expect(lined.scene.roads![0]!.lined).toEqual({ trees: 1, apples: 0 });
+    expect(lined.roads[0]!.treeSpeed).toBe(0.03);
+    // cena kácení u kurzoru chodí po cestách stejně rychle jako na serveru
+    expect(placementVillageFromScene(lined.scene).walkRoads![0]!.lined).toEqual({
+      trees: 1,
+      apples: 0,
+    });
+  });
+
   it('stromy u cest jsou překážky i pro kontrolu umístění v prohlížeči', () => {
     const s = withRoads();
     const view = buildVillageView(record(s), landscape, DAY);
@@ -2142,6 +2159,29 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
     // tesař netopí – dílna nekouří; model zatím polozemnice (scéna)
     expect(view.scene.dwellings.find((d) => d.id === 50)).toMatchObject({ craft: 'carpenter' });
     expect(view.scene.dwellings.find((d) => d.id === 50)?.working).toBeUndefined();
+  });
+
+  it('ohrada volů: voli vsi, místa, kolik volů ves chce, páry s rádlem a vozy (oxen.md)', () => {
+    const view = buildVillageView(record(carpenterVillage()), landscape, DAY);
+    expect(view.oxen).toEqual({
+      trained: 2,
+      training: 0,
+      places: 6,
+      wanted: 2,
+      overRoom: false,
+      ploughPairs: 1,
+      teams: 1,
+      ards: 1,
+      carts: { 'two-wheel': 1, 'four-wheel': 0 },
+      cartTargets: { 'two-wheel': 1, 'four-wheel': 0 },
+    });
+    expect(view.pens[0]).toMatchObject({ species: 'team', places: 6, animals: 2, oxen: 2 });
+    expect(view.scene.ploughPairs).toBe(1);
+    expect(view.scene.pens![0]).toMatchObject({ oxen: 2, trainees: 0 });
+    // ves bez ohrady volů údaj nemá
+    const plain = buildVillageView(record(settled()), landscape, DAY);
+    expect(plain.oxen).toBeUndefined();
+    expect(plain.scene.ploughPairs).toBeUndefined();
   });
 
   it('vozy ve scéně stojí u ohrady se spřežením a nesou cíl svozu dne', () => {

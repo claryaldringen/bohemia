@@ -8,6 +8,8 @@ import {
   CELL_SIZE_M,
   CART_NAMES,
   ableTeams,
+  oxPens,
+  ploughPairsHome,
   ploughsThisYear,
   CRAFT_NAMES,
   CRAFT_PRODUCTION,
@@ -56,6 +58,7 @@ import {
   roadApplesOption,
   roadLengthM,
   roadTreeLook,
+  roadTreeSpeed,
   roadUpgradeOptions,
   roadUpgradeProgress,
   roadChains,
@@ -84,6 +87,7 @@ import {
   type DietDay,
   type HerdSpecies,
   type LivestockSummary,
+  type OxenSummary,
   type ChronicleEvent,
   type LandTaker,
   type FamilyCounts,
@@ -269,16 +273,26 @@ export interface VillageSacred {
   }[];
 }
 
-/** Ohrada pro panel výběru (oxen.md – Co hráč vidí): stavba, spřežení, výcvik a seno. */
+/**
+ * Voli vsi (oxen.md – Ohrada volů, Co hráč vidí): vycvičení a ve výcviku, místa ohrad volů, kolik
+ * volů ves chce (páry k rádlům, nebo voli vozů naráz), páry s rádlem a vozy, které ves má a chce
+ * (wagons.md – Kolik vozů ves chce).
+ */
+export interface VillageOxen extends OxenSummary {
+  carts: Record<CartKind, number>;
+  cartTargets: Readonly<Record<CartKind, number>>;
+}
+
+/** Ohrada pro panel výběru (oxen.md – Co hráč vidí): stavba, voli, výcvik a seno. */
 export interface VillagePen {
   id: number;
   /** Druh zvířat ohrady (oxen.md – Ohrady podle druhu). */
   species: PenSpecies;
   /** Čtverce ohrady (i rozšíření ve stavbě) – nejvýš 4. */
   squares: number;
-  /** Místa na noc pro stádo svého druhu (hotové čtverce); u spřežení 0. */
+  /** Místa na noc pro stádo svého druhu, u ohrady volů pro voly (hotové čtverce). */
   places: number;
-  /** Kolik zvířat v ohradě v noci stojí (u spřežení voli a telata). */
+  /** Kolik zvířat v ohradě v noci stojí (u ohrady volů voli a telata). */
   animals: number;
   /**
    * Místa stáda svého druhu celé vsi – ve všech ohradách druhu, u domů a kolik míst v ohradách by
@@ -290,9 +304,9 @@ export interface VillagePen {
   built: boolean;
   /** Průběh stavby 0–1 (hotová 1). */
   progress: number;
-  /** Vycvičené spřežení – stáří a kolik let ještě slouží; bez spřežení null. */
+  /** Nejstarší vycvičený vůl – stáří a kolik let ještě slouží; bez vycvičených volů null. */
   team: { ageYears: number; yearsLeft: number } | null;
-  /** Výcvik spřežení – průběh 0–1 a zbývající dny; bez výcviku null. */
+  /** Výcvik volů – tele, které se vycvičí nejdřív: průběh 0–1 a zbývající dny; jinak null. */
   training: { progress: number; daysLeft: number } | null;
   /** Kolik krav a volů v ohradě právě stojí (krávy jen v zimě). */
   cows: number;
@@ -328,6 +342,11 @@ export interface VillageRoad {
   ageYears: number;
   /** Stojící stromy u cesty (keře a stromy, ne souše a pařezy). */
   trees: number;
+  /**
+   * O kolik stromy a jabloně u cesty zrychlí chůzi i jízdu vozem (roads.md – Stromy u cesty
+   * zrychlí chůzi): průměr úseků podle délky (`roadTreeSpeed`), na tisíciny; bez stromů 0.
+   */
+  treeSpeed: number;
   /** Cesta vede mokřinou (m) a přes brody. */
   wetM: number;
   fords: number;
@@ -504,6 +523,11 @@ export interface VillageView {
    * druhu) – co se nevejde, půjde při porážce na maso; bez údaje se vejdou všechna.
    */
   penShort?: HerdSpecies[];
+  /**
+   * Voli vsi a kolik jich ves chce (oxen.md – Ohrada volů, Co hráč vidí) – panel ohrady volů
+   * a upozornění „Voli se nevejdou do ohrady“; bez ohrady volů bez údaje.
+   */
+  oxen?: VillageOxen;
   /** Pevné cesty (roads.md) – úseky pro panel výběru: stupeň, délka, stáří, stromy, vylepšení. */
   roads: VillageRoad[];
   /** Klády na hromadě u vsi v kusech (forest.md). */
@@ -622,6 +646,8 @@ export interface VillageView {
      */
     place?: string;
     son?: boolean;
+    /** Kolik volů se vycvičilo, dosloužilo nebo uhynulo (oxen.md – Voli po kusech). */
+    oxen?: number;
     dateLabel: string;
     text: string;
   }[];
@@ -1071,6 +1097,11 @@ export interface SceneVillage {
    */
   ploughTeam?: true;
   /**
+   * Páry volů s rádlem doma (oxen.md – Voli po kusech, `ploughPairsHome`) – kolik spřežení scéna
+   * pošle k orbě; bez údaje (ukázky) ohrady s vycvičenými voly.
+   */
+  ploughPairs?: number;
+  /**
    * Milíře uhlíře v lese (crafts.md – Uhlíř) – id dílny, střed (m), fáze a její průběh 0–1
    * (stavba po fázích staveniště, pálení kouří). Milíř u dílny nese dílna (`working`). Bez údaje
    * žádné.
@@ -1315,7 +1346,7 @@ export interface SceneExpedition {
 
 export type SceneRoad = Pick<
   Road,
-  'id' | 'points' | 'grade' | 'ground' | 'openEnds' | 'cart' | 'swath'
+  'id' | 'points' | 'grade' | 'ground' | 'openEnds' | 'cart' | 'swath' | 'lined'
 > & {
   /**
    * Rozestavěné vylepšení úseku – stupeň a průběh 0–1 na tomto úseku (vylepšení cesty hráče jde
@@ -1784,13 +1815,30 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
         Object.values(event.animals).reduce((sum, n) => sum + n, 0),
       )} kusů dobytka.`;
     case 'team-ready':
-      return 'Spřežení volů je vycvičené – orá rádlem.';
+      // voli po kusech (oxen.md); kronika uložená dřív – spřežení
+      if (event.oxen === undefined) return 'Spřežení volů je vycvičené – orá rádlem.';
+      return event.oxen === 1
+        ? 'Vůl je vycvičený – táhne dvoukolák, s druhým rádlo.'
+        : `Voli jsou vycvičení (${event.oxen}) – táhnou rádla a vozy.`;
     case 'team-retired':
-      return 'Spřežení dosloužilo – voli zestárli a šli na maso.';
+      if (event.oxen === undefined) return 'Spřežení dosloužilo – voli zestárli a šli na maso.';
+      return event.oxen === 1
+        ? 'Vůl dosloužil – zestárl a šel na maso.'
+        : `Voli dosloužili (${event.oxen}) – zestárli a šli na maso.`;
     case 'ox-died':
-      return event.training
-        ? 'Přes zimu chybělo seno – tele ve výcviku uhynulo.'
-        : 'Přes zimu chybělo seno – vůl uhynul a spřežení se rozpadlo.';
+      if (event.oxen === undefined) {
+        return event.training
+          ? 'Přes zimu chybělo seno – tele ve výcviku uhynulo.'
+          : 'Přes zimu chybělo seno – vůl uhynul a spřežení se rozpadlo.';
+      }
+      if (event.training) {
+        return event.oxen === 1
+          ? 'Přes zimu chybělo seno – tele ve výcviku uhynulo.'
+          : `Přes zimu chybělo seno – uhynula telata ve výcviku (${event.oxen}).`;
+      }
+      return event.oxen === 1
+        ? 'Přes zimu chybělo seno – vůl uhynul.'
+        : `Přes zimu chybělo seno – uhynuli voli (${event.oxen}).`;
     case 'orchard-gone':
       return 'Starý sad dosloužil a zarostl loukou.';
     case 'orchard-renewal-started':
@@ -2051,7 +2099,8 @@ function sceneVillage(
     ...(hayMeadows.length > 0 ? { hayMeadows } : {}),
     ...(pens.length > 0 ? { pens } : {}),
     ...(summary.crafts.coverage.tools > 0 ? { toolCoverage: summary.crafts.coverage.tools } : {}),
-    ...(ableTeams(state) > 0 ? { ploughTeam: true as const } : {}),
+    ...(ableTeams(state, day) > 0 ? { ploughTeam: true as const } : {}),
+    ...(oxPens(state).length > 0 ? { ploughPairs: ploughPairsHome(state, day) } : {}),
     ...(roads.length > 0 ? { roads } : {}),
     ...(roadTrees.length > 0 ? { roadTrees } : {}),
     ...(woods.length > 0 ? { woods } : {}),
@@ -2169,6 +2218,9 @@ export function sceneRoads(
       ...(r.cart ? { cart: true as const } : {}),
       // průsek lesem (roads.md – Průsek lesem) – plocha korun nad ním zapadne
       ...(r.swath ? { swath: true as const } : {}),
+      // stromy u cesty zrychlí chůzi (roads.md) – síť pěšin a cena kácení u kurzoru jako na
+      // serveru; jen kde nějaké jsou
+      ...(roadTreeSpeed(r.lined) > 0 ? { lined: { ...r.lined! } } : {}),
       ...(r.ground
         ? {
             ground: {
@@ -2214,6 +2266,21 @@ export function sceneWoods(
 }
 
 /** Pořadí stupňů cesty – od vyšlapané po hať (panel, převládající stupeň při shodě lepší). */
+
+/**
+ * Zrychlení chůze od stromů u cesty pro panel (roads.md – Stromy u cesty zrychlí chůzi): průměr
+ * úseků cesty podle délky, na tisíciny.
+ */
+function chainTreeSpeed(members: readonly Road[]): number {
+  let length = 0;
+  let sum = 0;
+  for (const m of members) {
+    const l = roadLengthM(m);
+    length += l;
+    sum += l * roadTreeSpeed(m.lined);
+  }
+  return length > 0 ? Math.round((sum / length) * 1000) / 1000 : 0;
+}
 
 /**
  * Pevné cesty pro panel výběru – cesta hráče = řetěz úseků (roads.md – Cesta pro hráče), i
@@ -2268,6 +2335,7 @@ function roadViews(
         Math.floor((day - Math.min(...members.map((m) => m.bornDay))) / DAYS_PER_YEAR),
       ),
       trees: standing.filter((t) => spots.has(t.spot) && !removed.has(t.id)).length,
+      treeSpeed: chainTreeSpeed(members),
       wetM: Math.round(
         members.reduce(
           (sum, m) => sum + (m.ground?.wet ?? []).reduce((acc, [a, b]) => acc + (b - a), 0),
@@ -2761,8 +2829,8 @@ function scenePens(
         : (summary.constructions.find((c) => c.id === building?.id)?.buildProgress ?? 0),
       // rozšíření ve stavbě – průběh plotu kolem nových čtverců
       ...extensionProgress(state, summary, pen),
-      oxen: pen.team ? 2 : 0,
-      trainees: pen.training ? 2 : 0,
+      oxen: pen.oxen?.trained ?? 0,
+      trainees: pen.oxen?.training ?? 0,
       cows,
       ...wearOf(structureCondition(wear, 'pen', day), 'condition'),
       ...(pen.built && !stocked.has(pen.id) ? { stocked: false as const } : {}),
@@ -2797,6 +2865,14 @@ export function scenePenSquares(
 function penShortOf(state: VillageState): { penShort?: HerdSpecies[] } {
   const short = herdsOverRoom(state);
   return short.length > 0 ? { penShort: short } : {};
+}
+
+/** Voli vsi pro panel ohrady volů (`VillageView.oxen`); bez ohrady volů nic. */
+function oxenViewOf(summary: VillageSummary): { oxen?: VillageOxen } {
+  if (!summary.oxen) return {};
+  const carts: Record<CartKind, number> = { 'two-wheel': 0, 'four-wheel': 0 };
+  for (const cart of summary.crafts.carts) carts[cart.kind]++;
+  return { oxen: { ...summary.oxen, carts, cartTargets: { ...summary.crafts.cartTargets } } };
 }
 
 /** Druh ohrady ve scéně – bez údaje (ukázky) se spřežením nebo výcvikem spřežení, jinak skot. */
@@ -3158,6 +3234,12 @@ function chronicle(state: VillageState, name: string): VillageView['chronicle'] 
         : {}),
       ...(event.kind === 'newcomer' ? { group: event.group, direction: event.direction } : {}),
       ...(event.kind === 'emergency-slaughter' ? { animals: event.animals } : {}),
+      ...((event.kind === 'team-ready' ||
+        event.kind === 'team-retired' ||
+        event.kind === 'ox-died') &&
+      event.oxen !== undefined
+        ? { oxen: event.oxen }
+        : {}),
       ...(event.kind === 'crafts-bought'
         ? { direction: event.direction, products: boughtProducts(event.get) }
         : {}),
@@ -3537,6 +3619,7 @@ export function buildVillageView(
     }),
     pens: penViews(state, day, summary),
     ...penShortOf(state),
+    ...oxenViewOf(summary),
     roads: roadViews(state, landscape, day, summary),
     scene: {
       ...sceneVillage(state, landscape, day, summary),
@@ -3563,13 +3646,13 @@ function purchaseViews(state: VillageState): VillagePurchase[] {
   }));
 }
 
-/** Místa stáda druhu ohrady (`VillagePen.herdPlaces`) – u spřežení null. */
+/** Místa stáda druhu ohrady (`VillagePen.herdPlaces`) – u ohrady volů null. */
 function herdPlacesOf(summary: VillageSummary, species: PenSpecies): HerdPlaces | null {
   const herd = penHerdSpecies(species);
   return herd ? { ...summary.herdPlaces[herd] } : null;
 }
 
-/** Ohrady pro panel výběru – stavba, spřežení, výcvik a zvířata v ohradě. */
+/** Ohrady pro panel výběru – stavba, voli, výcvik a zvířata v ohradě. */
 function penViews(state: VillageState, day: number, summary: VillageSummary): VillagePen[] {
   const winter = HAY_WINTER_MONTHS.includes(dateOfDayIndex(day).month);
   return summary.pens.map((pen) => {
@@ -3591,7 +3674,7 @@ function penViews(state: VillageState, day: number, summary: VillageSummary): Vi
       team: pen.team,
       training: pen.training,
       cows: winter && pen.built && pen.species === 'cattle' ? pen.animals : 0,
-      oxen: (pen.team ? 2 : 0) + (pen.training ? 2 : 0),
+      oxen: (pen.oxen?.trained ?? 0) + (pen.oxen?.training ?? 0),
       condition: structureCondition(wear, 'pen', day),
       abandoned: isAbandoned(wear),
       repair: repairProgress(summary.constructions, 'pen', pen.id),

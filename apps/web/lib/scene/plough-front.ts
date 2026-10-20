@@ -71,8 +71,13 @@ export function ploughingToday(village: Pick<SceneVillage, 'labor'>): boolean {
   return (village.labor?.shares ?? []).some((s) => s.activity === 'plough' && s.manDays > 0);
 }
 
-/** Kolik spřežení ves má – ohrady s vycvičenými voly, nejméně jedno (orba bez ohrady v datech). */
-export function ploughTeamCount(village: Pick<SceneVillage, 'pens'>): number {
+/**
+ * Kolik spřežení ves má k orbě – páry volů s rádlem doma (`SceneVillage.ploughPairs` – oxen.md,
+ * Voli po kusech); bez údaje (ukázky) ohrady s vycvičenými voly. Nejméně jedno (orba bez ohrady
+ * v datech).
+ */
+export function ploughTeamCount(village: Pick<SceneVillage, 'pens' | 'ploughPairs'>): number {
+  if (village.ploughPairs !== undefined) return Math.max(1, village.ploughPairs);
   return Math.max(1, (village.pens ?? []).filter((p) => p.oxen > 0).length);
 }
 
@@ -301,14 +306,14 @@ export function stripField(c: PloughCandidate, lo: number, hi: number): PloughFi
 }
 
 /**
- * Kde dnes orají spřežení (jedno na ohradu s voly): každé na jiném dílu dnešní fronty orby –
+ * Kde dnes orají spřežení (páry s rádlem – `ploughTeamCount`): každé na jiném dílu dnešní fronty orby –
  * první na čele, další na dílech, kam jeho dráha (i souvratě) nesahá; když takový díl není,
  * přidá se k už obsazenému dílu (dva pruhy vedle sebe, nejvýš dvě spřežení na díl). Kdo se
  * nevejde, zůstane v ohradě. Pruh dílu: u čáry práce (`frontStrip`) ve směru práce od vsi.
  * Bez orby dne žádné.
  */
 export function ploughFront(
-  village: Pick<SceneVillage, 'labor' | 'fields' | 'pens' | 'dwellings' | 'roads'>,
+  village: Pick<SceneVillage, 'labor' | 'fields' | 'pens' | 'dwellings' | 'roads' | 'ploughPairs'>,
 ): PloughAssignment[] {
   const shares = (village.labor?.shares ?? []).filter(
     (s) => s.activity === 'plough' && s.manDays > 0 && s.target.kind === 'field',

@@ -3,10 +3,11 @@
 // vozy a jejich trasy, kreslí je stejný CartRenderer (cart-renderer.ts) – vstupem je trasa
 // (lomená čára po zemi) a čas, výstupem kde je který díl.
 //
-// Kdo kde je: dva voli pod šíjovým jhem a honák vlevo s vodicím provazem (stejně jako u rádla –
-// composeDraft v plough-team.ts), za jhem vůz. Dvoukolák má oj pevně v korbě: náprava jede po
-// trase za jhem (bod trasy ve vzdálenosti oje), korba míří ke jhu a naklápí se tak, aby špička
-// oje ležela pod jhem (vyšší jho = korba vzadu níž). Čtyřkolák má předek na čepu: přední náprava
+// Kdo kde je: čtyřkolák táhnou dva voli pod šíjovým jhem, dvoukolák jeden vůl mezi ojemi oplení
+// pod jednoduchým jhem (oxen.md – Potah), honák vlevo s vodicím provazem (stejně jako u rádla –
+// composeDraft v plough-team.ts), za jhem vůz. Dvoukolák má oje pevně v korbě: náprava jede po
+// trase za jhem (bod trasy ve vzdálenosti ojí), korba míří ke jhu a naklápí se tak, aby špičky
+// ojí ležely pod jhem (vyšší jho = korba vzadu níž). Čtyřkolák má předek na čepu: přední náprava
 // jede po trase za jhem, zadní za přední (rozvor), korba leží na obou nápravách (sklon a náklon
 // podle terénu pod koly), předek se natáčí ke jhu a oj vede od špičky rozvory ke spodku jha. Kola
 // se točí podle ujeté dráhy – vnější kolo v oblouku víc než vnitřní (dráha kola = dráha osy ±
@@ -64,8 +65,12 @@ export const CART_PARTS = {
   'two-wheel': {
     /** Náboje kol od středu nápravy do stran. */
     track: 0.5762,
-    /** Špička oje (střed jejího konce) od počátku korby – na zemi pod nápravou. */
+    /**
+     * Střed mezi špičkami ojí oplení od počátku korby – na zemi pod nápravou; dvoukolák táhne
+     * jeden vůl mezi ojemi (oxen.md – Potah), oje jsou do stran o `shaftX`.
+     */
     poleTip: { z: 2.9, y: TEAM_PARTS.yokeY },
+    shaftX: 0.45,
     /** Korba od nápravy vpřed a vzad (kvůli stínu a obalu). */
     front: 0.99,
     back: 0.98,
@@ -291,7 +296,10 @@ export interface CartTrack {
 
 /** Kolo: rámec náboje (osa vpřed a nahoru se točí s kolem), pravá kola otočená o 180°. */
 export interface CartPose {
+  /** Voli – u dvoukoláku jen první (`team` 1 – oxen.md, Potah), druhý se nekreslí. */
   oxen: [FigurePose, FigurePose];
+  /** Kolik volů vůz táhne (DRAFT_OXEN – dvoukolák 1, čtyřkolák 2). */
+  team: 1 | 2;
   /** Honák (u vozu dospělý) – pole se jmenuje jako u rádla (composeDraft). */
   boy: FigurePose;
   yoke: PartFrame;
@@ -339,6 +347,7 @@ export function createCartPose(): CartPose {
     moving: true,
     hitched: true,
     loaded: true,
+    team: 2,
   };
 }
 
@@ -493,8 +502,9 @@ export function poseOnRoute(
 ): CartPose {
   out.moving = speed > 0;
   out.hitched = true;
+  out.team = cartTeam(kind);
   const yoke = routeAt(route, s, TMP_YOKE);
-  composeDraft(yoke, t, speed / TEAM_SPEED_M_S, out, ground, CART_PARTS.drover);
+  composeDraft(yoke, t, speed / TEAM_SPEED_M_S, out, ground, CART_PARTS.drover, out.team);
   if (kind === 'two-wheel') twoWheeler(route, s, out, ground);
   else fourWheeler(route, s, out, ground);
   return out;
@@ -639,6 +649,11 @@ function copyFrame(from: PartFrame, to: PartFrame): void {
   to.ux = from.ux;
   to.uy = from.uy;
   to.uz = from.uz;
+}
+
+/** Kolik volů vůz táhne (oxen.md – Potah: dvoukolák jeden, čtyřkolák pár). */
+export function cartTeam(kind: CartKind): 1 | 2 {
+  return kind === 'two-wheel' ? 1 : 2;
 }
 
 /** Počet kol vozu. */

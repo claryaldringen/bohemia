@@ -20,6 +20,7 @@ import {
   withObstacleClearing,
   withPenGrace,
   withPenSpecies,
+  withOxen,
   withPlots,
   withoutBuiltOverRuins,
   withoutForeignGoods,
@@ -86,7 +87,8 @@ async function advancedToTodayWithPauses(
  * průsek (`withRoadSwaths`) a lidem z doby před příbuzenstvím se doplní
  * pohlaví a manželé (`withKinship`) a ves přijde o zboží zvenku, které obchod už nezná
  * (`withoutForeignGoods`), ohrady uložené bez druhu ho dostanou (`withPenSpecies` – oxen.md,
- * Ohrady podle druhu) a stáda roční odklad míst ohrad od dneška (`withPenGrace`) – před dopočtem,
+ * Ohrady podle druhu), spřežení voly po kusech (`withOxen`) a stáda roční odklad míst ohrad od
+ * dneška (`withPenGrace`) – před dopočtem,
  * aby se s nimi už počítalo; pak se uloží.
  * Ves se dopočítává s vrstvou překážek a krajinou sídla (přestavby kácí stromy, polozemnice bez
  * pozemku se přestaví na volném políčku). Zbytky jam po zaniklých obydlích pod novou stavbou po
@@ -138,8 +140,9 @@ export async function updateVillage(
       ),
       today,
     );
-    // dvorec vojvody – starší ves ho dostane (nejstarší obydlí, trade.md)
-    const base = withManor(migrated);
+    // dvorec vojvody – starší ves ho dostane (nejstarší obydlí, trade.md); spřežení ohrad uložených
+    // dřív se převedou na voly po kusech (oxen.md – Voli po kusech)
+    const base = withManor(withOxen(migrated));
     // jiné vsi na téže mapě – kontroly umístění a kácení o nich vědí (migration.md); přehled se
     // neukládá
     const attached = withNeighbours(base, await neighboursOf(villages, record, today));

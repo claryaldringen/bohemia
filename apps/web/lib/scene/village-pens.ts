@@ -1,6 +1,6 @@
 // Ohrady ve vsi bez Babylonu (docs/design/oxen.md): z dat vsi pro scénu, které ohrady se
-// kreslí (čtverec, průběh stavby, branka ke vsi) a jaká zvířata v nich stojí (voli spřežení –
-// ne v den orby, když jsou na poli –, telata ve výcviku, krávy v zimě). Kde orá spřežení, určuje
+// kreslí (čtverec, průběh stavby, branka ke vsi) a jaká zvířata v nich stojí (voli – ne ti, kteří
+// dnes orají nebo táhnou vůz –, telata ve výcviku, krávy v zimě). Kde orá spřežení, určuje
 // plough-front.ts. Kreslí village-renderer.ts (pen-renderer.ts, pen-animals.ts,
 // plough-team-renderer.ts).
 import { penGateToward } from '@bohemia/game';
@@ -48,28 +48,29 @@ export function scenePenViews(village: Pick<SceneVillage, 'pens' | 'dwellings'>)
 }
 
 /**
- * Zvířata ohrad podle id: voli spřežení (v den orby jsou na poli), telata ve výcviku a krávy
- * stáda (v zimě – oxen.md). Nedostavěná ohrada žádná. `teamsOut` = kolik spřežení dnes orá
- * (plough-front.ts – `ploughFront`): voli ohrad se spřežením v pořadí id, kteří se na čelo
- * orby nevešli, zůstanou v ohradě; bez údaje jsou v den orby na poli všichni.
+ * Zvířata ohrad podle id: vycvičení voli (u rádla a vozů jsou venku), telata ve výcviku a krávy
+ * stáda (v zimě – oxen.md). Nedostavěná ohrada žádná. `oxenOut` = kolik volů je dnes venku – páry
+ * u rádel (plough-front.ts – `ploughFront`) a voli vozů (`draftTeamsToday`): odcházejí z ohrad
+ * v pořadí id, ostatní zůstanou v ohradě; bez údaje jsou v den orby na poli všichni.
  */
 export function penHerds(
   village: Pick<SceneVillage, 'pens' | 'labor'>,
-  teamsOut = ploughingToday(village) ? Infinity : 0,
+  oxenOut = ploughingToday(village) ? Infinity : 0,
 ): Map<number, PenHerd> {
   const pens = village.pens ?? [];
-  // spřežení na poli patří ohradám s voly v pořadí id (jako v plough-front.ts)
-  const away = new Set(
-    pens
-      .filter((p) => p.oxen > 0)
-      .map((p) => p.id)
-      .sort((a, b) => a - b)
-      .slice(0, teamsOut),
-  );
+  // voli venku patří ohradám v pořadí id (jako páry v plough-front.ts)
+  let out = oxenOut;
+  const away = new Map<number, number>();
+  for (const pen of [...pens].sort((a, b) => a.id - b.id)) {
+    const n = Math.min(pen.oxen, out);
+    if (n <= 0) continue;
+    away.set(pen.id, n);
+    out -= n;
+  }
   const herds = new Map<number, PenHerd>();
   for (const pen of pens) {
     if (!pen.built) continue;
-    const oxen = away.has(pen.id) ? 0 : pen.oxen;
+    const oxen = pen.oxen - (away.get(pen.id) ?? 0);
     herds.set(pen.id, { oxen, trainees: pen.trainees, cows: pen.cows });
   }
   return herds;

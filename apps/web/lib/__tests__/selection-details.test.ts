@@ -732,13 +732,14 @@ describe('selectionDetails – posvátná místa', () => {
     expect(selectionDetails(view, scene, { kind: 'sacred', id: 99 })).toBeNull();
   });
 
-  it('ohrada: zvířata, seno, stáda vsi s pastvou, spřežení a důvod, proč výcvik nejde', () => {
+  it('ohrada: zvířata, seno, stáda vsi s pastvou, voli a důvod, proč výcvik nejde', () => {
     expect(selectionDetails(view, scene, { kind: 'pen', id: 90 })).toEqual({
       kind: 'pen',
       id: 90,
       built: true,
       progress: 1,
       oxen: 2,
+      oxenVillage: null,
       cows: 4,
       herds: { sheep: 9, goat: 3, pig: 7, cow: 4 },
       chickens: 6,

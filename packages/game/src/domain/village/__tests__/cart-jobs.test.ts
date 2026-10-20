@@ -218,7 +218,9 @@ describe('přednost a spřežení (wagons.md – Co vozy vozí)', () => {
     const next = advanceVillage(s, SOW_DAY, null);
     expect(next.labor!.shares.some((share) => share.activity === 'plough')).toBe(true);
     expect(hauls(next)).toEqual([]);
-    expect(next.dwellings.find((d) => d.id === BURNER)!.workshop!.kiln!.cart).toBeUndefined();
+    // vůz nejel, ale ves si zapsala, co by vůz s vlastním volem ušetřil (wagons.md – Kolik vozů
+    // ves chce)
+    expect(next.draft!.demand!.plough[0]).toBeGreaterThan(0);
   });
 
   it('bez spřežení vůz stojí – ves jako bez vozu', () => {

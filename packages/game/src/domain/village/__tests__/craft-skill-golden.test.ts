@@ -62,6 +62,6 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
     const next = advanceVillage(village(), DAY + 730, null);
     expect(next.people.length).toBeGreaterThan(3);
     expect(next.people.some((p) => 'practice' in p)).toBe(false);
-    expect(hash(JSON.stringify(next))).toBe('10b521f1');
+    expect(hash(JSON.stringify(next))).toBe('4b528a0a');
   }, 120_000);
 });

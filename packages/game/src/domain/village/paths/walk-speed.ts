@@ -1,7 +1,7 @@
 import type { FieldPartLook } from '../field-progress';
-import { FIELD_WALK, PATH_WALK, ROAD_WALK } from '../rules';
+import { FIELD_WALK, PATH_WALK, ROAD_TREE_SPEED, ROAD_WALK } from '../rules';
 import type { PartStage } from '../summary';
-import type { RoadGrade } from '../types';
+import type { RoadGrade, RoadLining } from '../types';
 
 // Rychlost chůze proti louce (roads.md – Rychlejší chůze, paths.md – ceny buněk, fields.md –
 // Vzdálenost; Martin, 19. 10. 2026: „berme louku za výchozí: 1 vyšlapaná denní cesta 1.3 stálá
@@ -60,8 +60,22 @@ export function pathCostFactor(strength: number): number {
   return 1 - (1 - 1 / PATH_WALK.speed) * Math.min(1, Math.max(0, strength));
 }
 
-/** Rychlost chůze po pevné cestě proti louce – podle stupně a mokřiny (ROAD_WALK). */
-export function roadWalkSpeed(grade: RoadGrade, wet: boolean): number {
-  if (!wet) return ROAD_WALK.speed[grade];
+/**
+ * Rychlost chůze po pevné cestě proti louce – podle stupně a mokřiny (ROAD_WALK); mimo mokřinu
+ * i se stromy u cesty (`treeSpeed` – `roadTreeSpeed`, roads.md – Stromy u cesty zrychlí chůzi).
+ */
+export function roadWalkSpeed(grade: RoadGrade, wet: boolean, treeSpeed = 0): number {
+  if (!wet) return ROAD_WALK.speed[grade] + treeSpeed;
   return grade === 'causeway' ? ROAD_WALK.causewayWetSpeed : ROAD_WALK.wetSpeed;
+}
+
+/**
+ * O kolik stromy u cesty zrychlí chůzi i jízdu vozem po úseku (roads.md – Stromy u cesty zrychlí
+ * chůzi; Martin 20. 10. 2026): přičte se k rychlosti cesty mimo mokřinu a brod – stromy
+ * ROAD_TREE_SPEED.trees, jabloně ROAD_TREE_SPEED.apples, úměrně olemované délce (`Road.lined`).
+ * Bez olemování 0.
+ */
+export function roadTreeSpeed(lined: RoadLining | undefined): number {
+  if (!lined || (lined.trees === 0 && lined.apples === 0)) return 0;
+  return ROAD_TREE_SPEED.trees * lined.trees + ROAD_TREE_SPEED.apples * lined.apples;
 }

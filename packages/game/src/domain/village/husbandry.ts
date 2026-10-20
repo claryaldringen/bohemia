@@ -30,7 +30,14 @@ import {
   winterSlaughterDay,
   winterWaitHayKg,
 } from './livestock';
-import { OXEN, ableTeams, penDay, penOxen, oxPens, trainTeamsWhenReady, villageOxen } from './oxen';
+import {
+  closeCartYear,
+  oxenCows,
+  oxenTrainingTarget,
+  oxYearCost,
+  wantedPloughPairs,
+} from './draft';
+import { ableTeams, lastingOxen, penDay, trainTeamsWhenReady, villageOxen } from './oxen';
 import { herdRoom, homesteadRoom, penCapacity, pensLimitHerds } from './pens';
 import { walkDistancesTo } from './paths/village';
 import { villageRoadWalk } from './paths/walking';
@@ -38,9 +45,9 @@ import type { ChronicleEvent, HerdSpecies, VillageState } from './types';
 import { recordWool, woolSheep } from './wool';
 
 // Den hospodářství vsi (diet.md, oxen.md) – stáda, seno a ohrady v pevném pořadí, před plánem
-// osevu a prací dne: roční ztráty stád a seno ve stohu (každý den), ohrady (výcvik, stáří
-// spřežení, 1. 3. pokrytí sena) a 1. 3. zimní úhyn stáda, 1. 4. mláďata a konec zimy, výcvik
-// spřežení, kdykoli jde (začíná sám), 1. 6. zkažené loňské seno a plán seče (s krajinou
+// osevu a prací dne: roční ztráty stád a seno ve stohu (každý den), ohrady volů (výcvik, stáří
+// volů, 1. 3. pokrytí sena) a 1. 3. zimní úhyn stáda, 1. 4. mláďata a konec zimy, výcvik
+// volů, kdykoli jde (začíná sám), 1. 6. zkažené loňské seno a plán seče (s krajinou
 // i přirozené louky), 1. 9. zkažené maso, 1. 11. porážka a začátek zimy, v zimě seno. Mléko a vejce se jí čerstvé v kroku jídla (diet.ts),
 // dojení, péče a pasení jsou práce dne.
 
@@ -53,8 +60,8 @@ function isOn(date: CalendarDate, target: { month: number; day: number }): boole
 
 /**
  * Krávy, které ves drží vždy (diet.md – Skladba stáda; Martin 19. 10. 2026: krávy „potřebujeme
- * kvůli tažným volům“): kráva na 2 domácnosti (mléko – jako výchozí stádo) a na každou ohradu
- * spřežení tolik krav, aby šlo cvičit spřežení (OXEN.minCows – dvě telata a chovná kráva); aspoň
+ * kvůli tažným volům“): kráva na 2 domácnosti (mléko – jako výchozí stádo) a s ohradou volů tolik
+ * krav, aby šlo cvičit voly a obměňovat je (`oxenCows` – diet.md, Krávy na obměnu volů); aspoň
  * chovný pár. Krávy stojí na noc jen v ohradě skotu – bez ní jen chovný pár (oxen.md – Ohrady
  * podle druhu).
  */
@@ -62,16 +69,31 @@ export function breedingCows(state: VillageState): number {
   return Math.max(
     LIVESTOCK.breedingMin,
     householdCount(state) / LIVESTOCK.householdsPerCow,
-    oxPens(state).length * OXEN.minCows,
+    oxenCows(state),
   );
 }
 
+/** Na jak dlouho dopředu (dní) ves při porážce myslí na telata do výcviku – do dalších mláďat. */
+const CALVES_AHEAD_DAYS = 365;
+
 /**
- * Voli, kteří budou přes zimu žrát seno – ohrada spřežení bez spřežení a výcviku počítá se dvěma
- * voly (výcvik začne sám a telata seno potřebují – oxen.md).
+ * Telata, která ves potřebuje do výcviku volů (oxen.md – Voli po kusech): kolik volů chce v místech
+ * ohrad (`oxenTrainingTarget`) bez těch, se kterými počítá i za rok (`lastingOxen` – telata ve
+ * výcviku a voli mimo posledních 2 let služby; náhrada, která přijde na řadu do dalších mláďat, se
+ * počítá už teď). Ves si na ně přes zimu nechá tolik krav navíc nad chovné stádo (`farmInput` –
+ * `minCows`), aby na jaře z přírůstku byla a výcvik začal včas (diet.md – Krávy na obměnu volů).
+ */
+export function oxenCalvesWanted(state: VillageState, day: number): number {
+  return Math.max(0, oxenTrainingTarget(state) - lastingOxen(state, day + CALVES_AHEAD_DAYS));
+}
+
+/**
+ * Voli, kteří budou přes zimu žrát seno – ves počítá s voly, které cvičí a krmí
+ * (`oxenTrainingTarget` – výcvik začne sám a telata seno potřebují – oxen.md), aspoň s těmi, které
+ * má.
  */
 function hayOxen(state: VillageState): number {
-  return oxPens(state).reduce((sum, pen) => sum + Math.max(penOxen(pen), OXEN.teamSize), 0);
+  return Math.max(villageOxen(state), oxenTrainingTarget(state));
 }
 
 /**
@@ -90,14 +112,14 @@ export function winterHayNeedKg(state: VillageState, day: number, toolCoverage =
 
 /**
  * Cena jídla v práci za dnešních podmínek vsi (diet.md – Rovnovážné hospodaření) – s orbou, když
- * ves má spřežení.
+ * ves má pár volů s rádlem.
  */
 export function villageFoodCosts(
   state: VillageState,
   day: number,
   toolCoverage: number,
 ): FoodCosts {
-  return foodCosts(state, day, toolCoverage, ableTeams(state) > 0);
+  return foodCosts(state, day, toolCoverage, ableTeams(state, day) > 0);
 }
 
 /** Co ves o chovu ví (voli, krávy na mléko a voly, pasáci – výrostci, cena jídla v práci). */
@@ -115,7 +137,8 @@ function farmInput(
 } {
   return {
     oxen: villageOxen(state),
-    minCows: breedingCows(state),
+    // chovné krávy a krávy navíc na telata, která ves do výcviku volů potřebuje
+    minCows: breedingCows(state) + oxenCalvesWanted(state, day),
     minSheep: woolSheep(state, day),
     herding: herdingCoverage(state),
     costs: villageFoodCosts(state, day, toolCoverage),
@@ -211,12 +234,18 @@ export function husbandryDay(
     herdBirths(state);
     if (state.hay) delete state.hay.winter;
   }
-  // co ulehčí práci a ves to má, vesničané používají sami – spřežení se cvičí bez hráče, první
-  // vhodný den (oxen.md – Spřežení, Martin 19. 10. 2026); po mláďatech, ať jsou telata
+  // co ulehčí práci a ves to má, vesničané používají sami – voli se cvičí bez hráče, první
+  // vhodný den, kdy jich ves chce víc (oxen.md – Spřežení, Voli po kusech); po mláďatech, ať jsou
+  // telata
   trainTeamsWhenReady(
     state,
     day,
     obstacles,
+    {
+      oxen: oxenTrainingTarget(state),
+      ploughPairs: wantedPloughPairs(state),
+      breedingCows: breedingCows(state),
+    },
     landscape ? () => villageRoadWalk(state, landscape) : undefined,
   );
   if (isOn(date, MOWING_DAY)) {
@@ -256,6 +285,9 @@ export function husbandryDay(
     if (wool) events.push(wool);
     // nový rok pasení – od porážky do porážky
     delete livestock.herding;
+    // rok vozů – podle loňského provozu ves ví, kolik vozů se vyplatí (wagons.md – Kolik vozů
+    // ves chce); vůl stojí seno v práci za dnešních cen
+    closeCartYear(state, day, oxYearCost(villageFoodCosts(state, day, toolCoverage).hayPerKg));
     if (state.hay)
       state.hay.winter = { oxenNeedKg: 0, oxenEatenKg: 0, herdNeedKg: 0, herdEatenKg: 0 };
   }

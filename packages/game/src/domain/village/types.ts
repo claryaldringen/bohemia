@@ -374,6 +374,38 @@ export interface Cart {
   kind: CartKind;
   builtDay: number;
 }
+
+/**
+ * Rok provozu vozů (wagons.md – Kolik vozů ves chce): co by za rok ušetřil k-tý vůz každého
+ * druhu (čd, index 0 = první vůz) – všechno, co by vozy toho dne mohly vozit, seřazené od největší
+ * úspory, bez ohledu na to, kolik vozů ves měla. `plough` – totéž ve dny orby (dvoukoláky): ty
+ * jezdí jen s voly, kteří neorají.
+ */
+export interface CartDemand {
+  /** Den začátku roku vozů (1. 11.). */
+  from: number;
+  'two-wheel': number[];
+  'four-wheel': number[];
+  plough: number[];
+}
+
+/** Kolik volů a vozů ves chce (oxen.md – Kolik volů ves chce, wagons.md – Kolik vozů ves chce). */
+export interface DraftState {
+  /**
+   * Páry k rádlům, které ves drží (plán osevu k 1. 9., s hysterezí – `nextPloughPairs`): mění se,
+   * jen když potřeba dva roky po sobě leží nad nebo pod nimi.
+   */
+  ploughPairs?: number;
+  /** Kolik párů by loni stačilo zorat celý osev (potřeba z plánu k 1. 9. – pro hysterezi). */
+  ploughNeed?: number;
+  /** Rok vozů, který běží (od 1. 11.). */
+  demand?: CartDemand;
+  /**
+   * Uzavřený loňský rok vozů (k 1. 11.) a cena vola za rok (čd – seno přes zimu i výcvik): podle
+   * něj ves chce vozy. Chybí = ves zatím chce jen vozy, které má.
+   */
+  lastYear?: CartDemand & { oxCost: number };
+}
 /**
  * Zásoby výrobků řemeslníků (crafts.md, kg): uhlí u kováře (crafts.md – Milíř stojí vždy: co uhlíř
  * donesl z vypáleného milíře a kovář ještě nespálil, koupené; uhlí ve vypálených milířích nese
@@ -1041,12 +1073,18 @@ export type ChronicleEvent = { day: number } & (
    * všechny – potřeba by byla `needed` ovcí (diet.md – Oděv).
    */
   | { kind: 'wool-short'; sheep: number; needed: number }
-  /** Spřežení volů v ohradě je vycvičené a orá (oxen.md). */
-  | { kind: 'team-ready'; penId: number }
-  /** Spřežení dosloužilo – voli zestárli (oxen.md, ≈ 10 let), šli na maso. */
-  | { kind: 'team-retired'; penId: number }
-  /** Přes zimu chybělo přes polovinu sena – vůl uhynul, spřežení (nebo výcvik) se rozpadlo. */
-  | { kind: 'ox-died'; penId: number; training: boolean }
+  /**
+   * Voli v ohradě jsou vycvičení – táhnou rádla a vozy (oxen.md; `oxen` – kolik, chybí = pár ve
+   * vsích uložených dřív).
+   */
+  | { kind: 'team-ready'; penId: number; oxen?: number }
+  /** Voli dosloužili – zestárli (oxen.md, ≈ 10 let), šli na maso (`oxen` jako u `team-ready`). */
+  | { kind: 'team-retired'; penId: number; oxen?: number }
+  /**
+   * Přes zimu chybělo přes polovinu sena – voli (`training` – telata ve výcviku) uhynuli
+   * (`oxen` – kolik; chybí = spřežení se rozpadlo ve vsích uložených dřív).
+   */
+  | { kind: 'ox-died'; penId: number; training: boolean; oxen?: number }
   /** Sad dosloužil (60. rok) a vrátil se v louku. */
   | { kind: 'orchard-gone'; orchardId: number }
   /** Vesničané zařadili čtverce starého sadu do obnovy (orchard.md – Obnova sadu). */
@@ -1426,6 +1464,14 @@ export interface VillageState {
   hay?: HayState;
   /** Ohrady s přístřeškem (oxen.md); chybí = žádné. */
   pens?: Pen[];
+  /**
+   * Hotová rádla vsi (oxen.md – Voli po kusech): pár vycvičených volů orá, jen když má rádlo; ves
+   * staví rádlo s výcvikem nového páru k orbě. Chybí = žádné – u vsí uložených dřív jedno na každé
+   * vycvičené spřežení (`withOxen`).
+   */
+  ards?: number;
+  /** Kolik volů a vozů ves chce (oxen.md – Kolik volů ves chce, wagons.md); chybí = nic. */
+  draft?: DraftState;
   /**
    * Zbytky padlých model a svatyní (abandonment.md – Následky) – zarůstají a zmizí. Chybí =
    * žádné (i u vsí uložených před chátráním staveb).
@@ -1825,6 +1871,23 @@ export interface Road {
    * a stezka v pruhu ROAD_SWATH kolem osy. Rozdělený i spojený úsek ho zdědí; chybí = ne.
    */
   swath?: true;
+  /**
+   * Kolik délky úseku lemují stromy u cesty a jabloně (roads.md – Stromy u cesty zrychlí chůzi)
+   * – podle toho je chůze i jízda vozem po úseku rychlejší (`roadTreeSpeed`). Určí se 1. dne
+   * v měsíci (`lineRoads`); chybí = ještě neurčeno (nový úsek, starší ves – určí se hned další
+   * den).
+   */
+  lined?: RoadLining;
+}
+
+/**
+ * Olemování úseku pevné cesty (roads.md – Stromy u cesty zrychlí chůzi): podíl délky osy, který
+ * lemují stojící stromy u cesty (bez úseků s jabloněmi) a živé jabloně – po desetinách
+ * (ROAD_TREE_SPEED.steps), dohromady nejvýš 1.
+ */
+export interface RoadLining {
+  trees: number;
+  apples: number;
 }
 
 /** Tichý kus osy pevné cesty – střed kusu a roky po sobě pod polovinou prahu. */
@@ -2102,6 +2165,17 @@ export interface PenSquare {
  * a výcvik nového. Stavba a rádlo jsou stavby (`Construction.penId`). První čtverec (`cell`, `x`,
  * `z`) nese přístřešek a jesle, další čtverce jsou v `extraSquares`.
  */
+/**
+ * Vůl v ohradě volů (oxen.md – Voli po kusech): od `trainedDay` je vycvičený a táhne rádlo nebo
+ * vůz (do té doby je to tele ve výcviku – OXEN.trainingYears), slouží OXEN.serviceYears let, pak
+ * jde na maso. `weak` – slabý vůl po zimě bez dost sena (pokrytí sena k 1. 3., 0,5–1): na jaře orá
+ * jen tímto podílem své denní kapacity (oxen.md – Jen rádlo); chybí = plná síla.
+ */
+export interface Ox {
+  trainedDay: number;
+  weak?: number;
+}
+
 export interface Pen {
   id: number;
   /**
@@ -2124,13 +2198,18 @@ export interface Pen {
   /** Den dostavění; dokud se staví, null. */
   builtDay: number | null;
   /**
-   * Vycvičené spřežení (2 voli) – den, kdy začalo orat; úhyn vola ho rozpadne. `weak` – slabí
-   * voli po zimě bez dost sena (pokrytí sena k 1. 3., 0,5–1): na jaře orají jen tímto podílem své
-   * denní kapacity (oxen.md – Jen rádlo); chybí = plná síla.
+   * Voli ohrady volů po kusech (oxen.md – Voli po kusech, Martin 20. 10. 2026) – vycvičení
+   * i telata ve výcviku; jiné druhy ohrad bez údaje. Ohrady uložené dřív mají místo nich
+   * spřežení a výcvik (`team`, `training`) – převede je `withOxen`.
    */
-  team: { readyDay: number; weak?: number } | null;
-  /** Výcvik dvou telat – den zadání (spřežení za OXEN.trainingYears let a s hotovým rádlem). */
-  training: { startDay: number } | null;
+  oxen?: Ox[];
+  /**
+   * Jen ohrady uložené před voly po kusech (do převodu `withOxen`): vycvičené spřežení (2 voli) –
+   * den, kdy začalo orat, `weak` jako u vola.
+   */
+  team?: { readyDay: number; weak?: number } | null;
+  /** Jen ohrady uložené před voly po kusech: výcvik dvou telat – den zadání. */
+  training?: { startDay: number } | null;
   /** Překážky na čtverci (id z vrstvy) – zmizí se zahájením stavby. */
   obstacles?: number[];
   /** Chátrání ohrady bez zvířat, kam nikdo nechodí (abandonment.md); chybí = celá. */

@@ -11,6 +11,7 @@
 import type { Landscape } from '../landscape';
 import { tradeCarts, trailCartPassable } from './carts';
 import { charcoalStockKg, takeCharcoal } from './charcoal';
+import { addExpeditionDemand } from './draft';
 import { removePeople } from './kinship';
 import { ageGroup } from './people';
 import { startingLivestock } from './livestock';
@@ -27,7 +28,7 @@ import {
 } from './people-trade';
 import { addLogs, woodLogs } from './wood';
 import { TRADE_GOODS, neighbourOf, neighbourStock } from './neighbours';
-import { CARTS, PEOPLE_TRADE, TRADE, TRADE_GOOD_VALUES } from './rules';
+import { CARTS, CART_DEMAND, PEOPLE_TRADE, TRADE, TRADE_GOOD_VALUES } from './rules';
 import { builtTrail, trailTripDays } from './trail';
 import type {
   CartKind,
@@ -188,6 +189,24 @@ export function expeditionTransport(
 }
 
 /**
+ * Kolik práce by výpravě ušetřil k-tý čtyřkolák (čd – wagons.md, Kolik vozů ves chce): nosiči,
+ * které vůz nahradí (`expeditionTransport` s k čtyřkoláky), krát dny cesty; jen dokud vozy
+ * pomáhají (nejvýš CART_DEMAND.maxCarts).
+ */
+export function fourWheelSavings(give: TradeGoods, get: TradeGoods, days: number): number[] {
+  const out: number[] = [];
+  let porters = expeditionTransport(give, get, []).porters;
+  for (let k = 1; k <= CART_DEMAND.maxCarts['four-wheel']; k++) {
+    const carts = Array.from({ length: k }, (): CartKind => 'four-wheel');
+    const next = expeditionTransport(give, get, carts).porters;
+    if (next >= porters) break;
+    out.push((porters - next) * days);
+    porters = next;
+  }
+  return out;
+}
+
+/**
  * Lidé na jednu cestu: náklad po 25 kg na člověka (co se nevejde na vozy), dobytek žene honák na
  * 10 kusů, s každým vozem jeho posádka.
  */
@@ -294,10 +313,12 @@ export function tradeQuote(
       adultBuyPrice();
   const trail = builtTrail(state, offer.direction);
   const days = trail ? trailTripDays(trail.lengthM) : 0;
-  // vozy se spřežením, které jsou doma – náklad místo nosičů, jen po sjízdné stezce (wagons.md –
+  // vozy s voly, kteří jsou doma – náklad místo nosičů, jen po sjízdné stezce (wagons.md –
   // Obchod, axisCartCheck)
   const available =
-    trail && trailCartPassable(state, trail, landscape) ? tradeCarts(state).map((c) => c.kind) : [];
+    trail && trailCartPassable(state, trail, landscape)
+      ? tradeCarts(state, day).map((c) => c.kind)
+      : [];
   const transport = expeditionTransport(offer.give, offer.get, available);
   const porters = transport.porters;
   const quote = {
@@ -438,10 +459,14 @@ export function startExpedition(
   const sent = tradePeopleCount(givePeople) > 0;
   const fetched = tradePeopleCount(getPeople) > 0;
   const trade = tradeOf(next);
-  // vozy výpravy (s nimi jejich spřežení) jsou do návratu pryč (wagons.md – Obchod)
-  const carts = tradeCarts(state)
+  // vozy výpravy (s nimi jejich voli) jsou do návratu pryč (wagons.md – Obchod)
+  const carts = tradeCarts(state, day)
     .slice(0, quote.carts.length)
     .map((c) => c.id);
+  // co by výpravě ušetřily čtyřkoláky – do roku vozů (wagons.md – Kolik vozů ves chce)
+  if (trailCartPassable(state, trail, landscape)) {
+    addExpeditionDemand(next, day, fourWheelSavings(give, get, quote.days));
+  }
   trade.expeditions.push({
     id: trade.nextId++,
     direction: offer.direction,

@@ -422,6 +422,25 @@ export const ROAD_WALK = {
   causewayWetSpeed: 1.7,
   fordExtraM: 30,
 } as const;
+/**
+ * roads.md – Stromy u cesty zrychlí chůzi (Martin 20. 10. 2026: „Stromy u cesty musí přídat něco
+ * málo k rychlosti jak chodců tak vozů. šlo by přidat třeba 0.03? A pokud to budou jabloně,
+ * přidalo by se 0.05.“; podrobnosti návrh Clauda): úsek pevné cesty, který po celé délce lemují
+ * stromy, má rychlost chůze i jízdy vozem o `trees` vyšší (přičte se k rychlosti cesty – vyšlapaná
+ * pěšky 1,5 → 1,53, vyježděná vozem 1,6 → 1,63), s jabloněmi o `apples`; úměrně podílu délky,
+ * který lemují (jabloně, kde jsou, jinde ostatní stromy), po `steps` dílech (10 %). V mokřině
+ * a na brodu se nepřičte. Místo na strom lemuje osu na každou stranu k polovině vzdálenosti
+ * k sousednímu místu, nejvýš `reachM` – polovina největšího rozestupu míst (stromy 20 m, jabloně
+ * 10 m) + 1 m posun místa podél osy; krajní místo úseku až ke konci osy, když je konec do `endM`
+ * – rozestup + 6 m od konce, kam se stromy nesázejí, + 1 m
+ */
+export const ROAD_TREE_SPEED = {
+  trees: 0.03,
+  apples: 0.05,
+  steps: 10,
+  reachM: { trees: 11, apples: 6 },
+  endM: { trees: 27, apples: 17 },
+} as const;
 // fields.md – Založení pole (nejdál 800 m od obydlí, nejmenší výměra 0,1 ha)
 export const FIELD_LIMITS = { maxDistanceM: 800, minAreaM2: 1000 } as const;
 // fields.md – Práce (denní minimum domácností – meze: s hrnčířem 0,45); population.md – Práce
@@ -528,10 +547,36 @@ export const PEN_SQUARES = { max: 4 } as const;
  * hotový čtverec ohrady na noc – plocha uvnitř plotu ≈ 196 m² (14 × 14 m) ÷ místo na kus: ovce
  * ≈ 1,5 m², koza ≈ 2 m², prase ≈ 2,5 m², kráva ≈ 4,5 m² (malá zvířata raného středověku – kráva
  * 200–250 kg; dnešní minima ustájení: ovce 1–1,5 m², koza 1,5–2 m², kráva bez telete 3,5–5 m²
- * i s krmištěm). Místa jsou pro dospělé kusy i jarní mláďata (stádo v létě). Ohrada spřežení
- * (`team`) pojme jedno spřežení a výcvik nového – kapacitu stáda nemá.
+ * i s krmištěm). Místa jsou pro dospělé kusy i jarní mláďata (stádo v létě). Ohrada volů
+ * (`team` – oxen.md, Ohrada volů; Martin 20. 10. 2026: „Ano, udělej to jak říkáš“) pojme 6 volů na
+ * čtverec i s telaty ve výcviku – vůl ≈ 400 kg, ≈ 6 m² s jeslemi a přístřeškem (rozhodnutí Clauda:
+ * tažný vůl potřebuje víc místa než kráva a čtverec má i přístřešek, žlab a stoh).
  */
-export const PEN_PLACES_PER_SQUARE = { sheep: 130, goat: 100, pig: 80, cow: 45 } as const;
+export const PEN_PLACES_PER_SQUARE = { sheep: 130, goat: 100, pig: 80, cow: 45, team: 6 } as const;
+/**
+ * oxen.md – Spřežení, Voli po kusech (návrh Clauda, Martin schválil): výcvik ≈ 2 roky, vůl slouží
+ * ≈ 10 let, pak jde na maso; rádlo táhne pár (`teamSize`). Ves s ohradou volů drží aspoň `minCows`
+ * krávy a na obměnu volů `cowsPerOx` krávy navíc na vola (Martin 20. 10. 2026 – návrh Clauda: býčci
+ * ≈ 0,4 na krávu a rok, obměna 1/10 volů ročně → kráva na 4 voly); telata na voly jen z přírůstku
+ * nad chovnými kravami (koordinátor za Martina 20. 10. 2026). Nejvýš `maxPairs` párů k rádlům
+ * (pojistka hledání v plánu osevu).
+ */
+export const OXEN = {
+  trainingYears: 2,
+  serviceYears: 10,
+  teamSize: 2,
+  minCows: 3,
+  cowsPerOx: 0.25,
+  maxPairs: 8,
+} as const;
+/**
+ * oxen.md – Potah (Martin 20. 10. 2026: „rádlo táhnou 2 voli, 4kolový vůz také dva voli
+ * a dvoukolový vůz jeden vůl“): kolik volů táhne rádlo a vůz každého druhu.
+ */
+export const DRAFT_OXEN = { ard: 2, 'four-wheel': 2, 'two-wheel': 1 } as const satisfies Record<
+  'ard' | CartKind,
+  number
+>;
 /**
  * diet.md – Bez ohrady u domu (Martin 19. 10. 2026: „Ano, udělej to tak, jak navrhuješ“; čísla
  * návrh Clauda): bez ohrady svého druhu udrží každá domácnost u domu jen pár kusů – 2 ovce, 1 kozu
@@ -1301,6 +1346,18 @@ export const CARTS = {
   loadsPerCartDay: 8,
   tradeCrew: 2,
 } as const satisfies { loadKg: Record<CartKind, number> } & Record<string, unknown>;
+/**
+ * wagons.md – Kolik vozů ves chce (Martin 20. 10. 2026: „Ano, udělej to jak říkáš“; čísla návrh
+ * Clauda): ves si podle loňského provozu (rok vozů od 1. 11.) spočítá, kolik práce by ušetřil
+ * k-tý vůz – nejvýš `maxCarts` vozů každého druhu. Rok vozů kratší než `minDays` (ohrada volů
+ * postavená během roku, ves uložená dřív) běží do dalšího 1. 11. Úspory dne se měří, jako by vozů
+ * bylo `probeCarts`.
+ */
+export const CART_DEMAND = {
+  maxCarts: { 'two-wheel': 12, 'four-wheel': 4 },
+  minDays: 300,
+  probeCarts: 64,
+} as const satisfies { maxCarts: Record<CartKind, number> } & Record<string, unknown>;
 // wagons.md – Co vozy vozí (Martin 19. 10. 2026: „Pokud budou mít k dispozici vůz, ať na pole, pro
 // vodu nebo pro dřevěné uhlí jede vůz.“; čísla návrh Clauda): dvoukolák, který dnes nesváží úrodu,
 // seno ani klády a jehož voli neorají (ani orbu navíc – fields.md, Osev navíc), jede v pořadí:

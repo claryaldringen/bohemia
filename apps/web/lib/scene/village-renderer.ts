@@ -11,6 +11,7 @@ import type { Scene } from '@babylonjs/core/scene';
 import {
   DWELLING_FOOTPRINT_M,
   dateOfDayIndex,
+  DRAFT_OXEN,
   realTimeOf,
   rotationCosSin,
   type DwellingType,
@@ -423,11 +424,12 @@ export class VillageRenderer {
   private updatePens(village: SceneVillage): boolean {
     const pens = this.pens.update(scenePenViews(village));
     const day = this.ploughDay;
-    // voli táhnou buď vůz, nebo rádlo (wagons.md) – orba jen se spřežením, které nevozí
+    // vůl táhne buď vůz, nebo rádlo (oxen.md – Voli se sdílí) – orba jen s páry, které nevozí
     const draft = draftTeamsToday(village, ploughTeamCount(village));
     const routes = day ? splitStints(day.stints, draft.plough) : null;
     const front = routes ? [] : ploughFront(village).slice(0, draft.plough);
-    const herds = penHerds(village, (routes ? routes.length : front.length) + draft.carts);
+    const pairs = routes ? routes.length : front.length;
+    const herds = penHerds(village, pairs * DRAFT_OXEN.ard + draft.cartOxen);
     const animals = this.penAnimals.set(
       this.pens.builtPens().flatMap(({ id, layout }) => {
         const herd = herds.get(id);

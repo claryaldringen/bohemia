@@ -162,6 +162,11 @@ describe('vůz má kování (wagons.md – Kování vozů)', () => {
         training: null,
       },
     ];
+    // loňský rok vozů – dvoukolák by ušetřil 100 čd, ves ho chce (wagons.md – kolik vozů ves chce)
+    s.draft = {
+      ...s.draft,
+      lastYear: { from: DAY - 365, 'two-wheel': [100], 'four-wheel': [], plough: [], oxCost: 12 },
+    };
     s.crafts = { charcoalKg: 0, toolsKg: 20, potteryKg: 0 };
     const next = advanceVillage(s, DAY + 90, null);
     expect(next.carts).toHaveLength(1);
@@ -293,6 +298,11 @@ describe('ves bez kováře – tesař jde pro kování (wagons.md – Kování v
         training: null,
       },
     ];
+    // loňský rok vozů – dvoukolák by ušetřil 100 čd, ves ho chce (wagons.md – kolik vozů ves chce)
+    s.draft = {
+      ...s.draft,
+      lastYear: { from: DAY - 365, 'two-wheel': [100], 'four-wheel': [], plough: [], oxCost: 12 },
+    };
     const all = advanceVillage(s, DAY + 120, null);
     expect(all.carts).toHaveLength(1);
     expect(all.chronicle.some((e) => e.kind === 'iron-trip' && !e.son)).toBe(true);

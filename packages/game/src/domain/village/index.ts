@@ -14,6 +14,7 @@ export * from './plough';
 export * from './plough-blocks';
 export * from './plough-trip';
 export * from './oxen';
+export * from './draft';
 export * from './pens';
 export { breedingCows, herdPlaces, winterHayNeedKg, type HerdPlaces } from './husbandry';
 export * from './herding';
@@ -159,7 +160,6 @@ export {
   EVERYWHERE,
   cartCondition,
   cartOrigin,
-  cartTargets,
   cartsAway,
   cropCartReach,
   expeditionCartKinds,
@@ -171,11 +171,10 @@ export {
   haulProgress,
   hauledBy,
   logsCartReach,
-  missingCart,
   mowingCartReach,
   networkCartAccess,
   sowingCartReach,
-  teamsAway,
+  cartOxen,
   tradeCarts,
   trailCartPassable,
   villageCartAccess,

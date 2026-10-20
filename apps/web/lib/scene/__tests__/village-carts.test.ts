@@ -172,18 +172,24 @@ describe('vozy ve vsi (village-carts.ts)', () => {
     expect(Math.hypot(a.x - b.x, a.z - b.z)).toBeGreaterThan(2);
   });
 
-  it('voli táhnou buď vůz, nebo rádlo – v ohradě nezůstanou ani nejsou u obojího', () => {
-    // svoz a orba téhož dne: jediné spřežení jede s vozem, k rádlu žádné
+  it('vůl táhne buď vůz, nebo rádlo – v ohradě nezůstane ani není u obojího', () => {
+    // svoz a orba téhož dne, dva voli: dvoukolák táhne jeden, k rádlu pár nezbude, druhý v ohradě
     const both = village([hauling(1)], true);
     const draft = draftTeamsToday(both, 1);
-    expect(draft).toEqual({ carts: 1, plough: 0 });
-    expect(penHerds(both, draft.plough + draft.carts).get(7)?.oxen).toBe(0);
-    // dvě spřežení: jedno vozí, druhé orá
-    expect(draftTeamsToday(both, 2)).toEqual({ carts: 1, plough: 1 });
-    // vůz stojí: voli v ohradě (bez orby), orba má spřežení
+    expect(draft).toEqual({ carts: 1, cartOxen: 1, plough: 0 });
+    expect(penHerds(both, 2 * draft.plough + draft.cartOxen).get(7)?.oxen).toBe(1);
+    // tři voli: jeden u vozu, pár u rádla – v ohradě nikdo
+    const three: SceneVillage = { ...both, pens: [{ ...both.pens![0]!, oxen: 3 }] };
+    const shared = draftTeamsToday(three, 2);
+    expect(shared).toEqual({ carts: 1, cartOxen: 1, plough: 1 });
+    expect(penHerds(three, 2 * shared.plough + shared.cartOxen).get(7)?.oxen).toBe(0);
+    // čtyřkolák táhne pár
+    const four = village([{ ...hauling(1), kind: 'four-wheel' }], true);
+    expect(draftTeamsToday(four, 1)).toEqual({ carts: 1, cartOxen: 2, plough: 0 });
+    // vůz stojí: voli v ohradě (bez orby), orba má pár
     const idle = village([cart()]);
     const rest = draftTeamsToday(idle, 1);
-    expect(rest).toEqual({ carts: 0, plough: 1 });
+    expect(rest).toEqual({ carts: 0, cartOxen: 0, plough: 1 });
     expect(penHerds(idle, 0).get(7)?.oxen).toBe(2);
   });
 });

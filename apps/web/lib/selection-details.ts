@@ -38,6 +38,7 @@ import {
   type SceneVillage,
   type VillageCraftSource,
   type VillagePurchase,
+  type VillageOxen,
   type VillageRoad,
   type VillageView,
 } from './village-view';
@@ -330,7 +331,7 @@ export type SelectionDetails =
       species: PenSpecies;
       /** Čtverce ohrady (nejvýš 4). */
       squares: number;
-      /** Místa na noc pro stádo svého druhu; u spřežení 0. */
+      /** Místa na noc pro stádo svého druhu, u ohrady volů pro voly i telata. */
       places: number;
       /** Kolik zvířat v ohradě v noci stojí. */
       animals: number;
@@ -341,8 +342,13 @@ export type SelectionDetails =
       built: boolean;
       /** Průběh stavby 0–1 (hotová 1). */
       progress: number;
-      /** Voli v ohradě – spřežení i telata ve výcviku. */
+      /** Voli v ohradě – vycvičení i telata ve výcviku. */
       oxen: number;
+      /**
+       * Voli vsi a kolik jich ves chce, páry s rádlem a vozy (oxen.md – Ohrada volů, Co hráč
+       * vidí) – jen u ohrady volů, jinak null.
+       */
+      oxenVillage: VillageOxen | null;
       /** Krávy v ohradě (v zimě). */
       cows: number;
       /** Stáda vsi (kusy) a slepice u obydlí. */
@@ -353,9 +359,9 @@ export type SelectionDetails =
       grazingHa: number;
       /** Mléko stád dnes (l, v době dojení – diet.md). */
       milkLPerDay: number;
-      /** Vycvičené spřežení – stáří a kolik let ještě slouží; bez spřežení null. */
+      /** Nejstarší vycvičený vůl – stáří a kolik let ještě slouží; bez vycvičených volů null. */
       team: { ageYears: number; yearsLeft: number } | null;
-      /** Výcvik spřežení – průběh 0–1 a zbývající dny; bez výcviku null. */
+      /** Výcvik volů – tele, které se vycvičí nejdřív: průběh 0–1 a zbývající dny; jinak null. */
       training: { progress: number; daysLeft: number } | null;
       /** Zásoba sena vsi (kg). */
       hayKg: number;
@@ -379,6 +385,8 @@ export type SelectionDetails =
       ageYears: number;
       /** Stojící stromy u cesty. */
       trees: number;
+      /** O kolik stromy u cesty zrychlí chůzi i vozy (roads.md); bez stromů 0. */
+      treeSpeed: number;
       /** Mokřina na ose (m) a brody – kde se hodí hať a lávka. */
       wetM: number;
       fords: number;
@@ -873,6 +881,7 @@ function penDetails(view: VillageView | null, id: number): SelectionDetails | nu
     built: pen.built,
     progress: pen.progress,
     oxen: pen.oxen,
+    oxenVillage: pen.species === 'team' ? (view.oxen ?? null) : null,
     cows: pen.cows,
     herds: view.livestock.herds,
     chickens: view.livestock.chickens,

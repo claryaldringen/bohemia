@@ -20,6 +20,7 @@ const pen = (over: Partial<Extract<SelectionDetails, { kind: 'pen' }>> = {}): Se
   built: true,
   progress: 1,
   oxen: 2,
+  oxenVillage: null,
   cows: 4,
   herds: { sheep: 9, goat: 3, pig: 7, cow: 4 },
   chickens: 6,
@@ -56,9 +57,9 @@ describe('SelectionPanel – ohrada', () => {
     expect(text(html, 'selection-pen-animals')).toBe('4/90');
     expect(text(html, 'selection-pen-squares')).toBe('2/4');
     expect(text(html, 'selection-oxen')).toBeUndefined();
-    // ohrada spřežení ukazuje voly
-    const team = render(pen({ species: 'team', places: 0, animals: 2 }));
-    expect(team).toContain('Ohrada spřežení');
+    // ohrada volů ukazuje voly
+    const team = render(pen({ species: 'team', places: 6, animals: 2, herdPlaces: null }));
+    expect(team).toContain('Ohrada volů');
     expect(text(team, 'selection-oxen')).toBe('2');
     expect(text(team, 'selection-pen-animals')).toBeUndefined();
     expect(text(html, 'selection-hay')).toBe('3,2 t');
@@ -68,6 +69,40 @@ describe('SelectionPanel – ohrada', () => {
     // mimo dobu dojení se mléko neukazuje
     expect(text(html, 'selection-milk')).toBeUndefined();
     expect(text(render(pen({ milkLPerDay: 14.2 })), 'selection-milk')).toBe('14');
+  });
+
+  it('ohrada volů: místa / kolik volů ves chce, páry s rádlem a vozy (Martin 20. 10. 2026)', () => {
+    const oxenVillage = {
+      trained: 2,
+      training: 1,
+      places: 6,
+      wanted: 8,
+      overRoom: true,
+      ploughPairs: 2,
+      teams: 1,
+      ards: 1,
+      carts: { 'two-wheel': 2, 'four-wheel': 0 },
+      cartTargets: { 'two-wheel': 4, 'four-wheel': 0 },
+    };
+    const html = render(
+      pen({ species: 'team', places: 6, animals: 3, oxen: 3, herdPlaces: null, oxenVillage }),
+    );
+    expect(text(html, 'selection-oxen-need')).toBe('6/8');
+    expect(html).toContain('data-testid="selection-oxen-need" data-alert="true"');
+    expect(html).toContain('vycvičení 2, ve výcviku 1');
+    expect(text(html, 'selection-oxen-ploughs')).toBe('1/2');
+    expect(text(html, 'selection-oxen-carts-two-wheel')).toBe('2/4');
+    // čtyřkolák ves nemá ani nechce – neukazuje se
+    expect(text(html, 'selection-oxen-carts-four-wheel')).toBeUndefined();
+    expect(html).toContain('/icons/resources/ard.png');
+    const roomy = render(
+      pen({
+        species: 'team',
+        herdPlaces: null,
+        oxenVillage: { ...oxenVillage, places: 12, overRoom: false, teams: 2 },
+      }),
+    );
+    expect(roomy).not.toContain('data-alert');
   });
 
   it('místa všech ohrad druhu / potřeba stáda – červeně, když chybí (Martin 20. 10. 2026)', () => {

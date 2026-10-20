@@ -10,7 +10,7 @@ import { giveWayToBuilding, treeTakenLand } from '../land-taken';
 import { villageHerds } from '../livestock';
 import { obstacleChangesAt, obstacleStatus, type ObstacleChanges } from '../obstacles';
 import { villageOrchards } from '../orchard';
-import { villagePens } from '../oxen';
+import { oxPens, villagePens } from '../oxen';
 import { plotShapes } from '../plot-cells';
 import { plotSquareTile, rotationCosSin, squareCenter } from '../square-grid';
 import { ROAD_TREE_ID_BASE, roadAppleStage, roadTreeLook } from '../road-trees';
@@ -222,10 +222,12 @@ export function addRoadCartTrips(roads: VillageRoads, trips: readonly RoadCartTr
   }
 }
 
-/** Ohrady se spřežením – tam stojí vozy (wagons.md – Vůz). */
+/** Hotové ohrady volů – tam stojí vozy (wagons.md – Vůz, oxen.md – Ohrada volů). */
 export function teamPens(state: Pick<VillageState, 'pens'>): Set<number> {
   return new Set(
-    (state.pens ?? []).filter((p) => p.builtDay !== null && p.team !== null).map((p) => p.id),
+    oxPens(state)
+      .filter((p) => p.builtDay !== null)
+      .map((p) => p.id),
   );
 }
 
@@ -1391,6 +1393,8 @@ function splitRoad(roads: VillageRoads, hit: RoadHit, context: SpotContext): Roa
     road.openEnds = [road.openEnds[0], false];
   }
   road.points = first;
+  // osa se změnila – olemování stromy se určí znovu (roads.md – Stromy u cesty zrychlí chůzi)
+  delete road.lined;
   roads.roads.splice(hit.road + 1, 0, rest);
   context.split(road.id, rest.id);
   return at;
@@ -1600,6 +1604,8 @@ function joinRoads(
   }
   road.points = points.map((p) => ({ x: p.x, z: p.z }));
   road.spots = [...road.spots, ...other.spots];
+  // osa se změnila – olemování stromy se určí znovu (roads.md – Stromy u cesty zrychlí chůzi)
+  delete road.lined;
   // průsek lesem (roads.md) – spojený úsek ho má, když ho měl kterýkoli
   if (other.swath) road.swath = true;
   if (ground) road.ground = ground;
@@ -2017,6 +2023,7 @@ function joinRoadGaps(
     const { road } = gap;
     road.points = gap.atStart ? [at, ...road.points] : [...road.points, at];
     road.ground = roadGroundOf(road.points, context.terrain);
+    delete road.lined;
     joined = true;
   }
   return joined;
