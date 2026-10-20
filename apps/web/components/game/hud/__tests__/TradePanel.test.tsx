@@ -28,6 +28,7 @@ const neighbour = (over: Partial<VillageNeighbour> = {}): VillageNeighbour => ({
   },
   expedition: null,
   carts: [],
+  room: { cows: 40, oxen: 6 },
   ...over,
 });
 
@@ -73,6 +74,53 @@ describe('náhled výměny', () => {
     expect(p.blocked).toBeNull();
     expect(tradePreview(neighbour(), { grain: 10 }, { tools: 1 }).blocked).toMatch(/prodělal/);
     expect(tradePreview(neighbour(), {}, {}).blocked).toMatch(/nic/);
+  });
+});
+
+describe('dobytek ve třech druzích (trade.md; Martin 20. 10. 2026)', () => {
+  const herders = (room = { cows: 40, oxen: 3 }): VillageNeighbour =>
+    neighbour({
+      offers: [
+        { good: 'cows', price: 576, left: 2 },
+        { good: 'youngOxen', price: 336, left: 4 },
+        { good: 'trainedOxen', price: 1152, left: 1 },
+      ],
+      demands: [{ good: 'grain', price: 1, left: 5000, have: 5000 }],
+      room,
+    });
+
+  it('tři řádky – krávy, mladí voli (menší vůl) a vycvičení voli; popisek s místem v ohradě', () => {
+    const html = renderToStaticMarkup(<NeighbourTrade neighbour={herders()} />);
+    for (const good of ['cows', 'youngOxen', 'trainedOxen']) {
+      expect(html).toContain(`data-testid="trade-get-${good}"`);
+    }
+    expect(html).toContain('/icons/resources/cow.png');
+    expect(html).toContain('/icons/resources/young-ox.png');
+    expect(html).toContain('/icons/resources/ox.png');
+    expect(textOf(html, 'trade-get-youngOxen-tooltip')).toContain('Mladí voli – do výcviku');
+    expect(textOf(html, 'trade-get-trainedOxen-tooltip')).toContain('Vycvičení voli – táhnou hned');
+    expect(textOf(html, 'trade-get-cows-note')).toBe('Do ohrady skotu se vejde ještě 40 kusů');
+    expect(textOf(html, 'trade-get-youngOxen-note')).toBe(
+      'Do ohrady volů se vejde ještě 3 kusy (mladí i vycvičení)',
+    );
+    // mladých volů soused má 4, do ohrady se vejdou 3
+    expect(html).toMatch(
+      /aria-label="Mladí voli[^"]*"[^>]*max="3"|max="3"[^>]*aria-label="Mladí voli/,
+    );
+  });
+
+  it('náhled – voli se nevejdou do ohrady (mladí i vycvičení dohromady), honák bez nosičů', () => {
+    const n = herders();
+    const pay = { grain: 3000 };
+    expect(tradePreview(n, pay, { youngOxen: 2, trainedOxen: 1 }).blocked).toBeNull();
+    expect(tradePreview(n, pay, { youngOxen: 3, trainedOxen: 1 }).blocked).toMatch(
+      /do ohrady volů nevejde/,
+    );
+    expect(tradePreview(herders({ cows: 1, oxen: 3 }), pay, { cows: 2 }).blocked).toMatch(
+      /do ohrady skotu nevejde/,
+    );
+    // dobytek nese jen honák – zpátky stačí jeden člověk, tam nosiči obilí
+    expect(tradePreview(n, {}, { cows: 2 }).porters).toBe(1);
   });
 });
 

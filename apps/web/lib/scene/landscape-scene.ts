@@ -415,6 +415,8 @@ export class LandscapeScene {
       groundHeight: (x, z) => terrainMeshHeight(surface, x, z),
       baseUrl: '/models/fauna/',
       onLoaded: () => this.renderWhenReady(),
+      // dobytek karavan výprav jde v herním čase jako lidé (caravan.ts)
+      dayWindow: (day) => this.village?.gameDayWindow(day) ?? null,
     });
     // Lidé ve vsi – kde ves dnes pracuje; schůdnou zemi sdílejí se zvířaty, děti pasou stáda.
     this.villagers?.dispose();

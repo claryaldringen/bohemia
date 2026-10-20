@@ -7,6 +7,7 @@ import {
   CART_IRON,
   TRADE,
   ageYears,
+  isCattleGood,
   ironTripLine,
   neighbourOf,
   newcomerProfiles,
@@ -15,6 +16,7 @@ import {
   type Dwelling,
   type IronTrip,
   type TradeExpedition,
+  type TradeGoods,
   type VillageState,
 } from '@bohemia/game';
 import { expeditionToday } from './manor-view';
@@ -31,6 +33,16 @@ function leavingOf(e: TradeExpedition, day: number): SceneExpedition['leaving'] 
     sex: i % 2 === 0 ? 'male' : 'female',
     age: 25,
   }));
+}
+
+/** Nesou nosiči něco – zboží mimo dobytek (ten jde po svých s honákem). */
+function carries(goods: TradeGoods): boolean {
+  return Object.entries(goods).some(([g, n]) => !isCattleGood(g) && (n ?? 0) > 0);
+}
+
+/** Dobytek ve zboží – krávy a voli (mladí i vycvičení) – trade.md, Dobytek ve třech druzích. */
+function herdOf(goods: TradeGoods): { cows: number; oxen: number } {
+  return { cows: goods.cows ?? 0, oxen: (goods.youngOxen ?? 0) + (goods.trainedOxen ?? 0) };
 }
 
 /**
@@ -65,8 +77,12 @@ function tradeCaravans(state: VillageState): SceneExpedition[] {
       cartCrew: CARTS.tradeCrew,
       leaving: leavingOf(e, day),
       coming: coming.flatMap((p) => p.members.map((m) => ({ sex: m.sex, age: m.ageYears }))),
-      carriesOut: Object.values(e.give).some((n) => (n ?? 0) > 0),
-      carriesBack: Object.values(e.get).some((n) => (n ?? 0) > 0),
+      carriesOut: carries(e.give),
+      carriesBack: carries(e.get),
+      // dobytek jde po svých – prodaný tam, koupený zpátky (trade.md – Dobytek ve třech druzích)
+      ...(Object.keys({ ...e.give, ...e.get }).some(isCattleGood)
+        ? { cattle: { out: herdOf(e.give), back: herdOf(e.get) } }
+        : {}),
       progress: e.cost > 0 ? Math.min(1, Math.round((e.done / e.cost) * 1e4) / 1e4) : 1,
       rate: e.cost > 0 ? Math.round((perDay / e.cost) * 1e4) / 1e4 : 0,
       day,

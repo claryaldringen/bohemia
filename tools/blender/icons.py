@@ -41,7 +41,9 @@ a mladá bříza z modelů krajiny
 zšedlý rozštípnutý kůl s prasklinou a mechem) a abandoned (opuštěná stavba – padlý kůl
 v kopřivách z `apps/web/public/models/dwellings/decay.glb`, abandonment.md) a zvířata stád do panelu
 ohrady – sheep, goat, pig, cow, chicken
-(modely `apps/web/public/models/fauna/`) a ox (vůl ze spřežení `apps/web/public/models/plough/ox.glb`),
+(modely `apps/web/public/models/fauna/`) a ox (vůl ze spřežení `apps/web/public/models/plough/ox.glb`;
+v obchodu vycvičený vůl) a young-ox (mladý vůl do výcviku – týž vůl světlejší a menší, stojí na
+stejné zemi; trade.md – Dobytek ve třech druzích),
 ard (rádlo z `apps/web/public/models/plough/ard.glb` – páry s rádlem v panelu ohrady volů)
 a rodiny do panelu obydlí (kinship.md) – man, woman, child (chlapec a dívka), elder (starší s holí
 a šedinami; vesničané z `apps/web/public/models/people/`) a ring (bronzový prsten – manželské
@@ -2527,6 +2529,8 @@ RESOURCES = {
     "cow": lambda: icon_animal("cow"),
     "chicken": lambda: icon_animal("chicken"),
     "ox": lambda: icon_animal("ox", folder=PLOUGH),
+    # mladý vůl do výcviku (trade.md – Dobytek ve třech druzích): světlejší srst, v ikoně menší
+    "young-ox": lambda: icon_animal("ox", folder=PLOUGH, tint=(1.3, 1.18, 1.0)),
     "ard": icon_ard,
     "ozim": icon_ozim,
     "jar": icon_jar,
@@ -2569,9 +2573,20 @@ def backdrop(src, dst, size):
     os.remove(dst + ".bg.png")
 
 
-def small(src, dst, size):
-    subprocess.run(["magick", src, "-trim", "+repage", "-filter", "Lanczos", "-resize", f"{size - 6}x{size - 6}",
-                    "-background", "none", "-gravity", "center", "-extent", f"{size}x{size}", "PNG32:" + dst], check=True)
+# Ikony surovin vykreslené menší než ostatní (podíl velikosti) – stojí na stejné zemi jako plná ikona.
+SMALLER = {"young-ox": 0.72}
+
+
+def small(src, dst, size, fit=1.0):
+    if fit >= 1.0:
+        subprocess.run(["magick", src, "-trim", "+repage", "-filter", "Lanczos", "-resize", f"{size - 6}x{size - 6}",
+                        "-background", "none", "-gravity", "center", "-extent", f"{size}x{size}", "PNG32:" + dst],
+                       check=True)
+        return
+    inner = round((size - 6) * fit)
+    subprocess.run(["magick", src, "-trim", "+repage", "-filter", "Lanczos", "-resize", f"{inner}x{inner}",
+                    "-background", "none", "-gravity", "south", "-extent", f"{size}x{size - 3}",
+                    "-gravity", "north", "-extent", f"{size}x{size}", "PNG32:" + dst], check=True)
 
 
 def want(k):
@@ -2597,7 +2612,7 @@ for key, fn in RESOURCES.items():
     fn()
     raw = f"{TMP}/{key}.png"
     render(raw)
-    small(raw, f"{OUT}/resources/{key}.png", 64)
+    small(raw, f"{OUT}/resources/{key}.png", 64, SMALLER.get(key, 1.0))
     print("hotovo", key)
 if want("people"):
     pop = f"{TMP}/population.png"

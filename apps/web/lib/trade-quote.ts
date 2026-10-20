@@ -8,7 +8,9 @@ import {
   NOTHING_TO_TRADE,
   NOT_OFFERED,
   NOT_WANTED,
+  NO_COW_ROOM,
   NO_EMIGRANTS,
+  NO_OX_ROOM,
   NO_PEOPLE_OFFERED,
   NO_PEOPLE_WANTED,
   OVER_DEMAND,
@@ -63,14 +65,27 @@ const NOBODY: PreviewPeople = {
 export const EMPTY_SELECTION: TradeSelection = { give: {}, get: {}, people: NOBODY };
 
 /**
+ * Kolik kusů dobytka druhu `good` se do vsi vejde (trade.md – Dobytek ve třech druzích): krávy do
+ * ohrad skotu, voli do ohrad volů (mladí i vycvičení sdílejí místa); jiné zboží bez meze.
+ */
+function roomFor(neighbour: VillageNeighbour, good: TradeGood): number {
+  if (good === 'cows') return neighbour.room.cows;
+  if (good === 'youngOxen' || good === 'trainedOxen') return neighbour.room.oxen;
+  return Infinity;
+}
+
+/**
  * Nejvýš kolik jde se sousedem v každém řádku vyměnit: dát nejvýš, co soused letos ještě vezme
- * a co ves má (u lidí koho smí dát – výběr jádra), dostat nejvýš, co soused letos ještě má.
+ * a co ves má (u lidí koho smí dát – výběr jádra), dostat nejvýš, co soused letos ještě má
+ * a u dobytka kolik se do ohrad vejde.
  */
 export function tradeLimits(neighbour: VillageNeighbour): TradeSelection {
   const { offers, takes, have } = neighbour.people;
   return {
     give: Object.fromEntries(neighbour.demands.map((r) => [r.good, Math.min(r.left, r.have)])),
-    get: Object.fromEntries(neighbour.offers.map((r) => [r.good, r.left])),
+    get: Object.fromEntries(
+      neighbour.offers.map((r) => [r.good, Math.min(r.left, roomFor(neighbour, r.good))]),
+    ),
     people: {
       give: {
         families: Math.min(takes.families, have.families.length),
@@ -170,9 +185,19 @@ function peopleBlocked(neighbour: VillageNeighbour, people: PreviewPeople): stri
 }
 
 /**
+ * Proč se koupený dobytek do vsi nevejde (jako `cattleRoomBlocked` jádra – krávy a voli zvlášť,
+ * mladí a vycvičení voli dohromady), nebo null.
+ */
+function roomBlocked(neighbour: VillageNeighbour, get: TradeGoods): string | null {
+  if ((get.cows ?? 0) > neighbour.room.cows) return NO_COW_ROOM;
+  if ((get.youngOxen ?? 0) + (get.trainedOxen ?? 0) > neighbour.room.oxen) return NO_OX_ROOM;
+  return null;
+}
+
+/**
  * Náhled výměny se sousedem – zboží, které ves dá (`give`) a dostane (`get`), a lidé. Kontroly
  * v pořadí serveru (`tradeQuote`): výprava na cestě, prázdná výměna, lidé, sháněné zboží (soused
- * vezme, ves má), nabízené zboží (soused má), bilance pro souseda ≥ 0.
+ * vezme, ves má), nabízené zboží (soused má), místo pro koupený dobytek, bilance pro souseda ≥ 0.
  */
 export function tradePreview(
   neighbour: VillageNeighbour,
@@ -204,6 +229,8 @@ export function tradePreview(
       if (!row) return NOT_OFFERED;
       if (n > row.left) return OVER_SUPPLY;
     }
+    const room = roomBlocked(neighbour, get);
+    if (room) return room;
     if (credit + 1e-9 < price) return UNFAIR;
     return null;
   })();

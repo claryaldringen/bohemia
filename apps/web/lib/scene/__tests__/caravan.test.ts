@@ -4,7 +4,8 @@ import { sceneExpeditions } from '../../caravan-view';
 import type { SceneCart, SceneExpedition, SceneVillage } from '../../village-view';
 import { cartPlanPose, createCartPose, routeAt, type CartCaravan } from '../cart-layout';
 import { CARAVAN_GAP_M, caravanHead, caravanPlan, caravanProgress, memberSpot } from '../caravan';
-import { LIVESTOCK_EPOCH_MS } from '../livestock-motion';
+import { caravanAnimalPose, caravanHerds } from '../caravan-cattle';
+import { LIVESTOCK_EPOCH_MS, createLivestockPose, livestockClock } from '../livestock-motion';
 import { villageCartPlans } from '../village-carts';
 import { createVillagerPose } from '../villager-motion';
 import { planVillagers, type VillagerGround } from '../villager-plan';
@@ -456,5 +457,99 @@ describe('tesař pro kování jako jedna postava (wagons.md – Kování vozů)'
     const back = caravanAt(scene({ ...t, done: 1 }), at(0.5)).filter((p) => !p.hidden);
     expect(back).toHaveLength(1);
     expect(back[0]!.key).toContain(':back:');
+  });
+});
+
+describe('dobytek v karavaně (trade.md – Dobytek ve třech druzích)', () => {
+  /** Ves s jednou výpravou na cestě – prodává krávu, kupuje mladého a vycvičeného vola. */
+  const state = (): VillageState =>
+    ({
+      lastDay: 500,
+      seed: 3,
+      dwellings: [],
+      constructions: [],
+      people: [],
+      trade: {
+        nextId: 2,
+        neighbours: [],
+        expeditions: [
+          {
+            id: 1,
+            direction: 'S',
+            trailId: 40,
+            startedDay: 499,
+            give: { cows: 1, grain: 50 },
+            get: { youngOxen: 1, trainedOxen: 1 },
+            porters: 2,
+            days: 4,
+            cost: 8,
+            done: 2,
+          },
+        ],
+      },
+    }) as unknown as VillageState;
+
+  it('pohled: dobytek tam a zpátky, nosiči nesou jen zboží mimo dobytek', () => {
+    const [e] = sceneExpeditions(state());
+    expect(e!.cattle).toEqual({ out: { cows: 1, oxen: 0 }, back: { cows: 0, oxen: 2 } });
+    expect(e!.carriesOut).toBe(true);
+    expect(e!.carriesBack).toBe(false);
+    const s = state();
+    s.trade!.expeditions[0]!.give = { cows: 2 };
+    expect(sceneExpeditions(s)[0]!.carriesOut).toBe(false);
+    // výprava bez dobytka dobytek nemá
+    s.trade!.expeditions[0]!.give = { grain: 50 };
+    s.trade!.expeditions[0]!.get = { meat: 20 };
+    expect(sceneExpeditions(s)[0]!.cattle).toBeUndefined();
+  });
+
+  it('zástup: dobytek po dvou za vozy, honák za ním – zástup je o dobytek delší', () => {
+    const plain = caravanPlan(expedition({ leaving: [], coming: [] }));
+    const plan = caravanPlan(
+      expedition({
+        leaving: [],
+        coming: [],
+        cattle: { out: { cows: 3, oxen: 0 }, back: { cows: 0, oxen: 1 } },
+      }),
+    );
+    expect(plan.out.animals.map((a) => a.kind)).toEqual(['cow', 'cow', 'cow']);
+    expect(plan.out.animals.map((a) => a.behind)).toEqual([0, 0, CARAVAN_GAP_M.animal]);
+    expect(plan.out.animals[0]!.side).toBe(-plan.out.animals[1]!.side);
+    expect(plan.back.animals).toEqual([{ key: 'back:animal:0', kind: 'ox', behind: 0, side: 0 }]);
+    expect(plan.out.length).toBeCloseTo(plain.out.length + 2 * CARAVAN_GAP_M.animal, 9);
+    // první nosič (honák) jde za dobytkem
+    expect(plan.out.members[0]!.behind).toBeCloseTo(2 * CARAVAN_GAP_M.animal, 9);
+  });
+
+  it('kus dobytka jde po stezce s karavanou, za krajem mapy a druhým směrem není vidět', () => {
+    const e = expedition({
+      leaving: [],
+      coming: [],
+      cattle: { out: { cows: 1, oxen: 0 }, back: { cows: 0, oxen: 1 } },
+      progress: 0.2,
+      rate: 0,
+    });
+    const [herd] = caravanHerds({ expeditions: [e], trails: [TRAIL] });
+    expect(herd!.animals.map((a) => a.leg)).toEqual(['out', 'back']);
+    const pose = createLivestockPose();
+    const clock = livestockClock(at(0.5));
+    // tam – kráva na stezce, vůl (zpátky) ještě není vidět
+    expect(caravanAnimalPose(herd!, 0, WINDOW, clock, pose)).toBe(true);
+    expect(pose.x).toBeGreaterThan(0);
+    expect(pose.x).toBeLessThan(300);
+    expect(pose.forwardX).toBeCloseTo(1, 9);
+    expect(caravanAnimalPose(herd!, 1, WINDOW, clock, pose)).toBe(false);
+    // zpátky – vůl jde ke vsi
+    const [back] = caravanHerds({
+      expeditions: [{ ...e, progress: 0.85 }],
+      trails: [TRAIL],
+    });
+    expect(caravanAnimalPose(back!, 0, WINDOW, clock, pose)).toBe(false);
+    expect(caravanAnimalPose(back!, 1, WINDOW, clock, pose)).toBe(true);
+    expect(pose.forwardX).toBeCloseTo(-1, 9);
+    // u souseda za krajem mapy nikdo
+    const [away] = caravanHerds({ expeditions: [{ ...e, progress: 0.5 }], trails: [TRAIL] });
+    expect(caravanAnimalPose(away!, 0, WINDOW, clock, pose)).toBe(false);
+    expect(caravanAnimalPose(away!, 1, WINDOW, clock, pose)).toBe(false);
   });
 });
