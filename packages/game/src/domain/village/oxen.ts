@@ -416,34 +416,44 @@ export interface OxTraining {
 }
 
 /**
- * Výcvik volů dnes (oxen.md – Voli po kusech; česky důvod, proč nezačne): ves chce `target` volů
- * (`oxenTrainingTarget` v draft.ts – kolik jich chce, nejvýš místa ohrad volů) a počítá s telaty
- * ve výcviku a voly mimo posledních 2 let služby (`lastingOxen`); do výcviku jde tolik telat, kolik
- * chybí, kolik se jich vejde do hotových ohrad volů, kolik jich stádo krav dá (aspoň OXEN.keepCows
- * kráva zůstane) a v zimě kolik jich seno uživí do konce března. Rádlo se vyrobí, jen když s novými
- * voly vznikne pár k orbě, na který rádlo chybí (`ploughPairs` – páry, které ves chce k rádlům);
- * na rádlo musí být dřevo.
+ * Kolik volů ves chce (draft.ts – `oxenTrainingTarget`, `wantedPloughPairs`) a kolik krav drží
+ * vždy (husbandry.ts – `breedingCows`): podle toho výcvik bere telata.
+ */
+export interface OxenGoal {
+  /** Voli, které ves cvičí a krmí (nejvýš místa ohrad volů). */
+  oxen: number;
+  /** Páry k rádlům, které ves chce. */
+  ploughPairs: number;
+  /** Chovné krávy – telata na voly jen z přírůstku nad nimi. */
+  breedingCows: number;
+}
+
+/**
+ * Výcvik volů dnes (oxen.md – Voli po kusech; česky důvod, proč nezačne): ves chce `goal.oxen` volů
+ * a počítá s telaty ve výcviku a voly mimo posledních 2 let služby (`lastingOxen`); do výcviku jde
+ * tolik telat, kolik chybí, kolik se jich vejde do hotových ohrad volů, kolik jich je ve stádu krav
+ * nad chovnými kravami (`goal.breedingCows` – telata jen z přírůstku, stádo pod cíl neklesne; jinak
+ * výcvik počká na mláďata 1. 4.) a v zimě kolik jich seno uživí do konce března. Rádlo se vyrobí,
+ * jen když s novými voly vznikne pár k orbě, na který rádlo chybí (`goal.ploughPairs`); na rádlo
+ * musí být dřevo.
  */
 export function oxenTraining(
   state: VillageState,
   day: number,
-  target: number,
-  ploughPairs: number,
+  goal: OxenGoal,
   obstacles: ObstacleLayer | null,
 ): OxTraining | string {
   const built = oxPens(state).filter((pen) => pen.builtDay !== null);
   if (built.length === 0) {
     return oxPens(state).length > 0 ? 'Ohrada volů se ještě staví.' : 'Ves nemá ohradu volů.';
   }
-  const missing = target - lastingOxen(state, day);
+  const missing = goal.oxen - lastingOxen(state, day);
   if (missing <= 0) return 'Ves má dost volů.';
   const room = oxPlaces(state) - villageOxen(state);
   if (room <= 0) return 'Ohrada volů je plná.';
   const cows = state.livestock?.herds.cow ?? 0;
-  const calves = Math.floor(cows - OXEN.keepCows + EPSILON);
-  if (calves <= 0) {
-    return `Na výcvik chybí telata – stádo potřebuje aspoň ${OXEN.keepCows + 1} krávy.`;
-  }
+  const calves = Math.floor(cows - goal.breedingCows + EPSILON);
+  if (calves <= 0) return 'Na výcvik chybí telata – krávy nemají přírůstek nad chovné stádo.';
   let n = Math.min(missing, room, calves);
   const winterDays = hayWinterDaysLeft(day);
   if (winterDays > 0) {
@@ -451,7 +461,7 @@ export function oxenTraining(
     n = Math.min(n, fed - villageOxen(state));
     if (n <= 0) return 'Na výcvik chybí seno.';
   }
-  const pairs = Math.min(ploughPairs, Math.floor((villageOxen(state) + n) / DRAFT_OXEN.ard));
+  const pairs = Math.min(goal.ploughPairs, Math.floor((villageOxen(state) + n) / DRAFT_OXEN.ard));
   const ards = Math.max(0, pairs - villageArds(state) - pendingArds(state));
   if (ards > 0) {
     const pen = built[0]!;
@@ -474,11 +484,10 @@ export function trainTeamsWhenReady(
   state: VillageState,
   day: number,
   obstacles: ObstacleLayer | null,
-  target: number,
-  ploughPairs: number,
+  goal: OxenGoal,
   walk?: () => Walk,
 ): void {
-  const plan = oxenTraining(state, day, target, ploughPairs, obstacles);
+  const plan = oxenTraining(state, day, goal, obstacles);
   if (typeof plan === 'string') return;
   startTraining(state, day, plan, obstacles, plan.ards > 0 ? walk?.() : undefined);
 }

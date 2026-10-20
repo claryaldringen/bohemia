@@ -1262,10 +1262,12 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   ohrada volů (druh `team`, hráč „Ohrada volů“ / „Voli“), voli po kusech `Pen.oxen` (`Ox.trainedDay`
   – výcvik 2 roky, služba 10 let), 6 volů na čtverec (`PEN_PLACES_PER_SQUARE.team`, `oxPlaces`),
   rádla `VillageState.ards`, potah `DRAFT_OXEN` (rádlo 2, čtyřkolák 2, dvoukolák 1); páry s rádlem
-  `ableTeams` / `ploughPairsHome`, výcvik `oxenTraining` / `trainTeamsWhenReady` k cíli
-  `oxenTrainingTarget`, převod starých vsí `withOxen` (spřežení = 2 voli, výcvik = 2 telata – čtení
-  přes `oxenOf` funguje i bez převodu). `draft.ts`: páry k rádlům k 1. 9. (`DraftState.ploughPairs`
-  – nejméně párů, se kterými plán osevu vybere totéž jako bez meze orby), rok vozů
+  `ableTeams` / `ploughPairsHome`, výcvik `oxenTraining` / `trainTeamsWhenReady` k cíli `OxenGoal`
+  (`oxenTrainingTarget`, páry, telata jen nad `breedingCows`; krávy navíc na telata
+  `oxenCalvesWanted` v `minCows`), převod starých vsí `withOxen` (spřežení = 2 voli, výcvik = 2 telata – čtení
+  přes `oxenOf` funguje i bez převodu). `draft.ts`: páry k rádlům k 1. 9. (potřeba `DraftState.ploughNeed` – nejméně
+  párů, se kterými plán osevu vybere totéž jako bez meze orby; páry `ploughPairs` s hysterezí
+  `nextPloughPairs` – mění se, jen když potřeba trvá dva plány po sobě), rok vozů
   (`DraftState.demand` – každý den úspory vozů z dnešního nošení, jízd pro uhlí a vodu
   a čtyřkoláků výprav, `addCartDemand`, `addExpeditionDemand`; 1. 11. `closeCartYear` →
   `lastYear` s cenou vola `oxYearCost`), volba `chooseCarts` (úspora mínus cena vozu na 10 let

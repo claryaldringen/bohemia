@@ -3,6 +3,7 @@ import { dateOfDayIndex, dayIndexOf } from '../../calendar';
 import { foundField, foundPen, foundVillage } from '../actions';
 import { fieldPartLooks, taskPosition, taskSpans } from '../field-progress';
 import { partFoundingCost } from '../fields';
+import { breedingCows } from '../husbandry';
 import { LIVESTOCK } from '../livestock';
 import { haulCartsToday, tradeCarts } from '../carts';
 import {
@@ -20,6 +21,7 @@ import {
   villageArds,
   villageOxen,
   withOxen,
+  type OxenGoal,
   type PenInput,
 } from '../oxen';
 import { oxTrainedDay } from '../pens';
@@ -45,6 +47,12 @@ import { withBuiltFirstDwelling } from './village-fixtures';
 // Ohrada, spřežení a orba rádlem (oxen.md).
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
+/** Kolik volů a párů ves chce a kolik krav drží (telata jen nad nimi – bez údaje 1 kráva). */
+const goal = (oxen: number, ploughPairs: number, breedingCows = 1): OxenGoal => ({
+  oxen,
+  ploughPairs,
+  breedingCows,
+});
 const PEN_INPUT: PenInput = {
   species: 'team',
   squares: [
@@ -159,39 +167,51 @@ describe('ohrada', () => {
   it('výcvik začne sám (Martin 19. 10. 2026): ohrada stojí, telata ze stáda a dřevo na rádlo', () => {
     const day = at(600, 5, 1);
     const s = foundPen(village(day), day, PEN_INPUT, null);
-    expect(oxenTraining(s, day, 2, 1, null)).toMatch(/staví/);
-    s.livestock!.herds.cow = 1;
+    expect(oxenTraining(s, day, goal(2, 1), null)).toMatch(/staví/);
+    s.livestock!.herds.cow = 3;
     const built = advanceVillage(s, day + 60, null);
-    // telata chybí – ohrada čeká (aspoň jedna kráva zůstane)
+    // telata chybí – krávy nemají přírůstek nad chovné stádo (3 krávy + kráva na 4 voly), ohrada čeká
+    expect(breedingCows(built)).toBeCloseTo(3.5, 9);
     expect(built.pens![0]!.builtDay).not.toBeNull();
     expect(built.pens![0]!.oxen).toEqual([]);
-    expect(oxenTraining(built, built.lastDay, 2, 1, null)).toMatch(/telata/);
-    built.livestock!.herds.cow = 4;
+    expect(oxenTraining(built, built.lastDay, goal(2, 1, 3.5), null)).toMatch(/telata/);
+    built.livestock!.herds.cow = 5.6;
     const training = advanceVillage(built, built.lastDay + 1, null);
-    // bez hráče: pár telat do výcviku (ves chce pár k rádlu), rádlo staví ves (kláda z hromady)
-    expect(training.livestock!.herds.cow).toBeCloseTo(2, 2);
+    // bez hráče: pár telat do výcviku (ves chce pár k rádlu), rádlo staví ves (kláda z hromady);
+    // krávy pod chovné stádo neklesnou
+    expect(training.livestock!.herds.cow).toBeCloseTo(3.6, 2);
     const ready = oxTrainedDay(built.lastDay + 1);
     expect(training.pens![0]!.oxen).toEqual([{ trainedDay: ready }, { trainedDay: ready }]);
     const ard = training.constructions.find((c) => c.kind === 'ard')!;
     expect(ard.cost).toBe(ARD.laborManDays);
-    expect(oxenTraining(training, training.lastDay, 2, 1, null)).toBe('Ves má dost volů.');
+    expect(oxenTraining(training, training.lastDay, goal(2, 1), null)).toBe('Ves má dost volů.');
   });
 
-  it('když telata chybí, výcvik vezme, kolik stádo dá – další tele 1. 4. s mláďaty', () => {
+  it('telata jen z přírůstku nad chovnými kravami – stádo pod cíl neklesne, výcvik počká na jaro', () => {
+    expect(
+      oxenTraining(withOxen(withTeam(at(600, 5, 1))), at(600, 5, 1), goal(4, 1, 4), null),
+    ).toMatch(/přírůstek/);
     const day = at(600, 5, 1);
     const s = withTeam(day);
     s.pens![0]!.team = null;
-    s.livestock!.herds.cow = 2.7;
-    // jedna kráva zůstane – stádo dá jedno tele hned, druhé po mláďatech
-    const now = advanceWithHay(s, day + 1, 20_000);
-    expect(now.pens![0]!.oxen).toHaveLength(1);
+    // chovné stádo 3,5 krávy (3 + kráva na 4 voly) – 3,6 krávy přírůstek na tele nemají
+    s.livestock!.herds.cow = 3.6;
     const march = advanceWithHay(s, at(601, 3, 31), 20_000);
-    expect(march.pens![0]!.oxen).toHaveLength(1);
+    expect(march.pens![0]!.oxen).toEqual([]);
+    expect(march.livestock!.herds.cow).toBeGreaterThan(3);
+    // 1. 4. mláďata – telata z přírůstku, krávy zůstanou nad chovným stádem
     const spring = advanceWithHay(s, at(601, 4, 1), 20_000);
-    expect(spring.pens![0]!.oxen!.map((ox) => ox.trainedDay)).toEqual([
-      oxTrainedDay(day + 1),
-      oxTrainedDay(at(601, 4, 1)),
-    ]);
+    expect(spring.pens![0]!.oxen!.length).toBeGreaterThan(0);
+    expect(spring.livestock!.herds.cow).toBeGreaterThanOrEqual(breedingCows(spring) - 1e-9);
+    // přímo: z 5,5 krávy při cíli 4 jen jedno tele, ze 4,6 žádné
+    const t = withOxen(withTeam(day));
+    t.pens![0]!.oxen = [];
+    t.livestock!.herds.cow = 5.5;
+    expect(oxenTraining(t, day, goal(2, 1, 4), null)).toEqual({ calves: 1, ards: 0 });
+    trainTeamsWhenReady(t, day, null, goal(2, 1, 4));
+    expect(t.livestock!.herds.cow).toBeCloseTo(4.5, 9);
+    t.livestock!.herds.cow = 4.6;
+    expect(oxenTraining(t, day, goal(4, 1, 4), null)).toMatch(/přírůstek/);
   });
 
   it('v zimě začne výcvik, jen když seno vystačí volům i telatům do konce března', () => {
@@ -200,13 +220,13 @@ describe('ohrada', () => {
     s.pens![0]!.team = null;
     s.livestock!.herds.cow = 4;
     s.hay = { kg: 100, mowing: null };
-    expect(oxenTraining(s, day, 2, 1, null)).toBe('Na výcvik chybí seno.');
+    expect(oxenTraining(s, day, goal(2, 1), null)).toBe('Na výcvik chybí seno.');
     // 1 tele × 6 kg × (prosinec až březen – 121 dní) – jen jedno
     s.hay.kg = 6 * 121;
-    expect(oxenTraining(s, day, 2, 1, null)).toEqual({ calves: 1, ards: 0 });
+    expect(oxenTraining(s, day, goal(2, 1), null)).toEqual({ calves: 1, ards: 0 });
     s.hay.kg = 2 * 6 * 121;
-    expect(oxenTraining(s, day, 2, 1, null)).toEqual({ calves: 2, ards: 1 });
-    expect(oxenTraining(s, at(601, 4, 1), 2, 1, null)).toEqual({ calves: 2, ards: 1 });
+    expect(oxenTraining(s, day, goal(2, 1), null)).toEqual({ calves: 2, ards: 1 });
+    expect(oxenTraining(s, at(601, 4, 1), goal(2, 1), null)).toEqual({ calves: 2, ards: 1 });
   });
 
   it('dopočet po kouscích dá stejný výcvik jako jedním voláním', () => {
@@ -228,19 +248,19 @@ describe('ohrada', () => {
   it('trainTeamsWhenReady nic nezačne, když voli stačí, a cvičí tolik, kolik ves chce a vejde se', () => {
     const day = at(600, 5, 1);
     const s = withOxen(withTeam(day));
-    trainTeamsWhenReady(s, day, null, 2, 1);
+    trainTeamsWhenReady(s, day, null, goal(2, 1));
     // pár slouží – nic
     expect(s.pens![0]!.oxen).toHaveLength(2);
     expect(s.constructions.some((c) => c.kind === 'ard')).toBe(false);
     s.livestock!.herds.cow = 10;
     // ves chce 5 volů: 3 telata, rádlo jen pro nový pár k orbě (chce 2 páry)
-    trainTeamsWhenReady(s, day, null, 5, 2);
+    trainTeamsWhenReady(s, day, null, goal(5, 2));
     expect(s.pens![0]!.oxen).toHaveLength(5);
     expect(s.constructions.filter((c) => c.kind === 'ard')).toHaveLength(1);
     // 6 míst na čtverec – víc se nevejde
-    trainTeamsWhenReady(s, day, null, 12, 2);
+    trainTeamsWhenReady(s, day, null, goal(12, 2));
     expect(s.pens![0]!.oxen).toHaveLength(6);
-    expect(oxenTraining(s, day, 12, 2, null)).toBe('Ohrada volů je plná.');
+    expect(oxenTraining(s, day, goal(12, 2), null)).toBe('Ohrada volů je plná.');
     expect(s.constructions.filter((c) => c.kind === 'ard')).toHaveLength(1);
   });
 
@@ -368,22 +388,22 @@ describe('náhrada volů (Martin 18. 10. 2026)', () => {
     };
     pair(day - Math.ceil(YEAR));
     expect(lastingOxen(s, day)).toBe(2);
-    expect(oxenTraining(s, day, 2, 1, null)).toBe('Ves má dost volů.');
+    expect(oxenTraining(s, day, goal(2, 1), null)).toBe('Ves má dost volů.');
     pair(day - Math.ceil(7.9 * YEAR));
-    expect(oxenTraining(s, day, 2, 1, null)).toBe('Ves má dost volů.');
+    expect(oxenTraining(s, day, goal(2, 1), null)).toBe('Ves má dost volů.');
     pair(day - Math.ceil((OXEN.serviceYears - OXEN.trainingYears) * YEAR));
     expect(lastingOxen(s, day)).toBe(0);
     // rádlo ves má – vyrobí se jen pro nový pár navíc
-    expect(oxenTraining(s, day, 2, 1, null)).toEqual({ calves: 2, ards: 0 });
+    expect(oxenTraining(s, day, goal(2, 1), null)).toEqual({ calves: 2, ards: 0 });
     // ohrada bez volů cvičí kdykoli
     pen.oxen = [];
-    expect(oxenTraining(s, day, 2, 1, null)).toEqual({ calves: 2, ards: 0 });
+    expect(oxenTraining(s, day, goal(2, 1), null)).toEqual({ calves: 2, ards: 0 });
   });
 
   it('náhrada začne sama a naváže bez překryvu – starý pár doslouží 10 let, nový táhne týž den', () => {
     const day = at(600, 5, 1);
     const s = withTeam(day);
-    s.livestock!.herds.cow = 4;
+    s.livestock!.herds.cow = 6;
     s.hay = { kg: 30_000, mowing: null };
     // první dopočítaný den je první den, kdy náhrada smí – výcvik začne sám
     const readyDay = day + 1 - Math.ceil((OXEN.serviceYears - OXEN.trainingYears) * YEAR - 1e-9);

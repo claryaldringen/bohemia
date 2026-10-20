@@ -35,6 +35,26 @@ export function wantedPloughPairs(state: Pick<VillageState, 'pens' | 'draft'>): 
   return state.draft?.ploughPairs ?? pens;
 }
 
+/**
+ * Páry k rádlům s hysterezí (oxen.md – Kolik volů ves chce; koordinátor za Martina 20. 10. 2026:
+ * páry se nemají měnit rok od roku – rozhodnutí Clauda): `need` = kolik párů by letos stačilo
+ * zorat celý osev. Ves páry změní, jen když potřeba leží dva plány po sobě na téže straně – zvýší
+ * je na menší z obou potřeb, sníží na větší z nich; jinak drží, kolik má. Jednoletý výkyv tak
+ * nevycvičí pár ani nepostaví rádlo (výcvik trvá 2 roky, pár slouží 10) a jeden slabší rok
+ * nezastaví náhradu páru, který ves potřebuje. Bez předchozího plánu se loňská potřeba bere jako
+ * dnešní páry (pár na ohradu volů).
+ */
+export function nextPloughPairs(
+  state: Pick<VillageState, 'pens' | 'draft'>,
+  need: number,
+): { ploughPairs: number; ploughNeed: number } {
+  const current = wantedPloughPairs(state);
+  const previous = state.draft?.ploughNeed ?? current;
+  const low = Math.min(need, previous);
+  const high = Math.max(need, previous);
+  return { ploughPairs: Math.min(high, Math.max(low, current)), ploughNeed: need };
+}
+
 /** Cena vozu za rok (čd): práce tesaře a klády na CARTS.lifespanYears života vozu. */
 export function cartYearCost(kind: CartKind): number {
   const logs = CARPENTRY.cartLogs[kind] * FELLING_MAN_DAYS_PER_TREE;

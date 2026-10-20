@@ -537,17 +537,16 @@ export const PEN_PLACES_PER_SQUARE = { sheep: 130, goat: 100, pig: 80, cow: 45, 
 /**
  * oxen.md – Spřežení, Voli po kusech (návrh Clauda, Martin schválil): výcvik ≈ 2 roky, vůl slouží
  * ≈ 10 let, pak jde na maso; rádlo táhne pár (`teamSize`). Ves s ohradou volů drží aspoň `minCows`
- * krávy (pár telat do výcviku a chovná kráva – při výcviku zůstane aspoň `keepCows`) a na obměnu
- * volů `cowsPerOx` krávy navíc na vola (Martin 20. 10. 2026 – návrh Clauda: býčci ≈ 0,4 na krávu
- * a rok, obměna 1/10 volů ročně → kráva na 4 voly). Nejvýš `maxPairs` párů k rádlům (pojistka
- * hledání v plánu osevu).
+ * krávy a na obměnu volů `cowsPerOx` krávy navíc na vola (Martin 20. 10. 2026 – návrh Clauda: býčci
+ * ≈ 0,4 na krávu a rok, obměna 1/10 volů ročně → kráva na 4 voly); telata na voly jen z přírůstku
+ * nad chovnými kravami (koordinátor za Martina 20. 10. 2026). Nejvýš `maxPairs` párů k rádlům
+ * (pojistka hledání v plánu osevu).
  */
 export const OXEN = {
   trainingYears: 2,
   serviceYears: 10,
   teamSize: 2,
   minCows: 3,
-  keepCows: 1,
   cowsPerOx: 0.25,
   maxPairs: 8,
 } as const;

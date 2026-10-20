@@ -37,7 +37,7 @@ import {
   oxYearCost,
   wantedPloughPairs,
 } from './draft';
-import { ableTeams, penDay, trainTeamsWhenReady, villageOxen } from './oxen';
+import { ableTeams, lastingOxen, penDay, trainTeamsWhenReady, villageOxen } from './oxen';
 import { herdRoom, homesteadRoom, penCapacity, pensLimitHerds } from './pens';
 import { walkDistancesTo } from './paths/village';
 import { villageRoadWalk } from './paths/walking';
@@ -71,6 +71,16 @@ export function breedingCows(state: VillageState): number {
     householdCount(state) / LIVESTOCK.householdsPerCow,
     oxenCows(state),
   );
+}
+
+/**
+ * Telata, která ves potřebuje do výcviku volů (oxen.md – Voli po kusech): kolik volů chce v místech
+ * ohrad (`oxenTrainingTarget`) bez těch, se kterými už počítá (`lastingOxen` – telata ve výcviku
+ * a voli mimo posledních 2 let služby). Ves si na ně přes zimu nechá tolik krav navíc nad chovné
+ * stádo (`farmInput` – `minCows`), aby na jaře z přírůstku byla (diet.md – Krávy na obměnu volů).
+ */
+export function oxenCalvesWanted(state: VillageState, day: number): number {
+  return Math.max(0, oxenTrainingTarget(state) - lastingOxen(state, day));
 }
 
 /**
@@ -123,7 +133,8 @@ function farmInput(
 } {
   return {
     oxen: villageOxen(state),
-    minCows: breedingCows(state),
+    // chovné krávy a krávy navíc na telata, která ves do výcviku volů potřebuje
+    minCows: breedingCows(state) + oxenCalvesWanted(state, day),
     minSheep: woolSheep(state, day),
     herding: herdingCoverage(state),
     costs: villageFoodCosts(state, day, toolCoverage),
@@ -226,8 +237,11 @@ export function husbandryDay(
     state,
     day,
     obstacles,
-    oxenTrainingTarget(state),
-    wantedPloughPairs(state),
+    {
+      oxen: oxenTrainingTarget(state),
+      ploughPairs: wantedPloughPairs(state),
+      breedingCows: breedingCows(state),
+    },
     landscape ? () => villageRoadWalk(state, landscape) : undefined,
   );
   if (isOn(date, MOWING_DAY)) {

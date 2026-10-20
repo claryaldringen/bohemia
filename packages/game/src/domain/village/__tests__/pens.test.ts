@@ -5,7 +5,7 @@ import { foundPen, foundVillage } from '../actions';
 import { stockedPenIds } from '../abandonment';
 import { herdPlaces } from '../husbandry';
 import { LIVESTOCK, winterTargets } from '../livestock';
-import { PEN, oxenTraining, type PenInput } from '../oxen';
+import { PEN, oxenTraining, type OxenGoal, type PenInput } from '../oxen';
 import {
   herdRoom,
   herdsOverRoom,
@@ -360,10 +360,16 @@ describe('převod starých vsí a spřežení', () => {
     const s = village();
     s.livestock!.herds.cow = 6;
     s.pens = [pen(3, 'cattle', 1, 4)];
-    expect(oxenTraining(s, DAY, 2, 1, null)).toBe('Ves nemá ohradu volů.');
+    expect(oxenTraining(s, DAY, goal(2, 1), null)).toBe('Ves nemá ohradu volů.');
     s.pens.push(pen(4, 'team', 1, 6));
-    expect(oxenTraining(s, DAY, 2, 1, null)).toEqual({ calves: 2, ards: 1 });
+    expect(oxenTraining(s, DAY, goal(2, 1), null)).toEqual({ calves: 2, ards: 1 });
   });
+});
+
+const goal = (oxen: number, ploughPairs: number): OxenGoal => ({
+  oxen,
+  ploughPairs,
+  breedingCows: 1,
 });
 
 describe('branka ohrady o víc čtvercích (paths.md – Vchody)', () => {

@@ -211,8 +211,13 @@ a potah; „Ano, udělej to jak říkáš“). Návrh Clauda:
   a na voly se nesčítají – ves drží víc z toho, telata dají i krávy na mléko.
 - **Bez ohrady skotu krávy nejsou** (dnešní pravidlo – Místa na noc): u domů jen chovný pár krav,
   telata na voly pak chybí.
-- Pár volů ve výcviku vezme ze stáda 2 telata a aspoň jedna kráva zůstane (3 krávy na pár jako
-  dřív); voli se cvičí i po jednom (dvoukolák táhne jeden vůl), jedno tele dají 2 krávy.
+- **Telata na voly jen z přírůstku nad chovnými kravami** (koordinátor za Martina 20. 10. 2026 –
+  dřív aspoň jedna kráva zůstala a Vlkov klesl na 1,2 krávy z cíle 4): výcvik vezme jen tolik
+  telat, kolik je krav nad cílem `breedingCows`; jinak počká na mláďata 1. 4. Voli se cvičí i po
+  jednom (dvoukolák táhne jeden vůl).
+- **Krávy navíc na telata** (rozhodnutí Clauda): když ves telata do výcviku potřebuje (voli, kteří
+  jí chybí do cíle – `oxenCalvesWanted`), nechá si při porážce 1. 11. tolik krav navíc nad chovné
+  stádo (`minCows` plánu stáda), aby na jaře z přírůstku byla.
 - **Prasata jen na maso**, v lese celý rok – bez sena a zimního krmení; nosnost dál určuje les
   (1 ha na prase) a pasáci.
 - **Pořadí, v jakém si stáda berou pastvu a seno:** voli (orají), krávy na mléko a voly, ovce,

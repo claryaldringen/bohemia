@@ -4,6 +4,7 @@ import { foundVillage } from '../actions';
 import {
   addCartDemand,
   cartTargets,
+  nextPloughPairs,
   closeCartYear,
   oxenCows,
   oxenOverRoom,
@@ -12,7 +13,7 @@ import {
   wantedOxen,
   wantedPloughPairs,
 } from '../draft';
-import { breedingCows } from '../husbandry';
+import { breedingCows, oxenCalvesWanted } from '../husbandry';
 import { LIVESTOCK } from '../livestock';
 import { advanceVillage } from '../simulate';
 import { summarizeVillage } from '../summary';
@@ -134,6 +135,18 @@ describe('krávy na obměnu volů (diet.md)', () => {
     expect(oxenTrainingTarget(s)).toBe(6);
     expect(breedingCows(s)).toBeCloseTo(4.5, 9);
   });
+
+  it('telata na voly: ves si přes zimu nechá krávy navíc na telata, která do výcviku potřebuje', () => {
+    const s = withOxPen(village());
+    // pár slouží – telata netřeba
+    expect(oxenCalvesWanted(s, DAY)).toBe(0);
+    // pár je v posledních 2 letech služby – na náhradu 2 telata
+    const old = DAY - Math.ceil(8.5 * YEAR);
+    s.pens![0]!.oxen = [{ trainedDay: old }, { trainedDay: old }];
+    expect(oxenCalvesWanted(s, DAY)).toBe(2);
+    s.pens![0]!.oxen.push({ trainedDay: DAY + 300 });
+    expect(oxenCalvesWanted(s, DAY)).toBe(1);
+  });
 });
 
 describe('páry k rádlům podle plánu osevu (1. 9.)', () => {
@@ -158,8 +171,28 @@ describe('páry k rádlům podle plánu osevu (1. 9.)', () => {
       }),
     );
     const plannedBig = advanceVillage(big, at(600, 9, 2), null);
-    expect(plannedBig.draft!.ploughPairs).toBeGreaterThan(1);
-    expect(wantedOxen(plannedBig)).toBe(2 * plannedBig.draft!.ploughPairs!);
+    // potřeba víc párů – ale jen letos: ves zatím drží jeden (hystereze)
+    expect(plannedBig.draft!.ploughNeed).toBeGreaterThan(1);
+    expect(plannedBig.draft!.ploughPairs).toBe(1);
+    expect(wantedOxen(plannedBig)).toBe(2);
+  });
+
+  it('páry se mění, jen když potřeba trvá dva plány po sobě (hystereze)', () => {
+    const s = withOxPen(village());
+    // bez předchozího plánu: loňská potřeba = dnešní páry (1)
+    expect(nextPloughPairs(s, 3)).toEqual({ ploughPairs: 1, ploughNeed: 3 });
+    s.draft = { ploughPairs: 1, ploughNeed: 3 };
+    // druhý rok nad – zvýší na menší z obou potřeb
+    expect(nextPloughPairs(s, 2)).toEqual({ ploughPairs: 2, ploughNeed: 2 });
+    // jednoletý výkyv dolů páry nezmění
+    s.draft = { ploughPairs: 2, ploughNeed: 2 };
+    expect(nextPloughPairs(s, 1)).toEqual({ ploughPairs: 2, ploughNeed: 1 });
+    // druhý rok dolů – sníží na větší z obou
+    s.draft = { ploughPairs: 2, ploughNeed: 1 };
+    expect(nextPloughPairs(s, 1)).toEqual({ ploughPairs: 1, ploughNeed: 1 });
+    // střídání nahoru a dolů páry drží
+    s.draft = { ploughPairs: 2, ploughNeed: 3 };
+    expect(nextPloughPairs(s, 1)).toEqual({ ploughPairs: 2, ploughNeed: 1 });
   });
 });
 

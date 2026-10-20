@@ -145,8 +145,10 @@ Co níž není výslovně Martinovo, je návrh Clauda.
   dřevěné nářadí od tesaře – dřív se stavělo s každým novým spřežením).
 - **Výcvik začne sám** (`trainTeamsWhenReady`, `oxenTraining`), když ves chce víc volů, než má ve
   výcviku a mimo posledních 2 let služby (náhrada naváže, když starý vůl doslouží – Martin, 18. 10. 2026), a je pro ně místo v hotových ohradách volů. Do výcviku jde tolik telat, kolik
-  chybí, kolik se vejde, kolik dá stádo krav (aspoň jedna kráva zůstane – pár telat ze 3 krav
-  jako dřív, jedno tele ze 2) a v zimě kolik jich seno uživí do konce března; na rádlo musí být
+  chybí, kolik se vejde, kolik je ve stádu krav **nad chovnými kravami** (telata jen z přírůstku –
+  stádo krav pod cíl `breedingCows` neklesne, jinak výcvik počká na mláďata 1. 4.; koordinátor za
+  Martina 20. 10. 2026 – dřív zůstala aspoň jedna kráva a Vlkov tak klesl na 1,2 krávy z cíle 4)
+  a v zimě kolik jich seno uživí do konce března; na rádlo musí být
   dřevo. Telata jdou do ohrad s volným místem v pořadí id.
 - **Konec zimy (1. 3.):** když voli dostali pod polovinu přídělu sena, uhyne jich tolik, aby
   ostatní měli polovinu – nejdřív nejmladší (telata ve výcviku hladovějí první); přeživší jsou
@@ -167,8 +169,18 @@ volů (`draft.ts`).
 
 - **Páry k rádlům:** tolik, aby voli zorali celý osev v oknech orby. K 1. 9. plán osevu zkusí 1,
   2, … párů (kapacita páru jako dřív spřežení – 0,3 ha za den, délka brázdy a cesta k bloku)
-  a vezme nejméně párů, se kterými vybere totéž jako bez meze orby (`DraftState.ploughPairs`,
-  nejvýš 8). Do prvního plánu pár na každou ohradu volů. Co páry nezorají, se dál nezaseje.
+  a nejméně párů, se kterými vybere totéž jako bez meze orby, je **potřeba** toho roku
+  (`DraftState.ploughNeed`, nejvýš 8). Do prvního plánu pár na každou ohradu volů. Co páry
+  nezorají, se dál nezaseje.
+- **Páry se nemění rok od roku** (koordinátor za Martina 20. 10. 2026: pár, který ves vycvičila,
+  drží do konce služby, nový pár a rádlo jen když potřeba trvá; hystereze – rozhodnutí Clauda,
+  `nextPloughPairs`): ves páry k rádlům (`DraftState.ploughPairs`) změní, jen když potřeba leží
+  **dva plány po sobě** na téže straně – zvýší je na menší z obou potřeb, sníží na větší z nich;
+  jinak drží, kolik má. Proč dva roky a ne „nejvyšší potřeba za 2 roky“: maximum by pár drželo
+  déle, ale jednoletý výkyv nahoru by výcvik a rádlo stejně spustil (Vlkov: potřeba 2 v roce 800,
+  1 v roce 801). Výcvik trvá 2 roky a pár slouží 10 – vyplatí se jen trvalá potřeba; slabší rok
+  zase nezastaví náhradu páru, který ves potřebuje. Pár, který už ves má, slouží do konce služby
+  vždy (voli se nikdy neporážejí dřív).
 - **Voli vozů:** vozy, které se ves rozhodla mít ([vozy](wagons.md) – Kolik vozů ves chce),
   naráz – dvoukolák 1, čtyřkolák 2 voli.
 - **Voli se sdílí:** orba (podzim, jaro) a svoz (léto) se nepřekrývají – ves chce **víc z toho**
@@ -180,7 +192,9 @@ volů (`draft.ts`).
   ty, které se v místech vyplatí nejvíc) nebo méně párů (orá pomaleji). Cvičí a krmí jen tolik
   volů, kolik se vejde (`oxenTrainingTarget`).
 - **Krávy na obměnu volů** ([strava](diet.md) – Krávy na obměnu volů): 3 krávy a kráva navíc na
-  každé 4 voly, které ves cvičí a krmí.
+  každé 4 voly, které ves cvičí a krmí; telata na voly jen z přírůstku nad nimi. Když ves telata do
+  výcviku potřebuje (`oxenCalvesWanted` – voli, kteří jí chybí do cíle), nechá si při porážce
+  1. 11. tolik krav navíc nad chovné stádo, aby na jaře z přírůstku byla.
 - **Seno:** seč 1. 6. počítá s voly, které ves cvičí a krmí, aspoň s těmi, které má.
 - **Panel ohrady volů:** voli v ohradě, místa / kolik volů ves chce (červeně, když chybí;
   v popisku vycvičení a ve výcviku – jako `herdPlaces` u stád), páry s rádlem / páry k orbě
@@ -624,7 +638,10 @@ a nechávalo za sebou brázdu. Tak budu moci určit, jak se to chová.“ – **
 | Ohrada volů, voli po kusech (den vycvičení, služba 10 let), 6 volů na čtverec i s telaty, potah 2 / 2 / 1                                                                                                                                                                                                                                      | návrh Clauda, Martin („Ano, udělej to jak říkáš“)          |
 | Páry k rádlům podle plánu osevu k 1. 9. (nejméně párů, se kterými plán vybere totéž jako bez meze orby)                                                                                                                                                                                                                                        | návrh Clauda, Martin schválil                              |
 | Voli se sdílí – víc z párů a volů vozů, ne součet; ve dny orby páry napřed; strop místa, upozornění                                                                                                                                                                                                                                            | návrh Clauda, Martin schválil                              |
-| Kráva navíc na 4 voly; výcvik i po jednom volovi, jedna kráva zůstane; rádlo jen pro nový pár k orbě                                                                                                                                                                                                                                           | návrh Clauda, Martin schválil                              |
+| Kráva navíc na 4 voly; výcvik i po jednom volovi; rádlo jen pro nový pár k orbě                                                                                                                                                                                                                                                                | návrh Clauda, Martin schválil                              |
 | Rádlo se neopotřebí; převod: spřežení = 2 voli, výcvik = 2 telata, rádlo za ohradu, rozestavěné rádlo se zruší                                                                                                                                                                                                                                 | rozhodnutí Clauda                                          |
 | Zima bez sena: uhyne tolik volů, aby zbylí měli polovinu, nejdřív telata; uhynulí na maso nejdou                                                                                                                                                                                                                                               | rozhodnutí Clauda                                          |
 | 6 m² na vola (≈ 400 kg) s jeslemi a přístřeškem; vůl navíc na vůz ve dny orby, když se vyplatí                                                                                                                                                                                                                                                 | rozhodnutí Clauda                                          |
+| Telata na voly jen z přírůstku nad chovnými kravami (stádo pod cíl neklesne, výcvik počká na jaro)                                                                                                                                                                                                                                             | koordinátor za Martina (20. 10. 2026)                      |
+| Páry k rádlům s hysterezí – mění se, jen když potřeba trvá dva plány po sobě                                                                                                                                                                                                                                                                   | koordinátor za Martina, hystereze rozhodnutí Clauda        |
+| Krávy navíc přes zimu na telata, která ves do výcviku potřebuje                                                                                                                                                                                                                                                                                | rozhodnutí Clauda                                          |

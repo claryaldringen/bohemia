@@ -28,7 +28,7 @@ import {
   type CartAccess,
   type HaulPlan,
 } from './carts';
-import { addCartDemand } from './draft';
+import { addCartDemand, nextPloughPairs } from './draft';
 import {
   kilnCartDrive,
   kilnCartOffer,
@@ -442,12 +442,11 @@ function planYear(
     flaxSpareKg: Math.max(0, targets.leftKg - targets.bufferKg),
   };
   let crops = chooseCrops(blocks, choice);
-  // páry k rádlům, které ves chce (oxen.md – Kolik volů ves chce) – podle nich cvičí voly
+  // páry k rádlům, které ves chce (oxen.md – Kolik volů ves chce) – podle nich cvičí voly; mění
+  // se, jen když potřeba trvá dva roky (`nextPloughPairs`)
   if (oxPens(state).length > 0) {
-    state.draft = {
-      ...state.draft,
-      ploughPairs: wantedPloughPairsOf(state, day, coverage, landscape, blocks, choice),
-    };
+    const need = wantedPloughPairsOf(state, day, coverage, landscape, blocks, choice);
+    state.draft = { ...state.draft, ...nextPloughPairs(state, need) };
   }
   // nouzový osev (fields.md – Přílohová soustava, Nouzový osev): když díly od 70 % nedají energii,
   // kterou ves potřebuje sklidit, vezme i přílohy 40–70 % – za ostatními díly, jen s kladnou
