@@ -44,18 +44,20 @@ Výstup wagons.glb – díly (uzly), každý s vlastním počátkem, jeden mater
                  scéna ji natáčí od špičky rozvory (HOUNDS_TIP) ke spodku jha
   wagon-wheel    kolo (levé – náboj ven v +X), počátek ve středu náboje, osa X; pravé kolo je
                  totéž otočené o 180° kolem svislice
-  wagon2-hay, wagon2-sheaves, wagon2-logs, wagon2-goods, wagon2-water   náklad dvoukoláku
-                 (počátek jako korba)
-  wagon4-hay, wagon4-sheaves, wagon4-logs, wagon4-goods, wagon4-water   náklad čtyřkoláku
+  wagon2-hay, wagon2-sheaves, wagon2-logs, wagon2-goods, wagon2-water, wagon2-ore   náklad
+                 dvoukoláku (počátek jako korba)
+  wagon4-hay, wagon4-sheaves, wagon4-logs, wagon4-goods, wagon4-water, wagon4-ore   náklad
+                 čtyřkoláku
     hay      kupa sena přes korbu s pavuzou (žerď přes kupu přivázaná vpředu a vzadu)
     sheaves  snopy napříč v řadách, klasy dovnitř, po vrstvách
     logs     klády podél, v pyramidě, přes ně řetěz z provazu; přečnívají dozadu
     goods    pytle, soudek a balík kožešin (zboží obchodní výpravy)
     water    stojící sudy na vodu s víkem a čepem, převázané provazem (voda v sudech)
+    ore      nízká hromada rezavých hrud bahenní rudy z rudiště (crafts.md – Uhlí a ruda kováře)
 
 Atlas: výřez textury vozu (wooden_wagon.png celá), seno a sláma (iber_struct.png – výřez slámy,
 seno přebarvené do zelena), kůra a čelo klády (atlas řemesel), pytlovina, kožešina a provaz
-(procedurálně).
+a rezavá bahenní ruda (procedurálně).
 """
 import json
 import math
@@ -93,6 +95,7 @@ REGIONS = {
     "cloth": {"x0": 340, "x1": 468, "r0": 308, "r1": 436},
     "rope": {"x0": 4, "x1": 260, "r0": 388, "r1": 404},
     "fur": {"x0": 4, "x1": 132, "r0": 412, "r1": 508},
+    "ore": {"x0": 276, "x1": 404, "r0": 452, "r1": 500},
 }
 # výřezy textury vozu (px 256 × 256, řádky shora) – oj, soudek, kování
 WAGON_SUB = {
@@ -193,6 +196,15 @@ def build_atlas():
     tone = value_noise(96, 128, 24, 7)
     fur = np.array([0.36, 0.25, 0.15], np.float32) * (0.7 + 0.3 * hair[..., None]) * (0.75 + 0.45 * tone[..., None])
     put("fur", fur)
+    # bahenní ruda: rezavé až okrové hroudy, tmavé spáry mezi nimi (crafts.md – Uhlí a ruda kováře)
+    lumps = value_noise(48, 128, 5, 21)
+    tone = value_noise(48, 128, 16, 23)
+    ochre = value_noise(48, 128, 9, 29)
+    crev = np.clip((lumps - 0.32) * 3.0, 0, 1)[..., None]
+    rust = np.array([0.40, 0.19, 0.08], np.float32) * (1 - 0.45 * ochre[..., None]) + np.array(
+        [0.55, 0.36, 0.14], np.float32
+    ) * (0.45 * ochre[..., None])
+    put("ore", np.clip(rust * (0.45 + 0.7 * crev) * (0.8 + 0.4 * tone[..., None]), 0, 1))
 
     im = bpy.data.images.new("wagon-atlas", W, H, alpha=False)
     rgba = np.concatenate([np.clip(atlas[::-1], 0, 1), np.ones((H, W, 1), np.float32)], axis=2)
@@ -869,6 +881,40 @@ def water_load(b, front, back, half_w, floor, big=False):
             b.rod([F(f, z, sign * r), F(f + 0.04 * sign, z + 0.05, sign * edge)], [0.012, 0.012], "rope", sides=5, caps=None)
 
 
+def ore_load(b, front, back, half_w, floor, big=False):
+    """Bahenní ruda z rudiště (crafts.md – Uhlí a ruda kováře; CARTS.loadKg): hrbolatá hromada
+    rezavých hrud v korbě nad bočnice (stylizovaně vyšší – 400 kg rudy je jen ≈ 0,2–0,3 m³)
+    a navrchu volné hroudy."""
+    ni, nj = 20, 12
+    length = front + back - 0.1
+    w = half_w - 0.02
+    h = 0.42 if big else 0.38
+
+    def shape(u, phi):
+        f = max(0.0, 1 - abs(u) ** 2.2) ** (1 / 2.2)
+        r_side = math.sin(phi) ** 0.8
+        x = math.cos(phi) * w * (0.8 + 0.2 * f)
+        bump = 0.12 * math.sin(9 * u + 4 * phi) + 0.09 * math.sin(17 * u - 7 * phi + 1) + 0.07 * math.sin(31 * u + 13 * phi + 2)
+        y = back - 0.05 - (u + 1) / 2 * length
+        return Vector((x, y, floor - 0.01 + h * f * r_side * (1 + bump)))
+
+    grid = []
+    for i in range(ni + 1):
+        u = -1 + 2 * i / ni
+        grid.append([shape(u, math.pi * j / nj) for j in range(nj + 1)])
+    b.surface(grid, "ore")
+    # volné hroudy na hromadě
+    count = 34 if big else 26
+    for k in range(count):
+        u = -0.85 + 1.7 * seeded(k * 3 + 1)
+        phi = math.pi * (0.15 + 0.7 * seeded(k * 3 + 2))
+        p = shape(u, phi)
+        r = 0.045 + 0.04 * seeded(k * 3 + 3)
+        a = 2 * math.pi * seeded(k * 5 + 7)
+        d = Vector((math.cos(a), math.sin(a), 0.25)) * r * 0.8
+        b.rod([p - d, p + d], [r, r * 0.75], "ore", sides=6, caps="ore", squash=0.7)
+
+
 def cargo(prefix, bed, big):
     front, back = bed["bed_front"], bed["bed_back"]
     hw, floor = bed["half_w"], bed["floor"]
@@ -890,6 +936,9 @@ def cargo(prefix, bed, big):
     out.append(b)
     b = Builder(f"{prefix}-water")
     water_load(b, front, back, hw, floor, big)
+    out.append(b)
+    b = Builder(f"{prefix}-ore")
+    ore_load(b, front, back, hw, floor, big)
     out.append(b)
     return out
 
@@ -952,7 +1001,7 @@ def render_preview(objs, bed2, bed4, render_dir):
 
     for o in objs:
         o.hide_render = True
-    loads = [None, "hay", "sheaves", "logs", "goods", "water"]
+    loads = [None, "hay", "sheaves", "logs", "goods", "water", "ore"]
     for k, load in enumerate(loads):
         o2 = Vector((k * 3.0, 0, 0))
         place("wagon2-body", o2)
@@ -985,6 +1034,7 @@ def render_preview(objs, bed2, bed4, render_dir):
         ("wagon4-close.png", Vector((12.5, 2.0, 3.6)), Vector((9.0, 6.8, 0.8)), 32),
         ("wagons-top.png", Vector((6.0, 3.5, 22.0)), Vector((6.0, 3.5, 0.0)), 30),
         ("water-close.png", Vector((19.5, -4.0, 3.4)), Vector((15.0, 3.0, 0.8)), 28),
+        ("ore-close.png", Vector((22.5, -4.0, 3.4)), Vector((18.0, 3.0, 0.8)), 28),
     ):
         cam.location = loc
         cam.rotation_euler = (target - loc).to_track_quat("-Z", "Y").to_euler()

@@ -19,11 +19,12 @@ a náklad obou vozů. Úpravy:
   chomoutem a železná pouzdra ojí) a místo něj je **vlastní oj** ke šíjovému jhu volů
   (tools/blender/plough.py),
 - **náklad je vlastní model** (seno s pavuzou, snopy, klády, pytle, soudky a balík kožešin,
-  sudy na vodu).
+  sudy na vodu, hromada bahenní rudy).
 
 Textura je atlas 512 × 512 px: celá textura vozu, výřez slámy z textury iberských staveb (seno
 přebarvené do olivova), kůra a čela klád z atlasu řemesel (`../crafts/LICENSES.md`, textury
-`celt_struct.dds` a `celt_struct_1.dds` z 0 A.D.); pytlovina, kožešina a provaz jsou procedurální.
+`celt_struct.dds` a `celt_struct_1.dds` z 0 A.D.); pytlovina, kožešina, provaz a ruda jsou
+procedurální.
 
 | Část                                | Původní soubor (`art/`)                                                                                     |
 | ----------------------------------- | ----------------------------------------------------------------------------------------------------------- |

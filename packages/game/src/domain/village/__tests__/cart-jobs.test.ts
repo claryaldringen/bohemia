@@ -9,11 +9,10 @@ import {
   waterCartDrive,
   waterCartPlan,
 } from '../cart-jobs';
-import { homeKilnCenter } from '../charcoal';
-import { newWorkshop, workCrafts, type WorkshopDay } from '../crafts';
+import { newWorkshop } from '../crafts';
 import { householdWater } from '../labor';
-import { NO_CRAFTS } from '../productivity';
-import { CART_JOBS, CHARCOAL_KILN, CRAFT_BASE, WATER_FETCHING } from '../rules';
+import { CART_JOBS, CHARCOAL_KILN, CRAFT_BASE, SMITH_SUPPLY, WATER_FETCHING } from '../rules';
+import { basketManDaysPerKg } from '../smith-supply';
 import { advanceVillage } from '../simulate';
 import type { Craft, FieldPart, LaborShare, Person, Position, VillageState } from '../types';
 import { createCropWork } from '../year-plan';
@@ -133,36 +132,48 @@ describe('uhlí z milíře ke kováři (wagons.md – Co vozy vozí, crafts.md �
     expect(next.crafts!.charcoalKg).toBeGreaterThan(0);
   });
 
-  it('rozebírání milíře vozem je levnější – odnos v koších nahradí jízdy', () => {
-    const run = (cart: boolean): WorkshopDay => {
+  it('uhlí přiveze sedlák z práce vsi – kovář nenosí, uhlíř jen vytahá', () => {
+    const run = (cart: boolean): VillageState => {
       const s = withCharcoal(village());
-      const dwelling = s.dwellings.find((d) => d.id === BURNER)!;
-      const drive = kilnCartDrive(
-        s,
-        homeKilnCenter(dwelling.position),
-        villageCartDrives(s, DAY + 1, null, null)!,
-      );
-      const offer = kilnCartOffer(drive, 1)!;
-      const carts = cart ? new Map([[BURNER, offer]]) : new Map();
-      const days = workCrafts(s, DAY + 1, null, NO_CRAFTS, 1, undefined, null, carts);
-      return days.find((w) => w.dwellingId === BURNER)!;
+      if (!cart) delete s.carts;
+      return advanceVillage(s, DAY + 1, null);
     };
-    const without = run(false);
     const withCart = run(true);
-    const perKg = (w: WorkshopDay): number => (w.making + (w.cart?.manDays ?? 0)) / w.producedKg;
-    expect(without.cart).toBeUndefined();
-    expect(withCart.cart!.kg).toBeCloseTo(withCart.producedKg, 9);
-    expect(withCart.producedKg).toBeGreaterThan(without.producedKg);
-    expect(perKg(withCart)).toBeLessThan(perKg(without) * 0.85);
-    // bez vozu jako dřív – 2 čd na 120 kg
-    expect(perKg(without)).toBeCloseTo(CHARCOAL_KILN.drawManDaysPerTree / 120, 9);
+    const without = run(false);
+    const shares = (s: VillageState): LaborShare[] => s.labor?.shares ?? [];
+    const haul = hauls(withCart).find((share) => share.job === 'charcoal')!;
+    // sedlák z práce vsi – před úlohami dne (DayAllocation.carting)
+    expect(haul.carts).toBe(1);
+    expect(haul.target).toMatchObject({ kind: 'kiln', id: BURNER });
+    // s vozem nikdo z kovárny nenosí, bez vozu nosí kovář (syny nemá) – víc práce než sedlák
+    expect(shares(withCart).some((share) => share.activity === 'fetch')).toBe(false);
+    const fetch = shares(without).find((share) => share.activity === 'fetch')!;
+    expect(fetch.target).toMatchObject({ kind: 'kiln', id: BURNER, from: SMITH });
+    expect(fetch.manDays).toBeGreaterThan(haul.manDays);
+    // uhlí dorazí stejně (u kováře + spálené v nástrojích – bez opotřebení nástrojů dne)
+    const charcoal = (s: VillageState): number => s.crafts!.charcoalKg + s.crafts!.toolsKg * 50;
+    expect(charcoal(withCart)).toBeCloseTo(charcoal(without), 2);
+    // uhlíř vytahá a vytřídí stejně – s vozem i bez něj (odnos dělá kovárna nebo vůz)
+    const burner = (s: VillageState): number =>
+      shares(s).find(
+        (share) =>
+          share.activity === 'craft' &&
+          share.target.kind === 'dwelling' &&
+          share.target.id === BURNER,
+      )?.manDays ?? 0;
+    expect(burner(withCart)).toBeCloseTo(burner(without), 6);
   });
 
-  it('vůz se nevezme, když jízda stojí víc než odnos v koších', () => {
-    const far = { costM: 10_000, x: 0, z: 0 };
-    expect(kilnCartOffer(far, 1)).toBeNull();
-    expect(kilnCartOffer(null, 1)).toBeNull();
-    expect(kilnCartOffer({ costM: 50, x: 0, z: 0 }, 1)).not.toBeNull();
+  it('vůz se nevezme, když jízda stojí víc než nošení v koších', () => {
+    const footPerKg = basketManDaysPerKg(40, SMITH_SUPPLY.basketKg.charcoal);
+    expect(kilnCartOffer({ costM: 10_000, x: 0, z: 0 }, footPerKg)).toBeNull();
+    expect(kilnCartOffer(null, footPerKg)).toBeNull();
+    expect(kilnCartOffer({ costM: 50, x: 0, z: 0 }, footPerKg)).not.toBeNull();
+    // sedlák jede sám – práce na kg = jedna jízda jednoho člověka ÷ náklad
+    expect(kilnCartOffer({ costM: 50, x: 0, z: 0 }, footPerKg)!.manDaysPerKg).toBeCloseTo(
+      cartTripManDays(50, CART_JOBS.charcoal.stopS, 1) / CART_JOBS.charcoal.loadKg,
+      12,
+    );
   });
 });
 

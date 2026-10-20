@@ -30,7 +30,7 @@ import {
 } from '../crafts';
 import { felledTreeStage, obstacleChangesAt, plantOnStump, saplingGrowth } from '../obstacles';
 import { NO_CRAFTS } from '../productivity';
-import { BEECH_PLANTING, CHARCOAL_KILN, CRAFT_BASE } from '../rules';
+import { BEECH_PLANTING, CART_JOBS, CHARCOAL_KILN, CRAFT_BASE } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { Craft, Person, Position, VillageState } from '../types';
 import { isTreeStanding, nearestMatureTrees, reservedTrees } from '../wood';
@@ -322,8 +322,12 @@ describe('uhlíř – milíř stojí vždy (crafts.md – Milíř stojí vždy)'
     expect(drawn).toBeCloseTo(total, 6);
     // nosí jednou za čas, ne každý den
     expect(drawDays).toBeLessThan((day - DAY) / 5);
-    // vytahání jako dřív – 2 čd na 120 kg uhlí
-    expect(drawLabor).toBeCloseTo((total / 120) * CHARCOAL_KILN.drawManDaysPerTree, 6);
+    // vytahání a třídění – 2 čd na 120 kg uhlí bez odnosu v koších (ten dělá kovářova domácnost –
+    // crafts.md, Uhlí a ruda kováře)
+    expect(drawLabor).toBeCloseTo(
+      (total / 120) * CHARCOAL_KILN.drawManDaysPerTree * (1 - CART_JOBS.charcoal.carryShare),
+      6,
+    );
     // milíř stojí vždy – rozebraný zmizí a od dalšího dne uhlíř staví nový
     workCrafts(s, day + 1, forest, NO_CRAFTS, 1);
     expect(burnerOf(s).kiln?.stage).toBe('wood');

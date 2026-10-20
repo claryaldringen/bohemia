@@ -164,6 +164,9 @@ function laborKey(target: LaborTarget): string {
   if (target.kind === 'edge') return `edge:${target.direction}`;
   // břeh, kam vůz jezdí pro vodu (wagons.md – Co vozy vozí)
   if (target.kind === 'water') return `water:${target.x},${target.z}`;
+  // nošení uhlí od milíře do kovárny zvlášť od práce uhlíře u milíře (crafts.md – Uhlí a ruda)
+  if (target.kind === 'kiln' && target.from !== undefined)
+    return `kiln:${target.id}>${target.from}`;
   return target.kind === 'village' ? 'village' : `${target.kind}:${target.id}`;
 }
 
@@ -1388,6 +1391,8 @@ function splitRoad(roads: VillageRoads, hit: RoadHit, context: SpotContext): Roa
     road.openEnds = [road.openEnds[0], false];
   }
   road.points = first;
+  // osa se změnila – olemování stromy se určí znovu (roads.md – Stromy u cesty zrychlí chůzi)
+  delete road.lined;
   roads.roads.splice(hit.road + 1, 0, rest);
   context.split(road.id, rest.id);
   return at;
@@ -1597,6 +1602,8 @@ function joinRoads(
   }
   road.points = points.map((p) => ({ x: p.x, z: p.z }));
   road.spots = [...road.spots, ...other.spots];
+  // osa se změnila – olemování stromy se určí znovu (roads.md – Stromy u cesty zrychlí chůzi)
+  delete road.lined;
   // průsek lesem (roads.md) – spojený úsek ho má, když ho měl kterýkoli
   if (other.swath) road.swath = true;
   if (ground) road.ground = ground;
@@ -2014,6 +2021,7 @@ function joinRoadGaps(
     const { road } = gap;
     road.points = gap.atStart ? [at, ...road.points] : [...road.points, at];
     road.ground = roadGroundOf(road.points, context.terrain);
+    delete road.lined;
     joined = true;
   }
   return joined;

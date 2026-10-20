@@ -118,6 +118,20 @@ export function trafficCounts(
   return counts;
 }
 
+/** Nosičů kováře na jedné cestě nejvýš tolik (crafts.md – Uhlí a ruda kováře). */
+export const FETCH_MAX = 3;
+
+/**
+ * Nosiči kováře na cestě (crafts.md – Uhlí a ruda kováře – další druh pochůzky): každý, kdo dnes
+ * nese uhlí od milíře nebo rudu z rudiště (věky z rozdělení práce – synové, kovář), je jedna
+ * postava, nejvýš FETCH_MAX. Syn nosí sám tam a zpět celý den – proud lidí podle cest za den
+ * (Littlův zákon jako u vody) by z jednoho chlapce udělal deset. Bez věků jeden dospělý.
+ */
+export function fetchCarriers(ages: readonly number[] | undefined): number[] {
+  const list = ages && ages.length > 0 ? ages : [30];
+  return list.slice(0, FETCH_MAX);
+}
+
 /** Zlatý řez – fáze lidí v proudu se rozestoupí rovnoměrně při jakémkoli počtu. */
 const GOLDEN = 0.6180339887498949;
 

@@ -82,6 +82,8 @@ export interface SelectionWorkshop {
     making: { kind: CartKind; progress: number } | null;
     woodworkCoverage: number;
   } | null;
+  /** Kovář: ruda, rudiště a kdo nosí uhlí (crafts.md – Uhlí a ruda kováře); jinak chybí. */
+  ore?: NonNullable<VillageView['crafts']['workshops'][number]['ore']>;
 }
 
 /** Nákup u sousedů v panelu dvorce (crafts.md – Nákup u sousedů). */
@@ -373,6 +375,8 @@ export type SelectionDetails =
       ageYears: number;
       /** Stojící stromy u cesty. */
       trees: number;
+      /** O kolik stromy u cesty zrychlí chůzi i vozy (roads.md); bez stromů 0. */
+      treeSpeed: number;
       /** Mokřina na ose (m) a brody – kde se hodí hať a lávka. */
       wetM: number;
       fords: number;
@@ -799,6 +803,7 @@ function workshopDetails(view: VillageView, dwellingId: number): SelectionWorksh
     coverage,
     kiln: workshop.kiln,
     toPlant: workshop.toPlant,
+    ...(workshop.ore ? { ore: workshop.ore } : {}),
     carpenter: carpenter
       ? {
           carts: view.crafts.carts,

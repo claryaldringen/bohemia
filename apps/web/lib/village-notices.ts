@@ -27,6 +27,8 @@ export type NoticeKind =
   | 'stalled'
   | 'cemetery-full'
   | 'no-charcoal'
+  /** Kovář nemá rudu a není kde ji kopat (crafts.md – Uhlí a ruda kováře). */
+  | 'no-ore'
   | 'no-wood'
   /** Tesař (wagons.md): nemá klády ani co kácet, vyrobil vůz, vůz dosloužil. */
   | 'carpenter-no-wood'
@@ -141,6 +143,9 @@ export function villageNotices(view: VillageView): VillageNotice[] {
   // dílny bez vstupu stojí (crafts.md)
   if (view.crafts.workshops.some((w) => w.activity === 'no-charcoal')) {
     notices.push({ kind: 'no-charcoal', tone: 'warn', text: 'Kovář nemá uhlí' });
+  }
+  if (view.crafts.workshops.some((w) => w.activity === 'no-ore')) {
+    notices.push({ kind: 'no-ore', tone: 'warn', text: 'Kovář nemá rudu' });
   }
   if (view.crafts.workshops.some((w) => w.activity === 'no-wood' && w.craft !== 'carpenter')) {
     notices.push({ kind: 'no-wood', tone: 'warn', text: 'Dílna nemá co kácet' });

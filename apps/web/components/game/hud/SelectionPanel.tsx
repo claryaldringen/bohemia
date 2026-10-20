@@ -248,7 +248,7 @@ function activityLook(workshop: SelectionWorkshop): {
     burning: { icon: 'charcoal', name: 'Pálí milíř – hlídá ve dne i v noci', value: percent },
     drawing: {
       icon: 'charcoal',
-      name: 'Rozebírá milíř a nosí uhlí kováři (kg uhlí, které v milíři zbývá)',
+      name: 'Rozebírá milíř a třídí uhlí pro kováře (kg uhlí, které v milíři zbývá)',
       value: inKiln ?? percent,
     },
     planting: { icon: 'labor', name: 'Sází mladé buky na pařezy', value: `${workshop.toPlant}` },
@@ -256,7 +256,7 @@ function activityLook(workshop: SelectionWorkshop): {
       workshop.craft === 'burner' && inKiln !== null
         ? {
             icon: 'charcoal',
-            name: 'Milíř je vypálený – uhlí z něj nosí, jak ho kovář spotřebuje; zatím pomáhá vsi (kg uhlí v milíři)',
+            name: 'Milíř je vypálený – uhlí z něj vytahá, jak ho kovář spotřebuje; zatím pomáhá vsi (kg uhlí v milíři)',
             value: inKiln,
           }
         : {
@@ -265,6 +265,16 @@ function activityLook(workshop: SelectionWorkshop): {
             value: '–',
           },
     'no-charcoal': { icon: 'charcoal', name: 'Čeká na uhlí – zatím pomáhá vsi', value: '0' },
+    'no-ore': {
+      icon: 'ore',
+      name: 'Nemá rudu – v okolí není mokřina ani potok, kde ji kopat; zatím pomáhá vsi',
+      value: '0',
+    },
+    digging: {
+      icon: 'ore',
+      name: 'Kope rudu na rudišti a nosí ji do kovárny (kg rudy v kovárně)',
+      value: formatInteger(workshop.ore?.stockKg ?? 0),
+    },
     'no-wood': {
       icon: 'wood',
       name:
@@ -282,10 +292,51 @@ function activityLook(workshop: SelectionWorkshop): {
   const look = looks[workshop.activity];
   const stalled =
     workshop.activity === 'no-charcoal' ||
+    workshop.activity === 'no-ore' ||
     workshop.activity === 'no-wood' ||
     workshop.activity === 'idle' ||
     workshop.activity === 'empty';
   return { ...look, stalled };
+}
+
+/**
+ * Kovárna (crafts.md – Uhlí a ruda kováře): zásoba rudy, rudiště (vzdálenost chůze) a kdo nosí
+ * uhlí od milíře – synové 10–13 let, kovář sám, nebo vůz se sedlákem.
+ */
+function SmithOreStats({ ore }: { ore: NonNullable<SelectionWorkshop['ore']> }): ReactElement {
+  const sons = ore.sons.map((age) => `${age}`).join(', ');
+  const carrier = ore.cart
+    ? {
+        icon: 'cart',
+        name: 'Uhlí od milíře a rudu z rudiště přiveze sedlák s vozem, když to ušetří práci',
+        value: '',
+      }
+    : ore.sons.length > 0
+      ? {
+          icon: 'child',
+          name: `Uhlí od milíře nosí ${ore.sons.length > 1 ? 'synové' : 'syn'} (věk) – ten den nepasou`,
+          value: sons,
+        }
+      : { icon: 'man', name: 'Uhlí od milíře nosí kovář sám – ten den kove méně', value: '' };
+  return (
+    <>
+      <Stat icon="ore" name="Ruda v kovárně (kg)" testId="selection-workshop-ore">
+        {formatInteger(ore.stockKg)}
+      </Stat>
+      {ore.site && (
+        <Stat
+          icon="walk"
+          name={`Rudiště v mokřině u potoka – cesta z kovárny (m), v ložisku zbývá ${formatInteger(ore.site.leftKg)} kg rudy`}
+          testId="selection-workshop-ore-site"
+        >
+          {`${formatInteger(ore.site.walkM)} m`}
+        </Stat>
+      )}
+      <Stat icon={carrier.icon} name={carrier.name} testId="selection-workshop-carrier">
+        {carrier.value}
+      </Stat>
+    </>
+  );
 }
 
 /** Dílna v panelu výběru: co dělá, práce za den, zásoba výrobku (a pokrytí potřeby vsi). */
@@ -321,6 +372,7 @@ function WorkshopRow({ workshop }: { workshop: SelectionWorkshop }): ReactElemen
         </Stat>
       )}
       {workshop.carpenter && <CarpenterStats carpenter={workshop.carpenter} />}
+      {workshop.ore && <SmithOreStats ore={workshop.ore} />}
       {workshop.buying && (
         <Stat
           icon={product.icon}
@@ -1119,6 +1171,11 @@ function OakAge({ years }: { years: number | null }): ReactElement | null {
   );
 }
 
+/** Přírůstek rychlosti chůze (roads.md – Stromy u cesty zrychlí chůzi) – „+0,03“. */
+function formatSpeedGain(gain: number): string {
+  return `+${String(Math.round(gain * 1000) / 1000).replace('.', ',')}`;
+}
+
 /** Seno v tunách s jedním desetinným místem – „3,0 t“. */
 function formatTons(kg: number): string {
   return `${formatDecimal(Math.max(0, kg) / 1000, 1)} t`;
@@ -1319,6 +1376,11 @@ function RoadBody({
             <Stat icon="apples" name="Jabloně (plodí)" testId="selection-road-apples">
               {apples.trees}
               {apples.bearing < apples.trees ? ` (${apples.bearing})` : ''}
+            </Stat>
+          )}
+          {details.treeSpeed > 0 && (
+            <Stat icon="walk" name="Stromy zrychlí chůzi i vozy" testId="selection-road-tree-speed">
+              {formatSpeedGain(details.treeSpeed)}
             </Stat>
           )}
           {(details.wetM > 0 || details.fords > 0) && (

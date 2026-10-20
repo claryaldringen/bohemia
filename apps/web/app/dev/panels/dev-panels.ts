@@ -541,6 +541,7 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       ],
       ageYears: 112,
       trees: 46,
+      treeSpeed: 0.035,
       wetM: 180,
       fords: 2,
       building: { grade: 'causeway', progress: 0.55, treesToFell: 9 },

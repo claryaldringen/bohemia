@@ -100,8 +100,9 @@ Vzhled podle Martina (modely se připravují v `tools/blender/`):
   nové.“ – se sousedem jde vyměnit hotové nástroje, ne železo). **1 kg nástrojů = 10 člověkodní
   a 50 kg uhlí** (oprava podle rešerše, dřív 4 člověkodny a 30 kg: Crew 1991 – ≈ 25 člověkodní
   a ≈ 100 kg uhlí na 1 kg tyčového železa v malé pravěké peci, Salter ≈ 60 kg uhlí; raně
-  středověké pece byly výkonnější). Ruda dál od vody stojí víc práce: +1 % za každých 10 m nad
-  100 m od dílny k potoku.
+  středověké pece byly výkonnější). Rudu kope na rudišti v mokřině u potoka – **8 kg rudy na kg
+  nástrojů**, uhlí a rudu nosí jeho synové ([Uhlí a ruda kováře](#uhlí-a-ruda-kováře), od 20. 10. 2026; dřívější přirážka +1 % za 10 m nad 100 m od dílny k potoku u kováře zmizela –
+  nahradila ji skutečná cesta na rudiště).
 - **Hrnčíř:** kope hlínu u potoka, tvaruje a vypaluje nádoby. **1 kg keramiky = 1 člověkoden**
   (nedohledáno, návrh Clauda), topí dřevem z lesa: **1 strom na 500 kg** vypálené keramiky
   (oprava podle rešerše, dřív 400 – tradiční pece spálí 0,8–1,2 kg dřeva na kg keramiky, Adubah
@@ -177,12 +178,13 @@ Clauda; čísla v `rules.ts` (`CHARCOAL_KILN`).
   stoupá dým jako z obydlí a uhlíř ho hlídá ve dne i v noci. Vypálený milíř už nekouří.
 - **Rozebírá se podle odběru** (Martin): uhlí se z vypáleného milíře nevytahá najednou – milíř
   stojí pod krytem z hlíny a uhlíř z něj bere, jak kovář uhlí spotřebuje. Když uhlí u kováře
-  nestačí na dnešní kování, uhlíř ten den vytahá, protřídí a donese uhlí na **30 dní kování**
-  (všech kovářů vsi na plný úvazek; nejvýš kolik dnes stihne a kolik v milíři zbývá). Práce je
-  jako dřív 2 čd na 120 kg (na buk), u lesního milíře s přirážkou za chůzi. Uhlíř tak nosí uhlí
-  jednou za čas po celém dni a mezitím jeho domácnost pracuje se vsí – domácnost řemeslníka
-  pracuje celý den buď v dílně, nebo se vsí, takže nošení hrsti uhlí každý den by vsi vzalo
-  celou domácnost.
+  nestačí na dnešní kování, uhlíř ten den vytahá a protřídí uhlí na **30 dní kování** (všech
+  kovářů vsi na plný úvazek; nejvýš kolik dnes stihne a kolik v milíři zbývá). Práce 2 čd na
+  120 kg (na buk) bez pětiny odnosu v koších – ten od 20. 10. 2026 dělá kovářova domácnost, nebo
+  vůz se sedlákem ([Uhlí a ruda kováře](#uhlí-a-ruda-kováře)); u lesního milíře s přirážkou za
+  chůzi. Uhlíř tak vytahá uhlí jednou za čas po celém dni a mezitím jeho domácnost pracuje se
+  vsí – domácnost řemeslníka pracuje celý den buď v dílně, nebo se vsí, takže hrst uhlí každý den
+  by vsi vzala celou domácnost.
 - **Zásoba uhlí vsi** = uhlí ve vypálených milířích + uhlí u kováře (co uhlíř donesl a kovář ještě
   nespálil, uhlí koupené od souseda, zásoba ze starších vsí). Tak ji ukazuje lišta i panel dílny.
 - **Rozebraný milíř** (vytahané poslední uhlí) zmizí a uhlíř od dalšího dne staví nový – skácí
@@ -201,8 +203,8 @@ Clauda; čísla v `rules.ts` (`CHARCOAL_KILN`).
   Uhlí ves smí **prodat sousedovi** ([obchod](trade.md) – uhlí je společná surovina): bere se
   napřed u kováře, pak z vypáleného milíře, který se tím rozebírá (vytahají ho nosiči výpravy,
   v práci výpravy); rozebraný milíř uhlíř postaví znovu. Koupené uhlí jde ke kováři.
-- **Kdy uhlíř pracuje v dílně:** kácí a připravuje buky, staví milíř, pálí, nosí uhlí kováři
-  (v den, kdy u kováře nestačí na dnešní kování), vytahá zbytek milíře před novým a v okně
+- **Kdy uhlíř pracuje v dílně:** kácí a připravuje buky, staví milíř, pálí, vytahá uhlí pro
+  kováře (v den, kdy u kováře nestačí na dnešní kování), vytahá zbytek milíře před novým a v okně
   výsadby sází mladé buky. Jinak –
   vypálený milíř a uhlí u kováře dost – pracuje se vsí; bez dospělých buků, když milíř nemá,
   taky (čeká na dřevo).
@@ -221,6 +223,149 @@ Clauda; čísla v `rules.ts` (`CHARCOAL_KILN`).
   a rostoucí hráň polen; stavba po fázích staveniště; pálení – hotový milíř s dýmem; vypálený –
   bez dýmu a trochu sesedlý; rozebírání – milíř se zmenšuje podle podílu uhlí, které v něm
   zbývá (nižší a užší), vedle koše na uhlí; rozebraný – jen ušlapané milířiště, než začne další.
+
+## Uhlí a ruda kováře
+
+Martin (20. 10. 2026): „Kovář si vychovává nástupce. Pokud ve vesnici není vůz kovář si musí
+chodit pro uhlí k uhlíři. Pokud má dostatečně starého syna nebo syny , pošle pro uhlí jeho/je.
+Taky musí někam chodit kopat rudu. To místo, kde kope rudu, chci na mapě vidět. Pokud bude ve
+vesnici vůz, tak kováři přiveze uhlí sedlák s vozem (a odečte se jeho práce). To samé u těžení
+rudy. Kovář a sedlák s vozem dojedou na místo, kde se ruda těží, kovář (nebo jeho synové) nakopou
+rudu a pak s plným vozem přijedou zase do kovárny.“
+
+Na doplňující otázky Martin odpověděl:
+
+- **Nástupce:** synové od určitého věku pomáhají otci, nosí uhlí, kopou rudu a jsou u výhně.
+  Kovárnu pak drží nejstarší syn, který zůstane doma – to už řeší dědic domu
+  ([příbuzenství](kinship.md)), nic se nemění.
+- **Věk:** uhlí nosí synové **od 10 let**, rudu kopou **od 14 let**. Ve dnech, kdy pomáhají,
+  nepasou dobytek.
+
+Podrobnosti níž jsou návrh Clauda (čísla `SMITH_SUPPLY` a `CART_JOBS` v `rules.ts`, podle rešerše
+[2026-10-20-bog-ore.md](research/2026-10-20-bog-ore.md) – většina čísel je odhad, primární práce
+nejsou ověřené).
+
+### Uhlí ke kováři
+
+- **Kdo uhlí odnáší:** uhlíř z vypáleného milíře uhlí vytahá a protřídí (Milíř stojí vždy – kdy
+  a kolik, se nemění), do kovárny ho v koších donese **kovářova domácnost**. Pětina dřívější
+  práce uhlíře (odnos – `CART_JOBS.charcoal.carryShare`) tím z uhlíře odpadla.
+- **Pěšky:** koš uhlí 15 kg (objem – koš ≈ 60 l, dřevěné uhlí ≈ 250 kg/m³), tam a zpět po pevných
+  cestách s půdou (mokřina, brody – vzdálenost chůze kovárna ↔ milíř, u lesního milíře k němu),
+  s košem 1 m/s, naložení a složení 2 minuty. Vzdálenost se spočítá při prvním nošení a uloží
+  u milíře (`CharcoalKiln.carry`). Uhlí jde do nejbližší kovárny.
+- **Kdo nosí:** napřed **synové 10–13 let** (kluci kovářovy domácnosti, jejichž otec nebo matka
+  v ní bydlí) – syn ten den nepase (`herdingDay` s ním nepočítá) a udělá 40 % práce dospělého
+  (jako pasák); nosí jen tolik synů, kolik je třeba. Co nestačí, donese domácnost z práce dílny –
+  synové od 14 let, pak kovář; kovář ten den kove méně.
+  - **Rozhodnutí Clauda:** zadání chtělo napřed syny 14–15 let, „kteří už nepasou a nejsou
+    dospělí“. Ve hře je ale dospělý každý od 14 let (`AGE.adult`) a pracuje v dílně jako kovář –
+    jeho nošení by bylo stejně z práce dílny. Proto napřed synové 10–13 (jejich práce není práce
+    vsi ani dílny, jen ten den nepasou) a pak domácnost; synové od 14 let jdou mezi domácností
+    první (jsou vidět jako nosiči).
+  - Kovář, který ten den pracuje se vsí (plná zásoba nástrojů) a uhlíř mu přesto vytahal zbytek
+    milíře: co nedonesou synové, nese domácnost z práce vsi.
+- **S vozem:** sedlák s vozem přiveze uhlí z **práce vsi** (Martin – „odečte se jeho práce“) –
+  jízda domluvená předem jde jako výpravy po denním minimu, před úlohami dne (`carting`
+  v `allocateDay`; ze společné práce by v polních sezónách nejel nikdy a vůz by zbytečně blokoval
+  osivo). Přednost vozů (`CART_JOBS.order`) a „vůz jede jen tam, kde ušetří práci“ zůstávají –
+  úspora proti nošení kovářovou domácností. Komu vůz uhlí přiveze, nenosí ([vozy](wagons.md) –
+  Co vozy vozí).
+- **Bez uhlí:** kovář `no-charcoal` jen tehdy, když uhlí není ani v milíři (jako dosud).
+
+### Ruda a rudiště
+
+- **Spotřeba:** **8 kg bahenní rudy na kg nástrojů** (rešerše 4–9 kg – odhad). Ruda leží v kovárně
+  (`Workshop.oreKg`); **bez rudy kovář nekove** – kove nejvýš kolik dovolí práce, uhlí i ruda.
+- **Kopání, praní a pražení:** **60 kg rudy za člověkoden** (odhad 40–100 kg) a přirážka za chůzi na
+  rudiště jako u lesního milíře (+1 % za 10 m nad 100 m). Kopou dospělí kovářovy domácnosti a synové
+  od 14 let – z práce dílny, před kováním (kope-li se, je dílna „Kope rudu“).
+- **Dávky:** když ruda v kovárně nestačí na dnešní kování na plný úvazek, začne kovář dávku **na
+  30 dní kování** (`CHARCOAL_KILN.drawBatchDays`, jako uhlí; aspoň jeden koš) – vykopanou rudu
+  hned nosí v koších po **25 kg** (váha, odhad 20–30 kg) do kovárny. Má-li ves vůz doma a jízda
+  k rudišti ušetří práci, kope **na celý dvoukolák** (400 kg – `CARTS.loadKg`) a začne dřív, dokud
+  mu ruda vystačí na kopání dávky a 15 dní kování (`CART_JOBS.ore.reserveDays`) – vykopaná ruda
+  leží na hromadě u jámy.
+- **S vozem** (Martin): kovář (nebo syn od 14) a sedlák s vozem dojedou k hromadě u jámy, naloží ji
+  a vrátí se s plným vozem – sedlák z práce vsi (jako u uhlí), kovář z práce dílny, jízda tam
+  a zpět i nakládka a složení (15 minut). Vůz jede, jen když jízda obou stojí méně než nošení
+  v koších. **Rozhodnutí Clauda:** sedlák nečeká, než kovář nakope – 400 kg je 5–7 dní kopání,
+  vůz by se nevyplatil nikdy a Martin by ho nikdy neviděl; ruda se kope napřed a leží na hromadě
+  (rešerše: ruda se nechá odtéct a vysušit, praží se u ložiska), vůz pro ni přijede, jakmile je
+  dávka vykopaná. Nepřijede-li den po vykopání a kovář nemá rudu na dnešek, donese ji pěšky.
+- **Přirážka za rudu u kováře zmizela** (`oreFactor` = 1) – nahradila ji skutečná cesta na
+  rudiště. U hrnčíře (hlína) zůstává.
+- **Rudiště:** buňka mokřiny u potoka (`PATH_WETLAND` terénu pěšin – suchá rovina do 3 buněk od
+  vody) **nejblíž kovárně** vzdušnou čarou; bez mokřiny suchý břeh (`PATH_WATER_SPOT`). Ne na poli,
+  v sadu, na hřbitově, v ohradě, v lese vsi ani do 12 m od domů (rozhodnutí Clauda – jámy v poli
+  by vypadaly divně). Vzdálenost chůze po pevných cestách s půdou krajiny – vede-li tam cesta,
+  je kratší. Vybere se při prvním kopání a uloží (`Workshop.oreSite` – poloha, vytěženo, den,
+  vzdálenost chůze, jízda vozu). Bez mokřiny i vody nemá kovář kde kopat – `no-ore`, pracuje se
+  vsí, upozornění „Kovář nemá rudu“.
+- **Ložisko:** vydrží **3 t rudy** (odhad – hutě na Moravě se stěhovaly po 50–70 letech podle
+  vyčerpání suroviny a paliva); pak kovář vybere další místo v mokřině **aspoň 20 m** od
+  vyčerpaného (`oreSitesUsed`). Vesnický kovář s ≈ 400 kg rudy ročně vydrží na jednom místě
+  ≈ 7 let.
+- **Jámy:** každá dávka otevře **jámu** kousek kolem místa (do 6 m, poloha ze seedu vsi –
+  `VillageState.orePits`: poloha, kolik rudy z ní vzešlo, den posledního kopání). Jámy
+  **zarůstají** a po **10 letech** zmizí (jako zbytky jam obydlí).
+- **Cesty:** kopání a nošení jde v síti pěšin z kovárny (jen domácnost kováře) – k rudišti
+  a k milíři vznikne pěšina; jízdy vozu pro rudu a uhlí jdou do ročního provozu cest (vyjeté
+  cesty). Kovář, který jede s vozem, pěšinu nevyšlape.
+
+### Starší vsi a ves bez kováře
+
+- Kovárna bez `oreKg` (z doby před rudou) dostane v prvním dni kroku práce zásobu **na jednu dávku**
+  (30 dní kování při dnešní práci dílny), aby kovář nepřestal hned kovat; rudiště se vybere až při
+  prvním kopání.
+- **Ves bez kováře se nemění bit po bitu** (zlatý otisk – test `smith-golden.test.ts`, uhlíř,
+  hrnčíř, tesař a vůz se spřežením 2 roky).
+
+### Vlkov – před a po
+
+Sonda na čerstvém stavu Vlkova z 11. 8. 800 (34 lidí, kovář 36 let se synem 11 let, uhlíř ≈ 270 m
+od něj s vypáleným milířem, dvoukolák a spřežení), dva roky simulace se starým a novým pravidlem:
+
+- **Rudiště** vyšlo v mokřině u potoka ≈ 520 m vzdušně od kovárny (kovárna je 510 m od vody),
+  chůze po cestách **423 m**; za dva roky dvě dávky po 400 kg (jámy).
+- **Práce na kg nástrojů:** dřív **14,1 čd** (10 čd × přirážka 1,41 za 510 m k vodě), teď
+  **10,3 čd** z práce dílny (kování 10 + kopání 0,25 + nošení rudy a jízda 0,01) + 0,07 čd syna.
+  Kovář vykoval za dva roky stejně (≈ 70 kg) – kováním 989 → 706 čd, kopáním 17,6 čd; domácnost
+  kováře tak pomáhala vsi o ≈ 130 dní víc. U kováře blízko vody (100–150 m) je to zhruba stejné
+  jako dřív (10–10,5 čd na kg).
+- **Syn (11 let)** nosil uhlí od milíře 21× (≈ 0,23 čd za dávku, 4,7 čd za dva roky) – ty dny
+  nepásl. **Vůz** přivezl uhlí 7× (v zimě a v srpnu, sedlák 0,36 čd), v polních sezónách vozí
+  úrodu a orá – tehdy nosí syn. **Ruda vozem** jednou (srpen 801, sedlák a kovář po 0,07 čd);
+  první dávku (září 800) donesl kovář pěšky (0,43 čd) – vůz ten den oral ozim.
+- **Kovář bez uhlí** 21 → 46 dní za dva roky – kove rychleji (bez přirážky), uhlí z jednoho milíře
+  mu vystačí na kratší dobu.
+
+### Co hráč vidí
+
+- **Panel kovárny:** ruda v kovárně (kg), rudiště – cesta z kovárny (m, v bublině kolik rudy
+  v ložisku zbývá) a kdo nosí uhlí: syn (věk), kovář sám, nebo vůz se sedlákem; činnosti „Kope
+  rudu“ a „Nemá rudu“. Upozornění jen „Kovář nemá rudu“ (jako „Kovář nemá uhlí“).
+- **Ve scéně:** rudiště – mělké jámy v drnu s valem vykopané hlíny, rezavou stěnou a vodou na dně,
+  které léty zarůstají (val se slehne, voda vyschne, zezelenají), u místa hromádka rezavé rudy;
+  kopáči u jámy s motykou, nosiči s koši mezi kovárnou a milířem nebo rudištěm (synové jako menší
+  postavy) a vůz s hromadou rudy (villagers.md, wagons.md). Ukázka na `/dev/landscape` – tlačítko
+  **Rudiště** (pěšky, vůz).
+
+### Rozhodnutí – uhlí a ruda
+
+| Rozhodnutí                                                                                  | Kdo                                                                           |
+| ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Kovář nosí uhlí od uhlíře; má-li syny, pošle je; kope rudu na místě, které je vidět na mapě | Martin (20. 10. 2026)                                                         |
+| S vozem přiveze uhlí sedlák (jeho práce se odečte), stejně u rudy – kovář a sedlák s vozem  | Martin (20. 10. 2026)                                                         |
+| Synové nosí uhlí od 10 let, rudu kopou od 14 let, ten den nepasou; kovárnu drží dědic domu  | Martin (20. 10. 2026)                                                         |
+| 8 kg rudy na kg nástrojů, 60 kg rudy za čd + přirážka za chůzi, koš uhlí 15 kg a rudy 25 kg | návrh Clauda (odhad)                                                          |
+| Rudiště: mokřina nejblíž kovárně, ložisko 3 t, další aspoň 20 m, jámy zarostou za 10 let    | návrh Clauda (odhad)                                                          |
+| Dávky rudy na 30 dní kování, s vozem na celý dvoukolák (začne dřív, hromada počká 15 dní)   | návrh Clauda                                                                  |
+| Napřed synové 10–13 (mimo práci dílny), pak domácnost – 14letí jsou ve hře dospělí          | návrh Clauda, Martin („Jo, souhlasím s tím, jak jsi to navrhl“, 20. 10. 2026) |
+| Sedlák z práce vsi před úlohami dne (jako výprava), ne ze společné práce                    | návrh Clauda, Martin („Jo, souhlasím s tím, jak jsi to navrhl“, 20. 10. 2026) |
+| Sedlák nečeká na kopání – ruda leží na hromadě u jámy, vůz přijede pro vykopanou dávku      | návrh Clauda, Martin („Jo, souhlasím s tím, jak jsi to navrhl“, 20. 10. 2026) |
+| Rudiště ne na poli, v sadu, na hřbitově, v ohradě, v lese vsi ani u domů                    | rozhodnutí Clauda                                                             |
+| Přirážka za rudu u kováře zmizela (cesta na rudiště), u hrnčíře zůstává                     | návrh Clauda                                                                  |
 
 ## Podle potřeby a volný čas
 
@@ -365,9 +510,10 @@ zatím neřešit – letopočet začátku hry se může posunout.
   jen podle surovin (dřevo – [les](forest.md)).
 - V horní liště zásoby **uhlí, nástrojů a keramiky** (ikona + číslo).
 - U vybrané dílny: domácnost, co právě dělá (vyrábí / čeká na uhlí), zásoba výrobku; uhlíř:
-  kácí a připravuje buky (kolik z dávky), staví milíř, pálí (průběh), rozebírá milíř a nosí
-  uhlí kováři (kolik uhlí v milíři zbývá), sází mladé buky, má vypálený milíř a pomáhá vsi;
-  milíř v lese a pařezy, které čekají na sazenici.
+  kácí a připravuje buky (kolik z dávky), staví milíř, pálí (průběh), rozebírá milíř a třídí
+  uhlí pro kováře (kolik uhlí v milíři zbývá), sází mladé buky, má vypálený milíř a pomáhá vsi;
+  milíř v lese a pařezy, které čekají na sazenici; kovář: kope rudu, ruda v kovárně, cesta na
+  rudiště a kdo nosí uhlí ([Uhlí a ruda kováře](#uhlí-a-ruda-kováře)).
 - Ve scéně: dým z pece a výhně, když se pracuje, a z milíře, když pálí; pařezy a rostoucí mladé
   buky, mýtina kolem uhlíře, milíř u dílny i v lese po fázích (vypálený se při rozebírání
   zmenšuje), uhlíř u buků, u milíře a se sazenicemi.
@@ -392,8 +538,9 @@ Rozhodnutí kontroléru při implementaci (18. 10. 2026) – kde návrh necháva
   strom, který nepatří jiné stavbě ani dílně a není posvátný (vyhradí ho), skácí ho (2 čd + 1 %
   za 10 m nad 100 m – uhlíř od milíře, hrnčíř od dílny, zůstane pařez) a teprve pak z něj vyrábějí
   (120 kg uhlí po 10 kg za čd; 500 kg keramiky po 1 čd za kg). Kovář kuje z uhlí ze zásob
-  (dílny pracují v pořadí uhlíř → hrnčíř → kovář, dnešní uhlí jde hned do výhně). Přirážka za rudu
-  a hlínu se měří od políčka dílny k nejbližšímu políčku vody. Uhlí neubývá.
+  (dílny pracují v pořadí uhlíř → hrnčíř → kovář, dnešní uhlí jde hned do výhně). Přirážka za
+  hlínu se měří od políčka dílny k nejbližšímu políčku vody (u kováře od 20. 10. 2026 žádná –
+  [Uhlí a ruda kováře](#uhlí-a-ruda-kováře)). Uhlí neubývá.
 - **Opotřebení jen toho, co ves používá**: denně 30 % / 365 nástrojů a 40 % / 365 nádob z toho, co
   je v užívání (nejvýš potřeba) – ves, která potřebu drží pokrytou, ročně nahradí právě 30 % a 40 %
   (40 pracujících ≈ 36 kg nástrojů); přebytek v zásobě leží.
@@ -448,4 +595,5 @@ Rozhodnutí kontroléru při implementaci (18. 10. 2026) – kde návrh necháva
 | Jeden milíř na uhlíře, nový až po rozebrání; uhlí na 30 dní kování, když u kováře nestačí na dnešek      | návrh Clauda (19. 10. 2026)                  |
 | Zbytek milíře, který stačí jen na přípravu dalšího, uhlíř vytahá celý a začne nový (kovář nečeká)        | návrh Clauda (19. 10. 2026)                  |
 | Bez kováře vypálený milíř čeká, další se nestaví; uhlí z milíře jde prodat sousedovi                     | rozhodnutí Clauda (19. 10. 2026)             |
-| Uhlí z milíře ke kováři vozem – odnos (pětina vytahání) nahradí jízdy, posádka z domácnosti uhlíře       | návrh Clauda (19. 10. 2026)                  |
+| ~~Uhlí z milíře ke kováři vozem – odnos (pětina vytahání) nahradí jízdy, posádka z domácnosti uhlíře~~   | návrh Clauda (19. 10. 2026)                  |
+| Uhlí a ruda kováře – synové, rudiště, vůz se sedlákem (podrobně v části Uhlí a ruda kováře)              | Martin (20. 10. 2026)                        |

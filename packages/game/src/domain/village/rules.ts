@@ -472,6 +472,25 @@ export const ROAD_WALK = {
   causewayWetSpeed: 1.7,
   fordExtraM: 30,
 } as const;
+/**
+ * roads.md – Stromy u cesty zrychlí chůzi (Martin 20. 10. 2026: „Stromy u cesty musí přídat něco
+ * málo k rychlosti jak chodců tak vozů. šlo by přidat třeba 0.03? A pokud to budou jabloně,
+ * přidalo by se 0.05.“; podrobnosti návrh Clauda): úsek pevné cesty, který po celé délce lemují
+ * stromy, má rychlost chůze i jízdy vozem o `trees` vyšší (přičte se k rychlosti cesty – vyšlapaná
+ * pěšky 1,5 → 1,53, vyježděná vozem 1,6 → 1,63), s jabloněmi o `apples`; úměrně podílu délky,
+ * který lemují (jabloně, kde jsou, jinde ostatní stromy), po `steps` dílech (10 %). V mokřině
+ * a na brodu se nepřičte. Místo na strom lemuje osu na každou stranu k polovině vzdálenosti
+ * k sousednímu místu, nejvýš `reachM` – polovina největšího rozestupu míst (stromy 20 m, jabloně
+ * 10 m) + 1 m posun místa podél osy; krajní místo úseku až ke konci osy, když je konec do `endM`
+ * – rozestup + 6 m od konce, kam se stromy nesázejí, + 1 m
+ */
+export const ROAD_TREE_SPEED = {
+  trees: 0.03,
+  apples: 0.05,
+  steps: 10,
+  reachM: { trees: 11, apples: 6 },
+  endM: { trees: 27, apples: 17 },
+} as const;
 // fields.md – Založení pole (nejdál 800 m od obydlí, nejmenší výměra 0,1 ha)
 export const FIELD_LIMITS = { maxDistanceM: 800, minAreaM2: 1000 } as const;
 // fields.md – Práce (denní minimum domácností – meze: s hrnčířem 0,45); population.md – Práce
@@ -1179,6 +1198,40 @@ export const BEECH_PLANTING = { manDaysPerTree: 0.1, matureYears: 60 } as const;
 // (x napříč, z k vchodu, m; totéž MILIR_OFFSET v tools/blender/crafts.py) a čtvercový půdorys
 // pro kontrolu místa (kruh milíře Ø ≈ 5,3 m), vyklízí se kruh ušlapané trávy (poloměr m)
 export const MILIR = { offset: { x: -9, z: 3 }, footprintM: 6, clearingRadiusM: 4.6 } as const;
+/**
+ * crafts.md – Uhlí a ruda kováře (Martin 20. 10. 2026: „Kovář si vychovává nástupce. Pokud ve
+ * vesnici není vůz kovář si musí chodit pro uhlí k uhlíři. Pokud má dostatečně starého syna nebo
+ * syny, pošle pro uhlí jeho/je. Taky musí někam chodit kopat rudu.“; synové nosí uhlí od 10 let,
+ * rudu kopou od 14 – Martin; ostatní čísla návrh Clauda podle rešerše
+ * research/2026-10-20-bog-ore.md – většinou odhad, primární práce neověřené):
+ * - `oreKgPerToolKg` – 8 kg bahenní rudy na kg hotových nástrojů (odhad 4–9 kg: výtěžek železné
+ *   houby ≈ 15 % hmotnosti rudy – Markewitz 2002 – a ztráty kování 20–30 %),
+ * - `oreKgPerManDay` – vykopání, praní a pražení 60 kg rudy za člověkoden (odhad 40–100 kg –
+ *   zdroj nenalezen), k tomu přirážka za chůzi na rudiště jako u lesního milíře (DISTANCE),
+ * - `basketKg` – koš uhlí 15 kg (≈ 60 l – objem, jako CART_JOBS.charcoal), koš rudy 25 kg (váha,
+ *   odhad 20–30 kg na pěší cestu), `basketLoadS` naložení a složení koše, s košem `carryMps` po
+ *   louce (jako voda – WATER_FETCHING.speedMps), tam i zpět,
+ * - `charcoalFromAge` / `oreFromAge` – synové kováře nosí uhlí od 10 let, rudu kopou a nosí od 14
+ *   (Martin); syn 10–13 ten den nepase a udělá `youngsterShare` práce dospělého (jako pasák –
+ *   HERDING.childShare),
+ * - `depositKg` – ložisko vydrží 3 t rudy (odhad – hutě na Moravě se stěhovaly po 50–70 letech podle
+ *   vyčerpání suroviny), další rudiště aspoň `siteSpacingM` od vyčerpaného, jámy kousek kolem místa
+ *   (do `pitSpreadM`), zarostou a zmizí po `pitYears` (jako jámy obydlí – RUIN_YEARS).
+ */
+export const SMITH_SUPPLY = {
+  oreKgPerToolKg: 8,
+  oreKgPerManDay: 60,
+  basketKg: { charcoal: 15, ore: 25 },
+  basketLoadS: 120,
+  carryMps: 1,
+  charcoalFromAge: 10,
+  oreFromAge: 14,
+  youngsterShare: 0.4,
+  depositKg: 3000,
+  siteSpacingM: 20,
+  pitSpreadM: 6,
+  pitYears: 10,
+} as const;
 // crafts.md – Budovy: přístřešek hrnčíře a kováře sahá před půdorys polozemnice o tolik (m) –
 // půdorys dílny je o něj delší (vpředu, +z modelu; přední okraj přístřešku 5,7 m od středu,
 // tools/blender/crafts.py PZ_O + PORCH)
@@ -1308,7 +1361,15 @@ export const CARTS = {
 //   Simple technologies for charcoal making, FAO Forestry Paper 41; koš ≈ 60 l), u lesního milíře
 //   s přirážkou za chůzi. Ten převezme vůz – korba s koši ≈ 1,2 m³ uveze `loadKg`, nakládka
 //   a složení u kováře `stopS`; k milíři vůz dojede do `reachM` (milíř v lese jen po pevné cestě –
-//   vozová síť),
+//   vozová síť). Odnos v koších dělá kovářova domácnost (crafts.md – Uhlí a ruda kováře, Martin
+//   20. 10. 2026: „Pokud bude ve vesnici vůz, tak kováři přiveze uhlí sedlák s vozem (a odečte se
+//   jeho práce).“) – s vozem jede `crew` sedlák z práce vsi (uhlíř u milíře nakládá při
+//   vytahání, u kovárny složí kovář),
+// - `ore` – ruda z rudiště do kovárny (crafts.md – Uhlí a ruda kováře): kovář (nebo syn od 14)
+//   a sedlák s vozem dojedou k hromadě rudy u jámy, naloží a vrátí se s plným vozem (CARTS.loadKg);
+//   `crew` = sedlák z práce vsi a kovář z práce dílny, `stopS` nakládka a složení; na celý vůz
+//   kovář začne kopat, když mu ruda vystačí už jen na kopání dávky a `reserveDays` dní kování –
+//   hromada u jámy pak počká, až bude vůz volný (ve žni a při orbě vozí jinde),
 // - `seed` – osivo na pole: z práce setí (FIELD_WORK_PER_HA.sow – 10 čd/ha) je `carryShare` nošení
 //   osiva v pytlích ze sýpky na pole a doplňování osévací plachty (SEED_KG_PER_HA ≈ 5 pytlů po
 //   35 kg na hektar, pole 100–600 m od domů),
@@ -1322,11 +1383,12 @@ export const CARTS = {
 //   kterým ušetří práci (chůze s vědry nad WATER_FETCHING.includedM – co je blíž, je v ceně denního
 //   minima): vyplatí se až ≈ 170–200 m od vody, blíž je chůze s vědry levnější.
 // Vůz jede tempem volů po louce (TEAM_TRAVEL.speedMps; trasa vozové sítě v m po louce – cesta
-// rychleji, svah a strniště pomaleji), jdou s ním CARTS.crew lidé (honák a nakladač), den má
-// WATER_FETCHING.dayHours hodin; jízd za den nejvýš CARTS.loadsPerCartDay.
+// rychleji, svah a strniště pomaleji), jdou s ním CARTS.crew lidé (honák a nakladač; u uhlí
+// a rudy `crew`), den má WATER_FETCHING.dayHours hodin; jízd za den nejvýš CARTS.loadsPerCartDay.
 export const CART_JOBS = {
-  order: ['charcoal', 'seed', 'water'],
-  charcoal: { carryShare: 0.2, loadKg: 300, stopS: 900, reachM: 12 },
+  order: ['charcoal', 'ore', 'seed', 'water'],
+  charcoal: { carryShare: 0.2, loadKg: 300, stopS: 900, reachM: 12, crew: 1 },
+  ore: { stopS: 900, reachM: 12, crew: 2, reserveDays: 15 },
   seed: { carryShare: 0.1 },
   water: {
     litresPerPerson: 10,

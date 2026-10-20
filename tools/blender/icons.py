@@ -27,7 +27,8 @@ bilance obchodu se sousedem, trade.md),
 ozim (osení pod sněhem), jar (klasy jarního ječmene), flax (len – hrst stonků s modrými květy
 a tobolkami, fields.md – Len), charcoal (hromádka dřevěného uhlí), tools
 (kovaná sekera zkřížená se srpem) a pottery (dva hrnce pražského typu, větší s vlnovkou) –
-suroviny řemesel (crafts.md) –, harvest (sklizeň – srp zkřížený s uříznutou hrstí zralých klasů,
+suroviny řemesel (crafts.md) –, ore (hromádka rezavých hrud bahenní rudy – crafts.md, Uhlí a ruda
+kováře), harvest (sklizeň – srp zkřížený s uříznutou hrstí zralých klasů,
 panel dílu pole – fields.md), walk (cesta z domu – dvě šlépěje bosých nohou ve vyšlapané hlíně, chůze
 po pěšinách – paths.md), cart (dvoukolák s loukoťovými koly) a wood-tools (hrábě zkřížené
 s dřevěnými vidlemi) – vozy a dřevěné nářadí od tesaře (wagons.md) –, overgrowth (zarůstání – keře
@@ -1719,6 +1720,45 @@ def icon_charcoal():
     return True
 
 
+def ore_nodule(bm, centre, size, rng):
+    """Hrouda bahenní rudy: oblá, hrbolatá a pórovitá (limonit srážený v drnu)."""
+    first = len(bm.verts)
+    bmesh.ops.create_icosphere(bm, subdivisions=2, radius=1.0)
+    bm.verts.ensure_lookup_table()
+    for v in list(bm.verts)[first:]:
+        k = 1.0 + rng.uniform(-0.22, 0.22) + 0.2 * noise.noise(v.co * 2.7 + Vector(centre) * 5)
+        v.co = Vector(centre) + Vector((v.co.x * size[0], v.co.y * size[1], v.co.z * size[2])) * k
+
+
+def icon_ore():
+    """Ruda: hromádka rezavých hrud bahenní rudy (crafts.md – Uhlí a ruda kováře) – okrové
+    a rezavé, pórovité, matné."""
+    rng = random.Random(31)
+    bm = bmesh.new()
+    lumps = [
+        ((-0.46, 0.02, 0.14), (0.26, 0.22, 0.17)),
+        ((-0.04, -0.2, 0.13), (0.28, 0.22, 0.16)),
+        ((0.44, -0.02, 0.14), (0.25, 0.22, 0.17)),
+        ((-0.22, 0.3, 0.13), (0.24, 0.2, 0.16)),
+        ((0.24, 0.3, 0.13), (0.26, 0.2, 0.16)),
+        ((-0.24, 0.02, 0.36), (0.25, 0.21, 0.17)),
+        ((0.2, 0.0, 0.37), (0.26, 0.21, 0.18)),
+        ((-0.02, 0.26, 0.35), (0.22, 0.19, 0.16)),
+        ((-0.04, 0.08, 0.58), (0.24, 0.2, 0.17)),
+        ((0.62, -0.3, 0.08), (0.12, 0.1, 0.08)),
+        ((-0.66, -0.26, 0.07), (0.1, 0.09, 0.07)),
+    ]
+    for c, size in lumps:
+        ore_nodule(bm, c, size, rng)
+    m = mat("ore", (0.25, 0.1, 0.038), 0.95, noise=38, bump=1.6)
+    o = to_obj(bm, "ore", m, smooth=False)
+    o.data.update()
+    sun(az=-45, el=42, strength=4.2, color=(1.0, 0.9, 0.75))
+    sun(az=150, el=25, strength=2.5, color=(0.8, 0.88, 1.0))
+    camera([Vector((-0.8, -0.45, 0)), Vector((0.8, 0.5, 0.78))], az=0, el=24, margin=1.04)
+    return True
+
+
 def flat_plate(bm, pts, y, thickness):
     """Plochý díl (list sekery) z obrysu `pts` v rovině XZ, tloušťka ve směru Y."""
     front = [bm.verts.new((x, y - thickness / 2, z)) for x, z in pts]
@@ -2210,6 +2250,7 @@ RESOURCES = {
     "jar": icon_jar,
     "flax": icon_flax,
     "charcoal": icon_charcoal,
+    "ore": icon_ore,
     "tools": icon_tools,
     "harvest": icon_harvest,
     "walk": icon_walk,

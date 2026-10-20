@@ -47,6 +47,7 @@ import { orchardTreeSpots } from './orchard-layout';
 import {
   FIELD_TRIPS_PER_MAN_DAY,
   MAX_TRAFFIC,
+  fetchCarriers,
   streamPhase,
   trafficCounts,
   trafficHomes,
@@ -73,6 +74,7 @@ import {
   type VillagerKind,
 } from './villager-motion';
 import { MILIR_SHAPE_M, craftSpots, forestKilnAnchor, milirPlace } from './workshop-layout';
+import { orePitRadius } from './ore-site-layout';
 
 // Postavy ve vsi (docs/design/villagers.md): kdo kde je a co dělá, jako čistá funkce vsi pro
 // scénu – z rozdělení práce posledního dne (herní jádro, labor-report.ts), ne z vlastních
@@ -139,6 +141,9 @@ const WOMEN: Record<LaborActivity, number> = {
   repair: 0.2,
   craft: 0.25,
   plant: 0.4,
+  // kovář a jeho synové (crafts.md – Uhlí a ruda kováře) – muži
+  ore: 0,
+  fetch: 0,
   domestic: 0.85,
   trade: 0.3,
   haul: 0.1,
@@ -363,14 +368,19 @@ export function planVillagers(
     if (caravans && share.activity === 'trade') return;
     const place = placer(ctx, share, count);
     for (let i = 0; i < count; i++) {
+      // kdo práci dělá, když to jádro ví (kovář a synové – crafts.md, Uhlí a ruda kováře)
+      const age = share.ages ? share.ages[i % share.ages.length] : undefined;
+      const child = age !== undefined && age < CHILD_UNDER;
       const who = identity(ctx.seed, `${share.activity}:${targetKey(share.target)}:${i}`, {
         women: womenChance(WOMEN[share.activity], ctx.sexes.women),
-        child: false,
+        child,
       });
       // u stavby musí někdo stát, i když zvláštní místo (strom, řada, plot) nevyšlo
       const pose =
         place(i, who) ?? (isConstructionShare(share) ? builderNearby(ctx, share, i, who) : null);
-      if (pose) people.push(villager(who, pose, adultHair(who, ctx.sexes.married)));
+      if (pose) {
+        people.push(villager(who, pose, child ? 'natural' : adultHair(who, ctx.sexes.married)));
+      }
     }
   });
   const winter = WINTER_MONTHS.includes(labor.month);
@@ -383,6 +393,7 @@ export function planVillagers(
   }
   people.push(...trafficFigures(ctx, labor, options.maxTraffic ?? MAX_TRAFFIC));
   for (const plan of funerals) people.push(...funeralFigures(ctx, plan));
+  people.push(...smithFetchFigures(ctx, labor));
   return people;
 }
 
@@ -1140,6 +1151,12 @@ function placer(ctx: Context, share: SceneLaborShare, count: number): Placer {
       ).length;
       return drovers > 0 ? (i, who) => (i < drovers ? null : crew(i, who)) : crew;
     }
+    case 'ore':
+      // kovář a synové od 14 let kopou rudu u jámy na rudišti (crafts.md – Uhlí a ruda kováře)
+      return t.kind === 'ore' ? oreDiggers(ctx, t) : none;
+    case 'fetch':
+      // nošení uhlí a rudy v koších jde jako provoz na cestách (`smithFetchFigures`)
+      return none;
     case 'idle':
       return idlers(ctx);
   }
@@ -1710,6 +1727,79 @@ function kilnWorkers(ctx: Context, kiln: { x: number; z: number }): Placer {
     return near ? stand(near.x, near.z, spot.hx, spot.hz, spot.clip) : null;
   };
 }
+
+/** Do kolika let je postava dítě (menší) – jako věková skupina jádra (AGE.adult). */
+const CHILD_UNDER = 14;
+
+/**
+ * Kopáči rudy (crafts.md – Uhlí a ruda kováře): na valu nejčerstvější jámy u rudiště (do
+ * ORE_PIT_REACH_M od místa) kolem dokola, čelem do jámy, s motykou; bez jámy kolem místa.
+ */
+function oreDiggers(ctx: Context, site: { x: number; z: number }): Placer {
+  const near = (ctx.village.orePits ?? [])
+    .filter((p) => Math.hypot(p.x - site.x, p.z - site.z) <= ORE_PIT_REACH_M)
+    .sort((a, b) => a.overgrowth - b.overgrowth || b.kg - a.kg);
+  const pit = near[0] ?? { x: site.x, z: site.z, kg: 0 };
+  const radius = orePitRadius(pit.kg) + gap(0.2);
+  return (i) => {
+    const a = 0.7 + i * 2.1;
+    const x = pit.x + Math.cos(a) * radius;
+    const z = pit.z + Math.sin(a) * radius;
+    const spot = nearestFree(ctx, x, z, 3);
+    if (!spot) return null;
+    const h = unit(pit.x - spot.x, pit.z - spot.z);
+    return stand(spot.x, spot.z, h.x, h.z, 'hoe');
+  };
+}
+/** Jámy rudiště leží kolem místa nejvýš tak daleko (m – SMITH_SUPPLY.pitSpreadM a rezerva). */
+const ORE_PIT_REACH_M = 8;
+
+/**
+ * Nosiči kováře (crafts.md – Uhlí a ruda kováře; villagers.md – Provoz na cestách): kdo dnes nese
+ * uhlí od milíře nebo rudu z rudiště (synové – menší postavy, nebo kovář), jde z kovárny po
+ * pěšinách k milíři či jámě tam bez nákladu a zpět s košem, doma na chvíli zmizí. Každý nosič je
+ * jedna postava (`fetchCarriers`) – syn chodí sám celý den tam a zpět, ne proud lidí. S vozem
+ * jede kovář vozem.
+ */
+function smithFetchFigures(ctx: Context, labor: SceneLabor): PlannedVillager[] {
+  const out: PlannedVillager[] = [];
+  for (const share of labor.shares) {
+    if (share.activity !== 'fetch' || share.carts) continue;
+    const t = share.target;
+    if (t.kind !== 'ore' && t.kind !== 'kiln') continue;
+    const from = t.kind === 'ore' ? t.id : t.from;
+    if (from === undefined) continue;
+    const home = ctx.houses.find((h) => h.id === from && h.built);
+    if (!home) continue;
+    const door = trafficDoor(ctx, home);
+    const goal = nearestFree(ctx, t.x, t.z, 8);
+    if (!door || !goal) continue;
+    const path = walkRoute(ctx, door, goal);
+    if (!path) continue;
+    const key = `fetch:${targetKey(t)}:${(share.ages ?? []).join('.')}`;
+    const base = hash01(stringHash(key), 1, 93);
+    fetchCarriers(share.ages).forEach((age, k) => {
+      const child = age < CHILD_UNDER;
+      const who = identity(ctx.seed, `${key}:${k}`, { women: 0, child });
+      const pose = shuttle(path, {
+        outClip: 'walk',
+        outSpeed: walkSpeed(who.kind, 'walk', who.scale),
+        endClip: 'idle',
+        endS: FETCH_LOAD_S,
+        backClip: 'carry',
+        backSpeed: walkSpeed(who.kind, 'carry', who.scale),
+        restClip: 'idle',
+        restS: TRAFFIC_HOME_S,
+        restHidden: true,
+        phase: streamPhase(k, base),
+      });
+      out.push(villager(who, pose, child ? 'natural' : adultHair(who, ctx.sexes.married)));
+    });
+  }
+  return out;
+}
+/** Nosič kováře u milíře nebo jámy nakládá koš (s). */
+const FETCH_LOAD_S = 5;
 
 /** Sázení mladých buků: u každého pařezu jeden člověk s motykou (crafts.md – Uhlíř). */
 function planting(ctx: Context, ids: readonly number[]): Placer {

@@ -56,6 +56,7 @@ import {
   roadApplesOption,
   roadLengthM,
   roadTreeLook,
+  roadTreeSpeed,
   roadUpgradeOptions,
   roadUpgradeProgress,
   roadChains,
@@ -64,6 +65,7 @@ import {
   type RoadKind,
   villageRoadWalk,
   ruinOvergrowth,
+  orePitOvergrowth,
   isAbandoned,
   oldGraves,
   sacredRuinOvergrowth,
@@ -327,6 +329,11 @@ export interface VillageRoad {
   ageYears: number;
   /** Stojící stromy u cesty (keře a stromy, ne souše a pařezy). */
   trees: number;
+  /**
+   * O kolik stromy a jabloně u cesty zrychlí chůzi i jízdu vozem (roads.md – Stromy u cesty
+   * zrychlí chůzi): průměr úseků podle délky (`roadTreeSpeed`), na tisíciny; bez stromů 0.
+   */
+  treeSpeed: number;
   /** Cesta vede mokřinou (m) a přes brody. */
   wetM: number;
   fords: number;
@@ -387,6 +394,12 @@ export interface VillageWorkshop {
    * práce staveb posledního dne 0–1; ostatní dílny null.
    */
   carpenter: VillageSummary['crafts']['workshops'][number]['carpenter'];
+  /**
+   * Kovář (crafts.md – Uhlí a ruda kováře): zásoba rudy (kg), rudiště (vzdálenost chůze, kolik rudy
+   * v ložisku zbývá), hromada u jámy a kdo nosí uhlí (synové 10–13, vůz se sedlákem); bez údaje
+   * dílna jiného řemesla.
+   */
+  ore?: VillageSummary['crafts']['workshops'][number]['ore'];
 }
 
 /** Vůz vsi pro lištu a panel (wagons.md – Vůz): druh, stav 0–1 a jestli je s výpravou pryč. */
@@ -923,6 +936,17 @@ export interface SceneVillage {
     craft?: Craft;
   }[];
   /**
+   * Rudiště kovářů (crafts.md – Uhlí a ruda kováře): místo (m), kovárna, vykopaná ruda na hromadě
+   * u jámy (kg, po celých) a jestli se tu právě kope (rozdělaná dávka). Bez údaje žádná.
+   */
+  oreSites?: SceneOreSite[];
+  /**
+   * Jámy po kopání rudy (crafts.md – Uhlí a ruda kováře): poloha, kolik rudy z nich vzešlo (kg, po
+   * celých – velikost jámy) a jak zarostly 0–1 (po dvacetinách; po SMITH_SUPPLY.pitYears zmizí).
+   * Bez údaje žádné.
+   */
+  orePits?: SceneOrePit[];
+  /**
    * Pole po čtvercích – díl = políčko krajiny `cell`, jeho střed (x, z) ve světě, strana
    * políčka `size` v m a stadium.
    */
@@ -1115,6 +1139,23 @@ export interface SceneVillage {
   ploughApproach?: { x: number; z: number }[];
 }
 
+/** Rudiště kováře ve scéně (crafts.md – Uhlí a ruda kováře). */
+export interface SceneOreSite {
+  dwellingId: number;
+  x: number;
+  z: number;
+  heapKg: number;
+  digging: boolean;
+}
+
+/** Jáma po kopání rudy ve scéně (crafts.md – Uhlí a ruda kováře). */
+export interface SceneOrePit {
+  x: number;
+  z: number;
+  kg: number;
+  overgrowth: number;
+}
+
 /** Vůz ve scéně (wagons.md – Vůz). */
 export interface SceneCart {
   id: number;
@@ -1147,9 +1188,9 @@ export interface SceneCart {
 
 /**
  * Náklad vozu na cestě zpátky (u výpravy tam i zpět, osivo tam); voda v sudech – sudy jsou na voze
- * tam i zpět (wagons.md – Co vozy vozí).
+ * tam i zpět (wagons.md – Co vozy vozí); ruda z rudiště (crafts.md – Uhlí a ruda kováře).
  */
-export type CartLoad = 'sheaves' | 'hay' | 'logs' | 'goods' | 'water';
+export type CartLoad = 'sheaves' | 'hay' | 'logs' | 'goods' | 'water' | 'ore';
 
 /** Čtverec lesa vsi ve scéně (fields.md – Les vsi). */
 export interface SceneWood {
@@ -1268,7 +1309,7 @@ export interface SceneExpedition {
 
 export type SceneRoad = Pick<
   Road,
-  'id' | 'points' | 'grade' | 'ground' | 'openEnds' | 'cart' | 'swath'
+  'id' | 'points' | 'grade' | 'ground' | 'openEnds' | 'cart' | 'swath' | 'lined'
 > & {
   /**
    * Rozestavěné vylepšení úseku – stupeň a průběh 0–1 na tomto úseku (vylepšení cesty hráče jde
@@ -1955,6 +1996,7 @@ function sceneVillage(
   const kilns = sceneKilns(state, summary);
   const plantedSaplings = plantedSaplingViews(state, day);
   const roadApples = sceneRoadApples(state, day, obstacles);
+  const { oreSites, orePits } = sceneOre(state, day);
   const ruins = (state.ruins ?? []).map((r) => ({
     id: r.id,
     type: r.type,
@@ -1984,6 +2026,8 @@ function sceneVillage(
   return {
     dwellings: [...built, ...sites],
     ...(ruins.length > 0 ? { ruins } : {}),
+    ...(oreSites.length > 0 ? { oreSites } : {}),
+    ...(orePits.length > 0 ? { orePits } : {}),
     fields,
     cemeteries,
     ...(funerals.length > 0 ? { funerals } : {}),
@@ -2007,6 +2051,38 @@ function sceneVillage(
     ...(carts.length > 0 ? { carts } : {}),
     ...(ploughApproach ? { ploughApproach } : {}),
   };
+}
+
+/**
+ * Rudiště a jámy kovářů pro scénu (crafts.md – Uhlí a ruda kováře): rudiště obývaných i prázdných
+ * kováren s hromadou rudy u jámy a jámy se zarůstáním – po celých kg a dvacetinách, ať se scéna
+ * nepřestavuje každý den.
+ */
+function sceneOre(
+  state: VillageState,
+  day: number,
+): { oreSites: SceneOreSite[]; orePits: SceneOrePit[] } {
+  const oreSites = state.dwellings.flatMap((d): SceneOreSite[] => {
+    const site = d.workshop?.craft === 'smith' ? d.workshop.oreSite : null;
+    if (!site) return [];
+    const batch = d.workshop!.oreBatch ?? null;
+    return [
+      {
+        dwellingId: d.id,
+        x: site.x,
+        z: site.z,
+        heapKg: Math.round(batch?.heap ?? 0),
+        digging: batch !== null && batch.dug < batch.kg,
+      },
+    ];
+  });
+  const orePits = (state.orePits ?? []).map((p) => ({
+    x: p.x,
+    z: p.z,
+    kg: Math.round(p.kg),
+    overgrowth: Math.round(orePitOvergrowth(p, day) * 20) / 20,
+  }));
+  return { oreSites, orePits };
 }
 
 /**
@@ -2083,6 +2159,9 @@ export function sceneRoads(
       ...(r.cart ? { cart: true as const } : {}),
       // průsek lesem (roads.md – Průsek lesem) – plocha korun nad ním zapadne
       ...(r.swath ? { swath: true as const } : {}),
+      // stromy u cesty zrychlí chůzi (roads.md) – síť pěšin a cena kácení u kurzoru jako na
+      // serveru; jen kde nějaké jsou
+      ...(roadTreeSpeed(r.lined) > 0 ? { lined: { ...r.lined! } } : {}),
       ...(r.ground
         ? {
             ground: {
@@ -2128,6 +2207,21 @@ export function sceneWoods(
 }
 
 /** Pořadí stupňů cesty – od vyšlapané po hať (panel, převládající stupeň při shodě lepší). */
+
+/**
+ * Zrychlení chůze od stromů u cesty pro panel (roads.md – Stromy u cesty zrychlí chůzi): průměr
+ * úseků cesty podle délky, na tisíciny.
+ */
+function chainTreeSpeed(members: readonly Road[]): number {
+  let length = 0;
+  let sum = 0;
+  for (const m of members) {
+    const l = roadLengthM(m);
+    length += l;
+    sum += l * roadTreeSpeed(m.lined);
+  }
+  return length > 0 ? Math.round((sum / length) * 1000) / 1000 : 0;
+}
 
 /**
  * Pevné cesty pro panel výběru – cesta hráče = řetěz úseků (roads.md – Cesta pro hráče), i
@@ -2182,6 +2276,7 @@ function roadViews(
         Math.floor((day - Math.min(...members.map((m) => m.bornDay))) / DAYS_PER_YEAR),
       ),
       trees: standing.filter((t) => spots.has(t.spot) && !removed.has(t.id)).length,
+      treeSpeed: chainTreeSpeed(members),
       wetM: Math.round(
         members.reduce(
           (sum, m) => sum + (m.ground?.wet ?? []).reduce((acc, [a, b]) => acc + (b - a), 0),
@@ -2315,8 +2410,9 @@ function plantedSaplingViews(state: VillageState, day: number): { id: number; gr
 }
 
 /**
- * Výroba dílny za den při práci `labor` (kg) – uhlíř bez kácení, kovář a hrnčíř s přirážkou,
- * tesař dřevěné nářadí podle nástrojů od kováře (wagons.md).
+ * Výroba dílny za den při práci `labor` (kg) – uhlíř bez kácení, kovář bez rudy (kope zvlášť –
+ * crafts.md, Uhlí a ruda kováře), hrnčíř s přirážkou za hlínu, tesař dřevěné nářadí podle
+ * nástrojů od kováře (wagons.md).
  */
 function workshopOutputKg(
   craft: Craft,
@@ -2359,6 +2455,18 @@ function craftsView(
       kiln: w.kiln,
       toPlant: w.toPlant,
       carpenter: w.carpenter,
+      ...(w.ore
+        ? {
+            ore: {
+              ...w.ore,
+              stockKg: Math.round(w.ore.stockKg * 10) / 10,
+              heapKg: Math.round(w.ore.heapKg * 10) / 10,
+              site: w.ore.site
+                ? { walkM: Math.round(w.ore.site.walkM), leftKg: Math.round(w.ore.site.leftKg) }
+                : null,
+            },
+          }
+        : {}),
     })),
     carts: carts.map((c) => ({ ...c, condition: Math.round(c.condition * 100) / 100 })),
     cartTargets,
@@ -2454,10 +2562,11 @@ function scenePloughApproach(
 
 /**
  * Co vůz při svozu veze: klády ke stavbě, seno ze seče (louka, díl úhoru v seči), jinak snopy;
- * mimo svoz (wagons.md – Co vozy vozí) uhlí a osivo jako zboží, vodu v sudech.
+ * mimo svoz (wagons.md – Co vozy vozí) uhlí a osivo jako zboží, vodu v sudech, rudu z rudiště.
  */
 function haulLoad(state: VillageState, share: LaborShare): CartLoad {
   if (share.job === 'water') return 'water';
+  if (share.job === 'ore') return 'ore';
   if (share.job === 'seed' || share.job === 'charcoal') return 'goods';
   const t = share.target;
   if (t.kind === 'meadow') return 'hay';
@@ -2536,6 +2645,9 @@ function cartRouteToday(
   } else if (t.kind === 'water') {
     // voda v sudech – na břeh, kde trasa jádra končí (waterCartDrive)
     axis = routeTo(state, t, CART_JOBS.water.reachM);
+  } else if (t.kind === 'ore') {
+    // ruda z rudiště (crafts.md – Uhlí a ruda kováře) – k hromadě u jámy jako jádro (oreCartDrive)
+    axis = routeTo(state, t, CART_JOBS.ore.reachM);
   }
   return axis ? simplifiedRoute(axis) : null;
 }

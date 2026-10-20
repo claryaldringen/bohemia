@@ -100,6 +100,7 @@ export * from './sacred-life';
 export * from './happiness';
 export * from './crafts';
 export * from './charcoal';
+export * from './smith-supply';
 // nákup u sousedů (crafts.md) – kroky simulace (odchod, cesta, návrat) volá simulate.ts
 export {
   CRAFT_PRODUCTS,
@@ -166,11 +167,13 @@ export {
   cartTripsPerDay,
   kilnCartDrive,
   kilnCartOffer,
+  oreCartDrive,
+  oreCartOffer,
   villageCartDrives,
   waterCartDrive,
   waterCartPlan,
   type CartDrives,
-  type KilnCart,
+  type SmithCart,
   type WaterCartPlan,
 } from './cart-jobs';
 export * from './paths';

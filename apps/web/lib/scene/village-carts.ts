@@ -60,11 +60,17 @@ export function parkedCartSpot(
 }
 
 /**
- * Jízda mimo svoz (wagons.md – Co vozy vozí): voda v sudech, uhlí od milíře, osivo na pole – vůz
- * jezdí tam a zpět tempem volů ve skutečném čase, ne v okně herního dne.
+ * Jízda mimo svoz (wagons.md – Co vozy vozí): voda v sudech, uhlí od milíře, ruda z rudiště
+ * (crafts.md – Uhlí a ruda kováře), osivo na pole – vůz jezdí tam a zpět tempem volů ve skutečném
+ * čase, ne v okně herního dne.
  */
 export function steadyJob(job: NonNullable<SceneCart['job']>): boolean {
-  return job.load === 'water' || job.target.kind === 'kiln' || job.outbound === true;
+  return (
+    job.load === 'water' ||
+    job.target.kind === 'kiln' ||
+    job.target.kind === 'ore' ||
+    job.outbound === true
+  );
 }
 
 /**
