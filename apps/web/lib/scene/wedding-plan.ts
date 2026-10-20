@@ -589,8 +589,17 @@ function outsidePoints(
 export function weddingPlan(
   wedding: SceneWedding,
   village: SceneVillage,
-  env: WeddingEnv,
+  scene: WeddingEnv,
 ): WeddingPlan | null {
+  // vchody domů se hledají jednou (volné místo před vchodem – villager-plan.ts)
+  const doors = new Map<number, Point | null>();
+  const env: WeddingEnv = {
+    ...scene,
+    door: (id) => {
+      if (!doors.has(id)) doors.set(id, scene.door(id));
+      return doors.get(id) ?? null;
+    },
+  };
   const window = env.dayWindow(wedding.day);
   if (!window || village.dwellings.length === 0) return null;
   const scale = env.figureScale;
