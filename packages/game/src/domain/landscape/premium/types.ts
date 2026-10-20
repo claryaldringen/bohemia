@@ -30,7 +30,7 @@ export interface PremiumTypeInfo {
   /** Typ s kostrou světa (řeka nebo stezka navazující mezi mapami). */
   readonly skeleton: boolean;
   readonly anchor: PremiumAnchor;
-  /** Má účinek hned (ne až s pozdější mechanikou). */
+  /** Účinek hned podle spec (sloupec „Hned“ není „nic“), ne až s pozdější mechanikou. */
   readonly immediate: boolean;
 }
 
