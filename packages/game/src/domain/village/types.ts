@@ -215,6 +215,11 @@ export interface CharcoalKiln {
    */
   cart?: CartDrive | null;
   /**
+   * Totéž pro čtyřkolák – jen po pevných cestách (wagons.md – Co se vozí a na čem: uhlí z lesního
+   * milíře po cestě). Bez údaje se ještě nepočítala.
+   */
+  cart4?: CartDrive | null;
+  /**
    * Kdo z milíře nosí uhlí ke kováři (crafts.md – Uhlí a ruda kováře): kovárna (id obydlí – nejbližší
    * kovář) a vzdálenost chůze od ní k milíři (m po pevných cestách s půdou – paths/walking.ts;
    * bez krajiny vzdušně). Spočítá se při prvním nošení a uloží; jiný kovář = přepočet.
@@ -1552,6 +1557,8 @@ export interface VillageState {
    * a ohrada – přepočítá se, když se změní). Chybí, dokud vůz pro vodu nejel.
    */
   waterCart?: { key: string; drive: CartDrive | null };
+  /** Totéž pro čtyřkolák – jen po pevných cestách (wagons.md – Co se vozí a na čem). */
+  waterCart4?: { key: string; drive: CartDrive | null };
   /**
    * Pevné cesty, stromy u nich a roční součty práce (roads.md). Chybí u vsí uložených před nimi
    * a ve vsích simulovaných bez krajiny (kalibrace, testy) – začnou při prvním dopočtu s krajinou.

@@ -177,6 +177,28 @@ describe('uhlí z milíře ke kováři (wagons.md – Co vozy vozí, crafts.md �
   });
 });
 
+describe('levnější vůz pro uhlí a vodu (wagons.md – Co se vozí a na čem)', () => {
+  it('čtyřkolák veze dvakrát víc se stejnou posádkou – práce na kg poloviční', () => {
+    const footPerKg = basketManDaysPerKg(400, SMITH_SUPPLY.basketKg.charcoal);
+    const drive = { costM: 300, x: 0, z: 0 };
+    const two = kilnCartOffer(drive, footPerKg)!;
+    const four = kilnCartOffer(drive, footPerKg, 'four-wheel')!;
+    expect(four.manDaysPerKg).toBeCloseTo(two.manDaysPerKg / 2, 12);
+    expect(four.maxKg).toBeCloseTo(two.maxKg * 2, 9);
+    const far = [{ dwellingId: 1, people: 10, labor: 2 }];
+    const water2 = waterCartPlan(far, 1, drive)!;
+    const water4 = waterCartPlan(far, 1, drive, 'four-wheel')!;
+    expect(water4.kind).toBe('four-wheel');
+    expect(water4.crew).toBeCloseTo(water2.crew / 2, 12);
+  });
+
+  it('bez krajiny (bez cest) čtyřkolák nikam nejede', () => {
+    const s = withCharcoal(village(DAY));
+    expect(villageCartDrives(s, DAY, null, null, 'four-wheel')).toBeNull();
+    expect(villageCartDrives(s, DAY, null, null)).not.toBeNull();
+  });
+});
+
 describe('osivo na pole (wagons.md – Co vozy vozí)', () => {
   it('v den setí vůz převezme nošení osiva – setí postoupí víc', () => {
     const s = withSowing(village(SOW_DAY - 1));

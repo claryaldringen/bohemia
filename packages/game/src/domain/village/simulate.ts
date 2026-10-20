@@ -10,9 +10,11 @@ import {
   workCarpenters,
 } from './carpentry';
 import {
+  CART_KINDS,
   NO_HAUL,
   addHaulTrips,
   cartFleetToday,
+  cartLoadRatio,
   cartOrigin,
   cropCartReach,
   fellingHaulable,
@@ -27,6 +29,7 @@ import {
   mowingCartReach,
   retireCarts,
   sowingCartReach,
+  takeCart,
   teamsHomeShare,
   villageCartAccess,
   type CartAccess,
@@ -43,6 +46,7 @@ import {
   waterCartDrive,
   waterCartPlan,
   type CartDrives,
+  type SmithCart,
   type WaterCartPlan,
 } from './cart-jobs';
 import {
@@ -210,6 +214,7 @@ import {
   type SowingCapacity,
 } from './sowing';
 import type {
+  CartKind,
   CartReach,
   ChronicleEvent,
   Construction,
@@ -912,6 +917,9 @@ function work(
   let drives: CartDrives | null | undefined;
   const drivesOf = (): CartDrives | null =>
     (drives ??= villageCartDrives(state, day, landscape, obstacles));
+  let drives4: CartDrives | null | undefined;
+  const drives4Of = (): CartDrives | null =>
+    (drives4 ??= villageCartDrives(state, day, landscape, obstacles, 'four-wheel'));
   if (access) {
     demand.jobs.push(
       ...jobsDemand(state, { landscape, deliveries, drives: drivesOf, water: waterNeeds }),
@@ -927,16 +935,17 @@ function work(
       ? logHaulCandidates(state, day, access, fourAccess, landscape, obstacles)
       : [];
   const logPlan = logs.length > 0 ? logHaulPlan(logs, fleet) : NO_HAUL;
-  // uhlí, ruda, osivo a voda jen dvoukolákem (malé náklady k milíři, jámě a břehu – wagons.md)
+  // uhlí, ruda, osivo a voda – zbylé vozy (uhlí a vodu i čtyřkolák po cestě – wagons.md)
   const jobs =
-    access && fleetCarts(fleet, 'two-wheel') > 0
+    access && anyCart()
       ? planCartJobs(state, {
-          carts: fleetCarts(fleet, 'two-wheel'),
+          fleet,
           tasks: dayTasks,
           hauls,
           access,
           landscape,
           drives: drivesOf,
+          drives4: drives4Of,
           deliveries,
           resting,
           water: waterNeeds,
@@ -1081,12 +1090,13 @@ function work(
   if (jobs.water) {
     const water = jobs.water;
     if (state.roads) {
-      addRoadCartTrips(state.roads, [{ ...water.spot, kind: 'two-wheel', trips: water.trips }]);
+      addRoadCartTrips(state.roads, [{ ...water.spot, kind: water.kind, trips: water.trips }]);
     }
     haulWork.push({
       job: 'water',
       manDays: water.crew,
       carts: water.carts,
+      ...(water.kind === 'four-wheel' ? { four: water.carts } : {}),
       target: { kind: 'water', ...water.spot },
     });
   }
@@ -1160,13 +1170,14 @@ function work(
   // vozy vozí, crafts.md – Uhlí a ruda kováře)
   for (const c of smithCarts.charcoal) {
     if (state.roads) {
-      const trips = c.kg / CART_JOBS.charcoal.loadKg;
-      addRoadCartTrips(state.roads, [{ x: c.x, z: c.z, kind: 'two-wheel', trips }]);
+      const trips = c.kg / (CART_JOBS.charcoal.loadKg * cartLoadRatio(c.kind));
+      addRoadCartTrips(state.roads, [{ x: c.x, z: c.z, kind: c.kind, trips }]);
     }
     haulWork.push({
       job: 'charcoal',
       manDays: c.manDays,
       carts: 1,
+      ...(c.kind === 'four-wheel' ? { four: 1 } : {}),
       target: { kind: 'kiln', id: c.burnerId, ...c.at },
     });
   }
@@ -1601,6 +1612,8 @@ interface CharcoalCartJob {
   /** Kde trasa vozu u milíře končí (m – jízdy do ročního provozu cest). */
   x: number;
   z: number;
+  /** Který vůz jede (čtyřkolák k lesnímu milíři po cestě). */
+  kind: CartKind;
 }
 
 /** Vůz se sedlákem pro rudu z rudiště do kovárny (crafts.md – Uhlí a ruda kováře). */
@@ -1635,58 +1648,77 @@ interface CartJobsDay {
 const NO_CART_JOBS: CartJobsDay = { carts: 0, charcoal: [], ore: [], water: null };
 
 /**
- * Jízdy vozů, které nesvážejí úrodu, seno ani klády (wagons.md – Co vozy vozí; mutuje `tasks`
- * a `hauls` jako svoz): v pořadí CART_JOBS.order – uhlí z milíře do kovárny tam, kde ho dnes uhlíř
- * vytahal (`deliveries`; jízda k milíři se uloží u milíře), ruda z hromady u jámy dávky na celý vůz
- * (jízda k rudišti se uloží u rudiště – crafts.md, Uhlí a ruda kováře), osivo na pole
+ * Jízdy vozů, které nesvážejí úrodu, seno ani klády (wagons.md – Co vozy vozí; mutuje `tasks`,
+ * `hauls` a flotilu jako svoz): v pořadí CART_JOBS.order – uhlí z milíře do kovárny tam, kde ho
+ * dnes uhlíř vytahal (`deliveries`; jízda k milíři se uloží u milíře), ruda z hromady u jámy dávky
+ * na celý vůz (jízda k rudišti se uloží u rudiště – crafts.md, Uhlí a ruda kováře), osivo na pole
  * (`planSeedHauls`), voda v sudech (`waterCartPlan`; břeh se uloží ve stavu). Vůz jede jen tam,
  * kam dojede, a jen když ušetří práci (uhlí a ruda proti nošení v koších kovářovou domácností).
+ * Uhlí a vodu veze levnější vůz (wagons.md – Co se vozí a na čem): čtyřkolák, když dojede po
+ * pevné cestě a za kg stojí míň práce; ruda a osivo jen dvoukolákem.
  */
 function planCartJobs(
   state: VillageState,
   input: {
-    carts: number;
+    fleet: CartFleet;
     tasks: DayTask[];
     hauls: Map<DayTask, HaulPlan>;
     access: CartAccess;
     landscape: Landscape | null;
     drives: () => CartDrives | null;
+    drives4: () => CartDrives | null;
     deliveries: readonly CharcoalDelivery[];
     resting: ReadonlyMap<number, WorkshopActivity>;
     water: readonly HouseholdWater[];
   },
 ): CartJobsDay {
-  let left = input.carts;
-  if (left <= 0) return NO_CART_JOBS;
+  const fleet = input.fleet;
+  const any = (): boolean => fleetCarts(fleet, 'two-wheel') + fleetCarts(fleet, 'four-wheel') > 0;
+  if (!any()) return NO_CART_JOBS;
+  let used = 0;
   const charcoal: CharcoalCartJob[] = [];
   const ore: OreCartJob[] = [];
   for (const job of CART_JOBS.order) {
-    if (left <= 0) break;
+    if (!any()) break;
     if (job === 'charcoal') {
       for (const d of input.deliveries) {
-        if (left <= 0) break;
+        if (!any()) break;
         const kiln = state.dwellings.find((x) => x.id === d.burnerId)?.workshop?.kiln;
-        const all = input.drives();
-        if (!kiln || !all) continue;
-        if (kiln.cart === undefined) kiln.cart = kilnCartDrive(state, d.at, all);
+        if (!kiln) continue;
         const footPerKg = basketManDaysPerKg(d.walkM, SMITH_SUPPLY.basketKg.charcoal);
-        const offer = kilnCartOffer(kiln.cart, footPerKg);
-        if (!offer) continue;
-        const kg = Math.min(d.kg, offer.maxKg);
+        const offers: { kind: CartKind; offer: SmithCart }[] = [];
+        const all = fleetCarts(fleet, 'two-wheel') > 0 ? input.drives() : null;
+        if (all) {
+          if (kiln.cart === undefined) kiln.cart = kilnCartDrive(state, d.at, all);
+          const offer = kilnCartOffer(kiln.cart, footPerKg);
+          if (offer) offers.push({ kind: 'two-wheel', offer });
+        }
+        const all4 = fleetCarts(fleet, 'four-wheel') > 0 ? input.drives4() : null;
+        if (all4) {
+          if (kiln.cart4 === undefined) kiln.cart4 = kilnCartDrive(state, d.at, all4);
+          const offer = kilnCartOffer(kiln.cart4, footPerKg, 'four-wheel');
+          if (offer) offers.push({ kind: 'four-wheel', offer });
+        }
+        // levnější vůz – méně práce sedláka na kg (při shodě dvoukolák)
+        const best = offers.sort((a, b) => a.offer.manDaysPerKg - b.offer.manDaysPerKg)[0];
+        if (!best) continue;
+        const kg = Math.min(d.kg, best.offer.maxKg);
         charcoal.push({
           burnerId: d.burnerId,
           smithId: d.smithId,
           at: d.at,
           kg,
-          manDays: kg * offer.manDaysPerKg,
-          x: offer.x,
-          z: offer.z,
+          manDays: kg * best.offer.manDaysPerKg,
+          x: best.offer.x,
+          z: best.offer.z,
+          kind: best.kind,
         });
-        left--;
+        takeCart(fleet, best.kind);
+        used++;
       }
     } else if (job === 'ore') {
       for (const smith of occupiedSmiths(state)) {
-        if (left <= 0) break;
+        if (fleetCarts(fleet, 'two-wheel') <= 0) break;
         if (input.resting.has(smith.id)) continue;
         const workshop = smith.workshop!;
         const batch = workshop.oreBatch;
@@ -1710,19 +1742,45 @@ function planCartJobs(
           x: offer.x,
           z: offer.z,
         });
-        left--;
+        takeCart(fleet, 'two-wheel');
+        used++;
       }
     } else if (job === 'seed') {
-      left = planSeedHauls(state, input.tasks, input.hauls, left, input.access, input.landscape);
+      const two = fleetCarts(fleet, 'two-wheel');
+      if (two <= 0) continue;
+      const left = planSeedHauls(
+        state,
+        input.tasks,
+        input.hauls,
+        two,
+        input.access,
+        input.landscape,
+      );
+      takeCart(fleet, 'two-wheel', two - left);
+      used += two - left;
     } else {
-      const all = input.drives();
-      const water = all
-        ? waterCartPlan(input.water, left, waterCartDrive(state, input.landscape, all))
-        : null;
-      if (water) return { carts: input.carts - left + water.carts, charcoal, ore, water };
+      // voda – ten druh vozů, který ušetří víc (čtyřkolák jen k břehu u pevné cesty)
+      const plans: WaterCartPlan[] = [];
+      for (const kind of CART_KINDS) {
+        const carts = fleetCarts(fleet, kind);
+        const all = carts > 0 ? (kind === 'four-wheel' ? input.drives4() : input.drives()) : null;
+        if (!all) continue;
+        const plan = waterCartPlan(
+          input.water,
+          carts,
+          waterCartDrive(state, input.landscape, all, kind),
+          kind,
+        );
+        if (plan) plans.push(plan);
+      }
+      const water = plans.sort((a, b) => b.saved - b.crew - (a.saved - a.crew))[0] ?? null;
+      if (water) {
+        takeCart(fleet, water.kind, water.carts);
+        return { carts: used + water.carts, charcoal, ore, water };
+      }
     }
   }
-  return { carts: input.carts - left, charcoal, ore, water: null };
+  return { carts: used, charcoal, ore, water: null };
 }
 
 /** Vozy pro uhlí a rudu, na které dnes zbyl sedlák ze společné práce. */
