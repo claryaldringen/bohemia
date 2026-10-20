@@ -247,10 +247,18 @@ návrh Clauda (čísla `KILN_SITE` v `rules.ts`).
   12 m od jiného milíře, kruh milíře (+ 1 m) ne na pevné cestě (2 m od osy), ne na skalním
   výchozu, pod posvátným dubem ani na háji, ne ve vodě a ne na svahu (rozdíl výšek pod milířem
   jako u obydlí). Když volné místo není, stojí milíř uprostřed dávky (rozhodnutí Clauda).
-- **Milířiště** uhlíř napřed vyklidí: v kruhu milíře (4,6 m) ostatní stromy, keře, kameny
-  a pařezy po kusech jako u staveb, v pruhu **4 m** kolem něj dospělé stromy (koruny – jako stavby
-  v lese a rudiště, ať milíř není schovaný pod korunami); buky dávky skácí na milíř, posvátné
-  a vyhrazené stromy nechá. Dospělé stromy dají klády na hromadu.
+- **Milíř je vidět z výchozí kamery** (návrh Clauda, 20. 10. 2026 – milíř na místě dávky byl
+  celý pod korunami): výchozí kamera stojí na jihu a dívá se šikmo k severu (41° pod vodorovnou),
+  takže strom 20 m vysoký zakryje, co je do ≈ 23 m za ním. Místo milíře proto má přednost tam, kde
+  v pruhu 6 m na obě strany a **26 m k jihu** za pasekou nestojí dospělý strom ani souš (okraj lesa,
+  paseka, louka) – nejbližší takové do **60 m** od středu dávky (buky dávky padnou, buk 60 m daleko
+  se k milíři dál nosí za 2 čd). Když takové místo není, nejbližší místo do 40 m s nejmenším počtem
+  stromů v pruhu.
+- **Milířiště je paseka** – uhlíř ho napřed vyklidí: v kruhu milíře (4,6 m) ostatní stromy, keře,
+  kameny a pařezy po kusech jako u staveb, a skácí dospělé stromy a souše, jejichž **koruna
+  zasahuje nad milíř nebo do 6 m kolem něj** (koruna 4 m × měřítko stromu, kupa 3 m – kmeny ≈ do
+  13 m; 3 čd za strom); buky dávky skácí na milíř, posvátné a vyhrazené stromy nechá. Dospělé
+  stromy dají klády na hromadu.
 - **Dřevo se netahá daleko:** kácení a doprava od buku k milíři jen pár metrů (2 čd na buk), bez
   dřívější přirážky „milíř v lese daleko od dílny“.
 - **Uhlíř chodí k milíři ze zemnice:** za chůzi po pevných cestách s půdou (mokřina, brody –
@@ -308,23 +316,22 @@ Sonda na čerstvém stavu Vlkova z 12. 2. 801 (uhlíř u lesa, kovář ≈ 270 m
 spřežením; ve vsi 514 kg uhlí – vypálený milíř u zemnice s 412 kg a 102 kg v kovárně), simulace
 dva a tři roky se starým a novým pravidlem:
 
-| Co                                   | dřív (jeden milíř)                | teď (milíř u buků, rovnováha)                                   |
-| ------------------------------------ | --------------------------------- | --------------------------------------------------------------- |
-| Kovář bez uhlí za 2 roky             | 50 dní (61.–107. a 563.–565. den) | 46 dní (61.–106. den), za 3 roky stále 46                       |
-| Z toho po náběhu (od prvního milíře) | 3 dny                             | 0                                                               |
-| Milíře za 3 roky                     | 1 nový (rozdělaný na konci)       | 3 nové (cyklus 106, 104, 100 dní), dva najednou 329 dní         |
-| Kde milíře stály                     | u zemnice (9 m)                   | u buků 83–96 m od zemnice (chůze 82–84 m), 156–224 m od kovárny |
-| Uhlíř v dílně / se vsí za 2 roky     | 214 / 516 dní                     | 227 / 503 dní (práce u milíře 123 → 125 čd)                     |
-| Nošení uhlí za 2 roky                | syn 4,0 čd, vůz 0,2 čd            | syn 2,0 čd, vůz 0,1 čd (dávky na 60 dní)                        |
-| Uhlí ve vsi na konci 3. roku         | 119 kg                            | 1,9 t (právě vypálený milíř)                                    |
+| Co                                   | dřív (jeden milíř)                | teď (milíř u buků, rovnováha)                                                                      |
+| ------------------------------------ | --------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Kovář bez uhlí za 2 roky             | 50 dní (61.–107. a 563.–565. den) | 56 dní (61.–116. den)                                                                              |
+| Z toho po náběhu (od prvního milíře) | 3 dny                             | 0                                                                                                  |
+| Milíře za 2 roky                     | žádný nový                        | 2 nové (cyklus 116 a 119 dní), dva najednou 189 dní                                                |
+| Kde milíře stály                     | u zemnice (9 m)                   | na pasece u buků 95–100 m od zemnice (chůze 90–95 m), 182–242 m od kovárny; z výchozí kamery vidět |
+| Uhlíř v dílně / se vsí za 2 roky     | 214 / 516 dní                     | 251 / 479 dní (práce u milíře 123 → 125 čd, navíc paseka)                                          |
+| Nošení uhlí za 2 roky                | syn 4,0 čd, vůz 0,2 čd            | syn 2,2 čd, vůz 0,1 čd (dávky na 60 dní)                                                           |
 
-- **Náběh** (46 dní na začátku) dělá stav ze starého pravidla: když se pravidlo změnilo, bylo ve
-  vsi jen 514 kg uhlí (≈ 60 dní kování) a nový milíř trvá ≈ 100 dní – kovář čeká na první milíř
-  u buků jako dřív. Pak už nečeká nikdy: uhlíř začne další milíř, jakmile uhlí stačí na cyklus
+- **Náběh** (56 dní na začátku) dělá stav ze starého pravidla: když se pravidlo změnilo, bylo ve
+  vsi jen 514 kg uhlí (≈ 60 dní kování) a nový milíř i s pasekou trvá ≈ 116 dní – kovář čeká na
+  první milíř u buků jako dřív. Pak už nečeká nikdy: uhlíř začne další milíř, jakmile uhlí stačí na cyklus
   a 15 dní, a vypálený milíř a rozdělaný stojí najednou.
 - **Spotřeba** kovářů Vlkova ≈ 2,6 kg uhlí denně (≈ 70–90 kg za 30 dní; ve dnech čekání se měří
-  i nesplněná poptávka) – milíř 1,8 t vydrží ≈ 2 roky, uhlíř tak pracuje v dílně ≈ 13 dní ročně
-  víc než dřív (vyklízí milířiště a drží uhlí do zásoby o cyklus dopředu).
+  i nesplněná poptávka) – milíř 1,8 t vydrží ≈ 2 roky, uhlíř tak pracuje v dílně ≈ 18 dní ročně
+  víc než dřív (paseka milířiště ≈ 10–15 dní na milíř, uhlí do zásoby o cyklus dopředu).
 
 ### Rozhodnutí – milíř a rovnováha
 
@@ -335,7 +342,8 @@ dva a tři roky se starým a novým pravidlem:
 | Uhlíř chodí k milíři ze svého domku – přirážka za chůzi na veškerou práci u milíře                 | Martin (20. 10. 2026) |
 | Najednou smí stát dva milíře (jeden se rozebírá, druhý se připravuje nebo pálí)                    | Martin (20. 10. 2026) |
 | Místo milíře: střed dávky, volné rovné místo po kružnicích do 40 m, 20 m od domů, 12 m od milíře   | návrh Clauda          |
-| Milířiště se vyklidí – v kruhu milíře vše, v pruhu 4 m dospělé stromy (koruny) po kusech           | návrh Clauda          |
+| Milířiště je paseka – v kruhu milíře vše, stromy s korunou nad milířem nebo do 6 m kolem po kusech | návrh Clauda          |
+| Místo milíře má přednost tam, kde ho z výchozí kamery (od jihu) nezakryjí stromy – do 60 m         | návrh Clauda          |
 | Spotřeba klouzavě za 365 dní (poptávka i nesplněná), prvních 30 dní odhad; cyklus z 3 posledních   | návrh Clauda          |
 | Další milíř při uhlí na cyklus + 15 dní; kovář pro uhlí při zásobě na cestu + 15 dní, dávka 60 dní | návrh Clauda          |
 | Dávku uhlíř vytahá den po dni, kolik stihne; pálící milíř hlídá celý den – ten den nevytahá        | rozhodnutí Clauda     |

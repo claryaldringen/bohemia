@@ -14,9 +14,11 @@ import {
   charcoalUsePerDay,
   homeKilnCenter,
   kilnCharcoalKg,
+  kilnCrownTrees,
   kilnCycleDays,
   kilnLeadDays,
   kilnRemnantOvergrowth,
+  kilnViewBlockers,
   kilnWalkFactor,
   migrateKiln,
   recordCharcoalUse,
@@ -36,7 +38,13 @@ import {
   type WorkshopDay,
 } from '../crafts';
 import { findKilnSite } from '../kiln-site';
-import { felledTreeStage, obstacleChangesAt, plantOnStump, saplingGrowth } from '../obstacles';
+import {
+  felledTreeStage,
+  obstacleChangesAt,
+  obstacleStatus,
+  plantOnStump,
+  saplingGrowth,
+} from '../obstacles';
 import { checkKilnSite, type PlacementVillage } from '../placement';
 import { NO_CRAFTS } from '../productivity';
 import {
@@ -284,9 +292,10 @@ describe('milíř u skácených buků (crafts.md – Milíř u skácených buků
 
   it('střed dávky na poli – milíř stojí na nejbližším volném místě vedle', () => {
     const landscape = makeLandscape({ size: 128 });
+    const open = packObstacles([], 128, 15);
     const s = village();
     const center = { x: 67, z: 7 };
-    expect(findKilnSite(s, DAY, landscape, forest, center)).toEqual(center);
+    expect(findKilnSite(s, DAY, landscape, open, center)).toEqual(center);
     // pole na políčku pod středem
     s.parts.push({
       id: 500,
@@ -304,9 +313,9 @@ describe('milíř u skácených buků (crafts.md – Milíř u skácených buků
       surface: 'meadow',
       cell: { x: 68, y: 64 },
     });
-    const site = findKilnSite(s, DAY, landscape, forest, center);
+    const site = findKilnSite(s, DAY, landscape, open, center);
     expect(site).not.toEqual(center);
-    expect(checkKilnSite(landscape, null, site, forest).ok).toBe(true);
+    expect(checkKilnSite(landscape, null, site, open).ok).toBe(true);
     const radius = MILIR.clearingRadiusM + KILN_SITE.marginM;
     // kruh milíře mimo políčko pole
     const outside =
@@ -316,6 +325,69 @@ describe('milíř u skácených buků (crafts.md – Milíř u skácených buků
       site.z - radius >= 15;
     expect(outside).toBe(true);
     expect(Math.hypot(site.x - center.x, site.z - center.z)).toBeLessThanOrEqual(KILN_SITE.searchM);
+  });
+
+  it('milířiště je paseka – stromy s korunou nad milířem nebo do 6 m kolem padnou', () => {
+    const tree = (id: number, x: number, z: number, scale = 1): ObstaclePlacement => ({
+      id,
+      kind: 'tree',
+      look: 'oak-1',
+      x,
+      z,
+      rotation: 0,
+      scale,
+    });
+    // kupa 3 m + 6 m kolem + koruna 4 m × měřítko
+    const layer = packObstacles(
+      [tree(1, 12.5, 0), tree(2, 13.5, 0), tree(3, 0, 13.5, 1.25), tree(4, -5, 0)],
+      128,
+      15,
+    );
+    const status = obstacleStatus();
+    expect(kilnCrownTrees(layer, status, { x: 0, z: 0 }, new Set())).toEqual([4, 1, 3]);
+    // buky dávky a vyhrazené stromy zůstanou v dávce / své stavbě
+    expect(kilnCrownTrees(layer, status, { x: 0, z: 0 }, new Set([4]))).toEqual([1, 3]);
+  });
+
+  it('výhled z výchozí kamery – stromy na jih od milíře ho zakryjí, místo se posune', () => {
+    const tree = (id: number, x: number, z: number): ObstaclePlacement => ({
+      id,
+      kind: 'tree',
+      look: 'oak-1',
+      x,
+      z,
+      rotation: 0,
+      scale: 1,
+    });
+    const status = obstacleStatus();
+    // stromy 20 m na jih zakryjí, na sever ani stranou ne
+    const one = (x: number, z: number): ObstacleLayer => packObstacles([tree(1, x, z)], 128, 15);
+    expect(kilnViewBlockers(one(0, -20), status, { x: 0, z: 0 }, new Set())).toBe(1);
+    expect(kilnViewBlockers(one(0, 20), status, { x: 0, z: 0 }, new Set())).toBe(0);
+    expect(kilnViewBlockers(one(9, -20), status, { x: 0, z: 0 }, new Set())).toBe(0);
+    // strom, který padne s pasekou nebo v dávce, nevadí
+    expect(kilnViewBlockers(one(0, -10), status, { x: 0, z: 0 }, new Set())).toBe(0);
+    expect(kilnViewBlockers(one(0, -20), status, { x: 0, z: 0 }, new Set([1]))).toBe(0);
+    // pás lesa na jih od středu dávky – milíř stojí tam, kde ho les nezakryje
+    const band: ObstaclePlacement[] = [];
+    let id = 1;
+    for (let x = -12; x <= 12; x += 4)
+      for (let z = -32; z <= -16; z += 4) band.push(tree(id++, x, z));
+    const layer = packObstacles(band, 128, 15);
+    const landscape = makeLandscape({ size: 128 });
+    const s = village();
+    const center = { x: 0, z: 40 };
+    const south = { x: 0, z: 0 };
+    s.dwellings = s.dwellings.filter((d) => d.id === BURNER);
+    s.dwellings[0]!.position = { x: 0, z: 80, rotation: 0 };
+    expect(kilnViewBlockers(layer, status, south, new Set())).toBeGreaterThan(0);
+    const site = findKilnSite(s, DAY, landscape, layer, south);
+    expect(kilnViewBlockers(layer, status, site, new Set())).toBe(0);
+    expect(Math.hypot(site.x - south.x, site.z - south.z)).toBeLessThanOrEqual(
+      KILN_SITE.view.searchM,
+    );
+    // otevřené místo se nehýbe
+    expect(findKilnSite(s, DAY, landscape, layer, center)).toEqual(center);
   });
 
   it('uhlíř chodí k milíři ze zemnice – přirážka za chůzi na veškerou práci u milíře', () => {
@@ -643,20 +715,21 @@ describe('milířiště (crafts.md – Milíř u skácených buků)', () => {
 describe('uhlíř – obnova lesa (mladé buky)', () => {
   it('na pařezy skácených buků sází v okně výsadby mladé buky', () => {
     const s = village();
-    const days = burnerDays(s, 30, forest);
+    // napřed paseka (milířiště), pak buky – do konce listopadu
+    const days = burnerDays(s, 60, forest);
     const planted = days.flatMap((d) => d.plantedTrees ?? []);
     expect(planted.length).toBeGreaterThan(0);
     const felled = new Map((s.felledTrees ?? []).map((f) => [f.id, f]));
     for (const id of planted) expect(felled.get(id)?.planted).toBeDefined();
     // sazenice je hned mladý stromek
-    const changes = obstacleChangesAt(s, DAY + 31);
+    const changes = obstacleChangesAt(s, DAY + 61);
     for (const id of planted) expect(changes.saplings).toContain(id);
   });
 
   it('mimo okno výsadby nesází – pařezy počkají na jaro', () => {
     const winter = at(601, 1, 10);
     const s = village(NEAR_FOREST, true, winter);
-    const days = burnerDays(s, 20, forest);
+    const days = burnerDays(s, 45, forest);
     expect(days.some((d) => (d.planting ?? 0) > 0)).toBe(false);
     expect((burnerOf(s).toPlant ?? []).length).toBeGreaterThan(0);
   });

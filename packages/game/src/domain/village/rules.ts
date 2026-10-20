@@ -1260,9 +1260,16 @@ export const CHARCOAL_BALANCE = {
  * nestojí na poli, v sadu, na hřbitově, v ohradě, na pozemku ani u domů (`homeM` od obydlí),
  * na cestě (`roadM` od osy pevné cesty navíc ke kruhu), pod posvátným dubem, na háji ani na
  * skalním výchozu, ve vodě ani na svahu (rozdíl výšek jako u obydlí), ani u jiného milíře
- * (`kilnM` mezi středy). Milířiště uhlíř napřed vyklidí: v kruhu milíře všechny překážky (mimo
- * buky dávky, vyhrazené a posvátné stromy) a v pruhu `crownM` kolem něj dospělé stromy, ať milíř
- * není schovaný pod korunami (jako stavby v lese – FOREST_CROWN_MARGIN_M).
+ * (`kilnM` mezi středy).
+ * Milířiště je paseka (návrh Clauda, 20. 10. 2026 – milíř musí být z výchozí kamery vidět): uhlíř
+ * napřed vyklidí kruh milíře (všechny překážky mimo buky dávky, vyhrazené a posvátné stromy)
+ * a skácí dospělé stromy a souše, jejichž koruna (poloměr `crownM` × měřítko stromu) zasahuje nad
+ * milíř (poloměr MILIR.footprintM / 2) nebo do `clearAroundM` kolem něj.
+ * Výhled (`view`): výchozí kamera stojí na jihu a dívá se šikmo k severu (41° pod vodorovnou –
+ * strom 20 m vysoký zakryje, co je do ≈ 23 m za ním); místo milíře proto upřednostní místo, kde
+ * v pruhu `halfWidthM` na obě strany a `lengthM` k jihu za pasekou nestojí dospělý strom (okraj lesa,
+ * paseka, louka) – nejbližší takové do `searchM` od středu dávky; jinak nejbližší místo
+ * s nejmenším počtem stromů v pruhu (do `searchM` milíře výše).
  */
 export const KILN_SITE = {
   stepM: 2,
@@ -1272,6 +1279,8 @@ export const KILN_SITE = {
   roadM: 2,
   kilnM: 12,
   crownM: 4,
+  clearAroundM: 6,
+  view: { lengthM: 26, halfWidthM: 6, searchM: 60 },
 } as const;
 // crafts.md – Uhlíř, obnova lesa (Martin; čísla návrh Clauda podle rešerše): na pařez skáceného
 // buku uhlíř zasadí mladý buk (semenáček z lesa) – 0,1 čd na sazenici, jen v oknech výsadby jako

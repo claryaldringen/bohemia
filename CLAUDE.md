@@ -764,9 +764,10 @@ rozhraní částí v
   prvnímu buku u zemnice, milíř uprostřed nich na volném rovném místě (`findKilnSite` v
   `kiln-site.ts` po kružnicích, kontrola `checkKilnSite` v `placement.ts` – ne pole, sad, hřbitov,
   ohrada, domy do `KILN_SITE.homeM`, cesta, jiný milíř, posvátný dub, háj, výchoz, voda, svah;
-  kruh `kilnCircle`), id z `nextId`; milířiště napřed vyklidí (`CharcoalKiln.clearing` – překážky
-  v kruhu a dospělé stromy v pruhu `KILN_SITE.crownM` pod korunami → `recordClearedObstacles`,
-  klády); dřevo se nosí pár metrů, za chůzi ze zemnice `kilnWalkFactor` (`kiln.walkM` po pevných
+  kruh `kilnCircle`; přednost místo, kde milíř z výchozí kamery od jihu nezakryjí stromy –
+  `kilnViewBlockers`, `KILN_SITE.view`), id z `nextId`; milířiště je paseka (`CharcoalKiln.clearing`
+  – překážky v kruhu a stromy, jejichž koruna sahá nad milíř nebo do `KILN_SITE.clearAroundM` kolem
+  – `kilnCrownTrees` → `recordClearedObstacles`, klády); dřevo se nosí pár metrů, za chůzi ze zemnice `kilnWalkFactor` (`kiln.walkM` po pevných
   cestách s půdou `villageRoadWalk`) na veškerou práci u milíře. Dílna uhlíře je jen zemnice (cena
   zemnice – `workshopExtra`, `workshopFootprints` bez milíře); přes milíř se nestaví
   (`PlacementVillage.kilns`). `Workshop.kilns` – nejvýš `CHARCOAL_BALANCE.maxKilns` (2); starší

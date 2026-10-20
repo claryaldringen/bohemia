@@ -1,5 +1,12 @@
 import { dateOfDayIndex } from '../calendar';
-import { detCos, detSin, length2, obstacleIndex, type ObstacleLayer } from '../landscape';
+import {
+  detCos,
+  detSin,
+  length2,
+  obstacleIndex,
+  obstaclesNear,
+  type ObstacleLayer,
+} from '../landscape';
 import { distanceFactor } from './fields';
 import {
   buildingLocalToWorld,
@@ -9,6 +16,7 @@ import {
   plantOnStump,
   polygonObstacles,
   recordClearedObstacles,
+  type ObstacleStatus,
   type TreeAtDistance,
 } from './obstacles';
 import { sacredSitesOf } from './sacred';
@@ -329,9 +337,13 @@ export function inPlantingWindow(day: number): boolean {
 
 /**
  * Kde postavit milíř u dávky buků (crafts.md – Milíř u skácených buků): rovné volné místo co nejblíž
- * středu dávky `center` (`findKilnSite` v kiln-site.ts); bez krajiny střed dávky.
+ * středu dávky `center`, kde je milíř vidět (`findKilnSite` v kiln-site.ts – buky dávky `batch`
+ * padnou); bez krajiny střed dávky.
  */
-export type KilnSiteFinder = (center: { x: number; z: number }) => { x: number; z: number };
+export type KilnSiteFinder = (
+  center: { x: number; z: number },
+  batch: ReadonlySet<number | null>,
+) => { x: number; z: number };
 
 /** Střed dávky buků (m, na cm). */
 function batchCenter(trees: readonly TreeAtDistance[]): { x: number; z: number } {
@@ -387,14 +399,15 @@ export function startKiln(
     isBeech,
   );
   const center = batchCenter(trees);
-  const site = options.site ? options.site(center) : center;
+  const site = options.site ? options.site(center, new Set(trees.map((t) => t.id))) : center;
   // dřevo se k milíři nosí jen pár metrů (vzdušně), uhlíř chodí ze zemnice po cestách (walk)
   const kiln = fresh(
     { x: site.x, z: site.z },
     fellingsOf(trees, site, undefined).map((t) => ({ id: t.id, cost: t.cost })),
   );
-  // milířiště: ostatní překážky v kruhu milíře a stromy v pruhu kolem něj uhlíř napřed vyklidí
-  // (buky dávky skácí na milíř, vyhrazené stromy jiných staveb a posvátné stromy nechá)
+  // milířiště je paseka: ostatní překážky v kruhu milíře a stromy, jejichž koruna sahá nad milíř
+  // nebo kolem něj, uhlíř napřed vyklidí (buky dávky skácí na milíř, vyhrazené stromy jiných staveb
+  // a posvátné stromy nechá)
   const keep = new Set([
     ...claimed,
     ...trees.map((t) => t.id),
@@ -408,24 +421,93 @@ export function startKiln(
     new Set(),
     keep,
   );
-  // v pruhu kolem milíře dospělé stromy, ať milíř není schovaný pod korunami
-  const crowns = polygonObstacles(
-    obstacles,
-    status,
-    kilnCircle(site, MILIR.clearingRadiusM + KILN_SITE.crownM),
-    new Set(),
-    new Set([...keep, ...tally.ids]),
-  );
-  const ids = [...tally.ids, ...crowns.treeIds];
+  const crowns = kilnCrownTrees(obstacles, status, site, new Set([...keep, ...tally.ids]));
+  const ids = [...tally.ids, ...crowns];
   if (ids.length > 0) {
     kiln.clearing = {
       ids,
-      cost: tally.cost + crowns.treeIds.length * OBSTACLE_COST.tree,
-      logs: tally.treeIds.length + crowns.treeIds.length,
+      cost: tally.cost + crowns.length * OBSTACLE_COST.tree,
+      logs: tally.treeIds.length + crowns.length,
     };
   }
   if (options.walk) kiln.walkM = Math.round(options.walk(home, [site])[0]! * 100) / 100;
   return kiln;
+}
+
+/** Poloměr kupy milíře (m) – koruna stromu nad ním milíř zakryje. */
+const KILN_HEAP_RADIUS_M = MILIR.footprintM / 2;
+/** Nejširší koruna, se kterou se počítá (m) – strom s měřítkem nad 1,5 nezvětší dosah. */
+const MAX_CROWN_M = KILN_SITE.crownM * 1.5;
+
+/** Je překážka vrstvy dospělý strom nebo souš (koruna, vysoký kmen)? */
+function isTallTree(kind: string | null): boolean {
+  return kind === 'tree' || kind === 'snag';
+}
+
+/**
+ * Dospělé stromy a souše, jejichž koruna (KILN_SITE.crownM × měřítko stromu, přidané stromy
+ * měřítko 1) zasahuje nad milíř se středem `site` nebo do KILN_SITE.clearAroundM kolem něj
+ * (crafts.md – Milíř u skácených buků: milířiště je paseka); bez stromů z `keep`. Id vzestupně
+ * podle vzdálenosti – deterministicky.
+ */
+export function kilnCrownTrees(
+  layer: ObstacleLayer,
+  status: ObstacleStatus,
+  site: { x: number; z: number },
+  keep: ReadonlySet<number | null>,
+): number[] {
+  const reach = KILN_HEAP_RADIUS_M + KILN_SITE.clearAroundM;
+  const max = reach + MAX_CROWN_M;
+  const found: { id: number; d: number }[] = [];
+  for (const i of obstaclesNear(layer, site.x - max, site.z - max, site.x + max, site.z + max)) {
+    const id = layer.id[i]!;
+    if (keep.has(id) || !isTallTree(status.kindOf(layer, i))) continue;
+    const d = length2(layer.x[i]! - site.x, layer.z[i]! - site.z);
+    const crown = Math.min(MAX_CROWN_M, KILN_SITE.crownM * layer.scale[i]!);
+    if (d < reach + crown) found.push({ id, d });
+  }
+  for (const o of status.addedIn(site.x - max, site.z - max, site.x + max, site.z + max)) {
+    if (keep.has(o.id) || o.kind !== 'tree') continue;
+    const d = length2(o.x - site.x, o.z - site.z);
+    if (d < reach + KILN_SITE.crownM) found.push({ id: o.id, d });
+  }
+  return found.sort((a, b) => a.d - b.d || a.id - b.id).map((t) => t.id);
+}
+
+/**
+ * Kolik dospělých stromů zakryje milíř se středem `site` z výchozí kamery (crafts.md – Milíř
+ * u skácených buků; KILN_SITE.view): stromy a souše v pruhu KILN_SITE.view.halfWidthM na obě
+ * strany a KILN_SITE.view.lengthM k jihu (ke kameře), které nepadnou s pasekou (`kilnCrownTrees`)
+ * ani nepatří k `keep` (buky dávky).
+ */
+export function kilnViewBlockers(
+  layer: ObstacleLayer,
+  status: ObstacleStatus,
+  site: { x: number; z: number },
+  keep: ReadonlySet<number | null>,
+): number {
+  const { lengthM, halfWidthM } = KILN_SITE.view;
+  const reach = KILN_HEAP_RADIUS_M + KILN_SITE.clearAroundM;
+  const minX = site.x - halfWidthM;
+  const maxX = site.x + halfWidthM;
+  const minZ = site.z - lengthM;
+  let count = 0;
+  const blocks = (id: number, x: number, z: number, crown: number): boolean =>
+    !keep.has(id) &&
+    x >= minX &&
+    x <= maxX &&
+    z >= minZ &&
+    z <= site.z &&
+    length2(x - site.x, z - site.z) >= reach + crown;
+  for (const i of obstaclesNear(layer, minX, minZ, maxX, site.z)) {
+    if (!isTallTree(status.kindOf(layer, i))) continue;
+    const crown = Math.min(MAX_CROWN_M, KILN_SITE.crownM * layer.scale[i]!);
+    if (blocks(layer.id[i]!, layer.x[i]!, layer.z[i]!, crown)) count++;
+  }
+  for (const o of status.addedIn(minX, minZ, maxX, site.z)) {
+    if (o.kind === 'tree' && blocks(o.id, o.x, o.z, KILN_SITE.crownM)) count++;
+  }
+  return count;
 }
 
 /** Práce uhlíře dne u jednoho milíře (rozdělení práce dne – postavy u milíře). */

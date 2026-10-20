@@ -1050,7 +1050,7 @@ export function workCrafts(
   // kde stavět milíř u dávky buků – rovné volné místo (crafts.md – Milíř u skácených buků)
   const kilnSite: KilnSiteFinder | undefined =
     landscape && obstacles
-      ? (center) => findKilnSite(state, day, landscape, obstacles, center)
+      ? (center, batch) => findKilnSite(state, day, landscape, obstacles, center, batch)
       : undefined;
   let burnt = 0;
   for (const dwelling of workshops) {

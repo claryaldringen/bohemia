@@ -172,9 +172,10 @@ export function villageClearedForest(
     ...(village.sacred?.buildings ?? []).flatMap((b) =>
       forestClearingsOf({ sacred: b.kind, position: b.position }),
     ),
-    // milířiště s pruhem pod korunami (crafts.md – Milíř u skácených buků) – i po rozebraném milíři
+    // milířiště je paseka bez korun nad milířem a kolem něj (crafts.md – Milíř u skácených buků) –
+    // i po rozebraném milíři
     ...[...(village.kilns ?? []), ...(village.kilnRemnants ?? [])].map((k) =>
-      kilnCircle(k, MILIR.clearingRadiusM + KILN_SITE.crownM),
+      kilnCircle(k, MILIR.footprintM / 2 + KILN_SITE.clearAroundM),
     ),
   ];
   return clearedForest(l, layer, village.obstacles ?? NO_OBSTACLE_CHANGES, squares, areas);
