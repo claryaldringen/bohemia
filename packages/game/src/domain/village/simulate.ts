@@ -11,6 +11,7 @@ import {
 } from './carpentry';
 import {
   addHaulTrips,
+  cartOrigin,
   cropCartReach,
   fellingHaulable,
   haulAvailable,
@@ -1577,29 +1578,42 @@ function logsDemand(before: ReadonlyMap<Construction, number>): number[] {
 }
 
 /**
- * Jízdy pro uhlí a vodu, kdyby vozů bylo dost (wagons.md – Kolik vozů ves chce): stejné plány jako
- * skutečné vozy (`planCartJobs` bez úloh dne – osivo měří `taskCarryDemand`) s CART_DEMAND.probeCarts
- * vozy; úspory jednotlivých vozů (čd).
+ * Jízdy pro uhlí a vodu, kdyby vozů bylo dost (wagons.md – Kolik vozů ves chce): stejné nabídky
+ * jako skutečné vozy (`planCartJobs` – uhlí z milířů, ze kterých dnes uhlíři nosí, voda v sudech
+ * s CART_DEMAND.probeCarts vozy); úspory jednotlivých vozů (čd). Jízda k vodě je poslední známá
+ * (`VillageState.waterCart`) – přepočet vozové sítě po každé změně rozložení vsi by stál víc než
+ * celý odhad; znovu se hledá, jen když jízdu ves ještě nemá nebo se ohrada volů přestěhovala.
  */
 function jobsDemand(
   state: VillageState,
   day: number,
   input: Omit<Parameters<typeof planCartJobs>[2], 'carts' | 'tasks' | 'hauls'>,
 ): number[] {
-  const jobs = planCartJobs(state, day, {
-    ...input,
-    carts: CART_DEMAND.probeCarts,
-    tasks: [],
-    hauls: new Map(),
-  });
+  let drives: CartDrives | null | undefined;
+  const drivesOf = (): CartDrives | null =>
+    (drives ??= villageCartDrives(state, day, input.landscape, input.obstacles));
   const savings: number[] = [];
-  if (jobs.kilns.size > 0) {
-    const draws = burnerDraws(state, day, input.coverage, input.productivity);
-    for (const [id, offer] of jobs.kilns) {
-      savings.push(Math.min(draws.get(id) ?? 0, offer.maxKg) * offer.savedPerKg);
+  for (const [id, kg] of burnerDraws(state, day, input.coverage, input.productivity)) {
+    const dwelling = state.dwellings.find((d) => d.id === id);
+    const kiln = dwelling?.workshop?.kiln;
+    const all = drivesOf();
+    if (!dwelling || !kiln || !all) continue;
+    if (kiln.cart === undefined) {
+      kiln.cart = kilnCartDrive(state, kiln.site ?? homeKilnCenter(dwelling.position), all);
     }
+    const offer = kilnCartOffer(kiln.cart, kilnWalkFactor(kiln, dwelling.position));
+    if (offer) savings.push(Math.min(kg, offer.maxKg) * offer.savedPerKg);
   }
-  const water = jobs.water;
+  const origin = cartOrigin(state);
+  const known = state.waterCart;
+  const all = drivesOf();
+  const drive =
+    known && origin && known.key.endsWith(`|${origin.x},${origin.z}`)
+      ? known.drive
+      : all
+        ? waterCartDrive(state, input.landscape, all)
+        : null;
+  const water = waterCartPlan(input.water, CART_DEMAND.probeCarts, drive);
   if (water) {
     const each = (water.saved - water.crew) / water.carts;
     for (let k = 0; k < water.carts; k++) savings.push(each);
