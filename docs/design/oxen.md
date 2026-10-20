@@ -591,6 +591,12 @@ a nechávalo za sebou brázdu. Tak budu moci určit, jak se to chová.“ – **
 - Ve scéně: ohrada s přístřeškem, v zimě voli a krávy v ohradě, stohy sena, na jaře a na podzim
   spřežení orá pole čtverec po čtverci – na čele orby u čáry, kde se zem mění na zoranou, a každý
   den dojde dál.
+- **Výběr spřežení** (Martin 20. 10. 2026: „nešlo mi kliknout na volské spřežení ani na člověka,
+  co jej vedl“; podrobnosti návrh Clauda – villagers.md, Výběr spřežení a vozu): klik na voly
+  nebo rádlo vybere spřežení – kroužek ho sleduje, panel ukáže, co dělá („orá díl pole“, „jde na
+  pole“, „vrací se do ohrady“), voly a tlačítka dílu pole, ohrady volů, oráče a honáka. Oráč
+  a honák jsou lidé vsi (honák výrostek nejblíž 12 letům) – klik na ně vybere člověka („orá“,
+  „vede spřežení“) s tlačítkem spřežení.
 
 ## Rozhodnutí
 

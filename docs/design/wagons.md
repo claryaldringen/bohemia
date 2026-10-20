@@ -406,6 +406,11 @@ Sondy bez kováře (kovárna zrušená) na čerstvém stavu z 31. 1. 801, kdy ve
 - V horní liště ikona **vozů** s počtem (jen když jsou) a dřevěného nářadí (jako nástroje).
 - Ve scéně vozy s voly a honákem jezdí po vozových cestách – svoz sena, snopů, klád, výprava
   k sousedovi; prázdný vůz stojí u ohrady. Vyjeté cesty mají koleje.
+- **Výběr vozu** (Martin 20. 10. 2026 – villagers.md, Výběr spřežení a vozu; podrobnosti návrh
+  Clauda): klik na vůz nebo jeho voly vybere vůz – kroužek ho sleduje, panel ukáže druh, co dělá
+  („jede pro uhlí k milíři“, „nakládá uhlí“, „veze uhlí ke kováři“, „skládá uhlí“, „stojí
+  u ohrady“…), stav, voly, co právě veze a tlačítka ohrady a vozky. Vozka je člověk vsi (dospělý,
+  přednostně muž) – klik na něj vybere člověka s tlačítkem vozu.
 - Panel cesty: vyšlapaná cesta s vozy je **Vyježděná cesta** – vlastní druh s portrétem (pás
   prošlapané trávy se dvěma kolejemi) a v rozpisu celé cesty zvlášť od vyšlapané (Vyšlapaná,
   Vyježděná, Upravená, Hať – délka po druzích).

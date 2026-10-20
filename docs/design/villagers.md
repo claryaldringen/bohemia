@@ -177,12 +177,14 @@ nemění.
      nebo od něj přicházejí, nejsou lidé vsi (postava je, vybrat nejde),
   3. synové kováře a hrnčíře, kteří nosí uhlí, rudu a hlínu (podle věku z jádra),
   4. výrostci 7–13 let, kteří dnes pasou (kolik – z jádra),
-  5. domácnosti dílen, které dnes pracují v dílně, kopou nebo nosí – jen u své práce, do práce
+  5. lidé u spřežení a vozů (Výběr spřežení a vozu níž) – oráč a honák u každého spřežení
+     s rádlem, vozka u každého zapřaženého vozu (vozka vozu výpravy jde už s karavanou),
+  6. domácnosti dílen, které dnes pracují v dílně, kopou nebo nosí – jen u své práce, do práce
      vsi ne,
-  6. u každé stavby s dnešní prací první člověk, pak ostatní práce vsi (dospělí 14–44 let),
-  7. provoz na cestách – člověk z domácnosti, od jejíchž dveří proud vychází (pro vodu i výrostci),
-  8. domácí práce, dojení, péče o zvířata a nečinní – kdo zbude (u domu přednostně z toho domu),
-  9. starší u domů (u svého domu).
+  7. u každé stavby s dnešní prací první člověk, pak ostatní práce vsi (dospělí 14–44 let),
+  8. provoz na cestách – člověk z domácnosti, od jejíchž dveří proud vychází (pro vodu i výrostci),
+  9. domácí práce, dojení, péče o zvířata a nečinní – kdo zbude (u domu přednostně z toho domu),
+  10. starší u domů (u svého domu).
 - **Na koho nezbude člověk, ta postava není.** Domácí výroba žen jde bokem (mimo práci vsi)
   a postavy ji ukazovaly navíc – ve vsi s málo lidmi tak bylo víc postav, než mohlo být venku
   lidí. Teď je postav nejvýš tolik, kolik je lidí, kteří ten den můžou být venku; napřed odpadnou
@@ -211,7 +213,8 @@ nemění.
 - **Činnost** (`lib/person-activity.ts`) – krátká věta z úlohy postavy a úseku pochůzky: „jde pro
   vodu“ / „nabírá vodu“ / „nese vodu“, „seje“, „žne“, „seče“, „pase ovce“, „staví zemnici“,
   „kácí strom“, „nese uhlí od uhlíře“, „kope rudu“, „kope hlínu“, „staví milíř“, „hlídá milíř“,
-  „rozebírá milíř“, „jde do vesnice Olšany pro kování k vozu“, „jde v pohřebním průvodu“, „nese
+  „rozebírá milíř“, „orá“, „vede spřežení“, „veze uhlí ke kováři“, „jde do vesnice Olšany pro
+  kování k vozu“, „jde v pohřebním průvodu“, „nese
   máry“, „stojí u pohřební hranice“, „vrací se domů“, „jde na svatbu“, „je oddávána“ / „je
   oddáván“, „stojí u obřadu“, „vrací se ze svatby“, „odpočívá“. Jméno vsi se neskloňuje („do vesnice Olšany“). Postava, která vešla domů,
   je „doma“, karavana za krajem mapy „pryč – ve vesnici Olšany“; člověk bez postavy dne „doma“.
@@ -242,6 +245,63 @@ nemění.
 | Hlava dvorce jako u mohyl (i starší), hlava dílny a rolníka 14–44                | vojvoda zůstává vojvodou, pracující řemeslník je dospělý        |
 | Snacha a zeť navíc k rolím ze zadání                                             | žena syna hlavy by jinak byla „žena rolníka“ vedle matky        |
 | Jméno vsi „do vesnice Olšany“                                                    | jména vsí nejdou skloňovat                                      |
+
+### Výběr spřežení a vozu
+
+Martin (20. 10. 2026):
+
+> „nešlo mi kliknout na volské spřežení ani na člověka, co jej vedl“
+
+Oráče, honáka a vozku nekreslí postavy vsi, ale spřežení s rádlem a vůz (plough-team-renderer.ts,
+cart-renderer.ts) – proto nešli vybrat. Podrobnosti jsou návrh Clauda – jen zobrazení.
+
+- **Klik na voly, rádlo nebo vůz** vybere spřežení (`{ kind: 'plough-team', team }` – pořadí
+  spřežení dne) či vůz (`{ kind: 'cart', id }`); **klik na oráče, honáka nebo vozku** vybere
+  člověka vsi (`{ kind: 'person' }`). Spřežení a vůz mají přednost před stavbami pod nimi;
+  s postavou vsi rozhoduje bližší průmět ke kurzoru. Díly jsou pro výběr válce (vůl podél těla,
+  rádlo s ojí, korba vozu i s nákladem, lidé jako čára od nohou po hlavu – `draft-pick.ts`)
+  promítnuté na plátno, jen při kliknutí; u stejné vzdálenosti má člověk přednost před dílem,
+  ve kterém stojí. Vůz za krajem mapy vybrat nejde.
+- **Kroužek** (`selection-ring.ts`, jedna instance jako u postav) sleduje pohyb: kolem celého
+  spřežení či vozu elipsa od hlav volů po oráče / zadek korby, pod oráčem, honákem a vozkou malý
+  kroužek. Stav (co dělá) hlásí scéna jen při změně – i když je spřežení mimo záběr.
+- **Lidé u spřežení a vozů jsou lidé vsi** (`planVillagersWithCrew`, `DraftCrew`): oráč je
+  dospělý muž (jinak žena), honák výrostek nejblíž 12 letům (oxen.md – honáček; jinak dospělý),
+  vozka dospělý muž. Spřežení a vozy jsou ve scéně vidět celý den, proto patří k lidem s pevným
+  místem dne – hned po pasácích (vozka vozu výpravy s karavanou), před dílnami a prací vsi; jejich
+  podíl práce (orba, svoz) už postavy nemá. Kolik spřežení a vozů je, řekne ves, která je kreslí
+  (`VillageRenderer.draftCrews`). Bez volného člověka (malá ves) zůstane místo prázdné – klik na
+  oráče pak vybere celé spřežení.
+- **Co dělá** (`lib/draft-activity.ts`): spřežení „orá díl pole“, „jde na pole“, „přechází na
+  další díl“, „vrací se do ohrady“, „stojí u ohrady“; oráč „orá“, honák „vede spřežení“, oba
+  „vede spřežení na pole / do ohrady“. Vůz i vozka podle nákladu a úseku jízdy (k cíli, u cíle,
+  zpátky, u ohrady): „jede pro uhlí k milíři“ – „nakládá uhlí“ – „veze uhlí ke kováři“ – „skládá
+  uhlí“, snopy, seno, klády („veze klády ke stavbě“), ruda, hlína, voda („nabírá vodu“, „veze
+  vodu“), osivo („veze osivo na pole“), jablka; výprava „veze zboží do vesnice Olšany“, „vrací se
+  z vesnice Olšany“, za krajem mapy „pryč – ve vesnici Olšany“; vůz bez jízdy „stojí u ohrady“.
+- **Panel spřežení:** portrét vola, „Spřežení“, co dělá, voli, tlačítka dílu pole, který orá,
+  ohrady volů (voli venku patří ohradám v pořadí id – napřed volové vozů, pak páry spřežení),
+  oráče a honáka. **Panel vozu:** portrét vozu, druh (dvoukolák, čtyřkolák), co dělá, stav vozu,
+  voli, co právě veze (ikona – jen naložený), tlačítka ohrady a vozky. **Panel oráče, honáka
+  a vozky** jako u ostatních lidí a navíc tlačítko spřežení či vozu. Ukázky
+  `/dev/panels?panel=sprezeni` (i `vuz`, `vuz-stoji`, `postava-orac`, `postava-vozka`), ve vsi
+  `/dev/landscape` – orba přes cestu, vozy ve svahu a karavana mají ukázkové lidi po domech.
+- **Výkon** (Vlkov 20. 10. 2026 – den orby, kamera na spřežení, Chromium s WebGL 2, M1 Pro,
+  dva běhy před / po / po s vybraným spřežením): nejdelší snímek v klidu 16,8 ms ve všech třech,
+  nový den každých 5 s 116,7–133,4 ms před i po (přestavba vsi), zoom s novým dnem ≈ 400 ms před
+  i po; spřežení, vozy a zvířata v ohradách za snímek p50 0,1 ms jako dřív. Postav ve vsi o dvě
+  méně (20 → 18) – oráč a honák už nejsou zároveň jinde. Výběr jen při kliknutí (O(spřežení
+  - vozů)), kroužek jedna instance, žádný nový atribut na vrchol (WebGPU limit 8 vertex bufferů),
+    za snímek jen stav jednoho vybraného spřežení či vozu navíc.
+
+| Rozhodnutí (návrh Clauda)                                               | Proč                                                         |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Spřežení podle pořadí dne, vůz podle id                                 | spřežení nemá vlastní id (pár volů z ohrady), vůz ano        |
+| Klik na voly / rádlo / korbu vybere spřežení či vůz, na člověka člověka | oba výběry se doplňují – tlačítka přecházejí mezi nimi       |
+| Oráč, honák a vozka hned po pasácích                                    | spřežení a vůz jsou vidět celý den – musí u nich být člověk  |
+| Honák výrostek nejblíž 12 letům, jinak dospělý                          | ve scéně je to honáček; jádro orbu počítá do práce dospělých |
+| Spřežení na konci trasy „stojí u ohrady“                                | trasa končí u ohrady na cestě, ne uvnitř                     |
+| Výběr spřežení zmizí, když se dnes neorá                                | spřežení není ve scéně; vůz zmizí s vozem (doslouží)         |
 
 ## Zjednodušení a co chybí
 

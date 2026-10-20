@@ -1998,6 +1998,24 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   kroužek `villagers-ring` (jedna instance), stav vybraného člověka `onPersonState` jen při změně →
   `selectionDetails(…, personState)` → panel `PersonBody` (činnost `lib/person-activity.ts`).
   Bez `persons` jsou postavy jako dřív (nejdou vybrat). Ukázka `/dev/panels?panel=postava`.
+  **Výběr spřežení a vozu** (villagers.md – Výběr spřežení a vozu; Martin 20. 10. 2026: „nešlo mi
+  kliknout na volské spřežení ani na člověka, co jej vedl“, podrobnosti návrh Clauda): oráč, honák
+  a vozka jsou lidé vsi – `planVillagersWithCrew` (`DraftCrew`; vstup `draft` =
+  `VillageRenderer.draftCrews()` – kolik spřežení a id zapřažených vozů ves kreslí) jim přiřadí
+  člověka hned po pasácích (vozku vozu výpravy s karavanou; oráč dospělý muž, honák nejblíž
+  `LEADER_AGE` 12), podíl orby a svoz jejich vozů postavy nemají; úloha `PersonJob` `plough`
+  (`team`, `role`) a `cart`. Klik: `VillageRenderer.pickDraft` (`PloughTeams.pick`,
+  `CartRenderer.pick` – válce dílů promítnuté na plátno, `draft-pick.ts`, jen při kliknutí)
+  se porovná s `VillageVillagers.pickHit` (bližší vyhraje); `draftHitTarget` vybere spřežení
+  `plough-team` (pořadí dne `team`) nebo vůz `cart` (id), na oráče, honáka či vozku `person`.
+  `LandscapeScene.setSelection` → `draftSelectionFor` → `VillageRenderer.selectDraft` – kroužek
+  `SelectionRing` (`selection-ring.ts`, i kroužek postav) sleduje pohyb, stav (`TeamActivity`
+  z `draft-state.ts`, `CartPose.leg`) jen při změně → `onDraftState` (`DraftFigureState`
+  z `lib/draft-activity.ts` – i lidé u spřežení) → `selectionDetails(…, personState, draftState)`
+  → panely `TeamBody`, `CartBody` (texty, `teamPen`, `cartPen`), u oráče a vozky tlačítko
+  spřežení / vozu. `CartPlan.id`. Ukázky `/dev/panels?panel=sprezeni` (`vuz`, `vuz-stoji`,
+  `postava-orac`, `postava-vozka`); `/dev/landscape` ukázky s prací dne bez lidí dostanou ukázkové
+  lidi (`withDemoPersons`).
   **Pohřeb** (villagers.md – Pohřeb): průvod s márami a kruh kolem hranice jsou postavy s klíčem
   `funeral:` z `funeral-plan.ts` (`funeralFigures` ve `villager-plan.ts`) – jdou mimo rozpočet
   `MAX_WORKERS`, ve dnech obřadu se o ně sníží počet pracujících postav (`funeralActiveIn`).
