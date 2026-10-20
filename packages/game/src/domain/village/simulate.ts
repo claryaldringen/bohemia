@@ -424,10 +424,9 @@ function planYear(
     // (fields.md – Luštěniny); smějí jít na doplnění pojistky, ne pod roční potřebu z pole
     legumeTargetKg: targets.legumeKg,
     energyFloorKg: targets.energyFloorKg,
-    // len na plátno pro všechny (fields.md – Len, diet.md – Oděv); obilí smí ubrat jen ze zásob
-    // nad pojistku
+    // len na plátno pro všechny (fields.md – Len, diet.md – Oděv) – povinný, i se zásobami pod
+    // pojistkou (Len napřed)
     flaxTargetKg: flaxNeed,
-    flaxSpareKg: Math.max(0, targets.leftKg - targets.bufferKg),
   };
   let crops = chooseCrops(blocks, choice);
   // nouzový osev (fields.md – Přílohová soustava, Nouzový osev): když díly od 70 % nedají energii,

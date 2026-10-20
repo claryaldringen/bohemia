@@ -905,15 +905,39 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
   žádný. Ves s ≈ 5 díly lnu na ně dá ≈ 23 člověkodní za rok.
 - **Úrodnost:** len vysiluje půdu – osev ubere úrodnost **0,18 přirozené** (obilí 0,12), díl pak po
   vyčerpání leží v přílohu o ≈ 2 roky déle.
-- **Kolik ves oseje (k 1. 9.):** cíl lnu = potřeba vsi na rok. **Obilí má přednost:** ves nejdřív
-  vybere obilí na celý cíl osevu, pak len dostane díly toho výběru **od konce** (nejdál od domu –
-  jeho delší příloh pak neleží domům v cestě; díly, které měly len loni, až nakonec; když se práce
-  dílu nevejde – třeba sklizeň jaře v červenci plném ozimu –, zkusí další díl) a obilí doplní celou
-  energii dílu (len se nejí); pak luštěniny od domu. Když obilí doplnit nejde (chybí půda nebo
-  práce), **len ubere obilí nejvýš o svou plochu** (≈ 1–2 % osevu) – ale jen ze zásob, které
-  k příští sklizni zbudou nad pojistku (Osev podle zásob); ves se zásobami na pojistce má obilí
-  napřed a lnu je méně. Zkrácení rozjetého plánu (Osev podle zásob) len neubírá.
-  Díly hotové během roku jdou jen do jaře.
+- **Kolik ves oseje (k 1. 9.):** cíl lnu = potřeba vsi na rok. Ves nejdřív vybere obilí na celý cíl
+  osevu, pak len dostane díly toho výběru **od konce** (nejdál od domu – jeho delší příloh pak
+  neleží domům v cestě; díly, které měly len loni, až nakonec; když se práce dílu nevejde – třeba
+  sklizeň jaře v červenci plném ozimu –, zkusí další díl) a obilí doplní celou energii dílu (len se
+  nejí); pak luštěniny od domu. Když obilí doplnit nejde (chybí půda nebo práce), **len ubere obilí
+  nejvýš o svou plochu** (≈ 1–2 % osevu) – i se zásobami pod pojistkou (Len napřed). Když len
+  potřebu ani tak nepokryje, jde **len napřed** – před obilím (Len napřed níž). Zkrácení rozjetého
+  plánu (Osev podle zásob) ani osev navíc len neubírají. Díly hotové během roku jdou jen do jaře.
+- **Len napřed** (Martin, 20. 10. 2026: „Prosím tě, občas mi to píše chybí len na oděv“ – k pravidlu
+  „na částech pole musí být zasetý len“; podrobnosti **návrh Clauda**). **Proč:** Vlkov (34 lidí,
+  ≈ 40 ha polí, orá rádlem) měl od roku 786 skoro každý rok „Chybí len na oděv“ – 31. 7. sklidil
+  0–18 kg lnu z potřeby 32–48 kg; plán k 1. 9. 799 neměl ani díl lnu. Ves seje obilí, kolik stihne
+  práce (cíl osevu nepokryje): sklizeň ozimu zaplní červenec, jař srpen. Díl lnu za obilím se tak
+  vejde jen výměnou za díl ozimu, a i to jen, když volná práce v červenci pokryje rozdíl (trhání
+  lnu 55 čd/ha je pracnější než žeň ozimu) – a obilí, které za díl lnu ves hned doplní, uvolněnou
+  práci zase zabere; po pár dílech se len nevejde nikam. Pokud plán obilí nedosáhl roční potřeby,
+  zastavila len navíc i pojistka (len smí obilí ubrat jen ze zásob nad pojistku – a ty Vlkov
+  neměl). Pravidla:
+  - **Len je povinný** (oděv) a jde **napřed** – před luštěninami, osevem navíc i obilím, které
+    na něj nezbude. Malý díl lnu dostane ves i se zásobami pod pojistkou: obilí za díl lnu
+    ubere nejvýš o úrodu toho dílu (dřív jen ze zásob nad pojistku).
+  - Když len za obilím potřebu nepokryje (ves nemá volnou práci), ves **vyhradí díly a práci lnu
+    napřed** a obilí vybere až po něm na práci, která zbude. Kandidáti jako dřív – díly výběru
+    obilí od konce (nejdál od domu napřed, bližší potom), za nimi ostatní díly od domu, díly s loňským
+    lnem až nakonec, nouzový příloh pod 70 % ne. **Když se práce dílu nevejde, zkusí další –
+    bližší (méně chůze) nebo menší.** Obilí přijde o práci, kterou len vezme – zhruba o plochu
+    lnu (trhání je pracnější než žeň ozimu, ves bez volné práce v červenci proto ubere obilí až
+    ≈ 1,6× víc, než by len dal obilím; u Vlkova 34–72 kg obilí ze 4–4,4 t plánu, 0,8–1,6 %).
+  - **Ves, které len za obilím vycházel, má plán beze změny** (hlídá zlatý otisk v testech).
+  - **Vlkov** (kopie stavu z 20. 10. 2026, 3 roky od 1. 9. 800): plán k 1. 9. má **9–10 dílů lnu
+    (0,19–0,22 ha)** a 55–64 kg lnu z potřeby 53–60 kg (dřív 5, 1 a 0 dílů – 31, 4 a 0 kg) a 31. 7.
+    sklidí celý – oděv má každý rok celý, „Chybí len na oděv“ už nepřijde. Obilí 1. 9. 803 o 148 kg
+    (2,7 %) méně, lidí stejně.
 - **Trhání** jde v červenci napřed (před sklizní ozimu a luštěnin – je ho málo, bez něj chybí
   oděv).
 - **Zpracování** – rosení (máčení), sušení, lámání, třepení, vochlování, předení, tkaní a šití – je
@@ -945,7 +969,8 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
   doplní, trhání v červenci až po ozimu) měla plný oděv jen v 66,5 % let – vesnicím bez volné půdy
   len nezbyl a trhání nestihly; proto len smí ubrat obilí o svou plochu (ze zásob nad pojistku)
   a trhá se napřed. Bez omezení na zásoby nad pojistku 99,7 % let, ale ves na hranici půdy pak
-  krátce hladověla.
+  krátce hladověla. Od 20. 10. 2026 (Len napřed) omezení na zásoby nad pojistku neplatí a len jde
+  napřed i ve vsi bez volné práce – kalibrace s tím zatím neběžela.
 
 ### Úroda
 
@@ -1700,6 +1725,8 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Podíl z pole o třetinu rozdílu ročně; cílová zásoba pojistka + třetina potřeby z pole, odchylka po třetinách                      | návrh Clauda                                    |
 | Na částech pole musí být zasetý len – plátno na spodní oděv                                                                       | Martin (19. 10. 2026)                           |
 | Len 2 kg na dospělého (dítě 1), 550 kg/ha, okna luštěnin, −0,18 úrodnosti; od konce výběru, obilí ubere jen o své díly            | návrh Clauda (rešerše)                          |
+| Len napřed – „chybí len na oděv“ nemá chodit; len je povinný, i se zásobami pod pojistkou                                         | Martin (20. 10. 2026)                           |
+| Bez volné práce len vyhradí díly a práci před obilím; nevejde-li se díl, zkusí bližší či menší; jinak plán beze změny             | návrh Clauda                                    |
 | Zpracování lnu v domácí výrobě (přerozdělení); bez lnu jen štěstí až −4 a upozornění                                              | návrh Clauda                                    |
 | Osev podle růstu vsi – ves seje na lidi v době, kdy úrodu jí, ne na dnešní                                                        | Martin (19. 10. 2026)                           |
 | Výhled po měsících: věk, běžná úmrtnost, porody manželských párů; do sklizně a rok po ní                                          | návrh Clauda                                    |

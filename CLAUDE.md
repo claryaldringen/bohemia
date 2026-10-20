@@ -922,12 +922,16 @@ rozhraní částí v
   (31. 7. v `harvestWinter` – `VillageState.linen` = podíl oděvu vůči `YearPlan.flaxNeedKg`
   zapsané v `planYear`; plán bez ní – starší ves, ves založená během roku – nic nezapíše, kronika
   `linen-short`), `linenUnhappiness` (`HappinessFactors.linen`, až `FLAX.unhappiness` 4).
-  `chooseCrops` dostane `flaxTargetKg` – `chooseSideCrop` dá len napřed (před luštěninami) na díly
-  výběru obilí **od konce** (vysiluje půdu, delší příloh neleží domům v cestě; loňský len až
-  nakonec; když se práce nevejde, zkusí další díl – `fitsSideCrop`), obilí doplní energii, a když
-  nejde, len ubere obilí nejvýš o svůj díl ze zásob nad pojistku (`flaxSpareKg` = `leftKg` −
-  `bufferKg` ze `sowingTargets`); trhání v červenci napřed (`CROP_ORDER` – len první);
-  `trimPlan` len neubírá. Zpracování je v domácí výrobě
+  `chooseCrops` dostane `flaxTargetKg` – `chooseFlax`: napřed `chooseSideCrop` (před luštěninami)
+  na díly výběru obilí **od konce** (vysiluje půdu, delší příloh neleží domům v cestě; loňský len
+  až nakonec; když se práce nevejde, zkusí další díl – `fitsSideCrop`), obilí doplní energii, a
+  když nejde, len ubere obilí nejvýš o svůj díl – i se zásobami pod pojistkou. **Len napřed**
+  (fields.md, Martin 20. 10. 2026 – „občas mi to píše chybí len na oděv“): když to potřebu
+  nepokryje (ves bez volné práce – červenec plný ozimu, obilí doplněné za díl lnu práci hned zabere),
+  `flaxFirst` vyhradí díly a práci lnu před obilím (výběr `base` před `chooseGrain`; díl, který se
+  nevejde, přeskočí – bližší či menší) a obilí vybere po něm; bere se, co dá víc lnu – ves, které
+  len za obilím vycházel, má plán beze změny (zlatý otisk ve `flax.test.ts`). Trhání v červenci
+  napřed (`CROP_ORDER` – len první); `trimPlan` ani osev navíc len neubírají. Zpracování je v domácí výrobě
   (přerozdělení), žádná zásoba v liště. Web: `SceneFieldPart.crop: 'flax'` a `bloom` (červen –
   `FLAX_BLOOM_MONTH` ve `village-view.ts`), scéna `FLAX_STYLES` / `FLAX_BLOOM` ve `field-crops.ts`
   (druhy trsů `flax-green` / `flax-bloom` / `flax-ripe` – kopie uzlu `crop-sprout` s vlastní
