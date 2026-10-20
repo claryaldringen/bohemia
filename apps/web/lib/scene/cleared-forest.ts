@@ -1,8 +1,11 @@
 import {
+  KILN_SITE,
+  MILIR,
   NO_OBSTACLE_CHANGES,
   OBSTACLE_KINDS,
   SURFACE_CODES,
   forestClearingsOf,
+  kilnCircle,
   obstacleIndex,
   pointInPolygon,
   type Landscape,
@@ -132,13 +135,13 @@ function touchesForest(l: Landscape, polygon: readonly Point[]): boolean {
  * Vymýcený les ze stavu vsi pro scénu: odstraněné a pokácené stromy, založené díly polí (díl,
  * který se teprve zakládá, má stromy ještě na sobě) a paseky pod stavbami v lese – vyklízené
  * plochy obydlí a dílen i s pruhem pod korunami (i rozestavěných – les se vyklučí se zahájením
- * stavby), natočené pozemky a půdorysy model a svatyní s pruhem.
+ * stavby), natočené pozemky, půdorysy model a svatyní s pruhem a milířiště s pruhem pod korunami.
  */
 export function villageClearedForest(
   l: Landscape,
   layer: ObstacleLayer,
   village: Pick<SceneVillage, 'fields' | 'obstacles'> &
-    Partial<Pick<SceneVillage, 'dwellings' | 'sacred'>>,
+    Partial<Pick<SceneVillage, 'dwellings' | 'sacred' | 'kilns' | 'kilnRemnants'>>,
 ): ClearedForest {
   const squares = village.fields.flatMap((field) =>
     field.parts.flatMap((part) => {
@@ -168,6 +171,10 @@ export function villageClearedForest(
     ),
     ...(village.sacred?.buildings ?? []).flatMap((b) =>
       forestClearingsOf({ sacred: b.kind, position: b.position }),
+    ),
+    // milířiště s pruhem pod korunami (crafts.md – Milíř u skácených buků) – i po rozebraném milíři
+    ...[...(village.kilns ?? []), ...(village.kilnRemnants ?? [])].map((k) =>
+      kilnCircle(k, MILIR.clearingRadiusM + KILN_SITE.crownM),
     ),
   ];
   return clearedForest(l, layer, village.obstacles ?? NO_OBSTACLE_CHANGES, squares, areas);

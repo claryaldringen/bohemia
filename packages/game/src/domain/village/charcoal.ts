@@ -21,7 +21,9 @@ import {
   CHARCOAL_KILN,
   CRAFT_PRODUCTION,
   FELLING_MAN_DAYS_PER_TREE,
+  KILN_SITE,
   MILIR,
+  OBSTACLE_COST,
   ORCHARD_PLANTING_WINDOWS,
 } from './rules';
 import type {
@@ -391,22 +393,36 @@ export function startKiln(
     { x: site.x, z: site.z },
     fellingsOf(trees, site, undefined).map((t) => ({ id: t.id, cost: t.cost })),
   );
-  // milířiště: ostatní překážky v kruhu milíře uhlíř napřed vyklidí (buky dávky skácí na milíř,
-  // vyhrazené stromy jiných staveb a posvátné stromy nechá)
+  // milířiště: ostatní překážky v kruhu milíře a stromy v pruhu kolem něj uhlíř napřed vyklidí
+  // (buky dávky skácí na milíř, vyhrazené stromy jiných staveb a posvátné stromy nechá)
   const keep = new Set([
     ...claimed,
     ...trees.map((t) => t.id),
     ...sacredSitesOf(obstacles).protectedTrees,
   ]);
+  const status = obstacleStatus(changes);
   const tally = polygonObstacles(
     obstacles,
-    obstacleStatus(changes),
+    status,
     kilnCircle(site, MILIR.clearingRadiusM),
     new Set(),
     keep,
   );
-  if (tally.ids.length > 0) {
-    kiln.clearing = { ids: tally.ids, cost: tally.cost, logs: tally.treeIds.length };
+  // v pruhu kolem milíře dospělé stromy, ať milíř není schovaný pod korunami
+  const crowns = polygonObstacles(
+    obstacles,
+    status,
+    kilnCircle(site, MILIR.clearingRadiusM + KILN_SITE.crownM),
+    new Set(),
+    new Set([...keep, ...tally.ids]),
+  );
+  const ids = [...tally.ids, ...crowns.treeIds];
+  if (ids.length > 0) {
+    kiln.clearing = {
+      ids,
+      cost: tally.cost + crowns.treeIds.length * OBSTACLE_COST.tree,
+      logs: tally.treeIds.length + crowns.treeIds.length,
+    };
   }
   if (options.walk) kiln.walkM = Math.round(options.walk(home, [site])[0]! * 100) / 100;
   return kiln;

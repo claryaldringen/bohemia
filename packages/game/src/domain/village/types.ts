@@ -200,9 +200,10 @@ export interface CharcoalKiln {
   startDay?: number;
   /**
    * Vyklizení milířiště (crafts.md – Milíř u skácených buků): překážky v kruhu milíře mimo buky dávky
-   * (stromy, keře, kameny, pařezy – id z vrstvy i stromy u cest a lesa vsi), práce za ně (čd)
-   * a kolik z nich je dospělých stromů (klády na hromadu). Uhlíř je vyklidí napřed; pak údaj
-   * zmizí. Bez údaje není co vyklízet.
+   * (stromy, keře, kameny, pařezy – id z vrstvy i stromy u cest a lesa vsi) a dospělé stromy
+   * v pruhu KILN_SITE.crownM kolem něj (koruny), práce za ně (čd) a kolik z nich je dospělých
+   * stromů (klády na hromadu). Uhlíř je vyklidí napřed; pak údaj zmizí. Bez údaje není co
+   * vyklízet.
    */
   clearing?: { ids: number[]; cost: number; logs: number };
   site: { x: number; z: number } | null;

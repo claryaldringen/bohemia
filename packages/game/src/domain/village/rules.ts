@@ -1260,7 +1260,9 @@ export const CHARCOAL_BALANCE = {
  * nestojí na poli, v sadu, na hřbitově, v ohradě, na pozemku ani u domů (`homeM` od obydlí),
  * na cestě (`roadM` od osy pevné cesty navíc ke kruhu), pod posvátným dubem, na háji ani na
  * skalním výchozu, ve vodě ani na svahu (rozdíl výšek jako u obydlí), ani u jiného milíře
- * (`kilnM` mezi středy).
+ * (`kilnM` mezi středy). Milířiště uhlíř napřed vyklidí: v kruhu milíře všechny překážky (mimo
+ * buky dávky, vyhrazené a posvátné stromy) a v pruhu `crownM` kolem něj dospělé stromy, ať milíř
+ * není schovaný pod korunami (jako stavby v lese – FOREST_CROWN_MARGIN_M).
  */
 export const KILN_SITE = {
   stepM: 2,
@@ -1269,6 +1271,7 @@ export const KILN_SITE = {
   homeM: 20,
   roadM: 2,
   kilnM: 12,
+  crownM: 4,
 } as const;
 // crafts.md – Uhlíř, obnova lesa (Martin; čísla návrh Clauda podle rešerše): na pařez skáceného
 // buku uhlíř zasadí mladý buk (semenáček z lesa) – 0,1 čd na sazenici, jen v oknech výsadby jako
