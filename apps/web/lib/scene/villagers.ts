@@ -41,7 +41,9 @@ import {
   walkThen,
   type HerdView,
   type VillagerKind,
+  type VillagerStage,
 } from './villager-motion';
+import { samePersonState, type PersonFigureState } from '../person-activity';
 import {
   planFunerals,
   planVillagers,
@@ -65,6 +67,16 @@ const HEAD_ROOM_M = 2.6;
 const SHADOW_SIZE_M = 1.15;
 const SHADOW_OPACITY = 0.5;
 const SHADOW_LIFT_M = 0.04;
+/**
+ * Výběr postavy (villagers.md – Výběr postavy): klik do tolika CSS px od průmětu postavy (od nohou
+ * po hlavu – FIGURE_HEIGHT_M při měřítku 1) ji vybere. Žlutý kroužek pod vybranou postavou:
+ * průměr (m při měřítku 1), barva, výška nad terénem.
+ */
+export const PICK_PX = 12;
+const FIGURE_HEIGHT_M = 1.7;
+const RING_SIZE_M = 1.6;
+const RING_COLOR: readonly [number, number, number] = [1, 0.85, 0.25];
+const RING_LIFT_M = 0.05;
 /**
  * Po přeplánování dojde postava na nové místo pěšky, když je od starého dál než `from` a blíž
  * než `to` (m) – další čtverec pole, další strom; dál (jiná práce jinde ve vsi) se objeví hned.
@@ -93,6 +105,11 @@ export interface VillagersEnvironment {
    * a mohylu pohřbu do dohoření skryje. Volá se jen při změně.
    */
   onFunerals?(plans: readonly FuneralPlan[]): void;
+  /**
+   * Vybraný člověk (villagers.md – Výběr postavy): co jeho postava dělá, kde v pochůzce je a jestli
+   * je vidět – volá se jen při změně (výběr, nový plán dne, postava vejde domů nebo vyjde).
+   */
+  onPersonState?(state: PersonFigureState | null): void;
 }
 
 /** Zapečený model: geometrie, textura matic kostí a rozsahy snímků klipů v ní. */
@@ -142,6 +159,15 @@ export class VillageVillagers {
   /** Vyšlapané pěšiny – nosiči a pochůzky pro vodu a dřevo vedou po nich (paths.md). */
   private paths: VillagerPaths | null = null;
   private disposed = false;
+  /**
+   * Kde postavy naposledy stály (x, y, z po postavách, NaN = není vidět) – výběr kliknutím
+   * (`pick`) a kroužek pod vybranou postavou; zapisuje `write`.
+   */
+  private spots = new Float32Array(0);
+  /** Vybraný člověk (id) a jeho kroužek pod nohama (jedna instance – villagers.md). */
+  private selected: number | null = null;
+  private ring: { mesh: Mesh; matrices: Float32Array } | null = null;
+  private personState: PersonFigureState | null = null;
 
   constructor(
     private readonly scene: Scene,
@@ -206,6 +232,58 @@ export class VillageVillagers {
     return this.people.length;
   }
 
+  /**
+   * Člověk pod kurzorem (villagers.md – Výběr postavy): nejbližší vidět postava člověka vsi, jejíž
+   * průmět (od nohou po hlavu) je do PICK_PX od bodu (x, y) v CSS px plátna – `project` převede
+   * bod světa na plátno (null = za kamerou). Jen při kliknutí, O(postav). Nic – null.
+   */
+  pick(
+    x: number,
+    y: number,
+    project: (wx: number, wy: number, wz: number) => { x: number; y: number } | null,
+  ): number | null {
+    let best: number | null = null;
+    let bestD = PICK_PX;
+    this.people.forEach((p, i) => {
+      if (p.person === undefined) return;
+      const o = i * 3;
+      const wx = this.spots[o]!;
+      if (Number.isNaN(wx)) return;
+      const wy = this.spots[o + 1]!;
+      const wz = this.spots[o + 2]!;
+      const foot = project(wx, wy, wz);
+      const head = project(wx, wy + FIGURE_HEIGHT_M * p.scale, wz);
+      if (!foot || !head) return;
+      const d = distanceToSegment(x, y, foot, head);
+      if (d <= bestD) {
+        bestD = d;
+        best = p.person;
+      }
+    });
+    return best;
+  }
+
+  /** Kde naposledy stála vidět postava člověka (id) – testovací háček; jinak null. */
+  spotOf(id: number): { x: number; y: number; z: number } | null {
+    const index = this.people.findIndex(
+      (p, i) => p.person === id && !Number.isNaN(this.spots[i * 3] ?? NaN),
+    );
+    if (index < 0) return null;
+    const o = index * 3;
+    return { x: this.spots[o]!, y: this.spots[o + 1]!, z: this.spots[o + 2]! };
+  }
+
+  /**
+   * Vybere člověka (id) – kroužek pod jeho postavou ho sleduje; null výběr zruší. Vrátí true, když
+   * je co překreslit.
+   */
+  select(id: number | null): boolean {
+    if (id === this.selected) return false;
+    this.selected = id;
+    this.updateSelection();
+    return true;
+  }
+
   dispose(): void {
     this.disposed = true;
     for (const kind of this.kinds.values()) {
@@ -217,6 +295,9 @@ export class VillageVillagers {
     this.shadow?.mesh.material?.dispose(true, true);
     this.shadow?.mesh.dispose();
     this.shadow = null;
+    this.ring?.mesh.material?.dispose(true, true);
+    this.ring?.mesh.dispose();
+    this.ring = null;
   }
 
   /** Zapíše pózy všech postav v čase `t` (s) do instancí a přepočítá obal. */
@@ -229,14 +310,29 @@ export class VillageVillagers {
     let low = Infinity;
     let high = -Infinity;
     const height = this.env.groundHeight;
+    if (this.spots.length !== this.people.length * 3) {
+      this.spots = new Float32Array(this.people.length * 3).fill(NaN);
+    }
+    const spots = this.spots;
+    const selected = this.selected;
+    let shown: { index: number; stage: VillagerStage | null; hidden: boolean } | null = null;
     this.people.forEach((person, index) => {
       const kind = this.kinds.get(person.kind);
       if (!kind) return;
       const slot = slots.get(person.kind) ?? 0;
       slots.set(person.kind, slot + 1);
       this.pose.hidden = false;
+      this.pose.stage = undefined;
       const pose = person.pose(t, herds, this.pose);
       const y = height(pose.x, pose.z);
+      const at = index * 3;
+      spots[at] = pose.hidden ? NaN : pose.x;
+      spots[at + 1] = y;
+      spots[at + 2] = pose.z;
+      // vybraný člověk: vidět postava má přednost (karavana tam a zpět – dvě postavy)
+      if (selected !== null && person.person === selected && (!shown || shown.hidden)) {
+        shown = { index, stage: pose.stage ?? null, hidden: pose.hidden === true };
+      }
       // karavana výpravy za krajem mapy (caravan.ts) – nulové měřítko, postava ani stín se nekreslí
       const scale = pose.hidden ? 0 : person.scale;
       writeFigure(kind.matrices, slot, pose.x, y, pose.z, pose.headingX, pose.headingZ, scale);
@@ -283,37 +379,97 @@ export class VillageVillagers {
         new Vector3(maxX + 2, high + HEAD_ROOM_M, maxZ + 2),
       );
     }
+    if (selected !== null) this.showSelected(shown, herds);
+  }
+
+  /** Kroužek a stav vybraného člověka podle posledních poloh postav (bez nového pohybu). */
+  private updateSelection(): void {
+    const selected = this.selected;
+    if (selected === null) {
+      this.ring?.mesh.setEnabled(false);
+      this.emitPerson(null);
+      return;
+    }
+    // jen postavy vybraného člověka (nejvýš dvě) – póza teď, bez přepisu instancí
+    const nowMs = Date.now();
+    const t = villagerSeconds(nowMs);
+    const herds = this.env.herds(nowMs);
+    let shown: { index: number; stage: VillagerStage | null; hidden: boolean } | null = null;
+    this.people.forEach((p, index) => {
+      if (p.person !== selected || (shown && !shown.hidden)) return;
+      this.pose.hidden = false;
+      this.pose.stage = undefined;
+      const pose = p.pose(t, herds, this.pose);
+      const o = index * 3;
+      if (o + 2 < this.spots.length) {
+        this.spots[o] = pose.hidden ? NaN : pose.x;
+        this.spots[o + 1] = this.env.groundHeight(pose.x, pose.z);
+        this.spots[o + 2] = pose.z;
+      }
+      shown = {
+        index,
+        stage: pose.stage ?? null,
+        hidden: pose.hidden === true || o >= this.spots.length,
+      };
+    });
+    this.showSelected(shown, herds);
+  }
+
+  /** Kroužek pod postavou vybraného člověka a ohlášení jeho stavu (jen při změně). */
+  private showSelected(
+    shown: { index: number; stage: VillagerStage | null; hidden: boolean } | null,
+    herds: readonly HerdView[],
+  ): void {
+    const id = this.selected;
+    if (id === null) return;
+    const figure = shown ? this.people[shown.index] : undefined;
+    const ring = figure && !shown!.hidden ? (this.ring ??= this.createRing()) : this.ring;
+    if (ring) {
+      if (figure && shown && !shown.hidden) {
+        const o = shown.index * 3;
+        this.writeRing(ring, this.spots[o]!, this.spots[o + 1]!, this.spots[o + 2]!, figure.scale);
+        ring.mesh.setEnabled(true);
+      } else ring.mesh.setEnabled(false);
+    }
+    const job = figure?.job ?? null;
+    const herd = job?.kind === 'herd' ? (herds[job.herd]?.species ?? null) : null;
+    this.emitPerson({
+      id,
+      job,
+      stage: shown?.stage ?? null,
+      hidden: shown?.hidden ?? true,
+      herd,
+    });
+  }
+
+  private emitPerson(state: PersonFigureState | null): void {
+    if (samePersonState(state, this.personState)) return;
+    this.personState = state;
+    this.env.onPersonState?.(state);
+  }
+
+  /** Kroužek položený na terén pod postavou (nakloněný podle svahu jako stín). */
+  private writeRing(
+    ring: { mesh: Mesh; matrices: Float32Array },
+    x: number,
+    y: number,
+    z: number,
+    scale: number,
+  ): void {
+    surfaceMatrix(this.env.groundHeight, x, y + RING_LIFT_M, z, RING_SIZE_M * scale, this.matrix);
+    this.matrix.copyToArray(ring.matrices, 0);
+    ring.mesh.thinInstanceBufferUpdated('matrix');
   }
 
   /** Stín položený na terén (nakloněný podle svahu pod postavou). */
   private writeShadow(index: number, x: number, y: number, z: number, scale: number): void {
     const shadow = this.shadow!;
-    const height = this.env.groundHeight;
-    const e = 0.4;
-    const gx = (height(x + e, z) - height(x - e, z)) / (2 * e);
-    const gz = (height(x, z + e) - height(x, z - e)) / (2 * e);
-    const size = SHADOW_SIZE_M * scale;
-    // osy: x podél svahu ve směru x, z ve směru z, y = normála (kolmo k oběma)
-    const ax = TMP_A.set(1, gx, 0).normalize();
-    const az = TMP_B.set(0, gz, 1).normalize();
-    const ay = Vector3.CrossToRef(az, ax, TMP_C).normalize();
-    Matrix.FromValuesToRef(
-      ax.x * size,
-      ax.y * size,
-      ax.z * size,
-      0,
-      ay.x,
-      ay.y,
-      ay.z,
-      0,
-      az.x * size,
-      az.y * size,
-      az.z * size,
-      0,
+    surfaceMatrix(
+      this.env.groundHeight,
       x,
       y + SHADOW_LIFT_M,
       z,
-      1,
+      SHADOW_SIZE_M * scale,
       this.matrix,
     );
     this.matrix.copyToArray(shadow.matrices, index * 16);
@@ -524,6 +680,58 @@ export class VillageVillagers {
   }
 
   /** Měkký kruhový stín – čtverec s průhledným kruhem, jedna instance na postavu. */
+  /** Žlutý kroužek pod vybranou postavou – jedna instance, po obtiscích a stínech postav. */
+  private createRing(): { mesh: Mesh; matrices: Float32Array } {
+    const mesh = new Mesh('villagers-ring', this.scene);
+    const data = new VertexData();
+    data.positions = [-0.5, 0, -0.5, 0.5, 0, -0.5, 0.5, 0, 0.5, -0.5, 0, 0.5];
+    data.normals = [0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0];
+    data.uvs = [0, 0, 1, 0, 1, 1, 0, 1];
+    data.indices = [0, 2, 1, 0, 3, 2];
+    data.applyToMesh(mesh);
+    mesh.isPickable = false;
+    mesh.alwaysSelectAsActiveMesh = true;
+    mesh.alphaIndex = 6;
+    const size = 64;
+    const pixels = new Uint8Array(size * size * 4);
+    for (let j = 0; j < size; j++) {
+      for (let i = 0; i < size; i++) {
+        const r = Math.hypot((i + 0.5) / size - 0.5, (j + 0.5) / size - 0.5) * 2;
+        // mezikruží 0,72–0,95 s měkkými okraji
+        const a = Math.max(0, Math.min(1, (r - 0.68) / 0.06, (0.97 - r) / 0.04));
+        const o = (j * size + i) * 4;
+        pixels[o] = Math.round(255 * RING_COLOR[0]);
+        pixels[o + 1] = Math.round(255 * RING_COLOR[1]);
+        pixels[o + 2] = Math.round(255 * RING_COLOR[2]);
+        pixels[o + 3] = Math.round(255 * 0.95 * a);
+      }
+    }
+    const texture = RawTexture.CreateRGBATexture(
+      pixels,
+      size,
+      size,
+      this.scene,
+      false,
+      false,
+      Texture.BILINEAR_SAMPLINGMODE,
+    );
+    texture.hasAlpha = true;
+    texture.name = 'villagers-ring';
+    const material = new StandardMaterial('villagers-ring-material', this.scene);
+    material.diffuseColor = Color3.Black();
+    material.specularColor = Color3.Black();
+    material.emissiveColor = new Color3(...RING_COLOR);
+    material.disableLighting = true;
+    material.opacityTexture = texture;
+    material.disableDepthWrite = true;
+    material.backFaceCulling = false;
+    material.zOffset = -3;
+    mesh.material = material;
+    const matrices = new Float32Array(16);
+    mesh.thinInstanceSetBuffer('matrix', matrices, 16, false);
+    return { mesh, matrices };
+  }
+
   private createShadow(): { mesh: Mesh; matrices: Float32Array } {
     const mesh = new Mesh('villagers-shadow', this.scene);
     const data = new VertexData();
@@ -573,6 +781,60 @@ export class VillageVillagers {
 const TMP_A = new Vector3();
 const TMP_B = new Vector3();
 const TMP_C = new Vector3();
+
+/**
+ * Čtverec `size` položený na terén v bodě (x, y, z) – osy podle svahu pod ním (stín a kroužek
+ * výběru), výsledek do `out`.
+ */
+function surfaceMatrix(
+  height: (x: number, z: number) => number,
+  x: number,
+  y: number,
+  z: number,
+  size: number,
+  out: Matrix,
+): void {
+  const e = 0.4;
+  const gx = (height(x + e, z) - height(x - e, z)) / (2 * e);
+  const gz = (height(x, z + e) - height(x, z - e)) / (2 * e);
+  // osy: x podél svahu ve směru x, z ve směru z, y = normála (kolmo k oběma)
+  const ax = TMP_A.set(1, gx, 0).normalize();
+  const az = TMP_B.set(0, gz, 1).normalize();
+  const ay = Vector3.CrossToRef(az, ax, TMP_C).normalize();
+  Matrix.FromValuesToRef(
+    ax.x * size,
+    ax.y * size,
+    ax.z * size,
+    0,
+    ay.x,
+    ay.y,
+    ay.z,
+    0,
+    az.x * size,
+    az.y * size,
+    az.z * size,
+    0,
+    x,
+    y,
+    z,
+    1,
+    out,
+  );
+}
+
+/** Vzdálenost bodu (x, y) od úsečky a–b (px). */
+function distanceToSegment(
+  x: number,
+  y: number,
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const l2 = dx * dx + dy * dy;
+  const t = l2 > 0 ? Math.min(1, Math.max(0, ((x - a.x) * dx + (y - a.y) * dy) / l2)) : 0;
+  return Math.hypot(x - (a.x + dx * t), y - (a.y + dy * t));
+}
 
 /** Instance: postava na (x, y, z) natočená ve směru (hx, hz), zvětšená `scale`. */
 function writeFigure(

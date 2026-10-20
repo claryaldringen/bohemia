@@ -55,6 +55,7 @@ import { tileAt, tileCenter } from '@/lib/scene/tile-at';
 import type { VillageTarget } from '@/lib/scene/village-picking';
 import { nextSelection, presentTarget } from '@/lib/scene/village-selection';
 import { selectionDetails } from '@/lib/selection-details';
+import type { PersonFigureState } from '@/lib/person-activity';
 import { CONSTRUCTION_PHASES, constructionPhase } from '@/lib/scene/village-construction';
 import { SACRED_SITE_KIND } from '@/lib/scene/sacred-layout';
 import { REFERENCE_DAY, dateOfDayOfYear } from '@/lib/scene/season-look';
@@ -433,9 +434,11 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   useEffect(() => {
     scene?.setSelection(current);
   }, [scene, current]);
+  const [personState, setPersonState] = useState<PersonFigureState | null>(null);
+  useEffect(() => scene?.onPersonState(setPersonState), [scene]);
   const selection = useMemo(
-    () => selectionDetails(devSelectionView(village, decoded), village, current),
-    [village, decoded, current],
+    () => selectionDetails(devSelectionView(village, decoded), village, current, personState),
+    [village, decoded, current, personState],
   );
 
   useEffect(() => {

@@ -48,7 +48,12 @@ export type VillageTarget =
   /** Hliniště hrnčíře – jámy a hromada hlíny (id dílny hrnčíře – crafts.md, Hlína hrnčíře). */
   | { kind: 'clay-site'; id: number }
   /** Milíř nebo milířiště uhlíře (id milíře – crafts.md, Milíř u skácených buků). */
-  | { kind: 'kiln'; id: number };
+  | { kind: 'kiln'; id: number }
+  /**
+   * Člověk vsi (id – villagers.md, Výběr postavy): klik na jeho postavu; výběr zůstane, i když
+   * postava zmizí (vejde domů, za kraj mapy).
+   */
+  | { kind: 'person'; id: number };
 
 export interface Vec3 {
   x: number;
@@ -352,7 +357,14 @@ export function targetExists(village: SceneVillage, target: VillageTarget): bool
       (village.kilnRemnants ?? []).some((r) => r.id === target.id)
     );
   }
+  if (target.kind === 'person') return personExists(village, target.id);
   return village.fields.some((f) => f.id === target.id);
+}
+
+/** Žije člověk ve vsi (`labor.persons`)? Bez lidí ve scéně ano – nejde to poznat. */
+export function personExists(village: SceneVillage, id: number): boolean {
+  const persons = village.labor?.persons;
+  return !persons || persons.some((p) => p.id === id);
 }
 
 /** Rudiště (`ore-site`) nebo hliniště (`clay-site`) vybrané ve scéně, nebo undefined. */

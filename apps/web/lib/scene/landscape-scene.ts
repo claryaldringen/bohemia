@@ -70,6 +70,7 @@ import { FieldPainter } from './field-painting';
 import { PlacementOutlines } from './placement-outlines-view';
 import { HoldingsOverlay, type HoldingsOverlaySector } from './holdings-overlay';
 import { SelectionHighlight } from './selection-highlight';
+import type { PersonFigureState } from '../person-activity';
 import { pickVillageTarget, rayAtHeight, type Ray, type VillageTarget } from './village-picking';
 import { PlacementController, type ActivePlacement } from './village-placement';
 import { VillageRenderer } from './village-renderer';
@@ -85,6 +86,7 @@ type HoverListener = (tile: TileInfo | null) => void;
  * celé pole či sad – fields.md, Co hráč vidí).
  */
 type SelectListener = (target: VillageTarget | null, additive: boolean, double: boolean) => void;
+type PersonListener = (state: PersonFigureState | null) => void;
 /** Záběr kamery na zemi (4 rohy obrazovky jako body krajiny [x, z]) a natočení kamery. */
 export interface ViewFootprint {
   corners: [number, number][];
@@ -127,6 +129,9 @@ export class LandscapeScene {
   private readonly selectListeners = new Set<SelectListener>();
   private readonly viewListeners = new Set<ViewListener>();
   private readonly clearedListeners = new Set<ClearedListener>();
+  private readonly personListeners = new Set<PersonListener>();
+  /** Poslední stav vybraného člověka (villagers.md – Výběr postavy). */
+  private personState: PersonFigureState | null = null;
   /** Výšková síť terénu (i s úpravami vozových cest). */
   private surface: RenderSurface | null = null;
   /** Poslední náhled vozové cesty – pro stejnou ves a cestu se nepočítá znovu. */
@@ -412,7 +417,13 @@ export class LandscapeScene {
       onFunerals: (plans) => {
         if (this.village?.setFunerals(plans, Date.now())) this.renderWhenReady();
       },
+      // vybraný člověk (villagers.md – Výběr postavy) – co dělá, panel postavy
+      onPersonState: (state) => {
+        this.personState = state;
+        for (const listener of this.personListeners) listener(state);
+      },
     });
+    this.villagers.select(this.selection?.kind === 'person' ? this.selection.id : null);
     // Vyšlapané pěšiny – síť se počítá z vsi a krajiny (odloženě), lidé po ní chodí; pevné cesty
     // a stromy u nich z dat vsi (roads.md).
     this.paths?.dispose();
@@ -852,11 +863,25 @@ export class LandscapeScene {
     return () => this.selectListeners.delete(listener);
   }
 
-  /** Zvýrazní vybrané obydlí / pole / hřbitov rámečkem na zemi (null = nic). */
+  /**
+   * Zvýrazní vybrané obydlí / pole / hřbitov rámečkem na zemi, vybranou postavu žlutým kroužkem
+   * pod nohama (null = nic).
+   */
   setSelection(target: VillageTarget | null): void {
     this.selection = target;
     this.highlight?.show(this.villageState, target);
+    this.villagers?.select(target?.kind === 'person' ? target.id : null);
     this.renderWhenReady();
+  }
+
+  /**
+   * Co dělá vybraný člověk (villagers.md – Výběr postavy): jeho postava dne, úsek pochůzky
+   * a jestli je vidět – hned ohlásí současný stav, pak jen při změně.
+   */
+  onPersonState(listener: PersonListener): () => void {
+    this.personListeners.add(listener);
+    listener(this.personState);
+    return () => this.personListeners.delete(listener);
   }
 
   /** Změny záběru kamery (minimapa) – hned ohlásí ten současný, pak jen při změně. */
@@ -896,6 +921,38 @@ export class LandscapeScene {
     this.rtsCamera?.setHome(x, z);
   }
 
+  /**
+   * Převod bodu světa na CSS px plátna pro výběr postav – matice kamery jednou na kliknutí; bod za
+   * kamerou null.
+   */
+  private projector(
+    camera: Camera,
+  ): (wx: number, wy: number, wz: number) => { x: number; y: number } | null {
+    const width = this.engine.getRenderWidth();
+    const height = this.engine.getRenderHeight();
+    const transform = camera.getViewMatrix(true).multiply(camera.getProjectionMatrix(true));
+    const viewport = camera.viewport.toGlobal(width, height);
+    const scaleX = this.canvas.clientWidth / Math.max(1, width);
+    const scaleY = this.canvas.clientHeight / Math.max(1, height);
+    const identity = Matrix.Identity();
+    const world = new Vector3();
+    return (wx, wy, wz) => {
+      const point = Vector3.Project(world.set(wx, wy, wz), identity, transform, viewport);
+      if (point.z < 0 || point.z > 1) return null;
+      return { x: point.x * scaleX, y: point.y * scaleY };
+    };
+  }
+
+  /**
+   * Postava vybraného člověka na obrazovce (CSS px – testovací háček), nebo null, když není vidět.
+   */
+  projectPerson(id: number): { x: number; y: number } | null {
+    const camera = this.rtsCamera?.camera;
+    const spot = this.villagers?.spotOf(id);
+    if (!camera || !spot) return null;
+    return this.projector(camera)(spot.x, spot.y + 0.9, spot.z);
+  }
+
   /** Bod krajiny (x, z) na obrazovce v CSS px plátna, nebo null mimo záběr (testovací háček). */
   projectToScreen(x: number, z: number): { x: number; y: number } | null {
     const camera = this.rtsCamera?.camera;
@@ -928,6 +985,7 @@ export class LandscapeScene {
     this.selectListeners.clear();
     this.viewListeners.clear();
     this.clearedListeners.clear();
+    this.personListeners.clear();
     this.highlight?.dispose();
     this.holdings?.dispose();
     this.outlines?.dispose();
@@ -1015,12 +1073,17 @@ export class LandscapeScene {
     for (const listener of this.selectListeners) listener(target, additive, double);
   }
 
-  /** Obydlí, pole nebo hřbitov pod pixelem plátna (CSS px). */
+  /**
+   * Postava, obydlí, pole nebo hřbitov pod pixelem plátna (CSS px) – postavy mají přednost před
+   * stavbami pod nimi (villagers.md – Výběr postavy).
+   */
   private pickTarget(x: number, y: number): VillageTarget | null {
     const camera = this.rtsCamera?.camera;
     const landscape = this.landscape;
     const groundHeight = this.groundHeight;
     if (!camera || !landscape || !groundHeight || !this.villageState) return null;
+    const person = this.villagers?.pick(x, y, this.projector(camera));
+    if (person !== undefined && person !== null) return { kind: 'person', id: person };
     const pick = this.scene.createPickingRay(x, y, Matrix.Identity(), camera, false);
     const ray: Ray = {
       origin: { x: pick.origin.x, y: pick.origin.y, z: pick.origin.z },

@@ -186,6 +186,7 @@ import { foreignFromScene, plotOfScene } from './scene/neighbour-villages';
 import { sceneTrails, trailRoadWork } from './trail-view';
 import { sceneExpeditions } from './caravan-view';
 import { sceneFunerals, type SceneFuneral } from './funeral-view';
+import { scenePersons, type ScenePerson } from './person-view';
 import { DIRECTION_NAMES, NEWCOMER_TEXTS, goodsText, peopleText } from './trade-names';
 import { formatAnimals, formatCells, formatHa, formatInteger, plural } from './village-format';
 import type { VillageListItem } from './village-list';
@@ -1401,6 +1402,12 @@ export interface SceneExpedition {
   rate: number;
   day: number;
   onMap: number;
+  /**
+   * Co je to za cestu (villagers.md – Výběr postavy): výprava k sousedovi, nákup u souseda, nebo
+   * cesta pro kování k vozu; do které vsi (jméno) a u kování kdo jde (id tesaře nebo syna – jeho
+   * postava jde s karavanou). Bez údaje (ukázky) se neví.
+   */
+  trip?: { kind: 'trade' | 'purchase' | 'iron'; to: string; travellerId?: number };
 }
 
 export type SceneRoad = Pick<
@@ -1648,6 +1655,12 @@ export interface SceneLabor {
    * lidé rozdělí na obydlí rovným dílem.
    */
   homes?: SceneLaborHome[];
+  /**
+   * Lidé vsi (villagers.md – Výběr postavy): id, věk, pohlaví, domácnost a role – scéna každé
+   * postavě přiřadí skutečného člověka (villager-roster.ts) a panel postavy ukáže, kdo to je
+   * a co dělá. Bez údaje (dřívější pohled, ukázky) jsou postavy bez lidí a nejdou vybrat.
+   */
+  persons?: ScenePerson[];
 }
 
 /** Domácnost v provozu na cestách (`SceneLabor.homes`). */
@@ -3293,6 +3306,7 @@ function sceneLabor(state: VillageState, people: SceneLabor['people']): SceneLab
     return [{ ...share, manDays }];
   });
   const homes = sceneLaborHomes(state, labor.shares);
+  const persons = scenePersons(state, labor.day);
   return {
     day: labor.day,
     month: dateOfDayIndex(labor.day).month,
@@ -3300,6 +3314,7 @@ function sceneLabor(state: VillageState, people: SceneLabor['people']): SceneLab
     shares,
     ...(labor.herders ? { herders: { ...labor.herders } } : {}),
     ...(homes.length > 0 ? { homes } : {}),
+    ...(persons.length > 0 ? { persons } : {}),
   };
 }
 

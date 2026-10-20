@@ -1,4 +1,5 @@
 import {
+  AGE,
   DWELLING_CLEARING_M,
   SACRED_BUILDINGS,
   dateOfDayIndex,
@@ -6,6 +7,7 @@ import {
   type Craft,
   type DwellingType,
   type Position,
+  type Sex,
   type TileCell,
 } from '@bohemia/game';
 import type {
@@ -74,6 +76,9 @@ import {
   type VillagerKind,
 } from './villager-motion';
 import { MILIR_SHAPE_M, craftSpots, forestKilnAnchor } from './workshop-layout';
+import { isMarriedWomanRole } from '../person-roles';
+import type { ScenePerson } from '../person-view';
+import { ADULTS, DayRoster, ELDERS, YOUNGSTERS, type PersonJob } from './villager-roster';
 import { orePitRadius } from './ore-site-layout';
 
 // Postavy ve vsi (docs/design/villagers.md): kdo kde je a co dělá, jako čistá funkce vsi pro
@@ -200,6 +205,10 @@ export interface PlannedVillager {
   phase: number;
   look: VillagerLook;
   pose: PoseFn;
+  /** Člověk vsi (id – villagers.md, Výběr postavy); bez lidí ve scéně (`labor.persons`) chybí. */
+  person?: number;
+  /** Co postava dělá – činnost v panelu postavy (person-activity.ts); jen s `person`. */
+  job?: PersonJob;
 }
 
 /** Terén pro postavy (bez vsi). */
@@ -327,6 +336,8 @@ interface Context {
   homes: House[];
   graves: CellSquare[];
   paths: VillagerPaths | null;
+  /** Lidé dne k rozdělení mezi postavy (villager-roster.ts); bez lidí ve scéně null. */
+  roster: DayRoster | null;
 }
 
 type Placer = (index: number, who: Identity) => PoseFn | null;
@@ -335,6 +346,13 @@ type Placer = (index: number, who: Identity) => PoseFn | null;
  * Postavy vsi podle rozdělení práce posledního dne (`village.labor`). Bez rozdělení, lidí nebo
  * obydlí nikdo. Pracujících je tolik, kolik je člověkodní (venku – domácí práce a nečinní
  * jen z části), nejvýš `maxWorkers`; navíc starší u domů a pasáčci u stád.
+ *
+ * S lidmi vsi (`labor.persons` – villagers.md, Výběr postavy) je každá postava jeden skutečný
+ * člověk (villager-roster.ts) a nikdo není ve dvou postavách: napřed lidé s pevným místem dne
+ * (průvod pohřbu, karavany, nosiči kováře, pasáci, domácnosti dílen u své práce), pak stavby
+ * (u každé aspoň jeden), práce vsi, provoz na cestách a nakonec domácí práce a nečinní; na koho
+ * nezbude člověk, ta postava není (ves s málo lidmi). Pořadí postav ve výsledku je stejné jako
+ * bez lidí.
  */
 export function planVillagers(
   village: SceneVillage,
@@ -350,6 +368,7 @@ export function planVillagers(
     labor.day,
     options.paths ?? null,
     figureSexes(labor.people),
+    labor.persons ? dayRoster(labor, options.seed) : null,
   );
   // pohřby dne (cemetery.md – Pohřeb ve scéně): lidé průvodu ubírají z pracujících postav
   const funerals = activeFunerals(options.funerals ?? [], options.dayWindow?.(labor.day) ?? null);
@@ -359,43 +378,228 @@ export function planVillagers(
     labor.month,
     Math.max(0, (options.maxWorkers ?? MAX_WORKERS) - mourning),
   );
-  const people: PlannedVillager[] = [];
+  // lidé s pevným místem dne napřed – pohřeb, karavany, nosiči kováře a pasáci
+  const mourners = funerals.flatMap((plan) => funeralFigures(ctx, plan));
+  const caravanPeople: PlannedVillager[] = [];
+  for (const e of village.expeditions ?? []) {
+    caravanPeople.push(...caravanFigures(ctx, e, options.dayWindow?.(e.day) ?? null));
+  }
+  const fetchers = smithFetchFigures(ctx, labor);
+  const herding = herderPeople(ctx, labor);
   // výpravy k sousedům jdou jako karavany podle stavu výpravy (trade.md – Ve scéně), ne podle
   // práce dne – nosiči nezmizí, ani když výprava dnes nepostoupila
   const caravans = village.expeditions !== undefined;
-  labor.shares.forEach((share, s) => {
-    const count = counts[s] ?? 0;
-    if (count === 0) return;
-    if (caravans && share.activity === 'trade') return;
-    const place = placer(ctx, share, count);
-    for (let i = 0; i < count; i++) {
-      // kdo práci dělá, když to jádro ví (kovář a synové – crafts.md, Uhlí a ruda kováře)
-      const age = share.ages ? share.ages[i % share.ages.length] : undefined;
-      const child = age !== undefined && age < CHILD_UNDER;
-      const who = identity(ctx.seed, `${share.activity}:${targetKey(share.target)}:${i}`, {
-        women: womenChance(WOMEN[share.activity], ctx.sexes.women),
-        child,
-      });
-      // u stavby musí někdo stát, i když zvláštní místo (strom, řada, plot) nevyšlo
-      const pose =
-        place(i, who) ?? (isConstructionShare(share) ? builderNearby(ctx, share, i, who) : null);
-      if (pose) {
-        people.push(villager(who, pose, child ? 'natural' : adultHair(who, ctx.sexes.married)));
-      }
+  const slots: PlannedVillager[][] = labor.shares.map(() => []);
+  const placers = new Map<number, Placer>();
+  const tried = new Set<string>();
+  const place = (s: number, i: number): void => {
+    if (tried.has(`${s}:${i}`)) return;
+    tried.add(`${s}:${i}`);
+    const share = labor.shares[s]!;
+    let place = placers.get(s);
+    if (!place) {
+      place = placer(ctx, share, counts[s] ?? 0);
+      placers.set(s, place);
     }
-  });
+    // kdo práci dělá, když to jádro ví (kovář a synové – crafts.md, Uhlí a ruda kováře)
+    const age = share.ages ? share.ages[i % share.ages.length] : undefined;
+    const child = age !== undefined && age < CHILD_UNDER;
+    const c = cast(
+      ctx,
+      `${share.activity}:${targetKey(share.target)}:${i}`,
+      { women: womenChance(WOMEN[share.activity], ctx.sexes.women), child },
+      (sex) => shareWorker(ctx, share, i, sex, age),
+    );
+    if (!c) return;
+    // u stavby musí někdo stát, i když zvláštní místo (strom, řada, plot) nevyšlo
+    const pose =
+      place(i, c.who) ?? (isConstructionShare(share) ? builderNearby(ctx, share, i, c.who) : null);
+    if (!pose) {
+      // místo nevyšlo – člověk zůstane volný pro jinou postavu
+      if (c.person) ctx.roster?.release(c.person.id);
+      return;
+    }
+    const hair = child ? 'natural' : adultHair(c.who, ctx.sexes.married);
+    slots[s]![i] = figure(c, pose, hair, shareJob(share));
+  };
+  const wanted = (s: number): boolean =>
+    (counts[s] ?? 0) > 0 && !(caravans && labor.shares[s]!.activity === 'trade');
+  const all = (filter: (share: SceneLaborShare) => boolean): void =>
+    labor.shares.forEach((share, s) => {
+      if (!wanted(s) || !filter(share)) return;
+      for (let i = 0; i < counts[s]!; i++) place(s, i);
+    });
+  // řemeslníci u své dílny, pak u každé stavby aspoň jeden, pak ostatní práce vsi
+  all((share) => CRAFT_ACTIVITIES.has(share.activity));
+  for (const s of firstBuilders(labor.shares, counts)) if (wanted(s)) place(s, 0);
+  all((share) => !LATE_ACTIVITIES.has(share.activity));
+  const traffic = trafficFigures(ctx, labor, options.maxTraffic ?? MAX_TRAFFIC);
+  // domácí práce a nečinní – na koho zbude člověk
+  all(() => true);
+  const people: PlannedVillager[] = slots.flatMap((list) => list.filter(Boolean));
   const winter = WINTER_MONTHS.includes(labor.month);
   const tending = herderKinds(labor, options.herds);
   const elderHerders = tending.filter((kind) => kind === 'elder').length;
   people.push(...elders(ctx, elderCount(Math.max(0, labor.people.elders - elderHerders), winter)));
-  people.push(...herders(ctx, tending));
-  for (const e of village.expeditions ?? []) {
-    people.push(...caravanFigures(ctx, e, options.dayWindow?.(e.day) ?? null));
-  }
-  people.push(...trafficFigures(ctx, labor, options.maxTraffic ?? MAX_TRAFFIC));
-  for (const plan of funerals) people.push(...funeralFigures(ctx, plan));
-  people.push(...smithFetchFigures(ctx, labor));
+  people.push(...herders(ctx, tending, herding));
+  people.push(...caravanPeople);
+  people.push(...traffic);
+  people.push(...mourners);
+  people.push(...fetchers);
   return people;
+}
+
+/**
+ * Lidé dne k rozdělení mezi postavy (villager-roster.ts): domácnosti dílen, které dnes pracují
+ * v dílně, kopou rudu či hlínu nebo nosí kováři (crafts.md), jdou jen k práci své domácnosti.
+ */
+function dayRoster(labor: SceneLabor, seed: number): DayRoster {
+  const busy = new Set<number>();
+  for (const share of labor.shares) {
+    const t = share.target;
+    if (share.activity === 'craft' && (t.kind === 'dwelling' || t.kind === 'kiln')) busy.add(t.id);
+    if (
+      (share.activity === 'ore' || share.activity === 'clay') &&
+      (t.kind === 'ore' || t.kind === 'clay')
+    ) {
+      busy.add(t.id);
+    }
+    if (share.activity === 'fetch') {
+      const from =
+        t.kind === 'kiln' ? t.from : t.kind === 'ore' || t.kind === 'clay' ? t.id : undefined;
+      if (from !== undefined) busy.add(from);
+    }
+  }
+  return new DayRoster(labor.persons ?? [], seed, labor.day, busy);
+}
+
+/** Práce dílen a jejich domácností – řemeslníci dostanou lidi napřed (crafts.md). */
+const CRAFT_ACTIVITIES: ReadonlySet<LaborActivity> = new Set(['craft', 'ore', 'clay', 'plant']);
+/** Domácí práce, dojení, péče o zvířata a nečinní – dostanou lidi až po provozu na cestách. */
+const LATE_ACTIVITIES: ReadonlySet<LaborActivity> = new Set([
+  'domestic',
+  'milking',
+  'animal-care',
+  'idle',
+]);
+
+/**
+ * U které stavby stojí první člověk (`withBuilderAtEachConstruction`): u každé stavby dne první
+ * podíl, který dostal postavu – index podílu.
+ */
+function firstBuilders(
+  shares: readonly Pick<LaborShare, 'activity' | 'target' | 'construction' | 'manDays'>[],
+  counts: readonly number[],
+): number[] {
+  const seen = new Set<string>();
+  const out: number[] = [];
+  shares.forEach((share, s) => {
+    if (!isConstructionShare(share) || (counts[s] ?? 0) <= 0) return;
+    const key =
+      share.construction !== undefined
+        ? `c${share.construction}`
+        : `${share.activity}:${targetKey(share.target)}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(s);
+  });
+  return out;
+}
+
+/**
+ * Kdo dělá podíl práce: řemeslník a jeho domácnost u dílny (i uhlíř u milíře), kovář a synové
+ * u rudiště nebo hliniště podle věku z jádra, uhlíř sází buky, dílna kácí svůj strom; ostatní
+ * dospělí vsi – u domácí práce, dojení a nečinných přednostně z domu, u kterého postava stojí.
+ */
+function shareWorker(
+  ctx: Context,
+  share: SceneLaborShare,
+  i: number,
+  sex: Sex,
+  age: number | undefined,
+): ScenePerson | null {
+  const roster = ctx.roster!;
+  const t = share.target;
+  const own = (id: number): ReadonlySet<number> => new Set([id]);
+  if (share.activity === 'craft' && (t.kind === 'dwelling' || t.kind === 'kiln')) {
+    return (
+      roster.take({ ...ADULTS, homes: own(t.id), sex }) ??
+      roster.take({ from: AGE.olderChild, to: Infinity, homes: own(t.id), sex })
+    );
+  }
+  if (
+    (share.activity === 'ore' || share.activity === 'clay') &&
+    (t.kind === 'ore' || t.kind === 'clay')
+  ) {
+    return roster.take({
+      from: AGE.olderChild,
+      to: Infinity,
+      homes: own(t.id),
+      sex: 'male',
+      ...(age !== undefined ? { age } : {}),
+    });
+  }
+  if (
+    share.activity === 'plant' ||
+    (share.activity === 'fell' && share.construction === undefined)
+  ) {
+    // uhlíř sází a kácí buky, dílny kácejí svůj strom (crafts.md) – napřed uhlíři, pak dílny
+    const burners = craftHomes(ctx, (craft) => craft === 'burner');
+    const crafts = craftHomes(ctx, (craft) => craft === 'burner' || craft === 'potter');
+    return (
+      (burners.size > 0 ? roster.take({ ...ADULTS, homes: burners, sex }) : null) ??
+      (crafts.size > 0 ? roster.take({ ...ADULTS, homes: crafts, sex }) : null) ??
+      roster.take({ ...ADULTS, sex })
+    );
+  }
+  const home = homeHint(ctx, share, i);
+  return roster.take({ ...ADULTS, sex, ...(home !== null ? { preferHome: home } : {}) });
+}
+
+/** Obydlí dílen s řemeslem, které projde `filter`. */
+function craftHomes(ctx: Context, filter: (craft: Craft) => boolean): ReadonlySet<number> {
+  return new Set(ctx.village.dwellings.filter((d) => d.craft && filter(d.craft)).map((d) => d.id));
+}
+
+/** U kterého domu postava podílu stojí (domácí práce, dojení, nečinní – jako jejich placer). */
+function homeHint(ctx: Context, share: SceneLaborShare, i: number): number | null {
+  const homes = [...ctx.homes].sort((a, b) => a.id - b.id);
+  if (homes.length === 0) return null;
+  if (share.activity === 'domestic' || share.activity === 'milking') {
+    return share.target.kind === 'pen' ? null : homes[i % homes.length]!.id;
+  }
+  if (share.activity === 'idle') return homes[Math.floor(i / 2) % homes.length]!.id;
+  return null;
+}
+
+/** Co dělá postava podílu práce (panel postavy). */
+function shareJob(share: SceneLaborShare): PersonJob {
+  return {
+    kind: 'share',
+    activity: share.activity,
+    target: share.target,
+    ...(share.job ? { job: share.job } : {}),
+  };
+}
+
+/**
+ * Výrostci, kteří dnes pasou (`labor.herders.children` – diet.md, Pasáci): napřed, ať je nikdo
+ * jiný nevezme; postav u stád je jen tolik, kolik stád se pase (`herders`).
+ */
+function herderPeople(ctx: Context, labor: SceneLabor): ScenePerson[] {
+  const roster = ctx.roster;
+  if (!roster) return [];
+  const out: ScenePerson[] = [];
+  for (let k = 0; k < (labor.herders?.children ?? 0); k++) {
+    const who = identity(ctx.seed, `herder:${k}`, {
+      women: womenChance(0.4, ctx.sexes.girls),
+      child: true,
+    });
+    const person = roster.take({ ...YOUNGSTERS, sex: who.kind === 'woman' ? 'female' : 'male' });
+    if (!person) break;
+    out.push(person);
+  }
+  return out;
 }
 
 /** Nejvýš tolik postav všech pohřbů dne (víc pohřbů naráz – nejnovější napřed). */
@@ -454,17 +658,28 @@ export function planFunerals(
  * v šátcích jako jinde, starší s šedinami.
  */
 function funeralFigures(ctx: Context, plan: FuneralPlan): PlannedVillager[] {
-  return plan.members.map((member, index) => {
-    const who = identity(ctx.seed, `funeral:${plan.key}:${member.key}`, {
-      women: member.sex === 'female' ? 1 : 0,
-      child: member.child,
-    });
+  return plan.members.flatMap((member, index) => {
+    // za márami jdou skuteční lidé (id z jádra), máry nesou muži vsi
+    const c = cast(
+      ctx,
+      `funeral:${plan.key}:${member.key}`,
+      { women: member.sex === 'female' ? 1 : 0, child: member.child },
+      () =>
+        member.person !== undefined
+          ? ctx.roster!.takeId(member.person)
+          : member.bearer
+            ? (ctx.roster!.take({ ...ADULTS, onlySex: 'male' }) ??
+              ctx.roster!.take({ from: AGE.adult, to: Infinity, onlySex: 'male' }))
+            : null,
+    );
+    if (!c) return [];
     const hair: HairLook = member.elder
       ? 'grey'
       : member.child
         ? 'natural'
-        : adultHair(who, ctx.sexes.married);
-    return villager(who, funeralPose(plan, index, who.kind, who.scale), hair);
+        : adultHair(c.who, ctx.sexes.married);
+    const pose = funeralPose(plan, index, c.who.kind, c.who.scale);
+    return [figure(c, pose, hair, { kind: 'funeral', bearer: member.bearer })];
   });
 }
 
@@ -497,15 +712,40 @@ function caravanFigures(
   const [x0, z0] = [points[0]!.x, points[0]!.z];
   const first = unit(points[1]!.x - x0, points[1]!.z - z0);
   const out: PlannedVillager[] = [];
+  // kdo jde (villagers.md – Výběr postavy): nosiči a pomocníci u vozů jsou dospělí vsi, tam
+  // i zpátky tíž; u kování tesař nebo syn (`trip.travellerId`) – s vozem pomocník u vozu; lidé,
+  // kteří se stěhují k sousedovi nebo od něj přicházejí, nejsou lidé vsi (nejdou vybrat)
+  const trip = e.trip ?? null;
+  const traveller = trip?.kind === 'iron' ? (trip.travellerId ?? null) : null;
+  const walkers = new Map<string, ScenePerson | null>();
+  const walker = (role: string, slot: string, sex: Sex): ScenePerson | null => {
+    const roster = ctx.roster!;
+    const id =
+      traveller !== null &&
+      (role === 'leaving' || role === 'coming' || (role === 'helper' && slot === 'helper:0:0'))
+        ? 'traveller'
+        : slot;
+    if (walkers.has(id)) return walkers.get(id)!;
+    const person = id === 'traveller' ? roster.takeId(traveller!) : roster.take({ ...ADULTS, sex });
+    walkers.set(id, person);
+    return person;
+  };
   for (const leg of ['out', 'back'] as const) {
     plan[leg].members.forEach((member, index) => {
       const key = `caravan:${e.id}:${member.key}`;
       const person = member.sex !== null;
       const child = person && (member.age ?? 30) < 14;
-      const who = identity(ctx.seed, key, {
-        women: person ? (member.sex === 'female' ? 1 : 0) : WOMEN.trade,
-        child,
-      });
+      const [, role = '', ...rest] = member.key.split(':');
+      const slot = [role, ...rest].join(':');
+      const stranger = person && traveller === null;
+      const c = cast(
+        ctx,
+        key,
+        { women: person ? (member.sex === 'female' ? 1 : 0) : WOMEN.trade, child },
+        stranger ? STRANGER : (sex) => walker(role, slot, sex),
+      );
+      if (!c) return;
+      const who = c.who;
       const hair: HairLook =
         (member.age ?? 0) >= 45 ? 'grey' : child ? 'natural' : adultHair(who, ctx.sexes.married);
       const clip = caravanClip(member);
@@ -531,6 +771,7 @@ function caravanFigures(
           o.headingZ = first.z;
           o.clip = 'idle';
           o.pace = 1;
+          o.stage = 'wait';
           return o;
         }
         alongRoute(path, spot.s, leg === 'back', o);
@@ -540,9 +781,16 @@ function caravanFigures(
         const speed = head.perDay / daySeconds;
         o.clip = speed > 0 ? clip : 'idle';
         o.pace = speed > 0 ? Math.min(3, Math.max(0.6, speed / Math.max(0.1, base))) : 1;
+        o.stage = leg;
         return o;
       };
-      out.push(villager(who, pose, hair));
+      out.push(
+        figure(c, pose, hair, {
+          kind: 'caravan',
+          trip,
+          porter: c.person?.id !== traveller,
+        }),
+      );
     });
   }
   return out;
@@ -737,6 +985,7 @@ function context(
   day: number,
   paths: VillagerPaths | null,
   sexes: FigureSexes = figureSexes(null),
+  roster: DayRoster | null = null,
 ): Context {
   const dwellings: House[] = village.dwellings.map((d) => ({
     id: d.id,
@@ -813,7 +1062,19 @@ function context(
     z: settled.reduce((s, h) => s + h.position.z, 0) / settled.length,
   };
   const graves = (village.cemeteries ?? []).flatMap((c) => c.squares);
-  return { village, ground, seed, day, sexes, center, houses, homes: settled, graves, paths };
+  return {
+    village,
+    ground,
+    seed,
+    day,
+    sexes,
+    center,
+    houses,
+    homes: settled,
+    graves,
+    paths,
+    roster,
+  };
 }
 
 /**
@@ -920,6 +1181,59 @@ function identity(seed: number, key: string, options: { women: number; child: bo
       ? 0.96 + r * 0.07
       : 0.95 + r * 0.1;
   return { key, kind, scale: scale * FIGURE_SCALE, phase: hash01(s, 3, 91), seed: s };
+}
+
+/** Postava a člověk, kterým je (villagers.md – Výběr postavy); bez lidí ve scéně `person` null. */
+interface Cast {
+  who: Identity;
+  person: ScenePerson | null;
+}
+
+/** Postava, která není člověk vsi (lidé, kteří se stěhují k sousedovi nebo od něj přicházejí). */
+const STRANGER = 'stranger';
+
+/**
+ * Identita postavy: bez lidí ve scéně (dřívější pohled, ukázky) z klíče a podílu žen jako dřív;
+ * s lidmi (`ctx.roster`) je postava skutečný člověk – `pick` ho vybere (přednostně pohlaví podle
+ * losu postavy, ať činnost drží podíl žen) a postava má jeho pohlaví a velikost. Nikdo volný –
+ * null (postava není). Cizí postava (`STRANGER`) zůstane jako dřív.
+ */
+function cast(
+  ctx: Context,
+  key: string,
+  look: { women: number; child: boolean },
+  pick: ((sex: Sex) => ScenePerson | null) | typeof STRANGER,
+): Cast | null {
+  const who = identity(ctx.seed, key, look);
+  if (!ctx.roster || pick === STRANGER) return { who, person: null };
+  const person = pick(who.kind === 'woman' ? 'female' : 'male');
+  if (!person) return null;
+  return {
+    who: identity(ctx.seed, key, {
+      women: person.sex === 'female' ? 1 : 0,
+      child: person.age < CHILD_UNDER,
+    }),
+    person,
+  };
+}
+
+/** Vlasy postavy podle člověka: starší šediny, děti a svobodné bez šátku, vdaná žena šátek. */
+function personHair(who: Identity, person: ScenePerson): HairLook {
+  if (person.age >= AGE.elder) return 'grey';
+  if (person.age < CHILD_UNDER || who.kind !== 'woman' || !isMarriedWomanRole(person.role)) {
+    return 'natural';
+  }
+  return hash01(who.seed, 7, 91) < 0.75 ? 'linen' : 'madder';
+}
+
+/** Postava z identity a pózy; s člověkem jeho vlasy, id a co dělá (`job`). */
+function figure(c: Cast, pose: PoseFn, hair: HairLook, job: PersonJob): PlannedVillager {
+  const out = villager(c.who, pose, c.person ? personHair(c.who, c.person) : hair);
+  if (c.person) {
+    out.person = c.person.id;
+    out.job = job;
+  }
+  return out;
 }
 
 function clothOf(seed: number): VillagerLook['cloth'] {
@@ -1768,9 +2082,21 @@ function smithFetchFigures(ctx: Context, labor: SceneLabor): PlannedVillager[] {
     if (!path) continue;
     const key = `fetch:${targetKey(t)}:${(share.ages ?? []).join('.')}`;
     const base = hash01(stringHash(key), 1, 93);
+    const goods = t.kind === 'kiln' ? 'charcoal' : t.kind;
     fetchCarriers(share.ages).forEach((age, k) => {
       const child = age < CHILD_UNDER;
-      const who = identity(ctx.seed, `${key}:${k}`, { women: 0, child });
+      // syn kováře podle věku z jádra (uhlí od 10 let, ruda od 14), nebo kovář sám
+      const c = cast(ctx, `${key}:${k}`, { women: 0, child }, () =>
+        ctx.roster!.take({
+          from: AGE.olderChild,
+          to: Infinity,
+          homes: new Set([from]),
+          sex: 'male',
+          age,
+        }),
+      );
+      if (!c) return;
+      const who = c.who;
       const pose = shuttle(path, {
         outClip: 'walk',
         outSpeed: walkSpeed(who.kind, 'walk', who.scale),
@@ -1783,7 +2109,8 @@ function smithFetchFigures(ctx: Context, labor: SceneLabor): PlannedVillager[] {
         restHidden: true,
         phase: streamPhase(k, base),
       });
-      out.push(villager(who, pose, child ? 'natural' : adultHair(who, ctx.sexes.married)));
+      const hair = child ? 'natural' : adultHair(who, ctx.sexes.married);
+      out.push(figure(c, pose, hair, { kind: 'fetch', goods }));
     });
   }
   return out;
@@ -2337,6 +2664,8 @@ interface TrafficRoute extends TrafficStream {
   key: string;
   route: Route;
   women: number;
+  /** Domácnost (id obydlí), od jejíchž dveří lidé jdou. */
+  home: number;
 }
 
 /**
@@ -2358,10 +2687,14 @@ function trafficFigures(ctx: Context, labor: SceneLabor, max: number): PlannedVi
       const child =
         labor.people.children > 0 &&
         hash01((ctx.seed * 31 + stringHash(key)) | 0, 9, 93) < look.children;
-      const who = identity(ctx.seed, key, {
-        women: womenChance(stream.women, child ? ctx.sexes.girls : ctx.sexes.women),
-        child,
-      });
+      const c = cast(
+        ctx,
+        key,
+        { women: womenChance(stream.women, child ? ctx.sexes.girls : ctx.sexes.women), child },
+        (sex) => trafficWalker(ctx, stream, child, sex),
+      );
+      if (!c) continue;
+      const who = c.who;
       const pose = shuttle(stream.route, {
         outClip: look.outClip,
         outSpeed: walkSpeed(who.kind, look.outClip, who.scale),
@@ -2374,10 +2707,31 @@ function trafficFigures(ctx: Context, labor: SceneLabor, max: number): PlannedVi
         restHidden: true,
         phase: streamPhase(k, base),
       });
-      out.push(villager(who, pose, child ? 'natural' : adultHair(who, ctx.sexes.married)));
+      const hair = child ? 'natural' : adultHair(who, ctx.sexes.married);
+      out.push(figure(c, pose, hair, { kind: 'traffic', traffic: stream.kind }));
     }
   });
   return out;
+}
+
+/**
+ * Kdo jde po cestě (villagers.md – Výběr postavy): člověk z domácnosti, od jejíchž dveří proud
+ * vychází – pro vodu a dřevo dospělí i výrostci (dítě, když ho los postavy chce, jinak dospělý),
+ * na pole dospělí, k milíři uhlíř; z dílny, která dnes pracuje, na pole nikdo.
+ */
+function trafficWalker(
+  ctx: Context,
+  stream: TrafficRoute,
+  child: boolean,
+  sex: Sex,
+): ScenePerson | null {
+  const roster = ctx.roster!;
+  const homes = new Set([stream.home]);
+  if (stream.kind === 'field' && roster.busy(stream.home)) return null;
+  const adults = (): ScenePerson | null => roster.take({ ...ADULTS, homes, sex });
+  if (stream.kind !== 'water' && stream.kind !== 'wood') return adults();
+  const kids = (): ScenePerson | null => roster.take({ ...YOUNGSTERS, homes, sex });
+  return child ? (kids() ?? adults()) : (adults() ?? kids());
 }
 
 /** Proudy lidí vsi: voda a dřevo po domácnostech, pole po prácích dne a domech. */
@@ -2396,12 +2750,16 @@ function trafficRoutes(ctx: Context, labor: SceneLabor): TrafficRoute[] {
     trips: number,
     path: Route | null,
     women: number,
+    home: number,
   ): void => {
     if (!path || trips <= 0 || path.length < 1) return;
     // táž práce na témže poli víckrát (ozim a jař) – jeden proud, cesty se sečtou
     const same = out.find((s) => s.key === key);
     if (same) same.trips += trips;
-    else out.push({ kind, key, trips, route: path, activeS: activeSeconds(path, kind), women });
+    else {
+      const activeS = activeSeconds(path, kind);
+      out.push({ kind, key, trips, route: path, activeS, women, home });
+    }
   };
   for (const home of homes) {
     const household = people.get(home.id);
@@ -2417,6 +2775,7 @@ function trafficRoutes(ctx: Context, labor: SceneLabor): TrafficRoute[] {
         trips,
         errandPath(ctx, home, door, kind),
         TRAFFIC_LOOK[kind].women,
+        home.id,
       );
     }
   }
@@ -2436,6 +2795,7 @@ function trafficRoutes(ctx: Context, labor: SceneLabor): TrafficRoute[] {
       share.manDays * FIELD_TRIPS_PER_MAN_DAY,
       walkRoute(ctx, door, edge) ?? fieldPath(ctx, door, edge),
       TRAFFIC_LOOK.kiln.women,
+      home.id,
     );
   });
   labor.shares.forEach((share) => {
@@ -2466,6 +2826,7 @@ function trafficRoutes(ctx: Context, labor: SceneLabor): TrafficRoute[] {
         trips,
         walkRoute(ctx, door, edge) ?? fieldPath(ctx, door, edge),
         WOMEN[share.activity],
+        home.id,
       );
     }
   });
@@ -2584,11 +2945,17 @@ function elders(ctx: Context, count: number): PlannedVillager[] {
   const homes = [...ctx.homes].sort((a, b) => a.id - b.id);
   const out: PlannedVillager[] = [];
   for (let i = 0; i < count && homes.length > 0; i++) {
-    const home = homes[i % homes.length]!;
-    const who = identity(ctx.seed, `elder:${home.id}:${i}`, {
-      women: womenChance(0.5, ctx.sexes.elderWomen),
-      child: false,
-    });
+    const slot = homes[i % homes.length]!;
+    // starší doma (villagers.md – Výběr postavy): přednostně z domu postavy, stojí u svého domu
+    const c = cast(
+      ctx,
+      `elder:${slot.id}:${i}`,
+      { women: womenChance(0.5, ctx.sexes.elderWomen), child: false },
+      () => ctx.roster!.take({ ...ELDERS, preferHome: slot.id }),
+    );
+    if (!c) continue;
+    const home = (c.person && homes.find((h) => h.id === c.person!.home)) || slot;
+    const who = c.who;
     const side = i % 2 === 0 ? 1 : -1;
     const edge = side > 0 ? home.box.maxX + gap(0.7) : home.box.minX - gap(0.7);
     const p = worldPoint(home.position, edge, home.box.minZ * 0.3);
@@ -2596,10 +2963,11 @@ function elders(ctx: Context, count: number): PlannedVillager[] {
     if (!spot) continue;
     const away = unit(spot.x - home.position.x, spot.z - home.position.z);
     out.push(
-      villager(
-        { ...who, scale: who.scale * 0.97 },
+      figure(
+        { who: { ...who, scale: who.scale * 0.97 }, person: c.person },
         stand(spot.x, spot.z, away.x, away.z, 'idle', 0.7),
         'grey',
+        { kind: 'elder' },
       ),
     );
   }
@@ -2610,25 +2978,42 @@ function elders(ctx: Context, count: number): PlannedVillager[] {
  * Pasáci u stád – děti (zmenšený muž nebo žena), starší (šediny) a dospělí, jeden u každého
  * stáda (`herderKinds`).
  */
-function herders(ctx: Context, kinds: readonly ('child' | 'elder' | 'adult')[]): PlannedVillager[] {
+function herders(
+  ctx: Context,
+  kinds: readonly ('child' | 'elder' | 'adult')[],
+  youngsters: readonly ScenePerson[] = [],
+): PlannedVillager[] {
   const out: PlannedVillager[] = [];
   kinds.forEach((kind, k) => {
-    const who = identity(ctx.seed, `herder:${k}`, {
-      women: womenChance(
-        kind === 'child' ? 0.4 : WOMEN.herding,
+    const c = cast(
+      ctx,
+      `herder:${k}`,
+      {
+        women: womenChance(
+          kind === 'child' ? 0.4 : WOMEN.herding,
+          kind === 'child'
+            ? ctx.sexes.girls
+            : kind === 'elder'
+              ? ctx.sexes.elderWomen
+              : ctx.sexes.women,
+        ),
+        child: kind === 'child',
+      },
+      // výrostci, kteří dnes pasou (`herderPeople`); starší a dospělí pasáci (dřívější
+      // rozdělení práce) z lidí vsi
+      () =>
         kind === 'child'
-          ? ctx.sexes.girls
-          : kind === 'elder'
-            ? ctx.sexes.elderWomen
-            : ctx.sexes.women,
-      ),
-      child: kind === 'child',
-    });
+          ? (youngsters[k] ?? null)
+          : ctx.roster!.take(kind === 'elder' ? ELDERS : ADULTS),
+    );
+    if (!c) return;
+    const who = c.who;
     const speed = walkSpeed(who.kind, 'walk', who.scale) * 0.8;
     const home = nearestFree(ctx, ctx.center.x + 12 + k * 2, ctx.center.z + 12, 6) ?? ctx.center;
     const hair =
       kind === 'elder' ? 'grey' : kind === 'adult' ? adultHair(who, ctx.sexes.married) : 'natural';
-    out.push(villager(who, herder(k, home, who.seed, who.phase, speed, 0.8), hair));
+    const pose = herder(k, home, who.seed, who.phase, speed, 0.8);
+    out.push(figure(c, pose, hair, { kind: 'herd', herd: k }));
   });
   return out;
 }

@@ -106,6 +106,8 @@ export interface FuneralTimeline {
 export interface FuneralMember {
   key: string;
   bearer: boolean;
+  /** Člověk vsi za márami (id – `SceneMourner.id`; villagers.md, Výběr postavy); nosiči nemají. */
+  person?: number;
   sex: SceneMourner['sex'];
   child: boolean;
   elder: boolean;
@@ -651,6 +653,7 @@ export function funeralPlan(
     members.push({
       key: bearer ? `bearer:${i}` : `mourner:${i - FUNERAL_BEARERS}`,
       bearer,
+      ...(mourner?.id !== undefined ? { person: mourner.id } : {}),
       sex: mourner?.sex ?? 'male',
       child: (mourner?.age ?? 30) < 14,
       elder: (mourner?.age ?? 30) >= 45,
@@ -799,10 +802,12 @@ export function funeralPose(
       o.clip = 'walk';
       o.pace = own / walk;
       o.hidden = d >= m.home.length + 0.5;
+      o.stage = 'home';
       return o;
     }
     // v kruhu kolem hranice (po příchodu)
     if (nowMs >= m.ringMs) {
+      o.stage = 'ring';
       const d = ((nowMs - m.ringMs) / 1000) * own;
       alongRoute(m.toRing, d, false, o);
       if (d >= m.toRing.length) {
