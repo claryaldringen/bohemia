@@ -116,7 +116,7 @@ describe('co dělá spřežení, vůz a lidé u nich', () => {
     expect(teamActivityText({ kind: 'to-field' })).toBe('jde na pole');
     expect(teamActivityText({ kind: 'between' })).toBe('přechází na další díl');
     expect(teamActivityText({ kind: 'to-pen' })).toBe('vrací se do ohrady');
-    expect(teamActivityText({ kind: 'done', atPen: true })).toBe('stojí v ohradě');
+    expect(teamActivityText({ kind: 'done', atPen: true })).toBe('stojí u ohrady');
   });
 
   it('oráč „orá“, honák „vede spřežení“ – i cestou na pole a do ohrady', () => {

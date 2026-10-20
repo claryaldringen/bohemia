@@ -48,7 +48,7 @@ export function teamActivityText(activity: TeamActivity): string {
     case 'to-pen':
       return 'vrací se do ohrady';
     case 'done':
-      return activity.atPen ? 'stojí v ohradě' : 'stojí na poli';
+      return activity.atPen ? 'stojí u ohrady' : 'stojí na poli';
   }
 }
 

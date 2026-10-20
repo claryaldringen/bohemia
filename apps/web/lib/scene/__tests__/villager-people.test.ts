@@ -548,7 +548,7 @@ describe('oráč, honák a vozka jsou lidé vsi (villagers.md – Výběr postav
     expect(people.map((p) => [p.key, p.person])).toEqual(before.map((p) => [p.key, p.person]));
   });
 
-  it('zapřažený vůz, ke kterému není podíl svozu (karavana bez práce), dostane vozku po práci vsi', () => {
+  it('vůz výpravy (bez podílu svozu) dostane vozku s karavanou, vůz svozu taky', () => {
     const trade = { ...CART, id: 6, job: { ...CART.job, activity: 'trade' as const } };
     const v = { ...draftVillage(), carts: [CART, trade] };
     const { crew } = planVillagersWithCrew(v, GROUND, {
@@ -557,6 +557,25 @@ describe('oráč, honák a vozka jsou lidé vsi (villagers.md – Výběr postav
     });
     expect(crew.carts.map((c) => c.cart).sort()).toEqual([5, 6]);
     expect(crew.carts.every((c) => c.drover !== null)).toBe(true);
+  });
+
+  it('spřežení a vozy jsou vidět celý den – lidé u nich mají přednost před prací vsi', () => {
+    // pletí na celou ves a svoz s nepatrnou prací (voda – podíl bez postavy): vozka stejně je
+    const shares: LaborShare[] = [
+      { activity: 'weed', target: { kind: 'field', id: 7 }, manDays: 30 },
+      { activity: 'haul', target: { kind: 'field', id: 7 }, manDays: 0.05 },
+    ];
+    const v = { ...village(shares), carts: [CART] };
+    const { people, crew } = planVillagersWithCrew(v, GROUND, {
+      ...OPTIONS,
+      draft: { teams: 1, carts: [5] },
+    });
+    expect(crew.carts[0]!.drover).not.toBeNull();
+    expect(crew.teams[0]!.ploughman).not.toBeNull();
+    const weeders = people.filter((p) => p.job?.kind === 'share' && p.job.activity === 'weed');
+    for (const id of [crew.carts[0]!.drover, crew.teams[0]!.ploughman]) {
+      expect(weeders.some((p) => p.person === id)).toBe(false);
+    }
   });
 
   it('málo lidí: kdo není, ten u spřežení chybí (null); bez lidí ve scéně nikdo', () => {
@@ -568,6 +587,12 @@ describe('oráč, honák a vozka jsou lidé vsi (villagers.md – Výběr postav
     // jediný dospělý muž orá – honák a vozka nejsou
     expect(crew.teams[0]).toEqual({ ploughman: 201, leader: null });
     expect(crew.carts).toEqual([{ cart: 5, drover: null }]);
+    // u spřežení je jen jednou – postavu ve vsi už nemá
+    const people = planVillagers(draftVillage(one), GROUND, {
+      ...OPTIONS,
+      draft: { teams: 1, carts: [5] },
+    });
+    expect(people.some((p) => p.person === 201)).toBe(false);
     const v = draftVillage();
     const { persons: _persons, ...labor } = v.labor!;
     void _persons;

@@ -413,9 +413,9 @@ export function planVillagers(
 
 /**
  * Postavy vsi (`planVillagers`) a lidé u spřežení a vozů (`options.draft` – villagers.md, Výběr
- * postavy): oráč a honák dostanou člověka, když na řadu přijde podíl orby, vozka u svozu podíl
- * svozu jeho vozu a u výpravy karavana – stejné pořadí jako ostatní postavy (kdo co dnes dělá
- * podle jádra má přednost); spřežení a vozy bez svého podílu dostanou lidi po práci vsi.
+ * postavy): spřežení a vozy jsou ve scéně vidět celý den, proto oráč, honák a vozka patří k lidem
+ * s pevným místem dne – vozka vozu výpravy s karavanou, ostatní hned po pasácích (před dílnami,
+ * stavbami a prací vsi); jejich podíl práce (orba, svoz) už postavy nemá.
  */
 export function planVillagersWithCrew(
   village: SceneVillage,
@@ -459,6 +459,8 @@ export function planVillagersWithCrew(
   staff.caravanCarts();
   const fetchers = smithFetchFigures(ctx, labor);
   const herding = herderPeople(ctx, labor);
+  // spřežení a vozy jsou ve scéně vidět celý den – oráč, honák a vozka mají pevné místo dne
+  staff.all();
   // výpravy k sousedům jdou jako karavany podle stavu výpravy (trade.md – Ve scéně), ne podle
   // práce dne – nosiči nezmizí, ani když výprava dnes nepostoupila
   const caravans = village.expeditions !== undefined;
@@ -469,16 +471,10 @@ export function planVillagersWithCrew(
     if (tried.has(`${s}:${i}`)) return;
     tried.add(`${s}:${i}`);
     const share = labor.shares[s]!;
-    // orba: oráč a honák u každého spřežení dne; svoz: vozka u každého vozu tohoto podílu
-    if (share.activity === 'plough') {
-      staff.teams();
-      return;
-    }
-    const cart = share.activity === 'haul' ? staff.haulCart(share, i) : null;
-    if (cart !== null) {
-      staff.cart(cart);
-      return;
-    }
+    // orbu dělají oráč a honák u spřežení, vůz svozu vede vozka (`staff`) – postavy kreslí
+    // spřežení a vůz
+    if (share.activity === 'plough') return;
+    if (share.activity === 'haul' && staff.haulCart(share, i) !== null) return;
     let place = placers.get(s);
     if (!place) {
       place = placer(ctx, share, counts[s] ?? 0);
@@ -516,8 +512,6 @@ export function planVillagersWithCrew(
   all((share) => CRAFT_ACTIVITIES.has(share.activity));
   for (const s of firstBuilders(labor.shares, counts)) if (wanted(s)) place(s, 0);
   all((share) => !LATE_ACTIVITIES.has(share.activity));
-  // spřežení a vozy, na jejichž podíl práce nedošlo (bez podílu, rozpočet postav), po práci vsi
-  staff.rest();
   const traffic = trafficFigures(ctx, labor, options.maxTraffic ?? MAX_TRAFFIC);
   // domácí práce a nečinní – na koho zbude člověk
   all(() => true);
@@ -539,19 +533,18 @@ export function planVillagersWithCrew(
  * Kdo je u spřežení a vozů (villagers.md – Výběr postavy): oráč je dospělý muž (jinak žena),
  * honák výrostek nejblíž LEADER_AGE (jinak dospělý – na poli ho kreslí postava honáčka), vozka
  * dospělý muž (jinak žena). Každé spřežení a každý vůz nejvýš jednou; bez lidí ve scéně nikdo
- * (null). Zapisuje do `crew` – spřežení v pořadí renderera, vozy v pořadí, v jakém přišly na
- * řadu.
+ * (null). Zapisuje do `crew` – spřežení v pořadí renderera, vozy výprav napřed, pak ostatní
+ * v pořadí renderera. `haulCart` – vůz svozu, který vede `i`-tý člověk podílu svozu (postavu
+ * nemá – je u vozu).
  */
 function draftStaff(
   ctx: Context,
   draft: DraftCrews | null,
   crew: DraftCrew,
 ): {
-  teams(): void;
   haulCart(share: SceneLaborShare, i: number): number | null;
-  cart(id: number): void;
   caravanCarts(): void;
-  rest(): void;
+  all(): void;
 } {
   const roster = ctx.roster;
   const drawn = new Set(draft?.carts ?? []);
@@ -582,13 +575,11 @@ function draftStaff(
     haulCarts.set(key, [...(haulCarts.get(key) ?? []), c.id]);
   }
   return {
-    teams,
     haulCart: (share, i) => haulCarts.get(targetKey(share.target))?.[i] ?? null,
-    cart,
     caravanCarts: () => {
       for (const c of ctx.village.carts ?? []) if (c.job?.activity === 'trade') cart(c.id);
     },
-    rest: () => {
+    all: () => {
       teams();
       for (const id of draft?.carts ?? []) cart(id);
     },

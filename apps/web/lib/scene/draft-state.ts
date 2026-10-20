@@ -13,7 +13,7 @@ export interface PloughedPart {
 /**
  * Co spřežení dělá: orá díl (`plough`), jde z ohrady nebo z místa, kde stálo, na pole
  * (`to-field`), přechází se zvednutým rádlem mezi díly (`between`), vrací se do ohrady (`to-pen`),
- * nebo má orbu dne hotovou (`done` – stojí v ohradě, nebo na konci poslední řady).
+ * nebo má orbu dne hotovou (`done` – stojí u ohrady, nebo na konci poslední řady).
  */
 export type TeamActivity =
   | { kind: 'plough'; part: PloughedPart | null }
@@ -46,7 +46,7 @@ export function loopActivity(track: TeamTrack, t: number, part: PloughedPart | n
  * Spřežení na trase celé dnešní orby (plough-day.ts) v okamžiku `nowMs`: na pruhu dílu orá
  * (i obrat na souvrati patří k pruhu), přesun před prvním pruhem je cesta na pole (z ohrady po
  * cestě `approach`), mezi pruhy přechod, za posledním návrat do ohrady; po konci trasy hotovo
- * (s cestou stojí v ohradě).
+ * (s cestou stojí u ohrady).
  */
 export function routeActivity(track: RouteTrack, nowMs: number, approach: boolean): TeamActivity {
   const route = track.route;
