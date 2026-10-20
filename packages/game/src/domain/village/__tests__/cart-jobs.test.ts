@@ -220,7 +220,7 @@ describe('přednost a spřežení (wagons.md – Co vozy vozí)', () => {
     expect(hauls(next)).toEqual([]);
     // vůz nejel, ale ves si zapsala, co by vůz s vlastním volem ušetřil (wagons.md – Kolik vozů
     // ves chce)
-    expect(next.draft!.demand!.plough[0]).toBeGreaterThan(0);
+    expect(next.draft!.demand!.days!.some((d) => d.p && (d.j?.[0] ?? 0) > 0)).toBe(true);
   });
 
   it('bez spřežení vůz stojí – ves jako bez vozu', () => {

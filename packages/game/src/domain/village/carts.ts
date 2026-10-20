@@ -105,22 +105,58 @@ export function teamsHomeShare(
 }
 
 /**
+ * Vozy, které dnes můžou vozit, a voli pro ně (oxen.md – Voli se sdílí): vozy doma (ne na výpravě)
+ * po druzích a vycvičení voli doma, kteří neorají – ve dny orby (`ploughing`) jdou páry napřed
+ * k rádlům, vozy táhne zbytek volů. Plány svozu flotilu ubírají (`takeCart`).
+ */
+export interface CartFleet {
+  'two-wheel': number;
+  'four-wheel': number;
+  oxen: number;
+}
+
+/** Flotila dne (`CartFleet`). */
+export function cartFleetToday(
+  state: Pick<VillageState, 'carts' | 'pens' | 'ards' | 'trade'>,
+  day: number,
+  ploughing: boolean,
+): CartFleet {
+  const away = cartsAway(state);
+  const fleet: CartFleet = { 'two-wheel': 0, 'four-wheel': 0, oxen: 0 };
+  for (const cart of villageCarts(state)) if (!away.has(cart.id)) fleet[cart.kind]++;
+  if (fleet['two-wheel'] + fleet['four-wheel'] === 0) return fleet;
+  const ploughOxen = ploughing ? DRAFT_OXEN.ard * ploughPairsHome(state, day) : 0;
+  fleet.oxen = Math.max(0, oxenHome(state, day) - ploughOxen);
+  return fleet;
+}
+
+/** Kolik vozů druhu `kind` z flotily může jet – každý se svými voly (dvoukolák 1, čtyřkolák 2). */
+export function fleetCarts(fleet: Readonly<CartFleet>, kind: CartKind): number {
+  return Math.max(0, Math.min(fleet[kind], Math.floor(fleet.oxen / DRAFT_OXEN[kind])));
+}
+
+/** Vůz druhu `kind` i se svými voly jede (mutuje flotilu). */
+export function takeCart(fleet: CartFleet, kind: CartKind, count = 1): void {
+  fleet[kind] -= count;
+  fleet.oxen -= count * DRAFT_OXEN[kind];
+}
+
+/**
  * Kolik dvoukoláků dnes může vozit (oxen.md – Voli se sdílí): doma (ne na výpravě) a s vlastním
  * vycvičeným volem, který je doma a neorá – ve dny orby (`ploughing`) jdou páry napřed k rádlům,
- * vozy táhne zbytek volů. Čtyřkolák jezdí jen s výpravami.
+ * vozy táhne zbytek volů.
  */
 export function haulCartsToday(
   state: Pick<VillageState, 'carts' | 'pens' | 'ards' | 'trade'>,
   day: number,
   ploughing: boolean,
 ): number {
-  const carts = villageCarts(state);
-  if (carts.length === 0) return 0;
-  const away = cartsAway(state);
-  const home = carts.filter((c) => c.kind === 'two-wheel' && !away.has(c.id)).length;
-  const ploughOxen = ploughing ? DRAFT_OXEN.ard * ploughPairsHome(state, day) : 0;
-  const oxen = oxenHome(state, day) - ploughOxen;
-  return Math.max(0, Math.min(home, Math.floor(oxen / DRAFT_OXEN['two-wheel'])));
+  return fleetCarts(cartFleetToday(state, day, ploughing), 'two-wheel');
+}
+
+/** Kolikrát víc nákladu vůz uveze proti dvoukoláku (čtyřkolák 800 kg – dvakrát). */
+export function cartLoadRatio(kind: CartKind): number {
+  return CARTS.loadKg[kind] / CARTS.loadKg['two-wheel'];
 }
 
 /**
@@ -150,12 +186,15 @@ export function tradeCarts(
 
 /**
  * Svoz vozy na jednu úlohu dne: kolik práce nošení vozy převezmou (`work` – člověkodny nošení),
- * kolik práce stojí honáci a nakladači (`crew`) a kolik vozů jede.
+ * kolik práce stojí honáci a nakladači (`crew`) a kolik vozů jede; z toho čtyřkoláky (`four`)
+ * a jejich díl nošení (`fourWork`) – chybí = jen dvoukoláky.
  */
 export interface HaulPlan {
   work: number;
   crew: number;
   carts: number;
+  four?: number;
+  fourWork?: number;
 }
 
 export const NO_HAUL: HaulPlan = { work: 0, crew: 0, carts: 0 };
@@ -172,6 +211,43 @@ export function haulPlan(available: number, carts: number): HaulPlan {
     work,
     crew: (work * CARTS.crew) / CARTS.carrierManDays,
     carts: Math.min(carts, Math.ceil(work / CARTS.carrierManDays - EPSILON)),
+  };
+}
+
+/**
+ * Svoz z flotily (wagons.md – Co se vozí a na čem, Martin 20. 10. 2026: „Ano, udělej to jak
+ * říkáš“ – ves vybere levnější vůz pro každou práci): čtyřkoláky napřed na nošení podél cest
+ * (`road` – kam dojede čtyřkolák; za den uveze dvakrát víc se stejnou posádkou), dvoukoláky na
+ * zbytek (`available` – kam dojede dvoukolák, i co čtyřkoláky nepobraly). Vůz za den odveze
+ * CARTS.carrierManDays × poměr nákladu nosičů, posádka CARTS.crew poměrně k nákladu. Mutuje
+ * flotilu (`takeCart`).
+ */
+export function fleetHaulPlan(available: number, road: number, fleet: CartFleet): HaulPlan {
+  if (available <= EPSILON) return NO_HAUL;
+  const cap4 = CARTS.carrierManDays * cartLoadRatio('four-wheel');
+  let fourWork = 0;
+  let four = 0;
+  const roadLeft = Math.min(road, available);
+  while (fourWork + EPSILON < roadLeft && fleetCarts(fleet, 'four-wheel') > 0) {
+    fourWork += Math.min(cap4, roadLeft - fourWork);
+    four++;
+    takeCart(fleet, 'four-wheel');
+  }
+  const rest = available - fourWork;
+  let twoWork = 0;
+  let two = 0;
+  while (twoWork + EPSILON < rest && fleetCarts(fleet, 'two-wheel') > 0) {
+    twoWork += Math.min(CARTS.carrierManDays, rest - twoWork);
+    two++;
+    takeCart(fleet, 'two-wheel');
+  }
+  if (four + two === 0) return NO_HAUL;
+  const crew = (fourWork / cap4 + twoWork / CARTS.carrierManDays) * CARTS.crew;
+  return {
+    work: fourWork + twoWork,
+    crew,
+    carts: four + two,
+    ...(four > 0 ? { four, fourWork } : {}),
   };
 }
 
@@ -250,17 +326,19 @@ export function cartOrigin(state: Pick<VillageState, 'pens'>): { x: number; z: n
 }
 
 /**
- * Dosah vozů vsi dnes: s krajinou vozová síť (`networkCartAccess`), bez krajiny všude (testy,
- * kalibrace – jako chůze bez krajiny vzdušně); bez hotové ohrady volů null.
+ * Dosah vozů vsi dnes (`kind` – čtyřkolák jen po pevných cestách): s krajinou vozová síť
+ * (`networkCartAccess`), bez krajiny všude (testy, kalibrace – jako chůze bez krajiny vzdušně); bez
+ * hotové ohrady volů null.
  */
 export function villageCartAccess(
   state: VillageState,
   day: number,
   landscape: Landscape | null,
   obstacles: ObstacleLayer | null,
+  kind: CartKind = 'two-wheel',
 ): CartAccess | null {
   if (!cartOrigin(state)) return null;
-  return landscape ? networkCartAccess(day, landscape, obstacles) : EVERYWHERE;
+  return landscape ? networkCartAccess(day, landscape, obstacles, kind) : EVERYWHERE;
 }
 
 /** Střed dílu pole ve světě. */
@@ -479,7 +557,7 @@ export function addHaulTrips(
   kind: CartKind = 'two-wheel',
 ): void {
   if (!state.roads || hauled <= EPSILON || reach.points.length === 0) return;
-  const trips = (hauled * CARTS.loadsPerCartDay) / CARTS.carrierManDays;
+  const trips = (hauled * CARTS.loadsPerCartDay) / (CARTS.carrierManDays * cartLoadRatio(kind));
   addRoadCartTrips(
     state.roads,
     reach.points.map((p) => ({ x: p.x, z: p.z, kind, trips: trips * p.weight })),

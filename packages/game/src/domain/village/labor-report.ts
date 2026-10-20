@@ -65,6 +65,8 @@ export interface HaulWork {
   job: 'harvest' | 'mow' | 'logs' | 'charcoal' | 'ore' | 'seed' | 'water';
   manDays: number;
   carts: number;
+  /** Z vozů čtyřkoláky (svoz podél cest); chybí = žádný. */
+  four?: number;
   trees?: number[];
   target?: LaborTarget;
 }
@@ -139,6 +141,7 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
     carts?: number,
     job?: CartJob,
     ages?: readonly number[],
+    fourWheel?: number,
   ): void => {
     const rounded = Math.round(manDays * 1000) / 1000;
     if (rounded < MIN_MAN_DAYS) return;
@@ -148,6 +151,7 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
       manDays: rounded,
       ...(construction === undefined ? {} : { construction }),
       ...(carts ? { carts } : {}),
+      ...(fourWheel ? { fourWheel } : {}),
       ...(job ? { job } : {}),
       ...(ages && ages.length > 0 ? { ages: [...ages] } : {}),
     });
@@ -171,7 +175,16 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
       total += manDays;
       const cartJob =
         job === 'seed' || job === 'water' || job === 'charcoal' || job === 'ore' ? job : undefined;
-      add('haul', place ?? { kind: 'village' }, manDays, undefined, haul.carts, cartJob);
+      add(
+        'haul',
+        place ?? { kind: 'village' },
+        manDays,
+        undefined,
+        haul.carts,
+        cartJob,
+        undefined,
+        haul.four,
+      );
     }
     return total;
   };

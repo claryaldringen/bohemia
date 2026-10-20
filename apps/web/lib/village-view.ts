@@ -95,6 +95,7 @@ import {
   type MoundSize,
   type ConstructionKind,
   type ConstructionSummary,
+  type Cart,
   type CartKind,
   type Craft,
   type CraftCoverage,
@@ -2548,12 +2549,16 @@ function sceneCarts(
       });
     }
   }
-  const idle = carts
-    .filter((c) => c.kind === 'two-wheel' && !away.has(c.id))
-    .sort((a, b) => a.id - b.id);
+  const idleOf = (kind: CartKind): Cart[] =>
+    carts.filter((c) => c.kind === kind && !away.has(c.id)).sort((a, b) => a.id - b.id);
+  const idle = idleOf('two-wheel');
+  const idleFour = idleOf('four-wheel');
   for (const share of laborReport(state)?.shares ?? []) {
     if (share.activity !== 'haul') continue;
-    for (const cart of idle.splice(0, share.carts ?? 1)) {
+    // čtyřkoláky svozu podél cest (wagons.md – Co se vozí a na čem), zbytek dvoukoláky
+    const four = idleFour.splice(0, share.fourWheel ?? 0);
+    const two = idle.splice(0, Math.max(0, (share.carts ?? 1) - four.length));
+    for (const cart of [...four, ...two]) {
       jobs.set(cart.id, {
         activity: 'haul',
         target: share.target,
@@ -2650,6 +2655,30 @@ function cartRouteToday(
     ])?.[0];
     return route?.reached && route.points.length >= 2 ? route.points : null;
   };
+  // čtyřkolák jezdí jen po pevných cestách (wagons.md – Co se vozí a na čem): na místo, kam
+  // nedojede, jede k bodu svozu nejblíž těžišti, ke kterému dojede (jádro mu dává jen nošení
+  // podél cest)
+  const routeToAny = (
+    reachState: VillageState,
+    goals: readonly { x: number; z: number }[],
+    reachM: number,
+  ): { x: number; z: number }[] | null => {
+    if (goals.length === 0) return null;
+    const routes = villageCartRoutes(
+      reachState,
+      day,
+      landscape,
+      obstacles,
+      kind,
+      goals.map((g) => ({ x: g.x, z: g.z, reachM })),
+    );
+    const reached = goals.flatMap((g, k) => {
+      const route = routes?.[k];
+      return route?.reached && route.points.length >= 2 ? [{ x: g.x, z: g.z, k }] : [];
+    });
+    const best = nearestToCentroid(reached);
+    return best ? routes![best.k]!.points : null;
+  };
   const t = job.target;
   let axis: { x: number; z: number }[] | null = null;
   if (job.activity === 'trade') {
@@ -2672,9 +2701,12 @@ function cartRouteToday(
       : undefined;
     const reachState = job.load === 'sheaves' && work ? harvestReachState(state, work) : state;
     axis = routeTo(reachState, goal, CARTS.reachM);
+    if (!axis && kind === 'four-wheel') axis = routeToAny(reachState, parts, CARTS.reachM);
   } else if (t.kind === 'meadow') {
-    const goal = nearestToCentroid(t.cells.map((c) => tileCenterWorld(landscape, c.x, c.y)));
+    const cells = t.cells.map((c) => tileCenterWorld(landscape, c.x, c.y));
+    const goal = nearestToCentroid(cells);
     axis = goal ? routeTo(state, goal, CARTS.reachM) : null;
+    if (!axis && kind === 'four-wheel') axis = routeToAny(state, cells, CARTS.reachM);
   } else if (t.kind === 'trees') {
     const trees = t.ids.flatMap((id) => {
       const k = obstacleIndex(obstacles, id);
@@ -2682,6 +2714,7 @@ function cartRouteToday(
     });
     const goal = nearestToCentroid(trees);
     axis = goal ? routeTo(state, goal, CARTS.dragM) : null;
+    if (!axis && kind === 'four-wheel') axis = routeToAny(state, trees, CARTS.dragM);
   } else if (t.kind === 'kiln') {
     // uhlí od milíře ke kováři (wagons.md – Co vozy vozí) – k milíři jako jádro (kilnCartDrive)
     axis = routeTo(state, t, CART_JOBS.charcoal.reachM);

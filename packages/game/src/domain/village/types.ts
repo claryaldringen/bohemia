@@ -330,17 +330,44 @@ export interface Cart {
 }
 
 /**
- * Rok provozu vozů (wagons.md – Kolik vozů ves chce): co by za rok ušetřil k-tý vůz každého
- * druhu (čd, index 0 = první vůz) – všechno, co by vozy toho dne mohly vozit, seřazené od největší
- * úspory, bez ohledu na to, kolik vozů ves měla. `plough` – totéž ve dny orby (dvoukoláky): ty
- * jezdí jen s voly, kteří neorají.
+ * Den roku vozů (wagons.md – Kolik vozů ves chce): nošení, které dnes proběhlo tam, kam dojede vůz
+ * (čd) – podél pevných cest, kam dojede i čtyřkolák (`r`), a jinam jen dvoukolákem (`o`) –, úspory
+ * jízd dvoukoláku pro uhlí, rudu, hlínu a vodu (`j` – čd na vůz) a den orby (`p` – vozy táhnou jen
+ * voli, kteří neorají). Chybějící údaj = 0.
+ */
+export interface CartDemandDay {
+  r?: number;
+  o?: number;
+  j?: number[];
+  p?: 1;
+}
+
+/**
+ * Rok provozu vozů, který běží (wagons.md – Kolik vozů ves chce): dny s prací pro vozy (`days`)
+ * a co by ušetřil k-tý čtyřkolák na výpravách (`'four-wheel'` – čd, index 0 = první vůz). Rok
+ * uložený před dny (do 20. 10. 2026) má místo dnů úspory k-tého dvoukoláku mimo dny orby
+ * (`'two-wheel'`) a ve dny orby (`plough`).
  */
 export interface CartDemand {
   /** Den začátku roku vozů (1. 11.). */
   from: number;
-  'two-wheel': number[];
+  days?: CartDemandDay[];
   'four-wheel': number[];
-  plough: number[];
+  'two-wheel'?: number[];
+  plough?: number[];
+}
+
+/**
+ * Uzavřený rok vozů (wagons.md – Kolik vozů ves chce): úspora za rok (čd, přepočtená na rok) podle
+ * počtu dvoukoláků × čtyřkoláků mimo dny orby i s výpravami (`base[dvoukoláky][čtyřkoláky]`) a ve
+ * dny orby podle volů, kteří neorají (`plough[dvoukoláky][čtyřkoláky][voli]`), a cena vola za rok
+ * (`oxCost` – čd, seno přes zimu i výcvik).
+ */
+export interface CartYear {
+  from: number;
+  oxCost: number;
+  base: number[][];
+  plough: number[][][];
 }
 
 /** Kolik volů a vozů ves chce (oxen.md – Kolik volů ves chce, wagons.md – Kolik vozů ves chce). */
@@ -358,7 +385,7 @@ export interface DraftState {
    * Uzavřený loňský rok vozů (k 1. 11.) a cena vola za rok (čd – seno přes zimu i výcvik): podle
    * něj ves chce vozy. Chybí = ves zatím chce jen vozy, které má.
    */
-  lastYear?: CartDemand & { oxCost: number };
+  lastYear?: CartYear | (CartDemand & { oxCost: number });
 }
 /**
  * Zásoby výrobků řemeslníků (crafts.md, kg): uhlí u kováře (crafts.md – Milíř stojí vždy: co uhlíř
@@ -776,6 +803,11 @@ export interface ConstructionWood {
    * (wagons.md). Chybí = ještě ne.
    */
   cartReach?: { trees: boolean[]; points: CartReach['points'] };
+  /**
+   * Totéž pro čtyřkolák – jen po pevných cestách (wagons.md – Co se vozí a na čem); chybí = ještě
+   * ne.
+   */
+  cartReach4?: { trees: boolean[]; points: CartReach['points'] };
 }
 export type TaskName = 'reclaim' | 'dig' | 'sow' | 'weed' | 'harvest' | 'thresh';
 /** Polní práce s pevnou sazbou na osetý hektar (vracení přílohu se počítá podle stáří přílohu). */
@@ -825,6 +857,8 @@ export interface CropWork {
   hauled?: number;
   /** Kam vůz při žni dojede – spočítá se při prvním svozu (wagons.md – Svoz). Chybí = ještě ne. */
   cartReach?: CartReach;
+  /** Kam při žni dojede čtyřkolák – jen podél pevných cest. Chybí = ještě ne. */
+  cartReach4?: CartReach;
   /**
    * Nošení osiva, které převzaly vozy (wagons.md – Co vozy vozí; člověkodny setí) – nejvýš podíl
    * CART_JOBS.seed.carryShare setí na dílech, kam vůz dojede. Chybí = 0.
@@ -1278,6 +1312,8 @@ export interface LaborShare {
   construction?: number;
   /** Svoz a výprava s vozy (wagons.md): kolik vozů tu dnes jezdí; u ostatní práce chybí. */
   carts?: number;
+  /** Z nich čtyřkoláky (svoz podél cest – wagons.md, Co se vozí a na čem); chybí = žádný. */
+  fourWheel?: number;
   /**
    * Co vůz veze, když nesváží úrodu, seno ani klády (wagons.md – Co vozy vozí): uhlí z milíře,
    * osivo na pole, vodu v sudech. U svozu a ostatní práce chybí.
@@ -2065,6 +2101,8 @@ export interface HayMowing {
   hauled?: number;
   /** Kam vůz při seči dojede – spočítá se při prvním svozu (wagons.md). Chybí = ještě ne. */
   cartReach?: CartReach;
+  /** Kam při seči dojede čtyřkolák – jen podél pevných cest. Chybí = ještě ne. */
+  cartReach4?: CartReach;
 }
 
 /** Louka v seči: díl úhoru ve fázi louky, nebo políčko přirozené louky krajiny (oxen.md – Seno). */

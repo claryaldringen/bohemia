@@ -9,6 +9,8 @@ import {
 } from '../carpentry';
 import {
   EVERYWHERE,
+  fleetCarts,
+  fleetHaulPlan,
   haulAvailable,
   haulCartsToday,
   haulPlan,
@@ -298,6 +300,22 @@ describe('vozy (wagons.md – Vůz)', () => {
     expect(haulAvailable(100, 100, 0, 0.4)).toBe(40);
     expect(haulAvailable(100, 50, 30, 0.4)).toBeCloseTo(10, 9);
     expect(haulAvailable(100, 10, 0, 0.4)).toBeCloseTo(4, 9);
+  });
+
+  it('levnější vůz pro každou práci: čtyřkoláky podél cest, dvoukoláky na zbytek', () => {
+    // 30 čd nošení, z toho 20 podél cest; čtyřkolák odveze 16, dvoukolák 8, oba s posádkou 2
+    const fleet = { 'two-wheel': 2, 'four-wheel': 1, oxen: 4 };
+    const plan = fleetHaulPlan(30, 20, fleet);
+    expect(plan).toEqual({ work: 16 + 8 + 6, crew: 2 + 2 + 1.5, carts: 3, four: 1, fourWork: 16 });
+    expect(fleet).toEqual({ 'two-wheel': 0, 'four-wheel': 0, oxen: 0 });
+    // bez nošení podél cest čtyřkolák nejede
+    const other = { 'two-wheel': 1, 'four-wheel': 1, oxen: 3 };
+    expect(fleetHaulPlan(10, 0, other)).toEqual({ work: 8, crew: 2, carts: 1 });
+    expect(other).toEqual({ 'two-wheel': 0, 'four-wheel': 1, oxen: 2 });
+    // čtyřkolák táhnou dva voli – s jedním volem jede jen dvoukolák
+    const one = { 'two-wheel': 1, 'four-wheel': 1, oxen: 1 };
+    expect(fleetCarts(one, 'four-wheel')).toBe(0);
+    expect(fleetHaulPlan(10, 10, one)).toEqual({ work: 8, crew: 2, carts: 1 });
   });
 
   it('vůz po 10 letech doslouží (kronika), na výpravě až po návratu', () => {

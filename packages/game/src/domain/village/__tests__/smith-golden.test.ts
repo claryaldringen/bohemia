@@ -11,7 +11,9 @@ import { withBuiltFirstDwelling } from './village-fixtures';
 // bitu – uhlíř, hrnčíř, tesař i vůz se spřežením jako dřív. Otisk stavu po dvou letech je
 // spočítaný kódem před rudou (commit před zavedením rudy); s voly po kusech a rokem vozů
 // (oxen.md – Voli po kusech, wagons.md – Kolik vozů ves chce) přepočítaný kódem bez rudy
-// (feat/oxen-carts 656dec4) – vyšel stejně jako se rudou.
+// (feat/oxen-carts 656dec4) – vyšel stejně jako se rudou. Rok vozů po dnech a tabulka úspor
+// (wagons.md – Co se vozí a na čem) mění jen záznam roku vozů (`draft.demand`, `draft.lastYear`)
+// – stav bez nich vyšel stejně jako předtím (5d100038).
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 const DAY = at(601, 3, 1);
@@ -80,6 +82,6 @@ describe('ves bez kováře beze změny (crafts.md – Uhlí a ruda kováře)', (
   it('uhlíř, hrnčíř, tesař a vůz – stav po dvou letech jako před rudou', () => {
     const next = advanceVillage(village(), DAY + 730, null);
     expect(next.orePits).toBeUndefined();
-    expect(hash(JSON.stringify(next))).toBe('4faa0291');
+    expect(hash(JSON.stringify(next))).toBe('4fff4a70');
   }, 120_000);
 });
