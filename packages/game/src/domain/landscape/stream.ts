@@ -57,6 +57,41 @@ const NECK_CHORD = 0.6;
 const CALM_WINDOW = 15;
 
 /**
+ * Vylosované vlastnosti potoka nad trasou – náhoda se čerpá jen tady, osu z nich staví
+ * `buildStream` (terén 2 ji staví podruhé se smyčkou zaříznutého meandru, se stejnou náhodou).
+ */
+export interface StreamPlan {
+  /** Vyhlazená trasa po proudu (políčka) a vzdálenost podél ní od pramene. */
+  readonly base: readonly { x: number; y: number }[];
+  readonly along: readonly number[];
+  /** Rovinatost toku 0–1 podél trasy. */
+  readonly flat: readonly number[];
+  readonly left: readonly number[];
+  readonly right: readonly number[];
+  readonly pool: readonly boolean[];
+  readonly shallow: readonly boolean[];
+  readonly longWave: number;
+  readonly shortWave: number;
+  readonly longPhase: number;
+  readonly shortPhase: number;
+  readonly amplitude: number;
+}
+
+/**
+ * Smyčka zaříznutého meandru (ostrožna – terén 2): úsek základní trasy `from`–`to` (podél
+ * `along`, políčka) nahradí body `points` (od začátku úseku do konce, po proudu). Meandry kolem
+ * úseku plynule utichnou, aby osa navázala bez zlomu.
+ */
+export interface StreamLoop {
+  readonly from: number;
+  readonly to: number;
+  readonly points: readonly { x: number; y: number }[];
+}
+
+/** Meandry kolem smyčky utichnou na tolika políčkách před a za ní. */
+export const LOOP_CALM = 8;
+
+/**
  * Tvar potoka nad trasou po políčkách: vyhlazená osa, meandry jako součet dvou sinusovek
  * (víc v rovině, míň ve svahu), každý břeh s vlastní odchylkou šířky, tůně v rovinách a mělčiny
  * ve strmějších úsecích. Vrací body osy po proudu a vodní políčka (souvislá, od okraje k okraji).
@@ -67,6 +102,16 @@ export function shapeStream(
   size: number,
   random: Random,
 ): { samples: ChannelSample[]; water: Uint8Array } {
+  return buildStream(planStream(path, heights, size, random), heights, size, null)!;
+}
+
+/** Vylosuje vlastnosti potoka nad trasou (šířky, tůně, mělčiny, vlny meandrů). */
+export function planStream(
+  path: readonly number[],
+  heights: Float32Array,
+  size: number,
+  random: Random,
+): StreamPlan {
   const noise = createNoise2D(() => random.next());
   const base = smoothPolyline(
     path.map((i) => ({ x: i % size, y: Math.floor(i / size) })),
@@ -75,7 +120,6 @@ export function shapeStream(
   // Po proudu: od vyššího konce.
   if (heightAt(heights, size, base[0]!) < heightAt(heights, size, base.at(-1)!)) base.reverse();
   const along = arcLengths(base);
-  const total = along.at(-1)!;
   const flat = flatness(heights, size, base);
 
   const left: number[] = [];
@@ -134,16 +178,61 @@ export function shapeStream(
   const longPhase = random.next() * Math.PI * 2;
   const shortPhase = random.next() * Math.PI * 2;
   const amplitude = range(random, AMPLITUDE);
+  return {
+    base,
+    along,
+    flat,
+    left,
+    right,
+    pool,
+    shallow,
+    longWave,
+    shortWave,
+    longPhase,
+    shortPhase,
+    amplitude,
+  };
+}
+
+/** Osa potoka jako lomená čára s vlastnostmi bodů (po vložení smyčky delší než trasa). */
+interface ChannelLine {
+  points: readonly { x: number; y: number }[];
+  left: readonly number[];
+  right: readonly number[];
+  shallow: readonly boolean[];
+  pool: readonly boolean[];
+  /** Index bodu trasy, ze kterého bod vznikl; bod smyčky −1. */
+  baseIndex: readonly number[] | null;
+  /** 1 = bod smyčky (vzájemné přiblížení bodů smyčky je záměr – šíje ostrožny). */
+  inLoop: Uint8Array | null;
+}
+
+/**
+ * Osa potoka z plánu: meandry nad trasou (kde by se přiblížily k sobě, zkřížily nebo vytvořily
+ * strmou šíji, meandr se tam zmírní) a se smyčkou `loop` místo jejího úseku. Smyčka, která by se
+ * dotkla zbytku potoka, se nepoužije – vrací null.
+ */
+export function buildStream(
+  plan: StreamPlan,
+  heights: Float32Array,
+  size: number,
+  loop: StreamLoop | null,
+): { samples: ChannelSample[]; water: Uint8Array } | null {
+  const { base, along, flat, left, right, pool, shallow } = plan;
+  const { longWave, shortWave, longPhase, shortPhase, amplitude } = plan;
+  const total = along.at(-1)!;
   const normals = base.map((_, k) => tangent(base, k));
+  // Kolem smyčky meandry utichnou (bez smyčky násobí 1 – osa je bit po bitu jako dřív).
+  const calm = along.map((s) => (loop ? loopCalm(loop, s) : 1));
   // Kde by se meandry přiblížily k sobě, zkřížily nebo vytvořily strmou šíji, meandr se tam
   // zmírní – jen lokálně, zbytek potoka meandruje dál.
   const scale = new Float64Array(base.length).fill(1);
-  let axis = base;
+  let line = channelLine(base, plan, loop);
   for (let attempt = 0; attempt < 10; attempt++) {
-    axis = base.map((p, k) => {
+    const axis = base.map((p, k) => {
       const s = along[k]!;
       const taper = smoothstep(s / EDGE_TAPER) * smoothstep((total - s) / EDGE_TAPER);
-      const envelope = (STEEP_AMPLITUDE + (1 - STEEP_AMPLITUDE) * flat[k]!) * taper;
+      const envelope = (STEEP_AMPLITUDE + (1 - STEEP_AMPLITUDE) * flat[k]!) * taper * calm[k]!;
       const offset =
         amplitude *
         scale[k]! *
@@ -156,26 +245,37 @@ export function shapeStream(
         y: Math.min(size - 1, Math.max(0, p.y + tx * offset)),
       };
     });
-    const conflicts = conflictingPoints(axis, left, right, estimateLevels(heights, size, axis));
+    line = channelLine(axis, plan, loop);
+    const conflicts = conflictingPoints(
+      line.points,
+      line.left,
+      line.right,
+      estimateLevels(heights, size, line.points),
+      line.inLoop,
+    );
     if (conflicts.length === 0) break;
     if (attempt === 9) {
+      if (loop) return null;
       scale.fill(0);
-      axis = base;
+      line = channelLine(base, plan, loop);
       break;
     }
     const window = CALM_WINDOW / SAMPLE_STEP;
-    const calm = new Float64Array(base.length).fill(1);
-    for (const c of conflicts) {
+    const calmDown = new Float64Array(base.length).fill(1);
+    for (const point of conflicts) {
+      const c = line.baseIndex ? line.baseIndex[point]! : point;
+      if (c < 0) continue;
       for (let k = Math.max(0, c - window); k <= Math.min(base.length - 1, c + window); k++) {
         const t = Math.abs(k - c) / window;
-        calm[k] = Math.min(calm[k]!, 1 - 0.5 * (0.5 + 0.5 * Math.cos(Math.PI * t)));
+        calmDown[k] = Math.min(calmDown[k]!, 1 - 0.5 * (0.5 + 0.5 * Math.cos(Math.PI * t)));
       }
     }
-    calm.forEach((factor, k) => (scale[k] = scale[k]! * factor));
+    calmDown.forEach((factor, k) => (scale[k] = scale[k]! * factor));
   }
 
   // Po posunutí do meandrů se body v obloucích roztáhnou – znovu rovnoměrně po SAMPLE_STEP,
   // jinak by osa mezi sousedními body přeskočila políčko.
+  const axis = line.points;
   const axisAlong = arcLengths(axis);
   const count = Math.max(2, Math.round(axisAlong.at(-1)! / SAMPLE_STEP) + 1);
   const points: {
@@ -198,10 +298,10 @@ export function shapeStream(
     points.push({
       x: axis[a]!.x + (axis[b]!.x - axis[a]!.x) * t,
       y: axis[a]!.y + (axis[b]!.y - axis[a]!.y) * t,
-      left: left[a]! + (left[b]! - left[a]!) * t,
-      right: right[a]! + (right[b]! - right[a]!) * t,
-      shallow: shallow[near]!,
-      pool: pool[near]!,
+      left: line.left[a]! + (line.left[b]! - line.left[a]!) * t,
+      right: line.right[a]! + (line.right[b]! - line.right[a]!) * t,
+      shallow: line.shallow[near]!,
+      pool: line.pool[near]!,
     });
   }
   const samples: ChannelSample[] = points.map((p, k) => {
@@ -209,6 +309,69 @@ export function shapeStream(
     return { ...p, s: (axisAlong.at(-1)! * k) / (count - 1), tx, ty };
   });
   return { samples, water: rasterize(samples, heights, size) };
+}
+
+/** Utišení meandrů kolem smyčky: v jejím úseku 0, do LOOP_CALM políček plynule zpět na 1. */
+function loopCalm(loop: StreamLoop, s: number): number {
+  if (s < loop.from) return smoothstep((loop.from - s) / LOOP_CALM);
+  if (s > loop.to) return smoothstep((s - loop.to) / LOOP_CALM);
+  return 0;
+}
+
+/**
+ * Osa s vlastnostmi bodů; se smyčkou se úsek trasy nahradí jejími body (šířky plynule mezi
+ * konci úseku, bez tůní a mělčin). Bez smyčky vrací přímo pole plánu.
+ */
+function channelLine(
+  axis: readonly { x: number; y: number }[],
+  plan: StreamPlan,
+  loop: StreamLoop | null,
+): ChannelLine {
+  if (!loop) {
+    return {
+      points: axis,
+      left: plan.left,
+      right: plan.right,
+      shallow: plan.shallow,
+      pool: plan.pool,
+      baseIndex: null,
+      inLoop: null,
+    };
+  }
+  const first = plan.along.findIndex((s) => s >= loop.from);
+  const after = plan.along.findIndex((s) => s > loop.to);
+  const before = Math.max(0, first - 1);
+  const points: { x: number; y: number }[] = [];
+  const left: number[] = [];
+  const right: number[] = [];
+  const shallow: boolean[] = [];
+  const pool: boolean[] = [];
+  const baseIndex: number[] = [];
+  const inLoop: number[] = [];
+  const push = (
+    p: { x: number; y: number },
+    k: number,
+    l: number,
+    r: number,
+    own: boolean,
+  ): void => {
+    points.push(p);
+    left.push(l);
+    right.push(r);
+    shallow.push(own ? false : plan.shallow[k]!);
+    pool.push(own ? false : plan.pool[k]!);
+    baseIndex.push(own ? -1 : k);
+    inLoop.push(own ? 1 : 0);
+  };
+  for (let k = 0; k < first; k++) push(axis[k]!, k, plan.left[k]!, plan.right[k]!, false);
+  loop.points.forEach((p, j) => {
+    const t = loop.points.length > 1 ? j / (loop.points.length - 1) : 0;
+    const l = plan.left[before]! + (plan.left[after]! - plan.left[before]!) * t;
+    const r = plan.right[before]! + (plan.right[after]! - plan.right[before]!) * t;
+    push(p, -1, l, r, true);
+  });
+  for (let k = after; k < axis.length; k++) push(axis[k]!, k, plan.left[k]!, plan.right[k]!, false);
+  return { points, left, right, shallow, pool, baseIndex, inLoop: Uint8Array.from(inLoop) };
 }
 
 /** Body trasy → hladká osa s rovnoměrnými rozestupy SAMPLE_STEP (konce zůstávají na okrajích). */
@@ -379,6 +542,7 @@ function conflictingPoints(
   left: readonly number[],
   right: readonly number[],
   levels: readonly number[],
+  inLoop: Uint8Array | null = null,
 ): number[] {
   const along = arcLengths(axis);
   const width = (k: number): number => Math.max(left[k]!, right[k]!);
@@ -399,7 +563,7 @@ function conflictingPoints(
     for (let dx = -2; dx <= 2; dx++) {
       for (let dy = -2; dy <= 2; dy++) {
         for (const b of buckets.get(key(bx + dx, by + dy)) ?? []) {
-          if (b <= a) continue;
+          if (b <= a || (inLoop && inLoop[a] && inLoop[b])) continue;
           const apart = along[b]! - along[a]!;
           const distance = Math.hypot(pa.x - axis[b]!.x, pa.y - axis[b]!.y);
           const gap = width(a) + width(b) + CHANNEL_GAP;
