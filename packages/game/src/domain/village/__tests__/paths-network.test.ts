@@ -284,6 +284,47 @@ describe('computePathNetwork – pěšiny vsi', () => {
     expect(nearField(busy)).toBeGreaterThan(nearField(idle));
   });
 
+  it('z kovárny na rudiště a k milíři vede pěšina (crafts.md – Uhlí a ruda kováře)', () => {
+    // rudiště u potoka na východě, milíř na západě – bez práce kováře tam nikdo nechodí
+    const ore = { kind: 'ore' as const, id: 3, x: 90, z: 60 };
+    const kiln = { kind: 'kiln' as const, id: 2, x: -80, z: -40, from: 3 };
+    const reaches = (network: PathNetwork, p: { x: number; z: number }): boolean =>
+      samples(network).some((q) => Math.abs(q.x - p.x) < 8 && Math.abs(q.z - p.z) < 8);
+    const idle = computePathNetwork({ village: village(), terrain });
+    const working = computePathNetwork({
+      village: village({
+        labor: {
+          day: 4000,
+          month: 6,
+          people: { children: 4, adults: 8, elders: 2 },
+          shares: [
+            { activity: 'ore', target: ore, manDays: 1 },
+            { activity: 'fetch', target: ore, manDays: 0.2 },
+            { activity: 'fetch', target: kiln, manDays: 0.2 },
+          ],
+        },
+      }),
+      terrain,
+    });
+    expect(reaches(idle, ore)).toBe(false);
+    expect(reaches(idle, kiln)).toBe(false);
+    expect(reaches(working, ore)).toBe(true);
+    expect(reaches(working, kiln)).toBe(true);
+    // s vozem jede kovář vozem – pěšina nevznikne
+    const riding = computePathNetwork({
+      village: village({
+        labor: {
+          day: 4000,
+          month: 6,
+          people: { children: 4, adults: 8, elders: 2 },
+          shares: [{ activity: 'fetch', target: ore, manDays: 0.2, carts: 1 }],
+        },
+      }),
+      terrain,
+    });
+    expect(reaches(riding, ore)).toBe(false);
+  });
+
   it('k přirozené louce, kde se dnes seče, vede pěšina (oxen.md – Seno)', () => {
     // louka na východ od vsi – bez seče tam nikdo nechodí
     const meadow = part(82.5, -37.5);

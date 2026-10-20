@@ -164,6 +164,9 @@ function laborKey(target: LaborTarget): string {
   if (target.kind === 'edge') return `edge:${target.direction}`;
   // břeh, kam vůz jezdí pro vodu (wagons.md – Co vozy vozí)
   if (target.kind === 'water') return `water:${target.x},${target.z}`;
+  // nošení uhlí od milíře do kovárny zvlášť od práce uhlíře u milíře (crafts.md – Uhlí a ruda)
+  if (target.kind === 'kiln' && target.from !== undefined)
+    return `kiln:${target.id}>${target.from}`;
   return target.kind === 'village' ? 'village' : `${target.kind}:${target.id}`;
 }
 

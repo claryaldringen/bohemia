@@ -1,7 +1,13 @@
 import { detCos, detSin, length2, tileCenterWorld, type Landscape } from '../../landscape';
 import { milirPosition } from '../crafts';
 import { rotatedSquareCorners, rotationCosSin, rotationTurn } from '../square-grid';
-import { DWELLING_CLEARING_M, ROAD_WALK, SACRED_BUILDINGS, WATER_FETCHING } from '../rules';
+import {
+  DWELLING_CLEARING_M,
+  ROAD_WALK,
+  SACRED_BUILDINGS,
+  SMITH_SUPPLY,
+  WATER_FETCHING,
+} from '../rules';
 import type { ObstacleChanges } from '../obstacles';
 import type { PartStage } from '../summary';
 import type {
@@ -11,6 +17,7 @@ import type {
   FieldSurface,
   HerdSpecies,
   RoadGrade,
+  LaborActivity,
   LaborTarget,
   Position,
   SacredBuildingKind,
@@ -186,7 +193,16 @@ export interface PathVillage {
     day: number;
     month: number;
     people: { children: number; adults: number; elders: number };
-    shares: readonly { target: LaborTarget; manDays: number }[];
+    /**
+     * Práce dne po místech; činnost a vozy jen u kováře – kopání rudy a nošení (crafts.md – Uhlí
+     * a ruda kováře) jde z kovárny.
+     */
+    shares: readonly {
+      target: LaborTarget;
+      manDays: number;
+      activity?: LaborActivity;
+      carts?: number;
+    }[];
   };
   /** Odstraněné a pokácené překážky (počty – klíč sítě). */
   obstacles?: Pick<ObstacleChanges, 'removed' | 'stumps'>;
@@ -293,6 +309,8 @@ const NEIGHBOUR_TRIPS = 0.5;
 const NEIGHBOURS = 2;
 /** Cest za den na člověkoden práce dne na místě (tam a zpět = jedna cesta). */
 const TRIPS_PER_MAN_DAY = 1;
+/** Rudiště a milíř kováře – pěšina končí do tolika metrů od místa (crafts.md – Uhlí a ruda). */
+const SMITH_SITE_REACH_M = 3;
 /** Zavedená místa – cest za den celé vsi navíc k práci dne (pěšina nezaroste mezi pracemi). */
 const BASE_TRIPS = {
   field: 1.6,
@@ -1508,6 +1526,40 @@ function tripGroups(
       cellsAround(grid, b.position, half + grid.cellM),
       BASE_TRIPS.site + work(`site:${b.id}`),
     );
+  }
+  // kovář (crafts.md – Uhlí a ruda kováře): z kovárny na rudiště kopat a pro rudu, k milíři pro
+  // uhlí – jen jeho domácnost; nošení v koších po cestách tam a zpět (cest za den podle délky),
+  // kopání jedna cesta na člověkoden; s vozem jede kovář vozem (bez pěšiny)
+  const smithWalks = new Map<string, { home: number; at: PathPoint; trips: number }>();
+  for (const share of v.labor?.shares ?? []) {
+    const t = share.target;
+    if (share.carts || (t.kind !== 'ore' && t.kind !== 'kiln')) continue;
+    const from = t.kind === 'ore' ? t.id : (t.from ?? null);
+    if (from === null) continue;
+    // roční součet práce činnost nezná – u milíře se jen nosí, na rudišti hlavně kope
+    const carrying =
+      share.activity === 'fetch' || (share.activity === undefined && t.kind === 'kiln');
+    const home = homes.findIndex((h) => h.dwellingId === from);
+    if (home < 0) continue;
+    const h = homes[home]!;
+    const tripS =
+      (2 * length2(t.x - h.x, t.z - h.z)) / SMITH_SUPPLY.carryMps + SMITH_SUPPLY.basketLoadS;
+    const trips = carrying
+      ? (share.manDays * WATER_FETCHING.dayHours * 3600) / tripS
+      : share.manDays * TRIPS_PER_MAN_DAY;
+    const key = `${from}:${t.x},${t.z}`;
+    const same = smithWalks.get(key);
+    if (same) same.trips += trips;
+    else smithWalks.set(key, { home, at: { x: t.x, z: t.z }, trips });
+  }
+  for (const { home, at, trips } of smithWalks.values()) {
+    const sources = cellsAround(grid, at, SMITH_SITE_REACH_M);
+    if (sources.length === 0 || trips <= 0) continue;
+    groups.push({
+      sources,
+      weights: homes.map((_, i) => (i === home ? trips : 0)),
+      maxCost: groupReach(grid, sources, homes),
+    });
   }
   // sousedé – každá domácnost se dvěma nejbližšími (dvojice jednou)
   const pairs = new Set<string>();
