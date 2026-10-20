@@ -144,6 +144,46 @@ jednodušší jít přes pole, než ho obcházet i když je cesta přes pole pom
 - Pole za potokem nebo za mokřinou tak bez cesty zdraží, s hatí a lávkou zlevní. Pole 400 m
   daleko bez cesty ≈ +30 %, s upravenou cestou ≈ +20 % (příklad).
 
+## Stromy u cesty zrychlí chůzi
+
+Martin (20. 10. 2026): „Stromy u cesty musí přídat něco málo k rychlosti jak chodců tak vozů. šlo
+by přidat třeba 0.03? A pokud to budou jabloně, přidalo by se 0.05.“ Podrobnosti návrh Clauda
+(čísla `ROAD_TREE_SPEED` v `rules.ts`).
+
+- **Přírůstek k rychlosti cesty, ne násobek:** úsek pevné cesty, který po celé délce lemují
+  stromy, je o **+0,03** rychlejší pro chodce i vůz, s jabloněmi o **+0,05** – vyšlapaná cesta
+  pěšky 1,5 → 1,53, vyježděná vozem 1,6 → 1,63; s jabloněmi 1,55 a 1,65 (`roadTreeSpeed`
+  ve `walk-speed.ts`). V mokřině platí mokřina a brod stojí dál + 30 m (vůz brodem jako dřív) –
+  přírůstek se tam nepřičte, ani na hati přes mokřinu.
+- **Úměrně olemování:** přírůstek × podíl délky úseku, který stromy lemují (`Road.lined` –
+  `roadLining`, `paths/road-lining.ts`). Místo na strom úseku (místa po 12–20 m střídavě po
+  stranách – Stromy u pevných cest) lemuje osu kolem svého průmětu na osu k polovině vzdálenosti
+  k sousednímu místu, nejvýš 11 m na každou stranu (polovina největšího rozestupu + 1 m posunu
+  místa); krajní místo až ke konci osy, je-li konec do 27 m (u konců úseku se stromy nesázejí).
+  Jabloně stejně podle jabloní úseku (po 10 m – 6 m na stranu, ke konci do 17 m). Počítá se jen
+  místo, kde stojí strom – keř, souš ani pařez ne (`roadTreeLook`), u jabloní jen vysazená živá
+  jabloň, ne čekající na výsadbu ani souš (`roadAppleStage`); strom odstraněný stavbou taky ne.
+  Kde lemují jabloně, platí jabloně, jinde ostatní stromy. Podíl po desetinách (napřed celkem,
+  z toho jabloně, zbytek stromy) – úsek napůl olemovaný stromy +0,015.
+- **Kdy:** olemování se ukládá u úseku a určí se **1. dne v měsíci** se stadii dílů pro chůzi
+  (`lineRoads` v `refreshWalkDistances`, do klíče `walkStageKey`) – kvůli každému stromu se chůze
+  nepřepočítává. Nový nebo rozdělený úsek a úseky starší vsi ho dostanou hned další den.
+  Deterministicky ze dne, prohlížeč dostane uložené olemování s cestou (`SceneRoad.lined`).
+- **Platí všude, kde se počítá rychlost cesty:** vzdálenost chůze (`walking.ts` – díly pole, sad,
+  voda, palivo, kácení dřeva staveb a cena u kurzoru), vozová síť (`paths/cart.ts` – svoz, orba,
+  uhlí, voda) a síť pěšin (`roadCellCost` – trasy se ke stromořadí víc stahují). Odhad dosahu seče
+  luk bere nejrychlejší chůzi i se stromy (`fastestWalkShare`). Dny cesty výprav po zemské stezce
+  se počítají z délky stezky (trade.md – Doprava), stromy je nemění.
+- **Panel cesty:** ikona chůze s přírůstkem („+0,03“) – průměr úseků cesty podle délky, jen když
+  nějaký je.
+- **Ves bez stromů u cest** je beze změny – síť pěšin, vzdálenosti chůze i vozová síť (zlaté
+  otisky). Verze měření chůze (`WALK_VERSION`) se zvýšila, starší vsi se přepočítají hned.
+- **Vlkov** (stav 9. 12. 800): 22 úseků, 81 stromů u cest (70 stromů, 11 keřů), 67 jabloní (44
+  vysazených, 23 čeká na výsadbu). Olemování: nejdelší upravená cesta (1 216 m) napůl stromy
+  (+0,015), druhá (663 m) ze 70 % jabloněmi a 20 % stromy (+0,041), třetí (602 m) z 20 %
+  (+0,006). Chůze na 2 178 dílů pole se zkrátí celkem o 1 628 m (0,23 %, průměr 328,8 → 328,1 m,
+  nejvíc o 3,7 m), k vodě o 0,1–1,1 m na obydlí.
+
 ## Co hráč vidí
 
 - **Pevná cesta** je silnější a stálá – vyšlapaná hlína (jako dřív silná pěšina; pěšiny dne jsou
@@ -153,7 +193,8 @@ jednodušší jít přes pole, než ho obcházet i když je cesta přes pole pom
 - **Stromy** u cest od keře po plný strom, souše a pařezy; jabloně s jablky od srpna.
 - **Výběr** pevné cesty kliknutím (zvýrazní se celá cesta hráče – řetěz úseků), panel: druh
   (ikona – vyšlapaná, vyježděná, upravená, hať), délka (u cesty z víc druhů i po druzích), stáří,
-  stromy a jabloně (ikony + čísla), tlačítka vylepšení.
+  stromy a jabloně (ikony + čísla), zrychlení chůze od stromů („+0,03“ – Stromy u cesty zrychlí
+  chůzi), tlačítka vylepšení.
 - Kronika: vznikla pevná cesta, vylepšení dokončeno, jabloně vysazeny.
 
 ## Rozhodnutí

@@ -2043,7 +2043,8 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   (labor-report, postavy `roadWork`, pěšina k polovině úseku). **Chůze** jen ve `walking.ts`:
   `walkGraph(lines, { roads, ground })` – pěšiny dne, pevné cesty podle `ROAD_WALK`
   (`roadPieceCost` – stupeň: vyšlapaná i vyježděná 1,5×, upravená 1,7×, hať a lávka 1,7× i přes
-  mokřinu; mokřina 0,5×, brod + 30 m bez lávky), `groundWalkLength` (rovně: mokřina 0,5×, pole
+  mokřinu; mokřina 0,5×, brod + 30 m bez lávky; stromy u cesty přidají – Stromy u cesty zrychlí
+  chůzi níž), `groundWalkLength` (rovně: mokřina 0,5×, pole
   podle `WalkGround.fields`, vstup do vody + 30 m), `walkingDistances(graph, origins, targets,
 ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole do ní přidá
   `withFieldWalk` (vzdálenosti dílů, sadu, paliva a luk; kácení staveb po pevných cestách bez
@@ -2157,6 +2158,17 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   `pathside-apple-*` s materiálem `prepareAppleMaterial` ze sadu, kůly `createTreeStakeMesh`),
   vytyčení `appleStaking` v `RoadWorks`, postavy `roadApples` ve `villager-plan.ts`;
   `/dev/landscape` tlačítko **Jabloně: …** (s **Cesta**) přepíná stadia.
+- **Stromy u cesty zrychlí chůzi** ([roads.md](docs/design/roads.md); Martin 20. 10. 2026:
+  „…přidat třeba 0.03? A pokud to budou jabloně, přidalo by se 0.05.“; čísla `ROAD_TREE_SPEED`):
+  přírůstek k rychlosti cesty pro chodce i vůz (+0,03 stromy, +0,05 jabloně) × olemovaný podíl
+  délky po desetinách – `Road.lined` (`RoadLining`, `paths/road-lining.ts`: `roadLining` –
+  místa `Road.spots` se stromem ve stadiu `tree`, živé jabloně úseku, jabloně mají přednost;
+  `lineRoads` v `refreshWalkDistances` 1. dne v měsíci, chybějící hned – rozdělený či spojený úsek
+  ho smaže; klíč `walkStageKey` a `liningKey` v `pathNetworkKey`). Rychlost `roadTreeSpeed`
+  (walk-speed.ts) bere `roadWalkSpeed` / `roadPieceCost` (walking.ts), `cartRoadSpeed` (cart.ts)
+  a buňky sítě pěšin (`roadTreeSpeedMask` → `roadCellCost`) – mimo mokřinu a brod; dosah seče
+  `fastestWalkShare`. Do sítě (`pathVillageOf`) a scény (`SceneRoad.lined`) jde jen nenulové –
+  ves bez stromů beze změny. Panel cesty: `VillageRoad.treeSpeed` (ikona `walk`, „+0,03“).
 - **Dvorec vojvody** ([trade.md](docs/design/trade.md) – Dvorec vojvody, Jak je postavené;
   `manor.ts`): `VillageState.manorId` = obydlí (domácnost), odkud jdou vylepšení vsi – nová ves
   první zemnice zakladatelů (`foundVillage`), starší nejstarší obydlí (`withManor` v

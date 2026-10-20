@@ -160,6 +160,11 @@ níž je návrh Clauda, čísla v `CART_JOBS` (`rules.ts`).
   vyježděná) – sjízdné jsou vždy (širší, zpevněné) a vozy po nich jezdí.
 - **Lidé po vozových cestách chodí** (pevná cesta je pro všechny – Martin: „Když už někde
   vyšlapaná cesta je, ať po ní lidé chodí“), ale do svahu dál i zkratkou rovně.
+- **Stromy u cesty zrychlí i vůz** (Martin, 20. 10. 2026: „Stromy u cesty musí přídat něco málo
+  k rychlosti jak chodců tak vozů. šlo by přidat třeba 0.03? A pokud to budou jabloně, přidalo by
+  se 0.05.“ – [roads.md](roads.md), Stromy u cesty zrychlí chůzi): stejný přírůstek jako chůze
+  se přičte k rychlosti vozu po cestě – vyježděná lemovaná stromy po celé délce 1,6 → 1,63,
+  jabloněmi 1,65, úměrně olemování (`Road.lined`, `cartRoadSpeed`). V mokřině a na brodu nic.
 - **Co hráč uvidí:** ve svahu se pěšina a vyježděná cesta rozejdou – pěšina rovně, vyježděná
   serpentinami; v rovině splynou (vyšlapaná cesta se stane vyježděnou).
 
