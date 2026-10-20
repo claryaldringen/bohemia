@@ -37,7 +37,14 @@ import {
   oxYearCost,
   wantedPloughPairs,
 } from './draft';
-import { ableTeams, lastingOxen, penDay, trainTeamsWhenReady, villageOxen } from './oxen';
+import {
+  ableTeams,
+  lastingOxen,
+  looseOxenDay,
+  penDay,
+  trainTeamsWhenReady,
+  villageOxen,
+} from './oxen';
 import { herdRoom, homesteadRoom, penCapacity, pensLimitHerds } from './pens';
 import { walkDistancesTo } from './paths/village';
 import { villageRoadWalk } from './paths/walking';
@@ -93,7 +100,8 @@ export function oxenCalvesWanted(state: VillageState, day: number): number {
  * má.
  */
 function hayOxen(state: VillageState): number {
-  return Math.max(villageOxen(state), oxenTrainingTarget(state));
+  // i voli bez ohrady (migration.md – Vůz při odchodu)
+  return Math.max(villageOxen(state), oxenTrainingTarget(state)) + (state.looseOxen?.length ?? 0);
 }
 
 /**
@@ -226,6 +234,8 @@ export function husbandryDay(
   // pokrytí sena stáda – s voly, kteří zimu přečkali (dřív, než penDay rozhodne o jejich úhynu)
   const herdCoverage = winterEnd ? herdHayCoverage(state, villageOxen(state), livestock.herds) : 1;
   const events = penDay(state, day, winterEnd, toolCoverage);
+  // voli osadníků bez ohrady přejdou do první ohrady volů (migration.md – Vůz při odchodu)
+  events.push(...looseOxenDay(state, day));
   if (winterEnd) {
     const starved = starveHerds(state, day, herdCoverage);
     if (starved) events.push(starved);

@@ -317,6 +317,12 @@ export const CART_ROUTES = {
   widthM: 2.5,
   turnSteps: { 'two-wheel': 2, 'four-wheel': 1 },
   turnCost: 1.5,
+  /**
+   * Čtyřkolák jezdí jen po pevných cestách (wagons.md – Co se vozí a na čem, Martin 20. 10. 2026:
+   * „Ano, udělej to jak říkáš“) – mimo ně jen kolem ohrady volů, odkud vyjíždí, do tolika m (cesta
+   * k nejbližší pevné cestě; návrh Clauda).
+   */
+  fourWheelOffRoadM: 40,
   /** Hledání končí za takovou cenou (m chůze volů po louce) – dál vůz nevozí. */
   maxCost: 4000,
 } as const;
@@ -778,10 +784,15 @@ export const FLAX_WORK_PER_HA: Record<FieldTask, Bounds> = {
 // čtverce od 50. roku sadu (`declineAfterYear` – poslední rok plné úrody) vysadí vesničané znovu,
 // za rok sadu nejvýš desetina čtverců (`renewalShareYear`, nahoru, aspoň 1) – za 10 let do konce
 // (50.–59. rok) se tak obnoví celý sad
+// orchard.md – Jablka vozem (Martin 20. 10. 2026: „Ano, udělej to jak říkáš“ – návrh Clauda
+// nových nákladů vozů, wagons.md – Co se vozí a na čem): ze sklizně je `harvestCarryShare` odnos
+// jablek v koších ze sadu do vsi (3 t/ha ≈ 120 košů po 25 kg, při ≈ 150 m od domů ≈ 2 čd z 8) –
+// ten převezme vůz tam, kam ke čtverci sadu dojede (jako odnos snopů)
 export const ORCHARD = {
   plantingPerHa: 80,
   carePerHa: 10,
   harvestPerHa: 8,
+  harvestCarryShare: 0.25,
   fullYieldKgPerHa: 3000,
   firstFruitYear: 6,
   fullYieldYear: 25,
@@ -1252,6 +1263,26 @@ export const SMITH_SUPPLY = {
   oreBatchDays: 30,
 } as const;
 /**
+ * crafts.md – Hlína hrnčíře (Martin 20. 10. 2026: „Ano, udělej to jak říkáš“ – návrh Clauda nových
+ * nákladů vozů, wagons.md – Co se vozí a na čem; čísla návrh Clauda, odhad): hrnčíř kope hlínu na
+ * hliništi u potoka jako kovář rudu (smith-supply.ts – stejné nošení v koších, dávky, vůz se
+ * sedlákem, jámy):
+ * - `kgPerPotteryKg` – 1,5 kg vlhké hlíny na kg vypálené keramiky (voda ≈ 20 % a ztráta žíháním,
+ *   čištění od kamínků a kořenů, zmetky při sušení a výpalu),
+ * - `kgPerManDay` – vykopat a nakopat do košů 300 kg hlíny za člověkoden (odhad – hlína se jen
+ *   kope; plavení, hnětení a ostřivo jsou v práci hrnčíře CRAFT_PRODUCTION.potteryManDaysPerKg),
+ *   k tomu přirážka za chůzi na hliniště (DISTANCE),
+ * - `basketKg` – koš hlíny 25 kg (jako ruda – váha),
+ * - `depositKg` – hliniště vydrží 20 t (odhad – jílové vrstvy u potoka jsou mocné; vesnický hrnčíř
+ *   s ≈ 300–600 kg keramiky ročně vydrží na jednom místě desítky let).
+ */
+export const CLAY = {
+  kgPerPotteryKg: 1.5,
+  kgPerManDay: 300,
+  basketKg: 25,
+  depositKg: 20_000,
+} as const;
+/**
  * crafts.md – Učení řemesla (Martin 20. 10. 2026: „Každý řemeslník vychovává svého nástupce - syna.
  * Pokud je řemeslník úplně nový, trvá mu, než se řemeslo naučí“; čísla návrh Clauda): výkon dílny
  * podle praxe nejzkušenějšího dospělého z domácnosti – `startShare` (50 %) bez praxe, lineárně
@@ -1362,13 +1393,16 @@ export const CRAFT_BUYING = {
 /**
  * wagons.md – Kování vozů (Martin 20. 10. 2026: „Ano. A taky přidej tedy pravidlo, že vozy mají
  * železnou složku. Pokud vesnice nemá kováře, musí tesař (nebo jeho syn, pokud ho má) dojít do
- * nejbližší vesnice, kde kovář je“; čísla návrh Clauda): kování vozu – osy, hřeby, obruče a kování
- * nábojů – dvoukolák 3 kg, čtyřkolák 6 kg ze zásoby nástrojů od kováře; pro kování jde syn tesaře
- * od `fetchFromAge` let, jinak tesař sám.
+ * nejbližší vesnice, kde kovář je“; „pokud zaplatil 173 kg obilí, tak nemohl jít sám. Buď si musel
+ * půjčit vůz nebo muselo jít alespoň 6 lidí, aby to obilí unesli“; čísla návrh Clauda): kování
+ * vozu – osy, hřeby, obruče a kování nábojů – dvoukolák 3 kg, čtyřkolák 6 kg ze zásoby nástrojů od
+ * kováře; pro kování jde syn tesaře od `fetchFromAge` let, jinak tesař – platbu veze vůz, se
+ * kterým jede `cartCrew` sedlák z vsi, nebo ji nesou nosiči po TRADE.porterKg.
  */
 export const CART_IRON = {
   kg: { 'two-wheel': 3, 'four-wheel': 6 },
   fetchFromAge: 14,
+  cartCrew: 1,
 } as const satisfies { kg: Record<CartKind, number> } & Record<string, unknown>;
 // wagons.md – Vůz (Martin 19. 10. 2026: vozy vozí seno, snopy, klády a zboží výprav místo nosičů;
 // jeden vůz na spřežení – návrh Clauda; čísla návrh Clauda podle rešerše): dvoukolák 400 kg,
@@ -1422,6 +1456,8 @@ export const CART_DEMAND = {
 //   `crew` = sedlák z práce vsi a kovář z práce dílny, `stopS` nakládka a složení; na celý vůz
 //   kovář začne kopat, když mu ruda vystačí už jen na kopání dávky a `reserveDays` dní kování –
 //   hromada u jámy pak počká, až bude vůz volný (ve žni a při orbě vozí jinde),
+// - `clay` – hlína z hliniště k hrnčíři (crafts.md – Hlína hrnčíře): jako ruda – hrnčíř (nebo syn
+//   od 14) a sedlák s vozem pro hromadu hlíny u jámy, `reserveDays` jako u rudy,
 // - `seed` – osivo na pole: z práce setí (FIELD_WORK_PER_HA.sow – 10 čd/ha) je `carryShare` nošení
 //   osiva v pytlích ze sýpky na pole a doplňování osévací plachty (SEED_KG_PER_HA ≈ 5 pytlů po
 //   35 kg na hektar, pole 100–600 m od domů),
@@ -1438,9 +1474,10 @@ export const CART_DEMAND = {
 // rychleji, svah a strniště pomaleji), jdou s ním CARTS.crew lidé (honák a nakladač; u uhlí
 // a rudy `crew`), den má WATER_FETCHING.dayHours hodin; jízd za den nejvýš CARTS.loadsPerCartDay.
 export const CART_JOBS = {
-  order: ['charcoal', 'ore', 'seed', 'water'],
+  order: ['charcoal', 'ore', 'clay', 'seed', 'water'],
   charcoal: { carryShare: 0.2, loadKg: 300, stopS: 900, reachM: 12, crew: 1 },
   ore: { stopS: 900, reachM: 12, crew: 2, reserveDays: 15 },
+  clay: { stopS: 900, reachM: 12, crew: 2, reserveDays: 15 },
   seed: { carryShare: 0.1 },
   water: {
     litresPerPerson: 10,

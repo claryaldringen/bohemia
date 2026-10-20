@@ -574,6 +574,7 @@ describe('SelectionPanel – odchod do nové vsi', () => {
     households: [3],
     people: 4,
     foodKg: 50,
+    cart: null,
     directions: [
       { direction: 'N' as const, days: 2, blocked: null },
       { direction: 'E' as const, days: 1, blocked: 'Tím směrem leží tvoje ves Budeč.' },
@@ -597,6 +598,12 @@ describe('SelectionPanel – odchod do nové vsi', () => {
     expect(html).toMatch(/Odejít na sever – nová mapa.*>4<.*50 kg.*2 dny/);
     // směry bez údaje (jen hotové v pohledu) se nekreslí
     expect(html).not.toContain('data-testid="leave-W"');
+    expect(html).not.toContain('data-testid="leave-cart"');
+    // s vozem s voly (migration.md – Vůz při odchodu)
+    const withCart = renderToStaticMarkup(
+      <LeaveCompass leave={{ ...leave, cart: 'four-wheel' }} onLeave={() => undefined} />,
+    );
+    expect(withCart).toMatch(/data-testid="leave-cart"[^>]*>.*Čtyřkolák/);
   });
 
   it('řádek lidí na cestě – kam a kdy dorazí, po příjezdu výzva k zemnici', () => {
@@ -648,7 +655,7 @@ describe('SelectionPanel – rozvržení', () => {
       dwelling({
         type: 'dvorec',
         manor: { dwellingId: 3, trails: [], neighbours: [] },
-        leave: { households: [3], people: 4, foodKg: 50, directions: [] },
+        leave: { households: [3], people: 4, foodKg: 50, cart: null, directions: [] },
       }),
     );
     const commands = html.indexOf('data-testid="selection-commands"');
@@ -766,17 +773,43 @@ describe('SelectionPanel – dílna tesaře (wagons.md – Tesař)', () => {
     expect(html).not.toContain('Vyrábí vůz');
   });
 
-  it('syn tesaře jde pro kování do vsi souseda – dny do návratu', () => {
+  it('syn tesaře jde se 6 nosiči pro kování do vsi souseda – dny do návratu', () => {
+    const trip = { to: 'Lhota', direction: 'N' as const, daysLeft: 3, son: true, age: 15 };
     const html = render(
       carpenter(
         'producing',
         { kind: 'two-wheel', progress: 1 },
-        { kg: 3, trip: { to: 'Lhota', direction: 'N', daysLeft: 3, son: true, age: 15 } },
+        { kg: 3, trip: { ...trip, porters: 6, cart: null } },
       ),
     );
-    expect(html).toContain('Syn tesaře (15 let) jde pro kování k vozu do vsi Lhota (sever)');
+    expect(html).toContain(
+      'Syn tesaře (15 let) jde se 6 nosiči (nesou obilí na platbu) pro kování k vozu do vsi Lhota (sever)',
+    );
     expect(html).toContain('zpět za 3 dny');
     expect(html).toMatch(/data-testid="selection-workshop-iron"[^>]*>[^<]*3 d</);
+  });
+
+  it('s volným vozem jede tesař s vozem a sedlákem', () => {
+    const html = render(
+      carpenter(
+        'producing',
+        { kind: 'two-wheel', progress: 1 },
+        {
+          kg: 3,
+          trip: {
+            to: 'Lhota',
+            direction: 'N',
+            daysLeft: 2,
+            son: false,
+            age: 30,
+            porters: 0,
+            cart: 'two-wheel',
+          },
+        },
+      ),
+    );
+    expect(html).toContain('Tesař jede s vozem a sedlákem (dvoukolák veze obilí na platbu)');
+    expect(html).toContain('/icons/resources/cart.png');
   });
 
   it('nový tesař – zkušenost v % červeně, syn, který se učí', () => {
@@ -798,6 +831,41 @@ describe('SelectionPanel – dílna tesaře (wagons.md – Tesař)', () => {
     const html = render(carpenter('producing', null));
     expect(html).toMatch(/data-testid="selection-workshop-skill"[^>]*>100 %</);
     expect(html).not.toContain('selection-workshop-apprentices');
+  });
+});
+
+describe('SelectionPanel – hrnčíř a hlína (crafts.md – Hlína hrnčíře)', () => {
+  const potter = (
+    activity: 'digging' | 'no-clay',
+    clay: { site: { walkM: number; leftKg: number } | null; cart: boolean },
+  ): SelectionDetails =>
+    dwelling({
+      type: 'polozemnice',
+      workshop: {
+        craft: 'potter',
+        activity,
+        laborPerDay: 1.6,
+        outputPerDayKg: 1.6,
+        stockKg: 46,
+        coverage: 0.9,
+        kiln: null,
+        toPlant: 0,
+        skill: { share: 1, years: 5, apprentices: [] },
+        carpenter: null,
+        clay: { stockKg: 18, heapKg: 0, ...clay },
+      },
+    });
+
+  it('zásoba hlíny, cesta na hliniště a vůz se sedlákem; bez hlíny stojí', () => {
+    const html = render(potter('digging', { site: { walkM: 420, leftKg: 19_350 }, cart: true }));
+    expect(html).toMatch(/data-testid="selection-workshop-clay"[^>]*>18</);
+    expect(html).toMatch(/data-testid="selection-workshop-clay-site"[^>]*>420 m</);
+    expect(html).toContain('selection-workshop-clay-cart');
+    expect(html).toContain('Kope hlínu na hliništi');
+    const none = render(potter('no-clay', { site: null, cart: false }));
+    expect(none).toContain('Nemá hlínu');
+    expect(none).not.toContain('selection-workshop-clay-site');
+    expect(none).not.toContain('selection-workshop-clay-cart');
   });
 });
 

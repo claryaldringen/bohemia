@@ -642,14 +642,10 @@ function stumpWalkFactor(obstacles: ObstacleLayer | null, id: number, dwelling: 
  * Kolik uhlí kováři dnes spálí, když kovají celý den (kg): práce kováře za den ÷ práce na kg
  * nástrojů × 50 kg uhlí. Volající dává práci kovářů (`workshopLabor` v crafts.ts).
  */
-export function smithForgeCharcoalKg(
-  smiths: readonly { labor: number; oreFactor: number }[],
-): number {
+export function smithForgeCharcoalKg(smiths: readonly { labor: number }[]): number {
   return smiths.reduce(
     (sum, s) =>
-      sum +
-      (s.labor / (CRAFT_PRODUCTION.toolManDaysPerKg * s.oreFactor)) *
-        CRAFT_PRODUCTION.toolCharcoalKgPerKg,
+      sum + (s.labor / CRAFT_PRODUCTION.toolManDaysPerKg) * CRAFT_PRODUCTION.toolCharcoalKgPerKg,
     0,
   );
 }

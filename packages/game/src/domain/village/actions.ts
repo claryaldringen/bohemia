@@ -472,6 +472,11 @@ export function foundVillage(input: {
     // první zemnice zakladatelů je dvorcem vojvody (trade.md – Dvorec vojvody)
     manorId: householdId,
   };
+  // vůz a voli osadníků (migration.md – Vůz při odchodu): vůz je vsi, voli čekají bez ohrady
+  if (settlers?.cart) state.carts = [{ ...settlers.cart, id: state.nextId++ }];
+  if (settlers?.oxen && settlers.oxen.length > 0) {
+    state.looseOxen = settlers.oxen.map((ox) => ({ ...ox }));
+  }
   // pole napřed – stromy na jeho dílech patří poli (klády po založení), zemnice je nekácí
   if (firstField) addField(state, day, firstField);
   const plan = planDwellingWood(state, 'zemnice', dwellingPosition, day, {

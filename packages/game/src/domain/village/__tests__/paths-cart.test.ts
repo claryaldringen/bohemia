@@ -165,6 +165,31 @@ describe('kudy vůz projede', () => {
     expect(route({ roads: [{ id: 1, points: edge, grade: 'trodden' }] }, into).reached).toBe(false);
   });
 
+  it('čtyřkolák jen po pevných cestách a kolem ohrady volů (wagons.md – Co se vozí a na čem)', () => {
+    const four = (extra: Partial<PathVillage>, target: { x: number; z: number }): CartRoute =>
+      cartRoutes({
+        village: village(extra),
+        terrain: flatTerrain,
+        kind: 'four-wheel',
+        depots: [{ x: 0, z: 0 }],
+        targets: [{ ...target, reachM: 4 }],
+        roadsOnly: true,
+      }).routes[0]!;
+    const far = { x: 60, z: 0 };
+    // dvoukolák jede loukou, čtyřkolák bez cesty jen do 40 m od ohrady
+    expect(route({}, far).reached).toBe(true);
+    expect(four({}, far).reached).toBe(false);
+    expect(four({}, { x: 30, z: 0 }).reached).toBe(true);
+    const axis = [
+      { x: 0, z: 0 },
+      { x: 70, z: 0 },
+    ];
+    const road = { roads: [{ id: 1, points: axis, grade: 'trodden' as const }] };
+    expect(four(road, far).reached).toBe(true);
+    // stranou od cesty ne
+    expect(four(road, { x: 60, z: 25 }).reached).toBe(false);
+  });
+
   it('přes vodu bez brodu ani po cestě s lávkou (lávka je jen pro pěší)', () => {
     const across = { x: 0, z: 110 };
     expect(route({}, across).reached).toBe(false);

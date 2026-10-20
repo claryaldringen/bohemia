@@ -14,7 +14,6 @@ import {
   craftCoverage,
   craftNeeds,
   craftStocks,
-  oreFactor,
   workshopLabor,
   type CraftNeeds,
 } from './crafts';
@@ -27,7 +26,12 @@ import {
   kilnYieldKg,
   workshopKilns,
 } from './charcoal';
-import { smithOreSummary, type SmithOreSummary } from './smith-supply';
+import {
+  potterClaySummary,
+  smithOreSummary,
+  type PotterClaySummary,
+  type SmithOreSummary,
+} from './smith-supply';
 import { craftSkillSummary, type CraftSkillSummary } from './craft-skill';
 import { isFull, isOvercrowded } from './dwellings';
 import { waitingHouseholds } from './households';
@@ -250,13 +254,13 @@ export interface WorkshopSummary {
   occupants: number;
   /** Práce řemeslu za den po denním minimu (člověkodny, se štěstím). */
   laborPerDay: number;
-  /** Přirážka za hlínu dál od potoka u hrnčíře (1 = voda blízko; kovář 1). */
-  oreFactor: number;
   /**
    * Kovář (crafts.md – Uhlí a ruda kováře): zásoba rudy, rudiště, hromada u jámy a kdo nosí uhlí;
    * ostatní dílny null.
    */
   ore: SmithOreSummary | null;
+  /** Hrnčíř (crafts.md – Hlína hrnčíře): zásoba hlíny, hliniště a hromada u jámy; jinak null. */
+  clay: PotterClaySummary | null;
   /**
    * Uhlíř: jeho milíře (crafts.md – Milíř u skácených buků, Rovnováha uhlíř – kovář) v pořadí, jak
    * je začal; ostatní dílny prázdné.
@@ -277,7 +281,8 @@ export interface WorkshopSummary {
     /**
      * Kování k vozu (wagons.md – Kování vozů): vůz s hotovou dřevěnou prací čeká na kování (kg),
      * nebo pro něj tesař či jeho syn (věk) jde do vsi `to` (jméno, soused ve směru, nebo ves na
-     * téže mapě) a vrátí se za `daysLeft` dní; jinak null.
+     * téže mapě) s nosiči (`porters`), nebo s vozem a sedlákem (`cart` – druh vozu), a vrátí se za
+     * `daysLeft` dní; jinak null.
      */
     iron: {
       kg: number;
@@ -287,6 +292,8 @@ export interface WorkshopSummary {
         daysLeft: number;
         son: boolean;
         age: number;
+        porters: number;
+        cart: CartKind | null;
       } | null;
     } | null;
   } | null;
@@ -867,10 +874,13 @@ function craftsSummary(state: VillageState, day: number): CraftsSummary {
             occupied > 0
               ? workshopLabor(state, day, d.id, coverage.pottery, productivity).craft
               : 0,
-          oreFactor: oreFactor(workshop),
           ore:
             workshop.craft === 'smith'
               ? smithOreSummary(state, d, day, haulCartsToday(state, day, false) > 0)
+              : null,
+          clay:
+            workshop.craft === 'potter'
+              ? potterClaySummary(d, haulCartsToday(state, day, false) > 0)
               : null,
           kilns: workshopKilns(workshop).map((k) => kilnSummary(d, k)),
           toPlant: workshop.toPlant?.length ?? 0,
@@ -917,6 +927,8 @@ function ironSummary(
   const kg = trip?.kg ?? (kind ? CART_IRON.kg[kind] : 0);
   if (!trip) return { kg, trip: null };
   const traveller = state.people.find((p) => p.id === trip.personId);
+  const cart =
+    trip.cartId === undefined ? null : (state.carts?.find((c) => c.id === trip.cartId) ?? null);
   return {
     kg,
     trip: {
@@ -925,6 +937,8 @@ function ironSummary(
       daysLeft: ironTripDaysLeft(trip),
       son: trip.son,
       age: traveller ? ageYears(traveller.bornDay, day) : 0,
+      porters: trip.porters ?? 0,
+      cart: cart ? cart.kind : null,
     },
   };
 }

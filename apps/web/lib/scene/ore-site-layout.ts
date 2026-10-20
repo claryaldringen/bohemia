@@ -44,6 +44,13 @@ const SOD = [0.32, 0.38, 0.17] as const;
 /** Rezavá ruda na hromadě – světlejší a tmavší hroudy. */
 const ORE_LIGHT = [0.5, 0.25, 0.09] as const;
 const ORE_DARK = [0.27, 0.12, 0.05] as const;
+/**
+ * Hliniště (crafts.md – Hlína hrnčíře): šedookrová stěna jámy z jílu místo rezavé a hlína na
+ * hromadě – světlejší a tmavší hroudy.
+ */
+const CLAY_WALL = [0.46, 0.38, 0.26] as const;
+const CLAY_LIGHT = [0.52, 0.4, 0.25] as const;
+const CLAY_DARK = [0.36, 0.27, 0.17] as const;
 
 /** Poloměr jámy (m) podle rudy, která z ní vzešla – 30 kg ≈ 0,85 m, 400 kg ≈ 1,5 m. */
 export function orePitRadius(kg: number): number {
@@ -93,8 +100,9 @@ export function orePitGeometry(pits: readonly SceneOrePit[], height: HeightFn): 
         const z = pit.z + Math.sin(a) * r;
         const lift = ring === PIT_PROFILE.length - 1 ? up : up * flatten;
         out.positions.push(x, height(x, z) + lift, z);
+        const wall = pit.clay ? CLAY_WALL : RUST;
         const fresh =
-          ring <= 2 ? mix(MUD, RUST, (ring - 1) * 0.6) : ring === 3 ? [...RUST] : [...EARTH];
+          ring <= 2 ? mix(MUD, wall, (ring - 1) * 0.6) : ring === 3 ? [...wall] : [...EARTH];
         out.colors.push(...mix(fresh, SOD, grown * (ring >= RIM_RING ? 1.4 : 1.1)));
       }
     }
@@ -154,8 +162,9 @@ export function oreHeapGeometry(sites: readonly SceneOreSite[], height: HeightFn
     if (radius <= 0) continue;
     const base = out.positions.length / 3;
     const top = radius * 0.55;
+    const [light, dark] = site.clay ? [CLAY_LIGHT, CLAY_DARK] : [ORE_LIGHT, ORE_DARK];
     out.positions.push(site.x, height(site.x, site.z) + top, site.z);
-    out.colors.push(...ORE_LIGHT);
+    out.colors.push(...light);
     for (let ring = 1; ring <= rings; ring++) {
       const t = ring / rings;
       for (let s = 0; s < SEGMENTS; s++) {
@@ -166,7 +175,7 @@ export function oreHeapGeometry(sites: readonly SceneOreSite[], height: HeightFn
         const z = site.z + Math.sin(a) * r;
         const up = ring === rings ? -0.03 : top * (1 - t * t) * (0.8 + 0.4 * lump);
         out.positions.push(x, height(x, z) + up, z);
-        out.colors.push(...mix(ORE_DARK, ORE_LIGHT, lump));
+        out.colors.push(...mix(dark, light, lump));
       }
     }
     for (let s = 0; s < SEGMENTS; s++) {
@@ -280,7 +289,11 @@ export function oreSitesKey(
   sites: readonly SceneOreSite[] | undefined,
   pits: readonly SceneOrePit[] | undefined,
 ): string {
-  const a = (sites ?? []).map((s) => `${s.x},${s.z},${s.heapKg},${s.digging ? 1 : 0}`).join(';');
-  const b = (pits ?? []).map((p) => `${p.x},${p.z},${p.kg},${p.overgrowth}`).join(';');
+  const a = (sites ?? [])
+    .map((s) => `${s.x},${s.z},${s.heapKg},${s.digging ? 1 : 0}${s.clay ? 'c' : ''}`)
+    .join(';');
+  const b = (pits ?? [])
+    .map((p) => `${p.x},${p.z},${p.kg},${p.overgrowth}${p.clay ? 'c' : ''}`)
+    .join(';');
   return `${a}|${b}`;
 }

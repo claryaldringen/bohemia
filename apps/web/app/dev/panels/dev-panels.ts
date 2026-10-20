@@ -23,7 +23,9 @@ const relocate = { zemnice: option(true, 7), polozemnice: option(false, 18, 6) }
 const leave: SelectionLeave = {
   households: [3],
   people: 9,
-  foodKg: 175,
+  foodKg: 575,
+  // s dvoukolákem a volem (migration.md – Vůz při odchodu)
+  cart: 'two-wheel',
   directions: DIRECTIONS.map((direction) => ({
     direction,
     days: direction === 'E' ? 1 : 2,
@@ -464,7 +466,15 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
           woodworkCoverage: 0,
           iron: {
             kg: 3,
-            trip: { to: 'Lhota', direction: 'NE', daysLeft: 3, son: true, age: 15 },
+            trip: {
+              to: 'Lhota',
+              direction: 'NE',
+              daysLeft: 3,
+              son: true,
+              age: 15,
+              porters: 6,
+              cart: null,
+            },
           },
         },
       },
@@ -491,6 +501,26 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
           woodworkCoverage: 0,
           iron: { kg: 3, trip: null },
         },
+      },
+    }),
+  },
+  {
+    // crafts.md – Hlína hrnčíře: hrnčíř kope hlínu na hliništi u potoka, vůz ji přiveze
+    key: 'hrncir',
+    label: 'Hrnčíř – hlína',
+    details: dwelling({
+      workshop: {
+        craft: 'potter',
+        activity: 'digging',
+        laborPerDay: 1.6,
+        outputPerDayKg: 1.6,
+        stockKg: 46,
+        coverage: 0.9,
+        kiln: null,
+        toPlant: 0,
+        skill: { share: 0.8, years: 3, apprentices: [{ age: 12, years: 1.5 }] },
+        carpenter: null,
+        clay: { stockKg: 18, site: { walkM: 420, leftKg: 19_350 }, heapKg: 120, cart: true },
       },
     }),
   },

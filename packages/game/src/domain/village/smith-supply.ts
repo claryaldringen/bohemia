@@ -6,7 +6,7 @@ import { ageGroup, ageYears } from './people';
 import { PATH_WATER_SPOT, PATH_WETLAND } from './paths/terrain';
 import { groundSpots, villageRoadWalk, walkGroundOf } from './paths/walking';
 import { kilnPoint, workshopKilns } from './charcoal';
-import { CARTS, CART_JOBS, CRAFT_PRODUCTION, SMITH_SUPPLY, WATER_FETCHING } from './rules';
+import { CARTS, CART_JOBS, CLAY, CRAFT_PRODUCTION, SMITH_SUPPLY, WATER_FETCHING } from './rules';
 import type {
   CharcoalKiln,
   Dwelling,
@@ -48,6 +48,62 @@ export function basketManDaysPerKg(walkM: number, basketKg: number): number {
 /** Kopání rudy na rudišti (čd na kg): kopání, praní a pražení s přirážkou za chůzi (DISTANCE). */
 export function oreDigManDaysPerKg(walkM: number): number {
   return ORE_DIG_MAN_DAYS_PER_KG * distanceFactor(walkM);
+}
+
+/** Kopání hlíny na hliništi (čd na kg – crafts.md, Hlína hrnčíře) s přirážkou za chůzi. */
+export function clayDigManDaysPerKg(walkM: number): number {
+  return distanceFactor(walkM) / CLAY.kgPerManDay;
+}
+
+/**
+ * Surovina, kterou dílna kope u vody a nosí v koších nebo vozí vozem (crafts.md – Uhlí a ruda
+ * kováře, Hlína hrnčíře): ruda kováře, hlína hrnčíře.
+ */
+export type DugMaterial = 'ore' | 'clay';
+
+/** Kde dílna drží zásobu, místo a dávku suroviny a čísla jejího kopání a nošení. */
+interface DugSpec {
+  stock: 'oreKg' | 'clayKg';
+  site: 'oreSite' | 'claySite';
+  batch: 'oreBatch' | 'clayBatch';
+  used: 'oreSitesUsed' | 'claySitesUsed';
+  basketKg: number;
+  depositKg: number;
+  digPerKg: (walkM: number) => number;
+  reserveDays: number;
+}
+
+const DUG: Record<DugMaterial, DugSpec> = {
+  ore: {
+    stock: 'oreKg',
+    site: 'oreSite',
+    batch: 'oreBatch',
+    used: 'oreSitesUsed',
+    basketKg: SMITH_SUPPLY.basketKg.ore,
+    depositKg: SMITH_SUPPLY.depositKg,
+    digPerKg: oreDigManDaysPerKg,
+    reserveDays: CART_JOBS.ore.reserveDays,
+  },
+  clay: {
+    stock: 'clayKg',
+    site: 'claySite',
+    batch: 'clayBatch',
+    used: 'claySitesUsed',
+    basketKg: CLAY.basketKg,
+    depositKg: CLAY.depositKg,
+    digPerKg: clayDigManDaysPerKg,
+    reserveDays: CART_JOBS.clay.reserveDays,
+  },
+};
+
+/** Nošení suroviny v koších (čd na kg) po `walkM` m. */
+export function dugBasketManDaysPerKg(material: DugMaterial, walkM: number): number {
+  return basketManDaysPerKg(walkM, DUG[material].basketKg);
+}
+
+/** Kopání suroviny (čd na kg) s přirážkou za chůzi `walkM` m. */
+export function dugManDaysPerKg(material: DugMaterial, walkM: number): number {
+  return DUG[material].digPerKg(walkM);
 }
 
 /** Člověk z kovárny – id a věk v letech. */
@@ -301,6 +357,32 @@ export function migrateSmith(workshop: Workshop, labor: number, batchDays: numbe
   workshop.oreKg = footOreBatchKg(labor, batchDays);
 }
 
+/**
+ * Hlína na dnešní hrnčířství na plný úvazek (kg; crafts.md – Hlína hrnčíře): práce dílny `labor`
+ * krát výkon podle praxe `skill` (crafts.md – Učení řemesla) ÷ práce na kg keramiky × kg hlíny na
+ * kg keramiky.
+ */
+export function potteryClayKg(labor: number, skill = 1): number {
+  return (
+    ((Math.max(0, labor) * skill) / CRAFT_PRODUCTION.potteryManDaysPerKg) * CLAY.kgPerPotteryKg
+  );
+}
+
+/**
+ * Převod dílny hrnčíře z doby před hlínou (mutuje, idempotentně – crafts.md, Hlína hrnčíře,
+ * Starší vsi): zásoba hlíny začne na dávce (`batchDays` dní hrnčířství při dnešní práci), aby
+ * hrnčíř nepřestal hned pracovat; hliniště se vybere při prvním kopání.
+ */
+export function migratePotter(
+  workshop: Workshop,
+  labor: number,
+  skill: number,
+  batchDays: number,
+): void {
+  if (workshop.craft !== 'potter' || workshop.clayKg !== undefined) return;
+  workshop.clayKg = Math.max(CLAY.basketKg, potteryClayKg(labor, skill) * batchDays);
+}
+
 /** Rudiště nejméně tak daleko od obydlí (m – dům, pozemek). */
 const ORE_SITE_HOME_M = 12;
 
@@ -327,16 +409,46 @@ export function chooseOreSite(
   day: number,
   landscape: Landscape | null,
 ): OreSite | null {
-  const workshop = smith.workshop!;
-  const used = workshop.oreSitesUsed ?? [];
+  return chooseDugSite(state, smith, day, landscape, 'ore');
+}
+
+/**
+ * Nové místo, kde dílna kope surovinu `material` (rudiště kováře, hliniště hrnčíře – crafts.md,
+ * Hlína hrnčíře): jako `chooseOreSite`, a aspoň SMITH_SUPPLY.siteSpacingM i od míst, kde dnes kopou
+ * jiné dílny (rudiště a hliniště se nepřekrývají).
+ */
+export function chooseDugSite(
+  state: VillageState,
+  dwelling: Dwelling,
+  day: number,
+  landscape: Landscape | null,
+  material: DugMaterial,
+): OreSite | null {
+  const workshop = dwelling.workshop!;
+  const spec = DUG[material];
+  const used = workshop[spec.used] ?? [];
   if (!landscape) {
     const walkM = workshop.waterDistanceM ?? 0;
     // bez polohy: místo ve vzdálenosti k vodě, posunuté za vyčerpanými ložisky
     const shift = used.length * SMITH_SUPPLY.siteSpacingM;
-    return { x: smith.position.x + walkM + shift, z: smith.position.z, minedKg: 0, day, walkM };
+    return {
+      x: dwelling.position.x + walkM + shift,
+      z: dwelling.position.z,
+      minedKg: 0,
+      day,
+      walkM,
+    };
   }
+  // místa, kde kopou jiné dílny (rudiště kovářů, hliniště hrnčířů)
+  const others = state.dwellings.flatMap((d) => {
+    if (d.id === dwelling.id || !d.workshop) return [];
+    return [d.workshop.oreSite, d.workshop.claySite].flatMap((site) =>
+      site ? [{ x: site.x, z: site.z }] : [],
+    );
+  });
+  const avoid = others.length > 0 ? [...used, ...others] : used;
   const ground = walkGroundOf(landscape);
-  const from = smith.position;
+  const from = dwelling.position;
   // na poli, v sadu, na hřbitově, v ohradě ani v lese vsi se nekope, u domů taky ne
   const land = new PolygonIndex(landscape, villageLandSquares(landscape, state));
   const homes = state.dwellings.map((d) => d.position);
@@ -347,7 +459,7 @@ export function chooseOreSite(
     let best: { x: number; z: number } | null = null;
     let bestD = Infinity;
     for (const p of groundSpots(ground, flag)) {
-      if (!awayFromUsed(p, used)) continue;
+      if (!awayFromUsed(p, avoid)) continue;
       const d = (p.x - from.x) * (p.x - from.x) + (p.z - from.z) * (p.z - from.z);
       // body jdou po řádcích – při shodě vyhraje první
       if (d < bestD && free(p)) {
@@ -380,19 +492,35 @@ export function openOrePit(
   site: OreSite,
   day: number,
 ): OrePit {
+  return openDugPit(state, smithId, site, day, 'ore');
+}
+
+/** Nová jáma suroviny `material` dílny `dwellingId` (jáma hlíny nese `clay`). */
+function openDugPit(
+  state: VillageState,
+  dwellingId: number,
+  site: OreSite,
+  day: number,
+  material: DugMaterial,
+): OrePit {
   const pits = (state.orePits ??= []);
-  const count = pits.filter((p) => p.smithId === smithId).length;
+  const clay = material === 'clay';
+  const count = pits.filter((p) => p.smithId === dwellingId && (p.clay === true) === clay).length;
   const random = createRandom(
-    deriveSeed(state.seed, `ore-pit:${smithId}:${site.day}:${Math.round(site.minedKg)}:${count}`),
+    deriveSeed(
+      state.seed,
+      `${clay ? 'clay' : 'ore'}-pit:${dwellingId}:${site.day}:${Math.round(site.minedKg)}:${count}`,
+    ),
   );
   const angle = random.next() * 2 * Math.PI;
   const radius = Math.sqrt(random.next()) * SMITH_SUPPLY.pitSpreadM;
   const pit: OrePit = {
     x: Math.round((site.x + radius * detCos(angle)) * 100) / 100,
     z: Math.round((site.z + radius * detSin(angle)) * 100) / 100,
-    smithId,
+    smithId: dwellingId,
     kg: 0,
     day,
+    ...(clay ? { clay: true as const } : {}),
   };
   pits.push(pit);
   return pit;
@@ -415,14 +543,30 @@ export function updateOrePits(state: VillageState, day: number): void {
 
 /** Poslední jáma kovárny (kde se právě kope); bez jam null. */
 export function currentOrePit(state: VillageState, smithId: number): OrePit | null {
+  return currentDugPit(state, smithId, 'ore');
+}
+
+/** Poslední jáma suroviny `material` dílny (kde se právě kope); bez jam null. */
+function currentDugPit(
+  state: VillageState,
+  dwellingId: number,
+  material: DugMaterial,
+): OrePit | null {
   const pits = state.orePits ?? [];
-  for (let i = pits.length - 1; i >= 0; i--) if (pits[i]!.smithId === smithId) return pits[i]!;
+  const clay = material === 'clay';
+  for (let i = pits.length - 1; i >= 0; i--) {
+    const pit = pits[i]!;
+    if (pit.smithId === dwellingId && (pit.clay === true) === clay) return pit;
+  }
   return null;
 }
 
-/** Kolik rudy z ložiska ještě zbývá (kg). */
-export function depositLeftKg(site: Pick<OreSite, 'minedKg'>): number {
-  return Math.max(0, SMITH_SUPPLY.depositKg - site.minedKg);
+/** Kolik suroviny z ložiska ještě zbývá (kg; bez `material` ruda). */
+export function depositLeftKg(
+  site: Pick<OreSite, 'minedKg'>,
+  material: DugMaterial = 'ore',
+): number {
+  return Math.max(0, DUG[material].depositKg - site.minedKg);
 }
 
 /** Vůz pro rudu dnes (wagons.md – Co vozy vozí): kolik kg odveze a práce kováře na jízdě (čd). */
@@ -467,14 +611,33 @@ export function workOre(
   smith: Dwelling,
   labor: number,
   day: number,
-  options: {
-    landscape: Landscape | null;
-    batchDays: number;
-    cart?: OreCartToday;
-    /** Vyplatí se dávka na celý vůz? (kg vozu); null = ves vůz nemá nebo jízda neušetří. */
-    cartBatch?: (site: OreSite) => number | null;
-  },
+  options: DugOptions,
 ): OreDay {
+  return workDug(state, smith, 'ore', labor, day, { ...options, needKg: forgeOreKg });
+}
+
+/** Volby dne dílny se surovinou (`workOre`, `workDug`). */
+export interface DugOptions {
+  landscape: Landscape | null;
+  batchDays: number;
+  cart?: OreCartToday;
+  /** Vyplatí se dávka na celý vůz? (kg vozu); null = ves vůz nemá nebo jízda neušetří. */
+  cartBatch?: (site: OreSite) => number | null;
+}
+
+/**
+ * Den dílny se surovinou `material` (mutuje stav – `workOre`; hrnčíř a hlína stejně – crafts.md,
+ * Hlína hrnčíře): `needKg(labor)` = kolik suroviny dílna spotřebuje za den výroby na plný úvazek.
+ */
+export function workDug(
+  state: VillageState,
+  smith: Dwelling,
+  material: DugMaterial,
+  labor: number,
+  day: number,
+  options: DugOptions & { needKg: (labor: number) => number },
+): OreDay {
+  const spec = DUG[material];
   const workshop = smith.workshop!;
   const out: OreDay = {
     dig: 0,
@@ -486,100 +649,102 @@ export function workOre(
     left: Math.max(0, labor),
     site: null,
   };
-  const need = forgeOreKg(out.left);
-  let batch: OreBatch | null = workshop.oreBatch ?? null;
-  const site0 = workshop.oreSite;
-  // vůz se sedlákem pro hromadu rudy u jámy
+  const need = options.needKg(out.left);
+  let batch: OreBatch | null = workshop[spec.batch] ?? null;
+  const site0 = workshop[spec.site];
+  // vůz se sedlákem pro hromadu u jámy
   if (options.cart && batch && site0 && batch.heap > EPSILON) {
     const kg = Math.min(batch.heap, options.cart.kg);
     const ride = Math.min(out.left, options.cart.riderManDays);
     out.left -= ride;
     out.ride = ride;
     batch.heap -= kg;
-    workshop.oreKg = (workshop.oreKg ?? 0) + kg;
+    workshop[spec.stock] = (workshop[spec.stock] ?? 0) + kg;
     out.cartKg = kg;
     out.site = { x: site0.x, z: site0.z };
   }
   if (!batch && out.left > EPSILON) {
-    const stock = workshop.oreKg ?? 0;
-    let site = workshop.oreSite;
-    if (site && depositLeftKg(site) <= EPSILON) {
-      (workshop.oreSitesUsed ??= []).push({ x: site.x, z: site.z });
+    const stock = workshop[spec.stock] ?? 0;
+    let site = workshop[spec.site];
+    if (site && depositLeftKg(site, material) <= EPSILON) {
+      (workshop[spec.used] ??= []).push({ x: site.x, z: site.z });
       site = undefined;
-      workshop.oreSite = undefined;
+      workshop[spec.site] = undefined;
     }
-    // na celý vůz se začne kopat dřív: zásoba vydrží na kopání dávky a CART_JOBS.ore.reserveDays
-    // dní kování – hromada u jámy pak počká, až bude vůz volný
+    // na celý vůz se začne kopat dřív: zásoba vydrží na kopání dávky a `reserveDays` dní výroby
+    // – hromada u jámy pak počká, až bude vůz volný
     let cartKg: number | null = null;
     if (site && options.cartBatch && stock + EPSILON >= need) {
-      const digDays = (CARTS.loadKg['two-wheel'] * oreDigManDaysPerKg(site.walkM)) / out.left;
-      if (stock < need * (digDays + CART_JOBS.ore.reserveDays)) cartKg = options.cartBatch(site);
+      const digDays = (CARTS.loadKg['two-wheel'] * spec.digPerKg(site.walkM)) / out.left;
+      if (stock < need * (digDays + spec.reserveDays)) cartKg = options.cartBatch(site);
     }
     if (stock + EPSILON < need || cartKg !== null) {
       if (site === undefined) {
-        site = chooseOreSite(state, smith, day, options.landscape);
-        workshop.oreSite = site;
+        site = chooseDugSite(state, smith, day, options.landscape, material);
+        workshop[spec.site] = site;
       }
       if (site) {
         cartKg ??= options.cartBatch?.(site) ?? null;
         const kg = Math.min(
-          depositLeftKg(site),
-          cartKg ?? footOreBatchKg(out.left, options.batchDays),
+          depositLeftKg(site, material),
+          cartKg ?? Math.max(spec.basketKg, options.needKg(out.left) * options.batchDays),
         );
         batch = { kg, dug: 0, heap: 0, cart: cartKg !== null };
-        workshop.oreBatch = batch;
-        openOrePit(state, smith.id, site, day);
+        workshop[spec.batch] = batch;
+        openDugPit(state, smith.id, site, day, material);
       }
     }
   }
-  const site = workshop.oreSite;
+  const site = workshop[spec.site];
   if (batch && site) {
-    const digPerKg = oreDigManDaysPerKg(site.walkM);
-    const carryPerKg = basketManDaysPerKg(site.walkM, SMITH_SUPPLY.basketKg.ore);
+    const digPerKg = spec.digPerKg(site.walkM);
+    const carryPerKg = basketManDaysPerKg(site.walkM, spec.basketKg);
     const done = batch.dug + EPSILON >= batch.kg;
-    // hromada u jámy pěšky: u dávky pěšky vždy, u dávky na vůz den po vykopání, když kovář nemá
-    // rudu na dnešek a vůz nepřijel
+    // hromada u jámy pěšky: u dávky pěšky vždy, u dávky na vůz den po vykopání, když dílna nemá
+    // surovinu na dnešek a vůz nepřijel
     const footHeap =
       !batch.cart ||
       (done &&
         batch.readyDay !== undefined &&
         day > batch.readyDay &&
-        (workshop.oreKg ?? 0) + EPSILON < need);
+        (workshop[spec.stock] ?? 0) + EPSILON < need);
     if (footHeap && batch.heap > EPSILON && out.left > EPSILON) {
       const kg = Math.min(batch.heap, out.left / carryPerKg);
       batch.heap -= kg;
-      workshop.oreKg = (workshop.oreKg ?? 0) + kg;
+      workshop[spec.stock] = (workshop[spec.stock] ?? 0) + kg;
       out.left -= kg * carryPerKg;
       out.carry += kg * carryPerKg;
       out.carriedKg += kg;
     }
     if (!done && out.left > EPSILON) {
       const perKg = digPerKg + (batch.cart ? 0 : carryPerKg);
-      const kg = Math.min(batch.kg - batch.dug, out.left / perKg, depositLeftKg(site));
+      const kg = Math.min(batch.kg - batch.dug, out.left / perKg, depositLeftKg(site, material));
       if (kg > EPSILON) {
         batch.dug += kg;
         site.minedKg += kg;
         out.dig += kg * digPerKg;
         out.dugKg += kg;
         out.left -= kg * perKg;
-        const pit = currentOrePit(state, smith.id) ?? openOrePit(state, smith.id, site, day);
+        const pit =
+          currentDugPit(state, smith.id, material) ??
+          openDugPit(state, smith.id, site, day, material);
         pit.kg += kg;
         pit.day = day;
         if (batch.cart) {
           batch.heap += kg;
         } else {
-          workshop.oreKg = (workshop.oreKg ?? 0) + kg;
+          workshop[spec.stock] = (workshop[spec.stock] ?? 0) + kg;
           out.carry += kg * carryPerKg;
           out.carriedKg += kg;
         }
       }
-      if (batch.dug + EPSILON >= batch.kg || depositLeftKg(site) <= EPSILON) {
+      if (batch.dug + EPSILON >= batch.kg || depositLeftKg(site, material) <= EPSILON) {
         batch.kg = batch.dug;
         batch.readyDay = day;
       }
     }
     if (out.dig > 0 || out.carry > 0) out.site = { x: site.x, z: site.z };
-    if (batch.dug + EPSILON >= batch.kg && batch.heap <= EPSILON) workshop.oreBatch = null;
+    if (batch.dug + EPSILON >= batch.kg && batch.heap <= EPSILON) workshop[spec.batch] = null;
   }
   return out;
 }
@@ -596,6 +761,30 @@ export interface SmithOreSummary {
   sons: number[];
   /** Ves má vůz se spřežením doma – uhlí a rudu přiveze sedlák, když to ušetří práci. */
   cart: boolean;
+}
+
+/** Hlína hrnčíře pro panel výběru (crafts.md – Hlína hrnčíře). */
+export interface PotterClaySummary {
+  /** Zásoba hlíny u dílny (kg). */
+  stockKg: number;
+  /** Hliniště – cesta z dílny (m) a kolik hlíny v něm zbývá (kg); bez něj null. */
+  site: { walkM: number; leftKg: number } | null;
+  /** Vykopaná hlína na hromadě u jámy (kg). */
+  heapKg: number;
+  /** Ves má vůz se spřežením doma – hlínu přiveze sedlák, když to ušetří práci. */
+  cart: boolean;
+}
+
+/** Hlína dílny hrnčíře `potter` pro panel (nemění stav); `cart` jako u `smithOreSummary`. */
+export function potterClaySummary(potter: Dwelling, cart: boolean): PotterClaySummary {
+  const workshop = potter.workshop!;
+  const site = workshop.claySite ?? null;
+  return {
+    stockKg: workshop.clayKg ?? 0,
+    site: site ? { walkM: site.walkM, leftKg: depositLeftKg(site, 'clay') } : null,
+    heapKg: workshop.clayBatch?.heap ?? 0,
+    cart,
+  };
 }
 
 /**

@@ -67,7 +67,10 @@ export function oreSiteViews(state: VillageState, day: number): VillageOreSite[]
         heapKg: Math.round(workshop.oreBatch?.heap ?? 0),
         stockKg: Math.round(workshop.oreKg ?? 0),
         walkM: Math.round(site.walkM),
-        pits: oreSitePits(site, state.orePits).length,
+        pits: oreSitePits(
+          site,
+          state.orePits?.filter((p) => !p.clay),
+        ).length,
         workers: oreWorkers(state, d.id, day, here),
         cart: here.some((s) => s.activity === 'haul'),
       },

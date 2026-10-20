@@ -3,6 +3,7 @@ import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
 import {
   addCartDemand,
+  cartDayValue,
   cartTargets,
   nextPloughPairs,
   closeCartYear,
@@ -20,7 +21,7 @@ import { summarizeVillage } from '../summary';
 import { fourWheelSavings } from '../trade';
 import { HAY, HAY_WINTER_DAYS } from '../hay';
 import { OXEN } from '../rules';
-import type { FieldPart, Pen, VillageState } from '../types';
+import type { CartYear, FieldPart, Pen, VillageState } from '../types';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
 // Kolik volů a vozů ves chce (oxen.md – Kolik volů ves chce, wagons.md – Kolik vozů ves chce).
@@ -197,33 +198,68 @@ describe('páry k rádlům podle plánu osevu (1. 9.)', () => {
 });
 
 describe('rok vozů (wagons.md – Kolik vozů ves chce)', () => {
-  it('úspory dne od největší k k-tým vozům, ve dny orby zvlášť', () => {
+  it('den zapíše nošení podél cest a jinam, jízdy a den orby', () => {
     const s = withOxPen(village());
-    addCartDemand(s, DAY, [2, 6, 4], false);
-    addCartDemand(s, DAY + 1, [5], false);
-    addCartDemand(s, DAY + 2, [3], true);
+    addCartDemand(s, DAY, { road: 12, other: 3.333, jobs: [2, 0] }, false);
+    addCartDemand(s, DAY + 1, { road: 0, other: 0, jobs: [] }, true);
+    addCartDemand(s, DAY + 2, { road: 0, other: 5, jobs: [] }, true);
     expect(s.draft!.demand).toEqual({
       from: DAY,
-      'two-wheel': [11, 4, 2],
+      days: [
+        { r: 12, o: 3.33, j: [2] },
+        { o: 5, p: 1 },
+      ],
       'four-wheel': [],
-      plough: [3],
     });
   });
 
-  it('1. 11. se uzavře rok dlouhý aspoň 300 dní – úspory na rok; kratší běží dál', () => {
+  it('úspora dne: čtyřkolák podél cest odveze dvakrát víc, dvoukolák i jinam a jízdy', () => {
+    // dvoukolák 8 čd nošení s posádkou 2 (ušetří 6), čtyřkolák 16 čd s posádkou 2 (ušetří 14)
+    const rec = { r: 20, o: 4, j: [3] };
+    expect(cartDayValue(rec, 0, 1)).toBeCloseTo(14, 9);
+    expect(cartDayValue(rec, 1, 0)).toBeCloseTo(6, 9);
+    // zbytek 4 čd podél cest + 4 jinam = plný dvoukolák (6), pak jízda (3)
+    expect(cartDayValue(rec, 2, 1)).toBeCloseTo(14 + 6 + 3, 9);
+    // dvoukoláky odvezou i nošení podél cest
+    expect(cartDayValue(rec, 3, 0)).toBeCloseTo(6 + 6 + 6, 9);
+    // čtyřkolák mimo cesty nejede
+    expect(cartDayValue({ o: 20 }, 0, 2)).toBe(0);
+  });
+
+  it('1. 11. se uzavře rok dlouhý aspoň 300 dní – tabulka úspor za rok; kratší běží dál', () => {
     const s = withOxPen(village());
-    addCartDemand(s, DAY, [10], false);
+    addCartDemand(s, DAY, { road: 0, other: 8, jobs: [] }, false);
+    addCartDemand(s, DAY + 1, { road: 16, other: 0, jobs: [] }, true);
     closeCartYear(s, DAY + 200, 15);
     expect(s.draft!.lastYear).toBeUndefined();
     closeCartYear(s, DAY + 730, 15);
-    expect(s.draft!.lastYear!['two-wheel'][0]).toBeCloseTo((10 * YEAR) / 730, 9);
-    expect(s.draft!.lastYear!.oxCost).toBe(15);
-    expect(s.draft!.demand).toEqual({
-      from: DAY + 730,
-      'two-wheel': [],
-      'four-wheel': [],
-      plough: [],
-    });
+    const year = s.draft!.lastYear as CartYear;
+    const scale = YEAR / 730;
+    expect(year.oxCost).toBe(15);
+    expect(year.base[1]![0]).toBeCloseTo(6 * scale, 2);
+    expect(year.base[0]![1]).toBeCloseTo(0, 9);
+    // den orby: čtyřkolák jen se dvěma voly, kteří neorají
+    expect(year.plough[0]![1]![1]).toBeCloseTo(0, 9);
+    expect(year.plough[0]![1]![2]).toBeCloseTo(14 * scale, 2);
+    expect(year.plough[2]![1]![2]).toBeCloseTo(14 * scale, 2);
+    expect(year.plough[2]![0]![2]).toBeCloseTo(12 * scale, 2);
+    expect(s.draft!.demand).toEqual({ from: DAY + 730, days: [], 'four-wheel': [] });
+  });
+
+  it('ves chce čtyřkolák, když hodně nošení vede podél cest', () => {
+    const s = withOxPen(village(), 2);
+    const year = (rec: { r?: number; o?: number }): void => {
+      s.draft = { demand: { from: DAY - 400, days: [], 'four-wheel': [] } };
+      for (let d = 0; d < 60; d++)
+        addCartDemand(s, DAY - 400 + d, { road: rec.r ?? 0, other: rec.o ?? 0, jobs: [] }, false);
+      closeCartYear(s, DAY - 400 + 365, 20);
+    };
+    // 60 dní po 16 čd podél cest – čtyřkolák ušetří 14 čd denně, dva dvoukoláky 12
+    year({ r: 16 });
+    expect(cartTargets(s)).toEqual({ 'two-wheel': 0, 'four-wheel': 1 });
+    // totéž mimo cesty – dvoukoláky
+    year({ o: 16 });
+    expect(cartTargets(s)).toEqual({ 'two-wheel': 2, 'four-wheel': 0 });
   });
 
   it('vůl stojí seno přes zimu a výcvik na 10 let služby', () => {
@@ -241,7 +277,7 @@ describe('rok vozů (wagons.md – Kolik vozů ves chce)', () => {
     expect(next.carts ?? []).toEqual([]);
     const demand = next.draft!.demand!;
     expect(demand.from).toBe(day + 1);
-    expect(demand['two-wheel'][0]).toBeGreaterThan(0);
+    expect(demand.days!.some((d) => (d.o ?? 0) + (d.r ?? 0) > 0)).toBe(true);
     // na kouscích nezávisí
     const pieces = advanceVillage(advanceVillage(s, day + 4, null), day + 10, null);
     expect(pieces).toEqual(next);

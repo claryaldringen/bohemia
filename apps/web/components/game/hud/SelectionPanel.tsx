@@ -273,11 +273,23 @@ function activityLook(workshop: SelectionWorkshop): {
       name: 'Nemá rudu – v okolí není mokřina ani potok, kde ji kopat; zatím pomáhá vsi',
       value: '0',
     },
-    digging: {
-      icon: 'ore',
-      name: 'Kope rudu na rudišti a nosí ji do kovárny (kg rudy v kovárně)',
-      value: formatInteger(workshop.ore?.stockKg ?? 0),
+    'no-clay': {
+      icon: 'clay',
+      name: 'Nemá hlínu – v okolí není mokřina ani potok, kde ji kopat; zatím pomáhá vsi',
+      value: '0',
     },
+    digging:
+      workshop.craft === 'potter'
+        ? {
+            icon: 'clay',
+            name: 'Kope hlínu na hliništi a nosí ji do dílny (kg hlíny v dílně)',
+            value: formatInteger(workshop.clay?.stockKg ?? 0),
+          }
+        : {
+            icon: 'ore',
+            name: 'Kope rudu na rudišti a nosí ji do kovárny (kg rudy v kovárně)',
+            value: formatInteger(workshop.ore?.stockKg ?? 0),
+          },
     'no-wood': {
       icon: 'wood',
       name:
@@ -296,10 +308,43 @@ function activityLook(workshop: SelectionWorkshop): {
   const stalled =
     workshop.activity === 'no-charcoal' ||
     workshop.activity === 'no-ore' ||
+    workshop.activity === 'no-clay' ||
     workshop.activity === 'no-wood' ||
     workshop.activity === 'idle' ||
     workshop.activity === 'empty';
   return { ...look, stalled };
+}
+
+/**
+ * Dílna hrnčíře (crafts.md – Hlína hrnčíře): zásoba hlíny, hliniště (vzdálenost chůze) a kdo hlínu
+ * nosí – hrnčíř, nebo vůz se sedlákem.
+ */
+function PotterClayStats({ clay }: { clay: NonNullable<SelectionWorkshop['clay']> }): ReactElement {
+  return (
+    <>
+      <Stat icon="clay" name="Hlína v dílně (kg)" testId="selection-workshop-clay">
+        {formatInteger(clay.stockKg)}
+      </Stat>
+      {clay.site && (
+        <Stat
+          icon="walk"
+          name={`Hliniště u potoka – cesta z dílny (m), zbývá ${formatInteger(clay.site.leftKg)} kg hlíny`}
+          testId="selection-workshop-clay-site"
+        >
+          {`${formatInteger(clay.site.walkM)} m`}
+        </Stat>
+      )}
+      {clay.cart && (
+        <Stat
+          icon="cart"
+          name="Hlínu z hliniště přiveze sedlák s vozem, když to ušetří práci"
+          testId="selection-workshop-clay-cart"
+        >
+          {''}
+        </Stat>
+      )}
+    </>
+  );
 }
 
 /**
@@ -377,6 +422,7 @@ function WorkshopRow({ workshop }: { workshop: SelectionWorkshop }): ReactElemen
       )}
       {workshop.carpenter && <CarpenterStats carpenter={workshop.carpenter} />}
       {workshop.ore && <SmithOreStats ore={workshop.ore} />}
+      {workshop.clay && <PotterClayStats clay={workshop.clay} />}
       {workshop.buying && (
         <Stat
           icon={product.icon}
@@ -482,10 +528,16 @@ function IronStat({
   const who = trip.son ? `Syn tesaře (${trip.age} let)` : 'Tesař';
   const where = `do vsi ${trip.to}${trip.direction ? ` (${DIRECTION_NAMES[trip.direction].name})` : ''}`;
   const days = `${trip.daysLeft} ${plural(trip.daysLeft, 'den', 'dny', 'dní')}`;
+  // platbu obilím veze vůz se sedlákem, nebo ji nesou nosiči z vsi (wagons.md – Kování vozů)
+  const how = trip.cart
+    ? `jede s vozem a sedlákem (${CART_NAMES[trip.cart].toLowerCase()} veze obilí na platbu)`
+    : trip.porters > 0
+      ? `jde ${trip.porters === 1 ? 's 1 nosičem' : `se ${trip.porters} nosiči`} (nesou obilí na platbu)`
+      : 'jde';
   return (
     <Stat
-      icon="walk"
-      name={`${who} jde pro kování k vozu ${where} – zpět za ${days}`}
+      icon={trip.cart ? 'cart' : 'walk'}
+      name={`${who} ${how} pro kování k vozu ${where} – zpět za ${days}`}
       testId="selection-workshop-iron"
     >
       {`${trip.direction ? `${DIRECTION_NAMES[trip.direction].arrow} ` : ''}${trip.daysLeft} d`}

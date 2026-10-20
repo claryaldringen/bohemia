@@ -6,15 +6,19 @@ import { removePeople } from './kinship';
 import { villageManor } from './manor';
 import { ageYears, occupants } from './people';
 import { relocationBlock } from './relocation';
-import { DWELLINGS, LEAVING, RUIN_YEARS } from './rules';
+import { leavingCart, takeLeavingCart } from './carts';
+import { CARTS, DWELLINGS, LEAVING, RUIN_YEARS } from './rules';
 import { DIRECTION_VECTORS } from './trail';
 import type {
   Ancestor,
+  Cart,
+  CartKind,
   Direction8,
   DwellingRuin,
   Emigrant,
   HerdSpecies,
   NeighborDirection,
+  Ox,
   Person,
   VillageJourney,
   VillageState,
@@ -48,6 +52,12 @@ export interface Settlers {
   food: LeavingFood;
   herds: Record<HerdSpecies, number>;
   young: Record<HerdSpecies, number>;
+  /**
+   * Vůz s voly, který si vzali (migration.md – Vůz při odchodu); bez vozu chybí. V nové vsi je vůz
+   * její a voli čekají bez ohrady (`VillageState.looseOxen`).
+   */
+  cart?: Cart;
+  oxen?: Ox[];
 }
 
 /** Ves je opuštěná – odešli všichni (dál se nesimuluje). */
@@ -94,13 +104,15 @@ export function departureBlock(state: VillageState, dwellingIds: readonly number
 
 /**
  * Kolik jídla si lidé `leavers` vezmou (migration.md, návrh Clauda): unesou LEAVING.carryKgPerPerson
- * na člověka od LEAVING.carryFromAge let, nejvýš poměrný díl zásob vsi podle počtu lidí. Když
- * neunesou celý díl, berou z každé zásoby (obilí, maso, sýr, luštěniny, ovoce) stejný podíl.
+ * na člověka od LEAVING.carryFromAge let a s vozem (`cart` – migration.md, Vůz při odchodu) navíc
+ * jeho náklad (CARTS.loadKg), nejvýš poměrný díl zásob vsi podle počtu lidí. Když neunesou celý
+ * díl, berou z každé zásoby (obilí, maso, sýr, luštěniny, ovoce) stejný podíl.
  */
 export function leavingFood(
   state: VillageState,
   leavers: readonly Person[],
   day: number,
+  cart: CartKind | null = null,
 ): LeavingFood {
   const share = state.people.length > 0 ? leavers.length / state.people.length : 0;
   const carriers = leavers.filter((p) => ageYears(p.bornDay, day) >= LEAVING.carryFromAge).length;
@@ -112,7 +124,7 @@ export function leavingFood(
     applesKg: Math.max(0, state.applesKg ?? 0) * share,
   };
   const total = Object.values(shares).reduce((sum, kg) => sum + kg, 0);
-  const budget = carriers * LEAVING.carryKgPerPerson;
+  const budget = carriers * LEAVING.carryKgPerPerson + (cart ? CARTS.loadKg[cart] : 0);
   const scale = total > budget && total > 0 ? budget / total : 1;
   return {
     grainKg: shares.grainKg * scale,
@@ -203,9 +215,12 @@ export function departVillage(
   const households = new Set(dwellingIds);
   const leavers = state.people.filter((p) => households.has(p.dwellingId));
   const share = leavers.length / state.people.length;
-  const food = leavingFood(state, leavers, day);
+  // volný vůz s voly (migration.md – Vůz při odchodu) – uveze víc jídla
+  const cart = leavingCart(state, day, leavers.length === state.people.length);
+  const food = leavingFood(state, leavers, day, cart?.cart.kind ?? null);
   const kin = settlerKin(state, leavers);
   const next = cloneState(state);
+  if (cart) takeLeavingCart(next, cart);
   next.storesKg -= food.grainKg;
   if (next.meatKg !== undefined) next.meatKg -= food.meatKg;
   if (next.cheeseKg !== undefined) next.cheeseKg -= food.cheeseKg;
@@ -242,7 +257,17 @@ export function departVillage(
     if (copy.spouseId !== undefined && !leaving.has(copy.spouseId)) delete copy.spouseId;
     return copy;
   });
-  return { state: next, settlers: { people, ...kin, food, herds, young } };
+  return {
+    state: next,
+    settlers: {
+      people,
+      ...kin,
+      food,
+      herds,
+      young,
+      ...(cart ? { cart: { ...cart.cart }, oxen: cart.oxen } : {}),
+    },
+  };
 }
 
 /** Nejvyšší id mezi osadníky, předky a odešlými (nová ves čísluje dál). */
@@ -299,6 +324,10 @@ export function travellingVillage(
     ...(food.legumesKg > 0 ? { legumesKg: food.legumesKg } : {}),
     ...(food.applesKg > 0 ? { applesKg: food.applesKg } : {}),
     livestock: { herds: { ...settlers.herds }, young: { ...settlers.young } },
+    ...(settlers.cart ? { carts: [{ ...settlers.cart }] } : {}),
+    ...(settlers.oxen && settlers.oxen.length > 0
+      ? { looseOxen: settlers.oxen.map((ox) => ({ ...ox })) }
+      : {}),
     ...(settlers.ancestors.length > 0 ? { ancestors: settlers.ancestors } : {}),
     ...(settlers.emigrants.length > 0 ? { emigrants: settlers.emigrants } : {}),
     journey: { ...journey },
@@ -320,6 +349,10 @@ export function settlersOf(state: VillageState): Settlers {
     },
     herds: { ...(state.livestock?.herds ?? { sheep: 0, goat: 0, pig: 0, cow: 0 }) },
     young: { ...(state.livestock?.young ?? { sheep: 0, goat: 0, pig: 0, cow: 0 }) },
+    ...(state.carts?.[0] ? { cart: { ...state.carts[0] } } : {}),
+    ...(state.looseOxen && state.looseOxen.length > 0
+      ? { oxen: state.looseOxen.map((ox) => ({ ...ox })) }
+      : {}),
   };
 }
 

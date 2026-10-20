@@ -801,14 +801,15 @@ rozhraní částí v
   s vozem na celý dvoukolák a dřív o `CART_JOBS.ore.reserveDays`, hromada u jámy `OreBatch.heap`),
   rudiště `chooseOreSite` (nejbližší `PATH_WETLAND`, jinak břeh; ne na čtvercích staveb ani u domů;
   `Workshop.oreSite`, ložisko 3 t, další 20 m od `oreSitesUsed`), jámy `VillageState.orePits`
-  (`openOrePit` ze seedu, `updateOrePits` – 10 let). `oreFactor` kováře 1 (hrnčíř dál). Starší
-  kovárny `migrateSmith` (zásoba na dávku). Činnosti `digging`, `no-ore`; podíly práce `ore` (cíl
+  (`openOrePit` ze seedu, `updateOrePits` – 10 let). Přirážka za vodu daleko (`oreFactor`)
+  zmizela u kováře i hrnčíře. Starší kovárny `migrateSmith` (zásoba na dávku). Činnosti `digging`, `no-ore`; podíly práce `ore` (cíl
   `{ kind: 'ore', id, x, z }`) a `fetch` (cíl rudiště, nebo milíř s `from` = kovárna) s věky
   `LaborShare.ages`; v síti pěšin jen z kovárny (`smithWalks` v network.ts). Web: panel
   `SmithOreStats` (`VillageWorkshop.ore` ze `smithOreSummary`), upozornění `no-ore`, scéna
   `SceneVillage.oreSites` / `orePits` → `OreSiteRenderer` (`ore-sites.ts`, geometrie
   `ore-site-layout.ts` – val, voda, zarůstání, hromada rudy), ikona `resources/ore.png`; ukázka
-  `/dev/landscape` **Rudiště** (`dev-ore.ts`). Ves bez kováře beze změny (`smith-golden.test.ts`).
+  `/dev/landscape` **Rudiště** (`dev-ore.ts`). Ves bez kováře a hrnčíře beze změny
+  (`smith-golden.test.ts`).
   **Výběr rudiště** (Martin 20. 10. 2026: „Půjde rudiště také označit?“): `VillageTarget`
   `{ kind: 'ore-site', id: kovárna }` – `pickVillageTarget` po posvátném dubu paprskem přes tvary
   `oreSiteDiscs` (jámy do `ORE_SITE_PIT_REACH_M` od místa – `oreSitePits`, s valem, hromada, místo),
@@ -816,6 +817,21 @@ rozhraní částí v
   ložisko, hromada, zásoba v kovárně, cesta, jámy, kdo tu dnes kope / nosí / jede s vozem z rozdělení
   práce dne a vůz se sedlákem), `OreSiteBody` s tlačítkem kovárny, portrét `icons/build/rudiste.png`
   (`icons.py rudiste`), `/dev/panels?panel=rudiste`.
+- **Hlína hrnčíře** ([crafts.md](docs/design/crafts.md) – Hlína hrnčíře; Martin 20. 10. 2026:
+  „Ano, udělej to jak říkáš“ – wagons.md, Co se vozí a na čem; čísla `CLAY` v `rules.ts`, návrh
+  Clauda): jako ruda kováře – jedna funkce `workDug` (`DugMaterial` `ore` / `clay`: zásoba, místo,
+  dávka, kopání a koše po surovinách; `workOre` je obal) a `chooseDugSite` (hliniště i rudiště aspoň
+  20 m od míst, kde kopou jiné dílny). Hrnčíř `workPotter` (crafts.ts): 1,5 kg hlíny na kg
+  keramiky (`Workshop.clayKg`, potřeba dne `potteryClayKg` podle výkonu dílny podle praxe), kopání
+  300 kg/čd s přirážkou za chůzi (`clayDigManDaysPerKg`), koš 25 kg, hliniště `Workshop.claySite`
+  (20 t), dávky `clayBatch` (30 dní, s vozem celý dvoukolák – `SmithSupply.cartBatch(…, 'clay')`,
+  `clayCarts`), jámy v `orePits` s `clay`; hrnčíř točí jen z hlíny (`workWithWood(…, maxKg)`).
+  Starší dílny `migratePotter`. Činnosti `digging`, `no-clay` (`restingCrafters`); podíly práce
+  `clay` (cíl `{ kind: 'clay', id, x, z }`) a `fetch`; vůz job `clay` (`CART_JOBS.clay`, pořadí po
+  rudě). Web: panel `PotterClayStats` (`VillageWorkshop.clay` z `potterClaySummary`), upozornění
+  „Hrnčíř nemá hlínu“, scéna jámy a hromada hlíny (`SceneOreSite.clay`, `SceneOrePit.clay` – barvy
+  v `ore-site-layout.ts`), náklad `wagon{2,4}-clay`, ikona `resources/clay.png`;
+  `/dev/panels?panel=hrncir`.
 - **Nákup u sousedů** ([crafts.md](docs/design/crafts.md) – Nákup u sousedů, Martin 19. 10. 2026:
   „Nástroje ať vesničané obchodují individuálně… Sami si spočítají, jestli se jim to vyplatí.“;
   čísla `CRAFT_BUYING` v `rules.ts`, rešerše `research/2026-10-19-craft-buying.md`):
@@ -907,8 +923,10 @@ rozhraní částí v
   `householdWater` (labor.ts) – přirážka za vodu se zmenší a přičte se díl posádky (v denním
   minimu). Jízdy vozí `villageCartDrives` (vozová síť – cena v m po louce a konec trasy, bez
   krajiny vzdušně), do ročního provozu cest `addRoadCartTrips`. Rozdělení práce: `haul`
-  s `LaborShare.job` (`charcoal` / `ore` / `seed` / `water`), cíl milíř (`kiln` i u dílny), rudiště
-  (`ore`), díl pole, břeh
+  s `LaborShare.job` (`charcoal` / `ore` / `clay` / `seed` / `water`), cíl milíř (`kiln` i u
+  dílny), rudiště (`ore`), hliniště (`clay`), díl pole, sad (jablka – orchard.md, Jablka vozem:
+  `ORCHARD.harvestCarryShare` sklizně, `orchardCartReach`, `OrchardWork.hauled`, náklad
+  `apples` – `wagon{2,4}-apples`), břeh
   (`LaborTarget` `{ kind: 'water', x, z }`); voda v práci `domestic` ubere posádku. Web:
   `SceneCart.job.load` – uhlí a osivo `goods`, ruda `ore` (hromada `wagon{2,4}-ore`), voda `water`
   (sudy `wagon{2,4}-water` tam i zpět),
@@ -925,14 +943,24 @@ rozhraní částí v
   `cartIronDay` (po `finishPurchases`) vezme kování ze zásoby a vůz dokončí (`cart-made`), vlastní
   kovář (`smithAtHome`) ho vyrobí jako zakázku (`ironOrderKg` → `smithToolsTarget` v
   `restingCrafters`, `smithsForgeCharcoalKg`, `smithsCharcoalPerYear`), jinak `Workshop.ironTrip`
-  (`IronTrip`): syn tesaře od 14 (`ironCarrier`), nebo tesař jde do nejbližší vsi s kovářem
-  (`ironRoute` – kovárny jiných vsí mapy `NeighbourSnapshot.smithies` s jménem – `neighbourSnapshot(…,
-names)` –, dny `mapTripDays`; sousedé `neighbourCrafts` přes `purchaseRoute(…, from)` od dílny),
-  platba obilím `ironPriceKg` ze zásob, jen když ves nešetří jídlem (`hungry`); kronika `iron-trip`,
-  `iron-brought`. Na cestě chybí v dílně (`workshopLabor` – `away`) i ve vsi (`ironTravellers`
-  v `work`). Web: `carpenter.iron` (`ironSummary` v summary.ts), panel `IronStat` („Čeká na kování“,
-  „Syn tesaře jde pro kování…“ s dny), upozornění, scéna jedna postava (`ironCaravan`
-  v `caravan-view.ts` – `ironTripLine`, porters 0).
+  (`IronTrip`): syn tesaře od 14 (`ironCarrier`), nebo tesař jde do vsi s kovářem s nejmenší prací
+  vsi celkem (`ironDestinations` – kovárny jiných vsí mapy `NeighbourSnapshot.smithies` s jménem –
+  `neighbourSnapshot(…, names)` –, dny `mapTripDays`; sousedé `neighbourCrafts` přes
+  `purchaseRoute(…, from)` od dílny; `ironOptions` – pěšky s nosiči i vozem, `ironPlan` – nejméně
+  čd, při shodě kratší cesta; úspora vozu proti cestě pěšky do roku vozů – `addCartDemand`),
+  platba obilím `ironPriceKg` ze zásob, jen když ves nešetří jídlem (`hungry`); kronika `iron-trip`
+  (`porters`, `byCart`), `iron-brought`. Na cestě chybí v dílně (`workshopLabor` – `away`) i ve vsi
+  (`ironTravellers` v `work`). **Platbu sám neunese** (Martin: „Buď si musel půjčit vůz nebo muselo
+  jít alespoň 6 lidí“): volný vůz s voly po zemské stezce sjízdné pro vozy (`freeIronCart` – dvoukolák
+  napřed, `IronTrip.cartId`, sedlák z vsi `CART_IRON.cartCrew`; vůz a vůl pryč – `cartsAway`
+  a `oxenAway` čtou i `dwellings`), jinak nosiči po 25 kg jako nákup u sousedů (`tripOf`,
+  `groupCap` z craft-buying – 173 kg = tesař a 6 nosičů, `IronTrip.porters`; málo dospělých →
+  víckrát, `tripDays`). Nosiči a sedlák chybí v práci vsi (`ironTripHelpers` do `away`,
+  `ironTripShares` – podíl `trade`). Web: `carpenter.iron` (`ironSummary` v summary.ts – i `porters`
+  a `cart`), panel `IronStat` („Čeká na kování“, „Syn tesaře jde se 6 nosiči…“, „Tesař jede s vozem
+  a sedlákem…“ s dny), upozornění (`ironTripWho`), scéna skupina nosičů nebo vůz (`ironCaravan`
+  v `caravan-view.ts` – `ironTripLine`, cesty po `tripDays`; vůz jede jako vůz výpravy – job `trade`
+  v `sceneCarts`).
 - **Ozim a jař** (fields.md – Ozim a jař): roční plán (`YearPlan`) nese práci jaře nahoře (tvar
   plánu z doby před ozimem) a ozimu v `winter?` (`CropWork`); díly osevu mají `crop?` (chybí =
   jař). Okna prací po plodinách `CROP_WINDOWS` (`WINDOWS` = jař, `WINTER_WINDOWS`) v `rules.ts`.
@@ -1346,13 +1374,23 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   přes `oxenOf` funguje i bez převodu). `draft.ts`: páry k rádlům k 1. 9. (potřeba `DraftState.ploughNeed` – nejméně
   párů, se kterými plán osevu vybere totéž jako bez meze orby; páry `ploughPairs` s hysterezí
   `nextPloughPairs` – mění se, jen když potřeba trvá dva plány po sobě), rok vozů
-  (`DraftState.demand` – každý den úspory vozů z dnešního nošení, jízd pro uhlí a vodu
-  a čtyřkoláků výprav, `addCartDemand`, `addExpeditionDemand`; 1. 11. `closeCartYear` →
-  `lastYear` s cenou vola `oxYearCost`), volba `chooseCarts` (úspora mínus cena vozu na 10 let
+  (`DraftState.demand.days` – každý den `CartDemandDay`: dnešní nošení podél pevných cest
+  a jinam, úspory jízd dvoukoláku pro uhlí, rudu, hlínu a vodu, den orby; čtyřkoláky výprav
+  `'four-wheel'`; `addCartDemand`, `addExpeditionDemand`; 1. 11. `closeCartYear` → `lastYear`
+  = tabulka úspor `CartYear` – `base[dvoukoláky][čtyřkoláky]`, ve dny orby `plough[…][…][voli]`,
+  den `cartDayValue` – s cenou vola `oxYearCost`; rok uložený dřív s úsporami k-tých vozů se čte
+  dál), volba `chooseCarts` (úspora mínus cena vozu na 10 let
   a volů navíc, v místech ohrad) → `draftChoice`, `cartTargets`, `missingCart`, `wantedOxen`
   (víc z párů a volů vozů – voli se sdílí), upozornění `oxenOverRoom` („Voli se nevejdou do
   ohrady“), krávy `oxenCows`. Web: `VillageView.oxen` (`VillageOxen`), panel ohrady volů (ikona
-  `resources/ard.png`), `SceneVillage.ploughPairs`.
+  `resources/ard.png`), `SceneVillage.ploughPairs`. **Čtyřkolák jen po pevných cestách**
+  (wagons.md – Co se vozí a na čem; `CartRoutesInput.roadsOnly` z `villageCartRoutes` pro
+  `four-wheel`, mimo cesty jen `CART_ROUTES.fourWheelOffRoadM` kolem ohrady) a **levnější vůz pro
+  každou práci**: flotila dne `CartFleet` (`cartFleetToday`, `fleetCarts`, `takeCart`) – svoz
+  snopů, sena, jablek a klád `fleetHaulPlan` (čtyřkoláky napřed podél cest – dosah `cartReach4`
+  u úloh, `HaulPlan.four` / `fourWork`, `LaborShare.fourWheel`), uhlí a vodu veze levnější vůz
+  (`kilnCartOffer(…, kind)`, `CharcoalKiln.cart4`, `waterCartPlan(…, kind)`,
+  `VillageState.waterCart4`), ruda, hlína a osivo dvoukolák.
 - **Hráč staví kdy chce** (Martin) – stavbu smí zablokovat jen **cena předem** (`costs.ts`:
   `BUILD_COSTS`, `buildAffordability`): suroviny ze zásob (dnes žádné) a u obydlí **lidé
   k osídlení** (`settlers` = `availableSettlers` v `households.ts`: možné nové domácnosti
@@ -1439,7 +1477,11 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
 - **Odchod do nové vsi** (migration.md, fáze 3 a 4; `departure.ts`): `departVillage` – domácnosti
   vybraných obydlí odejdou celé (rodokmen – rodiče osadníků jako předci, odešlí ve staré vsi
   v `ancestors` / `emigrants` se směrem), s jídlem `leavingFood` (`LEAVING`: 25 kg na člověka od
-  7 let, nejvýš poměrný díl zásob, ze všech zásob stejný podíl) a poměrným dílem stád; domy
+  7 let, nejvýš poměrný díl zásob, ze všech zásob stejný podíl; s vozem navíc jeho náklad)
+  a poměrným dílem stád; **vůz s voly** (migration.md – Vůz při odchodu: `leavingCart` – vůz doma
+  a voli nad páry k rádlům, celá ves bere i ty, napřed čtyřkolák; `takeLeavingCart`,
+  `Settlers.cart` / `oxen`; v nové vsi `VillageState.looseOxen` – s první ohradou volů do ní
+  `looseOxenDay`; náhled `VillageLeave.cart` / `allCart`, popisek odchodu); domy
   zůstanou prázdné, kronika `households-left`. Odejdou-li všichni, `abandonedDay` + kronika
   `village-abandoned` – ves se nesimuluje (`isVillageDormant` v `advanceVillageSteps`: vymřelá,
   opuštěná, na cestě), akce odmítne `updateLivingVillage` (`VILLAGE_ABANDONED`,

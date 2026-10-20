@@ -106,7 +106,10 @@ Vzhled podle Martina (modely se připravují v `tools/blender/`):
 - **Hrnčíř:** kope hlínu u potoka, tvaruje a vypaluje nádoby. **1 kg keramiky = 1 člověkoden**
   (nedohledáno, návrh Clauda), topí dřevem z lesa: **1 strom na 500 kg** vypálené keramiky
   (oprava podle rešerše, dřív 400 – tradiční pece spálí 0,8–1,2 kg dřeva na kg keramiky, Adubah
-  2025). Hlína dál od vody: stejná přirážka jako ruda.
+  2025). Hlínu kope na hliništi u potoka a nosí ji v koších, nebo ji přiveze vůz se sedlákem –
+  **1,5 kg hlíny na kg keramiky** ([Hlína hrnčíře](#hlína-hrnčíře), od 20. 10. 2026; dřívější
+  přirážka +1 % za 10 m nad 100 m od dílny k potoku zmizela – nahradila ji skutečná cesta na
+  hliniště).
 
 ## Uhlíř – buky, milíř a obnova lesa
 
@@ -293,8 +296,7 @@ nejsou ověřené).
   vůz by se nevyplatil nikdy a Martin by ho nikdy neviděl; ruda se kope napřed a leží na hromadě
   (rešerše: ruda se nechá odtéct a vysušit, praží se u ložiska), vůz pro ni přijede, jakmile je
   dávka vykopaná. Nepřijede-li den po vykopání a kovář nemá rudu na dnešek, donese ji pěšky.
-- **Přirážka za rudu u kováře zmizela** (`oreFactor` = 1) – nahradila ji skutečná cesta na
-  rudiště. U hrnčíře (hlína) zůstává.
+- **Přirážka za rudu u kováře zmizela** – nahradila ji skutečná cesta na rudiště. U hrnčíře od 20. 10. 2026 taky ([Hlína hrnčíře](#hlína-hrnčíře)) – `oreFactor` je pryč.
 - **Rudiště:** buňka mokřiny u potoka (`PATH_WETLAND` terénu pěšin – suchá rovina do 3 buněk od
   vody) **nejblíž kovárně** vzdušnou čarou; bez mokřiny suchý břeh (`PATH_WATER_SPOT`). Ne na poli,
   v sadu, na hřbitově, v ohradě, v lese vsi ani do 12 m od domů (rozhodnutí Clauda – jámy v poli
@@ -373,6 +375,81 @@ od něj s vypáleným milířem, dvoukolák a spřežení), dva roky simulace se
 | Rudiště ne na poli, v sadu, na hřbitově, v ohradě, v lese vsi ani u domů                    | rozhodnutí Clauda                                                             |
 | Přirážka za rudu u kováře zmizela (cesta na rudiště), u hrnčíře zůstává                     | návrh Clauda                                                                  |
 | Rudiště jde vybrat – panel s ložiskem, hromadou, jámami, kovárnou a dnešními kopáči         | Martin (20. 10. 2026), podoba panelu návrh Clauda                             |
+
+## Hlína hrnčíře
+
+Martin (20. 10. 2026) k návrhu nových nákladů vozů ([vozy](wagons.md) – Co se vozí a na čem):
+„**Ano, udělej to jak říkáš**“ – hlína pro hrnčíře od potoka, hrnčíř kope, vůz se sedlákem.
+Koordinátor: hlínu stejným vzorem jako rudu ([Uhlí a ruda kováře](#uhlí-a-ruda-kováře)) – hlína se
+nakope napřed na hromadu u jámy a vůz pro ni přijede; kolik hlíny hrnčíř potřebuje, jde podle
+výkonu dílny podle praxe ([Učení řemesla](#učení-řemesla)), jako ostatní výroba. Čísla návrh
+Clauda (odhad, `CLAY` v `rules.ts`).
+
+- **Kolik hlíny:** **1,5 kg vlhké hlíny na kg vypálené keramiky** (voda ≈ 20 % a ztráta žíháním,
+  čištění od kamínků a kořenů, zmetky při sušení a výpalu). Hrnčíř točí a vypaluje jen z hlíny,
+  kterou má u dílny (`Workshop.clayKg`); bez ní stojí.
+- **Kopání:** **300 kg hlíny za člověkoden** (hlína se jen vykope a naloží do košů – plavení,
+  hnětení a ostřivo jsou v práci hrnčíře 1 čd na kg) a přirážka za chůzi na hliniště jako u rudy
+  (+1 % za 10 m nad 100 m). Kopou dospělí hrnčířovy domácnosti a synové od 14 let – z práce
+  dílny, před hrnčířstvím (kope-li se, je dílna „Kope hlínu“). Výkon podle praxe kopání
+  nezrychluje (jako u rudy) – jen to, kolik hlíny dílna za den spotřebuje.
+- **Dávky:** když hlína u dílny nestačí na dnešní hrnčířství na plný úvazek (práce × výkon podle
+  praxe ÷ 1 čd na kg × 1,5 kg), začne hrnčíř dávku **na 30 dní hrnčířství** (aspoň jeden koš) –
+  vykopanou hlínu hned nosí v koších po **25 kg** do dílny. S vozem doma, když jízda k hliništi
+  ušetří práci, kope **na celý dvoukolák** (400 kg) a začne dřív, dokud mu hlína vystačí na
+  kopání dávky a 15 dní hrnčířství (`CART_JOBS.clay.reserveDays`) – hlína leží na hromadě u jámy.
+- **S vozem:** hrnčíř (nebo syn od 14) a sedlák s vozem dojedou k hromadě u jámy, naloží ji
+  a vrátí se – sedlák z práce vsi před úlohami dne (jako u uhlí a rudy), hrnčíř z práce dílny;
+  vůz jede, jen když jízda obou stojí méně než nošení v koších. V pořadí jízd mimo svoz po rudě
+  (`CART_JOBS.order`: uhlí – ruda – hlína – osivo – voda); jen dvoukolákem.
+- **Hliniště:** jako rudiště – mokřina u potoka (bez ní suchý břeh) **nejblíž dílně**, ne na
+  poli, v sadu, na hřbitově, v ohradě, v lese vsi ani u domů, a **aspoň 20 m od míst, kde kopou
+  jiné dílny** (rudiště a hliniště se nepřekrývají – rozhodnutí Clauda; platí i pro nové rudiště).
+  Vydrží **20 t hlíny** (jílové vrstvy u potoka jsou mocné – vesnický hrnčíř s ≈ 300–600 kg
+  keramiky ročně vydrží na jednom místě desítky let), pak další aspoň 20 m od vyčerpaného
+  (`Workshop.claySite`, `claySitesUsed`). Bez mokřiny i vody – `no-clay`, hrnčíř pracuje se vsí,
+  upozornění „Hrnčíř nemá hlínu“.
+- **Jámy:** každá dávka otevře jámu hlíny kousek kolem hliniště (`VillageState.orePits` s `clay`),
+  zarůstá a po 10 letech zmizí jako jámy rudiště.
+- **Kód:** rudu i hlínu kope jedna funkce `workDug` (`smith-supply.ts` – `DugMaterial`: zásoba,
+  místo, dávka a čísla po surovinách), hrnčíř `workPotter` (`crafts.ts`), vůz `oreCartOffer`
+  a `oreCartDrive` s druhem suroviny (`cart-jobs.ts`), jízdy `planCartJobs` (job `clay`).
+
+### Starší vsi – hlína
+
+- Dílna hrnčíře bez `clayKg` (z doby před hlínou) dostane v prvním dni kroku práce zásobu **na
+  jednu dávku** (30 dní hrnčířství při dnešní práci a praxi – `migratePotter`), hliniště se vybere
+  až při prvním kopání.
+- **Hrnčíř se tím mění** – přirážka za vodu daleko zmizela a hlínu kope a nosí. Zlatý otisk vsi bez
+  kováře (`smith-golden.test.ts`) proto hrnčíře už nemá; ves bez kováře a hrnčíře vyšla kódem před
+  hlínou i s ní stejně.
+
+### Vlkov – hlína
+
+Vlkov hrnčíře nemá; sonda na kopii Vlkova z 19. 1. 801 s přidanou dílnou hrnčíře 25 m od kovárny
+(vyučený pár, dva roky): hliniště vyšlo v mokřině ≈ **522 m** chůze od dílny, vůz k němu 741 m po
+louce; hrnčíř kopal na celý dvoukolák (2 dávky po 400 kg, 3,8 čd kopání za dva roky), hlínu
+přivezl **sedlák s vozem** (2 jízdy, hrnčíř jel s ním), pěšky nenosil nic. Keramika došla na cílovou
+zásobu (≈ 270 kg) za ≈ 9 měsíců, pak hrnčíř odpočíval a pomáhal vsi.
+
+### Co hráč vidí – hlína
+
+- **Panel dílny hrnčíře:** hlína v dílně (kg, ikona `resources/clay`), hliniště – cesta z dílny
+  (m, v bublině kolik hlíny zbývá), vůz se sedlákem; činnosti „Kope hlínu“ a „Nemá hlínu“.
+- **Ve scéně:** jámy hliniště jako jámy rudiště, jen se šedookrovou stěnou jílu, a hromada hlíny
+  u jámy; kopáči u jámy, nosiči s koši a vůz s hromadou hlíny (`wagon2-clay` – hladké hroudy
+  seříznuté rýčem, `tools/blender/wagons_from_0ad.py`).
+
+### Rozhodnutí – hlína
+
+| Rozhodnutí                                                                                     | Kdo                                               |
+| ---------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| Hlína pro hrnčíře od potoka – hrnčíř kope, vůz se sedlákem                                     | návrh Clauda, Martin („Ano, udělej to jak říkáš“) |
+| Hlína stejným vzorem jako ruda – hromada u jámy, vůz pro ni přijede; potřeba podle praxe dílny | návrh Clauda                                      |
+| 1,5 kg hlíny na kg keramiky, 300 kg za čd + přirážka za chůzi, koš 25 kg, hliniště 20 t        | návrh Clauda (odhad)                              |
+| Přirážka za vodu daleko u hrnčíře zmizela (cesta na hliniště)                                  | návrh Clauda                                      |
+| Rudiště a hliniště aspoň 20 m od míst, kde kopou jiné dílny                                    | rozhodnutí Clauda                                 |
+| Hlína jen dvoukolákem, v pořadí jízd po rudě                                                   | rozhodnutí Clauda                                 |
 
 ## Učení řemesla
 
@@ -609,9 +686,11 @@ Rozhodnutí kontroléru při implementaci (18. 10. 2026) – kde návrh necháva
   strom, který nepatří jiné stavbě ani dílně a není posvátný (vyhradí ho), skácí ho (2 čd + 1 %
   za 10 m nad 100 m – uhlíř od milíře, hrnčíř od dílny, zůstane pařez) a teprve pak z něj vyrábějí
   (120 kg uhlí po 10 kg za čd; 500 kg keramiky po 1 čd za kg). Kovář kuje z uhlí ze zásob
-  (dílny pracují v pořadí uhlíř → hrnčíř → kovář, dnešní uhlí jde hned do výhně). Přirážka za
-  hlínu se měří od políčka dílny k nejbližšímu políčku vody (u kováře od 20. 10. 2026 žádná –
-  [Uhlí a ruda kováře](#uhlí-a-ruda-kováře)). Uhlí neubývá.
+  (dílny pracují v pořadí uhlíř → hrnčíř → kovář, dnešní uhlí jde hned do výhně). Vzdálenost
+  dílny k vodě (od políčka dílny k nejbližšímu políčku vody) už práci nepřirážkuje – kovář
+  i hrnčíř chodí na rudiště a hliniště ([Uhlí a ruda kováře](#uhlí-a-ruda-kováře),
+  [Hlína hrnčíře](#hlína-hrnčíře)); bez krajiny je to vzdálenost místa, kde kopou. Uhlí
+  neubývá.
 - **Opotřebení jen toho, co ves používá**: denně 30 % / 365 nástrojů a 40 % / 365 nádob z toho, co
   je v užívání (nejvýš potřeba) – ves, která potřebu drží pokrytou, ročně nahradí právě 30 % a 40 %
   (40 pracujících ≈ 36 kg nástrojů); přebytek v zásobě leží.

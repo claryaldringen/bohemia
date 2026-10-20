@@ -62,9 +62,11 @@ export interface FieldTaskWork {
  * před úlohami (`DayAllocation.carting` – crafts.md, Uhlí a ruda kováře), ostatní v práci úlohy.
  */
 export interface HaulWork {
-  job: 'harvest' | 'mow' | 'logs' | 'charcoal' | 'ore' | 'seed' | 'water';
+  job: 'harvest' | 'mow' | 'logs' | 'charcoal' | 'ore' | 'clay' | 'seed' | 'water' | 'apples';
   manDays: number;
   carts: number;
+  /** Z vozů čtyřkoláky (svoz podél cest); chybí = žádný. */
+  four?: number;
   trees?: number[];
   target?: LaborTarget;
 }
@@ -139,6 +141,7 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
     carts?: number,
     job?: CartJob,
     ages?: readonly number[],
+    fourWheel?: number,
   ): void => {
     const rounded = Math.round(manDays * 1000) / 1000;
     if (rounded < MIN_MAN_DAYS) return;
@@ -148,6 +151,7 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
       manDays: rounded,
       ...(construction === undefined ? {} : { construction }),
       ...(carts ? { carts } : {}),
+      ...(fourWheel ? { fourWheel } : {}),
       ...(job ? { job } : {}),
       ...(ages && ages.length > 0 ? { ages: [...ages] } : {}),
     });
@@ -170,8 +174,19 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
       const manDays = Math.min(haul.manDays, limit - total);
       total += manDays;
       const cartJob =
-        job === 'seed' || job === 'water' || job === 'charcoal' || job === 'ore' ? job : undefined;
-      add('haul', place ?? { kind: 'village' }, manDays, undefined, haul.carts, cartJob);
+        job === 'seed' || job === 'water' || job === 'charcoal' || job === 'ore' || job === 'clay'
+          ? job
+          : undefined;
+      add(
+        'haul',
+        place ?? { kind: 'village' },
+        manDays,
+        undefined,
+        haul.carts,
+        cartJob,
+        undefined,
+        haul.four,
+      );
     }
     return total;
   };
@@ -207,6 +222,7 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
   // uhlí a ruda ke kováři vozem se sedlákem (crafts.md – Uhlí a ruda kováře) – u milíře a rudiště
   haulTo('charcoal', null);
   haulTo('ore', null);
+  haulTo('clay', null);
   add('slaughter', { kind: 'village' }, allocation.tasks.slaughter);
   const orchards = orchardAreas(state);
   for (const task of ['orchard-care', 'orchard-harvest'] as const) {
@@ -214,6 +230,11 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
       add(task, target, allocation.tasks[task] * share);
     }
   }
+  // jablka ze sadu vozem (orchard.md – Jablka vozem) – u největšího sadu
+  const orchardTarget = orchards
+    .filter((o) => o.target.kind === 'orchard')
+    .sort((a, b) => b.share - a.share)[0]?.target;
+  haulTo('apples', orchardTarget ?? null);
 
   for (const repair of work.repairs) {
     add('repair', { kind: 'dwelling', id: repair.dwellingId }, repair.manDays);
@@ -258,6 +279,19 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
       add(
         'ore',
         { kind: 'ore', id: w.dwellingId, x, z },
+        manDays,
+        undefined,
+        undefined,
+        undefined,
+        ages,
+      );
+    }
+    // hrnčíř: kopání hlíny na hliništi (crafts.md – Hlína hrnčíře)
+    if (w.clay) {
+      const { manDays, ages, x, z } = w.clay;
+      add(
+        'clay',
+        { kind: 'clay', id: w.dwellingId, x, z },
         manDays,
         undefined,
         undefined,

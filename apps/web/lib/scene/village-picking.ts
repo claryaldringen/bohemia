@@ -179,7 +179,12 @@ export function pickVillageTarget(
   }
   if (best) return { kind: 'sacred-oak', id: best.id };
   for (const site of village.oreSites ?? []) {
-    const discs = oreSiteDiscs(site, village.orePits);
+    // hliniště hrnčíře (crafts.md – Hlína hrnčíře) se zatím nevybírá – klik projde dál
+    if (site.clay) continue;
+    const discs = oreSiteDiscs(
+      site,
+      village.orePits?.filter((p) => !p.clay),
+    );
     const base = options.groundHeight(site.x, site.z);
     // jámy leží na zemi, hromada rudy je vysoká ≈ 0,55 poloměru
     const top = oreHeapRadius(site) * 0.55;

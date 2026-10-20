@@ -6,10 +6,14 @@ import {
   cartIronKg,
   ironCarrier,
   ironPriceKg,
-  ironRoute,
+  ironOptions,
+  ironPlan,
   mapTripDays,
   smithAtHome,
+  ironTripHelpers,
 } from '../cart-iron';
+import { cartsAway, haulCartsToday } from '../carts';
+import { withOxen } from '../oxen';
 import { neighbourCrafts, productPrice, purchaseRoute } from '../craft-buying';
 import { neighbourSnapshot } from '../neighbourhood';
 import { summarizeVillage } from '../summary';
@@ -105,6 +109,31 @@ function withWaitingCart(s: VillageState, sons: number[] = []): VillageState {
 
 const carpenter = (s: VillageState) => s.dwellings.find((d) => d.id === CARPENTER_ID)!.workshop!;
 
+/** Přidá do první zemnice `n` dospělých – malá skupina vsi (polovina dospělých) je pak větší. */
+function crowd(s: VillageState, n: number): VillageState {
+  for (let i = 0; i < n; i++) {
+    s.people.push(person(200 + i, 25, 1, { sex: i % 2 === 0 ? 'male' : 'female' }));
+  }
+  return s;
+}
+
+/** Ohrada volů s vycvičeným párem (převod starší ohrady – `withOxen`). */
+function withTeamPen(s: VillageState): VillageState {
+  s.pens = [
+    {
+      id: 900,
+      species: 'team',
+      cell: { x: 3, y: 4 },
+      x: 50,
+      z: 60,
+      builtDay: DAY - 800,
+      team: { readyDay: DAY - 10 },
+      training: null,
+    },
+  ];
+  return s;
+}
+
 describe('vůz má kování (wagons.md – Kování vozů)', () => {
   it('dvoukolák 3 kg, čtyřkolák 6 kg', () => {
     expect(cartIronKg('two-wheel')).toBe(3);
@@ -187,7 +216,7 @@ describe('ves bez kováře – tesař jde pro kování (wagons.md – Kování v
   });
 
   it('syn jde k nejbližšímu sousedovi s kovářem, ves platí obilím a vůz dostaví po návratu', () => {
-    const s = withWaitingCart(village(), [16]);
+    const s = crowd(withWaitingCart(village(), [16]), 9);
     expect(smithAtHome(s)).toBe(false);
     const from = { x: 40, z: 0 };
     const routes = NEIGHBOR_DIRECTIONS.filter((d) => neighbourCrafts(s.seed, d).includes('smith'))
@@ -202,10 +231,15 @@ describe('ves bez kováře – tesař jde pro kování (wagons.md – Kování v
         cart: 'two-wheel',
         son: true,
         direction: nearest.direction,
+        porters: 6,
       }),
     ]);
     const trip = carpenter(s).ironTrip!;
     expect(trip).toMatchObject({ personId: 62, son: true, days: nearest.days, done: 0, kg: 3 });
+    // 173 kg obilí neunese sám – jde s ním 6 nosičů z vsi (7 nákladů po 25 kg)
+    expect(trip.porters).toBe(6);
+    expect(trip.tripDays).toBeUndefined();
+    expect(ironTripHelpers(s)).toBe(6);
     // platba obilím jako nákup nástrojů u souseda (0,96 hodnoty)
     expect(ironPriceKg(3)).toBeCloseTo(3 * productPrice('toolsKg'), 9);
     expect(stores - s.storesKg).toBeCloseTo(ironPriceKg(3), 6);
@@ -234,6 +268,71 @@ describe('ves bez kováře – tesař jde pro kování (wagons.md – Kování v
     expect(carpenter(s).ironTrip).toBeNull();
   });
 
+  it('malá ves – nosičů je, kolik jich skupina vsi dá, a jdou víckrát', () => {
+    // 5 dospělých – skupina nejvýš 2 (polovina), 7 nákladů po 25 kg → 4 cesty tam a zpět
+    const s = withWaitingCart(village(), [16]);
+    cartIronDay(s, DAY + 1, null);
+    const trip = carpenter(s).ironTrip!;
+    expect(trip.porters).toBe(1);
+    expect(trip.tripDays).toBeGreaterThan(0);
+    expect(trip.days).toBe(trip.tripDays! * 4);
+    expect(ironTripHelpers(s)).toBe(1);
+  });
+
+  it('čtyřkolák – 346 kg obilí nese skupina 8 lidí dvakrát', () => {
+    const s = crowd(withWaitingCart(village(), [16]), 13);
+    carpenter(s).cart = { kind: 'four-wheel', done: CARPENTRY.cartManDays['four-wheel'] };
+    cartIronDay(s, DAY + 1, null);
+    const trip = carpenter(s).ironTrip!;
+    expect(trip.grainKg).toBeCloseTo(ironPriceKg(6), 2);
+    expect(trip.porters).toBe(7);
+    expect(trip.days).toBe(trip.tripDays! * 2);
+  });
+
+  it('volný vůz s volem po stezce sjízdné pro vozy – platbu veze vůz se sedlákem, nosiči nejdou', () => {
+    const base = withTeamPen(crowd(withWaitingCart(village(), [16]), 9));
+    base.carts = [{ id: 7, kind: 'two-wheel', builtDay: DAY - 10 }];
+    const direction = NEIGHBOR_DIRECTIONS.find((d) =>
+      neighbourCrafts(base.seed, d).includes('smith'),
+    )!;
+    base.trails = [
+      { id: 1, direction, pieces: [], lengthM: 300, startedDay: DAY - 50, builtDay: DAY - 10 },
+    ];
+    const s = withOxen(base);
+    expect(haulCartsToday(s, DAY + 1, false)).toBe(1);
+    const events = cartIronDay(s, DAY + 1, null);
+    expect(events).toEqual([
+      expect.objectContaining({ kind: 'iron-trip', direction, byCart: true, son: true }),
+    ]);
+    const trip = carpenter(s).ironTrip!;
+    expect(trip).toMatchObject({ cartId: 7, to: { kind: 'neighbour', trailId: 1 } });
+    expect(trip.porters).toBeUndefined();
+    // vůz i vůl jsou pryč, jede s nimi sedlák z vsi
+    expect(cartsAway(s).has(7)).toBe(true);
+    expect(haulCartsToday(s, DAY + 2, false)).toBe(0);
+    expect(ironTripHelpers(s)).toBe(1);
+    // bez stezky jdou nosiči – vůz krajinou nejede
+    const foot = withOxen(withTeamPen(crowd(withWaitingCart(village(), [16]), 9)));
+    foot.carts = [{ id: 7, kind: 'two-wheel', builtDay: DAY - 10 }];
+    cartIronDay(foot, DAY + 1, null);
+    expect(carpenter(foot).ironTrip).toMatchObject({ porters: 6 });
+    expect(carpenter(foot).ironTrip!.cartId).toBeUndefined();
+  });
+
+  it('nosiči chybí v práci vsi – v rozdělení práce dne jsou na cestě', () => {
+    const s = crowd(withWaitingCart(village(), [16]), 9);
+    cartIronDay(s, DAY, null);
+    s.lastDay = DAY;
+    const next = advanceVillage(s, DAY + 1, null);
+    const trade = next.labor!.shares.filter((share) => share.activity === 'trade');
+    expect(trade.reduce((sum, share) => sum + share.manDays, 0)).toBeCloseTo(6, 9);
+    // bez cesty nikdo pryč není
+    const home = crowd(withWaitingCart(village(), [16]), 9);
+    home.storesKg = 0;
+    const stay = advanceVillage(home, DAY + 1, null);
+    expect(stay.labor!.shares.some((share) => share.activity === 'trade')).toBe(false);
+  });
+
   it('ves, která šetří jídlem nebo nemá obilí na platbu, nikoho nepošle – vůz čeká', () => {
     const s = withWaitingCart(village(), [16]);
     s.hungry = true;
@@ -246,7 +345,7 @@ describe('ves bez kováře – tesař jde pro kování (wagons.md – Kování v
   });
 
   it('druhá ves hráče na téže mapě s kovárnou, když je blíž než soused', () => {
-    const s = withWaitingCart(village(), [16]);
+    const s = crowd(withWaitingCart(village(), [16]), 9);
     s.neighbours = {
       dwellings: [],
       sacredBuildings: [],
@@ -256,12 +355,15 @@ describe('ves bez kováře – tesař jde pro kování (wagons.md – Kování v
       reserved: [],
       smithies: [{ x: 340, z: 0, name: 'Lhota' }],
     };
-    const near = ironRoute(s, { x: 40, z: 0 }, null)!;
+    const options = ironOptions(s, DAY, { x: 40, z: 0 }, null, ironPriceKg(3));
+    const near = ironPlan(options, false)!;
     expect(near.to).toEqual({ kind: 'village', name: 'Lhota', x: 340, z: 0 });
     expect(near.days).toBe(mapTripDays(300));
+    // 7 lidí × dny cesty
+    expect(near.labor).toBe(7 * mapTripDays(300));
     const events = cartIronDay(s, DAY + 1, null);
     expect(events).toEqual([
-      { day: DAY + 1, kind: 'iron-trip', cart: 'two-wheel', to: 'Lhota', son: true },
+      { day: DAY + 1, kind: 'iron-trip', cart: 'two-wheel', to: 'Lhota', son: true, porters: 6 },
     ]);
     // se zemskou stezkou ke kováři souseda je soused blíž než kovárna na kraji mapy
     const direction = NEIGHBOR_DIRECTIONS.find((d) =>
@@ -272,11 +374,54 @@ describe('ves bez kováře – tesař jde pro kování (wagons.md – Kování v
     ];
     s.neighbours.smithies = [{ x: 2_000, z: 0, name: 'Daleko' }];
     expect(mapTripDays(1_960)).toBeGreaterThan(purchaseRoute(s, direction, null).days);
-    expect(ironRoute(s, { x: 40, z: 0 }, null)!.to).toMatchObject({
-      kind: 'neighbour',
-      direction,
-      trailId: 1,
+    const far = ironOptions(s, DAY, { x: 40, z: 0 }, null, ironPriceKg(3));
+    expect(ironPlan(far, false)!.to).toMatchObject({ kind: 'neighbour', direction, trailId: 1 });
+  });
+
+  it('ves volí nejmenší práci celkem – vozem k dalšímu kováři místo nosičů k nejbližšímu', () => {
+    // nejbližší kovář: ves na téže mapě 300 m (pěšky 7 lidí × 3 dny = 21 čd); soused po stezce
+    // sjízdné pro vozy (3 dny) – vozem tesař a sedlák × 3 dny = 6 čd
+    const base = withTeamPen(crowd(withWaitingCart(village(), [16]), 9));
+    base.carts = [{ id: 7, kind: 'two-wheel', builtDay: DAY - 10 }];
+    base.neighbours = {
+      dwellings: [],
+      sacredBuildings: [],
+      cells: [],
+      cleared: [],
+      felled: [],
+      reserved: [],
+      smithies: [{ x: 340, z: 0, name: 'Lhota' }],
+    };
+    const direction = NEIGHBOR_DIRECTIONS.find((d) =>
+      neighbourCrafts(base.seed, d).includes('smith'),
+    )!;
+    // delší stezka – soused je dál (dny) než ves na mapě
+    base.trails = [
+      { id: 1, direction, pieces: [], lengthM: 900, startedDay: DAY - 50, builtDay: DAY - 10 },
+    ];
+    const s = withOxen(base);
+    const options = ironOptions(s, DAY, { x: 40, z: 0 }, null, ironPriceKg(3));
+    const foot = ironPlan(options, false)!;
+    const any = ironPlan(options, true)!;
+    expect(foot).toMatchObject({ to: { kind: 'village' }, cart: false, porters: 6 });
+    expect(any).toMatchObject({ to: { kind: 'neighbour', direction }, cart: true, porters: 0 });
+    expect(any.days).toBeGreaterThan(foot.days);
+    expect(any.labor).toBe(2 * any.days);
+    expect(any.labor).toBeLessThan(foot.labor);
+    cartIronDay(s, DAY + 1, null);
+    expect(carpenter(s).ironTrip).toMatchObject({
+      cartId: 7,
+      to: { kind: 'neighbour', direction },
     });
+    // rok vozů vidí, kolik práce vůz ušetřil (wagons.md – Kolik vozů ves chce)
+    expect(s.draft!.demand!.days!.at(-1)!.j![0]).toBeCloseTo(foot.labor - any.labor, 2);
+  });
+
+  it('při shodě práce kratší cesta', () => {
+    const s = crowd(withWaitingCart(village(), [16]), 9);
+    const options = ironOptions(s, DAY, { x: 40, z: 0 }, null, ironPriceKg(3));
+    const best = ironPlan(options, false)!;
+    expect(options.every((o) => o.labor > best.labor || o.days >= best.days)).toBe(true);
   });
 
   it('kdo cestou zemřel, kování nepřinese – vůz čeká a jde jiný', () => {
@@ -349,6 +494,8 @@ describe('kování v panelu dílny tesaře (wagons.md – Kování vozů)', () =
         daysLeft: trip.days,
         son: true,
         age: 16,
+        porters: trip.porters ?? 0,
+        cart: null,
       },
     });
   });

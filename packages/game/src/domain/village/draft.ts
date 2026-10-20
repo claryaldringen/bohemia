@@ -1,4 +1,4 @@
-import { CART_KINDS, villageCarts } from './carts';
+import { CART_KINDS, cartLoadRatio, villageCarts } from './carts';
 import { HAY, HAY_WINTER_DAYS } from './hay';
 import { oxPens, oxPlaces, villageOxen } from './oxen';
 import {
@@ -9,7 +9,14 @@ import {
   FELLING_MAN_DAYS_PER_TREE,
   OXEN,
 } from './rules';
-import type { CartDemand, CartKind, DraftState, VillageState } from './types';
+import type {
+  CartDemand,
+  CartDemandDay,
+  CartKind,
+  CartYear,
+  DraftState,
+  VillageState,
+} from './types';
 
 // Kolik volů a vozů ves chce (oxen.md – Kolik volů ves chce, wagons.md – Kolik vozů ves chce;
 // Martin 20. 10. 2026: „Vesnice určitě potřebuje více vozů. Ať to funguje jako se stády - ohrada
@@ -93,26 +100,24 @@ export interface DraftChoice {
   oxen: number;
 }
 
-/** Součet prvních `n` úspor. */
-function firstSum(values: readonly number[], n: number): number {
-  let sum = 0;
-  for (let k = 0; k < n && k < values.length; k++) sum += values[k]!;
-  return sum;
-}
+/** Úspora vozů za rok podle počtu vozů a volů ve dny orby (`CartYear`). */
+type YearTable = Pick<CartYear, 'base' | 'plough'>;
 
 /**
- * Vozy, které se vyplatí (wagons.md – Kolik vozů ves chce): ze všech počtů dvoukoláků,
- * čtyřkoláků a volů, kteří se vejdou do `places` míst, ten, kde loňská úspora (`year` – k-tý vůz
- * ušetřil `year[kind][k]`) mínus cena vozů (`cartYearCost`) a volů navíc nad páry k rádlům
- * (`year.oxCost`) vyjde nejvýš; při shodě méně vozů a volů. Voli táhnou vozy naráz (dvoukolák
- * jeden, čtyřkolák dva); ve dny orby jezdí jen dvoukoláky s voly, kteří neorají (`year.plough`) –
- * na ně ves může držet vola navíc. Páry k rádlům nejvýš, kolik se jich vejde.
+ * Vozy, které se vyplatí (wagons.md – Kolik vozů ves chce): ze všech počtů dvoukoláků (do 12),
+ * čtyřkoláků (do 4) a volů, kteří se vejdou do `places` míst, ten, kde loňská úspora (`year` –
+ * `base` mimo dny orby i s výpravami, `plough` ve dny orby podle volů, kteří neorají) mínus cena
+ * vozů (`cartYearCost`) a volů navíc nad páry k rádlům (`year.oxCost`) vyjde nejvýš; při shodě
+ * méně vozů a volů. Voli táhnou vozy naráz (dvoukolák jeden, čtyřkolák dva); ve dny orby jezdí jen
+ * s voly, kteří neorají – na ně ves může držet voly navíc. Páry k rádlům nejvýš, kolik se jich
+ * vejde.
  */
 export function chooseCarts(
-  year: CartDemand & { oxCost: number },
+  year: CartYear | (CartDemand & { oxCost: number }),
   wantedPairs: number,
   places: number,
 ): DraftChoice {
+  const table = yearTable(year);
   const pairs = Math.min(wantedPairs, Math.floor(places / DRAFT_OXEN.ard));
   const ploughOxen = pairs * DRAFT_OXEN.ard;
   let best: DraftChoice = {
@@ -127,11 +132,13 @@ export function chooseCarts(
       const carts = { 'two-wheel': two, 'four-wheel': four };
       const oxenOfCarts = cartsOxen(carts);
       const fromOxen = Math.max(ploughOxen, oxenOfCarts);
-      const saved = firstSum(year['two-wheel'], two) + firstSum(year['four-wheel'], four);
+      const saved = table.base[two]?.[four] ?? 0;
+      const row = table.plough[two]?.[four] ?? [];
       const cartCost = two * cartYearCost('two-wheel') + four * cartYearCost('four-wheel');
-      // voli: aspoň na vozy a páry, nejvýš tolik, aby ve dny orby jezdily všechny dvoukoláky
-      for (let oxen = fromOxen; oxen <= Math.min(places, ploughOxen + two); oxen++) {
-        const ploughDay = firstSum(year.plough, Math.min(two, oxen - ploughOxen));
+      // voli: aspoň na vozy a páry, nejvýš tolik, aby ve dny orby jezdily všechny vozy
+      for (let oxen = fromOxen; oxen <= Math.min(places, ploughOxen + oxenOfCarts); oxen++) {
+        const free = Math.min(oxen - ploughOxen, row.length - 1);
+        const ploughDay = free >= 0 ? (row[free] ?? 0) : 0;
         const net = saved + ploughDay - cartCost - (oxen - ploughOxen) * year.oxCost;
         if (net > bestNet + EPSILON) {
           bestNet = net;
@@ -227,7 +234,7 @@ export function oxenCows(state: Pick<VillageState, 'pens' | 'draft' | 'carts'>):
 
 /** Nový rok vozů od dne `day`. */
 function emptyDemand(day: number): CartDemand {
-  return { from: day, 'two-wheel': [], 'four-wheel': [], plough: [] };
+  return { from: day, days: [], 'four-wheel': [] };
 }
 
 /** Rok vozů, který běží (mutuje stav – bez něj začne dnes). */
@@ -242,20 +249,42 @@ function addSavings(row: number[], savings: readonly number[], max: number): voi
   for (let k = 0; k < sorted.length && k < max; k++) row[k] = (row[k] ?? 0) + sorted[k]!;
 }
 
+/** Na setiny. */
+function cents(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+/** Co by dnes vozy ušetřily (`addCartDemand`): nošení podél cest a jinam a jízdy dvoukoláku. */
+export interface CartDemandToday {
+  /** Nošení (čd), kam dojede i čtyřkolák – podél pevných cest. */
+  road: number;
+  /** Nošení (čd), kam dojede jen dvoukolák. */
+  other: number;
+  /** Úspory jízd dvoukoláku pro uhlí, rudu, hlínu a vodu (čd na vůz). */
+  jobs: number[];
+}
+
 /**
- * Den provozu vozů (wagons.md – Kolik vozů ves chce; mutuje stav): úspory jednotlivých dvoukoláků
- * dne (čd – co by vozy dnes ušetřily, kdyby jich bylo dost; `plough` – den orby) se přičtou do roku
- * vozů od největší. I den bez úspor rok vozů založí – ves s ohradou volů ví, že vozy nepotřebovala.
+ * Den provozu vozů (wagons.md – Kolik vozů ves chce; mutuje stav): dnešní nošení tam, kam vůz
+ * dojede, a jízdy dvoukoláku (`today`; `plough` – den orby) se zapíšou do roku vozů. I den bez
+ * práce rok vozů založí – ves s ohradou volů ví, že vozy nepotřebovala.
  */
 export function addCartDemand(
   state: VillageState,
   day: number,
-  savings: readonly number[],
+  today: CartDemandToday,
   plough: boolean,
 ): void {
   const demand = runningDemand(state, day);
-  const row = plough ? demand.plough : demand['two-wheel'];
-  addSavings(row, savings, CART_DEMAND.maxCarts['two-wheel']);
+  const jobs = today.jobs.filter((j) => j > EPSILON).map(cents);
+  if (today.road <= EPSILON && today.other <= EPSILON && jobs.length === 0) return;
+  const rec: CartDemandDay = {
+    ...(today.road > EPSILON ? { r: cents(today.road) } : {}),
+    ...(today.other > EPSILON ? { o: cents(today.other) } : {}),
+    ...(jobs.length > 0 ? { j: jobs } : {}),
+    ...(plough ? { p: 1 as const } : {}),
+  };
+  (demand.days ??= []).push(rec);
 }
 
 /**
@@ -274,24 +303,114 @@ export function addExpeditionDemand(
 }
 
 /**
+ * Úspora vozů za den (čd): čtyřkoláky (`four`) napřed na nošení podél cest (za den odvezou
+ * dvakrát víc se stejnou posádkou), dvoukoláky (`two`) na zbytek nošení po plných nákladech
+ * a na jízdy pro uhlí, rudu, hlínu a vodu – od největší úspory (jako skutečné vozy – `fleetHaulPlan`).
+ */
+export function cartDayValue(rec: CartDemandDay, two: number, four: number): number {
+  const cap2 = CARTS.carrierManDays;
+  const cap4 = cap2 * cartLoadRatio('four-wheel');
+  let road = rec.r ?? 0;
+  let value = 0;
+  for (let k = 0; k < four && road > EPSILON; k++) {
+    const take = Math.min(cap4, road);
+    value += take * (1 - CARTS.crew / cap4);
+    road -= take;
+  }
+  if (two <= 0) return value;
+  const rest = road + (rec.o ?? 0);
+  const full = Math.floor(rest / cap2 + EPSILON);
+  const part = rest - full * cap2;
+  const units = [...(rec.j ?? [])];
+  for (let k = 0; k < Math.min(full, two); k++) units.push(cap2 * (1 - CARTS.crew / cap2));
+  if (part > EPSILON && full < two) units.push(part * (1 - CARTS.crew / cap2));
+  units.sort((a, b) => b - a);
+  for (let k = 0; k < two && k < units.length; k++) value += units[k]!;
+  return value;
+}
+
+/** Prázdná tabulka úspor (dvoukoláky × čtyřkoláky, ve dny orby i × voli). */
+function emptyTable(): YearTable {
+  const n2 = CART_DEMAND.maxCarts['two-wheel'];
+  const n4 = CART_DEMAND.maxCarts['four-wheel'];
+  const base: number[][] = [];
+  const plough: number[][][] = [];
+  for (let two = 0; two <= n2; two++) {
+    base.push(new Array<number>(n4 + 1).fill(0));
+    plough.push(
+      Array.from({ length: n4 + 1 }, (_, four) => new Array<number>(two + 2 * four + 1).fill(0)),
+    );
+  }
+  return { base, plough };
+}
+
+/**
+ * Tabulka úspor roku vozů (`CartYear` bez ceny vola): dny roku (mimo dny orby přímo, ve dny orby
+ * podle volů, kteří neorají – čtyřkoláky a dvoukoláky z nich nejlíp), výpravy čtyřkoláků a rok
+ * uložený před dny (úspory k-tých dvoukoláků), vše × `scale`.
+ */
+function demandTable(demand: CartDemand, scale: number): YearTable {
+  const table = emptyTable();
+  const n2 = CART_DEMAND.maxCarts['two-wheel'];
+  const n4 = CART_DEMAND.maxCarts['four-wheel'];
+  // úspora dnů podle vozů, které jedou: mimo dny orby a ve dny orby zvlášť (sečtené přes dny)
+  const base = emptyTable().base;
+  const plough = emptyTable().base;
+  for (const rec of demand.days ?? []) {
+    const into = rec.p ? plough : base;
+    for (let two = 0; two <= n2; two++) {
+      for (let four = 0; four <= n4; four++) into[two]![four]! += cartDayValue(rec, two, four);
+    }
+  }
+  for (let two = 0; two <= n2; two++) {
+    for (let four = 0; four <= n4; four++) {
+      table.base[two]![four] = cents(
+        (base[two]![four]! +
+          firstSum(demand['four-wheel'], four) +
+          firstSum(demand['two-wheel'], two)) *
+          scale,
+      );
+      // ve dny orby jedou vozy jen s voly, kteří neorají – čtyřkoláky a dvoukoláky z nich nejlíp
+      const row = table.plough[two]![four]!;
+      for (let free = 0; free < row.length; free++) {
+        let best = 0;
+        for (let f4 = 0; f4 <= Math.min(four, Math.floor(free / DRAFT_OXEN['four-wheel'])); f4++) {
+          const f2 = Math.min(two, free - f4 * DRAFT_OXEN['four-wheel']);
+          best = Math.max(best, plough[f2]![f4]!);
+        }
+        row[free] = cents((best + firstSum(demand.plough, Math.min(two, free))) * scale);
+      }
+    }
+  }
+  return table;
+}
+
+/** Součet prvních `n` úspor (bez řady 0). */
+function firstSum(values: readonly number[] | undefined, n: number): number {
+  let sum = 0;
+  for (let k = 0; k < n && k < (values?.length ?? 0); k++) sum += values![k]!;
+  return sum;
+}
+
+/** Tabulka úspor uzavřeného roku – i roku uloženého před tabulkou (úspory k-tých vozů). */
+function yearTable(year: CartYear | (CartDemand & { oxCost: number })): YearTable {
+  if ('base' in year) return year;
+  return demandTable(year, 1);
+}
+
+/**
  * Konec roku vozů (1. 11. – wagons.md, Kolik vozů ves chce; mutuje stav): rok vozů dlouhý aspoň
- * CART_DEMAND.minDays se uzavře – úspory přepočtené na rok a cena vola `oxCost` – a začne nový;
- * kratší (ohrada volů postavená v létě, ves uložená dřív) běží do dalšího 1. 11. Bez roku vozů nic.
+ * CART_DEMAND.minDays se uzavře do tabulky úspor (`CartYear` – přepočtené na rok, na setiny) s cenou vola
+ * `oxCost` a začne nový; kratší (ohrada volů postavená v létě, ves uložená dřív) běží do dalšího
+ * 1. 11. Bez roku vozů nic.
  */
 export function closeCartYear(state: VillageState, day: number, oxCost: number): void {
   const demand = state.draft?.demand;
   if (!demand || day - demand.from < CART_DEMAND.minDays) return;
   const scale = DAYS_PER_YEAR / (day - demand.from);
-  const per = (row: readonly number[]): number[] => row.map((v) => v * scale);
   state.draft = {
     ...state.draft,
-    lastYear: {
-      from: demand.from,
-      'two-wheel': per(demand['two-wheel']),
-      'four-wheel': per(demand['four-wheel']),
-      plough: per(demand.plough),
-      oxCost,
-    },
+    lastYear: { from: demand.from, oxCost, ...demandTable(demand, scale) },
     demand: emptyDemand(day),
   };
 }

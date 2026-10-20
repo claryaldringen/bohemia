@@ -177,7 +177,8 @@ export function targetOutline(village: SceneVillage, target: VillageTarget): Poi
   }
   if (target.kind === 'ore-site') {
     const site = village.oreSites?.find((s) => s.dwellingId === target.id);
-    return site ? [oreSiteOutline(oreSiteDiscs(site, village.orePits))] : [];
+    const pits = village.orePits?.filter((p) => !p.clay);
+    return site ? [oreSiteOutline(oreSiteDiscs(site, pits))] : [];
   }
   if (target.kind === 'kiln') {
     // milíř nebo milířiště (crafts.md – Milíř u skácených buků) – kruh kolem kupy
