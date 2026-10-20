@@ -73,19 +73,22 @@ export function generateLandscape(
  * Krajina přesně z daného seedu, bez kontroly pásma – pro uložená sídla a měření. Prémiový typ
  * (premium-landscapes.md) je třetí vstup: jeho průchod upraví vrstvy po terénu, vegetaci
  * a úrodnosti (`premiumGeneration`, vlastní seed – náhoda vrstev se nemění) a krajina nese typ.
- * Bez typu je krajina bit po bitu jako dřív.
+ * Bez typu je krajina bit po bitu jako dřív. Průměrné vrstvy se tu nepočítají zbytečně: každá
+ * vrstva vznikne jednou (průchod, který mění terén, dostane rovnou čerstvý terén) – vyjde stejně
+ * jako prémiová krajina přijatého pokusu v `generateAcceptedLandscape`.
  */
 export function generateLandscapeAttempt(
   attemptSeed: number,
   versions: LayerVersions,
   premium?: PremiumType,
 ): Landscape {
-  const average = averageLayers(attemptSeed, versions);
-  if (premium === undefined) return assemble(attemptSeed, versions, average);
+  if (premium === undefined) {
+    return assemble(attemptSeed, versions, averageLayers(attemptSeed, versions));
+  }
   return assemble(
     attemptSeed,
     versions,
-    premiumLayers(attemptSeed, versions, premium, average),
+    premiumLayers(attemptSeed, versions, premium, null),
     premium,
   );
 }
@@ -99,48 +102,96 @@ interface Layers {
 
 /** Vrstvy průměrné krajiny pokusu – terén a voda → vegetace → úrodnost. */
 function averageLayers(attemptSeed: number, versions: LayerVersions): Layers {
-  const terrain = generateTerrain(deriveSeed(attemptSeed, 'terrain'), versions.terrain);
-  const surface = generateVegetation(
-    deriveSeed(attemptSeed, 'vegetation'),
-    terrain,
-    versions.vegetation,
-  );
-  const fertility = computeFertility(
+  const terrain = averageTerrain(attemptSeed, versions);
+  const surface = averageVegetation(attemptSeed, versions, terrain);
+  const fertility = averageFertility(attemptSeed, versions, terrain, surface);
+  return { terrain, surface, fertility };
+}
+
+function averageTerrain(attemptSeed: number, versions: LayerVersions): Terrain {
+  return generateTerrain(deriveSeed(attemptSeed, 'terrain'), versions.terrain);
+}
+
+function averageVegetation(
+  attemptSeed: number,
+  versions: LayerVersions,
+  terrain: Terrain,
+): Uint8Array {
+  return generateVegetation(deriveSeed(attemptSeed, 'vegetation'), terrain, versions.vegetation);
+}
+
+function averageFertility(
+  attemptSeed: number,
+  versions: LayerVersions,
+  terrain: Terrain,
+  surface: Uint8Array,
+): Uint8Array {
+  return computeFertility(
     deriveSeed(attemptSeed, 'fertility'),
     terrain,
     surface,
     versions.fertility,
   );
-  return { terrain, surface, fertility };
 }
 
 /**
- * Vrstvy prémiové krajiny pokusu: průchod typu po každé vrstvě. Vrstvy průměrné krajiny, které
- * průchod nemění, se použijí znovu; průchod dostane vlastní kopie (terén vygenerovaný znovu,
- * povrch a úrodnost zkopírované), takže průměrné vrstvy zůstanou, jak byly (měří se na nich
- * pásmo).
+ * Vrstvy prémiové krajiny pokusu: průchod typu po každé vrstvě. Se zadanými vrstvami průměrné
+ * krajiny (přijetí – měří se na nich pásmo) se použijí znovu ty, které průchod nemění; průchod
+ * dostane vlastní kopie (terén zkopírovaný, povrch a úrodnost `slice()`), takže průměrné vrstvy
+ * zůstanou, jak byly. Bez nich (uložené sídlo) se každá vrstva spočítá jen jednou – vegetace
+ * a úrodnost průměrné krajiny jen tam, kde z nich průchod vychází.
  */
 function premiumLayers(
   attemptSeed: number,
   versions: LayerVersions,
   type: PremiumType,
-  average: Layers,
+  average: Layers | null,
 ): Layers {
   const pass = premiumGeneration(type, attemptSeed, versions);
   const terrain = pass.changesTerrain
-    ? pass.terrain(generateTerrain(deriveSeed(attemptSeed, 'terrain'), versions.terrain))
-    : average.terrain;
-  const baseSurface = pass.changesTerrain
-    ? generateVegetation(deriveSeed(attemptSeed, 'vegetation'), terrain, versions.vegetation)
+    ? pass.terrain(average ? cloneTerrain(average.terrain) : averageTerrain(attemptSeed, versions))
+    : (average?.terrain ?? averageTerrain(attemptSeed, versions));
+  const ownSurface = pass.changesTerrain || average === null;
+  const baseSurface = ownSurface
+    ? averageVegetation(attemptSeed, versions, terrain)
     : average.surface;
-  const surface = pass.vegetation(baseSurface.slice(), terrain);
+  const surface = pass.vegetation(ownSurface ? baseSurface : baseSurface.slice(), terrain);
   // Úrodnost průměrné krajiny platí, jen když terén i povrch zůstaly.
-  const baseFertility =
-    pass.changesTerrain || pass.changesVegetation
-      ? computeFertility(deriveSeed(attemptSeed, 'fertility'), terrain, surface, versions.fertility)
-      : average.fertility;
-  const fertility = pass.fertility(baseFertility.slice(), terrain, surface);
+  const ownFertility = pass.changesTerrain || pass.changesVegetation || average === null;
+  const baseFertility = ownFertility
+    ? averageFertility(attemptSeed, versions, terrain, surface)
+    : average.fertility;
+  const fertility = pass.fertility(
+    ownFertility ? baseFertility : baseFertility.slice(),
+    terrain,
+    surface,
+  );
   return { terrain, surface, fertility };
+}
+
+/**
+ * Hluboká kopie terénu – průchod, který terén mění, ho smí upravit na místě; terén průměrné
+ * krajiny pokusu (pásmo) zůstane. Vyjde stejně, jako kdyby se terén vygeneroval znovu.
+ */
+function cloneTerrain(terrain: Terrain): Terrain {
+  return {
+    size: terrain.size,
+    heights: terrain.heights.slice(),
+    water: terrain.water.slice(),
+    villageSite: { ...terrain.villageSite },
+    stream: terrain.stream.map((p) => ({ ...p })),
+    ...(terrain.promontories
+      ? {
+          promontories: terrain.promontories.map((p) => ({
+            ...p,
+            outline: p.outline.map((q) => ({ ...q })),
+            neck: [{ ...p.neck[0] }, { ...p.neck[1] }] as const,
+            center: { ...p.center },
+          })),
+        }
+      : {}),
+    ...(terrain.river ? { river: terrain.river.map((p) => ({ ...p })) } : {}),
+  };
 }
 
 /** Krajina z vrstev pokusu (s prémiovým typem i typ). */
@@ -163,6 +214,7 @@ function assemble(
       version: versions.obstacles ?? 1,
     },
     ...(terrain.promontories ? { promontories: terrain.promontories } : {}),
+    ...(terrain.river ? { river: terrain.river } : {}),
     ...(premium !== undefined ? { premium } : {}),
   };
 }

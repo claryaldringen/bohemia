@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { generateLandscape } from '../generate';
-import { streamCenterline } from '../stream-geometry';
-import { PREVIOUS_LAYER_VERSIONS, SURFACE_CODES } from '../types';
+import { riverCenterline, streamCenterline, watersCenterline } from '../stream-geometry';
+import { PREVIOUS_LAYER_VERSIONS, SURFACE_CODES, type StreamPoint } from '../types';
 import { tileCenterWorld } from '../world';
 
 const landscape = generateLandscape(3);
@@ -155,5 +155,65 @@ describe('streamCenterline', () => {
     const outsideQuery = stream.nearest(f.x - f.nx * side * 2, f.z - f.nz * side * 2);
     expect(insideQuery.innerBend).toBeGreaterThan(0.2);
     expect(outsideQuery.innerBend).toBeLessThan(-0.2);
+  });
+});
+
+describe('osa vod – potok a řeka prémiové krajiny', () => {
+  it('krajina bez řeky: řeka není, osa vod dává přesně odpovědi osy potoka', () => {
+    expect(riverCenterline(landscape)).toBeNull();
+    const waters = watersCenterline(landscape);
+    expect(waters).toBe(watersCenterline(landscape));
+    expect(waters.points).toEqual(stream.points);
+    for (const [x, z] of [
+      [0, 0],
+      [120, -340],
+      [-400, 200],
+      [stream.points[40]!.x + 3, stream.points[40]!.z - 2],
+    ] as const) {
+      expect(waters.nearest(x, z)).toEqual(stream.nearest(x, z));
+      expect(waters.nearestPair(x, z)).toEqual(stream.nearestPair(x, z));
+    }
+  });
+
+  it('s řekou: nejbližší místo z obou toků, body osy potoka', () => {
+    // Ruční „řeka“ – osa rovnoběžná s okrajem mapy daleko od potoka.
+    const river: StreamPoint[] = Array.from({ length: 200 }, (_, k) => ({
+      x: k * 0.5,
+      y: 6,
+      halfWidthLeft: 0.6,
+      halfWidthRight: 0.6,
+      level: 1,
+      shallow: k > 90 && k < 100,
+    }));
+    const withRiver = { ...landscape, river };
+    const waters = watersCenterline(withRiver);
+    const r = riverCenterline(withRiver)!;
+    expect(r.points.length).toBeGreaterThan(river.length);
+    expect(waters.points).toEqual(streamCenterline(withRiver).points);
+    const half = (landscape.size * landscape.cellSizeM) / 2;
+    // Bod v brodu „řeky“ (osa x = 47 políček, y = 6).
+    const ford = { x: -half + 47.5 * 15, z: -half + 6.5 * 15 };
+    const here = waters.nearest(ford.x, ford.z);
+    expect(here).toEqual(r.nearest(ford.x, ford.z));
+    expect(here.bankDistance).toBeLessThan(0);
+    expect(here.shallow).toBeGreaterThan(0.5);
+    // Kdekoli vyhrává bližší z obou toků; druhé místo dvojice je to druhé nejbližší.
+    for (const k of [10, 60, 120]) {
+      const p = stream.points[k]!;
+      for (const [x, z] of [
+        [p.x, p.z],
+        [p.x + 20, p.z - 15],
+      ] as const) {
+        const a = stream.nearestPair(x, z);
+        const b = r.nearestPair(x, z);
+        const [first, second] = waters.nearestPair(x, z);
+        expect(first.bankDistance).toBe(Math.min(a[0].bankDistance, b[0].bankDistance));
+        const rest =
+          a[0].bankDistance <= b[0].bankDistance
+            ? Math.min(a[1].bankDistance, b[0].bankDistance)
+            : Math.min(b[1].bankDistance, a[0].bankDistance);
+        expect(second.bankDistance).toBe(rest);
+      }
+    }
   });
 });

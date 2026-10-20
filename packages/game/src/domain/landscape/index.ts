@@ -23,8 +23,10 @@ export { buildForestField, type ForestField } from './forest-field';
 export { buildRelief, SUN_RAYS, type Relief } from './relief';
 export {
   BANK_REACH_M,
+  riverCenterline,
   streamCenterline,
   streamStations,
+  watersCenterline,
   type StreamCenterline,
   type StreamCenterPoint,
   type StreamSample,

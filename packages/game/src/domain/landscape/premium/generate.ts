@@ -5,6 +5,7 @@ import type { Terrain } from '../terrain';
 import type { Landscape, LayerVersions } from '../types';
 import { PREMIUM_TYPES } from './catalog';
 import { SOIL_FOREST_PASSES } from './soil-forest';
+import { WATER_PASSES } from './water';
 import type { PremiumFeatures, PremiumSite, PremiumType } from './types';
 
 /**
@@ -72,6 +73,7 @@ export interface PremiumPass {
  */
 const PREMIUM_PASSES: Partial<Record<PremiumType, PremiumPass>> = {
   ...SOIL_FOREST_PASSES,
+  ...WATER_PASSES,
 };
 
 const KNOWN_TYPES: ReadonlySet<string> = new Set(PREMIUM_TYPES);

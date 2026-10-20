@@ -82,6 +82,47 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
   - **Brtě a lesní včely:** 16 starých dubů s dutinou v lese do 900 m od vsi (30–90 m od okraje
     lesa, aspoň 45 m od sebe), kolem každého 6,5 m volno; lípa nemá model, brtě jsou zatím duby.
     Prvek brť – každý strom zvlášť, aspoň 12, jinak pokus neprojde.
+- **Typy vody** (`premium/water.ts`, řeka `premium/river.ts`, hodnoty návrh Clauda – doladí
+  kalibrace):
+  - **Řeka** (splavná řeka, vyvýšenina nad brodem, soutok): nový tok vedle potoka – potok
+    zůstane, jak byl (u soutoku jako přítok). Sdílená mřížka světa zatím není, proto řeka vstupuje
+    a vystupuje na náhodných okrajích (vývojová verze – před ostrým spuštěním ji nahradí kostra
+    světa). Vede po straně potoka s místem pro vesnici, údolími (nízko); trasa aspoň 300 m od vsi
+    a 135 m od potoka (s meandry osa nejblíž 270 m od vsi, voda 45 m od potoka), dál od okraje
+    mapy a kolem vsi (ne daleko u okraje).
+    Široká 12–20 m (mění se podél toku, každý břeh vlastní odchylkou), mírné meandry, hladina
+    1,2 m nade dnem (potok 0,6 m), údolí jako u potoka s rovnou nivou podél vody. Brody jen na
+    1–2 místech (mělký úsek ≈ 45 m, o 40 % širší). Voda řeky je voda povrchu – pro vesnici
+    překážka jako potok (pěšiny, vozy, stavby) a stromy ani kameny vrstvy překážek v ní nestojí
+    (`watersCenterline` – osa vod pro rozmisťovače i pěšiny, krajina bez řeky má přesně osu
+    potoka). Rovinu kolem místa pro vesnici (17 políček, plně od 27) údolí ani ostrožna nemění,
+    vegetace a úrodnost se nad novým terénem spočítají znovu (louky a les u vsi jako v průměrné
+    krajině). Krajina nese osu řeky `Landscape.river` ve tvaru osy potoka (jde přenosem do
+    prohlížeče). Prvky: řeka (osa od okraje k okraji) a brody.
+  - **Splavná řeka:** niva podél vody široká 60 m (4 políčka). Prvek přístaviště – břeh na straně
+    vsi u místa řeky nejblíž vsi, 6 m od vody.
+  - **Vyvýšenina nad brodem se stezkou:** ostrožna 16–20 m nad hladinou brodu 105 m od brodu
+    podél řeky (plocha ≈ 90 × 65 m, svahy k vodě, šíje a hřbet do vnitrozemí), na břehu, kde se
+    vejde mimo rovinu vsi – obvykle za řekou. Stezka (prvek `route`) vede od okraje mapy kolem vsi
+    (obchází ji ≈ 200 m, nejblíž 150 m) k brodu, přes něj a za řekou k okraji – po souši mimo
+    břehy, sklon a les ji zdražují. Prvky: řeka, brody, ostrožna (`Promontory` druhu `ford-hill`),
+    stezka.
+  - **Soutok:** rameno řeky přitéká od okraje mapy k potoku pod vsí (po proudu, aspoň 360 m od vsi)
+    pod úhlem 25–80° od směru proti proudu potoka, řeka dál teče dolním tokem potoka (koryto
+    rozšířené aspoň na šířku řeky, tůně potoka zůstanou širší, stěny u potoka taky). Potok nad
+    soutokem zůstane jako přítok a končí v soutoku. V úhlu mezi ramenem a potokem ostrožna
+    10–14 m nad hladinou (`confluence`). Řeka vtéká a vytéká na různých okrajích. Prvky: řeka,
+    brody, soutok, ostrožna.
+  - **Zlatonosný potok:** 3–6 náplavů zlatonosného písku na vnitřní straně nejostřejších oblouků
+    potoka (stočení aspoň 0,6 rad na ± 40 m), 3 m za okrajem vody, aspoň 150 m od sebe a 200 m od
+    vsi; prvek náplav s obrysem čočky podél břehu (30 × 10 m). Krajina zůstane průměrná.
+  - **Solný pramen:** slanisko na rovné louce u potoka (6 m od vody) do 700 m od vsi (aspoň 200 m,
+    nejraději kolem 450 m, raději na straně vsi) – mimo pole a les vsi: mokrá louka u vody, kde se
+    pole nezakládá. Krajina zůstane průměrná.
+  - **Posvátný pramen:** na okraji lesa pod mírným svahem do 700 m od vsi (aspoň 200 m) dál od
+    vody, ve skalce – vrstva překážek přidá nad pramen do svahu skalní výchoz a kolem pramene tři
+    balvany (zdroj překážek `springRock`), do 4 m kolem pramene nic jiného. Les vsi to není:
+    pramen leží na okraji lesa ve skalce (háj by byl jen u dubů – návrh Clauda: skalka).
 - **Verze vrstev:** do ostrého spuštění se generátor smí měnit libovolně (krajiny se prostě
   vygenerují znovu jinak). Po spuštění nesmí změna existující vrstvy přepsat stávající krajiny –
   u sídla se ukládají verze vrstev (např. `{ terrain: 1, vegetation: 1, fertility: 1 }`) a nová

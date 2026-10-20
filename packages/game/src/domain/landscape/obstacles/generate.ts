@@ -1,7 +1,7 @@
 import { buildForestField } from '../forest-field';
 import { transferPrecision } from '../quantize';
 import { buildRelief } from '../relief';
-import { streamCenterline } from '../stream-geometry';
+import { watersCenterline } from '../stream-geometry';
 import type { Landscape } from '../types';
 import { beeTreePlacements, clearAroundBeeTrees } from './bee-trees';
 import type { ScatterContext } from './context';
@@ -9,6 +9,7 @@ import { edgeTreePlacements, forestScatter, impostorTreePlacements } from './for
 import { meadowTreePlacements } from './meadow-trees';
 import { cliffRockPlacements } from './cliff-rocks';
 import { rockAndShrubPlacements } from './rocks-shrubs';
+import { clearAroundSpring, springRockPlacements } from './spring-rocks';
 import {
   OBSTACLE_KINDS,
   OBSTACLE_LOOKS,
@@ -37,6 +38,8 @@ export interface ObstacleGroups {
   cliffRocks: ObstaclePlacement[];
   /** Brtě – jen prémiová krajina „Brtě a lesní včely“ (jinak prázdné). */
   beeTrees: ObstaclePlacement[];
+  /** Skalka posvátného pramene – jen prémiová krajina „Posvátný pramen“ (jinak prázdné). */
+  springRocks: ObstaclePlacement[];
 }
 
 /** Kontext rozmisťovačů – pole lesa, osa potoka a tvar terénu z krajiny s přesností prohlížeče. */
@@ -48,7 +51,8 @@ export function scatterContext(landscape: Landscape, seed: number): ScatterConte
     landscape: l,
     // pole lesa jen převezme, když ho už má scéna – na serveru se po vygenerování zahodí
     field: buildForestField(l, { remember: false }),
-    stream: streamCenterline(l),
+    // Potok a u prémiových krajin s řekou i řeka – stromy ani kameny nestojí ve vodě žádného toku.
+    stream: watersCenterline(l),
     relief: buildRelief(l),
     seed,
     maxHeight,
@@ -59,13 +63,14 @@ export function scatterContext(landscape: Landscape, seed: number): ScatterConte
 /**
  * Všechny překážky po skupinách (pro testy a měření; vrstvu skládá `generateObstacles`). Verze 2
  * přidá skály a suť na stěnách u potoka; verze 1 je bit po bitu jako dřív. Prémiová krajina
- * „Brtě a lesní včely“ přidá brtě a kolem nich uvolní místo (krajina bez typu je beze změny).
+ * „Brtě a lesní včely“ přidá brtě a kolem nich uvolní místo, „Posvátný pramen“ skalku u pramene
+ * (krajina bez typu je beze změny).
  */
 export function obstacleGroups(ctx: ScatterContext): ObstacleGroups {
   const forest = forestScatter(ctx);
   const meadow = meadowTreePlacements(ctx);
   const pines = pinePlacements(ctx, meadow);
-  const groups: ObstacleGroups = {
+  let groups: ObstacleGroups = {
     edge: edgeTreePlacements(ctx, forest),
     interior: impostorTreePlacements(ctx, forest),
     meadow,
@@ -75,20 +80,41 @@ export function obstacleGroups(ctx: ScatterContext): ObstacleGroups {
     rocksAndShrubs: rockAndShrubPlacements(ctx, [...meadow, ...pines]),
     cliffRocks: ctx.version === 2 ? cliffRockPlacements(ctx) : [],
     beeTrees: beeTreePlacements(ctx),
+    springRocks: springRockPlacements(ctx),
   };
   const bees = groups.beeTrees;
-  if (bees.length === 0) return groups;
-  return {
-    edge: clearAroundBeeTrees(groups.edge, bees),
-    interior: clearAroundBeeTrees(groups.interior, bees),
-    meadow: clearAroundBeeTrees(groups.meadow, bees),
-    pines: clearAroundBeeTrees(groups.pines, bees),
-    young: clearAroundBeeTrees(groups.young, bees),
-    deadwood: clearAroundBeeTrees(groups.deadwood, bees),
-    rocksAndShrubs: clearAroundBeeTrees(groups.rocksAndShrubs, bees),
-    cliffRocks: clearAroundBeeTrees(groups.cliffRocks, bees),
-    beeTrees: bees,
-  };
+  if (bees.length > 0) {
+    groups = {
+      edge: clearAroundBeeTrees(groups.edge, bees),
+      interior: clearAroundBeeTrees(groups.interior, bees),
+      meadow: clearAroundBeeTrees(groups.meadow, bees),
+      pines: clearAroundBeeTrees(groups.pines, bees),
+      young: clearAroundBeeTrees(groups.young, bees),
+      deadwood: clearAroundBeeTrees(groups.deadwood, bees),
+      rocksAndShrubs: clearAroundBeeTrees(groups.rocksAndShrubs, bees),
+      cliffRocks: clearAroundBeeTrees(groups.cliffRocks, bees),
+      beeTrees: bees,
+      springRocks: groups.springRocks,
+    };
+  }
+  const rocks = groups.springRocks;
+  if (rocks.length > 0) {
+    const clear = (list: ObstaclePlacement[]): ObstaclePlacement[] =>
+      clearAroundSpring(list, rocks, ctx);
+    groups = {
+      edge: clear(groups.edge),
+      interior: clear(groups.interior),
+      meadow: clear(groups.meadow),
+      pines: clear(groups.pines),
+      young: clear(groups.young),
+      deadwood: clear(groups.deadwood),
+      rocksAndShrubs: clear(groups.rocksAndShrubs),
+      cliffRocks: clear(groups.cliffRocks),
+      beeTrees: groups.beeTrees,
+      springRocks: rocks,
+    };
+  }
+  return groups;
 }
 
 const EMPTY_LAYER_CACHE = new Map<string, ObstacleLayer>();
@@ -117,6 +143,7 @@ export function generateObstacles(landscape: Landscape): ObstacleLayer {
       ...groups.rocksAndShrubs,
       ...groups.cliffRocks,
       ...groups.beeTrees,
+      ...groups.springRocks,
     ],
     landscape.size,
     landscape.cellSizeM,

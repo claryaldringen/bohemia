@@ -26,7 +26,7 @@ import {
 import { hasPremiumPass, PREMIUM_LAYER_VERSION, premiumFeaturesOf } from '../generate';
 import { SOIL_FOREST_PASSES } from '../soil-forest';
 import type { PremiumFeatures, PremiumSite, PremiumType } from '../types';
-import { describeTypeBands, GROUPED_TYPES, SOIL_FOREST_TYPES } from './type-band';
+import { describeTypeBands, GROUPED_TYPES, SOIL_FOREST_TYPES, WATER_TYPES } from './type-band';
 
 const UNKNOWN = 'atlantis' as PremiumType;
 
@@ -41,6 +41,10 @@ describe('prémiový typ jako třetí vstup generátoru', () => {
 
   it('typy půdy a lesa mají průchod', () => {
     for (const type of SOIL_FOREST_TYPES) expect(hasPremiumPass(type), type).toBe(true);
+  });
+
+  it('typy vody mají průchod', () => {
+    for (const type of WATER_TYPES) expect(hasPremiumPass(type), type).toBe(true);
   });
 
   it('krajina s typem nese typ – i typ, který ještě nemá průchod', () => {

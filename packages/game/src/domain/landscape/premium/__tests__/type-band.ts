@@ -19,8 +19,21 @@ export const SOIL_FOREST_TYPES: readonly PremiumType[] = [
   'wild-bees',
 ];
 
+/** Typy vody (úloha 4) – test pásma ve `water-band.test.ts`. */
+export const WATER_TYPES: readonly PremiumType[] = [
+  'navigable-river',
+  'gold-stream',
+  'confluence',
+  'ford-hill',
+  'salt-spring',
+  'sacred-spring',
+];
+
 /** Typy, jejichž test pásma běží ve vlastním souboru skupiny – `generate.test.ts` je vynechá. */
-export const GROUPED_TYPES: ReadonlySet<PremiumType> = new Set([...SOIL_FOREST_TYPES]);
+export const GROUPED_TYPES: ReadonlySet<PremiumType> = new Set([
+  ...SOIL_FOREST_TYPES,
+  ...WATER_TYPES,
+]);
 
 // Krajiny se nedrží (vrstva překážek v mezipaměti by zabrala stovky MB) – jen výsledek kontroly
 // a prvky.

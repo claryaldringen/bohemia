@@ -18,6 +18,8 @@ export interface Terrain {
   stream: StreamPoint[];
   /** Ostrožny (terén 2); terén 1 je nemá. */
   promontories?: Promontory[];
+  /** Osa řeky – jen prémiové krajiny s řekou (prémiový průchod terénu, `premium/river.ts`). */
+  river?: StreamPoint[];
 }
 
 // Místo pro vesnici leží 9–11 políček od potoka: mýtina kolem něj dosáhne k vodě,

@@ -182,6 +182,8 @@ export const OBSTACLE_SOURCES = {
   cliffRock: 17,
   /** Brtě – staré duby prémiové krajiny „Brtě a lesní včely“ (`premium/trees.ts`). */
   beeTree: 18,
+  /** Skalka posvátného pramene – prémiová krajina „Posvátný pramen“ (`premium/water.ts`). */
+  springRock: 19,
 } as const;
 
 export type ObstacleSource = keyof typeof OBSTACLE_SOURCES;

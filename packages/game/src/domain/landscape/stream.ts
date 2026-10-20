@@ -375,7 +375,7 @@ function channelLine(
 }
 
 /** Body trasy → hladká osa s rovnoměrnými rozestupy SAMPLE_STEP (konce zůstávají na okrajích). */
-function smoothPolyline(
+export function smoothPolyline(
   points: readonly { x: number; y: number }[],
   size: number,
 ): { x: number; y: number }[] {
@@ -436,7 +436,7 @@ function resample(
   return result;
 }
 
-function arcLengths(points: readonly { x: number; y: number }[]): number[] {
+export function arcLengths(points: readonly { x: number; y: number }[]): number[] {
   const along = [0];
   for (let k = 1; k < points.length; k++) {
     along.push(
@@ -586,7 +586,7 @@ function conflictingPoints(
  * Vodní políčka: střed políčka leží mezi levým a pravým okrajem vody u nejbližšího bodu osy,
  * navíc políčka, kterými osa prochází (potok je souvislý i tam, kde je užší než políčko).
  */
-function rasterize(
+export function rasterize(
   samples: readonly ChannelSample[],
   heights: Float32Array,
   size: number,

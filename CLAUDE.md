@@ -180,7 +180,20 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   překážek `beeTree`, kolem 6,5 m volno) v `premium/trees.ts` čtou rozmisťovače překážek podle
   `landscape.premium` – krajina bez typu má vrstvu bit po bitu stejnou. Obrysy prvků
   `premium/geometry.ts` (`cellsOutline`, `circleOutline`); úklid drobných skvrn povrchu je
-  v `patches.ts` (sdílí ho vegetace).
+  v `patches.ts` (sdílí ho vegetace). **Typy vody** (`premium/water.ts`, landscape.md – Typy
+  vody): řeka (`premium/river.ts` – `addSideRiver` pro splavnou řeku a vyvýšeninu nad brodem,
+  `addConfluence` pro soutok) je průchod terénu – nový tok vedle potoka, osa `Landscape.river`
+  ve tvaru osy potoka (`Terrain.river`, přenos `LandscapeTransfer.river` / `riverBanks`,
+  `transferPrecision`), ostrožny nad brodem a soutokem jsou `Promontory` druhů `ford-hill`
+  a `confluence`. Osa řeky `riverCenterline(l)`, osa všech vod `watersCenterline(l)` (nejbližší
+  místo potoka i řeky, body osy potoka) – podle ní rozmisťovače překážek a terén pěšin, krajina bez
+  řeky má přesně `streamCenterline`. Stezka přes brod (`route`) a přístaviště se počítají v `sites`
+  z hotové krajiny (`fordRoute`, `cheapestPath`). Zlatonosný potok a solný pramen jen označí místa
+  v průměrné krajině; posvátný pramen (`sacredSpringSpot`) má ve vrstvě překážek skalku (zdroj
+  `springRock`, `obstacles/spring-rocks.ts`). Typ, který mění terén, nepočítá průměrné vrstvy
+  zbytečně: uložené sídlo každou vrstvu jednou, přijetí terén jednou (průchodu kopie
+  `cloneTerrain`) – hlídá `premium/__tests__/attempt-layers.test.ts`. Pro scénu (úloha 6) řeka
+  zatím není voda – jen data.
 - **Use-case** `enterGame` (sídelní sídlo hráče, atomicky přes unikátní index); ve webu
   `enterGameForPlayer` v `lib/game.ts`. Restart hry (`restartGame`, viz Ves – Hlad a vymření)
   sídla archivuje (`settlement.archived_at`, `is_seat` false) – port vrací jen aktivní sídla. Krajinu generuje server, do prohlížeče jde zakódovaná

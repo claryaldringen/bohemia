@@ -118,6 +118,56 @@ export function streamCenterline(l: Landscape): StreamCenterline {
   return withNearestQuery(points);
 }
 
+/**
+ * Osa řeky prémiové krajiny (`Landscape.river`) – stejná geometrie jako osa potoka (šířky,
+ * hladina, brody, proud, oblouky). Krajina bez řeky null.
+ */
+export function riverCenterline(l: Landscape): StreamCenterline | null {
+  if (!l.river || l.river.length < 2) return null;
+  return streamCenterline({ ...l, stream: l.river });
+}
+
+const watersCache = new WeakMap<Landscape, StreamCenterline>();
+
+/**
+ * Všechny toky krajiny pro dotazy „co je tady za vodu“ – potok a řeka (prémiové krajiny).
+ * `nearest` a `nearestPair` vrací nejbližší místo kteréhokoli toku (druhý úsek může být
+ * i z druhého toku), `points` jsou body osy potoka – stanice podél potoka (břehový porost,
+ * zvuky) zůstanou, kde byly. Krajina bez řeky vrací přesně `streamCenterline` – vrstva
+ * překážek i pěšiny průměrné krajiny jsou bit po bitu stejné. Mezipaměť podle objektu krajiny.
+ */
+export function watersCenterline(l: Landscape): StreamCenterline {
+  const cached = watersCache.get(l);
+  if (cached) return cached;
+  const stream = streamCenterline(l);
+  const river = riverCenterline(l);
+  const waters = river ? combineCenterlines(stream, river) : stream;
+  watersCache.set(l, waters);
+  return waters;
+}
+
+/** Dotazy nad dvěma toky – nejbližší místo z obou, body osy prvního. */
+function combineCenterlines(a: StreamCenterline, b: StreamCenterline): StreamCenterline {
+  const nearestPair = (
+    x: number,
+    z: number,
+    maxDistance = BANK_REACH_M,
+  ): [StreamSample, StreamSample] => {
+    const [a1, a2] = a.nearestPair(x, z, maxDistance);
+    const [b1, b2] = b.nearestPair(x, z, maxDistance);
+    // Při shodě vyhrává potok (a).
+    if (a1.bankDistance <= b1.bankDistance) {
+      return [a1, a2.bankDistance <= b1.bankDistance ? a2 : b1];
+    }
+    return [b1, b2.bankDistance < a1.bankDistance ? b2 : a1];
+  };
+  return {
+    points: a.points,
+    nearest: (x, z, maxDistance) => nearestPair(x, z, maxDistance)[0],
+    nearestPair,
+  };
+}
+
 /** Prodlouží konce osy o políčko ven – voda pak sahá až za okraj mapy. */
 function extendToEdges(points: StreamCenterPoint[], cellSizeM: number): StreamCenterPoint[] {
   const extend = (end: StreamCenterPoint, inner: StreamCenterPoint): StreamCenterPoint => {

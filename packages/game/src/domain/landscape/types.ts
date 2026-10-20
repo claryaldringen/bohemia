@@ -88,11 +88,11 @@ export interface StreamPoint {
  */
 export interface Promontory {
   /**
-   * Jak ostrožna vznikla: `meander` = jádro zaříznutého meandru (smyčka potoka). Další druhy
-   * (soutok dvou toků, vyvýšenina nad brodem) přibudou s dalšími toky – data jsou pro všechny
-   * stejná.
+   * Jak ostrožna vznikla: `meander` = jádro zaříznutého meandru (smyčka potoka, terén 2),
+   * `ford-hill` = vyvýšenina nad brodem přes řeku a `confluence` = ostrožna mezi řekou a potokem
+   * nad soutokem (prémiové krajiny – `premium/river.ts`). Data jsou pro všechny stejná.
    */
-  readonly kind: 'meander';
+  readonly kind: 'meander' | 'ford-hill' | 'confluence';
   /** Obrys plochy nahoře (políčka), uzavřený mnohoúhelník. */
   readonly outline: readonly { x: number; y: number }[];
   /** Šíje – konce nejužšího místa, kudy ostrožna souvisí s okolím (políčka). */
@@ -119,6 +119,13 @@ export interface Landscape {
   readonly villageSite: { x: number; y: number };
   /** Osa potoka s šířkou břehů a hladinou (pro vykreslení koryta). */
   readonly stream: readonly StreamPoint[];
+  /**
+   * Osa řeky (prémiové krajiny se splavnou řekou, brodem pod vyvýšeninou a soutokem –
+   * `premium/river.ts`) ve stejném tvaru jako osa potoka: od okraje k okraji po proudu, šířky
+   * břehů, hladina, brody (`shallow`) a výšky stěn. Chybí = krajina bez řeky. Vodní políčka řeky
+   * jsou vodou povrchu jako potok.
+   */
+  readonly river?: readonly StreamPoint[];
   /**
    * Vrstva překážek se negeneruje s krajinou (stovky ms) – až když je potřeba, ze seedu a verze
    * (`obstaclesOf`). null = krajina bez překážek (ručně vyrobená krajina v testech).

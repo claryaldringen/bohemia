@@ -142,8 +142,40 @@ describe('přenos prémiové krajiny', () => {
     }
   });
 
-  // Typy, které mění vrstvu překážek (rozmisťovače čtou typ krajiny): dřeviny lesa a brtě.
-  for (const type of ['oak-beech', 'wild-bees'] as const) {
+  // Typy s řekou: osa řeky jde přenosem ve Float32 jako osa potoka (i s výškami stěn).
+  for (const type of ['navigable-river', 'ford-hill', 'confluence'] as const) {
+    it(`${type} – přenos nese osu řeky, prohlížeč dostane stejné prvky i vrstvu překážek`, () => {
+      const server = generateLandscape(42, CURRENT_LAYER_VERSIONS, type);
+      expect(server.river?.length).toBeGreaterThan(100);
+      const transfer = encodeLandscape(server);
+      expect(transfer.river).toBeDefined();
+      const decoded = decodeLandscape(transfer);
+      expect(decoded.river).toEqual(transferPrecision(server).river);
+      expect(decoded.promontories).toEqual(server.promontories);
+      expect(premiumFeaturesOf(server)).not.toBeNull();
+      expect(premiumFeaturesOf(decoded)).toEqual(premiumFeaturesOf(server));
+      const a = obstaclesOf(server);
+      const b = obstaclesOf(decoded);
+      expect(b.count).toBe(a.count);
+      for (const key of ['id', 'x', 'z', 'kind', 'look', 'rotation', 'scale'] as const) {
+        expect(b[key]).toEqual(a[key]);
+      }
+    });
+  }
+
+  it('zlatonosný potok a prameny – prohlížeč dostane stejné prvky', () => {
+    for (const type of ['gold-stream', 'salt-spring'] as const) {
+      const server = generateLandscape(42, CURRENT_LAYER_VERSIONS, type);
+      expect(premiumFeaturesOf(server), type).not.toBeNull();
+      expect(premiumFeaturesOf(decodeLandscape(encodeLandscape(server))), type).toEqual(
+        premiumFeaturesOf(server),
+      );
+    }
+  });
+
+  // Typy, které mění vrstvu překážek (rozmisťovače čtou typ krajiny): dřeviny lesa, brtě
+  // a skalka posvátného pramene.
+  for (const type of ['oak-beech', 'wild-bees', 'sacred-spring'] as const) {
     it(`${type} – prohlížeč dostane stejné prvky i vrstvu překážek jako server`, () => {
       const server = generateLandscape(42, CURRENT_LAYER_VERSIONS, type);
       const decoded = decodeLandscape(encodeLandscape(server));
@@ -170,6 +202,8 @@ describe('přenos prémiové krajiny', () => {
   it('průměrná krajina jde přenosem bez typu', () => {
     const transfer = encodeLandscape(generateLandscape(42));
     expect('premium' in transfer).toBe(false);
+    expect('river' in transfer).toBe(false);
+    expect('river' in decodeLandscape(transfer)).toBe(false);
     expect('premium' in decodeLandscape(transfer)).toBe(false);
     expect(premiumFeaturesOf(decodeLandscape(transfer))).toBeNull();
   });
