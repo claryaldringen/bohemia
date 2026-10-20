@@ -226,10 +226,38 @@ export function haulPlan(available: number, carts: number): HaulPlan {
   };
 }
 
+/** Klíče uložených dosahů a jízd čtyřkoláku (CropWork, HayMowing, OrchardWork, ConstructionWood, milíř, voda). */
+const FOUR_WHEEL_CACHES = new Set(['cartReach4', 'cart4', 'waterCart4']);
+
+function dropFourWheelCaches(value: unknown): void {
+  if (Array.isArray(value)) {
+    for (const item of value) dropFourWheelCaches(item);
+    return;
+  }
+  if (value === null || typeof value !== 'object') return;
+  const record = value as Record<string, unknown>;
+  for (const key of Object.keys(record)) {
+    if (FOUR_WHEEL_CACHES.has(key)) delete record[key];
+    else dropFourWheelCaches(record[key]);
+  }
+}
+
+/**
+ * Ves z doby, kdy čtyřkolák jezdil jen po pevných cestách (wagons.md – Co se vozí a na čem;
+ * Martin 20. 10. 2026: „Po strništích a loukách může libovolně“): uložené dosahy a jízdy
+ * čtyřkoláku se jednou zahodí a spočítají znovu (mutuje – volá se na kopii stavu). Jen ves
+ * s rokem vozů (`draft`) – bez něj čtyřkolák nic nespočítal.
+ */
+export function withFourWheelReach(state: VillageState): void {
+  if (!state.draft || state.draft.fourWheelOffRoad) return;
+  dropFourWheelCaches(state);
+  state.draft.fourWheelOffRoad = true;
+}
+
 /**
  * Svoz z flotily (wagons.md – Co se vozí a na čem, Martin 20. 10. 2026: „Ano, udělej to jak
- * říkáš“ – ves vybere levnější vůz pro každou práci): čtyřkoláky napřed na nošení podél cest
- * (`road` – kam dojede čtyřkolák; za den uveze dvakrát víc se stejnou posádkou), dvoukoláky na
+ * říkáš“ – ves vybere levnější vůz pro každou práci): čtyřkoláky napřed na nošení, kam dojedou
+ * (`road` – kam dojede čtyřkolák – po louce a strništi, na zoraný díl ne; za den uveze dvakrát víc se stejnou posádkou), dvoukoláky na
  * zbytek (`available` – kam dojede dvoukolák, i co čtyřkoláky nepobraly). Vůz za den odveze
  * CARTS.carrierManDays × poměr nákladu nosičů, posádka CARTS.crew poměrně k nákladu. Mutuje
  * flotilu (`takeCart`).
@@ -390,7 +418,7 @@ export function cartOrigin(state: Pick<VillageState, 'pens'>): { x: number; z: n
 }
 
 /**
- * Dosah vozů vsi dnes (`kind` – čtyřkolák jen po pevných cestách): s krajinou vozová síť
+ * Dosah vozů vsi dnes (`kind` – čtyřkolák širším obloukem a ne na zoraný díl): s krajinou vozová síť
  * (`networkCartAccess`), bez krajiny všude (testy, kalibrace – jako chůze bez krajiny vzdušně); bez
  * hotové ohrady volů null.
  */

@@ -360,9 +360,9 @@ export function villageCartRoutes(
   const blocked = obstacles
     ? cartObstacleMask(terrain, obstacles, obstacleChangesAt(state, day))
     : null;
-  // čtyřkolák vsi jen po pevných cestách (wagons.md – Co se vozí a na čem)
-  const roadsOnly = kind === 'four-wheel';
-  const routes = cartRoutes({ village, terrain, blocked, kind, depots, targets, roadsOnly }).routes;
+  // čtyřkolák vsi po louce a strništi kamkoli, na zoraný díl ne (wagons.md – Co se vozí a na čem)
+  const fourWheel = kind === 'four-wheel';
+  const routes = cartRoutes({ village, terrain, blocked, kind, depots, targets, fourWheel }).routes;
   lastCartRoutes.set(landscape, { obstacles, key, routes });
   return routes;
 }
@@ -1764,6 +1764,15 @@ function axisSlice(points: readonly RoadPoint[], from: number, to: number): Road
   });
   out.push(pointAt(to));
   return out.filter((p, k, all) => k === 0 || p.x !== all[k - 1]!.x || p.z !== all[k - 1]!.z);
+}
+
+/**
+ * Po dostavění úseku vozové cesty (roads.md – Vozová cesta; mutuje): kusy slabších cest souběžné
+ * s ní se vyříznou hned, ne až při roční kontrole (`mergeParallelRoads`), a navazující úseky se
+ * spojí – kde vozová cesta vede po ose staré cesty, nahradí ji bez dočasného rozcestí.
+ */
+export function absorbParallelRoads(roads: VillageRoads, constructions: Construction[]): void {
+  if (mergeParallelRoads(roads, constructions)) mergeRoadChains(roads, constructions);
 }
 
 /**

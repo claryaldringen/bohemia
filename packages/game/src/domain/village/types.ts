@@ -238,8 +238,8 @@ export interface CharcoalKiln {
    */
   cart?: CartDrive | null;
   /**
-   * Totéž pro čtyřkolák – jen po pevných cestách (wagons.md – Co se vozí a na čem: uhlí z lesního
-   * milíře po cestě). Bez údaje se ještě nepočítala.
+   * Totéž pro čtyřkolák – širší oblouk, na zoraný díl ne (wagons.md – Co se vozí a na čem); lesem
+   * jen po pevné cestě jako dvoukolák. Bez údaje se ještě nepočítala.
    */
   cart4?: CartDrive | null;
   /**
@@ -524,6 +524,12 @@ export interface DraftState {
    * něj ves chce vozy. Chybí = ves zatím chce jen vozy, které má.
    */
   lastYear?: CartYear | (CartDemand & { oxCost: number });
+  /**
+   * Dosahy čtyřkoláku spočítané podle pravidla „po louce a strništi kamkoli“ (wagons.md – Co se
+   * vozí a na čem, 20. 10. 2026) – dřív uložené (jen po pevných cestách) se jednou zahodí
+   * (`withFourWheelReach`). Chybí = ještě ne.
+   */
+  fourWheelOffRoad?: true;
 }
 /**
  * Zásoby výrobků řemeslníků (crafts.md, kg): uhlí u kováře (crafts.md – Milíř stojí vždy: co uhlíř
@@ -955,8 +961,8 @@ export interface ConstructionWood {
    */
   cartReach?: { trees: boolean[]; points: CartReach['points'] };
   /**
-   * Totéž pro čtyřkolák – jen po pevných cestách (wagons.md – Co se vozí a na čem); chybí = ještě
-   * ne.
+   * Totéž pro čtyřkolák – širší oblouk, na zoraný díl ne (wagons.md – Co se vozí a na čem); chybí
+   * = ještě ne.
    */
   cartReach4?: { trees: boolean[]; points: CartReach['points'] };
 }
@@ -1494,7 +1500,7 @@ export interface LaborShare {
   construction?: number;
   /** Svoz a výprava s vozy (wagons.md): kolik vozů tu dnes jezdí; u ostatní práce chybí. */
   carts?: number;
-  /** Z nich čtyřkoláky (svoz podél cest – wagons.md, Co se vozí a na čem); chybí = žádný. */
+  /** Z nich čtyřkoláky (svoz, kam dojedou – wagons.md, Co se vozí a na čem); chybí = žádný. */
   fourWheel?: number;
   /**
    * Co vůz veze, když nesváží úrodu, seno ani klády (wagons.md – Co vozy vozí): uhlí z milíře,
@@ -1686,7 +1692,7 @@ export interface VillageState {
    * a ohrada – přepočítá se, když se změní). Chybí, dokud vůz pro vodu nejel.
    */
   waterCart?: { key: string; drive: CartDrive | null };
-  /** Totéž pro čtyřkolák – jen po pevných cestách (wagons.md – Co se vozí a na čem). */
+  /** Totéž pro čtyřkolák – širší oblouk, na zoraný díl ne (wagons.md – Co se vozí a na čem). */
   waterCart4?: { key: string; drive: CartDrive | null };
   /**
    * Pevné cesty, stromy u nich a roční součty práce (roads.md). Chybí u vsí uložených před nimi
@@ -2349,7 +2355,7 @@ export interface HayMowing {
   hauled?: number;
   /** Kam vůz při seči dojede – spočítá se při prvním svozu (wagons.md). Chybí = ještě ne. */
   cartReach?: CartReach;
-  /** Kam při seči dojede čtyřkolák – jen podél pevných cest. Chybí = ještě ne. */
+  /** Kam při seči dojede čtyřkolák (ne na zoraný díl, širší oblouk). Chybí = ještě ne. */
   cartReach4?: CartReach;
 }
 
