@@ -35,7 +35,11 @@ const SEE_THROUGH: ReadonlySet<VillageTarget['kind']> = new Set([
   'pen',
   // jámy rudiště zakrývá val a rákos u vody
   'ore-site',
+  // milířiště zarůstá trávou, kupu milíře zakrývají stromy kolem
+  'kiln',
 ]);
+/** Poloměr obrysu milíře a milířiště (m) – kousek za kupou (MILIR_SHAPE_M.radius 2,3 m). */
+const KILN_RING_M = 3.6;
 
 /** Lomená čára posunutá o `d` m kolmo (vlevo kladně) – v bodech zlomu podle průměru směrů. */
 export function offsetLine(points: readonly { x: number; z: number }[], d: number): Point[] {
@@ -174,6 +178,19 @@ export function targetOutline(village: SceneVillage, target: VillageTarget): Poi
   if (target.kind === 'ore-site') {
     const site = village.oreSites?.find((s) => s.dwellingId === target.id);
     return site ? [oreSiteOutline(oreSiteDiscs(site, village.orePits))] : [];
+  }
+  if (target.kind === 'kiln') {
+    // milíř nebo milířiště (crafts.md – Milíř u skácených buků) – kruh kolem kupy
+    const at =
+      village.kilns?.find((k) => k.id === target.id) ??
+      village.kilnRemnants?.find((r) => r.id === target.id);
+    if (!at) return [];
+    const n = 24;
+    const ring: Point[] = Array.from({ length: n + 1 }, (_, i) => {
+      const a = (2 * Math.PI * (i % n)) / n;
+      return [at.x + KILN_RING_M * Math.cos(a), at.z + KILN_RING_M * Math.sin(a)];
+    });
+    return [ring];
   }
   if (target.kind === 'road') {
     // celá cesta hráče (roads.md – Cesta pro hráče): čáry po obou stranách pásu přes všechny

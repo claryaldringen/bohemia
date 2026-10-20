@@ -142,8 +142,11 @@ import {
   type VillageState,
   type VillageSummary,
   type WorkshopActivity,
+  type CharcoalKiln,
   type KilnStage,
   kilnCharcoalShare,
+  kilnRemnantOvergrowth,
+  workshopKilns,
   saplingGrowth,
   hasShrine,
   villageCemeteries,
@@ -170,6 +173,7 @@ import {
 } from './relocation-view';
 import { manorView, type VillageManor } from './manor-view';
 import { oreSitesField, type VillageOreSite } from './ore-site-view';
+import { kilnsField, type VillageKiln } from './kiln-view';
 import { foreignFromScene, plotOfScene } from './scene/neighbour-villages';
 import { sceneTrails, trailRoadWork } from './trail-view';
 import { sceneExpeditions } from './caravan-view';
@@ -397,10 +401,10 @@ export interface VillageWorkshop {
   /** Výroba za den při této práci, když jsou vstupy (kg výrobku). */
   outputPerDayKg: number;
   /**
-   * Uhlíř: rozdělaný milíř – fáze, připravené buky z kolika, průběh fáze 0–1 a jestli stojí
-   * v lese (crafts.md – Uhlíř); ostatní dílny a uhlíř bez milíře null.
+   * Uhlíř: jeho milíře (crafts.md – Milíř u skácených buků) – fáze, připravené buky z kolika,
+   * průběh fáze 0–1, uhlí a kde stojí; ostatní dílny prázdné.
    */
-  kiln: VillageSummary['crafts']['workshops'][number]['kiln'];
+  kilns: VillageSummary['crafts']['workshops'][number]['kilns'];
   /** Uhlíř: pařezy buků, na které ještě zasadí mladý buk; ostatní 0. */
   toPlant: number;
   /**
@@ -669,6 +673,11 @@ export interface VillageView {
    * zásoba v kovárně, cesta, jámy a kdo tu dnes pracuje; chybí = žádné.
    */
   oreSites?: VillageOreSite[];
+  /**
+   * Milíře a milířiště uhlířů (crafts.md – Milíř u skácených buků) pro panel výběru – fáze, uhlí,
+   * cesty a kdo sem dnes chodí pro uhlí; chybí = žádné.
+   */
+  kilns?: VillageKiln[];
 }
 
 /** Nákup u souseda na cestě (crafts.md – Nákup u sousedů). */
@@ -865,8 +874,7 @@ export function scenePlot(landscape: Landscape, plot: DwellingPlot): ScenePlot {
 }
 
 /**
- * Milíř uhlíře ve scéně (crafts.md – Uhlíř, Milíř stojí vždy) – fáze, průběh a uhlí; u dílny ho
- * nese obydlí (`SceneVillage.dwellings[].kiln`), v lese `SceneKiln`.
+ * Milíř uhlíře ve scéně (crafts.md – Milíř u skácených buků) – fáze, průběh a uhlí (`SceneKiln`).
  */
 export interface SceneKilnState {
   /**
@@ -883,12 +891,26 @@ export interface SceneKilnState {
   charcoal?: number;
 }
 
-/** Milíř uhlíře v lese ve scéně (crafts.md – Uhlíř). */
+/** Milíř uhlíře ve scéně – samostatná stavba u skácených buků (crafts.md – Milíř u skácených buků). */
 export interface SceneKiln extends SceneKilnState {
-  /** Id dílny uhlíře. */
+  /** Id milíře (výběr `{ kind: 'kiln', id }`). */
   id: number;
+  /** Dílna uhlíře (id obydlí). */
+  burnerId: number;
   x: number;
   z: number;
+}
+
+/**
+ * Milířiště po rozebraném milíři (crafts.md – Milíř u skácených buků): id milíře, střed (m) a jak
+ * zarostlo 0–1 (po 5 % – černá uhlíkatá zem za 10 let zaroste).
+ */
+export interface SceneKilnRemnant {
+  id: number;
+  burnerId: number;
+  x: number;
+  z: number;
+  overgrowth: number;
 }
 
 /**
@@ -933,13 +955,8 @@ export interface SceneVillage {
     /** Řemeslná dílna (crafts.md) – `type` je pak obydlí, na kterém stojí. */
     craft?: Craft;
     /**
-     * Hotová dílna uhlíře: milíř u dílny (crafts.md – Milíř stojí vždy) – fáze, průběh a uhlí. Bez
-     * údaje na milířišti nic nestojí (milíř je v lese, rozebraný, nebo nejsou buky).
-     */
-    kiln?: SceneKilnState;
-    /**
-     * Hotová dílna dnes vyrábí – z pece, výhně nebo milíře stoupá dým (u uhlíře jen při pálení,
-     * ne při kácení). Bez údaje ne.
+     * Hotová dílna dnes vyrábí – z pece nebo výhně stoupá dým (uhlíř topí jen v milíři – ten je
+     * samostatná stavba). Bez údaje ne.
      */
     working?: boolean;
     /** Bydlí v něm někdo – jen z obydlí s obyvateli stoupá dým. Bez údaje = obývané. */
@@ -1108,11 +1125,13 @@ export interface SceneVillage {
    */
   ploughPairs?: number;
   /**
-   * Milíře uhlíře v lese (crafts.md – Uhlíř) – id dílny, střed (m), fáze a její průběh 0–1
-   * (stavba po fázích staveniště, pálení kouří). Milíř u dílny nese dílna (`working`). Bez údaje
-   * žádné.
+   * Milíře uhlířů (crafts.md – Milíř u skácených buků) – samostatné stavby u skácených buků: id
+   * milíře, dílna, střed (m), fáze a její průběh 0–1 (stavba po fázích staveniště, pálení kouří).
+   * Bez údaje žádné.
    */
   kilns?: SceneKiln[];
+  /** Milířiště po rozebraných milířích – černá zem, která zarůstá. Bez údaje žádná. */
+  kilnRemnants?: SceneKilnRemnant[];
   /**
    * Mladé buky, které zasadil uhlíř (crafts.md – Uhlíř, obnova lesa): id stromu z vrstvy
    * překážek a velikost 0–1 podle stáří (za 60 let dospělý). Bez údaje žádné – ostatní nálet
@@ -1965,9 +1984,6 @@ function sceneVillage(
     // stav po tisícinách – rozpad ve scéně jde po stupních (dwelling-decay.ts)
     ...(d.condition < 1 ? { condition: Math.round(d.condition * 1000) / 1000 } : {}),
     ...(d.workshop ? { craft: d.workshop.craft } : {}),
-    ...(d.workshop?.kiln && d.workshop.kiln.site === null
-      ? { kiln: sceneKilnState(d.id, d.workshop.kiln, summary) }
-      : {}),
     ...(d.workshop && occupied.has(d.id) && workshopSmokes(d.workshop) ? { working: true } : {}),
   }));
   // staveniště ukazuje samotnou stavbu – dřevo se kácí v lese, než se začne stavět; přestavba
@@ -2058,6 +2074,7 @@ function sceneVillage(
   const roads = sceneRoads(state, summary.constructions);
   const roadTrees = sceneRoadTrees(state, day, obstacles);
   const kilns = sceneKilns(state, summary);
+  const kilnRemnants = sceneKilnRemnants(state, day);
   const plantedSaplings = plantedSaplingViews(state, day);
   const roadApples = sceneRoadApples(state, day, obstacles);
   const { oreSites, orePits } = sceneOre(state, day);
@@ -2111,6 +2128,7 @@ function sceneVillage(
     ...(roadTrees.length > 0 ? { roadTrees } : {}),
     ...(woods.length > 0 ? { woods } : {}),
     ...(kilns.length > 0 ? { kilns } : {}),
+    ...(kilnRemnants.length > 0 ? { kilnRemnants } : {}),
     ...(plantedSaplings.length > 0 ? { plantedSaplings } : {}),
     ...(roadApples.length > 0 ? { roadApples } : {}),
     ...(carts.length > 0 ? { carts } : {}),
@@ -2427,25 +2445,44 @@ export function sceneRoadTrees(
 }
 
 /**
- * Kouří dílna u domu? Pec a výheň, když vyrábí; milíř uhlíře u zemnice, jen když pálí (u lesního
- * milíře kouří milíř v lese – `sceneKilns`).
+ * Kouří dílna u domu? Pec a výheň, když vyrábí; uhlíř topí jen v milíři – ten je samostatná stavba
+ * (`sceneKilns`).
  */
 function workshopSmokes(
   workshop: NonNullable<VillageState['dwellings'][number]['workshop']>,
 ): boolean {
   // tesař netopí – dílna nekouří (wagons.md)
-  if (workshop.craft === 'carpenter') return false;
-  if (workshop.craft !== 'burner') return workshop.activity === 'producing';
-  return workshop.kiln?.stage === 'burn' && workshop.kiln.site === null;
+  if (workshop.craft === 'carpenter' || workshop.craft === 'burner') return false;
+  return workshop.activity === 'producing';
 }
 
-/** Milíře uhlířů v lese pro scénu – fáze, průběh a uhlí (crafts.md – Uhlíř). */
+/** Milíře uhlířů pro scénu – fáze, průběh a uhlí (crafts.md – Milíř u skácených buků). */
 function sceneKilns(state: VillageState, summary: VillageSummary): SceneKiln[] {
-  return state.dwellings.flatMap((d) => {
-    const kiln = d.workshop?.kiln;
-    if (!kiln?.site) return [];
-    return [{ id: d.id, x: kiln.site.x, z: kiln.site.z, ...sceneKilnState(d.id, kiln, summary) }];
-  });
+  return state.dwellings.flatMap((d) =>
+    workshopKilns(d.workshop).flatMap((kiln): SceneKiln[] => {
+      if (!kiln.site || kiln.id === undefined) return [];
+      return [
+        {
+          id: kiln.id,
+          burnerId: d.id,
+          x: kiln.site.x,
+          z: kiln.site.z,
+          ...sceneKilnState(d.id, kiln, summary),
+        },
+      ];
+    }),
+  );
+}
+
+/** Milířiště pro scénu – zarůstání po 5 % (nepřestavuje se při každém dotazu). */
+function sceneKilnRemnants(state: VillageState, day: number): SceneKilnRemnant[] {
+  return (state.kilnRemnants ?? []).map((r) => ({
+    id: r.id,
+    burnerId: r.burnerId,
+    x: r.x,
+    z: r.z,
+    overgrowth: Math.round(kilnRemnantOvergrowth(r, day) * 20) / 20,
+  }));
 }
 
 /**
@@ -2454,10 +2491,12 @@ function sceneKilns(state: VillageState, summary: VillageSummary): SceneKiln[] {
  */
 function sceneKilnState(
   dwellingId: number,
-  kiln: NonNullable<NonNullable<VillageState['dwellings'][number]['workshop']>['kiln']>,
+  kiln: CharcoalKiln,
   summary: VillageSummary,
 ): SceneKilnState {
-  const info = summary.crafts.workshops.find((w) => w.dwellingId === dwellingId)?.kiln;
+  const info = summary.crafts.workshops
+    .find((w) => w.dwellingId === dwellingId)
+    ?.kilns.find((k) => k.id === (kiln.id ?? null));
   return {
     stage: kiln.stage,
     progress: Math.round((info?.progress ?? 0) * 50) / 50,
@@ -2519,7 +2558,7 @@ function craftsView(
       // výroba podle praxe řemeslníka (crafts.md – Učení řemesla)
       outputPerDayKg:
         workshopOutputKg(w.craft, w.laborPerDay, w.oreFactor, coverage) * w.skill.share,
-      kiln: w.kiln,
+      kilns: w.kilns,
       toPlant: w.toPlant,
       skill: {
         share: Math.round(w.skill.share * 100) / 100,
@@ -3638,6 +3677,7 @@ export function buildVillageView(
     lastMarriageDay: lastMarriageDay(state),
     manor: manorView(state, landscape, day, context.ownMaps ?? {}),
     ...oreSitesField(state, day),
+    ...kilnsField(state, day),
   };
 }
 
