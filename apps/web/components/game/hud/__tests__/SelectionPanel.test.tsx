@@ -1159,3 +1159,121 @@ describe('SelectionPanel – postava (villagers.md – Výběr postavy)', () => 
     expect(html).not.toContain('selection-person-home');
   });
 });
+
+describe('SelectionPanel – spřežení, vůz a lidé u nich (oxen.md, wagons.md – Výběr)', () => {
+  const team = (
+    over: Partial<Extract<SelectionDetails, { kind: 'plough-team' }>> = {},
+  ): SelectionDetails => ({
+    kind: 'plough-team',
+    team: 0,
+    activity: 'orá díl pole',
+    part: { fieldId: 7, cell: { x: 4, y: 2 } },
+    oxen: 2,
+    pen: 12,
+    ploughman: { id: 201, portrait: 'man' },
+    leader: { id: 203, portrait: 'child' },
+    ...over,
+  });
+  const cart = (
+    over: Partial<Extract<SelectionDetails, { kind: 'cart' }>> = {},
+  ): SelectionDetails => ({
+    kind: 'cart',
+    id: 3,
+    cartKind: 'two-wheel',
+    activity: 'veze uhlí ke kováři',
+    cargo: 'charcoal',
+    condition: 0.8,
+    oxen: 1,
+    pen: 12,
+    drover: { id: 301, portrait: 'man' },
+    ...over,
+  });
+
+  it('spřežení: portrét vola, co dělá, voli a tlačítka dílu, ohrady, oráče a honáka', () => {
+    const html = render(team());
+    expect(html).toContain('data-kind="plough-team"');
+    expect(html).toContain('src="/icons/resources/ox.png"');
+    expect(html).toContain('>Spřežení</h2>');
+    expect(text(html, 'selection-team-activity')).toBe('orá díl pole');
+    expect(text(html, 'selection-team-oxen')).toBe('2');
+    expect(html).toMatch(
+      /data-testid="selection-team-part"[^>]*><img src="\/icons\/build\/pole\.png"/,
+    );
+    expect(html).toMatch(
+      /data-testid="selection-team-pen"[^>]*><img src="\/icons\/build\/ohrada\.png"/,
+    );
+    expect(html).toMatch(
+      /data-testid="selection-team-ploughman"[^>]*><img src="\/icons\/resources\/man\.png"/,
+    );
+    expect(html).toMatch(
+      /data-testid="selection-team-leader"[^>]*><img src="\/icons\/resources\/child\.png"/,
+    );
+  });
+
+  it('spřežení na cestě do ohrady bez lidí ve scéně – jen voli a ohrada', () => {
+    const html = render(
+      team({ activity: 'vrací se do ohrady', part: null, ploughman: null, leader: null }),
+    );
+    expect(text(html, 'selection-team-activity')).toBe('vrací se do ohrady');
+    expect(html).not.toContain('selection-team-part');
+    expect(html).not.toContain('selection-team-ploughman');
+    expect(html).not.toContain('selection-team-leader');
+    expect(html).toContain('data-testid="selection-team-pen"');
+  });
+
+  it('vůz: druh pod portrétem, co dělá, stav, voli, náklad, ohrada a vozka', () => {
+    const html = render(cart());
+    expect(html).toContain('data-kind="cart"');
+    expect(html).toContain('src="/icons/resources/cart.png"');
+    expect(html).toContain('>Dvoukolák</h2>');
+    expect(text(html, 'selection-cart-activity')).toBe('veze uhlí ke kováři');
+    expect(text(html, 'selection-cart-condition')).toBe('80 %');
+    expect(text(html, 'selection-cart-oxen')).toBe('1');
+    expect(html).toMatch(
+      /src="\/icons\/resources\/charcoal\.png"[^>]*data-testid="selection-cart-cargo"/,
+    );
+    expect(html).toContain('data-testid="selection-cart-pen"');
+    expect(html).toContain('data-testid="selection-cart-drover"');
+  });
+
+  it('vůz u ohrady: bez volů, nákladu a vozky', () => {
+    const html = render(
+      cart({
+        cartKind: 'four-wheel',
+        activity: 'stojí u ohrady',
+        cargo: null,
+        oxen: 0,
+        drover: null,
+      }),
+    );
+    expect(html).toContain('>Čtyřkolák</h2>');
+    expect(text(html, 'selection-cart-activity')).toBe('stojí u ohrady');
+    expect(html).not.toContain('selection-cart-oxen');
+    expect(html).not.toContain('selection-cart-cargo');
+    expect(html).not.toContain('selection-cart-drover');
+  });
+
+  it('oráč a vozka – tlačítko vybere spřežení či vůz; jiný člověk ho nemá', () => {
+    const base = {
+      kind: 'person' as const,
+      id: 201,
+      portrait: 'man' as const,
+      role: 'Rolník',
+      activity: 'orá',
+      age: 31,
+      home: 2,
+      homeIcon: 'zemnice',
+      herd: null,
+    };
+    const ploughman = render({ ...base, draft: { kind: 'plough-team', team: 0 } });
+    expect(text(ploughman, 'selection-person-activity')).toBe('orá');
+    expect(ploughman).toMatch(
+      /data-testid="selection-person-draft"[^>]*><img src="\/icons\/resources\/ox\.png"/,
+    );
+    const drover = render({ ...base, activity: 'veze seno', draft: { kind: 'cart', id: 3 } });
+    expect(drover).toMatch(
+      /data-testid="selection-person-draft"[^>]*><img src="\/icons\/resources\/cart\.png"/,
+    );
+    expect(render({ ...base, draft: null })).not.toContain('selection-person-draft');
+  });
+});

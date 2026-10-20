@@ -7,8 +7,10 @@ import { LIVESTOCK_EPOCH_MS } from '../livestock-motion';
 import { createVillagerPose, villagerSeconds, type HerdView } from '../villager-motion';
 import { pickPerson } from '../villager-pick';
 import {
+  LEADER_AGE,
   planFunerals,
   planVillagers,
+  planVillagersWithCrew,
   planWeddings,
   type PlannedVillager,
   type VillagerGround,
@@ -479,5 +481,115 @@ describe('svatba – svatebčané jsou lidé vsi (kinship.md – Svatba ve scén
     expect(first.filter((p) => p.job?.kind === 'wedding' && p.job.role === 'guest')).toHaveLength(
       0,
     );
+  });
+});
+
+describe('oráč, honák a vozka jsou lidé vsi (villagers.md – Výběr postavy)', () => {
+  const CART = {
+    id: 5,
+    kind: 'two-wheel' as const,
+    x: 40,
+    z: -20,
+    condition: 1,
+    job: {
+      activity: 'haul' as const,
+      target: { kind: 'field' as const, id: 7 },
+      load: 'sheaves' as const,
+    },
+    route: [
+      { x: 40, z: -20 },
+      { x: 30, z: 7 },
+    ],
+  };
+  const DRAFT_SHARES: LaborShare[] = [
+    { activity: 'plough', target: { kind: 'field', id: 7 }, manDays: 2 },
+    { activity: 'haul', target: { kind: 'field', id: 7 }, manDays: 2 },
+    { activity: 'harvest', target: { kind: 'field', id: 7 }, manDays: 3 },
+    { activity: 'domestic', target: { kind: 'village' }, manDays: 4 },
+  ];
+  const draftVillage = (list = persons()): SceneVillage => ({
+    ...village(DRAFT_SHARES, list),
+    carts: [CART],
+  });
+  const OPTIONS = { seed: 5, herds: 2, paths: PATHS };
+
+  it('spřežení dostane oráče (dospělý muž) a honáka (výrostek), vůz vozku – nikdo dvakrát', () => {
+    const { people, crew } = planVillagersWithCrew(draftVillage(), GROUND, {
+      ...OPTIONS,
+      draft: { teams: 1, carts: [5] },
+    });
+    expect(crew.teams).toHaveLength(1);
+    const { ploughman, leader } = crew.teams[0]!;
+    const man = byId.get(ploughman!)!;
+    expect(man.sex).toBe('male');
+    expect(man.age).toBeGreaterThanOrEqual(14);
+    expect(man.age).toBeLessThan(45);
+    // honák je výrostek nejblíž LEADER_AGE z lidí, kteří dnes nepasou
+    const boy = byId.get(leader!)!;
+    expect(Math.abs(boy.age - LEADER_AGE)).toBeLessThanOrEqual(3);
+    expect(crew.carts).toEqual([{ cart: 5, drover: expect.any(Number) }]);
+    const drover = byId.get(crew.carts[0]!.drover!)!;
+    expect(drover.age).toBeGreaterThanOrEqual(14);
+    // nikdo není ve dvou postavách ani u spřežení a zároveň jinde
+    const ids = [ploughman!, leader!, crew.carts[0]!.drover!];
+    expect(new Set(ids).size).toBe(3);
+    for (const id of ids) expect(people.some((p) => p.person === id)).toBe(false);
+    // vozka nahradil postavu u vozu (honák svozu) – nakladači u snopů zůstali
+    expect(people.filter((p) => p.job?.kind === 'share' && p.job.activity === 'plough')).toEqual(
+      [],
+    );
+  });
+
+  it('bez spřežení a vozů ve scéně (draft chybí) stejné postavy jako dřív, nikdo u spřežení', () => {
+    const v = draftVillage();
+    const before = planVillagers(v, GROUND, OPTIONS);
+    const { people, crew } = planVillagersWithCrew(v, GROUND, OPTIONS);
+    expect(crew).toEqual({ teams: [], carts: [] });
+    expect(people.map((p) => [p.key, p.person])).toEqual(before.map((p) => [p.key, p.person]));
+  });
+
+  it('zapřažený vůz, ke kterému není podíl svozu (karavana bez práce), dostane vozku po práci vsi', () => {
+    const trade = { ...CART, id: 6, job: { ...CART.job, activity: 'trade' as const } };
+    const v = { ...draftVillage(), carts: [CART, trade] };
+    const { crew } = planVillagersWithCrew(v, GROUND, {
+      ...OPTIONS,
+      draft: { teams: 0, carts: [5, 6] },
+    });
+    expect(crew.carts.map((c) => c.cart).sort()).toEqual([5, 6]);
+    expect(crew.carts.every((c) => c.drover !== null)).toBe(true);
+  });
+
+  it('málo lidí: kdo není, ten u spřežení chybí (null); bez lidí ve scéně nikdo', () => {
+    const one = persons().filter((p) => p.id === 201);
+    const { crew } = planVillagersWithCrew(draftVillage(one), GROUND, {
+      ...OPTIONS,
+      draft: { teams: 1, carts: [5] },
+    });
+    // jediný dospělý muž orá – honák a vozka nejsou
+    expect(crew.teams[0]).toEqual({ ploughman: 201, leader: null });
+    expect(crew.carts).toEqual([{ cart: 5, drover: null }]);
+    const v = draftVillage();
+    const { persons: _persons, ...labor } = v.labor!;
+    void _persons;
+    const none = planVillagersWithCrew({ ...v, labor }, GROUND, {
+      ...OPTIONS,
+      draft: { teams: 2, carts: [5] },
+    }).crew;
+    expect(none.teams).toEqual([
+      { ploughman: null, leader: null },
+      { ploughman: null, leader: null },
+    ]);
+  });
+
+  it('přiřazení je stálé v rámci dne – stejná ves, stejní lidé u spřežení', () => {
+    const a = planVillagersWithCrew(draftVillage(), GROUND, {
+      ...OPTIONS,
+      draft: { teams: 1, carts: [5] },
+    });
+    const b = planVillagersWithCrew(draftVillage(), GROUND, {
+      ...OPTIONS,
+      draft: { teams: 1, carts: [5] },
+    });
+    expect(b.crew).toEqual(a.crew);
   });
 });
