@@ -14,6 +14,7 @@ import type {
   FieldTask,
   OvergrowthStage,
   PlotVariant,
+  NeighbourGood,
   TaskName,
   TradeGood,
 } from './types';
@@ -1608,7 +1609,8 @@ export const TRAIL = { coneDeg: 22.5, wideConeDeg: 45, edgeBandM: 20, roadDiscou
 // nabízené zboží platí hodnotou × 1,2 × 0,8 = 0,96. Nosič unese 25 kg (dobytek se žene – honák na
 // 10 kusů, návrh Clauda); cesta tam a zpět 2–6 dní podle délky stezky (2 dny do 400 m, každých
 // dalších 250 m den navíc – návrh Clauda) + 1 den za krajem mapy. Zásoby a poptávka sousedů se
-// doplní 1. 11. Ves si nechá aspoň 2 krávy (chovný pár – návrh Clauda).
+// doplní 1. 11. Ves si nechá aspoň 2 krávy (chovný pár – návrh Clauda). Krávy a voli jdou po svých
+// s honákem – jako lidé ve výměně lidí nepotřebují nosiče, honák je člověk výpravy.
 export const TRADE = {
   markup: 0.2,
   demandBonus: 0.2,
@@ -1658,16 +1660,37 @@ export const NEIGHBOURS = {
       needs: ['legumes', 'meat', 'cheese', 'logs', 'charcoal', 'cattle'],
     },
   },
+  /**
+   * Dobytek ve třech druzích (trade.md – Dobytek ve třech druzích; Martin 20. 10. 2026: „s dobytkem
+   * by také mělo jít obchodovat. Představuju si tři kategorie - krávy, mladé voly (musí se
+   * vycvičit) a vycvičené voly“; rozdělení podle povahy návrh Clauda): `cattle` v povaze souseda
+   * se rozloží na druhy dobytka – pastevci nabízejí všechny tři (a vždy, i když jim los dobytek
+   * nedal), obilnáři krávy a mladé voly (vycvičené potřebují na orbu sami), řemeslníci shánějí
+   * všechny tři (tažné voly na svoz, krávy na mléko, mladé voly si vycvičí).
+   */
+  cattleKinds: {
+    farmers: ['cows', 'youngOxen'],
+    herders: ['cows', 'youngOxen', 'trainedOxen'],
+    woodsmen: [],
+    crafters: ['cows', 'youngOxen', 'trainedOxen'],
+  },
+  cattleAlways: ['herders'],
 } as const satisfies Record<string, unknown> & {
   kinds: Record<
     string,
-    { offers: readonly TradeGood[]; always: TradeGood; needs: readonly TradeGood[] }
+    { offers: readonly NeighbourGood[]; always: NeighbourGood; needs: readonly NeighbourGood[] }
   >;
+  cattleKinds: Record<string, readonly TradeGood[]>;
+  cattleAlways: readonly string[];
 };
 // trade.md – Obchod, hodnoty zboží v kg obilí (rešerše research/2026-10-18-trade-values.md, návrh
 // Clauda): obilí 1, luštěniny 1, maso 3, sýr 4, keramika 3, uhlí 0,5, nástroje 60 (kg), kráva 600,
-// kláda 40 (kus). `carryKg` – kolik váží kus pro nosiče (kláda vleče 4 nosiči = 100 kg; dobytek se
-// žene – `TRADE.headsPerDrover`)
+// kláda 40 (kus). Dobytek ve třech druzích (trade.md – Dobytek ve třech druzích, rešerše
+// research/2026-10-20-cattle-trade.md, návrh Clauda): mladý vůl (tele před výcvikem) 350 – roček
+// stál v saském kapituláři solidus jako kráva ve franských zákonících, je ale ještě 2 roky jen
+// krmit –, vycvičený vůl 1 200 – v Lex Ribuaria dvakrát kráva (vůl 2, kráva 1 solidus), v Anglii
+// 14. stol. ≈ 1,4×; rozdíl proti mladému ≈ 2 zimy sena a výcvik. `carryKg` – kolik váží kus pro
+// nosiče (kláda vleče 4 nosiči = 100 kg; dobytek jde po svých s honákem – `TRADE.headsPerDrover`)
 export const TRADE_GOOD_VALUES = {
   grain: { valueKg: 1, carryKg: 1 },
   legumes: { valueKg: 1, carryKg: 1 },
@@ -1676,9 +1699,18 @@ export const TRADE_GOOD_VALUES = {
   pottery: { valueKg: 3, carryKg: 1 },
   charcoal: { valueKg: 0.5, carryKg: 1 },
   tools: { valueKg: 60, carryKg: 1 },
-  cattle: { valueKg: 600, carryKg: 0 },
+  cows: { valueKg: 600, carryKg: 0 },
+  youngOxen: { valueKg: 350, carryKg: 0 },
+  trainedOxen: { valueKg: 1200, carryKg: 0 },
   logs: { valueKg: 40, carryKg: 100 },
 } as const satisfies Record<TradeGood, { valueKg: number; carryKg: number }>;
+/**
+ * trade.md – Dobytek ve třech druzích (návrh Clauda): vycvičený vůl od souseda má za sebou
+ * `servedYears` let služby (zbývá mu 7 z 10); ves prodá jen vycvičené voly mimo posledních
+ * OXEN.trainingYears let služby (dosluhující soused nekoupí) – napřed ty, kteří slouží nejdéle,
+ * mladé voly napřed ty, které výcvik čeká nejdéle.
+ */
+export const CATTLE_TRADE = { servedYears: 3 } as const;
 // trade.md – Výměna lidí (Martin 19. 10. 2026: „Se sousedem půjde vyměnit i lidi... např. když on
 // jich bude mít moc a nebude je moci uživit, může jich pár vyměnit s námi za nějaké suroviny
 // a opačně.“, „Mohou se stěhovat celé rodiny i jen dospělí. Podle toho, co je v nabídce.“; čísla

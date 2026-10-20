@@ -237,6 +237,16 @@ export {
 export * from './trail';
 export * from './neighbours';
 export * from './trade';
+// dobytek v obchodu – příchod a odchod dobytka (`addCattle`, `removeCattle`) jsou kroky obchodu
+export {
+  NO_COW_ROOM,
+  NO_OX_ROOM,
+  boughtOxTrainedDay,
+  cattleForSale,
+  cattleRoom,
+  cattleRoomBlocked,
+  withCattleKinds,
+} from './cattle-trade';
 // výměna lidí se sousedem – příchod lidí (`settleNewcomers`) je krok simulace a zůstává uvnitř
 export {
   NO_PEOPLE,
