@@ -258,15 +258,6 @@ interface PaymentPool {
   legumesKg: number;
 }
 
-/**
- * Kolik obilí ves může dát (kg – přebytek nad pojistkou zásob k příští sklizni, nejvýš obilí
- * v zásobě): platba za kování k vozu (wagons.md – Kování vozů) jako za nákup u sousedů.
- */
-export function spareGrainKg(state: VillageState, day: number, coverage: CraftCoverage): number {
-  const pool = paymentPool(state, day, coverage);
-  return Math.max(0, Math.min(pool.grainKg, pool.energyKg));
-}
-
 /** Přebytek obilí a luštěnin nad pojistkou zásob (field-food.ts – `sowingTargets`). */
 function paymentPool(state: VillageState, day: number, coverage: CraftCoverage): PaymentPool {
   const targets = sowingTargets(state, day, legumeNeedPerYear(state, day), coverage.pottery);

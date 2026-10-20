@@ -234,11 +234,14 @@ describe('ves bez kováře – tesař jde pro kování (wagons.md – Kování v
     expect(carpenter(s).ironTrip).toBeNull();
   });
 
-  it('bez přebytku obilí nikdo nejde – vůz čeká', () => {
+  it('ves, která šetří jídlem nebo nemá obilí na platbu, nikoho nepošle – vůz čeká', () => {
     const s = withWaitingCart(village(), [16]);
-    s.storesKg = 50;
+    s.hungry = true;
     expect(cartIronDay(s, DAY + 1, null)).toEqual([]);
     expect(carpenter(s).ironTrip ?? null).toBeNull();
+    s.hungry = false;
+    s.storesKg = 50;
+    expect(cartIronDay(s, DAY + 1, null)).toEqual([]);
     expect(s.storesKg).toBe(50);
   });
 

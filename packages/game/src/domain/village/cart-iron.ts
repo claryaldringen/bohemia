@@ -1,7 +1,7 @@
 import { length2, type Landscape } from '../landscape';
 import { addCart } from './carts';
-import { neighbourCrafts, productPrice, purchaseRoute, spareGrainKg } from './craft-buying';
-import { NO_STOCKS, cartAwaitingIron, craftCoverage, occupiedWorkshops } from './crafts';
+import { neighbourCrafts, productPrice, purchaseRoute } from './craft-buying';
+import { NO_STOCKS, cartAwaitingIron, occupiedWorkshops } from './crafts';
 import { neighbourOf } from './neighbours';
 import { CART_IRON, CRAFT_BUYING, NEIGHBOR_DIRECTIONS, TRADE } from './rules';
 import { smithHead, smithSons } from './smith-supply';
@@ -137,8 +137,9 @@ function finishCart(state: VillageState, workshop: Workshop, day: number): Chron
  *    `cart-made`); kdo cestou zemřel nebo z vsi odešel, kování nepřinese (vůz čeká dál),
  * 2. vůz s hotovou dřevěnou prací vezme kování ze zásoby nástrojů, když v ní je – hotový,
  * 3. jinak, když ves nemá vlastního kováře (`smithAtHome`), jde syn tesaře od 14 let, nebo tesař,
- *    do nejbližší vsi s kovářem (`ironRoute`) – obilí za kování dá ves z přebytku nad pojistkou
- *    zásob hned; bez přebytku, vsi s kovářem nebo člověka vůz čeká (ves s kovářem – jeho zakázka).
+ *    do nejbližší vsi s kovářem (`ironRoute`) – obilí za kování dá ves ze zásob hned; ves, která
+ *    šetří jídlem nebo nemá obilí, vsi s kovářem nebo člověka, nechá vůz čekat (ves s kovářem –
+ *    jeho zakázka).
  */
 export function cartIronDay(
   state: VillageState,
@@ -197,7 +198,9 @@ export function cartIronDay(
 
 /**
  * Vyšle syna tesaře nebo tesaře pro kování (mutuje stav): kam (`ironRoute` od dílny), kdo
- * (`ironCarrier`) a platba obilím (`ironPriceKg` z přebytku – `spareGrainKg`). Když něco chybí,
+ * (`ironCarrier`) a platba obilím (`ironPriceKg`) ze zásob – jen ves, která nešetří jídlem
+ * (`hungry` – výhled jídla do sklizně vychází; kování je malá částka, rozhodnutí Clauda). Když
+ * něco chybí,
  * nic a null.
  */
 function startIronTrip(
@@ -212,7 +215,7 @@ function startIronTrip(
   const route = ironRoute(state, dwelling.position, landscape);
   if (!route) return null;
   const grainKg = ironPriceKg(kg);
-  if (spareGrainKg(state, day, craftCoverage(state, day)) + EPSILON < grainKg) return null;
+  if (state.hungry || state.storesKg + EPSILON < grainKg) return null;
   state.storesKg = Math.max(0, state.storesKg - grainKg);
   const trip: IronTrip = {
     personId: carrier.person.id,
