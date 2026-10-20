@@ -2,6 +2,7 @@ import type { SceneVillage } from '../village-view';
 import {
   personExists,
   selectedFieldPart,
+  targetExists,
   selectedOrchardSquare,
   wholeTarget,
   type VillageTarget,
@@ -77,6 +78,10 @@ export function presentTarget(
     }
     // zemřelý člověk (villagers.md – Výběr postavy)
     if (target.kind === 'person') return personExists(village, target.id) ? target : null;
+    // spřežení, když se dnes neorá; vůz, který ves už nemá (doslouží)
+    if (target.kind === 'plough-team' || target.kind === 'cart') {
+      return targetExists(village, target) ? target : null;
+    }
     return target;
   }
   const ids = target.ids.filter((id) => village.dwellings.some((d) => d.id === id));

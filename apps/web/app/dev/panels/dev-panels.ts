@@ -477,6 +477,87 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
     },
   },
   {
+    // oxen.md – Výběr spřežení: spřežení orá díl pole, tlačítka dílu, ohrady, oráče a honáka
+    key: 'sprezeni',
+    label: 'Spřežení s rádlem',
+    details: {
+      kind: 'plough-team',
+      team: 0,
+      activity: 'orá díl pole',
+      part: { fieldId: 7, cell: { x: 4, y: 2 } },
+      oxen: 2,
+      pen: 12,
+      ploughman: { id: 201, portrait: 'man' },
+      leader: { id: 203, portrait: 'child' },
+    },
+  },
+  {
+    // villagers.md – Výběr postavy: oráč u spřežení (tlačítko vybere spřežení)
+    key: 'postava-orac',
+    label: 'Postava – oráč',
+    details: {
+      kind: 'person',
+      id: 201,
+      portrait: 'man',
+      role: 'Rolník',
+      activity: 'orá',
+      age: 31,
+      home: 2,
+      homeIcon: 'zemnice',
+      herd: null,
+      draft: { kind: 'plough-team', team: 0 },
+    },
+  },
+  {
+    // wagons.md – Výběr vozu: dvoukolák veze uhlí ke kováři, vozka a ohrada
+    key: 'vuz',
+    label: 'Vůz – veze uhlí',
+    details: {
+      kind: 'cart',
+      id: 3,
+      cartKind: 'two-wheel',
+      activity: 'veze uhlí ke kováři',
+      cargo: 'charcoal',
+      condition: 0.8,
+      oxen: 1,
+      pen: 12,
+      drover: { id: 301, portrait: 'man' },
+    },
+  },
+  {
+    // vůz bez jízdy stojí u ohrady (voli v ohradě, vozka doma)
+    key: 'vuz-stoji',
+    label: 'Vůz – stojí u ohrady',
+    details: {
+      kind: 'cart',
+      id: 4,
+      cartKind: 'four-wheel',
+      activity: 'stojí u ohrady',
+      cargo: null,
+      condition: 0.4,
+      oxen: 0,
+      pen: 12,
+      drover: null,
+    },
+  },
+  {
+    // vozka u vozu (tlačítko vybere vůz)
+    key: 'postava-vozka',
+    label: 'Postava – vozka',
+    details: {
+      kind: 'person',
+      id: 301,
+      portrait: 'man',
+      role: 'Rolník',
+      activity: 'veze uhlí ke kováři',
+      age: 40,
+      home: 3,
+      homeIcon: 'polozemnice',
+      herd: null,
+      draft: { kind: 'cart', id: 3 },
+    },
+  },
+  {
     // crafts.md – Milíř u skácených buků: vypálený milíř se rozebírá, syn kováře (11) nosí uhlí
     key: 'milir',
     label: 'Milíř',

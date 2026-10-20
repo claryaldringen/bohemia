@@ -50,7 +50,17 @@ import {
   type TeamPose,
   type TeamTrack,
 } from './plough-team';
+import { pickTeam, type DraftHit, type TeamFigure, type TeamPart } from './draft-pick';
+import {
+  loopActivity,
+  routeActivity,
+  sameTeamActivity,
+  type PloughedPart,
+  type TeamActivity,
+} from './draft-state';
+import { RING_SIZE_M, SelectionRing } from './selection-ring';
 import { villagerSeconds } from './villager-motion';
+import type { Project } from './villager-pick';
 import { VillagerPlugin, loadBakedModel } from './villagers';
 
 /** Snímků za sekundu zapečené animace (klíče animací 0 A.D.). */
@@ -86,6 +96,11 @@ const BOY_LOOK = [1.08, 1.02, 0.9, 0] as const;
 const SHADOW = { ox: [2.4, 1.0], man: [1.0, 1.0], ard: [1.5, 0.45] } as const;
 const SHADOW_OPACITY = 0.5;
 const SHADOW_LIFT_M = 0.04;
+/**
+ * Kroužek pod vybraným spřežením (villagers.md – Výběr postavy): před hlavami volů (m od jha
+ * při měřítku 1), přídavek k délce a šířka elipsy (m při TEAM_SCALE 1).
+ */
+const TEAM_RING = { ahead: 1.3, pad: 1.6, width: 3.2 } as const;
 
 export interface PloughTeamsEnvironment {
   /** Adresa modelů (…/ox.glb, …/plowman.glb, …/ard.glb). */
@@ -96,6 +111,11 @@ export interface PloughTeamsEnvironment {
   prepareMaterial?: (material: Material) => void;
   /** Modely se načetly a spřežení se objevilo – překreslit. */
   onLoaded(): void;
+  /**
+   * Vybrané spřežení (`select`) – co právě dělá; volá se jen při změně (null = spřežení není nebo
+   * nic vybraného).
+   */
+  onSelected?(state: { team: number; activity: TeamActivity } | null): void;
 }
 
 /** Postava z GLB s kostrou v instancích (VAT) – mesh, animace a buffery instancí. */
@@ -113,8 +133,17 @@ export interface BakedKind {
  * (skutečný čas, jako zvířata) – jen v záběru; `frozen` = omezený pohyb, stojí.
  */
 export class PloughTeams {
-  /** Spřežení: smyčka na pruhu (`loop`), nebo trasa celé dnešní orby (`route` – ladicí). */
-  private tracks: ({ loop: TeamTrack } | { route: RouteTrack })[] = [];
+  /**
+   * Spřežení: smyčka na pruhu (`loop` – díl, který orá, `part`), nebo trasa celé dnešní orby
+   * (`route` – ladicí; `approach` = z ohrady po cestě a večer zpět).
+   */
+  private tracks: (
+    { loop: TeamTrack; part: PloughedPart | null } | { route: RouteTrack; approach: boolean }
+  )[] = [];
+  /** Vybrané spřežení, oráč nebo honák (villagers.md – Výběr postavy) a kroužek pod ním. */
+  private selected: { team: number; figure: TeamFigure } | null = null;
+  private ring: SelectionRing | null = null;
+  private selectedState: { team: number; activity: TeamActivity } | null = null;
   /** Kdy se trasy dne naposledy nastavily – při omezeném pohybu stojí spřežení, kde v tu chvíli bylo. */
   private frozenMs = 0;
   /** Kdy scéna naposledy posunula animaci (ms, epoch) – jestli animace běží. */
@@ -138,16 +167,21 @@ export class PloughTeams {
    * stáhnou s prvním spřežením. Spřežení, které už ve scéně je, dojde na novou dráhu z místa,
    * kde je v okamžiku `nowMs` (jen když animace běží – jinak stojí rovnou na novém místě).
    */
-  setPaths(paths: readonly PloughPath[], nowMs = Date.now()): void {
+  setPaths(
+    paths: readonly PloughPath[],
+    nowMs = Date.now(),
+    parts: readonly (PloughedPart | null)[] = [],
+  ): void {
     const t = villagerSeconds(nowMs);
     const live = nowMs - this.liveAt < LIVE_MS && this.count > 0;
     const probe = createTeamPose();
     const before = this.tracks;
     this.tracks = paths.map((path, i) => {
       const old = before[i];
-      if (!live || !old || !('loop' in old)) return { loop: teamTrack(path) };
+      const part = parts[i] ?? null;
+      if (!live || !old || !('loop' in old)) return { loop: teamTrack(path), part };
       const spot = teamSpot(trackPose(old.loop, t, probe, this.env.groundHeight));
-      return { loop: transitTrack(path, spot, t) };
+      return { loop: transitTrack(path, spot, t), part };
     });
     this.applyTracks(nowMs, live);
   }
@@ -181,7 +215,10 @@ export class PloughTeams {
         from = { x: pose.yoke.x, z: pose.yoke.z };
       }
       // z ohrady po cestě k bloku a večer zpět (oxen.md – Co nejdelší brázda)
-      return { route: { route: ploughRoute(stints, from, undefined, approach), startMs, endMs } };
+      return {
+        route: { route: ploughRoute(stints, from, undefined, approach), startMs, endMs },
+        approach: approach !== null && approach.length >= 2,
+      };
     });
     this.frozenMs = nowMs;
     this.applyTracks(nowMs, live);
@@ -205,11 +242,39 @@ export class PloughTeams {
     this.updateBounds();
     // póza hned – při omezeném pohybu stálá na novém místě, jinak tam, kde spřežení právě je
     if (this.count > 0) this.write(nowMs, !live);
+    this.updateSelected(nowMs, !live);
   }
 
   /** Počet spřežení s načtenými modely (pro testy a měření). */
   get count(): number {
     return this.ox && this.man ? this.tracks.length : 0;
+  }
+
+  /**
+   * Spřežení pod kurzorem (x, y – CSS px plátna): vůl, rádlo s ojí, oráč nebo honák v posledních
+   * zapsaných pózách; `project` převede bod světa na plátno. Jen při kliknutí. Nic – null.
+   */
+  pick(x: number, y: number, project: Project): DraftHit<TeamPart> | null {
+    if (this.count === 0) return null;
+    return pickTeam(this.poses, x, y, project);
+  }
+
+  /**
+   * Vybere spřežení `team` – celé (kroužek kolem volů, rádla a lidí), nebo oráče či honáka
+   * (kroužek pod ním); null výběr zruší. Kroužek pak sleduje pohyb, stav hlásí `onSelected`.
+   */
+  select(selection: { team: number; figure: TeamFigure } | null, nowMs = Date.now()): void {
+    const before = this.selected;
+    if (before?.team === selection?.team && before?.figure === selection?.figure) return;
+    this.selected = selection;
+    if (this.count > 0) this.writeRing();
+    else this.ring?.hide();
+    this.updateSelected(nowMs, nowMs - this.liveAt >= LIVE_MS);
+  }
+
+  /** Počet spřežení na dráhách (i před načtením modelů). */
+  get teams(): number {
+    return this.tracks.length;
   }
 
   /** Střed spřežení `index` (jho) v posledním zapsaném okamžiku – kam namířit kameru. */
@@ -225,6 +290,8 @@ export class PloughTeams {
    */
   animate(nowMs: number, camera: Camera | null, frozen = false): boolean {
     this.liveAt = frozen ? -Infinity : nowMs;
+    // co vybrané spřežení dělá – i mimo záběr (panel výběru)
+    if (this.selected) this.updateSelected(nowMs, frozen);
     if (this.count === 0) return false;
     if (camera) {
       if (!camera.isInFrustum(this.bounds)) return false;
@@ -250,6 +317,65 @@ export class PloughTeams {
     this.shadow?.mesh.material?.dispose(true, true);
     this.shadow?.mesh.dispose();
     this.shadow = null;
+    this.ring?.dispose();
+    this.ring = null;
+  }
+
+  /**
+   * Co vybrané spřežení dělá v okamžiku `nowMs` (`frozen` – omezený pohyb: stálá póza) – ohlásí
+   * jen změnu (`onSelected`).
+   */
+  private updateSelected(nowMs: number, frozen: boolean): void {
+    const team = this.selected?.team;
+    const track = team === undefined ? undefined : this.tracks[team];
+    let state: { team: number; activity: TeamActivity } | null = null;
+    if (team !== undefined && track) {
+      const activity =
+        'route' in track
+          ? routeActivity(track.route, frozen ? this.frozenMs : nowMs, track.approach)
+          : loopActivity(track.loop, frozen ? FROZEN_T : villagerSeconds(nowMs), track.part);
+      state = { team, activity };
+    }
+    const before = this.selectedState;
+    const same =
+      before === null || state === null
+        ? before === state
+        : before.team === state.team && sameTeamActivity(before.activity, state.activity);
+    if (same) return;
+    this.selectedState = state;
+    this.env.onSelected?.(state);
+  }
+
+  /**
+   * Kroužek pod vybraným spřežením podle posledních póz: celé spřežení elipsou od hlav volů po
+   * oráče, oráč či honák kroužkem pod nohama.
+   */
+  private writeRing(): void {
+    const selected = this.selected;
+    const pose = selected ? this.poses[selected.team] : undefined;
+    if (!selected || !pose || selected.team >= this.tracks.length) {
+      this.ring?.hide();
+      return;
+    }
+    const ring = (this.ring ??= new SelectionRing(this.scene, 'plough-ring'));
+    const ground = this.env.groundHeight;
+    if (selected.figure !== 'team') {
+      const leader = selected.figure === 'leader';
+      const f = leader ? pose.boy : pose.plowman;
+      const scale = TEAM_SCALE * (leader ? TEAM_PARTS.boy.scale : 1);
+      ring.show(ground, f.x, f.y, f.z, RING_SIZE_M * scale);
+      return;
+    }
+    const yoke = pose.yoke;
+    const len = Math.hypot(yoke.fx, yoke.fz) || 1;
+    const ax = yoke.x + (yoke.fx / len) * TEAM_RING.ahead * TEAM_SCALE;
+    const az = yoke.z + (yoke.fz / len) * TEAM_RING.ahead * TEAM_SCALE;
+    const bx = pose.plowman.x;
+    const bz = pose.plowman.z;
+    const x = (ax + bx) / 2;
+    const z = (az + bz) / 2;
+    const length = Math.hypot(ax - bx, az - bz) + TEAM_RING.pad * TEAM_SCALE;
+    ring.show(ground, x, ground(x, z), z, length, TEAM_RING.width * TEAM_SCALE, ax - bx, az - bz);
   }
 
   /**
@@ -399,6 +525,7 @@ export class PloughTeams {
     }
     for (const { mesh } of this.parts.values()) mesh.thinInstanceBufferUpdated('matrix');
     this.shadow?.mesh.thinInstanceBufferUpdated('matrix');
+    if (this.selected) this.writeRing();
   }
 
   /** Stín pod volem / postavou / rádlem: elipsa natočená ve směru pohledu. */

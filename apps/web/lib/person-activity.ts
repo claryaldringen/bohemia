@@ -3,6 +3,7 @@
 // milíř, tesař – jde do vesnice XY pro kování k vozu“). Z úlohy postavy dne (villager-roster.ts),
 // kde v pochůzce je (tam, zpět, doma) a dat vsi ve scéně. Čistý modul.
 import type { Craft, HerdSpecies, KilnStage } from '@bohemia/game';
+import { crewActivityText, type DraftFigureState } from './draft-activity';
 import type { PersonJob } from './scene/villager-roster';
 import type { VillagerStage } from './scene/villager-motion';
 import type { LaborTarget, SceneVillage } from './village-view';
@@ -67,12 +68,21 @@ const DWELLING_SITES: Record<string, string> = {
 
 /**
  * Věta o tom, co člověk dělá: bez postavy dne „doma“, za krajem mapy „pryč – …“, doma mezi
- * pochůzkami „doma“; jinak podle úlohy a úseku pochůzky („jde pro vodu“ / „nese vodu“).
+ * pochůzkami „doma“; jinak podle úlohy a úseku pochůzky („jde pro vodu“ / „nese vodu“). Oráč,
+ * honák a vozka podle stavu svého spřežení či vozu (`draft` – draft-activity.ts: „orá“, „vede
+ * spřežení“, „veze uhlí ke kováři“).
  */
-export function personActivity(state: PersonFigureState | null, village: SceneVillage): string {
+export function personActivity(
+  state: PersonFigureState | null,
+  village: SceneVillage,
+  draft: DraftFigureState | null = null,
+): string {
   const job = state?.job;
   if (!state || !job) return 'doma';
   if (job.kind === 'caravan') return caravanText(job, state);
+  if (job.kind === 'plough' || job.kind === 'cart') {
+    return crewActivityText(job, draft, village) ?? 'doma';
+  }
   if (state.hidden) return 'doma';
   const stage = state.stage;
   switch (job.kind) {

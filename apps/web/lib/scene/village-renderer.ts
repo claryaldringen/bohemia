@@ -77,7 +77,11 @@ import {
 import { ploughFront, ploughTeamCount } from './plough-front';
 import { ploughPath } from './plough-team';
 import { PloughTeams } from './plough-team-renderer';
-import { CartRenderer } from './cart-renderer';
+import { CartRenderer, type CartSelectedState } from './cart-renderer';
+import type { DraftPick, DraftSelection } from './draft-pick';
+import type { TeamActivity } from './draft-state';
+import type { Project } from './villager-pick';
+import type { DraftCrews } from './villager-plan';
 import { draftTeamsToday, villageCartPlans } from './village-carts';
 import { penHerds, scenePenViews } from './village-pens';
 import { SACRED_SITE_KIND, sacredBuildingKey } from './sacred-layout';
@@ -231,7 +235,16 @@ interface VillageContext {
    * omezeném pohybu pole ukáže stav na konci dne a spřežení stojí na čele. Bez údaje ano.
    */
   animated?(): boolean;
+  /**
+   * Vybrané spřežení nebo vůz (`selectDraft` – villagers.md, Výběr postavy): co dělá; volá se jen
+   * při změně (null – nic vybraného, nebo spřežení / vůz ve scéně není).
+   */
+  onDraftState?(state: DraftRenderState | null): void;
 }
+
+/** Vybrané spřežení nebo vůz ve scéně (stav pro panel výběru). */
+export type DraftRenderState =
+  { kind: 'team'; team: number; activity: TeamActivity } | ({ kind: 'cart' } & CartSelectedState);
 
 /**
  * Ves ve scéně: hotová obydlí jako modely (thin instances, jeden mesh na typ) nad vyhloubenou
@@ -299,6 +312,13 @@ export class VillageRenderer {
   /** Vozy se spřežením – svoz a výprava, vůz bez jízdy u ohrady (wagons.md – village-carts.ts). */
   private readonly carts: CartRenderer;
   private cartsKey = '';
+  /** Zapřažené vozy dne (id) – mají vozku (villager-plan.ts – `draftStaff`). */
+  private cartCrews: number[] = [];
+  /** Vybrané spřežení / vůz a jejich poslední stav (villagers.md – Výběr postavy). */
+  private draftSelection: DraftSelection | null = null;
+  private teamState: DraftRenderState | null = null;
+  private cartState: DraftRenderState | null = null;
+  private draftState: DraftRenderState | null = null;
   /** Hodiny světa – kdy herní den rozdělení práce začíná a končí (orba za herní den). */
   private worldClock: WorldClock | null = null;
   /** Vlastní okno herního dne (vývojová ukázka „Orání“ – den ukázky), jinak z hodin světa. */
@@ -377,12 +397,20 @@ export class VillageRenderer {
       groundHeight: context.groundHeight,
       prepareMaterial: prepareDwellingMaterial,
       onLoaded: () => context.requestRender(),
+      onSelected: (state) => {
+        this.teamState = state ? { kind: 'team', ...state } : null;
+        this.emitDraftState();
+      },
     });
     this.carts = new CartRenderer(scene, {
       baseUrl: '/models/',
       groundHeight: context.groundHeight,
       prepareMaterial: prepareDwellingMaterial,
       onLoaded: () => context.requestRender(),
+      onSelected: (state) => {
+        this.cartState = state ? { kind: 'cart', ...state } : null;
+        this.emitDraftState();
+      },
     });
   }
 
@@ -476,6 +504,7 @@ export class VillageRenderer {
         this.teams.setPaths(
           front.map((a) => ploughPath(a.field)),
           Date.now(),
+          front.map((a) => ({ fieldId: a.fieldId, partId: a.partId })),
         );
         teams = true;
       }
@@ -503,11 +532,61 @@ export class VillageRenderer {
     ]);
     if (key === this.cartsKey) return false;
     this.cartsKey = key;
-    this.carts.setCarts(
-      villageCartPlans(village, pens, window, (day) => this.dayWindow(day)),
-      Date.now(),
-    );
+    const plans = villageCartPlans(village, pens, window, (day) => this.dayWindow(day));
+    // vůz se spřežením má vozku (jede, nebo v karavaně), stojící u ohrady ne
+    this.cartCrews = plans.flatMap((p) => (!('parked' in p) && p.id !== undefined ? [p.id] : []));
+    this.carts.setCarts(plans, Date.now());
     return true;
+  }
+
+  /**
+   * Spřežení a vozy, které ves dnes kreslí (po `update`): kolik spřežení s rádlem a id
+   * zapřažených vozů – lidé u nich (oráč, honák, vozka) jsou lidé vsi (villager-plan.ts).
+   */
+  draftCrews(): DraftCrews {
+    return { teams: this.teams.teams, carts: this.cartCrews };
+  }
+
+  /**
+   * Spřežení nebo vůz pod kurzorem (x, y – CSS px): bližší z obou (vůl, rádlo, korba, oráč,
+   * honák, vozka). Jen při kliknutí. Nic – null.
+   */
+  pickDraft(x: number, y: number, project: Project): DraftPick | null {
+    const team = this.teams.pick(x, y, project);
+    const cart = this.carts.pick(x, y, project);
+    if (cart && (!team || cart.distance < team.distance)) {
+      return { kind: 'cart', cart: cart.cart, part: cart.part, distance: cart.distance };
+    }
+    return team
+      ? { kind: 'team', team: team.index, part: team.part, distance: team.distance }
+      : null;
+  }
+
+  /**
+   * Vybere spřežení nebo vůz (celé, nebo člověka u nich) – kroužek sleduje pohyb, co dělá hlásí
+   * `onDraftState`; null výběr zruší.
+   */
+  selectDraft(selection: DraftSelection | null): void {
+    this.draftSelection = selection;
+    const nowMs = Date.now();
+    this.teams.select(
+      selection?.kind === 'team' ? { team: selection.team, figure: selection.figure } : null,
+      nowMs,
+    );
+    this.carts.select(
+      selection?.kind === 'cart' ? { cart: selection.cart, figure: selection.figure } : null,
+      nowMs,
+    );
+    this.emitDraftState();
+  }
+
+  /** Stav vybraného spřežení / vozu – jen při změně. */
+  private emitDraftState(): void {
+    const kind = this.draftSelection?.kind;
+    const state = kind === 'team' ? this.teamState : kind === 'cart' ? this.cartState : null;
+    if (state === this.draftState) return;
+    this.draftState = state;
+    this.context.onDraftState?.(state);
   }
 
   /**

@@ -53,7 +53,14 @@ export type VillageTarget =
    * Člověk vsi (id – villagers.md, Výběr postavy): klik na jeho postavu; výběr zůstane, i když
    * postava zmizí (vejde domů, za kraj mapy).
    */
-  | { kind: 'person'; id: number };
+  | { kind: 'person'; id: number }
+  /**
+   * Spřežení volů s rádlem na poli (oxen.md – Výběr spřežení): pořadí spřežení dne
+   * (plough-team-renderer.ts) – klik na voly nebo rádlo.
+   */
+  | { kind: 'plough-team'; team: number }
+  /** Vůz vsi (id vozu – wagons.md, Výběr vozu): klik na vůz nebo jeho voly. */
+  | { kind: 'cart'; id: number };
 
 export interface Vec3 {
   x: number;
@@ -359,7 +366,14 @@ export function targetExists(village: SceneVillage, target: VillageTarget): bool
     );
   }
   if (target.kind === 'person') return personExists(village, target.id);
+  if (target.kind === 'plough-team') return ploughsToday(village);
+  if (target.kind === 'cart') return (village.carts ?? []).some((c) => c.id === target.id);
   return village.fields.some((f) => f.id === target.id);
+}
+
+/** Spřežení dnes orá (rozdělení práce dne má orbu – jako `ploughingToday` v plough-front.ts)? */
+function ploughsToday(village: Pick<SceneVillage, 'labor'>): boolean {
+  return (village.labor?.shares ?? []).some((s) => s.activity === 'plough' && s.manDays > 0);
 }
 
 /** Žije člověk ve vsi (`labor.persons`)? Bez lidí ve scéně ano – nejde to poznat. */

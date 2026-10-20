@@ -1,6 +1,7 @@
 import {
   AGE,
   CARTS,
+  DRAFT_OXEN,
   LEAVING,
   ORCHARD,
   PRODUCT_CRAFT,
@@ -31,6 +32,15 @@ import type { VillageKiln } from './kiln-view';
 import type { HouseholdRelocation } from './relocation-view';
 import { TREE_GROWTH_YEARS } from './orchard-look';
 import { personActivity, type PersonFigureState } from './person-activity';
+import {
+  cartActivityText,
+  cartGoal,
+  cartPen,
+  teamActivityText,
+  teamPen,
+  type CartGoal,
+  type DraftFigureState,
+} from './draft-activity';
 import { ROLE_NAMES, herdRole } from './person-roles';
 import {
   dugSiteOf,
@@ -433,7 +443,7 @@ export type SelectionDetails =
        */
       kind: 'person';
       id: number;
-      portrait: 'man' | 'woman' | 'child' | 'elder';
+      portrait: PersonPortraitIcon;
       role: string;
       activity: string;
       age: number;
@@ -441,6 +451,43 @@ export type SelectionDetails =
       /** Ikona domu (`public/icons/build/` – typ obydlí nebo dílna). */
       homeIcon: string | null;
       herd: HerdSpecies | null;
+      /**
+       * Oráč a honák u spřežení, vozka u vozu (villagers.md – Výběr postavy): tlačítko vybere
+       * spřežení či vůz; ostatní null.
+       */
+      draft?: { kind: 'plough-team'; team: number } | { kind: 'cart'; id: number } | null;
+    }
+  | {
+      /**
+       * Spřežení volů s rádlem na poli (oxen.md – Výběr spřežení; Martin 20. 10. 2026: „nešlo mi
+       * kliknout na volské spřežení ani na člověka, co jej vedl“): co dělá, díl, který orá
+       * (tlačítko ho vybere – null, když díl ve scéně není), voli, ohrada, ze které jsou (tlačítko),
+       * a oráč a honák (tlačítka je vyberou; nikdo – null).
+       */
+      kind: 'plough-team';
+      team: number;
+      activity: string;
+      part: { fieldId: number; cell: TileCell } | null;
+      oxen: number;
+      pen: number | null;
+      ploughman: CrewMember | null;
+      leader: CrewMember | null;
+    }
+  | {
+      /**
+       * Vůz vsi (wagons.md – Výběr vozu): druh, co dělá (stojí u ohrady, jede pro náklad, veze
+       * ho…), co právě veze (`cargo` – jen naložený), stav, kolik volů ho táhne, ohrada (tlačítko)
+       * a vozka (tlačítko ho vybere; nikdo – null).
+       */
+      kind: 'cart';
+      id: number;
+      cartKind: CartKind;
+      activity: string;
+      cargo: CartGoal | null;
+      condition: number;
+      oxen: number;
+      pen: number | null;
+      drover: CrewMember | null;
     }
   | ({
       /**
@@ -451,6 +498,15 @@ export type SelectionDetails =
        */
       kind: 'kiln';
     } & VillageKiln);
+
+/** Portrét člověka podle věku a pohlaví (ikony lidí v `public/icons/resources/`). */
+export type PersonPortraitIcon = 'man' | 'woman' | 'child' | 'elder';
+
+/** Člověk u spřežení či vozu v panelu – id (tlačítko ho vybere) a portrét. */
+export interface CrewMember {
+  id: number;
+  portrait: PersonPortraitIcon;
+}
 
 /** Pořadí stád v panelu ohrady (diet.md – Dobytek). */
 export const HERD_ORDER: readonly HerdSpecies[] = ['sheep', 'goat', 'pig', 'cow'];
@@ -575,9 +631,12 @@ export function selectionDetails(
   scene: SceneVillage,
   target: VillageTarget | null,
   person: PersonFigureState | null = null,
+  draft: DraftFigureState | null = null,
 ): SelectionDetails | null {
   if (!target) return null;
-  if (target.kind === 'person') return personDetails(scene, target.id, person);
+  if (target.kind === 'person') return personDetails(scene, target.id, person, draft);
+  if (target.kind === 'plough-team') return teamDetails(scene, target.team, draft);
+  if (target.kind === 'cart') return cartDetails(scene, target.id, draft);
   if (target.kind === 'dwellings') return dwellingsDetails(view, scene, target.ids);
   if (target.kind === 'dwelling') {
     const dwelling = scene.dwellings.find((d) => d.id === target.id);
@@ -755,29 +814,99 @@ function personDetails(
   scene: SceneVillage,
   id: number,
   state: PersonFigureState | null,
+  draft: DraftFigureState | null,
 ): SelectionDetails | null {
   const person = scene.labor?.persons?.find((p) => p.id === id);
   if (!person) return null;
   const figure = state?.id === id ? state : null;
   const herding = figure?.job?.kind === 'herd';
   const home = scene.dwellings.find((d) => d.id === person.home) ?? null;
+  const job = figure?.job ?? null;
   return {
     kind: 'person',
     id,
-    portrait:
-      person.age >= AGE.elder
-        ? 'elder'
-        : person.age < AGE.adult
-          ? 'child'
-          : person.sex === 'female'
-            ? 'woman'
-            : 'man',
+    portrait: personPortrait(person),
     role: ROLE_NAMES[herding && person.age < AGE.adult ? herdRole(person.sex) : person.role],
-    activity: personActivity(figure, scene),
+    activity: personActivity(figure, scene, draft),
     age: person.age,
     home: home ? home.id : null,
     homeIcon: home ? (home.craft ? CRAFT_LOOKS[home.craft].icon : home.type) : null,
     herd: herding ? (figure?.herd ?? null) : null,
+    draft:
+      job?.kind === 'plough'
+        ? { kind: 'plough-team', team: job.team }
+        : job?.kind === 'cart'
+          ? { kind: 'cart', id: job.cart }
+          : null,
+  };
+}
+
+/** Portrét člověka: starší, dítě (do 14 let), žena, nebo muž. */
+function personPortrait(person: { age: number; sex: string }): PersonPortraitIcon {
+  if (person.age >= AGE.elder) return 'elder';
+  if (person.age < AGE.adult) return 'child';
+  return person.sex === 'female' ? 'woman' : 'man';
+}
+
+/** Člověk u spřežení či vozu (id ze scény) – jen když ho ves ve scéně má. */
+function crewMember(scene: SceneVillage, id: number | null): CrewMember | null {
+  const person = id === null ? undefined : scene.labor?.persons?.find((p) => p.id === id);
+  return person ? { id: person.id, portrait: personPortrait(person) } : null;
+}
+
+/**
+ * Spřežení s rádlem (oxen.md – Výběr spřežení): co dělá ze stavu, který hlásí scéna (`draft` –
+ * jen toto spřežení; bez něj spřežení ve scéně není – null), díl, který orá, ohrada a lidé u něj.
+ */
+function teamDetails(
+  scene: SceneVillage,
+  team: number,
+  draft: DraftFigureState | null,
+): SelectionDetails | null {
+  if (draft?.kind !== 'team' || draft.team !== team) return null;
+  const ploughed = draft.activity.kind === 'plough' ? draft.activity.part : null;
+  const cell =
+    ploughed && ploughed.partId !== null
+      ? scene.fields
+          .find((f) => f.id === ploughed.fieldId)
+          ?.parts.find((p) => p.id === ploughed.partId)?.cell
+      : undefined;
+  return {
+    kind: 'plough-team',
+    team,
+    activity: teamActivityText(draft.activity),
+    part: ploughed && cell ? { fieldId: ploughed.fieldId, cell } : null,
+    oxen: DRAFT_OXEN.ard,
+    pen: teamPen(scene, team),
+    ploughman: crewMember(scene, draft.ploughman),
+    leader: crewMember(scene, draft.leader),
+  };
+}
+
+/**
+ * Vůz (wagons.md – Výběr vozu): druh a stav ze scény vsi, co dělá a co veze ze stavu, který hlásí
+ * scéna (`draft` – jen tento vůz; bez něj podle úlohy dne), ohrada a vozka.
+ */
+function cartDetails(
+  scene: SceneVillage,
+  id: number,
+  draft: DraftFigureState | null,
+): SelectionDetails | null {
+  const cart = scene.carts?.find((c) => c.id === id);
+  if (!cart) return null;
+  const own = draft?.kind === 'cart' && draft.cart === id ? draft : null;
+  const leg = own?.leg ?? (cart.job ? null : 'parked');
+  const hitched = cart.job !== null && leg !== 'parked';
+  return {
+    kind: 'cart',
+    id,
+    cartKind: cart.kind,
+    activity: cartActivityText(scene, id, leg),
+    cargo: cart.job && own?.loaded && !own.hidden ? cartGoal(cart.job) : null,
+    condition: cart.condition,
+    oxen: hitched ? DRAFT_OXEN[cart.kind] : 0,
+    pen: cartPen(scene, id),
+    drover: hitched ? crewMember(scene, own?.drover ?? null) : null,
   };
 }
 

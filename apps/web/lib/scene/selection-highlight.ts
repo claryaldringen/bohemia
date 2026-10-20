@@ -126,8 +126,11 @@ export class SelectionHighlight {
  * (i natočený); rudiště kováře a hliniště hrnčíře obrys kolem jam a hromady (`oreSiteOutline`).
  */
 export function targetOutline(village: SceneVillage, target: VillageTarget): Point[][] {
-  // vybraná postava má žlutý kroužek pod nohama (villagers.ts) – rámeček na zemi ne
-  if (target.kind === 'person') return [];
+  // vybraná postava, spřežení a vůz mají žlutý kroužek, který je sleduje (villagers.ts,
+  // plough-team-renderer.ts, cart-renderer.ts) – rámeček na zemi ne
+  if (target.kind === 'person' || target.kind === 'plough-team' || target.kind === 'cart') {
+    return [];
+  }
   if (target.kind === 'field-part') {
     const part = selectedFieldPart(village, target);
     return part ? cellsBoundary([cellSquare(part)]) : [];

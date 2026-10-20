@@ -125,6 +125,7 @@ export function villageCartPlans(
     if (job && driving.has(cart.id)) {
       const group = sameRoute.get(JSON.stringify(cart.route))!;
       plans.push({
+        id: cart.id,
         kind: cart.kind,
         cargo: job.load,
         shuttle: shuttleRoute(cart.route!, cart.kind),
@@ -147,7 +148,7 @@ export function villageCartPlans(
     if (!pen) continue;
     const index = parkedAt.get(pen.id) ?? 0;
     parkedAt.set(pen.id, index + 1);
-    plans.push({ kind: cart.kind, parked: parkedCartSpot(pen.layout, index) });
+    plans.push({ id: cart.id, kind: cart.kind, parked: parkedCartSpot(pen.layout, index) });
   }
   return plans;
 }
@@ -176,6 +177,7 @@ export function caravanCartPlan(
   const k = Math.max(0, e.carts.indexOf(cart.id));
   const daySeconds = window ? Math.max(1, (window.endMs - window.startMs) / 1000) : 86;
   return {
+    id: cart.id,
     kind: cart.kind,
     cargo: 'goods',
     routes: { out, back },

@@ -45,16 +45,20 @@ import {
   type VillagerStage,
 } from './villager-motion';
 import { samePersonState, type PersonFigureState } from '../person-activity';
-import { pickPerson, selectedFigure, type Project } from './villager-pick';
+import { RING_SIZE_M, SelectionRing } from './selection-ring';
+import { pickPersonHit, selectedFigure, type Project } from './villager-pick';
 import {
   planFunerals,
-  planVillagers,
+  planVillagersWithCrew,
   planWeddings,
+  type DraftCrew,
+  type DraftCrews,
   type HairLook,
   type PlannedVillager,
   type VillagerGround,
   type VillagerPaths,
 } from './villager-plan';
+import type { PersonJob } from './villager-roster';
 
 const KINDS: readonly VillagerKind[] = ['woman', 'man'];
 /** Snímků za sekundu zapečené animace (klíče animací 0 A.D.). */
@@ -70,13 +74,6 @@ const HEAD_ROOM_M = 2.6;
 const SHADOW_SIZE_M = 1.15;
 const SHADOW_OPACITY = 0.5;
 const SHADOW_LIFT_M = 0.04;
-/**
- * Žlutý kroužek pod vybranou postavou (villagers.md – Výběr postavy): průměr (m při měřítku 1),
- * barva, výška nad terénem.
- */
-const RING_SIZE_M = 1.6;
-const RING_COLOR: readonly [number, number, number] = [1, 0.85, 0.25];
-const RING_LIFT_M = 0.05;
 /**
  * Po přeplánování dojde postava na nové místo pěšky, když je od starého dál než `from` a blíž
  * než `to` (m) – další čtverec pole, další strom; dál (jiná práce jinde ve vsi) se objeví hned.
@@ -120,6 +117,11 @@ export interface VillagersEnvironment {
    * je vidět – volá se jen při změně (výběr, nový plán dne, postava vejde domů nebo vyjde).
    */
   onPersonState?(state: PersonFigureState | null): void;
+  /**
+   * Noví lidé u spřežení a vozů (`crew` – oráč, honák, vozka) – volá se jen při změně; scéna podle
+   * nich přesune výběr člověka u spřežení či vozu (jejich postavy kreslí spřežení a vůz).
+   */
+  onCrew?(): void;
 }
 
 /** Zapečený model: geometrie, textura matic kostí a rozsahy snímků klipů v ní. */
@@ -179,8 +181,14 @@ export class VillageVillagers {
   private spots = new Float32Array(0);
   /** Vybraný člověk (id) a jeho kroužek pod nohama (jedna instance – villagers.md). */
   private selected: number | null = null;
-  private ring: { mesh: Mesh; matrices: Float32Array } | null = null;
+  private ring: SelectionRing | null = null;
   private personState: PersonFigureState | null = null;
+  /** Spřežení a vozy dne, které kreslí ves (village-renderer.ts – `draftCrews`). */
+  private draft: DraftCrews = { teams: 0, carts: [] };
+  /** Lidé u spřežení a vozů (oráč, honák, vozka) a co dělají – id člověka → úloha. */
+  private crew: DraftCrew = { teams: [], carts: [] };
+  private crewJobs = new Map<number, PersonJob>();
+  private crewKey = '';
   /** Úsek pochůzky postav vybraného člověka z posledního zápisu (index postavy → úsek). */
   private readonly stages = new Map<number, VillagerStage | null>();
 
@@ -191,12 +199,14 @@ export class VillageVillagers {
 
   /**
    * Lidé podle vsi – plán se přepočítá, jen když se změnilo, co ho určuje (práce dne, obydlí,
-   * pole, sady, hřbitovy, překážky). Vrátí true, když je co překreslit.
+   * pole, sady, hřbitovy, překážky, spřežení a vozy dne `draft` – village-renderer.ts,
+   * `draftCrews`; bez údaje ty minulé). Vrátí true, když je co překreslit.
    */
-  update(village: SceneVillage, nowMs: number): boolean {
+  update(village: SceneVillage, nowMs: number, draft: DraftCrews = this.draft): boolean {
     if (this.disposed) return false;
     this.village = village;
-    const key = villageKey(village);
+    this.draft = draft;
+    const key = villageKey(village, draft);
     if (key === this.key) return false;
     this.key = key;
     if (village.labor && village.labor.shares.length > 0) void this.load();
@@ -253,7 +263,30 @@ export class VillageVillagers {
    * bod světa na plátno (null = za kamerou). Jen při kliknutí, O(postav). Nic – null.
    */
   pick(x: number, y: number, project: Project): number | null {
-    return pickPerson(this.people, this.spots, x, y, project);
+    return this.pickHit(x, y, project)?.person ?? null;
+  }
+
+  /** Jako `pick`, i se vzdáleností průmětu od kurzoru (px) – porovná se se spřežením a vozem. */
+  pickHit(x: number, y: number, project: Project): { person: number; distance: number } | null {
+    return pickPersonHit(this.people, this.spots, x, y, project);
+  }
+
+  /**
+   * Co dělá člověk u spřežení nebo vozu (oráč, honák, vozka – villagers.md, Výběr postavy), nebo
+   * null – jeho postavu kreslí spřežení či vůz.
+   */
+  crewJob(id: number): PersonJob | null {
+    return this.crewJobs.get(id) ?? null;
+  }
+
+  /** Oráč a honák spřežení `team` (id lidí; nikdo – null). */
+  teamCrew(team: number): { ploughman: number | null; leader: number | null } | null {
+    return this.crew.teams[team] ?? null;
+  }
+
+  /** Vozka vozu (id člověka), nebo null. */
+  cartDrover(cart: number): number | null {
+    return this.crew.carts.find((c) => c.cart === cart)?.drover ?? null;
   }
 
   /** Kde naposledy stála vidět postava člověka (id) – testovací háček; jinak null. */
@@ -288,8 +321,7 @@ export class VillageVillagers {
     this.shadow?.mesh.material?.dispose(true, true);
     this.shadow?.mesh.dispose();
     this.shadow = null;
-    this.ring?.mesh.material?.dispose(true, true);
-    this.ring?.mesh.dispose();
+    this.ring?.dispose();
     this.ring = null;
   }
 
@@ -377,7 +409,7 @@ export class VillageVillagers {
   private updateSelection(): void {
     const selected = this.selected;
     if (selected === null) {
-      this.ring?.mesh.setEnabled(false);
+      this.ring?.hide();
       this.emitPerson(null);
       return;
     }
@@ -404,16 +436,26 @@ export class VillageVillagers {
   private showSelected(herds: readonly HerdView[]): void {
     const id = this.selected;
     if (id === null) return;
+    // oráč, honák a vozka – postavu i kroužek kreslí spřežení a vůz (village-renderer.ts)
+    const crewJob = this.crewJobs.get(id);
+    if (crewJob) {
+      this.ring?.hide();
+      this.emitPerson({ id, job: crewJob, stage: null, hidden: false, herd: null });
+      return;
+    }
     const shown = selectedFigure(this.people, id, (i) => Number.isNaN(this.spots[i * 3] ?? NaN));
     const figure = shown ? this.people[shown.index] : undefined;
-    const ring = figure && !shown!.hidden ? (this.ring ??= this.createRing()) : this.ring;
-    if (ring) {
-      if (figure && shown && !shown.hidden) {
-        const o = shown.index * 3;
-        this.writeRing(ring, this.spots[o]!, this.spots[o + 1]!, this.spots[o + 2]!, figure.scale);
-        ring.mesh.setEnabled(true);
-      } else ring.mesh.setEnabled(false);
-    }
+    if (figure && shown && !shown.hidden) {
+      const o = shown.index * 3;
+      const ring = (this.ring ??= new SelectionRing(this.scene, 'villagers-ring'));
+      ring.show(
+        this.env.groundHeight,
+        this.spots[o]!,
+        this.spots[o + 1]!,
+        this.spots[o + 2]!,
+        RING_SIZE_M * figure.scale,
+      );
+    } else this.ring?.hide();
     const job = figure?.job ?? null;
     const herd = job?.kind === 'herd' ? (herds[job.herd]?.species ?? null) : null;
     this.emitPerson({
@@ -429,19 +471,6 @@ export class VillageVillagers {
     if (samePersonState(state, this.personState)) return;
     this.personState = state;
     this.env.onPersonState?.(state);
-  }
-
-  /** Kroužek položený na terén pod postavou (nakloněný podle svahu jako stín). */
-  private writeRing(
-    ring: { mesh: Mesh; matrices: Float32Array },
-    x: number,
-    y: number,
-    z: number,
-    scale: number,
-  ): void {
-    surfaceMatrix(this.env.groundHeight, x, y + RING_LIFT_M, z, RING_SIZE_M * scale, this.matrix);
-    this.matrix.copyToArray(ring.matrices, 0);
-    ring.mesh.thinInstanceBufferUpdated('matrix');
   }
 
   /** Stín položený na terén (nakloněný podle svahu pod postavou). */
@@ -491,6 +520,7 @@ export class VillageVillagers {
     );
     if (!village || !this.models || !ground) {
       this.people = [];
+      this.setCrew({ teams: [], carts: [] });
       for (const kind of this.kinds.values()) kind.mesh.setEnabled(false);
       this.shadow?.mesh.setEnabled(false);
       return had;
@@ -505,7 +535,7 @@ export class VillageVillagers {
         return [p.key, { x: pose.x, z: pose.z }] as const;
       }),
     );
-    this.people = planVillagers(village, ground, {
+    const plan = planVillagersWithCrew(village, ground, {
       seed: villageSeed(village),
       // pasák jen u stád na pastvě – ta jsou v plánu napřed (livestock-placement.ts)
       herds: herds.filter((h) => h.tended !== false).length,
@@ -513,7 +543,10 @@ export class VillageVillagers {
       dayWindow: (day) => this.env.dayWindow?.(day) ?? null,
       funerals: this.funerals,
       weddings: this.weddings,
-    })
+      draft: this.draft,
+    });
+    this.setCrew(plan.crew);
+    this.people = plan.people
       .filter((p) => this.models?.has(p.kind))
       .map((p) => {
         const from = before.get(p.key);
@@ -573,6 +606,30 @@ export class VillageVillagers {
     shadow.mesh.setEnabled(this.people.length > 0);
     this.write(villagerSeconds(nowMs), herds);
     return had || this.people.length > 0;
+  }
+
+  /**
+   * Noví lidé u spřežení a vozů – úlohy oráče, honáka a vozky (stálé objekty, dokud se lidé
+   * nezmění); scéně to ohlásí (`onCrew`), jen když se změnili.
+   */
+  private setCrew(crew: DraftCrew): void {
+    const key = JSON.stringify(crew);
+    if (key === this.crewKey) return;
+    this.crewKey = key;
+    this.crew = crew;
+    const jobs = new Map<number, PersonJob>();
+    crew.teams.forEach((team, k) => {
+      if (team.ploughman !== null) {
+        jobs.set(team.ploughman, { kind: 'plough', team: k, role: 'ploughman' });
+      }
+      if (team.leader !== null) jobs.set(team.leader, { kind: 'plough', team: k, role: 'leader' });
+    });
+    for (const { cart, drover } of crew.carts) {
+      if (drover !== null) jobs.set(drover, { kind: 'cart', cart });
+    }
+    this.crewJobs = jobs;
+    if (this.selected !== null) this.updateSelection();
+    this.env.onCrew?.();
   }
 
   /** Nové plány pohřbů – ohlásí je scéně (`onFunerals`), jen když se změnily. */
@@ -700,58 +757,6 @@ export class VillageVillagers {
   }
 
   /** Měkký kruhový stín – čtverec s průhledným kruhem, jedna instance na postavu. */
-  /** Žlutý kroužek pod vybranou postavou – jedna instance, po obtiscích a stínech postav. */
-  private createRing(): { mesh: Mesh; matrices: Float32Array } {
-    const mesh = new Mesh('villagers-ring', this.scene);
-    const data = new VertexData();
-    data.positions = [-0.5, 0, -0.5, 0.5, 0, -0.5, 0.5, 0, 0.5, -0.5, 0, 0.5];
-    data.normals = [0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0];
-    data.uvs = [0, 0, 1, 0, 1, 1, 0, 1];
-    data.indices = [0, 2, 1, 0, 3, 2];
-    data.applyToMesh(mesh);
-    mesh.isPickable = false;
-    mesh.alwaysSelectAsActiveMesh = true;
-    mesh.alphaIndex = 6;
-    const size = 64;
-    const pixels = new Uint8Array(size * size * 4);
-    for (let j = 0; j < size; j++) {
-      for (let i = 0; i < size; i++) {
-        const r = Math.hypot((i + 0.5) / size - 0.5, (j + 0.5) / size - 0.5) * 2;
-        // mezikruží 0,72–0,95 s měkkými okraji
-        const a = Math.max(0, Math.min(1, (r - 0.68) / 0.06, (0.97 - r) / 0.04));
-        const o = (j * size + i) * 4;
-        pixels[o] = Math.round(255 * RING_COLOR[0]);
-        pixels[o + 1] = Math.round(255 * RING_COLOR[1]);
-        pixels[o + 2] = Math.round(255 * RING_COLOR[2]);
-        pixels[o + 3] = Math.round(255 * 0.95 * a);
-      }
-    }
-    const texture = RawTexture.CreateRGBATexture(
-      pixels,
-      size,
-      size,
-      this.scene,
-      false,
-      false,
-      Texture.BILINEAR_SAMPLINGMODE,
-    );
-    texture.hasAlpha = true;
-    texture.name = 'villagers-ring';
-    const material = new StandardMaterial('villagers-ring-material', this.scene);
-    material.diffuseColor = Color3.Black();
-    material.specularColor = Color3.Black();
-    material.emissiveColor = new Color3(...RING_COLOR);
-    material.disableLighting = true;
-    material.opacityTexture = texture;
-    material.disableDepthWrite = true;
-    material.backFaceCulling = false;
-    material.zOffset = -3;
-    mesh.material = material;
-    const matrices = new Float32Array(16);
-    mesh.thinInstanceSetBuffer('matrix', matrices, 16, false);
-    return { mesh, matrices };
-  }
-
   private createShadow(): { mesh: Mesh; matrices: Float32Array } {
     const mesh = new Mesh('villagers-shadow', this.scene);
     const data = new VertexData();
@@ -877,7 +882,7 @@ function writeFigure(
  * Co z vsi rozhoduje o lidech: rozdělení práce dne, obydlí (i průběh staveniště – kopání
  * jámy), stadia polí, výsadba sadů, hřbitovy a odstraněné stromy.
  */
-function villageKey(village: SceneVillage): string {
+function villageKey(village: SceneVillage, draft: DraftCrews): string {
   const dwellings = village.dwellings.map(
     (d) =>
       `${d.id}:${d.type}:${d.built ? 1 : 0}:${d.inhabited === false ? 0 : 1}:${d.progress < 0.25 ? 0 : 1}:` +
@@ -905,6 +910,9 @@ function villageKey(village: SceneVillage): string {
     : '';
   return JSON.stringify([
     village.labor ?? null,
+    draft,
+    // vozka jde k podílu svozu svého vozu (villager-plan.ts – `draftStaff`)
+    (village.carts ?? []).map((c) => [c.id, c.job, c.route?.length ?? 0]),
     village.expeditions ?? null,
     village.funerals ?? null,
     village.weddings ?? null,

@@ -292,6 +292,7 @@ function headingAt(route: CartRoute, s: number): number {
 
 /** Vůz na trase: druh, náklad a posun po trase (další vozy na téže trase jedou za sebou). */
 export interface CartTrack {
+  id?: number;
   kind: CartKind;
   cargo: CartCargo;
   route: CartRoute;
@@ -324,7 +325,16 @@ export interface CartPose {
   loaded: boolean;
   /** Vůz teď není vidět (karavana výpravy za krajem mapy – caravan.ts). Bez údaje vidět. */
   hidden?: boolean;
+  /**
+   * Kde v jízdě vůz je (panel vozu a vozky – villagers.md, Výběr postavy): jede k cíli (`out`),
+   * u cíle nakládá (`load`), jede zpátky (`back`), u ohrady skládá (`unload`), stojí u ohrady bez
+   * volů (`parked`), je za krajem mapy (`away`), jezdí dokola (`loop` – ukázka). Bez údaje `loop`.
+   */
+  leg?: CartLeg;
 }
+
+/** Úsek jízdy vozu (`CartPose.leg`). */
+export type CartLeg = 'out' | 'load' | 'back' | 'unload' | 'parked' | 'away' | 'loop';
 
 function figure(): FigurePose {
   return { x: 0, y: 0, z: 0, hx: 0, hz: 1, pace: 1 };
@@ -946,6 +956,8 @@ export function parkedCartPose(
  * `loadedOut` – jen tam: osivo na pole, wagons.md – Co vozy vozí).
  */
 export interface CartShuttle {
+  /** Id vozu ve vsi (`SceneCart.id`) – výběr vozu; ukázky bez id. */
+  id?: number;
   kind: CartKind;
   cargo: CartCargo;
   shuttle: ShuttleRoute;
@@ -956,6 +968,7 @@ export interface CartShuttle {
 
 /** Vůz stojící u ohrady bez volů. */
 export interface CartParked {
+  id?: number;
   kind: CartKind;
   parked: CartSpot;
 }
@@ -965,6 +978,7 @@ export interface CartParked {
  * ke kraji mapy) a zpět (obráceně) a kde na nich v okamžiku je – podle postupu výpravy.
  */
 export interface CartCaravan {
+  id?: number;
   kind: CartKind;
   cargo: CartCargo;
   routes: { out: CartRoute; back: CartRoute };
@@ -992,13 +1006,19 @@ export function cartPlanPose(
   frozen = false,
 ): CartPose {
   out.hidden = false;
-  if ('parked' in plan) return parkedCartPose(plan.kind, plan.parked, out, ground);
+  if ('parked' in plan) {
+    out.leg = 'parked';
+    return parkedCartPose(plan.kind, plan.parked, out, ground);
+  }
   const t = villagerSeconds(nowMs);
   if ('routes' in plan) {
     const at = plan.at(nowMs);
     poseOnRoute(plan.kind, plan.routes[at.leg], at.s, t, frozen ? 0 : at.speed, out, ground);
     out.loaded = plan.cargo !== 'empty';
     out.hidden = !at.visible;
+    // karavana: tam a zpátky po stezce, před odchodem a po návratu stojí u ohrady
+    const stands = frozen || at.speed <= 0;
+    out.leg = !at.visible ? 'away' : stands ? (at.leg === 'out' ? 'load' : 'unload') : at.leg;
     return out;
   }
   if ('shuttle' in plan) {
@@ -1009,9 +1029,17 @@ export function cartPlanPose(
     // osivo (`loadedOut`): naložené od ohrady, u cíle se složí, zpátky prázdný
     const loaded = plan.loadedOut === true ? !at.loaded || frozen : at.loaded;
     out.loaded = plan.cargo !== 'empty' && (loaded || plan.loadedBothWays === true);
+    out.leg = shuttleLeg(plan.shuttle, at);
     return out;
   }
+  out.leg = 'loop';
   return cartPose(plan, frozen ? CART_FROZEN_T : t, out, ground, frozen);
+}
+
+/** Úsek jízdy tam a zpět: k cíli, u cíle (nakládá), zpátky, u ohrady (skládá). */
+export function shuttleLeg(shuttle: ShuttleRoute, at: { s: number; speed: number }): CartLeg {
+  if (at.speed > 0) return at.s < shuttle.farM ? 'out' : 'back';
+  return at.s < shuttle.route.length - 1e-6 ? 'load' : 'unload';
 }
 
 /** Trasa, po které plán jede (kvůli obalu); stojící vůz žádnou. */

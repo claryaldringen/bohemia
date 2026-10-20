@@ -99,6 +99,17 @@ export function demoLabor(
 }
 
 /**
+ * Ves ukázky s rozdělením práce bez lidí (orba přes cestu, vozy, karavana) – doplní ukázkové lidi
+ * hotových obydlí (`demoPersons`); s lidmi nebo bez práce dne beze změny (tentýž objekt).
+ */
+export function withDemoPersons(village: SceneVillage): SceneVillage {
+  const labor = village.labor;
+  if (!labor || labor.persons) return village;
+  const built = village.dwellings.filter((d) => d.built);
+  return { ...village, labor: { ...labor, persons: demoPersons(built) } };
+}
+
+/**
  * Ukázkoví lidé obydlí (villagers.md – Výběr postavy – postavy jdou vybrat): v každém domě muž
  * a žena, výrostek a malé dítě, v každém druhém domě starší; první dům je dvorec vojvody, dílny
  * podle řemesla obydlí. Role jako ve hře (person-roles.ts).

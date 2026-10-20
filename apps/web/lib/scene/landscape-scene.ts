@@ -72,9 +72,11 @@ import { PlacementOutlines } from './placement-outlines-view';
 import { HoldingsOverlay, type HoldingsOverlaySector } from './holdings-overlay';
 import { SelectionHighlight } from './selection-highlight';
 import type { PersonFigureState } from '../person-activity';
+import { sameDraftState, type DraftFigureState } from '../draft-activity';
 import { pickVillageTarget, rayAtHeight, type Ray, type VillageTarget } from './village-picking';
 import { PlacementController, type ActivePlacement } from './village-placement';
-import { VillageRenderer } from './village-renderer';
+import { draftHitTarget, draftSelectionFor } from './draft-pick';
+import { VillageRenderer, type DraftRenderState } from './village-renderer';
 import type { SceneVillage } from '../village-view';
 import type { PlacementHandlers, PlacementMode } from './village-types';
 import { createWaterMesh, type WaterSurface } from './water';
@@ -88,6 +90,7 @@ type HoverListener = (tile: TileInfo | null) => void;
  */
 type SelectListener = (target: VillageTarget | null, additive: boolean, double: boolean) => void;
 type PersonListener = (state: PersonFigureState | null) => void;
+type DraftListener = (state: DraftFigureState | null) => void;
 /** Záběr kamery na zemi (4 rohy obrazovky jako body krajiny [x, z]) a natočení kamery. */
 export interface ViewFootprint {
   corners: [number, number][];
@@ -133,6 +136,10 @@ export class LandscapeScene {
   private readonly personListeners = new Set<PersonListener>();
   /** Poslední stav vybraného člověka (villagers.md – Výběr postavy). */
   private personState: PersonFigureState | null = null;
+  private readonly draftListeners = new Set<DraftListener>();
+  /** Vybrané spřežení nebo vůz (i s lidmi u nich) – stav z vsi a poslední ohlášený. */
+  private draftRender: DraftRenderState | null = null;
+  private draftState: DraftFigureState | null = null;
   /** Výšková síť terénu (i s úpravami vozových cest). */
   private surface: RenderSurface | null = null;
   /** Poslední náhled vozové cesty – pro stejnou ves a cestu se nepočítá znovu. */
@@ -338,6 +345,11 @@ export class LandscapeScene {
       sunDirection: SUN_DIRECTION,
       landscape,
       animated: () => !this.reducedMotion?.matches,
+      // vybrané spřežení nebo vůz (villagers.md – Výběr postavy) – co dělá, panel výběru
+      onDraftState: (state) => {
+        this.draftRender = state;
+        this.publishDraft();
+      },
     });
     if (this.worldClock) this.village.setWorldClock(this.worldClock);
     if (this.workDayClock) this.village.setPloughClock(this.workDayClock);
@@ -427,8 +439,11 @@ export class LandscapeScene {
         this.personState = state;
         for (const listener of this.personListeners) listener(state);
       },
+      // noví lidé u spřežení a vozů – výběr oráče, honáka či vozky jde za jejich spřežením
+      onCrew: () => this.syncDraftSelection(),
     });
     this.villagers.select(this.selection?.kind === 'person' ? this.selection.id : null);
+    this.syncDraftSelection();
     // Vyšlapané pěšiny – síť se počítá z vsi a krajiny (odloženě), lidé po ní chodí; pevné cesty
     // a stromy u nich z dat vsi (roads.md).
     this.paths?.dispose();
@@ -876,7 +891,57 @@ export class LandscapeScene {
     this.selection = target;
     this.highlight?.show(this.villageState, target);
     this.villagers?.select(target?.kind === 'person' ? target.id : null);
+    this.syncDraftSelection();
     this.renderWhenReady();
+  }
+
+  /**
+   * Co dělá vybrané spřežení nebo vůz (i když je vybraný oráč, honák či vozka – oxen.md, wagons.md)
+   * a kdo je u nich – hned ohlásí současný stav, pak jen při změně.
+   */
+  onDraftState(listener: DraftListener): () => void {
+    this.draftListeners.add(listener);
+    listener(this.draftState);
+    return () => this.draftListeners.delete(listener);
+  }
+
+  /**
+   * Výběr spřežení a vozu ve vsi podle výběru rozhraní: spřežení / vůz celé, člověk u nich
+   * (oráč, honák, vozka – úlohu zná plán postav) kroužkem pod ním; jinak nic.
+   */
+  private syncDraftSelection(): void {
+    const target = this.selection;
+    const job = target?.kind === 'person' ? (this.villagers?.crewJob(target.id) ?? null) : null;
+    this.village?.selectDraft(draftSelectionFor(target, job));
+    this.publishDraft();
+  }
+
+  /** Stav vybraného spřežení / vozu i s lidmi u nich – posluchačům jen při změně. */
+  private publishDraft(): void {
+    const render = this.draftRender;
+    let state: DraftFigureState | null = null;
+    if (render?.kind === 'team') {
+      const crew = this.villagers?.teamCrew(render.team) ?? null;
+      state = {
+        kind: 'team',
+        team: render.team,
+        activity: render.activity,
+        ploughman: crew?.ploughman ?? null,
+        leader: crew?.leader ?? null,
+      };
+    } else if (render?.kind === 'cart') {
+      state = {
+        kind: 'cart',
+        cart: render.cart,
+        leg: render.leg,
+        loaded: render.loaded,
+        hidden: render.hidden,
+        drover: this.villagers?.cartDrover(render.cart) ?? null,
+      };
+    }
+    if (sameDraftState(state, this.draftState)) return;
+    this.draftState = state;
+    for (const listener of this.draftListeners) listener(state);
   }
 
   /**
@@ -999,6 +1064,7 @@ export class LandscapeScene {
     this.viewListeners.clear();
     this.clearedListeners.clear();
     this.personListeners.clear();
+    this.draftListeners.clear();
     this.highlight?.dispose();
     this.holdings?.dispose();
     this.outlines?.dispose();
@@ -1095,8 +1161,14 @@ export class LandscapeScene {
     const landscape = this.landscape;
     const groundHeight = this.groundHeight;
     if (!camera || !landscape || !groundHeight || !this.villageState) return null;
-    const person = this.villagers?.pick(x, y, this.projector(camera));
-    if (person !== undefined && person !== null) return { kind: 'person', id: person };
+    const project = this.projector(camera);
+    // postava, nebo spřežení a vůz (i oráč, honák a vozka u nich) – bližší průmět vyhraje
+    const person = this.villagers?.pickHit(x, y, project) ?? null;
+    const draft = this.village?.pickDraft(x, y, project) ?? null;
+    if (person && (!draft || person.distance <= draft.distance)) {
+      return { kind: 'person', id: person.person };
+    }
+    if (draft) return draftHitTarget(draft, this.villagers);
     const pick = this.scene.createPickingRay(x, y, Matrix.Identity(), camera, false);
     const ray: Ray = {
       origin: { x: pick.origin.x, y: pick.origin.y, z: pick.origin.z },
@@ -1185,7 +1257,9 @@ export class LandscapeScene {
       : false;
     const logs = this.logPile?.update(this.villageState, changes) ?? false;
     const animals = this.livestock?.update(this.villageState, Date.now()) ?? false;
-    const people = this.villagers?.update(this.villageState, Date.now()) ?? false;
+    // oráč, honák a vozka jsou lidé vsi – kolik spřežení a vozů ves dnes kreslí
+    const people =
+      this.villagers?.update(this.villageState, Date.now(), village.draftCrews()) ?? false;
     // pěšiny se přepočítají odloženě a překreslí samy (onChange)
     this.paths?.update(this.villageState);
     // Rozhraní posílá stav vsi opakovaně (dotaz každých pár sekund) – beze změny nic.

@@ -25,7 +25,14 @@ export type PersonJob =
   | { kind: 'caravan'; trip: SceneExpedition['trip'] | null; porter: boolean }
   | { kind: 'funeral'; bearer: boolean }
   /** Svatba (kinship.md – Svatba ve scéně): nevěsta, ženich, nebo svatebčan. */
-  | { kind: 'wedding'; role: 'bride' | 'groom' | 'guest' };
+  | { kind: 'wedding'; role: 'bride' | 'groom' | 'guest' }
+  /**
+   * U spřežení s rádlem (oxen.md – Spřežení postupuje s orbou): oráč u rukojeti, nebo honák
+   * s provazem; `team` = pořadí spřežení dne (plough-team-renderer.ts). Postavu kreslí spřežení.
+   */
+  | { kind: 'plough'; team: number; role: 'ploughman' | 'leader' }
+  /** Vozka u vozu (wagons.md – Vozy se spřežením): `cart` = id vozu. Postavu kreslí vůz. */
+  | { kind: 'cart'; cart: number };
 
 /** Koho postava chce – věk, domácnost, pohlaví. */
 export interface PersonRequest {

@@ -56,6 +56,7 @@ import { tileAt, tileCenter } from '@/lib/scene/tile-at';
 import type { VillageTarget } from '@/lib/scene/village-picking';
 import { nextSelection, presentTarget } from '@/lib/scene/village-selection';
 import { selectionDetails } from '@/lib/selection-details';
+import type { DraftFigureState } from '@/lib/draft-activity';
 import type { PersonFigureState } from '@/lib/person-activity';
 import { CONSTRUCTION_PHASES, constructionPhase } from '@/lib/scene/village-construction';
 import { SACRED_SITE_KIND } from '@/lib/scene/sacred-layout';
@@ -77,7 +78,7 @@ import {
   simulateHoldings,
   type SimulatedPart,
 } from './dev-holdings';
-import { demoLabor } from './dev-labor';
+import { demoLabor, withDemoPersons } from './dev-labor';
 import { promontoryFocus, promontoryOverlay } from './dev-promontory';
 import { demoOvergrowth, type OvergrowthDemo } from './dev-overgrowth';
 import {
@@ -245,7 +246,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [demo, setDemo] = useState(0);
   const nextId = useRef(1);
 
-  const village = useMemo<SceneVillage>(() => {
+  const demoVillage = useMemo<SceneVillage>(() => {
     const base: SceneVillage = {
       dwellings,
       fields: [
@@ -439,6 +440,9 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     oreDemo,
     roadPlough,
   ]);
+  // ukázky s prací dne bez lidí (orba přes cestu, vozy, karavana) – lidé po domech, ať jdou
+  // oráč, honák a vozka vybrat jako ostatní (villagers.md – Výběr postavy)
+  const village = useMemo(() => withDemoPersons(demoVillage), [demoVillage]);
 
   useEffect(() => {
     scene?.setVillage(village);
@@ -460,9 +464,18 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   }, [scene, current]);
   const [personState, setPersonState] = useState<PersonFigureState | null>(null);
   useEffect(() => scene?.onPersonState(setPersonState), [scene]);
+  const [draftState, setDraftState] = useState<DraftFigureState | null>(null);
+  useEffect(() => scene?.onDraftState(setDraftState), [scene]);
   const selection = useMemo(
-    () => selectionDetails(devSelectionView(village, decoded), village, current, personState),
-    [village, decoded, current, personState],
+    () =>
+      selectionDetails(
+        devSelectionView(village, decoded),
+        village,
+        current,
+        personState,
+        draftState,
+      ),
+    [village, decoded, current, personState, draftState],
   );
 
   useEffect(() => {

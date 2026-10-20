@@ -47,6 +47,7 @@ import {
   type WorkshopActivity,
 } from '@/lib/village-view';
 import type { Direction8, RoadKind, RoadUpgrade, TradeGoods, WagonRoadPlan } from '@bohemia/game';
+import type { CartGoal } from '@/lib/draft-activity';
 import type { DugSiteWorker } from '@/lib/ore-site-view';
 import type { KilnFetcher } from '@/lib/kiln-view';
 import type { PreviewPeople } from '@/lib/trade-quote';
@@ -81,10 +82,18 @@ function Portrait({ icon, name }: { icon: string; name: string }): ReactElement 
 }
 
 /**
- * Portrét člověka (villagers.md – Výběr postavy): muž, žena, dítě nebo starší (ikony lidí
- * z `public/icons/resources/`), pod ním role.
+ * Portrét z ikon surovin (`public/icons/resources/`): člověk (villagers.md – Výběr postavy) – muž,
+ * žena, dítě nebo starší, pod ním role; spřežení (vůl) a vůz – pod nimi název.
  */
-function PersonPortrait({ icon, name }: { icon: string; name: string }): ReactElement {
+function PersonPortrait({
+  icon,
+  name,
+  testId = 'selection-person-portrait',
+}: {
+  icon: string;
+  name: string;
+  testId?: string;
+}): ReactElement {
   return (
     <div className="flex min-w-20 shrink-0 flex-col items-center gap-1">
       <div className="hud-inset h-20 w-20 overflow-hidden rounded">
@@ -93,7 +102,7 @@ function PersonPortrait({ icon, name }: { icon: string; name: string }): ReactEl
           alt=""
           width={64}
           height={64}
-          data-testid="selection-person-portrait"
+          data-testid={testId}
           data-portrait={icon}
           className="h-full w-full"
         />
@@ -160,6 +169,174 @@ function PersonBody({
               tabIndex={0}
             />
           </Tooltip>
+        )}
+        {details.draft && (
+          <TargetButton
+            src={`/icons/resources/${details.draft.kind === 'cart' ? 'cart' : 'ox'}.png`}
+            name={details.draft.kind === 'cart' ? 'Vůz' : 'Spřežení'}
+            testId="selection-person-draft"
+            target={details.draft}
+            onSelectTarget={onSelectTarget}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Tlačítko s ikonou, které vybere jiný cíl ve vsi (dům, ohradu, díl pole, spřežení, vůz, člověka
+ * u nich) – popisek je jeden název.
+ */
+function TargetButton({
+  src,
+  name,
+  testId,
+  target,
+  onSelectTarget,
+}: {
+  src: string;
+  name: string;
+  testId: string;
+  target: VillageTarget;
+  onSelectTarget?: ((target: VillageTarget) => void) | undefined;
+}): ReactElement {
+  return (
+    <Tooltip content={name} placement="above">
+      <button
+        type="button"
+        data-testid={testId}
+        aria-label={name}
+        className="hud-icon-button h-7 w-7"
+        onClick={() => onSelectTarget?.(target)}
+      >
+        <img src={src} alt="" width={128} height={128} className="h-full w-full" />
+      </button>
+    </Tooltip>
+  );
+}
+
+/**
+ * Spřežení volů s rádlem (oxen.md – Výběr spřežení): co dělá (jediný řádek slov), voli a tlačítka
+ * dílu, který orá, ohrady volů, oráče a honáka.
+ */
+function TeamBody({
+  details,
+  onSelectTarget,
+}: {
+  details: Extract<SelectionDetails, { kind: 'plough-team' }>;
+  onSelectTarget?: ((target: VillageTarget) => void) | undefined;
+}): ReactElement {
+  const { part, pen, ploughman, leader } = details;
+  return (
+    <div className="flex min-w-0 flex-col justify-center gap-1.5">
+      <p data-testid="selection-team-activity" className="text-sm whitespace-nowrap text-[#ecdfc4]">
+        {details.activity}
+      </p>
+      <div className={ROW}>
+        <Stat icon="ox" name="Voli" testId="selection-team-oxen">
+          {formatInteger(details.oxen)}
+        </Stat>
+        {part && (
+          <TargetButton
+            src="/icons/build/pole.png"
+            name="Díl pole"
+            testId="selection-team-part"
+            target={{ kind: 'field-part', id: part.fieldId, cell: part.cell }}
+            onSelectTarget={onSelectTarget}
+          />
+        )}
+        {pen !== null && (
+          <TargetButton
+            src="/icons/build/ohrada.png"
+            name="Ohrada volů"
+            testId="selection-team-pen"
+            target={{ kind: 'pen', id: pen }}
+            onSelectTarget={onSelectTarget}
+          />
+        )}
+        {ploughman && (
+          <TargetButton
+            src={`/icons/resources/${ploughman.portrait}.png`}
+            name="Oráč"
+            testId="selection-team-ploughman"
+            target={{ kind: 'person', id: ploughman.id }}
+            onSelectTarget={onSelectTarget}
+          />
+        )}
+        {leader && (
+          <TargetButton
+            src={`/icons/resources/${leader.portrait}.png`}
+            name="Honák"
+            testId="selection-team-leader"
+            target={{ kind: 'person', id: leader.id }}
+            onSelectTarget={onSelectTarget}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Náklad vozu v panelu – ikona suroviny a název (voda a zboží výpravy bez ikony). */
+const CARGO_LABELS: Record<CartGoal, { icon: string | null; name: string }> = {
+  sheaves: { icon: 'food', name: 'Snopy' },
+  hay: { icon: 'hay', name: 'Seno' },
+  logs: { icon: 'wood', name: 'Klády' },
+  charcoal: { icon: 'charcoal', name: 'Uhlí' },
+  ore: { icon: 'ore', name: 'Ruda' },
+  clay: { icon: 'clay', name: 'Hlína' },
+  water: { icon: null, name: 'Voda' },
+  seed: { icon: 'food', name: 'Osivo' },
+  apples: { icon: 'apples', name: 'Jablka' },
+  goods: { icon: null, name: 'Zboží' },
+};
+
+/**
+ * Vůz (wagons.md – Výběr vozu): co dělá (jediný řádek slov), stav, voli, náklad a tlačítka ohrady
+ * a vozky.
+ */
+function CartBody({
+  details,
+  onSelectTarget,
+}: {
+  details: Extract<SelectionDetails, { kind: 'cart' }>;
+  onSelectTarget?: ((target: VillageTarget) => void) | undefined;
+}): ReactElement {
+  const { pen, drover } = details;
+  const cargo = details.cargo ? CARGO_LABELS[details.cargo] : null;
+  return (
+    <div className="flex min-w-0 flex-col justify-center gap-1.5">
+      <p data-testid="selection-cart-activity" className="text-sm whitespace-nowrap text-[#ecdfc4]">
+        {details.activity}
+      </p>
+      <div className={ROW}>
+        <Stat icon="condition" name="Stav vozu" testId="selection-cart-condition">
+          {formatPercent(details.condition)}
+        </Stat>
+        {details.oxen > 0 && (
+          <Stat icon="ox" name="Voli" testId="selection-cart-oxen">
+            {formatInteger(details.oxen)}
+          </Stat>
+        )}
+        {cargo?.icon && <Flag icon={cargo.icon} name={cargo.name} testId="selection-cart-cargo" />}
+        {pen !== null && (
+          <TargetButton
+            src="/icons/build/ohrada.png"
+            name="Ohrada"
+            testId="selection-cart-pen"
+            target={{ kind: 'pen', id: pen }}
+            onSelectTarget={onSelectTarget}
+          />
+        )}
+        {drover && (
+          <TargetButton
+            src={`/icons/resources/${drover.portrait}.png`}
+            name="Vozka"
+            testId="selection-cart-drover"
+            target={{ kind: 'person', id: drover.id }}
+            onSelectTarget={onSelectTarget}
+          />
         )}
       </div>
     </div>
@@ -2326,6 +2503,18 @@ export function SelectionPanel({
   } else if (details.kind === 'person') {
     portrait = <PersonPortrait icon={details.portrait} name={details.role} />;
     body = <PersonBody key={details.id} details={details} onSelectTarget={onSelectTarget} />;
+  } else if (details.kind === 'plough-team') {
+    portrait = <PersonPortrait icon="ox" name="Spřežení" testId="selection-team-portrait" />;
+    body = <TeamBody details={details} onSelectTarget={onSelectTarget} />;
+  } else if (details.kind === 'cart') {
+    portrait = (
+      <PersonPortrait
+        icon="cart"
+        name={CART_NAMES[details.cartKind]}
+        testId="selection-cart-portrait"
+      />
+    );
+    body = <CartBody details={details} onSelectTarget={onSelectTarget} />;
   } else if (details.kind === 'kiln') {
     portrait = <Portrait icon="milir" name={details.stage === 'remnant' ? 'Milířiště' : 'Milíř'} />;
     body = <KilnBody details={details} onSelectTarget={onSelectTarget} />;

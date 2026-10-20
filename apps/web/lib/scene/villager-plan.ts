@@ -279,7 +279,34 @@ export interface VillagerPlanOptions {
    * mimo rozpočet pracujících – lidé vsi na svatbě ubírají z pracujících postav.
    */
   weddings?: readonly WeddingPlan[];
+  /**
+   * Spřežení a vozy, které dnes kreslí ves (village-renderer.ts – `draftCrews`): kolik spřežení
+   * s rádlem je na poli (v pořadí plough-team-renderer.ts) a id vozů se zapřaženými voly (jedou
+   * pro náklad, nebo v karavaně výpravy). S lidmi ve scéně (`labor.persons`) dostane každé
+   * spřežení oráče a honáka a každý vůz vozku (`planVillagersWithCrew` – villagers.md, Výběr
+   * postavy). Bez údaje nikdo.
+   */
+  draft?: DraftCrews;
 }
+
+/** Spřežení a vozy dne, které kreslí ves – kolik spřežení s rádlem a id zapřažených vozů. */
+export interface DraftCrews {
+  teams: number;
+  carts: readonly number[];
+}
+
+/**
+ * Lidé u spřežení a vozů (villagers.md – Výběr postavy): u každého spřežení s rádlem oráč
+ * a honák, u každého zapřaženého vozu vozka – id člověka, nikdo volný null. Postavy kreslí
+ * spřežení a vůz (plough-team-renderer.ts, cart-renderer.ts), ne villagers.ts.
+ */
+export interface DraftCrew {
+  teams: { ploughman: number | null; leader: number | null }[];
+  carts: { cart: number; drover: number | null }[];
+}
+
+/** Honák spřežení je výrostek – přednostně člověk nejblíž tomuto věku (oxen.md – honáček). */
+export const LEADER_AGE = 12;
 
 /** Obdélník domu v jeho souřadnicích (x napříč, z k vchodu). */
 interface Box {
@@ -381,8 +408,23 @@ export function planVillagers(
   ground: VillagerGround,
   options: VillagerPlanOptions,
 ): PlannedVillager[] {
+  return planVillagersWithCrew(village, ground, options).people;
+}
+
+/**
+ * Postavy vsi (`planVillagers`) a lidé u spřežení a vozů (`options.draft` – villagers.md, Výběr
+ * postavy): oráč a honák dostanou člověka, když na řadu přijde podíl orby, vozka u svozu podíl
+ * svozu jeho vozu a u výpravy karavana – stejné pořadí jako ostatní postavy (kdo co dnes dělá
+ * podle jádra má přednost); spřežení a vozy bez svého podílu dostanou lidi po práci vsi.
+ */
+export function planVillagersWithCrew(
+  village: SceneVillage,
+  ground: VillagerGround,
+  options: VillagerPlanOptions,
+): { people: PlannedVillager[]; crew: DraftCrew } {
+  const crew: DraftCrew = { teams: [], carts: [] };
   const labor = village.labor;
-  if (!labor || village.dwellings.length === 0) return [];
+  if (!labor || village.dwellings.length === 0) return { people: [], crew };
   const ctx = context(
     village,
     ground,
@@ -404,6 +446,8 @@ export function planVillagers(
     labor.month,
     Math.max(0, (options.maxWorkers ?? MAX_WORKERS) - mourning - celebrating),
   );
+  // lidé u spřežení a vozů (villagers.md – Výběr postavy) – postavy kreslí spřežení a vůz
+  const staff = draftStaff(ctx, options.draft ?? null, crew);
   // lidé s pevným místem dne napřed – pohřeb, karavany, nosiči kováře a pasáci
   const mourners = funerals.flatMap((plan) => funeralFigures(ctx, plan));
   const celebrants = weddings.flatMap((plan) => weddingFigures(ctx, plan, dayWindow));
@@ -411,6 +455,8 @@ export function planVillagers(
   for (const e of village.expeditions ?? []) {
     caravanPeople.push(...caravanFigures(ctx, e, options.dayWindow?.(e.day) ?? null));
   }
+  // vozka vozu výpravy jde s karavanou
+  staff.caravanCarts();
   const fetchers = smithFetchFigures(ctx, labor);
   const herding = herderPeople(ctx, labor);
   // výpravy k sousedům jdou jako karavany podle stavu výpravy (trade.md – Ve scéně), ne podle
@@ -423,6 +469,16 @@ export function planVillagers(
     if (tried.has(`${s}:${i}`)) return;
     tried.add(`${s}:${i}`);
     const share = labor.shares[s]!;
+    // orba: oráč a honák u každého spřežení dne; svoz: vozka u každého vozu tohoto podílu
+    if (share.activity === 'plough') {
+      staff.teams();
+      return;
+    }
+    const cart = share.activity === 'haul' ? staff.haulCart(share, i) : null;
+    if (cart !== null) {
+      staff.cart(cart);
+      return;
+    }
     let place = placers.get(s);
     if (!place) {
       place = placer(ctx, share, counts[s] ?? 0);
@@ -460,6 +516,8 @@ export function planVillagers(
   all((share) => CRAFT_ACTIVITIES.has(share.activity));
   for (const s of firstBuilders(labor.shares, counts)) if (wanted(s)) place(s, 0);
   all((share) => !LATE_ACTIVITIES.has(share.activity));
+  // spřežení a vozy, na jejichž podíl práce nedošlo (bez podílu, rozpočet postav), po práci vsi
+  staff.rest();
   const traffic = trafficFigures(ctx, labor, options.maxTraffic ?? MAX_TRAFFIC);
   // domácí práce a nečinní – na koho zbude člověk
   all(() => true);
@@ -474,7 +532,67 @@ export function planVillagers(
   people.push(...mourners);
   people.push(...celebrants);
   people.push(...fetchers);
-  return people;
+  return { people, crew };
+}
+
+/**
+ * Kdo je u spřežení a vozů (villagers.md – Výběr postavy): oráč je dospělý muž (jinak žena),
+ * honák výrostek nejblíž LEADER_AGE (jinak dospělý – na poli ho kreslí postava honáčka), vozka
+ * dospělý muž (jinak žena). Každé spřežení a každý vůz nejvýš jednou; bez lidí ve scéně nikdo
+ * (null). Zapisuje do `crew` – spřežení v pořadí renderera, vozy v pořadí, v jakém přišly na
+ * řadu.
+ */
+function draftStaff(
+  ctx: Context,
+  draft: DraftCrews | null,
+  crew: DraftCrew,
+): {
+  teams(): void;
+  haulCart(share: SceneLaborShare, i: number): number | null;
+  cart(id: number): void;
+  caravanCarts(): void;
+  rest(): void;
+} {
+  const roster = ctx.roster;
+  const drawn = new Set(draft?.carts ?? []);
+  const staffed = new Set<number>();
+  let teamsDone = false;
+  const adult = (): number | null => roster?.take({ ...ADULTS, sex: 'male' })?.id ?? null;
+  const teams = (): void => {
+    if (teamsDone) return;
+    teamsDone = true;
+    for (let k = 0; k < (draft?.teams ?? 0); k++) {
+      const ploughman = adult();
+      const leader =
+        roster?.take({ from: AGE.olderChild, to: AGE.elder, sex: 'male', age: LEADER_AGE })?.id ??
+        null;
+      crew.teams.push({ ploughman, leader });
+    }
+  };
+  const cart = (id: number): void => {
+    if (staffed.has(id) || !drawn.has(id)) return;
+    staffed.add(id);
+    crew.carts.push({ cart: id, drover: adult() });
+  };
+  // vozy svozu podle podílu (stejně jako honáci v placeru `haul`) – jen zapřažené
+  const haulCarts = new Map<string, number[]>();
+  for (const c of ctx.village.carts ?? []) {
+    if (c.job?.activity !== 'haul' || (c.route?.length ?? 0) < 2 || !drawn.has(c.id)) continue;
+    const key = targetKey(c.job.target);
+    haulCarts.set(key, [...(haulCarts.get(key) ?? []), c.id]);
+  }
+  return {
+    teams,
+    haulCart: (share, i) => haulCarts.get(targetKey(share.target))?.[i] ?? null,
+    cart,
+    caravanCarts: () => {
+      for (const c of ctx.village.carts ?? []) if (c.job?.activity === 'trade') cart(c.id);
+    },
+    rest: () => {
+      teams();
+      for (const id of draft?.carts ?? []) cart(id);
+    },
+  };
 }
 
 /**
