@@ -371,13 +371,28 @@ describe('uhlíř – práce po fázích', () => {
   it('kácení a příprava dřeva, stavba, 8 dní pálení – vypálený milíř drží 1,8 t uhlí', () => {
     // bez kováře – uhlí nikdo neodebírá, práce jde jen do milíře
     const s = village(NEAR_FOREST, false);
-    const days = untilBurnt(s, forest);
+    const first = burnerDays(s, 1, forest);
+    // milířiště: duby v kruhu milíře uhlíř napřed vyklidí (po kusech jako u staveb)
+    const clearing = structuredClone(firstKiln(s)!.clearing!);
+    expect(clearing.ids.length).toBeGreaterThan(0);
+    for (const id of clearing.ids) {
+      expect(obstacleSpecies(forest, obstacleIndex(forest, id))).toBe('oak');
+    }
+    s.lastDay += 1;
+    const days = [...first, ...untilBurnt(s, forest)];
     expect(firstKiln(s)?.stage).toBe('draw');
+    expect(firstKiln(s)?.clearing).toBeUndefined();
+    const cleared = new Set((s.clearedObstacles ?? []).map((c) => c.id));
+    for (const id of clearing.ids) expect(cleared.has(id)).toBe(true);
+    expect(s.woodLogs).toBeGreaterThanOrEqual(clearing.logs - 1e-9);
     const sum = (key: 'felling' | 'making' | 'planting'): number =>
       days.reduce((total, d) => total + (d[key] ?? 0), 0);
     const n = CHARCOAL_KILN.trees;
-    // kácení a dovoz 2 čd + příprava 6 čd na buk
-    expect(sum('felling')).toBeCloseTo(n * (2 + CHARCOAL_KILN.prepManDaysPerTree), 6);
+    // vyklizení milířiště, kácení a dovoz 2 čd + příprava 6 čd na buk
+    expect(sum('felling')).toBeCloseTo(
+      clearing.cost + n * (2 + CHARCOAL_KILN.prepManDaysPerTree),
+      6,
+    );
     // stavba 2 čd na buk, pálení 8 dní celou prací domácnosti (1,5 čd)
     expect(sum('making')).toBeCloseTo(
       n * CHARCOAL_KILN.buildManDaysPerTree + CHARCOAL_KILN.burnDays * 1.5,

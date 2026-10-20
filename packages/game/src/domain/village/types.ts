@@ -198,6 +198,13 @@ export interface CharcoalKiln {
   id?: number;
   /** Den výběru dávky buků – od něj se měří doba cyklu milíře (`Workshop.kilnCycles`). */
   startDay?: number;
+  /**
+   * Vyklizení milířiště (crafts.md – Milíř u skácených buků): překážky v kruhu milíře mimo buky dávky
+   * (stromy, keře, kameny, pařezy – id z vrstvy i stromy u cest a lesa vsi), práce za ně (čd)
+   * a kolik z nich je dospělých stromů (klády na hromadu). Uhlíř je vyklidí napřed; pak údaj
+   * zmizí. Bez údaje není co vyklízet.
+   */
+  clearing?: { ids: number[]; cost: number; logs: number };
   site: { x: number; z: number } | null;
   /**
    * Buky dávky: id z vrstvy překážek (null = kácení bez polohy – ves bez vrstvy, jen testy)

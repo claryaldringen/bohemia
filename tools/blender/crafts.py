@@ -28,18 +28,20 @@ Výstup (apps/web/public/models/crafts):
               trámem, špalek se zaseknutou sekerou, rozdělané kolo na dvou špalcích, hotová kola
               opřená o stěnu a o zásobu otesaných trámů pod pravým okapem, hobliny a třísky
               (kola jako u vozů z 0 A.D. – ⌀ 0,98 m, 8 paprsků, ráfek z loukotí)
-  uhlir.glb   zemnice se střechou krytou mechem (stejný tvar, atlas-moss.jpg), volná hromada
-              polen na milíř (polena po povrchu nízké kupy, ne vyskládaná hráň), koše s uhlím
+  uhlir.glb   zemnice se střechou krytou mechem (stejný tvar, atlas-moss.jpg) a koše s uhlím –
+              milíř je samostatná stavba u skácených buků (crafts.md – Milíř u skácených buků),
+              hromada polen ani lopata u domu nejsou
   milir.glb   milíř – samostatný model: kupa polen pod hlínou a drny, dole věnec polen, průduchy,
-              komín, kolem začernalá zem, žebřík, hrabice, drny a lopata. Stojí „kus od zemnice“:
-              doporučený odstup MILIR_OFFSET níže (≈ 10 m, 8–12 m je v pořádku).
+              komín, kolem začernalá zem, žebřík, hrabice, drny a lopata. Ve hře stojí jako
+              samostatná stavba uprostřed skácených buků; MILIR_OFFSET níže je jen odstup od zemnice
+              v ukázkách a náhledech (ve vsích uložených dřív stál milíř tam).
   construction.glb       díly staveniště hrnčíře, kováře a tesaře („hrncir-…“, „kovar-…“,
                          „tesar-…“: díly polozemnice, přístřešek porch-posts / porch-rafters-N /
                          porch-laths, došky přes celou délku, pec kiln-base / kiln-dome-1…3 /
                          kiln-mouth, výheň forge-hearth / forge-fire / forge-wall / forge-bellows /
                          anvil, tesařské pracoviště trestles / beam / block, vybavení dílny – u
                          tesaře beams / wheels / chips, yard) a rekvizity „site-stones“, „site-clay“
-  construction-moss.glb  díly uhlíře (zemnice s řadami mechu, hromada polen „wood“, koše)
+  construction-moss.glb  díly uhlíře (zemnice s řadami mechu, koše)
                          a milíře („milir-…“:
                          stakes, pole, ground, ring, stack-1…4, cover-1…3, top, vents, tools)
 Kdy se který díl ukáže, určuje apps/web/lib/scene/village-construction.ts (tabulka fází pro
@@ -786,54 +788,14 @@ def log(b, a, c, r, seed):
         b.poly([e + q for q in ring], "logends", out=o, uvm=[(uc + q.dot(side) * k, q.dot(up) * k) for q in ring])
 
 
-def log_heap(b, c, rx=0.85, ry=1.3, height=0.72, count=22, seed=3):
-    """Volná hromada polen na milíř (ne vyskládaná hráň – Martin): polena různě dlouhá, natočená
-    převážně podél delší osy hromady, leží po povrchu nízké kupy (výš uprostřed) a pár jich je
-    opřených z boku."""
-    cx, cy = c
-
-    def surface(x, y):
-        q = ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2
-        return height * max(0.0, 1 - q) ** 0.8
-
-    def place(x0, y0, x1, y1, r):
-        z0 = max(surface(x0, y0), 0) + r * 0.75
-        z1 = max(surface(x1, y1), 0) + r * 0.75
-        return (x0, y0, z0), (x1, y1, z1)
-
-    for i in range(count):
-        t = (i + 0.5) / count
-        rr = math.sqrt(t) * 0.85
-        ang = i * 2.39996 + seeded(seed * 31 + i) * 0.6
-        px, py = cx + rr * rx * math.cos(ang), cy + rr * ry * math.sin(ang)
-        yaw = math.radians(90 + (seeded(seed * 7 + i) - 0.5) * 70)
-        length = 0.95 + 0.35 * seeded(seed * 11 + i)
-        r = 0.06 + 0.035 * seeded(seed * 13 + i)
-        dx, dy = math.cos(yaw) * length / 2, math.sin(yaw) * length / 2
-        a, e = place(px - dx, py - dy, px + dx, py + dy, r)
-        log(b, a, e, r, seed * 100 + i)
-    for i, (ang, yaw) in enumerate(((0.3, 20), (2.4, 160), (4.2, 250))):  # opřená z boku
-        px, py = cx + 1.25 * rx * math.cos(ang), cy + 1.1 * ry * math.sin(ang)
-        r = 0.07
-        top = (cx + 0.45 * rx * math.cos(ang), cy + 0.45 * ry * math.sin(ang))
-        log(b, (px, py, r), (top[0], top[1], surface(*top) + r), r, seed * 200 + i)
-
-
 def build_uhlir(mat, stages=False):
-    """Uhlíř: zemnice z dwellings.py (střecha z atlasu s mechem), volná hromada polen na milíř,
-    koše uhlí."""
+    """Uhlíř: zemnice z dwellings.py (střecha z atlasu s mechem) a koše uhlí. Hromada polen
+    a lopata u domu nejsou – milíř je samostatná stavba u skácených buků a polena leží u něj
+    (docs/design/crafts.md – Milíř u skácených buků)."""
     part = Parts("uhlir")
     D.build_zemnice(part, stages=stages)
-    b = part("tools")
-    b.beam((-2.62, -1.42, 0.22), (-2.7, -1.3, 1.3), 0.045)  # lopata zapíchnutá u hromady polen
-    b.box(-2.75, -2.49, -1.45, -1.39, -0.1, 0.25, "beam")
-    heap = CB("uhlir-log-heap")
-    log_heap(heap, (-3.55, 0.3))
     extras = {
-        "wood": [
-            heap.build(mat),
-            D.import_prop("basket-a", 0.42, (-1.55, -3.55, 0.0), mat),
-        ],
+        "wood": [D.import_prop("basket-a", 0.42, (-1.55, -3.55, 0.0), mat)],
         "coal": coal_basket(mat, "coal-1", (1.45, -3.4, 0.0)) + coal_basket(mat, "coal-2", (1.95, -3.15, 0.0), 0.38, 0.5),
     }
     return part, extras

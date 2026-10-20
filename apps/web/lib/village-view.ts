@@ -3897,5 +3897,7 @@ function scenePlacementVillage(scene: SceneVillage): PlacementVillage {
     ...(scene.ploughTeam ? { ploughTeam: true } : {}),
     // pevné cesty – kácení u kurzoru chůzí jako na serveru (roads.md)
     ...(scene.roads ? { walkRoads: scene.roads } : {}),
+    // milíře uhlířů – samostatné stavby, přes ně stavět nejde (crafts.md – Milíř u skácených buků)
+    ...(scene.kilns?.length ? { kilns: scene.kilns.map((k) => ({ x: k.x, z: k.z })) } : {}),
   };
 }

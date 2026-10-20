@@ -1,14 +1,19 @@
 import { dateOfDayIndex } from '../calendar';
-import { length2, obstacleIndex, type ObstacleLayer } from '../landscape';
+import { detCos, detSin, length2, obstacleIndex, type ObstacleLayer } from '../landscape';
 import { distanceFactor } from './fields';
 import {
   buildingLocalToWorld,
   fellTrees,
   obstacleChangesAt,
+  obstacleStatus,
   plantOnStump,
+  polygonObstacles,
+  recordClearedObstacles,
   type TreeAtDistance,
 } from './obstacles';
+import { sacredSitesOf } from './sacred';
 import { monthInWindow } from './orchard';
+import type { Point } from './polygon';
 import {
   BEECH_PLANTING,
   CART_JOBS,
@@ -32,6 +37,7 @@ import type {
 } from './types';
 import type { Walk } from './paths/walking';
 import {
+  addLogs,
   availableTrees,
   claimedObstacles,
   fellingsOf,
@@ -94,6 +100,19 @@ export function kilnPoint(
   kiln: Pick<CharcoalKiln, 'site'>,
 ): { x: number; z: number } {
   return kiln.site ?? { x: burner.position.x, z: burner.position.z };
+}
+
+const KILN_CIRCLE_SIDES = 12;
+
+/**
+ * Mnohoúhelník kruhu milíře se středem `center` a poloměrem `radius` (m) – 12 vrcholů,
+ * deterministicky (kontrola místa v prohlížeči i na serveru).
+ */
+export function kilnCircle(center: { x: number; z: number }, radius: number): Point[] {
+  return Array.from({ length: KILN_CIRCLE_SIDES }, (_, i) => {
+    const angle = (2 * Math.PI * i) / KILN_CIRCLE_SIDES;
+    return [center.x + radius * detCos(angle), center.z + radius * detSin(angle)];
+  });
 }
 
 /** Kolik uhlí dá milíř (kg) – 120 kg z každého buku dávky. */
@@ -372,6 +391,23 @@ export function startKiln(
     { x: site.x, z: site.z },
     fellingsOf(trees, site, undefined).map((t) => ({ id: t.id, cost: t.cost })),
   );
+  // milířiště: ostatní překážky v kruhu milíře uhlíř napřed vyklidí (buky dávky skácí na milíř,
+  // vyhrazené stromy jiných staveb a posvátné stromy nechá)
+  const keep = new Set([
+    ...claimed,
+    ...trees.map((t) => t.id),
+    ...sacredSitesOf(obstacles).protectedTrees,
+  ]);
+  const tally = polygonObstacles(
+    obstacles,
+    obstacleStatus(changes),
+    kilnCircle(site, MILIR.clearingRadiusM),
+    new Set(),
+    keep,
+  );
+  if (tally.ids.length > 0) {
+    kiln.clearing = { ids: tally.ids, cost: tally.cost, logs: tally.treeIds.length };
+  }
   if (options.walk) kiln.walkM = Math.round(options.walk(home, [site])[0]! * 100) / 100;
   return kiln;
 }
@@ -574,6 +610,22 @@ export function workBurner(
     }
     const factor = kilnWalkFactor(kiln, dwelling.position);
     if (kiln.stage === 'burn') break;
+    // napřed vyklidí milířiště – ostatní stromy, keře a kameny v kruhu milíře
+    const clearing = kiln.stage === 'wood' && kiln.prepared === 0 ? kiln.clearing : undefined;
+    if (clearing) {
+      const work = Math.min(left / factor, Math.max(0, clearing.cost - kiln.done));
+      kiln.done += work;
+      left -= work * factor;
+      out.felling += work * factor;
+      worked = 'felling';
+      if (kiln.done + EPSILON >= clearing.cost) {
+        recordClearedObstacles(state, clearing.ids, day);
+        addLogs(state, clearing.logs);
+        delete kiln.clearing;
+        kiln.done = 0;
+      }
+      continue;
+    }
     if (kiln.stage === 'wood') {
       const tree = kiln.trees[kiln.prepared]!;
       const total = tree.cost + CHARCOAL_KILN.prepManDaysPerTree;

@@ -196,7 +196,7 @@ export const CONSTRUCTION_PHASES: Record<ConstructionKind, readonly Construction
     { id: 'daub', label: 'omazávání mazanicí', from: 0.54, to: 0.61 },
     { id: 'moss', label: 'mech po řadách místo došků', from: 0.61, to: 0.85 },
     { id: 'finish', label: 'hřeben, kozy a valy', from: 0.85, to: 0.91 },
-    { id: 'workshop', label: 'hromada polen na milíř a koše uhlí', from: 0.91, to: 1 },
+    { id: 'workshop', label: 'koše na uhlí', from: 0.91, to: 1 },
   ],
   milir: [
     { id: 'layout', label: 'vytyčení kruhu a fíra uprostřed', from: 0, to: 0.06 },
@@ -493,16 +493,9 @@ const CRAFT_STEPS: Partial<Record<ConstructionKind, [ConstructionPhaseId, [strin
         ],
       ],
     ],
-    uhlir: [
-      [
-        'workshop',
-        [
-          ['wood', 0.1],
-          ['coal', 0.5],
-          ['tools', 0.8],
-        ],
-      ],
-    ],
+    // uhlíř je jen zemnice – hromada polen a lopata u milíře, ne u domu (crafts.md – Milíř
+    // u skácených buků)
+    uhlir: [['workshop', [['coal', 0.5]]]],
   };
 
 /** Kdy se který díl objeví – postupně uvnitř své fáze. */

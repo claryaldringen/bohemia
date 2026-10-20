@@ -1820,8 +1820,8 @@ export class VillageRenderer {
 const FOREST_KILN_MESH_ID = 3_000_000;
 /** Milířiště (crafts.md – Milíř u skácených buků): poloměr černé země, krytí a barva (tón bahna). */
 const KILN_REMNANT_RADIUS_M = 3.4;
-const KILN_REMNANT_ALPHA = 0.9;
-const KILN_REMNANT_COLOR: [number, number, number] = [0.3, 0.26, 0.23];
+const KILN_REMNANT_ALPHA = 0.75;
+const KILN_REMNANT_COLOR: [number, number, number] = [0.5, 0.42, 0.35];
 
 /** Rekvizity u rozebíraného milíře – koše na uhlí a rýč (hrabice). */
 const KILN_DRAW_PROPS: readonly SiteProp[] = ['basket', 'spade'];

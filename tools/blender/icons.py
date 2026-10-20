@@ -16,8 +16,8 @@ cesta-upravena a hat (druhy pevné cesty – pás cesty, vyježděná se dvěma 
 hať a lávka z `apps/web/public/models/roads/`)
 a jablone (jabloně s jablky střídavě podél cesty – tlačítko „Vysadit jabloně“), stezka (zemská
 stezka od brány dvorce – trade.md), obchod (pytle obilí, hrnce, klády a sýr) a rudiste (jámy
-s vodou a valem, hromádka bahenní rudy a motyka – crafts.md, Uhlí a ruda kováře) – portréty do
-panelu výběru;
+s vodou a valem, hromádka bahenní rudy a motyka – crafts.md, Uhlí a ruda kováře) a milir (kouřící
+milíř mezi pařezy skácených buků – crafts.md, Milíř u skácených buků) – portréty do panelu výběru;
 (64 × 64 PNG) – `resources/` people, food, wood, labor, satiation, date, apples, happiness
 (štěstí – plamen ohniště nad zkříženými poleny v kruhu kamenů), hay (seno – kupka sena
 z `apps/web/public/models/fields/haystack.glb`), meat (maso – uzená kýta s kostí a provázkem),
@@ -1878,6 +1878,33 @@ def icon_rudiste():
     camera([Vector((-2.3, -1.9, 0)), Vector((2.8, 2.2, 0)), Vector((0, 0, 1.0))], az=14, el=38, margin=0.84)
 
 
+def icon_milir():
+    """Milíř uhlíře (crafts.md – Milíř u skácených buků): kouřící milíř z `models/crafts/milir.glb`
+    na černém milířišti mezi pařezy skácených buků, kus hráně polen – portrét panelu výběru."""
+    objs = place_model("milir", folder=CRAFTS)
+    ground(6.2, mat("g", tex=f"{TEX}/grass-lush.jpg", scale=0.3, tint=(0.66, 0.74, 0.5)), z=0.0, fade=0.7)
+    smoke = mat("smoke", (0.78, 0.77, 0.74), 1.0)
+    bsdf = next(n for n in smoke.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+    bsdf.inputs["Alpha"].default_value = 0.55
+    bm = bmesh.new()
+    for k, (dx, dy, z, r) in enumerate(((0.0, 0.0, 2.7, 0.35), (0.25, 0.15, 3.3, 0.5), (0.65, 0.3, 4.0, 0.62))):
+        blob(bm, ((dx, dy, z), (0, 0, k)), (r, r, r * 0.8), 12, 7)
+    objs.append(to_obj(bm, "smoke", smoke))
+    # pařezy skácených buků kolem milíře
+    stumps = bmesh.new()
+    for x, y, r in ((-2.9, 1.5, 0.3), (2.8, 1.9, 0.34), (-2.6, -2.0, 0.27)):
+        cyl(stumps, (x, y, 0.0), (x, y, 0.42), r, r * 0.92, 12)
+    objs.append(to_obj(stumps, "stumps", mat("bark", (0.36, 0.3, 0.24), 0.8, noise=40, bump=0.6)))
+    tops = bmesh.new()
+    for x, y, r in ((-2.9, 1.5, 0.29), (2.8, 1.9, 0.33), (-2.6, -2.0, 0.26)):
+        bmesh.ops.create_circle(tops, cap_ends=True, radius=r, segments=12, matrix=Matrix.Translation((x, y, 0.425)))
+    to_obj(tops, "stump-tops", mat("cut", (0.5, 0.38, 0.26), 0.75, noise=30), smooth=False)
+    sun(az=-50, el=44)
+    sun(az=150, el=25, strength=1.4, color=(0.8, 0.88, 1.0))
+    pts = [Vector((p.x, p.y, max(p.z, 0.0))) for p in world_points(objs)]
+    camera(pts, az=28, el=34, margin=0.9)
+
+
 def flat_plate(bm, pts, y, thickness):
     """Plochý díl (list sekery) z obrysu `pts` v rovině XZ, tloušťka ve směru Y."""
     front = [bm.verts.new((x, y - thickness / 2, z)) for x, z in pts]
@@ -2275,6 +2302,7 @@ BUILD = {
     "stezka": icon_stezka,
     "obchod": icon_obchod,
     "rudiste": icon_rudiste,
+    "milir": icon_milir,
 }
 
 # ------------------------------------------------------------- rodiny ----

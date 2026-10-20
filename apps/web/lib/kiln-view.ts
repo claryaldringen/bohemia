@@ -53,7 +53,7 @@ export interface VillageKiln {
   fetchers: KilnFetcher[];
   /** Dnes pro uhlí přijel vůz se sedlákem. */
   cart: boolean;
-  /** Uhlíř tu dnes pracoval (stavba, hlídání, vytahání). */
+  /** Uhlíř tu dnes pracoval (kácení buků dávky, stavba, hlídání, vytahání). */
   burnerHere: boolean;
 }
 
@@ -70,6 +70,14 @@ export function kilnViews(state: VillageState, day: number): VillageKiln[] {
       if (!kiln.site || kiln.id === undefined) return [];
       const here = shares.filter(
         (s) => s.target.kind === 'kiln' && s.target.id === d.id && s.target.kiln === kiln.id,
+      );
+      // kácení buků dávky jde k bukům (cíl `trees`) – i to je práce uhlíře u milíře
+      const beeches = new Set(kiln.trees.flatMap((t) => (t.id === null ? [] : [t.id])));
+      const felling = shares.some(
+        (s) =>
+          s.activity === 'fell' &&
+          s.target.kind === 'trees' &&
+          s.target.ids.some((id) => beeches.has(id)),
       );
       const at = kilnPoint(d, kiln);
       return [
@@ -88,7 +96,7 @@ export function kilnViews(state: VillageState, day: number): VillageKiln[] {
           smithWalkM: kiln.carry ? Math.round(kiln.carry.walkM) : null,
           fetchers: kilnFetchers(state, day, here),
           cart: here.some((s) => s.activity === 'haul'),
-          burnerHere: here.some((s) => s.activity === 'craft'),
+          burnerHere: felling || here.some((s) => s.activity === 'craft'),
         },
       ];
     }),

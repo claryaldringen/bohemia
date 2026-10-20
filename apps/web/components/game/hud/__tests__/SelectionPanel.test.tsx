@@ -735,6 +735,7 @@ describe('SelectionPanel – dílna tesaře (wagons.md – Tesař)', () => {
         stockKg: 46,
         coverage: 0.72,
         kiln: null,
+        kilns: [],
         toPlant: 0,
         skill,
         carpenter: {
@@ -849,6 +850,7 @@ describe('SelectionPanel – hrnčíř a hlína (crafts.md – Hlína hrnčíře
         stockKg: 46,
         coverage: 0.9,
         kiln: null,
+        kilns: [],
         toPlant: 0,
         skill: { share: 1, years: 5, apprentices: [] },
         carpenter: null,
@@ -884,6 +886,7 @@ describe('SelectionPanel – kovárna (crafts.md – Uhlí a ruda kováře)', ()
         stockKg: 42,
         coverage: 0.6,
         kiln: null,
+        kilns: [],
         toPlant: 0,
         skill: { share: 1, years: 5, apprentices: [] },
         carpenter: null,
@@ -994,5 +997,78 @@ describe('SelectionPanel – rudiště (crafts.md – Uhlí a ruda kováře)', (
     const html = render(ore({ workers: [], leftKg: 0 }));
     expect(html).not.toContain('selection-ore-today');
     expect(html).toMatch(/data-testid="selection-ore-deposit"[^>]*data-alert/);
+  });
+});
+
+describe('SelectionPanel – milíř (crafts.md – Milíř u skácených buků)', () => {
+  const kiln = (
+    over: Partial<Extract<SelectionDetails, { kind: 'kiln' }>> = {},
+  ): SelectionDetails => ({
+    kind: 'kiln',
+    id: 800,
+    burnerId: 9,
+    stage: 'draw',
+    progress: 0.62,
+    prepared: 15,
+    trees: 15,
+    charcoalKg: 684,
+    yieldKg: 1800,
+    burnerWalkM: 96,
+    smithWalkM: 1183,
+    fetchers: [{ age: 11, smith: false }],
+    cart: false,
+    burnerHere: true,
+    ...over,
+  });
+
+  it('portrét Milíř, uhlí v milíři / z celého, uhlíř, cesta ze zemnice a z kovárny', () => {
+    const html = render(kiln());
+    expect(html).toContain('data-kind="kiln"');
+    expect(html).toContain('src="/icons/build/milir.png"');
+    expect(html).toContain('>Milíř</h2>');
+    expect(text(html, 'selection-kiln-stage')).toBe('684 / 1 800');
+    expect(html).toContain('data-testid="selection-kiln-progress"');
+    expect(html).toMatch(
+      /data-testid="selection-kiln-burner"[^>]*><img src="\/icons\/build\/uhlir\.png"/,
+    );
+    expect(text(html, 'selection-kiln-walk')).toBe('96 m');
+    expect(text(html, 'selection-kiln-smith-walk')).toBe('1 183 m');
+  });
+
+  it('kdo sem dnes chodí pro uhlí – syn s věkem, vůz; uhlíř tu pracuje', () => {
+    const html = render(kiln());
+    expect(html).toMatch(/child\.png.*data-testid="selection-kiln-fetcher"[^>]*>11</);
+    expect(html).toContain('Syn kováře (věk) dnes nosí uhlí od milíře do kovárny');
+    expect(html).toContain('data-testid="selection-kiln-burner-here"');
+    expect(html).not.toContain('selection-kiln-cart');
+    const cart = render(kiln({ fetchers: [], cart: true, burnerHere: false }));
+    expect(cart).toContain('data-testid="selection-kiln-cart"');
+    const nobody = render(kiln({ fetchers: [], burnerHere: false }));
+    expect(nobody).not.toContain('selection-kiln-today');
+  });
+
+  it('fáze: kácení buků (připravené / všechny), stavba, pálení; milířiště zarůstá', () => {
+    expect(text(render(kiln({ stage: 'wood', prepared: 6 })), 'selection-kiln-stage')).toBe('6/15');
+    expect(text(render(kiln({ stage: 'build', progress: 0.35 })), 'selection-kiln-stage')).toBe(
+      '35 %',
+    );
+    const remnant = render(kiln({ stage: 'remnant', progress: 0.3, smithWalkM: null }));
+    expect(remnant).toContain('>Milířiště</h2>');
+    expect(text(remnant, 'selection-kiln-stage')).toBe('30 %');
+    expect(remnant).not.toContain('selection-kiln-smith-walk');
+  });
+});
+
+describe('SelectionPanel – dílna uhlíře a její milíře', () => {
+  it('milíře jako tlačítka – fáze a cesta ze zemnice v popisku', async () => {
+    const { DEV_PANELS } = await import('@/app/dev/panels/dev-panels');
+    const burner = DEV_PANELS.find((p) => p.key === 'uhlir')!.details;
+    const html = render(burner);
+    expect(html.match(/data-testid="selection-workshop-kiln"/g)).toHaveLength(2);
+    expect(html).toMatch(/data-testid="selection-workshop-kiln" data-stage="draw"/);
+    expect(html).toMatch(/data-testid="selection-workshop-kiln" data-stage="wood"/);
+    expect(html).toContain('src="/icons/build/milir.png"');
+    // kácí buky na rozdělaný milíř – připravené / v dávce
+    expect(html).toMatch(/data-testid="selection-workshop-activity".*?>6\/15</);
   });
 });

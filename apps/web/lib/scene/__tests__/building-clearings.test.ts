@@ -37,8 +37,8 @@ describe('vyklízené plochy obydlí ve scéně', () => {
     expect(clearings[0]).toMatchObject({ minX: -4.8, maxX: 4.8, minZ: -4.4, maxZ: 7.5 });
   });
 
-  it('uhlíř má plochu i kolem milíře', () => {
-    expect(buildingClearings([dwelling(0, 0, { craft: 'burner' })])).toHaveLength(2);
+  it('uhlíř je jen zemnice – milíř stojí zvlášť u skácených buků (crafts.md)', () => {
+    expect(buildingClearings([dwelling(0, 0, { craft: 'burner' })])).toHaveLength(1);
   });
 
   it('maska: ve ploše 0, za okrajem plynule k 1; vzdálené plochy se vyřadí', () => {

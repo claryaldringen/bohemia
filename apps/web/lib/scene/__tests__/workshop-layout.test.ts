@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MILIR, milirPosition } from '@bohemia/game';
+import { MILIR } from '@bohemia/game';
 import type { SceneVillage } from '../../village-view';
 import { ventSmokeStrength, smokeStrength } from '../smoke-schedule';
 import { CONSTRUCTION_PHASES, constructionState } from '../village-construction';
@@ -12,9 +12,9 @@ import {
   craftSpots,
   forestKilnAnchor,
   hasPorch,
+  kilnVents,
   KILN_SETTLED,
   kilnLook,
-  milirGroundProgress,
   milirHideShape,
   milirPlace,
   modelSpots,
@@ -38,8 +38,7 @@ describe('dílny ve scéně (crafts.md)', () => {
     }
   });
 
-  it('milíř stojí kus od zemnice podle herního jádra a natáčí se s ní', () => {
-    expect(milirPlace(AT)).toEqual(milirPosition(AT));
+  it('milíř stojí kus od kotvy (MILIR.offset) a natáčí se s ní', () => {
     const p = milirPlace(AT);
     expect(p.x).toBeCloseTo(AT.x + MILIR.offset.x, 9);
     expect(p.z).toBeCloseTo(AT.z + MILIR.offset.z, 9);
@@ -52,14 +51,16 @@ describe('dílny ve scéně (crafts.md)', () => {
     expect(hide.contains(p.x + MILIR.clearingRadiusM + 0.5, p.z)).toBe(false);
   });
 
-  it('dým: pec a výheň zpod přístřešku, uhlíř z komína milíře', () => {
+  it('dým: pec a výheň zpod přístřešku, uhlíř jen z komína milíře (samostatná stavba)', () => {
     const [kiln] = workshopVents('potter', AT);
     expect(kiln).toMatchObject({ kind: 'craft' });
     expect(kiln!.z).toBeGreaterThan(AT.z + PORCH_FRONT_M);
     const [forge] = workshopVents('smith', TURNED);
     // vchod do +x – přístřešek před domem v +x
     expect(forge!.x).toBeGreaterThan(TURNED.x + PORCH_FRONT_M);
-    const [milir] = workshopVents('burner', AT);
+    // zemnice uhlíře nekouří – dým stoupá z milíře u skácených buků (crafts.md)
+    expect(workshopVents('burner', AT)).toEqual([]);
+    const [milir] = kilnVents(AT);
     expect(milir).toMatchObject({ kind: 'milir', y: MILIR_SHAPE_M.height + 0.1 });
     expect(milir!.x).toBeCloseTo(milirPlace(AT).x, 9);
   });
@@ -91,7 +92,7 @@ describe('dílny ve scéně (crafts.md)', () => {
     }
   });
 
-  it('kliknutí na přístřešek i na milíř vybere dílnu', () => {
+  it('kliknutí na přístřešek vybere dílnu, milíř u zemnice už nestojí', () => {
     const dwelling: SceneVillage['dwellings'][number] = {
       id: 5,
       type: 'zemnice',
@@ -103,7 +104,7 @@ describe('dílny ve scéně (crafts.md)', () => {
     const { craft: _burner, ...plain } = dwelling;
     void _burner;
     const milir = milirPlace(AT);
-    expect(insideFootprint({ x: milir.x, z: milir.z }, dwelling)).toBe(true);
+    expect(insideFootprint({ x: milir.x, z: milir.z }, dwelling)).toBe(false);
     expect(insideFootprint({ x: milir.x, z: milir.z }, plain)).toBe(false);
     const house = { ...plain, type: 'polozemnice' as const };
     // před polozemnicí pod přístřeškem (5 / 2 + 2,6 m)
@@ -112,14 +113,14 @@ describe('dílny ve scéně (crafts.md)', () => {
   });
 });
 
-describe('milíř v lese (crafts.md – Uhlíř)', () => {
-  it('kotva lesního milíře – funkce milíře u dílny ho kreslí na místě v lese', () => {
+describe('milíř u skácených buků (crafts.md – Milíř u skácených buků)', () => {
+  it('kotva milíře – funkce milíře ho kreslí na místě u buků', () => {
     const center = { x: 123.5, z: -48 };
     const anchor = forestKilnAnchor(center);
     const place = milirPlace(anchor);
     expect(place.x).toBeCloseTo(center.x, 9);
     expect(place.z).toBeCloseTo(center.z, 9);
-    const [vent] = workshopVents('burner', anchor);
+    const [vent] = kilnVents(anchor);
     expect(vent).toMatchObject({ kind: 'milir' });
     expect(vent!.x).toBeCloseTo(center.x, 9);
   });
@@ -163,8 +164,6 @@ describe('fáze milíře ve scéně (crafts.md – Milíř stojí vždy)', () =>
       constructionState('milir', site).parts.filter((p) => /^(ring|stack|cover)/.test(p));
     expect(heap(wood.site!)).toHaveLength(0);
     expect(wood.timber).toBeCloseTo(0.65, 9);
-    // milířiště při stavbě dílny – jen vytyčení a srovnaná zem, milíř ne
-    expect(heap(milirGroundProgress(1))).toHaveLength(0);
   });
 
   it('stavba po fázích staveniště, pálení – hotový milíř s dýmem', () => {

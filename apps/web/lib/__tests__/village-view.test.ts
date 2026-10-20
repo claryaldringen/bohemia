@@ -38,6 +38,7 @@ import {
   type VillageRecord,
   type TradePeople,
   type VillageState,
+  type CharcoalKiln,
 } from '@bohemia/game';
 import {
   CHRONICLE_LENGTH,
@@ -308,11 +309,12 @@ describe('buildVillageView', () => {
         blocked: null,
         affordable: false,
       },
+      // uhlíř jako zemnice – milíř staví u dávky buků (crafts.md – Milíř u skácených buků)
       burner: {
-        laborManDays: 78,
+        laborManDays: 60,
         perHa: false,
         perSquare: false,
-        upfront: [{ resource: 'wood', amount: 9, missing: 9 }, noSettlers],
+        upfront: [{ resource: 'wood', amount: 7, missing: 7 }, noSettlers],
         blocked: null,
         affordable: false,
       },
@@ -1867,11 +1869,9 @@ describe('buildVillageView – víc vsí a přestěhování (migration.md)', () 
   });
 });
 
-describe('buildVillageView – uhlíř (crafts.md – Uhlíř)', () => {
-  /** Ves s uhlířem (id 50) – milíř podle `kiln`, pařez 7 se sazenicí. */
-  const burnerVillage = (
-    kiln: NonNullable<VillageState['dwellings'][number]['workshop']>['kiln'],
-  ): VillageState => {
+describe('buildVillageView – uhlíř (crafts.md – Milíř u skácených buků)', () => {
+  /** Ves s uhlířem (id 50) – milíře `kilns`, pařez 7 se sazenicí. */
+  const burnerVillage = (kilns: CharcoalKiln[]): VillageState => {
     const s = settled();
     s.dwellings.push({
       id: 50,
@@ -1879,70 +1879,81 @@ describe('buildVillageView – uhlíř (crafts.md – Uhlíř)', () => {
       builtDay: DAY,
       condition: 1,
       position: { x: 40, z: 0, rotation: 0 },
-      workshop: { craft: 'burner', felling: null, fuelKg: 0, activity: 'burning', kiln },
+      workshop: { craft: 'burner', felling: null, fuelKg: 0, activity: 'burning', kilns },
     });
     s.people.push({ id: 90, bornDay: DAY - 9000, dwellingId: 50 });
     s.felledTrees = [{ id: 7, day: DAY - 3650, planted: DAY - 3650 }];
     return s;
   };
-  const kiln = (site: { x: number; z: number } | null) => ({
+  const kiln = (id: number, site: { x: number; z: number }): CharcoalKiln => ({
+    id,
     site,
     trees: [{ id: null, cost: 2 }],
-    stage: 'burn' as const,
+    stage: 'burn',
     prepared: 1,
     done: 4,
   });
 
-  it('milíř u dílny při pálení kouří z dílny, lesní milíř je ve scéně zvlášť', () => {
-    const home = buildVillageView(record(burnerVillage(kiln(null))), landscape, DAY);
-    expect(home.scene.dwellings.find((d) => d.id === 50)).toMatchObject({ working: true });
-    expect(home.scene.kilns).toBeUndefined();
-    const forest = buildVillageView(record(burnerVillage(kiln({ x: 90, z: 10 }))), landscape, DAY);
-    expect(forest.scene.dwellings.find((d) => d.id === 50)?.working).toBeUndefined();
-    expect(forest.scene.kilns).toEqual([{ id: 50, x: 90, z: 10, stage: 'burn', progress: 0.5 }]);
-    const workshop = forest.crafts.workshops.find((w) => w.dwellingId === 50);
-    expect(workshop?.kiln).toMatchObject({ stage: 'burn', forest: true, progress: 0.5 });
+  it('milíř je samostatná stavba – kouří milíř, ne dílna; ve scéně s id milíře', () => {
+    const view = buildVillageView(
+      record(burnerVillage([kiln(700, { x: 90, z: 10 })])),
+      landscape,
+      DAY,
+    );
+    expect(view.scene.dwellings.find((d) => d.id === 50)?.working).toBeUndefined();
+    expect(view.scene.kilns).toEqual([
+      { id: 700, burnerId: 50, x: 90, z: 10, stage: 'burn', progress: 0.5 },
+    ]);
+    const workshop = view.crafts.workshops.find((w) => w.dwellingId === 50);
+    expect(workshop?.kilns).toEqual([
+      expect.objectContaining({ id: 700, stage: 'burn', progress: 0.5, x: 90, z: 10 }),
+    ]);
+    // panel milíře – cesta ze zemnice vzdušně (bez chůze po cestách)
+    expect(view.kilns).toEqual([
+      expect.objectContaining({ id: 700, burnerId: 50, stage: 'burn', burnerWalkM: 51 }),
+    ]);
   });
 
-  it('milíř u dílny nese obydlí – fáze, průběh a u vypáleného podíl uhlí (Milíř stojí vždy)', () => {
-    const burning = buildVillageView(record(burnerVillage(kiln(null))), landscape, DAY);
-    expect(burning.scene.dwellings.find((d) => d.id === 50)?.kiln).toEqual({
-      stage: 'burn',
-      progress: 0.5,
-    });
-    // vypálený milíř se 120 kg uhlí z dávky 15 buků (1,8 t) – zbývá 1/15 po 2 %
-    const burnt = burnerVillage({
-      site: null,
+  it('dva milíře – vypálený s uhlím a rozdělaný; milířiště po rozebraném', () => {
+    const burnt: CharcoalKiln = {
+      id: 701,
+      site: { x: 70, z: 30 },
       trees: Array.from({ length: 15 }, () => ({ id: null, cost: 2 })),
       stage: 'draw',
       prepared: 15,
       done: 0,
       charcoalKg: 1200,
-    });
-    burnt.crafts = { charcoalKg: 30, toolsKg: 0, potteryKg: 0 };
-    const view = buildVillageView(record(burnt), landscape, DAY);
-    const home = view.scene.dwellings.find((d) => d.id === 50)!;
-    expect(home.kiln).toEqual({ stage: 'draw', progress: 0.34, charcoal: 0.66 });
-    // vypálený milíř nekouří
-    expect(home.working).toBeUndefined();
-    // zásoba uhlí vsi = uhlí v milíři + u kováře
-    expect(view.crafts.stocks.charcoalKg).toBe(1230);
-    expect(view.crafts.workshops.find((w) => w.dwellingId === 50)?.kiln).toMatchObject({
+    };
+    const s = burnerVillage([burnt, kiln(702, { x: 90, z: 10 })]);
+    s.crafts = { charcoalKg: 30, toolsKg: 0, potteryKg: 0 };
+    s.kilnRemnants = [{ id: 600, burnerId: 50, x: 60, z: -30, day: DAY - 365 * 5 }];
+    const view = buildVillageView(record(s), landscape, DAY);
+    // vypálený milíř se 1 200 kg uhlí z dávky 15 buků (1,8 t) – zbývá 2/3 po 2 %
+    expect(view.scene.kilns?.[0]).toEqual({
+      id: 701,
+      burnerId: 50,
+      x: 70,
+      z: 30,
       stage: 'draw',
-      charcoalKg: 1200,
+      progress: 0.34,
+      charcoal: 0.66,
     });
-    // lesní milíř totéž v `kilns`
-    const forest = structuredClone(burnt);
-    forest.dwellings.find((d) => d.id === 50)!.workshop!.kiln!.site = { x: 90, z: 10 };
-    const inForest = buildVillageView(record(forest), landscape, DAY);
-    expect(inForest.scene.kilns).toEqual([
-      { id: 50, x: 90, z: 10, stage: 'draw', progress: 0.34, charcoal: 0.66 },
+    expect(view.scene.kilns).toHaveLength(2);
+    // zásoba uhlí vsi = uhlí v milířích + u kováře
+    expect(view.crafts.stocks.charcoalKg).toBe(1230);
+    // milířiště napůl zarostlé
+    expect(view.scene.kilnRemnants).toEqual([
+      { id: 600, burnerId: 50, x: 60, z: -30, overgrowth: 0.5 },
     ]);
-    expect(inForest.scene.dwellings.find((d) => d.id === 50)?.kiln).toBeUndefined();
+    expect(view.kilns?.map((k) => [k.id, k.stage])).toEqual([
+      [701, 'draw'],
+      [702, 'burn'],
+      [600, 'remnant'],
+    ]);
   });
 
   it('mladé buky od uhlíře rostou – velikost podle stáří (za 60 let dospělé)', () => {
-    const view = buildVillageView(record(burnerVillage(null)), landscape, DAY);
+    const view = buildVillageView(record(burnerVillage([])), landscape, DAY);
     const sapling = view.scene.plantedSaplings?.find((p) => p.id === 7);
     expect(sapling?.growth).toBeCloseTo(10 / 60, 1);
   });

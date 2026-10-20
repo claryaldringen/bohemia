@@ -48,6 +48,7 @@ import {
 } from '@/lib/village-view';
 import type { Direction8, RoadKind, RoadUpgrade, TradeGoods } from '@bohemia/game';
 import type { OreSiteWorker } from '@/lib/ore-site-view';
+import type { KilnFetcher } from '@/lib/kiln-view';
 import type { PreviewPeople } from '@/lib/trade-quote';
 import { ManorUpgrades, SwathTrees } from './ManorPanel';
 import { TradePanel } from './TradePanel';
@@ -215,8 +216,10 @@ function activityLook(workshop: SelectionWorkshop): {
   const perDay = `${formatDecimal(workshop.outputPerDayKg, 1)} kg/den`;
   const kiln = workshop.kiln;
   const percent = kiln ? formatPercent(kiln.progress) : '–';
-  // vypálený milíř je zásobou uhlí – uhlíř z něj nosí kováři (crafts.md – Milíř stojí vždy)
-  const inKiln = kiln?.stage === 'draw' ? formatInteger(kiln.charcoalKg) : null;
+  // vypálené milíře jsou zásobou uhlí – uhlíř z nich nosí kováři (crafts.md – Milíř stojí vždy)
+  const burnt = workshop.kilns.filter((k) => k.stage === 'draw');
+  const inKiln =
+    burnt.length > 0 ? formatInteger(burnt.reduce((sum, k) => sum + k.charcoalKg, 0)) : null;
   // tesař (wagons.md): rozdělaný vůz, pomoc stavbám; vůz, který čeká na kování, se nevyrábí –
   // tesař dělá nářadí (wagons.md – Kování vozů)
   const making = workshop.carpenter?.iron ? null : (workshop.carpenter?.making ?? null);
@@ -259,7 +262,7 @@ function activityLook(workshop: SelectionWorkshop): {
       workshop.craft === 'burner' && inKiln !== null
         ? {
             icon: 'charcoal',
-            name: 'Milíř je vypálený – uhlí z něj vytahá, jak ho kovář spotřebuje; zatím pomáhá vsi (kg uhlí v milíři)',
+            name: 'Milíř je vypálený – uhlí z něj vytahá, jak ho kovář spotřebuje, a další začne včas; zatím pomáhá vsi (kg uhlí v milířích)',
             value: inKiln,
           }
         : {
@@ -387,8 +390,25 @@ function SmithOreStats({ ore }: { ore: NonNullable<SelectionWorkshop['ore']> }):
   );
 }
 
-/** Dílna v panelu výběru: co dělá, práce za den, zásoba výrobku (a pokrytí potřeby vsi). */
-function WorkshopRow({ workshop }: { workshop: SelectionWorkshop }): ReactElement {
+/** Fáze milíře pro hráče (crafts.md – Milíř u skácených buků). */
+const KILN_STAGE_NAMES: Record<SelectionWorkshop['kilns'][number]['stage'], string> = {
+  wood: 'kácí a připravuje buky',
+  build: 'staví se',
+  burn: 'pálí se',
+  draw: 'vypálený – rozebírá se podle odběru kováře',
+};
+
+/**
+ * Dílna v panelu výběru: co dělá, práce za den, zásoba výrobku (a pokrytí potřeby vsi); uhlíř i jeho
+ * milíře – tlačítka je vyberou (`onSelectTarget`).
+ */
+function WorkshopRow({
+  workshop,
+  onSelectTarget,
+}: {
+  workshop: SelectionWorkshop;
+  onSelectTarget?: ((target: VillageTarget) => void) | undefined;
+}): ReactElement {
   const activity = activityLook(workshop);
   const product = CRAFT_LOOKS[workshop.craft].product;
   return (
@@ -415,10 +435,31 @@ function WorkshopRow({ workshop }: { workshop: SelectionWorkshop }): ReactElemen
       >
         {formatInteger(workshop.stockKg)}
       </Stat>
-      {workshop.kiln?.forest && (
-        <Stat icon="wood" name="Milíř stojí v lese u těžby" testId="selection-workshop-forest">
-          les
-        </Stat>
+      {workshop.kilns.map((kiln) =>
+        kiln.id === null ? null : (
+          <Tooltip
+            key={kiln.id}
+            content={`Milíř – ${KILN_STAGE_NAMES[kiln.stage]}, cesta ze zemnice ${formatInteger(kiln.walkM)} m`}
+            placement="above"
+          >
+            <button
+              type="button"
+              data-testid="selection-workshop-kiln"
+              data-stage={kiln.stage}
+              aria-label="Milíř"
+              className="hud-icon-button h-7 w-7"
+              onClick={() => onSelectTarget?.({ kind: 'kiln', id: kiln.id! })}
+            >
+              <img
+                src="/icons/build/milir.png"
+                alt=""
+                width={128}
+                height={128}
+                className="h-full w-full"
+              />
+            </button>
+          </Tooltip>
+        ),
       )}
       {workshop.carpenter && <CarpenterStats carpenter={workshop.carpenter} />}
       {workshop.ore && <SmithOreStats ore={workshop.ore} />}
@@ -678,6 +719,7 @@ interface ManorActions {
 
 function DwellingBody({
   details,
+  onSelectTarget,
   onRelocate,
   onCancelRelocation,
   onLeave,
@@ -685,6 +727,8 @@ function DwellingBody({
   onSendExpedition,
 }: {
   details: Extract<SelectionDetails, { kind: 'dwelling' }>;
+  /** Vybere milíř uhlíře z panelu dílny (crafts.md – Milíř u skácených buků). */
+  onSelectTarget?: ((target: VillageTarget) => void) | undefined;
 } & RelocationActions &
   ManorActions): ReactElement {
   const tone = details.overcrowded ? 'text-red-400' : details.full ? 'text-[#f3cf86]' : '';
@@ -692,7 +736,9 @@ function DwellingBody({
   return (
     <div className="hud-split">
       <div className="flex min-w-0 flex-col justify-center gap-1.5">
-        {details.workshop && <WorkshopRow workshop={details.workshop} />}
+        {details.workshop && (
+          <WorkshopRow workshop={details.workshop} onSelectTarget={onSelectTarget} />
+        )}
         {details.buying && <BuyingRow buying={details.buying} />}
         <div className={ROW}>
           <Stat icon="people" name="Obyvatelé" testId="selection-occupants">
@@ -1859,6 +1905,134 @@ function OreSiteBody({
   );
 }
 
+/** Kdo dnes nosí uhlí od milíře (tooltip). */
+function kilnFetcherName(fetcher: KilnFetcher): string {
+  return `${fetcher.smith ? 'Kovář' : 'Syn kováře'} (věk) dnes nosí uhlí od milíře do kovárny`;
+}
+
+/** Co je s milířem teď – ikona, popisek a číslo (crafts.md – Milíř u skácených buků). */
+function kilnStageLook(details: Extract<SelectionDetails, { kind: 'kiln' }>): {
+  icon: string;
+  name: string;
+  value: string;
+} {
+  if (details.stage === 'remnant') {
+    return {
+      icon: 'overgrowth',
+      name: 'Milířiště – černá uhlíkatá zem po rozebraném milíři; za pár let zaroste (jak zarostlo)',
+      value: formatPercent(details.progress),
+    };
+  }
+  if (details.stage === 'wood') {
+    return {
+      icon: 'wood',
+      name: 'Uhlíř kácí a připravuje buky na milíř (připravené / v dávce)',
+      value: `${details.prepared}/${details.trees}`,
+    };
+  }
+  if (details.stage === 'build') {
+    return { icon: 'wood', name: 'Uhlíř staví milíř', value: formatPercent(details.progress) };
+  }
+  if (details.stage === 'burn') {
+    return {
+      icon: 'charcoal',
+      name: 'Milíř se pálí – uhlíř ho hlídá ve dne i v noci',
+      value: formatPercent(details.progress),
+    };
+  }
+  return {
+    icon: 'charcoal',
+    name: 'Vypálený milíř se rozebírá, jak kovář odebírá uhlí (kg uhlí v milíři / z celého milíře)',
+    value: `${formatInteger(details.charcoalKg)} / ${formatInteger(details.yieldKg)}`,
+  };
+}
+
+/**
+ * Milíř nebo milířiště uhlíře (crafts.md – Milíř u skácených buků; Martin 20. 10. 2026: „Vyčleň
+ * milíř jako samostatnou stavbu.“): fáze a průběh, uhlí v milíři, uhlíř – ikona dílny, kliknutím ji
+ * vybere –, cesta ze zemnice a z kovárny; kdo sem dnes chodí pro uhlí – kovář, syn s věkem, vůz se
+ * sedlákem – a jestli tu dnes pracuje uhlíř.
+ */
+function KilnBody({
+  details,
+  onSelectTarget,
+}: {
+  details: Extract<SelectionDetails, { kind: 'kiln' }>;
+  onSelectTarget?: (target: VillageTarget) => void;
+}): ReactElement {
+  const stage = kilnStageLook(details);
+  const today = details.fetchers.length > 0 || details.cart || details.burnerHere;
+  return (
+    <div className="flex min-w-0 flex-col justify-center gap-1.5">
+      <div className={ROW}>
+        <Stat icon={stage.icon} name={stage.name} testId="selection-kiln-stage">
+          {stage.value}
+        </Stat>
+      </div>
+      <Bar
+        value={details.progress}
+        name={details.stage === 'remnant' ? 'Zarůstá' : 'Fáze milíře'}
+        testId="selection-kiln-progress"
+      />
+      <div className={ROW}>
+        <Tooltip content="Uhlíř" placement="above">
+          <button
+            type="button"
+            data-testid="selection-kiln-burner"
+            aria-label="Uhlíř"
+            className="hud-icon-button h-7 w-7"
+            onClick={() => onSelectTarget?.({ kind: 'dwelling', id: details.burnerId })}
+          >
+            <img
+              src="/icons/build/uhlir.png"
+              alt=""
+              width={128}
+              height={128}
+              className="h-full w-full"
+            />
+          </button>
+        </Tooltip>
+        <Stat icon="walk" name="Cesta ze zemnice uhlíře" testId="selection-kiln-walk">
+          {`${formatInteger(details.burnerWalkM)} m`}
+        </Stat>
+        {details.smithWalkM !== null && (
+          <Stat
+            icon="walk"
+            name="Cesta z kovárny – odsud sem chodí pro uhlí"
+            testId="selection-kiln-smith-walk"
+          >
+            {`${formatInteger(details.smithWalkM)} m`}
+          </Stat>
+        )}
+      </div>
+      {today && (
+        <div className={ROW} data-testid="selection-kiln-today">
+          {details.burnerHere && (
+            <Flag icon="labor" name="Uhlíř tu dnes pracuje" testId="selection-kiln-burner-here" />
+          )}
+          {details.fetchers.map((fetcher) => (
+            <Stat
+              key={`${fetcher.smith ? 'k' : 's'}${fetcher.age}`}
+              icon={fetcher.age < AGE.adult ? 'child' : 'man'}
+              name={kilnFetcherName(fetcher)}
+              testId="selection-kiln-fetcher"
+            >
+              {fetcher.age}
+            </Stat>
+          ))}
+          {details.cart && (
+            <Flag
+              icon="cart"
+              name="Vůz se sedlákem dnes veze uhlí od milíře do kovárny"
+              testId="selection-kiln-cart"
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
  * Panel výběru dole uprostřed (jako v 0 A.D.) – jen když je něco vybrané: portrét, typ
  * a ikony s čísly. Obydlí: obyvatelé, věk obyvatel, stav, stáří (u přestavby i stromy ke
@@ -1903,6 +2077,9 @@ export function SelectionPanel({
   if (details.kind === 'ore-site') {
     portrait = <Portrait icon="rudiste" name="Rudiště" />;
     body = <OreSiteBody details={details} onSelectTarget={onSelectTarget} />;
+  } else if (details.kind === 'kiln') {
+    portrait = <Portrait icon="milir" name={details.stage === 'remnant' ? 'Milířiště' : 'Milíř'} />;
+    body = <KilnBody details={details} onSelectTarget={onSelectTarget} />;
   } else if (details.kind === 'road') {
     portrait = (
       <Portrait icon={ROAD_KIND_ICONS[details.roadKind]} name={ROAD_KIND_NAMES[details.roadKind]} />
@@ -1992,6 +2169,7 @@ export function SelectionPanel({
     body = (
       <DwellingBody
         details={details}
+        onSelectTarget={onSelectTarget}
         onRelocate={onRelocate}
         onCancelRelocation={onCancelRelocation}
         onLeave={onLeave}

@@ -220,12 +220,15 @@ describe('ukázka cyklu milíře (crafts.md – Milíř stojí vždy)', () => {
     expect(less[1]!).toBeGreaterThan(less[2]!);
   });
 
-  it('milíř u dílny i v lese ve stejné fázi, u dílny při pálení dým', () => {
+  it('milíř u skácených buků – zemnice uhlíře nekouří, rozebraný nechá milířiště', () => {
     const burning = showcaseKiln(0.5);
-    expect(burning.dwellings[0]).toMatchObject({ craft: 'burner', working: true });
+    expect(burning.dwellings[0]).toMatchObject({ craft: 'burner' });
+    expect(burning.dwellings[0]!.working).toBeUndefined();
     expect(burning.kilns?.[0]?.stage).toBe('burn');
+    // starší milířiště zarůstají
+    expect(burning.kilnRemnants?.every((r) => r.overgrowth > 0)).toBe(true);
     const empty = showcaseKiln(1);
-    expect(empty.dwellings[0]!.kiln).toBeUndefined();
     expect(empty.kilns).toBeUndefined();
+    expect(empty.kilnRemnants?.[0]).toMatchObject({ overgrowth: 0 });
   });
 });

@@ -26,6 +26,7 @@ import {
 import type { LeaveDirection } from './departure-view';
 import type { VillageManor } from './manor-view';
 import type { VillageOreSite } from './ore-site-view';
+import type { VillageKiln } from './kiln-view';
 import type { HouseholdRelocation } from './relocation-view';
 import { TREE_GROWTH_YEARS } from './orchard-look';
 import {
@@ -64,10 +65,16 @@ export interface SelectionWorkshop {
   /** Pokrytí potřeby vsi výrobkem 0–1 (nástroje, keramika); uhlí null. */
   coverage: number | null;
   /**
-   * Uhlíř: rozdělaný milíř – fáze, buky (připravené / v dávce), průběh fáze 0–1, v lese
-   * (crafts.md – Uhlíř); jinak null.
+   * Uhlíř: milíř, u kterého se dnes pracuje – rozdělaný (kácení a příprava, stavba, pálení), jinak
+   * nejstarší vypálený (crafts.md – Milíř u skácených buků); fáze, buky, průběh 0–1 a uhlí; jinak
+   * null.
    */
-  kiln: VillageView['crafts']['workshops'][number]['kiln'];
+  kiln: VillageView['crafts']['workshops'][number]['kilns'][number] | null;
+  /**
+   * Uhlíř: všechny jeho milíře (nejvýš dva – jeden se rozebírá, druhý se chystá) – tlačítka je
+   * vyberou; jinak prázdné.
+   */
+  kilns: VillageView['crafts']['workshops'][number]['kilns'];
   /** Uhlíř: pařezy buků, na které ještě zasadí mladý buk. */
   toPlant: number;
   /** Učení řemesla (crafts.md): výkon dílny podle praxe, praxe řemeslníka a kdo se učí. */
@@ -408,7 +415,16 @@ export type SelectionDetails =
        * kope a nosí; `smithId` = kovárna (tlačítko ji vybere).
        */
       kind: 'ore-site';
-    } & VillageOreSite);
+    } & VillageOreSite)
+  | ({
+      /**
+       * Milíř nebo milířiště uhlíře (crafts.md – Milíř u skácených buků; Martin 20. 10. 2026:
+       * „Vyčleň milíř jako samostatnou stavbu.“): fáze a průběh, uhlí v milíři, cesta ze zemnice
+       * uhlíře a z kovárny a kdo sem dnes chodí pro uhlí; `burnerId` = dílna uhlíře (tlačítko ji
+       * vybere).
+       */
+      kind: 'kiln';
+    } & VillageKiln);
 
 /** Pořadí stád v panelu ohrady (diet.md – Dobytek). */
 export const HERD_ORDER: readonly HerdSpecies[] = ['sheep', 'goat', 'pig', 'cow'];
@@ -638,6 +654,14 @@ export function selectionDetails(
     return square ? { kind: 'orchard-square', id: target.id, ...square } : null;
   }
   if (target.kind === 'pen') return penDetails(view, target.id);
+  if (target.kind === 'kiln') {
+    const inScene =
+      scene.kilns?.some((k) => k.id === target.id) ||
+      scene.kilnRemnants?.some((r) => r.id === target.id);
+    if (!inScene) return null;
+    const kiln = view?.kilns?.find((k) => k.id === target.id);
+    return kiln ? { kind: 'kiln', ...kiln } : null;
+  }
   if (target.kind === 'ore-site') {
     if (!scene.oreSites?.some((s) => s.dwellingId === target.id)) return null;
     const site = view?.oreSites?.find((s) => s.smithId === target.id);
@@ -836,7 +860,8 @@ function workshopDetails(view: VillageView, dwellingId: number): SelectionWorksh
     outputPerDayKg: workshop.outputPerDayKg,
     stockKg: view.crafts.stocks[stock] ?? 0,
     coverage,
-    kiln: workshop.kiln,
+    kiln: workshop.kilns.find((k) => k.stage !== 'draw') ?? workshop.kilns[0] ?? null,
+    kilns: workshop.kilns,
     toPlant: workshop.toPlant,
     skill: workshop.skill,
     ...(workshop.ore ? { ore: workshop.ore } : {}),

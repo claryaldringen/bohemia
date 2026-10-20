@@ -1,7 +1,5 @@
 import {
   SURFACE_CODES,
-  detCos,
-  detSin,
   heightAtWorld,
   length2,
   obstaclesOf,
@@ -14,6 +12,7 @@ import {
 } from '../landscape';
 import type { CemeterySquareInput, OrchardSquareInput, PartInput } from './actions';
 import { cemeteryFoundingCost, distanceToSquare, touchingCemeteries } from './cemetery';
+import { kilnCircle } from './charcoal';
 import { craftCoverage, workshopFootprints } from './crafts';
 import { fieldSquareSurface, fieldsTouching, partFoundingCost } from './fields';
 import { TAKEN_LAND_EPSILON_M2, landTakenWarning, type TakenLand } from './land-taken';
@@ -1549,16 +1548,6 @@ export function checkWorkshopPlacement(
     spared,
     takenLand,
   };
-}
-
-const KILN_CIRCLE_SIDES = 12;
-
-/** Mnohoúhelník kruhu milíře se středem `center` a poloměrem `radius` (m) – 12 vrcholů. */
-export function kilnCircle(center: { x: number; z: number }, radius: number): Point[] {
-  return Array.from({ length: KILN_CIRCLE_SIDES }, (_, i) => {
-    const angle = (2 * Math.PI * i) / KILN_CIRCLE_SIDES;
-    return [center.x + radius * detCos(angle), center.z + radius * detSin(angle)];
-  });
 }
 
 /** Nejkratší vzdálenost bodu od lomené čáry (m). */
