@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DWELLING_CLEARING_M,
+  FOREST_CROWN_MARGIN_M,
   NO_OBSTACLE_CHANGES,
+  dwellingFrame,
   packObstacles,
+  shapeRect,
   type Landscape,
   type ObstaclePlacement,
 } from '@bohemia/game';
@@ -132,9 +136,15 @@ describe('paseky pod stavbami v lese (Martin 19. 10. 2026 – les se vyklučí)'
     });
     expect(cleared.tiles).toEqual([]);
     expect(cleared.areas).toHaveLength(1);
-    // vyklízená plocha zemnice s pruhem pod korunami (4 m) x 28,7–46,3, z 29,1–49
+    // vyklízená plocha zemnice s pruhem pod korunami (4 m) ≈ x 28,7–46,3, z 29,1–49 (s variantou
+    // rozměrů podle polohy – population.md)
+    const position = { x: 37.5, z: 37.5 };
+    const edge =
+      position.x +
+      shapeRect(dwellingFrame({ type: 'zemnice', position }), DWELLING_CLEARING_M.zemnice).maxX +
+      FOREST_CROWN_MARGIN_M;
     expect(clearingDistance(cleared, 37.5, 37.5, 16)).toBe(0);
-    expect(clearingDistance(cleared, 51.3, 37.5, 16)).toBeCloseTo(5);
+    expect(clearingDistance(cleared, edge + 5, 37.5, 16)).toBeCloseTo(5);
     expect(clearingDistance(cleared, 37.5, 10, 16)).toBe(Infinity);
   });
 

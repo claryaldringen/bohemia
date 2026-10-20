@@ -14,7 +14,6 @@ import { sacredBuildingPlots, sacredFootprint } from './sacred';
 import type {
   AbandonedStructure,
   ChronicleEvent,
-  Dwelling,
   DwellingPlot,
   Pen,
   Position,

@@ -5,9 +5,9 @@
 // RUIN_YEARS let zarůstá. Rozpadá se jen prázdné obydlí – obydlený dům obyvatelé opravují (Martin
 // 18. 10. 2026: „obydlená budova nechátrá – obyvatelé ji opravují. Chátrá jenom prázdná.“).
 // Souřadnice modelu jako `localToWorld` (x napříč, z k vchodu).
-import type { DwellingType, Position } from '@bohemia/game';
-import { PIT_SHAPES, type PitShape } from './dwelling-pit';
-import { localToWorld, seededRandom, smoothstep } from './village-layout';
+import { PLAIN_FRAME, type DwellingType, type Position, type ShapeFrame } from '@bohemia/game';
+import { PIT_SHAPES, shapedPit, type PitShape } from './dwelling-pit';
+import { localToWorld, seededRandom, shapedToWorld, smoothstep } from './village-layout';
 
 /** Stupeň rozpadu: 0 celý dům, 1 sešlý, 2 propadá se, 3 zřícený. */
 export type DecayStage = 0 | 1 | 2 | 3;
@@ -121,8 +121,8 @@ export function ruinLook(type: DwellingType, overgrowth: number): RuinLook {
  * Řez terénu zbytku jámy: jen obdélník jámy – šíje se schody se zasypala první (tvar bez šíje:
  * nulová šířka, délka po zadní okraj obdélníku kvůli obdélníku všech jam v shaderu).
  */
-export function ruinPitShape(type: DwellingType): PitShape {
-  const shape = PIT_SHAPES[type];
+export function ruinPitShape(type: DwellingType, frame: ShapeFrame = PLAIN_FRAME): PitShape {
+  const shape = shapedPit(PIT_SHAPES[type], frame);
   return { ...shape, rampHalfX: 0, rampEndZ: shape.halfZ };
 }
 
@@ -169,8 +169,9 @@ export function ruinHollowY(
   o: Pick<RuinHollowOptions, 'base' | 'depth' | 'rim' | 'overgrowth'>,
   x: number,
   z: number,
+  frame: ShapeFrame = PLAIN_FRAME,
 ): number {
-  const { halfX: hx, halfZ: hz } = PIT_SHAPES[type];
+  const { halfX: hx, halfZ: hz } = shapedPit(PIT_SHAPES[type], frame);
   const c = Math.cos(position.rotation);
   const s = Math.sin(position.rotation);
   const dx = x - position.x;
@@ -219,8 +220,9 @@ export function ruinHollowData(
   type: DwellingType,
   position: Position,
   o: RuinHollowOptions,
+  frame: ShapeFrame = PLAIN_FRAME,
 ): RuinHollowData {
-  const { halfX: hx, halfZ: hz } = PIT_SHAPES[type];
+  const { halfX: hx, halfZ: hz } = shapedPit(PIT_SHAPES[type], frame);
   const ex = hx + HOLLOW_LIP_M;
   const ez = hz + HOLLOW_LIP_M;
   const nx = Math.max(2, Math.ceil((2 * ex) / HOLLOW_STEP_M));
@@ -291,7 +293,8 @@ const HOUSE_NETTLES_M: Record<DwellingType, { x: number; z: number }> = {
 /**
  * Kopřivy (rostou na dusíkem bohaté půdě kolem stavení), pevně podle `seed`: u rozpadlého domu
  * (`around: 'house'`) za valy podél obou boků a za zadním štítem, ve zbytku jámy (`'pit'`) po
- * okraji prohlubně kousek dovnitř i ven. `count` trsů, velikost kolem `scale`.
+ * okraji prohlubně kousek dovnitř i ven. `count` trsů, velikost kolem `scale`. Místa se posunou
+ * podle varianty rozměrů domu (`frame` – population.md, Varianty rozměrů).
  */
 export function decayNettles(
   type: DwellingType,
@@ -300,6 +303,7 @@ export function decayNettles(
   count: number,
   scale: number,
   around: 'house' | 'pit',
+  frame: ShapeFrame = PLAIN_FRAME,
 ): NettlePlacement[] {
   if (count <= 0) return [];
   const rnd = seededRandom(7_000_003 + seed * 104_729);
@@ -333,8 +337,9 @@ export function decayNettles(
     const shift = around === 'pit' ? (rnd() - 0.35) * 0.9 : -rnd() * 0.6;
     const lx = ax + (bx - ax) * t;
     const lz = az + (bz - az) * t;
-    const [x, z] = localToWorld(
+    const [x, z] = shapedToWorld(
       position,
+      frame,
       lx - Math.sign(lx) * (Math.abs(lx) >= hx - 1e-9 ? shift : 0),
       lz - Math.sign(lz) * (Math.abs(lz) >= hz - 1e-9 ? shift : 0),
     );

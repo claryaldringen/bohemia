@@ -115,6 +115,7 @@ export function foreignFromScene(scene: SceneVillage): ForeignStructures | undef
         position: d.position,
         ...(plot ? { plot } : {}),
         ...(d.craft ? { craft: d.craft } : {}),
+        ...(d.plainShape ? { plainShape: true as const } : {}),
       });
       // natočený pozemek zabírá obydlí podle tvaru, ne políčko pod středem
       if (plot && !plot.square) {

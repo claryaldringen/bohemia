@@ -21,6 +21,7 @@ import {
   SHOWCASE_DECOR,
   SHOWCASE_GROUNDS,
   SHOWCASE_KILN,
+  SHOWCASE_VARIANTS,
   SHOWCASE_PEN,
   decayLabel,
   kilnCycleAt,
@@ -222,6 +223,7 @@ export function BuildingShowcaseView(): ReactElement {
           SHOWCASE_ROADS,
           SHOWCASE_CARTS,
           SHOWCASE_KILN,
+          SHOWCASE_VARIANTS,
         ].map((target) => (
           <button
             key={target.id}

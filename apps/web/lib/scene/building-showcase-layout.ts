@@ -14,12 +14,15 @@ import {
   MILIR,
   PLOT_VARIANTS,
   RUIN_YEARS,
+  dwellingShapeAt,
   placeMound,
   usedPlaces,
   type Cemetery,
+  type Craft,
   type DwellingType,
   type GraveRank,
   type PlotVariant,
+  type Position,
   type TileCell,
 } from '@bohemia/game';
 import type {
@@ -1431,4 +1434,87 @@ export function showcaseCarts(): CartTrack[] {
     ...along(circle, 'two-wheel', ['empty', 'hay', 'sheaves', 'water', 'clay', 'apples']),
     ...along(shuttle, 'four-wheel', ['logs', 'goods', 'hay', 'water', 'apples']),
   ];
+}
+
+// --- Varianty rozměrů (population.md – Varianty rozměrů; Martin, GitHub #1) ---
+
+export const SHOWCASE_VARIANTS = {
+  id: 'varianty',
+  label: 'Varianty',
+  focus: { x: -127, z: -90, radius: 62 },
+} as const;
+
+/** Řady ukázky variant: druh stavby, řemeslo dílny a z řady (m). */
+const VARIANT_ROWS: readonly { type: Exclude<DwellingType, 'dvorec'>; craft?: Craft; z: number }[] =
+  [
+    { type: 'zemnice', z: -50 },
+    { type: 'polozemnice', z: -64 },
+    { type: 'polozemnice', craft: 'potter', z: -80 },
+    { type: 'polozemnice', craft: 'smith', z: -97 },
+    { type: 'polozemnice', craft: 'carpenter', z: -114 },
+    { type: 'zemnice', craft: 'burner', z: -131 },
+  ];
+/**
+ * Sloupce: dnešní tvar a čtyři výrazné varianty – nejmenší a nejnižší, největší a nejvyšší,
+ * nejdelší, nejširší (jam ukázky je víc než ve vsi – shader jich prořízne nejvýš MAX_PIT_CUTS).
+ */
+const VARIANT_X0 = -153;
+const VARIANT_STEP_X = 13;
+/** Kam se varianta sloupce vychyluje (plocha, poměr stěn, výška – znaménko odchylky). */
+const VARIANT_TARGETS: readonly (readonly [number, number, number])[] = [
+  [-1, 0, -1],
+  [1, 0, 1],
+  [0, 1, 0],
+  [0, -1, 0],
+];
+
+/**
+ * Poloha kousek od `x, z` (po cm do ±0,8 m), jejíž varianta se nejvíc vychyluje směrem `target`
+ * – varianta je čistá funkce polohy, ukázka si jen vybere místa s výraznými tvary.
+ */
+function variantSpot(x: number, z: number, target: readonly [number, number, number]): Position {
+  let best = { x, z, score: -Infinity };
+  for (let dx = -80; dx <= 80; dx += 4) {
+    for (let dz = -80; dz <= 80; dz += 4) {
+      const px = x + dx / 100;
+      const pz = z + dz / 100;
+      const s = dwellingShapeAt(px, pz);
+      const dev = [s.area - 1, s.ratio - 1, s.height - 1];
+      const score = dev.reduce(
+        (sum, d, i) => sum + (target[i] === 0 ? -Math.abs(d) * 0.6 : d * target[i]!),
+        0,
+      );
+      if (score > best.score) best = { x: px, z: pz, score };
+    }
+  }
+  return { x: best.x, z: best.z, rotation: FACING };
+}
+
+/**
+ * Ukázka variant rozměrů: řady zemnic, polozemnic a dílen (hrnčíř, kovář, tesař, uhlíř) – vlevo
+ * dnešní tvar, vedle pět výrazných variant (místa vybraná podle tvaru – `variantSpot`). Hotové
+ * obývané stavby kreslí herní renderer vsi jako ve hře.
+ */
+export function showcaseVariants(): SceneVillage {
+  const dwellings: SceneVillage['dwellings'] = [];
+  VARIANT_ROWS.forEach((row, r) => {
+    for (let c = 0; c <= VARIANT_TARGETS.length; c++) {
+      const x = VARIANT_X0 + c * VARIANT_STEP_X;
+      const position =
+        c === 0
+          ? { x, z: row.z, rotation: FACING }
+          : variantSpot(x, row.z, VARIANT_TARGETS[c - 1]!);
+      dwellings.push({
+        id: 9600 + r * 10 + c,
+        type: row.type,
+        position,
+        built: true,
+        progress: 1,
+        inhabited: true,
+        ...(row.craft ? { craft: row.craft, working: true } : {}),
+        ...(c === 0 ? { plainShape: true as const } : {}),
+      });
+    }
+  });
+  return { dwellings, fields: [] };
 }

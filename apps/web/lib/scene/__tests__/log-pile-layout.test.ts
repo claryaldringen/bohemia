@@ -4,6 +4,7 @@ import {
   SURFACE_CODES,
   dwellingClearing,
   dwellingFootprint,
+  dwellingShape,
   packObstacles,
   pointInPolygon,
   polygonsOverlap,
@@ -91,9 +92,13 @@ describe('logPileSite', () => {
     const site = logPileSite(landscape, village, empty, NO_OBSTACLE_CHANGES)!;
     expect(Math.hypot(site.x - near.position.x, site.z - near.position.z)).toBeLessThan(10);
     const pile = rectangleCorners(site.x, site.z, PILE_WIDTH_M, PILE_DEPTH_M, site.rotation);
-    expect(polygonsOverlap(pile, dwellingFootprint(near.type, near.position))).toBe(false);
+    expect(
+      polygonsOverlap(pile, dwellingFootprint(near.type, near.position, dwellingShape(near))),
+    ).toBe(false);
     for (const d of [village.dwellings[0]!, neighbour]) {
-      expect(polygonsOverlap(pile, dwellingClearing(d.type, d.position))).toBe(false);
+      expect(polygonsOverlap(pile, dwellingClearing(d.type, d.position, dwellingShape(d)))).toBe(
+        false,
+      );
     }
   });
 

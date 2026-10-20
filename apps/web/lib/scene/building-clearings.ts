@@ -10,6 +10,7 @@
 import {
   GRID_TURNS,
   TAKEN_LAND_TREE_M2,
+  dwellingShape,
   freeDwellingClearings,
   pointInPolygon,
   rotatedSquareCorners,
@@ -70,7 +71,7 @@ export function buildingClearings(dwellings: readonly SceneDwelling[]): Clearing
       ? turned(d.plot.rotation)
         ? [squareClearing(d.plot)]
         : []
-      : freeDwellingClearings(d.type, d.position, d.craft).map(clearingOf),
+      : freeDwellingClearings(d.type, d.position, dwellingShape(d)).map(clearingOf),
   );
 }
 

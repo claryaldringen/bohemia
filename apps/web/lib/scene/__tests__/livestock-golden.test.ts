@@ -50,7 +50,9 @@ describe('planLivestock – zlatý otisk', () => {
       delete copy.tended;
       return copy;
     });
-    expect(fingerprint({ ...plan, herds })).toBe('51108:1f0e38af');
+    // 20. 10. 2026 přepsáno záměrně: varianty rozměrů domů (population.md – Varianty rozměrů) –
+    // obdélníky domů, kam slepice a stáda nesmí (`chickenBox`), jsou podle tvaru domu
+    expect(fingerprint({ ...plan, herds })).toBe('51283:fe569083');
   });
 });
 

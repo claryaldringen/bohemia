@@ -6,16 +6,20 @@
 import {
   DWELLING_FOOTPRINT_M,
   FENCE_INSET_M as CORE_FENCE_INSET_M,
+  PLAIN_FRAME,
   PLOT_HOUSE_OFFSET_M,
   PLOT_HOUSE_ROTATION,
   PLOT_VARIANTS,
+  dwellingFrame,
   plotHouseRotation,
   rotationCosSin,
   rotationTurn,
+  shapeRect,
   type PlotVariant,
   type Position,
+  type ShapeFrame,
 } from '@bohemia/game';
-import { localToWorld, seededRandom, type Point } from './village-layout';
+import { seededRandom, shapedToWorld, type Point } from './village-layout';
 import {
   decayFence,
   fenceStage,
@@ -40,6 +44,8 @@ export interface PlotSquare {
    * celého pozemku kolem středu (rad, po 15°) – plot, záhony, cestička i dům. Bez údaje 0.
    */
   rotation?: number;
+  /** Kde na pozemku dům stojí (ScenePlot) – v rohu je varianta rozměrů domu menší. */
+  variant?: PlotVariant;
 }
 
 /** Osy natočeného pozemku (cos, sin), nebo null u pozemku v osách světa (i dvorce). */
@@ -119,7 +125,7 @@ const PLANT_ROWS_M = [-0.2, 0.2] as const;
  * Dům na pozemku v osách světa (natočený o π – vchod k −z): střecha, valy, trsy trávy u okapu
  * (x ± 3,35), před vchodem šíje a střecha (z − 3,5), vzadu střecha (z + 3,35).
  */
-const HOUSE_RECT_M = { halfX: 3.35, front: 3.5, back: 3.35 } as const;
+export const HOUSE_RECT_M = { halfX: 3.35, front: 3.5, back: 3.35 } as const;
 /** Dvorec vojvody (dwellings.py – DVOREC_*): okap 2,78 m s valy, střecha 5,25 m od středu. */
 const MANOR_HOUSE_RECT_M = { halfX: 3.55, front: 5.7, back: 5.6 } as const;
 /** Udusaný dvorek před dveřmi a cestička k brance (m). */
@@ -255,16 +261,42 @@ export function homesteadLayout(
   variant: PlotVariant,
   seed = 0,
   actualHouse?: Position,
+  plainShape = false,
 ): HomesteadLayout {
+  // dům podle varianty rozměrů (population.md – Varianty rozměrů) – z polohy ve světě, i u
+  // natočeného pozemku (rozmístění v jeho osách dostane hotové zobrazení)
+  const frame = houseFrame(square, variant, actualHouse ?? plotHouse(square, variant), plainShape);
   const axes = plotAxes(square);
-  if (axes) return turnedLayout(square, axes, variant, seed, actualHouse);
+  if (axes) return turnedLayout(square, axes, variant, seed, actualHouse, frame);
+  return flatLayout(square, variant, seed, actualHouse, frame);
+}
+
+/** Zobrazení tvaru domu na pozemku – dvorec (pozemek se dvorem) variantu nemá. */
+export function houseFrame(
+  square: PlotSquare,
+  variant: PlotVariant,
+  house: Position,
+  plainShape = false,
+): ShapeFrame {
+  if (square.yard) return PLAIN_FRAME;
+  return dwellingFrame({ type: 'polozemnice', position: house, plot: { variant }, plainShape });
+}
+
+/** Pozemek v osách světa (bez natočení) s hotovým zobrazením tvaru domu. */
+function flatLayout(
+  square: PlotSquare,
+  variant: PlotVariant,
+  seed: number,
+  actualHouse: Position | undefined,
+  frame: ShapeFrame,
+): HomesteadLayout {
   const house = actualHouse ?? plotHouse(square, variant);
   const fenceRect = plotFenceRect(square);
   // dvorec vojvody (trade.md): větší dům, brána na vzdálené straně dvora
   const houseRect = square.yard ? MANOR_HOUSE_RECT_M : HOUSE_RECT_M;
   const style = square.yard ? MANOR_FENCE : PLOT_FENCE;
   // vchod míří do (sin r, cos r) – branka na straně plotu, kam vchod míří (u varianty vpředu, −z)
-  const door = localToWorld(house, 0, houseRect.front);
+  const door = shapedToWorld(house, frame, 0, houseRect.front);
   const facing: Point = [Math.sin(house.rotation), Math.cos(house.rotation)];
   const toward =
     Math.abs(facing[1]) >= Math.abs(facing[0])
@@ -280,6 +312,7 @@ export function homesteadLayout(
   const fence = withoutPostsUnder(
     wovenFence([rectPath(fenceRect)], style, doorInside ? { toward } : null),
     house,
+    frame,
   );
   // kůly branky – první a poslední kůl plotu (i když se plot u domu rozdělil na víc kusů)
   const [first, last] = fence.runs.flatMap((run) => run.posts).filter((p) => p.gate);
@@ -290,7 +323,8 @@ export function homesteadLayout(
           out: [first.outX, first.outZ] as Point,
         }
       : null;
-  const local = (lx: number, lz: number): Point => localToWorld(house, lx, lz);
+  // dům i dvorek před dveřmi podle varianty – záhony se větší variantě vyhnou
+  const local = (lx: number, lz: number): Point => shapedToWorld(house, frame, lx, lz);
   const { halfX, front, back } = houseRect;
   const yardHalf = square.size / 2;
   const exclusions: Rect[] = [
@@ -392,7 +426,8 @@ function turnedLayout(
   axes: readonly [number, number],
   variant: PlotVariant,
   seed: number,
-  actualHouse?: Position,
+  actualHouse: Position | undefined,
+  frame: ShapeFrame,
 ): HomesteadLayout {
   const rotation = square.rotation!;
   const local = unturned(square);
@@ -402,7 +437,7 @@ function turnedLayout(
         return { x, z, rotation: actualHouse.rotation - rotation };
       })()
     : undefined;
-  const layout = homesteadLayout(local, variant, seed, houseLocal);
+  const layout = flatLayout(local, variant, seed, houseLocal, frame);
   const [c, s] = axes;
   const point = (p: Point): Point => plotToWorld(square, axes, p);
   const turn = (x: number, z: number): [number, number] => [x * c + z * s, -x * s + z * c];
@@ -472,17 +507,22 @@ const HOUSE_WALL_GAP_M = 0.3;
  * Plot bez kůlů, které by stály v domě (dům převedené starší polozemnice stojí přes plot): kus
  * plotu se v domě přeruší – stěna domu je tam ohradou. Dům uvnitř plotu nic nezmění.
  */
-function withoutPostsUnder(fence: WovenFence, house: Position): WovenFence {
+function withoutPostsUnder(fence: WovenFence, house: Position, frame: ShapeFrame): WovenFence {
   const { width, depth } = DWELLING_FOOTPRINT_M.polozemnice;
+  const r = shapeRect(frame, {
+    minX: -width / 2 - HOUSE_WALL_GAP_M,
+    maxX: width / 2 + HOUSE_WALL_GAP_M,
+    minZ: -depth / 2 - HOUSE_WALL_GAP_M,
+    maxZ: depth / 2 + HOUSE_WALL_GAP_M,
+  });
   const c = Math.cos(house.rotation);
   const s = Math.sin(house.rotation);
   const inside = (x: number, z: number): boolean => {
     const dx = x - house.x;
     const dz = z - house.z;
-    return (
-      Math.abs(dx * c - dz * s) <= width / 2 + HOUSE_WALL_GAP_M &&
-      Math.abs(dx * s + dz * c) <= depth / 2 + HOUSE_WALL_GAP_M
-    );
+    const lx = dx * c - dz * s;
+    const lz = dx * s + dz * c;
+    return lx >= r.minX && lx <= r.maxX && lz >= r.minZ && lz <= r.maxZ;
   };
   if (!fence.runs.some((run) => run.posts.some((p) => inside(p.x, p.z)))) return fence;
   const runs: FenceRun[] = [];

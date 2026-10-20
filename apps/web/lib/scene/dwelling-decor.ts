@@ -2,8 +2,15 @@
 // obydlí); pozemek polozemnice s plotem a záhony je v homestead-layout.ts. Tvar modelů:
 // tools/blender/dwellings.py – Blender x napříč, y podél hřebene, vchod v −y; ve scéně (glTF)
 // je bod Blenderu (x, y) v souřadnicích modelu (−x, −y), vchod tedy míří do +z.
-import type { DwellingType, Position } from '@bohemia/game';
-import { localToWorld, seededRandom, smoothstep, type DecalGrid } from './village-layout';
+import {
+  PLAIN_FRAME,
+  shapeY,
+  shapeZ,
+  type DwellingType,
+  type Position,
+  type ShapeFrame,
+} from '@bohemia/game';
+import { seededRandom, shapedToWorld, smoothstep, type DecalGrid } from './village-layout';
 
 /**
  * Tvar obydlí v souřadnicích Blenderu: eaveX = kapková linie okapu (kam stéká voda ze střechy),
@@ -39,16 +46,35 @@ export interface TuftPlacement {
   scale: number;
 }
 
-/** Bod Blenderu (x, y) u obydlí → svět. */
-function blenderToWorld(position: Position, bx: number, by: number): [number, number] {
-  return localToWorld(position, -bx, -by);
+/**
+ * Dýmník obydlí podle varianty rozměrů (population.md – Varianty rozměrů): výška nad patou a z
+ * v souřadnicích modelu – roste s výškou a délkou domu.
+ */
+export function smokeVent(type: DwellingType, frame: ShapeFrame): { y: number; z: number } {
+  const vent = SMOKE_VENT[type];
+  return { y: shapeY(frame, vent.y), z: shapeZ(frame, vent.z) };
+}
+
+/** Bod Blenderu (x, y) u obydlí → svět, s variantou rozměrů domu `frame`. */
+function blenderToWorld(
+  position: Position,
+  frame: ShapeFrame,
+  bx: number,
+  by: number,
+): [number, number] {
+  return shapedToWorld(position, frame, -bx, -by);
 }
 
 /**
  * Trsy trávy pod okapem – voda ze střechy tam stéká, tráva je hustší, vyšší a zelenější. Tři
  * řady podél obou dlouhých stran, náhodné natočení, velikost a model (pevně podle `seed`).
  */
-export function eaveTufts(type: DwellingType, position: Position, seed: number): TuftPlacement[] {
+export function eaveTufts(
+  type: DwellingType,
+  position: Position,
+  seed: number,
+  frame: ShapeFrame = PLAIN_FRAME,
+): TuftPlacement[] {
   const rnd = seededRandom(1000 + seed * 7919);
   const { eaveX, eaveHalf } = SHAPES[type];
   const result: TuftPlacement[] = [];
@@ -64,7 +90,7 @@ export function eaveTufts(type: DwellingType, position: Position, seed: number):
         if (rnd() < 0.12) continue;
         const bx = side * (eaveX + offset + (rnd() - 0.5) * 0.22);
         const by = y + (rnd() - 0.5) * step * 0.7;
-        const [x, z] = blenderToWorld(position, bx, by);
+        const [x, z] = blenderToWorld(position, frame, bx, by);
         const model: TuftModel = rnd() < 0.55 ? 'grass-tuft-1' : 'grass-tuft-2';
         result.push({
           model,
@@ -106,6 +132,7 @@ export function earthPatch(
   position: Position,
   seed: number,
   layer: EarthLayer,
+  frame: ShapeFrame = PLAIN_FRAME,
 ): DecalGrid {
   const rnd = seededRandom(77 + seed * 104729 + layer.size * 1000);
   const phases = [rnd(), rnd(), rnd(), rnd()].map((v) => v * Math.PI * 2);
@@ -131,7 +158,7 @@ export function earthPatch(
           0.05 * Math.sin(11 * theta + phases[2]!));
       const bx = cx * r * t;
       const by = cy + sy * r * t;
-      const [x, z] = blenderToWorld(position, bx, by);
+      const [x, z] = blenderToWorld(position, frame, bx, by);
       positions.push(x, z);
       // nepravidelné skvrny trávy uvnitř
       const patch =

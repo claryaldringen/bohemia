@@ -1,11 +1,14 @@
 import {
   DWELLING_CLEARING_M,
+  PLAIN_FRAME,
   SACRED_BUILDINGS,
   dateOfDayIndex,
   rotationCosSin,
+  shapeRect,
   type Craft,
   type DwellingType,
   type Position,
+  type ShapeFrame,
   type TileCell,
 } from '@bohemia/game';
 import type {
@@ -57,7 +60,7 @@ import {
   type TrafficStream,
 } from './road-traffic';
 import { hash01 } from './smoke-schedule';
-import { localToWorld } from './village-layout';
+import { localToWorld, sceneFrame } from './village-layout';
 import {
   alongRoute,
   fetcher,
@@ -282,6 +285,8 @@ interface House {
   plot?: { x: number; z: number; size: number; rotation?: number };
   /** Řemeslná dílna (crafts.md) – řemeslníci stojí u pece, výhně nebo milíře. */
   craft?: Craft;
+  /** Varianta rozměrů domu (population.md – Varianty rozměrů) – místa řemeslníků s ní. */
+  frame?: ShapeFrame;
   /** Čtverec ohrady (oxen.md) – k brance se chodí krmit, pěšina k ní smí zasáhnout dovnitř. */
   pen?: true;
   /**
@@ -738,26 +743,35 @@ function context(
   paths: VillagerPaths | null,
   sexes: FigureSexes = figureSexes(null),
 ): Context {
-  const dwellings: House[] = village.dwellings.map((d) => ({
-    id: d.id,
-    position: d.position,
-    built: d.built,
-    progress: d.progress,
-    inhabited: d.built && d.inhabited !== false,
-    box: d.plot ? plotBox(d.position, d.plot) : d.built ? houseBox(d.type) : siteBox(d.type),
-    ...(d.plot
-      ? {
-          own: houseBox(d.type),
-          plot: {
-            x: d.plot.x,
-            z: d.plot.z,
-            size: d.plot.size,
-            ...(d.plot.rotation !== undefined ? { rotation: d.plot.rotation } : {}),
-          },
-        }
-      : {}),
-    ...(d.craft ? { craft: d.craft } : {}),
-  }));
+  const dwellings: House[] = village.dwellings.map((d) => {
+    // dům i staveniště podle varianty rozměrů domu (population.md – Varianty rozměrů)
+    const frame = sceneFrame(d);
+    return {
+      id: d.id,
+      position: d.position,
+      built: d.built,
+      progress: d.progress,
+      inhabited: d.built && d.inhabited !== false,
+      box: d.plot
+        ? plotBox(d.position, d.plot)
+        : d.built
+          ? houseBox(d.type, frame)
+          : siteBox(d.type, frame),
+      frame,
+      ...(d.plot
+        ? {
+            own: houseBox(d.type, frame),
+            plot: {
+              x: d.plot.x,
+              z: d.plot.z,
+              size: d.plot.size,
+              ...(d.plot.rotation !== undefined ? { rotation: d.plot.rotation } : {}),
+            },
+          }
+        : {}),
+      ...(d.craft ? { craft: d.craft } : {}),
+    };
+  });
   // milíř uhlíře – lidé ho obcházejí (do kupy se nevstupuje), řemeslníci stojí kolem něj
   // milíře uhlířů – samostatné stavby u skácených buků (crafts.md – Milíř u skácených buků)
   const forestKilns: House[] = (village.kilns ?? []).map((k) => {
@@ -820,19 +834,19 @@ function context(
  * Staveniště zabere i s hromadou hlíny, drnem, dřevem a nářadím kolem jámy celou vyklízenou
  * plochu (village-construction.ts) – stavitelé stojí za ní.
  */
-export function siteBox(type: DwellingType): Box {
-  const clearance = DWELLING_CLEARING_M[type];
+export function siteBox(type: DwellingType, frame: ShapeFrame = PLAIN_FRAME): Box {
+  const clearance = shapeRect(frame, DWELLING_CLEARING_M[type]);
   return {
     minX: clearance.minX,
     maxX: clearance.maxX,
     minZ: clearance.minZ,
-    maxZ: Math.max(chickenBox(type).maxZ, SITE_FRONT_M),
+    maxZ: Math.max(chickenBox(type, frame).maxZ, SITE_FRONT_M),
   };
 }
 
 /** Hotové volné obydlí: dům se střechou a šíjí (jako pro slepice – `chickenBox`). */
-export function houseBox(type: DwellingType): Box {
-  const house = chickenBox(type);
+export function houseBox(type: DwellingType, frame: ShapeFrame = PLAIN_FRAME): Box {
+  const house = chickenBox(type, frame);
   return { minX: -house.halfX, maxX: house.halfX, minZ: house.minZ, maxZ: house.maxZ };
 }
 
@@ -1809,7 +1823,7 @@ function planting(ctx: Context, ids: readonly number[]): Placer {
 function craftsmen(ctx: Context, dwellingId: number): Placer {
   const house = ctx.houses.find((h) => h.id === dwellingId && h.built && h.craft);
   if (!house?.craft) return none;
-  const spots = craftSpots(house.craft, house.position);
+  const spots = craftSpots(house.craft, house.position, house.frame);
   // pod přístřeškem dílny smí stát její řemeslníci (dům bez přístřešku je v `box`)
   const ok = (x: number, z: number): boolean =>
     ctx.ground.walkable(x, z) &&

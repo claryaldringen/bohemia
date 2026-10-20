@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { freeDwellingClearings } from '@bohemia/game';
+import {
+  DWELLING_CLEARING_M,
+  dwellingFrame,
+  dwellingShape,
+  freeDwellingClearings,
+  shapeRect,
+} from '@bohemia/game';
 import {
   TREE_LAND_RADIUS_M,
   buildingClearings,
@@ -30,11 +36,20 @@ describe('vyklízené plochy obydlí ve scéně', () => {
         plot: { cell: { x: 11, y: 8 }, x: 52.5, z: 7.5, size: 15, variant: 'center' },
       }),
     ]);
+    // vyklízená plocha s variantou rozměrů podle polohy (population.md – Varianty rozměrů)
+    const at = { x: 0, z: 0, rotation: 0 };
     expect(clearings.map((c) => c.polygon)).toEqual(
-      freeDwellingClearings('zemnice', { x: 0, z: 0, rotation: 0 }),
+      freeDwellingClearings('zemnice', at, dwellingShape({ type: 'zemnice', position: at })),
     );
-    // zemnice: x −4,8 … 4,8, z −4,4 … 7,5
-    expect(clearings[0]).toMatchObject({ minX: -4.8, maxX: 4.8, minZ: -4.4, maxZ: 7.5 });
+    // zemnice: ≈ x −4,8 … 4,8, z −4,4 … 7,5 – jako `shapeRect` jádra
+    const rect = shapeRect(
+      dwellingFrame({ type: 'zemnice', position: at }),
+      DWELLING_CLEARING_M.zemnice,
+    );
+    expect(clearings[0]!.minX).toBeCloseTo(rect.minX, 9);
+    expect(clearings[0]!.maxX).toBeCloseTo(rect.maxX, 9);
+    expect(clearings[0]!.minZ).toBeCloseTo(rect.minZ, 9);
+    expect(clearings[0]!.maxZ).toBeCloseTo(rect.maxZ, 9);
   });
 
   it('uhlíř je jen zemnice – milíř stojí zvlášť u skácených buků (crafts.md)', () => {
@@ -45,7 +60,8 @@ describe('vyklízené plochy obydlí ve scéně', () => {
     const clearings = buildingClearings([dwelling(0, 0)]);
     const mask = clearingMask(clearings, 2);
     expect(mask(0, 0)).toBe(0);
-    expect(mask(5.8, 0)).toBeCloseTo(0.5, 9);
+    // okraj vyklízené plochy (varianta rozměrů podle polohy) + polovina měkkého okraje
+    expect(mask(clearings[0]!.maxX + 1, 0)).toBeCloseTo(0.5, 9);
     expect(mask(10, 0)).toBe(1);
     expect(clearingMask([], 2)(0, 0)).toBe(1);
     expect(clearingsNear(clearings, { minX: 20, maxX: 30, minZ: 0, maxZ: 10 }, 1)).toEqual([]);

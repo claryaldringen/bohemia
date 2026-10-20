@@ -1000,6 +1000,11 @@ export interface SceneVillage {
      * (dwelling-decay.ts). Bez údaje = celý (100 %).
      */
     condition?: number;
+    /**
+     * Dnešní tvar bez varianty rozměrů (population.md – Varianty rozměrů); bez údaje má dům
+     * variantu podle polohy (`dwellingShape`).
+     */
+    plainShape?: true;
   }[];
   /**
    * Zbytky jam po zaniklých obydlích (population.md – Po zániku): typ, poloha, den zániku
@@ -1013,6 +1018,7 @@ export interface SceneVillage {
     overgrowth: number;
     plot?: ScenePlot;
     craft?: Craft;
+    plainShape?: true;
   }[];
   /**
    * Rudiště kovářů (crafts.md – Uhlí a ruda kováře): místo (m), kovárna, vykopaná ruda na hromadě
@@ -2053,6 +2059,7 @@ function sceneVillage(
     ...(d.condition < 1 ? { condition: Math.round(d.condition * 1000) / 1000 } : {}),
     ...(d.workshop ? { craft: d.workshop.craft } : {}),
     ...(d.workshop && occupied.has(d.id) && workshopSmokes(d.workshop) ? { working: true } : {}),
+    ...(d.plainShape ? { plainShape: true as const } : {}),
   }));
   // staveniště ukazuje samotnou stavbu – dřevo se kácí v lese, než se začne stavět; přestavba
   // polozemnice bez pozemku stojí na novém pozemku (domácnost zatím bydlí ve starém domě)
@@ -2071,6 +2078,7 @@ function sceneVillage(
         ...plot,
         since: c.startedDay,
         ...(c.craft ? { craft: c.craft } : {}),
+        ...(c.plainShape ? { plainShape: true as const } : {}),
       },
     ];
   });
@@ -2154,6 +2162,7 @@ function sceneVillage(
     overgrowth: Math.round(ruinOvergrowth(r, day) * 1000) / 1000,
     ...(r.plot ? { plot: scenePlot(landscape, r.plot) } : {}),
     ...(r.craft ? { craft: r.craft } : {}),
+    ...(r.plainShape ? { plainShape: true as const } : {}),
   }));
   const pens = scenePens(state, landscape, day, summary);
   const earthworks = sceneEarthworks(state, day);
@@ -3942,6 +3951,7 @@ function scenePlacementVillage(scene: SceneVillage): PlacementVillage {
       // pozemek i s dvorem dvorce (trade.md) a natočením (fields.md – Natočené stavby)
       ...(d.plot ? { plot: plotOfScene(d.plot) } : {}),
       ...(d.craft ? { workshop: { craft: d.craft } } : {}),
+      ...(d.plainShape ? { plainShape: true } : {}),
     })),
     constructions: [],
     // stavby a půda jiných vsí na téže mapě (migration.md)

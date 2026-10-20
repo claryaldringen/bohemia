@@ -3,11 +3,17 @@ import type { StandardMaterial } from '@babylonjs/core/Materials/standardMateria
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
-import { DWELLING_FOOTPRINT_M, SACRED_BUILDINGS, roadChain } from '@bohemia/game';
+import { SACRED_BUILDINGS, roadChain } from '@bohemia/game';
 import { scenePenSquares, type SceneVillage } from '../village-view';
 import { cellsBoundary, type CellSquare } from './field-cells';
 import { oreSiteDiscs, oreSiteOutline } from './ore-site-layout';
-import { footprintCorners, stripSegments, type Point } from './village-layout';
+import {
+  footprintCorners,
+  footprintRect,
+  rectCorners,
+  stripSegments,
+  type Point,
+} from './village-layout';
 import { createDecalMaterial, createStripMesh, type HeightFn } from './village-meshes';
 import {
   dugSiteOf,
@@ -161,12 +167,8 @@ export function targetOutline(village: SceneVillage, target: VillageTarget): Poi
       const { yard } = dwelling.plot;
       return cellsBoundary(yard ? [dwelling.plot, { ...dwelling.plot, ...yard }] : [dwelling.plot]);
     }
-    const { width, depth } = DWELLING_FOOTPRINT_M[dwelling.type];
-    const corners = footprintCorners(
-      dwelling.position,
-      width + DWELLING_RING_MARGIN_M * 2,
-      depth + DWELLING_RING_MARGIN_M * 2,
-    );
+    // půdorys podle varianty rozměrů domu (population.md – Varianty rozměrů)
+    const corners = rectCorners(dwelling.position, footprintRect(dwelling), DWELLING_RING_MARGIN_M);
     return [[...corners, corners[0]!]];
   }
   if (target.kind === 'cemetery') {

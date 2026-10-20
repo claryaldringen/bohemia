@@ -9,7 +9,7 @@ import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
 import {
-  DWELLING_FOOTPRINT_M,
+  PLAIN_FRAME,
   dateOfDayIndex,
   DRAFT_OXEN,
   realTimeOf,
@@ -38,11 +38,12 @@ import {
   ruinPitShape,
   type DecayStage,
 } from './dwelling-decay';
-import { EARTH_LAYERS, SMOKE_VENT, earthPatch, eaveTufts, type TuftModel } from './dwelling-decor';
+import { EARTH_LAYERS, earthPatch, eaveTufts, smokeVent, type TuftModel } from './dwelling-decor';
 import {
   PIT_SHAPES,
   pitMeshData,
   pitOutline,
+  pitShapeOf,
   spoilHeapData,
   worldToLocal,
   type PitCut,
@@ -59,6 +60,7 @@ import {
   loadModelParts,
   type ModelInstance,
 } from './instanced-model';
+import { makeShapeable, setShapeFrames } from './shaped-model';
 import { OrchardRenderer } from './orchard-renderer';
 import { PenAnimals } from './pen-animals';
 import { penAnimalsFor } from './pen-layout';
@@ -80,6 +82,7 @@ import { SACRED_SITE_KIND, sacredBuildingKey } from './sacred-layout';
 import { SacredRenderer } from './sacred-renderer';
 import { applyPitCut, type PitCuts } from './pit-cut';
 import {
+  CONSTRUCTION_BASE,
   PLOT_BUILT,
   ROUND_SITE_M,
   constructionState,
@@ -89,17 +92,23 @@ import {
   type SiteProp,
 } from './village-construction';
 import {
-  DWELLING_CLEARANCE_M,
+  clearanceRect,
   decalGrid,
   dwellingHideShape,
-  footprintCorners,
+  footprintRect,
+  houseArea,
   localToWorld,
+  pointInPolygon,
   polygonBounds,
+  rectCorners,
+  sceneFrame,
+  shapedToWorld,
   smoothstep,
   softCoverage,
   stripSegments,
   type HideShape,
   type Point,
+  type ShapedSceneDwelling,
 } from './village-layout';
 import {
   createDecalMaterial,
@@ -955,6 +964,9 @@ export class VillageRenderer {
       ghost.setEnabled(false);
       ghost.isPickable = false;
       this.ghosts.set(key, ghost);
+      // varianty rozměrů domů (population.md) – kosti oblastí až po klonu ducha (ten dostává tvar
+      // přímo do vrcholů – shapeGhost)
+      shapeableAs(model, key);
       model.setEnabled(false);
       this.models.set(key, model);
       this.context.addShadowCaster(model);
@@ -1016,7 +1028,7 @@ export class VillageRenderer {
         dwelling,
         meshes,
         shapes: [dwellingHideShape(dwelling)],
-        cut: dug ? { position: dwelling.position, shape: PIT_SHAPES[dwelling.type] } : null,
+        cut: dug ? { position: dwelling.position, shape: pitShapeOf(dwelling) } : null,
         pegs: lines.length > 0 ? pegInstances(lines, this.context.groundHeight) : [],
       });
     }
@@ -1057,8 +1069,8 @@ export class VillageRenderer {
         key,
         ruin,
         meshes: [this.ruinHollow(ruin)],
-        cut: { position: ruin.position, shape: ruinPitShape(ruin.type) },
-        shape: dwellingHideShape({ type: ruin.type, position: ruin.position }),
+        cut: { position: ruin.position, shape: ruinPitShape(ruin.type, sceneFrame(ruin)) },
+        shape: houseHideShape(ruin),
       });
     }
     for (const [id, view] of this.ruins) {
@@ -1073,12 +1085,17 @@ export class VillageRenderer {
   /** Zarostlá prohlubeň zbytku jámy – tráva z terénu, dole tmavší (barvy ve vrcholech). */
   private ruinHollow(ruin: SceneRuin): Mesh {
     const look = ruinLook(ruin.type, ruin.overgrowth);
-    const data = ruinHollowData(ruin.type, ruin.position, {
-      base: this.baseHeight(ruin),
-      depth: look.depth,
-      rim: this.context.decalHeight,
-      overgrowth: ruin.overgrowth,
-    });
+    const data = ruinHollowData(
+      ruin.type,
+      ruin.position,
+      {
+        base: this.baseHeight(ruin),
+        depth: look.depth,
+        rim: this.context.decalHeight,
+        overgrowth: ruin.overgrowth,
+      },
+      sceneFrame(ruin),
+    );
     const vertexData = new VertexData();
     vertexData.positions = data.positions;
     vertexData.uvs = data.uvs;
@@ -1117,12 +1134,14 @@ export class VillageRenderer {
     const ground = this.context.groundHeight;
     for (const d of decayed) {
       const stage = dwellingDecay(d);
+      const frame = sceneFrame(d);
       const house = {
         x: d.position.x,
         y: this.baseHeight(d),
         z: d.position.z,
         rotationY: d.position.rotation,
         scale: 1,
+        shape: frame,
       };
       for (const part of decayModelParts(d.type, stage)) push(part, house);
       for (const n of decayNettles(
@@ -1132,6 +1151,7 @@ export class VillageRenderer {
         DECAY_LOOKS[stage].nettles,
         1,
         'house',
+        frame,
       )) {
         push('nettle', {
           x: n.x,
@@ -1144,6 +1164,7 @@ export class VillageRenderer {
     }
     for (const r of ruins) {
       const look = ruinLook(r.type, r.overgrowth);
+      const frame = sceneFrame(r);
       const base = this.baseHeight(r);
       const hollow = {
         base,
@@ -1151,7 +1172,13 @@ export class VillageRenderer {
         rim: this.context.decalHeight,
         overgrowth: r.overgrowth,
       };
-      const floor = { x: r.position.x, z: r.position.z, rotationY: r.position.rotation, scale: 1 };
+      const floor = {
+        x: r.position.x,
+        z: r.position.z,
+        rotationY: r.position.rotation,
+        scale: 1,
+        shape: frame,
+      };
       if (look.beams) {
         push(`${decayModelType(r.type)}-${look.beams}`, { ...floor, y: base - look.depth });
       }
@@ -1162,9 +1189,10 @@ export class VillageRenderer {
         look.nettles.count,
         look.nettles.scale,
         'pit',
+        frame,
       );
       for (const n of nettles) {
-        const y = ruinHollowY(r.type, r.position, hollow, n.x, n.z) - 0.03;
+        const y = ruinHollowY(r.type, r.position, hollow, n.x, n.z, frame) - 0.03;
         push('nettle', { x: n.x, y, z: n.z, rotationY: n.rotationY, scale: n.scale });
       }
     }
@@ -1184,6 +1212,7 @@ export class VillageRenderer {
         );
         if (!parts) return;
         for (const [name, mesh] of parts) {
+          shapeableAs(mesh, name);
           mesh.setEnabled(false);
           mesh.receiveShadows = true;
           this.context.addShadowCaster(mesh);
@@ -1207,14 +1236,15 @@ export class VillageRenderer {
     const sources: SmokeSource[] = this.village.dwellings
       .filter((d) => d.built && d.inhabited !== false)
       .map((d) => {
-        const vent = SMOKE_VENT[d.type];
+        // dýmník roste s domem (population.md – Varianty rozměrů)
+        const vent = smokeVent(d.type, sceneFrame(d));
         const [x, z] = localToWorld(d.position, 0, vent.z);
         return { seed: d.id, x, y: this.baseHeight(d) + vent.y, z };
       });
     // dílna, která dnes vyrábí – pec nebo výheň (uhlíř topí jen v milíři – níž)
     for (const d of this.village.dwellings) {
       if (!d.built || !d.craft || !d.working) continue;
-      for (const vent of workshopVents(d.craft, d.position)) {
+      for (const vent of workshopVents(d.craft, d.position, sceneFrame(d))) {
         const milir = vent.kind === 'milir';
         sources.push({
           seed: CRAFT_SMOKE_SEED + d.id * 4 + (milir ? 2 : 1),
@@ -1281,14 +1311,23 @@ export class VillageRenderer {
       const state = constructionState(kind, d.progress);
       const base = this.baseHeight(d);
       const rotationY = d.position.rotation;
-      const house = { x: d.position.x, y: base, z: d.position.z, rotationY, scale: 1 };
+      const frame = sceneFrame(d);
+      const house = {
+        x: d.position.x,
+        y: base,
+        z: d.position.z,
+        rotationY,
+        scale: 1,
+        shape: frame,
+      };
       for (const part of state.parts) push(`${kind}-${part}`, house);
       const inward = d.plot ? plotInward(d.plot.variant) : undefined;
       for (const { prop, scale } of state.props) {
         // hromada hlíny je vlastní síť staveniště (leží na terénu, barvy jako jáma)
         if (prop === 'spoil') continue;
+        // rekvizity se s variantou domu posunou, velikost mají svou
         const place = sitePropPlace(kind, prop, inward);
-        const [x, z] = localToWorld(d.position, place.x, place.z);
+        const [x, z] = shapedToWorld(d.position, frame, place.x, place.z);
         push(`site-${prop}`, {
           x,
           y: this.context.groundHeight(x, z) - 0.02,
@@ -1358,6 +1397,7 @@ export class VillageRenderer {
         );
         if (!parts) return;
         for (const [name, mesh] of parts) {
+          shapeableAs(mesh, name);
           mesh.setEnabled(false);
           this.context.addShadowCaster(mesh);
           this.siteParts.set(name, mesh);
@@ -1389,6 +1429,7 @@ export class VillageRenderer {
               prepareDwellingMaterial,
             );
             for (const [name, mesh] of parts ?? []) {
+              shapeableAs(mesh, name);
               // díly mají v GLB řemesel jiná jména než u obydlí – kdyby se přesto opakovaly,
               // kreslí se jen první
               if (this.siteParts.has(name)) {
@@ -1443,6 +1484,7 @@ export class VillageRenderer {
         z: d.position.z,
         rotationY: d.position.rotation,
         scale: 1,
+        shape: sceneFrame(d),
       });
     }
     for (const kiln of kilns) {
@@ -1451,7 +1493,7 @@ export class VillageRenderer {
     for (const [model, mesh] of this.models) {
       if (mesh) setInstances(mesh, instances.get(model) ?? []);
     }
-    const tufts = built.flatMap((d) => eaveTufts(d.type, d.position, d.id));
+    const tufts = built.flatMap((d) => eaveTufts(d.type, d.position, d.id, sceneFrame(d)));
     for (const name of TUFT_MODELS) {
       const mesh = this.tufts.get(name);
       if (!mesh) continue;
@@ -1476,11 +1518,13 @@ export class VillageRenderer {
     return this.context.decalHeight(x, z);
   }
 
-  /** Pata modelu: střed, nebo průměr rohů půdorysu, když je níž (svah), o kousek zapuštěná. */
-  baseHeight(d: Pick<SceneDwelling, 'type' | 'position'>): number {
-    const { width, depth } = DWELLING_FOOTPRINT_M[d.type];
+  /**
+   * Pata modelu: střed, nebo průměr rohů půdorysu (podle varianty rozměrů), když je níž (svah),
+   * o kousek zapuštěná.
+   */
+  baseHeight(d: ShapedSceneDwelling & Pick<SceneDwelling, 'position'>): number {
     const h = this.context.groundHeight;
-    const corners = footprintCorners(d.position, width, depth);
+    const corners = rectCorners(d.position, footprintRect(d));
     const mean = corners.reduce((sum, [x, z]) => sum + h(x, z), 0) / corners.length;
     return Math.min(h(d.position.x, d.position.z), mean) - DWELLING_SINK_M;
   }
@@ -1494,7 +1538,7 @@ export class VillageRenderer {
     const worn = createDecalMesh(
       this.scene,
       `village-worn-${d.id}`,
-      earthPatch(d.type, d.position, d.id, EARTH_LAYERS.worn),
+      earthPatch(d.type, d.position, d.id, EARTH_LAYERS.worn, sceneFrame(d)),
       {
         height: this.context.decalHeight,
         smoothHeight: this.context.groundHeight,
@@ -1509,7 +1553,7 @@ export class VillageRenderer {
     const earth = createDecalMesh(
       this.scene,
       `village-earth-${d.id}`,
-      earthPatch(d.type, d.position, d.id, EARTH_LAYERS.earth),
+      earthPatch(d.type, d.position, d.id, EARTH_LAYERS.earth, sceneFrame(d)),
       {
         height: this.context.decalHeight,
         smoothHeight: this.context.groundHeight,
@@ -1529,7 +1573,7 @@ export class VillageRenderer {
 
   /** Jáma se šíjí a schody (stěny po okraj terénu, dno, stupně) – terén v ní prořízne pit-cut. */
   private pitMesh(d: SceneDwelling, depth: number, roofCover: number, fresh: boolean): Mesh {
-    const data = pitMeshData(PIT_SHAPES[d.type], d.position, {
+    const data = pitMeshData(pitShapeOf(d), d.position, {
       depth,
       base: this.baseHeight(d),
       rim: this.context.decalHeight,
@@ -1561,7 +1605,7 @@ export class VillageRenderer {
 
   /** Obvod jámy se šíjí ve světě (rozšířený o `margin`). */
   private pitOutlineWorld(d: SceneDwelling, margin: number): Point[] {
-    return pitOutline(PIT_SHAPES[d.type], margin).map(([x, z]) => localToWorld(d.position, x, z));
+    return pitOutline(pitShapeOf(d), margin).map(([x, z]) => localToWorld(d.position, x, z));
   }
 
   /**
@@ -1598,7 +1642,7 @@ export class VillageRenderer {
     }
     if (state.turf > 0) {
       // drn se snímá od zadní stěny (−z) k šíji
-      const shape = PIT_SHAPES[d.type];
+      const shape = pitShapeOf(d);
       const outline = this.pitOutlineWorld(d, TURF_MARGIN_M);
       const b = polygonBounds(outline);
       const coverage = softCoverage(outline, 0.35);
@@ -1661,7 +1705,7 @@ export class VillageRenderer {
   /** Hromada vykopané hlíny vedle jámy – roste s kopáním, ubývá na valy. */
   private spoilHeap(d: SceneDwelling, scale: number): Mesh {
     const place = sitePropPlace(d.type, 'spoil', d.plot ? plotInward(d.plot.variant) : undefined);
-    const [x, z] = localToWorld(d.position, place.x, place.z);
+    const [x, z] = shapedToWorld(d.position, sceneFrame(d), place.x, place.z);
     const data = spoilHeapData({
       seed: d.id,
       x,
@@ -1868,7 +1912,15 @@ function plotViews(dwellings: readonly SceneDwelling[]): PlotView[] {
         ? { decay: { fence: look.fence, beds: look.beds, seed: d.id } }
         : {};
     return [
-      { id: d.id, square: d.plot, variant: d.plot.variant, progress, house: d.position, ...decay },
+      {
+        id: d.id,
+        square: d.plot,
+        variant: d.plot.variant,
+        progress,
+        house: d.position,
+        ...decay,
+        ...(d.plainShape ? { plainShape: true } : {}),
+      },
     ];
   });
 }
@@ -1888,12 +1940,30 @@ function ruinId(r: SceneRuin): string {
 /** Klíč vzhledu zbytku jámy – mění se jen po krocích zarůstání (RUIN_LOOK_STEPS). */
 function ruinKey(r: SceneRuin): string {
   const p = r.position;
-  return [ruinId(r), r.type, p.x, p.z, p.rotation, Math.round(r.overgrowth * 20)].join('|');
+  const shape = `${r.plot?.variant ?? ''}${r.plainShape ? '/plain' : ''}`;
+  return [ruinId(r), r.type, p.x, p.z, p.rotation, Math.round(r.overgrowth * 20), shape].join('|');
+}
+
+/** Místo domu zbytku jámy (bez pozemku – zbytek pozemek nemá) podle varianty rozměrů. */
+function houseHideShape(r: SceneRuin): HideShape {
+  const corners = houseArea(r);
+  return { bounds: polygonBounds(corners), contains: (x, z) => pointInPolygon(corners, x, z) };
 }
 
 /** Druh staveniště (fáze, díly): obydlí, nebo model řemeslné dílny. */
 function siteKind(d: Pick<SceneDwelling, 'type' | 'craft'>): SiteKind {
   return d.craft ? CRAFT_MODEL[d.craft] : d.type;
+}
+
+/**
+ * Díl modelu obydlí nebo dílny (hotový model, staveniště „<druh>-…“, rozpad „<typ>-…“) dostane
+ * kosti oblastí variant rozměrů (population.md – Varianty rozměrů, shaped-model.ts); dvorec,
+ * milíř, modla, svatyně a rekvizity („site-…“, kopřivy) variantu nemají.
+ */
+function shapeableAs(mesh: Mesh, name: string): void {
+  const kind = name.split('-')[0]!;
+  const base = (CONSTRUCTION_BASE as Partial<Record<string, DwellingType | null>>)[kind];
+  if (base && base !== 'dvorec') makeShapeable(mesh, base);
 }
 
 /** Je model dílnou nebo milířem (public/models/crafts)? */
@@ -1918,7 +1988,8 @@ function trampledArea(d: SceneDwelling): Point[] {
       ] as const
     ).map(([lx, lz]): Point => [x + lx * c + lz * s, z - lx * s + lz * c]);
   }
-  const c = DWELLING_CLEARANCE_M[d.type];
+  // staveniště podle varianty rozměrů domu (population.md)
+  const c = clearanceRect(d);
   // dílny s přístřeškem (hrnčíř, kovář, tesař): ušlapáno i pod ním před domem
   const porch = d.craft && hasPorch(CRAFT_MODEL[d.craft]) ? PORCH_EXTRA_M : 0;
   return [
@@ -1937,7 +2008,9 @@ function dwellingKey(d: SceneDwelling): string {
   const look = d.built
     ? `${d.inhabited === false ? 'empty' : ''}${dwellingDecay(d)}`
     : Math.round(d.progress * 50);
-  return [d.type, d.craft ?? '', p.x, p.z, p.rotation, d.built, look].join('|');
+  // tvar (varianta rozměrů) je čistá funkce polohy, varianty pozemku a příznaku dnešního tvaru
+  const shape = `${d.plot?.variant ?? ''}${d.plainShape ? '/plain' : ''}`;
+  return [d.type, d.craft ?? '', p.x, p.z, p.rotation, d.built, look, shape].join('|');
 }
 
 /** Nastaví instance meshe; bez instancí ho vypne (jinak by se vykreslil samotný model v počátku). */
@@ -1947,6 +2020,11 @@ function setInstances(mesh: Mesh, instances: readonly ModelInstance[]): void {
     return;
   }
   mesh.thinInstanceSetBuffer('matrix', instanceMatrices(instances), 16, true);
+  // varianty rozměrů domů (shaped-model.ts) – mesh bez kostí oblastí to nechá být
+  setShapeFrames(
+    mesh,
+    instances.map((instance) => instance.shape ?? PLAIN_FRAME),
+  );
   mesh.setEnabled(true);
 }
 

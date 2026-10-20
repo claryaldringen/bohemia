@@ -1,6 +1,5 @@
 import {
   roadChainIds,
-  DWELLING_FOOTPRINT_M,
   MILIR,
   SACRED_BUILDINGS,
   WORKSHOP_PORCH_M,
@@ -9,6 +8,7 @@ import {
 import { isRotatedSquare, squareContains, type CellSquare } from './field-cells';
 import { insideOreSite, oreHeapRadius, oreSiteDiscs } from './ore-site-layout';
 import { scenePenSquares, type SceneVillage } from '../village-view';
+import { footprintRect } from './village-layout';
 
 // Výběr obydlí, polí, sadů a hřbitovů kliknutím do scény – čisté funkce bez Babylonu (paprsek
 // z kamery dodá scéna jako čísla).
@@ -98,8 +98,8 @@ export function insideFootprint(
   dwelling: SceneVillage['dwellings'][number],
   margin = DWELLING_PICK_MARGIN_M,
 ): boolean {
-  const { width, depth } = DWELLING_FOOTPRINT_M[dwelling.type];
-  const porch = dwelling.craft ? WORKSHOP_PORCH_M[dwelling.craft] : 0;
+  // půdorys podle varianty rozměrů domu (population.md – Varianty rozměrů), dílna s přístřeškem
+  const rect = footprintRect(dwelling, dwelling.craft ? WORKSHOP_PORCH_M[dwelling.craft] : 0);
   const dx = point.x - dwelling.position.x;
   const dz = point.z - dwelling.position.z;
   // do místních os obydlí: vchod míří do (sin r, cos r) – to je místní +z
@@ -107,9 +107,10 @@ export function insideFootprint(
   const localX = dx * Math.cos(r) - dz * Math.sin(r);
   const localZ = dx * Math.sin(r) + dz * Math.cos(r);
   return (
-    Math.abs(localX) <= width / 2 + margin &&
-    localZ >= -depth / 2 - margin &&
-    localZ <= depth / 2 + porch + margin
+    localX >= rect.minX - margin &&
+    localX <= rect.maxX + margin &&
+    localZ >= rect.minZ - margin &&
+    localZ <= rect.maxZ + margin
   );
 }
 

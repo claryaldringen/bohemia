@@ -31,7 +31,8 @@ export const PLAIN_SHAPE: DwellingShape = Object.freeze({ area: 1, ratio: 1, hei
 export interface ShapedDwelling {
   readonly type: DwellingType;
   readonly position: { readonly x: number; readonly z: number };
-  readonly plot?: { readonly variant: PlotVariant };
+  /** Pozemek – kde na něm dům stojí (bez údaje jako uprostřed). */
+  readonly plot?: { readonly variant?: PlotVariant };
   /**
    * Dnešní tvar bez odchylek – stavba ve vsi uložené před variantami, které by větší varianta
    * zasáhla jinou stavbu (`withDwellingShapes`).
@@ -83,7 +84,7 @@ export function shapeScales(shape: DwellingShape): { sx: number; sz: number } {
 export function dwellingShape(d: ShapedDwelling): DwellingShape {
   if (d.type === 'dvorec' || d.plainShape) return PLAIN_SHAPE;
   const shape = dwellingShapeAt(d.position.x, d.position.z);
-  if (!d.plot || d.plot.variant === 'center') return shape;
+  if (!d.plot?.variant || d.plot.variant === 'center') return shape;
   const max = DWELLING_SHAPE.plotCornerMaxWidth;
   const area = Math.min(shape.area, max * max * shape.ratio);
   return area === shape.area ? shape : { ...shape, area: Math.round(area * 1000) / 1000 };
