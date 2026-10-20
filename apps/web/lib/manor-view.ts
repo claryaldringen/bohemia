@@ -132,7 +132,7 @@ export function neighbourViews(
   day: number,
   landscape: Landscape | null = null,
 ): VillageNeighbour[] {
-  const carts = tradeCarts(state).map((c) => c.kind);
+  const carts = tradeCarts(state, day).map((c) => c.kind);
   return villageTrails(state)
     .filter((t) => t.builtDay !== null)
     .map((trail): VillageNeighbour => {

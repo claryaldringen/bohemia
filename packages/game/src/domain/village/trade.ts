@@ -294,10 +294,12 @@ export function tradeQuote(
       adultBuyPrice();
   const trail = builtTrail(state, offer.direction);
   const days = trail ? trailTripDays(trail.lengthM) : 0;
-  // vozy se spřežením, které jsou doma – náklad místo nosičů, jen po sjízdné stezce (wagons.md –
+  // vozy s voly, kteří jsou doma – náklad místo nosičů, jen po sjízdné stezce (wagons.md –
   // Obchod, axisCartCheck)
   const available =
-    trail && trailCartPassable(state, trail, landscape) ? tradeCarts(state).map((c) => c.kind) : [];
+    trail && trailCartPassable(state, trail, landscape)
+      ? tradeCarts(state, day).map((c) => c.kind)
+      : [];
   const transport = expeditionTransport(offer.give, offer.get, available);
   const porters = transport.porters;
   const quote = {
@@ -438,8 +440,8 @@ export function startExpedition(
   const sent = tradePeopleCount(givePeople) > 0;
   const fetched = tradePeopleCount(getPeople) > 0;
   const trade = tradeOf(next);
-  // vozy výpravy (s nimi jejich spřežení) jsou do návratu pryč (wagons.md – Obchod)
-  const carts = tradeCarts(state)
+  // vozy výpravy (s nimi jejich voli) jsou do návratu pryč (wagons.md – Obchod)
+  const carts = tradeCarts(state, day)
     .slice(0, quote.carts.length)
     .map((c) => c.id);
   trade.expeditions.push({

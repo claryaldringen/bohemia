@@ -1,7 +1,8 @@
-import { HOMESTEAD_HERD, PEN_GRACE, PEN_PLACES_PER_SQUARE, PEN_SQUARES } from './rules';
+import { HOMESTEAD_HERD, OXEN, PEN_GRACE, PEN_PLACES_PER_SQUARE, PEN_SQUARES } from './rules';
 import { sameGrid } from './square-grid';
 import type {
   HerdSpecies,
+  Ox,
   Pen,
   PenSpecies,
   PenSquare,
@@ -14,8 +15,8 @@ import type {
 // zavírat do ohrad. Každý druh zvířete by měl mít vlastní ohradu, ať se nemíchají. Velikost ohrady
 // by mělo jít určovat podobně, jako když se staví hřbitov. Velikost ohrady bude mít vliv na
 // velikost stáda. Zároveň velikost ohrady bude omezená – má to být ohrada, ne výběh.“). Ohrada
-// má druh (ovce, kozy, prasata, skot, spřežení) a 1–4 čtverce; hotové čtverce dávají místa na noc
-// pro stádo svého druhu (`penCapacity`). Bez ohrady udrží každá domácnost u domu jen pár kusů
+// má druh (ovce, kozy, prasata, skot, voli) a 1–4 čtverce; hotové čtverce dávají místa na noc
+// pro stádo svého druhu (`penCapacity`), ohrada volů pro voly (`penPlaces`). Bez ohrady udrží každá domácnost u domu jen pár kusů
 // (`homesteadRoom`). Místa ohrad a u domů (`herdRoom`) omezují stádo vedle pastvy, sena, lesa
 // a pasáků (`winterTargets` – vstup `room`). Nezávisí na stádech ani spřežení (bez cyklů importu).
 
@@ -67,11 +68,47 @@ export function isPenBuilding(pen: Pick<Pen, 'builtDay' | 'extraSquares'>): bool
   );
 }
 
-/** Místa ohrady na noc (kusy svého stáda) – hotové čtverce × místa na čtverec; spřežení 0. */
+/**
+ * Místa ohrady na noc – hotové čtverce × místa na čtverec: kusy svého stáda, u ohrady volů voli
+ * i s telaty ve výcviku (oxen.md – Ohrada volů).
+ */
 export function penPlaces(pen: Pen): number {
-  const herd = penHerdSpecies(penSpecies(pen));
-  if (!herd) return 0;
-  return builtPenSquares(pen).length * PEN_PLACES_PER_SQUARE[herd];
+  const species = penSpecies(pen);
+  const herd = penHerdSpecies(species);
+  return builtPenSquares(pen).length * PEN_PLACES_PER_SQUARE[herd ?? 'team'];
+}
+
+const DAYS_PER_YEAR = 365.25;
+
+/** Den, kdy je tele, které začalo výcvik v den `startDay`, vycvičené (OXEN.trainingYears). */
+export function oxTrainedDay(startDay: number): number {
+  return Math.ceil(startDay + OXEN.trainingYears * DAYS_PER_YEAR - 1e-9);
+}
+
+/**
+ * Voli ohrady volů (oxen.md – Voli po kusech) – vycvičení i telata ve výcviku; jiné ohrady
+ * žádné. Ohrada uložená dřív (do převodu `withOxen`): spřežení = 2 vycvičení voli se stejným dnem,
+ * výcvik = 2 telata, která se vycvičí za OXEN.trainingYears od zadání.
+ */
+export function oxenOf(pen: {
+  readonly oxen?: readonly Ox[];
+  readonly team?: Pen['team'];
+  readonly training?: Pen['training'];
+}): readonly Ox[] {
+  if (pen.oxen) return pen.oxen;
+  const out: Ox[] = [];
+  const team = pen.team ?? null;
+  const training = pen.training ?? null;
+  for (let k = 0; k < OXEN.teamSize && team; k++) {
+    out.push({
+      trainedDay: team.readyDay,
+      ...(team.weak === undefined ? {} : { weak: team.weak }),
+    });
+  }
+  for (let k = 0; k < OXEN.teamSize && training; k++) {
+    out.push({ trainedDay: oxTrainedDay(training.startDay) });
+  }
+  return out;
 }
 
 function herdZeros(): Record<HerdSpecies, number> {
@@ -128,15 +165,10 @@ export function herdRoom(
   };
 }
 
-/** Voli ohrady spřežení – vycvičené spřežení a telata ve výcviku (2 + 2). */
-function teamAnimals(pen: Pick<Pen, 'team' | 'training'>): number {
-  return (pen.team ? 2 : 0) + (pen.training ? 2 : 0);
-}
-
 /**
  * Kolik zvířat je v noci v které ohradě (id → kusy, oxen.md – Na noc v ohradě): stádo druhu
  * (i s letošními mláďaty, zaokrouhleně) se rozdělí do hotových ohrad svého druhu podle id do
- * jejich míst, co se nevejde, zůstane u domů; ohrada spřežení má voly spřežení a výcviku.
+ * jejich míst, co se nevejde, zůstane u domů; ohrada volů má své voly i telata ve výcviku.
  */
 export function penOccupancy(state: Pick<VillageState, 'pens' | 'livestock'>): Map<number, number> {
   const out = new Map<number, number>();
@@ -150,7 +182,7 @@ export function penOccupancy(state: Pick<VillageState, 'pens' | 'livestock'>): M
   for (const pen of pens) {
     const species = penSpecies(pen);
     if (species === 'team') {
-      out.set(pen.id, teamAnimals(pen));
+      out.set(pen.id, oxenOf(pen).length);
       continue;
     }
     const herd = penHerdSpecies(species)!;

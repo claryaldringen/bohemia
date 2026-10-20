@@ -30,7 +30,8 @@ import {
   winterSlaughterDay,
   winterWaitHayKg,
 } from './livestock';
-import { OXEN, ableTeams, penDay, penOxen, oxPens, trainTeamsWhenReady, villageOxen } from './oxen';
+import { oxenCows, oxenTrainingTarget, wantedPloughPairs } from './draft';
+import { ableTeams, penDay, trainTeamsWhenReady, villageOxen } from './oxen';
 import { herdRoom, homesteadRoom, penCapacity, pensLimitHerds } from './pens';
 import { walkDistancesTo } from './paths/village';
 import { villageRoadWalk } from './paths/walking';
@@ -38,9 +39,9 @@ import type { ChronicleEvent, HerdSpecies, VillageState } from './types';
 import { recordWool, woolSheep } from './wool';
 
 // Den hospodářství vsi (diet.md, oxen.md) – stáda, seno a ohrady v pevném pořadí, před plánem
-// osevu a prací dne: roční ztráty stád a seno ve stohu (každý den), ohrady (výcvik, stáří
-// spřežení, 1. 3. pokrytí sena) a 1. 3. zimní úhyn stáda, 1. 4. mláďata a konec zimy, výcvik
-// spřežení, kdykoli jde (začíná sám), 1. 6. zkažené loňské seno a plán seče (s krajinou
+// osevu a prací dne: roční ztráty stád a seno ve stohu (každý den), ohrady volů (výcvik, stáří
+// volů, 1. 3. pokrytí sena) a 1. 3. zimní úhyn stáda, 1. 4. mláďata a konec zimy, výcvik
+// volů, kdykoli jde (začíná sám), 1. 6. zkažené loňské seno a plán seče (s krajinou
 // i přirozené louky), 1. 9. zkažené maso, 1. 11. porážka a začátek zimy, v zimě seno. Mléko a vejce se jí čerstvé v kroku jídla (diet.ts),
 // dojení, péče a pasení jsou práce dne.
 
@@ -53,8 +54,8 @@ function isOn(date: CalendarDate, target: { month: number; day: number }): boole
 
 /**
  * Krávy, které ves drží vždy (diet.md – Skladba stáda; Martin 19. 10. 2026: krávy „potřebujeme
- * kvůli tažným volům“): kráva na 2 domácnosti (mléko – jako výchozí stádo) a na každou ohradu
- * spřežení tolik krav, aby šlo cvičit spřežení (OXEN.minCows – dvě telata a chovná kráva); aspoň
+ * kvůli tažným volům“): kráva na 2 domácnosti (mléko – jako výchozí stádo) a s ohradou volů tolik
+ * krav, aby šlo cvičit voly a obměňovat je (`oxenCows` – diet.md, Krávy na obměnu volů); aspoň
  * chovný pár. Krávy stojí na noc jen v ohradě skotu – bez ní jen chovný pár (oxen.md – Ohrady
  * podle druhu).
  */
@@ -62,16 +63,17 @@ export function breedingCows(state: VillageState): number {
   return Math.max(
     LIVESTOCK.breedingMin,
     householdCount(state) / LIVESTOCK.householdsPerCow,
-    oxPens(state).length * OXEN.minCows,
+    oxenCows(state),
   );
 }
 
 /**
- * Voli, kteří budou přes zimu žrát seno – ohrada spřežení bez spřežení a výcviku počítá se dvěma
- * voly (výcvik začne sám a telata seno potřebují – oxen.md).
+ * Voli, kteří budou přes zimu žrát seno – ves počítá s voly, které cvičí a krmí
+ * (`oxenTrainingTarget` – výcvik začne sám a telata seno potřebují – oxen.md), aspoň s těmi, které
+ * má.
  */
 function hayOxen(state: VillageState): number {
-  return oxPens(state).reduce((sum, pen) => sum + Math.max(penOxen(pen), OXEN.teamSize), 0);
+  return Math.max(villageOxen(state), oxenTrainingTarget(state));
 }
 
 /**
@@ -90,14 +92,14 @@ export function winterHayNeedKg(state: VillageState, day: number, toolCoverage =
 
 /**
  * Cena jídla v práci za dnešních podmínek vsi (diet.md – Rovnovážné hospodaření) – s orbou, když
- * ves má spřežení.
+ * ves má pár volů s rádlem.
  */
 export function villageFoodCosts(
   state: VillageState,
   day: number,
   toolCoverage: number,
 ): FoodCosts {
-  return foodCosts(state, day, toolCoverage, ableTeams(state) > 0);
+  return foodCosts(state, day, toolCoverage, ableTeams(state, day) > 0);
 }
 
 /** Co ves o chovu ví (voli, krávy na mléko a voly, pasáci – výrostci, cena jídla v práci). */
@@ -211,12 +213,15 @@ export function husbandryDay(
     herdBirths(state);
     if (state.hay) delete state.hay.winter;
   }
-  // co ulehčí práci a ves to má, vesničané používají sami – spřežení se cvičí bez hráče, první
-  // vhodný den (oxen.md – Spřežení, Martin 19. 10. 2026); po mláďatech, ať jsou telata
+  // co ulehčí práci a ves to má, vesničané používají sami – voli se cvičí bez hráče, první
+  // vhodný den, kdy jich ves chce víc (oxen.md – Spřežení, Voli po kusech); po mláďatech, ať jsou
+  // telata
   trainTeamsWhenReady(
     state,
     day,
     obstacles,
+    oxenTrainingTarget(state),
+    wantedPloughPairs(state),
     landscape ? () => villageRoadWalk(state, landscape) : undefined,
   );
   if (isOn(date, MOWING_DAY)) {

@@ -10,7 +10,7 @@ import { giveWayToBuilding, treeTakenLand } from '../land-taken';
 import { villageHerds } from '../livestock';
 import { obstacleChangesAt, obstacleStatus, type ObstacleChanges } from '../obstacles';
 import { villageOrchards } from '../orchard';
-import { villagePens } from '../oxen';
+import { oxPens, villagePens } from '../oxen';
 import { plotShapes } from '../plot-cells';
 import { plotSquareTile, rotationCosSin, squareCenter } from '../square-grid';
 import { ROAD_TREE_ID_BASE, roadAppleStage, roadTreeLook } from '../road-trees';
@@ -219,10 +219,12 @@ export function addRoadCartTrips(roads: VillageRoads, trips: readonly RoadCartTr
   }
 }
 
-/** Ohrady se spřežením – tam stojí vozy (wagons.md – Vůz). */
+/** Hotové ohrady volů – tam stojí vozy (wagons.md – Vůz, oxen.md – Ohrada volů). */
 export function teamPens(state: Pick<VillageState, 'pens'>): Set<number> {
   return new Set(
-    (state.pens ?? []).filter((p) => p.builtDay !== null && p.team !== null).map((p) => p.id),
+    oxPens(state)
+      .filter((p) => p.builtDay !== null)
+      .map((p) => p.id),
   );
 }
 

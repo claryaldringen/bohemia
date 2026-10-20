@@ -528,10 +528,37 @@ export const PEN_SQUARES = { max: 4 } as const;
  * hotový čtverec ohrady na noc – plocha uvnitř plotu ≈ 196 m² (14 × 14 m) ÷ místo na kus: ovce
  * ≈ 1,5 m², koza ≈ 2 m², prase ≈ 2,5 m², kráva ≈ 4,5 m² (malá zvířata raného středověku – kráva
  * 200–250 kg; dnešní minima ustájení: ovce 1–1,5 m², koza 1,5–2 m², kráva bez telete 3,5–5 m²
- * i s krmištěm). Místa jsou pro dospělé kusy i jarní mláďata (stádo v létě). Ohrada spřežení
- * (`team`) pojme jedno spřežení a výcvik nového – kapacitu stáda nemá.
+ * i s krmištěm). Místa jsou pro dospělé kusy i jarní mláďata (stádo v létě). Ohrada volů
+ * (`team` – oxen.md, Ohrada volů; Martin 20. 10. 2026: „Ano, udělej to jak říkáš“) pojme 6 volů na
+ * čtverec i s telaty ve výcviku – vůl ≈ 400 kg, ≈ 6 m² s jeslemi a přístřeškem (rozhodnutí Clauda:
+ * tažný vůl potřebuje víc místa než kráva a čtverec má i přístřešek, žlab a stoh).
  */
-export const PEN_PLACES_PER_SQUARE = { sheep: 130, goat: 100, pig: 80, cow: 45 } as const;
+export const PEN_PLACES_PER_SQUARE = { sheep: 130, goat: 100, pig: 80, cow: 45, team: 6 } as const;
+/**
+ * oxen.md – Spřežení, Voli po kusech (návrh Clauda, Martin schválil): výcvik ≈ 2 roky, vůl slouží
+ * ≈ 10 let, pak jde na maso; rádlo táhne pár (`teamSize`). Ves s ohradou volů drží aspoň `minCows`
+ * krávy (pár telat do výcviku a chovná kráva – při výcviku zůstane aspoň `keepCows`) a na obměnu
+ * volů `cowsPerOx` krávy navíc na vola (Martin 20. 10. 2026 – návrh Clauda: býčci ≈ 0,4 na krávu
+ * a rok, obměna 1/10 volů ročně → kráva na 4 voly). Nejvýš `maxPairs` párů k rádlům (pojistka
+ * hledání v plánu osevu).
+ */
+export const OXEN = {
+  trainingYears: 2,
+  serviceYears: 10,
+  teamSize: 2,
+  minCows: 3,
+  keepCows: 1,
+  cowsPerOx: 0.25,
+  maxPairs: 8,
+} as const;
+/**
+ * oxen.md – Potah (Martin 20. 10. 2026: „rádlo táhnou 2 voli, 4kolový vůz také dva voli
+ * a dvoukolový vůz jeden vůl“): kolik volů táhne rádlo a vůz každého druhu.
+ */
+export const DRAFT_OXEN = { ard: 2, 'four-wheel': 2, 'two-wheel': 1 } as const satisfies Record<
+  'ard' | CartKind,
+  number
+>;
 /**
  * diet.md – Bez ohrady u domu (Martin 19. 10. 2026: „Ano, udělej to tak, jak navrhuješ“; čísla
  * návrh Clauda): bez ohrady svého druhu udrží každá domácnost u domu jen pár kusů – 2 ovce, 1 kozu

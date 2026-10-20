@@ -2180,7 +2180,7 @@ export function placementVillageOf(state: VillageState, day: number): PlacementV
     reservedTrees: [...reservedTrees(state)],
     sacredBuildings: sacredBuildingPlots(state),
     toolCoverage: craftCoverage(state, day).tools,
-    ploughTeam: ableTeams(state) > 0,
+    ploughTeam: ableTeams(state, day) > 0,
     walkRoads: state.roads?.roads ?? [],
   };
 }

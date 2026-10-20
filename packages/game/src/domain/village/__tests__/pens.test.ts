@@ -5,7 +5,7 @@ import { foundPen, foundVillage } from '../actions';
 import { stockedPenIds } from '../abandonment';
 import { herdPlaces } from '../husbandry';
 import { LIVESTOCK, winterTargets } from '../livestock';
-import { PEN, trainingBlock, type PenInput } from '../oxen';
+import { PEN, oxenTraining, type PenInput } from '../oxen';
 import {
   herdRoom,
   herdsOverRoom,
@@ -356,12 +356,13 @@ describe('převod starých vsí a spřežení', () => {
     expect(withPenGrace(s).livestock!.pensFromDay).toBe(s.lastDay + PEN_GRACE.graceDays);
   });
 
-  it('výcvik spřežení jen v ohradě spřežení – s kravami se nemíchá', () => {
+  it('výcvik volů jen v ohradě volů – s kravami se nemíchá', () => {
     const s = village();
     s.livestock!.herds.cow = 6;
-    s.pens = [pen(3, 'cattle', 1, 4), pen(4, 'team', 1, 6)];
-    expect(trainingBlock(s, 3, DAY, null)).toBe('Ohrada není pro spřežení.');
-    expect(trainingBlock(s, 4, DAY, null)).toBeNull();
+    s.pens = [pen(3, 'cattle', 1, 4)];
+    expect(oxenTraining(s, DAY, 2, 1, null)).toBe('Ves nemá ohradu volů.');
+    s.pens.push(pen(4, 'team', 1, 6));
+    expect(oxenTraining(s, DAY, 2, 1, null)).toEqual({ calves: 2, ards: 1 });
   });
 });
 

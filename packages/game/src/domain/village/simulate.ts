@@ -87,7 +87,14 @@ import {
   workSlaughter,
 } from './livestock';
 import { arrangeMarriages } from './marriage';
-import { ableTeams, finishPen, ploughCapacityPerDay, villageOxen } from './oxen';
+import {
+  ableTeams,
+  finishArd,
+  finishPen,
+  ploughCapacityPerDay,
+  villageOxen,
+  withOxen,
+} from './oxen';
 import { recordClearedObstacles } from './obstacles';
 import { overgrowthDay } from './overgrowth';
 import { addRoadCartTrips, mergeRoadChains, roadsDay } from './paths/roads';
@@ -277,7 +284,7 @@ export function* advanceVillageSteps(
   }
   // ves z doby před příbuzenstvím dostane pohlaví a manžele (kinship.md) a ves ze zboží zvenku
   // o něj přijde (trade.md – Jen společné suroviny) – jednou, idempotentně
-  const next = cloneState(withPenSpecies(withoutForeignGoods(withKinship(state))));
+  const next = cloneState(withOxen(withPenSpecies(withoutForeignGoods(withKinship(state)))));
   // vymřelá, opuštěná a ves na cestě se nesimulují – jen se posune den (migration.md)
   for (let day = next.lastDay + 1; day <= toDay && !isVillageDormant(next); day++) {
     simulateDay(next, day, obstacles, landscape);
@@ -403,8 +410,8 @@ function planYear(
   // oseje, Osev podle stravy)
   closeFieldFoodYear(state);
   for (const part of state.parts) endOfSeason(part, day);
-  // ves se spřežením orá rádlem všechno, motyka nekope (oxen.md – Jen rádlo)
-  const plough = ableTeams(state) > 0;
+  // ves s párem volů a rádlem orá všechno, motyka nekope (oxen.md – Jen rádlo)
+  const plough = ableTeams(state, day) > 0;
   // díly po úsecích hospodářství od domu ven (fields.md – Hospodaření podle polohy domů)
   const holdings = villageHoldings(state);
   // kolik zasít podle zásob a potřeby z pole (fields.md – Kolik ves oseje, Osev podle zásob)
@@ -490,8 +497,8 @@ function joinFinishedParts(
     .filter((p) => inPlan.has(p.id))
     .reduce((sum, p) => sum + expectedNetKg(p, day), 0);
   // jař se buď celá orá, nebo celá kope (oxen.md – Jen rádlo): k plánu, který orá, přibudou díly
-  // k orbě; bez plánu podle toho, jestli ves má spřežení
-  const plough = plan ? plan.plough !== undefined : ableTeams(state) > 0;
+  // k orbě; bez plánu podle toho, jestli ves má pár volů s rádlem
+  const plough = plan ? plan.plough !== undefined : ableTeams(state, day) > 0;
   const holdings = villageHoldings(state);
   // hotové díly (skupina 2 přílohové soustavy) po úsecích hospodářství
   const blocks = sowingBlocks(state.parts, holdings, 2);
@@ -747,10 +754,10 @@ function work(
   landscape: Landscape | null,
 ): { toil: boolean } {
   const month = dateOfDayIndex(day).month;
-  // orba: spřežení s rádlem, se železnou špičkou od kováře rychleji (oxen.md); slabí voli po
-  // zimě pomaleji; spřežení s vozem na výpravě neorá (wagons.md)
+  // orba: páry volů s rádlem, se železnou špičkou od kováře rychleji (oxen.md); slabí voli po
+  // zimě pomaleji; voli s vozem na výpravě neorají (wagons.md)
   const partsById = new Map(state.parts.map((p) => [p.id, p]));
-  const ploughCap = ploughCapacityPerDay(state, coverage.tools, day) * teamsHomeShare(state);
+  const ploughCap = ploughCapacityPerDay(state, coverage.tools, day) * teamsHomeShare(state, day);
   const ploughFactor = (cropWork: CropWork): number =>
     ploughDayFactor(state, day, cropWork, partsById, landscape, obstacles);
   const owned = fieldTasks(state, day, ploughCap, ploughFactor);
@@ -785,10 +792,13 @@ function work(
     });
   }
   dayTasks.sort((a, b) => a.end - b.end || a.tie - b.tie || a.rank - b.rank);
-  // vozy (wagons.md – Vůz): dvoukoláky se spřežením, které dnes neorá, vozí snopy a seno tam, kam
-  // dojedou – převezmou kus nošení a jde s nimi honák a nakladač (úloha pak chce méně práce)
-  const ploughing = owned.some((task) => task.name === 'plough');
-  let cartsLeft = haulCartsToday(state, ploughing);
+  // vozy (wagons.md – Vůz): dvoukoláky s volem, který dnes neorá, vozí snopy a seno tam, kam
+  // dojedou – převezmou kus nošení a jde s nimi honák a nakladač (úloha pak chce méně práce); ve
+  // dny orby (i orby osevu navíc) jdou páry napřed k rádlům, vozy táhne zbytek volů (oxen.md –
+  // Voli se sdílí)
+  const ploughing =
+    owned.some((task) => task.name === 'plough') || extraSowingWantsTeam(state, day);
+  let cartsLeft = haulCartsToday(state, day, ploughing);
   const access = cartsLeft > 0 ? villageCartAccess(state, day, landscape, obstacles) : null;
   const hauls = new Map<DayTask, HaulPlan>();
   if (access)
@@ -808,11 +818,11 @@ function work(
   const waterNeeds = householdWater(villagers, state.dwellings);
   // klády ke stavbám mají před ostatními jízdami přednost – kolik vozů si vezmou, se ví už teď
   // (náklad až z práce, která zbude po úlohách dne); vozy, které zbudou, jedou pro uhlí, s osivem,
-  // nebo pro vodu (wagons.md – Co vozy vozí) – ne když voli orají půdu osevu navíc
+  // nebo pro vodu (wagons.md – Co vozy vozí)
   const logs =
     access && cartsLeft > 0 ? logHaulCandidates(state, day, access, landscape, obstacles) : [];
   const jobs =
-    access && cartsLeft > 0 && !extraSowingWantsTeam(state, day)
+    access && cartsLeft > 0
       ? planCartJobs(state, day, {
           carts: cartsLeft - logHaulPlan(logs, cartsLeft).carts,
           tasks: dayTasks,
@@ -958,14 +968,11 @@ function work(
   });
   decayEmptyDwellings(state, day, new Set(households.map((d) => d.id)));
   // osev navíc (fields.md – Osev navíc): práce, která zbude po stavbách a opravách, jde na díly,
-  // které ves smí osít navíc; spřežení jen s kapacitou, která po potřebné orbě zbyla, a ne když
-  // dnes vozí – co zbude i potom, propadne
+  // které ves smí osít navíc; páry s rádlem jen s kapacitou, která po potřebné orbě zbyla (vozy
+  // ve dny orby páry neberou – oxen.md, Voli se sdílí) – co zbude i potom, propadne
   const extra = extraSowingDay(state, day, {
     labor: afterBuild.left,
-    ploughCap:
-      haulWork.length > 0 || jobs.carts > 0
-        ? 0
-        : Math.max(0, ploughCap - owned.reduce((sum, t) => sum + (t.teamDays ?? 0), 0)),
+    ploughCap: Math.max(0, ploughCap - owned.reduce((sum, t) => sum + (t.teamDays ?? 0), 0)),
     ploughFactor,
     toolCoverage: coverage.tools,
     order: () => workOrder(villageHoldings(state)),
@@ -1571,11 +1578,12 @@ function finishConstructions(state: VillageState, day: number): void {
       continue;
     }
     if (c.kind === 'pen' || c.kind === 'ard') {
-      // dostavěná ohrada přijme dobytek, hotové rádlo čeká na vycvičené voly (oxen.md)
+      // dostavěná ohrada přijme dobytek, hotové rádlo orá s párem vycvičených volů (oxen.md)
       if (c.kind === 'pen' && c.penId !== null && c.penId !== undefined) {
         // založení celé ohrady, nebo rozšíření o čtverce (oxen.md – Ohrady podle druhu)
         finishPen(state, c.penId, day, c.id);
       }
+      if (c.kind === 'ard') finishArd(state);
       state.chronicle.push(finishedEvent(day, c, null));
       continue;
     }

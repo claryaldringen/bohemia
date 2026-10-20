@@ -312,9 +312,9 @@ describe('vozy (wagons.md – Vůz)', () => {
   it('ve dny orby voli orají a s výpravou jsou pryč – vůz stojí', () => {
     const s = withTeam(village());
     s.carts = [{ id: 1, kind: 'two-wheel', builtDay: DAY - 10 }];
-    expect(haulCartsToday(s, false)).toBe(1);
-    expect(haulCartsToday(s, true)).toBe(0);
-    expect(tradeCarts(s).map((c) => c.id)).toEqual([1]);
+    expect(haulCartsToday(s, DAY, false)).toBe(1);
+    expect(haulCartsToday(s, DAY, true)).toBe(0);
+    expect(tradeCarts(s, DAY).map((c) => c.id)).toEqual([1]);
     s.trade = {
       neighbours: [],
       nextId: 2,
@@ -334,9 +334,9 @@ describe('vozy (wagons.md – Vůz)', () => {
         },
       ],
     };
-    expect(haulCartsToday(s, false)).toBe(0);
-    expect(tradeCarts(s)).toEqual([]);
-    expect(teamsHomeShare(s)).toBe(0);
+    expect(haulCartsToday(s, DAY, false)).toBe(0);
+    expect(tradeCarts(s, DAY)).toEqual([]);
+    expect(teamsHomeShare(s, DAY)).toBe(0);
   });
 
   it('výprava s vozem – náklad na voze, dva lidé místo nosičů', () => {
