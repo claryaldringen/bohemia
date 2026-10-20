@@ -464,7 +464,15 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
           woodworkCoverage: 0,
           iron: {
             kg: 3,
-            trip: { to: 'Lhota', direction: 'NE', daysLeft: 3, son: true, age: 15 },
+            trip: {
+              to: 'Lhota',
+              direction: 'NE',
+              daysLeft: 3,
+              son: true,
+              age: 15,
+              porters: 6,
+              cart: null,
+            },
           },
         },
       },

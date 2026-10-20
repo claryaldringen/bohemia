@@ -482,10 +482,16 @@ function IronStat({
   const who = trip.son ? `Syn tesaře (${trip.age} let)` : 'Tesař';
   const where = `do vsi ${trip.to}${trip.direction ? ` (${DIRECTION_NAMES[trip.direction].name})` : ''}`;
   const days = `${trip.daysLeft} ${plural(trip.daysLeft, 'den', 'dny', 'dní')}`;
+  // platbu obilím veze vůz se sedlákem, nebo ji nesou nosiči z vsi (wagons.md – Kování vozů)
+  const how = trip.cart
+    ? `jede s vozem a sedlákem (${CART_NAMES[trip.cart].toLowerCase()} veze obilí na platbu)`
+    : trip.porters > 0
+      ? `jde ${trip.porters === 1 ? 's 1 nosičem' : `se ${trip.porters} nosiči`} (nesou obilí na platbu)`
+      : 'jde';
   return (
     <Stat
-      icon="walk"
-      name={`${who} jde pro kování k vozu ${where} – zpět za ${days}`}
+      icon={trip.cart ? 'cart' : 'walk'}
+      name={`${who} ${how} pro kování k vozu ${where} – zpět za ${days}`}
       testId="selection-workshop-iron"
     >
       {`${trip.direction ? `${DIRECTION_NAMES[trip.direction].arrow} ` : ''}${trip.daysLeft} d`}
