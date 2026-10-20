@@ -412,6 +412,38 @@ describe('tesař pro kování jako jedna postava (wagons.md – Kování vozů)'
     expect(out[0]!.clip).toBe('walk');
   });
 
+  it('se 6 nosiči – tam nesou obilí na platbu, zpátky jdou s kováním bez nákladu', () => {
+    const t = trip({ porters: 6, done: 0 });
+    const [e] = sceneExpeditions(state(t));
+    expect(e).toMatchObject({ porters: 6, carts: [], carriesOut: true, carriesBack: false });
+    const out = caravanAt(scene(t), at(0.5)).filter((p) => !p.hidden);
+    expect(out).toHaveLength(7);
+    expect(out.filter((p) => p.clip === 'carry')).toHaveLength(6);
+  });
+
+  it('jde-li skupina víckrát, každou cestu zvlášť', () => {
+    // 2 cesty po 4 dnech, pátý den – druhá cesta, první den z ní
+    const [e] = sceneExpeditions(state(trip({ porters: 1, days: 8, tripDays: 4, done: 4 })));
+    expect(e!.progress).toBe(0);
+    expect(e!.rate).toBeCloseTo(1 / 4, 6);
+  });
+
+  it('s vozem – vůz se sedlákem a tesař vedle vozu, nosiči nejdou', () => {
+    const t = trip({
+      cartId: 7,
+      to: {
+        kind: 'neighbour',
+        name: 'Lhota',
+        direction: 'N',
+        trailId: 40,
+        edge: { x: 40, z: 960 },
+      },
+    });
+    const [e] = sceneExpeditions(state(t));
+    expect(e).toMatchObject({ trailId: 40, carts: [7], porters: 0, leaving: [], coming: [] });
+    expect(e!.line).toBeUndefined();
+  });
+
   it('do jiné vsi na téže mapě – celou cestu vidět, ke kovárně a zpět', () => {
     const t = trip({ days: 2, to: { kind: 'village', name: 'Lhota', x: 340, z: 0 } });
     const [e] = sceneExpeditions(state(t));

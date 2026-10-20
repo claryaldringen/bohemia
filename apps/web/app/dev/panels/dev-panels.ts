@@ -6,7 +6,7 @@ import type { BuildOption } from '@/lib/village-view';
 
 // Ukázková data panelu výběru pro vývojovou stránku /dev/panels – nejbohatší objekty (dvorec
 // s vylepšeními a obchodem, obydlí s rodinami a přestavbou, víc obydlí, dílny, ohrada, pole a díly
-// pole, sad a čtverec sadu, cesta)
+// pole, sad a čtverec sadu, cesta, rudiště kováře)
 // i malé (posvátný dub, staveniště) vedle sebe, ať jde rozvržení panelu zkontrolovat bez hry.
 
 const option = (affordable: boolean, wood: number, missing = 0): BuildOption => ({
@@ -348,6 +348,43 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
     }),
   },
   {
+    // crafts.md – Uhlí a ruda kováře: rudiště pěšky – kovář se synem kopou, kovář nosí rudu
+    key: 'rudiste',
+    label: 'Rudiště',
+    details: {
+      kind: 'ore-site',
+      smithId: 12,
+      leftKg: 2140,
+      depositKg: 3000,
+      heapKg: 35,
+      stockKg: 96,
+      walkM: 186,
+      pits: 5,
+      workers: [
+        { age: 41, smith: true, digs: true, carries: true, rides: false },
+        { age: 15, smith: false, digs: true, carries: false, rides: false },
+      ],
+      cart: false,
+    },
+  },
+  {
+    // rudiště s vozem – hromada u jámy, sedlák s vozem a kovář s ním odváží rudu
+    key: 'rudiste-vuz',
+    label: 'Rudiště – vůz',
+    details: {
+      kind: 'ore-site',
+      smithId: 12,
+      leftKg: 380,
+      depositKg: 3000,
+      heapKg: 412,
+      stockKg: 8,
+      walkM: 342,
+      pits: 9,
+      workers: [{ age: 41, smith: true, digs: false, carries: false, rides: true }],
+      cart: true,
+    },
+  },
+  {
     // wagons.md – tesař: vyrábí dvoukolák, vozy vsi proti potřebě a pokrytí dřevěné práce staveb
     key: 'tesar',
     label: 'Tesař',
@@ -429,7 +466,15 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
           woodworkCoverage: 0,
           iron: {
             kg: 3,
-            trip: { to: 'Lhota', direction: 'NE', daysLeft: 3, son: true, age: 15 },
+            trip: {
+              to: 'Lhota',
+              direction: 'NE',
+              daysLeft: 3,
+              son: true,
+              age: 15,
+              porters: 6,
+              cart: null,
+            },
           },
         },
       },

@@ -1,5 +1,6 @@
 import { useState, type ReactElement, type ReactNode } from 'react';
 import {
+  AGE,
   CART_NAMES,
   CRAFT_NAMES,
   MAX_PEN_SQUARES,
@@ -46,6 +47,7 @@ import {
   type WorkshopActivity,
 } from '@/lib/village-view';
 import type { Direction8, RoadKind, RoadUpgrade, TradeGoods } from '@bohemia/game';
+import type { OreSiteWorker } from '@/lib/ore-site-view';
 import type { PreviewPeople } from '@/lib/trade-quote';
 import { ManorUpgrades, SwathTrees } from './ManorPanel';
 import { TradePanel } from './TradePanel';
@@ -526,10 +528,16 @@ function IronStat({
   const who = trip.son ? `Syn tesaře (${trip.age} let)` : 'Tesař';
   const where = `do vsi ${trip.to}${trip.direction ? ` (${DIRECTION_NAMES[trip.direction].name})` : ''}`;
   const days = `${trip.daysLeft} ${plural(trip.daysLeft, 'den', 'dny', 'dní')}`;
+  // platbu obilím veze vůz se sedlákem, nebo ji nesou nosiči z vsi (wagons.md – Kování vozů)
+  const how = trip.cart
+    ? `jede s vozem a sedlákem (${CART_NAMES[trip.cart].toLowerCase()} veze obilí na platbu)`
+    : trip.porters > 0
+      ? `jde ${trip.porters === 1 ? 's 1 nosičem' : `se ${trip.porters} nosiči`} (nesou obilí na platbu)`
+      : 'jde';
   return (
     <Stat
-      icon="walk"
-      name={`${who} jde pro kování k vozu ${where} – zpět za ${days}`}
+      icon={trip.cart ? 'cart' : 'walk'}
+      name={`${who} ${how} pro kování k vozu ${where} – zpět za ${days}`}
       testId="selection-workshop-iron"
     >
       {`${trip.direction ? `${DIRECTION_NAMES[trip.direction].arrow} ` : ''}${trip.daysLeft} d`}
@@ -1746,6 +1754,111 @@ function SacredBody({
   );
 }
 
+/** Co dělá člověk z kovárny dnes na rudišti – popisek (crafts.md – Uhlí a ruda kováře). */
+function oreWorkerName(worker: OreSiteWorker): string {
+  // první činnost s „rudu“, další se k ní vztahují („kope rudu a nosí ji v koších do kovárny“)
+  const phrases: [boolean, string, string][] = [
+    [worker.digs, 'kope rudu', 'kope ji'],
+    [worker.carries, 'nosí rudu v koších do kovárny', 'nosí ji v koších do kovárny'],
+    [worker.rides, 'jede s vozem pro rudu', 'jede pro ni s vozem'],
+  ];
+  const tasks = phrases
+    .filter(([does]) => does)
+    .map(([, first, next], k) => (k === 0 ? first : next));
+  const what =
+    tasks.length > 1 ? `${tasks.slice(0, -1).join(', ')} a ${tasks[tasks.length - 1]}` : tasks[0];
+  return `${worker.smith ? 'Kovář' : 'Syn kováře'} (věk) dnes ${what ?? 'pracuje na rudišti'}`;
+}
+
+/**
+ * Rudiště kováře (crafts.md – Uhlí a ruda kováře – Co hráč vidí; Martin 20. 10. 2026: „Půjde
+ * rudiště také označit?“): ruda v ložisku (zbývá / celkem), hromada vykopané rudy u jámy, jámy,
+ * kovárna – ikona domu, kliknutím ji vybere –, cesta z ní a zásoba rudy v ní; kdo tu dnes
+ * pracuje – kovář, synové s věkem a vůz se sedlákem (jen když dnes).
+ */
+function OreSiteBody({
+  details,
+  onSelectTarget,
+}: {
+  details: Extract<SelectionDetails, { kind: 'ore-site' }>;
+  onSelectTarget?: (target: VillageTarget) => void;
+}): ReactElement {
+  return (
+    <div className="flex min-w-0 flex-col justify-center gap-1.5">
+      <div className={ROW}>
+        <Stat
+          icon="ore"
+          name="Ruda v ložisku (kg) – zbývá z celého ložiska"
+          testId="selection-ore-deposit"
+          alert={details.leftKg <= 0}
+        >
+          {`${formatInteger(details.leftKg)} / ${formatInteger(details.depositKg)}`}
+        </Stat>
+        <Stat
+          icon="ore"
+          name="Vykopaná ruda na hromadě u jámy (kg) – čeká na odnos nebo vůz"
+          testId="selection-ore-heap"
+        >
+          {formatInteger(details.heapKg)}
+        </Stat>
+        <Stat
+          src="/icons/build/rudiste.png"
+          name="Jámy po kopání rudy – po letech zarostou"
+          testId="selection-ore-pits"
+        >
+          {formatInteger(details.pits)}
+        </Stat>
+      </div>
+      <div className={ROW}>
+        <Tooltip content="Kovárna" placement="above">
+          <button
+            type="button"
+            data-testid="selection-ore-smith"
+            aria-label="Kovárna"
+            className="hud-icon-button h-7 w-7"
+            onClick={() => onSelectTarget?.({ kind: 'dwelling', id: details.smithId })}
+          >
+            <img
+              src="/icons/build/kovar.png"
+              alt=""
+              width={128}
+              height={128}
+              className="h-full w-full"
+            />
+          </button>
+        </Tooltip>
+        <Stat icon="walk" name="Cesta z kovárny" testId="selection-ore-walk">
+          {`${formatInteger(details.walkM)} m`}
+        </Stat>
+        <Stat icon="ore" name="Ruda v kovárně (kg)" testId="selection-ore-stock">
+          {formatInteger(details.stockKg)}
+        </Stat>
+      </div>
+      {(details.workers.length > 0 || details.cart) && (
+        <div className={ROW} data-testid="selection-ore-today">
+          {details.workers.map((worker) => (
+            <Stat
+              key={`${worker.smith ? 'k' : 's'}${worker.age}`}
+              icon={worker.age < AGE.adult ? 'child' : 'man'}
+              name={oreWorkerName(worker)}
+              testId="selection-ore-worker"
+            >
+              {worker.age}
+            </Stat>
+          ))}
+          {details.cart && (
+            <Flag
+              icon="cart"
+              name="Vůz se sedlákem dnes odváží rudu z hromady do kovárny"
+              testId="selection-ore-cart"
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
  * Panel výběru dole uprostřed (jako v 0 A.D.) – jen když je něco vybrané: portrét, typ
  * a ikony s čísly. Obydlí: obyvatelé, věk obyvatel, stav, stáří (u přestavby i stromy ke
@@ -1787,7 +1900,10 @@ export function SelectionPanel({
   if (!details) return null;
   let portrait: ReactElement;
   let body: ReactElement;
-  if (details.kind === 'road') {
+  if (details.kind === 'ore-site') {
+    portrait = <Portrait icon="rudiste" name="Rudiště" />;
+    body = <OreSiteBody details={details} onSelectTarget={onSelectTarget} />;
+  } else if (details.kind === 'road') {
     portrait = (
       <Portrait icon={ROAD_KIND_ICONS[details.roadKind]} name={ROAD_KIND_NAMES[details.roadKind]} />
     );

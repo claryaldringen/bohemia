@@ -66,7 +66,7 @@ import {
 import { villageCemeteries } from './cemetery';
 import { finishPurchases, purchaseTravelers, startPurchases, walkPurchases } from './craft-buying';
 import { gainPractice, withCraftSkill } from './craft-skill';
-import { cartIronDay } from './cart-iron';
+import { cartIronDay, ironTripHelpers, ironTripShares } from './cart-iron';
 import { cloneState } from './clone';
 import {
   burnerDraws,
@@ -975,7 +975,13 @@ function work(
     // lidé na výpravách k sousedům (trade.md – Doprava, Martin 19. 10. 2026): jejich práce jde po
     // denním minimu, před úlohami dne – nosiči jsou dospělí, nejvýš kolik jich ves má
     // i skupiny nákupu u sousedů (crafts.md – Nákup u sousedů) – stejné pravidlo
-    away: expeditionLaborToday(state, villagers, day, purchaseTravelers(state)),
+    // i nosiči a sedlák s platbou za kování k vozu (wagons.md – Kování vozů) – po celou cestu
+    away: expeditionLaborToday(
+      state,
+      villagers,
+      day,
+      purchaseTravelers(state) + ironTripHelpers(state),
+    ),
     // sedláci s vozy pro uhlí a rudu kováře (crafts.md – Uhlí a ruda kováře) – jízda domluvená
     // předem, z práce vsi před úlohami dne
     carting:
@@ -1083,7 +1089,7 @@ function work(
   // lidé na cestách k sousedům – podíl z rozdělení dne (trade.md – Doprava): skupiny nákupu
   // u sousedů ujdou den napřed (jdou pevně dny cesty – crafts.md, Nákup u sousedů), zbytek
   // dostanou výpravy obchodu
-  const purchases = walkPurchases(state);
+  const purchases = [...walkPurchases(state), ...ironTripShares(state)];
   const purchaseLabor = Math.min(
     allocation.away,
     purchases.reduce((sum, p) => sum + p.manDays, 0),

@@ -105,11 +105,17 @@ export {
   cartIronKg,
   ironCarrier,
   ironPriceKg,
-  ironRoute,
+  ironDestinations,
+  ironOptions,
+  ironPlan,
+  freeIronCart,
   ironTripDaysLeft,
+  ironTripHelpers,
   ironTripLine,
+  ironTripShares,
   mapTripDays,
   smithAtHome,
+  type IronPlan,
   type IronRoute,
 } from './cart-iron';
 // učení řemesla (crafts.md – Učení řemesla) – den praxe volá simulate.ts

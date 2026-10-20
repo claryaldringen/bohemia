@@ -3,7 +3,9 @@
 // čísla dílů a čtverců sadu pro panel výběru odhaduje odsud: úrodnost z krajiny, cesta vzdušnou
 // čarou k nejbližšímu obydlí (hospodářství), letošní práce podle vzhledu dílu. Ve hře je počítá
 // jádro (`buildVillageView`).
-import type { Crop, Landscape, PartStage } from '@bohemia/game';
+import { SMITH_SUPPLY, type Crop, type Landscape, type PartStage } from '@bohemia/game';
+import type { OreSiteWorker, VillageOreSite } from '@/lib/ore-site-view';
+import { oreSitePits } from '@/lib/scene/ore-site-layout';
 import { tileAt } from '@/lib/scene/tile-at';
 import type { FieldLook, SceneVillage, VillageFieldPart, VillageView } from '@/lib/village-view';
 
@@ -123,6 +125,7 @@ export function devSelectionView(village: SceneVillage, l: Landscape): VillageVi
   return {
     fields,
     orchards,
+    oreSites: devOreSites(village),
     constructions: [],
     households: [],
     cemeteries: [],
@@ -130,4 +133,45 @@ export function devSelectionView(village: SceneVillage, l: Landscape): VillageVi
     roads: [],
     sacred: { oaks: [], groves: [], buildings: [] },
   } as unknown as VillageView;
+}
+
+/**
+ * Rudiště ukázky pro panel výběru (crafts.md – Uhlí a ruda kováře): ložisko bez rudy z jam ukázky,
+ * cesta vzdušnou čarou z kovárny, kdo tu pracuje z rozdělení práce ukázky (kovář = nejstarší).
+ */
+function devOreSites(village: SceneVillage): VillageOreSite[] {
+  const shares = village.labor?.shares ?? [];
+  return (village.oreSites ?? []).map((site) => {
+    const pits = oreSitePits(site, village.orePits);
+    const smithy = village.dwellings.find((d) => d.id === site.dwellingId);
+    const here = shares.filter((s) => s.target.kind === 'ore' && s.target.id === site.dwellingId);
+    const head = Math.max(0, ...here.flatMap((s) => s.ages ?? []));
+    const workers: OreSiteWorker[] = [];
+    for (const share of here) {
+      if (share.activity !== 'ore' && share.activity !== 'fetch') continue;
+      for (const age of share.ages ?? []) {
+        let w = workers.find((x) => x.age === age);
+        if (!w) {
+          w = { age, smith: age === head, digs: false, carries: false, rides: false };
+          workers.push(w);
+        }
+        if (share.activity === 'ore') w.digs = true;
+        else if (share.carts) w.rides = true;
+        else w.carries = true;
+      }
+    }
+    return {
+      smithId: site.dwellingId,
+      leftKg: Math.max(0, SMITH_SUPPLY.depositKg - pits.reduce((sum, p) => sum + p.kg, 0)),
+      depositKg: SMITH_SUPPLY.depositKg,
+      heapKg: site.heapKg,
+      stockKg: 60,
+      walkM: smithy
+        ? Math.round(Math.hypot(smithy.position.x - site.x, smithy.position.z - site.z))
+        : 0,
+      pits: pits.length,
+      workers: workers.sort((a, b) => b.age - a.age),
+      cart: here.some((s) => s.activity === 'haul'),
+    };
+  });
 }

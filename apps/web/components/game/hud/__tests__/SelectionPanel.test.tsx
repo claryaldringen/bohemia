@@ -773,17 +773,43 @@ describe('SelectionPanel – dílna tesaře (wagons.md – Tesař)', () => {
     expect(html).not.toContain('Vyrábí vůz');
   });
 
-  it('syn tesaře jde pro kování do vsi souseda – dny do návratu', () => {
+  it('syn tesaře jde se 6 nosiči pro kování do vsi souseda – dny do návratu', () => {
+    const trip = { to: 'Lhota', direction: 'N' as const, daysLeft: 3, son: true, age: 15 };
     const html = render(
       carpenter(
         'producing',
         { kind: 'two-wheel', progress: 1 },
-        { kg: 3, trip: { to: 'Lhota', direction: 'N', daysLeft: 3, son: true, age: 15 } },
+        { kg: 3, trip: { ...trip, porters: 6, cart: null } },
       ),
     );
-    expect(html).toContain('Syn tesaře (15 let) jde pro kování k vozu do vsi Lhota (sever)');
+    expect(html).toContain(
+      'Syn tesaře (15 let) jde se 6 nosiči (nesou obilí na platbu) pro kování k vozu do vsi Lhota (sever)',
+    );
     expect(html).toContain('zpět za 3 dny');
     expect(html).toMatch(/data-testid="selection-workshop-iron"[^>]*>[^<]*3 d</);
+  });
+
+  it('s volným vozem jede tesař s vozem a sedlákem', () => {
+    const html = render(
+      carpenter(
+        'producing',
+        { kind: 'two-wheel', progress: 1 },
+        {
+          kg: 3,
+          trip: {
+            to: 'Lhota',
+            direction: 'N',
+            daysLeft: 2,
+            son: false,
+            age: 30,
+            porters: 0,
+            cart: 'two-wheel',
+          },
+        },
+      ),
+    );
+    expect(html).toContain('Tesař jede s vozem a sedlákem (dvoukolák veze obilí na platbu)');
+    expect(html).toContain('/icons/resources/cart.png');
   });
 
   it('nový tesař – zkušenost v % červeně, syn, který se učí', () => {
@@ -908,5 +934,65 @@ describe('SelectionPanel – nákup u sousedů (crafts.md)', () => {
     expect(html).toMatch(/data-testid="selection-buying-potteryKg"[^>]*>✓</);
     expect(html).toMatch(/data-testid="selection-buying-trip"[^>]*>↑ 4</);
     expect(html).toContain('/icons/resources/wood-tools.png');
+  });
+});
+
+describe('SelectionPanel – rudiště (crafts.md – Uhlí a ruda kováře)', () => {
+  const ore = (
+    over: Partial<Extract<SelectionDetails, { kind: 'ore-site' }>> = {},
+  ): SelectionDetails => ({
+    kind: 'ore-site',
+    smithId: 12,
+    leftKg: 2140,
+    depositKg: 3000,
+    heapKg: 35,
+    stockKg: 96,
+    walkM: 1186,
+    pits: 5,
+    workers: [
+      { age: 41, smith: true, digs: true, carries: true, rides: false },
+      { age: 15, smith: false, digs: true, carries: false, rides: false },
+    ],
+    cart: false,
+    ...over,
+  });
+
+  it('portrét Rudiště, ložisko zbývá / celkem, hromada, jámy, kovárna, cesta a zásoba v ní', () => {
+    const html = render(ore());
+    expect(html).toContain('data-kind="ore-site"');
+    expect(html).toContain('src="/icons/build/rudiste.png"');
+    expect(html).toContain('>Rudiště</h2>');
+    expect(text(html, 'selection-ore-deposit')).toBe('2 140 / 3 000');
+    expect(html).not.toMatch(/data-testid="selection-ore-deposit"[^>]*data-alert/);
+    expect(text(html, 'selection-ore-heap')).toBe('35');
+    expect(text(html, 'selection-ore-pits')).toBe('5');
+    expect(html).toMatch(
+      /data-testid="selection-ore-smith"[^>]*><img src="\/icons\/build\/kovar\.png"/,
+    );
+    expect(text(html, 'selection-ore-walk')).toBe('1 186 m');
+    expect(text(html, 'selection-ore-stock')).toBe('96');
+  });
+
+  it('kdo tu dnes pracuje: kovář a syn s věkem, co dělají v popisku; vůz se sedlákem', () => {
+    const html = render(ore());
+    expect(html.match(/data-testid="selection-ore-worker"[^>]*>(\d+)</g)).toHaveLength(2);
+    expect(html).toMatch(/man\.png.*data-testid="selection-ore-worker"[^>]*>41</);
+    expect(html).toContain('Kovář (věk) dnes kope rudu a nosí ji v koších do kovárny');
+    expect(html).toContain('Syn kováře (věk) dnes kope rudu');
+    expect(html).not.toContain('selection-ore-cart');
+    const cart = render(
+      ore({
+        workers: [{ age: 41, smith: true, digs: false, carries: false, rides: true }],
+        cart: true,
+      }),
+    );
+    expect(cart).toContain('Kovář (věk) dnes jede s vozem pro rudu');
+    expect(cart).toContain('data-testid="selection-ore-cart"');
+  });
+
+  it('dnes tu nikdo nepracuje – řádek chybí; vyčerpané ložisko červeně', () => {
+    const html = render(ore({ workers: [], leftKg: 0 }));
+    expect(html).not.toContain('selection-ore-today');
+    expect(html).toMatch(/data-testid="selection-ore-deposit"[^>]*data-alert/);
   });
 });

@@ -746,13 +746,18 @@ describe('kování vozů (wagons.md – Kování vozů)', () => {
           place: 'Lhota',
           son: false,
           direction: 'N',
+          porters: 6,
           dateLabel: '',
           text: '',
         },
       ],
     });
     expect(newNotices(view({ dayIndex: 1000 }), after)).toEqual([
-      { kind: 'iron-trip', tone: 'info', text: 'Tesař šel pro kování k vozu do vsi Lhota (sever)' },
+      {
+        kind: 'iron-trip',
+        tone: 'info',
+        text: 'Tesař šel se 6 nosiči pro kování k vozu do vsi Lhota (sever)',
+      },
       { kind: 'iron-brought', tone: 'info', text: 'Syn tesaře přinesl kování' },
     ]);
   });

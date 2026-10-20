@@ -170,6 +170,7 @@ import {
   type HouseholdRelocation,
 } from './relocation-view';
 import { manorView, type VillageManor } from './manor-view';
+import { oreSitesField, type VillageOreSite } from './ore-site-view';
 import { foreignFromScene, plotOfScene } from './scene/neighbour-villages';
 import { sceneTrails, trailRoadWork } from './trail-view';
 import { sceneExpeditions } from './caravan-view';
@@ -648,10 +649,12 @@ export interface VillageView {
     products?: CraftProduct[];
     /**
      * Cesta pro kování k vozu (`iron-trip`, `iron-brought` – wagons.md, Kování vozů): do které vsi
-     * (jméno) a jestli šel syn tesaře.
+     * (jméno), jestli šel syn tesaře, kolik nosičů šlo s ním, nebo jestli platbu vezl vůz.
      */
     place?: string;
     son?: boolean;
+    porters?: number;
+    byCart?: true;
     /** Kolik volů se vycvičilo, dosloužilo nebo uhynulo (oxen.md – Voli po kusech). */
     oxen?: number;
     dateLabel: string;
@@ -669,6 +672,11 @@ export interface VillageView {
    * a obchod se sousedy; dokud zakladatelé první zemnici staví, null.
    */
   manor: VillageManor | null;
+  /**
+   * Rudiště kováren (crafts.md – Uhlí a ruda kováře) pro panel výběru – ložisko, hromada u jámy,
+   * zásoba v kovárně, cesta, jámy a kdo tu dnes pracuje; chybí = žádné.
+   */
+  oreSites?: VillageOreSite[];
 }
 
 /** Nákup u souseda na cestě (crafts.md – Nákup u sousedů). */
@@ -1754,6 +1762,17 @@ function marriageText(event: Extract<ChronicleEvent, { kind: 'marriage' }>): str
     : 'Svatba – nevěsta se přestěhovala k ženichovi.';
 }
 
+/**
+ * Kdo šel pro kování k vozu (wagons.md – Kování vozů) – „tesař šel se 6 nosiči“, „syn tesaře jel
+ * s vozem“ (malým písmenem, jak je ve větě).
+ */
+export function ironTripWho(son: boolean, porters: number, byCart: boolean): string {
+  const who = son ? 'syn tesaře' : 'tesař';
+  if (byCart) return `${who} jel s vozem`;
+  if (porters <= 0) return `${who} šel`;
+  return `${who} šel ${porters === 1 ? 's 1 nosičem' : `se ${porters} nosiči`}`;
+}
+
 /** Text události kroniky česky. */
 export function chronicleText(event: ChronicleEvent, villageName: string): string {
   switch (event.kind) {
@@ -1784,7 +1803,7 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
     case 'cart-made':
       return `Tesař vyrobil ${CART_NAMES[event.cart].toLowerCase()}.`;
     case 'iron-trip':
-      return `Ves nemá kováře – ${event.son ? 'syn tesaře šel' : 'tesař šel'} pro kování k vozu do vsi ${event.to}.`;
+      return `Ves nemá kováře – ${ironTripWho(event.son, event.porters ?? 0, event.byCart === true)} pro kování k vozu do vsi ${event.to}.`;
     case 'iron-brought':
       return `${event.son ? 'Syn tesaře přinesl' : 'Tesař přinesl'} kování k vozu.`;
     case 'cart-worn-out':
@@ -2594,6 +2613,18 @@ function sceneCarts(
       });
     }
   }
+  // vůz s platbou za kování k vozu jede po zemské stezce jako výprava (wagons.md – Kování vozů)
+  for (const d of state.dwellings) {
+    const trip = d.workshop?.ironTrip;
+    if (trip?.cartId === undefined || trip.to.kind !== 'neighbour' || trip.to.trailId === null) {
+      continue;
+    }
+    jobs.set(trip.cartId, {
+      activity: 'trade',
+      target: { kind: 'trail', id: trip.to.trailId },
+      load: 'goods',
+    });
+  }
   const idleOf = (kind: CartKind): Cart[] =>
     carts.filter((c) => c.kind === kind && !away.has(c.id)).sort((a, b) => a.id - b.id);
   const idle = idleOf('two-wheel');
@@ -3311,6 +3342,8 @@ function chronicle(state: VillageState, name: string): VillageView['chronicle'] 
             place: event.to,
             son: event.son,
             ...(event.direction ? { direction: event.direction } : {}),
+            ...(event.porters ? { porters: event.porters } : {}),
+            ...(event.byCart ? { byCart: true as const } : {}),
           }
         : {}),
       ...(event.kind === 'iron-brought' ? { son: event.son } : {}),
@@ -3694,6 +3727,7 @@ export function buildVillageView(
     purchases: purchaseViews(state),
     lastMarriageDay: lastMarriageDay(state),
     manor: manorView(state, landscape, day, context.ownMaps ?? {}),
+    ...oreSitesField(state, day),
   };
 }
 

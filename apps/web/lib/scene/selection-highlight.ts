@@ -6,6 +6,7 @@ import type { Scene } from '@babylonjs/core/scene';
 import { DWELLING_FOOTPRINT_M, SACRED_BUILDINGS, roadChain } from '@bohemia/game';
 import { scenePenSquares, type SceneVillage } from '../village-view';
 import { cellsBoundary, type CellSquare } from './field-cells';
+import { oreSiteDiscs, oreSiteOutline } from './ore-site-layout';
 import { footprintCorners, stripSegments, type Point } from './village-layout';
 import { createDecalMaterial, createStripMesh, type HeightFn } from './village-meshes';
 import { selectedFieldPart, selectedOrchardSquare, type VillageTarget } from './village-picking';
@@ -32,6 +33,8 @@ const SEE_THROUGH: ReadonlySet<VillageTarget['kind']> = new Set([
   'cemetery',
   'grove',
   'pen',
+  // jámy rudiště zakrývá val a rákos u vody
+  'ore-site',
 ]);
 
 /** Lomená čára posunutá o `d` m kolmo (vlevo kladně) – v bodech zlomu podle průměru směrů. */
@@ -104,7 +107,7 @@ export class SelectionHighlight {
  * Obrys cíle jako lomené čáry: celý pozemek obydlí (polozemnice – políčko), rámeček kolem
  * půdorysu volného obydlí (u víc vybraných obydlí kolem každého), modly nebo svatyně, kroužek kolem posvátného dubu, nebo mez kolem
  * čtverců pole, hřbitova, sadu, háje či ohrady; vybraný díl pole a čtverec sadu jen jeho čtverec
- * (i natočený).
+ * (i natočený); rudiště kováře obrys kolem jam a hromady rudy (`oreSiteOutline`).
  */
 export function targetOutline(village: SceneVillage, target: VillageTarget): Point[][] {
   if (target.kind === 'field-part') {
@@ -167,6 +170,11 @@ export function targetOutline(village: SceneVillage, target: VillageTarget): Poi
   if (target.kind === 'pen') {
     const pen = village.pens?.find((p) => p.id === target.id);
     return pen ? cellsBoundary(scenePenSquares(pen)) : [];
+  }
+  if (target.kind === 'ore-site') {
+    const site = village.oreSites?.find((s) => s.dwellingId === target.id);
+    const pits = village.orePits?.filter((p) => !p.clay);
+    return site ? [oreSiteOutline(oreSiteDiscs(site, pits))] : [];
   }
   if (target.kind === 'road') {
     // celá cesta hráče (roads.md – Cesta pro hráče): čáry po obou stranách pásu přes všechny
