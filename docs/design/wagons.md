@@ -86,16 +86,31 @@ níž je návrh Clauda, čísla v `CART_JOBS` (`rules.ts`).
 
 - **Kdy:** dvoukolák, který dnes nesváží úrodu, seno ani klády ke stavbám (ty mají přednost)
   a jehož voli neorají (ani orbu navíc – fields.md, Osev navíc), jede v pořadí:
-  1. **dřevěné uhlí z milíře ke kováři** – v den, kdy uhlíř nosí kováři uhlí z vypáleného milíře
-     (crafts.md – Milíř stojí vždy). Z vytahání, třídění a odnosu (2 čd na 120 kg) je **pětina
-     odnos v koších** (u lesního milíře s přirážkou za chůzi) – ten nahradí jízdy vozu
-     (dvoukolák uveze 300 kg uhlí – korba s koši ≈ 1,2 m³, uhlí ≈ 250 kg/m³; nakládka a složení
-     u kováře 15 minut). Jízdy jdou z práce uhlířovy domácnosti – práce na kg uhlí klesne
-     (u milíře u dílny ≈ o 18 %),
-  2. **osivo na pole** v den setí – nošení osiva v pytlích ze sýpky na pole (≈ **desetina setí**,
+  1. **dřevěné uhlí z milíře ke kováři** – v den, kdy uhlíř vytahá uhlí z vypáleného milíře
+     (crafts.md – Milíř stojí vždy). Martin (20. 10. 2026): „Pokud bude ve vesnici vůz, tak kováři
+     přiveze uhlí sedlák s vozem (a odečte se jeho práce).“ Uhlí jinak nosí v koších kovářova
+     domácnost – synové od 10 let, nebo kovář (crafts.md – Uhlí a ruda kováře); s vozem jede
+     **sedlák z práce vsi** (jízda domluvená předem – jako výpravy před úlohami dne), uhlíř nakládá
+     při vytahání, u kovárny složí kovář. Dvoukolák uveze 300 kg uhlí (korba s koši ≈ 1,2 m³,
+     uhlí ≈ 250 kg/m³; nakládka a složení 15 minut). Vůz jede, jen když je práce sedláka na kg
+     menší než nošení v koších kovářovou domácností (koše po 15 kg tam a zpět po cestě);
+     komu vůz uhlí přiveze, nenosí. Do 20. 10. 2026 platila jízdy uhlířova domácnost
+     a nahrazovaly pětinu vytahání (odnos),
+  2. **ruda z rudiště do kovárny** (crafts.md – Uhlí a ruda kováře; Martin 20. 10. 2026: „To samé
+     u těžení rudy. Kovář a sedlák s vozem dojedou na místo, kde se ruda těží, kovář (nebo jeho
+     synové) nakopou rudu a pak s plným vozem přijedou zase do kovárny.“) – má-li ves vůz doma
+     a jízda k rudišti ušetří práci, kope kovář rudu **na celý dvoukolák** (400 kg – CARTS.loadKg)
+     a začne dřív, dokud mu ruda vystačí na kopání dávky a 15 dní kování (`reserveDays`);
+     vykopaná ruda leží na hromadě u jámy (rešerše: ruda se nechá odtéct a vysušit, praží se
+     u ložiska) a pro ni pak jedou **sedlák a kovář** (nebo syn od 14) – sedlák z práce vsi,
+     kovář z práce dílny, naloží a vrátí se s plným vozem (nakládka a složení 15 minut). Vůz
+     jede, jen když jízda obou stojí méně než nošení v koších po 25 kg. Nepřijede-li den po
+     vykopání a kovář nemá rudu na dnešek, donese ji pěšky (rozhodnutí Clauda – „sedlák čeká při
+     kopání“ by se nevyplatilo nikdy: 400 kg je 5–7 dní kopání),
+  3. **osivo na pole** v den setí – nošení osiva v pytlích ze sýpky na pole (≈ **desetina setí**,
      175 kg/ha ≈ 5 pytlů) převezme vůz jako odnos snopů při sklizni (vůz za den = 8 nosičů se
      2 lidmi, nejvýš podíl práce na dílech, kam vůz dojede),
-  3. **voda v sudech** – dva sudy po 150 l (300 l ≈ 12 cest s vědry na vahadle – člověk
+  4. **voda v sudech** – dva sudy po 150 l (300 l ≈ 12 cest s vědry na vahadle – člověk
      spotřebuje 10 l denně, cesta nese 25 l). Vůz přiveze vodu domácnostem, kterým jízda ušetří
      práci – chůze s vědry nad 100 m od vody (blíž je v ceně denního minima, paths.md – Pochůzky
      pro vodu): přirážka za vodu se zmenší o přivezenou vodu a přičte se díl práce posádky (jízda
@@ -105,21 +120,24 @@ níž je návrh Clauda, čísla v `CART_JOBS` (`rules.ts`).
   čtyřkolák jezdí jen s výpravami. Za den nejvýš 8 jízd (CARTS.loadsPerCartDay) a co se vejde do
   10hodinového dne – voli jdou s vozem ≈ 0,8 m/s po louce, po cestě rychleji (vozová síť).
 - **Dosah:** vůz jede jen tam, kam ho pustí vozová síť – k milíři do 12 m (milíř v lese jen po
-  pevné cestě), na suchý břeh u vody (z 40 břehů nejblíž ohradě ten, kam sjede nejlevněji),
+  pevné cestě), k rudišti do 12 m, na suchý břeh u vody (z 40 břehů nejblíž ohradě ten, kam sjede nejlevněji),
   k dílům s osivem jako ke snopům. Kam nedojede, nosí se jako dřív.
-- **Jen když ušetří práci** – vůz pro uhlí, když je jízda levnější než odnos v koších, pro vodu
+- **Jen když ušetří práci** – vůz pro uhlí a rudu, když je jízda levnější než nošení v koších
+  kovářovou domácností, pro vodu
   domácnostem, kterým je jízda levnější než chůze s vědry (anti-cíl: vůz, který práci neušetří).
-- **Vyjeté cesty:** jízdy pro uhlí, s osivem i pro vodu se počítají do ročního provozu cest jako
-  svoz – k vodě a k milíři mohou vzniknout vyježděné cesty.
-- **Ve scéně:** vůz jede tam a zpět (`shuttleRoute`) – uhlí veze zpátky (zboží), osivo tam (zboží,
+- **Vyjeté cesty:** jízdy pro uhlí, rudu, s osivem i pro vodu se počítají do ročního provozu cest
+  jako svoz – k vodě, k milíři a k rudišti mohou vzniknout vyježděné cesty.
+- **Ve scéně:** vůz jede tam a zpět (`shuttleRoute`) – uhlí veze zpátky (zboží), rudu zpátky
+  (hromada rezavých hrud – díly `wagon2-ore` a `wagon4-ore`), osivo tam (zboží,
   zpátky prázdný), voda v sudech tam i zpět (prázdné sudy k vodě, plné domů – díly `wagon2-water`
   a `wagon4-water`: stojící sudy po ≈ 150 l s víkem a čepem, převázané provazem; dvoukolák dva,
   čtyřkolák čtyři). Na rozdíl od svozu úrody (ladicí – jízdy dne v okně herního dne) jezdí vozy
-  s vodou, uhlím a osivem tempem volů ve skutečném čase (`steadyJob` v `village-carts.ts`) – do
+  s vodou, uhlím, rudou a osivem tempem volů ve skutečném čase (`steadyJob` v `village-carts.ts`) – do
   86 s herního dne by se jízda k vodě vešla jen čtyřicetikilometrovou rychlostí; jsou tak součástí
   provozu na cestách (villagers.md). Ve dny, kdy vůz vodu veze, chodí pro ni pěšky jen tolik
   lidí, kolik vůz nepřivezl. Rozdělení práce dne má podíl `haul`
-  s počtem vozů, cílem (milíř, díl pole, břeh – `{ kind: 'water' }`) a co vůz veze
+  s počtem vozů, cílem (milíř, rudiště – `{ kind: 'ore' }`, díl pole, břeh – `{ kind: 'water' }`)
+  a co vůz veze
   (`LaborShare.job`). Kronika ani upozornění nejsou.
 
 ## Vozová síť a vyjeté cesty
@@ -420,7 +438,8 @@ zblízka**, **Sledovat vůz**) – herní logika vozů ani tesaře v jádru nen�
   `iber_struct.png` jako `hay_cart` 0 A.D., přebarvená do olivova), snopy (napříč, klasy dovnitř,
   po vrstvách), klády (v pyramidě, přečnívají dozadu, kůra a čela jako hromada klád a polena
   řemesel), zboží (pytle, soudek medu, balík kožešin), voda (stojící sudy s víkem, čepem
-  a provazem ke korbě – Co vozy vozí). Prázdný vůz bez nákladu.
+  a provazem ke korbě – Co vozy vozí), ruda (hrbolatá hromada rezavých hrud nad bočnice a volné
+  hroudy – crafts.md, Uhlí a ruda kováře). Prázdný vůz bez nákladu.
 - **Ve scéně:** `cart-layout.ts` (čisté funkce – trasa, póza vozu se spřežením v čase t, sklon
   a náklon podle terénu pod koly) a `cart-renderer.ts` (kreslení v instancích). Data přijdou
   z jádra jako trasa vozu (lomená čára), druh a náklad.
@@ -502,7 +521,11 @@ Návrh Clauda (19. 10. 2026) – jen zobrazení, simulace se nemění.
 | Mokřina na cestě z `Road.ground` jako chůze; na poli nejpomalejší; připravený = strniště  | návrh Clauda          |
 | „Pokud budou mít k dispozici vůz, ať na pole, pro vodu nebo pro dřevěné uhlí jede vůz.“   | Martin (19. 10. 2026) |
 | Mimo svoz a klády v pořadí uhlí – osivo – voda; voli neorají ani orbu navíc               | návrh Clauda          |
-| Uhlí: vůz nahradí odnos (pětina vytahání), jízdy z práce uhlíře, 300 kg na jízdu          | návrh Clauda          |
+| ~~Uhlí: vůz nahradí odnos (pětina vytahání), jízdy z práce uhlíře~~, 300 kg na jízdu      | návrh Clauda          |
+| „kováři přiveze uhlí sedlák s vozem (a odečte se jeho práce). To samé u těžení rudy.“     | Martin (20. 10. 2026) |
+| Uhlí a ruda: sedlák z práce vsi před úlohami dne, jen když ušetří proti nošení kovárny    | návrh Clauda          |
+| Ruda: dávka na celý vůz (400 kg) čeká na hromadě, kovář jede se sedlákem                  | rozhodnutí Clauda     |
+| Pořadí mimo svoz: uhlí – ruda – osivo – voda                                              | návrh Clauda          |
 | Osivo: desetina setí, jako odnos snopů (8 nosičů se 2 lidmi)                              | návrh Clauda          |
 | Voda: 10 l na člověka, sudy 300 l, jen domácnostem, kterým jízda ušetří práci             | návrh Clauda          |
 | Voda vozem – posádka v denním minimu; břeh nejblíž ohradě, kam vůz sjede                  | návrh Clauda          |

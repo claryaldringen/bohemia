@@ -36,7 +36,7 @@ import {
 // postaví milíř a pálí ho 8 dní (hlídá ve dne i v noci). Leží-li dávka blízko dílny, pálí u ní;
 // dál staví milíř v lese u dávky a za chůzi platí přirážku vzdálenosti. Na pařezy skácených buků
 // sází mladé buky (obnova lesa). Milíř stojí vždy (crafts.md – Milíř stojí vždy, Martin
-// 19. 10. 2026): uhlíř má jeden milíř, vypálený je zásobou uhlí a uhlíř z něj nosí uhlí kovářům,
+// 19. 10. 2026): uhlíř má jeden milíř, vypálený je zásobou uhlí a uhlíř z něj vytahá uhlí kovářům,
 // jak ho spotřebují – rozebraný zmizí a uhlíř staví nový; s vypáleným milířem sází, nebo pomáhá
 // vsi. Krok dne mutuje stav (volat na klonu), den po dni – na kouscích nezávisí.
 
@@ -154,11 +154,11 @@ export function kilnLeadDays(
 }
 
 /**
- * Kolik uhlí uhlíř dnes donese kovářům z vypáleného milíře (kg; crafts.md – Milíř stojí vždy):
+ * Kolik uhlí uhlíř dnes vytahá kovářům z vypáleného milíře (kg; crafts.md – Milíř stojí vždy):
  * - zbývá-li v milíři a u kováře jen tolik uhlí, kolik kováři spálí, než uhlíř připraví a vypálí
  *   další milíř (`leadKg`), vytahá zbytek celý – milíř je rozebraný a uhlíř začne nový,
  * - jinak když uhlí u kováře (`looseKg`) nestačí na dnešní kování (`forgeKg` – všichni kováři, kteří
- *   dnes kovou, na plný úvazek), donese uhlí na CHARCOAL_KILN.drawBatchDays dní kování, nejvýš co
+ *   dnes kovou, na plný úvazek), vytahá uhlí na CHARCOAL_KILN.drawBatchDays dní kování, nejvýš co
  *   v milíři zbývá,
  * - jinak 0 – milíř stojí a čeká (bez kováře vždy).
  */

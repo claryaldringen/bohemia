@@ -36,6 +36,8 @@ Hráč má vidět, **kde ves dnes pracuje** – kam jde práce lidí, kterou po�
     u polozemnice na pozemku uvnitř pozemku u domu a na konci u plotu,
   - opravy a přestavba – u obydlí, výsadba sadu – okopávání čtverců, které se sázejí, sklizeň
     a péče – pod jabloněmi, hřbitov – na obvodu ohrazovaných čtverců (nikdy na hrobech),
+  - rudiště kováře (crafts.md – Uhlí a ruda kováře) – kovář a synové od 14 let stojí s motykou na
+    valu nejčerstvější jámy čelem do ní; kdo kope, ví rozdělení práce (`LaborShare.ages` – věky),
   - domácí práce – ženy před vchodem, některé chodí kousek od domu (pro vodu a dřevo chodí
     provoz na cestách – níž),
   - nevyužitá společná práce – dvojice postávající u domů.
@@ -89,9 +91,17 @@ vodu a dřevo, vozy) už jsou v jádru.
   místa u vchodu – u pozemků vedle sebe i o pár metrů dál.
 - **Schůdná země přes celou krajinu** (pole do 800 m od obydlí): buňky po 4 m se počítají až při
   prvním dotazu a pamatují se (`lazyWalkable`).
-- **Vozy** s vodou, uhlím a osivem jezdí po vozové síti tam a zpět tempem volů ve skutečném čase
-  (svoz úrody dál v okně herního dne – ladicí); voda v sudech, uhlí a osivo jako zboží
-  (wagons.md – Co vozy vozí).
+- **Nosiči kováře** (crafts.md – Uhlí a ruda kováře; Martin 20. 10. 2026: „Pokud má dostatečně
+  starého syna nebo syny, pošle pro uhlí jeho/je.“) – další druh pochůzky: kdo dnes nese uhlí od
+  milíře nebo rudu z rudiště (věky z rozdělení práce – synové 10–13 let jsou **menší postavy**
+  dětí, synové od 14 a kovář dospělí), jde z kovárny po pěšinách k milíři či jámě bez nákladu
+  a zpátky s košem (klip `carry`), u milíře a jámy chvíli nakládá, doma na chvíli zmizí. **Každý
+  nosič je jedna postava** (nejvýš 3 na cestu – `fetchCarriers`), ne proud podle cest za den:
+  syn nosí sám celý den tam a zpět a proud by z jednoho chlapce udělal deset. Kovář, který jede
+  s vozem pro rudu, jde s vozem – pěšky se nekreslí.
+- **Vozy** s vodou, uhlím, rudou a osivem jezdí po vozové síti tam a zpět tempem volů ve
+  skutečném čase (svoz úrody dál v okně herního dne – ladicí); voda v sudech, uhlí a osivo jako
+  zboží, ruda jako hromada rezavých hrud (wagons.md – Co vozy vozí).
 - **Výkon** (Vlkov, Chromium s WebGL 2, M1 Pro): přestavba lidí po změně vsi 6–11 ms (dřív
   4–8 ms s polovinou postav – bez lidí na vzdáleném poli), zápis póz za snímek pod 0,1 ms; zoom
   bez nových dlouhých snímků. Trasy po pěšinách si hledání pamatuje.

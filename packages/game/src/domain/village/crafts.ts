@@ -267,7 +267,7 @@ function kilnLeadKg(
 }
 
 /**
- * Kolik uhlí kováři vsi dnes spálí (kg) – podle toho uhlíř nosí uhlí z vypáleného milíře
+ * Kolik uhlí kováři vsi dnes spálí (kg) – podle toho uhlíř vytahá uhlí z vypáleného milíře
  * (crafts.md – Milíř stojí vždy): kováři, kteří dnes kovou (zásoba nástrojů je pod `craftTargets`),
  * na plný úvazek při dnešní práci, po 50 kg uhlí na kg nástrojů. Bez kováře, nebo s plnou zásobou
  * nástrojů 0.
@@ -317,7 +317,7 @@ export function restingCrafters(
   if (!state.dwellings.some((d) => d.workshop)) return resting;
   const stocks = craftStocks(state);
   const targets = craftTargets(state, day);
-  // uhlíři napřed – kolik uhlí dnes kovářům donesou z vypálených milířů
+  // uhlíři napřed – kolik uhlí dnes kovářům vytahají z vypálených milířů
   const loose = restingBurners(state, day, coverage, productivity, obstacles, resting);
   for (const d of occupiedWorkshops(state, 'smith')) {
     const workshop = d.workshop!;
@@ -379,7 +379,7 @@ function restingBurners(
 }
 
 /**
- * Kolik uhlí dnes uhlíři donesou kovářům z vypálených milířů (kg po dílnách – jen ti, kdo nosí;
+ * Kolik uhlí dnes uhlíři vytahají kovářům z vypálených milířů (kg po dílnách – jen ti, kdo tahají;
  * crafts.md – Milíř stojí vždy): `charcoalDrawKg` v pořadí dílen, i s uhlím, které donese uhlíř
  * před ním. Rozhoduje se na začátku dne ze včerejších zásob (jako `restingCrafters`) – podle toho
  * dostane uhlíř vůz (wagons.md – Co vozy vozí).
@@ -814,7 +814,7 @@ export function workCrafts(
         labor.craft,
         day,
         obstacles,
-        // z vypáleného milíře donese uhlí, když u kovářů nestačí na dnešní kování, a zbytek
+        // z vypáleného milíře vytahá uhlí, když u kovářů nestačí na dnešní kování, a zbytek
         // vytahá celý, když stačí jen na přípravu dalšího milíře
         {
           drawKg: charcoalDrawKg(
