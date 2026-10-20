@@ -616,17 +616,20 @@ export const PEN_PLACES_PER_SQUARE = { sheep: 130, goat: 100, pig: 80, cow: 45, 
 /**
  * oxen.md – Spřežení, Voli po kusech (návrh Clauda, Martin schválil): výcvik ≈ 2 roky, vůl slouží
  * ≈ 10 let, pak jde na maso; rádlo táhne pár (`teamSize`). Ves s ohradou volů drží aspoň `minCows`
- * krávy a na obměnu volů `cowsPerOx` krávy navíc na vola (Martin 20. 10. 2026 – návrh Clauda: býčci
- * ≈ 0,4 na krávu a rok, obměna 1/10 volů ročně → kráva na 4 voly); telata na voly jen z přírůstku
- * nad chovnými kravami (koordinátor za Martina 20. 10. 2026). Nejvýš `maxPairs` párů k rádlům
- * (pojistka hledání v plánu osevu).
+ * krávy a na obměnu volů `cowsPerOx` krávy navíc na vola; telata na voly jen z přírůstku nad
+ * chovnými kravami. Cíl krav podle volů (diet.md – Krávy na obměnu volů; Martin 20. 10. 2026:
+ * „Dejme možnost 1.“ – podrobnosti návrh Clauda): voli jsou býčci – polovina telat, ≈ 0,2 býčka na
+ * kus stáda skotu a rok (LIVESTOCK.growth.cow 0,4 × polovina); vůl slouží 10 let, takže obměna
+ * desetiny volů ročně chce 0,1 ÷ 0,2 = 0,5 krávy na vola (dřív 0,25 – počítalo se se všemi telaty);
+ * krávy na voly se ke kravám na mléko přičítají. Nejvýš `maxPairs` párů k rádlům (pojistka hledání
+ * v plánu osevu).
  */
 export const OXEN = {
   trainingYears: 2,
   serviceYears: 10,
   teamSize: 2,
   minCows: 3,
-  cowsPerOx: 0.25,
+  cowsPerOx: 0.5,
   maxPairs: 8,
 } as const;
 /**

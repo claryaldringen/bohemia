@@ -170,16 +170,17 @@ describe('ohrada', () => {
     expect(oxenTraining(s, day, goal(2, 1), null)).toMatch(/staví/);
     s.livestock!.herds.cow = 3;
     const built = advanceVillage(s, day + 60, null);
-    // telata chybí – krávy nemají přírůstek nad chovné stádo (3 krávy + kráva na 4 voly), ohrada čeká
-    expect(breedingCows(built)).toBeCloseTo(3.5, 9);
+    // telata chybí – krávy nemají přírůstek nad chovné stádo (půl krávy na mléko + 3 krávy + půl
+    // krávy na vola), ohrada čeká
+    expect(breedingCows(built)).toBeCloseTo(4.5, 9);
     expect(built.pens![0]!.builtDay).not.toBeNull();
     expect(built.pens![0]!.oxen).toEqual([]);
-    expect(oxenTraining(built, built.lastDay, goal(2, 1, 3.5), null)).toMatch(/telata/);
-    built.livestock!.herds.cow = 5.6;
+    expect(oxenTraining(built, built.lastDay, goal(2, 1, 4.5), null)).toMatch(/telata/);
+    built.livestock!.herds.cow = 6.6;
     const training = advanceVillage(built, built.lastDay + 1, null);
     // bez hráče: pár telat do výcviku (ves chce pár k rádlu), rádlo staví ves (kláda z hromady);
     // krávy pod chovné stádo neklesnou
-    expect(training.livestock!.herds.cow).toBeCloseTo(3.6, 2);
+    expect(training.livestock!.herds.cow).toBeCloseTo(4.6, 2);
     const ready = oxTrainedDay(built.lastDay + 1);
     expect(training.pens![0]!.oxen).toEqual([{ trainedDay: ready }, { trainedDay: ready }]);
     const ard = training.constructions.find((c) => c.kind === 'ard')!;
@@ -194,8 +195,9 @@ describe('ohrada', () => {
     const day = at(600, 5, 1);
     const s = withTeam(day);
     s.pens![0]!.team = null;
-    // chovné stádo 3,5 krávy (3 + kráva na 4 voly) – 3,6 krávy přírůstek na tele nemají
-    s.livestock!.herds.cow = 3.6;
+    // chovné stádo 4,5 krávy (půl krávy na mléko + 3 + půl krávy na vola) – 4,6 krávy přírůstek
+    // na tele nemají
+    s.livestock!.herds.cow = 4.6;
     const march = advanceWithHay(s, at(601, 3, 31), 20_000);
     expect(march.pens![0]!.oxen).toEqual([]);
     expect(march.livestock!.herds.cow).toBeGreaterThan(3);
