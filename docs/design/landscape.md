@@ -90,9 +90,11 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
     světa). Vede po straně potoka s místem pro vesnici, údolími (nízko); trasa aspoň 300 m od vsi
     a 135 m od potoka (s meandry osa nejblíž 270 m od vsi, voda 45 m od potoka), dál od okraje
     mapy a kolem vsi (ne daleko u okraje).
-    Široká 12–20 m (mění se podél toku, každý břeh vlastní odchylkou), mírné meandry, hladina
-    1,2 m nade dnem (potok 0,6 m), údolí jako u potoka s rovnou nivou podél vody. Brody jen na
-    1–2 místech (mělký úsek ≈ 45 m, o 40 % širší). Voda řeky je voda povrchu – pro vesnici
+    Širší a hlubší než potok (spec): šířka aspoň 1,5× medián šířky potoka téže mapy, nikdy pod
+    25 m ani nad 45 m (i v brodu) – v tomto rozsahu ji určí seed řeky, podél toku se mění a každý
+    břeh má vlastní odchylku (plán psal 12–20 m, to je šířka potoka – medián 18 m). Mírné
+    meandry, hladina 1,2 m nade dnem (potok 0,6 m), údolí jako u potoka s rovnou nivou podél vody.
+    Brody jen na 1–2 místech (mělký úsek ≈ 45 m, o 40 % širší, nejvýš 45 m). Voda řeky je voda povrchu – pro vesnici
     překážka jako potok (pěšiny, vozy, stavby) a stromy ani kameny vrstvy překážek v ní nestojí
     (`watersCenterline` – osa vod pro rozmisťovače i pěšiny, krajina bez řeky má přesně osu
     potoka). Rovinu kolem místa pro vesnici (17 políček, plně od 27) údolí ani ostrožna nemění,
@@ -108,8 +110,9 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
     břehy, sklon a les ji zdražují. Prvky: řeka, brody, ostrožna (`Promontory` druhu `ford-hill`),
     stezka.
   - **Soutok:** rameno řeky přitéká od okraje mapy k potoku pod vsí (po proudu, aspoň 360 m od vsi)
-    pod úhlem 25–80° od směru proti proudu potoka, řeka dál teče dolním tokem potoka (koryto
-    rozšířené aspoň na šířku řeky, tůně potoka zůstanou širší, stěny u potoka taky). Potok nad
+    pod úhlem 25–80° od směru proti proudu potoka, řeka dál teče dolním tokem potoka (koryto na
+    šířku řeky – tůně potoka širší než řeka se zúží, voda mimo koryto je břeh těsně nad hladinou;
+    stěny u potoka zůstanou). Potok nad
     soutokem zůstane jako přítok a končí v soutoku. V úhlu mezi ramenem a potokem ostrožna
     10–14 m nad hladinou (`confluence`). Řeka vtéká a vytéká na různých okrajích. Prvky: řeka,
     brody, soutok, ostrožna.

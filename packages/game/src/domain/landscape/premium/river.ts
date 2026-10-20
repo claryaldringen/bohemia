@@ -19,13 +19,19 @@ import { CELL_SIZE_M, type Promontory, type StreamPoint } from '../types';
 // v deterministické vrstvě, proto jen det-math – pomocné funkce osy potoka (`stream.ts`) se
 // použijí beze změny. Čísla jsou návrh Clauda, doladí je kalibrace.
 
-/** Řeka (plán: šířka 12–20 m, brody jen na 1–2 místech). */
+/** Řeka (spec: širší a hlubší než potok, brody jen na 1–2 místech). */
 export const RIVER = {
-  /** Šířka vody mezi břehy (m) – mění se podél toku. */
-  widthM: [12, 20],
+  /**
+   * Šířka vody mezi břehy (m): aspoň `streamFactor` × medián šířky potoka téže mapy, nikdy pod
+   * `minM` ani nad `maxM` (ani v brodu); v tomto rozsahu ji určí seed řeky a podél toku se mění.
+   */
+  width: { streamFactor: 1.5, minM: 25, maxM: 45 },
   /** Počet brodů. */
   fords: [1, 2],
-  /** V brodu je řeka širší (násobek šířky), mělký úsek ± tolik políček podél toku. */
+  /**
+   * V brodu je řeka širší (násobek šířky, nejvýš `width.maxM`), mělký úsek ± tolik políček podél
+   * toku.
+   */
   fordWiden: 1.4,
   fordHalfCells: 1.5,
   /** Brody leží v této části délky toku, dva brody aspoň `fordSpacing` délky od sebe. */
@@ -103,6 +109,12 @@ const RIVER_ROUTE = {
 } as const;
 
 const M = { maxBedDrop: 0.7 * RIVER.valleySlope, mapMargin: 4 } as const;
+
+/**
+ * Meandr smí od trasy do zakázaného okolí (ves, potok) nejvýš o tolik políček minus poloviční
+ * šířka řeky – břeh pak zůstane, kde dovolí kontrola vodních políček (`riverWaterOk`).
+ */
+const MEANDER_SLACK_CELLS = 2.7;
 
 type Cell = { x: number; y: number };
 
@@ -279,9 +291,31 @@ interface RiverLook {
   readonly widthPhase: number;
   readonly widthPhase2: number;
   readonly bankPhase: number;
+  /** Nejmenší šířka řeky (m) – podle potoka téže mapy – a rozpětí nad ní až do `width.maxM`. */
+  readonly minWidthM: number;
+  readonly spanM: number;
+  /** Střed šířky řeky v rozpětí (0,2–0,7) – ze seedu. */
+  readonly widthShare: number;
 }
 
-function riverLook(random: Random): RiverLook {
+/** Medián šířky vody potoka (m) z bodů osy. */
+export function streamMedianWidthM(stream: readonly StreamPoint[]): number {
+  const widths = stream
+    .map((p) => (p.halfWidthLeft + p.halfWidthRight) * CELL_SIZE_M)
+    .sort((a, b) => a - b);
+  if (widths.length === 0) return 0;
+  const mid = Math.floor(widths.length / 2);
+  return widths.length % 2 === 1 ? widths[mid]! : (widths[mid - 1]! + widths[mid]!) / 2;
+}
+
+/** Nejmenší šířka řeky (m) na mapě s tímto potokem – `RIVER.width`. */
+export function riverMinWidthM(stream: readonly StreamPoint[]): number {
+  const { streamFactor, minM, maxM } = RIVER.width;
+  return Math.min(maxM, Math.max(minM, streamFactor * streamMedianWidthM(stream)));
+}
+
+function riverLook(random: Random, stream: readonly StreamPoint[]): RiverLook {
+  const minWidthM = riverMinWidthM(stream);
   return {
     wave: range(random, RIVER.wave),
     shortWave: range(random, RIVER.shortWave),
@@ -291,24 +325,34 @@ function riverLook(random: Random): RiverLook {
     widthPhase: random.next() * Math.PI * 2,
     widthPhase2: random.next() * Math.PI * 2,
     bankPhase: random.next() * Math.PI * 2,
-  };
-}
-
-/** Šířka vody (m) a podíl levého břehu ve vzdálenosti `s` (políčka) podél toku. */
-function widthAt(look: RiverLook, s: number): { width: number; leftShare: number } {
-  const [w0, w1] = RIVER.widthM;
-  const wave =
-    0.65 * detSin((2 * Math.PI * s) / 31 + look.widthPhase) +
-    0.35 * detSin((2 * Math.PI * s) / 13 + look.widthPhase2);
-  return {
-    width: (w0 + w1) / 2 + ((w1 - w0) / 2) * wave,
-    leftShare: 0.5 + 0.08 * detSin((2 * Math.PI * s) / 17 + look.bankPhase),
+    minWidthM,
+    spanM: RIVER.width.maxM - minWidthM,
+    widthShare: 0.2 + 0.5 * random.next(),
   };
 }
 
 /**
+ * Šířka vody (m) a podíl levého břehu ve vzdálenosti `s` (políčka) podél toku – v rozpětí
+ * nejmenší šířky a `width.maxM` (střed ze seedu ± pětina rozpětí).
+ */
+function widthAt(look: RiverLook, s: number): { width: number; leftShare: number } {
+  const wave =
+    0.65 * detSin((2 * Math.PI * s) / 31 + look.widthPhase) +
+    0.35 * detSin((2 * Math.PI * s) / 13 + look.widthPhase2);
+  return {
+    width: look.minWidthM + look.spanM * (look.widthShare + 0.2 * wave),
+    leftShare: 0.5 + 0.08 * detSin((2 * Math.PI * s) / 17 + look.bankPhase),
+  };
+}
+
+/** Největší poloviční šířka řeky (políčka) – místo kolem osy pro meandr. */
+function maxHalfCells(look: RiverLook): number {
+  return (look.minWidthM + look.spanM * (look.widthShare + 0.2)) / 2 / CELL_SIZE_M;
+}
+
+/**
  * Osa řeky nad trasou po políčkách: vyhlazená trasa, mírné meandry (kde je místo – `room`
- * v políčkách od zakázaných míst), šířky 12–20 m, každý břeh vlastní odchylkou. Konce zůstanou
+ * v políčkách od zakázaných míst), šířka podle `widthAt`, každý břeh vlastní odchylkou. Konce zůstanou
  * na trase (u okrajů mapy, u soutoku) a meandry k nim utichnou.
  */
 function shapeChannel(
@@ -387,7 +431,9 @@ function placeFords(samples: ChannelSample[], centers: readonly number[]): void 
       const t = Math.abs(p.s - sc) / RIVER.fordHalfCells;
       if (t > 1) continue;
       p.shallow = true;
-      const widen = 1 + (RIVER.fordWiden - 1) * (0.5 + 0.5 * detCos(Math.PI * t));
+      const wanted = 1 + (RIVER.fordWiden - 1) * (0.5 + 0.5 * detCos(Math.PI * t));
+      const width = (p.left + p.right) * CELL_SIZE_M;
+      const widen = Math.max(1, Math.min(wanted, RIVER.width.maxM / width));
       p.left *= widen;
       p.right *= widen;
     }
@@ -942,13 +988,15 @@ export function addSideRiver(
   options: { readonly floodplainCells: number; readonly fordHill: boolean },
 ): Terrain {
   const random = createRandom(seed);
-  const look = riverLook(random);
+  const look = riverLook(random, terrain.stream);
   const heightM = range(random, FORD_HILL.heightM);
   const c = constraintsOf(terrain);
   const path = routeSideRiver(terrain, c, random);
   if (!path) return terrain;
   const base = downstream(smoothPolyline(path, terrain.size), terrain);
-  const samples = shapeChannel(base, look, terrain.size, (p) => roomAt(terrain, c, p) + 2);
+  // Meandr jen do místa, které zbude kolem břehů širší řeky.
+  const slack = MEANDER_SLACK_CELLS - maxHalfCells(look);
+  const samples = shapeChannel(base, look, terrain.size, (p) => roomAt(terrain, c, p) + slack);
   if (selfTouching(samples)) return terrain;
   let hill: FordHill | null = null;
   if (options.fordHill) {
@@ -1062,7 +1110,7 @@ function directionAlong(points: readonly Cell[], k: number, cells: number): Cell
  */
 export function addConfluence(terrain: Terrain, seed: number): Terrain {
   const random = createRandom(seed);
-  const look = riverLook(random);
+  const look = riverLook(random, terrain.stream);
   const heightM = range(random, CONFLUENCE.heightM);
   const { size, villageSite } = terrain;
   const stream = terrain.stream;
@@ -1093,6 +1141,35 @@ export function addConfluence(terrain: Terrain, seed: number): Terrain {
     if (result) return result;
   }
   return terrain;
+}
+
+/**
+ * Voda potoka pod soutokem mimo koryto řeky (tůně potoka širší než řeka – nad `width.maxM`) je
+ * zase souš: břeh těsně nad hladinou (rovná niva). Voda potoka nad soutokem (přítok) zůstane.
+ */
+function narrowLowerCourse(
+  terrain: Terrain,
+  stream: readonly StreamPoint[],
+  junction: number,
+  riverWater: Uint8Array,
+): void {
+  const { size, heights, water } = terrain;
+  for (let i = 0; i < water.length; i++) {
+    if (!water[i] || riverWater[i]) continue;
+    const p = { x: i % size, y: Math.floor(i / size) };
+    let nearest = 0;
+    let best = Infinity;
+    stream.forEach((q, k) => {
+      const d = cellDistance(p, q);
+      if (d < best) {
+        best = d;
+        nearest = k;
+      }
+    });
+    if (nearest < junction) continue;
+    water[i] = 0;
+    heights[i] = Math.max(heights[i]!, stream[nearest]!.level + RIVER.floodplainM);
+  }
 }
 
 /** Poslední bod osy potoka u smyčky ostrožny (−1 = potok bez ostrožny). */
@@ -1171,12 +1248,13 @@ function tryConfluence(
   cells[cells.length - 1] = { x: j.x, y: j.y };
   const branchBase = smoothPolyline(cells, size);
   branchBase[branchBase.length - 1] = { x: j.x, y: j.y };
+  const slack = MEANDER_SLACK_CELLS - maxHalfCells(look);
   const branch = shapeChannel(branchBase, look, size, (p) => {
     const room = roomAt(terrain, c, p);
-    return cellDistance(p, j) < CONFLUENCE.funnelCells ? Math.min(room, 0) + 2 : room + 2;
+    return (cellDistance(p, j) < CONFLUENCE.funnelCells ? Math.min(room, 0) : room) + slack;
   });
   const branchEnd = branch.at(-1)!.s;
-  // Dolní tok: body potoka od soutoku, koryto aspoň na šířku řeky.
+  // Dolní tok: body potoka od soutoku, koryto na šířku řeky (širší tůně potoka se zúží).
   const lower: ChannelSample[] = [];
   for (let k = junction; k < stream.length; k++) {
     const p = stream[k]!;
@@ -1187,8 +1265,8 @@ function tryConfluence(
       y: p.y,
       s,
       ...tangentAt(stream, k),
-      left: Math.max(p.halfWidthLeft, (width * leftShare) / CELL_SIZE_M),
-      right: Math.max(p.halfWidthRight, (width * (1 - leftShare)) / CELL_SIZE_M),
+      left: (width * leftShare) / CELL_SIZE_M,
+      right: (width * (1 - leftShare)) / CELL_SIZE_M,
       shallow: false,
       pool: false,
     });
@@ -1241,6 +1319,7 @@ function tryConfluence(
   if (!center) return null;
   const spurPlan = { kind: 'confluence' as const, center, dir };
   if (!spurClearOfVillage(center, terrain)) return null;
+  narrowLowerCourse(terrain, stream, junction, water);
   const levels = carveRiver({
     terrain,
     samples,

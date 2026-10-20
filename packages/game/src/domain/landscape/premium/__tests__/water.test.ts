@@ -124,24 +124,6 @@ function fordRuns(river: readonly StreamPoint[]): StreamPoint[][] {
   return runs;
 }
 
-/** Index bodu osy toku nejblíž prvku (ve světě). */
-function nearestIndex(l: Landscape, line: readonly StreamPoint[], site: PremiumSite): number {
-  const h = half(l);
-  let best = 0;
-  let bestD = Infinity;
-  line.forEach((p, k) => {
-    const d = Math.hypot(
-      -h + (p.x + 0.5) * l.cellSizeM - site.x,
-      -h + (p.y + 0.5) * l.cellSizeM - site.z,
-    );
-    if (d < bestD) {
-      bestD = d;
-      best = k;
-    }
-  });
-  return best;
-}
-
 function count(l: Landscape, test: (i: number) => boolean): number {
   let n = 0;
   for (let i = 0; i < l.surface.length; i++) if (test(i)) n++;
@@ -170,9 +152,9 @@ const RIVER_TYPES = ['navigable-river', 'ford-hill', 'confluence'] as const;
 describe('řeka – splavná řeka, brod pod vyvýšeninou, soutok', () => {
   for (const type of RIVER_TYPES) {
     it(
-      `${type}: řeka vede od okraje k okraji, je široká 12–20 m (brod širší) a je vodou krajiny`,
+      `${type}: řeka vede od okraje k okraji, je aspoň 1,5× širší než potok (25–45 m) a je vodou krajiny`,
       () => {
-        for (const { premium } of pairs(type, SAMPLE)) {
+        for (const { premium, average } of pairs(type, SAMPLE)) {
           const river = premium.river!;
           expect(river.length).toBeGreaterThan(100);
           const site = onlySite(premium, 'river');
@@ -182,17 +164,18 @@ describe('řeka – splavná řeka, brod pod vyvýšeninou, soutok', () => {
           expect(first).not.toBeNull();
           expect(last).not.toBeNull();
           expect(first).not.toBe(last);
-          // U soutoku teče řeka pod ním korytem potoka – rozšířeným aspoň na šířku řeky, tůně
-          // potoka zůstanou širší; horní mez šířky platí nad soutokem.
-          const lowerFrom =
-            type === 'confluence'
-              ? nearestIndex(premium, river, onlySite(premium, 'confluence'))
-              : Infinity;
-          for (const [k, p] of river.entries()) {
-            expect(widthM(premium, p)).toBeGreaterThanOrEqual(RIVER.widthM[0] - 1e-3);
-            if (!p.shallow && k < lowerFrom) {
-              expect(widthM(premium, p)).toBeLessThanOrEqual(RIVER.widthM[1] + 1e-3);
-            }
+          // Medián šířky potoka téže mapy (průměrná krajina – u soutoku je potok zkrácený).
+          const streamWidths = average.stream.map((p) => widthM(average, p)).sort((a, b) => a - b);
+          const mid = Math.floor(streamWidths.length / 2);
+          const median =
+            streamWidths.length % 2 === 1
+              ? streamWidths[mid]!
+              : (streamWidths[mid - 1]! + streamWidths[mid]!) / 2;
+          const least = Math.min(45, Math.max(25, 1.5 * median));
+          // Šířka platí všude – i v brodu a u soutoku na dolním toku (koryto potoka na šířku řeky).
+          for (const p of river) {
+            expect(widthM(premium, p)).toBeGreaterThanOrEqual(least - 0.05);
+            expect(widthM(premium, p)).toBeLessThanOrEqual(45 + 1e-3);
             // Osa leží ve vodě (políčko pod osou je voda).
             const x = Math.min(premium.size - 1, Math.max(0, Math.round(p.x)));
             const y = Math.min(premium.size - 1, Math.max(0, Math.round(p.y)));

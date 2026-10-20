@@ -182,7 +182,8 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   `premium/geometry.ts` (`cellsOutline`, `circleOutline`); úklid drobných skvrn povrchu je
   v `patches.ts` (sdílí ho vegetace). **Typy vody** (`premium/water.ts`, landscape.md – Typy
   vody): řeka (`premium/river.ts` – `addSideRiver` pro splavnou řeku a vyvýšeninu nad brodem,
-  `addConfluence` pro soutok) je průchod terénu – nový tok vedle potoka, osa `Landscape.river`
+  `addConfluence` pro soutok) je průchod terénu – nový tok vedle potoka, šířka aspoň 1,5× medián
+  potoka téže mapy v mezích 25–45 m (`RIVER.width`, `riverMinWidthM`), osa `Landscape.river`
   ve tvaru osy potoka (`Terrain.river`, přenos `LandscapeTransfer.river` / `riverBanks`,
   `transferPrecision`), ostrožny nad brodem a soutokem jsou `Promontory` druhů `ford-hill`
   a `confluence`. Osa řeky `riverCenterline(l)`, osa všech vod `watersCenterline(l)` (nejbližší
