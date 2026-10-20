@@ -30,8 +30,12 @@ export const MAX_VOIVODE_FIGURES = 40;
 /** Máry nesou čtyři muži – ve scéně vždy, nejsou mezi `mourners`. */
 export const FUNERAL_BEARERS = 4;
 
-/** Člověk v průvodu za márami: pohlaví, věk (roky) a domácnost (id obydlí), kam se pak vrátí. */
+/**
+ * Člověk v průvodu za márami: pohlaví, věk (roky) a domácnost (id obydlí), kam se pak vrátí; id
+ * člověka (villagers.md – Výběr postavy – postava v průvodu je on; ukázky ho nemají).
+ */
 export interface SceneMourner {
+  id?: number;
   sex: Sex;
   age: number;
   home: number;
@@ -80,6 +84,7 @@ function mix01(a: number, b: number, c: number): number {
 
 function mournerOf(p: Person, day: number): SceneMourner {
   return {
+    id: p.id,
     // vsi uložené před příbuzenstvím pohlaví nemají – střídavě podle id
     sex: p.sex ?? (p.id % 2 === 0 ? 'female' : 'male'),
     age: ageYears(p.bornDay, day),

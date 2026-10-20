@@ -1110,3 +1110,52 @@ describe('SelectionPanel – hliniště (crafts.md – Hlína hrnčíře)', () =
     expect(html).not.toContain('selection-ore-');
   });
 });
+
+describe('SelectionPanel – postava (villagers.md – Výběr postavy)', () => {
+  const person = (
+    over: Partial<Extract<SelectionDetails, { kind: 'person' }>> = {},
+  ): SelectionDetails => ({
+    kind: 'person',
+    id: 202,
+    portrait: 'woman',
+    role: 'Žena rolníka',
+    activity: 'jde pro vodu',
+    age: 28,
+    home: 2,
+    homeIcon: 'zemnice',
+    herd: null,
+    ...over,
+  });
+
+  it('portrét podle pohlaví, role, činnost, věk a dům', () => {
+    const html = render(person());
+    expect(html).toContain('data-kind="person"');
+    expect(html).toContain('src="/icons/resources/woman.png"');
+    expect(html).toContain('>Žena rolníka</h2>');
+    expect(text(html, 'selection-person-activity')).toBe('jde pro vodu');
+    expect(text(html, 'selection-person-age')).toBe('28');
+    expect(html).toMatch(
+      /data-testid="selection-person-home"[^>]*><img src="\/icons\/build\/zemnice\.png"/,
+    );
+    expect(html).not.toContain('selection-person-herd');
+  });
+
+  it('pasáček u stáda – ikona zvířete; bez domu ve scéně bez tlačítka', () => {
+    const html = render(
+      person({
+        portrait: 'child',
+        role: 'Pasáček',
+        activity: 'pase ovce',
+        age: 10,
+        home: null,
+        homeIcon: null,
+        herd: 'sheep',
+      }),
+    );
+    expect(html).toContain('src="/icons/resources/child.png"');
+    expect(html).toContain('>Pasáček</h2>');
+    expect(html).toContain('data-herd="sheep"');
+    expect(html).toContain('src="/icons/resources/sheep.png"');
+    expect(html).not.toContain('selection-person-home');
+  });
+});

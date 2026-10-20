@@ -1056,10 +1056,12 @@ export function weddingPose(
       o.clip = 'walk';
       o.pace = Math.max(0.35, speed / walk);
       o.hidden = d >= m.home.length + 0.5;
+      o.stage = 'home';
       return o;
     }
     // u páru: na své místo, pak stojí – pár hledí k místu obřadu, pak k sobě; ostatní na pár
     if (nowMs >= m.ringMs) {
+      o.stage = 'ring';
       const d = ((nowMs - m.ringMs) / 1000) * own;
       alongRoute(m.toRing, d, false, o);
       if (d >= m.toRing.length) {
@@ -1104,6 +1106,7 @@ export function weddingPose(
       o.z = m.wait.z;
       o.clip = 'idle';
       o.pace = 1;
+      o.stage = 'wait';
       return o;
     }
     alongRoute(party.path, s, false, o);
@@ -1117,16 +1120,26 @@ export function weddingPose(
 }
 
 /**
+ * Kteří lidé svatby (indexy `members`) jsou vidět během okna dne `window` – od scházení průvodu
+ * (z okolí od začátku dne svatby) do příchodu domů nebo ke kraji mapy. Bez okna nikdo.
+ */
+export function weddingMembersIn(plan: WeddingPlan, window: DayWindow | null): number[] {
+  if (!window) return [];
+  const out: number[] = [];
+  plan.members.forEach((m, i) => {
+    const pace = m.procession ? plan.timeline.homePace : (m.groupPace ?? SLOWEST_M_S);
+    const until = m.leaveMs + (m.home.length / pace) * 1000 + 1000;
+    if (visibleFromMs(plan, m) < window.endMs && until > window.startMs) out.push(i);
+  });
+  return out;
+}
+
+/**
  * Kolik lidí vsi ze svatby je vidět během okna dne `window` (počítají se místo pracujících postav)
  * – lidé z okolí ves nepočítá. Bez okna 0.
  */
 export function weddingVillagersIn(plan: WeddingPlan, window: DayWindow | null): number {
-  if (!window) return 0;
-  return plan.members.filter((m) => {
-    if (m.party !== 'village') return false;
-    const until = m.leaveMs + (m.home.length / SLOWEST_M_S) * 1000;
-    return visibleFromMs(plan, m) < window.endMs && until > window.startMs;
-  }).length;
+  return weddingMembersIn(plan, window).filter((i) => plan.members[i]!.party === 'village').length;
 }
 
 /** Jsou lidé svatby vidět během okna dne `window`? */

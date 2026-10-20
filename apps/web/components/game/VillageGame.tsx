@@ -72,6 +72,7 @@ import {
 } from '@/lib/scene/village-selection';
 import type { PlacementMode, PlacementResult } from '@/lib/scene/village-types';
 import { selectionDetails } from '@/lib/selection-details';
+import type { PersonFigureState } from '@/lib/person-activity';
 import { useSoundPreference } from './SoundToggle';
 import { rememberVillage } from '@/lib/village-choice';
 import type { VillageListItem } from '@/lib/village-list';
@@ -386,6 +387,9 @@ export function VillageGame({
     [scene],
   );
   const current = useMemo(() => presentTarget(sceneVillage, selected), [sceneVillage, selected]);
+  // co dělá vybraný člověk – hlásí scéna při změně (villagers.md – Výběr postavy)
+  const [personState, setPersonState] = useState<PersonFigureState | null>(null);
+  useEffect(() => scene?.onPersonState(setPersonState), [scene]);
   const sceneVillageRef = useRef(sceneVillage);
   useEffect(() => {
     sceneVillageRef.current = sceneVillage;
@@ -992,7 +996,7 @@ export function VillageGame({
       />
       <Minimap landscape={decoded} scene={scene} village={drawnVillage} />
       <SelectionPanel
-        details={selectionDetails(view, sceneVillage, current)}
+        details={selectionDetails(view, sceneVillage, current, personState)}
         onSelectTarget={setSelected}
         onRelocate={relocate}
         onLeave={leave}
