@@ -118,8 +118,9 @@ export type BuildItem =
        */
       rotatable?: boolean;
       /**
-       * Druhy stavby, které při umisťování přepíná Tab (ohrada – druh zvířat, oxen.md); `check`
-       * pak dostane id druhu (`variant`).
+       * Druhy stavby (ohrada – druh zvířat, oxen.md): tlačítko stavby je jen rozcestník, mřížka
+       * staveb po kliknutí nabídne druhy a malování začne s vybraným; `check` pak dostane id druhu
+       * (`variant`).
        */
       variants?: readonly SquaresVariant[];
       check(
@@ -352,7 +353,7 @@ const sacred = (
 });
 
 /**
- * Druhy ohrady v pořadí, jak je přepíná Tab (oxen.md – Ohrady podle druhu): ovce, kozy, prasata,
+ * Druhy ohrady v pořadí rozcestníku mřížky staveb (oxen.md – Ohrady podle druhu): ovce, kozy, prasata,
  * skot, spřežení – ikony zvířat (`public/icons/resources/`).
  */
 export const PEN_VARIANTS: readonly (SquaresVariant & { id: PenSpecies })[] = [
@@ -375,6 +376,15 @@ export const PEN_NAMES: Record<PenSpecies, string> = {
 /** Ikona a název zvířat ohrady podle druhu (ikony `public/icons/resources/`). */
 export function penVariant(species: PenSpecies): SquaresVariant {
   return PEN_VARIANTS.find((v) => v.id === species) ?? PEN_VARIANTS[0]!;
+}
+
+/**
+ * Název druhu stavby v rozcestníku mřížky staveb – u ohrady „Ohrada ovcí“ (`PEN_NAMES`), jinak
+ * název stavby a druhu.
+ */
+export function buildVariantName(item: BuildItem, variant: SquaresVariant): string {
+  if (item.kind === 'pen') return PEN_NAMES[penVariantSpecies(variant.id)];
+  return `${item.name} – ${variant.name}`;
 }
 
 /** Druh ohrady z id druhu stavby (bez údaje nebo neznámý první – ovce). */
@@ -476,7 +486,7 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
   // wagons.md – tesař: vozy, dřevěné nářadí a pomoc stavbám
   workshop('carpenter', 'Tesař', 'tesar', 'T'),
   {
-    // oxen.md – Ohrady podle druhu: čtverce jako hřbitov (nejvýš 4), druh zvířat přepíná Tab
+    // oxen.md – Ohrady podle druhu: čtverce jako hřbitov (nejvýš 4), tlačítko je rozcestník druhů
     kind: 'pen',
     name: 'Ohrada',
     icon: 'ohrada',

@@ -17,10 +17,10 @@ import {
   PEN_VARIANTS,
   buildItem,
   buildItemForKey,
+  buildVariantName,
   dwellingPlacementCost,
   penVariantSpecies,
 } from '../build-items';
-import { cycleIndex } from '../scene/field-cells';
 
 const key = (
   code: string,
@@ -291,17 +291,16 @@ describe('ohrada podle druhu (oxen.md – Ohrady podle druhu)', () => {
   const item = buildItem('pen');
   if (item.placement !== 'squares') throw new Error('Ohrada se maluje po čtvercích.');
 
-  it('Tab přepíná druh: ovce → kozy → prasata → skot → spřežení a dokola, Shift + Tab zpět', () => {
+  it('druhy v rozcestníku: ovce, kozy, prasata, skot, spřežení – s názvy ohrad', () => {
     expect(PEN_VARIANTS.map((v) => v.id)).toEqual(['sheep', 'goat', 'pig', 'cattle', 'team']);
     expect(item.variants).toBe(PEN_VARIANTS);
-    let i = 0;
-    const seen: string[] = [];
-    for (let k = 0; k < 6; k++) {
-      seen.push(PEN_VARIANTS[i]!.id);
-      i = cycleIndex(i, PEN_VARIANTS.length, 1);
-    }
-    expect(seen).toEqual(['sheep', 'goat', 'pig', 'cattle', 'team', 'sheep']);
-    expect(PEN_VARIANTS[cycleIndex(0, PEN_VARIANTS.length, -1)]!.id).toBe('team');
+    expect(PEN_VARIANTS.map((v) => buildVariantName(item, v))).toEqual([
+      'Ohrada ovcí',
+      'Ohrada koz',
+      'Ohrada prasat',
+      'Ohrada skotu',
+      'Ohrada spřežení',
+    ]);
     // ikony zvířat – i u kurzoru
     expect(PEN_VARIANTS.map((v) => v.icon)).toEqual(['sheep', 'goat', 'pig', 'cow', 'ox']);
     expect(penVariantSpecies(undefined)).toBe('sheep');

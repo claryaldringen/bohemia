@@ -1482,8 +1482,11 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   `plot` / `squares` / `sacred` / `workshop`, kontrola) – nová stavba = záznam tam, cena v `BUILD_COSTS` a server action
   v `SUBMIT_SQUARES` (`VillageGame`); mřížka, zkratky i malování po čtvercích se nemění. Stavba
   po čtvercích s druhy (`variants` – ohrada: `PEN_VARIANTS` ovce, kozy, prasata, skot, spřežení)
-  dostane v kontrole druh; Tab ho přepíná (`FieldPainter`, `cycleIndex`), u kurzoru ikona druhu
-  (`PlacementPreview.variant`). Stavba,
+  dostane v kontrole druh; tlačítko stavby je jen **rozcestník** (oxen.md – Ohrady podle druhu,
+  Martin 20. 10. 2026): kliknutí i zkratka otevře v mřížce druhy (`BuildGrid` `group`,
+  `VillageGame` `buildGroup` – první tlačítko stavba sama zpět, druhy `buildVariantName` bez
+  zkratek), druh spustí malování (`startBuild(kind, variant)`), Esc rozcestník zavře; u kurzoru
+  ikona druhu (`PlacementPreview.variant`). Stavba,
   kterou nejde zahájit z jiného důvodu než surovin (druhá svatyně), má v `BuildOption.blocked`
   důvod – v popisku červeně. Panel výběru umí i posvátný dub, háj, modlu a svatyni (ikona,
   kolik přidávají štěstí, průběh stavby a duby ke kácení); u posvátného dubu i jeho stáří
@@ -1517,7 +1520,7 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   | Esc                    | zruší výběr                                                      | zruší                           | zruší tah, pak malování            |
   | F10                    | otevře nabídku hry, zruší výběr                                  | otevře nabídku, zruší           | otevře nabídku, zruší malování     |
   | `[` / `]`              |                                                                  | otáčí po 15° (pozemek celý)     | otáčí mřížku po 15° (všechny)      |
-  | Tab                    |                                                                  | pozemek: místo domu (varianta)  | ohrada: druh zvířat                |
+  | Tab                    |                                                                  | pozemek: místo domu (varianta)  |                                    |
   | další                  |                                                                  | Enter postaví                   | Backspace / Ctrl+Z vrátí, Enter    |
 
   Vždy: WASD / šipky a kurzor u okraje okna posouvají, kolečko i rozevření prstů na trackpadu
@@ -1528,8 +1531,8 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   natočená mřížka má čtverec pod kurzorem ve středu políčka. Ctrl ve výběru obydlí platí i jako Cmd; Ctrl / Shift + klik na cestu či
   pole vybraná obydlí nezruší; Ctrl + A při umisťování nic nevybere. Zkratky staveb Z zemnice, X polozemnice, C pole, V hřbitov, B sad,
   N modla, M svatyně, O ohrada (modla a svatyně se umisťují půdorysem jako obydlí – `PlacementMode`
-  `sacred`; ohrada po čtvercích, Tab / Shift + Tab přepíná druh zvířat – ovce, kozy, prasata, skot,
-  spřežení; nad ohradou téhož druhu se chytí její mřížky). V otevřené nabídce hry žádná klávesa hry neběží – F10 nebo Esc ji zavře (Tab jen
+  `sacred`; ohrada po čtvercích – O i tlačítko otevřou v mřížce rozcestník druhů zvířat (ovce,
+  kozy, prasata, skot, spřežení – bez zkratek), nad ohradou téhož druhu se chytí její mřížky). V otevřené nabídce hry žádná klávesa hry neběží – F10 nebo Esc ji zavře (Tab jen
   po jejích položkách). Rozhraní
   obydlí hned ukáže jako staveniště a akce posílá na server za sebou (fronta v `VillageGame`).
 

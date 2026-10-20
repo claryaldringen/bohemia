@@ -127,7 +127,7 @@ const SUBMIT_SQUARES: Partial<
     placeCemetery({ villageId, cells, ...(grid ? { grid } : {}) }),
   orchard: (villageId, cells, grid) =>
     placeOrchard({ villageId, cells, ...(grid ? { grid } : {}) }),
-  // ohrada podle druhu (oxen.md – Ohrady podle druhu): druh přepíná Tab
+  // ohrada podle druhu (oxen.md – Ohrady podle druhu): druh z rozcestníku mřížky staveb
   pen: (villageId, cells, grid, variant) =>
     placePen({
       villageId,
@@ -290,6 +290,8 @@ export function VillageGame({
   const [pending, setPending] = useState<PendingSite[]>([]);
   const [selected, setSelected] = useState<VillageTarget | null>(null);
   const [placingItem, setPlacingItem] = useState<BuildKind | null>(null);
+  // otevřený rozcestník mřížky staveb – stavba s druhy (ohrada – oxen.md, Ohrady podle druhu)
+  const [buildGroup, setBuildGroup] = useState<BuildKind | null>(null);
   const [notices, setNotices] = useState<NoticeLine[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [timeOffsetDays, setTimeOffsetDays] = useState(initialTimeOffsetDays);
@@ -312,8 +314,6 @@ export function VillageGame({
   /** Akce na serveru jdou za sebou (Shift + klik staví víc obydlí rychle po sobě). */
   const queueRef = useRef<Promise<unknown>>(Promise.resolve());
   const viewRef = useRef(view);
-  // druh naposledy malované stavby po druzích (ohrada – oxen.md): příště začne s ním
-  const lastVariant = useRef<Partial<Record<BuildKind, string>>>({});
   const pendingRef = useRef<PendingSite[]>([]);
   const pendingId = useRef(0);
   useEffect(() => {
@@ -679,28 +679,30 @@ export function VillageGame({
     });
   };
 
-  const startBuild = (kind: BuildKind): void => {
+  const startBuild = (kind: BuildKind, variant?: string): void => {
     if (!scene || !(kind in options)) return;
+    const item = buildItem(kind);
+    // stavba s druhy je rozcestník: tlačítko i zkratka otevřou v mřížce druhy, znovu je zavřou
+    if (item.placement === 'squares' && item.variants && variant === undefined) {
+      if (buildGroup !== kind) placement.cancel();
+      setBuildGroup(buildGroup === kind ? null : kind);
+      return;
+    }
+    setBuildGroup(null);
     const option = options[kind];
     if (option && !option.affordable) return;
     // vybraný díl pole či čtverec sadu patří své stavbě (mřížka rozšíření)
     const chosen = selected && wholeTarget(selected);
     setSelected(null);
     setPlacingItem(kind);
-    const item = buildItem(kind);
     if (item.placement === 'squares') {
       const submit = SUBMIT_SQUARES[kind];
       if (!submit) throw new Error(`Stavba ${kind} nemá server action.`);
-      // vybraná stavba stejného druhu: malování začne v její mřížce (rozšíření); u ohrady i s jejím
-      // druhem zvířat, jinak druh naposledy malované ohrady (oxen.md – Ohrady podle druhu)
-      const structures = squareStructures(sceneVillageRef.current, kind);
+      // vybraná stavba stejného druhu: malování začne v její mřížce (rozšíření); u ohrady jen
+      // ohrada druhu vybraného v rozcestníku (oxen.md – Ohrady podle druhu)
+      const structures = squareStructures(sceneVillageRef.current, kind, variant);
       const chosenId = chosen && chosen.kind === kind && 'id' in chosen ? chosen.id : null;
       const start = chosenId === null ? undefined : structures.find((s) => s.id === chosenId)?.grid;
-      const chosenPen =
-        kind === 'pen' && chosenId !== null
-          ? sceneVillageRef.current?.pens?.find((p) => p.id === chosenId)
-          : undefined;
-      const variant = chosenPen ? scenePenSpecies(chosenPen) : lastVariant.current[kind];
       placement.start(
         {
           kind: 'squares',
@@ -725,7 +727,6 @@ export function VillageGame({
         (result) => {
           const villageId = viewRef.current?.id;
           if (result.kind === 'squares' && villageId) {
-            if (result.variant) lastVariant.current[kind] = result.variant;
             void runBuildAction(() => submit(villageId, result.cells, result.grid, result.variant));
           }
         },
@@ -782,6 +783,7 @@ export function VillageGame({
     if (gameOver) return;
     cancelPlacement();
     setSelected(null);
+    setBuildGroup(null);
     setMenuOpen(true);
   };
   const openMenuRef = useRef(openMenu);
@@ -790,8 +792,8 @@ export function VillageGame({
   });
   const closeMenu = useCallback((): void => setMenuOpen(false), []);
 
-  // Klávesy rozhraní: F10 otevře nabídku, zkratky staveb (Z, X, C, V, B, N, M, F, G, H, O), Esc zruší
-  // výběr.
+  // Klávesy rozhraní: F10 otevře nabídku, zkratky staveb (Z, X, C, V, B, N, M, F, G, H, T, O – O
+  // otevře rozcestník druhů ohrady), Esc zruší výběr a zavře rozcestník.
   // Otevřená nabídka klávesy zachytí dřív (GameMenu) – sem pak nedojdou.
   const placingRef = useRef(placement.active);
   useEffect(() => {
@@ -808,6 +810,7 @@ export function VillageGame({
       }
       if (event.code === 'Escape' && placingRef.current === null) {
         setSelected(null);
+        setBuildGroup(null);
         return;
       }
       // Ctrl + A – všechna obydlí vsi (migration.md); při umisťování ne (malování po čtvercích)
@@ -1019,6 +1022,7 @@ export function VillageGame({
         options={options}
         active={placement.active ? placingItem : null}
         disabled={scene === null}
+        group={buildGroup}
         onBuild={startBuild}
       />
       <NoticeLines

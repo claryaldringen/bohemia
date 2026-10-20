@@ -28,6 +28,8 @@ const refuse = (): Promise<string> =>
 export function DevPanelsView({ initial }: { initial: string | null }): ReactElement {
   const [menu, setMenu] = useState<GameMenuStep | null>(null);
   const [villages, setVillages] = useState(false);
+  // rozcestník mřížky staveb (ohrada – druhy zvířat) jde otevřít i tady
+  const [buildGroup, setBuildGroup] = useState<BuildItem['kind'] | null>(null);
   const [key, setKey] = useState(
     DEV_PANELS.some((p) => p.key === initial) ? initial! : DEV_PANELS[0]!.key,
   );
@@ -119,7 +121,17 @@ export function DevPanelsView({ initial }: { initial: string | null }): ReactEle
         onBuildTrail={wait}
         onSendExpedition={refuse}
       />
-      <BuildGrid options={BUILD_OPTIONS} active={null} disabled={false} onBuild={() => undefined} />
+      <BuildGrid
+        options={BUILD_OPTIONS}
+        active={null}
+        disabled={false}
+        group={buildGroup}
+        onBuild={(kind, variant) => {
+          const item = BUILD_ITEMS.find((i) => i.kind === kind);
+          const hub = item?.placement === 'squares' && item.variants !== undefined;
+          setBuildGroup(hub && variant === undefined && buildGroup !== kind ? kind : null);
+        }}
+      />
     </>
   );
 }

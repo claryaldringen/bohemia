@@ -60,7 +60,8 @@ export interface SquaresPreview {
 }
 
 /**
- * Druh stavby po čtvercích, který přepíná Tab (ohrada – druh zvířat, oxen.md): id, ikona
+ * Druh stavby po čtvercích, který hráč vybere v rozcestníku mřížky staveb (ohrada – druh zvířat,
+ * oxen.md): id, ikona
  * (`public/icons/resources/<icon>.png`) a název do popisku.
  */
 export interface SquaresVariant {
@@ -99,8 +100,9 @@ export type PlacementMode =
        */
       preview(cells: TileCell[], grid?: SquareGrid, variant?: string): SquaresPreview;
       /**
-       * Druhy stavby, které přepíná Tab (Shift + Tab zpět) – ohrada: ovce, kozy, prasata, skot,
-       * spřežení (oxen.md – Ohrady podle druhu). Bez údaje stavba jednoho druhu.
+       * Druhy stavby (ohrada: ovce, kozy, prasata, skot, spřežení – oxen.md, Ohrady podle druhu) –
+       * maluje se ten z `variant`, vybraný v rozcestníku mřížky staveb. Bez údaje stavba jednoho
+       * druhu.
        */
       variants?: readonly SquaresVariant[];
       /** Druh (id), se kterým malování začne (jeden z `variants`); bez údaje první. */
@@ -157,7 +159,7 @@ export interface PlacementPreview {
   screen: { x: number; y: number } | null;
   /** Cena prošlého umístění – rozhraní ji ukáže u kurzoru (null = žádná, nebo neprošlo). */
   cost?: PlacementCost | null;
-  /** Druh stavby u kurzoru (druh ohrady – Tab ho přepíná); bez údaje žádný. */
+  /** Druh stavby u kurzoru (druh ohrady z rozcestníku mřížky staveb); bez údaje žádný. */
   variant?: SquaresVariant;
 }
 

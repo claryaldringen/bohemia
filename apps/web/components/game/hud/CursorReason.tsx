@@ -12,7 +12,7 @@ const CURSOR_GAP_PX = 18;
  * blízko hřbitova, posvátný dub nebo háj zůstane stát), řádek na každé.
  * Když umístění nejde, místo ceny jen krátký červený důvod. Jestli stavba jde, ukazuje i barva
  * ducha / čtverců ve scéně. Stavba po druzích (ohrada – druh zvířat, oxen.md) má na začátku vždy
- * ikonu druhu, který Tab přepíná.
+ * ikonu druhu vybraného v rozcestníku mřížky staveb.
  */
 export function CursorReason({
   preview,

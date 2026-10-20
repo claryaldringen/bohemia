@@ -21,7 +21,6 @@ import {
 import {
   CellSelection,
   cellsBoundary,
-  cycleIndex,
   gridFrame,
   mergeDecalGrids,
   rectangleCells,
@@ -135,7 +134,7 @@ export class FieldPainter {
   private adopted = false;
   /** Poslední bod terénu pod kurzorem – volná mřížka se po otočení postaví k němu. */
   private lastPoint: Point | null = null;
-  /** Druh stavby (index do `mode.variants`) – Tab ho přepíná (ohrada – druh zvířat). */
+  /** Druh stavby (index do `mode.variants`) – ohrada: druh zvířat vybraný v mřížce staveb. */
   private variantIndex = 0;
 
   constructor(
@@ -260,22 +259,6 @@ export class FieldPainter {
     return this.mode.variants?.[this.variantIndex];
   }
 
-  /**
-   * Tab (Shift + Tab zpět): další druh stavby (ohrada – ovce, kozy, prasata, skot, spřežení –
-   * oxen.md). Mřížka se znovu chytí stavby nového druhu pod kurzorem, výběr se ověří znovu.
-   */
-  private nextVariant(step: number): void {
-    const count = this.mode.variants?.length ?? 0;
-    if (count < 2) return;
-    this.variantIndex = cycleIndex(this.variantIndex, count, step);
-    if (!this.gridLocked()) {
-      this.adopted = false;
-      if (this.lastPoint) this.followGrid(this.lastPoint);
-    }
-    this.markSelection();
-    this.report();
-  }
-
   /** Zruší malování a ohlásí to (`onCancel`). */
   cancel(): void {
     if (this.done) return;
@@ -398,11 +381,6 @@ export class FieldPainter {
       case 'Backspace':
         event.preventDefault();
         this.undo();
-        return;
-      case 'Tab':
-        if (!this.mode.variants || this.mode.variants.length < 2) return;
-        event.preventDefault();
-        this.nextVariant(event.shiftKey ? -1 : 1);
         return;
     }
   };

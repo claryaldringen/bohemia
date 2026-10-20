@@ -97,10 +97,14 @@ Clauda, čísla podle [rešerše](research/2026-10-19-pens.md).
   (Vlkov v herním květnu: ovce 74 → 12). Upozornění „Stáda se nevejdou do ohrad“ platí i během
   odkladu, ať hráč ví, že má stavět. Spřežení a ohrada skotu se neodkládají zvlášť – na ohradu
   skotu (krávy na výcvik dalšího spřežení) má hráč 10 let služby spřežení a upozornění.
-- **Výběr druhu hráčem:** jedna stavba „Ohrada“ ([O]); při umisťování **Tab** (Shift + Tab zpět)
-  přepíná druh – ovce → kozy → prasata → skot → spřežení; u kurzoru ikona druhu a cena. Nad
-  ohradou téhož druhu se malování chytí její mřížky (rozšíření). Vybraná ohrada dá druh i mřížku;
-  jinak začne druh naposledy stavěné ohrady.
+- **Výběr druhu hráčem** (Martin 20. 10. 2026: „Prosím tě, když ve stavbách kliknu na ohradu, tak
+  ať se mi v tom okýnku ukážou druhy ohrad. To první tlačítko bude jen rozcestník. Klávesové
+  zkratky spíš omezíme“): tlačítko „Ohrada“ v mřížce staveb je jen **rozcestník** – kliknutí
+  (i [O]) ukáže v mřížce druhy ovce, kozy, prasata, skot, spřežení (ikony zvířat, v popisku
+  „Ohrada ovcí“… a cena), první tlačítko je ohrada sama (zpět); druh spustí malování. Druhy
+  nemají vlastní zkratky a Tab druh nepřepíná (návrh Clauda – zkratky omezit); Esc rozcestník
+  zavře. U kurzoru ikona druhu a cena. Nad ohradou téhož druhu se malování chytí její mřížky
+  (rozšíření), vybraná ohrada téhož druhu dá mřížku.
 - **Staré vsi** (převod při načtení, jednou): ohrada se spřežením nebo výcvikem je ohrada
   spřežení, ohrada bez nich ohrada skotu (dřív v ní zimovaly krávy).
 - **Panel ohrady:** název podle druhu („Ohrada ovcí“…), zvířata v ohradě na noc / místa (ikona
@@ -480,8 +484,8 @@ a nechávalo za sebou brázdu. Tak budu moci určit, jak se to chová.“ – **
 ## Co hráč vidí
 
 - V nabídce staveb **ohrada** (název a cena v tooltipu).
-- V nabídce staveb **ohrada** – Tab přepíná druh zvířat (ikona u kurzoru), maluje se po čtvercích
-  (nejvýš 4) a rozšiřuje jako hřbitov.
+- V nabídce staveb **ohrada** – rozcestník druhů zvířat (ikona druhu u kurzoru), maluje se po
+  čtvercích (nejvýš 4) a rozšiřuje jako hřbitov.
 - V panelu ohrady: druh, zvířata v ohradě na noc / místa, čtverce (ikony + čísla), průběh cvičení
   spřežení, zásoba sena na zimu; kolik
   let spřežení ještě slouží a kolik dní výcviku zbývá – ikona přesýpacích hodin (Martin: slunce
@@ -530,7 +534,8 @@ a nechávalo za sebou brázdu. Tak budu moci určit, jak se to chová.“ – **
 | Řádky sena zelenožluté, širší a nepravidelné, jen pár dní po seči, pak kupky (fields.md)                                                                                                                                                                                                                  | Martin (19. 10. 2026)                                      |
 | Výcvik začne první vhodný den (telata, dřevo, v zimě seno), rádlo staví ves sama                                                                                                                                                                                                                          | návrh Clauda                                               |
 | „Zvířata je potřeba na noc zavírat do ohrad. Každý druh zvířete by měl mít vlastní ohradu, ať se nemíchají. Velikost ohrady by mělo jít určovat podobně, jako když se staví hřbitov. Velikost ohrady bude mít vliv na velikost stáda. Zároveň velikost ohrady bude omezená – má to být ohrada, ne výběh.“ | Martin (19. 10. 2026)                                      |
-| Druhy ovce, kozy, prasata, skot, spřežení; nejvýš 4 čtverce; rozšíření jako hřbitov; Tab přepíná druh                                                                                                                                                                                                     | návrh Clauda, Martin („Ano, udělej to tak, jak navrhuješ“) |
+| Druhy ovce, kozy, prasata, skot, spřežení; nejvýš 4 čtverce; rozšíření jako hřbitov                                                                                                                                                                                                                       | návrh Clauda, Martin („Ano, udělej to tak, jak navrhuješ“) |
+| Ohrada v mřížce staveb je rozcestník druhů (zpět + 5 druhů); druhy bez zkratek, Tab druh nepřepíná, [O] otevře rozcestník                                                                                                                                                                                 | Martin (20. 10. 2026), zkratky návrh Clauda                |
 | Místa na čtverec: ovce 130, kozy 100, prasata 80, krávy 45 – pro dospělé i jarní mláďata                                                                                                                                                                                                                  | návrh Clauda (rešerše)                                     |
 | Bez ohrady u domu 2 ovce, 1 koza, 1 prase na domácnost, krávy jen v ohradě                                                                                                                                                                                                                                | návrh Clauda, Martin schválil                              |
 | Chovný pár druhu zůstane u domů vždy; kusy čekající na zimní porážku jen do volných míst                                                                                                                                                                                                                  | rozhodnutí Clauda                                          |
