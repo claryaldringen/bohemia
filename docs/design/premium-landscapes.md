@@ -1,6 +1,6 @@
 # Prémiové krajiny
 
-Stav k 20. 10. 2026 – **návrh ke schválení** (po recenzi). Lidský hráč dostane krajinu s něčím výjimečným –
+Stav k 20. 10. 2026 – **schváleno** (Martin: „Shvaluji“). Lidský hráč dostane krajinu s něčím výjimečným –
 nalezištěm, splavnou řekou, brodem pod vyvýšeninou, průsmykem, velmi úrodnou půdou… NPC mají
 průměrnou krajinu. Všechny prémiové krajiny mají stejnou hodnotu, jen každá jinou a jindy.
 
