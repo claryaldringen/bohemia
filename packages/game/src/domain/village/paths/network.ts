@@ -1591,16 +1591,17 @@ function tripGroups(
   }
   // kovář (crafts.md – Uhlí a ruda kováře): z kovárny na rudiště kopat a pro rudu, k milíři pro
   // uhlí – jen jeho domácnost; nošení v koších po cestách tam a zpět (cest za den podle délky),
-  // kopání jedna cesta na člověkoden; s vozem jede kovář vozem (bez pěšiny)
+  // kopání jedna cesta na člověkoden; s vozem jede kovář vozem (bez pěšiny). Uhlíř chodí k milíři
+  // ze zemnice (crafts.md – Milíř u skácených buků) – jedna cesta na člověkoden u milíře.
   const smithWalks = new Map<string, { home: number; at: PathPoint; trips: number }>();
   for (const share of v.labor?.shares ?? []) {
     const t = share.target;
     if (share.carts || (t.kind !== 'ore' && t.kind !== 'kiln')) continue;
-    const from = t.kind === 'ore' ? t.id : (t.from ?? null);
-    if (from === null) continue;
-    // roční součet práce činnost nezná – u milíře se jen nosí, na rudišti hlavně kope
+    const from = t.kind === 'ore' ? t.id : (t.from ?? t.id);
+    // roční součet práce činnost nezná – pro uhlí od milíře se jen nosí, na rudišti hlavně kope
     const carrying =
-      share.activity === 'fetch' || (share.activity === undefined && t.kind === 'kiln');
+      share.activity === 'fetch' ||
+      (share.activity === undefined && t.kind === 'kiln' && t.from !== undefined);
     const home = homes.findIndex((h) => h.dwellingId === from);
     if (home < 0) continue;
     const h = homes[home]!;

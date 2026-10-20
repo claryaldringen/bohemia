@@ -312,11 +312,33 @@ describe('voda v sudech (wagons.md – Co vozy vozí, paths.md – Pochůzky pro
     expect(waterCartDrive(t, dry, villageCartDrives(t, DAY, dry, null)!)).toBeNull();
   }, 60_000);
 
-  it('milíř v lese vůz bez pevné cesty nedosáhne, u dílny ano', () => {
+  it('k milíři v lese vůz jen po pevné cestě, na louce ano (crafts.md – Milíř u skácených buků)', () => {
     const s = village();
     const drives = villageCartDrives(s, DAY, LANDSCAPE, null)!;
     expect(kilnCartDrive(s, { x: -135, z: 0 }, drives)).toBeNull();
     expect(kilnCartDrive(s, { x: 40, z: 0 }, drives)).not.toBeNull();
+    // pevná cesta do lesa k milíři – vůz po ní dojede
+    s.roads = {
+      nextId: 2,
+      roads: [
+        {
+          id: 1,
+          points: [
+            { x: -60, z: 0 },
+            { x: -135, z: 0 },
+          ],
+          bornDay: DAY - 400,
+          grade: 'trodden',
+          traffic: [],
+          spots: [],
+        },
+      ],
+      trees: [],
+      candidates: [],
+      labor: { from: DAY - 30, days: 30, shares: [] },
+    };
+    const road = villageCartDrives(s, DAY, LANDSCAPE, null)!;
+    expect(kilnCartDrive(s, { x: -135, z: 0 }, road)).not.toBeNull();
   }, 60_000);
 
   it('ves daleko od vody vozí vodu vozem – jízdy jdou do ročního provozu cest', () => {

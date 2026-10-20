@@ -325,6 +325,29 @@ describe('computePathNetwork – pěšiny vsi', () => {
     expect(reaches(riding, ore)).toBe(false);
   });
 
+  it('uhlíř chodí k milíři ze zemnice – pěšina k němu vede, kupu obejde (crafts.md – Milíř u skácených buků)', () => {
+    const kiln = { kind: 'kiln' as const, id: 2, kiln: 7, x: -80, z: -40 };
+    const near = (network: PathNetwork, r: number): number =>
+      samples(network).filter((q) => Math.hypot(q.x - kiln.x, q.z - kiln.z) < r).length;
+    const idle = computePathNetwork({ village: village({ kilns: [kiln] }), terrain });
+    const working = computePathNetwork({
+      village: village({
+        kilns: [kiln],
+        labor: {
+          day: 4000,
+          month: 6,
+          people: { children: 4, adults: 8, elders: 2 },
+          shares: [{ activity: 'craft', target: kiln, manDays: 1.5 }],
+        },
+      }),
+      terrain,
+    });
+    expect(near(idle, 8)).toBe(0);
+    expect(near(working, 8)).toBeGreaterThan(0);
+    // přes kupu milíře pěšina nevede
+    expect(near(working, 1)).toBe(0);
+  });
+
   it('k přirozené louce, kde se dnes seče, vede pěšina (oxen.md – Seno)', () => {
     // louka na východ od vsi – bez seče tam nikdo nechodí
     const meadow = part(82.5, -37.5);
