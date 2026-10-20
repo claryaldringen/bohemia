@@ -65,9 +65,11 @@ export function smokeStrength(seed: number, gameDay: number): number {
 
 /**
  * Odkud dým stoupá: dýmník obydlí (topí se podle rozvrhu ohně – vaření ráno a večer), pec nebo
- * výheň pracující dílny (topí se přes pracovní den) a milíř (doutná dnem i nocí – crafts.md).
+ * výheň pracující dílny (topí se přes pracovní den), milíř (doutná dnem i nocí – crafts.md)
+ * a pohřební hranice (cemetery.md – Pohřeb ve scéně: hustší a vyšší sloupec – PYRE_PLUME; sílu
+ * neurčuje rozvrh ohně, ale obřad – funeral-plan.ts, `pyreState`).
  */
-export type SmokeKind = 'hearth' | 'craft' | 'milir';
+export type SmokeKind = 'hearth' | 'craft' | 'milir' | 'pyre';
 
 /** Pracovní den dílny jako denní doba 0–1 – pec a výheň hoří od rána do večera. */
 const CRAFT_FIRE = { from: 0.26, to: 0.78 } as const;
@@ -79,6 +81,8 @@ const CRAFT_FIRE = { from: 0.26, to: 0.78 } as const;
  */
 export function ventSmokeStrength(kind: SmokeKind, seed: number, gameDay: number): number {
   if (kind === 'hearth') return smokeStrength(seed, gameDay);
+  // hranice hoří podle obřadu (funeral-plan.ts) – mimo něj se nekouří
+  if (kind === 'pyre') return 0;
   const day = Math.floor(gameDay);
   if (kind === 'milir') return 0.5 + 0.15 * hash01(seed, day, 21);
   const time = gameDay - day;
@@ -113,27 +117,65 @@ export interface Puff {
 }
 
 /**
+ * Tvar sloupce dýmu: kolik obláčků, jak dlouho obláček žije (s), kam vystoupá a kam ho vítr
+ * odnese (m) a jak velký je na začátku a na konci (m).
+ */
+export interface PlumeShape {
+  puffs: number;
+  lifeS: number;
+  riseM: number;
+  driftM: number;
+  size: { start: number; end: number };
+}
+
+/** Dým z dýmníku, pece a milíře. */
+export const HEARTH_PLUME: PlumeShape = {
+  puffs: PUFFS_PER_PLUME,
+  lifeS: PUFF_LIFE_S,
+  riseM: RISE_M,
+  driftM: WIND.driftM,
+  size: SIZE_M,
+};
+/** Pohřební hranice – hustší a vyšší sloupec z větších obláčků. */
+export const PYRE_PLUME: PlumeShape = {
+  puffs: 30,
+  lifeS: 15,
+  riseM: 24,
+  driftM: 10,
+  size: { start: 1.1, end: 7 },
+};
+
+/** Tvar sloupce dýmu podle druhu zdroje. */
+export function plumeShape(kind: SmokeKind): PlumeShape {
+  return kind === 'pyre' ? PYRE_PLUME : HEARTH_PLUME;
+}
+
+/**
  * Obláčky sloupce dýmu v čase `timeS` (s): každý obláček stoupá a zpomaluje, vítr ho odnáší,
  * roste a slábne. Krytí podle síly ohně ve chvíli, kdy obláček vznikl – když se přestane topit,
  * poslední obláčky ještě doletí a sloupec se odtrhne. `strengthAt(ageS)` = síla ohně před
- * `ageS` sekundami.
+ * `ageS` sekundami. `shape` – tvar sloupce (bez údaje dým z dýmníku).
  */
 export function plumePuffs(
   seed: number,
   timeS: number,
   strengthAt: (ageS: number) => number,
   out: Puff[] = [],
+  shape: PlumeShape = HEARTH_PLUME,
 ): Puff[] {
-  out.length = PUFFS_PER_PLUME;
-  const cycle = timeS / PUFF_LIFE_S;
-  for (let i = 0; i < PUFFS_PER_PLUME; i++) {
-    const phase = cycle + (i + 0.5 * hash01(seed, i, 7)) / PUFFS_PER_PLUME;
+  const count = shape.puffs;
+  const life = shape.lifeS;
+  const size = shape.size;
+  out.length = count;
+  const cycle = timeS / life;
+  for (let i = 0; i < count; i++) {
+    const phase = cycle + (i + 0.5 * hash01(seed, i, 7)) / count;
     const generation = Math.floor(phase);
     const age = phase - generation;
     const r = (k: number): number => hash01(seed * 131 + i, generation, k);
-    const strength = strengthAt(age * PUFF_LIFE_S);
-    const rise = RISE_M * (1 - Math.pow(1 - age, 1.7)) * (0.85 + 0.3 * r(1));
-    const drift = WIND.driftM * Math.pow(age, 1.5) * (0.8 + 0.4 * r(2));
+    const strength = strengthAt(age * life);
+    const rise = shape.riseM * (1 - Math.pow(1 - age, 1.7)) * (0.85 + 0.3 * r(1));
+    const drift = shape.driftM * Math.pow(age, 1.5) * (0.8 + 0.4 * r(2));
     // boční vlnění a rozptyl – sloupec není rovná čára
     const sway = (0.25 + 1.1 * age) * Math.sin(age * 5.2 + r(3) * 6.28);
     const fade = Math.min(1, age / 0.08) * (1 - Math.pow(age, 1.6));
@@ -141,7 +183,7 @@ export function plumePuffs(
       dx: WIND.x * drift - WIND.z * sway,
       dy: rise,
       dz: WIND.z * drift + WIND.x * sway,
-      size: SIZE_M.start + (SIZE_M.end - SIZE_M.start) * Math.pow(age, 0.8) * (0.8 + 0.4 * r(4)),
+      size: size.start + (size.end - size.start) * Math.pow(age, 0.8) * (0.8 + 0.4 * r(4)),
       angle: r(5) * 6.28 + age * (r(6) - 0.5) * 1.6,
       alpha: Math.max(0, fade) * strength,
       shade: 0.78 + 0.16 * r(7),
@@ -150,8 +192,13 @@ export function plumePuffs(
   return out;
 }
 
+/** Nejvzdálenější dosah obláčků sloupce tvaru `shape` od zdroje (m) – je dým v záběru? */
+export function plumeReach(shape: PlumeShape): { up: number; side: number } {
+  return {
+    up: shape.riseM * 1.2 + shape.size.end,
+    side: shape.driftM * 1.2 + 1.4 + shape.size.end,
+  };
+}
+
 /** Nejvzdálenější dosah obláčků od dýmníku (m) – pro kontrolu, jestli je dým v záběru. */
-export const PLUME_REACH_M = {
-  up: RISE_M * 1.2 + SIZE_M.end,
-  side: WIND.driftM * 1.2 + 1.4 + SIZE_M.end,
-};
+export const PLUME_REACH_M = plumeReach(HEARTH_PLUME);

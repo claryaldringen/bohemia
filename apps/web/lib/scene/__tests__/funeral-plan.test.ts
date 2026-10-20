@@ -16,10 +16,13 @@ import {
   moundHidden,
   processionPace,
   pyreState,
+  withoutHiddenMounds,
   type FuneralEnv,
   type FuneralPlan,
 } from '../funeral-plan';
 import { LIVESTOCK_EPOCH_MS } from '../livestock-motion';
+import { FLAMES_PER_PYRE, SPARKS_PER_PYRE, fireSprites } from '../pyre-fire';
+import { PYRE_PLUME, plumePuffs, plumeReach, PLUME_REACH_M } from '../smoke-schedule';
 import { createVillagerPose, villagerSeconds } from '../villager-motion';
 
 // Pohřeb ve scéně (cemetery.md – Pohřeb ve scéně; Martin 20. 10. 2026: „Když je pohřeb, chtěl bych
@@ -264,5 +267,57 @@ describe('pohyb průvodu a már v čase', () => {
     expect(funeralActiveIn(p, windowOf(DAY - 1))).toBe(false);
     expect(funeralActiveIn(p, windowOf(DAY + 5))).toBe(false);
     expect(funeralActiveIn(p, null)).toBe(false);
+  });
+});
+
+describe('mohyla až po dohoření (withoutHiddenMounds)', () => {
+  it('hřbitov ve scéně bez mohyly pohřbu, dokud hranice nevychladne', () => {
+    const p = plan();
+    const cemeteries = VILLAGE.cemeteries!;
+    const hidden = (nowMs: number): Set<string> => new Set(moundHidden(p, nowMs) ? [p.key] : []);
+    const burning = withoutHiddenMounds(cemeteries, hidden(p.timeline.litMs + 1000));
+    expect(burning[0]).not.toHaveProperty('mounds');
+    const cold = withoutHiddenMounds(cemeteries, hidden(p.timeline.coldMs));
+    expect(cold).toBe(cemeteries);
+    expect(cold[0]!.mounds).toHaveLength(1);
+  });
+});
+
+describe('oheň hranice (pyre-fire.ts) a hustší dým', () => {
+  const heading = { x: 0, z: 1 };
+  const lit = (out: ReturnType<typeof fireSprites>): number =>
+    out.filter((f) => f.intensity > 0).length;
+
+  it('bez ohně nic nesvítí; hořící hranice má plameny, jiskry a záři', () => {
+    const idle = fireSprites(5, 100, { fire: 0, stack: 1, glow: 0 }, heading);
+    expect(idle).toHaveLength(FLAMES_PER_PYRE + SPARKS_PER_PYRE + 1);
+    expect(lit(idle)).toBe(0);
+    const burning = fireSprites(5, 100, { fire: 1, stack: 1, glow: 0 }, heading);
+    expect(lit(burning)).toBeGreaterThan(FLAMES_PER_PYRE * 0.8);
+    // plameny šlehají z hranice nahoru, jiskry výš
+    const flames = burning.slice(0, FLAMES_PER_PYRE).filter((f) => f.intensity > 0);
+    for (const f of flames) {
+      expect(Math.abs(f.dz)).toBeLessThan(PYRE.lengthM);
+      expect(f.dy).toBeGreaterThan(0);
+    }
+    const weak = fireSprites(5, 100, { fire: 0.3, stack: 0.5, glow: 0.5 }, heading);
+    expect(lit(weak)).toBeLessThan(lit(burning));
+    // uhlíky bez plamenů – jen záře
+    const embers = fireSprites(5, 100, { fire: 0, stack: 0, glow: 1 }, heading);
+    expect(lit(embers)).toBe(1);
+  });
+
+  it('stejný okamžik = stejné plameny', () => {
+    const a = fireSprites(9, 1234.5, { fire: 0.8, stack: 0.9, glow: 0 }, heading);
+    const b = fireSprites(9, 1234.5, { fire: 0.8, stack: 0.9, glow: 0 }, heading);
+    expect(a).toEqual(b);
+  });
+
+  it('dým z hranice je hustší a vyšší než z dýmníku', () => {
+    expect(PYRE_PLUME.puffs).toBeGreaterThan(18);
+    expect(plumeReach(PYRE_PLUME).up).toBeGreaterThan(PLUME_REACH_M.up * 2);
+    const puffs = plumePuffs(3, 500, () => 1, [], PYRE_PLUME);
+    expect(puffs).toHaveLength(PYRE_PLUME.puffs);
+    expect(Math.max(...puffs.map((p) => p.dy))).toBeGreaterThan(PLUME_REACH_M.up);
   });
 });

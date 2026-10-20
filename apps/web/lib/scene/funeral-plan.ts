@@ -7,7 +7,7 @@
 // (skutečný čas jako u ostatních postav – stejný okamžik = stejná póza): začátek je začátek
 // herního dne pohřbu (okno dne z hodin světa), průvod jde skutečnou chůzí.
 import { cemeteryEntrance, type Entrance } from '@bohemia/game';
-import { FUNERAL_BEARERS, type SceneFuneral, type SceneMourner } from '../funeral-view';
+import { FUNERAL_BEARERS, funeralKey, type SceneFuneral, type SceneMourner } from '../funeral-view';
 import type { SceneVillage } from '../village-view';
 import { MOUND_SHAPES, gravePlacements, moundPlacements } from './cemetery-layout';
 import { LIVESTOCK_EPOCH_MS } from './livestock-motion';
@@ -414,6 +414,39 @@ function cemeteryMounds(
   return [...mounds, ...graves];
 }
 
+/** Odstup od plotu hřbitova – uvnitř i venku (m). */
+const FENCE_CLEAR_M = { inside: 0.7, outside: 0.9 };
+
+/**
+ * Nestojí člověk na plotu hřbitova? Uvnitř čtverců kus od plotu, nebo venku kus za ním (plot vede
+ * po obrysu čtverců; mezi sousedními čtverci plot není – vnitřní okraj uvnitř hřbitova).
+ */
+function offFence(
+  squares: readonly { x: number; z: number; size: number; rotation?: number }[],
+): (x: number, z: number) => boolean {
+  const local = (q: (typeof squares)[number], x: number, z: number): [number, number] => {
+    const c = Math.cos(q.rotation ?? 0);
+    const s = Math.sin(q.rotation ?? 0);
+    const dx = x - q.x;
+    const dz = z - q.z;
+    // natočený čtverec (fields.md – Natočené stavby): osy mřížky x·c + z·s, −x·s + z·c
+    return [dx * c - dz * s, dx * s + dz * c];
+  };
+  const inside = (x: number, z: number, margin: number): boolean =>
+    squares.some((q) => {
+      const [u, v] = local(q, x, z);
+      const half = q.size / 2 + margin;
+      return Math.abs(u) < half && Math.abs(v) < half;
+    });
+  const m = FENCE_CLEAR_M.inside;
+  return (x, z) =>
+    !inside(x, z, FENCE_CLEAR_M.outside) ||
+    (inside(x - m, z - m, 0) &&
+      inside(x + m, z - m, 0) &&
+      inside(x - m, z + m, 0) &&
+      inside(x + m, z + m, 0));
+}
+
 /**
  * Místa v kruhu kolem hranice pro `count` lidí: řady od nejbližší (RING_RADII_M), v řadě
  * rovnoměrně kolem dokola od strany branky; místo musí být schůdné, mimo domy a mohyly. Kdo
@@ -539,8 +572,11 @@ export function funeralPlan(
   const mourners = funeral.mourners;
   const count = FUNERAL_BEARERS + mourners.length;
   const mounds = cemeteryMounds(village, funeral);
+  const fence = offFence(cemetery.squares);
   const free = (x: number, z: number): boolean =>
-    env.standable(x, z) && !mounds.some((m) => Math.hypot(m.x - x, m.z - z) < m.r + 0.25);
+    env.standable(x, z) &&
+    fence(x, z) &&
+    !mounds.some((m) => Math.hypot(m.x - x, m.z - z) < m.r + 0.25);
   const toGate = entrance
     ? unit(entrance.x - pyre.x, entrance.z - pyre.z)
     : { x: -heading.x, z: -heading.z };
@@ -842,4 +878,19 @@ export function funeralPose(
 export function funeralActiveIn(plan: FuneralPlan, window: DayWindow | null): boolean {
   if (!window) return false;
   return plan.timeline.startMs < window.endMs && plan.figuresUntilMs > window.startMs;
+}
+
+/** Hřbitovy bez mohyl, které ještě nejsou nasypané (hranice hoří nebo doutná). */
+export function withoutHiddenMounds(
+  cemeteries: NonNullable<SceneVillage['cemeteries']>,
+  hidden: ReadonlySet<string>,
+): NonNullable<SceneVillage['cemeteries']> {
+  if (hidden.size === 0) return cemeteries;
+  return cemeteries.map((c) => {
+    if (!c.mounds?.some((m) => hidden.has(funeralKey(c.id, m)))) return c;
+    const mounds = c.mounds.filter((m) => !hidden.has(funeralKey(c.id, m)));
+    const { mounds: _old, ...rest } = c;
+    void _old;
+    return mounds.length > 0 ? { ...rest, mounds } : rest;
+  });
 }

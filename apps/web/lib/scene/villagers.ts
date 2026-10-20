@@ -163,6 +163,16 @@ export class VillageVillagers {
   }
 
   /**
+   * Jiné hodiny světa (nebo vlastní okno dne ukázky) – karavany a pohřby jdou podle okna herního
+   * dne, lidé se rozmístí znovu. Vrátí true, když je co překreslit.
+   */
+  clockChanged(nowMs: number): boolean {
+    if (this.disposed || !this.village) return false;
+    this.key = '';
+    return this.update(this.village, nowMs);
+  }
+
+  /**
    * Nové pěšiny (path-renderer.ts) – lidé se rozmístí znovu, ať chodí po nich. Vrátí true, když je
    * co překreslit.
    */
