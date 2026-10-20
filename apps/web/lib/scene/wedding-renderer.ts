@@ -19,6 +19,7 @@ import { CreateSphere } from '@babylonjs/core/Meshes/Builders/sphereBuilder';
 import { CreateTorus } from '@babylonjs/core/Meshes/Builders/torusBuilder';
 import { VertexBuffer } from '@babylonjs/core/Buffers/buffer';
 import type { Scene } from '@babylonjs/core/scene';
+import { obstacleIndex, obstacleLook, type ObstacleLayer } from '@bohemia/game';
 import { Sprite } from '@babylonjs/core/Sprites/sprite';
 import { SpriteManager } from '@babylonjs/core/Sprites/spriteManager';
 import { FIRE_REACH_M, fireSprites, type FireSprite } from './pyre-fire';
@@ -39,27 +40,38 @@ const FIRE_SCALE = { shrine: 0.42, green: 0.5 } as const;
 /** Okolní světlo dílů – jako modely vsi (village-renderer.ts). */
 const AMBIENT = new Color3(0.38, 0.38, 0.36);
 /**
- * Věnec a pentle na kmeni posvátného dubu (m při velikosti dubu 1): výška věnce, poloměr kmene
- * pod ním, tloušťka věnce, kvítky, pentle (délka a šířka).
+ * Věnec a pentle na kmeni posvátného dubu (m v měřítku modelu dubu): výška věnce, tloušťka věnce,
+ * kvítky, pentle (délka a šířka). Poloměr kmene ve výšce věnce podle modelu dubu – OAK_TRUNK_M.
  */
 const GARLAND = {
-  heightM: 2.2,
-  trunkM: 0.78,
-  tubeM: 0.13,
-  flowers: 22,
-  flowerM: 0.13,
+  heightM: 2.1,
+  tubeM: 0.15,
+  flowers: 26,
+  flowerM: 0.17,
   ribbons: 7,
-  ribbonM: 1.5,
-  ribbonWidthM: 0.14,
+  ribbonM: 1.4,
+  ribbonWidthM: 0.15,
 } as const;
+/**
+ * Poloměr kmene dubů ve výšce věnce (≈ 2,1 m, změřeno z GLB modelů stromů – mezi prstenci kmene
+ * lineárně); model mimo tabulku DEFAULT_TRUNK_M.
+ */
+const OAK_TRUNK_M: Readonly<Record<string, number>> = {
+  'oak-1': 0.88,
+  'oak-2': 0.5,
+  'oak-large-1': 0.54,
+  'oak-large-2': 0.6,
+  'oak-large-3': 0.6,
+};
+const DEFAULT_TRUNK_M = 0.6;
 /** Barvy kvítků a pentlí (bílá, mořena, boryt, rezeda). */
 const FLOWER_COLORS: readonly [number, number, number][] = [
-  [0.96, 0.94, 0.85],
-  [0.85, 0.16, 0.1],
-  [0.3, 0.45, 0.9],
-  [0.95, 0.78, 0.2],
+  [0.88, 0.86, 0.78],
+  [0.68, 0.17, 0.1],
+  [0.3, 0.4, 0.68],
+  [0.84, 0.68, 0.22],
 ];
-const LEAF_COLOR: [number, number, number] = [0.25, 0.45, 0.15];
+const LEAF_COLOR: [number, number, number] = [0.22, 0.38, 0.14];
 const STONE_COLOR: [number, number, number] = [0.5, 0.48, 0.44];
 const LOG_COLOR: [number, number, number] = [0.32, 0.22, 0.13];
 
@@ -90,7 +102,10 @@ export class WeddingRenderer {
   private readonly bounds = new BoundingInfo(Vector3.Zero(), Vector3.Zero());
   private material: StandardMaterial | null = null;
   private hearthSource: Mesh | null = null;
-  private garlandSource: Mesh | null = null;
+  /** Věnec s pentlemi podle poloměru kmene (cm) – jeden zdroj na model dubu. */
+  private readonly garlandSources = new Map<number, Mesh>();
+  /** Vrstva překážek krajiny – model a měřítko posvátného dubu (věnec na kmen). */
+  private layer: ObstacleLayer | null = null;
   /** Při posledním zápisu běžel obřad (oheň) – po konci se zapíše ještě jednou. */
   private live = true;
   private disposed = false;
@@ -127,6 +142,11 @@ export class WeddingRenderer {
     return had || this.views.length > 0;
   }
 
+  /** Vrstva překážek krajiny – podle ní sedí věnec na kmeni posvátného dubu. */
+  setObstacles(layer: ObstacleLayer): void {
+    this.layer = layer;
+  }
+
   /** Posune oheň a věnec na okamžik `nowMs`; vrátí true, když se v záběru něco změnilo. */
   animate(nowMs: number, camera: Camera | null): boolean {
     if (this.views.length === 0) return false;
@@ -157,7 +177,8 @@ export class WeddingRenderer {
     this.fireManager?.dispose();
     this.fireManager = null;
     this.hearthSource?.dispose();
-    this.garlandSource?.dispose();
+    for (const mesh of this.garlandSources.values()) mesh.dispose();
+    this.garlandSources.clear();
     this.material?.dispose();
   }
 
@@ -278,14 +299,27 @@ export class WeddingRenderer {
     return mesh;
   }
 
-  /** Věnec a pentle na kmeni posvátného dubu – klon zdroje zvětšený s dubem, pentle k páru. */
+  /**
+   * Věnec a pentle na kmeni posvátného dubu – klon zdroje podle modelu dubu, zvětšený s měřítkem
+   * stromu ve vrstvě a s růstem dubu, pentle k páru.
+   */
   private garlandAt(plan: WeddingPlan): Mesh | null {
     const oak = plan.site.oak;
     if (!oak) return null;
-    this.garlandSource ??= this.buildGarland();
-    const mesh = this.garlandSource.clone(`wedding-garland-${plan.key}`);
+    const index =
+      this.layer && plan.site.id !== null ? obstacleIndex(this.layer, plan.site.id) : -1;
+    const look = index >= 0 && this.layer ? obstacleLook(this.layer, index) : null;
+    const trunk = (look ? OAK_TRUNK_M[look] : undefined) ?? DEFAULT_TRUNK_M;
+    const size = index >= 0 && this.layer ? (this.layer.scale[index] ?? 1) : 1;
+    const key = Math.round(trunk * 100);
+    let source = this.garlandSources.get(key);
+    if (!source) {
+      source = this.buildGarland(trunk);
+      this.garlandSources.set(key, source);
+    }
+    const mesh = source.clone(`wedding-garland-${plan.key}`);
     mesh.position.set(oak.x, this.env.groundHeight(oak.x, oak.z), oak.z);
-    mesh.scaling.setAll(oak.growth);
+    mesh.scaling.setAll(oak.growth * size);
     mesh.rotation.y = Math.atan2(plan.site.couple.x - oak.x, plan.site.couple.z - oak.z);
     mesh.setEnabled(false);
     return mesh;
@@ -316,17 +350,17 @@ export class WeddingRenderer {
     return this.merge('wedding-hearth', parts);
   }
 
-  private buildGarland(): Mesh {
+  private buildGarland(trunkM: number): Mesh {
     const g = GARLAND;
     const parts: Mesh[] = [];
     const ring = CreateTorus(
       'wedding-ring',
-      { diameter: 2 * (g.trunkM + g.tubeM * 0.6), thickness: g.tubeM, tessellation: 28 },
+      { diameter: 2 * (trunkM + g.tubeM * 0.4), thickness: g.tubeM, tessellation: 28 },
       this.scene,
     );
     ring.position.y = g.heightM;
     parts.push(painted(ring, LEAF_COLOR));
-    const radius = g.trunkM + g.tubeM * 0.9;
+    const radius = trunkM + g.tubeM * 0.8;
     for (let i = 0; i < g.flowers; i++) {
       const a = (i / g.flowers) * Math.PI * 2;
       const flower = CreateSphere(

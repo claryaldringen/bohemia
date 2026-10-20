@@ -21,10 +21,10 @@ import {
 /**
  * Svatby kolika posledních herních dnů jdou do scény. Průvod jde skutečnou chůzí (jako pohřeb) –
  * k posvátnému místu 600 m daleko ≈ 9 minut, lidé z okolí jdou od kraje mapy (≈ 1 km) a zase
- * zpátky; celé to trvá i dvacet herních dnů (≈ 86 s). Scéna sama pozná, které svatby už skončily
+ * zpátky; celé to trvá i třicet herních dnů (≈ 86 s). Scéna sama pozná, které svatby už skončily
  * (`WeddingPlan.figuresUntilMs`).
  */
-export const WEDDING_VIEW_DAYS = 30;
+export const WEDDING_VIEW_DAYS = 40;
 /** Nejvýš tolik postav svatby (i s párem a lidmi z okolí); ve vojvodově rodině jde celá ves. */
 export const MAX_WEDDING_FIGURES = 30;
 export const MAX_MANOR_WEDDING_FIGURES = 40;

@@ -647,6 +647,8 @@ export class VillageRenderer {
   setObstacles(layer: ObstacleLayer): boolean {
     const orchards = this.orchards.setObstacles(layer);
     const meadows = this.fields.setLandscape(this.context.landscape ?? null, layer);
+    // věnec na kmeni posvátného dubu podle modelu a měřítka stromu (svatba)
+    this.weddings.setObstacles(layer);
     return orchards || meadows;
   }
 

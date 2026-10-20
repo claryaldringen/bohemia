@@ -176,6 +176,8 @@ export interface WeddingMember {
   home: Route;
   /** Jde domů v průvodu páru (tempo průvodu), jinak vlastní chůzí. */
   procession: boolean;
+  /** Lidé z okolí jdou zpátky ke kraji spolu – tempo skupiny (m/s); bez údaje vlastní chůzí. */
+  groupPace?: number;
   ringMs: number;
   leaveMs: number;
 }
@@ -401,7 +403,13 @@ export function weddingSiteOf(
     const s = Math.sin(turn);
     const d = { x: outward.x * c - outward.z * s, z: outward.z * c + outward.x * s };
     const p = ahead(door, d, GREEN.fireM);
-    if (standable(p.x, p.z) && standable(...along(p, door, GREEN.coupleM))) {
+    const couple = along(p, door, GREEN.coupleM);
+    if (
+      standable(p.x, p.z) &&
+      standable(...couple) &&
+      !onField(village, p.x, p.z) &&
+      !onField(village, ...couple)
+    ) {
       fire = p;
       break;
     }
@@ -416,6 +424,20 @@ export function weddingSiteOf(
     fires: [fire],
     obstacle: { x: fire.x, z: fire.z, r: GREEN.fireClearM },
   };
+}
+
+/** Leží bod na dílu pole (i natočeném)? Ohniště na návsi se na pole nedává. */
+function onField(village: SceneVillage, x: number, z: number): boolean {
+  return village.fields.some((f) =>
+    f.parts.some((q) => {
+      const c = Math.cos(q.rotation ?? 0);
+      const s = Math.sin(q.rotation ?? 0);
+      const dx = x - q.x;
+      const dz = z - q.z;
+      const half = q.size / 2;
+      return Math.abs(dx * c - dz * s) < half && Math.abs(dx * s + dz * c) < half;
+    }),
+  );
 }
 
 /** Bod `m` metrů od `a` směrem k `b` jako dvojice [x, z]. */
@@ -827,6 +849,7 @@ export function weddingPlan(
   const homeWay = wayTo(wedding.home);
   const homePace = processionPace(routeOf([site.couple, ...homeWay]).length);
   let followers = 0;
+  let leaving = 0;
   members.forEach((m, i) => {
     const who = all[i]!;
     let points: Point[];
@@ -837,8 +860,11 @@ export function weddingPlan(
       leaveMs = endMs + t.leaveS * 1000;
       procession = true;
     } else if (who.role === 'companion') {
+      // lidé z okolí jdou zpátky spolu – po dvou za sebou tempem, jakým přišli
       points = [m.ring, ...outsideBack];
-      leaveMs = endMs + (t.leaveS + 2 + hashText(wedding.key, i) * 6 * t.leaveStepS) * 1000;
+      leaveMs =
+        endMs + (t.leaveS + 2 + Math.floor(leaving++ / 2) * (COLUMN.rowM / outsidePace)) * 1000;
+      m.groupPace = outsidePace;
     } else if (who.home === wedding.home) {
       // domácnost nového domova jde za párem
       followers++;
@@ -893,7 +919,10 @@ export function weddingPlan(
   const figuresUntilMs = Math.max(
     endMs,
     ...members.map(
-      (m) => m.leaveMs + (m.home.length / (m.procession ? homePace : SLOWEST_M_S)) * 1000 + 1000,
+      (m) =>
+        m.leaveMs +
+        (m.home.length / (m.procession ? homePace : (m.groupPace ?? SLOWEST_M_S))) * 1000 +
+        1000,
     ),
   );
   return {
@@ -1012,7 +1041,7 @@ export function weddingPose(
     };
     // po obřadu domů (pár a domácnost nového domova průvodem) – na konci cesty zmizí
     if (nowMs >= m.leaveMs) {
-      const speed = m.procession ? t.homePace : own;
+      const speed = m.procession ? t.homePace : (m.groupPace ?? own);
       const d = ((nowMs - m.leaveMs) / 1000) * speed;
       alongRoute(m.home, d, false, o);
       o.clip = 'walk';
