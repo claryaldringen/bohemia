@@ -1,8 +1,10 @@
 import { obstacleIndex, type Landscape, type ObstacleLayer } from '../landscape';
-import { ableTeams, oxenHome, oxPens, ploughPairsHome } from './oxen';
+import { ableTeams, isTrained, oxenHome, oxenToEdit, oxPens, ploughPairsHome } from './oxen';
+import { oxenOf } from './pens';
 import { axisCartCheck, type CartTarget } from './paths/cart';
 import { addRoadCartTrips, villageCartRoutes } from './paths/roads';
 import { CARTS, DRAFT_OXEN } from './rules';
+import { villageOrchards } from './orchard';
 import { squareCenter } from './square-grid';
 import { fieldGridOf } from './squares';
 import type {
@@ -14,6 +16,7 @@ import type {
   CropWork,
   FieldPart,
   HayMowing,
+  Ox,
   TradeExpedition,
   Trail,
   VillageState,
@@ -317,6 +320,58 @@ export function networkCartAccess(
   };
 }
 
+/**
+ * Vůz s voly, který si vezmou odcházející (migration.md – Vůz při odchodu; Martin 20. 10. 2026:
+ * „Ano, udělej to jak říkáš“ – návrh nových nákladů vozů, wagons.md): vůz doma (ne na výpravě)
+ * a vycvičení voli pro něj (DRAFT_OXEN), bez kterých ves udrží páry k rádlům, které má
+ * (`ableTeams`); odchází-li celá ves (`all`), páry nedrží. Napřed čtyřkolák (uveze víc jídla), pak
+ * dvoukolák, nejmladší vůz; voli s nejdelší zbývající službou (nejpozději vycvičení). Bez vozu nebo
+ * volů null. Nemění stav – vůz a voly odebere `takeLeavingCart`.
+ */
+export function leavingCart(
+  state: Pick<VillageState, 'pens' | 'ards' | 'carts' | 'trade'>,
+  day: number,
+  all: boolean,
+): { cart: Cart; oxen: Ox[] } | null {
+  const away = cartsAway(state);
+  const home = villageCarts(state).filter((c) => !away.has(c.id));
+  if (home.length === 0) return null;
+  const trained = oxPens(state)
+    .flatMap((pen) => oxenOf(pen).filter((ox) => isTrained(ox, day)))
+    .sort((a, b) => b.trainedDay - a.trainedDay);
+  const spare = trained.length - (all ? 0 : DRAFT_OXEN.ard * ableTeams(state, day));
+  for (const kind of ['four-wheel', 'two-wheel'] as const) {
+    if (spare < DRAFT_OXEN[kind]) continue;
+    const cart = home
+      .filter((c) => c.kind === kind)
+      .sort((a, b) => b.builtDay - a.builtDay || b.id - a.id)[0];
+    if (cart) return { cart, oxen: trained.slice(0, DRAFT_OXEN[kind]).map((ox) => ({ ...ox })) };
+  }
+  return null;
+}
+
+/**
+ * Vůz a voly `taken` (`leavingCart`) odvezou odcházející (mutuje stav): vůz zmizí z vozů vsi,
+ * voli z ohrad (stejný den vycvičení – z ohrady s nejvyšším id napřed).
+ */
+export function takeLeavingCart(
+  state: VillageState,
+  taken: { cart: Cart; oxen: readonly Ox[] },
+): void {
+  state.carts = villageCarts(state).filter((c) => c.id !== taken.cart.id);
+  if (state.carts.length === 0) delete state.carts;
+  const pens = [...oxPens(state)].sort((a, b) => b.id - a.id);
+  for (const ox of taken.oxen) {
+    for (const pen of pens) {
+      const oxen = oxenToEdit(pen);
+      const k = oxen.findIndex((o) => o.trainedDay === ox.trainedDay);
+      if (k < 0) continue;
+      oxen.splice(k, 1);
+      break;
+    }
+  }
+}
+
 /** Odkud vozy vyjíždějí – hotová ohrada volů (nejnižší id); bez ní null. */
 export function cartOrigin(state: Pick<VillageState, 'pens'>): { x: number; z: number } | null {
   const pen = oxPens(state)
@@ -480,6 +535,27 @@ export function mowingCartReach(
     const at = squareCenter(landscape, undefined, cell);
     return [{ ...at, weight: 'areaM2' in sq ? sq.areaM2 : 0, group: 'meadow' }];
   });
+  return reachOf(state, spots, access);
+}
+
+/**
+ * Kam vůz při sklizni jablek dojede (orchard.md – Jablka vozem): podíl plochy vysazených čtverců
+ * sadů, ke kterým vůz dojede (do CARTS.reachM od středu čtverce – do sadu nevjede, staví na kraji)
+ * a body jízd po sadech. Bez krajiny všude (body žádné).
+ */
+export function orchardCartReach(
+  state: VillageState,
+  landscape: Landscape | null,
+  access: CartAccess,
+): CartReach {
+  if (!landscape) return { share: 1, points: [] };
+  const spots = villageOrchards(state).flatMap((orchard) =>
+    orchard.squares.flatMap((sq): HaulSpot[] => {
+      if (sq.plantedDay === null) return [];
+      const at = squareCenter(landscape, orchard.grid, sq.cell);
+      return [{ ...at, weight: sq.areaM2, group: `orchard:${orchard.id}` }];
+    }),
+  );
   return reachOf(state, spots, access);
 }
 

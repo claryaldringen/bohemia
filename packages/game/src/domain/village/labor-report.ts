@@ -62,7 +62,7 @@ export interface FieldTaskWork {
  * před úlohami (`DayAllocation.carting` – crafts.md, Uhlí a ruda kováře), ostatní v práci úlohy.
  */
 export interface HaulWork {
-  job: 'harvest' | 'mow' | 'logs' | 'charcoal' | 'ore' | 'clay' | 'seed' | 'water';
+  job: 'harvest' | 'mow' | 'logs' | 'charcoal' | 'ore' | 'clay' | 'seed' | 'water' | 'apples';
   manDays: number;
   carts: number;
   /** Z vozů čtyřkoláky (svoz podél cest); chybí = žádný. */
@@ -230,6 +230,11 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
       add(task, target, allocation.tasks[task] * share);
     }
   }
+  // jablka ze sadu vozem (orchard.md – Jablka vozem) – u největšího sadu
+  const orchardTarget = orchards
+    .filter((o) => o.target.kind === 'orchard')
+    .sort((a, b) => b.share - a.share)[0]?.target;
+  haulTo('apples', orchardTarget ?? null);
 
   for (const repair of work.repairs) {
     add('repair', { kind: 'dwelling', id: repair.dwellingId }, repair.manDays);

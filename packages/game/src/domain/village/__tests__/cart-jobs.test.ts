@@ -11,7 +11,14 @@ import {
 } from '../cart-jobs';
 import { newWorkshop } from '../crafts';
 import { householdWater } from '../labor';
-import { CART_JOBS, CHARCOAL_KILN, CRAFT_BASE, SMITH_SUPPLY, WATER_FETCHING } from '../rules';
+import {
+  CART_JOBS,
+  CHARCOAL_KILN,
+  CRAFT_BASE,
+  ORCHARD,
+  SMITH_SUPPLY,
+  WATER_FETCHING,
+} from '../rules';
 import { basketManDaysPerKg } from '../smith-supply';
 import { advanceVillage } from '../simulate';
 import type { Craft, FieldPart, LaborShare, Person, Position, VillageState } from '../types';
@@ -196,6 +203,50 @@ describe('levnější vůz pro uhlí a vodu (wagons.md – Co se vozí a na čem
     const s = withCharcoal(village(DAY));
     expect(villageCartDrives(s, DAY, null, null, 'four-wheel')).toBeNull();
     expect(villageCartDrives(s, DAY, null, null)).not.toBeNull();
+  });
+});
+
+describe('jablka ze sadu vozem (orchard.md – Jablka vozem)', () => {
+  const HARVEST = at(601, 9, 20);
+  /** Sad 40 čtverců (0,9 ha) v plné úrodě (30 let) – sklizeň na víc dní. */
+  function withOrchard(s: VillageState): VillageState {
+    s.orchards = [
+      {
+        id: 700,
+        squares: Array.from({ length: 40 }, (_, k) => ({
+          cell: { x: 2 + (k % 10), y: 6 + Math.floor(k / 10) },
+          areaM2: 225,
+          distanceM: 60,
+          plantingCost: 2,
+          plantingDone: 2,
+          plantedDay: HARVEST - Math.ceil(30 * YEAR),
+        })),
+      },
+    ];
+    const ha = (40 * 225) / 10_000;
+    s.orchardWork = {
+      task: 'harvest',
+      required: ORCHARD.harvestPerHa * ha,
+      done: 0,
+      yieldKg: ORCHARD.fullYieldKgPerHa * ha,
+    };
+    return s;
+  }
+
+  it('vůz převezme odnos jablek v koších – sklizeň postoupí víc, jablek přibude víc', () => {
+    const withCart = advanceVillage(withOrchard(village(HARVEST - 1)), HARVEST, null);
+    const noCart = withOrchard(village(HARVEST - 1));
+    delete noCart.carts;
+    const plain = advanceVillage(noCart, HARVEST, null);
+    const haul = withCart.labor!.shares.find((share) => share.activity === 'haul')!;
+    expect(haul.target).toEqual({ kind: 'orchard', id: 700 });
+    expect(haul.carts).toBe(1);
+    const work = withCart.orchardWork!;
+    expect(work.hauled).toBeGreaterThan(0);
+    // vůz převezme nejvýš ORCHARD.harvestCarryShare sklizně
+    expect(work.hauled!).toBeLessThanOrEqual(work.required * ORCHARD.harvestCarryShare + 1e-9);
+    expect(withCart.applesKg!).toBeGreaterThan(plain.applesKg!);
+    expect(plain.orchardWork!.hauled).toBeUndefined();
   });
 });
 

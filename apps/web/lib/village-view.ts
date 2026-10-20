@@ -2661,6 +2661,7 @@ function haulLoad(state: VillageState, share: LaborShare): CartLoad {
   if (share.job === 'water') return 'water';
   if (share.job === 'ore') return 'ore';
   if (share.job === 'clay') return 'clay';
+  if (share.target.kind === 'orchard') return 'apples';
   if (share.job === 'seed' || share.job === 'charcoal') return 'goods';
   const t = share.target;
   if (t.kind === 'meadow') return 'hay';
@@ -2767,6 +2768,14 @@ function cartRouteToday(
   } else if (t.kind === 'water') {
     // voda v sudech – na břeh, kde trasa jádra končí (waterCartDrive)
     axis = routeTo(state, t, CART_JOBS.water.reachM);
+  } else if (t.kind === 'orchard') {
+    // jablka ze sadu (orchard.md – Jablka vozem) – na kraj sadu k čtverci nejblíž těžišti, kam
+    // vůz dojede (do sadu nevjede)
+    const orchard = villageOrchards(state).find((o) => o.id === t.id);
+    const squares = (orchard?.squares ?? [])
+      .filter((sq) => sq.plantedDay !== null)
+      .map((sq) => squareCenter(landscape, orchard!.grid, sq.cell));
+    axis = routeToAny(state, squares, CARTS.reachM);
   } else if (t.kind === 'ore' || t.kind === 'clay') {
     // ruda z rudiště a hlína z hliniště (crafts.md – Uhlí a ruda kováře, Hlína hrnčíře) – k hromadě
     // u jámy jako jádro (oreCartDrive)

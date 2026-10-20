@@ -748,6 +748,14 @@ export interface OrchardWork {
   done: number;
   /** Sklizeň: kg jablek při plné sklizni (péče 0). */
   yieldKg: number;
+  /**
+   * Odnos jablek, který převzaly vozy (orchard.md – Jablka vozem; čd sklizně) – nejvýš
+   * ORCHARD.harvestCarryShare sklizně na čtvercích, kam vůz dojede. Chybí = 0.
+   */
+  hauled?: number;
+  /** Kam vůz při sklizni dojede (dvoukolák, čtyřkolák – `cartReach4`); chybí = ještě ne. */
+  cartReach?: CartReach;
+  cartReach4?: CartReach;
 }
 export type ConstructionKind =
   | 'dwelling'
@@ -1486,6 +1494,12 @@ export interface VillageState {
   orchards?: Orchard[];
   /** Zásoby jablek (kg) – jí se před obilím, 1. 3. shnijí. Chybí = žádná. */
   applesKg?: number;
+  /**
+   * Voli bez ohrady (migration.md – Vůz při odchodu): přišli s vozem osadníků do vsi, která ještě
+   * nemá ohradu volů – s první hotovou ohradou volů do ní přejdou (`looseOxenDay`), do té doby jen
+   * žerou seno. Chybí = žádní.
+   */
+  looseOxen?: Ox[];
   /** Rozběhnutá sezónní práce v sadech (sklizeň, péče); chybí nebo null = žádná. */
   orchardWork?: OrchardWork | null;
   /**

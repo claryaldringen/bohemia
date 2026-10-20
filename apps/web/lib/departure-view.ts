@@ -1,11 +1,13 @@
 import {
   DIRECTIONS,
   builtTrail,
+  leavingCart,
   dateOfDayIndex,
   directionBetween,
   edgeDistanceM,
   travelDays,
   villageCentre,
+  type CartKind,
   type Direction8,
   type Landscape,
   type VillageState,
@@ -25,9 +27,15 @@ export interface LeaveDirection {
   blocked: string | null;
 }
 
-/** Odchod z vsi – kam to jde (na téže mapě vždy, na novou mapu po směrech). */
+/**
+ * Odchod z vsi – kam to jde (na téže mapě vždy, na novou mapu po směrech) a jaký vůz s voly si
+ * odcházející vezmou (migration.md – Vůz při odchodu): když odejde jen část vsi (`cart`), nebo
+ * celá ves (`allCart`); bez vozu null.
+ */
 export interface VillageLeave {
   directions: LeaveDirection[];
+  cart: CartKind | null;
+  allCart: CartKind | null;
 }
 
 /** Lidé na cestě na novou mapu – směr, den příjezdu a jestli už dorazili. */
@@ -117,6 +125,8 @@ export function leaveOptions(
 ): VillageLeave {
   const centre = villageCentre(state);
   return {
+    cart: leavingCart(state, state.lastDay, false)?.cart.kind ?? null,
+    allCart: leavingCart(state, state.lastDay, true)?.cart.kind ?? null,
     directions: DIRECTIONS.map((direction) => {
       const own = ownMaps[direction];
       return {

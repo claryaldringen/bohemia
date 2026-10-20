@@ -1,4 +1,5 @@
 import {
+  CARTS,
   LEAVING,
   ORCHARD,
   PRODUCT_CRAFT,
@@ -753,8 +754,12 @@ export interface SelectionLeave {
   /** Obydlí, jejichž domácnosti odejdou. */
   households: readonly number[];
   people: number;
-  /** Jídlo s sebou (kg) – kolik unesou lidé od 7 let, nejvýš poměrný díl zásob. */
+  /**
+   * Jídlo s sebou (kg) – kolik unesou lidé od 7 let a vůz (`cart`), nejvýš poměrný díl zásob.
+   */
   foodKg: number;
+  /** Vůz s voly, který si vezmou (migration.md – Vůz při odchodu); bez vozu null. */
+  cart: CartKind | null;
   /** Na novou mapu po směrech – dny cesty, nebo proč tím směrem nejde. */
   directions: readonly LeaveDirection[];
 }
@@ -777,10 +782,14 @@ function leaveDetails(view: VillageView, ids: readonly number[]): SelectionLeave
   const total = view.people.children + view.people.adults + view.people.elders;
   const food = view.storesKg + view.meatKg + view.cheeseKg + view.legumesKg + view.applesKg;
   const share = total > 0 ? people / total : 0;
+  // odchází-li celá ves, vezme si vůz i s voly, které by jinak orali (migration.md)
+  const cart = people >= total ? view.leave.allCart : view.leave.cart;
+  const budget = carriers * LEAVING.carryKgPerPerson + (cart ? CARTS.loadKg[cart] : 0);
   return {
     households: leaving.map((h) => h.dwellingId),
     people,
-    foodKg: Math.min(carriers * LEAVING.carryKgPerPerson, Math.max(0, food) * share),
+    foodKg: Math.min(budget, Math.max(0, food) * share),
+    cart,
     directions: view.leave.directions,
   };
 }

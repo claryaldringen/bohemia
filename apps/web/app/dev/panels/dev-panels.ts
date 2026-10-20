@@ -23,7 +23,9 @@ const relocate = { zemnice: option(true, 7), polozemnice: option(false, 18, 6) }
 const leave: SelectionLeave = {
   households: [3],
   people: 9,
-  foodKg: 175,
+  foodKg: 575,
+  // s dvoukolákem a volem (migration.md – Vůz při odchodu)
+  cart: 'two-wheel',
   directions: DIRECTIONS.map((direction) => ({
     direction,
     days: direction === 'E' ? 1 : 2,

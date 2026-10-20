@@ -247,7 +247,7 @@ export function withOxen(state: VillageState): VillageState {
 }
 
 /** Voli ohrady k úpravě – ohrada uložená dřív je dostane ze spřežení (mutuje ohradu). */
-function oxenToEdit(pen: Pen): Ox[] {
+export function oxenToEdit(pen: Pen): Ox[] {
   if (!pen.oxen) {
     pen.oxen = oxenOf(pen).map((ox) => ({ ...ox }));
     delete pen.team;
@@ -259,6 +259,38 @@ function oxenToEdit(pen: Pen): Ox[] {
 /** Voli došli na maso (mutuje stav). */
 function retireOxen(state: VillageState, oxen: number): void {
   butcher(state, oxen * LIVESTOCK.oxMeatKg);
+}
+
+/**
+ * Voli bez ohrady (migration.md – Vůz při odchodu): s první hotovou ohradou volů nové vsi do ní
+ * přejdou (do míst); kdo doslouží (OXEN.serviceYears), jde na maso. Mutuje stav.
+ */
+export function looseOxenDay(state: VillageState, day: number): ChronicleEvent[] {
+  const loose = state.looseOxen;
+  if (!loose || loose.length === 0) return [];
+  const events: ChronicleEvent[] = [];
+  const retired = loose.filter((ox) => day >= oxRetireDay(ox)).length;
+  let left = loose.filter((ox) => day < oxRetireDay(ox));
+  if (retired > 0) retireOxen(state, retired);
+  const pen = oxPens(state)
+    .filter((p) => p.builtDay !== null)
+    .sort((a, b) => a.id - b.id)[0];
+  if (pen && left.length > 0) {
+    const oxen = oxenToEdit(pen);
+    const room = Math.max(
+      0,
+      builtPenSquares(pen).length * PEN_PLACES_PER_SQUARE.team - oxen.length,
+    );
+    const moving = left.slice(0, room);
+    if (moving.length > 0) {
+      oxen.push(...moving);
+      left = left.slice(moving.length);
+      events.push({ day, kind: 'team-ready', penId: pen.id, oxen: moving.length });
+    }
+  }
+  if (left.length > 0) state.looseOxen = left;
+  else delete state.looseOxen;
+  return events;
 }
 
 /**

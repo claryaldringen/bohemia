@@ -27,6 +27,7 @@ import {
   haulProgress,
   logsCartReach,
   mowingCartReach,
+  orchardCartReach,
   retireCarts,
   sowingCartReach,
   takeCart,
@@ -195,6 +196,7 @@ import {
   FIELD_STORES,
   FOREST_BONUS,
   HARVEST_DAY,
+  ORCHARD,
   ORCHARD_WINDOWS,
   OXEN,
   PEAK_CAPACITY_SHARE,
@@ -1009,7 +1011,14 @@ function work(
     if (haul && crew > 0) {
       const seed = task.field?.name === 'sow';
       haulWork.push({
-        job: task.name === 'mow' ? 'mow' : seed ? 'seed' : 'harvest',
+        job:
+          task.name === 'mow'
+            ? 'mow'
+            : task.name === 'orchard-harvest'
+              ? 'apples'
+              : seed
+                ? 'seed'
+                : 'harvest',
         manDays: crew,
         carts: haul.carts,
         ...(haul.four ? { four: haul.four } : {}),
@@ -1022,7 +1031,11 @@ function work(
         work.seedHauled = (work.seedHauled ?? 0) + hauled;
         if (work.seedReach) addHaulTrips(state, work.seedReach, hauled);
       } else {
-        const owner = task.field ? task.field.work : state.hay?.mowing;
+        const owner = task.field
+          ? task.field.work
+          : task.name === 'orchard-harvest'
+            ? state.orchardWork
+            : state.hay?.mowing;
         if (owner) {
           owner.hauled = (owner.hauled ?? 0) + hauled;
           // jízdy do ročního provozu cest po druzích vozů (čtyřkolák podél cest)
@@ -1501,6 +1514,16 @@ function planTaskHauls(
         mowing.cartReach4 ??= mowingCartReach(state, mowing, landscape, access4);
         road = available * roadShare(mowing.cartReach, mowing.cartReach4);
       }
+    } else if (task.name === 'orchard-harvest' && state.orchardWork?.task === 'harvest') {
+      // jablka ze sadu do vsi (orchard.md – Jablka vozem) – odnos v koších převezme vůz
+      const apples = state.orchardWork;
+      apples.cartReach ??= orchardCartReach(state, landscape, access);
+      const share = ORCHARD.harvestCarryShare * apples.cartReach.share;
+      available = haulAvailable(apples.required, task.remaining, apples.hauled ?? 0, share);
+      if (four > 0 && access4) {
+        apples.cartReach4 ??= orchardCartReach(state, landscape, access4);
+        road = available * roadShare(apples.cartReach, apples.cartReach4);
+      }
     } else {
       continue;
     }
@@ -1919,6 +1942,15 @@ function taskCarryDemand(
     return carried(
       amount * CARTS.haulShare.hay * mowing.cartReach.share,
       roadAccess ? roadShare(mowing.cartReach, mowing.cartReach4 ?? null) : 0,
+    );
+  }
+  if (task.name === 'orchard-harvest' && state.orchardWork?.task === 'harvest') {
+    const apples = state.orchardWork;
+    apples.cartReach ??= orchardCartReach(state, landscape, access);
+    if (roadAccess) apples.cartReach4 ??= orchardCartReach(state, landscape, roadAccess);
+    return carried(
+      amount * ORCHARD.harvestCarryShare * apples.cartReach.share,
+      roadAccess ? roadShare(apples.cartReach, apples.cartReach4 ?? null) : 0,
     );
   }
   return { road: 0, other: 0 };

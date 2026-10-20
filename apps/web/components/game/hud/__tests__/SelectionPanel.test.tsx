@@ -574,6 +574,7 @@ describe('SelectionPanel – odchod do nové vsi', () => {
     households: [3],
     people: 4,
     foodKg: 50,
+    cart: null,
     directions: [
       { direction: 'N' as const, days: 2, blocked: null },
       { direction: 'E' as const, days: 1, blocked: 'Tím směrem leží tvoje ves Budeč.' },
@@ -597,6 +598,12 @@ describe('SelectionPanel – odchod do nové vsi', () => {
     expect(html).toMatch(/Odejít na sever – nová mapa.*>4<.*50 kg.*2 dny/);
     // směry bez údaje (jen hotové v pohledu) se nekreslí
     expect(html).not.toContain('data-testid="leave-W"');
+    expect(html).not.toContain('data-testid="leave-cart"');
+    // s vozem s voly (migration.md – Vůz při odchodu)
+    const withCart = renderToStaticMarkup(
+      <LeaveCompass leave={{ ...leave, cart: 'four-wheel' }} onLeave={() => undefined} />,
+    );
+    expect(withCart).toMatch(/data-testid="leave-cart"[^>]*>.*Čtyřkolák/);
   });
 
   it('řádek lidí na cestě – kam a kdy dorazí, po příjezdu výzva k zemnici', () => {
@@ -648,7 +655,7 @@ describe('SelectionPanel – rozvržení', () => {
       dwelling({
         type: 'dvorec',
         manor: { dwellingId: 3, trails: [], neighbours: [] },
-        leave: { households: [3], people: 4, foodKg: 50, directions: [] },
+        leave: { households: [3], people: 4, foodKg: 50, cart: null, directions: [] },
       }),
     );
     const commands = html.indexOf('data-testid="selection-commands"');

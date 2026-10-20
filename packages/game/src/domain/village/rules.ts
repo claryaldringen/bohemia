@@ -784,10 +784,15 @@ export const FLAX_WORK_PER_HA: Record<FieldTask, Bounds> = {
 // čtverce od 50. roku sadu (`declineAfterYear` – poslední rok plné úrody) vysadí vesničané znovu,
 // za rok sadu nejvýš desetina čtverců (`renewalShareYear`, nahoru, aspoň 1) – za 10 let do konce
 // (50.–59. rok) se tak obnoví celý sad
+// orchard.md – Jablka vozem (Martin 20. 10. 2026: „Ano, udělej to jak říkáš“ – návrh Clauda
+// nových nákladů vozů, wagons.md – Co se vozí a na čem): ze sklizně je `harvestCarryShare` odnos
+// jablek v koších ze sadu do vsi (3 t/ha ≈ 120 košů po 25 kg, při ≈ 150 m od domů ≈ 2 čd z 8) –
+// ten převezme vůz tam, kam ke čtverci sadu dojede (jako odnos snopů)
 export const ORCHARD = {
   plantingPerHa: 80,
   carePerHa: 10,
   harvestPerHa: 8,
+  harvestCarryShare: 0.25,
   fullYieldKgPerHa: 3000,
   firstFruitYear: 6,
   fullYieldYear: 25,

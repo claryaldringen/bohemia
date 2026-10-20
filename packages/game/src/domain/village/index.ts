@@ -170,6 +170,7 @@ export {
   haulPlan,
   haulProgress,
   hauledBy,
+  leavingCart,
   logsCartReach,
   mowingCartReach,
   networkCartAccess,
