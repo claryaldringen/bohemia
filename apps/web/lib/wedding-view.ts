@@ -183,7 +183,10 @@ export function weddingCompanions(seed: number): { sex: Sex; age: number }[] {
 }
 
 /** Kde je obydlí (bez obydlí střed vsi – dvorec, první obydlí). */
-function dwellingPoint(state: VillageState, id: number): { x: number; z: number } {
+function dwellingPoint(
+  state: Pick<VillageState, 'dwellings' | 'manorId' | 'constructions'>,
+  id: number,
+): { x: number; z: number } {
   const own = state.dwellings.find((d) => d.id === id);
   if (own) return own.position;
   const manor = villageManorId(state);
@@ -243,7 +246,10 @@ function housesOf(e: WeddingEvent): {
  * mapy obvyklé velikosti.
  */
 export function sceneWeddings(
-  state: VillageState,
+  state: Pick<
+    VillageState,
+    'chronicle' | 'people' | 'seed' | 'dwellings' | 'manorId' | 'constructions'
+  >,
   day: number,
   landscape: Pick<Landscape, 'size' | 'cellSizeM'>,
 ): SceneWedding[] {
