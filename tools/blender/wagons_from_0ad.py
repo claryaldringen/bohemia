@@ -1038,11 +1038,10 @@ def apples_load(b, front, back, half_w, floor, big=False):
         # okraj koše – stočený proutek
         rim = [base + Vector((math.cos(2 * math.pi * j / 12) * r * 1.02, math.sin(2 * math.pi * j / 12) * r * 1.02, h)) for j in range(13)]
         b.rod(rim, [0.018] * len(rim), "straw", sides=4, caps=None)
-        # jablka nad okrajem – nízká kupa
-        dome = []
-        for t in (0.0, 0.5, 1.0):
-            dome.append([base + Vector((math.cos(2 * math.pi * j / nj) * r * (1 - t * 0.95), math.sin(2 * math.pi * j / nj) * r * (1 - t * 0.95), h - 0.02 + 0.09 * math.sin(t * math.pi / 2))) for j in range(nj)])
-        b.surface(dome, "apples", closed_v=True)
+        # jablka nad okrajem – deska s jablky v rovině (mapování shora, ať jablka nejsou v kruzích)
+        top = [base + Vector((math.cos(2 * math.pi * j / nj) * r * 0.98, math.sin(2 * math.pi * j / nj) * r * 0.98, h + 0.03)) for j in range(nj)]
+        uvs = [(0.5 + 0.14 * math.cos(2 * math.pi * j / nj), 0.5 + 0.45 * math.sin(2 * math.pi * j / nj)) for j in range(nj)]
+        b.poly(top, "apples", uvs, out=(0, 0, 1))
 
 
 def cargo(prefix, bed, big):
