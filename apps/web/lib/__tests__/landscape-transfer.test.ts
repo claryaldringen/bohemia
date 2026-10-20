@@ -2,6 +2,9 @@ import { describe, it, expect } from 'vitest';
 import {
   generateLandscape,
   generateObstacles,
+  INITIAL_LAYER_VERSIONS,
+  OBSTACLE_SOURCES,
+  promontoriesOf,
   transferPrecision,
   type ObstacleLayer,
 } from '@bohemia/game';
@@ -70,5 +73,43 @@ describe('přenos krajiny ze serveru do prohlížeče', () => {
     const transfer = encodeLandscape(landscape);
     expect(decodeLandscape(transfer)).toBe(decodeLandscape(transfer));
     expect(decodeLandscape(encodeLandscape(landscape))).not.toBe(decodeLandscape(transfer));
+  });
+});
+
+describe('přenos krajiny se skalami u potoka (terén 2)', () => {
+  // Seed 16: ostrožna nad zaříznutým meandrem, skalní stěny, skály a suť ve vrstvě překážek 2.
+  const rocky = generateLandscape(16);
+
+  it('přenese výšky stěn u potoka (Float32) a ostrožny', () => {
+    const transfer = encodeLandscape(rocky);
+    expect(transfer.banks).toBeDefined();
+    const decoded = decodeLandscape(transfer);
+    expect(decoded.stream).toEqual(transferPrecision(rocky).stream);
+    expect(decoded.stream.some((p) => (p.bankLeft ?? 0) > 3)).toBe(true);
+    expect(promontoriesOf(decoded)).toEqual(promontoriesOf(rocky));
+    expect(promontoriesOf(decoded)).toHaveLength(1);
+  });
+
+  it('prohlížeč vygeneruje přesně tytéž skály a suť na stěnách jako server', () => {
+    const server = generateObstacles(rocky);
+    const browser = generateObstacles(decodeLandscape(encodeLandscape(rocky)));
+    const cliffRocks = [...server.id].filter(
+      (id) => Math.floor(id / 4_194_304) === OBSTACLE_SOURCES.cliffRock,
+    );
+    expect(cliffRocks.length).toBeGreaterThan(50);
+    expect(browser.count).toBe(server.count);
+    for (const key of ['id', 'x', 'z', 'kind', 'look', 'rotation', 'scale'] as const) {
+      expect(browser[key]).toEqual(server[key]);
+    }
+  });
+
+  it('krajina terénu 1 jde přenosem jako dřív – bez výšek stěn a ostrožen', () => {
+    const plain = generateLandscape(16, INITIAL_LAYER_VERSIONS);
+    const transfer = encodeLandscape(plain);
+    expect('banks' in transfer).toBe(false);
+    expect('promontories' in transfer).toBe(false);
+    const decoded = decodeLandscape(transfer);
+    expect(decoded.stream.every((p) => !('bankLeft' in p))).toBe(true);
+    expect('promontories' in decoded).toBe(false);
   });
 });

@@ -12,7 +12,13 @@ import {
 } from '../obstacles/query';
 import { OBSTACLE_SOURCES, obstacleId, type ObstacleLayer } from '../obstacles/types';
 import { transferPrecision } from '../quantize';
-import { INITIAL_LAYER_VERSIONS, type Landscape, type LayerVersions } from '../types';
+import {
+  CURRENT_LAYER_VERSIONS,
+  INITIAL_LAYER_VERSIONS,
+  PREVIOUS_LAYER_VERSIONS,
+  type Landscape,
+  type LayerVersions,
+} from '../types';
 import { tileOfWorldPoint } from '../world';
 
 const landscape = generateLandscape(11);
@@ -133,7 +139,7 @@ describe('vrstva překážek verze 1 – zlatý otisk', () => {
     expect(layerHash(generateObstacles(l))).toBe(expected);
   });
 
-  const MORE_MEADOW: LayerVersions = { terrain: 1, vegetation: 2, fertility: 2, obstacles: 1 };
+  const MORE_MEADOW: LayerVersions = PREVIOUS_LAYER_VERSIONS;
   it.each([
     [1, '64810:0c014c68'],
     [42, '64114:62e79722'],
@@ -141,6 +147,28 @@ describe('vrstva překážek verze 1 – zlatý otisk', () => {
   ])('krajina s víc loukami (vegetace a úrodnost 2), seed %i', (seed, expected) => {
     const l = generateLandscape(seed, MORE_MEADOW);
     expect(layerHash(generateObstacles(l))).toBe(expected);
+  });
+});
+
+describe('vrstva překážek verze 2 – zlatý otisk', () => {
+  // Nové vrstvy (terén 2 se skalami u potoka, překážky 2 se skalami a sutí na stěnách).
+  it.each([
+    [1, '64744:ba1ac870'],
+    [42, '64286:27c8d5ba'],
+    [123, '66698:e1f428cd'],
+    [16, '66336:db6c13bf'],
+  ])('krajina se skalami u potoka, seed %i', (seed, expected) => {
+    const l = generateLandscape(seed, CURRENT_LAYER_VERSIONS);
+    expect(layerHash(generateObstacles(l))).toBe(expected);
+  });
+
+  it('skály a suť na stěnách jen ve vrstvě 2 – vrstva 1 nad týmž terénem je nemá', () => {
+    const l = generateLandscape(16, CURRENT_LAYER_VERSIONS);
+    const cliffRocks = (layer: ObstacleLayer): number =>
+      [...layer.id].filter((id) => Math.floor(id / 2 ** 22) === OBSTACLE_SOURCES.cliffRock).length;
+    expect(cliffRocks(generateObstacles(l))).toBeGreaterThan(50);
+    const v1 = generateObstacles({ ...l, obstacleLayer: { ...l.obstacleLayer!, version: 1 } });
+    expect(cliffRocks(v1)).toBe(0);
   });
 });
 

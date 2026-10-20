@@ -1,8 +1,10 @@
 import { createNoise2D, type NoiseFunction2D } from 'simplex-noise';
 import { distanceToMask, MinHeap, smoothstep } from './grid';
 import { createRandom, type Random } from './random';
-import { heightAt, SAMPLE_STEP, shapeStream, type ChannelSample } from './stream';
-import { LANDSCAPE_SIZE, type StreamPoint } from './types';
+import { buildStream, heightAt, planStream, SAMPLE_STEP, type ChannelSample } from './stream';
+import { deriveSeed } from './random';
+import { planPromontory, sculptStreamRocks, type PromontoryPlan } from './stream-rocks';
+import { LANDSCAPE_SIZE, type Promontory, type StreamPoint } from './types';
 
 /** Vrstva terénu: výšky, potok a místo pro vesnici. */
 export interface Terrain {
@@ -14,6 +16,8 @@ export interface Terrain {
   villageSite: { x: number; y: number };
   /** Osa potoka po proudu s šířkou břehů a hladinou. */
   stream: StreamPoint[];
+  /** Ostrožny (terén 2); terén 1 je nemá. */
+  promontories?: Promontory[];
 }
 
 // Místo pro vesnici leží 9–11 políček od potoka: mýtina kolem něj dosáhne k vodě,
@@ -38,8 +42,16 @@ const RELIEF_RANGE_M: readonly [number, number] = [18, 28];
 /** Svahy strmější než tolik metrů na políčko se „sesypou“ – zvlněná krajina bez útesů. */
 const MAX_SLOPE_M = 2.4;
 
-export function generateTerrain(seed: number, version: 1): Terrain {
-  if (version !== 1) throw new RangeError(`Neznámá verze vrstvy terénu: ${String(version)}`);
+/**
+ * Terén krajiny. Verze 1 se generuje dál bit po bitu stejně; verze 2 (20. 10. 2026) přidá skály
+ * u potoka – skalní ostroh v ostrém ohybu, strmý nárazový břeh nebo skalní stěnu na vnější
+ * straně oblouků a kde terén dovolí zaříznutý meandr s ostrožnou (`stream-rocks.ts`). Náhoda
+ * verze 2 jde z vlastního generátoru – bez ostrožny je osa potoka stejná jako ve verzi 1.
+ */
+export function generateTerrain(seed: number, version: 1 | 2): Terrain {
+  if (version !== 1 && version !== 2) {
+    throw new RangeError(`Neznámá verze vrstvy terénu: ${String(version)}`);
+  }
   const size = LANDSCAPE_SIZE;
   const random = createRandom(seed);
   const noise = createNoise2D(() => random.next());
@@ -48,23 +60,65 @@ export function generateTerrain(seed: number, version: 1): Terrain {
   const heights = baseHeights(noise, size, relief);
   relaxSlopes(heights, size);
   const path = routeStream(heights, size, relief, random);
-  const { samples, water } = shapeStream(path, heights, size, random);
+  const plan = planStream(path, heights, size, random);
+  let { samples, water } = buildStream(plan, heights, size, null)!;
   const villageSite = chooseVillageSite(heights, water, size, random);
+  const rocks = version === 2 ? createRandom(deriveSeed(seed, 'stream-rocks')) : null;
+  let promontory: PromontoryPlan | null = null;
+  if (rocks) {
+    promontory = planPromontory(plan, heights, size, villageSite, rocks);
+    const looped = promontory ? buildStream(plan, heights, size, promontory.loop) : null;
+    if (looped && siteKeepsWater(looped.water, size, villageSite)) {
+      samples = looped.samples;
+      water = looped.water;
+    } else {
+      promontory = null;
+    }
+  }
   flattenAround(heights, size, villageSite);
+  const before = rocks ? heights.slice() : null;
   const levels = carveStream(heights, water, samples, size, 0.8 + random.next() * 0.6);
-
+  // Nejnižší políčko před skalami – skály terén jen zvedají, výšky a hladina zůstanou jako v terénu 1.
   let min = Infinity;
   for (const h of heights) min = Math.min(min, h);
+  const sculpted =
+    rocks && before
+      ? sculptStreamRocks(
+          heights,
+          before,
+          water,
+          samples,
+          levels,
+          size,
+          villageSite,
+          promontory,
+          rocks,
+        )
+      : null;
+
   for (let i = 0; i < heights.length; i++) heights[i] = heights[i]! - min;
-  const stream = samples.map((p, k) => ({
-    x: p.x,
-    y: p.y,
-    halfWidthLeft: p.left,
-    halfWidthRight: p.right,
-    level: levels[k]! - min,
-    shallow: p.shallow,
-  }));
-  return { size, heights, water, villageSite, stream };
+  const stream = samples.map((p, k): StreamPoint => {
+    const point = {
+      x: p.x,
+      y: p.y,
+      halfWidthLeft: p.left,
+      halfWidthRight: p.right,
+      level: levels[k]! - min,
+      shallow: p.shallow,
+    };
+    return sculpted
+      ? { ...point, bankLeft: sculpted.bankLeft[k]!, bankRight: sculpted.bankRight[k]! }
+      : point;
+  });
+  return sculpted
+    ? { size, heights, water, villageSite, stream, promontories: sculpted.promontories }
+    : { size, heights, water, villageSite, stream };
+}
+
+/** Místo pro vesnici zůstane po vložení smyčky ve stejné vzdálenosti od vody jako při výběru. */
+function siteKeepsWater(water: Uint8Array, size: number, site: { x: number; y: number }): boolean {
+  const d = distanceToMask(water, size)[site.y * size + site.x]!;
+  return d >= SITE_WATER_DISTANCE[0] && d <= SITE_WATER_DISTANCE[1];
 }
 
 /** Vrstvený šum (fBm) škálovaný na převýšení relief. */

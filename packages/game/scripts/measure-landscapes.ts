@@ -1,5 +1,6 @@
 // Měření generátoru krajiny na vzorku seedů: npx tsx packages/game/scripts/measure-landscapes.ts 500
-// Druhý argument `initial` změří verze vrstev sídel založených do 18. 10. 2026.
+// Druhý argument `initial` změří verze vrstev sídel založených do 18. 10. 2026, `previous` nová
+// sídla do 20. 10. 2026 (bez skal u potoka).
 import {
   checkBand,
   CURRENT_LAYER_VERSIONS,
@@ -8,11 +9,18 @@ import {
   INITIAL_LAYER_VERSIONS,
   MAX_ATTEMPTS,
   measureLandscape,
+  PREVIOUS_LAYER_VERSIONS,
+  promontoriesOf,
   type Landscape,
 } from '../src/domain/landscape';
 
 const count = Number(process.argv[2] ?? 500);
-const versions = process.argv[3] === 'initial' ? INITIAL_LAYER_VERSIONS : CURRENT_LAYER_VERSIONS;
+const versions =
+  process.argv[3] === 'initial'
+    ? INITIAL_LAYER_VERSIONS
+    : process.argv[3] === 'previous'
+      ? PREVIOUS_LAYER_VERSIONS
+      : CURRENT_LAYER_VERSIONS;
 /** Políčko 15 × 15 m = 0,0225 ha. */
 const HA_PER_CELL = 0.0225;
 const firstAttempt = {
@@ -30,6 +38,14 @@ const acceptedMetrics = {
   'podíl lesa': [] as number[],
 };
 const attempts: number[] = [];
+/** Skály u potoka (terén 2) u přijatých krajin. */
+const rocks = {
+  'nejvyšší stěna (m)': [] as number[],
+  'podíl osy se stěnou > 3 m': [] as number[],
+  'ostrožna – plocha (ha)': [] as number[],
+  'ostrožna – výška (m)': [] as number[],
+};
+let withPromontory = 0;
 /** Přijaté krajiny pro měření vrstvy překážek (generuje se jen pro přijatou krajinu, líně). */
 const accepted: Landscape[] = [];
 const OBSTACLE_SAMPLE = 20;
@@ -55,6 +71,17 @@ for (let seed = 0; seed < count; seed++) {
       acceptedMetrics['louka do 600 m (ha)'].push(m.nearMeadowCells * HA_PER_CELL);
       acceptedMetrics['z toho úrodnost ≥ 60 (ha)'].push(m.nearGoodMeadowCells * HA_PER_CELL);
       acceptedMetrics['podíl lesa'].push(m.forestShare);
+      const wall = (p: Landscape['stream'][number]): number =>
+        Math.max(p.bankLeft ?? 0, p.bankRight ?? 0);
+      rocks['nejvyšší stěna (m)'].push(Math.max(...landscape.stream.map(wall)));
+      rocks['podíl osy se stěnou > 3 m'].push(
+        landscape.stream.filter((p) => wall(p) > 3).length / landscape.stream.length,
+      );
+      for (const p of promontoriesOf(landscape)) {
+        rocks['ostrožna – plocha (ha)'].push(p.areaHa);
+        rocks['ostrožna – výška (m)'].push(p.heightM);
+      }
+      if (promontoriesOf(landscape).length > 0) withPromontory++;
       if (accepted.length < OBSTACLE_SAMPLE) accepted.push(landscape);
       break;
     }
@@ -89,6 +116,16 @@ console.log(`  průměrný čas jednoho pokusu ${(elapsed / totalAttempts).toFix
 console.log(`Přijaté krajiny (${attempts.length}):`);
 for (const [name, values] of Object.entries(acceptedMetrics))
   console.log(`  ${name.padEnd(26)} ${quantiles(values, [0.1, 0.5, 0.9])}`);
+
+if (versions.terrain === 2) {
+  console.log(
+    `Skály u potoka (terén 2): ostrožna na ${withPromontory} z ${attempts.length} přijatých krajin (${((withPromontory / Math.max(1, attempts.length)) * 100).toFixed(1)} %)`,
+  );
+  for (const [name, values] of Object.entries(rocks)) {
+    if (values.length > 0)
+      console.log(`  ${name.padEnd(26)} ${quantiles(values, [0.1, 0.5, 0.9])}`);
+  }
+}
 
 // Vrstva překážek (stromy, keře, kameny) – server ji generuje jednou na krajinu v mezipaměti,
 // prohlížeč jednou při načtení scény.

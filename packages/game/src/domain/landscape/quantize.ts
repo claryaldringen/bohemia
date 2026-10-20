@@ -2,7 +2,7 @@ import type { Landscape, StreamPoint } from './types';
 
 /**
  * Krajina s přesností, jakou dostane prohlížeč (výšky na centimetry ve Float32, osa potoka ve
- * Float32 – viz `apps/web/lib/landscape-transfer.ts`). Vrstvy, které počítá server i prohlížeč
+ * Float32 i s výškami stěn u potoka – viz `apps/web/lib/landscape-transfer.ts`). Vrstvy, které počítá server i prohlížeč
  * (překážky), vycházejí z ní – oba tak počítají ze stejných čísel. Opakované použití nic nemění.
  */
 export function transferPrecision(l: Landscape): Landscape {
@@ -11,13 +11,23 @@ export function transferPrecision(l: Landscape): Landscape {
   return {
     ...l,
     heights,
-    stream: l.stream.map((p): StreamPoint => ({
-      x: Math.fround(p.x),
-      y: Math.fround(p.y),
-      halfWidthLeft: Math.fround(p.halfWidthLeft),
-      halfWidthRight: Math.fround(p.halfWidthRight),
-      level: Math.fround(p.level),
-      shallow: p.shallow,
-    })),
+    stream: l.stream.map((p): StreamPoint => {
+      const point = {
+        x: Math.fround(p.x),
+        y: Math.fround(p.y),
+        halfWidthLeft: Math.fround(p.halfWidthLeft),
+        halfWidthRight: Math.fround(p.halfWidthRight),
+        level: Math.fround(p.level),
+        shallow: p.shallow,
+      };
+      // Výšky stěn u potoka (terén 2) jdou také ve Float32.
+      return p.bankLeft === undefined
+        ? point
+        : {
+            ...point,
+            bankLeft: Math.fround(p.bankLeft),
+            bankRight: Math.fround(p.bankRight ?? 0),
+          };
+    }),
   };
 }

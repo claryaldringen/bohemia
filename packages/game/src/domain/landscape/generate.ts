@@ -9,10 +9,10 @@ export const MAX_ATTEMPTS = 16;
 
 /** Verze, které generátor umí, po vrstvách. */
 const KNOWN_VERSIONS: { readonly [K in keyof LayerVersions]-?: readonly LayerVersions[K][] } = {
-  terrain: [1],
+  terrain: [1, 2],
   vegetation: [1, 2],
   fertility: [1, 2],
-  obstacles: [1],
+  obstacles: [1, 2],
 };
 
 /**
@@ -72,5 +72,6 @@ export function generateLandscapeAttempt(attemptSeed: number, versions: LayerVer
       seed: deriveSeed(attemptSeed, 'obstacles'),
       version: versions.obstacles ?? 1,
     },
+    ...(terrain.promontories ? { promontories: terrain.promontories } : {}),
   };
 }

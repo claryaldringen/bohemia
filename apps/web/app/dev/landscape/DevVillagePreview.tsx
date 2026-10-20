@@ -33,6 +33,7 @@ import {
   type Position,
   type SquareGrid,
   type TileCell,
+  promontoriesOf,
 } from '@bohemia/game';
 import { GameView } from '@/components/game/GameView';
 import { CursorReason } from '@/components/game/hud/CursorReason';
@@ -77,6 +78,7 @@ import {
   type SimulatedPart,
 } from './dev-holdings';
 import { demoLabor } from './dev-labor';
+import { promontoryFocus, promontoryOverlay } from './dev-promontory';
 import { demoOvergrowth, type OvergrowthDemo } from './dev-overgrowth';
 import {
   DEMO_APPLE_STAGES,
@@ -238,6 +240,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [overgrowth, setOvergrowth] = useState<OvergrowthDemo | null>(null);
   // hospodaření podle polohy domů (fields.md): obrysy úseků a vzorec polí ze simulace jádra
   const [holdingsOn, setHoldingsOn] = useState(false);
+  const [promontoryOn, setPromontoryOn] = useState(false);
   const [simulated, setSimulated] = useState<Map<string, SimulatedPart> | null>(null);
   const [demo, setDemo] = useState(0);
   const nextId = useRef(1);
@@ -473,8 +476,12 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   useEffect(() => {
     if (!scene) return;
     const cells = fields.flatMap((f) => f.parts.map((p) => p.cell));
-    scene.setHoldingsOverlay(holdingsOn ? holdingsOverlay(decoded, dwellings, cells) : null);
-  }, [scene, holdingsOn, decoded, dwellings, fields]);
+    const sectors = [
+      ...(holdingsOn ? holdingsOverlay(decoded, dwellings, cells) : []),
+      ...(promontoryOn ? promontoryOverlay(decoded) : []),
+    ];
+    scene.setHoldingsOverlay(sectors.length > 0 ? sectors : null);
+  }, [scene, holdingsOn, promontoryOn, decoded, dwellings, fields]);
 
   // čísla posledního výpočtu pěšin (přepočítají se odloženě po změně vsi)
   useEffect(() => {
@@ -2012,6 +2019,19 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
           data-testid="dev-holdings"
         >
           {holdingsOn ? 'Úseky ✓' : 'Úseky'}
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene || promontoriesOf(decoded).length === 0}
+          onClick={() => {
+            const focus = promontoryFocus(decoded);
+            if (!promontoryOn && focus) scene?.moveCameraTo(focus.x, focus.z);
+            setPromontoryOn((on) => !on);
+          }}
+          title="Ostrožna nad zaříznutým meandrem (terén 2) – obrys plochy a šíje"
+          data-testid="dev-promontory"
+        >
+          {promontoryOn ? 'Ostrožna ✓' : 'Ostrožna'}
         </button>
         <button
           className={buttonClass}

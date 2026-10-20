@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateLandscape } from '@bohemia/game';
+import { generateLandscape, PREVIOUS_LAYER_VERSIONS, type Landscape } from '@bohemia/game';
 import { buildRenderSurface, RENDER_SUBDIVISION } from '../render-surface';
 import { streamCenterline } from '../stream-geometry';
 
@@ -123,7 +123,8 @@ describe('buildRenderSurface – napojení břehů na okolní terén', () => {
     // Generátor dovolí svah nejvýš 2,4 m na políčko (15 m) → 0,6 m na krok sítě (3,75 m).
     // U vody smí být břeh strmější (nárazový břeh), proto se hlídá až od 12 m od okraje vody.
     for (const seed of [3, 5, 42]) {
-      const l = generateLandscape(seed);
+      // Terén 1 – bez skal u potoka (skalní stěny hlídá test níž).
+      const l = generateLandscape(seed, PREVIOUS_LAYER_VERSIONS);
       const s = buildRenderSurface(l);
       const nearStream = streamCenterline(l);
       const n = s.resolution;
@@ -143,4 +144,67 @@ describe('buildRenderSurface – napojení břehů na okolní terén', () => {
       expect(worst, `seed ${seed}`).toBeLessThanOrEqual(0.75);
     }
   }, 30_000);
+});
+
+describe('buildRenderSurface – skály u potoka (terén 2)', () => {
+  const rocky = generateLandscape(16);
+  const surface = buildRenderSurface(rocky);
+  const stream = streamCenterline(rocky);
+  // Táž krajina bez výšek stěn – scéna by kreslila břehy jako v terénu 1.
+  const withoutBanks: Landscape = {
+    ...rocky,
+    stream: rocky.stream.map((p) => ({
+      x: p.x,
+      y: p.y,
+      halfWidthLeft: p.halfWidthLeft,
+      halfWidthRight: p.halfWidthRight,
+      level: p.level,
+      shallow: p.shallow,
+    })),
+  };
+  const plain = buildRenderSurface(withoutBanks);
+
+  it('stěna do koryta nezasáhne – ve vodě je dno stejné jako bez stěn', () => {
+    let checked = 0;
+    for (let v = 0; v < surface.heights.length; v += 3) {
+      const p = surface.position(v);
+      const near = stream.nearest(p.x, p.z);
+      if (near.bankDistance >= 0 || near.bank <= 0) continue;
+      expect(surface.heights[v]).toBe(plain.heights[v]);
+      checked++;
+    }
+    expect(checked).toBeGreaterThan(200);
+  });
+
+  it('u vysoké stěny terén nad čelem prudce stoupne – skalní stěna, ne mírný břeh', () => {
+    let walls = 0;
+    let steep = 0;
+    for (let v = 0; v < surface.heights.length; v += 2) {
+      const p = surface.position(v);
+      const near = stream.nearest(p.x, p.z);
+      if (near.bank < 5 || near.innerBend > 0 || near.bankDistance < 7 || near.bankDistance > 9) {
+        continue;
+      }
+      walls++;
+      if (surface.heights[v]! - near.level > 0.6 * near.bank) steep++;
+    }
+    expect(walls).toBeGreaterThan(20);
+    expect(steep / walls).toBeGreaterThan(0.8);
+  });
+
+  it('dál od stěn terén schody nemá', () => {
+    const n = surface.resolution;
+    let worst = 0;
+    for (let j = 0; j < n; j++) {
+      for (let i = 0; i < n - 1; i++) {
+        const a = j * n + i;
+        const { x, z } = surface.position(a);
+        const near = stream.nearest(x, z, 120);
+        if (near.bankDistance < 12 || (near.bank > 0 && near.bankDistance < 100)) continue;
+        if (Number.isFinite(near.distance) && near.bank > 0) continue;
+        worst = Math.max(worst, Math.abs(surface.heights[a]! - surface.heights[a + 1]!));
+      }
+    }
+    expect(worst).toBeLessThanOrEqual(0.9);
+  });
 });

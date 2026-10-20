@@ -33,6 +33,23 @@ const NECK_DROP_M = { from: 0.3, to: 1 };
  */
 const MAX_BANK_RAISE_M = 0.6;
 const BANK_MAX_SLOPE = { inner: 0.06, outer: 0.22 };
+/**
+ * Strmý břeh a skalní stěna (terén 2 – výška stěny `StreamSample.bank`): od okraje vody suťový
+ * svah (`apronShare` šířky čela, do `apronRise` výšky), nad ním čelo stěny – šířka `faceShare` ×
+ * výška (m, mezi `face.min` a `face.max`); na vnitřní straně oblouku (svah ostrožny) až
+ * `innerWiden` × širší, tedy mírnější. Nahoře drží výšku stěny `holdM` metrů a do `fadeM` naváže
+ * na terén. Nízký břeh (pod `fullFromM`) se prolne s běžným.
+ */
+const CLIFF = {
+  faceShare: 0.8,
+  face: { min: 1.5, max: 9 },
+  apronShare: 0.3,
+  apronRise: 0.2,
+  innerWiden: 2,
+  holdM: 6,
+  fadeM: 10,
+  fullFromM: 1.5,
+} as const;
 
 /** Výšková síť pro vykreslení (jen vzhled – herní data krajiny se nemění). */
 export interface RenderSurface {
@@ -121,7 +138,42 @@ function channelHeight(base: number, near: StreamSample): number {
   // Úprava břehu jen kousek od vody (údolí už vyhladil generátor), dál plynule dozní do
   // původního terénu. Kde se meandr vrací k sobě, úseky s různou hladinou tak nevytvoří schod.
   const fade = smoothstep(BANK_FADE_M.from, BANK_FADE_M.to, beyond);
-  return bank + (base - bank) * fade;
+  const usual = bank + (base - bank) * fade;
+  return near.bank > 0 ? cliffBank(usual, base, near) : usual;
+}
+
+/** Šířka čela stěny (m) od okraje vody podle její výšky – podle ní i textura skály. */
+export function cliffFaceM(height: number, innerBend = 0): number {
+  const face = Math.min(CLIFF.face.max, Math.max(CLIFF.face.min, CLIFF.faceShare * height));
+  return face * (1 + CLIFF.innerWiden * Math.max(0, innerBend));
+}
+
+/** Šířka suťového svahu pod čelem stěny (m od okraje vody). */
+export function cliffApronM(height: number, innerBend = 0): number {
+  return cliffFaceM(height, innerBend) * CLIFF.apronShare;
+}
+
+/** Podíl výšky stěny 0–1 ve vzdálenosti `beyond` (m) od okraje vody: suť, čelo, horní hrana. */
+export function cliffProfile(beyond: number, face: number): number {
+  const apron = face * CLIFF.apronShare;
+  if (beyond <= 0) return 0;
+  if (beyond < apron) return (CLIFF.apronRise * beyond) / apron;
+  return CLIFF.apronRise + (1 - CLIFF.apronRise) * smoothstep(apron, face, beyond);
+}
+
+/**
+ * Strmý nárazový břeh nebo skalní stěna nad okrajem vody (terén 2): čelo začíná přesně na okraji
+ * vody (do koryta nezasáhne), nahoře plynule naváže na terén krajiny, který stěnu nese.
+ */
+function cliffBank(usual: number, base: number, near: StreamSample): number {
+  const height = near.bank;
+  const beyond = near.bankDistance;
+  const face = cliffFaceM(height, near.innerBend);
+  const wall = near.level + 0.15 + (height - 0.15) * cliffProfile(beyond, face);
+  const top = Math.max(wall, base);
+  const release = smoothstep(face + CLIFF.holdM, face + CLIFF.holdM + CLIFF.fadeM, beyond);
+  const cliff = top + (base - top) * release;
+  return usual + (cliff - usual) * smoothstep(0.3, CLIFF.fullFromM, height);
 }
 
 function smoothstep(edge0: number, edge1: number, x: number): number {

@@ -1,5 +1,6 @@
 import { buildRelief, SURFACE_CODES, type ForestField, type Landscape } from '@bohemia/game';
 import { createNoise2D } from 'simplex-noise';
+import { cliffApronM, cliffFaceM } from './render-surface';
 import type { StreamCenterline } from './stream-geometry';
 import type { TreePlacement } from './obstacle-scenery';
 
@@ -54,6 +55,11 @@ const DRY_MAX = 0.85;
 /** Ostrůvky kvetoucí louky – šum s velikostí skvrn ≈ FLOWER_SCALE_M a třetinovými laloky. */
 const FLOWER_SCALE_M = 190;
 const FLOWER_MAX = 0.7;
+/**
+ * Stěna u potoka (terén 2): od výšky `rock.from` m skála na čele i horní hraně (plně od
+ * `rock.to`), pod ní suť (štěrk) u paty; nižší nárazový břeh zůstane hlinitý (břeh).
+ */
+const BANK_ROCK = { rock: { from: 2.5, to: 5 }, topM: { from: 3, to: 10 }, screeM: 1.5 };
 
 const LAYER = Object.fromEntries(GROUND_LAYERS.map((name, i) => [name, i])) as Record<
   GroundLayer,
@@ -156,6 +162,24 @@ export function groundWeights(
         w[LAYER.sand] = bed * mix.sand;
         w[LAYER.gravel] = bed * mix.gravel;
         w[LAYER.shore] = shore;
+        const rock =
+          near.bank > 0 ? smoothstep(BANK_ROCK.rock.from, BANK_ROCK.rock.to, near.bank) : 0;
+        if (rock > 0) {
+          // Svah ostrožny (vnitřní strana oblouku) je skalnatý jen zčásti – porůstá trávou.
+          const inner = Math.max(0, near.innerBend);
+          const face = cliffFaceM(near.bank, near.innerBend);
+          const apron = cliffApronM(near.bank, near.innerBend);
+          const wall =
+            rock *
+            (1 - 0.55 * inner) *
+            smoothstep(apron * 0.6, apron * 1.2, d) *
+            (1 - smoothstep(face + BANK_ROCK.topM.from, face + BANK_ROCK.topM.to, d));
+          const scree =
+            rock * (1 - wall) * smoothstep(-1, 0, d) * (1 - smoothstep(apron, apron * 1.4, d));
+          for (let k = 0; k < w.length; k++) w[k] = w[k]! * (1 - wall - scree);
+          w[LAYER.rocky] = w[LAYER.rocky]! + wall;
+          w[LAYER.gravel] = w[LAYER.gravel]! + scree;
+        }
       }
       for (let k = 0; k < w.length; k++) {
         // Šum jen tam, kde vrstva vůbec je – jinak by se objevovala uprostřed cizích ploch.

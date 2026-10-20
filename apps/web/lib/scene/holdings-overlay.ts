@@ -3,13 +3,18 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
 import { cellsBoundary, type CellSquare } from './field-cells';
-import { stripSegments } from './village-layout';
+import { stripSegments, type Point } from './village-layout';
 import { createDecalMaterial, createStripMesh, type HeightFn } from './village-meshes';
 
-/** Úsek hospodářství pro vývojový překryv – čtverce a barva obrysu (0–1). */
+/**
+ * Úsek hospodářství pro vývojový překryv – čtverce a barva obrysu (0–1). Místo čtverců může nést
+ * přímo čáry obrysu ve světě (`lines`, uzavřené – obrys ostrožny; `open` – šíje).
+ */
 export interface HoldingsOverlaySector {
   cells: readonly CellSquare[];
   color: readonly [number, number, number];
+  lines?: readonly (readonly Point[])[];
+  open?: boolean;
 }
 
 /** Šířka obrysu úseku (m). */
@@ -32,12 +37,15 @@ export class HoldingsOverlay {
   show(sectors: readonly HoldingsOverlaySector[] | null): void {
     this.clear();
     for (const [i, sector] of (sectors ?? []).entries()) {
-      const lines = cellsBoundary(sector.cells);
+      const lines = sector.lines ?? cellsBoundary(sector.cells);
       if (lines.length === 0) continue;
+      const closed = sector.lines !== undefined && !sector.open;
       const mesh = createStripMesh(
         this.scene,
         `holdings-${i}`,
-        lines.flatMap((line) => stripSegments(line, false, OUTLINE_WIDTH_M, 1.5)),
+        lines.flatMap((line) =>
+          stripSegments(line, closed, OUTLINE_WIDTH_M * (sector.lines ? 2 : 1), 1.5),
+        ),
         this.height,
         0.2,
       );

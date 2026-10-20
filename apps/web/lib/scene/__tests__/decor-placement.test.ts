@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateLandscape } from '@bohemia/game';
+import { generateLandscape, PREVIOUS_LAYER_VERSIONS } from '@bohemia/game';
 import { decorPlacements } from '../decor-placement';
 import { streamCenterline } from '../stream-geometry';
 
@@ -62,9 +62,32 @@ describe('decorPlacements', () => {
   });
 
   it('jen ozdoby vody – keře, kameny a stromy jsou ve vrstvě překážek', () => {
-    expect(new Set(placements.map((p) => p.model))).toEqual(
-      new Set(['reeds', 'cattails', 'lilies', 'log-water']),
+    const water = new Set(['reeds', 'cattails', 'lilies', 'log-water']);
+    const boulders = new Set(['rock-boulder', 'rock-moss-1', 'boulder']);
+    for (const p of placements) {
+      expect(water.has(p.model) || boulders.has(p.model)).toBe(true);
+      expect(p.id).toBeUndefined();
+    }
+    // Krajina bez skal u potoka (terén 1) má jen ozdoby vody.
+    const plain = generateLandscape(5, PREVIOUS_LAYER_VERSIONS);
+    const plainPlacements = decorPlacements(plain, streamCenterline(plain));
+    expect(new Set(plainPlacements.map((p) => p.model))).toEqual(water);
+  });
+
+  it('balvany v korytě leží jen ve vodě u paty skalní stěny (terén 2)', () => {
+    const rocky = generateLandscape(16);
+    const rockyStream = streamCenterline(rocky);
+    const boulders = decorPlacements(rocky, rockyStream).filter((p) =>
+      ['rock-boulder', 'rock-moss-1', 'boulder'].includes(p.model),
     );
+    expect(boulders.length).toBeGreaterThan(10);
+    for (const b of boulders) {
+      const near = rockyStream.nearest(b.worldX, b.worldZ);
+      expect(near.bankDistance).toBeLessThan(0);
+      expect(near.bankDistance).toBeGreaterThan(-3.5);
+      // Stěna je na straně, kde balvan leží (u paty), aspoň 2 m vysoká.
+      expect(near.bank).toBeGreaterThan(2);
+    }
   });
 
   it('rozmístění je deterministické', () => {
