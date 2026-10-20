@@ -116,7 +116,8 @@ Beze změny (milíř u buků – crafts.md); nošení uhlí ke kováři je dnes 
 - **Stavba** v mřížce staveb (návrh Clauda: udusaná a vymazaná mlatová plocha ≈ 8 × 10 m
   s přístřeškem a stohem slámy vedle; cena jako polozemnice bez jámy – upřesní rešerše).
 - **Podmínka:** bez humna se nemlátí. Snopy po žni čekají ve stozích na poli (panáky → stohy)
-  a kazí se (návrh Clauda: 5 % za měsíc); upozornění „Snopy čekají na humno“.
+  a kazí se (návrh Clauda: 10 % za měsíc – klasy se neskladovaly); upozornění „Snopy čekají na
+  humno“.
 - **Postup:** snopy se nosí nebo vezou z pole na humno (dnes nosiči a vozy – jen cíl humno),
   mlátí se cepy, pak se zrno **prohazuje lopatami** proti větru (odvívání plev), sláma na stoh.
   Výmlat je dnes úloha `thresh` – práce se nemění, jen místo (humno) a vidět je celý postup.
@@ -127,12 +128,14 @@ Beze změny (milíř u buků – crafts.md); nošení uhlí ke kováři je dnes 
 - **Starší vsi (Vlkov) – rok odkladu** (Martin, 20. 10. 2026: „Rok odkladu“): rok od převodu
   mlátí nouzově na udusané zemi u domů (návrh Clauda: o 30 % víc práce výmlatu a 10 % zrna
   ztráta) a mají upozornění „Postav humno“. Po roce platí podmínka.
-- **Výmlat hned po žni a přes zimu** (návrh Clauda): hned po žni se vymlátí obilí na osivo ozimu
-  a na jídlo do zimy, zbytek přes zimu. Obilí ve snopech (stohy u humna a na poli) je skutečná
-  zásoba – výhled jídla, cíl osevu a příděl s ním počítají. V liště je vymlácené zrno, popisek
-  ukáže i obilí ve snopech.
-- **Když humno nestačí** (návrh Clauda): mlátí se i po únoru, dokud je co; nevymlácené snopy se
-  kazí (5 % za měsíc) a přijde upozornění, že je potřeba druhé humno.
+- **Výmlat hned po žni** (Martin, 20. 10. 2026: „Staří slované se snažili dělat výmlat hned.
+  Klasy neskladovali.“): snopy jdou z pole rovnou na humno a mlátí se hned – ozim v srpnu, jař
+  v září (dnes se mlátí v zimě – okno úlohy `thresh` se přesune hned za sklizeň, fields.md).
+  Stohy snopů se nedělají; zrno jde rovnou do jam. Práce výmlatu je stejná, jen přijde v době
+  podzimní orby a setí – ves ji musí stihnout (plán osevu s tím počítá).
+- **Když humno nestačí** (návrh Clauda): mlátí se dál, dokud je co; nevymlácené snopy čekají
+  u humna a kazí se (10 % za měsíc – nejsou na skladování) a přijde upozornění, že je potřeba
+  druhé humno.
 - **Luštěniny** se mlátí taky na humně (návrh Clauda); do jam jde jen obilí, luštěniny se
   skladují doma.
 
@@ -188,8 +191,8 @@ postav. Nejdelší snímek se nesmí zhoršit.
 | Obilné jámy kopou vesničané sami, zavřená jáma není vidět, otevřenou jde označit, jámy opakovaně  | Martin (20. 10. 2026)                     |
 | Mletí a pečení neviditelně v domácnosti                                                           | návrh Clauda                              |
 | Starší vsi rok odkladu – nouzový výmlat na udusané zemi                                           | Martin (20. 10. 2026), čísla návrh Clauda |
-| Snopy bez humna čekají a kazí se, upozornění                                                      | návrh Clauda                              |
-| Výmlat hned po žni (osivo, jídlo do zimy) a přes zimu; obilí ve snopech je zásoba                 | návrh Clauda                              |
+| Výmlat hned po žni, klasy se neskladují (okno výmlatu hned za sklizní)                            | Martin (20. 10. 2026)                     |
+| Snopy bez humna čekají a kazí se 10 % za měsíc, upozornění                                        | návrh Clauda                              |
 | Humno nestačí – mlátí se dál, snopy se kazí, upozornění; luštěniny taky na humně                  | návrh Clauda                              |
 | Stavba na zavřené jámě dovolená – zrno se přendá                                                  | návrh Clauda                              |
 | Obchod s hřivnami, nástroje u sousedů jako dnes; zásoba hřiven na rok obnovy, bez přebytků        | návrh Clauda                              |
