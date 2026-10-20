@@ -33,6 +33,7 @@ import type { Scene } from '@babylonjs/core/scene';
 import { obstacleIndex, obstacleStatus, obstaclesNear, type ObstacleLayer } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 import { caravanPoints } from './caravan';
+import type { FuneralPlan } from './funeral-plan';
 import {
   createVillagerPose,
   villagerSeconds,
@@ -42,6 +43,7 @@ import {
   type VillagerKind,
 } from './villager-motion';
 import {
+  planFunerals,
   planVillagers,
   type HairLook,
   type PlannedVillager,
@@ -86,6 +88,11 @@ export interface VillagersEnvironment {
   onLoaded(): void;
   /** Okno herního dne (skutečný čas) – karavany výprav (caravan.ts); bez hodin null. */
   dayWindow?(day: number): { startMs: number; endMs: number } | null;
+  /**
+   * Nové plány pohřbů (funeral-plan.ts – průvod, hranice, máry): kreslí je ves (hranice, máry)
+   * a mohylu pohřbu do dohoření skryje. Volá se jen při změně.
+   */
+  onFunerals?(plans: readonly FuneralPlan[]): void;
 }
 
 /** Zapečený model: geometrie, textura matic kostí a rozsahy snímků klipů v ní. */
@@ -122,6 +129,9 @@ export class VillageVillagers {
   /** Obdélník zemských stezek s karavanami (caravan.ts) – patří do obalu postav. */
   private extent: { minX: number; maxX: number; minZ: number; maxZ: number } | null = null;
   private people: PlannedVillager[] = [];
+  /** Pohřby (cemetery.md – Pohřeb ve scéně) – průvod a kruh kolem hranice. */
+  private funerals: FuneralPlan[] = [];
+  private funeralsKey = '';
   private readonly kinds = new Map<VillagerKind, Kind>();
   private shadow: { mesh: Mesh; matrices: Float32Array } | null = null;
   private models: Map<VillagerKind, BakedModel> | null = null;
@@ -305,7 +315,20 @@ export class VillageVillagers {
     const village = this.village;
     const herds = this.env.herds(nowMs);
     this.herdCount = herds.length;
-    const ground = village && this.models ? this.groundFor(village) : null;
+    const ground =
+      village && (this.models || (village.funerals?.length ?? 0) > 0)
+        ? this.groundFor(village)
+        : null;
+    // pohřby i bez modelů postav – hranici a máry kreslí ves, mohylu do dohoření skryje
+    this.setFunerals(
+      village && ground
+        ? planFunerals(village, ground, {
+            seed: villageSeed(village),
+            paths: this.paths,
+            dayWindow: (day) => this.env.dayWindow?.(day) ?? null,
+          })
+        : [],
+    );
     if (!village || !this.models || !ground) {
       this.people = [];
       for (const kind of this.kinds.values()) kind.mesh.setEnabled(false);
@@ -328,6 +351,7 @@ export class VillageVillagers {
       herds: herds.filter((h) => h.tended !== false).length,
       paths: this.paths,
       dayWindow: (day) => this.env.dayWindow?.(day) ?? null,
+      funerals: this.funerals,
     })
       .filter((p) => this.models?.has(p.kind))
       .map((p) => {
@@ -335,8 +359,8 @@ export class VillageVillagers {
         if (!from) return p;
         probe.hidden = false;
         const to = p.pose(t, herds, probe);
-        // karavana (caravan.ts) jde podle výpravy – nepřechází pěšky
-        if (p.key.startsWith('caravan:')) return p;
+        // karavana (caravan.ts) jde podle výpravy a pohřeb podle obřadu – nepřecházejí pěšky
+        if (p.key.startsWith('caravan:') || p.key.startsWith('funeral:')) return p;
         const distance = Math.hypot(to.x - from.x, to.z - from.z);
         if (distance < WALK_OVER_M.from || distance > WALK_OVER_M.to) return p;
         return {
@@ -344,7 +368,7 @@ export class VillageVillagers {
           pose: walkThen(from.x, from.z, p.pose, t, walkSpeed(p.kind, 'walk', p.scale)),
         };
       });
-    this.extent = caravanExtent(village);
+    this.extent = unionExtent(caravanExtent(village), ...this.funerals.map((f) => f.extent));
     for (const name of KINDS) {
       const people = this.people.filter((p) => p.kind === name);
       const model = this.models.get(name);
@@ -378,6 +402,21 @@ export class VillageVillagers {
     shadow.mesh.setEnabled(this.people.length > 0);
     this.write(villagerSeconds(nowMs), herds);
     return had || this.people.length > 0;
+  }
+
+  /** Nové plány pohřbů – ohlásí je scéně (`onFunerals`), jen když se změnily. */
+  private setFunerals(plans: FuneralPlan[]): void {
+    this.funerals = plans;
+    const key = plans
+      .map(
+        (p) =>
+          `${p.key}:${p.timeline.startMs}:${p.path.length.toFixed(2)}:${p.members.length}:` +
+          `${p.pyre.x},${p.pyre.z}`,
+      )
+      .join('|');
+    if (key === this.funeralsKey) return;
+    this.funeralsKey = key;
+    this.env.onFunerals?.(plans);
   }
 
   /** Terén pro plán: schůdná země z rastru zvířat, stromy z vrstvy překážek. */
@@ -589,6 +628,7 @@ function villageKey(village: SceneVillage): string {
   return JSON.stringify([
     village.labor ?? null,
     village.expeditions ?? null,
+    village.funerals ?? null,
     (village.trails ?? []).map((t) => [t.id, t.points.length]),
     dwellings,
     fields,
@@ -613,6 +653,25 @@ function caravanExtent(
     minZ: Math.min(...points.map((p) => p.z)),
     maxZ: Math.max(...points.map((p) => p.z)),
   };
+}
+
+type Extent = { minX: number; maxX: number; minZ: number; maxZ: number };
+
+/** Obdélník přes všechny dané (karavany, pohřby); bez žádného null. */
+function unionExtent(...extents: (Extent | null)[]): Extent | null {
+  let out: Extent | null = null;
+  for (const e of extents) {
+    if (!e) continue;
+    out = out
+      ? {
+          minX: Math.min(out.minX, e.minX),
+          maxX: Math.max(out.maxX, e.maxX),
+          minZ: Math.min(out.minZ, e.minZ),
+          maxZ: Math.max(out.maxZ, e.maxZ),
+        }
+      : { ...e };
+  }
+  return out;
 }
 
 /** Náhoda postav podle vsi – první obydlí (stejná ves = stejní lidé). */

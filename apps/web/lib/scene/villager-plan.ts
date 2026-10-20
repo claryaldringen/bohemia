@@ -29,6 +29,7 @@ import {
   type CaravanMember,
   type DayWindow,
 } from './caravan';
+import { funeralActiveIn, funeralPlan, funeralPose, type FuneralPlan } from './funeral-plan';
 import { LIVESTOCK_EPOCH_MS } from './livestock-motion';
 import { TREE_CLEARANCE_M, buildingClearings, insideClearings } from './building-clearings';
 import { cellsBoundary, rowDirection, type CellSquare } from './field-cells';
@@ -238,6 +239,11 @@ export interface VillagerPlanOptions {
    * (caravan.ts); bez hodin stojí na postupu dne dat.
    */
   dayWindow?: (day: number) => DayWindow | null;
+  /**
+   * Pohřby (`planFunerals` – cemetery.md, Pohřeb ve scéně): lidé průvodu a kruhu kolem hranice
+   * jdou mimo rozpočet pracujících a v den obřadu se o ně počet pracujících postav sníží.
+   */
+  funerals?: readonly FuneralPlan[];
 }
 
 /** Obdélník domu v jeho souřadnicích (x napříč, z k vchodu). */
@@ -339,7 +345,16 @@ export function planVillagers(
     options.paths ?? null,
     figureSexes(labor.people),
   );
-  const counts = shareCounts(labor.shares, labor.month, options.maxWorkers ?? MAX_WORKERS);
+  // pohřby dne (cemetery.md – Pohřeb ve scéně): lidé průvodu ubírají z pracujících postav
+  const funerals = (options.funerals ?? []).filter((plan) =>
+    funeralActiveIn(plan, options.dayWindow?.(labor.day) ?? null),
+  );
+  const mourning = funerals.reduce((sum, plan) => sum + plan.members.length, 0);
+  const counts = shareCounts(
+    labor.shares,
+    labor.month,
+    Math.max(0, (options.maxWorkers ?? MAX_WORKERS) - mourning),
+  );
   const people: PlannedVillager[] = [];
   // výpravy k sousedům jdou jako karavany podle stavu výpravy (trade.md – Ve scéně), ne podle
   // práce dne – nosiči nezmizí, ani když výprava dnes nepostoupila
@@ -369,7 +384,59 @@ export function planVillagers(
     people.push(...caravanFigures(ctx, e, options.dayWindow?.(e.day) ?? null));
   }
   people.push(...trafficFigures(ctx, labor, options.maxTraffic ?? MAX_TRAFFIC));
+  for (const plan of funerals) people.push(...funeralFigures(ctx, plan));
   return people;
+}
+
+/**
+ * Pohřby vsi pro scénu (cemetery.md – Pohřeb ve scéně, funeral-plan.ts): průvod vychází od
+ * vchodu domu zemřelého (volné místo před vchodem jako provoz na cestách) po pěšinách; lidé
+ * stojí na schůdné zemi mimo domy a pozemky. Bez pohřbů, obydlí nebo hodin světa nic.
+ */
+export function planFunerals(
+  village: SceneVillage,
+  ground: VillagerGround,
+  options: Pick<VillagerPlanOptions, 'seed' | 'paths' | 'dayWindow'>,
+): FuneralPlan[] {
+  const funerals = village.funerals ?? [];
+  const dayWindow = options.dayWindow;
+  if (funerals.length === 0 || village.dwellings.length === 0 || !dayWindow) return [];
+  const ctx = context(village, ground, options.seed, 0, options.paths ?? null);
+  // obydlí jsou v seznamu staveb první (pak milíře, modly a ohrady – id se mohou krýt)
+  const dwellings = ctx.houses.slice(0, village.dwellings.length);
+  return funerals.flatMap((funeral) => {
+    const plan = funeralPlan(funeral, village, {
+      dayWindow,
+      door: (id) => {
+        const house = dwellings.find((h) => h.id === id);
+        return house ? trafficDoor(ctx, house) : null;
+      },
+      route: (a, b) => ctx.paths?.route(a, b)?.points ?? null,
+      standable: (x, z) =>
+        ctx.ground.walkable(x, z) && !ctx.houses.some((h) => inBox(h, x, z, HOUSE_MARGIN_M)),
+      figureScale: FIGURE_SCALE,
+    });
+    return plan ? [plan] : [];
+  });
+}
+
+/**
+ * Lidé pohřbu (funeral-plan.ts): nosiči jsou muži, ostatní podle pohlaví a věku z jádra – ženy
+ * v šátcích jako jinde, starší s šedinami.
+ */
+function funeralFigures(ctx: Context, plan: FuneralPlan): PlannedVillager[] {
+  return plan.members.map((member, index) => {
+    const who = identity(ctx.seed, `funeral:${plan.key}:${member.key}`, {
+      women: member.sex === 'female' ? 1 : 0,
+      child: member.child,
+    });
+    const hair: HairLook = member.elder
+      ? 'grey'
+      : member.child
+        ? 'natural'
+        : adultHair(who, ctx.sexes.married);
+    return villager(who, funeralPose(plan, index, who.kind, who.scale), hair);
+  });
 }
 
 /** Klip člena karavany na cestě: nosič se zbožím nese, ostatní jdou. */
