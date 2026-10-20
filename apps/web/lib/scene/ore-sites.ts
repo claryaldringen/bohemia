@@ -104,13 +104,13 @@ export class OreSiteRenderer {
   private waterMaterial(): StandardMaterial {
     if (this.water) return this.water;
     const m = new StandardMaterial('village-ore-water', this.scene);
-    m.specularColor = new Color3(0.4, 0.42, 0.38);
+    m.specularColor = new Color3(0.18, 0.17, 0.12);
     m.specularPower = 40;
     m.backFaceCulling = false;
     // Obě strany osvětlené (jinak by plocha s normálou dolů zčernala) a vlastní světlo kalné vody,
     // ať není tmavší než potok u břehu.
     m.twoSidedLighting = true;
-    m.emissiveColor = new Color3(0.2, 0.19, 0.1);
+    m.emissiveColor = new Color3(0.09, 0.075, 0.03);
     applySeasonRelief(m);
     this.water = m;
     return m;

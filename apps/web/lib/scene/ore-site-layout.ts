@@ -128,12 +128,12 @@ export function orePitWater(pits: readonly SceneOrePit[], height: HeightFn): Col
     const base = out.positions.length / 3;
     const y = height(pit.x, pit.z) + 0.075;
     out.positions.push(pit.x, y, pit.z);
-    out.colors.push(0.38, 0.4, 0.3);
+    out.colors.push(0.3, 0.27, 0.12);
     for (let s = 0; s < SEGMENTS; s++) {
       const a = (s / SEGMENTS) * Math.PI * 2;
       const r = radius * (1 + 0.15 * Math.sin(2 * a + phase));
       out.positions.push(pit.x + Math.cos(a) * r, y, pit.z + Math.sin(a) * r);
-      out.colors.push(0.33, 0.36, 0.28);
+      out.colors.push(0.24, 0.17, 0.09);
     }
     for (let s = 0; s < SEGMENTS; s++) {
       out.indices.push(base, base + 1 + ((s + 1) % SEGMENTS), base + 1 + s);
