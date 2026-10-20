@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { landscapeHash } from '../../__tests__/landscape-checks';
 import { checkBand } from '../../band';
 import {
+  BandFailureError,
   generateAcceptedLandscape,
   generateLandscape,
   generateLandscapeAttempt,
@@ -168,7 +169,8 @@ function outcomes(type: PremiumType): readonly (Outcome | null)[] {
     try {
       landscape = generateAcceptedLandscape(seed, CURRENT_LAYER_VERSIONS, type).landscape;
     } catch (error) {
-      if (error instanceof RangeError) throw error;
+      // Jen „pásmem neprošla“ – jiná chyba (i pád průchodu na části seedů) test shodí.
+      if (!(error instanceof BandFailureError)) throw error;
       return null;
     }
     return {

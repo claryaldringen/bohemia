@@ -9,6 +9,14 @@ import { generateVegetation } from './vegetation';
 
 export const MAX_ATTEMPTS = 16;
 
+/** Žádný z `MAX_ATTEMPTS` pokusů nepadl do pásma srovnatelnosti (i s kontrolou prémiového typu). */
+export class BandFailureError extends Error {
+  constructor(readonly seed: number) {
+    super(`Krajina pro seed ${seed} nesplnila pásmo ani na ${MAX_ATTEMPTS} pokusů.`);
+    this.name = 'BandFailureError';
+  }
+}
+
 /** Verze, které generátor umí, po vrstvách. */
 const KNOWN_VERSIONS: { readonly [K in keyof LayerVersions]-?: readonly LayerVersions[K][] } = {
   terrain: [1, 2],
@@ -41,7 +49,7 @@ export function generateAcceptedLandscape(
     const landscape = generateLandscapeAttempt(attemptSeed, versions, premium);
     if (checkBand(landscape, versions).ok) return { seed: attemptSeed, landscape };
   }
-  throw new Error(`Krajina pro seed ${seed} nesplnila pásmo ani na ${MAX_ATTEMPTS} pokusů.`);
+  throw new BandFailureError(seed);
 }
 
 /** Krajina z vylosovaného seedu – první pokus v pásmu srovnatelnosti. */

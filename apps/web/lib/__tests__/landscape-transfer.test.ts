@@ -4,6 +4,7 @@ import {
   generateLandscape,
   generateLandscapeAttempt,
   generateObstacles,
+  hasPremiumPass,
   INITIAL_LAYER_VERSIONS,
   OBSTACLE_SOURCES,
   obstaclesOf,
@@ -130,6 +131,8 @@ describe('přenos prémiové krajiny', () => {
 
   it('prohlížeč dostane stejnou prémiovou krajinu – prvky typu i vrstvu překážek', () => {
     const decoded = decodeLandscape(encodeLandscape(premium));
+    // Jakmile má typ průchod, prvky musí existovat – jinak by se porovnávalo null s null.
+    if (hasPremiumPass('mountain-pass')) expect(premiumFeaturesOf(premium)).not.toBeNull();
     expect(premiumFeaturesOf(decoded)).toEqual(premiumFeaturesOf(premium));
     const server = obstaclesOf(premium);
     const browser = obstaclesOf(decoded);
