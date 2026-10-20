@@ -45,15 +45,15 @@ export const CUT_BANK = {
   turnDeg: [40, 80],
   lowM: 1.5,
   maxM: 8,
-  perRiseM: 0.7,
-  riseFromM: 1,
+  perRiseM: 0.45,
+  riseFromM: 2,
 } as const;
 /**
  * Stěna od okraje vody (políčka): čelo do `width`, nad ním terasa `top`, která do `fade` dozní
  * do okolního terénu; za terasou smí terén dál stoupat nejvýš `slope` m na políčko (jako svah
  * údolí – `VALLEY_SLOPE`).
  */
-const WALL = { width: 1.1, top: 1, fade: 4, slope: 0.9, innerWiden: 1.2 } as const;
+const WALL = { width: 1.1, top: 1, fade: 3, slope: 0.9, innerWiden: 1.2 } as const;
 /**
  * Strana oblouku jako ve scéně (`innerBend` osy potoka): stočení na úseku ± `window` bodů
  * (≈ 40 m), plné při `full` rad. Na vnitřní straně (svah ostrožny) je stěna mírnější – svah.
@@ -66,7 +66,7 @@ const OTHER_PART = 12;
 /** Kam (políčka od okraje vody) úpravy terénu sahají. */
 const REACH = 16;
 /** Kolem místa pro vesnici skály nejsou (políčka); plně až od `to`. */
-export const ROCK_FREE_SITE = { from: 24, to: 34 } as const;
+export const ROCK_FREE_SITE = { from: 30, to: 42 } as const;
 
 /**
  * Ostrožna nad zaříznutým meandrem (smyčka Ω): poloměr osy smyčky, vzdálenost os ramen v šíji
@@ -543,9 +543,10 @@ export function sculptStreamRocks(
     const level = levels[k]!;
     const width = wallWidth(k, s);
     const cap = level + h * smoothstep(d / width) + WALL.slope * Math.max(0, d - width - WALL.top);
-    const terrace = level + h * (1 - smoothstep((d - width - WALL.top) / WALL.fade));
-    // Za stěnou původní terén (ve vyvýšeném okolí ostrožny srovnaný do výšky plochy).
-    const ground = Number.isFinite(upland[i]!) ? upland[i]! : orig[i]!;
+    const behind = 1 - smoothstep((d - width - WALL.top) / WALL.fade);
+    const terrace = level + h * behind;
+    // Hned za stěnou původní terén (svah, do kterého se potok zařízl); dál údolí jako dřív.
+    const ground = carved[i]! + Math.max(0, orig[i]! - carved[i]!) * behind;
     const envelope = Math.max(h > 0 ? ground : -Infinity, terrace, extra);
     return Math.max(carved[i]!, Math.min(cap, envelope));
   };

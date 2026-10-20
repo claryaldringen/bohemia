@@ -41,6 +41,9 @@ const LILY_STEP_M = 6;
 const CALM_SPEED = 0.35;
 /** Kmeny v potoce: krok podél osy (m). */
 const LOG_STEP_M = 35;
+/** Balvany v korytě u skalní stěny (terén 2): krok podél osy (m) a od jaké výšky stěny (m). */
+const BOULDER_STEP_M = 8;
+const BOULDER_WALL_M = 3;
 
 /** Hash celočíselných souřadnic a pořadí → číslo v [0, 1). */
 function hash(x: number, y: number, k: number): number {
@@ -51,7 +54,8 @@ function hash(x: number, y: number, k: number): number {
 
 /**
  * Ozdoby vody jako v generátoru 0 A.D.: rákos a orobinec ve shlucích na kraji koryta, lekníny
- * na hladině a kmeny spadlé do klidné vody – deterministicky. Jen vzhled, žádné překážky.
+ * na hladině, kmeny spadlé do klidné vody a balvany v korytě pod skalní stěnou (terén 2) –
+ * deterministicky. Jen vzhled, žádné překážky.
  */
 export function decorPlacements(l: Landscape, stream: StreamCenterline): DecorPlacement[] {
   const placements: DecorPlacement[] = [];
@@ -141,6 +145,34 @@ export function decorPlacements(l: Landscape, stream: StreamCenterline): DecorPl
       scale: 0.8 + hash(k, 5, 431) * 0.4,
       waterLevel: near.level,
     });
+  }
+
+  // Balvany v korytě u paty skalní stěny (terén 2) – spadly ze stěny, voda je obtéká.
+  for (const station of streamStations(stream, BOULDER_STEP_M)) {
+    for (const side of [-1, 1]) {
+      const k = station.index * 2 + (side > 0 ? 1 : 0);
+      const here = bank(station, side);
+      if (here.bank < BOULDER_WALL_M) continue;
+      const rock = Math.min(1, (here.bank - BOULDER_WALL_M) / 3);
+      if (hash(k, 1, 531) >= 0.3 + 0.35 * rock) continue;
+      const count = 1 + Math.floor(hash(k, 2, 531) * 2.5);
+      for (let i = 0; i < count; i++) {
+        const offset = here.halfWidth - 0.6 - hash(k, 10 + i, 531) * 2.2;
+        const along = (hash(k, 20 + i, 531) - 0.5) * BOULDER_STEP_M;
+        const x = station.x + station.nx * side * offset - station.nz * along;
+        const z = station.z + station.nz * side * offset + station.nx * along;
+        const d = stream.nearest(x, z).bankDistance;
+        if (!inMap(x, z) || d < -3 || d > -0.3) continue;
+        const pick = hash(k, 30 + i, 531);
+        placements.push({
+          model: pick < 0.45 ? 'rock-boulder' : pick < 0.75 ? 'rock-moss-1' : 'boulder',
+          worldX: x,
+          worldZ: z,
+          rotationY: hash(k, 40 + i, 531) * Math.PI * 2,
+          scale: 0.9 + hash(k, 50 + i, 531) * 0.9,
+        });
+      }
+    }
   }
   return placements;
 }
