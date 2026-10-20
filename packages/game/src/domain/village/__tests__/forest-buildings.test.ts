@@ -313,7 +313,7 @@ describe('pozemek polozemnice v lese', () => {
 });
 
 describe('ostatní stavby v lese', () => {
-  it('ohrada, dílna uhlíře s milířem i sad – les za sazbu lesa', () => {
+  it('ohrada, dílna uhlíře i sad – les za sazbu lesa', () => {
     const pen = checkPenPlacement(landscape, null, { x: 8, y: 8 }, layer);
     expect(pen.ok).toBe(true);
     expect(pen.obstacleCost).toBeCloseTo(FOREST_SQUARE + OBSTACLE_COST.stone);
@@ -326,8 +326,10 @@ describe('ostatní stavby v lese', () => {
       layer,
     );
     expect(burner.ok).toBe(true);
-    expect(burner.obstacleCost).toBeGreaterThan(
+    // uhlíř je jen zemnice – milíř staví u dávky buků (crafts.md – Milíř u skácených buků)
+    expect(burner.obstacleCost).toBeCloseTo(
       forestCost(ZEMNICE_CROWNED.width * ZEMNICE_CROWNED.depth),
+      0,
     );
     const orchard = orchardPartsFromCells(landscape, null, block(8, 9, 2, 1), [HOME], layer);
     expect(orchard.check.ok).toBe(true);

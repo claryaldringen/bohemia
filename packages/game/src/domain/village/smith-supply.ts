@@ -1,12 +1,29 @@
 import { createRandom, deriveSeed } from '../landscape/random';
-import { detCos, detSin, length2, type Landscape } from '../landscape';
+import {
+  detCos,
+  detSin,
+  length2,
+  obstaclesNear,
+  obstaclesOf,
+  type Landscape,
+  type ObstacleLayer,
+} from '../landscape';
 import { distanceFactor } from './fields';
+import { obstacleChangesAt, obstacleStatus, type ObstacleStatus } from './obstacles';
 import { PolygonIndex, villageLandSquares } from './squares';
 import { ageGroup, ageYears } from './people';
-import { PATH_WATER_SPOT, PATH_WETLAND } from './paths/terrain';
+import { PATH_FOREST, PATH_WATER_SPOT, PATH_WETLAND } from './paths/terrain';
 import { groundSpots, villageRoadWalk, walkGroundOf } from './paths/walking';
-import { homeKilnCenter } from './charcoal';
-import { CARTS, CART_JOBS, CLAY, CRAFT_PRODUCTION, SMITH_SUPPLY, WATER_FETCHING } from './rules';
+import { kilnPoint, workshopKilns } from './charcoal';
+import {
+  CARTS,
+  CART_JOBS,
+  CLAY,
+  CRAFT_PRODUCTION,
+  DUG_SITE_VIEW,
+  SMITH_SUPPLY,
+  WATER_FETCHING,
+} from './rules';
 import type {
   CharcoalKiln,
   Dwelling,
@@ -194,24 +211,15 @@ export function occupiedSmiths(state: Pick<VillageState, 'dwellings' | 'people'>
 
 // --- uhlí z milíře ----------------------------------------------------------------------------
 
-/** Kde stojí milíř uhlíře – v lese, nebo u dílny. */
-export function kilnPoint(
-  burner: Dwelling,
-  kiln: Pick<CharcoalKiln, 'site'>,
-): {
-  x: number;
-  z: number;
-} {
-  return kiln.site ?? homeKilnCenter(burner.position);
-}
-
 /**
  * Uhlí, které dnes někdo donese z milíře do kovárny (crafts.md – Uhlí a ruda kováře): uhlíř
- * `burnerId` dnes vytahá `kg` uhlí (`burnerDraws`), nese se do nejbližší kovárny `smithId`
- * (`walkM` – vzdálenost chůze kovárna ↔ milíř) od milíře v bodě `at`.
+ * `burnerId` dnes vytahá `kg` uhlí z milíře `kilnId` (`burnerDraws`), nese se do nejbližší
+ * kovárny `smithId` (`walkM` – vzdálenost chůze kovárna ↔ milíř) od milíře v bodě `at`.
  */
 export interface CharcoalDelivery {
   burnerId: number;
+  /** Id milíře (chybí u milíře ze starší vsi před převodem). */
+  kilnId?: number;
   smithId: number;
   kg: number;
   at: { x: number; z: number };
@@ -220,22 +228,23 @@ export interface CharcoalDelivery {
 
 /**
  * Dodávky uhlí dne (mutuje stav – uloží vzdálenost chůze u milíře `CharcoalKiln.carry`): ke
- * každému uhlíři, který dnes nosí (`draws` – kg po id dílny uhlíře), nejbližší obývaná kovárna
- * (vzdušnou čarou, při shodě menší id) a vzdálenost chůze z ní k milíři – po pevných cestách
- * s půdou krajiny (paths/walking.ts), bez krajiny vzdušně. Bez kovárny nic.
+ * každému milíři, ze kterého uhlíř dnes vytahá uhlí (`draws` – v pořadí plánu uhlířů), nejbližší
+ * obývaná kovárna (vzdušnou čarou, při shodě menší id) a vzdálenost chůze z ní k milíři – po
+ * pevných cestách s půdou krajiny (paths/walking.ts), bez krajiny vzdušně. Pro uhlí se chodí
+ * k milíři (crafts.md – Milíř u skácených buků). Bez kovárny nic.
  */
 export function charcoalDeliveries(
   state: VillageState,
-  draws: ReadonlyMap<number, number>,
+  draws: readonly { burnerId: number; kilnId?: number; kg: number }[],
   landscape: Landscape | null,
 ): CharcoalDelivery[] {
-  if (draws.size === 0) return [];
+  if (draws.length === 0) return [];
   const smiths = occupiedSmiths(state);
   if (smiths.length === 0) return [];
   const out: CharcoalDelivery[] = [];
-  for (const [burnerId, kg] of [...draws.entries()].sort((a, b) => a[0] - b[0])) {
+  for (const { burnerId, kilnId, kg } of draws) {
     const burner = state.dwellings.find((d) => d.id === burnerId);
-    const kiln = burner?.workshop?.kiln;
+    const kiln = findKiln(burner, kilnId);
     if (!burner || !kiln || kg <= EPSILON) continue;
     const at = kilnPoint(burner, kiln);
     let smith = smiths[0]!;
@@ -253,16 +262,36 @@ export function charcoalDeliveries(
         : length2(smith.position.x - at.x, smith.position.z - at.z);
       kiln.carry = { smithId: smith.id, walkM: Math.round(walkM * 100) / 100 };
     }
-    out.push({ burnerId, smithId: smith.id, kg, at, walkM: kiln.carry.walkM });
+    out.push({
+      burnerId,
+      ...(kilnId !== undefined ? { kilnId } : {}),
+      smithId: smith.id,
+      kg,
+      at,
+      walkM: kiln.carry.walkM,
+    });
   }
   return out;
+}
+
+/**
+ * Milíř uhlíře `burner` s id `kilnId` (bez id první milíř – starší ves před převodem); jinak
+ * undefined.
+ */
+export function findKiln(
+  burner: Pick<Dwelling, 'workshop'> | undefined,
+  kilnId: number | undefined,
+): CharcoalKiln | undefined {
+  const kilns = workshopKilns(burner?.workshop);
+  return kilnId === undefined ? kilns[0] : kilns.find((k) => k.id === kilnId);
 }
 
 /** Nošení uhlí kovárny na dnešek (crafts.md – Uhlí a ruda kováře). */
 export interface CharcoalFetch {
   smithId: number;
-  /** Odkud se nosí: milíř uhlíře (id dílny uhlíře, bod). */
+  /** Odkud se nosí: milíř uhlíře (id dílny uhlíře, id milíře, bod). */
   burnerId: number;
+  kilnId?: number;
   at: { x: number; z: number };
   /** Kolik uhlí se nese pěšky (kg) a kolik práce to dá (čd dospělého). */
   kg: number;
@@ -278,6 +307,7 @@ export interface SmithFetchDay {
   /** Po milířích: kolik práce (čd) udělali synové 10–13 a kolik domácnost. */
   sources: {
     burnerId: number;
+    kilnId?: number;
     at: { x: number; z: number };
     youngsters: number;
     household: number;
@@ -306,7 +336,13 @@ export function smithFetchDay(
   const sources = own.map((f) => {
     const y = Math.min(f.manDays, young);
     young -= y;
-    return { burnerId: f.burnerId, at: f.at, youngsters: y, household: f.manDays - y };
+    return {
+      burnerId: f.burnerId,
+      ...(f.kilnId !== undefined ? { kilnId: f.kilnId } : {}),
+      at: f.at,
+      youngsters: y,
+      household: f.manDays - y,
+    };
   });
   return { youngsters, household: Math.max(0, total - youngsters.manDays), sources };
 }
@@ -322,8 +358,7 @@ export function forgeOreKg(labor: number): number {
 }
 
 /**
- * Dávka rudy pěšky (kg): na CHARCOAL_KILN.drawBatchDays dní kování na plný úvazek (jako uhlí –
- * crafts.md, Milíř stojí vždy), aspoň jeden koš.
+ * Dávka rudy pěšky (kg): na SMITH_SUPPLY.oreBatchDays dní kování na plný úvazek, aspoň jeden koš.
  */
 export function footOreBatchKg(labor: number, batchDays: number): number {
   return Math.max(SMITH_SUPPLY.basketKg.ore, forgeOreKg(labor) * batchDays);
@@ -381,17 +416,49 @@ function awayFromUsed(
  * (PATH_WETLAND terénu pěšin – suchá rovina u vody) nejblíž kovárně vzdušnou čarou (při shodě
  * menší x, z) aspoň SMITH_SUPPLY.siteSpacingM od vyčerpaných ložisek; bez mokřiny suchý břeh
  * (PATH_WATER_SPOT). Ne na čtvercích staveb vsi (pole, sad, hřbitov, ohrada, les vsi) ani u domů.
+ * Místo má být na mapě vidět (crafts.md – Rudiště a hliniště na očích): mimo les a koruny stromů
+ * (`inView`), les a koruny jen když volné místo není do rozumné vzdálenosti (DUG_SITE_VIEW).
  * Vzdálenost chůze po pevných cestách s půdou krajiny (mokřina a brody –
  * paths/walking.ts). Bez krajiny (testy, kalibrace) místo bez polohy ve vzdálenosti dílny k vodě
- * (`waterDistanceM`). Když není mokřina ani voda, null.
+ * (`waterDistanceM`). Když není mokřina ani voda, null. `obstacles` = vrstva překážek krajiny
+ * (koruny stromů); bez ní `obstaclesOf(landscape)`.
  */
 export function chooseOreSite(
   state: VillageState,
   smith: Dwelling,
   day: number,
   landscape: Landscape | null,
+  obstacles?: ObstacleLayer | null,
 ): OreSite | null {
-  return chooseDugSite(state, smith, day, landscape, 'ore');
+  return chooseDugSite(state, smith, day, landscape, 'ore', obstacles);
+}
+
+/**
+ * Stojí místo `p` na očích – shora vidět (crafts.md – Rudiště a hliniště na očích)? Mimo les
+ * krajiny (PATH_FOREST terénu pěšin) a bez dospělého stromu do DUG_SITE_VIEW.treeClearM – stromy
+ * vrstvy překážek, které dnes stojí (`status` – pokácený strom je pařez), i stromy, které přidala
+ * ves (stromy u cest, les vsi).
+ */
+function inView(
+  p: { x: number; z: number },
+  ground: ReturnType<typeof walkGroundOf>,
+  layer: ObstacleLayer,
+  status: ObstacleStatus,
+): boolean {
+  const t = ground.terrain;
+  const i = Math.round((p.x - t.originX) / t.cellM);
+  const j = Math.round((p.z - t.originZ) / t.cellM);
+  if (i >= 0 && j >= 0 && i < t.width && j < t.height && t.flags[j * t.width + i]! & PATH_FOREST) {
+    return false;
+  }
+  const r = DUG_SITE_VIEW.treeClearM;
+  for (const k of obstaclesNear(layer, p.x - r, p.z - r, p.x + r, p.z + r)) {
+    if (length2(layer.x[k]! - p.x, layer.z[k]! - p.z) >= r) continue;
+    if (status.kindOf(layer, k) === 'tree') return false;
+  }
+  return status
+    .addedIn(p.x - r, p.z - r, p.x + r, p.z + r)
+    .every((o) => o.kind !== 'tree' || length2(o.x - p.x, o.z - p.z) >= r);
 }
 
 /**
@@ -405,6 +472,7 @@ export function chooseDugSite(
   day: number,
   landscape: Landscape | null,
   material: DugMaterial,
+  obstacles?: ObstacleLayer | null,
 ): OreSite | null {
   const workshop = dwelling.workshop!;
   const spec = DUG[material];
@@ -437,22 +505,39 @@ export function chooseDugSite(
   const free = (p: { x: number; z: number }): boolean =>
     land.containing(p.x, p.z).length === 0 &&
     homes.every((h) => length2(h.x - p.x, h.z - p.z) >= ORE_SITE_HOME_M);
-  const nearest = (flag: number): { x: number; z: number } | null => {
+  const nearest = (
+    flag: number,
+    ok?: (p: { x: number; z: number }) => boolean,
+    reachM = Infinity,
+  ): { x: number; z: number } | null => {
     let best: { x: number; z: number } | null = null;
     let bestD = Infinity;
+    const limit = reachM * reachM;
     for (const p of groundSpots(ground, flag)) {
       if (!awayFromUsed(p, avoid)) continue;
       const d = (p.x - from.x) * (p.x - from.x) + (p.z - from.z) * (p.z - from.z);
       // body jdou po řádcích – při shodě vyhraje první
-      if (d < bestD && free(p)) {
+      if (d < bestD && d <= limit && free(p) && (!ok || ok(p))) {
         best = p;
         bestD = d;
       }
     }
     return best;
   };
-  const spot = nearest(PATH_WETLAND) ?? nearest(PATH_WATER_SPOT);
-  if (!spot) return null;
+  const closest = nearest(PATH_WETLAND) ?? nearest(PATH_WATER_SPOT);
+  if (!closest) return null;
+  // na očích (crafts.md – Rudiště a hliniště na očích): mimo les a koruny stromů, napřed mokřina,
+  // pak břeh – nejvýš o DUG_SITE_VIEW dál než nejbližší místo; jinak to nejbližší
+  let spot = closest;
+  const layer = obstacles ?? obstaclesOf(landscape);
+  const status = obstacleStatus(obstacleChangesAt(state, day));
+  const visible = (p: { x: number; z: number }): boolean => inView(p, ground, layer, status);
+  if (!visible(closest)) {
+    const d = length2(closest.x - from.x, closest.z - from.z);
+    const reach = Math.max(d * DUG_SITE_VIEW.openFarther, d + DUG_SITE_VIEW.openSlackM);
+    spot =
+      nearest(PATH_WETLAND, visible, reach) ?? nearest(PATH_WATER_SPOT, visible, reach) ?? closest;
+  }
   const walkM = villageRoadWalk(state, landscape)(from, [spot])[0]!;
   if (!Number.isFinite(walkM)) return null;
   return {
@@ -601,6 +686,8 @@ export function workOre(
 /** Volby dne dílny se surovinou (`workOre`, `workDug`). */
 export interface DugOptions {
   landscape: Landscape | null;
+  /** Vrstva překážek krajiny – koruny stromů u nového místa (`chooseDugSite`). */
+  obstacles?: ObstacleLayer | null;
   batchDays: number;
   cart?: OreCartToday;
   /** Vyplatí se dávka na celý vůz? (kg vozu); null = ves vůz nemá nebo jízda neušetří. */
@@ -662,7 +749,7 @@ export function workDug(
     }
     if (stock + EPSILON < need || cartKg !== null) {
       if (site === undefined) {
-        site = chooseDugSite(state, smith, day, options.landscape, material);
+        site = chooseDugSite(state, smith, day, options.landscape, material, options.obstacles);
         workshop[spec.site] = site;
       }
       if (site) {

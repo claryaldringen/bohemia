@@ -4,7 +4,6 @@ import {
   MILIR,
   SACRED_BUILDINGS,
   WORKSHOP_PORCH_M,
-  milirPosition,
   type TileCell,
 } from '@bohemia/game';
 import { isRotatedSquare, squareContains, type CellSquare } from './field-cells';
@@ -19,8 +18,9 @@ import { scenePenSquares, type SceneVillage } from '../village-view';
  * (Ctrl/Shift + klik, Ctrl + A – migration.md; aspoň dvě), díl pole nebo čtverec sadu (klik –
  * fields.md, Co hráč vidí), celé pole nebo sad (dvojklik), hřbitov, posvátný dub (id stromu),
  * dubový háj (id středového dubu), modla či svatyně (id stavby – hotová i rozestavěná,
- * happiness.md), ohrada (id ohrady – oxen.md), nebo rudiště kováře (id kovárny – crafts.md, Uhlí
- * a ruda kováře).
+ * happiness.md), ohrada (id ohrady – oxen.md), rudiště kováře (id kovárny – crafts.md, Uhlí
+ * a ruda kováře), hliniště hrnčíře (id dílny – crafts.md, Hlína hrnčíře), nebo milíř či milířiště
+ * uhlíře (id milíře – crafts.md, Milíř u skácených buků).
  */
 export type VillageTarget =
   | { kind: 'dwelling'; id: number }
@@ -44,7 +44,11 @@ export type VillageTarget =
    */
   | { kind: 'road'; id: number }
   /** Rudiště kováře – jámy a hromada rudy (id kovárny – crafts.md, Uhlí a ruda kováře). */
-  | { kind: 'ore-site'; id: number };
+  | { kind: 'ore-site'; id: number }
+  /** Hliniště hrnčíře – jámy a hromada hlíny (id dílny hrnčíře – crafts.md, Hlína hrnčíře). */
+  | { kind: 'clay-site'; id: number }
+  /** Milíř nebo milířiště uhlíře (id milíře – crafts.md, Milíř u skácených buků). */
+  | { kind: 'kiln'; id: number };
 
 export interface Vec3 {
   x: number;
@@ -69,6 +73,10 @@ const SACRED_PICK_HEIGHT_M = { idol: 3, shrine: 4.5 } as const;
 export const ROAD_PICK_M = 2.5;
 /** Rudiště: krok výšky paprsku přes hromadu rudy (m). */
 const ORE_SITE_PICK_STEP_M = 0.25;
+/** Milíř: zásah do poloměru kupy s kouskem kolem, od země do výšky kupy (m). */
+export const KILN_PICK = { radiusM: MILIR.footprintM / 2 + 0.5, heightM: 2.4, stepM: 0.4 } as const;
+/** Milířiště: zásah na zemi do poloměru černé země (m). */
+const KILN_REMNANT_PICK_M = 3.5;
 /** Posvátný dub: zásah do `radius` od kmene, od země do koruny (m). */
 export const SACRED_OAK_PICK = { radiusM: 4, heightM: 12, stepM: 1 } as const;
 
@@ -83,7 +91,7 @@ export function rayAtHeight(ray: Ray, y: number): { x: number; z: number; t: num
 
 /**
  * Leží bod (x, z) v půdorysu obydlí (natočeném o `rotation`) zvětšeném o `margin`? Řemeslná
- * dílna i s přístřeškem vpředu, u uhlíře i milíř kus od zemnice (crafts.md).
+ * dílna i s přístřeškem vpředu (milíř uhlíře je samostatná stavba – `kind: 'kiln'`).
  */
 export function insideFootprint(
   point: { x: number; z: number },
@@ -98,16 +106,11 @@ export function insideFootprint(
   const r = dwelling.position.rotation;
   const localX = dx * Math.cos(r) - dz * Math.sin(r);
   const localZ = dx * Math.sin(r) + dz * Math.cos(r);
-  if (
+  return (
     Math.abs(localX) <= width / 2 + margin &&
     localZ >= -depth / 2 - margin &&
     localZ <= depth / 2 + porch + margin
-  ) {
-    return true;
-  }
-  if (dwelling.craft !== 'burner') return false;
-  const milir = milirPosition(dwelling.position);
-  return Math.hypot(point.x - milir.x, point.z - milir.z) <= MILIR.footprintM / 2 + margin;
+  );
 }
 
 /** Leží bod (x, z) v půdorysu modly nebo svatyně (natočeném) zvětšeném o `margin`? */
@@ -128,8 +131,8 @@ export function insideSacredFootprint(
 /**
  * Co je pod kurzorem: obydlí, které paprsek protne od země do výšky střechy (nejbližší ke
  * kameře), pak modla nebo svatyně (paprsek přes půdorys do výšky modly), posvátný dub (paprsek
- * do 4 m od kmene od země do koruny), rudiště kováře (paprsek přes jámy a hromadu rudy do její
- * výšky – `oreSiteDiscs`), jinak obydlí, jehož pozemek (políčko) nebo ohrada leží pod
+ * do 4 m od kmene od země do koruny), rudiště kováře či hliniště hrnčíře (paprsek přes jámy
+ * a hromadu do její výšky – `oreSiteDiscs`), jinak obydlí, jehož pozemek (políčko) nebo ohrada leží pod
  * bodem terénu `ground`, úsek pevné cesty do ROAD_PICK_M od osy, pak díl pole, hřbitov, čtverec
  * sadu nebo dubový háj pod bodem (celé pole a sad vybere dvojklik – `wholeTarget`); null =
  * prázdná zem.
@@ -178,26 +181,43 @@ export function pickVillageTarget(
     }
   }
   if (best) return { kind: 'sacred-oak', id: best.id };
+  // rudiště kovářů a hliniště hrnčířů (crafts.md – Hlína hrnčíře) – stejné tvary
+  let dug: { id: number; t: number; clay: boolean } | null = null;
   for (const site of village.oreSites ?? []) {
-    // hliniště hrnčíře (crafts.md – Hlína hrnčíře) se zatím nevybírá – klik projde dál
-    if (site.clay) continue;
-    const discs = oreSiteDiscs(
-      site,
-      village.orePits?.filter((p) => !p.clay),
-    );
+    const discs = oreSiteDiscs(site, village.orePits);
     const base = options.groundHeight(site.x, site.z);
     // jámy leží na zemi, hromada rudy je vysoká ≈ 0,55 poloměru
     const top = oreHeapRadius(site) * 0.55;
     for (let h = 0; h <= top + 1e-9; h += ORE_SITE_PICK_STEP_M) {
       const point = rayAtHeight(ray, base + h);
       if (!point || !insideOreSite(point, discs)) continue;
-      if (best === null || point.t < best.t) best = { id: site.dwellingId, t: point.t };
+      if (dug === null || point.t < dug.t) {
+        dug = { id: site.dwellingId, t: point.t, clay: site.clay === true };
+      }
       break;
     }
   }
-  if (best) return { kind: 'ore-site', id: best.id };
+  if (dug) return { kind: dug.clay ? 'clay-site' : 'ore-site', id: dug.id };
+  // milíř uhlíře – kupa od země do výšky (crafts.md – Milíř u skácených buků)
+  const kiln = KILN_PICK;
+  for (const k of village.kilns ?? []) {
+    const base = options.groundHeight(k.x, k.z);
+    for (let h = 0; h <= kiln.heightM + 1e-9; h += kiln.stepM) {
+      const point = rayAtHeight(ray, base + h);
+      if (!point || Math.hypot(point.x - k.x, point.z - k.z) > kiln.radiusM) continue;
+      if (best === null || point.t < best.t) best = { id: k.id, t: point.t };
+      break;
+    }
+  }
+  if (best) return { kind: 'kiln', id: best.id };
   if (!options.ground) return null;
   const ground = options.ground;
+  // milířiště – černá zem na zemi
+  for (const r of village.kilnRemnants ?? []) {
+    if (Math.hypot(ground.x - r.x, ground.z - r.z) <= KILN_REMNANT_PICK_M) {
+      return { kind: 'kiln', id: r.id };
+    }
+  }
   const cell = options.cellOf(ground.x, ground.z);
   if (!cell) return null;
   // čtverec v mřížce krajiny podle políčka, natočený čtverec (fields.md – Natočené stavby)
@@ -323,8 +343,23 @@ export function targetExists(village: SceneVillage, target: VillageTarget): bool
   }
   if (target.kind === 'pen') return (village.pens ?? []).some((p) => p.id === target.id);
   if (target.kind === 'road') return (village.roads ?? []).some((r) => r.id === target.id);
-  if (target.kind === 'ore-site') {
-    return (village.oreSites ?? []).some((s) => s.dwellingId === target.id);
+  if (target.kind === 'ore-site' || target.kind === 'clay-site') {
+    return dugSiteOf(village, target) !== undefined;
+  }
+  if (target.kind === 'kiln') {
+    return (
+      (village.kilns ?? []).some((k) => k.id === target.id) ||
+      (village.kilnRemnants ?? []).some((r) => r.id === target.id)
+    );
   }
   return village.fields.some((f) => f.id === target.id);
+}
+
+/** Rudiště (`ore-site`) nebo hliniště (`clay-site`) vybrané ve scéně, nebo undefined. */
+export function dugSiteOf(
+  village: SceneVillage,
+  target: Extract<VillageTarget, { kind: 'ore-site' | 'clay-site' }>,
+): NonNullable<SceneVillage['oreSites']>[number] | undefined {
+  const clay = target.kind === 'clay-site';
+  return village.oreSites?.find((s) => s.dwellingId === target.id && (s.clay === true) === clay);
 }

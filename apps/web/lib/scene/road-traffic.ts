@@ -3,7 +3,7 @@ import type { SceneLabor, SceneLaborHome } from '../village-view';
 
 // Provoz na cestách (docs/design/villagers.md – Provoz na cestách; Martin 19. 10. 2026: „Chci
 // vidět vesničany, jak chodí pro vodu nebo na pole.“): kolik lidí je teď na cestě pro vodu,
-// k lesu pro dřevo a mezi domem a polem. Jen vzhled, žádná pravidla – počty z cest za den
+// k lesu pro dřevo, mezi domem a polem a uhlíř mezi zemnicí a milířem. Jen vzhled, žádná pravidla – počty z cest za den
 // v simulaci (WATER_FETCHING, cesty pro dřevo sítě pěšin, práce na poli), čistá funkce.
 //
 // Herní den trvá ≈ 86 s, cesta k vodě skutečnou chůzí ≈ 10–15 minut – kdyby každá cesta dne šla
@@ -23,8 +23,11 @@ export const MAX_TRAFFIC = 24;
 /** Cest na pole a zpět za den na člověkoden polní práce (ráno tam, večer zpět = jedna). */
 export const FIELD_TRIPS_PER_MAN_DAY = 1;
 
-/** Druh cesty: pro vodu, k lesu pro dřevo, na pole. */
-export type TrafficKind = 'water' | 'wood' | 'field';
+/**
+ * Druh cesty: pro vodu, k lesu pro dřevo, na pole, uhlíř ze zemnice k milíři (crafts.md – Milíř
+ * u skácených buků).
+ */
+export type TrafficKind = 'water' | 'wood' | 'field' | 'kiln';
 
 /** Jeden proud lidí po jedné trase: kolik cest za den a jak dlouho trvá jedna (s, v pohybu). */
 export interface TrafficStream {

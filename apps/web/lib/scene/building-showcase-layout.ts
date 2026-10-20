@@ -1236,19 +1236,25 @@ function showcaseAbandoned(
 
 /** Řada ukázky cest za řadou stupňů rozpadu (z) – tři úseky pod sebou. */
 /**
- * Cyklus milíře (crafts.md – Milíř stojí vždy): uhlířova zemnice s milířem u dílny a vedle lesní
- * milíř ve stejné fázi – posuvník projde přípravu dřeva, stavbu, pálení s dýmem, vypálený milíř,
- * rozebírání podle odběru kováře a rozebrané milířiště. Kreslí herní renderer vsi.
+ * Cyklus milíře (crafts.md – Milíř u skácených buků, Milíř stojí vždy): uhlířova zemnice a kus od ní
+ * milíř u skácených buků – posuvník projde přípravu dřeva, stavbu, pálení s dýmem, vypálený milíř,
+ * rozebírání podle odběru kováře a rozebraný milíř, po kterém zůstane černé milířiště. Vedle stojí
+ * starší milířiště, která už zarůstají. Kreslí herní renderer vsi.
  */
 const KILN_HOME_AT = { x: 56, z: -96 };
 const KILN_FOREST_AT = { x: 82, z: -100 };
+/** Starší milířiště vedle milíře – jak zarostla (0–1). */
+const KILN_OLD_REMNANTS: readonly { x: number; z: number; overgrowth: number }[] = [
+  { x: 90, z: -91, overgrowth: 0.35 },
+  { x: 92, z: -106, overgrowth: 0.7 },
+];
 /** Id dílny uhlíře v ukázce (mimo ostatní id ukázek). */
 const KILN_SHOWCASE_ID = 9500;
 
 export const SHOWCASE_KILN = {
   id: 'milir-cyklus',
   label: 'Cyklus milíře',
-  focus: { x: 72, z: -99, radius: 28 },
+  focus: { x: 76, z: -99, radius: 30 },
 } as const;
 
 /** Fáze cyklu milíře na posuvníku 0–1 (konec úseku a popisek). */
@@ -1259,7 +1265,11 @@ const KILN_CYCLE: readonly { to: number; stage: SceneKilnState['stage'] | null; 
     { to: 0.55, stage: 'burn', label: 'pálí 8 dní – z milíře stoupá dým' },
     { to: 0.62, stage: 'draw', label: 'vypálený – stojí a čeká na kováře' },
     { to: 0.97, stage: 'draw', label: 'rozebírá se, jak kovář odebírá uhlí' },
-    { to: 1, stage: null, label: 'rozebraný – uhlíř staví nový' },
+    {
+      to: 1,
+      stage: null,
+      label: 'rozebraný – zůstalo černé milířiště, další milíř u dalších buků',
+    },
   ];
 
 /** Fáze milíře v bodě `t` posuvníku cyklu a její popisek (bez milíře `kiln` null). */
@@ -1287,10 +1297,20 @@ export function kilnCycleAt(t: number): { kiln: SceneKilnState | null; label: st
   return { kiln: null, label: KILN_CYCLE.at(-1)!.label };
 }
 
-/** Ves ukázky cyklu milíře v bodě `t` posuvníku – uhlíř s milířem u dílny a milíř v lese. */
+/**
+ * Ves ukázky cyklu milíře v bodě `t` posuvníku – zemnice uhlíře, milíř u skácených buků (rozebraný
+ * nechá milířiště) a starší zarůstající milířiště.
+ */
 export function showcaseKiln(t: number): SceneVillage {
   const { kiln } = kilnCycleAt(t);
   const home = { x: KILN_HOME_AT.x, z: KILN_HOME_AT.z, rotation: FACING };
+  const id = KILN_SHOWCASE_ID + 1;
+  const old = KILN_OLD_REMNANTS.map((r, k) => ({
+    id: KILN_SHOWCASE_ID + 2 + k,
+    burnerId: KILN_SHOWCASE_ID,
+    ...r,
+  }));
+  const fresh = { id, burnerId: KILN_SHOWCASE_ID, ...KILN_FOREST_AT, overgrowth: 0 };
   return {
     dwellings: [
       {
@@ -1300,15 +1320,11 @@ export function showcaseKiln(t: number): SceneVillage {
         built: true,
         progress: 1,
         craft: 'burner',
-        ...(kiln ? { kiln } : {}),
-        // milíř u dílny při pálení kouří z dílny (village-view.ts – workshopSmokes)
-        ...(kiln?.stage === 'burn' ? { working: true } : {}),
       },
     ],
     fields: [],
-    ...(kiln
-      ? { kilns: [{ id: KILN_SHOWCASE_ID + 1, x: KILN_FOREST_AT.x, z: KILN_FOREST_AT.z, ...kiln }] }
-      : {}),
+    ...(kiln ? { kilns: [{ id, burnerId: KILN_SHOWCASE_ID, ...KILN_FOREST_AT, ...kiln }] } : {}),
+    kilnRemnants: kiln ? old : [fresh, ...old],
   };
 }
 

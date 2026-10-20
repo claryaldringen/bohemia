@@ -1,5 +1,6 @@
 import { dateOfDayIndex } from '../../calendar';
 import { stockedPenIds } from '../abandonment';
+import { workshopKilns } from '../charcoal';
 import { tileCenterWorld, type Landscape, type ObstacleLayer } from '../../landscape';
 import { villageCemeteries } from '../cemetery';
 import { fieldPartLooks } from '../field-progress';
@@ -29,6 +30,7 @@ import { villageWoods } from '../woods';
 import { earthworkSpansOf } from './earthworks';
 import {
   computePathNetwork,
+  kilnsKey,
   liningKey,
   pathAgeFactor,
   pastureHerds,
@@ -255,6 +257,7 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
   const changes = obstacleChangesAt(state, day);
   const roads = state.roads?.roads ?? [];
   // přirozené louky letošní seče (oxen.md – Seno) – k políčkům, kde se dnes seče, vede pěšina
+  const kilns = villageKilnPoints(state);
   const hayMeadows = (state.hay?.mowing?.squares ?? []).flatMap((sq) =>
     sq.cell ? [square(landscape, sq.cell)] : [],
   );
@@ -319,6 +322,8 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
     ...(state.livestock ? { livestock: pastureLivestock(state, day) } : {}),
     ...(woods.length > 0 ? { woods } : {}),
     ...(hayMeadows.length > 0 ? { hayMeadows } : {}),
+    // milíře uhlířů – samostatné stavby (crafts.md – Milíř u skácených buků)
+    ...(kilns.length > 0 ? { kilns } : {}),
     // zemní práce vozových cest (roads.md – Vozová cesta) – ves bez nich beze změny
     ...(state.roads?.earthworks && state.roads.earthworks.length > 0
       ? { earthworks: earthworkSpansOf(state) }
@@ -430,6 +435,7 @@ export function walkLayoutKey(state: VillageState, day: number): string {
         )}${turned(p.grid)}:${p.builtDay === null ? 0 : 1}${p.builtDay !== null && !stocked.has(p.id) ? ':-' : ''}`,
   );
   const herds = state.livestock ? pastureHerds(pastureLivestock(state, day)) : 0;
+  const kilns = villageKilnPoints(state);
   return JSON.stringify([
     dwellings,
     sites,
@@ -442,7 +448,21 @@ export function walkLayoutKey(state: VillageState, day: number): string {
     ...(pens.length > 0 ? [pens] : []),
     ...(herds > 0 ? [herds] : []),
     ...(woods.length > 0 ? [woods] : []),
+    // milíře uhlířů (crafts.md – Milíř u skácených buků) – bez nich klíč beze změny
+    ...(kilns.length > 0 ? [kilnsKey(kilns)] : []),
   ]);
+}
+
+/**
+ * Středy milířů uhlířů vsi (crafts.md – Milíř u skácených buků) – samostatné stavby; milíř bez
+ * polohy (ves bez vrstvy překážek) se nepočítá.
+ */
+export function villageKilnPoints(
+  state: Pick<VillageState, 'dwellings'>,
+): { x: number; z: number }[] {
+  return state.dwellings.flatMap((d) =>
+    workshopKilns(d.workshop).flatMap((k) => (k.site ? [{ x: k.site.x, z: k.site.z }] : [])),
+  );
 }
 
 /**

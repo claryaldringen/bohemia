@@ -54,6 +54,7 @@ import {
 import {
   basketManDaysPerKg,
   charcoalDeliveries,
+  findKiln,
   dugBasketManDaysPerKg,
   occupiedSmiths,
   smithFetchDay,
@@ -69,11 +70,14 @@ import { finishPurchases, purchaseTravelers, startPurchases, walkPurchases } fro
 import { gainPractice, withCraftSkill } from './craft-skill';
 import { cartIronDay, ironTripHelpers, ironTripShares } from './cart-iron';
 import { cloneState } from './clone';
+import { updateKilnRemnants } from './charcoal';
 import {
   burnerDraws,
+  burnerPlans,
   craftCoverage,
   craftHouseholds,
   ironTravellers,
+  migrateBurners,
   newWorkshop,
   occupiedWorkshops,
   restingCrafters,
@@ -409,6 +413,7 @@ function simulateDay(
   // zbytky jam po zaniklých obydlích zarůstají, pod novou stavbou zmizí (ruins.ts)
   updateRuins(state, day, landscape);
   updateOrePits(state, day);
+  updateKilnRemnants(state, day);
   // sňatky mezi domy – svobodní ve dvou domech se vezmou (population.md – Sňatky mezi domy)
   state.chronicle.push(...arrangeMarriages(state, day));
   const { satiation, energy, fruit, meat } = eat(state, day, coverage);
@@ -911,7 +916,11 @@ function work(
   const productivity = villageProductivity(state, coverage);
   // řemeslník, který dnes nemá v dílně co dělat (plná zásoba, chybí vstup), pracuje se vsí
   // (crafts.md – Podle potřeby); tesař, jen když nemá co vyrábět ani komu pomáhat (wagons.md)
-  const resting = restingCrafters(state, day, coverage, productivity, obstacles);
+  // uhlíři (crafts.md – Rovnováha uhlíř – kovář): starší dílny na samostatné milíře, plán dne jednou
+  // – vytahání uhlí sedí s nošením, vozem i prací dílny
+  migrateBurners(state);
+  const burners = burnerPlans(state, day, coverage, productivity);
+  const resting = restingCrafters(state, day, coverage, productivity, obstacles, burners);
   for (const [id, activity] of restingCarpenters(state, day, obstacles)) resting.set(id, activity);
   const crafts = craftHouseholds(state, resting);
   // kdo jde pro kování k vozu, ve vsi ani v dílně nepracuje (wagons.md – Kování vozů)
@@ -925,7 +934,7 @@ function work(
   // a do které kovárny se to nese
   const deliveries = charcoalDeliveries(
     state,
-    burnerDraws(state, day, coverage, productivity),
+    burnerDraws(state, day, coverage, productivity, burners),
     landscape,
   );
   let drives: CartDrives | null | undefined;
@@ -1169,6 +1178,7 @@ function work(
   });
   const supply: SmithSupply = {
     fetch: fetchPlans,
+    burners,
     oreCarts: new Map(
       smithCarts.ore.map((o): [number, OreCartToday] => [
         o.smithId,
@@ -1216,7 +1226,12 @@ function work(
       manDays: c.manDays,
       carts: 1,
       ...(c.kind === 'four-wheel' ? { four: 1 } : {}),
-      target: { kind: 'kiln', id: c.burnerId, ...c.at },
+      target: {
+        kind: 'kiln',
+        id: c.burnerId,
+        ...c.at,
+        ...(c.kilnId !== undefined ? { kiln: c.kilnId } : {}),
+      },
     });
   }
   for (const material of ['ore', 'clay'] as const) {
@@ -1653,6 +1668,8 @@ function haulLogs(
 /** Vůz se sedlákem pro uhlí od milíře ke kováři (crafts.md – Uhlí a ruda kováře). */
 interface CharcoalCartJob {
   burnerId: number;
+  /** Id milíře (crafts.md – Milíř u skácených buků). */
+  kilnId?: number;
   smithId: number;
   /** Milíř (m). */
   at: { x: number; z: number };
@@ -1735,7 +1752,10 @@ function planCartJobs(
     if (job === 'charcoal') {
       for (const d of input.deliveries) {
         if (!any()) break;
-        const kiln = state.dwellings.find((x) => x.id === d.burnerId)?.workshop?.kiln;
+        const kiln = findKiln(
+          state.dwellings.find((x) => x.id === d.burnerId),
+          d.kilnId,
+        );
         if (!kiln) continue;
         const footPerKg = basketManDaysPerKg(d.walkM, SMITH_SUPPLY.basketKg.charcoal);
         const offers: { kind: CartKind; offer: SmithCart }[] = [];
@@ -1757,6 +1777,7 @@ function planCartJobs(
         const kg = Math.min(d.kg, best.offer.maxKg);
         charcoal.push({
           burnerId: d.burnerId,
+          ...(d.kilnId !== undefined ? { kilnId: d.kilnId } : {}),
           smithId: d.smithId,
           at: d.at,
           kg,
@@ -1888,12 +1909,13 @@ function smithFetchPlans(
     .filter((d) => resting.has(d.smithId) === restingOnly)
     .map((d) => {
       const carted = carts.charcoal
-        .filter((c) => c.burnerId === d.burnerId)
+        .filter((c) => c.burnerId === d.burnerId && c.kilnId === d.kilnId)
         .reduce((sum, c) => sum + c.kg, 0);
       const kg = Math.max(0, d.kg - carted);
       return {
         smithId: d.smithId,
         burnerId: d.burnerId,
+        ...(d.kilnId !== undefined ? { kilnId: d.kilnId } : {}),
         at: d.at,
         kg,
         manDays: kg * basketManDaysPerKg(d.walkM, SMITH_SUPPLY.basketKg.charcoal),
@@ -2075,7 +2097,10 @@ function jobsDemand(
 ): number[] {
   const savings: number[] = [];
   for (const d of input.deliveries) {
-    const kiln = state.dwellings.find((x) => x.id === d.burnerId)?.workshop?.kiln;
+    const kiln = findKiln(
+      state.dwellings.find((x) => x.id === d.burnerId),
+      d.kilnId,
+    );
     const all = input.drives();
     if (!kiln || !all) continue;
     if (kiln.cart === undefined) kiln.cart = kilnCartDrive(state, d.at, all);

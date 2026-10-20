@@ -123,7 +123,7 @@ níž je návrh Clauda, čísla v `CART_JOBS` (`rules.ts`).
 - **Spřežení doma:** jako svoz – dvoukolák se spřežením, které neorá ani nejede s výpravou;
   čtyřkolák jezdí jen s výpravami. Za den nejvýš 8 jízd (CARTS.loadsPerCartDay) a co se vejde do
   10hodinového dne – voli jdou s vozem ≈ 0,8 m/s po louce, po cestě rychleji (vozová síť).
-- **Dosah:** vůz jede jen tam, kam ho pustí vozová síť – k milíři do 12 m (milíř v lese jen po
+- **Dosah:** vůz jede jen tam, kam ho pustí vozová síť – k milíři do 12 m (milíř u skácených buků v lese jen po
   pevné cestě), k rudišti do 12 m, na suchý břeh u vody (z 40 břehů nejblíž ohradě ten, kam sjede nejlevněji),
   k dílům s osivem jako ke snopům. Kam nedojede, nosí se jako dřív.
 - **Jen když ušetří práci** – vůz pro uhlí a rudu, když je jízda levnější než nošení v koších
@@ -209,7 +209,7 @@ Návrh Clauda, Martin schválil („Ano, udělej to jak říkáš“) včetně v
 | ---------------------------------- | --------- | ---------------------------------------- | ------------------------------------------------------------------------- |
 | Snopy ze žní, seno                 | ano       | ano, kam dojede                          | ve hře                                                                    |
 | Klády ke stavbám                   | krátké    | dlouhé, výhodnější                       | ve hře (čtyřkolák ke stromům u pevných cest)                              |
-| Uhlí, osivo, voda                  | ano       | uhlí z lesního milíře po cestě, voda ano | ve hře (uhlí a vodu levnější vůz; osivo dvoukolák)                        |
+| Uhlí, osivo, voda                  | ano       | uhlí od milíře v lese po cestě, voda ano | ve hře (uhlí a vodu levnější vůz; osivo dvoukolák)                        |
 | Ruda z rudiště                     | ano       | –                                        | ve hře (crafts.md – Uhlí a ruda kováře)                                   |
 | Výpravy po stezce, nákup u sousedů | –         | ano                                      | ve hře                                                                    |
 | **Hlína pro hrnčíře** od potoka    | ano       | –                                        | ve hře (crafts.md – Hlína hrnčíře): hliniště, hrnčíř kope, sedlák s vozem |

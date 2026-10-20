@@ -496,14 +496,15 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   jádro a rozhraní viz Ves – Řemesla): `public/models/crafts/`
   hrnčíř, kovář a tesař (polozemnice s přístřeškem o `PORCH` 3,6 m vpředu, pod ním pec / výheň
   s kovadlinou, u tesaře kozlíky s otesávaným trámem, špalek se sekerou, kola a zásoba trámů –
-  wagons.md), uhlíř (zemnice s mechovou střechou) a samostatný milíř ≈ 9,5 m od ní
-  (`MILIR_OFFSET` v `tools/blender/crafts.py` = `MILIR.offset` v `rules.ts` jádra – podle něj
-  stojí milíř i ve hře). Tvary bere `crafts.py` z `dwellings.py` (ten má proto
+  wagons.md), uhlíř (zemnice s mechovou střechou a koši uhlí – bez hráně polen a lopaty u domu)
+  a samostatný milíř (`milir.glb` – ve hře samostatná stavba u skácených buků, crafts.md – Milíř
+  u skácených buků; `MILIR_OFFSET` v `crafts.py` = `MILIR.offset` jen pro ukázky a převod starých
+  vsí). Tvary bere `crafts.py` z `dwellings.py` (ten má proto
   `if __name__ == "__main__"`), sedí do jam obydlí (hrnčíř, kovář, tesař = polozemnice, uhlíř =
   zemnice).
   Atlas: `tools/blender/craft_atlas.py` (atlas obydlí + pec, kámen, zem milíře, uhlí…; varianta
   `atlas-moss.jpg` s mechem místo slámy). Postup v hlavičce `crafts.py`, ikony
-  `icons.py hrncir,kovar,tesar,uhlir`.
+  `icons.py hrncir,kovar,tesar,uhlir,milir`.
   **Fáze stavby** řemesel: `village-construction.ts` má tabulku fází pro každý druh
   (`ConstructionKind` = obydlí + `CraftKind`; dílny na fázích svého obydlí + přístřešek, pec /
   výheň / tesařské pracoviště `carpentry`, dílna, uhlíř mech místo došků, milíř zvlášť), díly
@@ -512,8 +513,8 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   `-wheels` / `-chips`) je ve scéně hotový – model, staveniště, místa řemeslníků (`modelSpots`),
   bez dýmu (`modelVents`), ušlapaná tráva i pod přístřeškem (`hasPorch`, `PORCH_WORKSHOPS`);
   řemeslo `carpenter` (Ves – Tesař a vozy) má `CRAFT_MODEL.carpenter = 'tesar'`.
-  Dílny bez hráně polen: hrnčíř a kovář mají místo dílu `wood` díl `yard` (koše), uhlíř
-  volnou hromadu polen na milíř (`log_heap` v `crafts.py`).
+  Dílny bez hráně polen: hrnčíř a kovář mají místo dílu `wood` díl `yard` (koše), uhlíř jen koše
+  uhlí (fáze `workshop` – díl `coal`).
   **Náhled všech staveb** bez databáze: http://localhost:3010/dev/buildings (`building-showcase.ts`,
   staveniště `showcase-sites.ts`, posuvník a přehrání stavby; v produkci 404). Za řadou staveb
   pole, hřbitov a sad po čtvercích – kreslí je herní `VillageRenderer` (bez obydlí) podle
@@ -754,39 +755,51 @@ rozhraní částí v
   `placeWorkshop`, mřížka staveb hrnčíř [F], kovář [G], uhlíř [H] (`placement: 'workshop'`),
   lišta uhlí / nástroje / keramika (jen ves s dílnou), panel výběru dílny, upozornění
   `no-charcoal` / `no-wood`. **Uhlíř** (`charcoal.ts`, crafts.md – Uhlíř, Martin 18. 10. 2026):
-  kácí jen buky (`isBeech`, `availableTrees(…, 'beeches')`) po dávkách do milíře
-  (`Workshop.kiln` – `CharcoalKiln`: buky vyhrazené v `reservedTrees`, fáze `wood` → `build` →
-  `burn` 8 dní → `draw`, čísla `CHARCOAL_KILN`); první buk do 150 m od milíře u zemnice = pálí
-  doma, dál milíř v lese (`kiln.site`, přirážka chůze `kilnWalkFactor` – `kiln.walkM` po pevných
-  cestách s půdou `villageRoadWalk`, dovoz dřeva `fellingsOf` jako u staveb; bez krajiny
-  vzdušně). Na pařezy sází mladé buky (`Workshop.toPlant`, `plantOnStump` → `ObstacleChange.planted`; `felledTreeStage` – sazenice
-  dospěje za `BEECH_PLANTING.matureYears`, bez sazenice nálet jako dřív; `saplingGrowth`).
-  **Milíř stojí vždy** (crafts.md – Milíř stojí vždy; Martin 19. 10. 2026: „Uhlíř: měl by vždy
-  postavit milíř, z hotového milíře by se mělo kouřit a pak by jej měl rozebírat podle toho, jak
-  mu bude uhlí odebírat kovář.“): uhlíř má jeden milíř (`Workshop.kiln`) – bez něj začne nový
-  (bez buků `no-wood`), vypálený (`draw`, `CharcoalKiln.charcoalKg` – uhlí v něm) je zásobou uhlí:
-  uhlí jde do `crafts.charcoalKg` („u kováře“) jen tak, jak ho kovář odebírá – `charcoalDrawKg`:
-  když u kováře nestačí na dnešní kování (`smithsForgeCharcoalKg` – kovající kováři na plný
-  úvazek), vytahá a protřídí uhlí na `CHARCOAL_KILN.drawBatchDays` (30) dní kování (2 čd na 120 kg
-  bez pětiny odnosu – ten od 20. 10. 2026 dělá kovářova domácnost, níž; v lese s přirážkou); zbytek, který stačí jen na přípravu a pálení dalšího milíře (`kilnLeadKg` –
-  `smithsCharcoalPerYear` po dnech × `kilnLeadDays`), vytahá celý. Rozebraný milíř zmizí, nový od
-  dalšího dne. Bez kováře (rozhodnutí Clauda) vypálený milíř čeká a další se nestaví. S vypáleným
-  milířem a uhlím u kováře uhlíř odpočívá (`restingBurners` v `restingCrafters` – napřed uhlíři,
-  kovář `no-charcoal` jen, když mu dnes nikdo nedonese). Obchod prodává uhlí u kováře i z milířů
-  (`takeCharcoal` – milíř se rozebírá), koupené jde ke kováři. Starší dílna uhlíře se převede
-  v kroku práce (`migrateBurner` – palivo a kácení; `migrateKiln` – vytahovaný milíř bez
-  `charcoalKg` je vypálený s celou dávkou; čtení přes `kilnCharcoalKg` platí i před převodem). Rozdělení práce: `fell` u buků (i příprava dřeva), `craft` u milíře – v lese
-  cíl `{ kind: 'kiln', id, x, z }`, `plant` u pařezů. Web: `VillageWorkshop.kiln` (i `charcoalKg`)
-  / `toPlant`, lišta a panel uhlí = `charcoalStockKg`, `SceneVillage.kilns` (lesní milíře)
-  a `SceneVillage.dwellings[].kiln` (milíř u dílny) – `SceneKilnState`: fáze, průběh a u vypáleného
-  podíl uhlí `charcoal` (po 2 %), `plantedSaplings` (velikost mladých buků). Scéna: vzhled podle
-  fáze jedna čistá funkce `kilnLook` (`workshop-layout.ts` – staveniště `constructionState('milir')`,
-  hráň polen, hotový milíř se `scale` / `scaleY` – vypálený sesedne, rozebíraný se zmenšuje,
-  `ModelInstance.scaleY` –, dým jen při pálení, koše u rozebíraného); milířiště se staví se zemnicí
-  (`milirGroundProgress`), milíř na něm až z buků; lesní milíř kreslí funkce milíře u dílny přes
-  kotvu `forestKilnAnchor` (`VillageRenderer.kilnPlaces` – oba druhy), postavy u lesního milíře
-  `kilnWorkers`, sázení `planting`, polena nosí k lesnímu milíři (`felling`). Ukázka /dev/buildings
-  **Cyklus milíře** (posuvník ▶ Milíř – `showcaseKiln`, `kilnCycleAt`).
+  kácí jen buky (`isBeech`, `availableTrees(…, 'beeches')`) po dávkách do milíře (`CharcoalKiln`:
+  buky vyhrazené v `reservedTrees`, fáze `wood` → `build` → `burn` 8 dní → `draw`, čísla
+  `CHARCOAL_KILN`). Na pařezy sází mladé buky (`Workshop.toPlant`, `plantOnStump` →
+  `ObstacleChange.planted`; `felledTreeStage` – sazenice dospěje za `BEECH_PLANTING.matureYears`,
+  bez sazenice nálet jako dřív; `saplingGrowth`). **Milíř u skácených buků** (crafts.md; Martin 20. 10. 2026: „Vyčleň milíř jako samostatnou stavbu. … uhlíř udělá milíř na místě, kde na něj
+  skácel buky … Uhlíř bude k milíři chodit ze svého domku“): `startKiln` – dávka = buky nejblíž
+  prvnímu buku u zemnice, milíř uprostřed nich na volném rovném místě (`findKilnSite` v
+  `kiln-site.ts` po kružnicích, kontrola `checkKilnSite` v `placement.ts` – ne pole, sad, hřbitov,
+  ohrada, domy do `KILN_SITE.homeM`, cesta, jiný milíř, posvátný dub, háj, výchoz, voda, svah;
+  kruh `kilnCircle`), id z `nextId`; milířiště napřed vyklidí (`CharcoalKiln.clearing` – překážky
+  v kruhu a dospělé stromy v pruhu `KILN_SITE.crownM` pod korunami → `recordClearedObstacles`,
+  klády); dřevo se nosí pár metrů, za chůzi ze zemnice `kilnWalkFactor` (`kiln.walkM` po pevných
+  cestách s půdou `villageRoadWalk`) na veškerou práci u milíře. Dílna uhlíře je jen zemnice (cena
+  zemnice – `workshopExtra`, `workshopFootprints` bez milíře); přes milíř se nestaví
+  (`PlacementVillage.kilns`). `Workshop.kilns` – nejvýš `CHARCOAL_BALANCE.maxKilns` (2); starší
+  `Workshop.kiln` převede jednou `migrateKilns` (milíř u zemnice dostane polohu `homeKilnCenter`,
+  dodělá se na místě); čtení přes `workshopKilns`. Rozebraný milíř (`dismantleKiln`) nechá
+  milířiště `VillageState.kilnRemnants` (zaroste za 10 let – `kilnRemnantOvergrowth`,
+  `updateKilnRemnants`). **Rovnováha uhlíř – kovář** (crafts.md; Martin 20. 10. 2026: „Uhlíř
+  i kovář přece musí za ty roky vědět, jaká je nabídka a poptávka“): plán dne `burnerPlans`
+  (crafts.ts – jednou v simulate.ts pro práci vsi, vůz i dílnu, `SmithSupply.burners`) – poptávka
+  kovářů klouzavě za rok `VillageState.charcoalUse` (`recordCharcoalUse` jen ve vsi s uhlířem,
+  i nesplněná poptávka; `charcoalUsePerDay`, prvních 30 dní odhad `smithsCharcoalPerYear`), doba
+  cyklu `Workshop.kilnCycles` (`kilnCycleDays`); další milíř `startsNextKiln`, když uhlí ve vsi
+  stačí jen na cyklus + `reserveDays`; kovář pro uhlí `charcoalFetchKg`, když vystačí jen na cestu
+  - rezervu – dávka na `fetchDays` (60) dní, uhlíř ji tahá den po dni (`Workshop.charcoalOrderKg`)
+    od nejstaršího milíře (`BurnerPlan.draws` po milířích, `burnerDraws` → `charcoalDeliveries` s
+    `kilnId`, `findKiln`). Bez kováře se uhlí nevytahá a další milíř nezačne; s vypáleným milířem
+    uhlíř odpočívá (`restingBurners`). Obchod prodává uhlí u kováře i z milířů (`takeCharcoal`).
+    Starší dílna uhlíře se převede `migrateBurners` na začátku kroku práce (palivo, kácení,
+    `migrateKiln`). Rozdělení práce: `fell` u buků (i vyklízení), `craft` u milíře – cíl
+    `{ kind: 'kiln', id: uhlíř, kiln: id milíře, x, z }` (`WorkshopDay.kilns`), `plant` u pařezů; síť
+    pěšin vede ze zemnice k milíři a kupu obchází (`PathVillage.kilns`). Web:
+    `VillageWorkshop.kilns` (`KilnSummary`) / `toPlant`, lišta a panel uhlí = `charcoalStockKg`,
+    `SceneVillage.kilns` (`SceneKiln` – id milíře, `burnerId`, fáze, průběh, podíl uhlí `charcoal` po
+    2 %) a `kilnRemnants` (zarůstání po 5 %), `plantedSaplings`. Scéna: vzhled podle fáze čistá
+    funkce `kilnLook` (`workshop-layout.ts` – staveniště `constructionState('milir')`, hráň polen,
+    hotový milíř se `scale` / `scaleY`, dým jen při pálení – `kilnVents`, koše u rozebíraného);
+    milíř kreslí `VillageRenderer.kilnPlaces` přes kotvu `forestKilnAnchor`, milířiště
+    `updateKilnRemnants` (černá zem z bahna), paseka pod korunami `villageClearedForest`; postavy
+    u milíře `kilnWorkers`, uhlíř chodí ze zemnice k milíři (provoz na cestách – druh `kiln`),
+    sázení `planting`, polena k milíři (`felling`). Výběr milíře a milířiště `{ kind: 'kiln', id }`
+    (`pickVillageTarget`, kruh v `selection-highlight.ts`), panel `KilnBody` z `lib/kiln-view.ts`
+    (`VillageView.kilns`), panel dílny má milíře jako tlačítka; ukázky /dev/panels?panel=milir,
+    /dev/buildings **Cyklus milíře** (`showcaseKiln`, `kilnCycleAt` – i milířiště).
 - **Uhlí a ruda kováře** ([crafts.md](docs/design/crafts.md) – Uhlí a ruda kováře;
   Martin 20. 10. 2026: „Pokud má dostatečně starého syna nebo syny, pošle pro uhlí jeho/je. Taky
   musí někam chodit kopat rudu. To místo, kde kope rudu, chci na mapě vidět.“; čísla
@@ -800,6 +813,9 @@ rozhraní částí v
   v crafts.ts), kopání 60 kg/čd s přirážkou za chůzi (`workOre` – dávka na 30 dní kování pěšky,
   s vozem na celý dvoukolák a dřív o `CART_JOBS.ore.reserveDays`, hromada u jámy `OreBatch.heap`),
   rudiště `chooseOreSite` (nejbližší `PATH_WETLAND`, jinak břeh; ne na čtvercích staveb ani u domů;
+  na očích – Martin: „chci na mapě vidět“, návrh Clauda `DUG_SITE_VIEW`: mimo les `PATH_FOREST`
+  a bez dospělého stromu vrstvy překážek, stromu u cesty či lesa vsi do 8 m – `inView`; les jen
+  když volné místo není do 1,5× vzdálenosti nejbližšího (aspoň +30 m), uložená místa se nemění;
   `Workshop.oreSite`, ložisko 3 t, další 20 m od `oreSitesUsed`), jámy `VillageState.orePits`
   (`openOrePit` ze seedu, `updateOrePits` – 10 let). Přirážka za vodu daleko (`oreFactor`)
   zmizela u kováře i hrnčíře. Starší kovárny `migrateSmith` (zásoba na dávku). Činnosti `digging`, `no-ore`; podíly práce `ore` (cíl
@@ -816,7 +832,12 @@ rozhraní částí v
   obrys `oreSiteOutline` (konvexní obal); panel z `VillageView.oreSites` (`lib/ore-site-view.ts` –
   ložisko, hromada, zásoba v kovárně, cesta, jámy, kdo tu dnes kope / nosí / jede s vozem z rozdělení
   práce dne a vůz se sedlákem), `OreSiteBody` s tlačítkem kovárny, portrét `icons/build/rudiste.png`
-  (`icons.py rudiste`), `/dev/panels?panel=rudiste`.
+  (`icons.py rudiste`), `/dev/panels?panel=rudiste`. **Hliniště** stejně (návrh Clauda): cíl
+  `{ kind: 'clay-site', id: dílna hrnčíře }` (`dugSiteOf`), tvary `oreSiteDiscs` jen s jámami téže
+  suroviny (`dugSitePits`), panel z `VillageView.claySites`; jeden kód pro obě místa – pohled
+  `dugSiteViews(state, day, material)` / `dugSitesField` (`VillageDugSite` – `workshopId`,
+  `DugSiteWorker.craftsman`), panel `DugSiteBody` s texty `DUG_SITE_TEXTS`, portrét
+  `icons/build/hliniste.png` (`icons.py hliniste`), `/dev/panels?panel=hliniste`.
 - **Hlína hrnčíře** ([crafts.md](docs/design/crafts.md) – Hlína hrnčíře; Martin 20. 10. 2026:
   „Ano, udělej to jak říkáš“ – wagons.md, Co se vozí a na čem; čísla `CLAY` v `rules.ts`, návrh
   Clauda): jako ruda kováře – jedna funkce `workDug` (`DugMaterial` `ore` / `clay`: zásoba, místo,

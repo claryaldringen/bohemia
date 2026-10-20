@@ -1,15 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
+import { obstacleId, packObstacles, type ObstaclePlacement } from '../../landscape';
 import { foundVillage } from '../actions';
 import { cartTripManDays, oreCartOffer } from '../cart-jobs';
-import { homeKilnCenter } from '../charcoal';
 import { newWorkshop } from '../crafts';
-import { PATH_WETLAND } from '../paths/terrain';
+import { PATH_FOREST, PATH_WETLAND } from '../paths/terrain';
 import { groundSpots, walkGroundOf } from '../paths/walking';
-import { CARTS, CART_JOBS, CHARCOAL_KILN, CRAFT_BASE, SMITH_SUPPLY } from '../rules';
+import { CARTS, CART_JOBS, CHARCOAL_KILN, CRAFT_BASE, DUG_SITE_VIEW, SMITH_SUPPLY } from '../rules';
 import { advanceVillage } from '../simulate';
 import {
   basketManDaysPerKg,
+  chooseDugSite,
   chooseOreSite,
   footOreBatchKg,
   forgeOreKg,
@@ -81,14 +82,18 @@ function withBurner(s: VillageState, stage: 'draw' | 'burn' = 'draw'): VillageSt
   addWorkshop(s, 'burner', BURNER, { x: 40, z: 0, rotation: 0 });
   s.people.push(person(500, 30, BURNER, s.lastDay, { sex: 'male' }));
   s.people.push(person(501, 28, BURNER, s.lastDay, { sex: 'female' }));
-  s.dwellings.find((d) => d.id === BURNER)!.workshop!.kiln = {
-    site: null,
-    trees: Array.from({ length: CHARCOAL_KILN.trees }, () => ({ id: null, cost: 2 })),
-    stage,
-    prepared: CHARCOAL_KILN.trees,
-    done: 0,
-    ...(stage === 'draw' ? { charcoalKg: CHARCOAL_KILN.trees * 120 } : {}),
-  };
+  s.dwellings.find((d) => d.id === BURNER)!.workshop!.kilns = [
+    {
+      id: 990,
+      // milíř u dávky buků kus za zemnicí (crafts.md – Milíř u skácených buků)
+      site: { x: 70, z: 0 },
+      trees: Array.from({ length: CHARCOAL_KILN.trees }, () => ({ id: null, cost: 2 })),
+      stage,
+      prepared: CHARCOAL_KILN.trees,
+      done: 0,
+      ...(stage === 'draw' ? { charcoalKg: CHARCOAL_KILN.trees * 120 } : {}),
+    },
+  ];
   return s;
 }
 
@@ -186,11 +191,12 @@ describe('synové kováře (crafts.md – Uhlí a ruda kováře)', () => {
       )?.manDays ?? 0;
     expect(forged(alone)).toBeLessThan(forged(helped));
     expect(forged(helped) - forged(alone)).toBeCloseTo(own[0]!.manDays, 3);
-    // nošení podle vzdálenosti chůze kovárna ↔ milíř u dílny uhlíře (bez krajiny vzdušně)
-    const kiln = alone.dwellings.find((d) => d.id === BURNER)!.workshop!.kiln!;
-    const at = homeKilnCenter({ x: 40, z: 0, rotation: 0 });
+    // pro uhlí se chodí k milíři – nošení podle vzdálenosti chůze kovárna ↔ milíř (bez krajiny
+    // vzdušně; crafts.md – Milíř u skácených buků)
+    const kiln = alone.dwellings.find((d) => d.id === BURNER)!.workshop!.kilns![0]!;
     expect(kiln.carry!.smithId).toBe(SMITH);
-    expect(kiln.carry!.walkM).toBeCloseTo(Math.hypot(at.x - 40, at.z - 40), 2);
+    expect(kiln.carry!.walkM).toBeCloseTo(Math.hypot(70 - 40, 0 - 40), 2);
+    expect(own[0]!.target).toMatchObject({ kind: 'kiln', id: BURNER, kiln: 990, x: 70, z: 0 });
   });
 });
 
@@ -290,6 +296,93 @@ describe('ruda a rudiště (crafts.md – Uhlí a ruda kováře)', () => {
     // jáma u rudiště
     expect(next.orePits).toHaveLength(1);
     expect(next.orePits![0]!.kg).toBeCloseTo(dug, 6);
+  });
+});
+
+describe('rudiště a hliniště na očích (crafts.md – Rudiště a hliniště na očích)', () => {
+  const ground = walkGroundOf(LANDSCAPE);
+  const t = ground.terrain;
+  const flagAt = (p: { x: number; z: number }): number =>
+    t.flags[
+      Math.round((p.z - t.originZ) / t.cellM) * t.width + Math.round((p.x - t.originX) / t.cellM)
+    ]!;
+  const wet = groundSpots(ground, PATH_WETLAND);
+  /** Nejbližší mokřina (vzdušnou čarou) – kde se kopalo dřív. */
+  const nearestWet = (from: { x: number; z: number }): { x: number; z: number; d: number } =>
+    wet
+      .map((p) => ({ ...p, d: Math.hypot(p.x - from.x, p.z - from.z) }))
+      .reduce((a, b) => (b.d < a.d ? b : a));
+  /** Dospělý strom vrstvy překážek (id ze zdroje osamělých stromů). */
+  const tree = (id: number, x: number, z: number): ObstaclePlacement => ({
+    id: obstacleId('meadowTree', id),
+    kind: 'tree',
+    look: 'oak-1',
+    x,
+    z,
+    rotation: 0,
+    scale: 1,
+  });
+
+  it('kovárna v lese: rudiště v mokřině mimo les, nejvýš o polovinu dál než nejbližší', () => {
+    const s = village(WINTER);
+    const smith = withSmith(s);
+    // les je pro x < −90 (pathLandscape) – kovárna uprostřed něj
+    smith.position = { x: -120, z: 0, rotation: 0 };
+    const closest = nearestWet(smith.position);
+    expect(flagAt(closest) & PATH_FOREST).toBeTruthy();
+    const site = chooseOreSite(s, smith, WINTER, LANDSCAPE)!;
+    expect(flagAt(site) & PATH_WETLAND).toBeTruthy();
+    expect(flagAt(site) & PATH_FOREST).toBe(0);
+    const d = Math.hypot(site.x + 120, site.z);
+    expect(d).toBeGreaterThan(closest.d);
+    expect(d).toBeLessThanOrEqual(
+      Math.max(closest.d * DUG_SITE_VIEW.openFarther, closest.d + DUG_SITE_VIEW.openSlackM) + 1e-9,
+    );
+    // deterministicky; hliniště hrnčíře podle stejného pravidla
+    expect(chooseOreSite(s, smith, WINTER, LANDSCAPE)).toEqual(site);
+    const potter = addWorkshop(s, 'potter', 52, { x: -120, z: -10, rotation: 0 });
+    const clay = chooseDugSite(s, potter, WINTER, LANDSCAPE, 'clay')!;
+    expect(flagAt(clay) & PATH_FOREST).toBe(0);
+    // už vybrané rudiště v lese (starší ves) zůstane – kope se tam dál
+    const workshop = smith.workshop!;
+    workshop.oreSite = { x: closest.x, z: closest.z, minedKg: 0, day: WINTER - 30, walkM: 64 };
+    workshop.oreKg = 0;
+    workOre(s, smith, 1.5, WINTER, { landscape: LANDSCAPE, batchDays: 30 });
+    expect(workshop.oreSite).toMatchObject({ x: closest.x, z: closest.z });
+    expect(workshop.oreSite.minedKg).toBeGreaterThan(0);
+  });
+
+  it('pod korunou stromu se nekope – jen když pokácený strom zbyl pařezem', () => {
+    const s = village(WINTER);
+    const smith = withSmith(s);
+    smith.position = { x: 0, z: 0, rotation: 0 };
+    const open = chooseOreSite(s, smith, WINTER, LANDSCAPE)!;
+    const oak = tree(1, open.x + 2, open.z);
+    const layer = packObstacles([oak], LANDSCAPE.size, LANDSCAPE.cellSizeM);
+    const site = chooseOreSite(s, smith, WINTER, LANDSCAPE, layer)!;
+    expect(flagAt(site) & PATH_WETLAND).toBeTruthy();
+    expect(Math.hypot(site.x - oak.x, site.z - oak.z)).toBeGreaterThanOrEqual(
+      DUG_SITE_VIEW.treeClearM,
+    );
+    expect(Math.hypot(site.x, site.z)).toBeGreaterThan(Math.hypot(open.x, open.z));
+    // strom pokácený – stojí pařez, místo je zase vidět
+    s.felledTrees = [{ id: oak.id, day: WINTER - 10 }];
+    expect(chooseOreSite(s, smith, WINTER, LANDSCAPE, layer)).toEqual(open);
+  });
+
+  it('stromy všude kolem potoka – kope se u nejbližší mokřiny jako dřív', () => {
+    const s = village(WINTER);
+    const smith = withSmith(s);
+    smith.position = { x: 0, z: 0, rotation: 0 };
+    // hustý břehový porost po celé délce potoka (po 6 m) – volné místo nikde
+    const trees: ObstaclePlacement[] = [];
+    for (let k = 0; k < 51; k++) {
+      for (let r = 0; r < 10; r++) trees.push(tree(k * 10 + r, -150 + k * 6, 50 + r * 6));
+    }
+    const layer = packObstacles(trees, LANDSCAPE.size, LANDSCAPE.cellSizeM);
+    const site = chooseOreSite(s, smith, WINTER, LANDSCAPE, layer)!;
+    const closest = nearestWet(smith.position);
+    expect(site).toMatchObject({ x: closest.x, z: closest.z });
   });
 });
 

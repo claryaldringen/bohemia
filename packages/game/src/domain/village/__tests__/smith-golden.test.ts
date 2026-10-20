@@ -16,6 +16,9 @@ import { withBuiltFirstDwelling } from './village-fixtures';
 // – stav bez nich vyšel stejně jako předtím (5d100038). Hrnčíř od hlíny (crafts.md – Hlína
 // hrnčíře) kope a nosí hlínu jako kovář rudu – ve zlaté vsi proto už není; ves bez kováře
 // a hrnčíře vyšla bez záznamu roku vozů a praxe stejně kódem před hlínou i s ní (f49f757d).
+// Milíř u skácených buků a rovnováha uhlíř – kovář (crafts.md, 20. 10. 2026) mění uhlíře záměrně
+// – otisk přepočítaný s nimi; ves bez uhlíře hlídají zlaté otisky bez dílen
+// (craft-skill-golden.test.ts) beze změny.
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 const DAY = at(601, 3, 1);
@@ -91,6 +94,6 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
     const stripped = JSON.stringify(next, (key, value: unknown) =>
       learning.has(key) ? undefined : value,
     );
-    expect(hash(stripped)).toBe('16363dad');
+    expect(hash(stripped)).toBe('2f488a15');
   }, 120_000);
 });

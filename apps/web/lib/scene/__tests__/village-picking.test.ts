@@ -367,3 +367,71 @@ describe('výběr rudiště (crafts.md – Uhlí a ruda kováře)', () => {
     expect(targetOutline(village, { kind: 'ore-site', id: 12 })).toEqual([]);
   });
 });
+
+describe('výběr milíře a milířiště (crafts.md – Milíř u skácených buků)', () => {
+  const withKiln: SceneVillage = {
+    ...village,
+    kilns: [{ id: 700, burnerId: 12, x: 60, z: 40, stage: 'burn', progress: 0.5 }],
+    kilnRemnants: [{ id: 600, burnerId: 12, x: 80, z: 40, overgrowth: 0.4 }],
+  };
+  const pick = (x: number, z: number): VillageTarget | null =>
+    pickVillageTarget(withKiln, rayTo(x, z), { ground: { x, z }, groundHeight: flat, cellOf });
+
+  it('klik na kupu milíře nebo na černé milířiště vybere milíř podle id', () => {
+    expect(pick(60, 40)).toEqual({ kind: 'kiln', id: 700 });
+    expect(pick(62.5, 40)).toEqual({ kind: 'kiln', id: 700 });
+    expect(pick(80, 41)).toEqual({ kind: 'kiln', id: 600 });
+    expect(pick(70, 40)).toBeNull();
+    expect(targetExists(withKiln, { kind: 'kiln', id: 700 })).toBe(true);
+    expect(targetExists(withKiln, { kind: 'kiln', id: 600 })).toBe(true);
+    expect(targetExists(village, { kind: 'kiln', id: 700 })).toBe(false);
+  });
+
+  it('obrys – uzavřený kruh kolem kupy', () => {
+    const [ring, ...rest] = targetOutline(withKiln, { kind: 'kiln', id: 700 });
+    expect(rest).toEqual([]);
+    expect(ring![0]).toEqual(ring![ring!.length - 1]);
+    for (const [x, z] of ring!) expect(Math.hypot(x - 60, z - 40)).toBeCloseTo(3.6, 6);
+    expect(targetOutline(village, { kind: 'kiln', id: 700 })).toEqual([]);
+  });
+});
+
+describe('výběr hliniště (crafts.md – Hlína hrnčíře)', () => {
+  // rudiště kovárny 12 a hliniště dílny hrnčíře 14 kus od sebe
+  const withClay: SceneVillage = {
+    ...village,
+    oreSites: [
+      { dwellingId: 12, x: 10, z: 40, heapKg: 120, digging: true },
+      { dwellingId: 14, x: 40, z: 40, heapKg: 260, digging: false, clay: true },
+    ],
+    orePits: [
+      { x: 12, z: 41, kg: 400, overgrowth: 0 },
+      { x: 44, z: 41, kg: 400, overgrowth: 0, clay: true },
+      { x: 37, z: 38, kg: 200, overgrowth: 0.2, clay: true },
+    ],
+  };
+  const pick = (x: number, z: number): VillageTarget | null =>
+    pickVillageTarget(withClay, rayTo(x, z), { ground: { x, z }, groundHeight: flat, cellOf });
+
+  it('klik na hromadu hlíny nebo jámu hlíny vybere hliniště dílny, rudiště zůstane rudištěm', () => {
+    expect(pick(40, 40)).toEqual({ kind: 'clay-site', id: 14 });
+    expect(pick(46.2, 41)).toEqual({ kind: 'clay-site', id: 14 });
+    expect(pick(37, 37)).toEqual({ kind: 'clay-site', id: 14 });
+    expect(pick(10, 40)).toEqual({ kind: 'ore-site', id: 12 });
+    expect(pick(40, 48)).toBeNull();
+    expect(targetExists(withClay, { kind: 'clay-site', id: 14 })).toBe(true);
+    // hliniště není rudiště a naopak
+    expect(targetExists(withClay, { kind: 'ore-site', id: 14 })).toBe(false);
+    expect(targetExists(withClay, { kind: 'clay-site', id: 12 })).toBe(false);
+  });
+
+  it('obrys hliniště obepíná jen jámy hlíny a hromadu', () => {
+    const [outline, ...rest] = targetOutline(withClay, { kind: 'clay-site', id: 14 });
+    expect(rest).toEqual([]);
+    expect(outline![0]).toEqual(outline![outline!.length - 1]);
+    const xs = outline!.map((p) => p[0]);
+    expect(Math.max(...xs)).toBeGreaterThan(44 + 2.47 + 0.79);
+    expect(Math.min(...xs)).toBeGreaterThan(30);
+    expect(targetOutline(withClay, { kind: 'ore-site', id: 14 })).toEqual([]);
+  });
+});

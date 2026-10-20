@@ -735,6 +735,7 @@ describe('SelectionPanel – dílna tesaře (wagons.md – Tesař)', () => {
         stockKg: 46,
         coverage: 0.72,
         kiln: null,
+        kilns: [],
         toPlant: 0,
         skill,
         carpenter: {
@@ -849,6 +850,7 @@ describe('SelectionPanel – hrnčíř a hlína (crafts.md – Hlína hrnčíře
         stockKg: 46,
         coverage: 0.9,
         kiln: null,
+        kilns: [],
         toPlant: 0,
         skill: { share: 1, years: 5, apprentices: [] },
         carpenter: null,
@@ -884,6 +886,7 @@ describe('SelectionPanel – kovárna (crafts.md – Uhlí a ruda kováře)', ()
         stockKg: 42,
         coverage: 0.6,
         kiln: null,
+        kilns: [],
         toPlant: 0,
         skill: { share: 1, years: 5, apprentices: [] },
         carpenter: null,
@@ -942,7 +945,7 @@ describe('SelectionPanel – rudiště (crafts.md – Uhlí a ruda kováře)', (
     over: Partial<Extract<SelectionDetails, { kind: 'ore-site' }>> = {},
   ): SelectionDetails => ({
     kind: 'ore-site',
-    smithId: 12,
+    workshopId: 12,
     leftKg: 2140,
     depositKg: 3000,
     heapKg: 35,
@@ -950,8 +953,8 @@ describe('SelectionPanel – rudiště (crafts.md – Uhlí a ruda kováře)', (
     walkM: 1186,
     pits: 5,
     workers: [
-      { age: 41, smith: true, digs: true, carries: true, rides: false },
-      { age: 15, smith: false, digs: true, carries: false, rides: false },
+      { age: 41, craftsman: true, digs: true, carries: true, rides: false },
+      { age: 15, craftsman: false, digs: true, carries: false, rides: false },
     ],
     cart: false,
     ...over,
@@ -967,7 +970,7 @@ describe('SelectionPanel – rudiště (crafts.md – Uhlí a ruda kováře)', (
     expect(text(html, 'selection-ore-heap')).toBe('35');
     expect(text(html, 'selection-ore-pits')).toBe('5');
     expect(html).toMatch(
-      /data-testid="selection-ore-smith"[^>]*><img src="\/icons\/build\/kovar\.png"/,
+      /data-testid="selection-ore-workshop"[^>]*><img src="\/icons\/build\/kovar\.png"/,
     );
     expect(text(html, 'selection-ore-walk')).toBe('1 186 m');
     expect(text(html, 'selection-ore-stock')).toBe('96');
@@ -982,7 +985,7 @@ describe('SelectionPanel – rudiště (crafts.md – Uhlí a ruda kováře)', (
     expect(html).not.toContain('selection-ore-cart');
     const cart = render(
       ore({
-        workers: [{ age: 41, smith: true, digs: false, carries: false, rides: true }],
+        workers: [{ age: 41, craftsman: true, digs: false, carries: false, rides: true }],
         cart: true,
       }),
     );
@@ -994,5 +997,116 @@ describe('SelectionPanel – rudiště (crafts.md – Uhlí a ruda kováře)', (
     const html = render(ore({ workers: [], leftKg: 0 }));
     expect(html).not.toContain('selection-ore-today');
     expect(html).toMatch(/data-testid="selection-ore-deposit"[^>]*data-alert/);
+  });
+});
+
+describe('SelectionPanel – milíř (crafts.md – Milíř u skácených buků)', () => {
+  const kiln = (
+    over: Partial<Extract<SelectionDetails, { kind: 'kiln' }>> = {},
+  ): SelectionDetails => ({
+    kind: 'kiln',
+    id: 800,
+    burnerId: 9,
+    stage: 'draw',
+    progress: 0.62,
+    prepared: 15,
+    trees: 15,
+    charcoalKg: 684,
+    yieldKg: 1800,
+    burnerWalkM: 96,
+    smithWalkM: 1183,
+    fetchers: [{ age: 11, smith: false }],
+    cart: false,
+    burnerHere: true,
+    ...over,
+  });
+
+  it('portrét Milíř, uhlí v milíři / z celého, uhlíř, cesta ze zemnice a z kovárny', () => {
+    const html = render(kiln());
+    expect(html).toContain('data-kind="kiln"');
+    expect(html).toContain('src="/icons/build/milir.png"');
+    expect(html).toContain('>Milíř</h2>');
+    expect(text(html, 'selection-kiln-stage')).toBe('684 / 1 800');
+    expect(html).toContain('data-testid="selection-kiln-progress"');
+    expect(html).toMatch(
+      /data-testid="selection-kiln-burner"[^>]*><img src="\/icons\/build\/uhlir\.png"/,
+    );
+    expect(text(html, 'selection-kiln-walk')).toBe('96 m');
+    expect(text(html, 'selection-kiln-smith-walk')).toBe('1 183 m');
+  });
+
+  it('kdo sem dnes chodí pro uhlí – syn s věkem, vůz; uhlíř tu pracuje', () => {
+    const html = render(kiln());
+    expect(html).toMatch(/child\.png.*data-testid="selection-kiln-fetcher"[^>]*>11</);
+    expect(html).toContain('Syn kováře (věk) dnes nosí uhlí od milíře do kovárny');
+    expect(html).toContain('data-testid="selection-kiln-burner-here"');
+    expect(html).not.toContain('selection-kiln-cart');
+    const cart = render(kiln({ fetchers: [], cart: true, burnerHere: false }));
+    expect(cart).toContain('data-testid="selection-kiln-cart"');
+    const nobody = render(kiln({ fetchers: [], burnerHere: false }));
+    expect(nobody).not.toContain('selection-kiln-today');
+  });
+
+  it('fáze: kácení buků (připravené / všechny), stavba, pálení; milířiště zarůstá', () => {
+    expect(text(render(kiln({ stage: 'wood', prepared: 6 })), 'selection-kiln-stage')).toBe('6/15');
+    expect(text(render(kiln({ stage: 'build', progress: 0.35 })), 'selection-kiln-stage')).toBe(
+      '35 %',
+    );
+    const remnant = render(kiln({ stage: 'remnant', progress: 0.3, smithWalkM: null }));
+    expect(remnant).toContain('>Milířiště</h2>');
+    expect(text(remnant, 'selection-kiln-stage')).toBe('30 %');
+    expect(remnant).not.toContain('selection-kiln-smith-walk');
+  });
+});
+
+describe('SelectionPanel – dílna uhlíře a její milíře', () => {
+  it('milíře jako tlačítka – fáze a cesta ze zemnice v popisku', async () => {
+    const { DEV_PANELS } = await import('@/app/dev/panels/dev-panels');
+    const burner = DEV_PANELS.find((p) => p.key === 'uhlir')!.details;
+    const html = render(burner);
+    expect(html.match(/data-testid="selection-workshop-kiln"/g)).toHaveLength(2);
+    expect(html).toMatch(/data-testid="selection-workshop-kiln" data-stage="draw"/);
+    expect(html).toMatch(/data-testid="selection-workshop-kiln" data-stage="wood"/);
+    expect(html).toContain('src="/icons/build/milir.png"');
+    // kácí buky na rozdělaný milíř – připravené / v dávce
+    expect(html).toMatch(/data-testid="selection-workshop-activity".*?>6\/15</);
+  });
+});
+
+describe('SelectionPanel – hliniště (crafts.md – Hlína hrnčíře)', () => {
+  const clay: SelectionDetails = {
+    kind: 'clay-site',
+    workshopId: 14,
+    leftKg: 17_460,
+    depositKg: 20_000,
+    heapKg: 260,
+    stockKg: 142,
+    walkM: 238,
+    pits: 4,
+    workers: [
+      { age: 38, craftsman: true, digs: false, carries: false, rides: true },
+      { age: 16, craftsman: false, digs: true, carries: true, rides: false },
+    ],
+    cart: true,
+  };
+
+  it('portrét Hliniště, hlína v hliništi, hromada, jámy, dílna hrnčíře, cesta a zásoba', () => {
+    const html = render(clay);
+    expect(html).toContain('data-kind="clay-site"');
+    expect(html).toContain('src="/icons/build/hliniste.png"');
+    expect(html).toContain('>Hliniště</h2>');
+    expect(html).toContain('/icons/resources/clay.png');
+    expect(text(html, 'selection-clay-deposit')).toBe('17 460 / 20 000');
+    expect(text(html, 'selection-clay-heap')).toBe('260');
+    expect(text(html, 'selection-clay-pits')).toBe('4');
+    expect(html).toMatch(
+      /data-testid="selection-clay-workshop"[^>]*><img src="\/icons\/build\/hrncir\.png"/,
+    );
+    expect(text(html, 'selection-clay-walk')).toBe('238 m');
+    expect(text(html, 'selection-clay-stock')).toBe('142');
+    expect(html).toContain('Hrnčíř (věk) dnes jede s vozem pro hlínu');
+    expect(html).toContain('Syn hrnčíře (věk) dnes kope hlínu a nosí ji v koších k dílně');
+    expect(html).toContain('data-testid="selection-clay-cart"');
+    expect(html).not.toContain('selection-ore-');
   });
 });

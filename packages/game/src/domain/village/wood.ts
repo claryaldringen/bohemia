@@ -111,12 +111,14 @@ export function reservedTrees(
   for (const d of state.dwellings ?? []) {
     const id = d.workshop?.felling?.id;
     if (id !== undefined && id !== null) reserved.add(id);
-    // buky rozdělaného milíře uhlíře, které ještě nejsou připravené (crafts.md – Uhlíř)
-    const kiln = d.workshop?.kiln;
-    if (!kiln) continue;
-    for (let i = kiln.prepared; i < kiln.trees.length; i++) {
-      const tree = kiln.trees[i]!.id;
-      if (tree !== null) reserved.add(tree);
+    // buky rozdělaných milířů uhlíře, které ještě nejsou připravené (crafts.md – Uhlíř)
+    const w = d.workshop;
+    if (!w) continue;
+    for (const kiln of [...(w.kilns ?? []), ...(w.kiln ? [w.kiln] : [])]) {
+      for (let i = kiln.prepared; i < kiln.trees.length; i++) {
+        const tree = kiln.trees[i]!.id;
+        if (tree !== null) reserved.add(tree);
+      }
     }
   }
   return reserved;

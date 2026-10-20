@@ -1168,9 +1168,11 @@ export const SACRED_BUILDINGS = {
 } as const;
 
 // crafts.md – Budovy (Martin; +30 % návrh Clauda): dílna je obydlí – hrnčíř a kovář stojí na
-// polozemnici, uhlíř na zemnici – a stojí jako základní obydlí + 30 % práce i dřeva za pec, výheň
-// nebo milíř. Umisťuje se volně jako zemnice (bez pozemku). Tesař (wagons.md – Tesař, návrh
-// Clauda): polozemnice s předsazenou střechou jako hrnčíř a kovář.
+// polozemnici, uhlíř na zemnici – a stojí jako základní obydlí + 30 % práce i dřeva za pec nebo
+// výheň. Uhlíř stojí jako zemnice (crafts.md – Milíř u skácených buků, návrh Clauda 20. 10. 2026):
+// přirážka byla za milíř u zemnice – milíř je teď samostatná stavba u každé dávky buků a staví ho
+// uhlíř z práce milíře. Umisťuje se volně jako zemnice (bez pozemku). Tesař (wagons.md – Tesař,
+// návrh Clauda): polozemnice s předsazenou střechou jako hrnčíř a kovář.
 export const CRAFT_BASE: Readonly<Record<Craft, DwellingType>> = {
   potter: 'polozemnice',
   smith: 'polozemnice',
@@ -1178,6 +1180,10 @@ export const CRAFT_BASE: Readonly<Record<Craft, DwellingType>> = {
   carpenter: 'polozemnice',
 };
 export const WORKSHOP_EXTRA = 0.3;
+/** Přirážka dílny řemesla k základnímu obydlí (uhlíř bez přirážky – milíř staví u dávky). */
+export function workshopExtra(craft: Craft): number {
+  return craft === 'burner' ? 0 : WORKSHOP_EXTRA;
+}
 /**
  * Pořadí řemesel – nabídka staveb a výroba dne (uhlíř první, jeho uhlí může kovář hned použít;
  * tesař poslední – jeho pomoc stavbám se rozdělí už před stavbami dne).
@@ -1213,31 +1219,69 @@ export const CRAFT_NEEDS = {
 // 15 buků (≈ 18 prm, ≈ 1,8 t uhlí – Ø ≈ 4,6 m jako model). Práce po fázích: kácení a dovoz
 // k milíři (FELLING_MAN_DAYS_PER_TREE + vzdálenost), příprava dřeva (odvětvení, krácení, štípání)
 // 6 čd na buk, stavba milíře 2 čd na buk, pálení 8 dní (hlídá se ve dne i v noci – celá práce
-// domácnosti), vytahání, třídění a odnos uhlí 2 čd na buk. Leží-li první buk dávky do 150 m od
-// milíře u dílny, pálí se doma; dál staví uhlíř milíř v lese u dávky (Szabó a kol. 2022) a za
-// chůzi z dílny platí přirážku vzdálenosti (DISTANCE) na veškerou práci u něj.
-// crafts.md – Milíř stojí vždy (Martin 19. 10. 2026; podrobnosti návrh Clauda): uhlíř má vždy
-// jeden milíř – vypálený se rozebírá podle odběru kovářů: když uhlí u kováře nestačí na dnešní
-// kování, uhlíř donese uhlí na `drawBatchDays` dní kování všech kovářů na plný úvazek; zbytek,
-// který stačí jen na dobu přípravy a pálení dalšího milíře, vytahá celý; nový milíř začne, až je
-// starý rozebraný.
+// domácnosti), vytahání, třídění a odnos uhlí 2 čd na buk.
+// crafts.md – Milíř u skácených buků (Martin 20. 10. 2026: „uhlíř udělá milíř na místě, kde na něj
+// skácel buky … Uhlíř bude k milíři chodit ze svého domku“): milíř stojí uprostřed dávky, dřevo se
+// k němu nosí jen pár metrů a za chůzi ze zemnice platí uhlíř přirážku vzdálenosti (DISTANCE) na
+// veškerou práci u milíře.
 export const CHARCOAL_KILN = {
   trees: 15,
   prepManDaysPerTree: 6,
   buildManDaysPerTree: 2,
   burnDays: 8,
   drawManDaysPerTree: 2,
-  homeReachM: 150,
-  drawBatchDays: 30,
+} as const;
+/**
+ * crafts.md – Rovnováha uhlíř – kovář (Martin 20. 10. 2026: „Uhlíř i kovář přece musí za ty roky
+ * vědět, jaká je nabídka a poptávka a dosáhnout tak rovnovážného stavu.“; čísla návrh Clauda):
+ * - `windowDays`, `bucketDays` – spotřeba uhlí kovářů se měří klouzavě za posledních 365 dní po
+ *   obdobích 30 dní; než se nasbírá rok, doplní ji odhad z opotřebení nástrojů,
+ * - `cycles` – doba cyklu milíře uhlíře = průměr posledních 3 cyklů (od výběru buků po vypálení),
+ * - `reserveDays` – rezerva: uhlíř začne další milíř, jakmile uhlí v milířích a u kovářů stačí jen
+ *   na dobu cyklu + 15 dní; kovář jde pro uhlí, jakmile mu zásoba vystačí jen na cestu + 15 dní,
+ * - `fetchDays` – kovář donese uhlí na 60 dní kování (při změřené spotřebě; dřív 30 dní na plný
+ *   úvazek – cesty pro uhlí tak nejsou zbytečně časté), nejvýš kolik v milíři je,
+ * - `maxKilns` – najednou smí stát dva milíře: jeden se rozebírá, druhý se připravuje nebo pálí,
+ * - `remnantYears` – milířiště (černá uhlíkatá zem) po rozebraném milíři zaroste za 10 let (jako
+ *   jámy obydlí – RUIN_YEARS).
+ */
+export const CHARCOAL_BALANCE = {
+  windowDays: 365,
+  bucketDays: 30,
+  cycles: 3,
+  reserveDays: 15,
+  fetchDays: 60,
+  maxKilns: 2,
+  remnantYears: 10,
+} as const;
+/**
+ * crafts.md – Milíř u skácených buků (návrh Clauda): místo milíře se hledá od středu dávky buků po
+ * kružnicích po `stepM` do `searchM`; milíř (kruh MILIR.clearingRadiusM a pruh `marginM` kolem)
+ * nestojí na poli, v sadu, na hřbitově, v ohradě, na pozemku ani u domů (`homeM` od obydlí),
+ * na cestě (`roadM` od osy pevné cesty navíc ke kruhu), pod posvátným dubem, na háji ani na
+ * skalním výchozu, ve vodě ani na svahu (rozdíl výšek jako u obydlí), ani u jiného milíře
+ * (`kilnM` mezi středy). Milířiště uhlíř napřed vyklidí: v kruhu milíře všechny překážky (mimo
+ * buky dávky, vyhrazené a posvátné stromy) a v pruhu `crownM` kolem něj dospělé stromy, ať milíř
+ * není schovaný pod korunami (jako stavby v lese – FOREST_CROWN_MARGIN_M).
+ */
+export const KILN_SITE = {
+  stepM: 2,
+  searchM: 40,
+  marginM: 1,
+  homeM: 20,
+  roadM: 2,
+  kilnM: 12,
+  crownM: 4,
 } as const;
 // crafts.md – Uhlíř, obnova lesa (Martin; čísla návrh Clauda podle rešerše): na pařez skáceného
 // buku uhlíř zasadí mladý buk (semenáček z lesa) – 0,1 čd na sazenici, jen v oknech výsadby jako
 // sad; sazenice je hned mladý stromek a za 60 let dospělý buk (dolní mez 60–80 let – na pasece
 // nečeká na nálet). Pařez bez sazenice dorůstá z náletu jako dřív (TREE_REGROWTH_YEARS).
 export const BEECH_PLANTING = { manDaysPerTree: 0.1, matureYears: 60 } as const;
-// crafts.md – Budovy (Martin): milíř stojí kus od uhlířovy zemnice – odstup v souřadnicích modelu
-// (x napříč, z k vchodu, m; totéž MILIR_OFFSET v tools/blender/crafts.py) a čtvercový půdorys
-// pro kontrolu místa (kruh milíře Ø ≈ 5,3 m), vyklízí se kruh ušlapané trávy (poloměr m)
+// crafts.md – Budovy: čtvercový půdorys milíře pro kontrolu místa (kruh milíře Ø ≈ 5,3 m),
+// vyklízí se kruh ušlapané trávy (poloměr m). `offset` – kde stál milíř u uhlířovy zemnice ve vsích
+// uložených před samostatnými milíři (souřadnice modelu – x napříč, z k vchodu, m; MILIR_OFFSET
+// v tools/blender/crafts.py) – jen pro převod (`migrateKilns`)
 export const MILIR = { offset: { x: -9, z: 3 }, footprintM: 6, clearingRadiusM: 4.6 } as const;
 /**
  * crafts.md – Uhlí a ruda kováře (Martin 20. 10. 2026: „Kovář si vychovává nástupce. Pokud ve
@@ -1257,7 +1301,8 @@ export const MILIR = { offset: { x: -9, z: 3 }, footprintM: 6, clearingRadiusM: 
  *   HERDING.childShare),
  * - `depositKg` – ložisko vydrží 3 t rudy (odhad – hutě na Moravě se stěhovaly po 50–70 letech podle
  *   vyčerpání suroviny), další rudiště aspoň `siteSpacingM` od vyčerpaného, jámy kousek kolem místa
- *   (do `pitSpreadM`), zarostou a zmizí po `pitYears` (jako jámy obydlí – RUIN_YEARS).
+ *   (do `pitSpreadM`), zarostou a zmizí po `pitYears` (jako jámy obydlí – RUIN_YEARS),
+ * - `oreBatchDays` – dávka rudy pěšky na 30 dní kování na plný úvazek (aspoň jeden koš).
  */
 export const SMITH_SUPPLY = {
   oreKgPerToolKg: 8,
@@ -1272,6 +1317,7 @@ export const SMITH_SUPPLY = {
   siteSpacingM: 20,
   pitSpreadM: 6,
   pitYears: 10,
+  oreBatchDays: 30,
 } as const;
 /**
  * crafts.md – Hlína hrnčíře (Martin 20. 10. 2026: „Ano, udělej to jak říkáš“ – návrh Clauda nových
@@ -1294,6 +1340,15 @@ export const CLAY = {
   depositKg: 20_000,
 } as const;
 /**
+ * crafts.md – Rudiště a hliniště na očích (Martin 20. 10. 2026: „To místo, kde kope rudu, chci na
+ * mapě vidět“; čísla návrh Clauda): nové rudiště a hliniště leží mimo les a mimo koruny stromů,
+ * aby jámy byly shora vidět – žádný dospělý strom (i strom u cesty a les vsi) do `treeClearM` m
+ * od místa (koruna ≈ 4–5 m a jámy kolem místa – SMITH_SUPPLY.pitSpreadM). Místo v lese nebo pod
+ * korunou jen tehdy, když volné není do `openFarther` × vzdálenost nejbližšího místa (a aspoň do
+ * `openSlackM` m dál než ono).
+ */
+export const DUG_SITE_VIEW = { treeClearM: 8, openFarther: 1.5, openSlackM: 30 } as const;
+/**
  * crafts.md – Učení řemesla (Martin 20. 10. 2026: „Každý řemeslník vychovává svého nástupce - syna.
  * Pokud je řemeslník úplně nový, trvá mu, než se řemeslo naučí“; čísla návrh Clauda): výkon dílny
  * podle praxe nejzkušenějšího dospělého z domácnosti – `startShare` (50 %) bez praxe, lineárně
@@ -1314,14 +1369,17 @@ export const WORKSHOP_PORCH_M: Readonly<Record<Craft, number>> = {
 // nádobami; při částečném se den zkažení posouvá poměrně (pokrytí × dny od 1. 3. do 1. 5.)
 export const APPLE_POTTERY_KEEP_DAY = { month: 5, day: 1 } as const;
 
-/** Práce na řemeslné dílně celkem (u blízkého lesa) – základní obydlí + 30 % (crafts.md). */
+/**
+ * Práce na řemeslné dílně celkem (u blízkého lesa) – základní obydlí + 30 %, uhlíř jako zemnice
+ * (crafts.md – Budovy).
+ */
 export function workshopCost(craft: Craft): number {
-  return Math.round(DWELLINGS[CRAFT_BASE[craft]].cost * (1 + WORKSHOP_EXTRA));
+  return Math.round(DWELLINGS[CRAFT_BASE[craft]].cost * (1 + workshopExtra(craft)));
 }
 
-/** Dřevo řemeslné dílny (stromy) – základní obydlí + 30 % (crafts.md, forest.md). */
+/** Dřevo řemeslné dílny (stromy) – základní obydlí + 30 %, uhlíř jako zemnice (crafts.md). */
 export function workshopTrees(craft: Craft): number {
-  return Math.round(DWELLING_TREES[CRAFT_BASE[craft]] * (1 + WORKSHOP_EXTRA));
+  return Math.round(DWELLING_TREES[CRAFT_BASE[craft]] * (1 + workshopExtra(craft)));
 }
 
 /** Práce na dílně bez dřeva – cena dílny minus kácení jejích stromů u blízkého lesa. */

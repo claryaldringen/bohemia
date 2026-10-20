@@ -1124,7 +1124,7 @@ describe('uhlíř – milíř v lese a sázení buků (crafts.md – Uhlíř)', 
     return {
       ...base,
       dwellings: [...base.dwellings, { ...house(21, -60, 20, 0.4), craft: 'burner' as const }],
-      kilns: [{ id: 21, x: KILN.x, z: KILN.z, stage: 'build', progress: 0.5 }],
+      kilns: [{ id: 21, burnerId: 21, x: KILN.x, z: KILN.z, stage: 'build', progress: 0.5 }],
     };
   }
 

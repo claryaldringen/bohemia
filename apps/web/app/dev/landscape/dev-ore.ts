@@ -1,5 +1,5 @@
 // VÝVOJOVÝ NÁSTROJ – ukázka rudiště na /dev/landscape (bez databáze a simulace; crafts.md – Uhlí
-// a ruda kováře). U vsi stojí kovárna a uhlíř s vypáleným milířem; rudiště je buňka mokřiny
+// a ruda kováře). U vsi stojí kovárna a uhlíř, kus od něj vypálený milíř u skácených buků; rudiště je buňka mokřiny
 // (PATH_WETLAND) nejblíž kovárně jako v jádru (`chooseOreSite`), kolem něj jámy v různém stáří –
 // od čerstvé s vodou po skoro zarostlou. Pěšky: kovář se synem (15 let) kopou u jámy, syn
 // (11 let) nosí uhlí od milíře a kovář rudu v koši. S vozem: hromada rudy u jámy, vůz se sedlákem
@@ -8,7 +8,6 @@ import {
   cartObstacleMask,
   cartRoutes,
   groundSpots,
-  milirCenter,
   nearestSpot,
   PATH_WATER_SPOT,
   PATH_WETLAND,
@@ -41,6 +40,8 @@ export interface OreDemo {
   oreSites: SceneOreSite[];
   orePits: SceneOrePit[];
   carts: SceneCart[];
+  /** Vypálený milíř uhlíře – samostatná stavba (crafts.md – Milíř u skácených buků). */
+  kilns: NonNullable<SceneVillage['kilns']>;
   labor: SceneLabor;
   focus: { x: number; z: number };
 }
@@ -78,7 +79,20 @@ export function demoOre(
   if (!site || Math.hypot(site.x - smithAt.x, site.z - smithAt.z) > MAX_SITE_M) return null;
   const toSite = Math.atan2(site.x - smithAt.x, site.z - smithAt.z);
   const burnerAt = { x: smithAt.x - 34, z: smithAt.z + 6, rotation: 0.4 };
-  const [kx, kz] = milirCenter(burnerAt);
+  // milíř u skácených buků ≈ 25 m za zemnicí uhlíře (crafts.md – Milíř u skácených buků)
+  const kx = burnerAt.x - 20;
+  const kz = burnerAt.z + 15;
+  const kilns: OreDemo['kilns'] = [
+    {
+      id: ids.burner + 1,
+      burnerId: ids.burner,
+      x: kx,
+      z: kz,
+      stage: 'draw',
+      progress: 0.4,
+      charcoal: 0.6,
+    },
+  ];
   const dwellings: SceneVillage['dwellings'] = [
     {
       id: ids.smith,
@@ -98,7 +112,6 @@ export function demoOre(
       progress: 1,
       inhabited: true,
       craft: 'burner',
-      kiln: { stage: 'draw', progress: 0.4, charcoal: 0.6 },
     },
   ];
   const penAt = { x: smithAt.x - 6, z: smithAt.z - 28 };
@@ -141,11 +154,22 @@ export function demoOre(
     },
   ];
   const oreTarget = { kind: 'ore' as const, id: ids.smith, x: site.x, z: site.z };
-  const kilnTarget = { kind: 'kiln' as const, id: ids.burner, x: kx, z: kz, from: ids.smith };
+  const kilnTarget = {
+    kind: 'kiln' as const,
+    id: ids.burner,
+    kiln: ids.burner + 1,
+    x: kx,
+    z: kz,
+    from: ids.smith,
+  };
   const shares: SceneLabor['shares'] = [
     // syn 11 let nosí uhlí od milíře (pěšky i s vozem – vůz dnes jede pro rudu)
     { activity: 'fetch', target: kilnTarget, manDays: 0.25, ages: [11] },
-    { activity: 'craft', target: { kind: 'dwelling', id: ids.burner }, manDays: 1.2 },
+    {
+      activity: 'craft',
+      target: { kind: 'kiln', id: ids.burner, kiln: ids.burner + 1, x: kx, z: kz },
+      manDays: 1.2,
+    },
     { activity: 'craft', target: { kind: 'dwelling', id: ids.smith }, manDays: 0.6 },
   ];
   const carts: SceneCart[] = [];
@@ -177,6 +201,7 @@ export function demoOre(
     oreSites,
     orePits,
     carts,
+    kilns,
     labor: {
       day: 0,
       month: 7,

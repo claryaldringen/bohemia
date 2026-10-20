@@ -47,7 +47,8 @@ import {
   type WorkshopActivity,
 } from '@/lib/village-view';
 import type { Direction8, RoadKind, RoadUpgrade, TradeGoods, WagonRoadPlan } from '@bohemia/game';
-import type { OreSiteWorker } from '@/lib/ore-site-view';
+import type { DugSiteWorker } from '@/lib/ore-site-view';
+import type { KilnFetcher } from '@/lib/kiln-view';
 import type { PreviewPeople } from '@/lib/trade-quote';
 import { ManorUpgrades, SwathTrees } from './ManorPanel';
 import { TradePanel } from './TradePanel';
@@ -215,8 +216,10 @@ function activityLook(workshop: SelectionWorkshop): {
   const perDay = `${formatDecimal(workshop.outputPerDayKg, 1)} kg/den`;
   const kiln = workshop.kiln;
   const percent = kiln ? formatPercent(kiln.progress) : '–';
-  // vypálený milíř je zásobou uhlí – uhlíř z něj nosí kováři (crafts.md – Milíř stojí vždy)
-  const inKiln = kiln?.stage === 'draw' ? formatInteger(kiln.charcoalKg) : null;
+  // vypálené milíře jsou zásobou uhlí – uhlíř z nich nosí kováři (crafts.md – Milíř stojí vždy)
+  const burnt = workshop.kilns.filter((k) => k.stage === 'draw');
+  const inKiln =
+    burnt.length > 0 ? formatInteger(burnt.reduce((sum, k) => sum + k.charcoalKg, 0)) : null;
   // tesař (wagons.md): rozdělaný vůz, pomoc stavbám; vůz, který čeká na kování, se nevyrábí –
   // tesař dělá nářadí (wagons.md – Kování vozů)
   const making = workshop.carpenter?.iron ? null : (workshop.carpenter?.making ?? null);
@@ -259,7 +262,7 @@ function activityLook(workshop: SelectionWorkshop): {
       workshop.craft === 'burner' && inKiln !== null
         ? {
             icon: 'charcoal',
-            name: 'Milíř je vypálený – uhlí z něj vytahá, jak ho kovář spotřebuje; zatím pomáhá vsi (kg uhlí v milíři)',
+            name: 'Milíř je vypálený – uhlí z něj vytahá, jak ho kovář spotřebuje, a další začne včas; zatím pomáhá vsi (kg uhlí v milířích)',
             value: inKiln,
           }
         : {
@@ -387,8 +390,25 @@ function SmithOreStats({ ore }: { ore: NonNullable<SelectionWorkshop['ore']> }):
   );
 }
 
-/** Dílna v panelu výběru: co dělá, práce za den, zásoba výrobku (a pokrytí potřeby vsi). */
-function WorkshopRow({ workshop }: { workshop: SelectionWorkshop }): ReactElement {
+/** Fáze milíře pro hráče (crafts.md – Milíř u skácených buků). */
+const KILN_STAGE_NAMES: Record<SelectionWorkshop['kilns'][number]['stage'], string> = {
+  wood: 'kácí a připravuje buky',
+  build: 'staví se',
+  burn: 'pálí se',
+  draw: 'vypálený – rozebírá se podle odběru kováře',
+};
+
+/**
+ * Dílna v panelu výběru: co dělá, práce za den, zásoba výrobku (a pokrytí potřeby vsi); uhlíř i jeho
+ * milíře – tlačítka je vyberou (`onSelectTarget`).
+ */
+function WorkshopRow({
+  workshop,
+  onSelectTarget,
+}: {
+  workshop: SelectionWorkshop;
+  onSelectTarget?: ((target: VillageTarget) => void) | undefined;
+}): ReactElement {
   const activity = activityLook(workshop);
   const product = CRAFT_LOOKS[workshop.craft].product;
   return (
@@ -415,10 +435,31 @@ function WorkshopRow({ workshop }: { workshop: SelectionWorkshop }): ReactElemen
       >
         {formatInteger(workshop.stockKg)}
       </Stat>
-      {workshop.kiln?.forest && (
-        <Stat icon="wood" name="Milíř stojí v lese u těžby" testId="selection-workshop-forest">
-          les
-        </Stat>
+      {workshop.kilns.map((kiln) =>
+        kiln.id === null ? null : (
+          <Tooltip
+            key={kiln.id}
+            content={`Milíř – ${KILN_STAGE_NAMES[kiln.stage]}, cesta ze zemnice ${formatInteger(kiln.walkM)} m`}
+            placement="above"
+          >
+            <button
+              type="button"
+              data-testid="selection-workshop-kiln"
+              data-stage={kiln.stage}
+              aria-label="Milíř"
+              className="hud-icon-button h-7 w-7"
+              onClick={() => onSelectTarget?.({ kind: 'kiln', id: kiln.id! })}
+            >
+              <img
+                src="/icons/build/milir.png"
+                alt=""
+                width={128}
+                height={128}
+                className="h-full w-full"
+              />
+            </button>
+          </Tooltip>
+        ),
       )}
       {workshop.carpenter && <CarpenterStats carpenter={workshop.carpenter} />}
       {workshop.ore && <SmithOreStats ore={workshop.ore} />}
@@ -678,6 +719,7 @@ interface ManorActions {
 
 function DwellingBody({
   details,
+  onSelectTarget,
   onRelocate,
   onCancelRelocation,
   onLeave,
@@ -685,6 +727,8 @@ function DwellingBody({
   onSendExpedition,
 }: {
   details: Extract<SelectionDetails, { kind: 'dwelling' }>;
+  /** Vybere milíř uhlíře z panelu dílny (crafts.md – Milíř u skácených buků). */
+  onSelectTarget?: ((target: VillageTarget) => void) | undefined;
 } & RelocationActions &
   ManorActions): ReactElement {
   const tone = details.overcrowded ? 'text-red-400' : details.full ? 'text-[#f3cf86]' : '';
@@ -692,7 +736,9 @@ function DwellingBody({
   return (
     <div className="hud-split">
       <div className="flex min-w-0 flex-col justify-center gap-1.5">
-        {details.workshop && <WorkshopRow workshop={details.workshop} />}
+        {details.workshop && (
+          <WorkshopRow workshop={details.workshop} onSelectTarget={onSelectTarget} />
+        )}
         {details.buying && <BuyingRow buying={details.buying} />}
         <div className={ROW}>
           <Stat icon="people" name="Obyvatelé" testId="selection-occupants">
@@ -1863,72 +1909,121 @@ function SacredBody({
   );
 }
 
-/** Co dělá člověk z kovárny dnes na rudišti – popisek (crafts.md – Uhlí a ruda kováře). */
-function oreWorkerName(worker: OreSiteWorker): string {
-  // první činnost s „rudu“, další se k ní vztahují („kope rudu a nosí ji v koších do kovárny“)
-  const phrases: [boolean, string, string][] = [
-    [worker.digs, 'kope rudu', 'kope ji'],
-    [worker.carries, 'nosí rudu v koších do kovárny', 'nosí ji v koších do kovárny'],
-    [worker.rides, 'jede s vozem pro rudu', 'jede pro ni s vozem'],
+/**
+ * Texty panelu rudiště kováře a hliniště hrnčíře (crafts.md – Uhlí a ruda kováře, Hlína hrnčíře):
+ * ikona suroviny a portrét místa, bubliny, dílna a co tu kdo dělá (první činnost se surovinou,
+ * další se k ní vztahují – „kope rudu a nosí ji v koších do kovárny“).
+ */
+const DUG_SITE_TEXTS = {
+  'ore-site': {
+    test: 'ore',
+    resource: 'ore',
+    portrait: 'rudiste',
+    name: 'Rudiště',
+    deposit: 'Ruda v ložisku (kg) – zbývá z celého ložiska',
+    heap: 'Vykopaná ruda na hromadě u jámy (kg) – čeká na odnos nebo vůz',
+    pits: 'Jámy po kopání rudy – po letech zarostou',
+    workshop: 'Kovárna',
+    workshopIcon: 'kovar',
+    walk: 'Cesta z kovárny',
+    stock: 'Ruda v kovárně (kg)',
+    craftsman: 'Kovář',
+    son: 'Syn kováře',
+    dig: ['kope rudu', 'kope ji'],
+    carry: ['nosí rudu v koších do kovárny', 'nosí ji v koších do kovárny'],
+    ride: ['jede s vozem pro rudu', 'jede pro ni s vozem'],
+    idle: 'pracuje na rudišti',
+    cart: 'Vůz se sedlákem dnes odváží rudu z hromady do kovárny',
+  },
+  'clay-site': {
+    test: 'clay',
+    resource: 'clay',
+    portrait: 'hliniste',
+    name: 'Hliniště',
+    deposit: 'Hlína v hliništi (kg) – zbývá z celého hliniště',
+    heap: 'Vykopaná hlína na hromadě u jámy (kg) – čeká na odnos nebo vůz',
+    pits: 'Jámy po kopání hlíny – po letech zarostou',
+    workshop: 'Dílna hrnčíře',
+    workshopIcon: 'hrncir',
+    walk: 'Cesta z dílny',
+    stock: 'Hlína u dílny (kg)',
+    craftsman: 'Hrnčíř',
+    son: 'Syn hrnčíře',
+    dig: ['kope hlínu', 'kope ji'],
+    carry: ['nosí hlínu v koších k dílně', 'nosí ji v koších k dílně'],
+    ride: ['jede s vozem pro hlínu', 'jede pro ni s vozem'],
+    idle: 'pracuje na hliništi',
+    cart: 'Vůz se sedlákem dnes odváží hlínu z hromady k dílně',
+  },
+} as const;
+
+type DugSiteKind = keyof typeof DUG_SITE_TEXTS;
+
+/** Co dělá člověk z dílny dnes na rudišti či hliništi – popisek (crafts.md). */
+function dugWorkerName(kind: DugSiteKind, worker: DugSiteWorker): string {
+  const texts = DUG_SITE_TEXTS[kind];
+  const phrases: [boolean, readonly [string, string]][] = [
+    [worker.digs, texts.dig],
+    [worker.carries, texts.carry],
+    [worker.rides, texts.ride],
   ];
   const tasks = phrases
     .filter(([does]) => does)
-    .map(([, first, next], k) => (k === 0 ? first : next));
+    .map(([, [first, next]], k) => (k === 0 ? first : next));
   const what =
     tasks.length > 1 ? `${tasks.slice(0, -1).join(', ')} a ${tasks[tasks.length - 1]}` : tasks[0];
-  return `${worker.smith ? 'Kovář' : 'Syn kováře'} (věk) dnes ${what ?? 'pracuje na rudišti'}`;
+  return `${worker.craftsman ? texts.craftsman : texts.son} (věk) dnes ${what ?? texts.idle}`;
 }
 
 /**
- * Rudiště kováře (crafts.md – Uhlí a ruda kováře – Co hráč vidí; Martin 20. 10. 2026: „Půjde
- * rudiště také označit?“): ruda v ložisku (zbývá / celkem), hromada vykopané rudy u jámy, jámy,
- * kovárna – ikona domu, kliknutím ji vybere –, cesta z ní a zásoba rudy v ní; kdo tu dnes
- * pracuje – kovář, synové s věkem a vůz se sedlákem (jen když dnes).
+ * Rudiště kováře a hliniště hrnčíře (crafts.md – Uhlí a ruda kováře – Co hráč vidí, Hlína hrnčíře;
+ * Martin 20. 10. 2026: „Půjde rudiště také označit?“): surovina v ložisku (zbývá / celkem),
+ * hromada vykopané suroviny u jámy, jámy, dílna – ikona domu, kliknutím ji vybere –, cesta z ní
+ * a zásoba v ní; kdo tu dnes pracuje – řemeslník, synové s věkem a vůz se sedlákem (jen když
+ * dnes).
  */
-function OreSiteBody({
+function DugSiteBody({
   details,
   onSelectTarget,
 }: {
-  details: Extract<SelectionDetails, { kind: 'ore-site' }>;
+  details: Extract<SelectionDetails, { kind: DugSiteKind }>;
   onSelectTarget?: (target: VillageTarget) => void;
 }): ReactElement {
+  const texts = DUG_SITE_TEXTS[details.kind];
+  const test = texts.test;
   return (
     <div className="flex min-w-0 flex-col justify-center gap-1.5">
       <div className={ROW}>
         <Stat
-          icon="ore"
-          name="Ruda v ložisku (kg) – zbývá z celého ložiska"
-          testId="selection-ore-deposit"
+          icon={texts.resource}
+          name={texts.deposit}
+          testId={`selection-${test}-deposit`}
           alert={details.leftKg <= 0}
         >
           {`${formatInteger(details.leftKg)} / ${formatInteger(details.depositKg)}`}
         </Stat>
-        <Stat
-          icon="ore"
-          name="Vykopaná ruda na hromadě u jámy (kg) – čeká na odnos nebo vůz"
-          testId="selection-ore-heap"
-        >
+        <Stat icon={texts.resource} name={texts.heap} testId={`selection-${test}-heap`}>
           {formatInteger(details.heapKg)}
         </Stat>
         <Stat
-          src="/icons/build/rudiste.png"
-          name="Jámy po kopání rudy – po letech zarostou"
-          testId="selection-ore-pits"
+          src={`/icons/build/${texts.portrait}.png`}
+          name={texts.pits}
+          testId={`selection-${test}-pits`}
         >
           {formatInteger(details.pits)}
         </Stat>
       </div>
       <div className={ROW}>
-        <Tooltip content="Kovárna" placement="above">
+        <Tooltip content={texts.workshop} placement="above">
           <button
             type="button"
-            data-testid="selection-ore-smith"
-            aria-label="Kovárna"
+            data-testid={`selection-${test}-workshop`}
+            aria-label={texts.workshop}
             className="hud-icon-button h-7 w-7"
-            onClick={() => onSelectTarget?.({ kind: 'dwelling', id: details.smithId })}
+            onClick={() => onSelectTarget?.({ kind: 'dwelling', id: details.workshopId })}
           >
             <img
-              src="/icons/build/kovar.png"
+              src={`/icons/build/${texts.workshopIcon}.png`}
               alt=""
               width={128}
               height={128}
@@ -1936,30 +2031,152 @@ function OreSiteBody({
             />
           </button>
         </Tooltip>
-        <Stat icon="walk" name="Cesta z kovárny" testId="selection-ore-walk">
+        <Stat icon="walk" name={texts.walk} testId={`selection-${test}-walk`}>
           {`${formatInteger(details.walkM)} m`}
         </Stat>
-        <Stat icon="ore" name="Ruda v kovárně (kg)" testId="selection-ore-stock">
+        <Stat icon={texts.resource} name={texts.stock} testId={`selection-${test}-stock`}>
           {formatInteger(details.stockKg)}
         </Stat>
       </div>
       {(details.workers.length > 0 || details.cart) && (
-        <div className={ROW} data-testid="selection-ore-today">
+        <div className={ROW} data-testid={`selection-${test}-today`}>
           {details.workers.map((worker) => (
             <Stat
-              key={`${worker.smith ? 'k' : 's'}${worker.age}`}
+              key={`${worker.craftsman ? 'k' : 's'}${worker.age}`}
               icon={worker.age < AGE.adult ? 'child' : 'man'}
-              name={oreWorkerName(worker)}
-              testId="selection-ore-worker"
+              name={dugWorkerName(details.kind, worker)}
+              testId={`selection-${test}-worker`}
             >
               {worker.age}
+            </Stat>
+          ))}
+          {details.cart && <Flag icon="cart" name={texts.cart} testId={`selection-${test}-cart`} />}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Kdo dnes nosí uhlí od milíře (tooltip). */
+function kilnFetcherName(fetcher: KilnFetcher): string {
+  return `${fetcher.smith ? 'Kovář' : 'Syn kováře'} (věk) dnes nosí uhlí od milíře do kovárny`;
+}
+
+/** Co je s milířem teď – ikona, popisek a číslo (crafts.md – Milíř u skácených buků). */
+function kilnStageLook(details: Extract<SelectionDetails, { kind: 'kiln' }>): {
+  icon: string;
+  name: string;
+  value: string;
+} {
+  if (details.stage === 'remnant') {
+    return {
+      icon: 'overgrowth',
+      name: 'Milířiště – černá uhlíkatá zem po rozebraném milíři; za pár let zaroste (jak zarostlo)',
+      value: formatPercent(details.progress),
+    };
+  }
+  if (details.stage === 'wood') {
+    return {
+      icon: 'wood',
+      name: 'Uhlíř kácí a připravuje buky na milíř (připravené / v dávce)',
+      value: `${details.prepared}/${details.trees}`,
+    };
+  }
+  if (details.stage === 'build') {
+    return { icon: 'wood', name: 'Uhlíř staví milíř', value: formatPercent(details.progress) };
+  }
+  if (details.stage === 'burn') {
+    return {
+      icon: 'charcoal',
+      name: 'Milíř se pálí – uhlíř ho hlídá ve dne i v noci',
+      value: formatPercent(details.progress),
+    };
+  }
+  return {
+    icon: 'charcoal',
+    name: 'Vypálený milíř se rozebírá, jak kovář odebírá uhlí (kg uhlí v milíři / z celého milíře)',
+    value: `${formatInteger(details.charcoalKg)} / ${formatInteger(details.yieldKg)}`,
+  };
+}
+
+/**
+ * Milíř nebo milířiště uhlíře (crafts.md – Milíř u skácených buků; Martin 20. 10. 2026: „Vyčleň
+ * milíř jako samostatnou stavbu.“): fáze a průběh, uhlí v milíři, uhlíř – ikona dílny, kliknutím ji
+ * vybere –, cesta ze zemnice a z kovárny; kdo sem dnes chodí pro uhlí – kovář, syn s věkem, vůz se
+ * sedlákem – a jestli tu dnes pracuje uhlíř.
+ */
+function KilnBody({
+  details,
+  onSelectTarget,
+}: {
+  details: Extract<SelectionDetails, { kind: 'kiln' }>;
+  onSelectTarget?: (target: VillageTarget) => void;
+}): ReactElement {
+  const stage = kilnStageLook(details);
+  const today = details.fetchers.length > 0 || details.cart || details.burnerHere;
+  return (
+    <div className="flex min-w-0 flex-col justify-center gap-1.5">
+      <div className={ROW}>
+        <Stat icon={stage.icon} name={stage.name} testId="selection-kiln-stage">
+          {stage.value}
+        </Stat>
+      </div>
+      <Bar
+        value={details.progress}
+        name={details.stage === 'remnant' ? 'Zarůstá' : 'Fáze milíře'}
+        testId="selection-kiln-progress"
+      />
+      <div className={ROW}>
+        <Tooltip content="Uhlíř" placement="above">
+          <button
+            type="button"
+            data-testid="selection-kiln-burner"
+            aria-label="Uhlíř"
+            className="hud-icon-button h-7 w-7"
+            onClick={() => onSelectTarget?.({ kind: 'dwelling', id: details.burnerId })}
+          >
+            <img
+              src="/icons/build/uhlir.png"
+              alt=""
+              width={128}
+              height={128}
+              className="h-full w-full"
+            />
+          </button>
+        </Tooltip>
+        <Stat icon="walk" name="Cesta ze zemnice uhlíře" testId="selection-kiln-walk">
+          {`${formatInteger(details.burnerWalkM)} m`}
+        </Stat>
+        {details.smithWalkM !== null && (
+          <Stat
+            icon="walk"
+            name="Cesta z kovárny – odsud sem chodí pro uhlí"
+            testId="selection-kiln-smith-walk"
+          >
+            {`${formatInteger(details.smithWalkM)} m`}
+          </Stat>
+        )}
+      </div>
+      {today && (
+        <div className={ROW} data-testid="selection-kiln-today">
+          {details.burnerHere && (
+            <Flag icon="labor" name="Uhlíř tu dnes pracuje" testId="selection-kiln-burner-here" />
+          )}
+          {details.fetchers.map((fetcher) => (
+            <Stat
+              key={`${fetcher.smith ? 'k' : 's'}${fetcher.age}`}
+              icon={fetcher.age < AGE.adult ? 'child' : 'man'}
+              name={kilnFetcherName(fetcher)}
+              testId="selection-kiln-fetcher"
+            >
+              {fetcher.age}
             </Stat>
           ))}
           {details.cart && (
             <Flag
               icon="cart"
-              name="Vůz se sedlákem dnes odváží rudu z hromady do kovárny"
-              testId="selection-ore-cart"
+              name="Vůz se sedlákem dnes veze uhlí od milíře do kovárny"
+              testId="selection-kiln-cart"
             />
           )}
         </div>
@@ -2016,9 +2233,13 @@ export function SelectionPanel({
   if (!details) return null;
   let portrait: ReactElement;
   let body: ReactElement;
-  if (details.kind === 'ore-site') {
-    portrait = <Portrait icon="rudiste" name="Rudiště" />;
-    body = <OreSiteBody details={details} onSelectTarget={onSelectTarget} />;
+  if (details.kind === 'ore-site' || details.kind === 'clay-site') {
+    const texts = DUG_SITE_TEXTS[details.kind];
+    portrait = <Portrait icon={texts.portrait} name={texts.name} />;
+    body = <DugSiteBody details={details} onSelectTarget={onSelectTarget} />;
+  } else if (details.kind === 'kiln') {
+    portrait = <Portrait icon="milir" name={details.stage === 'remnant' ? 'Milířiště' : 'Milíř'} />;
+    body = <KilnBody details={details} onSelectTarget={onSelectTarget} />;
   } else if (details.kind === 'road') {
     portrait = (
       <Portrait icon={ROAD_KIND_ICONS[details.roadKind]} name={ROAD_KIND_NAMES[details.roadKind]} />
@@ -2110,6 +2331,7 @@ export function SelectionPanel({
     body = (
       <DwellingBody
         details={details}
+        onSelectTarget={onSelectTarget}
         onRelocate={onRelocate}
         onCancelRelocation={onCancelRelocation}
         onLeave={onLeave}

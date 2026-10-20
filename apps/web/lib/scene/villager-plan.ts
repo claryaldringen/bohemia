@@ -73,7 +73,7 @@ import {
   type VillagerClip,
   type VillagerKind,
 } from './villager-motion';
-import { MILIR_SHAPE_M, craftSpots, forestKilnAnchor, milirPlace } from './workshop-layout';
+import { MILIR_SHAPE_M, craftSpots, forestKilnAnchor } from './workshop-layout';
 import { orePitRadius } from './ore-site-layout';
 
 // Postavy ve vsi (docs/design/villagers.md): kdo kde je a co dělá, jako čistá funkce vsi pro
@@ -759,21 +759,7 @@ function context(
     ...(d.craft ? { craft: d.craft } : {}),
   }));
   // milíř uhlíře – lidé ho obcházejí (do kupy se nevstupuje), řemeslníci stojí kolem něj
-  const milirs: House[] = village.dwellings.flatMap((d) => {
-    if (d.craft !== 'burner') return [];
-    const half = MILIR_SHAPE_M.radius;
-    return [
-      {
-        id: MILIR_ID_OFFSET - d.id,
-        position: milirPlace(d.position),
-        built: true,
-        progress: 1,
-        inhabited: false,
-        box: { minX: -half, maxX: half, minZ: -half, maxZ: half },
-      },
-    ];
-  });
-  // milíře uhlířů v lese – stejně jako milíř u dílny (crafts.md – Uhlíř)
+  // milíře uhlířů – samostatné stavby u skácených buků (crafts.md – Milíř u skácených buků)
   const forestKilns: House[] = (village.kilns ?? []).map((k) => {
     const half = MILIR_SHAPE_M.radius;
     return {
@@ -814,7 +800,7 @@ function context(
       };
     }),
   );
-  const houses = [...dwellings, ...milirs, ...forestKilns, ...sacred, ...pens];
+  const houses = [...dwellings, ...forestKilns, ...sacred, ...pens];
   for (const h of houses) {
     h.cos = Math.cos(h.position.rotation);
     h.sin = Math.sin(h.position.rotation);
@@ -2323,6 +2309,15 @@ const TRAFFIC_LOOK: Record<
     endS: 2,
     backClip: 'walk',
   },
+  // uhlíř ze zemnice k milíři a zpět (crafts.md – Milíř u skácených buků)
+  kiln: {
+    women: 0.35,
+    children: 0,
+    outClip: 'walk',
+    endClip: 'idle',
+    endS: 2,
+    backClip: 'walk',
+  },
 };
 /** Mezi cestami je člověk chvíli doma – není vidět (s). */
 const TRAFFIC_HOME_S = 6;
@@ -2425,6 +2420,24 @@ function trafficRoutes(ctx: Context, labor: SceneLabor): TrafficRoute[] {
       );
     }
   }
+  // uhlíř chodí ze zemnice k milíři (crafts.md – Milíř u skácených buků): cesta tam a zpět na
+  // člověkoden práce u milíře – jen ke vzdálenému milíři
+  labor.shares.forEach((share) => {
+    const t = share.target;
+    if (share.activity !== 'craft' || t.kind !== 'kiln' || t.from !== undefined) return;
+    const home = homes.find((h) => h.id === t.id);
+    if (!home || share.manDays <= 0) return;
+    const door = trafficDoor(ctx, home);
+    if (!door || Math.hypot(t.x - door.x, t.z - door.z) < KILN_COMMUTE_MIN_M) return;
+    const edge = towards(t, door, MILIR_SHAPE_M.radius + 1);
+    add(
+      'kiln',
+      `kiln:${t.id}:${t.kiln ?? ''}`,
+      share.manDays * FIELD_TRIPS_PER_MAN_DAY,
+      walkRoute(ctx, door, edge) ?? fieldPath(ctx, door, edge),
+      TRAFFIC_LOOK.kiln.women,
+    );
+  });
   labor.shares.forEach((share) => {
     if (!FIELD_COMMUTE.has(share.activity) || share.target.kind !== 'field') return;
     if (share.manDays <= 0) return;
@@ -2457,6 +2470,17 @@ function trafficRoutes(ctx: Context, labor: SceneLabor): TrafficRoute[] {
     }
   });
   return out;
+}
+
+/** Milíř blíž zemnici než tolik (m) – uhlíř k němu nechodí jako proud lidí. */
+const KILN_COMMUTE_MIN_M = 25;
+
+/** Bod `distance` m od středu `center` směrem k bodu `to`. */
+function towards(center: { x: number; z: number }, to: Point, distance: number): Point {
+  const dx = to.x - center.x;
+  const dz = to.z - center.z;
+  const len = Math.hypot(dx, dz) || 1;
+  return { x: center.x + (dx / len) * distance, z: center.z + (dz / len) * distance };
 }
 
 /** Jak daleko od pěšiny smí být díl pole, na který se jde po pěšině a pak přes pole (m). */

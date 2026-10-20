@@ -1,5 +1,4 @@
 import { detCos, detSin, length2, tileCenterWorld, type Landscape } from '../../landscape';
-import { milirPosition } from '../crafts';
 import { rotatedSquareCorners, rotationCosSin, rotationTurn } from '../square-grid';
 import {
   DWELLING_CLEARING_M,
@@ -140,7 +139,7 @@ export interface PathVillage {
    * Hotová obydlí (id obydlí) i staveniště (id stavby). `inhabited` – bydlí v něm někdo (bez
    * údaje ano), `since` – herní den, od kdy stojí (dostavění / zahájení stavby; bez údaje
    * odjakživa), `plot` – pozemek polozemnice (střed políčka a strana), `craft` – řemeslná dílna
-   * (u uhlíře stojí kus od zemnice milíř – crafts.md).
+   * (crafts.md).
    */
   dwellings: readonly {
     id: number;
@@ -253,6 +252,11 @@ export interface PathVillage {
    * i vozů se podle nich upraví (`withTerrainEdits` – sklon v úvozu a na náspu). Bez údaje žádné.
    */
   earthworks?: readonly EarthworkSpan[];
+  /**
+   * Milíře uhlířů (crafts.md – Milíř u skácených buků) – samostatné stavby, střed (m): pěšina kupu
+   * obejde, k milíři se chodí za prací dne (uhlíř ze zemnice, pro uhlí z kovárny). Bez údaje žádné.
+   */
+  kilns?: readonly { x: number; z: number }[];
 }
 
 export interface PathNetworkInput {
@@ -604,6 +608,8 @@ export function pathNetworkKey(village: PathVillage): string {
     ...(woods.length > 0 ? [woods] : []),
     // stromy u cest (roads.md – Stromy u cesty zrychlí chůzi) – bez nich klíč beze změny
     ...(lining ? [lining] : []),
+    // milíře uhlířů (crafts.md – Milíř u skácených buků) – bez nich klíč beze změny
+    ...((village.kilns?.length ?? 0) > 0 ? [kilnsKey(village.kilns!)] : []),
     // zemní práce vozových cest (roads.md – Vozová cesta) – terén pěšin; bez nich beze změny
     ...(village.earthworks && village.earthworks.length > 0
       ? [
@@ -613,6 +619,11 @@ export function pathNetworkKey(village: PathVillage): string {
         ]
       : []),
   ]);
+}
+
+/** Klíč milířů pro síť pěšin – středy na decimetry. */
+export function kilnsKey(kilns: readonly { x: number; z: number }[]): string {
+  return kilns.map((k) => `${k.x.toFixed(1)},${k.z.toFixed(1)}`).join(';');
 }
 
 /** Bod v polovině lomené čáry. */
@@ -1614,16 +1625,17 @@ function tripGroups(
   // kovář (crafts.md – Uhlí a ruda kováře): z kovárny na rudiště kopat a pro rudu, k milíři pro
   // uhlí – jen jeho domácnost; hrnčíř stejně na hliniště (crafts.md – Hlína hrnčíře); nošení
   // v koších po cestách tam a zpět (cest za den podle délky), kopání jedna cesta na člověkoden;
-  // s vozem jede řemeslník vozem (bez pěšiny)
+  // s vozem jede řemeslník vozem (bez pěšiny). Uhlíř chodí k milíři ze zemnice (crafts.md – Milíř
+  // u skácených buků) – jedna cesta na člověkoden u milíře.
   const smithWalks = new Map<string, { home: number; at: PathPoint; trips: number }>();
   for (const share of v.labor?.shares ?? []) {
     const t = share.target;
     if (share.carts || (t.kind !== 'ore' && t.kind !== 'clay' && t.kind !== 'kiln')) continue;
-    const from = t.kind === 'kiln' ? (t.from ?? null) : t.id;
-    if (from === null) continue;
-    // roční součet práce činnost nezná – u milíře se jen nosí, na rudišti hlavně kope
+    const from = t.kind === 'kiln' ? (t.from ?? t.id) : t.id;
+    // roční součet práce činnost nezná – pro uhlí od milíře se jen nosí, na rudišti hlavně kope
     const carrying =
-      share.activity === 'fetch' || (share.activity === undefined && t.kind === 'kiln');
+      share.activity === 'fetch' ||
+      (share.activity === undefined && t.kind === 'kiln' && t.from !== undefined);
     const home = homes.findIndex((h) => h.dwellingId === from);
     if (home < 0) continue;
     const h = homes[home]!;
@@ -2341,12 +2353,12 @@ export function villageBuildings(v: PathVillage): {
     dwellings.set(d.id, { position: d.position, box: dwellingBox(d) });
   }
   const all: Building[] = [...dwellings.values()];
-  // milíř uhlíře kus od zemnice – pěšina ho obejde (crafts.md)
-  for (const d of v.dwellings) {
-    if (d.craft !== 'burner') continue;
+  // milíř uhlíře – samostatná stavba u skácených buků, pěšina ho obejde (crafts.md – Milíř
+  // u skácených buků)
+  for (const k of v.kilns ?? []) {
     const half = MILIR_RADIUS_M;
     all.push({
-      position: milirPosition(d.position),
+      position: { x: k.x, z: k.z, rotation: 0 },
       box: { minX: -half, maxX: half, minZ: -half, maxZ: half },
     });
   }

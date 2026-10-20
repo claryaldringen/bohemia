@@ -4,7 +4,7 @@ import type { ObstacleLayer } from '../../landscape';
 import { createRandom, deriveSeed } from '../../landscape/random';
 import { villageCemeteries } from '../cemetery';
 import { cloneState } from '../clone';
-import { milirCenter } from '../crafts';
+import { workshopKilns } from '../charcoal';
 import { HAY_WINTER_MONTHS } from '../hay';
 import { giveWayToBuilding, treeTakenLand } from '../land-taken';
 import { villageHerds } from '../livestock';
@@ -173,9 +173,14 @@ function laborKey(target: LaborTarget): string {
   if (target.kind === 'edge') return `edge:${target.direction}`;
   // břeh, kam vůz jezdí pro vodu (wagons.md – Co vozy vozí)
   if (target.kind === 'water') return `water:${target.x},${target.z}`;
-  // nošení uhlí od milíře do kovárny zvlášť od práce uhlíře u milíře (crafts.md – Uhlí a ruda)
-  if (target.kind === 'kiln' && target.from !== undefined)
-    return `kiln:${target.id}>${target.from}`;
+  // nošení uhlí od milíře do kovárny zvlášť od práce uhlíře u milíře (crafts.md – Uhlí a ruda),
+  // každý milíř zvlášť (crafts.md – Milíř u skácených buků)
+  if (target.kind === 'kiln') {
+    const kiln = target.kiln !== undefined ? `/${target.kiln}` : '';
+    return target.from !== undefined
+      ? `kiln:${target.id}${kiln}>${target.from}`
+      : `kiln:${target.id}${kiln}`;
+  }
   return target.kind === 'village' ? 'village' : `${target.kind}:${target.id}`;
 }
 
@@ -2312,12 +2317,10 @@ export function plantingBlocker(
     z: b.position.z,
     half: SACRED_BUILDINGS[b.kind].footprintM / 2 + SACRED_MARGIN_M,
   }));
-  const milirs = [
-    ...state.dwellings.flatMap((d) => (d.workshop?.craft === 'burner' ? [d.position] : [])),
-    ...state.constructions.flatMap((c) =>
-      c.craft === 'burner' && c.position !== null ? [c.position] : [],
-    ),
-  ].map((p) => milirCenter(p));
+  // milíře uhlířů – samostatné stavby u skácených buků (crafts.md – Milíř u skácených buků)
+  const milirs = state.dwellings.flatMap((d) =>
+    workshopKilns(d.workshop).flatMap((k) => (k.site ? [[k.site.x, k.site.z] as const] : [])),
+  );
   const oaks = state.sacredOaks ?? [];
   const m = SQUARE_MARGIN_M;
   const corners: readonly [number, number][] = [

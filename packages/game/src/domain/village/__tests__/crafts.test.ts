@@ -14,6 +14,7 @@ import {
   newWorkshop,
   wearCraftStocks,
   workCrafts,
+  workshopFootprints,
   workshopLabor,
 } from '../crafts';
 import { appleKeepDays, applesSpoiled, daysUntilAppleRot } from '../food';
@@ -111,12 +112,13 @@ function craftDays(s: VillageState, days: number, layer: ObstacleLayer | null): 
 }
 
 describe('řemeslná dílna – cena a stavba (crafts.md – Budovy)', () => {
-  it('dílna stojí jako základní obydlí + 30 % práce i dřeva', () => {
+  it('dílna stojí jako základní obydlí + 30 % práce i dřeva, uhlíř jako zemnice', () => {
     expect(workshopCost('potter')).toBe(286);
     expect(workshopTrees('potter')).toBe(23);
     expect(workshopCost('smith')).toBe(286);
-    expect(workshopCost('burner')).toBe(78);
-    expect(workshopTrees('burner')).toBe(9);
+    // milíř staví uhlíř u každé dávky buků (crafts.md – Milíř u skácených buků)
+    expect(workshopCost('burner')).toBe(60);
+    expect(workshopTrees('burner')).toBe(7);
     expect(BUILD_COSTS.smith).toEqual({
       laborManDays: 286,
       perHa: false,
@@ -411,7 +413,7 @@ describe('dílny ve vsi – simulace', () => {
     const rebuild = after.constructions.find((c) => c.kind === 'rebuild');
     expect(rebuild).toMatchObject({ dwellingId: WORKSHOP_ID, dwellingType: 'zemnice' });
     expect(rebuild!.wood!.trees).toBe(workshopTrees('burner'));
-    expect(rebuild!.cost).toBeCloseTo(workshopBuildLabor('burner') + 9 * 2, 9);
+    expect(rebuild!.cost).toBeCloseTo(workshopBuildLabor('burner') + 7 * 2, 9);
     rebuild!.done = rebuild!.cost;
     rebuild!.wood!.felled = rebuild!.wood!.fell.length;
     const rebuilt = advanceVillage(after, DAY + 2, null);
@@ -480,7 +482,7 @@ describe('souhrn řemesel pro panel (crafts.md – Co hráč vidí)', () => {
         // kovář bez uhlí odpočívá – rudu ještě nekopal (crafts.md – Uhlí a ruda kováře)
         ore: { stockKg: 0, site: null, heapKg: 0, sons: [], cart: false },
         clay: null,
-        kiln: null,
+        kilns: [],
         toPlant: 0,
         // kovář z doby před učením řemesla je vyučený (crafts.md – Učení řemesla)
         skill: { share: 1, years: 5, apprentices: [] },
@@ -492,35 +494,35 @@ describe('souhrn řemesel pro panel (crafts.md – Co hráč vidí)', () => {
 });
 
 describe('umístění dílny (crafts.md – Budovy)', () => {
-  // políčko (8, 8) = x 0–15 m, z 0–15 m; zemnice na (19; 7,5) stojí v políčku (9, 8), milíř
-  // (−9, +3 m) se středem (10; 10,5) celý v políčku (8, 8)
+  // políčko (8, 8) = x 0–15 m, z 0–15 m; zemnice na (19; 7,5) stojí v políčku (9, 8), kde stával
+  // milíř u zemnice (−9, +3 m – střed 10; 10,5) je políčko (8, 8)
   const HOUSE = { x: 19, z: 7.5, rotation: 0 };
   const empty = packObstacles([], 16, 15);
   const water = makeLandscape({ surface: (x, y) => (x === 8 && y === 8 ? 'water' : 'meadow') });
 
-  it('uhlíř potřebuje volné místo i pro milíř', () => {
+  it('uhlíř je jen zemnice – milíř staví u dávky buků (crafts.md – Milíř u skácených buků)', () => {
     expect(checkDwellingPlacement(water, null, 'zemnice', HOUSE, empty).ok).toBe(true);
     expect(checkWorkshopPlacement(water, null, 'smith', HOUSE, empty).ok).toBe(true);
-    const burner = checkWorkshopPlacement(water, null, 'burner', HOUSE, empty);
-    expect(burner.ok).toBe(false);
-    expect(burner.reason).toBe('Milíř nemůže stát ve vodě.');
+    expect(checkWorkshopPlacement(water, null, 'burner', HOUSE, empty).ok).toBe(true);
+    expect(workshopFootprints('burner', HOUSE)).toHaveLength(1);
   });
 
-  it('jiné obydlí se nesmí překrývat s milířem hotové dílny', () => {
+  it('jiné obydlí se nesmí překrývat s milířem – milíř je samostatná stavba', () => {
     const land = makeLandscape();
-    const village = (craft?: Craft): PlacementVillage => ({
-      dwellings: [{ type: 'zemnice', position: HOUSE, ...(craft ? { workshop: { craft } } : {}) }],
+    const village = (kilns: { x: number; z: number }[]): PlacementVillage => ({
+      dwellings: [{ type: 'zemnice', position: HOUSE, workshop: { craft: 'burner' } }],
       constructions: [],
       parts: [],
+      kilns,
     });
-    const atMilir = { x: 10, z: 10.5, rotation: 0 };
-    expect(checkDwellingPlacement(land, village(), 'zemnice', atMilir, empty).ok).toBe(true);
-    expect(checkDwellingPlacement(land, village('burner'), 'zemnice', atMilir, empty).reason).toBe(
-      'Překrývá se s jiným obydlím.',
-    );
+    const atKiln = { x: 10, z: 10.5, rotation: 0 };
+    expect(checkDwellingPlacement(land, village([]), 'zemnice', atKiln, empty).ok).toBe(true);
+    expect(
+      checkDwellingPlacement(land, village([{ x: 10, z: 10.5 }]), 'zemnice', atKiln, empty).reason,
+    ).toBe('Stojí tu milíř.');
   });
 
-  it('překážky kolem milíře osadníci odstraní a zaplatí', () => {
+  it('kámen, kde stával milíř u zemnice, osadníci uhlíře neodstraňují', () => {
     const stone: ObstaclePlacement = {
       id: 7,
       kind: 'stone',
@@ -533,8 +535,7 @@ describe('umístění dílny (crafts.md – Budovy)', () => {
     const layer = packObstacles([stone], 16, 15);
     const check = checkWorkshopPlacement(makeLandscape(), null, 'burner', HOUSE, layer);
     expect(check.ok).toBe(true);
-    expect(check.obstacleIds).toEqual([7]);
-    expect(check.obstacleCost).toBe(1);
+    expect(check.obstacleIds).toEqual([]);
   });
 });
 
@@ -591,17 +592,20 @@ describe('řemeslníci vyrábějí podle potřeby, volný čas pracují pro ves 
     expect(restingCrafters(s, DAY + 1, NO_CRAFTS).has(WORKSHOP_ID)).toBe(false);
   });
 
-  it('uhlíř nosí uhlí z vypáleného milíře, jen když u kováře nestačí na dnešní kování', () => {
+  it('uhlíř nosí uhlí z vypáleného milíře, jen když u kováře dochází (crafts.md – Rovnováha)', () => {
     const s = withWorkshop(fullVillage(), 'smith', 51, { x: 40, z: 30, rotation: 0 }, 70);
     withWorkshop(s, 'burner', 52, { x: 40, z: -30, rotation: 0 }, 80);
-    s.dwellings.find((d) => d.id === 52)!.workshop!.kiln = {
-      site: null,
-      trees: Array.from({ length: 15 }, () => ({ id: null, cost: 2 })),
-      stage: 'draw',
-      prepared: 15,
-      done: 0,
-      charcoalKg: 1800,
-    };
+    s.dwellings.find((d) => d.id === 52)!.workshop!.kilns = [
+      {
+        id: 900,
+        site: { x: 70, z: -30 },
+        trees: Array.from({ length: 15 }, () => ({ id: null, cost: 2 })),
+        stage: 'draw',
+        prepared: 15,
+        done: 0,
+        charcoalKg: 1800,
+      },
+    ];
     // kovář kove (nástroje chybí) – dnes spálí práci ÷ 10 čd × 50 kg uhlí
     s.crafts = { charcoalKg: 0, toolsKg: 0, potteryKg: 0 };
     const forge = smithsForgeCharcoalKg(s, DAY + 1, NO_CRAFTS);
@@ -611,19 +615,23 @@ describe('řemeslníci vyrábějí podle potřeby, volný čas pracují pro ves 
     const short = restingCrafters(s, DAY + 1, NO_CRAFTS);
     expect(short.has(52)).toBe(false);
     expect(short.has(51)).toBe(false);
-    // u kováře stačí na dnešek – vypálený milíř čeká, uhlíř pomáhá vsi
-    s.crafts.charcoalKg = forge;
+    // u kováře zásoba na cestu a rezervu – vypálený milíř čeká, uhlíř pomáhá vsi
+    s.crafts.charcoalKg = forge * 100;
     expect(restingCrafters(s, DAY + 1, NO_CRAFTS).get(52)).toBe('resting');
     // roční spotřeba podle potřeby – s plnou zásobou nástrojů jen na jejich opotřebení
     // (8 pracujících → potřeba 24 kg nástrojů, opotřebení 7,2 kg ročně → 360 kg uhlí)
     s.crafts = { charcoalKg: 0, toolsKg: 31.3, potteryKg: 0 };
     expect(smithsCharcoalPerYear(s, DAY + 1, NO_CRAFTS)).toBeCloseTo(24 * 0.3 * 50, 6);
-    // plná zásoba nástrojů – kovář nekove, uhlí se nenosí
+    // plná zásoba nástrojů – kovář nekove
     s.crafts = { charcoalKg: 0, toolsKg: 1000, potteryKg: 0 };
     expect(smithsForgeCharcoalKg(s, DAY + 1, NO_CRAFTS)).toBe(0);
     const full = restingCrafters(s, DAY + 1, NO_CRAFTS);
     expect(full.get(51)).toBe('resting');
-    expect(full.get(52)).toBe('resting');
+    // kovář si i tak drží zásobu na opotřebení nástrojů (crafts.md – Rovnováha uhlíř – kovář) –
+    // prázdná kovárna dostane dávku, s rezervou uhlíř pomáhá vsi
+    expect(full.has(52)).toBe(false);
+    s.crafts.charcoalKg = 200;
+    expect(restingCrafters(s, DAY + 1, NO_CRAFTS).get(52)).toBe('resting');
   });
 
   it('výsledek nezávisí na kouscích dopočítání', () => {

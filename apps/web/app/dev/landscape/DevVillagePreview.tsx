@@ -316,6 +316,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         oreSites: oreDemo.oreSites,
         orePits: oreDemo.orePits,
         carts: oreDemo.carts,
+        kilns: [...(base.kilns ?? []), ...oreDemo.kilns],
         labor: oreDemo.labor,
       };
     }

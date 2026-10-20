@@ -2,7 +2,7 @@
 // milíř uhlíře, odkud stoupá dým z pece, výhně a milíře a kde v dílně stojí řemeslníci. Souřadnice
 // modelu jako `localToWorld` (x napříč, z k vchodu); modely z tools/blender/crafts.py (tam
 // Blender: x napříč, y podél hřebene s vchodem v −y – ve scéně x → −x, y → −z).
-import { MILIR, milirPosition, type Craft, type KilnStage, type Position } from '@bohemia/game';
+import { MILIR, type Craft, type KilnStage, type Position } from '@bohemia/game';
 import type { CraftKind } from './village-construction';
 import { localToWorld, type HideShape, type Point } from './village-layout';
 
@@ -32,14 +32,14 @@ export const PORCH_FRONT_M = 2.1 + 3.6;
 export const MILIR_SHAPE_M = { radius: 2.3, height: 2.15 } as const;
 
 /**
- * Milíř ve scéně podle fáze z jádra (crafts.md – Milíř stojí vždy) – u dílny i v lese stejně:
+ * Milíř ve scéně podle fáze z jádra (crafts.md – Milíř stojí vždy, Milíř u skácených buků):
  * - `site` – průběh staveniště milíře (`constructionState('milir', …)`): při přípravě dřeva jen
  *   vytyčení a milířiště, při stavbě věnec, polena a kryt až po průduchy; jinak null,
  * - `timber` – velikost hráně polen na staveništi (při přípravě dřeva roste s připravenými buky),
  * - `model` – hotový milíř a jeho měřítko (šířka, výška): pálí se celý, vypálený trochu sesedne
  *   a při rozebírání se zmenšuje podle podílu uhlí, které v něm zbývá; jinak null,
  * - `smoke` – dým jen při pálení, `baskets` – koše na uhlí u rozebíraného milíře.
- * Bez milíře (rozebraný, v lese, nejsou buky) jen ušlapané milířiště.
+ * Bez milíře jen ušlapané milířiště.
  */
 export interface KilnLook {
   site: number | null;
@@ -82,20 +82,20 @@ export function kilnLook(kiln: KilnPhase | null | undefined): KilnLook {
   };
 }
 
-/** Milířiště stavěné spolu se zemnicí uhlíře – vytyčení a srovnaná zem podle průběhu stavby. */
-export function milirGroundProgress(progress: number): number {
-  return KILN_GROUND_END * Math.min(1, Math.max(0, progress));
-}
-
-/** Poloha milíře uhlíře u zemnice (střed a natočení zemnice) – herní jádro, MILIR.offset. */
+/**
+ * Kde milíř stojí vůči kotvě (MILIR.offset – jako dřív kus od zemnice): kotva je „poloha zemnice“,
+ * ke které by milíř patřil (`forestKilnAnchor`); u ukázky dílny s milířem (/dev/buildings) poloha
+ * zemnice.
+ */
 export function milirPlace(position: Position): Position {
-  return milirPosition(position);
+  const [x, z] = localToWorld(position, MILIR.offset.x, MILIR.offset.z);
+  return { x, z, rotation: position.rotation };
 }
 
 /**
- * Milíř v lese (crafts.md – Uhlíř): „poloha zemnice“, ke které by milíř se středem `center` patřil
- * (natočení 0) – funkce milíře (`milirPlace`, `milirCircle`, `craftSpots`, `workshopVents`…)
- * s ní kreslí a rozestavují lesní milíř stejně jako milíř u dílny.
+ * Milíř se středem `center` (crafts.md – Milíř u skácených buků – samostatná stavba u dávky buků):
+ * kotva – „poloha zemnice“, ke které by patřil (natočení 0) – funkce milíře (`milirPlace`,
+ * `milirCircle`, `craftSpots`, `kilnVents`…) s ní kreslí a rozestavují milíř.
  */
 export function forestKilnAnchor(center: { x: number; z: number }): Position {
   return { x: center.x - MILIR.offset.x, z: center.z - MILIR.offset.z, rotation: 0 };
@@ -160,18 +160,21 @@ const PORCH_FIRE_X: Record<Exclude<WorkshopModel, 'uhlir'>, number | null> = {
 
 /**
  * Dým pracující dílny: hrnčířská pec a výheň stojí pod přístřeškem – dým vychází zpod jeho
- * předního okraje; uhlíř topí jen v milíři – dým z komína navrchu kupy; tesař nekouří.
+ * předního okraje; uhlíř topí jen v milíři (samostatná stavba – `kilnVents`); tesař nekouří.
  */
 export function workshopVents(craft: Craft, position: Position): WorkshopVent[] {
   return modelVents(CRAFT_MODEL[craft], position);
 }
 
+/** Dým milíře při pálení – z komína navrchu kupy (kotva milíře – `forestKilnAnchor`). */
+export function kilnVents(anchor: Position): WorkshopVent[] {
+  const c = milirPlace(anchor);
+  return [{ kind: 'milir', x: c.x, z: c.z, y: MILIR_SHAPE_M.height + 0.1 }];
+}
+
 /** Dým dílny podle modelu (`workshopVents` – i pro dílnu, jejíž řemeslo jádro ještě nezná). */
 export function modelVents(model: WorkshopModel, position: Position): WorkshopVent[] {
-  if (model === 'uhlir') {
-    const c = milirPlace(position);
-    return [{ kind: 'milir', x: c.x, z: c.z, y: MILIR_SHAPE_M.height + 0.1 }];
-  }
+  if (model === 'uhlir') return [];
   const lx = PORCH_FIRE_X[model];
   if (lx === null) return [];
   const [x, z] = localToWorld(position, lx, PORCH_FRONT_M + 0.2);

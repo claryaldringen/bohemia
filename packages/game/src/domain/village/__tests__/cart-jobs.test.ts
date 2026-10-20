@@ -82,14 +82,18 @@ function village(day = DAY, home: Position = { x: 0, z: 0, rotation: 0 }): Villa
 function withCharcoal(s: VillageState): VillageState {
   addWorkshop(s, 'burner', BURNER, { x: 40, z: 0, rotation: 0 });
   addWorkshop(s, 'smith', SMITH, { x: 40, z: 40, rotation: 0 });
-  s.dwellings.find((d) => d.id === BURNER)!.workshop!.kiln = {
-    site: null,
-    trees: Array.from({ length: CHARCOAL_KILN.trees }, () => ({ id: null, cost: 2 })),
-    stage: 'draw',
-    prepared: CHARCOAL_KILN.trees,
-    done: 0,
-    charcoalKg: CHARCOAL_KILN.trees * 120,
-  };
+  s.dwellings.find((d) => d.id === BURNER)!.workshop!.kilns = [
+    {
+      id: 990,
+      // milíř u dávky buků kus za zemnicí (crafts.md – Milíř u skácených buků)
+      site: { x: 70, z: 0 },
+      trees: Array.from({ length: CHARCOAL_KILN.trees }, () => ({ id: null, cost: 2 })),
+      stage: 'draw',
+      prepared: CHARCOAL_KILN.trees,
+      done: 0,
+      charcoalKg: CHARCOAL_KILN.trees * 120,
+    },
+  ];
   s.crafts = { charcoalKg: 0, toolsKg: 0, potteryKg: 0 };
   return s;
 }
@@ -131,7 +135,7 @@ describe('uhlí z milíře ke kováři (wagons.md – Co vozy vozí, crafts.md �
   it('vůz, který nesváží, odveze uhlí – jízda k milíři se uloží, posádka u milíře', () => {
     const s = withCharcoal(village());
     const next = advanceVillage(s, DAY + 1, null);
-    const kiln = next.dwellings.find((d) => d.id === BURNER)!.workshop!.kiln!;
+    const kiln = next.dwellings.find((d) => d.id === BURNER)!.workshop!.kilns![0]!;
     expect(kiln.cart).toBeTruthy();
     const haul = hauls(next).find((share) => share.job === 'charcoal');
     expect(haul?.carts).toBe(1);
@@ -381,11 +385,33 @@ describe('voda v sudech (wagons.md – Co vozy vozí, paths.md – Pochůzky pro
     expect(waterCartDrive(t, dry, villageCartDrives(t, DAY, dry, null)!)).toBeNull();
   }, 60_000);
 
-  it('milíř v lese vůz bez pevné cesty nedosáhne, u dílny ano', () => {
+  it('k milíři v lese vůz jen po pevné cestě, na louce ano (crafts.md – Milíř u skácených buků)', () => {
     const s = village();
     const drives = villageCartDrives(s, DAY, LANDSCAPE, null)!;
     expect(kilnCartDrive(s, { x: -135, z: 0 }, drives)).toBeNull();
     expect(kilnCartDrive(s, { x: 40, z: 0 }, drives)).not.toBeNull();
+    // pevná cesta do lesa k milíři – vůz po ní dojede
+    s.roads = {
+      nextId: 2,
+      roads: [
+        {
+          id: 1,
+          points: [
+            { x: -60, z: 0 },
+            { x: -135, z: 0 },
+          ],
+          bornDay: DAY - 400,
+          grade: 'trodden',
+          traffic: [],
+          spots: [],
+        },
+      ],
+      trees: [],
+      candidates: [],
+      labor: { from: DAY - 30, days: 30, shares: [] },
+    };
+    const road = villageCartDrives(s, DAY, LANDSCAPE, null)!;
+    expect(kilnCartDrive(s, { x: -135, z: 0 }, road)).not.toBeNull();
   }, 60_000);
 
   it('ves daleko od vody vozí vodu vozem – jízdy jdou do ročního provozu cest', () => {

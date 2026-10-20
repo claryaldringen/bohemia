@@ -249,8 +249,9 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
     { kind: 'village' },
     allocation.dailyMin - waterCrew + workshops.reduce((sum, w) => sum + w.domestic, 0),
   );
-  // řemeslníci: uhlíř a hrnčíř kácejí u svého stromu, výroba v dílně – uhlíř u milíře, v lese
-  // u lesního milíře, a sází mladé buky na pařezy (crafts.md – Uhlíř)
+  // řemeslníci: uhlíř a hrnčíř kácejí u svého stromu, výroba v dílně – uhlíř u svých milířů
+  // (samostatné stavby u skácených buků – crafts.md, Milíř u skácených buků), a sází mladé buky
+  // na pařezy (crafts.md – Uhlíř)
   for (const w of workshops) {
     const place: LaborTarget = { kind: 'dwelling', id: w.dwellingId };
     add(
@@ -258,10 +259,20 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
       w.fellingTrees.length > 0 ? { kind: 'trees', ids: w.fellingTrees } : place,
       w.felling,
     );
-    const kiln: LaborTarget = w.kilnSite
-      ? { kind: 'kiln', id: w.dwellingId, x: w.kilnSite.x, z: w.kilnSite.z }
-      : place;
-    add('craft', kiln, w.making);
+    if (w.kilns && w.kilns.length > 0) {
+      for (const k of w.kilns) {
+        const target: LaborTarget = {
+          kind: 'kiln',
+          id: w.dwellingId,
+          x: k.x,
+          z: k.z,
+          ...(k.id !== undefined ? { kiln: k.id } : {}),
+        };
+        add('craft', target, k.making);
+      }
+    } else {
+      add('craft', place, w.making);
+    }
     // kovář: kopání rudy na rudišti, nošení uhlí od milíře a rudy z rudiště (crafts.md – Uhlí
     // a ruda kováře) – kdo to dělá (věky); jízda s vozem pro rudu s vozem
     if (w.ore) {
