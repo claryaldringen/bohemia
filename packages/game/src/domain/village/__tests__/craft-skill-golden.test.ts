@@ -64,6 +64,10 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
     const next = advanceVillage(village(), DAY + 730, null);
     expect(next.people.length).toBeGreaterThan(3);
     expect(next.people.some((p) => 'practice' in p)).toBe(false);
-    expect(hash(JSON.stringify(next))).toBe('f0150b51');
+    // příznak převodu dosahů čtyřkoláku (wagons.md – Co se vozí a na čem) – jen značka ve stavu
+    const stripped = JSON.stringify(next, (key, value: unknown) =>
+      key === 'fourWheelOffRoad' ? undefined : value,
+    );
+    expect(hash(stripped)).toBe('f0150b51');
   }, 120_000);
 });

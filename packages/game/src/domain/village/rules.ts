@@ -317,12 +317,6 @@ export const CART_ROUTES = {
   widthM: 2.5,
   turnSteps: { 'two-wheel': 2, 'four-wheel': 1 },
   turnCost: 1.5,
-  /**
-   * Čtyřkolák jezdí jen po pevných cestách (wagons.md – Co se vozí a na čem, Martin 20. 10. 2026:
-   * „Ano, udělej to jak říkáš“) – mimo ně jen kolem ohrady volů, odkud vyjíždí, do tolika m (cesta
-   * k nejbližší pevné cestě; návrh Clauda).
-   */
-  fourWheelOffRoadM: 40,
   /** Hledání končí za takovou cenou (m chůze volů po louce) – dál vůz nevozí. */
   maxCost: 4000,
 } as const;

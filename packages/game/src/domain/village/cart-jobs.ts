@@ -37,9 +37,8 @@ function cm(value: number): number {
 
 /**
  * Jízdy vozů vsi (wagons.md – Co vozy vozí): s krajinou trasy vozu druhu `kind` vozovou sítí
- * (`villageCartRoutes` – cena v m po louce, konec trasy; čtyřkolák jen po pevných cestách), bez
- * krajiny (testy, kalibrace) dvoukolák vzdušnou čarou od ohrady ke kraji cíle a čtyřkolák nikam
- * (cesty nejsou). Bez ohrady se spřežením null.
+ * (`villageCartRoutes` – cena v m po louce, konec trasy; čtyřkolák po louce a strništi, na zoraný díl ne), bez
+ * krajiny (testy, kalibrace) dvoukolák vzdušnou čarou od ohrady ke kraji cíle a čtyřkolák nikam. Bez ohrady se spřežením null.
  */
 export function villageCartDrives(
   state: VillageState,

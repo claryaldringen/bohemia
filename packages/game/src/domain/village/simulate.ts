@@ -36,6 +36,7 @@ import {
   type CartAccess,
   type CartFleet,
   type HaulPlan,
+  withFourWheelReach,
 } from './carts';
 import { addCartDemand, nextPloughPairs, type CartDemandToday } from './draft';
 import {
@@ -330,6 +331,8 @@ export function* advanceVillageSteps(
   const next = cloneState(
     withCraftSkill(withOxen(withPenSpecies(withoutForeignGoods(withKinship(state))))),
   );
+  // dosahy čtyřkoláku z doby „jen po pevných cestách“ se spočítají znovu (wagons.md)
+  withFourWheelReach(next);
   // vymřelá, opuštěná a ves na cestě se nesimulují – jen se posune den (migration.md)
   for (let day = next.lastDay + 1; day <= toDay && !isVillageDormant(next); day++) {
     simulateDay(next, day, obstacles, landscape);
@@ -491,7 +494,10 @@ function planYear(
   // se, jen když potřeba trvá dva roky (`nextPloughPairs`)
   if (oxPens(state).length > 0) {
     const need = wantedPloughPairsOf(state, day, coverage, landscape, blocks, choice);
-    state.draft = { ...state.draft, ...nextPloughPairs(state, need) };
+    state.draft = {
+      ...(state.draft ?? { fourWheelOffRoad: true }),
+      ...nextPloughPairs(state, need),
+    };
   }
   // nouzový osev (fields.md – Přílohová soustava, Nouzový osev): když díly od 70 % nedají energii,
   // kterou ves potřebuje sklidit, vezme i přílohy 40–70 % – za ostatními díly, jen s kladnou
@@ -887,8 +893,8 @@ function work(
   const fleet = cartFleetToday(state, day, ploughing);
   // dosah vozů má ves s hotovou ohradou volů i bez vozů – měří, co by dnes vozy ušetřily
   // (wagons.md – Kolik vozů ves chce): nošení, které dnes opravdu proběhlo, a jízdy pro uhlí, rudu
-  // a vodu; čtyřkolák jen po pevných cestách (wagons.md – Co se vozí a na čem) – bez krajiny
-  // (kalibrace) cesty nejsou
+  // a vodu; čtyřkolák po louce a strništi, na zoraný díl ne (wagons.md – Co se vozí a na čem) –
+  // bez krajiny (kalibrace) nikam
   const access = villageCartAccess(state, day, landscape, obstacles);
   const roadAccess =
     access && landscape ? villageCartAccess(state, day, landscape, obstacles, 'four-wheel') : null;
@@ -1047,7 +1053,7 @@ function work(
             : state.hay?.mowing;
         if (owner) {
           owner.hauled = (owner.hauled ?? 0) + hauled;
-          // jízdy do ročního provozu cest po druzích vozů (čtyřkolák podél cest)
+          // jízdy do ročního provozu cest po druzích vozů
           const four = haul.work > 1e-9 ? (haul.fourWork ?? 0) / haul.work : 0;
           if (owner.cartReach4 && four > 0) {
             addHaulTrips(state, owner.cartReach4, hauled * four, 'four-wheel');
@@ -1470,7 +1476,7 @@ function woodworkToday(state: VillageState, day: number, common: number): number
 }
 
 /**
- * Podíl práce úlohy, kam dojede čtyřkolák (jen po pevných cestách), z té, kam dojede dvoukolák
+ * Podíl práce úlohy, kam dojede čtyřkolák (ne na zoraný díl, širší oblouk), z té, kam dojede dvoukolák
  * (0–1; wagons.md – Co se vozí a na čem).
  */
 function roadShare(
@@ -1555,8 +1561,8 @@ interface LogHaul {
 
 /**
  * Stavby, na které dnes vozy můžou vozit klády (wagons.md – Vůz): CARTS.haulShare.logs
- * zbývajícího kácení a dovozu u stromů, ke kterým vůz dojede, v pořadí staveb; čtyřkolák jen
- * k stromům u pevných cest (`access4` – klády dlouhé, výhodnější čtyřkolákem). Dosah se spočítá
+ * zbývajícího kácení a dovozu u stromů, ke kterým vůz dojede, v pořadí staveb; čtyřkolák ke
+ * stromům, ke kterým dojede (`access4` – klády dlouhé, výhodnější čtyřkolákem). Dosah se spočítá
  * jednou za stavbu, při prvním svozu klád (mutuje – `ConstructionWood.cartReach`, `cartReach4`).
  */
 function logHaulCandidates(
@@ -1807,7 +1813,7 @@ function planCartJobs(
       takeCart(fleet, 'two-wheel', two - left);
       used += two - left;
     } else {
-      // voda – ten druh vozů, který ušetří víc (čtyřkolák jen k břehu u pevné cesty)
+      // voda – ten druh vozů, který ušetří víc
       const plans: WaterCartPlan[] = [];
       for (const kind of CART_KINDS) {
         const carts = fleetCarts(fleet, kind);
@@ -1906,7 +1912,7 @@ interface CarriedToday {
   other: number;
 }
 
-/** Nošení `carried` čd, z něj podíl `road` podél cest. */
+/** Nošení `carried` čd, z něj podíl `road`, kam dojede i čtyřkolák. */
 function carried(carried: number, road: number): CarriedToday {
   if (carried <= 1e-9) return { road: 0, other: 0 };
   const r = carried * Math.max(0, Math.min(1, road));
@@ -1997,7 +2003,7 @@ function reachableFelling(
 /**
  * Klády, které se dnes u stromů, kam vůz dojede, skácely a odvezly (wagons.md – Kolik vozů ves
  * chce): CARTS.haulShare.logs dnešního kácení a dovozu (`before` – co u staveb zbývalo ráno,
- * `reachableFelling`), z toho u stromů podél cest (čtyřkolák).
+ * `reachableFelling`), z toho u stromů, ke kterým dojede i čtyřkolák.
  */
 function logsDemand(
   before: ReadonlyMap<Construction, { remaining: number; road: number }>,

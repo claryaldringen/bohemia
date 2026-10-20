@@ -86,7 +86,8 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
     // učení řemesla (crafts.md – Učení řemesla, Starší vsi): dnešní řemeslníci jsou vyučení – jen
     // přibude praxe u lidí a příznak u dílen, simulace jde bit po bitu jako dřív
     expect(next.people.find((p) => p.id === 100)?.practice).toEqual({ burner: 5 });
-    const learning = new Set(['practice', 'skillTracked']);
+    // příznak převodu dosahů čtyřkoláku (wagons.md – Co se vozí a na čem) – jen značka ve stavu
+    const learning = new Set(['practice', 'skillTracked', 'fourWheelOffRoad']);
     const stripped = JSON.stringify(next, (key, value: unknown) =>
       learning.has(key) ? undefined : value,
     );

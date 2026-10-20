@@ -16,6 +16,7 @@ import {
 } from '../draft';
 import { breedingCows, oxenCalvesWanted } from '../husbandry';
 import { LIVESTOCK } from '../livestock';
+import { withFourWheelReach } from '../carts';
 import { advanceVillage } from '../simulate';
 import { summarizeVillage } from '../summary';
 import { fourWheelSavings } from '../trade';
@@ -321,5 +322,31 @@ describe('voli se nevejdou do ohrady', () => {
     roomy.draft = s.draft;
     expect(oxenOverRoom(roomy)).toBe(false);
     expect(cartTargets(roomy)).toEqual({ 'two-wheel': 8, 'four-wheel': 0 });
+  });
+});
+
+describe('čtyřkolák po louce a strništi – převod uložených dosahů (wagons.md – Co se vozí a na čem)', () => {
+  it('dosahy čtyřkoláku z doby „jen po pevných cestách“ se jednou zahodí, nové zůstanou', () => {
+    const s = foundVillage({ seed: 5, day: DAY, dwellingPosition: { x: 0, z: 0, rotation: 0 } });
+    const reach = { share: 0.04, points: [] };
+    const old = {
+      ...s,
+      draft: { ploughPairs: 1 },
+      waterCart4: { key: 'k', drive: null },
+      hay: { kg: 0, mowing: null },
+      constructions: [
+        { ...s.constructions[0]!, wood: { fell: [], cartReach4: { trees: [], points: [] } } },
+      ],
+      plan: { cartReach: reach, cartReach4: reach },
+    } as unknown as VillageState;
+    withFourWheelReach(old);
+    expect('waterCart4' in old).toBe(false);
+    expect(JSON.stringify(old)).not.toContain('cartReach4');
+    expect(JSON.stringify(old)).toContain('cartReach');
+    expect(old.draft!.fourWheelOffRoad).toBe(true);
+    // podruhé nic – dosahy spočítané po převodu zůstanou
+    (old as unknown as { waterCart4: unknown }).waterCart4 = { key: 'k', drive: null };
+    withFourWheelReach(old);
+    expect('waterCart4' in old).toBe(true);
   });
 });

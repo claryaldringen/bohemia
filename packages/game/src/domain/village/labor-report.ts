@@ -66,7 +66,7 @@ export interface HaulWork {
   job: 'harvest' | 'mow' | 'logs' | 'charcoal' | 'ore' | 'clay' | 'seed' | 'water' | 'apples';
   manDays: number;
   carts: number;
-  /** Z vozů čtyřkoláky (svoz podél cest); chybí = žádný. */
+  /** Z vozů čtyřkoláky; chybí = žádný. */
   four?: number;
   trees?: number[];
   target?: LaborTarget;

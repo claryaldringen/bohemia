@@ -239,7 +239,8 @@ function emptyDemand(day: number): CartDemand {
 
 /** Rok vozů, který běží (mutuje stav – bez něj začne dnes). */
 function runningDemand(state: VillageState, day: number): CartDemand {
-  const draft: DraftState = (state.draft ??= {});
+  // nový rok vozů už počítá čtyřkolák po louce a strništi (`withFourWheelReach`)
+  const draft: DraftState = (state.draft ??= { fourWheelOffRoad: true });
   return (draft.demand ??= emptyDemand(day));
 }
 
@@ -254,9 +255,9 @@ function cents(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-/** Co by dnes vozy ušetřily (`addCartDemand`): nošení podél cest a jinam a jízdy dvoukoláku. */
+/** Co by dnes vozy ušetřily (`addCartDemand`): nošení, kam dojede i čtyřkolák, a jinam a jízdy dvoukoláku. */
 export interface CartDemandToday {
-  /** Nošení (čd), kam dojede i čtyřkolák – podél pevných cest. */
+  /** Nošení (čd), kam dojede i čtyřkolák. */
   road: number;
   /** Nošení (čd), kam dojede jen dvoukolák. */
   other: number;
@@ -303,7 +304,7 @@ export function addExpeditionDemand(
 }
 
 /**
- * Úspora vozů za den (čd): čtyřkoláky (`four`) napřed na nošení podél cest (za den odvezou
+ * Úspora vozů za den (čd): čtyřkoláky (`four`) napřed na nošení, kam dojedou (za den odvezou
  * dvakrát víc se stejnou posádkou), dvoukoláky (`two`) na zbytek nošení po plných nákladech
  * a na jízdy pro uhlí, rudu, hlínu a vodu – od největší úspory (jako skutečné vozy – `fleetHaulPlan`).
  */

@@ -165,7 +165,7 @@ describe('kudy vůz projede', () => {
     expect(route({ roads: [{ id: 1, points: edge, grade: 'trodden' }] }, into).reached).toBe(false);
   });
 
-  it('čtyřkolák jen po pevných cestách a kolem ohrady volů (wagons.md – Co se vozí a na čem)', () => {
+  it('čtyřkolák po louce a strništi kamkoli, na zoraný díl ne (wagons.md – Co se vozí a na čem)', () => {
     const four = (extra: Partial<PathVillage>, target: { x: number; z: number }): CartRoute =>
       cartRoutes({
         village: village(extra),
@@ -173,21 +173,22 @@ describe('kudy vůz projede', () => {
         kind: 'four-wheel',
         depots: [{ x: 0, z: 0 }],
         targets: [{ ...target, reachM: 4 }],
-        roadsOnly: true,
+        fourWheel: true,
       }).routes[0]!;
-    const far = { x: 60, z: 0 };
-    // dvoukolák jede loukou, čtyřkolák bez cesty jen do 40 m od ohrady
+    // Martin: „Po strništích a loukách může libovolně“ – daleko od ohrady i bez cesty
+    const far = { x: 60, z: 40 };
     expect(route({}, far).reached).toBe(true);
-    expect(four({}, far).reached).toBe(false);
-    expect(four({}, { x: 30, z: 0 }).reached).toBe(true);
-    const axis = [
-      { x: 0, z: 0 },
-      { x: 70, z: 0 },
+    expect(four({}, far).reached).toBe(true);
+    // přes strniště (připravený díl) rovně, zoraný (zakládaný) díl objede – dvoukolák přes něj
+    const fields = (stage: 'ready' | 'founding'): PathVillage['fields'] => [
+      { id: 2, parts: [-15, 0, 15].map((x) => part(x, 52.5, stage)) },
     ];
-    const road = { roads: [{ id: 1, points: axis, grade: 'trodden' as const }] };
-    expect(four(road, far).reached).toBe(true);
-    // stranou od cesty ne
-    expect(four(road, { x: 60, z: 25 }).reached).toBe(false);
+    const behind = { x: 0, z: 70 };
+    const stubble = four({ fields: fields('ready') }, behind);
+    const ploughed = four({ fields: fields('founding') }, behind);
+    expect(stubble.reached && ploughed.reached).toBe(true);
+    expect(ploughed.lengthM).toBeGreaterThan(stubble.lengthM + 10);
+    expect(route({ fields: fields('founding') }, behind).lengthM).toBeLessThan(ploughed.lengthM);
   });
 
   it('přes vodu bez brodu ani po cestě s lávkou (lávka je jen pro pěší)', () => {

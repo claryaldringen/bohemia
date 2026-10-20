@@ -2726,7 +2726,7 @@ function sceneCarts(
   const idleFour = idleOf('four-wheel');
   for (const share of laborReport(state)?.shares ?? []) {
     if (share.activity !== 'haul') continue;
-    // čtyřkoláky svozu podél cest (wagons.md – Co se vozí a na čem), zbytek dvoukoláky
+    // čtyřkoláky svozu (wagons.md – Co se vozí a na čem), zbytek dvoukoláky
     const four = idleFour.splice(0, share.fourWheel ?? 0);
     const two = idle.splice(0, Math.max(0, (share.carts ?? 1) - four.length));
     for (const cart of [...four, ...two]) {
@@ -2828,9 +2828,9 @@ function cartRouteToday(
     ])?.[0];
     return route?.reached && route.points.length >= 2 ? route.points : null;
   };
-  // čtyřkolák jezdí jen po pevných cestách (wagons.md – Co se vozí a na čem): na místo, kam
-  // nedojede, jede k bodu svozu nejblíž těžišti, ke kterému dojede (jádro mu dává jen nošení
-  // podél cest)
+  // čtyřkolák nedojede všude (zoraný díl, širší oblouk – wagons.md, Co se vozí a na čem): na
+  // místo, kam nedojede, jede k bodu svozu nejblíž těžišti, ke kterému dojede (jádro mu dává jen
+  // nošení, kam dojede)
   const routeToAny = (
     reachState: VillageState,
     goals: readonly { x: number; z: number }[],
