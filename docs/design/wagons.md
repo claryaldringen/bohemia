@@ -209,6 +209,78 @@ posádkou. Ves vybere levnější vůz pro každou práci.
 
 **Hnůj a palivové dříví se nevozí** (hnůj bude samostatná mechanika později).
 
+## Kování vozů
+
+Martin (20. 10. 2026): „Ano. A taky přidej tedy pravidlo, že vozy mají železnou složku. Pokud
+vesnice nemá kováře, musí tesař (nebo jeho syn, pokud ho má) dojít do nejbližší vesnice, kde
+kovář je“
+
+K návrhu, že cesta bude vidět jako karavana: „Ano, pokud to bude jen jedna postava, je to
+v pořádku.“
+
+Podrobnosti jsou návrh Clauda (čísla `CART_IRON` v `rules.ts`, modul `cart-iron.ts`).
+
+- **Kolik:** vůz má kování – osy, hřeby, obruče a kování nábojů: **dvoukolák 3 kg, čtyřkolák
+  6 kg**. Kování jsou výrobky kováře a berou se **ze zásoby nástrojů** (`crafts.toolsKg`) – žádná
+  nová zásoba: kování je železo od kováře jako nástroje (stejná práce, uhlí a ruda na kg), Martin
+  nechce nové suroviny („Nech jen společné suroviny, nezaváděj nové.“ – trade.md) a nákup
+  u sousedů i obchod nástroje už znají. 3 kg ze zásoby ≈ 50 kg pokrytí nástroji skoro nezmění.
+- **Vůz se bez kování nedokončí.** Tesař vůz rozdělá; s hotovou dřevěnou prací vůz čeká na kování
+  a tesař mezitím dělá dřevěné nářadí (nebo, má-li ho dost, pracuje se vsí). Kování přidá večer
+  krok dne `cartIronDay` – vůz je pak hotový (kronika `cart-made`).
+- **Ves s kovářem:** kování z jeho zásoby nástrojů. Když chybí, kovář ho vyrobí **přednostně jako
+  zakázku** – kove nad zásobu do potřeby vsi, dokud vůz čeká (`smithToolsTarget` = zásoba do
+  potřeby + kování čekajících vozů; i uhlíř podle toho nosí uhlí). „Ves s kovářem“ = obývaná
+  kovárna, která má kde kopat rudu a odkud brát uhlí (bez uhlí jen s uhlířem ve vsi).
+- **Ves bez kováře:** syn tesaře **od 14 let** (nejstarší), jinak tesař sám, dojde do **nejbližší
+  vsi s kovářem** a přinese kování:
+  - **druhá ves hráče na téže mapě** – obývané kovárny jiných vsí mapy jsou v přehledu sousedních
+    vsí (`NeighbourSnapshot.smithies`, se jménem vsi); jde se krajinou rovně ke kovárně, celou cestu
+    je vidět. Dny tam a zpět jako nákup u sousedů krajinou (vzdálenost × 1,5, dny jako výprava) bez
+    dne za krajem mapy (2–6 dní),
+  - **soused za krajem mapy** s kovářem (`neighbourCrafts` – u sousedů řemeslníků jistě) – po hotové
+    zemské stezce, nebo krajinou ke kraji mapy od dílny tesaře (`purchaseRoute`).
+
+  Vybere se nejméně dní cesty; při shodě ves na téže mapě. **Platba obilím** jako nákup nástrojů
+  u souseda (`productPrice` – 0,96 hodnoty; 3 kg ≈ 173 kg obilí, 6 kg ≈ 346 kg) – ves zaplatí
+  ze zásob hned při odchodu, ale jen když nešetří jídlem (výhled jídla do sklizně vychází); jinak
+  vůz čeká. Druhá ves hráče se platbou nemění (vsi se simulují každá zvlášť). Kdo jde, **chybí
+  v práci dílny** (i ve vsi, když tesař s domácností pracuje se vsí) a praxi ten den nezíská.
+  Kdo cestou zemře nebo odejde, kování nepřinese – vůz čeká a jde jiný.
+
+- **Kronika a upozornění:** „Tesař šel pro kování k vozu do vsi Lhota (sever)“ (u syna „Syn tesaře
+  šel…“, u vsi na téže mapě bez směru), po návratu „Tesař přinesl kování“ – a vůz je hotový.
+- **Ve scéně jen jedna postava** (tesař nebo syn – pohlaví a věk z jádra) jako karavana nákupu
+  u sousedů bez nosičů: od dílny po zemské stezce, nebo krajinou rovně k okraji mapy (za okrajem
+  zmizí), nebo do druhé vsi ke kovárně a zpět (`sceneExpeditions` – `ironCaravan`).
+- **Panel dílny tesaře:** „Čeká na kování k vozu (3 kg)“ (červeně), nebo „Syn tesaře (15 let) jde
+  pro kování k vozu do vsi Lhota (sever) – zpět za 3 dny“ (šipka směru a dny); vůz, který čeká na
+  kování, se v činnosti dílny neukazuje jako vyráběný.
+
+### Vlkov – kování vozů
+
+Vlkov má kováře (zásoba nástrojů ≈ 50 kg) – za dva roky simulace dostal nový dvoukolák kování ze
+zásoby a kovář ho hned dokoval (nástroje 76,6 kg proti 76,7 kg bez pravidla). Sondy od 7. 1. 801,
+kdy ves chce dvoukolák a žádný nemá:
+
+- **bez kováře** (kovárna zrušená): tesař (bez syna od 14 let) odešel 15. 2. 801 po zemské stezce
+  na východ do vsi Olšany (5 dní), zaplatil 173 kg obilí a 20. 2. vůz dokončil,
+- **s kovářem a bez nástrojů** (zásoba 1 kg): kovář kování vykoval jako zakázku a vůz byl hotový 14. 2. 801, nikdo nikam nešel.
+
+### Rozhodnutí – kování vozů
+
+| Rozhodnutí                                                                                        | Kdo                   |
+| ------------------------------------------------------------------------------------------------- | --------------------- |
+| Vozy mají železnou složku; ves bez kováře pošle tesaře (nebo syna) do nejbližší vsi s kovářem     | Martin (20. 10. 2026) |
+| Cesta je vidět jako karavana – jen jedna postava                                                  | Martin (20. 10. 2026) |
+| Dvoukolák 3 kg, čtyřkolák 6 kg kování                                                             | návrh Clauda          |
+| Kování ze zásoby nástrojů (žádná nová zásoba)                                                     | rozhodnutí Clauda     |
+| Vůz bez kování čeká, tesař dělá nářadí; kovář kování vyrobí přednostně jako zakázku               | návrh Clauda          |
+| Jde syn tesaře od 14 let, jinak tesař; nejbližší ves s kovářem podle dní cesty, při shodě na mapě | návrh Clauda          |
+| Cesta a platba obilím jako nákup u sousedů; platí ze zásob jen ves, která nešetří jídlem          | rozhodnutí Clauda     |
+| Ves s kovářem = kovárna má rudiště a uhlí (bez uhlí jen s uhlířem ve vsi)                         | rozhodnutí Clauda     |
+| Druhá ves hráče se platbou nemění (vsi se simulují zvlášť)                                        | rozhodnutí Clauda     |
+
 ## Vozová síť a vyjeté cesty
 
 - **Vlastní cena terénu pro vůz** (Martin): vůz nevyjede prudký svah. Rozhoduje **sklon ve
@@ -239,7 +311,9 @@ posádkou. Ves vybere levnější vůz pro každou práci.
 
 ## Co hráč vidí
 
-- V mřížce staveb **Tesař** (dílna), v panelu dílny zásoba vozů a nářadí a pokrytí staveb.
+- V mřížce staveb **Tesař** (dílna), v panelu dílny zásoba vozů a nářadí, pokrytí staveb,
+  kování k vozu (čeká, nebo kdo pro ně jde a kdy se vrátí – Kování vozů) a zkušenost tesaře
+  (crafts.md – Učení řemesla).
 - V horní liště ikona **vozů** s počtem (jen když jsou) a dřevěného nářadí (jako nástroje).
 - Ve scéně vozy s voly a honákem jezdí po vozových cestách – svoz sena, snopů, klád, výprava
   k sousedovi; prázdný vůz stojí u ohrady. Vyjeté cesty mají koleje.
