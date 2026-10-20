@@ -695,6 +695,15 @@ rozhraní částí v
   násobí úmrtnost, hájení chrání. Je jen vnitřní – **nikdy ji neukazovat hráči** (Martin), panel
   ukáže jen místa na hroby (obsazená / všechna, v bublině pohřbení) a na kolik let
   (`CemeterySummary.yearsLeft` z úmrtí v kronice).
+  **Pohřeb ve scéně** (cemetery.md – Pohřeb ve scéně; Martin 20. 10. 2026: „Když je pohřeb, chtěl
+  bych vidět průvod lidí na hřbitov a pak na hřbitově hranici.“ – jen zobrazení): mohyla nese
+  domácnost zemřelého `GraveMound.from` (zapíše `bury`); `lib/funeral-view.ts` →
+  `SceneVillage.funerals` (posledních 7 dnů, lidé za márami `funeralMourners`); scéna
+  `funeral-plan.ts` (čisté funkce času z okna dne pohřbu – průvod skutečnou chůzí po pěšinách
+  k brance, hranice hoří do konce dne, herní den doutná, mohyla až po vychladnutí –
+  `withoutHiddenMounds`), plány `planFunerals` ve `villager-plan.ts` → `onFunerals` →
+  `funeral-renderer.ts` (máry, hranice a zbytky z `tools/blender/funeral.py`, oheň `pyre-fire.ts`,
+  dým `PYRE_PLUME`). Ukázka **Pohřeb** na `/dev/landscape`.
 - **Sad** (`orchard.ts`, orchard.md): staví se po čtvercích jako pole (`orchardPartsFromCells`,
   sad a hřbitov se nepřekrývají, na pole sad smí – Pole jako krajina, obydlí do sadu smí –
   Obydlí na poli a v sadu). Výsadba je
@@ -1774,6 +1783,9 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   se jen v záběru (`WATER_FPS`), při omezeném pohybu stojí. Ve vývojovém náhledu tlačítko
   **Lidé** (ukázkové rozdělení práce podle měsíce – `app/dev/landscape/dev-labor.ts`, i lidé po
   obydlích pro provoz na cestách).
+  **Pohřeb** (villagers.md – Pohřeb): průvod s márami a kruh kolem hranice jsou postavy s klíčem
+  `funeral:` z `funeral-plan.ts` (`funeralFigures` ve `villager-plan.ts`) – jdou mimo rozpočet
+  `MAX_WORKERS`, ve dnech obřadu se o ně sníží počet pracujících postav (`funeralActiveIn`).
   **Provoz na cestách** (villagers.md – Provoz na cestách; Martin 19. 10. 2026: „Chci vidět
   vesničany, jak chodí pro vodu nebo na pole.“): `road-traffic.ts` (čisté funkce) – proud lidí
   pro vodu (`waterTrips` – `WATER_FETCHING.tripsPerPerson` × lidé z `SceneLabor.homes`, bez vody
