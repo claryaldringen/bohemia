@@ -143,7 +143,7 @@ název). Pravidla a rozhodnutí jsou v `docs/design/`.
   se převedou při načtení (`updateVillage` / začátek `advanceVillage`) jednou a idempotentně.
 - **Determinismus:** pevné pořadí kroků dne (`simulate.ts`), náhoda ze seedu vsi a dne – výsledek
   nezávisí na tom, po jakých kouscích se ves dopočítá.
-- **Čísla pravidel jen v `rules.ts`** s odkazem na sekci návrhu; změna čísla = i text v návrhu.
+- **Čísla pravidel jen v `rules*.ts`** s odkazem na sekci návrhu; změna čísla = i text v návrhu.
   Meze produktivity jsou dvojice `{ worst, best }` (řemeslníci posouvají k `best`) – v textech
   nepsat „horní / dolní mez“.
 - **Hráč staví kdy chce** – zablokovat smí jen cena předem (`BUILD_COSTS`). **Vesničané sami

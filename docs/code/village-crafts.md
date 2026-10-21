@@ -77,7 +77,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 - **Uhlí a ruda kováře** ([crafts.md](../design/crafts.md) – Uhlí a ruda kováře;
   Martin 20. 10. 2026: „Pokud má dostatečně starého syna nebo syny, pošle pro uhlí jeho/je. Taky
   musí někam chodit kopat rudu. To místo, kde kope rudu, chci na mapě vidět.“; čísla
-  `SMITH_SUPPLY` v `rules.ts`, rešerše `research/2026-10-20-bog-ore.md` – většinou odhad): `smith-supply.ts`.
+  `SMITH_SUPPLY` v `rules*.ts`, rešerše `research/2026-10-20-bog-ore.md` – většinou odhad): `smith-supply.ts`.
   Uhlí, které uhlíř vytahá (`burnerDraws`), nese do nejbližší kovárny (`charcoalDeliveries`,
   chůze `CharcoalKiln.carry` po pevných cestách s půdou) kovářova domácnost v koších po 15 kg
   (`basketManDaysPerKg`): napřed synové 10–13 let (`charcoalYoungsters`, 40 % práce dospělého – ten
@@ -114,7 +114,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `icons/build/hliniste.png` (`icons.py hliniste`), `/dev/panels?panel=hliniste`.
 
 - **Hlína hrnčíře** ([crafts.md](../design/crafts.md) – Hlína hrnčíře; Martin 20. 10. 2026:
-  „Ano, udělej to jak říkáš“ – wagons.md, Co se vozí a na čem; čísla `CLAY` v `rules.ts`, návrh
+  „Ano, udělej to jak říkáš“ – wagons.md, Co se vozí a na čem; čísla `CLAY` v `rules*.ts`, návrh
   Clauda): jako ruda kováře – jedna funkce `workDug` (`DugMaterial` `ore` / `clay`: zásoba, místo,
   dávka, kopání a koše po surovinách; `workOre` je obal) a `chooseDugSite` (hliniště i rudiště aspoň
   20 m od míst, kde kopou jiné dílny). Hrnčíř `workPotter` (crafts.ts): 1,5 kg hlíny na kg
@@ -131,7 +131,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 
 - **Nákup u sousedů** ([crafts.md](../design/crafts.md) – Nákup u sousedů, Martin 19. 10. 2026:
   „Nástroje ať vesničané obchodují individuálně… Sami si spočítají, jestli se jim to vyplatí.“;
-  čísla `CRAFT_BUYING` v `rules.ts`, rešerše `research/2026-10-19-craft-buying.md`):
+  čísla `CRAFT_BUYING` v `rules*.ts`, rešerše `research/2026-10-19-craft-buying.md`):
   `craft-buying.ts`. Sousedé mají řemeslníky podle druhu (`neighbourCrafts` – řemeslníci kováře,
   hrnčíře i tesaře jistě, ostatní s pravděpodobností). Ves se rozhoduje sama 15. 11.
   (`startPurchases` na začátku dne – `planPurchases`): u výrobku bez vlastního pracujícího
@@ -173,7 +173,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 
 - **Tesař a vozy** ([wagons.md](../design/wagons.md) – fáze 1, Martin 19. 10. 2026; čísla
   `CARPENTRY`, `WOODWORK_LABOR`, `CARPENTER_TOOLS_WORK`, `WOOD_TOOLS`, `WOOD_TOOLS_LABOR`, `CARTS`,
-  `CART_ACCESS` v `rules.ts`, rešerše `research/2026-10-19-carts-carpentry.md`): řemeslo
+  `CART_ACCESS` v `rules*.ts`, rešerše `research/2026-10-19-carts-carpentry.md`): řemeslo
   `carpenter` (polozemnice + přístřešek, [T], ikona `tesar`) – `carpentry.ts`. Krok práce
   (`simulate.ts`): `restingCarpenters` (odpočívá jen bez výroby i bez stavby s dřevěnou prací),
   `carpentryHelp` před stavbami (čd tesaře vede `crew` čd dřevěné práce dne – `woodworkToday`
@@ -208,7 +208,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 
 - **Co vozy vozí** ([wagons.md](../design/wagons.md) – Co vozy vozí; Martin 19. 10. 2026:
   „Pokud budou mít k dispozici vůz, ať na pole, pro vodu nebo pro dřevěné uhlí jede vůz.“;
-  čísla `CART_JOBS` v `rules.ts`, návrh Clauda): `cart-jobs.ts` + `planCartJobs` v `simulate.ts`.
+  čísla `CART_JOBS` v `rules*.ts`, návrh Clauda): `cart-jobs.ts` + `planCartJobs` v `simulate.ts`.
   Dvoukolák, který dnes nesváží úrodu ani seno (`planTaskHauls`) a nevozí klády (ty mají přednost
   – `logHaulCandidates` / `logHaulPlan` před rozdělením práce, `haulLogs` po něm), jede v pořadí
   `CART_JOBS.order` – ne když voli orají ani orbu navíc (`extraSowingWantsTeam`): **uhlí** – kam
