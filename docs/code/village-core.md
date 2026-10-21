@@ -145,7 +145,7 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   s navrženým jménem (`suggestVillageName`). Pole není podmínkou. Zemnici si osadníci teprve
   postaví (stavba s `dwellingId` = id jejich domácnosti; do dostavění bydlí na staveništi, pak
   se nastěhují – `finishConstructions`). Domácnost = `Person.dwellingId`, i když obydlí ještě
-  nestojí (`householdCount` v `simulate.ts`, porody po domácnostech). Starší uložené vsi se
+  nestojí (`householdCount` v `simulate-plan.ts`, porody po domácnostech). Starší uložené vsi se
   zemnicí od založení se dopočítají beze změny.
 
 - **Les a dřevo** ([forest.md](../design/forest.md), `domain/village/wood.ts`): klády na hromadě

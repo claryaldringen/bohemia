@@ -45,7 +45,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (průměr, variační koeficient, změna z roku na rok). Volná práce plánu (`sowingCapacity`) je po
   denním minimu dospělých (`adultDailyMin` – zvířata a domácí výroba bokem). Výhled jídla do sklizně (`eatDiet`) počítá s mlékem stád do sklizně
   (`milkAheadEnergy` z `milkEnergyBetween`) a celou zásobou sýra.
-  Polní úlohy obou plodin řadí `fieldTasks` v `simulate.ts`
+  Polní úlohy obou plodin řadí `fieldTasks` v `simulate-work.ts`
   (konec okna, ozim před jaří); `allocateDay` vrací i `taskAmounts` po úlohách vstupu (stejný
   název víckrát). Sklizeň ozimu 31. 7. (`harvestWinter`), jaře 31. 8. – do snopů, výmlat hned
   po žni (Snopy a výmlat níž); příděl počítá do sklizně
