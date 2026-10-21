@@ -154,7 +154,7 @@ Beze změny (milíř u buků – crafts.md); nošení uhlí ke kováři je dnes 
   ztráta, bez omezení místa. Humno ušetří práci i zrno; přebytek nad kapacitu humna se mlátí nouzově vždy, takže ves s humnem není na tom hůř než ves bez něj (upozornění „Humno nestačí – část se mlátí nouzově“ jen informuje). Snopy se kazí (10 % za měsíc – klasy se
   neskladovaly) jen tehdy, když čekají a nemlátí se (výmlat nestihl okno).
 - **Postup:** snopy se nosí nebo vezou z pole na humno (dnes nosiči a vozy – jen cíl humno),
-  mlátí se cepy, pak se zrno **prohazuje lopatami** proti větru (odvívání plev), sláma na stoh.
+  mlátí se **holemi** – cepy se tehdy k mlácení nepoužívaly (Martin, 21. 10. 2026: „i když cepy se tehdy k mlácení nepoužívaly. Až budou vesničané obilí skutečně mlátit, ať do něj mlátí holemi“; ikona humna cepy zatím nese, Martin ji tak nechal) –, pak se zrno **prohazuje lopatami** proti větru (odvívání plev), sláma na stoh.
   Výmlat je dnes úloha `thresh` – práce se nemění, jen místo (humno) a vidět je celý postup.
 - **Kapacita** (návrh Clauda, rešerše – Výmlat na humně): na humně mlátí naráz ≈ 4 páry mlatců
   a 4 pomocníci – **12 člověkodní výmlatu za den**; v srpnu a září tak jedno humno stačí vsi do

@@ -186,7 +186,7 @@ Scéna (`apps/web/lib/scene/`) dostane rekvizity a postavy každého kroku. Post
 
 ### Úloha 5: Scéna – humno a jámy
 
-**Soubory:** Blender `tools/blender/threshing.py` (humno – jen mlatová plocha bez přístřešku (Martin 21. 10. 2026), stoh slámy na kraji; cep a lopata jako rekvizity), scéna `threshing-floor.ts`, postavy (`villager-plan.ts` – mlácení cepy, prohazování lopatou proti větru, nošení snopů z pole na humno a zrna do jam – provoz na cestách), výběr humna (panel – výmlat, snopy čekající).
+**Soubory:** Blender `tools/blender/threshing.py` (humno – jen mlatová plocha bez přístřešku (Martin 21. 10. 2026), stoh slámy na kraji; hole a lopata jako rekvizity), scéna `threshing-floor.ts`, postavy (`villager-plan.ts` – mlácení holemi (ne cepy – Martin 21. 10. 2026), prohazování lopatou proti větru, nošení snopů z pole na humno a zrna do jam – provoz na cestách), výběr humna (panel – výmlat, snopy čekající).
 
 **Postup:**
 
