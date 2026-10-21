@@ -1,0 +1,238 @@
+/** Panel výběru postavy, spřežení a vozu. */
+import { type ReactElement } from 'react';
+import { VillageTarget } from '@/lib/scene/village-picking';
+import { HERD_LABELS, type SelectionDetails } from '@/lib/selection-details';
+import { formatInteger, formatPercent } from '@/lib/village-format';
+import { CartGoal } from '@/lib/draft-activity';
+import { Tooltip } from '../Tooltip';
+import { TargetButton, Stat, ROW, Flag } from './parts';
+
+/**
+ * Portrét z ikon surovin (`public/icons/resources/`): člověk (villagers.md – Výběr postavy) – muž,
+ * žena, dítě nebo starší, pod ním role; spřežení (vůl) a vůz – pod nimi název.
+ */
+export function PersonPortrait({
+  icon,
+  name,
+  testId = 'selection-person-portrait',
+}: {
+  icon: string;
+  name: string;
+  testId?: string;
+}): ReactElement {
+  return (
+    <div className="flex min-w-20 shrink-0 flex-col items-center gap-1">
+      <div className="hud-inset h-20 w-20 overflow-hidden rounded">
+        <img
+          src={`/icons/resources/${icon}.png`}
+          alt=""
+          width={64}
+          height={64}
+          data-testid={testId}
+          data-portrait={icon}
+          className="h-full w-full"
+        />
+      </div>
+      <h2 className="text-center font-serif text-sm leading-tight whitespace-nowrap text-[#f3dfb0]">
+        {name}
+      </h2>
+    </div>
+  );
+}
+
+/**
+ * Člověk vsi (villagers.md – Výběr postavy): co právě dělá (jediný řádek slov), věk, dům (tlačítko
+ * ho vybere) a u pasáka zvíře stáda.
+ */
+export function PersonBody({
+  details,
+  onSelectTarget,
+}: {
+  details: Extract<SelectionDetails, { kind: 'person' }>;
+  onSelectTarget?: ((target: VillageTarget) => void) | undefined;
+}): ReactElement {
+  const home = details.home;
+  return (
+    <div className="flex min-w-0 flex-col justify-center gap-1.5">
+      <p
+        data-testid="selection-person-activity"
+        className="text-sm whitespace-nowrap text-[#ecdfc4]"
+      >
+        {details.activity}
+      </p>
+      <div className={ROW}>
+        <Stat icon="date" name="Věk (roky)" testId="selection-person-age">
+          {formatInteger(details.age)}
+        </Stat>
+        {home !== null && details.homeIcon && (
+          <Tooltip content="Dům" placement="above">
+            <button
+              type="button"
+              data-testid="selection-person-home"
+              aria-label="Dům"
+              className="hud-icon-button h-7 w-7"
+              onClick={() => onSelectTarget?.({ kind: 'dwelling', id: home })}
+            >
+              <img
+                src={`/icons/build/${details.homeIcon}.png`}
+                alt=""
+                width={128}
+                height={128}
+                className="h-full w-full"
+              />
+            </button>
+          </Tooltip>
+        )}
+        {details.herd && (
+          <Tooltip content={HERD_LABELS[details.herd].name} placement="above">
+            <img
+              src={`/icons/resources/${HERD_LABELS[details.herd].icon}.png`}
+              alt=""
+              width={20}
+              height={20}
+              data-testid="selection-person-herd"
+              data-herd={details.herd}
+              tabIndex={0}
+            />
+          </Tooltip>
+        )}
+        {details.draft && (
+          <TargetButton
+            src={`/icons/resources/${details.draft.kind === 'cart' ? 'cart' : 'ox'}.png`}
+            name={details.draft.kind === 'cart' ? 'Vůz' : 'Spřežení'}
+            testId="selection-person-draft"
+            target={details.draft}
+            onSelectTarget={onSelectTarget}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Spřežení volů s rádlem (oxen.md – Výběr spřežení): co dělá (jediný řádek slov), voli a tlačítka
+ * dílu, který orá, ohrady volů, oráče a honáka.
+ */
+export function TeamBody({
+  details,
+  onSelectTarget,
+}: {
+  details: Extract<SelectionDetails, { kind: 'plough-team' }>;
+  onSelectTarget?: ((target: VillageTarget) => void) | undefined;
+}): ReactElement {
+  const { part, pen, ploughman, leader } = details;
+  return (
+    <div className="flex min-w-0 flex-col justify-center gap-1.5">
+      <p data-testid="selection-team-activity" className="text-sm whitespace-nowrap text-[#ecdfc4]">
+        {details.activity}
+      </p>
+      <div className={ROW}>
+        <Stat icon="ox" name="Voli" testId="selection-team-oxen">
+          {formatInteger(details.oxen)}
+        </Stat>
+        {part && (
+          <TargetButton
+            src="/icons/build/pole.png"
+            name="Díl pole"
+            testId="selection-team-part"
+            target={{ kind: 'field-part', id: part.fieldId, cell: part.cell }}
+            onSelectTarget={onSelectTarget}
+          />
+        )}
+        {pen !== null && (
+          <TargetButton
+            src="/icons/build/ohrada.png"
+            name="Ohrada volů"
+            testId="selection-team-pen"
+            target={{ kind: 'pen', id: pen }}
+            onSelectTarget={onSelectTarget}
+          />
+        )}
+        {ploughman && (
+          <TargetButton
+            src={`/icons/resources/${ploughman.portrait}.png`}
+            name="Oráč"
+            testId="selection-team-ploughman"
+            target={{ kind: 'person', id: ploughman.id }}
+            onSelectTarget={onSelectTarget}
+          />
+        )}
+        {leader && (
+          <TargetButton
+            src={`/icons/resources/${leader.portrait}.png`}
+            name="Honák"
+            testId="selection-team-leader"
+            target={{ kind: 'person', id: leader.id }}
+            onSelectTarget={onSelectTarget}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Náklad vozu v panelu – ikona suroviny a název (voda a zboží výpravy bez ikony). */
+export const CARGO_LABELS: Record<CartGoal, { icon: string | null; name: string }> = {
+  sheaves: { icon: 'food', name: 'Snopy' },
+  hay: { icon: 'hay', name: 'Seno' },
+  logs: { icon: 'wood', name: 'Klády' },
+  charcoal: { icon: 'charcoal', name: 'Uhlí' },
+  ore: { icon: 'ore', name: 'Ruda' },
+  clay: { icon: 'clay', name: 'Hlína' },
+  water: { icon: null, name: 'Voda' },
+  seed: { icon: 'food', name: 'Osivo' },
+  apples: { icon: 'apples', name: 'Jablka' },
+  goods: { icon: null, name: 'Zboží' },
+};
+
+/**
+ * Vůz (wagons.md – Výběr vozu): co dělá (jediný řádek slov), stav, voli, náklad a tlačítka ohrady
+ * a vozky.
+ */
+export function CartBody({
+  details,
+  onSelectTarget,
+}: {
+  details: Extract<SelectionDetails, { kind: 'cart' }>;
+  onSelectTarget?: ((target: VillageTarget) => void) | undefined;
+}): ReactElement {
+  const { pen, drover } = details;
+  const cargo = details.cargo ? CARGO_LABELS[details.cargo] : null;
+  return (
+    <div className="flex min-w-0 flex-col justify-center gap-1.5">
+      <p data-testid="selection-cart-activity" className="text-sm whitespace-nowrap text-[#ecdfc4]">
+        {details.activity}
+      </p>
+      <div className={ROW}>
+        <Stat icon="condition" name="Stav vozu" testId="selection-cart-condition">
+          {formatPercent(details.condition)}
+        </Stat>
+        {details.oxen > 0 && (
+          <Stat icon="ox" name="Voli" testId="selection-cart-oxen">
+            {formatInteger(details.oxen)}
+          </Stat>
+        )}
+        {cargo?.icon && <Flag icon={cargo.icon} name={cargo.name} testId="selection-cart-cargo" />}
+        {pen !== null && (
+          <TargetButton
+            src="/icons/build/ohrada.png"
+            name="Ohrada"
+            testId="selection-cart-pen"
+            target={{ kind: 'pen', id: pen }}
+            onSelectTarget={onSelectTarget}
+          />
+        )}
+        {drover && (
+          <TargetButton
+            src={`/icons/resources/${drover.portrait}.png`}
+            name="Vozka"
+            testId="selection-cart-drover"
+            target={{ kind: 'person', id: drover.id }}
+            onSelectTarget={onSelectTarget}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
