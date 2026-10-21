@@ -14,7 +14,6 @@ import {
   checkSacredBuildingPlacement,
   checkWorkshopPlacement,
   DWELLING_TREES,
-  HUMNO,
   THRESHING,
   dwellingBuildLabor,
   fellingCost,
@@ -535,15 +534,11 @@ describe('placeWorkshop', () => {
 });
 
 describe('placeThreshingFloor', () => {
-  it('humno: dřevo předem, server ověří místo, díly pole pod ním se zmenší', async () => {
+  it('humno: bez dřeva, server ověří místo, díly pole pod ním se zmenší', async () => {
     const villages = await foundedVillages();
     const deps = { villages };
     const base = { villageId: VID, landscape, today: TODAY + 1 };
-    // ruční krajina nemá stromy – bez klád na hromadě dřevo není
-    expect(await placeThreshingFloor(deps, { ...base, position: at(-80, 40) })).toEqual({
-      ok: false,
-      reason: NO_WOOD,
-    });
+    // humno je jen mlat – dřevo nepotřebuje, hromada klád zůstane nedotčená
     villages.edit(VID, (s) => {
       s.woodLogs = 20;
     });
@@ -559,9 +554,9 @@ describe('placeThreshingFloor', () => {
     const state = result.village.state;
     const c = state.constructions.at(-1)!;
     expect(c).toMatchObject({ kind: 'threshing-floor', position });
-    expect(c.wood).toMatchObject({ trees: HUMNO.trees, fromPile: HUMNO.trees, fell: [] });
+    expect(c.wood).toMatchObject({ trees: 0, fromPile: 0, fell: [] });
     expect(state.threshingFloors).toEqual([{ id: c.id, position, builtDay: null }]);
-    expect(state.woodLogs).toBeLessThanOrEqual(20 - HUMNO.trees);
+    expect(state.woodLogs).toBeGreaterThan(19.9);
     expect(state.parts.reduce((sum, p) => sum + p.areaM2, 0)).toBeCloseTo(16 * 225 - 80, 6);
     // druhé humno přes první nejde
     expect(await placeThreshingFloor(deps, { ...base, position: at(2, 9) })).toEqual({

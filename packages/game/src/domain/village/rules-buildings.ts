@@ -134,16 +134,17 @@ export const LOG_ROT_PER_YEAR = 0.04;
 export function dwellingBuildLabor(type: DwellingType): number {
   return DWELLINGS[type].cost - DWELLING_TREES[type] * FELLING_MAN_DAYS_PER_TREE;
 }
-// production-chains.md – Humno (stavba hráče; čísla návrh Clauda podle rešerše
-// research/2026-10-20-production-chains.md – Humno): udusaná a vymazaná mlatová plocha 8 × 10 m
-// s lehkým přístřeškem vzadu; 75 člověkodní i s kácením blízkého lesa jako cena obydlí (samotná
-// stavba laborManDays − trees × FELLING_MAN_DAYS_PER_TREE), 6 stromů dřeva předem, rozdíl výšek
-// pod plochou nejvýš 1 m (mlat se při stavbě srovná). Osa x = šířka, z = délka (natočení jako
-// obydlí – `Position.rotation`).
+// production-chains.md – Humno (stavba hráče; Martin 21. 10. 2026, varianta 1: „humno je jen mlat
+// pod širým nebem – bez přístřešku“; čísla návrh Clauda podle rešerše
+// research/2026-10-20-production-chains.md – Humno): udusaná a vymazaná mlatová plocha 8 × 10 m,
+// ≈ 20 člověkodní (sejmutí drnu a srovnání 4–9, hlína na mazanici 4–6, kropení, dusání
+// a vymazání ≈ 10), žádné dřevo ani stromy; přístřešek může přijít později jako vylepšení.
+// Rozdíl výšek pod plochou nejvýš 1 m (mlat se při stavbě srovná). Osa x = šířka, z = délka
+// (natočení jako obydlí – `Position.rotation`).
 export const HUMNO = {
   sizeM: { x: 8, z: 10 },
-  laborManDays: 75,
-  trees: 6,
+  laborManDays: 20,
+  trees: 0,
   maxHeightDiffM: 1,
 } as const;
 

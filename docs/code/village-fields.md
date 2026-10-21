@@ -261,8 +261,8 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
 
 - **Humno** ([production-chains.md](../design/production-chains.md) – Humno, úloha 1; čísla
   návrh Clauda podle rešerše `research/2026-10-20-production-chains.md`): stavba hráče –
-  `threshing-floors.ts`, `HUMNO` v `rules*.ts` (8 × 10 m, 75 čd i s kácením, 6 stromů předem,
-  nerovnost do 1 m). `BuildKind` / `ConstructionKind` `'threshing-floor'`, kontrola
+  `threshing-floors.ts`, `HUMNO` v `rules*.ts` (8 × 10 m, jen mlat bez přístřešku – Martin 21. 10. 2026:
+  20 čd, žádné dřevo ani stromy, nerovnost do 1 m; přístřešek případně později jako vylepšení). `BuildKind` / `ConstructionKind` `'threshing-floor'`, kontrola
   `checkThreshingFloorPlacement` (volně jako dílna: louka i les – Stavba v lese –, na poli pole
   ustoupí – `takenLand`, ne voda, výchoz, posvátný dub a háj, jiná stavba ani nerovná zem),
   akce `startThreshingFloor(state, day, position, obstacles, site)` – humno vznikne hned

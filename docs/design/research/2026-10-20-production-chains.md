@@ -7,7 +7,7 @@ příslušnou sekci.
 ## Humno – cena stavby
 
 Humno je stavba hráče (production-chains.md – Humno): udusaná a vymazaná mlatová plocha
-≈ 8 × 10 m s lehkým přístřeškem. Raně středověké prameny pracnost humna neuvádějí – opírá se
+≈ 8 × 10 m (původně s lehkým přístřeškem – viz Volba Martina níže). Raně středověké prameny pracnost humna neuvádějí – opírá se
 o etnografický popis stavby mlatu, o výkony při zemních pracích z experimentů a o rekonstrukci
 zahloubeného domu, ze které hra bere cenu obydlí.
 
@@ -43,9 +43,15 @@ s pultovou doškovou střechou na sloupech (zrno a nářadí v dešti), stoh sl�
 
 ### Návrh pro hru (návrh Clauda)
 
-`HUMNO` v `rules.ts`: půdorys 8 × 10 m, **75 člověkodní** (i s kácením blízkého lesa jako cena
-obydlí – samotná stavba 63 čd, kácení podle vzdálenosti stromů), **6 stromů** dřeva předem,
-nerovnost nejvýš 1 m. Návrh v production-chains.md počítal s cenou polozemnice bez jámy
+Původní návrh: půdorys 8 × 10 m, 75 člověkodní (i s kácením blízkého lesa jako cena obydlí),
+6 stromů dřeva předem, nerovnost nejvýš 1 m.
+
+**Volba Martina 21. 10. 2026 (varianta 1):** humno je jen mlat pod širým nebem. `HUMNO` v
+`rules.ts`: 8 × 10 m, **≈ 20 člověkodní** (sejmutí drnu a srovnání 4–9, hlína na mazanici 4–6,
+kropení, dusání a vymazání ≈ 10), **bez dřeva a stromů**, nerovnost nejvýš 1 m. Přístřešek je
+odložený jako možné pozdější vylepšení (návrh Clauda).
+
+Původní úvaha: Návrh v production-chains.md počítal s cenou polozemnice bez jámy
 (≈ 200 čd) – humno ale nemá stěny, ohniště ani podlahu domu, přístřešek je lehký a otevřený;
 nová ves se dvěma dospělými ho postaví za ≈ 50 dní volné práce, takže stihne první žně.
 
@@ -103,7 +109,7 @@ zhruba třetina až polovina samotného mlácení cepem – zbytek je práce kol
 
 `THRESHING` v `rules.ts`: `floorManDaysPerDay` 12, `graceDays` 365, `emergencyWork` 0,3,
 `emergencyLoss` 0,1, `spoilPerMonth` 0,1; upozornění „Před žněmi postav humno“ `noticeDaysBefore`
-90 dní před sklizní (humno za 75 čd malá ves za měsíc nestihne – v létě bere práci žeň).
+90 dní před sklizní (humno za 20 čd ves postaví za pár dní).
 
 ### Zdroje
 

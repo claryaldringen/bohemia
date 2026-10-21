@@ -198,14 +198,19 @@ describe('humno – stavba ze společné práce', () => {
     for (const t of c.wood!.fell) expect(stumps).toContain(t.id);
   });
 
-  it('bez dřeva humno nejde', () => {
+  it('humno je jen mlat – bez dřeva a stromů, 20 člověkodní', () => {
     const bare = packObstacles([], 16, 15);
     const s = foundVillage({ seed: 3, day: DAY, dwellingPosition: HOME, obstacles: bare });
+    expect(HUMNO.trees).toBe(0);
     expect(buildAffordability(s, 'threshing-floor', bare)).toEqual({
-      affordable: false,
-      missing: { wood: HUMNO.trees },
+      affordable: true,
+      missing: {},
     });
-    expect(() => startThreshingFloor(s, DAY, at(-60, 30), bare)).toThrow(RangeError);
+    const built = startThreshingFloor(s, DAY, at(-60, 30), bare);
+    const c = built.constructions.at(-1)!;
+    expect(c.wood).toMatchObject({ trees: 0, fell: [] });
+    expect(c.cost).toBe(HUMNO.laborManDays);
+    expect(HUMNO.laborManDays).toBe(20);
   });
 
   it('na poli – díl se zmenší o průnik a kronika ví, že ustoupil humnu', () => {

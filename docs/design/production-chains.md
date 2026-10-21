@@ -137,12 +137,13 @@ Beze změny (milíř u buků – crafts.md); nošení uhlí ke kováři je dnes 
 
 ### Humno (staví hráč)
 
-- **Stavba** v mřížce staveb (zkratka K; návrh Clauda: udusaná a vymazaná mlatová plocha 8 × 10 m
-  s přístřeškem vzadu a stohem slámy vedle). Cena podle rešerše
+- **Stavba** v mřížce staveb (zkratka K): **humno je jen mlat pod širým nebem – bez přístřešku**
+  (Martin 21. 10. 2026, varianta 1), udusaná a vymazaná plocha 8 × 10 m se stohem slámy na kraji.
+  Cena podle rešerše
   ([2026-10-20-production-chains.md](research/2026-10-20-production-chains.md) – Humno):
-  **75 člověkodní** ze společné práce (i s kácením blízkého lesa jako obydlí) a **6 stromů**
-  dřeva předem, osadníci ne – přístřešek je lehký a otevřený, bez stěn a jámy, takže nová ves
-  ho postaví do první žně. Umístění volně jako dílna (půdorys u kurzoru, otáčí se): louka i les
+  **≈ 20 člověkodní** ze společné práce (sejmutí drnu a srovnání 4–9, hlína na mazanici 4–6,
+  kropení, dusání a vymazání ≈ 10), **žádné dřevo ani stromy**, osadníci ne – nová ves ho
+  postaví do první žně za pár dní. Přístřešek může přijít později jako vylepšení (návrh Clauda). Umístění volně jako dílna (půdorys u kurzoru, otáčí se): louka i les
   (Stavba v lese), na poli pole ustoupí (Pole jako krajina), ne do vody, na výchoz, do jiné
   stavby ani na nerovnou zem (rozdíl výšek nejvýš 1 m – mlat se srovná).
 - **Podmínka:** bez humna se nemlátí. Snopy po žni čekají ve stozích na poli (panáky → stohy)
@@ -156,8 +157,8 @@ Beze změny (milíř u buků – crafts.md); nošení uhlí ke kováři je dnes 
   ≈ 60 ha osevu, víc humen se sčítá. Víc polí → výmlat se natáhne za okno → upozornění „Humno
   nestačí na výmlat“, druhé humno.
 - **Nová ves** humno nemá – hráč ho postaví do první žně (upozornění s předstihem: „Před žněmi
-  postav humno“ 90 dní před sklizní – humno za 75 čd malá ves za měsíc nestihne, v létě bere
-  práci žeň; návrh Clauda). Upozornění na humno a čekající snopy se ohlásí i při prvním pohledu na
+  postav humno“ 90 dní před sklizní – humno za 20 čd ves postaví za pár dní, upozornění je
+  pojistka; návrh Clauda). Upozornění na humno a čekající snopy se ohlásí i při prvním pohledu na
   ves (načtení, přepnutí vsi) a z jiné vsi hráče; nevymlácené snopy ukazuje horní lišta (ikona
   snopů s kg zrna, do červena, když čekají na humno).
 - **Starší vsi (Vlkov) – rok odkladu** (Martin, 20. 10. 2026: „Rok odkladu“): rok od převodu
@@ -193,7 +194,7 @@ Beze změny (milíř u buků – crafts.md); nošení uhlí ke kováři je dnes 
 - **Odchod do nové vsi** (migration.md): snopy, které ves smí vymlátit, se dělí jako zásoby –
   odcházející si vezmou svůj díl (vymlácený), ve vsi zůstane poměrný díl snopů i práce výmlatu.
 - **Nošení** (návrh Clauda): práce výmlatu má v rozdělení práce dne cíl humno – k němu vede
-  pěšina (vstup na předku, přístřešek vzadu) a vozy, které sváží snopy, jezdí i k humnu (vyjede
+  pěšina (vstup na předku mlatu) a vozy, které sváží snopy, jezdí i k humnu (vyjede
   se cesta); humno je pro pěšiny, vozy, vozové cesty i zemskou stezku stavba, kterou obejdou.
   Nouzový výmlat je u vsi.
 - **Luštěniny** se mlátí taky na humně (návrh Clauda); do jam jde jen obilí, luštěniny se

@@ -116,7 +116,7 @@ export const BUILD_COSTS: Record<BuildKind, BuildCost> = {
   },
   // oxen.md – Ohrada: 40 člověkodní (i s kácením blízkého lesa) a 6 stromů
   pen: { laborManDays: PEN.laborManDays, perHa: false, upfront: { wood: PEN.trees } },
-  // production-chains.md – Humno: 75 člověkodní (i s kácením blízkého lesa) a 6 stromů
+  // production-chains.md – Humno: jen mlat, 20 člověkodní a žádné dřevo
   'threshing-floor': {
     laborManDays: HUMNO.laborManDays,
     perHa: false,

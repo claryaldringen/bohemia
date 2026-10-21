@@ -221,14 +221,14 @@ describe('buildVillageView – zarůstání (fields.md)', () => {
 describe('humno (production-chains.md – Humno)', () => {
   it('scéna zná humno i rozestavěné, nabídka staveb ho má, kontrola umístění ho zná', () => {
     const s = state();
-    // dřevo na humno a ještě na další (nabídka staveb)
+    // dřevo pro další stavby (humno ho nepotřebuje)
     s.woodLogs = 20;
     const position = { x: 60, z: -60, rotation: 0.25 };
     const started = startThreshingFloor(s, DAY, position, null);
     const view = buildVillageView(record(started), landscape, DAY);
     const id = started.threshingFloors![0]!.id;
     expect(view.scene.threshingFloors).toEqual([{ id, position, built: false, progress: 0 }]);
-    expect(view.build['threshing-floor']).toMatchObject({ laborManDays: 75, affordable: true });
+    expect(view.build['threshing-floor']).toMatchObject({ laborManDays: 20, affordable: true });
     expect(view.constructions.at(-1)).toMatchObject({ kind: 'threshing-floor', label: 'Humno' });
     expect(placementVillageFromScene(view.scene).threshingFloors).toEqual([{ position }]);
     const built = advanceVillage(started, DAY + 400, null);
@@ -380,14 +380,14 @@ describe('buildVillageView', () => {
         blocked: null,
         affordable: false,
       },
-      // humno (production-chains.md – Humno) – 75 čd a 6 stromů předem, osadníci ne
+      // humno (production-chains.md – Humno) – jen mlat, 20 čd bez dřeva, osadníci ne
       'threshing-floor': {
-        laborManDays: 75,
+        laborManDays: 20,
         perHa: false,
         perSquare: false,
-        upfront: [{ resource: 'wood', amount: 6, missing: 6 }],
+        upfront: [],
         blocked: null,
-        affordable: false,
+        affordable: true,
       },
     });
     // zakladatelé bydlí na staveništi – domácnost s obydlím přibude s dostavěním zemnice
