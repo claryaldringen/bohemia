@@ -699,7 +699,7 @@ zblízka**, **Sledovat vůz**) – herní logika vozů ani tesaře v jádru nen�
 
 Návrh Clauda (19. 10. 2026) – jen zobrazení, simulace se nemění.
 
-- **Trasa dne ze serveru:** `SceneVillage.carts` (`sceneCarts` ve `village-view.ts`) nese u vozu,
+- **Trasa dne ze serveru:** `SceneVillage.carts` (`sceneCarts` ve `village-view-crafts.ts`) nese u vozu,
   který dnes jede, náklad (`job.load` – snopy při žni, seno při seči, klády ke stavbě, zboží
   výpravy) a trasu (`route`): osa vozové sítě (`villageCartRoutes` – stejná funkce jako dosah
   svozu, žeň po strništi sklízené plodiny) od ohrady k místu dnešní práce – díl na čele žně nebo
