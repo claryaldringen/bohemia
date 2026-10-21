@@ -74,7 +74,7 @@ function trading(): VillageState {
   next.cheeseKg = 5000;
   next.legumesKg = 5000;
   next.woodLogs = 500;
-  next.crafts = { charcoalKg: 50000, toolsKg: 500, potteryKg: 5000 };
+  next.crafts = { charcoalKg: 50000, potteryKg: 5000, ironBarsKg: 500 };
   next.livestock!.herds.cow = 60;
   next.dwellings.push({
     id: HOUSE,

@@ -43,7 +43,7 @@ async function settled(): Promise<{ villages: InMemoryVillages; villageId: strin
     state.cheeseKg = 300;
     state.legumesKg = 300;
     state.woodLogs = 30;
-    state.crafts = { charcoalKg: 400, toolsKg: 20, potteryKg: 60 };
+    state.crafts = { charcoalKg: 400, potteryKg: 60, ironBarsKg: 20 };
   });
   return { villages, villageId: founded.village.id };
 }

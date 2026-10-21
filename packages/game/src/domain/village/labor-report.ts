@@ -4,7 +4,7 @@ import type { GrainPitDay } from './grain-pits';
 import type { DayAllocation, LaborTaskName } from './labor';
 import { villageOrchards } from './orchard';
 import { NO_CRAFTS, harvestCarryShare } from './productivity';
-import { ROAD_APPLES } from './rules';
+import { ROAD_APPLES, SMITH_SUPPLY } from './rules';
 import { mowingSquaresWorked } from './hay';
 import type {
   CartJob,
@@ -289,6 +289,14 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
       }
     } else {
       add('craft', place, w.making);
+    }
+    // měchař u tavby – syn 10–13 mimo práci dílny, ten den nepase (production-chains.md – Kovář);
+    // dospělý měchař je v práci dílny
+    const bellows = w.smelt?.bellows;
+    if (bellows?.kind === 'son') {
+      add('craft', place, SMITH_SUPPLY.youngsterShare, undefined, undefined, undefined, [
+        bellows.age,
+      ]);
     }
     // kovář: kopání rudy na rudišti, nošení uhlí od milíře a rudy z rudiště (crafts.md – Uhlí
     // a ruda kováře) – kdo to dělá (věky); jízda s vozem pro rudu s vozem

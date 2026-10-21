@@ -15,7 +15,7 @@ const neighbour = (over: Partial<VillageNeighbour> = {}): VillageNeighbour => ({
   tripDays: 5,
   offers: [
     { good: 'pottery', price: 2.88, left: 120 },
-    { good: 'tools', price: 57.6, left: 30 },
+    { good: 'ironBars', price: 43.2, left: 30 },
   ],
   demands: [
     { good: 'grain', price: 1, left: 1500, have: 900 },
@@ -72,7 +72,7 @@ describe('náhled výměny', () => {
     expect(p.porters).toBe(4);
     expect(p.manDays).toBe(20);
     expect(p.blocked).toBeNull();
-    expect(tradePreview(neighbour(), { grain: 10 }, { tools: 1 }).blocked).toMatch(/prodělal/);
+    expect(tradePreview(neighbour(), { grain: 10 }, { ironBars: 1 }).blocked).toMatch(/prodělal/);
     expect(tradePreview(neighbour(), {}, {}).blocked).toMatch(/nic/);
   });
 });
@@ -166,7 +166,7 @@ describe('panel obchodu', () => {
       <NeighbourTrade
         neighbour={neighbour()}
         onSend={() => undefined}
-        initial={{ give: { grain: 10 }, get: { tools: 1 } }}
+        initial={{ give: { grain: 10 }, get: { ironBars: 1 } }}
       />,
     );
     expect(unfair).toContain('data-fair="false"');
@@ -322,10 +322,10 @@ describe('čitelnost panelu (Martin 19. 10. 2026 – „co je nabídka a co popt
     expect(fair).toContain('/icons/resources/balance.png');
     expect(fair).toContain('Bilance pro souseda (kg obilí) – musí být aspoň 0');
     const unfair = renderToStaticMarkup(
-      <NeighbourTrade neighbour={neighbour()} initial={{ give: {}, get: { tools: 1 } }} />,
+      <NeighbourTrade neighbour={neighbour()} initial={{ give: {}, get: { ironBars: 1 } }} />,
     );
     expect(unfair).toMatch(/data-testid="trade-balance" data-fair="false"[^>]*text-red-400/);
-    expect(textOf(unfair, 'trade-balance')).toBe('-58');
+    expect(textOf(unfair, 'trade-balance')).toBe('-43');
   });
 
   it('jediný soused bez záložek, víc sousedů se záložkami', () => {

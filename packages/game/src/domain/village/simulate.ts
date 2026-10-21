@@ -81,6 +81,7 @@ import {
   newWorkshop,
   occupiedWorkshops,
   restingCrafters,
+  smithBellowsToday,
   wearCraftStocks,
   workCrafts,
   type SmithSupply,
@@ -198,9 +199,11 @@ import { keepManor, villageManorId } from './manor';
 import {
   expeditionLaborToday,
   finishExpeditions,
+  withIronBarsTrade,
   withoutForeignGoods,
   workExpeditions,
 } from './trade';
+import { withToolEquipment } from './iron';
 import { finishTrail, swathRoadsInWork, trailsDay } from './trail';
 import { roadSwathDay } from './road-swath';
 import { finishWagonRoad, wagonRoadsDay } from './wagon-road';
@@ -347,14 +350,20 @@ export function* advanceVillageSteps(
     throw new RangeError(`Ves je dopočítaná do dne ${state.lastDay}, nelze zpět na ${toDay}.`);
   }
   // ves z doby před příbuzenstvím dostane pohlaví a manžele (kinship.md), dobytek v obchodu tři
-  // druhy (trade.md – Dobytek ve třech druzích), ves ze zboží zvenku o něj přijde (trade.md – Jen
-  // společné suroviny), řemeslníci z doby před učením řemesla praxi (crafts.md – Učení řemesla)
-  // a ves z doby před snopy rok odkladu mlácení (production-chains.md – Starší vsi) – jednou,
-  // idempotentně
+  // druhy (trade.md – Dobytek ve třech druzích), hřivny místo nástrojů v obchodu i ve vsi
+  // (production-chains.md – Kovář), ves ze zboží zvenku o něj přijde (trade.md – Jen společné
+  // suroviny), řemeslníci z doby před učením řemesla praxi (crafts.md – Učení řemesla) a ves z doby
+  // před snopy rok odkladu mlácení (production-chains.md – Starší vsi) – jednou, idempotentně
   const next = cloneState(
     withThreshingGrace(
       withCraftSkill(
-        withOxen(withPenSpecies(withoutForeignGoods(withCattleKinds(withKinship(state))))),
+        withOxen(
+          withPenSpecies(
+            withoutForeignGoods(
+              withIronBarsTrade(withToolEquipment(withCattleKinds(withKinship(state)))),
+            ),
+          ),
+        ),
       ),
     ),
   );
@@ -1214,6 +1223,9 @@ function work(
     ...smithFetchPlans(state, day, deliveries, smithCarts, resting, false),
   ]);
   const busy = new Set([...fetchPlans.values()].flatMap((f) => f.youngsters.ids));
+  // měchař u tavby (production-chains.md – Kovář): syn 10–13, který šlape měch, ten den nepase
+  const bellows = smithBellowsToday(state, day, resting, busy);
+  for (const helper of bellows.values()) if (helper?.kind === 'son') busy.add(helper.personId);
   // co dnes výrostci uhlídali – podle toho ves při porážce drží stádo (diet.md – Pasáci)
   const herding = herdingDay(state, day, villageOxen(state), busy);
   recordHerding(state, herding);
@@ -1292,6 +1304,7 @@ function work(
   const supply: SmithSupply = {
     fetch: fetchPlans,
     burners,
+    bellows,
     oreCarts: new Map(
       smithCarts.ore.map((o): [number, OreCartToday] => [
         o.smithId,

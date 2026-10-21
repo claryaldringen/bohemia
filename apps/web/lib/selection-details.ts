@@ -113,6 +113,11 @@ export interface SelectionWorkshop {
   } | null;
   /** Kovář: ruda, rudiště a kdo nosí uhlí (crafts.md – Uhlí a ruda kováře); jinak chybí. */
   ore?: NonNullable<VillageView['crafts']['workshops'][number]['ore']>;
+  /**
+   * Kovář (production-chains.md – Kovář): houba, hřivny a jejich zásoba, nástroje ve vybavení
+   * domácností s pokrytím potřeby a měchař u tavby; jinak chybí.
+   */
+  iron?: NonNullable<VillageView['crafts']['workshops'][number]['iron']> & { coverage: number };
   /** Hrnčíř: hlína a hliniště (crafts.md – Hlína hrnčíře); jinak chybí. */
   clay?: NonNullable<VillageView['crafts']['workshops'][number]['clay']>;
 }
@@ -1048,14 +1053,13 @@ function workshopDetails(view: VillageView, dwellingId: number): SelectionWorksh
   const workshop = view.crafts.workshops.find((w) => w.dwellingId === dwellingId);
   if (!workshop) return null;
   const { stock } = CRAFT_LOOKS[workshop.craft].product;
+  // kovář má v zásobě hřivny – pokrytí nástroji ukáže řádek vybavení (production-chains.md)
   const coverage =
-    workshop.craft === 'smith'
-      ? view.crafts.coverage.tools
-      : workshop.craft === 'potter'
-        ? view.crafts.coverage.pottery
-        : workshop.craft === 'carpenter'
-          ? (view.crafts.coverage.woodTools ?? 0)
-          : null;
+    workshop.craft === 'potter'
+      ? view.crafts.coverage.pottery
+      : workshop.craft === 'carpenter'
+        ? (view.crafts.coverage.woodTools ?? 0)
+        : null;
   const carpenter = workshop.carpenter;
   // ves výrobek dílny dokupuje u souseda (vlastní řemeslník nemá vstupy – crafts.md)
   const source = view.crafts.sources?.find((s) => PRODUCT_CRAFT[s.product] === workshop.craft);
@@ -1076,6 +1080,7 @@ function workshopDetails(view: VillageView, dwellingId: number): SelectionWorksh
     toPlant: workshop.toPlant,
     skill: workshop.skill,
     ...(workshop.ore ? { ore: workshop.ore } : {}),
+    ...(workshop.iron ? { iron: { ...workshop.iron, coverage: view.crafts.coverage.tools } } : {}),
     ...(workshop.clay ? { clay: workshop.clay } : {}),
     carpenter: carpenter
       ? {

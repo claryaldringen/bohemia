@@ -169,3 +169,62 @@ od sebe, hledá se po kružnicích po `stepM` 2,5 m. Ves s 10 t úrody tak vykop
 - [LacusCurtius – Grain storage in Iron Age Britain](https://penelope.uchicago.edu/Thayer/E/Journals/LacusCurtius/Grain_Storage_in_Iron_Age_Britain**.html)
 - [Sborník prací FF MU – raně středověké sídliště Líbivá u Mělníka](https://digilib.phil.muni.cz/cs/_flysystem/fedora/pdf/133130.pdf)
 - [SLU Opava – Vesnice raného a vrcholného středověku (přednáška)](https://is.slu.cz/el/fpf/zima2025/ARCHSTN007/6_Vesnice_RS_a_VS_2025_pdf.pdf)
+
+## Kovář – výtěžek tavby, uhlí, práce a hřivny
+
+Úloha 4 (production-chains.md – Kovář): kovář taví z rudy a uhlí železnou houbu, překove ji na
+hřivny a z hřiven kove nástroje do vybavení domácností. Hledal se výtěžek houby z rudy a hřiven
+z houby, spotřeba uhlí a práce po krocích a opotřebení nástrojů.
+
+### Co víme
+
+| Zdroj                                                                                                                                  | Co říká                                                                                                                                                                                                                                                                                                                                                                                                     |
+| -------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sauder a Williams 2002, Historical Metallurgy 36(2) – A practical treatise on the smelting and smithing of bloomery iron (PDF ověřené) | Tavba 25: 40,5 kg rudy (goethit 58 % Fe) → houba 14 kg (35 % hmotnosti rudy, 60 % železa), 94 kg uhlí, 5,5 h. Tavba 26: 40,9 kg rudy → houba 13,5 kg → sochor 8,55 kg (**63 % houby**) → hřivny 4,95 kg. Uhlí tavba 94, sochor 78, tyčky 238 kg – 82 kg na kg tyčového železa. Práce: ruda a uhlí 50 h, tavba 16,5 h (3 lidé), sochor 18,8 h, tyčky 30 h – **23 člověkohodin na kg**. Vzduch „párem měchů“. |
+| Crew 1991, Historical Metallurgy 25 (abstrakt)                                                                                         | Bahenní ruda, nízká šachtová pec bez odpichu strusky; celá houba překována na hřivnu; **≈ 100 kg uhlí a ≈ 25 člověkodní na kg** hotového tyčového železa.                                                                                                                                                                                                                                                   |
+| Wealden Iron Research Group – Experimental Bloomery 5: The Bloom                                                                       | Z 15 kg rudy houba 1,5 kg – **10 % rudy** (26 % železa v rudě); houba se rozžhaví a vyklepe struska.                                                                                                                                                                                                                                                                                                        |
+| Wealden Iron – Owens Smelt                                                                                                             | 50 kg pražené rudy → houba ≈ 12 kg (**24 % rudy**, 63 % dostupného železa), uhlí ≈ 1 : 1 k rudě.                                                                                                                                                                                                                                                                                                            |
+| Wareham Forge / DARC (záznamy tavení 2006–2010)                                                                                        | Výtěžek houby obvykle **25–35 % rudy** (5 % u špatné rudy, 44 % nejlépe); uhlí ≈ 1,5–2 kg na kg rudy.                                                                                                                                                                                                                                                                                                       |
+| Rešerše 2026-10-20-bog-ore.md (Markewitz 2002)                                                                                         | „Dokonalý“ výtěžek houby ≈ 15 % hmotnosti rudy; ve hře 8 kg rudy na kg nástrojů.                                                                                                                                                                                                                                                                                                                            |
+
+### Odhad
+
+- **Houba z rudy 25 %** – střed pokusů s bahenní rudou (10–35 %), praženou a praženou ve hře
+  (kopání rudy počítá i pražení).
+- **Hřivny z houby 60 %** – Sauder a Williams (63 % do sochoru); hřivna (sekerovitý prut) je
+  zhruba sochor, struska jde ven při vyklepání.
+- **1,2 kg hřiven na kg nástrojů** (návrh) – odpad při kování nástrojů (Sauder a Williams
+  z poloviny sochoru do tenkých tyček 58 %, nástroje ze sochoru jsou méně náročné).
+- Celkem 1,2 ÷ 0,6 ÷ 0,25 = **8 kg rudy na kg nástrojů – stejně jako dosud**.
+- **Uhlí a práce**: rešerše dává 82–100 kg uhlí a 2,3 (zkušení) až 25 (Crew) člověkodní na kg
+  hotového železa; hra má 50 kg a 10 čd na kg nástrojů – zůstává (pravidlo úlohy: celkem jako
+  dnes). Rozdělení po krocích je návrh (60/25/15 % práce, 80/15/5 % uhlí); u Saudera a Williamse
+  je uhlí na tavbu 23 % a na kování tenkých tyček 58 % – jejich tyčky jsou mimořádně pracné
+  (sami píšou, že sochory by šly kovat „za mnohem méně než hodinu“), ve hře proto zůstává tavba
+  nejdražší.
+- **Měch:** vzduch u tavby dávají „pár měchů“ (Sauder a Williams), u Crewa tým 3 lidí – ve hře
+  druhý člověk u měchu, sám kovář polovičním tempem (návrh).
+- **Opotřebení nástrojů** zůstává 30 % ročně (crafts.md – Účinek) – nástroje ve vybavení se
+  opotřebí stejně jako dřív zásoba v užívání.
+
+### Návrh pro hru (návrh Clauda)
+
+`IRON` v `rules.ts`: `bloomPerOreKg` 0,25, `barsPerBloomKg` 0,6, `barsPerToolKg` 1,2, podíly
+práce a uhlí 0,6 / 0,25 / 0,15 a 0,8 / 0,15 / 0,05, `aloneRate` 0,5, `bellowsFromAge` 10,
+`barsReserveYears` 1. Na kg houby 3 čd, 20 kg uhlí, 4 kg rudy; na kg hřiven 2,08 čd, 6,25 kg uhlí;
+na kg nástrojů 1,5 čd, 2,5 kg uhlí. Hodnota hřiven v obchodu 45 kg obilí za kg.
+
+### Zdroje
+
+- Sauder, L. a Williams, S. (2002): A practical treatise on the smelting and smithing of
+  bloomery iron, Historical Metallurgy 36(2), 122–131 –
+  https://hmsjournal.org/index.php/home/article/view/268 (PDF ověřené)
+- Crew, P. (1991): The experimental production of prehistoric bar iron, Historical Metallurgy
+  25(1) – https://www.hmsjournal.org/index.php/home/article/view/553 (abstrakt)
+- Wealden Iron Research Group – Experimental Bloomery 5: The Bloom –
+  https://www.wealdeniron.org.uk/experimental-bloomery-ironmaking/exp-bloom/
+- Wealden Iron Research Group – Owens Smelt – https://wealdeniron.org.uk/Expt/Owens%20Smelt.htm
+- Wareham Forge – Iron smelt experiment overviews (2006–2010) –
+  https://www.warehamforge.ca/ironsmelting/
+- Dark Ages Re-Creation Company – Spring smelt 2008 –
+  https://www.darkcompany.ca/blog/2008/06/dcarc-spring-smelt.php

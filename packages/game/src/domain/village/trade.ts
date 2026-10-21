@@ -36,7 +36,7 @@ import {
 } from './people-trade';
 import { addLogs, woodLogs } from './wood';
 import { TRADE_GOODS, isCattleGood, neighbourOf, neighbourStock } from './neighbours';
-import { CARTS, CART_DEMAND, PEOPLE_TRADE, TRADE, TRADE_GOOD_VALUES } from './rules';
+import { CARTS, CART_DEMAND, IRON, PEOPLE_TRADE, TRADE, TRADE_GOOD_VALUES } from './rules';
 import { builtTrail, trailTripDays } from './trail';
 import type {
   CartKind,
@@ -111,8 +111,9 @@ export function villageGoodStock(
       return Math.floor(woodLogs(state));
     case 'pottery':
       return Math.floor(state.crafts?.potteryKg ?? 0);
-    case 'tools':
-      return Math.floor(state.crafts?.toolsKg ?? 0);
+    case 'ironBars':
+      // hřivny z kovárny (production-chains.md – Kovář) – nástroje jsou vybavení, ne zboží
+      return Math.floor(state.crafts?.ironBarsKg ?? 0);
     case 'charcoal':
       // uhlí u kováře i ve vypálených milířích (crafts.md – Milíř stojí vždy)
       return Math.floor(charcoalStockKg(state));
@@ -144,18 +145,21 @@ function addGood(state: VillageState, good: TradeGood, amount: number, day: numb
       if (amount > 0) addLogs(state, amount);
       else state.woodLogs = Math.max(0, woodLogs(state) + amount);
       return;
-    case 'pottery':
-    case 'tools': {
-      const crafts = (state.crafts ??= { charcoalKg: 0, toolsKg: 0, potteryKg: 0 });
-      const key = good === 'pottery' ? 'potteryKg' : 'toolsKg';
-      crafts[key] = Math.max(0, crafts[key] + amount);
+    case 'pottery': {
+      const crafts = (state.crafts ??= { charcoalKg: 0, potteryKg: 0 });
+      crafts.potteryKg = Math.max(0, crafts.potteryKg + amount);
+      return;
+    }
+    case 'ironBars': {
+      const crafts = (state.crafts ??= { charcoalKg: 0, potteryKg: 0 });
+      crafts.ironBarsKg = Math.max(0, (crafts.ironBarsKg ?? 0) + amount);
       return;
     }
     case 'charcoal': {
       // prodané uhlí napřed od kováře, pak z vypálených milířů; koupené jde ke kováři
       // (crafts.md – Milíř stojí vždy)
       if (amount < 0) takeCharcoal(state, -amount);
-      else (state.crafts ??= { charcoalKg: 0, toolsKg: 0, potteryKg: 0 }).charcoalKg += amount;
+      else (state.crafts ??= { charcoalKg: 0, potteryKg: 0 }).charcoalKg += amount;
     }
   }
 }
@@ -608,6 +612,71 @@ function comingCounts(coming: ComingPeople, seed?: number, key?: string): TradeP
     };
   }
   return { families: coming.families.length, men: coming.men ?? 0, women: coming.women ?? 0 };
+}
+
+/** Nástroje v obchodu z doby před hřivnami (production-chains.md – Kovář). */
+type ToolGoods = TradeGoods & { tools?: number };
+
+/**
+ * Zboží s nástroji `tools` (uložené před hřivnami) převedenými na hřivny – kg ÷ IRON.barsPerToolKg
+ * na celé kg (jako zásoba nástrojů ve vsi – `withToolEquipment`); `keepEmpty` nechá i 0 kg (zbytek
+ * roku souseda – druhy zboží musí sedět na jeho povahu). Bez nástrojů týž objekt.
+ */
+function renamedTools(goods: TradeGoods, keepEmpty = false): TradeGoods {
+  const legacy = goods as ToolGoods;
+  if (legacy.tools === undefined) return goods;
+  const out: ToolGoods = { ...legacy };
+  delete out.tools;
+  const bars = (out.ironBars ?? 0) + Math.round(legacy.tools / IRON.barsPerToolKg);
+  if (bars > 0 || keepEmpty) out.ironBars = bars;
+  return out;
+}
+
+/**
+ * Hřivny místo nástrojů v obchodu vsi uložené dřív (production-chains.md – Kovář; Martin 20. 10.
+ * 2026: „V liště jenom hřivny“): nástroje `tools` ve zbytku roku sousedů, ve výpravách na cestě
+ * a v kronice výprav se převedou na hřivny (kg ÷ 1,2 – `renamedTools`) – zbytek roku souseda pak
+ * sedí na jeho dnešní povahu (hřivny místo nástrojů) a výprava přinese hřivny. Běží před
+ * `withoutForeignGoods` (ten by nástroje jako neznámé zboží zahodil). Bez čeho převádět, vrátí
+ * tentýž objekt; idempotentní (jako `withCattleKinds`).
+ */
+export function withIronBarsTrade(state: VillageState): VillageState {
+  const trade = state.trade;
+  const neighbours = trade?.neighbours.map((n) => {
+    const supply = renamedTools(n.supply, true);
+    const demand = renamedTools(n.demand, true);
+    return supply === n.supply && demand === n.demand ? n : { ...n, supply, demand };
+  });
+  const neighboursChanged = neighbours?.some((n, i) => n !== trade!.neighbours[i]) ?? false;
+  const expeditions = trade?.expeditions.map((e) => {
+    const give = renamedTools(e.give);
+    const get = renamedTools(e.get);
+    return give === e.give && get === e.get ? e : { ...e, give, get };
+  });
+  const expeditionsChanged = expeditions?.some((e, i) => e !== trade!.expeditions[i]) ?? false;
+  // kronika výprav – projde se jen, když v ní nástroje jsou (kronika bývá dlouhá)
+  const legacyEvent = (event: ChronicleEvent): boolean =>
+    (event.kind === 'trade-departed' && 'tools' in event.give) ||
+    (event.kind === 'trade-returned' && 'tools' in event.get);
+  const chronicleChanged = state.chronicle.some(legacyEvent);
+  if (!neighboursChanged && !expeditionsChanged && !chronicleChanged) return state;
+  return {
+    ...state,
+    ...(trade && (neighboursChanged || expeditionsChanged)
+      ? { trade: { ...trade, neighbours: neighbours!, expeditions: expeditions! } }
+      : {}),
+    ...(chronicleChanged
+      ? {
+          chronicle: state.chronicle.map((event) => {
+            if (event.kind === 'trade-departed') {
+              return { ...event, give: renamedTools(event.give) };
+            }
+            if (event.kind === 'trade-returned') return { ...event, get: renamedTools(event.get) };
+            return event;
+          }),
+        }
+      : {}),
+  };
 }
 
 /** Zboží, které obchod zná – uložené vsi mohou mít v obchodu ještě zboží zvenku (sůl, med…). */

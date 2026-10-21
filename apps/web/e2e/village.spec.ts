@@ -848,7 +848,7 @@ test('ves postaví ve dvorci zemskou stezku a pošle po ní výpravu k sousedovi
     cheeseKg: 300,
     legumesKg: 300,
     woodLogs: 40,
-    crafts: { charcoalKg: 400, toolsKg: 20, potteryKg: 60 },
+    crafts: { charcoalKg: 400, potteryKg: 60, ironBarsKg: 20 },
   });
   await writeVillageState(s.settlementId, state);
   await pollVillage(page);

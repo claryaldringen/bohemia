@@ -65,7 +65,8 @@ a smysl přebytkům (obilí, sýr, maso, klády po mýcení) – jen se surovina
 
 - V každém z 8 směrů je soused s **povahou** určenou deterministicky ze seedu světa a směru
   (návrh Clauda): 2–3 druhy zboží **nabízí** (přebytek – levně), 2–3 **shání** (dražší).
-  Zboží souseda: obilí, maso, sýr, luštěniny, dobytek (kusy), klády, keramika, nástroje, uhlí –
+  Zboží souseda: obilí, maso, sýr, luštěniny, dobytek (kusy), klády, keramika, hřivny (od 20. 10.
+  2026 místo nástrojů – [Hřivny místo nástrojů](#hřivny-místo-nástrojů-20-10-2026)), uhlí –
   jen to, co má i ves (Martin 19. 10. 2026, viz [Jen společné suroviny](#jen-společné-suroviny)).
   ~~a **zboží zvenku**: **sůl, železo, med, kožešiny**~~ (zrušeno 19. 10. 2026).
 - **Čím se soused živí** (návrh Clauda, 19. 10. 2026): obilnáři, pastevci, lesní ves, řemeslníci –
@@ -77,7 +78,7 @@ a smysl přebytkům (obilí, sýr, maso, klády po mýcení) – jen se surovina
 ## Obchod
 
 - **Výměnou, ne za peníze** (návrh Clauda). Každé zboží má hodnotu v kg obilí: obilí 1,
-  luštěniny 1, maso 3, sýr 4, keramika 3, uhlí 0,5, nástroje 60 (kg), kráva 600, kláda 40 (kus) –
+  luštěniny 1, maso 3, sýr 4, keramika 3, uhlí 0,5, hřivny 45 (kg), kráva 600, kláda 40 (kus) –
   rešerše
   [2026-10-18-trade-values.md](research/2026-10-18-trade-values.md) (návrh Clauda). Soused
   bere s přirážkou **≈ 20 %**; co shání, za to dá o ≈ 20 % víc, co nabízí, dá o ≈ 20 % levněji.
@@ -105,7 +106,7 @@ variantu „a“: odebrat zboží zvenku). Detaily níž jsou návrh Clauda.
 
 - **Co se mění:** se sousedem se vyměňuje jen to, co ves sama má – obilí, luštěniny, maso, sýr,
   dobytek (od 20. 10. 2026 krávy, mladí a vycvičení voli – [Dobytek ve třech
-  druzích](#dobytek-ve-třech-druzích-20-10-2026)), klády, keramika, nástroje a uhlí. Sůl, železo, med a kožešiny ve hře nejsou:
+  druzích](#dobytek-ve-třech-druzích-20-10-2026)), klády, keramika, hřivny (dřív nástroje) a uhlí. Sůl, železo, med a kožešiny ve hře nejsou:
   nejsou v zásobách vsi ani v horní liště, med se nejí (strava, osev podle stravy), sůl
   a kožešiny nepřidávají štěstí a kovář nekuje z koupeného železa – železo si taví sám z bahenní
   rudy, jak rozhodl Martin u [řemesel](crafts.md).
@@ -115,10 +116,10 @@ variantu „a“: odebrat zboží zvenku). Detaily níž jsou návrh Clauda.
 
   | Soused                        | Nabízí                    | Shání vždy | Shání dál (1–2 z nich)                     |
   | ----------------------------- | ------------------------- | ---------- | ------------------------------------------ |
-  | obilnáři z bezlesé roviny     | obilí, luštěniny, dobytek | klády      | maso, sýr, keramika, nástroje, uhlí        |
-  | pastevci                      | dobytek, maso, sýr        | obilí      | luštěniny, klády, keramika, nástroje       |
-  | lesní ves (dřevaři a uhlíři)  | klády, uhlí, maso         | obilí      | luštěniny, sýr, keramika, nástroje         |
-  | řemeslníci (hrnčíři a kováři) | keramika, nástroje        | obilí      | luštěniny, maso, sýr, klády, uhlí, dobytek |
+  | obilnáři z bezlesé roviny     | obilí, luštěniny, dobytek | klády      | maso, sýr, keramika, hřivny, uhlí          |
+  | pastevci                      | dobytek, maso, sýr        | obilí      | luštěniny, klády, keramika, hřivny         |
+  | lesní ves (dřevaři a uhlíři)  | klády, uhlí, maso         | obilí      | luštěniny, sýr, keramika, hřivny           |
+  | řemeslníci (hrnčíři a kováři) | keramika, hřivny          | obilí      | luštěniny, maso, sýr, klády, uhlí, dobytek |
 
 - **Kolem vsi je každý druh souseda dvakrát** (8 směrů, rozdání ze seedu vsi) – každé zboží
   některý soused nabízí a některý shání. Zásoby a poptávka se nemění (600–1 500 a 800–2 000 kg
@@ -213,6 +214,28 @@ objednává i dává:
   Výprava na cestě ukáže i lidi.
 - **Starší vsi:** zbytek roku souseda uložený dřív lidi nemá – platí celý rok podle povahy;
   výprava na cestě bez lidí se vrátí beze změny.
+
+## Hřivny místo nástrojů (20. 10. 2026)
+
+Martin (20. 10. 2026, [výrobní řetězy](production-chains.md) – Kovář): kovář vytaví houbu
+a překove ji na hřivny, „ze kterých může vyrábět nástroje nebo mohou jít na obchod“; „V liště
+jenom hřivny“.
+
+- **Zboží `ironBars` – „Hřivny“** nahrazuje nástroje všude: v povaze sousedů (řemeslníci hřivny
+  nabízejí, obilnáři, pastevci a lesní ves je shánějí – na místě nástrojů, takže ostatní zboží
+  sousedů zůstalo, jak bylo), v hodnotách, zásobách a poptávce sousedů, výpravách a kronice.
+- **Hodnota 45 kg obilí za kg** (návrh Clauda): nástroje 60 bez kování (15 % práce a 5 % uhlí)
+  ÷ 1,2 kg hřiven na kg nástrojů ≈ 47; železo z rešerše
+  [2026-10-18-trade-values.md](research/2026-10-18-trade-values.md) 30–60.
+- Ves prodává hřivny ze zásoby kovárny (kovář drží zásobu na rok obnovy vybavení a pak ji doplní
+  tavbou); koupené hřivny jdou do zásoby – kovář z nich kove nástroje a kování k vozům.
+- **Nástroje nejsou zboží obchodu** – jsou vybavení domácností. Ves bez kováře si je dál kupuje
+  sama u kováře souseda ([Nákup u sousedů](crafts.md#nákup-u-sousedů), cena 60 × 0,96 – nástroje
+  jdou do vybavení).
+- **Starší vsi** (návrh Clauda): při načtení se nástroje ve zbytku roku sousedů, ve výpravách na
+  cestě a v kronice výprav převedou na hřivny (kg ÷ 1,2, na celé kg; `withIronBarsTrade` – před
+  `withoutForeignGoods`, ať zbytek roku souseda sedí na jeho povahu); výprava na cestě přinese
+  hřivny. Jednou, idempotentně.
 
 ## Dobytek ve třech druzích (20. 10. 2026)
 
@@ -432,32 +455,33 @@ Návrh Clauda (18. 10. 2026) – detaily, které návrh výš nechal otevřené:
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                          | Kdo                             |
-| --------------------------------------------------------------------------------------------------- | ------------------------------- |
-| Dvorec vojvody – větší a honosnější obydlí; klik ukáže vylepšení vsi                                | Martin                          |
-| První vylepšení: cesta do sousední vsi v jednom z 8 směrů; po ní obchod                             | Martin                          |
-| Soused zatím bez simulace (stálá povaha), později skutečné vsi NPC vojvodů                          | Martin (a)                      |
-| Dvorec = první / nejstarší obydlí, přestavba na dvorec, kapacita 10, cena ×1,5, jeden               | návrh Clauda                    |
-| Stezka = upravená cesta ke kraji mapy (+ hať a lávka), po úsecích od vsi                            | návrh Clauda                    |
-| Povaha souseda ze seedu: 2–3 nabízí, 2–3 shání; roční zásoby a poptávka                             | návrh Clauda                    |
-| Výměna podle hodnot v kg obilí, přirážka ≈ 20 %; nosiči 25 kg, 2–6 dní, práce vsi                   | návrh Clauda                    |
-| ~~Zboží zvenku: sůl, železo (pro kováře), med (jídlo), kožešiny; štěstí~~ – zrušeno                 | návrh Clauda                    |
-| Přistěhovalci přijdou přes obchod a vztahy se sousedy, ne jako samostatná mechanika                 | Martin                          |
-| Hodnoty zboží v kg obilí podle rešerše (kráva 600, nástroje 60, kláda 40, sýr 4…)                   | návrh Clauda                    |
-| Jak je postavené: dvorec, pozemek se dvorem, trasa a úseky stezky, sousedé, ceny, doprava           | návrh Clauda                    |
-| Jen společné suroviny – se sousedem jen zboží, které má i ves; zboží zvenku pryč (19. 10.)          | Martin                          |
-| Druhy sousedů (obilnáři, pastevci, lesní ves, řemeslníci), každý dvakrát kolem vsi                  | návrh Clauda                    |
-| Starší vsi: zboží zvenku propadne, výprava pro něj se ruší a nosiči vrátí, co nesli                 | návrh Clauda                    |
-| Výměna lidí se sousedem – celé rodiny i jen dospělí, podle nabídky (19. 10.)                        | Martin                          |
-| Lidé souseda na rok (40 % navíc, 30 % shání), dospělý 360 kg obilí, dítě polovina                   | návrh Clauda                    |
-| Kdo přijde a kam, koho ves dá (ne dědic, dvorec, rozpad domácnosti), lidé nic nenesou               | návrh Clauda                    |
-| Muži a ženy ve výměně lidí zvlášť – nabídka, poptávka i výběr hráče (19. 10.)                       | Martin                          |
-| Panel obchodu po odeslání: ořez posuvníků, kontrola předem, chyba v panelu, výprava na cestě        | návrh Clauda                    |
-| Karavana výpravy ve scéně – skupina podle postupu výpravy, lidé tam i zpět, s vozem náklad na voze  | Martin (19. 10.) / návrh Clauda |
-| Kde stezka prochází lesem, les se vykácí (19. 10.)                                                  | Martin                          |
-| Průsek 3,5 m od osy, kácení v ceně úseku, trasa se vyhne posvátným dubům a hájům                    | návrh Clauda                    |
-| Lidé na výpravě mají vlastní podíl práce – po denním minimu, před rozdělením dne (19. 10.)          | Martin                          |
-| Nosiči jen dospělí (nejvýš kolik jich ves má), denní minimum domácností má přednost                 | návrh Clauda                    |
-| Obchod s dobytkem ve třech druzích – krávy, mladí voli (výcvik), vycvičení voli (20. 10.)           | Martin                          |
-| Místa v ohradách, vycvičený vůl se 3 lety služby, prodej mimo dosluhující, rádlo k páru bez výcviku | návrh Clauda                    |
-| Ceny dobytka (kráva 600, mladý vůl 350, vycvičený 1 200), kdo dobytek nabízí a shání, honák         | návrh Clauda                    |
+| Rozhodnutí                                                                                          | Kdo                                       |
+| --------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| Dvorec vojvody – větší a honosnější obydlí; klik ukáže vylepšení vsi                                | Martin                                    |
+| První vylepšení: cesta do sousední vsi v jednom z 8 směrů; po ní obchod                             | Martin                                    |
+| Soused zatím bez simulace (stálá povaha), později skutečné vsi NPC vojvodů                          | Martin (a)                                |
+| Dvorec = první / nejstarší obydlí, přestavba na dvorec, kapacita 10, cena ×1,5, jeden               | návrh Clauda                              |
+| Stezka = upravená cesta ke kraji mapy (+ hať a lávka), po úsecích od vsi                            | návrh Clauda                              |
+| Povaha souseda ze seedu: 2–3 nabízí, 2–3 shání; roční zásoby a poptávka                             | návrh Clauda                              |
+| Výměna podle hodnot v kg obilí, přirážka ≈ 20 %; nosiči 25 kg, 2–6 dní, práce vsi                   | návrh Clauda                              |
+| ~~Zboží zvenku: sůl, železo (pro kováře), med (jídlo), kožešiny; štěstí~~ – zrušeno                 | návrh Clauda                              |
+| Přistěhovalci přijdou přes obchod a vztahy se sousedy, ne jako samostatná mechanika                 | Martin                                    |
+| Hodnoty zboží v kg obilí podle rešerše (kráva 600, nástroje 60, kláda 40, sýr 4…)                   | návrh Clauda                              |
+| Jak je postavené: dvorec, pozemek se dvorem, trasa a úseky stezky, sousedé, ceny, doprava           | návrh Clauda                              |
+| Jen společné suroviny – se sousedem jen zboží, které má i ves; zboží zvenku pryč (19. 10.)          | Martin                                    |
+| Druhy sousedů (obilnáři, pastevci, lesní ves, řemeslníci), každý dvakrát kolem vsi                  | návrh Clauda                              |
+| Starší vsi: zboží zvenku propadne, výprava pro něj se ruší a nosiči vrátí, co nesli                 | návrh Clauda                              |
+| Výměna lidí se sousedem – celé rodiny i jen dospělí, podle nabídky (19. 10.)                        | Martin                                    |
+| Lidé souseda na rok (40 % navíc, 30 % shání), dospělý 360 kg obilí, dítě polovina                   | návrh Clauda                              |
+| Kdo přijde a kam, koho ves dá (ne dědic, dvorec, rozpad domácnosti), lidé nic nenesou               | návrh Clauda                              |
+| Muži a ženy ve výměně lidí zvlášť – nabídka, poptávka i výběr hráče (19. 10.)                       | Martin                                    |
+| Panel obchodu po odeslání: ořez posuvníků, kontrola předem, chyba v panelu, výprava na cestě        | návrh Clauda                              |
+| Karavana výpravy ve scéně – skupina podle postupu výpravy, lidé tam i zpět, s vozem náklad na voze  | Martin (19. 10.) / návrh Clauda           |
+| Kde stezka prochází lesem, les se vykácí (19. 10.)                                                  | Martin                                    |
+| Průsek 3,5 m od osy, kácení v ceně úseku, trasa se vyhne posvátným dubům a hájům                    | návrh Clauda                              |
+| Lidé na výpravě mají vlastní podíl práce – po denním minimu, před rozdělením dne (19. 10.)          | Martin                                    |
+| Nosiči jen dospělí (nejvýš kolik jich ves má), denní minimum domácností má přednost                 | návrh Clauda                              |
+| Obchod s dobytkem ve třech druzích – krávy, mladí voli (výcvik), vycvičení voli (20. 10.)           | Martin                                    |
+| Místa v ohradách, vycvičený vůl se 3 lety služby, prodej mimo dosluhující, rádlo k páru bez výcviku | návrh Clauda                              |
+| Ceny dobytka (kráva 600, mladý vůl 350, vycvičený 1 200), kdo dobytek nabízí a shání, honák         | návrh Clauda                              |
+| Hřivny místo nástrojů v obchodu (45 kg obilí za kg), starší vsi převedou nástroje kg ÷ 1,2          | Martin (20. 10. 2026), čísla návrh Clauda |

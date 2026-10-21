@@ -19,13 +19,15 @@ import { neighbourSnapshot } from '../neighbourhood';
 import { summarizeVillage } from '../summary';
 import {
   cartAwaitingIron,
-  ironOrderKg,
+  cartIronBarsKg,
+  craftNeeds,
+  ironOrderBarsKg,
   newWorkshop,
   restingCrafters,
-  smithToolsTarget,
-  craftTargets,
+  smithBarsTargetKg,
   workshopLabor,
 } from '../crafts';
+import { barsReserveKg } from '../iron';
 import { restingCarpenters } from '../carpentry';
 import { NO_CRAFTS } from '../productivity';
 import { CARPENTRY, CRAFT_BASE, NEIGHBOR_DIRECTIONS } from '../rules';
@@ -35,8 +37,8 @@ import { withBuiltFirstDwelling } from './village-fixtures';
 
 // Kování vozů (wagons.md – Kování vozů; Martin 20. 10. 2026: „Ano. A taky přidej tedy pravidlo, že
 // vozy mají železnou složku. Pokud vesnice nemá kováře, musí tesař (nebo jeho syn, pokud ho má)
-// dojít do nejbližší vesnice, kde kovář je“): vůz se bez kování nedokončí, kování ze zásoby
-// nástrojů od kováře, ves bez kováře pošle tesaře nebo syna do nejbližší vsi s kovářem.
+// dojít do nejbližší vesnice, kde kovář je“): vůz se bez kování nedokončí, kování z hřiven vsi
+// (production-chains.md – Kovář), ves bez kováře pošle tesaře nebo syna do nejbližší vsi s kovářem.
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 const DAY = at(600, 10, 1);
@@ -142,7 +144,7 @@ describe('vůz má kování (wagons.md – Kování vozů)', () => {
 
   it('vůz bez kování se nedokončí – tesař mezitím dělá dřevěné nářadí', () => {
     const s = withWorkshop(withWaitingCart(village()), 'smith', SMITH_ID, 70, [], -40);
-    s.crafts = { charcoalKg: 0, toolsKg: 1, potteryKg: 0 };
+    s.crafts = { charcoalKg: 0, potteryKg: 0, ironBarsKg: 1 };
     expect(cartAwaitingIron(carpenter(s))).toBe(true);
     const events = cartIronDay(s, DAY + 1, null);
     expect(events).toEqual([]);
@@ -150,35 +152,39 @@ describe('vůz má kování (wagons.md – Kování vozů)', () => {
     expect(carpenter(s).cart).not.toBeNull();
     // ves má kováře – nikdo nikam nejde, kovář má zakázku
     expect(carpenter(s).ironTrip ?? null).toBeNull();
-    expect(ironOrderKg(s)).toBe(3);
+    // 3 kg kování z 1,2 kg hřiven na kg
+    expect(ironOrderBarsKg(s)).toBeCloseTo(3 * 1.2, 9);
+    expect(cartIronBarsKg('four-wheel')).toBeCloseTo(6 * 1.2, 9);
     // tesař neodpočívá kvůli vozu – vyrábí nářadí (nebo odpočívá, má-li ho dost)
     expect(restingCarpenters(s, DAY + 1, null).get(CARPENTER_ID)).toBeUndefined();
   });
 
-  it('kovář kování vyrobí přednostně – kove nad zásobu do potřeby, dokud vůz čeká', () => {
+  it('kovář kování připraví přednostně – drží hřivny i na zakázku, dokud vůz čeká', () => {
     const s = withWorkshop(withWaitingCart(village()), 'smith', SMITH_ID, 70, [], -40);
-    const target = craftTargets(s, DAY).toolsKg;
-    expect(smithToolsTarget(s, DAY)).toBe(target + 3);
-    // s plnou zásobou do potřeby by kovář odpočíval – zakázka kování k vozu ho drží v kovárně
-    s.crafts = { charcoalKg: 500, toolsKg: target + 1, potteryKg: 0 };
+    const reserve = barsReserveKg(s, DAY);
+    expect(smithBarsTargetKg(s, DAY)).toBeCloseTo(reserve + 3.6, 9);
+    // s plným vybavením a zásobou hřiven by kovář odpočíval – zakázka kování k vozu ho drží
+    // v kovárně (production-chains.md – Kovář)
+    s.toolEquipmentKg = craftNeeds(s, DAY).toolsKg;
+    s.crafts = { charcoalKg: 500, potteryKg: 0, ironBarsKg: reserve + 0.5 };
     expect(restingCrafters(s, DAY, NO_CRAFTS).get(SMITH_ID)).toBeUndefined();
     // bez vozu, který čeká, odpočívá
     carpenter(s).cart = null;
-    expect(ironOrderKg(s)).toBe(0);
+    expect(ironOrderBarsKg(s)).toBe(0);
     expect(restingCrafters(s, DAY, NO_CRAFTS).get(SMITH_ID)).toBe('resting');
   });
 
-  it('kování ze zásoby nástrojů od kováře – vůz je hotový', () => {
+  it('kování z hřiven vsi – vůz je hotový', () => {
     const s = withWorkshop(withWaitingCart(village()), 'smith', SMITH_ID, 70, [], -40);
-    s.crafts = { charcoalKg: 0, toolsKg: 10, potteryKg: 0 };
+    s.crafts = { charcoalKg: 0, potteryKg: 0, ironBarsKg: 10 };
     const events = cartIronDay(s, DAY + 1, null);
     expect(events).toEqual([{ day: DAY + 1, kind: 'cart-made', cart: 'two-wheel' }]);
     expect(s.carts).toHaveLength(1);
-    expect(s.crafts.toolsKg).toBeCloseTo(7, 9);
+    expect(s.crafts!.ironBarsKg).toBeCloseTo(10 - 3.6, 9);
     expect(carpenter(s).cart).toBeNull();
   });
 
-  it('v simulaci: tesař dodělá vůz a s kováním ze zásoby ho dokončí týž den', () => {
+  it('v simulaci: tesař dodělá vůz a s kováním z hřiven ho dokončí týž den', () => {
     const s = withWorkshop(village(), 'carpenter', CARPENTER_ID, CARPENTER);
     s.pens = [
       {
@@ -196,10 +202,10 @@ describe('vůz má kování (wagons.md – Kování vozů)', () => {
       ...s.draft,
       lastYear: { from: DAY - 365, 'two-wheel': [100], 'four-wheel': [], plough: [], oxCost: 12 },
     };
-    s.crafts = { charcoalKg: 0, toolsKg: 20, potteryKg: 0 };
+    s.crafts = { charcoalKg: 0, potteryKg: 0, ironBarsKg: 20 };
     const next = advanceVillage(s, DAY + 90, null);
     expect(next.carts).toHaveLength(1);
-    expect(next.crafts!.toolsKg).toBeLessThan(20 - 3 + 1e-6);
+    expect(next.crafts!.ironBarsKg).toBeLessThan(20 - 3.6 + 1e-6);
     expect(next.chronicle.some((e) => e.kind === 'iron-trip')).toBe(false);
   });
 });

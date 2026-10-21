@@ -15,6 +15,7 @@ import { ageGroup, ageYears } from './people';
 import { PATH_FOREST, PATH_WATER_SPOT, PATH_WETLAND } from './paths/terrain';
 import { groundSpots, villageRoadWalk, walkGroundOf } from './paths/walking';
 import { kilnPoint, workshopKilns } from './charcoal';
+import { smeltOreKg } from './iron-rates';
 import {
   CARTS,
   CART_JOBS,
@@ -350,18 +351,11 @@ export function smithFetchDay(
 // --- ruda --------------------------------------------------------------------------------------
 
 /**
- * Ruda na dnešní kování na plný úvazek (kg): práce dílny `labor` ÷ práce na kg nástrojů × kg rudy
- * na kg nástrojů.
- */
-export function forgeOreKg(labor: number): number {
-  return (Math.max(0, labor) / CRAFT_PRODUCTION.toolManDaysPerKg) * SMITH_SUPPLY.oreKgPerToolKg;
-}
-
-/**
- * Dávka rudy pěšky (kg): na SMITH_SUPPLY.oreBatchDays dní kování na plný úvazek, aspoň jeden koš.
+ * Dávka rudy pěšky (kg): na SMITH_SUPPLY.oreBatchDays dní tavby na plný úvazek (`smeltOreKg` –
+ * production-chains.md, Kovář), aspoň jeden koš.
  */
 export function footOreBatchKg(labor: number, batchDays: number): number {
-  return Math.max(SMITH_SUPPLY.basketKg.ore, forgeOreKg(labor) * batchDays);
+  return Math.max(SMITH_SUPPLY.basketKg.ore, smeltOreKg(labor) * batchDays);
 }
 
 /**
@@ -664,14 +658,15 @@ export interface OreDay {
  * nošení uhlí):
  * - vůz pro rudu (`cart` – sedlák přijel): kovář (nebo syn od 14) jede s ním, naloží hromadu u jámy
  *   a vrátí se s plným vozem,
- * - když zásoba rudy nestačí na dnešní kování na plný úvazek a dávka není rozdělaná, začne novou –
+ * - když zásoba rudy nestačí na dnešní tavbu na plný úvazek (`needKg` – production-chains.md,
+ *   Kovář; kovárna, která tavit nebude, novou dávku nezačne) a dávka není rozdělaná, začne novou –
  *   na celý vůz, když ves má vůz doma a jízda ušetří práci proti nošení (`cartBatch`; pak už když
- *   zásoba vystačí jen na kopání dávky a CART_JOBS.ore.reserveDays dní kování), jinak na
- *   `batchDays` dní kování; bez rudiště ho vybere (`chooseOreSite`), vyčerpané ložisko vymění,
+ *   zásoba vystačí jen na kopání dávky a CART_JOBS.ore.reserveDays dní tavby), jinak na
+ *   `batchDays` dní tavby; bez rudiště ho vybere (`chooseOreSite`), vyčerpané ložisko vymění,
  * - kope (kopání s přirážkou za chůzi – `oreDigManDaysPerKg`) a u dávky pěšky vykopanou rudu hned
  *   nosí v koších do kovárny; dávka na vůz leží na hromadě u jámy, dokud nepřijede vůz – když
  *   nepřijede den po vykopání a kovář nemá rudu na dnešek, donesou ji v koších.
- * Vrací práci a zbytek práce pro kování.
+ * Vrací práci a zbytek práce pro tavbu.
  */
 export function workOre(
   state: VillageState,
@@ -680,11 +675,19 @@ export function workOre(
   day: number,
   options: DugOptions,
 ): OreDay {
-  return workDug(state, smith, 'ore', labor, day, { ...options, needKg: forgeOreKg });
+  return workDug(state, smith, 'ore', labor, day, {
+    ...options,
+    needKg: options.needKg ?? smeltOreKg,
+  });
 }
 
 /** Volby dne dílny se surovinou (`workOre`, `workDug`). */
 export interface DugOptions {
+  /**
+   * Kolik suroviny dílna spotřebuje za den výroby na plný úvazek (`workOre` – bez údaje tavba,
+   * `smeltOreKg`; kovárna, která dnes tavit nebude, 0 – novou dávku nezačne).
+   */
+  needKg?: (labor: number) => number;
   landscape: Landscape | null;
   /** Vrstva překážek krajiny – koruny stromů u nového místa (`chooseDugSite`). */
   obstacles?: ObstacleLayer | null;

@@ -46,7 +46,7 @@ export const TRADE_GOOD_NAMES: Record<
   },
   logs: { name: 'Klády', genitive: 'klád', unit: 'ks', icon: 'wood' },
   pottery: { name: 'Keramika', genitive: 'keramiky', unit: 'kg', icon: 'pottery' },
-  tools: { name: 'Nástroje', genitive: 'nástrojů', unit: 'kg', icon: 'tools' },
+  ironBars: { name: 'Hřivny', genitive: 'hřiven', unit: 'kg', icon: 'iron-bars' },
   charcoal: { name: 'Uhlí', genitive: 'uhlí', unit: 'kg', icon: 'charcoal' },
 };
 

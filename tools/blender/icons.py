@@ -32,7 +32,8 @@ hourglass (přesýpací hodiny – kolik zbývá: služba spřežení, výcvik),
 bilance obchodu se sousedem, trade.md),
 ozim (osení pod sněhem), jar (klasy jarního ječmene), flax (len – hrst stonků s modrými květy
 a tobolkami, fields.md – Len), charcoal (hromádka dřevěného uhlí), tools
-(kovaná sekera zkřížená se srpem) a pottery (dva hrnce pražského typu, větší s vlnovkou) –
+(kovaná sekera zkřížená se srpem), iron-bars (tři sekerovité hřivny) a bloom (železná houba –
+production-chains.md, Kovář) a pottery (dva hrnce pražského typu, větší s vlnovkou) –
 suroviny řemesel (crafts.md) –, ore (hromádka rezavých hrud bahenní rudy – crafts.md, Uhlí a ruda
 kováře), clay (hromádka hladkých hrud vlhké hlíny seříznutých rýčem – crafts.md, Hlína hrnčíře), harvest (sklizeň – srp zkřížený s uříznutou hrstí zralých klasů,
 panel dílu pole – fields.md), sheaves (dva svázané snopy – nevymlácené zrno v horní liště,
@@ -2169,6 +2170,62 @@ def icon_tools():
     return True
 
 
+def lying_plate(bm, pts, z, thickness):
+    """Plochý díl ležící na zemi – obrys `pts` v rovině XY, tloušťka ve směru Z."""
+    bottom = [bm.verts.new((x, y, z)) for x, y in pts]
+    top = [bm.verts.new((x, y, z + thickness)) for x, y in pts]
+    bm.faces.new(bottom[::-1])
+    bm.faces.new(top)
+    n = len(pts)
+    for i in range(n):
+        j = (i + 1) % n
+        bm.faces.new((bottom[i], bottom[j], top[j], top[i]))
+
+
+def icon_iron_bars():
+    """Hřivny: tři sekerovité železné hřivny (dlouhý plochý prut, na konci rozšířený do listu
+    s ouškem) na sobě – zásoba železa u kovárny (production-chains.md – Kovář)."""
+    bars = bmesh.new()
+    # obrys hřivny podél osy x: úzký krček, list sekery na pravém konci, na levém zahnuté ouško
+    outline = [
+        (-0.95, -0.07), (-0.9, -0.12), (-0.78, -0.09), (0.35, -0.06), (0.62, -0.2),
+        (0.86, -0.27), (0.92, 0.0), (0.86, 0.27), (0.62, 0.2), (0.35, 0.06),
+        (-0.78, 0.09), (-0.9, 0.12), (-0.95, 0.07),
+    ]
+    for k, (dx, dy, ang) in enumerate([(0.0, -0.32, 0.06), (0.05, 0.3, -0.05), (-0.04, 0.0, 0.22)]):
+        c, si = math.cos(ang), math.sin(ang)
+        pts = [(dx + x * c - y * si, dy + x * si + y * c) for x, y in outline]
+        lying_plate(bars, pts, 0.11 * k + (0.02 if k == 2 else 0.0), 0.1)
+    bmesh.ops.recalc_face_normals(bars, faces=bars.faces)
+    m = mat("bars", (0.22, 0.2, 0.19), 0.55, noise=22, bump=0.6)
+    next(x for x in m.node_tree.nodes if x.type == "BSDF_PRINCIPLED").inputs["Metallic"].default_value = 0.55
+    to_obj(bars, "bars", m, smooth=False)
+    sun(az=-40, el=45, strength=4.4)
+    sun(az=150, el=25, strength=2.2, color=(0.8, 0.88, 1.0))
+    camera([Vector((-1.0, -0.65, 0)), Vector((1.0, 0.65, 0.35))], az=0, el=38, margin=1.04)
+    return True
+
+
+def icon_bloom():
+    """Železná houba: struskovitý pórovitý bochník železa z redukční pece – tmavý, se šedou kůrou
+    a rezavými skvrnami (production-chains.md – Kovář)."""
+    rng = random.Random(17)
+    bm = bmesh.new()
+    first = len(bm.verts)
+    bmesh.ops.create_icosphere(bm, subdivisions=4, radius=1.0)
+    bm.verts.ensure_lookup_table()
+    for v in list(bm.verts)[first:]:
+        k = 1.0 + 0.16 * noise.noise(v.co * 2.2) + 0.08 * noise.noise(v.co * 7.0) + rng.uniform(-0.03, 0.03)
+        flat = 0.62 if v.co.z > 0 else 0.42
+        v.co = Vector((v.co.x * 0.9 * k, v.co.y * 0.8 * k, v.co.z * flat * k))
+    m = mat("bloom", (0.13, 0.11, 0.1), 0.9, noise=46, bump=2.4, tint=(0.32, 0.14, 0.06))
+    to_obj(bm, "bloom", m, smooth=True)
+    sun(az=-45, el=42, strength=4.4, color=(1.0, 0.9, 0.75))
+    sun(az=150, el=25, strength=2.4, color=(0.8, 0.88, 1.0))
+    camera([Vector((-0.95, -0.85, -0.42)), Vector((0.95, 0.85, 0.62))], az=0, el=24, margin=1.04)
+    return True
+
+
 def icon_harvest():
     """Sklizeň (žeň): srp zkřížený s uříznutou hrstí zralých klasů – panel dílu pole (fields.md)."""
     rng = random.Random(23)
@@ -2710,6 +2767,8 @@ RESOURCES = {
     "ore": icon_ore,
     "clay": icon_clay,
     "tools": icon_tools,
+    "iron-bars": icon_iron_bars,
+    "bloom": icon_bloom,
     "harvest": icon_harvest,
     "sheaves": icon_sheaves,
     "walk": icon_walk,

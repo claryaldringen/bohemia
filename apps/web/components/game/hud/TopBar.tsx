@@ -161,9 +161,10 @@ export function cartsLabel(carts: VillageView['crafts']['carts']): string {
 }
 
 /**
- * Zásoby výrobků řemeslníků (crafts.md) – uhlí, nástroje a keramika v kg; v popisku nástrojů
- * a keramiky i pokrytí potřeby vsi (meze produktivity). Dřevěné nářadí a vozy od tesaře
- * (wagons.md) – jen když ves tesaře nebo vozy má.
+ * Zásoby výrobků řemeslníků (crafts.md) – uhlí, hřivny a keramika v kg; v popisku keramiky i pokrytí
+ * potřeby vsi (meze produktivity). Nástroje v liště nejsou – jsou vybavení domácností, ukáže je
+ * panel kovárny (production-chains.md – Kovář; Martin 20. 10. 2026: „V liště jenom hřivny“).
+ * Dřevěné nářadí a vozy od tesaře (wagons.md) – jen když ves tesaře nebo vozy má.
  */
 function CraftStocks({ crafts }: { crafts: VillageView['crafts'] }): ReactElement {
   const { stocks, coverage } = crafts;
@@ -172,12 +173,8 @@ function CraftStocks({ crafts }: { crafts: VillageView['crafts'] }): ReactElemen
       <Resource icon="charcoal" name="Uhlí (kg)" testId="village-charcoal">
         {formatInteger(stocks.charcoalKg)}
       </Resource>
-      <Resource
-        icon="tools"
-        name={`Nástroje (kg) – pokrytí potřeby ${formatPercent(coverage.tools)}`}
-        testId="village-tools"
-      >
-        {formatInteger(stocks.toolsKg)}
+      <Resource icon="iron-bars" name="Hřivny (kg)" testId="village-iron-bars">
+        {formatInteger(stocks.ironBarsKg ?? 0)}
       </Resource>
       <Resource
         icon="pottery"

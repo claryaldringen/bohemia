@@ -149,7 +149,6 @@ describe('dílna tesaře (wagons.md – Tesař)', () => {
     const s = withCarpenter(village());
     s.crafts = {
       charcoalKg: 0,
-      toolsKg: 0,
       potteryKg: 0,
       woodToolsKg: craftTargets(s, DAY).woodToolsKg + 1,
     };
@@ -223,7 +222,6 @@ describe('pomoc stavbám – dřevěná část práce (wagons.md – Tesař, Ú�
     const s = withCarpenter(village());
     s.crafts = {
       charcoalKg: 0,
-      toolsKg: 0,
       potteryKg: 0,
       woodToolsKg: craftTargets(s, DAY).woodToolsKg + 1,
     };

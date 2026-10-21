@@ -252,9 +252,9 @@ describe('vstup stezky a obchodu (trade.md)', () => {
       parseSendExpeditionInput({
         direction: 'N',
         give: { grain: 100, logs: 0 },
-        get: { tools: 2 },
+        get: { ironBars: 2 },
       }),
-    ).toEqual({ direction: 'N', give: { grain: 100 }, get: { tools: 2 } });
+    ).toEqual({ direction: 'N', give: { grain: 100 }, get: { ironBars: 2 } });
     expect(parseSendExpeditionInput({ direction: 'N', give: { gold: 1 }, get: {} })).toBeNull();
     // lidé (trade.md – Výměna lidí): rodiny, muži a ženy zvlášť celými nezápornými čísly,
     // chybějící druh 0, chybí celé = nikdo

@@ -28,7 +28,9 @@ import {
   withGrainPits,
   withoutForeignGoods,
   withCattleKinds,
+  withIronBarsTrade,
   withThreshingGrace,
+  withToolEquipment,
   type VillageState,
 } from '../domain/village';
 import type { Pause, VillageRecord, VillageRepository, VillageResult } from './villages';
@@ -117,41 +119,46 @@ export async function updateVillage(
     const record = await villages.find(villageId);
     if (record === null) return { ok: false, reason: NO_VILLAGE };
     // ohrady uložené dřív dostanou druh (oxen.md – Ohrady podle druhu); ves z doby před snopy
-    // rok odkladu mlácení od dneška (production-chains.md – Starší vsi)
+    // rok odkladu mlácení od dneška (production-chains.md – Starší vsi); zásoba nástrojů do
+    // vybavení domácností a hřivny místo nástrojů v obchodu (production-chains.md – Kovář)
     const migrated = withThreshingGrace(
       withPenGrace(
         withPenSpecies(
           withoutForeignGoods(
-            withCattleKinds(
-              withKinship(
-                // hotové upravené cesty a stezky lesem dostanou průsek (roads.md – Průsek lesem)
-                withRoadSwaths(
-                  withJoinedRoads(
-                    withMergedRoads(
-                      withLivestockLand(
-                        withMergedFields(
-                          // varianty rozměrů domů (population.md) – po pozemcích, ať dům zná svůj
-                          withDwellingShapes(
-                            withPlots(
-                              withForestDistances(
-                                withObstacleClearing(record.state, obstacles),
+            withIronBarsTrade(
+              withToolEquipment(
+                withCattleKinds(
+                  withKinship(
+                    // hotové upravené cesty a stezky lesem dostanou průsek (roads.md – Průsek lesem)
+                    withRoadSwaths(
+                      withJoinedRoads(
+                        withMergedRoads(
+                          withLivestockLand(
+                            withMergedFields(
+                              // varianty rozměrů domů (population.md) – po pozemcích, ať dům zná svůj
+                              withDwellingShapes(
+                                withPlots(
+                                  withForestDistances(
+                                    withObstacleClearing(record.state, obstacles),
+                                    landscape,
+                                  ),
+                                  landscape,
+                                  obstacles,
+                                ),
                                 landscape,
+                                obstacles,
                               ),
-                              landscape,
-                              obstacles,
                             ),
                             landscape,
-                            obstacles,
                           ),
                         ),
                         landscape,
+                        obstacles,
                       ),
+                      obstacles,
+                      landscape,
                     ),
-                    landscape,
-                    obstacles,
                   ),
-                  obstacles,
-                  landscape,
                 ),
               ),
             ),

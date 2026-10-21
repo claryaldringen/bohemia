@@ -908,6 +908,45 @@ describe('SelectionPanel – kovárna (crafts.md – Uhlí a ruda kováře)', ()
     expect(cart).toContain('data-activity="digging"');
     expect(cart).toContain('Kope rudu');
   });
+
+  it('řetěz kovárny – houba, hřivny, vybavení domácností a měchař (production-chains.md)', () => {
+    const iron = (bellows: NonNullable<SelectionWorkshop['iron']>['bellows']): SelectionDetails =>
+      dwelling({
+        type: 'polozemnice',
+        workshop: {
+          craft: 'smith',
+          activity: 'smelting',
+          laborPerDay: 1.7,
+          outputPerDayKg: 0.17,
+          stockKg: 42,
+          coverage: null,
+          kiln: null,
+          kilns: [],
+          toPlant: 0,
+          skill: { share: 1, years: 5, apprentices: [] },
+          carpenter: null,
+          iron: {
+            bloomKg: 3.2,
+            barsKg: 42,
+            barsTargetKg: 25.9,
+            equipmentKg: 61,
+            needKg: 72,
+            coverage: 0.85,
+            bellows,
+          },
+        },
+      });
+    const son = render(iron({ personId: 41, age: 11, sex: 'male', kind: 'son' }));
+    expect(son).toContain('data-activity="smelting"');
+    expect(son).toContain('Taví železnou houbu');
+    expect(son).toMatch(/data-testid="selection-workshop-bloom"[^>]*>3,2</);
+    expect(son).toMatch(/data-testid="selection-workshop-equipment"[^>]*>61</);
+    expect(son).toContain('pokrytí potřeby 85');
+    expect(son).toMatch(/data-testid="selection-workshop-bellows"[^>]*>11</);
+    expect(son).toContain('/icons/resources/iron-bars.png');
+    const alone = render(iron(null));
+    expect(alone).toContain('polovičním tempem');
+  });
 });
 
 describe('SelectionPanel – nákup u sousedů (crafts.md)', () => {

@@ -79,6 +79,30 @@ Uhlí a ruda kováře). Nově (podle Martina, čísla návrh Clauda – upřesn�
 rešerše): tavba 60 % práce a 80 % uhlí, překování 25 % práce a 15 % uhlí, kování nástroje 15 %
 práce a 5 % uhlí. Na kg nástrojů ≈ 1,2 kg hřiven (odpad).
 
+**Jak to běží** (úloha 4, 20. 10. 2026 – podrobnosti v [řemeslech](crafts.md) – Kovář – houba,
+hřivny a vybavení; čísla `IRON` v `rules.ts`, rešerše
+[2026-10-20-production-chains.md](research/2026-10-20-production-chains.md) – Kovář):
+
+- **Výtěžky** (rešerše): z kg pražené bahenní rudy **0,25 kg houby** (pokusy 10–35 %), z kg houby
+  **0,6 kg hřiven** (Sauder a Williams 2002: houba → sochor 63 %) – s 1,2 kg hřiven na kg
+  nástrojů celkem **8 kg rudy na kg nástrojů jako dřív**. Uhlí a práce celkem beze změny (50 kg,
+  10 čd); rešerše dává víc (82–100 kg uhlí, 2,3–25 čd na kg hotového železa) – hra zůstává u dnešní
+  ceny.
+- Na **kg houby 3 čd, 20 kg uhlí, 4 kg rudy**; na **kg hřiven 2,08 čd, 6,25 kg uhlí, 1,67 kg
+  houby**; na **kg nástrojů 1,5 čd, 2,5 kg uhlí, 1,2 kg hřiven**.
+- Kovář denně napřed kove nástroje do vybavení, pak překove houbu, pak ruda a tavba; houba
+  z tavby se překove další den. Do dílny jde, až má **práci aspoň na celý den** (jinak pracuje se
+  vsí – návrh Clauda).
+- **Měchař** dospělý z domácnosti (napřed nejmladší), jinak syn 10–13, který ten den nenosí uhlí
+  (nepase, v rozdělení práce u kovárny); sám kovář taví polovičním tempem – činnost `no-bellows`
+  není, tavba se nezastaví.
+- **Hodnota hřiven v obchodu 45 kg obilí za kg** (nástroje 60 bez kování ÷ 1,2 ≈ 47; železo
+  v rešerši obchodu 30–60) – [obchod](trade.md) – Hřivny místo nástrojů.
+- **Starší vsi:** zásoba nástrojů do vybavení do potřeby, přebytek ÷ 1,2 na hřivny; nástroje
+  v obchodu (zbytek roku sousedů, výpravy, kronika) ÷ 1,2 na hřivny. Vlkov (kopie, 1. 10. 803):
+  82 kg nástrojů při potřebě 63 kg → vybavení 63 kg a 15,8 kg hřiven, pokrytí 100 % před i po;
+  za rok kovárna taví 88 dní a drží vybavení na 100 % a hřivny ≈ 22 z 22,7 kg.
+
 ## Nástroje jako vybavení domácností
 
 - **Hřivny** jsou zásoba vsi – v liště místo nástrojů (Martin: „V liště jenom hřivny“).
@@ -246,8 +270,8 @@ postav. Nejdelší snímek se nesmí zhoršit.
 
 ## Otevřené otázky
 
-- Čísla tavby (výtěžek rudy → houba → hřivna) – rešerše (cena humna, kapacita jámy a ztráty
-  v jámě jsou dohledané – Humno, Obilné jámy).
+- ~~Čísla tavby (výtěžek rudy → houba → hřivna) – rešerše~~ – dohledané (Kovář, rešerše –
+  Kovář); cena humna, kapacita jámy a ztráty v jámě taky (Humno, Obilné jámy).
 
 ## Rozhodnutí
 
@@ -279,5 +303,7 @@ postav. Nejdelší snímek se nesmí zhoršit.
 | Luštěniny bez jam (doma); plán osevu počítá ztráty jako doma                                      | návrh Clauda                              |
 | Obchod s hřivnami, nástroje u sousedů jako dnes; zásoba hřiven na rok obnovy, bez přebytků        | návrh Clauda                              |
 | Měchař u tavby – dospělý nebo syn od 10 let, sám kovář polovičním tempem                          | návrh Clauda                              |
+| Výtěžek houby 25 % rudy, hřiven 60 % houby (rešerše); hřivny 45 kg obilí za kg                    | návrh Clauda                              |
+| Kovář jde do dílny až s prací na celý den; starší vsi nástroje do vybavení, přebytek na hřivny    | návrh Clauda                              |
 | Rozdělení ceny kování na tavbu, překování a nástroje; 1,2 kg hřiven na kg nástrojů                | návrh Clauda                              |
 | Kroky hrnčíře a tesaře, každý přesun mezi místy vidět                                             | návrh Clauda                              |

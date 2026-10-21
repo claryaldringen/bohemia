@@ -449,6 +449,12 @@ export interface VillageWorkshop {
    */
   ore?: VillageSummary['crafts']['workshops'][number]['ore'];
   /**
+   * Kovář (production-chains.md – Kovář): houba a hřivny u kovárny, zásoba hřiven na rok obnovy,
+   * nástroje ve vybavení a jejich potřeba (kg, po desetinách) a měchař u tavby; bez údaje dílna
+   * jiného řemesla.
+   */
+  iron?: VillageSummary['crafts']['workshops'][number]['iron'];
+  /**
    * Hrnčíř (crafts.md – Hlína hrnčíře): zásoba hlíny (kg), hliniště (vzdálenost chůze, kolik hlíny
    * zbývá) a hromada u jámy; bez údaje dílna jiného řemesla.
    */
@@ -472,6 +478,12 @@ export interface VillageCart {
 export interface VillageCrafts {
   present: boolean;
   stocks: CraftStocks;
+  /**
+   * Nástroje ve vybavení domácností (kg – production-chains.md, Nástroje jako vybavení
+   * domácností); v liště nejsou, panel kovárny je ukáže s pokrytím `coverage.tools`. Chybí =
+   * neznámo (starší pohledy, testy).
+   */
+  equipmentKg?: number;
   needs: CraftNeeds;
   coverage: CraftCoverage;
   workshops: VillageWorkshop[];
@@ -1734,7 +1746,8 @@ export const CRAFT_LOOKS: Record<
   { icon: string; product: { icon: string; name: string; stock: keyof CraftStocks } }
 > = {
   potter: { icon: 'hrncir', product: { icon: 'pottery', name: 'Keramika', stock: 'potteryKg' } },
-  smith: { icon: 'kovar', product: { icon: 'tools', name: 'Nástroje', stock: 'toolsKg' } },
+  // production-chains.md – Kovář: v zásobě hřivny, nástroje jsou vybavení domácností
+  smith: { icon: 'kovar', product: { icon: 'iron-bars', name: 'Hřivny', stock: 'ironBarsKg' } },
   burner: { icon: 'uhlir', product: { icon: 'charcoal', name: 'Uhlí', stock: 'charcoalKg' } },
   // wagons.md – Tesař: dřevěné nářadí (vozy ukazuje panel dílny zvlášť)
   carpenter: {
@@ -2755,11 +2768,17 @@ function craftsView(
   const present =
     workshops.length > 0 ||
     state.constructions.some((c) => c.craft) ||
-    stocks.charcoalKg + stocks.toolsKg + stocks.potteryKg + (stocks.woodToolsKg ?? 0) > 0 ||
+    stocks.charcoalKg +
+      stocks.potteryKg +
+      (stocks.ironBarsKg ?? 0) +
+      (stocks.woodToolsKg ?? 0) +
+      summary.crafts.equipmentKg >
+      0 ||
     carts.length > 0;
   return {
     present,
     stocks,
+    equipmentKg: summary.crafts.equipmentKg,
     needs,
     coverage,
     workshops: workshops.map((w) => ({
@@ -2781,6 +2800,17 @@ function craftsView(
         })),
       },
       carpenter: w.carpenter,
+      ...(w.iron
+        ? {
+            iron: {
+              ...w.iron,
+              bloomKg: Math.round(w.iron.bloomKg * 10) / 10,
+              barsKg: Math.round(w.iron.barsKg * 10) / 10,
+              barsTargetKg: Math.round(w.iron.barsTargetKg * 10) / 10,
+              equipmentKg: Math.round(w.iron.equipmentKg * 10) / 10,
+            },
+          }
+        : {}),
       ...(w.ore
         ? {
             ore: {

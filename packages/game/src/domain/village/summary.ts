@@ -14,9 +14,12 @@ import {
   craftCoverage,
   craftNeeds,
   craftStocks,
+  smithIronSummary,
   workshopLabor,
   type CraftNeeds,
+  type SmithIronSummary,
 } from './crafts';
+import { toolEquipmentKg } from './iron';
 import { ironTripDaysLeft } from './cart-iron';
 import {
   charcoalStockKg,
@@ -261,6 +264,11 @@ export interface WorkshopSummary {
    * ostatní dílny null.
    */
   ore: SmithOreSummary | null;
+  /**
+   * Kovář (production-chains.md – Kovář): houba, hřivny a jejich zásoba, nástroje ve vybavení
+   * domácností a měchař u tavby; ostatní dílny null.
+   */
+  iron: SmithIronSummary | null;
   /** Hrnčíř (crafts.md – Hlína hrnčíře): zásoba hlíny, hliniště a hromada u jámy; jinak null. */
   clay: PotterClaySummary | null;
   /**
@@ -312,6 +320,11 @@ export interface CartSummary {
 /** Řemesla vsi – zásoby, potřeba, pokrytí (meze produktivity) a dílny. */
 export interface CraftsSummary {
   stocks: CraftStocks;
+  /**
+   * Nástroje ve vybavení domácností (kg – production-chains.md, Nástroje jako vybavení
+   * domácností); pokrytí potřeby `coverage.tools`.
+   */
+  equipmentKg: number;
   needs: CraftNeeds;
   coverage: CraftCoverage;
   workshops: WorkshopSummary[];
@@ -855,6 +868,7 @@ function craftsSummary(state: VillageState, day: number): CraftsSummary {
   return {
     // uhlí u kováře i ve vypálených milířích (crafts.md – Milíř stojí vždy)
     stocks: { ...craftStocks(state), charcoalKg: charcoalStockKg(state) },
+    equipmentKg: toolEquipmentKg(state),
     needs: craftNeeds(state, day),
     coverage,
     workshops: state.dwellings.flatMap((d) => {
@@ -881,6 +895,7 @@ function craftsSummary(state: VillageState, day: number): CraftsSummary {
             workshop.craft === 'smith'
               ? smithOreSummary(state, d, day, haulCartsToday(state, day, false) > 0)
               : null,
+          iron: workshop.craft === 'smith' ? smithIronSummary(state, d, day) : null,
           clay:
             workshop.craft === 'potter'
               ? potterClaySummary(d, haulCartsToday(state, day, false) > 0)

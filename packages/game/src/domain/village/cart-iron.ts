@@ -3,7 +3,7 @@ import { addCart, cartOxen, cartsAway, trailCartPassable, villageCarts } from '.
 import { addCartDemand } from './draft';
 import { oxPens, oxenHome } from './oxen';
 import { groupCap, neighbourCrafts, productPrice, purchaseRoute, tripOf } from './craft-buying';
-import { NO_STOCKS, cartAwaitingIron, occupiedWorkshops } from './crafts';
+import { NO_STOCKS, cartAwaitingIron, cartIronBarsKg, occupiedWorkshops } from './crafts';
 import { neighbourOf } from './neighbours';
 import { CARTS, CART_IRON, CRAFT_BUYING, NEIGHBOR_DIRECTIONS, TRADE } from './rules';
 import { smithHead, smithSons } from './smith-supply';
@@ -24,9 +24,10 @@ import type {
 // Kování vozů (wagons.md – Kování vozů; Martin 20. 10. 2026: „Ano. A taky přidej tedy pravidlo,
 // že vozy mají železnou složku. Pokud vesnice nemá kováře, musí tesař (nebo jeho syn, pokud ho
 // má) dojít do nejbližší vesnice, kde kovář je“; podrobnosti návrh Clauda). Vůz má kování (osy,
-// hřeby, obruče a kování nábojů) – dvoukolák 3 kg, čtyřkolák 6 kg ze zásoby nástrojů od kováře.
-// Tesař vůz rozdělá; s hotovou dřevěnou prací čeká na kování a dělá zatím dřevěné nářadí. Ves
-// s kovářem ho má ze zásoby (chybí-li, kovář ho vyrobí přednostně – `smithToolsTarget`), ves bez
+// hřeby, obruče a kování nábojů) – dvoukolák 3 kg, čtyřkolák 6 kg; ve vsi se kove z hřiven
+// (1,2 kg hřiven na kg – production-chains.md, Kovář). Tesař vůz rozdělá; s hotovou dřevěnou prací
+// čeká na kování a dělá zatím dřevěné nářadí. Ves s hřivnami ho má z nich (chybí-li, kovář na
+// zakázku taví a překovává přednostně – `smithBarsTargetKg`), ves bez
 // kováře pošle syna tesaře od 14 let, nebo tesaře, do nejbližší vsi s kovářem – jiné vsi hráče na
 // téže mapě, nebo souseda za krajem mapy (cesta a platba obilím jako nákup u sousedů). Platbu sám
 // neunese (Martin 20. 10. 2026: „pokud zaplatil 173 kg obilí, tak nemohl jít sám. Buď si musel
@@ -274,7 +275,10 @@ export function ironTripShares(
   return out;
 }
 
-/** Kolik obilí stojí kování (kg) – u kováře souseda jako nákup nástrojů (0,96 hodnoty). */
+/**
+ * Kolik obilí stojí kování (kg) – u kováře souseda jako nákup nástrojů (0,96 hodnoty – kování je
+ * hotové, ne hřivny).
+ */
 export function ironPriceKg(kg: number): number {
   return kg * productPrice('toolsKg');
 }
@@ -291,7 +295,8 @@ function finishCart(state: VillageState, workshop: Workshop, day: number): Chron
  * Kování vozů dne (mutuje stav – krok dne po práci; wagons.md – Kování vozů), po dílnách tesařů:
  * 1. kdo jde pro kování, ujde den – po návratu přinese kování a vůz je hotový (`iron-brought`,
  *    `cart-made`); kdo cestou zemřel nebo z vsi odešel, kování nepřinese (vůz čeká dál),
- * 2. vůz s hotovou dřevěnou prací vezme kování ze zásoby nástrojů, když v ní je – hotový,
+ * 2. vůz s hotovou dřevěnou prací vezme kování z hřiven vsi (`cartIronBarsKg` – production-chains.md,
+ *    Kovář), když jich je dost – hotový,
  * 3. jinak, když ves nemá vlastního kováře (`smithAtHome`), jde syn tesaře od 14 let, nebo tesař,
  *    do nejbližší vsi s kovářem (`ironRoute`) – obilí za kování dá ves ze zásob hned; ves, která
  *    šetří jídlem nebo nemá obilí, vsi s kovářem nebo člověka, nechá vůz čekat (ves s kovářem –
@@ -329,9 +334,10 @@ export function cartIronDay(
     if (!cartAwaitingIron(workshop)) continue;
     const kg = cartIronKg(workshop.cart!.kind);
     const stocks = state.crafts ?? NO_STOCKS;
-    if (stocks.toolsKg + EPSILON >= kg) {
-      // kování ze zásoby nástrojů od kováře (vlastního nebo koupené)
-      state.crafts = { ...stocks, toolsKg: Math.max(0, stocks.toolsKg - kg) };
+    const bars = cartIronBarsKg(workshop.cart!.kind);
+    if ((stocks.ironBarsKg ?? 0) + EPSILON >= bars) {
+      // kování z hřiven vsi – od vlastního kováře nebo koupených (production-chains.md – Kovář)
+      state.crafts = { ...stocks, ironBarsKg: Math.max(0, (stocks.ironBarsKg ?? 0) - bars) };
       events.push(finishCart(state, workshop, day));
       continue;
     }

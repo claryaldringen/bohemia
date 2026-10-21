@@ -94,7 +94,7 @@ function withCharcoal(s: VillageState): VillageState {
       charcoalKg: CHARCOAL_KILN.trees * 120,
     },
   ];
-  s.crafts = { charcoalKg: 0, toolsKg: 0, potteryKg: 0 };
+  s.crafts = { charcoalKg: 0, potteryKg: 0 };
   return s;
 }
 
@@ -161,8 +161,9 @@ describe('uhlí z milíře ke kováři (wagons.md – Co vozy vozí, crafts.md �
     const fetch = shares(without).find((share) => share.activity === 'fetch')!;
     expect(fetch.target).toMatchObject({ kind: 'kiln', id: BURNER, from: SMITH });
     expect(fetch.manDays).toBeGreaterThan(haul.manDays);
-    // uhlí dorazí stejně (u kováře + spálené v nástrojích – bez opotřebení nástrojů dne)
-    const charcoal = (s: VillageState): number => s.crafts!.charcoalKg + s.crafts!.toolsKg * 50;
+    // uhlí dorazí stejně (u kováře + spálené v houbě – production-chains.md, Kovář)
+    const charcoal = (s: VillageState): number =>
+      s.crafts!.charcoalKg + (s.crafts!.bloomKg ?? 0) * 20;
     expect(charcoal(withCart)).toBeCloseTo(charcoal(without), 2);
     // uhlíř vytahá a vytřídí stejně – s vozem i bez něj (odnos dělá kovárna nebo vůz)
     const burner = (s: VillageState): number =>

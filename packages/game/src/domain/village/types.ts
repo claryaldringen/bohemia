@@ -165,6 +165,13 @@ export type WorkshopActivity =
   | 'drawing'
   | 'planting'
   | 'resting'
+  /**
+   * Kovář taví v redukční peci železnou houbu z rudy a uhlí – s měchařem, nebo sám polovičním
+   * tempem (production-chains.md – Kovář); `refining` překovává houbu na hřivny. Kování nástrojů
+   * z hřiven je `producing`.
+   */
+  | 'smelting'
+  | 'refining'
   | 'no-charcoal'
   /** Kovář nemá rudu a není kde ji kopat (crafts.md – Uhlí a ruda kováře). */
   | 'no-ore'
@@ -540,13 +547,20 @@ export interface DraftState {
 /**
  * Zásoby výrobků řemeslníků (crafts.md, kg): uhlí u kováře (crafts.md – Milíř stojí vždy: co uhlíř
  * donesl z vypáleného milíře a kovář ještě nespálil, koupené; uhlí ve vypálených milířích nese
- * milíř – celá zásoba `charcoalStockKg`), nástroje a keramika. Co ves nespotřebuje, zůstane
- * v zásobě.
+ * milíř – celá zásoba `charcoalStockKg`), keramika, železná houba a hřivny u kovárny
+ * (production-chains.md – Kovář). Nástroje nejsou zásoba – jsou ve vybavení domácností
+ * (`VillageState.toolEquipmentKg`). Co ves nespotřebuje, zůstane v zásobě.
  */
 export interface CraftStocks {
   charcoalKg: number;
-  toolsKg: number;
   potteryKg: number;
+  /**
+   * Železné hřivny (production-chains.md – Kovář): kovář z nich kove nástroje do vybavení
+   * a kování k vozům, jdou na obchod; v liště místo nástrojů. Chybí = 0.
+   */
+  ironBarsKg?: number;
+  /** Železná houba z tavby, kterou kovář ještě nepřekoval na hřivny. Chybí = 0. */
+  bloomKg?: number;
   /** Dřevěné nářadí od tesaře (wagons.md – Tesař); u vsí uložených dřív chybí (= 0). */
   woodToolsKg?: number;
 }
@@ -1738,6 +1752,13 @@ export interface VillageState {
   /** Zásoby výrobků řemeslníků (crafts.md) – u vsí uložených před řemesly chybí (= 0). */
   crafts?: CraftStocks;
   /**
+   * Nástroje ve vybavení domácností (kg – production-chains.md, Nástroje jako vybavení
+   * domácností): nejsou zásoba vsi, opotřebují se v užívání a kovář je doplňuje z hřiven; nákup
+   * u sousedů je přidá sem. Pokrytí potřeby nástroji = vybavení ÷ potřeba (`craftCoverage`). Ves
+   * uložená před hřivnami ho dostane ze zásoby nástrojů (`withToolEquipment`); chybí = 0.
+   */
+  toolEquipmentKg?: number;
+  /**
    * Starší polozemnice už dostaly pozemky (`withPlots`, Martin 18. 10. 2026). Chybí u vsí
    * uložených před převodem – při načtení se jednou převedou.
    */
@@ -1932,12 +1953,21 @@ export type CattleGood = 'cows' | 'youngOxen' | 'trainedOxen';
 
 /**
  * Zboží obchodu (trade.md – Sousedé): jen to, co ves sama má – obilí, maso, sýr, luštěniny (kg),
- * dobytek (kusy – krávy, mladí a vycvičení voli – `CattleGood`), klády (kusy), keramika, nástroje,
- * uhlí (kg). Zboží zvenku (sůl, železo, med, kožešiny) obchod od 19. 10. 2026 nezná (Martin: „Nech
+ * dobytek (kusy – krávy, mladí a vycvičení voli – `CattleGood`), klády (kusy), keramika, železné
+ * hřivny, uhlí (kg). Nástroje od 20. 10. 2026 nejsou zboží obchodu – jsou vybavení domácností, na
+ * obchod jdou hřivny (production-chains.md – Kovář; starší vsi `withIronBarsTrade`). Zboží zvenku (sůl, železo, med, kožešiny) obchod od 19. 10. 2026 nezná (Martin: „Nech
  * jen společné suroviny, nezaváděj nové.“) – starší vsi o něj přijdou (`withoutForeignGoods`).
  */
 export type TradeGood =
-  'grain' | 'meat' | 'cheese' | 'legumes' | CattleGood | 'logs' | 'pottery' | 'tools' | 'charcoal';
+  | 'grain'
+  | 'meat'
+  | 'cheese'
+  | 'legumes'
+  | CattleGood
+  | 'logs'
+  | 'pottery'
+  | 'ironBars'
+  | 'charcoal';
 
 /**
  * Zboží v povaze souseda (NEIGHBOURS.kinds): zboží obchodu, nebo dobytek vcelku (`cattle`) – ten

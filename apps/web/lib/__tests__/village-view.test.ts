@@ -1978,7 +1978,7 @@ describe('buildVillageView – uhlíř (crafts.md – Milíř u skácených buk�
       charcoalKg: 1200,
     };
     const s = burnerVillage([burnt, kiln(702, { x: 90, z: 10 })]);
-    s.crafts = { charcoalKg: 30, toolsKg: 0, potteryKg: 0 };
+    s.crafts = { charcoalKg: 30, potteryKg: 0 };
     s.kilnRemnants = [{ id: 600, burnerId: 50, x: 60, z: -30, day: DAY - 365 * 5 }];
     const view = buildVillageView(record(s), landscape, DAY);
     // vypálený milíř se 1 200 kg uhlí z dávky 15 buků (1,8 t) – zbývá 2/3 po 2 %
@@ -2197,7 +2197,7 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
       },
     ];
     s.carts = [{ id: 1, kind: 'two-wheel', builtDay: DAY - 365 }];
-    s.crafts = { charcoalKg: 0, toolsKg: 0, potteryKg: 0, woodToolsKg: 12 };
+    s.crafts = { charcoalKg: 0, potteryKg: 0, woodToolsKg: 12 };
     s.labor = {
       day: DAY,
       shares: [{ activity: 'haul', target: { kind: 'field', id: 1 }, manDays: 2, carts: 1 }],

@@ -65,7 +65,7 @@ const view = {
   journey: null,
   crafts: {
     present: true,
-    stocks: { charcoalKg: 40, toolsKg: 6, potteryKg: 12.4 },
+    stocks: { charcoalKg: 40, potteryKg: 12.4, ironBarsKg: 6 },
     needs: { toolsKg: 12, potteryKg: 30 },
     coverage: { tools: 0.5, pottery: 0.41 },
     workshops: [
@@ -361,7 +361,7 @@ describe('selectionDetails', () => {
         kilns: [],
         toPlant: 0,
         stockKg: 6,
-        coverage: 0.5,
+        coverage: null,
       },
     });
   });

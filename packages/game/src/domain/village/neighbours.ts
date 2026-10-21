@@ -36,7 +36,7 @@ export const TRADE_GOODS: readonly TradeGood[] = [
   ...CATTLE_GOODS,
   'logs',
   'pottery',
-  'tools',
+  'ironBars',
   'charcoal',
 ];
 

@@ -14,6 +14,26 @@ import { withBuiltFirstDwelling } from './village-fixtures';
 // Obilné jámy (production-chains.md – Obilné jámy, 20. 10. 2026): ves bez výmlatu jámy nekope –
 // přibude jen značka nové vsi `grainPits` (žádné jámy), zásoby leží doma jako dřív.
 
+/**
+ * Stav v podobě z doby před hřivnami (production-chains.md – Kovář): nástroje ve vybavení
+ * domácností zpět do zásoby nástrojů `crafts.toolsKg` – ves bez kováře se jinak nemění, otisk
+ * zůstal.
+ */
+function legacyShape(state: VillageState): unknown {
+  const { toolEquipmentKg, ...rest } = state;
+  const c = rest.crafts;
+  return {
+    ...rest,
+    crafts: c && {
+      charcoalKg: c.charcoalKg,
+      toolsKg: toolEquipmentKg ?? 0,
+      potteryKg: c.potteryKg,
+      ...(c.woodToolsKg !== undefined ? { woodToolsKg: c.woodToolsKg } : {}),
+      ...(c.ironBarsKg ? { ironBarsKg: c.ironBarsKg } : {}),
+    },
+  };
+}
+
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 const DAY = at(601, 3, 1);
 
@@ -46,7 +66,8 @@ function village(): VillageState {
   s.storesKg = 8_000;
   s.lastDay = DAY;
   s.nextId = 1000;
-  s.crafts = { charcoalKg: 0, toolsKg: 10, potteryKg: 10 };
+  s.crafts = { charcoalKg: 0, potteryKg: 10 };
+  s.toolEquipmentKg = 10;
   s.pens = [
     {
       id: 900,
@@ -80,7 +101,7 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
       // nová ves bez jam (production-chains.md – Obilné jámy) – bez výmlatu se nic neukládá
       'grainPits',
     ]);
-    const stripped = JSON.stringify(next, (key, value: unknown) =>
+    const stripped = JSON.stringify(legacyShape(next), (key, value: unknown) =>
       marks.has(key) ? undefined : value,
     );
     expect(hash(stripped)).toBe('f0150b51');

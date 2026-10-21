@@ -138,6 +138,9 @@ export {
 } from './grain-pit-site';
 export * from './happiness';
 export * from './crafts';
+// kovář – tavba, houba, hřivny, nástroje jako vybavení (production-chains.md – Kovář)
+export * from './iron';
+export { FORGE, ORE_KG_PER_TOOL_KG, REFINE, SMELT, smeltOreKg } from './iron-rates';
 // kování vozů (wagons.md – Kování vozů) – krok dne volá simulate.ts
 export {
   cartIronKg,

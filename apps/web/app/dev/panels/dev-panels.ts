@@ -89,7 +89,7 @@ const neighbours: VillageNeighbour[] = [
     tripDays: 5,
     offers: [
       { good: 'pottery', price: 2.88, left: 400 },
-      { good: 'tools', price: 57.6, left: 20 },
+      { good: 'ironBars', price: 43.2, left: 25 },
     ],
     demands: [
       { good: 'grain', price: 1, left: 1500, have: 12400 },
@@ -149,7 +149,7 @@ const neighbours: VillageNeighbour[] = [
     name: 'Mokrá',
     lengthM: 960,
     tripDays: 6,
-    offers: [{ good: 'tools', price: 57.6, left: 20 }],
+    offers: [{ good: 'ironBars', price: 43.2, left: 25 }],
     demands: [{ good: 'grain', price: 1, left: 1200, have: 12400 }],
     people: {
       offers: { families: [], men: 0, women: 0, adultPrice: 345.6 },
@@ -159,7 +159,7 @@ const neighbours: VillageNeighbour[] = [
     // výprava s vozem jde pomaleji – volné práce je míň, než je lidí výpravy
     expedition: {
       give: { grain: 900 },
-      get: { tools: 15 },
+      get: { ironBars: 15 },
       givePeople: { families: 1, men: 0, women: 0 },
       getPeople: NOBODY,
       porters: 4,
@@ -424,19 +424,28 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
     details: dwelling({
       workshop: {
         craft: 'smith',
-        activity: 'no-charcoal',
-        laborPerDay: 0,
-        outputPerDayKg: 0.8,
-        stockKg: 312,
-        coverage: 0.64,
+        activity: 'smelting',
+        laborPerDay: 1.5,
+        outputPerDayKg: 0.15,
+        stockKg: 21.4,
+        // kovář má v zásobě hřivny – pokrytí nástroji ukáže řádek vybavení (production-chains.md)
+        coverage: null,
+        // řetěz kovárny: houba, hřivny, vybavení domácností a syn u měchu (production-chains.md)
+        iron: {
+          bloomKg: 3.2,
+          barsKg: 21.4,
+          barsTargetKg: 25.9,
+          equipmentKg: 61,
+          needKg: 72,
+          coverage: 0.85,
+          bellows: { personId: 41, age: 11, sex: 'male', kind: 'son' },
+        },
         kiln: null,
         kilns: [],
         toPlant: 0,
         // kovář vychovává nástupce – syn 11 let se učí (crafts.md – Učení řemesla)
         skill: { share: 1, years: 5, apprentices: [{ age: 11, years: 1.4 }] },
         carpenter: null,
-        // kovář nemá uhlí – vesničané dokupují nástroje u souseda (crafts.md)
-        buying: { direction: 'N', days: 6 },
       },
     }),
   },

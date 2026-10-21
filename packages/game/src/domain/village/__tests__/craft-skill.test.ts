@@ -162,7 +162,7 @@ describe('praxe roste jen při práci (crafts.md – Učení řemesla)', () => {
 
   it('v simulaci: hrnčíř s plnou zásobou keramiky odpočívá a praxe nepřibývá', () => {
     const s = withWorkshop(fullVillage(), 'potter');
-    s.crafts = { charcoalKg: 0, toolsKg: 0, potteryKg: 10_000 };
+    s.crafts = { charcoalKg: 0, potteryKg: 10_000 };
     const after = advanceVillage(s, DAY + 30, null);
     expect(after.dwellings.find((d) => d.id === WORKSHOP_ID)!.workshop!.activity).toBe('resting');
     expect(practice(after, FATHER, 'potter')).toBe(0);

@@ -165,7 +165,12 @@ describe('cloneState – dvorec, stezky a obchod (trade.md)', () => {
       ],
       trade: {
         neighbours: [
-          { direction: 'SE' as const, season: 600, supply: { tools: 8 }, demand: { grain: 900 } },
+          {
+            direction: 'SE' as const,
+            season: 600,
+            supply: { ironBars: 8 },
+            demand: { grain: 900 },
+          },
         ],
         expeditions: [
           {
@@ -174,7 +179,7 @@ describe('cloneState – dvorec, stezky a obchod (trade.md)', () => {
             trailId: 40,
             startedDay: 120,
             give: { grain: 100 },
-            get: { tools: 1 },
+            get: { ironBars: 1 },
             porters: 4,
             days: 5,
             cost: 20,

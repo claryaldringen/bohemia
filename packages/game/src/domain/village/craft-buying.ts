@@ -3,6 +3,7 @@ import type { Landscape } from '../landscape';
 import { createRandom, deriveSeed } from '../landscape/random';
 import { CELL_SIZE_M, LANDSCAPE_SIZE } from '../landscape/types';
 import { craftNeeds, craftStocks, craftTargets, occupiedWorkshops } from './crafts';
+import { toolEquipmentKg } from './iron';
 import { sowingTargets } from './field-food';
 import { expectedNetKg } from './fields';
 import { villageLaborFactor } from './happiness';
@@ -88,10 +89,24 @@ export function neighbourCrafts(seed: number, direction: Direction8): Craft[] {
   return NEIGHBOUR_CRAFT_ORDER.filter((craft) => rnd.next() < odds[craft]);
 }
 
-/** Kolik kg obilí soused chce za kg výrobku (nabízené zboží – hodnota × 0,96, trade.md). */
+/**
+ * Kolik kg obilí soused chce za kg výrobku (nabízené zboží – hodnota × 0,96, trade.md); nástroje
+ * nejsou zboží obchodu (na obchod jdou hřivny – production-chains.md, Kovář), kovář souseda je
+ * prodá za CRAFT_BUYING.toolsValueKg.
+ */
 export function productPrice(product: CraftProduct): number {
   if (product === 'woodToolsKg') return buyValue(CRAFT_BUYING.woodToolsValueKg);
-  return buyValue(TRADE_GOOD_VALUES[product === 'toolsKg' ? 'tools' : 'pottery'].valueKg);
+  if (product === 'toolsKg') return buyValue(CRAFT_BUYING.toolsValueKg);
+  return buyValue(TRADE_GOOD_VALUES.pottery.valueKg);
+}
+
+/**
+ * Kolik výrobku ves má (kg): nástroje ve vybavení domácností (production-chains.md – Nástroje jako
+ * vybavení domácností), keramika a dřevěné nářadí v zásobě.
+ */
+function productStock(state: VillageState, product: CraftProduct): number {
+  if (product === 'toolsKg') return toolEquipmentKg(state);
+  return craftStocks(state)[product] ?? 0;
 }
 
 /** Cesta k sousedovi – po hotové zemské stezce, nebo krajinou ke kraji mapy. */
@@ -186,7 +201,13 @@ export function craftSources(state: VillageState, landscape: Landscape | null): 
 export function ownCraftsmanWorks(state: VillageState, craft: Craft): boolean {
   return occupiedWorkshops(state, craft).some((d) => {
     const activity = d.workshop!.activity;
-    return activity !== 'no-charcoal' && activity !== 'no-wood' && activity !== 'empty';
+    return (
+      activity !== 'no-charcoal' &&
+      activity !== 'no-wood' &&
+      activity !== 'no-ore' &&
+      activity !== 'no-clay' &&
+      activity !== 'empty'
+    );
   });
 }
 
@@ -367,7 +388,6 @@ export function planPurchases(
   coverage: CraftCoverage,
   landscape: Landscape | null,
 ): PurchasePlan[] {
-  const stocks = craftStocks(state);
   const targets = craftTargets(state, day);
   const needs = craftNeeds(state, day);
   const costs = villageFoodCosts(state, day, coverage.tools);
@@ -396,7 +416,7 @@ export function planPurchases(
   ): { plan: PurchasePlan; trial: PaymentPool } | null => {
     const craft = PRODUCT_CRAFT[product];
     if (ownCraftsmanWorks(state, craft)) return null;
-    const stock = stocks[product] ?? 0;
+    const stock = productStock(state, product);
     const wanted = targets[product] - stock;
     if (wanted < CRAFT_BUYING.minKg) return null;
     const route = nearestCraftsman(state, craft, landscape);
@@ -550,8 +570,9 @@ export function walkPurchases(state: VillageState): { target: LaborTarget; manDa
 }
 
 /**
- * Vrácené nákupy (mutuje stav): výrobky do zásob řemesel, kronika `crafts-bought` (jen fakt –
- * „Vesničané koupili nástroje u souseda (sever)“).
+ * Vrácené nákupy (mutuje stav): nástroje do vybavení domácností (production-chains.md – Nástroje
+ * jako vybavení domácností), keramika a dřevěné nářadí do zásob řemesel, kronika `crafts-bought`
+ * (jen fakt – „Vesničané koupili nástroje u souseda (sever)“).
  */
 export function finishPurchases(state: VillageState, day: number): ChronicleEvent[] {
   const purchases = state.purchases;
@@ -559,8 +580,10 @@ export function finishPurchases(state: VillageState, day: number): ChronicleEven
   const events: ChronicleEvent[] = [];
   state.purchases = purchases.filter((purchase) => {
     if (purchase.done < purchase.days) return true;
-    const stocks = (state.crafts ??= { charcoalKg: 0, toolsKg: 0, potteryKg: 0 });
-    stocks.toolsKg += purchase.get.toolsKg ?? 0;
+    const stocks = (state.crafts ??= { charcoalKg: 0, potteryKg: 0 });
+    if (purchase.get.toolsKg) {
+      state.toolEquipmentKg = toolEquipmentKg(state) + purchase.get.toolsKg;
+    }
     stocks.potteryKg += purchase.get.potteryKg ?? 0;
     if (purchase.get.woodToolsKg) {
       stocks.woodToolsKg = (stocks.woodToolsKg ?? 0) + purchase.get.woodToolsKg;

@@ -55,7 +55,7 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
   woodLogs: 0,
   crafts: {
     present: false,
-    stocks: { charcoalKg: 0, toolsKg: 0, potteryKg: 0 },
+    stocks: { charcoalKg: 0, potteryKg: 0 },
     needs: { toolsKg: 6, potteryKg: 20, woodToolsKg: 8 },
     coverage: { tools: 0, pottery: 0 },
     workshops: [],

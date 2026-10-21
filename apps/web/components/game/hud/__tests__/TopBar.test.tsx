@@ -142,7 +142,7 @@ describe('mléko a sýr v liště', () => {
 describe('vozy a dřevěné nářadí v liště (wagons.md)', () => {
   const crafts = (over: Partial<VillageView['crafts']> = {}): VillageView['crafts'] => ({
     present: true,
-    stocks: { charcoalKg: 0, toolsKg: 0, potteryKg: 0 },
+    stocks: { charcoalKg: 0, potteryKg: 0 },
     needs: { toolsKg: 6, potteryKg: 20, woodToolsKg: 8 },
     coverage: { tools: 0, pottery: 0 },
     workshops: [],

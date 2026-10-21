@@ -1389,8 +1389,8 @@ export const MILIR = { offset: { x: -9, z: 3 }, footprintM: 6, clearingRadiusM: 
  * syny, pošle pro uhlí jeho/je. Taky musí někam chodit kopat rudu.“; synové nosí uhlí od 10 let,
  * rudu kopou od 14 – Martin; ostatní čísla návrh Clauda podle rešerše
  * research/2026-10-20-bog-ore.md – většinou odhad, primární práce neověřené):
- * - `oreKgPerToolKg` – 8 kg bahenní rudy na kg hotových nástrojů (odhad 4–9 kg: výtěžek železné
- *   houby ≈ 15 % hmotnosti rudy – Markewitz 2002 – a ztráty kování 20–30 %),
+ * - ruda na kg nástrojů (8 kg – odhad 4–9 kg) plyne z řetězu tavby IRON (production-chains.md –
+ *   Kovář): ruda → houba → hřivny → nástroje,
  * - `oreKgPerManDay` – vykopání, praní a pražení 60 kg rudy za člověkoden (odhad 40–100 kg –
  *   zdroj nenalezen), k tomu přirážka za chůzi na rudiště jako u lesního milíře (DISTANCE),
  * - `basketKg` – koš uhlí 15 kg (≈ 60 l – objem, jako CART_JOBS.charcoal), koš rudy 25 kg (váha,
@@ -1405,7 +1405,6 @@ export const MILIR = { offset: { x: -9, z: 3 }, footprintM: 6, clearingRadiusM: 
  * - `oreBatchDays` – dávka rudy pěšky na 30 dní kování na plný úvazek (aspoň jeden koš).
  */
 export const SMITH_SUPPLY = {
-  oreKgPerToolKg: 8,
   oreKgPerManDay: 60,
   basketKg: { charcoal: 15, ore: 25 },
   basketLoadS: 120,
@@ -1418,6 +1417,34 @@ export const SMITH_SUPPLY = {
   pitSpreadM: 6,
   pitYears: 10,
   oreBatchDays: 30,
+} as const;
+/**
+ * production-chains.md – Kovář (Martin 20. 10. 2026: „Kovař si donese/doveze dřevěné uhlí a železnou
+ * rudu. Pak vytaví železnou houbu v redukční peci za pomocí ručního měchadla, houbu překove
+ * v železnou hřivnu/hřivny, ze kterých může vyrábět nástroje nebo mohou jít na obchod.“, „V liště
+ * jenom hřivny“; čísla návrh Clauda podle rešerše research/2026-10-20-production-chains.md – Kovář):
+ * - `bloomPerOreKg` – z kg pražené bahenní rudy 0,25 kg železné houby (pokusy s bahenní rudou
+ *   10–35 %, Owens 24 %, Wareham obvykle 25–35 %),
+ * - `barsPerBloomKg` – z kg houby 0,6 kg hřiven (struska ven při překování; Sauder a Williams 2002:
+ *   houba → sochor 63 %),
+ * - `barsPerToolKg` – na kg nástrojů 1,2 kg hřiven (odpad při kování) – celkem 1,2 ÷ 0,6 ÷ 0,25 =
+ *   8 kg rudy na kg nástrojů jako dřív (crafts.md – Uhlí a ruda kováře),
+ * - `labor`, `charcoal` – rozdělení dnešní ceny kování (CRAFT_PRODUCTION – 10 čd a 50 kg uhlí na kg
+ *   nástrojů) na tavbu v redukční peci, překování houby na hřivny a kování nástrojů z hřiven,
+ * - `aloneRate` – u tavby šlape měch druhý člověk: dospělý z domácnosti kováře, nebo syn od
+ *   `bellowsFromAge` let (ten den nepase); kovář sám taví polovičním tempem,
+ * - `barsReserveYears` – kovář drží zásobu hřiven na rok obnovy vybavení (opotřebení nástrojů
+ *   za rok – CRAFT_NEEDS.toolWearPerYear), z ní se prodává; přebytky navíc netaví.
+ */
+export const IRON = {
+  bloomPerOreKg: 0.25,
+  barsPerBloomKg: 0.6,
+  barsPerToolKg: 1.2,
+  labor: { smelt: 0.6, refine: 0.25, forge: 0.15 },
+  charcoal: { smelt: 0.8, refine: 0.15, forge: 0.05 },
+  aloneRate: 0.5,
+  bellowsFromAge: 10,
+  barsReserveYears: 1,
 } as const;
 /**
  * crafts.md – Hlína hrnčíře (Martin 20. 10. 2026: „Ano, udělej to jak říkáš“ – návrh Clauda nových
@@ -1530,8 +1557,10 @@ export const WOOD_TOOLS_LABOR: Bounds = { worst: 1, best: 0.95 };
 //   sklizni jablek a porážce),
 // - `crafts` – řemeslníci souseda podle toho, čím se živí (trade.md – Sousedé): řemeslníci mají
 //   kováře, hrnčíře i tesaře jistě, ostatní někdy (pravděpodobnost, ze seedu vsi a směru),
-// - `woodToolsValueKg` – hodnota kg dřevěného nářadí v kg obilí (≈ 0,5 čd na kg – rešerše vozů;
-//   nástroje 60 a keramika 3 – TRADE_GOOD_VALUES),
+// - `toolsValueKg` – hodnota kg nástrojů u kováře souseda v kg obilí (rešerše
+//   research/2026-10-18-trade-values.md – železo × 2 za kování; nástroje nejsou zboží obchodu –
+//   production-chains.md, Kovář), `woodToolsValueKg` dřevěného nářadí (≈ 0,5 čd na kg – rešerše
+//   vozů; keramika 3 – TRADE_GOOD_VALUES),
 // - cesta po hotové zemské stezce `trailTripDays`, bez stezky lidé jdou krajinou ke kraji mapy –
 //   delší cesta (× `offTrailFactor`) a den navíc (`offTrailExtraDays`),
 // - jde malá skupina – nejvýš `groupShare` dospělých vsi (aspoň 1, nejvýš `maxGroup`); kdo nese
@@ -1548,6 +1577,7 @@ export const CRAFT_BUYING = {
     herders: { smith: 0.3, potter: 0.4, carpenter: 0.2 },
     woodsmen: { smith: 0.4, potter: 0.2, carpenter: 0.6 },
   },
+  toolsValueKg: 60,
   woodToolsValueKg: 2,
   offTrailFactor: 1.5,
   offTrailExtraDays: 1,
@@ -1561,9 +1591,10 @@ export const CRAFT_BUYING = {
  * železnou složku. Pokud vesnice nemá kováře, musí tesař (nebo jeho syn, pokud ho má) dojít do
  * nejbližší vesnice, kde kovář je“; „pokud zaplatil 173 kg obilí, tak nemohl jít sám. Buď si musel
  * půjčit vůz nebo muselo jít alespoň 6 lidí, aby to obilí unesli“; čísla návrh Clauda): kování
- * vozu – osy, hřeby, obruče a kování nábojů – dvoukolák 3 kg, čtyřkolák 6 kg ze zásoby nástrojů od
- * kováře; pro kování jde syn tesaře od `fetchFromAge` let, jinak tesař – platbu veze vůz, se
- * kterým jede `cartCrew` sedlák z vsi, nebo ji nesou nosiči po TRADE.porterKg.
+ * vozu – osy, hřeby, obruče a kování nábojů – dvoukolák 3 kg, čtyřkolák 6 kg; ve vsi se kove
+ * z hřiven (IRON.barsPerToolKg na kg kování – production-chains.md, Kovář); pro kování jde syn
+ * tesaře od `fetchFromAge` let, jinak tesař – platbu veze vůz, se kterým jede `cartCrew` sedlák
+ * z vsi, nebo ji nesou nosiči po TRADE.porterKg.
  */
 export const CART_IRON = {
   kg: { 'two-wheel': 3, 'four-wheel': 6 },
@@ -1703,23 +1734,23 @@ export const NEIGHBOURS = {
     farmers: {
       offers: ['grain', 'legumes', 'cattle'],
       always: 'logs',
-      needs: ['meat', 'cheese', 'pottery', 'tools', 'charcoal'],
+      needs: ['meat', 'cheese', 'pottery', 'ironBars', 'charcoal'],
     },
     // pastevci – dobytek, maso, sýr; obilí vždy
     herders: {
       offers: ['cattle', 'meat', 'cheese'],
       always: 'grain',
-      needs: ['legumes', 'logs', 'pottery', 'tools'],
+      needs: ['legumes', 'logs', 'pottery', 'ironBars'],
     },
     // lesní ves (dřevaři a uhlíři) – klády, uhlí, maso; obilí vždy
     woodsmen: {
       offers: ['logs', 'charcoal', 'meat'],
       always: 'grain',
-      needs: ['legumes', 'cheese', 'pottery', 'tools'],
+      needs: ['legumes', 'cheese', 'pottery', 'ironBars'],
     },
-    // řemeslníci (hrnčíři a kováři) – keramika, nástroje; obilí vždy
+    // řemeslníci (hrnčíři a kováři) – keramika, hřivny (production-chains.md – Kovář); obilí vždy
     crafters: {
-      offers: ['pottery', 'tools'],
+      offers: ['pottery', 'ironBars'],
       always: 'grain',
       needs: ['legumes', 'meat', 'cheese', 'logs', 'charcoal', 'cattle'],
     },
@@ -1748,8 +1779,9 @@ export const NEIGHBOURS = {
   cattleAlways: readonly string[];
 };
 // trade.md – Obchod, hodnoty zboží v kg obilí (rešerše research/2026-10-18-trade-values.md, návrh
-// Clauda): obilí 1, luštěniny 1, maso 3, sýr 4, keramika 3, uhlí 0,5, nástroje 60 (kg), kráva 600,
-// kláda 40 (kus). Dobytek ve třech druzích (trade.md – Dobytek ve třech druzích, rešerše
+// Clauda): obilí 1, luštěniny 1, maso 3, sýr 4, keramika 3, uhlí 0,5 (kg), kráva 600, kláda 40
+// (kus). Hřivny (production-chains.md – Kovář, návrh Clauda) 45 za kg – nástroje 60 bez kování
+// (15 % práce a 5 % uhlí) ÷ 1,2 kg hřiven na kg nástrojů ≈ 47; železo z rešerše 30–60. Dobytek ve třech druzích (trade.md – Dobytek ve třech druzích, rešerše
 // research/2026-10-20-cattle-trade.md, návrh Clauda): mladý vůl (tele před výcvikem) 350 – roček
 // stál v saském kapituláři solidus jako kráva ve franských zákonících, je ale ještě 2 roky jen
 // krmit –, vycvičený vůl 1 200 – v Lex Ribuaria dvakrát kráva (vůl 2, kráva 1 solidus), v Anglii
@@ -1762,7 +1794,7 @@ export const TRADE_GOOD_VALUES = {
   cheese: { valueKg: 4, carryKg: 1 },
   pottery: { valueKg: 3, carryKg: 1 },
   charcoal: { valueKg: 0.5, carryKg: 1 },
-  tools: { valueKg: 60, carryKg: 1 },
+  ironBars: { valueKg: 45, carryKg: 1 },
   cows: { valueKg: 600, carryKg: 0 },
   youngOxen: { valueKg: 350, carryKg: 0 },
   trainedOxen: { valueKg: 1200, carryKg: 0 },

@@ -464,7 +464,7 @@ function dwellingPortrait(type: DwellingType, craft: Craft | null): ReactElement
 /** Čeho má ves dost, když řemeslník pomáhá vsi (2. pád). */
 const ENOUGH: Record<Craft, string> = {
   burner: 'Uhlí',
-  smith: 'Nástrojů',
+  smith: 'Nástrojů ve vybavení a hřiven',
   potter: 'Keramiky',
   carpenter: 'Vozů a nářadí',
 };
@@ -487,17 +487,23 @@ function activityLook(workshop: SelectionWorkshop): {
   // tesař dělá nářadí (wagons.md – Kování vozů)
   const making = workshop.carpenter?.iron ? null : (workshop.carpenter?.making ?? null);
   const looks: Record<WorkshopActivity, { icon: string; name: string; value: string }> = {
-    producing: making
+    producing: workshop.iron
       ? {
-          icon: 'cart',
-          name: `Vyrábí vůz – ${CART_NAMES[making.kind].toLowerCase()}`,
-          value: formatPercent(making.progress),
-        }
-      : {
-          icon: product.icon,
-          name: `Vyrábí – ${product.name.toLowerCase()}`,
+          icon: 'tools',
+          name: 'Kove nástroje z hřiven do vybavení domácností',
           value: perDay,
-        },
+        }
+      : making
+        ? {
+            icon: 'cart',
+            name: `Vyrábí vůz – ${CART_NAMES[making.kind].toLowerCase()}`,
+            value: formatPercent(making.progress),
+          }
+        : {
+            icon: product.icon,
+            name: `Vyrábí – ${product.name.toLowerCase()}`,
+            value: perDay,
+          },
     helping: {
       icon: 'labor',
       name: 'Pomáhá se stavbami – dřevěné části opracuje rychleji (pokrytí dřevěné práce)',
@@ -533,6 +539,20 @@ function activityLook(workshop: SelectionWorkshop): {
             name: `${ENOUGH[workshop.craft]} je dost na rok – pomáhá vsi na poli a se stavbami`,
             value: '–',
           },
+    // řetěz kovárny (production-chains.md – Kovář): tavba a překování houby na hřivny
+    smelting: {
+      icon: 'bloom',
+      name:
+        workshop.iron?.bellows === null
+          ? 'Taví železnou houbu v redukční peci – bez měchaře polovičním tempem (kg houby u kovárny)'
+          : 'Taví železnou houbu v redukční peci (kg houby u kovárny)',
+      value: formatDecimal(workshop.iron?.bloomKg ?? 0, 1),
+    },
+    refining: {
+      icon: 'iron-bars',
+      name: 'Překovává houbu na hřivny (kg hřiven)',
+      value: formatDecimal(workshop.iron?.barsKg ?? 0, 1),
+    },
     'no-charcoal': { icon: 'charcoal', name: 'Čeká na uhlí – zatím pomáhá vsi', value: '0' },
     'no-ore': {
       icon: 'ore',
@@ -609,6 +629,52 @@ function PotterClayStats({ clay }: { clay: NonNullable<SelectionWorkshop['clay']
           {''}
         </Stat>
       )}
+    </>
+  );
+}
+
+/**
+ * Řetěz kovárny (production-chains.md – Kovář): železná houba u kovárny, zásoba hřiven, kterou
+ * kovář drží, nástroje ve vybavení domácností s pokrytím potřeby a kdo u tavby šlape měch.
+ */
+function SmithIronStats({ iron }: { iron: NonNullable<SelectionWorkshop['iron']> }): ReactElement {
+  const bellows = iron.bellows;
+  const helper =
+    bellows === null
+      ? { icon: 'man', name: 'Kovář taví sám – bez měchaře polovičním tempem', value: '½' }
+      : bellows.kind === 'son'
+        ? {
+            icon: 'child',
+            name: 'Měch u tavby šlape syn (věk) – ten den nepase',
+            value: `${bellows.age}`,
+          }
+        : {
+            icon: bellows.sex === 'female' ? 'woman' : 'man',
+            name: 'Měch u tavby šlape člen domácnosti (věk)',
+            value: `${bellows.age}`,
+          };
+  return (
+    <>
+      <Stat icon="bloom" name="Železná houba u kovárny (kg)" testId="selection-workshop-bloom">
+        {formatDecimal(iron.bloomKg, 1)}
+      </Stat>
+      <Stat
+        icon="iron-bars"
+        name="Hřivny, které kovář drží – na rok obnovy nástrojů a kování k vozům (kg)"
+        testId="selection-workshop-bars-target"
+      >
+        {formatInteger(iron.barsTargetKg)}
+      </Stat>
+      <Stat
+        icon="tools"
+        name={`Nástroje ve vybavení domácností (kg) – pokrytí potřeby ${formatPercent(iron.coverage)}`}
+        testId="selection-workshop-equipment"
+      >
+        {formatInteger(iron.equipmentKg)}
+      </Stat>
+      <Stat icon={helper.icon} name={helper.name} testId="selection-workshop-bellows">
+        {helper.value}
+      </Stat>
     </>
   );
 }
@@ -725,6 +791,7 @@ function WorkshopRow({
         ),
       )}
       {workshop.carpenter && <CarpenterStats carpenter={workshop.carpenter} />}
+      {workshop.iron && <SmithIronStats iron={workshop.iron} />}
       {workshop.ore && <SmithOreStats ore={workshop.ore} />}
       {workshop.clay && <PotterClayStats clay={workshop.clay} />}
       {workshop.buying && (
