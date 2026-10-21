@@ -4,7 +4,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 
 - **Ozim a jař** (fields.md – Ozim a jař): roční plán (`YearPlan`) nese práci jaře nahoře (tvar
   plánu z doby před ozimem) a ozimu v `winter?` (`CropWork`); díly osevu mají `crop?` (chybí =
-  jař). Okna prací po plodinách `CROP_WINDOWS` (`WINDOWS` = jař, `WINTER_WINDOWS`) v `rules.ts`.
+  jař). Okna prací po plodinách `CROP_WINDOWS` (`WINDOWS` = jař, `WINTER_WINDOWS`) v `rules*.ts`.
   K 1. 9. rozhodne `chooseCrops` (`sowing.ts`): díly v pořadí `sowingOrder`, každý do ozimu, když
   ho podzim (září–říjen po sklizni jablek) stihne a červenec sklidí, jinak do jaře, když se
   vejde do zbytku podzimu, jara a srpna – volná práce `windowDaysLeft` × práce po denním minimu.
@@ -51,7 +51,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   po žni (Snopy a výmlat níž); příděl počítá do sklizně
   podle `daysUntilFoodHarvest` (31. 7., když ozim podle odhadu uživí srpen). Plán po plodinách
   prochází `planCrops`, všechny díly `planPartIds`. **Luštěniny** (fields.md – Luštěniny, Martin 18. 10. 2026): třetí plodina `legume` (`YearPlan.legume?`, `LEGUME_WINDOWS` – jař se sklizní
-  v červenci, `LEGUMES` a `LEGUME_WORK_PER_HA` v `rules.ts`, úroda `cropGrossPerHa` /
+  v červenci, `LEGUMES` a `LEGUME_WORK_PER_HA` v `rules*.ts`, úroda `cropGrossPerHa` /
   `cropSeedPerHa`, `partWork(…, crop)`); `chooseCrops` dostane `legumeTargetKg`
   (`plannedLegumeKg` – rovnovážné hospodaření, diet.md, bez zásoby – `sowingTargets`) a `energyFloorKg` – obilí napřed na celý cíl, pak luštěniny na
   díly výběru od domu (loňské luštěniny až nakonec) a obilí doplní energii (`chooseLegumes`);
@@ -60,7 +60,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   hrachu `crop-pea-green` / `crop-pea-ripe` a hromádky `pea-heap` v `crops.glb`.
   **Len** (fields.md – Len, diet.md – Oděv; Martin 19. 10. 2026: „na částech pole musí být zasetý
   len“, čísla návrh Clauda podle rešerše `research/2026-10-19-flax.md`): čtvrtá plodina `flax`
-  (`YearPlan.flax?`, `FLAX_WINDOWS` = okna luštěnin, `FLAX` a `FLAX_WORK_PER_HA` v `rules.ts` –
+  (`YearPlan.flax?`, `FLAX_WINDOWS` = okna luštěnin, `FLAX` a `FLAX_WORK_PER_HA` v `rules*.ts` –
   potřeba 2 / 1 kg třeného lnu na dospělého / dítě, 550 kg/ha, osivo 0, neopletý 50 %, úrodnost
   −0,18 v `endOfSeason`, nemlátí se); `flax.ts` – `flaxNeedKg`, `expectedFlaxKg`, `harvestFlax`
   (31. 7. v `harvestWinter` – `VillageState.linen` = podíl oděvu vůči `YearPlan.flaxNeedKg`
@@ -261,7 +261,7 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
 
 - **Humno** ([production-chains.md](../design/production-chains.md) – Humno, úloha 1; čísla
   návrh Clauda podle rešerše `research/2026-10-20-production-chains.md`): stavba hráče –
-  `threshing-floors.ts`, `HUMNO` v `rules.ts` (8 × 10 m, 75 čd i s kácením, 6 stromů předem,
+  `threshing-floors.ts`, `HUMNO` v `rules*.ts` (8 × 10 m, 75 čd i s kácením, 6 stromů předem,
   nerovnost do 1 m). `BuildKind` / `ConstructionKind` `'threshing-floor'`, kontrola
   `checkThreshingFloorPlacement` (volně jako dílna: louka i les – Stavba v lese –, na poli pole
   ustoupí – `takenLand`, ne voda, výchoz, posvátný dub a háj, jiná stavba ani nerovná zem),
@@ -277,7 +277,7 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   `VillageRenderer.updateThreshingFloors`) – model a výběr přinesou další úlohy plánu.
 - **Snopy a výmlat hned po žni** ([production-chains.md](../design/production-chains.md) –
   Humno, úloha 2; fields.md – Výmlat hned po žni; Martin 20. 10. 2026: „Humno je podmínka“,
-  „Klasy neskladovali.“, „Rok odkladu“; čísla `THRESHING` v `rules.ts` – návrh Clauda podle
+  „Klasy neskladovali.“, „Rok odkladu“; čísla `THRESHING` v `rules*.ts` – návrh Clauda podle
   rešerše – Výmlat na humně): `threshing.ts`. Sklizeň jde do snopů `VillageState.sheaves`
   (`Sheaves` – kg zrna obilí a luštěnin a zbývající práce výmlatu po plodinách `work` – sklizená
   část práce `thresh` plánu; `addSheaves` v `harvestWinter` / `harvest`), ne do `storesKg`.
@@ -321,7 +321,7 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   Scéna výmlatu je úloha 5 plánu.
 - **Obilné jámy** ([production-chains.md](../design/production-chains.md) – Obilné jámy, úloha 3;
   Martin 20. 10. 2026: „Obilné jámy by asi neměl řešit hráč, ale vesničané sami… Označit půjde
-  jen otevřená jáma“; čísla `GRAIN_PITS` v `rules.ts` – návrh Clauda podle rešerše – Obilné
+  jen otevřená jáma“; čísla `GRAIN_PITS` v `rules*.ts` – návrh Clauda podle rešerše – Obilné
   jámy): `grain-pits.ts` (zásoba a práce), `grain-pit-site.ts` (místo, převod, jáma pod stavbou).
   `VillageState.grainPits` (`GrainPit` – id z `nextId`, střed, `capacityKg` 1 500, `grainKg`,
   `state` `sealed` / `open` / `empty`, `dugDay`, `filledDay`) a `grainPitWork` (`GrainPitWork` –

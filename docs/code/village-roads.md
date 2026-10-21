@@ -108,7 +108,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   konce `Road.openEnds` (jen tam se pás cesty ve scéně vytrácí; pěšina dne se za koncem úseku
   neskrývá – `roadFade`) → místa na stromy (`roadTreeSpots`, `plantingBlocker` – ne ve vsi, na
   čtvercích staveb (pole ano – Pole jako krajina), v lese, ve vodě, u překážek krajiny) → konec pařezů a stromy odstraněné stavbou →
-  uchycení (10 % ročně, los ze seedu vsi, roku a místa). Čísla v `rules.ts` (`ROADS`,
+  uchycení (10 % ročně, los ze seedu vsi, roku a místa). Čísla v `rules*.ts` (`ROADS`,
   `ROAD_TREES`). Stadium stromu jen ze dne (`road-trees.ts`: `roadTreeLook` – keř, strom
   s velikostí, souš, pařez; `roadTreeObstacleKind`). **Strom u cesty je překážka stavby:**
   `obstacleChangesAt` ho dá do `ObstacleChanges.added`, `obstacleStatus(...).addedIn` a tally
@@ -131,7 +131,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   terén pěšin má příznaky `PATH_WETLAND` (mokřina – suchá rovina do 3 buněk od vody) a `PATH_WATER`;
   úsek nese `Road.ground` (mokřina od–do a brody na ose – `roadGroundOf` při vzniku, starší při
   roční kontrole; `splitRoad` je dělí). `road-upgrades.ts`: `roadUpgradeOptions` (nabídka, cena
-  `roadUpgradeCost` – `ROAD_UPGRADES` v `rules.ts`, důvod česky), `startRoadUpgrade` → stavba
+  `roadUpgradeCost` – `ROAD_UPGRADES` v `rules*.ts`, důvod česky), `startRoadUpgrade` → stavba
   `kind: 'road'` s `roadIds` a `roadGrade` (dřevo `planWoodFrom` k polovině úseku),
   `finishRoadUpgrade` v `finishConstructions`; úsek ve stavbě nezaroste (`roadsInWork`). Use-case
   `upgradeRoad`, server action `upgradeRoad` (`{ roadId, upgrade }`), práce `{ kind: 'road' }`
@@ -261,7 +261,7 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
 
 - **Vozová cesta** ([roads.md](../design/roads.md) – Vozová cesta; Martin 20. 10. 2026: „tato
   cesta spojí dva body, které spojuje stará cesta pro pěší, ale co nejvíc přímo tak, aby vůz
-  projel“; čísla `WAGON_ROAD` v `rules.ts`, rešerše `research/2026-10-20-earthworks.md`): stupeň
+  projel“; čísla `WAGON_ROAD` v `rules*.ts`, rešerše `research/2026-10-20-earthworks.md`): stupeň
   `wagon` (`RoadGrade`, `RoadKind`, vůz `CART_SPEED.road.wagon` 2,2, pěšky 1,7, v mokřině jako hať,
   brod zůstává; pás `ROAD_LAND.widthM.wagon` 3,5 m). **Trasa** `paths/wagon-route.ts`
   (deterministická vrstva): `wagonRoadGrid` (zákazy jako vozová síť, mez úprav terénu `limit`

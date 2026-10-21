@@ -54,7 +54,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   žije; co přeroste nosnost, jde vždy – diet.md, Chovné stádo podle potřeby); stádo pod potřebou dá na
   maso navíc mláďata v pořadí prasata, krávy, kozy, ovce (`MEAT_ORDER`).
   **Nouzová porážka** (diet.md – Nouzová porážka, Martin 19. 10. 2026; `emergency-slaughter.ts`,
-  `EMERGENCY_SLAUGHTER` v `rules.ts`): v `eat` před jídlem dne, když výhled do sklizně nevychází
+  `EMERGENCY_SLAUGHTER` v `rules*.ts`): v `eat` před jídlem dne, když výhled do sklizně nevychází
   (`dayMealInput` – týž vstup `eatDiet` jako jídlo dne), ves porazí zvířata navíc – prasata, kozy,
   krávy nad `breedingCows`, ovce nad `woolSheep`, chovný pár zůstane (`emergencySpare`); nejméně
   masa, se kterým výhled vyjde i s rezervou `reserveShare` (5 % potřeby do sklizně – půlení
@@ -67,7 +67,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   kromě selat od 1. 9. (`pigletsSpared`, `EMERGENCY_SLAUGHTER.pigletsFromMonth`; Martin 19. 10.
   2026: „Ano ke všem návrhům“ – hladový podzim) – ta se počítají do prasat nad prasnicemi.
   **Porážka v zimě** (diet.md – Porážka v zimě, Martin 19. 10. 2026; `HERD_BREEDING`,
-  `HERD_RETIREMENT` v `rules.ts`, rešerše `research/2026-10-19-breeding-culling.md`): rodí všechny
+  `HERD_RETIREMENT` v `rules*.ts`, rešerše `research/2026-10-19-breeding-culling.md`): rodí všechny
   chovné samice (`LIVESTOCK.growth` = podíl samic × mláďata na samici – ovce +64 %, kozy +78 %,
   prasata +144 %, krávy +40 %), dojí se jen samice, které letos rodily (`dairyDams` /
   `villageDams` – dospělé kusy bez letošních mláďat × podíl samic; `dailyMilk`, `yearlyMilk`,
@@ -84,7 +84,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   senem čekajících (`winterWaitHayKg` ve `winterHayNeedKg`), práce porážky po dnech přes zimu
   (`slaughterRemaining` – `isSlaughterSeason`), kronika `slaughter` s `fresh`.
   **Oděv – vlna** (diet.md – Oděv; Martin 19. 10. 2026: „Ovce jsou hlavně kvůli vlně, aby se lidé
-  mohli vůbec oblékat.“; `wool.ts`, `WOOL` v `rules.ts`): ovce na vlnu `woolSheep` (dospělý 1,6 kg,
+  mohli vůbec oblékat.“; `wool.ts`, `WOOL` v `rules*.ts`): ovce na vlnu `woolSheep` (dospělý 1,6 kg,
   dítě 0,8 kg ÷ 0,8 kg z ovce) jsou spodní hranicí ovcí – `minSheep` ve `farmInput` →
   `winterTargets` (pastva a seno: voli, ovce na vlnu, krávy `minCows`, …; pasáci napřed ovce na
   vlnu – `watchedShares`) i `sizeHerdsToNeed`, maso navíc z mláďat je nebere; osadníci nové vsi
@@ -118,7 +118,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   nejvýš `PEN_SQUARES.max` (4) souvislé stranou; čtverce navazující na ohradu téhož druhu ve
   stejné mřížce ji rozšíří (`touchingPens`), na dvě navázat nejde; cena po čtvercích (40 čd
   a 6 stromů na čtverec, `penLaborManDays(…, squares)`). Místa `PEN_PLACES_PER_SQUARE` (ovce 130,
-  kozy 100, prasata 80, krávy 45) a u domů `HOMESTEAD_HERD` v `rules.ts`; `penCapacity`,
+  kozy 100, prasata 80, krávy 45) a u domů `HOMESTEAD_HERD` v `rules*.ts`; `penCapacity`,
   `penOccupancy`, `herdRoom`; panel ohrady ukáže místa všech ohrad druhu / potřebu stáda
   (`herdPlaces` v husbandry.ts → `VillageSummary.herdPlaces` → `VillagePen.herdPlaces`, červeně
   když chybí – Martin 20. 10. 2026); **roční odklad** – místa omezí stádo až od
