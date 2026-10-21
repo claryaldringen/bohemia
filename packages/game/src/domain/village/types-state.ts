@@ -1,0 +1,403 @@
+// Typy stavu vsi – Stav vsi, cesta vsi, sousedé a stezka.
+// Rozcestník je `types.ts`; tento soubor jen drží část typů.
+
+import type { ChronicleEvent, LaborDay } from './types-chronicle';
+import type { Construction, SacredBuildingKind, YearPlan } from './types-construction';
+import type {
+  Cart,
+  CharcoalUse,
+  Craft,
+  CraftStocks,
+  DraftState,
+  KilnRemnant,
+  OrePit,
+} from './types-crafts';
+import type {
+  Cemetery,
+  Field,
+  FieldPart,
+  GrainPit,
+  GrainPitWork,
+  Grove,
+  ObstacleChange,
+  Orchard,
+  OrchardWork,
+  SacredBuilding,
+  SacredOak,
+  SacredRuin,
+  Sheaves,
+  SquareGrid,
+  ThreshingFloor,
+  TileCell,
+  VillageWood,
+} from './types-land';
+import type {
+  DietDay,
+  FieldFoodYear,
+  HappinessState,
+  HayState,
+  LivestockState,
+  Ox,
+  Pen,
+} from './types-livestock';
+import type {
+  Ancestor,
+  Dwelling,
+  DwellingPlot,
+  DwellingRuin,
+  DwellingType,
+  Emigrant,
+  NeighborDirection,
+  Person,
+  Position,
+} from './types-people';
+import type { CartDrive, RoadGrade, VillageRoads } from './types-roads';
+import type { CraftPurchase, VillageTrade } from './types-trade';
+
+export interface VillageState {
+  seed: number;
+  foundedDay: number;
+  lastDay: number; // poslední už odsimulovaný den
+  nextId: number;
+  people: Person[];
+  dwellings: Dwelling[];
+  fields: Field[];
+  parts: FieldPart[];
+  constructions: Construction[];
+  plan: YearPlan | null;
+  threshingFromPlan: YearPlan | null;
+  storesKg: number;
+  /**
+   * Nedodělek domácí výroby – jen ve vsích uložených před 19. 10. 2026; domácí výroba z práce
+   * vsi nebere (population.md – Práce), simulace ho nečte ani nepíše.
+   */
+  domesticBacklog?: number;
+  hungry: boolean;
+  /**
+   * Příděl energie do sklizně podle výhledu z jídla posledního dne (0–1) – jen když ves šetří
+   * (`hungry`); jinak chybí (population.md – Co hráč vidí: šetří jídlem / hladoví).
+   */
+  ration?: number;
+  /**
+   * Nahromaděný hlad ve „dnech bez jídla“ (population.md – Hlad a vymření). U vsí uložených
+   * před zavedením hladovění chybí (= 0).
+   */
+  starvationDays?: number;
+  /**
+   * Den, kdy zemřel poslední člověk – ves vymřela a simulace se zastavila (lidé, pole i stavby
+   * stojí). Žijící ves ho nemá.
+   */
+  extinctDay?: number;
+  commonLaborHistory: number[]; // společná práce posledních 30 dní (pro „má na to“)
+  /**
+   * Roční průměr denní společné práce (člověkodny za den) – klouzavý exponenciální průměr
+   * s časovou konstantou COMMON_LABOR_YEAR_DAYS; podle něj se obyvatelé rozhodují o přestavbě na
+   * lepší obydlí. U vsí uložených před ním chybí – začne průměrem `commonLaborHistory`.
+   */
+  commonLaborYearly?: number;
+  chronicle: ChronicleEvent[];
+  /** Pohřebiště – u vsí uložených před zavedením pohřebišť chybí (= žádné). */
+  cemeteries?: Cemetery[];
+  /**
+   * Překážky krajiny odstraněné natrvalo i s pařezy (pole, obydlí, hřbitovy, sady). Chybí u vsí
+   * založených před vrstvou překážek – doplní je `withObstacleClearing`.
+   */
+  clearedObstacles?: ObstacleChange[];
+  /** Pokácené stromy – zbyl po nich pařez a z náletu znovu dorostou (TREE_REGROWTH_YEARS). */
+  felledTrees?: ObstacleChange[];
+  /** Jabloňové sady – u vsí uložených před zavedením sadů chybí (= žádné). */
+  orchards?: Orchard[];
+  /** Zásoby jablek (kg) – jí se před obilím, 1. 3. shnijí. Chybí = žádná. */
+  applesKg?: number;
+  /**
+   * Voli bez ohrady (migration.md – Vůz při odchodu): přišli s vozem osadníků do vsi, která ještě
+   * nemá ohradu volů – s první hotovou ohradou volů do ní přejdou (`looseOxenDay`), do té doby jen
+   * žerou seno. Chybí = žádní.
+   */
+  looseOxen?: Ox[];
+  /** Rozběhnutá sezónní práce v sadech (sklizeň, péče); chybí nebo null = žádná. */
+  orchardWork?: OrchardWork | null;
+  /**
+   * Klády na hromadě u vsi (forest.md – Mýcení a hromada klád) – z mýcení přibývají, stavby je
+   * berou, hnijí (proto i neceločíselné). U vsí uložených před dřevem chybí (= 0).
+   */
+  woodLogs?: number;
+  /**
+   * Rozdělení práce posledního odsimulovaného dne (labor-report.ts) – pro zobrazení; simulace ho
+   * čte jen přes síť pěšin (kam se chodí – vzdálenost chůze dílů, paths.md). U vsí uložených
+   * před jeho zavedením chybí do prvního dopočítaného dne.
+   */
+  labor?: LaborDay;
+  /** Štěstí obyvatel (happiness.md) – u vsí uložených před jeho zavedením chybí (= výchozí 50). */
+  happiness?: HappinessState;
+  /** Posvátné duby, které vesničané při mýcení ušetřili (happiness.md); chybí = žádné. */
+  sacredOaks?: SacredOak[];
+  /** Dubové háje, které vesničané při mýcení ušetřili – stavby po čtvercích; chybí = žádné. */
+  groves?: Grove[];
+  /** Hotové modly a svatyně (happiness.md); chybí = žádné. */
+  sacredBuildings?: SacredBuilding[];
+  /**
+   * Humna (production-chains.md – Humno) – hotová i rozestavěná (`builtDay` null). U vsí
+   * uložených dřív chybí (= žádné).
+   */
+  threshingFloors?: ThreshingFloor[];
+  /**
+   * Nevymlácené snopy (production-chains.md – Humno, Výmlat hned po žni): sklizeň jde do snopů,
+   * výmlat je převádí do zásob obilí a luštěnin. U vsí uložených dřív chybí – převod
+   * (`withThreshingGrace`) je doplní s ročním odkladem; nová ves začíná prázdnými.
+   */
+  sheaves?: Sheaves;
+  /**
+   * Den, kdy končí rok odkladu starší vsi (production-chains.md – Starší vsi): do něj (bez něj)
+   * mlátí ves bez humna nouzově na udusané zemi; od něj platí podmínka humna. Nová ves ho nemá.
+   */
+  threshingGraceUntil?: number;
+  /**
+   * Obilné jámy (production-chains.md – Obilné jámy) – zapečetěné, otevřená a prázdné. Zásoba
+   * obilí `storesKg` zůstává celá (zrno v jamách i mimo ně – na humně a doma); jámy jen říkají, kde
+   * zrno leží a jak rychle ubývá. U vsí uložených dřív chybí – převod (`withGrainPits`) uloží
+   * zásoby do jam; nová ves začíná bez jam (`[]`).
+   */
+  grainPits?: GrainPit[];
+  /** Ukládání vymláceného obilí do jam (production-chains.md – Obilné jámy); chybí = nic nečeká. */
+  grainPitWork?: GrainPitWork;
+  /**
+   * Dobytek (diet.md – Dobytek): stáda ovcí, koz, prasat a krav. U vsí uložených před dobytkem
+   * chybí – výchozí stádo z domácností doplní `withLivestock` (nebo první dopočítaný den).
+   */
+  livestock?: LivestockState;
+  /** Zásoba masa (kg) – uzené a sušené (diet.md). Chybí = žádná. */
+  meatKg?: number;
+  /**
+   * Čerstvé maso dne (kg) ze zimní porážky (diet.md – Porážka v zimě): porážka ho dá ráno, jídlo
+   * dne ho sní napřed, co zbude, se udí. Mezi dny chybí.
+   */
+  freshMeatKg?: number;
+  /** Zásoba sýra (kg) – z mléka, které se nevypije čerstvé (diet.md). Chybí = žádná. */
+  cheeseKg?: number;
+  /** Zásoba luštěnin (kg suchého semene – diet.md, Luštěniny). Chybí = žádná. */
+  legumesKg?: number;
+  /**
+   * Na jaký podíl oděvu má ves len (0–1) – zapsaný při posledním trhání lnu, platí do dalšího
+   * (fields.md – Len, diet.md – Oděv). Len není zásoba: v rámci roku se zpracuje v domácí práci.
+   * Chybí = dost (vsi uložené dřív a nové vsi do prvního trhání po plánu k 1. 9.).
+   */
+  linen?: number;
+  /** Seno (oxen.md – Seno): zásoba, sečení a zima. Chybí = žádné. */
+  hay?: HayState;
+  /** Ohrady s přístřeškem (oxen.md); chybí = žádné. */
+  pens?: Pen[];
+  /**
+   * Hotová rádla vsi (oxen.md – Voli po kusech): pár vycvičených volů orá, jen když má rádlo; ves
+   * staví rádlo s výcvikem nového páru k orbě. Chybí = žádné – u vsí uložených dřív jedno na každé
+   * vycvičené spřežení (`withOxen`).
+   */
+  ards?: number;
+  /** Kolik volů a vozů ves chce (oxen.md – Kolik volů ves chce, wagons.md); chybí = nic. */
+  draft?: DraftState;
+  /**
+   * Zbytky padlých model a svatyní (abandonment.md – Následky) – zarůstají a zmizí. Chybí =
+   * žádné (i u vsí uložených před chátráním staveb).
+   */
+  sacredRuins?: SacredRuin[];
+  /** Jídlo posledního odsimulovaného dne – energie, pestrost a podíly (jen pro zobrazení). */
+  diet?: DietDay;
+  /**
+   * Kolik jídla ves potřebuje z pole (fields.md – Kolik ves oseje, Osev podle stravy): součty
+   * běžícího hospodářského roku a podíl uplynulého – podle něj ves oseje obilí a luštěniny. Chybí
+   * u vsí uložených dřív a do prvního 1. 9. po založení (ves pak plánuje, jako by jedla jen obilí).
+   */
+  fieldFood?: FieldFoodYear;
+  /** Zásoby výrobků řemeslníků (crafts.md) – u vsí uložených před řemesly chybí (= 0). */
+  crafts?: CraftStocks;
+  /**
+   * Nástroje ve vybavení domácností (kg – production-chains.md, Nástroje jako vybavení
+   * domácností): nejsou zásoba vsi, opotřebují se v užívání a kovář je doplňuje z hřiven; nákup
+   * u sousedů je přidá sem. Pokrytí potřeby nástroji = vybavení ÷ potřeba (`craftCoverage`). Ves
+   * uložená před hřivnami ho dostane ze zásoby nástrojů (`withToolEquipment`); chybí = 0.
+   */
+  toolEquipmentKg?: number;
+  /**
+   * Starší polozemnice už dostaly pozemky (`withPlots`, Martin 18. 10. 2026). Chybí u vsí
+   * uložených před převodem – při načtení se jednou převedou.
+   */
+  /**
+   * Zemřelí a odešlí rodiče žijících (kinship.md – Příbuzenství) – jen pro poznání blízkých
+   * příbuzných. U vsí uložených před příbuzenstvím chybí (= žádní).
+   */
+  ancestors?: Ancestor[];
+  /** Dcery, které se vdaly pryč – záznam se směrem jejich nové vsi (kinship.md); chybí = žádné. */
+  emigrants?: Emigrant[];
+  plotsMigrated?: true;
+  /**
+   * Stavby uložené před variantami rozměrů (population.md – Varianty rozměrů) prošly kontrolou,
+   * jestli se do své varianty vejdou (`withDwellingShapes`) – nové vsi ho mají od založení.
+   */
+  shapesChecked?: true;
+  /**
+   * Otisk rozložení vsi (`walkLayoutKey` se stadii `walkStages`), pro které se naposledy spočítaly
+   * vzdálenosti chůze po pěšinách (`FieldPart.walkDistanceM`…). Chybí, dokud se nespočítaly
+   * (starší vsi, simulace bez krajiny); klíč z doby před měsíčními stadii se jednou přepočítá.
+   */
+  walkLayoutKey?: string;
+  /**
+   * Otisk stadií dílů a pastvy úhoru (`walkStageKey`) z posledního 1. dne v měsíci – do klíče
+   * chůze se stadia promítají jen jednou za měsíc (Martin, 18. 10. 2026). Chybí jako výše.
+   */
+  walkStages?: string;
+  /**
+   * Jízda vozu pro vodu (wagons.md – Co vozy vozí): břeh nejblíž ohradě se spřežením, kam vůz
+   * sjede (null = nesjede nikam – voda se nosí), spočítaný pro rozložení vsi `key` (klíč chůze
+   * a ohrada – přepočítá se, když se změní). Chybí, dokud vůz pro vodu nejel.
+   */
+  waterCart?: { key: string; drive: CartDrive | null };
+  /** Totéž pro čtyřkolák – širší oblouk, na zoraný díl ne (wagons.md – Co se vozí a na čem). */
+  waterCart4?: { key: string; drive: CartDrive | null };
+  /**
+   * Pevné cesty, stromy u nich a roční součty práce (roads.md). Chybí u vsí uložených před nimi
+   * a ve vsích simulovaných bez krajiny (kalibrace, testy) – začnou při prvním dopočtu s krajinou.
+   */
+  roads?: VillageRoads;
+  /**
+   * Otisk pevných cest a čtverců polí, pro který naposledy platí plocha dílů pod cestami
+   * (`roadFieldsDay` – roads.md a fields.md, Cesta přes pole); chybí = ještě se nepočítala.
+   */
+  roadLandKey?: number;
+  /**
+   * Zbytky jam po zaniklých obydlích (population.md – Chátrání a přestavba, Po zániku) – zarůstají
+   * RUIN_YEARS let, pak zmizí (ruins.ts). Chybí = žádné (i u vsí uložených před nimi).
+   */
+  ruins?: DwellingRuin[];
+  /**
+   * Jámy po kopání rudy kovářů a hlíny hrnčířů (crafts.md – Uhlí a ruda kováře, Hlína hrnčíře) –
+   * zarůstají SMITH_SUPPLY.pitYears let, pak zmizí. Chybí = žádné (i u vsí uložených před rudou).
+   */
+  orePits?: OrePit[];
+  /**
+   * Milířiště po rozebraných milířích uhlířů (crafts.md – Milíř u skácených buků): černá kruhová
+   * plocha uhlíkaté zeminy – zarůstá CHARCOAL_BALANCE.remnantYears let, pak zmizí. Jen vzhled.
+   * Chybí = žádná.
+   */
+  kilnRemnants?: KilnRemnant[];
+  /**
+   * Spotřeba uhlí kovářů (crafts.md – Rovnováha uhlíř – kovář) – klouzavě za posledních
+   * CHARCOAL_BALANCE.windowDays dní; podle ní uhlíř začne další milíř a kovář si drží zásobu.
+   * Měří se jen ve vsi s uhlířem; chybí = ještě se neměřila.
+   */
+  charcoalUse?: CharcoalUse;
+  /**
+   * Les vsi – čtverce polí, které zarostly lesem a z pole vypadly (fields.md – Zarůstání). Chybí
+   * = žádný (i u vsí uložených před zarůstáním).
+   */
+  woods?: VillageWood[];
+  /**
+   * Dvorec vojvody (trade.md – Dvorec vojvody): id obydlí (= domácnosti), které je dvorcem vsi –
+   * v nové vsi první zemnice zakladatelů, ve starší vsi nejstarší obydlí (`withManor`). Odtud jdou
+   * vylepšení vsi. Chybí u vsí uložených dřív – doplní ho `withManor` nebo první dopočítaný den.
+   */
+  manorId?: number;
+  /** Zemské stezky k sousedům (trade.md – Zemská stezka); chybí = žádné. */
+  trails?: Trail[];
+  /** Obchod se sousedy – zásoby a poptávka sousedů a výpravy (trade.md – Obchod); chybí = nic. */
+  trade?: VillageTrade;
+  /** Vozy vsi (wagons.md – Vůz) – vyrábí je tesař; chybí = žádné. */
+  carts?: Cart[];
+  /**
+   * Nákupy výrobků řemeslníků u sousedů na cestě (crafts.md – Nákup u sousedů); chybí = žádný.
+   */
+  purchases?: CraftPurchase[];
+  /**
+   * Ves je opuštěná (migration.md – Odchod do nové vsi): odešli z ní všichni lidé. Dál se
+   * nesimuluje, obydlí se rozpadají podle dne odchodu (`abandonedVillageAt`). Žijící ves ho nemá.
+   */
+  abandonedDay?: number;
+  /**
+   * Lidé jsou na cestě na novou mapu (migration.md – fáze 4): ves ještě nestojí, nesimuluje se;
+   * po příjezdu hráč umístí první zemnici (`settleJourney`). Založená ves ho nemá.
+   */
+  journey?: VillageJourney;
+  /**
+   * Stavby a změny překážek jiných vsí na téže mapě (migration.md – Vsi na téže mapě) – jen
+   * dočasně při dopočtu a pohledu (`withNeighbours`), neukládá se. Kontroly umístění je znají,
+   * kácení se s nimi nekříží.
+   */
+  neighbours?: NeighbourSnapshot;
+}
+
+/** Cesta lidí na novou mapu – směr, den odchodu a příjezdu (migration.md – fáze 4). */
+export interface VillageJourney {
+  direction: Direction8;
+  departedDay: number;
+  /** Den příjezdu – od něj hráč umisťuje první zemnici. */
+  arrivalDay: number;
+}
+
+/**
+ * Jiné vsi na téže mapě pro jednu ves (migration.md – Vsi na téže mapě): co zabírají (obydlí
+ * a rozestavěná obydlí, posvátné stavby, políčka polí, sadů, hřbitovů, ohrad a lesa vsi) a které
+ * překážky krajiny už odstranily, pokácely nebo si vyhradily.
+ */
+export interface NeighbourSnapshot {
+  dwellings: {
+    type: DwellingType;
+    position: Position;
+    plot?: DwellingPlot;
+    craft?: Craft;
+    plainShape?: true;
+  }[];
+  sacredBuildings: { kind: SacredBuildingKind; position: Position }[];
+  /** Humna i rozestavěná (production-chains.md – Humno) – zabírají půdorys. Chybí = žádná. */
+  threshingFloors?: { position: Position }[];
+  /** Políčka krajiny, která zabírají (v mřížce krajiny). */
+  cells: TileCell[];
+  /**
+   * Čtverce natočených polí, sadů, hřbitovů, ohrad a lesa vsi v jejich mřížce (fields.md –
+   * Natočené stavby) – v `cells` nejsou. Natočené pozemky nese obydlí (`plot.square`). Chybí =
+   * žádné.
+   */
+  squares?: { cell: TileCell; grid: SquareGrid }[];
+  /**
+   * Obývané kovárny jiných vsí (wagons.md – Kování vozů): poloha (m) a jméno vsi – tesař ves bez
+   * kováře pro kování dojde k nejbližší. Chybí = žádné.
+   */
+  smithies?: { x: number; z: number; name: string }[];
+  cleared: ObstacleChange[];
+  felled: ObstacleChange[];
+  reserved: number[];
+}
+
+// --- dvorec, zemská stezka a obchod (trade.md) ----------------------------------------------
+
+/**
+ * Osm směrů od vsi ke kraji mapy – sever je +z, východ +x (trade.md – Zemská stezka); stejné
+ * směry jako původ nevěst z okolí (`NeighborDirection` – kinship.md).
+ */
+export type Direction8 = NeighborDirection;
+
+/**
+ * Úsek zemské stezky – pevná cesta (`Road`), po které stezka vede, na jaký stupeň se při stavbě
+ * vylepší (upravená, nebo hať a lávka přes mokřinu a brod) a práce na něm (člověkodny i s kácením
+ * dřeva hatě).
+ */
+export interface TrailPiece {
+  roadId: number;
+  grade: Exclude<RoadGrade, 'trodden'>;
+  manDays: number;
+}
+
+/**
+ * Zemská stezka (trade.md – Zemská stezka): od dvorce ke kraji mapy ve směru `direction`. Osa je
+ * uložená jako pevné cesty `pieces` (od vsi ven); stavba je vylepšení cesty (`Construction.trail`)
+ * po úsecích od vsi ven. Hotová stezka (`builtDay`) otevře obchod se sousedem v tom směru.
+ */
+export interface Trail {
+  id: number;
+  direction: Direction8;
+  pieces: TrailPiece[];
+  /** Délka osy od dvorce ke kraji mapy (m). */
+  lengthM: number;
+  /** Den zadání stavby. */
+  startedDay: number;
+  /** Den dostavění; dokud se staví, null. */
+  builtDay: number | null;
+}
