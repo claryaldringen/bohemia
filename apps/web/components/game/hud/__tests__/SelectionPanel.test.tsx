@@ -1039,6 +1039,38 @@ describe('SelectionPanel – rudiště (crafts.md – Uhlí a ruda kováře)', (
   });
 });
 
+describe('SelectionPanel – humno (production-chains.md – Humno)', () => {
+  it('hotové: portrét Humno, snopy v kg a značka, že se dnes mlátí', () => {
+    const html = render({
+      kind: 'threshing-floor',
+      id: 2609,
+      built: true,
+      progress: 1,
+      sheavesKg: 5200,
+      threshingToday: true,
+    });
+    expect(html).toContain('data-kind="threshing-floor"');
+    expect(html).toContain('src="/icons/build/humno.png"');
+    expect(html).toContain('>Humno</h2>');
+    expect(text(html, 'selection-threshing-sheaves')).toBe('5 200 kg');
+    expect(html).toContain('selection-threshing-today');
+    expect(html).not.toContain('selection-threshing-progress');
+  });
+
+  it('staveniště: průběh stavby, žádné snopy', () => {
+    const html = render({
+      kind: 'threshing-floor',
+      id: 2609,
+      built: false,
+      progress: 0.4,
+      sheavesKg: 0,
+      threshingToday: false,
+    });
+    expect(html).toContain('selection-threshing-progress');
+    expect(html).not.toContain('selection-threshing-sheaves');
+  });
+});
+
 describe('SelectionPanel – obilná jáma (production-chains.md – Obilné jámy)', () => {
   it('portrét Obilná jáma, zrno v jámě v kg, stáří a plnost', () => {
     const html = render({

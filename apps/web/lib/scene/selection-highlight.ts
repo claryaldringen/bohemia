@@ -3,7 +3,7 @@ import type { StandardMaterial } from '@babylonjs/core/Materials/standardMateria
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
-import { SACRED_BUILDINGS, roadChain } from '@bohemia/game';
+import { SACRED_BUILDINGS, roadChain, threshingFloorFootprint } from '@bohemia/game';
 import { scenePenSquares, type SceneVillage } from '../village-view';
 import { cellsBoundary, type CellSquare } from './field-cells';
 import { oreSiteDiscs, oreSiteOutline } from './ore-site-layout';
@@ -207,6 +207,13 @@ export function targetOutline(village: SceneVillage, target: VillageTarget): Poi
       return [at.x + KILN_RING_M * Math.cos(a), at.z + KILN_RING_M * Math.sin(a)];
     });
     return [ring];
+  }
+  if (target.kind === 'threshing-floor') {
+    // půdorys humna (production-chains.md – Humno) – obdélník mlatu
+    const floor = village.threshingFloors?.find((f) => f.id === target.id);
+    if (!floor) return [];
+    const corners = threshingFloorFootprint(floor.position).map(([x, z]): Point => [x, z]);
+    return [[...corners, corners[0]!]];
   }
   if (target.kind === 'grain-pit') {
     // otevřená obilná jáma (production-chains.md – Obilné jámy) – kruh kolem hrdla a hrud pečeti

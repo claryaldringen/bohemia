@@ -3,13 +3,14 @@ import {
   MILIR,
   SACRED_BUILDINGS,
   WORKSHOP_PORCH_M,
+  threshingFloorFootprint,
   type TileCell,
 } from '@bohemia/game';
 import { isRotatedSquare, squareContains, type CellSquare } from './field-cells';
 import { insideOreSite, oreHeapRadius, oreSiteDiscs } from './ore-site-layout';
 import { insideGrainPit } from './grain-pit-layout';
 import { scenePenSquares, type SceneVillage } from '../village-view';
-import { footprintRect } from './village-layout';
+import { footprintRect, pointInPolygon, type Point } from './village-layout';
 
 // Výběr obydlí, polí, sadů a hřbitovů kliknutím do scény – čisté funkce bez Babylonu (paprsek
 // z kamery dodá scéna jako čísla).
@@ -56,6 +57,8 @@ export type VillageTarget =
    * a vybrat nejdou.
    */
   | { kind: 'grain-pit'; id: number }
+  /** Humno (id humna = id stavby – production-chains.md, Humno): klik na mlatovou plochu. */
+  | { kind: 'threshing-floor'; id: number }
   /**
    * Člověk vsi (id – villagers.md, Výběr postavy): klik na jeho postavu; výběr zůstane, i když
    * postava zmizí (vejde domů, za kraj mapy).
@@ -241,6 +244,15 @@ export function pickVillageTarget(
   // otevřená obilná jáma na zemi (production-chains.md – Obilné jámy) – zapečetěné scéna nemá
   const pit = (village.grainPits ?? []).find((p) => insideGrainPit(ground, p));
   if (pit) return { kind: 'grain-pit', id: pit.id };
+  // humno – klik na udusanou plochu mlatu (hotové i staveniště)
+  const floor = (village.threshingFloors ?? []).find((f) =>
+    pointInPolygon(
+      threshingFloorFootprint(f.position).map(([x, z]): Point => [x, z]),
+      ground.x,
+      ground.z,
+    ),
+  );
+  if (floor) return { kind: 'threshing-floor', id: floor.id };
   const cell = options.cellOf(ground.x, ground.z);
   if (!cell) return null;
   // čtverec v mřížce krajiny podle políčka, natočený čtverec (fields.md – Natočené stavby)
@@ -374,6 +386,9 @@ export function targetExists(village: SceneVillage, target: VillageTarget): bool
       (village.kilns ?? []).some((k) => k.id === target.id) ||
       (village.kilnRemnants ?? []).some((r) => r.id === target.id)
     );
+  }
+  if (target.kind === 'threshing-floor') {
+    return (village.threshingFloors ?? []).some((f) => f.id === target.id);
   }
   if (target.kind === 'grain-pit') {
     return (village.grainPits ?? []).some((p) => p.id === target.id);

@@ -145,9 +145,13 @@ export const FOREST_KILN_MESH_ID = 3_000_000;
 export const KILN_REMNANT_RADIUS_M = 3.4;
 export const KILN_REMNANT_ALPHA = 0.75;
 /** Zástupná mlatová plocha humna – udusaná světlá hlína (model přinese scéna humna). */
-export const THRESHING_FLOOR_ALPHA = 0.9;
-export const THRESHING_FLOOR_COLOR: [number, number, number] = [0.72, 0.6, 0.46];
-export const THRESHING_FLOOR_SOFT_M = 0.6;
+// Udusaná světlá hlína s ostrým okrajem (Martin 21. 10. 2026: humno nebylo vidět) – světlejší než
+// louka i hlína obydlí (barva přes 1 zesvětlí texturu bahna), nad poli a hlínou vsi (alphaIndex 2,2)
+export const THRESHING_FLOOR_ALPHA = 1;
+export const THRESHING_FLOOR_COLOR: [number, number, number] = [1.45, 1.22, 0.92];
+export const THRESHING_FLOOR_SOFT_M = 0.3;
+export const THRESHING_FLOOR_ALPHA_INDEX = 2.2;
+export const THRESHING_FLOOR_Z_OFFSET = -3;
 export const KILN_REMNANT_COLOR: [number, number, number] = [0.5, 0.42, 0.35];
 
 /** Rekvizity u rozebíraného milíře – koše na uhlí a rýč (hrabice). */

@@ -611,3 +611,31 @@ export function GrainPitBody({
     </div>
   );
 }
+
+/**
+ * Humno (production-chains.md – Humno): staveniště s průběhem stavby, hotové s nevymlácenými
+ * snopy vsi (kg) a značkou, že se dnes mlátí – jen ikony a čísla.
+ */
+export function ThreshingFloorBody({
+  details,
+}: {
+  details: Extract<SelectionDetails, { kind: 'threshing-floor' }>;
+}): ReactElement {
+  return (
+    <div className="flex min-w-0 flex-col justify-center gap-1.5">
+      {!details.built && (
+        <Bar value={details.progress} name="Stavba" testId="selection-threshing-progress" />
+      )}
+      {details.built && (
+        <div className={ROW}>
+          <Stat icon="harvest" name="Nevymlácené snopy (kg)" testId="selection-threshing-sheaves">
+            {`${formatInteger(details.sheavesKg)} kg`}
+          </Stat>
+          {details.threshingToday && (
+            <Flag icon="harvest" name="Dnes se mlátí" testId="selection-threshing-today" />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

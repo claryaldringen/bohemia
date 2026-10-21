@@ -273,8 +273,15 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   stromy u cest a vzdálenost vsí. Use-case `placeThreshingFloor`, server action
   `placeThreshingFloor` (`{ villageId, position }`), mřížka staveb [K] (umístění i `PlacementMode`
   `threshing-floor` – duch jen obrys půdorysu), ikona
-  `icons/build/humno.png`. Scéna zatím jen zástupný obtisk mlatu (`SceneVillage.threshingFloors`,
-  `VillageRenderer.updateThreshingFloors`) – model a výběr přinesou další úlohy plánu.
+  `icons/build/humno.png`. Scéna zatím jen obtisk mlatu (`SceneVillage.threshingFloors`,
+  `VillageRenderer.updateThreshingFloors`) – světlá udusaná hlína s ostrým okrajem (21. 10. 2026
+  zesvětlená, `alphaIndex` 2,2 a `LIFT.turf` nad poli a hlínou vsi – dřív splývala se zemí), model
+  přinese další úloha plánu. **Výběr** (Martin 21. 10. 2026: „humno nemohu označit“):
+  `VillageTarget` `{ kind: 'threshing-floor', id }` – klik na půdorys (`pickVillageTarget` přes
+  `threshingFloorFootprint`), obrys půdorysu v `targetOutline`, panel `ThreshingFloorBody`
+  (portrét `humno`; staveniště průběh stavby, hotové nevymlácené snopy v kg a značka „dnes se
+  mlátí“ – `VillageView.threshingFloors` z `threshingFloorsOf`, podíl práce `thresh` s cílem
+  humna).
 - **Snopy a výmlat hned po žni** ([production-chains.md](../design/production-chains.md) –
   Humno, úloha 2; fields.md – Výmlat hned po žni; Martin 20. 10. 2026: „Humno je podmínka“,
   „Klasy neskladovali.“, „Rok odkladu“; čísla `THRESHING` v `rules*.ts` – návrh Clauda podle

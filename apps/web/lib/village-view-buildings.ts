@@ -1,6 +1,11 @@
 // Ohrady, posvátná místa, sady a hřbitovy pro scénu a panel.
 
-import { VillageThreshing, VillageOxen, VillageSacred } from './village-view-types';
+import {
+  VillageThreshing,
+  VillageThreshingFloor,
+  VillageOxen,
+  VillageSacred,
+} from './village-view-types';
 import { ScenePen, SceneSacred, SceneSacredOak, SceneVillage } from './village-view-scene-types';
 import { repairProgress } from './village-view-chronicle';
 import {
@@ -113,6 +118,41 @@ export function threshingOf(state: VillageState, day: number): { threshing?: Vil
     ...(status.floorShort ? { floorShort: true as const } : {}),
   };
   return Object.keys(threshing).length > 0 ? { threshing } : {};
+}
+
+/**
+ * Humna pro panel výběru (production-chains.md – Humno): průběh stavby, nevymlácené snopy vsi
+ * a jestli se dnes na humně mlátí (rozdělení práce dne má podíl `thresh` s cílem humna).
+ */
+export function threshingFloorsOf(
+  state: VillageState,
+  constructions: readonly ConstructionSummary[],
+): { threshingFloors?: VillageThreshingFloor[] } {
+  const floors = state.threshingFloors ?? [];
+  if (floors.length === 0) return {};
+  const sheaves = state.sheaves ?? { grainKg: 0, legumesKg: 0 };
+  const sheavesKg = Math.round(sheaves.grainKg + sheaves.legumesKg);
+  const shares = state.labor?.shares ?? [];
+  return {
+    threshingFloors: floors.map((f) => {
+      const built = f.builtDay !== null;
+      return {
+        id: f.id,
+        built,
+        progress: built ? 1 : (constructions.find((c) => c.id === f.id)?.buildProgress ?? 0),
+        sheavesKg,
+        threshingToday:
+          built &&
+          shares.some(
+            (s) =>
+              s.activity === 'thresh' &&
+              s.manDays > 0 &&
+              s.target?.kind === 'threshing-floor' &&
+              s.target.id === f.id,
+          ),
+      };
+    }),
+  };
 }
 
 /**

@@ -124,6 +124,8 @@ import {
   RuinView,
   SMOKE_TEXTURE_URL,
   THRESHING_FLOOR_ALPHA,
+  THRESHING_FLOOR_ALPHA_INDEX,
+  THRESHING_FLOOR_Z_OFFSET,
   THRESHING_FLOOR_COLOR,
   THRESHING_FLOOR_SOFT_M,
   TRAMPLED_SOFT_M,
@@ -1005,14 +1007,14 @@ export class VillageRenderer {
         {
           height: this.context.decalHeight,
           smoothHeight: this.context.groundHeight,
-          lift: LIFT.earth,
+          lift: LIFT.turf,
           color: THRESHING_FLOOR_COLOR,
-          alpha: THRESHING_FLOOR_ALPHA * (0.3 + 0.7 * progress),
+          alpha: THRESHING_FLOOR_ALPHA * (0.45 + 0.55 * progress),
           uv: 20,
         },
       );
-      mesh.material = decalMaterial(this.meshHost, 'mud');
-      mesh.alphaIndex = 1;
+      mesh.material = decalMaterial(this.meshHost, 'mud', THRESHING_FLOOR_Z_OFFSET);
+      mesh.alphaIndex = THRESHING_FLOOR_ALPHA_INDEX;
       this.threshingFloors.set(f.id, { key, mesh });
     }
     for (const [id, view] of this.threshingFloors) {
