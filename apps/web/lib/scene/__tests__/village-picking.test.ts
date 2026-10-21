@@ -421,6 +421,34 @@ describe('výběr otevřené obilné jámy (production-chains.md – Obilné já
   });
 });
 
+describe('výběr humna (production-chains.md – Humno)', () => {
+  // humno 8 × 10 m ve středu (80, 30), nenatočené
+  const withFloor: SceneVillage = {
+    ...village,
+    threshingFloors: [
+      { id: 2609, position: { x: 80, z: 30, rotation: 0 }, built: true, progress: 1 },
+    ],
+  };
+  const pick = (x: number, z: number): VillageTarget | null =>
+    pickVillageTarget(withFloor, rayTo(x, z), { ground: { x, z }, groundHeight: flat, cellOf });
+
+  it('klik na plochu humna ho vybere podle id, mimo plochu ne', () => {
+    expect(pick(80, 30)).toEqual({ kind: 'threshing-floor', id: 2609 });
+    expect(pick(83.5, 34)).toEqual({ kind: 'threshing-floor', id: 2609 });
+    expect(pick(86, 30)).toBeNull();
+    expect(targetExists(withFloor, { kind: 'threshing-floor', id: 2609 })).toBe(true);
+    expect(targetExists(village, { kind: 'threshing-floor', id: 2609 })).toBe(false);
+  });
+
+  it('obrys – uzavřený obdélník půdorysu', () => {
+    const [ring, ...rest] = targetOutline(withFloor, { kind: 'threshing-floor', id: 2609 });
+    expect(rest).toEqual([]);
+    expect(ring).toHaveLength(5);
+    expect(ring![0]).toEqual(ring![4]);
+    expect(targetOutline(village, { kind: 'threshing-floor', id: 2609 })).toEqual([]);
+  });
+});
+
 describe('výběr hliniště (crafts.md – Hlína hrnčíře)', () => {
   // rudiště kovárny 12 a hliniště dílny hrnčíře 14 kus od sebe
   const withClay: SceneVillage = {

@@ -30,6 +30,7 @@ import type { VillageManor } from './manor-view';
 import type { VillageDugSite } from './ore-site-view';
 import type { VillageKiln } from './kiln-view';
 import type { VillageGrainPit } from './grain-pit-view';
+import type { VillageThreshingFloor } from './village-view-types';
 import type { HouseholdRelocation } from './relocation-view';
 import { TREE_GROWTH_YEARS } from './orchard-look';
 import { personActivity, type PersonFigureState } from './person-activity';
@@ -511,7 +512,14 @@ export type SelectionDetails =
        * zrní.“): zrno v jámě a kolik se do ní vejde, stáří jámy.
        */
       kind: 'grain-pit';
-    } & VillageGrainPit);
+    } & VillageGrainPit)
+  | ({
+      /**
+       * Humno (production-chains.md – Humno): hotové nebo staveniště, nevymlácené snopy vsi
+       * a jestli se dnes mlátí.
+       */
+      kind: 'threshing-floor';
+    } & VillageThreshingFloor);
 
 /** Portrét člověka podle věku a pohlaví (ikony lidí v `public/icons/resources/`). */
 export type PersonPortraitIcon = 'man' | 'woman' | 'child' | 'elder';
@@ -762,6 +770,11 @@ export function selectionDetails(
     if (!inScene) return null;
     const kiln = view?.kilns?.find((k) => k.id === target.id);
     return kiln ? { kind: 'kiln', ...kiln } : null;
+  }
+  if (target.kind === 'threshing-floor') {
+    if (!scene.threshingFloors?.some((f) => f.id === target.id)) return null;
+    const floor = view?.threshingFloors?.find((f) => f.id === target.id);
+    return floor ? { kind: 'threshing-floor', ...floor } : null;
   }
   if (target.kind === 'grain-pit') {
     // jen otevřená jáma, která ve scéně je (zapečetěné nejsou vidět)

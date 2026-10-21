@@ -27,6 +27,7 @@ import {
   OrchardBody,
   PenBody,
   GrainPitBody,
+  ThreshingFloorBody,
 } from './selection/fields';
 import { Oaks, OakAge, SACRED_ICONS, SacredBody } from './selection/sacred';
 import { ROAD_KIND_ICONS, RoadBody } from './selection/roads';
@@ -102,6 +103,9 @@ export function SelectionPanel({
   } else if (details.kind === 'kiln') {
     portrait = <Portrait icon="milir" name={details.stage === 'remnant' ? 'Milířiště' : 'Milíř'} />;
     body = <KilnBody details={details} onSelectTarget={onSelectTarget} />;
+  } else if (details.kind === 'threshing-floor') {
+    portrait = <Portrait icon="humno" name="Humno" />;
+    body = <ThreshingFloorBody details={details} />;
   } else if (details.kind === 'grain-pit') {
     portrait = <Portrait icon="obilna-jama" name="Obilná jáma" />;
     body = <GrainPitBody details={details} />;

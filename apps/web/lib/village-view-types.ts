@@ -410,6 +410,8 @@ export interface VillageView {
   oxen?: VillageOxen;
   /** Snopy a výmlat (production-chains.md – Humno); ves bez snopů a upozornění bez údaje. */
   threshing?: VillageThreshing;
+  /** Humna pro panel výběru (production-chains.md – Humno) – hotová i rozestavěná; bez humna bez údaje. */
+  threshingFloors?: VillageThreshingFloor[];
   /** Pevné cesty (roads.md) – úseky pro panel výběru: stupeň, délka, stáří, stromy, vylepšení. */
   roads: VillageRoad[];
   /** Klády na hromadě u vsi v kusech (forest.md). */
@@ -724,6 +726,19 @@ export const DAYS_PER_YEAR = 365.25;
  * a luštěnin) a upozornění – nouzový výmlat na udusané zemi u vsi bez humna (`emergency`), humno
  * nestačí (`floorShort`). Chybí, co neplatí.
  */
+export interface VillageThreshingFloor {
+  /** Id humna (= id stavby) – vybírá se podle něj (`{ kind: 'threshing-floor', id }`). */
+  id: number;
+  /** Hotové humno (jinak staveniště). */
+  built: boolean;
+  /** Průběh stavby 0–1 (hotové 1). */
+  progress: number;
+  /** Nevymlácené snopy vsi (kg zrna a luštěnin, po celých). */
+  sheavesKg: number;
+  /** Dnes se na humně mlátí (rozdělení práce dne). */
+  threshingToday: boolean;
+}
+
 export interface VillageThreshing {
   sheavesKg?: number;
   emergency?: true;

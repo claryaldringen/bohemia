@@ -61,6 +61,7 @@ import {
   penShortOf,
   sacredView,
   threshingOf,
+  threshingFloorsOf,
 } from './village-view-buildings';
 import { fieldViews, orchardSquareView } from './village-view-fields';
 import {
@@ -372,6 +373,7 @@ export function buildVillageView(
     ...penShortOf(state),
     ...oxenViewOf(summary),
     ...threshingOf(state, day),
+    ...threshingFloorsOf(state, summary.constructions),
     roads: roadViews(state, landscape, day, summary),
     scene: {
       ...sceneVillage(state, landscape, day, summary),
