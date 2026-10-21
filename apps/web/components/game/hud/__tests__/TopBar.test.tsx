@@ -170,10 +170,7 @@ describe('vozy a dřevěné nářadí v liště (wagons.md)', () => {
 });
 
 describe('snopy v liště (production-chains.md – Humno)', () => {
-  it('popisek: nevymláceno, bez humna čekají a kazí se', () => {
-    expect(sheavesName({ sheavesKg: 400 })).toBe('Snopy – nevymláceno (kg zrna)');
-    expect(sheavesName({ sheavesKg: 400, waiting: true })).toBe(
-      'Snopy čekají na humno – kazí se (kg zrna)',
-    );
+  it('popisek: nevymláceno (i bez humna se mlátí nouzově)', () => {
+    expect(sheavesName()).toBe('Snopy – nevymláceno (kg zrna)');
   });
 });

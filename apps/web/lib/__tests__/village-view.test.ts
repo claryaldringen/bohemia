@@ -239,14 +239,14 @@ describe('humno (production-chains.md – Humno)', () => {
     ).toBe(true);
   });
 
-  it('výmlat: před žní ves bez humna „postav humno“, po žni snopy čekají – s humnem ne', () => {
-    // ves sklízí jař 31. 8. 503 – měsíc před žní bez humna upozornění
+  it('výmlat: po žni ves bez humna mlátí nouzově (upozornění), s humnem ne', () => {
+    // ves sklízí jař 31. 8. 503 – před žní nic
     const summer = advanceVillage(state(), dayIndexOf({ year: 503, month: 8, day: 10 }), null);
     const before = buildVillageView(record(summer), landscape, summer.lastDay);
-    expect(before.threshing).toEqual({ floorNeeded: true });
-    const autumn = advanceVillage(summer, dayIndexOf({ year: 503, month: 9, day: 10 }), null);
+    expect(before.threshing).toBeUndefined();
+    const autumn = advanceVillage(summer, dayIndexOf({ year: 503, month: 8, day: 31 }), null);
     const waiting = buildVillageView(record(autumn), landscape, autumn.lastDay);
-    expect(waiting.threshing).toMatchObject({ waiting: true });
+    expect(waiting.threshing).toMatchObject({ emergency: true });
     expect(waiting.threshing!.sheavesKg).toBeGreaterThan(0);
     // s humnem se mlátí – upozornění žádné
     const floor = { id: 900, position: { x: 60, z: -60, rotation: 0 }, builtDay: DAY };

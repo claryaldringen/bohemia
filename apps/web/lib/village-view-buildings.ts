@@ -107,8 +107,6 @@ export function threshingOf(state: VillageState, day: number): { threshing?: Vil
   const kg = Math.round(status.sheavesGrainKg + status.sheavesLegumesKg);
   const threshing: VillageThreshing = {
     ...(kg > 0 ? { sheavesKg: kg } : {}),
-    ...(status.floorNeeded ? { floorNeeded: true as const } : {}),
-    ...(status.waiting ? { waiting: true as const } : {}),
     ...(status.emergency ? { emergency: true as const } : {}),
     ...(status.floorShort ? { floorShort: true as const } : {}),
   };

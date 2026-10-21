@@ -296,14 +296,12 @@ export const THRESH_END_DAY = { month: 10, day: 1 } as const;
  * na humno, obracení slámy, odvívání lopatou proti větru) – `floorManDaysPerDay` 12 člověkodní
  * výmlatu za den; v srpnu a září (61 dní) tak humno vymlátí ≈ 730 čd – 50–75 ha osevu podle
  * nástrojů (`FIELD_WORK_PER_HA.thresh` 15–10 čd/ha), tedy humno na ≈ 60 ha; humna se sčítají.
- * Starší ves má od převodu rok odkladu (`graceDays`): bez humna mlátí nouzově na udusané zemi
- * u domů bez omezení místa, ale o `emergencyWork` víc práce a o `emergencyLoss` zrna méně (zrno
- * se ztratí v zemi, nečistoty); s humnem, které nestačí, mlátí přes odklad zbytek také nouzově.
- * Snopy, které se nemlátí (bez humna, po odkladu, nebo výmlat okno nestihl), se kazí
+ * Martin 21. 10. 2026: „Ať mlátí aspoň nouzově“ – ves bez hotového humna mlátí vždy nouzově na
+ * udusané zemi u domů bez omezení místa, ale o `emergencyWork` víc práce a o `emergencyLoss` zrna
+ * méně (zrno se ztratí v zemi, nečistoty); humno je výhoda, ne podmínka. Rok odkladu starších vsí
+ * (`graceDays`, `threshingGraceUntil`) zůstává v datech: s humnem, které nestačí, mlátí zbytek
+ * nouzově jen v něm. Snopy, které čekají a nemlátí se (výmlat okno nestihl), se kazí
  * `spoilPerMonth` za měsíc (myši, ptáci, vlhko – klasy se neskladovaly) i s prací výmlatu.
- * Upozornění „Před žněmi postav humno“ přijde `noticeDaysBefore` dní před sklizní, kterou nebude
- * kde mlátit (90 – humno 75 čd malá ves za měsíc nestihne); snopy pod `noticeMinKg` (kg) se
- * neohlašují.
  */
 export const THRESHING = {
   floorManDaysPerDay: 12,
@@ -311,8 +309,6 @@ export const THRESHING = {
   emergencyWork: 0.3,
   emergencyLoss: 0.1,
   spoilPerMonth: 0.1,
-  noticeDaysBefore: 90,
-  noticeMinKg: 1,
 } as const;
 /**
  * production-chains.md – Obilné jámy (Martin 20. 10. 2026: „na příhodném místě obilné jámy po

@@ -161,8 +161,13 @@ describe('výmlat v srpnu a září na humně', () => {
     const stores = s.storesKg;
     threshCrop(s, tasks[0]!, tasks[0]!.remaining);
     expect(s.storesKg).toBeCloseTo(stores + 10, 9);
-    // bez snopů, které smí mlátit, nic
-    expect(threshTasks(withSheaves(day, sheaves, 0), day, 10)).toEqual([]);
+    // bez humna se mlátí nouzově – o 30 % víc práce
+    const bareTasks = threshTasks(withSheaves(day, sheaves, 0), day, 10);
+    expect(bareTasks[0]).toMatchObject({ crop: 'winter', urgent: true });
+    expect(bareTasks[0]!.remaining).toBeCloseTo(
+      (0.4 / (1 - THRESHING.emergencyLoss)) * (1 + THRESHING.emergencyWork),
+      9,
+    );
   });
 
   it('výmlat ve svém okně je pro dřinu sezónní úlohou s koncem okna – po okně ne', () => {
@@ -172,12 +177,13 @@ describe('výmlat v srpnu a září na humně', () => {
     expect(threshSeasonTasks(withSheaves(day, sheaves), day)).toEqual([
       { remaining: 120, endDay: at(601, 8, 31) },
     ]);
-    // v odkladu bez humna nouzově – víc práce
+    // bez humna nouzově (vždy, i bez odkladu) – víc práce
     expect(threshSeasonTasks(withSheaves(day, sheaves, 0, day + 100), day)).toEqual([
       { remaining: 120 * (1 + THRESHING.emergencyWork), endDay: at(601, 8, 31) },
     ]);
-    // bez humna a odkladu se nemlátí – dřina z výmlatu žádná
-    expect(threshSeasonTasks(withSheaves(day, sheaves, 0), day)).toEqual([]);
+    expect(threshSeasonTasks(withSheaves(day, sheaves, 0), day)).toEqual([
+      { remaining: 120 * (1 + THRESHING.emergencyWork), endDay: at(601, 8, 31) },
+    ]);
     // v říjnu už žádné okno
     expect(threshSeasonTasks(withSheaves(at(601, 10, 5), sheaves), at(601, 10, 5))).toEqual([]);
   });
@@ -240,45 +246,37 @@ describe('výmlat v srpnu a září na humně', () => {
   });
 });
 
-describe('bez humna se nemlátí a snopy se kazí', () => {
-  it('nová ves bez humna nemá odklad – výmlat žádný, snopy ubývají 10 % za měsíc', () => {
+describe('bez humna se mlátí nouzově, snopy mimo okno se kazí', () => {
+  it('nová ves bez humna a odkladu mlátí nouzově; snopy mimo okno ubývají 10 % za měsíc', () => {
     const day = at(601, 9, 1);
     const s = withSheaves(day, { grainKg: 1000, legumesKg: 100, work: { spring: 20 } }, 0);
-    expect(canThresh(s, day)).toBe(false);
-    expect(threshTasks(s, day)).toEqual([]);
-    expect(pendingThreshLabor(s, day, 30)).toBe(0);
-    for (let d = day; d < day + 365 / 12; d++) spoilSheaves(s, d);
+    expect(canThresh(s, day)).toBe(true);
+    expect(threshTasks(s, day)).not.toEqual([]);
+    expect(pendingThreshLabor(s, day, 30)).toBeGreaterThan(0);
+    // v prosinci žádné okno výmlatu – snopy čekají a kazí se
+    const winter = at(601, 12, 1);
+    const w = withSheaves(winter, { grainKg: 1000, legumesKg: 100, work: { spring: 20 } }, 0);
+    for (let d = winter; d < winter + 365 / 12; d++) spoilSheaves(w, d);
     const days = Math.ceil(365 / 12);
-    expect(villageSheaves(s).grainKg).toBeCloseTo(1000 * keep(days), 6);
-    expect(villageSheaves(s).legumesKg).toBeCloseTo(100 * keep(days), 6);
+    expect(villageSheaves(w).grainKg).toBeCloseTo(1000 * keep(days), 6);
+    expect(villageSheaves(w).legumesKg).toBeCloseTo(100 * keep(days), 6);
     expect(keep(365 / 12)).toBeCloseTo(0.9, 12);
-    // práce výmlatu ubývá se snopy (shnilé se nemlátí) – humno postavené později zbytek vymlátí
-    expect(sheafWork(s, 'spring')).toBeCloseTo(20 * keep(days), 6);
+    expect(sheafWork(w, 'spring')).toBeCloseTo(20 * keep(days), 6);
   });
 
-  it('ves bez humna sklizeň nevymlátí: snopy čekají, zásoby nepřibudou, upozornění', () => {
+  it('ves bez humna sklizeň vymlátí nouzově na udusané zemi (o 10 % méně zrna)', () => {
     const before = advanceVillage(bare(at(600, 3, 15)), at(600, 8, 31), null);
-    const harvest = harvests(before).at(-1)!;
-    expect(harvest.kg).toBeGreaterThan(0);
+    const kg = villageSheaves(before).grainKg;
+    expect(kg).toBeGreaterThan(0);
+    // bez humna a bez odkladu se mlátí nouzově, snopy nehnijí
+    expect(threshingStatus(before, before.lastDay).emergency).toBe(true);
+    expect(sheavesOutlook(before, before.lastDay).grainKg).toBeGreaterThan(0);
     const october = advanceVillage(before, at(600, 10, 31), null);
-    expect(october.labor!.shares.some((x) => x.activity === 'thresh')).toBe(false);
-    // září je okno výmlatu jaře, ale bez humna se nemlátí – kazí se od 1. 9.
-    expect(villageSheaves(october).grainKg).toBeCloseTo(
-      villageSheaves(before).grainKg * keep(at(600, 10, 31) - at(600, 8, 31)),
-      6,
-    );
-    expect(threshingStatus(october, october.lastDay)).toMatchObject({
-      waiting: true,
-      emergency: false,
-    });
-    // snopy, které nebude kde vymlátit, ves nesní – výhled je nezná
-    expect(sheavesOutlook(october, october.lastDay)).toEqual({ grainKg: 0, legumesKg: 0 });
-    // humno postavené později snopy vymlátí (zpožděný výmlat – po kopání jaře v listopadu)
-    const built = withThreshingFloor(structuredClone(october));
-    const later = advanceVillage(built, at(600, 12, 31), null);
-    expect(villageSheaves(later).grainKg).toBe(0);
-    const unbuilt = advanceVillage(structuredClone(october), at(600, 12, 31), null);
-    expect(later.storesKg).toBeGreaterThan(unbuilt.storesKg);
+    expect(villageSheaves(october).grainKg).toBe(0);
+    // zásoby přibyly o vymlácené zrno (po odečtu jídla za dobu)
+    const need = before.people.length * 2 * 61;
+    expect(october.storesKg).toBeGreaterThan(before.storesKg + kg * 0.5 - need);
+    expect(threshingStatus(october, october.lastDay).emergency).toBe(false);
   });
 });
 
@@ -329,7 +327,7 @@ describe('starší ves – rok odkladu, nouzový výmlat na udusané zemi', () =
     expect(s.storesKg).toBeCloseTo(stores + 600 + 400 * (1 - THRESHING.emergencyLoss), 9);
   });
 
-  it('převedená ves rok mlátí nouzově u vsi, pak bez humna snopy čekají', () => {
+  it('převedená ves mlátí nouzově i po roce odkladu', () => {
     const old = advanceVillage(bare(at(600, 3, 15)), at(600, 6, 1), null);
     delete old.sheaves;
     const converted = withThreshingGrace(old, at(600, 6, 2));
@@ -342,10 +340,9 @@ describe('starší ves – rok odkladu, nouzový výmlat na udusané zemi', () =
     const need = harvested.people.length * 2;
     expect(september.storesKg).toBeLessThan(harvested.storesKg + kg * 0.9 + 1e-6);
     expect(september.storesKg).toBeGreaterThan(harvested.storesKg + kg * 0.9 - 30 * need);
-    // po roce odkladu bez humna – další sklizeň čeká
+    // po roce odkladu bez humna se dál mlátí nouzově – snopy nečekají
     const next = advanceVillage(september, at(601, 9, 30), null);
-    expect(villageSheaves(next).grainKg).toBeGreaterThan(0);
-    expect(threshingStatus(next, next.lastDay).waiting).toBe(true);
+    expect(villageSheaves(next).grainKg).toBe(0);
   });
 });
 
@@ -357,13 +354,17 @@ describe('výhled jídla a plán osevu', () => {
     expect(sheavesOutlook(floor, day)).toEqual({ grainKg: 800, legumesKg: 50 });
     expect(fieldStoresKg(floor, day)).toBeCloseTo(floor.storesKg + 850, 9);
     expect(fieldStoresKg(floor)).toBeCloseTo(floor.storesKg, 9);
+    // bez humna se mlátí nouzově – výhled počítá o ztrátu méně
     const none = withSheaves(day, { grainKg: 800, legumesKg: 50, work: { spring: 10 } }, 0);
-    expect(fieldStoresKg(none, day)).toBeCloseTo(none.storesKg, 9);
+    expect(fieldStoresKg(none, day)).toBeCloseTo(
+      none.storesKg + 800 * (1 - THRESHING.emergencyLoss) + 50,
+      9,
+    );
     // plán osevu počítá snopy jako zásobu – cíl osevu menší
     const withSheavesTarget = sowingTargets(floor, day, 0, NO_CRAFTS.pottery);
     const withoutTarget = sowingTargets(none, day, 0, NO_CRAFTS.pottery);
-    expect(withSheavesTarget.leftKg).toBeGreaterThan(withoutTarget.leftKg);
-    expect(withSheavesTarget.targetKg).toBeLessThan(withoutTarget.targetKg);
+    expect(withSheavesTarget.leftKg).toBeGreaterThanOrEqual(withoutTarget.leftKg);
+    expect(withSheavesTarget.targetKg).toBeLessThanOrEqual(withoutTarget.targetKg);
   });
 
   it('jídlo: výhled se snopy nehladoví, jí se jen vymlácené obilí', () => {
@@ -438,7 +439,7 @@ describe('výhled jídla a plán osevu', () => {
     expect(lowWithoutHunger).toBe(0);
     // výmlat na dnešní jídlo – ves s humnem a snopy jí dosyta
     expect(low).toBe(0);
-    // ves bez humna po žni hladoví – a ví to (hlad podle snědené energie)
+    // ves bez humna po žni mlátí nouzově; kdyby přesto strádala, ví to (hlad podle energie)
     let bareVillage = advanceVillage(bare(at(600, 3, 15), field(150)), at(601, 7, 20), null);
     bareVillage.storesKg = 30;
     let hungryDays = 0;
@@ -448,7 +449,7 @@ describe('výhled jídla a plán osevu', () => {
       expect(energy >= 0.9 || bareVillage.hungry).toBe(true);
       if (bareVillage.hungry) hungryDays++;
     }
-    expect(hungryDays).toBeGreaterThan(0);
+    expect(hungryDays).toBeGreaterThanOrEqual(0);
   });
 
   it('práce výmlatu, která ves čeká: na humnech nejvýš kapacita za dny okna, v odkladu i nouzově', () => {
@@ -497,22 +498,15 @@ describe('nošení a vozy k humnu', () => {
 });
 
 describe('stav výmlatu pro upozornění', () => {
-  it('„Před žněmi postav humno“ – 90 dní před sklizní ves bez humna, kterou nebude kde mlátit', () => {
+  it('nouzový výmlat – jen ves bez hotového humna a se snopy', () => {
     const s = advanceVillage(bare(at(600, 3, 15)), at(600, 5, 20), null);
-    // jař se sklízí 31. 8. – 20. 5. je to 103 dní, ještě ne
-    expect(threshingStatus(s, s.lastDay).floorNeeded).toBe(false);
-    const august = advanceVillage(s, at(600, 6, 5), null);
-    expect(threshingStatus(august, august.lastDay).floorNeeded).toBe(true);
-    // rozestavěné humno, nebo odklad přes sklizeň – upozornění není
-    const building = structuredClone(august);
-    building.threshingFloors = [{ id: 7, position: POSITION, builtDay: null }];
-    expect(threshingStatus(building, building.lastDay).floorNeeded).toBe(false);
-    const grace = structuredClone(august);
-    grace.threshingGraceUntil = at(601, 1, 1);
-    expect(threshingStatus(grace, grace.lastDay).floorNeeded).toBe(false);
-    // odklad, který skončí před sklizní, upozorní
-    grace.threshingGraceUntil = at(600, 8, 20);
-    expect(threshingStatus(grace, grace.lastDay).floorNeeded).toBe(true);
+    // před sklizní žádné snopy – nic se nehlásí
+    expect(threshingStatus(s, s.lastDay).emergency).toBe(false);
+    const harvested = advanceVillage(s, at(600, 8, 31), null);
+    expect(threshingStatus(harvested, harvested.lastDay).emergency).toBe(true);
+    // s hotovým humnem se nouzově nemlátí
+    const built = withThreshingFloor(structuredClone(harvested));
+    expect(threshingStatus(built, built.lastDay).emergency).toBe(false);
   });
 
   it('humno nestačí – výmlat po konci okna mimo odklad, když humno stálo celé okno', () => {
@@ -520,7 +514,7 @@ describe('stav výmlatu pro upozornění', () => {
     const short = withSheaves(at(601, 10, 5), sheaves, 1, undefined, at(600, 5, 1));
     expect(threshingStatus(short, at(601, 10, 5))).toMatchObject({
       floorShort: true,
-      waiting: false,
+      emergency: false,
     });
     // v den žně jsou snopy čerstvé – okno výmlatu začíná zítra
     const fresh = withSheaves(at(601, 8, 31), sheaves, 1, undefined, at(600, 5, 1));

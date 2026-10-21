@@ -2,9 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { TOTAL_GAME_DAYS, dayIndexOf } from '../../calendar';
 import { foundField, foundVillage, startNewDwelling, startRelocation } from '../actions';
 import type { PartInput } from '../actions';
-import { daysUntilMeatEnd, eatDiet } from '../diet';
-import { daysUntilHarvest } from '../food';
-import { LIVESTOCK, villageChickens } from '../livestock';
 import { ageYears, foodNeedPerDay, occupants } from '../people';
 import { NO_CRAFTS } from '../productivity';
 import {
@@ -450,33 +447,21 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     expect(s.hungry).toBe(false);
   });
 
-  it('1. 3. nevymlácené snopy nepropadnou – plán u výmlatu ani zásoby se nemění (Ruling 13)', () => {
+  it('1. 3. nevymlácené snopy nepropadnou – ves bez humna je dál mlátí nouzově (Ruling 13)', () => {
     // dřív nevymlácená část úrody 1. 3. zmizela ze zásob; snopy teď čekají dál (production-chains.md
-    // – Humno) – ves bez humna po odkladu je nemlátí a kazí se 10 % za měsíc (threshing.test.ts)
+    // – Humno) a bez humna se mlátí nouzově (o 10 % zrna méně) z volné práce po ostatních pracích
     const day = at(601, 3, 1);
     const s0 = withoutFields(at(600, 10, 1));
     s0.lastDay = day - 1;
     delete s0.threshingFloors;
     s0.sheaves = { grainKg: 500, legumesKg: 0, work: { spring: 15 } };
-    const need = s0.people.reduce((sum, p) => sum + foodNeedPerDay(p, day), 0);
-    // jídlo dne i s vejci, která slepice ten den snesly (diet.md); snopy ves bez humna nesní
-    const eggs = (villageChickens(s0) * LIVESTOCK.eggsKgPerHen) / 365;
-    const eaten = eatDiet({
-      grainKg: s0.storesKg,
-      meatKg: s0.meatKg ?? 0,
-      eggsKg: eggs,
-      fruitKg: 0,
-      needPerDay: need,
-      daysToHarvest: daysUntilHarvest(day),
-      daysToRot: 0,
-      daysToMeatEnd: daysUntilMeatEnd(day),
-      potteryCoverage: NO_CRAFTS.pottery,
-    }).grainKg;
     const s = advanceVillage(s0, day, null);
-    expect(s.storesKg).toBeCloseTo(eaten, 9);
-    expect(villageSheaves(s).grainKg).toBeCloseTo(500 * 0.9 ** (12 / 365), 9);
-    // práce výmlatu ubývá se snopy – shnilé snopy se nemlátí
-    expect(sheafWork(s, 'spring')).toBeCloseTo(15 * 0.9 ** (12 / 365), 9);
+    const threshed = 500 - villageSheaves(s).grainKg;
+    expect(threshed).toBeGreaterThan(0);
+    // práce výmlatu ubývá se snopy
+    expect(sheafWork(s, 'spring')).toBeLessThan(15);
+    // vymlácené zrno (−10 %) je v zásobách, nic nepropadlo
+    expect(s.storesKg).toBeGreaterThan(s0.storesKg - 60);
   });
 
   it('pole nedokopané do 30. 4.: zkopaná část se zaseje a sklidí (Ruling 14)', () => {

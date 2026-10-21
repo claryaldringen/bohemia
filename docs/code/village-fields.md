@@ -290,9 +290,12 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   spolu). Úroda bez práce výmlatu jde rovnou do zásob (`addSheaves`). Výmlat v okně je dřina
   (`threshSeasonTasks` v `isToilDay`). Mlátí se jen
   s hotovým humnem (`threshingCapacity` – `floorManDaysPerDay` 12 čd na humno, humna se sčítají),
-  nebo v roce odkladu starší vsi (`threshingGraceUntil`, `inThreshingGrace`) nouzově na udusané
-  zemi – bez omezení místa, o 30 % víc práce a 10 % zrna méně (humno v odkladu mlátí plným tempem,
-  zbytek nouzově). Snopy, které dnes nikdo v okně nemlátí, se kazí 10 % za měsíc i s prací výmlatu
+  nebo bez humna **vždy nouzově** na udusané zemi (Martin 21. 10. 2026: „Ať mlátí aspoň
+  nouzově“) – bez omezení místa, o 30 % víc práce a 10 % zrna méně (`ThreshingCapacity.emergency`
+  = bez hotového humna, nebo v odkladu `threshingGraceUntil` / `inThreshingGrace` – ten zůstal
+  jen v datech: humno v odkladu mlátí plným tempem, zbytek nouzově). Upozornění: jen
+  `ThreshingStatus.emergency` („Mlátí se na udusané zemi – postav humno“, info); „Před žněmi
+  postav humno“ a „Snopy čekají na humno“ zmizely. Snopy, které dnes nikdo v okně nemlátí, se kazí 10 % za měsíc i s prací výmlatu
   (`spoilSheaves` na začátku dne). Nová ves (`foundVillage`) má prázdné snopy bez odkladu; ves uložená dřív
   dostane `withThreshingGrace` (v `updateVillage` od dneška, v `advanceVillageSteps` od dne po
   dopočtu) – prázdné snopy a rok odkladu, úroda už v zásobách zůstane. `threshingFromPlan` se

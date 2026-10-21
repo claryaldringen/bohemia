@@ -142,13 +142,11 @@ describe('departVillage', () => {
     expect(state.storesKg).toBeCloseTo(20, 6);
     expect(state.sheaves!.grainKg).toBeCloseTo(20, 6);
     expect(state.sheaves!.work!.spring).toBeCloseTo((10 * 4) / 7, 6);
-    // bez humna a odkladu snopy jídlem nejsou – zůstanou celé
+    // bez humna se mlátí nouzově – snopy jsou jídlem o 10 % zrna méně: (35 × 0,9 + 35) × 3/7
     const bare = structuredClone(s);
     delete bare.threshingFloors;
     const left = departVillage(bare, DAY, [sonHome(bare)]);
-    expect(left.settlers.food.grainKg).toBeCloseTo(15, 6);
-    expect(left.state.storesKg).toBeCloseTo(20, 6);
-    expect(left.state.sheaves).toEqual(s.sheaves);
+    expect(left.settlers.food.grainKg).toBeCloseTo(28.5, 6);
   });
 
   it('na novou mapu: ve staré vsi zůstanou jako odešlí ve směru (war.md)', () => {

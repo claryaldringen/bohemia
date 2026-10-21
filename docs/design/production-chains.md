@@ -19,7 +19,9 @@ vybavení domácností: „Je to tak jak říkáš. V liště jenom hřivny“.
 
 „Mlácení na humně ano - musíme tedy humno přidat jako stavbu. Uskladnění zrna také - musíme
 přidat obilné jámy jako stavbu“ – „Humno je podmínka - bez toho by nebyla vidět ta práce
-rolníků, kdy napřed mlátí a pak lopatami prohazují zrno“ – „humno postaví hráč“.
+rolníků, kdy napřed mlátí a pak lopatami prohazují zrno“ – „humno postaví hráč“. **Změna 21. 10.
+2026:** „Ať mlátí aspoň nouzově“ – humno už není podmínka, ale výhoda (méně práce a ztrát); ves
+bez humna mlátí vždy nouzově na udusané zemi (návrh Clauda podle Martinovy věty).
 
 „Hmm, máš pravdu. Obilné jámy by asi neměl řešit hráč, ale vesničané sami. Takže na příhodném
 místě obilné jámy po sklizni vykopou, naplní obilím a utěsní/zamaskují. Hráč to jen uvidí, ale
@@ -47,7 +49,8 @@ a v označení se ukáže kolik v ní je zrní. Jámy lze používat opakovaně.
 
 **Anti-cíle**
 
-- Ves zahyne hladem jen proto, že hráč nevěděl o humnu – vždy jasné upozornění.
+- Ves zahyne hladem jen proto, že hráč nevěděl o humnu – bez humna se proto vždy mlátí nouzově
+  (Martin 21. 10. 2026) a hráč to ví z upozornění.
 - Scéna zpomalí: víc postav a rekvizit nesmí vrátit sekání (výkon je hlídaný).
 - Zásoba v liště nesedí s tím, co je vidět.
 
@@ -146,9 +149,10 @@ Beze změny (milíř u buků – crafts.md); nošení uhlí ke kováři je dnes 
   postaví do první žně za pár dní. Přístřešek může přijít později jako vylepšení (návrh Clauda). Umístění volně jako dílna (půdorys u kurzoru, otáčí se): louka i les
   (Stavba v lese), na poli pole ustoupí (Pole jako krajina), ne do vody, na výchoz, do jiné
   stavby ani na nerovnou zem (rozdíl výšek nejvýš 1 m – mlat se srovná).
-- **Podmínka:** bez humna se nemlátí. Snopy po žni čekají ve stozích na poli (panáky → stohy)
-  a kazí se (návrh Clauda: 10 % za měsíc – klasy se neskladovaly); upozornění „Snopy čekají na
-  humno“.
+- **Výhoda, ne podmínka** (Martin 21. 10. 2026: „Ať mlátí aspoň nouzově“; návrh Clauda): ves bez
+  hotového humna mlátí vždy nouzově na udusané zemi u domů – o 30 % víc práce výmlatu a 10 % zrna
+  ztráta, bez omezení místa. Humno ušetří práci i zrno. Snopy se kazí (10 % za měsíc – klasy se
+  neskladovaly) jen tehdy, když čekají a nemlátí se (výmlat nestihl okno).
 - **Postup:** snopy se nosí nebo vezou z pole na humno (dnes nosiči a vozy – jen cíl humno),
   mlátí se cepy, pak se zrno **prohazuje lopatami** proti větru (odvívání plev), sláma na stoh.
   Výmlat je dnes úloha `thresh` – práce se nemění, jen místo (humno) a vidět je celý postup.
@@ -156,16 +160,15 @@ Beze změny (milíř u buků – crafts.md); nošení uhlí ke kováři je dnes 
   a 4 pomocníci – **12 člověkodní výmlatu za den**; v srpnu a září tak jedno humno stačí vsi do
   ≈ 60 ha osevu, víc humen se sčítá. Víc polí → výmlat se natáhne za okno → upozornění „Humno
   nestačí na výmlat“, druhé humno.
-- **Nová ves** humno nemá – hráč ho postaví do první žně (upozornění s předstihem: „Před žněmi
-  postav humno“ 90 dní před sklizní – humno za 20 čd ves postaví za pár dní, upozornění je
-  pojistka; návrh Clauda). Upozornění na humno a čekající snopy se ohlásí i při prvním pohledu na
-  ves (načtení, přepnutí vsi) a z jiné vsi hráče; nevymlácené snopy ukazuje horní lišta (ikona
-  snopů s kg zrna, do červena, když čekají na humno).
-- **Starší vsi (Vlkov) – rok odkladu** (Martin, 20. 10. 2026: „Rok odkladu“): rok od převodu
-  mlátí nouzově na udusané zemi u domů (návrh Clauda: o 30 % víc práce výmlatu a 10 % zrna
-  ztráta, bez omezení místa; humno, které v odkladu nestačí, mlátí zbytek také nouzově) a mají
-  upozornění „Mlátí se na udusané zemi – postav humno“. Po roce platí podmínka. Úroda sklizená do
-  zásob před převodem tam zůstane.
+- **Nová ves** humno nemá – hráč ho postaví, kdy chce; do té doby se mlátí nouzově. Informační
+  upozornění „Mlátí se na udusané zemi – postav humno“ (jen ves bez humna, jednou za rok při
+  prvním výmlatu) se ohlásí i při prvním pohledu na ves (načtení, přepnutí vsi) a z jiné vsi
+  hráče; nevymlácené snopy ukazuje horní lišta (ikona snopů s kg zrna, bez červeného varování).
+  Upozornění „Před žněmi postav humno“ a „Snopy čekají na humno“ zmizela.
+- **Starší vsi (Vlkov) – rok odkladu** (Martin, 20. 10. 2026: „Rok odkladu“): od 21. 10. 2026
+  nemá význam – nouzově se mlátí vždy; `threshingGraceUntil` zůstává jen v uložených datech
+  (s humnem, které v odkladu nestačí, mlátí zbytek nouzově). Úroda sklizená do zásob před
+  převodem tam zůstane.
 - **Výmlat hned po žni** (Martin, 20. 10. 2026: „Staří slované se snažili dělat výmlat hned.
   Klasy neskladovali.“): snopy jdou z pole rovnou na humno a mlátí se hned – ozim a luštěniny
   v srpnu, jař v září (dřív se mlátilo v zimě – okno úlohy `thresh` je hned za sklizní, fields.md
@@ -173,10 +176,10 @@ Beze změny (milíř u buků – crafts.md); nošení uhlí ke kováři je dnes 
   stejná, jen přijde v době podzimní orby a setí – ves ji musí stihnout: plán osevu ji odečte
   z podzimní práce (výmlat jaře v září se mlátí před setím ozimu) a výmlat ozimu a luštěnin
   z práce srpna vedle žně jaře (návrh Clauda). V témže měsíci má přednost žeň.
-- **Výhled jídla** (návrh Clauda): snopy, které ves smí vymlátit (humno, nebo odklad – nouzově
+- **Výhled jídla** (návrh Clauda): snopy, které ves smí vymlátit (humno, nebo bez něj nouzově
   o ztrátu méně), počítá jako zrno se ztrátami (nouzový výmlat −10 % podílu, který se na humna
   nevejde; pomalé humno – snopy, které se za oknem kazí, než na ně dojde) – ves po žni nešetří
-  jídlem; jí se jen vymlácené. Snopy bez humna výhled nezná – ves šetří včas. Hlad a šetření jídlem
+  jídlem; jí se jen vymlácené. Hlad a šetření jídlem
   jdou i podle energie, kterou ves opravdu snědla (zásoby došly dřív, než se vymlátilo) – ves
   nehladoví potají.
 - **Výmlat na dnešní jídlo** (návrh Clauda): chybí-li v zásobách zrno na jídlo (na dva dny

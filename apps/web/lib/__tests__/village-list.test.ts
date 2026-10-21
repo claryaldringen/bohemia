@@ -40,13 +40,13 @@ describe('villageListItem – humno', () => {
       at(600, 6, 9),
       null,
     );
-    // nová ves nemá odklad – 90 dní před žní upozorní
-    expect(villageListItem(record(s), at(600, 6, 10)).threshing).toEqual({ floorNeeded: true });
+    // před žní bez snopů se nic nehlásí
+    expect(villageListItem(record(s), at(600, 6, 10)).threshing).toBeUndefined();
     const waiting = structuredClone(s);
     waiting.lastDay = at(600, 9, 9);
     waiting.sheaves = { grainKg: 400, legumesKg: 0, work: { spring: 20 } };
-    // po žni čekají snopy – další žně až za rok
-    expect(villageListItem(record(waiting), at(600, 9, 10)).threshing).toEqual({ waiting: true });
+    // po žni bez humna se mlátí nouzově
+    expect(villageListItem(record(waiting), at(600, 9, 10)).threshing).toEqual({ emergency: true });
     const floor = structuredClone(waiting);
     floor.threshingFloors = [
       { id: 900, position: { x: 50, z: 0, rotation: 0 }, builtDay: founded },

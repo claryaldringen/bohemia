@@ -139,8 +139,10 @@ describe('laborReport – rozdělení práce dne', () => {
     expect(of(laborReport(floor.day)!.shares, 'harvest')).toEqual([]);
     const ground = firstThresh({ ...structuredClone(s), threshingGraceUntil: at(602, 1, 1) });
     expect(ground.thresh).toEqual([expect.objectContaining({ target: { kind: 'village' } })]);
-    // ves bez humna po odkladu nemlátí vůbec – snopy čekají
-    expect(firstThresh(structuredClone(s)).thresh).toEqual([]);
+    // ves bez humna mlátí vždy nouzově (i bez odkladu)
+    expect(firstThresh(structuredClone(s)).thresh).toEqual([
+      expect.objectContaining({ target: { kind: 'village' } }),
+    ]);
   });
 
   it('stavba obydlí nejdřív kácí – u stromů, které ještě stojí, v pořadí kácení', () => {

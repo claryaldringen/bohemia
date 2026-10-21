@@ -511,6 +511,8 @@ describe('advanceVillage – sad', () => {
     // zásoby přes rok spotřeby – ves podle zásob oseje menší plán (fields.md – Osev podle zásob),
     // první úsek od domu se tak vejde do podzimu a v plánu je i ozim
     s.storesKg = 1200;
+    // snopy se nemlátí (výmlat má v září vlastní konec okna) – test hlídá jen sad a pole
+    s.sheaves = { grainKg: 0, legumesKg: 0 };
     const day = advanceVillage(s, at(601, 9, 2), null);
     expect(day.orchardWork!.done).toBeGreaterThan(1);
     // i před ozimem – jablka se sklízejí první, ozim dostane zbytek podzimu

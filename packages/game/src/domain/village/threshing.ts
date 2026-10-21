@@ -1,9 +1,8 @@
 import { TOTAL_GAME_DAYS, dateOfDayIndex, dayIndexOf } from '../calendar';
-import { daysUntilHarvest, daysUntilWinterHarvest } from './food';
 import { addThreshedGrain } from './grain-pits';
 import { villageLegumesKg } from './legumes';
 import { CROP_ORDER, CROP_WINDOWS, THRESHING, type WindowSegment } from './rules';
-import type { Sheaves, ThreshedCrop, VillageState, YearPlan } from './types';
+import type { Sheaves, ThreshedCrop, VillageState } from './types';
 
 // Snopy a výmlat hned po žni (production-chains.md – Humno; Martin 20. 10. 2026: „Humno je
 // podmínka“, „Staří slované se snažili dělat výmlat hned. Klasy neskladovali.“). Sklizeň jde do
@@ -100,11 +99,13 @@ export function threshingCapacity(
 ): ThreshingCapacity {
   return {
     floorManDays: builtThreshingFloorCount(state) * THRESHING.floorManDaysPerDay,
-    emergency: inThreshingGrace(state, day),
+    // bez hotového humna se mlátí vždy nouzově (Martin 21. 10. 2026: „Ať mlátí aspoň nouzově“);
+    // rok odkladu starších vsí tak jen potvrzuje totéž i pro vsi s humnem
+    emergency: builtThreshingFloorCount(state) === 0 || inThreshingGrace(state, day),
   };
 }
 
-/** Smí ves v den `day` mlátit – má hotové humno, nebo je v roce odkladu? */
+/** Smí ves v den `day` mlátit – hotové humno, nebo nouzově na udusané zemi (vždy). */
 export function canThresh(
   state: Pick<VillageState, 'threshingFloors' | 'threshingGraceUntil'>,
   day: number,
@@ -497,14 +498,7 @@ export interface ThreshingStatus {
   /** Nevymlácené snopy – kg zrna obilí a luštěnin. */
   sheavesGrainKg: number;
   sheavesLegumesKg: number;
-  /** Ves má snopy a nemá kde mlátit – „Snopy čekají na humno“. */
-  waiting: boolean;
-  /**
-   * Do sklizně zbývá nejvýš THRESHING.noticeDaysBefore dní, ves nemá humno (ani rozestavěné)
-   * a po sklizni by nesměla mlátit – „Před žněmi postav humno“.
-   */
-  floorNeeded: boolean;
-  /** Ves bez humna mlátí v roce odkladu nouzově na udusané zemi. */
+  /** Ves bez humna mlátí nouzově na udusané zemi (má snopy k výmlatu). */
   emergency: boolean;
   /**
    * Výmlat nestihl okno, ač humno stálo celé okno, a ves mimo odklad mlátí jen na humnech – humno
@@ -513,31 +507,11 @@ export interface ThreshingStatus {
   floorShort: boolean;
 }
 
-/**
- * Den příští sklizně obilí nebo luštěnin podle plánu osevu (ozim a luštěniny 31. 7., jař 31. 8.),
- * nebo null – plán nic nesklízí.
- */
-function nextHarvestDay(plan: YearPlan | null, day: number): number | null {
-  if (!plan) return null;
-  const early = [plan.winter, plan.legume].some(
-    (w) => w !== undefined && w.harvestedKg === null && w.partIds.length > 0,
-  );
-  const late = plan.harvestedKg === null && plan.partIds.length > 0;
-  const days = [
-    ...(early ? [daysUntilWinterHarvest(day)] : []),
-    ...(late ? [daysUntilHarvest(day)] : []),
-  ];
-  return days.length > 0 ? day + Math.min(...days) - 1 : null;
-}
-
 /** Stav výmlatu vsi v den `day` (production-chains.md – Humno) – jen čte stav. */
 export function threshingStatus(state: VillageState, day: number): ThreshingStatus {
   const sheaves = villageSheaves(state);
-  const kg = sheaves.grainKg + sheaves.legumesKg;
-  const threshing = canThresh(state, day);
   const floors = builtThreshingFloorCount(state);
   const work = THRESHED_CROPS.reduce((sum, c) => sum + sheafWork(state, c), 0);
-  const harvest = nextHarvestDay(state.plan, day);
   const firstFloor = Math.min(
     ...(state.threshingFloors ?? []).flatMap((f) => (f.builtDay !== null ? [f.builtDay] : [])),
   );
@@ -551,13 +525,7 @@ export function threshingStatus(state: VillageState, day: number): ThreshingStat
   return {
     sheavesGrainKg: sheaves.grainKg,
     sheavesLegumesKg: sheaves.legumesKg,
-    waiting: kg >= THRESHING.noticeMinKg && !threshing,
-    floorNeeded:
-      harvest !== null &&
-      harvest - day <= THRESHING.noticeDaysBefore &&
-      (state.threshingFloors ?? []).length === 0 &&
-      !canThresh(state, harvest + 1),
-    emergency: floors === 0 && inThreshingGrace(state, day) && work > EPSILON,
+    emergency: floors === 0 && work > EPSILON,
     floorShort: floors > 0 && !inThreshingGrace(state, day) && overdue,
   };
 }

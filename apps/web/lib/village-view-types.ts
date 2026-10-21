@@ -721,14 +721,11 @@ export const DAYS_PER_YEAR = 365.25;
 
 /**
  * Snopy a výmlat vsi (production-chains.md – Humno): nevymlácené snopy (kg zrna obilí
- * a luštěnin) a upozornění – „Před žněmi postav humno“ (`floorNeeded`), „Snopy čekají na humno“
- * (`waiting`), nouzový výmlat na udusané zemi v roce odkladu (`emergency`), humno nestačí
- * (`floorShort`). Chybí, co neplatí.
+ * a luštěnin) a upozornění – nouzový výmlat na udusané zemi u vsi bez humna (`emergency`), humno
+ * nestačí (`floorShort`). Chybí, co neplatí.
  */
 export interface VillageThreshing {
   sheavesKg?: number;
-  floorNeeded?: true;
-  waiting?: true;
   emergency?: true;
   floorShort?: true;
 }

@@ -30,8 +30,6 @@ export type NoticeKind =
    * Výmlat (production-chains.md – Humno): měsíc před žní ves bez humna, snopy čekají na humno,
    * starší ves mlátí nouzově na udusané zemi, humno nestačí.
    */
-  | 'threshing-floor-needed'
-  | 'sheaves-waiting'
   | 'emergency-threshing'
   | 'threshing-floor-short'
   /** Stupně hladu (population.md – Co hráč vidí): šetří jídlem, hladoví, umírají hlady. */
@@ -103,8 +101,7 @@ export type NoticeKind =
   | 'other-starving'
   | 'other-extinct'
   /** Humno z jiné vsi hráče (production-chains.md – Humno). */
-  | 'other-threshing-floor-needed'
-  | 'other-sheaves-waiting';
+  | 'other-emergency-threshing';
 
 export interface VillageNotice {
   kind: NoticeKind;
@@ -207,20 +204,10 @@ export function villageNotices(view: VillageView): VillageNotice[] {
   // výmlat (production-chains.md – Humno): bez humna ves nemlátí – upozornění s předstihem, aby
   // ves nezahynula hladem jen proto, že hráč o humnu nevěděl (anti-cíl)
   const threshing = view.threshing;
-  if (threshing?.floorNeeded) {
-    notices.push({
-      kind: 'threshing-floor-needed',
-      tone: 'warn',
-      text: 'Před žněmi postav humno',
-    });
-  }
-  if (threshing?.waiting) {
-    notices.push({ kind: 'sheaves-waiting', tone: 'warn', text: 'Snopy čekají na humno' });
-  }
   if (threshing?.emergency) {
     notices.push({
       kind: 'emergency-threshing',
-      tone: 'warn',
+      tone: 'info',
       text: 'Mlátí se na udusané zemi – postav humno',
     });
   }
@@ -235,10 +222,7 @@ export function villageNotices(view: VillageView): VillageNotice[] {
  * (production-chains.md – Humno, anti-cíl „vždy jasné upozornění“): bez humna ves nemlátí a hráč
  * se to nesmí dozvědět pozdě.
  */
-const FIRST_LOOK_NOTICES: ReadonlySet<NoticeKind> = new Set([
-  'threshing-floor-needed',
-  'sheaves-waiting',
-]);
+const FIRST_LOOK_NOTICES: ReadonlySet<NoticeKind> = new Set(['emergency-threshing']);
 
 /**
  * Upozornění, která mezi dvěma pohledy na ves nově vznikla (dřív neplatila). Bez předchozího
@@ -254,14 +238,11 @@ export function newNotices(previous: VillageView | null, next: VillageView): Vil
 }
 
 /** Humno z jiné vsi – krátký řádek se jménem vsi (production-chains.md – Humno). */
-const OTHER_THRESHING_NOTICES = {
-  floorNeeded: {
-    kind: 'other-threshing-floor-needed',
-    tone: 'warn',
-    text: 'před žněmi postav humno',
-  },
-  waiting: { kind: 'other-sheaves-waiting', tone: 'warn', text: 'snopy čekají na humno' },
-} as const satisfies Record<string, VillageNotice>;
+const OTHER_THRESHING_NOTICE = {
+  kind: 'other-emergency-threshing',
+  tone: 'info',
+  text: 'mlátí se na udusané zemi – postav humno',
+} as const satisfies VillageNotice;
 
 /**
  * Upozornění z jiných vsí hráče (migration.md – návrh Clauda): hlad, vymírání hladem a vymření,
@@ -282,11 +263,11 @@ export function otherVillageNotices(previous: VillageView, next: VillageView): V
       notices.push({ ...notice, text: `${village.name}: ${notice.text}` });
     }
     // humno – když nově vznikne (production-chains.md – Humno)
-    for (const key of ['floorNeeded', 'waiting'] as const) {
-      if (village.threshing?.[key] && !before.threshing?.[key]) {
-        const notice = OTHER_THRESHING_NOTICES[key];
-        notices.push({ ...notice, text: `${village.name}: ${notice.text}` });
-      }
+    if (village.threshing?.emergency && !before.threshing?.emergency) {
+      notices.push({
+        ...OTHER_THRESHING_NOTICE,
+        text: `${village.name}: ${OTHER_THRESHING_NOTICE.text}`,
+      });
     }
   }
   return notices;
