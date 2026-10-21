@@ -29,7 +29,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   za branou dvorce (`trailStart`) do všech 8 směrů (`DIRECTIONS`, `Direction8` = `NeighborDirection`
   z příbuzenství, sever +z), v mezipaměti podle krajiny, bodu a sítě cest (první dotaz ≈ 0,7 s,
   pak ≈ 10–30 ms). `planTrail` uloží osu jako pevné cesty na kopii stavu (`addTrailRoads` v
-  `paths/roads.ts` – nové úseky po 150 m přes `formRoad`, po pevné cestě vede po ní, rozdělení
+  `paths/roads-trails.ts` (`addTrailRoads`) – nové úseky po 150 m přes `formRoad`, po pevné cestě vede po ní, rozdělení
   úseku přidá kus stezky – `splitTrailPieces`), úseky `Trail.pieces` se stupněm a prací
   (`roadUpgradeCost`, hať a lávka přes mokřinu a brod, dřevo `planWoodFrom`), důvody česky
   (`TRAIL_BLOCKED`, `TRAIL_NO_WOOD`…). `startTrail` → stavba `road` s `Construction.trail`
