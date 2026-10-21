@@ -94,7 +94,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`openOrePit` ze seedu, `updateOrePits` – 10 let). Přirážka za vodu daleko (`oreFactor`)
   zmizela u kováře i hrnčíře. Starší kovárny `migrateSmith` (zásoba na dávku). Činnosti `digging`, `no-ore`; podíly práce `ore` (cíl
   `{ kind: 'ore', id, x, z }`) a `fetch` (cíl rudiště, nebo milíř s `from` = kovárna) s věky
-  `LaborShare.ages`; v síti pěšin jen z kovárny (`smithWalks` v network.ts). Web: panel
+  `LaborShare.ages`; v síti pěšin jen z kovárny (`smithWalks` v network-targets.ts). Web: panel
   `SmithOreStats` (`VillageWorkshop.ore` ze `smithOreSummary`), upozornění `no-ore`, scéna
   `SceneVillage.oreSites` / `orePits` → `OreSiteRenderer` (`ore-sites.ts`, geometrie
   `ore-site-layout.ts` – val, voda, zarůstání, hromada rudy), ikona `resources/ore.png`; ukázka
