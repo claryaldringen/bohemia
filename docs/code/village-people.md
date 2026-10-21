@@ -66,7 +66,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   háj do 600 m, váha 1 ÷ (d + 40 m)², jinak ohniště na návsi; průvod od domu nevěsty, lidé z okolí
   od kraje mapy po stezce, obě skupiny naráz; podkova `horseshoeSpots`; cesta do nového domova –
   čisté funkce času, sdílí pomocníky průvodu z `funeral-plan.ts`), plány `planWeddings` ve
-  `villager-plan.ts` → `onWeddings` → `wedding-renderer.ts` (oheň v ohništích svatyně u vstupu
+  `villager-plan-events.ts` → `onWeddings` → `wedding-renderer.ts` (oheň v ohništích svatyně u vstupu
   a na návsi – `pyre-fire.ts` menší, věnec s pentlemi na kmeni dubu jen při obřadu – poloměr kmene
   podle modelu `OAK_TRUNK_M`). Ukázka **Svatba** na `/dev/landscape` (dub, svatyně, nevěsta
   z okolí, náves).
@@ -166,7 +166,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   typu - žena rolníka, jde pro vodu.“): **postava = konkrétní člověk** – server posílá
   `SceneLabor.persons` (`lib/person-view.ts`: id, věk, pohlaví, domácnost, role z
   `lib/person-roles.ts`), `planVillagers` přiřadí každé postavě člověka (`DayRoster` ve
-  `villager-roster.ts` – los ze seedu a dne, nikdo dvakrát; `cast` ve `villager-plan.ts`) v pořadí
+  `villager-roster.ts` – los ze seedu a dne, nikdo dvakrát; `cast` ve `villager-plan-cast.ts`) v pořadí
   pohřeb → karavany (tesař na cestě pro kování podle `SceneExpedition.trip.travellerId`) → nosiči
   kováře podle věku → pasáci → dílny u své práce → první člověk u stavby → práce vsi → provoz na
   cestách (z domácnosti proudu) → domácí práce a nečinní → starší; na koho nezbude člověk, ta
@@ -195,7 +195,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `postava-orac`, `postava-vozka`); `/dev/landscape` ukázky s prací dne bez lidí dostanou ukázkové
   lidi (`withDemoPersons`).
   **Pohřeb** (villagers.md – Pohřeb): průvod s márami a kruh kolem hranice jsou postavy s klíčem
-  `funeral:` z `funeral-plan.ts` (`funeralFigures` ve `villager-plan.ts`) – jdou mimo rozpočet
+  `funeral:` z `funeral-plan.ts` (`funeralFigures` ve `villager-plan-events.ts`) – jdou mimo rozpočet
   `MAX_WORKERS`, ve dnech obřadu se o ně sníží počet pracujících postav (`funeralActiveIn`).
   **Svatba** (villagers.md – Svatba): průvod, pár a podkova svatebčanů jsou postavy s klíčem
   `wedding:` (`weddingFigures`, nejvýš `MAX_WEDDING_FIGURES_TOTAL` = 60) – mimo `MAX_WORKERS`,
@@ -211,7 +211,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   přivezené vozem `cartWater`), k lesu (`woodErrandTrips` z jádra) a na pole (člověkoden polní
   práce = cesta); na cestě cesty × doba cesty ÷ `TRAFFIC_DAY_S` (900 s) lidí, nejvýš
   `MAX_TRAFFIC` (24), každý druh aspoň jeden (`trafficCounts`), fáze se zlatým řezem
-  (`streamPhase`). `trafficFigures` ve `villager-plan.ts` – po pěšinách (`errandPath`, na vzdálený
+  (`streamPhase`). `trafficFigures` ve `villager-plan-traffic.ts` – po pěšinách (`errandPath`, na vzdálený
   díl `fieldPath`: po pěšině k poli, `route(a, b, reach)`, a přes pole; kontrola `trafficRouteOk`
   – ohrady se neberou, do domu jen o `ROUTE_HOUSE_SLACK_M`), vyjde se od vchodu (`trafficDoor` –
   volné místo do 16 m), doma na chvíli zmizí (`ShuttleOptions.restHidden`); pro vodu s vahadlem

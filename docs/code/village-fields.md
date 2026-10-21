@@ -365,5 +365,5 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   hrdlo s valem, zrno podle plnosti, hroudy pečeti; zástupný vzhled, model přinese úloha 5),
   výběr `{ kind: 'grain-pit', id }` (`pickVillageTarget` na zemi, kruh v `selection-highlight.ts`),
   panel `GrainPitBody` (zrno v kg, stáří, plnost; portrét `icons/build/obilna-jama.png` –
-  `icons.py obilna-jama`), postavy u hrdla (`grainPitWorkers` ve `villager-plan.ts`, činnost
+  `icons.py obilna-jama`), postavy u hrdla (`grainPitWorkers` ve `villager-plan-crafts.ts`, činnost
   „ukládá zrno do obilné jámy“), ukázka `/dev/panels?panel=jama`.
