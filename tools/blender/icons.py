@@ -17,8 +17,8 @@ upravená širší, hať a lávka z `apps/web/public/models/roads/`, vozová ces
 kolejemi v úvozu)
 a jablone (jabloně s jablky střídavě podél cesty – tlačítko „Vysadit jabloně“), stezka (zemská
 stezka od brány dvorce – trade.md), obchod (pytle obilí, hrnce, klády a sýr) a rudiste (jámy
-s vodou a valem, hromádka bahenní rudy a motyka – crafts.md, Uhlí a ruda kováře), humno (mlatová
-plocha s přístřeškem, stohem slámy, snopy a cepem – production-chains.md, Humno), hliniste (jámy
+s vodou a valem, hromádka bahenní rudy a motyka – crafts.md, Uhlí a ruda kováře), humno (mlat pod
+širým nebem bez přístřešku, stoh slámy a cepy – production-chains.md, Humno), hliniste (jámy
 se šedookrovou stěnou jílu, hromádka hlíny a rýč – crafts.md, Hlína hrnčíře) a milir (kouřící milíř
 mezi pařezy skácených buků – crafts.md, Milíř u skácených buků) a obilna-jama (otevřená obilná
 jáma se zrnem, hroudami pečeti a lopatou – production-chains.md, Obilné jámy) – portréty do panelu
@@ -1915,54 +1915,40 @@ def icon_rudiste():
 
 
 def icon_humno():
-    """Humno (production-chains.md – Humno): udusaná a vymazaná mlatová plocha z hlíny, vzadu
-    přes celou šířku přístřešek s doškovou střechou (přístřešek ohrady z `models/pen/pen.glb`
-    natažený na 8 m), vedle stoh slámy, na mlatu snopy v kruhu klasy dovnitř (jak se mlátí cepy),
-    hromádka zrna a cep – portrét mřížky staveb."""
-    before = set(bpy.data.objects)
-    place_model("pen", folder=PEN)
-    shelter = next(o for o in bpy.data.objects if o not in before and o.name.startswith("shelter"))
-    for o in [o for o in bpy.data.objects if o not in before and o is not shelter]:
-        bpy.data.objects.remove(o, do_unlink=True)
-    place_root([shelter], (0.0, 3.3, 0))
-    shelter.scale = (1.72, 1.0, 1.0)
+    """Humno (production-chains.md – Humno): mlat pod širým nebem bez přístřešku – plochá
+    udusaná světlá hlína 8 × 10 m s ostrým okrajem, na ní rozházená sláma a klasy a dva cepy,
+    na kraji malý stoh slámy (`models/fields/haystack.glb`) – portrét mřížky staveb."""
     hay = place_model("haystack", folder=FIELDS)
-    place_root(hay, (3.6, -3.4, 0), scale=0.85)
+    place_root(hay, (3.7, -3.6, 0), scale=0.7)
     tint_imported(hay, (1.08, 0.92, 0.55))
     ground(7.6, mat("g", tex=f"{TEX}/grass-lush.jpg", scale=0.25, tint=(0.78, 0.84, 0.6)), z=0.0, fade=0.66)
-    # mlat: hladká udusaná hlína se zaobleným okrajem, trochu nad trávou
+    # mlat: světlá udusaná hlína, ostrý okraj, jen o fous nad trávou
     bm = bmesh.new()
-    path = rounded_path(-4.0, -5.0, 4.0, 5.0, 0.6, 0.25)
-    bm.faces.new([bm.verts.new((x, y, 0.04)) for x, y in path])
-    to_obj(bm, "floor", mat("floor", tex=f"{TEX}/mud.jpg", scale=0.6, tint=(1.1, 0.95, 0.74)), smooth=False)
+    bm.faces.new([bm.verts.new((x, y, 0.04)) for x, y in ((-4.0, -5.0), (4.0, -5.0), (4.0, 5.0), (-4.0, 5.0))])
+    to_obj(bm, "floor", mat("floor", tex=f"{TEX}/mud.jpg", scale=0.6, tint=(1.5, 1.28, 1.0)), smooth=False)
     rng = random.Random(5)
-    # snopy v kruhu klasy dovnitř, převázané povříslem
-    stalks, ears, ties = bmesh.new(), bmesh.new(), bmesh.new()
-    cx, cy = -0.5, -1.3
-    for k in range(8):
-        a = k * 2 * math.pi / 8 + rng.uniform(-0.12, 0.12)
+    # rozházená sláma a klasy
+    stalks, ears = bmesh.new(), bmesh.new()
+    for _ in range(26):
+        x, y = rng.uniform(-3.5, 3.3), rng.uniform(-4.5, 4.4)
+        a = rng.uniform(0, math.pi)
         d = Vector((math.cos(a), math.sin(a), 0))
-        base = Vector((cx, cy, 0.24)) + d * 2.35
-        tip = Vector((cx, cy, 0.26)) + d * 0.95
-        cyl(stalks, base, tip, 0.2, 0.27, 12)
-        tie = base + (tip - base) * 0.42
-        cyl(ties, tie - d * 0.07, tie + d * 0.07, 0.235, 0.24, 12)
-        blob(ears, ((tip - d * 0.3)[:], (0, math.pi / 2, a)), (0.3, 0.34, 0.5), 10, 6)
-    to_obj(stalks, "sheaves", mat("straw", (0.86, 0.66, 0.28), 0.8, noise=70, bump=0.4))
+        p = Vector((x, y, 0.07))
+        cyl(stalks, p - d * 0.45, p + d * 0.45, 0.028, 0.028, 6)
+        blob(ears, ((p + d * 0.5)[:], (0, math.pi / 2, a)), (0.1, 0.12, 0.2), 8, 5)
+    to_obj(stalks, "straw", mat("straw", (0.86, 0.66, 0.28), 0.8, noise=70, bump=0.4))
     to_obj(ears, "ears", mat("ear", (0.9, 0.68, 0.22), 0.75, noise=45, bump=0.4))
-    to_obj(ties, "ties", mat("tie", (0.55, 0.4, 0.18), 0.85, noise=40))
-    grain = bmesh.new()
-    blob(grain, ((2.1, 1.0, 0.04), (0, 0, 0.4)), (0.85, 0.65, 0.32), 16, 8)
-    to_obj(grain, "grain", mat("grain", (0.66, 0.46, 0.18), 0.7, noise=120, bump=0.6))
-    # cep: násada a bijec spojené řemenem, položený na mlatu
+    # dva cepy: násada a bijec spojené řemenem, položené na mlatu
     wood = bmesh.new()
-    cyl(wood, (-3.2, 2.2, 0.1), (-1.6, 0.6, 0.1), 0.075, 0.07, 10)
-    cyl(wood, (-1.55, 0.55, 0.1), (-0.85, 0.75, 0.12), 0.1, 0.1, 10)
-    to_obj(wood, "flail", mat("wood", (0.44, 0.29, 0.15), 0.8, noise=50, bump=0.3))
+    cyl(wood, (-3.0, 2.6, 0.12), (-1.4, 1.1, 0.12), 0.075, 0.07, 10)
+    cyl(wood, (-1.35, 1.05, 0.12), (-0.65, 1.3, 0.14), 0.1, 0.1, 10)
+    cyl(wood, (-0.2, 3.6, 0.12), (1.6, 2.4, 0.12), 0.075, 0.07, 10)
+    cyl(wood, (1.65, 2.35, 0.12), (2.3, 2.75, 0.14), 0.1, 0.1, 10)
+    to_obj(wood, "flails", mat("wood", (0.44, 0.29, 0.15), 0.8, noise=50, bump=0.3))
     sun(az=-50, el=44)
     sun(az=150, el=25, strength=1.3, color=(0.8, 0.88, 1.0))
     pts = [Vector((-4.2, -5.2, 0)), Vector((4.6, 5.2, 0)), Vector((-4.2, 5.2, 0)), Vector((4.6, -5.2, 0))]
-    camera(pts + [Vector((0, 3.0, 2.6))], az=24, el=40, margin=0.96)
+    camera(pts + [Vector((3.7, -3.6, 1.6))], az=24, el=40, margin=0.96)
 
 
 def icon_milir():
