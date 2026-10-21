@@ -233,7 +233,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   osivo `outbound` (`CartShuttle.loadedOut` – naložené tam), trasa k milíři a břehu
   (`cartRouteToday`); voda, uhlí, ruda a osivo jezdí tempem volů ve skutečném čase (`steadyJob`
   v `village-carts.ts`), ne v okně herního dne jako svoz úrody. Komu vůz vodu přivezl, ukazuje
-  `SceneLabor.homes[].cartWater` (týž `waterCartPlan` ve `village-view.ts`) – pěšky pro ni chodí
+  `SceneLabor.homes[].cartWater` (týž `waterCartPlan` ve `village-view-scene.ts`) – pěšky pro ni chodí
   méně lidí (Postavy – Provoz na cestách).
 
 - **Kování vozů** ([wagons.md](../design/wagons.md) – Kování vozů; Martin 20. 10. 2026: „…vozy

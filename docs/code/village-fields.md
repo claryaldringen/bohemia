@@ -77,7 +77,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   len za obilím vycházel, má plán beze změny (zlatý otisk ve `flax.test.ts`). Trhání v červenci
   napřed (`CROP_ORDER` – len první); `trimPlan` ani osev navíc len neubírají. Zpracování je v domácí výrobě
   (přerozdělení), žádná zásoba v liště. Web: `SceneFieldPart.crop: 'flax'` a `bloom` (červen –
-  `FLAX_BLOOM_MONTH` ve `village-view.ts`), scéna `FLAX_STYLES` / `FLAX_BLOOM` ve `field-crops.ts`
+  `FLAX_BLOOM_MONTH` ve `village-view-fields.ts`), scéna `FLAX_STYLES` / `FLAX_BLOOM` ve `field-crops.ts`
   (druhy trsů `flax-green` / `flax-bloom` / `flax-ripe` – kopie uzlu `crop-sprout` s vlastní
   geometrií, `CROP_NODE` ve `field-renderer.ts`; kvetoucí len napůl modré trsy), malé panáky,
   nízká koruna; panel `CROP_LABELS.flax` (ikona `resources/flax` – `icons.py flax`),
@@ -93,7 +93,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   příloh bez vzhledu – doplní scéna), `fieldFrontiers` (čelo práce úloh dne), `partsWorked`
   (díly, přes které dnes práce postoupila). Rozdělení práce dne (`labor-report.ts`) dostává
   `fieldWork` (před a po po plodinách) a cílí polní práce na `{ kind: 'field', id, parts }`.
-  Ve scéně (`village-view.ts`) je díl `SceneFieldPart` (`id`, `look`, `work`, `before` –
+  Ve scéně (`village-view-scene-types.ts`) je díl `SceneFieldPart` (`id`, `look`, `work`, `before` –
   `FieldLook`) a podíl práce `SceneLaborShare` s `parts`; postavy (`villager-plan.ts`) pracují na
   `parts`. Simulace se tím nemění.
 
@@ -171,7 +171,7 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   `/dev/panels?panel=pole-dil` (`pole-dil-priloh`, `pole-dil-zaklada`, `sad-ctverec`).
 
 - **Pole ve scéně** (fields.md – Co hráč vidí; podle 0 A.D.): vzhled dílu `FieldLook`
-  (`village-view.ts`: `bare`, `plowed`, `sown`, `sprouted`, `green`, `ripe`, `harvesting`,
+  (`village-view-scene-types.ts`: `bare`, `plowed`, `sown`, `sprouted`, `green`, `ripe`, `harvesting`,
   `stubble`, `young-fallow`, `pasture`, `meadow`, `mown`, `haystacks`, zarůstání `shrubs`
   a `young-forest` – bez obtisku, `LOOK_STYLES` alfa 0) posílá po dílech herní
   jádro (`SceneFieldPart.look`, rozpracovaný díl `work` 0–1 a `before`, `id`; fronta práce
@@ -311,7 +311,7 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   a chůze), humno je stavba, kterou obejdou pěšiny, vozy, vozové cesty (`villageBuildings`)
   i zemská stezka (`trailRoutes(…, floors)`); svoz snopů vozem jede i k humnu
   (`threshingFloorHaulPoints` – jízdy do ročního provozu cest). Stav pro upozornění
-  `threshingStatus` → `VillageView.threshing` (`threshingOf` ve `village-view.ts`): „Před žněmi
+  `threshingStatus` → `VillageView.threshing` (`threshingOf` ve `village-view-buildings.ts`): „Před žněmi
   postav humno“ (`floorNeeded` – nejvýš 90 dní před sklizní ves bez humna i rozestavěného, která
   po sklizni nesmí mlátit), „Snopy čekají na humno“ (`waiting`) – obě i při prvním pohledu
   a přepnutí vsi (`FIRST_LOOK_NOTICES` v `newNotices`) a z jiné vsi (`VillageListItem.threshing`,
