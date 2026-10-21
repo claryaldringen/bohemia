@@ -97,11 +97,12 @@ export function threshingCapacity(
   state: Pick<VillageState, 'threshingFloors' | 'threshingGraceUntil'>,
   day: number,
 ): ThreshingCapacity {
+  void day; // kapacita už na dni nezávisí (rok odkladu ztratil význam)
   return {
     floorManDays: builtThreshingFloorCount(state) * THRESHING.floorManDaysPerDay,
-    // bez hotového humna se mlátí vždy nouzově (Martin 21. 10. 2026: „Ať mlátí aspoň nouzově“);
-    // rok odkladu starších vsí tak jen potvrzuje totéž i pro vsi s humnem
-    emergency: builtThreshingFloorCount(state) === 0 || inThreshingGrace(state, day),
+    // bez humna i přebytek nad kapacitu humna se mlátí vždy nouzově (Martin 21. 10. 2026: „Ať
+    // mlátí aspoň nouzově“) – ves s humnem nesmí být na tom hůř než ves bez něj
+    emergency: true,
   };
 }
 
@@ -526,6 +527,6 @@ export function threshingStatus(state: VillageState, day: number): ThreshingStat
     sheavesGrainKg: sheaves.grainKg,
     sheavesLegumesKg: sheaves.legumesKg,
     emergency: floors === 0 && work > EPSILON,
-    floorShort: floors > 0 && !inThreshingGrace(state, day) && overdue,
+    floorShort: floors > 0 && overdue,
   };
 }

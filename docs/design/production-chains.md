@@ -151,7 +151,7 @@ Beze změny (milíř u buků – crafts.md); nošení uhlí ke kováři je dnes 
   stavby ani na nerovnou zem (rozdíl výšek nejvýš 1 m – mlat se srovná).
 - **Výhoda, ne podmínka** (Martin 21. 10. 2026: „Ať mlátí aspoň nouzově“; návrh Clauda): ves bez
   hotového humna mlátí vždy nouzově na udusané zemi u domů – o 30 % víc práce výmlatu a 10 % zrna
-  ztráta, bez omezení místa. Humno ušetří práci i zrno. Snopy se kazí (10 % za měsíc – klasy se
+  ztráta, bez omezení místa. Humno ušetří práci i zrno; přebytek nad kapacitu humna se mlátí nouzově vždy, takže ves s humnem není na tom hůř než ves bez něj (upozornění „Humno nestačí – část se mlátí nouzově“ jen informuje). Snopy se kazí (10 % za měsíc – klasy se
   neskladovaly) jen tehdy, když čekají a nemlátí se (výmlat nestihl okno).
 - **Postup:** snopy se nosí nebo vezou z pole na humno (dnes nosiči a vozy – jen cíl humno),
   mlátí se cepy, pak se zrno **prohazuje lopatami** proti větru (odvívání plev), sláma na stoh.

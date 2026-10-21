@@ -375,8 +375,10 @@ describe('len napřed – ves, které len za obilím vycházel, má plán beze z
     // mlátí v srpnu a září – plán osevu odečte výmlat z podzimu a srpna, snopy jsou zásobou;
     // a s obilnými jámami (Obilné jámy, 20. 10. 2026): vymlácené zrno v zapečetěných jamách ubývá
     // méně (zásoby k 1. 9. jsou vyšší) a ukládání do jam bere na podzim práci před osevem navíc –
-    // mění se výběr dílů, len dál bez nedostatku
-    expect(fingerprint(plans)).toBe('672:29d2c15d');
+    // mění se výběr dílů, len dál bez nedostatku; a s nouzovým výmlatem přebytku nad kapacitu humna
+    // (21. 10. 2026): výmlat, který humno nestihne, se mlátí nouzově (+30 % práce, bez kažení snopů)
+    // – plán osevu ho počítá do podzimní práce
+    expect(fingerprint(plans)).toBe('696:17ed845d');
   });
 });
 

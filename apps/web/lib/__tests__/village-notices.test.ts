@@ -242,7 +242,11 @@ describe('villageNotices – hlad a vymření', () => {
       },
     ]);
     expect(villageNotices(view({ threshing: { sheavesKg: 80, floorShort: true } }))).toEqual([
-      { kind: 'threshing-floor-short', tone: 'warn', text: 'Humno nestačí na výmlat' },
+      {
+        kind: 'threshing-floor-short',
+        tone: 'info',
+        text: 'Humno nestačí – část se mlátí nouzově',
+      },
     ]);
     // snopy samy upozornění nejsou
     expect(villageNotices(view({ threshing: { sheavesKg: 800 } }))).toEqual([]);

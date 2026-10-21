@@ -131,6 +131,7 @@ describe('výmlat v srpnu a září na humně', () => {
     expect(one.map((t) => [t.crop, t.floor])).toEqual([
       ['winter', 10],
       ['legume', 2],
+      ['spring', 0], // zbytek nouzově na udusané zemi
     ]);
     expect(september.map((t) => [t.crop, t.end, t.overdue])).toEqual([
       ['winter', 9, true],
@@ -191,12 +192,19 @@ describe('výmlat v srpnu a září na humně', () => {
   it('humno zvládne THRESHING.floorManDaysPerDay za den – víc humen se sčítá', () => {
     const sheaves = { grainKg: 1000, legumesKg: 0, work: { winter: 30 } };
     const one = threshTasks(withSheaves(at(601, 8, 10), sheaves), at(601, 8, 10));
-    expect(one).toEqual([expect.objectContaining({ crop: 'winter', floor: 12, remaining: 12 })]);
+    // 12 čd na humně, zbylých 18 čd nouzově (o 30 % víc práce)
+    expect(one).toEqual([
+      expect.objectContaining({
+        crop: 'winter',
+        floor: 12,
+        remaining: 12 + 18 * (1 + THRESHING.emergencyWork),
+      }),
+    ]);
     const two = threshTasks(withSheaves(at(601, 8, 10), sheaves, 2), at(601, 8, 10));
-    expect(two[0]).toMatchObject({ floor: 24, remaining: 24 });
+    expect(two[0]).toMatchObject({ floor: 24, remaining: 24 + 6 * (1 + THRESHING.emergencyWork) });
     expect(threshingCapacity(withSheaves(at(601, 8, 10), sheaves, 3), at(601, 8, 10))).toEqual({
       floorManDays: 3 * THRESHING.floorManDaysPerDay,
-      emergency: false,
+      emergency: true,
     });
   });
 
@@ -404,19 +412,15 @@ describe('výhled jídla a plán osevu', () => {
       9,
     );
     // humno v odkladu – 12 čd na humně, zbytek nouzově
+    const mixedYield = 1000 * (1 - THRESHING.emergencyLoss * (108 / 120));
     const mixed = withSheaves(day, sheaves, 1, day + 100);
-    expect(sheavesOutlook(mixed, day).grainKg).toBeCloseTo(
-      1000 * (1 - THRESHING.emergencyLoss * (108 / 120)),
-      9,
-    );
-    // jedno humno mimo odklad: 120 čd = 10 dní, okno jaře do konce září – bez ztrát
-    expect(sheavesOutlook(withSheaves(day, sheaves), day).grainKg).toBeCloseTo(1000, 9);
-    // 600 čd = 50 dní, v září zbývá 21 dní – 29 dní po okně se kazí průměrně 14,5 dne
+    expect(sheavesOutlook(mixed, day).grainKg).toBeCloseTo(mixedYield, 9);
+    // jedno humno i mimo odklad: přebytek nad 12 čd se mlátí nouzově, nic se nekazí
+    expect(sheavesOutlook(withSheaves(day, sheaves), day).grainKg).toBeCloseTo(mixedYield, 9);
     const slow = withSheaves(day, { ...sheaves, work: { spring: 600 } });
-    const late = 50 - 21;
     expect(sheavesOutlook(slow, day).grainKg).toBeCloseTo(
-      1000 * (1 - (late / 50) * (1 - keep(late / 2))),
-      6,
+      1000 * (1 - THRESHING.emergencyLoss * (588 / 600)),
+      9,
     );
   });
 
@@ -455,7 +459,10 @@ describe('výhled jídla a plán osevu', () => {
   it('práce výmlatu, která ves čeká: na humnech nejvýš kapacita za dny okna, v odkladu i nouzově', () => {
     const day = at(601, 9, 1);
     const sheaves = { grainKg: 5000, legumesKg: 0, work: { spring: 500 } };
-    expect(pendingThreshLabor(withSheaves(day, sheaves), day, 30)).toBe(12 * 30);
+    expect(pendingThreshLabor(withSheaves(day, sheaves), day, 30)).toBeCloseTo(
+      360 + 140 * (1 + THRESHING.emergencyWork),
+      9,
+    );
     expect(pendingThreshLabor(withSheaves(day, sheaves, 2), day, 61)).toBe(500);
     expect(pendingThreshLabor(withSheaves(day, sheaves, 0, day + 50), day, 30)).toBeCloseTo(
       500 * (1 + THRESHING.emergencyWork),

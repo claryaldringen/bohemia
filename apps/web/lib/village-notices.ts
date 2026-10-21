@@ -212,7 +212,11 @@ export function villageNotices(view: VillageView): VillageNotice[] {
     });
   }
   if (threshing?.floorShort) {
-    notices.push({ kind: 'threshing-floor-short', tone: 'warn', text: 'Humno nestačí na výmlat' });
+    notices.push({
+      kind: 'threshing-floor-short',
+      tone: 'info',
+      text: 'Humno nestačí – část se mlátí nouzově',
+    });
   }
   return notices;
 }
