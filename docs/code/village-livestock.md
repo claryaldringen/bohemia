@@ -99,7 +99,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   dětí na pasení, tak to omezí i velikost stád.“); `herdingDay` – kolik výrostků dnes pase;
   přežvýkavci duben–říjen, prasata celý rok; `recordHerding` sčítá `LivestockState.herding` od
   porážky do porážky, `herdingCoverage` jde do porážky, `pastureGrazing` a pastvy; `LaborDay.herders`
-  (výrostci u stád) → `SceneLabor.herders` → `herderKinds` ve `villager-plan.ts`. Porážka a uzení jdou před polními úlohami (přes zimu po dnech).
+  (výrostci u stád) → `SceneLabor.herders` → `herderKinds` ve `villager-plan-cast.ts`. Porážka a uzení jdou před polními úlohami (přes zimu po dnech).
   Louka a les do 600 m pro pastvu jsou z krajiny ve stavu
   (`LivestockState.land`) – doplní je `withLivestockLand` (založení vsi i migrace v
   `updateVillage`); bez nich výchozí `LIVESTOCK.defaultLand`. Den hospodářství `husbandryDay`
@@ -279,7 +279,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `parkedCartSpot`, `parkedCartPose` – dvoukolák na oji, bez volů). `cartPlanPose` = póza podle
   plánu (`poseOnRoute`). `VillageRenderer.updateCarts` (klíč z vozů, okna dne a ohrad) a
   `animateOxen`; voli táhnou buď vůz, nebo rádlo – `draftTeamsToday` (orba jen se spřežením, které
-  nevozí), `penHerds` bez volů na cestě; honák jde s vozem (`villager-plan.ts` – haul bez honáků).
+  nevozí), `penHerds` bez volů na cestě; honák jde s vozem (`villager-plan.ts`, `villager-plan-folk.ts` – haul bez honáků).
   Panel cesty: vyšlapaná s vozy je **Vyježděná cesta** (Vozová síť a vyjeté cesty níž). `/dev/landscape`
   **Vozy ve svahu** – vůz stojí, pak dvoukolák a čtyřkolák vozí snopy po vyjeté cestě
   (`LandscapeScene.setWorkDayClock` – den ukázky 86 s).

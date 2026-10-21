@@ -117,7 +117,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `SceneVillage.funerals` (posledních 7 dnů, lidé za márami `funeralMourners`); scéna
   `funeral-plan.ts` (čisté funkce času z okna dne pohřbu – průvod skutečnou chůzí po pěšinách
   k brance, hranice hoří do konce dne, herní den doutná, mohyla až po vychladnutí –
-  `withoutHiddenMounds`), plány `planFunerals` ve `villager-plan.ts` → `onFunerals` →
+  `withoutHiddenMounds`), plány `planFunerals` ve `villager-plan-events.ts` → `onFunerals` →
   `funeral-renderer.ts` (máry, hranice a zbytky z `tools/blender/funeral.py`, oheň `pyre-fire.ts`,
   dým `PYRE_PLUME`). Ukázka **Pohřeb** na `/dev/landscape`.
 
