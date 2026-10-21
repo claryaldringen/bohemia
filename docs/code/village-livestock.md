@@ -16,7 +16,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `VillageState.cheeseKg`, ztráta 15 %/rok). **Práce se zvířaty** (`animalCareNeed`,
   `ANIMAL_CARE`) jde **bokem** (Martin 19. 10. 2026 – dojení a péče ženy, pasení výrostci;
   population.md – Práce): z práce vsi nebere, dojí se vždy celé stádo; činnosti `milking`
-  a `animal-care` jsou jen v `LaborDay.aside` (`asideWork` v `simulate.ts`) pro postavy.
+  a `animal-care` jsou jen v `LaborDay.aside` (`asideWork` v `simulate-work.ts`) pro postavy.
   `VillageState.diet` nese jídlo posledního dne (energie, bílkoviny, kvalita, nasycení, podíly
   obilí / maso / mléko / vejce / ovoce / luštěniny – `legumes?`, starší jídlo bez něj). **Hlad z energie:**
   `nextStarvationDays` a přirážka úmrtnosti dostávají energii, porody a štěstí nasycení
