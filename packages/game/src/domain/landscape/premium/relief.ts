@@ -35,6 +35,8 @@ import type { PremiumSite } from './types';
 // Hodnoty jsou návrh Clauda, doladí je kalibrace.
 
 const WATER = SURFACE_CODES.water;
+const FOREST = SURFACE_CODES.forest;
+const MEADOW = SURFACE_CODES.meadow;
 
 /** Vstup plánu prvku: voda a místo pro vesnici – v terénu i v hotové krajině stejné. */
 export interface PlanInput {
@@ -419,6 +421,12 @@ export const SACRED_MOUNTAIN = {
   maxDistanceM: 1000,
   /** Plošina = místa do tolika m pod vrcholem. */
   plateauDropM: 1,
+  /**
+   * Holý vrchol (návrh Clauda): les na vrcholu ustoupí louce do tolika políček od středu (plošina
+   * 52 m + okraj) – hora je z kamery poznat (holé temeno, kamenný kruh ve scéně), v lese by
+   * plošinu zakryly koruny.
+   */
+  baldCells: 5,
 } as const;
 
 /** Body úpatí, nad jejichž průměrem se výška hory měří. */
@@ -528,6 +536,21 @@ const sacredMountain = {
       sculptMountain(terrain, center, createRandom(deriveSeed(ctx.seed, 'sacred-mountain')));
     }
     return terrain;
+  },
+  /** Holý vrchol: les na temeni (do `baldCells` od středu) ustoupí louce. */
+  vegetation(surface: Uint8Array, terrain: Terrain): Uint8Array {
+    const center = mountainPlan(planInputOfTerrain(terrain));
+    if (!center) return surface;
+    const { size } = terrain;
+    const out = surface.slice();
+    const reach = SACRED_MOUNTAIN.baldCells;
+    for (let y = Math.max(0, center.y - reach); y <= Math.min(size - 1, center.y + reach); y++) {
+      for (let x = Math.max(0, center.x - reach); x <= Math.min(size - 1, center.x + reach); x++) {
+        const i = y * size + x;
+        if (out[i] === FOREST && length2(x - center.x, y - center.y) <= reach) out[i] = MEADOW;
+      }
+    }
+    return out;
   },
   sites({ landscape }: { landscape: Landscape }): readonly PremiumSite[] | null {
     return sacredMountainSites(landscape);

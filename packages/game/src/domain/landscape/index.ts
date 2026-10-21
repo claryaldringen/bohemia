@@ -23,6 +23,7 @@ export { buildForestField, type ForestField } from './forest-field';
 export { buildRelief, SUN_RAYS, type Relief } from './relief';
 export {
   BANK_REACH_M,
+  nearestWaterPair,
   riverCenterline,
   streamCenterline,
   streamStations,
@@ -31,6 +32,7 @@ export {
   type StreamCenterPoint,
   type StreamSample,
   type StreamStation,
+  type WaterPair,
 } from './stream-geometry';
 export * from './obstacles';
 export * from './premium/types';

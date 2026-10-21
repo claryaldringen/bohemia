@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { NO_OBSTACLE_CHANGES, packObstacles, type Landscape } from '@bohemia/game';
 import {
+  drawMinimapPremium,
   drawMinimapView,
   drawMinimapVillage,
   minimapImage,
   minimapToWorld,
+  premiumMinimapMarks,
   sacredMinimapMarks,
   worldToMinimap,
   type MinimapContext,
@@ -181,5 +183,83 @@ describe('kreslení minimapy – ves ve vrstvě, záběr zvlášť', () => {
     const empty = recorder();
     drawMinimapView(empty, landscape, null, 196);
     expect(empty.calls).toEqual([]);
+  });
+});
+
+describe('prvky prémiové krajiny na minimapě', () => {
+  const features = {
+    type: 'ford-hill' as const,
+    sites: [
+      {
+        kind: 'river' as const,
+        x: 0,
+        z: 0,
+        line: [
+          [-60, 0],
+          [60, 0],
+        ] as [number, number][],
+      },
+      { kind: 'ford' as const, x: 10, z: 0 },
+      {
+        kind: 'route' as const,
+        x: 0,
+        z: 0,
+        line: [
+          [-60, -60],
+          [0, 0],
+          [60, 60],
+        ] as [number, number][],
+      },
+      {
+        kind: 'promontory' as const,
+        x: 30,
+        z: 30,
+        outline: [
+          [20, 20],
+          [40, 20],
+          [40, 40],
+          [20, 40],
+        ] as [number, number][],
+      },
+    ],
+  };
+
+  it('stezka čarou, ostrožna obrysem s výplní, brod bodem navrch; řeka bez značky', () => {
+    const marks = premiumMinimapMarks(landscape, features, 120);
+    expect(marks.map((m) => m.kind)).toEqual(['line', 'area', 'point']);
+    expect(marks[1]).toMatchObject({ fill: true });
+    const ford = marks[2]!;
+    expect(ford).toMatchObject(worldToMinimap(landscape, 10, 0, 120));
+    expect(premiumMinimapMarks(landscape, null, 120)).toEqual([]);
+  });
+
+  it('půda a les jen obrysem (bez výplně)', () => {
+    const marks = premiumMinimapMarks(
+      landscape,
+      {
+        type: 'south-slopes',
+        sites: [
+          {
+            kind: 'slope',
+            x: 0,
+            z: 0,
+            outline: [
+              [0, 0],
+              [10, 0],
+              [10, 10],
+            ],
+          },
+        ],
+      },
+      120,
+    );
+    expect(marks).toEqual([expect.objectContaining({ kind: 'area', fill: false })]);
+  });
+
+  it('kreslení: bod kosočtvercem s obrysem, plocha výplní a obrysem, čára tahem', () => {
+    const context = recorder();
+    drawMinimapPremium(context, premiumMinimapMarks(landscape, features, 120));
+    expect(context.calls.filter((c) => c === 'fill()')).toHaveLength(2);
+    expect(context.calls.filter((c) => c === 'stroke()')).toHaveLength(3);
   });
 });

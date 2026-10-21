@@ -149,7 +149,8 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
     vrcholová plošina o poloměru 52 m (0,8 ha), úpatí 330 m od středu. Plošina 56–64 m nad
     průměrem terénu na úpatí, svahy od plošiny strmé a k úpatí mírné. Prvek vrchol (`summit`) –
     obrys plošiny (místa do 1 m pod vrcholem); kontrola: plošina aspoň 0,5 ha a 50 m nad úpatím,
-    nejvýš 1 km od vsi.
+    nejvýš 1 km od vsi. Holý vrchol (návrh Clauda): les na temeni do 75 m od středu ustoupí louce
+    – v lese by plošinu i kamenný kruh ve scéně zakryly koruny.
   - **Přirozená pevnost:** jistá ostrožna nad zaříznutým meandrem (Skály u potoka) s plochou
     aspoň 1 ha. Terén se generuje se stejným seedem s jinými mezemi ostrožny
     (`PremiumPass.terrainOptions` → `generateTerrain(…, options)`): smyčka o poloměru 6–6,8 políčka
@@ -341,6 +342,42 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
 - **Výkon:** plynule (≈ 60 fps) na běžném notebooku; krajina se zobrazí do ≈ 2 s od načtení
   stránky. Generování ze seedu musí být rychlé (cíl desítky ms); případně si server hotovou
   krajinu drží v paměti.
+
+## Prémiové krajiny ve scéně
+
+Premium-landscapes.md – Vzhled („každý typ musí být vidět“); podrobnosti návrh Clauda. Jen vzhled
+– žádné překážky ani herní data; průměrná krajina vypadá bit po bitu jako dřív (výšková síť,
+ozdoby, ryby, povrch, minimapa i snímky obrazovky).
+
+- **Řeka** jde stejnou cestou jako potok: koryto, hladina, břehy, dno podle proudu, led, rákos,
+  lekníny, kmeny, ryby i zvuk vody. Koryto řeky je hlubší (2 m, potok 1 m), brod mělký jako
+  mělčina potoka. Řeka nemá tůně a teče aspoň jako středně rychlý potok (≈ 0,9 m/s) – v zimě
+  zamrzne jen u břehů, kalnější a klidnější než bystřina.
+- **Cena vody:** led se na hladině počítá jen v zimě (v létě je výsledek stejný) – voda je v létě
+  o ≈ 45 % levnější a řeka v záběru stojí méně než dnešní potok (GPU, 3024 × 1800 px: potok dřív
+  0,39–0,46 ms, řeka v záběru 0,26–0,31 ms; celá mapa s řekou 0,04–0,15 ms jako dřív 0,09–0,11).
+- **Na terénu:** zlatonosný náplav – zlatavý písek na vnitřní straně oblouku; rudiště – rezavé
+  bahno s loužemi; hliniště – šedookrový jíl; slanisko – bílá solná krusta a tůňka solanky; lom –
+  světlá suť a vápenec ve stěně; žíla – okrová zvětralina (železný klobouk) a rezavé rudné
+  výchozy; pramen – tůňka a stružka po spádu; přístaviště – písčitý břeh, molo z prken na kůlech
+  a vydlabaný člun; brod – kůly s otýpkou slámy na obou březích; stezka přes brod a sedlo –
+  vyšlapaná cesta (lesem zatím pod korunami – průsek dostane s cestou vsi); sedlo – mohyla
+  z kamenů s kůlem; posvátná hora – holé temeno s kamenným kruhem; brtě – klátové úly na okraji
+  lesa nejblíž brti (brtě stojí 30–90 m v lese, pod korunami by nebyly vidět); honitba – rákosí
+  mokřadu, kaliště zvěře a zvěřní stezky; úrodná krajina – svěží hustá tráva a víc květů kolem
+  vsi; niva – svěží louky podél vody; jižní svahy – teplý suchý trávník s květy. Náplav
+  a slanisko scéna posune na břeh (vyhlazené koryto scény bývá širší než voda po políčkách).
+- **Horský průsmyk:** generátor vnější svah pohraničních hor u okraje mapy utne (≈ 60 % výšky
+  hřebene). Ve scéně terén u okraje s horami v posledních 90 m dobíhá k nejnižší výšce okraje –
+  hory nekončí svislou stěnou (data se nemění). Lepší by bylo vnější svah stáhnout k okraji už
+  v generátoru (nová verze průchodu, dokud se krajiny nezamknou). Kamera se do svahu hory nezaboří – cíl kamery se
+  zvedne, aby zůstala 4 m nad terénem (dřív byla u hřbetu pod terénem a ukazovala oblohu).
+- **Minimapa:** prvky v barvách podle druhu – naleziště obrysem s výplní, půda a les obrysem,
+  stezka a žíla čarou, místa (brod, přístaviště, pramen, sůl, sedlo, brtě) kosočtvercem; řeka je
+  voda obrázku krajiny.
+- **Vývojový náhled:** `/dev/landscape?seed=42&premium=mountain-pass` – odkazy všech typů
+  a „průměrná“ pro porovnání na stejném seedu; po načtení pohled na hlavní prvek od vsi,
+  tlačítka Prvek a Obrysy prvků.
 
 ## Den a noc
 

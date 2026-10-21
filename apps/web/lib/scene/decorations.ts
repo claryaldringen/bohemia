@@ -7,6 +7,7 @@ import { HEIGHT_SCALE } from './constants';
 import { DECOR_MODELS, type DecorModel, type DecorPlacement } from './decor-placement';
 import { applyGammaFog } from './gamma-fog';
 import { addInstancedModel } from './instanced-model';
+import type { DecorGroup } from './premium-sites-layout';
 import { applySeasonModel } from './season-materials';
 
 /** Lekníny kousek nad hladinou, ať se s ní neperou o hloubku (m ve scéně). */
@@ -32,6 +33,15 @@ const WILLOW_TINT = new Color3(0.8, 0.85, 0.75);
 const SHRUB_TINT = new Color3(0.85, 1, 0.65);
 /** Zvětralý blok skalní věže má v textuře bledě zelenavý kámen – dorovnání do šedé žuly. */
 const TOWER_TINT = new Color3(0.78, 0.74, 0.7);
+/**
+ * Skály prémiových nalezišť (premium-sites-layout.ts): rudné výchozy žíly rezavě okrové (železný
+ * klobouk nad rudou), vápenec lomu světlý a teplý.
+ */
+const DECOR_GROUPS: readonly DecorGroup[] = ['ore', 'limestone', 'site'];
+const TINT_COLORS: Record<'ore' | 'limestone', Color3> = {
+  ore: new Color3(1.15, 0.9, 0.66),
+  limestone: new Color3(1.35, 1.3, 1.18),
+};
 
 /**
  * Dekorace krajiny (rákos, lekníny, vrby, keře, skály a kameny) z instancí modelů. Když se
@@ -43,14 +53,25 @@ export async function addDecorations(
   placements: readonly DecorPlacement[],
   options: { baseUrl: string; groundHeight: (worldX: number, worldZ: number) => number },
 ): Promise<Mesh[]> {
+  // prémiová krajina – skály nalezišť s odstínem a ozdoby prvků jako vlastní meshe
+  // (`decor-<model>-<skupina>`), jen když v krajině jsou; průměrná krajina má meshe jako dřív
+  const extra = DECOR_GROUPS.flatMap((group) =>
+    DECOR_MODELS.filter((model) =>
+      placements.some((p) => p.model === model && p.group === group),
+    ).map((model) => ({ model, group })),
+  );
+  const groups: { model: DecorModel; group?: DecorGroup }[] = [
+    ...DECOR_MODELS.map((model) => ({ model })),
+    ...extra,
+  ];
   const results = await Promise.allSettled(
-    DECOR_MODELS.map((model) =>
+    groups.map(({ model, group }) =>
       addInstancedModel(
         scene,
         `${options.baseUrl}${model}.glb`,
-        `decor-${model}`,
+        group ? `decor-${model}-${group}` : `decor-${model}`,
         placements
-          .filter((p) => p.model === model)
+          .filter((p) => p.model === model && p.group === group)
           .map((p) => ({
             x: p.worldX,
             y: baseHeight(model, p, options.groundHeight),
@@ -64,7 +85,13 @@ export async function addDecorations(
                 ? slopeUp(p, options.groundHeight, FALLEN_TILT)
                 : undefined,
           })),
-        (material) => prepareDecorMaterial(model, material),
+        (material) => {
+          prepareDecorMaterial(model, material);
+          const tint = group === 'ore' || group === 'limestone' ? TINT_COLORS[group] : null;
+          if (tint && material instanceof PBRMaterial) {
+            material.albedoColor = material.albedoColor.multiply(tint);
+          }
+        },
       ),
     ),
   );

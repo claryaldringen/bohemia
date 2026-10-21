@@ -193,8 +193,10 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   v průměrné krajině; posvátný pramen (`sacredSpringSpot`) má ve vrstvě překážek skalku (zdroj
   `springRock`, `obstacles/spring-rocks.ts`). Typ, který mění terén, nepočítá průměrné vrstvy
   zbytečně: uložené sídlo každou vrstvu jednou, přijetí terén jednou (průchodu kopie
-  `cloneTerrain`) – hlídá `premium/__tests__/attempt-layers.test.ts`. Pro scénu (úloha 6) řeka
-  zatím není voda – jen data. Stezky od okraje k okraji (brod, průsmyk) sdílí `premium/route.ts`
+  `cloneTerrain`) – hlídá `premium/__tests__/attempt-layers.test.ts`. Osa řeky nemá tůně a teče
+  aspoň rychlostí 0,5 (`RIVER_COURSE` – řeka 25–45 m by s prahy tůní potoka vyšla jako stojatá
+  voda), mezipaměť podle objektu; `nearestWaterPair` = dotaz osy vod i s tím, jestli je místo na
+  řece (scéna hloubí řece hlubší koryto). Stezky od okraje k okraji (brod, průsmyk) sdílí `premium/route.ts`
   (`routeLeg`, `villageBypass`, `trailCellCost`, `smoothLine`, `lineToEdges`). **Typy reliéfu
   a nalezišť** (landscape.md – Typy reliéfu a nalezišť): kde prvek leží, je čistá funkce vody
   a místa vsi (`PlanInput` z terénu i z hotové krajiny – `planInputOfTerrain` / `planInputOf`;
@@ -209,6 +211,28 @@ Pravidla v [docs/design/landscape.md](docs/design/landscape.md).
   rudiště (`iron-ore`) a hliniště (`clay`) u potoka do 500 m od vsi (jen místa). Skály lomu a žíly
   ve vrstvě překážek (`obstacles/premium-rocks.ts`, zdroje `quarryRock` a `oreRock`); skupiny
   vrstvy jdou v pořadí zdrojů (`GROUP_ORDER`), kolem prémiových překážek uvolní místo `mapGroups`.
+  Posvátná hora má holý vrchol (průchod vegetace – les do `baldCells` od středu ustoupí louce).
+- **Prémiové krajiny ve scéně** (landscape.md – Prémiové krajiny ve scéně): řeka jde stejnou
+  cestou jako potok – `RenderSurface.stream` = `watersCenterline` (body osy potoka),
+  `RenderSurface.river` = osa řeky (stanice rákosu, leknínů, ryb a zvuk – `decorPlacements(l,
+stream, river)`, `fishSchools`, `AmbientEnvironment.river`), výšková síť přes
+  `nearestWaterPair` s hlubším korytem řeky (`RIVER_DEPTH_M`). Shader hladiny počítá led jen při
+  `seasonB.w > 0` (v létě stejný výsledek, voda o ≈ 45 % levnější – řeka ji nezdraží). Prvky
+  typu kreslí `premium-sites.ts` (`PremiumSites`, v `setLandscape`) z čistých funkcí
+  `premium-sites-layout.ts`: obtisky (`premiumDecals` – náplav, rudiště, hliniště, slanisko, lom,
+  žíla, stružka, přístaviště, stezka `route`, zvěřní stezky, kaliště, místo úlů), dřevo a tůňky
+  (`premiumProps` – molo a člun, kůly brodu, klátové úly na okraji lesa u brtí – `beeYard`, kůl na
+  mohyle, tůňky), ozdoby z modelů dekorací (`premiumDecor` – mohyla v sedle, kamenný kruh na
+  posvátné hoře, rákosí mokřadu; `DecorPlacement.group` `site` = vlastní mesh bez id), odstín skal
+  (`premiumRockTint` – `ore` / `limestone`, meshe `decor-<model>-<skupina>`) a louky
+  (`premiumMeadow` → 4. parametr `groundWeights`). Horský průsmyk: terén u okraje mapy s horami
+  ve scéně dobíhá k nejnižší výšce okraje (`fadeMountainEdges` v `render-surface.ts`, jen vzhled);
+  kamera se nezaboří do svahu (`cameraTerrainLift` v `camera-input.ts` – cíl se zvedne, kamera
+  4 m nad terénem). Minimapa: `premiumMinimapMarks` / `drawMinimapPremium` (`PREMIUM_COLORS`).
+  Průměrná krajina bit po bitu jako dřív (výšková síť, ozdoby, ryby, povrch, minimapa i snímky).
+  Náhled `/dev/landscape?seed=42&premium=<typ>` – odkazy 19 typů a „průměrná“, pohled na hlavní
+  prvek (`premiumFocus` – kamera od vsi k prvku, `moveCameraTo(x, z, radius, alpha)`), tlačítka
+  **Prvek** a **Obrysy prvků** (`app/dev/landscape/dev-premium.ts`).
 - **Use-case** `enterGame` (sídelní sídlo hráče, atomicky přes unikátní index); ve webu
   `enterGameForPlayer` v `lib/game.ts`. Restart hry (`restartGame`, viz Ves – Hlad a vymření)
   sídla archivuje (`settlement.archived_at`, `is_seat` false) – port vrací jen aktivní sídla. Krajinu generuje server, do prohlížeče jde zakódovaná

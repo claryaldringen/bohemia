@@ -1,7 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { generateLandscape } from '../generate';
-import { riverCenterline, streamCenterline, watersCenterline } from '../stream-geometry';
-import { PREVIOUS_LAYER_VERSIONS, SURFACE_CODES, type StreamPoint } from '../types';
+import {
+  nearestWaterPair,
+  riverCenterline,
+  streamCenterline,
+  watersCenterline,
+} from '../stream-geometry';
+import {
+  CURRENT_LAYER_VERSIONS,
+  PREVIOUS_LAYER_VERSIONS,
+  SURFACE_CODES,
+  type StreamPoint,
+} from '../types';
 import { tileCenterWorld } from '../world';
 
 const landscape = generateLandscape(3);
@@ -215,5 +225,47 @@ describe('osa vod – potok a řeka prémiové krajiny', () => {
         expect(second.bankDistance).toBe(rest);
       }
     }
+  });
+});
+
+describe('osa řeky – souvislý tok bez tůní', () => {
+  const withRiver = generateLandscape(42, CURRENT_LAYER_VERSIONS, 'navigable-river');
+  const river = riverCenterline(withRiver)!;
+
+  it('řeka 25–45 m nemá tůně a teče – není stojatá voda (potok tůně má dál)', () => {
+    expect(river).not.toBeNull();
+    // široká řeka by s prahy potoka (tůň od poloviční šířky 18 m) vyšla jako tůň
+    expect(Math.max(...river.points.map((p) => (p.halfLeft + p.halfRight) / 2))).toBeGreaterThan(
+      18,
+    );
+    expect(river.points.every((p) => p.pool === 0)).toBe(true);
+    // teče aspoň jako středně rychlý potok – v zimě zamrzne jen u břehů
+    expect(Math.min(...river.points.map((p) => p.speed))).toBeGreaterThanOrEqual(0.5);
+    expect(streamCenterline(withRiver).points.some((p) => p.pool > 0.5)).toBe(true);
+  });
+
+  it('osa řeky je z mezipaměti podle objektu krajiny', () => {
+    expect(riverCenterline(withRiver)).toBe(river);
+    expect(riverCenterline(landscape)).toBe(riverCenterline(landscape));
+  });
+
+  it('nejbližší místo vody ze dvou toků je jako osa vod a ví, že leží na řece', () => {
+    const stream42 = streamCenterline(withRiver);
+    const waters = watersCenterline(withRiver);
+    const onRiver = river.points[Math.floor(river.points.length / 2)]!;
+    const onStream = stream42.points[Math.floor(stream42.points.length / 2)]!;
+    for (const [x, z, second] of [
+      [onRiver.x, onRiver.z, true],
+      [onRiver.x + 25, onRiver.z - 10, true],
+      [onStream.x, onStream.z, false],
+    ] as const) {
+      const pair = nearestWaterPair(stream42, river, x, z);
+      expect([pair.near, pair.other]).toEqual(waters.nearestPair(x, z));
+      expect(pair.second).toBe(second);
+    }
+    // bez řeky přesně potok
+    const alone = nearestWaterPair(stream, null, onStream.x, onStream.z);
+    expect([alone.near, alone.other]).toEqual(stream.nearestPair(onStream.x, onStream.z));
+    expect(alone.second).toBe(false);
   });
 });
