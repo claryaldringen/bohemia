@@ -257,15 +257,27 @@ function winterHectares(
   const autumnPerHa = (fieldWorkPerHa('dig', 0) + fieldWorkPerHa('sow', 0)) * factor;
   const harvestPerHa = fieldWorkPerHa('harvest', NO_CRAFTS.tools) * factor;
   const continuing = (sown * (ROTATION.sown - 1)) / ROTATION.sown;
-  const reclaimed = sown - continuing;
   const byJuly = julyCapacity / harvestPerHa;
-  const onContinuing = Math.min(continuing, autumnCapacity / autumnPerHa);
-  const left = autumnCapacity - onContinuing * autumnPerHa;
-  const onReclaimed =
-    onContinuing < continuing - EPSILON
-      ? 0
-      : Math.min(reclaimed, left / (autumnPerHa + reclaimPerHa * factor));
-  return Math.min(byJuly, onContinuing + onReclaimed);
+  // jař se mlátí hned po žni v září – ta práce ubírá z podzimní kapacity ozimu, takže ozim
+  // se hledá půlením (Martin 21. 10. 2026 – jař dál kope i na jaře, ozim má na podzim přednost)
+  const threshPerHa = fieldWorkPerHa('thresh', NO_CRAFTS.tools) * factor;
+  const fitsAutumn = (w: number): boolean => {
+    const need =
+      w * autumnPerHa +
+      Math.max(0, w - continuing) * reclaimPerHa * factor +
+      Math.max(0, sown - w) * threshPerHa;
+    return need <= autumnCapacity + EPSILON;
+  };
+  const upper = Math.min(sown, byJuly);
+  if (fitsAutumn(upper)) return upper;
+  let low = 0;
+  let high = upper;
+  for (let i = 0; i < 60; i++) {
+    const mid = (low + high) / 2;
+    if (fitsAutumn(mid)) low = mid;
+    else high = mid;
+  }
+  return low;
 }
 
 /** Ustálený stav vsi z `households` stejných domácností. */
@@ -394,13 +406,8 @@ export function steadyState(input: SteadyInput): SteadyResult {
     (fieldWorkPerHa('dig', 0) + fieldWorkPerHa('sow', 0)) * winter * factor +
     reclaimedWinter * reclaimPerHa * factor;
   const springDig = fieldWorkPerHa('dig', 0) * (sown - winter) * factor;
-  const springAutumnLeft = Math.max(
-    0,
-    free * window(9, 11) -
-      winterAutumn -
-      orchardAutumn -
-      (reclaimedHa - reclaimedWinter) * reclaimPerHa * factor,
-  );
+  const springAutumnLeft = Math.max(0, free * window(9, 11) - winterAutumn - orchardAutumn);
+  const springReclaim = (reclaimedHa - reclaimedWinter) * reclaimPerHa * factor;
   const peaks: PeakReserve[] = [
     {
       name: 'podzim (září–říjen, ozim a jablka)',
@@ -411,7 +418,7 @@ export function steadyState(input: SteadyInput): SteadyResult {
       name: 'jaro (březen–duben, setí a zbytek kopání)',
       need:
         fieldWorkPerHa('sow', 0) * (sown - winter) * factor +
-        Math.max(0, springDig - springAutumnLeft),
+        Math.max(0, springReclaim + springDig - springAutumnLeft),
       free: free * window(3, 4),
     },
     {

@@ -377,8 +377,8 @@ describe('len napřed – ves, které len za obilím vycházel, má plán beze z
     // méně (zásoby k 1. 9. jsou vyšší) a ukládání do jam bere na podzim práci před osevem navíc –
     // mění se výběr dílů, len dál bez nedostatku; a s nouzovým výmlatem přebytku nad kapacitu humna
     // (21. 10. 2026): výmlat, který humno nestihne, se mlátí nouzově (+30 % práce, bez kažení snopů)
-    // – plán osevu ho počítá do podzimní práce
-    expect(fingerprint(plans)).toBe('696:17ed845d');
+    // – plán osevu ho počítá do podzimní práce; a s jarním vrácením přílohu pod jař (21. 10. 2026)
+    expect(fingerprint(plans)).toBe('703:aac6e1f2');
   });
 });
 

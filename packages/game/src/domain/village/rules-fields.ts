@@ -122,12 +122,16 @@ export const OBSTACLE_COST = {
 // fields.md – Založení pole (nejdál 800 m od obydlí, nejmenší výměra 0,1 ha)
 export const FIELD_LIMITS = { maxDistanceM: 800, minAreaM2: 1000 } as const;
 // fields.md – Práce, tabulka Kdy, a Ozim a jař (okna prací v měsících včetně). WINDOWS = jař:
-// kopá se na podzim, co se nestihne, v březnu–dubnu; seje se na jaře, sklízí v srpnu a mlátí
+// vrací se z přílohu a kope se na podzim, co se nestihne, v březnu–dubnu (Martin 21. 10. 2026:
+// „Ano udělej to tak.“ – návrh Clauda: i vrácení přílohu pod jař smí na jaře, ne jen kopání); seje se na jaře, sklízí v srpnu a mlátí
 // hned po žni v září (production-chains.md – Výmlat hned po žni; Martin 20. 10. 2026: „Staří
 // slované se snažili dělat výmlat hned. Klasy neskladovali.“). Výmlat, který okno nestihne,
 // pokračuje dál, dokud je co mlátit (snopy čekají a kazí se – THRESHING).
 export const WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
-  reclaim: [[9, 11]],
+  reclaim: [
+    [9, 11],
+    [3, 4],
+  ],
   dig: [
     [9, 11],
     [3, 4],

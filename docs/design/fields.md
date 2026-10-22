@@ -881,6 +881,15 @@ pro raný středověk ale nemám – zůstává návrhem Clauda jako dosavadní 
   zraje v červenci; jař leží přes zimu jako zkopaná zem, zezelená na jaře a zraje v srpnu – po
   čtvercích, jak k nim dojde práce (viz Postup práce po čtvercích).
 - **Panel pole** ukazuje oseté díly podle plodiny (ikona ozimu a jaře s počtem dílů).
+- **Kopání pod jař i na jaře** (Martin 21. 10. 2026: „Ano udělej to tak.“ – na návrh Clauda):
+  jař se kope a z přílohu vrací na podzim (září–listopad) **i na jaře (březen–duben)**, před
+  setím téhož dílu; ozim má na podzimní práci přednost (kope a seje jen v září–říjnu). Důvod
+  (kalkulačka ustáleného stavu): ves jako Vlkov s motykou (8 domácností po 3 dospělých, úrodnost
+  56, podíl jídla z pole 0,55) potřebuje osít ≈ 11 ha, ale práce stihla jen 9,4 ha – září
+  a říjen byly vytížené na 98 % (kopání pod ozim i jař a výmlat jaře hned po žni), jaro mělo
+  98 % práce volné. Plán osevu (`fitsSpring`) proto bere podzim po ozimu a zbytek kopání i vrácení
+  přílohu přenese na jaro; vrácení přílohu pod jař má od teď také okno v březnu–dubnu
+  (`WINDOWS.reclaim`). Orba rádlem má jarní okno už dřív (`fitsSpringPlough`), beze změny.
 
 ### Luštěniny
 

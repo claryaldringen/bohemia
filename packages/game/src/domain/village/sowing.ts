@@ -191,8 +191,10 @@ function fitsSpring(load: CropLoad, work: PartWork, capacity: SowingCapacity): b
   // orba rádlem jde do stejných oken jako kopání
   const dig = load.springDig + (work.dig + work.plough);
   const sow = load.springSow + work.sow;
-  const autumnLeft = Math.max(0, capacity.autumn - load.winterAutumn - reclaim);
-  const springNeed = sow + Math.max(0, dig - autumnLeft);
+  // vrácení přílohu i kopání se dělá napřed na podzim, co zbude po ozimu, zbytek na jaře
+  // (fields.md – Ozim a jař, kopání pod jař i na jaře)
+  const autumnLeft = Math.max(0, capacity.autumn - load.winterAutumn);
+  const springNeed = sow + Math.max(0, reclaim + dig - autumnLeft);
   return (
     springNeed <= capacity.spring + EPSILON &&
     load.august + work.harvest <= capacity.august + EPSILON &&

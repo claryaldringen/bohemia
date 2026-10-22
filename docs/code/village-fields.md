@@ -8,6 +8,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   K 1. 9. rozhodne `chooseCrops` (`sowing.ts`): díly v pořadí `sowingOrder`, každý do ozimu, když
   ho podzim (září–říjen po sklizni jablek) stihne a červenec sklidí, jinak do jaře, když se
   vejde do zbytku podzimu, jara a srpna – volná práce `windowDaysLeft` × práce po denním minimu.
+  **Kopání pod jař i na jaře** (Martin 21. 10. 2026, `WINDOWS.dig` a `reclaim` mají i [3, 4]):
+  `fitsSpring` bere podzim po ozimu, zbytek vrácení přílohu a kopání jde na jaro se setím;
+  kalkulačka (`winterHectares` hledá ozim půlením s zářijovým výmlatem jaře).
   Díly hotové po plánu jdou jen do jaře. **Cíl osevu podle stravy a zásob** (fields.md – Osev
   podle stravy, Osev podle zásob, 19. 10. 2026): `sowingTargets` ve `field-food.ts` (v plánu
   `fieldSowingTargets`) – potřeba z pole (podíl jídla z pole za uplynulý hospodářský rok –

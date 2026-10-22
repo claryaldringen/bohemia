@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { daysUntilHarvest, daysUntilWinterHarvest } from '../food';
 import { NO_CRAFTS } from '../productivity';
+import { CROP_WINDOWS } from '../rules';
 import {
   chooseCrops,
   orchardOnlyLoad,
@@ -171,6 +172,66 @@ describe('chooseCrops', () => {
     );
     expect(r.winter).toEqual([]);
     expect(r.spring).toEqual([]);
+  });
+});
+
+describe('kopání pod jař i na jaře (fields.md – Ozim a jař; Martin 21. 10. 2026)', () => {
+  it('okna jaře: kopání i vrácení přílohu na podzim i v březnu–dubnu, ozim jen na podzim', () => {
+    expect(CROP_WINDOWS.spring.dig).toEqual([
+      [9, 11],
+      [3, 4],
+    ]);
+    expect(CROP_WINDOWS.spring.reclaim).toEqual([
+      [9, 11],
+      [3, 4],
+    ]);
+    expect(CROP_WINDOWS.winter.dig).toEqual([[9, 10]]);
+  });
+
+  it('jař se vejde, i když podzim po ozimu nezbyl nic – kopání i setí zvládne jaro', () => {
+    const r = chooseCrops(
+      parts(4),
+      input({
+        allowWinter: false,
+        capacity: { autumnWinter: 0, autumn: 0, spring: 4 * (DIG + SOW) + 0.01 },
+      }),
+    );
+    expect(r.spring).toHaveLength(4);
+  });
+
+  it('podzim po ozimu kopání ubere z jara, zbytek kopání jde na jaro', () => {
+    const r = chooseCrops(
+      parts(4),
+      input({
+        allowWinter: false,
+        capacity: { autumnWinter: 0, autumn: 2 * DIG, spring: 4 * SOW + 2 * DIG + 0.01 },
+      }),
+    );
+    expect(r.spring).toHaveLength(4);
+    const tooMuch = chooseCrops(
+      parts(5),
+      input({
+        allowWinter: false,
+        capacity: { autumnWinter: 0, autumn: 2 * DIG, spring: 4 * SOW + 2 * DIG + 0.01 },
+      }),
+    );
+    expect(tooMuch.spring).toHaveLength(4);
+  });
+
+  it('ozim má na podzimní práci přednost před kopáním jaře', () => {
+    const r = chooseCrops(
+      parts(4),
+      input({
+        targetKg: BIG,
+        capacity: {
+          autumnWinter: 2 * (DIG + SOW),
+          autumn: 2 * (DIG + SOW),
+          spring: 2 * (DIG + SOW),
+        },
+      }),
+    );
+    expect(r.winter).toHaveLength(2);
+    expect(r.spring).toHaveLength(2);
   });
 });
 
