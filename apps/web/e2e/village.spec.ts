@@ -283,12 +283,12 @@ test('nový hráč založí ves umístěním zemnice, přejmenuje ji a vybere ze
   await found(page, spots.dwelling);
   const name = page.getByTestId('village-name');
   await expect(name).toHaveText(suggestVillageName(s.seed));
-  await expect(grid.getByRole('button')).toHaveCount(11);
+  await expect(grid.getByRole('button')).toHaveCount(13);
   // Nové obydlí ani dílnu nemá kdo osídlit – zakladatelé si stavějí vlastní zemnici. Hřbitov,
   // sad, modla, svatyně ani ohrada lidi nechtějí (modla a svatyně dospělé duby, ohrada stromy –
   // krajina je má).
   await expect(grid.getByRole('button', { name: 'Polozemnice' })).toBeDisabled();
-  for (const craft of ['Hrnčíř', 'Kovář', 'Uhlíř']) {
+  for (const craft of ['Hrnčíř', 'Kovář', 'Uhlíř', 'Tesař']) {
     await expect(grid.getByRole('button', { name: craft })).toBeDisabled();
   }
   await expect(grid.getByRole('button', { name: 'Hřbitov' })).toBeEnabled();
@@ -386,8 +386,26 @@ test('obydlí jde stavět, jen když je kým ho osadit – pole kdykoli', async 
   await confirmPlacement(page, { kind: 'squares', cells: spots.cells });
   await expect.poll(async () => (await villageState(s.settlementId)).fields.length).toBe(1);
 
+  // Zemnice dostavěná (R pak vrací pohled na první obydlí, ne na místo vsi) a její zakladatelé
+  // dospělí a jeden dospělý navíc – z domácnosti smí odejít jediná rodina (Lidé k osídlení,
+  // kinship.md: pár, který dům nedrží, smí odejít kdykoli), tedy jedno nové obydlí.
+  const full = withBuiltFirstDwelling(await villageState(s.settlementId));
+  const adultBorn = full.lastDay - Math.ceil(16 * 365.25);
+  for (const person of full.people) person.bornDay = Math.min(person.bornDay, adultBorn);
+  full.people.push({
+    id: full.nextId++,
+    bornDay: adultBorn,
+    dwellingId: full.people[0]!.dwellingId,
+  });
+  await writeVillageState(s.settlementId, full);
+  await pollVillage(page);
+  // Pohled vsi už vidí dostavěné obydlí – R teprve pak vrací pohled na něj.
+  await expect(polozemnice).toBeEnabled({ timeout: 20_000 });
+
   // Klik na čtverec pole vybere jen díl, dvojklik celé pole (fields.md – Co hráč vidí); čtverec
   // nejdál od zemnice, ať klik nezachytí střecha.
+  // Myš u okraje obrazovky posouvá kameru (okrajové rolování) – po klávese X zůstala vlevo.
+  await page.mouse.move(640, 360);
   await page.keyboard.press('r');
   const fieldCenter = spots.cells
     .map((cell) => tileCenterWorld(s.landscape, cell.x, cell.y))
@@ -396,37 +414,34 @@ test('obydlí jde stavět, jen když je kým ho osadit – pole kdykoli', async 
         Math.hypot(b.x - spots.dwelling.x, b.z - spots.dwelling.z) -
         Math.hypot(a.x - spots.dwelling.x, a.z - spots.dwelling.z),
     )[0]!;
-  const fieldPoint = await page.evaluate(
-    (p) => window.__bohemiaE2E!.projectToScreen!(p.x, p.z),
-    fieldCenter,
-  );
-  expect(fieldPoint).not.toBeNull();
+  // Kamera po R plynule přejíždí na ves – počkat, až se bod na obrazovce ustálí.
+  let lastPoint = '';
+  await expect
+    .poll(
+      async () => {
+        const now = JSON.stringify(
+          await page.evaluate((p) => window.__bohemiaE2E!.projectToScreen!(p.x, p.z), fieldCenter),
+        );
+        const settled = now !== 'null' && now === lastPoint;
+        lastPoint = now;
+        return settled;
+      },
+      { timeout: 10_000 },
+    )
+    .toBe(true);
+  const fieldPoint = JSON.parse(lastPoint) as { x: number; y: number };
   const panel = page.getByTestId('selection-panel');
-  await page.mouse.move(fieldPoint!.x - 3, fieldPoint!.y);
-  await page.mouse.click(fieldPoint!.x, fieldPoint!.y);
+  await page.mouse.move(fieldPoint.x - 3, fieldPoint.y);
+  await page.mouse.click(fieldPoint.x, fieldPoint.y);
   await expect(panel).toHaveAttribute('data-kind', 'field-part');
   await expect(panel.getByTestId('selection-area')).toHaveText(/ m²$/);
   await expect(panel.getByTestId('selection-progress')).toBeVisible();
-  await page.mouse.dblclick(fieldPoint!.x, fieldPoint!.y);
+  await page.mouse.dblclick(fieldPoint.x, fieldPoint.y);
   await expect(panel).toHaveAttribute('data-kind', 'field');
   await expect(panel.getByTestId('selection-area')).toHaveText(/ ha$/);
   await page.keyboard.press('Escape');
   await expect(panel).toHaveCount(0);
 
-  // Zemnice dostavěná a domácnost v ní plná se 4 dospělými – jeden pár k osídlení.
-  const full = withBuiltFirstDwelling(await villageState(s.settlementId));
-  const adultBorn = full.lastDay - Math.ceil(16 * 365.25);
-  for (const person of full.people) person.bornDay = Math.min(person.bornDay, adultBorn);
-  for (let i = 0; i < 2; i++) {
-    full.people.push({
-      id: full.nextId++,
-      bornDay: adultBorn,
-      dwellingId: full.people[0]!.dwellingId,
-    });
-  }
-  await writeVillageState(s.settlementId, full);
-  await pollVillage(page);
-  await expect(polozemnice).toBeEnabled({ timeout: 20_000 });
   await polozemnice.click();
   await expect(polozemnice).toHaveAttribute('aria-pressed', 'true');
   await confirmPlacement(page, {
@@ -449,9 +464,10 @@ test('obydlí jde stavět, jen když je kým ho osadit – pole kdykoli', async 
 test('upozornění vsi se ukáže krátkým řádkem nahoře a samo zmizí', async ({ page }) => {
   const { seat: s } = await newPlayer(page, 'upozorneni');
   await found(page, villageSpots(s.landscape).dwelling);
-  // Hlad nastavený přímo v uložené vsi – další dotaz na ves ho ohlásí.
+  // Hlad nastavený přímo v uložené vsi – další dotaz na ves ho ohlásí. „Ves hladoví“ je stupeň
+  // s příděl pod 90 % (population.md – Co hráč vidí); samotný příznak `hungry` je jen šetření.
   await query(
-    `UPDATE village SET state = jsonb_set(state, '{hungry}', 'true'), version = version + 1
+    `UPDATE village SET state = state || '{"hungry": true, "ration": 0.5}'::jsonb, version = version + 1
       WHERE settlement_id = $1`,
     [s.settlementId],
   );
