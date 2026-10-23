@@ -129,7 +129,7 @@ export interface SelectionBuying {
   purchases: VillagePurchase[];
 }
 
-export type SelectionDetails =
+type SelectionKinds =
   | {
       kind: 'dwelling';
       id: number;
@@ -650,6 +650,46 @@ export function orchardSquareName(
   return age < TREE_GROWTH_YEARS ? 'Mladé jabloně' : 'Jabloně';
 }
 
+/**
+ * Údaje o vybraném cíli plus rozestavěná stavba, kterou jde zrušit (`cancelConstructionId`,
+ * cancel-construction.ts) – tlačítko Zrušit stavbu v panelu.
+ */
+export type SelectionDetails = SelectionKinds & { cancelConstructionId?: number };
+
+/** Rozestavěná stavba vybraného cíle, kterou jde zrušit; jinak undefined. */
+function cancellableConstruction(
+  view: VillageView | null,
+  details: SelectionKinds,
+): number | undefined {
+  if (!view) return undefined;
+  // zkrácené pohledy v testech stavby nemají
+  const cancellable =
+    (view.constructions as VillageView['constructions'] | undefined)?.filter(
+      (c) => c.cancellable,
+    ) ?? [];
+  const newest = (ids: number[]): number | undefined => (ids.length ? Math.max(...ids) : undefined);
+  const among = (match: (c: (typeof cancellable)[number]) => boolean): number | undefined =>
+    newest(cancellable.filter(match).map((c) => c.id));
+  switch (details.kind) {
+    case 'site':
+      return among((c) => c.id === details.id);
+    case 'sacred':
+      return details.building !== null ? among((c) => c.id === details.id) : undefined;
+    case 'threshing-floor':
+      return details.built ? undefined : among((c) => c.id === details.id);
+    case 'field':
+      return among((c) => c.kind === 'field' && c.fieldId === details.id);
+    case 'cemetery':
+      return among((c) => c.kind === 'cemetery' && c.cemeteryId === details.id);
+    case 'orchard':
+      return among((c) => c.kind === 'orchard' && c.orchardId === details.id);
+    case 'pen':
+      return among((c) => c.kind === 'pen' && c.penId === details.id);
+    default:
+      return undefined;
+  }
+}
+
 /** Údaje o vybraném cíli, nebo null (nic nevybráno, cíl zanikl, ves ještě není). */
 export function selectionDetails(
   view: VillageView | null,
@@ -658,6 +698,19 @@ export function selectionDetails(
   person: PersonFigureState | null = null,
   draft: DraftFigureState | null = null,
 ): SelectionDetails | null {
+  const details = selectionKinds(view, scene, target, person, draft);
+  if (!details) return null;
+  const cancelConstructionId = cancellableConstruction(view, details);
+  return cancelConstructionId === undefined ? details : { ...details, cancelConstructionId };
+}
+
+function selectionKinds(
+  view: VillageView | null,
+  scene: SceneVillage,
+  target: VillageTarget | null,
+  person: PersonFigureState | null = null,
+  draft: DraftFigureState | null = null,
+): SelectionKinds | null {
   if (!target) return null;
   if (target.kind === 'person') return personDetails(scene, target.id, person, draft);
   if (target.kind === 'plough-team') return teamDetails(scene, target.team, draft);

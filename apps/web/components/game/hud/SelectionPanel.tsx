@@ -6,7 +6,7 @@ import { fieldPartName, orchardSquareName, type SelectionDetails } from '@/lib/s
 import { PEN_NAMES } from '@/lib/build-items';
 import { formatPercent } from '@/lib/village-format';
 import { ROAD_KIND_NAMES, SACRED_BUILDING_NAMES } from '@/lib/village-view';
-import { CancelRelocationButton } from './RelocationControls';
+import { CancelConstructionButton } from './RelocationControls';
 import {
   Portrait,
   Stat,
@@ -49,13 +49,13 @@ export { ROAD_KIND_ICONS } from './selection/roads';
  * vylepšení (`onUpgradeRoad`), vozová cesta (`onBuildWagonRoad` s náhledem `wagonPlan`)
  * a výsadba jabloní (`onPlantRoadApples`). Obydlí a víc vybraných
  * obydlí: Přestěhovat (`onRelocate`), Odejít (zatím zašedlé) a průběh stěhování se zrušením
- * (`onCancelRelocation` – migration.md).
+ * (`onCancelConstruction` – migration.md).
  */
 export function SelectionPanel({
   details,
   onSelectTarget,
   onRelocate,
-  onCancelRelocation,
+  onCancelConstruction,
   onLeave,
   onUpgradeRoad,
   onPlantRoadApples,
@@ -182,9 +182,6 @@ export function SelectionPanel({
           {details.treesToFell > 0 && <WoodToFell trees={details.treesToFell} />}
         </div>
         <Bar value={details.progress} name="Stavba" testId="selection-progress" />
-        {details.relocates !== null && (
-          <CancelRelocationButton constructionId={details.id} onCancel={onCancelRelocation} />
-        )}
       </div>
     );
   } else if (details.kind === 'dwellings') {
@@ -202,7 +199,7 @@ export function SelectionPanel({
         details={details}
         onSelectTarget={onSelectTarget}
         onRelocate={onRelocate}
-        onCancelRelocation={onCancelRelocation}
+        onCancelConstruction={onCancelConstruction}
         onLeave={onLeave}
         onBuildTrail={onBuildTrail}
         onSendExpedition={onSendExpedition}
@@ -224,6 +221,14 @@ export function SelectionPanel({
       <div className="flex min-h-24 gap-3">
         {portrait}
         {body}
+        {details.cancelConstructionId !== undefined && (
+          <div className="ml-auto self-start">
+            <CancelConstructionButton
+              constructionId={details.cancelConstructionId}
+              onCancel={onCancelConstruction}
+            />
+          </div>
+        )}
       </div>
     </section>
   );

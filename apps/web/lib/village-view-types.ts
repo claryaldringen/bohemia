@@ -446,6 +446,10 @@ export interface VillageView {
     cemeteryId: number | null;
     /** Vysazovaný sad (orchard), jinak null. */
     orchardId: number | null;
+    /** Stavěná nebo rozšiřovaná ohrada (pen), jinak null. */
+    penId: number | null;
+    /** Stavbu jde zrušit (cancel-construction.ts) – rozestavěná, kterou začal hráč. */
+    cancellable: boolean;
     /** Kolik stromů stavba ještě musí skácet (obydlí, přestavba – forest.md). */
     treesToFell: number;
   }[];

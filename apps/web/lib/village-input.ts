@@ -343,8 +343,8 @@ export function parseRelocateHouseholdInput(value: unknown): {
   return dwellingId !== null && dwelling !== null ? { dwellingId, ...dwelling } : null;
 }
 
-/** Vstup zrušení přestěhování `{ constructionId }`, jinak null. */
-export function parseCancelRelocationInput(value: unknown): { constructionId: number } | null {
+/** Vstup zrušení rozestavěné stavby `{ constructionId }`, jinak null. */
+export function parseCancelConstructionInput(value: unknown): { constructionId: number } | null {
   if (!isRecord(value)) return null;
   const constructionId = parsePositiveInt(value.constructionId);
   return constructionId !== null ? { constructionId } : null;

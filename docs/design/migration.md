@@ -171,8 +171,9 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 - Domácnost, která si staví nový dům, **starý nepřestavuje** a druhé stěhování nezačne;
   přestavovaný dům se stěhovat nemůže. Zanikne-li domácnost během stavby (vymře, sloučí se
   k sousedům), nový dům zůstane prázdný a osídlí ho jako každé prázdné obydlí.
-- **Zrušení** vrátí na hromadu klády vzaté z hromady i už skácené stromy; odvedená práce
-  a odstraněné překážky staveniště propadnou.
+- **Zrušení** vrátí na hromadu klády vzaté z hromady i už skácené stromy, bez části dřeva
+  zabudované podle odvedené práce (obecné pravidlo: population.md – Zrušení rozestavěné
+  stavby); odvedená práce a odstraněné překážky staveniště propadnou.
 - **Typ nového domu** volí hráč dvěma tlačítky v panelu výběru (ikona zemnice a polozemnice,
   v popisku práce a dřevo, chybějící červeně). U víc domácností se nové domy umisťují postupně
   – po umístění jednoho hned běží umisťování dalšího (jako Shift + klik), Esc zbytek zruší.

@@ -9,7 +9,7 @@ import {
   neighbourSnapshot,
   settleJourney,
   type LeaveDestination,
-  cancelHouseholdRelocation,
+  cancelUnfinishedConstruction,
   foundDevVillage,
   foundVillageForSettlement,
   placeCemetery,
@@ -325,14 +325,14 @@ export function relocateHouseholdForPlayer(
   );
 }
 
-/** Zrušení rozestavěného přestěhování (stavba `constructionId`). */
-export function cancelRelocationForPlayer(
+/** Zrušení rozestavěné stavby `constructionId` (cancel-construction.ts). */
+export function cancelConstructionForPlayer(
   playerId: string,
   villageId: string,
   input: { constructionId: number },
 ): Promise<VillageActionResult> {
   return actOn(playerId, villageId, (ctx) =>
-    cancelHouseholdRelocation(
+    cancelUnfinishedConstruction(
       { villages: villages() },
       { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, ...input },
     ),

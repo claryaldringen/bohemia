@@ -56,7 +56,7 @@ describe('cancelConstruction', () => {
       0,
     );
     const c = last(started);
-    const logs = started.woodLogs;
+    const logs = started.woodLogs ?? 0;
     const trees = c.wood!.trees;
     const untouched = cancelConstruction(started, DAY, c.id);
     expect(untouched.constructions.some((x) => x.id === c.id)).toBe(false);

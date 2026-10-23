@@ -3,7 +3,7 @@
 Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). Pravidla a rozhodnutí: vision.md, accounts.md v `docs/design/`.
 
 - **Web:** server actions `app/game/actions.ts` (`getVillageView`, `selectVillage`, `foundVillage`,
-  `foundDevVillage`, `placeDwelling`, `relocateHousehold`, `cancelRelocation`, `leaveVillage`,
+  `foundDevVillage`, `placeDwelling`, `relocateHousehold`, `cancelConstruction`, `leaveVillage`,
   `settleJourney`, `placeWorkshop`,
   `placeField`, `placeCemetery`, `placeOrchard`, `placeSacred`, `placePen`,
   `buildTrail`, `sendExpedition`, `renameVillage` → `VillageView` / `null` / `{ error }`; `restartGame(input?)` → `{ ok: true }` /
@@ -146,3 +146,12 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   nahrazuje háček `window.__bohemiaE2E.confirmPlacement`, kam kliknout myší pro výběr řekne
   `projectToScreen` (`lib/e2e-hooks.ts`) – existují jen v buildu s `NEXT_PUBLIC_E2E_HOOKS=1`
   (nastavuje `playwright.config.ts`), jinde se z kódu vypustí.
+
+- **Zrušení rozestavěné stavby** (population.md – Zrušení rozestavěné stavby): server action
+  `cancelConstruction({ villageId, constructionId })` → `cancelConstructionForPlayer`
+  (`lib/village.ts`) → use-case `cancelUnfinishedConstruction`. Pohled `VillageView.constructions`
+  nese `penId` a `cancellable`; `selectionDetails` přidá k vybranému poli, hřbitovu, sadu, ohradě,
+  humnu, modle, svatyni a staveništi `cancelConstructionId` (u hřbitova a ohrady nejnovější
+  stavba – rozšíření) a `SelectionPanel` ukáže `CancelConstructionButton`
+  (`hud/RelocationControls.tsx`, `data-testid="cancel-construction"`, křížek bez textu, slova
+  jen v `Tooltip`). Stejné tlačítko je u starého domu při stěhování (`RelocationProgress`).

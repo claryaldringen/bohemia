@@ -471,6 +471,19 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
   v každé RTS.“) – kdy začne, rozhoduje hráč; brání mu jen to, co stavba potřebuje předem
   (suroviny, lidé k osídlení – viz níže). Rozestavěné stavby se dělí o společnou práci vsi
   rovným dílem, takže víc staveb najednou roste pomaleji.
+- **Zrušení rozestavěné stavby** (Martin, 23. 10. 2026: „Potřebuju mít možnost stavbu
+  zrušit.“): jde zrušit jen **rozestavěná** stavba, kterou začal hráč – nové obydlí a dílna,
+  pole, hřbitov, sad, modla, svatyně, ohrada a humno, i rozestavěné rozšíření (další čtverec
+  hřbitova či ohrady). Hotové stavby se nebourají. Vytýčení zmizí (nehotové díly pole, čtverce
+  sadu, hřbitova a ohrady, humno) a práce na stavbě skončí. **Nespotřebované suroviny se vrátí**
+  do zásob (Martin: „suroviny, které se ještě nezabudovaly, se vrátí“): klády vzaté z hromady
+  a už skácené stromy se vrátí na hromadu, bez té části, která se podle odvedené práce už
+  zabudovala (dřevo stavby × odvedená práce / cena práce, dolů). Odvedená práce, zabudovaný
+  materiál, odstraněné překážky a pole či sady, které stavba zmenšila, propadnou. Zrušení
+  nehotového hřbitova nebo ohrady zruší i rozšíření, které na něj navazovalo. Návrh Claude:
+  nezrušitelná je první zemnice zakladatelů, přestavby, obnova sadu, opravy a rádla (dělají
+  vesničané sami) a zatím i stavby cest (vylepšení, vozová cesta, stezka, jabloně). V rozhraní
+  je to tlačítko s křížkem v panelu výběru rozestavěné stavby, slova jen v popisce.
 - **Odemčení surovinami** (Martin, 17. 10. 2026: „Odemykání bude samozřejmě také – pokud nebudu
   mít suroviny na postavení stavby, bude její tlačítko v panelu disabled.“): stavba může mít
   kromě práce i **cenu předem** v surovinách ze zásob vsi; když je ves nemá, tlačítko stavby je

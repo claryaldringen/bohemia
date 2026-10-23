@@ -1038,7 +1038,7 @@ export function VillageGame({
         onSelectTarget={setSelected}
         onRelocate={relocate}
         onLeave={leave}
-        onCancelRelocation={(constructionId) => {
+        onCancelConstruction={(constructionId) => {
           const villageId = viewRef.current?.id;
           return villageId
             ? runBuildAction(() => cancelRelocation({ villageId, constructionId }))

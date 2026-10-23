@@ -274,3 +274,17 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `lib/scene/field-painting.ts` (`FieldPainter`, režim `squares`, logika výběru ve
   `field-cells.ts`) – ovládání v tabulce výše. Obrys pole (`Field.outline`) zůstal jen u starých
   vsí.
+
+- **Zrušení rozestavěné stavby** (population.md – Zrušení rozestavěné stavby; Martin 23. 10.
+  2026): jádro – `cancel-construction.ts`: `cancelBlock(c)` (důvod, proč nejde; null = jde),
+  `isCancellable`, `cancelConstruction(state, day, constructionId)` (vrací nový stav; RangeError,
+  když stavba není nebo nejde). Zrušitelné: `dwelling` (i dílna a stěhování; ne první zemnice
+  zakladatelů s `dwellingId`), `field`, `cemetery`, `orchard` (ne obnova – `renewal`), `idol`,
+  `shrine`, `pen`, `threshing-floor`; ostatní druhy (`rebuild`, `repair`, `ard`, `road`,
+  `road-apples`) ne. `dropSite` odstraní vytýčení: nehotové díly pole (`state: 'founding'`),
+  nevysázené čtverce sadu (prázdný sad zmizí), čtverce rozšíření hřbitova či ohrady podle
+  `constructionId` (základ nehotového hřbitova či ohrady zmizí celý i s navazujícími
+  rozšířeními, `dropLinked`), rozestavěné humno. Dřevo: `returnConstructionWood`
+  (`relocation.ts`) vrací `fromPile + felled − floor(trees × done / cost)` klád. Kronika:
+  `construction-cancelled` (stěhování dál `relocation-cancelled`). Use-case:
+  `application/cancel-construction.ts`.

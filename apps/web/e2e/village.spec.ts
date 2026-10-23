@@ -769,7 +769,7 @@ test('domácnosti se stěhují do nových domů – Ctrl + A vybere obydlí, dom
   await page.mouse.move(point!.x - 3, point!.y);
   await page.mouse.click(point!.x, point!.y);
   await expect(panel).toHaveAttribute('data-kind', 'site');
-  await panel.getByTestId('cancel-relocation').click();
+  await panel.getByTestId('cancel-construction').click();
   await expect
     .poll(
       async () =>
