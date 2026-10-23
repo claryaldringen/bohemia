@@ -195,3 +195,15 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`showcaseMounds` – místo vybírá jádro), sad vytyčení → kůly
   → sazenice → rostoucí stromky → jablka. Vpravo vzadu dílna tesaře a pahorek s vozy (**Vozy**,
   **Další vůz zblízka**, **Sledovat vůz** – Vozy se spřežením níž).
+
+- **Seno mimo stavby a cesty** (issue #3, Martin 22. 10. 2026: „nesmí tyto snopy být na cestě, na
+  budovách (včetně zahrádek), v ohradách (sežrala by je zvířata), ani na humně“):
+  `FieldRenderer.updateFields` po složení kupek a stohů (`hayOf`) vyřadí ty, které leží na pásu
+  cesty či pěšiny (`TrackMask.at < 0,5`) nebo do `HAY_CLEAR_M` (1,2 m) od plochy z `hayBlockers`
+  (`building-clearings.ts`): obydlí a dílny (půdorys i pozemek s dvorkem), ruiny, celé čtverce
+  ohrad (plot je odsazený dovnitř), hřbitovů a sadů, humna, obilné jámy, milíře, rudiště, jámy
+  po rudě, posvátná místa. Rozmístění v `hayOnSquares` zůstává deterministické, vyřazuje se až
+  po něm; klíč sena (`hayKey`) nese i podpis ploch a cest, takže nová stavba seno přestaví.
+- **Dno obilné jámy** (issue #3): hrdlo `grain-pit-layout.ts` je vždy zakryté – zrno (hladina
+  stoupá s plností o `GRAIN_RISE_M`), u prázdné jámy hliněné dno `FLOOR`; materiál má `zOffset`,
+  aby louka neprosvítala. Bez nové textury, jen barvy vrcholů.

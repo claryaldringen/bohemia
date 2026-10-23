@@ -7,7 +7,6 @@ import {
   CROP_LABELS,
   FIELD_SURFACE_NAMES,
   HERD_LABELS,
-  HERD_ORDER,
   PART_STAGE_NAMES,
   type SelectionDetails,
 } from '@/lib/selection-details';
@@ -419,7 +418,7 @@ export function OrchardBody({
  * Ohrada (oxen.md – Co hráč vidí, Ohrady podle druhu): rozestavěná jen průběh stavby; hotová druh
  * zvířat s obsazením a místy na noc (v ohradě / místa), místa všech ohrad druhu / kolik jich stádo
  * potřebuje (červeně, když chybí – Martin 20. 10. 2026), čtverce (nejvýš 4), rozšíření ve stavbě,
- * seno, stav (chátrání, oprava), stáda vsi s pastvou; ohrada spřežení voly, stáří spřežení (kolik
+ * seno, stav (chátrání, oprava), stádo vsi jen druhu ohrady (slepice a ostatní druhy ne – issue #3); ohrada spřežení voly, stáří spřežení (kolik
  * let ještě slouží) a průběh výcviku. Spřežení se cvičí samo (Martin 19. 10. 2026) – tlačítko není.
  */
 export function PenBody({
@@ -486,50 +485,25 @@ export function PenBody({
             {formatInteger(details.herdPlaces.pens)}/{formatInteger(details.herdPlaces.needed)}
           </Stat>
         )}
+        {details.herd && (
+          <Stat
+            icon={HERD_LABELS[details.herd.species].icon}
+            name={`${HERD_LABELS[details.herd.species].name} vsi`}
+            testId={`selection-herd-${details.herd.species}`}
+          >
+            {formatInteger(details.herd.count)}
+          </Stat>
+        )}
         {squares}
         <Stat icon="hay" name="Seno" testId="selection-hay">
           {formatTons(details.hayKg)}
         </Stat>
-        {details.milkLPerDay > 0 && (
-          <Stat icon="cheese" name="Mléko stád (l/den)" testId="selection-milk">
-            {formatInteger(details.milkLPerDay)}
-          </Stat>
-        )}
         <Wear condition={details.condition} abandoned={details.abandoned} />
       </div>
       {details.repair !== null && <RepairBar value={details.repair} />}
       {details.extension !== null && (
         <Bar value={details.extension} name="Rozšíření ohrady" testId="selection-extension" />
       )}
-      <ul aria-label="Stáda vsi" className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-        {HERD_ORDER.map((species) => (
-          <li key={species}>
-            <Stat
-              icon={HERD_LABELS[species].icon}
-              name={HERD_LABELS[species].name}
-              testId={`selection-herd-${species}`}
-            >
-              {formatInteger(details.herds[species])}
-            </Stat>
-          </li>
-        ))}
-        <li>
-          <Stat icon="chicken" name="Slepice" testId="selection-herd-chicken">
-            {formatInteger(details.chickens)}
-          </Stat>
-        </li>
-        <li>
-          <Tooltip content="Pastva – spásáno / celkem" placement="above">
-            <span
-              data-testid="selection-pasture"
-              tabIndex={0}
-              className={`text-xs font-semibold tabular-nums ${details.grazingHa > details.pastureHa ? 'text-red-400' : ''}`}
-            >
-              {formatDecimal(details.grazingHa, 1)}/{formatDecimal(details.pastureHa, 1)} ha
-            </span>
-          </Tooltip>
-        </li>
-      </ul>
       {oxen && (
         <div className="flex items-center gap-3">
           <Stat

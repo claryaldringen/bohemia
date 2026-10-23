@@ -68,6 +68,8 @@ export class GrainPitRenderer {
     m.specularColor = Color3.Black();
     m.backFaceCulling = false;
     m.twoSidedLighting = true;
+    // dno jámy leží jen kousek nad terénem – bez problikávání louky skrz
+    m.zOffset = -2;
     applySeasonRelief(m);
     this.material = m;
     return m;

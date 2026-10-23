@@ -4,7 +4,8 @@ import type { ColoredGeometry, HeightFn } from './ore-site-layout';
 // Otevřená obilná jáma ve scéně (production-chains.md – Obilné jámy; Martin 20. 10. 2026: „Označit
 // půjde jen otevřená jáma - zavřená nebude vidět“): hrdlo jámy s nízkým valem hlíny z odkryté
 // pečeti, uvnitř tmavá stěna a zrno – čím víc ho v jámě je, tím víc ho z hrdla prosvítá. Vedle
-// leží hroudy hlíny z pečeti. Zapečetěná jáma není vidět vůbec (scéna ji nemá). Jen vzhled – čisté
+// leží hroudy hlíny z pečeti. Dno hrdla je vždy zakryté: zrno (výška podle plnosti), u prázdné
+// jámy hliněné dno. Zapečetěná jáma není vidět vůbec (scéna ji nemá). Jen vzhled – čisté
 // funkce bez Babylonu (testy); podrobný model jámy přinese úloha scény (humno a jámy). Jáma se do
 // terénu neprořezává (jako rudiště – ore-site-layout.ts): dno leží nad obtisky vsi a hloubku dělá
 // val a tmavá stěna.
@@ -26,13 +27,17 @@ const PROFILE: readonly (readonly [number, number])[] = [
   [0, 0.05],
   [0.3, 0.05],
   [0.55, 0.06],
-  [0.8, 0.1],
+  [0.8, 0.12],
   [1, 0.16],
   [1.45, -0.03],
 ];
 /** Barvy (RGB 0–1): zrno, stín v hrdle, hlína valu a pečeti. */
 const GRAIN = [0.74, 0.57, 0.27] as const;
 const DARK = [0.1, 0.075, 0.05] as const;
+/** Hliněné dno prázdné jámy – nikdy průhled na louku (Martin, 22. 10. 2026, issue #3). */
+const FLOOR = [0.3, 0.22, 0.13] as const;
+/** O kolik (m) se hladina zrna zvedne od prázdné jámy k plné. */
+const GRAIN_RISE_M = 0.04;
 const CLAY = [0.5, 0.38, 0.23] as const;
 const CLAY_DARK = [0.38, 0.28, 0.17] as const;
 /** Hroudy pečeti leží vedle hrdla (m od středu) – poloměr a výška hromádky. */
@@ -57,9 +62,10 @@ function ringColor(ring: number, fill: number): [number, number, number] {
   const [t] = PROFILE[ring]!;
   if (ring >= 4) return [...CLAY];
   if (ring === 3) return mix(DARK, CLAY_DARK, 0.5);
-  if (fill <= 0) return [...DARK];
-  const grainTo = 0.3 + 0.5 * Math.min(1, fill);
-  return t < grainTo ? [...GRAIN] : t < grainTo + 0.15 ? mix(GRAIN, DARK, 0.6) : [...DARK];
+  // prázdná jáma má hliněné dno, s obilím je vidět jeho povrch (do hrdla, na kraji stín stěny)
+  if (fill <= 0) return [...FLOOR];
+  const grainTo = 0.35 + 0.5 * Math.min(1, fill);
+  return t < grainTo ? [...GRAIN] : t < grainTo + 0.15 ? mix(GRAIN, FLOOR, 0.6) : [...FLOOR];
 }
 
 /** Kde vedle jámy leží hroudy pečeti (pevně podle polohy jámy). */
@@ -81,7 +87,8 @@ export function grainPitGeometry(
   for (const pit of pits) {
     const phase = hash(pit.x, pit.z, 1) * Math.PI * 2;
     const base = out.positions.length / 3;
-    out.positions.push(pit.x, height(pit.x, pit.z) + PROFILE[0]![1], pit.z);
+    const surface = GRAIN_RISE_M * Math.min(1, Math.max(0, pit.fill));
+    out.positions.push(pit.x, height(pit.x, pit.z) + PROFILE[0]![1] + surface, pit.z);
     out.colors.push(...ringColor(0, pit.fill));
     for (let ring = 1; ring < PROFILE.length; ring++) {
       const [t, up] = PROFILE[ring]!;
@@ -91,7 +98,8 @@ export function grainPitGeometry(
         const r = GRAIN_PIT_RADIUS_M * t * wobble;
         const x = pit.x + Math.cos(a) * r;
         const z = pit.z + Math.sin(a) * r;
-        out.positions.push(x, height(x, z) + up, z);
+        // hladina zrna uvnitř hrdla stoupá s plností (ring 1–2), val a stěna beze změny
+        out.positions.push(x, height(x, z) + up + (ring <= 2 ? surface : 0), z);
         const lump = ring >= 4 ? hash(x, z, 2) * 0.2 : 0;
         out.colors.push(...mix(ringColor(ring, pit.fill), CLAY_DARK, lump));
       }

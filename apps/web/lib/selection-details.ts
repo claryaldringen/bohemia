@@ -383,14 +383,12 @@ type SelectionKinds =
       oxenVillage: VillageOxen | null;
       /** Krávy v ohradě (v zimě). */
       cows: number;
-      /** Stáda vsi (kusy) a slepice u obydlí. */
-      herds: Record<HerdSpecies, number>;
-      chickens: number;
-      /** Pastva vsi a kolik ji stáda spásají (ha). */
-      pastureHa: number;
-      grazingHa: number;
-      /** Mléko stád dnes (l, v době dojení – diet.md). */
-      milkLPerDay: number;
+      /**
+       * Stádo druhu ohrady v celé vsi (kusy) a jeho druh (issue #3, Martin 22. 10. 2026: „informace
+       * v boxu se musí týkat jen druhu zvířat v dané ohradě“); u ohrady volů null – voli jsou
+       * výše. Slepice se nikde neukazují.
+       */
+      herd: { species: HerdSpecies; count: number } | null;
       /** Nejstarší vycvičený vůl – stáří a kolik let ještě slouží; bez vycvičených volů null. */
       team: { ageYears: number; yearsLeft: number } | null;
       /** Výcvik volů – tele, které se vycvičí nejdřív: průběh 0–1 a zbývající dny; jinak null. */
@@ -532,9 +530,6 @@ export interface CrewMember {
   id: number;
   portrait: PersonPortraitIcon;
 }
-
-/** Pořadí stád v panelu ohrady (diet.md – Dobytek). */
-export const HERD_ORDER: readonly HerdSpecies[] = ['sheep', 'goat', 'pig', 'cow'];
 
 /** Ikony a názvy stád (`/icons/resources/<ikona>.png`). */
 export const HERD_LABELS: Record<HerdSpecies, { name: string; icon: string }> = {
@@ -1204,6 +1199,16 @@ function sacredDetails(
   };
 }
 
+/** Stádo druhu ohrady (skot = krávy); ohrada volů žádné (voli mají vlastní údaje). */
+export function penHerd(
+  species: PenSpecies,
+  herds: Record<HerdSpecies, number>,
+): { species: HerdSpecies; count: number } | null {
+  if (species === 'team') return null;
+  const herd: HerdSpecies = species === 'cattle' ? 'cow' : species;
+  return { species: herd, count: herds[herd] };
+}
+
 /** Ohrada – z pohledu na ves (stáda, pastva a seno jsou celé vsi). */
 function penDetails(view: VillageView | null, id: number): SelectionDetails | null {
   const pen = view?.pens.find((p) => p.id === id);
@@ -1222,11 +1227,7 @@ function penDetails(view: VillageView | null, id: number): SelectionDetails | nu
     oxen: pen.oxen,
     oxenVillage: pen.species === 'team' ? (view.oxen ?? null) : null,
     cows: pen.cows,
-    herds: view.livestock.herds,
-    chickens: view.livestock.chickens,
-    pastureHa: view.livestock.pastureHa,
-    grazingHa: view.livestock.grazingHa,
-    milkLPerDay: view.livestock.milkLPerDay,
+    herd: penHerd(pen.species, view.livestock.herds),
     team: pen.team,
     training: pen.training,
     hayKg: view.hayKg,

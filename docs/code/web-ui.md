@@ -155,3 +155,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   stavba – rozšíření) a `SelectionPanel` ukáže `CancelConstructionButton`
   (`hud/RelocationControls.tsx`, `data-testid="cancel-construction"`, křížek bez textu, slova
   jen v `Tooltip`). Stejné tlačítko je u starého domu při stěhování (`RelocationProgress`).
+
+- **Panel ohrady jen druhu ohrady** (issue #3, Martin 22. 10. 2026: „informace v boxu se musí
+  týkat jen druhu zvířat v dané ohradě. Slepice se nemusí evidovat nikde“): `SelectionDetails`
+  `pen` nese `herd` (`penHerd` – stádo vsi druhu ohrady, skot = krávy, ohrada volů null; voli,
+  rádla a vozy dál z `oxenVillage`). Stáda ostatních druhů, slepice, pastva a mléko vsi v panelu
+  nejsou; slepice se v UI neukazují nikde (simulace vajec a slepic u obydlí běží dál).
