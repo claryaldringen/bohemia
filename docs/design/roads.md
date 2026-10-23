@@ -51,7 +51,8 @@ cestu, i upravenou a vozovou, jen pro ty pomaleji.“ Návrh Clauda:
 
 - **Stav kusu:** osa úseku po kusech ≈ 25 m (`ROADS.pieceM` jako dřív); stav kusu se mění
   o (provoz kusu − udržovací práh) za den, mezi 0 a plným stavem. Provoz kusu je medián provozu
-  tras v bodech osy po 3 m (jako dřív), jízda vozu za 2 cesty. Počítá se po intervalech mezi
+  tras v bodech osy po 3 m (jako dřív – z provozního pole tras, paths.md – Vyšlapanost), jízda vozu
+  za 2 cesty. Počítá se po intervalech mezi
   změnami tras a 1. dnem v měsíci (celá čísla – deterministicky jako vyšlapanost). Nový úsek
   a dokončené vylepšení mají plný stav.
 - **Kus na nule zmizí** – zbytek úseku zůstane se starým id (jako dřív `cutOvergrown`), kronika
@@ -60,8 +61,11 @@ cestu, i upravenou a vozovou, jen pro ty pomaleji.“ Návrh Clauda:
 - **Opuštěná cesta:** vede-li po celém úseku žádná trasa celý měsíc, úsek je opuštěný
   (`Road.abandoned`) – vypadne ze sítě (není ramenem křižovatky ani částí cesty hráče, nejde vybrat
   ani vylepšit), dál bledne a zmizí. Vrátí-li se na něj trasa, ožije a úklid ho napojí.
+- **Kus pod stavbou:** postaví-li hráč hotovou stavbu přes cestu (pozemek, ohrada, hřbitov…), kus
+  pod ní je hned opuštěný; lidé i vozy jdou objížďkou a ta se vyšlape v novou cestu napojenou na
+  zbytky staré (paths.md – Stavba přes cestu; Vlkov 23. 10. 2026 – vůz pro vodu).
 - **Nezarůstá:** cesta, která se vylepšuje; cesta k vchodu stavby, ke které se chodí (paths.md –
-  Vchody); zemská stezka.
+  Vchody; odvozeno z konce cesty ve vchodu a návštěv stavby, bez zvláštního pole); zemská stezka.
 - **Jabloně už cestu nedrží** (výjimka – návrh Clauda 19. 10. 2026 – **zrušena** 22. 10. 2026
   pravidlem 4): péče a sklizeň jabloní jsou trasy k cestě, takže kus, kde se jabloně sklízejí, se
   udrží provozem. Jabloně a stromy u zarostlé cesty stojí dál (jako dřív).
@@ -86,6 +90,13 @@ cestu, i upravenou a vozovou, jen pro ty pomaleji.“ Návrh Clauda:
   brodu.
 - **Hráč cesty nezakládá ani neruší** (pravidla 3 a 8) – vylepšuje (upravená, vozová), sází
   jabloně a zakládá zemskou stezku (beze změny).
+- **Zrušení rozdělané úpravy** (návrh Clauda podle zrušení staveb – Martin 23. 10. 2026: „Potřebuju
+  mít možnost stavbu zrušit.“, jen rozestavěné, nespotřebované suroviny se vrátí –
+  [population.md](population.md)): rozdělanou úpravu cesty i vozovou cestu ve stavbě jde zrušit.
+  Hotové úseky zůstanou vylepšené, rozdělaný úsek a zbytek cesty zůstanou v dosavadním druhu, klády
+  a skácené stromy se vrátí na hromadu bez zabudované části (jako u staveb), zemní práce, které už
+  proběhly, zůstanou v krajině jako úvoz a násep zarostlé vozové cesty. Cesta tím nezmizí – rušit
+  cesty hráč dál nemůže.
 
 ### Vozová cesta po staré cestě (pravidlo 6)
 
@@ -96,12 +107,17 @@ a úvozy musí být výrazně vidět.“ Nahrazuje „Co nejpříměji“ a „S
 
 - **Trasa = osa staré cesty hráče** (řetěz úseků mezi křižovatkami a konci). Profil po ní jako
   dřív – sklon nejvýš 6 %, úvoz a násep nejvýš 3 m, objemy, ceny a stavba po ≈ 60 m od vsi ven
-  beze změny (`wagonProfile`, `wagonEarthworks`).
-- **Narovnání jen v prudkém kusu:** kus staré osy, kde stoupá nad 6 %, se zkusí nahradit místní
-  trasou (dnešní hledání `findWagonRoute` – co nejpříměji, serpentiny nad mez) mezi body staré osy
-  30 m před a za kusem, v okně ± 60 m. Přijme se, když je proveditelná a stojí méně práce než
-  úprava staré osy úvozem a náspem (nebo stará osa nejde vůbec). Jinde se osa nehýbe. Nejde-li to
-  ani tak, úprava se nenabídne – důvod v popisku („Cesta je pro vůz moc prudká.“).
+  beze změny (`wagonProfile`, `wagonEarthworks`). Ohrady a hřbitov má vozová cesta jako vozy
+  (`fencedCells` – plot 1,5 m uvnitř čtverce), takže vede i uličkou 3 m mezi ohradami (Martin 23. 10. 2026 – [oxen.md](oxen.md), Plot ohrady podle délky); pevnou cestu vůz projede i šikmo
+  lesem nebo polem (pás `ROAD_BAND_CELLS`).
+- **Narovnání jen tam, kde pěší cesta kličkovala do svahu:** kličkující kus je kus staré osy
+  nejvýš 120 m, kde je osa aspoň 1,3× delší než tětiva mezi jeho konci a převýšení na něm je aspoň
+  3 m (`WAGON_STRAIGHTEN`). Zkusí se nahradit **tětivou** s profilem jako jinde (sklon ≤ 6 %, úvoz
+  a násep ≤ 3 m, nic neprůchodného); přijme se, když stojí méně práce než úprava staré osy úvozem
+  a náspem, nebo když stará osa nejde vůbec („pokud to jde“). Jinde se osa nehýbe. Nejde-li to ani
+  tak, úprava se nenabídne – důvod v popisku („Cesta je pro vůz moc prudká.“). Zjednodušeno po
+  recenzi plánu 23. 10. 2026: dřív místní hledání `findWagonRoute` v okně ± 60 m – tětiva je
+  přímější, jednodušší a bez hledání.
 - **Obejitý kus staré cesty** se při dostavění úseku oddělí jako opuštěná vyšlapaná cesta
   (`Road.abandoned`) – mimo síť, žádná křižovatka, zaroste za 5 let. Kus staré cesty pod vozovou
   zmizí hned (vozová ho nahradí, jak dřív `absorbParallelRoads`). Souběžné cesty tak nevzniknou.
@@ -127,17 +143,20 @@ Martin: „Pokud vesničané upravují cestu, chci je na té cestě vidět praco
 
 ### Rozhodnutí nového systému
 
-| Rozhodnutí                                                                                     | Kdo          |
-| ---------------------------------------------------------------------------------------------- | ------------ |
-| Pravidla 1–11, lidé při práci na cestě, přes ohrady se nechodí                                 | Martin       |
-| Převod starých vsí jednou a idempotentně                                                       | Martin       |
-| Rychlosti druhů beze změny; stromy přidají i na hati a vozové cestě přes mokřinu               | návrh Clauda |
-| Zarůstání: udržení 1 / 0,5 / 0,25 cesty denně, bez provozu 5 / 15 / 30 let; stav po kusech     | návrh Clauda |
-| Opuštěná cesta mimo síť; jabloně cestu nedrží (provoz u jabloní ano)                           | návrh Clauda |
-| „Upravit cestu“ = úprava + hať + lávka, součet cen; `causeway` → upravená, `unbridged`         | návrh Clauda |
-| Vozová cesta po staré ose, místní narovnání nad 6 % (± 30 m, okno ± 60 m) jen když je levnější | návrh Clauda |
-| Svahy úvozů a náspů 15 let řídká tráva, lemy hran, kameny; výška se nezveličuje                | návrh Clauda |
-| Postavy u čela práce celé cesty; vozová cesta s kopáči, nosiči a dusáním                       | návrh Clauda |
+| Rozhodnutí                                                                                    | Kdo          |
+| --------------------------------------------------------------------------------------------- | ------------ |
+| Pravidla 1–11, lidé při práci na cestě, přes ohrady se nechodí                                | Martin       |
+| Převod starých vsí jednou a idempotentně                                                      | Martin       |
+| Rychlosti druhů beze změny; stromy přidají i na hati a vozové cestě přes mokřinu              | návrh Clauda |
+| Zarůstání: udržení 1 / 0,5 / 0,25 cesty denně, bez provozu 5 / 15 / 30 let; stav po kusech    | návrh Clauda |
+| Opuštěná cesta mimo síť; jabloně cestu nedrží (provoz u jabloní ano)                          | návrh Clauda |
+| „Upravit cestu“ = úprava + hať + lávka, součet cen; `causeway` → upravená, `unbridged`        | návrh Clauda |
+| Vozová cesta po staré ose, kličku do svahu narovná tětivou (1,3×, 3 m, 120 m), je-li levnější | návrh Clauda |
+| Vozová cesta vede i uličkou mezi ohradami (`fencedCells` jako vozy)                           | návrh Clauda |
+| Kus cesty pod hotovou stavbou hned opuštěný, objížďka se vyšlape                              | návrh Clauda |
+| Rozdělanou úpravu a vozovou cestu jde zrušit – hotové úseky zůstanou, dřevo se vrátí          | návrh Clauda |
+| Svahy úvozů a náspů 15 let řídká tráva, lemy hran, kameny; výška se nezveličuje               | návrh Clauda |
+| Postavy u čela práce celé cesty; vozová cesta s kopáči, nosiči a dusáním                      | návrh Clauda |
 
 ## Proč
 
@@ -405,7 +424,8 @@ stezka leží.“
   přehradí ji – lidé ji obejdou podél plotu (okraj čtverce plotem není) a cesta po obou stranách
   žije dál: provoz cesty je medián po ose, krátký kus pod stavbou ho nezkreslí. Důvod: plot a zeď
   jsou skutečná překážka, kterou cesta neprorazí, a přes cestu je postavil hráč; zrušit kus cesty
-  pod stavbou může přijít později (jako u pole přes cestu – Fáze 1).
+  pod stavbou může přijít později (jako u pole přes cestu – Fáze 1). Nový systém cest to řeší –
+  kus pod stavbou je hned opuštěný ([paths.md – Stavba přes cestu](paths.md#stavba-přes-cestu-vlkov-martin-23-10-2026)).
 - **Chůze pro práci** (`walking.ts`) povrch pod pevnou cestou nepočítala už dřív: po cestě podle
   stupně, mokřiny a brodů na ose (`roadPieceCost`), rovně jen mokřina a voda – pole, sad ani les
   chůzi nezdraží (hlídá test). Beze změny.
