@@ -1,5 +1,11 @@
 import { length2 } from '../../landscape';
-import { CART_ROUTES, CART_SPEED, SACRED_BUILDINGS } from '../rules';
+import {
+  CART_ROUTES,
+  CART_SPEED,
+  CEMETERY_FENCE_INSET_M,
+  PEN_FENCE_INSET_M,
+  SACRED_BUILDINGS,
+} from '../rules';
 import type { PartStage } from '../summary';
 import type { CartKind, RoadGrade, RoadGround } from '../types';
 import { nearestPartFinder } from './nearest';
@@ -10,6 +16,7 @@ import {
   inBuilding,
   penPathSquares,
   simplifyPathLine,
+  fencedCells,
   squareCells,
   villageBuildings,
   type GridWindow,
@@ -342,17 +349,20 @@ export function cartGrid(
       grid.road[c] = 1;
     }
   }
-  // sad (stromy v řadách), hřbitov a ohrada (plot) – ani jejich okraj, okrsek svatyně
-  const fenced = [
-    ...(v.orchards ?? []).map((o) => o.squares),
-    ...(v.cemeteries ?? []).map((c) => c.squares),
-    ...(v.pens ?? []).map((p) => penPathSquares(p)),
-  ];
-  for (const squares of fenced) {
-    if (squares.length === 0) continue;
-    const { inside, edge } = squareCells(grid, squares);
+  // sad (stromy v řadách) – i jeho okraj, okrsek svatyně
+  for (const o of v.orchards ?? []) {
+    if (o.squares.length === 0) continue;
+    const { inside, edge } = squareCells(grid, o.squares);
     for (const c of inside) cost[c] = Infinity;
     for (const c of edge) cost[c] = Infinity;
+  }
+  // hřbitov a ohrada: jen buňky uvnitř plotu, který stojí 1,5 m od okraje čtverců – mezi dvěma
+  // sousedními stavbami zůstává ulička 3 m, kterou vůz projede (oxen.md – plot je menší než čtverec)
+  for (const cemetery of v.cemeteries ?? []) {
+    for (const c of fencedCells(grid, cemetery.squares, CEMETERY_FENCE_INSET_M)) cost[c] = Infinity;
+  }
+  for (const pen of v.pens ?? []) {
+    for (const c of fencedCells(grid, penPathSquares(pen), PEN_FENCE_INSET_M)) cost[c] = Infinity;
   }
   for (const b of v.sacred?.buildings ?? []) {
     if (b.kind !== 'shrine') continue;

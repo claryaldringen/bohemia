@@ -122,8 +122,40 @@ export function squareCells(
   grid: GridWindow,
   squares: readonly Square[],
 ): { inside: number[]; edge: number[] } {
-  const first = squares[0];
-  if (!first) return { inside: [], edge: [] };
+  if (squares.length === 0) return { inside: [], edge: [] };
+  const { inUnion, spread } = squareUnion(squares);
+  const seen = new Set<number>();
+  const inside: number[] = [];
+  const edge: number[] = [];
+  const probe = 0.2;
+  for (const s of squares) {
+    const half = (s.size / 2) * spread;
+    cellsIn(grid, s.x - half, s.z - half, s.x + half, s.z + half, (c, x, z) => {
+      if (seen.has(c)) return;
+      seen.add(c);
+      let count = 0;
+      if (inUnion(x + probe, z + probe)) count++;
+      if (inUnion(x - probe, z + probe)) count++;
+      if (inUnion(x + probe, z - probe)) count++;
+      if (inUnion(x - probe, z - probe)) count++;
+      if (count === 4) inside.push(c);
+      else if (count > 0) edge.push(c);
+    });
+  }
+  return { inside, edge };
+}
+
+/**
+ * Sjednocení čtverců jedné stavby jako test bodu světa (`inUnion`), natočení mřížky (`cos`, `sin`)
+ * a `spread` – násobek poloviny strany, o který obdélník kolem natočeného čtverce přesahuje.
+ */
+function squareUnion(squares: readonly Square[]): {
+  inUnion: (x: number, z: number) => boolean;
+  cos: number;
+  sin: number;
+  spread: number;
+} {
+  const first = squares[0]!;
   const tiles = new Set(squares.map((s) => tileKey(s.cell.x, s.cell.y)));
   const left = first.x - first.size / 2;
   const top = first.z - first.size / 2;
@@ -150,25 +182,62 @@ export function squareCells(
         };
   // obdélník kolem natočeného čtverce je větší (|cos| + |sin| násobek)
   const spread = turn === 0 ? 1 : Math.abs(c) + Math.abs(sn);
+  return { inUnion, cos: c, sin: sn, spread };
+}
+
+/**
+ * Buňky pod plotem odsazeným `inset` od okraje čtverců (ohrada, hřbitov – oxen.md, cemetery.md):
+ * střed buňky leží aspoň `inset` uvnitř sjednocení (v osách mřížky stavby), takže pruh `2 × inset`
+ * u okraje zůstává volný – mezi dvěma sousedními ohradami (ulička 3 m) vede řada buněk na hranici
+ * čtverců (mřížka vozů má krok 3,75 m a hranice čtverců leží na jejích řadách). Vozy a pěšiny jimi
+ * jedou, ostatní buňky pod plotem nejsou průchodné.
+ */
+export function fencedCells(grid: GridWindow, squares: readonly Square[], inset: number): number[] {
+  if (squares.length === 0) return [];
+  const { inUnion, cos, sin, spread } = squareUnion(squares);
+  // posun o (a, b) v osách mřížky stavby → svět
+  const around = (x: number, z: number, a: number, b: number): boolean =>
+    inUnion(x + a * cos + b * sin, z - a * sin + b * cos);
   const seen = new Set<number>();
-  const inside: number[] = [];
-  const edge: number[] = [];
-  const probe = 0.2;
+  const cells: number[] = [];
+  const eps = 1e-6;
+  const r = inset - eps;
+  // čtverec o poloviční straně `inset` kolem bodu celý uvnitř (rohy a středy stran)
+  const offsets = [
+    [0, 0],
+    [r, r],
+    [-r, r],
+    [r, -r],
+    [-r, -r],
+    [r, 0],
+    [-r, 0],
+    [0, r],
+    [0, -r],
+  ] as const;
+  const boxInside = (x: number, z: number): boolean =>
+    offsets.every(([a, b]) => around(x, z, a, b));
+  // Natočení o násobek 90° nechává hranice čtverců na řadách mřížky vozů – stačí střed buňky. Jiné
+  // natočení (po 15°) pruh 3 m u hranice nemusí trefit žádným středem a ulička by zmizela; tam
+  // se buňka blokuje, jen když leží celá (všechny čtyři rohy) uvnitř plotu, takže každá buňka,
+  // kterou pruh protíná, zůstane sjízdná a ulička je souvislá.
+  const turn = squares[0]!.rotation === undefined ? 0 : rotationTurn(squares[0]!.rotation);
+  const aligned = turn !== null && turn % 6 === 0;
+  const h = grid.cellM / 2;
   for (const s of squares) {
     const half = (s.size / 2) * spread;
     cellsIn(grid, s.x - half, s.z - half, s.x + half, s.z + half, (c, x, z) => {
       if (seen.has(c)) return;
       seen.add(c);
-      let count = 0;
-      if (inUnion(x + probe, z + probe)) count++;
-      if (inUnion(x - probe, z + probe)) count++;
-      if (inUnion(x + probe, z - probe)) count++;
-      if (inUnion(x - probe, z - probe)) count++;
-      if (count === 4) inside.push(c);
-      else if (count > 0) edge.push(c);
+      const blocked = aligned
+        ? boxInside(x, z)
+        : boxInside(x - h, z - h) &&
+          boxInside(x + h, z - h) &&
+          boxInside(x - h, z + h) &&
+          boxInside(x + h, z + h);
+      if (blocked) cells.push(c);
     });
   }
-  return { inside, edge };
+  return cells;
 }
 
 /** Obdélník v souřadnicích domu (x napříč, z k vchodu, m). */

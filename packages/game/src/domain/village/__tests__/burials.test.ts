@@ -93,11 +93,13 @@ describe('místa na hroby a velikosti mohyl (rules.ts)', () => {
 
   it('střed místa sedí s mřížkou čtverce – i natočeného (fields.md – Natočené stavby)', () => {
     const q = { x: 7.5, z: 7.5 };
-    // místo (0, 0) v rohu −x −z, krok 2 × 1,75 m po okraji 0,5 m
-    expect(gravePlaceCenter(q, 15, undefined, 0, 0)).toEqual({ x: 1.5, z: 1.375 });
+    // místo (0, 0) v rohu −x −z, krok 11/7 × 11/8 m po okraji 2 m (plot 1,5 m + 0,5 m)
+    const first = gravePlaceCenter(q, 15, undefined, 0, 0);
+    expect(first.x).toBeCloseTo(2 + 11 / 14, 9);
+    expect(first.z).toBeCloseTo(2 + 11 / 16, 9);
     const block = gravePlaceCenter(q, 15, undefined, 2, 3, 2, 2);
-    expect(block.x).toBeCloseTo(6.5, 9);
-    expect(block.z).toBeCloseTo(7.5, 9);
+    expect(block.x).toBeCloseTo(2 + (11 / 7) * 3, 9);
+    expect(block.z).toBeCloseTo(2 + (11 / 8) * 4, 9);
     // natočený o 90°: sloupec jde po ose mřížky (−z ve světě), řada po +x
     const turned = gravePlaceCenter(q, 15, 6 * ROTATION_STEP, 0, 0);
     const straight = gravePlaceCenter(q, 15, undefined, 0, 0);
@@ -107,7 +109,7 @@ describe('místa na hroby a velikosti mohyl (rules.ts)', () => {
     );
     const right = gravePlaceCenter(q, 15, 6 * ROTATION_STEP, 1, 0);
     expect(right.x - turned.x).toBeCloseTo(0, 9);
-    expect(right.z - turned.z).toBeCloseTo(-2, 9);
+    expect(right.z - turned.z).toBeCloseTo(-11 / 7, 9);
   });
 });
 

@@ -1,6 +1,7 @@
 import { graveRank, placeMound, usedPlaces } from './burials';
 import { BUILD_COSTS } from './costs';
 import { CEMETERY, CEMETERY_DISTANCE_M, HYGIENE_DEATH_EXTRA } from './rules';
+import { fencedSquareEquivalents, SQUARE_SIDES } from './fence-cost';
 import { rotationCosSin, sameGrid } from './square-grid';
 import type {
   Cemetery,
@@ -53,10 +54,17 @@ export function acceptsBurials(cemetery: Cemetery): boolean {
   return cemetery.builtDay !== null && freePlaces(cemetery) > 0;
 }
 
-/** Cena založení nebo rozšíření hřbitova v člověkodnech: 10 na čtverec (`BUILD_COSTS`) + překážky. */
-export function cemeteryFoundingCost(squares: readonly { obstacleCost: number }[]): number {
+/**
+ * Cena založení nebo rozšíření hřbitova v člověkodnech: 10 na čtverec (`BUILD_COSTS`), z toho plot
+ * jen za nové vnější strany (`fenceSides`, `newFenceSides` – bez údaje plot kolem všech), + překážky.
+ */
+export function cemeteryFoundingCost(
+  squares: readonly { obstacleCost: number }[],
+  fenceSides = squares.length * SQUARE_SIDES,
+): number {
   const perSquare = BUILD_COSTS.cemetery.laborManDays;
-  return squares.reduce((sum, s) => sum + perSquare + s.obstacleCost, 0);
+  const equivalents = fencedSquareEquivalents(squares.length, fenceSides, CEMETERY.fenceShare);
+  return perSquare * equivalents + squares.reduce((sum, s) => sum + s.obstacleCost, 0);
 }
 
 /**

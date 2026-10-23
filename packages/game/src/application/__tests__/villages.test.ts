@@ -659,7 +659,8 @@ describe('placeCemetery', () => {
       kind: 'cemetery',
       cemeteryId: cemetery.id,
       startedDay: today,
-      cost: 40,
+      // 4 × 10 čd, plot jen po 8 vnějších stranách z 16
+      cost: 34,
     });
   });
 
@@ -708,7 +709,11 @@ describe('placeCemetery', () => {
     const cemetery = state.cemeteries![0]!;
     expect(cemetery.squares).toHaveLength(6);
     const extension = state.constructions.at(-1);
-    expect(extension).toMatchObject({ kind: 'cemetery', cemeteryId: cemetery.id, cost: 20 });
+    expect(extension).toMatchObject({
+      kind: 'cemetery',
+      cemeteryId: cemetery.id,
+      cost: 17, // 2 × 10 čd, plot jen na 4 nových vnějších stranách z 8
+    });
     expect(cemetery.squares.slice(4).every((s) => s.constructionId === extension?.id)).toBe(true);
   });
 

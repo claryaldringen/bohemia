@@ -355,7 +355,9 @@ describe('ohrada podle druhu (oxen.md – Ohrady podle druhu)', () => {
     );
     expect(one.check.ok).toBe(true);
     expect(two.check.ok).toBe(true);
-    expect(two.cost!.laborManDays).toBeCloseTo(2 * one.cost!.laborManDays, 6);
+    // sdílená strana bez plotu (oxen.md – Plot podle délky): dva čtverce levněji než dvakrát jeden
+    expect(two.cost!.laborManDays).toBeGreaterThan(one.cost!.laborManDays);
+    expect(two.cost!.laborManDays).toBeLessThan(2 * one.cost!.laborManDays);
     const five = item.check(
       landscape,
       village,

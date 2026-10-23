@@ -1,6 +1,7 @@
 import { TOTAL_GAME_DAYS } from '../calendar';
 import type { ObstacleLayer } from '../landscape';
 import { cemeteryFoundingCost, touchingCemeteries, villageCemeteries } from './cemetery';
+import { newFenceSides } from './fence-cost';
 import {
   buildAffordability,
   dwellingLaborManDays,
@@ -876,7 +877,13 @@ export function foundCemetery(
     id: constructionId,
     kind: 'cemetery',
     startedDay: day,
-    cost: cemeteryFoundingCost(input.squares),
+    cost: cemeteryFoundingCost(
+      input.squares,
+      newFenceSides(
+        input.squares.map((s) => s.cell),
+        (extended?.squares ?? []).map((s) => s.cell),
+      ),
+    ),
     done: 0,
     dwellingType: null,
     position: null,

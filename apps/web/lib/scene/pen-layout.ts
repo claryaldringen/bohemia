@@ -1,6 +1,7 @@
 // Ohrada s přístřeškem bez Babylonu (docs/design/oxen.md – staví ji hráč, ve vsi i na ukázce
 // /dev/buildings): čtverec 15 × 15 m (i víc – níž) obehnaný pleteným plotem se zakulacenými rohy
-// (woven-fence.ts – týž plot jako pozemek polozemnice a hřbitov), branka ze žerdí na straně ke
+// (woven-fence.ts – týž plot jako pozemek polozemnice a hřbitov) 1,5 m uvnitř čtverce (mezi dvěma
+// ohradami ulička 3 m pro vůz – rules-buildings.ts), branka ze žerdí na straně ke
 // vsi, v zadním rohu přístřešek na sloupech otevřený do ohrady, pod ním jesle se senem, vedle
 // žlab a stoh sena. Všechno deterministicky z čtverce a směru ke vsi. Souřadnice světa scény
 // v metrech (x, z); natočení jako `Position.rotation` (+z modelu míří do (sin r, cos r)).
@@ -9,9 +10,15 @@
 // Ohrada o víc čtvercích (oxen.md – Ohrady podle druhu, nejvýš 4): plot po obrysu všech čtverců
 // odsazený dovnitř (zakulacené rohy, vnitřní roh tvaru L), branka z jádra (`penSquaresEntrance`),
 // přístřešek, jesle, žlab a stoh v prvním čtverci u vnějšího plotu, místa pro zvířata ve všech.
-import { PEN_GATE, penSquaresEntrance, rotationCosSin, type Position } from '@bohemia/game';
+import {
+  PEN_FENCE_INSET_M,
+  PEN_GATE,
+  penSquaresEntrance,
+  rotationCosSin,
+  type Position,
+} from '@bohemia/game';
 import { isRotatedSquare } from './field-cells';
-import { FENCE_INSET_M, type PlotSquare } from './homestead-layout';
+import type { PlotSquare } from './homestead-layout';
 import { valueNoise } from './livestock-motion';
 import { hash01 } from './smoke-schedule';
 import { smoothstep, type Point } from './village-layout';
@@ -319,7 +326,7 @@ function flatPenLayout(
   extras: readonly { x: number; z: number; size: number }[] = [],
 ): PenLayout {
   const c = { x: square.x, z: square.z };
-  const half = square.size / 2 - FENCE_INSET_M;
+  const half = square.size / 2 - PEN_FENCE_INSET_M;
   const f0 = unit(facing);
   const axisFront: Direction =
     Math.abs(f0.x) >= Math.abs(f0.z)
@@ -352,14 +359,14 @@ function flatPenLayout(
           [c.x + half, c.z + half],
           [c.x - half, c.z + half],
         ] as Point[])
-      : insetOutline(all, FENCE_INSET_M);
+      : insetOutline(all, PEN_FENCE_INSET_M);
   const fenceRect = {
     minX: Math.min(...outline.map((p) => p[0])),
     maxX: Math.max(...outline.map((p) => p[0])),
     minZ: Math.min(...outline.map((p) => p[1])),
     maxZ: Math.max(...outline.map((p) => p[1])),
   };
-  const fenceRects = extras.length === 0 ? [fenceRect] : innerRects(all, FENCE_INSET_M);
+  const fenceRects = extras.length === 0 ? [fenceRect] : innerRects(all, PEN_FENCE_INSET_M);
   const fence = wovenFence([{ points: outline, closed: true }], PEN_FENCE, { toward: gateAt });
   const run = fence.runs[0]!.posts;
   const a = run[0]!;
@@ -389,7 +396,7 @@ function flatPenLayout(
   const props: Record<PenProp, Position> = {
     timber: { ...at(-0.5, -1.5), rotation: facingRotation + Math.PI / 2 },
     rods: { ...at(1.6, 1.4), rotation: facingRotation + 0.2 },
-    straw: { ...at(-1.6, 2.0), rotation: facingRotation - 0.3 },
+    straw: { ...at(0.3, -0.3), rotation: facingRotation - 0.3 },
   };
 
   const seed = Math.round(square.x * 7 + square.z * 13);
@@ -603,7 +610,7 @@ const EXTRA_SPOTS: readonly (readonly [number, number])[] = [
   [3.2, -0.8],
   [-3.4, -1.2],
   [3.6, -4.4],
-  [0.4, -5.4],
+  [0.4, -4.7],
   [-4.6, -4.2],
   [4.6, 2.2],
   [1.6, 2.6],

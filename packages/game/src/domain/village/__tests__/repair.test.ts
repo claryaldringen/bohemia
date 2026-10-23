@@ -75,7 +75,7 @@ describe('cena opravy (STRUCTURE_REPAIR)', () => {
     expect(fullRepairManDays(s, { structure: 'idol', id: 7 })).toBeCloseTo(7, 9);
     expect(fullRepairManDays(s, { structure: 'shrine', id: 8 })).toBeCloseTo(98.5, 9);
     expect(fullRepairManDays(s, { structure: 'pen', id: 1 })).toBeCloseTo(14, 9);
-    expect(fullRepairManDays(s, { structure: 'cemetery-fence', id: 20 })).toBeCloseTo(6, 9);
+    expect(fullRepairManDays(s, { structure: 'cemetery-fence', id: 20 })).toBeCloseTo(4.5, 9);
     // stavba, která nestojí (padlá modla, druh neodpovídá), opravit nejde
     expect(fullRepairManDays(s, { structure: 'idol', id: 99 })).toBe(0);
     expect(fullRepairManDays(s, { structure: 'shrine', id: 7 })).toBe(0);
@@ -91,7 +91,7 @@ describe('roční kontrola zakládá a ruší opravy', () => {
     expect(cost(repairOf(s, { structure: 'shrine', id: 8 }))).toBeCloseTo(98.5 * 0.8, 9);
     expect(cost(repairOf(s, { structure: 'pen', id: 1 }))).toBeCloseTo(14 * 0.4, 9);
     // spadlý plot se postaví celý znovu
-    expect(cost(repairOf(s, { structure: 'cemetery-fence', id: 20 }))).toBeCloseTo(6, 9);
+    expect(cost(repairOf(s, { structure: 'cemetery-fence', id: 20 }))).toBeCloseTo(4.5, 9);
     expect(s.constructions.every((c) => c.kind === 'repair')).toBe(true);
     expect(new Set(s.constructions.map((c) => c.id)).size).toBe(4);
     // druhá kontrola, dokud se opravuje, druhou opravu nezaloží
