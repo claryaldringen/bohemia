@@ -16,6 +16,7 @@ import {
   rotatedSquareCorners,
   rotationTurn,
   sacredFootprint,
+  threshingFloorFootprint,
   type Point,
 } from '@bohemia/game';
 import { scenePenSquares, type SceneVillage } from '../village-view';
@@ -80,14 +81,64 @@ export const TREE_LAND_RADIUS_M = Math.sqrt(TAKEN_LAND_TREE_M2 / Math.PI);
 /** Kruh pod korunou jako pravidelný mnohoúhelník (stran). */
 const TREE_SIDES = 12;
 
-/** Plocha pod korunou stromu – mnohoúhelník kolem kmene. */
-function treeLand(x: number, z: number): Clearing {
+/** Kruh o poloměru `radius` jako mnohoúhelník kolem středu. */
+function circleClearing(x: number, z: number, radius: number): Clearing {
   return clearingOf(
     Array.from({ length: TREE_SIDES }, (_, i): Point => {
       const angle = (2 * Math.PI * i) / TREE_SIDES;
-      return [x + TREE_LAND_RADIUS_M * Math.cos(angle), z + TREE_LAND_RADIUS_M * Math.sin(angle)];
+      return [x + radius * Math.cos(angle), z + radius * Math.sin(angle)];
     }),
   );
+}
+
+/** Plocha pod korunou stromu – mnohoúhelník kolem kmene. */
+function treeLand(x: number, z: number): Clearing {
+  return circleClearing(x, z, TREE_LAND_RADIUS_M);
+}
+
+/** Poloměr jámy, milíře a rudiště, kam seno nepatří (m). */
+const WORKSITE_RADIUS_M = 3;
+
+/**
+ * Kam se seno z louky nesmí dostat (issue #3, Martin 22. 10. 2026: „nesmí tyto snopy být na
+ * cestě, na budovách (včetně zahrádek), v ohradách (sežrala by je zvířata), ani na humně“):
+ * obydlí a dílny s pozemkem i dvorkem, ruiny, ohrady, hřbitovy a sady po celých čtvercích (plot
+ * ohrady je odsazený dovnitř), humna, obilné jámy, milíře, rudiště a jámy, posvátná místa.
+ * Cesty a pěšiny řeší maska pásů (`TrackMask`) zvlášť.
+ */
+export function hayBlockers(village: SceneVillage): Clearing[] {
+  const plotSquares = (plot: SceneDwelling['plot']): Clearing[] =>
+    plot
+      ? [
+          squareClearing(plot),
+          ...(plot.yard ? [squareClearing({ ...plot, x: plot.yard.x, z: plot.yard.z })] : []),
+        ]
+      : [];
+  return [
+    ...village.dwellings.flatMap((d) => [
+      ...freeDwellingClearings(d.type, d.position, dwellingShape(d)).map(clearingOf),
+      circleClearing(d.position.x, d.position.z, WORKSITE_RADIUS_M),
+      ...plotSquares(d.plot),
+    ]),
+    ...(village.ruins ?? []).flatMap((r) => [
+      circleClearing(r.position.x, r.position.z, WORKSITE_RADIUS_M),
+      ...plotSquares(r.plot),
+    ]),
+    ...(village.pens ?? []).flatMap((p) => scenePenSquares(p).map(squareClearing)),
+    ...(village.cemeteries ?? []).flatMap((c) => c.squares.map(squareClearing)),
+    ...(village.orchards ?? []).flatMap((o) => o.squares.map(squareClearing)),
+    ...(village.threshingFloors ?? []).map((f) =>
+      clearingOf(threshingFloorFootprint(f.position).map(([x, z]): Point => [x, z])),
+    ),
+    ...(village.grainPits ?? []).map((g) => circleClearing(g.x, g.z, WORKSITE_RADIUS_M)),
+    ...(village.kilns ?? []).map((k) => circleClearing(k.x, k.z, WORKSITE_RADIUS_M)),
+    ...(village.kilnRemnants ?? []).map((k) => circleClearing(k.x, k.z, WORKSITE_RADIUS_M)),
+    ...(village.oreSites ?? []).map((o) => circleClearing(o.x, o.z, WORKSITE_RADIUS_M)),
+    ...(village.orePits ?? []).map((o) => circleClearing(o.x, o.z, WORKSITE_RADIUS_M)),
+    ...(village.sacred?.buildings ?? []).map((b) =>
+      clearingOf(sacredFootprint(b.kind, b.position)),
+    ),
+  ];
 }
 
 /**

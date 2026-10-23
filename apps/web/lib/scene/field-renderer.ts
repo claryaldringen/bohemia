@@ -14,7 +14,13 @@ import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import type { Scene } from '@babylonjs/core/scene';
 import { dateOfDayIndex, roadsKey, type Landscape, type ObstacleLayer } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
-import { clearingMask, clearingsKey, clearingsNear, fieldClearings } from './building-clearings';
+import {
+  clearingMask,
+  clearingsKey,
+  clearingsNear,
+  fieldClearings,
+  hayBlockers,
+} from './building-clearings';
 import { cellsBounds, rowDirection, squaresContain, touchingSquares } from './field-cells';
 import {
   CROP_KINDS,
@@ -214,6 +220,9 @@ interface MeshSlot {
   mesh: Mesh;
 }
 
+/** Seno se drží aspoň tolik (m) od staveb, ohrad a dalších ploch bez sena (poloměr kupky). */
+const HAY_CLEAR_M = 1.2;
+
 interface FieldView {
   key: string;
   meshes: Mesh[];
@@ -335,6 +344,7 @@ export class FieldRenderer {
    */
   private roads: { key: string; track: Track } | null = null;
   private paths: Track | null = null;
+  private pathsVersion = 0;
   private tracks: TrackMask | null = null;
   private tracksStale = true;
   /** Výšky a normály sítí obtisků (`drapedGrid`) – podle sítě, dokud žije. */
@@ -368,6 +378,7 @@ export class FieldRenderer {
   setPaths(track: Track | null): boolean {
     if (track === this.paths) return false;
     this.paths = track;
+    this.pathsVersion++;
     this.tracksStale = true;
     return this.rebuild();
   }
@@ -582,6 +593,11 @@ export class FieldRenderer {
     return true;
   }
 
+  /** Podpis pásů cest a pěšin (mění se s nimi) – klíč sena, které cesty nesmí zakrývat. */
+  private trackStamp(): string {
+    return `${this.roads?.key ?? ''}|${this.pathsVersion}`;
+  }
+
   /** Maska pásů cest a pěšin – sestaví se znovu jen při změně cest nebo sítě pěšin. */
   private trackMask(): TrackMask | null {
     const roads = this.village.roads ?? [];
@@ -616,6 +632,19 @@ export class FieldRenderer {
     // přirozené louky letošní seče (oxen.md – Seno) se kreslí jako díly pole se vzhledem od
     // jádra – se zápornými id, bez skrývání překážek (stromy a kameny na louce zůstanou)
     const meadows = hayMeadowFields(this.village.hayMeadows ?? []);
+    // kam seno nesmí (cesty, stavby, ohrady, humno…) – počítá se jen, když nějaké seno je
+    let hayBlock: { key: string; blocked: (x: number, z: number) => boolean } | null = null;
+    const hayBlocking = (): NonNullable<typeof hayBlock> => {
+      if (hayBlock) return hayBlock;
+      const blockers = hayBlockers(this.village);
+      const mask = clearingMask(blockers, HAY_CLEAR_M);
+      const bounds = blockers.map((c) => [c.minX, c.maxX, c.minZ, c.maxZ].map(Math.round));
+      hayBlock = {
+        key: `${blockers.length}:${JSON.stringify(bounds)}#${this.trackStamp()}`,
+        blocked: (x, z) => mask(x, z) < 1 || (tracks !== null && tracks.at(x, z) < 0.5),
+      };
+      return hayBlock;
+    };
     for (const field of [...this.village.fields, ...meadows]) {
       seen.add(field.id);
       // obydlí na poli – pod jeho vyklízenou plochou pole není
@@ -636,7 +665,7 @@ export class FieldRenderer {
       const hayKey =
         hayViews.length === 0
           ? ''
-          : `${day}|${hayViews.map((v) => `${v.part.cell.x},${v.part.cell.y}:${v.look}`).join(';')}`;
+          : `${day}|${hayBlocking().key}|${hayViews.map((v) => `${v.part.cell.x},${v.part.cell.y}:${v.look}`).join(';')}`;
       const center = villageCenter(this.village, field.parts);
       // Co ovlivní každý blok: krytí okraje (vykreslené díly, sousední pole, obydlí na poli),
       // směr řádků a střed (podle všech dílů), den sena. Bloky dílů (field-blocks.ts) mají
@@ -672,12 +701,11 @@ export class FieldRenderer {
       const hayOf = (): FieldView['hay'] => {
         if (hayViews.length === 0) return { key: hayKey, plants: [] };
         const hay = fieldHay(spaced(views), day);
-        return {
-          key: hayKey,
-          plants: space
-            ? space.plants({ crops: emptyCrops(), stooks: [], heaps: [], weeds: [], hay }).hay
-            : hay,
-        };
+        const placed = space
+          ? space.plants({ crops: emptyCrops(), stooks: [], heaps: [], weeds: [], hay }).hay
+          : hay;
+        const { blocked } = hayBlocking();
+        return { key: hayKey, plants: placed.filter((p) => !blocked(p.x, p.z)) };
       };
       if (current?.key === key) {
         if (current.hay.key !== hayKey) {
