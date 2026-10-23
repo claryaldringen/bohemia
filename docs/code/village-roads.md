@@ -170,7 +170,9 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   pěšiny) – `cartGrid` na mřížce terénu pěšin (výšky `PathTerrain.heights`, les `PATH_FOREST`,
   překážky `cartObstacleMask` v `terrain.ts`; voda jen brodem, les jen po pevné cestě, pole
   v lese vymýcené, osetý díl, křoviny, sad, hřbitov, ohrada, les vsi a okrsek svatyně ne, domy
-  a pozemky s půl šířkou vozu; každá pevná cesta sjízdná; rychlost podle povrchu a druhu cesty –
+  a pozemky s půl šířkou vozu; každá pevná cesta sjízdná – pás buněk do 0,75 buňky od bodů osy
+  (`ROAD_BAND_CELLS`) a úhlopříčka z buňky cesty na buňku cesty i přes roh lesa, osetého dílu či
+  okraje domu (`CartGrid.road`), jinak by šikmá cesta lesem a ohyb u domu nebyly sjízdné (Vlkov 23. 10. 2026; návrh Clauda); stavba přes cestu ji přehradí i vozu (roads.md – Co platí dál); rychlost podle povrchu a druhu cesty –
   `CART_SPEED`, `cartPartSpeed`, `cartRoadSpeed`: vyšlapaná 1,3, vyježděná 1,6, upravená a hať
   1,8, strniště i připravený díl 0,8, zoraný 0,6, mokřina 0,55 – i na cestě kromě hatě, podle
   `Road.ground` jako chůze, `cartVillageOf`; návrh Clauda) a `cartRoutes` – Dijkstra po stavech

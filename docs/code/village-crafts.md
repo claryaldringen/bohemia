@@ -219,7 +219,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   a kovář, `SmithSupply.oreCarts`); sedlák s uhlím a rudou jde z práce vsi před úlohami dne
   (`DayAllocation.carting`, `paySmithCarts`), kovář z práce dílny; **osivo** – `planSeedHauls` na úlohu `sow` jako svoz (`CropWork.seedHauled`,
   `seedReach` – `sowingCartReach`); **voda** – `waterCartDrive` (břeh nejblíž ohradě, kam vůz
-  sjede, uložený ve `VillageState.waterCart` podle klíče chůze) a `waterCartPlan` z
+  sjede, uložený ve `VillageState.waterCart` – čtyřkolák `waterCart4` – podle klíče chůze, tedy
+  i podle pevných cest a měsíčních stadií dílů; v době osevu může vyjít null a po žni jízda) a `waterCartPlan` z
   `householdWater` (labor.ts) – přirážka za vodu se zmenší a přičte se díl posádky (v denním
   minimu). Jízdy vozí `villageCartDrives` (vozová síť – cena v m po louce a konec trasy, bez
   krajiny vzdušně), do ročního provozu cest `addRoadCartTrips`. Rozdělení práce: `haul`
@@ -233,8 +234,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   osivo `outbound` (`CartShuttle.loadedOut` – naložené tam), trasa k milíři a břehu
   (`cartRouteToday`); voda, uhlí, ruda a osivo jezdí tempem volů ve skutečném čase (`steadyJob`
   v `village-carts.ts`), ne v okně herního dne jako svoz úrody. Komu vůz vodu přivezl, ukazuje
-  `SceneLabor.homes[].cartWater` (týž `waterCartPlan` ve `village-view-scene.ts`) – pěšky pro ni chodí
-  méně lidí (Postavy – Provoz na cestách).
+  `SceneLabor.homes[].cartWater` (týž `waterCartPlan` ve `village-view-scene.ts` – druh vozu
+  vítězného plánu z `LaborShare.fourWheel` a jeho uložená jízda `storedWaterCartDrive`) – pěšky pro
+  ni chodí méně lidí (Postavy – Provoz na cestách).
 
 - **Kování vozů** ([wagons.md](../design/wagons.md) – Kování vozů; Martin 20. 10. 2026: „…vozy
   mají železnou složku. Pokud vesnice nemá kováře, musí tesař (nebo jeho syn, pokud ho má) dojít do

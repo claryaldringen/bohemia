@@ -227,6 +227,17 @@ export function waterCartDrive(
   return best;
 }
 
+/**
+ * Uložená jízda vozu `kind` k vodě (`waterCartDrive` – `VillageState.waterCart`, čtyřkolák
+ * `waterCart4`) bez přepočtu – pro scénu, ať ukáže týž plán jako simulace. Bez uložené null.
+ */
+export function storedWaterCartDrive(
+  state: Pick<VillageState, 'waterCart' | 'waterCart4'>,
+  kind: CartKind,
+): CartDrive | null {
+  return (kind === 'four-wheel' ? state.waterCart4 : state.waterCart)?.drive ?? null;
+}
+
 /** Voda vozem na jeden den (`waterCartPlan`). */
 export interface WaterCartPlan {
   /**
