@@ -24,6 +24,7 @@ import {
   villageCarts,
   CARTS,
   CART_JOBS,
+  expeditionCartLoads,
   laborReport,
   obstaclesOf,
   squareCenter,
@@ -238,13 +239,19 @@ export function sceneCarts(
   const away = cartsAway(state);
   const jobs = new Map<number, NonNullable<SceneCart['job']>>();
   for (const e of state.trade?.expeditions ?? []) {
-    for (const id of e.carts ?? []) {
+    const ids = e.carts ?? [];
+    const loads = expeditionCartLoads(
+      e,
+      ids.map((id) => carts.find((c) => c.id === id)?.kind ?? 'two-wheel'),
+    );
+    ids.forEach((id, i) => {
       jobs.set(id, {
         activity: 'trade',
         target: { kind: 'trail', id: e.trailId },
         load: 'goods',
+        ...(loads[i] !== undefined ? { loadKg: loads[i] } : {}),
       });
-    }
+    });
   }
   // vůz s platbou za kování k vozu jede po zemské stezce jako výprava (wagons.md – Kování vozů)
   for (const d of state.dwellings) {

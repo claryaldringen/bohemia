@@ -372,6 +372,11 @@ export interface SceneCart {
     target: LaborShare['target'];
     load: CartLoad;
     outbound?: true;
+    /**
+     * Kolik kg nákladu vůz veze při jedné jízdě výpravy (wagons.md – Obchod, Opakované jízdy
+     * vozu) – jen u výpravy; jinde chybí (kolik veze, hlásí jen druh nákladu).
+     */
+    loadKg?: number;
   } | null;
   /**
    * Kudy vůz dnes jede (wagons.md – fáze 3): osa vozové sítě od ohrady k cíli svozu
@@ -492,6 +497,8 @@ export interface SceneExpedition {
   porters: number;
   carts: number[];
   cartCrew: number;
+  /** Kolikrát vozy výpravy jedou tam a zpět; `progress` a `rate` platí pro právě běžící jízdu. */
+  trips?: number;
   leaving: { sex: 'male' | 'female'; age: number }[];
   coming: { sex: 'male' | 'female'; age: number }[];
   carriesOut: boolean;

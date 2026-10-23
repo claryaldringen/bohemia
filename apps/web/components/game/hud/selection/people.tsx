@@ -208,6 +208,15 @@ export function CartBody({
         <Stat icon="condition" name="Stav vozu" testId="selection-cart-condition">
           {formatPercent(details.condition)}
         </Stat>
+        <Stat
+          icon="cart"
+          name={details.loadKg === null ? 'Nosnost (kg)' : 'Náklad / nosnost (kg)'}
+          testId="selection-cart-load"
+        >
+          {details.loadKg === null
+            ? formatInteger(details.capacityKg)
+            : `${formatInteger(details.loadKg)} / ${formatInteger(details.capacityKg)}`}
+        </Stat>
         {details.oxen > 0 && (
           <Stat icon="ox" name="Voli" testId="selection-cart-oxen">
             {formatInteger(details.oxen)}
