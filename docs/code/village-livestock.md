@@ -308,3 +308,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   spadlá branka; rozpadlá: sloupy a krokve) z `models/pen/pen-decay.glb` (`pen.py`, pátý
   argument `decay`; místo dílu `penDecayPlace`), bláto mizí (`PEN_MUD_BY_STAGE`), stoh jen
   u celé, plot `decayFence`.
+
+- **Panel ohrady a slepice v UI** (issue #3): panel ukazuje jen druh ohrady (`penHerd` v
+  `selection-details.ts`), `LivestockSummary.chickens` zůstává v datech (scéna, vejce), ale
+  žádné rozhraní ho nezobrazuje.
