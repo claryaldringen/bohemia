@@ -12,6 +12,18 @@ import type { Dwelling, OrchardTaskName, Person, TaskName } from './types';
 export type LaborTaskName =
   TaskName | OrchardTaskName | 'plough' | 'mow' | 'slaughter' | 'grain-pit';
 
+/**
+ * Lehčí polní práce, které smějí dělat i ženy řemeslníků (crafts.md – Kdo dělá řemeslo; Martin
+ * 22. 10. 2026: „setí, žně, mlácení zrna, v případě potřeby i okopávání motykou. Nekovou,
+ * nekácí, neorou, nestaví.“): setí, okopávání, žně a výmlat.
+ */
+export const LIGHT_LABOR_TASKS: ReadonlySet<LaborTaskName> = new Set<LaborTaskName>([
+  'sow',
+  'weed',
+  'harvest',
+  'thresh',
+]);
+
 export interface DayAllocationInput {
   /** Pracovní síla vsi – dospělí (`laborPerDay`). */
   capacity: number;
@@ -20,6 +32,12 @@ export interface DayAllocationInput {
    * kryjí napřed denní minimum své domácnosti (`adultDailyMin`).
    */
   householdElders: readonly number[];
+  /**
+   * Lehčí práce žen řemeslníků (`craftLightLabor`, člověkodny před štěstím) – samostatný zásobník
+   * mimo `capacity`: pokryje jen úlohy z `LIGHT_LABOR_TASKS`, nikdy orbu, kácení ani stavby;
+   * co nevyužijí, propadne. Bez údaje 0.
+   */
+  light?: number;
   /**
    * Přirážka denního minima za chůzi pro vodu po domácnostech (člověkodny, ve stejném pořadí jako
    * `householdElders` – `householdWaterLabor`); bez údaje 0. Kryjí ji starší jako zbytek minima.
@@ -113,8 +131,15 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     'orchard-care': 0,
     'orchard-harvest': 0,
   };
+  // lehká práce žen řemeslníků – jen na lehké úlohy, napřed ta, pak obecná kapacita
+  let lightLeft = Math.max(0, (input.light ?? 0) * productivity);
   const taskAmounts = input.tasks.map((task) => {
-    const amount = take(task.remaining);
+    let amount = 0;
+    if (LIGHT_LABOR_TASKS.has(task.name)) {
+      amount = Math.min(task.remaining, lightLeft);
+      lightLeft -= amount;
+    }
+    amount += take(task.remaining - amount);
     tasks[task.name] += amount;
     return amount;
   });

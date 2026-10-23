@@ -1713,3 +1713,31 @@ describe('svatba – průvod mimo rozpočet pracujících (kinship.md – Svatba
     }
   });
 });
+
+describe('výmlat na humně (production-chains.md – Humno; issue #3)', () => {
+  const FLOOR = { x: 60, z: -50 };
+  const withFloor = (target: SceneLaborShare['target']): SceneVillage => ({
+    ...village([{ activity: 'thresh', target, manDays: 3 }]),
+    threshingFloors: [{ id: 40, position: { ...FLOOR, rotation: 0 }, built: true, progress: 1 }],
+  });
+  const threshers = (v: SceneVillage): PlannedVillager[] =>
+    planVillagers(v, GROUND, { seed: 3, herds: 0 }).filter((p) => p.key.startsWith('thresh:'));
+
+  it('podíl na hotovém humnu mlátí lidé na humně, ne jinde u vsi', () => {
+    const people = threshers(withFloor({ kind: 'threshing-floor', id: 40 }));
+    expect(people.length).toBe(3);
+    for (const p of people) {
+      for (const t of [5, 20, 60]) {
+        const pose = at(p, t);
+        expect(Math.hypot(pose.x - FLOOR.x, pose.z - FLOOR.z)).toBeLessThan(5);
+      }
+    }
+  });
+
+  it('nouzový výmlat (cíl ves) zůstává u vsi', () => {
+    const people = threshers(withFloor({ kind: 'village' }));
+    expect(people.length).toBe(3);
+    const pose = at(people[0]!, 20);
+    expect(Math.hypot(pose.x - FLOOR.x, pose.z - FLOOR.z)).toBeGreaterThan(20);
+  });
+});

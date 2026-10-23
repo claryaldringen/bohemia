@@ -1,7 +1,7 @@
 import { ageGroup, ageYears } from './people';
 import { FORGE, REFINE, SMELT } from './iron-rates';
 import { CRAFT_NEEDS, IRON } from './rules';
-import { smithHead, smithSons } from './smith-supply';
+import { craftHands, smithHead, smithSons } from './smith-supply';
 import type { CraftStocks, Person, Sex, VillageState } from './types';
 
 // Kovář – od rudy po hřivny a nástroje (production-chains.md – Kovář; Martin 20. 10. 2026:
@@ -102,7 +102,7 @@ export function ironDeficitCharcoalKg(deficit: IronDeficit): number {
 }
 
 /**
- * Kdo u tavby šlape měch (production-chains.md – Kovář): dospělý z domácnosti kováře (`adult`),
+ * Kdo u tavby šlape měch (production-chains.md – Kovář): dospělý muž z domácnosti kováře (`adult`),
  * nebo syn 10–13 let (`son` – ten den nepase); chybí = kovář je sám a taví polovičním tempem.
  */
 export interface BellowsHelper {
@@ -125,7 +125,8 @@ export function smithBellows(
 ): BellowsHelper | null {
   const members = state.people.filter((p) => p.dwellingId === smithId);
   const head = smithHead(members, day);
-  const adults = members
+  // měch šlape muž (řemeslo dělá jen řemeslník a synové – crafts.md); žena z domácnosti ne
+  const adults = craftHands(members, day)
     .filter((p) => p.id !== head?.id && ageGroup(p, day) === 'adult')
     .sort((a, b) => b.bornDay - a.bornDay || a.id - b.id);
   const adult = adults[0];

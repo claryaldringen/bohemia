@@ -78,10 +78,20 @@ Vzhled podle Martina (modely se připravují v `tools/blender/`):
 
 ## Práce a jídlo
 
-- **Řemeslník pracuje v dílně na plný úvazek, dokud je co dělat** (Martin): dospělí domácnosti
-  dílny dávají řemeslu všechnu svou práci po denním minimu (domácí výroba jde bokem – population.md,
-  Práce). Jedí ze společných
-  zásob jako všichni.
+- **Řemeslník pracuje v dílně na plný úvazek, dokud je co dělat** (Martin): dospělí **muži**
+  domácnosti dílny dávají řemeslu všechnu svou práci po denním minimu (domácí výroba jde bokem –
+  population.md, Práce). Jedí ze společných zásob jako všichni.
+- **Kdo dělá řemeslo** (Martin 22. 10. 2026: „Ženy řemeslníků pracují v domácnosti, tj. starají se
+  o ni. Nedělají řemeslo. To dělají jen synové. Nelze mít u kovářovy ženy, že kuje, nebo u uhlířovy
+  ženy, že kácí buky.“ A upřesnění: „Řemeslo dělá jen řemeslník a jeho synové. Ženy řemeslníků se
+  starají o domácnost a k tomu dělají lehčí polní práce se vsí – setí, žně, mlácení zrna,
+  v případě potřeby i okopávání motykou. Nekovou, nekácí, neorou, nestaví.“): řemeslo (kování,
+  tavba, měch, milíř, kácení pro uhlí, hrnčířství, tesařina) dělá jen řemeslník a jeho synové
+  (`craftHands`); měch šlape syn nebo muž z domácnosti, jinak kovář sám pomaleji. Ženy kryjí
+  denní minimum domácnosti a **zbytek své práce dávají vsi** (`WorkshopLabor.light`, do kapacity
+  vsi v kroku práce) – návrh Clauda: samostatný zásobník lehké práce, který pokryje jen setí,
+  okopávání, žně a výmlat (orbu, kácení ani stavby nikdy), ve scéně ho zastanou ženy u těchto prací; praxi v řemesle ženy nezískávají a výkon dílny podle ní neurčují. Domácnost
+  bez muže schopného práce (vdova s dětmi) drží dílnu celá, ať nestojí.
 - **Volný čas pracují pro ves** (Martin 18. 10. 2026: „Ano, pokud uhlíř a kovář budou mít volný
   čas, ať pracují na poli jako zbytek vesnice.“): když řemeslník nemá v dílně co dělat, jeho
   domácnost ten den pracuje jako ostatní domácnosti – pole, stavby, společná práce vsi (část
@@ -667,13 +677,13 @@ nový, trvá mu, než se řemeslo naučí“
 Platí pro všechna řemesla – hrnčíře, kováře, uhlíře i tesaře. Podrobnosti jsou návrh Clauda
 (čísla `CRAFT_SKILL` v `rules.ts`).
 
-- **Praxe** je u člověka v letech (`Person.practice` – po řemeslech, nejvýš 5 let). Dospělý
+- **Praxe** je u člověka v letech (`Person.practice` – po řemeslech, nejvýš 5 let). Dospělý muž
   z domácnosti dílny (14–44 let), který v dílně pracuje, ji získává **za dny, kdy dílna pracuje** –
   ne ve dnech, kdy řemeslník odpočívá a pracuje se vsí (plná zásoba, chybí vstup).
 - **Syn řemeslníka** (otec nebo matka v domácnosti dílny – jako synové kováře) se učí **od 10 let**,
   dokud v domácnosti žije: ve dny, kdy dílna pracuje, a u kováře i ve dny, kdy nosí uhlí od milíře,
-  i když kovář sám ten den pracuje se vsí. Dcery se řemeslu neučí (ženy z domácnosti dílny praxi
-  získávají jako dospělé, když v dílně pracují).
+  i když kovář sám ten den pracuje se vsí. Dcery se řemeslu neučí a ženy z domácnosti dílny praxi nezískávají (od 22. 10. 2026 řemeslo
+  dělají jen muži – Kdo dělá řemeslo).
 - **Výkon dílny** jde podle **nejzkušenějšího dospělého** z domácnosti, který je doma: **50 %** bez
   praxe, lineárně do **100 % po 5 letech** praxe. Násobí jen práci řemesla, vedle meze nástrojů:
   - kovář – kování (práce na kg nástrojů ÷ výkon), nošení uhlí a kopání rudy ne,

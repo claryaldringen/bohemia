@@ -147,7 +147,8 @@ describe('ceny kroků řetězu (production-chains.md – Kovář)', () => {
 describe('řetěz kovárny – ruda a uhlí → houba → hřivny → vybavení', () => {
   it('bez hřiven a houby kovář taví – s měchařem plným tempem', () => {
     const s = village();
-    withSmith(s);
+    // žena měch nešlape (crafts.md – Kdo dělá řemeslo) – měchařem je syn
+    withSmith(s, { sons: [11] });
     const labor = workshopLabor(s, s.lastDay + 1, SMITH, 0).craft;
     craftDay(s);
     expect(smithOf(s).activity).toBe('smelting');
@@ -158,7 +159,7 @@ describe('řetěz kovárny – ruda a uhlí → houba → hřivny → vybavení'
 
   it('za pár měsíců má ves vybavení do potřeby a hřivny na rok obnovy – nic navíc', () => {
     const s = village();
-    withSmith(s);
+    withSmith(s, { sons: [20] });
     const charcoal0 = s.crafts!.charcoalKg;
     const ore0 = smithOf(s).oreKg!;
     const activities = new Set<string>();
@@ -221,20 +222,28 @@ describe('řetěz kovárny – ruda a uhlí → houba → hřivny → vybavení'
     expect(son.crafts!.bloomKg).toBeCloseTo(labor / SMELT.manDaysPerKg, 9);
     // syn, který dnes nosí uhlí, měch nešlape
     expect(smithBellows(son, SMITH, son.lastDay, new Set([SMITH_HEAD + 2]))).toBeNull();
-    // dospělý z domácnosti má přednost před synem – jeho práce je v práci dílny
+    // žena kováře měch nešlape (crafts.md – Kdo dělá řemeslo; Martin 22. 10. 2026) – ani když
+    // je dospělá a doma, měchařem je syn, a bez syna je kovář sám
     const wife = village();
     withSmith(wife, { sons: [11] });
     expect(smithBellows(wife, SMITH, wife.lastDay + 1)).toMatchObject({
-      kind: 'adult',
-      personId: SMITH_HEAD + 1,
+      kind: 'son',
+      personId: SMITH_HEAD + 2,
     });
+    const wifeOnly = village();
+    withSmith(wifeOnly);
+    expect(smithBellows(wifeOnly, SMITH, wifeOnly.lastDay + 1)).toBeNull();
+    // dospělý syn (muž) je měchařem jako dospělý z domácnosti
+    const grown = village();
+    withSmith(grown, { sons: [20] });
+    expect(smithBellows(grown, SMITH, grown.lastDay + 1)).toMatchObject({ kind: 'adult' });
   });
 
   it('v simulaci syn u měchu nepase a rozdělení práce ho ukáže u kovárny', () => {
     const summer = at(601, 6, 10);
-    // s ženou šlape měch ona – syn pase ovce zakladatelů
+    // dospělý syn šlape měch (žena ne) – mladší syn pase ovce zakladatelů
     const withWife = village(summer);
-    withSmith(withWife, { sons: [11] });
+    withSmith(withWife, { sons: [20, 11] });
     const herding = advanceVillage(withWife, summer + 1, null);
     expect(herding.labor?.herders?.children).toBe(1);
     // kovář sám – syn šlape měch a nepase
@@ -277,7 +286,7 @@ describe('kovář stojí bez rudy nebo uhlí (production-chains.md – Kovář)'
 
   it('kovář bez práce na celý den pracuje se vsí', () => {
     const s = village();
-    withSmith(s);
+    withSmith(s, { sons: [20] });
     const day = s.lastDay + 1;
     s.toolEquipmentKg = toolNeedKg(s, day);
     s.crafts!.ironBarsKg = barsReserveKg(s, day);
@@ -343,7 +352,7 @@ describe('nástroje jako vybavení domácností (production-chains.md)', () => {
 
   it('souhrn kovárny – houba, hřivny, zásoba, vybavení a měchař', () => {
     const s = village();
-    withSmith(s);
+    withSmith(s, { sons: [11] });
     s.crafts = { charcoalKg: 100, potteryKg: 0, bloomKg: 3, ironBarsKg: 5 };
     s.toolEquipmentKg = 4;
     const summary = summarizeVillage(s, s.lastDay);
@@ -352,7 +361,7 @@ describe('nástroje jako vybavení domácností (production-chains.md)', () => {
     expect(iron).toMatchObject({ bloomKg: 3, barsKg: 5, equipmentKg: 4 });
     expect(iron.needKg).toBe(toolNeedKg(s, s.lastDay));
     expect(iron.barsTargetKg).toBeCloseTo(barsReserveKg(s, s.lastDay), 9);
-    expect(iron.bellows).toMatchObject({ kind: 'adult', sex: 'female' });
+    expect(iron.bellows).toMatchObject({ kind: 'son', sex: 'male' });
   });
 });
 

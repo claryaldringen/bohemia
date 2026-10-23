@@ -404,7 +404,22 @@ export function planting(ctx: Context, ids: readonly number[]): Placer {
   return (i, who) => atTree(ctx, stumps[i % stumps.length]!, who, 'hoe', FELL_REACH_M);
 }
 
-/** Výmlat u vsi: mlatci v kruhu na volném místě kousek od domů (cep zatím paličkou). */
+/**
+ * Výmlat na hotovém humnu (production-chains.md – Humno): mlatci v kruhu uprostřed mlatu.
+ * Humno, které ve scéně není nebo ještě stojí jen jako staveniště, nikoho nemá.
+ */
+export function threshingOnFloor(ctx: Context, floorId: number, count: number): Placer {
+  const floor = (ctx.village.threshingFloors ?? []).find((f) => f.id === floorId);
+  if (!floor?.built) return none;
+  return (i) => {
+    const a = (i / Math.max(1, count)) * Math.PI * 2 + hash01(ctx.seed, 95, floorId);
+    const x = floor.position.x + Math.cos(a) * gap(1.6);
+    const z = floor.position.z + Math.sin(a) * gap(1.6);
+    return stand(x, z, -Math.cos(a), -Math.sin(a), 'build');
+  };
+}
+
+/** Nouzový výmlat u vsi: mlatci v kruhu na volném místě kousek od domů (cep zatím paličkou). */
 export function threshing(ctx: Context, count: number): Placer {
   const floors: Point[] = [];
   const perFloor = 6;

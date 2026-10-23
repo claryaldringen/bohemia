@@ -25,6 +25,7 @@ import {
   burnerDraws,
   burnerPlans,
   craftHouseholds,
+  craftLightLabor,
   ironTravellers,
   migrateBurners,
   restingCrafters,
@@ -369,6 +370,8 @@ export function work(
       0,
       villagers.reduce((sum, p) => sum + laborPerDay(p, day), 0) - restingCarry,
     ),
+    // ženy řemeslníků: zbytek po domácnosti jde jen na lehčí polní práce se vsí (crafts.md)
+    light: craftLightLabor(state, day, crafts, coverage.pottery, productivity),
     householdElders: householdElders(villagers, day),
     // chůze pro vodu nad denní minimum (population.md – Práce, paths.md – Pochůzky pro vodu); vodu,
     // kterou přivezl vůz, nenosí a platí díl práce posádky (wagons.md – Co vozy vozí)

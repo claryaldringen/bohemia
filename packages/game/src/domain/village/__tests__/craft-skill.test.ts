@@ -155,7 +155,8 @@ describe('praxe roste jen při práci (crafts.md – Učení řemesla)', () => {
     expect(practice(s, FATHER, 'potter')).toBe(0);
     gainPractice(s, DAY + 1, new Set([WORKSHOP_ID]));
     expect(practice(s, FATHER, 'potter')).toBeCloseTo(1 / 365, 12);
-    expect(practice(s, MOTHER, 'potter')).toBeCloseTo(1 / 365, 12);
+    // žena řemeslo nedělá, praxi nezískává (crafts.md – Kdo dělá řemeslo)
+    expect(practice(s, MOTHER, 'potter')).toBe(0);
     // ve vsi mimo dílnu praxi nikdo nezíská
     expect(s.people.filter((p) => p.dwellingId === 1).every((p) => !p.practice)).toBe(true);
   });
