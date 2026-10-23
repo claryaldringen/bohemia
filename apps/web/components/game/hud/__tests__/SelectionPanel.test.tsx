@@ -22,11 +22,7 @@ const pen = (over: Partial<Extract<SelectionDetails, { kind: 'pen' }>> = {}): Se
   oxen: 2,
   oxenVillage: null,
   cows: 4,
-  herds: { sheep: 9, goat: 3, pig: 7, cow: 4 },
-  chickens: 6,
-  pastureHa: 41.5,
-  grazingHa: 8.4,
-  milkLPerDay: 0,
+  herd: { species: 'cow', count: 4 },
   team: null,
   training: null,
   hayKg: 3200,
@@ -49,7 +45,7 @@ const text = (html: string, testId: string): string | undefined =>
   new RegExp(`data-testid="${testId}"[^>]*>([^<]*)<`).exec(html)?.[1];
 
 describe('SelectionPanel – ohrada', () => {
-  it('hotová ohrada: zvířata svého druhu a místa, čtverce, seno v tunách, stáda vsi a pastva', () => {
+  it('hotová ohrada: zvířata svého druhu a místa, čtverce, seno v tunách, stádo jen druhu ohrady', () => {
     const html = render(pen());
     expect(html).toContain('data-kind="pen"');
     // ohrada skotu (oxen.md – Ohrady podle druhu): krávy v ohradě na noc / místa, čtverce
@@ -58,17 +54,25 @@ describe('SelectionPanel – ohrada', () => {
     expect(text(html, 'selection-pen-squares')).toBe('2/4');
     expect(text(html, 'selection-oxen')).toBeUndefined();
     // ohrada volů ukazuje voly
-    const team = render(pen({ species: 'team', places: 6, animals: 2, herdPlaces: null }));
+    const team = render(
+      pen({ species: 'team', places: 6, animals: 2, herdPlaces: null, herd: null }),
+    );
     expect(team).toContain('Ohrada volů');
     expect(text(team, 'selection-oxen')).toBe('2');
     expect(text(team, 'selection-pen-animals')).toBeUndefined();
     expect(text(html, 'selection-hay')).toBe('3,2 t');
-    expect(text(html, 'selection-herd-sheep')).toBe('9');
-    expect(text(html, 'selection-herd-chicken')).toBe('6');
-    expect(text(html, 'selection-pasture')).toBe('8,4/41,5 ha');
-    // mimo dobu dojení se mléko neukazuje
+    // jen stádo druhu ohrady (issue #3) – ostatní druhy, slepice, pastva ani mléko ne
+    expect(text(html, 'selection-herd-cow')).toBe('4');
+    for (const other of ['sheep', 'goat', 'pig', 'chicken']) {
+      expect(text(html, `selection-herd-${other}`)).toBeUndefined();
+    }
+    expect(text(html, 'selection-pasture')).toBeUndefined();
     expect(text(html, 'selection-milk')).toBeUndefined();
-    expect(text(render(pen({ milkLPerDay: 14.2 })), 'selection-milk')).toBe('14');
+    // ohrada ovcí ukáže ovce, ohrada volů žádné stádo
+    const sheep = render(pen({ species: 'sheep', herd: { species: 'sheep', count: 9 } }));
+    expect(text(sheep, 'selection-herd-sheep')).toBe('9');
+    expect(text(sheep, 'selection-herd-cow')).toBeUndefined();
+    expect(text(team, 'selection-herd-cow')).toBeUndefined();
   });
 
   it('ohrada volů: místa / kolik volů ves chce, páry s rádlem a vozy (Martin 20. 10. 2026)', () => {

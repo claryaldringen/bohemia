@@ -255,6 +255,7 @@ const view = {
   pens: [
     {
       id: 90,
+      species: 'cattle',
       built: true,
       progress: 1,
       team: { ageYears: 3, yearsLeft: 7 },
@@ -744,20 +745,18 @@ describe('selectionDetails – posvátná místa', () => {
     expect(selectionDetails(view, scene, { kind: 'sacred', id: 99 })).toBeNull();
   });
 
-  it('ohrada: zvířata, seno, stáda vsi s pastvou, voli a důvod, proč výcvik nejde', () => {
+  it('ohrada: zvířata, seno, stádo jen druhu ohrady, voli a důvod, proč výcvik nejde', () => {
     expect(selectionDetails(view, scene, { kind: 'pen', id: 90 })).toEqual({
       kind: 'pen',
       id: 90,
+      species: 'cattle',
       built: true,
       progress: 1,
       oxen: 2,
       oxenVillage: null,
       cows: 4,
-      herds: { sheep: 9, goat: 3, pig: 7, cow: 4 },
-      chickens: 6,
-      pastureHa: 41.5,
-      grazingHa: 8.4,
-      milkLPerDay: 14.2,
+      // jen stádo druhu ohrady (skot = krávy); slepice, pastva a mléko vsi v panelu nejsou
+      herd: { species: 'cow', count: 4 },
       team: { ageYears: 3, yearsLeft: 7 },
       training: null,
       hayKg: 3200,
