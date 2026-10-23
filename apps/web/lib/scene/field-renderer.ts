@@ -20,6 +20,7 @@ import {
   clearingsNear,
   fieldClearings,
   hayBlockers,
+  hayBlockersKey,
 } from './building-clearings';
 import { cellsBounds, rowDirection, squaresContain, touchingSquares } from './field-cells';
 import {
@@ -593,6 +594,9 @@ export class FieldRenderer {
     return true;
   }
 
+  /** Maska ploch, kam seno nesmí (bez cest) – přestaví se jen při změně klíče. */
+  private hayMask: { key: string; mask: ReturnType<typeof clearingMask> } | null = null;
+
   /** Podpis pásů cest a pěšin (mění se s nimi) – klíč sena, které cesty nesmí zakrývat. */
   private trackStamp(): string {
     return `${this.roads?.key ?? ''}|${this.pathsVersion}`;
@@ -632,15 +636,18 @@ export class FieldRenderer {
     // přirozené louky letošní seče (oxen.md – Seno) se kreslí jako díly pole se vzhledem od
     // jádra – se zápornými id, bez skrývání překážek (stromy a kameny na louce zůstanou)
     const meadows = hayMeadowFields(this.village.hayMeadows ?? []);
-    // kam seno nesmí (cesty, stavby, ohrady, humno…) – počítá se jen, když nějaké seno je
+    // kam seno nesmí (cesty, stavby, ohrady, humno…) – plochy se staví líně, jen když nějaké seno
+    // je a změnil se podpis ploch (`hayBlockersKey`); v rámci jednoho průchodu se počítá jednou
     let hayBlock: { key: string; blocked: (x: number, z: number) => boolean } | null = null;
     const hayBlocking = (): NonNullable<typeof hayBlock> => {
       if (hayBlock) return hayBlock;
-      const blockers = hayBlockers(this.village);
-      const mask = clearingMask(blockers, HAY_CLEAR_M);
-      const bounds = blockers.map((c) => [c.minX, c.maxX, c.minZ, c.maxZ].map(Math.round));
+      const key = `${hayBlockersKey(this.village)}#${this.trackStamp()}`;
+      if (this.hayMask?.key !== key) {
+        this.hayMask = { key, mask: clearingMask(hayBlockers(this.village), HAY_CLEAR_M) };
+      }
+      const { mask } = this.hayMask;
       hayBlock = {
-        key: `${blockers.length}:${JSON.stringify(bounds)}#${this.trackStamp()}`,
+        key,
         blocked: (x, z) => mask(x, z) < 1 || (tracks !== null && tracks.at(x, z) < 0.5),
       };
       return hayBlock;

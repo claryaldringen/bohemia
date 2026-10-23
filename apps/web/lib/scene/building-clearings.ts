@@ -142,6 +142,28 @@ export function hayBlockers(village: SceneVillage): Clearing[] {
 }
 
 /**
+ * Levný podpis všeho, z čeho `hayBlockers` skládá plochy (poloha, druh, natočení, varianta
+ * pozemku) – bez geometrie. Klíč sena: plochy a maska se staví jen při jeho změně.
+ */
+export function hayBlockersKey(village: SceneVillage): string {
+  const pos = (p: { x: number; z: number }): number[] => [p.x, p.z];
+  return JSON.stringify([
+    village.dwellings.map((d) => [d.type, pos(d.position), d.plainShape ?? false, d.plot ?? null]),
+    (village.ruins ?? []).map((r) => [pos(r.position), r.plot ?? null]),
+    (village.pens ?? []).map((p) => scenePenSquares(p).map((q) => [q.x, q.z, q.size, q.rotation])),
+    (village.cemeteries ?? []).map((c) => c.squares.map((q) => [q.x, q.z, q.size, q.rotation])),
+    (village.orchards ?? []).map((o) => o.squares.map((q) => [q.x, q.z, q.size, q.rotation])),
+    (village.threshingFloors ?? []).map((f) => pos(f.position)),
+    (village.grainPits ?? []).map(pos),
+    (village.kilns ?? []).map(pos),
+    (village.kilnRemnants ?? []).map(pos),
+    (village.oreSites ?? []).map(pos),
+    (village.orePits ?? []).map(pos),
+    (village.sacred?.buildings ?? []).map((b) => [b.kind, pos(b.position)]),
+  ]);
+}
+
+/**
  * Co pole pod sebou nekreslí (fields.md – Pole jako krajina): vyklízené plochy obydlí, půdorysy
  * model a svatyní a plocha pod korunou jabloní a stromů u cest (i čekajících na výsadbu), které
  * stojí na poli (`onField` – kmen na čtverci pole; strom vedle pole poli nic nebere).

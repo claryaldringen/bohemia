@@ -531,9 +531,6 @@ export interface CrewMember {
   portrait: PersonPortraitIcon;
 }
 
-/** Pořadí stád v panelu ohrady (diet.md – Dobytek). */
-export const HERD_ORDER: readonly HerdSpecies[] = ['sheep', 'goat', 'pig', 'cow'];
-
 /** Ikony a názvy stád (`/icons/resources/<ikona>.png`). */
 export const HERD_LABELS: Record<HerdSpecies, { name: string; icon: string }> = {
   sheep: { name: 'Ovce', icon: 'sheep' },
