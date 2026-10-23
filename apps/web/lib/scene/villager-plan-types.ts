@@ -69,8 +69,9 @@ export const WOMEN: Record<LaborActivity, number> = {
   'orchard-plant': 0.3,
   cemetery: 0.2,
   repair: 0.2,
-  craft: 0.25,
-  plant: 0.4,
+  // řemeslo dělá jen řemeslník a jeho synové (crafts.md – Kdo dělá řemeslo)
+  craft: 0,
+  plant: 0,
   // kovář a jeho synové (crafts.md – Uhlí a ruda kováře) – muži
   ore: 0,
   clay: 0.2,

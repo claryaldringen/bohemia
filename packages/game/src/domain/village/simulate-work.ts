@@ -25,6 +25,7 @@ import {
   burnerDraws,
   burnerPlans,
   craftHouseholds,
+  craftLightLabor,
   ironTravellers,
   migrateBurners,
   restingCrafters,
@@ -367,7 +368,10 @@ export function work(
   const allocation = allocateDay({
     capacity: Math.max(
       0,
-      villagers.reduce((sum, p) => sum + laborPerDay(p, day), 0) - restingCarry,
+      villagers.reduce((sum, p) => sum + laborPerDay(p, day), 0) -
+        restingCarry +
+        // ženy řemeslníků: zbytek po domácnosti jde na lehčí polní práce se vsí (crafts.md)
+        craftLightLabor(state, day, crafts, coverage.pottery, productivity),
     ),
     householdElders: householdElders(villagers, day),
     // chůze pro vodu nad denní minimum (population.md – Práce, paths.md – Pochůzky pro vodu); vodu,

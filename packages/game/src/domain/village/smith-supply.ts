@@ -11,7 +11,7 @@ import {
 import { distanceFactor } from './fields';
 import { obstacleChangesAt, obstacleStatus, type ObstacleStatus } from './obstacles';
 import { PolygonIndex, villageLandSquares } from './squares';
-import { ageGroup, ageYears } from './people';
+import { ageGroup, ageYears, laborPerDay } from './people';
 import { PATH_FOREST, PATH_WATER_SPOT, PATH_WETLAND } from './paths/terrain';
 import { groundSpots, villageRoadWalk, walkGroundOf } from './paths/walking';
 import { kilnPoint, workshopKilns } from './charcoal';
@@ -141,6 +141,17 @@ export function smithHead(members: readonly Person[], day: number): SmithMember 
     sorted.find((p) => ageGroup(p, day) !== 'child') ??
     sorted[0];
   return head ? { id: head.id, age: ageYears(head.bornDay, day) } : null;
+}
+
+/**
+ * Kdo z domácnosti dílny dělá řemeslo (crafts.md – Kdo dělá řemeslo; Martin 22. 10. 2026: „Řemeslo
+ * dělá jen řemeslník a jeho synové“): muži a lidé bez uvedeného pohlaví (starší vsi); ženy se
+ * starají o domácnost a dělají lehčí polní práce se vsí. Když v domácnosti není nikdo, kdo by
+ * mohl pracovat (vdova s dětmi), řemeslo drží celá domácnost, ať dílna nestojí.
+ */
+export function craftHands(members: readonly Person[], day: number): Person[] {
+  const men = members.filter((p) => p.sex !== 'female');
+  return men.some((p) => laborPerDay(p, day) > 0) ? men : [...members];
 }
 
 /**

@@ -102,7 +102,14 @@ export class DayRoster {
     for (const p of this.order) {
       if (this.taken.has(p.id) || p.age < request.from || p.age >= request.to) continue;
       if (request.onlySex && p.sex !== request.onlySex) continue;
-      if (request.homes ? !request.homes.has(p.home) : this.busyHomes.has(p.home)) continue;
+      // ženy domácnosti, která dnes pracuje v dílně, dělají lehčí polní práce se vsí (crafts.md)
+      if (
+        request.homes
+          ? !request.homes.has(p.home)
+          : this.busyHomes.has(p.home) && p.sex !== 'female'
+      ) {
+        continue;
+      }
       // skóre: domácnost (×1000), věk (×10), pohlaví (×1) – menší je lepší; při shodě los
       const score =
         (request.preferHome !== undefined && p.home !== request.preferHome ? 1000 : 0) +
@@ -116,6 +123,12 @@ export class DayRoster {
     }
     if (best) this.taken.add(best.id);
     return best;
+  }
+
+  /** Je v domácnosti `home` nějaký muž (dnes volný i obsazený)? */
+  hasMen(home: number): boolean {
+    for (const p of this.byId.values()) if (p.home === home && p.sex === 'male') return true;
+    return false;
   }
 
   /** Člověk zase volný – jeho postava nakonec není (nevyšlo jí místo). */

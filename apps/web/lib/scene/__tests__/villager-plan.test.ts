@@ -1718,7 +1718,7 @@ describe('výmlat na humně (production-chains.md – Humno; issue #3)', () => {
   const FLOOR = { x: 60, z: -50 };
   const withFloor = (target: SceneLaborShare['target']): SceneVillage => ({
     ...village([{ activity: 'thresh', target, manDays: 3 }]),
-    threshingFloors: [{ id: 40, position: FLOOR, built: true, progress: 1 }],
+    threshingFloors: [{ id: 40, position: { ...FLOOR, rotation: 0 }, built: true, progress: 1 }],
   });
   const threshers = (v: SceneVillage): PlannedVillager[] =>
     planVillagers(v, GROUND, { seed: 3, herds: 0 }).filter((p) => p.key.startsWith('thresh:'));

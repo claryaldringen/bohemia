@@ -185,11 +185,13 @@ describe('DayRoster – lidé dne k postavám', () => {
     const first = roster.take({ ...ADULTS, sex: 'female', preferHome: 2 })!;
     expect(first.id).toBe(202);
     expect(roster.takeId(202)).toBeNull();
-    // z kovárny do práce vsi nikdo
-    const taken: number[] = [];
-    for (let p = roster.take(ADULTS); p; p = roster.take(ADULTS)) taken.push(p.home);
-    expect(taken).not.toContain(31);
-    expect(roster.take({ ...ADULTS, homes: new Set([31]) })).not.toBeNull();
+    // z kovárny do práce vsi jen ženy (lehčí polní práce – crafts.md), muži ne
+    const taken: { home: number; sex: string }[] = [];
+    for (let p = roster.take(ADULTS); p; p = roster.take(ADULTS)) {
+      taken.push({ home: p.home, sex: p.sex });
+    }
+    expect(taken.filter((p) => p.home === 31 && p.sex === 'male')).toEqual([]);
+    expect(roster.take({ ...ADULTS, homes: new Set([31]), onlySex: 'male' })).not.toBeNull();
     // syn podle věku
     expect(roster.take({ ...YOUNGSTERS, homes: new Set([31]), age: 11 })!.id).toBe(403);
   });
@@ -236,6 +238,8 @@ describe('planVillagers s lidmi vsi – kdo je která postava', () => {
     const craft = people.filter((p) => p.job?.kind === 'share' && p.job.activity === 'craft');
     expect(craft.length).toBeGreaterThan(0);
     for (const c of craft) expect(personOf(c).home).toBe(31);
+    // řemeslo dělá jen kovář a synové, kovářova žena ne (crafts.md – Kdo dělá řemeslo)
+    for (const c of craft) expect(personOf(c).sex).toBe('male');
     // kovářova rodina na poli nepracuje
     const field = people.filter((p) => p.job?.kind === 'share' && p.job.activity === 'harvest');
     for (const f of field) expect(personOf(f).home).not.toBe(31);

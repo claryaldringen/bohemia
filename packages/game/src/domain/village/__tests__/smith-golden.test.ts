@@ -131,6 +131,8 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
     const stripped = JSON.stringify(legacyShape(next), (key, value: unknown) =>
       learning.has(key) ? undefined : value,
     );
-    expect(hash(stripped)).toBe('2f488a15');
+    // otisk se změnil 22. 10. 2026: řemeslo dělají jen muži domácnosti, ženy dávají zbytek práce
+    // po domácnosti vsi (crafts.md – Kdo dělá řemeslo); dřív 2f488a15
+    expect(hash(stripped)).toBe('d7d45927');
   }, 120_000);
 });

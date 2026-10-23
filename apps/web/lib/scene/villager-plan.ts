@@ -359,9 +359,14 @@ export function shareWorker(
   const t = share.target;
   const own = (id: number): ReadonlySet<number> => new Set([id]);
   if (share.activity === 'craft' && (t.kind === 'dwelling' || t.kind === 'kiln')) {
+    // řemeslo dělá jen řemeslník a jeho synové, ženy ne (crafts.md – Kdo dělá řemeslo)
     return (
-      roster.take({ ...ADULTS, homes: own(t.id), sex }) ??
-      roster.take({ from: AGE.olderChild, to: Infinity, homes: own(t.id), sex })
+      roster.take({ ...ADULTS, homes: own(t.id), onlySex: 'male' }) ??
+      roster.take({ from: AGE.olderChild, to: Infinity, homes: own(t.id), onlySex: 'male' }) ??
+      (roster.hasMen(t.id)
+        ? null
+        : (roster.take({ ...ADULTS, homes: own(t.id), sex }) ??
+          roster.take({ from: AGE.olderChild, to: Infinity, homes: own(t.id), sex })))
     );
   }
   if (
@@ -384,8 +389,8 @@ export function shareWorker(
     const burners = craftHomes(ctx, (craft) => craft === 'burner');
     const crafts = craftHomes(ctx, (craft) => craft === 'burner' || craft === 'potter');
     return (
-      (burners.size > 0 ? roster.take({ ...ADULTS, homes: burners, sex }) : null) ??
-      (crafts.size > 0 ? roster.take({ ...ADULTS, homes: crafts, sex }) : null) ??
+      (burners.size > 0 ? roster.take({ ...ADULTS, homes: burners, onlySex: 'male' }) : null) ??
+      (crafts.size > 0 ? roster.take({ ...ADULTS, homes: crafts, onlySex: 'male' }) : null) ??
       roster.take({ ...ADULTS, sex })
     );
   }

@@ -1,7 +1,7 @@
 import { cloneState } from './clone';
 import { ageGroup, ageYears, laborPerDay } from './people';
 import { CRAFT_SKILL } from './rules';
-import { smithSons, type SmithMember } from './smith-supply';
+import { craftHands, smithSons, type SmithMember } from './smith-supply';
 import type { Craft, Person, VillageState } from './types';
 
 // Učení řemesla (crafts.md – Učení řemesla; Martin 20. 10. 2026: „Každý řemeslník vychovává svého
@@ -20,6 +20,14 @@ const PRACTICE_PER_DAY = 1 / DAYS_PER_YEAR;
 export function skillShare(years: number): number {
   const learned = Math.min(1, Math.max(0, years) / CRAFT_SKILL.fullYears);
   return CRAFT_SKILL.startShare + (1 - CRAFT_SKILL.startShare) * learned;
+}
+
+/** Kdo z domácnosti dílny dělá řemeslo – řemeslník a synové, ne ženy (`craftHands`). */
+function handsOf(state: Pick<VillageState, 'people'>, dwellingId: number, day: number): Person[] {
+  return craftHands(
+    state.people.filter((p) => p.dwellingId === dwellingId),
+    day,
+  );
 }
 
 /** Praxe člověka v řemesle (roky); bez praxe 0. */
@@ -42,8 +50,8 @@ export function workshopSkill(
   const workshop = state.dwellings.find((d) => d.id === dwellingId)?.workshop;
   if (!workshop?.skillTracked) return 1;
   let best = 0;
-  for (const p of state.people) {
-    if (p.dwellingId !== dwellingId || p.id === away || ageGroup(p, day) === 'child') continue;
+  for (const p of handsOf(state, dwellingId, day)) {
+    if (p.id === away || ageGroup(p, day) === 'child') continue;
     best = Math.max(best, practiceOf(p, workshop.craft));
   }
   return skillShare(best);
@@ -87,8 +95,8 @@ export function craftSkillSummary(
   }
   const craft = workshop.craft;
   let years = 0;
-  for (const p of state.people) {
-    if (p.dwellingId !== dwellingId || p.id === away || ageGroup(p, day) === 'child') continue;
+  for (const p of handsOf(state, dwellingId, day)) {
+    if (p.id === away || ageGroup(p, day) === 'child') continue;
     years = Math.max(years, practiceOf(p, craft));
   }
   const byId = new Map(state.people.map((p) => [p.id, p]));
@@ -126,8 +134,8 @@ export function gainPractice(
     const full = worked.has(d.id);
     if (!full && !apprenticesOnly.has(d.id)) continue;
     const learners = new Set(craftApprentices(state, d.id, day).map((s) => s.id));
-    for (const p of state.people) {
-      if (p.dwellingId !== d.id || away.has(p.id)) continue;
+    for (const p of handsOf(state, d.id, day)) {
+      if (away.has(p.id)) continue;
       if (learners.has(p.id) || (full && laborPerDay(p, day) > 0)) {
         addPractice(p, workshop.craft, PRACTICE_PER_DAY);
       }
