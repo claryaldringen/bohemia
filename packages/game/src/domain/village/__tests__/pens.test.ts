@@ -20,7 +20,7 @@ import {
 } from '../pens';
 import { penEntrance, penGateToward, penSquaresEntrance } from '../paths/entrances';
 import { penSquaresFromCells } from '../placement';
-import { HOMESTEAD_HERD, PEN_GRACE, PEN_PLACES_PER_SQUARE } from '../rules';
+import { HOMESTEAD_HERD, PEN_FENCE, PEN_GRACE, PEN_PLACES_PER_SQUARE } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { Pen, PenSpecies, VillageState } from '../types';
 import { block, makeLandscape } from './placement-fixtures';
@@ -133,7 +133,7 @@ describe('ohrada po čtvercích jako hřbitov', () => {
     expect(p.extraSquares?.map((q) => q.cell)).toEqual([{ x: 5, y: 4 }]);
     expect(p.extraSquares![0]!.constructionId).toBeUndefined();
     // sdílená strana bez plotu: 2 × (6 − 4) stromů zbytku + 6 vnějších stran po stromu
-    expect(next.woodLogs).toBe(100 - 2 * (PEN.trees - PEN.fenceTrees) - 6);
+    expect(next.woodLogs).toBe(100 - 2 * (PEN.trees - PEN_FENCE.trees) - 6);
     const c = next.constructions.find((x) => x.kind === 'pen')!;
     expect(c.penId).toBe(p.id);
     const built = advanceVillage(next, s.lastDay + 120, EMPTY);
@@ -153,7 +153,7 @@ describe('ohrada po čtvercích jako hřbitov', () => {
     const logsBefore = s.woodLogs;
     s = foundPen(s, s.lastDay, { species: 'pig', squares: check.squares }, EMPTY);
     // rozšíření platí plot jen na 3 nových stranách (oxen.md – Plot podle délky): 2 + 3 stromy
-    expect(logsBefore! - s.woodLogs!).toBe(PEN.trees - PEN.fenceTrees + 3);
+    expect(logsBefore! - s.woodLogs!).toBe(PEN.trees - PEN_FENCE.trees + 3);
     const construction = s.constructions.find((c) => c.kind === 'pen' && c.done === 0)!;
     expect(construction.cost).toBeCloseTo(penBuildLabor() * 0.875, 6);
     expect(s.pens).toHaveLength(1);

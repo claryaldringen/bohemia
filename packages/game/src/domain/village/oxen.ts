@@ -8,6 +8,7 @@ import {
   DRAFT_OXEN,
   FELLING_MAN_DAYS_PER_TREE,
   OXEN,
+  PEN_FENCE,
   PEN_PLACES_PER_SQUARE,
   PLANNING_DAY,
 } from './rules';
@@ -47,7 +48,7 @@ import { planCrops, ploughToHoe } from './year-plan';
  * strana čtverce stojí osminu práce a strom; zbytek (přístřešek, žlab, jesle, úprava země) platí
  * každý čtverec a plot jen strany, které nesousedí s ohradou ani s dalším novým čtvercem.
  */
-export const PEN = { laborManDays: 40, trees: 6, fenceShare: 0.5, fenceTrees: 4 } as const;
+export const PEN = { laborManDays: 40, trees: 6 } as const;
 /** oxen.md – Spřežení: rádlo z 1 stromu za 5 člověkodní. */
 export const ARD = { laborManDays: 5, trees: 1 } as const;
 
@@ -710,7 +711,7 @@ export function penLaborManDays(
   fenceSides = squares * SQUARE_SIDES,
 ): number {
   return (
-    penBuildLabor() * fencedSquareEquivalents(squares, fenceSides, PEN.fenceShare) +
+    penBuildLabor() * fencedSquareEquivalents(squares, fenceSides, PEN_FENCE.share) +
     obstacleCost +
     wood.fell.reduce((sum, t) => sum + t.cost, 0)
   );
@@ -718,7 +719,7 @@ export function penLaborManDays(
 
 /** Stromy na ohradu: zbytek za každý čtverec a strom na každou novou stranu plotu. */
 export function penTrees(squares: number, fenceSides: number): number {
-  return (PEN.trees - PEN.fenceTrees) * squares + (PEN.fenceTrees * fenceSides) / SQUARE_SIDES;
+  return (PEN.trees - PEN_FENCE.trees) * squares + (PEN_FENCE.trees * fenceSides) / SQUARE_SIDES;
 }
 
 /** Políčka ohrady (hotová i rozestavěné), na které nové čtverce navazují. */

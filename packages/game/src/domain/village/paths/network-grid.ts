@@ -202,26 +202,39 @@ export function fencedCells(grid: GridWindow, squares: readonly Square[], inset:
   const cells: number[] = [];
   const eps = 1e-6;
   const r = inset - eps;
+  // čtverec o poloviční straně `inset` kolem bodu celý uvnitř (rohy a středy stran)
+  const offsets = [
+    [0, 0],
+    [r, r],
+    [-r, r],
+    [r, -r],
+    [-r, -r],
+    [r, 0],
+    [-r, 0],
+    [0, r],
+    [0, -r],
+  ] as const;
+  const boxInside = (x: number, z: number): boolean =>
+    offsets.every(([a, b]) => around(x, z, a, b));
+  // Natočení o násobek 90° nechává hranice čtverců na řadách mřížky vozů – stačí střed buňky. Jiné
+  // natočení (po 15°) pruh 3 m u hranice nemusí trefit žádným středem a ulička by zmizela; tam
+  // se buňka blokuje, jen když leží celá (všechny čtyři rohy) uvnitř plotu, takže každá buňka,
+  // kterou pruh protíná, zůstane sjízdná a ulička je souvislá.
+  const turn = squares[0]!.rotation === undefined ? 0 : rotationTurn(squares[0]!.rotation);
+  const aligned = turn !== null && turn % 6 === 0;
+  const h = grid.cellM / 2;
   for (const s of squares) {
     const half = (s.size / 2) * spread;
     cellsIn(grid, s.x - half, s.z - half, s.x + half, s.z + half, (c, x, z) => {
       if (seen.has(c)) return;
       seen.add(c);
-      // čtverec o poloviční straně `inset` kolem středu celý uvnitř (rohy a středy stran)
-      for (const [a, b] of [
-        [0, 0],
-        [r, r],
-        [-r, r],
-        [r, -r],
-        [-r, -r],
-        [r, 0],
-        [-r, 0],
-        [0, r],
-        [0, -r],
-      ] as const) {
-        if (!around(x, z, a, b)) return;
-      }
-      cells.push(c);
+      const blocked = aligned
+        ? boxInside(x, z)
+        : boxInside(x - h, z - h) &&
+          boxInside(x + h, z - h) &&
+          boxInside(x - h, z + h) &&
+          boxInside(x + h, z + h);
+      if (blocked) cells.push(c);
     });
   }
   return cells;

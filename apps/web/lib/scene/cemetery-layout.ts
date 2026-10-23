@@ -38,7 +38,12 @@ const GRAVE_MARGIN_M = GRAVE_PLACES.marginM;
  * – Plot hřbitova uvnitř čtverce), takže mřížka je hustší o poměr ploch bez okraje (původní okraj
  * 0,5 m na čtverci 15 m).
  */
-const GRAVE_SCALE = (15 - 2 * GRAVE_MARGIN_M) / (15 - 2 * 0.5);
+// Hroby se zmenšily s okrajem: místa leží `GRAVE_MARGIN_M` od okraje čtverce místo okraje bez plotu
+// (`GRAVE_MARGIN_M - CEMETERY_FENCE_INSET_M`); strana čtverce je `SQUARE_SIDE_M`.
+const SQUARE_SIDE_M = 15;
+const GRAVE_SCALE =
+  (SQUARE_SIDE_M - 2 * GRAVE_MARGIN_M) /
+  (SQUARE_SIDE_M - 2 * (GRAVE_MARGIN_M - CEMETERY_FENCE_INSET_M));
 /** Kolik posledních hrobů je čerstvých (holá hlína) – ostatní zarostly travou. */
 export const FRESH_GRAVES = 3;
 /**

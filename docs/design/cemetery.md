@@ -151,7 +151,7 @@ menší – okraj čtverce bez hrobů je 2 m (plot 1,5 m + 0,5 m), krok míst 11
 zmenší stejným poměrem. Plot se platí **podle délky** (návrh Clauda): `CEMETERY.fenceShare` 0,3 z 10 čd
 čtverce (jako oprava plotu) jen za nové vnější strany (`newFenceSides`), vytyčení zbytek platí každý
 čtverec – jeden čtverec 10 čd, rozšíření o čtverec po jedné straně 9,25 čd, dva nové čtverce vedle
-sebe 18,5 čd. Oprava plotu odpovídá vnějšímu obrysu.
+sebe 18,5 čd. Oprava plotu odpovídá vnějšímu obrysu. Při rozšíření ve stavbě stojí starý plot i na straně, která se po dokončení stane vnitřní (a tedy 1,5 m uvnitř starého čtverce), až do dokončení – stejně jako u ohrady.
 
 ## Co hráč vidí
 

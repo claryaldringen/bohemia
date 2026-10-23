@@ -1,7 +1,7 @@
 // Obydlí, pozemky, kácení, humno, odchod do nové vsi a chátrání staveb (část rozdělených pravidel, rozcestník je rules.ts).
 
 import type { DwellingType, PlotVariant } from './types';
-import { DWELLINGS } from './rules-people';
+import { CEMETERY_FENCE_INSET_M, DWELLINGS } from './rules-people';
 
 // population.md – Umístění obydlí (půdorys zemnice ≈ 4 × 4 m, polozemnice 5 × 5 m, rovina ≤ 0,5 m)
 export const DWELLING_FOOTPRINT_M: Record<DwellingType, { width: number; depth: number }> = {
@@ -193,4 +193,8 @@ export const LEAVING = {
 // ohradami (nebo ohradou a hřbitovem) je tedy ulička 3 m – míjí se v ní vůz i chodec. Mezi čtverci
 // téže ohrady nebo téhož hřbitova plot není. Návrh Clauda: 1,5 m = polovina uličky pro vůz (≈ 2,2 m
 // široký i s nákladem) s rezervou. Pozemek polozemnice (PLOT_*) zůstává 0,5 m od okraje.
-export const PEN_FENCE_INSET_M = 1.5;
+// Číslo drží `CEMETERY_FENCE_INSET_M` (rules-people.ts) – plot ohrady i hřbitova je odsazen stejně.
+export const PEN_FENCE_INSET_M = CEMETERY_FENCE_INSET_M;
+// oxen.md – Plot podle délky (návrh Clauda): polovina práce ohrady (`PEN.laborManDays`) a 4 stromy ze
+// 6 (`PEN.trees`) jsou plot, tedy strana čtverce stojí osminu práce a strom.
+export const PEN_FENCE = { share: 0.5, trees: 4 } as const;

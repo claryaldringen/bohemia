@@ -2,8 +2,8 @@ import { readySquares, villageCemeteries } from './cemetery';
 import { sacredBuildLabor } from './costs';
 import { builtPenSquares } from './pens';
 import { fencedSquareEquivalents, outerFenceSides, SQUARE_SIDES } from './fence-cost';
-import { PEN, penBuildLabor, villagePens } from './oxen';
-import { CEMETERY, STRUCTURE_REPAIR } from './rules';
+import { penBuildLabor, villagePens } from './oxen';
+import { CEMETERY, PEN_FENCE, STRUCTURE_REPAIR } from './rules';
 import type {
   AbandonedStructure,
   ChronicleEvent,
@@ -88,7 +88,7 @@ export function fullRepairManDays(state: VillageState, ref: StructureRef): numbe
       penBuildLabor() *
       (cells.length === 0
         ? 1
-        : fencedSquareEquivalents(cells.length, outerFenceSides(cells), PEN.fenceShare))
+        : fencedSquareEquivalents(cells.length, outerFenceSides(cells), PEN_FENCE.share))
     );
   }
   const kind = ref.structure;

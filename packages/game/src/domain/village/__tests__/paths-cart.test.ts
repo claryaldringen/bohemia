@@ -805,4 +805,71 @@ describe('ulička mezi ohradami a hřbitovem (oxen.md – plot je menší než �
     // za vnější stranou plotu je volno (jen 1,5 m pruh u plotu)
     expect(Number.isFinite(costAt(grid, -30, -7.5))).toBe(true);
   });
+
+  it('natočené ohrady (30°) mají souvislou uličku, i když mřížka vozů nesedí na hranici', () => {
+    const turn = Math.PI / 6;
+    const c = Math.cos(turn);
+    const sn = Math.sin(turn);
+    // dva hřbitovy vedle sebe v natočené mřížce; několik posunů, aby střed buňky nepadl vždy stejně
+    for (const shift of [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7]) {
+      const x0 = -22.5 + shift;
+      const z0 = -7.5 + shift / 2;
+      const sq = (k: number): ReturnType<typeof part> => ({
+        ...part(x0 + 15 * k * c, z0 - 15 * k * sn),
+        cell: { x: 8 + k, y: 9 },
+        rotation: turn,
+      });
+      const grid = cartGrid({
+        village: village({
+          cemeteries: [
+            { id: 1, built: true, squares: [sq(0)] },
+            { id: 2, built: true, squares: [sq(1)] },
+          ],
+        }),
+        terrain: flatTerrain,
+      });
+      // hranice: bod mezi středy a směr podél ní
+      const mx = x0 + 7.5 * c;
+      const mz = z0 - 7.5 * sn;
+      const near = new Set<number>();
+      for (let j = 0; j < grid.height; j++) {
+        for (let i = 0; i < grid.width; i++) {
+          const x = grid.originX + i * grid.cellM;
+          const z = grid.originZ + j * grid.cellM;
+          const across = Math.abs((x - mx) * c - (z - mz) * sn);
+          const along = (x - mx) * sn + (z - mz) * c;
+          if (
+            across <= 2.7 &&
+            Math.abs(along) <= 7 &&
+            Number.isFinite(grid.cost[j * grid.width + i]!)
+          )
+            near.add(j * grid.width + i);
+        }
+      }
+      // průchod 8 sousedů z jednoho konce uličky na druhý
+      const ends = [...near].sort((a, b) => {
+        const f = (q: number): number =>
+          (grid.originX + (q % grid.width) * grid.cellM - mx) * sn +
+          (grid.originZ + Math.floor(q / grid.width) * grid.cellM - mz) * c;
+        return f(a) - f(b);
+      });
+      const start = ends[0]!;
+      const goal = ends[ends.length - 1]!;
+      const seen = new Set([start]);
+      const queue = [start];
+      while (queue.length > 0) {
+        const q = queue.pop()!;
+        for (const dj of [-1, 0, 1]) {
+          for (const di of [-1, 0, 1]) {
+            const n = q + dj * grid.width + di;
+            if (near.has(n) && !seen.has(n)) {
+              seen.add(n);
+              queue.push(n);
+            }
+          }
+        }
+      }
+      expect(seen.has(goal), `posun ${shift}`).toBe(true);
+    }
+  });
 });

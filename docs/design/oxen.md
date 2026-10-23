@@ -135,7 +135,7 @@ ušetřit poměrně dřeva a času.**“ Volby Martina téhož dne: kapacita na 
   mezi ploty uličku 3 m, kterou vůz i chodec projede; 1,5 m = polovina uličky pro vůz s nákladem
   s rezervou. Mezi čtverci téže ohrady plot není. Pozemek polozemnice zůstává 0,5 m od okraje.
 - **Cena plotu podle délky (návrh Clauda):** cena čtverce (40 čd, 6 stromů) se dělí na **plot**
-  (`PEN.fenceShare` 0,5 práce a `PEN.fenceTrees` 4 stromy, tedy osmina práce a strom na stranu
+  (`PEN_FENCE.share` 0,5 práce a `PEN_FENCE.trees` 4 stromy, tedy osmina práce a strom na stranu
   čtverce) a **zbytek** (přístřešek, žlab, jesle, úprava země – platí každý čtverec). Plot se platí
   jen za **nové vnější strany** (`newFenceSides`, `fence-cost.ts`): strana, za kterou leží jiný
   nový čtverec nebo čtverec téže ohrady, plot nechce. Samostatný čtverec stojí jako dřív (40 čd,
@@ -144,7 +144,7 @@ ušetřit poměrně dřeva a času.**“ Volby Martina téhož dne: kapacita na 
   dokončení rozšíření). Oprava plotu (abandonment.md) počítá s vnějším obrysem
   stejně.
 - **Průjezdnost:** vozová síť blokuje jen buňky uvnitř plotu (`fencedCells`), takže řada buněk na
-  hranici sousedních čtverců je sjízdná (mřížka vozů 3,75 m, hranice čtverců leží na jejích řadách).
+  hranici sousedních čtverců je sjízdná (mřížka vozů 3,75 m, hranice čtverců leží na jejích řadách; u ohrad natočených o jiný násobek než 90° řady na hranici nesedí, proto se buňka blokuje, jen když leží celá uvnitř plotu – `fencedCells`).
   Pěšiny ohradou už dřív procházely. Plánování vozové cesty (`wagonRoadGrid`) drží odstup od celého
   čtverce, ulička je tedy pro vozy jen na stávající síti – řeší nový systém cest (#6).
 

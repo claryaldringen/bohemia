@@ -182,8 +182,9 @@ export const CEMETERY = {
 // 2 m od okraje čtverce a místo na hrob je menší, ale míst zůstává 56 – Martin 23. 10. 2026:
 // „kapacita na čtverec zůstane“); mohyla zabere `MOUND_SIZES` míst – 2 × 2 (`great`), 2 místa za sebou
 // (`large`), 1 (`normal`), 1 malá (`small`).
-// Plot hřbitova stojí o tolik uvnitř čtverce (m) – ulička 3 m mezi hřbitovem a sousední stavbou
-// (rules-buildings.ts – PEN_FENCE_INSET_M, Martin 23. 10. 2026, platí i pro hřbitov).
+// Plot hřbitova i ohrady stojí o tolik uvnitř čtverce (m) – ulička 3 m mezi hřbitovem a sousední
+// stavbou (cemetery.md – Plot hřbitova, oxen.md – Ohrady jsou menší než čtverec; Martin 23. 10. 2026,
+// platí i pro hřbitov); `PEN_FENCE_INSET_M` (rules-buildings.ts) je totéž číslo.
 export const CEMETERY_FENCE_INSET_M = 1.5;
 export const GRAVE_PLACES = {
   columns: 7,

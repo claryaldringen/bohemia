@@ -83,7 +83,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 - **Plot podle délky** (`fence-cost.ts`: `newFenceSides`, `outerFenceSides`, `fencedSquareEquivalents`;
   oxen.md i cemetery.md – Plot podle délky; Martin 22. 10. 2026, issue #3): cena hřbitova
   (`cemeteryFoundingCost(squares, fenceSides)`, `CEMETERY.fenceShare` 0,3) i ohrady
-  (`penLaborManDays(…, squares, fenceSides)`, `penTrees`, `PEN.fenceShare` 0,5, `PEN.fenceTrees` 4)
+  (`penLaborManDays(…, squares, fenceSides)`, `penTrees`, `PEN_FENCE.share` 0,5, `PEN_FENCE.trees` 4)
   platí plot jen za nové vnější strany, rozšíření tak ušetří; `fullRepairManDays` počítá s vnějším
   obrysem. Plot stojí `PEN_FENCE_INSET_M` / `CEMETERY_FENCE_INSET_M` = 1,5 m uvnitř čtverce
   (`rules-buildings.ts`, `rules-people.ts`; `GRAVE_PLACES.marginM` 2 m) – vchod `cemeteryEntrance`,
