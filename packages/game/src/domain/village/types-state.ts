@@ -52,6 +52,7 @@ import type {
   Position,
 } from './types-people';
 import type { CartDrive, RoadGrade, VillageRoads } from './types-roads';
+import type { VillageRoutes } from './types-routes';
 import type { CraftPurchase, VillageTrade } from './types-trade';
 
 export interface VillageState {
@@ -245,6 +246,12 @@ export interface VillageState {
    * chůze se stadia promítají jen jednou za měsíc (Martin, 18. 10. 2026). Chybí jako výše.
    */
   walkStages?: string;
+  /**
+   * Trasy sítě pěšin (paths.md – Kdy se trasy počítají a co se ukládá) – kudy kdo kam chodí,
+   * spočítané s přepočtem chůze pro otisk `walkLayoutKey`. Chybí u vsí uložených dřív (doplní je
+   * `withRoutes` při načtení) a ve vsích simulovaných bez krajiny.
+   */
+  routes?: VillageRoutes;
   /**
    * Jízda vozu pro vodu (wagons.md – Co vozy vozí): břeh nejblíž ohradě se spřežením, kam vůz
    * sjede (null = nesjede nikam – voda se nosí), spočítaný pro rozložení vsi `key` (klíč chůze

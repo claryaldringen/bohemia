@@ -162,6 +162,11 @@ Beze změny proti dřívějšku (Martin 18.–19. 10. 2026, čísla návrh Claud
   kroků ≈ 10–20 kB. Trasy pod 0,02 cesty za den se neukládají (jako dřív `MIN_TRIP`).
 - **Stará ves bez tras** (nebo s jiným otiskem) si je spočítá **při načtení** (`withRoutes`
   v `updateVillage`), i když se jen zobrazuje – scéna má trasy vždy a postavy nestojí.
+- **Podrobnosti uložení (návrh Clauda, 24. 10. 2026):** lichý počet kroků končí znakem `=`
+  (poslední znak nese jen jeden krok). Účel trasy: pole, sad, stavby, ohrady, kácení a seč –
+  práce; hřbitov a posvátná místa – návštěva (rozestavěný hřbitov bez branky také); stáda na
+  úhor – stádo. Stará ves dostane trasy po dopočtu do dneška ze sítě posledního dne, bez posunu
+  dne – co se dopočtem přepočítalo, už má trasy svého rozložení a znovu se nepočítá.
 - **Do prohlížeče** jdou trasy a vyšlapanost jen při změně jejich klíče (`routes.key`, den
   vyšlapanosti); jinak prohlížeč drží poslední. Mez velikosti platí pro stav v databázi.
 - **Proč ukládat, ne počítat znovu v prohlížeči:** scéna dřív počítala síť sama z dnešní práce,

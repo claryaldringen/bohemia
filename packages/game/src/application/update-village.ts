@@ -22,6 +22,7 @@ import {
   withPenSpecies,
   withOxen,
   withPlots,
+  withRoutes,
   withDwellingShapes,
   withoutBuiltOverRuins,
   withoutBuiltOverGrainPits,
@@ -104,7 +105,9 @@ async function advancedToTodayWithPauses(
  * Ves se dopočítává s vrstvou překážek a krajinou sídla (přestavby kácí stromy, polozemnice bez
  * pozemku se přestaví na volném políčku). Zbytky jam po zaniklých obydlích pod novou stavbou po
  * změně zmizí (`withoutBuiltOverRuins`), obilné jámy taky – zrno se přendá
- * (`withoutBuiltOverGrainPits`). S `pause` dělá dopočet mezi dny přestávky.
+ * (`withoutBuiltOverGrainPits`). Ves bez tras (nebo s trasami jiného rozložení) si je po dopočtu
+ * spočítá (`withRoutes` – paths.md, Kdy se trasy počítají a co se ukládá). S `pause` dělá dopočet
+ * mezi dny přestávky.
  */
 export async function updateVillage(
   villages: VillageRepository,
@@ -177,7 +180,10 @@ export async function updateVillage(
     // ves z doby před obilnými jámami uloží zásoby do jam u humna nebo dvorce – jámy ne na půdě
     // jiných vsí (production-chains.md – Obilné jámy)
     const attached = withGrainPits(neighbours, landscape, obstacles);
-    const current = await advancedToTodayWithPauses(attached, today, obstacles, landscape, pause);
+    const advanced = await advancedToTodayWithPauses(attached, today, obstacles, landscape, pause);
+    // ves uložená před trasami (nebo s trasami jiného rozložení) si je spočítá – i když se jen
+    // zobrazuje, ať je scéna má (paths.md – Kdy se trasy počítají a co se ukládá)
+    const current = withRoutes(advanced, landscape, obstacles);
     const changed = change(current);
     if (!changed.ok) return changed;
     // na místo zříceniny jde stavět – stavba zbytek jámy odstraní (ruins.ts); stavba na obilné

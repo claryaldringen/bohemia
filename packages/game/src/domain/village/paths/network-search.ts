@@ -226,9 +226,20 @@ export interface PassCosts {
 }
 
 /**
+ * Trasa kola zapsaná pro uložení (paths.md – Kdy se trasy počítají): domácnost `home` (index
+ * v domácnostech) × skupina, cest za den a buňky od brány domácnosti k cíli.
+ */
+export interface RouteRecord {
+  home: number;
+  group: TripGroup;
+  trips: number;
+  cells: number[];
+}
+
+/**
  * Přičte cestu z buňky `from` po rodičích hledání až k jeho zdroji; vrátí zdroj. Buňkám na trase
  * hned sníží cenu podle nového provozu – další trasy kola se k vyšlapané pěšině přidají (aktivní
- * chodci po sobě, ne všichni naráz).
+ * chodci po sobě, ne všichni naráz). S `path` do něj zapíše buňky trasy v pořadí chůze.
  */
 function addTrip(
   state: SearchState,
@@ -238,15 +249,18 @@ function addTrip(
   from: number,
   weight: number,
   years: number,
+  path: number[] | null = null,
 ): number {
   const all = traffic.cells.length;
   let c = from;
   treadCell(traffic, costs, c, weight);
+  path?.push(c);
   traffic.trips++;
   for (let guard = 0; guard < all; guard++) {
     const p = state.parent[c]!;
     if (p < 0) break;
     treadCell(traffic, costs, p, weight);
+    path?.push(p);
     const slot = edgeSlot(width, c, p);
     traffic.edges[slot] = traffic.edges[slot]! + weight;
     traffic.edgeYears[slot] = traffic.edgeYears[slot]! + weight * years;
@@ -260,7 +274,8 @@ function addTrip(
  * bráně; víc domácností: každá zvlášť (A* od cíle k její bráně), nejvytíženější první – další se
  * k pěšině, kterou ta před ní právě vyšlapala, přidá (souběžné pěšiny nevzniknou). Pochůzka – v prvním kole od všech míst najednou (každá domácnost dojde k nejbližšímu),
  * v dalších každá domácnost zvlášť od brány (cestou se přidá k pěšině souseda). Trasy se
- * přičtou do provozu; u pochůzek si domácnost zapamatuje, kam došla (`ends`).
+ * přičtou do provozu; u pochůzek si domácnost zapamatuje, kam došla (`ends`). S `routes` zapíše
+ * každou trasu kola (buňky od brány k cíli) – hledání ani provoz se tím nemění.
  */
 export function routeAll(
   grid: Grid,
@@ -269,6 +284,7 @@ export function routeAll(
   groups: readonly TripGroup[],
   state: SearchState,
   ends: Map<number, PathErrands> | null,
+  routes: RouteRecord[] | null = null,
 ): Traffic {
   const traffic: Traffic = {
     cells: new Float32Array(grid.width * grid.height),
@@ -348,8 +364,10 @@ export function routeAll(
         }
         const trips = group.weights[k]!;
         const years = group.years?.[k] ?? homes[k]!.years;
-        const end = addErrand(grid, state, traffic, costs, trail, marks, at, trips, years);
+        const path = routes ? [] : null;
+        const end = addErrand(grid, state, traffic, costs, trail, marks, at, trips, years, path);
         remember(group, k, end);
+        if (routes && path) routes.push({ home: k, group, trips, cells: path });
       });
       group.reach = reach;
       continue;
@@ -377,7 +395,9 @@ export function routeAll(
         continue;
       }
       const years = group.years?.[k] ?? home.years;
-      addTrip(state, traffic, costs, grid.width, home.gate, w, years);
+      const path = routes ? [] : null;
+      addTrip(state, traffic, costs, grid.width, home.gate, w, years, path);
+      if (routes && path) routes.push({ home: k, group, trips: w, cells: path });
     }
   }
   return traffic;
@@ -492,8 +512,12 @@ function addErrand(
   at: number,
   weight: number,
   years: number,
+  path: number[] | null = null,
 ): number {
-  addTrip(state, traffic, costs, grid.width, at, weight, years);
+  // trasa od brány: buňky od místa k bráně obráceně
+  const back = path ? [] : null;
+  addTrip(state, traffic, costs, grid.width, at, weight, years, back);
+  if (path && back) for (let i = back.length - 1; i >= 0; i--) path.push(back[i]!);
   const joined = !marks[at] && trail.next[at]! >= 0;
   const end = joined ? trail.end[at]! : at;
   if (joined) {
@@ -502,6 +526,7 @@ function addErrand(
     for (let guard = 0; guard < traffic.cells.length && trail.next[c]! >= 0; guard++) {
       const n = trail.next[c]!;
       treadCell(traffic, costs, n, weight);
+      path?.push(n);
       const slot = edgeSlot(grid.width, c, n);
       traffic.edges[slot] = traffic.edges[slot]! + weight;
       traffic.edgeYears[slot] = traffic.edgeYears[slot]! + weight * years;

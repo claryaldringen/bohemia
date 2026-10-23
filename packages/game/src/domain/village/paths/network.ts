@@ -19,13 +19,21 @@ import {
   type PathErrands,
   type PathNetwork,
   type PathNetworkInput,
+  type NetworkRoute,
 } from './network-types';
 import { pathStrength } from './network-keys';
 import { roadCells, villageGrid } from './network-grid';
-import { type TripGroup, errandGroups, households, tripGroups } from './network-targets';
+import {
+  type Household,
+  type TripGroup,
+  errandGroups,
+  households,
+  tripGroups,
+} from './network-targets';
 import {
   PathHeap,
   type PassCosts,
+  type RouteRecord,
   type SearchState,
   type Traffic,
   routeAll,
@@ -51,6 +59,7 @@ export type {
   PathSquare,
   PathVillage,
   PathNetworkInput,
+  NetworkRoute,
 } from './network-types';
 export {
   villagePathBounds,
@@ -103,7 +112,7 @@ export function computePathNetwork(input: PathNetworkInput): PathNetwork {
     visits: new Map(),
   };
   const homes = households(v, grid, buildings);
-  if (homes.length === 0) return empty;
+  if (homes.length === 0) return input.keepRoutes ? { ...empty, routes: [] } : empty;
   // nejvytíženější skupiny první – vyšlapou kmen, ke kterému se přidají ostatní
   const groups = [
     ...errandGroups(input.annual ?? false, v, grid, homes),
@@ -141,6 +150,7 @@ export function computePathNetwork(input: PathNetworkInput): PathNetwork {
   };
   let smooth: Float32Array = new Float32Array(all);
   const errands = new Map<number, PathErrands>();
+  const records: RouteRecord[] | null = input.keepRoutes ? [] : null;
   for (let pass = 0; pass < PASSES; pass++) {
     if (pass > 0) {
       for (let c = 0; c < all; c++) {
@@ -150,7 +160,15 @@ export function computePathNetwork(input: PathNetworkInput): PathNetwork {
       }
     }
     const last = pass === PASSES - 1;
-    result = routeAll(grid, costs, homes, groups, state, last ? errands : null);
+    result = routeAll(
+      grid,
+      costs,
+      homes,
+      groups,
+      state,
+      last ? errands : null,
+      last ? records : null,
+    );
     smooth = smoothTraffic(grid, result.cells);
   }
   return {
@@ -159,6 +177,20 @@ export function computePathNetwork(input: PathNetworkInput): PathNetwork {
     errands,
     trips: result.trips,
     visits: visitsOf(groups),
+    ...(records ? { routes: records.map((r) => networkRoute(r, homes)) } : {}),
+  };
+}
+
+/** Trasa posledního kola pro `PathNetwork.routes` – odkud (obydlí domácnosti), kam a proč. */
+function networkRoute(record: RouteRecord, homes: readonly Household[]): NetworkRoute {
+  const { group } = record;
+  return {
+    from: `d:${homes[record.home]!.dwellingId}`,
+    to: group.to,
+    purpose: group.purpose,
+    trips: record.trips,
+    cells: record.cells,
+    ...(group.visit ? { visit: group.visit } : {}),
   };
 }
 

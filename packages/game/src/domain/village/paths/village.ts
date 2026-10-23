@@ -63,6 +63,7 @@ import {
   type Walk,
 } from './walking';
 import { lineRoads } from './road-lining';
+import { storedRoutes } from './routes';
 import { partWalkSpeed, roadTreeSpeed } from './walk-speed';
 
 // Pěšiny ze stavu vsi (paths.md – Pěšiny a práce): server skládá ves pro pěšiny stejně jako
@@ -394,9 +395,11 @@ function computeVillageNetwork(
   if (!bounds) return null;
   const base = pathTerrainOf(landscape, pathWindowFor(landscape, bounds));
   const terrain = obstacles ? withObstacles(base, obstacles, obstacleChangesAt(state, day)) : base;
+  // trasy posledního kola se ukládají do stavu (`refreshWalkDistances`, `withRoutes`)
   return computePathNetwork({
     village,
     terrain,
+    keepRoutes: true,
     ...(obstacles ? { tree: (id: number) => obstaclePosition(obstacles, id) } : {}),
   });
 }
@@ -588,7 +591,8 @@ export const WALK_VERSION = 'dwelling-shapes';
  * (Martin – chůze se přepočítává měsíčně; otisk stadií z posledního 1. dne je ve stavu
  * `walkStages`, ve stavu jen otisky `walkLayoutHash`) – stejně olemování pevných cest stromy
  * (`lineRoads`, roads.md – Stromy u cesty zrychlí chůzi). Chůze rovně počítá mokřinu a brody
- * (`walkGroundOf`) – pole za potokem bez cesty zdraží, s hatí a lávkou zlevní.
+ * (`walkGroundOf`) – pole za potokem bez cesty zdraží, s hatí a lávkou zlevní. S přepočtem uloží
+ * trasy sítě (`VillageState.routes` – paths.md, Kdy se trasy počítají a co se ukládá).
  */
 export function refreshWalkDistances(
   state: VillageState,
@@ -607,6 +611,8 @@ export function refreshWalkDistances(
   if (unchanged) return;
   const village = pathVillageOf(state, day, landscape);
   const network = villagePathNetwork(state, day, landscape, obstacles, village);
+  // trasy pro týž otisk rozložení (paths.md – Kdy se trasy počítají a co se ukládá)
+  state.routes = { day, key, list: network ? storedRoutes(network) : [] };
   if (!network) {
     for (const p of state.parts) delete p.walkDistanceM;
     for (const o of villageOrchards(state)) for (const s of o.squares) delete s.walkDistanceM;
@@ -648,4 +654,23 @@ export function refreshWalkDistances(
     if (water !== null) d.waterWalkM = rounded(water);
     else delete d.waterWalkM;
   }
+}
+
+/**
+ * Trasy staré vsi (paths.md – Kdy se trasy počítají a co se ukládá): chybí-li `routes`, nebo
+ * platí pro jiný otisk rozložení než `walkLayoutKey`, spočítá je při načtení – síť dne
+ * `lastDay` bez posunu dne a bez přepočtu chůze (scéna tak trasy má, i když se ves jen zobrazuje).
+ * Jinak vrátí týž stav (jednou a idempotentně). Ves bez přepočtu chůze (simulace bez krajiny)
+ * nechá být – trasy dostane s prvním přepočtem.
+ */
+export function withRoutes(
+  state: VillageState,
+  landscape: Landscape,
+  obstacles: ObstacleLayer | null,
+): VillageState {
+  const key = state.walkLayoutKey;
+  if (key === undefined || state.routes?.key === key) return state;
+  const day = Math.max(0, state.lastDay);
+  const network = villagePathNetwork(state, day, landscape, obstacles);
+  return { ...state, routes: { day, key, list: network ? storedRoutes(network) : [] } };
 }

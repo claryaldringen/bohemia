@@ -68,5 +68,6 @@ describe('road-report', () => {
     expect(report.stateKb).toBeGreaterThan(0);
     expect(report.advanceMs).toBeGreaterThan(0);
     expect(formatReport(report)).toContain('dopočet 1 let');
+    expect(formatReport(report)).toContain(`trasy ${report.routes} (`);
   }, 120_000);
 });

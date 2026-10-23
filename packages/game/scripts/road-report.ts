@@ -5,8 +5,9 @@
 // tedy sloupce `village.state`, `settlement.landscape_seed` a `settlement.layer_versions` z DB.
 // Ves se načte use-casem `updateVillage` (stejné převody jako ve hře) a dopočte N let (výchozí 1).
 // Výpis: čas generování krajiny, načtení a dopočtu (ms), velikost stavu (kB), cesty po druzích
-// (počet, km), křižovatky (body, kde se potkají ≥ 3 konce úseků) a pahýly (krátký úsek s volným
-// koncem). Další úlohy přidají vlastní řádky. Kopii stavu necommitovat (je jen ve scratchpadu).
+// (počet, km), křižovatky (body, kde se potkají ≥ 3 konce úseků), pahýly (krátký úsek s volným
+// koncem) a uložené trasy (počet, kB). Další úlohy přidají vlastní řádky. Kopii stavu
+// necommitovat (je jen ve scratchpadu).
 import { readFileSync } from 'node:fs';
 import { generateLandscapeAttempt, type LayerVersions } from '../src/domain/landscape';
 import type { Road, VillageState } from '../src/domain/village';
@@ -38,6 +39,9 @@ export interface RoadReport {
   byGrade: Record<string, { count: number; km: number }>;
   junctions: number;
   stubs: number;
+  /** Uložené trasy (`VillageState.routes`) – počet a velikost v JSON (kB). */
+  routes: number;
+  routesKb: number;
 }
 
 function lengthOf(road: Road): number {
@@ -125,6 +129,8 @@ export async function roadReport(input: RoadReportInput, years: number): Promise
     totalKm: totalM / 1000,
     byGrade,
     ...networkShape(roads),
+    routes: state.routes?.list.length ?? 0,
+    routesKb: state.routes ? JSON.stringify(state.routes).length / 1024 : 0,
   };
 }
 
@@ -141,6 +147,7 @@ export function formatReport(r: RoadReport): string {
     `cesty ${r.roads} (${r.totalKm.toFixed(2)} km): ${grades || '–'}`,
     `křižovatky ${r.junctions}`,
     `pahýly ${r.stubs}`,
+    `trasy ${r.routes} (${r.routesKb.toFixed(1)} kB)`,
   ].join(' | ');
 }
 
