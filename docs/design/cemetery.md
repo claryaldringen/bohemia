@@ -142,6 +142,17 @@ významní členové.“ **Implementováno 19. 10. 2026** – jádro `domain/vil
   vojvoda, dospělí a děti z dvorce – místo vybírá herní jádro) a Rozpad staveb (starý hřbitov –
   plot zmizí, mohyly zůstanou).
 
+Plot hřbitova podle délky a odsazení (Martin 23. 10. 2026: „Ohrady by měly být fyzicky menší než
+plocha, kterou zabírají … musí mezi nimi být taková mezera, aby tam mohl projet vůz“; volba téhož dne:
+**platí i pro hřbitov**, kapacita na čtverec zůstane 56; issue #3, 22. 10. 2026: při rozšíření se
+plot na sdílených stranách stavět nemusí): plot stojí `CEMETERY_FENCE_INSET_M` = 1,5 m uvnitř čtverce
+(mezi hřbitovem a sousední stavbou ulička 3 m). Hroby (56 míst) zůstávají, místo na hrob je ale
+menší – okraj čtverce bez hrobů je 2 m (plot 1,5 m + 0,5 m), krok míst 11/7 × 11/8 m, mohyly se
+zmenší stejným poměrem. Plot se platí **podle délky** (návrh Clauda): `CEMETERY.fenceShare` 0,3 z 10 čd
+čtverce (jako oprava plotu) jen za nové vnější strany (`newFenceSides`), vytyčení zbytek platí každý
+čtverec – jeden čtverec 10 čd, rozšíření o čtverec po jedné straně 9,25 čd, dva nové čtverce vedle
+sebe 18,5 čd. Oprava plotu odpovídá vnějšímu obrysu.
+
 ## Co hráč vidí
 
 - V nabídce staveb **Hřbitov** (cena za čtverec), umisťování po čtvercích jako pole; během
@@ -248,6 +259,7 @@ dospělých po hájení. Dlouhá kalibrace (200 × 60) zatím neběžela.
 | Hřbitov smí na pole – čtverec pole pod ním z pole zmizí                                                                                            | Martin, 18. 10. 2026                |
 | Plot opuštěného hřbitova vesničané opraví sami, když se k němu zase chodí – i spadlý                                                               | Martin, 19. 10. 2026                |
 | Oprava plotu 3 čd na hotový čtverec × chybějící stav, stavba ze společné práce                                                                     | návrh Clauda                        |
+| Plot 1,5 m uvnitř čtverce, platí i pro hřbitov, kapacita zůstává; plot se platí podle délky (30 % ceny, jen nové vnější strany)                    | Martin, 23. 10. 2026 / návrh Clauda |
 | Starému hřbitovu plot zmizí úplně, zůstanou jen mohylky                                                                                            | Martin, 19. 10. 2026                |
 | Významnější lidé větší mohyly na prominentnějších místech; největší vojvodova rodina                                                               | Martin, 19. 10. 2026                |
 | Vojvodova rodina 2 × 2 místa, hlava rodiny 2, ostatní 1, dítě 1 malá; kapacita v místech                                                           | Martin schválil, 19. 10. 2026       |

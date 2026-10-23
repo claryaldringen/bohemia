@@ -117,7 +117,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `Pen.extraSquares` (`PenSquare`, rozšíření ve stavbě s `constructionId` – `finishPen(…, c.id)`),
   nejvýš `PEN_SQUARES.max` (4) souvislé stranou; čtverce navazující na ohradu téhož druhu ve
   stejné mřížce ji rozšíří (`touchingPens`), na dvě navázat nejde; cena po čtvercích (40 čd
-  a 6 stromů na čtverec, `penLaborManDays(…, squares)`). Místa `PEN_PLACES_PER_SQUARE` (ovce 130,
+  a 6 stromů na čtverec, z toho plot polovina práce a 4 stromy jen za nové vnější strany –
+  `penLaborManDays(…, squares, fenceSides)`, `penTrees`, `newFenceSides`; plot 1,5 m uvnitř čtverce,
+  mezi sousedními ohradami ulička 3 m – oxen.md, Plot ohrady podle délky; vozová síť `cartGrid`
+  blokuje jen buňky uvnitř plotu, `fencedCells` v `paths/network-grid.ts`). Místa `PEN_PLACES_PER_SQUARE` (ovce 130,
   kozy 100, prasata 80, krávy 45) a u domů `HOMESTEAD_HERD` v `rules*.ts`; `penCapacity`,
   `penOccupancy`, `herdRoom`; panel ohrady ukáže místa všech ohrad druhu / potřebu stáda
   (`herdPlaces` v husbandry.ts → `VillageSummary.herdPlaces` → `VillagePen.herdPlaces`, červeně

@@ -661,7 +661,8 @@ describe('cemeteryPartsFromCells', () => {
       obstacleCost: 0,
     });
     expect(result.capacity).toBe(224);
-    expect(result.foundingCost).toBe(40);
+    // 4 × 10 čd, plot jen po 8 vnějších stranách z 16 (cemetery.md – Plot hřbitova podle délky)
+    expect(result.foundingCost).toBe(34);
     expect(result.extendsCemetery).toBe(false);
     expect(result.warningCells).toEqual([]);
   });

@@ -9,15 +9,22 @@
 // (`placeMound`), tady se jen spočítá střed (`gravePlaceCenter` z jádra), natočení a měřítko;
 // staré hroby (pohřbení před mohylami) zůstávají po řadách jako dřív (`gravePlacements`).
 import {
+  CEMETERY_FENCE_INSET_M,
   CEMETERY_GATE,
   GRAVE_PLACES,
   MOUND_SIZES,
   gravePlaceCenter,
   type MoundSize,
 } from '@bohemia/game';
-import { cellsBoundary, gridFrame, type CellSquare, type GridFrame } from './field-cells';
+import { gridFrame, type CellSquare, type GridFrame } from './field-cells';
 import { seededRandom, type Point } from './village-layout';
-import { wovenFence, type FencePath, type FenceStyle, type WovenFence } from './woven-fence';
+import {
+  WOVEN_CORNER_RADIUS_M,
+  wovenFence,
+  type FencePath,
+  type FenceStyle,
+  type WovenFence,
+} from './woven-fence';
 
 /**
  * Hroby ve čtverci po řadách: 7 × 8 = 56 míst – z jádra (GRAVE_PLACES = CEMETERY.gravesPerSquare,
@@ -26,6 +33,12 @@ import { wovenFence, type FencePath, type FenceStyle, type WovenFence } from './
 export const GRAVE_GRID = { columns: GRAVE_PLACES.columns, rows: GRAVE_PLACES.rows } as const;
 /** Okraj čtverce bez hrobů (m) – mohylky nesahají k plotu, mezi čtverci zůstane ulička. */
 const GRAVE_MARGIN_M = GRAVE_PLACES.marginM;
+/**
+ * Mohylky se zmenší s místy na hrob: plot stojí 1,5 m uvnitř čtverce, míst zůstává 56 (cemetery.md
+ * – Plot hřbitova uvnitř čtverce), takže mřížka je hustší o poměr ploch bez okraje (původní okraj
+ * 0,5 m na čtverci 15 m).
+ */
+const GRAVE_SCALE = (15 - 2 * GRAVE_MARGIN_M) / (15 - 2 * 0.5);
 /** Kolik posledních hrobů je čerstvých (holá hlína) – ostatní zarostly travou. */
 export const FRESH_GRAVES = 3;
 /**
@@ -88,7 +101,7 @@ export function gravePlacements(
       x: square.x - inner / 2 + (column + 0.5) * stepX + jitter(stepX),
       z: square.z - inner / 2 + (row + 0.5) * stepZ + jitter(stepZ),
       rotationY: random() * Math.PI * 2,
-      scale: 0.85 + random() * 0.3,
+      scale: (0.85 + random() * 0.3) * GRAVE_SCALE,
       fresh: i >= count - fresh,
     });
   }
@@ -165,7 +178,7 @@ export function moundPlacements(
           ? (square.rotation ?? 0) + (turn < 0.5 ? 0 : Math.PI) + (random() - 0.5) * 0.12
           : turn * Math.PI * 2,
         // velké mohyly zaberou svá místa celá – menší rozptyl velikosti
-        scale: big ? 0.96 + random() * 0.08 : 0.9 + random() * 0.2,
+        scale: (big ? 0.96 + random() * 0.08 : 0.9 + random() * 0.2) * GRAVE_SCALE,
         fresh: m.fresh === true,
         size: m.size,
       },
@@ -217,13 +230,47 @@ function mergeStraight(points: Point[], closed: boolean): Point[] {
   return out;
 }
 
+function unitDir(a: Point, b: Point): Point {
+  const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  return [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
+}
+
+/**
+ * Obrys odsazený `inset` dovnitř (ohrazení vlevo od směru čáry): vrchol se posune o `inset` vlevo
+ * od obou sousedních stran (vnější i vnitřní roh). Otevřená čára (rozšíření ve stavbě) končí na
+ * starém plotu – konce se posunou jen napříč a prodlouží o `inset` + poloměr rohu zpět po svém
+ * směru, aby navázaly na přímý úsek starého plotu před jeho zakulaceným rohem.
+ */
+function insetPoints(points: Point[], closed: boolean, inset: number): Point[] {
+  if (inset === 0) return points;
+  const n = points.length;
+  const reach = inset + WOVEN_CORNER_RADIUS_M;
+  return points.map((p, i): Point => {
+    if (!closed && i === 0) {
+      const d = unitDir(p, points[1]!);
+      return [p[0] - inset * d[1] - reach * d[0], p[1] + inset * d[0] - reach * d[1]];
+    }
+    if (!closed && i === n - 1) {
+      const d = unitDir(points[n - 2]!, p);
+      return [p[0] - inset * d[1] + reach * d[0], p[1] + inset * d[0] + reach * d[1]];
+    }
+    const d1 = unitDir(points[(i - 1 + n) % n]!, p);
+    const d2 = unitDir(p, points[(i + 1) % n]!);
+    return [p[0] + inset * (-d1[1] - d2[1]), p[1] + inset * (d1[0] + d2[0])];
+  });
+}
+
 /**
  * Čáry plotu po obrysu čtverců (ohrazení vlevo – jak chce woven-fence.ts): strany čtverců, za
  * kterými není jiný čtverec ani čtverec z `fenced` (tam už plot stojí), spojené za sebou.
  * Obrys bez vynechaných stran je uzavřená čára (díra uvnitř další), s vynechanými kusy otevřené.
  * Kde se čtverce dotýkají jen rohem, zahne čára doleva – každý čtverec má svůj oblouk.
  */
-function outlinePaths(squares: readonly CellSquare[], fenced: readonly CellSquare[]): FencePath[] {
+function outlinePaths(
+  squares: readonly CellSquare[],
+  fenced: readonly CellSquare[],
+  inset = 0,
+): FencePath[] {
   const sides: [Point, Point][] = [];
   const toward: Point[] = [
     [0, -1],
@@ -275,13 +322,16 @@ function outlinePaths(squares: readonly CellSquare[], fenced: readonly CellSquar
   // otevřené kusy začínají stranou, na kterou žádná nenavazuje
   sides.forEach(([a], i) => {
     if (used[i] || sides.some(([, b]) => samePoint(a, b))) return;
-    paths.push({ points: mergeStraight(follow(i, false), false), closed: false });
+    paths.push({
+      points: insetPoints(mergeStraight(follow(i, false), false), false, inset),
+      closed: false,
+    });
   });
   sides.forEach((_, i) => {
     if (used[i]) return;
     const points = follow(i, true);
     points.pop(); // poslední bod je zase první
-    paths.push({ points: mergeStraight(points, true), closed: true });
+    paths.push({ points: insetPoints(mergeStraight(points, true), true, inset), closed: true });
   });
   return paths;
 }
@@ -305,13 +355,36 @@ export function fenceLayout(
   // natočený hřbitov: obrys v rovném prostoru mřížky, čáry plotu otočené do světa
   const paths =
     frame && frame.rotated
-      ? outlinePaths(flatSquares(frame, squares), flatSquares(frame, fenced)).map((path) => ({
+      ? outlinePaths(
+          flatSquares(frame, squares),
+          flatSquares(frame, fenced),
+          CEMETERY_FENCE_INSET_M,
+        ).map((path) => ({
           ...path,
           points: path.points.map(([x, z]) => frame.toWorld(x, z)),
         }))
-      : outlinePaths(squares, fenced);
+      : outlinePaths(squares, fenced, CEMETERY_FENCE_INSET_M);
   const gate = options.withGate === false ? null : { toward: gateToward };
-  return { fence: wovenFence(paths, CEMETERY_FENCE, gate), outline: cellsBoundary(squares) };
+  return {
+    fence: wovenFence(paths, CEMETERY_FENCE, gate),
+    outline: stakingSegments(squares, frame),
+  };
+}
+
+/**
+ * Čára vytyčení a kolíky: obrys čtverců odsazený jako plot (bez ohledu na to, co už stojí),
+ * jako úsečky [začátek, konec] ve světě.
+ */
+function stakingSegments(squares: readonly CellSquare[], frame: GridFrame | null): Point[][] {
+  const flat = frame && frame.rotated ? flatSquares(frame, squares) : squares;
+  return outlinePaths(flat, [], CEMETERY_FENCE_INSET_M).flatMap((path) =>
+    path.points.map((a, i): Point[] => {
+      const b = path.points[(i + 1) % path.points.length]!;
+      return frame && frame.rotated
+        ? [frame.toWorld(a[0], a[1]), frame.toWorld(b[0], b[1])]
+        : [a, b];
+    }),
+  );
 }
 
 /** Čtverce natočené mřížky v jejím rovném prostoru (bez natočení). */

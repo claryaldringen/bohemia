@@ -70,6 +70,7 @@ export {
   villageTerrain,
   cellsIn,
   squareCells,
+  fencedCells,
   inBuilding,
   buildingBounds,
   DWELLING_PATH_BOX_M,

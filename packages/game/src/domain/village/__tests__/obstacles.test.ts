@@ -289,7 +289,8 @@ describe('hřbitov – překážky na čtvercích jako u pole', () => {
     expect(preview.obstacleCost).toBe(
       OBSTACLE_COST.tree + OBSTACLE_COST.stone + OBSTACLE_COST.shrub,
     );
-    expect(preview.foundingCost).toBe(2 * 10 + preview.obstacleCost);
+    // 2 × 10 čd, plot jen po 6 vnějších stranách z 8 (cemetery.md – Plot hřbitova podle délky)
+    expect(preview.foundingCost).toBeCloseTo(18.5 + preview.obstacleCost, 9);
     expect(preview.obstacleCounts).toEqual({ tree: 1, stone: 1, shrub: 1 });
 
     const rock = cemeteryPartsFromCells(

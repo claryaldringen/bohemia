@@ -184,3 +184,13 @@ export const LEAVING = {
   carryFromAge: 7,
   travelDays: { min: 1, max: 3, perDayM: 400 },
 } as const;
+
+// Plot ohrady a hřbitova odsazený od okraje čtverce (oxen.md – Ohrady jsou menší než čtverec,
+// cemetery.md – Plot hřbitova; Martin 23. 10. 2026: „Ohrady by měly být fyzicky menší než plocha,
+// kterou zabírají. Když například vedle sebe budu mít ohradu s kozami a ohradu s ovcemi, musí mezi
+// nimi být taková mezera, aby tam mohl projet vůz.“; volba Martina téhož dne: platí i pro hřbitov,
+// kapacita na čtverec zůstává): plot stojí 1,5 m uvnitř čtverce 15 × 15 m, mezi dvěma sousedními
+// ohradami (nebo ohradou a hřbitovem) je tedy ulička 3 m – míjí se v ní vůz i chodec. Mezi čtverci
+// téže ohrady nebo téhož hřbitova plot není. Návrh Clauda: 1,5 m = polovina uličky pro vůz (≈ 2,2 m
+// široký i s nákladem) s rezervou. Pozemek polozemnice (PLOT_*) zůstává 0,5 m od okraje.
+export const PEN_FENCE_INSET_M = 1.5;

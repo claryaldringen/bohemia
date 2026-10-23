@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
+import { CEMETERY_FENCE_INSET_M as INSET, PEN_FENCE_INSET_M } from '../rules';
 import {
   CEMETERY_GATE,
-  FENCE_INSET_M,
   PEN_GATE,
   SACRED_ENTRANCE_M,
   WOVEN_FENCE_CORNER_M,
@@ -68,7 +68,8 @@ describe('branka hřbitova (cemeteryEntrance)', () => {
     // dva čtverce x 30–60, z 30–45; dům na jihu
     const squares = [square(0, 0), square(1, 0)];
     const gate = cemeteryEntrance({ squares, built: true }, [built(45, -40), built(200, 200)])!;
-    expect(gate).toEqual({ x: 45, z: 30, outX: 0, outZ: -1 });
+    // plot stojí 1,5 m uvnitř čtverce
+    expect(gate).toEqual({ x: 45, z: 30 + INSET, outX: 0, outZ: -1 });
     // rozestavěné obydlí branku neposune
     const site = { position: { x: 45, z: 100 }, built: false };
     expect(cemeteryEntrance({ squares, built: true }, [site, built(45, -40)])).toEqual(gate);
@@ -80,11 +81,11 @@ describe('branka hřbitova (cemeteryEntrance)', () => {
     const squares = [square(0, 0)];
     const gate = cemeteryEntrance({ squares }, [built(-100, 37.5)])!;
     // obydlí daleko na západě v ose čtverce – západní strana, uprostřed
-    expect(gate).toEqual({ x: 30, z: 37.5, outX: -1, outZ: 0 });
+    expect(gate).toEqual({ x: 30 + INSET, z: 37.5, outX: -1, outZ: 0 });
     // obydlí šikmo za rohem – branka na kraji rovného úseku
     const corner = cemeteryEntrance({ squares }, [built(0, -20)])!;
     const margin = CEMETERY_GATE.gateWidth / 2 + CEMETERY_GATE.postStep;
-    const min = 30 + WOVEN_FENCE_CORNER_M.outer + margin;
+    const min = 30 + INSET + WOVEN_FENCE_CORNER_M.outer + margin;
     expect(corner.outX === -1 ? corner.z : corner.x).toBeCloseTo(min, 9);
   });
 
@@ -94,12 +95,12 @@ describe('branka hřbitova (cemeteryEntrance)', () => {
     const dwellings = [built(37.5, -60)];
     const gate = cemeteryEntrance({ squares: [ready, pending], built: true }, dwellings)!;
     // jižní strana hotového čtverce (z = 30), rozšíření na jih ještě ohrazené není
-    expect(gate.z).toBe(30);
+    expect(gate.z).toBe(30 + INSET);
     const founding = cemeteryEntrance(
       { squares: [ready, { ...pending }].map((q) => ({ ...q, pending: true })), built: false },
       dwellings,
     )!;
-    expect(founding.z).toBe(15);
+    expect(founding.z).toBe(15 + INSET);
   });
 
   it('tvar L a čtverce jen rohem – vnitřní roh má menší oblouk', () => {
@@ -108,8 +109,9 @@ describe('branka hřbitova (cemeteryEntrance)', () => {
     const gate = cemeteryEntrance({ squares: ell }, [built(46, 46.5)])!;
     // pravá strana čtverce (0,1): branka kůl od malého oblouku vnitřního rohu
     const margin = CEMETERY_GATE.gateWidth / 2 + CEMETERY_GATE.postStep;
-    expect(gate.x).toBe(45);
-    expect(gate.z).toBeCloseTo(45 + WOVEN_FENCE_CORNER_M.inner + margin, 9);
+    expect(gate.x).toBe(45 - INSET);
+    // nejméně kůl od malého oblouku (plot je odsazený, takže úsek začíná o 1,5 m dřív)
+    expect(gate.z).toBeGreaterThanOrEqual(45 - INSET + WOVEN_FENCE_CORNER_M.inner + margin - 1e-9);
     expect(gate.outX).toBe(1);
     const diagonal = cemeteryEntrance({ squares: [square(0, 0), square(1, 1)] }, [built(0, 0)])!;
     expect(diagonal.outX + diagonal.outZ).toBeLessThan(0);
@@ -125,9 +127,11 @@ describe('branka hřbitova (cemeteryEntrance)', () => {
       const dz = gate.z - squares[0]!.z;
       const u = dx * c - dz * s;
       const v = dx * s + dz * c;
-      // obrys dvou čtverců v rovném prostoru: u od −7,5 do 22,5, v ±7,5
+      // obrys dvou čtverců v rovném prostoru odsazený plotem: u od −7,5 + I do 22,5 − I, v ±(7,5 − I)
       const onEdge =
-        Math.abs(Math.abs(v) - 7.5) < 1e-9 || Math.abs(u + 7.5) < 1e-9 || Math.abs(u - 22.5) < 1e-9;
+        Math.abs(Math.abs(v) - (7.5 - INSET)) < 1e-9 ||
+        Math.abs(u + 7.5 - INSET) < 1e-9 ||
+        Math.abs(u - 22.5 + INSET) < 1e-9;
       expect(onEdge, `natočení ${turn}`).toBe(true);
       expect(Math.hypot(gate.outX, gate.outZ)).toBeCloseTo(1, 12);
       expect(cemeteryEntrance({ squares }, [built(-50, -50)])).toEqual(gate);
@@ -137,7 +141,7 @@ describe('branka hřbitova (cemeteryEntrance)', () => {
 
 describe('branka ohrady (penEntrance)', () => {
   const pen = { x: 37.5, z: -22.5, size: 15 };
-  const half = pen.size / 2 - FENCE_INSET_M;
+  const half = pen.size / 2 - PEN_FENCE_INSET_M;
 
   it('na straně k obydlí, posunutá k němu, nejvýš kůl od zakulaceného rohu', () => {
     expect(penEntrance(pen, { x: 0, z: 1 })).toEqual({
@@ -208,7 +212,8 @@ describe('síť pěšin vede k vchodu (Martin)', () => {
     const v = village({ cemeteries });
     const gate = cemeteryEntrance(cemeteries[0]!, v.dwellings)!;
     const network = computePathNetwork({ village: v, terrain });
-    expect(pathNear(network, gate)).toBeLessThan(3);
+    // brána stojí 1,5 m uvnitř čtverce, buňky sítě jsou 3,75 m
+    expect(pathNear(network, gate)).toBeLessThan(4);
     expect(computePathNetwork({ village: v, terrain }).lines).toEqual(network.lines);
     expect(network.visits.get('cemetery:4')).toBeGreaterThan(0);
   });

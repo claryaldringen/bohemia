@@ -14,6 +14,7 @@ import { NO_SPARED, type SparedSacred, sacredSitesOf, sparedWarning } from './sa
 import { type TakenLand } from './land-taken';
 import { cellObstacles, obstacleStatus, outcropUnder, squareObstacles } from './obstacles';
 import { cemeteryFoundingCost, distanceToSquare, touchingCemeteries } from './cemetery';
+import { newFenceSides } from './fence-cost';
 import { fieldGrids } from './squares';
 import { fieldsTouching, partFoundingCost } from './fields';
 import { normalizeGrid } from './square-grid';
@@ -509,7 +510,13 @@ export function cemeteryPartsFromCells(
     ...(grid ? { grid } : {}),
     squares,
     capacity: squares.length * CEMETERY.gravesPerSquare,
-    foundingCost: cemeteryFoundingCost(squares),
+    foundingCost: cemeteryFoundingCost(
+      squares,
+      newFenceSides(
+        squares.map((s) => s.cell),
+        extended,
+      ),
+    ),
     obstacleCost: squares.reduce((sum, s) => sum + s.obstacleCost, 0),
     obstacleCounts,
     extendsCemetery: touching.length === 1,

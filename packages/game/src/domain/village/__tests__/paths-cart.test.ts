@@ -762,3 +762,47 @@ describe('vyježděná cesta – vůz přebije vyšlapanou', () => {
     expect(roads.some((r) => r.cart)).toBe(true);
   }, 60_000);
 });
+
+describe('ulička mezi ohradami a hřbitovem (oxen.md – plot je menší než čtverec)', () => {
+  // dvě ohrady vedle sebe: políčka x = 8 a 9 (středy −22,5 a −7,5), hranice na x = −15
+  const penAt = (x: number, id: number): NonNullable<PathVillage['pens']>[number] => ({
+    ...part(x, -7.5),
+    id,
+    built: true,
+  });
+  const costAt = (grid: CartGrid, x: number, z: number): number => {
+    const i = Math.round((x - grid.originX) / grid.cellM);
+    const j = Math.round((z - grid.originZ) / grid.cellM);
+    return grid.cost[j * grid.width + i]!;
+  };
+
+  it('řada buněk na hranici mezi dvěma ohradami je sjízdná, buňky pod plotem ne', () => {
+    const grid = cartGrid({
+      village: village({ pens: [penAt(-22.5, 1), penAt(-7.5, 2)] }),
+      terrain: flatTerrain,
+    });
+    // uvnitř ohrad (plot 1,5 m od okraje) vůz nejede
+    expect(costAt(grid, -22.5, -7.5)).toBe(Infinity);
+    expect(costAt(grid, -7.5, -7.5)).toBe(Infinity);
+    expect(costAt(grid, -18.75, -7.5)).toBe(Infinity);
+    expect(costAt(grid, -11.25, -7.5)).toBe(Infinity);
+    // ulička 3 m na hranici políček: celou délkou ohrad (z −15 … 0) sjízdná
+    for (const z of [-15, -11.25, -7.5, -3.75, 0]) {
+      expect(Number.isFinite(costAt(grid, -15, z)), `z = ${z}`).toBe(true);
+    }
+  });
+
+  it('hřbitov a ohrada vedle sebe mají také uličku; sama ohrada se objíždí jako dřív', () => {
+    const grid = cartGrid({
+      village: village({
+        cemeteries: [{ id: 3, built: true, squares: [part(-22.5, -7.5)] }],
+        pens: [penAt(-7.5, 2)],
+      }),
+      terrain: flatTerrain,
+    });
+    expect(costAt(grid, -22.5, -7.5)).toBe(Infinity);
+    expect(Number.isFinite(costAt(grid, -15, -7.5))).toBe(true);
+    // za vnější stranou plotu je volno (jen 1,5 m pruh u plotu)
+    expect(Number.isFinite(costAt(grid, -30, -7.5))).toBe(true);
+  });
+});

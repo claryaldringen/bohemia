@@ -1,5 +1,5 @@
 import { detCos, detSin, length2 } from '../../landscape';
-import { HUMNO } from '../rules';
+import { CEMETERY_FENCE_INSET_M, HUMNO, PEN_FENCE_INSET_M } from '../rules';
 import { rotationCosSin, rotationTurn, ROTATION_TURNS } from '../square-grid';
 import type { Position, SacredBuildingKind, TileCell } from '../types';
 
@@ -35,7 +35,7 @@ export interface FenceGateStyle {
 export const CEMETERY_GATE: FenceGateStyle = { gateWidth: 1.8, postStep: 1 };
 /** Branka ze žerdí ohrady (oxen.md). */
 export const PEN_GATE: FenceGateStyle = { gateWidth: 1.6, postStep: 1 };
-/** Plot ohrady a pozemku stojí o tolik uvnitř svého čtverce (m). */
+/** Plot pozemku polozemnice stojí o tolik uvnitř svého čtverce (m); ohrada a hřbitov viz rules. */
 export const FENCE_INSET_M = 0.5;
 
 /**
@@ -215,7 +215,7 @@ function outlineRuns(
     }
     const ta = tangent(first.i, first.j);
     const tb = tangent(i, j);
-    // plot odsazený `inset` dovnitř (ohrada – FENCE_INSET_M): u vnějšího rohu úsek začíná
+    // plot odsazený `inset` dovnitř (ohrada, hřbitov): u vnějšího rohu úsek začíná
     // a končí o kus dál, u vnitřního o kus dřív
     const sa = around(first.i, first.j) === 3 ? -inset : inset;
     const sb = around(i, j) === 3 ? -inset : inset;
@@ -277,13 +277,17 @@ export function cemeteryEntrance(
     const [x, z] = frame.toFlat(q.x, q.z);
     return { cell: q.cell, x, z, size: q.size };
   });
-  const gate = gateOnRuns(outlineRuns(flat), frame.toFlat(toward.x, toward.z), CEMETERY_GATE);
+  const gate = gateOnRuns(
+    outlineRuns(flat, CEMETERY_FENCE_INSET_M),
+    frame.toFlat(toward.x, toward.z),
+    CEMETERY_GATE,
+  );
   return gate ? toEntrance(frame, gate) : null;
 }
 
 /**
  * Branka ohrady (oxen.md): ze žerdí na straně, kam míří `facing` (k nejbližšímu obydlí – ve scéně
- * i v síti), posunutá po té straně k němu; plot stojí FENCE_INSET_M uvnitř čtverce. Natočená
+ * i v síti), posunutá po té straně k němu; plot stojí PEN_FENCE_INSET_M uvnitř čtverce. Natočená
  * ohrada v osách svého čtverce. Jako `penLayout` ve webu (cíl branky ve vzdálenosti půl strany
  * plotu + 1 m od středu ve směru `facing`).
  */
@@ -296,7 +300,7 @@ export function penEntrance(
     frame === UNTURNED ? [facing.x, facing.z] : flatDir(square.rotation!, facing.x, facing.z);
   const length = length2(fx, fz);
   const [ux, uz] = length > 1e-9 ? [fx / length, fz / length] : [0, -1];
-  const half = square.size / 2 - FENCE_INSET_M;
+  const half = square.size / 2 - PEN_FENCE_INSET_M;
   const t = WOVEN_FENCE_CORNER_M.outer;
   const run = 2 * half - 2 * t;
   const [x0, z0, x1, z1] = [square.x - half, square.z - half, square.x + half, square.z + half];
@@ -314,7 +318,7 @@ export function penEntrance(
 
 /**
  * Branka ohrady o víc čtvercích (oxen.md – Ohrady podle druhu): pletený plot po obrysu čtverců
- * odsazený FENCE_INSET_M dovnitř (zakulacené rohy), branka na rovném úseku nejblíž k bodu
+ * odsazený PEN_FENCE_INSET_M dovnitř (zakulacené rohy), branka na rovném úseku nejblíž k bodu
  * `toward` (nejbližší obydlí). Natočená ohrada v osách své mřížky (kolem středu prvního čtverce).
  * Ohrada o jednom čtverci jako `penEntrance` (branka posunutá po straně ke vsi).
  */
@@ -332,7 +336,7 @@ export function penSquaresEntrance(
     return { cell: q.cell, x, z, size: q.size };
   });
   const gate = gateOnRuns(
-    outlineRuns(flat, FENCE_INSET_M),
+    outlineRuns(flat, PEN_FENCE_INSET_M),
     frame.toFlat(toward.x, toward.z),
     PEN_GATE,
   );

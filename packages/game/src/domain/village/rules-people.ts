@@ -166,13 +166,30 @@ export const COMMON_LABOR_YEAR_DAYS = 365;
 export const RUIN_YEARS = 10;
 // cemetery.md – Pravidla (stavba: vytyčení a ohrazení 10 člověkodní na čtverec; hrob i s uličkami
 // 4 m², na čtverec 15 × 15 m se vejde 56 míst na hroby)
-export const CEMETERY = { costPerSquare: 10, graveM2: 4, gravesPerSquare: 56 } as const;
+// Plot podle délky (cemetery.md – Plot hřbitova podle délky; Martin 22. 10. 2026, issue #3, návrh
+// Claude): plot je 3 z 10 člověkodní čtverce (`fenceShare` 0,3 – jako oprava plotu, abandonment.md),
+// platí se jen za nové vnější strany; vytyčení a hroby platí každý čtverec.
+export const CEMETERY = {
+  costPerSquare: 10,
+  fenceShare: 0.3,
+  graveM2: 4,
+  gravesPerSquare: 56,
+} as const;
 // cemetery.md – Mohyly podle významu (Martin 19. 10. 2026: „Významnější lidé budou mít větší
 // mohyly a na prominentnějších místech… Největší mohyly bude mít vojvodova rodina.“; velikosti
 // „Ano, udělej to tak.“): místa na hroby ve čtverci po řadách 7 × 8 (= CEMETERY.gravesPerSquare)
-// s okrajem 0,5 m od plotu; mohyla zabere `MOUND_SIZES` míst – 2 × 2 (`great`), 2 místa za sebou
+// s okrajem 0,5 m od plotu (plot stojí 1,5 m uvnitř čtverce – `CEMETERY_FENCE_INSET_M`, tedy hroby
+// 2 m od okraje čtverce a místo na hrob je menší, ale míst zůstává 56 – Martin 23. 10. 2026:
+// „kapacita na čtverec zůstane“); mohyla zabere `MOUND_SIZES` míst – 2 × 2 (`great`), 2 místa za sebou
 // (`large`), 1 (`normal`), 1 malá (`small`).
-export const GRAVE_PLACES = { columns: 7, rows: 8, marginM: 0.5 } as const;
+// Plot hřbitova stojí o tolik uvnitř čtverce (m) – ulička 3 m mezi hřbitovem a sousední stavbou
+// (rules-buildings.ts – PEN_FENCE_INSET_M, Martin 23. 10. 2026, platí i pro hřbitov).
+export const CEMETERY_FENCE_INSET_M = 1.5;
+export const GRAVE_PLACES = {
+  columns: 7,
+  rows: 8,
+  marginM: CEMETERY_FENCE_INSET_M + 0.5,
+} as const;
 export const MOUND_SIZES = {
   great: { columns: 2, rows: 2 },
   large: { columns: 1, rows: 2 },
