@@ -1,6 +1,6 @@
 # Vojvodova rodina – výcvik místo pole
 
-Stav: **návrh k posouzení** (23. 10. 2026, issue #8). Implementace zatím není. Koně, na kterých
+Stav: **schváleno** (Martin 23. 10. 2026: „Schvaluji, implementuj“) (23. 10. 2026, issue #8). Implementace zatím není. Koně, na kterých
 vojvoda a synové jezdí, popisuje [koně](horses.md) (issue #5). Čísla zdůvodňuje
 [rešerše](research/2026-10-23-horses-lord.md). Co níž není výslovně Martinovo, je návrh Clauda.
 
@@ -199,12 +199,11 @@ Příklad: ves 40 lidí, ≈ 20 dospělých. Dvorec s 8 lidmi – vojvoda 42, ž
 | Bez výcviku −5 % ročně, nejníž polovina nejvyšší dosažené                                               | návrh Clauda           |
 | 2 slaměné terče, střelnice 20 m, cvičný kůl, stojan, kůl na koně; bez ceny; bez dvorce 1 terč u zemnice | návrh Clauda           |
 | Síla v boji 1 × (1 + boj / 100) – jen návrh pro válku                                                   | návrh Clauda           |
+| Cvičí jen domácnost dvorce (kdo se oddělí, pracuje jako ostatní)                                        | Martin (23. 10. 2026)  |
+| Ztráta ≈ 25–30 % práce vsi je v pořádku                                                                 | Martin (23. 10. 2026)  |
 
-## Otevřené otázky pro Martina
+## Odpovědi Martina (23. 10. 2026)
 
-1. **Kdo patří k rodině:** jen domácnost dvorce – mladší ženatý syn, který se odstěhuje, je rolník
-   a přestane cvičit. Stačí to, nebo mají cvičit všichni vojvodovi potomci po meči v celé vsi
-   (víc vycvičených mužů, víc ztracené práce)?
-2. **Cena dvora:** typický dvorec vezme vsi ≈ 25–30 % práce. Je to v pořádku, nebo mají třeba
-   snachy (přivdané ženy) pracovat jako rolnice?
-3. **Synové nepasou:** ves s malým počtem dětí tím může mít menší stáda. Vadí to?
+1. **Kdo patří k rodině:** „Jen domácnost dvorce“.
+2. **Cena dvora:** ztráta ≈ 25–30 % práce – „Ano, tak to má být“; snachy vedou jen domácnost.
+3. **Synové nepasou:** zůstává návrh Clauda (Martin schválil návrh jako celek).

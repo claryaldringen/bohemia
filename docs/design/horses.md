@@ -1,6 +1,6 @@
 # Koně – ohrada, chov, výcvik a jezdci
 
-Stav: **návrh k posouzení** (23. 10. 2026, issue #5). Implementace zatím není. Kdo na koních jezdí
+Stav: **schváleno** (Martin 23. 10. 2026: „Schvaluji, implementuj“) (23. 10. 2026, issue #5). Implementace zatím není. Kdo na koních jezdí
 a jak se cvičí, popisuje [vojvodova rodina](lord.md) (issue #8). Čísla zdůvodňuje
 [rešerše](research/2026-10-23-horses-lord.md). Co níž není výslovně Martinovo, je návrh Clauda.
 
@@ -205,30 +205,33 @@ Tři řádky v panelu obchodu jako u dobytka ([obchod](trade.md) – Dobytek ve 
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                            | Kdo                    |
-| ----------------------------------------------------------------------------------------------------- | ---------------------- |
-| Ohrada pro koně; kůň nejnáročnější na péči; jezdí jen vojvoda a synové                                | Martin (22. 10. 2026)  |
-| Zatím k ničemu; později lov (divoká prasata) a válka                                                  | Martin (22. 10. 2026)  |
-| Vlastní chov v ohradě, nákup a prodej jako u ostatních zvířat                                         | Martin (22. 10. 2026)  |
-| Jen na jízdu – vozy a rádlo dál táhnou voli                                                           | Martin (22. 10. 2026)  |
-| Jízda od 3 let, výcvik hotový ve 12; jezdec postupně účinnější                                        | Martin (22. 10. 2026)  |
-| Obilí k práci; jen na seně neuhyne, výcvik se zpomalí                                                 | Martin (22. 10. 2026)  |
-| Jezdci ve scéně už teď                                                                                | Martin (22. 10. 2026)  |
-| Jezdečtí koně samci (hřebec a valaši), klisny jen na chov; služba do 20 let, pak na maso              | návrh Clauda           |
-| Ohrada 4 koně na čtverec, 50 čd + 8 stromů, plot 1,4 m, přístřešek se žlabem, branka k dvorci         | návrh Clauda           |
-| Péče 1 h na koně denně celý rok, z práce vsi (koňák), hned za denním minimem                          | návrh Clauda           |
-| Pastva 1 ha; seno 6 kg (bez obilí 7); obilí 1,5 kg jen jezdecký kůň; lidé napřed; bez obilí výcvik ½  | návrh Clauda (rešerše) |
-| Chov: klisna každý druhý rok, hříbata 1. 5.; klisny 1 + 1 na 3 jezdce; navíc 1. 11. na maso           | návrh Clauda           |
-| Ceny 800 / 1 600 / 2 400–3 600 kg obilí; pastevci nabízejí, obilnáři a řemeslníci shánějí; honák na 4 | návrh Clauda           |
-| Výcvik koně ve dnech jízdy; jezdec × (0,4 + 0,6 × výcvik koně); přidělení koní od vojvody             | návrh Clauda           |
-| Denní objížďka polí, jednou za 7 dní k hranici po stezce, doprovod výpravy; síť pěšin beze změny      | návrh Clauda           |
-| Modely koně a jezdce z 0 A.D.; jezdec bez nového vertex atributu                                      | návrh Clauda           |
+| Rozhodnutí                                                                                            | Kdo                         |
+| ----------------------------------------------------------------------------------------------------- | --------------------------- |
+| Ohrada pro koně; kůň nejnáročnější na péči; jezdí jen vojvoda a synové                                | Martin (22. 10. 2026)       |
+| Zatím k ničemu; později lov (divoká prasata) a válka                                                  | Martin (22. 10. 2026)       |
+| Vlastní chov v ohradě, nákup a prodej jako u ostatních zvířat                                         | Martin (22. 10. 2026)       |
+| Jen na jízdu – vozy a rádlo dál táhnou voli                                                           | Martin (22. 10. 2026)       |
+| Jízda od 3 let, výcvik hotový ve 12; jezdec postupně účinnější                                        | Martin (22. 10. 2026)       |
+| Obilí k práci; jen na seně neuhyne, výcvik se zpomalí                                                 | Martin (22. 10. 2026)       |
+| Jezdci ve scéně už teď                                                                                | Martin (22. 10. 2026)       |
+| Jezdečtí koně samci (hřebec a valaši), klisny jen na chov; služba do 20 let, pak na maso              | návrh Clauda                |
+| Ohrada 4 koně na čtverec, 50 čd + 8 stromů, plot 1,4 m, přístřešek se žlabem, branka k dvorci         | návrh Clauda                |
+| Péče 1 h na koně denně celý rok, z práce vsi (koňák), hned za denním minimem                          | návrh Clauda                |
+| Pastva 1 ha; seno 6 kg (bez obilí 7); obilí 1,5 kg jen jezdecký kůň; lidé napřed; bez obilí výcvik ½  | návrh Clauda (rešerše)      |
+| Chov: klisna každý druhý rok, hříbata 1. 5.; klisny 1 + 1 na 3 jezdce; navíc 1. 11. na maso           | návrh Clauda                |
+| Ceny 800 / 1 600 / 2 400–3 600 kg obilí; pastevci nabízejí, obilnáři a řemeslníci shánějí; honák na 4 | návrh Clauda                |
+| Výcvik koně ve dnech jízdy; jezdec × (0,4 + 0,6 × výcvik koně); přidělení koní od vojvody             | návrh Clauda                |
+| Denní objížďka polí, jednou za 7 dní k hranici po stezce, doprovod výpravy; síť pěšin beze změny      | návrh Clauda                |
+| Modely koně a jezdce z 0 A.D.; jezdec bez nového vertex atributu                                      | návrh Clauda                |
+| Péče 1 h denně na koně z práce vsi; jezdecký kůň 1,5 kg obilí denně                                   | Martin (23. 10. 2026)       |
+| Starý kůň po službě jde na maso jako ostatní dobytek                                                  | návrh Clauda (23. 10. 2026) |
+| Jezdí se jen na samcích, klisny jsou na chov                                                          | návrh Clauda (23. 10. 2026) |
 
-## Otevřené otázky pro Martina
+## Odpovědi Martina (23. 10. 2026)
 
-1. **Péče z práce vsi:** péči o ostatní zvířata jsi dal bokem (ženy). U koně navrhuji výjimku –
-   hodina denně na koně z práce vsi (5 koní ≈ 180 člověkodní ročně). Souhlasíš?
-2. **Obilí:** jezdecký kůň sní ≈ 550 kg obilí ročně, jako tři dospělí. Je to cena, kterou chceš,
-   nebo míň?
-3. **Starý kůň na maso**, nebo se kůň nejí (po službě dožije v ohradě)?
-4. **Klisny jen na chov** a jezdí se na samcích – nebo mají jezdit i na klisnách?
+1. **Péče z práce vsi:** hodina denně na koně z práce vsi – „Ano, sedí“.
+2. **Obilí:** ≈ 550 kg ročně na jezdeckého koně – „Ano, sedí“.
+3. **Starý kůň:** Martin nechal na Claudovi – po službě jde na maso jako ostatní dobytek
+   (porážka už existuje, kůň nedožívá na obilí ani seně; návrh Clauda).
+4. **Klisny:** Martin nechal na Claudovi – jezdí se jen na samcích, klisny jsou na chov
+   (jak navrženo; návrh Clauda).
