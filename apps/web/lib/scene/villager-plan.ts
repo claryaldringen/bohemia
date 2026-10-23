@@ -343,6 +343,15 @@ export function firstBuilders(
   return out;
 }
 
+/** Lehčí polní práce, které smějí dělat i ženy řemeslníků (jako `LIGHT_LABOR_TASKS` v jádře). */
+const LIGHT_ACTIVITIES: ReadonlySet<string> = new Set([
+  'sow',
+  'weed',
+  'harvest',
+  'carry',
+  'thresh',
+]);
+
 /**
  * Kdo dělá podíl práce: řemeslník a jeho domácnost u dílny (i uhlíř u milíře), kovář a synové
  * u rudiště nebo hliniště podle věku z jádra, uhlíř sází buky, dílna kácí svůj strom; ostatní
@@ -395,7 +404,12 @@ export function shareWorker(
     );
   }
   const home = homeHint(ctx, share, i);
-  return roster.take({ ...ADULTS, sex, ...(home !== null ? { preferHome: home } : {}) });
+  return roster.take({
+    ...ADULTS,
+    sex,
+    ...(LIGHT_ACTIVITIES.has(share.activity) ? { light: true } : {}),
+    ...(home !== null ? { preferHome: home } : {}),
+  });
 }
 
 /** Obydlí dílen s řemeslem, které projde `filter`. */

@@ -132,7 +132,9 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
       learning.has(key) ? undefined : value,
     );
     // otisk se změnil 22. 10. 2026: řemeslo dělají jen muži domácnosti, ženy dávají zbytek práce
-    // po domácnosti vsi (crafts.md – Kdo dělá řemeslo); dřív 2f488a15
-    expect(hash(stripped)).toBe('d7d45927');
+    // po domácnosti vsi (crafts.md – Kdo dělá řemeslo); dřív 2f488a15; 23. 10. 2026 podruhé (6bd77b28): práce žen
+    // je samostatný zásobník jen na setí, okopávání, žně a výmlat, ne do orby, kácení a staveb;
+    // dřív d7d45927
+    expect(hash(stripped)).toBe('6bd77b28');
   }, 120_000);
 });

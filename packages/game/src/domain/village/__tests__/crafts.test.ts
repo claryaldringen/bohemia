@@ -211,11 +211,9 @@ describe('řemeslník na plný úvazek (crafts.md – Práce a jídlo)', () => {
     empty.people = empty.people.filter((p) => p.dwellingId !== WORKSHOP_ID);
     const without = advanceVillage(empty, DAY + 1, null);
     // zvířata a domácí výroba jdou bokem (population.md – Práce); řemeslo dělá muž, žena po
-    // denním minimu (0,5 čd) dá zbytek své práce (0,5 čd) vsi (crafts.md – Kdo dělá řemeslo)
-    expect(withCraft.commonLaborHistory.at(-1)).toBeCloseTo(
-      without.commonLaborHistory.at(-1)! + 0.5,
-      2,
-    );
+    // denním minimu dává zbytek práce (0,5 čd) jen na lehčí polní práce (`allocateDay.light`) –
+    // do společné práce (stavby, opravy) nejde (crafts.md – Kdo dělá řemeslo)
+    expect(withCraft.commonLaborHistory.at(-1)).toBeCloseTo(without.commonLaborHistory.at(-1)!, 2);
     // hrnčíř kácí strom na palivo bez polohy (ves bez vrstvy) – práce jde k dílně
     const fell = withCraft.labor!.shares.filter((s) => s.activity === 'fell');
     expect(fell).toEqual([

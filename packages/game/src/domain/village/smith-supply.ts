@@ -145,7 +145,8 @@ export function smithHead(members: readonly Person[], day: number): SmithMember 
 
 /**
  * Kdo z domácnosti dílny dělá řemeslo (crafts.md – Kdo dělá řemeslo; Martin 22. 10. 2026: „Řemeslo
- * dělá jen řemeslník a jeho synové“): muži a lidé bez uvedeného pohlaví (starší vsi); ženy se
+ * dělá jen řemeslník a jeho synové“): muži a lidé bez uvedeného pohlaví (jen stav, který neprošel převodem `withKinship`
+ * v `updateVillage` – testy, přímé `advanceVillage`; načtená ves pohlaví má); ženy se
  * starají o domácnost a dělají lehčí polní práce se vsí. Když v domácnosti není nikdo, kdo by
  * mohl pracovat (vdova s dětmi), řemeslo drží celá domácnost, ať dílna nestojí.
  */

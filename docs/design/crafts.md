@@ -89,8 +89,8 @@ Vzhled podle Martina (modely se připravují v `tools/blender/`):
   tavba, měch, milíř, kácení pro uhlí, hrnčířství, tesařina) dělá jen řemeslník a jeho synové
   (`craftHands`); měch šlape syn nebo muž z domácnosti, jinak kovář sám pomaleji. Ženy kryjí
   denní minimum domácnosti a **zbytek své práce dávají vsi** (`WorkshopLabor.light`, do kapacity
-  vsi v kroku práce) – návrh Clauda: počítá se jako obecná práce vsi, ve scéně je zastanou ženy
-  u polních prací; praxi v řemesle ženy nezískávají a výkon dílny podle ní neurčují. Domácnost
+  vsi v kroku práce) – návrh Clauda: samostatný zásobník lehké práce, který pokryje jen setí,
+  okopávání, žně a výmlat (orbu, kácení ani stavby nikdy), ve scéně ho zastanou ženy u těchto prací; praxi v řemesle ženy nezískávají a výkon dílny podle ní neurčují. Domácnost
   bez muže schopného práce (vdova s dětmi) drží dílnu celá, ať nestojí.
 - **Volný čas pracují pro ves** (Martin 18. 10. 2026: „Ano, pokud uhlíř a kovář budou mít volný
   čas, ať pracují na poli jako zbytek vesnice.“): když řemeslník nemá v dílně co dělat, jeho

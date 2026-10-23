@@ -103,6 +103,47 @@ describe('allocateDay', () => {
   });
 });
 
+describe('lehká práce žen řemeslníků (crafts.md – Kdo dělá řemeslo)', () => {
+  const heavy = [
+    { name: 'plough' as const, remaining: 5 },
+    { name: 'reclaim' as const, remaining: 5 },
+  ];
+  it('nepokryje orbu, kácení ani stavby: bez kapacity zůstanou těžké úlohy i společná práce prázdné', () => {
+    const r = allocateDay({ ...base, capacity: 0, light: 3, tasks: heavy });
+    expect(r.tasks.plough).toBe(0);
+    expect(r.tasks.reclaim).toBe(0);
+    expect(r.common).toBe(0);
+  });
+  it('pokryje setí, okopávání, žně a výmlat; co nevyužije, propadne', () => {
+    const r = allocateDay({
+      ...base,
+      capacity: 0,
+      light: 4,
+      tasks: [
+        { name: 'sow', remaining: 1 },
+        { name: 'weed', remaining: 1 },
+        { name: 'harvest', remaining: 1 },
+        { name: 'thresh', remaining: 0.5 },
+      ],
+    });
+    expect(r.tasks.sow).toBeCloseTo(1);
+    expect(r.tasks.weed).toBeCloseTo(1);
+    expect(r.tasks.harvest).toBeCloseTo(1);
+    expect(r.tasks.thresh).toBeCloseTo(0.5);
+    expect(r.common).toBe(0);
+  });
+  it('lehká úloha bere napřed z lehké práce, zbytek z obecné kapacity', () => {
+    const r = allocateDay({
+      ...base,
+      capacity: 2,
+      light: 0.5,
+      tasks: [{ name: 'sow', remaining: 1 }],
+    });
+    expect(r.tasks.sow).toBeCloseTo(1);
+    expect(r.common).toBeCloseTo(2 - DAILY_MIN - 0.5);
+  });
+});
+
 describe('denní minimum a starší (population.md – Práce)', () => {
   it('starší kryje denní minimum své domácnosti – z práce vsi nic nebo méně', () => {
     // jeden starší (0,5) pokryje minimum bez hrnčíře (0,5) celé
