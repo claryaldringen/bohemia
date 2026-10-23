@@ -165,6 +165,30 @@ describe('kudy vůz projede', () => {
     expect(route({ roads: [{ id: 1, points: edge, grade: 'trodden' }] }, into).reached).toBe(false);
   });
 
+  it('lesem i po šikmé cestě a jejím ohybu (pás cesty, úhlopříčka po cestě přes roh)', () => {
+    // Vlkov 23. 10. 2026: šikmá cesta lesem byla na mřížce řetěz buněk spojených rohy – vůz
+    // úhlopříčkou přes roh lesa nejel a k vodě po vozové cestě nedojel
+    const bends = [
+      [
+        { x: 0, z: 0 },
+        { x: -95, z: 0 },
+        { x: -135, z: -40 },
+      ],
+      [
+        { x: 0, z: 0 },
+        { x: -95, z: 0 },
+        { x: -112, z: -30 },
+        { x: -138, z: -42 },
+      ],
+    ];
+    for (const axis of bends) {
+      const end = axis[axis.length - 1]!;
+      expect(route({}, end).reached).toBe(false);
+      const road = { id: 1, points: axis, grade: 'trodden' as const };
+      expect(route({ roads: [road] }, end).reached).toBe(true);
+    }
+  });
+
   it('čtyřkolák po louce a strništi kamkoli, na zoraný díl ne (wagons.md – Co se vozí a na čem)', () => {
     const four = (extra: Partial<PathVillage>, target: { x: number; z: number }): CartRoute =>
       cartRoutes({

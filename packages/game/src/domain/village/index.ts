@@ -239,6 +239,7 @@ export {
   oreCartDrive,
   oreCartOffer,
   villageCartDrives,
+  storedWaterCartDrive,
   waterCartDrive,
   waterCartPlan,
   type CartDrives,
