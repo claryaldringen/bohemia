@@ -191,7 +191,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `harvestCarryShare`, seč – `haulShare.hay`; `haulPlan` / `haulProgress` / `haulAvailable` –
   nejvýš podíl celé úlohy, převzaté v `CropWork.hauled`, `HayMowing.hauled`), `haulLogs` (klády
   ke stavbám – `fellingHaulable`, `ConstructionWood.hauled`), rozdělení práce `haul` s
-  `LaborShare.carts`. Výprava: `expeditionTransport` (vozy, `trips` jízd a lidé najednou – plné jízdy vozů, zbytek nosiči rovnoměrně mezi jízdy; klády jen na voze, `TRADE.logCarriers` = 2 bez vozu; `TradeQuote.trips`, `TradeExpedition.trips`, `days` = všechny jízdy; scéna `caravan-view.ts` ukazuje postup právě běžící jízdy; nosnost a náklad vozu `SceneCart.job.loadKg` → panel výběru vozu) / `tradeCarts` (`TradeQuote.carts`,
+  `LaborShare.carts`. Výprava: `expeditionTransport` (vozy, `trips` jízd a lidé najednou – plné jízdy vozů, jízda navíc od zbytku `TRADE.restTripShare` (0,5) vozu, menší zbytek nosiči přesně mezi jízdy (floor + zbytek), `work` = součet lidí přes jízdy → `manDays`; klády jen na voze, `TRADE.logCarriers` = 2 bez vozu; `TradeQuote.trips`, `TradeExpedition.trips`, `days` = všechny jízdy; scéna `caravan-view.ts` ukazuje postup právě běžící jízdy; nosnost a náklad vozu `SceneCart.job.loadKg` → panel výběru vozu) / `tradeCarts` (`TradeQuote.carts`,
   `TradeExpedition.carts` – spřežení je pryč, `teamsHomeShare` krátí orbu; jen po stezce sjízdné
   pro vozy – `trailCartPassable`, `axisCartCheck`). **Dosah vozu je rozhraní `CartAccess`** (cíle
   najednou) – s krajinou vozová síť (`networkCartAccess` → `villageCartRoutes`), bez krajiny

@@ -18,6 +18,8 @@ export const TRADE = {
   porterKg: 25,
   headsPerDrover: 10,
   logCarriers: 2,
+  // wagons.md – Opakované jízdy vozu: zbytek aspoň půl vozu = vůz jede ještě jednou (Martin 23. 10. 2026)
+  restTripShare: 0.5,
   tripDays: { min: 2, max: 6, fromM: 400, perDayM: 250 },
   beyondEdgeDays: 1,
   restockDay: { month: 11, day: 1 },

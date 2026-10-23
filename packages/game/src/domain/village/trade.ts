@@ -198,31 +198,33 @@ export function expeditionTransport(
   give: TradeGoods,
   get: TradeGoods,
   carts: readonly CartKind[] = [],
-): { porters: number; carts: number; trips: number } {
+): { porters: number; carts: number; trips: number; work: number } {
   const hasLogs = (give.logs ?? 0) > 0 || (get.logs ?? 0) > 0;
-  let best: { porters: number; carts: number; trips: number } | null = null;
+  let best: { porters: number; carts: number; trips: number; work: number } | null = null;
   for (let n = hasLogs && carts.length > 0 ? 1 : 0; n <= carts.length; n++) {
     const used = carts.slice(0, n);
     const a = legCrew(give, used);
     const b = legCrew(get, used);
     const trips = Math.max(a.trips, b.trips);
-    const porters =
-      Math.max(n === 0 ? 1 : 0, a.perTrip(trips), b.perTrip(trips)) + n * CARTS.tradeCrew;
-    if (best === null || porters * trips < best.porters * best.trips) {
-      best = { porters, carts: n, trips };
-    }
+    const ca = a.crew(trips);
+    const cb = b.crew(trips);
+    const crews = ca.map((x, j) => Math.max(n === 0 ? 1 : 0, x, cb[j] ?? 0) + n * CARTS.tradeCrew);
+    const porters = Math.max(...crews);
+    const work = crews.reduce((sum, x) => sum + x, 0);
+    if (best === null || work < best.work) best = { porters, carts: n, trips, work };
   }
-  return best ?? { porters: 1, carts: 0, trips: 1 };
+  return best ?? { porters: 1, carts: 0, trips: 1, work: 1 };
 }
 
 /**
- * Jedna cesta (tam nebo zpět) s vozy `carts`: kolik jízd vozů aspoň potřebuje (plné jízdy,
- * klády na voze) a kolik lidí (nosičů a honáků) při dané počtu jízd nese zbytek najednou.
+ * Jedna cesta (tam nebo zpět) s vozy `carts`: kolik jízd vozů potřebuje (plné jízdy, jízda navíc
+ * od zbytku `TRADE.restTripShare` vozu, klády na voze) a kolik lidí (nosičů a honáků) jde při
+ * každé z `trips` jízd – zbytek se dělí přesně (floor + zbytek po jednom na první jízdy).
  */
 function legCrew(
   goods: TradeGoods,
   carts: readonly CartKind[],
-): { trips: number; perTrip: (trips: number) => number } {
+): { trips: number; crew: (trips: number) => number[] } {
   let kg = 0;
   let logKg = 0;
   let logs = 0;
@@ -241,15 +243,18 @@ function legCrew(
   if (carts.length === 0) {
     const units =
       Math.ceil((kg - logKg) / TRADE.porterKg - EPSILON) + logs * TRADE.logCarriers + drovers;
-    return { trips: 1, perTrip: () => units };
+    return { trips: 1, crew: () => [units] };
   }
   const load = carts.reduce((sum, kind) => sum + CARTS.loadKg[kind], 0);
-  const trips = Math.max(1, Math.floor(kg / load + EPSILON), Math.ceil(logKg / load - EPSILON));
+  const full = Math.floor(kg / load + EPSILON);
+  const extra = kg - full * load >= TRADE.restTripShare * load - EPSILON ? 1 : 0;
+  const trips = Math.max(1, full + extra, Math.ceil(logKg / load - EPSILON));
   return {
     trips,
-    perTrip: (n) => {
+    crew: (n) => {
       const rest = Math.max(0, kg - n * load);
-      return Math.ceil((Math.ceil(rest / TRADE.porterKg - EPSILON) + drovers) / n - EPSILON);
+      const total = Math.ceil(rest / TRADE.porterKg - EPSILON) + drovers;
+      return Array.from({ length: n }, (_, j) => Math.floor(total / n) + (j < total % n ? 1 : 0));
     },
   };
 }
@@ -284,7 +289,7 @@ export function fourWheelSavings(give: TradeGoods, get: TradeGoods, days: number
   const out: number[] = [];
   const work = (carts: readonly CartKind[]): number => {
     const t = expeditionTransport(give, get, carts);
-    return t.porters * t.trips;
+    return t.work;
   };
   let spent = work([]);
   for (let k = 1; k <= CART_DEMAND.maxCarts['four-wheel']; k++) {
@@ -400,7 +405,7 @@ export function tradeQuote(
     trips: transport.trips,
     carts: available.slice(0, transport.carts),
     days: days * transport.trips,
-    manDays: porters * days * transport.trips,
+    manDays: transport.work * days,
   };
   const blocked = ((): string | null => {
     if (!trail) return NO_TRAIL;
