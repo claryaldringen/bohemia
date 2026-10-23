@@ -20,7 +20,7 @@ export interface RelocationActions {
   /** Začne umisťovat nové domy domácností `householdIds` (postupně, jeden za druhým). */
   onRelocate?: (type: BuildableDwellingType, householdIds: readonly number[]) => void;
   /** Zruší rozestavěné stěhování (stavba nového domu) – hotovo, až se vrátí. */
-  onCancelRelocation?: (constructionId: number) => Promise<void>;
+  onCancelConstruction?: (constructionId: number) => Promise<void>;
   /**
    * Odejít do nové vsi (migration.md – fáze 3 a 4): na téže mapě (`here` – hráč pak umístí první
    * zemnici), nebo na novou mapu ve směru.
@@ -48,7 +48,7 @@ export function DwellingBody({
   details,
   onSelectTarget,
   onRelocate,
-  onCancelRelocation,
+  onCancelConstruction,
   onLeave,
   onBuildTrail,
   onSendExpedition,
@@ -104,7 +104,7 @@ export function DwellingBody({
           <RelocationProgress
             constructionId={details.relocation.constructionId}
             progress={details.relocation.progress}
-            onCancel={onCancelRelocation}
+            onCancel={onCancelConstruction}
           />
         )}
       </div>

@@ -129,7 +129,7 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 ### Stav fází
 
 1. **Přestěhování domácnosti a výběr víc obydlí – hotovo.** Jádro `relocation.ts` a akce
-   `startRelocation` / `cancelRelocation` (`actions.ts`), use-casy `relocate-household.ts`, panel
+   `startRelocation` (`actions.ts`), zrušení `cancelConstruction` (`cancel-construction.ts`), use-casy `relocate-household.ts`, panel
    výběru (`RelocationControls.tsx`), výběr víc obydlí `village-selection.ts`.
 2. **Víc vsí a přepínač – hotovo.** Migrace `0005_multi_village`, use-casy podle id vsi,
    `player-villages.ts`, přepínač `VillageSwitcher.tsx`, vývojová druhá ves na téže mapě.
@@ -171,8 +171,9 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 - Domácnost, která si staví nový dům, **starý nepřestavuje** a druhé stěhování nezačne;
   přestavovaný dům se stěhovat nemůže. Zanikne-li domácnost během stavby (vymře, sloučí se
   k sousedům), nový dům zůstane prázdný a osídlí ho jako každé prázdné obydlí.
-- **Zrušení** vrátí na hromadu klády vzaté z hromady i už skácené stromy; odvedená práce
-  a odstraněné překážky staveniště propadnou.
+- **Zrušení** vrátí na hromadu klády vzaté z hromady i už skácené stromy, bez části dřeva
+  zabudované podle odvedené práce (obecné pravidlo: population.md – Zrušení rozestavěné
+  stavby); odvedená práce a odstraněné překážky staveniště propadnou.
 - **Typ nového domu** volí hráč dvěma tlačítky v panelu výběru (ikona zemnice a polozemnice,
   v popisku práce a dřevo, chybějící červeně). U víc domácností se nové domy umisťují postupně
   – po umístění jednoho hned běží umisťování dalšího (jako Shift + klik), Esc zbytek zruší.

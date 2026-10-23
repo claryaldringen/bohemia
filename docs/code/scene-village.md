@@ -90,8 +90,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   – záhony v instancích natočené), `insidePlot`, `plotStakingLine`, `plotFenceCorners` v osách
   pozemku, `ScenePlot.rotation`. Dílny z polozemnice
   (hrnčíř, kovář) pozemek nemají – stojí volně jako dřív. **Hřbitov** (`cemetery-renderer.ts`,
-  geometrie bez Babylonu v `cemetery-layout.ts`): nízký pletený plot po obrysu čtverců (sdílený
-  pletený plot, zakulacené rohy) s brankou k nejbližšímu hotovému obydlí (při rozšíření jinam
+  geometrie bez Babylonu v `cemetery-layout.ts`): nízký pletený plot po obrysu čtverců **odsazený
+  1,5 m dovnitř** (`CEMETERY_FENCE_INSET_M`; `outlinePaths(…, inset)` + `insetPoints`, rozšíření ve
+  stavbě zasahuje zpět na přímý úsek starého plotu; sdílený pletený plot, zakulacené rohy; vytyčení
+  `stakingSegments` stejným obrysem; hroby mají okraj 2 m a `GRAVE_SCALE` zmenší mohyly; obrys se
+  neukládá, odvozuje se z čtverců, starší vsi netřeba převádět) s brankou k nejbližšímu hotovému obydlí (při rozšíření jinam
   zůstane; místo branky = vchod z jádra `cemeteryEntrance`, paths.md – Vchody), uvnitř mohyly
   podle významu (`SceneVillage.cemeteries[].mounds` – místo, velikost, `fresh` první rok –
   `FRESH_MOUND_DAYS`; `moundPlacements` se středem z jádra `gravePlaceCenter`, tvary

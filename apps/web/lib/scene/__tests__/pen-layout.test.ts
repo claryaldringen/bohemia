@@ -89,7 +89,7 @@ describe('ohrada – rozmístění', () => {
   it('branka leží na straně plotu ke vsi; kůly u ní jsou krajní a vyšší', () => {
     for (const facing of FACINGS) {
       const layout = penLayout(square, facing);
-      const half = square.size / 2 - 0.5;
+      const half = square.size / 2 - 1.5;
       // strana podle převažující osy směru
       expect(dot(rel(layout, layout.gate), layout.front)).toBeCloseTo(half, 6);
       expect(dot(layout.front, facing)).toBeGreaterThan(0);
@@ -115,14 +115,14 @@ describe('ohrada – rozmístění', () => {
         // ven ze středu ohrady
         expect(Math.hypot(core.outX, core.outZ)).toBeCloseTo(1, 9);
         expect(dot({ x: core.outX, z: core.outZ }, rel(layout, core))).toBeCloseTo(
-          sq.size / 2 - 0.5,
+          sq.size / 2 - 1.5,
           6,
         );
       }
     }
     // dřív: branka nejblíž k bodu půl strany plotu + 1 m od středu ve směru `facing`
     for (const facing of FACINGS) {
-      const half = square.size / 2 - 0.5;
+      const half = square.size / 2 - 1.5;
       const length = Math.hypot(facing.x, facing.z);
       const toward = {
         x: square.x + (facing.x / length) * (half + 1),
@@ -451,8 +451,8 @@ describe('ohrada o víc čtvercích (oxen.md – Ohrady podle druhu)', () => {
   it('plot obejme oba čtverce, uvnitř je celá plocha bez švu, vytyčení po obrysu', () => {
     const layout = penLayout(first, penFacing(first, toward), [right]);
     expect(layout.squares).toHaveLength(2);
-    // obrys plotu odsazený o 0,5 m dovnitř – obdélník 29 × 14 m
-    expect(layout.fenceRect).toEqual({ minX: 30.5, maxX: 59.5, minZ: -29.5, maxZ: -15.5 });
+    // obrys plotu odsazený o 1,5 m dovnitř – obdélník 27 × 12 m
+    expect(layout.fenceRect).toEqual({ minX: 31.5, maxX: 58.5, minZ: -28.5, maxZ: -16.5 });
     expect(layout.outline).toHaveLength(4);
     for (const p of [
       { x: 38, z: -22 },
@@ -470,7 +470,7 @@ describe('ohrada o víc čtvercích (oxen.md – Ohrady podle druhu)', () => {
     // branka v plotu (z jádra – stejně jako vchod sítě pěšin)
     const posts = fencePosts(layout.fence).filter((p) => p.gate);
     expect(posts).toHaveLength(2);
-    expect(Math.min(...posts.map((p) => p.z))).toBeCloseTo(-29.5, 6);
+    expect(Math.min(...posts.map((p) => p.z))).toBeCloseTo(-28.5, 6);
   });
 
   it('tvar L: plot po obrysu se šesti rohy, přístřešek zády a bokem k vnějšímu plotu', () => {

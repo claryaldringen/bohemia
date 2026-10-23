@@ -47,6 +47,7 @@ import {
   orchardTrees,
   planting,
   threshing,
+  threshingOnFloor,
 } from './villager-plan-fields';
 import {
   builderNearby,
@@ -342,6 +343,15 @@ export function firstBuilders(
   return out;
 }
 
+/** Lehčí polní práce, které smějí dělat i ženy řemeslníků (jako `LIGHT_LABOR_TASKS` v jádře). */
+const LIGHT_ACTIVITIES: ReadonlySet<string> = new Set([
+  'sow',
+  'weed',
+  'harvest',
+  'carry',
+  'thresh',
+]);
+
 /**
  * Kdo dělá podíl práce: řemeslník a jeho domácnost u dílny (i uhlíř u milíře), kovář a synové
  * u rudiště nebo hliniště podle věku z jádra, uhlíř sází buky, dílna kácí svůj strom; ostatní
@@ -358,9 +368,14 @@ export function shareWorker(
   const t = share.target;
   const own = (id: number): ReadonlySet<number> => new Set([id]);
   if (share.activity === 'craft' && (t.kind === 'dwelling' || t.kind === 'kiln')) {
+    // řemeslo dělá jen řemeslník a jeho synové, ženy ne (crafts.md – Kdo dělá řemeslo)
     return (
-      roster.take({ ...ADULTS, homes: own(t.id), sex }) ??
-      roster.take({ from: AGE.olderChild, to: Infinity, homes: own(t.id), sex })
+      roster.take({ ...ADULTS, homes: own(t.id), onlySex: 'male' }) ??
+      roster.take({ from: AGE.olderChild, to: Infinity, homes: own(t.id), onlySex: 'male' }) ??
+      (roster.hasMen(t.id)
+        ? null
+        : (roster.take({ ...ADULTS, homes: own(t.id), sex }) ??
+          roster.take({ from: AGE.olderChild, to: Infinity, homes: own(t.id), sex })))
     );
   }
   if (
@@ -383,13 +398,18 @@ export function shareWorker(
     const burners = craftHomes(ctx, (craft) => craft === 'burner');
     const crafts = craftHomes(ctx, (craft) => craft === 'burner' || craft === 'potter');
     return (
-      (burners.size > 0 ? roster.take({ ...ADULTS, homes: burners, sex }) : null) ??
-      (crafts.size > 0 ? roster.take({ ...ADULTS, homes: crafts, sex }) : null) ??
+      (burners.size > 0 ? roster.take({ ...ADULTS, homes: burners, onlySex: 'male' }) : null) ??
+      (crafts.size > 0 ? roster.take({ ...ADULTS, homes: crafts, onlySex: 'male' }) : null) ??
       roster.take({ ...ADULTS, sex })
     );
   }
   const home = homeHint(ctx, share, i);
-  return roster.take({ ...ADULTS, sex, ...(home !== null ? { preferHome: home } : {}) });
+  return roster.take({
+    ...ADULTS,
+    sex,
+    ...(LIGHT_ACTIVITIES.has(share.activity) ? { light: true } : {}),
+    ...(home !== null ? { preferHome: home } : {}),
+  });
 }
 
 /** Obydlí dílen s řemeslem, které projde `filter`. */
@@ -435,7 +455,10 @@ export function placer(ctx: Context, share: SceneLaborShare, count: number): Pla
     case 'found-field':
       return t.kind === 'field' ? founding(ctx, share, t.id, count) : none;
     case 'thresh':
-      return threshing(ctx, count);
+      // hotové humno: mlátí se na něm; nouzový výmlat (cíl ves) na udusané zemi u vsi
+      return t.kind === 'threshing-floor'
+        ? threshingOnFloor(ctx, t.id, count)
+        : threshing(ctx, count);
     case 'plough':
       // oráč a honáček jsou součástí spřežení (plough-team-renderer.ts)
       return none;

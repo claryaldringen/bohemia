@@ -80,6 +80,15 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   panel `RepairBar` „Oprava“ / „Oprava plotu“), scéna jen podle rostoucího stavu (stupně
   rozpadu a `decayFence` jdou opačně).
 
+- **Plot podle délky** (`fence-cost.ts`: `newFenceSides`, `outerFenceSides`, `fencedSquareEquivalents`;
+  oxen.md i cemetery.md – Plot podle délky; Martin 22. 10. 2026, issue #3): cena hřbitova
+  (`cemeteryFoundingCost(squares, fenceSides)`, `CEMETERY.fenceShare` 0,3) i ohrady
+  (`penLaborManDays(…, squares, fenceSides)`, `penTrees`, `PEN_FENCE.share` 0,5, `PEN_FENCE.trees` 4)
+  platí plot jen za nové vnější strany, rozšíření tak ušetří; `fullRepairManDays` počítá s vnějším
+  obrysem. Plot stojí `PEN_FENCE_INSET_M` / `CEMETERY_FENCE_INSET_M` = 1,5 m uvnitř čtverce
+  (`rules-buildings.ts`, `rules-people.ts`; `GRAVE_PLACES.marginM` 2 m) – vchod `cemeteryEntrance`,
+  `penEntrance`, `penSquaresEntrance` v `paths/entrances.ts`. Vrstva překážek a zlaté otisky krajiny
+  se nemění.
 - **Hřbitov** (`cemetery.ts`, cemetery.md): čtverce s 56 místy na hroby, zemřelý se pohřbí do
   hotového hřbitova s místem nejblíž k obydlím (`bury(state, day, person)` v `populationDay` – za
   života, před `removePeople`), kronika `cemetery-full` (žádné volné místo). **Mohyly podle
@@ -274,3 +283,17 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `lib/scene/field-painting.ts` (`FieldPainter`, režim `squares`, logika výběru ve
   `field-cells.ts`) – ovládání v tabulce výše. Obrys pole (`Field.outline`) zůstal jen u starých
   vsí.
+
+- **Zrušení rozestavěné stavby** (population.md – Zrušení rozestavěné stavby; Martin 23. 10.
+  2026): jádro – `cancel-construction.ts`: `cancelBlock(c)` (důvod, proč nejde; null = jde),
+  `isCancellable`, `cancelConstruction(state, day, constructionId)` (vrací nový stav; RangeError,
+  když stavba není nebo nejde). Zrušitelné: `dwelling` (i dílna a stěhování; ne první zemnice
+  zakladatelů s `dwellingId`), `field`, `cemetery`, `orchard` (ne obnova – `renewal`), `idol`,
+  `shrine`, `pen`, `threshing-floor`; ostatní druhy (`rebuild`, `repair`, `ard`, `road`,
+  `road-apples`) ne. `dropSite` odstraní vytýčení: nehotové díly pole (`state: 'founding'`),
+  nevysázené čtverce sadu (prázdný sad zmizí), čtverce rozšíření hřbitova či ohrady podle
+  `constructionId` (základ nehotového hřbitova či ohrady, `builtDay` null, zmizí celý i
+  s navazujícími rozšířeními, `dropLinked`; hotový hřbitov či ohrada se nikdy nemaže), rozestavěné humno. Dřevo: `returnConstructionWood`
+  (`relocation.ts`) vrací `fromPile + felled − floor(trees × done / cost)` klád. Kronika:
+  `construction-cancelled` (stěhování dál `relocation-cancelled`). Use-case:
+  `application/cancel-construction.ts`.

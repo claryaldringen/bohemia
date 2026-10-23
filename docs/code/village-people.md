@@ -80,9 +80,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`relocationBlock`: prázdné obydlí, už se stěhuje, přestavuje). Po dostavění se obyvatelé
   přestěhují (`moveRelocatedHousehold` ve `finishConstructions`, kronika `household-relocated`),
   starý dům zůstane prázdný – dál ho řeší běžná pravidla (osídlení, chátrání, rozpad, zbytek
-  jámy). `cancelRelocation` stavbu zruší, klády z hromady i skácené stromy vrátí na hromadu
-  (`returnConstructionWood`). Use-casy `relocateHousehold` a `cancelHouseholdRelocation`
-  (`relocate-household.ts`, důvody česky `RELOCATION_BLOCKED`, `NO_RELOCATION`).
+  jámy). Rozestavěné stěhování zruší obecné `cancelConstruction` (stavba zmizí, nespotřebované dřevo se
+  vrátí na hromadu, `returnConstructionWood`; kronika `relocation-cancelled`). Use-case
+  `relocateHousehold` (`relocate-household.ts`, důvody česky `RELOCATION_BLOCKED`).
 
 - **Víc vsí jednoho hráče** (migration.md, fáze 2): sídlo (`settlement`) = mapa s krajinou,
   na jedné mapě může být víc vsí (`village.id` je primární klíč, `settlement_id` jen cizí klíč);

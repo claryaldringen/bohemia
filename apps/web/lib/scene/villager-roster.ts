@@ -49,6 +49,11 @@ export interface PersonRequest {
   onlySex?: Sex;
   /** Co nejbližší věk (nosiči kováře – `LaborShare.ages`). */
   age?: number;
+  /**
+   * Lehčí polní práce se vsí (setí, okopávání, žně, výmlat – `LIGHT_LABOR_TASKS`): smí ji dělat
+   * i žena z domácnosti dílny, která dnes pracuje v dílně (crafts.md – Kdo dělá řemeslo).
+   */
+  light?: boolean;
 }
 
 /** Dospělí 14–44 let (věkové skupiny jádra – AGE). */
@@ -102,7 +107,14 @@ export class DayRoster {
     for (const p of this.order) {
       if (this.taken.has(p.id) || p.age < request.from || p.age >= request.to) continue;
       if (request.onlySex && p.sex !== request.onlySex) continue;
-      if (request.homes ? !request.homes.has(p.home) : this.busyHomes.has(p.home)) continue;
+      // ženy domácnosti, která dnes pracuje v dílně, dělají lehčí polní práce se vsí (crafts.md)
+      if (
+        request.homes
+          ? !request.homes.has(p.home)
+          : this.busyHomes.has(p.home) && !(request.light && p.sex === 'female')
+      ) {
+        continue;
+      }
       // skóre: domácnost (×1000), věk (×10), pohlaví (×1) – menší je lepší; při shodě los
       const score =
         (request.preferHome !== undefined && p.home !== request.preferHome ? 1000 : 0) +
@@ -116,6 +128,14 @@ export class DayRoster {
     }
     if (best) this.taken.add(best.id);
     return best;
+  }
+
+  /** Je v domácnosti `home` nějaký muž od 7 let (dnes volný i obsazený)? Kojenci nepočítají. */
+  hasMen(home: number): boolean {
+    for (const p of this.byId.values()) {
+      if (p.home === home && p.sex === 'male' && p.age >= AGE.olderChild) return true;
+    }
+    return false;
   }
 
   /** Člověk zase volný – jeho postava nakonec není (nevyšlo jí místo). */

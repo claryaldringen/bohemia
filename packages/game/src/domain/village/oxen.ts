@@ -8,10 +8,12 @@ import {
   DRAFT_OXEN,
   FELLING_MAN_DAYS_PER_TREE,
   OXEN,
+  PEN_FENCE,
   PEN_PLACES_PER_SQUARE,
   PLANNING_DAY,
 } from './rules';
 import { builtPenSquares, oxenOf, oxTrainedDay, penSpecies } from './pens';
+import { fencedSquareEquivalents, newFenceSides, SQUARE_SIDES } from './fence-cost';
 import { copyGrid } from './square-grid';
 import type {
   ChronicleEvent,
@@ -40,7 +42,12 @@ import { planCrops, ploughToHoe } from './year-plan';
 // chybí přes polovinu, část uhyne; když chybí méně, slabí voli orají na jaře pomaleji. Ves, která
 // orá, nekope (oxen.md – Jen rádlo); přijde-li o poslední pár s rádlem, letošní plán dokončí motyka.
 
-/** oxen.md – Ohrada: 40 člověkodní a 6 stromů (kůly, přístřešek) na čtverec ohrady. */
+/**
+ * oxen.md – Ohrada: 40 člověkodní a 6 stromů (kůly, přístřešek) na čtverec ohrady. Plot podle
+ * délky (oxen.md – Plot podle délky; návrh Clauda): polovina práce a 4 stromy z 6 je plot, tedy
+ * strana čtverce stojí osminu práce a strom; zbytek (přístřešek, žlab, jesle, úprava země) platí
+ * každý čtverec a plot jen strany, které nesousedí s ohradou ani s dalším novým čtvercem.
+ */
 export const PEN = { laborManDays: 40, trees: 6 } as const;
 /** oxen.md – Spřežení: rádlo z 1 stromu za 5 člověkodní. */
 export const ARD = { laborManDays: 5, trees: 1 } as const;
@@ -701,8 +708,23 @@ export function penLaborManDays(
   obstacleCost: number,
   wood: Pick<WoodPlan, 'fell'>,
   squares = 1,
+  fenceSides = squares * SQUARE_SIDES,
 ): number {
-  return penBuildLabor() * squares + obstacleCost + wood.fell.reduce((sum, t) => sum + t.cost, 0);
+  return (
+    penBuildLabor() * fencedSquareEquivalents(squares, fenceSides, PEN_FENCE.share) +
+    obstacleCost +
+    wood.fell.reduce((sum, t) => sum + t.cost, 0)
+  );
+}
+
+/** Stromy na ohradu: zbytek za každý čtverec a strom na každou novou stranu plotu. */
+export function penTrees(squares: number, fenceSides: number): number {
+  return (PEN.trees - PEN_FENCE.trees) * squares + (PEN_FENCE.trees * fenceSides) / SQUARE_SIDES;
+}
+
+/** Políčka ohrady (hotová i rozestavěné), na které nové čtverce navazují. */
+function penCells(pen: Pen): TileCell[] {
+  return [pen.cell, ...(pen.extraSquares ?? []).map((q) => q.cell)];
 }
 
 /** Střed čtverců (m) – odtud se hledají stromy ke kácení. */
@@ -720,14 +742,21 @@ function squaresCenter(squares: readonly { x: number; z: number }[]): { x: numbe
  */
 export function planPenWood(
   state: VillageState,
-  squares: readonly Pick<PenSquareInput, 'x' | 'z' | 'obstacleIds' | 'clearedTrees'>[],
+  squares: readonly Pick<PenSquareInput, 'cell' | 'x' | 'z' | 'obstacleIds' | 'clearedTrees'>[],
   day: number,
   obstacles: ObstacleLayer | null,
   walk?: Walk,
+  extendId?: number,
 ): WoodPlan {
+  const target =
+    extendId === undefined ? undefined : villagePens(state).find((p) => p.id === extendId);
+  const sides = newFenceSides(
+    squares.map((q) => q.cell),
+    target ? penCells(target) : [],
+  );
   return penWood(
     state,
-    PEN.trees * squares.length,
+    penTrees(squares.length, sides),
     squaresCenter(squares),
     day,
     obstacles,
@@ -754,7 +783,7 @@ export function startPen(
   walk?: Walk,
   extendId?: number,
 ): VillageState {
-  const plan = planPenWood(state, input.squares, day, obstacles, walk);
+  const plan = planPenWood(state, input.squares, day, obstacles, walk, extendId);
   if (plan.missing > 0) throw new RangeError('Na ohradu chybí dřevo – klády ani stromy nestačí.');
   const next = structuredClone(state);
   recordClearedObstacles(
@@ -765,6 +794,10 @@ export function startPen(
   const wood = takeWood(next, plan);
   const pens = (next.pens ??= []);
   const target = extendId === undefined ? undefined : pens.find((p) => p.id === extendId);
+  const fenceSides = newFenceSides(
+    input.squares.map((q) => q.cell),
+    target ? penCells(target) : [],
+  );
   const constructionId = target ? next.nextId++ : undefined;
   const square = (q: PenSquareInput, building?: number): PenSquare => ({
     cell: { x: q.cell.x, y: q.cell.y },
@@ -800,6 +833,7 @@ export function startPen(
       input.squares.reduce((sum, q) => sum + q.obstacleCost, 0),
       plan,
       input.squares.length,
+      fenceSides,
     ),
     done: 0,
     dwellingType: null,

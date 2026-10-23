@@ -114,7 +114,7 @@ export function DevPanelsView({ initial }: { initial: string | null }): ReactEle
         details={sample.details}
         onSelectTarget={() => undefined}
         onRelocate={() => undefined}
-        onCancelRelocation={wait}
+        onCancelConstruction={wait}
         onLeave={() => undefined}
         onUpgradeRoad={wait}
         onPlantRoadApples={wait}

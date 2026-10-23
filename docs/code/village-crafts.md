@@ -9,7 +9,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `checkWorkshopPlacement` (volně jako zemnice; půdorys `workshopFootprints` i s přístřeškem
   a u uhlíře s milířem kus od zemnice – `MILIR`, `milirPosition`; `PlacementVillage.dwellings`
   nese `workshop.craft`, ať se do milíře nestaví). Domácnosti obývaných dílen (`craftHouseholds`)
-  pracují v dílně (`workshopLabor` – po denním minimu, domácí výroba bokem; `workCrafts` v kroku
+  pracují v dílně (`workshopLabor` – po denním minimu, domácí výroba bokem; řemeslo dělají jen muži domácnosti – `craftHands` v `smith-supply.ts`, Martin 22. 10. 2026 – a zbytek práce žen `WorkshopLabor.light` dá `craftLightLabor` jako `light` do `allocateDay` – samostatný zásobník mimo `capacity`, kryje jen `LIGHT_LABOR_TASKS` (setí, okopávání, žně, výmlat), orbu, kácení ani stavby nikdy; měchař `smithBellows`, praxe `gainPractice` a `workshopSkill` taky jen muži; ve scéně `shareWorker` bere k dílně `onlySex: 'male'` (a `hasMen` nepočítá kojence jako `craftHands`) a `DayRoster.take` pouští ženy zaneprázdněných domácností jen s `light: true` (`LIGHT_ACTIVITIES` ve `villager-plan.ts`); `workCrafts` v kroku
   práce – mimo `allocateDay`, do sil plánu osevu se nepočítají), jen dokud je co dělat: **podle potřeby** (Martin 18. 10. 2026 –
   volný čas na poli) kovář a hrnčíř vyrábějí do zásoby `craftTargets` (potřeba + opotřebení za
   rok), uhlíř má vždy milíř a z vypáleného nosí uhlí podle kování (Uhlíř níž); s plnou zásobou
@@ -191,7 +191,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `harvestCarryShare`, seč – `haulShare.hay`; `haulPlan` / `haulProgress` / `haulAvailable` –
   nejvýš podíl celé úlohy, převzaté v `CropWork.hauled`, `HayMowing.hauled`), `haulLogs` (klády
   ke stavbám – `fellingHaulable`, `ConstructionWood.hauled`), rozdělení práce `haul` s
-  `LaborShare.carts`. Výprava: `expeditionTransport` / `tradeCarts` (`TradeQuote.carts`,
+  `LaborShare.carts`. Výprava: `expeditionTransport` (vozy, `trips` jízd a lidé najednou – plné jízdy vozů, jízda navíc od zbytku `TRADE.restTripShare` (0,5) vozu, menší zbytek nosiči přesně mezi jízdy (floor + zbytek), `work` = součet lidí přes jízdy → `manDays`; klády jen na voze, `TRADE.logCarriers` = 2 bez vozu; `TradeQuote.trips`, `TradeExpedition.trips`, `days` = všechny jízdy; scéna `caravan-view.ts` ukazuje postup právě běžící jízdy; nosnost a náklad vozu `SceneCart.job.loadKg` → panel výběru vozu) / `tradeCarts` (`TradeQuote.carts`,
   `TradeExpedition.carts` – spřežení je pryč, `teamsHomeShare` krátí orbu; jen po stezce sjízdné
   pro vozy – `trailCartPassable`, `axisCartCheck`). **Dosah vozu je rozhraní `CartAccess`** (cíle
   najednou) – s krajinou vozová síť (`networkCartAccess` → `villageCartRoutes`), bez krajiny
@@ -219,7 +219,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   a kovář, `SmithSupply.oreCarts`); sedlák s uhlím a rudou jde z práce vsi před úlohami dne
   (`DayAllocation.carting`, `paySmithCarts`), kovář z práce dílny; **osivo** – `planSeedHauls` na úlohu `sow` jako svoz (`CropWork.seedHauled`,
   `seedReach` – `sowingCartReach`); **voda** – `waterCartDrive` (břeh nejblíž ohradě, kam vůz
-  sjede, uložený ve `VillageState.waterCart` podle klíče chůze) a `waterCartPlan` z
+  sjede, uložený ve `VillageState.waterCart` – čtyřkolák `waterCart4` – podle klíče chůze, tedy
+  i podle pevných cest a měsíčních stadií dílů; v době osevu může vyjít null a po žni jízda) a `waterCartPlan` z
   `householdWater` (labor.ts) – přirážka za vodu se zmenší a přičte se díl posádky (v denním
   minimu). Jízdy vozí `villageCartDrives` (vozová síť – cena v m po louce a konec trasy, bez
   krajiny vzdušně), do ročního provozu cest `addRoadCartTrips`. Rozdělení práce: `haul`
@@ -233,8 +234,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   osivo `outbound` (`CartShuttle.loadedOut` – naložené tam), trasa k milíři a břehu
   (`cartRouteToday`); voda, uhlí, ruda a osivo jezdí tempem volů ve skutečném čase (`steadyJob`
   v `village-carts.ts`), ne v okně herního dne jako svoz úrody. Komu vůz vodu přivezl, ukazuje
-  `SceneLabor.homes[].cartWater` (týž `waterCartPlan` ve `village-view-scene.ts`) – pěšky pro ni chodí
-  méně lidí (Postavy – Provoz na cestách).
+  `SceneLabor.homes[].cartWater` (týž `waterCartPlan` ve `village-view-scene.ts` – druh vozu
+  vítězného plánu z `LaborShare.fourWheel` a jeho uložená jízda `storedWaterCartDrive`) – pěšky pro
+  ni chodí méně lidí (Postavy – Provoz na cestách).
 
 - **Kování vozů** ([wagons.md](../design/wagons.md) – Kování vozů; Martin 20. 10. 2026: „…vozy
   mají železnou složku. Pokud vesnice nemá kováře, musí tesař (nebo jeho syn, pokud ho má) dojít do

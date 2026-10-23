@@ -121,6 +121,33 @@ Clauda, čísla podle [rešerše](research/2026-10-19-pens.md).
   ohrada je oplocená jako hřbitov, branka (vchod) na obrysu nejblíž k nejbližšímu obydlí, krmení
   jako cíl; rozšíření ve stavbě je jen vytyčené (plot a branka kolem hotových čtverců).
 
+## Plot ohrady podle délky a ulička mezi stavbami (23. 10. 2026)
+
+Martin, 23. 10. 2026: „**Ohrady by měly být fyzicky menší než plocha, kterou zabírají. Když například
+vedle sebe budu mít ohradu s kozami a ohradu s ovcemi, musí mezi nimi být taková mezera, aby tam mohl
+projet vůz.**“ A issue #3, 22. 10. 2026: „**Pokud rozšiřuju nějakou ohradu nebo hřbitov (tj. postavím
+nové políčko vedle starého políčka), tak se plot na jedné či více stranách stavět nemusí a mělo by se
+ušetřit poměrně dřeva a času.**“ Volby Martina téhož dne: kapacita na čtverec zůstane
+(`PEN_PLACES_PER_SQUARE` se nemění) a pravidlo platí i pro hřbitov (cemetery.md).
+
+- **Odsazení plotu (návrh Clauda):** plot stojí `PEN_FENCE_INSET_M` = 1,5 m uvnitř čtverce
+  (15 × 15 m), tedy čtverec bez plotu má 12 × 12 m. Dvě sousední ohrady (nebo ohrada a hřbitov) mají
+  mezi ploty uličku 3 m, kterou vůz i chodec projede; 1,5 m = polovina uličky pro vůz s nákladem
+  s rezervou. Mezi čtverci téže ohrady plot není. Pozemek polozemnice zůstává 0,5 m od okraje.
+- **Cena plotu podle délky (návrh Clauda):** cena čtverce (40 čd, 6 stromů) se dělí na **plot**
+  (`PEN_FENCE.share` 0,5 práce a `PEN_FENCE.trees` 4 stromy, tedy osmina práce a strom na stranu
+  čtverce) a **zbytek** (přístřešek, žlab, jesle, úprava země – platí každý čtverec). Plot se platí
+  jen za **nové vnější strany** (`newFenceSides`, `fence-cost.ts`): strana, za kterou leží jiný
+  nový čtverec nebo čtverec téže ohrady, plot nechce. Samostatný čtverec stojí jako dřív (40 čd,
+  6 stromů), rozšíření o čtverec po jedné straně 35 čd a 5 stromů, dva nové čtverce vedle sebe
+  70 čd a 10 stromů. Starý plot na straně, která se stane vnitřní, se nevrací ani se neúčtuje (stojí ve stavbě do
+  dokončení rozšíření). Oprava plotu (abandonment.md) počítá s vnějším obrysem
+  stejně.
+- **Průjezdnost:** vozová síť blokuje jen buňky uvnitř plotu (`fencedCells`), takže řada buněk na
+  hranici sousedních čtverců je sjízdná (mřížka vozů 3,75 m, hranice čtverců leží na jejích řadách; u ohrad natočených o jiný násobek než 90° řady na hranici nesedí, proto se buňka blokuje, jen když leží celá uvnitř plotu – `fencedCells`).
+  Pěšiny ohradou už dřív procházely. Plánování vozové cesty (`wagonRoadGrid`) drží odstup od celého
+  čtverce, ulička je tedy pro vozy jen na stávající síti – řeší nový systém cest (#6).
+
 ## Ohrada volů, voli po kusech a potah (20. 10. 2026)
 
 Martin, 20. 10. 2026: „**Vesnice určitě potřebuje více vozů. Ať to funguje jako se stády - ohrada pro voly udrží určitý počet spřežení a když bude vesnice potřebovat víc vozů, ohrada se musí zvětšit. Zaároveň to udělej tak, že rádlo táhnou 2 voli, 4kolový vůz také dva voli a dvoukolový vůz jeden vůl. Napiš návrh, co všechno se dá vozit na vozech a jakých.**“ Na návrh odpověděl: „**Ano, udělej to jak říkáš**“ – platí celý

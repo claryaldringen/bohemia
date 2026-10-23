@@ -14,14 +14,15 @@ import {
   NO_OBSTACLE_CHANGES,
   obstaclesOf,
   orchardPartsFromCells,
+  newFenceSides,
   penLaborManDays,
+  penTrees,
   penSquaresFromCells,
   planDwellingWoodFrom,
   planSacredWood,
   planThreshingFloorWoodFrom,
   planWoodFrom,
   placementWalk,
-  PEN,
   sacredLaborManDays,
   sameGrid,
   threshingFloorLaborManDays,
@@ -594,11 +595,18 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
  */
 function penPlacementCost(
   village: PlacementVillage,
-  check: Pick<PenSquaresCheck, 'squares' | 'obstacleCost'>,
+  check: Pick<PenSquaresCheck, 'squares' | 'obstacleCost' | 'extendsPen'>,
 ): PlacementCost {
   const n = Math.max(1, check.squares.length);
+  // plot jen na nových vnějších stranách (oxen.md – Plot podle délky): rozšíření ušetří strany
+  // sousedící s ohradou
+  const extended = village.pens?.find((p) => p.id !== undefined && p.id === check.extendsPen);
+  const sides = newFenceSides(
+    check.squares.map((q) => q.cell),
+    extended ? [extended.cell, ...(extended.extraSquares ?? []).map((q) => q.cell)] : [],
+  );
   const plan = planWoodFrom(
-    PEN.trees * n,
+    penTrees(n, sides),
     {
       x: check.squares.reduce((sum, q) => sum + q.x, 0) / n,
       z: check.squares.reduce((sum, q) => sum + q.z, 0) / n,
@@ -613,7 +621,7 @@ function penPlacementCost(
       clearedTrees: check.squares.reduce((sum, q) => sum + q.clearedTrees, 0),
     },
   );
-  return { laborManDays: penLaborManDays(check.obstacleCost, plan, n), trees: 0 };
+  return { laborManDays: penLaborManDays(check.obstacleCost, plan, n, sides), trees: 0 };
 }
 
 /** Stavba podle druhu. */

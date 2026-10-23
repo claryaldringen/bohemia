@@ -25,6 +25,7 @@ import {
 } from '../trade';
 import { finishTrail, startTrail, trailTripDays } from '../trail';
 import type { Direction8, NeighbourStock, TradeGood, TradeGoods, VillageState } from '../types';
+import { CARTS } from '../rules-crafts';
 import { LANDSCAPE } from './paths-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
@@ -155,6 +156,30 @@ describe('výprava s vozem (wagons.md – Obchod)', () => {
     const next = startExpedition(s, DAY, { direction: 'S', give: { [heavy]: 200 }, get: {} });
     expect(next.trade!.expeditions[0]!.carts).toEqual([1]);
     expect(tradeQuote(next, { direction: 'S', give: {}, get: {} }, DAY).carts).toEqual([]);
+  });
+
+  it('vůz jede víckrát a výprava trvá déle (wagons.md – Opakované jízdy vozu)', () => {
+    const s = trading();
+    s.pens = [
+      {
+        id: 900,
+        cell: { x: 3, y: 4 },
+        x: 50,
+        z: 60,
+        builtDay: DAY - 800,
+        team: { readyDay: DAY - 10 },
+        training: null,
+      },
+    ];
+    s.carts = [{ id: 1, kind: 'two-wheel', builtDay: DAY - 10 }];
+    const offer = { direction: 'S' as const, give: { grain: 900 }, get: {} };
+    const quote = tradeQuote(s, offer, DAY);
+    const tripDays = trailTripDays(s.trails![0]!.lengthM);
+    // 900 kg na dvoukolák (400 kg): 2 plné jízdy, zbylých 100 kg = 4 nosiči, 2 při každé jízdě
+    expect(quote.trips).toBe(2);
+    expect(quote.porters).toBe(CARTS.tradeCrew + 2);
+    expect(quote.days).toBe(2 * tripDays);
+    expect(quote.manDays).toBe(quote.porters * quote.days);
   });
 });
 

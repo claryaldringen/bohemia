@@ -31,7 +31,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   a zakládaný díl 1; mokřina 0,5 – nejpomalejší platí; `pathCostFactor` – plná pěšina 1 / 1,3,
   přes osev pěšina nezrychlí; `roadWalkSpeed`), čísla `PATH_WALK`, `FIELD_WALK`, `ROAD_WALK`;
   křoviny a mladý les dražší (`OVERGROWN_COST`); pole není zákaz – přes osev se jde, když je
-  obcházení delší; vozy přes osetý díl dál ne;
+  obcházení delší; vozy přes osetý díl jen bez jiné cesty (`CART_SPEED.sown`);
   síla `pathStrength` (odmocnina provozu), stáří obydlí →
   `pathAgeFactor`; vyhlazené čáry se sílou a stářím v bodech, provoz po buňkách `traffic.raw`;
   `annual: true` = roční provoz; provoz ke stavbám `visits` – opuštěné stavby, abandonment.md;
@@ -169,8 +169,10 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   `CART_ROUTES` a `CART_ROADS` – návrh Clauda): `paths/cart.ts` (deterministická vrstva jako
   pěšiny) – `cartGrid` na mřížce terénu pěšin (výšky `PathTerrain.heights`, les `PATH_FOREST`,
   překážky `cartObstacleMask` v `terrain.ts`; voda jen brodem, les jen po pevné cestě, pole
-  v lese vymýcené, osetý díl, křoviny, sad, hřbitov, ohrada, les vsi a okrsek svatyně ne, domy
-  a pozemky s půl šířkou vozu; každá pevná cesta sjízdná; rychlost podle povrchu a druhu cesty –
+  v lese vymýcené, křoviny, sad, hřbitov, ohrada, les vsi a okrsek svatyně ne, osetý díl jen draze (`CART_SPEED.sown` – `CartGrid.sownPart` nese id dílu, `CartRoute.sown` metry trasy přes osetý díl, `CartDrive.sown` je předá simulaci; `flushCartTrips` v `cart-jobs.ts` – jediné místo, kam `work()` zapisuje jízdy dne (deník `CartTripLog`: svoz, voda, uhlí, ruda, klády, osivo; provoz cest + `trampleSownParts`, metry hledá `villageCartRoutes`, voda je zná z `CartDrive.sown`) – z nich zvedá `FieldPart.trampledM2`, `cropYieldKg` v `year-plan.ts` o podíl zmenší úrodu, `endOfSeason` nuluje), domy
+  a pozemky s půl šířkou vozu; každá pevná cesta sjízdná – pás buněk do 0,75 buňky od bodů osy
+  (`ROAD_BAND_CELLS`) a úhlopříčka z buňky cesty na buňku cesty i přes roh lesa, osetého dílu či
+  okraje domu (`CartGrid.road`), jinak by šikmá cesta lesem a ohyb u domu nebyly sjízdné (Vlkov 23. 10. 2026; návrh Clauda); stavba přes cestu ji přehradí i vozu (roads.md – Co platí dál); rychlost podle povrchu a druhu cesty –
   `CART_SPEED`, `cartPartSpeed`, `cartRoadSpeed`: vyšlapaná 1,3, vyježděná 1,6, upravená a hať
   1,8, strniště i připravený díl 0,8, zoraný 0,6, mokřina 0,55 – i na cestě kromě hatě, podle
   `Road.ground` jako chůze, `cartVillageOf`; návrh Clauda) a `cartRoutes` – Dijkstra po stavech

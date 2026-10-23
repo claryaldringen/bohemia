@@ -14,6 +14,7 @@ export * from './plough';
 export * from './plough-blocks';
 export * from './plough-trip';
 export * from './oxen';
+export * from './fence-cost';
 export * from './draft';
 export * from './pens';
 export { breedingCows, herdPlaces, winterHayNeedKg, type HerdPlaces } from './husbandry';
@@ -21,6 +22,7 @@ export * from './herding';
 export { woolCoverage, woolNeedKg, woolSheep, woolUnhappiness } from './wool';
 export * from './dwellings';
 export * from './manor';
+export * from './cancel-construction';
 export * from './relocation';
 export * from './departure';
 export * from './neighbourhood';
@@ -239,6 +241,7 @@ export {
   oreCartDrive,
   oreCartOffer,
   villageCartDrives,
+  storedWaterCartDrive,
   waterCartDrive,
   waterCartPlan,
   type CartDrives,

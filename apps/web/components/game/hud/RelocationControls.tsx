@@ -329,10 +329,11 @@ export function JourneyBanner({ journey }: { journey: VillageJourneyView }): Rea
 }
 
 /**
- * Zrušit rozestavěné stěhování – stavba nového domu zmizí, dřevo se vrátí na hromadu. Dokud server
- * zrušení nepotvrdí, tlačítko čeká.
+ * Zrušit rozestavěnou stavbu (cancel-construction.ts) – vytýčení zmizí, nespotřebované dřevo se
+ * vrátí na hromadu. Jen ikona (křížek), slova jen v popisku. Dokud server zrušení nepotvrdí,
+ * tlačítko čeká.
  */
-export function CancelRelocationButton({
+export function CancelConstructionButton({
   constructionId,
   onCancel,
 }: {
@@ -341,10 +342,11 @@ export function CancelRelocationButton({
 }): ReactElement {
   const [busy, setBusy] = useState(false);
   return (
-    <Tooltip content="Zrušit stěhování – dřevo se vrátí na hromadu" placement="above">
+    <Tooltip content="Zrušit stavbu – nespotřebované dřevo se vrátí" placement="above">
       <button
         type="button"
-        data-testid="cancel-relocation"
+        data-testid="cancel-construction"
+        aria-label="Zrušit stavbu"
         disabled={busy || !onCancel}
         aria-busy={busy}
         onClick={() => {
@@ -352,9 +354,17 @@ export function CancelRelocationButton({
           setBusy(true);
           void onCancel(constructionId).finally(() => setBusy(false));
         }}
-        className="hud-button px-2 py-0.5 font-serif text-sm whitespace-nowrap disabled:cursor-wait disabled:opacity-60"
+        className="hud-button flex h-7 w-7 items-center justify-center p-0 disabled:cursor-wait disabled:opacity-60"
       >
-        Zrušit
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+          <path
+            d="M3 3 13 13M13 3 3 13"
+            stroke="#e8c9a0"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            fill="none"
+          />
+        </svg>
       </button>
     </Tooltip>
   );
@@ -386,7 +396,7 @@ export function RelocationProgress({
           <span style={{ width: `${percent}%` }} />
         </span>
       </Tooltip>
-      <CancelRelocationButton constructionId={constructionId} onCancel={onCancel} />
+      <CancelConstructionButton constructionId={constructionId} onCancel={onCancel} />
     </div>
   );
 }

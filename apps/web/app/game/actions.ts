@@ -6,7 +6,7 @@ import { getSession } from '@/lib/session';
 import {
   buildTrailForPlayer,
   buildWagonRoadForPlayer,
-  cancelRelocationForPlayer,
+  cancelConstructionForPlayer,
   sendExpeditionForPlayer,
   foundDevVillageForPlayer,
   foundVillageForPlayer,
@@ -34,7 +34,7 @@ import {
 } from '@/lib/village';
 import {
   parseBuildTrailInput,
-  parseCancelRelocationInput,
+  parseCancelConstructionInput,
   parseSendExpeditionInput,
   parseFoundVillageInput,
   parsePlaceCemeteryInput,
@@ -175,9 +175,9 @@ export async function relocateHousehold(input: unknown): Promise<VillageActionRe
   return villageAction(input, parseRelocateHouseholdInput, relocateHouseholdForPlayer);
 }
 
-/** Zrušení rozestavěného přestěhování: `{ villageId, constructionId }` – dřevo zpět na hromadu. */
-export async function cancelRelocation(input: unknown): Promise<VillageActionResult> {
-  return villageAction(input, parseCancelRelocationInput, cancelRelocationForPlayer);
+/** Zrušení rozestavěné stavby: `{ villageId, constructionId }` – nespotřebované dřevo zpět na hromadu. */
+export async function cancelConstruction(input: unknown): Promise<VillageActionResult> {
+  return villageAction(input, parseCancelConstructionInput, cancelConstructionForPlayer);
 }
 
 /**

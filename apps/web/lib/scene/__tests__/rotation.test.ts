@@ -309,18 +309,23 @@ describe('natočený hřbitov ve scéně', () => {
     for (const post of posts) {
       // kůly stojí uvnitř čtverců u jejich obvodu (ne v ose krajiny)
       expect(inUnion(post.x, post.z, 1e-6)).toBe(true);
-      expect(inUnion(post.x, post.z, -1.5)).toBe(false);
+      // plot stojí 1,5 m od okraje čtverců (mezi stavbami ulička 3 m)
+      expect(inUnion(post.x, post.z, -2.5)).toBe(false);
     }
     const gate = posts.filter((p) => p.gate);
     expect(gate).toHaveLength(2);
-    for (const p of gate) expect(local(squares[0]!, p.x, p.z)[1]!).toBeGreaterThan(6);
-    // vytyčení po rozích čtverců z jádra
+    for (const p of gate) expect(local(squares[0]!, p.x, p.z)[1]!).toBeGreaterThan(5.5);
+    // vytyčení po rozích plotu – 1,5 m diagonálně dovnitř od rohů čtverců z jádra
     for (const point of layout.outline.flat()) {
       const corners = [
         ...squareCorners(GEO, G30, { x: 0, y: 0 }),
         ...squareCorners(GEO, G30, { x: 1, y: 0 }),
       ];
-      expect(corners.some(([x, z]) => Math.hypot(x - point[0], z - point[1]) < 1e-9)).toBe(true);
+      expect(
+        corners.some(
+          ([x, z]) => Math.abs(Math.hypot(x - point[0], z - point[1]) - 1.5 * Math.SQRT2) < 1e-9,
+        ),
+      ).toBe(true);
     }
   });
 
@@ -370,7 +375,7 @@ describe('natočená ohrada ve scéně', () => {
       expect(Math.max(Math.abs(u!), Math.abs(v!))).toBeLessThan(7.5);
     }
     // branka na straně ke vsi (místní +z – obydlí leží dál po ose z)
-    expect(local(pen, layout.gate.x, layout.gate.z)[1]!).toBeGreaterThan(6);
+    expect(local(pen, layout.gate.x, layout.gate.z)[1]!).toBeGreaterThan(5.5);
     // přístřešek v zadním rohu (místní −z), natočený o natočení ohrady víc než v osách
     const [, shelterV] = local(pen, layout.shelter.x, layout.shelter.z);
     expect(shelterV!).toBeLessThan(-2);

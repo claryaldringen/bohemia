@@ -232,7 +232,8 @@ describe('foundCemetery', () => {
     ]);
     expect(next.constructions.at(-1)).toMatchObject({
       kind: 'cemetery',
-      cost: 23,
+      // 2 × 10 čd, z toho plot 30 % jen po 6 vnějších stranách z 8 (sdílená strana bez plotu) + 3 čd překážky
+      cost: 21.5,
       done: 0,
       cemeteryId: s.nextId,
       startedDay: s.lastDay + 1,
@@ -356,7 +357,7 @@ describe('rozšíření hřbitova', () => {
     expect(next.cemeteries).toHaveLength(1);
     const c = next.cemeteries![0]!;
     const construction = next.constructions.at(-1)!;
-    expect(construction).toMatchObject({ kind: 'cemetery', cemeteryId: 100, cost: 10 });
+    expect(construction).toMatchObject({ kind: 'cemetery', cemeteryId: 100, cost: 9.25 });
     expect(c.squares[2]).toEqual({ ...square(330, 0), constructionId: construction.id });
     // plný hřbitov: rozšíření ve stavbě místo nepřidá
     expect(cemeteryCapacity(c)).toBe(112);

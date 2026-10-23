@@ -35,6 +35,8 @@ export interface TradePreview {
   porters: number;
   /** Kolik vozů pojede (wagons.md – Obchod: náklad na voze, s vozem 2 lidé). */
   carts: number;
+  /** Kolikrát vozy pojedou tam a zpět (jen zbytek nákladu nesou lidé); `days` jsou všechny jízdy. */
+  trips: number;
   days: number;
   manDays: number;
   /** Kolik člověkodní vozy ušetří proti nosičům bez vozů (wagons.md – Obchod). */
@@ -209,7 +211,7 @@ export function tradePreview(
   const price = total(get, neighbour.offers) + peoplePrice(neighbour, people.get);
   const transport = expeditionTransport(give, get, neighbour.carts);
   const porters = transport.porters;
-  const withoutCarts = expeditionTransport(give, get, []).porters;
+  const withoutCarts = expeditionTransport(give, get, []);
   const blocked = ((): string | null => {
     if (neighbour.expedition) return EXPEDITION_AWAY;
     const nobody = tradePeopleCount(people.give) + tradePeopleCount(people.get) === 0;
@@ -240,9 +242,11 @@ export function tradePreview(
     balance: Math.round(credit - price),
     porters,
     carts: transport.carts,
-    days: neighbour.tripDays,
-    manDays: porters * neighbour.tripDays,
-    savedManDays: Math.max(0, withoutCarts - porters) * neighbour.tripDays,
+    trips: transport.trips,
+    days: neighbour.tripDays * transport.trips,
+    manDays: porters * neighbour.tripDays * transport.trips,
+    savedManDays:
+      Math.max(0, withoutCarts.porters - porters * transport.trips) * neighbour.tripDays,
     blocked,
   };
 }

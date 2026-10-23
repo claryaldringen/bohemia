@@ -91,6 +91,19 @@ function finishedText(kind: ConstructionKind, craft?: Craft, wagon?: boolean): s
   return 'Pole je založené – dá se osévat.';
 }
 
+/** Zrušená stavba – kronika (cancel-construction.ts). */
+function cancelledText(kind: ConstructionKind, craft?: Craft): string {
+  if (kind === 'dwelling') return craft ? 'Stavba dílny se zrušila.' : 'Stavba obydlí se zrušila.';
+  if (kind === 'idol') return 'Stavba modly se zrušila.';
+  if (kind === 'shrine') return 'Stavba svatyně se zrušila.';
+  if (kind === 'cemetery') return 'Zakládání hřbitova se zrušilo.';
+  if (kind === 'orchard') return 'Výsadba sadu se zrušila.';
+  if (kind === 'pen') return 'Stavba ohrady se zrušila.';
+  if (kind === 'threshing-floor') return 'Stavba humna se zrušila.';
+  if (kind === 'field') return 'Zakládání pole se zrušilo.';
+  return 'Stavba se zrušila.';
+}
+
 /** Pole nebo sad ustoupil stavbě obydlí – kronika (population.md – Obydlí na poli a v sadu). */
 /** Komu pole či sad ustoupil (3. pád) – kronika (fields.md – Pole jako krajina). */
 const LAND_TAKERS: Record<LandTaker, string> = {
@@ -248,6 +261,8 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return `${CART_NAMES[event.cart]} dosloužil – tesař vyrobí nový.`;
     case 'rebuild-decided':
       return `Obyvatelé se rozhodli přestavět dožilé obydlí na ${DWELLING_NAMES[event.type].accusative}.`;
+    case 'construction-cancelled':
+      return cancelledText(event.constructionKind, event.craft);
     case 'relocation-started':
       return `Domácnost si začala stavět novou ${DWELLING_NAMES[event.type].accusative} – přestěhuje se.`;
     case 'relocation-cancelled':

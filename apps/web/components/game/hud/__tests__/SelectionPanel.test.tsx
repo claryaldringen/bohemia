@@ -41,7 +41,7 @@ const render = (details: SelectionDetails): string =>
     <SelectionPanel
       details={details}
       onRelocate={() => undefined}
-      onCancelRelocation={() => Promise.resolve()}
+      onCancelConstruction={() => Promise.resolve()}
     />,
   );
 
@@ -274,22 +274,43 @@ describe('SelectionPanel – přestěhování domácnosti', () => {
     );
     expect(html).toContain('data-testid="selection-relocation"');
     expect(html).toMatch(/aria-label="Stěhování"[^>]*aria-valuenow="35"/);
-    expect(button(html, 'cancel-relocation')).toBeDefined();
+    expect(button(html, 'cancel-construction')).toBeDefined();
     expect(html).not.toContain('data-testid="relocate-zemnice"');
   });
 
-  it('staveniště nového domu stěhující se domácnosti jde zrušit, běžné staveniště ne', () => {
-    const site = (relocates: number | null): SelectionDetails => ({
+  it('rozestavěná stavba s cancelConstructionId má tlačítko jen s ikonou, bez něj ne', () => {
+    const site = (cancelConstructionId?: number): SelectionDetails => ({
       kind: 'site',
       id: 12,
       type: 'zemnice',
       craft: null,
       progress: 0.2,
       treesToFell: 0,
-      relocates,
+      relocates: null,
+      ...(cancelConstructionId === undefined ? {} : { cancelConstructionId }),
     });
-    expect(button(render(site(3)), 'cancel-relocation')).toBeDefined();
-    expect(button(render(site(null)), 'cancel-relocation')).toBeUndefined();
+    const html = render(site(12));
+    const cancel = button(html, 'cancel-construction');
+    expect(cancel).toBeDefined();
+    expect(cancel).toContain('aria-label="Zrušit stavbu"');
+    // bez textu na tlačítku – slovo jen v popisku a popisce
+    expect(html).not.toMatch(/data-testid="cancel-construction"[^>]*>[^<]*Zrušit/);
+    expect(button(render(site()), 'cancel-construction')).toBeUndefined();
+    const field = render({
+      kind: 'field',
+      id: 4,
+      areaM2: 2000,
+      fertility: 60,
+      stages: [],
+      surfaces: [],
+      crops: [],
+      ashParts: 0,
+      ashBonus: 0,
+      overgrowingM2: 0,
+      founding: 0.3,
+      cancelConstructionId: 9,
+    });
+    expect(button(field, 'cancel-construction')).toBeDefined();
   });
 
   it('víc obydlí: počet domácností a lidí, Přestěhovat pro každou, Odejít zašedlé', () => {
@@ -1272,6 +1293,8 @@ describe('SelectionPanel – spřežení, vůz a lidé u nich (oxen.md, wagons.m
     cartKind: 'two-wheel',
     activity: 'veze uhlí ke kováři',
     cargo: 'charcoal',
+    capacityKg: 400,
+    loadKg: null,
     condition: 0.8,
     oxen: 1,
     pen: 12,
@@ -1318,6 +1341,9 @@ describe('SelectionPanel – spřežení, vůz a lidé u nich (oxen.md, wagons.m
     expect(html).toContain('>Dvoukolák</h2>');
     expect(text(html, 'selection-cart-activity')).toBe('veze uhlí ke kováři');
     expect(text(html, 'selection-cart-condition')).toBe('80 %');
+    // nosnost bez známého nákladu, s ním „náklad / nosnost“ (wagons.md – Výběr vozu)
+    expect(text(html, 'selection-cart-load')).toBe('400');
+    expect(text(render(cart({ loadKg: 250 })), 'selection-cart-load')).toBe('250 / 400');
     expect(text(html, 'selection-cart-oxen')).toBe('1');
     expect(html).toMatch(
       /src="\/icons\/resources\/charcoal\.png"[^>]*data-testid="selection-cart-cargo"/,

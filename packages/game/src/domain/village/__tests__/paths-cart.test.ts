@@ -165,6 +165,30 @@ describe('kudy vůz projede', () => {
     expect(route({ roads: [{ id: 1, points: edge, grade: 'trodden' }] }, into).reached).toBe(false);
   });
 
+  it('lesem i po šikmé cestě a jejím ohybu (pás cesty, úhlopříčka po cestě přes roh)', () => {
+    // Vlkov 23. 10. 2026: šikmá cesta lesem byla na mřížce řetěz buněk spojených rohy – vůz
+    // úhlopříčkou přes roh lesa nejel a k vodě po vozové cestě nedojel
+    const bends = [
+      [
+        { x: 0, z: 0 },
+        { x: -95, z: 0 },
+        { x: -135, z: -40 },
+      ],
+      [
+        { x: 0, z: 0 },
+        { x: -95, z: 0 },
+        { x: -112, z: -30 },
+        { x: -138, z: -42 },
+      ],
+    ];
+    for (const axis of bends) {
+      const end = axis[axis.length - 1]!;
+      expect(route({}, end).reached).toBe(false);
+      const road = { id: 1, points: axis, grade: 'trodden' as const };
+      expect(route({ roads: [road] }, end).reached).toBe(true);
+    }
+  });
+
   it('čtyřkolák po louce a strništi kamkoli, na zoraný díl ne (wagons.md – Co se vozí a na čem)', () => {
     const four = (extra: Partial<PathVillage>, target: { x: number; z: number }): CartRoute =>
       cartRoutes({
@@ -212,6 +236,34 @@ describe('kudy vůz projede', () => {
     const fallow = route({ fields: fields('young-fallow') }, target);
     expect(sown.reached && fallow.reached).toBe(true);
     expect(sown.lengthM).toBeGreaterThan(fallow.lengthM + 10);
+  });
+
+  it('vůz bez jiné cesty projede zasetý díl (Martin 23. 10. 2026) a započítá metry přes něj', () => {
+    // pás osetých dílů přes celou šířku krajiny – objížďka není
+    const wall: PathVillage['fields'] = [
+      {
+        id: 2,
+        parts: Array.from({ length: 42 }, (_, k) => ({
+          ...part(-150 + (k % 21) * 15, 37.5 + Math.floor(k / 21) * 15, 'sown'),
+          partId: 7,
+        })),
+      },
+    ];
+    const target = { x: 0, z: 70 };
+    const sown = route({ fields: wall }, target);
+    expect(sown.reached).toBe(true);
+    const crossed = sown.sown.reduce((m, s) => m + s.m, 0);
+    expect(crossed).toBeGreaterThanOrEqual(7);
+    expect(sown.sown.every((s) => s.partId === 7)).toBe(true);
+    // jinak by trasa byla o řád levnější
+    expect(sown.cost).toBeGreaterThan(route({}, target).cost + crossed * 5);
+  });
+
+  it('s objížďkou vůz zasetý díl objede a nic nepošlape', () => {
+    const fields: PathVillage['fields'] = [
+      { id: 2, parts: [-15, 0, 15].map((x) => ({ ...part(x, 52.5, 'sown'), partId: 7 })) },
+    ];
+    expect(route({ fields }, { x: 0, z: 70 }).sown).toEqual([]);
   });
 
   it('humno vůz objede jako stavbu (production-chains.md – Humno)', () => {
@@ -312,7 +364,7 @@ describe('rychlost vozu podle povrchu a cesty (wagons.md – Vozová síť, rych
     close(at(grid, -37.5, 52.5), CART_SPEED.stubble);
     close(at(grid, -22.5, 37.5), 1);
     close(at(grid, -22.5, 52.5), 1);
-    expect(at(grid, -7.5, 37.5)).toBe(Infinity);
+    close(at(grid, -7.5, 37.5), CART_SPEED.sown);
     // zoraný díl v mokřině – nejpomalejší z obou
     close(at(grid, 45, 37.5), Math.min(CART_SPEED.wet, CART_SPEED.ploughed));
     // cesta přes zakládaný díl – rychlost cesty
@@ -327,7 +379,7 @@ describe('rychlost vozu podle povrchu a cesty (wagons.md – Vozová síť, rych
     expect(cartRoadSpeed('improved', true, false)).toBe(CART_SPEED.road.improved);
     expect(cartRoadSpeed('causeway', false, true)).toBe(CART_SPEED.road.causeway);
     expect(cartRoadSpeed('trodden', true, true)).toBe(CART_SPEED.wet);
-    expect(cartPartSpeed('sown')).toBe(0);
+    expect(cartPartSpeed('sown')).toBe(CART_SPEED.sown);
     expect(cartPartSpeed('shrubs')).toBe(0);
     expect(cartPartSpeed('young-forest')).toBe(0);
   });
@@ -761,4 +813,115 @@ describe('vyježděná cesta – vůz přebije vyšlapanou', () => {
     expect(straight.reduce((sum, r) => sum + roadLengthM(r), 0)).toBeGreaterThan(40);
     expect(roads.some((r) => r.cart)).toBe(true);
   }, 60_000);
+});
+
+describe('ulička mezi ohradami a hřbitovem (oxen.md – plot je menší než čtverec)', () => {
+  // dvě ohrady vedle sebe: políčka x = 8 a 9 (středy −22,5 a −7,5), hranice na x = −15
+  const penAt = (x: number, id: number): NonNullable<PathVillage['pens']>[number] => ({
+    ...part(x, -7.5),
+    id,
+    built: true,
+  });
+  const costAt = (grid: CartGrid, x: number, z: number): number => {
+    const i = Math.round((x - grid.originX) / grid.cellM);
+    const j = Math.round((z - grid.originZ) / grid.cellM);
+    return grid.cost[j * grid.width + i]!;
+  };
+
+  it('řada buněk na hranici mezi dvěma ohradami je sjízdná, buňky pod plotem ne', () => {
+    const grid = cartGrid({
+      village: village({ pens: [penAt(-22.5, 1), penAt(-7.5, 2)] }),
+      terrain: flatTerrain,
+    });
+    // uvnitř ohrad (plot 1,5 m od okraje) vůz nejede
+    expect(costAt(grid, -22.5, -7.5)).toBe(Infinity);
+    expect(costAt(grid, -7.5, -7.5)).toBe(Infinity);
+    expect(costAt(grid, -18.75, -7.5)).toBe(Infinity);
+    expect(costAt(grid, -11.25, -7.5)).toBe(Infinity);
+    // ulička 3 m na hranici políček: celou délkou ohrad (z −15 … 0) sjízdná
+    for (const z of [-15, -11.25, -7.5, -3.75, 0]) {
+      expect(Number.isFinite(costAt(grid, -15, z)), `z = ${z}`).toBe(true);
+    }
+  });
+
+  it('hřbitov a ohrada vedle sebe mají také uličku; sama ohrada se objíždí jako dřív', () => {
+    const grid = cartGrid({
+      village: village({
+        cemeteries: [{ id: 3, built: true, squares: [part(-22.5, -7.5)] }],
+        pens: [penAt(-7.5, 2)],
+      }),
+      terrain: flatTerrain,
+    });
+    expect(costAt(grid, -22.5, -7.5)).toBe(Infinity);
+    expect(Number.isFinite(costAt(grid, -15, -7.5))).toBe(true);
+    // za vnější stranou plotu je volno (jen 1,5 m pruh u plotu)
+    expect(Number.isFinite(costAt(grid, -30, -7.5))).toBe(true);
+  });
+
+  it('natočené ohrady (30°) mají souvislou uličku, i když mřížka vozů nesedí na hranici', () => {
+    const turn = Math.PI / 6;
+    const c = Math.cos(turn);
+    const sn = Math.sin(turn);
+    // dva hřbitovy vedle sebe v natočené mřížce; několik posunů, aby střed buňky nepadl vždy stejně
+    for (const shift of [0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7]) {
+      const x0 = -22.5 + shift;
+      const z0 = -7.5 + shift / 2;
+      const sq = (k: number): ReturnType<typeof part> => ({
+        ...part(x0 + 15 * k * c, z0 - 15 * k * sn),
+        cell: { x: 8 + k, y: 9 },
+        rotation: turn,
+      });
+      const grid = cartGrid({
+        village: village({
+          cemeteries: [
+            { id: 1, built: true, squares: [sq(0)] },
+            { id: 2, built: true, squares: [sq(1)] },
+          ],
+        }),
+        terrain: flatTerrain,
+      });
+      // hranice: bod mezi středy a směr podél ní
+      const mx = x0 + 7.5 * c;
+      const mz = z0 - 7.5 * sn;
+      const near = new Set<number>();
+      for (let j = 0; j < grid.height; j++) {
+        for (let i = 0; i < grid.width; i++) {
+          const x = grid.originX + i * grid.cellM;
+          const z = grid.originZ + j * grid.cellM;
+          const across = Math.abs((x - mx) * c - (z - mz) * sn);
+          const along = (x - mx) * sn + (z - mz) * c;
+          if (
+            across <= 2.7 &&
+            Math.abs(along) <= 7 &&
+            Number.isFinite(grid.cost[j * grid.width + i]!)
+          )
+            near.add(j * grid.width + i);
+        }
+      }
+      // průchod 8 sousedů z jednoho konce uličky na druhý
+      const ends = [...near].sort((a, b) => {
+        const f = (q: number): number =>
+          (grid.originX + (q % grid.width) * grid.cellM - mx) * sn +
+          (grid.originZ + Math.floor(q / grid.width) * grid.cellM - mz) * c;
+        return f(a) - f(b);
+      });
+      const start = ends[0]!;
+      const goal = ends[ends.length - 1]!;
+      const seen = new Set([start]);
+      const queue = [start];
+      while (queue.length > 0) {
+        const q = queue.pop()!;
+        for (const dj of [-1, 0, 1]) {
+          for (const di of [-1, 0, 1]) {
+            const n = q + dj * grid.width + di;
+            if (near.has(n) && !seen.has(n)) {
+              seen.add(n);
+              queue.push(n);
+            }
+          }
+        }
+      }
+      expect(seen.has(goal), `posun ${shift}`).toBe(true);
+    }
+  });
 });

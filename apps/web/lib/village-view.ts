@@ -1,5 +1,6 @@
 import {
   BUILD_COSTS,
+  isCancellable,
   paymentValueKg,
   purchaseDaysLeft,
   STOCK_RESOURCES,
@@ -320,6 +321,8 @@ export function buildVillageView(
           : null),
       dwellingId: c.kind === 'rebuild' ? c.dwellingId : null,
       relocates: state.constructions.find((x) => x.id === c.id)?.relocates ?? null,
+      penId: state.constructions.find((x) => x.id === c.id)?.penId ?? null,
+      cancellable: state.constructions.some((x) => x.id === c.id && isCancellable(x)),
       fieldId: c.kind === 'field' ? c.fieldId : null,
       cemeteryId: c.cemeteryId,
       orchardId: c.orchardId,

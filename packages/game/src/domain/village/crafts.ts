@@ -54,6 +54,7 @@ import type {
 } from './types';
 import {
   basketManDaysPerKg,
+  craftHands,
   migratePotter,
   migrateSmith,
   potteryClayKg,
@@ -245,6 +246,27 @@ export function craftHouseholds(
     if (d.workshop && occupied.has(d.id) && !resting.has(d.id)) households.add(d.id);
   }
   return households;
+}
+
+/**
+ * Lehčí práce žen domácností dílen, které dnes pracují v dílně (`households` – `craftHouseholds`):
+ * zbytek jejich práce po denním minimu jde do práce vsi (crafts.md – Kdo dělá řemeslo; Martin
+ * 22. 10. 2026: „Ženy řemeslníků se starají o domácnost a k tomu dělají lehčí polní práce se
+ * vsí“). Vrací člověkodny před štěstím (jako kapacita vsi v `allocateDay`).
+ */
+export function craftLightLabor(
+  state: VillageState,
+  day: number,
+  households: ReadonlySet<number>,
+  potteryCoverage: number,
+  productivity: number,
+): number {
+  if (households.size === 0 || productivity <= 0) return 0;
+  let light = 0;
+  for (const id of households) {
+    light += workshopLabor(state, day, id, potteryCoverage, productivity).light;
+  }
+  return light / productivity;
 }
 
 /** Obývané dílny řemesla `craft` v pořadí id. */
@@ -657,6 +679,11 @@ export interface WorkshopLabor {
   capacity: number;
   dailyMin: number;
   craft: number;
+  /**
+   * Práce žen domácnosti, která po denním minimu zbyla (čd po štěstí) – lehčí polní práce se vsí
+   * (crafts.md – Kdo dělá řemeslo); `workCrafts` ji nepoužije, do práce vsi ji přidá krok práce.
+   */
+  light: number;
   skill: number;
 }
 
@@ -698,7 +725,17 @@ export function workshopLabor(
   const water = waterFetchingLabor(members.length, dwelling?.waterWalkM);
   const minimum = dailyMinPerHousehold(potteryCoverage) + water;
   const dailyMin = take(adultDailyMin(minimum, elders, productivity));
-  return { capacity, dailyMin, craft: left, skill: workshopSkill(state, dwellingId, day, away) };
+  // řemeslo dělá jen řemeslník a jeho synové; zbytek práce žen jde do lehčích prací se vsí
+  const handsCapacity =
+    craftHands(members, day).reduce((sum, p) => sum + laborPerDay(p, day), 0) * productivity;
+  const craft = Math.min(left, handsCapacity);
+  return {
+    capacity,
+    dailyMin,
+    craft,
+    light: left - craft,
+    skill: workshopSkill(state, dwellingId, day, away),
+  };
 }
 
 /** Kam práce dílny dnes šla – rozdělení práce dne pro postavy (labor-report.ts). */

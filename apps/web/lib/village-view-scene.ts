@@ -43,6 +43,7 @@ import {
   ploughPairsHome,
   ploughsThisYear,
   householdWater,
+  storedWaterCartDrive,
   waterCartPlan,
   CART_JOBS,
   dateOfDayIndex,
@@ -326,14 +327,19 @@ function sceneLaborHomes(state: VillageState, shares: readonly LaborShare[]): Sc
 /**
  * Kolik vody (0–1 po desetinách) dnes přivezl vůz v sudech kterým domácnostem (wagons.md – Co vozy
  * vozí): týž plán jako simulace (`waterCartPlan` – domácnostem nejdál od vody první) s vozy podílu
- * `haul` s vodou a uloženou jízdou k břehu; domácnosti dílen, které dnes pracují, nosí vodu samy.
+ * `haul` s vodou, jejich druhem (`fourWheel`) a uloženou jízdou toho druhu k břehu
+ * (`storedWaterCartDrive`); domácnosti dílen, které dnes pracují, nosí vodu samy.
  * Jen vzhled – podle toho chodí ve scéně pro vodu pěšky méně lidí.
  */
 function waterCartShares(state: VillageState, shares: readonly LaborShare[]): Map<number, number> {
   const out = new Map<number, number>();
   const share = shares.find((s) => s.activity === 'haul' && s.job === 'water');
-  const drive = state.waterCart?.drive;
-  if (!share || !drive) return out;
+  if (!share) return out;
+  // týž druh vozu a jeho břeh jako vítězný plán simulace (simulate-hauls – voda tím druhem vozů,
+  // který ušetří víc; čtyřkoláky v podílu `fourWheel`)
+  const kind = share.fourWheel ? 'four-wheel' : 'two-wheel';
+  const drive = storedWaterCartDrive(state, kind);
+  if (!drive) return out;
   const working = new Set<number>();
   for (const s of shares) {
     if (s.activity !== 'craft') continue;
@@ -342,7 +348,7 @@ function waterCartShares(state: VillageState, shares: readonly LaborShare[]): Ma
   const villagers =
     working.size > 0 ? state.people.filter((p) => !working.has(p.dwellingId)) : state.people;
   const households = householdWater(villagers, state.dwellings);
-  const plan = waterCartPlan(households, share.carts ?? 1, drive);
+  const plan = waterCartPlan(households, share.carts ?? 1, drive, kind);
   if (!plan || plan.litres <= 0) return out;
   const perLitre = plan.crew / plan.litres;
   households.forEach((h, k) => {

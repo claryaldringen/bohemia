@@ -1,5 +1,11 @@
 import { length2 } from '../../landscape';
-import { CART_ROUTES, CART_SPEED, SACRED_BUILDINGS } from '../rules';
+import {
+  CART_ROUTES,
+  CART_SPEED,
+  CEMETERY_FENCE_INSET_M,
+  PEN_FENCE_INSET_M,
+  SACRED_BUILDINGS,
+} from '../rules';
 import type { PartStage } from '../summary';
 import type { CartKind, RoadGrade, RoadGround } from '../types';
 import { nearestPartFinder } from './nearest';
@@ -10,6 +16,7 @@ import {
   inBuilding,
   penPathSquares,
   simplifyPathLine,
+  fencedCells,
   squareCells,
   villageBuildings,
   type GridWindow,
@@ -57,6 +64,8 @@ const DIRS: readonly (readonly [number, number])[] = [
   [2, -1],
 ];
 const HEADINGS = DIRS.length;
+/** Úhlopříčky (krok o 1 a 1) – po pevné cestě smí přes roh (`cartRoutes`). */
+const DIAGONAL = DIRS.map(([i, j]) => Math.abs(i) === 1 && Math.abs(j) === 1);
 /** Délka kroku v buňkách. */
 const DIR_LEN = DIRS.map(([i, j]) => Math.sqrt(i * i + j * j));
 /** Buňky, přes které krok vede (úhlopříčka a skok nesmí přes roh neprůchodné buňky). */
@@ -98,6 +107,10 @@ const HOUSE_MARGIN_M = 0.4;
 export interface CartGrid extends GridWindow {
   cost: Float32Array;
   heights: Float32Array | null;
+  /** Buňky pásu pevné cesty, kudy vůz jede (průjezdné), 1 – bez pevných cest null. */
+  road?: Uint8Array | null;
+  /** Id osetého dílu pole v buňce, jinak -1 (pošlapaná úroda – CART_TRAMPLE); testy bez id: -1. */
+  sownPart?: Int32Array;
 }
 
 /** Cíl vozu – bod a jak blízko musí vůz dojet (m). */
@@ -109,7 +122,8 @@ export interface CartTarget {
 
 /**
  * Trasa vozu k cíli: dojede (`reached`), cena (m jízdy po louce bez stoupání), délka (m) a osa
- * od depa k cíli (zjednodušená), buňky trasy (pro provoz).
+ * od depa k cíli (zjednodušená), buňky trasy (pro provoz) a metry trasy přes osetý díl pole mimo
+ * pevnou cestu (`sown`, podle id dílu).
  */
 export interface CartRoute {
   reached: boolean;
@@ -117,6 +131,7 @@ export interface CartRoute {
   lengthM: number;
   points: PathPoint[];
   cells: number[];
+  sown: { partId: number; m: number }[];
 }
 
 /** Pevná cesta pro vůz – jako v síti pěšin, s mokřinou a brody na ose (`Road.ground`). */
@@ -147,13 +162,14 @@ export function cartVillageOf(
 }
 
 /**
- * Rychlost vozu přes díl pole proti louce (CART_SPEED): osetý díl, křoviny a mladý les 0 (vůz
- * neprojede), zakládaný díl (rozrývaný drn) jako zoraný, připravený díl – sesedlá rozrytá půda do
+ * Rychlost vozu přes díl pole proti louce (CART_SPEED): křoviny a mladý les 0 (vůz neprojede),
+ * osetý díl `CART_SPEED.sown` (projede jen bez jiné cesty – wagons.md, Vůz přes zaseté pole), zakládaný díl (rozrývaný drn) jako zoraný, připravený díl – sesedlá rozrytá půda do
  * osevu, i díly sklízené plodiny při žni (`harvestReachState`) – jako strniště, úhor a příloh
  * jako louka.
  */
 export function cartPartSpeed(stage: PartStage): number {
-  if (stage === 'sown' || stage === 'shrubs' || stage === 'young-forest') return 0;
+  if (stage === 'shrubs' || stage === 'young-forest') return 0;
+  if (stage === 'sown') return CART_SPEED.sown;
   if (stage === 'founding') return CART_SPEED.ploughed;
   if (stage === 'ready') return CART_SPEED.stubble;
   return 1;
@@ -181,14 +197,24 @@ export function cartRoadSpeed(
 }
 
 /**
- * Cena metru po pevných cestách po buňkách (buňky jako `roadMask` – body osy po třetině buňky,
- * mokřina podle polohy na ose z `ground.wet`, mimo ni i se stromy u cesty – `lined`); mimo cesty
- * 0, v buňce víc cest nejrychlejší. Bez cest null.
+ * Pás pevné cesty pro vůz – buňky do tolika buněk od bodu osy. Jen nejbližší buňka osy (jako
+ * `roadMask`) nestačí: šikmá cesta lesem nebo osetým polem je pak řetěz buněk spojených rohy
+ * a vůz úhlopříčkou přes roh neprůchodné buňky nejede (`DIR_VIA`) – cesta by byla nesjízdná.
+ * Rohové buňky úhlopříčky jsou od osy √2/2 buňky, od nejbližšího bodu osy (po třetině buňky)
+ * nejvýš ≈ 0,73 buňky; rovná cesta v řadě buněk zůstane jednou řadou (sousední řada je 1 buňka).
+ */
+const ROAD_BAND_CELLS = 0.75;
+
+/**
+ * Cena metru po pevných cestách po buňkách (pás `ROAD_BAND_CELLS` kolem bodů osy po třetině
+ * buňky, mokřina podle polohy na ose z `ground.wet`, mimo ni i se stromy u cesty – `lined`); mimo
+ * cesty 0, v buňce víc cest nejrychlejší. Bez cest null.
  */
 function cartRoadCosts(grid: GridWindow, roads: CartVillage['roads']): Float32Array | null {
   if (!roads || roads.length === 0) return null;
   const out = new Float32Array(grid.width * grid.height);
   const step = grid.cellM / 3;
+  const band2 = ROAD_BAND_CELLS * ROAD_BAND_CELLS;
   for (const road of roads) {
     const grade = road.grade ?? 'trodden';
     const cart = road.cart === true;
@@ -196,12 +222,20 @@ function cartRoadCosts(grid: GridWindow, roads: CartVillage['roads']): Float32Ar
     const wetCost = 1 / cartRoadSpeed(grade, cart, true);
     const wet = road.ground?.wet ?? [];
     const mark = (x: number, z: number, along: number): void => {
-      const i = Math.round((x - grid.originX) / grid.cellM);
-      const j = Math.round((z - grid.originZ) / grid.cellM);
-      if (i < 0 || j < 0 || i >= grid.width || j >= grid.height) return;
-      const c = j * grid.width + i;
+      const fi = (x - grid.originX) / grid.cellM;
+      const fj = (z - grid.originZ) / grid.cellM;
       const cost = wet.some(([a, b]) => along >= a && along <= b) ? wetCost : dryCost;
-      if (out[c] === 0 || cost < out[c]!) out[c] = cost;
+      const i0 = Math.max(0, Math.ceil(fi - ROAD_BAND_CELLS));
+      const i1 = Math.min(grid.width - 1, Math.floor(fi + ROAD_BAND_CELLS));
+      const j0 = Math.max(0, Math.ceil(fj - ROAD_BAND_CELLS));
+      const j1 = Math.min(grid.height - 1, Math.floor(fj + ROAD_BAND_CELLS));
+      for (let j = j0; j <= j1; j++) {
+        for (let i = i0; i <= i1; i++) {
+          if ((i - fi) * (i - fi) + (j - fj) * (j - fj) > band2) continue;
+          const c = j * grid.width + i;
+          if (out[c] === 0 || cost < out[c]!) out[c] = cost;
+        }
+      }
     };
     const pts = road.points;
     if (pts.length === 1) mark(pts[0]!.x, pts[0]!.z, 0);
@@ -281,14 +315,18 @@ export function cartGrid(
     else if (flags & PATH_WETLAND) cost[c] = 1 / CART_SPEED.wet;
     else cost[c] = 1;
   }
+  const sownPart = new Int32Array(all).fill(-1);
+  grid.sownPart = sownPart;
   // díly polí podle stadia – nejpomalejší z povrchu a dílu platí
   for (const field of v.fields) {
     const nearestPart = nearestPartFinder(field.parts, field.parts[0]?.size ?? 0);
     for (const c of squareCells(grid, field.parts).inside) {
-      const stage = nearestPart(
+      const near = nearestPart(
         grid.originX + (c % grid.width) * grid.cellM,
         grid.originZ + Math.floor(c / grid.width) * grid.cellM,
-      ).stage;
+      );
+      const stage = near.stage;
+      if (stage === 'sown' && near.partId !== undefined) sownPart[c] = near.partId;
       // čtyřkolák na zoraný (zakládaný) díl nesjede
       const speed = input.fourWheel && stage === 'founding' ? 0 : cartPartSpeed(stage);
       cost[c] = speed > 0 ? Math.max(cost[c]!, 1 / speed) : Infinity;
@@ -304,22 +342,27 @@ export function cartGrid(
   // a mokřiny na ose; voda (brod – i pod hatí) a neprůchodná místa terénu zůstávají
   const roads = cartRoadCosts(grid, v.roads);
   if (roads) {
+    grid.road = new Uint8Array(all);
     for (let c = 0; c < all; c++) {
       if (!roads[c] || !Number.isFinite(t.cost[c]!) || t.flags[c]! & PATH_WATER) continue;
       cost[c] = roads[c]!;
+      grid.road[c] = 1;
     }
   }
-  // sad (stromy v řadách), hřbitov a ohrada (plot) – ani jejich okraj, okrsek svatyně
-  const fenced = [
-    ...(v.orchards ?? []).map((o) => o.squares),
-    ...(v.cemeteries ?? []).map((c) => c.squares),
-    ...(v.pens ?? []).map((p) => penPathSquares(p)),
-  ];
-  for (const squares of fenced) {
-    if (squares.length === 0) continue;
-    const { inside, edge } = squareCells(grid, squares);
+  // sad (stromy v řadách) – i jeho okraj, okrsek svatyně
+  for (const o of v.orchards ?? []) {
+    if (o.squares.length === 0) continue;
+    const { inside, edge } = squareCells(grid, o.squares);
     for (const c of inside) cost[c] = Infinity;
     for (const c of edge) cost[c] = Infinity;
+  }
+  // hřbitov a ohrada: jen buňky uvnitř plotu, který stojí 1,5 m od okraje čtverců – mezi dvěma
+  // sousedními stavbami zůstává ulička 3 m, kterou vůz projede (oxen.md – plot je menší než čtverec)
+  for (const cemetery of v.cemeteries ?? []) {
+    for (const c of fencedCells(grid, cemetery.squares, CEMETERY_FENCE_INSET_M)) cost[c] = Infinity;
+  }
+  for (const pen of v.pens ?? []) {
+    for (const c of fencedCells(grid, penPathSquares(pen), PEN_FENCE_INSET_M)) cost[c] = Infinity;
   }
   for (const b of v.sacred?.buildings ?? []) {
     if (b.kind !== 'shrine') continue;
@@ -343,6 +386,7 @@ export function cartGrid(
       if (inBuilding(b, x, z, margin)) cost[c] = Infinity;
     });
   }
+  if (grid.road) for (let c = 0; c < all; c++) if (cost[c] === Infinity) grid.road[c] = 0;
   return grid;
 }
 
@@ -376,6 +420,7 @@ function cellsNear(grid: CartGrid, p: PathPoint, radius: number): number[] {
 export function cartRoutes(input: CartRoutesInput): { grid: CartGrid; routes: CartRoute[] } {
   const grid = cartGrid(input);
   const { width: w, height: h, cost, heights } = grid;
+  const road = grid.road ?? null;
   const all = w * h;
   const routes: CartRoute[] = input.targets.map(() => ({
     reached: false,
@@ -383,6 +428,7 @@ export function cartRoutes(input: CartRoutesInput): { grid: CartGrid; routes: Ca
     lengthM: 0,
     points: [],
     cells: [],
+    sown: [],
   }));
   // cíle po buňkách
   const goals = new Map<number, number[]>();
@@ -437,9 +483,13 @@ export function cartRoutes(input: CartRoutesInput): { grid: CartGrid; routes: Ca
       const n = jj * w + ii;
       const next = cost[n]!;
       if (next === Infinity) continue;
+      // úhlopříčka z cesty na cestu jede po ose cesty – roh vedle (les, osetý díl, okraj domu)
+      // ji nezastaví; pás cesty na mřížce je jen obraz osy (ohyb cesty u domu by jinak nesjel)
       let blocked = false;
-      for (const [vi, vj] of DIR_VIA[k]!) {
-        if (cost[(j + vj) * w + i + vi] === Infinity) blocked = true;
+      if (!(road && DIAGONAL[k] && road[c] && road[n])) {
+        for (const [vi, vj] of DIR_VIA[k]!) {
+          if (cost[(j + vj) * w + i + vi] === Infinity) blocked = true;
+        }
       }
       if (blocked) continue;
       const length = DIR_LEN[k]! * step;
@@ -482,9 +532,23 @@ export function cartRoutes(input: CartRoutesInput): { grid: CartGrid; routes: Ca
       lengthM,
       points: simplifyPathLine(raw, [], 0.5).points,
       cells,
+      sown: sownMeters(grid, cells),
     };
   });
   return { grid, routes };
+}
+
+/** Metry trasy přes osetý díl po dílech (buňka = `cellM`; pevná cesta dílem projíždí bez újmy). */
+function sownMeters(grid: CartGrid, cells: readonly number[]): { partId: number; m: number }[] {
+  const sownPart = grid.sownPart;
+  if (!sownPart) return [];
+  const byPart = new Map<number, number>();
+  for (const c of cells) {
+    const id = sownPart[c]!;
+    if (id < 0 || grid.road?.[c]) continue;
+    byPart.set(id, (byPart.get(id) ?? 0) + grid.cellM);
+  }
+  return [...byPart].sort((a, b) => a[0] - b[0]).map(([partId, m]) => ({ partId, m }));
 }
 
 /**
