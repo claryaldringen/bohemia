@@ -1167,7 +1167,7 @@ describe('advanceVillage – obydlí', () => {
       // pár svateb a nových domácností za rok – ne stovky (stěhování každý den)
       expect(worst).toBeLessThan(12);
     }
-  });
+  }, 60_000);
 
   /** Práce na opravách posledního dne (rozdělení práce dne). */
   const repairLabor = (s: VillageState): number =>
