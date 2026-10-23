@@ -147,6 +147,10 @@ describe('harvestKg', () => {
     const p = { ...finished(plan), done: { ...finished(plan).done, weed: 0 } };
     expect(harvestKg(p, [part()], day)).toBeCloseTo(623.2 * 0.6 - 175, 1);
   });
+  it('pošlapaná plocha (vůz přes zaseté pole) úrodu nedá', () => {
+    const trampled = part({ trampledM2: 1000 });
+    expect(harvestKg(finished(plan), [trampled], day)).toBeCloseTo(623.2 * 0.9 - 175, 1);
+  });
   it('nic neosetého = 0, nikdy záporné', () => {
     expect(harvestKg(plan, [part()], day)).toBe(0);
   });

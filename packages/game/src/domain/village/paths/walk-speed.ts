@@ -11,6 +11,8 @@ import type { RoadGrade, RoadLining } from '../types';
 
 /** Díl pole, jak ho zná chůze – stadium a vzhled (u rozpracovaného dílu i část před prací). */
 export interface WalkPart {
+  /** Id dílu pole (`FieldPart.id`) – vůz podle něj zapisuje pošlapanou úrodu; testy bez něj. */
+  partId?: number;
   stage: PartStage;
   /** Co je na dílu vidět (`fieldPartLooks`); bez údaje podle stadia. */
   look?: FieldPartLook;

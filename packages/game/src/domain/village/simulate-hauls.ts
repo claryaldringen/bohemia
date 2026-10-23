@@ -49,6 +49,7 @@ import { CARTS, CART_DEMAND, CART_JOBS, SMITH_SUPPLY, ORCHARD } from './rules';
 import type {
   CartKind,
   CartReach,
+  CartTripLog,
   Construction,
   CraftCoverage,
   VillageState,
@@ -202,6 +203,7 @@ export function haulLogs(
   common: number,
   plan: HaulPlan,
   candidates: readonly LogHaul[],
+  log?: CartTripLog,
 ): HaulWork | null {
   if (common <= 0 || plan.carts === 0) return null;
   const founding = foundingIndex(state);
@@ -219,9 +221,10 @@ export function haulLogs(
     invest(state, day, c, work, false, founding);
     wood.hauled = (wood.hauled ?? 0) + work;
     if (wood.cartReach4 && fourShare > 0) {
-      addHaulTrips(state, wood.cartReach4, work * fourShare, 'four-wheel');
+      addHaulTrips(state, wood.cartReach4, work * fourShare, 'four-wheel', log);
     }
-    if (wood.cartReach) addHaulTrips(state, wood.cartReach, work * (1 - fourShare));
+    if (wood.cartReach)
+      addHaulTrips(state, wood.cartReach, work * (1 - fourShare), 'two-wheel', log);
     left -= work;
   }
   return {

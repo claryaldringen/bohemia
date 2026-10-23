@@ -238,6 +238,34 @@ describe('kudy vůz projede', () => {
     expect(sown.lengthM).toBeGreaterThan(fallow.lengthM + 10);
   });
 
+  it('vůz bez jiné cesty projede zasetý díl (Martin 23. 10. 2026) a započítá metry přes něj', () => {
+    // pás osetých dílů přes celou šířku krajiny – objížďka není
+    const wall: PathVillage['fields'] = [
+      {
+        id: 2,
+        parts: Array.from({ length: 42 }, (_, k) => ({
+          ...part(-150 + (k % 21) * 15, 37.5 + Math.floor(k / 21) * 15, 'sown'),
+          partId: 7,
+        })),
+      },
+    ];
+    const target = { x: 0, z: 70 };
+    const sown = route({ fields: wall }, target);
+    expect(sown.reached).toBe(true);
+    const crossed = sown.sown.reduce((m, s) => m + s.m, 0);
+    expect(crossed).toBeGreaterThanOrEqual(7);
+    expect(sown.sown.every((s) => s.partId === 7)).toBe(true);
+    // jinak by trasa byla o řád levnější
+    expect(sown.cost).toBeGreaterThan(route({}, target).cost + crossed * 5);
+  });
+
+  it('s objížďkou vůz zasetý díl objede a nic nepošlape', () => {
+    const fields: PathVillage['fields'] = [
+      { id: 2, parts: [-15, 0, 15].map((x) => ({ ...part(x, 52.5, 'sown'), partId: 7 })) },
+    ];
+    expect(route({ fields }, { x: 0, z: 70 }).sown).toEqual([]);
+  });
+
   it('humno vůz objede jako stavbu (production-chains.md – Humno)', () => {
     // humno 8 × 10 m přes přímou trasu na sever
     const floor = { id: 5, position: { x: 0, z: 30, rotation: 0 }, built: true };
@@ -336,7 +364,7 @@ describe('rychlost vozu podle povrchu a cesty (wagons.md – Vozová síť, rych
     close(at(grid, -37.5, 52.5), CART_SPEED.stubble);
     close(at(grid, -22.5, 37.5), 1);
     close(at(grid, -22.5, 52.5), 1);
-    expect(at(grid, -7.5, 37.5)).toBe(Infinity);
+    close(at(grid, -7.5, 37.5), CART_SPEED.sown);
     // zoraný díl v mokřině – nejpomalejší z obou
     close(at(grid, 45, 37.5), Math.min(CART_SPEED.wet, CART_SPEED.ploughed));
     // cesta přes zakládaný díl – rychlost cesty
@@ -351,7 +379,7 @@ describe('rychlost vozu podle povrchu a cesty (wagons.md – Vozová síť, rych
     expect(cartRoadSpeed('improved', true, false)).toBe(CART_SPEED.road.improved);
     expect(cartRoadSpeed('causeway', false, true)).toBe(CART_SPEED.road.causeway);
     expect(cartRoadSpeed('trodden', true, true)).toBe(CART_SPEED.wet);
-    expect(cartPartSpeed('sown')).toBe(0);
+    expect(cartPartSpeed('sown')).toBe(CART_SPEED.sown);
     expect(cartPartSpeed('shrubs')).toBe(0);
     expect(cartPartSpeed('young-forest')).toBe(0);
   });

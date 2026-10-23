@@ -195,6 +195,7 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
       return [
         {
           ...square(landscape, p.cell, f.grid),
+          partId: p.id,
           stage: partStage(p, day),
           ...(view
             ? {

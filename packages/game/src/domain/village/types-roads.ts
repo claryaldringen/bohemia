@@ -249,6 +249,8 @@ export interface CartDrive {
   costM: number;
   x: number;
   z: number;
+  /** Kolik metrů trasy vede přes osetý díl pole (podle id dílu) – vůz tam pošlapává úrodu. */
+  sown?: { partId: number; m: number }[];
 }
 
 /** Jízdy vozů k jednomu cíli za rok cest (wagons.md – Vozová síť). */
@@ -257,7 +259,14 @@ export interface RoadCartTrips {
   z: number;
   kind: CartKind;
   trips: number;
+  /** Metry trasy přes osetý díl, když je známe (voda) – jinak je najde `flushCartTrips`. */
+  sown?: { partId: number; m: number }[];
+  /** Díly, které vůz právě sklízí nebo seje (cíl jízdy) – ty se nepošlapávají. */
+  spare?: readonly number[];
 }
+
+/** Deník jízd vozů za den – zapíše je `flushCartTrips` (provoz cest, pošlapání úrody). */
+export type CartTripLog = RoadCartTrips[];
 
 /**
  * Jabloň u pevné cesty (roads.md – Vysazení jabloní): jako strom sadu – výsadba v oknech jara

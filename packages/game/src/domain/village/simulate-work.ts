@@ -16,7 +16,13 @@ import {
   type HaulPlan,
 } from './carts';
 import { addCartDemand, type CartDemandToday } from './draft';
-import { oreCartDrive, oreCartOffer, villageCartDrives, type CartDrives } from './cart-jobs';
+import {
+  oreCartDrive,
+  oreCartOffer,
+  flushCartTrips,
+  villageCartDrives,
+  type CartDrives,
+} from './cart-jobs';
 import { charcoalDeliveries, dugBasketManDaysPerKg, type OreCartToday } from './smith-supply';
 import { purchaseTravelers, walkPurchases } from './craft-buying';
 import { gainPractice } from './craft-skill';
@@ -49,7 +55,6 @@ import {
   workSlaughter,
 } from './livestock';
 import { ploughCapacityPerDay, villageOxen } from './oxen';
-import { addRoadCartTrips } from './paths/roads';
 import { extraSowingDay, extraSowingWantsTeam } from './extra-sowing';
 import { threshingFloorHaulPoints } from './threshing-floors';
 import { grainPitTask, workGrainPits } from './grain-pits';
@@ -83,7 +88,14 @@ import {
   HARVEST_DAY,
   ORCHARD_WINDOWS,
 } from './rules';
-import type { Construction, CraftCoverage, Crop, CropWork, VillageState } from './types';
+import type {
+  CartTripLog,
+  Construction,
+  CraftCoverage,
+  Crop,
+  CropWork,
+  VillageState,
+} from './types';
 import {
   TASK_ORDER,
   activeTasks,
@@ -204,6 +216,8 @@ export function work(
   landscape: Landscape | null,
 ): { toil: boolean } {
   const month = dateOfDayIndex(day).month;
+  // jízdy vozů dne (svoz, voda, uhlí, ruda, klády, osivo) – zapíše `flushCartTrips`
+  const cartLog: CartTripLog = [];
   // orba: páry volů s rádlem, se železnou špičkou od kováře rychleji (oxen.md); slabí voli po
   // zimě pomaleji; voli s vozem na výpravě neorají (wagons.md)
   const partsById = new Map(state.parts.map((p) => [p.id, p]));
@@ -446,7 +460,8 @@ export function work(
       if (seed) {
         const work = task.field!.work;
         work.seedHauled = (work.seedHauled ?? 0) + hauled;
-        if (work.seedReach) addHaulTrips(state, work.seedReach, hauled);
+        if (work.seedReach)
+          addHaulTrips(state, work.seedReach, hauled, 'two-wheel', cartLog, work.partIds);
       } else {
         const owner = task.field
           ? task.field.work
@@ -456,17 +471,27 @@ export function work(
         if (owner) {
           owner.hauled = (owner.hauled ?? 0) + hauled;
           // jízdy do ročního provozu cest po druzích vozů
+          const spare = task.field?.work.partIds;
           const four = haul.work > 1e-9 ? (haul.fourWork ?? 0) / haul.work : 0;
           if (owner.cartReach4 && four > 0) {
-            addHaulTrips(state, owner.cartReach4, hauled * four, 'four-wheel');
+            addHaulTrips(state, owner.cartReach4, hauled * four, 'four-wheel', cartLog, spare);
           }
-          if (owner.cartReach) addHaulTrips(state, owner.cartReach, hauled * (1 - four));
+          if (owner.cartReach) {
+            addHaulTrips(state, owner.cartReach, hauled * (1 - four), 'two-wheel', cartLog, spare);
+          }
           // snopy jedou z pole na humno (production-chains.md – Humno) – i tam se vyjede cesta
           if (task.field?.name === 'harvest') {
             const floors = threshingFloorHaulPoints(state);
             if (floors.length > 0) {
-              addHaulTrips(state, { points: floors }, hauled * four, 'four-wheel');
-              addHaulTrips(state, { points: floors }, hauled * (1 - four));
+              addHaulTrips(state, { points: floors }, hauled * four, 'four-wheel', cartLog, spare);
+              addHaulTrips(
+                state,
+                { points: floors },
+                hauled * (1 - four),
+                'two-wheel',
+                cartLog,
+                spare,
+              );
             }
           }
         }
@@ -531,7 +556,7 @@ export function work(
   // klády ke stavbám vozem tam, kam vůz dojede (wagons.md – Vůz) – honák a nakladač ze společné
   // práce; vozy, které jely jinam (Co vozy vozí), je nevozí
   if (logs.length > 0) {
-    const logWork = haulLogs(state, day, common, logPlan, logs);
+    const logWork = haulLogs(state, day, common, logPlan, logs, cartLog);
     if (logWork) {
       common -= logWork.manDays;
       haulWork.push(logWork);
@@ -540,9 +565,7 @@ export function work(
   // voda v sudech (wagons.md – Co vozy vozí): posádka ve dnešním minimu, jízdy do provozu cest
   if (jobs.water) {
     const water = jobs.water;
-    if (state.roads) {
-      addRoadCartTrips(state.roads, [{ ...water.spot, kind: water.kind, trips: water.trips }]);
-    }
+    cartLog.push({ ...water.spot, kind: water.kind, trips: water.trips, sown: water.sown });
     haulWork.push({
       job: 'water',
       manDays: water.crew,
@@ -628,10 +651,8 @@ export function work(
   // uhlí a ruda vozem – sedlák ze společné práce, jízdy do ročního provozu cest (wagons.md – Co
   // vozy vozí, crafts.md – Uhlí a ruda kováře)
   for (const c of smithCarts.charcoal) {
-    if (state.roads) {
-      const trips = c.kg / (CART_JOBS.charcoal.loadKg * cartLoadRatio(c.kind));
-      addRoadCartTrips(state.roads, [{ x: c.x, z: c.z, kind: c.kind, trips }]);
-    }
+    const trips = c.kg / (CART_JOBS.charcoal.loadKg * cartLoadRatio(c.kind));
+    cartLog.push({ x: c.x, z: c.z, kind: c.kind, trips });
     haulWork.push({
       job: 'charcoal',
       manDays: c.manDays,
@@ -647,10 +668,7 @@ export function work(
   }
   for (const material of ['ore', 'clay'] as const) {
     for (const o of smithCarts[material]) {
-      if (state.roads) {
-        const trips = o.kg / CARTS.loadKg['two-wheel'];
-        addRoadCartTrips(state.roads, [{ x: o.x, z: o.z, kind: 'two-wheel', trips }]);
-      }
+      cartLog.push({ x: o.x, z: o.z, kind: 'two-wheel', trips: o.kg / CARTS.loadKg['two-wheel'] });
       haulWork.push({
         job: material,
         manDays: o.manDays,
@@ -659,6 +677,8 @@ export function work(
       });
     }
   }
+  // všechny jízdy dne do provozu cest a pošlapání úrody na jednom místě (wagons.md)
+  flushCartTrips(state, cartLog, day, landscape, obstacles);
   const hayMowing = state.hay?.mowing;
   state.labor = laborDay(state, day, {
     allocation,
