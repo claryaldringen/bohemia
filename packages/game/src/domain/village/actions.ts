@@ -163,7 +163,7 @@ function validateDay(day: number): void {
  * Akce hráče nesmí do minulosti vsi – před den, do kterého je už dopočítaná – ani do vymřelé vsi;
  * jinak RangeError.
  */
-function validateActionDay(state: VillageState, day: number): void {
+export function validateActionDay(state: VillageState, day: number): void {
   if (isVillageExtinct(state)) throw new RangeError('Ves vymřela – nikdo v ní nežije.');
   validateDay(day);
   if (day < state.lastDay) {

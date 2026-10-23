@@ -83,8 +83,13 @@ export function moveRelocatedHousehold(
 
 /**
  * Dřevo zrušené stavby se vrátí na hromadu (mutuje stav): klády, které vzala z hromady, a stromy,
- * které pro ni už skáceli. Neskácené vyhrazené stromy se zrušením stavby uvolní samy.
+ * které pro ni už skáceli – bez té části dřeva, která se podle odvedené práce už zabudovala
+ * (`trees × done / cost`, zaokrouhleno dolů; Martin 23. 10. 2026: „nespotřebované suroviny se
+ * vrátí“). Neskácené vyhrazené stromy se zrušením stavby uvolní samy.
  */
 export function returnConstructionWood(state: VillageState, c: Construction): void {
-  if (c.wood) addLogs(state, c.wood.fromPile + c.wood.felled);
+  if (!c.wood) return;
+  const progress = c.cost > 0 ? Math.min(1, c.done / c.cost) : 0;
+  const builtIn = Math.floor(c.wood.trees * progress);
+  addLogs(state, Math.max(0, c.wood.fromPile + c.wood.felled - builtIn));
 }
