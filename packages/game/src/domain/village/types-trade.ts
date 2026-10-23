@@ -112,7 +112,12 @@ export interface TradeExpedition {
   give: TradeGoods;
   get: TradeGoods;
   porters: number;
-  /** Dny cesty tam a zpět i s cestou za krajem mapy. */
+  /**
+   * Kolikrát vozy výpravy jedou tam a zpět (wagons.md – Obchod, Opakované jízdy vozu); `days` je
+   * součet všech jízd. Chybí = jedna jízda (výprava uložená dřív).
+   */
+  trips?: number;
+  /** Dny cesty tam a zpět i s cestou za krajem mapy (všechny jízdy dohromady). */
   days: number;
   /** Práce celkem (člověkodny = nosiči × dny) a kolik je odvedeno. */
   cost: number;

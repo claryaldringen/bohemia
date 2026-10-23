@@ -330,8 +330,8 @@ describe('rok vozů (wagons.md – Kolik vozů ves chce)', () => {
   });
 
   it('výprava zapíše, co by ušetřily čtyřkoláky – nosiči krát dny cesty', () => {
-    // 1 600 kg obilí = 64 nosičů; čtyřkolák vezme 800 kg a jdou s ním 2 lidé
-    expect(fourWheelSavings({ grain: 1600 }, {}, 4)).toEqual([(64 - 34) * 4, (34 - 4) * 4]);
+    // 1 600 kg obilí = 64 nosičů; čtyřkolák jede dvakrát (2 lidé × 2 jízdy), druhý nic neušetří
+    expect(fourWheelSavings({ grain: 1600 }, {}, 4)).toEqual([(64 - 4) * 4]);
     expect(fourWheelSavings({ grain: 20 }, {}, 4)).toEqual([]);
   });
 });

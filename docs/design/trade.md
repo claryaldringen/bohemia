@@ -366,8 +366,7 @@ Návrh Clauda (18. 10. 2026) – detaily, které návrh výš nechal otevřené:
   prodá o 20 % levněji: ves za kus sháněného zboží dostane hodnota ÷ 1,2 × 1,2 = 1 × hodnota,
   za kus nabízeného zaplatí hodnota × 1,2 × 0,8 = 0,96 × hodnota. Obchoduje se jen sháněným
   (ves dává) a nabízeným (ves dostává) zboží – jinak by soused byl nekonečný zdroj.
-- **Doprava:** nosiči = víc z cest tam a zpět: náklad ÷ 25 kg (kláda váží pro nosiče 100 kg –
-  vlečou ji čtyři) + honák na každých 10 kusů dobytka; aspoň 1. Práce = nosiči
+- **Doprava:** nosiči = víc z cest tam a zpět: náklad ÷ 25 kg (kláda váží 100 kg – bez vozu ji nesou **dva lidé**, Martin 22. 10. 2026; s vozem vždy na voze) + honák na každých 10 kusů dobytka; aspoň 1. Práce = nosiči
   × dny. **Lidé na výpravě mají vlastní podíl práce** (Martin 19. 10. 2026: „Ano, udělej to
   tak.“ – na návrh Clauda níž): každý den výprava vezme tolik člověkodní, kolik s ní jde lidí
   (nosiči, s vozy honáci a pomocníci), hned **po denním minimu domácností a před rozdělením dne**

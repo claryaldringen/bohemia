@@ -185,63 +185,115 @@ export function expeditionPorters(
 }
 
 /**
- * Doprava výpravy (wagons.md – Obchod, návrh Clauda): kolik vozů z nabídnutých (`carts` – v pořadí
- * výběru, čtyřkoláky napřed) jede a kolik lidí jde – vůz bere CARTS.loadKg nákladu místo nosičů
- * po 25 kg a jdou s ním CARTS.tradeCrew lidé (honák a pomocník), dobytek se žene jako dřív.
- * Vozů jede tolik z prvních, aby lidí bylo nejméně (při shodě méně vozů).
+ * Doprava výpravy (wagons.md – Obchod, Opakované jízdy vozu; Martin 22. 10. 2026: „Ať jede vůz
+ * klidně několikrát a lidi ať jsou jen na doplnění – ať je každá cesta co nejvíc optimální.“):
+ * kolik vozů z nabídnutých (`carts` – v pořadí výběru, čtyřkoláky napřed) jede, kolikrát se
+ * s nimi jede (`trips`) a kolik lidí jde najednou. Vozy jedou spolu tolikrát, kolikrát se naplní
+ * celé (aspoň jednou, a to i s menším nákladem); zbytek nákladu a dobytek nesou a ženou lidé
+ * rovnoměrně rozdělení mezi jízdy a s každým vozem jdou CARTS.tradeCrew lidé. Klády jedou s vozem
+ * vždy na voze (vozů je tolik jízd, aby se vešly), bez vozu je nesou dva lidé na kládu. Zvolí se
+ * počet vozů s nejmenší prací (lidé × jízdy), při shodě méně vozů.
  */
 export function expeditionTransport(
   give: TradeGoods,
   get: TradeGoods,
   carts: readonly CartKind[] = [],
-): { porters: number; carts: number } {
-  let best = { porters: Math.max(1, carriers(give, []), carriers(get, [])), carts: 0 };
-  for (let n = 1; n <= carts.length; n++) {
+): { porters: number; carts: number; trips: number } {
+  const hasLogs = (give.logs ?? 0) > 0 || (get.logs ?? 0) > 0;
+  let best: { porters: number; carts: number; trips: number } | null = null;
+  for (let n = hasLogs && carts.length > 0 ? 1 : 0; n <= carts.length; n++) {
     const used = carts.slice(0, n);
-    const porters = Math.max(1, carriers(give, used), carriers(get, used));
-    if (porters < best.porters) best = { porters, carts: n };
+    const a = legCrew(give, used);
+    const b = legCrew(get, used);
+    const trips = Math.max(a.trips, b.trips);
+    const porters =
+      Math.max(n === 0 ? 1 : 0, a.perTrip(trips), b.perTrip(trips)) + n * CARTS.tradeCrew;
+    if (best === null || porters * trips < best.porters * best.trips) {
+      best = { porters, carts: n, trips };
+    }
   }
-  return best;
+  return best ?? { porters: 1, carts: 0, trips: 1 };
+}
+
+/**
+ * Jedna cesta (tam nebo zpět) s vozy `carts`: kolik jízd vozů aspoň potřebuje (plné jízdy,
+ * klády na voze) a kolik lidí (nosičů a honáků) při dané počtu jízd nese zbytek najednou.
+ */
+function legCrew(
+  goods: TradeGoods,
+  carts: readonly CartKind[],
+): { trips: number; perTrip: (trips: number) => number } {
+  let kg = 0;
+  let logKg = 0;
+  let logs = 0;
+  let heads = 0;
+  for (const [good, amount] of entries(goods)) {
+    if (isCattleGood(good)) heads += amount;
+    else {
+      kg += amount * TRADE_GOOD_VALUES[good].carryKg;
+      if (good === 'logs') {
+        logKg += amount * TRADE_GOOD_VALUES[good].carryKg;
+        logs += amount;
+      }
+    }
+  }
+  const drovers = Math.ceil(heads / TRADE.headsPerDrover - EPSILON);
+  if (carts.length === 0) {
+    const units =
+      Math.ceil((kg - logKg) / TRADE.porterKg - EPSILON) + logs * TRADE.logCarriers + drovers;
+    return { trips: 1, perTrip: () => units };
+  }
+  const load = carts.reduce((sum, kind) => sum + CARTS.loadKg[kind], 0);
+  const trips = Math.max(1, Math.floor(kg / load + EPSILON), Math.ceil(logKg / load - EPSILON));
+  return {
+    trips,
+    perTrip: (n) => {
+      const rest = Math.max(0, kg - n * load);
+      return Math.ceil((Math.ceil(rest / TRADE.porterKg - EPSILON) + drovers) / n - EPSILON);
+    },
+  };
+}
+
+/**
+ * Kolik kg nákladu veze při jedné jízdě každý z vozů výpravy (`kinds` – druhy vozů, `trips` jízd):
+ * větší z cest tam a zpět, nejvýš nosnost vozů, rozdělený podle nosnosti (zobrazení nákladu
+ * vozu – wagons.md, Opakované jízdy vozu). Bez vozů prázdné.
+ */
+export function expeditionCartLoads(
+  e: Pick<TradeExpedition, 'give' | 'get'>,
+  kinds: readonly CartKind[],
+): number[] {
+  const kg = (goods: TradeGoods): number =>
+    entries(goods).reduce(
+      (sum, [good, amount]) =>
+        isCattleGood(good) ? sum : sum + amount * TRADE_GOOD_VALUES[good].carryKg,
+      0,
+    );
+  const capacity = kinds.reduce((sum, kind) => sum + CARTS.loadKg[kind], 0);
+  if (capacity <= 0) return [];
+  const load = Math.min(capacity, Math.max(kg(e.give), kg(e.get)));
+  return kinds.map((kind) => Math.round((load * CARTS.loadKg[kind]) / capacity));
 }
 
 /**
  * Kolik práce by výpravě ušetřil k-tý čtyřkolák (čd – wagons.md, Kolik vozů ves chce): nosiči,
- * které vůz nahradí (`expeditionTransport` s k čtyřkoláky), krát dny cesty; jen dokud vozy
+ * které vůz nahradí (`expeditionTransport` s k čtyřkoláky – lidé × jízdy), krát dny cesty; jen dokud vozy
  * pomáhají (nejvýš CART_DEMAND.maxCarts).
  */
 export function fourWheelSavings(give: TradeGoods, get: TradeGoods, days: number): number[] {
   const out: number[] = [];
-  let porters = expeditionTransport(give, get, []).porters;
+  const work = (carts: readonly CartKind[]): number => {
+    const t = expeditionTransport(give, get, carts);
+    return t.porters * t.trips;
+  };
+  let spent = work([]);
   for (let k = 1; k <= CART_DEMAND.maxCarts['four-wheel']; k++) {
-    const carts = Array.from({ length: k }, (): CartKind => 'four-wheel');
-    const next = expeditionTransport(give, get, carts).porters;
-    if (next >= porters) break;
-    out.push((porters - next) * days);
-    porters = next;
+    const next = work(Array.from({ length: k }, (): CartKind => 'four-wheel'));
+    if (next >= spent) break;
+    out.push((spent - next) * days);
+    spent = next;
   }
   return out;
-}
-
-/**
- * Lidé na jednu cestu: náklad po 25 kg na člověka (co se nevejde na vozy), dobytek (krávy i voli)
- * jde po svých – honák na 10 kusů, s každým vozem jeho posádka.
- */
-function carriers(goods: TradeGoods, carts: readonly CartKind[]): number {
-  let kg = 0;
-  let heads = 0;
-  for (const [good, amount] of entries(goods)) {
-    if (isCattleGood(good)) heads += amount;
-    else kg += amount * TRADE_GOOD_VALUES[good].carryKg;
-  }
-  const onCarts = Math.min(
-    kg,
-    carts.reduce((sum, kind) => sum + CARTS.loadKg[kind], 0),
-  );
-  return (
-    Math.ceil((kg - onCarts) / TRADE.porterKg - EPSILON) +
-    Math.ceil(heads / TRADE.headsPerDrover - EPSILON) +
-    carts.length * CARTS.tradeCrew
-  );
 }
 
 /**
@@ -265,6 +317,8 @@ export interface TradeQuote {
   balance: number;
   /** Nosiči (víc z cesty tam a zpět, aspoň 1), dny cesty tam a zpět a práce (lidé × dny). */
   porters: number;
+  /** Kolikrát vozy pojedou (bez vozů 1); dny jsou součet všech jízd. */
+  trips: number;
   /** Vozy, které s výpravou pojedou (wagons.md – Obchod; druhy v pořadí výběru). */
   carts: CartKind[];
   days: number;
@@ -343,9 +397,10 @@ export function tradeQuote(
     price: round2(price),
     balance: round2(credit - price),
     porters,
+    trips: transport.trips,
     carts: available.slice(0, transport.carts),
-    days,
-    manDays: porters * days,
+    days: days * transport.trips,
+    manDays: porters * days * transport.trips,
   };
   const blocked = ((): string | null => {
     if (!trail) return NO_TRAIL;
@@ -485,7 +540,7 @@ export function startExpedition(
     .map((c) => c.id);
   // co by výpravě ušetřily čtyřkoláky – do roku vozů (wagons.md – Kolik vozů ves chce)
   if (trailCartPassable(state, trail, landscape)) {
-    addExpeditionDemand(next, day, fourWheelSavings(give, get, quote.days));
+    addExpeditionDemand(next, day, fourWheelSavings(give, get, quote.days / quote.trips));
   }
   trade.expeditions.push({
     id: trade.nextId++,
@@ -495,6 +550,7 @@ export function startExpedition(
     give,
     get,
     porters: quote.porters,
+    ...(quote.trips > 1 ? { trips: quote.trips } : {}),
     ...(carts.length > 0 ? { carts } : {}),
     days: quote.days,
     cost: quote.manDays,
