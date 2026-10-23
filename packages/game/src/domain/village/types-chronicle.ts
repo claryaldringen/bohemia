@@ -71,6 +71,8 @@ export type ChronicleEvent = { day: number } & (
       /** Dostavěná vozová cesta (roads.md – Vozová cesta); u ostatních staveb chybí. */
       wagon?: true;
     }
+  /** Hráč zrušil rozestavěnou stavbu (cancel-construction.ts); dřevo se vrátilo na hromadu. */
+  | { kind: 'construction-cancelled'; constructionKind: ConstructionKind; craft?: Craft }
   | { kind: 'rebuild-decided'; dwellingId: number; type: DwellingType }
   /** Domácnost obydlí `dwellingId` si začala stavět nový dům typu `type` (migration.md). */
   | { kind: 'relocation-started'; dwellingId: number; type: DwellingType }

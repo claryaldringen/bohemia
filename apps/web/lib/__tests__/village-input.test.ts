@@ -11,7 +11,7 @@ import {
   parseRestartGameInput,
   parsePosition,
   parseSkipTimeInput,
-  parseCancelRelocationInput,
+  parseCancelConstructionInput,
   parseRelocateHouseholdInput,
   parseVillageId,
   villageIdOf,
@@ -206,10 +206,10 @@ describe('vstupy víc vsí a přestěhování (migration.md)', () => {
   });
 
   it('zrušení přestěhování: kladné celé id stavby', () => {
-    expect(parseCancelRelocationInput({ constructionId: 12 })).toEqual({ constructionId: 12 });
-    expect(parseCancelRelocationInput({ constructionId: -1 })).toBeNull();
-    expect(parseCancelRelocationInput({ constructionId: '12' })).toBeNull();
-    expect(parseCancelRelocationInput(undefined)).toBeNull();
+    expect(parseCancelConstructionInput({ constructionId: 12 })).toEqual({ constructionId: 12 });
+    expect(parseCancelConstructionInput({ constructionId: -1 })).toBeNull();
+    expect(parseCancelConstructionInput({ constructionId: '12' })).toBeNull();
+    expect(parseCancelConstructionInput(undefined)).toBeNull();
   });
 });
 

@@ -21,6 +21,7 @@ export * from './herding';
 export { woolCoverage, woolNeedKg, woolSheep, woolUnhappiness } from './wool';
 export * from './dwellings';
 export * from './manor';
+export * from './cancel-construction';
 export * from './relocation';
 export * from './departure';
 export * from './neighbourhood';

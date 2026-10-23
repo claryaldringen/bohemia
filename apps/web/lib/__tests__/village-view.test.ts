@@ -407,6 +407,8 @@ describe('buildVillageView', () => {
         fieldId: null,
         cemeteryId: null,
         orchardId: null,
+        penId: null,
+        cancellable: false,
         treesToFell: 7,
       },
       {
@@ -421,6 +423,8 @@ describe('buildVillageView', () => {
         fieldId,
         cemeteryId: null,
         orchardId: null,
+        penId: null,
+        cancellable: true,
         treesToFell: 0,
       },
     ]);
@@ -655,6 +659,8 @@ describe('buildVillageView', () => {
       fieldId: null,
       cemeteryId: null,
       orchardId: null,
+      penId: null,
+      cancellable: true,
       treesToFell: 0,
     });
     expect(scene.fields).toHaveLength(1);

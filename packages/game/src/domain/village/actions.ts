@@ -32,7 +32,7 @@ import { copyPlot } from './plots';
 import type { Walk } from './paths/walking';
 import { ageGroup } from './people';
 import { settlersMaxId, type Settlers } from './departure';
-import { relocationAffordability, relocationBlock, returnConstructionWood } from './relocation';
+import { relocationAffordability, relocationBlock } from './relocation';
 import {
   CRAFTS,
   CRAFT_BASE,
@@ -163,7 +163,7 @@ function validateDay(day: number): void {
  * Akce hráče nesmí do minulosti vsi – před den, do kterého je už dopočítaná – ani do vymřelé vsi;
  * jinak RangeError.
  */
-function validateActionDay(state: VillageState, day: number): void {
+export function validateActionDay(state: VillageState, day: number): void {
   if (isVillageExtinct(state)) throw new RangeError('Ves vymřela – nikdo v ní nežije.');
   validateDay(day);
   if (day < state.lastDay) {
@@ -598,29 +598,6 @@ export function startRelocation(
     householdId,
   );
   next.chronicle.push({ day, kind: 'relocation-started', dwellingId: householdId, type });
-  return next;
-}
-
-/**
- * Hráč zruší rozestavěné přestěhování (stavba `constructionId`, migration.md): stavba zmizí,
- * klády, které vzala z hromady, i už skácené stromy se vrátí na hromadu, vyhrazené stromy se
- * uvolní. Odvedená práce a odstraněné překážky staveniště zůstanou. RangeError, když taková
- * stavba není (dostavěná, jiná stavba), nebo pro den do minulosti vsi.
- */
-export function cancelRelocation(
-  state: VillageState,
-  day: number,
-  constructionId: number,
-): VillageState {
-  validateActionDay(state, day);
-  const c = state.constructions.find((x) => x.id === constructionId);
-  if (!c || c.relocates === undefined) {
-    throw new RangeError(`Stavba ${constructionId} není rozestavěné přestěhování.`);
-  }
-  const next = structuredClone(state);
-  returnConstructionWood(next, c);
-  next.constructions = next.constructions.filter((x) => x.id !== constructionId);
-  next.chronicle.push({ day, kind: 'relocation-cancelled', dwellingId: c.relocates });
   return next;
 }
 
