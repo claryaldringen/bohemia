@@ -69,24 +69,34 @@ function tradeCaravans(state: VillageState): SceneExpedition[] {
     // dnešní tempo – výprava vyslaná dnes vyrazí plným tempem
     const perDay = today === null ? e.porters : today;
     const coming = newcomerProfiles(state.seed, String(e.id), e.getPeople ?? { families: [] });
+    // vozy jedou víckrát (wagons.md – Opakované jízdy vozu): postup a tempo platí pro právě
+    // běžící jízdu; lidé vyrazí první jízdou, noví lidé se vrací poslední
+    const trips = Math.max(1, e.trips ?? 1);
+    const whole = e.cost > 0 ? Math.min(1, e.done / e.cost) : 1;
+    const trip = Math.min(trips - 1, Math.floor(whole * trips));
+    const local = whole >= 1 ? 1 : whole * trips - trip;
+    const tripDays = e.days / trips;
     return {
       id: e.id,
       trailId: e.trailId,
       porters: e.porters,
       carts: [...(e.carts ?? [])],
       cartCrew: CARTS.tradeCrew,
-      leaving: leavingOf(e, day),
-      coming: coming.flatMap((p) => p.members.map((m) => ({ sex: m.sex, age: m.ageYears }))),
+      ...(trips > 1 ? { trips } : {}),
+      leaving: trip === 0 ? leavingOf(e, day) : [],
+      coming: (trip === trips - 1 ? coming : []).flatMap((p) =>
+        p.members.map((m) => ({ sex: m.sex, age: m.ageYears })),
+      ),
       carriesOut: carries(e.give),
       carriesBack: carries(e.get),
       // dobytek jde po svých – prodaný tam, koupený zpátky (trade.md – Dobytek ve třech druzích)
       ...(Object.keys({ ...e.give, ...e.get }).some(isCattleGood)
         ? { cattle: { out: herdOf(e.give), back: herdOf(e.get) } }
         : {}),
-      progress: e.cost > 0 ? Math.min(1, Math.round((e.done / e.cost) * 1e4) / 1e4) : 1,
-      rate: e.cost > 0 ? Math.round((perDay / e.cost) * 1e4) / 1e4 : 0,
+      progress: Math.round(local * 1e4) / 1e4,
+      rate: e.cost > 0 ? Math.round(((perDay * trips) / e.cost) * 1e4) / 1e4 : 0,
       day,
-      onMap: e.days > 0 ? Math.max(0.2, (e.days - TRADE.beyondEdgeDays) / e.days) : 1,
+      onMap: tripDays > 0 ? Math.max(0.2, (tripDays - TRADE.beyondEdgeDays) / tripDays) : 1,
       trip: { kind: 'trade', to: neighbourOf(state.seed, e.direction).name },
     };
   });

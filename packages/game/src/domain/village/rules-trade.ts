@@ -6,7 +6,8 @@ import type { NeighbourGood, TradeGood } from './types';
 // bere s přirážkou ≈ 20 % (prodává o ni dráž, kupuje o ni levněji), co shání, za to dá o 20 % víc,
 // co nabízí, dá o 20 % levněji: ves za sháněné zboží dostane hodnotu ÷ 1,2 × 1,2 = 1 × hodnota,
 // nabízené zboží platí hodnotou × 1,2 × 0,8 = 0,96. Nosič unese 25 kg (dobytek se žene – honák na
-// 10 kusů, návrh Clauda); cesta tam a zpět 2–6 dní podle délky stezky (2 dny do 400 m, každých
+// 10 kusů, návrh Clauda); vozy jedou tolikrát, kolikrát se naplní celé, zbytek nesou lidé
+// rovnoměrně mezi jízdy (wagons.md – Obchod, Martin 22. 10. 2026); cesta tam a zpět 2–6 dní podle délky stezky (2 dny do 400 m, každých
 // dalších 250 m den navíc – návrh Clauda) + 1 den za krajem mapy. Zásoby a poptávka sousedů se
 // doplní 1. 11. Ves si nechá aspoň 2 krávy (chovný pár – návrh Clauda). Krávy a voli jdou po svých
 // s honákem – jako lidé ve výměně lidí nepotřebují nosiče, honák je člověk výpravy.
@@ -16,6 +17,9 @@ export const TRADE = {
   offerDiscount: 0.2,
   porterKg: 25,
   headsPerDrover: 10,
+  logCarriers: 2,
+  // wagons.md – Opakované jízdy vozu: zbytek aspoň půl vozu = vůz jede ještě jednou (Martin 23. 10. 2026)
+  restTripShare: 0.5,
   tripDays: { min: 2, max: 6, fromM: 400, perDayM: 250 },
   beyondEdgeDays: 1,
   restockDay: { month: 11, day: 1 },
@@ -90,7 +94,7 @@ export const NEIGHBOURS = {
 // stál v saském kapituláři solidus jako kráva ve franských zákonících, je ale ještě 2 roky jen
 // krmit –, vycvičený vůl 1 200 – v Lex Ribuaria dvakrát kráva (vůl 2, kráva 1 solidus), v Anglii
 // 14. stol. ≈ 1,4×; rozdíl proti mladému ≈ 2 zimy sena a výcvik. `carryKg` – kolik váží kus pro
-// nosiče (kláda vleče 4 nosiči = 100 kg; dobytek jde po svých s honákem – `TRADE.headsPerDrover`)
+// nosiče (kláda 100 kg – s vozem vždy na voze, bez vozu ji nesou dva lidé, `TRADE.logCarriers`; dobytek jde po svých s honákem – `TRADE.headsPerDrover`)
 export const TRADE_GOOD_VALUES = {
   grain: { valueKg: 1, carryKg: 1 },
   legumes: { valueKg: 1, carryKg: 1 },

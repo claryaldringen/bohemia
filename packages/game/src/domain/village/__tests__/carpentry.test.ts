@@ -414,18 +414,28 @@ describe('vozy (wagons.md – Vůz)', () => {
   });
 
   it('výprava s vozem – náklad na voze, dva lidé místo nosičů', () => {
-    expect(expeditionTransport({ grain: 400 }, {}, [])).toEqual({ porters: 16, carts: 0 });
-    expect(expeditionTransport({ grain: 400 }, {}, ['two-wheel'])).toEqual({
+    expect(expeditionTransport({ grain: 400 }, {}, [])).toMatchObject({
+      porters: 16,
+      carts: 0,
+      trips: 1,
+    });
+    expect(expeditionTransport({ grain: 400 }, {}, ['two-wheel'])).toMatchObject({
       porters: CARTS.tradeCrew,
       carts: 1,
+      trips: 1,
     });
     // čtyřkolák napřed, druhý vůz jen když ušetří lidi
-    expect(expeditionTransport({ grain: 1000 }, {}, ['four-wheel', 'two-wheel'])).toEqual({
+    expect(expeditionTransport({ grain: 1000 }, {}, ['four-wheel', 'two-wheel'])).toMatchObject({
       porters: 4,
       carts: 2,
+      trips: 1,
     });
     // malý náklad – vůz se nevyplatí
-    expect(expeditionTransport({ grain: 25 }, {}, ['two-wheel'])).toEqual({ porters: 1, carts: 0 });
+    expect(expeditionTransport({ grain: 25 }, {}, ['two-wheel'])).toMatchObject({
+      porters: 1,
+      carts: 0,
+      trips: 1,
+    });
   });
 });
 

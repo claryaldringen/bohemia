@@ -249,6 +249,8 @@ describe('panel výběru spřežení a vozu', () => {
       cartKind: 'two-wheel',
       activity: 'veze uhlí ke kováři',
       cargo: 'charcoal',
+      capacityKg: 400,
+      loadKg: null,
       condition: 0.8,
       oxen: 1,
       pen: 12,
@@ -260,6 +262,8 @@ describe('panel výběru spřežení a vozu', () => {
       oxen: 0,
       drover: null,
       cargo: null,
+      capacityKg: 800,
+      loadKg: null,
     });
   });
 

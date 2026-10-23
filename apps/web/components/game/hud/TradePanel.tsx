@@ -606,11 +606,23 @@ export function NeighbourTrade({
           {preview.porters}
         </Figure>
         {preview.carts > 0 && (
-          <Figure testId="trade-carts" icon="cart" name="Vozy – náklad místo nosičů">
+          <Figure
+            testId="trade-carts"
+            icon="cart"
+            name={
+              preview.trips > 1
+                ? `Vozy – náklad místo nosičů, pojedou ${preview.trips}× tam a zpět`
+                : 'Vozy – náklad místo nosičů'
+            }
+          >
             {preview.carts}
           </Figure>
         )}
-        <Figure testId="trade-days" icon="date" name="Dny cesty tam a zpět">
+        <Figure
+          testId="trade-days"
+          icon="date"
+          name={preview.trips > 1 ? 'Dny cesty – všechny jízdy vozů' : 'Dny cesty tam a zpět'}
+        >
           {preview.days}
         </Figure>
         <Figure

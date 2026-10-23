@@ -1272,6 +1272,8 @@ describe('SelectionPanel – spřežení, vůz a lidé u nich (oxen.md, wagons.m
     cartKind: 'two-wheel',
     activity: 'veze uhlí ke kováři',
     cargo: 'charcoal',
+    capacityKg: 400,
+    loadKg: null,
     condition: 0.8,
     oxen: 1,
     pen: 12,
@@ -1318,6 +1320,9 @@ describe('SelectionPanel – spřežení, vůz a lidé u nich (oxen.md, wagons.m
     expect(html).toContain('>Dvoukolák</h2>');
     expect(text(html, 'selection-cart-activity')).toBe('veze uhlí ke kováři');
     expect(text(html, 'selection-cart-condition')).toBe('80 %');
+    // nosnost bez známého nákladu, s ním „náklad / nosnost“ (wagons.md – Výběr vozu)
+    expect(text(html, 'selection-cart-load')).toBe('400');
+    expect(text(render(cart({ loadKg: 250 })), 'selection-cart-load')).toBe('250 / 400');
     expect(text(html, 'selection-cart-oxen')).toBe('1');
     expect(html).toMatch(
       /src="\/icons\/resources\/charcoal\.png"[^>]*data-testid="selection-cart-cargo"/,

@@ -491,6 +491,9 @@ export type SelectionDetails =
       cartKind: CartKind;
       activity: string;
       cargo: CartGoal | null;
+      /** Nosnost vozu (kg) a kolik nákladu veze právě teď; neznámé množství – null. */
+      capacityKg: number;
+      loadKg: number | null;
       condition: number;
       oxen: number;
       pen: number | null;
@@ -936,6 +939,9 @@ function cartDetails(
     cartKind: cart.kind,
     activity: cartActivityText(scene, id, leg),
     cargo: cart.job && own?.loaded && !own.hidden ? cartGoal(cart.job) : null,
+    capacityKg: CARTS.loadKg[cart.kind],
+    loadKg:
+      cart.job?.loadKg === undefined ? null : own?.loaded && !own.hidden ? cart.job.loadKg : 0,
     condition: cart.condition,
     oxen: hitched ? DRAFT_OXEN[cart.kind] : 0,
     pen: cartPen(scene, id),

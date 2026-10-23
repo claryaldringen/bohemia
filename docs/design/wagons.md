@@ -480,7 +480,22 @@ Návrh Clauda (19. 10. 2026) – detaily, které návrh výš nechal otevřené;
   (sklizeň a seč podle konce okna), zbytek vozí klády. Klády z mýcení na hromadu se nenosí zvlášť
   (jsou v ceně založení) – vůz je nezkrátí.
 - **Obchodní výprava** vezme vozy, které jsou doma se spřežením (čtyřkoláky napřed): náklad na voze
-  (400 / 800 kg), s vozem 2 lidé místo nosičů po 25 kg; vozů jede tolik, aby lidí bylo nejméně.
+  (400 / 800 kg), s vozem 2 lidé místo nosičů po 25 kg; vozů jede tolik, aby práce (lidé × jízdy)
+  byla nejmenší, při shodě méně vozů.
+  **Opakované jízdy vozu a klády** (Martin 22. 10. 2026: „Pokud udělám obchodní výpravu s kládami,
+  ať se klády vždy vezou na voze – člověk by je neutáhl.“ a „Teď jede vůz a za ním jde třeba 12
+  lidí. To je plýtvání. Ať jede vůz klidně několikrát a lidi ať jsou jen na doplnění – ať je
+  každá cesta co nejvíc optimální.“ – podrobnosti návrh Clauda): vozy jedou **tolikrát, kolikrát
+  se naplní celé** (větší z cest tam a zpět; aspoň jednou, i s menším nákladem). **Zbytek aspoň
+  půl vozu = vůz jede ještě jednou** s neplným nákladem (Martin 23. 10. 2026, volba „Zbytek ≥ půl
+  vozu“; práh `TRADE.restTripShare`). Menší zbytek (a dobytek) nesou a ženou lidé **přesně
+  rozdělení mezi jízdy** (floor + zbytek po jednom na první jízdy) – např. vůz uveze 45 % zboží:
+  jede dvakrát a zbylých 10 % (≈ 22 % vozu) nese 5 lidí, při jízdách 3 + 2. 790 kg na dvoukolák
+  (400 kg) = 2 jízdy. Výprava trvá `jízdy × dny cesty`, práce je součet lidí přes jízdy × dny.
+  Klády s vozem jedou
+  vždy na voze (jízd je tolik, aby se vešly), bez vozu je nese **dva lidé na kládu** (dřív čtyři).
+  Nosnost vozu a kolik nákladu veze při výpravě vidí hráč v panelu výběru vozu (ikona vozu,
+  „náklad / nosnost“ v kg, popisek v tooltipu).
   Vozy a jejich spřežení jsou do návratu pryč – doma nevozí a spřežení neorá. Stezka je pro vozy
   zatím sjízdná vždy (je upravená cesta).
 - **Dosah vozu je rozhraní** (`CartAccess` – „dojede vůz k cílům a za kolik metrů“, cíle
@@ -735,6 +750,7 @@ Návrh Clauda (19. 10. 2026) – jen zobrazení, simulace se nemění.
 
 | Rozhodnutí                                                                                                                                                                                                                                                                                                                                     | Kdo                                                                |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Vůz jede tolikrát, kolikrát se naplní, zbytek nesou lidé rovnoměrně mezi jízdy; klády s vozem vždy na voze, bez něj dva lidé na kládu; v panelu vozu nosnost a náklad                                                                                                                                                                          | Martin (22. 10. 2026)                                              |
 | Vozy vozí seno, snopy, klády a zboží obchodu místo nosičů                                                                                                                                                                                                                                                                                      | Martin (19. 10. 2026)                                              |
 | Vozy mají vlastní síť – nevyjedou prudký svah, vyjezdí serpentiny a vlastní cesty                                                                                                                                                                                                                                                              | Martin                                                             |
 | Tesař vyrábí vozy, dřevěné nářadí (mírně celá ves) a výrazně zrychlí dřevěné části staveb                                                                                                                                                                                                                                                      | Martin                                                             |
@@ -785,3 +801,4 @@ Návrh Clauda (19. 10. 2026) – jen zobrazení, simulace se nemění.
 | Uhlí a vodu veze levnější vůz (práce na kg); ruda, hlína a osivo dvoukolák                                                                                                                                                                                                                                                                     | návrh Clauda, Martin („Ano, udělej to jak říkáš“)                  |
 | Rok vozů po dnech (nošení podél cest a jinam, jízdy, den orby), 1. 11. tabulka úspor podle počtu vozů a volů                                                                                                                                                                                                                                   | rozhodnutí Clauda                                                  |
 | Čtyřkolák v odhadu jen za nošení podél cest a výpravy, ne za jízdy pro uhlí a vodu                                                                                                                                                                                                                                                             | rozhodnutí Clauda                                                  |
+| Vůz jede, kolikrát se naplní celý; zbytek aspoň půl vozu = jízda navíc, menší zbytek nesou lidé přesně rozdělení mezi jízdy (`TRADE.restTripShare`)                                                                                                                                                                                            | Martin 23. 10. 2026 (volba „Zbytek ≥ půl vozu“)                    |
