@@ -283,8 +283,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `shrine`, `pen`, `threshing-floor`; ostatní druhy (`rebuild`, `repair`, `ard`, `road`,
   `road-apples`) ne. `dropSite` odstraní vytýčení: nehotové díly pole (`state: 'founding'`),
   nevysázené čtverce sadu (prázdný sad zmizí), čtverce rozšíření hřbitova či ohrady podle
-  `constructionId` (základ nehotového hřbitova či ohrady zmizí celý i s navazujícími
-  rozšířeními, `dropLinked`), rozestavěné humno. Dřevo: `returnConstructionWood`
+  `constructionId` (základ nehotového hřbitova či ohrady, `builtDay` null, zmizí celý i
+  s navazujícími rozšířeními, `dropLinked`; hotový hřbitov či ohrada se nikdy nemaže), rozestavěné humno. Dřevo: `returnConstructionWood`
   (`relocation.ts`) vrací `fromPile + felled − floor(trees × done / cost)` klád. Kronika:
   `construction-cancelled` (stěhování dál `relocation-cancelled`). Use-case:
   `application/cancel-construction.ts`.

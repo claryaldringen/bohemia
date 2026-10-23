@@ -62,8 +62,9 @@ function dropSite(next: VillageState, c: Construction): void {
 }
 
 /**
- * Hřbitov: rozšíření ztratí své čtverce; nehotový hřbitov (základ) zmizí celý i s rozšířeními,
- * která na něj navazovaly – ta se zruší s ním.
+ * Hřbitov: rozšíření ztratí své čtverce; nehotový hřbitov (základ, `builtDay` null) zmizí celý
+ * i s rozšířeními, která na něj navazovaly – ta se zruší s ním. Hotový hřbitov (hroby) se nikdy
+ * nemaže: když stavba nenese žádné čtverce, nestane se nic.
  */
 function dropCemetery(next: VillageState, c: Construction): void {
   const cemeteries = villageCemeteries(next);
@@ -73,11 +74,15 @@ function dropCemetery(next: VillageState, c: Construction): void {
     cemetery.squares = cemetery.squares.filter((s) => s.constructionId !== c.id);
     return;
   }
+  if (cemetery.builtDay !== null) return;
   next.cemeteries = cemeteries.filter((x) => x.id !== cemetery.id);
   dropLinked(next, (x) => x.kind === 'cemetery' && x.cemeteryId === cemetery.id && x.id !== c.id);
 }
 
-/** Ohrada: rozšíření ztratí své čtverce; nehotová ohrada zmizí celá i s navazujícími rozšířeními. */
+/**
+ * Ohrada: rozšíření ztratí své čtverce; nehotová ohrada (`builtDay` null) zmizí celá i s navazujícími
+ * rozšířeními. Hotová ohrada (zvířata) se nikdy nemaže: bez čtverců stavby se nestane nic.
+ */
 function dropPen(next: VillageState, c: Construction): void {
   const pens = villagePens(next);
   const pen = pens.find((x) => x.id === c.penId);
@@ -87,6 +92,7 @@ function dropPen(next: VillageState, c: Construction): void {
     if (pen.extraSquares.length === 0) delete pen.extraSquares;
     return;
   }
+  if (pen.builtDay !== null) return;
   next.pens = pens.filter((x) => x.id !== pen.id);
   dropLinked(next, (x) => x.kind === 'pen' && x.penId === pen.id && x.id !== c.id);
 }

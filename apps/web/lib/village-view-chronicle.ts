@@ -100,7 +100,8 @@ function cancelledText(kind: ConstructionKind, craft?: Craft): string {
   if (kind === 'orchard') return 'Výsadba sadu se zrušila.';
   if (kind === 'pen') return 'Stavba ohrady se zrušila.';
   if (kind === 'threshing-floor') return 'Stavba humna se zrušila.';
-  return 'Zakládání pole se zrušilo.';
+  if (kind === 'field') return 'Zakládání pole se zrušilo.';
+  return 'Stavba se zrušila.';
 }
 
 /** Pole nebo sad ustoupil stavbě obydlí – kronika (population.md – Obydlí na poli a v sadu). */

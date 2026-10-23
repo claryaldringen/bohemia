@@ -129,7 +129,7 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 ### Stav fází
 
 1. **Přestěhování domácnosti a výběr víc obydlí – hotovo.** Jádro `relocation.ts` a akce
-   `startRelocation` / `cancelRelocation` (`actions.ts`), use-casy `relocate-household.ts`, panel
+   `startRelocation` (`actions.ts`), zrušení `cancelConstruction` (`cancel-construction.ts`), use-casy `relocate-household.ts`, panel
    výběru (`RelocationControls.tsx`), výběr víc obydlí `village-selection.ts`.
 2. **Víc vsí a přepínač – hotovo.** Migrace `0005_multi_village`, use-casy podle id vsi,
    `player-villages.ts`, přepínač `VillageSwitcher.tsx`, vývojová druhá ves na téže mapě.

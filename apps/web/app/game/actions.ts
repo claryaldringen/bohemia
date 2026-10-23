@@ -176,7 +176,7 @@ export async function relocateHousehold(input: unknown): Promise<VillageActionRe
 }
 
 /** Zrušení rozestavěné stavby: `{ villageId, constructionId }` – nespotřebované dřevo zpět na hromadu. */
-export async function cancelRelocation(input: unknown): Promise<VillageActionResult> {
+export async function cancelConstruction(input: unknown): Promise<VillageActionResult> {
   return villageAction(input, parseCancelConstructionInput, cancelConstructionForPlayer);
 }
 

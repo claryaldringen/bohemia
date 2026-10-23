@@ -23,7 +23,7 @@ import {
 } from '@bohemia/game';
 import {
   buildTrail,
-  cancelRelocation,
+  cancelConstruction,
   foundDevVillage,
   foundVillage,
   getVillageView,
@@ -1041,7 +1041,7 @@ export function VillageGame({
         onCancelConstruction={(constructionId) => {
           const villageId = viewRef.current?.id;
           return villageId
-            ? runBuildAction(() => cancelRelocation({ villageId, constructionId }))
+            ? runBuildAction(() => cancelConstruction({ villageId, constructionId }))
             : Promise.resolve();
         }}
         onUpgradeRoad={(roadId, upgrade) => {

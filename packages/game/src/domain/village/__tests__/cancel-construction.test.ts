@@ -172,4 +172,57 @@ describe('cancelConstruction', () => {
     expect(trimmed.pens![0]!.extraSquares).toBeUndefined();
     expect(trimmed.woodLogs).toBe(built.woodLogs);
   });
+
+  it('hotový hřbitov a ohradu zrušení stavby bez čtverců nesmaže', () => {
+    const s = village();
+    const base = foundCemetery(s, DAY, cemeteryInput([{ x: 3, y: 3 }]));
+    base.cemeteries![0]!.builtDay = DAY;
+    base.constructions = [];
+    const ext = foundCemetery(base, DAY, cemeteryInput([{ x: 4, y: 3 }]));
+    for (const q of ext.cemeteries![0]!.squares) delete q.constructionId;
+    const kept = cancelConstruction(ext, DAY, last(ext).id);
+    expect(kept.cemeteries).toHaveLength(1);
+    expect(kept.cemeteries![0]!.squares).toHaveLength(2);
+
+    const check = penSquaresFromCells(landscape, s, block(4, 4, 1, 1), 'pig', EMPTY);
+    const pen = foundPen(s, DAY, { species: 'pig', squares: check.squares }, EMPTY);
+    pen.pens![0]!.builtDay = DAY;
+    pen.constructions = [];
+    const more = penSquaresFromCells(landscape, pen, block(4, 5, 1, 1), 'pig', EMPTY);
+    const grown = foundPen(pen, DAY, { species: 'pig', squares: more.squares }, EMPTY);
+    for (const q of grown.pens![0]!.extraSquares ?? []) delete q.constructionId;
+    const keptPen = cancelConstruction(grown, DAY, last(grown).id);
+    expect(keptPen.pens).toHaveLength(1);
+    expect(keptPen.pens![0]!.extraSquares).toHaveLength(1);
+  });
+
+  it('vrácení dřeva: 0 <= vráceno <= fromPile + felled i při done = cost a smíšeném zdroji', () => {
+    const s = village();
+    const started = startRelocation(
+      s,
+      DAY,
+      s.dwellings[0]!.id,
+      'polozemnice',
+      { x: 40, z: 40, rotation: 0 },
+      0,
+    );
+    const c = last(started);
+    for (const [fromPile, felled] of [
+      [3, 2],
+      [0, 4],
+      [5, 0],
+    ] as const) {
+      for (const done of [0, c.cost / 3, c.cost, c.cost * 2]) {
+        const t = structuredClone(started);
+        const tc = t.constructions.find((x) => x.id === c.id)!;
+        tc.wood = { ...tc.wood!, fromPile, felled };
+        tc.done = done;
+        const before = t.woodLogs ?? 0;
+        const back = (cancelConstruction(t, DAY, c.id).woodLogs ?? 0) - before;
+        expect(back).toBeGreaterThanOrEqual(0);
+        expect(back).toBeLessThanOrEqual(fromPile + felled);
+        if (done >= c.cost) expect(back).toBe(Math.max(0, fromPile + felled - tc.wood.trees));
+      }
+    }
+  });
 });

@@ -1,7 +1,6 @@
 import { obstaclesOf, type Landscape } from '../domain/landscape';
 import {
   PLOT_TYPES,
-  cancelRelocation,
   checkDwellingPlacement,
   canonicalPlot,
   checkPlotPlacement,
@@ -120,28 +119,4 @@ export interface CancelRelocationInput {
   today: number;
   /** Stavba nového domu stěhující se domácnosti. */
   constructionId: number;
-}
-
-/** Přestěhování už není co rušit – dům je dostavěný, nebo stavba není přestěhování. */
-export const NO_RELOCATION = 'Tohle stěhování už nejde zrušit.';
-
-/**
- * Hráč zruší rozestavěné přestěhování: stavba zmizí, klády z hromady i už skácené stromy se vrátí
- * na hromadu (ves se nejdřív dopočítá do dneška – mezitím se mohla dostavět).
- */
-export function cancelHouseholdRelocation(
-  deps: { villages: VillageRepository },
-  input: CancelRelocationInput,
-): Promise<VillageResult> {
-  return updateLivingVillage(
-    deps.villages,
-    input.villageId,
-    input.today,
-    input.landscape,
-    (state) => {
-      const c = state.constructions.find((x) => x.id === input.constructionId);
-      if (!c || c.relocates === undefined) return { ok: false, reason: NO_RELOCATION };
-      return { ok: true, state: cancelRelocation(state, state.lastDay, input.constructionId) };
-    },
-  );
 }

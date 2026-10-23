@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cancelRelocation, foundVillage, startNewDwelling, startRelocation } from '../actions';
+import { foundVillage, startNewDwelling, startRelocation } from '../actions';
 import { buildAffordability } from '../costs';
 import { availableSettlers } from '../households';
 import { occupants } from '../people';
@@ -174,34 +174,5 @@ describe('dostavěné přestěhování', () => {
       pieces = advanceVillage(pieces, day, null);
     }
     expect(pieces).toEqual(once);
-  });
-});
-
-describe('cancelRelocation', () => {
-  it('zruší stavbu a vrátí klády z hromady i skácené stromy', () => {
-    const s = settled();
-    const started = startRelocation(s, DAY, household(s), 'polozemnice', NEW_HOME, 0);
-    const site = started.constructions.at(-1)!;
-    // klády z hromady (10) nestačily – zbytek se kácí; dva stromy už jsou skácené
-    expect(site.wood?.fromPile).toBe(10);
-    site.wood!.felled = 2;
-    const cancelled = cancelRelocation(started, DAY, site.id);
-    expect(cancelled.constructions).toEqual([]);
-    expect(cancelled.woodLogs).toBe(12);
-    expect(cancelled.chronicle.at(-1)).toEqual({
-      day: DAY,
-      kind: 'relocation-cancelled',
-      dwellingId: household(s),
-    });
-    // domácnost zůstala ve starém domě a může se stěhovat znovu
-    expect(relocationBlock(cancelled, household(s))).toBeNull();
-  });
-
-  it('jinou stavbu nebo neznámé id nezruší', () => {
-    const s = settled();
-    expect(() => cancelRelocation(s, DAY, 12345)).toThrow(RangeError);
-    const founded = foundVillage({ seed: 7, day: DAY, dwellingPosition: HOME });
-    const firstHome = founded.constructions[0]!;
-    expect(() => cancelRelocation(founded, DAY, firstHome.id)).toThrow(RangeError);
   });
 });
