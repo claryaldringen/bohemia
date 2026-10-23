@@ -2,11 +2,11 @@ import { length2, type Landscape, type ObstacleLayer } from '../landscape';
 import { cartLoadRatio, cartOrigin } from './carts';
 import type { HouseholdWater } from './labor';
 import type { CartTarget } from './paths/cart';
-import { villageCartRoutes } from './paths/roads';
+import { addRoadCartTrips, villageCartRoutes } from './paths/roads';
 import { PATH_WATER_SPOT } from './paths/terrain';
 import { groundSpots, walkGroundOf } from './paths/walking';
 import { CARTS, CART_JOBS, CART_TRAMPLE, TEAM_TRAVEL, WATER_FETCHING } from './rules';
-import type { CartDrive, CartKind, OreSite, VillageState } from './types';
+import type { CartDrive, CartKind, CartTripLog, OreSite, VillageState } from './types';
 
 // Co vozy vozí mimo svoz (wagons.md – Co vozy vozí; Martin 19. 10. 2026: „Pokud budou mít
 // k dispozici vůz, ať na pole, pro vodu nebo pro dřevěné uhlí jede vůz.“; 20. 10. 2026: „Pokud
@@ -282,6 +282,45 @@ export function trampleSownParts(
     if (!part || part.state !== 'sown') continue;
     const m2 = CART_TRAMPLE.trackM * s.m * CART_TRAMPLE.passesPerTrip * trips;
     part.trampledM2 = Math.min(part.areaM2, (part.trampledM2 ?? 0) + m2);
+  }
+}
+
+/**
+ * Jízdy vozů za den na jednom místě (wagons.md – Vyjeté cesty, Vůz přes zaseté pole; mutuje):
+ * všechny jízdy z deníku `log` (svoz, voda, uhlí, ruda, klády, osivo) přičte do ročního provozu
+ * cest a za metry trasy přes osetý díl pošlape úrodu (`trampleSownParts`). Metry přes díl už
+ * znají jízdy pro vodu; ostatním je najde trasa vozu k cíli (`villageCartRoutes`) – bez krajiny
+ * se nepošlapává. Díl, který už není osetý (třeba právě sklízený), se nepočítá. Pevné pořadí
+ * jízd = pořadí zápisu.
+ */
+export function flushCartTrips(
+  state: VillageState,
+  log: CartTripLog,
+  day: number,
+  landscape: Landscape | null,
+  obstacles: ObstacleLayer | null,
+): void {
+  if (log.length === 0) return;
+  if (state.roads) addRoadCartTrips(state.roads, log);
+  if (!state.parts.some((p) => p.state === 'sown')) return;
+  for (const kind of ['two-wheel', 'four-wheel'] as const) {
+    const unknown = log.filter((t) => t.kind === kind && t.trips > 0 && !t.sown);
+    const routes =
+      unknown.length > 0 && landscape
+        ? villageCartRoutes(
+            state,
+            day,
+            landscape,
+            obstacles,
+            kind,
+            unknown.map((t) => ({ x: t.x, z: t.z, reachM: CARTS.reachM })),
+          )
+        : null;
+    const found = new Map(unknown.map((t, k) => [t, routes?.[k]?.sown]));
+    for (const t of log) {
+      if (t.kind !== kind) continue;
+      trampleSownParts(state, t.sown ?? found.get(t), t.trips);
+    }
   }
 }
 

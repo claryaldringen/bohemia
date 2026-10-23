@@ -385,8 +385,8 @@ Sondy bez kováře (kovárna zrušená) na čerstvém stavu z 31. 1. 801, kdy ve
   na osetém dílu pruh široký `CART_TRAMPLE.trackM` (2 m) × ujeté metry; pošlapaná plocha
   (`FieldPart.trampledM2`, nejvýš celý díl) úrodu nedá (`lossShare` 1) a při sklizni se úroda dílu
   o její podíl zmenší; po konci hospodářského roku (`endOfSeason`) se nuluje. Čtyřkolák platí
-  stejně; zoraný díl čtyřkolák dál objede. Zatím se pošlapání počítá u jízd pro vodu; ostatní
-  jízdy (uhlí, ruda, svoz) po osetém dílu jedou a ztrátu zatím nepočítají.
+  stejně; zoraný díl čtyřkolák dál objede. Pošlapání platí u **všech** jízd vozů (voda, uhlí,
+  ruda, osivo, klády, svoz); díl, který už není osetý (např. právě sklízený), se nepošlapává.
 - **Vyježděné cesty** (Martin, 19. 10. 2026: „Cesty – pokud nějakou cestu vyjezdí vůz, bude to
   vyježděná cesta. Pokud vůz takhle vyjezdí vyšlapanou cestu, tak to vozová cesta přebije.“):
   provoz vozů se sčítá jako provoz lidí (roční síť 1. 11., roads.md). Kudy vozy vyjezdí trasu

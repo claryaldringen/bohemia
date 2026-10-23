@@ -259,7 +259,12 @@ export interface RoadCartTrips {
   z: number;
   kind: CartKind;
   trips: number;
+  /** Metry trasy přes osetý díl, když je známe (voda) – jinak je najde `flushCartTrips`. */
+  sown?: { partId: number; m: number }[];
 }
+
+/** Deník jízd vozů za den – zapíše je `flushCartTrips` (provoz cest, pošlapání úrody). */
+export type CartTripLog = RoadCartTrips[];
 
 /**
  * Jabloň u pevné cesty (roads.md – Vysazení jabloní): jako strom sadu – výsadba v oknech jara

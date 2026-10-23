@@ -11,6 +11,7 @@ import type {
   Cart,
   CartKind,
   CartReach,
+  CartTripLog,
   ChronicleEvent,
   ConstructionWood,
   CropWork,
@@ -661,20 +662,22 @@ export function fellingHaulable(
 /**
  * Jízdy svozu do ročního provozu cest (wagons.md – Vyjeté cesty, `addRoadCartTrips`): vůz za den
  * udělá CARTS.loadsPerCartDay jízd – podle převzatého nošení (`hauled`, čd) rozdělených na body
- * úlohy podle váhy. Ves bez pevných cest (bez krajiny) nic nesčítá.
+ * úlohy podle váhy. Ves bez pevných cest (bez krajiny) nic nesčítá. S deníkem `log` jízdy jen
+ * zapíše (zbytek obstará `flushCartTrips`).
  */
 export function addHaulTrips(
   state: VillageState,
   reach: Pick<CartReach, 'points'>,
   hauled: number,
   kind: CartKind = 'two-wheel',
+  log?: CartTripLog,
 ): void {
-  if (!state.roads || hauled <= EPSILON || reach.points.length === 0) return;
+  if ((!state.roads && !log) || hauled <= EPSILON || reach.points.length === 0) return;
   const trips = (hauled * CARTS.loadsPerCartDay) / (CARTS.carrierManDays * cartLoadRatio(kind));
-  addRoadCartTrips(
-    state.roads,
-    reach.points.map((p) => ({ x: p.x, z: p.z, kind, trips: trips * p.weight })),
-  );
+  const list = reach.points.map((p) => ({ x: p.x, z: p.z, kind, trips: trips * p.weight }));
+  // s deníkem jízd dne se jízdy jen zapíšou (`flushCartTrips` – provoz cest i pošlapání úrody)
+  if (log) log.push(...list);
+  else if (state.roads) addRoadCartTrips(state.roads, list);
 }
 
 /**
