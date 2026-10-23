@@ -16,7 +16,13 @@ import {
   type HaulPlan,
 } from './carts';
 import { addCartDemand, type CartDemandToday } from './draft';
-import { oreCartDrive, oreCartOffer, villageCartDrives, type CartDrives } from './cart-jobs';
+import {
+  oreCartDrive,
+  oreCartOffer,
+  trampleSownParts,
+  villageCartDrives,
+  type CartDrives,
+} from './cart-jobs';
 import { charcoalDeliveries, dugBasketManDaysPerKg, type OreCartToday } from './smith-supply';
 import { purchaseTravelers, walkPurchases } from './craft-buying';
 import { gainPractice } from './craft-skill';
@@ -543,6 +549,7 @@ export function work(
     if (state.roads) {
       addRoadCartTrips(state.roads, [{ ...water.spot, kind: water.kind, trips: water.trips }]);
     }
+    trampleSownParts(state, water.sown, water.trips);
     haulWork.push({
       job: 'water',
       manDays: water.crew,

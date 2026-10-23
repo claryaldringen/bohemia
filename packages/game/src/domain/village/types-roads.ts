@@ -249,6 +249,8 @@ export interface CartDrive {
   costM: number;
   x: number;
   z: number;
+  /** Kolik metrů trasy vede přes osetý díl pole (podle id dílu) – vůz tam pošlapává úrodu. */
+  sown?: { partId: number; m: number }[];
 }
 
 /** Jízdy vozů k jednomu cíli za rok cest (wagons.md – Vozová síť). */

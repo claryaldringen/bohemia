@@ -20,6 +20,7 @@ import {
   UNWEEDED_YIELD,
   YIELD_BASE_KG_PER_HA,
   type WindowSegment,
+  CART_TRAMPLE,
 } from './rules';
 import type {
   Crop,
@@ -496,11 +497,14 @@ function cropYieldKg(
     if (!part) continue;
     const ha = part.areaM2 / M2_PER_HA;
     const weeded = isWeedFree(part, day) ? 1 : weedFrac;
+    // pošlapaná plocha (vůz přes zaseté pole – wagons.md) úrodu nedá
+    const trampled = 1 - CART_TRAMPLE.lossShare * Math.min(1, (part.trampledM2 ?? 0) / part.areaM2);
     const unweeded = unweededYield(crop);
     const gross =
       cropGrossPerHa(crop, effectiveFertility(part, day)) *
       sowFrac *
       (unweeded + (1 - unweeded) * weeded) *
+      trampled *
       harvestFrac;
     total += Math.max(0, ha * gross - ha * cropSeedPerHa(crop) * sowFrac);
   }

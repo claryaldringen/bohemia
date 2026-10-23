@@ -54,6 +54,8 @@ export interface FieldPart {
   fertilityShare: number; // aktuální úrodnost / přirozená, 0–1
   bonusUntilDay: number | null; // do kdy platí bonus vymýceného lesa (FOREST_BONUS)
   state: PartState;
+  /** Plocha dílu (m²) pošlapaná vozy, dokud je zaseto – ubírá úrodu; po sklizni se nuluje. */
+  trampledM2?: number;
   sownYears: number; // kolik let v řadě oseto
   /** Co je na osetém dílu zaseto; chybí u dílů mimo osev a u starších vsí (= jař). */
   crop?: Crop;

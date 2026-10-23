@@ -102,6 +102,8 @@ export interface CartGrid extends GridWindow {
   heights: Float32Array | null;
   /** Buňky pásu pevné cesty, kudy vůz jede (průjezdné), 1 – bez pevných cest null. */
   road?: Uint8Array | null;
+  /** Id osetého dílu pole v buňce, jinak -1 (pošlapaná úroda – CART_TRAMPLE); testy bez id: -1. */
+  sownPart?: Int32Array;
 }
 
 /** Cíl vozu – bod a jak blízko musí vůz dojet (m). */
@@ -113,7 +115,8 @@ export interface CartTarget {
 
 /**
  * Trasa vozu k cíli: dojede (`reached`), cena (m jízdy po louce bez stoupání), délka (m) a osa
- * od depa k cíli (zjednodušená), buňky trasy (pro provoz).
+ * od depa k cíli (zjednodušená), buňky trasy (pro provoz) a metry trasy přes osetý díl pole mimo
+ * pevnou cestu (`sown`, podle id dílu).
  */
 export interface CartRoute {
   reached: boolean;
@@ -121,6 +124,7 @@ export interface CartRoute {
   lengthM: number;
   points: PathPoint[];
   cells: number[];
+  sown: { partId: number; m: number }[];
 }
 
 /** Pevná cesta pro vůz – jako v síti pěšin, s mokřinou a brody na ose (`Road.ground`). */
@@ -151,13 +155,14 @@ export function cartVillageOf(
 }
 
 /**
- * Rychlost vozu přes díl pole proti louce (CART_SPEED): osetý díl, křoviny a mladý les 0 (vůz
- * neprojede), zakládaný díl (rozrývaný drn) jako zoraný, připravený díl – sesedlá rozrytá půda do
+ * Rychlost vozu přes díl pole proti louce (CART_SPEED): křoviny a mladý les 0 (vůz neprojede),
+ * osetý díl `CART_SPEED.sown` (projede jen bez jiné cesty – wagons.md, Vůz přes zaseté pole), zakládaný díl (rozrývaný drn) jako zoraný, připravený díl – sesedlá rozrytá půda do
  * osevu, i díly sklízené plodiny při žni (`harvestReachState`) – jako strniště, úhor a příloh
  * jako louka.
  */
 export function cartPartSpeed(stage: PartStage): number {
-  if (stage === 'sown' || stage === 'shrubs' || stage === 'young-forest') return 0;
+  if (stage === 'shrubs' || stage === 'young-forest') return 0;
+  if (stage === 'sown') return CART_SPEED.sown;
   if (stage === 'founding') return CART_SPEED.ploughed;
   if (stage === 'ready') return CART_SPEED.stubble;
   return 1;
@@ -303,14 +308,18 @@ export function cartGrid(
     else if (flags & PATH_WETLAND) cost[c] = 1 / CART_SPEED.wet;
     else cost[c] = 1;
   }
+  const sownPart = new Int32Array(all).fill(-1);
+  grid.sownPart = sownPart;
   // díly polí podle stadia – nejpomalejší z povrchu a dílu platí
   for (const field of v.fields) {
     const nearestPart = nearestPartFinder(field.parts, field.parts[0]?.size ?? 0);
     for (const c of squareCells(grid, field.parts).inside) {
-      const stage = nearestPart(
+      const near = nearestPart(
         grid.originX + (c % grid.width) * grid.cellM,
         grid.originZ + Math.floor(c / grid.width) * grid.cellM,
-      ).stage;
+      );
+      const stage = near.stage;
+      if (stage === 'sown' && near.partId !== undefined) sownPart[c] = near.partId;
       // čtyřkolák na zoraný (zakládaný) díl nesjede
       const speed = input.fourWheel && stage === 'founding' ? 0 : cartPartSpeed(stage);
       cost[c] = speed > 0 ? Math.max(cost[c]!, 1 / speed) : Infinity;
@@ -409,6 +418,7 @@ export function cartRoutes(input: CartRoutesInput): { grid: CartGrid; routes: Ca
     lengthM: 0,
     points: [],
     cells: [],
+    sown: [],
   }));
   // cíle po buňkách
   const goals = new Map<number, number[]>();
@@ -512,9 +522,23 @@ export function cartRoutes(input: CartRoutesInput): { grid: CartGrid; routes: Ca
       lengthM,
       points: simplifyPathLine(raw, [], 0.5).points,
       cells,
+      sown: sownMeters(grid, cells),
     };
   });
   return { grid, routes };
+}
+
+/** Metry trasy přes osetý díl po dílech (buňka = `cellM`; pevná cesta dílem projíždí bez újmy). */
+function sownMeters(grid: CartGrid, cells: readonly number[]): { partId: number; m: number }[] {
+  const sownPart = grid.sownPart;
+  if (!sownPart) return [];
+  const byPart = new Map<number, number>();
+  for (const c of cells) {
+    const id = sownPart[c]!;
+    if (id < 0 || grid.road?.[c]) continue;
+    byPart.set(id, (byPart.get(id) ?? 0) + grid.cellM);
+  }
+  return [...byPart].sort((a, b) => a[0] - b[0]).map(([partId, m]) => ({ partId, m }));
 }
 
 /**

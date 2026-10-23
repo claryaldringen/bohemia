@@ -70,11 +70,23 @@ export const CART_ROUTES = {
 // roads.md – Vozová cesta (Martin, 20. 10. 2026: „Ta bude vozu dávat ještě větší rychlost, bude
 // mít vyježděné, ale zpevněné koleje.“; číslo návrh Clauda, schváleno): vozová cesta 2,2 i přes
 // mokřinu (zpevněné koleje drží jako hať), brod zůstává brodem (`CART_ROUTES.fordCost`)
+// wagons.md – Vůz přes zaseté pole (Martin, 23. 10. 2026: „Vůz smí přes zaseté pole“; čísla návrh
+// Clauda): osetý díl je pro vůz průjezdný, ale metr stojí jako 8 m louky (rychlost 0,125) – vůz ho
+// vezme, jen když jiná cesta není (objížďka až 8× delší); ztráta úrody viz CART_TRAMPLE
 export const CART_SPEED = {
   stubble: 0.8,
   ploughed: 0.6,
   wet: 0.55,
+  sown: 0.125,
   road: { trodden: 1.3, cart: 1.6, improved: 1.8, causeway: 1.8, wagon: 2.2 },
+} as const;
+// wagons.md – Vůz přes zaseté pole (návrh Clauda): stopa vozu přes osetý díl je široká `trackM`
+// a jede se tam i zpět (2 průjezdy na jízdu); úroda na pošlapané ploše je pryč celá (`lossShare`
+// 1); pošlapaná plocha dílu se nuluje po sklizni
+export const CART_TRAMPLE = {
+  trackM: 2,
+  passesPerTrip: 2,
+  lossShare: 1,
 } as const;
 // wagons.md – Vyjeté cesty (návrh Clauda): úsek, kudy vozy dva roky po sobě jezdí aspoň
 // `tripsPerDay` jízd denně (roční průměr – ≈ 90 jízd za rok), se stane vozovou cestou; vozová cesta,

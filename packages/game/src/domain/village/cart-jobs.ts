@@ -5,7 +5,7 @@ import type { CartTarget } from './paths/cart';
 import { villageCartRoutes } from './paths/roads';
 import { PATH_WATER_SPOT } from './paths/terrain';
 import { groundSpots, walkGroundOf } from './paths/walking';
-import { CARTS, CART_JOBS, TEAM_TRAVEL, WATER_FETCHING } from './rules';
+import { CARTS, CART_JOBS, CART_TRAMPLE, TEAM_TRAVEL, WATER_FETCHING } from './rules';
 import type { CartDrive, CartKind, OreSite, VillageState } from './types';
 
 // Co vozy vozí mimo svoz (wagons.md – Co vozy vozí; Martin 19. 10. 2026: „Pokud budou mít
@@ -70,7 +70,12 @@ export function villageCartDrives(
       const route = routes?.[k];
       if (!route?.reached) return null;
       const end = route.points[route.points.length - 1] ?? t;
-      return { costM: cm(route.cost), x: cm(end.x), z: cm(end.z) };
+      return {
+        costM: cm(route.cost),
+        x: cm(end.x),
+        z: cm(end.z),
+        ...(route.sown.length > 0 ? { sown: route.sown } : {}),
+      };
     });
   };
 }
@@ -257,6 +262,27 @@ export interface WaterCartPlan {
   kind: CartKind;
   /** Kam vůz jezdí – konec trasy u břehu (m). */
   spot: { x: number; z: number };
+  /** Metry trasy přes osetý díl (`CartDrive.sown`) – vůz tam pošlapává úrodu. */
+  sown?: { partId: number; m: number }[];
+}
+
+/**
+ * Vůz přejel osetý díl pole (wagons.md – Vůz přes zaseté pole; mutuje): za `trips` jízd tam a zpět
+ * pošlape na dílu stopu CART_TRAMPLE.trackM × ujeté metry (`trampledM2`, nejvýš plocha dílu);
+ * úroda dílu se při sklizni zmenší o pošlapaný podíl. Díl, který už osetý není, se nepočítá.
+ */
+export function trampleSownParts(
+  state: Pick<VillageState, 'parts'>,
+  sown: readonly { partId: number; m: number }[] | undefined,
+  trips: number,
+): void {
+  if (!sown || trips <= 0) return;
+  for (const s of sown) {
+    const part = state.parts.find((p) => p.id === s.partId);
+    if (!part || part.state !== 'sown') continue;
+    const m2 = CART_TRAMPLE.trackM * s.m * CART_TRAMPLE.passesPerTrip * trips;
+    part.trampledM2 = Math.min(part.areaM2, (part.trampledM2 ?? 0) + m2);
+  }
 }
 
 /**
@@ -307,5 +333,6 @@ export function waterCartPlan(
     carts: Math.min(carts, Math.max(1, Math.ceil(trips / tripsPerCart - EPSILON))),
     kind,
     spot: { x: drive.x, z: drive.z },
+    ...(drive.sown ? { sown: drive.sown } : {}),
   };
 }

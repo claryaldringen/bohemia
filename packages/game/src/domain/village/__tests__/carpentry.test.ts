@@ -488,7 +488,7 @@ describe('dosah vozu – vozová síť (wagons.md – fáze 2)', () => {
     expect(villageCartAccess(noTeam, DAY, LANDSCAPE, null)).toBeNull();
   });
 
-  it('žeň: vůz jede po strništi sklízené plodiny, jiné osetí ho nepustí', () => {
+  it('žeň: vůz jede po strništi sklízené plodiny, jiným osetím jen draze (Martin 23. 10. 2026)', () => {
     const s = onMap();
     s.fields = [{ id: 1 }, { id: 2 }];
     // sklízené díly za pásem osetého pole jiné plodiny (pole 2 napříč krajinou)
@@ -501,8 +501,8 @@ describe('dosah vozu – vozová síť (wagons.md – fáze 2)', () => {
     ];
     const work = { partIds: [1] } as Parameters<typeof cropCartReach>[1];
     const access = networkCartAccess(DAY, LANDSCAPE, null);
-    // pás osetého pole 2 vůz nepřejede – za ním díl nedosáhne
-    expect(cropCartReach(s, work, LANDSCAPE, access).share).toBe(0);
+    // pás osetého pole 2 vůz přejede (smí přes zaseté pole, metr dráž) – díl za ním dosáhne
+    expect(cropCartReach(s, work, LANDSCAPE, access).share).toBe(1);
     // sklízí se i pole 2 – po strništi dojede k obojímu
     const both = { partIds: [1, ...s.parts.slice(1).map((p) => p.id)] } as typeof work;
     const reach = cropCartReach(s, both, LANDSCAPE, access);
