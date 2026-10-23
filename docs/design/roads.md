@@ -8,6 +8,137 @@ pevné cesty a stromy u nich, viz [Fáze 1 – jak je postavená](#fáze-1--jak-
 [Cesta je cesta](#cesta-je-cesta--povrch-pod-ní-a-zarůstání)). Navazuje na
 [vyšlapané pěšiny](paths.md) (jen vzhled) a nahrazuje v nich stromy podél pěšin.
 
+**Od 22. 10. 2026 platí [Nový systém cest](#nový-systém-cest-22-10-2026)** (Martin, issue #6
+a #3; převod starých vsí Martin 23. 10. 2026). Části níž označené „nahrazeno“ jsou historie.
+
+## Nový systém cest (22. 10. 2026)
+
+Pravidla 1–11 (Martin 22. 10. 2026) jsou doslova v [paths.md – Pravidla](paths.md#pravidla-martin-22-10-2026).
+Kudy se chodí, trasy, vyšlapanost, vznik cest, síť (kotvy, pahýly), křižovatky, cesty k vchodům
+a převod: [paths.md](paths.md). Tady druhy cest, zarůstání podle druhů, úprava s hatí a lávkou,
+vozová cesta po staré cestě a lidé při práci na cestě. Čísla jsou návrh Clauda (Martin 22. 10. 2026: čísla zvolí Claude sám). Plán: [2026-10-23-roads-v2.md](../superpowers/plans/2026-10-23-roads-v2.md).
+
+### Druhy cest a rychlosti (pravidlo 5)
+
+Martin (22. 10. 2026): „pro chodce jsou vyšlapaná a vyježděná cesta stejné a stejně tak upravená
+a vozová; upravená cesta zrychluje i vozy; stromy a jabloně u cesty zrychlují všechny druhy o svůj
+koeficient.“ Dnešní čísla (Martin 19. a 20. 10. 2026) to splňují a zůstávají:
+
+| Druh                       | Pěšky                 | Vůz                                | Kdo ji založí                          |
+| -------------------------- | --------------------- | ---------------------------------- | -------------------------------------- |
+| vyšlapaná                  | 1,5                   | 1,3                                | lidé chozením (paths.md – Vyšlapanost) |
+| vyježděná                  | 1,5                   | 1,6                                | vyšlapaná, kudy jezdí vozy (1. 11.)    |
+| upravená (s hatí a lávkou) | 1,7, i přes mokřinu   | 1,8, hať i přes mokřinu; brod 0,33 | hráč – „Upravit cestu“                 |
+| vozová                     | 1,7, i přes mokřinu   | 2,2, i přes mokřinu; brod 0,33     | hráč – „Upravit pro vozy“              |
+| zemská stezka              | beze změny (trade.md) | beze změny                         | hráč (beze změny)                      |
+
+- **Stromy +0,03, jabloně +0,05** × olemovaný podíl úseku – pro všechny druhy, pěšky i vozem
+  ([Stromy u cesty zrychlí chůzi](#stromy-u-cesty-zrychlí-chůzi)). Nově i na hati a vozové cestě
+  přes mokřinu (zpevněný povrch – návrh Clauda); v mokřině bez zpevnění a v brodu dál ne.
+- Lávka je jen pro pěší (Martin 22. 10. 2026) – vůz jede brodem.
+
+### Zarůstání podle druhů (pravidlo 4)
+
+Martin (22. 10. 2026): „cesta, po které se nechodí, postupně zaroste a zmizí. Platí to pro každou
+cestu, i upravenou a vozovou, jen pro ty pomaleji.“ Návrh Clauda:
+
+| Druh                   | Udrží ji (cest za den) | Bez provozu zmizí za | Plný stav (cesto-dny) |
+| ---------------------- | ---------------------- | -------------------- | --------------------- |
+| vyšlapaná, vyježděná   | 1                      | 5 let                | 1 826                 |
+| upravená (hať a lávka) | 0,5                    | 15 let               | 2 739                 |
+| vozová                 | 0,25                   | 30 let               | 2 739                 |
+| zemská stezka          | –                      | nezarůstá            | –                     |
+
+- **Stav kusu:** osa úseku po kusech ≈ 25 m (`ROADS.pieceM` jako dřív); stav kusu se mění
+  o (provoz kusu − udržovací práh) za den, mezi 0 a plným stavem. Provoz kusu je medián provozu
+  tras v bodech osy po 3 m (jako dřív), jízda vozu za 2 cesty. Počítá se po intervalech mezi
+  změnami tras a 1. dnem v měsíci (celá čísla – deterministicky jako vyšlapanost). Nový úsek
+  a dokončené vylepšení mají plný stav.
+- **Kus na nule zmizí** – zbytek úseku zůstane se starým id (jako dřív `cutOvergrown`), kronika
+  „Nepoužívaná cesta zarostla.“. Ve scéně cesta pod polovinou stavu bledne (krytí úměrně), takže
+  zarůstání je vidět postupně.
+- **Opuštěná cesta:** vede-li po celém úseku žádná trasa celý měsíc, úsek je opuštěný
+  (`Road.abandoned`) – vypadne ze sítě (není ramenem křižovatky ani částí cesty hráče, nejde vybrat
+  ani vylepšit), dál bledne a zmizí. Vrátí-li se na něj trasa, ožije a úklid ho napojí.
+- **Nezarůstá:** cesta, která se vylepšuje; cesta k vchodu stavby, ke které se chodí (paths.md –
+  Vchody); zemská stezka.
+- **Jabloně už cestu nedrží** (výjimka – návrh Clauda 19. 10. 2026 – **zrušena** 22. 10. 2026
+  pravidlem 4): péče a sklizeň jabloní jsou trasy k cestě, takže kus, kde se jabloně sklízejí, se
+  udrží provozem. Jabloně a stromy u zarostlé cesty stojí dál (jako dřív).
+- **Úvoz a násep** zůstanou v krajině i po zarostlé vozové cestě (jako dřív).
+- **Důvod čísel:** vyšlapaná 5 let drží dřívější pravidlo; upravená cesta je srovnaná a rozšířená,
+  drží tvar déle (15 let); vozová má koleje zpevněné kamenem a štěrkem (30 let ≈ generace a víc).
+  Udržovací práh 1 cesta denně odpovídá dorůstání trávy (paths.md – Vyšlapanost); odolnější
+  povrch stačí udržet polovinou a čtvrtinou provozu.
+
+### Úprava cesty s hatí a lávkou (pravidla 7 a 8)
+
+- **Jedno tlačítko „Upravit cestu“** (ikona `cesta-upravena`) pro celou cestu hráče: vyšlapané
+  a vyježděné úseky se upraví a **kde cesta vede mokřinou, položí se hať, přes brod lávka** –
+  v jedné stavbě (Martin 22. 10. 2026: „Hať a lávka se postaví samy jako součást úpravy cesty“).
+  Cena je součet dnešních cen: 15 čd na 100 m + hať 1 strom a 2 čd na 2 m mokřiny + lávka 4 stromy
+  a 15 čd na brod; dřevo jako dřív (klády z hromady, pak nejbližší stromy). Stavba jde po cestě úsek
+  po úseku, hať a lávku staví, když k nim čelo práce dojde.
+- **Stupeň `causeway` zmizí** – upravená cesta má hať a lávku všude, kde je potřeba. Starší
+  upravená cesta bez nich dostane převodem příznak `Road.unbridged` a „Upravit cestu“ u ní postaví
+  jen hať a lávku.
+- **Vozová cesta** staví hať přes mokřinu (jako dřív zpevnění) a nově i lávku pro pěší vedle
+  brodu.
+- **Hráč cesty nezakládá ani neruší** (pravidla 3 a 8) – vylepšuje (upravená, vozová), sází
+  jabloně a zakládá zemskou stezku (beze změny).
+
+### Vozová cesta po staré cestě (pravidlo 6)
+
+Martin (22. 10. 2026): „Vozová cesta: vznikne ze staré pěší cesty a vede po ní. Narovná se jen
+tam, kde pěší cesta kličkovala do svahu, pokud to jde, a obejitý kus staré cesty zaroste. Náspy
+a úvozy musí být výrazně vidět.“ Nahrazuje „Co nejpříměji“ a „Stará cesta pro pěší zůstane“
+(Martin 20. 10. 2026 – [Vozová cesta](#vozová-cesta)). Návrh Clauda:
+
+- **Trasa = osa staré cesty hráče** (řetěz úseků mezi křižovatkami a konci). Profil po ní jako
+  dřív – sklon nejvýš 6 %, úvoz a násep nejvýš 3 m, objemy, ceny a stavba po ≈ 60 m od vsi ven
+  beze změny (`wagonProfile`, `wagonEarthworks`).
+- **Narovnání jen v prudkém kusu:** kus staré osy, kde stoupá nad 6 %, se zkusí nahradit místní
+  trasou (dnešní hledání `findWagonRoute` – co nejpříměji, serpentiny nad mez) mezi body staré osy
+  30 m před a za kusem, v okně ± 60 m. Přijme se, když je proveditelná a stojí méně práce než
+  úprava staré osy úvozem a náspem (nebo stará osa nejde vůbec). Jinde se osa nehýbe. Nejde-li to
+  ani tak, úprava se nenabídne – důvod v popisku („Cesta je pro vůz moc prudká.“).
+- **Obejitý kus staré cesty** se při dostavění úseku oddělí jako opuštěná vyšlapaná cesta
+  (`Road.abandoned`) – mimo síť, žádná křižovatka, zaroste za 5 let. Kus staré cesty pod vozovou
+  zmizí hned (vozová ho nahradí, jak dřív `absorbParallelRoads`). Souběžné cesty tak nevzniknou.
+- **Náspy a úvozy výrazně vidět:** svahy holá hlína, která zarůstá pomalu – za 15 let jen řídkou
+  trávou, nikdy úplně (dřív za 6 let plnou trávou); hrana úvozu světlý lem, pata náspu tmavý lem
+  (obtisk ≈ 0,6 m), na svazích výkopu drobné kameny, sníh na svazích tenčí. Výška terénu se
+  nezveličuje – je to herní terén. Kritérium: na herní kameře ve Vlkově jsou úvoz 0,8 m a násep
+  1 m (cesta 372) poznat bez výběru cesty.
+- **Vlkov:** hotové vozové cesty zůstanou se svou osou; staré souběžné cesty vedle nich (voda)
+  pohltí převod (paths.md – Převod).
+
+### Lidé při práci na cestě (Martin 22. 10. 2026, #3)
+
+Martin: „Pokud vesničané upravují cestu, chci je na té cestě vidět pracovat.“ Rozbor Clauda: postavy
+úpravy (`roadWork`) hledaly úsek podle id cíle práce a stály u něj, i když čelo práce bylo na jiném
+úseku cesty hráče; vozová cesta (`{ kind: 'wagon' }`) postavy neměla vůbec. Návrh Clauda:
+
+- **Úprava:** lidé u čela práce celé cesty (`roadWorkFront`) – motyky po okrajích širšího pásu
+  před čelem, dusání za ním; u hatě nosí a kladou kmeny, u lávky zatloukají kůly.
+- **Vozová cesta:** u čela (`wagonWorkTarget`) kopáči v úvozu, nosiči s koši od úvozu k náspu,
+  dusání na náspu, kladení kamene do kolejí; počet podle dnešní práce (aspoň jeden jako u staveb).
+- Postavy na cestu dojdou po trase (paths.md – Jedno rozhodnutí).
+
+### Rozhodnutí nového systému
+
+| Rozhodnutí                                                                                     | Kdo          |
+| ---------------------------------------------------------------------------------------------- | ------------ |
+| Pravidla 1–11, lidé při práci na cestě, přes ohrady se nechodí                                 | Martin       |
+| Převod starých vsí jednou a idempotentně                                                       | Martin       |
+| Rychlosti druhů beze změny; stromy přidají i na hati a vozové cestě přes mokřinu               | návrh Clauda |
+| Zarůstání: udržení 1 / 0,5 / 0,25 cesty denně, bez provozu 5 / 15 / 30 let; stav po kusech     | návrh Clauda |
+| Opuštěná cesta mimo síť; jabloně cestu nedrží (provoz u jabloní ano)                           | návrh Clauda |
+| „Upravit cestu“ = úprava + hať + lávka, součet cen; `causeway` → upravená, `unbridged`         | návrh Clauda |
+| Vozová cesta po staré ose, místní narovnání nad 6 % (± 30 m, okno ± 60 m) jen když je levnější | návrh Clauda |
+| Svahy úvozů a náspů 15 let řídká tráva, lemy hran, kameny; výška se nezveličuje                | návrh Clauda |
+| Postavy u čela práce celé cesty; vozová cesta s kopáči, nosiči a dusáním                       | návrh Clauda |
+
 ## Proč
 
 Stromy podél pěšin dnes přeskakují: rozmisťují se znovu při každém přepočtu denní sítě pěšin,
@@ -29,9 +160,15 @@ Cesta se tím stává herní věcí: pamatuje si, kudy vede, a zkracuje lidem ch
 - **Ne-cíl (teď):** vozy a tažná zvířata na cestách, obchod, cesty mezi vsemi a mapami (přijde
   s [válkou](war.md) a světem), mosty pro vozy, údržba cest, mýto.
 - **Anti-cíl:** cesta nebo strom, které se pohnou samy od sebe; hráč, který musí cesty kreslit
-  (cesty vznikají chozením, hráč je jen vylepšuje).
+  (cesty vznikají chozením, hráč je jen vylepšuje). Od 22. 10. 2026 se osa smí ohnout do vchodu
+  křižovatky a vozová cesta se v prudkém kusu narovná ([paths.md](paths.md) – Křižovatky,
+  [Vozová cesta po staré cestě](#vozová-cesta-po-staré-cestě-pravidlo-6)).
 
 ## Dvě vrstvy cest
+
+**Nahrazeno 22. 10. 2026** – pěšiny dne a roční síť nahradily uložené trasy a vyšlapanost
+([paths.md](paths.md)), zarůstání stav kusů ([Nový systém cest](#nový-systém-cest-22-10-2026)).
+Text níž je historie.
 
 - **Pěšiny dne** ([paths.md](paths.md)) zůstávají jen vzhled – vedou tam, kam ves dnes chodí,
   a mění se s prací. Nově jdou raději po pevné cestě (sleva jako po silné pěšině), takže se
@@ -77,6 +214,9 @@ Cesta se tím stává herní věcí: pamatuje si, kudy vede, a zkracuje lidem ch
   Clauda).
 
 ## Vylepšení cesty (staví hráč)
+
+**Od 22. 10. 2026** je hať a lávka součástí úpravy (pravidlo 7) – stupeň 3 se nenabízí zvlášť
+([Úprava cesty s hatí a lávkou](#úprava-cesty-s-hatí-a-lávkou-pravidla-7-a-8)). Ceny platí dál.
 
 Hráč klikne na pevnou cestu – vybere se celá cesta (řetěz úseků – [Cesta pro
 hráče](#cesta-pro-hráče)), v panelu je stupeň, délka, stáří, stromy a jabloně a tlačítka
@@ -200,6 +340,9 @@ by přidat třeba 0.03? A pokud to budou jabloně, přidalo by se 0.05.“ Podro
 
 ## Rozhodnutí
 
+Rozhodnutí nového systému (22. 10. 2026): [Rozhodnutí nového systému](#rozhodnutí-nového-systému)
+a [paths.md – Rozhodnutí](paths.md#rozhodnutí). Tabulka níž je stav do 21. 10. 2026.
+
 | Rozhodnutí                                                                               | Kdo          |
 | ---------------------------------------------------------------------------------------- | ------------ |
 | Stromy jen u pevných cest z pomalé složky; růst od keře; stojí, dokud samy neodumřou     | Martin       |
@@ -238,6 +381,9 @@ by přidat třeba 0.03? A pokud to budou jabloně, přidalo by se 0.05.“ Podro
 | Hať 1,7× i přes mokřinu; pěšina úměrně síle; stejné rychlosti v síti pěšin i chůzi       | návrh Clauda |
 
 ## Cesta je cesta – povrch pod ní a zarůstání
+
+**Od 22. 10. 2026** neplatí výjimka „cesta s jabloněmi nezaroste“ (pravidlo 4 – [Zarůstání podle
+druhů](#zarůstání-podle-druhů-pravidlo-4)); po cestě bez ohledu na povrch platí dál.
 
 Martin (19. 10. 2026, ves Vlkov): „Je tam vidět, že na nový hřbitov vedla nejkratší cesta, kolem
 které dokonce byly nějaké stromy (jabloně) a ta zanikla a lidé to začali obcházet divnou delší
@@ -299,6 +445,10 @@ stezka leží.“
 
 ## Zarůstá jen nepoužívaný kus
 
+**Nahrazeno 22. 10. 2026** stavem kusů podle druhu ([Zarůstání podle
+druhů](#zarůstání-podle-druhů-pravidlo-4)) – kusy ≈ 25 m a zbytek se starým id zůstávají, tiché
+roky (`Road.quiet`) a volné konce po zarostlém kusu (`cutEnds`) ne. Text níž je historie.
+
 Martin (19. 10. 2026) na návrh „dlouhý úsek zaroste celý, i když se po jeho části dál chodí –
 zarůstá jen nepoužívaný kus úseku“: **„ano“**. Podrobnosti návrh Clauda.
 
@@ -332,6 +482,10 @@ zarůstá jen nepoužívaný kus úseku“: **„ano“**. Podrobnosti návrh Cl
   u hřbitova je volný.
 
 ## Vozové cesty
+
+**Od 22. 10. 2026** nové vyježděné cesty nevznikají z kandidátů vozů (`formCartRoads`) – jízdy
+jdou do vyšlapanosti jako chůze (× 2, [paths.md](paths.md) – Vyšlapanost); příznak vyježděná dál
+z ročního provozu vozů. Zarůstání podle druhů.
 
 Martin (19. 10. 2026): „Vozy mohou cestu vyjezdit, ale nemají takovou prostupnost jako lidé, kteří
 chodí pěšky. Bude to znamenat např. to, že ve svahu, kde lidé zvládnou chodit rovně, vůz bude muset
@@ -444,7 +598,7 @@ takový růžek…“ Podrobnosti návrh Clauda.
 
 - **Pás cesty se neorá:** díl přijde o plochu pod pásem pevné cesty v šířce obtisku (vyšlapaná
   1,9 m, vozová 2,6 m, upravená a hať 3 m – `ROAD_LAND`) a pod plácky rozcestí (poloměr 1,3 ×
-  šířka nejširší cesty). Na přeťatém dílu 15 m vyšlapaná cesta vezme ≈ 30 m² z 225 m².
+  šířka nejširší cesty; od 22. 10. 2026 pod obrysem křižovatky – [paths.md](paths.md)). Na přeťatém dílu 15 m vyšlapaná cesta vezme ≈ 30 m² z 225 m².
 - **Růžek za cestou zůstane loukou:** kus pole, který cesty oddělí od zbytku (cestou a okrajem
   pole), se obdělává jen, když je aspoň **80 m²** (vejde se do něj obrat spřežení – kruh
   o poloměru ≈ 5 m) a má místo **širší než 3 m** (jinak je to jen proužek podél cesty). Jinak
@@ -476,6 +630,10 @@ takový růžek…“ Podrobnosti návrh Clauda.
   1 146 m² a 2 růžky za cestou (20 a 21 m²) zůstanou loukou; celkem 1 186 m², 0,29 % ze 40,3 ha.
 
 ## Fáze 1 – jak je postavená
+
+**Od 22. 10. 2026** je rok cest, práh a dva roky, provoz cesty a zarůstání nahrazený
+([paths.md](paths.md) – Vyšlapanost, [Zarůstání podle druhů](#zarůstání-podle-druhů-pravidlo-4)).
+Místa na stromy, uchycení, stromy jako překážka a stromy na poli platí dál.
 
 Návrh Clauda (detaily, které návrh výš nechal otevřené – 18. 10. 2026):
 
@@ -624,6 +782,10 @@ Návrh Clauda (18. 10. 2026):
 
 ## Úseky a rozcestí
 
+**Od 22. 10. 2026** je rozcestí **křižovatka** – kříž nebo Y se znamením, kulatý plácek zmizel
+([paths.md](paths.md) – Křižovatky). Spojení úseků, díry a souběžné cesty platí dál jako kroky
+úklidu sítě ([paths.md](paths.md) – Síť); falešná rozcestí a pahýly řeší úklid.
+
 Martin (18. 10. 2026, ves Vlkov): „úsek mezi dvěma rozcestími je v pohodě, ale ve hře jsou
 evidentně falešná rozcestí“ a „rozcestí by mělo být nejvyšlapanější plochou, teď vlastně chybí“.
 Ve Vlkově bylo z 23 úseků 13 uzlů, kde se potkávají jen dva úseky – zbytky po rozdělení cesty,
@@ -720,7 +882,7 @@ velké, že se budou muset kombinovat serpentiny, úvozy a náspy.“
 
 Na doplňující otázky Martin odpověděl:
 
-- **Stará cesta pro pěší zůstane.** Chodí po ní dál, kdo to má blíž. Kusy, kterými nikdo nechodí,
+- ~~**Stará cesta pro pěší zůstane.**~~ (nahrazeno 22. 10. 2026 – pravidlo 6) Chodí po ní dál, kdo to má blíž. Kusy, kterými nikdo nechodí,
   po 5 letech zarostou (dnešní pravidlo – [Zarůstá jen nepoužívaný kus](#zarůstá-jen-nepoužívaný-kus)).
 - **Rozhoduje hráč v panelu cesty**, stejně jako u dnešních vylepšení: vybere cestu, uvidí trasu
   a cenu a potvrdí.
@@ -739,15 +901,20 @@ rozhodl sám při stavbě, je v tabulce na konci.
 - **Vlastní trasa** mezi konci vybrané cesty hráče (rozcestí nebo volné konce –
   [Cesta pro hráče](#cesta-pro-hráče)) – nevede po ose staré cesty, ale co nejpříměji, kudy vůz
   projede.
-- **Stará cesta zůstane** jako samostatná pevná cesta s dnešními pravidly. Provoz se sám přesune
+- ~~**Stará cesta zůstane** jako samostatná pevná cesta s dnešními pravidly.~~ (Nahrazeno 22. 10. 2026 – vozová cesta vede po staré, [pravidlo 6](#vozová-cesta-po-staré-cestě-pravidlo-6).) Provoz se sám přesune
   na rychlejší cestu (síť pěšin, vozová síť), nepoužívané kusy staré cesty zarostou. Souběžný kus
   staré cesty těsně vedle vozové se vyřízne jako každá souběžná cesta – vozová se nikdy neřeže –,
   a to hned po dostavění úseku (kde vozová cesta vede po ose staré, nahradí ji bez dočasného
   rozcestí).
-- **Vozová cesta nezarůstá** (jako upravená a hať) a její volné konce se nenapojují samy
+- ~~**Vozová cesta nezarůstá**~~ (od 22. 10. 2026 zarůstá za 30 let – [Zarůstání podle
+  druhů](#zarůstání-podle-druhů-pravidlo-4)) (jako upravená a hať) a její volné konce se nenapojují samy
   (díry – [Úseky a rozcestí](#úseky-a-rozcestí)) – napojí je stavba.
 
 ### Trasa
+
+**Nahrazeno 22. 10. 2026** – vozová cesta vede po staré cestě a narovná se jen v prudkém kusu
+([Vozová cesta po staré cestě](#vozová-cesta-po-staré-cestě-pravidlo-6)). Hledání níž zůstává
+pro místní narovnání. Text níž je historie.
 
 - **Co nejpříměji** (Martin, 20. 10. 2026, na otázku, jestli má mít přednost přímá trasa se
   zemními pracemi, nebo levnější oklika: „Co nejpříměji“): přímá trasa má přednost – svah se
@@ -903,3 +1070,5 @@ pevných cestách, dojel ke 4 %.
 - Pořadí implementace: (1) pevné cesty a stromy – **hotovo**, (2) výběr, vylepšení a chůze –
   **hotovo**, (3) jabloně – **hotovo**, (4) vozová cesta – **hotovo** (`wagon-road.ts`,
   `paths/wagon-route.ts`, `paths/earthworks.ts`; zemní práce ve stavu `VillageRoads.earthworks`).
+- **Nový systém cest** (22. 10. 2026): plán
+  [2026-10-23-roads-v2.md](../superpowers/plans/2026-10-23-roads-v2.md).
