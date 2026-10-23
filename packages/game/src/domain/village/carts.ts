@@ -671,10 +671,17 @@ export function addHaulTrips(
   hauled: number,
   kind: CartKind = 'two-wheel',
   log?: CartTripLog,
+  spare?: readonly number[],
 ): void {
   if ((!state.roads && !log) || hauled <= EPSILON || reach.points.length === 0) return;
   const trips = (hauled * CARTS.loadsPerCartDay) / (CARTS.carrierManDays * cartLoadRatio(kind));
-  const list = reach.points.map((p) => ({ x: p.x, z: p.z, kind, trips: trips * p.weight }));
+  const list = reach.points.map((p) => ({
+    x: p.x,
+    z: p.z,
+    kind,
+    trips: trips * p.weight,
+    ...(spare ? { spare } : {}),
+  }));
   // s deníkem jízd dne se jízdy jen zapíšou (`flushCartTrips` – provoz cest i pošlapání úrody)
   if (log) log.push(...list);
   else if (state.roads) addRoadCartTrips(state.roads, list);

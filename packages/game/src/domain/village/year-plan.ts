@@ -498,7 +498,10 @@ function cropYieldKg(
     const ha = part.areaM2 / M2_PER_HA;
     const weeded = isWeedFree(part, day) ? 1 : weedFrac;
     // pošlapaná plocha (vůz přes zaseté pole – wagons.md) úrodu nedá
-    const trampled = 1 - CART_TRAMPLE.lossShare * Math.min(1, (part.trampledM2 ?? 0) / part.areaM2);
+    const trampled =
+      1 -
+      CART_TRAMPLE.lossShare *
+        Math.min(1, part.areaM2 > 0 ? (part.trampledM2 ?? 0) / part.areaM2 : 0);
     const unweeded = unweededYield(crop);
     const gross =
       cropGrossPerHa(crop, effectiveFertility(part, day)) *

@@ -59,6 +59,24 @@ describe('flushCartTrips', () => {
     expect(routes.calls).toBe(0);
   });
 
+  it('díl, který vůz právě sklízí nebo seje, nepošlapá (svoz, osivo)', () => {
+    const s = stateOf();
+    flushCartTrips(
+      s,
+      [{ x: 1, z: 2, kind: 'two-wheel', trips: 2, spare: [3] }],
+      0,
+      LANDSCAPE,
+      null,
+    );
+    expect(s.parts[0]!.trampledM2).toBeUndefined();
+  });
+
+  it('voda bez dílu na trase nese prázdné metry a trasa se nehledá znovu', () => {
+    const s = stateOf();
+    flushCartTrips(s, [{ x: 1, z: 2, kind: 'two-wheel', trips: 1, sown: [] }], 0, LANDSCAPE, null);
+    expect(routes.calls).toBe(0);
+  });
+
   it('díl, který už není osetý, a ves bez krajiny nepošlapává', () => {
     const s = stateOf();
     s.parts[0]!.state = 'ready';

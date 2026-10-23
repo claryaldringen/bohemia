@@ -261,6 +261,8 @@ export interface RoadCartTrips {
   trips: number;
   /** Metry trasy přes osetý díl, když je známe (voda) – jinak je najde `flushCartTrips`. */
   sown?: { partId: number; m: number }[];
+  /** Díly, které vůz právě sklízí nebo seje (cíl jízdy) – ty se nepošlapávají. */
+  spare?: readonly number[];
 }
 
 /** Deník jízd vozů za den – zapíše je `flushCartTrips` (provoz cest, pošlapání úrody). */

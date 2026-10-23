@@ -74,7 +74,7 @@ export function villageCartDrives(
         costM: cm(route.cost),
         x: cm(end.x),
         z: cm(end.z),
-        ...(route.sown.length > 0 ? { sown: route.sown } : {}),
+        sown: route.sown,
       };
     });
   };
@@ -319,7 +319,14 @@ export function flushCartTrips(
     const found = new Map(unknown.map((t, k) => [t, routes?.[k]?.sown]));
     for (const t of log) {
       if (t.kind !== kind) continue;
-      trampleSownParts(state, t.sown ?? found.get(t), t.trips);
+      const sown = t.sown ?? found.get(t);
+      // díl, který vůz právě sklízí nebo seje (cíl jízdy), se nepošlapává
+      const spare = t.spare;
+      trampleSownParts(
+        state,
+        spare ? sown?.filter((s) => !spare.includes(s.partId)) : sown,
+        t.trips,
+      );
     }
   }
 }
