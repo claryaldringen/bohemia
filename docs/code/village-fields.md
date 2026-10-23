@@ -319,7 +319,7 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   čekající výmlat (`pendingThreshLabor` – na humnech nejvýš kapacita za dny okna) z podzimní
   kapacity (`sowingCapacity`) a výmlat ozimu a luštěnin přičte k srpnu (`CropLoad.august` ve
   `sowing.ts`). Rozdělení práce: výmlat na hotová humna rovným dílem (cíl `threshing-floor`),
-  nouzový u vsi (`DayWork.threshing`); síť pěšin vede k humnu vstupem na předku
+  nouzový u vsi (`DayWork.threshing`); ve scéně mlátí podíl s cílem `threshing-floor` na humně (`threshingOnFloor` ve `villager-plan-fields.ts`), podíl s cílem ves nouzově u vsi (`threshing`; issue #3 – dřív mlátili všichni u vsi); síť pěšin vede k humnu vstupem na předku
   (`threshingFloorEntrance` v `paths/entrances.ts`, `PathVillage.threshingFloors`, klíče sítě
   a chůze), humno je stavba, kterou obejdou pěšiny, vozy, vozové cesty (`villageBuildings`)
   i zemská stezka (`trailRoutes(…, floors)`); svoz snopů vozem jede i k humnu

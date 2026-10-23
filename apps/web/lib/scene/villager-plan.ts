@@ -47,6 +47,7 @@ import {
   orchardTrees,
   planting,
   threshing,
+  threshingOnFloor,
 } from './villager-plan-fields';
 import {
   builderNearby,
@@ -435,7 +436,10 @@ export function placer(ctx: Context, share: SceneLaborShare, count: number): Pla
     case 'found-field':
       return t.kind === 'field' ? founding(ctx, share, t.id, count) : none;
     case 'thresh':
-      return threshing(ctx, count);
+      // hotové humno: mlátí se na něm; nouzový výmlat (cíl ves) na udusané zemi u vsi
+      return t.kind === 'threshing-floor'
+        ? threshingOnFloor(ctx, t.id, count)
+        : threshing(ctx, count);
     case 'plough':
       // oráč a honáček jsou součástí spřežení (plough-team-renderer.ts)
       return none;
