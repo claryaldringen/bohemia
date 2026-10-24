@@ -394,6 +394,23 @@ Návrh Clauda:
   - **znamení:** los ze seedu vsi a štítku `junction-landmark:<id>` – druh, podoba (1–2), natočení
     po celých stupních a druh stromu podle podílů stromů u cest; při shodě dvou nejširších mezer
     rozhodne první od nejmenšího úhlu.
+- Návrh Clauda (24. 10. 2026, Úloha 9b – zapojení do sítě):
+  - **osa vede přesně do vchodu a odtud rovně po rameni do středu** – úseky křižovatky dál končí
+    v jednom bodě (uzel sítě), takže úklid (spojení, pahýly, copánky, díry) se nemění; scéna
+    kreslí rameno od vchodu dovnitř jako pás křižovatky. Oblouk (body po 1 m) se uloží
+    zjednodušený jako ostatní osy cest (odchylka do 0,25 m) – každý bod osy zdražuje chůzi i vozy
+    (Vlkov: s body po 1 m dopočet o 12 % pomalejší);
+  - **živá cesta** = provoz kusu u křižovatky aspoň udržovací práh druhu, stejně jako u zarůstání:
+    cesta, která končí ve vchodu stavby, kam se chodí, je živá (nezarůstá), zemská stezka a cesta
+    ve vylepšení taky; opuštěná ne. Ramena se posuzují každý měsíc;
+  - **neohýbá se** vozová cesta, zemská stezka, cesta ve vylepšení a úsek kratší než 12 m (spojka
+    do branky – ohnul by se celý); jejich rameno leží přesně v jejich směru, druhá pevná cesta
+    navazuje, jak je (rovný kus do vchodu zatím ne);
+  - po přepočtu tvaru zůstane **strom znamení, kde roste** (strom se nestěhuje), kámen a kůl se
+    posunou do nejširší mezery; místo se stromem do 2,2 m od nové osy zůstane;
+  - plocha pod křižovatkou, kde se neorá: pásy ramen a spojnice sousedních ramen ve vzdálenosti
+    šířky nejširší cesty od středu (místo kruhu 1,3 × šířka);
+  - uzel s 5+ živými cestami (nečeká se; Vlkov žádný) zatím křižovatku nemá.
 - **Změna:** přibude-li nebo ubude-li rameno, tvar a natočení se spočítají znovu, znamení zůstane;
   klesnou-li živá ramena na 2, křižovatka zanikne a cesty se spojí.
 - **Data:** `VillageRoads.junctions` – id, střed, tvar, natočení, β, ramena (id úseku ve vchodu),

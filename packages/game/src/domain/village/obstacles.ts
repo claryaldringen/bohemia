@@ -19,6 +19,7 @@ import { pointInPolygon, type Point } from './polygon';
 import {
   roadAppleObstacleKind,
   roadTreeObstacleKind,
+  junctionLandmarkId,
   type RoadTreeObstacleKind,
 } from './road-trees';
 import { dropClearedWoods, villageWoods, woodMatureTrees, woodTreeSpots } from './woods';
@@ -64,7 +65,8 @@ export interface AddedObstacle {
   readonly id: number;
   readonly x: number;
   readonly z: number;
-  readonly kind: RoadTreeObstacleKind;
+  /** Strom u cesty, strom lesa, jabloň – nebo znamení křižovatky: kámen jako balvan, kůl jako keř. */
+  readonly kind: RoadTreeObstacleKind | 'boulder';
 }
 
 export const NO_OBSTACLE_CHANGES: ObstacleChanges = { removed: [], stumps: [], saplings: [] };
@@ -160,6 +162,16 @@ export function obstacleChangesAt(state: ChangeLists, day: number): ObstacleChan
     if (removed.has(tree.id)) continue;
     const kind = roadTreeObstacleKind(tree, day);
     if (kind !== null) added.push({ id: tree.id, x: tree.x, z: tree.z, kind });
+  }
+  // znamení křižovatek (paths.md – Křižovatky): kámen jako balvan, kůl jako keř; strom je mezi
+  // stromy u cest a zůstane i po zániku křižovatky
+  for (const junction of state.roads?.junctions ?? []) {
+    const landmark = junction.landmark;
+    if (landmark.kind === 'tree') continue;
+    const id = junctionLandmarkId(junction.id);
+    if (removed.has(id)) continue;
+    const kind = landmark.kind === 'stone' ? 'boulder' : 'shrub';
+    added.push({ id, x: landmark.x, z: landmark.z, kind });
   }
   // jabloně u cest (roads.md – Vysazení jabloní) – jako stromy u cest
   for (const apple of state.roads?.apples ?? []) {

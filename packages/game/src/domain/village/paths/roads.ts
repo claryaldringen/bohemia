@@ -48,6 +48,8 @@ import {
 import { annualCartNetwork, markCartRoads, takeOverCartRoads } from './roads-carts';
 import { abandonBlockedStretches, cutDeadRoads } from './roads-overgrow';
 import { accessDue, accessRoads } from './roads-access';
+import { fixedRoadIds, liveRoadEnd } from './road-condition';
+import { updateJunctions } from './junctions';
 import { anchorTermini, markRoadEnds, tidyDue, tidyRoads } from './roads-tidy';
 import { SpotContext, plantingBlocker, rootTrees } from './roads-trees';
 import { type RoadAnchors, roadAnchors } from './road-anchors';
@@ -168,7 +170,7 @@ function annualTermini(state: VillageState, landscape: Landscape): (p: RoadPoint
  * stav – volá simulace na začátku dne): vyšlapanost do dneška (`settleVillageWear`), z vyšlapaných
  * čar tras nové cesty od kotvy ke kotvě a po vzniku úklid sítě (`formRoadsKept`), kronika
  * `road-formed`; pak měsíční úklid – pahýly a cesty k vchodům (`tidyMonth`), jen když se změnily
- * trasy nebo cesty. Jiné dny nic; bez změny jen sečte vyšlapanost (kontext míst na stromy se
+ * trasy nebo cesty, a křižovatky (`updateJunctions`). Jiné dny nic; bez změny jen sečte vyšlapanost (kontext míst na stromy se
  * nestaví).
  */
 export function roadsMonth(
@@ -250,7 +252,8 @@ function networkKey(roads: VillageRoads): number {
  * Měsíční úklid sítě (paths.md – Síť – kotvy, pahýly a úklid; mutuje): okruhy, souběžné cesty,
  * copánky, díry, spojení a pahýly (`tidyRoads` s kotvami a čarami tras), pak cesty k vchodům
  * (`accessRoads`, kronika `road-formed`). Jen když se od posledního úklidu změnily trasy nebo
- * cesty (`VillageRoads.tidyKey`) – jinak nic, ani kontext míst na stromy.
+ * cesty (`VillageRoads.tidyKey`) – jinak nic, ani kontext míst na stromy. Nakonec (krok 6)
+ * křižovatky (`updateJunctions`) – vždy, ramena určuje provoz tras; beze změny nic.
  */
 function tidyMonth(
   state: VillageState,
@@ -269,12 +272,24 @@ function tidyMonth(
       .map((c) => visitKey('cemetery', c.id)),
   );
   const built = (visit: string): boolean => !unbuilt.has(visit);
+  // křižovatky (krok 6) – ramena jen z živých cest; i bez úklidu, provoz se mění s trasami
+  const junctions = (): boolean => {
+    const frozen = fixedRoadIds(state.constructions, state.trails);
+    const entrances = month.anchors.points.filter((a) => a.kind === 'entrance');
+    const traffic = field();
+    return updateJunctions(roads, month.day, state.seed, {
+      live: (road, atStart) => liveRoadEnd(road, atStart, traffic, entrances, frozen),
+      fixed: frozen,
+    });
+  };
   // cesty beze změny: úklid jen, když nové kotvy a trasy dají práci (pahýl, díra, okruh, vchod)
   if (
     roads.tidyKey === networkKey(roads) &&
     !tidyDue(roads, state.constructions, isEnd, network) &&
     !accessDue(roads, routes.list, month.cellM, built)
   ) {
+    // ohnuté konce os nic dalšího neuklidí (konce zůstanou ve středu) – otisk sítě se jen posune
+    if (junctions()) roads.tidyKey = networkKey(roads);
     return;
   }
   TIDY_RUNS.count++;
@@ -297,6 +312,7 @@ function tidyMonth(
       }
     }
   }
+  junctions();
   roads.tidyKey = networkKey(roads);
 }
 

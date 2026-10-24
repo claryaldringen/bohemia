@@ -323,8 +323,9 @@ describe('cesty k vchodům', () => {
       ),
     );
     expect(access).toBeDefined();
-    // cesta k brance se napojí na starou cestu rozcestím (stará se rozdělí)
+    // cesta k brance se napojí na starou cestu rozcestím (stará se rozdělí) – křižovatka Y
     expect(living.length).toBe(3);
+    expect(s.roads!.junctions?.map((j) => [j.shape, j.arms.length])).toEqual([['y', 3]]);
     expect(s.chronicle.some((e) => e.kind === 'road-formed' && e.roadId === access!.id)).toBe(true);
     const isAnchor = anchorsAt([
       [0, 7.5],
@@ -339,8 +340,10 @@ describe('cesty k vchodům', () => {
       s.roads!.roads.map((r) => ({ id: r.id, spots: r.spots, points: r.points })),
     );
     const nextId = s.roads!.nextId;
+    const junctions = json(s.roads!.junctions);
     for (let m = 2; m <= 13; m++) roadsMonth(s, monthDay(m), LANDSCAPE, null);
     expect(TIDY_RUNS.count).toBe(runs + 1);
+    expect(s.roads!.junctions).toEqual(junctions);
     expect(s.roads!.nextId).toBe(nextId);
     expect(
       json(s.roads!.roads.map((r) => ({ id: r.id, spots: r.spots, points: r.points }))),

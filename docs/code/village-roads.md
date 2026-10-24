@@ -206,8 +206,32 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   konec) nahradí kubický Bézierův oblouk do vchodu (tečna osy i ramene, body po 1 m, na cm).
   `splitCrowdedNode` – uzel s 5+ cestami na dvě skupiny sousedních ramen a dva středy 10 m od sebe.
   `drawLandmark(seed, id)` – strom 40 % / kámen 30 % / kůl 30 %, podoba, natočení, druh stromu
-  (`speciesOf` z `roads-trees.ts`); `landmarkPlace` – nejširší mezera, 1,5 m za vchody. Ze simulace
-  se zatím nic nevolá (Úloha 9b). Testy `junctions.test.ts`.
+  (`speciesOf` z `roads-trees.ts`); `landmarkPlace` – nejširší mezera, 1,5 m za vchody. Testy
+  `junctions.test.ts`.
+  **Zapojení (Úloha 9b):** `updateJunctions(roads, day, seed, { live, fixed })` – krok 6 měsíčního
+  úklidu (`tidyMonth` v `roads.ts`, po cestách k vchodům), běží každý měsíc i bez úklidu (ramena
+  určuje provoz tras), beze změny nic a žádná nová id; vrací, jestli se něco změnilo (pak se posune
+  `tidyKey`). Uzel = bod, kde končí úseky (klíč na cm); křižovatka stojí, kde končí 3–4 živé konce
+  – `liveRoadEnd` (`road-condition.ts`): neopuštěný úsek s provozem kusu u konce ≥ `ROAD_DECAY.keep`
+  druhu, stejně jako stav kusů (cesta do vchodu se drží, jízdy vozů); zemská stezka a cesta ve
+  vylepšení (`fixedRoadIds`) živé. **Osa vede přesně do vchodu a odtud rovně po rameni do středu**
+  (`bendEnd`) – úseky dál sdílejí bod uzlu, takže spojení, pahýly, copánky i díry v úklidu se
+  nemění; oblouk po 1 m se uloží zjednodušený (`simplifyPathLine`, `SIMPLIFY_M`) – body osy
+  zdražují chůzi a vozy. Neohýbá se vozová cesta, stezka, cesta ve vylepšení ani úsek kratší než
+  `bendM` (`isFixed` – rameno přesně v jejich směru). Beze změny (`keptJunction` – ohnuté konce
+  leží přesně ve vchodech, počet ramen sedí) jen nová id úseků v `arms`; jinak `fitNode` znovu
+  (id, den vzniku a znamení zůstanou; kámen a kůl se posunou do nejširší mezery, strom stojí).
+  Místa na stromy a jabloně do `ROAD_CLEAR_M` (2,2 m) od ohnutých os v okolí středu zmizí (místo
+  se stromem zůstane). Znamení: strom = `RoadTree` v `roads.trees` (`spot` = id křižovatky, id
+  z `nextId`, roste od keře) a zůstane i po zániku; kámen a kůl jsou v `obstacleChangesAt`
+  (`added`, id `junctionLandmarkId` = ROAD_TREE_ID_BASE + id křižovatky) jako balvan a keř
+  a zmizí s křižovatkou. Uzel s 5+ živými konci křižovatku zatím nemá (`splitCrowdedNode` se
+  nevolá – na Vlkově žádný). Plocha pod křižovatkou (`roadCapsules` v `road-land.ts`): místo kruhu
+  pásy ramen (pásy cest) a spojnice sousedních ramen (mezera pod 180°) ve vzdálenosti šířky
+  nejširší cesty. Scéna: `SceneVillage.junctions` (data pro Úlohu 12), do té doby kruh
+  `roadJunctions` (ve středu, kde končí ≥ 3 úseky). Měření `road-report.ts` – objekty po tvarech
+  a znameních, uzly 5+, přepočty a ohyby (`JUNCTION_RUNS`). Testy `junctions-network.test.ts`,
+  `road-stubs.test.ts` (Y u branky hřbitova, 12 měsíců beze změny).
 
 - **Vylepšení pevné cesty a chůze podle stupně** ([roads.md](../design/roads.md) – fáze 2):
   terén pěšin má příznaky `PATH_WETLAND` (mokřina – suchá rovina do 3 buněk od vody) a `PATH_WATER`;

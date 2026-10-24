@@ -243,14 +243,14 @@ export const WAGON_ROAD = {
  * roads.md a fields.md – Cesta ubírá poli plochu (Martin, 19. 10. 2026: „Ano má. Ono to stejně ve
  * výsledku bude tak, že pokud oráč narazí na cestu, tak spřežení otočí. Nebude pak moci vzniknout
  * takový růžek…“; čísla návrh Clauda): pás pevné cesty v šířce obtisku (vyšlapaná 1,9 m, vyježděná
- * 2,6 m, upravená a hať 3 m, vozová cesta 3,5 m) a plácek rozcestí (poloměr 1,3 × šířka nejširší cesty) se neorou.
+ * 2,6 m, upravená a hať 3 m, vozová cesta 3,5 m) a obrys křižovatky (pásy ramen a střed mezi nimi –
+ * paths.md, Křižovatky) se neorou.
  * Kus pole, který cesty oddělí od zbytku, se obdělává, jen když se do něj vejde obrat spřežení
  * (kruh o poloměru ≈ 5 m – plocha `cornerMinM2`) a není to jen proužek užší než `stripMinM` podél
  * cesty – jinak zůstane loukou (mez u cesty). Počítá se po buňkách `cells` × `cells` na čtverec.
  */
 export const ROAD_LAND = {
   widthM: { trodden: 1.9, cart: 2.6, improved: 3, causeway: 3, wagon: 3.5 },
-  junctionScale: 1.3,
   turnRadiusM: 5,
   cornerMinM2: 80,
   stripMinM: 3,

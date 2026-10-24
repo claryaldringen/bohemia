@@ -300,7 +300,9 @@ export function roadBands(roads: readonly SceneRoad[]): {
 
 /**
  * Rozcestí pevných cest (roads.md – Co hráč vidí; Martin: „rozcestí by mělo být nejvyšlapanější
- * plochou“): body, kde končí aspoň tři úseky – plácek plné síly. Patří k upravené cestě, když do
+ * plochou“): body, kde končí aspoň tři úseky – plácek plné síly. Dočasně (do scény křižovatek,
+ * plán cest v2, Úloha 12): úseky křižovatky končí v jejím středu (osa vede vchodem po rameni do
+ * středu – paths.md, Křižovatky), takže kruh leží ve středu křižovatky. Patří k upravené cestě, když do
  * něj upravená část některého úseku vbíhá (je pak širší), jinak k vyšlapané.
  */
 export function roadJunctions(roads: readonly SceneRoad[]): {
