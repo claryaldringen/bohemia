@@ -75,7 +75,7 @@ má ves ≥ 4 dospělé mimo rodinu“ (volba z nabídky).
   v jejich domech, ženatí synové mimo dvorec a jejich ženy, zeťové. **Vedlejší manželky vojvody**
   se nepočítají ani ve vlastním domě – vedou domácnost a patří k rodině (návrh Clauda – pravidlo
   beze změny). Rodina tak začne cvičit odhadem za ≈ 15 let, podobně jako se dvěma páry – viz
-  Otevřené otázky. V hájení dospělí neumírají, takže hystereze do 30 let nezasáhne.
+  Odpovědi Martina (odpovědi k fázi 1). V hájení dospělí neumírají, takže hystereze do 30 let nezasáhne.
 
 ## Den rodiny (návrh Clauda)
 
@@ -306,7 +306,8 @@ Clauda.
 - **Rodina zpočátku pracuje:** ves nemá žádného dospělého mimo rodinu, takže podle Zakládání vsi
   (≥ 4 dospělí mimo rodinu) pracuje vojvoda i manželky jako ostatní, dokud nedorostou děti
   vedlejších manželek v jejich domech a nepřibudou ženatí synové mimo dvorec se ženami a zeťové –
-  odhadem ≈ 15 let, podobně jako se dvěma páry. Viz Otevřené otázky.
+  odhadem ≈ 15 let, podobně jako se dvěma páry. Martin 24. 10. 2026: „Nechat, rodina zpočátku
+  pracuje“ – pravidlo ≥ 4 dospělí mimo rodinu platí beze změny.
 - **Ves z výpravy** ([stěhování](migration.md)) zakladatele nemění – odejdou, kdo odejdou.
 
 ### Manželky (Martin 24. 10. 2026; podrobnosti návrh Clauda)
@@ -327,9 +328,9 @@ Clauda.
   i po smrti manželky.
 - **Bydlení** (Martin): vedlejší manželky bydlí s mužem, **dokud jeho dům není přeplněný** –
   vojvoda tak může žít v dvorci se dvěma manželkami a jejich dětmi. Je-li přeplněný, odchází
-  **nejmladší vedlejší manželka se svými svobodnými dětmi** do vlastního obydlí (návrh Clauda –
-  bývá nejkratší dobu vdaná a má nejméně dětí, takže z dvorce odejde nejméně cvičících synů); po
-  jedné domácnosti, dokud dům přeplněný zůstává. **Bez volného obydlí** zůstane v přeplněném domě
+  **vedlejší manželka s nejstarším synem, který by se mohl starat už o dům**, se svými svobodnými
+  dětmi do vlastního obydlí (Martin, 24. 10. 2026: „Ta s nejstarším synem, který by se mohl starat už o dům“; při shodě
+  nejdéle vdaná, návrh Clauda); po jedné domácnosti, dokud dům přeplněný zůstává. **Bez volného obydlí** zůstane v přeplněném domě
   (méně porodů, víc úmrtí dětí) a je **rodinou k osídlení** – upozornění „Rodina čeká na dům“
   a hráč smí stavět obydlí ([obyvatelstvo](population.md) – Nové obydlí, Lidé k osídlení). Kdo
   odešel, **zpět se nevrací** (ať se nestěhuje tam a zpět) – jen jako nová hlavní manželka.
@@ -359,12 +360,13 @@ Clauda.
 - **Ve scéně** (návrh Clauda, jen zobrazení): večer po výcviku jde vojvoda po pěšinách k domu
   jedné vedlejší manželky (střídá je po dnech, deterministicky) a ráno se vrátí do dvorce –
   výcvik ani práci to nemění.
-- **Nová hlavní manželka** (návrh Clauda): po smrti hlavní manželky je hlavní **nejdéle vdaná
-  vedlejší manželka, která bydlí s mužem** (u vojvody v dvorci) – nikdo se nestěhuje. Bez ní
-  nejdéle vdaná vedlejší odjinud, která se se svobodnými dětmi přestěhuje k muži (i do
-  přeplněného dvorce – přeplnění pak řeší Bydlení). Bez vedlejší je hlavní příští manželka.
-  Synové zemřelé hlavní manželky si přednost v nástupnictví podrží (Nástupnictví). Viz Otevřené
-  otázky.
+- **Nová hlavní manželka** (Martin, 24. 10. 2026): po smrti hlavní manželky je hlavní **matka
+  nejstaršího syna**, tedy matka dědice (nejstaršího žijícího syna muže; žije-li on bez živé
+  matky, další nejstarší syn s živou matkou – návrh Clauda). Nebydlí-li s mužem (u vojvody
+  v dvorci), **přestěhuje se** se svobodnými dětmi k němu, i do přeplněného dvorce (přeplnění
+  pak řeší Bydlení). Bez takové matky (žádný syn nebo žádná matka nežije) je hlavní nejdéle
+  vdaná vedlejší manželka, jinak příští manželka (návrh Clauda). Synové zemřelé hlavní manželky
+  si přednost v nástupnictví podrží (Nástupnictví).
 - **Po smrti muže:** manželky jsou vdovy a vdávají se hned ([příbuzenství](kinship.md)); vedlejší
   manželce zůstává dům i děti. Nový vojvoda vdovy po otci nepřebírá.
 - **Opravy** (Martin: „O opravu takových obydlí a vojvodova dvorce se starají ostatní muži
@@ -484,10 +486,11 @@ Clauda.
   manželky** je syn ženy, která kdy byla hlavní manželkou vojvody – přednost si podrží i po
   smrti matky (návrh Clauda, příznak u syna – Pro implementaci). Má ji i jako chlapec před
   dospělým synem vedlejší manželky (Martin).
-- **Bez syna hlavní manželky** (návrh Clauda) v pořadí: **1.** nejstarší syn vedlejší manželky,
-  **2.** nejstarší vnuk po meči, **3.** nejstarší muž rodu ve vsi – bratr, synovec… Proč: syn je
-  otci bližší než vnuk (Martin dřív: „bez syna nejstarší vnuk po meči“) a syn vedlejší manželky
-  obvykle vyrůstal v dvorci a cvičil. Viz Otevřené otázky. Muži rodu v jiných vsích hráče řeší
+- **Bez živého syna hlavní manželky** v pořadí: **1.** nejstarší žijící syn vojvody od vedlejší
+  manželky (Martin, 24. 10. 2026: nastoupí syn vedlejší manželky), **2.** nejstarší vnuk po meči,
+  **3.** nejstarší muž rodu ve vsi – bratr, synovec… (2. a 3. návrh Clauda). Proč: syn je otci
+  bližší než vnuk (Martin dřív: „bez syna nejstarší vnuk po meči“) a syn vedlejší manželky
+  obvykle vyrůstal v dvorci a cvičil. Muži rodu v jiných vsích hráče řeší
   fáze 2–4, náhoda „bez pozvánky“ čeká na fázi 3 (Martin).
 - **Kdo se stěhuje** (návrh Clauda): nový vojvoda s hlavní manželkou a jejími svobodnými dětmi;
   vedlejší manželky se svobodnými dětmi jen, vejdou-li se do dvorce (od nejdéle vdané). Ostatní
@@ -502,7 +505,7 @@ Clauda.
   a pracuje jako zeť; chlapec tak z dvorce neodejde.
 - Vdovy po vojvodovi zůstávají v dvorci se svými dětmi, dokud se nevdají (vdávají se hned –
   kinship.md), svobodní synové zůstávají a cvičí. **Přeplní-li se dvorec**, odchází jako vedlejší
-  manželka nejdřív nejmladší vdova (ne matka vojvody) se svobodnými dětmi, pak vedlejší manželky
+  manželka nejdřív vdova s nejstarším synem (ne matka vojvody) se svobodnými dětmi, pak vedlejší manželky
   nového vojvody (Manželky – Bydlení; návrh Clauda). Kronika „Vojvodou je Bořivoj“.
 
 ### Konec rodu – konec hry (Martin 24. 10. 2026 – „Začít znovu, ves zanikne“)
@@ -619,21 +622,10 @@ přednost). Při revizi týž den Martin uzavřel **přeplněný dvorec** (vedle
 až je dvorec přeplněný), **konkubínu jen do prázdného obydlí** (konkubíny zrušil), **manželky
 synů mimo dvorec** (pracují) a **zakladatele bez nepříbuzného páru** (partneři z okolí stačí).
 
-**Fáze 1 issue #9 (Rod vojvody):**
-
-- **Nástupce bez syna hlavní manželky.** Návrh Clauda: nejstarší syn vedlejší manželky →
-  nejstarší vnuk po meči → nejstarší muž rodu (syn je otci bližší a obvykle cvičil v dvorci).
-  Nebo napřed vnuk po synovi hlavní manželky – linie hlavní manželky před syny vedlejších?
-- **Nová hlavní manželka.** Návrh Clauda: nejdéle vdaná vedlejší manželka, která bydlí s mužem
-  (nikdo se nestěhuje), jinak nejdéle vdaná odjinud. Nebo ta s nejstarším synem, nebo nejstarší
-  věkem?
-- **Která vedlejší manželka odchází z přeplněného dvorce.** Návrh Clauda: nejmladší se
-  svobodnými dětmi a zpět se nevrací. Nebo ta s nejméně syny (v dvorci cvičí co nejvíc synů), nebo
-  ta s nejvíc dětmi (uvolní nejvíc míst)?
-- **Rodina na začátku pracuje ≈ 15 let.** Bez konkubín nemá ves zpočátku nikoho mimo rodinu,
-  a pravidlo ≥ 4 dospělí mimo rodinu (Martin) tak odloží výcvik o ≈ 15 let – jako dosud se dvěma
-  páry. Návrh Clauda: beze změny (rychlejší start, výcvik přijde s rodem). Nebo nechat vojvodu
-  cvičit od začátku a pracovat jen manželky?
+**Fáze 1 issue #9 (Rod vojvody):** všechny čtyři otázky Martin uzavřel 24. 10. 2026 – nástupce
+bez syna hlavní manželky, nová hlavní manželka, odchod vedlejší manželky z přeplněného dvorce
+a začátek bez lidí mimo rodinu (viz Odpovědi Martina – 24. 10. 2026, odpovědi k fázi 1). Zatím
+žádná otevřená otázka.
 
 ## Rozhodnutí
 
@@ -691,14 +683,15 @@ synů mimo dvorec** (pracují) a **zakladatele bez nepříbuzného páru** (part
 | Opravy dvorce a domů vojvodových manželek dělají ostatní muži vsi                                                                                                           | Martin (24. 10. 2026)  |
 | Vedlejší manželky vedou domácnost (na pole jen při hladu); manželky synů mimo dvorec pracují                                                                                | Martin (24. 10. 2026)  |
 | Nástupcem je nejstarší syn hlavní manželky                                                                                                                                  | Martin (24. 10. 2026)  |
+| Bez syna hlavní manželky nastoupí syn vedlejší manželky (nejstarší žijící syn vojvody od ní; až bez něj vnuk po meči)                                                       | Martin (24. 10. 2026)  |
+| Zemře-li hlavní manželka, novou hlavní je matka nejstaršího syna (dědice); přestěhuje se do dvorce, pokud v něm nebydlí                                                     | Martin (24. 10. 2026)  |
+| Z přeplněného dvorce odchází vedlejší manželka s nejstarším synem, který by se mohl starat už o dům                                                                         | Martin (24. 10. 2026)  |
+| Začátek bez lidí mimo rodinu: rodina zpočátku pracuje, pravidlo ≥ 4 dospělí mimo rodinu beze změny                                                                          | Martin (24. 10. 2026)  |
 | První generaci stačí partneři z okolí                                                                                                                                       | Martin (24. 10. 2026)  |
 | Zakladatelé: vojvoda 25, hlavní manželka 22, vedlejší 20, 18 a 16 let, bez dětí; všech 5 v první zemnici; rodina zpočátku pracuje                                           | návrh Clauda           |
 | Nejvýš 4 žijící manželky, hlavní je první; další jen z okolí ≈ 30 % ročně – do domu muže, vejde-li se, jinak do prázdného obydlí                                            | návrh Clauda           |
-| Z přeplněného domu odchází nejmladší vedlejší manželka se svobodnými dětmi; bez obydlí čeká jako rodina k osídlení; zpět se nevrací                                         | návrh Clauda           |
 | Přednost při osídlení: ženatý syn vojvody → vedlejší manželka z přeplněného domu muže rodu → ostatní                                                                        | návrh Clauda           |
 | Porody na ženu, žena nemusí bydlet s mužem; návštěvy vojvody jen ve scéně                                                                                                   | návrh Clauda           |
-| Nová hlavní manželka: nejdéle vdaná vedlejší, která bydlí s mužem, jinak nejdéle vdaná odjinud (přestěhuje se)                                                              | návrh Clauda           |
-| Bez syna hlavní manželky: syn vedlejší → vnuk po meči → muž rodu; syn hlavní manželky má přednost i po její smrti                                                           | návrh Clauda           |
 | K rodině patří i vojvodovy vedlejší manželky mimo dvorec, jejich děti tam pracují; samotné děti jdou k otci                                                                 | návrh Clauda           |
 | Opravy domů rodiny ze společné práce vsi jako dosud (model práci mužů a žen nedělí)                                                                                         | návrh Clauda           |
 | Převod: dnešní žena muže rodu je hlavní manželka; Vlkov beze změny                                                                                                          | návrh Clauda           |
@@ -740,3 +733,13 @@ Body 3, 5 a 6 (konkubíny) nahrazuje revize týž den – viz níž.
    odejde, necvičí a pracuje; k rodu patří a jméno mu dá hráč.
 5. **Nástupce:** nejstarší syn hlavní manželky.
 6. **Práce vedlejších manželek:** vedou domácnost, na pole jen při hladu.
+
+## Odpovědi Martina (24. 10. 2026, odpovědi k fázi 1)
+
+1. **Nástupce bez syna hlavní manželky:** nastoupí syn vedlejší manželky (nejstarší žijící syn
+   vojvody od ní; až bez něj vnuk po meči).
+2. **Nová hlavní manželka:** matka nejstaršího syna, tedy matka dědice; přestěhuje se do dvorce,
+   pokud v něm nebydlí.
+3. **Která vedlejší manželka odchází z přeplněného dvorce:** „Ta s nejstarším synem, který by se mohl starat už o dům“.
+4. **Začátek bez lidí mimo rodinu:** „Nechat, rodina zpočátku pracuje“ – pravidlo ≥ 4 dospělí
+   mimo rodinu platí beze změny.
