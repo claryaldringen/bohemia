@@ -7,7 +7,7 @@ import type { SceneVillage } from '../village-view';
 import type { PlotSquare, Rect } from './homestead-layout';
 
 /** Díl cvičiště (model `training.glb` – tools/blender/training_ground.py). */
-export type TrainingPart = 'target' | 'backstop' | 'post' | 'rack' | 'hitch';
+export type TrainingPart = 'target' | 'post' | 'rack' | 'hitch';
 
 /** Díl cvičiště ve světě – natočení modelu (model míří na +Z, (sin r, cos r)). */
 export interface TrainingPiece extends Position {
@@ -53,9 +53,8 @@ const HUT_SHOOT_M = 2;
 const LANE_GAP_M = 1.7;
 /** Čekající na střídačku stojí kousek za střelcem (m). */
 const WAIT_BEHIND_M = 1.4;
-/** Terče před koncem dvora (m od plotu); proutěný plůtek za nimi. */
+/** Terče před koncem dvora (m od plotu); zástěna za nimi není – cvičiště nepřesahuje plot (Martin 24. 10. 2026). */
 const TARGET_FROM_FENCE_M = 1.8;
-const BACKSTOP_FROM_FENCE_M = 0.8;
 /** Dvojice: rozestup soupeřů (m). */
 const PAIR_GAP_M = 1.6;
 /** Cvičící u kůlu stojí metr před ním. */
@@ -157,7 +156,6 @@ export function manorTrainingGround(
         const t = lane.target;
         return { part: 'target' as const, x: t.x, z: t.z, rotation: Math.atan2(-f.ux, -f.uz) };
       }),
-      piece(f, 'backstop', end - BACKSTOP_FROM_FENCE_M, lc, -1, 0),
       piece(f, 'post', postA, postL, 0, 1),
       piece(f, 'rack', s - 4.5, -(inner - 0.6), 0, 1),
       piece(f, 'hitch', end - 1.0, -2.6, -1, 0),

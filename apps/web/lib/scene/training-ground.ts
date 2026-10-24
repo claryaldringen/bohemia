@@ -10,7 +10,7 @@ import { FIGURE_SCALE } from './villager-plan-types';
 import type { HeightFn } from './village-meshes';
 
 const TRAINING_MODEL_URL = '/models/training/training.glb';
-const PARTS: readonly TrainingPart[] = ['target', 'backstop', 'post', 'rack', 'hitch'];
+const PARTS: readonly TrainingPart[] = ['target', 'post', 'rack', 'hitch'];
 
 /** Otisk cvičiště – instance se přepočítají, jen když se změní. */
 function groundKey(ground: TrainingGround | null): string {

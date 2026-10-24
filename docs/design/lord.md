@@ -142,7 +142,8 @@ pozná hrozbu ze dvou odhadů, které už počítá – nový odhad nevzniká.
 
 - **Dvorek dvorce:** dvorec stojí na pozemku dvou políček (≈ 30 × 15 m) s plotem a branou. Podél
   delší osy je **střelnice ≈ 20 m**, na jejím konci **2 terče** – kotouč ze svázané slámy ≈ 1 m na
-  dřevěné trojnožce s okrovým kruhem, za nimi proutěný plůtek na zachycení šípů. Dva terče stačí:
+  dřevěné trojnožce s okrovým kruhem, bez zástěny – cvičiště nesmí přesahovat plot (Martin 24. 10. 2026:
+  „To cvičiště by takhle nemělo předsahovat plot. Stačí, když odebereš tu zástěnu za terči“). Dva terče stačí:
   rodina má obvykle 2–5 mužů a střílí se na střídačku.
 - **Cvičný kůl** u plotu (≈ 1,8 m, zářezy od úderů – Vegetius) a **stojan s dřevěnými meči
   a proutěnými štíty**; u brány **kůl na uvázání koní**.

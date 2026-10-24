@@ -168,7 +168,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   není stavba ani překážka, nemá stav, síť pěšin ani vrstvu překážek nemění.
   `training-ground-layout.ts` (čisté funkce, testy): `trainingGroundOf` – dvorec s dvorem má
   cvičiště vždy (`manorTrainingGround`): střelnice `RANGE_M` = 20 m podél delší osy pruhem vedle
-  domu (≈ 0,35 strany políčka od osy), 2 terče 1,8 m před koncem dvora, proutěný plůtek za nimi;
+  domu (≈ 0,35 strany políčka od osy), 2 terče 1,8 m před koncem dvora (bez zástěny – Martin 24. 10. 2026: „To cvičiště by takhle nemělo předsahovat plot. Stačí, když odebereš tu zástěnu za terči“);
   brána je uprostřed konce dvora, pruh ji míjí. Na druhé straně dvorku cvičný kůl u plotu, stojan
   se zbraněmi, dvě místa pro dvojice a u brány kůl na koně. Záhony dvorce pruh střelnice vynechají
   (`rangeStrip` v `homestead-layout.ts`). Bez dvorce (`hutTrainingGround` – jen když rodina dnes
