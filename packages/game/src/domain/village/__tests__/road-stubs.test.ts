@@ -11,6 +11,7 @@ import { mergeParallelRoads, removeBraids } from '../paths/roads-tidy';
 import { type SpotContext } from '../paths/roads-trees';
 import { encodeRoute } from '../paths/routes';
 import { EDGE_MARGIN_M, pathCellM, trailTerrain } from '../paths/terrain';
+import { ROAD_STUB } from '../rules';
 import type { Road, RoadGrade, RoadPoint, StoredRoute, VillageRoads, VillageState } from '../types';
 import { village } from './abandonment-fixtures';
 import { LANDSCAPE } from './paths-fixtures';
@@ -153,6 +154,45 @@ describe('pahýly a okruhy', () => {
     const improved = roadsOf(list('improved'));
     expect(trimStubs(improved, [], { isAnchor, lines: [line] })).toBe(false);
     expect(improved.roads.some((r) => r.id === 3)).toBe(true);
+  });
+
+  it('zbytek upravené a vozové cesty pod 30 m bez kotvy zmizí, delší zůstane (Vlkov – 25 m)', () => {
+    const net = (grade: RoadGrade, length: number): VillageRoads =>
+      roadsOf([
+        road(1, [
+          [0, 0],
+          [100, 0],
+        ]),
+        road(2, [
+          [100, 0],
+          [200, 0],
+        ]),
+        road(
+          3,
+          [
+            [100, 0],
+            [100, length],
+          ],
+          grade,
+        ),
+      ]);
+    const isAnchor = anchorsAt([
+      [0, 0],
+      [200, 0],
+    ]);
+    const stub = { isAnchor, lines: [] };
+    expect(ROAD_STUB.remnantM).toBe(30);
+    for (const grade of ['improved', 'wagon'] as const) {
+      const short = net(grade, 25);
+      expect(trimStubs(short, [], stub)).toBe(true);
+      expect(short.roads.map((r) => r.id)).toEqual([1, 2]);
+      // uzel u zmizelého zbytku se spojí – zbude jedna cesta od kotvy ke kotvě
+      mergeRoadChains(short, []);
+      expect(short.roads).toHaveLength(1);
+      const long = net(grade, 35);
+      expect(trimStubs(long, [], stub)).toBe(false);
+      expect(long.roads.some((r) => r.id === 3)).toBe(true);
+    }
   });
 
   it('malý okruh přes jeden uzel se rozdělí a zmizí jako copánek a pahýl', () => {
