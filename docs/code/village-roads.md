@@ -622,7 +622,12 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   neprůchodné ploše hotových staveb (`villageBlockedAt` v `village.ts`: mřížka sítě pěšin, buňky
   `Infinity` mimo brány; pozemek, ohrada, hřbitov, okrsek svatyně, dům) se vyřízne jako
   `Road.abandoned` (řez o vzorek od stavby, zbytek < `MIN_ROAD_M` se přidá), celá cesta pod stavbou
-  zůstane jedním opuštěným úsekem. **Opuštěný úsek není v síti:** `roadChains`/`roadChain`,
+  zůstane jedním opuštěným úsekem. Drží jen práce na cestě (`Construction.roadIds` – vylepšení,
+  stezka ve stavbě), **úsek hotové zemské stezky ne** (Vlkov 24. 10. 2026: upravená cesta 4, úsek
+  stezky 2178, vedla přes dvorec 1985 a polozemnici 2008 postavené po ní – `fixedRoadIds` ji
+  vyňalo navždy); `retrailPieces` pak vede stezku po živých zbytcích v jejím pořadí od vsi ven
+  (`againstAxis`), opuštěné ze stezky vypadnou a zarostou. Stará ves se srovná sama první měsíc.
+  Test `road-under-house.test.ts` (stezka pod dvorcem, vozová cesta pod polozemnicí). **Opuštěný úsek není v síti:** `roadChains`/`roadChain`,
   `nearestOnRoads` (napojení, díry), `chainPair`, `mergeParallelRoads`, `removeBraids`,
   `endDegrees`, `markRoadEnds`, vznik cest (`eachWearRun` – není „už cesta“), `survivedTidy`
   ho přeskakují; jen bledne podle druhu a zmizí. Díky tomu objížďka kolem stavby přestane být

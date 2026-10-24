@@ -6,6 +6,7 @@ import {
   type ChronicleEvent,
   type Construction,
   type Road,
+  type RoadPoint,
   type Trail,
   type VillageRoads,
 } from '../types';
@@ -203,8 +204,10 @@ const BLOCK_MIN_RUN_M = 5;
  * Kus pod hotovou stavbou je opuštěný (mutuje; paths.md – Stavba přes cestu, návrh Clauda – Vlkov
  * 23. 10. 2026): kus osy, který leží v neprůchodné ploše (`blocked`), se vyřízne jako opuštěný
  * úsek (`Road.abandoned`) – vypadne ze sítě a zaroste; zbytky po stranách žijí dál se starým id
- * (první) a novými. Zbytek kratší než MIN_ROAD_M se přidá k opuštěnému. Cesta ve vylepšení se
- * nemění, opuštěná se nehodnotí znovu. Vrátí, jestli se něco změnilo.
+ * (první) a novými. Zbytek kratší než MIN_ROAD_M se přidá k opuštěnému. Cesta ve vylepšení (i
+ * stezka ve stavbě) se nemění, opuštěná se nehodnotí znovu. Úsek hotové zemské stezky ano (Vlkov
+ * 24. 10. 2026 – upravená cesta 4 vedla přes dvorec a polozemnici postavené po ní): stezka pak vede
+ * po živých zbytcích (`retrailPieces`). Vrátí, jestli se něco změnilo.
  */
 export function abandonBlockedStretches(
   roads: VillageRoads,
@@ -212,7 +215,9 @@ export function abandonBlockedStretches(
   trails: readonly Trail[] | undefined,
   blocked: (x: number, z: number) => boolean,
 ): boolean {
-  const frozen = fixedRoadIds(constructions, trails);
+  // jen práce na cestě ji drží (`Construction.roadIds` – vylepšení, stezka ve stavbě); hotová
+  // stezka nezarůstá (`fixedRoadIds`), ale dům na ní ji přeruší jako každou jinou cestu
+  const frozen = new Set(constructions.flatMap((c) => c.roadIds ?? []));
   let changed = false;
   for (const road of [...roads.roads]) {
     if (road.abandoned || frozen.has(road.id) || road.points.length < 2) continue;
@@ -251,12 +256,71 @@ export function abandonBlockedStretches(
       if (s.kind === 'alive' && s.b - s.a < MIN_ROAD_M) s.kind = 'abandoned';
     }
     const merged = mergeSegments(segments);
+    const axis = road.points;
     if (merged.every((s) => s.kind === 'abandoned')) {
       road.abandoned = true;
+      retrailPieces(trails, roads, road.id, axis, [road]);
     } else {
+      // zbytky leží na místě úseku v pořadí osy (`reshapeRoad`; nic nezmizí – jen žije a opuštěný)
+      const at = roads.roads.indexOf(road);
       reshapeRoad(roads, road, merged);
+      retrailPieces(trails, roads, road.id, axis, roads.roads.slice(at, at + merged.length));
     }
     changed = true;
   }
   return changed;
+}
+
+/**
+ * Úsek `id` zemské stezky se rozřízl na zbytky `made` (v pořadí osy `axis`; mutuje stezky): stezka
+ * vede po živých zbytcích ve svém pořadí od vsi ven, opuštěné z ní vypadnou (zarostou jako každá
+ * opuštěná cesta). Stupeň zůstane, práce u prvního kusu (jako `splitTrailPieces`).
+ */
+function retrailPieces(
+  trails: readonly Trail[] | undefined,
+  roads: VillageRoads,
+  id: number,
+  axis: readonly RoadPoint[],
+  made: readonly Road[],
+): void {
+  for (const trail of trails ?? []) {
+    const at = trail.pieces.findIndex((p) => p.roadId === id);
+    if (at < 0) continue;
+    const piece = trail.pieces[at]!;
+    const living = made.filter((r) => !r.abandoned);
+    if (againstAxis(roads, trail.pieces, at, axis)) living.reverse();
+    trail.pieces.splice(
+      at,
+      1,
+      ...living.map((r, k) => ({
+        roadId: r.id,
+        grade: piece.grade,
+        manDays: k === 0 ? piece.manDays : 0,
+      })),
+    );
+  }
+}
+
+/**
+ * Vede stezka úsekem `pieces[at]` proti směru jeho osy? Začátek osy leží u předchozího úseku
+ * stezky (nebo konec u následujícího); bez sousedů ve směru osy.
+ */
+function againstAxis(
+  roads: VillageRoads,
+  pieces: readonly { roadId: number }[],
+  at: number,
+  axis: readonly RoadPoint[],
+): boolean {
+  const ends = (k: number): RoadPoint[] => {
+    const pts = roads.roads.find((r) => r.id === pieces[k]?.roadId)?.points ?? [];
+    return pts.length > 0 ? [pts[0]!, pts[pts.length - 1]!] : [];
+  };
+  const near = (p: RoadPoint, to: readonly RoadPoint[]): number =>
+    Math.min(...to.map((q) => (q.x - p.x) * (q.x - p.x) + (q.z - p.z) * (q.z - p.z)));
+  const first = axis[0]!;
+  const last = axis[axis.length - 1]!;
+  const before = ends(at - 1);
+  if (before.length > 0) return near(last, before) < near(first, before);
+  const after = ends(at + 1);
+  return after.length > 0 && near(first, after) < near(last, after);
 }

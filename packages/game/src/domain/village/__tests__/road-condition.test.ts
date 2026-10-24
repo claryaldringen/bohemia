@@ -190,6 +190,42 @@ describe('opuštěný kus pod stavbou (paths.md – Stavba přes cestu)', () => 
     expect(JSON.stringify(roads)).toBe(before);
   });
 
+  it('úsek hotové stezky pod stavbou se opustí, stezka vede po zbytcích ve svém směru; stezka ve stavbě ne', () => {
+    // stezka jde od severu (úsek 2, z 100–140) na jih po úseku 1 – proti jeho ose (z 0 → 100)
+    const north: Road = {
+      ...road(2, 'improved'),
+      points: [
+        { x: 0, z: 140 },
+        { x: 0, z: 100 },
+      ],
+    };
+    const roads = roadsOf(road(1, 'improved'), north);
+    const trail = {
+      pieces: [
+        { roadId: 2, grade: 'improved', manDays: 5 },
+        { roadId: 1, grade: 'improved', manDays: 9 },
+      ],
+    };
+    const trails = [trail] as unknown as VillageState['trails'];
+    const works = [{ roadIds: [1] }] as unknown as Construction[];
+    expect(abandonBlockedStretches(roads, works, trails, under(40, 60))).toBe(false);
+    expect(abandonBlockedStretches(roads, [], trails, under(40, 60))).toBe(true);
+    const south = roads.roads.find((r) => r.id === 1)!;
+    expect(south.points[south.points.length - 1]!.z).toBeLessThan(40);
+    const rest = roads.roads.find((r) => !r.abandoned && r.id !== 1 && r.id !== 2)!;
+    expect(rest.points[0]!.z).toBeGreaterThan(60);
+    expect(trail.pieces).toEqual([
+      { roadId: 2, grade: 'improved', manDays: 5 },
+      { roadId: rest.id, grade: 'improved', manDays: 9 },
+      { roadId: 1, grade: 'improved', manDays: 0 },
+    ]);
+    // celý úsek pod stavbou ze stezky vypadne
+    const whole = roadsOf(road(1, 'improved', 0, 60));
+    const only = [{ pieces: [{ roadId: 1, grade: 'improved', manDays: 3 }] }];
+    abandonBlockedStretches(whole, [], only as unknown as VillageState['trails'], under(-5, 70));
+    expect(only[0]!.pieces).toEqual([]);
+  });
+
   it('celá cesta pod stavbou zůstane jedním opuštěným úsekem se starým id', () => {
     const roads = roadsOf(road(1, 'trodden', 0, 60));
     abandonBlockedStretches(roads, [], undefined, under(-5, 70));

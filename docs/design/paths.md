@@ -351,7 +351,9 @@ Nový systém přehrazení řeší sám (návrh Clauda):
 
 - **Kus pod hotovou stavbou** (pozemek, ohrada, hřbitov, okrsek svatyně, dílna – vše, co je
   v mřížce chodců neprůchodné) je hned **opuštěný** – vypadne ze sítě a zaroste; zbytky cesty po
-  obou stranách žijí dál, pokud po nich vede trasa.
+  obou stranách žijí dál, pokud po nich vede trasa. Platí i pro úsek hotové zemské stezky a vozovou
+  cestu (zemní práce zůstanou) – stezka pak vede po živých zbytcích. Návrh Clauda (24. 10. 2026,
+  Vlkov – Martin: „tenhle úsek vede skrz domy“).
 - **Objížďka:** trasy (a vozy) obejdou stavbu nejrychlejší cestou kolem – uličkou, okrajem pole,
   loukou; vůz přes osetý díl jen když jinudy nejde. Vyšlapaná objížďka se stane cestou jako každá
   jiná a napojí se na zbytky staré cesty (kotva „jiná cesta“ – `joinPoint`, `splitRoad`). Kudy vede
