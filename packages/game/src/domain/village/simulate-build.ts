@@ -410,7 +410,7 @@ export function finishConstructions(state: VillageState, day: number): void {
   }
   state.constructions = unfinished;
   // vylepšený úsek se stejným stupněm jako soused v uzlu bez odbočky se s ním spojí (roads.md)
-  if (roadUpgraded && state.roads) mergeRoadChains(state.roads, state.constructions);
+  if (roadUpgraded && state.roads) mergeRoadChains(state.roads, state.constructions, state.trails);
 }
 
 /**

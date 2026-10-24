@@ -277,6 +277,70 @@ describe('slučování úseků v uzlu bez odbočky', () => {
     expect(withMergedRoads(migrated)).toBe(migrated);
   });
 
+  it('stezka po spojení úseků vede po ponechaném úseku, součet práce, bez duplicit', () => {
+    const roads = roadsOf([
+      road(1, [
+        [0, 0],
+        [30, 0],
+      ]),
+      road(2, [
+        [30, 0],
+        [70, 0],
+      ]),
+      road(3, [
+        [70, 0],
+        [100, 0],
+      ]),
+    ]);
+    const trails = [
+      {
+        pieces: [
+          { roadId: 1, grade: 'trodden', manDays: 2 },
+          { roadId: 2, grade: 'trodden', manDays: 3 },
+          { roadId: 3, grade: 'trodden', manDays: 4 },
+        ],
+      },
+    ] as unknown as VillageState['trails'];
+    expect(mergeRoadChains(roads, [], trails)).toBe(true);
+    expect(roads.roads).toHaveLength(1);
+    expect(trails![0]!.pieces).toEqual([{ roadId: 1, grade: 'trodden', manDays: 9 }]);
+  });
+
+  it('starší ves: stezka s neexistujícím úsekem se při načtení opraví jednou', () => {
+    const s = foundVillage({
+      seed: 5,
+      day: Y1 - 400,
+      dwellingPosition: { x: 0, z: 0, rotation: 0 },
+    });
+    s.roads = roadsOf([
+      road(1, [
+        [0, 0],
+        [30, 0],
+      ]),
+      road(5, [
+        [30, 0],
+        [30, 40],
+      ]),
+      road(6, [
+        [30, 0],
+        [60, 0],
+      ]),
+    ]);
+    s.trails = [
+      {
+        pieces: [
+          { roadId: 1, grade: 'trodden', manDays: 1 },
+          { roadId: 99, grade: 'trodden', manDays: 1 },
+          { roadId: 6, grade: 'trodden', manDays: 1 },
+        ],
+      },
+    ] as unknown as VillageState['trails'];
+    const migrated = withMergedRoads(s);
+    expect(migrated.trails![0]!.pieces.map((p) => p.roadId)).toEqual([1, 6]);
+    expect(s.trails![0]!.pieces).toHaveLength(3);
+    expect(withMergedRoads(migrated)).toBe(migrated);
+  });
+
   it('Vlkov: falešná rozcestí zmizí, zůstanou jen hranice stupňů a skutečná rozcestí', () => {
     const roads = roadsOf(
       vlkov.roads.map((r): Road => ({

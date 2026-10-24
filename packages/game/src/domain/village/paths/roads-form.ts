@@ -534,13 +534,18 @@ function upgradesOf(constructions: readonly Construction[], roadId: number): str
  * vznikl dřív. Různý stupeň zůstane rozdělený (skutečná hranice vylepšení), stejně tak úseky, kde
  * se vylepšuje jen jeden z nich (nebo každý jinou stavbou) – po dokončení se spojí, mají-li
  * stejný stupeň. Stavby na úsecích (výsadba jabloní, společné vylepšení) přejdou na spojený
- * úsek. Uzavřený okruh z jednoho úseku zůstane, dva úseky mezi stejnými uzly se do okruhu
- * nespojí. Vrátí, jestli něco spojil.
+ * úsek, zemské stezky (`trails`) také – zmizelé id v nich nahradí ponechaný úsek (paths.md –
+ * Stavba přes cestu). Uzavřený okruh z jednoho úseku zůstane, dva úseky mezi stejnými uzly se do
+ * okruhu nespojí. Vrátí, jestli něco spojil.
  */
-export function mergeRoadChains(roads: VillageRoads, constructions: Construction[]): boolean {
+export function mergeRoadChains(
+  roads: VillageRoads,
+  constructions: Construction[],
+  trails?: readonly Trail[],
+): boolean {
   let merged = false;
   for (let pair = chainPair(roads, constructions); pair; pair = chainPair(roads, constructions)) {
-    joinRoads(roads, constructions, pair[0], pair[1]);
+    joinRoads(roads, constructions, trails, pair[0], pair[1]);
     merged = true;
   }
   return merged;
@@ -553,9 +558,15 @@ export function mergeRoadChains(roads: VillageRoads, constructions: Construction
  * každý další beze změny a dopočet po kouscích dá totéž co vcelku.
  */
 export function withMergedRoads(state: VillageState): VillageState {
-  if (!state.roads || !chainPair(state.roads, state.constructions)) return state;
+  if (!state.roads) return state;
+  const merge = chainPair(state.roads, state.constructions) !== null;
+  const stale = (state.trails ?? []).some((t) =>
+    t.pieces.some((p) => !state.roads!.roads.some((r) => r.id === p.roadId)),
+  );
+  if (!merge && !stale) return state;
   const next = cloneState(state);
-  mergeRoadChains(next.roads!, next.constructions);
+  if (merge) mergeRoadChains(next.roads!, next.constructions, next.trails);
+  dropGoneTrailPieces(next.roads!, next.trails);
   return next;
 }
 
@@ -615,6 +626,7 @@ function chainPair(
 function joinRoads(
   roads: VillageRoads,
   constructions: Construction[],
+  trails: readonly Trail[] | undefined,
   first: RoadEnd,
   second: RoadEnd,
 ): void {
@@ -679,5 +691,41 @@ function joinRoads(
     if (!c.roadIds?.includes(other.id)) continue;
     c.roadIds = [...new Set(c.roadIds.map((id) => (id === other.id ? road.id : id)))];
   }
+  joinTrailPieces(trails, other.id, road.id);
   roads.roads = roads.roads.filter((r) => r !== other);
+}
+
+/**
+ * Stezka nesmí odkazovat na úsek, který zmizel (vyříznutý souběžný kus, pahýl; mutuje): id
+ * neexistujícího úseku z ní vypadne. Délku a stupeň stezka nese sama (`Trail.lengthM`).
+ */
+export function dropGoneTrailPieces(
+  roads: VillageRoads,
+  trails: readonly Trail[] | undefined,
+): void {
+  if (!trails) return;
+  const ids = new Set(roads.roads.map((r) => r.id));
+  for (const trail of trails) {
+    if (trail.pieces.some((p) => !ids.has(p.roadId))) {
+      trail.pieces = trail.pieces.filter((p) => ids.has(p.roadId));
+    }
+  }
+}
+
+/**
+ * Úsek `gone` se spojil s úsekem `keep` – zemská stezka (trade.md), která po něm vedla, vede po
+ * `keep` (mutuje): na místě prvního z nich, práce se sečte, druhý výskyt zmizí.
+ */
+function joinTrailPieces(trails: readonly Trail[] | undefined, gone: number, keep: number): void {
+  for (const trail of trails ?? []) {
+    if (!trail.pieces.some((p) => p.roadId === gone)) continue;
+    const pieces: Trail['pieces'] = [];
+    for (const piece of trail.pieces) {
+      const id = piece.roadId === gone ? keep : piece.roadId;
+      const same = pieces.find((p) => p.roadId === id);
+      if (same && id === keep) same.manDays += piece.manDays;
+      else pieces.push(id === piece.roadId ? piece : { ...piece, roadId: id });
+    }
+    trail.pieces = pieces;
+  }
 }

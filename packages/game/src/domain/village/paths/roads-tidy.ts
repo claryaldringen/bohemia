@@ -8,6 +8,7 @@ import {
   type Road,
   type RoadGrade,
   type RoadPoint,
+  type Trail,
   type VillageRoads,
 } from '../types';
 import { type PathTerrain } from './terrain';
@@ -28,7 +29,7 @@ import {
   roadLengthM,
   toSegment,
 } from './roads-geometry';
-import { endKey, mergeRoadChains, roadsInWork, splitRoad } from './roads-form';
+import { dropGoneTrailPieces, endKey, mergeRoadChains, roadsInWork, splitRoad } from './roads-form';
 import { type RoadAnchors, nearAnchor } from './road-anchors';
 import { type StubNetwork, hasLoop, hasStubWork, splitLoops, trimStubs } from './roads-stubs';
 import { SpotContext } from './roads-trees';
@@ -115,8 +116,15 @@ function parallelRun(
  * s ní se vyříznou hned, ne až při roční kontrole (`mergeParallelRoads`), a navazující úseky se
  * spojí – kde vozová cesta vede po ose staré cesty, nahradí ji bez dočasného rozcestí.
  */
-export function absorbParallelRoads(roads: VillageRoads, constructions: Construction[]): void {
-  if (mergeParallelRoads(roads, constructions)) mergeRoadChains(roads, constructions);
+export function absorbParallelRoads(
+  roads: VillageRoads,
+  constructions: Construction[],
+  trails?: readonly Trail[],
+): void {
+  if (mergeParallelRoads(roads, constructions)) {
+    mergeRoadChains(roads, constructions, trails);
+    dropGoneTrailPieces(roads, trails);
+  }
 }
 
 /**
@@ -293,6 +301,8 @@ export function tidyRoads(
   context: SpotContext,
   /** Kotvy a čáry tras – s nimi se rozdělí okruhy a uklidí pahýly (`trimStubs`); bez nich ne. */
   network?: StubNetwork,
+  /** Zemské stezky – po spojení úseků vedou po ponechaném úseku (`mergeRoadChains`). */
+  trails?: readonly Trail[],
 ): void {
   // konce po zarostlém kusu jsou skutečné volné konce – díra se k nim nedoplní (roads.md)
   const cutEnds = roads.cutEnds ?? [];
@@ -306,13 +316,16 @@ export function tidyRoads(
     joinRoadGaps(roads, ends, context);
     // copánky před spojováním – kusy silnější cesty se po odstranění slabší trasy spojí zpět
     const braids = removeBraids(roads, constructions);
-    mergeRoadChains(roads, constructions);
+    mergeRoadChains(roads, constructions, trails);
     const more = removeBraids(roads, constructions);
-    if (more) mergeRoadChains(roads, constructions);
+    if (more) mergeRoadChains(roads, constructions, trails);
     if (!loops && !parallel && !braids && !more) break;
   }
   // pahýly po dělení a spojování – zmizí, uzel u nich se spojí
-  if (network && trimStubs(roads, constructions, network)) mergeRoadChains(roads, constructions);
+  if (network && trimStubs(roads, constructions, network)) {
+    mergeRoadChains(roads, constructions, trails);
+  }
+  dropGoneTrailPieces(roads, trails);
   markRoadEnds(roads, ends);
   // konce po zarostlém kusu, kde už žádný úsek nekončí, zmizí
   if (roads.cutEnds) {

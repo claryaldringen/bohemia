@@ -1290,7 +1290,7 @@ export function wagonRoadsDay(
     }
     // stará cesta po ose vozové cesty zmizí hned, úseky se spojí
     if (built && state.roads) {
-      absorbParallelRoads(state.roads, state.constructions);
+      absorbParallelRoads(state.roads, state.constructions, state.trails);
       abandonBypassed(
         state.roads.roads,
         bypassedUpTo(earthwork, builtM),

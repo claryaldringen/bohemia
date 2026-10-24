@@ -226,6 +226,31 @@ describe('opuštěný kus pod stavbou (paths.md – Stavba přes cestu)', () => 
     expect(only[0]!.pieces).toEqual([]);
   });
 
+  it('stezka ve směru osy: zbytky za sebou v pořadí osy, celý úsek pod stavbou ji o úsek připraví', () => {
+    const south: Road = {
+      ...road(2, 'improved'),
+      points: [
+        { x: 0, z: -40 },
+        { x: 0, z: 0 },
+      ],
+    };
+    const roads = roadsOf(south, road(1, 'improved'));
+    const trail = {
+      pieces: [
+        { roadId: 2, grade: 'improved', manDays: 1 },
+        { roadId: 1, grade: 'improved', manDays: 9 },
+      ],
+    };
+    const trails = [trail] as unknown as VillageState['trails'];
+    abandonBlockedStretches(roads, [], trails, under(40, 60));
+    const rest = roads.roads.find((r) => !r.abandoned && r.id !== 1 && r.id !== 2)!;
+    expect(trail.pieces.map((p) => p.roadId)).toEqual([2, 1, rest.id]);
+    // úsek 2 leží celý pod stavbou – stezka o něj přijde
+    abandonBlockedStretches(roads, [], trails, under(-50, 5));
+    expect(roads.roads.find((r) => r.id === 2)!.abandoned).toBe(true);
+    expect(trail.pieces.map((p) => p.roadId)).not.toContain(2);
+  });
+
   it('celá cesta pod stavbou zůstane jedním opuštěným úsekem se starým id', () => {
     const roads = roadsOf(road(1, 'trodden', 0, 60));
     abandonBlockedStretches(roads, [], undefined, under(-5, 70));
