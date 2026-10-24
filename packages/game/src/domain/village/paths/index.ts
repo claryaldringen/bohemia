@@ -17,3 +17,4 @@ export * from './routes';
 export * from './road-condition';
 export * from './wear';
 export * from './route-paths';
+export * from './junctions';

@@ -370,7 +370,9 @@ Návrh Clauda:
 - **Vchody:** na konci ramene, **1,5 × šířka nejširší přicházející cesty** od středu (vyšlapaná
   1,9 m → 2,85 m, upravená 3 m → 4,5 m, vozová 3,5 m → 5,25 m). **Cesta vede přesně do vchodu:**
   posledních nejvýš **12 m** osy se nahradí obloukem od bodu 12 m daleko do vchodu s tečnou ve
-  směru ramene (kvadratická křivka, body po 1 m, na cm). Osa se tím u křižovatky změní – nahrazuje
+  směru ramene (kubická Bézierova křivka – tečna ve směru osy na začátku oblouku i ve směru ramene
+  ve vchodu, aby oblouk navazoval na obou koncích; body po 1 m, na cm; návrh Clauda 24. 10. 2026,
+  Úloha 9a – kvadratická křivka by navazovala jen ve vchodu). Osa se tím u křižovatky změní – nahrazuje
   to dřívější „osa se nikdy nehýbe“ jen v tomto okolí. Kmeny hatě, místa na stromy a jabloně
   v ohnutém kusu zůstanou, kde jsou (do 2,2 m od nové osy místo zmizí).
 - **Znamení:** při vzniku křižovatky se jednou vylosuje (seed vsi a id křižovatky) **strom 40 %,
@@ -381,6 +383,17 @@ Návrh Clauda:
   (keř → mladý strom → plný za 40 let) a je to strom u cesty se vším (překážka stavby, kláda);
   zanikne-li křižovatka, strom stojí dál jako strom u cesty, kámen a kůl zmizí. Kámen je pro
   stavbu překážka jako balvan, kůl jako keř.
+- Návrh Clauda (24. 10. 2026, Úloha 9a – čisté funkce v `junctions.ts`):
+  - **tvar T** (rovná cesta a kolmá odbočka) vyjde podle nejmenšího součtu čtverců jako pootočené
+    Y s β = 45° – odchylky 15°, 15° a 30° (1 350 °²); souměrné trojcestí s kmenem v odbočce by dalo
+    30°, 0° a 30° (1 800 °²);
+  - **pevná cesta** určí natočení přesně (mimo krok 5°); je-li pevných víc, vyhraje ta, se kterou
+    jsou odchylky ostatních nejmenší, a další pevná navazuje rovným kusem (Úloha 9b);
+  - **pět a víc cest:** skupiny sousedních ramen jsou polovina a zbytek (u pěti 2 + 3) s co
+    největšími mezerami na hranicích skupin; středy se posunou o 5 m ke svým ramenům;
+  - **znamení:** los ze seedu vsi a štítku `junction-landmark:<id>` – druh, podoba (1–2), natočení
+    po celých stupních a druh stromu podle podílů stromů u cest; při shodě dvou nejširších mezer
+    rozhodne první od nejmenšího úhlu.
 - **Změna:** přibude-li nebo ubude-li rameno, tvar a natočení se spočítají znovu, znamení zůstane;
   klesnou-li živá ramena na 2, křižovatka zanikne a cesty se spojí.
 - **Data:** `VillageRoads.junctions` – id, střed, tvar, natočení, β, ramena (id úseku ve vchodu),

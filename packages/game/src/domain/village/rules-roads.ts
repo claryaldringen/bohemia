@@ -126,6 +126,23 @@ export const ROAD_ANCHORS = { entranceM: 3, goalM: 7.5 } as const;
 // do `ROAD_ANCHORS.entranceM` od něj končí nebo vede pevná cesta; cesta k vchodu je nejméně
 // `minM` dlouhá (krátká spojka k cestě, která jde kolem)
 export const ROAD_ACCESS = { minM: 3 } as const;
+// paths.md – Křižovatky (Martin, #6, pravidlo 9; návrh Clauda, Úloha 9a): vchod `entranceWidths`
+// (1,5) × šířka nejširší přicházející cesty od středu; posledních `bendM` (12 m) osy se ohne do
+// vchodu obloukem s body po `bendStepM` (1 m); natočení a rozevření Y po `rotationStepDeg` (5°),
+// β z `spreadDeg` (30–60°); uzel s 5+ cestami = dvě křižovatky `pairM` (10 m) od sebe; znamení
+// strom 40 %, vztyčený kámen 30 %, dřevěný kůl 30 % ze `landmarkLooks` (2) podob, `landmarkGapM`
+// (1,5 m) za vchody v nejširší mezeře mezi rameny
+export const JUNCTION = {
+  entranceWidths: 1.5,
+  bendM: 12,
+  bendStepM: 1,
+  rotationStepDeg: 5,
+  spreadDeg: [30, 60],
+  pairM: 10,
+  landmark: { tree: 0.4, stone: 0.3, post: 0.3 },
+  landmarkLooks: 2,
+  landmarkGapM: 1.5,
+} as const;
 // wagons.md – Vyjeté cesty (návrh Clauda): úsek, kudy vozy dva roky po sobě jezdí aspoň
 // `tripsPerDay` jízd denně (roční průměr – ≈ 90 jízd za rok), se stane vozovou cestou; vozová cesta,
 // kudy 5 let po sobě jezdí pod polovinou, je zas jen pěší (zaroste podle provozu lidí)

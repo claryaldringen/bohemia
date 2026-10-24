@@ -194,6 +194,21 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   hřbitov – cesta do branky, 12 měsíců bez změny tras bez úklidu a bez nových id),
   `road-detour.test.ts` (napojení objížďky po úklidu, `nextId`).
 
+- **Křižovatky** (nový systém cest, Úloha 9a – čisté funkce; [paths.md –
+  Křižovatky](../design/paths.md#křižovatky-pravidlo-9); Martin 22. 10. 2026, pravidla 9 a 11):
+  `paths/junctions.ts`, čísla `JUNCTION` (`rules-roads.ts`), data `RoadJunction` a volitelné
+  `VillageRoads.junctions` (`types-roads.ts` – tvar `cross` / `y`, natočení a β v rad, ramena = id
+  úseků ve vchodech v pořadí `junctionArmDirs`, znamení, den vzniku). `fitJunction(dirs, fixed)` –
+  4 cesty kříž, 3 cesty Y s β 30–60°; natočení po 5° s nejmenším součtem čtverců odchylek přes
+  všechna přiřazení (nejvýš 24), při shodě menší natočení a menší β; pevná cesta (stezka, vozová)
+  určí natočení přesně. `junctionEntranceM` (1,5 × nejširší cesta), `junctionEntrances` (vchody
+  na cm). `bendRoadEnd(points, entrance, armDir, bendM)` – posledních 12 m osy u křižovatky (bližší
+  konec) nahradí kubický Bézierův oblouk do vchodu (tečna osy i ramene, body po 1 m, na cm).
+  `splitCrowdedNode` – uzel s 5+ cestami na dvě skupiny sousedních ramen a dva středy 10 m od sebe.
+  `drawLandmark(seed, id)` – strom 40 % / kámen 30 % / kůl 30 %, podoba, natočení, druh stromu
+  (`speciesOf` z `roads-trees.ts`); `landmarkPlace` – nejširší mezera, 1,5 m za vchody. Ze simulace
+  se zatím nic nevolá (Úloha 9b). Testy `junctions.test.ts`.
+
 - **Vylepšení pevné cesty a chůze podle stupně** ([roads.md](../design/roads.md) – fáze 2):
   terén pěšin má příznaky `PATH_WETLAND` (mokřina – suchá rovina do 3 buněk od vody) a `PATH_WATER`;
   úsek nese `Road.ground` (mokřina od–do a brody na ose – `roadGroundOf` při vzniku, starší při
