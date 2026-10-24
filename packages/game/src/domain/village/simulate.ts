@@ -221,7 +221,8 @@ function simulateDay(
   // vojvodova rodina (lord.md): při hladu jde od zítřka na pole, po 30 dnech plného přídělu zpět;
   // výcvik dne – kdo necvičil, zapomíná
   state.chronicle.push(...lordFieldMode(state, day));
-  trainLordDay(state, day, lordField);
+  // a koně pod jezdci (horses.md – Výcvik koně a jezdec) – po péči (`work()`) a obilí (`eat()`)
+  state.chronicle.push(...trainLordDay(state, day, lordField));
   // nahromaděný hlad se počítá z dnešní energie (hladem se umírá z energie, ne z pestrosti –
   // diet.md) – úmrtí dne podle něj (population.md); v hájení zůstává pod prahem, aby po něm lidé
   // umírali postupně

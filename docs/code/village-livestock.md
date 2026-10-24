@@ -337,3 +337,17 @@ Horse[]` (`id`, `bornDay`, `sex`, `training`, `riderId?`). `horses.ts` – `hors
      (`winterHayNeedKg`), zimní stádo po koních (`WinterInput.horsePastureHa` / `horseHayKg`). Pastva
      1 ha na koně (`grazingDemandHa(…, horses)` – zarůstání, pěšiny, souhrn). Plán osevu přičte obilí
      koní za rok do potřeby do sklizně i po ní (`sowingTargets`). Nouzová porážka koně nebere.
+- **Chov koní, výcvik koně a jezdci** (horses.md – Chov, Výcvik koně a jezdec; issue #5):
+  `horse-breeding.ts` – `horsesDay` v `husbandryDay` (po úhynu 1. 3., před porážkou stád). Hříbata
+  dne 1. 5. (`horseBirths`): klisna 4–20 let rodí, když `(rok + id) % 2 === 0` a ves má samce od
+  3 let; pohlaví `deriveSeed(seed, 'foal:den:id')`, id z `nextId`, hříbě jen do míst (počítají se
+  všichni koně), kronika `foal-born`. Porážka dne 1. 11. (`retireHorses`): od 20 let na maso
+  (`age`), pak jezdečtí koně a klisny nad `horsesWanted` od nejstarších (`surplus`), 100 kg do
+  `butcher`, hříbata zůstávají; kronika `horse-retired`. `horsesWanted` – jezdci rodiny od 10 let
+  (`familyRiders`), klisny 1 + ⌊jezdci / 3⌋, hříbata = cvičící rodina − jezdečtí koně, kteří za
+  3 roky ještě slouží; strop místa (jezdečtí, klisny, hříbata). `horse-riders.ts` – `assignRiders`
+  (pár drží, volné koně od nejlépe vycvičeného vojvodovi a synům od nejstaršího), `trainHorsesDay`
+  z `trainLordDay`: přírůstek 100 / (9 × 365,25) denně × podíl dne jezdce, bez obilí ½, stojí při
+  `horsesCaredToday` < 1 a `lord.field`; plný výcvik → `horse-trained`. `riderPower` = jízda ×
+  (0,4 + 0,6 × výcvik) jen pro panel. Čísla v `HORSES` (`birthDay`, `foalEveryYears`, `maresBase`,
+  `ridersPerMare`, `trainingFull`, `trainedAtYears`, `riderPower`).
