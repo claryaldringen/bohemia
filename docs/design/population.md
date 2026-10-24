@@ -710,6 +710,23 @@ před → po:
   oprava – rodina i svobodný muž odejdou, jen když nový dům udrží (někdo 16–44) – po ní nejvýš
   5 rozpadů na ves.
 
+**Žně všemi rukama a osev navíc v oběhu (24. 10. 2026,** [pole](fields.md) **– Žně všemi rukama,
+Osev navíc; návrh Clauda, Martin schválil):** zralý Vlkov (47,9 ha, 31 lidí) za 10 let 31 → 5
+lidí → 31 → 11, sklizeň za 10 let 17,5 → 24,8 t, osetá plocha průměrně 6,3 → 9,8 ha; úmrtí hladem
+dál ≈ 25 (přílohy už pod 70 %, osev navíc v oběhu vyčerpanou ves nezachrání – brání jen dalšímu
+vyčerpání). Čerstvé vsi `measure-village.ts 8 30` beze změny: 8/8 roste, lidí po 20 letech medián
+13, po 30 letech 20,5, hladem 0.
+
+Ověření na noc (dlouhá kalibrace jen v noci):
+
+```bash
+npx tsx packages/game/scripts/measure-village.ts 100 100 --out night-100x100.jsonl
+npx tsx packages/game/scripts/measure-village.ts 100 100 --out night-100x100.jsonl --report-only
+```
+
+Sledovat: kolik vsí roste bez zásahu hráče, lidé po 20, 30, 60 a 100 letech, úmrtí hladem a vlny
+hladu po ≈ 6 letech, osetá plocha ÷ pole a zásoby ÷ potřeba po 20. roce.
+
 ## Co hráč vidí
 
 - V krajině: umístění první zemnice a dalších obydlí, rozestavěné stavby. **Modely obydlí jsou
