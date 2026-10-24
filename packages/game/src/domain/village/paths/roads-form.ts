@@ -2,6 +2,7 @@
 
 import { length2, type Landscape, type ObstacleLayer } from '../../landscape';
 import { cloneState } from '../clone';
+import { restoredTrailPieces } from '../trail-axis';
 import { obstacleChangesAt, type ObstacleChanges } from '../obstacles';
 import { WEAR } from '../rules';
 import {
@@ -555,17 +556,31 @@ export function mergeRoadChains(
  * Starší ves s falešnými rozcestími (z doby před slučováním úseků) – při načtení se úseky spojí
  * (`mergeRoadChains`). Idempotentní a levné: bez takového uzlu vrátí týž objekt (nic se neukládá).
  * Simulace pak spojuje sama (roční kontrola, dokončené vylepšení), takže po prvním převodu je
- * každý další beze změny a dopočet po kouscích dá totéž co vcelku.
+ * každý další beze změny a dopočet po kouscích dá totéž co vcelku. Zemská stezka, která odkazuje
+ * na zmizelý úsek (staré spojování id stezkám nepřepsalo), je s krajinou hotová znovu najde po
+ * síti pevných cest od dvorce ke kraji mapy (`restoredTrailPieces` – trade.md, Zemská stezka);
+ * bez spojení (nebo bez krajiny) z ní zmizelé úseky jen vypadnou.
  */
-export function withMergedRoads(state: VillageState): VillageState {
+export function withMergedRoads(
+  state: VillageState,
+  landscape?: Pick<Landscape, 'size' | 'cellSizeM'>,
+): VillageState {
   if (!state.roads) return state;
-  const merge = chainPair(state.roads, state.constructions) !== null;
-  const stale = (state.trails ?? []).some((t) =>
-    t.pieces.some((p) => !state.roads!.roads.some((r) => r.id === p.roadId)),
-  );
-  if (!merge && !stale) return state;
-  const next = cloneState(state);
-  if (merge) mergeRoadChains(next.roads!, next.constructions, next.trails);
+  let next: VillageState | null = null;
+  if (chainPair(state.roads, state.constructions) !== null) {
+    next = cloneState(state);
+    mergeRoadChains(next.roads!, next.constructions, next.trails);
+  }
+  const base = next ?? state;
+  const ids = new Set(base.roads!.roads.map((r) => r.id));
+  const stale = (base.trails ?? []).some((t) => t.pieces.some((p) => !ids.has(p.roadId)));
+  const restored = landscape ? restoredTrailPieces(base, landscape) : new Map<number, never>();
+  if (!next && !stale && restored.size === 0) return state;
+  next ??= cloneState(state);
+  for (const trail of next.trails ?? []) {
+    const pieces = restored.get(trail.id);
+    if (pieces) trail.pieces = pieces;
+  }
   dropGoneTrailPieces(next.roads!, next.trails);
   return next;
 }

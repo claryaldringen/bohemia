@@ -11,7 +11,6 @@ import type { Landscape, ObstacleLayer } from '../landscape';
 import { villageManor } from './manor';
 import { obstacleChangesAt } from './obstacles';
 import {
-  DWELLING_PATH_BOX_M,
   PathHeap,
   buildingBounds,
   cellsIn,
@@ -22,16 +21,15 @@ import {
 import { addTrailRoads, roadLengthM, roadsInWork } from './paths/roads';
 import { trailTerrain, type PathTerrain } from './paths/terrain';
 import type { Walk } from './paths/walking';
-import { plotCells } from './plot-cells';
 import { roadMidpoint, roadUpgradeCost, roadUpgradeProgress } from './road-upgrades';
 import { roadSwathTally } from './road-swath';
+import { DIRECTION_VECTORS, trailStart } from './trail-axis';
 import { HUMNO, ROAD_SWATH, TRADE, TRAIL } from './rules';
 import { sacredSitesOf } from './sacred';
 import type {
   ChronicleEvent,
   Construction,
   Direction8,
-  Dwelling,
   Position,
   Road,
   RoadGrade,
@@ -42,21 +40,10 @@ import type {
 } from './types';
 import { claimedObstacles, planWoodFrom, takeWood, woodLogs, type WoodPlan } from './wood';
 
+export { DIRECTION_VECTORS, trailStart } from './trail-axis';
+
 /** Směry stezek v pořadí šipek (od severu po směru hodin). */
 export const DIRECTIONS: readonly Direction8[] = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-
-const H = Math.SQRT1_2;
-/** Jednotkový směr ve světě – sever je +z, východ +x (minimapa a kamera – sever nahoře). */
-export const DIRECTION_VECTORS: Readonly<Record<Direction8, { x: number; z: number }>> = {
-  N: { x: 0, z: 1 },
-  NE: { x: H, z: H },
-  E: { x: 1, z: 0 },
-  SE: { x: H, z: -H },
-  S: { x: 0, z: -1 },
-  SW: { x: -H, z: -H },
-  W: { x: -1, z: 0 },
-  NW: { x: -H, z: H },
-};
 
 /** U okraje krajiny se nechodí (m) – jako terén pěšin (EDGE_MARGIN_M v paths/terrain.ts). */
 const EDGE_MARGIN_M = 10;
@@ -74,33 +61,6 @@ function tenths(v: number): number {
 
 function cm(v: number): number {
   return Math.round(v * 100) / 100;
-}
-
-/**
- * Kde stezka začíná: u dvorce na pozemku za branou (kus za plotem ve směru vchodu), u volného
- * obydlí kus před vchodem.
- */
-export function trailStart(landscape: Landscape, manor: Dwelling): { x: number; z: number } {
-  const { position } = manor;
-  const fx = Math.sin(position.rotation);
-  const fz = Math.cos(position.rotation);
-  if (manor.plot) {
-    const half = (landscape.size * landscape.cellSizeM) / 2;
-    const cells = plotCells(manor.plot);
-    const xs = cells.map((c) => -half + c.x * landscape.cellSizeM);
-    const zs = cells.map((c) => -half + c.y * landscape.cellSizeM);
-    const minX = Math.min(...xs);
-    const maxX = Math.max(...xs) + landscape.cellSizeM;
-    const minZ = Math.min(...zs);
-    const maxZ = Math.max(...zs) + landscape.cellSizeM;
-    for (let t = 0; t < 60; t += 0.5) {
-      const x = position.x + fx * t;
-      const z = position.z + fz * t;
-      if (x < minX || x > maxX || z < minZ || z > maxZ) return { x: x + fx * 1.5, z: z + fz * 1.5 };
-    }
-  }
-  const front = DWELLING_PATH_BOX_M[manor.type].maxZ + 2;
-  return { x: position.x + fx * front, z: position.z + fz * front };
 }
 
 /** Buňky terénu u os pevných cest – chůze po nich je levnější (TRAIL.roadDiscount). */

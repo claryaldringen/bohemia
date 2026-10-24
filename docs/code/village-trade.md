@@ -40,6 +40,14 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `buildTrail` (`{ villageId, direction }`). Web: růžice šipek `TrailCompass`, scéna
   `lib/trail-view.ts` (`sceneTrails` – osa stezky, `trailRoadWork` – vytyčení a průběh po úsecích
   v `sceneRoads`), `SceneVillage.trails`. Ikona `icons/build/stezka.png`.
+- **Převod stezky bez úseků** (`withMergedRoads` s krajinou v `updateVillage`): spojení úseků
+  přepisuje id ve stezkách (`joinTrailPieces`), starší vsi ale mohou odkazovat na zmizelé úseky.
+  Hotová stezka bez úseků nebo se zmizelým id dostane osu znovu (`restoredTrailPieces` /
+  `trailAxisRoads` v `trail-axis.ts`): nejkratší cesta po pevných cestách (upravené, vozové, ne
+  opuštěné; uzly = konce úseků) z uzlu do 30 m od `trailStart` (přístup vzdušnou čarou × 4) do
+  konce úseku v pásu kraje mapy ve směru nejblíž paprsku (±`TRAIL.wideConeDeg`), stupeň z cesty,
+  práce 0. Bez spojení zmizelá id jen vypadnou (`dropGoneTrailPieces`). Vlkov: stezka na sever
+  412 → 619 → 370 → 372 → 631 → 547; jih a východ spojení nemají (mezera u kraje, opuštěný kus).
 
 - **Sousedé a obchod** (trade.md – Sousedé, Obchod; `neighbours.ts`, `trade.ts`): `neighbourOf(seed,
 směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, pastevci, lesní ves,
