@@ -21,6 +21,7 @@ import {
   type PartStage,
   type Position,
   type Road,
+  type RoadJunction,
   type RoadAppleStage,
   type RoadGrade,
   type RoadTree,
@@ -268,6 +269,12 @@ export interface SceneVillage {
    * podle pěšin dne) a pěšiny dne se k nim stahují. Bez údaje žádné.
    */
   roads?: SceneRoad[];
+  /**
+   * Křižovatky (paths.md – Křižovatky) – střed, tvar, natočení, ramena (id úseků) a znamení.
+   * Kreslí je scéna křižovatek (plán cest v2, Úloha 12); do té doby udusaný kruh ve středu, kde
+   * končí aspoň tři úseky (`roadJunctions`). Bez údaje žádné.
+   */
+  junctions?: SceneJunction[];
   /**
    * Zemské stezky (trade.md) – osa od dvorce ke kraji mapy (úseky pevných cest za sebou) a jestli
    * je dostavěná; nosiči výpravy po ní chodí (`villager-plan.ts`). Bez údaje žádné.
@@ -546,6 +553,9 @@ export interface SceneExpedition {
    */
   trip?: { kind: 'trade' | 'purchase' | 'iron'; to: string; travellerId?: number };
 }
+
+/** Křižovatka pro scénu – data jádra beze změny. */
+export type SceneJunction = RoadJunction;
 
 export type SceneRoad = Pick<
   Road,

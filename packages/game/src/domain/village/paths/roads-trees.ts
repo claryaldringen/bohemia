@@ -267,7 +267,7 @@ export function plantingBlocker(
 }
 
 /** Druh stromu z losu 0–1: polovina dubů, zbytek jilmy a topoly. */
-function speciesOf(r: number): RoadTreeSpecies {
+export function speciesOf(r: number): RoadTreeSpecies {
   const { oak, elm } = ROAD_TREES.speciesShare;
   if (r < oak) return 'oak';
   return r < oak + elm ? 'elm' : 'poplar';

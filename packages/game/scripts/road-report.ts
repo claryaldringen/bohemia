@@ -15,7 +15,7 @@ import {
   type Landscape,
   type LayerVersions,
 } from '../src/domain/landscape';
-import type { Road, RoadPoint, VillageState } from '../src/domain/village';
+import type { Road, RoadJunction, RoadPoint, VillageState } from '../src/domain/village';
 import { ROAD_ANCHORS } from '../src/domain/village/rules';
 import { anchorKindOf, roadAnchors } from '../src/domain/village/paths/road-anchors';
 import {
@@ -27,6 +27,7 @@ import {
   resample,
 } from '../src/domain/village/paths/roads-geometry';
 import { anchorTermini } from '../src/domain/village/paths/roads-tidy';
+import { JUNCTION_RUNS } from '../src/domain/village/paths/junctions';
 import { routeLine } from '../src/domain/village/paths/routes';
 import { pathCellM } from '../src/domain/village/paths/terrain';
 import { updateVillage } from '../src/application/update-village';
@@ -57,6 +58,12 @@ export interface RoadReport {
   totalKm: number;
   byGrade: Record<string, { count: number; km: number }>;
   junctions: number;
+  /** Křižovatky jako objekty (paths.md – Křižovatky): Y, kříž, znamení a uzly s 5+ konci. */
+  junctionObjects: { y: number; cross: number; tree: number; stone: number; post: number };
+  crowdedNodes: number;
+  /** Přepočty křižovatek a ohyby konců os během dopočtu (`JUNCTION_RUNS`). */
+  junctionRefits: number;
+  junctionBends: number;
   stubs: number;
   endsOffAnchor: number;
   /** Volné konce mimo kotvu: id úseku, druh, poloha (m). */
@@ -202,6 +209,7 @@ export async function roadReport(
   const repo = new SingleVillageRepository('settlement-1', input.name ?? 'Ves', input.state);
   const keep = (state: VillageState): { ok: true; state: VillageState } => ({ ok: true, state });
   const start = input.state.lastDay;
+  const runs = { ...JUNCTION_RUNS };
 
   t = performance.now();
   const loaded = await updateVillage(repo, repo.record.id, start, landscape, keep);
@@ -245,6 +253,10 @@ export async function roadReport(
     totalKm: totalM / 1000,
     byGrade,
     ...networkShape(roads, anchorTermini(roadAnchors(state.routes?.list ?? [], landscape))),
+    junctionObjects: junctionObjects(state.roads?.junctions ?? []),
+    crowdedNodes: crowdedNodes(roads),
+    junctionRefits: JUNCTION_RUNS.refits - runs.refits,
+    junctionBends: JUNCTION_RUNS.bends - runs.bends,
     abandoned: all.length - roads.length,
     entrancesWithoutRoad: entrancesWithoutRoad(state, landscape),
     formed: state.chronicle.filter((e) => e.kind === 'road-formed' && e.day > start).length,
@@ -260,6 +272,28 @@ export async function roadReport(
   };
 }
 
+/** Křižovatky jako objekty po tvarech a znameních. */
+function junctionObjects(list: readonly RoadJunction[]): RoadReport['junctionObjects'] {
+  const out = { y: 0, cross: 0, tree: 0, stone: 0, post: 0 };
+  for (const j of list) {
+    out[j.shape]++;
+    out[j.landmark.kind]++;
+  }
+  return out;
+}
+
+/** Uzly, kde končí 5 a víc živých úseků (křižovatka by se rozdělila – `splitCrowdedNode`). */
+function crowdedNodes(roads: readonly Road[]): number {
+  const count = new Map<string, number>();
+  for (const r of roads) {
+    for (const p of [r.points[0]!, r.points[r.points.length - 1]!]) {
+      const key = `${Math.round(p.x * 100)},${Math.round(p.z * 100)}`;
+      count.set(key, (count.get(key) ?? 0) + 1);
+    }
+  }
+  return [...count.values()].filter((n) => n >= 5).length;
+}
+
 /** Jednořádkový výpis do zprávy úlohy. */
 export function formatReport(r: RoadReport): string {
   const grades = Object.entries(r.byGrade)
@@ -271,7 +305,10 @@ export function formatReport(r: RoadReport): string {
     `dopočet ${r.years} let ${r.advanceMs.toFixed(0)} ms`,
     `stav ${r.stateKb.toFixed(0)} kB`,
     `cesty ${r.roads} (${r.totalKm.toFixed(2)} km): ${grades || '–'}`,
-    `křižovatky ${r.junctions}`,
+    `křižovatky ${r.junctions} (objekty: Y ${r.junctionObjects.y}, kříž ${r.junctionObjects.cross}, ` +
+      `uzly 5+ ${r.crowdedNodes}; znamení strom ${r.junctionObjects.tree}, kámen ` +
+      `${r.junctionObjects.stone}, kůl ${r.junctionObjects.post}; přepočty ${r.junctionRefits}, ` +
+      `ohyby ${r.junctionBends})`,
     `konce mimo kotvu ${r.endsOffAnchor}${r.looseEnds.length ? ` [${r.looseEnds.join(' ')}]` : ''}`,
     `pahýly < ${STUB_MAX_M} m ${r.stubs}`,
     `souběžné páry ${r.parallelPairs}`,

@@ -256,6 +256,7 @@ export function sceneVillage(
     ...(ableTeams(state, day) > 0 ? { ploughTeam: true as const } : {}),
     ...(oxPens(state).length > 0 ? { ploughPairs: ploughPairsHome(state, day) } : {}),
     ...(roads.length > 0 ? { roads } : {}),
+    ...(state.roads?.junctions ? { junctions: state.roads.junctions } : {}),
     ...(roadTrees.length > 0 ? { roadTrees } : {}),
     ...(woods.length > 0 ? { woods } : {}),
     ...(kilns.length > 0 ? { kilns } : {}),

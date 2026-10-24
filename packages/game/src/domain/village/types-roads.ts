@@ -80,6 +80,11 @@ export interface Road {
    */
   swath?: true;
   /**
+   * Spojka dvou křižovatek (paths.md – Křižovatky): krátká cesta mezi dvěma křižovatkami, na které
+   * se rozdělil uzel s 5+ cestami. Drží se jako živá (nezarůstá) a neohýbá se.
+   */
+  link?: true;
+  /**
    * Kolik délky úseku lemují stromy u cesty a jabloně (roads.md – Stromy u cesty zrychlí chůzi)
    * – podle toho je chůze i jízda vozem po úseku rychlejší (`roadTreeSpeed`). Určí se 1. dne
    * v měsíci (`lineRoads`); chybí = ještě neurčeno (nový úsek, starší ves – určí se hned další
@@ -235,6 +240,48 @@ export interface VillageRoads {
   earthworks?: RoadEarthwork[];
   /** Vyšlapanost (paths.md – Vyšlapanost a vznik cesty); chybí = ještě se nesčítá. */
   wear?: RoadWear;
+  /**
+   * Křižovatky (paths.md – Křižovatky) – samostatné objekty v uzlech, kde se potkají 3–4 živé
+   * cesty. Chybí = žádné (zapojí je Úloha 9b plánu cest v2).
+   */
+  junctions?: RoadJunction[];
+}
+
+/** Tvar křižovatky (paths.md – Křižovatky): kříž se 4 vchody, nebo Y se 3 vchody. */
+export type JunctionShape = 'cross' | 'y';
+
+/** Znamení křižovatky: strom (strom u cesty), vztyčený kámen, nebo dřevěný kůl. */
+export type JunctionLandmarkKind = 'tree' | 'stone' | 'post';
+
+/** Znamení – jednou vylosované (seed vsi a id křižovatky), zůstane, dokud křižovatka stojí. */
+export interface JunctionLandmark {
+  kind: JunctionLandmarkKind;
+  /** Poloha (m, na cm) – v nejširší mezeře mezi rameny, `JUNCTION.landmarkGapM` za vchody. */
+  x: number;
+  z: number;
+  /** Natočení modelu (rad, celé stupně v [0, 2π)). */
+  turn: number;
+  /** Podoba kamene nebo kůlu (1–`JUNCTION.landmarkLooks`). */
+  look: number;
+  /** Strom – id v `VillageRoads.trees` (roste jako strom u cesty). */
+  treeId?: number;
+}
+
+/** Křižovatka (paths.md – Křižovatky; Martin, #6, pravidlo 9). */
+export interface RoadJunction {
+  id: number;
+  /** Střed (m, na cm). */
+  x: number;
+  z: number;
+  shape: JunctionShape;
+  /** Natočení (rad, [0, 2π)) – směr ramene 0 od středu (u Y kmen). */
+  rotation: number;
+  /** β (rad) – úhel větví Y od směru proti kmeni (30–60° po 5°); u kříže chybí. */
+  spread?: number;
+  /** Id úseku ve vchodu každého ramene (pořadí `junctionArmDirs`), null = rameno bez cesty. */
+  arms: (number | null)[];
+  landmark: JunctionLandmark;
+  bornDay: number;
 }
 
 /** Bod profilu vozové cesty – osa (m, na cm) a navržená výška pláně (m, na cm). */

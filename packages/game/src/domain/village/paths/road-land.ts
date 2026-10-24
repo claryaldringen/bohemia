@@ -1,3 +1,4 @@
+import { detAtan2, length2 } from '../../landscape';
 import { ROAD_LAND } from '../rules';
 import { rotationCosSin, type GridGeometry } from '../square-grid';
 import type { RoadGrade, RoadPoint, SquareGrid, TileCell } from '../types';
@@ -402,14 +403,34 @@ export interface RoadCapsule {
   r: number;
 }
 
+/** Bod osy `d` metrů od jejího prvního bodu (za koncem poslední bod). */
+export function pointFrom(line: readonly RoadPoint[], d: number): RoadPoint {
+  let walked = 0;
+  for (let i = 1; i < line.length; i++) {
+    const a = line[i - 1]!;
+    const b = line[i]!;
+    const seg = length2(b.x - a.x, b.z - a.z);
+    if (seg > 0 && walked + seg >= d) {
+      const t = (d - walked) / seg;
+      return { x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t };
+    }
+    walked += seg;
+  }
+  return line[line.length - 1]!;
+}
+
 /**
- * Pásy pevných cest (kusy po úsečkách osy, šířka `roadLandWidthM`) a plácky rozcestí (kde končí
- * aspoň tři úseky – roads.md, Úseky a rozcestí; ROAD_LAND.junctionScale) – plocha, kterou cesty
- * vezmou polím (`roadLand`) a na které se brázda láme.
+ * Pásy pevných cest (kusy po úsečkách osy, šířka `roadLandWidthM`) a obrys křižovatek (kde končí
+ * aspoň tři úseky – paths.md, Křižovatky: pásy ramen v šířce cest a střed mezi nimi, žádný kruh) –
+ * plocha, kterou cesty vezmou polím (`roadLand`) a na které se brázda láme. Střed vyplní spojnice
+ * sousedních ramen (mezera pod 180°) ve vzdálenosti šířky nejširší cesty od středu.
  */
 export function roadCapsules(roads: readonly RoadLandRoad[]): RoadCapsule[] {
   const out: RoadCapsule[] = [];
-  const nodes = new Map<string, { x: number; z: number; count: number; width: number }>();
+  const nodes = new Map<
+    string,
+    { x: number; z: number; width: number; lines: (readonly RoadPoint[])[] }
+  >();
   for (const road of roads) {
     if (road.points.length < 2) continue;
     const r = roadLandWidthM(road) / 2;
@@ -418,24 +439,27 @@ export function roadCapsules(roads: readonly RoadLandRoad[]): RoadCapsule[] {
       const b = road.points[k]!;
       out.push({ ax: a.x, az: a.z, bx: b.x, bz: b.z, r });
     }
-    for (const p of [road.points[0]!, road.points[road.points.length - 1]!]) {
+    for (const atStart of [true, false]) {
+      const p = atStart ? road.points[0]! : road.points[road.points.length - 1]!;
       const key = `${Math.round(p.x * 100)},${Math.round(p.z * 100)}`;
-      const node = nodes.get(key) ?? { x: p.x, z: p.z, count: 0, width: 0 };
-      node.count++;
+      const node = nodes.get(key) ?? { x: p.x, z: p.z, width: 0, lines: [] };
+      node.lines.push(atStart ? road.points : [...road.points].reverse());
       node.width = Math.max(node.width, r * 2);
       nodes.set(key, node);
     }
   }
   for (const node of nodes.values()) {
-    if (node.count >= 3) {
-      out.push({
-        ax: node.x,
-        az: node.z,
-        bx: node.x,
-        bz: node.z,
-        r: node.width * ROAD_LAND.junctionScale,
-      });
-    }
+    if (node.lines.length < 3) continue;
+    const arms = node.lines
+      .map((line) => pointFrom(line, node.width))
+      .map((p) => ({ p, angle: detAtan2(p.z - node.z, p.x - node.x) }))
+      .sort((a, b) => a.angle - b.angle);
+    arms.forEach((a, k) => {
+      const b = arms[(k + 1) % arms.length]!;
+      const gap = k + 1 < arms.length ? b.angle - a.angle : b.angle + 2 * Math.PI - a.angle;
+      if (gap >= Math.PI) return;
+      out.push({ ax: a.p.x, az: a.p.z, bx: b.p.x, bz: b.p.z, r: node.width / 2 });
+    });
   }
   return out;
 }

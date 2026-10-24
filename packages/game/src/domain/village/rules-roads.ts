@@ -126,6 +126,23 @@ export const ROAD_ANCHORS = { entranceM: 3, goalM: 7.5 } as const;
 // do `ROAD_ANCHORS.entranceM` od něj končí nebo vede pevná cesta; cesta k vchodu je nejméně
 // `minM` dlouhá (krátká spojka k cestě, která jde kolem)
 export const ROAD_ACCESS = { minM: 3 } as const;
+// paths.md – Křižovatky (Martin, #6, pravidlo 9; návrh Clauda, Úloha 9a): vchod `entranceWidths`
+// (1,5) × šířka nejširší přicházející cesty od středu; posledních `bendM` (12 m) osy se ohne do
+// vchodu obloukem s body po `bendStepM` (1 m); natočení a rozevření Y po `rotationStepDeg` (5°),
+// β z `spreadDeg` (30–60°); uzel s 5+ cestami = dvě křižovatky `pairM` (10 m) od sebe; znamení
+// strom 40 %, vztyčený kámen 30 %, dřevěný kůl 30 % ze `landmarkLooks` (2) podob, `landmarkGapM`
+// (1,5 m) za vchody v nejširší mezeře mezi rameny
+export const JUNCTION = {
+  entranceWidths: 1.5,
+  bendM: 12,
+  bendStepM: 1,
+  rotationStepDeg: 5,
+  spreadDeg: [30, 60],
+  pairM: 10,
+  landmark: { tree: 0.4, stone: 0.3, post: 0.3 },
+  landmarkLooks: 2,
+  landmarkGapM: 1.5,
+} as const;
 // wagons.md – Vyjeté cesty (návrh Clauda): úsek, kudy vozy dva roky po sobě jezdí aspoň
 // `tripsPerDay` jízd denně (roční průměr – ≈ 90 jízd za rok), se stane vozovou cestou; vozová cesta,
 // kudy 5 let po sobě jezdí pod polovinou, je zas jen pěší (zaroste podle provozu lidí)
@@ -226,14 +243,14 @@ export const WAGON_ROAD = {
  * roads.md a fields.md – Cesta ubírá poli plochu (Martin, 19. 10. 2026: „Ano má. Ono to stejně ve
  * výsledku bude tak, že pokud oráč narazí na cestu, tak spřežení otočí. Nebude pak moci vzniknout
  * takový růžek…“; čísla návrh Clauda): pás pevné cesty v šířce obtisku (vyšlapaná 1,9 m, vyježděná
- * 2,6 m, upravená a hať 3 m, vozová cesta 3,5 m) a plácek rozcestí (poloměr 1,3 × šířka nejširší cesty) se neorou.
+ * 2,6 m, upravená a hať 3 m, vozová cesta 3,5 m) a obrys křižovatky (pásy ramen a střed mezi nimi –
+ * paths.md, Křižovatky) se neorou.
  * Kus pole, který cesty oddělí od zbytku, se obdělává, jen když se do něj vejde obrat spřežení
  * (kruh o poloměru ≈ 5 m – plocha `cornerMinM2`) a není to jen proužek užší než `stripMinM` podél
  * cesty – jinak zůstane loukou (mez u cesty). Počítá se po buňkách `cells` × `cells` na čtverec.
  */
 export const ROAD_LAND = {
   widthM: { trodden: 1.9, cart: 2.6, improved: 3, causeway: 3, wagon: 3.5 },
-  junctionScale: 1.3,
   turnRadiusM: 5,
   cornerMinM2: 80,
   stripMinM: 3,
