@@ -91,6 +91,8 @@ describe('trainingHours', () => {
     expect(hours(50, true)).toEqual({ bow: 1, combat: 1, riding: 1 });
     expect(hours(50, false)).toEqual({ bow: 1.5, combat: 1.5, riding: 0 });
     expect(hours(30, true, true)).toEqual({ bow: 1, combat: 1, riding: 1 });
+    // vojvoda cvičí 3 h v každém věku – zbytek dne vsi vládne (lord.md – Den rodiny)
+    expect(hours(30, false, true)).toEqual({ bow: 1.5, combat: 1.5, riding: 0 });
   });
   it('žena necvičí', () => {
     const w = kin({ id: 6, age: 30, sex: 'female' });
@@ -170,6 +172,10 @@ describe('familyTrains (lord.md – Zakládání vsi; Martin 24. 10. 2026)', () 
     expect(LORD.minVillageAdults).toBe(4);
     expect(familyTrains(build([...manorSpecs, ...adults(3)]), DAY, true)).toBe(true);
     expect(familyTrains(build([...manorSpecs, ...adults(2)]), DAY, true)).toBe(false);
+  });
+  it('bez vojvody (dvorec bez muže od 14 let) necvičí nikdo', () => {
+    const widow: KinSpec[] = [{ id: 11, age: 44, sex: 'female' }, ...adults(6)];
+    expect(familyTrains(build(widow), DAY)).toBe(false);
   });
   it('děti se nepočítají', () => {
     const kids = Array.from({ length: 5 }, (_, i) => ({

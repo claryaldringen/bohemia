@@ -160,6 +160,10 @@ export type ChronicleEvent = { day: number } & (
     }
   | { kind: 'hunger-began' }
   | { kind: 'hunger-ended' }
+  /** Vojvodova rodina jde na pole – hrozí hlad (lord.md – Kdy jde rodina na pole). */
+  | { kind: 'lord-to-field'; reason: 'hunger' | 'sowing' }
+  /** Vojvodova rodina se vrací k výcviku – 30 dní plného přídělu (lord.md). */
+  | { kind: 'lord-to-training' }
   /**
    * Nepasený a nesečený příloh zarostl lesem a z pole vypadl (fields.md – Zarůstání): první díl,
    * pole, kolik dílů a jestli pole zaniklo. U událostí ze staršího pravidla (do 18. 10. 2026)
@@ -457,4 +461,10 @@ export interface LaborDay {
    * scéně, v `shares` nejsou.
    */
   aside?: LaborShare[];
+  /**
+   * Vojvodova rodina mimo práci vsi (lord.md – Den rodiny; počty lidí – pro scénu a lištu): kolik
+   * jich cvičí, kolik je na poli a kolik žen vede domácnost dvorce. Chybí, když rodina pracuje
+   * jako ostatní (i dřívější rozdělení).
+   */
+  lord?: { training: number; field: number; household: number };
 }

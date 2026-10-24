@@ -577,6 +577,7 @@ describe('práce na jámách v rozdělení práce', () => {
       allocation: {
         dailyMin: 0,
         eldersDailyMin: 0,
+        lordField: 0,
         away: 0,
         carting: 0,
         tasks: {

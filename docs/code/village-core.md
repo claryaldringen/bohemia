@@ -31,7 +31,13 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   v liště, `commonLaborHistory`) do staveb (`build`) → z toho, co stavby nespotřebovaly, opravy
   obydlí (`afterConstructions`) → zbytek (místo pro polní práci navíc – fields.md, Osev navíc)
   propadne. Zvířata a domácí výroba (`DOMESTIC`) jdou bokem – jen `LaborDay.aside` pro postavy;
-  `domesticBacklog` a přirážka paliva zmizely (starší vsi pole jen nesou).
+  `domesticBacklog` a přirážka paliva zmizely (starší vsi pole jen nesou). Úlohy dne berou práci
+  ze zásobníků v pořadí **`light`** (ženy řemeslníků, jen lehké úlohy) → **`lordField`**
+  (vojvodova rodina na poli při hladu, jen úlohy dne, nikdy stavby; co nevyužije, propadne) →
+  obecná kapacita. **Cvičící vojvodova rodina** (lord.md) je mimo `villagers` jako dílny; minimum
+  dvorce kryje sama (`manorLabor`, domácnost dvorce je ve `householdElders` / `householdWater`
+  vynechaná přes `skip`), co nepokryje, jde z práce vsi jako `manorMin`. `DayAllocation.lordField`
+  = spotřebovaná práce rodiny; `work()` vrací podíl `lordField` pro `trainLordDay`.
 
 - **Hlad a vymření** (population.md, Martin 18. 10. 2026): nahromaděný hlad
   `VillageState.starvationDays` (`nextStarvationDays` po jídle dne – pod 90 % přídělu

@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
-import { HERDING, herdingCoverage, herdingDay, herdingDemand, recordHerding } from '../herding';
+import {
+  HERDING,
+  herdingCoverage,
+  herdingDay,
+  herdingDemand,
+  recordHerding,
+  youngsterHerders,
+} from '../herding';
 import { HAY, HAY_WINTER_DAYS } from '../hay';
 import {
   LIVESTOCK,
@@ -58,6 +65,23 @@ describe('kolik pasáků stáda potřebují', () => {
       0.5,
       9,
     );
+  });
+
+  it('vojvodovi synové nepasou, když rodina cvičí (lord.md – Den rodiny)', () => {
+    const day = at(600, 6, 1);
+    const s = village(day);
+    const lord = person(s, 1, 30, day);
+    s.people = [
+      lord,
+      { ...person(s, 2, 9, day), fatherId: 1 },
+      { ...person(s, 3, 10, day), dwellingId: 999 },
+    ];
+    s.livestock!.herds = herds({ cow: 80 });
+    expect(herdingDay(s, day, 0).freeHerders).toEqual({ children: 2 });
+    expect(youngsterHerders(s, day)).toBeCloseTo(0.8, 9);
+    s.lord = { trains: true };
+    expect(herdingDay(s, day, 0).freeHerders).toEqual({ children: 1 });
+    expect(youngsterHerders(s, day)).toBeCloseTo(0.4, 9);
   });
 
   it('pasou jen výrostci 7–13 let – jen kolik jich stáda potřebují; starší ani dospělí ne', () => {

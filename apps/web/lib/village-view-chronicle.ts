@@ -330,6 +330,10 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return 'Ve vsi začal hlad – zásoby nevystačí do sklizně.';
     case 'hunger-ended':
       return 'Hlad skončil.';
+    case 'lord-to-field':
+      return 'Hrozí hlad – vojvodova rodina jde na pole.';
+    case 'lord-to-training':
+      return 'Jídla je dost – vojvodova rodina se vrací k výcviku.';
     case 'part-became-forest':
       return forestText(event.parts ?? 1, event.gone ?? false);
     case 'sacred-spared':

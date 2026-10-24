@@ -38,7 +38,8 @@ pocítí, že vojvodův dvůr něco stojí – a že rod, který nemá komu vele
 
 - **Domácnost vojvody** – lidé dvorce ([obchod](trade.md) – Dvorec vojvody; na začátku první
   zemnice zakladatelů). **Vojvoda** je hlava dvorce jako dnes – nejstarší muž od 14 let i ve stáří
-  ([postavy](villagers.md) – Role).
+  ([postavy](villagers.md) – Role). Dvorec bez muže od 14 let vojvodu nemá – nikdo necvičí
+  (návrh Clauda).
 - **Cvičí:** vojvoda a jeho **potomci po meči** v dvorci – synové a vnuci (synové dědice).
 - **Jen domácnost:** vojvodova žena, dcery, **snachy** (ženy synů v dvorci) a vnučky.
 - **Ostatní muži v dvorci** (zeť, ženich z okolí) jsou rolníci a pracují jako dosud – rod jde po
@@ -72,6 +73,8 @@ Martin: „Až má ves ≥ 4 dospělé mimo rodinu“ (volba z nabídky).
 | vojvoda a muži od 45 let | 3 h          | luk, boj a jízda po 1 h (bez koně luk a boj po 1,5 h)    |
 | ženy a dívky rodiny      | –            | domácnost dvorce                                         |
 
+- **Vojvoda cvičí 3 h v každém věku** (i ve 25 letech) – zbytek dne vsi vládne; syn 14–44 let
+  6 h.
 - **Dva bloky – dopoledne a odpoledne** (Vegetius: nováčci cvičili u kůlu „ráno i odpoledne“).
   Zbytek dne muži spravují výstroj a vojvoda vsi vládne – do práce vsi nejde nic.
 - **Luk je hlavní dovednost:** Slované bojovali dřevěnými luky a oštěpy (Strategikon). Boj = oštěp,
@@ -82,7 +85,9 @@ Martin: „Až má ves ≥ 4 dospělé mimo rodinu“ (volba z nabídky).
   ([strava](diet.md) – Pasáci).
 - **Ženy rodiny** kryjí **denní minimum dvorce** (vaření, voda, oheň, děti) se staršími jako každá
   domácnost ([pole](fields.md) – Práce); co jim zbude, je domácí výroba dvorce (bokem, jako
-  u ostatních žen) a do práce vsi nejde (Martin – jen domácnost).
+  u ostatních žen) a do práce vsi nejde (Martin – jen domácnost). Když žen nestačí (vdovec),
+  kryjí zbytek muži rodiny mimo výcvik; co nepokryje ani rodina (jen starší), dá ves z denního
+  minima (návrh Clauda).
 - **Péče o koně** nedělá rodina, ale ves ([koně](horses.md) – Péče).
 
 ## Kdy jde rodina na pole (návrh Clauda)

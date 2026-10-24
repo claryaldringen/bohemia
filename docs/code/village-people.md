@@ -39,12 +39,25 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (zemnice 5, polozemnice 8 let). Obydlené stav neztrácí – opravy podle stáří (`repairNeedPerDay`)
   dál berou práci vsi, nedodělek se jen neudělá; přestavbu rozhoduje jen stáří (`wantsRebuild`).
 
-- **Vojvodova rodina** ([lord.md](../design/lord.md); zatím jen čisté funkce, do simulace
-  nezapojené): `lord.ts` – `lordFamily` (vojvoda = `householdHead` dvorce; `trainees` potomci po
-  meči od 7 let, `household` ženy rodiny, `others` zbytek), `trainingHours`, `armsCap`,
-  `trainArms` / `decayArms` (dovednosti `Person.arms`, nejvyšší dosažená v `best`) a
-  `familyTrains` (rodina cvičí, až má ves 4 dospělé mimo rodinu, hystereze 3 – Martin 24. 10.
-  2026). Čísla `LORD` v `rules-lord.ts`. `householdHead` je v `households.ts`, pohřby ji sdílejí.
+- **Vojvodova rodina** ([lord.md](../design/lord.md)): `lord.ts` – `lordFamily` (vojvoda =
+  `householdHead` dvorce, jen muž – dvorec vdovy vojvodu nemá; `trainees` potomci po meči od 7
+  let, `household` ženy rodiny, `others` zbytek – zeť pracuje se vsí), `trainingHours` (vojvoda
+  3 h v každém věku, výrostek od `LORD.youthFrom`), `armsCap`, `trainArms` / `decayArms`
+  (dovednosti `Person.arms`, nejvyšší dosažená v `best`) a `familyTrains` (rodina cvičí, až má ves
+  4 dospělé mimo rodinu, hystereze 3 – Martin 24. 10. 2026; bez vojvody false). Čísla `LORD`
+  v `rules-lord.ts`. `householdHead` je v `households.ts`, pohřby ji sdílejí.
+  - **Den rodiny v simulaci:** `work()` volá `updateLordTraining` (režim `VillageState.lord.trains`
+    s hysterezí; chybí = rodina pracuje jako ostatní, i ve starší vsi – převod netřeba).
+    Cvičící rodina je mimo práci vsi, `manorLabor` kryje minimum dvorce (starší, pak dospělí
+    rodiny; zbytek žen propadne). `LaborDay.lord` = počty `{ training, field, household }`.
+  - **Hlad:** `lordFieldMode` po jídle dne – `state.hungry` → `lord.field = { since, reason:
+'hunger' }` (kronika `lord-to-field`), rodina dá od zítřka práci dospělých po minimu do úloh
+    dne (`lordField`); po `LORD.backToTrainingDays` (30) dnech plného přídělu po sobě
+    (`lord.fedDays`) zpět (`lord-to-training`).
+  - **Výcvik:** `trainLordDay` po jídle – cvičící `trainArms` (bez koně, jízda 0), dospělí jen
+    `1 − podíl práce na poli`, chlapci 7–13 vždy; kdo necvičí a má `arms`, `decayArms`.
+  - **Pasáci:** synové cvičící rodiny nepasou (`lordTraineeIds` v `youngsterCount`,
+    `herdingDay`, `youngsterHerders`).
 - **Sňatky** (`marriage.ts`, kinship.md – Sňatky; Martin, varianta c; 19. 10. 2026: „Vdova by se
   měla snažit co nejdříve vdát, ideálně ve vesnici.“): svobodný = muž od 16 / žena 16–44 bez
   manžela, i vdova s malými dětmi (`isSingle`); vdova / vdovec = svobodný s dítětem

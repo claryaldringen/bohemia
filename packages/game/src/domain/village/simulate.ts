@@ -48,6 +48,7 @@ import { decideRebuilds, finishConstructions } from './simulate-build';
 import { eat, endThreshing, harvest, harvestWinter } from './simulate-food';
 import { LAST_JOIN_MONTH, isOn, joinFinishedParts, planYear, trimPlan } from './simulate-plan';
 import { work } from './simulate-work';
+import { lordFieldMode, trainLordDay } from './lord';
 
 /**
  * Dopočítá ves do dne `toDay` včetně – den po dni od `lastDay + 1`. Vstup nemění.
@@ -172,7 +173,7 @@ function simulateDay(
   // nákup výrobků řemeslníků u sousedů – jednou za rok po sklizni, ves se rozhodne sama
   // (crafts.md – Nákup u sousedů); skupina vyrazí hned
   startPurchases(state, day, coverage, landscape);
-  const { toil } = work(state, day, obstacles, coverage, landscape);
+  const { toil, lordField } = work(state, day, obstacles, coverage, landscape);
   // nástroje a nádoby v užívání se opotřebí (crafts.md – Účinek)
   wearCraftStocks(state, day);
   // zemské stezky – dostavěné úseky od vsi ven hned vylepšené, vrácené výpravy (trade.md)
@@ -208,6 +209,10 @@ function simulateDay(
   // sňatky mezi domy – svobodní ve dvou domech se vezmou (population.md – Sňatky mezi domy)
   state.chronicle.push(...arrangeMarriages(state, day));
   const { satiation, energy, fruit, meat } = eat(state, day, coverage);
+  // vojvodova rodina (lord.md): při hladu jde od zítřka na pole, po 30 dnech plného přídělu zpět;
+  // výcvik dne – kdo necvičil, zapomíná
+  state.chronicle.push(...lordFieldMode(state, day));
+  trainLordDay(state, day, lordField);
   // nahromaděný hlad se počítá z dnešní energie (hladem se umírá z energie, ne z pestrosti –
   // diet.md) – úmrtí dne podle něj (population.md); v hájení zůstává pod prahem, aby po něm lidé
   // umírali postupně

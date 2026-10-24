@@ -9,7 +9,7 @@ import {
   villageFoodNeed,
 } from './diet';
 import type { FoodCosts } from './economy';
-import { HERDING, herdingDemand, youngsterHerders } from './herding';
+import { HERDING, herdingDemand, youngsterHerders, type HerdingState } from './herding';
 import { isOvergrown } from './fields';
 import { fallowPastureHa, hayPlanNaturalHa, PASTURE, pastureParts } from './pasture';
 import {
@@ -634,7 +634,7 @@ export function breedingFloor(input: {
  * stejným podílem (jako `watchedShares`).
  */
 export function youngRoomTargets(
-  state: Pick<VillageState, 'people'>,
+  state: HerdingState,
   day: number,
   targets: Readonly<Record<HerdSpecies, number>>,
   input: { oxen: number; minCows?: number; minSheep?: number },

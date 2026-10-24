@@ -1,5 +1,6 @@
 import { dateOfDayIndex } from '../calendar';
 import { HAY_WINTER_MONTHS } from './hay';
+import { lordTraineeIds } from './lord';
 import { ageGroup, ageYears } from './people';
 import { AGE } from './rules';
 import type { HerdSpecies, Person, VillageState } from './types';
@@ -57,9 +58,24 @@ export function isYoungster(person: Person, day: number): boolean {
   return ageGroup(person, day) === 'child' && ageYears(person.bornDay, day) >= AGE.olderChild;
 }
 
-/** Kolik výrostků 7–13 let bude ve vsi v den `day` (z dnešních lidí – i v budoucnu). */
-export function youngsterCount(state: Pick<VillageState, 'people'>, day: number): number {
-  return state.people.filter((p) => isYoungster(p, day)).length;
+/** Co pasení ze vsi potřebuje – lidé a vojvodova rodina (její synové nepasou). */
+export type HerdingState = Pick<
+  VillageState,
+  'people' | 'manorId' | 'dwellings' | 'constructions' | 'lord'
+>;
+
+/**
+ * Kolik výrostků 7–13 let bude ve vsi v den `day` (z dnešních lidí – i v budoucnu). Synové
+ * cvičící vojvodovy rodiny nepasou (lord.md – Den rodiny); `busy` – kdo dnes pase nemůže.
+ */
+export function youngsterCount(
+  state: HerdingState,
+  day: number,
+  busy: ReadonlySet<number> = new Set(),
+): number {
+  const family = lordTraineeIds(state, day);
+  return state.people.filter((p) => isYoungster(p, day) && !busy.has(p.id) && !family.has(p.id))
+    .length;
 }
 
 /**
@@ -67,7 +83,7 @@ export function youngsterCount(state: Pick<VillageState, 'people'>, day: number)
  * potřeby pasáků (`herdingDemand`) uhlídají. Tatáž kapacita jako v pasení dne (`herdingDay`);
  * s budoucím dnem odhad z věku dnešních dětí (diet.md – Porážka v zimě, místo pro mláďata).
  */
-export function youngsterHerders(state: Pick<VillageState, 'people'>, day: number): number {
+export function youngsterHerders(state: HerdingState, day: number): number {
   return youngsterCount(state, day) * HERDING.childShare;
 }
 
@@ -83,10 +99,11 @@ export interface HerdingDay {
 
 /**
  * Pasení dne: výrostci 7–13 let – jen kolik jich stáda potřebují. Synové kováře, kteří dnes nosí
- * uhlí (`busy` – id; crafts.md – Uhlí a ruda kováře), nepasou.
+ * uhlí (`busy` – id; crafts.md – Uhlí a ruda kováře), ani synové cvičící vojvodovy rodiny
+ * (lord.md – Den rodiny) nepasou.
  */
 export function herdingDay(
-  state: Pick<VillageState, 'people' | 'livestock'>,
+  state: HerdingState & Pick<VillageState, 'livestock'>,
   day: number,
   oxen: number,
   busy: ReadonlySet<number> = new Set(),
@@ -94,10 +111,7 @@ export function herdingDay(
   const herds = state.livestock?.herds;
   const demand = herds ? herdingDemand(herds, oxen, day) : 0;
   if (demand <= EPSILON) return { demand: 0, free: 0, freeHerders: { children: 0 } };
-  const youngsters =
-    busy.size > 0
-      ? state.people.filter((p) => isYoungster(p, day) && !busy.has(p.id)).length
-      : youngsterCount(state, day);
+  const youngsters = youngsterCount(state, day, busy);
   const children = Math.min(youngsters, Math.ceil(demand / HERDING.childShare - EPSILON));
   const free = Math.min(demand, children * HERDING.childShare);
   return { demand, free, freeHerders: { children } };
