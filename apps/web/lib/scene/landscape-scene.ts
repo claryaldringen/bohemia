@@ -443,7 +443,13 @@ export class LandscapeScene {
         for (const listener of this.personListeners) listener(state);
       },
       // noví lidé u spřežení a vozů – výběr oráče, honáka či vozky jde za jejich spřežením
-      onCrew: () => this.syncDraftSelection(),
+      onCrew: () => {
+        this.syncDraftSelection();
+        // jezdečtí koně jdou s jezdci (riders.ts) – plány jízd z plánu postav
+        if (this.livestock?.setRides(this.villagers?.rides() ?? [], Date.now())) {
+          this.renderWhenReady();
+        }
+      },
     });
     this.villagers.select(this.selection?.kind === 'person' ? this.selection.id : null);
     this.syncDraftSelection();

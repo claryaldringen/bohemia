@@ -185,6 +185,23 @@ describe('ohrada koní ve vsi (horses.md – Ve scéně)', () => {
     expect(penHerds(withHorses(winter)).get(20)!.horses).toEqual(['mare', 'foal', 'riding']);
   });
 
+  it('kůň jezdce dne je s jezdcem, ne v ohradě (riders.ts)', () => {
+    const v = withHorses(winter);
+    const riding: SceneVillage = {
+      ...v,
+      labor: {
+        ...v.labor!,
+        lord: {
+          home: 1,
+          trainees: [],
+          household: [],
+          riders: [{ id: 7, horseId: 3, training: 20, hours: 2 }],
+        },
+      },
+    };
+    expect(penHerds(riding).get(20)!.horses).toEqual(['mare', 'foal']);
+  });
+
   it('v létě s pasáky jsou koně na pastvě, v ohradě zůstane jen kůň pod jezdcem', () => {
     const v = withHorses(summer);
     // jedna domácnost = stádo ovcí s kozami, krav a prasat; koně potřebují pasáka navíc

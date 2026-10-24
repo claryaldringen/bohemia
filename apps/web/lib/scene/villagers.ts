@@ -5,6 +5,7 @@
 // (bakedVertexAnimationSettingsInstanced), barvu oděvu a vlasů (villagerLook). Pod každou
 // postavou měkký kruhový stín (thin instances, třetí draw call). Kdo kde je, plánuje
 // villager-plan.ts z rozdělení práce dne, pohyb je čistá funkce času (villager-motion.ts).
+import { ridePlansKey, type RidePlan } from './riders';
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import '@babylonjs/loaders/glTF';
 import { BakedVertexAnimationManager } from '@babylonjs/core/BakedVertexAnimation/bakedVertexAnimationManager';
@@ -289,6 +290,11 @@ export class VillageVillagers {
     return this.crew.carts.find((c) => c.cart === cart)?.drover ?? null;
   }
 
+  /** Jízdy dne vojvodovy rodiny (riders.ts) – koně jezdců kreslí livestock.ts. */
+  rides(): readonly RidePlan[] {
+    return this.crew.rides ?? [];
+  }
+
   /** Kde naposledy stála vidět postava člověka (id) – testovací háček; jinak null. */
   spotOf(id: number): { x: number; y: number; z: number } | null {
     const index = this.people.findIndex(
@@ -349,6 +355,7 @@ export class VillageVillagers {
       slots.set(person.kind, slot + 1);
       this.pose.hidden = false;
       this.pose.stage = undefined;
+      this.pose.lift = undefined;
       const pose = person.pose(t, herds, this.pose);
       const y = height(pose.x, pose.z);
       const at = index * 3;
@@ -358,7 +365,9 @@ export class VillageVillagers {
       if (selected !== null && person.person === selected) stages.set(index, pose.stage ?? null);
       // karavana výpravy za krajem mapy (caravan.ts) – nulové měřítko, postava ani stín se nekreslí
       const scale = pose.hidden ? 0 : person.scale;
-      writeFigure(kind.matrices, slot, pose.x, y, pose.z, pose.headingX, pose.headingZ, scale);
+      // jezdec sedí na koni – matice o výšku sedla výš (riders.ts), výběr a stín zůstanou u země
+      const lifted = y + (pose.lift ?? 0);
+      writeFigure(kind.matrices, slot, pose.x, lifted, pose.z, pose.headingX, pose.headingZ, scale);
       const clip = kind.model.clips.get(pose.clip) ?? kind.model.clips.get('idle')!;
       const length = clip.end - clip.start + 1;
       const o = slot * 4;
@@ -373,7 +382,7 @@ export class VillageVillagers {
       minZ = Math.min(minZ, pose.z);
       maxZ = Math.max(maxZ, pose.z);
       low = Math.min(low, y);
-      high = Math.max(high, y);
+      high = Math.max(high, lifted);
     });
     const time = (t % 3600) + 3600;
     for (const kind of this.kinds.values()) {
@@ -613,7 +622,7 @@ export class VillageVillagers {
    * nezmění); scéně to ohlásí (`onCrew`), jen když se změnili.
    */
   private setCrew(crew: DraftCrew): void {
-    const key = JSON.stringify(crew);
+    const key = `${JSON.stringify({ teams: crew.teams, carts: crew.carts })}#${ridePlansKey(crew.rides ?? [])}`;
     if (key === this.crewKey) return;
     this.crewKey = key;
     this.crew = crew;

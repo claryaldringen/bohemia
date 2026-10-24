@@ -118,6 +118,8 @@ export const PEN_PLACES_PER_SQUARE = {
  * `trainedAtYears`; čísla návrh Clauda): výcvik 0–`trainingFull` roste denně, kdy na koni jezdec
  * cvičí, aby od 3 do 12 let došel na plný (≈ 11 % ročně). Co jezdec na koni dokáže = jízda ×
  * (`riderPower.base` + `riderPower.perTraining` × výcvik).
+ * horses.md – Kdy a kam se jezdí, dokud není lov (návrh Clauda): jednou za `borderRideEveryDays`
+ * dní jedou jezdci po hotové zemské stezce k hranici mapy a zpět místo objížďky polí.
  */
 export const HORSES = {
   serviceFromYears: 3,
@@ -140,6 +142,7 @@ export const HORSES = {
   trainingFull: 100,
   trainedAtYears: 12,
   riderPower: { base: 0.4, perTraining: 0.6 },
+  borderRideEveryDays: 7,
 } as const;
 /**
  * oxen.md – Spřežení, Voli po kusech (návrh Clauda, Martin schválil): výcvik ≈ 2 roky, vůl slouží

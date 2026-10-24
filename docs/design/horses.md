@@ -181,11 +181,19 @@ Tři řádky v panelu obchodu jako u dobytka ([obchod](trade.md) – Dobytek ve 
   nebo `horse_celtic.dae`, animace `art/animation/quadraped/horse_breed_walk.dae`,
   `horse_breed_trot.dae` a `horse_breed_idle_*.dae`. Převod jako ostatní zvířata
   (`tools/blender/fauna_from_0ad.py` – napózovaný model s morph targety kroku a pastvy), zmenšit na
-  malého koně, hříbě ≈ 0,6×, sedlo a čabraku bez barev hráče. Licence CC BY-SA 3.0 (Wildfire
-  Games) – zapsat do `LICENSES.md`.
+  malého koně, hříbě ≈ 0,6×. Licence CC BY-SA 3.0 (Wildfire Games) – zapsat do `LICENSES.md`.
+- **Bez sedla (návrh Clauda, 24. 10. 2026):** jezdí se na holém koni – sedla jsou ne-cíl (výš),
+  Slované v 6. století jezdili bez sedla nebo na pokrývce a třmeny přinesli až Avaři koncem 6. a
+  v 7. století. Sedlo s třmeny může přijít později jako vylepšení; převod rekvizit koně
+  (`props/horse/*`) `fauna_from_0ad.py` zatím neumí.
 - **Jezdec** = postava `man.glb` s novou animací sedu z `art/animation/biped/rider/cavalry/` (stejná
   kostra bipeda) – nový klip v GLB. Poloha a natočení jezdce se odvodí z koně v `animate()` (takt
   `WATER_FPS`); jedoucí jezdec nastaví `needsRender`, stojící ne.
+- **Kdy jsou jezdci venku (návrh Clauda, 24. 10. 2026):** herní den trvá ≈ 86 s, objížďka polí
+  měří stovky metrů až kilometry a krokem 1,5 m/s trvá déle než den. Jezdci s koněm proto ve
+  scéně jezdí celý den (7–19 h) po trase dne dokola – ujetá vzdálenost je čistá funkce
+  skutečného času – a luk a boj jezdce se na dvorku nekreslí (jádro jim hodiny počítá dál).
+  V noci je jezdec doma a kůň stojí u kůlu u brány dvorce, v ohradě koně jezdců dne nestojí.
 - **Technické riziko – 8 vertex bufferů WebGPU:** postava jich má právě 8, jezdec **nesmí přidat
   žádný atribut** – sed, barevný plášť ani příznak „na koni“ nejdou do vertexů, jen do animace nebo
   textury. U koně s morph targety ověřit počet bufferů (kráva a vůl mají stejné řešení, takže by

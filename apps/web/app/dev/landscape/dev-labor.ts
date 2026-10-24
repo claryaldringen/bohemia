@@ -100,13 +100,51 @@ export function demoLabor(
 
 /**
  * Ves ukázky s rozdělením práce bez lidí (orba přes cestu, vozy, karavana) – doplní ukázkové lidi
- * hotových obydlí (`demoPersons`); s lidmi nebo bez práce dne beze změny (tentýž objekt).
+ * hotových obydlí (`demoPersons`) a s ohradou koní jezdce (`demoRiders`); s lidmi bez jezdců nebo bez
+ * práce dne beze změny (tentýž objekt).
  */
 export function withDemoPersons(village: SceneVillage): SceneVillage {
   const labor = village.labor;
-  if (!labor || labor.persons) return village;
+  if (!labor) return village;
   const built = village.dwellings.filter((d) => d.built);
-  return { ...village, labor: { ...labor, persons: demoPersons(built) } };
+  const riders = labor.lord ? null : demoRiders(village, built);
+  if (labor.persons && !riders) return village;
+  return {
+    ...village,
+    labor: {
+      ...labor,
+      persons: labor.persons ?? demoPersons(built),
+      ...(riders ? { lord: riders } : {}),
+    },
+  };
+}
+
+/**
+ * Ukázka jezdců (horses.md – Ve scéně): s ohradou koní a jezdeckými koňmi jezdí muž a dítě prvního
+ * domu (`demoPersons`) na prvních dvou jezdeckých koních z dvorce s dvorkem; žena u dvorce.
+ */
+function demoRiders(
+  village: SceneVillage,
+  built: readonly SceneVillage['dwellings'][number][],
+): SceneLabor['lord'] | null {
+  // dvorec s dvorkem (cvičiště a kůl u brány – training-ground-layout), jinak první dům
+  const home = built.find((d) => d.plot?.yard) ?? built[0];
+  const horses = (village.pens ?? [])
+    .flatMap((p) => p.horses ?? [])
+    .filter((h) => h.kind === 'riding');
+  if (!home || horses.length === 0) return null;
+  const riders = [1000, 1002].slice(0, horses.length).map((id, i) => ({
+    id,
+    horseId: horses[i]!.id,
+    training: 50,
+    hours: 2,
+  }));
+  return {
+    home: home.id,
+    trainees: riders.map((r) => ({ id: r.id, bow: 2, combat: 2, riding: 2 })),
+    household: [1001],
+    riders,
+  };
 }
 
 /**

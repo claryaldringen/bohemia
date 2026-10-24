@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { assignRiders, riderPower, trainHorsesDay } from '../horse-riders';
 import { villageHorses } from '../horses';
-import { lordFamily, trainLordDay } from '../lord';
+import { lordFamily, lordRides, trainLordDay } from '../lord';
 import { HORSES } from '../rules';
-import type { ChronicleEvent, Horse, VillageState } from '../types';
+import type { ChronicleEvent, Horse, Trail, TradeExpedition, VillageState } from '../types';
 import { horse, horseVillage, LORD_ID, SON_ID, START, YEAR, YOUTH_ID } from './horse-fixtures';
 
 // Jezdci a výcvik koně (horses.md – Výcvik koně a jezdec): přidělení koní od vojvody, výcvik
@@ -119,5 +119,68 @@ describe('jízda jezdce (lord.md – Den rodiny)', () => {
     s.lord = { trains: true };
     expect(trainLordDay(s, START, 0)).toEqual([]);
     expect(s.people.every((p) => (p.arms?.riding ?? 0) === 0)).toBe(true);
+  });
+});
+
+describe('jízdy dne (horses.md – Kdy a kam se jezdí, dokud není lov)', () => {
+  const riding = (horses: Horse[]): VillageState => {
+    const s = horseVillage(horses);
+    s.lord = { trains: true };
+    s.horsesCaredToday = 1;
+    s.horsesFed = true;
+    trainLordDay(s, START, 0);
+    return s;
+  };
+
+  it('jede jen jezdec s koněm – vojvoda první, kůň a výcvik z jádra', () => {
+    const s = riding([horse(1, 5, 'male', 30)]);
+    const rides = lordRides(s, START + 1)!;
+    expect(rides.riders.map((r) => [r.riderId, r.horseId])).toEqual([[LORD_ID, 1]]);
+    expect(rides.riders[0]!.training).toBeGreaterThan(30);
+    expect(rides.riders[0]!.hours).toBeGreaterThan(0);
+    expect(rides.escort).toBeNull();
+  });
+
+  it('v dnech na poli nikdo nejezdí – kůň stojí a jízda neroste', () => {
+    // chlapec 11 let cvičí i v dnech na poli – na koni ale ne, místo jízdy luk
+    const s = riding([horse(1, 5), horse(2, 6), horse(3, 7)]);
+    expect(villageHorses(s).some((h) => h.riderId === YOUTH_ID)).toBe(true);
+    s.lord = { trains: true, field: { since: START, reason: 'hunger' } };
+    const youth = s.people.find((p) => p.id === YOUTH_ID)!;
+    const before = { ...youth.arms! };
+    trainLordDay(s, START + 1, 1);
+    expect(youth.arms!.riding).toBeLessThanOrEqual(before.riding);
+    expect(youth.arms!.bow).toBeGreaterThan(before.bow);
+    expect(lordRides(s, START + 1)).toBeNull();
+  });
+
+  it('jednou za 7 dní po hotové zemské stezce k hranici, jinak objížďka polí', () => {
+    const s = riding([horse(1, 5)]);
+    s.trails = [{ id: 4, builtDay: 0 } as unknown as Trail];
+    const days = Array.from({ length: 14 }, (_, i) => START + i);
+    const border = days.filter((d) => lordRides(s, d)?.trailId === 4);
+    expect(border).toHaveLength(2);
+    expect(border[1]! - border[0]!).toBe(HORSES.borderRideEveryDays);
+    s.trails = [{ id: 4, builtDay: null } as unknown as Trail];
+    expect(days.every((d) => lordRides(s, d)!.trailId === null)).toBe(true);
+  });
+
+  it('výpravu vyrážející dnes doprovodí nejstarší jezdec mimo vojvodu', () => {
+    const s = riding([horse(1, 5), horse(2, 6)]);
+    const day = START + 1;
+    s.trade = {
+      neighbours: [],
+      nextId: 2,
+      expeditions: [{ id: 1, trailId: 4, startedDay: day } as unknown as TradeExpedition],
+    };
+    const rides = lordRides(s, day)!;
+    expect(rides.escort).toMatchObject({
+      riderId: SON_ID,
+      horseId: 1,
+      expeditionId: 1,
+      trailId: 4,
+    });
+    expect(rides.riders.map((r) => r.riderId)).toEqual([LORD_ID]);
+    expect(lordRides(s, day + 1)!.escort).toBeNull();
   });
 });

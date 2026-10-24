@@ -1,13 +1,13 @@
 // Vojvodova rodina a dovednosti (docs/design/lord.md): kdo patří k rodině, výcvik den po dni, růst
 // a úbytek dovedností, denní minimum dvorce a kdy jde rodina na pole.
 import { assignRiders, NO_RIDERS, trainHorsesDay } from './horse-riders';
-import { horsePens } from './horses';
+import { horsePens, isGrainHorse, penHorses } from './horses';
 import { householdHead } from './households';
 import { adultDailyMin, waterFetchingLabor } from './labor';
 import { villageManorId } from './manor';
 import { ageGroup, ageYears, laborPerDay } from './people';
 import { dailyMinPerHousehold } from './productivity';
-import { AGE, LORD } from './rules';
+import { AGE, HORSES, LORD } from './rules';
 import { lordHelpShare } from './sowing';
 import type { ArmsSkills, ChronicleEvent, Person, VillageState } from './types';
 
@@ -306,10 +306,13 @@ export function trainLordDay(state: VillageState, day: number, fieldShare = 0): 
   const family = trainingFamily(state, day);
   const trainees = new Set(family ? family.trainees.map((p) => p.id) : []);
   const onField = Math.min(1, Math.max(0, fieldShare));
-  const mounted =
+  const paired =
     horsePens(state).length > 0
       ? assignRiders(state, day, family ?? lordFamily(state, day))
       : NO_RIDERS;
+  // dny na poli (horses.md – Výcvik koně a jezdec): koně stojí v ohradě, nikdo nejezdí – i chlapci,
+  // kteří cvičí vždy, cvičí místo jízdy luk a boj jako jezdec bez koně
+  const mounted = state.lord?.field ? NO_RIDERS : paired;
   const riding = new Map<number, number>();
   for (const p of state.people) {
     if (family && trainees.has(p.id)) {
@@ -325,6 +328,88 @@ export function trainLordDay(state: VillageState, day: number, fieldShare = 0): 
     if (p.arms) p.arms = decayArms(p.arms);
   }
   return family ? trainHorsesDay(state, day, riding) : [];
+}
+
+/** Jezdec dne (`lordRides`): kdo, na kterém koni, výcvik koně a hodiny jízdy dne. */
+export interface LordRide {
+  riderId: number;
+  horseId: number;
+  training: number;
+  hours: number;
+}
+
+/**
+ * Jízdy dne (horses.md – Kdy a kam se jezdí, dokud není lov; návrh Clauda): jezdci rodiny pohromadě
+ * – objížďka polí, nebo jednou za `HORSES.borderRideEveryDays` dní po hotové zemské stezce
+ * (`trailId`) k hranici mapy; výpravu, která dnes vyráží, doprovodí nejstarší jezdec mimo vojvodu
+ * (sám vojvoda, když jiného jezdce nemá) a s ostatními nejede.
+ */
+export interface LordRides {
+  riders: LordRide[];
+  trailId: number | null;
+  escort: (LordRide & { expeditionId: number; trailId: number }) | null;
+}
+
+/**
+ * Kdo dnes jede a na kterém koni (horses.md – Výcvik koně a jezdec, Kdy a kam se jezdí): stejné
+ * jako jízda v `trainLordDay` – jezdec z cvičící rodiny se svým koněm (`Horse.riderId`, kůň ve
+ * službě) a hodinami jízdy dne (`trainingHours`), vojvoda první, pak od nejstaršího. V dnech na poli
+ * a bez cvičící rodiny null; ves bez jezdců prázdné `riders`. Jen čte stav (pro scénu).
+ */
+export function lordRides(
+  state: LordView & Pick<VillageState, 'lord' | 'pens' | 'trails' | 'trade'>,
+  day: number,
+): LordRides | null {
+  const family = trainingFamily(state, day);
+  if (!family || state.lord?.field) return null;
+  const trainees = new Map(family.trainees.map((p) => [p.id, p]));
+  const lordId = family.lord?.id;
+  const riders: (LordRide & { bornDay: number })[] = [];
+  for (const pen of horsePens(state)) {
+    for (const horse of penHorses(pen)) {
+      const rider = horse.riderId === undefined ? undefined : trainees.get(horse.riderId);
+      if (!rider || !isGrainHorse(horse, day)) continue;
+      const hours = trainingHours(rider, day, family.lord, true).riding;
+      if (hours <= 0) continue;
+      riders.push({
+        riderId: rider.id,
+        horseId: horse.id,
+        training: horse.training,
+        hours,
+        bornDay: rider.bornDay,
+      });
+    }
+  }
+  const rank = (r: { riderId: number }): number => (r.riderId === lordId ? 0 : 1);
+  riders.sort((a, b) => rank(a) - rank(b) || a.bornDay - b.bornDay || a.riderId - b.riderId);
+  const leaving = (state.trade?.expeditions ?? [])
+    .filter((e) => e.startedDay === day)
+    .sort((a, b) => a.id - b.id)[0];
+  const escortRider = leaving ? (riders.find((r) => rank(r) === 1) ?? riders[0]) : undefined;
+  const ride = ({ riderId, horseId, training, hours }: LordRide): LordRide => ({
+    riderId,
+    horseId,
+    training,
+    hours,
+  });
+  const escort =
+    leaving && escortRider
+      ? { ...ride(escortRider), expeditionId: leaving.id, trailId: leaving.trailId }
+      : null;
+  const trails = (state.trails ?? [])
+    .filter((t) => t.builtDay !== null)
+    .sort((a, b) => a.id - b.id);
+  const every = HORSES.borderRideEveryDays;
+  const dayIndex = Math.floor(day);
+  const trailId =
+    trails.length > 0 && ((dayIndex % every) + every) % every === 0
+      ? trails[Math.floor(dayIndex / every) % trails.length]!.id
+      : null;
+  return {
+    riders: riders.filter((r) => r.riderId !== escort?.riderId).map(ride),
+    trailId,
+    escort,
+  };
 }
 
 /**

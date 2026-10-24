@@ -10,6 +10,7 @@ import {
   SceneLaborHome,
   SceneLaborShare,
   SceneLord,
+  SceneRide,
   SceneVillage,
 } from './village-view-scene-types';
 import {
@@ -55,6 +56,8 @@ import {
   ageGroup,
   trainingFamily,
   trainingHours,
+  lordRides,
+  type LordRide,
   partStage,
   partOvergrowthYears,
   pastureGrazedParts,
@@ -348,12 +351,30 @@ function sceneLord(state: VillageState, counts: LaborDay['lord'], day: number): 
     );
   const men = atField(family.trainees, family.trainees.length - counts.training);
   const women = atField(family.household, family.household.length - counts.household);
+  // jízdy dne z jádra (horses.md – Kdy a kam se jezdí) – jen jezdci, kteří dnes cvičí
+  const rides = lordRides(state, day);
+  const scene = (r: LordRide): SceneRide => ({
+    id: r.riderId,
+    horseId: r.horseId,
+    training: r.training,
+    hours: r.hours,
+  });
+  const riding = (rides?.riders ?? []).filter((r) => !men.has(r.riderId)).map(scene);
+  const escort = rides?.escort && !men.has(rides.escort.riderId) ? rides.escort : null;
   return {
+    ...(riding.length > 0 ? { riders: riding } : {}),
+    ...(riding.length > 0 && rides?.trailId != null ? { borderTrailId: rides.trailId } : {}),
+    ...(escort
+      ? { escort: { ...scene(escort), expeditionId: escort.expeditionId, trailId: escort.trailId } }
+      : {}),
     home,
     trainees: family.trainees
       .filter((p) => !men.has(p.id))
       .sort((a, b) => a.id - b.id)
-      .map((p) => ({ id: p.id, ...trainingHours(p, day, family.lord, riders.has(p.id)) })),
+      .map((p) => ({
+        id: p.id,
+        ...trainingHours(p, day, family.lord, rides !== null && riders.has(p.id)),
+      })),
     household: family.household
       .filter((p) => !women.has(p.id))
       .map((p) => p.id)

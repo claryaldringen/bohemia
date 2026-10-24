@@ -3,9 +3,9 @@
 // a zda vůbec cvičí, určuje jádro (`SceneLabor.lord`); scéna jen rozvrhne hodiny do dne.
 import type { SceneLabor, SceneLord } from '../village-view';
 import { type DayWindow } from './caravan';
-import { LIVESTOCK_EPOCH_MS } from './livestock-motion';
+import { hourOfDay, ridePlans, riderPose, type RidePlan } from './riders';
 import { cast, figure } from './villager-plan-cast';
-import { doorPoint } from './villager-plan-geometry';
+import { doorPoint, walkRoute } from './villager-plan-geometry';
 import { type Context, type PlannedVillager } from './villager-plan-types';
 import {
   fetcher,
@@ -16,6 +16,7 @@ import {
   type VillagerPose,
 } from './villager-motion';
 import { trainingGroundOf, type TrainingGround, type TrainingSpot } from './training-ground-layout';
+import type { Point } from './villager-plan-types';
 
 /**
  * Rozvrh výcviku dne (lord.md – Den rodiny: dva bloky, dopoledne a odpoledne – Vegetius; návrh
@@ -50,13 +51,7 @@ export function drillAt(
   return null;
 }
 
-/** Hodina herního dne (0–24) v čase `t` (s – villagerSeconds); bez hodin světa null. */
-function hourOf(window: DayWindow | null, t: number): number | null {
-  if (!window || window.endMs <= window.startMs) return null;
-  const length = window.endMs - window.startMs;
-  const ms = t * 1000 + LIVESTOCK_EPOCH_MS - window.startMs;
-  return ((((ms % length) + length) % length) / length) * 24;
-}
+const hourOf = hourOfDay;
 
 function put(out: VillagerPose, s: TrainingSpot, clip: VillagerClip): VillagerPose {
   out.x = s.x;
@@ -195,30 +190,64 @@ function combatSpot(
   };
 }
 
+/** Kůl na koně u brány (training-ground-layout – `hitch`), bez něj místo u cvičného kůlu. */
+function hitchSpot(ground: TrainingGround): TrainingSpot {
+  const hitch = ground.pieces.find((p) => p.part === 'hitch');
+  if (!hitch) return ground.post;
+  return {
+    x: hitch.x,
+    z: hitch.z,
+    headingX: Math.sin(hitch.rotation),
+    headingZ: Math.cos(hitch.rotation),
+  };
+}
+
 /**
  * Rodina na dvorku (lord.md – Ve scéně; villagers.md – výjimka z pravidla „nikdo nestojí na
  * oploceném pozemku“): cvičící muži a chlapci na cvičišti (`trainingGroundOf`), ženy rodiny
  * u dvorce. Lidé s pevným místem dne – berou se z rozpisu lidí (`takeId`) hned po pohřbu
- * a karavanách, do práce vsi pak nejdou. Bez lidí ve scéně, rodiny nebo cvičiště nic.
+ * a karavanách, do práce vsi pak nejdou. Jezdci dne (`SceneLord.riders`, doprovod výpravy) jsou
+ * ve dne na koni (riders.ts – `ridePlans`) a plány jízd jdou koním (`rides`). Bez lidí ve scéně,
+ * rodiny nebo cvičiště nic.
  */
 export function lordFigures(
   ctx: Context,
   labor: SceneLabor,
   window: DayWindow | null,
-): PlannedVillager[] {
+): { people: PlannedVillager[]; rides: RidePlan[] } {
   const lord = labor.lord;
-  if (!lord || !ctx.roster) return [];
+  if (!lord || !ctx.roster) return { people: [], rides: [] };
   const ground = trainingGroundOf(ctx.village);
-  if (!ground || ground.home !== lord.home) return [];
+  if (!ground || ground.home !== lord.home) return { people: [], rides: [] };
   const out: PlannedVillager[] = [];
+  // jízdy dne – po pěšinách a kolem domů (walkRoute), jinak rovně; přes pole nikdy (rider-route.ts)
+  const rides = ridePlans({
+    village: ctx.village,
+    lord,
+    hitch: hitchSpot(ground),
+    homes: ctx.homes.map((h) => ({ x: h.position.x, z: h.position.z })),
+    leg: (a, b): Point[] => {
+      const r = walkRoute(ctx, a, b);
+      return r ? r.points.map(([x, z]) => ({ x, z })) : [a, b];
+    },
+    window,
+  });
+  const riding = new Map(rides.map((r) => [r.riderId, r]));
   const lanes = ground.lanes.length;
-  const archers = lord.trainees.filter((h) => h.bow > 0).map((h) => h.id);
-  const fighters = lord.trainees.filter((h) => h.combat > 0).map((h) => h.id);
+  // jezdci jsou na koni – dráhy a místa boje dostanou jen ostatní
+  const drilling = lord.trainees.filter((h) => !riding.has(h.id));
+  const archers = drilling.filter((h) => h.bow > 0).map((h) => h.id);
+  const fighters = drilling.filter((h) => h.combat > 0).map((h) => h.id);
   for (const [idx, hours] of lord.trainees.entries()) {
     const c = cast(ctx, `lord:${hours.id}`, { women: 0, child: false }, () =>
       ctx.roster!.takeId(hours.id),
     );
     if (!c) continue;
+    const ride = riding.get(hours.id);
+    if (ride) {
+      out.push(figure(c, riderPose(ride), 'natural', { kind: 'lord', household: false }));
+      continue;
+    }
     const a = Math.max(0, archers.indexOf(hours.id));
     const lane = a % lanes;
     const ranks = Math.ceil((archers.length - lane) / lanes);
@@ -252,5 +281,5 @@ export function lordFigures(
       );
     });
   }
-  return out;
+  return { people: out, rides };
 }
