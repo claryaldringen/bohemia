@@ -74,6 +74,13 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `route(points, pace)` – `shuttle` jde po pěšině rychleji. Vývojová stránka: tlačítka
   **Pěšiny**, **Cesta** (ukázka pevné cesty se stromy v každém stadiu – `dev-road.ts`), **Provoz**
   (teplotní mapa) a **Stáří**.
+  - **Zvyk a ploty** (Úloha 2 nového systému cest, `WALK_VERSION` `routes-v2`): `ROUTE_HABIT.offRoad`
+    (`rules-roads.ts`) – `trodden` v `network-search.ts` zdraží nevyšlapané místo o 25 % jen pro výběr
+    trasy (pod pevnou cestou a osevem 0; čas chůze zůstává skutečný). Hotová ohrada a hřbitov jsou
+    v `villageGrid` neprůchodné přes `fencedCells` (stejná funkce jako u vozů, ulička 3 m zůstává),
+    vstup jen buňkami branky (`gateCells` kolem `penSquaresEntrance` / `cemeteryEntrance`); příkop
+    svatyně neprůchodný kromě vchodu. `PEN_COST` / `CEMETERY_COST` platí už jen pro staveniště.
+    Martin 22. 10. 2026 (#3): „Lidi nesmí chodit přes ohrady. Vždyť jsou oplocené.“
 
 - **Pevné cesty a stromy u nich** ([docs/design/roads.md](../design/roads.md) – fáze 1; výběr,
   vylepšení a chůze podle stupně = fáze 2, jabloně = fáze 3): simulace vsi (server) – modul

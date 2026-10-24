@@ -88,6 +88,9 @@ export const CART_TRAMPLE = {
   passesPerTrip: 2,
   lossShare: 1,
 } as const;
+// paths.md – Kudy (návrh Clauda, Úloha 2): zvyk – místo bez vyšlapané pěšiny stojí pro výběr trasy
+// o `offRoad` (25 %) víc, plně vyšlapané nic; čas chůze se počítá skutečnými rychlostmi
+export const ROUTE_HABIT = { offRoad: 0.25 } as const;
 // wagons.md – Vyjeté cesty (návrh Clauda): úsek, kudy vozy dva roky po sobě jezdí aspoň
 // `tripsPerDay` jízd denně (roční průměr – ≈ 90 jízd za rok), se stane vozovou cestou; vozová cesta,
 // kudy 5 let po sobě jezdí pod polovinou, je zas jen pěší (zaroste podle provozu lidí)

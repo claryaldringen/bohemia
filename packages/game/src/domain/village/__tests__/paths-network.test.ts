@@ -15,6 +15,9 @@ import {
   type PathVillage,
 } from '../paths/network';
 import { WATER_FETCHING } from '../rules';
+import { villageGrid } from '../paths/network-grid';
+import { trodden } from '../paths/network-search';
+import { pathCostFactor } from '../paths/walk-speed';
 import { nearestWaterTiles, pathTerrainOf, pathWindowFor } from '../paths/terrain';
 import { house, part, pathTestTerrain } from './paths-fixtures';
 import { makeLandscape } from './placement-fixtures';
@@ -453,12 +456,8 @@ describe('computePathNetwork – pěšiny vsi', () => {
     const wood = [1, 2, 3].map((id) => key(network.errands.get(id)!.wood));
     expect(new Set(wood).size).toBe(1);
     // k vodě (z 40–55) vedou méně než tři souběžné pěšiny
-    const lanes = new Set(
-      samples(network)
-        .filter((p) => p.z > 40 && p.z < 55)
-        .map((p) => Math.round(p.x / 6)),
-    );
-    expect(lanes.size).toBeLessThan(3);
+    const lanes = network.lines.filter((l) => l.points.some((p) => p.z > 40 && p.z < 55));
+    expect(lanes.length).toBeLessThan(3);
     // společný úsek je silnější než pěšina jedné domácnosti
     const strengths = network.lines.map((l) => Math.max(...l.strength));
     expect(Math.max(...strengths)).toBeGreaterThan(Math.min(...strengths));
@@ -795,5 +794,56 @@ describe('simplifyPathLine, smoothPathLine', () => {
       expect(v).toBeGreaterThanOrEqual(0);
       expect(v).toBeLessThanOrEqual(1);
     }
+  });
+});
+
+describe('zvyk a ploty (paths.md – Kudy, Martin 22. 10. 2026)', () => {
+  const cellAt = (g: ReturnType<typeof villageGrid>, x: number, z: number): number =>
+    Math.round((z - g.originZ) / g.cellM) * g.width + Math.round((x - g.originX) / g.cellM);
+
+  it('zvyk: nevyšlapané místo stojí o čtvrtinu víc, vyšlapané ani pevná cesta ne', () => {
+    const base = new Float32Array([2, 2, 2]);
+    const costs = {
+      base,
+      previous: new Float32Array(3),
+      cost: new Float32Array(3),
+      plain: new Uint8Array([0, 0, 1]),
+    };
+    expect(trodden(costs, 0, 0)).toBeCloseTo(2.5);
+    expect(trodden(costs, 1, 1)).toBeCloseTo(2 * pathCostFactor(1));
+    expect(trodden(costs, 2, 0)).toBe(2);
+  });
+
+  it('hotová ohrada je neprůchodná uvnitř plotu, uličkou mezi dvěma se projde', () => {
+    const pens = [
+      { ...part(0, 37.5), id: 4, built: true, stocked: false },
+      { ...part(15, 37.5), id: 5, built: true, stocked: false },
+    ];
+    const grid = villageGrid({ village: village({ pens }), terrain }, []);
+    expect(grid.base[cellAt(grid, 0, 37.5)]).toBe(Infinity);
+    expect(grid.base[cellAt(grid, 15, 37.5)]).toBe(Infinity);
+    expect(Number.isFinite(grid.base[cellAt(grid, 7.5, 37.5)]!)).toBe(true);
+    // rozestavěná ohrada průchozí
+    const site = [{ ...part(0, 37.5), id: 4, built: false }];
+    const open = villageGrid({ village: village({ pens: site }), terrain }, []);
+    expect(Number.isFinite(open.base[cellAt(open, 0, 37.5)]!)).toBe(true);
+  });
+
+  it('krmení končí v brance – dovnitř ohrady pěšina nevede', () => {
+    const pens = [{ ...part(0, 37.5), id: 4, built: true, stocked: true }];
+    const network = computePathNetwork({ village: village({ pens }), terrain });
+    const inside = samples(network).filter((p) => Math.abs(p.x) < 5 && Math.abs(p.z - 37.5) < 5);
+    expect(inside).toEqual([]);
+    const near = samples(network).filter((p) => Math.abs(p.x) < 12 && Math.abs(p.z - 37.5) < 12);
+    expect(near.length).toBeGreaterThan(0);
+  });
+
+  it('hotový hřbitov: návštěva končí v brance, dovnitř plotu se nechodí', () => {
+    const cemetery = { id: 7, squares: [part(-7.5, -67.5), part(7.5, -67.5)], built: true };
+    const v = village({ cemeteries: [cemetery] });
+    const network = computePathNetwork({ village: v, terrain });
+    const inside = samples(network).filter((p) => Math.abs(p.x) < 12 && Math.abs(p.z + 67.5) < 5);
+    expect(inside).toEqual([]);
+    expect(samples(network).some((p) => Math.abs(p.x) < 20 && p.z < -50)).toBe(true);
   });
 });

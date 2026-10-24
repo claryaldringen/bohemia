@@ -2,7 +2,7 @@
 // Součást výpočtu sítě pěšin – rozcestník je network.ts (komentář k celku tam).
 
 import { length2 } from '../../landscape';
-import { HUMNO, SACRED_BUILDINGS } from '../rules';
+import { HUMNO, ROUTE_HABIT, SACRED_BUILDINGS } from '../rules';
 import { pathCostFactor } from './walk-speed';
 import {
   A_STAR_WEIGHT,
@@ -212,8 +212,10 @@ function treadCell(traffic: Traffic, costs: PassCosts, c: number, weight: number
  */
 export function trodden(costs: PassCosts, c: number, strength: number): number {
   const base = costs.base[c]!;
-  if (strength <= 0 || costs.plain?.[c]) return base;
-  return base * pathCostFactor(strength);
+  if (costs.plain?.[c]) return base;
+  // zvyk (ROUTE_HABIT): mimo vyšlapané místo se chodí neradi – cena pro výběr trasy, ne čas chůze
+  const s = Math.min(1, Math.max(0, strength));
+  return base * (1 + ROUTE_HABIT.offRoad * (1 - s)) * (s > 0 ? pathCostFactor(s) : 1);
 }
 
 /** Ceny kola: základ, síla pěšin z minulého kola a ceny se slevou, které se průběžně snižují. */

@@ -579,7 +579,7 @@ export function walkDistancesTo(
  * rychlosti (stromy u cest – `Road.lined`) a po změně tvaru domů (varianty rozměrů – population.md)
  * se vsi uložené dřív přepočítají hned při dalším dni, ne až při změně rozložení.
  */
-export const WALK_VERSION = 'dwelling-shapes';
+export const WALK_VERSION = 'routes-v2';
 
 /**
  * Vzdálenosti chůze po pěšinách a pevných cestách (mutuje stav – paths.md, roads.md – Rychlejší

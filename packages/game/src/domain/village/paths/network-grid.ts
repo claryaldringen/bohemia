@@ -4,14 +4,29 @@
 import { detCos, detSin, length2, tileCenterWorld, type Landscape } from '../../landscape';
 import { rotatedSquareCorners, rotationCosSin, rotationTurn } from '../square-grid';
 import { dwellingFrame, shapeRect, shapeZ, type ShapeFrame } from '../dwelling-shape';
-import { DWELLING_CLEARING_M, ROAD_WALK, SACRED_BUILDINGS } from '../rules';
+import {
+  CEMETERY_FENCE_INSET_M,
+  DWELLING_CLEARING_M,
+  PEN_FENCE_INSET_M,
+  ROAD_WALK,
+  SACRED_BUILDINGS,
+} from '../rules';
 import { type DwellingPlot, type DwellingType, type RoadGrade, type Position } from '../types';
 import { terrainEditsFrom, withTerrainEdits } from './earthworks';
 import { nearestPartFinder } from './nearest';
+import {
+  cemeteryEntrance,
+  penGateToward,
+  penSquaresEntrance,
+  sacredEntrance,
+  type Entrance,
+} from './entrances';
 import { PATH_WATER, PATH_WETLAND, type PathTerrain } from './terrain';
 import { isCropPart, partWalkSpeed, roadTreeSpeed, roadWalkSpeed } from './walk-speed';
 import {
   CEMETERY_COST,
+  ENTRANCE_REACH_M,
+  ENTRANCE_STEP_M,
   GATE_M,
   HOUSE_MARGIN_M,
   ORCHARD_COST,
@@ -21,7 +36,6 @@ import {
   type PathPoint,
   type PathVillage,
   ROAD_STRENGTH,
-  SHRINE_COST,
   WOOD_COST,
   type Square,
 } from './network-types';
@@ -497,16 +511,50 @@ export function villageGrid(input: PathNetworkInput, buildings: readonly Buildin
       if (!onRoad(c)) grid.base[c] = grid.base[c]! * ORCHARD_COST;
     }
   }
+  // Ploty (paths.md – Kudy, Martin 22. 10. 2026: „Lidi nesmí chodit přes ohrady. Vždyť jsou
+  // oplocené.“): hotová ohrada a hřbitov jsou neprůchodné uvnitř plotu (`fencedCells` – ulička
+  // 3 m mezi stavbami zůstává), dovnitř se vchází jen brankou; rozestavěné jsou průchozí
+  // (staveniště, dřívější cena)
+  const gateCells = (e: Entrance): Set<number> => {
+    const p = { x: e.x + e.outX * ENTRANCE_STEP_M, z: e.z + e.outZ * ENTRANCE_STEP_M };
+    const out = new Set<number>();
+    cellsIn(
+      grid,
+      p.x - ENTRANCE_REACH_M,
+      p.z - ENTRANCE_REACH_M,
+      p.x + ENTRANCE_REACH_M,
+      p.z + ENTRANCE_REACH_M,
+      (c, x, z) => {
+        if (length2(x - p.x, z - p.z) <= ENTRANCE_REACH_M) out.add(c);
+      },
+    );
+    return out;
+  };
+  const fence = (cells: readonly number[], gate: Set<number>): void => {
+    for (const c of cells) {
+      if (!gate.has(c)) grid.base[c] = Infinity;
+    }
+  };
   for (const cemetery of v.cemeteries ?? []) {
     for (const c of squareCells(grid, cemetery.squares).inside) {
-      grid.base[c] = grid.base[c]! * CEMETERY_COST;
+      if (cemetery.built === false) grid.base[c] = grid.base[c]! * CEMETERY_COST;
       grid.village[c] = 1;
+    }
+    if (cemetery.built !== false) {
+      const entrance = cemeteryEntrance(cemetery, v.dwellings);
+      const gate = entrance ? gateCells(entrance) : new Set<number>();
+      fence(fencedCells(grid, cemetery.squares, CEMETERY_FENCE_INSET_M), gate);
     }
   }
   for (const pen of v.pens ?? []) {
-    for (const c of squareCells(grid, penPathSquares(pen)).inside) {
-      grid.base[c] = grid.base[c]! * PEN_COST;
+    const squares = penPathSquares(pen);
+    for (const c of squareCells(grid, squares).inside) {
+      if (!pen.built) grid.base[c] = grid.base[c]! * PEN_COST;
       grid.village[c] = 1;
+    }
+    if (pen.built) {
+      const gate = gateCells(penSquaresEntrance(squares, penGateToward(squares, v.dwellings)));
+      fence(fencedCells(grid, squares, PEN_FENCE_INSET_M), gate);
     }
   }
   const woods = (v.woods ?? []).filter((w) => w.surface !== 'forest');
@@ -518,6 +566,7 @@ export function villageGrid(input: PathNetworkInput, buildings: readonly Buildin
   for (const b of v.sacred?.buildings ?? []) {
     if (b.kind !== 'shrine') continue;
     const half = SACRED_BUILDINGS.shrine.footprintM / 2;
+    const gate = gateCells(sacredEntrance(b));
     cellsIn(
       grid,
       b.position.x - half,
@@ -525,7 +574,8 @@ export function villageGrid(input: PathNetworkInput, buildings: readonly Buildin
       b.position.x + half,
       b.position.z + half,
       (c) => {
-        grid.base[c] = grid.base[c]! * SHRINE_COST;
+        // příkop svatyně je neprůchodný (paths.md – Kudy), vchází se přes val u hrotu okvětí
+        if (!gate.has(c)) grid.base[c] = Infinity;
         grid.village[c] = 1;
       },
     );
