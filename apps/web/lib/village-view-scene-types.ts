@@ -602,6 +602,8 @@ export interface SceneEarthwork {
   shownM: number;
   pieces: { toM: number; ageYears: number | null }[];
   building?: true;
+  /** Stavba, která zemní práci dělá (cíl práce `wagon` nese její id) – jen když se staví. */
+  constructionId?: number;
 }
 /** Strom u pevné cesty pro scénu – poloha, druh a vzhled v den pohledu (`roadTreeLook`). */
 export type SceneRoadTree = Pick<RoadTree, 'id' | 'x' | 'z' | 'species'> & RoadTreeLook;

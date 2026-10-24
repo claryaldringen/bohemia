@@ -501,8 +501,11 @@ export function roadWork(ctx: Context, roadId: number): Placer {
  * `wagonWorkTarget`) kopáči v úvozu, nosiči s koši od úvozu k náspu o kus zpět po ose a dusání
  * na hotovém náspu. Bez zemních prací v údajích nikdo.
  */
-export function wagonWork(ctx: Context, target: { x: number; z: number }): Placer {
-  const earthwork = (ctx.village.earthworks ?? []).find((e) => e.profile.length >= 2);
+export function wagonWork(ctx: Context, target: { id: number; x: number; z: number }): Placer {
+  // zemní práce té stavby, jejíž je cíl (`id` = stavba); víc vozových cest ve stavbě = víc os
+  const earthwork = (ctx.village.earthworks ?? []).find(
+    (e) => e.constructionId === target.id && e.profile.length >= 2,
+  );
   if (!earthwork) return none;
   let best = 0;
   let bestD = Infinity;

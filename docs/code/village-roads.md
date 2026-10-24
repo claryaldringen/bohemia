@@ -453,7 +453,7 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   (`editSurfaceHeights`, `recomputeNormals` jako Babylon), `TerrainMesh.setTerrainEdits`,
   `applyTerrainEdits` v `landscape-scene.ts` před obnovou vsi, `terrainChanged` (pole po blocích –
   `#t` v klíči bloku, pěšiny, cesty), pás `roadBands` `wagon` + `gravel` (`WAGON_*_LAYER`), svahy
-  `earthworkSlopeGrid` (`roads-slopes`, zarůstají pomalu podle `SLOPE_LOOK` – za 15 let řídká tráva, nikdy plná; lem hrany úvozu a paty náspu `earthworkEdges` – `roads-edge-cut` světlý, `roads-edge-fill` tmavý; sníh na svazích tenčí `SNOW_SLOPE`; kameny na svazích zatím ne), vytyčení
+  `earthworkSlopeGrid` (`roads-slopes`, zarůstají pomalu podle `SLOPE_LOOK` – za 15 let řídká tráva, nikdy plná; lem hrany úvozu a paty náspu `earthworkEdges` – `roads-edge-cut` světlý, `roads-edge-fill` tmavý; sníh na svazích tenčí `SNOW_SLOPE`; kameny na svazích zatím ne – později s modelem; nosiči kmenů u hatě a kůly u lávky ve scéně zatím ne – scéna nemá data o hati), vytyčení
   `wagonStakingLines`. Ukázka `/dev/landscape` **Vozová cesta** (`dev-wagon-road.ts` – svahy, které vozová cesta po
   staré ose srovná; hotové úseky nahradí starou cestu).
 

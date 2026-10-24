@@ -1912,6 +1912,7 @@ describe('lidé při práci na cestě (roads.md – Lidé při práci na cestě)
           shownM: 60,
           pieces: [{ toM: 120, ageYears: null }],
           building: true,
+          constructionId: 5,
         },
       ],
     };
@@ -1929,5 +1930,40 @@ describe('lidé při práci na cestě (roads.md – Lidé při práci na cestě)
     }
     expect(clips.has('hoe')).toBe(true);
     expect(clips.has('carry')).toBe(true);
+  });
+
+  it('víc vozových cest: dělníci se natočí podle osy své stavby, ne první v seznamu', () => {
+    const base = village([
+      { activity: 'build', target: { kind: 'wagon', id: 7, x: 60, z: 100 }, manDays: 8 },
+    ]);
+    const prof = (pts: { x: number; z: number }[]): SceneVillage['earthworks'] => [
+      {
+        id: 1,
+        profile: pts.map((p) => ({ ...p, y: 0 })),
+        reachedM: 60,
+        shownM: 60,
+        pieces: [{ toM: 120, ageYears: null }],
+        building: true,
+        constructionId: 9,
+      },
+    ];
+    const other = prof(line(100, 0, 120))![0]!;
+    // vlastní osa stavby 7 vede ve směru z (kolmo k cizí)
+    const own = {
+      ...other,
+      id: 2,
+      constructionId: 7,
+      profile: Array.from({ length: 13 }, (_, k) => ({ x: 60, z: 40 + k * 10, y: 0 })),
+    };
+    const v: SceneVillage = { ...base, earthworks: [other, own] };
+    const people = planVillagers(v, GROUND, { seed: 3, herds: 0 }).filter((p) =>
+      p.key.startsWith('build:'),
+    );
+    // stojící kopáči (nosiči chodí) hledí po ose své stavby (z), ne cizí (x)
+    const diggers = people
+      .filter((p) => at(p, 0).clip === 'hoe' && at(p, 40).x === at(p, 0).x)
+      .map((p) => at(p, 0));
+    expect(diggers.length).toBeGreaterThan(0);
+    for (const d of diggers) expect(Math.abs(d.headingX)).toBeLessThan(0.2);
   });
 });
