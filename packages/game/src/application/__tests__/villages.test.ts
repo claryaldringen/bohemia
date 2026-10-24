@@ -226,6 +226,35 @@ describe('loadVillage', () => {
     expect(villages.saves).toBe(0);
   });
 
+  it('ves bez tras dostane trasy při načtení týž den – jednou (withRoutes)', async () => {
+    const villages = await foundedVillages();
+    villages.edit(VID, (s) => {
+      // obydlí stojí dlouho – pěšiny jsou vyšlapané (PATH_AGE_FULL_YEARS)
+      Object.assign(s, withBuiltFirstDwelling(s));
+      s.dwellings[0]!.builtDay = TODAY - 20 * 365;
+    });
+    const later = TODAY + 5;
+    const advanced = await loadVillage({ villages }, { villageId: VID, today: later, landscape });
+    const routes = advanced!.state.routes!;
+    expect(routes.key).toBe(advanced!.state.walkLayoutKey);
+    expect(routes.list.length).toBeGreaterThan(0);
+    // ves uložená před trasami – týž den se nedopočítává, trasy se spočítají jen při načtení
+    villages.edit(VID, (s) => {
+      delete s.routes;
+    });
+    const before = villages.records.get(VID)!.version;
+    const loaded = await loadVillage({ villages }, { villageId: VID, today: later, landscape });
+    expect(loaded!.state.lastDay).toBe(later);
+    expect(loaded!.state.routes!.key).toBe(routes.key);
+    expect(loaded!.state.routes!.list.length).toBeGreaterThan(0);
+    expect(loaded!.version).toBe(before + 1);
+    // druhé načtení je nepočítá znovu – nic se neuloží
+    const saves = villages.saves;
+    const again = await loadVillage({ villages }, { villageId: VID, today: later, landscape });
+    expect(villages.saves).toBe(saves);
+    expect(again!.state.routes).toEqual(loaded!.state.routes);
+  });
+
   it('starší polozemnice bez pozemku dostane při načtení pozemek – před dopočtem, jednou', async () => {
     const villages = await foundedVillages();
     expect(villages.records.get(VID)!.state.plotsMigrated).toBe(true);

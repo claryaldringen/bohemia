@@ -9,4 +9,5 @@ export type * from './types-chronicle';
 export type * from './types-state';
 export type * from './types-trade';
 export type * from './types-roads';
+export type * from './types-routes';
 export type * from './types-livestock';

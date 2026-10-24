@@ -3,7 +3,7 @@
 
 import { length2 } from '../../landscape';
 import { HUMNO, SACRED_BUILDINGS, SMITH_SUPPLY, WATER_FETCHING } from '../rules';
-import { type DwellingType } from '../types';
+import { type DwellingType, type RoutePurpose } from '../types';
 import {
   cemeteryEntrance,
   penGateToward,
@@ -100,6 +100,9 @@ export interface TripGroup {
   goals?: number[];
   /** Stavba, jejíž provoz se počítá do `PathNetwork.visits` (`<druh>:<id>`). */
   visit?: string;
+  /** Klíč cíle trasy (`StoredRoute.to` – jako klíč práce: `field:<id>`, `water`, `d:<id>`…). */
+  to: string;
+  purpose: RoutePurpose;
 }
 
 export function households(
@@ -164,9 +167,18 @@ export function tripGroups(
   const labor = new Map(laborByTarget(v));
   const work = (key: string): number => (labor.get(key) ?? 0) * TRIPS_PER_MAN_DAY;
 
-  const target = (sources: number[], trips: number, targetAge = 1, visit?: string): void => {
+  const target = (
+    to: string,
+    purpose: RoutePurpose,
+    sources: number[],
+    trips: number,
+    targetAge = 1,
+    visit?: string,
+  ): void => {
     if (sources.length === 0 || trips <= 0) return;
     groups.push({
+      to,
+      purpose,
       sources,
       weights: shareWeights(homes, trips, targetAge),
       maxCost: groupReach(grid, sources, homes),
@@ -190,7 +202,8 @@ export function tripGroups(
     const founding = field.parts.every((p) => p.stage === 'founding');
     const base = sown || founding ? BASE_TRIPS.field : BASE_TRIPS.fallow;
     // nově zakládané pole: pěšina se teprve vyšlapává
-    target(squaresTarget(field.parts), base + work(`field:${field.id}`), founding ? 0.5 : 1);
+    const to = `field:${field.id}`;
+    target(to, 'work', squaresTarget(field.parts), base + work(to), founding ? 0.5 : 1);
   }
   // sad: zavedené místo jen k nejbližšímu sadu, práce dne tam, kde se dnes pracuje
   const orchards = v.orchards ?? [];
@@ -205,7 +218,13 @@ export function tripGroups(
     const builders = shareWeights(homes, work(`orchard:${orchard.id}`));
     const weights = homes.map((_, i) => builders[i]! + (nearestOrchard[i] === k ? base[i]! : 0));
     if (weights.every((w) => w < MIN_TRIP)) return;
-    groups.push({ sources, weights, maxCost: groupReach(grid, sources, homes) });
+    groups.push({
+      to: `orchard:${orchard.id}`,
+      purpose: 'work',
+      sources,
+      weights,
+      maxCost: groupReach(grid, sources, homes),
+    });
   });
   // hřbitov: návštěvy hrobů podle lidí v domácnosti (k nejbližšímu hřbitovu) brankou hotového
   // hřbitova (paths.md – Vchody), práce dne (založení, rozšíření – plot) u ohrazovaných čtverců
@@ -224,16 +243,18 @@ export function tripGroups(
     );
     const builders = shareWeights(homes, work(`cemetery:${cemetery.id}`));
     const visit = `cemetery:${cemetery.id}`;
-    const push = (sources: number[], weights: number[]): void => {
+    const push = (purpose: RoutePurpose, sources: number[], weights: number[]): void => {
       if (sources.length === 0 || weights.every((w) => w <= 0)) return;
-      groups.push({ sources, weights, maxCost: groupReach(grid, sources, homes), visit });
+      const maxCost = groupReach(grid, sources, homes);
+      groups.push({ to: visit, purpose, sources, weights, maxCost, visit });
     };
     if (gateCells.length > 0) {
-      push(gateCells, visitors);
+      push('visit', gateCells, visitors);
       const pending = cemetery.squares.filter((q) => q.pending);
-      push(pending.length > 0 ? squaresTarget(pending) : squares, builders);
+      push('work', pending.length > 0 ? squaresTarget(pending) : squares, builders);
     } else {
       push(
+        'visit',
         squares,
         homes.map((_, i) => builders[i]! + visitors[i]!),
       );
@@ -243,7 +264,8 @@ export function tripGroups(
   for (const road of v.roads ?? []) {
     if (road.id === undefined || road.points.length === 0) continue;
     const trips = work(`road:${road.id}`);
-    if (trips > 0) target(cellsAround(grid, middleOf(road.points), 3), trips);
+    if (trips > 0)
+      target(`road:${road.id}`, 'work', cellsAround(grid, middleOf(road.points), 3), trips);
   }
   // stavba vozové cesty (roads.md – Vozová cesta) – k čelu práce na nové trase
   const wagons = new Set<number>();
@@ -252,7 +274,7 @@ export function tripGroups(
     if (t.kind !== 'wagon' || wagons.has(t.id)) continue;
     wagons.add(t.id);
     const trips = work(`wagon:${t.id}`);
-    if (trips > 0) target(cellsAround(grid, t, 3), trips);
+    if (trips > 0) target(`wagon:${t.id}`, 'work', cellsAround(grid, t, 3), trips);
   }
   // ohrada: krmení a napájení dobytka, stavba a rádlo (práce dne na ohradě); do ohrady bez
   // zvířat se krmit nechodí (abandonment.md)
@@ -263,22 +285,29 @@ export function tripGroups(
     const sources = pen.built
       ? entranceTarget(penSquaresEntrance(squares, penGateToward(squares, v.dwellings)))
       : squaresTarget(squares);
+    const to = `pen:${pen.id}`;
     target(
+      to,
+      'work',
       sources.length > 0 ? sources : squaresTarget(squares),
-      base + work(`pen:${pen.id}`),
+      base + work(to),
       1,
-      `pen:${pen.id}`,
+      to,
     );
   }
   // humno (production-chains.md – Humno): k hotovému vstupem na předku za výmlatem – nosí se na
   // něj snopy, odnáší zrno; staveniště ze všech stran
   for (const floor of v.threshingFloors ?? []) {
     if (floor.built) {
-      const trips = work(`threshing-floor:${floor.id}`);
-      if (trips > 0) target(entranceTarget(threshingFloorEntrance(floor.position)), trips);
+      const to = `threshing-floor:${floor.id}`;
+      const trips = work(to);
+      if (trips > 0)
+        target(to, 'work', entranceTarget(threshingFloorEntrance(floor.position)), trips);
       continue;
     }
     target(
+      `site:${floor.id}`,
+      'work',
       cellsAround(grid, floor.position, HUMNO.sizeM.z / 2 + grid.cellM),
       BASE_TRIPS.site + work(`site:${floor.id}`),
     );
@@ -289,6 +318,8 @@ export function tripGroups(
   for (const pit of v.grainPits ?? []) {
     pitsDone.add(pit.id);
     target(
+      `grain-pit:${pit.id}`,
+      'work',
       cellsAround(grid, pit, GRAIN_PIT_REACH_M),
       BASE_TRIPS.grainPit + work(`grain-pit:${pit.id}`),
     );
@@ -297,7 +328,8 @@ export function tripGroups(
     const t = share.target;
     if (t.kind !== 'grain-pit' || pitsDone.has(t.id)) continue;
     pitsDone.add(t.id);
-    target(cellsAround(grid, t, GRAIN_PIT_REACH_M), work(`grain-pit:${t.id}`));
+    const to = `grain-pit:${t.id}`;
+    target(to, 'work', cellsAround(grid, t, GRAIN_PIT_REACH_M), work(to));
   }
   // stáda na pastvu – na úhor vsi (louka na seno až po seči; v roční síti obojí)
   const herds = pastureHerds(v.livestock);
@@ -311,7 +343,7 @@ export function tripGroups(
       ),
     );
     if (pasture.length > 0) {
-      target(squaresTarget(pasture), herds * PASTURE.tripsPerHerd);
+      target('pasture', 'herd', squaresTarget(pasture), herds * PASTURE.tripsPerHerd);
     }
   }
   // staveniště nových obydlí – nosí se k jejich čelu
@@ -319,10 +351,12 @@ export function tripGroups(
     const b = buildings.get(d.id);
     if (!b) continue;
     if (!d.built) {
-      target(cellsAround(grid, gateOf(b), 2.5), BASE_TRIPS.site + work(`site:${d.id}`));
+      const to = `site:${d.id}`;
+      target(to, 'work', cellsAround(grid, gateOf(b), 2.5), BASE_TRIPS.site + work(to));
     } else {
-      const repair = work(`dwelling:${d.id}`);
-      if (repair > 0) target(cellsAround(grid, gateOf(b), 2.5), repair);
+      const to = `dwelling:${d.id}`;
+      const repair = work(to);
+      if (repair > 0) target(to, 'work', cellsAround(grid, gateOf(b), 2.5), repair);
     }
   }
   // seč přirozených luk (oxen.md – Seno): k políčkům, kde se dnes seče, chodí sekáči
@@ -334,7 +368,7 @@ export function tripGroups(
         const m = byCell.get(`${c.x},${c.y}`);
         return m ? [m] : [];
       });
-      target(squaresTarget(squares), t.manDays * TRIPS_PER_MAN_DAY);
+      target('meadow', 'work', squaresTarget(squares), t.manDays * TRIPS_PER_MAN_DAY);
     }
   }
   for (const t of v.labor?.shares ?? []) {
@@ -344,12 +378,12 @@ export function tripGroups(
       return p ? [p] : [];
     });
     const sources = trees.flatMap((p) => cellsAround(grid, p, 2.5));
-    target(sources, t.manDays * TRIPS_PER_MAN_DAY);
+    target(`trees:${t.target.ids.join('.')}`, 'work', sources, t.manDays * TRIPS_PER_MAN_DAY);
   }
   // posvátná místa: každá domácnost chodí jen k nejbližšímu místu každého druhu (posvátný dub,
   // háj, modla, svatyně – Martin); rozestavěná modla a svatyně jsou staveniště (práce dne)
   const visit = (
-    places: readonly { sources: number[]; at: readonly PathPoint[]; visit?: string }[],
+    places: readonly { to: string; sources: number[]; at: readonly PathPoint[]; visit?: string }[],
   ): void => {
     if (places.length === 0) return;
     const nearest = nearestOfKind(
@@ -361,6 +395,8 @@ export function tripGroups(
       const own = weights.map((w, i) => (nearest[i] === k ? w : 0));
       if (place.sources.length === 0 || own.every((w) => w < MIN_TRIP)) return;
       groups.push({
+        to: place.to,
+        purpose: 'visit',
         sources: place.sources,
         weights: own,
         maxCost: groupReach(grid, place.sources, homes),
@@ -370,12 +406,14 @@ export function tripGroups(
   };
   visit(
     (v.sacred?.oaks ?? []).map((oak) => ({
+      to: `oak:${oak.id}`,
       sources: cellsAround(grid, oak, OAK_REACH_M),
       at: [oak],
     })),
   );
   visit(
     (v.sacred?.groves ?? []).map((grove) => ({
+      to: `grove:${grove.id}`,
       sources: squaresTarget(grove.squares),
       at: grove.squares,
     })),
@@ -392,6 +430,7 @@ export function tripGroups(
       sacredBuildings
         .filter((b) => b.built && b.kind === kind)
         .map((b) => ({
+          to: `${b.kind}:${b.id}`,
           sources: sacredEntranceCells(b),
           at: [b.position],
           visit: `${b.kind}:${b.id}`,
@@ -404,10 +443,14 @@ export function tripGroups(
       // oprava hotové modly a svatyně (abandonment.md – Oprava) – práce dne u stavby, i to je
       // provoz ke stavbě
       const repair = work(`sacred:${b.id}`);
-      if (repair > 0) target(sacredEntranceCells(b), repair, 1, `${b.kind}:${b.id}`);
+      if (repair > 0) {
+        target(`sacred:${b.id}`, 'work', sacredEntranceCells(b), repair, 1, `${b.kind}:${b.id}`);
+      }
       continue;
     }
     target(
+      `site:${b.id}`,
+      'work',
       cellsAround(grid, b.position, half + grid.cellM),
       BASE_TRIPS.site + work(`site:${b.id}`),
     );
@@ -417,7 +460,7 @@ export function tripGroups(
   // v koších po cestách tam a zpět (cest za den podle délky), kopání jedna cesta na člověkoden;
   // s vozem jede řemeslník vozem (bez pěšiny). Uhlíř chodí k milíři ze zemnice (crafts.md – Milíř
   // u skácených buků) – jedna cesta na člověkoden u milíře.
-  const smithWalks = new Map<string, { home: number; at: PathPoint; trips: number }>();
+  const smithWalks = new Map<string, { to: string; home: number; at: PathPoint; trips: number }>();
   for (const share of v.labor?.shares ?? []) {
     const t = share.target;
     if (share.carts || (t.kind !== 'ore' && t.kind !== 'clay' && t.kind !== 'kiln')) continue;
@@ -437,12 +480,14 @@ export function tripGroups(
     const key = `${from}:${t.x},${t.z}`;
     const same = smithWalks.get(key);
     if (same) same.trips += trips;
-    else smithWalks.set(key, { home, at: { x: t.x, z: t.z }, trips });
+    else smithWalks.set(key, { to: `${t.kind}:${t.id}`, home, at: { x: t.x, z: t.z }, trips });
   }
-  for (const { home, at, trips } of smithWalks.values()) {
+  for (const { to, home, at, trips } of smithWalks.values()) {
     const sources = cellsAround(grid, at, SMITH_SITE_REACH_M);
     if (sources.length === 0 || trips <= 0) continue;
     groups.push({
+      to,
+      purpose: 'work',
       sources,
       weights: homes.map((_, i) => (i === home ? trips : 0)),
       maxCost: groupReach(grid, sources, homes),
@@ -465,6 +510,8 @@ export function tripGroups(
       );
       const years = homes.map(() => Math.min(h.years, homes[b]!.years));
       groups.push({
+        to: `d:${h.dwellingId}`,
+        purpose: 'neighbour',
         sources: [h.gate],
         weights,
         years,
@@ -513,6 +560,8 @@ export function errandGroups(
   };
   if (water.length > 0) {
     groups.push({
+      to: 'water',
+      purpose: 'water',
       errand: 'water',
       marks: marksOf(water),
       sources: water,
@@ -523,6 +572,8 @@ export function errandGroups(
   }
   if (wood.length > 0) {
     groups.push({
+      to: 'wood',
+      purpose: 'wood',
       errand: 'wood',
       marks: marksOf(wood),
       sources: wood,

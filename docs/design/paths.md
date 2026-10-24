@@ -1,254 +1,509 @@
-# Vyšlapané pěšiny
+# Pěšiny, trasy a vznik cest
 
-Stav: Martin schválil 18. 10. 2026 („Ano, takhle to zní dobře. Zkusme to a uvidíme, jak to bude
-vypadat ve hře.“). Stromy podél cest přes pole – Martin 18. 10. 2026 (v Estonsku a Dánsku stál
-statek uprostřed svých polí a cesta k němu vedla přes pole, obvykle lemovaná stromy) – mají od 18. 10. 2026 jen **pevné cesty** ([roads.md](roads.md)), pěšiny dne ne. **Pěšiny ovlivňují práci** – Martin 18. 10. 2026 („Tam, kde bude vyšlapaná cesta, ať
-se chodí o něco lépe než tam, kde není.“). **Vzhled pěšin dne** – Martin 19. 10. 2026 („denní
-pěšina ať je nevýrazná. Vyšlapanou cestu nechme jako teď“), viz Jak pěšiny vznikají – Síla
-pěšiny. **Po pevné cestě bez ohledu na povrch** – Martin 19. 10. 2026 („Když už někde vyšlapaná
-cesta je, ať po ní lidé chodí bez ohledu na to, na čem ta stezka leží.“), viz Jak pěšiny vznikají
-– Kudy. **Vchody** – Martin 19. 10. 2026 („A ještě, každá budova by měla mít nějaký vchod, od
-kterého cesta povede.“), viz Vchody. **Pro vodu se chodí vždy** – Martin 19. 10. 2026 („Ve Vlkově
-nikde nevidím vyšlapanou cestu k potoku. Ale vesničané tam přece musí chodit nějak pro vodu a musí
-jim to zabírat čas.“, návrh schválil „Ano“), viz Pochůzky pro vodu. Síť počítá herní jádro
-(`packages/game/src/domain/village/paths/` – `terrain.ts`, `network.ts`, `walking.ts`,
-`village.ts`, `entrances.ts`) stejně na serveru i v prohlížeči; scéna `apps/web/lib/scene/path-renderer.ts`,
-`path-ribbon.ts`, `path-router.ts`. Pevné cesty a stromy u nich: [roads.md](roads.md).
+Stav: **nový systém cest** – Martin 22. 10. 2026 (GitHub issue #6 a body z #3), převod starých
+vsí Martin 23. 10. 2026. Čísla a podrobnosti jsou návrh Clauda – Martin 22. 10. 2026: čísla
+(jak rychle cesty vznikají a zarůstají) zvolí Claude sám, bez čekání na schválení. Plán
+implementace: [2026-10-23-roads-v2.md](../superpowers/plans/2026-10-23-roads-v2.md). Druhy
+cest, vylepšení, zarůstání podle druhů a vozová cesta: [roads.md](roads.md) – Nový systém cest.
+Revize 23. 10. 2026 po recenzi plánu a změnách v kódu téhož dne (ulička mezi ohradami, vůz přes
+zaseté pole, deník jízd vozů, zrušení stavby, Vlkov – pozemek přes cestu): provozní pole v paměti,
+trasy staré vsi při načtení, převod po krocích, stavba přes cestu.
 
-## Proč
+Starší rozhodnutí, která platí dál: pěšiny ovlivňují práci (Martin 18. 10. 2026: „Tam, kde bude
+vyšlapaná cesta, ať se chodí o něco lépe než tam, kde není.“), vzhled pěšin (Martin 19. 10. 2026:
+„denní pěšina ať je nevýrazná. Vyšlapanou cestu nechme jako teď“), po cestě bez ohledu na povrch
+(Martin 19. 10. 2026: „Když už někde vyšlapaná cesta je, ať po ní lidé chodí bez ohledu na to, na
+čem ta stezka leží.“), vchody (Martin 19. 10. 2026: „A ještě, každá budova by měla mít nějaký
+vchod, od kterého cesta povede.“), pro vodu se chodí vždy (Martin 19. 10. 2026, návrh schválil
+„Ano“). Co nový systém nahradil, je v [Nahrazená pravidla](#nahrazená-pravidla-22-10-2026).
 
-Ves má být vidět jako místo, kde se žije: kudy lidé denně chodí, tudy je tráva vyšlapaná.
-A po vyšlapané pěšině se chodí lépe – cesta na vzdálené pole po ní stojí méně práce.
+## Proč (Vlkov, Martin 22. 10. 2026)
 
-## Jak pěšiny vznikají
+- K vodě vedou dvě souběžné cesty. Vozová cesta z úpravy „Upravit pro vozy“ šla rovně vedle staré
+  upravené. Stará zmizela jen u vsi, kde se obě kryly, a zbytek nikdy nezaroste, protože upravené
+  cesty nezarůstají. Provoz simulace jde přitom celý po vozové.
+- Postavy pro vodu chodí po staré cestě, i když simulace počítá provoz po vozové. Simulace a scéna
+  tak docházejí k různým výsledkům.
+- Denní pěšiny jsou vidět roky, ale nikdy se z nich nestane vyšlapaná cesta.
+- Kulaté křižovatky vypadají špatně.
+- K brance hřbitova nevede žádná cesta, cesta jde jen podél plotu.
+- Ve Vlkově vznikají krátké pahýly cest, třeba vyšlapaná cesta 10 m, které nikam nevedou, nikdo po
+  nich nechodí a jen kvůli nim vzniká zbytečná křižovatka.
 
-- **Pěšiny spojují místa, kam lidé chodí každý den:** od brány domu pro vodu k potoku, pro
-  dřevo k okraji lesa, na pole, do sadu, ke hřbitovu, k posvátným dubům, hájům, modle a svatyni,
-  k hromadě klád, na staveniště, k ohradě (krmení dobytka), v době seče na přirozené louky
-  (oxen.md – Seno) a k sousedům; pasáci ženou stáda na úhor.
-- **Kolik se kam chodí:** voda podle lidí v domácnosti – vždy k nejbližší vodě, ať je jakkoli
-  daleko (Pochůzky pro vodu), dřevo na domácnost (v zimní půlce roku víc), na pole, do sadu
-  a na stavby podle dnešní práce (rozdělení práce dne z jádra, jeden
-  člověkoden = jedna cesta) a k zavedeným místům trochu navíc, ať pěšina mezi pracemi nezaroste.
-  Ke hřbitovu se chodí podle počtu lidí – hroby předků raní Slované navštěvovali pravidelně
-  (obětiny, hostiny za mrtvé): 0,15 cesty za den na člověka, každá domácnost k nejbližšímu
-  hřbitovu (Martin schválil, návrh Clauda; ves se 7 lidmi ≈ 1 cesta denně, se 40 lidmi ≈ 6).
-  K zavedeným místům – posvátnému dubu, háji, modle, svatyni, hřbitovu a sadu – chodí každá
-  domácnost jen k nejbližšímu místu daného druhu (Martin: lidé chodí jen k nejbližším věcem;
-  nejbližší vzdušnou čarou od domu – návrh Clauda); práce dne (pole, stavby, kácení, práce
-  v sadu) jde tam, kde se dnes pracuje – vylepšení pevné cesty a práce u jabloní podél ní
-  ([roads.md](roads.md)) k polovině úseku.
-  Pro dřevo se daleko chodí méně často (nad 130 m chůze úměrně méně, nejvýš 450 m) – pěšina
-  k lesu vznikne, až když se cesty víc domácností slijí. ~~Daleko (voda, les) se chodí méně
-  často.~~ Pro vodu ne – Pochůzky pro vodu. Ohrada (oxen.md) má k práci dne trochu navíc jako
-  zavedené místo – jen
-  ohrada se zvířaty (do prázdné se krmit nechodí – [abandonment.md](abandonment.md)). Stáda (diet.md – ovce
-  s kozami po 20 kusech, krávy po 6, jako ve scéně) se denně vyženou na úhor a zpět – jedna cesta
-  na stádo: mladý úhor vždy, louka na seno až po seči (srpen–listopad); v zimě stojí krávy
-  v ohradě, prasata jdou do lesa (návrh Clauda).
-- **Kudy:** lidé obcházejí prudké svahy, vodu (kromě mělkých brodů), domy se zahrádkami,
-  kmeny, keře, balvany a skály, plot ohrady a hřbitova, lesem a zarůstajícím přílohem (křoviny,
-  mladý les) neradi. ~~Přes oseté pole nechodí (jdou po jeho okraji).~~ ~~Pole lidi nezdržuje
-  (Martin, 19. 10. 2026: „Ať lidé chodí vždy nejkratší možnou cestou a oseté pole ať neřeší.“)~~
-  **Pole je cena, ne zákaz** (Martin, 19. 10. 2026: „Pole, které zrovna neleží ladem: 0.5.“,
-  „Neber strniště jako louku, ale dej mu drobný postih. Ber to třeba jako 0.8.“ a „nejkratší cesta
-  je ta nejrychlejší. Tj. může se stát, že někde bude jednodušší jít přes pole, než ho obcházet
-  i když je cesta přes pole pomalejší.“): **ceny buněk** = 1 / rychlost chůze proti louce
-  (roads.md – Rychlejší chůze, `walk-speed.ts`) – louka, úhor, příloh a zakládaný díl 1, díl
-  v osevu od orby nebo kopání po sklizeň 2 (rychlost 0,5), strniště 1,25 (0,8), mokřina 2 (0,5),
-  pevná cesta podle stupně (vyšlapaná a vyježděná 1 / 1,5, upravená, hať a lávka 1 / 1,7 – přes
-  mokřinu vyšlapaná a upravená 2, hať 1 / 1,7); plná pěšina dne 1 / 1,3 krát cena buňky (slabší
-  úměrně síle), přes díl v osevu pěšina nezrychlí. Nejpomalejší z mokřiny a pole platí. Díl pozná
-  síť podle vzhledu (`look` – jako scéna, `partWalkSpeed`). Síť hledá nejrychlejší cestu: díl
-  v osevu obejde, když je obcházení krátké, a jde přes něj, když je dlouhé. Vozy přes osetý díl
-  dál nejezdí ([wagons.md](wagons.md)) – Martin mluvil o lidech. **Po pevné cestě ([roads.md](roads.md)) se jde
-  bez ohledu na to, na čem leží** (Martin, 19. 10. 2026, Vlkov: „Je tam vidět, že na nový hřbitov
-  vedla nejkratší cesta, kolem které dokonce byly nějaké stromy (jabloně) a ta zanikla a lidé to
-  začali obcházet divnou delší cestou.“ a „Když už někde vyšlapaná cesta je, ať po ní lidé chodí
-  bez ohledu na to, na čem ta stezka leží.“): pevná cesta přes osetý díl, zoranou zem, sad, les
-  nebo svah stojí jako cesta přes louku – je to mez, po které se chodí. Dál platí jen brod
-  a neprůchodná místa a ploty a stavby (hřbitov, ohrada, svatyně, domy a pozemky) – podrobnosti
-  v [roads.md – Cesta je cesta](roads.md#cesta-je-cesta--povrch-pod-ní-a-zarůstání).
-- **Vozy** ([wagons.md](wagons.md) – Vozová síť; Martin, 19. 10. 2026: „ve svahu, kde lidé
-  zvládnou chodit rovně, vůz bude muset vyjezdit serpentiny“) mají vlastní síť na stejné mřížce
-  (`paths/cart.ts`): sklon ve směru jízdy nejvýš 10 %, směr jízdy v hledání (poloměr otáčení),
-  les jen po pevné cestě, voda jen brodem. Vyjeté vozové cesty jsou pevné cesty s příznakem vozová
-  ([roads.md](roads.md) – Vozové cesty) – lidé po nich chodí jako po každé pevné cestě, síť pěšin se
-  kvůli vozům nemění (ves bez vozů beze změny bit po bitu).
-- **Slévání:** vyšlapaná pěšina je pohodlnější (až o polovinu), takže kdo jde po ní, jde i kus
-  oklikou – trasy sousedů se slijí do společné pěšiny a vznikne síť. **Žádné souběžné pěšiny**
-  (Martin, 18. 10. 2026: „Pokud už cesta vede tím směrem, lidé by měli použít tu, ne si prošlapat
-  vlastní souběžnou.“): ke společnému cíli (pole, sad, staveniště…) jde každá domácnost zvlášť,
-  nejvytíženější první, a další se k pěšině, kterou ta před ní právě vyšlapala, přidá – dřív
-  hledalo jedno hledání trasy ke všem branám naráz a dva sousední domy (12–24 m od sebe) měly
-  každý vlastní souběžnou pěšinu na pole. Po **pevné cestě**
-  ([roads.md](roads.md)) se jde jako po plné pěšině, takže se k ní pěšiny dne stahují; kde vedou
-  po ní, ztratí se v ní (kreslí se jen cesta).
-- **Síla pěšiny** roste s počtem cest za den (pomalu – s odmocninou), jednotlivé cesty nic
-  nevyšlapou. **Pěšina dne je nevýrazná** (Martin, 19. 10. 2026: „denní pěšina ať je
-  nevýrazná“) – slabě prošlapaná tráva: pás 0,6–1,2 m podle síly (dřív 0,9–1,9 m), krytí
-  0,2–0,45 (dřív 0,5–0,95), holá hlína jen u silné pěšiny, nanejvýš úzká (do 0,35 m) a slabá
-  (návrh Clauda). Pevná cesta ([roads.md](roads.md)) je vedle ní jasně výraznější – plný pás
-  1,9 m, upravená 3 m. **Rozcestí** (sejdou se aspoň tři pěšiny) je nejvyšlapanější místo
-  (Martin, 18. 10. 2026): plácek – kruh, síla nejsilnější přicházející pěšiny + 30 % síly
-  ostatních (nejvýš plná), pásy do něj vbíhají bez zúžení (`ribbonJunctions` v `path-ribbon.ts`).
-  U pěšin dne jen jemně – poloměr jako šířka pěšiny a krytí o 15 % slabší (návrh Clauda, 19. 10. 2026); udusaný plácek o poloměru 1,3× šířky mají pevné cesty ([roads.md](roads.md)).
-- **Objevuje se a mizí:** spojení nového obydlí se vyšlapává dva roky, zrušené místo pěšinu
-  ztratí (v prototypu hned). Práce se mění s rokem – pěšina na pole je v žních silnější.
-- **Vidět jsou i v polích:** pěšina se kreslí nad poli – přes úhor a pastvinu jako prošlapaný
-  pás; přes osetý díl jen úzká stopa (Martin: stromy u cesty bez cesty mátly). Od 19. 10. 2026
-  vedou pěšiny přes pole nejrychlejší cestou – přes díl v osevu, jen když je obcházení delší
-  (Kudy – pole je cena, ne zákaz).
-- **Roční období:** tráva v pěšinách usychá jako louka, v zimě je zasype sníh – stopa pěšiny
-  dne ve sněhu pořád trochu prosvítá (sníh ji zasype jen ze 30 %, pevnou cestu z 55 % – ta
-  prosvítá zřetelně).
-- **Stromy podél pěšin** už nejsou – rozmisťovaly se znovu s každou změnou sítě dne a přeskakovaly
-  (rozbor 18. 10. 2026). Nahradily je **stromy u pevných cest** ([roads.md](roads.md)): herní
-  data, která vyrostou z keře, stojí na místě a odumřou stářím.
-- **Lidé chodí po pěšinách:** nosiči z pole, nosiči dřeva ke stavbě a ženy pro vodu a dřevo jdou
-  na nejbližší pěšinu, po ní a z ní k cíli; kde pěšina nevede (nebo by byla velká oklika), jdou
-  rovnou. Po pěšině jdou viditelně rychleji (a rychleji kráčí).
+Příčiny (rozbor Clauda): scéna hledala trasy postav vlastním hledáním po čarách pěšin
+(`path-router.ts`) a síť pěšin počítala z dnešní práce, simulace z ročního průměru – dvě
+rozhodnutí. Pěšiny dne si nic nepamatovaly a pevná cesta vznikala z jiné veličiny (roční síť,
+3 cesty denně dva roky po sobě na stejném místě). Vozová cesta vedla vlastní trasou. Rozcestí byl
+kruh kolem společného bodu. Plot hřbitova a ohrady byl jen drahý (15×), ne neprůchodný.
+
+## Pravidla (Martin 22. 10. 2026)
+
+1. **Kudy se chodí:** nejrychlejší cestou. Když je přes louku výrazně rychleji než po cestě, jde
+   se po louce.
+2. **Jedno rozhodnutí:** kudy lidé chodí, určuje jen simulace. Postavy ve scéně ji zobrazují.
+3. **Vznik:** cesty zakládají jen lidé tím, kudy chodí, hráč je nezakládá ani neruší. Pěšina, po
+   které se dost chodí delší dobu, se stane cestou. Nemusí přitom ležet každý rok přesně na
+   stejném místě.
+4. **Zánik:** cesta, po které se nechodí, postupně zaroste a zmizí. Platí to pro každou cestu,
+   i upravenou a vozovou, jen pro ty pomaleji.
+5. **Druhy cest:** pro chodce jsou vyšlapaná a vyježděná cesta stejné a stejně tak upravená
+   a vozová; upravená cesta zrychluje i vozy; stromy a jabloně u cesty zrychlují všechny druhy
+   o svůj koeficient.
+6. **Vozová cesta:** vznikne ze staré pěší cesty a vede po ní. Narovná se jen tam, kde pěší cesta
+   kličkovala do svahu, pokud to jde, a obejitý kus staré cesty zaroste. Náspy a úvozy musí být
+   výrazně vidět.
+7. **Hať a lávka** se postaví samy jako součást úpravy cesty: hať přes mokřinu, lávka přes brod.
+   Lávka zůstává jako dnes, jen pro pěší.
+8. **Hráč** jen vylepšuje existující cesty (upravená, vozová) a zakládá zemskou stezku
+   k sousedům, ta zůstává jako dnes.
+9. **Křižovatka:** samostatný objekt, který jde označit; buď kříž se 4 vchody, nebo Y se
+   3 vchody; natočená tak, aby cesty co nejlépe navazovaly, a cesty vedou přesně do jejích
+   vchodů; kousek bokem stojí náhodně strom, velký vztyčený kámen nebo dřevěný kůl, jednou
+   vylosované to zůstane; víc než 4 cesty se nečekají, kdyby se sešly, vzniknou dvě křižovatky
+   kousek od sebe; kulaté plácky zmizí.
+10. **Vchody budov:** ke každé stavbě, kam se chodí, vede cesta až k jejímu vchodu, i když se tam
+    chodí málo, třeba k hřbitovu jen na pohřby.
+11. **Každá cesta vede odněkud někam:** od vchodu budovy, křižovatky nebo kraje mapy k jinému
+    takovému místu. Pahýly bez cíle nevznikají, a když po dělení a spojování cest nějaký zbude,
+    sloučí se se sousední cestou nebo zmizí. Křižovatka vznikne, jen když se opravdu potkají tři
+    nebo čtyři cesty, po kterých se chodí. Na jednom místě se nesmí potkat několik kusů cesty,
+    které jsou pro hráče jedna a táž cesta.
+
+Z issue #3 (Martin 22. 10. 2026): „Pokud vesničané upravují cestu, chci je na té cestě vidět
+pracovat.“ a „Lidi nesmí chodit přes ohrady. Vždyť jsou oplocené.“ – ohrada je překážka pro chůzi,
+dovnitř se chodí jen brankou, kdo tam má práci.
+
+Převod (Martin 23. 10. 2026): staré cesty se při načtení **převedou jednou a idempotentně** do
+nového systému – upravené a vozové zůstanou, souběžné se sloučí, pahýly zmizí, nepoužívané začnou
+zarůstat. Ne zahodit.
+
+Mimo rozsah: zemská stezka ([trade.md](trade.md)) se nemění.
+
+## Přehled – jedna veličina od kroku po cestu
+
+Návrh Clauda – architektura:
+
+1. **Trasy** (simulace): kdo kam chodí a kudy – jedna trasa na domácnost a cíl, cesty za den.
+   Počítá je simulace a **ukládá je do stavu vsi** jako data. Scéna je jen čte (pravidlo 2).
+2. **Vyšlapanost** (simulace): kudy trasy vedou, tam se tráva prošlapává; kde se nechodí, dorůstá.
+   Jedno číslo na políčko 7,5 m ve stavu vsi. Pěšina, kterou hráč vidí, je vyšlapanost podél tras.
+3. **Vznik cesty:** kde vyšlapanost podél trasy dosáhne prahu, vznikne vyšlapaná cesta – celá od
+   kotvy ke kotvě (vchod, křižovatka, kraj mapy, cíl), nikdy pahýl.
+4. **Stav cesty a zarůstání:** pevná cesta má po kusech stav, který provoz udržuje a bez provozu
+   klesá podle druhu cesty; na nule kus zmizí.
+5. **Síť:** po každé změně cest jeden úklid v pevném pořadí – souběžné cesty, díry, spojení,
+   pahýly, cesty k vchodům a křižovatky.
+
+Viditelná pěšina je tak cesta ve vzniku: kudy se chodí dost, z pěšiny se cesta stane; kudy málo,
+pěšina zůstane slabá nebo zmizí. Pěšina „vidět roky“ bez cesty už nastat nemůže – pěšina je vidět
+jen tam, kde vyšlapanost roste, nebo kde dorůstá tráva (pak zmizí).
+
+## Trasy – kudy se chodí
+
+### Kdo kam chodí
+
+Beze změny proti dřívějšku (Martin 18.–19. 10. 2026, čísla návrh Clauda):
+
+- **Pochůzky domácností:** voda podle lidí v domácnosti, vždy k nejbližší vodě (Pochůzky pro
+  vodu), dřevo na domácnost (v zimní půlce roku víc, nad 130 m chůze úměrně méně, nejvýš 450 m),
+  ke hřbitovu 0,15 cesty za den na člověka k nejbližšímu hřbitovu, k nejbližšímu posvátnému dubu,
+  háji, modle, svatyni a sadu, k sousedům na kraj mapy.
+- **Práce dne:** pole, sad, stavby, kácení, ohrady (krmení), louky v době seče, stáda na úhor –
+  jeden člověkoden = jedna cesta; zavedená místa (pole, sad, ohrada, posvátná místa, hřbitov)
+  mají základ cest navíc, ať trasa mezi pracemi nezmizí.
+- **Nově – pohřby:** pohřební průvod je cesta od obydlí zemřelého k brance hřbitova (návrh Clauda
+  – pravidlo 10 jmenuje hřbitov „jen na pohřby“; dřív průvod šel jen ve scéně).
+
+### Cena chůze
+
+- **Ceny buněk** mřížky terénu pěšin (≈ 3,75 m, 8 směrů) jsou 1 / rychlost chůze proti louce –
+  tabulka v [roads.md – Rychlejší chůze](roads.md#rychlejší-chůze-martin--efekt-vylepšení):
+  louka 1, díl v osevu 0,5, strniště 0,8, mokřina 0,5, pěšina až 1,3 podle vyšlapanosti,
+  vyšlapaná a vyježděná cesta 1,5, upravená a vozová 1,7, stromy u cesty +0,03, jabloně +0,05.
+  Les, svah, křoviny a překážky krajiny jako dřív (`walk-speed.ts`, `PATH_WALK`, `FIELD_WALK`,
+  `ROAD_WALK`). Po pevné cestě bez ohledu na povrch pod ní (Martin 19. 10. 2026 – [roads.md –
+  Cesta je cesta](roads.md#cesta-je-cesta--povrch-pod-ní-a-zarůstání)).
+- **Zvyk – „výrazně rychleji“ (pravidlo 1, návrh Clauda):** pro výběr trasy stojí buňka mimo
+  pevnou cestu navíc **× 1,25**, na pěšině úměrně méně (× 1 + 0,25 × (1 − síla pěšiny)). Přes
+  louku se tedy jde, jen když ušetří **víc než 20 % času** proti cestě (1,25 × čas přes louku <
+  čas po cestě). Příklad: po cestě 500 m (333 s chůze při 1,5×), přes louku 400 m – 400 s,
+  s přirážkou 500 s > 333 s, jde se po cestě; přes louku 250 m – 312 s < 333 s, jde se přes louku.
+  Důvod: lidé se drží známé cesty (suchá, bez keřů, ví se, kam vede) a malá zkratka za to nestojí;
+  20 % je zřetelně víc než rozdíl, který člověk na krátké trase odhadne. Zvyk je jen pro výběr –
+  čas chůze pro práci se počítá skutečnými rychlostmi.
+- **Ploty jsou neprůchodné (Martin 22. 10. 2026, #3):** plot ohrady a hřbitova a příkop svatyně
+  jsou zeď – trasa vede jen vchodem (brankou). Dovnitř jde jen trasa toho, kdo tam má práci
+  (krmení v ohradě, pohřeb a návštěva hřbitova) – končí v brance; práce uvnitř je pohyb postav od
+  branky. Dřív stál plot 15× louku (`PEN_COST`, `CEMETERY_COST`) a trasy přes ohradu šly.
+  Staveniště plotu (rozestavěná ohrada a hřbitov) zůstává průchozí jako dřív.
+- **Ulička mezi ohradami (Martin 23. 10. 2026 – [oxen.md](oxen.md), Plot ohrady podle délky):**
+  plot stojí 1,5 m uvnitř čtverce, mezi sousedními ohradami (i hřbitovem) zůstává ulička 3 m, kterou
+  projde chodec i vůz. Neprůchodné jsou buňky uvnitř plotu podle téže funkce jako u vozů
+  (`fencedCells`); natočená ohrada blokuje jen buňky celé uvnitř. Žádná druhá geometrie plotu.
+- **Šikmá cesta v mřížce (návrh Clauda):** vůz má pevnou cestu jako pás kolem osy
+  (`ROAD_BAND_CELLS`) a smí úhlopříčkou z buňky cesty na buňku cesty (Vlkov 23. 10. 2026 – šikmá
+  cesta lesem nebyla sjízdná). Trasa chodce po šikmé cestě lesem nebo polem nesmí spadnout mimo
+  ni – ověří Úloha 2, jinak týž pás.
+- **Slévání:** domácnosti jdou ke společnému cíli zvlášť, nejvytíženější první; čerstvě
+  prošlapané buňky a vyšlapanost zlevní (až 1,3×), takže se další trasy přidají ke kmeni –
+  souběžné pěšiny nevznikají (Martin 18. 10. 2026: „Pokud už cesta vede tím směrem, lidé by měli
+  použít tu, ne si prošlapat vlastní souběžnou.“). Dvě kola jako dřív.
+
+### Kdy se trasy počítají a co se ukládá
+
+- **Přepočet** jako dřív přepočet chůze: když se změní rozložení vsi (`walkLayoutKey` – obydlí,
+  stavby, pole, cesty, ohrady, stáda, kdo kde bydlí), stadia dílů jen 1. dne v měsíci
+  (`walkStageKey`). Nově i když se změní pevné cesty měsíční kontrolou. Výsledek nezávisí na
+  kouscích dopočtu (rozhodují dny změn, ne kousky).
+- **Uložení (návrh Clauda):** `VillageState.routes` – den výpočtu, otisk rozložení a seznam tras:
+  odkud (vchod obydlí nebo stavby), kam (cíl – `field:<id>`, `water`, `wood`, `cemetery:<id>`,
+  `edge:<směr>`…), účel, cesty za den (setiny) a **buňky trasy** jako řetězový kód (počáteční
+  buňka a kroky po 8 směrech, 3 bity na krok, base64). Ve Vlkově odhadem 150–300 tras × ≈ 100
+  kroků ≈ 10–20 kB. Trasy pod 0,02 cesty za den se neukládají (jako dřív `MIN_TRIP`).
+- **Stará ves bez tras** (nebo s jiným otiskem) si je spočítá **při načtení** (`withRoutes`
+  v `updateVillage`), i když se jen zobrazuje – scéna má trasy vždy a postavy nestojí.
+- **Podrobnosti uložení (návrh Clauda, 24. 10. 2026):** lichý počet kroků končí znakem `=`
+  (poslední znak nese jen jeden krok). Účel trasy: pole, sad, stavby, ohrady, kácení a seč –
+  práce; hřbitov a posvátná místa – návštěva (rozestavěný hřbitov bez branky také); stáda na
+  úhor – stádo. Stará ves dostane trasy po dopočtu do dneška ze sítě posledního dne, bez posunu
+  dne – co se dopočtem přepočítalo, už má trasy svého rozložení a znovu se nepočítá.
+- **Do prohlížeče** jdou trasy a vyšlapanost jen při změně jejich klíče (`routes.key`, den
+  vyšlapanosti); jinak prohlížeč drží poslední. Mez velikosti platí pro stav v databázi.
+- **Proč ukládat, ne počítat znovu v prohlížeči:** scéna dřív počítala síť sama z dnešní práce,
+  simulace z rozložení při poslední změně – dva vstupy, dva výsledky. Uložená trasa je jedno
+  rozhodnutí bez ohledu na to, co prohlížeč ví. Prohlížeč navíc ušetří hledání (A\* po mřížce).
+  Vývojové stránky bez serveru počítají trasy stejnou funkcí jádra.
+- **Z tras se dopočítá:** osa trasy ve světě (středy buněk, vyhlazení `smoothPathLine` – stejné
+  na serveru i v prohlížeči), tempo úseků (podle druhu cesty pod osou), provoz po buňkách,
+  čáry pěšin pro scénu (`extractLines` z provozu tras) a vzdálenost chůze pro práci.
+
+### Jedno rozhodnutí (pravidlo 2)
+
+- **Postavy** pro vodu, dřevo, na pole, ke hřbitovu, k posvátným místům, do ohrad a k sousedům
+  jdou po uložené trase své domácnosti a cíle – od vchodu domu po trase k cíli, tempem podle druhu
+  cesty. Na díl uprostřed pole dojdou po trase k poli a dál přes pole (jako dřív `fieldPath`).
+  Vlastní hledání tras ve scéně (`path-router.ts`) zmizí.
+- **Krátké pohyby** postav, které simulace nepočítá (přejít k sousednímu dílu, obejít dům,
+  postavit se k práci), zůstávají ve scéně – nesmí ale vést přes plot ohrady ani hřbitova
+  (Martin 22. 10. 2026, #3), dovnitř jen brankou.
+- **Vzdálenost chůze pro práci** (díly pole, sad, palivo, voda) se měří po tytéž čarách tras
+  a pevných cestách jako dřív (`walking.ts`) – čáry jsou nově z uložených tras.
+- **Vozy** jezdí jako dřív po trasách vozové sítě ze stejné funkce na serveru i v prohlížeči
+  (`villageCartRoutes`). Voda vozem je už uložená (`VillageState.waterCart`, scéna ji čte přes
+  `storedWaterCartDrive` – totéž co simulace); uložení ostatních tras vozů je zjednodušení na
+  později. Jízdy vozů zapisuje do provozu cest a pošlapání úrody jediné místo – denní deník jízd
+  (`CartTripLog`, `flushCartTrips`).
+
+## Vyšlapanost a vznik cesty
+
+Návrh Clauda (pravidlo 3: „Pěšina, po které se dost chodí delší dobu, se stane cestou. Nemusí
+přitom ležet každý rok přesně na stejném místě.“):
+
+- **Vyšlapanost** je číslo na políčko **7,5 m** (2 × 2 buňky terénu pěšin) v souřadnicích světa –
+  nezávisí na okně sítě, které se s novými stavbami mění. Ve stavu řídce (jen nenulová políčka,
+  celá čísla v setinách) – Vlkov odhadem 1–3 tisíce políček ≈ 5–15 kB.
+- **Den po dni:** každá trasa přidá na políčka, kterými vede, **a na sousední políčka** (± 1 –
+  tolerance 7,5–11 m, ať se trasa, která se mezi roky posune, sčítá dál) své cesty za den, každé
+  políčko jednou na trasu. **Tráva ubere 1 cestu za den** (dorůstá). Vyšlapanost je mezi 0
+  a **1 500**. Jízda vozu se počítá za 2 cesty (vůz udusá víc). Čísla jsou v cestách, kód je
+  drží v setinách (1 000 = `WEAR.roadAt` 100 000).
+- **Počítá se po intervalech**, ne každý den: mezi dvěma dny změny tras (přepočet, 1. den v měsíci)
+  je provoz stálý, takže změna = (provoz − 1) × dny, oříznutá na 0 a 1 500 – přesně jako den po dni,
+  celými čísly (deterministicky, nezávisle na kouscích dopočtu). Práce dne (pole, stavby) se do
+  intervalu bere ze skutečně odvedené práce po místech (`VillageRoads.labor`, sčítá se denně), ne
+  z jednoho dne – přesně jako dřív roční součty.
+- **Provozní pole (výkon):** provoz tras po políčkách (i se sousedy) se spočítá jednou pro každou
+  sadu tras (`routes.key`) a drží v paměti, ne ve stavu. Interval pak projde jen políčka s provozem
+  nebo s vyšlapaností – jinak by se při dopočtu desítek let (intervaly po dnech, kdy se ves mění)
+  trasy razítkovaly znovu a znovu. Z téhož pole bere provoz i stav kusů cest (Zarůstání).
+- **Pěšina, kterou hráč vidí**, jsou čáry tras se silou = vyšlapanost / 1 000 (nejvýš 1), od
+  vyšlapanosti 50; vzhled jako dřív pěšina dne (nevýrazná: pás 0,6–1,2 m, krytí 0,2–0,45 – Martin 19. 10. 2026). Nová pěšina tak začíná slabě a sílí, až se z ní stane cesta.
+- **Cesta vznikne**, když vyšlapanost podél trasy dosáhne **1 000**. Měsíční kontrola (1. dne
+  v měsíci) vezme čáry tras s vyšlapaností nad prahem mimo pevné cesty (do 5 m od osy jde trasa po
+  cestě) a z nich udělá vyšlapanou cestu – **jen celou od kotvy ke kotvě** (Síť – kotvy níž):
+  horký kus se po čáře trasy prodlouží oběma směry k nejbližší kotvě nebo pevné cestě, pokud
+  vyšlapanost na prodloužení neklesne pod 500; jinak počká na další měsíc. Kratší než 15 m cestou
+  není (jako dřív).
+- **Kolik to trvá** (vyšlapanost roste o provoz − 1 za den):
+
+  | Cest za den | Cesta vznikne za      | Příklad                                 |
+  | ----------- | --------------------- | --------------------------------------- |
+  | pod 1       | nikdy (tráva dorůstá) | jedna domácnost pro dřevo v létě (0,5)  |
+  | 2           | 1 000 dní ≈ 2,7 roku  | ves 13 lidí ke hřbitovu (13 × 0,15 ≈ 2) |
+  | 3           | 500 dní ≈ 1,4 roku    | dřívější práh (3 cesty dva roky)        |
+  | 10          | 111 dní ≈ 4 měsíce    | Vlkov pro vodu (24 lidí × 0,4 = 9,6)    |
+  | 30          | 34 dní                | kmen od vsi k polím v žních             |
+
+  Důvod čísel: práh 1 000 drží dřívější tempo (3 cesty denně ≈ 1,5–2 roky) a silný provoz dá cestu
+  za sezónu, jak to v krajině chodí; ubírání 1 cesty denně odpovídá tomu, že tráva vyšlapanou
+  stopu po jedné chůzi denně do týdnů zacelí (pastviny a meze). Strop 1 500 znamená, že nepoužívaná
+  pěšina zmizí nejvýš za 4 roky.
+
+- **Vyježděné cesty:** jízdy vozů jdou do téže vyšlapanosti (× 2) – jednou ročně 1. 11. z ročního
+  součtu jízd, který plní jen `flushCartTrips`, podél tras roční sítě vozů (návrh Clauda – trasy
+  vozů se neukládají a roční síť se počítá tak jako tak). Příznak vozová (vyježděná) dál dostane kus
+  cesty, kudy vozy jezdí – roční kontrola 1. 11. podle provozu vozů (wagons.md – Vyjeté cesty,
+  `markCartRoads`, převzetí kusu `takeOverRoads`); samostatné zakládání vozových cest z kandidátů
+  (`formCartRoads`) zmizí – vozová trasa mimo cesty vyšlape cestu jako lidé. Jízda přes osetý díl
+  (Martin 23. 10. 2026: „Vůz smí přes zaseté pole“ – jen když jiná cesta není, úroda se pošlape) se
+  počítá jako každá jiná: kudy vůz jezdit musí, tam vznikne cesta a vůz pak pošlapávat přestane.
+- **Kronika** jako dřív: „Kudy se chodí léta, vyšlapala se pevná cesta.“
+
+## Zarůstání (pravidlo 4)
+
+Podrobně v [roads.md – Nový systém cest](roads.md#nový-systém-cest-22-10-2026). Stručně (návrh
+Clauda): pevná cesta má **stav** po kusech ≈ 25 m. Provoz trasy po kusu ho udržuje, pod
+udržovacím prahem druhu klesá; když dojde na nulu, kus zmizí. Vyšlapaná a vyježděná cesta bez
+provozu zaroste za **5 let**, upravená (s hatí a lávkou) za **15 let**, vozová za **30 let**;
+zemská stezka nezarůstá (beze změny). Opuštěná cesta (žádná trasa po ní celý měsíc) se vyřadí ze
+sítě – není ramenem křižovatky ani cestou hráče – a jen bledne, dokud nezmizí; vrátí-li se na ni
+provoz, ožije.
+
+## Síť – kotvy, pahýly a úklid (pravidlo 11)
+
+Návrh Clauda:
+
+- **Kotvy** – místa, kde smí cesta končit:
+  - **vchod stavby** (do 3 m) – brána obydlí, branka hřbitova a ohrady, předek modly a svatyně,
+    vchody dílen a humna (`entrances.ts`);
+  - **vchod křižovatky** (rameno – Křižovatky níž);
+  - **kraj mapy** – kam vedou cesty k sousedům;
+  - **cíl** – konec trasy, jejíž cíl nemá vchod (voda, dřevo, pole, sad, louka, pastva): bod, kde
+    trasa končí, ± 7,5 m – břeh vody, okraj pole, sadu, lesa, louky nebo pastvy. Pravidlo 11
+    jmenuje vchody, křižovatky a kraj mapy; cíl přidává Claude, protože cesta k vodě nebo na pole
+    nemá vchod a končit musí (Vlkov – cesta k vodě). Zjednodušeno po recenzi (dřív „aspoň polovina
+    cest končí do 25 m“).
+- **Pahýl** je konec mimo kotvu a mimo jinou cestu. Nevznikne – nová cesta se zakládá jen od kotvy
+  ke kotvě (Vyšlapanost a vznik cesty). Zbude-li po zarůstání, dělení nebo spojování: kus od
+  pahýlu k nejbližšímu uzlu kratší než **30 m** zmizí hned (křižovatka u něj se přepočítá a dvě
+  zbylé cesty se spojí – „sloučí se se sousední cestou“), delší se zkrátí na poslední bod, kudy
+  ještě vede trasa ke kotvě; vede-li po něm trasa až ke kotvě, prodlouží se k ní.
+- **Úklid** po každé změně cest (měsíční kontrola, dostavěné vylepšení, převod) v pevném pořadí:
+  1. **souběžné cesty a copánky** – dnešní pravidla ([roads.md – Úseky a
+     rozcestí](roads.md#úseky-a-rozcestí): do 12 m stejným směrem, kus od 25 m; copánek mezi
+     stejnými uzly do 25 m); silnější je vyšší druh, pak víc provozu, pak starší – vozová
+     a upravená cesta tak pohltí souběžnou vyšlapanou (Vlkov – voda);
+  2. **díry** do 14 m mezi konci a cestou se zacelí (jako dřív);
+  3. **uzly se dvěma konci** se spojí do jednoho úseku (jako dřív `mergeRoadChains`, různé druhy
+     zůstanou úseky jedné cesty hráče);
+  4. **pahýly** (výš);
+  5. **cesty k vchodům** (Vchody níž);
+  6. **křižovatky** (níž).
+- **Jedna cesta hráče se v uzlu nepotká sama se sebou** (pravidlo 11): ramena křižovatky patří
+  různým cestám hráče. Dva úseky mezi stejnými uzly jsou copánek (krok 1) a okruh přes jednu
+  křižovatku se rozdělí v nejvzdálenějším bodě na dvě cesty hráče.
+
+## Stavba přes cestu (Vlkov, Martin 23. 10. 2026)
+
+Ve Vlkově vůz pro vodu nejezdil: oplocený pozemek polozemnice stál přes cestu od ohrady volů
+a objížďka vedla přes ozim (Martin 23. 10. 2026 – [wagons.md](wagons.md), Vůz přes zaseté pole).
+Nový systém přehrazení řeší sám (návrh Clauda):
+
+- **Kus pod hotovou stavbou** (pozemek, ohrada, hřbitov, okrsek svatyně, dílna – vše, co je
+  v mřížce chodců neprůchodné) je hned **opuštěný** – vypadne ze sítě a zaroste; zbytky cesty po
+  obou stranách žijí dál, pokud po nich vede trasa.
+- **Objížďka:** trasy (a vozy) obejdou stavbu nejrychlejší cestou kolem – uličkou, okrajem pole,
+  loukou; vůz přes osetý díl jen když jinudy nejde. Vyšlapaná objížďka se stane cestou jako každá
+  jiná a napojí se na zbytky staré cesty (kotva „jiná cesta“ – `joinPoint`, `splitRoad`). Kudy vede
+  nová cesta, tudy pak jezdí i vůz a úrodu už nepošlapává.
+- Nahrazuje „zrušit kus cesty pod stavbou může přijít později“ ([roads.md – Co platí
+  dál](roads.md#cesta-je-cesta--povrch-pod-ní-a-zarůstání)). Branka nového obydlí do cizího
+  pozemku dál nesmí (Vchody).
+
+## Křižovatky (pravidlo 9)
+
+Návrh Clauda:
+
+- **Kdy:** v uzlu, kde končí **3 nebo 4 živé cesty** (každou vede trasa aspoň v udržovacím prahu
+  jejího druhu – opuštěná ani pahýl se nepočítá). Dvě cesty křižovatku nemají (spojí se). Pět a víc
+  se nečeká; kdyby se sešly, uzel se rozdělí na **dvě křižovatky 10 m od sebe** spojené krátkou
+  cestou – ramena se rozdělí na dvě skupiny sousedních podle úhlu, každá skupina 2–3 ramena plus
+  spojka.
+- **Tvar:** **kříž** – 4 ramena po 90°; **Y** – 3 ramena: kmen a dvě větve souměrně kolem směru
+  proti kmeni, každá větev o β = 30–60° (po 5°) od té osy (β = 60° je souměrné trojcestí po 120°,
+  β = 30° klasické Y).
+- **Natočení:** po 5°, aby součet čtverců odchylek ramen od směrů přicházejících cest byl nejmenší
+  (směr cesty = od středu k bodu osy 12 m daleko; přiřazení ramen cestám – všechna pořadí, nejvýš
+  24); při shodě menší úhel a menší β. Zemská stezka se neohýbá – je-li v uzlu, natočení se k ní
+  přizpůsobí (její rameno přesně v jejím směru).
+- **Vchody:** na konci ramene, **1,5 × šířka nejširší přicházející cesty** od středu (vyšlapaná
+  1,9 m → 2,85 m, upravená 3 m → 4,5 m, vozová 3,5 m → 5,25 m). **Cesta vede přesně do vchodu:**
+  posledních nejvýš **12 m** osy se nahradí obloukem od bodu 12 m daleko do vchodu s tečnou ve
+  směru ramene (kvadratická křivka, body po 1 m, na cm). Osa se tím u křižovatky změní – nahrazuje
+  to dřívější „osa se nikdy nehýbe“ jen v tomto okolí. Kmeny hatě, místa na stromy a jabloně
+  v ohnutém kusu zůstanou, kde jsou (do 2,2 m od nové osy místo zmizí).
+- **Znamení:** při vzniku křižovatky se jednou vylosuje (seed vsi a id křižovatky) **strom 40 %,
+  vztyčený kámen 30 %, dřevěný kůl 30 %**. Stojí v nejširší mezeře mezi rameny, 1,5 m za
+  vzdáleností vchodů od středu, natočení a podoba (druh stromu – dub, jilm, topol jako u cest;
+  model kamene a kůlu ze 2 podob – zjednodušení po recenzi) z téhož losu. Zůstane, dokud křižovatka stojí – i když se změní
+  tvar (kříž ↔ Y) nebo natočení; posune se jen do nejširší mezery. Strom roste jako strom u cesty
+  (keř → mladý strom → plný za 40 let) a je to strom u cesty se vším (překážka stavby, kláda);
+  zanikne-li křižovatka, strom stojí dál jako strom u cesty, kámen a kůl zmizí. Kámen je pro
+  stavbu překážka jako balvan, kůl jako keř.
+- **Změna:** přibude-li nebo ubude-li rameno, tvar a natočení se spočítají znovu, znamení zůstane;
+  klesnou-li živá ramena na 2, křižovatka zanikne a cesty se spojí.
+- **Data:** `VillageRoads.junctions` – id, střed, tvar, natočení, β, ramena (id úseku ve vchodu),
+  znamení, den vzniku. Úsek ví, že končí ve vchodu (konec osy = vchod).
+- **Co hráč vidí:** udusaná hlína ve tvaru kříže nebo Y – pásy ramen v šířce přicházejících cest,
+  střed vyplněný mnohoúhelníkem mezi nimi, okraje nepravidelné jako u cesty; **žádný kruh**.
+  Kliknutím (do 3 m od středu) se vybere – panel: ikona tvaru (kříž, Y), cesty v ramenech (druhy),
+  znamení. Akce žádné (hráč cesty jen vylepšuje). Pod křižovatkou se neorá (dřív kruh – [roads.md
+  – Cesta přes pole](roads.md#cesta-přes-pole)).
+- **Pěšiny dne** rozcestí-plácky nemají (dřív jemný kruh `ribbonJunctions`) – čáry tras se jen
+  potkají.
 
 ## Vchody
 
-Martin (19. 10. 2026): „A ještě, každá budova by měla mít nějaký vchod, od kterého cesta
-povede.“ Podrobnosti návrh Clauda.
+Martin (19. 10. 2026): „A ještě, každá budova by měla mít nějaký vchod, od kterého cesta povede.“
+Martin (22. 10. 2026, pravidlo 10): „ke každé stavbě, kam se chodí, vede cesta až k jejímu vchodu,
+i když se tam chodí málo, třeba k hřbitovu jen na pohřby.“ Podrobnosti návrh Clauda.
 
-- **Každá stavba má vchod a pěšina vede k němu** – ne kamkoli k plotu. Vchod počítá jedna funkce
-  herního jádra (`paths/entrances.ts`) pro síť pěšin (server i prohlížeč) i pro scénu, která tam
-  kreslí branku – vchod v síti a branka ve scéně se nerozejdou.
-- **Obydlí:** brána před koncem šíje, u pozemku polozemnice branka v plotu proti vchodu domu, u
-  dvorce vojvody brána na vzdálené straně dvora, u dílen hrnčíře a kováře vchod pod přístřeškem
-  (brána 1 m před domem leží pod ním), u uhlíře vchod do zemnice – tak to síť dělala už dřív
-  (`gateOf`) a se scénou to sedí (ověřeno). **Brána do souseda:** padne-li brána do cizího
-  pozemku nebo domu (Vlkov, 19. 10. 2026: polozemnice přední stranou k pozemku dvorce – domácnost
-  vypadla ze sítě a neměla žádnou pochůzku, ani pro vodu a dřevo), vyjde domácnost z nejbližšího
-  volného místa do 7,5 m kolem svého obydlí (`gateAround`, návrh Clauda). Bez volného místa kolem
-  (obydlí celé obestavěné) zůstává mimo síť. **Nová obydlí to mít nesmí** (Martin, 19. 10. 2026:
-  „Ano, zakaž to“): kontrola umístění se ptá stejného místa (`dwellingGatePoint`) a odmítne
-  branku či vchod do cizího pozemku, obydlí, modly, svatyně, hřbitova, ohrady i vody – a novou
-  stavbu, která by branku stojícího obydlí zatarasila ([population.md](population.md) – Umístění
-  obydlí).
-- **Hřbitov:** branka v pleteném plotu na rovném úseku nejblíž k nejbližšímu hotovému obydlí (od
-  středu hotových čtverců), aspoň kůl od zakulaceného rohu. Dřív ji počítala jen scéna a nikde se
-  neukládala – teď ji počítá jádro (`cemeteryEntrance`) a scéna ji převezme. Hotový hřbitov má
-  branku v plotu hotových čtverců (rozšíření ve stavbě branku nemá – dokud se staví, branka
-  zůstává na místě), zakládaný v plotu všech čtverců. Branka se dál posune, když se postaví
-  obydlí blíž, nebo když se rozšíření dostaví – jako dřív ve scéně.
-- **Ohrada:** branka ze žerdí na straně k nejbližšímu obydlí, posunutá po té straně k němu
-  (`penEntrance`) – u natočené ohrady v jejích osách.
-- **Modla:** vstup na předku (+z modelu, kam hledí tváře a stojí obětiny) na okraji půdorysu
-  4 × 4 m. **Svatyně:** příkop nemá přerušení – vstup je na předku přes hrot okvětí, kde je příkop
-  nejužší, za valem 13,5 m od středu (`sacredEntrance`).
-- **Sad, pole a louky** budovy nejsou a vchod nemají: sad nemá plot, pracuje se v něm všude
-  (česání, péče u každého stromu), takže pěšina vede k nejbližšímu okraji jako dřív (rozhodnutí
-  Clauda).
-- **Kdo jde vchodem:** pěšiny dne i roční síť (pevné cesty) – návštěvy hřbitova, krmení dobytka
-  a práce v hotové ohradě, návštěvy a oprava modly a svatyně. **Staveniště** (zakládaný hřbitov
-  a jeho rozšíření, ohrada ve stavbě, rozestavěná modla a svatyně) mají práci ze všech stran jako
-  dřív – plot nebo příkop teprve vzniká. Postavy přes plot nechodily ani dřív (stavitelé a krmiči
-  stojí za plotem, hroby a ohrady obcházejí, zvířata v ohradě stojí na svých místech), takže se
-  jich změna netýká.
-- **Rozcestí a staré vsi:** pěšina k vchodu se napojí jako u brány domu a pevné cesty se k ní
-  stáhnou samy (sleva za pevnou cestu). Staré vsi se načtou beze změny, síť se přepočítá podle
-  klíče rozložení vsi (`walkLayoutKey` – hotový hřbitov má klíč jako dřív, nový je jen u
-  zakládaného hřbitova a rozšíření). Pevné cesty, které dnes končí jinde u plotu, se nechají být:
-  provoz se přesune k vchodu, cesta k vchodu vznikne z provozu sama a nepoužívaná vyšlapaná cesta
-  zaroste podle stávajících pravidel ([roads.md](roads.md)) – měnit hráči cesty naráz by bylo
-  proti pravidlu, že se cesta nikdy nehýbe sama od sebe.
+- **Vchod** počítá jedna funkce jádra (`paths/entrances.ts`) pro trasy i scénu (branka) – beze
+  změny: obydlí bránou (`gateOf`, brána v cizím pozemku → nejbližší volné místo do 7,5 m –
+  `gateAround`; nové obydlí brankou do cizího pozemku nesmí), hřbitov brankou v plotu nejblíž
+  k nejbližšímu obydlí (`cemeteryEntrance`), ohrada brankou k nejbližšímu obydlí (`penEntrance`),
+  modla předkem, svatyně přes hrot okvětí (`sacredEntrance`), dílny a humno vchodem. Sad, pole
+  a louky vchod nemají – trasa vede k nejbližšímu okraji.
+- **Cesta k vchodu (pravidlo 10):** měsíční kontrola najde hotové stavby, ke kterým se za
+  posledních 12 měsíců chodilo (provoz trasy ke stavbě, i pohřby), a u jejichž vchodu nekončí
+  pevná cesta. K takové stavbě vznikne **vyšlapaná cesta po nejvytíženější trase od vchodu** až
+  k první pevné cestě, křižovatce nebo jiné kotvě – bez ohledu na vyšlapanost. Dokud se ke stavbě
+  chodí, cesta k vchodu nezarůstá (stav drží na plném) – odvozuje se z konce cesty ve vchodu
+  a návštěv stavby za 12 měsíců, žádné zvláštní pole (zjednodušení po recenzi); opuštěná stavba
+  ([abandonment.md](abandonment.md)) ji přestane držet a zaroste podle druhu.
+- **Hřbitov (Vlkov):** plot je neprůchodný, trasy končí v brance, pohřby a návštěvy jdou do
+  provozu – cesta vede do branky, ne podél plotu.
+- **Staveniště** mají práci ze všech stran jako dřív – plot nebo příkop teprve vzniká; cesta
+  k vchodu vznikne až u hotové stavby.
 
 ## Pochůzky pro vodu
 
 Stav: Martin 19. 10. 2026 – „Ve Vlkově nikde nevidím vyšlapanou cestu k potoku. Ale vesničané tam
-přece musí chodit nějak pro vodu a musí jim to zabírat čas.“ Návrh níže schválil („Ano“),
-podrobnosti a čísla návrh Clauda.
+přece musí chodit nějak pro vodu a musí jim to zabírat čas.“ Návrh schválil („Ano“), podrobnosti
+návrh Clauda. Platí dál, mění se jen vznik cesty.
 
-Ve Vlkově stály všechny domy 465–790 m od vody vzdušnou čarou, pochůzky ale sahaly jen do 450 m
-chůze po louce (a za 130 m se chodilo úměrně méně často) – pro vodu se nechodilo vůbec, pěšina ani
-pevná cesta k potoku nevznikla a čas na vodu byl jen v pevném denním minimu.
-
-- **Kam:** vždy k nejbližší vodě – suchý břeh u potoka (místo na břehu mimo stavby vsi), bez
-  horní meze vzdálenosti. **Okno sítě pěšin sahá vždy k vodě** (Martin chce pěšinu k potoku
-  vidět vždy): leží-li nejbližší vodní políčko některého obydlí mimo okno staveb (stavby ± 240 m),
-  okno se rozšíří jen k němu (± 45 m kolem středu políčka, zaokrouhleno na 90 m) – ne o celé okolí
-  (`villagePathBounds`, stejně na serveru, v roční síti i ve scéně). Voda dál než 1 000 m od obydlí
-  se do okna nebere (výpočet zůstane krátký) – taková ves pro vodu nechodí nikam. Ves 525 m od
-  vody bez staveb k ní: okno 540 × 630 m → 540 × 900 m, síť ≈ 2 → 12 ms; Vlkov (voda v okně už
-  byla) beze změny.
-- **Kolik:** 0,4 cesty (tam a zpět) na člověka domácnosti a den – i daleko naplno, v denní
-  i roční síti stejně (`WATER_FETCHING` v `rules.ts`). Pro dřevo beze změny.
-- **Pěšina a cesta:** pochůzky domácností se slévají na společnou pěšinu jako dřív; kudy se chodí
-  aspoň 3× denně dva roky, vznikne pevná cesta k vodě ([roads.md](roads.md)). Vlkov: pěšina
-  k potoku hned, pevná cesta k vodě (≈ 425 m) po dvou ročních kontrolách.
-- **Čas je práce:** chůze pro vodu nad 100 m se přičte k dennímu minimu domácnosti
-  ([population.md](population.md) – Práce, [fields.md](fields.md) – Práce): cesty × 2 × (chůze
-  k vodě − 100 m, nejméně 0) ÷ rychlost ÷ délka dne. Prvních 100 m je v ceně denního minima (WHO:
-  voda do 100 m nebo 5 minut je „intermediate access“ – Howard a Bartram 2003). Rychlost 1 m/s po
-  louce tam a zpět s vodou (pohodlná chůze po rovině 1,3–1,4 m/s – Bohannon 1997; WHO: do 1 km
-  nebo 30 minut sběru tam a zpět ≈ 1,1 m/s i s čerpáním), den 10 h (jako přepočty rešerše
-  2026-10-17). Domácnost 6 lidí s vodou 440 m chůze daleko: 2,4 cesty × 2 × 340 m ≈ 27 minut ≈
-  0,045 člověkodne denně; celý Vlkov (24 lidí) ≈ 0,18 člověkodne denně. Starší ji kryjí jako
-  zbytek minima.
-- **Chůze k vodě** (`Dwelling.waterWalkM`) se měří z obydlí k místu na břehu nejblíž vzdušnou
-  čarou stejně jako palivo (Pěšiny a práce) – po pěšinách dne a pevných cestách podle rychlostí
-  chůze, rovně s mokřinou, brody a poli. Jedna funkce (`waterWalkDistance`) – jde počítat i jen po
-  pevných cestách nebo rovně krajinou (kdyby pěšiny dne zmizely). Bez krajiny (kalibrace) se
-  neměří a přirážka není.
-- **Co hráč vidí:** přirážku jen přes práci – volná práce v liště, rozdělení práce dne (víc žen
-  u domácí práce). Ve scéně chodí lidé pro vodu po pěšině domácnosti i k vzdálené vodě s vahadlem
-  a vědry, tolik, kolik odpovídá cestám domácnosti (pro dřevo jen do 220 m od domu – villagers.md,
-  Provoz na cestách).
-- **Voda vozem** ([wagons.md](wagons.md) – Co vozy vozí; Martin 19. 10. 2026: „Pokud budou mít
-  k dispozici vůz, ať na pole, pro vodu nebo pro dřevěné uhlí jede vůz.“): má-li ves volný
-  dvoukolák se spřežením, vozí vodu v sudech (300 l na jízdu, 10 l na člověka a den) domácnostem,
-  kterým jízda ušetří práci – přirážka za vodu se zmenší o přivezenou vodu a přičte se díl práce
-  posádky (jízda vozovou sítí na suchý břeh, kam vůz sjede, nabírání a rozlití). Vyplatí se
-  ≈ 170–200 m od vody a dál; kam vůz nesjede, nosí se. Jízdy jdou do ročního provozu cest (k vodě
-  může vzniknout vyježděná cesta). Pochůzky domácností v síti pěšin zůstávají (zjednodušení); ve
-  scéně jde pro vodu pěšky jen tolik lidí, kolik vůz domácnosti nepřivezl (villagers.md – Provoz
-  na cestách).
+- **Kam:** vždy k nejbližší vodě – suchý břeh u potoka, bez meze vzdálenosti. Okno tras sahá vždy
+  k vodě (`villagePathBounds` – rozšíří se jen k nejbližšímu vodnímu políčku, ± 45 m, do 1 000 m).
+- **Kolik:** 0,4 cesty (tam a zpět) na člověka domácnosti a den (`WATER_FETCHING` v `rules.ts`).
+- **Cesta:** pochůzky domácností se slijí na společnou trasu; břeh je cíl (kotva), takže cesta
+  k vodě vede od vsi až k vodě. Vlkov (24 lidí): ≈ 9,6 cesty denně – cesta za ≈ 4 měsíce
+  (dřív po dvou ročních kontrolách).
+- **Čas je práce:** chůze pro vodu nad 100 m se přičte k dennímu minimu domácnosti (cesty × 2 ×
+  (chůze k vodě − 100 m) ÷ 1 m/s ÷ 10 h; Howard a Bartram 2003, Bohannon 1997) – beze změny.
+  Chůze k vodě (`Dwelling.waterWalkM`, `waterWalkDistance`) po čarách tras a pevných cestách.
+- **Co hráč vidí:** lidé pro vodu jdou s vahadlem a vědry po uložené trase své domácnosti
+  (Jedno rozhodnutí) – tedy po vozové cestě, vede-li tam trasa simulace.
+- **Voda vozem** ([wagons.md](wagons.md) – Co vozy vozí) beze změny; jízdy jdou do vyšlapanosti.
 
 ## Pěšiny a práce
 
 Stav: Martin 18. 10. 2026 („Tam, kde bude vyšlapaná cesta, ať se chodí o něco lépe než tam, kde
-není.“), rychlosti Martin 19. 10. 2026 („berme louku za výchozí: 1 vyšlapaná denní cesta 1.3 stálá
-vyšlapaná cesta 1.5. Pole, které zrovna neleží ladem: 0.5. Upravená cesta: 1.7 – tyhle hodnoty se
-týkají chůze.“ – tabulka v [roads.md](roads.md) – Rychlejší chůze), zbytek návrh Clauda.
+není.“), rychlosti Martin 19. 10. 2026, zbytek návrh Clauda. Platí dál:
 
-- **Po plně prošlapané pěšině dne se chodí 1,3× rychleji než po louce** (slabší úměrně méně
-  podle síly – úsek stojí (1 − (1 − 1 / 1,3) × síla) × délka; `PATH_WALK` v `rules.ts`), přes díl
-  v osevu pěšina nezrychlí. Po pevné cestě podle stupně, mokřina a brody – [roads.md](roads.md) –
-  Rychlejší chůze. Síť pěšin (Kudy – ceny buněk) i vzdálenost chůze jdou stejně rychle.
-- **Vzdálenost dílu pole pro práci** (fields.md – Vzdálenost) se měří chůzí z nejbližšího
-  obydlí: rovně, nebo rovně k pěšině, po ní a rovně od ní na díl – kratší z obou. Rovně se počítá
-  mokřina (0,5×), brody (+ 30 m) a pole – díl v osevu 0,5×, strniště 0,8× (`withFieldWalk` podle
-  vzhledu dílů); les, svah a sad chůzi pro práci nezdražují, po pevné cestě rozhoduje jen stupeň,
-  mokřina a brody na ose (Martin, 19. 10. 2026 – po cestě bez ohledu na to, na čem leží). Díl za
-  potokem nebo uprostřed oseté plochy tak může být dál než vzdušnou čarou. Stejně se měří čtverce
-  sadu a palivo (obydlí → okraj lesa).
-- **Kdy se přepočítá:** když se změní rozložení vsi – nové obydlí nebo staveniště, nová pole
-  a díly, sady, hřbitovy, posvátná místa, pevné cesty, ohrady, stáda, kdo kde bydlí a stáří
-  spojení (nová pěšina se vyšlapává dva roky). **Stadia dílů (osev, úhor, pastva na úhoru) se
-  promítají jen jednou za měsíc – k 1. dni měsíce** (i rychlost chůze přes díl – v osevu,
-  strniště: `walkStageKey`) (Martin, 18. 10. 2026: chůze se přepočítává
-  měsíčně – osev a zakládání postupují po dílech den po dni a síť se přepočítávala každých pár
-  dní). Simulace to kontroluje den po dni, výsledek tak nezávisí na tom, po jakých kouscích se ves
-  dopočítá. Do sítě jde i práce posledního dne (kam ves chodí) a stadia dílů v den přepočtu, ale
-  kvůli nim samotným se nepřepočítává.
-- **Uložení:** vzdálenost chůze každého dílu a čtverce sadu (`walkDistanceM`) a obydlí k okraji
-  lesa (`forestWalkM`) a k vodě (`waterWalkM` – Pochůzky pro vodu); vsi uložené dřív si je
-  spočítají při prvním dopočítání s krajinou.
-  Kalibrace (bez krajiny) počítá dál s přímou vzdáleností.
-- Server i prohlížeč počítají stejnou funkcí – pěšiny ve scéně jsou tytéž, po kterých se
-  počítá práce (v prohlížeči z dnešní práce dne, na serveru z rozložení při poslední změně).
+- Po plné pěšině 1,3× rychleji než po louce (slabší úměrně síle – nově síla = vyšlapanost),
+  přes díl v osevu pěšina nezrychlí. Po pevné cestě podle druhu ([roads.md](roads.md)).
+- **Vzdálenost dílu pole pro práci** se měří chůzí z nejbližšího obydlí: rovně, nebo rovně k čáře
+  trasy, po ní a rovně na díl – kratší z obou (`walking.ts`). Stejně čtverce sadu, palivo a voda.
+- **Kdy se přepočítá:** s trasami (Kdy se trasy počítají).
+- **Uložení:** `walkDistanceM` dílů a čtverců sadu, `forestWalkM` a `waterWalkM` obydlí – jako
+  dřív. Kalibrace bez krajiny počítá dál vzdušnou čarou a cesty nemá.
+
+## Převod starých vsí (Martin 23. 10. 2026)
+
+Martin: staré cesty se při načtení převedou **jednou a idempotentně** – upravené a vozové
+zůstanou, souběžné se sloučí, pahýly zmizí, nepoužívané začnou zarůstat. Postup (návrh Clauda):
+převod je rozdělený na samostatné idempotentní kroky v `updateVillage`, každý přichází s úlohou
+plánu, která danou část zavádí – stará ves (Vlkov) tak zůstává hratelná po každé úloze:
+trasy (`withRoutes`), vyšlapanost (`withWearSeed`, bod 3), stav kusů (`withRoadCondition`, bod 2),
+druhy (`withBridgedRoads`, bod 1) a nakonec úklid a smazání starých polí (`withRoadsV2`, body 4–6,
+příznak `VillageRoads.v2`).
+
+1. **Druhy:** úsek `causeway` (hať a lávka) → upravená cesta s hotovou hatí a lávkou; upravená
+   cesta přes mokřinu nebo brod bez hatě dostane příznak, že hať a lávka chybí – „Upravit cestu“
+   pak postaví jen je ([roads.md](roads.md) – Nový systém cest).
+2. **Stav kusů** z dosavadní historie: kus s provozem v posledním roce nad udržovacím prahem plný,
+   jinak plný × (1 − tiché roky / roky zarůstání druhu) – nepoužívané tak začnou zarůstat, nic
+   nezmizí hned.
+3. **Vyšlapanost** se založí z loňských úseků nad prahem (`VillageRoads.candidates`): podél nich
+   500 (polovina prahu) – rozjeté cesty se neztratí. Ostatní pěšiny začnou od nuly.
+4. **Úklid sítě** (Síť – kroky 1–4): souběžné se sloučí – starou vyšlapanou nebo upravenou cestu
+   vedle vozové pohltí vozová (Vlkov – voda), copánky, díry, spojení, pahýly.
+5. **Křižovatky** v uzlech se 3–4 cestami (ramena podle provozu z posledního roku) – kulaté plácky
+   zmizí. Cesty k vchodům a další úklid dodělá první měsíční kontrola s trasami.
+6. Smažou se nepotřebná pole (`candidates`, `cartCandidates`, `quiet`, `parallelsChecked`,
+   `endsChecked`, `cutEnds`). Druhé načtení vrátí týž stav.
+
+## Co se ukládá a co se dopočítá
+
+| Ve stavu vsi (nové)                                      | Dopočítá se (stejně na serveru i v prohlížeči)       |
+| -------------------------------------------------------- | ---------------------------------------------------- |
+| `routes` – trasy (řetězový kód), cesty za den, účel      | osy tras, tempo, provoz po buňkách, čáry pěšin       |
+| `roads.wear` – vyšlapanost po 7,5 m, den posledního sčtu | síla pěšin, horké kusy pro vznik cest                |
+| `Road.condition` – stav po kusech ≈ 25 m                 | bledé zarůstající kusy ve scéně                      |
+| `Road.abandoned` – opuštěná cesta mimo síť               | cesty hráče (řetězy), kotvy a pahýly                 |
+| `roads.junctions` – tvar, natočení, ramena, znamení      | obrys křižovatky, oblouky do vchodů (osa je uložená) |
+| `roads.v2` – převod hotový                               | vzdálenosti chůze (uložené jako dřív)                |
+
+## Výkon
+
+Návrh Clauda (odhady – ověří poslední úloha plánu):
+
+- **Trasy** se počítají jen při změně rozložení a 1. dne v měsíci se změnou stadií – stejně jako
+  dřív přepočet chůze, stejnou funkcí (`computePathNetwork`). **Roční síť 1. 11. zmizí** (Vlkov
+  ≈ 0,4 s za rok).
+- **Vyšlapanost** – provozní pole (buňky tras × 9 sousedů) jednou na sadu tras v paměti; interval
+  jen přes nenulová políčka (Vlkov 1–3 tisíce), celá čísla. Intervalů je při dopočtu stovky až
+  tisíce (dělí je každá změna rozložení), proto mez: **dopočet 40 let Vlkova nejvýš o 1 s déle než
+  před novým systémem** – měří `road-report.ts` od první úlohy plánu.
+- **Měsíční kontrola** – horké kusy, stav kusů, úklid jen při změně; odhad < 5 ms.
+- **Stav vsi** + 15–35 kB (trasy a vyšlapanost); mez návrhu 50 kB pro Vlkov, jinak hrubší kód.
+  Do prohlížeče jen při změně klíče, ne s každým dotazem na ves.
+- **Scéna** trasy jen dekóduje – žádné A\* v prohlížeči (dřív výpočet sítě ve třech úlohách).
+
+## Rozhodnutí
+
+| Rozhodnutí                                                                                | Kdo          |
+| ----------------------------------------------------------------------------------------- | ------------ |
+| Pravidla 1–11 nového systému cest                                                         | Martin       |
+| Lidé na upravované cestě vidět pracovat; přes ohrady se nechodí, dovnitř brankou          | Martin       |
+| Staré vsi převést jednou a idempotentně, nezahodit                                        | Martin       |
+| Čísla vzniku a zarůstání zvolí Claude sám                                                 | Martin       |
+| Trasy ukládá simulace do stavu (řetězový kód), scéna je jen čte                           | návrh Clauda |
+| Zvyk × 1,25 mimo cestu – louka jen při úspoře přes 20 % času                              | návrh Clauda |
+| Ploty ohrad a hřbitova neprůchodné, trasa končí v brance; pohřby jsou trasa               | návrh Clauda |
+| Vyšlapanost 7,5 m, ± 1 políčko, + provoz − 1 za den, 0–1 500, cesta od 1 000, vůz × 2     | návrh Clauda |
+| Vznik jen celé cesty od kotvy ke kotvě, prodloužení do vyšlapanosti 500; měsíční kontrola | návrh Clauda |
+| Kotvy: vchod, křižovatka, kraj mapy a cíl (konec trasy k vodě, dřevu, poli, sadu, louce)  | návrh Clauda |
+| Pahýl kratší než 30 m zmizí, delší se zkrátí; opuštěná cesta mimo síť                     | návrh Clauda |
+| Křižovatka: Y s β 30–60°, natočení po 5°, vchod 1,5 × šířka, oblouk 12 m, dvě po 10 m     | návrh Clauda |
+| Znamení: strom 40 %, kámen 30 %, kůl 30 %; strom roste jako strom u cesty                 | návrh Clauda |
+| Cesta k vchodu bez ohledu na vyšlapanost, nezarůstá, dokud se ke stavbě chodí             | návrh Clauda |
+| Převod: causeway → upravená, stav z historie, vyšlapanost z kandidátů, úklid, křižovatky  | návrh Clauda |
+| Převod po krocích s úlohami – stará ves hratelná po každé úloze; trasy při načtení        | návrh Clauda |
+| Provozní pole vyšlapanosti v paměti; dopočet 40 let Vlkova nejvýš + 1 s                   | návrh Clauda |
+| Ploty chodcům touž funkcí jako vozům (`fencedCells`) – ulička 3 m mezi ohradami průchozí  | návrh Clauda |
+| Stavba přes cestu: kus pod ní opuštěný hned, objížďka se vyšlape a napojí                 | návrh Clauda |
+| Jízdy vozů do vyšlapanosti ročně z `flushCartTrips`; i přes osetý díl                     | návrh Clauda |
+
+## Nahrazená pravidla (22. 10. 2026)
+
+- ~~Pěšiny dne počítá scéna i server z dnešní práce; síť si historii nepamatuje, opuštěná pěšina
+  hned zmizí~~ – nahrazeno vyšlapaností a uloženými trasami.
+- ~~Pevná cesta vznikne z roční sítě 1. 11., kudy se dva roky po sobě chodí aspoň 3× denně
+  (do 6 m od loňského úseku)~~ – nahrazeno vyšlapaností (práh 1 000, měsíční kontrola).
+- ~~Rozcestí – plácek, kruh, síla nejsilnější pěšiny + 30 % ostatních (Martin 18. 10. 2026:
+  rozcestí nejvyšlapanější místo)~~ – nahrazeno křižovatkou (pravidlo 9); i rozcestí pěšin dne.
+- ~~Postavy chodí po pěšinách vlastním hledáním ve scéně (`path-router.ts`), kde pěšina nevede
+  nebo by byla oklika (1,7× + 12 m), jdou rovně~~ – nahrazeno uloženými trasami.
+- ~~Plot ohrady a hřbitova stojí v síti 15× louku~~ – plot je neprůchodný.
+- ~~Pevné cesty, které končí jinde u plotu, se nechají být~~ – úklid sítě a cesta k vchodu.
 
 ## Zjednodušení a co chybí
 
-- Síť si historii nepamatuje: síla je z práce posledního dne a stáří obydlí (u vsí bez stáří
-  obydlí jako by stála odjakživa); opuštěná pěšina hned zmizí, nezarůstá postupně. Pamatují si ji
-  až pevné cesty ([roads.md](roads.md)) – vznikají z celoročního provozu a zarůstají za 5 let.
-- Ke hromadě klád se pěšina nekreslí (její místo zná jen scéna).
-- Stáří pole server zatím neposílá – nově zakládané pole má pěšinu napoloviční.
-- Brody jsou jen mělké úzké úseky potoka; lávku staví hráč na pevné cestě ([roads.md](roads.md)),
-  mosty pro vozy nejsou.
+- Viditelná pěšina leží jen podél dnešních tras – když se trasa přesune, stará pěšina se nekreslí,
+  i když vyšlapanost tam ještě je (dorůstá a do 4 let zmizí, cesta z ní nevznikne).
+- Trasy vozů se neukládají (počítají se stejnou funkcí na serveru i v prohlížeči) – kromě jízdy
+  pro vodu (`waterCart`). Do vyšlapanosti jdou jízdy vozů jednou ročně, ne den po dni.
+- Ke hromadě klád se trasa nepočítá (její místo zná jen scéna).
+- Brody jsou jen mělké úzké úseky potoka; mosty pro vozy nejsou.
 - Pěšina sama nic neodstraní (keře a kameny na ní stojí dál – jen se jim vyhne).

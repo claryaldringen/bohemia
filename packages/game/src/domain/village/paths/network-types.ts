@@ -13,6 +13,7 @@ import {
   type LaborActivity,
   type RoadLining,
   type LaborTarget,
+  type RoutePurpose,
   type Position,
   type SacredBuildingKind,
   type TileCell,
@@ -72,6 +73,24 @@ export interface PathNetwork {
    * domácnosti, ke kterým se trasa našla. Stavba, která v mapě chybí, nemá žádný provoz.
    */
   visits: ReadonlyMap<string, number>;
+  /** Trasy posledního kola v pořadí hledání – jen s `PathNetworkInput.keepRoutes`. */
+  routes?: NetworkRoute[];
+}
+
+/**
+ * Trasa posledního kola (paths.md – Kdy se trasy počítají a co se ukládá): domácnost × skupina
+ * cest, buňky mřížky okna od brány domácnosti k cíli (u pochůzky až k místu, kam došla).
+ */
+export interface NetworkRoute {
+  /** `d:<id obydlí>` domácnosti. */
+  from: string;
+  /** Klíč cíle skupiny (`TripGroup.to`). */
+  to: string;
+  purpose: RoutePurpose;
+  /** Cest za den (váha trasy v provozu). */
+  trips: number;
+  cells: number[];
+  visit?: string;
 }
 
 /**
@@ -241,6 +260,8 @@ export interface PathNetworkInput {
    * člověkodny na den za rok, pro dřevo se chodí podle průměru roku (ne podle měsíce).
    */
   annual?: boolean;
+  /** Zapsat trasy posledního kola (`PathNetwork.routes`) – čáry ani provoz se tím nemění. */
+  keepRoutes?: boolean;
 }
 
 /** Kola hledání: první trasy (každá další se přidá k už vyšlapaným) a jedno kolo se slevou z prvního. */

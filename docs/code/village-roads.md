@@ -310,3 +310,35 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   a buňky sítě pěšin (`roadTreeSpeedMask` → `roadCellCost`) – mimo mokřinu a brod; dosah seče
   `fastestWalkShare`. Do sítě (`pathVillageOf`) a scény (`SceneRoad.lined`) jde jen nenulové –
   ves bez stromů beze změny. Panel cesty: `VillageRoad.treeSpeed` (ikona `walk`, „+0,03“).
+
+- **Měření cest** (nový systém cest, Úloha 0): `packages/game/scripts/road-report.ts <kopie vsi.json> --years N` –
+  vstup je JSON `{ state, landscapeSeed, layerVersions, name? }` (sloupce `village.state`,
+  `settlement.landscape_seed`, `settlement.layer_versions`; kopie jen ve scratchpadu, necommitovat), ves
+  načte `updateVillage` (stejné převody jako hra, repozitář `scripts/lib/memory-villages.ts`) a
+  dopočte N let. Řádek: čas krajiny, načtení a dopočtu, velikost stavu, cesty po druzích (počet, km),
+  křižovatky (body se ≥ 3 konci úseků) a pahýly (úsek < 30 m s volným koncem). Další úlohy přidávají
+  řádky. Výchozí čísla Vlkova (23. 10. 2026, stav `lastDay` z DB, 1 MB stavu): dopočet 1 rok
+  20,6 s, 10 let 157 s, 40 let 214 s (ves cestou zřejmě vymře, proto 40 let není 4× déle);
+  načtení 0,32 s; cesty 27 (3,89 km: upravené 17 / 3,22 km, vyšlapané 8 / 0,24 km, vozové 2 /
+  0,43 km), po 10 letech 29 (3,94 km), po 40 letech 18 (3,71 km); křižovatky 13 / 14 / 8; pahýly
+  0 / 0 / 1. Po Úloze 1 (24. 10. 2026): dopočet 1 rok 19,9 s, stav 1 079 kB, z toho trasy 144
+  (17,0 kB).
+
+- **Trasy ve stavu vsi** (nový systém cest, Úloha 1; [paths.md – Kdy se trasy počítají a co se
+  ukládá](../design/paths.md#kdy-se-trasy-počítají-a-co-se-ukládá)): `VillageState.routes`
+  (`VillageRoutes { day, key, list }`, typy v `types-routes.ts`) – trasy posledního kola sítě pěšin,
+  `StoredRoute { from, to, purpose, trips, start, steps, visit? }`: odkud `d:<id obydlí>`, kam klíč
+  cíle skupiny (`TripGroup.to` – `field:<id>`, `water`, `wood`, `cemetery:<id>`, `pen:<id>`,
+  `oak:<id>`, `pasture`, `d:<id>` u sousedů…), účel `RoutePurpose` (`TripGroup.purpose`), cest za
+  den v setinách (trasy pod `MIN_TRIP` se neukládají). Síť s `keepRoutes` (`PathNetworkInput`)
+  zapíše v posledním kole `routeAll` buňky každé trasy (domácnost × skupina) od brány k cíli –
+  u pochůzky obráceně od místa k bráně a dál po pěšině souseda (`addErrand`) – do
+  `PathNetwork.routes` (`NetworkRoute`); hledání ani provoz se tím nemění (provoz po buňkách
+  z tras je týž bit po bitu). Kódování `paths/routes.ts`: `encodeRoute` (buňka světa = index okna
+  - `originX / cellM`, mřížka je vůči krajině pevná; kroky po 8 směrech, 3 bity, dva kroky na znak
+    base64, lichý konec `=`), `routeCells`, `routePoints` (středy buněk), `routeLine`
+    (`simplifyPathLine` + `smoothPathLine`), `storedRoutes`. Ukládá je `refreshWalkDistances` při
+    přepočtu chůze (`key` = `walkLayoutKey`, síť serveru `computeVillageNetwork` vždy s
+    `keepRoutes`); stará ves bez tras nebo s jiným otiskem je dostane při načtení – `withRoutes`
+    v `updateVillage` po dopočtu (síť dne `lastDay`, bez posunu dne, jednou a idempotentně). Testy
+    `routes.test.ts`, use-case ve `villages.test.ts`.

@@ -13,3 +13,4 @@ export * from './walk-speed';
 export * from './earthworks';
 export * from './wagon-route';
 export * from './road-lining';
+export * from './routes';
