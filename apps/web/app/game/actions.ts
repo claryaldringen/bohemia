@@ -3,6 +3,7 @@
 import { NOT_PLAYER_VILLAGE } from '@bohemia/game';
 import { restartGameForPlayer } from '@/lib/game';
 import { getSession } from '@/lib/session';
+import { trimKnownSceneData, type KnownSceneData } from '@/lib/scene-routes';
 import {
   buildTrailForPlayer,
   buildWagonRoadForPlayer,
@@ -102,14 +103,41 @@ export async function getVillageView(
   const known = knownStampOf(input);
   if (villageId !== null && known !== null) {
     const fresh = await villageViewIfChanged(id, villageId, known);
-    if (fresh === null || !('error' in fresh) || fresh.error !== NOT_PLAYER_VILLAGE) return fresh;
+    if (fresh === null || !('error' in fresh) || fresh.error !== NOT_PLAYER_VILLAGE) {
+      return trimKnown(fresh, input);
+    }
     return villageViewForPlayer(id, null);
   }
   const view = await villageViewForPlayer(id, villageId);
   if (villageId !== null && view !== null && 'error' in view && view.error === NOT_PLAYER_VILLAGE) {
     return villageViewForPlayer(id, null);
   }
-  return view;
+  return trimKnown(view, input);
+}
+
+/** Trasy a vyšlapanost, které klient už má (`routesKey`, `wearDay` v dotazu), se neposílají. */
+function trimKnown<T extends VillageView | VillageUnchanged | null | { error: string }>(
+  result: T,
+  input: unknown,
+): T {
+  if (
+    result === null ||
+    !('scene' in result) ||
+    // jen pohled té vsi, na kterou se klient ptal (fallback na první ves netrimovat)
+    !('id' in result) ||
+    result.id !== villageIdOf(input) ||
+    typeof input !== 'object' ||
+    input === null
+  ) {
+    return result;
+  }
+  const known: KnownSceneData = {
+    ...('routesKey' in input && typeof input.routesKey === 'string'
+      ? { routesKey: input.routesKey }
+      : {}),
+    ...('wearDay' in input && typeof input.wearDay === 'number' ? { wearDay: input.wearDay } : {}),
+  };
+  return { ...result, scene: trimKnownSceneData(result.scene, known) };
 }
 
 /** Otisk pohledu z dotazu (`known` – 16 šestnáctkových číslic), jinak null. */

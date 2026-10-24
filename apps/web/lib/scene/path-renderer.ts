@@ -5,11 +5,13 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
+import { routeLinesOf } from '../scene-routes';
 import {
   computePathNetwork,
   isWoodTreeId,
   type ObstacleChanges,
   obstaclePosition,
+  pathCellM,
   pathNetworkKey,
   pathTerrainOf,
   pathWindowFor,
@@ -36,8 +38,8 @@ import {
 import {
   PATH_EARTH_LAYER,
   PATH_WORN_LAYER,
-  pathRibbons,
-  ribbonTrack,
+  dayPathRibbons,
+  dayPathTrack,
   roadFade,
   type RibbonLayer,
 } from './path-ribbon';
@@ -139,6 +141,10 @@ export interface PathStats {
  */
 export class VillagePaths {
   private village: SceneVillage | null = null;
+  /** Klíč tras a vyšlapanosti, ze kterých jsou `routeLines`. */
+  private linesKey = '';
+  /** Čáry pěšin z tras; null = z sítě (bez tras). */
+  private routeLines: PathLine[] | null = null;
   /** Náhled tras vozových cest (vytyčení) – vybraná cesta hráče; jinak prázdné. */
   private wagonPreview: { x: number; z: number }[][] = [];
   private key = '';
@@ -191,6 +197,7 @@ export class VillagePaths {
     if (this.disposed) return;
     this.village = village;
     this.updateRoads(village);
+    this.updateRouteLines(village);
     const key = pathNetworkKey(village);
     if (key === this.key) return;
     this.key = key;
@@ -199,6 +206,29 @@ export class VillagePaths {
       this.timer = null;
       this.recompute();
     }, RECOMPUTE_DELAY_MS);
+  }
+
+  /**
+   * Čáry pěšin z uložených tras (`routePaths`) – jen při změně klíče tras nebo dne vyšlapanosti;
+   * pak se pásy přestaví z poslední sítě. Bez tras (vývojová stránka bez serveru) čáry sítě.
+   */
+  private updateRouteLines(village: SceneVillage): void {
+    const list = village.routes?.list ?? null;
+    const cells = village.wear?.cells ?? null;
+    const key = list && cells !== null ? `${village.routes?.key}|${village.wear?.day ?? ''}|` : '';
+    if (key === this.linesKey) return;
+    this.linesKey = key;
+    // bez vyšlapanosti (ves bez `state.roads`, zahozená data) čáry sítě – pěšiny nezmizí
+    this.routeLines = routeLinesOf(village, pathCellM(this.env.landscape));
+    if (this.network && this.key !== '') {
+      const network = this.network;
+      const stats = this.stats;
+      if (this.showTimer !== null) clearTimeout(this.showTimer);
+      this.showTimer = setTimeout(() => {
+        this.showTimer = null;
+        if (!this.disposed && stats) this.show(network, stats);
+      }, 0);
+    }
   }
 
   /** Přepočítá hned (bez čekání) – testovací háčky a vývojová stránka. */
@@ -432,19 +462,20 @@ export class VillagePaths {
     for (const mesh of this.meshes) mesh.dispose();
     this.meshes = [];
     this.track = null;
-    if (network && network.lines.length > 0) {
+    const lines = this.routeLines ?? network?.lines ?? [];
+    if (network && lines.length > 0) {
       // pěšina dne se v pevné cestě ztrácí – cesta se kreslí zvlášť z dat
       const fade = roadFade(this.roads);
       const width = sownWidthOf(this.village);
       for (const kind of ['worn', 'earth'] as const) {
-        const mesh = this.ribbon(`paths-${kind}`, network.lines, kind, width, fade);
+        const mesh = this.ribbon(`paths-${kind}`, lines, kind, width, fade);
         if (mesh.getTotalIndices() > 0) this.meshes.push(mesh);
         else mesh.dispose();
       }
       // pod pěšinou dne obilí neroste – pás v šířce prošlapané trávy (přes osetý díl úzká stopa);
       // síla po čtvrtinách, ať drobné změny provozu bloky polí nepřestavují každý den
-      this.track = ribbonTrack(
-        network.lines.map((line) => ({
+      this.track = dayPathTrack(
+        lines.map((line) => ({
           ...line,
           strength: line.strength.map((v) => (v > 0 ? Math.ceil(v * 4) / 4 : 0)),
         })),
@@ -477,7 +508,7 @@ export class VillagePaths {
     layer: RibbonLayer = kind === 'worn' ? PATH_WORN_LAYER : PATH_EARTH_LAYER,
     color?: [number, number, number],
   ): Mesh {
-    const grid = pathRibbons(lines, layer, widthAt, alphaAt);
+    const grid = dayPathRibbons(lines, layer, widthAt, alphaAt);
     const mesh = createDecalMesh(this.scene, name, grid, {
       height: this.env.decalHeight,
       smoothHeight: this.env.groundHeight,

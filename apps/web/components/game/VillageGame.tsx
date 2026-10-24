@@ -52,6 +52,7 @@ import { usePolling } from '@/hooks/use-polling';
 import { authClient } from '@/lib/auth-client';
 import { buildItem, buildItemForKey, penVariantSpecies } from '@/lib/build-items';
 import { setE2EHook } from '@/lib/e2e-hooks';
+import { keepSceneData, knownSceneData, lostSceneData } from '@/lib/scene-routes';
 import { opensMenu } from '@/lib/game-menu';
 import { nextPollDelayMs } from '@/lib/village-polling';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
@@ -185,6 +186,13 @@ function squareStructures(
       }));
   }
   return [];
+}
+
+/** Pohled bez otisku – další dotaz pošle plný pohled. */
+function withoutStamp(view: VillageView): VillageView {
+  const rest = { ...view };
+  delete rest.stamp;
+  return rest;
 }
 
 function isVillageView(state: VillageData): state is VillageView {
@@ -346,10 +354,18 @@ export function VillageGame({
 
   /** Použije nový stav vsi a ohlásí upozornění, která mezitím nově vznikla. */
   const applyVillage = useCallback(
-    (next: VillageData): void => {
+    (received: VillageData): void => {
+      // trasy a vyšlapanost, které server neposlal (klient je má), se doplní z posledního pohledu
+      const next = isVillageView(received)
+        ? { ...received, scene: keepSceneData(received.scene, viewRef.current?.scene) }
+        : received;
       setVillage(next);
       if (!isVillageView(next)) return;
-      viewRef.current = next;
+      // zahozená trasy nebo vyšlapanost: bez otisku, ať další dotaz doručí plný pohled hned
+      viewRef.current =
+        isVillageView(received) && lostSceneData(received.scene, next.scene)
+          ? withoutStamp(next)
+          : next;
       // nový pohled napřed – chyba při porovnání (pohled z doby před změnou kódu) se nesmí
       // opakovat při každém dalším dotazu
       const previous = noticedRef.current;
@@ -446,6 +462,7 @@ export function VillageGame({
     const result = await getVillageView({
       villageId: viewRef.current?.id ?? null,
       ...(known ? { known } : {}),
+      ...knownSceneData(viewRef.current?.scene),
     });
     if (busyRef.current || seq < appliedSeq.current) return;
     appliedSeq.current = seq;

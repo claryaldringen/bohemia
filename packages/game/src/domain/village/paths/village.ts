@@ -69,7 +69,7 @@ import { lineRoads } from './road-lining';
 import { routePaths } from './route-paths';
 import { storedRoutes } from './routes';
 import { partWalkSpeed, roadTreeSpeed } from './walk-speed';
-import { encodeWear, settleWear, trafficField, wearMap } from './wear';
+import { settleWear, trafficField, wearMap, wearRevisionKey } from './wear';
 
 // Pěšiny ze stavu vsi (paths.md – Pěšiny a práce): server skládá ves pro pěšiny stejně jako
 // scéna (village-view.ts – SceneVillage), spočítá stejnou síť a z ní vzdálenosti chůze dílů
@@ -408,8 +408,9 @@ export function villagePathNetwork(
   village: PathVillage = pathVillageOf(state, day, landscape),
 ): PathNetwork | null {
   const wear = villageWear(state);
-  // vyšlapanost je vstup sítě (slévání tras) – patří do klíče
-  const input = `${JSON.stringify(village)}|${wear ? encodeWear(wear) : ''}`;
+  // vyšlapanost je vstup sítě (slévání tras) – patří do klíče (bez nového kódování)
+  const stored = state.roads?.wear;
+  const input = `${JSON.stringify(village)}|${stored ? wearRevisionKey(stored) : ''}`;
   const last = lastNetworks.get(landscape);
   if (last && last.obstacles === obstacles && last.input === input) return last.network;
   const network = computeVillageNetwork(state, day, landscape, obstacles, village, wear);

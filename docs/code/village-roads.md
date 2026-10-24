@@ -58,12 +58,20 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   seč luk ve stejný den po přepočtu chůze síť nepočítá znovu →
   `FieldPart.walkDistanceM`, práce přes `partWalkDistance` v `year-plan.ts` (`partWork`, `partWeight`),
   `field-progress.ts` a seči `hay.ts`).
+  **Úloha 4a – pěšiny z tras:** čáry obtisku a pás pod nimi dává `routePaths(SceneVillage.routes.list,
+decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), přestaví se jen při
+  změně `routes.key` / `wear.day` (síť pro `paths()` a teplotní mapu se dál počítá z
+  `pathNetworkKey`, postavy po trasách přijdou v 4b); bez tras nebo bez vyšlapanosti (stará ves bez `state.roads`, zahozená data; `routeLinesOf`) i na vývojové stránce (`app/dev/landscape`, trasy nedostává) čáry sítě.
+  Pěšiny dne nemají kruhové plácky (`dayPathRibbons` / `dayPathTrack` v `path-ribbon.ts`).
+  **Data jen při změně:** `lib/scene-routes.ts` – dotaz na ves nese `routesKey` a `wearDay`,
+  server (`trimKnown` v `app/game/actions.ts`) při shodě pošle `routes.list` / `wear.cells` jako
+  `null`, klient (`keepSceneData` v `applyVillage`) doplní z posledního pohledu; akce vracejí vše. Když klient data nemá z čeho doplnit (`lostSceneData`), uloží pohled bez `stamp` a další dotaz pošle plný pohled hned. `trimKnown` ořezává jen pohled vsi, na kterou se klient ptal (`result.id`). Klíč vyšlapanosti je `wear.day` (`settleWear` posouvá den vždy; změna `cells` ve stejný den by potřebovala `rev`).
   Scéna `path-renderer.ts` (`VillagePaths` v `LandscapeScene`: přepočet jen při změně
   `pathNetworkKey`, odloženě; výpočet sítě, obtisky a pás pod nimi v polích jdou ve třech
   úlohách – mezi ně se vejde snímek pohybu kamery) – obtisky `paths-worn` / `paths-earth` z `path-ribbon.ts` **nad**
   obtisky polí a vsi (alphaIndex 3 / 3,5, lift 0,05 / 0,055, zOffset −3,5 / −4; přes osetý díl
-  úzká stopa; v pevné cestě se pěšina dne ztrácí – `roadFade`; rozcestí – konec aspoň tří čar –
-  je udusaný plácek `ribbonJunctions` / `JUNCTION`, u pevných cest `roadJunctions`). **Pěšina dne
+  úzká stopa; v pevné cestě se pěšina dne ztrácí – `roadFade`; rozcestí pevných cest (konec aspoň tří čar) je
+  udusaný plácek `roadJunctions`, pěšiny dne ho nemají). **Pěšina dne
   je nevýrazná** (Martin, 19. 10. 2026: „denní pěšina ať je nevýrazná“): vrstvy `PATH_WORN_LAYER`
   / `PATH_EARTH_LAYER` – slabě prošlapaná tráva 0,6–1,2 m, krytí 0,2–0,45, holá hlína jen u silné
   pěšiny, úzká a slabá, rozcestí jen jemně (`RibbonLayer.junction`); pevná cesta (`ROAD_*`) je vedle
@@ -351,7 +359,12 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
     přepočtu chůze (`key` = `walkLayoutKey`, síť serveru `computeVillageNetwork` vždy s
     `keepRoutes`); stará ves bez tras nebo s jiným otiskem je dostane při načtení – `withRoutes`
     v `updateVillage` po dopočtu (síť dne `lastDay`, bez posunu dne, jednou a idempotentně). Testy
-    `routes.test.ts`, use-case ve `villages.test.ts`.
+    `routes.test.ts`, use-case ve `villages.test.ts`. **Trasy a z nich vyšlapané čáry se aktualizují
+    jen při změně rozložení** (`walkLayoutKey`), ne měsíčně se vyšlapaností: `walkLayoutKey`
+    vyšlapanost neobsahuje, takže slévání tras a síla pěšin v chůzi (`walkDistanceM`) se mění jen
+    tehdy – deterministické (závisí jen na dnech změny), ne chyba (M2 recenze 3b). `withRoutes`
+    při načtení staví síť s uloženou (nesečtenou) vyšlapaností, `refreshWalkDistances` se sečtenou –
+    jiný vstup, týž determinismus (M3).
 - **Vyšlapanost** (nový systém cest, Úloha 3a – jádro, Úloha 3b – zapojení;
   [paths.md – Vyšlapanost a vznik cesty](../design/paths.md#vyšlapanost-a-vznik-cesty)):
   `VillageRoads.wear?` (`RoadWear { day, cells, labor }`) – setiny cesty na políčko 7,5 m světa,
@@ -386,7 +399,7 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   **1. dne v měsíci** (`simulateDay` před přepočtem chůze) a v `refreshWalkDistances` **před novými
   trasami** – dny určuje stav, ne kousky dopočtu (test po kouscích s prací ve `wear-village.test.ts`).
   Síť vsi (`villagePathNetwork`) dostává `wearMap` jako `PathNetworkInput.wear` a kód vyšlapanosti
-  je v klíči její mezipaměti (seč luk týž den síť znovu nepočítá). Chůze (`refreshWalkDistances`,
+  je v klíči její mezipaměti (`wearRevisionKey` – bez nového kódování: zapsaná políčka jsou sama kód `wear.cells`, nezapsaná uprostřed dopočtu číslo změny `rev`; M1 recenze 3b). Chůze (`refreshWalkDistances`,
   `walkDistancesTo`) bere čáry z **`routePaths(routes, wear, cellM)`** (`paths/route-paths.ts`):
   provoz uložených tras po hranách buněk → `extractLines` (začátky tras jsou kotvy), síla v bodě
   `wearStrengthAt` = vyšlapanost / `roadAt` (od `visibleFrom`), stáří 0 – tentýž zdroj vezme scéna

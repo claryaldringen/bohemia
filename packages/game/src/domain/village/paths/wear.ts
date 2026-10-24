@@ -319,7 +319,12 @@ interface WearWork {
   encoded: string;
   /** Políčka se od posledního zápisu změnila – `wear.cells` je zastaralý. */
   dirty: boolean;
+  /** Číslo změny pracovních políček (z čítače `REVISIONS`) – klíč sítě, dokud je `dirty`. */
+  rev: number;
 }
+
+/** Čítač změn pracovních políček (jen v paměti; nikdy se neukládá ani neporovnává se stavem). */
+let REVISIONS = 0;
 
 /**
  * Pracovní políčka po objektech vyšlapanosti (paths.md – Výkon): dopočet je mezi intervaly drží
@@ -330,7 +335,12 @@ const WORK = new WeakMap<RoadWear, WearWork>();
 function workOf(wear: RoadWear): WearWork {
   const work = WORK.get(wear);
   if (work && work.encoded === wear.cells) return work;
-  const fresh: WearWork = { cells: decodeWear(wear.cells), encoded: wear.cells, dirty: false };
+  const fresh: WearWork = {
+    cells: decodeWear(wear.cells),
+    encoded: wear.cells,
+    dirty: false,
+    rev: 0,
+  };
   WORK.set(wear, fresh);
   return fresh;
 }
@@ -341,6 +351,15 @@ function workOf(wear: RoadWear): WearWork {
  */
 export function wearMap(wear: RoadWear): ReadonlyMap<number, number> {
   return workOf(wear).cells;
+}
+
+/**
+ * Klíč vyšlapanosti pro mezipaměť sítě (bez kódování): zapsaná políčka jsou sama kód
+ * `wear.cells`, nezapsaná (uprostřed dopočtu) číslo změny.
+ */
+export function wearRevisionKey(wear: RoadWear): string {
+  const work = WORK.get(wear);
+  return work?.dirty && work.encoded === wear.cells ? `rev${work.rev}` : `c${wear.cells}`;
 }
 
 /** Zapíše pracovní políčka do stavu (`wear.cells`) – konec dopočtu, před uložením vsi. */
@@ -398,6 +417,7 @@ export function settleWear(
     visited++;
   }
   work.dirty = true;
+  work.rev = ++REVISIONS;
   wear.day = toDay;
   wear.labor = [];
   if (WEAR_TIMING.clock) {

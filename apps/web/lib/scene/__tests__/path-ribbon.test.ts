@@ -12,6 +12,8 @@ import {
   ROAD_WIDTH_M,
   ROAD_WORN_LAYER,
   pathRibbons,
+  dayPathRibbons,
+  dayPathTrack,
   ribbonJunctions,
   roadFade,
   type RibbonLayer,
@@ -119,39 +121,28 @@ describe('vzhled pěšin a cest (Martin, 19. 10. 2026)', () => {
     expect(ROAD_WIDTH_M.improved).toBeGreaterThanOrEqual(ROAD_WIDTH_M.trodden * 1.5);
   });
 
-  it('rozcestí pěšin dne jen jemně – menší a slabší plácek než u pevné cesty', () => {
-    const arms = (s: number): PathLine[] =>
-      [
-        [20, 0],
-        [-20, 0],
-        [0, 20],
-      ].map(([x, z]) => ({
-        points: [
-          { x: 0, z: 0 },
-          { x: x!, z: z! },
-        ],
-        strength: [s, s],
-        years: [5, 5],
-        openStart: false,
-        openEnd: true,
-      }));
-    /** Krytí a největší poloměr plácku v počátku. */
-    const plaza = (layer: RibbonLayer, lines: PathLine[]): { alpha: number; radius: number } => {
-      const grid = pathRibbons(lines, layer);
-      const first = pathRibbons(lines, layer, undefined, undefined, []).alphas.length;
-      let radius = 0;
-      for (let v = first + 1; v < grid.alphas.length; v += 2) {
-        radius = Math.max(radius, Math.hypot(grid.positions[v * 2]!, grid.positions[v * 2 + 1]!));
-      }
-      return { alpha: grid.alphas[first]!, radius };
-    };
-    const day = plaza(PATH_WORN_LAYER, arms(1));
-    const road = plaza(ROAD_WORN_LAYER, arms(1));
-    expect(day.alpha).toBeLessThan(PATH_WORN_LAYER.alpha(1));
-    expect(day.alpha).toBeLessThan(road.alpha / 2);
-    expect(day.radius).toBeLessThan(road.radius / 1.5);
-    // plácek je pořád aspoň tak široký jako pěšina – pásy do něj vbíhají bez zúžení
-    expect(2 * day.radius).toBeGreaterThan(PATH_WORN_LAYER.width.strong);
+  it('pěšiny dne nemají kruhové plácky – rozcestí jen ze sbíhajících se pásů', () => {
+    const arms: PathLine[] = [
+      [20, 0],
+      [-20, 0],
+      [0, 20],
+    ].map(([x, z]) => ({
+      points: [
+        { x: 0, z: 0 },
+        { x: x!, z: z! },
+      ],
+      strength: [1, 1],
+      years: [5, 5],
+      openStart: false,
+      openEnd: true,
+    }));
+    const bare = pathRibbons(arms, PATH_WORN_LAYER, undefined, undefined, []);
+    const day = dayPathRibbons(arms, PATH_WORN_LAYER);
+    expect(day.alphas.length).toBe(bare.alphas.length);
+    expect(day.indices.length).toBe(bare.indices.length);
+    // s plácky by byl pás větší
+    expect(pathRibbons(arms, PATH_WORN_LAYER).alphas.length).toBeGreaterThan(day.alphas.length);
+    expect(dayPathTrack(arms, PATH_WORN_LAYER).discs).toEqual([]);
   });
 });
 
