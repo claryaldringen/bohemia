@@ -61,6 +61,18 @@ export interface Person {
    * CRAFT_SKILL.fullYears (vyučený). Chybí – žádná praxe (i lidé ve vsích bez dílen).
    */
   practice?: Partial<Record<Craft, number>>;
+  /**
+   * Dovednosti muže vojvodovy rodiny (lord.md – Výcvik a zkušenost). Chybí – nula (i starší vsi),
+   * převod netřeba.
+   */
+  arms?: ArmsSkills;
+}
+/** Luk, boj a jízda 0–100; `best` je nejvyšší dosažená hodnota (spodní hranice úbytku). */
+export interface ArmsSkills {
+  bow: number;
+  combat: number;
+  riding: number;
+  best?: { bow: number; combat: number; riding: number };
 }
 /**
  * Dcera, která se vdala pryč (kinship.md – Sňatky z okolí), nebo člověk, kterého ves dala sousedovi

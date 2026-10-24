@@ -1,3 +1,4 @@
+import { householdHead } from './households';
 import { villageManorId } from './manor';
 import { cemeteryEntrance, type Entrance } from './paths/entrances';
 import { ageGroup, ageYears } from './people';
@@ -61,12 +62,10 @@ function isChild(person: Person, day: number): boolean {
  * nejstarší žena (při shodě nižší id).
  */
 function isHouseholdHead(people: readonly Person[], person: Person, day: number): boolean {
-  const grown = people.filter((p) => p.dwellingId === person.dwellingId && !isChild(p, day));
-  const oldest = (list: readonly Person[]): Person | undefined =>
-    [...list].sort((a, b) => a.bornDay - b.bornDay || a.id - b.id)[0];
-  const man = oldest(grown.filter((p) => p.sex === 'male'));
-  if (man) return person.id === man.id || person.spouseId === man.id;
-  return oldest(grown)?.id === person.id;
+  const head = householdHead(people, person.dwellingId, day);
+  if (!head) return false;
+  if (head.sex === 'male') return person.id === head.id || person.spouseId === head.id;
+  return person.id === head.id;
 }
 
 /** Má člověk dítě – žijící ve vsi, nebo odešlé (vdané pryč, dané sousedovi)? */

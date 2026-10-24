@@ -39,6 +39,12 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (zemnice 5, polozemnice 8 let). Obydlené stav neztrácí – opravy podle stáří (`repairNeedPerDay`)
   dál berou práci vsi, nedodělek se jen neudělá; přestavbu rozhoduje jen stáří (`wantsRebuild`).
 
+- **Vojvodova rodina** ([lord.md](../design/lord.md); zatím jen čisté funkce, do simulace
+  nezapojené): `lord.ts` – `lordFamily` (vojvoda = `householdHead` dvorce; `trainees` potomci po
+  meči od 7 let, `household` ženy rodiny, `others` zbytek), `trainingHours`, `armsCap`,
+  `trainArms` / `decayArms` (dovednosti `Person.arms`, nejvyšší dosažená v `best`) a
+  `familyTrains` (rodina cvičí, až má ves 4 dospělé mimo rodinu, hystereze 3 – Martin 24. 10.
+  2026). Čísla `LORD` v `rules-lord.ts`. `householdHead` je v `households.ts`, pohřby ji sdílejí.
 - **Sňatky** (`marriage.ts`, kinship.md – Sňatky; Martin, varianta c; 19. 10. 2026: „Vdova by se
   měla snažit co nejdříve vdát, ideálně ve vesnici.“): svobodný = muž od 16 / žena 16–44 bez
   manžela, i vdova s malými dětmi (`isSingle`); vdova / vdovec = svobodný s dítětem

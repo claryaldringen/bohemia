@@ -9,9 +9,31 @@
 // mění.
 import { isFull } from './dwellings';
 import { withKinship } from './kinship';
-import { ageYears, canBear, holdsHousehold, householdBreaksUp, occupants } from './people';
+import {
+  ageGroup,
+  ageYears,
+  canBear,
+  holdsHousehold,
+  householdBreaksUp,
+  occupants,
+} from './people';
 import { AGE, DWELLINGS } from './rules';
 import type { ChronicleEvent, Dwelling, Person, VillageState } from './types';
+
+/**
+ * Hlava domácnosti (obydlí `dwellingId`): nejstarší muž od dětského věku výš; v domácnosti bez muže
+ * nejstarší žena (při shodě data narození nižší id). Prázdná domácnost – undefined.
+ */
+export function householdHead(
+  people: readonly Person[],
+  dwellingId: number,
+  day: number,
+): Person | undefined {
+  const grown = people.filter((p) => p.dwellingId === dwellingId && ageGroup(p, day) !== 'child');
+  const oldest = (list: readonly Person[]): Person | undefined =>
+    [...list].sort((a, b) => a.bornDay - b.bornDay || a.id - b.id)[0];
+  return oldest(grown.filter((p) => p.sex === 'male')) ?? oldest(grown);
+}
 
 /** Od nejstaršího; při shodě data narození nižší id. */
 function byAge(a: Person, b: Person): number {
