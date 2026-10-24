@@ -1,0 +1,206 @@
+// Vojvodova rodina na dvorku (docs/design/lord.md – Ve scéně): muži a chlapci střílejí na terče,
+// bojují ve dvojici nebo u kůlu, ženy rodiny stojí u dvorce jako ženy u domů. Kdo, kolik hodin
+// a zda vůbec cvičí, určuje jádro (`SceneLabor.lord`); scéna jen rozvrhne hodiny do dne.
+import type { SceneLabor, SceneLord } from '../village-view';
+import { type DayWindow } from './caravan';
+import { LIVESTOCK_EPOCH_MS } from './livestock-motion';
+import { cast, figure } from './villager-plan-cast';
+import { doorPoint } from './villager-plan-geometry';
+import { type Context, type PlannedVillager } from './villager-plan-types';
+import { type PoseFn, type VillagerClip, type VillagerPose } from './villager-motion';
+import { trainingGroundOf, type TrainingGround, type TrainingSpot } from './training-ground-layout';
+
+/**
+ * Rozvrh výcviku dne (lord.md – Den rodiny: dva bloky, dopoledne a odpoledne – Vegetius; návrh
+ * Clauda): bloky začínají v 8 a ve 14 h, v každém polovina hodin dne – napřed luk, pak boj, pak
+ * jízda (jezdce kreslí jízda, na dvorku ten čas není). Ženy rodiny jsou u dvorce od 7 do 19 h.
+ */
+export const DRILL_BLOCKS_H: readonly number[] = [8, 14];
+export const HOUSEHOLD_HOURS: readonly [number, number] = [7, 19];
+/** Výstřel: míření (bow-draw) a výstřel (bow-release) – s; střídačka u terče po dvou výstřelech. */
+const SHOT_S = 3.2;
+const AIM_S = 2.2;
+const TURN_S = SHOT_S * 2;
+/** Dvojice se střídá v útoku a krytí po tolika s; u kůlu meč a oštěp po 4 s. */
+const BOUT_S = 1.6;
+const POST_SWITCH_S = 4;
+
+/** Co cvičící dělá v hodinu `hour` (0–24): luk, boj, nebo nic (doma, na koni). */
+export function drillAt(
+  hours: SceneLord['trainees'][number],
+  hour: number,
+): 'bow' | 'combat' | null {
+  for (const start of DRILL_BLOCKS_H) {
+    const h = hour - start;
+    if (h < 0) continue;
+    const bow = hours.bow / DRILL_BLOCKS_H.length;
+    const combat = hours.combat / DRILL_BLOCKS_H.length;
+    if (h < bow) return 'bow';
+    if (h < bow + combat) return 'combat';
+  }
+  return null;
+}
+
+/** Hodina herního dne (0–24) v čase `t` (s – villagerSeconds); bez hodin světa null. */
+function hourOf(window: DayWindow | null, t: number): number | null {
+  if (!window || window.endMs <= window.startMs) return null;
+  const length = window.endMs - window.startMs;
+  const ms = t * 1000 + LIVESTOCK_EPOCH_MS - window.startMs;
+  return ((((ms % length) + length) % length) / length) * 24;
+}
+
+function put(out: VillagerPose, s: TrainingSpot, clip: VillagerClip): VillagerPose {
+  out.x = s.x;
+  out.z = s.z;
+  out.headingX = s.headingX;
+  out.headingZ = s.headingZ;
+  out.clip = clip;
+  out.pace = 1;
+  return out;
+}
+
+/**
+ * Póza cvičícího: v hodinách luku u své dráhy (střílí na střídačku – `rank` z `ranks`, ostatní
+ * čekají kousek za ním), v hodinách boje na svém místě boje, jinak není vidět (doma, na koni).
+ * Bez hodin světa (ukázky) celý den u luku, kdo luk nemá, u boje. Klipy se střídají střihem.
+ */
+function drillPose(
+  hours: SceneLord['trainees'][number],
+  ground: TrainingGround,
+  archer: { lane: number; rank: number; ranks: number },
+  combat: { spot: TrainingSpot; role: 'pair-a' | 'pair-b' | 'post' | 'wait' },
+  window: DayWindow | null,
+): PoseFn {
+  const lane = ground.lanes[archer.lane]!;
+  return (t, _herds, out) => {
+    const hour = hourOf(window, t);
+    const drill =
+      hour === null
+        ? hours.bow > 0
+          ? 'bow'
+          : hours.combat > 0
+            ? 'combat'
+            : null
+        : drillAt(hours, hour);
+    if (drill === 'bow') {
+      out.stage = 'bow';
+      const turn = Math.floor(t / TURN_S);
+      if (turn % archer.ranks !== archer.rank) {
+        put(out, lane.wait, 'idle');
+        // čekající stojí v řadě za sebou – kdo jde na řadu dřív, stojí vpředu
+        const back =
+          (((archer.rank - (turn % archer.ranks) + archer.ranks) % archer.ranks) - 1) * 0.9;
+        out.x -= lane.wait.headingX * back;
+        out.z -= lane.wait.headingZ * back;
+        return out;
+      }
+      return put(out, lane.shoot, t % SHOT_S < AIM_S ? 'bow-draw' : 'bow-release');
+    }
+    if (drill === 'combat') {
+      out.stage = 'combat';
+      const beat = Math.floor(t / BOUT_S) % 2 === 0;
+      if (combat.role === 'pair-a')
+        return put(out, combat.spot, beat ? 'sword-strike' : 'shield-block');
+      if (combat.role === 'pair-b')
+        return put(out, combat.spot, beat ? 'shield-block' : 'sword-strike');
+      if (combat.role === 'post') {
+        return put(
+          out,
+          combat.spot,
+          Math.floor(t / POST_SWITCH_S) % 2 === 0 ? 'sword-strike' : 'spear-thrust',
+        );
+      }
+      return put(out, combat.spot, 'idle');
+    }
+    out.hidden = true;
+    return put(out, lane.wait, 'idle');
+  };
+}
+
+/** Žena rodiny u dvorce: ve dne před vchodem jako ženy u domů, jinak doma. */
+function householdPose(spot: TrainingSpot, window: DayWindow | null): PoseFn {
+  return (t, _herds, out) => {
+    const hour = hourOf(window, t);
+    put(out, spot, 'idle');
+    if (hour !== null && (hour < HOUSEHOLD_HOURS[0] || hour >= HOUSEHOLD_HOURS[1])) {
+      out.hidden = true;
+    }
+    return out;
+  };
+}
+
+/** Místo boje `k`-tého bojujícího: napřed dvojice, pak kůl, ostatní čekají u kůlu. */
+function combatSpot(
+  ground: TrainingGround,
+  k: number,
+): { spot: TrainingSpot; role: 'pair-a' | 'pair-b' | 'post' | 'wait' } {
+  const pair = ground.pairs[Math.floor(k / 2)];
+  if (pair) return { spot: pair[k % 2]!, role: k % 2 === 0 ? 'pair-a' : 'pair-b' };
+  const extra = k - ground.pairs.length * 2;
+  if (extra === 0) return { spot: ground.post, role: 'post' };
+  const p = ground.post;
+  // čekající stojí vedle místa u kůlu
+  const side = extra % 2 === 0 ? 1 : -1;
+  const d = Math.ceil(extra / 2) * 1.0 * side;
+  return {
+    spot: { ...p, x: p.x - p.headingZ * d, z: p.z + p.headingX * d },
+    role: 'wait',
+  };
+}
+
+/**
+ * Rodina na dvorku (lord.md – Ve scéně; villagers.md – výjimka z pravidla „nikdo nestojí na
+ * oploceném pozemku“): cvičící muži a chlapci na cvičišti (`trainingGroundOf`), ženy rodiny
+ * u dvorce. Lidé s pevným místem dne – berou se z rozpisu lidí (`takeId`) hned po pohřbu
+ * a karavanách, do práce vsi pak nejdou. Bez lidí ve scéně, rodiny nebo cvičiště nic.
+ */
+export function lordFigures(
+  ctx: Context,
+  labor: SceneLabor,
+  window: DayWindow | null,
+): PlannedVillager[] {
+  const lord = labor.lord;
+  if (!lord || !ctx.roster) return [];
+  const ground = trainingGroundOf(ctx.village);
+  if (!ground || ground.home !== lord.home) return [];
+  const out: PlannedVillager[] = [];
+  const lanes = ground.lanes.length;
+  const archers = lord.trainees.filter((h) => h.bow > 0).map((h) => h.id);
+  const fighters = lord.trainees.filter((h) => h.combat > 0).map((h) => h.id);
+  for (const hours of lord.trainees) {
+    const c = cast(ctx, `lord:${hours.id}`, { women: 0, child: false }, () =>
+      ctx.roster!.takeId(hours.id),
+    );
+    if (!c) continue;
+    const a = Math.max(0, archers.indexOf(hours.id));
+    const lane = a % lanes;
+    const ranks = Math.ceil((archers.length - lane) / lanes);
+    const pose = drillPose(
+      hours,
+      ground,
+      { lane, rank: Math.floor(a / lanes), ranks: Math.max(1, ranks) },
+      combatSpot(ground, Math.max(0, fighters.indexOf(hours.id))),
+      window,
+    );
+    out.push(figure(c, pose, 'natural', { kind: 'lord', household: false }));
+  }
+  const home =
+    ctx.homes.find((h) => h.id === lord.home) ?? ctx.houses.find((h) => h.id === lord.home);
+  if (home) {
+    lord.household.forEach((id, i) => {
+      const c = cast(ctx, `lord-home:${id}`, { women: 1, child: false }, () =>
+        ctx.roster!.takeId(id),
+      );
+      if (!c) return;
+      const side = (i % 2 === 0 ? -1 : 1) * (1.3 + Math.floor(i / 2) * 1.1);
+      // u dvorce před vchodem domu (uvnitř pozemku), ne před bránou
+      const door = doorPoint({ ...home, box: home.own ?? home.box }, side);
+      const hx = door.x - home.position.x;
+      const hz = door.z - home.position.z;
+      const n = Math.hypot(hx, hz) || 1;
+      const spot = { x: door.x, z: door.z, headingX: hx / n, headingZ: hz / n };
+      out.push(figure(c, householdPose(spot, window), 'linen', { kind: 'lord', household: true }));
+    });
+  }
+  return out;
+}

@@ -67,6 +67,7 @@ import {
   smithFetchFigures,
 } from './villager-plan-crafts';
 import { trafficFigures } from './villager-plan-traffic';
+import { lordFigures } from './villager-plan-lord';
 import { domestic, elders, herderPeople, herders, idlers, porters } from './villager-plan-folk';
 import {
   activeFunerals,
@@ -151,6 +152,9 @@ export function planVillagersWithCrew(
   }
   // vozka vozu výpravy jde s karavanou
   staff.caravanCarts();
+  // vojvodova rodina na dvorku (lord.md – Ve scéně): jediní, kdo stojí na oploceném pozemku
+  // dvorce – cvičí, nebo vede domácnost; do práce vsi nejde
+  const family = lordFigures(ctx, labor, dayWindow);
   const fetchers = smithFetchFigures(ctx, labor);
   const herding = herderPeople(ctx, labor);
   // spřežení a vozy jsou ve scéně vidět celý den – oráč, honák a vozka mají pevné místo dne
@@ -216,6 +220,7 @@ export function planVillagersWithCrew(
   people.push(...elders(ctx, elderCount(Math.max(0, labor.people.elders - elderHerders), winter)));
   people.push(...herders(ctx, tending, herding));
   people.push(...caravanPeople);
+  people.push(...family);
   people.push(...traffic);
   people.push(...mourners);
   people.push(...celebrants);

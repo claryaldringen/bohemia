@@ -108,6 +108,9 @@ export function personActivity(
       return 'jde na svatbu';
     case 'share':
       return shareText(job, stage, village);
+    case 'lord':
+      if (job.household) return 'vede domácnost';
+      return stage === 'combat' ? 'cvičí boj' : 'cvičí lukostřelbu';
   }
 }
 

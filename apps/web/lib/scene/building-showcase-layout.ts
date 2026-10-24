@@ -162,7 +162,7 @@ function manorModel(x: number, z: number): ShowcaseModel {
     plot,
   };
 }
-const MANOR_AT = { x: -82, z: -4 };
+export const MANOR_AT = { x: -82, z: -4 };
 
 const UHLIR_X = 26;
 /** Dílna tesaře – vlevo od pahorku s vozy (SHOWCASE_CARTS), vchodem ke kameře. */

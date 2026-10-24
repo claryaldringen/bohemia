@@ -9,6 +9,7 @@ import {
   SceneLabor,
   SceneLaborHome,
   SceneLaborShare,
+  SceneLord,
   SceneVillage,
 } from './village-view-scene-types';
 import {
@@ -51,6 +52,9 @@ import {
   hayMeadowLooks,
   obstacleChangesAt,
   laborReport,
+  ageGroup,
+  trainingFamily,
+  trainingHours,
   partStage,
   partOvergrowthYears,
   pastureGrazedParts,
@@ -62,8 +66,10 @@ import {
   tileCenterWorld,
   wholeLogs,
   type ConstructionSummary,
+  type LaborDay,
   type LaborShare,
   type Landscape,
+  type Person,
   type PlacementVillage,
   type VillageState,
   type VillageSummary,
@@ -301,6 +307,7 @@ function sceneLabor(state: VillageState, people: SceneLabor['people']): SceneLab
   });
   const homes = sceneLaborHomes(state, labor.shares);
   const persons = scenePersons(state, labor.day);
+  const lord = sceneLord(state, labor.lord, labor.day);
   return {
     day: labor.day,
     month: dateOfDayIndex(labor.day).month,
@@ -309,6 +316,46 @@ function sceneLabor(state: VillageState, people: SceneLabor['people']): SceneLab
     ...(labor.herders ? { herders: { ...labor.herders } } : {}),
     ...(homes.length > 0 ? { homes } : {}),
     ...(persons.length > 0 ? { persons } : {}),
+    ...(lord ? { lord } : {}),
+  };
+}
+
+/**
+ * Vojvodova rodina dne pro scénu (lord.md – Ve scéně): z cvičící rodiny (`trainingFamily`) a počtů
+ * dne (`LaborDay.lord`). Na poli jsou napřed dospělí muži a ženy rodiny (podle id – jako počty
+ * `lordDayCounts`), chlapci cvičí vždy; ostatní cvičí hodiny podle věku (`trainingHours`; jezdí
+ * jen ten, kdo má koně – `Horse.riderId`) a ženy vedou domácnost dvorce. Bez cvičící rodiny null.
+ */
+function sceneLord(state: VillageState, counts: LaborDay['lord'], day: number): SceneLord | null {
+  const family = counts ? trainingFamily(state, day) : null;
+  if (!family || !counts) return null;
+  const home = family.lord?.dwellingId;
+  if (home === undefined) return null;
+  const riders = new Set<number>();
+  for (const pen of state.pens ?? []) {
+    for (const horse of pen.horses ?? [])
+      if (horse.riderId !== undefined) riders.add(horse.riderId);
+  }
+  const atField = (people: Person[], count: number): Set<number> =>
+    new Set(
+      people
+        .filter((p) => ageGroup(p, day) !== 'child')
+        .sort((a, b) => a.id - b.id)
+        .slice(0, Math.max(0, count))
+        .map((p) => p.id),
+    );
+  const men = atField(family.trainees, family.trainees.length - counts.training);
+  const women = atField(family.household, family.household.length - counts.household);
+  return {
+    home,
+    trainees: family.trainees
+      .filter((p) => !men.has(p.id))
+      .sort((a, b) => a.id - b.id)
+      .map((p) => ({ id: p.id, ...trainingHours(p, day, family.lord, riders.has(p.id)) })),
+    household: family.household
+      .filter((p) => !women.has(p.id))
+      .map((p) => p.id)
+      .sort((a, b) => a - b),
   };
 }
 

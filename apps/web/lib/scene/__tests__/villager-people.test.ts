@@ -622,3 +622,97 @@ describe('oráč, honák a vozka jsou lidé vsi (villagers.md – Výběr postav
     expect(b.crew).toEqual(a.crew);
   });
 });
+
+describe('vojvodova rodina na dvorku (lord.md – Ve scéně)', () => {
+  const DAY_S = 86.4;
+  const window = { startMs: LIVESTOCK_EPOCH_MS, endMs: LIVESTOCK_EPOCH_MS + DAY_S * 1000 };
+  const hour = (h: number): number => (h / 24) * DAY_S;
+  const MANOR = {
+    cell: { x: 0, y: 0 },
+    x: 0,
+    z: 0,
+    size: 15,
+    variant: 'center' as const,
+    yard: { cell: { x: 0, y: 1 }, x: 0, z: 15 },
+  };
+  // pozemek dvorce s dvorem: x ∈ (−7,5; 7,5), z ∈ (−7,5; 22,5)
+  const onManor = (x: number, z: number): boolean => Math.abs(x) < 7.5 && z > -7.5 && z < 22.5;
+
+  function manorVillage(): SceneVillage {
+    const v = village();
+    v.dwellings[0] = { ...v.dwellings[0]!, plot: MANOR };
+    v.labor!.lord = {
+      home: 1,
+      trainees: [
+        { id: 101, bow: 1, combat: 1, riding: 1 },
+        { id: 103, bow: 2, combat: 1, riding: 1 },
+      ],
+      household: [102],
+    };
+    return v;
+  }
+
+  const plan = (v: SceneVillage): PlannedVillager[] =>
+    planVillagers(v, GROUND, { seed: 7, herds: 2, dayWindow: () => window });
+  const pose = (p: PlannedVillager, t: number) => {
+    const out = createVillagerPose();
+    out.hidden = false;
+    return p.pose(t, HERDS, out);
+  };
+
+  it('cvičící jsou na dvorku jen ve dne a jen v hodinách výcviku, ženy rodiny u dvorce', () => {
+    const people = plan(manorVillage());
+    const lord = people.find((p) => p.person === 101)!;
+    const boy = people.find((p) => p.person === 103)!;
+    const wife = people.find((p) => p.person === 102)!;
+    expect(lord.job).toEqual({ kind: 'lord', household: false });
+    expect(wife.job).toEqual({ kind: 'lord', household: true });
+    // 8:15 – luk na dvorku
+    const shot = pose(lord, hour(8.25));
+    expect(shot.hidden).toBe(false);
+    expect(onManor(shot.x, shot.z)).toBe(true);
+    expect(['bow-draw', 'bow-release', 'idle']).toContain(shot.clip);
+    expect(shot.stage).toBe('bow');
+    // 8:45 – vojvoda (luk 0,5 h v bloku) už bojuje, chlapec ještě střílí
+    expect(pose(lord, hour(8.75)).stage).toBe('combat');
+    expect(['sword-strike', 'shield-block', 'spear-thrust']).toContain(pose(lord, hour(8.75)).clip);
+    expect(pose(boy, hour(8.75)).stage).toBe('bow');
+    // v noci a mimo bloky (jízda, poledne) nejsou vidět
+    for (const h of [2, 10.5, 12, 22]) {
+      expect(pose(lord, hour(h)).hidden).toBe(true);
+      expect(pose(boy, hour(h)).hidden).toBe(true);
+    }
+    // žena rodiny ve dne před vchodem dvorce (uvnitř pozemku), v noci doma
+    const home = pose(wife, hour(11));
+    expect(home.hidden).toBe(false);
+    expect(onManor(home.x, home.z)).toBe(true);
+    expect(pose(wife, hour(23)).hidden).toBe(true);
+  });
+
+  it('nikdo z rodiny nejde do práce vsi; ostatní postavy na pozemku dvorce dál ne', () => {
+    const people = plan(manorVillage());
+    for (const id of [101, 102, 103]) {
+      const own = people.filter((p) => p.person === id);
+      expect(own).toHaveLength(1);
+      expect(own[0]!.job?.kind).toBe('lord');
+    }
+    const others = people.filter((p) => p.job?.kind !== 'lord');
+    expect(others.length).toBeGreaterThan(3);
+    for (const p of others) {
+      for (const h of [6, 8.25, 9, 15]) {
+        const at = pose(p, hour(h));
+        if (!at.hidden) expect(onManor(at.x, at.z)).toBe(false);
+      }
+    }
+  });
+
+  it('bez rodiny dne (`labor.lord` chybí) nikdo na dvorku nestojí', () => {
+    const v = manorVillage();
+    delete v.labor!.lord;
+    for (const p of plan(v)) {
+      expect(p.job?.kind).not.toBe('lord');
+      const at = pose(p, hour(9));
+      if (!at.hidden) expect(onManor(at.x, at.z)).toBe(false);
+    }
+  });
+});

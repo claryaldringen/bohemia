@@ -89,7 +89,17 @@ export interface VillagerPose {
 }
 
 /** Úsek pochůzky postavy (`VillagerPose.stage`). */
-export type VillagerStage = 'out' | 'end' | 'back' | 'rest' | 'wait' | 'ring' | 'home';
+export type VillagerStage =
+  | 'out'
+  | 'end'
+  | 'back'
+  | 'rest'
+  | 'wait'
+  | 'ring'
+  | 'home'
+  // výcvik vojvodovy rodiny (lord.md): střílí z luku, bojuje
+  | 'bow'
+  | 'combat';
 
 export function createVillagerPose(): VillagerPose {
   return { x: 0, z: 0, headingX: 0, headingZ: 1, clip: 'idle', pace: 1 };

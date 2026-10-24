@@ -791,6 +791,23 @@ export interface SceneLabor {
    * a co dělá. Bez údaje (dřívější pohled, ukázky) jsou postavy bez lidí a nejdou vybrat.
    */
   persons?: ScenePerson[];
+  /**
+   * Vojvodova rodina dne (lord.md – Ve scéně; z `LaborDay.lord` a `trainingFamily`): obydlí
+   * vojvody, kdo dnes cvičí na dvorku (hodiny podle věku z jádra – `trainingHours`) a ženy, které
+   * vedou domácnost dvorce. Kdo je dnes na poli, tu není – je mezi ostatními. Chybí, když rodina
+   * pracuje jako ostatní (i dřívější rozdělení práce).
+   */
+  lord?: SceneLord;
+}
+
+/** Vojvodova rodina dne ve scéně (`SceneLabor.lord`). */
+export interface SceneLord {
+  /** Obydlí vojvody (dvorec – id obydlí). */
+  home: number;
+  /** Cvičící muži a chlapci – id a hodiny výcviku dne (luk, boj, jízda). */
+  trainees: { id: number; bow: number; combat: number; riding: number }[];
+  /** Ženy rodiny u dvorce (id). */
+  household: number[];
 }
 
 /** Domácnost v provozu na cestách (`SceneLabor.homes`). */

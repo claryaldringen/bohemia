@@ -250,7 +250,23 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   uhlí a rudy s košem (`smithFetchFigures` – postava na každého nosiče z `LaborShare.ages`, nejvýš
   `FETCH_MAX`, ne proud; synové pod 14 let menší postavy dětí); kovář s vozem se nekreslí.
 
-## Jezdec a výcvik (klipy a rekvizity `man.glb` – lord-horses Úloha 8, zatím se nekreslí)
+- **Vojvodova rodina na dvorku** (lord.md – Ve scéně; `villager-plan-lord.ts`, Úloha 9): pohled
+  posílá `SceneLabor.lord` (`village-view-scene.ts` – `sceneLord`) – obydlí vojvody, cvičící
+  s hodinami dne z jádra (`trainingFamily` + `trainingHours`, jízda jen s koněm – `Horse.riderId`)
+  a ženy domácnosti dvorce; kdo je dnes na poli (podle počtů `LaborDay.lord`, napřed dospělí podle
+  id), tam není a je mezi ostatními. Obsazení `lordFigures` jde hned po pohřbu a karavanách
+  (`takeId` – do práce vsi pak rodina nejde). Rozvrh (návrh Clauda): dva bloky od 8 a 14 h, v každém
+  polovina hodin – napřed luk, pak boj, pak jízda (na dvorku ten čas není); mimo bloky a v noci je
+  postava skrytá (`hidden`, panel „doma“). Luk: dráhy cvičiště, na střídačku po dvou výstřelech
+  (`bow-draw` 2,2 s, `bow-release`), ostatní čekají v řadě za střelcem. Boj: napřed dvojice
+  (útok `sword-strike` a krytí `shield-block` se střídají po 1,6 s), pak kůl (meč a oštěp po 4 s),
+  ostatní čekají u kůlu. Ženy rodiny před vchodem domu dvorce (`own` – uvnitř pozemku) od 7 do
+  19 h. Činnost v panelu (`PersonJob` `lord`, úsek pózy `bow` / `combat`): „cvičí lukostřelbu“,
+  „cvičí boj“, „vede domácnost“. **Výjimka pozemku:** `plotBox` dvorce zahrnuje i dvůr – ostatní
+  postavy na celý pozemek dvorce nevstoupí (ženy u domů, starší, provoz vycházejí před bránou),
+  stojí na něm jen rodina.
+
+## Jezdec a výcvik (klipy a rekvizity `man.glb` – lord-horses Úloha 8; luk a boj kreslí Úloha 9)
 
 `man.glb` nese navíc klipy `ride` (krok), `ride-trot`, `ride-idle` (sed z `rider/cavalry/crossbowman`),
 `bow-draw` a `bow-release` (luk), `spear-thrust`, `sword-strike`, `shield-block` a rekvizity `bow`,

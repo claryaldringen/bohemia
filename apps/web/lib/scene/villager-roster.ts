@@ -32,7 +32,12 @@ export type PersonJob =
    */
   | { kind: 'plough'; team: number; role: 'ploughman' | 'leader' }
   /** Vozka u vozu (wagons.md – Vozy se spřežením): `cart` = id vozu. Postavu kreslí vůz. */
-  | { kind: 'cart'; cart: number };
+  | { kind: 'cart'; cart: number }
+  /**
+   * Vojvodova rodina (lord.md – Ve scéně): muž či chlapec na cvičišti (co právě cvičí, říká úsek
+   * pózy – `bow` / `combat`), nebo žena rodiny u dvorce (`household`).
+   */
+  | { kind: 'lord'; household: boolean };
 
 /** Koho postava chce – věk, domácnost, pohlaví. */
 export interface PersonRequest {
