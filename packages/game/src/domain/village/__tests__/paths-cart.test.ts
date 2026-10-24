@@ -600,7 +600,6 @@ describe('vyjeté vozové cesty (roční kontrola)', () => {
       nextId: 1,
       roads: [],
       trees: [],
-      candidates: [],
       labor: {
         from: NOV1(600),
         days: 353,

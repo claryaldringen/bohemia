@@ -15,6 +15,7 @@ export * from './wagon-route';
 export * from './road-lining';
 export * from './routes';
 export * from './road-condition';
+export * from './roads-v2';
 export * from './wear';
 export * from './route-paths';
 export * from './junctions';

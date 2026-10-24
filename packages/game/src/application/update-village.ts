@@ -14,7 +14,6 @@ import {
   withLivestockLand,
   withManor,
   withMergedFields,
-  withJoinedRoads,
   withMergedRoads,
   withRoadSwaths,
   withObstacleClearing,
@@ -26,6 +25,7 @@ import {
   withWearSeed,
   withVisitsSeed,
   withRoadCondition,
+  withRoadsV2,
   withBridgedRoads,
   withDwellingShapes,
   withoutBuiltOverRuins,
@@ -96,7 +96,7 @@ async function advancedToTodayWithPauses(
  * dnešního tvaru (`withDwellingShapes` – population.md), stará navazující pole se sloučí (`withMergedFields`) a vsím
  * z doby před dobytkem se doplní výchozí stádo a louka a les pro pastvu (`withLivestockLand`)
  * a pevné cesty z doby před slučováním úseků se spojí ve falešných rozcestích (`withMergedRoads`)
- * a zacelí se díry mezi nimi (`withJoinedRoads`), hotové upravené cesty a stezky lesem dostanou
+ * (díry a souběžné cesty uklidí `withRoadsV2` po trasách), hotové upravené cesty a stezky lesem dostanou
  * průsek (`withRoadSwaths`) a lidem z doby před příbuzenstvím se doplní
  * pohlaví a manželé (`withKinship`), dobytek v obchodu dostane tři druhy (`withCattleKinds` –
  * trade.md, Dobytek ve třech druzích) a ves přijde o zboží zvenku, které obchod už nezná
@@ -138,29 +138,25 @@ export async function updateVillage(
                   withKinship(
                     // hotové upravené cesty a stezky lesem dostanou průsek (roads.md – Průsek lesem)
                     withRoadSwaths(
-                      withJoinedRoads(
-                        withMergedRoads(
-                          withLivestockLand(
-                            withMergedFields(
-                              // varianty rozměrů domů (population.md) – po pozemcích, ať dům zná svůj
-                              withDwellingShapes(
-                                withPlots(
-                                  withForestDistances(
-                                    withObstacleClearing(record.state, obstacles),
-                                    landscape,
-                                  ),
+                      withMergedRoads(
+                        withLivestockLand(
+                          withMergedFields(
+                            // varianty rozměrů domů (population.md) – po pozemcích, ať dům zná svůj
+                            withDwellingShapes(
+                              withPlots(
+                                withForestDistances(
+                                  withObstacleClearing(record.state, obstacles),
                                   landscape,
-                                  obstacles,
                                 ),
                                 landscape,
                                 obstacles,
                               ),
+                              landscape,
+                              obstacles,
                             ),
-                            landscape,
                           ),
+                          landscape,
                         ),
-                        landscape,
-                        obstacles,
                       ),
                       obstacles,
                       landscape,
@@ -191,7 +187,9 @@ export async function updateVillage(
     const advanced = await advancedToTodayWithPauses(attached, today, obstacles, landscape, pause);
     // ves uložená před trasami (nebo s trasami jiného rozložení) si je spočítá – i když se jen
     // zobrazuje, ať je scéna má (paths.md – Kdy se trasy počítají a co se ukládá)
-    const current = withRoutes(advanced, landscape, obstacles);
+    // starší ves přejde na nový systém cest: jednou uklidí síť a smaže stará pole (paths.md –
+    // Převod starých vsí) – až po trasách, kotvy jsou z nich
+    const current = withRoadsV2(withRoutes(advanced, landscape, obstacles), landscape, obstacles);
     const changed = change(current);
     if (!changed.ok) return changed;
     // na místo zříceniny jde stavět – stavba zbytek jámy odstraní (ruins.ts); stavba na obilné

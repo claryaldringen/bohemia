@@ -448,7 +448,6 @@ describe('stavba vozové cesty ve vsi', () => {
       nextId: 2,
       roads: [road],
       trees: [],
-      candidates: [],
       labor: { from: DAY, days: 0, shares: [] },
     };
     void l;
@@ -772,7 +771,6 @@ describe('narovnání kličky do svahu (Martin 22. 10. 2026, #6)', () => {
       nextId: 2,
       roads: [oldRoad(ZIGZAG)],
       trees: [],
-      candidates: [],
       labor: { from: DAY, days: 0, shares: [] },
     };
     let later = startWagonRoad(state, DAY, 1, VALLEY, null);
@@ -813,7 +811,6 @@ describe('obejitý kus – mezistav a zrušení stavby', () => {
       nextId: 2,
       roads: [oldRoad(ZIG)],
       trees: [],
-      candidates: [],
       labor: { from: DAY, days: 0, shares: [] },
     };
     return startWagonRoad(state, DAY, 1, VALLEY, null);
@@ -886,7 +883,6 @@ describe('vozová cesta – výjimky z recenze 11a', () => {
       nextId: 2,
       roads: [road],
       trees: [],
-      candidates: [],
       labor: { from: DAY, days: 0, shares: [] },
     };
     return s;

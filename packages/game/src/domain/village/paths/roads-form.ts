@@ -48,11 +48,11 @@ export function emptyRoads(day: number): VillageRoads {
     nextId: 1,
     roads: [],
     trees: [],
-    candidates: [],
     labor: { from: day, days: 0, shares: [] },
     visits: { from: day, byKey: [] },
     conditionSeeded: true,
     bridgesSeeded: true,
+    v2: true,
   };
 }
 

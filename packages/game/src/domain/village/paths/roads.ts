@@ -230,6 +230,45 @@ export function roadsMonth(
   tidyMonth(state, routes, { lines, anchors, day, cellM }, baseOf, fieldOf);
 }
 
+/**
+ * Jednorázový úklid sítě při převodu starší vsi (`withRoadsV2`, mutuje): souběžné cesty, copánky,
+ * díry, spojení, pahýly, cesty k vchodům a křižovatky jako měsíční úklid, jen hned a bez ohledu na
+ * `tidyKey`. Bez tras (nebo bez kotev) se uklidí jen sama síť – souběžné cesty, díry a spojení.
+ */
+export function tidyRoadsNow(
+  state: VillageState,
+  landscape: Landscape,
+  obstacles: ObstacleLayer | null,
+): void {
+  const roads = state.roads;
+  if (!roads || roads.roads.length === 0) return;
+  const day = state.lastDay;
+  const baseOf = (): Omit<SpotContext, 'split'> => ({
+    terrain: trailTerrain(landscape, obstacles),
+    blocked: plantingBlocker(state, landscape),
+    layer: obstacles,
+    changes: obstacleChangesAt(state, day),
+    seed: state.seed,
+  });
+  const routes = state.routes;
+  delete roads.tidyKey;
+  if (routes && routes.list.length > 0) {
+    const cellM = pathCellM(landscape);
+    const { lines, anchors } = monthRoutes(routes, landscape, cellM);
+    const fieldOf = (): TrafficField => trafficField(routes, cellM);
+    tidyMonth(state, routes, { lines, anchors, day, cellM }, baseOf, fieldOf);
+    return;
+  }
+  const context: SpotContext = {
+    ...baseOf(),
+    split: (from, to) => {
+      splitRoadWork(state.constructions, from, to);
+      splitTrailPieces(state.trails, from, to);
+    },
+  };
+  tidyRoads(roads, state.constructions, () => false, context);
+}
+
 /** Kolikrát běžel měsíční úklid (`tidyMonth`) – pro testy a měření, hra ho nečte. */
 export const TIDY_RUNS = { count: 0 };
 
@@ -557,6 +596,6 @@ export {
 } from './roads-form';
 export { type RoadPiece, roadPieces } from './road-condition';
 export { roadGroundOf, roadLengthM, roadWetM } from './roads-geometry';
-export { absorbParallelRoads, joinedRoadsOf, withJoinedRoads } from './roads-tidy';
+export { absorbParallelRoads, joinedRoadsOf } from './roads-tidy';
 export { plantingBlocker, roadTreeSpots } from './roads-trees';
 export { addTrailRoads, addWagonRoad } from './roads-trails';

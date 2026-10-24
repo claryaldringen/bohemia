@@ -370,7 +370,6 @@ describe('olemování ve stavu vsi (lineRoads, refreshWalkDistances)', () => {
       nextId: 10,
       roads: [road],
       trees: road.spots.map((spot) => treeAt(spot, rooted)),
-      candidates: [],
       labor: { from: DAY, days: 0, shares: [] },
     };
     return s;

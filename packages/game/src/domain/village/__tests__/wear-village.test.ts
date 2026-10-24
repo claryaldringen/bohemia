@@ -21,7 +21,7 @@ import {
 import { WEAR } from '../rules-roads';
 import { walkDistancesTo } from '../paths/village';
 import { advanceVillage } from '../simulate';
-import type { RoadWear, StoredRoute, VillageRoads, VillageState } from '../types';
+import type { LegacyRoadFields, RoadWear, StoredRoute, VillageRoads, VillageState } from '../types';
 import { LANDSCAPE } from './paths-fixtures';
 import { Y1, json, pen, village } from './abandonment-fixtures';
 
@@ -46,7 +46,7 @@ function withCandidates(roads: VillageRoads): VillageState {
 describe('withWearSeed – vyšlapanost staré vsi', () => {
   it('podél loňských kandidátů založí polovinu prahu (i sousední políčka), jednou', () => {
     const roads = emptyRoads(100);
-    roads.candidates = [
+    (roads as VillageRoads & LegacyRoadFields).candidates = [
       [
         { x: 0, z: 0 },
         { x: 40, z: 0 },

@@ -57,7 +57,6 @@ function roadsOf(list: Road[], extra: Partial<VillageRoads> = {}): VillageRoads 
     nextId: 100,
     roads: list,
     trees: [],
-    candidates: [],
     labor: { from: Y1, days: 0, shares: [] },
     ...extra,
   };
