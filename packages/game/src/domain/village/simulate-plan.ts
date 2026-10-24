@@ -16,6 +16,7 @@ import { ableTeams, oxPens, ploughCapacityPerDay } from './oxen';
 import { trimPlanToTarget } from './plan-trim';
 import {
   extraPartOf,
+  extraSowable,
   queueExtraParts,
   reclaimedLogs,
   sowParts,
@@ -161,11 +162,12 @@ export function planYear(
   }
   const sown = [...crops.winter, ...crops.spring, ...crops.legume, ...crops.flax];
   const chosen = new Set(sown.map((p) => p.id));
-  // osev navíc: ostatní díly, které ves smí osít, v pořadí výběru – dostanou práci, která zbude po
-  // stavbách (fields.md – Osev navíc); osévaný díl si pamatuje léta v řadě, než půjde ladem
+  // osev navíc: ostatní díly v oběhu, v pořadí výběru – dostanou práci, která zbude po stavbách
+  // (fields.md – Osev navíc); příloh 70–95 % ne (`extraSowable`); osévaný díl si pamatuje léta
+  // v řadě, než půjde ladem
   const extra = blocks
     .flat()
-    .filter((p) => !chosen.has(p.id))
+    .filter((p) => !chosen.has(p.id) && extraSowable(p))
     .map(extraPartOf);
   if (extra.length > 0) state.plan.extra = extra;
   // vrácený mladý les dá za dospělé stromy klády (fields.md – Zarůstání, forest.md – Mýcení)

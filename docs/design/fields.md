@@ -592,8 +592,10 @@ jenom natolik, aby vesnice neměla hlad.“ Martin schválil návrh, podrobnosti
 
 - **Potřebný osev** je beze změny plán k 1. 9. – cíl podle zásob, kapacita plánu, luštěniny a len
   podle potřeby, zkrácení rozjetého plánu. Jeho práce má přednost před stavbami (Práce, bod 3).
-- **Osev navíc** = všechny ostatní díly, které přílohová soustava dovolí osít (aktuální úrodnost
-  aspoň 70 % přirozené – nouzový příloh pod 70 % ne), v pořadí výběru (Přílohová soustava –
+- **Osev navíc** = ostatní díly **v oběhu** – osévaný díl, který smí dál (aktuální úrodnost aspoň
+  70 % přirozené), čerstvě založený díl a příloh odpočatý aspoň na 95 % (Martin 24. 10. 2026;
+  dřív i příloh 70–95 % – osev navíc ho vytěžil a ves pak neměla z čeho osít potřebný osev; nouzový
+  příloh pod 70 % nikdy), v pořadí výběru (Přílohová soustava –
   Pořadí, po úsecích hospodářství od domu ven), **jen obilí**. Dostanou jen práci, která zbude po
   stavbách a opravách obydlí (Práce, bod 6); spřežení orají napřed potřebný osev, díly navíc jen
   kapacitou, která zbude (a ne v den, kdy spřežení vozí). Bez kontroly kapacity plánu – je to

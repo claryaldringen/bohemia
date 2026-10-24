@@ -30,8 +30,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   Rozjetý plán zkrátí `trimPlan` (každý den 1. 9. – 30. 4., `plan-trim.ts`: nezačaté díly obilí
   od konce pořadí – nouzové první – přes `shrinkInPlan` / `dropFromWork` z `land-taken.ts`, ladem
   jako příloh – `FieldPart.fallowBeforePlan` – a na začátek osevu navíc).
-  **Osev navíc** (fields.md – Osev navíc, Martin 19. 10. 2026; `extra-sowing.ts`): ostatní díly od
-  70 % v pořadí výběru čekají v `YearPlan.extra` (`ExtraPart` – `sownYears` u dílu, který se
+  **Osev navíc** (fields.md – Osev navíc, Martin 19. 10. 2026; `extra-sowing.ts`): ostatní díly v oběhu
+  (`extraSowable` – `sowingGroup` 1–3: osévaný od 70 %, založený, příloh od 95 %; příloh 70–95 %
+  ne, Martin 24. 10. 2026) v pořadí výběru čekají v `YearPlan.extra` (`ExtraPart` – `sownYears` u dílu, který se
   osíval; plán k 1. 9., hotové díly `joinFinishedParts`, ubrané `trimPlanToTarget`); krok
   `extraSowingDay` ve `work()` z `afterBuild.left` (práce po stavbách a opravách) a ze zbylé
   kapacity spřežení (`FieldTaskEntry.teamDays`) začne díly navíc – ozim do 30. 10., pak jař
