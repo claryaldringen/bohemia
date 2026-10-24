@@ -603,6 +603,16 @@ Clauda.
   v `foundVillage` (věky jako data v `rules*.ts`), `LORD.maxWives`.
 - Konec hry: `isGameOver` i bez mužů rodu, zastavení dopočtu vsí hráče, obrazovka „Rod vymřel“
   s kronikou rodu.
+- **Výcvik a nástupnictví – rozhodnutí implementace (návrh Clauda, 24. 10. 2026):** vojvoda
+  cvičí, jen když bydlí v dvorci; cvičí všichni muži rodu v dvorci od 7 let (i bratři po
+  nástupu). Matka **nezletilého** vojvody vede domácnost dvorce, i když se vdá; matka dospělého
+  vojvody a ostatní vdovy po vojvodovi pracují jako dosud. Vojvoda (a za nezletilého jeho matka)
+  dvorec při sňatku neopouští – druhý se přistěhuje do dvorce. Dvorec bez vojvody (rod skončil)
+  nedrží nikdo – ženatí muži z něj odcházejí všichni. Vdovu po vojvodovi pozná dítě s otcem
+  dřívějším vojvodou – bezdětnou ne (vdá se). Vedlejší manželka vojvody mimo dvorec kryje minimum
+  svého domu, nekryté platí ves; do 4 dospělých mimo rodinu se nepočítá. **Přeplnění** domu se
+  počítá ze všech lidí domu (i dětí a podnájemníků) jako u ostatních domácností – vedlejší
+  manželka tak může odejít i kvůli přeplnění, které nezpůsobila.
 - Testy: jména vnuků nezávisí na kouscích dopočtu, odcházejí všichni ženatí synové, přednost
   syna a pak vedlejší manželky, vedlejší odchází až z přeplněného dvorce a nevrací se, cvičí
   všichni synové v dvorci, nástupcem syn hlavní manželky i po její smrti, nezletilý vojvoda, nová

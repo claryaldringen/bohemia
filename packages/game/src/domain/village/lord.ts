@@ -2,6 +2,7 @@
 // a úbytek dovedností, denní minimum dvorce a kdy jde rodina na pole.
 import { assignRiders, NO_RIDERS, trainHorsesDay } from './horse-riders';
 import { horsePens, isGrainHorse, penHorses } from './horses';
+import { currentLord, isDynastyTracked, isLineMan, lineMen } from './dynasty';
 import { harvestHandsDay } from './harvest-hands';
 import { householdHead } from './households';
 import { adultDailyMin, waterFetchingLabor } from './labor';
@@ -13,7 +14,10 @@ import { lordHelpShare } from './sowing';
 import type { ArmsSkills, ChronicleEvent, Person, VillageState } from './types';
 
 /** Co z vsi rodina potřebuje – lidé a dvorec. */
-type LordView = Pick<VillageState, 'people' | 'manorId' | 'dwellings' | 'constructions'>;
+type LordView = Pick<
+  VillageState,
+  'people' | 'manorId' | 'dwellings' | 'constructions' | 'dynasty'
+>;
 
 /** Rodina vojvody (lord.md – Kdo je vojvodova rodina). */
 export interface LordFamily {
@@ -25,7 +29,21 @@ export interface LordFamily {
   household: Person[];
   /** Zbytek dvorce (zeť, ženich, chlapci pod 7 let) – pracují jako dosud. */
   others: Person[];
+  /**
+   * Vedlejší manželky vojvody mimo dvorec (lord.md – Rod vojvody, Manželky – Práce) – vedou svou
+   * domácnost, k rodině patří, jejich děti ne. Jen ves s rodem.
+   */
+  wivesApart: Person[];
 }
+
+/** Rodina bez vojvody – nikdo necvičí. */
+const NO_FAMILY: LordFamily = {
+  lord: null,
+  trainees: [],
+  household: [],
+  others: [],
+  wivesApart: [],
+};
 
 type Hours = { bow: number; combat: number; riding: number };
 
@@ -37,11 +55,10 @@ type Hours = { bow: number; combat: number; riding: number };
  */
 export function lordFamily(state: LordView, day: number): LordFamily {
   const manor = villageManorId(state);
+  if (isDynastyTracked(state)) return dynastyFamily(state, manor, day);
   const lord = manor === null ? undefined : householdHead(state.people, manor, day);
   // vojvoda je nejstarší muž dvorce (lord.md – Kdo je vojvodova rodina); dvorec vdovy vojvodu nemá
-  if (manor === null || !lord || lord.sex === 'female') {
-    return { lord: null, trainees: [], household: [], others: [] };
-  }
+  if (manor === null || !lord || lord.sex === 'female') return NO_FAMILY;
   const members = state.people.filter((p) => p.dwellingId === manor);
   // potomci po otci: vojvoda a všichni, kdo z něj vedou po otcích
   const line = new Set<number>([lord.id]);
@@ -65,7 +82,44 @@ export function lordFamily(state: LordView, day: number): LordFamily {
     else if (p.sex === 'female' && lord.spouseId === p.id) household.push(p);
     else others.push(p);
   }
-  return { lord, trainees, household, others };
+  return { lord, trainees, household, others, wivesApart: [] };
+}
+
+/**
+ * Rodina vsi s rodem (lord.md – Rod vojvody: Manželky – Výcvik, Synové po sňatku – „Cvičí, dokud
+ * neodejde“, Nástupnictví): vojvoda je `dynasty.lordId` (i chlapec) a cvičí všichni muži rodu
+ * v dvorci od 7 let – synové všech manželek, ženatí synové čekající na dům, vnuci, bratři. Jen
+ * domácnost: manželky vojvody v dvorci, matka nezletilého vojvody (i vdaná), dcery mužů rodu
+ * (i dřívějších vojvodů) a ženy mužů rodu z dvorce (snachy). Vedlejší manželky mimo dvorec jsou
+ * `wivesApart`. Ostatní (zeť, vdovy po dřívějším vojvodovi, chlapci pod 7 let) pracují. Vojvoda mimo dvorec nebo
+ * bez vojvody – nikdo (dvorec bez vojvody necvičí).
+ */
+function dynastyFamily(state: LordView, manor: number | null, day: number): LordFamily {
+  const lord = currentLord(state);
+  if (manor === null || !lord || lord.dwellingId !== manor) return NO_FAMILY;
+  const minor = ageYears(lord.bornDay, day) < AGE.fertile;
+  const fathers = new Set([
+    ...lineMen(state).map((p) => p.id),
+    ...(state.dynasty?.lords ?? []).map((l) => l.id),
+  ]);
+  const trainees: Person[] = [];
+  const household: Person[] = [];
+  const others: Person[] = [];
+  const wivesApart: Person[] = [];
+  for (const p of state.people) {
+    if (p.dwellingId !== manor) {
+      if (p.sex === 'female' && p.spouseId === lord.id) wivesApart.push(p);
+      continue;
+    }
+    if (isLineMan(p) && ageYears(p.bornDay, day) >= AGE.olderChild) trainees.push(p);
+    else if (p.sex !== 'female') others.push(p);
+    else if (p.spouseId !== undefined && fathers.has(p.spouseId)) household.push(p);
+    else if (p.fatherId !== undefined && fathers.has(p.fatherId)) household.push(p);
+    // matka nezletilého vojvody dvorec drží a vede domácnost, i vdaná (lord.md – Nástupnictví)
+    else if (p.id === lord.motherId && minor) household.push(p);
+    else others.push(p);
+  }
+  return { lord, trainees, household, others, wivesApart };
 }
 
 /**
@@ -143,7 +197,9 @@ export function decayArms(skills: ArmsSkills): ArmsSkills {
 
 /** Dospělí (od 14 let) mimo cvičící a domácnost vojvody. */
 function adultsOutsideFamily(state: LordView, family: LordFamily, day: number): number {
-  const inFamily = new Set([...family.trainees, ...family.household].map((p) => p.id));
+  const inFamily = new Set(
+    [...family.trainees, ...family.household, ...family.wivesApart].map((p) => p.id),
+  );
   return state.people.filter((p) => !inFamily.has(p.id) && ageGroup(p, day) !== 'child').length;
 }
 
@@ -190,15 +246,27 @@ export function trainingFamily(
 }
 
 /**
- * Id lidí cvičící rodiny, kteří jsou mimo práci vsi (cvičící muži a domácnost vojvody) – jedno
- * místo pravdy pro `work()`, plán osevu (`sowingCapacity`) i nákupy (`craft-buying`).
+ * Id lidí cvičící rodiny, kteří jsou mimo práci vsi (cvičící muži, domácnost vojvody a jeho vedlejší
+ * manželky ve vlastních domech) – jedno místo pravdy pro `work()`, plán osevu (`sowingCapacity`)
+ * i nákupy (`craft-buying`).
  */
 export function lordApartIds(
   state: LordView & Pick<VillageState, 'lord'>,
   day: number,
 ): ReadonlySet<number> {
   const family = trainingFamily(state, day);
-  return new Set(family ? [...family.trainees, ...family.household].map((p) => p.id) : []);
+  return new Set(
+    family ? [...family.trainees, ...family.household, ...family.wivesApart].map((p) => p.id) : [],
+  );
+}
+
+/**
+ * Obydlí, jejichž denní minimum kryje cvičící rodina (`manorLabor`) a ves ho nepočítá – dvorec
+ * a domy vedlejších manželek vojvody (lord.md – Rod vojvody, Manželky – Práce).
+ */
+export function familyHomes(family: LordFamily | null): ReadonlySet<number> {
+  if (!family?.lord) return new Set();
+  return new Set([family.lord.dwellingId, ...family.wivesApart.map((w) => w.dwellingId)]);
 }
 
 /** Id cvičících z rodiny, která cvičí (vojvodovi synové nepasou – lord.md, Den rodiny). */
@@ -240,7 +308,8 @@ export interface ManorLabor {
 /**
  * Práce dvorce, když rodina cvičí (lord.md – Den rodiny; jako `workshopLabor` dílen): denní
  * minimum celé domácnosti dvorce (s chůzí pro vodu) kryjí napřed starší dvorce, zbytek dospělí
- * rodiny – ženy, a co nestačí, muži mimo výcvik (návrh Clauda; výcvik se tím nezkrátí). Co ženám
+ * rodiny – ženy, a co nestačí, muži mimo výcvik (návrh Clauda; výcvik se tím nezkrátí). Minimum
+ * domů vedlejších manželek vojvody (`wivesApart`) kryjí stejně ony, nekryté platí ves. Co ženám
  * zbude, je domácí výroba dvorce a do práce vsi nejde (Martin 23. 10. 2026: „Jen domácnost“).
  * Na poli (hlad – `state.lord.field`) dají všichni dospělí rodiny vše po minimu. Ve žňový den
  * (`harvestHandsDay`) dají cvičící muži `freeMen` na žeň a výmlat. Jinak s potřebným
@@ -254,26 +323,52 @@ export function manorLabor(
   family: LordFamily = lordFamily(state, day),
 ): ManorLabor {
   const manor = villageManorId(state);
-  const members = manor === null ? [] : state.people.filter((p) => p.dwellingId === manor);
-  const elders = members.filter((p) => ageGroup(p, day) === 'elder').length;
-  const walk = state.dwellings.find((d) => d.id === manor)?.waterWalkM;
-  const minimum = dailyMinPerHousehold(potteryCoverage) + waterFetchingLabor(members.length, walk);
-  const need = adultDailyMin(minimum, elders, productivity);
-  const capacity =
-    [...family.household, ...family.trainees].reduce((sum, p) => sum + laborPerDay(p, day), 0) *
-    Math.max(0, productivity);
-  const menCapacity =
-    family.trainees.reduce((sum, p) => sum + laborPerDay(p, day), 0) * Math.max(0, productivity);
-  const dailyMin = Math.min(need, capacity);
-  const free = capacity - dailyMin;
-  const freeMen = Math.min(free, menCapacity);
+  const labor = (people: readonly Person[]): number =>
+    people.reduce((sum, p) => sum + laborPerDay(p, day), 0) * Math.max(0, productivity);
+  // denní minimum domácnosti obydlí `home` (s chůzí pro vodu) po starších
+  const homeNeed = (home: number | null): number => {
+    const members = home === null ? [] : state.people.filter((p) => p.dwellingId === home);
+    const elders = members.filter((p) => ageGroup(p, day) === 'elder').length;
+    const walk = state.dwellings.find((d) => d.id === home)?.waterWalkM;
+    const minimum =
+      dailyMinPerHousehold(potteryCoverage) + waterFetchingLabor(members.length, walk);
+    return adultDailyMin(minimum, elders, productivity);
+  };
+  const need = homeNeed(manor);
+  const capacity = labor([...family.household, ...family.trainees]);
+  const menCapacity = labor(family.trainees);
+  const manorMin = Math.min(need, capacity);
+  // domy vedlejších manželek vojvody (lord.md – Rod vojvody, Manželky – Práce): minimum kryjí ony,
+  // co nestačí, platí ves; co jim zbude, je domácí výroba – na pole jen při hladu
+  let apartNeed = 0;
+  let apartMin = 0;
+  let apartFree = 0;
+  for (const home of new Set(family.wivesApart.map((w) => w.dwellingId))) {
+    const homeMin = homeNeed(home);
+    const wives = labor(family.wivesApart.filter((w) => w.dwellingId === home));
+    apartNeed += homeMin;
+    apartMin += Math.min(homeMin, wives);
+    apartFree += Math.max(0, wives - homeMin);
+  }
+  const dailyMin = manorMin + apartMin;
+  const manorFree = capacity - manorMin;
+  const free = manorFree + apartFree;
+  const freeMen = Math.min(manorFree, menCapacity);
   const hunger = state.lord?.field?.reason === 'hunger';
   const field = hunger ? free : 0;
   // ve žňový den jdou cvičící muži na žeň a výmlat (Martin 24. 10. 2026: „Dílny i vojvodova
   // rodina“) – ženy rodiny dál jen domácnost
   const harvest = !hunger && harvestHandsDay(state, day) ? freeMen : 0;
   const help = hunger || harvest > 0 ? 0 : lordHelpShare(state.plan, day) * freeMen;
-  return { dailyMin, uncovered: need - dailyMin, field, harvest, help, free, freeMen };
+  return {
+    dailyMin,
+    uncovered: need + apartNeed - dailyMin,
+    field,
+    harvest,
+    help,
+    free,
+    freeMen,
+  };
 }
 
 /**

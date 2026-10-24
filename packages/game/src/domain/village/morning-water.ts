@@ -2,7 +2,7 @@ import { dateOfDayIndex, dayIndexOf } from '../calendar';
 import type { WaterCartPlan } from './cart-jobs';
 import { ironTravellers } from './crafts';
 import { householdWater, type HouseholdWater } from './labor';
-import { lordApartIds, trainingFamily } from './lord';
+import { familyHomes, lordApartIds, trainingFamily } from './lord';
 import { MORNING_WATER } from './rules';
 import type { CropWork, Person, VillageState } from './types';
 import { cropTaskWindows, neededTaskRemaining, planCrops, windowEndOf } from './year-plan';
@@ -11,9 +11,9 @@ const EPS = 1e-9;
 const MONTHS = 12;
 
 /**
- * Lidé, kteří dnes pracují se vsí, a domácnost dvorce, jejíž minimum kryje cvičící rodina (lord.md –
- * Den rodiny) – jedno místo pravdy pro práci dne (`work`) i scénu (komu vůz přivezl vodu): bez
- * domácností dílen, které dnes pracují v dílně (`crafts` – id obydlí), bez lidí na cestě pro kování
+ * Lidé, kteří dnes pracují se vsí, a domácnosti dvorce a vedlejších manželek vojvody, jejichž
+ * minimum kryje cvičící rodina (lord.md – Den rodiny, Rod vojvody – Manželky; `familyHomes`) –
+ * jedno místo pravdy pro práci dne (`work`) i scénu (komu vůz přivezl vodu): bez domácností dílen, které dnes pracují v dílně (`crafts` – id obydlí), bez lidí na cestě pro kování
  * k vozu (wagons.md – Kování vozů) a bez cvičící rodiny vojvody.
  */
 export function villagersToday(
@@ -30,7 +30,7 @@ export function villagersToday(
           (p) => !crafts.has(p.dwellingId) && !travelling.has(p.id) && !apart.has(p.id),
         )
       : state.people;
-  return { villagers, manorSkip: new Set(family?.lord ? [family.lord.dwellingId] : []) };
+  return { villagers, manorSkip: familyHomes(family) };
 }
 
 /**

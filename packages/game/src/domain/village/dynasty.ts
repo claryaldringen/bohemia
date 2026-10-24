@@ -3,9 +3,10 @@
 // vojvoda. Ves bez rodu (`dynasty.lords` prázdné) se chová jako před rodem. Čisté funkce bez I/O.
 import { cloneState } from './clone';
 import { generatedLineName } from './dynasty-names';
-import { ensureMainWives } from './dynasty-wives';
 import { parentIndex, type ParentIndex } from './kinship';
 import { villageManorId } from './manor';
+import { ageYears } from './people';
+import { AGE } from './rules';
 import type { ChronicleEvent, DynastyState, Person, VillageState } from './types';
 
 /** Ves bez rodu – nikdo není muž rodu, vojvoda je nejstarší muž dvorce jako dřív. */
@@ -31,6 +32,19 @@ export function currentLord(state: Pick<VillageState, 'people' | 'dynasty'>): Pe
   const id = state.dynasty?.lordId;
   if (id === undefined || id === null) return undefined;
   return state.people.find((p) => p.id === id);
+}
+
+/**
+ * Drží `p` dvorec vsi s rodem (lord.md – Nástupnictví)? Vojvoda, který v dvorci bydlí, a za
+ * nezletilého vojvodu (do 16 let) jeho matka z dvorce – při svatbě se druhý přistěhuje k nim
+ * (`weddingHome`; ženich matky se přižení jako k vdově, která drží dům – kinship.md).
+ */
+export function holdsManor(state: VillageState, p: Person, day: number): boolean {
+  if (!isDynastyTracked(state) || p.dwellingId !== currentLord(state)?.dwellingId) return false;
+  const lord = currentLord(state);
+  const manor = villageManorId(state);
+  if (!lord || manor === null || lord.dwellingId !== manor) return false;
+  return p.id === lord.id || (p.id === lord.motherId && ageYears(lord.bornDay, day) < AGE.fertile);
 }
 
 /** Manželky muže (lord.md – Manželky) – ženy, jejichž muž je `man`, od nejdéle vdané (nižší id). */
@@ -153,36 +167,4 @@ export function markNewborn(state: VillageState, child: Person, day: number): Ch
   if (currentLord(state)?.id === father.id) return [{ day, kind: 'line-birth' }];
   child.name = generatedLineName(state, day, child.id);
   return [];
-}
-
-/**
- * Dnešní vojvoda (dočasně, než přijde nástupnictví – lord.md – Nástupnictví): zemřel-li, vojvodou
- * je nejstarší muž rodu v dvorci, bez něj nikdo. Kronika rodu (`lords`) dostane záznam. Mutuje stav.
- */
-function keepLordId(state: VillageState, day: number): ChronicleEvent[] {
-  const dynasty = state.dynasty;
-  if (!dynasty || dynasty.lords.length === 0 || currentLord(state)) return [];
-  const last = dynasty.lords[dynasty.lords.length - 1];
-  if (last && last.toDay === undefined) last.toDay = day;
-  const manor = villageManorId(state);
-  const heir = lineMen(state)
-    .filter((p) => p.dwellingId === manor)
-    .sort(byAge)[0];
-  if (!heir) {
-    dynasty.lordId = null;
-    return [];
-  }
-  dynasty.lordId = heir.id;
-  const name = heir.name === undefined ? {} : { name: heir.name };
-  dynasty.lords.push({ id: heir.id, ...name, fromDay: day });
-  return [{ day, kind: 'lord', ...name }];
-}
-
-/**
- * Krok dne rodu po `populationDay` (simulate.ts): muž, kterému dnes zemřela hlavní manželka, má
- * novou (`ensureMainWives`), a drží dnešního vojvodu. Jména a příznaky dnes narozených dává
- * `markNewborn` už při porodu. Ves bez rodu – nic. Mutuje stav.
- */
-export function dynastyDay(state: VillageState, day: number): ChronicleEvent[] {
-  return [...ensureMainWives(state, day), ...keepLordId(state, day)];
 }

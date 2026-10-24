@@ -3,21 +3,57 @@
 // osídlení nového nebo prázdného obydlí. Ves bez rodu se osídluje jako dosud (`leavingFamilies`).
 // Čisté funkce nad stavem vsi.
 import { isOvercrowded } from './dwellings';
-import { isDynastyTracked, isLineMan } from './dynasty';
-import { byCrowding, departingFamilies, leavingFamilies, type Family } from './households';
+import { currentLord, isDynastyTracked, isLineMan } from './dynasty';
+import {
+  byCrowding,
+  departingFamilies,
+  isTrackedManor,
+  leavingFamilies,
+  unmarriedHere,
+  type Family,
+} from './families';
 import { villageManorId } from './manor';
 import { householdBreaksUp, occupants } from './people';
 import { DWELLINGS } from './rules';
 import type { Dwelling, Person, VillageState } from './types';
 
-/** Svobodný v domácnosti – nemá v ní manžela / manželku. */
-function unmarriedHere(p: Person, members: readonly Person[]): boolean {
-  return p.spouseId === undefined || !members.some((m) => m.id === p.spouseId);
-}
-
 /** Datum narození nejstaršího syna rodiny (bez syna nekonečno – odchází až po rodinách se syny). */
 function oldestSonBorn(family: Family): number {
   return Math.min(...family.people.filter((p) => p.sex === 'male').map((p) => p.bornDay), Infinity);
+}
+
+/**
+ * Rodiny od té s nejstarším synem; bez syna (obě nekonečno) a při shodě nejdéle vdaná – nižší id
+ * první osoby. Porovnává explicitně – rozdíl dvou nekonečen by byl NaN.
+ */
+function byOldestSon(a: Family, b: Family): number {
+  const bornA = oldestSonBorn(a);
+  const bornB = oldestSonBorn(b);
+  if (bornA !== bornB) return bornA < bornB ? -1 : 1;
+  return a.people[0]!.id - b.people[0]!.id;
+}
+
+/**
+ * Vdovy po dřívějších vojvodech v domácnosti `members` (lord.md – Nástupnictví: „odchází jako
+ * vedlejší manželka nejdřív vdova s nejstarším synem (ne matka vojvody)“) – svobodné ženy, jejichž
+ * dítě z domácnosti má za otce dřívějšího vojvodu (`dynasty.lords`), kromě matky dnešního vojvody.
+ * Bezdětnou vdovu nic nepozná – vdá se (kinship.md – Sňatky).
+ */
+function lordWidows(state: VillageState, members: readonly Person[]): Person[] {
+  const lordId = state.dynasty?.lordId;
+  const former = new Set(
+    (state.dynasty?.lords ?? []).map((l) => l.id).filter((id) => id !== lordId),
+  );
+  const lordMother = currentLord(state)?.motherId;
+  return members.filter(
+    (w) =>
+      w.sex === 'female' &&
+      w.spouseId === undefined &&
+      w.id !== lordMother &&
+      members.some(
+        (c) => c.motherId === w.id && c.fatherId !== undefined && former.has(c.fatherId),
+      ),
+  );
 }
 
 /**
@@ -27,7 +63,8 @@ function oldestSonBorn(family: Family): number {
  * až po nich, při shodě nejdéle vdaná – nižší id), po jedné rodině, dokud dům zůstává přeplněný.
  * Rodiny `leaving` z domu odcházejí tak jako tak (ženatí synové) – s nimi i jejich ženy, o ně se
  * přeplnění zmenší. Jen rodina, která dům udrží (někdo 16–44), a jen když se zbytek domácnosti
- * nerozpadne. Ves bez rodu – nic.
+ * nerozpadne. Z dvorce odcházejí napřed vdovy po dřívějších vojvodech (`lordWidows` – lord.md –
+ * Nástupnictví), pak vedlejší manželky nového vojvody. Ves bez rodu – nic.
  */
 export function secondaryWifeFamilies(
   state: VillageState,
@@ -41,16 +78,21 @@ export function secondaryWifeFamilies(
   let excess = members.length - DWELLINGS[dwelling.type].capacity;
   if (excess <= 0) return [];
   const men = new Map(members.filter(isLineMan).map((m) => [m.id, m]));
-  const families = members
+  const familyOf = (woman: Person): Family => ({
+    dwelling,
+    people: [woman, ...members.filter((c) => c.motherId === woman.id && unmarriedHere(c, members))],
+  });
+  const wives = members
     .filter((w) => {
       const husband = w.sex === 'female' ? men.get(w.spouseId ?? -1) : undefined;
       return husband !== undefined && husband.spouseId !== w.id;
     })
-    .map((wife): Family => ({
-      dwelling,
-      people: [wife, ...members.filter((c) => c.motherId === wife.id && unmarriedHere(c, members))],
-    }))
-    .sort((a, b) => oldestSonBorn(a) - oldestSonBorn(b) || a.people[0]!.id - b.people[0]!.id);
+    .map(familyOf)
+    .sort(byOldestSon);
+  const widows = isTrackedManor(state, dwelling)
+    ? lordWidows(state, members).map(familyOf).sort(byOldestSon)
+    : [];
+  const families = [...widows, ...wives];
   let staying = members;
   const out: Family[] = [];
   for (const family of families) {

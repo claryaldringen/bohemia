@@ -35,7 +35,7 @@ import { swathRoadsInWork, trailsDay } from './trail';
 import { roadSwathDay } from './road-swath';
 import { wagonRoadsDay } from './wagon-road';
 import { isVillageDormant } from './departure';
-import { dynastyDay, withDynasty } from './dynasty';
+import { withDynasty } from './dynasty';
 import { ensureMainWives, extraWivesDay } from './dynasty-wives';
 import { updateRuins } from './ruins';
 import {
@@ -52,6 +52,7 @@ import { eat, endThreshing, harvest, harvestWinter } from './simulate-food';
 import { LAST_JOIN_MONTH, isOn, joinFinishedParts, planYear, trimPlan } from './simulate-plan';
 import { work } from './simulate-work';
 import { lordFieldMode, trainLordDay, updateLordTraining } from './lord';
+import { dynastyDay } from './succession';
 
 /**
  * Dopočítá ves do dne `toDay` včetně – den po dni od `lastDay + 1`. Vstup nemění.
@@ -243,7 +244,7 @@ function simulateDay(
   );
   const events = populationDay(state, day, satiation, energy);
   state.chronicle.push(...events);
-  // dnešní vojvoda rodu (lord.md – Rod vojvody); ves bez rodu nic
+  // nová hlavní manželka a nástupnictví (lord.md – Rod vojvody); ves bez rodu nic
   state.chronicle.push(...dynastyDay(state, day));
   // štěstí na konci dne – hlad, úmrtí, přeplněnost, dřina, zásoby, ovoce, maso a posvátná místa
   // (happiness.md, diet.md)

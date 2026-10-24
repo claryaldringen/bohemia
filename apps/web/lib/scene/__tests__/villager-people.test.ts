@@ -177,6 +177,17 @@ describe('role lidí (person-roles.ts)', () => {
     expect(roles.get(8)).toBe('daughter-in-law');
     expect(roles.get(9)).toBe('bride');
   });
+
+  it('ves s rodem: vojvodou je dynasty.lordId, i chlapec – ne nejstarší muž dvorce', () => {
+    const people: RolePerson[] = [
+      { id: 1, age: 10, sex: 'male', home: 5, mother: 2 },
+      { id: 2, age: 35, sex: 'female', home: 5, spouse: 3 },
+      { id: 3, age: 40, sex: 'male', home: 5, spouse: 2 },
+    ];
+    const roles = personRoles(people, { manor: 5, lordId: 1, craft: () => null });
+    expect(roles.get(1)).toBe('voivode');
+    expect(personRoles(people, { manor: 5, craft: () => null }).get(3)).toBe('voivode');
+  });
 });
 
 describe('DayRoster – lidé dne k postavám', () => {

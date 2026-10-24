@@ -8,7 +8,7 @@ import { closeFieldFoodYear, sowingTargets, type SowingTargets } from './field-f
 import { endOfSeason, expectedNetKg, sowingGroup } from './fields';
 import { plannedFurrowEfficiency } from './plough-trip';
 import { villageLaborFactor } from './happiness';
-import { lordApartIds, manorLabor, trainingFamily } from './lord';
+import { familyHomes, lordApartIds, manorLabor, trainingFamily } from './lord';
 import { EMERGENCY_GROUP, sowingBlocks, villageHoldings, workOrder } from './holdings';
 import { flaxNeedKg } from './flax';
 import { plannedLegumeKg } from './husbandry';
@@ -327,7 +327,8 @@ export function sowingCapacity(
   // denní minimum s přirážkou za chůzi pro vodu (population.md – Práce)
   // denní minimum dvorce kryje cvičící rodina (`manorLabor`), ves platí jen, co rodina nepokryje
   const family = trainingFamily(state, day);
-  const skip = family?.lord ? new Set([...crafts, family.lord.dwellingId]) : crafts;
+  const homes = familyHomes(family);
+  const skip = homes.size > 0 ? new Set([...crafts, ...homes]) : crafts;
   const water = householdWaterLabor(state.people, state.dwellings, skip);
   const manor = family ? manorLabor(state, day, coverage.pottery, productivity, family) : null;
   const dailyMin =

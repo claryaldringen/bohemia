@@ -6,6 +6,7 @@
 // nemá s kým se vzít, toho bere nebo dává okolí – zatím abstraktně (nevěsta a ženich z okolí,
 // dcera se vdá pryč). Krok simulace `arrangeMarriages` stav mění, ostatní funkce jen čtou.
 import { createRandom, deriveSeed } from '../landscape/random';
+import { holdsManor } from './dynasty';
 import { ageGapYears, areCloseKin, parentIndex, removePeople, type ParentIndex } from './kinship';
 import { ageYears, holdsHousehold, householdBreaksUp, isFertile, occupants } from './people';
 import { AGE, BIRTH_SPACING, DWELLINGS, MARRIAGE, NEIGHBOR_DIRECTIONS } from './rules';
@@ -84,6 +85,7 @@ export function dependants(state: VillageState, p: Person, day: number): Person[
  * domu a její zůstal prázdný).
  */
 export function holdsHome(state: VillageState, p: Person, day: number): boolean {
+  if (holdsManor(state, p, day)) return true;
   const members = occupants(state, p.dwellingId);
   const leaving = new Set([p.id, ...dependants(state, p, day).map((c) => c.id)]);
   const staying = members.filter((m) => !leaving.has(m.id));
@@ -107,6 +109,9 @@ export function weddingHome(
   bride: Person,
 ): { mover: Person; dwellingId: number } | null {
   if (groom.dwellingId === bride.dwellingId) return { mover: bride, dwellingId: bride.dwellingId };
+  // dvorec drží vojvoda, za nezletilého jeho matka – druhý se stěhuje k nim (lord.md – Nástupnictví)
+  if (holdsManor(state, groom, day)) return { mover: bride, dwellingId: groom.dwellingId };
+  if (holdsManor(state, bride, day)) return { mover: groom, dwellingId: bride.dwellingId };
   const brideHolds = holdsHome(state, bride, day);
   const groomHolds = holdsHome(state, groom, day);
   const groomMoves =

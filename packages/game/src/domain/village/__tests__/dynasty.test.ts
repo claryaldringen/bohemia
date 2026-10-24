@@ -4,7 +4,6 @@ import { foundVillage } from '../actions';
 import {
   NO_DYNASTY,
   currentLord,
-  dynastyDay,
   isDynastyTracked,
   isLineMan,
   isSecondaryWife,
@@ -189,31 +188,6 @@ describe('markNewborn – narození (lord.md – Kdo patří k rodu, Jména)', (
     expect(markNewborn(s, child, DAY)).toEqual([]);
     expect(isLineMan(child)).toBe(false);
     expect(child.name).toBeUndefined();
-  });
-});
-
-describe('dynastyDay – vojvoda po smrti (dočasně do nástupnictví)', () => {
-  it('zemřel-li vojvoda, vojvodou je nejstarší muž rodu v dvorci', () => {
-    const s = withDynasty(family());
-    s.people = s.people.filter((p) => p.id !== 10);
-    const events = dynastyDay(s, DAY + 5);
-    expect(s.dynasty).toEqual({
-      lordId: 12,
-      lords: [
-        { id: 10, fromDay: DAY, toDay: DAY + 5 },
-        { id: 12, fromDay: DAY + 5 },
-      ],
-    });
-    expect(events).toEqual([{ day: DAY + 5, kind: 'lord' }]);
-    expect(dynastyDay(s, DAY + 6)).toEqual([]);
-  });
-
-  it('bez muže rodu v dvorci vojvoda není', () => {
-    const s = withDynasty(family());
-    s.people = s.people.filter((p) => ![10, 12, 13].includes(p.id));
-    dynastyDay(s, DAY + 5);
-    expect(s.dynasty?.lordId).toBeNull();
-    expect(s.dynasty?.lords).toEqual([{ id: 10, fromDay: DAY, toDay: DAY + 5 }]);
   });
 });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NO_DYNASTY, dynastyDay } from '../dynasty';
+import { NO_DYNASTY } from '../dynasty';
 import { secondaryWifeFamilies, settlingFamilies } from '../dynasty-housing';
 import {
   familiesOf,
@@ -10,6 +10,7 @@ import {
 } from '../households';
 import { removePeople } from '../kinship';
 import { populationDay } from '../population';
+import { dynastyDay } from '../succession';
 import { DWELLINGS } from '../rules';
 import type { Family } from '../households';
 import type { Person, VillageState } from '../types';
