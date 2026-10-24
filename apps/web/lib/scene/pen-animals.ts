@@ -75,6 +75,8 @@ export class PenAnimals {
   };
   private shadow: { mesh: Mesh; matrices: Float32Array } | null = null;
   private loading: Promise<void> | null = null;
+  /** Druhy, jejichž model se už stahuje nebo stáhl. */
+  private readonly requested = new Set<MorphKind>();
   private readonly bounds = new BoundingInfo(Vector3.Zero(), Vector3.Zero());
   private key = '';
   private disposed = false;
@@ -97,7 +99,7 @@ export class PenAnimals {
     if (key === this.key) return false;
     this.key = key;
     this.animals = animals;
-    if (animals.length > 0) void this.load();
+    if (animals.length > 0) this.load();
     this.allocate();
     this.updateBounds();
     if (this.loaded) this.write(villagerSeconds(Date.now()), false);
@@ -293,40 +295,55 @@ export class PenAnimals {
     m[o + 15] = 1;
   }
 
-  private load(): Promise<void> {
+  /**
+   * Modely se stahují po druzích: vůl a stín s prvním zvířetem, kráva, kůň a hříbě až když se
+   * ohrada poprvé objeví s tímto druhem (koně přijdou z pastvy, narodí se hříbě, přibude ohrada).
+   */
+  private load(): void {
     this.loading ??= (async (): Promise<void> => {
-      // modely se stáhnou jen pro druhy, které v ohradách stojí
-      const wanted = MORPH_KINDS.filter((k) => this.count(k) > 0);
-      const [ox, ...morphs] = await Promise.allSettled([
-        loadBakedModel(this.scene, '/models/plough/ox.glb'),
-        ...wanted.map((k) => loadGeometry(this.scene, `/models/fauna/${k}.glb`)),
-      ]);
+      const result = (
+        await Promise.allSettled([loadBakedModel(this.scene, '/models/plough/ox.glb')])
+      )[0]!;
       if (this.disposed || this.scene.isDisposed) return;
-      if (ox.status === 'fulfilled' && ox.value) {
-        this.ox = createBakedFigure(this.scene, 'pen-ox', ox.value);
+      if (result.status === 'fulfilled' && result.value) {
+        this.ox = createBakedFigure(this.scene, 'pen-ox', result.value);
       } else {
-        console.warn('Model vola se nepodařilo načíst.', ox.status === 'rejected' ? ox.reason : '');
+        console.warn(
+          'Model vola se nepodařilo načíst.',
+          result.status === 'rejected' ? result.reason : '',
+        );
       }
-      morphs.forEach((result, i) => {
-        const name = wanted[i]!;
-        if (result.status === 'fulfilled' && result.value) {
+      this.finishLoad();
+    })();
+    for (const name of morphKindsToLoad(this.animals, this.requested)) {
+      this.requested.add(name);
+      void (async (): Promise<void> => {
+        const [result] = await Promise.allSettled([
+          loadGeometry(this.scene, `/models/fauna/${name}.glb`),
+        ]);
+        if (this.disposed || this.scene.isDisposed) return;
+        if (result?.status === 'fulfilled' && result.value) {
           this.morph[name] = this.createMorph(name, standOnGround(result.value));
         } else {
           console.warn(
             `Model zvířete ${name} se nepodařilo načíst.`,
-            result.status === 'rejected' ? result.reason : '',
+            result?.status === 'rejected' ? result.reason : '',
           );
         }
-      });
-      this.shadow = createBlobShadow(this.scene, 'pen-animal-shadow', SHADOW_OPACITY);
-      this.allocate();
-      this.updateBounds();
-      if (this.loaded) {
-        this.write(villagerSeconds(Date.now()), false);
-        this.env.onLoaded();
-      }
-    })();
-    return this.loading;
+        this.finishLoad();
+      })();
+    }
+  }
+
+  /** Po dotažení modelu: stín, buffery, obal a první zápis; pak překreslení. */
+  private finishLoad(): void {
+    this.shadow ??= createBlobShadow(this.scene, 'pen-animal-shadow', SHADOW_OPACITY);
+    this.allocate();
+    this.updateBounds();
+    if (this.loaded) {
+      this.write(villagerSeconds(Date.now()), false);
+      this.env.onLoaded();
+    }
   }
 
   private createMorph(
@@ -358,6 +375,14 @@ export class PenAnimals {
     mesh.material = material;
     return { mesh, matrices: new Float32Array(16), states: new Float32Array(2) };
   }
+}
+
+/** Druhy s pózami z morph targetů, které ohrady právě drží a jejichž model se ještě nestahuje. */
+export function morphKindsToLoad(
+  animals: readonly Pick<PenAnimal, 'kind'>[],
+  requested: ReadonlySet<MorphKind>,
+): MorphKind[] {
+  return MORPH_KINDS.filter((k) => !requested.has(k) && animals.some((a) => a.kind === k));
 }
 
 function isMorph(kind: PenAnimal['kind']): kind is MorphKind {

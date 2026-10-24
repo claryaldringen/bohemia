@@ -58,7 +58,8 @@ export function scenePenViews(village: Pick<SceneVillage, 'pens' | 'dwellings'>)
  * jezdcem; v zimě a bez pasáka stojí všichni v ohradě (horses.md – Ve scéně).
  */
 export function penHerds(
-  village: Pick<SceneVillage, 'pens' | 'labor'>,
+  village: Pick<SceneVillage, 'pens' | 'labor'> &
+    Partial<Pick<SceneVillage, 'dwellings' | 'livestock'>>,
   oxenOut = ploughingToday(village) ? Infinity : 0,
 ): Map<number, PenHerd> {
   const pens = village.pens ?? [];

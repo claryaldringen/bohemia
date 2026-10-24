@@ -481,7 +481,7 @@ describe('planLivestock – koně na pastvě (horses.md – Krmení, Ve scéně)
     { id: 3, kind: 'riding' as const, riderId: 7 },
     { id: 4, kind: 'riding' as const },
   ];
-  const stocked = (day: number, herders = 3): LivestockVillage => ({
+  const stocked = (day: number, herders = 4): LivestockVillage => ({
     ...VILLAGE,
     labor: { day, herders: { children: herders } },
     livestock: { sheep: 6, goat: 2, pig: 4, cow: 4 },
@@ -501,6 +501,18 @@ describe('planLivestock – koně na pastvě (horses.md – Krmení, Ve scéně)
     expect(grazingHorses(stocked(winter))).toEqual([]);
     expect(grazingHorses(stocked(summer, 0))).toEqual([]);
     expect(horseHerds(planLivestock(stocked(winter), GROUND, 11))).toHaveLength(0);
+  });
+
+  it('stádo nikdy samo: koně jdou na pastvu poslední, jen s pasákem navíc', () => {
+    // ovce s kozami, krávy a prasata mají tři pasáky; čtvrtý patří koním
+    for (const herders of [1, 2, 3]) {
+      expect(grazingHorses(stocked(summer, herders))).toEqual([]);
+      expect(horseHerds(planLivestock(stocked(summer, herders), GROUND, 11))).toHaveLength(0);
+    }
+    // ostatní stáda se pasou stejně s koňmi i bez nich (koně je neodeberou)
+    const few = planLivestock(stocked(summer, 3), GROUND, 11);
+    const bare = planLivestock({ ...stocked(summer, 3), pens: [] }, GROUND, 11);
+    expect(JSON.stringify(few.herds)).toBe(JSON.stringify(bare.herds));
   });
 
   it('ostatní stáda se koňmi nemění (rozmístění stejné jako bez koní)', () => {

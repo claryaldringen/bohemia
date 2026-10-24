@@ -506,6 +506,16 @@ describe('ohrada o víc čtvercích (oxen.md – Ohrady podle druhu)', () => {
   });
 });
 
+describe('koně nad kapacitu míst (horses.md – Ohrada koní)', () => {
+  it('vykreslí se nejvýš tolik koní, kolik je míst; hříbata jen u vykreslených', () => {
+    const layout = penLayout(square, { x: 0, z: -1 }, [], 'horse');
+    const horses = [...Array.from({ length: 6 }, () => 'riding' as const), 'foal' as const];
+    const animals = penAnimalsFor(layout, { oxen: 0, trainees: 0, cows: 0, horses });
+    expect(animals.filter((a) => a.kind === 'horse')).toHaveLength(layout.spots.length);
+    expect(animals.filter((a) => a.kind === 'foal').length).toBeLessThanOrEqual(1);
+  });
+});
+
 describe('ohrada koní (horses.md – Ohrada koní, Ve scéně)', () => {
   const facing = { x: 0, z: -1 };
   const horsePen = (extra: { x: number; z: number }[] = []): PenLayout =>

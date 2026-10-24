@@ -294,7 +294,7 @@ function between(range: { from: number; to: number }, t: number): number {
 }
 
 /** Počet domácností – hotová obydlí, ve kterých někdo bydlí (bez údaje = obývané). */
-export function householdCount(village: LivestockVillage): number {
+export function householdCount(village: Pick<LivestockVillage, 'dwellings'>): number {
   return village.dwellings.filter((d) => d.built && d.inhabited !== false).length;
 }
 
@@ -515,11 +515,20 @@ const HORSE_HERD_INDEX = 100;
  * V zimě, bez pasáka a bez herního dne stojí koně v ohradě.
  */
 export function grazingHorses(
-  village: Pick<LivestockVillage, 'pens' | 'labor'>,
+  village: Pick<LivestockVillage, 'pens' | 'labor'> &
+    Partial<Pick<LivestockVillage, 'dwellings' | 'livestock'>>,
 ): { id: number; kind: HorseKind }[] {
   const day = village.labor?.day;
   if (day === undefined || HAY_WINTER_MONTHS.includes(dateOfDayIndex(day).month)) return [];
-  if (herderCount(village.labor) < 1) return [];
+  // Martin: stádo nikdy samo – koně jdou na pastvu poslední, jen s pasákem navíc: každé ze stád
+  // ovcí, krav a prasat má vlastního pasáka a jeden zbývá (to samé rozhodnutí použije
+  // `planLivestock`, `penHerds` i `villageKey`; bez koní se ostatní stáda nemění)
+  const counts = herdCounts({ dwellings: village.dwellings ?? [], livestock: village.livestock });
+  const others =
+    Math.ceil((counts.sheep + counts.goat) / FLOCK_SIZE) +
+    Math.ceil(counts.cow / COWS_PER_HERD) +
+    Math.ceil(counts.pig / PIGS_PER_HERD);
+  if (herderCount(village.labor) < others + 1) return [];
   return (village.pens ?? [])
     .flatMap((pen) => pen.horses ?? [])
     .filter((h) => h.riderId === undefined)
@@ -528,7 +537,7 @@ export function grazingHorses(
 
 /** Kolik zvířat kterého druhu se pase: od herního jádra, jinak z domácností (starší data). */
 export function herdCounts(
-  village: LivestockVillage,
+  village: Pick<LivestockVillage, 'dwellings' | 'livestock'>,
 ): Readonly<Record<'sheep' | 'goat' | 'pig' | 'cow', number>> {
   if (village.livestock) {
     const { sheep, goat, pig, cow } = village.livestock;

@@ -415,6 +415,38 @@ describe('planVillagers – kdo kde je', () => {
     expect(d).toBeLessThan(11);
   });
 
+  it('koňák je ráno a večer u plotu ohrady koní (horses.md – Péče)', () => {
+    const shares: LaborShare[] = [
+      { activity: 'horse-care', target: { kind: 'pen', id: 61 }, manDays: 1 },
+    ];
+    const v: SceneVillage = {
+      ...village(shares),
+      pens: [
+        {
+          id: 61,
+          species: 'horse',
+          cell: { x: -4, y: 1 },
+          x: -52.5,
+          z: 22.5,
+          size: 15,
+          built: true,
+          progress: 1,
+          oxen: 0,
+          trainees: 0,
+          cows: 0,
+        },
+      ],
+    };
+    const carers = planVillagers(v, GROUND, { seed: 3, herds: 0 }).filter((p) =>
+      p.key.startsWith('horse-care:'),
+    );
+    expect(carers.length).toBe(1);
+    const pose = at(carers[0]!, 10);
+    const d = Math.max(Math.abs(pose.x + 52.5), Math.abs(pose.z - 22.5));
+    expect(d).toBeGreaterThan(7.5);
+    expect(d).toBeLessThan(11);
+  });
+
   it('pasáček jde za svým stádem; vdané ženy mají šátek, starší šediny', () => {
     const herder = of('herder:')[0]!;
     const pose = at(herder, 50);

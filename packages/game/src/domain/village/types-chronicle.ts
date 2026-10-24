@@ -299,6 +299,8 @@ export type LaborActivity =
    * (`LaborDay.aside`).
    */
   | 'animal-care'
+  /** Péče o koně u ohrady koní – krmení, voda a kydání, hodina denně na koně (horses.md – Péče). */
+  | 'horse-care'
   /** Sezónní práce v sadech (orchard.md). */
   | 'orchard-care'
   | 'orchard-harvest'
