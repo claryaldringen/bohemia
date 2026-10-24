@@ -233,35 +233,6 @@ function village(day: number): VillageState {
 }
 
 describe('souběžné pevné cesty v roční kontrole', () => {
-  it('nová pevná cesta nevznikne souběžně s existující – provoz patří jí', () => {
-    const s = village(Y1 - 30);
-    updateRoads(s, Y1, LANDSCAPE, null);
-    // vedle loňského úseku nad prahem (k vodě) položíme 8 m vedle pevnou cestu
-    const run = s.roads!.candidates.reduce((a, b) => (b.length > a.length ? b : a));
-    expect(run.length).toBeGreaterThan(5);
-    const a = run[0]!;
-    const b = run[run.length - 1]!;
-    const len = Math.hypot(b.x - a.x, b.z - a.z);
-    const nx = (-(b.z - a.z) / len) * 8;
-    const nz = ((b.x - a.x) / len) * 8;
-    const beside = road(
-      500,
-      run.map((p): [number, number] => [
-        Math.round((p.x + nx) * 100) / 100,
-        Math.round((p.z + nz) * 100) / 100,
-      ]),
-      Y1 - 20 * 365,
-      'improved',
-    );
-    s.roads!.roads.push(beside);
-    updateRoads(s, NOV1(601), LANDSCAPE, null);
-    const kept = s.roads!.roads.filter((r) => r.grade === 'improved');
-    expect(kept.length).toBeGreaterThan(0);
-    for (const r of s.roads!.roads.filter((x) => x.grade === 'trodden')) {
-      for (const k of kept) expect(alongside(r.points, k.points)).toBeLessThan(25);
-    }
-  }, 60_000);
-
   it('výsledek nezávisí na kouscích dopočtu (i s JSON mezi kousky) přes 1. 11.', () => {
     const start = village(NOV1(601) - 12);
     updateRoads(start, Y1, LANDSCAPE, null);

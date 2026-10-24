@@ -41,6 +41,9 @@ export interface RoadReport {
   byGrade: Record<string, { count: number; km: number }>;
   junctions: number;
   stubs: number;
+  /** Cesty založené během dopočtu (kronika `road-formed`) a nová id úseků (i pohlcené úklidem). */
+  formed: number;
+  newIds: number;
   /** Uložené trasy (`VillageState.routes`) – počet a velikost v JSON (kB). */
   routes: number;
   routesKb: number;
@@ -143,6 +146,8 @@ export async function roadReport(input: RoadReportInput, years: number): Promise
     totalKm: totalM / 1000,
     byGrade,
     ...networkShape(roads),
+    formed: state.chronicle.filter((e) => e.kind === 'road-formed' && e.day > start).length,
+    newIds: (state.roads?.nextId ?? 1) - (input.state.roads?.nextId ?? 1),
     routes: state.routes?.list.length ?? 0,
     routesKb: state.routes ? JSON.stringify(state.routes).length / 1024 : 0,
     wearCells: wear ? decodeWear(wear.cells).size : 0,
@@ -167,6 +172,7 @@ export function formatReport(r: RoadReport): string {
     `cesty ${r.roads} (${r.totalKm.toFixed(2)} km): ${grades || '–'}`,
     `křižovatky ${r.junctions}`,
     `pahýly ${r.stubs}`,
+    `vzniklo ${r.formed} (nových id ${r.newIds})`,
     `trasy ${r.routes} (${r.routesKb.toFixed(1)} kB)`,
     `vyšlapanost ${r.wearCells} políček (${r.wearKb.toFixed(1)} kB)`,
     `settleWear ${r.settles}× ${r.settleMs.toFixed(0)} ms`,
