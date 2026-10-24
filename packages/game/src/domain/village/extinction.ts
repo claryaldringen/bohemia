@@ -8,7 +8,9 @@ import type { VillageState } from './types';
 // končí.“).
 
 /** Ves pro konec rodu – lidé a rod (starší volající je nemusí znát). */
-type LineVillage = Partial<Pick<VillageState, 'people' | 'dynasty'>>;
+type LineVillage = Partial<
+  Pick<VillageState, 'people' | 'dynasty' | 'extinctDay' | 'abandonedDay'>
+>;
 
 const DAYS_PER_YEAR = 365.25;
 
@@ -29,14 +31,28 @@ export function isLineExtinct(villages: readonly LineVillage[]): boolean {
   );
 }
 
-/** Den konce rodu – nejpozdější den, kdy ve vsi hráče nezbyl muž rodu; rod žije – undefined. */
-export function lineEndDay(villages: readonly LineVillage[]): number | undefined {
-  let last: number | undefined;
-  for (const v of villages) {
-    const day = v.dynasty?.endedDay;
-    if (day !== undefined && (last === undefined || day > last)) last = day;
+/**
+ * Ves a den konce rodu – nejpozdější `dynasty.endedDay`. Stará vymřelá ves, která `endedDay` nenese
+ * (uložená před konce rodu), dá den z `extinctDay` / `abandonedDay` (nejpozdější). Rod žije, nebo
+ * žádná ves žádný den nenese – undefined.
+ */
+export function lineEndWhere(
+  villages: readonly LineVillage[],
+): { index: number; day: number } | undefined {
+  let last: { index: number; day: number } | undefined;
+  const pick = (day: number | undefined, index: number): void => {
+    if (day !== undefined && (last === undefined || day > last.day)) last = { index, day };
+  };
+  villages.forEach((v, i) => pick(v.dynasty?.endedDay, i));
+  if (last === undefined) {
+    villages.forEach((v, i) => pick(v.extinctDay ?? v.abandonedDay, i));
   }
   return last;
+}
+
+/** Den konce rodu (`lineEndWhere`); rod žije – undefined. */
+export function lineEndDay(villages: readonly LineVillage[]): number | undefined {
+  return lineEndWhere(villages)?.day;
 }
 
 /**

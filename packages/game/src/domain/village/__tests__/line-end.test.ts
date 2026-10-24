@@ -3,7 +3,7 @@ import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
 import { abandonForLineEnd, abandonedVillageAt, isVillageDormant } from '../departure';
 import { NO_DYNASTY } from '../dynasty';
-import { isGameOver, isLineExtinct, lineEndDay } from '../extinction';
+import { isGameOver, isLineExtinct, lineEndDay, lineEndWhere } from '../extinction';
 import { removePeople } from '../kinship';
 import { advanceVillage } from '../simulate';
 import { succeedLord } from '../succession';
@@ -76,6 +76,31 @@ describe('konec hry vymřením rodu', () => {
     die(b, [10], DAY + 30);
     expect(lineEndDay([a, b])).toBe(DAY + 30);
     expect(lineEndDay([lordVillage()])).toBeUndefined();
+  });
+
+  it('stará ves bez endedDay – den konce z extinctDay / abandonedDay, endedDay má přednost', () => {
+    const old = lordVillage();
+    old.people = [];
+    old.extinctDay = DAY + 40;
+    const gone = lordVillage();
+    gone.people = [];
+    gone.abandonedDay = DAY + 50;
+    expect(isGameOver([old, gone])).toBe(true);
+    expect(lineEndDay([old, gone])).toBe(DAY + 50);
+    expect(lineEndWhere([old, gone])).toEqual({ index: 1, day: DAY + 50 });
+    const a = ended();
+    expect(lineEndDay([old, a])).toBe(DAY + 5);
+  });
+
+  it('putující ves s mužem rodu hru neukončí, víc vsí s různým endedDay – nejpozdější', () => {
+    const travelling = lordVillage();
+    travelling.journey = {
+      arrivalDay: DAY + 9,
+    } as unknown as VillageState['journey'];
+    expect(isLineExtinct([ended(), travelling])).toBe(false);
+    const b = lordVillage();
+    die(b, [10], DAY + 2);
+    expect(lineEndDay([ended(), b])).toBe(DAY + 5);
   });
 
   it('rod v druhé vsi hru drží', () => {

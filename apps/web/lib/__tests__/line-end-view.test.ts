@@ -54,6 +54,15 @@ describe('lineEndView', () => {
     expect(view?.village).toBe('Lhota');
   });
 
+  it('stará vymřelá ves bez endedDay – kronika z extinctDay', () => {
+    const old = endedVillage(571);
+    delete old.dynasty?.endedDay;
+    old.extinctDay = at(571);
+    old.people = [];
+    const view = lineEndView([{ name: 'Libice', state: old }]);
+    expect(view).toMatchObject({ village: 'Libice', endedYear: 571 });
+  });
+
   it('rod žije (i jen v jiné vsi) nebo ves bez rodu – null', () => {
     const living = foundVillage({
       seed: 3,
