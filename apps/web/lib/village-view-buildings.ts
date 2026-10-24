@@ -23,6 +23,7 @@ import {
   squareCenter,
   tileCenterWorld,
   HAY_WINTER_MONTHS,
+  horseKind,
   type HerdSpecies,
   type ConstructionSummary,
   type CartKind,
@@ -61,6 +62,11 @@ export function scenePens(
       : state.constructions.find((c) => c.kind === 'pen' && c.penId === pen.id);
     const wear = (state.pens ?? []).find((p) => p.id === pen.id)?.wear;
     const cows = winter && pen.built && pen.species === 'cattle' ? pen.animals : 0;
+    // koně ohrady koní (horses.md – Ve scéně): věk a jezdec po kusech, kde stojí, určí scéna
+    const horses =
+      pen.species === 'horse' && pen.built
+        ? (state.pens ?? []).find((p) => p.id === pen.id)?.horses
+        : undefined;
     return {
       id: pen.id,
       species: pen.species,
@@ -80,6 +86,15 @@ export function scenePens(
       oxen: pen.oxen?.trained ?? 0,
       trainees: pen.oxen?.training ?? 0,
       cows,
+      ...(horses
+        ? {
+            horses: horses.map((h) => ({
+              id: h.id,
+              kind: horseKind(h, day),
+              ...(h.riderId === undefined ? {} : { riderId: h.riderId }),
+            })),
+          }
+        : {}),
       ...wearOf(structureCondition(wear, 'pen', day), 'condition'),
       ...(pen.built && !stocked.has(pen.id) ? { stocked: false as const } : {}),
     };

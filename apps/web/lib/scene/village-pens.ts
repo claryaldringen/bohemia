@@ -7,6 +7,7 @@ import { penGateToward } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 import type { PenHerd } from './pen-layout';
 import type { PenView } from './pen-renderer';
+import { grazingHorses } from './livestock-placement';
 import { ploughingToday } from './plough-front';
 
 /**
@@ -27,6 +28,7 @@ export function scenePenViews(village: Pick<SceneVillage, 'pens' | 'dwellings'>)
     const toward = penGateToward([square, ...fenced], village.dwellings);
     return {
       id: pen.id,
+      ...(pen.species === undefined ? {} : { species: pen.species }),
       square,
       facing: { x: toward.x - pen.x, z: toward.z - pen.z },
       progress: pen.built ? 1 : Math.min(0.999, Math.max(0, pen.progress)),
@@ -51,7 +53,9 @@ export function scenePenViews(village: Pick<SceneVillage, 'pens' | 'dwellings'>)
  * Zvířata ohrad podle id: vycvičení voli (u rádla a vozů jsou venku), telata ve výcviku a krávy
  * stáda (v zimě – oxen.md). Nedostavěná ohrada žádná. `oxenOut` = kolik volů je dnes venku – páry
  * u rádel (plough-front.ts – `ploughFront`) a voli vozů (`draftTeamsToday`): odcházejí z ohrad
- * v pořadí id, ostatní zůstanou v ohradě; bez údaje jsou v den orby na poli všichni.
+ * v pořadí id, ostatní zůstanou v ohradě; bez údaje jsou v den orby na poli všichni. Koně ohrady
+ * koní: v létě s pasákem jsou na pastvě se stády (`grazingHorses`), v ohradě zůstanou jen koně pod
+ * jezdcem; v zimě a bez pasáka stojí všichni v ohradě (horses.md – Ve scéně).
  */
 export function penHerds(
   village: Pick<SceneVillage, 'pens' | 'labor'>,
@@ -67,11 +71,16 @@ export function penHerds(
     away.set(pen.id, n);
     out -= n;
   }
+  const grazing = new Set(grazingHorses(village).map((h) => h.id));
   const herds = new Map<number, PenHerd>();
   for (const pen of pens) {
     if (!pen.built) continue;
     const oxen = pen.oxen - (away.get(pen.id) ?? 0);
-    herds.set(pen.id, { oxen, trainees: pen.trainees, cows: pen.cows });
+    const herd: PenHerd = { oxen, trainees: pen.trainees, cows: pen.cows };
+    if (pen.species === 'horse') {
+      herd.horses = (pen.horses ?? []).filter((h) => !grazing.has(h.id)).map((h) => h.kind);
+    }
+    herds.set(pen.id, herd);
   }
   return herds;
 }

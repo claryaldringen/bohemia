@@ -29,6 +29,7 @@ import {
   type SquareGrid,
   type StoredRoute,
   type TileCell,
+  type HorseKind,
   type PenSpecies,
 } from '@bohemia/game';
 import { type SceneGrainPit } from './grain-pit-view';
@@ -475,6 +476,12 @@ export interface ScenePen {
   oxen: number;
   trainees: number;
   cows: number;
+  /**
+   * Koně ohrady koní (horses.md – Ve scéně; jen `species: 'horse'`): id, věk (hříbě / klisna /
+   * jezdecký kůň – `horseKind` z jádra) a jezdec, který na koni jezdí. Kde stojí (ohrada,
+   * pastva, pod jezdcem), rozhoduje scéna z těchto údajů a z roku – `penHerds`, `grazingHorses`.
+   */
+  horses?: { id: number; kind: HorseKind; riderId?: number }[];
   /** Stav hotové ohrady 0–1 (abandonment.md – rozpad); jen pod 1, bez údaje celá. */
   condition?: number;
   /**

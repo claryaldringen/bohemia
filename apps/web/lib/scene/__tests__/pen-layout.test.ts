@@ -505,3 +505,71 @@ describe('ohrada o víc čtvercích (oxen.md – Ohrady podle druhu)', () => {
     expect(layout.spots.length).toBeGreaterThan(12);
   });
 });
+
+describe('ohrada koní (horses.md – Ohrada koní, Ve scéně)', () => {
+  const facing = { x: 0, z: -1 };
+  const horsePen = (extra: { x: number; z: number }[] = []): PenLayout =>
+    penLayout(square, facing, extra, 'horse');
+  const top = (l: PenLayout): number => Math.max(...l.fenceStyle.rails);
+
+  it('plot je vyšší než plot ostatních ohrad (≈ 1,4 m), jinak stejný styl', () => {
+    expect(top(penLayout(square, facing))).toBeCloseTo(0.94, 6);
+    expect(top(horsePen())).toBeGreaterThanOrEqual(1.3);
+    expect(top(horsePen())).toBeLessThanOrEqual(1.4);
+    expect(horsePen().fenceStyle.gateWidth).toBe(PEN_FENCE.gateWidth);
+  });
+
+  it('4 místa na čtverec, rozestoupená aspoň 2,5 m', () => {
+    expect(horsePen().spots).toHaveLength(4);
+    const two = horsePen([{ x: square.x + 15, z: square.z }]);
+    expect(two.spots).toHaveLength(8);
+    for (const l of [horsePen(), two]) {
+      for (const a of l.spots) {
+        for (const b of l.spots) {
+          if (a !== b) expect(Math.hypot(a.x - b.x, a.z - b.z)).toBeGreaterThan(2.5);
+        }
+      }
+    }
+    // ostatní druhy beze změny
+    expect(penLayout(square, facing).spots).toHaveLength(12);
+  });
+
+  it('hříbě stojí u klisny bez vlastního místa; koně nad místa se nevejdou', () => {
+    const layout = horsePen();
+    const animals = penAnimalsFor(layout, {
+      oxen: 0,
+      trainees: 0,
+      cows: 0,
+      horses: ['mare', 'foal', 'riding'],
+    });
+    expect(animals.map((a) => a.kind)).toEqual(['horse', 'horse', 'foal']);
+    const mare = animals[0]!;
+    const foal = animals[2]!;
+    expect(Math.hypot(foal.x - mare.x, foal.z - mare.z)).toBeLessThan(2.2);
+    expect(foal.scale).toBeUndefined();
+    const full = penAnimalsFor(layout, {
+      oxen: 0,
+      trainees: 0,
+      cows: 0,
+      horses: ['mare', 'mare', 'mare', 'mare', 'riding', 'foal', 'foal'],
+    });
+    expect(full.filter((a) => a.kind === 'horse')).toHaveLength(4);
+    expect(full.filter((a) => a.kind === 'foal')).toHaveLength(2);
+  });
+
+  it('koně se nemíchají s jinými zvířaty ohrady', () => {
+    const animals = penAnimalsFor(horsePen(), {
+      oxen: 2,
+      trainees: 0,
+      cows: 1,
+      horses: ['mare'],
+    });
+    expect(animals.map((a) => a.kind)).toEqual(['horse']);
+  });
+
+  it('plot staveniště nese styl ohrady (kůly a větve do výšky plotu)', () => {
+    const layout = horsePen();
+    const stage = penFenceStage(layout, penStage(1));
+    expect(stage).toBeDefined();
+  });
+});

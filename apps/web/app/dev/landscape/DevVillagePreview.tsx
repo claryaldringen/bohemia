@@ -561,7 +561,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   /**
    * Natočené stavby (Martin 18. 10. 2026 – fields.md, Natočené stavby): u místa vsi natočený
    * pozemek polozemnice (15°, dům vzadu vlevo), pole v mřížce natočené o 30°, sad o 45°, hřbitov
-   * o 60° s hroby a ohrada o 15° se zvířaty – v polích, sadech a hřbitovech se pak dá malovat
+   * o 60° s hroby a ohrada o 15° se zvířaty a vedle ní ohrada koní – v polích, sadech a hřbitovech se pak dá malovat
    * dál (malování se chytí jejich mřížky) a pozemky natáčet klávesami [ a ].
    */
   const showRotated = (): void => {
@@ -636,6 +636,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       },
     ]);
     const penGrid: SquareGrid = { ...at(3, -3), rotation: ROTATION_STEP };
+    const horseGrid: SquareGrid = { ...at(6, -3), rotation: ROTATION_STEP };
     setPens([
       {
         id: nextId.current++,
@@ -650,6 +651,28 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         oxen: 2,
         trainees: 0,
         cows: 1,
+      },
+      {
+        // ohrada koní (horses.md): vyšší plot, klisna s hříbětem, hřebec a dva jezdečtí koně
+        id: nextId.current++,
+        species: 'horse',
+        cell: { x: 0, y: 0 },
+        grid: horseGrid,
+        x: horseGrid.x,
+        z: horseGrid.z,
+        size: decoded.cellSizeM,
+        rotation: horseGrid.rotation,
+        built: true,
+        progress: 1,
+        oxen: 0,
+        trainees: 0,
+        cows: 0,
+        horses: [
+          { id: 1, kind: 'mare' },
+          { id: 2, kind: 'foal' },
+          { id: 3, kind: 'riding' },
+          { id: 4, kind: 'riding' },
+        ],
       },
     ]);
   };
