@@ -337,7 +337,7 @@ function roadAxisOf(axis: readonly RoadPoint[], minM: number = MIN_ROAD_M): Road
  * Osa, kterou by nová cesta z bodů `points` měla (připojení konců jako `formRoad`, ale bez
  * rozdělení cest – bod rozcestí je týž); kratší než MIN_ROAD_M null. Nic nemění.
  */
-function plannedAxis(
+export function plannedAxis(
   roads: VillageRoads,
   points: readonly RoadPoint[],
   joinStart: number | false,

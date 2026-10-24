@@ -59,6 +59,8 @@ export interface RoadReport {
   junctions: number;
   stubs: number;
   endsOffAnchor: number;
+  /** Volné konce mimo kotvu: id úseku, druh, poloha (m). */
+  looseEnds: string[];
   parallelPairs: number;
   /** Opuštěné kusy pod stavbou (nejsou v síti) a stavby bez cesty do vchodu (paths.md – Vchody). */
   abandoned: number;
@@ -96,6 +98,8 @@ export interface NetworkShape {
   stubs: number;
   /** Volné konce mimo kotvu a mimo jinou cestu (Úloha 8 – po úklidu 0). */
   endsOffAnchor: number;
+  /** Volné konce mimo kotvu: id úseku, druh a poloha (m). */
+  looseEnds: string[];
   /** Dvojice úseků se souběžným kusem aspoň PARALLEL_MIN_M (`alongsideRoad`). */
   parallelPairs: number;
 }
@@ -157,7 +161,11 @@ export function networkShape(
       if (m >= PARALLEL_MIN_M) parallelPairs++;
     }
   }
-  return { junctions, stubs, endsOffAnchor: loose.length, parallelPairs };
+  const looseEnds = loose.map((e) => {
+    const r = roads[e.road]!;
+    return `${r.id}:${r.grade}@${Math.round(e.x)},${Math.round(e.z)}`;
+  });
+  return { junctions, stubs, endsOffAnchor: loose.length, looseEnds, parallelPairs };
 }
 
 /**
@@ -264,8 +272,8 @@ export function formatReport(r: RoadReport): string {
     `stav ${r.stateKb.toFixed(0)} kB`,
     `cesty ${r.roads} (${r.totalKm.toFixed(2)} km): ${grades || '–'}`,
     `křižovatky ${r.junctions}`,
-    `pahýly ${r.stubs}`,
-    `konce mimo kotvu ${r.endsOffAnchor}`,
+    `konce mimo kotvu ${r.endsOffAnchor}${r.looseEnds.length ? ` [${r.looseEnds.join(' ')}]` : ''}`,
+    `pahýly < ${STUB_MAX_M} m ${r.stubs}`,
     `souběžné páry ${r.parallelPairs}`,
     `opuštěné ${r.abandoned}`,
     `vchody bez cesty ${r.entrancesWithoutRoad}`,

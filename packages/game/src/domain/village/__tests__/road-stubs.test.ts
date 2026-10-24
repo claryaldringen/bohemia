@@ -1,14 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { type GridWindow } from '../paths/network-grid';
+import { nearAnchor, roadAnchors } from '../paths/road-anchors';
 import { TIDY_RUNS, roadsMonth } from '../paths/roads';
+import { accessDue } from '../paths/roads-access';
 import { emptyRoads, endKey, mergeRoadChains } from '../paths/roads-form';
 import { nearestOnRoads, roadLengthM } from '../paths/roads-geometry';
 import { splitLoops, trimStubs } from '../paths/roads-stubs';
 import { mergeParallelRoads, removeBraids } from '../paths/roads-tidy';
 import { type SpotContext } from '../paths/roads-trees';
 import { encodeRoute } from '../paths/routes';
-import { trailTerrain } from '../paths/terrain';
+import { EDGE_MARGIN_M, pathCellM, trailTerrain } from '../paths/terrain';
 import type { Road, RoadGrade, RoadPoint, StoredRoute, VillageRoads, VillageState } from '../types';
 import { village } from './abandonment-fixtures';
 import { LANDSCAPE } from './paths-fixtures';
@@ -110,8 +112,8 @@ describe('pahýly a okruhy', () => {
     expect(roads.nextId).toBe(100);
   });
 
-  it('pahýl 50 m se zkrátí na poslední bod trasy', () => {
-    const roads = roadsOf([
+  it('vyšlapaný pahýl 50 m bez kotvy zmizí, upravený zůstane (zarůstá pomaleji)', () => {
+    const list = (grade: RoadGrade): Road[] => [
       road(1, [
         [0, 0],
         [100, 0],
@@ -120,12 +122,16 @@ describe('pahýly a okruhy', () => {
         [100, 0],
         [200, 0],
       ]),
-      road(3, [
-        [100, 0],
-        [100, 50],
-      ]),
-    ]);
-    // trasa jde po pahýlu jen do z = 30 a pak odbočí k poli
+      road(
+        3,
+        [
+          [100, 0],
+          [100, 50],
+        ],
+        grade,
+      ),
+    ];
+    // trasa jde po pahýlu jen do z = 30 a pak odbočí k poli; konec pahýlu není kotva
     const line = [
       { x: 0, z: 0 },
       { x: 100, z: 0 },
@@ -137,16 +143,16 @@ describe('pahýly a okruhy', () => {
       [200, 0],
       [140, 30],
     ]);
-    expect(trimStubs(roads, [], { isAnchor, lines: [line] })).toBe(true);
-    const stub = roads.roads.find((r) => r.id === 3)!;
-    const end = stub.points[stub.points.length - 1]!;
-    expect(end.x).toBe(100);
-    expect(end.z).toBeGreaterThanOrEqual(30);
-    expect(end.z).toBeLessThanOrEqual(36);
+    const trodden = roadsOf(list('trodden'));
+    expect(trimStubs(trodden, [], { isAnchor, lines: [line] })).toBe(true);
+    expect(trodden.roads.some((r) => r.id === 3)).toBe(false);
     // druhý průchod nic nemění
-    const before = json(roads);
-    expect(trimStubs(roads, [], { isAnchor, lines: [line] })).toBe(false);
-    expect(roads).toEqual(before);
+    const before = json(trodden);
+    expect(trimStubs(trodden, [], { isAnchor, lines: [line] })).toBe(false);
+    expect(trodden).toEqual(before);
+    const improved = roadsOf(list('improved'));
+    expect(trimStubs(improved, [], { isAnchor, lines: [line] })).toBe(false);
+    expect(improved.roads.some((r) => r.id === 3)).toBe(true);
   });
 
   it('malý okruh přes jeden uzel se rozdělí a zmizí jako copánek a pahýl', () => {
@@ -326,6 +332,8 @@ describe('cesty k vchodům', () => {
       [90, 37.5],
     ]);
     expect(looseEnds(s.roads!.roads, isAnchor)).toEqual([]);
+    // vchod má cestu: `accessDue` není trvale pravdivé (jinak by úklid běžel každý měsíc)
+    expect(accessDue(s.roads!, s.routes!.list, pathCellM(LANDSCAPE))).toBe(false);
     // 12 měsíců bez změny tras: úklid neběží, id, osy a místa na stromy beze změny
     const snapshot = json(
       s.roads!.roads.map((r) => ({ id: r.id, spots: r.spots, points: r.points })),
@@ -338,4 +346,14 @@ describe('cesty k vchodům', () => {
       json(s.roads!.roads.map((r) => ({ id: r.id, spots: r.spots, points: r.points }))),
     ).toEqual(snapshot);
   }, 60_000);
+});
+
+describe('kraj mapy jako kotva', () => {
+  it('cesta k okraji terénu pěšin (EDGE_MARGIN_M) končí u kotvy, uprostřed mapy ne', () => {
+    const anchors = roadAnchors([], LANDSCAPE);
+    const edge = anchors.halfM - EDGE_MARGIN_M;
+    expect(nearAnchor(anchors, edge, 0)).toBe(true);
+    expect(nearAnchor(anchors, 0, -(edge - 5))).toBe(true);
+    expect(nearAnchor(anchors, edge - 40, 0)).toBe(false);
+  });
 });

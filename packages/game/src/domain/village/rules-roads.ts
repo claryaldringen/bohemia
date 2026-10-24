@@ -118,13 +118,9 @@ export const WEAR = {
 } as const;
 // paths.md – Síť – kotvy (návrh Clauda, Úloha 5): cesta smí končit do `entranceM` (3 m) od vchodu
 // stavby, do `goalM` (7,5 m) od konce trasy k cíli bez vchodu (voda, dřevo, pole, sad, louka,
-// pastva) a do `goalM` od kraje mapy
+// pastva) a v pásu kraje mapy (`EDGE_MARGIN_M` + `TRAIL.edgeBandM` + `goalM` od okraje – tam končí
+// cesty k sousedům)
 export const ROAD_ANCHORS = { entranceM: 3, goalM: 7.5 } as const;
-// paths.md – Síť – kotvy, pahýly a úklid (Martin, #6: „Pahýly bez cíle nevznikají, a když po
-// dělení a spojování cest nějaký zbude, sloučí se se sousední cestou nebo zmizí.“; čísla návrh
-// Clauda): kus od pahýlu k nejbližšímu uzlu kratší než `dropBelowM` (30 m) zmizí, delší se zkrátí
-// na poslední bod, kudy vede trasa (do `routeM` od osy); prodloužení po trase ke kotvě zatím ne
-export const ROAD_STUBS = { dropBelowM: 30, routeM: 5 } as const;
 // paths.md – Vchody (Martin, #6: „ke každé stavbě, kam se chodí, vede cesta až k jejímu vchodu,
 // i když se tam chodí málo, třeba k hřbitovu jen na pohřby.“; návrh Clauda): vchod má cestu, když
 // do `ROAD_ANCHORS.entranceM` od něj končí nebo vede pevná cesta; cesta k vchodu je nejméně

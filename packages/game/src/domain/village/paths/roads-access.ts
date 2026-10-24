@@ -6,7 +6,7 @@ import { ROAD_ACCESS, ROAD_ANCHORS } from '../rules';
 import type { Road, RoadPoint, StoredRoute, VillageRoads } from '../types';
 import { anchorKindOf } from './road-anchors';
 import { ATTACH_M, axisDistance } from './roads-geometry';
-import { fieldTraffic, formRoad } from './roads-form';
+import { fieldTraffic, formRoad, plannedAxis } from './roads-form';
 import { type SpotContext } from './roads-trees';
 import { routeLine } from './routes';
 import { type TrafficField } from './wear';
@@ -43,6 +43,32 @@ function gateWithoutRoad(
   return near(gate.x, gate.z) <= ROAD_ANCHORS.entranceM ? null : { line, near };
 }
 
+/** Cesta k vchodu, která by vznikla: body od vchodu zpět a jestli se připojí k pevné cestě. */
+interface AccessPlan {
+  points: RoadPoint[];
+  joined: boolean;
+}
+
+/**
+ * Plán cesty k vchodu trasy: od vchodu po trase zpět, dokud nedojde k pevné cestě (do ATTACH_M).
+ * Null, když vchod cestu má, nebo by byla kratší než `ROAD_ACCESS.minM` (nevznikla by – `formRoad`).
+ * Nic nemění.
+ */
+function accessPlan(roads: VillageRoads, route: StoredRoute, cellM: number): AccessPlan | null {
+  const missing = gateWithoutRoad(roads, route, cellM);
+  if (!missing) return null;
+  const { line, near } = missing;
+  const points: RoadPoint[] = [];
+  let joined = false;
+  for (let k = line.length - 1; k >= 0 && !joined; k--) {
+    const p = line[k]!;
+    points.push({ x: p.x, z: p.z });
+    joined = near(p.x, p.z) <= ATTACH_M;
+  }
+  if (!plannedAxis(roads, points, false, joined ? ATTACH_M : false, ROAD_ACCESS.minM)) return null;
+  return { points, joined };
+}
+
 /** Chybí cesta k vchodu některé stavby (`accessRoads` by něco založil)? Nic nemění. */
 export function accessDue(
   roads: VillageRoads,
@@ -50,7 +76,7 @@ export function accessDue(
   cellM: number,
   built: (visit: string) => boolean = () => true,
 ): boolean {
-  return accessRoutes(routes, built).some((route) => gateWithoutRoad(roads, route, cellM) !== null);
+  return accessRoutes(routes, built).some((route) => accessPlan(roads, route, cellM) !== null);
 }
 
 /**
@@ -74,17 +100,9 @@ export function accessRoads(
   const traffic = (points: readonly RoadPoint[]): number =>
     field ? fieldTraffic(points, field) : 0;
   for (const route of accessRoutes(routes, built)) {
-    const missing = gateWithoutRoad(roads, route, cellM);
-    if (!missing) continue;
-    const { line, near } = missing;
-    // od vchodu po trase zpět, dokud nedojde k pevné cestě
-    const points: RoadPoint[] = [];
-    let joined = false;
-    for (let k = line.length - 1; k >= 0 && !joined; k--) {
-      const p = line[k]!;
-      points.push({ x: p.x, z: p.z });
-      joined = near(p.x, p.z) <= ATTACH_M;
-    }
+    const plan = accessPlan(roads, route, cellM);
+    if (!plan) continue;
+    const { points, joined } = plan;
     const road = formRoad(
       roads,
       points,

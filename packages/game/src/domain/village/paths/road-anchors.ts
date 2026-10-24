@@ -7,10 +7,10 @@
 // Deterministická vrstva (jen přesná aritmetika – soubor hlídá ESLint jako síť pěšin).
 
 import { type Landscape } from '../../landscape';
-import { ROAD_ANCHORS } from '../rules-roads';
+import { ROAD_ANCHORS, TRAIL } from '../rules-roads';
 import type { RoadPoint, RoutePurpose, StoredRoute } from '../types';
 import { routeCells } from './routes';
-import { pathCellM } from './terrain';
+import { EDGE_MARGIN_M, pathCellM } from './terrain';
 
 export type RoadAnchorKind = 'entrance' | 'goal' | 'edge';
 
@@ -81,9 +81,13 @@ export function roadAnchors(routes: readonly StoredRoute[], landscape: Landscape
   return { points, halfM: (landscape.size * landscape.cellSizeM) / 2 };
 }
 
-/** Smí cesta končit v bodě (x, z)? Do dosahu kotvy, nebo u kraje mapy. */
+/**
+ * Smí cesta končit v bodě (x, z)? Do dosahu kotvy, nebo u kraje mapy: terén pěšin končí
+ * `EDGE_MARGIN_M` před okrajem a zemská stezka k sousedovi končí do `TRAIL.edgeBandM` od něj
+ * (cesta k sousedovi má konec tam), s tolerancí `goalM` na vzorkování.
+ */
 export function nearAnchor(anchors: RoadAnchors, x: number, z: number): boolean {
-  const edge = anchors.halfM - ROAD_ANCHORS.goalM;
+  const edge = anchors.halfM - EDGE_MARGIN_M - TRAIL.edgeBandM - ROAD_ANCHORS.goalM;
   if (Math.abs(x) >= edge || Math.abs(z) >= edge) return true;
   return anchors.points.some((a) => {
     const dx = a.x - x;

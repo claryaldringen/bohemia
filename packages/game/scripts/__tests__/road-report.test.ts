@@ -46,6 +46,7 @@ describe('road-report', () => {
       junctions: 1,
       stubs: 1,
       endsOffAnchor: 3,
+      looseEnds: ['2:trodden@200,0', '3:trodden@100,100', '4:trodden@0,10'],
       parallelPairs: 0,
     });
     // konec u kotvy pahýl není; opuštěný kus se nepočítá

@@ -295,10 +295,15 @@ Návrh Clauda:
     kam nikdo nechodí, kotvou být nemusí – cesta tam nevznikne. Kotvou je i pevná cesta (nová cesta
     se k ní připojí rozcestím).
 - **Pahýl** je konec mimo kotvu a mimo jinou cestu. Nevznikne – nová cesta se zakládá jen od kotvy
-  ke kotvě (Vyšlapanost a vznik cesty). Zbude-li po zarůstání, dělení nebo spojování: kus od
-  pahýlu k nejbližšímu uzlu kratší než **30 m** zmizí hned (křižovatka u něj se přepočítá a dvě
-  zbylé cesty se spojí – „sloučí se se sousední cestou“), delší se zkrátí na poslední bod, kudy
-  ještě vede trasa ke kotvě; vede-li po něm trasa až ke kotvě, prodlouží se k ní.
+  ke kotvě (Vyšlapanost a vznik cesty). Zbude-li po zarůstání, dělení nebo spojování, **zmizí**
+  v nejbližším úklidu, bez ohledu na délku (křižovatka u něj se přepočítá a dvě zbylé cesty se
+  spojí – „sloučí se se sousední cestou“; konec do 12 m od jiné cesty se k ní napojí jako díra).
+  Výklad zadání (návrh Clauda, 24. 10. 2026; Martin, #6: „Pahýly bez cíle nevznikají, a když po
+  dělení a spojování cest nějaký zbude, sloučí se se sousední cestou nebo zmizí.“): neplatí žádná
+  výjimka podle délky ani podle toho, že tudy vede trasa – kus, jehož konec není u kotvy, mizí
+  celý až k nejbližšímu uzlu. **Upravená a vozová cesta** (hráč do ní investoval) mizí jen
+  pomaleji (Martin, #6: „Platí to pro každou cestu, i upravenou a vozovou, jen pro ty pomaleji“):
+  zarůstá podle `ROAD_DECAY`, nezkracuje se.
 - **Úklid** po každé změně cest (měsíční kontrola, dostavěné vylepšení, převod) v pevném pořadí:
   1. **souběžné cesty a copánky** – dnešní pravidla ([roads.md – Úseky a
      rozcestí](roads.md#úseky-a-rozcestí): do 12 m stejným směrem, kus od 25 m; copánek mezi
@@ -317,13 +322,13 @@ Návrh Clauda:
   - úklid běží v měsíční kontrole, jen když se od minulého úklidu změnily cesty, nebo když nové
     kotvy a trasy dají práci (pahýl, díra, okruh, vchod bez cesty) – bez změny nic, žádná nová id;
   - **upravená a vozová cesta** (postavil je hráč – Převod: „upravené a vozové zůstanou“) se jako
-    pahýl nezkracuje; upravený kus kratší než 15 m zmizí, delší zůstane a zarůstá podle druhu;
-  - „kudy ještě vede trasa“ = bod osy do 5 m od čáry trasy; zkrátí se nejvýš k místu, kde k ose
-    přiléhá konec jiné cesty (napojení objížďky);
-  - vyšlapaný pahýl delší než 30 m, po kterém trasa vede méně než 15 m, nebo samotný kus bez uzlu
-    zůstane a zarůstá po kusech (Zarůstání) – nemizí naráz (stará cesta oklikou u vozové cesty);
-  - pahýl delší než 30 m, po kterém trasa vede až na konec, zůstane (konec, kde pěšina odbočí ke
-    kotvě) – prodloužení po trase ke kotvě zatím není (Vlkov ho nepotřeboval);
+    pahýl neodstraňuje; upravený kus kratší než 15 m zmizí, delší zůstane a zarůstá podle druhu;
+  - vyšlapaný pahýl zmizí vždy, i delší než 30 m a i když po něm vede trasa (stará cesta oklikou
+    u vozové cesty zůstává, jen když oba konce leží u kotev nebo na jiných cestách);
+  - kraj mapy je kotva v pásu od okraje terénu pěšin (10 m) po konec zemských stezek k sousedům
+    (`TRAIL.edgeBandM` 20 m) a ještě 7,5 m tolerance – cesty k sousedům tam končí;
+  - vchod, který cestu nedostane (spojka by byla kratší než 3 m), nespouští úklid každý měsíc –
+    `accessDue` počítá tutéž cestu jako `accessRoads`;
   - konec úseku se díře nepřipojí zpět do uzlu, ze kterého úsek vychází (vznikal okruh tam a zpět);
     malý okruh se rozdělí a zmizí jako copánek a pahýl.
   - Vchod má cestu, i když kolem něj (do 3 m) vede pevná cesta, která v něm nekončí; cesta k vchodu
@@ -501,29 +506,29 @@ Návrh Clauda (odhady – ověří poslední úloha plánu):
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                | Kdo          |
-| ----------------------------------------------------------------------------------------- | ------------ |
-| Pravidla 1–11 nového systému cest                                                         | Martin       |
-| Lidé na upravované cestě vidět pracovat; přes ohrady se nechodí, dovnitř brankou          | Martin       |
-| Staré vsi převést jednou a idempotentně, nezahodit                                        | Martin       |
-| Čísla vzniku a zarůstání zvolí Claude sám                                                 | Martin       |
-| Trasy ukládá simulace do stavu (řetězový kód), scéna je jen čte                           | návrh Clauda |
-| Zvyk × 1,25 mimo cestu – louka jen při úspoře přes 20 % času                              | návrh Clauda |
-| Ploty ohrad a hřbitova neprůchodné, trasa končí v brance; pohřby jsou trasa               | návrh Clauda |
-| Vyšlapanost 7,5 m, ± 1 políčko, + provoz − 1 za den, 0–1 500, cesta od 1 000, vůz × 2     | návrh Clauda |
-| Vznik jen celé cesty od kotvy ke kotvě, prodloužení do vyšlapanosti 500; měsíční kontrola | návrh Clauda |
-| Kotvy: vchod, křižovatka, kraj mapy a cíl (konec trasy k vodě, dřevu, poli, sadu, louce)  | návrh Clauda |
-| Pahýl kratší než 30 m zmizí, delší se zkrátí; opuštěná cesta mimo síť                     | návrh Clauda |
-| Křižovatka: Y s β 30–60°, natočení po 5°, vchod 1,5 × šířka, oblouk 12 m, dvě po 10 m     | návrh Clauda |
-| Znamení: strom 40 %, kámen 30 %, kůl 30 %; strom roste jako strom u cesty                 | návrh Clauda |
-| Cesta k vchodu bez ohledu na vyšlapanost, nezarůstá, dokud se ke stavbě chodí             | návrh Clauda |
-| Převod: causeway → upravená, stav z historie, vyšlapanost z kandidátů, úklid, křižovatky  | návrh Clauda |
-| Převod po krocích s úlohami – stará ves hratelná po každé úloze; trasy při načtení        | návrh Clauda |
-| Provozní pole vyšlapanosti v paměti; dopočet 40 let Vlkova nejvýš + 1 s                   | návrh Clauda |
-| Ploty chodcům touž funkcí jako vozům (`fencedCells`) – ulička 3 m mezi ohradami průchozí  | návrh Clauda |
-| Stavba přes cestu: kus pod ní opuštěný hned, objížďka se vyšlape a napojí                 | návrh Clauda |
-| Jízdy vozů do vyšlapanosti ročně z `flushCartTrips`; i přes osetý díl                     | návrh Clauda |
-| Kotvy z konců tras (brána, vchod stavby, cíl, kraj mapy); souběžné cesty sloučí úklid     | návrh Clauda |
+| Rozhodnutí                                                                                       | Kdo          |
+| ------------------------------------------------------------------------------------------------ | ------------ |
+| Pravidla 1–11 nového systému cest                                                                | Martin       |
+| Lidé na upravované cestě vidět pracovat; přes ohrady se nechodí, dovnitř brankou                 | Martin       |
+| Staré vsi převést jednou a idempotentně, nezahodit                                               | Martin       |
+| Čísla vzniku a zarůstání zvolí Claude sám                                                        | Martin       |
+| Trasy ukládá simulace do stavu (řetězový kód), scéna je jen čte                                  | návrh Clauda |
+| Zvyk × 1,25 mimo cestu – louka jen při úspoře přes 20 % času                                     | návrh Clauda |
+| Ploty ohrad a hřbitova neprůchodné, trasa končí v brance; pohřby jsou trasa                      | návrh Clauda |
+| Vyšlapanost 7,5 m, ± 1 políčko, + provoz − 1 za den, 0–1 500, cesta od 1 000, vůz × 2            | návrh Clauda |
+| Vznik jen celé cesty od kotvy ke kotvě, prodloužení do vyšlapanosti 500; měsíční kontrola        | návrh Clauda |
+| Kotvy: vchod, křižovatka, kraj mapy a cíl (konec trasy k vodě, dřevu, poli, sadu, louce)         | návrh Clauda |
+| Pahýl (konec mimo kotvu) zmizí bez ohledu na délku; upravená a vozová zarůstá; opuštěná mimo síť | návrh Clauda |
+| Křižovatka: Y s β 30–60°, natočení po 5°, vchod 1,5 × šířka, oblouk 12 m, dvě po 10 m            | návrh Clauda |
+| Znamení: strom 40 %, kámen 30 %, kůl 30 %; strom roste jako strom u cesty                        | návrh Clauda |
+| Cesta k vchodu bez ohledu na vyšlapanost, nezarůstá, dokud se ke stavbě chodí                    | návrh Clauda |
+| Převod: causeway → upravená, stav z historie, vyšlapanost z kandidátů, úklid, křižovatky         | návrh Clauda |
+| Převod po krocích s úlohami – stará ves hratelná po každé úloze; trasy při načtení               | návrh Clauda |
+| Provozní pole vyšlapanosti v paměti; dopočet 40 let Vlkova nejvýš + 1 s                          | návrh Clauda |
+| Ploty chodcům touž funkcí jako vozům (`fencedCells`) – ulička 3 m mezi ohradami průchozí         | návrh Clauda |
+| Stavba přes cestu: kus pod ní opuštěný hned, objížďka se vyšlape a napojí                        | návrh Clauda |
+| Jízdy vozů do vyšlapanosti ročně z `flushCartTrips`; i přes osetý díl                            | návrh Clauda |
+| Kotvy z konců tras (brána, vchod stavby, cíl, kraj mapy); souběžné cesty sloučí úklid            | návrh Clauda |
 
 ## Nahrazená pravidla (22. 10. 2026)
 

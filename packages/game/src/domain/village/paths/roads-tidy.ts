@@ -303,7 +303,7 @@ export function tidyRoads(
     if (more) mergeRoadChains(roads, constructions);
     if (!loops && !parallel && !braids && !more) break;
   }
-  // pahýly po dělení a spojování – zmizí nebo se zkrátí, uzel u nich se spojí
+  // pahýly po dělení a spojování – zmizí, uzel u nich se spojí
   if (network && trimStubs(roads, constructions, network)) mergeRoadChains(roads, constructions);
   markRoadEnds(roads, ends);
   // konce po zarostlém kusu, kde už žádný úsek nekončí, zmizí

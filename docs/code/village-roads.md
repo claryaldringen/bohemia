@@ -165,7 +165,7 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   `roadAnchors(routes, landscape)` – začátek trasy (brána domu) vchod, konec podle cíle
   (`anchorKindOf`: `edge:*` kraj mapy, voda, dřevo, pastva, pole, sad, louka… cíl, stavby se vchodem
   – `d`, `cemetery`, `pen`, `threshing-floor`, `idol`, `shrine`… – vchod), dosah `ROAD_ANCHORS`
-  (vchod 3 m, cíl a kraj mapy 7,5 m). Roční kandidáti (`formRoads`, `hotRuns`, `MATCH_M` u pěších)
+  (vchod 3 m, cíl 7,5 m; kraj mapy = pás `EDGE_MARGIN_M` + `TRAIL.edgeBandM` + 7,5 m od okraje, `nearAnchor`). Roční kandidáti (`formRoads`, `hotRuns`, `MATCH_M` u pěších)
   zrušeni. **Stavba přes cestu:** objížďka dál než 5 m od staré osy se po vyšlapání stane cestou
   napojenou rozcestími na zbytky staré cesty (test `road-form-wear.test.ts`); kus pod stavbou zatím
   zůstává a úklid ho bere jako starší (silnější) – objížďku souběžnou s ním (Vlkov – polozemnice)
@@ -177,22 +177,20 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   [Vchody](../design/paths.md#vchody); Martin 22. 10. 2026, pravidla 10 a 11): `roadsMonth` po
   zániku kusů a vzniku z vyšlapanosti pustí `tidyMonth` – jen když se od posledního úklidu změnily
   osy úseků (`VillageRoads.tidyKey`, otisk FNV-1a `networkKey`), nebo nové kotvy a trasy dají práci
-  (`tidyDue` – okruh, díra, pahýl; `accessDue` – vchod bez cesty); jinak nic, ani kontext míst na
+  (`tidyDue` – okruh, díra, pahýl; `accessDue` – vchod bez cesty, počítá tutéž cestu jako `accessRoads` přes `accessPlan`, takže vchod bez možné cesty úklid nespouští); jinak nic, ani kontext míst na
   stromy (čítač `TIDY_RUNS` pro testy). Pořadí: `tidyRoads` s kotvami a čarami tras (`StubNetwork`):
   okruh přes jeden uzel se rozdělí v nejvzdálenějším bodě (`splitLoops`, `roads-stubs.ts`) →
   souběžné → díry (`joinRoadGaps` už nespojí konec zpět do uzlu, ze kterého úsek vychází – vznikal
-  okruh tam a zpět) → copánky → spojení → **pahýly** (`trimStubs`: konec mimo kotvu a mimo jinou
-  cestu; vyšlapaný kus kratší než `ROAD_STUBS.dropBelowM` 30 m zmizí, delší se zkrátí na poslední
-  vzorek osy u čáry trasy (do `routeM` 5 m), nejvýš k napojení jiné cesty – objížďka tak neztratí
-  napojení; delší bez trasy (pod `MIN_ROAD_M`) nebo bez uzlu zůstane a zarůstá; upravená cesta
-  zmizí jen kratší než `MIN_ROAD_M`, vozová, rozestavěná a zemská stezka se nemění) → **cesty k vchodům** (`accessRoads`, `roads-access.ts`: stavba s trasou s provozem
+  okruh tam a zpět) → copánky → spojení → **pahýly** (`trimStubs`: konec vyšlapaného úseku mimo kotvu a mimo jinou cestu zmizí bez ohledu na délku
+  – nejbližší úklid, ne až zarůstání; upravená cesta zmizí jen kratší než `MIN_ROAD_M` a jinak zarůstá
+  podle `ROAD_DECAY`, vozová, rozestavěná a zemská stezka se nemění) → **cesty k vchodům** (`accessRoads`, `roads-access.ts`: stavba s trasou s provozem
   stavby – `StoredRoute.visit` – do vchodu, hotová – rozestavěný hřbitov ne; když u vchodu do 3 m
   nekončí ani nevede živá cesta, vznikne vyšlapaná cesta po nejvytíženější trase od vchodu k první
   pevné cestě do `ATTACH_M` – rozcestí –, nejméně `ROAD_ACCESS.minM`; kronika `road-formed`;
   nezarůstá, dokud končí ve vchodu – `settleRoadCondition`). `formRoad` má volitelnou nejkratší
   osu. `road-report.ts` počítá jen živé úseky (opuštěné zvlášť) a vypisuje i konce mimo kotvu,
-  souběžné páry a vchody bez cesty; pahýl = úsek pod 30 m s koncem mimo kotvu (paths.md). Testy
-  `road-stubs.test.ts` (pahýl 10 m, pahýl 50 m, malý okruh, vozová pohltí souběžnou, fixtura Vlkova,
+  souběžné páry a vchody bez cesty; hlavní metrika je „konce mimo kotvu“ (s polohou), „pahýly < 30 m“ je jen vedlejší (paths.md). Testy
+  `road-stubs.test.ts` (pahýl 10 m, pahýl 50 m zmizí a upravený zůstane, kraj mapy jako kotva, malý okruh, vozová pohltí souběžnou, fixtura Vlkova,
   hřbitov – cesta do branky, 12 měsíců bez změny tras bez úklidu a bez nových id),
   `road-detour.test.ts` (napojení objížďky po úklidu, `nextId`).
 
