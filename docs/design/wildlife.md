@@ -1,6 +1,6 @@
 # Divoká zvěř – stavy, škody, obrana, lov a ryby
 
-Stav: **návrh k připomínkám** (24. 10. 2026). Implementace zatím není. Navazuje na
+Stav: **schváleno** (Martin 24. 10. 2026: „Schvaluji“). Implementace zatím není – po cestách, růstu populace a #9 fázi 1. Navazuje na
 [koně](horses.md), [vojvodovu rodinu](lord.md), [stravu a dobytek](diet.md), [pole](fields.md)
 a [les](forest.md). Čísla zdůvodňuje [rešerše](research/2026-10-24-wildlife.md). Co níž není
 výslovně Martinovo, je návrh Clauda. Otevřené otázky Martin uzavřel 24. 10. 2026 (sekce
