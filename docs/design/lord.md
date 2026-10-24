@@ -159,11 +159,12 @@ pozná hrozbu ze dvou odhadů, které už počítá – nový odhad nevzniká.
 
 ## Co hráč vidí (UI jako 0 A.D.)
 
-- **Panel dvorce:** obyvatelé jako u obydlí; u mužů rodiny tři ikony dovedností – luk, štít
-  s mečem, kůň – s čísly (popisek „Lukostřelba 64 / 100“). Kůň jen u toho, kdo koně má.
+- **Panel dvorce:** obyvatelé jako u obydlí (portrét a věk), bez dovedností – ty jsou jen v panelu
+  vybrané osoby (Martin 24. 10. 2026: „To by mělo být na panelu té označené osoby“).
 - **Panel člověka:** nové role **vojvodův syn, vojvodův vnuk, vojvodova dcera, vojvodova snacha**
   (vedle dnešních vojvoda a vojvodova žena); činnost „cvičí lukostřelbu“, „cvičí boj“, „jezdí na
-  koni“, „pomáhá na poli“, „vede domácnost“; dovednosti jako v panelu dvorce.
+  koni“, „pomáhá na poli“, „vede domácnost“; tři ikony dovedností – luk, štít s mečem, podkova – s čísly (popisek „Lukostřelba 64 / 100“),
+  jízda jen u toho, kdo koně má nebo už jezdil.
 - **Horní lišta:** volná práce je už bez rodiny; popisek pracovní síly doplní řádek s ikonou
   dvorce a číslem („Vojvodova rodina: 5 cvičí“, při hladu „5 na poli“).
 - **Zprávy** (ne varování): „Vojvodova rodina jde na pole“ (popisek: ves nestihne osev / ves

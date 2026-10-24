@@ -224,17 +224,10 @@ export function ManorUpgrades({
   );
 }
 
-/** Dovednosti rodiny v panelu – ikona, název v popisku a nejvyšší hodnota (lord.md). */
-const ARMS_STATS = [
-  { key: 'bow', icon: 'luk', name: 'Lukostřelba' },
-  { key: 'combat', icon: 'boj', name: 'Boj' },
-  { key: 'riding', icon: 'jizda', name: 'Jízda na koni' },
-] as const;
-
 /**
- * Obyvatelé dvorce (lord.md – Co hráč vidí): u každého portrét s věkem (popisek role), u mužů
- * rodiny ikony luku, boje a jízdy s čísly (popisek „Lukostřelba 64 / 100“). Jízda jen u toho,
- * kdo koně má nebo už jezdil.
+ * Obyvatelé dvorce (lord.md – Co hráč vidí): u každého portrét s věkem (popisek role). Dovednosti
+ * (luk, boj, jízda) ukazuje jen panel vybrané osoby (Martin 24. 10. 2026: „To by mělo být na
+ * panelu té označené osoby“).
  */
 export function ManorFamily({ family }: { family: readonly ManorMember[] }): ReactElement {
   return (
@@ -254,24 +247,6 @@ export function ManorFamily({ family }: { family: readonly ManorMember[] }): Rea
               {m.age}
             </span>
           </Tooltip>
-          {m.arms &&
-            ARMS_STATS.filter((s) => s.key !== 'riding' || m.horse || m.arms!.riding > 0).map(
-              (s) => (
-                <Tooltip
-                  key={s.key}
-                  placement="above"
-                  content={`${s.name} ${m.arms![s.key]} / 100`}
-                >
-                  <span
-                    className="flex items-center gap-0.5 text-xs tabular-nums text-[#ecdfc4]"
-                    tabIndex={0}
-                  >
-                    <img src={`/icons/resources/${s.icon}.png`} alt="" width={20} height={20} />
-                    <span data-testid={`manor-arms-${s.key}-${m.id}`}>{m.arms![s.key]}</span>
-                  </span>
-                </Tooltip>
-              ),
-            )}
         </li>
       ))}
     </ul>

@@ -129,18 +129,10 @@ describe('rodina ve dvorci (lord.md – Co hráč vidí)', () => {
     />,
   );
 
-  it('muž rodiny má luk, boj a jízdu s čísly a popiskem „Lukostřelba 64 / 100“', () => {
-    expect(html).toContain('data-testid="manor-arms-bow-1"');
-    expect(html).toContain('>64<');
-    expect(html).toContain('Lukostřelba 64 / 100');
-    expect(html).toContain('Boj 51 / 100');
-    expect(html).toContain('Jízda na koni 38 / 100');
-  });
-
-  it('kůň jen u toho, kdo koně má; žena bez dovedností', () => {
-    expect(html).toContain('data-testid="manor-arms-riding-1"');
-    expect(html).not.toContain('data-testid="manor-arms-riding-3"');
+  it('panel dvorce dovednosti neukazuje – ty jsou v panelu vybrané osoby', () => {
+    expect(html).toContain('data-testid="manor-member-1"');
     expect(html).toContain('data-testid="manor-member-2"');
-    expect(html).not.toContain('manor-arms-bow-2');
+    expect(html).not.toContain('manor-arms-');
+    expect(html).not.toContain('Lukostřelba');
   });
 });

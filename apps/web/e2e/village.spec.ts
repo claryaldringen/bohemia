@@ -353,11 +353,11 @@ test('nový hráč založí ves umístěním zemnice, přejmenuje ji a vybere ze
     )
     .toBe('dwelling');
   await expect(panel.getByTestId('selection-occupants')).toHaveText('4/6');
-  // zemnice zakladatelů je dvorec – obyvatelé jako rodina s dovednostmi (lord.md – Co hráč vidí)
+  // zemnice zakladatelů je dvorec – obyvatelé jako rodina; dovednosti jen v panelu osoby (lord.md)
   await expect(panel.getByTestId('manor-family').getByRole('listitem')).toHaveCount(4);
   await expect(
-    panel.getByTestId('manor-family').locator('[data-testid^="manor-arms-bow-"]').first(),
-  ).toBeVisible();
+    panel.getByTestId('manor-family').locator('[data-testid^="manor-arms-"]'),
+  ).toHaveCount(0);
 
   // Ves je uložená na serveru – po novém načtení stránky je tu dál i s novým jménem.
   await page.reload();
