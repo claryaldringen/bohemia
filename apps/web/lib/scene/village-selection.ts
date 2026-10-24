@@ -1,3 +1,4 @@
+import { roadChainIds } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 import {
   personExists,
@@ -107,4 +108,21 @@ export function selectsAllDwellings(event: {
   return (
     event.code === 'KeyA' && (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey
   );
+}
+
+/**
+ * Výpis výběru do konzole prohlížeče – typ a id objektu, ať Martin může říct, který objekt zlobí
+ * (Martin 24. 10. 2026). U cesty všechny úseky řetězu a úsek pod kurzorem.
+ */
+export function describeTarget(
+  target: VillageTarget,
+  village: Pick<SceneVillage, 'roads'>,
+): string {
+  if (target.kind === 'road') {
+    const chain = roadChainIds(village.roads ?? [], target.segment ?? target.id);
+    const clicked = target.segment === undefined ? '' : `, kliknutý úsek ${target.segment}`;
+    return `road ${target.id} – úseky ${chain.join(', ')}${clicked}`;
+  }
+  const { kind, ...rest } = target;
+  return `${kind} ${JSON.stringify(rest)}`;
 }

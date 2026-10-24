@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { SceneVillage } from '../../village-view';
 import type { VillageTarget } from '../village-picking';
 import {
+  describeTarget,
   allDwellingsTarget,
   dwellingsTarget,
   nextSelection,
@@ -208,5 +209,36 @@ describe('selectsAllDwellings', () => {
     expect(selectsAllDwellings(key('KeyA', { ctrlKey: true, shiftKey: true }))).toBe(false);
     expect(selectsAllDwellings(key('KeyA', { ctrlKey: true, altKey: true }))).toBe(false);
     expect(selectsAllDwellings(key('KeyZ', { ctrlKey: true }))).toBe(false);
+  });
+});
+
+describe('výpis výběru do konzole (Martin 24. 10. 2026)', () => {
+  const roads = [
+    {
+      id: 9,
+      points: [
+        { x: 0, z: 0 },
+        { x: 50, z: 0 },
+      ],
+      grade: 'trodden' as const,
+    },
+    {
+      id: 2,
+      points: [
+        { x: 50, z: 0 },
+        { x: 100, z: 0 },
+      ],
+      grade: 'improved' as const,
+    },
+  ];
+  it('cesta – úseky řetězu a úsek pod kurzorem', () => {
+    const text = describeTarget({ kind: 'road', id: 2, segment: 9 }, { roads });
+    expect(text).toMatch(/^road 2 – úseky /);
+    expect(text).toContain('9');
+    expect(text).toContain('kliknutý úsek 9');
+  });
+  it('ostatní – typ a id', () => {
+    expect(describeTarget({ kind: 'dwelling', id: 5 }, { roads })).toBe('dwelling {"id":5}');
+    expect(describeTarget({ kind: 'cart', id: 3 }, { roads })).toBe('cart {"id":3}');
   });
 });

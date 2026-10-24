@@ -275,7 +275,7 @@ describe('výběr úseku cesty kliknutím', () => {
       groundHeight: () => 0,
       cellOf: () => ({ x: 0, y: 0 }),
     };
-    expect(pickVillageTarget(village, ray, options)).toEqual({ kind: 'road', id: 3 });
+    expect(pickVillageTarget(village, ray, options)).toEqual({ kind: 'road', id: 3, segment: 3 });
     expect(pickVillageTarget(village, ray, { ...options, ground: { x: 20, z: 6 } })).toBeNull();
   });
 
@@ -300,10 +300,11 @@ describe('výběr úseku cesty kliknutím', () => {
       groundHeight: () => 0,
       cellOf: () => ({ x: 0, y: 0 }),
     };
-    expect(pickVillageTarget(chain, ray, options)).toEqual({ kind: 'road', id: 2 });
+    expect(pickVillageTarget(chain, ray, options)).toEqual({ kind: 'road', id: 2, segment: 9 });
     expect(pickVillageTarget(chain, ray, { ...options, ground: { x: 130, z: 1 } })).toEqual({
       kind: 'road',
       id: 2,
+      segment: 2,
     });
   });
 });

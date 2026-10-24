@@ -68,6 +68,7 @@ import { wholeTarget, type VillageTarget } from '@/lib/scene/village-picking';
 import { DIRECTION_NAMES } from '@/lib/trade-names';
 import {
   allDwellingsTarget,
+  describeTarget,
   nextSelection,
   presentTarget,
   selectsAllDwellings,
@@ -400,7 +401,9 @@ export function VillageGame({
   // pole) se zruší, z víc obydlí zbydou jen ta, která ještě stojí.
   useEffect(
     () =>
-      scene?.onSelect((target, additive, double) =>
+      scene?.onSelect((target, additive, double) => {
+        // typ a id objektu pod kurzorem do konzole (Martin 24. 10. 2026)
+        if (target) console.info('[výběr]', describeTarget(target, sceneVillageRef.current));
         // stavby jiné vsi na téže mapě se nevybírají – klik na ně jako na prázdnou zem
         setSelected((prev) =>
           nextSelection(
@@ -409,8 +412,8 @@ export function VillageGame({
             additive,
             double,
           ),
-        ),
-      ),
+        );
+      }),
     [scene],
   );
   const current = useMemo(() => presentTarget(sceneVillage, selected), [sceneVillage, selected]);

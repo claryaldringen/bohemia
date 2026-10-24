@@ -211,3 +211,11 @@ dřevěné nářadí nikde. Vozy: panel ohrady spřežení (`PenBody`, `oxen.car
 „má / chce“ po druzích); ves bez ohrady volů má vozy v panelu tesaře (`CarpenterStats`: vozy vsi
 / potřeba, na cestě). Uhlí: `selection-workshop-stock` v panelu dílny uhlíře (a hřivny u kováře).
 Panely dílny keramiky a tesaře zásobu výrobku neukazují; simulace je beze změny.
+
+## Výpis výběru do konzole
+
+Martin (24. 10. 2026): „když označím nějaký objekt, chtěl bych vidět v konzoli jeho typ a ID – abych
+ti třeba mohl říct, který úsek cesty zlobí“. Klik do scény (`VillageGame` – `scene.onSelect`) vypíše
+`console.info('[výběr]', …)` z `describeTarget` (`lib/scene/village-selection.ts`): typ cíle
+(`VillageTarget.kind`) a jeho id, u cesty id cesty hráče, všechny úseky řetězu (`roadChainIds`)
+a úsek pod kurzorem (`segment` – nastavuje `pickVillageTarget`).

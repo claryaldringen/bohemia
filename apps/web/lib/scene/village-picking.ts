@@ -46,9 +46,10 @@ export type VillageTarget =
   | { kind: 'pen'; id: number }
   /**
    * Pevná cesta – cesta hráče (roads.md – Cesta pro hráče): řetěz úseků, id = jeho první úsek
-   * (`roadChainIds`), ať se klikne na kterýkoli.
+   * (`roadChainIds`), ať se klikne na kterýkoli; `segment` – úsek pod kurzorem (výpis výběru do
+   * konzole – Martin 24. 10. 2026).
    */
-  | { kind: 'road'; id: number }
+  | { kind: 'road'; id: number; segment?: number }
   /**
    * Křižovatka cest (paths.md – Křižovatky; Martin, #6: „samostatný objekt, který jde označit“):
    * id křižovatky; klik do `JUNCTION_PICK_M` od středu.
@@ -287,7 +288,7 @@ export function pickVillageTarget(
   const road = nearestRoad(village, ground, ROAD_PICK_M);
   // celá cesta hráče – navazující úseky různého stupně jsou jedna cesta (Martin)
   if (road !== null)
-    return { kind: 'road', id: roadChainIds(village.roads ?? [], road)[0] ?? road };
+    return { kind: 'road', id: roadChainIds(village.roads ?? [], road)[0] ?? road, segment: road };
   for (const field of village.fields) {
     const part = field.parts.find(hit);
     if (part) return { kind: 'field-part', id: field.id, cell: copyCell(part.cell) };
