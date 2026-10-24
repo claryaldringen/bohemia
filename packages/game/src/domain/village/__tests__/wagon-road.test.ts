@@ -26,6 +26,7 @@ import {
   WAGON_BUILDING,
   WAGON_EXISTS,
   WAGON_LOOP,
+  fordArcsOf,
   planWagonRoad,
   startWagonRoad,
   wagonChainStatus,
@@ -310,7 +311,14 @@ describe('rychlosti – vozová cesta', () => {
       grade: 'wagon' as const,
       ground: { wet: [[10, 30]] as [number, number][], fords: [50] },
     };
-    expect(roadPieceCost(road, 0, 100)).toBeCloseTo(100 / 1.7 + ROAD_WALK.fordExtraM, 9);
+    // lávka pro pěší vedle brodu: brod pěšího nezpomalí
+    expect(roadPieceCost(road, 0, 100)).toBeCloseTo(100 / 1.7, 9);
+  });
+
+  it('lávka u vozové cesty: každý brod (souvislý běh bodů) jednou, v m od začátku', () => {
+    const profile = [0, 10, 20, 30, 40, 50].map((x) => ({ x, z: 0, y: 0 }));
+    expect(fordArcsOf(profile, [1, 2, 4])).toEqual([10, 40]);
+    expect(fordArcsOf(profile, [])).toEqual([]);
   });
 });
 

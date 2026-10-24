@@ -1081,6 +1081,11 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
           trees: 26,
           treesToFell: 11,
           swathTrees: 0,
+          parts: {
+            improved: { manDays: 100, trees: 0 },
+            causeway: { manDays: 90, trees: 18 },
+            footbridge: { manDays: 30, trees: 8 },
+          },
           blocked: 'Vylepšení cesty se už staví.',
         },
       ],

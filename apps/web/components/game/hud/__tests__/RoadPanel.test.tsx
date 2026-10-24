@@ -6,6 +6,12 @@ import { SelectionPanel } from '../SelectionPanel';
 
 // Panel pevné cesty (roads.md – Co hráč vidí): druh, délka, stáří, stromy, vylepšení a jabloně.
 
+const PARTS = {
+  improved: { manDays: 15, trees: 0 },
+  causeway: { manDays: 18, trees: 9 },
+  footbridge: { manDays: 15, trees: 4 },
+};
+
 const road = (
   over: Partial<Extract<SelectionDetails, { kind: 'road' }>> = {},
 ): SelectionDetails => ({
@@ -28,6 +34,7 @@ const road = (
       trees: 13,
       treesToFell: 5,
       swathTrees: 0,
+      parts: PARTS,
       blocked: null,
     },
   ],
@@ -116,12 +123,41 @@ describe('SelectionPanel – pevná cesta', () => {
             trees: 13,
             treesToFell: 5,
             swathTrees: 0,
+            parts: PARTS,
             blocked: 'Na hať a lávku chybí dřevo.',
           },
         ],
       }),
     );
     expect(button(blocked, 'improved')).toContain('disabled=""');
+  });
+
+  it('popisek „Upravit cestu“ ukáže rozpad ceny: úprava, hať, lávka', () => {
+    const html = render(road());
+    expect(html).toMatch(/data-testid="road-upgrade-part-improved"[^>]*>.*Úprava.*15/);
+    expect(html).toMatch(/data-testid="road-upgrade-part-causeway"[^>]*>.*Hať.*18.*9/);
+    expect(html).toMatch(/data-testid="road-upgrade-part-footbridge"[^>]*>.*Lávka.*15.*4/);
+    // suchá cesta bez mokřiny a brodu: jediná část, rozpad se nezobrazí
+    const dry = render(
+      road({
+        upgrades: [
+          {
+            upgrade: 'improved',
+            laborManDays: 15,
+            trees: 0,
+            treesToFell: 0,
+            swathTrees: 0,
+            parts: {
+              improved: { manDays: 15, trees: 0 },
+              causeway: { manDays: 0, trees: 0 },
+              footbridge: { manDays: 0, trees: 0 },
+            },
+            blocked: null,
+          },
+        ],
+      }),
+    );
+    expect(dry).not.toContain('road-upgrade-parts');
   });
 
   it('rozestavěné vylepšení ukáže průběh, hotová hať žádné tlačítko', () => {

@@ -274,16 +274,19 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   `causeway` zanikl (`RoadGrade` = `trodden | improved | wagon`), `Road.unbridged?: true` = upravená
   cesta přes mokřinu nebo brod bez hatě a lávky (`roadBridged` v `types-roads.ts`). Nabídka je
   jedna, „Upravit cestu“ (`RoadUpgrade` = `'improved'`): `roadUpgradeCost(road)` = úprava (vyšlapaná)
-  - `roadBridgeCost` (hať a lávka, kde úsek vede mokřinou či brodem a nemá je); `unbridged` úsek
-    nabídne jen hať a lávku, `finishRoadUpgrade` smaže `unbridged`. Rychlost v mokřině: `roadWalkSpeed`
-    a `cartRoadSpeed` mají poslední parametr `unbridged`; příznak nese `WalkRoad`, cesty v síti
-    (`PathVillage.roads`), `CartRoad`, `WagonTimeRoad`, kopírují ho `splitRoad`/úklid/zarůstání
-    a spojení úseků vyžaduje shodu. Druh `causeway` zůstává jen jako pohled (`roadKind`: upravená
-    s mokřinou či brodem a bez `unbridged`). Převod starých vsí `withBridgedRoads`
-    (`road-upgrades.ts`, volá `updateVillage`): `causeway` → `improved` (úseky, stavby i úseky
-    stezky), upravená přes mokřinu bez hatě → `unbridged`; jednou a idempotentně
-    (`VillageRoads.bridgesSeeded`, nové vsi ho mají od začátku). Scéna: hať a lávka podle
-    `ground` a `!unbridged` (`causewayShare` v `road-works-layout.ts`), rozestavěná podle průběhu.
+  plus `roadBridgeCost` (hať a lávka, kde úsek vede mokřinou či brodem a nemá je); rozpad pro
+  popisek je `RoadUpgradeOption.parts` (`roadBridgeParts`, `chainParts`); `unbridged` úsek
+  nabídne jen hať a lávku, `finishRoadUpgrade` smaže `unbridged`. Rychlost v mokřině: `roadWalkSpeed`
+  a `cartRoadSpeed` mají poslední parametr `unbridged`; příznak nese `WalkRoad`, cesty v síti
+  (`PathVillage.roads`), `CartRoad`, `WagonTimeRoad`, kopírují ho `splitRoad`/úklid/zarůstání
+  a spojení úseků vyžaduje shodu. Druh `causeway` zůstává jen jako pohled (`roadKind`: upravená
+  s mokřinou či brodem a bez `unbridged`). Převod starých vsí `withBridgedRoads`
+  (`road-upgrades.ts`, volá `updateVillage`): `causeway` → `improved` (úseky, stavby i úseky
+  stezky), upravená přes mokřinu bez hatě → `unbridged`; jednou a idempotentně
+  (`VillageRoads.bridgesSeeded`, nové vsi ho mají od začátku). Scéna: hať a lávka podle
+  `ground` a `!unbridged` (`causewayShare` v `road-works-layout.ts`), rozestavěná podle průběhu.
+  Vozová cesta: `roadBridged` platí i pro `wagon` (pěší lávkou bez +30 m na brodu, vůz brodem),
+  lávka je 15 čd na brod v ceně úseku (`fordArcsOf` v `wagon-road.ts`; dřevo na ni se nevyhrazuje).
 
 - **Vozová síť a vyjeté cesty** ([wagons.md](../design/wagons.md) – fáze 2; Martin, 19. 10.
   2026: „ve svahu, kde lidé zvládnou chodit rovně, vůz bude muset vyjezdit serpentiny“; čísla

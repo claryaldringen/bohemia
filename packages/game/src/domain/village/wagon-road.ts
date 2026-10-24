@@ -43,6 +43,7 @@ import {
 } from './paths/wagon-route';
 import { keepClear, type SwathTally } from './road-swath';
 import { OBSTACLE_COST, ROAD_SWATH, WAGON_ROAD } from './rules';
+import { ROAD_UPGRADES } from './rules-roads';
 import { sacredSitesOf } from './sacred';
 import type {
   ChronicleEvent,
@@ -522,6 +523,7 @@ export function planWagonRoad(input: WagonPlanInput): WagonRoadPlan {
   const bounds = pieceBounds(profile.lengthM);
   const clearing = wagonClearing(input, grid, profile.profile, profile.fords, bounds);
   if (clearing.sacred) return { ok: false, reason: WAGON_SACRED };
+  const fordArcs = fordArcsOf(profile.profile, profile.fords);
   const pieces: WagonPiecePlan[] = bounds.map((toM, k) => {
     const fromM = k > 0 ? bounds[k - 1]! : 0;
     let earthManDays = 0;
@@ -532,9 +534,13 @@ export function planWagonRoad(input: WagonPlanInput): WagonRoadPlan {
     });
     const pavingManDays = WAGON_ROAD.pavingPerM * (toM - fromM);
     const clearingManDays = clearing.pieces[k]!.cost;
+    // lávka pro pěší vedle každého brodu úseku (vůz jede brodem dál; roads.md – Vozová cesta)
+    const footbridgeManDays =
+      fordArcs.filter((d) => d > fromM && d <= toM + 1e-9).length *
+      ROAD_UPGRADES.footbridge.manDays;
     return {
       toM: tenths(toM),
-      manDays: tenths(earthManDays + pavingManDays + clearingManDays),
+      manDays: tenths(earthManDays + pavingManDays + clearingManDays + footbridgeManDays),
       earthManDays: tenths(earthManDays),
       pavingManDays: tenths(pavingManDays),
       clearingManDays,
@@ -667,6 +673,23 @@ export function startWagonRoad(
     earthwork: earthworkId,
   });
   return next;
+}
+
+/** Vzdálenost (m od začátku osy) začátku každého brodu – souvislého běhu indexů bodů profilu. */
+export function fordArcsOf(
+  profile: readonly RoadProfilePoint[],
+  fords: readonly number[],
+): number[] {
+  const set = new Set(fords);
+  const out: number[] = [];
+  let along = 0;
+  for (let k = 0; k < profile.length; k++) {
+    if (k > 0) {
+      along += length2(profile[k]!.x - profile[k - 1]!.x, profile[k]!.z - profile[k - 1]!.z);
+    }
+    if (set.has(k) && !set.has(k - 1)) out.push(along);
+  }
+  return out;
 }
 
 /** Bod profilu `d` m od začátku osy (na cm). */

@@ -286,6 +286,18 @@ describe('vylepšení pevné cesty', () => {
     // cena = úprava + hať + lávka
     expect(options[0]!.laborManDays).toBe(roadUpgradeCost(road()).manDays);
     expect(options[0]!.trees).toBe(14);
+    // rozpad ceny: úprava + hať + lávka dávají celek
+    const { improved, causeway, footbridge } = options[0]!.parts;
+    expect(improved.manDays).toBe(15);
+    expect(footbridge).toEqual({
+      manDays: ROAD_UPGRADES.footbridge.manDays,
+      trees: ROAD_UPGRADES.footbridge.trees,
+    });
+    expect(improved.manDays + causeway.manDays + footbridge.manDays).toBeCloseTo(
+      options[0]!.laborManDays,
+      9,
+    );
+    expect(causeway.trees + footbridge.trees).toBe(options[0]!.trees);
     const dry = withRoad(village(), road('trodden', { wet: [], fords: [] }));
     expect(roadUpgradeOptions(dry, 7, DAY, null)[0]!.laborManDays).toBe(15);
     // upravená bez hatě (starší cesta) nabídne jen hať a lávku

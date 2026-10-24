@@ -38,8 +38,17 @@ export interface RoadUpgradeOption {
   treesToFell: number;
   /** Dospělé stromy v průseku lesem (roads.md – Průsek lesem) – klády na hromadu. */
   swathTrees: number;
+  /** Rozpad ceny pro popisek: úprava, hať a lávka (bez kácení a průseku); dřevo jen hať a lávka. */
+  parts: RoadUpgradeParts;
   /** Proč vylepšení teď nejde (česky), nebo null. */
   blocked: string | null;
+}
+
+/** Rozpad ceny úpravy cesty – úprava, hať přes mokřinu a lávka přes brod (člověkodny a dřevo). */
+export interface RoadUpgradeParts {
+  improved: { manDays: number; trees: number };
+  causeway: { manDays: number; trees: number };
+  footbridge: { manDays: number; trees: number };
 }
 
 /** Úpravu cesty lesem nedovolí posvátný dub nebo strom háje v pásu cesty (happiness.md). */
@@ -72,15 +81,51 @@ function tenths(v: number): number {
   return Math.round(v * 10) / 10;
 }
 
-/** Práce na hati a lávce úseku a dřevo na ně (roads.md – ceny). */
-export function roadBridgeCost(road: Pick<Road, 'ground'>): { manDays: number; trees: number } {
+/** Práce a dřevo na hať přes mokřinu a na lávku přes brod úseku zvlášť (roads.md – ceny). */
+export function roadBridgeParts(
+  road: Pick<Road, 'ground'>,
+): Pick<RoadUpgradeParts, 'causeway' | 'footbridge'> {
   const pieces = roadWetM(road.ground) / 2;
   const fords = road.ground?.fords.length ?? 0;
   const { causewayPer2M, footbridge } = ROAD_UPGRADES;
   return {
-    manDays: tenths(pieces * causewayPer2M.manDays + fords * footbridge.manDays),
-    trees: Math.ceil(pieces * causewayPer2M.trees - 1e-9) + fords * footbridge.trees,
+    causeway: {
+      manDays: pieces * causewayPer2M.manDays,
+      trees: Math.ceil(pieces * causewayPer2M.trees - 1e-9),
+    },
+    footbridge: { manDays: fords * footbridge.manDays, trees: fords * footbridge.trees },
   };
+}
+
+/** Práce na hati a lávce úseku a dřevo na ně (roads.md – ceny). */
+export function roadBridgeCost(road: Pick<Road, 'ground'>): { manDays: number; trees: number } {
+  const { causeway, footbridge } = roadBridgeParts(road);
+  return {
+    manDays: tenths(causeway.manDays + footbridge.manDays),
+    trees: causeway.trees + footbridge.trees,
+  };
+}
+
+/** Rozpad ceny úpravy úseků dohromady (člověkodny na desetiny). */
+function chainParts(roads: readonly Road[]): RoadUpgradeParts {
+  const out: RoadUpgradeParts = {
+    improved: { manDays: 0, trees: 0 },
+    causeway: { manDays: 0, trees: 0 },
+    footbridge: { manDays: 0, trees: 0 },
+  };
+  for (const road of roads) {
+    if (road.grade === 'trodden') {
+      out.improved.manDays += (ROAD_UPGRADES.improvedManDaysPer100M * roadLengthM(road)) / 100;
+    }
+    if (!roadNeedsCauseway(road)) continue;
+    const { causeway, footbridge } = roadBridgeParts(road);
+    out.causeway.manDays += causeway.manDays;
+    out.causeway.trees += causeway.trees;
+    out.footbridge.manDays += footbridge.manDays;
+    out.footbridge.trees += footbridge.trees;
+  }
+  for (const part of Object.values(out)) part.manDays = tenths(part.manDays);
+  return out;
 }
 
 /**
@@ -240,6 +285,7 @@ export function roadUpgradeOptions(
       trees: cost.trees,
       treesToFell: wood ? wood.fell.length : 0,
       swathTrees: swath.trees,
+      parts: chainParts(targets),
       blocked,
     };
   });

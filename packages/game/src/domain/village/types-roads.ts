@@ -17,9 +17,12 @@ export interface RoadPoint {
  */
 export type RoadGrade = 'trodden' | 'improved' | 'wagon';
 
-/** Upravená cesta přes mokřinu a brod, která hať a lávku má (jen ta chůzí v mokřině neztrácí). */
+/**
+ * Cesta s hatí přes mokřinu a lávkou přes brod (chůzí v mokřině ani na brodu neztrácí): upravená,
+ * pokud není `unbridged`, a vozová cesta (hať jako zpevněné koleje, lávka pro pěší vedle brodu).
+ */
 export function roadBridged(road: { grade: RoadGrade; unbridged?: boolean | undefined }): boolean {
-  return road.grade === 'improved' && !road.unbridged;
+  return road.grade === 'wagon' || (road.grade === 'improved' && !road.unbridged);
 }
 
 /** Místo na strom u pevné cesty – určené jednou při vzniku cesty (roads.md – Stromy). */
