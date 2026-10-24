@@ -91,11 +91,11 @@ export function villageTerrain(village: PathVillage, terrain: PathTerrain): Path
 /** Okno mřížky – rozměry, počátek a krok (terén pěšin, mřížka sítě i vozů). */
 export type GridWindow = Pick<Grid, 'width' | 'height' | 'originX' | 'originZ' | 'cellM'>;
 
-export function cellX(grid: Grid, c: number): number {
+export function cellX(grid: GridWindow, c: number): number {
   return grid.originX + (c % grid.width) * grid.cellM;
 }
 
-export function cellZ(grid: Grid, c: number): number {
+export function cellZ(grid: GridWindow, c: number): number {
   return grid.originZ + Math.floor(c / grid.width) * grid.cellM;
 }
 

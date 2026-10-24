@@ -352,7 +352,7 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
     `keepRoutes`); stará ves bez tras nebo s jiným otiskem je dostane při načtení – `withRoutes`
     v `updateVillage` po dopočtu (síť dne `lastDay`, bez posunu dne, jednou a idempotentně). Testy
     `routes.test.ts`, use-case ve `villages.test.ts`.
-- **Vyšlapanost** (nový systém cest, Úloha 3a – jádro, ze simulace se zatím nevolá;
+- **Vyšlapanost** (nový systém cest, Úloha 3a – jádro, Úloha 3b – zapojení;
   [paths.md – Vyšlapanost a vznik cesty](../design/paths.md#vyšlapanost-a-vznik-cesty)):
   `VillageRoads.wear?` (`RoadWear { day, cells, labor }`) – setiny cesty na políčko 7,5 m světa,
   čísla `WEAR` v `rules-roads.ts` (práh cesty `roadAt` 100 000, strop `max` 150 000, tráva ubere
@@ -368,13 +368,34 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   zarůstání). `wearKey` mimo ± 32 768 políček vyhodí `RangeError`. `settleWear(wear, field, fromDay, toDay)` projde jen
   sjednocení políček pole, práce a vyšlapanosti: `w = clamp(min(w + práce, max) + (provoz − 100) × dny, 0, max)`, práce intervalu `wear.labor` (klíč `wearLaborKey` = cíl trasy) se rozdělí po políčkách
   tras k cíli podle jejich cest za den (celé setiny, dolů); vynuluje `labor`, posune `day`, vrátí
-  počet prošlých políček; poslední sečtená políčka drží v paměti (další interval je nedekóduje, ale
-  `encodeWear` běží po každém intervalu – **povinnost Úlohy 3b:** držet pracovní `Map` v paměti a
-  kódovat jen při uložení stavu, studená políčka srovnávat jen při uložení; změřit `settleWear` a
-  `encodeWear` zvlášť) –
-  syntetické měření ≈ 1,3 ms na interval při 4,5 tisících políček. Celá čísla, dopočet po kouscích
+  počet prošlých políček. **Pracovní políčka** drží dopočet v paměti (`WeakMap` podle objektu
+  `RoadWear`, `wearMap(wear)` – i ještě nezapsaná); `settleWear` nekóduje, do `wear.cells` je zapíše
+  `flushWear` na konci `advanceVillageSteps` (klon stavu začne dekódováním kódu). Syntetické
+  měření ≈ 1,3 ms na interval při 4,5 tisících políček. Celá čísla, dopočet po kouscích
   = najednou (provoz v intervalu stálý).
   Ve výběru trasy: `PathNetworkInput.wear` (dekódovaná vyšlapanost) – `wearStrengths` dá buňkám
   okna sílu vyšlapanost / `roadAt` (od `visibleFrom`), `computePathNetwork` ji drží jako spodní mez
   síly jako u pevných cest, takže se trasy slévají po vyšlapaných pěšinách. Kdo ji předá (Úloha 3b),
   musí ji zahrnout do klíče sítě. Testy `wear.test.ts`, slévání ve `paths-network.test.ts`.
+  `wearStrengths` prochází jen nenulová políčka (buňky okna, jejichž bod do políčka padne – týž
+  `wearIndex` jako průchod oknem, test proti němu).
+
+  **Zapojení (Úloha 3b):** `roadsDay` založí nové vsi `roads.wear` od dneška a denně přičte práci
+  `addWearLabor` (člověkodny po `wearLaborKey`, bez celé vsi a vozu pro vodu – stálou část nese pole,
+  nic dvakrát). Interval sečte `settleVillageWear` (`paths/village.ts`, provozní pole uložených tras)
+  **1. dne v měsíci** (`simulateDay` před přepočtem chůze) a v `refreshWalkDistances` **před novými
+  trasami** – dny určuje stav, ne kousky dopočtu (test po kouscích s prací ve `wear-village.test.ts`).
+  Síť vsi (`villagePathNetwork`) dostává `wearMap` jako `PathNetworkInput.wear` a kód vyšlapanosti
+  je v klíči její mezipaměti (seč luk týž den síť znovu nepočítá). Chůze (`refreshWalkDistances`,
+  `walkDistancesTo`) bere čáry z **`routePaths(routes, wear, cellM)`** (`paths/route-paths.ts`):
+  provoz uložených tras po hranách buněk → `extractLines` (začátky tras jsou kotvy), síla v bodě
+  `wearStrengthAt` = vyšlapanost / `roadAt` (od `visibleFrom`), stáří 0 – tentýž zdroj vezme scéna
+  (Úloha 4a); `pathCellM(landscape)` je strana buňky tras. Stará ves: `withWearSeed`
+  (`updateVillage` před dopočtem) – chybí-li `wear`, podél loňských `candidates` (osa vzorkovaná po
+  čtvrtině políčka, ± 1 políčko jako u tras) `WEAR.seed` 50 000, den `lastDay + 1`; ves bez cest
+  nechá být, druhé načtení vrátí týž stav. `road-report.ts` vypisuje políčka a kB vyšlapanosti
+  a čas `settleWear` a `encodeWear` zvlášť (`WEAR_TIMING` – hodiny dává jen měření). Vlkov
+  (24. 10. 2026, stroj zatížený jinými agenty): dopočet 1 roku 23,7 s (základ
+  feat/landscape týž okamžik 23,5 s), 40 let 246,4 s (základ 253,5 s) – mez + 1 s drží; `settleWear`
+  za 40 let 373 intervalů celkem 36 ms, `encodeWear` jednou; vyšlapanost po roce 698 políček
+  (4,6 kB), po 40 letech 326 políček (1,7 kB).

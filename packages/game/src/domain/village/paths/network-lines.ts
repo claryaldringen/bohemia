@@ -10,7 +10,7 @@ import {
   SMOOTH_PASSES,
 } from './network-types';
 import { pathStrength } from './network-keys';
-import { type Grid, cellX, cellZ } from './network-grid';
+import { type GridWindow, cellX, cellZ } from './network-grid';
 import { type Traffic, edgeOther, edgeSlot } from './network-search';
 
 /**
@@ -19,8 +19,8 @@ import { type Traffic, edgeOther, edgeSlot } from './network-search';
  * podle provozu na hranách.
  */
 export function extractLines(
-  grid: Grid,
-  traffic: Traffic,
+  grid: GridWindow,
+  traffic: Pick<Traffic, 'edges' | 'edgeYears'>,
   anchors: ReadonlyMap<number, PathPoint>,
 ): PathLine[] {
   const edges = traffic.edges;

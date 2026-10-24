@@ -5,7 +5,16 @@
 // (provozní pole) se spočítá jednou pro sadu tras (`routes.key`) a drží v paměti, ne ve stavu.
 
 import { WEAR } from '../rules-roads';
-import type { LaborTarget, RoadLaborShare, RoadWear, StoredRoute, VillageRoutes } from '../types';
+import type {
+  LaborDay,
+  LaborTarget,
+  RoadLaborShare,
+  RoadPoint,
+  RoadWear,
+  StoredRoute,
+  VillageRoutes,
+  VillageState,
+} from '../types';
 import { type GridWindow } from './network-grid';
 import { TRIPS_PER_MAN_DAY } from './network-types';
 import { type RouteCode, routeCells } from './routes';
@@ -108,11 +117,30 @@ export function wearAt(cells: ReadonlyMap<number, number>, x: number, z: number)
 export function wearStrengths(grid: GridWindow, wear: ReadonlyMap<number, number>): Float32Array {
   const out = new Float32Array(grid.width * grid.height);
   if (wear.size === 0) return out;
-  for (let z = 0; z < grid.height; z++) {
-    const j = wearIndex(grid.originZ + z * grid.cellM);
-    for (let x = 0; x < grid.width; x++) {
-      const w = wear.get(wearKey(wearIndex(grid.originX + x * grid.cellM), j)) ?? 0;
-      if (w >= WEAR.visibleFrom) out[z * grid.width + x] = Math.min(1, w / WEAR.roadAt);
+  const { width, height, originX, originZ, cellM } = grid;
+  const i0 = wearIndex(originX);
+  const i1 = wearIndex(originX + (width - 1) * cellM);
+  const j0 = wearIndex(originZ);
+  const j1 = wearIndex(originZ + (height - 1) * cellM);
+  // jen nenulová políčka (okno je o řády větší než vyšlapaná místa): buňky okna, jejichž bod padne
+  // do políčka – rozsah odhadem ± 1, rozhodne přesně týž `wearIndex` jako u bodu buňky
+  const span = (k: number, origin: number, n: number): [number, number] => [
+    Math.max(0, Math.floor((k * WEAR.cellM - origin) / cellM) - 1),
+    Math.min(n - 1, Math.ceil(((k + 1) * WEAR.cellM - origin) / cellM) + 1),
+  ];
+  for (const [key, w] of wear) {
+    if (w < WEAR.visibleFrom) continue;
+    const i = Math.floor(key / KEY_SPAN) - KEY_OFFSET;
+    const j = (key % KEY_SPAN) - KEY_OFFSET;
+    if (i < i0 || i > i1 || j < j0 || j > j1) continue;
+    const s = Math.min(1, w / WEAR.roadAt);
+    const [xa, xb] = span(i, originX, width);
+    const [za, zb] = span(j, originZ, height);
+    for (let z = za; z <= zb; z++) {
+      if (wearIndex(originZ + z * cellM) !== j) continue;
+      for (let x = xa; x <= xb; x++) {
+        if (wearIndex(originX + x * cellM) === i) out[z * width + x] = s;
+      }
     }
   }
   return out;
@@ -271,13 +299,69 @@ function laborCells(labor: readonly RoadLaborShare[], field: TrafficField): Map<
   return cells;
 }
 
-/** Políčka posledního sčtu a jejich kód – další interval téže vsi je nemusí dekódovat. */
-let lastSettled: { encoded: string; cells: Map<number, number> } | null = null;
+// --- pracovní políčka (výkon) --------------------------------------------------------------
+
+/**
+ * Měření (`road-report.ts`): hodiny volajícího a součty času sčítání a kódování. Ve hře hodiny
+ * chybí a nic se neměří – výsledek na nich nezávisí.
+ */
+export const WEAR_TIMING: {
+  clock: (() => number) | null;
+  settleMs: number;
+  settles: number;
+  encodeMs: number;
+  encodes: number;
+} = { clock: null, settleMs: 0, settles: 0, encodeMs: 0, encodes: 0 };
+
+interface WearWork {
+  cells: Map<number, number>;
+  /** Kód, ze kterého políčka vznikla nebo do kterého se naposledy zapsala. */
+  encoded: string;
+  /** Políčka se od posledního zápisu změnila – `wear.cells` je zastaralý. */
+  dirty: boolean;
+}
+
+/**
+ * Pracovní políčka po objektech vyšlapanosti (paths.md – Výkon): dopočet je mezi intervaly drží
+ * v paměti a do stavu je zapíše až `flushWear` (konec dopočtu) – nekóduje se každý interval.
+ */
+const WORK = new WeakMap<RoadWear, WearWork>();
+
+function workOf(wear: RoadWear): WearWork {
+  const work = WORK.get(wear);
+  if (work && work.encoded === wear.cells) return work;
+  const fresh: WearWork = { cells: decodeWear(wear.cells), encoded: wear.cells, dirty: false };
+  WORK.set(wear, fresh);
+  return fresh;
+}
+
+/**
+ * Políčka vyšlapanosti, jak je dopočet právě drží (i ještě nezapsaná do `wear.cells`) – volající
+ * je nemění. Mimo dopočet (po `flushWear`) totéž co `decodeWear(wear.cells)`.
+ */
+export function wearMap(wear: RoadWear): ReadonlyMap<number, number> {
+  return workOf(wear).cells;
+}
+
+/** Zapíše pracovní políčka do stavu (`wear.cells`) – konec dopočtu, před uložením vsi. */
+export function flushWear(wear: RoadWear): void {
+  const work = WORK.get(wear);
+  if (!work?.dirty || work.encoded !== wear.cells) return;
+  const t0 = WEAR_TIMING.clock?.() ?? 0;
+  wear.cells = encodeWear(work.cells);
+  work.encoded = wear.cells;
+  work.dirty = false;
+  if (WEAR_TIMING.clock) {
+    WEAR_TIMING.encodeMs += WEAR_TIMING.clock() - t0;
+    WEAR_TIMING.encodes++;
+  }
+}
 
 /**
  * Sečte vyšlapanost za dny `fromDay`–`toDay` (mutuje `wear`): w = clamp(w + (provoz − 1 cesta)
  * × dny + práce, 0, strop). Projde jen sjednocení políček s provozem a s vyšlapaností; práci
- * intervalu (`wear.labor`) vynuluje a posune `wear.day`. Vrátí počet prošlých políček.
+ * intervalu (`wear.labor`) vynuluje a posune `wear.day`. Vrátí počet prošlých políček. Políčka
+ * zůstávají v paměti (`wearMap`) – do `wear.cells` je zapíše až `flushWear`.
  */
 export function settleWear(
   wear: RoadWear,
@@ -287,10 +371,9 @@ export function settleWear(
 ): number {
   const days = toDay - fromDay;
   if (days <= 0) return 0;
-  // dopočet řetězí intervaly – poslední sečtená políčka se nedekódují znovu
-  const cells =
-    lastSettled && lastSettled.encoded === wear.cells ? lastSettled.cells : decodeWear(wear.cells);
-  lastSettled = null;
+  const t0 = WEAR_TIMING.clock?.() ?? 0;
+  const work = workOf(wear);
+  const cells = work.cells;
   const labor = laborCells(wear.labor, field);
   const settle = (c: number, trips: number): void => {
     // nejdřív práce intervalu (ořez na strop), pak chůze a dorůstání po dnech (ořez na 0 a strop)
@@ -314,9 +397,93 @@ export function settleWear(
     settle(c, 0);
     visited++;
   }
-  wear.cells = encodeWear(cells);
-  lastSettled = { encoded: wear.cells, cells };
+  work.dirty = true;
   wear.day = toDay;
   wear.labor = [];
+  if (WEAR_TIMING.clock) {
+    WEAR_TIMING.settleMs += WEAR_TIMING.clock() - t0;
+    WEAR_TIMING.settles++;
+  }
   return visited;
+}
+
+/** Kopie cíle práce do `wear.labor` – jen to, podle čeho se práce přiřadí trase (`wearLaborKey`). */
+function laborTargetCopy(target: LaborTarget): LaborTarget {
+  switch (target.kind) {
+    case 'field':
+      return { kind: 'field', id: target.id };
+    case 'trees':
+      return { kind: 'trees', ids: [...target.ids] };
+    case 'meadow':
+      return { kind: 'meadow', cells: [] };
+    default:
+      return { ...target };
+  }
+}
+
+/**
+ * Práce dne do vyšlapanosti (mutuje `wear.labor`): člověkodny po cílech tras za prací. Práce bez
+ * pěší trasy (celá ves, vůz pro vodu) se nepočítá. Stálou část cest k cíli (`StoredRoute.base`)
+ * nese provozní pole, sem jde jen odvedená práce – nic se nepočítá dvakrát.
+ */
+export function addWearLabor(wear: RoadWear, labor: LaborDay | undefined, day: number): void {
+  if (!labor || labor.day !== day) return;
+  let index: Map<string, RoadLaborShare> | null = null;
+  for (const share of labor.shares) {
+    if (share.manDays <= 0) continue;
+    const key = wearLaborKey(share.target);
+    if (key === null) continue;
+    index ??= new Map(
+      wear.labor.map((s): [string, RoadLaborShare] => [wearLaborKey(s.target)!, s]),
+    );
+    const sum = index.get(key);
+    if (sum) {
+      sum.manDays += share.manDays;
+      continue;
+    }
+    const added: RoadLaborShare = { target: laborTargetCopy(share.target), manDays: share.manDays };
+    index.set(key, added);
+    wear.labor.push(added);
+  }
+}
+
+// --- převod starých vsí -------------------------------------------------------------------
+
+/** Políčka podél osy (± 1 jako u tras) – vzorky po čtvrtině políčka, každé políčko jednou. */
+function axisCells(points: readonly RoadPoint[], out: Set<number>): void {
+  const step = WEAR.cellM / 4;
+  const mark = (x: number, z: number): void => {
+    const i = wearIndex(x);
+    const j = wearIndex(z);
+    for (let di = -1; di <= 1; di++) {
+      for (let dj = -1; dj <= 1; dj++) out.add(wearKey(i + di, j + dj));
+    }
+  };
+  points.forEach((p, k) => {
+    const prev = points[k - 1];
+    if (!prev) {
+      mark(p.x, p.z);
+      return;
+    }
+    const dx = p.x - prev.x;
+    const dz = p.z - prev.z;
+    const n = Math.max(1, Math.ceil(Math.sqrt(dx * dx + dz * dz) / step));
+    for (let s = 1; s <= n; s++) mark(prev.x + (dx * s) / n, prev.z + (dz * s) / n);
+  });
+}
+
+/**
+ * Vyšlapanost staré vsi (paths.md – Převod starých vsí, bod 3): chybí-li, založí ji – podél
+ * loňských úseků nad prahem (`VillageRoads.candidates`) `WEAR.seed` (polovina prahu cesty),
+ * ostatní pěšiny od nuly; platí od dalšího dne dopočtu. Ves bez pevných cest nebo s vyšlapaností
+ * vrátí týž stav (jednou a idempotentně).
+ */
+export function withWearSeed(state: VillageState): VillageState {
+  const roads = state.roads;
+  if (!roads || roads.wear) return state;
+  const keys = new Set<number>();
+  for (const axis of roads.candidates) axisCells(axis, keys);
+  const cells = new Map<number, number>([...keys].map((k): [number, number] => [k, WEAR.seed]));
+  const wear: RoadWear = { day: state.lastDay + 1, cells: encodeWear(cells), labor: [] };
+  return { ...state, roads: { ...roads, wear } };
 }

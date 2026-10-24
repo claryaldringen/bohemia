@@ -6,12 +6,14 @@
 // Ves se načte use-casem `updateVillage` (stejné převody jako ve hře) a dopočte N let (výchozí 1).
 // Výpis: čas generování krajiny, načtení a dopočtu (ms), velikost stavu (kB), cesty po druzích
 // (počet, km), křižovatky (body, kde se potkají ≥ 3 konce úseků), pahýly (krátký úsek s volným
-// koncem) a uložené trasy (počet, kB). Další úlohy přidají vlastní řádky. Kopii stavu
+// koncem), uložené trasy (počet, kB) a vyšlapanost (políčka, kB, čas sčítání `settleWear` a zápisu
+// `encodeWear` za dopočet zvlášť). Další úlohy přidají vlastní řádky. Kopii stavu
 // necommitovat (je jen ve scratchpadu).
 import { readFileSync } from 'node:fs';
 import { generateLandscapeAttempt, type LayerVersions } from '../src/domain/landscape';
 import type { Road, VillageState } from '../src/domain/village';
 import { updateVillage } from '../src/application/update-village';
+import { WEAR_TIMING, decodeWear } from '../src/domain/village/paths/wear';
 import { SingleVillageRepository } from './lib/memory-villages';
 
 /** Vstup měření – stav vsi a údaje sídla, ze kterých se dá znovu vygenerovat krajina. */
@@ -42,6 +44,14 @@ export interface RoadReport {
   /** Uložené trasy (`VillageState.routes`) – počet a velikost v JSON (kB). */
   routes: number;
   routesKb: number;
+  /** Vyšlapanost (`roads.wear`) – nenulová políčka, velikost v JSON (kB). */
+  wearCells: number;
+  wearKb: number;
+  /** Čas sčítání vyšlapanosti a zápisu do stavu během dopočtu (ms) a kolikrát. */
+  settleMs: number;
+  settles: number;
+  encodeMs: number;
+  encodes: number;
 }
 
 function lengthOf(road: Road): number {
@@ -88,6 +98,7 @@ export async function roadReport(input: RoadReportInput, years: number): Promise
   let t = performance.now();
   const landscape = generateLandscapeAttempt(input.landscapeSeed, input.layerVersions);
   const landscapeMs = performance.now() - t;
+  WEAR_TIMING.clock = (): number => performance.now();
   const repo = new SingleVillageRepository('settlement-1', input.name ?? 'Ves', input.state);
   const keep = (state: VillageState): { ok: true; state: VillageState } => ({ ok: true, state });
   const start = input.state.lastDay;
@@ -107,9 +118,12 @@ export async function roadReport(input: RoadReportInput, years: number): Promise
   );
   const advanceMs = performance.now() - t;
   if (!done.ok) throw new Error(done.reason);
+  const { settleMs, settles, encodeMs, encodes } = WEAR_TIMING;
+  WEAR_TIMING.clock = null;
 
   const state = done.village.state;
   const roads = state.roads?.roads ?? [];
+  const wear = state.roads?.wear;
   const byGrade: RoadReport['byGrade'] = {};
   let totalM = 0;
   for (const r of roads) {
@@ -131,6 +145,12 @@ export async function roadReport(input: RoadReportInput, years: number): Promise
     ...networkShape(roads),
     routes: state.routes?.list.length ?? 0,
     routesKb: state.routes ? JSON.stringify(state.routes).length / 1024 : 0,
+    wearCells: wear ? decodeWear(wear.cells).size : 0,
+    wearKb: wear ? JSON.stringify(wear).length / 1024 : 0,
+    settleMs,
+    settles,
+    encodeMs,
+    encodes,
   };
 }
 
@@ -148,6 +168,9 @@ export function formatReport(r: RoadReport): string {
     `křižovatky ${r.junctions}`,
     `pahýly ${r.stubs}`,
     `trasy ${r.routes} (${r.routesKb.toFixed(1)} kB)`,
+    `vyšlapanost ${r.wearCells} políček (${r.wearKb.toFixed(1)} kB)`,
+    `settleWear ${r.settles}× ${r.settleMs.toFixed(0)} ms`,
+    `encodeWear ${r.encodes}× ${r.encodeMs.toFixed(0)} ms`,
   ].join(' | ');
 }
 

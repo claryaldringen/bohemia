@@ -18,7 +18,8 @@ import { arrangeMarriages } from './marriage';
 import { withOxen } from './oxen';
 import { overgrowthDay } from './overgrowth';
 import { roadsDay } from './paths/roads';
-import { refreshWalkDistances } from './paths/village';
+import { refreshWalkDistances, settleVillageWear } from './paths/village';
+import { flushWear } from './paths/wear';
 import { roadFieldsDay } from './road-fields';
 import { villageSacredOaks } from './sacred';
 import { moveGrainFromCoveredPits } from './grain-pit-site';
@@ -121,6 +122,8 @@ export function* advanceVillageSteps(
   }
   next.lastDay = toDay;
   trimChronicle(next);
+  // vyšlapanost drží dopočet v paměti – do stavu ji zapíše až teď (paths.md – Výkon)
+  if (next.roads?.wear) flushWear(next.roads.wear);
   return next;
 }
 
@@ -149,6 +152,9 @@ function simulateDay(
   // pevné cesty ubírají polím plochu (roads.md a fields.md – Cesta přes pole) – jen když se od
   // včerejška změnily cesty nebo čtverce polí
   if (landscape) roadFieldsDay(state, day, landscape);
+  // vyšlapanost (paths.md – Vyšlapanost a vznik cesty): 1. dne v měsíci interval se stálými
+  // trasami; přepočet tras ji sečte sám (před novými trasami)
+  if (landscape && date.day === 1) settleVillageWear(state, day, landscape);
   if (landscape) refreshWalkDistances(state, day, landscape, obstacles);
   // pokrytí výrobky řemeslníků ze včerejších zásob – meze produktivity celého dne (crafts.md)
   const coverage = craftCoverage(state, day);

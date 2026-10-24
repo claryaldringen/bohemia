@@ -94,7 +94,8 @@ export const ROUTE_HABIT = { offRoad: 0.25 } as const;
 // paths.md – Vyšlapanost a vznik cesty (návrh Clauda, Úloha 3a): číslo na políčko `cellM` (7,5 m)
 // v setinách cesty – trasa přidá své cesty za den, tráva ubere `regrowPerDay` (1 cesta), mezi 0
 // a `max` (1 500 cest); cesta vznikne od `roadAt` (1 000), prodlouží se, kudy je aspoň `extendFrom`
-// (500), pěšina je vidět od `visibleFrom` (50); jízda vozu za `cartWeight` cesty
+// (500), pěšina je vidět od `visibleFrom` (50); jízda vozu za `cartWeight` cesty. Stará ves dostane
+// podél loňských úseků nad prahem `seed` (500 – polovina prahu; paths.md – Převod starých vsí, bod 3)
 export const WEAR = {
   cellM: 7.5,
   regrowPerDay: 100,
@@ -103,6 +104,7 @@ export const WEAR = {
   extendFrom: 50_000,
   visibleFrom: 5_000,
   cartWeight: 2,
+  seed: 50_000,
 } as const;
 // wagons.md – Vyjeté cesty (návrh Clauda): úsek, kudy vozy dva roky po sobě jezdí aspoň
 // `tripsPerDay` jízd denně (roční průměr – ≈ 90 jízd za rok), se stane vozovou cestou; vozová cesta,
