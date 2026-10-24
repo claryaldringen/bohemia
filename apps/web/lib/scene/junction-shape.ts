@@ -1,7 +1,7 @@
 import { junctionArmDirs, junctionEntranceM, roadLandWidthM } from '@bohemia/game';
 import type { SceneJunction, SceneRoad } from '../village-view';
 import type { RibbonJunction } from './path-ribbon';
-import { hash01 } from './smoke-schedule';
+import type { JunctionCut } from './road-works-layout';
 
 /** Bod (m). */
 export interface Point {
@@ -31,8 +31,14 @@ export interface JunctionShapeLayout {
   widthM: number;
 }
 
-/** Nepravidelnost vnitřních rohů (podíl poloviny šířky). */
-const CORNER_JITTER = 0.12;
+/** Poloměr oblouku ve vnitřním rohu obrysu (násobek půl šířky ramen) a počet úseků oblouku. */
+const CORNER_ROUND = 1.2;
+const CORNER_ARC_POINTS = 6;
+/**
+ * Pásy cest končí tolik (m) za vchody (`junctionCuts`), dál je plácek (junction-patch.ts) – tak
+ * daleko, aby v řezu nepřidalo krytí sousední rameno a přechod z pásu do plácku nebyl vidět.
+ */
+export const JUNCTION_CUT_EXTRA_M = 1.5;
 /** Model znamení: kámen a kůl mají po dvou podobách (tools/blender/roads.py). */
 export type JunctionModel =
   'junction-stone-1' | 'junction-stone-2' | 'junction-post-1' | 'junction-post-2';
@@ -43,24 +49,24 @@ export const JUNCTION_MODELS: readonly JunctionModel[] = [
   'junction-post-2',
 ];
 
-function seedOf(j: Pick<SceneJunction, 'x' | 'z'>): number {
-  return (Math.round(j.x * 2) * 73856093) ^ (Math.round(j.z * 2) * 19349663);
-}
-
 /**
  * Obrys z ramen (směr, vchod): u každého ramene dva rohy ve vchodu (± půl šířky kolmo na rameno),
- * mezi sousedními rameny vnitřní roh na ose mezery, kde se protnou okraje obou pásů (nejvýš
- * u vchodů, jemně nepravidelný); mezera od 180° se vyplní středem. Pořadí proti směru hodin.
+ * mezi sousedními rameny oblouk tečný k okrajům obou pásů (Martin: všude ve hře oblouk místo
+ * ostrého rohu; poloměr CORNER_ROUND × půl šířky, tečné body nejvýš ve vchodech); mezera od 180°
+ * je oblouk kolem středu. Pořadí proti směru hodin.
  */
 function outlineOf(
   center: Point,
   dirs: readonly number[],
   entranceM: number,
   half: number,
-  seed: number,
 ): Point[] {
   const sorted = [...dirs].sort((a, b) => a - b);
   const out: Point[] = [];
+  const at = (angle: number, r: number, from: Point = center): Point => ({
+    x: from.x + Math.cos(angle) * r,
+    z: from.z + Math.sin(angle) * r,
+  });
   sorted.forEach((dir, k) => {
     const cos = Math.cos(dir);
     const sin = Math.sin(dir);
@@ -71,13 +77,25 @@ function outlineOf(
     const next = sorted[(k + 1) % sorted.length]!;
     let gap = next - dir;
     if (gap <= 0) gap += Math.PI * 2;
+    if (gap >= Math.PI - 1e-6) {
+      // mezera od 180°: oblouk kolem středu z levého okraje ramene na pravý okraj dalšího
+      for (let i = 0; i <= CORNER_ARC_POINTS; i++) {
+        out.push(at(dir + Math.PI / 2 + ((gap - Math.PI) * i) / CORNER_ARC_POINTS, half));
+      }
+      return;
+    }
+    // oblouk ve vnitřním rohu: střed na ose mezery, tečný k okrajům obou pásů
+    const tan = Math.tan(gap / 2);
+    const rho = Math.max(0, Math.min(CORNER_ROUND * half, entranceM * tan - half));
     const mid = dir + gap / 2;
-    const reach =
-      gap >= Math.PI
-        ? 0
-        : Math.min(entranceM, half / Math.sin(gap / 2)) *
-          (1 + (hash01(seed, k, 64) - 0.5) * 2 * CORNER_JITTER);
-    out.push({ x: center.x + Math.cos(mid) * reach, z: center.z + Math.sin(mid) * reach });
+    const hub = at(mid, (half + rho) / Math.sin(gap / 2));
+    // z tečného bodu na levém okraji ramene (úhel dir − π/2 od středu oblouku) do tečného bodu
+    // na pravém okraji dalšího ramene (next + π/2) – oblouk o úhel π − mezera přes stranu ke středu
+    const from = dir - Math.PI / 2;
+    const sweep = -(Math.PI - gap);
+    for (let i = 0; i <= CORNER_ARC_POINTS; i++) {
+      out.push(at(from + (sweep * i) / CORNER_ARC_POINTS, rho, hub));
+    }
   });
   return out;
 }
@@ -112,50 +130,54 @@ export function junctionShape(
     arms.map((a) => a.dir),
     entranceM,
     widthM / 2,
-    seedOf(junction),
   );
   return { arms, outline, entranceM, widthM };
 }
 
 /**
- * Plácky křižovatek po vrstvách obtisku cest: vozová cesta pro vozy (je-li v ní), jinak upravená,
- * jinak vyjetá vozová, jinak vyšlapaná – jako dřív rozcestí. Plácek nese obrys
- * (`RibbonJunction.outline`), ne kruh, a obrys užších vrstev (`outlineFor`).
+ * Křižovatky pro obtisk cest: střed a řez pásů (vchody + JUNCTION_CUT_EXTRA_M) – pásy cest
+ * končí v řezu, ramena dovnitř a střed kreslí plácek (junction-patch.ts). Pořadí jako `junctions`
+ * (bez křižovatek s méně než dvěma rameny).
+ */
+export function junctionCuts(
+  junctions: readonly SceneJunction[],
+  roads: readonly SceneRoad[],
+): JunctionCut[] {
+  return junctions.flatMap((junction) => {
+    const shape = junctionShape(junction, roads);
+    return shape
+      ? [{ x: junction.x, z: junction.z, radius: shape.entranceM + JUNCTION_CUT_EXTRA_M }]
+      : [];
+  });
+}
+
+/**
+ * Plácky křižovatek pro masku polí (`roadTrack` – pod pláckem obilí neroste) po vrstvách
+ * obtisku cest: upravená (je-li v ní upravená či vozová cesta), jinak vyjetá vozová, jinak
+ * vyšlapaná. Plácek nese obrys (`RibbonJunction.outline`).
  */
 export function junctionRibbons(
   junctions: readonly SceneJunction[],
   roads: readonly SceneRoad[],
-): {
-  trodden: RibbonJunction[];
-  improved: RibbonJunction[];
-  cart: RibbonJunction[];
-  wagon: RibbonJunction[];
-} {
+): { trodden: RibbonJunction[]; improved: RibbonJunction[]; cart: RibbonJunction[] } {
   const out = {
     trodden: [] as RibbonJunction[],
     improved: [] as RibbonJunction[],
     cart: [] as RibbonJunction[],
-    wagon: [] as RibbonJunction[],
   };
   for (const junction of junctions) {
     const shape = junctionShape(junction, roads);
     if (!shape) continue;
     const arms = shape.arms.map((a) => roads.find((r) => r.id === a.roadId)!);
-    // plácek ve vrstvě nejširší cesty – vozová (pás 3,5 m, hlína uprostřed), jinak upravená…
-    // ve stejném obtisku a barvě jako navazující pásy, ne tmavší skvrna jiné vrstvy
-    const wagon = arms.some((r) => r.grade === 'wagon');
     const improved = arms.some((r) => r.grade !== 'trodden');
     const cart = arms.some((r) => r.cart === true);
-    const list = wagon ? out.wagon : improved ? out.improved : cart ? out.cart : out.trodden;
-    const dirs = shape.arms.map((a) => a.dir);
-    const seed = seedOf(junction);
+    const list = improved ? out.improved : cart ? out.cart : out.trodden;
     list.push({
       x: junction.x,
       z: junction.z,
       strength: 1,
       outline: shape.outline,
       widthM: shape.widthM,
-      outlineFor: (widthM) => outlineOf(junction, dirs, shape.entranceM, widthM / 2, seed),
     });
   }
   return out;

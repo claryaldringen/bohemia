@@ -2,6 +2,8 @@ import { junctionArmDirs, junctionEntranceM, roadLandWidthM } from '@bohemia/gam
 import { describe, expect, it } from 'vitest';
 import type { SceneJunction, SceneRoad } from '../../village-view';
 import {
+  JUNCTION_CUT_EXTRA_M,
+  junctionCuts,
   junctionLandmarkPieces,
   junctionRibbons,
   junctionShape,
@@ -62,12 +64,31 @@ describe('tvar křižovatky (paths.md – Křižovatky)', () => {
     }
   });
 
-  it('žádný kruh – obrys je mnohoúhelník s dvěma rohy na rameno a vnitřním rohem mezi rameny', () => {
-    const shape = junctionShape(junction(), cross())!;
-    expect(shape.outline).toHaveLength(4 * 3);
-    // vnitřní roh kříže leží u středu (půl šířky ± nepravidelnost), ne na kružnici vchodů
-    const radii = shape.outline.map((p) => Math.hypot(p.x, p.z));
-    expect(Math.min(...radii)).toBeLessThan(shape.entranceM / 2);
+  it('žádný kruh ani ostrý roh – mezi rameny oblouk tečný k okrajům pásů', () => {
+    for (const j of [junction(), junction({ shape: 'y', spread: Math.PI / 6, arms: [1, 2, 3] })]) {
+      const shape = junctionShape(j, cross())!;
+      const ring = shape.outline;
+      const n = ring.length;
+      // rohy ve vchodech (pás tam pokračuje) – jinde se obrys láme nejvýš o 30°
+      const entrances = new Set(
+        shape.arms.flatMap((arm) =>
+          ring.filter(
+            (p) =>
+              Math.hypot(p.x - arm.entrance.x, p.z - arm.entrance.z) <= shape.widthM / 2 + 1e-6,
+          ),
+        ),
+      );
+      ring.forEach((p, k) => {
+        if (entrances.has(p)) return;
+        const a = ring[(k + n - 1) % n]!;
+        const b = ring[(k + 1) % n]!;
+        const turn = Math.abs(Math.atan2(b.z - p.z, b.x - p.x) - Math.atan2(p.z - a.z, p.x - a.x));
+        expect(Math.min(turn, 2 * Math.PI - turn)).toBeLessThan(Math.PI / 6 + 1e-6);
+      });
+      // vnitřní roh leží u středu, ne na kružnici vchodů
+      const radii = ring.map((p) => Math.hypot(p.x, p.z));
+      expect(Math.min(...radii)).toBeLessThan(shape.entranceM / 2 + shape.widthM / 2);
+    }
   });
 
   it('Y se třemi rameny a rameno bez cesty se vynechá', () => {
@@ -83,18 +104,21 @@ describe('tvar křižovatky (paths.md – Křižovatky)', () => {
     expect(junctionShape(junction({ arms: [1, null, null, null] }), cross())).toBeNull();
   });
 
-  it('tvar je pro stejnou křižovatku stejný a vykreslí se bez kruhového plácku', () => {
+  it('tvar je pro stejnou křižovatku stejný; obtisk plácku nekreslí kruh (jen junction-patch)', () => {
     const a = junctionShape(junction(), cross())!;
     const b = junctionShape(junction(), cross())!;
     expect(a).toEqual(b);
     const { trodden, improved } = junctionRibbons([junction()], cross());
-    // v křižovatce končí upravená cesta – plácek patří k upravené vrstvě
+    // v křižovatce končí upravená cesta – maska polí bere plácek upravené vrstvy
     expect(trodden).toEqual([]);
     expect(improved).toHaveLength(1);
     expect(improved[0]!.outline).toEqual(a.outline);
     const grid = pathRibbons([], ROAD_WORN_LAYER, undefined, undefined, improved);
-    // střed + obrys + měkký okraj, ne 20 úseků kruhu
-    expect(grid.positions.length / 2).toBe(1 + a.outline.length * 2);
+    expect(grid.positions.length).toBe(0);
+    // řez pásů kousek za vchody
+    expect(junctionCuts([junction()], cross())).toEqual([
+      { x: 0, z: 0, radius: a.entranceM + JUNCTION_CUT_EXTRA_M },
+    ]);
   });
 
   it('vozová cesta v křižovatce dává vozový plácek', () => {

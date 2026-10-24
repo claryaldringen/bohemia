@@ -111,6 +111,22 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   navíc), stínová mapa se jednou překreslí a minimapa kreslí vykácený les jako paseku. Vše jen
   při změně (`applyVillage`).
 
+- **Obtisky cest a křižovatky** (podrobně village-roads.md – Křižovatky, Scéna): pás cesty
+  (`path-ribbon.ts`) má průřez ze čtyř bodů – plné krytí do 0,35 × půl šířky od osy, k okraji pásu
+  a měkkému okraji lineárně do nuly; u konců pásu (4 m) se osa nevlní a šířka nekolísá, takže
+  navazující pás i plácek sedí na spoji. **Plácek křižovatky** (`junction-patch.ts`, oprava
+  24. 10. 2026 – Martin: „ty ostrý křižovatky už jsou upravený?“ a „Předtím ty křižovatky byly
+  tedy lepší“: šedý štěrkový plácek s ostrým obrysem a rovně uříznutými rameny zmizel): pásy cest
+  končí v řezu 1,5 m za vchody (`junctionCuts`, `roadBands(roads, cuts)`), kus osy do středu je
+  rameno plácku. Krytí v bodě je průřez pásu podle vzdálenosti k osám ramen, ramena slitá hladkým
+  minimem (`PATCH_BLEND`) – ve vnitřních rozích oblouk, v řezu přesně průřez pásu (žádný šev ani
+  překryv). Síť: paprsky ze středu po 2,5° a navíc přesně do čtyř bodů průřezu v řezu, 24 kroků
+  k řezu (jinde ke kružnici za dosahem ramen), trojúhelníky bez krytí se vynechají. Povrch jako
+  cesty – obtisky `roads-junction-worn` / `roads-junction-earth` (prošlapaná tráva a hlína, šířka
+  a měkký okraj ramene podle navazující cesty, vyjetá vozová bez hlíny), **žádný štěrk na plácku**;
+  koleje vozové cesty vedou přes plácek jen mezi rameny, která svírají aspoň 120° (Bézierova
+  křivka řez–řez), jinak dojdou ke středu a vytratí se. Krátký úsek celý v dosahu řezu (5 m
+  k brance) je celý rameno plácku a k volnému konci se vytrácí jako pás.
 - **Světlo:** letní slunce a obloha podle 0 A.D., kontrast 1,1. **Stíny od slunce**
   (`sun-shadows.ts`) – stínová mapa 4096 přes celou krajinu se vykreslí jednou (s denní dobou po krocích – Den a noc); vrhají je meshe
   pojmenované `trees-*`, `impostors-*` a `decor-*` (při přejmenování zachovat prefix). Znovu se
@@ -127,7 +143,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   Shadery v `season-materials.ts` (GLSL i WGSL, bez textury navíc – šum je procedurální):
   terén (tráva podle vah vrstev, sníh podle šumu a sklonu, ne na dně potoka), obtisky vsi
   (`applySeasonGround`; obtisky jsou poloprůhledné a krytí se v překryvu sčítá – v zimě je každý
-  překryv tmavší skvrna ve sněhu: plácek křižovatky patří do vrstvy navazující cesty, svahy
+  překryv tmavší skvrna ve sněhu: plácek křižovatky pásy cest nepřekrývá – viz Obtisky cest, svahy
   zemních prací kreslí jen nejbližší osa – village-roads.md), PBR stromy a dekorace (`applySeasonModel` podle jména modelu –
   druhy v `season-foliage.ts`: listnáče se barví a opadávají, z koruny zbudou větvičky, kůra
   ztratí zelený tón; jehličí a kameny pod sněhem; rákos stojí suchý; trnka a jabloně kvetou),
