@@ -152,6 +152,10 @@ export const JUNCTION = {
   landmarkLooks: 2,
   landmarkGapM: 1.5,
   spacingReserveM: 1,
+  // přídavek k rozestupu při odsunutí (m) – středy na cm i po zaokrouhlení nad rozestupem
+  spacingTieM: 0.02,
+  // nejmenší vzdálenost nového konce osy od sousedního bodu osy (m) při posunu křižovatky
+  spacingStepM: 1,
 } as const;
 // wagons.md – Vyjeté cesty (návrh Clauda): úsek, kudy vozy dva roky po sobě jezdí aspoň
 // `tripsPerDay` jízd denně (roční průměr – ≈ 90 jízd za rok), se stane vozovou cestou; vozová cesta,

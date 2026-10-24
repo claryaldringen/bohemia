@@ -135,16 +135,15 @@ describe('křižovatky blízko sebe (updateJunctions)', () => {
     expect(json(roads)).toEqual(before);
   });
 
-  it('pevná spojka (zemská stezka, cesta ve vylepšení) se neslučuje – křižovatky se odsunou', () => {
+  it('pevná spojka (zemská stezka, cesta ve vylepšení) se neslučuje ani nehýbe – obě zůstanou', () => {
     const roads = twoYs();
     updateJunctions(roads, DAY, SEED, allLive);
     upgrade(roads, 'improved');
     const net: JunctionRoads = { ...allLive, fixed: new Set([9]) };
-    expect(updateJunctions(roads, DAY + 30, SEED, net)).toBe(true);
+    const before = JSON.stringify(roads.roads.find((r) => r.id === 9)!.points);
+    updateJunctions(roads, DAY + 30, SEED, net);
     expect(roads.junctions).toHaveLength(2);
-    expect(roads.roads.some((r) => r.id === 9)).toBe(true);
-    const min = junctionSpacingM([ROAD_LAND.widthM.improved], [ROAD_LAND.widthM.improved]);
-    expect(gap(roads)).toBeGreaterThanOrEqual(min);
+    expect(JSON.stringify(roads.roads.find((r) => r.id === 9)!.points)).toBe(before);
   });
 
   it('křižovatka v kotvě (vchod) stojí – odsune se jen druhá, sloučí se do kotvy', () => {
@@ -176,5 +175,127 @@ describe('křižovatky blízko sebe (updateJunctions)', () => {
         .sort((p, q) => p.x - q.x);
     });
     expect(shapes[0]).toEqual(shapes[1]);
+  });
+
+  /** Body všech úseků jako text – k porovnání, že se pevné úseky nepohnuly. */
+  const axes = (roads: VillageRoads, ids: number[]): string =>
+    JSON.stringify(roads.roads.filter((r) => ids.includes(r.id)).map((r) => r.points));
+
+  it('vozová cesta (zemní práce na její ose) se nehýbe – odsune se jen druhá křižovatka', () => {
+    const roads = crossAndY();
+    updateJunctions(roads, DAY, SEED, allLive);
+    upgrade(roads, 'improved');
+    for (const id of [3, 4]) roads.roads.find((r) => r.id === id)!.grade = 'wagon';
+    const before = axes(roads, [3, 4]);
+    const net: JunctionRoads = { ...allLive, fixed: new Set() };
+    updateJunctions(roads, DAY + 30, SEED, net);
+    console.log(JSON.stringify(roads.junctions!.map((j) => [j.x, j.z, j.arms])));
+    expect(axes(roads, [3, 4])).toBe(before);
+    expect(roads.roads.some((r) => r.id === 9)).toBe(true);
+    expect(roads.junctions).toHaveLength(2);
+    expect(gap(roads)).toBeGreaterThan(9);
+  });
+
+  it('vozová spojka se neslučuje a nemaže', () => {
+    const roads = twoYs();
+    updateJunctions(roads, DAY, SEED, allLive);
+    roads.roads.find((r) => r.id === 9)!.grade = 'wagon';
+    updateJunctions(roads, DAY + 30, SEED, allLive);
+    expect(roads.roads.some((r) => r.id === 9)).toBe(true);
+    expect(roads.junctions).toHaveLength(2);
+  });
+
+  it('pevné rameno v obou uzlech – nic se neposune (přijatá výjimka)', () => {
+    const roads = twoYs();
+    updateJunctions(roads, DAY, SEED, allLive);
+    upgrade(roads, 'improved');
+    const before = axes(roads, [1, 3, 9]);
+    const net: JunctionRoads = { ...allLive, fixed: new Set([1, 3]) };
+    updateJunctions(roads, DAY + 30, SEED, net);
+    expect(axes(roads, [1, 3, 9])).toBe(before);
+    expect(roads.junctions).toHaveLength(2);
+  });
+
+  it('zablokovaný cíl – uzel se nehýbe, druhý převezme celý posun', () => {
+    const roads = crossAndY();
+    updateJunctions(roads, DAY, SEED, allLive);
+    upgrade(roads, 'improved');
+    // vlevo (x < 0) stojí dům: levá křižovatka se nesmí posunout doleva
+    const net: JunctionRoads = { ...allLive, blocked: (p) => p.x < -0.001 };
+    updateJunctions(roads, DAY + 30, SEED, net);
+    const left = roads.junctions!.find((j) => j.x < 4)!;
+    expect(left.x).toBe(0);
+    expect(gap(roads)).toBeGreaterThanOrEqual(
+      junctionSpacingM([ROAD_LAND.widthM.improved], [ROAD_LAND.widthM.improved]),
+    );
+    // obě strany zablokované – nic se nepohne
+    const both = crossAndY();
+    updateJunctions(both, DAY, SEED, allLive);
+    upgrade(both, 'improved');
+    const centers = (r: VillageRoads): string =>
+      JSON.stringify(r.junctions!.map((j) => [j.x, j.z]));
+    const bBefore = centers(both);
+    updateJunctions(both, DAY + 30, SEED, { ...allLive, blocked: () => true });
+    expect(centers(both)).toBe(bBefore);
+  });
+
+  it('úsek se posunem nezkrátí pod nejmenší délku', () => {
+    // krátké rameno 16 m: odsunem o ≈ 3 m by kleslo pod MIN_ROAD_M (15) – uzel se nehýbe
+    const roads = roadsOf([
+      seg(1, { x: -16, z: 0 }, A),
+      seg(2, { x: -30, z: -24 }, A),
+      seg(9, A, B),
+      seg(3, B, { x: 38, z: 24 }),
+      seg(4, B, { x: 38, z: -24 }),
+    ]);
+    updateJunctions(roads, DAY, SEED, allLive);
+    upgrade(roads, 'improved');
+    updateJunctions(roads, DAY + 30, SEED, allLive);
+    const r1 = roads.roads.find((r) => r.id === 1)!;
+    const len = Math.hypot(
+      r1.points.at(-1)!.x - r1.points[0]!.x,
+      r1.points.at(-1)!.z - r1.points[0]!.z,
+    );
+    expect(len).toBeGreaterThanOrEqual(15);
+  });
+
+  it('tři křižovatky v řadě: výsledek splní rozestup nebo se ustálí, druhý průchod nic nezmění', () => {
+    const net = allLive;
+    const mk = (): VillageRoads =>
+      roadsOf([
+        seg(1, { x: -30, z: 24 }, { x: 0, z: 0 }),
+        seg(2, { x: -30, z: -24 }, { x: 0, z: 0 }),
+        seg(8, { x: 0, z: 0 }, { x: 8, z: 0 }),
+        seg(3, { x: 8, z: 0 }, { x: 8, z: 40 }),
+        seg(9, { x: 8, z: 0 }, { x: 16, z: 0 }),
+        seg(5, { x: 16, z: 0 }, { x: 40, z: 24 }),
+        seg(6, { x: 16, z: 0 }, { x: 40, z: -24 }),
+      ]);
+    const roads = mk();
+    updateJunctions(roads, DAY, SEED, net);
+    upgrade(roads, 'improved');
+    for (let m = 1; m <= 4; m++) updateJunctions(roads, DAY + 30 * m, SEED, net);
+    const centers = (): string => JSON.stringify(roads.junctions!.map((j) => [j.id, j.x, j.z]));
+    const after = centers();
+    // osy se mohou lišit o cm (oblouk do vchodu se počítá znovu), křižovatky stojí
+    updateJunctions(roads, DAY + 30 * 6, SEED, net);
+    expect(centers()).toBe(after);
+    const js = roads.junctions!;
+    const min = junctionSpacingM([ROAD_LAND.widthM.improved], [ROAD_LAND.widthM.improved]);
+    for (let i = 0; i < js.length; i++)
+      for (let k = i + 1; k < js.length; k++)
+        expect(Math.hypot(js[i]!.x - js[k]!.x, js[i]!.z - js[k]!.z)).toBeGreaterThanOrEqual(
+          min - 0.01,
+        );
+  });
+
+  it('druhý průchod po srovnání dvojice nic nemění', () => {
+    const roads = crossAndY();
+    updateJunctions(roads, DAY, SEED, allLive);
+    upgrade(roads, 'improved');
+    updateJunctions(roads, DAY + 30, SEED, allLive);
+    const once = JSON.stringify(roads);
+    expect(updateJunctions(roads, DAY + 60, SEED, allLive)).toBe(false);
+    expect(JSON.stringify(roads)).toBe(once);
   });
 });

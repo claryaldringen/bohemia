@@ -442,12 +442,22 @@ Návrh Clauda:
     dál jako strom u cesty);
   - **jinak** (5 a víc cest, spojka je zemská stezka nebo cesta ve vylepšení – ta se neruší, nebo je
     spojuje víc úseků) se **odsunou od sebe** po spojnici středů na nejmenší rozestup, každá o půl;
+  - uzel s **pevným ramenem** (zemská stezka, cesta ve vylepšení, vozová cesta – její osa leží na
+    zemních pracích) se nehýbe jako kotva: sloučí se do něj, nebo se odsune jen druhá; spojka, která
+    je sama pevná (nebo vozová), se neslučuje a nemaže. **Přijatá výjimka:** mají-li pevné rameno
+    (nebo kotvu) oba uzly, zůstanou, kde jsou, i když se plácky překrývají;
+  - nový střed musí být **průchodný** (ne v domě, plotu ani zemních pracích) a žádný úsek se posunem
+    nezkrátí pod 15 m (už kratší vůbec); jinak se uzel nehýbe a posun převezme druhý, případně
+    zůstanou obě (stejná výjimka). Pole a voda se nekontrolují. Odsunem se může jiná dvojice dostat
+    pod rozestup – srovná se v témže průchodu (nejbližší dvojice napřed), co se nevejde, v dalším
+    měsíci; stav kusů a místa stromů u posunuté cesty se nepřepočítávají (posun je pár metrů na
+    konci úseku, strom stojí dál jako strom u cesty);
   - uzel **u vchodu** (do 3 m) se nehýbe – sloučí se do něj, nebo se odsune jen druhá (vchod by
     přišel o cestu);
   - rozestup roste se šířkou cest – vylepší-li se cesty, dvojice se srovná v dalším měsíci; starší
-    vsi se srovnají v prvním měsíci (Vlkov: dvě Y 6,7 m od sebe → kříž, dva kříže 6 m od sebe
-    → 12,1 m, kříž a Y 11,7 m od sebe → 12,1 m; křižovatek 14 → 12 – o jednu sloučením, další
-    zanikla nezávisle při úklidu).
+    vsi se srovnají v prvním měsíci, pokud nemají v obou uzlech pevné rameno (Vlkov: všechny tři
+    dvojice pod rozestupem – Y a Y 6,7 m, dva kříže 6 m, kříž a Y 11,7 m – mají v obou uzlech
+    vozovou cestu, takže zůstávají jako přijatá výjimka).
 - **Změna:** přibude-li nebo ubude-li rameno, tvar a natočení se spočítají znovu, znamení zůstane;
   klesnou-li živá ramena na 2, křižovatka zanikne a cesty se spojí.
 - **Data:** `VillageRoads.junctions` – id, střed, tvar, natočení, β, ramena (id úseku ve vchodu),
