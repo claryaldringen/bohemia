@@ -161,6 +161,13 @@ describe('checkPersonName', () => {
     expect(checkPersonName('ř'.repeat(21)).reason).toBe('Nejvýš 20 písmen.');
     expect(checkPersonName('   ').reason).toBe('Vojvoda potřebuje jméno.');
   });
+
+  it('neviditelná „písmena“ (výplně hangulu) neprojdou – samotná ani uvnitř jména', () => {
+    for (const filler of ['\u115f', '\u1160', '\u3164', '\uffa0']) {
+      expect(checkPersonName(filler).reason).toBe('Jen písmena.');
+      expect(checkPersonName(`Bořivoj${filler}`).reason).toBe('Jen písmena.');
+    }
+  });
 });
 
 describe('nameLineMan', () => {
@@ -195,6 +202,7 @@ describe('nameLineMan', () => {
       day: DAY + 1,
       kind: 'line-named',
       name: 'Mrdomír',
+      who: 'son',
     });
     // vstupní stav se nemění, záznam vojvodů jen u vojvody
     expect(byId(s, 8).name).toBeUndefined();

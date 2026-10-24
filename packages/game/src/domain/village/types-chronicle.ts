@@ -33,7 +33,12 @@ export type ChronicleEvent = { day: number } & (
   /** Vojvodovi se narodil syn (lord.md – Rod vojvody) – čeká na jméno od hráče. */
   | { kind: 'line-birth' }
   /** Hráč pojmenoval muže rodu (lord.md – Jména) – jméno je trvalé. */
-  | { kind: 'line-named'; name: string }
+  | {
+      kind: 'line-named';
+      name: string;
+      /** Koho hráč pojmenoval – vojvodu, nebo syna vojvody; chybí – jiný muž rodu (starší záznam). */
+      who?: 'lord' | 'son';
+    }
   /** Vojvodou se stal muž rodu `name` (lord.md – Nástupnictví); bez jména chybí. */
   | { kind: 'lord'; name?: string }
   /** Muž rodu `name` si vzal další manželku z okolí (lord.md – Manželky); bez jména chybí. */
