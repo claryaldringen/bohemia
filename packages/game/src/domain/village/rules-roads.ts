@@ -191,6 +191,13 @@ export const ROAD_UPGRADES = {
   footbridge: { trees: 4, manDays: 15 },
 } as const;
 /**
+ * roads.md – Postupná úprava a serpentiny (návrh Clauda, schválený Martinem 24. 10. 2026): zpevnění
+ * kolejí a pláně stojí 0,3 čd/m; vozová cesta vzniká jen na upravené cestě, která už zpevnění za
+ * `improvedManDaysPer100M` má, takže `WAGON_ROAD.pavingPerM` je doplatek 0,3 − 0,15 = 0,15 čd/m.
+ */
+const PAVING_FULL_PER_M = 0.3;
+
+/**
  * roads.md – Vozová cesta (Martin, 20. 10. 2026: „tato cesta spojí dva body, které spojuje stará
  * cesta pro pěší, ale co nejvíc přímo tak, aby vůz projel. Pokud budou překážet svahy, vyhloubí se
  * úvoz nebo udělá násep. Samozřejmě, některé svahy budou tak velké, že se budou muset kombinovat
@@ -236,7 +243,7 @@ export const WAGON_ROAD = {
   digPerM3: 0.5,
   placePerM3: 0.2,
   haulPerM3: { base: 0.15, per100M: 0.15 },
-  pavingPerM: 0.3,
+  pavingPerM: PAVING_FULL_PER_M - ROAD_UPGRADES.improvedManDaysPer100M / 100,
   directPerM: 25,
   trafficYears: 10,
   minTripsPerDay: 0.05,

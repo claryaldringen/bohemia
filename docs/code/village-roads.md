@@ -410,7 +410,12 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   cesta spojí dva body, které spojuje stará cesta pro pěší, ale co nejvíc přímo tak, aby vůz
   projel“; čísla `WAGON_ROAD` v `rules*.ts`, rešerše `research/2026-10-20-earthworks.md`): stupeň
   `wagon` (`RoadGrade`, `RoadKind`, vůz `CART_SPEED.road.wagon` 2,2, pěšky 1,7, v mokřině jako hať,
-  brod zůstává; pás `ROAD_LAND.widthM.wagon` 3,5 m). **Trasa po staré ose** (Úloha 11a; Martin 22. 10. 2026, #6: „vznikne ze staré pěší cesty a vede po ní“): osa = řetěz úseků cesty hráče
+  brod zůstává; pás `ROAD_LAND.widthM.wagon` 3,5 m). **Postupně** (Martin 24. 10. 2026):
+  `wagonChainStatus` vrací `WAGON_FIRST` („Napřed uprav cestu.“), dokud v řetězu některý úsek splňuje
+  `roadNeedsUpgrade` (`road-upgrades.ts`, táž podmínka jako `chainTargets`) – platí v panelu, plánu
+  i `startWagonRoad`; plán neúčtuje lávku (`footbridgeTrees` 0) a `WAGON_ROAD.pavingPerM` je doplatek
+  0,15 čd/m; `profileHeights` zaokrouhluje krok mezi 6 %; `abandonBypassed` bere za obejitý i zbytek
+  souběžný s dostavěnou částí. **Trasa po staré ose** (Úloha 11a; Martin 22. 10. 2026, #6: „vznikne ze staré pěší cesty a vede po ní“): osa = řetěz úseků cesty hráče
   (`chainAxis` v `wagon-road.ts`, od konce blíž vsi), bez vyhledávání a bez vyhlazení. Mřížka
   `paths/wagon-route.ts` (deterministická vrstva): `wagonRoadGrid` – zákazy jako vozová síť, ohrada
   a hřbitov jen uvnitř plotu (`fencedCells`, ulička 3 m průjezdná – natočená ohrada jen buňky celé

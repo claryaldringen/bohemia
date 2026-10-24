@@ -43,7 +43,7 @@ import {
 } from './paths/wagon-route';
 import { keepClear, type SwathTally } from './road-swath';
 import { OBSTACLE_COST, ROAD_SWATH, WAGON_ROAD, WAGON_STRAIGHTEN } from './rules';
-import { ROAD_UPGRADES } from './rules-roads';
+import { roadNeedsUpgrade } from './road-upgrades';
 import { sacredSitesOf } from './sacred';
 import type {
   ChronicleEvent,
@@ -85,6 +85,8 @@ export const WAGON_SHORT = 'Cesta je na úpravu pro vozy moc krátká.';
 export const WAGON_EXISTS = 'Cesta už je upravená pro vozy.';
 export const WAGON_BUILDING = 'Cesta se už upravuje pro vozy.';
 export const WAGON_BLOCKED = 'Vůz po této cestě neprojede – překáží stavba, plot nebo voda.';
+/** Vozová cesta se staví na upravené cestě (roads.md – Postupná úprava, Martin 24. 10. 2026). */
+export const WAGON_FIRST = 'Napřed uprav cestu.';
 export const WAGON_STEEP = 'Cesta je pro vůz moc prudká.';
 export const WAGON_NO_WOOD = 'Na lávku chybí dřevo.';
 export const WAGON_SACRED = 'Vozové cestě stojí v cestě posvátný dub – kácet se nesmí.';
@@ -262,6 +264,10 @@ export function wagonChainStatus(
   if (cmKey(a) === cmKey(b)) return { status: 'none', blocked: WAGON_LOOP };
   const length = chain.reduce((sum, link) => sum + profileLength(link.road.points), 0);
   if (length < MIN_CHAIN_M) return { status: 'none', blocked: WAGON_SHORT };
+  // postupně: nejdřív úprava celého řetězu vč. hatě a lávky; rozestavěná se nepočítá
+  if (chain.some((link) => roadNeedsUpgrade(link.road))) {
+    return { status: 'none', blocked: WAGON_FIRST };
+  }
   return { status: 'none', blocked: null };
 }
 
@@ -608,15 +614,40 @@ export function straightenStretches(
 function abandonBypassed(
   roads: readonly Road[],
   bypassed: readonly (readonly PathPoint[])[],
+  built: readonly PathPoint[],
 ): void {
   if (bypassed.length === 0) return;
   const near = axisDistance(bypassed);
+  const nearBuilt = built.length >= 2 ? axisDistance([built]) : null;
   for (const road of roads) {
     if (road.grade === 'wagon' || road.abandoned || road.points.length < 2) continue;
-    if (road.points.every((p) => near(p.x, p.z) <= BYPASS_MATCH_M)) road.abandoned = true;
+    // krátký zbytek souběžný s hotovou vozovou cestou obejitý kus neudrží naživu
+    if (
+      road.points.every(
+        (p) =>
+          near(p.x, p.z) <= BYPASS_MATCH_M || (nearBuilt?.(p.x, p.z) ?? Infinity) <= BYPASS_MATCH_M,
+      )
+    ) {
+      road.abandoned = true;
+    }
   }
 }
 const BYPASS_MATCH_M = 2;
+
+/** Začátek profilu do `builtM` m od začátku (osa dostavěné části vozové cesty). */
+function profilePrefix(profile: readonly PathPoint[], builtM: number): PathPoint[] {
+  const out: PathPoint[] = [];
+  let along = 0;
+  for (let k = 0; k < profile.length && along <= builtM + 1e-9; k++) {
+    if (k > 0) {
+      const a = profile[k - 1]!;
+      const b = profile[k]!;
+      along += length2(b.x - a.x, b.z - a.z);
+    }
+    if (along <= builtM + 1e-9) out.push(profile[k]!);
+  }
+  return out;
+}
 
 /**
  * Obejité kusy, které už dostavěná část vozové cesty (prvních `builtM` m od vsi) minula: konec
@@ -686,24 +717,9 @@ export function planWagonRoad(input: WagonPlanInput): WagonRoadPlan {
   const bounds = pieceBounds(profile.lengthM);
   const clearing = wagonClearing(input, grid, profile.profile, profile.fords, bounds);
   if (clearing.sacred) return { ok: false, reason: WAGON_SACRED };
-  const fordArcs = fordArcsOf(profile.profile, profile.fords);
-  const footbridgeTrees = fordArcs.length * ROAD_UPGRADES.footbridge.trees;
-  const missingWood =
-    footbridgeTrees > 0
-      ? planWoodFrom(
-          footbridgeTrees,
-          profileAt(profile.profile, profile.lengthM / 2),
-          {
-            logs: input.woodLogs ?? 0,
-            changes: () => input.changes,
-            claimed: () => new Set(input.claimed ?? []),
-          },
-          {
-            obstacles: input.layer,
-            clearedIds: [...clearing.pieces.flatMap((t) => [...t.cleared, ...t.felled])],
-          },
-        ).missing
-      : 0;
+  // lávky u brodů už stojí – vozová cesta se staví jen na upravené cestě (`wagonChainStatus`)
+  const footbridgeTrees = 0;
+  const missingWood = 0;
   const pieces: WagonPiecePlan[] = bounds.map((toM, k) => {
     const fromM = k > 0 ? bounds[k - 1]! : 0;
     let earthManDays = 0;
@@ -714,13 +730,9 @@ export function planWagonRoad(input: WagonPlanInput): WagonRoadPlan {
     });
     const pavingManDays = WAGON_ROAD.pavingPerM * (toM - fromM);
     const clearingManDays = clearing.pieces[k]!.cost;
-    // lávka pro pěší vedle každého brodu úseku (vůz jede brodem dál; roads.md – Vozová cesta)
-    const footbridgeManDays =
-      fordArcs.filter((d) => d > fromM && d <= toM + 1e-9).length *
-      ROAD_UPGRADES.footbridge.manDays;
     return {
       toM: tenths(toM),
-      manDays: tenths(earthManDays + pavingManDays + clearingManDays + footbridgeManDays),
+      manDays: tenths(earthManDays + pavingManDays + clearingManDays),
       earthManDays: tenths(earthManDays),
       pavingManDays: tenths(pavingManDays),
       clearingManDays,
@@ -1025,7 +1037,11 @@ export function wagonRoadsDay(
     // stará cesta po ose vozové cesty zmizí hned, úseky se spojí
     if (built && state.roads) {
       absorbParallelRoads(state.roads, state.constructions);
-      abandonBypassed(state.roads.roads, bypassedUpTo(earthwork, builtM));
+      abandonBypassed(
+        state.roads.roads,
+        bypassedUpTo(earthwork, builtM),
+        profilePrefix(earthwork.profile, builtM),
+      );
     }
   }
 }

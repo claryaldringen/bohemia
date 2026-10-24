@@ -24,13 +24,13 @@ Martin (22. 10. 2026): „pro chodce jsou vyšlapaná a vyježděná cesta stejn
 a vozová; upravená cesta zrychluje i vozy; stromy a jabloně u cesty zrychlují všechny druhy o svůj
 koeficient.“ Dnešní čísla (Martin 19. a 20. 10. 2026) to splňují a zůstávají:
 
-| Druh                       | Pěšky                 | Vůz                                | Kdo ji založí                          |
-| -------------------------- | --------------------- | ---------------------------------- | -------------------------------------- |
-| vyšlapaná                  | 1,5                   | 1,3                                | lidé chozením (paths.md – Vyšlapanost) |
-| vyježděná                  | 1,5                   | 1,6                                | vyšlapaná, kudy jezdí vozy (1. 11.)    |
-| upravená (s hatí a lávkou) | 1,7, i přes mokřinu   | 1,8, hať i přes mokřinu; brod 0,33 | hráč – „Upravit cestu“                 |
-| vozová                     | 1,7, i přes mokřinu   | 2,2, i přes mokřinu; brod 0,33     | hráč – „Upravit pro vozy“              |
-| zemská stezka              | beze změny (trade.md) | beze změny                         | hráč (beze změny)                      |
+| Druh                       | Pěšky                 | Vůz                                | Kdo ji založí                               |
+| -------------------------- | --------------------- | ---------------------------------- | ------------------------------------------- |
+| vyšlapaná                  | 1,5                   | 1,3                                | lidé chozením (paths.md – Vyšlapanost)      |
+| vyježděná                  | 1,5                   | 1,6                                | vyšlapaná, kudy jezdí vozy (1. 11.)         |
+| upravená (s hatí a lávkou) | 1,7, i přes mokřinu   | 1,8, hať i přes mokřinu; brod 0,33 | hráč – „Upravit cestu“                      |
+| vozová                     | 1,7, i přes mokřinu   | 2,2, i přes mokřinu; brod 0,33     | hráč – „Upravit pro vozy“ na upravené cestě |
+| zemská stezka              | beze změny (trade.md) | beze změny                         | hráč (beze změny)                           |
 
 - **Stromy +0,03, jabloně +0,05** × olemovaný podíl úseku – pro všechny druhy, pěšky i vozem
   ([Stromy u cesty zrychlí chůzi](#stromy-u-cesty-zrychlí-chůzi)). Nově i na hati a vozové cestě
@@ -90,7 +90,9 @@ cestu, i upravenou a vozovou, jen pro ty pomaleji.“ Návrh Clauda:
   upravená cesta bez nich dostane převodem příznak `Road.unbridged` a „Upravit cestu“ u ní postaví
   jen hať a lávku.
 - **Vozová cesta** staví hať přes mokřinu (jako dřív zpevnění) a nově i lávku pro pěší vedle
-  brodu (15 čd na brod v ceně úseku; vůz jede dál brodem, pěší lávkou bez zdržení).
+  brodu (15 čd na brod v ceně úseku; vůz jede dál brodem, pěší lávkou bez zdržení). _Od 24. 10. 2026
+  se staví jen na už upravené cestě (hať a lávka stojí), takže je neúčtuje –
+  [Postupná úprava](#postupná-úprava-a-serpentiny-24-10-2026)._
 - **Hráč cesty nezakládá ani neruší** (pravidla 3 a 8) – vylepšuje (upravená, vozová), sází
   jabloně a zakládá zemskou stezku (beze změny).
 - **Zrušení rozdělané úpravy** (návrh Clauda podle zrušení staveb – Martin 23. 10. 2026: „Potřebuju
@@ -142,13 +144,40 @@ a úvozy musí být výrazně vidět.“ Nahrazuje „Co nejpříměji“ a „S
   měří se přesně v bodě, ne po čtvercích mřížky). Samotný strom nebo keř u staré cesty ji nezavře
   – stavba ho vykácí. Posvátný strom zakáže úpravu, jen když stojí na pláni nebo pod zemními
   pracemi. Jinak důvod v popisku „Vůz po této cestě neprojede – překáží stavba, plot nebo voda.“
-- **Lávka u vozové cesty** (návrh Clauda, Úloha 11a): stojí stejně jako lávka u upravené cesty –
+- **Lávka u vozové cesty** (návrh Clauda, Úloha 11a; _od 24. 10. 2026 neplatí, lávka už stojí na
+  upravené cestě – [Postupná úprava](#postupná-úprava-a-serpentiny-24-10-2026)_): stojí stejně jako lávka u upravené cesty –
   4 stromy a 15 čd (táž stavba, Martin 22. 10. 2026: „Hať a lávka se postaví samy jako součást
   úpravy cesty“). Dřevo je v ceně stavby (Úloha 11b): klády z hromady, zbytek nejbližší stromy, kácení jde před
   zemními pracemi; chybí-li dřevo, důvod „Na lávku chybí dřevo.“ (`WAGON_NO_WOOD`).
 - **Vlkov:** hotové vozové cesty zůstanou se svou osou; staré souběžné cesty vedle nich (voda)
   pohltí převod (paths.md – Převod). Měření 24. 10. 2026 (Úloha 11a): cesta 372 (1 216 m, 1 466 čd, úvoz 1,8 m, násep 1,5 m) se po staré ose nabídne i bez narovnání,
   tětiva ji nemění (Úloha 11b, měřeno 24. 10. 2026).
+
+### Postupná úprava a serpentiny (24. 10. 2026)
+
+Martin (24. 10. 2026): „Úpravy cest by měly jít postupně. Tj. napřed upravím vyšlapanou nebo
+vyježděnou cestu a tím se mi odemkne úprava pro vozy. Zemská stezka na sever nejde upravit pro vozy
+s tím, že je pro vůz moc prudká, ale přesně tohle by ta úprava cesty pro vozy vyřešit.“ Návrh
+Clauda, schválený Martinem 24. 10. 2026 („Návrhy k cestám schvaluji“):
+
+- **Postupně:** „Upravit pro vozy“ se odemkne, až je **celý řetěz upravený** včetně hatě a lávky
+  (žádný úsek není vyšlapaný ani upravený bez hatě a lávky – `unbridged`). Do té doby je tlačítko
+  šedé s důvodem „Napřed uprav cestu.“ (`WAGON_FIRST`); server to kontroluje sám (`wagonChainStatus`,
+  tedy i plán a zahájení stavby). Rozestavěná úprava se za hotovou nepočítá. Zemská stezka je upravená,
+  ta projde. Starší vsi: hotové nebo rozestavěné vozové cesty se nemění.
+- **Cena:** vozová cesta na upravené cestě neúčtuje lávku znovu (nic za brod, žádné stromy na lávku)
+  a zpevnění je jen doplatek 0,3 − 0,15 = **0,15 čd/m** (zpevnění už je v ceně úpravy; číslo
+  `WAGON_ROAD.pavingPerM` se odvozuje z `ROAD_UPGRADES.improvedManDaysPer100M`).
+- **Sklon přesně 6 %:** krok profilu se zaokrouhluje (`Math.round`), dřív se ořezával dolů a skutečná
+  mez vycházela 5,0–5,9 % (diagnóza Vlkov, zemská stezka na sever).
+- **Serpentiny (pravidlo):** kde profil po staré ose nevyjde nebo u osy stojí posvátný strom, hledá se
+  v oknech ±60, ±120 a ±200 m kolem místa selhání lokální trasa (`findWagonRoute`) a vezme se
+  nejlevnější hotový plán; obejitý kus staré osy zaroste (`bypassed`). `WAGON_STEEP` zůstane jen tehdy,
+  když nevyjde žádné okno. Okna se počítají z celočíselných indexů osy a při shodě rozhoduje pevné
+  pořadí (determinismus server × prohlížeč), plán se v prohlížeči drží v mezipaměti. Implementace:
+  Úloha B.
+- **Hláška:** když profil selže na mezi zemních prací u posvátného stromu, nesmí tvrdit „moc prudká“
+  (Úloha B – serpentiny to obejdou).
 
 ### Lidé při práci na cestě (Martin 22. 10. 2026, #3)
 

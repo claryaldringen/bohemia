@@ -153,6 +153,21 @@ export function roadNeedsCauseway(road: Pick<Road, 'ground'>): boolean {
   return roadWetM(road.ground) > 0 || (road.ground?.fords.length ?? 0) > 0;
 }
 
+/**
+ * Úseku chybí úprava cesty: je vyšlapaný, nebo upravený přes mokřinu či brod bez hatě a lávky.
+ * Vozová cesta (roads.md – Postupná úprava) se odemkne, až když to neplatí pro žádný úsek řetězu.
+ */
+export function roadNeedsUpgrade(road: {
+  grade?: RoadGrade | undefined;
+  ground?: Road['ground'];
+  unbridged?: boolean | undefined;
+}): boolean {
+  return (
+    road.grade === 'trodden' ||
+    (road.grade === 'improved' && road.unbridged === true && roadNeedsCauseway(road))
+  );
+}
+
 /** Bod v polovině osy úseku – odtud se kácí dřevo vylepšení. */
 export function roadMidpoint(road: Pick<Road, 'points'>): { x: number; z: number } {
   const half = roadLengthM(road) / 2;
@@ -208,11 +223,7 @@ function pointOnRoad(road: Pick<Road, 'points'>, d: number): { x: number; z: num
 function chainTargets(state: VillageState, roadId: number): Road[] {
   return roadChain(state.roads?.roads ?? [], roadId)
     .map((link) => link.road)
-    .filter(
-      (road) =>
-        road.grade === 'trodden' ||
-        (road.grade === 'improved' && road.unbridged === true && roadNeedsCauseway(road)),
-    );
+    .filter(roadNeedsUpgrade);
 }
 
 /** Práce a dřevo úpravy úseků dohromady. */

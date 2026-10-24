@@ -895,7 +895,7 @@ function profileAxis(
  * (úvoz i násep); konce v terénu. Dynamické programování po bodech přes výšky po centimetrech
  * (klouzavé minimum). Nejde-li to, null.
  */
-function profileHeights(
+export function profileHeights(
   axis: readonly PathPoint[],
   natural: readonly number[],
   limits: readonly number[],
@@ -929,7 +929,7 @@ function profileHeights(
     const size = hi[i]! - lo[i]! + 1;
     const cost = new Float64Array(Math.max(0, size)).fill(Infinity);
     const parent = new Int32Array(Math.max(0, size)).fill(-1);
-    const m = Math.floor(WAGON_ROAD.maxGrade * ds[i - 1]! * 100 + 1e-9);
+    const m = Math.round(WAGON_ROAD.maxGrade * ds[i - 1]! * 100);
     // klouzavé minimum přes okno [y − m, y + m] předchozího řádku
     const deque: number[] = [];
     let head = 0;
