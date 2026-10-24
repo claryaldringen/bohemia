@@ -320,6 +320,10 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return event.oxen === 1
         ? 'Přes zimu chybělo seno – vůl uhynul.'
         : `Přes zimu chybělo seno – uhynuli voli (${event.oxen}).`;
+    case 'horse-starved':
+      return event.horses === 1
+        ? 'Přes zimu chybělo seno – kůň uhynul.'
+        : `Přes zimu chybělo seno – uhynuli koně (${event.horses}).`;
     case 'orchard-gone':
       return 'Starý sad dosloužil a zarostl loukou.';
     case 'orchard-renewal-started':

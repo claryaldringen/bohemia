@@ -50,6 +50,7 @@ import {
 import { dailyMilk, dairyDams, villageCheeseKg, yearlyMilk } from './dairy';
 import { villageMeal, villageMeatKg } from './diet';
 import { villageHayKg } from './hay';
+import { horsesInPlaces, villageHorses } from './horses';
 import { villageLegumesKg } from './legumes';
 import {
   dailyEggsKg,
@@ -693,7 +694,7 @@ function livestockSummary(state: VillageState, day: number): LivestockSummary {
     chickens: villageChickens(state),
     oxen,
     pastureHa: pastureHa(state, day),
-    grazingHa: grazingDemandHa(herds, oxen),
+    grazingHa: grazingDemandHa(herds, oxen, horsesInPlaces(villageHorses(state), day)),
     pigForestHa: pigForestHa(state),
     meatNeedKg: meatNeedPerYear(state, day),
     legumeNeedKg: legumeNeedPerYear(state, day),

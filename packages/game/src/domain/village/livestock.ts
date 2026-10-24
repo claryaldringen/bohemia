@@ -23,7 +23,7 @@ import {
 import { legumeSupplyPerYear } from './legumes';
 import { ageGroup } from './people';
 import { woolSheep } from './wool';
-import { FOOD_NEED_KG_PER_YEAR, HERD_BREEDING, HERD_RETIREMENT, LEGUMES } from './rules';
+import { FOOD_NEED_KG_PER_YEAR, HERD_BREEDING, HERD_RETIREMENT, HORSES, LEGUMES } from './rules';
 import type {
   ChronicleEvent,
   DwellingType,
@@ -292,14 +292,22 @@ export function pigForestHa(state: VillageState): number {
   return Math.max(0, livestockLand(state).forestHa - cleared / M2_PER_HA) + grown / M2_PER_HA;
 }
 
-/** Pastva, kterou stáda (a `oxen` volů) spásají (ha). */
-export function grazingDemandHa(herds: Record<HerdSpecies, number>, oxen: number): number {
+/**
+ * Pastva, kterou stáda (a `oxen` volů a `horses` koní – horses.md, Krmení: 1 ha na koně) spásají
+ * (ha).
+ */
+export function grazingDemandHa(
+  herds: Record<HerdSpecies, number>,
+  oxen: number,
+  horses = 0,
+): number {
   const { pastureHa: per } = LIVESTOCK;
   return (
     herds.sheep * per.sheep +
     herds.goat * per.goat +
     herds.cow * per.cow +
-    oxen * LIVESTOCK.oxPastureHa
+    oxen * LIVESTOCK.oxPastureHa +
+    horses * HORSES.pastureHa
   );
 }
 
@@ -467,6 +475,10 @@ export interface WinterInput {
    * i jarní mláďata – přes zimu jich zůstane nejvýš `room ÷ (1 + růst)` (`roomForWinter`).
    */
   room?: Record<HerdSpecies, number>;
+  /** Pastva koní (ha – horses.md, Krmení); pasou se se stády, napřed. Bez údaje 0. */
+  horsePastureHa?: number;
+  /** Seno koní na zimu (kg) – mají ho po volech, před stádem. Bez údaje 0. */
+  horseHayKg?: number;
 }
 
 /**
@@ -550,11 +562,16 @@ export function winterTargets(
   // ovce na vlnu, které pasáci uhlídali
   const woolSheep = woolHeads * watched.wool;
   const breeding = (s: HerdSpecies): number => Math.min(herds[s], LIVESTOCK.breedingMin);
-  let pasture = Math.max(0, pastureHa(state, day) - input.oxen * LIVESTOCK.oxPastureHa);
+  let pasture = Math.max(
+    0,
+    pastureHa(state, day) - input.oxen * LIVESTOCK.oxPastureHa - (input.horsePastureHa ?? 0),
+  );
   let browse = goatBrowseHa(state);
   let hay = Math.max(
     0,
-    winterHayAvailable(input.hayKg) - input.oxen * HAY.dailyKg.ox * HAY_WINTER_DAYS,
+    winterHayAvailable(input.hayKg) -
+      input.oxen * HAY.dailyKg.ox * HAY_WINTER_DAYS -
+      (input.horseHayKg ?? 0),
   );
   const targets = herdRecord(() => 0);
   const take = (species: 'sheep' | 'goat' | 'cow', wanted: number): void => {

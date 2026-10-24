@@ -324,3 +324,16 @@ Horse[]` (`id`, `bornDay`, `sex`, `training`, `riderId?`). `horses.ts` – `hors
   druh, rozšíření bere druh cílové ohrady), plot podle délky beze změny (`PEN_FENCE`).
   `penOccupancy` počítá koně ohrady (chátrání `abandonment.ts` beze změny – prázdná ohrada chátrá).
   Číslo `HORSES` v `rules-livestock.ts`, výška plotu `PEN_FENCE_HEIGHT_M` jen pro scénu.
+- **Péče a krmení koní** (horses.md – Péče, Krmení; issue #5): péče 0,1 čd na koně denně
+  (`horseCareLabor`, hříbě do roka nic) jde z práce vsi hned za denním minimem (`allocateDay` –
+  `horseCare`); pokrytí 0–1 v `state.horsesCaredToday` (chybí = ves bez koní). Obilí –
+  `feedHorseGrain` (`horse-feed.ts`) na konci `eat()`: jezdečtí koně (samci od 3 let,
+  `isGrainHorse`, `horseGrainToday`) dostanou 1,5 kg jen, když ves nešetří a obilí navíc do sklizně
+  (`DietResult.grainSpareKg`) vystačí i jim; po dni bez obilí až s rezervou `grainResumeDays`
+  (hystereze). `state.horsesFed` (chybí = bez koní). Seno – `horseHayDailyKg` (hříbě 3 / 5, kůň 6,
+  jezdecký bez obilí 7), `feedHay(…, horsesKg)` voli → koně → stádo, `winter.horsesNeedKg` /
+  `horsesEatenKg` jen ves s koňmi; `horsesHayCoverage`, `herdHayCoverage` odečte březen koní;
+  1. 3. `horsesWinterEnd` (nejmladší napřed, kronika `horse-starved`). Seč 1. 6. s koňmi
+     (`winterHayNeedKg`), zimní stádo po koních (`WinterInput.horsePastureHa` / `horseHayKg`). Pastva
+     1 ha na koně (`grazingDemandHa(…, horses)` – zarůstání, pěšiny, souhrn). Plán osevu přičte obilí
+     koní za rok do potřeby do sklizně i po ní (`sowingTargets`). Nouzová porážka koně nebere.

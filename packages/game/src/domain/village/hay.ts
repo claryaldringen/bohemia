@@ -67,9 +67,20 @@ function hayKeep(days: number): number {
 /** Podíl sena, který ze seče zbude do zkrmení – plán seče o tolik seče víc. */
 export const PLAN_HAY_KEEP = hayKeep(PLAN_STORAGE_DAYS);
 
-/** Seno na zimu (kg) – stáda a voli celou zimu po denní dávce (bez ztrát ve stohu). */
-export function winterHayKg(herds: Readonly<Record<HerdSpecies, number>>, oxen: number): number {
-  return dailyHerdHayKg(herds) * HAY_WINTER_DAYS + oxen * HAY.dailyKg.ox * HAY_WINTER_DAYS;
+/**
+ * Seno na zimu (kg) – stáda, voli a koně (`horsesKg` – seno koní za den, `horseHayDailyKg`) celou
+ * zimu po denní dávce (bez ztrát ve stohu).
+ */
+export function winterHayKg(
+  herds: Readonly<Record<HerdSpecies, number>>,
+  oxen: number,
+  horsesKg = 0,
+): number {
+  return (
+    dailyHerdHayKg(herds) * HAY_WINTER_DAYS +
+    oxen * HAY.dailyKg.ox * HAY_WINTER_DAYS +
+    horsesKg * HAY_WINTER_DAYS
+  );
 }
 
 /** Seno stád za den zimy (kg) – krávy, ovce a kozy, bez volů. */
@@ -427,17 +438,19 @@ export function isHayWinter(day: number): boolean {
 }
 
 /**
- * Den zimního krmení (mutuje stav): voli dostanou seno první (orají), krávy, ovce a kozy se
- * podělí o zbytek poměrně k dávce (HAY.dailyKg). Pamatuje si, kolik sena voli a stádo
- * potřebovali a dostali (`winter`).
+ * Den zimního krmení (mutuje stav): voli dostanou seno první (orají), pak koně (`horsesKg` – jejich
+ * dávka dne, horses.md – Krmení), krávy, ovce a kozy se podělí o zbytek poměrně k dávce
+ * (HAY.dailyKg). Pamatuje si, kolik sena voli, koně a stádo potřebovali a dostali (`winter`; koně
+ * jen ves s koňmi).
  */
 export function feedHay(
   state: VillageState,
   oxen: number,
   herds: Readonly<Record<HerdSpecies, number>>,
+  horsesKg = 0,
 ): void {
   const herdNeed = dailyHerdHayKg(herds);
-  if (oxen <= 0 && herdNeed <= 0 && !state.hay) return;
+  if (oxen <= 0 && herdNeed <= 0 && horsesKg <= 0 && !state.hay) return;
   const hay = (state.hay ??= { kg: 0, mowing: null });
   const winter = (hay.winter ??= { oxenNeedKg: 0, oxenEatenKg: 0 });
   const oxenNeed = oxen * HAY.dailyKg.ox;
@@ -445,6 +458,12 @@ export function feedHay(
   hay.kg -= oxenEaten;
   winter.oxenNeedKg += oxenNeed;
   winter.oxenEatenKg += oxenEaten;
+  if (horsesKg > 0) {
+    const horsesEaten = Math.min(hay.kg, horsesKg);
+    hay.kg -= horsesEaten;
+    winter.horsesNeedKg = (winter.horsesNeedKg ?? 0) + horsesKg;
+    winter.horsesEatenKg = (winter.horsesEatenKg ?? 0) + horsesEaten;
+  }
   const herdEaten = Math.min(hay.kg, herdNeed);
   hay.kg = Math.max(0, hay.kg - herdEaten);
   winter.herdNeedKg = (winter.herdNeedKg ?? 0) + herdNeed;
@@ -468,20 +487,40 @@ export function oxenHayCoverage(state: VillageState, oxen: number): number {
 }
 
 /**
+ * Pokrytí sena koní za zimu k 1. 3. (0–1, horses.md – Krmení): co dostali do včerejška a co jim ze
+ * zásoby po volech zbývá na březen (`horsesKg` – jejich dávka dne), proti potřebě celé zimy. Bez
+ * koní 1.
+ */
+export function horsesHayCoverage(state: VillageState, oxen: number, horsesKg: number): number {
+  const winter = state.hay?.winter;
+  const march = horsesKg * MARCH_DAYS;
+  const need = (winter?.horsesNeedKg ?? 0) + march;
+  if (need <= EPSILON) return 1;
+  const left = Math.max(0, villageHayKg(state) - oxen * HAY.dailyKg.ox * MARCH_DAYS);
+  const eaten = (winter?.horsesEatenKg ?? 0) + Math.min(left, march);
+  return Math.min(1, eaten / need);
+}
+
+/**
  * Pokrytí sena krav, ovcí a koz za zimu k 1. 3. (0–1, diet.md – Zimní úhyn): co dostaly do
- * včerejška a co jim ze zásoby po volech zbývá na březen, proti potřebě celé zimy (zima začatá
- * před senem pro ovce a kozy počítá jen svůj zbytek). Bez stáda 1.
+ * včerejška a co jim ze zásoby po volech a koních (`horsesKg` – jejich dávka dne) zbývá na březen,
+ * proti potřebě celé zimy (zima začatá před senem pro ovce a kozy počítá jen svůj zbytek). Bez
+ * stáda 1.
  */
 export function herdHayCoverage(
   state: VillageState,
   oxen: number,
   herds: Readonly<Record<HerdSpecies, number>>,
+  horsesKg = 0,
 ): number {
   const winter = state.hay?.winter;
   const march = dailyHerdHayKg(herds) * MARCH_DAYS;
   const need = (winter?.herdNeedKg ?? 0) + march;
   if (need <= EPSILON) return 1;
-  const left = Math.max(0, villageHayKg(state) - oxen * HAY.dailyKg.ox * MARCH_DAYS);
+  const left = Math.max(
+    0,
+    villageHayKg(state) - (oxen * HAY.dailyKg.ox + Math.max(0, horsesKg)) * MARCH_DAYS,
+  );
   const eaten = (winter?.herdEatenKg ?? 0) + Math.min(left, march);
   return Math.min(1, eaten / need);
 }

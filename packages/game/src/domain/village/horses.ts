@@ -59,3 +59,38 @@ export function horsesInPlaces(horses: readonly Horse[], day: number): number {
 export function horseRoom(state: Pick<VillageState, 'pens'>, day: number): number {
   return Math.max(0, horsePlaces(state) - horsesInPlaces(villageHorses(state), day));
 }
+
+/**
+ * Péče o koně dnes (člověkodny – horses.md, Péče; Martin 23. 10. 2026): hodina denně na koně celý
+ * rok z práce vsi, hříbě do roka s klisnou nic navíc.
+ */
+export function horseCareLabor(horses: readonly Horse[], day: number): number {
+  return horsesInPlaces(horses, day) * HORSES.careManDaysPerDay;
+}
+
+/** Jezdecký kůň, který dostává obilí – samec od 3 let (horses.md – Krmení). */
+export function isGrainHorse(horse: Pick<Horse, 'bornDay' | 'sex'>, day: number): boolean {
+  return horse.sex === 'male' && !isFoalByAge(horse, day);
+}
+
+/**
+ * Obilí koní na dnešek (kg – horses.md, Krmení; Martin 23. 10. 2026): jezdecký kůň 1,5 kg denně
+ * celý rok, klisny a hříbata nic.
+ */
+export function horseGrainToday(horses: readonly Horse[], day: number): number {
+  return horses.filter((h) => isGrainHorse(h, day)).length * HORSES.grainKgPerDay;
+}
+
+/**
+ * Seno koní za den zimy (kg – horses.md, Krmení): hříbě v první zimě 3, dál do 3 let 5, klisna 6,
+ * jezdecký kůň 6 – a 7, když dnes nedostal obilí (`grainFed`).
+ */
+export function horseHayDailyKg(horses: readonly Horse[], day: number, grainFed = true): number {
+  const { hayKg } = HORSES;
+  return horses.reduce((sum, h) => {
+    if (horseKind(h, day) === 'foal') return sum + hayKg.foalFirstWinter;
+    if (isFoalByAge(h, day)) return sum + hayKg.foal;
+    if (isGrainHorse(h, day) && !grainFed) return sum + hayKg.horseNoGrain;
+    return sum + hayKg.horse;
+  }, 0);
+}

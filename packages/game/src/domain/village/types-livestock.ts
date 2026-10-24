@@ -57,10 +57,17 @@ export interface HayState {
   /**
    * Zima (listopad–březen): kolik sena voli potřebovali a dostali do včerejška – pokrytí rozhodne
    * o jarní orbě a úhynu (oxen.md) – a totéž pro krávy, ovce a kozy (`herdNeedKg`,
-   * `herdEatenKg` – zimní úhyn, diet.md; zimy začaté před senem pro ovce a kozy je nemají).
-   * Chybí mimo zimu.
+   * `herdEatenKg` – zimní úhyn, diet.md; zimy začaté před senem pro ovce a kozy je nemají)
+   * a koně (`horsesNeedKg`, `horsesEatenKg` – horses.md, Krmení; jen ves s koňmi). Chybí mimo zimu.
    */
-  winter?: { oxenNeedKg: number; oxenEatenKg: number; herdNeedKg?: number; herdEatenKg?: number };
+  winter?: {
+    oxenNeedKg: number;
+    oxenEatenKg: number;
+    herdNeedKg?: number;
+    herdEatenKg?: number;
+    horsesNeedKg?: number;
+    horsesEatenKg?: number;
+  };
 }
 
 /**

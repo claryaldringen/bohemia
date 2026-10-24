@@ -47,6 +47,7 @@ import { ploughDayFactor } from './plough-trip';
 import { isToilDay, windowEndDay } from './happiness';
 import { MOWING_WINDOWS, mow, mowingRemaining } from './hay';
 import { herdingDay, recordHerding } from './herding';
+import { horseCareLabor, villageHorses } from './horses';
 import { villageHoldings, workOrder } from './holdings';
 import {
   slaughterRemaining,
@@ -394,6 +395,9 @@ export function work(
   // nedonesou synové 10–13, donese jeho domácnost z práce vsi
   const restingFetch = smithFetchPlans(state, day, deliveries, jobs, resting, true);
   const restingCarry = [...restingFetch.values()].reduce((sum, f) => sum + f.household, 0);
+  // péče o koně – hodina denně na koně z práce vsi (horses.md – Péče)
+  const horses = villageHorses(state);
+  const horseCare = horseCareLabor(horses, day);
   const allocation = allocateDay({
     capacity: Math.max(
       0,
@@ -408,6 +412,8 @@ export function work(
     lordHelp: manor && productivity > 0 ? manor.help / productivity : 0,
     manorMin: manor?.uncovered ?? 0,
     householdElders: householdElders(villagers, day, manorSkip),
+    // péče o koně hned za denním minimem, před výpravami (horses.md – Péče)
+    horseCare,
     // chůze pro vodu nad denní minimum (population.md – Práce, paths.md – Pochůzky pro vodu); vodu,
     // kterou přivezl vůz, nenosí a platí díl práce posádky (wagons.md – Co vozy vozí)
     householdWater: jobs.water ? jobs.water.water : waterNeeds.map((h) => h.labor),
@@ -431,6 +437,10 @@ export function work(
       jobs.ore.reduce((sum, o) => sum + o.manDays, 0) +
       jobs.clay.reduce((sum, o) => sum + o.manDays, 0),
   });
+  // pokrytí péče o koně – bez péče výcvik koně stojí (horses.md – Péče); ves bez koní ho nemá
+  if (horses.length > 0) {
+    state.horsesCaredToday = horseCare > 0 ? Math.min(1, allocation.horseCare / horseCare) : 1;
+  } else if (state.horsesCaredToday !== undefined) delete state.horsesCaredToday;
 
   // polní práce dne – i odkud kam došla (rozdělení práce po dílech pro postavy, labor-report.ts);
   // `amount` = postup úlohy (s vozy víc než práce vsi), `labor` = práce vsi bez honáků

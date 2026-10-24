@@ -308,6 +308,17 @@ export interface VillageState {
    * pracuje jako ostatní (ves má málo dospělých mimo rodinu, i starší ves před výcvikem).
    */
   lord?: LordState;
+  /**
+   * Pokrytí péče o koně dnes 0–1 (horses.md – Péče): kolik z hodiny na koně dala práce vsi – bez
+   * péče výcvik koně stojí. Chybí = ves bez koní.
+   */
+  horsesCaredToday?: number;
+  /**
+   * Dostali jezdečtí koně dnes obilí (horses.md – Krmení)? Lidé napřed – když ves šetří, nebo obilí
+   * do sklizně nevystačí lidem i koním, koně ho nedostanou (seno 7 kg, výcvik polovičním tempem).
+   * Chybí = ves bez koní.
+   */
+  horsesFed?: boolean;
   /** Zemské stezky k sousedům (trade.md – Zemská stezka); chybí = žádné. */
   trails?: Trail[];
   /** Obchod se sousedy – zásoby a poptávka sousedů a výpravy (trade.md – Obchod); chybí = nic. */
