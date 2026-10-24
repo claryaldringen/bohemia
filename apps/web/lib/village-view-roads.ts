@@ -72,7 +72,9 @@ export function sceneEarthworks(state: VillageState, day: number): SceneEarthwor
       ageYears:
         p.builtDay === null ? null : Math.max(0, Math.floor((day - p.builtDay) / DAYS_PER_YEAR)),
     })),
-    ...(e.constructionId !== undefined ? { building: true as const } : {}),
+    ...(e.constructionId !== undefined
+      ? { building: true as const, constructionId: e.constructionId }
+      : {}),
   }));
 }
 

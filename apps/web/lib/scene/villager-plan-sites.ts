@@ -495,3 +495,58 @@ export function roadWork(ctx: Context, roadId: number): Placer {
     return stand(slot.x, slot.z, slot.hx, slot.hz, i % 2 === 0 ? 'hoe' : 'build');
   };
 }
+
+/**
+ * Stavba vozové cesty (roads.md – Lidé při práci na cestě): u čela práce (`x`, `z` z jádra,
+ * `wagonWorkTarget`) kopáči v úvozu, nosiči s koši od úvozu k náspu o kus zpět po ose a dusání
+ * na hotovém náspu. Bez zemních prací v údajích nikdo.
+ */
+export function wagonWork(ctx: Context, target: { id: number; x: number; z: number }): Placer {
+  // zemní práce té stavby, jejíž je cíl (`id` = stavba); víc vozových cest ve stavbě = víc os
+  const earthwork = (ctx.village.earthworks ?? []).find(
+    (e) => e.constructionId === target.id && e.profile.length >= 2,
+  );
+  if (!earthwork) return none;
+  let best = 0;
+  let bestD = Infinity;
+  earthwork.profile.forEach((p, k) => {
+    const d = Math.hypot(p.x - target.x, p.z - target.z);
+    if (d < bestD) {
+      bestD = d;
+      best = k;
+    }
+  });
+  const a = earthwork.profile[Math.max(0, best - 1)]!;
+  const b = earthwork.profile[Math.min(earthwork.profile.length - 1, best + 1)]!;
+  const len = Math.hypot(b.x - a.x, b.z - a.z) || 1;
+  const ax = (b.x - a.x) / len;
+  const az = (b.z - a.z) / len;
+  // bod u čela: podél osy `along` m (záporně zpět k vsi), příčně `side` m
+  const spot = (along: number, side: number): Point | null =>
+    nearestFree(ctx, target.x + ax * along - az * side, target.z + az * along + ax * side, 3);
+  return (i, who) => {
+    const role = i % 4;
+    const side = i % 2 === 0 ? 1 : -1;
+    if (role === 2) {
+      const from = spot(0.5, 0);
+      const to = spot(-6, 3.5 * side);
+      const path = from && to ? walkRoute(ctx, from, to) : null;
+      if (path) {
+        return shuttle(path, {
+          outClip: 'carry',
+          outSpeed: walkSpeed(who.kind, 'carry', who.scale),
+          endClip: 'build',
+          endS: 3,
+          backClip: 'walk',
+          backSpeed: walkSpeed(who.kind, 'walk', who.scale),
+          restClip: 'hoe',
+          restS: 2,
+          phase: who.phase,
+        });
+      }
+    }
+    const slot = role === 3 ? spot(-4, 1.2 * side) : spot(((i >> 2) % 3) * 1.2, 1.3 * side);
+    if (!slot) return null;
+    return stand(slot.x, slot.z, ax, az, role === 3 ? 'build' : 'hoe');
+  };
+}

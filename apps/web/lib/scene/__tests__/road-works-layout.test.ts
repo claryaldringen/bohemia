@@ -19,7 +19,8 @@ import {
   roadBands,
   roadWorksKey,
   stakingLines,
-  SLOPE_GRASS_YEARS,
+  SLOPE_LOOK,
+  earthworkEdges,
   WAGON_STAKING_OFFSET_M,
   earthworkSlopeGrid,
   wagonStakingLines,
@@ -328,20 +329,46 @@ describe('vozová cesta ve scéně (roads.md – Vozová cesta)', () => {
   it('hlína na svazích podle úpravy terénu, s věkem zaroste trávou', () => {
     const fresh = earthworkSlopeGrid([earthwork()], (x) => height(x), base, 1)!;
     const old = earthworkSlopeGrid(
-      [earthwork({ pieces: [{ toM: 40, ageYears: SLOPE_GRASS_YEARS }] })],
+      [earthwork({ pieces: [{ toM: 40, ageYears: SLOPE_LOOK.grassYears }] })],
       (x) => height(x),
       base,
       1,
     )!;
     const max = (a: Float32Array): number => Math.max(...a);
     expect(max(fresh.alphas)).toBeGreaterThan(0.9);
-    expect(max(old.alphas)).toBeLessThan(0.2);
+    // po 15 letech jen řídká tráva – hlína pořád prosvítá, nikdy plná tráva (Martin 22. 10. 2026)
+    expect(max(old.alphas)).toBeLessThan(0.55);
+    expect(max(old.alphas)).toBeGreaterThan(0.3);
     // kde se terén nezměnil, hlína není
     const lanes = fresh.positions.length / 2 / profile.length;
     expect(fresh.alphas[0]).toBe(0);
     expect(fresh.alphas[lanes - 1]).toBe(0);
     // nehotová část osy svahy nemá
     expect(earthworkSlopeGrid([earthwork({ shownM: 0 })], (x) => height(x), base, 1)).toBeNull();
+  });
+
+  it('lem: hrana úvozu světlý, pata náspu tmavý, jen u okraje svahu', () => {
+    // mírnější svah (1 : 2), ať okraj leží ve více řezech
+    const soft = (x: number): number => Math.min(3, 1 + Math.max(0, Math.abs(x) - 2.75) * 0.5);
+    const edges = earthworkEdges([earthwork()], (x) => soft(x), base, 1);
+    // terén je o 2 m výš než pláň = úvoz; násep tu není
+    expect(edges.cut).not.toBeNull();
+    expect(edges.fill).toBeNull();
+    const lanes = edges.cut!.positions.length / 2 / profile.length;
+    const x = (l: number): number => edges.cut!.positions[l * 2]!;
+    for (let l = 0; l < lanes; l++) {
+      // střed pláně (bez změny nad prahem) a daleko od osy lem nemá
+      if (Math.abs(x(l)) < 1 || Math.abs(x(l)) > 8) expect(edges.cut!.alphas[l]).toBe(0);
+    }
+    expect(Math.max(...edges.cut!.alphas)).toBeGreaterThan(0.5);
+    const raised = earthworkEdges(
+      [earthwork()],
+      (x) => 4 - soft(x),
+      () => 1,
+      1,
+    );
+    expect(raised.fill).not.toBeNull();
+    expect(raised.cut).toBeNull();
   });
 
   it('vytyčení: nehotová část stavby a náhled trasy po obou okrajích vozovky', () => {

@@ -58,6 +58,7 @@ import {
   penFence,
   roadApples,
   roadWork,
+  wagonWork,
 } from './villager-plan-sites';
 import {
   craftsmen,
@@ -503,6 +504,7 @@ export function placer(ctx: Context, share: SceneLaborShare, count: number): Pla
       return t.kind === 'site' || t.kind === 'dwelling' ? building(ctx, t, 'build') : none;
     case 'build':
       if (t.kind === 'road') return roadWork(ctx, t.id);
+      if (t.kind === 'wagon') return wagonWork(ctx, t);
       return t.kind === 'site' || t.kind === 'dwelling' ? building(ctx, t, 'build') : none;
     case 'repair':
       // opravy obydlí, oprava modly a svatyně (abandonment.md – Oprava) – lidé kolem stavby

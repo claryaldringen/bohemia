@@ -262,7 +262,7 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   `kind: 'road'` s `roadIds` a `roadGrade` (dřevo `planWoodFrom` k polovině úseku),
   `finishRoadUpgrade` v `finishConstructions`; úsek ve stavbě nezaroste (`roadsInWork`). Use-case
   `upgradeRoad`, server action `upgradeRoad` (`{ roadId, upgrade }`), práce `{ kind: 'road' }`
-  (labor-report, postavy `roadWork`, pěšina k polovině úseku). **Chůze** jen ve `walking.ts`:
+  (labor-report, postavy `roadWork` (u čela úseku, kde se pracuje) a `wagonWork` (vozová cesta ve stavbě: kopáči, nosiči s koši, dusání u čela `LaborTarget.wagon`; `villager-plan-sites.ts`), pěšina k polovině úseku). **Chůze** jen ve `walking.ts`:
   `walkGraph(lines, { roads, ground })` – pěšiny dne, pevné cesty podle `ROAD_WALK`
   (`roadPieceCost` – stupeň: vyšlapaná i vyježděná 1,5×, upravená 1,7× i přes mokřinu (hať) a brod
   bez zdržení (lávka), jen `Road.unbridged` jako vyšlapaná: mokřina 0,5×, brod + 30 m; stromy u cesty přidají – Stromy u cesty zrychlí
@@ -453,7 +453,7 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   (`editSurfaceHeights`, `recomputeNormals` jako Babylon), `TerrainMesh.setTerrainEdits`,
   `applyTerrainEdits` v `landscape-scene.ts` před obnovou vsi, `terrainChanged` (pole po blocích –
   `#t` v klíči bloku, pěšiny, cesty), pás `roadBands` `wagon` + `gravel` (`WAGON_*_LAYER`), svahy
-  `earthworkSlopeGrid` (`roads-slopes`, zarostou za `SLOPE_GRASS_YEARS`), vytyčení
+  `earthworkSlopeGrid` (`roads-slopes`, zarůstají pomalu podle `SLOPE_LOOK` – za 15 let řídká tráva, nikdy plná; lem hrany úvozu a paty náspu `earthworkEdges` – `roads-edge-cut` světlý, `roads-edge-fill` tmavý; sníh na svazích tenčí `SNOW_SLOPE`; kameny na svazích zatím ne – později s modelem; nosiči kmenů u hatě a kůly u lávky ve scéně zatím ne – scéna nemá data o hati), vytyčení
   `wagonStakingLines`. Ukázka `/dev/landscape` **Vozová cesta** (`dev-wagon-road.ts` – svahy, které vozová cesta po
   staré ose srovná; hotové úseky nahradí starou cestu).
 
