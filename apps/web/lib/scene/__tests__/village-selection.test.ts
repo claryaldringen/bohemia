@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SceneVillage } from '../../village-view';
+import type { VillageTarget } from '../village-picking';
 import {
   allDwellingsTarget,
   dwellingsTarget,
@@ -42,6 +43,32 @@ const village: SceneVillage = {
 };
 const part = { kind: 'field-part', id: 5, cell: { x: 2, y: 0 } } as const;
 const square = { kind: 'orchard-square', id: 6, cell: { x: 4, y: 4 } } as const;
+
+describe('výběr všech polí (Martin 24. 10. 2026)', () => {
+  const many: SceneVillage = {
+    ...village,
+    fields: [
+      { id: 5, parts: [] },
+      { id: 7, parts: [] },
+    ],
+  };
+
+  it('zaniklá pole z výběru vypadnou, jedno zbylé je pole, žádné nic', () => {
+    const all: VillageTarget = { kind: 'fields', ids: [5, 7] };
+    expect(presentTarget(many, all)).toBe(all);
+    expect(presentTarget(many, { kind: 'fields', ids: [5, 9] })).toEqual({ kind: 'field', id: 5 });
+    expect(presentTarget(many, { kind: 'fields', ids: [8, 9] })).toBeNull();
+  });
+
+  it('jiný klik výběr všech polí nahradí, s Ctrl na prázdno ho nechá', () => {
+    const all: VillageTarget = { kind: 'fields', ids: [5, 7] };
+    expect(nextSelection(all, { kind: 'dwelling', id: 1 }, false)).toEqual({
+      kind: 'dwelling',
+      id: 1,
+    });
+    expect(nextSelection(all, null, true)).toBe(all);
+  });
+});
 
 describe('nextSelection', () => {
   it('bez modifikátoru vybere, co je pod kurzorem; prázdná zem výběr zruší', () => {

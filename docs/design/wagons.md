@@ -454,7 +454,8 @@ Sondy bez kováře (kovárna zrušená) na čerstvém stavu z 31. 1. 801, kdy ve
 - V mřížce staveb **Tesař** (dílna), v panelu dílny zásoba vozů a nářadí, pokrytí staveb,
   kování k vozu (čeká, nebo kdo pro ně jde a kdy se vrátí – Kování vozů) a zkušenost tesaře
   (crafts.md – Učení řemesla).
-- V horní liště ikona **vozů** s počtem (jen když jsou) a dřevěného nářadí (jako nástroje).
+- Vozy ani dřevěné nářadí v horní liště nejsou (Martin 24. 10. 2026: vozy v ohradě s voly,
+  nářadí si řeší domácnosti); vozy ukáže panel ohrady spřežení a panel tesaře.
 - Ve scéně vozy s voly a honákem jezdí po vozových cestách – svoz sena, snopů, klád, výprava
   k sousedovi; prázdný vůz stojí u ohrady. Vyjeté cesty mají koleje.
 - **Výběr vozu** (Martin 20. 10. 2026 – villagers.md, Výběr spřežení a vozu; podrobnosti návrh
@@ -578,7 +579,7 @@ Návrh Clauda (19. 10. 2026) – detaily, které návrh výš nechal otevřené;
     provozu nesčítají (pár za rok – pod prahem vyjeté cesty).
 - **Rozhraní:** panel dílny tesaře – co dělá (vyrábí vůz s průběhem, nářadí, pomáhá stavbám,
   kácí), vozy proti potřebě po druzích (kolik na cestě), dřevěné nářadí s pokrytím, pokrytí
-  dřevěné práce staveb. Horní lišta – dřevěné nářadí (s tesařem) a vozy (jen když jsou).
+  dřevěné práce staveb. Horní lišta – nic (vozy v ohradě volů a u tesaře).
   Upozornění „Tesař vyrobil vůz“, „Vůz dosloužil“, „Tesař nemá klády“. Panel obchodu ukáže vozy
   výpravy. `/dev/panels` – Tesař, Tesař pomáhá stavbám.
 - **Scéna (data pro fázi 3):** `SceneVillage.carts` – vůz, kde stojí (u ohrady), stav a cíl dne

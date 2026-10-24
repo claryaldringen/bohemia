@@ -267,9 +267,9 @@ async function found(page: Page, dwelling: Position): Promise<void> {
   await confirmPlacement(page, { kind: 'dwelling', type: 'zemnice', position: dwelling });
   // ves zakládají 4 lidé – v den založení se ale může narodit dítě, proto aspoň 4
   const people = page.getByTestId('village-people');
-  await expect(people).toHaveText(/^\d+$/, { timeout: 30_000 });
+  await expect(people).toHaveText(/^\d+( \/ ≈ \d+)?$/, { timeout: 30_000 });
   await expect
-    .poll(async () => Number(await people.textContent()), { timeout: 30_000 })
+    .poll(async () => Number.parseInt((await people.textContent()) ?? '', 10), { timeout: 30_000 })
     .toBeGreaterThanOrEqual(4);
 }
 

@@ -1545,7 +1545,8 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
   dílů ukáže panel vybraného pole. Pole jde natočit po 15° (Natočené stavby): [ a ] před prvním
   čtvercem otáčejí mřížku, nad polem se malování chytí jeho mřížky.
 - **Pole uživí ≈ N lidí** (Martin, 24. 10. 2026 schválil Z5 z diagnózy růstu): v horní liště
-  vedle plochy pole ikona rodiny s číslem „≈ N“ – kolik lidí uživí pole vsi v ustáleném oběhu.
+  ikona lidí s číslem „lidí / ≈ N“ (např. „31 / ≈ 22“; Martin 24. 10. 2026: sloučit počet lidí
+  a kolik ves uživí do jedné ikony) – kolik lidí uživí pole vsi v ustáleném oběhu.
   Tooltip: „Pole uživí ≈ N lidí“, pod tím ikona lidí s počtem lidí ve vsi (**červeně, když je
   lidí víc než N**), pole v oběhu a průměrná úrodnost. Výpočet (návrh Clauda, jádro
   `fieldCapacity`): pole v oběhu (osev, hotové k osevu a příloh, který nezarostl) ÷ oběh

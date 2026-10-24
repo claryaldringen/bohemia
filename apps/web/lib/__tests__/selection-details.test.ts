@@ -409,7 +409,19 @@ describe('selectionDetails', () => {
       ashParts: 0,
       ashBonus: 0,
       founding: 0.25,
+      fieldIds: view.fields.map((f) => f.id),
     });
+  });
+
+  it('všechna pole najednou: počet a součet výměry jen existujících polí', () => {
+    const ids = view.fields.map((f) => f.id);
+    const total = view.fields.reduce((sum, f) => sum + f.areaM2, 0);
+    expect(selectionDetails(view, scene, { kind: 'fields', ids: [...ids, 777] })).toEqual({
+      kind: 'fields',
+      ids,
+      areaM2: total,
+    });
+    expect(selectionDetails(view, scene, { kind: 'fields', ids: [777] })).toBeNull();
   });
 
   it('pole z vymýceného lesa: díly podle povrchu v pořadí louka, křoviny, les a popel', () => {
@@ -553,6 +565,7 @@ describe('selectionDetails – díl pole a čtverec sadu (klik – fields.md, Co
       crop: { crop: 'legume', prep: { task: 'plough', share: 1 }, sow: 1, harvest: 0.4 },
       mow: null,
       founding: null,
+      fieldIds: [5],
     });
     expect(fieldPartName(details as Extract<typeof details, { kind: 'field-part' }>)).toBe(
       'Zralé luštěniny',

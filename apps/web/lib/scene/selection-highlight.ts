@@ -43,6 +43,7 @@ const XRAY_ALPHA = 0.55;
 const SEE_THROUGH: ReadonlySet<VillageTarget['kind']> = new Set([
   'field',
   'field-part',
+  'fields',
   'orchard',
   'orchard-square',
   'cemetery',
@@ -164,6 +165,10 @@ export function targetOutline(village: SceneVillage, target: VillageTarget): Poi
   if (target.kind === 'grove') {
     const grove = village.sacred?.groves.find((g) => g.id === target.id);
     return grove ? cellsBoundary(grove.squares) : [];
+  }
+  if (target.kind === 'fields') {
+    // všechna pole najednou – mez kolem každého
+    return target.ids.flatMap((id) => targetOutline(village, { kind: 'field', id }));
   }
   if (target.kind === 'dwellings') {
     // víc vybraných obydlí – rámeček kolem každého (migration.md)

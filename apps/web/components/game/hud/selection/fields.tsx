@@ -24,10 +24,71 @@ import { DWELLING_NAMES } from '@/lib/village-view';
 import { Tooltip } from '../Tooltip';
 import { Stat, Bar, Wear, RepairBar, ROW, formatM2, Walk, Flag, formatTons } from './parts';
 
-export function FieldBody({
+/**
+ * Tlačítko „Označit všechna pole“ (Martin 24. 10. 2026): vybere všechna pole vsi najednou, i když
+ * spolu nesousedí. Jediné pole ve vsi se nabízet nemusí.
+ */
+function SelectAllFields({
+  fieldIds = [],
+  onSelectTarget,
+}: {
+  fieldIds?: readonly number[];
+  onSelectTarget?: (target: VillageTarget) => void;
+}): ReactElement | null {
+  if (fieldIds.length < 2) return null;
+  return (
+    <Tooltip content="Označit všechna pole" placement="above">
+      <button
+        type="button"
+        data-testid="selection-all-fields"
+        aria-label="Označit všechna pole"
+        className="hud-icon-button h-7 w-7"
+        onClick={() => onSelectTarget?.({ kind: 'fields', ids: fieldIds })}
+      >
+        <img
+          src="/icons/resources/fields.png"
+          alt=""
+          width={26}
+          height={26}
+          className="h-[22px] w-[22px] m-auto"
+        />
+      </button>
+    </Tooltip>
+  );
+}
+
+/** Všechna pole najednou (tlačítko v panelu pole): počet polí a součet výměry. */
+export function FieldsBody({
   details,
 }: {
+  details: Extract<SelectionDetails, { kind: 'fields' }>;
+}): ReactElement {
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <div className={ROW}>
+        <Tooltip content="Výměra všech polí" placement="above">
+          <span
+            data-testid="selection-area"
+            tabIndex={0}
+            className="text-sm font-semibold tabular-nums"
+          >
+            {formatHa(details.areaM2)}
+          </span>
+        </Tooltip>
+        <Stat icon="fields" name="Pole" testId="selection-fields-count">
+          {details.ids.length}
+        </Stat>
+      </div>
+    </div>
+  );
+}
+
+export function FieldBody({
+  details,
+  onSelectTarget,
+}: {
   details: Extract<SelectionDetails, { kind: 'field' }>;
+  onSelectTarget?: (target: VillageTarget) => void;
 }): ReactElement {
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
@@ -41,6 +102,7 @@ export function FieldBody({
             {formatHa(details.areaM2)}
           </span>
         </Tooltip>
+        <SelectAllFields fieldIds={details.fieldIds} onSelectTarget={onSelectTarget} />
         <Stat icon="food" name="Úrodnost" testId="selection-fertility">
           {Math.round(details.fertility)}
         </Stat>
@@ -156,6 +218,7 @@ export function FieldPartBody({
             {formatM2(details.areaM2)}
           </span>
         </Tooltip>
+        <SelectAllFields fieldIds={details.fieldIds} onSelectTarget={onSelectTarget} />
         <Stat
           icon="food"
           name={`Úrodnost – přirozená ${details.naturalFertility}`}
