@@ -25,4 +25,19 @@ describe('kronika – vojvodova rodina', () => {
     expect(chronicleText(son, 'Ves')).toBe('Syn vojvody dostal jméno – Bořivoj.');
     expect(chronicleText({ ...son, who: 'lord' }, 'Ves')).toBe('Vojvoda dostal jméno – Bořivoj.');
   });
+
+  it('konec rodu ve vsi a opuštěná ves (lord.md – Konec rodu)', () => {
+    expect(chronicleText({ day: 4, kind: 'line-ended', name: 'Ctibor' }, 'Ves')).toBe(
+      'Ve vsi už nežije žádný muž rodu – posledním vojvodou byl Ctibor.',
+    );
+    expect(chronicleText({ day: 4, kind: 'line-ended' }, 'Ves')).toBe(
+      'Ve vsi už nežije žádný muž rodu.',
+    );
+    expect(
+      chronicleText({ day: 5, kind: 'village-abandoned', reason: 'line-ended' }, 'Libice'),
+    ).toBe('Ves Libice opuštěna – rod vymřel.');
+    expect(chronicleText({ day: 5, kind: 'village-abandoned' }, 'Libice')).toBe(
+      'Odešli všichni – ves Libice je opuštěná.',
+    );
+  });
 });

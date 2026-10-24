@@ -88,6 +88,7 @@ import { sceneTrails } from './trail-view';
 import { sceneExpeditions } from './caravan-view';
 
 import type { VillageListItem } from './village-list';
+import type { LineEndView } from './line-end-view';
 
 import {
   journeyView,
@@ -222,8 +223,10 @@ function buildOptions(
 
 /** Co pohled na jednu ves sám neví – zjistí ho vstupní bod přes `dynastyStatus`. */
 export interface VillageViewContext {
-  /** Hráči vymřely všechny vsi (ne jen tahle). */
+  /** Hráči vymřely všechny vsi (ne jen tahle), nebo vymřel rod. */
   gameOver?: boolean;
+  /** Rod vymřel po meči – kronika rodu (`lineEndView` přes všechny vsi hráče). */
+  lineEnded?: LineEndView | null;
   /** Všechny vsi hráče pro přepínač; bez nich jen tahle ves. */
   villages?: VillageListItem[];
   /**
@@ -372,6 +375,7 @@ export function buildVillageView(
     journey: journeyView(state, day),
     leave: leaveOptions(state, landscape, context.ownMaps ?? {}, context.mapsBlocked ?? null),
     gameOver,
+    ...(gameOver && context.lineEnded ? { lineEnded: context.lineEnded } : {}),
     cemeteries: summary.cemeteries.map((c) => {
       const progress = cemeteryProgress(c.id, c.built, summary.constructions);
       const wear = villageCemeteries(state).find((x) => x.id === c.id)?.fenceWear;

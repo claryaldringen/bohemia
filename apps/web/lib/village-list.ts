@@ -49,7 +49,8 @@ export function villageListItem(record: VillageRecord, day: number): VillageList
     id: record.id,
     settlementId: record.settlementId,
     name: record.name,
-    people: record.state.people.length,
+    // opuštěná ves po konci rodu drží lidi jen jako záznam – nikdo v ní nežije (lord.md)
+    people: isVillageAbandoned(record.state) ? 0 : record.state.people.length,
     extinct,
     abandoned: isVillageAbandoned(record.state),
     travelling: isVillageTravelling(record.state),

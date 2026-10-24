@@ -62,6 +62,7 @@ import {
   type PlayerToday,
 } from './game';
 import { neighbourScene, ownMapsAround } from './departure-view';
+import { lineEndView } from './line-end-view';
 import { villageListItem } from './village-list';
 import { buildVillageView, sceneOfVillage, type VillageView } from './village-view';
 
@@ -128,6 +129,7 @@ async function viewOf(
   const from = status.settlements.find((s) => s.id === current.settlementId);
   const view = buildVillageView(current, ctx.landscape, ctx.day, {
     gameOver: status.gameOver,
+    lineEnded: status.gameOver ? lineEndView(status.villages) : null,
     villages: status.villages.map((v) => villageListItem(v, ctx.day)),
     neighbours: neighbourSnapshot(
       sameMap.map((v) => v.state),
