@@ -196,6 +196,49 @@ Příklad: ves 40 lidí, ≈ 20 dospělých. Dvorec s 8 lidmi – vojvoda 42, ž
   bod 1). Velký dvorec (10 lidí) víc, malý rod s jedním synem jen ≈ 10 %.
 - Skutečný dopad ověří kalibrace `measure-village` – jen na Martinův pokyn.
 
+### Naměřeno na Vlkově (24. 10. 2026, návrh Clauda)
+
+Kopie Vlkova (36 lidí) dopočtená 10 let po 10 dnech, tři varianty: **před** (poslední commit
+před výcvikem rodiny), **kontrola** (dnešní kód, rodina nikdy necvičí) a **po** (dnešní kód).
+
+|                         | před        | kontrola    | po          |
+| ----------------------- | ----------- | ----------- | ----------- |
+| ves šetří jídlem (dny)  | 70,7 %      | 63,3 %      | 80,0 %      |
+| úmrtí hladem za 10 let  | 27          | 31          | 28          |
+| lidí na konci (nejméně) | 11 (8)      | 9 (8)       | 12 (12)     |
+| sytost průměr (nejméně) | 0,75 (0,31) | 0,77 (0,39) | 0,73 (0,34) |
+
+- Vlkov je ves, která hladoví v každé variantě, takže rozdíly jsou v rozptylu běhu (kontrola se
+  od „před“ liší jen jinou verzí cest a hladoví stejně), ne důkaz. Hladem nehladoví víc: úmrtí
+  27 / 31 / 28, a ves s rodinou na konci vymírá nejméně. Šetří ale častěji (80 % dní) – rodina
+  jde při hladu na pole a to stojí výcvik.
+- **Podíl práce rodiny** je ve Vlkově malý: na začátku 1 cvičící muž a 3 ženy domácnosti ze 36
+  lidí = 11 % kapacity (návrh 25–30 % platí pro dvorec o 8 lidech ve vsi o 40; malý rod ≈ 10 %,
+  viz výš). Za 10 let průměr 14,4 % kapacity, z toho **86 čd ročně výcvik a 644 čd ročně pole**
+  – hladem rodina většinu času pracuje na poli.
+- **Dovednosti** po 10 letech: luk 64, boj 64, jízda 0 (koně ve Vlkově nejsou; strop 100).
+- **Koně** ve Vlkově nejsou – ověřuje je integrační test
+  `packages/game/scripts/__tests__/lord-columns.test.ts` (ohrada koní, koupení koní, 120 dní
+  vsi: koně se počítají, obilí koní se sčítá, rodina cvičí).
+- Závěr: návrh 25–30 % práce rodiny se na Vlkově nepotvrdil ani nevyvrátil – rodina je malá a
+  ves hladoví. Rozhodne kalibrace 200 vsí.
+
+### Příkaz na noc (nespouštět, jen na Martinův pokyn)
+
+```bash
+# základ – poslední commit před úlohou 2 (43149f8c^) ve vlastním worktree
+git worktree add ../bohemia-before-lord 43149f8c^
+(cd ../bohemia-before-lord && npm install && \
+  npx tsx packages/game/scripts/measure-village.ts 200 60 --out before-lord.jsonl)
+# po změně
+npx tsx packages/game/scripts/measure-village.ts 200 60 --out lord-horses.jsonl
+# tabulky (nové sloupce jen v lord-horses.jsonl: řádek „Vojvodova rodina a koně“)
+npx tsx packages/game/scripts/measure-village.ts --report-only --out before-lord.jsonl
+npx tsx packages/game/scripts/measure-village.ts --report-only --out lord-horses.jsonl
+```
+
+Dlouhý běh jen v noci (Martin), přes den pozastavit (`kill -STOP` / `-CONT`).
+
 ## Pro implementaci (poznámky, ne kód)
 
 - Volitelné části stavu: dovednosti u člověka, den, od kdy výhled vychází (hystereze). Převod

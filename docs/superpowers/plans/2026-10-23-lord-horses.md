@@ -753,3 +753,14 @@ půjde postavit až od úlohy 13.
 | 12    | Rozhraní – vojvodova rodina                     | Sonnet | ≈ 90  |
 | 13    | Rozhraní – koně                                 | Sonnet | ≈ 110 |
 | 14    | Ověření a měřicí skript                         | Sonnet | ≈ 60  |
+
+## Závěr (Úloha 14, 24. 10. 2026)
+
+- Měřicí skript: nový řádek **Vojvodova rodina a koně** v `measure-village.ts`
+  (`scripts/lib/lord-columns.ts`, test `scripts/__tests__/lord-columns.test.ts`). Krátký běh
+  `measure-village` se nepouštěl (Martinovo pravidlo: kalibrace jen v noci).
+- Vlkov, 10 let (podrobně `docs/design/lord.md` – Naměřeno na Vlkově): ves hladoví v každé variantě;
+  úmrtí hladem před 27, po 28; šetří 80 % dní (před 70,7 %). Podíl rodiny 11 % → 14,4 % kapacity
+  (malý rod; návrh 25–30 % platí pro 8členný dvorec ve vsi o 40), dovednosti luk 64, boj 64,
+  jízda 0. Koně ve Vlkově nejsou – ověřeno integračním testem.
+- Příkaz na noc: `docs/design/lord.md` – Příkaz na noc.

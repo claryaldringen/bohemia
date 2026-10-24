@@ -160,6 +160,7 @@ import {
   type Variant,
 } from './lib/calibration-land';
 import { appendCheckpoint, openCheckpoint, readCheckpoint } from './lib/checkpoint';
+import { addLordStep, lordColumns, type LordYear } from './lib/lord-columns';
 import { ROTATION, ROTATION_FACTOR } from './lib/steady-state';
 
 interface Config {
@@ -390,6 +391,8 @@ interface Reserves {
 const NO_RESERVES: Reserves = { autumn: NaN, spring: NaN, weed: NaN, summer: NaN };
 
 interface LaborYear {
+  /** Rodina a koně (lib/lord-columns.ts) – chybí ve starších kontrolních bodech. */
+  lord?: LordYear;
   capacity: number;
   common: number;
   repairs: number;
@@ -862,6 +865,7 @@ function addLabor(result: RunResult, after: VillageState, days: number): void {
       .filter((d) => occupied.has(d.id))
       .reduce((sum, d) => sum + repairNeedPerDay(d, day), 0) * days;
   labor.households += occupied.size * days;
+  labor.lord = addLordStep(labor.lord, after, days);
   result.labor.set(year, labor);
 }
 
@@ -2123,6 +2127,26 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
     )}`,
     'info',
   );
+  // vojvodova rodina a koně (lord.md – Dopad na pracovní sílu, horses.md) – od 3. roku vsi
+  const lordYears = villages.flatMap(({ builder, foundDay, endDay }) =>
+    fullYears(builder, foundDay, endDay)
+      .filter((y) => y - harvestYear(foundDay) >= 3)
+      .flatMap((y) => {
+        const l = builder.labor.get(y);
+        return l?.lord ? [{ lord: l.lord, capacity: l.capacity }] : [];
+      }),
+  );
+  if (lordYears.length > 0) {
+    row(
+      'Vojvodova rodina a koně, hráč staví',
+      'informace – podíl práce rodiny ≈ 25–30 %, ves nehladoví víc než před změnou',
+      lordColumns(
+        lordYears.map((x) => x.lord),
+        lordYears.reduce((sum, x) => sum + x.capacity, 0),
+      ),
+      'info',
+    );
+  }
   // len na oděv (fields.md – Len) – od 3. roku vsi
   const linenYears = villages.flatMap(({ builder, foundDay, endDay }) =>
     fullYears(builder, foundDay, endDay)
