@@ -143,7 +143,7 @@ export function ploughTeamsAfield(state: Pick<VillageState, 'plan'>): boolean {
 }
 
 /** Díl, u kterého spřežení blok `block` dooralo – první díl posledního pásu bloku. */
-function blockEndPart(
+export function ploughBlockEndPart(
   plough: PloughWork,
   block: number,
   partsById: ReadonlyMap<number, FieldPart>,
@@ -204,7 +204,7 @@ function travelToday(
       costM: tripCost(state, day, first, landscape, obstacles),
     };
   }
-  const end = blockEndPart(plough, trip!.block, partsById);
+  const end = ploughBlockEndPart(plough, trip!.block, partsById);
   return {
     block: band.block,
     from: trip!.block,

@@ -642,7 +642,7 @@ a zpět** (Co nejdelší brázda – Cesta na místo výš). Podrobnosti **návr
 - **Ve scéně:** spřežení na poli orá dnešní pruhy celý herní den (bez ranní cesty z ohrady
   a večerního návratu), takže jede pomaleji; cesta z ohrady jen v den výjezdu, přesun mezi bloky
   v den přesunu, návrat do ohrady v den návratu; mezi dny bez orby stojí u čela orby. Polohu bere
-  scéna z dat jádra (`trip`).
+  scéna z dat jádra (`trip` → `SceneVillage.ploughLegs`).
 
 ## Orba má přednost (24. 10. 2026)
 

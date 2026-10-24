@@ -209,6 +209,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`showcaseMounds` – místo vybírá jádro), sad vytyčení → kůly
   → sazenice → rostoucí stromky → jablka. Vpravo vzadu dílna tesaře a pahorek s vozy (**Vozy**,
   **Další vůz zblízka**, **Sledovat vůz** – Vozy se spřežením níž).
+- **Spřežení na poli** (oxen.md – Spřežení zůstane na poli, 24. 10. 2026): orba za herní den
+  (`PLOUGH_DAY_DEBUG`) jede po pruzích dne celý den bez ranní cesty a večerního návratu; cesty
+  dne posílá `village-view` v `SceneVillage.ploughLegs` (`out` – výjezd / přesun, `home` –
+  návrat, `stand` – den bez orby, stojí na čele) a `ploughRoute` je přidá jen ve dny, kdy k nim
+  došlo (podrobně village-livestock.md – Orba za herní den).
 
 - **Seno mimo stavby a cesty** (issue #3, Martin 22. 10. 2026: „nesmí tyto snopy být na cestě, na
   budovách (včetně zahrádek), v ohradách (sežrala by je zvířata), ani na humně“):

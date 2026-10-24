@@ -1154,15 +1154,17 @@ function segmentEnd(seg: PathSegment): PathPoint {
 
 /**
  * Trasa přes pruhy `stints` v daném pořadí (`ploughRoute`), s přesunem od místa `from` (kde
- * spřežení právě je) k první řadě; bez `from` začíná na první řadě. S `approach` (cesta z ohrady
- * k bloku – oxen.md, Co nejdelší brázda) začíná v ohradě, dojede po ní k první řadě a po poslední
- * řadě se po ní vrátí do ohrady.
+ * spřežení právě je) k první řadě; bez `from` začíná na první řadě. Cesty dne `legs` (oxen.md –
+ * Spřežení zůstane na poli): s `out` (výjezd z ohrady nebo přesun od předchozího bloku) jde
+ * napřed na jeho začátek a po něm k první řadě, s `home` se po poslední řadě vrátí do ohrady;
+ * bez nich spřežení zůstává na poli – trasa jsou jen pruhy dne. Den bez pruhů se `stand` – stojí
+ * u čela orby.
  */
 export function ploughRoute(
   stints: readonly RouteStint[],
   from: { x: number; z: number } | null = null,
   turnRadius = TURN_RADIUS_M,
-  approach: readonly { x: number; z: number }[] | null = null,
+  legs: PloughLegs | null = null,
 ): PloughRoute {
   const segments: PathSegment[] = [];
   const segmentStint: number[] = [];
@@ -1177,16 +1179,16 @@ export function ploughRoute(
     segments.push({ kind: 'line', length, x: at.x, z: at.z, dx: lx / length, dz: lz / length });
     segmentStint.push(-1);
   };
-  const road = approach && approach.length >= 2 ? approach : null;
-  if (road) {
-    // z místa, kde spřežení je, do ohrady (začátek cesty), pak po cestě k bloku
-    transit(road[0]!);
-    at = road[0]!;
-    for (const point of road.slice(1)) {
+  const along = (road: readonly { x: number; z: number }[]): void => {
+    for (const point of road) {
       transit(point);
       at = point;
     }
-  }
+  };
+  const out = legs?.out && legs.out.length >= 2 ? legs.out : null;
+  const home = legs?.home && legs.home.length >= 2 ? legs.home : null;
+  // z místa, kde spřežení je, na začátek cesty (ohrada nebo konec předchozího bloku), pak po ní
+  if (out) along(out);
   stints.forEach((stint) => {
     const plan = stintRows(stint.field, false, turnRadius);
     const first = plan.segments[0];
@@ -1207,14 +1209,25 @@ export function ploughRoute(
     });
     at = segmentEnd(plan.segments[plan.segments.length - 1]!);
   });
-  if (road && stints.length > 0) {
-    // večer zpět do ohrady po téže cestě
-    for (const point of [...road].reverse()) {
-      transit(point);
-      at = point;
+  // v den návratu večer od konce bloku po cestě do ohrady
+  if (home && stints.length > 0) along(home);
+  // den bez orby – spřežení na poli stojí u čela orby (dojde tam, kde právě je)
+  const stand = legs?.stand;
+  if (stand && stints.length === 0) {
+    transit(stand);
+    if (segments.length === 0) {
+      segments.push({ kind: 'line', length: 0.01, x: stand.x, z: stand.z, dx: 1, dz: 0 });
+      segmentStint.push(-1);
     }
   }
   return { ...pathOf(segments), stints: planned, segmentStint };
+}
+
+/** Cesty spřežení dne (`ScenePloughLegs` – výjezd nebo přesun `out`, návrat `home`). */
+export interface PloughLegs {
+  out?: readonly { x: number; z: number }[];
+  home?: readonly { x: number; z: number }[];
+  stand?: { x: number; z: number };
 }
 
 /**

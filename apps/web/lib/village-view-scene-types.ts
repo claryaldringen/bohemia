@@ -326,11 +326,10 @@ export interface SceneVillage {
    */
   carts?: SceneCart[];
   /**
-   * Cesta spřežení z ohrady k bloku dnešní orby (oxen.md – Co nejdelší brázda): osa vozové sítě
-   * (dvoukolák bez nákladu – po cestě, nebo napříč přes neosetá pole), zjednodušená, po cm. Bez
-   * orby dne nebo když spřežení k bloku nedojede, chybí.
+   * Cesty spřežení dne (oxen.md – Spřežení zůstane na poli): výjezd nebo přesun k bloku a návrat
+   * do ohrady, jen ve dny, kdy k nim došlo. Bez cest chybí – spřežení je na poli (nebo doma).
    */
-  ploughApproach?: { x: number; z: number }[];
+  ploughLegs?: ScenePloughLegs;
   /**
    * Zemní práce vozových cest (roads.md – Vozová cesta) – úvozy a náspy: terén scény, síť pěšin
    * a vozů jedou po upraveném terénu (`PathVillage.earthworks`). Bez údaje žádné.
@@ -989,4 +988,18 @@ export interface SceneThreshingFloor {
   built: boolean;
   /** Průběh stavby 0–1 (hotové 1). */
   progress: number;
+}
+
+/**
+ * Cesty spřežení dne (oxen.md – Spřežení zůstane na poli): osy vozové sítě (dvoukolák bez
+ * nákladu – po cestě, nebo napříč přes neosetá pole), zjednodušené, po cm. `out` – v den výjezdu
+ * z ohrady k bloku (nebo přesunu od konce předchozího bloku), `home` – v den návratu od konce
+ * bloku do ohrady; `stand` – den bez orby, spřežení na poli stojí u čela orby. Kam spřežení
+ * nedojede, chybí.
+ */
+export interface ScenePloughLegs {
+  out?: { x: number; z: number }[];
+  home?: { x: number; z: number }[];
+  /** Den bez orby, spřežení na poli – kde stojí (díl na čele orby). */
+  stand?: { x: number; z: number };
 }

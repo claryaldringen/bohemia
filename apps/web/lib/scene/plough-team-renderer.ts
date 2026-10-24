@@ -31,6 +31,7 @@ import {
   createTeamPose,
   pathAt,
   ploughRoute,
+  type PloughLegs,
   routeFurrows,
   routePose,
   teamPose,
@@ -135,10 +136,10 @@ export interface BakedKind {
 export class PloughTeams {
   /**
    * Spřežení: smyčka na pruhu (`loop` – díl, který orá, `part`), nebo trasa celé dnešní orby
-   * (`route` – ladicí; `approach` = z ohrady po cestě a večer zpět).
+   * (`route` – ladicí; `home` = večer návrat do ohrady).
    */
   private tracks: (
-    { loop: TeamTrack; part: PloughedPart | null } | { route: RouteTrack; approach: boolean }
+    { loop: TeamTrack; part: PloughedPart | null } | { route: RouteTrack; home: boolean }
   )[] = [];
   /** Vybrané spřežení, oráč nebo honák (villagers.md – Výběr postavy) a kroužek pod ním. */
   private selected: { team: number; figure: TeamFigure } | null = null;
@@ -190,14 +191,15 @@ export class PloughTeams {
    * Trasy celé dnešní orby (ladicí – oxen.md, Orba za herní den): `i`-té spřežení projede pruhy
    * `teams[i]` v pořadí práce od okamžiku `nowMs` (nejdřív na začátku dne `window.startMs`) do
    * konce herního dne `window.endMs` – zrychleně. Spřežení, které už ve scéně je a hýbe se,
-   * dojde z místa, kde právě je; s cestou `approach` jde napřed do ohrady, po cestě k bloku
-   * a večer po ní zpět. Vrátí trasy (pro brázdu – `furrows`).
+   * dojde z místa, kde právě je; s cestami dne `legs` (oxen.md – Spřežení zůstane na poli) napřed
+   * vyjede z ohrady nebo se přesune od předchozího bloku (`out`) a večer se vrátí do ohrady
+   * (`home`); bez nich zůstává na poli. Vrátí trasy (pro brázdu – `furrows`).
    */
   setRoutes(
     teams: readonly (readonly RouteStint[])[],
     window: { startMs: number; endMs: number },
     nowMs = Date.now(),
-    approach: readonly { x: number; z: number }[] | null = null,
+    legs: PloughLegs | null = null,
   ): RouteTrack[] {
     const live = nowMs - this.liveAt < LIVE_MS && this.count > 0;
     const probe = createTeamPose();
@@ -214,10 +216,10 @@ export class PloughTeams {
             : routePose(old.route, nowMs, probe, this.env.groundHeight);
         from = { x: pose.yoke.x, z: pose.yoke.z };
       }
-      // z ohrady po cestě k bloku a večer zpět (oxen.md – Co nejdelší brázda)
+      // výjezd / přesun a návrat jen ve dny, kdy k nim došlo (oxen.md – Spřežení zůstane na poli)
       return {
-        route: { route: ploughRoute(stints, from, undefined, approach), startMs, endMs },
-        approach: approach !== null && approach.length >= 2,
+        route: { route: ploughRoute(stints, from, undefined, legs), startMs, endMs },
+        home: (legs?.home?.length ?? 0) >= 2,
       };
     });
     this.frozenMs = nowMs;
@@ -332,7 +334,7 @@ export class PloughTeams {
     if (team !== undefined && track) {
       const activity =
         'route' in track
-          ? routeActivity(track.route, frozen ? this.frozenMs : nowMs, track.approach)
+          ? routeActivity(track.route, frozen ? this.frozenMs : nowMs, track.home)
           : loopActivity(track.loop, frozen ? FROZEN_T : villagerSeconds(nowMs), track.part);
       state = { team, activity };
     }

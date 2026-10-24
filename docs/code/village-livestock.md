@@ -238,8 +238,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `before`; `dayStints` (pruhy po pruzích obtisku; sousední díly pásu se stejným postupem jeden
   pruh přes celý pás – `bandCandidates`, `PloughField.length`, `DayStint.partIds`), `splitStints`
   (souvislé kusy fronty mezi spřežení), `startOfDayVillage` (pole na začátku dne); trasa
-  `ploughRoute` (z ohrady po cestě `SceneVillage.ploughApproach` – vozová síť z `village-view`,
-  řady všech pruhů s obraty, přesuny se zvednutým rádlem, večer po cestě zpět), `RouteTrack` (od příchodu plánu do konce
+  `ploughRoute` (cesty dne `SceneVillage.ploughLegs` ze `scenePloughLegs` – z `PloughWork.trip`
+  jádra, vozová síť: `out` výjezd z ohrady nebo přesun od konce bloku jen v den příjezdu,
+  `home` návrat do ohrady jen v den návratu, `stand` – den bez orby, spřežení na poli stojí na
+  čele (`ploughFrontBand`); jinak jen pruhy dne za celý den – pomaleji; řady všech pruhů
+  s obraty, přesuny se zvednutým rádlem), `RouteTrack` (od příchodu plánu do konce
   herního dne – okno z hodin světa, `realTimeOf`, nebo `VillageRenderer.setPloughClock`),
   `routePose`, brázda `routeFurrows` (pásy řad, kudy radlice projela – čistá funkce času)
   → `FieldRenderer.setFurrows` (obtisk `village-field-furrow-<id>` s krytím pole, v
