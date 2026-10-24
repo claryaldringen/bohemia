@@ -5,15 +5,15 @@ import {
   FieldCapacityTooltip,
   LaborTooltip,
   SatiationTooltip,
-  cartsLabel,
   fieldCapacityShort,
+  peopleLabel,
+  TopBar,
   dairyName,
   satiationState,
   sheavesName,
   showsDairy,
   showsHay,
   showsLegumes,
-  showsWoodTools,
 } from '../TopBar';
 
 // Horní lišta (diet.md, oxen.md): barva nasycení podle energie, podíly stravy v tooltipu, seno,
@@ -157,36 +157,6 @@ describe('mléko a sýr v liště', () => {
   });
 });
 
-describe('vozy a dřevěné nářadí v liště (wagons.md)', () => {
-  const crafts = (over: Partial<VillageView['crafts']> = {}): VillageView['crafts'] => ({
-    present: true,
-    stocks: { charcoalKg: 0, potteryKg: 0 },
-    needs: { toolsKg: 6, potteryKg: 20, woodToolsKg: 8 },
-    coverage: { tools: 0, pottery: 0 },
-    workshops: [],
-    carts: [],
-    cartTargets: { 'two-wheel': 0, 'four-wheel': 0 },
-    ...over,
-  });
-
-  it('dřevěné nářadí jen s tesařem nebo zásobou', () => {
-    expect(showsWoodTools(crafts())).toBe(false);
-    expect(showsWoodTools(crafts({ stocks: { ...crafts().stocks, woodToolsKg: 5 } }))).toBe(true);
-  });
-
-  it('popisek vozů – druhy a kolik je na cestě', () => {
-    expect(cartsLabel([{ id: 1, kind: 'two-wheel', condition: 1, away: false }])).toBe(
-      'Vozy – dvoukoláky 1',
-    );
-    expect(
-      cartsLabel([
-        { id: 1, kind: 'two-wheel', condition: 1, away: false },
-        { id: 2, kind: 'four-wheel', condition: 1, away: true },
-      ]),
-    ).toBe('Vozy – dvoukoláky 1, čtyřkoláky 1 (na cestě 1)');
-  });
-});
-
 describe('snopy v liště (production-chains.md – Humno)', () => {
   it('popisek: nevymláceno (i bez humna se mlátí nouzově)', () => {
     expect(sheavesName()).toBe('Snopy – nevymláceno (kg zrna)');
@@ -220,5 +190,74 @@ describe('Pole uživí (fields.md – Co hráč vidí)', () => {
     expect(
       fieldCapacityShort({ people: { children: 1, adults: 2, elders: 0 }, fieldCapacity: null }),
     ).toBe(false);
+  });
+});
+
+describe('Lidé a kolik jich pole uživí v jedné ikoně (Martin 24. 10. 2026)', () => {
+  const people = { children: 5, adults: 24, elders: 2 };
+
+  it('popisek „lidí / ≈ N“, bez polí jen počet lidí', () => {
+    expect(
+      peopleLabel({ people, fieldCapacity: { people: 21.9, rotationHa: 1, fertility: 50 } }),
+    ).toBe('31 / ≈ 22');
+    expect(peopleLabel({ people, fieldCapacity: null })).toBe('31');
+  });
+
+  it('lišta má jednu ikonu lidí a nemá rozlohu polí, uhlí, keramiku, nářadí ani vozy', () => {
+    const view = {
+      id: 1,
+      name: 'Ves',
+      villages: [],
+      people,
+      fieldCapacity: { people: 21.9, rotationHa: 47.9, fertility: 52 },
+      fields: [{ id: 1, areaM2: 50000, crops: {} }],
+      orchards: [],
+      pens: [],
+      storesKg: 10,
+      legumesKg: 0,
+      meatKg: 0,
+      cheeseKg: 0,
+      milkLPerDay: 0,
+      applesKg: 0,
+      hayKg: 0,
+      woodLogs: 0,
+      commonLaborPerDay: 1,
+      lord: null,
+      satiation: 1,
+      diet: diet(1),
+      happiness: { value: 50 },
+      crafts: {
+        present: true,
+        stocks: { charcoalKg: 7, potteryKg: 8, woodToolsKg: 9, ironBarsKg: 3 },
+        coverage: { tools: 0, pottery: 0 },
+        carts: [{ id: 1, kind: 'two-wheel', condition: 1, away: false }],
+      },
+    } as unknown as VillageView;
+    const html = renderToStaticMarkup(
+      <TopBar
+        view={view}
+        world={{ startMs: 0, endMs: 1e12 }}
+        initialNowMs={1}
+        soundOn
+        onToggleSound={() => {}}
+        menuOpen={false}
+        onToggleMenu={() => {}}
+        onRename={async () => null}
+        devTime={null}
+      />,
+    );
+    expect(html).toContain('data-testid="village-people"');
+    expect(html).toContain('31 / ≈ 22');
+    for (const id of [
+      'village-fields',
+      'village-field-capacity',
+      'village-charcoal',
+      'village-pottery',
+      'village-wood-tools',
+      'village-carts',
+    ]) {
+      expect(html).not.toContain(`data-testid="${id}"`);
+    }
+    expect(html).toContain('data-testid="village-iron-bars"');
   });
 });

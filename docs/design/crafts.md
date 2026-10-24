@@ -883,8 +883,10 @@ zatím neřešit – letopočet začátku hry se může posunout.
 
 - V panelu staveb ikony hrnčíře, kováře a uhlíře (tooltip: název a cena); tlačítko je zašedlé
   jen podle surovin (dřevo – [les](forest.md)).
-- V horní liště zásoby **uhlí, hřiven a keramiky** (ikona + číslo; nástroje jsou vybavení
-  domácností – ukáže je panel kovárny; Martin 20. 10. 2026: „V liště jenom hřivny“).
+- V horní liště zásoba **hřiven** (ikona + číslo; nástroje jsou vybavení domácností – ukáže je
+  panel kovárny; Martin 20. 10. 2026: „V liště jenom hřivny“). Martin 24. 10. 2026: „Z lišty
+  odeber uhlí – zobrazuj u uhlíře, keramiku a dřevěné nástroje nemusíš zobrazovat nikde, to si
+  řeší každá domácnost sama.“ Uhlí je v panelu uhlíře, keramika a nářadí nikde.
 - U vybrané dílny: domácnost, co právě dělá (vyrábí / čeká na uhlí), zásoba výrobku; uhlíř:
   kácí a připravuje buky (kolik z dávky), staví milíř, pálí (průběh), rozebírá milíř a třídí
   uhlí pro kováře (kolik uhlí v milířích zbývá), sází mladé buky, má vypálený milíř a pomáhá vsi;
@@ -932,8 +934,8 @@ Rozhodnutí kontroléru při implementaci (18. 10. 2026) – kde návrh necháva
   dnešního pokrytí nastal.
 - **Přestavba dílny** zachová řemeslo i typ obydlí (uhlíř se nepřestaví na polozemnici) a stojí
   jako nová dílna (+ 30 %, uhlíř jako zemnice).
-- **Rozhraní:** v nabídce staveb hrnčíř [F], kovář [G], uhlíř [H]; v horní liště uhlí, nástroje
-  a keramika v kg (jen ves s dílnou nebo zásobou), v popisku pokrytí potřeby. Panel výběru dílny:
+- **Rozhraní:** v nabídce staveb hrnčíř [F], kovář [G], uhlíř [H]; v horní liště jen hřivny v kg
+  (jen ves s dílnou nebo zásobou). Panel výběru dílny:
   co dělá (vyrábí, kácí, čeká na uhlí, čeká na dřevo, nemá kdo, prázdná), práce za den, zásoba
   výrobku a pokrytí. Upozornění „Kovář nemá uhlí“ a „Dílna nemá co kácet“. Ve scéně model dílny
   po fázích stavby, dým z pece, výhně a milíře, když dílna vyrábí, uhlíř kácí u svého stromu.

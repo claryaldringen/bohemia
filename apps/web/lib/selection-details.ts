@@ -222,6 +222,14 @@ type SelectionKinds =
       overgrowingM2: number;
       /** Zakládání pole (průběh 0–1), hotové null. */
       founding: number | null;
+      /** Id všech polí vsi – tlačítko „Označit všechna pole“. */
+      fieldIds?: readonly number[];
+    }
+  | {
+      /** Všechna pole vsi najednou (i nesousedící): počet a součet výměry. */
+      kind: 'fields';
+      ids: readonly number[];
+      areaM2: number;
     }
   | {
       /**
@@ -266,6 +274,8 @@ type SelectionKinds =
       mow: number | null;
       /** Zakládá se – průběh, zbývající práce (člověkodny) a stromy na klády; jinak null. */
       founding: { progress: number; laborLeft: number; trees: number } | null;
+      /** Id všech polí vsi – tlačítko „Označit všechna pole“. */
+      fieldIds?: readonly number[];
     }
   | {
       kind: 'cemetery';
@@ -748,6 +758,15 @@ function selectionKinds(
   if (target.kind === 'plough-team') return teamDetails(scene, target.team, draft);
   if (target.kind === 'cart') return cartDetails(scene, target.id, draft);
   if (target.kind === 'dwellings') return dwellingsDetails(view, scene, target.ids);
+  if (target.kind === 'fields') {
+    const fields = (view?.fields ?? []).filter((f) => target.ids.includes(f.id));
+    if (fields.length === 0) return null;
+    return {
+      kind: 'fields',
+      ids: fields.map((f) => f.id),
+      areaM2: fields.reduce((sum, f) => sum + f.areaM2, 0),
+    };
+  }
   if (target.kind === 'dwelling') {
     const dwelling = scene.dwellings.find((d) => d.id === target.id);
     if (!dwelling) return null;
@@ -928,6 +947,7 @@ function selectionKinds(
     ashBonus: field.ashBonus,
     overgrowingM2: field.overgrowingM2,
     founding: founding ? founding.progress : null,
+    fieldIds: view?.fields.map((f) => f.id) ?? [],
   };
 }
 
@@ -1088,6 +1108,7 @@ function fieldPartDetails(
     crop: part.work?.crop ?? null,
     mow: part.work?.mow ?? null,
     founding: part.founding ?? null,
+    fieldIds: view?.fields.map((f) => f.id) ?? [],
   };
 }
 

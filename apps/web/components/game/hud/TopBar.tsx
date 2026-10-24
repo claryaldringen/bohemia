@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactElement, type ReactNode } from 'react';
 import { getWorldState, type TimeSkip, type WorldClock } from '@bohemia/game';
 import { dateRefreshDelay, formatWorldState } from '@/lib/game-date';
 import { MENU_HOTKEY } from '@/lib/game-menu';
-import { formatDecimal, formatHa, formatInteger, formatPercent } from '@/lib/village-format';
+import { formatDecimal, formatInteger, formatPercent } from '@/lib/village-format';
 import type { VillageListItem } from '@/lib/village-list';
 import type { VillageView } from '@/lib/village-view';
 import { Tooltip } from './Tooltip';
@@ -78,6 +78,21 @@ function villagePeople(view: Pick<VillageView, 'people'>): number {
 export function fieldCapacityShort(view: Pick<VillageView, 'people' | 'fieldCapacity'>): boolean {
   const capacity = view.fieldCapacity;
   return !!capacity && villagePeople(view) > Math.round(capacity.people);
+}
+
+/**
+ * Lidé v liště: „31“ a u vsi s poli „31 / ≈ 22“ – kolik lidí je a kolik jich uživí pole
+ * (Martin 24. 10. 2026: počet lidí a kolik ves uživí v jedné ikoně).
+ */
+export function peopleLabel(view: Pick<VillageView, 'people' | 'fieldCapacity'>): string {
+  const people = formatInteger(villagePeople(view));
+  return view.fieldCapacity ? `${people} / ≈ ${formatInteger(view.fieldCapacity.people)}` : people;
+}
+
+/** Tooltip lidí: kolik jich je a kolik jich uživí pole (podrobnosti viz `FieldCapacityTooltip`). */
+export function PeopleTooltip({ view }: { view: VillageView }): ReactElement {
+  if (!view.fieldCapacity) return <span>Lidé</span>;
+  return <FieldCapacityTooltip view={view} />;
 }
 
 /**
@@ -200,61 +215,17 @@ export function showsHay(view: Pick<VillageView, 'hayKg' | 'pens'>): boolean {
   return Math.round(view.hayKg) > 0 || view.pens.some((pen) => pen.built);
 }
 
-/** Dřevěné nářadí v horní liště – ves s tesařem nebo s nářadím v zásobě (wagons.md – Tesař). */
-export function showsWoodTools(crafts: VillageView['crafts']): boolean {
-  return (
-    Math.round(crafts.stocks.woodToolsKg ?? 0) > 0 ||
-    crafts.workshops.some((w) => w.craft === 'carpenter')
-  );
-}
-
-/** Popisek vozů v horní liště: kolik dvoukoláků a čtyřkoláků, kolik na cestě (wagons.md). */
-export function cartsLabel(carts: VillageView['crafts']['carts']): string {
-  const two = carts.filter((c) => c.kind === 'two-wheel').length;
-  const four = carts.length - two;
-  const away = carts.filter((c) => c.away).length;
-  const parts = [`dvoukoláky ${two}`, ...(four > 0 ? [`čtyřkoláky ${four}`] : [])];
-  return `Vozy – ${parts.join(', ')}${away > 0 ? ` (na cestě ${away})` : ''}`;
-}
-
 /**
- * Zásoby výrobků řemeslníků (crafts.md) – uhlí, hřivny a keramika v kg; v popisku keramiky i pokrytí
- * potřeby vsi (meze produktivity). Nástroje v liště nejsou – jsou vybavení domácností, ukáže je
- * panel kovárny (production-chains.md – Kovář; Martin 20. 10. 2026: „V liště jenom hřivny“).
- * Dřevěné nářadí a vozy od tesaře (wagons.md) – jen když ves tesaře nebo vozy má.
+ * Zásoba výrobků řemeslníků v liště – jen hřivny v kg (crafts.md; Martin 20. 10. 2026: „V liště
+ * jenom hřivny“). Uhlí ukazuje panel uhlíře, vozy ohrada s voly a tesař, nástroje panel kovárny;
+ * keramiku a dřevěné nářadí si řeší každá domácnost sama a nikde se neukazují (Martin
+ * 24. 10. 2026).
  */
 function CraftStocks({ crafts }: { crafts: VillageView['crafts'] }): ReactElement {
-  const { stocks, coverage } = crafts;
   return (
-    <>
-      <Resource icon="charcoal" name="Uhlí (kg)" testId="village-charcoal">
-        {formatInteger(stocks.charcoalKg)}
-      </Resource>
-      <Resource icon="iron-bars" name="Hřivny (kg)" testId="village-iron-bars">
-        {formatInteger(stocks.ironBarsKg ?? 0)}
-      </Resource>
-      <Resource
-        icon="pottery"
-        name={`Keramika (kg) – pokrytí potřeby ${formatPercent(coverage.pottery)}`}
-        testId="village-pottery"
-      >
-        {formatInteger(stocks.potteryKg)}
-      </Resource>
-      {showsWoodTools(crafts) && (
-        <Resource
-          icon="wood-tools"
-          name={`Dřevěné nářadí (kg) – pokrytí potřeby ${formatPercent(coverage.woodTools ?? 0)}`}
-          testId="village-wood-tools"
-        >
-          {formatInteger(stocks.woodToolsKg ?? 0)}
-        </Resource>
-      )}
-      {crafts.carts.length > 0 && (
-        <Resource icon="cart" name={cartsLabel(crafts.carts)} testId="village-carts">
-          {crafts.carts.length}
-        </Resource>
-      )}
-    </>
+    <Resource icon="iron-bars" name="Hřivny (kg)" testId="village-iron-bars">
+      {formatInteger(crafts.stocks.ironBarsKg ?? 0)}
+    </Resource>
   );
 }
 
@@ -426,7 +397,6 @@ export function TopBar({
     return () => clearTimeout(timer);
   }, [startMs, endMs]);
 
-  const people = view ? view.people.children + view.people.adults + view.people.elders : 0;
   const satiation = view ? satiationState(view) : 'fed';
 
   return (
@@ -445,8 +415,10 @@ export function TopBar({
       )}
       {view && (
         <div className="ml-2 flex items-center gap-1 border-l border-[#5c4526] pl-2">
-          <Resource icon="people" name="Lidé" testId="village-people">
-            {people}
+          <Resource icon="people" name={<PeopleTooltip view={view} />} testId="village-people">
+            <span className={fieldCapacityShort(view) ? 'text-red-400' : undefined}>
+              {peopleLabel(view)}
+            </span>
           </Resource>
           <Resource icon="food" name="Obilí" testId="village-stores">
             {formatInteger(view.storesKg)}
@@ -477,20 +449,6 @@ export function TopBar({
           {showsHay(view) && (
             <Resource icon="hay" name="Seno" testId="village-hay">
               {formatInteger(view.hayKg)}
-            </Resource>
-          )}
-          <Resource icon="fields" name="Pole – celková rozloha" testId="village-fields">
-            {formatHa(view.fields.reduce((sum, f) => sum + f.areaM2, 0))}
-          </Resource>
-          {view.fieldCapacity && (
-            <Resource
-              icon="family"
-              name={<FieldCapacityTooltip view={view} />}
-              testId="village-field-capacity"
-            >
-              <span className={fieldCapacityShort(view) ? 'text-red-400' : undefined}>
-                ≈ {formatInteger(view.fieldCapacity.people)}
-              </span>
             </Resource>
           )}
           <Resource icon="wood" name="Klády na hromadě" testId="village-wood">

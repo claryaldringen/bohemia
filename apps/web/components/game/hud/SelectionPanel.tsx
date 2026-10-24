@@ -28,6 +28,7 @@ import {
   PenBody,
   GrainPitBody,
   ThreshingFloorBody,
+  FieldsBody,
 } from './selection/fields';
 import { Oaks, OakAge, SACRED_ICONS, SacredBody } from './selection/sacred';
 import {
@@ -139,7 +140,10 @@ export function SelectionPanel({
     body = <PenBody key={details.id} details={details} />;
   } else if (details.kind === 'field') {
     portrait = <Portrait icon="pole" name="Pole" />;
-    body = <FieldBody details={details} />;
+    body = <FieldBody details={details} onSelectTarget={onSelectTarget} />;
+  } else if (details.kind === 'fields') {
+    portrait = <Portrait icon="pole" name={`Pole (${details.ids.length})`} />;
+    body = <FieldsBody details={details} />;
   } else if (details.kind === 'field-part') {
     portrait = <Portrait icon="pole" name={fieldPartName(details)} />;
     body = <FieldPartBody details={details} onSelectTarget={onSelectTarget} />;

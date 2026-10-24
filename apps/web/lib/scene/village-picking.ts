@@ -31,6 +31,8 @@ export type VillageTarget =
   /** Víc obydlí najednou – id ze scény vsi v pořadí výběru (aspoň dvě). */
   | { kind: 'dwellings'; ids: readonly number[] }
   | { kind: 'field'; id: number }
+  /** Všechna pole najednou, i nesousedící (tlačítko v panelu pole – Martin 24. 10. 2026). */
+  | { kind: 'fields'; ids: readonly number[] }
   /** Díl pole – id pole a čtverec dílu (v mřížce pole – natočené pole má vlastní). */
   | { kind: 'field-part'; id: number; cell: TileCell }
   | { kind: 'cemetery'; id: number }
@@ -374,6 +376,9 @@ export function targetExists(village: SceneVillage, target: VillageTarget): bool
   if (target.kind === 'dwelling') return village.dwellings.some((d) => d.id === target.id);
   if (target.kind === 'dwellings') {
     return target.ids.some((id) => village.dwellings.some((d) => d.id === id));
+  }
+  if (target.kind === 'fields') {
+    return target.ids.some((id) => village.fields.some((f) => f.id === id));
   }
   if (target.kind === 'cemetery') {
     return (village.cemeteries ?? []).some((c) => c.id === target.id);

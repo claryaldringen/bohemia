@@ -841,7 +841,8 @@ describe('SelectionPanel – dílna tesaře (wagons.md – Tesař)', () => {
     expect(html).toMatch(/data-testid="selection-workshop-carts-two-wheel"[^>]*>1\/2</);
     expect(html).not.toContain('selection-workshop-carts-four-wheel');
     expect(html).toMatch(/data-testid="selection-workshop-woodwork"[^>]*>45/);
-    expect(html).toMatch(/data-testid="selection-workshop-stock"[^>]*>46</);
+    // keramika a dřevěné nářadí se nikde neukazují (Martin 24. 10. 2026)
+    expect(html).not.toContain('selection-workshop-stock');
   });
 
   it('pomáhá se stavbami – pokrytí dřevěné práce', () => {
@@ -1528,5 +1529,38 @@ describe('SelectionPanel – spřežení, vůz a lidé u nich (oxen.md, wagons.m
       /data-testid="selection-person-draft"[^>]*><img src="\/icons\/resources\/cart\.png"/,
     );
     expect(render({ ...base, draft: null })).not.toContain('selection-person-draft');
+  });
+});
+
+describe('panel pole – označit všechna pole (Martin 24. 10. 2026)', () => {
+  const field = (fieldIds: readonly number[]): SelectionDetails => ({
+    kind: 'field',
+    id: 5,
+    areaM2: 22_500,
+    fertility: 60,
+    stages: [],
+    surfaces: [],
+    crops: [],
+    ashParts: 0,
+    ashBonus: 0,
+    overgrowingM2: 0,
+    founding: null,
+    fieldIds,
+  });
+
+  it('tlačítko je jen ikona s popiskem, když má ves víc polí', () => {
+    const html = render(field([5, 6, 9]));
+    expect(html).toMatch(
+      /data-testid="selection-all-fields"[^>]*aria-label="Označit všechna pole"/,
+    );
+    expect(html).toContain('Označit všechna pole');
+    expect(render(field([5]))).not.toContain('selection-all-fields');
+    expect(render(field([]))).not.toContain('selection-all-fields');
+  });
+
+  it('označená všechna pole: součet výměry a počet polí', () => {
+    const html = render({ kind: 'fields', ids: [5, 6, 9], areaM2: 112_500 });
+    expect(text(html, 'selection-area')).toBe('11,25 ha');
+    expect(text(html, 'selection-fields-count')).toBe('3');
   });
 });

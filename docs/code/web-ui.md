@@ -40,10 +40,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   skládá `hud/` – `TopBar` (jméno vsi = přepínač vsí `hud/VillageSwitcher.tsx` – klik otevře
   seznam vsí hráče se jménem a lidmi, klik na ves ji přepne – ves na téže mapě na místě, na jiné
   mapě novým načtením stránky; přejmenování dvojklikem nebo tužkou; upozornění z jiné vsi
-  krátkým řádkem se jménem vsi – `otherVillageNotices`; ikony s čísly: lidé, obilí, luštěniny
+  krátkým řádkem se jménem vsi – `otherVillageNotices`; ikony s čísly: lidé a kolik jich pole uživí v jedné ikoně („31 / ≈ 22“, `peopleLabel`), obilí, luštěniny
   (ikona `legumes`, když jsou v zásobě, na poli nebo v jídle – `showsLegumes`), maso,
   sýr (ikona `cheese`, v popisku mléko za den) když je mléko nebo sýr, ovoce (jablka) jen když
-  jsou nebo je sad, seno s ohradou, klády, uhlí / nástroje / keramika jen ves s řemesly, volná
+  jsou nebo je sad, seno s ohradou, klády, hřivny jen ves s řemesly (uhlí je v panelu uhlíře, vozy v ohradě volů a v panelu tesaře, keramika a dřevěné nářadí nikde – Martin 24. 10. 2026), volná
   práce, nasycení (barva ikony podle energie – hlad, tooltip nasycení s energií, bílkovinami
   a podíly obilí / luštěniny / maso / mléko a sýr / vejce / ovoce), štěstí, datum – obnoví se
   na začátku dalšího herního dne, ne každou sekundu (`dateRefreshDelay` v `lib/game-date.ts`);
@@ -184,9 +184,30 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 
 ## Pole uživí ≈ N lidí
 
-Horní lišta (`hud/TopBar.tsx`): ikona `resources/family.png` s „≈ N“ za plochou pole
-(`village-field-capacity`), tooltip `FieldCapacityTooltip`, červeně při `fieldCapacityShort`
-(lidí víc než N). Hodnota je `view.fieldCapacity` (`lib/village-view.ts`, `fieldCapacityView`)
+Horní lišta (`hud/TopBar.tsx`): ikona lidí (`village-people`) ukazuje „lidí / ≈ N“ (`peopleLabel`),
+tooltip `FieldCapacityTooltip`, červeně při `fieldCapacityShort` (lidí víc než N). Rozloha polí
+v liště není – ukazuje ji panel pole. Hodnota je `view.fieldCapacity` (`lib/village-view.ts`, `fieldCapacityView`)
 z jádra `fieldCapacity` (`packages/game/src/domain/village/field-capacity.ts`; tam i `ROTATION`,
 `ROTATION_FACTOR`, `netYieldPerHa`, které kalkulačka přebírá přes `scripts/lib/steady-state.ts`).
 Pravidla: `docs/design/fields.md` – Co hráč vidí.
+
+## Panel pole – označit všechna pole
+
+Martin 24. 10. 2026: „Na panel pole dej tlačítko, kterým lze označit všechna pole na mapě, i když
+spolu nesousedí. Zobraz rozlohu právě označeného pole.“ Panel pole (`FieldBody`) i panel dílu
+(`FieldPartBody`) v `hud/selection/fields.tsx` mají u výměry tlačítko `selection-all-fields`
+(ikona `resources/fields.png`, tooltip „Označit všechna pole“, jen když má ves aspoň dvě pole).
+Klik pošle `onSelectTarget({ kind: 'fields', ids })` – `ids` jsou `fieldIds` z detailů
+(`lib/selection-details.ts`, všechna pole z `view.fields`). Cíl `fields` (`VillageTarget`,
+`village-picking.ts`) obkreslí mez kolem každého pole (`selection-highlight.ts`), `presentTarget`
+zahodí zaniklá pole (jedno zbylé je pole) a panel `FieldsBody` ukáže součet výměry
+(`selection-area`) a počet polí (`selection-fields-count`). Výměru jednoho pole ukazuje
+`selection-area` v panelu pole (ha) a dílu (m²).
+
+## Vozy, uhlí, keramika a nářadí mimo lištu
+
+Martin 24. 10. 2026: počet vozů ne na liště, ale v ohradě s voly; uhlí u uhlíře; keramiku a
+dřevěné nářadí nikde. Vozy: panel ohrady spřežení (`PenBody`, `oxen.carts` / `cartTargets`:
+„má / chce“ po druzích); ves bez ohrady volů má vozy v panelu tesaře (`CarpenterStats`: vozy vsi
+/ potřeba, na cestě). Uhlí: `selection-workshop-stock` v panelu dílny uhlíře (a hřivny u kováře).
+Panely dílny keramiky a tesaře zásobu výrobku neukazují; simulace je beze změny.

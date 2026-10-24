@@ -331,17 +331,21 @@ export function WorkshopRow({
         {formatDecimal(workshop.laborPerDay, 1)}
       </Stat>
       <SkillStats craft={workshop.craft} skill={workshop.skill} />
-      <Stat
-        icon={product.icon}
-        name={
-          workshop.coverage === null
-            ? `${product.name} v zásobě (kg)`
-            : `${product.name} v zásobě (kg) – pokrytí potřeby vsi ${formatPercent(workshop.coverage)}`
-        }
-        testId="selection-workshop-stock"
-      >
-        {formatInteger(workshop.stockKg)}
-      </Stat>
+      {/* Zásoba jen u uhlíře (uhlí) a kováře (hřivny); keramiku a dřevěné nářadí si řeší každá
+          domácnost sama, nikde se neukazují (Martin 24. 10. 2026) */}
+      {(workshop.craft === 'burner' || workshop.craft === 'smith') && (
+        <Stat
+          icon={product.icon}
+          name={
+            workshop.coverage === null
+              ? `${product.name} v zásobě (kg)`
+              : `${product.name} v zásobě (kg) – pokrytí potřeby vsi ${formatPercent(workshop.coverage)}`
+          }
+          testId="selection-workshop-stock"
+        >
+          {formatInteger(workshop.stockKg)}
+        </Stat>
+      )}
       {workshop.kilns.map((kiln) =>
         kiln.id === null ? null : (
           <Tooltip

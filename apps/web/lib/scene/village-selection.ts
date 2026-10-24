@@ -67,6 +67,14 @@ export function presentTarget(
 ): VillageTarget | null {
   if (target === null) return null;
   if (target.kind !== 'dwellings') {
+    // zaniklá pole z výběru všech polí vypadnou, jedno zbylé je pole
+    if (target.kind === 'fields') {
+      const ids = target.ids.filter((id) => village.fields.some((f) => f.id === id));
+      if (ids.length === target.ids.length) return target;
+      const [only] = ids;
+      if (only === undefined) return null;
+      return ids.length === 1 ? { kind: 'field', id: only } : { kind: 'fields', ids };
+    }
     if (target.kind === 'dwelling') {
       return village.dwellings.some((d) => d.id === target.id) ? target : null;
     }
