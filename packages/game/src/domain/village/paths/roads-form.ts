@@ -288,16 +288,18 @@ export function formRoad(
   /** Provoz roční sítě, nebo provoz nové osy (cest za den – vznik z vyšlapanosti). */
   traffic: PathTraffic | ((points: readonly RoadPoint[]) => number),
   context: SpotContext,
+  /** Nejkratší osa (m) – cesta k vchodu smí být kratší než MIN_ROAD_M (`accessRoads`). */
+  minM: number = MIN_ROAD_M,
 ): Road | null {
   // napřed bez rozdělení: krátká cesta nevznikne a cizí cesty se nerozdělí
-  if (!plannedAxis(roads, points, joinStart, joinEnd)) return null;
+  if (!plannedAxis(roads, points, joinStart, joinEnd, minM)) return null;
   const axis = points.map((p) => ({ x: cm(p.x), z: cm(p.z) }));
   // napojení na pevnou cestu (případné rozdělení cesty v rozcestí) – nejdřív začátek, pak konec
   const start = joinStart !== false ? joinPoint(roads, axis[0]!, context, joinStart) : null;
   if (start) axis.unshift(start);
   const end = joinEnd !== false ? joinPoint(roads, axis[axis.length - 1]!, context, joinEnd) : null;
   if (end) axis.push(end);
-  const simple = roadAxisOf(axis);
+  const simple = roadAxisOf(axis, minM);
   if (!simple) return null;
   const road: Road = {
     id: roads.nextId++,
@@ -322,13 +324,13 @@ export function formRoad(
 }
 
 /** Zjednodušená osa nové cesty z bodů na cm; kratší než MIN_ROAD_M null. */
-function roadAxisOf(axis: readonly RoadPoint[]): RoadPoint[] | null {
+function roadAxisOf(axis: readonly RoadPoint[], minM: number = MIN_ROAD_M): RoadPoint[] | null {
   const simple = simplifyPathLine([...axis], [], SIMPLIFY_M).points.filter(
     (p, k, all) => k === 0 || p.x !== all[k - 1]!.x || p.z !== all[k - 1]!.z,
   );
   const along = lengthsAlong(simple);
   const length = along[along.length - 1] ?? 0;
-  return simple.length < 2 || length < MIN_ROAD_M ? null : simple;
+  return simple.length < 2 || length < minM ? null : simple;
 }
 
 /**
@@ -340,13 +342,14 @@ function plannedAxis(
   points: readonly RoadPoint[],
   joinStart: number | false,
   joinEnd: number | false,
+  minM: number = MIN_ROAD_M,
 ): RoadPoint[] | null {
   const axis = points.map((p) => ({ x: cm(p.x), z: cm(p.z) }));
   const start = joinStart !== false ? joinTarget(roads, axis[0]!, joinStart) : null;
   const end = joinEnd !== false ? joinTarget(roads, axis[axis.length - 1]!, joinEnd) : null;
   if (start) axis.unshift(start.point);
   if (end) axis.push(end.point);
-  return roadAxisOf(axis);
+  return roadAxisOf(axis, minM);
 }
 
 /**

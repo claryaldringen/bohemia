@@ -39,6 +39,7 @@ import {
   splitRoadWork,
 } from './roads-form';
 import { type RoadAnchors, nearAnchor, roadAnchors } from './road-anchors';
+import { type StubNetwork, hasLoop, hasStubWork, splitLoops, trimStubs } from './roads-stubs';
 import { SpotContext, plantingBlocker } from './roads-trees';
 
 /**
@@ -272,15 +273,18 @@ export function removeBraids(roads: VillageRoads, constructions: readonly Constr
 export type RoadTermini = readonly RoadPoint[] | ((p: RoadPoint) => boolean);
 
 /**
- * Úklid pevných cest po roční kontrole (i převodu starší vsi – mutuje): souběžné cesty se sloučí,
- * díry se zacelí, falešná rozcestí spojí a určí se skutečné volné konce (roads.md – Úseky
- * a rozcestí).
+ * Úklid pevných cest (měsíční kontrola, převod starší vsi – mutuje; paths.md – Síť – kotvy, pahýly
+ * a úklid): okruhy přes jeden uzel se rozdělí, souběžné cesty sloučí, díry zacelí, copánky
+ * odstraní, falešná rozcestí spojí, pahýly uklidí (`network`) a určí se skutečné volné konce
+ * (roads.md – Úseky a rozcestí). Cesty k vchodům přidá měsíční kontrola (`accessRoads`).
  */
 export function tidyRoads(
   roads: VillageRoads,
   constructions: Construction[],
   termini: RoadTermini,
   context: SpotContext,
+  /** Kotvy a čáry tras – s nimi se rozdělí okruhy a uklidí pahýly (`trimStubs`); bez nich ne. */
+  network?: StubNetwork,
 ): void {
   // konce po zarostlém kusu jsou skutečné volné konce – díra se k nim nedoplní (roads.md)
   const cutEnds = roads.cutEnds ?? [];
@@ -288,6 +292,8 @@ export function tidyRoads(
     isTerminus(p, cutEnds) || (typeof termini === 'function' ? termini(p) : isTerminus(p, termini));
   // po sloučení souběžných kusů a zacelení děr můžou vzniknout copánky – znovu, nejvýš pár kol
   for (let round = 0; round < TIDY_ROUNDS; round++) {
+    // okruh přes jeden uzel – dva úseky, malý okruh pak zmizí jako copánek a pahýl
+    const loops = network ? splitLoops(roads, constructions, context, network.trails) : false;
     const parallel = mergeParallelRoads(roads, constructions);
     joinRoadGaps(roads, ends, context);
     // copánky před spojováním – kusy silnější cesty se po odstranění slabší trasy spojí zpět
@@ -295,8 +301,10 @@ export function tidyRoads(
     mergeRoadChains(roads, constructions);
     const more = removeBraids(roads, constructions);
     if (more) mergeRoadChains(roads, constructions);
-    if (!parallel && !braids && !more) break;
+    if (!loops && !parallel && !braids && !more) break;
   }
+  // pahýly po dělení a spojování – zmizí nebo se zkrátí, uzel u nich se spojí
+  if (network && trimStubs(roads, constructions, network)) mergeRoadChains(roads, constructions);
   markRoadEnds(roads, ends);
   // konce po zarostlém kusu, kde už žádný úsek nekončí, zmizí
   if (roads.cutEnds) {
@@ -336,6 +344,25 @@ export function anchorTermini(anchors: RoadAnchors): (p: RoadPoint) => boolean {
   return (p) => nearAnchor(anchors, p.x, p.z) || isTerminus(p, anchors.points);
 }
 
+/**
+ * Má úklid co dělat, i když se cesty od posledního úklidu nezměnily (změnily se jen kotvy a čáry
+ * tras)? Okruh přes uzel, díra k zacelení, nebo pahýl (`hasStubWork`). Nic nemění.
+ */
+export function tidyDue(
+  roads: VillageRoads,
+  constructions: readonly Construction[],
+  termini: (p: RoadPoint) => boolean,
+  network: StubNetwork,
+): boolean {
+  const cutEnds = roads.cutEnds ?? [];
+  const ends = (p: RoadPoint): boolean => isTerminus(p, cutEnds) || termini(p);
+  return (
+    hasLoop(roads, constructions, network.trails) ||
+    firstGap(roads, ends) !== null ||
+    hasStubWork(roads, constructions, network)
+  );
+}
+
 /** Kolik konců úseků je v bodě (klíč na cm). */
 function endDegrees(roads: readonly Road[]): Map<string, number> {
   const count = new Map<string, number>();
@@ -366,6 +393,9 @@ function firstGap(
       if ((degrees.get(endKey(p)) ?? 0) !== 1 || isEnd(p)) continue;
       const others = roads.roads.map((r) => (r === road ? { ...r, points: [] } : r));
       const hit = nearestOnRoads(others, p.x, p.z);
+      // ne zpět do uzlu, ze kterého úsek vychází – vznikl by okruh (krátká odbočka tam a zpět)
+      const own = atStart ? road.points[road.points.length - 1]! : road.points[0]!;
+      if (hit && length2(hit.point.x - own.x, hit.point.z - own.z) <= END_SNAP_M) continue;
       if (hit && hit.distance <= JOIN_GAP_M) return { road, atStart, hit };
     }
   }
@@ -413,7 +443,7 @@ function joinRoadGaps(
  * vytrácí): konec, ve kterém nekončí jiný úsek, u brány domu nebo cíle (`termini`). Konec, kde
  * trasa pokračuje pěšinou dne, a rozcestí volné nejsou (mutuje).
  */
-function markRoadEnds(roads: VillageRoads, isEnd: (p: RoadPoint) => boolean): void {
+export function markRoadEnds(roads: VillageRoads, isEnd: (p: RoadPoint) => boolean): void {
   const degrees = endDegrees(roads.roads);
   const open = (p: RoadPoint): boolean => (degrees.get(endKey(p)) ?? 0) === 1 && isEnd(p);
   for (const road of roads.roads) {

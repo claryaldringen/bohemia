@@ -10,8 +10,25 @@
 // `encodeWear` za dopočet zvlášť). Další úlohy přidají vlastní řádky. Kopii stavu
 // necommitovat (je jen ve scratchpadu).
 import { readFileSync, writeFileSync } from 'node:fs';
-import { generateLandscapeAttempt, type LayerVersions } from '../src/domain/landscape';
-import type { Road, VillageState } from '../src/domain/village';
+import {
+  generateLandscapeAttempt,
+  type Landscape,
+  type LayerVersions,
+} from '../src/domain/landscape';
+import type { Road, RoadPoint, VillageState } from '../src/domain/village';
+import { ROAD_ANCHORS } from '../src/domain/village/rules';
+import { anchorKindOf, roadAnchors } from '../src/domain/village/paths/road-anchors';
+import {
+  END_SNAP_M,
+  PARALLEL_MIN_M,
+  PARALLEL_STEP_M,
+  alongsideRoad,
+  nearestOnRoads,
+  resample,
+} from '../src/domain/village/paths/roads-geometry';
+import { anchorTermini } from '../src/domain/village/paths/roads-tidy';
+import { routeLine } from '../src/domain/village/paths/routes';
+import { pathCellM } from '../src/domain/village/paths/terrain';
 import { updateVillage } from '../src/application/update-village';
 import { WEAR_TIMING, decodeWear } from '../src/domain/village/paths/wear';
 import { SingleVillageRepository } from './lib/memory-villages';
@@ -41,6 +58,11 @@ export interface RoadReport {
   byGrade: Record<string, { count: number; km: number }>;
   junctions: number;
   stubs: number;
+  endsOffAnchor: number;
+  parallelPairs: number;
+  /** Opuštěné kusy pod stavbou (nejsou v síti) a stavby bez cesty do vchodu (paths.md – Vchody). */
+  abandoned: number;
+  entrancesWithoutRoad: number;
   /** Cesty založené během dopočtu (kronika `road-formed`) a nová id úseků (i pohlcené úklidem). */
   formed: number;
   newIds: number;
@@ -67,14 +89,43 @@ function lengthOf(road: Road): number {
   return sum;
 }
 
-/** Křižovatky a pahýly sítě – prosté měření ze stavu, ne pravidlo hry. */
-export function networkShape(roads: readonly Road[]): { junctions: number; stubs: number } {
+/** Tvar sítě živých úseků (opuštěné kusy pod stavbou nejsou cesty). */
+export interface NetworkShape {
+  junctions: number;
+  /** Úsek kratší než STUB_MAX_M s volným koncem mimo kotvu (paths.md – Síť: pahýl). */
+  stubs: number;
+  /** Volné konce mimo kotvu a mimo jinou cestu (Úloha 8 – po úklidu 0). */
+  endsOffAnchor: number;
+  /** Dvojice úseků se souběžným kusem aspoň PARALLEL_MIN_M (`alongsideRoad`). */
+  parallelPairs: number;
+}
+
+/** Délka nejdelšího souběžného kusu úseku `road` s úsekem `other` (m). */
+function parallelM(road: Road, other: Road): number {
+  const samples = resample(road.points, null, PARALLEL_STEP_M).points;
+  let best = 0;
+  let run = 0;
+  samples.forEach((p, k) => {
+    const before = samples[Math.max(0, k - 1)]!;
+    const after = samples[Math.min(samples.length - 1, k + 1)]!;
+    run = alongsideRoad([other], p, before, after) ? run + PARALLEL_STEP_M : 0;
+    best = Math.max(best, run);
+  });
+  return best;
+}
+
+/**
+ * Křižovatky, pahýly, konce mimo kotvu a souběžné dvojice sítě – prosté měření ze stavu, ne
+ * pravidlo hry. Bez kotev (`isAnchor`) je každý volný konec mimo kotvu.
+ */
+export function networkShape(
+  all: readonly Road[],
+  isAnchor: (p: RoadPoint) => boolean = () => false,
+): NetworkShape {
+  const roads = all.filter((r) => !r.abandoned && r.points.length >= 2);
   const ends: { x: number; z: number; road: number }[] = [];
   roads.forEach((r, i) => {
-    const first = r.points[0];
-    const last = r.points[r.points.length - 1];
-    if (first) ends.push({ ...first, road: i });
-    if (last && last !== first) ends.push({ ...last, road: i });
+    ends.push({ ...r.points[0]!, road: i }, { ...r.points[r.points.length - 1]!, road: i });
   });
   const degree = (e: { x: number; z: number }): number =>
     ends.filter((o) => Math.hypot(o.x - e.x, o.z - e.z) < JOIN_M).length;
@@ -87,13 +138,47 @@ export function networkShape(roads: readonly Road[]): { junctions: number; stubs
     seen.add(key);
     junctions++;
   }
+  // volný konec mimo kotvu, který neleží na jiné cestě (do END_SNAP_M)
+  const offAnchor = (e: { x: number; z: number; road: number }): boolean => {
+    if (degree(e) !== 1 || isAnchor(e)) return false;
+    const others = roads.filter((_, i) => i !== e.road);
+    const hit = nearestOnRoads(others, e.x, e.z);
+    return !hit || hit.distance > END_SNAP_M;
+  };
+  const loose = ends.filter(offAnchor);
   let stubs = 0;
   roads.forEach((r, i) => {
-    if (lengthOf(r) >= STUB_MAX_M) return;
-    const mine = ends.filter((e) => e.road === i);
-    if (mine.some((e) => degree(e) === 1)) stubs++;
+    if (lengthOf(r) < STUB_MAX_M && loose.some((e) => e.road === i)) stubs++;
   });
-  return { junctions, stubs };
+  let parallelPairs = 0;
+  for (let i = 0; i < roads.length; i++) {
+    for (let j = i + 1; j < roads.length; j++) {
+      const m = Math.max(parallelM(roads[i]!, roads[j]!), parallelM(roads[j]!, roads[i]!));
+      if (m >= PARALLEL_MIN_M) parallelPairs++;
+    }
+  }
+  return { junctions, stubs, endsOffAnchor: loose.length, parallelPairs };
+}
+
+/**
+ * Hotové stavby, ke kterým se chodí (trasa s provozem stavby do vchodu) a do jejichž vchodu
+ * (do ROAD_ANCHORS.entranceM) nevede živá cesta (paths.md – Vchody).
+ */
+function entrancesWithoutRoad(state: VillageState, landscape: Landscape): number {
+  const cellM = pathCellM(landscape);
+  const roads = (state.roads?.roads ?? []).filter((r) => !r.abandoned);
+  let missing = 0;
+  const seen = new Set<string>();
+  for (const route of state.routes?.list ?? []) {
+    if (!route.visit || anchorKindOf(route.to, route.purpose) !== 'entrance') continue;
+    if (seen.has(route.visit)) continue;
+    seen.add(route.visit);
+    const line = routeLine(route, cellM);
+    const gate = line[line.length - 1];
+    const hit = gate ? nearestOnRoads(roads, gate.x, gate.z) : null;
+    if (!hit || hit.distance > ROAD_ANCHORS.entranceM) missing++;
+  }
+  return missing;
 }
 
 /** Načte a dopočte ves, vrátí naměřená čísla. */
@@ -130,7 +215,8 @@ export async function roadReport(
 
   const state = done.village.state;
   onState?.(state);
-  const roads = state.roads?.roads ?? [];
+  const roads = (state.roads?.roads ?? []).filter((r) => !r.abandoned);
+  const all = state.roads?.roads ?? [];
   const wear = state.roads?.wear;
   const byGrade: RoadReport['byGrade'] = {};
   let totalM = 0;
@@ -150,7 +236,9 @@ export async function roadReport(
     roads: roads.length,
     totalKm: totalM / 1000,
     byGrade,
-    ...networkShape(roads),
+    ...networkShape(roads, anchorTermini(roadAnchors(state.routes?.list ?? [], landscape))),
+    abandoned: all.length - roads.length,
+    entrancesWithoutRoad: entrancesWithoutRoad(state, landscape),
     formed: state.chronicle.filter((e) => e.kind === 'road-formed' && e.day > start).length,
     newIds: (state.roads?.nextId ?? 1) - (input.state.roads?.nextId ?? 1),
     routes: state.routes?.list.length ?? 0,
@@ -177,6 +265,10 @@ export function formatReport(r: RoadReport): string {
     `cesty ${r.roads} (${r.totalKm.toFixed(2)} km): ${grades || '–'}`,
     `křižovatky ${r.junctions}`,
     `pahýly ${r.stubs}`,
+    `konce mimo kotvu ${r.endsOffAnchor}`,
+    `souběžné páry ${r.parallelPairs}`,
+    `opuštěné ${r.abandoned}`,
+    `vchody bez cesty ${r.entrancesWithoutRoad}`,
     `vzniklo ${r.formed} (nových id ${r.newIds})`,
     `trasy ${r.routes} (${r.routesKb.toFixed(1)} kB)`,
     `vyšlapanost ${r.wearCells} políček (${r.wearKb.toFixed(1)} kB)`,

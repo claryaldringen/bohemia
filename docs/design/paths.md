@@ -313,6 +313,21 @@ Návrh Clauda:
 - **Jedna cesta hráče se v uzlu nepotká sama se sebou** (pravidlo 11): ramena křižovatky patří
   různým cestám hráče. Dva úseky mezi stejnými uzly jsou copánek (krok 1) a okruh přes jednu
   křižovatku se rozdělí v nejvzdálenějším bodě na dvě cesty hráče.
+- Návrh Clauda (24. 10. 2026, Úloha 8):
+  - úklid běží v měsíční kontrole, jen když se od minulého úklidu změnily cesty, nebo když nové
+    kotvy a trasy dají práci (pahýl, díra, okruh, vchod bez cesty) – bez změny nic, žádná nová id;
+  - **upravená a vozová cesta** (postavil je hráč – Převod: „upravené a vozové zůstanou“) se jako
+    pahýl nezkracuje; upravený kus kratší než 15 m zmizí, delší zůstane a zarůstá podle druhu;
+  - „kudy ještě vede trasa“ = bod osy do 5 m od čáry trasy; zkrátí se nejvýš k místu, kde k ose
+    přiléhá konec jiné cesty (napojení objížďky);
+  - vyšlapaný pahýl delší než 30 m, po kterém trasa vede méně než 15 m, nebo samotný kus bez uzlu
+    zůstane a zarůstá po kusech (Zarůstání) – nemizí naráz (stará cesta oklikou u vozové cesty);
+  - pahýl delší než 30 m, po kterém trasa vede až na konec, zůstane (konec, kde pěšina odbočí ke
+    kotvě) – prodloužení po trase ke kotvě zatím není (Vlkov ho nepotřeboval);
+  - konec úseku se díře nepřipojí zpět do uzlu, ze kterého úsek vychází (vznikal okruh tam a zpět);
+    malý okruh se rozdělí a zmizí jako copánek a pahýl.
+  - Vchod má cestu, i když kolem něj (do 3 m) vede pevná cesta, která v něm nekončí; cesta k vchodu
+    smí být kratší než 15 m (spojka do branky, nejméně 3 m).
 
 ## Stavba přes cestu (Vlkov, Martin 23. 10. 2026)
 

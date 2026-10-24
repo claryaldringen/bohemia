@@ -414,7 +414,10 @@ describe('roadsMonth – měsíční vznik cest z vyšlapanosti', () => {
       );
       expect(s.roads.nextId, `měsíc ${m}`).toBe(50);
     }
-    expect(s.roads.roads).toEqual(before);
+    // první měsíční úklid jen určí volné konce (`openEnds`) – osa, id a místa na stromy beze změny
+    const plain = (list: readonly Road[]): Road[] =>
+      list.map((r) => ({ ...r, openEnds: undefined }));
+    expect(plain(s.roads.roads)).toEqual(plain(before));
     expect(s.chronicle.some((e) => e.kind === 'road-formed')).toBe(false);
   });
 

@@ -120,6 +120,16 @@ export const WEAR = {
 // stavby, do `goalM` (7,5 m) od konce trasy k cíli bez vchodu (voda, dřevo, pole, sad, louka,
 // pastva) a do `goalM` od kraje mapy
 export const ROAD_ANCHORS = { entranceM: 3, goalM: 7.5 } as const;
+// paths.md – Síť – kotvy, pahýly a úklid (Martin, #6: „Pahýly bez cíle nevznikají, a když po
+// dělení a spojování cest nějaký zbude, sloučí se se sousední cestou nebo zmizí.“; čísla návrh
+// Clauda): kus od pahýlu k nejbližšímu uzlu kratší než `dropBelowM` (30 m) zmizí, delší se zkrátí
+// na poslední bod, kudy vede trasa (do `routeM` od osy); prodloužení po trase ke kotvě zatím ne
+export const ROAD_STUBS = { dropBelowM: 30, routeM: 5 } as const;
+// paths.md – Vchody (Martin, #6: „ke každé stavbě, kam se chodí, vede cesta až k jejímu vchodu,
+// i když se tam chodí málo, třeba k hřbitovu jen na pohřby.“; návrh Clauda): vchod má cestu, když
+// do `ROAD_ANCHORS.entranceM` od něj končí nebo vede pevná cesta; cesta k vchodu je nejméně
+// `minM` dlouhá (krátká spojka k cestě, která jde kolem)
+export const ROAD_ACCESS = { minM: 3 } as const;
 // wagons.md – Vyjeté cesty (návrh Clauda): úsek, kudy vozy dva roky po sobě jezdí aspoň
 // `tripsPerDay` jízd denně (roční průměr – ≈ 90 jízd za rok), se stane vozovou cestou; vozová cesta,
 // kudy 5 let po sobě jezdí pod polovinou, je zas jen pěší (zaroste podle provozu lidí)

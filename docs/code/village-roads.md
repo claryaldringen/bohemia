@@ -172,6 +172,30 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   by pohltil, takže se nezaloží (`formRoadsKept`), dokud ho Úloha 7 nevyřadí ze sítě. `road-report.ts` vypisuje i `vzniklo` (kronika) a nová id úseků. Testy
   `road-form-wear.test.ts`, `roads.test.ts` (1. 11. nezakládá, dopočet po kouscích).
 
+- **Úklid sítě – pahýly a cesty k vchodům** (nový systém cest, Úloha 8; [paths.md – Síť – kotvy,
+  pahýly a úklid](../design/paths.md#síť--kotvy-pahýly-a-úklid-pravidlo-11) a
+  [Vchody](../design/paths.md#vchody); Martin 22. 10. 2026, pravidla 10 a 11): `roadsMonth` po
+  zániku kusů a vzniku z vyšlapanosti pustí `tidyMonth` – jen když se od posledního úklidu změnily
+  osy úseků (`VillageRoads.tidyKey`, otisk FNV-1a `networkKey`), nebo nové kotvy a trasy dají práci
+  (`tidyDue` – okruh, díra, pahýl; `accessDue` – vchod bez cesty); jinak nic, ani kontext míst na
+  stromy (čítač `TIDY_RUNS` pro testy). Pořadí: `tidyRoads` s kotvami a čarami tras (`StubNetwork`):
+  okruh přes jeden uzel se rozdělí v nejvzdálenějším bodě (`splitLoops`, `roads-stubs.ts`) →
+  souběžné → díry (`joinRoadGaps` už nespojí konec zpět do uzlu, ze kterého úsek vychází – vznikal
+  okruh tam a zpět) → copánky → spojení → **pahýly** (`trimStubs`: konec mimo kotvu a mimo jinou
+  cestu; vyšlapaný kus kratší než `ROAD_STUBS.dropBelowM` 30 m zmizí, delší se zkrátí na poslední
+  vzorek osy u čáry trasy (do `routeM` 5 m), nejvýš k napojení jiné cesty – objížďka tak neztratí
+  napojení; delší bez trasy (pod `MIN_ROAD_M`) nebo bez uzlu zůstane a zarůstá; upravená cesta
+  zmizí jen kratší než `MIN_ROAD_M`, vozová, rozestavěná a zemská stezka se nemění) → **cesty k vchodům** (`accessRoads`, `roads-access.ts`: stavba s trasou s provozem
+  stavby – `StoredRoute.visit` – do vchodu, hotová – rozestavěný hřbitov ne; když u vchodu do 3 m
+  nekončí ani nevede živá cesta, vznikne vyšlapaná cesta po nejvytíženější trase od vchodu k první
+  pevné cestě do `ATTACH_M` – rozcestí –, nejméně `ROAD_ACCESS.minM`; kronika `road-formed`;
+  nezarůstá, dokud končí ve vchodu – `settleRoadCondition`). `formRoad` má volitelnou nejkratší
+  osu. `road-report.ts` počítá jen živé úseky (opuštěné zvlášť) a vypisuje i konce mimo kotvu,
+  souběžné páry a vchody bez cesty; pahýl = úsek pod 30 m s koncem mimo kotvu (paths.md). Testy
+  `road-stubs.test.ts` (pahýl 10 m, pahýl 50 m, malý okruh, vozová pohltí souběžnou, fixtura Vlkova,
+  hřbitov – cesta do branky, 12 měsíců bez změny tras bez úklidu a bez nových id),
+  `road-detour.test.ts` (napojení objížďky po úklidu, `nextId`).
+
 - **Vylepšení pevné cesty a chůze podle stupně** ([roads.md](../design/roads.md) – fáze 2):
   terén pěšin má příznaky `PATH_WETLAND` (mokřina – suchá rovina do 3 buněk od vody) a `PATH_WATER`;
   úsek nese `Road.ground` (mokřina od–do a brody na ose – `roadGroundOf` při vzniku, starší při

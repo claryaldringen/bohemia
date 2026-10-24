@@ -124,7 +124,7 @@ const APPLE_RELINK_M = 30;
  * do `APPLE_RELINK_M` (živý má přednost před opuštěným), jinak zanikají – nevisí na smazané cestě
  * (olemování a hlášení práce jsou podle `roadId`; roads.md – zarůstání, jabloně).
  */
-function relinkApples(roads: VillageRoads, goneId: number): void {
+export function relinkApples(roads: VillageRoads, goneId: number): void {
   const apples = roads.apples;
   if (!apples?.some((a) => a.roadId === goneId)) return;
   roads.apples = apples.filter((apple) => {
