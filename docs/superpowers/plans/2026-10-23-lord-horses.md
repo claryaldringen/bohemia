@@ -57,13 +57,16 @@ obchodu.
    (`foundVillage`, `START_AGES` 25/25/13/12). Vojvoda (25) by cvičil a jeho žena (25) vedla jen
    domácnost. Ves by neměla nikoho, kdo staví první zemnici a obydlí. Chlapec (13) a dívka (12)
    nejsou děti vojvody (rodiče neznámí), dospějí za rok.
-   **Návrh Clauda:** rodina cvičí, jen když má ves **mimo rodinu aspoň 4 dospělé**
+   **Rozhodnuto (Martin 24. 10. 2026: „Až má ves ≥ 4 dospělé mimo rodinu“), hystereze návrh
+   Clauda (zpět k práci pod 3, `LORD.keepVillageAdults`).** Rodina cvičí, jen když má ves **mimo rodinu aspoň 4 dospělé**
    (`LORD.minVillageAdults` – „čtyři dospělí pro nové obydlí“). Do té doby pracuje jako dosud.
    Je to čistá funkce stavu a dne. Bez tohoto pravidla se ves nezaloží.
 2. **Vojvodou se stane zeť.** Po smrti vojvody bez syna je vojvodou nejstarší muž dvorce
    (`isHouseholdHead` v `burials.ts`), třeba zeť. **Návrh Clauda:** rodina = nový vojvoda a jeho
    potomci po meči v dvorci. Jeho výcvik začne od nynějška (dovednosti od 0, nebo co mu zůstalo).
    Synové předchozího vojvody v dvorci zůstanou rodinou jen jako jeho potomci, jinak jsou rolníci.
+   **Martin 24. 10. 2026: „Tohle pořešíme později, až budeme řešit nástupnické linie.“** – zatím
+   platí toto pravidlo bez zvláštností pro zetě, otevřená otázka v lord.md.
 
 ## Na co plán navazuje (ověřeno grepem)
 
@@ -165,7 +168,7 @@ Nic se nezapojí do simulace – otisky beze změny.
 
 **Rozhraní:**
 
-- `LORD = { minVillageAdults: 4, hours: { boy: 2, youth: 4, man: 6, older: 3 }, split: {…},
+- `LORD = { minVillageAdults: 4, keepVillageAdults: 3, hours: { boy: 2, youth: 4, man: 6, older: 3 }, split: {…},
 gainPerHour: 0.00047, cap: { boy: 40, man: 100, declinePerYear: 3 }, decayPerYear: 0.05,
 floorShare: 0.5, backToTrainingDays: 30 }` – každé číslo s odkazem na sekci lord.md;
 - `interface ArmsSkills { bow: number; combat: number; riding: number; best?: { bow: number;
@@ -184,8 +187,9 @@ others: Person[] }`:
   `+ (cap − x) × gainPerHour × hodiny`;
 - `decayArms(skills): ArmsSkills` – den bez výcviku: `× (1 − decayPerYear / 365)`, nejníž
   `best × floorShare`;
-- `familyTrains(state, day): boolean` – aspoň `minVillageAdults` dospělých mimo `trainees`
-  a `household` (otázka 1).
+- `familyTrains(state, day, training = false): boolean` – aspoň `minVillageAdults` dospělých mimo
+  `trainees` a `household` (otázka 1); kdo už cvičí (`training` = režim z `VillageState.lord?`),
+  zůstane u výcviku, dokud jich je aspoň `keepVillageAdults` (hystereze). Zapojení je Úloha 2.
 
 **Postup:**
 

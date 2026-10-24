@@ -47,6 +47,20 @@ pocítí, že vojvodův dvůr něco stojí – a že rod, který nemá komu vele
   a pracuje; naučené mu zůstane (Výcvik níž). Kdo se do dvorce přivdá, patří k rodině. Dvorec má
   nejvýš 10 míst, takže rodina je shora omezená.
 - **Nástupnictví** beze změny: po smrti vojvody je vojvodou nejstarší muž dvorce, výcvik běží dál.
+  Vojvodou se tak může stát i zeť – viz Otevřené otázky.
+
+### Zakládání vsi (Martin 24. 10. 2026)
+
+Nová ves má jednu domácnost zakladatelů (dva páry, chlapec a dívka v první zemnici, která je
+dvorcem). Kdyby vojvoda cvičil a jeho žena vedla jen domácnost, neměl by kdo stavět obydlí.
+Martin: „Až má ves ≥ 4 dospělé mimo rodinu“ (volba z nabídky).
+
+- **Rodina cvičí místo práce, až má ves aspoň 4 dospělé (od 14 let) mimo vojvodovu rodinu**
+  (cvičící muži a ženy domácnosti se nepočítají). Do té doby pracuje jako ostatní.
+- **Hystereze (návrh Clauda):** kdo už cvičí, vrací se k práci až pod **3** dospělé mimo rodinu,
+  ať rodina nekmitá mezi polem a dvorkem. Režim se pamatuje (volitelná část stavu).
+- Čistá funkce stavu a dne (`familyTrains`); čísla `LORD.minVillageAdults` a
+  `LORD.keepVillageAdults`.
 
 ## Den rodiny (návrh Clauda)
 
@@ -183,6 +197,13 @@ Příklad: ves 40 lidí, ≈ 20 dospělých. Dvorec s 8 lidmi – vojvoda 42, ž
 - Lov (zatím nenavržený) – divoká prasata, luk a jízda.
 - Vazalství a nástupnictví ([vize](vision.md)) – vycvičený dědic jako hodnota rodu.
 
+## Otevřené otázky
+
+- **Zeť jako vojvoda.** Po smrti vojvody bez syna je vojvodou nejstarší muž dvorce, třeba zeť.
+  Martin (24. 10. 2026): „Tohle pořešíme později, až budeme řešit nástupnické linie.“ Zatím platí
+  stávající pravidlo návrhu bez zvláštností: rodina = nový vojvoda a jeho potomci po meči
+  v dvorci, synové předchozího vojvody jsou rolníci.
+
 ## Rozhodnutí
 
 | Rozhodnutí                                                                                              | Kdo                    |
@@ -200,6 +221,9 @@ Příklad: ves 40 lidí, ≈ 20 dospělých. Dvorec s 8 lidmi – vojvoda 42, ž
 | 2 slaměné terče, střelnice 20 m, cvičný kůl, stojan, kůl na koně; bez ceny; bez dvorce 1 terč u zemnice | návrh Clauda           |
 | Síla v boji 1 × (1 + boj / 100) – jen návrh pro válku                                                   | návrh Clauda           |
 | Cvičí jen domácnost dvorce (kdo se oddělí, pracuje jako ostatní)                                        | Martin (23. 10. 2026)  |
+| Rodina cvičí, až má ves aspoň 4 dospělé mimo rodinu; do té doby pracuje                                 | Martin (24. 10. 2026)  |
+| Zpět k práci až pod 3 dospělé mimo rodinu (hystereze)                                                   | návrh Clauda           |
+| Zeť jako vojvoda: řešit později, s nástupnickými liniemi                                                | Martin (24. 10. 2026)  |
 | Ztráta ≈ 25–30 % práce vsi je v pořádku                                                                 | Martin (23. 10. 2026)  |
 
 ## Odpovědi Martina (23. 10. 2026)
@@ -207,3 +231,8 @@ Příklad: ves 40 lidí, ≈ 20 dospělých. Dvorec s 8 lidmi – vojvoda 42, ž
 1. **Kdo patří k rodině:** „Jen domácnost dvorce“.
 2. **Cena dvora:** ztráta ≈ 25–30 % práce – „Ano, tak to má být“; snachy vedou jen domácnost.
 3. **Synové nepasou:** zůstává návrh Clauda (Martin schválil návrh jako celek).
+
+## Odpovědi Martina (24. 10. 2026)
+
+1. **Zakládání vsi:** „Až má ves ≥ 4 dospělé mimo rodinu“.
+2. **Zeť jako vojvoda:** „Tohle pořešíme později, až budeme řešit nástupnické linie.“
