@@ -30,6 +30,7 @@ import { CART_SPEED, ROAD_WALK, WAGON_ROAD } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { Road, RoadProfilePoint, VillageState } from '../types';
 import {
+  abandonBypassed,
   WAGON_BLOCKED,
   WAGON_BUILDING,
   WAGON_EXISTS,
@@ -38,6 +39,7 @@ import {
   WAGON_FIRST,
   WAGON_STEEP,
   fordArcsOf,
+  newFordArcs,
   planWagonRoad,
   startWagonRoad,
   wagonPlanInputOf,
@@ -847,6 +849,66 @@ describe('obejitý kus – mezistav a zrušení stavby', () => {
   });
 });
 
+describe('abandonBypassed – souběžný zbytek zanikne, odbočka ne', () => {
+  const built = [
+    { x: 0, z: 0 },
+    { x: 0, z: 20 },
+    { x: 20, z: 20 },
+    { x: 20, z: 0 },
+  ];
+  const bypassed = [
+    [
+      { x: 0, z: 30 },
+      { x: 0, z: 60 },
+    ],
+  ];
+  const road = (id: number, points: { x: number; z: number }[]): Road => ({
+    ...oldRoad(points),
+    id,
+  });
+  const run = (points: { x: number; z: number }[]): boolean => {
+    const r = road(5, points);
+    abandonBypassed([r], bypassed, built);
+    return r.abandoned === true;
+  };
+
+  it('zbytek souběžný s hotovou částí zanikne', () => {
+    expect(
+      run([
+        { x: 0.5, z: 2 },
+        { x: 0.5, z: 18 },
+      ]),
+    ).toBe(true);
+  });
+
+  it('zbytek souběžný s obejitým kusem zanikne', () => {
+    expect(
+      run([
+        { x: 1, z: 35 },
+        { x: 1, z: 55 },
+      ]),
+    ).toBe(true);
+  });
+
+  it('krátký pahýl do 4 m, který jen začíná u hotové části a vede jinam, zůstane', () => {
+    expect(
+      run([
+        { x: 0, z: 10 },
+        { x: -4, z: 10 },
+      ]),
+    ).toBe(false);
+  });
+
+  it('odbočka s krajními body u hotové části, uprostřed jinde, zůstane', () => {
+    expect(
+      run([
+        { x: 0, z: 0 },
+        { x: 20, z: 0 },
+      ]),
+    ).toBe(false);
+  });
+});
+
 describe('vozová cesta – výjimky z recenze 11a', () => {
   /** Louka 450 m s mělkým potokem z ∈ (75, 90) – brod. */
   const FORD_LAND: Landscape = {
@@ -927,6 +989,62 @@ describe('vozová cesta – výjimky z recenze 11a', () => {
   });
 });
 
+describe('lávka u nového brodu (roads.md – Postupná úprava a serpentiny)', () => {
+  const FORD_LAND: Landscape = {
+    ...makeLandscape({ size: 30, surface: (_x, y) => (y === 20 ? 'water' : 'meadow') }),
+    stream: [0, 8, 15, 22, 30].map((x) => ({
+      x,
+      y: 20.5,
+      halfWidthLeft: 0.08,
+      halfWidthRight: 0.08,
+      level: 0,
+      shallow: true,
+    })),
+  };
+  const home = { x: 20, z: 20 };
+  function planWith(ground: Road['ground']): Extract<WagonRoadPlan, { ok: true }> {
+    const road = oldRoad([
+      { x: 0, z: 30 },
+      { x: 0, z: 140 },
+    ]);
+    if (ground) road.ground = ground;
+    const s = withBuiltFirstDwelling(
+      foundVillage({ seed: 11, day: DAY, dwellingPosition: { ...home, rotation: 0 } }),
+    );
+    s.lastDay = DAY;
+    s.roads = { nextId: 2, roads: [road], trees: [], labor: { from: DAY, days: 0, shares: [] } };
+    const p = planWagonRoad(wagonPlanInputOf(s, DAY, 1, FORD_LAND, null));
+    if (!p.ok) throw new Error(p.reason);
+    return p;
+  }
+
+  it('brod, který stará osa neměla, se účtuje: 4 stromy a 15 čd', () => {
+    const known = planWith({ wet: [], fords: [] });
+    const without = planWith(undefined);
+    expect(known.fords.length).toBeGreaterThan(0);
+    expect(known.footbridgeTrees).toBe(4);
+    expect(
+      known.pieces.reduce(
+        (sum, x) => sum + x.manDays - x.earthManDays - x.pavingManDays - x.clearingManDays,
+        0,
+      ),
+    ).toBeCloseTo(15, 0);
+    // úsek bez určené krajiny brod zná z vlastní osy
+    expect(without.footbridgeTrees).toBe(0);
+  });
+
+  it('brod staré upravené cesty (lávka stojí) se neúčtuje', () => {
+    expect(planWith({ wet: [], fords: [52] }).footbridgeTrees).toBe(0);
+  });
+
+  it('newFordArcs: vzdálený brod se počítá, blízký starý ne', () => {
+    const profile = Array.from({ length: 11 }, (_, k) => ({ x: 0, z: k * 2, y: 0 }));
+    expect(newFordArcs(profile, [4, 5], [])).toEqual([8]);
+    expect(newFordArcs(profile, [4, 5], [{ x: 3, z: 9 }])).toEqual([]);
+    expect(newFordArcs(profile, [4, 5], [{ x: 40, z: 9 }])).toEqual([8]);
+  });
+});
+
 describe('postupná úprava (roads.md – Postupná úprava, Martin 24. 10. 2026)', () => {
   const ground = (fords: number) =>
     ({ wet: [], fords: fords > 0 ? [{ fromM: 10, toM: 14 }] : [] }) as unknown as Road['ground'];
@@ -990,18 +1108,23 @@ describe('postupná úprava (roads.md – Postupná úprava, Martin 24. 10. 2026
   });
 });
 
-describe('profileHeights – mez 6 % se zaokrouhluje, ne ořezává', () => {
+describe('profileHeights – sklon nejvýš 6 % na každém kroku', () => {
   const axisOf = (n: number, step: number) =>
     Array.from({ length: n }, (_, k) => ({ x: 0, z: k * step }));
   const natural = (n: number, step: number, grade: number) =>
     Array.from({ length: n }, (_, k) => k * step * grade);
 
-  it('rovný svah 6,0 % při kroku 1,95 m projde', () => {
-    const n = 151;
-    expect(
-      profileHeights(axisOf(n, 1.95), natural(n, 1.95, 0.06), Array(n).fill(0.3)),
-    ).not.toBeNull();
-  });
+  for (const step of [0.25, 1.25, 1.75, 1.95]) {
+    it(`svah 6,0 % při kroku ${step} m projde a nikde nepřekročí 6 %`, () => {
+      const n = Math.round(300 / step) + 1;
+      const solved = profileHeights(axisOf(n, step), natural(n, step, 0.06), Array(n).fill(0.3));
+      expect(solved).not.toBeNull();
+      const h = solved!.heights;
+      for (let i = 1; i < n; i++) {
+        expect(Math.abs(h[i]! - h[i - 1]!) / step).toBeLessThanOrEqual(0.06 + 1e-9);
+      }
+    });
+  }
 
   it('rovný svah 6,3 % dlouhý přes mez zemních prací neprojde', () => {
     const n = 151;

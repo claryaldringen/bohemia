@@ -165,11 +165,16 @@ Clauda, schválený Martinem 24. 10. 2026 („Návrhy k cestám schvaluji“):
   šedé s důvodem „Napřed uprav cestu.“ (`WAGON_FIRST`); server to kontroluje sám (`wagonChainStatus`,
   tedy i plán a zahájení stavby). Rozestavěná úprava se za hotovou nepočítá. Zemská stezka je upravená,
   ta projde. Starší vsi: hotové nebo rozestavěné vozové cesty se nemění.
-- **Cena:** vozová cesta na upravené cestě neúčtuje lávku znovu (nic za brod, žádné stromy na lávku)
-  a zpevnění je jen doplatek 0,3 − 0,15 = **0,15 čd/m** (zpevnění už je v ceně úpravy; číslo
+- **Cena:** vozová cesta na upravené cestě neúčtuje lávku znovu u brodů, které stará upravená cesta
+  měla (lávka tam stojí). **Brod, který stará osa neměla** (narovnaná tětiva, serpentina), dostane
+  lávku jako dřív: 4 stromy a 15 čd na brod (návrh Clauda; brod do 8 m od brodu staré cesty je týž).
+  Zpevnění je jen doplatek 0,3 − 0,15 = **0,15 čd/m** (zpevnění už je v ceně úpravy; číslo
   `WAGON_ROAD.pavingPerM` se odvozuje z `ROAD_UPGRADES.improvedManDaysPer100M`).
-- **Sklon přesně 6 %:** krok profilu se zaokrouhluje (`Math.round`), dřív se ořezával dolů a skutečná
-  mez vycházela 5,0–5,9 % (diagnóza Vlkov, zemská stezka na sever).
+- **Sklon nejvýš 6 % na každém kroku:** výšky profilu se počítají na milimetry a mez kroku se
+  zaokrouhluje dolů, takže žádný krok (ani krátký u rohu osy) mez nepřekročí; dřív zaokrouhlení
+  nahoru dávalo na krátkých krocích 6,3–8 % (recenze 24. 10. 2026). Zbytek staré cesty zanikne, jen
+  když je aspoň 80 % jeho délky souběžných (do 2 m) s obejitým kusem či hotovou částí; odbočka,
+  cesta do vchodu nebo krátký pahýl začínající u hotové části zůstane.
 - **Serpentiny (pravidlo):** kde profil po staré ose nevyjde nebo u osy stojí posvátný strom, hledá se
   v oknech ±60, ±120 a ±200 m kolem místa selhání lokální trasa (`findWagonRoute`) a vezme se
   nejlevnější hotový plán; obejitý kus staré osy zaroste (`bypassed`). `WAGON_STEEP` zůstane jen tehdy,

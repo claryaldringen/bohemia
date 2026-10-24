@@ -251,6 +251,10 @@ export const WAGON_ROAD = {
   turnSteps: 2,
   pieceM: 60,
   profileStepM: 2,
+  /** Brod nové osy do této vzdálenosti od brodu staré cesty je týž brod (lávka tam už stojí). */
+  oldFordMatchM: 8,
+  /** Zbytek staré cesty zanikne, je-li aspoň tento podíl jeho délky souběžný s obejitým kusem či hotovou částí. */
+  bypassShare: 0.8,
 } as const;
 /**
  * roads.md – Vozová cesta, narovnání (Martin, 22. 10. 2026, #6: „Narovná se jen tam, kde pěší cesta

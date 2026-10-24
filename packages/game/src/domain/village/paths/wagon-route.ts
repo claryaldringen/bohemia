@@ -890,9 +890,9 @@ function profileAxis(
 }
 
 /**
- * Navržené výšky pláně na ose (na cm): nejmenší zemní práce (plocha průřezu × délka) při sklonu
+ * Navržené výšky pláně na ose (na mm): nejmenší zemní práce (plocha průřezu × délka) při sklonu
  * nejvýš WAGON_ROAD.maxGrade mezi každými dvěma body a posunu od terénu nejvýš `limit` buňky
- * (úvoz i násep); konce v terénu. Dynamické programování po bodech přes výšky po centimetrech
+ * (úvoz i násep); konce v terénu. Dynamické programování po bodech přes výšky po milimetrech
  * (klouzavé minimum). Nejde-li to, null.
  */
 export function profileHeights(
@@ -905,13 +905,13 @@ export function profileHeights(
   const lo: number[] = [];
   const hi: number[] = [];
   for (let i = 0; i < n; i++) {
-    const hc = natural[i]! * 100;
+    const hc = natural[i]! * 1000;
     if (i === 0 || i === n - 1) {
       lo.push(Math.round(hc));
       hi.push(Math.round(hc));
       continue;
     }
-    const lim = Math.floor(limits[i]! * 100);
+    const lim = Math.floor(limits[i]! * 1000);
     lo.push(Math.ceil(hc - lim));
     hi.push(Math.floor(hc + lim));
   }
@@ -929,7 +929,8 @@ export function profileHeights(
     const size = hi[i]! - lo[i]! + 1;
     const cost = new Float64Array(Math.max(0, size)).fill(Infinity);
     const parent = new Int32Array(Math.max(0, size)).fill(-1);
-    const m = Math.round(WAGON_ROAD.maxGrade * ds[i - 1]! * 100);
+    // dolů, ne zaokrouhlit: sklon nikdy nepřekročí mez (zaokrouhlení nahoru dávalo 6,3–8 %)
+    const m = Math.floor(WAGON_ROAD.maxGrade * ds[i - 1]! * 1000 + 1e-9);
     // klouzavé minimum přes okno [y − m, y + m] předchozího řádku
     const deque: number[] = [];
     let head = 0;
@@ -951,7 +952,7 @@ export function profileHeights(
       while (deque.length > head && deque[head]! < left) head++;
       if (deque.length === head) continue;
       const best = deque[head]!;
-      const offset = (y - natural[i]! * 100) / 100;
+      const offset = (y - natural[i]! * 1000) / 100;
       cost[k] = prev.cost[best]! + sectionArea(offset, 0) * w;
       parent[k] = best;
     }
@@ -962,7 +963,7 @@ export function profileHeights(
   const out = new Array<number>(n);
   let k = 0;
   for (let i = n - 1; i >= 0; i--) {
-    out[i] = (lo[i]! + k) / 100;
+    out[i] = (lo[i]! + k) / 1000;
     k = rows[i]!.parent[k]!;
   }
   return { heights: out, cost: last.cost[0]! };

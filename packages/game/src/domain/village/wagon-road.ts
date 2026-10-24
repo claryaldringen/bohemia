@@ -25,7 +25,7 @@ import {
 import { simplifyPathLine, type PathPoint, type PathVillage } from './paths/network';
 import { roadChain, type ChainLink } from './paths/road-chains';
 import { absorbParallelRoads, addWagonRoad } from './paths/roads';
-import { axisDistance } from './paths/roads-geometry';
+import { axisDistance, axisSlice } from './paths/roads-geometry';
 import { pathTerrainOf, pathWindowFor, PATH_WOODLAND, withObstacles } from './paths/terrain';
 import { pathVillageOf } from './paths/village';
 import {
@@ -42,7 +42,7 @@ import {
   type WagonTimeRoad,
 } from './paths/wagon-route';
 import { keepClear, type SwathTally } from './road-swath';
-import { OBSTACLE_COST, ROAD_SWATH, WAGON_ROAD, WAGON_STRAIGHTEN } from './rules';
+import { OBSTACLE_COST, ROAD_SWATH, ROAD_UPGRADES, WAGON_ROAD, WAGON_STRAIGHTEN } from './rules';
 import { roadNeedsUpgrade } from './road-upgrades';
 import { sacredSitesOf } from './sacred';
 import type {
@@ -608,10 +608,10 @@ export function straightenStretches(
 }
 
 /**
- * Obejité kusy staré osy zarostou: pevná cesta (ne vozová), která leží celá do 2 m od obejitého
+ * Obejité kusy staré osy zarostou: pevná cesta (ne vozová), která leží (aspoň z `bypassShare` délky) do 2 m od obejitého
  * kusu, je opuštěná (`Road.abandoned` – vypadne ze sítě a bledne podle `ROAD_DECAY`). Mutuje.
  */
-function abandonBypassed(
+export function abandonBypassed(
   roads: readonly Road[],
   bypassed: readonly (readonly PathPoint[])[],
   built: readonly PathPoint[],
@@ -621,15 +621,23 @@ function abandonBypassed(
   const nearBuilt = built.length >= 2 ? axisDistance([built]) : null;
   for (const road of roads) {
     if (road.grade === 'wagon' || road.abandoned || road.points.length < 2) continue;
-    // krátký zbytek souběžný s hotovou vozovou cestou obejitý kus neudrží naživu
-    if (
-      road.points.every(
-        (p) =>
-          near(p.x, p.z) <= BYPASS_MATCH_M || (nearBuilt?.(p.x, p.z) ?? Infinity) <= BYPASS_MATCH_M,
-      )
-    ) {
-      road.abandoned = true;
+    // zbytek souběžný s obejitým kusem nebo s hotovou vozovou cestou obejitý kus neudrží naživu;
+    // odbočka, cesta do vchodu či krátký pahýl, který u hotové části jen začíná, zůstane – měří se
+    // podíl délky (vzorky po metru), ne jen vrcholy osy
+    const len = profileLength(road.points);
+    let all = 0;
+    let parallel = 0;
+    for (let d = 0; d <= len + 1e-9; d += 1) {
+      const p = axisSlice(road.points, Math.min(d, len), Math.min(d, len))[0]!;
+      all++;
+      if (
+        near(p.x, p.z) <= BYPASS_MATCH_M ||
+        (nearBuilt?.(p.x, p.z) ?? Infinity) <= BYPASS_MATCH_M
+      ) {
+        parallel++;
+      }
     }
+    if (parallel >= all * WAGON_ROAD.bypassShare) road.abandoned = true;
   }
 }
 const BYPASS_MATCH_M = 2;
@@ -717,9 +725,37 @@ export function planWagonRoad(input: WagonPlanInput): WagonRoadPlan {
   const bounds = pieceBounds(profile.lengthM);
   const clearing = wagonClearing(input, grid, profile.profile, profile.fords, bounds);
   if (clearing.sacred) return { ok: false, reason: WAGON_SACRED };
-  // lávky u brodů už stojí – vozová cesta se staví jen na upravené cestě (`wagonChainStatus`)
-  const footbridgeTrees = 0;
-  const missingWood = 0;
+  // lávky u brodů staré upravené cesty už stojí (`wagonChainStatus`); brod, který stará osa neměla
+  // (narovnaná tětiva, serpentina), dostane lávku jako dřív – 4 stromy a 15 čd na brod
+  // úsek bez určené krajiny (`ground`) lávky nezná – brody poblíž jeho osy se berou za staré
+  const oldFords = chain.flatMap((link) => {
+    const g = link.road.ground;
+    if (g) return g.fords.map((d) => axisSlice(link.road.points, d, d)[0]!);
+    const len = profileLength(link.road.points);
+    const out: PathPoint[] = [];
+    for (let d = 0; d <= len; d += WAGON_ROAD.oldFordMatchM / 2) {
+      out.push(axisSlice(link.road.points, d, d)[0]!);
+    }
+    return out;
+  });
+  const fordArcs = newFordArcs(profile.profile, profile.fords, oldFords);
+  const footbridgeTrees = fordArcs.length * ROAD_UPGRADES.footbridge.trees;
+  const missingWood =
+    footbridgeTrees > 0
+      ? planWoodFrom(
+          footbridgeTrees,
+          profileAt(profile.profile, profile.lengthM / 2),
+          {
+            logs: input.woodLogs ?? 0,
+            changes: () => input.changes,
+            claimed: () => new Set(input.claimed ?? []),
+          },
+          {
+            obstacles: input.layer,
+            clearedIds: [...clearing.pieces.flatMap((t) => [...t.cleared, ...t.felled])],
+          },
+        ).missing
+      : 0;
   const pieces: WagonPiecePlan[] = bounds.map((toM, k) => {
     const fromM = k > 0 ? bounds[k - 1]! : 0;
     let earthManDays = 0;
@@ -730,9 +766,12 @@ export function planWagonRoad(input: WagonPlanInput): WagonRoadPlan {
     });
     const pavingManDays = WAGON_ROAD.pavingPerM * (toM - fromM);
     const clearingManDays = clearing.pieces[k]!.cost;
+    const footbridgeManDays =
+      fordArcs.filter((d) => d > fromM && d <= toM + 1e-9).length *
+      ROAD_UPGRADES.footbridge.manDays;
     return {
       toM: tenths(toM),
-      manDays: tenths(earthManDays + pavingManDays + clearingManDays),
+      manDays: tenths(earthManDays + pavingManDays + clearingManDays + footbridgeManDays),
       earthManDays: tenths(earthManDays),
       pavingManDays: tenths(pavingManDays),
       clearingManDays,
@@ -903,6 +942,46 @@ export function fordArcsOf(
     }
     if (set.has(k) && !set.has(k - 1)) out.push(along);
   }
+  return out;
+}
+
+/**
+ * Brody nové osy, které stará upravená cesta neměla (její lávka tam nestojí): začátky běhů brodu
+ * (m od začátku osy), v jejichž blízkosti `WAGON_ROAD.oldFordMatchM` neleží žádný brod staré cesty.
+ */
+export function newFordArcs(
+  profile: readonly RoadProfilePoint[],
+  fords: readonly number[],
+  oldFords: readonly PathPoint[],
+): number[] {
+  const set = new Set(fords);
+  const out: number[] = [];
+  let along = 0;
+  let start = -1;
+  let startArc = 0;
+  const close = (end: number): void => {
+    const known = oldFords.some((f) => {
+      for (let k = start; k <= end; k++) {
+        const q = profile[k]!;
+        if (length2(q.x - f.x, q.z - f.z) <= WAGON_ROAD.oldFordMatchM) return true;
+      }
+      return false;
+    });
+    if (!known) out.push(startArc);
+  };
+  for (let k = 0; k < profile.length; k++) {
+    if (k > 0) {
+      along += length2(profile[k]!.x - profile[k - 1]!.x, profile[k]!.z - profile[k - 1]!.z);
+    }
+    if (set.has(k) && start < 0) {
+      start = k;
+      startArc = along;
+    } else if (!set.has(k) && start >= 0) {
+      close(k - 1);
+      start = -1;
+    }
+  }
+  if (start >= 0) close(profile.length - 1);
   return out;
 }
 
