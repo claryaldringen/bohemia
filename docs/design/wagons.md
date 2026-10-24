@@ -129,8 +129,11 @@ níž je návrh Clauda, čísla v `CART_JOBS` (`rules.ts`).
 - **Jen když ušetří práci** – vůz pro uhlí a rudu, když je jízda levnější než nošení v koších
   kovářovou domácností, pro vodu
   domácnostem, kterým je jízda levnější než chůze s vědry (anti-cíl: vůz, který práci neušetří).
-- **Vyjeté cesty:** jízdy pro uhlí, rudu, s osivem i pro vodu se počítají do ročního provozu cest
-  jako svoz – k vodě, k milíři a k rudišti mohou vzniknout vyježděné cesty.
+- **Vyjeté cesty (nové pravidlo, Martin, 22. 10. 2026 (zadání #6): „Cesty zakládají jen lidé tím, kudy chodí“):** vozy cesty
+  nezakládají. Jízdy pro uhlí, rudu, s osivem i pro vodu se 1. 11. přičtou do vyšlapanosti
+  (`addCartWear`, jízda váží `WEAR.cartWeight` cesty) a cesta pak vznikne měsíčně z vyšlapanosti
+  jako každá jiná; vozy jen převezmou už vyšlapanou cestu (`takeOverCartRoads`). Starší text
+  o „ročním provozu cest jako svoz“ a vyježděných cestách k vodě, milíři a rudišti je nahrazený.
 - **Ve scéně:** vůz jede tam a zpět (`shuttleRoute`) – uhlí veze zpátky (zboží), rudu zpátky
   (hromada rezavých hrud – díly `wagon2-ore` a `wagon4-ore`), osivo tam (zboží,
   zpátky prázdný), voda v sudech tam i zpět (prázdné sudy k vodě, plné domů – díly `wagon2-water`
@@ -389,6 +392,9 @@ Sondy bez kováře (kovárna zrušená) na čerstvém stavu z 31. 1. 801, kdy ve
   ruda, osivo, klády, svoz); díl, který už není osetý (např. právě sklízený), se nepošlapává.
 - **Vyježděné cesty** (Martin, 19. 10. 2026: „Cesty – pokud nějakou cestu vyjezdí vůz, bude to
   vyježděná cesta. Pokud vůz takhle vyjezdí vyšlapanou cestu, tak to vozová cesta přebije.“):
+  **Nahrazeno (Martin, 22. 10. 2026 (zadání #6): „Cesty zakládají jen lidé tím, kudy chodí“):** vozy nové cesty nezakládají –
+  jízdy roku jdou 1. 11. do vyšlapanosti (`addCartWear`, `WEAR.cartWeight`), roční síť pěšin se
+  nepočítá. Platí jen převzetí vyšlapané cesty (`takeOverCartRoads`). Původní znění (už neplatí):
   provoz vozů se sčítá jako provoz lidí (roční síť 1. 11., roads.md). Kudy vozy vyjezdí trasu
   mimo cesty, vznikne **vyježděná cesta** – širší (dvě koleje), sjízdná pro vozy. Kudy vozy
   vyjezdí vyšlapanou cestu (po ní, nebo souběžně kus vedle), vyšlapaná se v tom kusu stane

@@ -28,7 +28,7 @@ export interface StoredRoute {
    * stavby), ne práce dne. Nese vyšlapanost i provoz; chybí = 0 (starší trasy). Nejvýš `trips`.
    */
   base?: number;
-  /** Stavba, jejíž provoz trasa nese (`<druh>:<id>` – abandonment.md, `PathNetwork.visits`). */
+  /** Stavba, jejíž provoz trasa nese (`<druh>:<id>` – abandonment.md, `VillageRoads.visits`). */
   visit?: string;
 }
 

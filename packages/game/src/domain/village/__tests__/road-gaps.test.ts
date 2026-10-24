@@ -3,6 +3,8 @@ import { dayIndexOf } from '../../calendar';
 import { obstaclesOf } from '../../landscape';
 import { foundVillage } from '../actions';
 import { updateRoads, withJoinedRoads } from '../paths/roads';
+import { storedRoutes } from '../paths/routes';
+import { villagePathNetwork } from '../paths/village';
 import { advanceVillage } from '../simulate';
 import type { Dwelling, Person, Road, RoadGrade, VillageState } from '../types';
 import { LANDSCAPE } from './paths-fixtures';
@@ -126,6 +128,9 @@ describe('díry mezi úseky pevných cest', () => {
       candidates: [],
       labor: { from: Y1 - 30, days: 30, shares: [] },
     };
+    // konce cest určují kotvy z uložených tras (brána domu) – trasy vsi
+    const network = villagePathNetwork(s, Y1, LANDSCAPE, null);
+    s.routes = { day: Y1, key: 'test', list: network ? storedRoutes(network) : [] };
     const migrated = withJoinedRoads(s, LANDSCAPE, LAYER);
     const atGate = migrated.roads!.roads.find((r) => r.id === 500)!;
     expect(atGate.points[0]).toEqual({ x: 0, z: 5.2 });

@@ -37,8 +37,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 - **Opuštěné stavby chátrají** ([abandonment.md](../design/abandonment.md), Martin 18. 10. 2026:
   „Jo ty stavby, kam nikdo nechodí, budou postupně chátrat a rozpadnou se“; čísla podle rešerše
   `research/2026-10-18-abandonment.md`): `abandonment.ts`. **Opuštěná** = stavba, ke které podle
-  roční sítě cest (1. 11., stejná `computePathNetwork` jako pevné cesty) za rok nevedla žádná
-  cesta – síť vrací provoz ke stavbám `PathNetwork.visits` (klíč `visitKey` – `idol:<id>`,
+  provozu z uložených tras (1. 11.) za rok nevedla žádná cesta – trasy s `StoredRoute.visit` se
+  po intervalech jako vyšlapanost sčítají do `VillageRoads.visits` (cesto-dny, `accrueVisits` ve
+  `settleVillageWear`; starší ves ho dostane od dne načtení – `withVisitsSeed` – a rozhodne až
+  po roce dat, `yearVisits` vrátí do té doby null; hřbitov s úmrtím za rok se navštívil) (klíč `visitKey` – `idol:<id>`,
   `shrine:<id>`, `cemetery:<id>`, `pen:<id>`; jen domácnosti, ke kterým se trasa našla; k modle,
   svatyni a hřbitovu chodí každá domácnost jen k nejbližšímu). `roadsDay` ho vrátí v den roční
   kontroly (jinak a bez krajiny null – kalibrace nic neopouští) a `simulateDay` zavolá

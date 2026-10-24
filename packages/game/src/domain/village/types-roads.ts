@@ -172,6 +172,14 @@ export interface VillageRoads {
      */
     cart?: RoadCartTrips[];
   };
+  /**
+   * Provoz ke stavbám od `from` (paths.md – Vyšlapanost, chátrání staveb): cesto-dny (cesty za den
+   * v setinách × dny) po klíči stavby (`<druh>:<id>`, `visitKey`), sčítá se z uložených tras po
+   * intervalech jako vyšlapanost (`settleVillageWear`). Roční kontrola (1. 11.) z něj rozhodne,
+   * kam se chodilo, a začne znovu. Starší ves ho dostane od dneška (`withVisitsSeed`) a rozhodne
+   * se až po roce dat. Chybí = ještě neexistuje.
+   */
+  visits?: { from: number; byKey: [string, number][] };
   /** Jabloně vysazené hráčem podél úseků (roads.md – Vysazení jabloní); chybí = žádné. */
   apples?: RoadApple[];
   /**

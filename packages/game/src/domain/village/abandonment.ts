@@ -28,8 +28,8 @@ import type {
 
 // Opuštěné stavby chátrají (docs/design/abandonment.md – Martin 18. 10. 2026: „Jo ty stavby, kam
 // nikdo nechodí, budou postupně chátrat a rozpadnou se“). Opuštěná je stavba, ke které podle
-// roční sítě cest (roads.md – 1. 11., stejný výpočet jako pevné cesty) za celý uplynulý rok
-// nevedla žádná cesta – provoz ke stavbě dává síť pěšin (`PathNetwork.visits`). Opuštěná stavba
+// uložených tras (roads.md – 1. 11.) za celý uplynulý rok nevedla žádná cesta – provoz ke stavbě
+// se sčítá z tras (`VillageRoads.visits`, `accrueVisits`). Opuštěná stavba
 // ztrácí stav rovnoměrně a za ABANDONMENT.fallYears let od plného stavu spadne; když se k ní lidé
 // znovu začnou chodit, chátrání se zastaví a vesničané ji opraví ze společné práce (abandonment.md
 // – Oprava, Martin 19. 10. 2026 – repair.ts). Modla a svatyně dávají štěstí, dokud stojí; padlá
@@ -43,7 +43,7 @@ const DWELLING_REACH_M = 6;
 /** Ohrada, do které se vrátila zvířata, má stav aspoň tolik – se zvířaty nespadne. */
 const MIN_STOCKED_CONDITION = 0.01;
 
-/** Klíč stavby v provozu roční sítě (`PathNetwork.visits` – network.ts). */
+/** Klíč stavby v provozu z tras (`StoredRoute.visit`, `VillageRoads.visits`). */
 export function visitKey(kind: SacredBuildingKind | 'cemetery' | 'pen', id: number): string {
   return `${kind}:${id}`;
 }
@@ -147,8 +147,8 @@ function keepRepaired(
 }
 
 /**
- * Roční kontrola opuštěných staveb (1. 11. – volá simulace s provozem roční sítě cest; mutuje
- * stav): stavba, ke které za rok nevedla žádná cesta (`visits` – network.ts), začne chátrat,
+ * Roční kontrola opuštěných staveb (1. 11. – volá simulace s provozem ke stavbám z tras; mutuje
+ * stav): stavba, ke které za rok nevedla žádná cesta (`visits` – součet z tras), začne chátrat,
  * navštěvovaná přestane a vesničané ji opraví (repair.ts). Stavba dokončená za poslední rok
  * (ABANDONMENT.graceDays) opuštěná není – lidé k ní chodili stavět; ohrada se zvířaty taky ne.
  * Práce opravy vede k stavbě cesty – oprava ji tak drží navštěvovanou.

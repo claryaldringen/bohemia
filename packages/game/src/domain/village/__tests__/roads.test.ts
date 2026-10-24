@@ -6,7 +6,8 @@ import { cellObstacles, obstacleChangesAt, obstacleStatus } from '../obstacles';
 import { computePathNetwork, pastureHerds, type PathVillage } from '../paths/network';
 import { addRoadLabor, plantingBlocker, roadTreeSpots, updateRoads } from '../paths/roads';
 import { encodeWear, wearKey } from '../paths/wear';
-import { pastureLivestock, pathVillageOf } from '../paths/village';
+import { pastureLivestock, pathVillageOf, villagePathNetwork } from '../paths/village';
+import { storedRoutes } from '../paths/routes';
 import {
   checkDwellingPlacement,
   checkPlotPlacement,
@@ -82,6 +83,12 @@ function sideRoad(id: number, bornDay: number, grade: Road['grade'] = 'trodden')
   ];
   const spots = roadTreeSpots(points, 5, () => true).map((p, k) => ({ id: 1000 + k, ...p }));
   return { id, points, bornDay, grade, traffic: [], spots };
+}
+
+/** Trasy vsi (pro provoz kusů cest – roční kontrola bere provoz z uložených tras). */
+function withWalkRoutes(s: VillageState): void {
+  const network = villagePathNetwork(s, Y1, LANDSCAPE, null);
+  s.routes = { day: Y1, key: 'test', list: network ? storedRoutes(network) : [] };
 }
 
 const json = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
@@ -269,6 +276,7 @@ describe('pevné cesty – roční kontrola (updateRoads)', () => {
       const s = village();
       updateRoads(s, Y1, LANDSCAPE, null);
       s.roads!.roads.push(toBank());
+      withWalkRoutes(s);
       s.roads!.trees.push(tree(100, 73));
       for (let k = 1; k <= 4; k++) {
         expect(updateRoads(s, NOV1(600 + k), LANDSCAPE, null)).not.toContainEqual(
@@ -306,6 +314,7 @@ describe('pevné cesty – roční kontrola (updateRoads)', () => {
       const s = village();
       updateRoads(s, Y1, LANDSCAPE, null);
       s.roads!.roads.push(toBank());
+      withWalkRoutes(s);
       s.roads!.apples = [
         { id: ROAD_TREE_ID_BASE + 950, roadId: 500, x: 125, z: 73, distanceM: 150, plantedDay: Y1 },
       ];

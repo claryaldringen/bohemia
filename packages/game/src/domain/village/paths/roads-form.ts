@@ -2,14 +2,10 @@
 
 import { length2, type Landscape, type ObstacleLayer } from '../../landscape';
 import { cloneState } from '../clone';
-import { HAY_WINTER_MONTHS } from '../hay';
-import { villageHerds } from '../livestock';
 import { obstacleChangesAt, type ObstacleChanges } from '../obstacles';
-import { villagePens } from '../oxen';
 import { WEAR } from '../rules';
 import {
   type Construction,
-  type HerdSpecies,
   type Road,
   type RoadGround,
   type RoadPoint,
@@ -17,21 +13,8 @@ import {
   type VillageRoads,
   type VillageState,
 } from '../types';
-import {
-  computePathNetwork,
-  villagePathBounds,
-  simplifyPathLine,
-  type PathNetwork,
-  type PathTraffic,
-  type PathVillage,
-} from './network';
-import {
-  obstaclePosition,
-  pathTerrainOf,
-  pathWindowFor,
-  withObstacles,
-  type PathTerrain,
-} from './terrain';
+import { villagePathBounds, simplifyPathLine, type PathTraffic } from './network';
+import { pathTerrainOf, pathWindowFor, withObstacles, type PathTerrain } from './terrain';
 import { pathVillageOf } from './village';
 import {
   ATTACH_M,
@@ -67,66 +50,27 @@ export function emptyRoads(day: number): VillageRoads {
     trees: [],
     candidates: [],
     labor: { from: day, days: 0, shares: [] },
-  };
-}
-
-/** Síť z celoroční práce a terén, ze kterého vznikla; ves bez obydlí null. */
-export interface AnnualNetwork {
-  network: PathNetwork;
-  terrain: PathTerrain;
-}
-
-/**
- * Stáda na pastvě v průměru roku: krávy, které v zimě stojí v ohradě (ves má hotovou ohradu), se
- * pasou jen mimo zimu – poměrně k měsícům.
- */
-function annualPasture(state: VillageState): Record<HerdSpecies, number> {
-  const herds = villageHerds(state);
-  const penned = villagePens(state).some((p) => p.builtDay !== null);
-  const grazing = penned ? (12 - HAY_WINTER_MONTHS.length) / 12 : 1;
-  return {
-    sheep: Math.round(herds.sheep),
-    goat: Math.round(herds.goat),
-    pig: Math.round(herds.pig),
-    cow: Math.round(herds.cow * grazing),
+    visits: { from: day, byKey: [] },
   };
 }
 
 /**
- * Roční síť (roads.md): ves v den `day` s průměrnými člověkodny na den za rok cest (místo práce
- * dne), dřevo podle průměru roku, stáda na pastvě v průměru roku a sleva za pevné cesty – stejná
- * funkce jako pěšiny dne.
+ * Terén roční kontroly (1. 11.): okno pěšin kolem vsi s překážkami krajiny a změnami stavem – pro
+ * trasy vozů a úklid sítě. Ves bez obydlí null. (Roční síť pěšin už se nepočítá – cesty vznikají
+ * měsíčně z vyšlapanosti, paths.md.)
  */
-export function annualPathNetwork(
+export function annualTerrain(
   state: VillageState,
   day: number,
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
   changes: ObstacleChanges = obstacleChangesAt(state, day),
-): AnnualNetwork | null {
-  const base = pathVillageOf(state, day, landscape);
-  const roads = state.roads;
-  const days = Math.max(1, roads?.labor.days ?? 1);
-  const shares = (roads?.labor.shares ?? []).map((s) => ({
-    target: s.target,
-    manDays: s.manDays / days,
-  }));
-  const village: PathVillage = {
-    ...base,
-    ...(base.labor ? { labor: { ...base.labor, shares } } : {}),
-    ...(state.livestock ? { livestock: annualPasture(state) } : {}),
-  };
+): PathTerrain | null {
+  const village = pathVillageOf(state, day, landscape);
   const bounds = villagePathBounds(village, landscape);
   if (!bounds) return null;
   const window = pathTerrainOf(landscape, pathWindowFor(landscape, bounds));
-  const terrain = obstacles ? withObstacles(window, obstacles, changes) : window;
-  const network = computePathNetwork({
-    village,
-    terrain,
-    annual: true,
-    ...(obstacles ? { tree: (id: number) => obstaclePosition(obstacles, id) } : {}),
-  });
-  return { network, terrain };
+  return obstacles ? withObstacles(window, obstacles, changes) : window;
 }
 
 /** Úseky, které se právě vylepšují (stavby `road` – roads.md). */

@@ -69,7 +69,7 @@ import { lineRoads } from './road-lining';
 import { routePaths } from './route-paths';
 import { storedRoutes } from './routes';
 import { partWalkSpeed, roadTreeSpeed } from './walk-speed';
-import { settleWear, trafficField, wearMap, wearRevisionKey } from './wear';
+import { accrueVisits, settleWear, trafficField, wearMap, wearRevisionKey } from './wear';
 
 // Pěšiny ze stavu vsi (paths.md – Pěšiny a práce): server skládá ves pro pěšiny stejně jako
 // scéna (village-view.ts – SceneVillage), spočítá stejnou síť a z ní vzdálenosti chůze dílů
@@ -391,6 +391,7 @@ export function settleVillageWear(state: VillageState, day: number, landscape: L
   const wear = state.roads?.wear;
   if (!wear || wear.day >= day) return;
   const routes = state.routes ?? { key: '', list: [] };
+  accrueVisits(state.roads!, routes.list, day - wear.day);
   settleWear(wear, trafficField(routes, pathCellM(landscape)), wear.day, day);
 }
 

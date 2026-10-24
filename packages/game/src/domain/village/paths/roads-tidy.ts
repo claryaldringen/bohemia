@@ -12,7 +12,6 @@ import {
   type VillageRoads,
   type VillageState,
 } from '../types';
-import { type PathLine } from './network';
 import { type PathTerrain } from './terrain';
 import {
   END_SNAP_M,
@@ -32,14 +31,14 @@ import {
   toSegment,
 } from './roads-geometry';
 import {
-  annualPathNetwork,
+  annualTerrain,
   endKey,
   mergeRoadChains,
   roadsInWork,
   splitRoad,
   splitRoadWork,
 } from './roads-form';
-import { type RoadAnchors, nearAnchor } from './road-anchors';
+import { type RoadAnchors, nearAnchor, roadAnchors } from './road-anchors';
 import { SpotContext, plantingBlocker } from './roads-trees';
 
 /**
@@ -320,20 +319,9 @@ export function tidyRoads(
 const JOIN_GAP_M = 12;
 /**
  * Konec úseku je skutečný volný konec (brána domu, cíl – pole, voda, les –, slepý konec), když
- * do tolika metrů (m) končí čára roční sítě – trasa tam nepokračuje. Jinde pokračuje (díra).
+ * do tolika metrů (m) leží kotva nebo konec trasy – trasa tam nepokračuje. Jinde pokračuje (díra).
  */
 const TERMINUS_M = 6;
-
-/** Volné konce čar roční sítě (brány domů, cíle a slepé konce) – kde trasy končí. */
-export function networkTermini(lines: readonly PathLine[]): RoadPoint[] {
-  const out: RoadPoint[] = [];
-  for (const line of lines) {
-    if (line.points.length < 2) continue;
-    if (line.openStart) out.push(line.points[0]!);
-    if (line.openEnd) out.push(line.points[line.points.length - 1]!);
-  }
-  return out;
-}
 
 function isTerminus(p: RoadPoint, termini: readonly RoadPoint[]): boolean {
   return termini.some((t) => length2(t.x - p.x, t.z - p.z) <= TERMINUS_M);
@@ -480,16 +468,21 @@ export function withJoinedRoads(
   const roads = next.roads!;
   const day = next.lastDay;
   const changes = obstacleChangesAt(next, day);
-  const annual = annualPathNetwork(next, day, landscape, obstacles, changes);
-  if (annual) {
-    tidyRoads(roads, next.constructions, networkTermini(annual.network.lines), {
-      terrain: annual.terrain,
-      blocked: plantingBlocker(next, landscape),
-      layer: obstacles,
-      changes,
-      seed: next.seed,
-      split: (from, to) => splitRoadWork(next.constructions, from, to),
-    });
+  const terrain = annualTerrain(next, day, landscape, obstacles, changes);
+  if (terrain) {
+    tidyRoads(
+      roads,
+      next.constructions,
+      anchorTermini(roadAnchors(next.routes?.list ?? [], landscape)),
+      {
+        terrain,
+        blocked: plantingBlocker(next, landscape),
+        layer: obstacles,
+        changes,
+        seed: next.seed,
+        split: (from, to) => splitRoadWork(next.constructions, from, to),
+      },
+    );
   }
   roads.endsChecked = true;
   roads.parallelsChecked = true;
