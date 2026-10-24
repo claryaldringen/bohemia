@@ -25,19 +25,22 @@ import { pathTerrainOf, pathWindowFor } from '../paths/terrain';
 import { pathVillageOf } from '../paths/village';
 import { roadPieceCost } from '../paths/walking';
 import { roadWalkSpeed } from '../paths/walk-speed';
-import { balanceEarth, profileEdits } from '../paths/wagon-route';
+import { balanceEarth, profileEdits, profileHeights } from '../paths/wagon-route';
 import { CART_SPEED, ROAD_WALK, WAGON_ROAD } from '../rules';
+import { WAGON_DETOUR } from '../rules-roads';
 import { advanceVillage } from '../simulate';
 import type { Road, RoadProfilePoint, VillageState } from '../types';
 import {
+  abandonBypassed,
   WAGON_BLOCKED,
   WAGON_BUILDING,
   WAGON_EXISTS,
   WAGON_LOOP,
-  WAGON_NO_WOOD,
   WAGON_SACRED,
+  WAGON_FIRST,
   WAGON_STEEP,
   fordArcsOf,
+  newFordArcs,
   planWagonRoad,
   startWagonRoad,
   wagonPlanInputOf,
@@ -70,14 +73,14 @@ const MID = hill(0.08, 12, 18);
 const STEEP = hill(0.15, 8, 22);
 const STEEPER = hill(0.25, 10, 18);
 
-/** Stará cesta – vyšlapaná, konce na jihu a severu (z = ±180). */
+/** Stará cesta – upravená (vozová cesta až po úpravě), konce na jihu a severu (z = ±180). */
 function oldRoad(
   points: { x: number; z: number }[] = [
     { x: 0, z: -180 },
     { x: 0, z: 180 },
   ],
 ): Road {
-  return { id: 1, points, bornDay: 0, grade: 'trodden', traffic: [], spots: [] };
+  return { id: 1, points, bornDay: 0, grade: 'improved', traffic: [], spots: [] };
 }
 
 function input(l: Landscape, road: Road = oldRoad()): WagonPlanInput {
@@ -158,8 +161,8 @@ describe('trasa a profil vozové cesty', () => {
       expect(p.cutM3 + p.fillM3).toBeLessThan(5);
       expect(Math.abs(p.laborManDays - WAGON_ROAD.pavingPerM * 360)).toBeLessThan(2);
       expect(p.pieces.length).toBe(6);
-      // vůz jede rychleji než po vyšlapané cestě (1,3 → 2,2)
-      expect(p.minutesAfter).toBeLessThan(p.minutesBefore! * 0.7);
+      // vůz jede rychleji než po vyšlapané cestě (upravená → vozová)
+      expect(p.minutesAfter).toBeLessThan(p.minutesBefore! * 0.9);
     }
   });
 
@@ -172,7 +175,9 @@ describe('trasa a profil vozové cesty', () => {
     }
   });
 
-  it('velký svah, který ani úvoz a násep 3 m nesrovnají: cesta je pro vůz moc prudká', () => {
+  it('velký svah, který ani úvoz a násep 3 m nesrovnají a serpentina v oknech nevyjde: moc prudká', () => {
+    // svah přes celou louku: objížďka by potřebovala víc serpentin, než hledání v okně unese
+    // (WAGON_DETOUR.maxLabels) – nic neprojde
     for (const l of [STEEP, STEEPER]) {
       expect(planWagonRoad(input(l))).toEqual({ ok: false, reason: WAGON_STEEP });
     }
@@ -847,6 +852,66 @@ describe('obejitý kus – mezistav a zrušení stavby', () => {
   });
 });
 
+describe('abandonBypassed – souběžný zbytek zanikne, odbočka ne', () => {
+  const built = [
+    { x: 0, z: 0 },
+    { x: 0, z: 20 },
+    { x: 20, z: 20 },
+    { x: 20, z: 0 },
+  ];
+  const bypassed = [
+    [
+      { x: 0, z: 30 },
+      { x: 0, z: 60 },
+    ],
+  ];
+  const road = (id: number, points: { x: number; z: number }[]): Road => ({
+    ...oldRoad(points),
+    id,
+  });
+  const run = (points: { x: number; z: number }[]): boolean => {
+    const r = road(5, points);
+    abandonBypassed([r], bypassed, built);
+    return r.abandoned === true;
+  };
+
+  it('zbytek souběžný s hotovou částí zanikne', () => {
+    expect(
+      run([
+        { x: 0.5, z: 2 },
+        { x: 0.5, z: 18 },
+      ]),
+    ).toBe(true);
+  });
+
+  it('zbytek souběžný s obejitým kusem zanikne', () => {
+    expect(
+      run([
+        { x: 1, z: 35 },
+        { x: 1, z: 55 },
+      ]),
+    ).toBe(true);
+  });
+
+  it('krátký pahýl do 4 m, který jen začíná u hotové části a vede jinam, zůstane', () => {
+    expect(
+      run([
+        { x: 0, z: 10 },
+        { x: -4, z: 10 },
+      ]),
+    ).toBe(false);
+  });
+
+  it('odbočka s krajními body u hotové části, uprostřed jinde, zůstane', () => {
+    expect(
+      run([
+        { x: 0, z: 0 },
+        { x: 20, z: 0 },
+      ]),
+    ).toBe(false);
+  });
+});
+
 describe('vozová cesta – výjimky z recenze 11a', () => {
   /** Louka 450 m s mělkým potokem z ∈ (75, 90) – brod. */
   const FORD_LAND: Landscape = {
@@ -868,10 +933,6 @@ describe('vozová cesta – výjimky z recenze 11a', () => {
     z,
     rotation: 0,
     scale: 1,
-  });
-  const beech = (id: number, x: number, z: number): ObstaclePlacement => ({
-    ...oak(id, x, z),
-    look: 'beech-1',
   });
 
   function villageAt(home: { x: number; z: number }, road: Road): VillageState {
@@ -912,39 +973,271 @@ describe('vozová cesta – výjimky z recenze 11a', () => {
     expect(planWagonRoad({ ...base, layer: null })).toMatchObject({ ok: true });
   });
 
-  it('lávka pro pěší u brodu chce dřevo jako u upravené cesty: 4 stromy, kácení před zemními pracemi', () => {
-    // potok z ∈ (75, 90) s brodem – cesta ho kříží
+  it('lávka už stojí na upravené cestě – vozová cesta ji znovu neúčtuje (Martin 24. 10. 2026)', () => {
     const ford = oldRoad([
       { x: 0, z: 30 },
       { x: 0, z: 140 },
     ]);
-    const trees = [1, 2, 3, 4, 5, 6].map((k) => beech(k, 25 + k * 4, 100));
-    const layer = packObstacles(trees, 20, 15);
     const s = villageAt({ x: 20, z: 20 }, ford);
-    const p = planWagonRoad(wagonPlanInputOf(s, DAY, 1, FORD_LAND, layer));
+    const p = planWagonRoad(wagonPlanInputOf(s, DAY, 1, FORD_LAND, null));
     if (!p.ok) throw new Error(p.reason);
-    expect(p.footbridgeTrees).toBe(4);
-    const started = startWagonRoad(s, DAY, 1, FORD_LAND, layer);
-    const c = started.constructions.find((x) => x.earthwork !== undefined)!;
-    expect(c.wood?.trees).toBe(4);
-    expect(c.wood!.fromPile + c.wood!.fell.length).toBe(4);
-    const felling = c.wood!.fell.reduce((sum, t) => sum + t.cost, 0);
-    expect(felling).toBeGreaterThan(0);
-    expect(c.cost).toBeCloseTo(p.laborManDays + felling, 1);
+    expect(p.footbridgeTrees).toBe(0);
     expect(p.missingWood).toBe(0);
+    const started = startWagonRoad(s, DAY, 1, FORD_LAND, null);
+    const c = started.constructions.find((x) => x.earthwork !== undefined)!;
+    expect(c.wood).toBeUndefined();
+    // zpevnění je doplatek (0,3 − 0,15 čd/m)
+    expect(WAGON_ROAD.pavingPerM).toBeCloseTo(0.15, 10);
+    expect(p.pieces.reduce((sum, x) => sum + x.pavingManDays, 0)).toBeCloseTo(0.15 * p.lengthM, 0);
+  });
+});
+
+describe('lávka u nového brodu (roads.md – Postupná úprava a serpentiny)', () => {
+  const FORD_LAND: Landscape = {
+    ...makeLandscape({ size: 30, surface: (_x, y) => (y === 20 ? 'water' : 'meadow') }),
+    stream: [0, 8, 15, 22, 30].map((x) => ({
+      x,
+      y: 20.5,
+      halfWidthLeft: 0.08,
+      halfWidthRight: 0.08,
+      level: 0,
+      shallow: true,
+    })),
+  };
+  const home = { x: 20, z: 20 };
+  function planWith(ground: Road['ground']): Extract<WagonRoadPlan, { ok: true }> {
+    const road = oldRoad([
+      { x: 0, z: 30 },
+      { x: 0, z: 140 },
+    ]);
+    if (ground) road.ground = ground;
+    const s = withBuiltFirstDwelling(
+      foundVillage({ seed: 11, day: DAY, dwellingPosition: { ...home, rotation: 0 } }),
+    );
+    s.lastDay = DAY;
+    s.roads = { nextId: 2, roads: [road], trees: [], labor: { from: DAY, days: 0, shares: [] } };
+    const p = planWagonRoad(wagonPlanInputOf(s, DAY, 1, FORD_LAND, null));
+    if (!p.ok) throw new Error(p.reason);
+    return p;
+  }
+
+  it('brod, který stará osa neměla, se účtuje: 4 stromy a 15 čd', () => {
+    const known = planWith({ wet: [], fords: [] });
+    const without = planWith(undefined);
+    expect(known.fords.length).toBeGreaterThan(0);
+    expect(known.footbridgeTrees).toBe(4);
+    expect(
+      known.pieces.reduce(
+        (sum, x) => sum + x.manDays - x.earthManDays - x.pavingManDays - x.clearingManDays,
+        0,
+      ),
+    ).toBeCloseTo(15, 0);
+    // úsek bez určené krajiny brod zná z vlastní osy
+    expect(without.footbridgeTrees).toBe(0);
   });
 
-  it('chybějící dřevo na lávku nese plán předem (missingWood), stavba se pojistkou zastaví', () => {
-    const ford = oldRoad([
-      { x: 0, z: 30 },
-      { x: 0, z: 140 },
-    ]);
-    const layer = packObstacles([beech(1, 29, 100), beech(2, 33, 100)], 20, 15);
-    const s = villageAt({ x: 20, z: 20 }, ford);
-    const p = planWagonRoad(wagonPlanInputOf(s, DAY, 1, FORD_LAND, layer));
-    if (!p.ok) throw new Error(p.reason);
-    expect(p.footbridgeTrees).toBe(4);
-    expect(p.missingWood).toBe(2);
-    expect(() => startWagonRoad(s, DAY, 1, FORD_LAND, layer)).toThrow(WAGON_NO_WOOD);
+  it('brod staré upravené cesty (lávka stojí) se neúčtuje', () => {
+    expect(planWith({ wet: [], fords: [52] }).footbridgeTrees).toBe(0);
+  });
+
+  it('newFordArcs: vzdálený brod se počítá, blízký starý ne', () => {
+    const profile = Array.from({ length: 11 }, (_, k) => ({ x: 0, z: k * 2, y: 0 }));
+    expect(newFordArcs(profile, [4, 5], [])).toEqual([8]);
+    expect(newFordArcs(profile, [4, 5], [{ x: 3, z: 9 }])).toEqual([]);
+    expect(newFordArcs(profile, [4, 5], [{ x: 40, z: 9 }])).toEqual([8]);
+  });
+});
+
+describe('postupná úprava (roads.md – Postupná úprava, Martin 24. 10. 2026)', () => {
+  const ground = (fords: number) =>
+    ({ wet: [], fords: fords > 0 ? [{ fromM: 10, toM: 14 }] : [] }) as unknown as Road['ground'];
+
+  function villageAt(road: Road): VillageState {
+    const s = withBuiltFirstDwelling(
+      foundVillage({ seed: 11, day: DAY, dwellingPosition: { x: 20, z: 20, rotation: 0 } }),
+    );
+    s.lastDay = DAY;
+    s.roads = { nextId: 2, roads: [road], trees: [], labor: { from: DAY, days: 0, shares: [] } };
+    return s;
+  }
+
+  it('vyšlapaná cesta: napřed uprav cestu, plán i stavba ji odmítnou', () => {
+    const trodden: Road = { ...oldRoad(), grade: 'trodden' };
+    expect(wagonChainStatus([trodden], [], 1)).toEqual({ status: 'none', blocked: WAGON_FIRST });
+    expect(planWagonRoad(input(FLAT, trodden))).toEqual({ ok: false, reason: WAGON_FIRST });
+    const s = villageAt(trodden);
+    expect(() => startWagonRoad(s, DAY, 1, FLAT, null)).toThrow(WAGON_FIRST);
+  });
+
+  it('upravená bez lávky přes brod (unbridged) ještě nestačí, s lávkou ano', () => {
+    const base: Road = { ...oldRoad(), ground: ground(1) };
+    expect(wagonChainStatus([{ ...base, unbridged: true }], [], 1).blocked).toBe(WAGON_FIRST);
+    expect(wagonChainStatus([base], [], 1).blocked).toBeNull();
+  });
+
+  it('jeden vyšlapaný úsek řetězu blokuje celý řetěz', () => {
+    const a: Road = {
+      ...oldRoad([
+        { x: 0, z: 0 },
+        { x: 0, z: 100 },
+      ]),
+      id: 1,
+    };
+    const b: Road = {
+      ...oldRoad([
+        { x: 0, z: 100 },
+        { x: 0, z: 200 },
+      ]),
+      id: 2,
+      grade: 'trodden',
+    };
+    expect(wagonChainStatus([a, b], [], 1).blocked).toBe(WAGON_FIRST);
+    expect(wagonChainStatus([a, { ...b, grade: 'improved' }], [], 1).blocked).toBeNull();
+  });
+
+  it('hotová nebo rozestavěná vozová cesta se nemění', () => {
+    const trodden: Road = { ...oldRoad(), grade: 'trodden' };
+    const wagon: Road = { ...oldRoad(), grade: 'wagon' };
+    expect(wagonChainStatus([wagon], [], 1).status).toBe('built');
+    const profile = [
+      { x: 0, z: -180, y: 0 },
+      { x: 0, z: 180, y: 0 },
+    ];
+    const building = [{ profile, reachedM: 0, building: true }];
+    expect(wagonChainStatus([trodden], building, 1)).toEqual({
+      status: 'building',
+      blocked: WAGON_BUILDING,
+    });
+  });
+});
+
+describe('profileHeights – sklon nejvýš 6 % na každém kroku', () => {
+  const axisOf = (n: number, step: number) =>
+    Array.from({ length: n }, (_, k) => ({ x: 0, z: k * step }));
+  const natural = (n: number, step: number, grade: number) =>
+    Array.from({ length: n }, (_, k) => k * step * grade);
+
+  for (const step of [0.25, 1.25, 1.75, 1.95]) {
+    it(`svah 6,0 % při kroku ${step} m projde a nikde nepřekročí 6 %`, () => {
+      const n = Math.round(300 / step) + 1;
+      const solved = profileHeights(axisOf(n, step), natural(n, step, 0.06), Array(n).fill(0.3));
+      expect(solved).not.toBeNull();
+      const h = solved!.heights;
+      for (let i = 1; i < n; i++) {
+        expect(Math.abs(h[i]! - h[i - 1]!) / step).toBeLessThanOrEqual(0.06 + 1e-9);
+      }
+    });
+  }
+
+  it('rovný svah 6,3 % dlouhý přes mez zemních prací neprojde', () => {
+    const n = 151;
+    expect(profileHeights(axisOf(n, 1.95), natural(n, 1.95, 0.063), Array(n).fill(0.3))).toBeNull();
+  });
+});
+
+describe('serpentiny – objížďka prudkého kusu (roads.md – Postupná úprava a serpentiny)', () => {
+  /**
+   * Stará osa (x = 0) stoupá o 13,5 m v řádcích 13–18 (18 % – ani úvoz a násep 3 m nestačí); od
+   * x = 60 m stoupá tentýž svah mírně v řádcích 5–25 (4,5 %) – objížďka tudy projde.
+   */
+  const RAMP = makeLandscape({
+    size: 30,
+    height: (x, y) => {
+      const t = Math.min(1, Math.max(0, (x - 15) / 4));
+      const a = 13 - 8 * t;
+      const b = 18 + 7 * t;
+      return 13.5 * Math.min(1, Math.max(0, (y - a) / (b - a)));
+    },
+  });
+  /** Posvátný háj 5 × 5 dubů po 5 m – nejbližší řada 2 m od osy (x = 0), z −10 až 10. */
+  const GROVE: ObstaclePlacement[] = [];
+  for (let i = 0; i < 5; i++) {
+    for (let k = 0; k < 5; k++) {
+      GROVE.push({
+        id: 1 + i * 5 + k,
+        kind: 'tree',
+        look: 'oak-1',
+        x: 2 + i * 5,
+        z: -10 + k * 5,
+        rotation: 0,
+        scale: 1,
+      });
+    }
+  }
+
+  it('prudký kus staré osy obejde serpentinou: sklon do 6 %, obejitý kus zaroste', () => {
+    const p = plan(RAMP);
+    expect(p.bypassed.length).toBeGreaterThanOrEqual(1);
+    expect(p.profile.some((q) => q.x > 20)).toBe(true);
+    expect(p.maxGrade).toBeLessThanOrEqual(WAGON_ROAD.maxGrade + 1e-9);
+    expect(p.maxCutM).toBeLessThanOrEqual(WAGON_ROAD.maxCutM);
+    expect(p.maxFillM).toBeLessThanOrEqual(WAGON_ROAD.maxFillM);
+    // začíná a končí na koncích staré cesty
+    expect(p.profile[0]).toMatchObject({ x: 0, z: -180 });
+    expect(p.profile[p.profile.length - 1]).toMatchObject({ x: 0, z: 180 });
+    expect(p.lengthM).toBeGreaterThan(p.oldLengthM);
+  });
+
+  it('náhled v prohlížeči = plán serveru i s objížďkou', () => {
+    const road = oldRoad();
+    const server = planWagonRoad(input(RAMP, road));
+    const browser = planWagonRoad({
+      ...input(transferPrecision(RAMP), road),
+      roads: [{ id: road.id, points: road.points, grade: road.grade }],
+    });
+    expect(server.ok && server.bypassed.length).toBeGreaterThanOrEqual(1);
+    expect(browser).toEqual(server);
+  });
+
+  it('posvátný háj u osy na svahu: objížďka kolem háje, žádný dub se nekácí', () => {
+    const layer = packObstacles(GROVE, 20, 15);
+    const p = planWagonRoad({ ...input(GENTLE), layer });
+    expect(p.ok).toBe(true);
+    if (!p.ok) return;
+    expect(p.bypassed.length).toBeGreaterThanOrEqual(1);
+    const grove = new Set(GROVE.map((o) => o.id));
+    expect([...p.felled, ...p.cleared].some((id) => grove.has(id))).toBe(false);
+    for (const o of GROVE) {
+      expect(distanceToLine(p.profile, o)).toBeGreaterThan(WAGON_ROAD.flatHalfM);
+    }
+  });
+
+  it('cesta bez problému: bez objížďky, osa staré cesty', () => {
+    for (const l of [GENTLE, MID]) {
+      const p = plan(l);
+      expect(p.bypassed).toEqual([]);
+      for (const q of p.profile) expect(q.x).toBe(0);
+    }
+  });
+  it('společný rozpočet štítků: po vyčerpání se objížďka nehledá, plán skončí jako moc prudký', () => {
+    const rules = WAGON_DETOUR as { totalLabels: number };
+    const saved = rules.totalLabels;
+    expect(planWagonRoad(input(RAMP))).toMatchObject({ ok: true });
+    rules.totalLabels = 0;
+    try {
+      expect(planWagonRoad(input(RAMP))).toEqual({ ok: false, reason: WAGON_STEEP });
+    } finally {
+      rules.totalLabels = saved;
+    }
+  });
+
+  it('posvátný les přes celou šířku: objížďka nevyjde, důvodem je strom (WAGON_SACRED)', () => {
+    const wall: ObstaclePlacement[] = [];
+    for (let k = 0; k < 120; k++) {
+      wall.push({
+        id: 1 + k,
+        kind: 'tree',
+        look: 'oak-1',
+        x: -297.5 + k * 5,
+        z: 0,
+        rotation: 0,
+        scale: 1,
+      });
+    }
+    const layer = packObstacles(wall, 20, 15);
+    expect(planWagonRoad({ ...input(GENTLE), layer })).toEqual({
+      ok: false,
+      reason: WAGON_SACRED,
+    });
   });
 });

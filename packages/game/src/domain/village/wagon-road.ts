@@ -25,25 +25,37 @@ import {
 import { simplifyPathLine, type PathPoint, type PathVillage } from './paths/network';
 import { roadChain, type ChainLink } from './paths/road-chains';
 import { absorbParallelRoads, addWagonRoad } from './paths/roads';
-import { axisDistance } from './paths/roads-geometry';
+import { axisDistance, axisSlice } from './paths/roads-geometry';
 import { pathTerrainOf, pathWindowFor, PATH_WOODLAND, withObstacles } from './paths/terrain';
 import { pathVillageOf } from './paths/village';
 import {
   WAGON_BIN_M,
+  findWagonRoute,
   profileCartMinutes,
   profileEdits,
   roadsCartMinutes,
+  straightenWagonRoute,
   wagonAxisBlocked,
+  wagonAxisPoints,
   wagonEarthworks,
   wagonGridHeight,
+  wagonNearSacred,
   wagonProfile,
+  wagonProfileFailure,
   wagonRoadGrid,
   type WagonGrid,
   type WagonTimeRoad,
 } from './paths/wagon-route';
 import { keepClear, type SwathTally } from './road-swath';
-import { OBSTACLE_COST, ROAD_SWATH, WAGON_ROAD, WAGON_STRAIGHTEN } from './rules';
-import { ROAD_UPGRADES } from './rules-roads';
+import {
+  OBSTACLE_COST,
+  ROAD_SWATH,
+  ROAD_UPGRADES,
+  WAGON_DETOUR,
+  WAGON_ROAD,
+  WAGON_STRAIGHTEN,
+} from './rules';
+import { roadNeedsUpgrade } from './road-upgrades';
 import { sacredSitesOf } from './sacred';
 import type {
   ChronicleEvent,
@@ -85,6 +97,8 @@ export const WAGON_SHORT = 'Cesta je na úpravu pro vozy moc krátká.';
 export const WAGON_EXISTS = 'Cesta už je upravená pro vozy.';
 export const WAGON_BUILDING = 'Cesta se už upravuje pro vozy.';
 export const WAGON_BLOCKED = 'Vůz po této cestě neprojede – překáží stavba, plot nebo voda.';
+/** Vozová cesta se staví na upravené cestě (roads.md – Postupná úprava, Martin 24. 10. 2026). */
+export const WAGON_FIRST = 'Napřed uprav cestu.';
 export const WAGON_STEEP = 'Cesta je pro vůz moc prudká.';
 export const WAGON_NO_WOOD = 'Na lávku chybí dřevo.';
 export const WAGON_SACRED = 'Vozové cestě stojí v cestě posvátný dub – kácet se nesmí.';
@@ -262,6 +276,10 @@ export function wagonChainStatus(
   if (cmKey(a) === cmKey(b)) return { status: 'none', blocked: WAGON_LOOP };
   const length = chain.reduce((sum, link) => sum + profileLength(link.road.points), 0);
   if (length < MIN_CHAIN_M) return { status: 'none', blocked: WAGON_SHORT };
+  // postupně: nejdřív úprava celého řetězu vč. hatě a lávky; rozestavěná se nepočítá
+  if (chain.some((link) => roadNeedsUpgrade(link.road))) {
+    return { status: 'none', blocked: WAGON_FIRST };
+  }
   return { status: 'none', blocked: null };
 }
 
@@ -319,6 +337,8 @@ function planGrid(
 interface WagonClearing {
   pieces: SwathTally[];
   sacred: boolean;
+  /** Nejbližší místo osy (m od začátku), kde stavba zasáhne posvátný strom; jinak Infinity. */
+  sacredArc: number;
 }
 
 const CUT: ReadonlySet<ObstacleKind> = new Set([
@@ -355,6 +375,7 @@ function wagonClearing(
       sacred: false,
     })),
     sacred: false,
+    sacredArc: Infinity,
   };
   const edits = profileEdits(profile, fords);
   if (edits.count === 0) return out;
@@ -416,6 +437,7 @@ function wagonClearing(
     if (sacredTree) {
       if (footprint) {
         out.sacred = true;
+        out.sacredArc = Math.min(out.sacredArc, nearest.arc);
         tally.sacred = true;
       }
       return;
@@ -602,21 +624,54 @@ export function straightenStretches(
 }
 
 /**
- * Obejité kusy staré osy zarostou: pevná cesta (ne vozová), která leží celá do 2 m od obejitého
+ * Obejité kusy staré osy zarostou: pevná cesta (ne vozová), která leží (aspoň z `bypassShare` délky) do 2 m od obejitého
  * kusu, je opuštěná (`Road.abandoned` – vypadne ze sítě a bledne podle `ROAD_DECAY`). Mutuje.
  */
-function abandonBypassed(
+export function abandonBypassed(
   roads: readonly Road[],
   bypassed: readonly (readonly PathPoint[])[],
+  built: readonly PathPoint[],
 ): void {
   if (bypassed.length === 0) return;
   const near = axisDistance(bypassed);
+  const nearBuilt = built.length >= 2 ? axisDistance([built]) : null;
   for (const road of roads) {
     if (road.grade === 'wagon' || road.abandoned || road.points.length < 2) continue;
-    if (road.points.every((p) => near(p.x, p.z) <= BYPASS_MATCH_M)) road.abandoned = true;
+    // zbytek souběžný s obejitým kusem nebo s hotovou vozovou cestou obejitý kus neudrží naživu;
+    // odbočka, cesta do vchodu či krátký pahýl, který u hotové části jen začíná, zůstane – měří se
+    // podíl délky (vzorky po metru), ne jen vrcholy osy
+    const len = profileLength(road.points);
+    let all = 0;
+    let parallel = 0;
+    for (let d = 0; d <= len + 1e-9; d += 1) {
+      const p = axisSlice(road.points, Math.min(d, len), Math.min(d, len))[0]!;
+      all++;
+      if (
+        near(p.x, p.z) <= BYPASS_MATCH_M ||
+        (nearBuilt?.(p.x, p.z) ?? Infinity) <= BYPASS_MATCH_M
+      ) {
+        parallel++;
+      }
+    }
+    if (parallel >= all * WAGON_ROAD.bypassShare) road.abandoned = true;
   }
 }
 const BYPASS_MATCH_M = 2;
+
+/** Začátek profilu do `builtM` m od začátku (osa dostavěné části vozové cesty). */
+function profilePrefix(profile: readonly PathPoint[], builtM: number): PathPoint[] {
+  const out: PathPoint[] = [];
+  let along = 0;
+  for (let k = 0; k < profile.length && along <= builtM + 1e-9; k++) {
+    if (k > 0) {
+      const a = profile[k - 1]!;
+      const b = profile[k]!;
+      along += length2(b.x - a.x, b.z - a.z);
+    }
+    if (along <= builtM + 1e-9) out.push(profile[k]!);
+  }
+  return out;
+}
 
 /**
  * Obejité kusy, které už dostavěná část vozové cesty (prvních `builtM` m od vsi) minula: konec
@@ -672,21 +727,193 @@ export function planWagonRoad(input: WagonPlanInput): WagonRoadPlan {
     [from, to] = [to, from];
   }
   const grid = planGrid(input, axisBox(axis));
+  const links = chain.map((link) => link.road);
+  const old: OldChain = {
+    chain,
+    from,
+    to,
+    oldLengthM: chain.reduce((sum, link) => sum + profileLength(link.road.points), 0),
+    oldMaxGrade: chainMaxGrade(grid, links),
+    minutesBefore: roundMinutes(roadsCartMinutes(grid, links)),
+  };
   // vede po staré cestě (Martin 22. 10. 2026, #6), jen kličky do svahu se narovnají
   const straight = straightenStretches(grid, input.village, axis, input);
-  axis = straight.axis;
-  // vůz jí musí projet a profil vyjít
-  if (wagonAxisBlocked(grid, input.village, axis)) return { ok: false, reason: WAGON_BLOCKED };
-  const profile = wagonProfile(grid, axis, true);
-  if (!profile) return { ok: false, reason: WAGON_STEEP };
-  const oldLengthM = chain.reduce((sum, link) => sum + profileLength(link.road.points), 0);
+  const plan = planAlong(input, old, grid, straight.axis, straight.bypassed);
+  if (plan.ok) return plan;
+  // prudký kus nebo posvátný strom – serpentina (roads.md – Postupná úprava a serpentiny)
+  const detour = plan.failAt >= 0 ? detourPlan(input, old, straight, plan.failAt) : null;
+  return detour ?? { ok: false, reason: plan.reason };
+}
+
+/** Stará cesta, po které vozová cesta vede – řetěz, konce a co o ní plán hlásí. */
+interface OldChain {
+  chain: ChainLink<WagonPlanRoad>[];
+  from: PathPoint;
+  to: PathPoint;
+  oldLengthM: number;
+  oldMaxGrade: number;
+  minutesBefore: number | null;
+}
+
+/** Plán po ose, nebo důvod a místo selhání (index ve `wagonAxisPoints(axis)`, −1 – objížďka nepomůže). */
+type WagonAttempt =
+  Extract<WagonRoadPlan, { ok: true }> | { ok: false; reason: string; failAt: number };
+
+/** Délky od začátku po bodech osy (m). */
+function arcsOf(points: readonly PathPoint[]): number[] {
+  const out: number[] = [0];
+  for (let k = 1; k < points.length; k++) {
+    out.push(
+      out[k - 1]! + length2(points[k]!.x - points[k - 1]!.x, points[k]!.z - points[k - 1]!.z),
+    );
+  }
+  return out;
+}
+
+/**
+ * Objížďka kusu osy `axis[i..j]` (roads.md – Postupná úprava a serpentiny): `findWagonRoute` mezi
+ * jeho konci v okně kolem kusu (do stran `padM` m, nejvýš WAGON_DETOUR.maxLabels štítků), narovnaná
+ * a vyhlazená trasa (`wagonProfile`); body po WAGON_ROAD.profileStepM s konci přesně v bodech osy.
+ * Bez trasy null.
+ */
+function detourStretch(
+  input: WagonPlanInput,
+  axis: readonly PathPoint[],
+  i: number,
+  j: number,
+  padM: number,
+  budget: { left: number },
+): PathPoint[] | null {
+  const stretch = axis.slice(i, j + 1);
+  const grid = planGrid(input, {
+    minX: Math.min(...stretch.map((p) => p.x)) - padM,
+    minZ: Math.min(...stretch.map((p) => p.z)) - padM,
+    maxX: Math.max(...stretch.map((p) => p.x)) + padM,
+    maxZ: Math.max(...stretch.map((p) => p.z)) + padM,
+  });
+  const route = findWagonRoute(grid, axis[i]!, axis[j]!, 0, WAGON_DETOUR.maxLabels, budget);
+  if (!route) return null;
+  const straight = straightenWagonRoute(grid, route.points);
+  // vyhlazená osa, kde profil kusu vyjde s konci v terénu; jinak narovnaná trasa – celý profil
+  // (`planAlong`) konce kusu v terénu nepotřebuje
+  const local = wagonProfile(grid, straight);
+  const out = wagonAxisPoints(local ? local.profile : straight);
+  if (out.length < 2) return null;
+  out[0] = axis[i]!;
+  out[out.length - 1] = axis[j]!;
+  return out;
+}
+
+/**
+ * Serpentiny (roads.md – Postupná úprava a serpentiny): kolem místa selhání `failAt` se v oknech
+ * ±WAGON_DETOUR.windowsM m po ose zkusí objížďka (`detourStretch`) a celý plán po nové ose; vezme
+ * se nejlevnější hotový plán (práce, pak délka, pak pořadí oken). Když žádné okno nedá hotový plán,
+ * ale některé posune selhání za objížďku, pokračuje se od prvního takového (nejvýš
+ * WAGON_DETOUR.maxDetours míst). Obejitý kus staré osy jde do `bypassed`. Okna jsou z celočíselných
+ * indexů osy – server i prohlížeč najdou totéž. Nic nevyjde – null.
+ */
+function detourPlan(
+  input: WagonPlanInput,
+  old: OldChain,
+  start: { axis: PathPoint[]; bypassed: PathPoint[][] },
+  firstFail: number,
+): Extract<WagonRoadPlan, { ok: true }> | null {
+  let axis = start.axis;
+  let bypassed = start.bypassed;
+  let failAt = firstFail;
+  // společný rozpočet štítků všech hledání plánu (rules-roads.ts – WAGON_DETOUR.totalLabels)
+  const budget = { left: WAGON_DETOUR.totalLabels };
+  for (let round = 0; round < WAGON_DETOUR.maxDetours && failAt >= 0; round++) {
+    const cur = wagonAxisPoints(axis);
+    const arc = arcsOf(cur);
+    const f = Math.min(failAt, cur.length - 1);
+    let best: Extract<WagonRoadPlan, { ok: true }> | null = null;
+    let next: { axis: PathPoint[]; bypassed: PathPoint[][]; failAt: number } | null = null;
+    for (const halfM of WAGON_DETOUR.windowsM) {
+      if (budget.left <= 0) break;
+      let i = f;
+      while (i > 0 && arc[f]! - arc[i]! < halfM) i--;
+      let j = f;
+      while (j < cur.length - 1 && arc[j]! - arc[f]! < halfM) j++;
+      if (j - i < 2) continue;
+      const stretch = detourStretch(input, cur, i, j, halfM, budget);
+      if (!stretch) continue;
+      const cand = [...cur.slice(0, i), ...stretch, ...cur.slice(j + 1)];
+      const candBypassed = [...bypassed, cur.slice(i, j + 1)];
+      const plan = planAlong(input, old, planGrid(input, axisBox(cand)), cand, candBypassed);
+      if (plan.ok) {
+        if (
+          !best ||
+          plan.laborManDays < best.laborManDays ||
+          (plan.laborManDays === best.laborManDays && plan.lengthM < best.lengthM)
+        ) {
+          best = plan;
+        }
+        continue;
+      }
+      // selhání až za objížďkou – další místo selhání
+      if (next || plan.failAt < 0) continue;
+      const candArc = arcsOf(wagonAxisPoints(cand));
+      const stretchEnd = arc[i]! + arcsOf(stretch)[stretch.length - 1]!;
+      if (candArc[Math.min(plan.failAt, candArc.length - 1)]! > stretchEnd + 1e-6) {
+        next = { axis: cand, bypassed: candBypassed, failAt: plan.failAt };
+      }
+    }
+    if (best) return best;
+    if (!next) return null;
+    ({ axis, bypassed, failAt } = next);
+  }
+  return null;
+}
+
+/**
+ * Plán vozové cesty po ose `axis` (stará osa, narovnaná nebo s objížďkou) nad mřížkou `grid`:
+ * průjezd, profil, zemní práce, kácení, lávky u nových brodů a úseky stavby. Kde to nejde, důvod
+ * a místo selhání (profil – `wagonProfileFailure`, posvátný strom – nejbližší místo osy u něj).
+ */
+function planAlong(
+  input: WagonPlanInput,
+  old: OldChain,
+  grid: WagonGrid,
+  axis: PathPoint[],
+  bypassed: PathPoint[][],
+): WagonAttempt {
+  const { chain, from, to, oldLengthM, oldMaxGrade } = old;
   const links = chain.map((link) => link.road);
-  const oldMaxGrade = chainMaxGrade(grid, links);
+  // vůz jí musí projet a profil vyjít
+  if (wagonAxisBlocked(grid, input.village, axis)) {
+    return { ok: false, reason: WAGON_BLOCKED, failAt: -1 };
+  }
+  const profile = wagonProfile(grid, axis, true);
+  if (!profile) {
+    // u posvátného stromu je mez zemních prací malá – hláška nesmí tvrdit, že je cesta moc prudká
+    const failAt = wagonProfileFailure(grid, axis);
+    const at = wagonAxisPoints(axis)[failAt];
+    const sacred = at !== undefined && wagonNearSacred(grid, at, WAGON_DETOUR.sacredFailM);
+    return { ok: false, reason: sacred ? WAGON_SACRED : WAGON_STEEP, failAt };
+  }
   const earth = wagonEarthworks(grid, profile.profile, profile.fords);
   const bounds = pieceBounds(profile.lengthM);
   const clearing = wagonClearing(input, grid, profile.profile, profile.fords, bounds);
-  if (clearing.sacred) return { ok: false, reason: WAGON_SACRED };
-  const fordArcs = fordArcsOf(profile.profile, profile.fords);
+  if (clearing.sacred) {
+    const arcs = arcsOf(profile.profile);
+    const k = arcs.findIndex((d) => d >= clearing.sacredArc - 1e-9);
+    return { ok: false, reason: WAGON_SACRED, failAt: k < 0 ? arcs.length - 1 : k };
+  }
+  // lávky u brodů staré upravené cesty už stojí (`wagonChainStatus`); brod, který stará osa neměla
+  // (narovnaná tětiva, serpentina), dostane lávku jako dřív – 4 stromy a 15 čd na brod
+  // úsek bez určené krajiny (`ground`) lávky nezná – brody poblíž jeho osy se berou za staré
+  const oldFords = chain.flatMap((link) => {
+    const g = link.road.ground;
+    if (g) return g.fords.map((d) => axisSlice(link.road.points, d, d)[0]!);
+    const len = profileLength(link.road.points);
+    const out: PathPoint[] = [];
+    for (let d = 0; d <= len; d += WAGON_ROAD.oldFordMatchM / 2) {
+      out.push(axisSlice(link.road.points, d, d)[0]!);
+    }
+    return out;
+  });
+  const fordArcs = newFordArcs(profile.profile, profile.fords, oldFords);
   const footbridgeTrees = fordArcs.length * ROAD_UPGRADES.footbridge.trees;
   const missingWood =
     footbridgeTrees > 0
@@ -714,7 +941,6 @@ export function planWagonRoad(input: WagonPlanInput): WagonRoadPlan {
     });
     const pavingManDays = WAGON_ROAD.pavingPerM * (toM - fromM);
     const clearingManDays = clearing.pieces[k]!.cost;
-    // lávka pro pěší vedle každého brodu úseku (vůz jede brodem dál; roads.md – Vozová cesta)
     const footbridgeManDays =
       fordArcs.filter((d) => d > fromM && d <= toM + 1e-9).length *
       ROAD_UPGRADES.footbridge.manDays;
@@ -739,7 +965,7 @@ export function planWagonRoad(input: WagonPlanInput): WagonRoadPlan {
     pieces,
     lengthM: tenths(profile.lengthM),
     oldLengthM: tenths(oldLengthM),
-    bypassed: straight.bypassed,
+    bypassed,
     footbridgeTrees,
     missingWood,
     maxGrade: profile.maxGrade,
@@ -753,7 +979,7 @@ export function planWagonRoad(input: WagonPlanInput): WagonRoadPlan {
     trees: pieces.reduce((sum, p) => sum + p.trees, 0),
     cleared: clearing.pieces.flatMap((t) => t.cleared).sort((a, b) => a - b),
     felled: clearing.pieces.flatMap((t) => t.felled).sort((a, b) => a - b),
-    minutesBefore: roundMinutes(roadsCartMinutes(grid, links)),
+    minutesBefore: old.minutesBefore,
     minutesAfter: roundMinutes(profileCartMinutes(profile.profile, profile.fords))!,
   };
 }
@@ -894,6 +1120,46 @@ export function fordArcsOf(
   return out;
 }
 
+/**
+ * Brody nové osy, které stará upravená cesta neměla (její lávka tam nestojí): začátky běhů brodu
+ * (m od začátku osy), v jejichž blízkosti `WAGON_ROAD.oldFordMatchM` neleží žádný brod staré cesty.
+ */
+export function newFordArcs(
+  profile: readonly RoadProfilePoint[],
+  fords: readonly number[],
+  oldFords: readonly PathPoint[],
+): number[] {
+  const set = new Set(fords);
+  const out: number[] = [];
+  let along = 0;
+  let start = -1;
+  let startArc = 0;
+  const close = (end: number): void => {
+    const known = oldFords.some((f) => {
+      for (let k = start; k <= end; k++) {
+        const q = profile[k]!;
+        if (length2(q.x - f.x, q.z - f.z) <= WAGON_ROAD.oldFordMatchM) return true;
+      }
+      return false;
+    });
+    if (!known) out.push(startArc);
+  };
+  for (let k = 0; k < profile.length; k++) {
+    if (k > 0) {
+      along += length2(profile[k]!.x - profile[k - 1]!.x, profile[k]!.z - profile[k - 1]!.z);
+    }
+    if (set.has(k) && start < 0) {
+      start = k;
+      startArc = along;
+    } else if (!set.has(k) && start >= 0) {
+      close(k - 1);
+      start = -1;
+    }
+  }
+  if (start >= 0) close(profile.length - 1);
+  return out;
+}
+
 /** Bod profilu `d` m od začátku osy (na cm). */
 function profileAt(profile: readonly RoadProfilePoint[], d: number): PathPoint {
   let along = 0;
@@ -1025,7 +1291,11 @@ export function wagonRoadsDay(
     // stará cesta po ose vozové cesty zmizí hned, úseky se spojí
     if (built && state.roads) {
       absorbParallelRoads(state.roads, state.constructions);
-      abandonBypassed(state.roads.roads, bypassedUpTo(earthwork, builtM));
+      abandonBypassed(
+        state.roads.roads,
+        bypassedUpTo(earthwork, builtM),
+        profilePrefix(earthwork.profile, builtM),
+      );
     }
   }
 }

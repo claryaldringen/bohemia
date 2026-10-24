@@ -135,7 +135,7 @@ function demoRoute(
       { x: cm((a.x + b.x) / 2 + 2), z: cm((a.z + b.z) / 2 + 2) },
       { x: cm(b.x), z: cm(b.z) },
     ],
-    grade: 'trodden',
+    grade: 'improved',
     openEnds: [true, true],
     ...(place.trips > 0 ? { cartTrips: place.trips } : {}),
   };

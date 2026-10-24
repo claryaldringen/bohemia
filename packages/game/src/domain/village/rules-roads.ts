@@ -191,6 +191,13 @@ export const ROAD_UPGRADES = {
   footbridge: { trees: 4, manDays: 15 },
 } as const;
 /**
+ * roads.md – Postupná úprava a serpentiny (návrh Clauda, schválený Martinem 24. 10. 2026): zpevnění
+ * kolejí a pláně stojí 0,3 čd/m; vozová cesta vzniká jen na upravené cestě, která už zpevnění za
+ * `improvedManDaysPer100M` má, takže `WAGON_ROAD.pavingPerM` je doplatek 0,3 − 0,15 = 0,15 čd/m.
+ */
+const PAVING_FULL_PER_M = 0.3;
+
+/**
  * roads.md – Vozová cesta (Martin, 20. 10. 2026: „tato cesta spojí dva body, které spojuje stará
  * cesta pro pěší, ale co nejvíc přímo tak, aby vůz projel. Pokud budou překážet svahy, vyhloubí se
  * úvoz nebo udělá násep. Samozřejmě, některé svahy budou tak velké, že se budou muset kombinovat
@@ -236,7 +243,7 @@ export const WAGON_ROAD = {
   digPerM3: 0.5,
   placePerM3: 0.2,
   haulPerM3: { base: 0.15, per100M: 0.15 },
-  pavingPerM: 0.3,
+  pavingPerM: PAVING_FULL_PER_M - ROAD_UPGRADES.improvedManDaysPer100M / 100,
   directPerM: 25,
   trafficYears: 10,
   minTripsPerDay: 0.05,
@@ -244,6 +251,10 @@ export const WAGON_ROAD = {
   turnSteps: 2,
   pieceM: 60,
   profileStepM: 2,
+  /** Brod nové osy do této vzdálenosti od brodu staré cesty je týž brod (lávka tam už stojí). */
+  oldFordMatchM: 8,
+  /** Zbytek staré cesty zanikne, je-li aspoň tento podíl jeho délky souběžný s obejitým kusem či hotovou částí. */
+  bypassShare: 0.8,
 } as const;
 /**
  * roads.md – Vozová cesta, narovnání (Martin, 22. 10. 2026, #6: „Narovná se jen tam, kde pěší cesta
@@ -253,6 +264,26 @@ export const WAGON_ROAD = {
  * práce než po staré ose, nebo stará osa nejde vůbec.
  */
 export const WAGON_STRAIGHTEN = { ratio: 1.3, climbM: 3, maxM: 120 } as const;
+/**
+ * roads.md – Postupná úprava a serpentiny (Martin, 24. 10. 2026: „Zemská stezka na sever nejde
+ * upravit pro vozy s tím, že je pro vůz moc prudká, ale přesně tohle by ta úprava cesty pro vozy
+ * vyřešit.“ a „Návrhy k cestám schvaluji“; čísla návrh Clauda): kde profil po staré ose nevyjde
+ * nebo pláň a zemní práce zasáhnou posvátný strom, hledá se objížďka v oknech ±`windowsM` m po
+ * staré ose kolem místa selhání (do stran stejně daleko) a vezme se nejlevnější hotový plán;
+ * nejvýš `maxDetours` míst selhání za sebou. Hledání v okně má mez `maxLabels` štítků (paměť
+ * v prohlížeči ≈ 13 MB, čas ≈ 0,1–0,3 s) – objížďka, která se do ní nevejde, se nenajde.
+ * Všechna hledání jednoho plánu (okna × místa selhání) sdílejí rozpočet `totalLabels` štítků –
+ * podle počtu, ne času, takže server i prohlížeč skončí na témže místě; po vyčerpání se další
+ * okna nezkoušejí a plán skončí bez objížďky (moc prudká / posvátný strom). `sacredFailM`:
+ * selhání profilu do tolika metrů od buňky u posvátného stromu je důvodem strom (ne strmost).
+ */
+export const WAGON_DETOUR = {
+  windowsM: [60, 120, 200],
+  maxDetours: 4,
+  maxLabels: 250_000,
+  totalLabels: 600_000,
+  sacredFailM: 10,
+} as const;
 /**
  * roads.md a fields.md – Cesta ubírá poli plochu (Martin, 19. 10. 2026: „Ano má. Ono to stejně ve
  * výsledku bude tak, že pokud oráč narazí na cestu, tak spřežení otočí. Nebude pak moci vzniknout

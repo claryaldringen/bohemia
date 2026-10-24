@@ -37,7 +37,7 @@ async function settled(): Promise<{ villages: InMemoryVillages; villageId: strin
             { x: 0, z: -120 },
           ],
           bornDay: TODAY - 800,
-          grade: 'trodden',
+          grade: 'improved',
           traffic: [],
           spots: [],
         },
@@ -50,7 +50,7 @@ async function settled(): Promise<{ villages: InMemoryVillages; villageId: strin
             { x: 60, z: 0 },
           ],
           bornDay: TODAY - 800,
-          grade: 'trodden',
+          grade: 'improved',
           traffic: [],
           spots: [],
         },
@@ -79,7 +79,7 @@ describe('buildWagonRoad', () => {
     expect(c.kind).toBe('road');
     expect(c.cost).toBeGreaterThan(0);
     // stará cesta zůstává
-    expect(state.roads!.roads.find((r) => r.id === 1)?.grade).toBe('trodden');
+    expect(state.roads!.roads.find((r) => r.id === 1)?.grade).toBe('improved');
     // po staré cestě i s jejím ohybem (Martin 22. 10. 2026, #6: „vznikne ze staré pěší cesty
     // a vede po ní“) – ohyb (40, −60) je bodem osy
     const profile = state.roads!.earthworks![0]!.profile;
