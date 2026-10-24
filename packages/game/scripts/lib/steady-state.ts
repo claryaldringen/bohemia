@@ -10,13 +10,16 @@ import {
   DWELLINGS,
   DWELLING_TREES,
   FELLING_MAN_DAYS_PER_TREE,
-  FERTILITY,
+  ROTATION,
+  ROTATION_FACTOR,
+  averageSownShare,
+  netYieldPerHa,
+  rotationYears,
   FOOD_NEED_KG_PER_YEAR,
   LABOR_PER_DAY,
   NO_CRAFTS,
   ORCHARD,
   ORCHARD_WINDOWS,
-  SEED_KG_PER_HA,
   TASK_ORDER,
   YOUNG_FALLOW_YEARS,
   adultDailyMin,
@@ -25,7 +28,6 @@ import {
   distanceFactor,
   dwellingBuildLabor,
   fieldWorkPerHa,
-  grossYieldPerHa,
   reclaimCostPerHa,
   steadyHarvestKg,
   storageLossPerYear,
@@ -35,6 +37,9 @@ import {
   type TaskName,
   type WindowSegment,
 } from '../../src/domain/village';
+
+// Oběh a čistá úroda jsou v jádru (field-capacity.ts) – tady jen pro kalkulačku a kalibraci.
+export { ROTATION, ROTATION_FACTOR, averageSownShare, netYieldPerHa, rotationYears };
 
 const EPSILON = 1e-9;
 /** Hospodářský rok od září (plán osevu 1. 9.) – měsíc a počet dní v běžném roce. */
@@ -52,41 +57,6 @@ export const SEASON_MONTHS: readonly { month: number; days: number }[] = [
   { month: 7, days: 31 },
   { month: 8, days: 31 },
 ];
-
-/** Oběh dílu podle pravidel (fields.md – Přílohová soustava): roky osevu a přílohu do 95 %. */
-export function rotationYears(): { sown: number; fallow: number } {
-  let share = 1;
-  let sown = 0;
-  while (share >= FERTILITY.sowableMin - EPSILON) {
-    share -= FERTILITY.sowDepletion;
-    sown++;
-  }
-  let fallow = 0;
-  while (share < FERTILITY.fallowReady - EPSILON) {
-    share = Math.min(1, share + FERTILITY.fallowRecovery);
-    fallow++;
-  }
-  return { sown, fallow };
-}
-
-export const ROTATION = rotationYears();
-/** Pole na celý oběh ÷ osev (dnes 16 / 3 ≈ 5,3). */
-export const ROTATION_FACTOR = (ROTATION.sown + ROTATION.fallow) / ROTATION.sown;
-
-/**
- * Průměrný podíl přirozené úrodnosti za roky osevu (1; 0,88; 0,76 → 0,88). Úroda je lineární
- * v úrodnosti, takže úroda při průměrném podílu = průměr úrod.
- */
-export function averageSownShare(): number {
-  let sum = 0;
-  for (let year = 0; year < ROTATION.sown; year++) sum += 1 - FERTILITY.sowDepletion * year;
-  return sum / ROTATION.sown;
-}
-
-/** Čistá úroda hektaru (kg) v průměru let osevu při plné a včasné práci. */
-export function netYieldPerHa(fertility: number): number {
-  return grossYieldPerHa(fertility * averageSownShare()) - SEED_KG_PER_HA;
-}
 
 export interface Household {
   adults: number;

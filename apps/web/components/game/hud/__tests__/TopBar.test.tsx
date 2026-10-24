@@ -2,9 +2,11 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { VillageView } from '@/lib/village-view';
 import {
+  FieldCapacityTooltip,
   LaborTooltip,
   SatiationTooltip,
   cartsLabel,
+  fieldCapacityShort,
   dairyName,
   satiationState,
   sheavesName,
@@ -188,5 +190,35 @@ describe('vozy a dřevěné nářadí v liště (wagons.md)', () => {
 describe('snopy v liště (production-chains.md – Humno)', () => {
   it('popisek: nevymláceno (i bez humna se mlátí nouzově)', () => {
     expect(sheavesName()).toBe('Snopy – nevymláceno (kg zrna)');
+  });
+});
+
+describe('Pole uživí (fields.md – Co hráč vidí)', () => {
+  const field = (people: number, capacity: number): VillageView =>
+    ({
+      people: { children: 0, adults: people, elders: 0 },
+      fieldCapacity: { people: capacity, rotationHa: 47.9, fertility: 52 },
+    }) as VillageView;
+
+  it('lidí je víc, než pole uživí: červeně', () => {
+    expect(fieldCapacityShort(field(31, 21.9))).toBe(true);
+    const html = renderToStaticMarkup(<FieldCapacityTooltip view={field(31, 21.9)} />);
+    expect(html).toContain('Pole uživí ≈ 22 lidí');
+    expect(html).toMatch(/data-testid="field-capacity-people"[^>]*text-red-400/);
+    expect(html).toContain('people.png');
+    expect(html).toContain('47,9 ha');
+  });
+
+  it('pole stačí: bez červené', () => {
+    expect(fieldCapacityShort(field(20, 21.9))).toBe(false);
+    expect(fieldCapacityShort(field(22, 21.9))).toBe(false);
+    const html = renderToStaticMarkup(<FieldCapacityTooltip view={field(20, 21.9)} />);
+    expect(html).not.toContain('text-red-400');
+  });
+
+  it('bez pole nic nehlásí', () => {
+    expect(
+      fieldCapacityShort({ people: { children: 1, adults: 2, elders: 0 }, fieldCapacity: null }),
+    ).toBe(false);
   });
 });
