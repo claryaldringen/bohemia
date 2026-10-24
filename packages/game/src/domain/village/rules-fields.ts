@@ -65,13 +65,18 @@ export const FERTILITY = {
 // podle sezóny osevu po vymýcení (1. +40, 2. +20, pak 0) a první sezónu se neplete. Bonus platí
 // jen do `windowYears` let od vymýcení – díl, který ves do té doby neoseje, o popel přijde.
 export const FOREST_BONUS = { bySeason: [40, 20], windowYears: 3 } as const;
-// fields.md – Práce: sklizeň srpem a vázání 30 (s řemesly 15) + odnos úrody v nůších 20 člověkodní
-// na hektar – meze (simulace je počítá jako jednu úlohu sklizně, rozdělení práce pro scénu je
+// fields.md – Práce: sklizeň srpem a vázání 20 (s řemesly 15; rešerše 2026-10-17, dop. 3 – dřív
+// 30) + odnos úrody v nůších 10 člověkodní na hektar (návrh Clauda, Martin schválil 24. 10. 2026 –
+// dřív 20) – meze (simulace je počítá jako jednu úlohu sklizně, rozdělení práce pro scénu je
 // dělí – postavy)
 export const HARVEST_WORK_PER_HA: Record<'reap' | 'carry', Bounds> = {
-  reap: { worst: 30, best: 15 },
-  carry: { worst: 20, best: 20 },
+  reap: { worst: 20, best: 15 },
+  carry: { worst: 10, best: 10 },
 };
+// fields.md – Žně všemi rukama (Martin 24. 10. 2026; rešerše 2026-10-17 §5 – dítě 7–13 let 0,3,
+// starší 0,5 člověkodne): výrostci od 10 let a starší dají ve žňové dny po 0,5 člověkodne na žeň
+// a výmlat (vázání, odnos, paběrky)
+export const HARVEST_HELPERS = { youthFromAge: 10, perDay: 0.5 } as const;
 // fields.md – Práce (člověkodny na osetý hektar – meze)
 export const FIELD_WORK_PER_HA: Record<FieldTask, Bounds> = {
   dig: { worst: 100, best: 50 },

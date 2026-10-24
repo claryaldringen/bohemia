@@ -120,7 +120,8 @@ describe('kolik lnu ves potřebuje a výnos', () => {
     expect(flax.dig).toBeCloseTo(grain.dig, 9);
     expect(flax.sow).toBeCloseTo(grain.sow, 9);
     expect(flax.weed / grain.weed).toBeCloseTo(40 / 30, 9);
-    expect(flax.harvest / grain.harvest).toBeCloseTo(55 / 50, 9);
+    // obilí: sklizeň 20 + odnos 10 (fields.md – Žně všemi rukama)
+    expect(flax.harvest / grain.harvest).toBeCloseTo(55 / 30, 9);
     expect(flax.thresh).toBe(0);
   });
 
@@ -240,7 +241,8 @@ describe('plán osevu se lnem (chooseCrops)', () => {
     expect(july).toBeLessThanOrEqual(capacity.july + 1e-9);
     const lost = Math.ceil((r.flax.length * flaxWork(candidates[0]!).harvest) / harvest - 1e-9);
     expect(r.winter).toHaveLength(30 - lost);
-    expect(r.spring).toHaveLength(20);
+    // výmlat ozimu, o který len připravil, uvolní srpen jaři (žeň 30 – fields.md, Žně všemi rukama)
+    expect(r.spring).toHaveLength(20 + Math.floor((lost * thresh) / harvest + 1e-9));
     const ids = [...r.winter, ...r.spring, ...r.flax].map((p) => p.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
@@ -293,10 +295,18 @@ describe('plán osevu se lnem (chooseCrops)', () => {
       (sum, p) => sum + partWork(p, DAY, NO_CRAFTS.tools, false, 'winter').harvest,
       0,
     );
-    // v červenci zbude jen pár člověkodní – sklizeň lnu jaře se nevejde, výměna za ozim ano
+    // v červenci zbude jen na výměnu dílu ozimu za len (trhání je pracnější o `swap`) – sklizeň
+    // lnu jaře se nevejde, výměna za ozim ano
+    const swap =
+      partWork(candidates[0]!, DAY, NO_CRAFTS.tools, false, 'flax').harvest -
+      partWork(candidates[0]!, DAY, NO_CRAFTS.tools, false, 'winter').harvest;
     const r = chooseCrops(
       candidates,
-      input({ targetKg: 400, flaxTargetKg: 5, capacity: { ...capacity, july: july + 0.5 } }),
+      input({
+        targetKg: 400,
+        flaxTargetKg: 5,
+        capacity: { ...capacity, july: july + swap + 0.5 },
+      }),
     );
     expect(r.flax.length).toBeGreaterThan(0);
     expect(grain.winter.map((p) => p.id)).toEqual(expect.arrayContaining(r.flax.map((p) => p.id)));
@@ -358,7 +368,8 @@ describe('len napřed – ves, které len za obilím vycházel, má plán beze z
         input({ targetKg: 400, flaxTargetKg: 5, capacity: { ...capacity, july: july + 0.5 } }),
       ),
     ].map(cropIds);
-    expect(fingerprint(runs)).toBe('611:f286a27f');
+    // otisk se žní 30 místo 50 čd/ha (fields.md – Žně všemi rukama, 24. 10. 2026) – jiné kapacity
+    expect(fingerprint(runs)).toBe('611:0ce711e5');
   });
 
   it('plány vsi k 1. 9. tří let', () => {
@@ -378,7 +389,9 @@ describe('len napřed – ves, které len za obilím vycházel, má plán beze z
     // mění se výběr dílů, len dál bez nedostatku; a s nouzovým výmlatem přebytku nad kapacitu humna
     // (21. 10. 2026): výmlat, který humno nestihne, se mlátí nouzově (+30 % práce, bez kažení snopů)
     // – plán osevu ho počítá do podzimní práce; a s jarním vrácením přílohu pod jař (21. 10. 2026)
-    expect(fingerprint(plans)).toBe('703:aac6e1f2');
+    // a se žněmi všemi rukama (fields.md – Žně všemi rukama, 24. 10. 2026): žeň 30 místo 50 čd/ha
+    // a výrostci se staršími ve žních – červenec a srpen pojmou víc dílů, výběr se mění
+    expect(fingerprint(plans)).toBe('660:531c689c');
   });
 });
 

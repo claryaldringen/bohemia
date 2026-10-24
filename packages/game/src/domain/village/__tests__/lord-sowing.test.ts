@@ -31,7 +31,7 @@ const OUTSIDE = 500;
  * Zásoby, se kterými ves potřebný osev bez rodiny nestihne – i se žňovými rukama ve výmlatu
  * (fields.md – Žně všemi rukama).
  */
-const SHORT_STORES = 2000;
+const SHORT_STORES = 1500;
 
 const person = (
   id: number,
@@ -52,7 +52,7 @@ const parts = (count: number): PartInput[] =>
 
 /**
  * Ves k 31. 8. 600 s dostatkem půdy (600 dílů po 225 m², úrodnost 0,9): cvičící dvorec (vojvoda
- * 40, žena 38, syn 17 se snachou 16, syn 11) a 4 dospělí jinde. Se zásobami 2000 kg potřebný osev
+ * 40, žena 38, syn 17 se snachou 16, syn 11) a 4 dospělí jinde. Se zásobami 1500 kg potřebný osev
  * bez rodiny nestihne (`SHORT_STORES`), s 8000 kg ano.
  */
 function sowingVillage(storesKg: number): VillageState {

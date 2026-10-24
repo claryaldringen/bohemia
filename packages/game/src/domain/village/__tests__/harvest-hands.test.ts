@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage, type PartInput } from '../actions';
 import { craftCoverage, craftHarvestLabor, newWorkshop, workshopLabor } from '../crafts';
-import { harvestHandsDay, HARVEST_HANDS_MONTHS } from '../harvest-hands';
+import { harvestHandsDay, harvestHelperLabor, HARVEST_HANDS_MONTHS } from '../harvest-hands';
 import { allocateDay } from '../labor';
 import { manorLabor } from '../lord';
 import { NO_CRAFTS } from '../productivity';
-import { CRAFT_BASE } from '../rules';
+import { CRAFT_BASE, FIELD_WORK_PER_HA, HARVEST_HELPERS, HARVEST_WORK_PER_HA } from '../rules';
 import { advanceVillage } from '../simulate';
 import { sowingCapacity, villageProductivity } from '../simulate-plan';
 import type { Person, VillageState } from '../types';
@@ -16,7 +16,7 @@ import { withBuiltFirstDwelling } from './village-fixtures';
 
 // Žně a výmlat všemi rukama (fields.md – Žně všemi rukama; Martin 24. 10. 2026: „Dílny i vojvodova
 // rodina“): ve žňové dny jdou na žeň a výmlat i řemeslníci se syny a cvičící muži vojvodovy
-// rodiny; mimo žně řemeslo a výcvik.
+// rodiny, výrostci od 10 let a starší dají po 0,5 čd; mimo žně řemeslo a výcvik.
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 const START = at(600, 8, 31);
@@ -170,6 +170,33 @@ describe('vojvodova rodina ve žních (manorLabor)', () => {
   });
 });
 
+describe('výrostci a starší ve žních (harvestHelperLabor)', () => {
+  it('výrostek od 10 let a starší po 0,5 čd, mladší dítě a dospělý ne, cvičící rodina ne', () => {
+    const day = START;
+    const people = [
+      person(1, 9, 1, 'male'),
+      person(2, 10, 1, 'female'),
+      person(3, 13, 1, 'male'),
+      person(4, 30, 1, 'male'),
+      person(5, 50, 1, 'female'),
+      person(6, 12, 2, 'male'),
+    ];
+    expect(harvestHelperLabor(people, day)).toBeCloseTo(4 * HARVEST_HELPERS.perDay, 12);
+    expect(harvestHelperLabor(people, day, new Set([6]))).toBeCloseTo(
+      3 * HARVEST_HELPERS.perDay,
+      12,
+    );
+  });
+});
+
+describe('práce žní na hektar (fields.md – Práce)', () => {
+  it('sklizeň srpem a vázání 20 (s řemesly 15), odnos 10 – žeň 30 (25)', () => {
+    expect(HARVEST_WORK_PER_HA.reap).toEqual({ worst: 20, best: 15 });
+    expect(HARVEST_WORK_PER_HA.carry).toEqual({ worst: 10, best: 10 });
+    expect(FIELD_WORK_PER_HA.harvest).toEqual({ worst: 30, best: 25 });
+  });
+});
+
 describe('práce dne (allocateDay – harvestHands, lordHarvest)', () => {
   const base = { householdElders: [0], potteryCoverage: NO_CRAFTS.pottery };
 
@@ -216,7 +243,8 @@ describe('plán osevu (sowingCapacity)', () => {
     const capacity = sowingCapacity(s, day, coverage);
     const labor = workshopLabor(s, day, WORKSHOP, coverage.pottery, p);
     const manor = manorLabor(s, day, coverage.pottery, p);
-    const hands = labor.craft + labor.harvest + manor.freeMen;
+    // syn hrnčíře (11 let) je výrostek – 0,5 čd
+    const hands = labor.craft + labor.harvest + manor.freeMen + HARVEST_HELPERS.perDay * p;
     const springPerDay = capacity.spring / (30 + 31 - 1);
     expect(capacity.july / 31 - springPerDay).toBeCloseTo(hands, 9);
     expect(capacity.august / 31 - springPerDay).toBeCloseTo(hands, 9);

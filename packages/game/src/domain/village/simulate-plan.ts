@@ -3,6 +3,7 @@ import { dateOfDayIndex, type CalendarDate } from '../calendar';
 import type { Landscape } from '../landscape';
 import { nextPloughPairs } from './draft';
 import { craftHouseholds, workshopLabor } from './crafts';
+import { harvestHelperLabor } from './harvest-hands';
 import { closeFieldFoodYear, sowingTargets, type SowingTargets } from './field-food';
 import { endOfSeason, expectedNetKg, sowingGroup } from './fields';
 import { plannedFurrowEfficiency } from './plough-trip';
@@ -296,8 +297,8 @@ export const SOW_AFTER_DIG_DAYS = 1;
  * a celý podzim (září–listopad) bez výmlatu snopů, který ves čeká (production-chains.md – Humno),
  * jaro (březen–duben), červenec a srpen (sklizně, výmlat ozimu a luštěnin plán přičte). Domácnosti
  * dílen na pole nechodí (crafts.md) – nepočítají se, jen v červenci a srpnu a ve výmlatu jaře
- * v září přijdou žňové ruce (fields.md – Žně všemi rukama: řemeslníci se syny a cvičící muži
- * rodiny); práce se zvířaty (diet.md) jde napřed.
+ * v září přijdou žňové ruce (fields.md – Žně všemi rukama: řemeslníci se syny, cvičící muži rodiny,
+ * výrostci a starší); práce se zvířaty (diet.md) jde napřed.
  * Ves, která orá (`plough`), má navíc kapacitu spřežení v oknech orby (oxen.md – Jen rádlo):
  * denní orba všech spřežení krát dny oken kopání – září–říjen pro ozim (bez posledního dne, ať se
  * zaseje i poslední zoraný pruh), září–listopad a březen–duben pro jař a luštěniny. Cvičící
@@ -343,12 +344,14 @@ export function sowingCapacity(
   const free = (villageFree + lordFree) * PEAK_CAPACITY_SHARE;
   // žně všemi rukama (fields.md – Žně všemi rukama; Martin 24. 10. 2026: „Dílny i vojvodova
   // rodina“): v oknech žní a výmlatu i řemeslníci se syny (`WorkshopLabor` – řemeslo i žeň), cvičící
-  // muži rodiny (`freeMen`) – tytéž ruce jako `work()`
+  // muži rodiny (`freeMen`) a výrostci se staršími (`harvestHelperLabor`) – tytéž ruce jako `work()`
   const hands =
     [...crafts].reduce((sum, id) => {
       const labor = workshopLabor(state, day, id, coverage.pottery, productivity);
       return sum + labor.craft + labor.harvest;
-    }, 0) + (manor ? manor.freeMen : 0);
+    }, 0) +
+    (manor ? manor.freeMen : 0) +
+    harvestHelperLabor(state.people, day, apart) * productivity;
   const harvestFree = (villageFree + hands) * PEAK_CAPACITY_SHARE;
   const days = (
     segments: Parameters<typeof windowDaysLeft>[1],

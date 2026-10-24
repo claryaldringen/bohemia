@@ -1,9 +1,10 @@
 // Žně a výmlat všemi rukama (fields.md – Žně všemi rukama; Martin 24. 10. 2026: „Dílny i vojvodova
 // rodina“) – jedno místo pravdy pro plán osevu (`sowingCapacity`) i práci dne (`work()`).
 import { dateOfDayIndex } from '../calendar';
-import { CROP_ORDER, CROP_WINDOWS, type WindowSegment } from './rules';
+import { ageGroup, ageYears } from './people';
+import { CROP_ORDER, CROP_WINDOWS, HARVEST_HELPERS, type WindowSegment } from './rules';
 import { sheafWork, THRESHED_CROPS } from './threshing';
-import type { VillageState } from './types';
+import type { Person, VillageState } from './types';
 import { activeTasks, neededTaskRemaining, planCrops } from './year-plan';
 
 const EPSILON = 1e-9;
@@ -49,4 +50,30 @@ export function harvestHandsDay(
   return THRESHED_CROPS.some(
     (crop) => inSegments(CROP_WINDOWS[crop].thresh, month) && sheafWork(state, crop) > EPSILON,
   );
+}
+
+/**
+ * Výrostek od `HARVEST_HELPERS.youthFromAge` let do dospělosti nebo starší – ve žních dá
+ * `HARVEST_HELPERS.perDay` (vázání, odnos, paběrky; fields.md – Žně všemi rukama).
+ */
+export function isHarvestHelper(person: Person, day: number): boolean {
+  const group = ageGroup(person, day);
+  return (
+    group === 'elder' ||
+    (group === 'child' && ageYears(person.bornDay, day) >= HARVEST_HELPERS.youthFromAge)
+  );
+}
+
+/**
+ * Práce výrostků a starších ve žních (čd za den před štěstím) – lidé mimo `apart` (cvičící
+ * vojvodova rodina – chlapci cvičí vždy, starší kryjí dvorec).
+ */
+export function harvestHelperLabor(
+  people: readonly Person[],
+  day: number,
+  apart: ReadonlySet<number> = new Set(),
+): number {
+  let count = 0;
+  for (const p of people) if (!apart.has(p.id) && isHarvestHelper(p, day)) count++;
+  return count * HARVEST_HELPERS.perDay;
 }

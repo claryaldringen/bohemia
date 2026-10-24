@@ -40,7 +40,8 @@ import {
   workCrafts,
   type SmithSupply,
 } from './crafts';
-import { lordDayCounts, manorLabor, trainingFamily } from './lord';
+import { harvestHandsDay, harvestHelperLabor } from './harvest-hands';
+import { lordApartIds, lordDayCounts, manorLabor, trainingFamily } from './lord';
 import { nextYearlyCommonLabor, repairNeedPerDay, yearlyCommonLabor } from './dwellings';
 import { animalCareNeed, dailyMilk } from './dairy';
 import { DIET, villageFoodNeed } from './diet';
@@ -415,9 +416,12 @@ export function work(
   // péče o koně – hodina denně na koně z práce vsi (horses.md – Péče)
   const horses = villageHorses(state);
   const horseCare = horseCareLabor(horses, day);
-  // žně všemi rukama (fields.md – Žně všemi rukama): ve žňový den řemeslníci se syny jen na žeň
-  // a výmlat
-  const harvestHands = craftHarvestLabor(state, day, crafts, coverage.pottery, productivity);
+  // žně všemi rukama (fields.md – Žně všemi rukama): ve žňový den řemeslníci se syny, výrostci
+  // a starší jen na žeň a výmlat (cvičící rodina – chlapci cvičí, starší kryjí dvorec – ne)
+  const harvestHands = harvestHandsDay(state, day)
+    ? craftHarvestLabor(state, day, crafts, coverage.pottery, productivity) +
+      harvestHelperLabor(state.people, day, lordApartIds(state, day))
+    : 0;
   const allocate = (): DayAllocation =>
     allocateDay({
       capacity: Math.max(
