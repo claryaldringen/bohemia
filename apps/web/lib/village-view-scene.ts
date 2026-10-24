@@ -44,7 +44,7 @@ import {
   oxPens,
   ploughPairsHome,
   ploughsThisYear,
-  householdWater,
+  waterHouseholdsToday,
   storedWaterCartDrive,
   waterCartPlan,
   CART_JOBS,
@@ -403,7 +403,8 @@ function sceneLaborHomes(state: VillageState, shares: readonly LaborShare[]): Sc
  * Kolik vody (0–1 po desetinách) dnes přivezl vůz v sudech kterým domácnostem (wagons.md – Co vozy
  * vozí): týž plán jako simulace (`waterCartPlan` – domácnostem nejdál od vody první) s vozy podílu
  * `haul` s vodou, jejich druhem (`fourWheel`) a uloženou jízdou toho druhu k břehu
- * (`storedWaterCartDrive`); domácnosti dílen, které dnes pracují, nosí vodu samy.
+ * (`storedWaterCartDrive`); domácnosti dílen, které dnes pracují, lidé na cestě pro kování a dvorec
+ * cvičící rodiny nosí vodu sami (`waterHouseholdsToday`).
  * Jen vzhled – podle toho chodí ve scéně pro vodu pěšky méně lidí.
  */
 function waterCartShares(state: VillageState, shares: readonly LaborShare[]): Map<number, number> {
@@ -420,9 +421,9 @@ function waterCartShares(state: VillageState, shares: readonly LaborShare[]): Ma
     if (s.activity !== 'craft') continue;
     if (s.target.kind === 'dwelling' || s.target.kind === 'kiln') working.add(s.target.id);
   }
-  const villagers =
-    working.size > 0 ? state.people.filter((p) => !working.has(p.dwellingId)) : state.people;
-  const households = householdWater(villagers, state.dwellings);
+  // týž výběr domácností jako simulace (`waterHouseholdsToday` – bez dílen, kování a dvorce
+  // cvičící rodiny vojvody)
+  const households = waterHouseholdsToday(state, state.lastDay, working);
   const plan = waterCartPlan(households, share.carts ?? 1, drive, kind);
   if (!plan || plan.litres <= 0) return out;
   const perLitre = plan.crew / plan.litres;

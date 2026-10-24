@@ -405,21 +405,7 @@ export function planCartJobs(
       takeCart(fleet, 'two-wheel', two - left);
       used += two - left;
     } else {
-      // voda – ten druh vozů, který ušetří víc
-      const plans: WaterCartPlan[] = [];
-      for (const kind of CART_KINDS) {
-        const carts = fleetCarts(fleet, kind);
-        const all = carts > 0 ? (kind === 'four-wheel' ? input.drives4() : input.drives()) : null;
-        if (!all) continue;
-        const plan = waterCartPlan(
-          input.water,
-          carts,
-          waterCartDrive(state, input.landscape, all, kind),
-          kind,
-        );
-        if (plan) plans.push(plan);
-      }
-      const water = plans.sort((a, b) => b.saved - b.crew - (a.saved - a.crew))[0] ?? null;
+      const water = bestWaterPlan(state, fleet, input);
       if (water) {
         takeCart(fleet, water.kind, water.carts);
         return { carts: used + water.carts, charcoal, ...dug, water };
@@ -427,6 +413,38 @@ export function planCartJobs(
     }
   }
   return { carts: used, charcoal, ...dug, water: null };
+}
+
+/**
+ * Voda v sudech z flotily `fleet` (wagons.md – Co vozy vozí; flotilu nemění): ten druh vozů, který
+ * ušetří víc (úspora chůze s vědry − posádka); břeh se uloží ve stavu (`waterCartDrive`). Nic
+ * neušetří – null. Týž výběr pro vozy se zbylými voly (`planCartJobs`) i pro pár od rádla ráno
+ * (`morningWaterPlan`).
+ */
+export function bestWaterPlan(
+  state: VillageState,
+  fleet: Readonly<CartFleet>,
+  input: {
+    landscape: Landscape | null;
+    drives: () => CartDrives | null;
+    drives4: () => CartDrives | null;
+    water: readonly HouseholdWater[];
+  },
+): WaterCartPlan | null {
+  const plans: WaterCartPlan[] = [];
+  for (const kind of CART_KINDS) {
+    const carts = fleetCarts(fleet, kind);
+    const all = carts > 0 ? (kind === 'four-wheel' ? input.drives4() : input.drives()) : null;
+    if (!all) continue;
+    const plan = waterCartPlan(
+      input.water,
+      carts,
+      waterCartDrive(state, input.landscape, all, kind),
+      kind,
+    );
+    if (plan) plans.push(plan);
+  }
+  return plans.sort((a, b) => b.saved - b.crew - (a.saved - a.crew))[0] ?? null;
 }
 
 /** Vozy pro uhlí, rudu a hlínu, na které dnes zbyl sedlák ze společné práce. */
