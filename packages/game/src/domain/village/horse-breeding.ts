@@ -45,7 +45,11 @@ export function horsesWanted(
     .flatMap((pen) => [...penHorses(pen)])
     .filter((h) => isGrainHorse(h, day) && horseAgeYears(h, day) < lastServing).length;
   const places = horsePlaces(state);
-  const riding = Math.min(riders, places);
+  // klisna bez hřebce nerodí – i bez jezdců ves drží aspoň jednoho chovného samce
+  const hasMare = horsePens(state)
+    .flatMap((pen) => [...penHorses(pen)])
+    .some((h) => h.sex === 'female' && !isFoalByAge(h, day));
+  const riding = Math.min(Math.max(riders, hasMare ? 1 : 0), places);
   const mares = Math.min(
     HORSES.maresBase + Math.floor(riders / HORSES.ridersPerMare),
     places - riding,
@@ -68,6 +72,9 @@ export function horseBirths(state: VillageState, day: number): ChronicleEvent[] 
   const horses = pens.flatMap((pen) => [...penHorses(pen)]);
   if (!horses.some((h) => isGrainHorse(h, day))) return [];
   let room = horsePlaces(state) - horses.length;
+  // hříbata jen podle poptávky – ne víc, než ves za 3 roky potřebuje (horses.md – Chov)
+  const wanted = horsesWanted(state, day);
+  room = Math.min(room, wanted.foals - horses.filter((h) => isFoalByAge(h, day)).length);
   const year = dateOfDayIndex(day).year;
   const events: ChronicleEvent[] = [];
   for (const pen of pens) {
@@ -94,7 +101,7 @@ type Retired = 'age' | 'surplus';
 
 /**
  * Koně na maso 1. 11. (horses.md – Chov; mutuje stav): koně od 20 let dosloužili; z koní od 3 let
- * jdou nad `horsesWanted` jezdečtí koně a klisny navíc, nejdřív nejstarší. Hříbata ves drží, dokud
+ * jdou nad `horsesWanted` jezdečtí koně a klisny navíc – napřed bez jezdce a nejméně vycvičení, pak nejstarší. Hříbata ves drží, dokud
  * jsou místa (narodí se jen do míst). Každý kůň dá `HORSES.meatKg` masa do uzení. Vrací události
  * kroniky – za ohradu a důvod.
  */
@@ -113,10 +120,15 @@ export function retireHorses(
   const wanted = horsesWanted(state, day, family ?? lordFamily(state, day));
   const kept = all.filter(({ horse }) => !gone.has(horse));
   const surplus = (list: { pen: Pen; horse: Horse }[], want: number): void => {
+    // napřed koně bez jezdce a nejméně vycvičení, pak nejstarší
     list
       .sort(
         (a, b) =>
-          a.horse.bornDay - b.horse.bornDay || a.pen.id - b.pen.id || a.horse.id - b.horse.id,
+          Number(a.horse.riderId !== undefined) - Number(b.horse.riderId !== undefined) ||
+          a.horse.training - b.horse.training ||
+          a.horse.bornDay - b.horse.bornDay ||
+          a.pen.id - b.pen.id ||
+          a.horse.id - b.horse.id,
       )
       .slice(0, Math.max(0, list.length - want))
       .forEach(({ horse }) => gone.set(horse, 'surplus'));

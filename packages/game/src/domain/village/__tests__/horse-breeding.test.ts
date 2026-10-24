@@ -21,12 +21,12 @@ describe('hříbata 1. 5. (horses.md – Chov)', () => {
       const events = horseBirths(s, at(year, 5, 1));
       born.push(events.reduce((sum, e) => sum + (e.kind === 'foal-born' ? e.foals : 0), 0));
     }
-    expect(born).toEqual([0, 2, 0, 2]);
+    expect(born).toEqual([0, 2, 0, 0]); // poptávka je pokrytá, 604 už nerodí
     const foals = villageHorses(s).filter((h) => h.id >= 1000);
-    expect(foals).toHaveLength(4);
+    expect(foals).toHaveLength(2);
     expect(foals.every((h) => h.training === 0)).toBe(true);
-    expect(new Set(foals.map((h) => h.id)).size).toBe(4);
-    expect(s.nextId).toBe(1004);
+    expect(new Set(foals.map((h) => h.id)).size).toBe(2);
+    expect(s.nextId).toBe(1002);
   });
 
   it('bez jezdeckého koně od 3 let klisny nerodí', () => {

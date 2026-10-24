@@ -104,6 +104,9 @@ stojí obilí a práci vsi hned, užitek přinese až s lovem a válkou.
   Pohlaví hříběte ze seedu vsi a dne – půl na půl.
 - **Hřebec:** klisny rodí, jen když má ves jezdeckého koně od 3 let – nejstarší je hřebec. Bez něj
   klisny nerodí; hřebce lze koupit.
+  Valaši se v simulaci nerozlišují – každý samec od 3 let je zároveň jezdecký kůň i hřebec (návrh
+  Clauda). I bez jezdců drží ves s klisnou aspoň jednoho samce a hříbat se rodí jen tolik, kolik
+  ves chce.
 - **Kolik koní ves chce** (jako voli – ves si spočítá sama, strop jsou místa v ohradách koní):
   - **jezdečtí koně = jezdci rodiny** – muži rodiny od 10 let ([vojvodova rodina](lord.md)),
   - **hříbata na jezdce** – kolik hřebečků bude za 3 roky chybět (chlapci, kterým bude 10, a koně,
@@ -112,7 +115,7 @@ stojí obilí a práci vsi hned, užitek přinese až s lovem a válkou.
     17 let (3–20), na 3 jezdce stačí ≈ 0,18 ročně; druhá klisna je pojistka a dává klisničky na
     obnovu.
 - **Koně navíc:** hříbata do 3 let ves drží, dokud jsou místa; koně od 3 let nad potřebu jdou
-  1. 11. na maso (nejdřív nejstarší) – hráč je může do té doby prodat (panel obchodu je ukáže jako
+  1. 11. na maso (napřed bez jezdce a nejméně vycvičení, pak nejstarší) – hráč je může do té doby prodat (panel obchodu je ukáže jako
      navíc). Upozornění **„Koně se nevejdou do ohrady“** jako u stád.
 - **První koně:** nová ves koně nemá – první koupí od souseda (zemská stezka), pak chová sama.
 

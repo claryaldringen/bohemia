@@ -1,4 +1,4 @@
-import { horsePens, isGrainHorse, penHorses, villageHorses } from './horses';
+import { horseAgeYears, horsePens, isGrainHorse, penHorses, villageHorses } from './horses';
 import type { LordFamily } from './lord';
 import { ageYears } from './people';
 import { HORSES, LORD } from './rules';
@@ -85,7 +85,12 @@ export function trainHorsesDay(
   for (const pen of horsePens(state)) {
     for (const horse of penHorses(pen)) {
       const share = horse.riderId === undefined ? 0 : (riding.get(horse.riderId) ?? 0);
-      if (share <= 0 || horse.training >= HORSES.trainingFull || !isGrainHorse(horse, day)) {
+      if (
+        share <= 0 ||
+        horse.training >= HORSES.trainingFull ||
+        !isGrainHorse(horse, day) ||
+        horseAgeYears(horse, day) > HORSES.trainedAtYears
+      ) {
         continue;
       }
       const next = horse.training + gain * Math.min(1, share);
