@@ -84,6 +84,35 @@ const DIET_SOURCES: readonly {
 ];
 
 /**
+ * Popisek volné práce (lord.md – Co hráč vidí): u cvičící vojvodovy rodiny řádek s ikonou dvorce
+ * a číslem – kolik jich cvičí, při hladu a osevu kolik je jich na poli.
+ */
+export function LaborTooltip({
+  lord,
+}: {
+  lord: { training: number; field: number; household: number } | null | undefined;
+}): ReactElement {
+  const family = lord && lord.training + lord.field + lord.household > 0;
+  return (
+    <span className="flex flex-col gap-0.5">
+      <span>Volná práce</span>
+      {family && (
+        <span data-testid="village-labor-lord" className="flex items-center gap-1 tabular-nums">
+          <img src="/icons/resources/manor.png" alt="" width={16} height={16} />
+          Vojvodova rodina:{' '}
+          {[
+            lord.training > 0 ? `${lord.training} cvičí` : null,
+            lord.field > 0 ? `${lord.field} na poli` : null,
+          ]
+            .filter((t) => t !== null)
+            .join(', ') || `${lord.household} vede domácnost`}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/**
  * Tooltip nasycení (diet.md – Co hráč vidí): nasycení, pokrytí energie a bílkovin a podíly obilí,
  * luštěnin, masa, mléka a sýra, vajec a ovoce na energii (ikony a procenta; jídlo uložené před
  * luštěninami je nemá – 0).
@@ -421,7 +450,7 @@ export function TopBar({
             {formatInteger(view.woodLogs)}
           </Resource>
           {view.crafts.present && <CraftStocks crafts={view.crafts} />}
-          <Resource icon="labor" name="Volná práce" testId="village-labor">
+          <Resource icon="labor" name={<LaborTooltip lord={view.lord} />} testId="village-labor">
             {formatDecimal(Math.max(0, view.commonLaborPerDay), 1)}
           </Resource>
           <span data-testid="village-satiation" data-state={satiation} className="contents">

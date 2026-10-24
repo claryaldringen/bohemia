@@ -350,9 +350,11 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
     case 'hunger-ended':
       return 'Hlad skončil.';
     case 'lord-to-field':
-      return 'Hrozí hlad – vojvodova rodina jde na pole.';
+      return event.reason === 'sowing'
+        ? 'Vojvodova rodina jde na pole – ves nestihne osev.'
+        : 'Vojvodova rodina jde na pole – ves šetří jídlem.';
     case 'lord-to-training':
-      return 'Jídla je dost – vojvodova rodina se vrací k výcviku.';
+      return 'Vojvodova rodina se vrací k výcviku.';
     case 'part-became-forest':
       return forestText(event.parts ?? 1, event.gone ?? false);
     case 'sacred-spared':

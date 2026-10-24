@@ -162,3 +162,13 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `pen` nese `herd` (`penHerd` – stádo vsi druhu ohrady, skot = krávy, ohrada volů null; voli,
   rádla a vozy dál z `oxenVillage`). Stáda ostatních druhů, slepice, pastva a mléko vsi v panelu
   nejsou; slepice se v UI neukazují nikde (simulace vajec a slepic u obydlí běží dál).
+- **Panel dvorce – vojvodova rodina** (lord.md – Co hráč vidí, issue #8): `VillageManor.family`
+  (`lib/manor-view.ts`, `manorFamily`) nese obyvatele dvorce od nejstaršího – portrét, role
+  (`ROLE_NAMES`: i `voivode-grandson`, `voivode-daughter-in-law`), věk, dovednosti `arms` a `horse`.
+  `ManorFamily` v `hud/ManorPanel.tsx` je ukáže místo řádku věků; muži rodiny od 7 let mají ikony
+  `luk`, `boj`, `jizda` s čísly (popisek „Lukostřelba 64 / 100“), jízda jen u toho, kdo koně má
+  nebo už jezdil. Panel postavy (`selection/people.tsx`, `PersonArms`) ukazuje totéž z
+  `ScenePerson.arms` / `horse` (`lib/person-view.ts`). Horní lišta: `LaborTooltip` v `TopBar.tsx`
+  doplní popisek „Volná práce“ řádkem s ikonou dvorce (`resources/manor.png`) z `view.lord`
+  (`LaborDay.lord`). Kronika: „Vojvodova rodina jde na pole – ves šetří jídlem / nestihne osev“
+  a „se vrací k výcviku“. Ikony kreslí `tools/blender/arms_icons.py` (CC0).

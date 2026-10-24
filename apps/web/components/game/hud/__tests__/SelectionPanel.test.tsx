@@ -1255,6 +1255,19 @@ describe('SelectionPanel – postava (villagers.md – Výběr postavy)', () => 
     expect(html).not.toContain('selection-person-herd');
   });
 
+  it('muž rodiny – dovednosti s čísly a jízda jen u toho, kdo má koně', () => {
+    const arms = { bow: 64, combat: 51, riding: 38 };
+    const html = render(person({ portrait: 'man', role: 'Syn vojvody', arms, horse: true }));
+    expect(text(html, 'selection-person-arms-bow')).toBe('64');
+    expect(text(html, 'selection-person-arms-combat')).toBe('51');
+    expect(text(html, 'selection-person-arms-riding')).toBe('38');
+    expect(html).toContain('Lukostřelba 64 / 100');
+    const foot = render(person({ arms: { bow: 5, combat: 0, riding: 0 }, horse: false }));
+    expect(foot).toContain('selection-person-arms-bow');
+    expect(foot).not.toContain('selection-person-arms-riding');
+    expect(render(person())).not.toContain('selection-person-arms');
+  });
+
   it('pasáček u stáda – ikona zvířete; bez domu ve scéně bez tlačítka', () => {
     const html = render(
       person({

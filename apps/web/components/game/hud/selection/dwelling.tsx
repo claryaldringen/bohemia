@@ -9,7 +9,7 @@ import {
 import { VillageTarget } from '@/lib/scene/village-picking';
 import { type SelectionDetails } from '@/lib/selection-details';
 import { PreviewPeople } from '@/lib/trade-quote';
-import { ManorUpgrades } from '../ManorPanel';
+import { ManorFamily, ManorUpgrades } from '../ManorPanel';
 import { TradePanel } from '../TradePanel';
 import { LeaveControls, RelocateButtons, RelocationProgress } from '../RelocationControls';
 import { Stat, Bar, ROW, Commands, WoodToFell } from './parts';
@@ -78,21 +78,25 @@ export function DwellingBody({
           </Stat>
         </div>
         <FamilyRow family={details.family} />
-        {/* nejvýš 8 věků v řádku (8 × 1,75rem + mezery) – dvorec má 10 lidí a víc */}
-        <ul
-          data-testid="selection-ages"
-          aria-label="Věk obyvatel"
-          className="flex max-w-[15.75rem] flex-wrap gap-1"
-        >
-          {details.ages.map((age, i) => (
-            <li
-              key={i}
-              className="hud-inset min-w-7 rounded px-1 text-center text-xs tabular-nums text-[#ecdfc4]"
-            >
-              {age}
-            </li>
-          ))}
-        </ul>
+        {details.manor?.family?.length ? (
+          <ManorFamily family={details.manor.family} />
+        ) : (
+          // nejvýš 8 věků v řádku (8 × 1,75rem + mezery) – dvorec má 10 lidí a víc
+          <ul
+            data-testid="selection-ages"
+            aria-label="Věk obyvatel"
+            className="flex max-w-[15.75rem] flex-wrap gap-1"
+          >
+            {details.ages.map((age, i) => (
+              <li
+                key={i}
+                className="hud-inset min-w-7 rounded px-1 text-center text-xs tabular-nums text-[#ecdfc4]"
+              >
+                {age}
+              </li>
+            ))}
+          </ul>
+        )}
         <Bar value={details.condition} name="Stav" testId="selection-condition" />
         {details.rebuild && (
           <div className={ROW}>

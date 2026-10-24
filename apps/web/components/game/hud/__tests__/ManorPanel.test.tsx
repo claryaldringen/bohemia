@@ -1,7 +1,8 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { DIRECTIONS, type TrailOption } from '@bohemia/game';
-import { ManorUpgrades, TrailCompass } from '../ManorPanel';
+import type { ManorMember } from '@/lib/manor-view';
+import { ManorFamily, ManorUpgrades, TrailCompass } from '../ManorPanel';
 
 // Dvorec vojvody v panelu výběru (trade.md – Co hráč vidí): vylepšení vsi ikonami, růžice stezek
 // do 8 směrů s cenou v popisku a zašedlé s důvodem.
@@ -92,5 +93,54 @@ describe('vylepšení vsi ve dvorci', () => {
       <ManorUpgrades manor={{ dwellingId: 1, trails, neighbours: [] }} trade={() => null} />,
     );
     expect(button(built, 'manor-trade')).not.toContain('disabled=""');
+  });
+});
+
+describe('rodina ve dvorci (lord.md – Co hráč vidí)', () => {
+  const member = (over: Partial<ManorMember>): ManorMember => ({
+    id: 1,
+    portrait: 'man',
+    role: 'Vojvoda',
+    age: 42,
+    arms: { bow: 64, combat: 51, riding: 38 },
+    horse: true,
+    ...over,
+  });
+  const html = renderToStaticMarkup(
+    <ManorFamily
+      family={[
+        member({}),
+        member({
+          id: 2,
+          portrait: 'woman',
+          role: 'Vojvodova žena',
+          age: 39,
+          arms: null,
+          horse: false,
+        }),
+        member({
+          id: 3,
+          role: 'Syn vojvody',
+          age: 16,
+          arms: { bow: 20, combat: 5, riding: 0 },
+          horse: false,
+        }),
+      ]}
+    />,
+  );
+
+  it('muž rodiny má luk, boj a jízdu s čísly a popiskem „Lukostřelba 64 / 100“', () => {
+    expect(html).toContain('data-testid="manor-arms-bow-1"');
+    expect(html).toContain('>64<');
+    expect(html).toContain('Lukostřelba 64 / 100');
+    expect(html).toContain('Boj 51 / 100');
+    expect(html).toContain('Jízda na koni 38 / 100');
+  });
+
+  it('kůň jen u toho, kdo koně má; žena bez dovedností', () => {
+    expect(html).toContain('data-testid="manor-arms-riding-1"');
+    expect(html).not.toContain('data-testid="manor-arms-riding-3"');
+    expect(html).toContain('data-testid="manor-member-2"');
+    expect(html).not.toContain('manor-arms-bow-2');
   });
 });

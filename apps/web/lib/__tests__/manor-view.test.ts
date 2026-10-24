@@ -8,7 +8,7 @@ import {
   type VillageState,
 } from '@bohemia/game';
 import { sceneExpeditions } from '../caravan-view';
-import { expeditionView, neighbourViews } from '../manor-view';
+import { expeditionView, manorFamily, neighbourViews } from '../manor-view';
 import { tradePreview } from '../trade-quote';
 
 // Sousedé po hotových stezkách pro panel obchodu (trade.md) – výměna lidí: koho soused dá a vezme
@@ -211,5 +211,28 @@ describe('výprava pro karavanu ve scéně (trade.md – Ve scéně)', () => {
     // výprava dnes nepostoupila – stojí
     s.labor = { day: DAY, shares: [] };
     expect(sceneExpeditions(s)[0]!.rate).toBe(0);
+  });
+});
+
+describe('rodina ve dvorci (lord.md – Co hráč vidí)', () => {
+  it('obyvatelé dvorce od nejstaršího; cvičící muži mají dovednosti, ženy ne', () => {
+    const s = village();
+    const day = DAY;
+    const arms = { bow: 64.4, combat: 51, riding: 0 };
+    s.people.find((p) => p.id === 502)!.dwellingId = s.manorId!;
+    s.people.find((p) => p.id === 500)!.dwellingId = s.manorId!;
+    s.people.find((p) => p.id === 501)!.dwellingId = s.manorId!;
+    s.people.find((p) => p.id === 503)!.dwellingId = s.manorId!;
+    s.people.find((p) => p.id === 502)!.arms = arms;
+    const family = manorFamily(s, day);
+    const by = (id: number) => family.find((m) => m.id === id);
+    expect(by(500)?.role).toBe('Vojvoda');
+    expect(by(500)?.arms).toEqual({ bow: 0, combat: 0, riding: 0 });
+    expect(by(502)?.arms).toEqual({ bow: 64, combat: 51, riding: 0 });
+    expect(by(501)?.arms).toBeNull();
+    expect(by(503)?.arms).toBeNull();
+    expect(by(502)?.horse).toBe(false);
+    const ages = family.map((m) => m.age);
+    expect(ages).toEqual([...ages].sort((a, b) => b - a));
   });
 });

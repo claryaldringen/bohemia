@@ -421,6 +421,11 @@ export interface VillageView {
   storesMonths: number;
   satiation: number;
   commonLaborPerDay: number;
+  /**
+   * Vojvodova rodina dnes (lord.md – Co hráč vidí): kolik jich cvičí, je na poli a vede domácnost;
+   * bez cvičící rodiny null.
+   */
+  lord?: { training: number; field: number; household: number } | null;
   /** Některá rodina se může oddělit a nečeká na ni žádné obydlí (upozornění „Rodina čeká na dům“). */
   fullHousehold: boolean;
   /** Nabídka staveb – hráč staví kdy chce, předem musí ves mít suroviny a lidi k osídlení. */

@@ -19,6 +19,8 @@ export type PersonRole =
   | `${HouseholdTitle}-wife`
   | `${HouseholdTitle}-son`
   | `${HouseholdTitle}-daughter`
+  | 'voivode-grandson'
+  | 'voivode-daughter-in-law'
   | 'old-man'
   | 'old-woman'
   | 'child'
@@ -68,6 +70,8 @@ export const ROLE_NAMES: Record<PersonRole, string> = {
   'voivode-wife': 'Vojvodova žena',
   'voivode-son': 'Syn vojvody',
   'voivode-daughter': 'Dcera vojvody',
+  'voivode-grandson': 'Vnuk vojvody',
+  'voivode-daughter-in-law': 'Snacha vojvody',
   farmer: 'Rolník',
   'farmer-wife': 'Žena rolníka',
   'farmer-son': 'Syn rolníka',
@@ -103,7 +107,11 @@ export const ROLE_NAMES: Record<PersonRole, string> = {
 /** Vdaná žena (šátek ve scéně): žena hlavy domácnosti, vdova, snacha, nevěsta z okolí. */
 export function isMarriedWomanRole(role: PersonRole): boolean {
   return (
-    role.endsWith('-wife') || role === 'widow' || role === 'daughter-in-law' || role === 'bride'
+    role.endsWith('-wife') ||
+    role === 'widow' ||
+    role === 'daughter-in-law' ||
+    role === 'voivode-daughter-in-law' ||
+    role === 'bride'
   );
 }
 
@@ -182,13 +190,20 @@ function roleOf(
   }
   if (female && p.spouse === undefined && parents.has(p.id)) return 'widow';
   const spouse = p.spouse !== undefined ? household.get(p.spouse) : undefined;
-  if (head && spouse && childOfHead(spouse)) return female ? 'daughter-in-law' : 'son-in-law';
+  if (head && spouse && childOfHead(spouse)) {
+    if (title === 'voivode' && female) return 'voivode-daughter-in-law';
+    return female ? 'daughter-in-law' : 'son-in-law';
+  }
   if (p.origin) return female ? 'bride' : 'groom';
   // vnuk a vnučka (rodič je v domácnosti) – dítě rodiny domu
   const parentHere =
     (p.mother !== undefined && household.has(p.mother)) ||
     (p.father !== undefined && household.has(p.father));
-  if (parentHere) return female ? `${title}-daughter` : `${title}-son`;
+  if (parentHere) {
+    // vnuk vojvody (lord.md – Co hráč vidí): rodič je v dvorci, ale není to dítě hlavy
+    if (title === 'voivode' && !female && !childOfHead(p)) return 'voivode-grandson';
+    return female ? `${title}-daughter` : `${title}-son`;
+  }
   if (!female) return 'farmer';
   return p.spouse !== undefined ? 'farmer-wife' : 'farmer-daughter';
 }
