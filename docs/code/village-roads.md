@@ -150,9 +150,18 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   cesty](../design/paths.md#vyšlapanost-a-vznik-cesty), Síť – kotvy, Stavba přes cestu; Martin, #6):
   `roadsMonth` (`paths/roads.ts`) volá simulace **1. dne v měsíci na začátku dne** (před
   `roadFieldsDay` a přepočtem tras) – sečte vyšlapanost (`settleVillageWear`), z čar uložených tras
-  (`routeLine`, nejsilnější trasa napřed, stálé pořadí) založí cesty `formRoadsFromWear`
-  (`roads-form.ts`) a po vzniku uklidí síť (`tidyRoads`, konce tras jsou skutečné volné konce);
-  kronika `road-formed` jen pro cesty, které úklid nepohltil. `formRoadsFromWear`: body čáry po
+  (`routeLine`, nejsilnější trasa napřed, stálé pořadí; čáry a kotvy drží `monthRoutes` v paměti
+  podle `routes.key`) založí cesty a po vzniku uklidí síť – **nad kopií stavu** (`formRoadsKept`:
+  `formWearRuns` + `tidyRoads` nad kopií cest, `roadIds` staveb a kusů zemských stezek). Stav se
+  změní, jen když každá nová cesta úklid přežije (`survivedTidy` – po jejích bodech mimo dřívější
+  cesty vede po úklidu cesta aspoň `ON_ROAD_M`); kus, jehož cestu úklid smazal (objížďka souběžná se
+  starší cestou), se v dalším kole (nejvýš `FORM_ROUNDS`) vynechá – smazaná cesta nerozdělí cizí
+  cesty, nezmění jejich id, místa na stromy, stavby ani `nextId` (recenze Ú5, I1). Levná kontrola
+  `wearRoadDue` napřed: bez kusu, ze kterého by cesta vznikla, se kontext míst na stromy ani kopie
+  nestaví a úklid neběží. Konce tras pro úklid jsou kotvy (`anchorTermini` – dosah kotvy a kraj
+  mapy jako `nearAnchor`, nebo do 6 m). `formRoad` napřed spočítá osu bez rozdělení
+  (`plannedAxis`, `joinTarget`) – krátká cesta nic nerozdělí. Kronika `road-formed` jen pro cesty,
+  jejichž id úklid nepohltil. `formWearRuns` (`formRoadsFromWear` je obálka pro testy): body čáry po
   `SAMPLE_M`, vyšlapanost `wearAt`; kus od `WEAR.roadAt` dál než `ON_ROAD_M` od pevné cesty se
   prodlouží po čáře oběma směry, dokud je aspoň `WEAR.extendFrom`; vznikne jen, když je každý konec
   u kotvy (`nearAnchor`) nebo u pevné cesty (připojí se do `ATTACH_M` – `joinPoint`, rozcestí
@@ -164,8 +173,8 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   (vchod 3 m, cíl a kraj mapy 7,5 m). Roční kandidáti (`formRoads`, `hotRuns`, `MATCH_M` u pěších)
   zrušeni. **Stavba přes cestu:** objížďka dál než 5 m od staré osy se po vyšlapání stane cestou
   napojenou rozcestími na zbytky staré cesty (test `road-form-wear.test.ts`); kus pod stavbou zatím
-  zůstává a úklid ho bere jako starší (silnější) – objížďku může pohltit jako copánek nebo souběžnou,
-  dokud ho Úloha 7 nevyřadí ze sítě. `road-report.ts` vypisuje i `vzniklo` (kronika) a nová id úseků. Testy
+  zůstává a úklid ho bere jako starší (silnější) – objížďku souběžnou s ním (Vlkov – polozemnice)
+  by pohltil, takže se nezaloží (`formRoadsKept`), dokud ho Úloha 7 nevyřadí ze sítě. `road-report.ts` vypisuje i `vzniklo` (kronika) a nová id úseků. Testy
   `road-form-wear.test.ts`, `roads.test.ts` (1. 11. nezakládá, dopočet po kouscích).
 
 - **Vylepšení pevné cesty a chůze podle stupně** ([roads.md](../design/roads.md) – fáze 2):

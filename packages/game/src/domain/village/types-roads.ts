@@ -152,8 +152,10 @@ export interface VillageRoads {
   roads: Road[];
   trees: RoadTree[];
   /**
-   * Úseky roční sítě nad prahem z minulé roční kontroly (osy po ≈ 4 m) – kde se nad prahem chodí
-   * i letos, vznikne pevná cesta.
+   * Úseky roční sítě nad prahem z poslední roční kontroly před vyšlapaností (osy po ≈ 4 m). Cesty
+   * z nich už nevznikají (vznik z vyšlapanosti – `roadsMonth`) a nic je nepíše; čte je jen převod
+   * starší vsi – podél nich se zaseje vyšlapanost (`withWearSeed`). Smaže se s převodem cest
+   * (plán cest v2, Úloha 14).
    */
   candidates: RoadPoint[][];
   /**

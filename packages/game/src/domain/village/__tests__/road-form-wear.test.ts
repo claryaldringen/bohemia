@@ -176,6 +176,29 @@ describe('formRoadsFromWear – cesta jen od kotvy ke kotvě', () => {
     expect(endsOf(roads).filter((e) => e === `${join.x},${join.z}`)).toHaveLength(3);
   });
 
+  it('krátký kus od cesty ke kotvě (pod MIN_ROAD_M) cestu nevytvoří ani ji nerozdělí', () => {
+    const roads = emptyRoads(DAY);
+    roads.nextId = 10;
+    roads.roads.push(
+      road(1, [
+        { x: 0, z: -20 },
+        { x: 0, z: 110 },
+      ]),
+    );
+    const before = structuredClone(roads.roads);
+    // od cesty 12 m na východ k cíli – s připojením jen 12 m
+    const line: RoadPoint[] = [
+      { x: 0, z: 40 },
+      { x: 12, z: 40 },
+    ];
+    const wear = new Map<number, number>();
+    heat(wear, line, HOT);
+    const anchors = anchorsAt([[line[1]!, 'goal']]);
+    expect(formRoadsFromWear(roads, [line], wear, anchors, DAY, context())).toEqual([]);
+    expect(roads.roads).toEqual(before);
+    expect(roads.nextId).toBe(10);
+  });
+
   it('stavba přes cestu: vyšlapaná objížďka se napojí na zbytky staré cesty po obou stranách', () => {
     // stará cesta k vodě vede rovně; pozemek (x −8…8, z 46…62) ji přehradil a trasa ho obchází
     const roads = emptyRoads(DAY);
@@ -335,6 +358,64 @@ describe('roadsMonth – měsíční vznik cest z vyšlapanosti', () => {
     for (const e of s.chronicle.filter((e) => e.kind === 'road-formed')) {
       expect(kept.has((e as { roadId: number }).roadId)).toBe(true);
     }
+  });
+
+  it('objížďka, kterou úklid smaže, nemění sousední cestu ani nextId (12 měsíců)', () => {
+    // stará cesta k vodě po x 3,75; trasa ji kus obchází 7,5 m vedle (pozemek přes cestu) –
+    // objížďka souběžná se starší cestou zmizí úklidem, takže se nesmí ani založit (rozdělení
+    // staré cesty, nová id, místa na stromy)
+    const start = dayIndexOf({ year: 601, month: 4, day: 1 });
+    const s = village(start - 1);
+    s.roads = emptyRoads(start);
+    s.roads.nextId = 50;
+    const spots = [24, 27, 30, 45, 48, 51].map((z, k) => ({ id: 40 + k, x: 7.25, z }));
+    s.roads.roads.push({
+      ...road(1, [
+        { x: 3.75, z: 3.75 },
+        { x: 3.75, z: 71.25 },
+      ]),
+      spots,
+    });
+    const cells: [number, number][] = [
+      ...[1, 2, 3, 4, 5, 6].map((z): [number, number] => [1, z]),
+      [2, 7],
+      [3, 8],
+      ...[9, 10, 11, 12, 13, 14, 15].map((z): [number, number] => [3, z]),
+      [2, 16],
+      [1, 17],
+      [1, 18],
+      [1, 19],
+    ];
+    const route: StoredRoute = {
+      from: 'd:1',
+      to: 'water',
+      purpose: 'water',
+      trips: 1000,
+      ...encodeRoute(
+        cells.map(([x, z]) => (z + 100) * WINDOW.width + (x + 100)),
+        WINDOW,
+      ),
+    };
+    const hot = new Map<number, number>();
+    heat(
+      hot,
+      cells.map(([x, z]) => ({ x: x * CELL, z: z * CELL })),
+      HOT,
+    );
+    s.roads.wear = { day: start, cells: encodeWear(hot), labor: [] };
+    s.routes = { day: start, key: 'test-water-detour', list: [route] };
+    const before = structuredClone(s.roads.roads);
+    for (let m = 5; m <= 16; m++) {
+      roadsMonth(
+        s,
+        dayIndexOf({ year: 601 + Math.floor((m - 1) / 12), month: ((m - 1) % 12) + 1, day: 1 }),
+        LANDSCAPE,
+        null,
+      );
+      expect(s.roads.nextId, `měsíc ${m}`).toBe(50);
+    }
+    expect(s.roads.roads).toEqual(before);
+    expect(s.chronicle.some((e) => e.kind === 'road-formed')).toBe(false);
   });
 
   it('kotvy z tras: brána domu je vchod, voda cíl', () => {

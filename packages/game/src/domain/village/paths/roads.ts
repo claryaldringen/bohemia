@@ -14,31 +14,45 @@ import { roadAppleStage, roadTreeLook } from '../road-trees';
 import { CART_ROADS, ROADS } from '../rules';
 import {
   type ChronicleEvent,
+  type Construction,
   type LaborDay,
   type LaborTarget,
+  type Road,
+  type RoadPoint,
   type TileCell,
+  type Trail,
   type VillageRoads,
+  type VillageRoutes,
   type VillageState,
 } from '../types';
-import { CANDIDATE_STEP_M, dm, resample, roadGroundOf } from './roads-geometry';
+import {
+  CANDIDATE_STEP_M,
+  ON_ROAD_M,
+  SAMPLE_M,
+  axisDistance,
+  dm,
+  resample,
+  roadGroundOf,
+} from './roads-geometry';
 import {
   type AnnualNetwork,
   annualPathNetwork,
   emptyRoads,
-  formRoadsFromWear,
+  formWearRuns,
   roadTraffic,
   splitRoadWork,
   splitTrailPieces,
+  wearRoadDue,
 } from './roads-form';
 import { annualCartNetwork, formCartRoads, markCartRoads } from './roads-carts';
 import { overgrowRoads } from './roads-overgrow';
-import { networkTermini, tidyRoads } from './roads-tidy';
+import { anchorTermini, networkTermini, tidyRoads } from './roads-tidy';
 import { SpotContext, plantingBlocker, rootTrees } from './roads-trees';
-import { roadAnchors } from './road-anchors';
+import { type RoadAnchors, roadAnchors } from './road-anchors';
 import { routeLine } from './routes';
 import { pathCellM, trailTerrain } from './terrain';
 import { settleVillageWear } from './village';
-import { addWearLabor, trafficField, wearMap } from './wear';
+import { type TrafficField, addWearLabor, trafficField, wearMap } from './wear';
 
 function isRoadYearDay(day: number): boolean {
   const date = dateOfDayIndex(day);
@@ -76,12 +90,46 @@ export function roadsDay(
   return visits;
 }
 
+/** Čáry tras (nejsilnější napřed) a kotvy pro měsíční vznik cest. */
+interface MonthRoutes {
+  lines: RoadPoint[][];
+  anchors: RoadAnchors;
+}
+
+/** Čáry a kotvy posledních sad tras podle `routes.key` – mezi přepočty tras se nemění. */
+const MONTH_ROUTES = new Map<string, { check: string; value: MonthRoutes }>();
+const MONTH_ROUTES_KEPT = 8;
+
+/** Čáry tras a kotvy (`roadAnchors`) – jednou pro sadu tras (`routes.key`, jako `trafficField`). */
+function monthRoutes(routes: VillageRoutes, landscape: Landscape, cellM: number): MonthRoutes {
+  const key = `${routes.key}|${cellM}|${landscape.size}`;
+  let trips = 0;
+  let steps = 0;
+  for (const r of routes.list) {
+    trips += r.trips;
+    steps += r.steps.length;
+  }
+  const check = `${routes.list.length}/${trips}/${steps}`;
+  const cached = MONTH_ROUTES.get(key);
+  if (cached && cached.check === check) return cached.value;
+  // nejsilnější trasy napřed (stálé pořadí – stejné trasy, stejné cesty)
+  const lines = routes.list
+    .map((route, k) => ({ route, k }))
+    .sort((a, b) => b.route.trips - a.route.trips || a.k - b.k)
+    .map(({ route }) => routeLine(route, cellM));
+  const value = { lines, anchors: roadAnchors(routes.list, landscape) };
+  MONTH_ROUTES.delete(key);
+  MONTH_ROUTES.set(key, { check, value });
+  if (MONTH_ROUTES.size > MONTH_ROUTES_KEPT) MONTH_ROUTES.delete(MONTH_ROUTES.keys().next().value!);
+  return value;
+}
+
 /**
  * Měsíční kontrola pevných cest 1. dne v měsíci (paths.md – Vyšlapanost a vznik cesty; mutuje
  * stav – volá simulace na začátku dne): vyšlapanost do dneška (`settleVillageWear`), z vyšlapaných
- * čar tras nové cesty od kotvy ke kotvě (`formRoadsFromWear`) a po vzniku úklid sítě (`tidyRoads`
- * – konce tras jsou skutečné volné konce), kronika `road-formed`. Jiné dny nic; bez vyšlapanosti
- * nebo tras jen sečte vyšlapanost.
+ * čar tras nové cesty od kotvy ke kotvě a po vzniku úklid sítě (`formRoadsKept`), kronika
+ * `road-formed`. Jiné dny nic; bez vyšlapanosti, tras nebo horkého kusu jen sečte vyšlapanost
+ * (kontext míst na stromy se nestaví).
  */
 export function roadsMonth(
   state: VillageState,
@@ -95,33 +143,116 @@ export function roadsMonth(
   const routes = state.routes;
   if (!roads?.wear || !routes || routes.list.length === 0) return;
   const cellM = pathCellM(landscape);
-  // nejsilnější trasy napřed (stálé pořadí – stejné trasy, stejné cesty)
-  const order = routes.list
-    .map((route, k) => ({ route, k }))
-    .sort((a, b) => b.route.trips - a.route.trips || a.k - b.k);
-  const lines = order.map(({ route }) => routeLine(route, cellM));
-  const anchors = roadAnchors(routes.list, landscape);
-  const context: SpotContext = {
+  const { lines, anchors } = monthRoutes(routes, landscape, cellM);
+  const wear = wearMap(roads.wear);
+  if (!wearRoadDue(roads, lines, wear, anchors)) return;
+  const base: Omit<SpotContext, 'split'> = {
     terrain: trailTerrain(landscape, obstacles),
     blocked: plantingBlocker(state, landscape),
     layer: obstacles,
     changes: obstacleChangesAt(state, day),
     seed: state.seed,
-    split: (from, to) => {
-      splitRoadWork(state.constructions, from, to);
-      splitTrailPieces(state.trails, from, to);
-    },
   };
-  const field = trafficField(routes, cellM);
-  const formed = formRoadsFromWear(roads, lines, wearMap(roads.wear), anchors, day, context, field);
-  if (formed.length === 0) return;
-  tidyRoads(roads, state.constructions, anchors.points, context);
-  // úklid může novou cestu pohltit (souběžná se silnější, copánek) nebo spojit se starší – do
-  // kroniky jen cesty, které zůstaly
-  const kept = new Set(roads.roads.map((r) => r.id));
+  const formed = formRoadsKept(state, roads, { lines, anchors, wear, day, base }, () =>
+    trafficField(routes, cellM),
+  );
+  // úklid může novou cestu spojit se starší – do kroniky jen cesty, jejichž id zůstalo
+  const kept = new Set(state.roads!.roads.map((r) => r.id));
   for (const road of formed) {
     if (kept.has(road.id)) state.chronicle.push({ day, kind: 'road-formed', roadId: road.id });
   }
+}
+
+/** Pracovní kopie částí stavu, které vznik cesty a úklid mění. */
+interface RoadsDraft {
+  roads: VillageRoads;
+  constructions: Construction[];
+  trails: Trail[] | undefined;
+}
+
+/** Kopie cest (bez vyšlapanosti – ta se nemění), roadIds staveb a kusů zemských stezek. */
+function draftOf(state: VillageState, roads: VillageRoads): RoadsDraft {
+  const { wear, ...rest } = roads;
+  return {
+    roads: { ...structuredClone(rest), ...(wear ? { wear } : {}) },
+    constructions: state.constructions.map((c) =>
+      c.roadIds ? { ...c, roadIds: [...c.roadIds] } : c,
+    ),
+    trails: state.trails?.map((t) => ({ ...t, pieces: t.pieces.map((p) => ({ ...p })) })),
+  };
+}
+
+/** Přijme kopii do stavu (cesty celé, u staveb a stezek jen úseky, které se mohly změnit). */
+function commitDraft(state: VillageState, draft: RoadsDraft): void {
+  state.roads = draft.roads;
+  state.constructions.forEach((c, k) => {
+    const roadIds = draft.constructions[k]!.roadIds;
+    if (roadIds) c.roadIds = roadIds;
+  });
+  state.trails?.forEach((t, k) => {
+    t.pieces = draft.trails![k]!.pieces;
+  });
+}
+
+/** Kolik kol vzniku nejvýš – v dalším kole se vynechají kusy, které úklid smazal. */
+const FORM_ROUNDS = 3;
+/** Bod osy nové cesty po úklidu přežil, když pevná cesta vede do tolika m od něj. */
+const KEPT_AXIS_M = 1;
+
+/**
+ * Přežila nová cesta úklid? Po jejích bodech mimo dřívější pevné cesty (dál než ON_ROAD_M – ne
+ * připojení) vede po úklidu pevná cesta aspoň v délce ON_ROAD_M (i pod jiným id po spojení).
+ */
+function survivedTidy(road: Road, before: VillageRoads, after: VillageRoads): boolean {
+  const old = axisDistance(before.roads.map((r) => r.points));
+  const now = axisDistance(after.roads.map((r) => r.points));
+  const own = resample(road.points, null, SAMPLE_M).points.filter((p) => old(p.x, p.z) > ON_ROAD_M);
+  const kept = own.filter((p) => now(p.x, p.z) <= KEPT_AXIS_M).length;
+  return kept * SAMPLE_M >= ON_ROAD_M;
+}
+
+/**
+ * Vznik cest z vyšlapanosti a úklid (`formWearRuns`, `tidyRoads`) nad kopií stavu (paths.md –
+ * Vyšlapanost a vznik cesty): stav se změní, jen když každá nová cesta úklid přežije
+ * (`survivedTidy`). Kus, jehož cestu úklid smazal (objížďka souběžná se starší cestou), se
+ * v dalším kole vynechá – smazaná cesta tak nerozdělí cizí cesty, nezmění jejich id ani místa na
+ * stromy a nespotřebuje `nextId`. Konce tras pro úklid jsou kotvy (`anchorTermini`). Vrátí nové cesty, které zůstaly; nic-li nezůstalo, stav nezmění (mutuje).
+ */
+function formRoadsKept(
+  state: VillageState,
+  roads: VillageRoads,
+  month: {
+    lines: readonly RoadPoint[][];
+    anchors: RoadAnchors;
+    wear: ReadonlyMap<number, number>;
+    day: number;
+    base: Omit<SpotContext, 'split'>;
+  },
+  field: () => TrafficField,
+): Road[] {
+  const { lines, anchors, wear, day, base } = month;
+  const isEnd = anchorTermini(anchors);
+  const skip = new Set<string>();
+  for (let round = 0; round < FORM_ROUNDS; round++) {
+    const draft = draftOf(state, roads);
+    const context: SpotContext = {
+      ...base,
+      split: (from, to) => {
+        splitRoadWork(draft.constructions, from, to);
+        splitTrailPieces(draft.trails, from, to);
+      },
+    };
+    const formed = formWearRuns(draft.roads, lines, wear, anchors, day, context, field(), skip);
+    if (formed.length === 0) return [];
+    tidyRoads(draft.roads, draft.constructions, isEnd, context);
+    const lost = formed.filter(({ road }) => !survivedTidy(road, roads, draft.roads));
+    if (lost.length === 0) {
+      commitDraft(state, draft);
+      return formed.map((f) => f.road);
+    }
+    for (const { key } of lost) skip.add(key);
+  }
+  return [];
 }
 
 /** Klíč místa práce (pole bez dílů; seč přirozených luk za rok jedno místo). */
