@@ -175,14 +175,24 @@ Clauda, schválený Martinem 24. 10. 2026 („Návrhy k cestám schvaluji“):
   nahoru dávalo na krátkých krocích 6,3–8 % (recenze 24. 10. 2026). Zbytek staré cesty zanikne, jen
   když je aspoň 80 % jeho délky souběžných (do 2 m) s obejitým kusem či hotovou částí; odbočka,
   cesta do vchodu nebo krátký pahýl začínající u hotové části zůstane.
-- **Serpentiny (pravidlo):** kde profil po staré ose nevyjde nebo u osy stojí posvátný strom, hledá se
-  v oknech ±60, ±120 a ±200 m kolem místa selhání lokální trasa (`findWagonRoute`) a vezme se
-  nejlevnější hotový plán; obejitý kus staré osy zaroste (`bypassed`). `WAGON_STEEP` zůstane jen tehdy,
-  když nevyjde žádné okno. Okna se počítají z celočíselných indexů osy a při shodě rozhoduje pevné
-  pořadí (determinismus server × prohlížeč), plán se v prohlížeči drží v mezipaměti. Implementace:
-  Úloha B.
-- **Hláška:** když profil selže na mezi zemních prací u posvátného stromu, nesmí tvrdit „moc prudká“
-  (Úloha B – serpentiny to obejdou).
+- **Serpentiny (pravidlo):** kde profil po staré ose nevyjde nebo pláň a zemní práce zasáhnou
+  posvátný strom, hledá se v oknech **±60, ±120 a ±200 m** po staré ose kolem místa selhání (do stran
+  stejně daleko) lokální trasa (`findWagonRoute`), vloží se do osy a spočítá se celý plán; vezme se
+  **nejlevnější hotový plán** (práce, pak délka, pak pořadí oken). Když žádné okno nedá hotový plán,
+  ale některé posune selhání dál, pokračuje se od něj – nejvýš **4 místa** selhání za sebou
+  (`WAGON_DETOUR`, návrh Clauda). Obejitý kus staré osy zaroste (`bypassed`), lávka u nového brodu
+  na objížďce se účtuje (4 stromy, 15 čd). `WAGON_STEEP` zůstane jen tehdy, když nevyjde žádné okno.
+  Hledání v okně má mez **250 000 štítků** (paměť v prohlížeči ≈ 13 MB) – svah, který by chtěl
+  víc serpentin, než se do ní vejde, zůstane moc prudký. Okna se počítají z celočíselných indexů osy
+  a při shodě rozhoduje pevné pořadí (determinismus server × prohlížeč), plán se v prohlížeči drží
+  v mezipaměti. Cesta, které profil vyjde, se nemění.
+- **Vlkov, zemská stezka na sever (cesta 547, 24. 10. 2026):** dřív `WAGON_SACRED`; teď objížďka
+  háje – 1 091 m (stará 1 056 m), sklon nejvýš 6,0 %, úvoz i násep 0,9 m, 667 čd, 14 stromů
+  (2 pokácené), vůz 17,5 min. Plán ≈ 0,3–0,7 s. Rozbor (± 60 m dvakrát) dával 1 122 m a 976 čd.
+- **Hláška:** když profil selže do 10 m od posvátného stromu (mez zemních prací je tam malá) a žádné
+  okno nevyjde, důvod je posvátný strom (`WAGON_SACRED`), ne „moc prudká“.
+- **Paměť plánu:** výšky pláně se počítají jen v pásu výšek dosažitelných od začátku i ke konci
+  a z dynamického programování zůstávají jen rodiče (Int16) – u 547 ≈ 6 MB místo ≈ 38 MB.
 
 ### Lidé při práci na cestě (Martin 22. 10. 2026, #3)
 
@@ -212,6 +222,7 @@ Martin: „Pokud vesničané upravují cestu, chci je na té cestě vidět praco
 | Rozdělanou úpravu a vozovou cestu jde zrušit – hotové úseky zůstanou, dřevo se vrátí          | návrh Clauda |
 | Svahy úvozů a náspů 15 let řídká tráva, lemy hran, kameny; výška se nezveličuje               | návrh Clauda |
 | Postavy u čela práce celé cesty; vozová cesta s kopáči, nosiči a dusáním                      | návrh Clauda |
+| Serpentiny: okna ±60/120/200 m, nejvýš 4 místa selhání, mez hledání 250 000 štítků            | návrh Clauda |
 
 ## Proč
 

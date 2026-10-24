@@ -265,6 +265,20 @@ export const WAGON_ROAD = {
  */
 export const WAGON_STRAIGHTEN = { ratio: 1.3, climbM: 3, maxM: 120 } as const;
 /**
+ * roads.md – Postupná úprava a serpentiny (Martin, 24. 10. 2026: „Zemská stezka na sever nejde
+ * upravit pro vozy s tím, že je pro vůz moc prudká, ale přesně tohle by ta úprava cesty pro vozy
+ * vyřešit.“ a „Návrhy k cestám schvaluji“; čísla návrh Clauda): kde profil po staré ose nevyjde
+ * nebo pláň a zemní práce zasáhnou posvátný strom, hledá se objížďka v oknech ±`windowsM` m po
+ * staré ose kolem místa selhání (do stran stejně daleko) a vezme se nejlevnější hotový plán;
+ * nejvýš `maxDetours` míst selhání za sebou. Hledání v okně má mez `maxLabels` štítků (paměť
+ * v prohlížeči ≈ 13 MB, čas ≈ 0,1–0,3 s) – objížďka, která se do ní nevejde, se nenajde.
+ */
+export const WAGON_DETOUR = {
+  windowsM: [60, 120, 200],
+  maxDetours: 4,
+  maxLabels: 250_000,
+} as const;
+/**
  * roads.md a fields.md – Cesta ubírá poli plochu (Martin, 19. 10. 2026: „Ano má. Ono to stejně ve
  * výsledku bude tak, že pokud oráč narazí na cestu, tak spřežení otočí. Nebude pak moci vzniknout
  * takový růžek…“; čísla návrh Clauda): pás pevné cesty v šířce obtisku (vyšlapaná 1,9 m, vyježděná

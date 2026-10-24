@@ -174,7 +174,9 @@ describe('trasa a profil vozové cesty', () => {
     }
   });
 
-  it('velký svah, který ani úvoz a násep 3 m nesrovnají: cesta je pro vůz moc prudká', () => {
+  it('velký svah, který ani úvoz a násep 3 m nesrovnají a serpentina v oknech nevyjde: moc prudká', () => {
+    // svah přes celou louku: objížďka by potřebovala víc serpentin, než hledání v okně unese
+    // (WAGON_DETOUR.maxLabels) – nic neprojde
     for (const l of [STEEP, STEEPER]) {
       expect(planWagonRoad(input(l))).toEqual({ ok: false, reason: WAGON_STEEP });
     }
@@ -1129,5 +1131,81 @@ describe('profileHeights – sklon nejvýš 6 % na každém kroku', () => {
   it('rovný svah 6,3 % dlouhý přes mez zemních prací neprojde', () => {
     const n = 151;
     expect(profileHeights(axisOf(n, 1.95), natural(n, 1.95, 0.063), Array(n).fill(0.3))).toBeNull();
+  });
+});
+
+describe('serpentiny – objížďka prudkého kusu (roads.md – Postupná úprava a serpentiny)', () => {
+  /**
+   * Stará osa (x = 0) stoupá o 13,5 m v řádcích 13–18 (18 % – ani úvoz a násep 3 m nestačí); od
+   * x = 60 m stoupá tentýž svah mírně v řádcích 5–25 (4,5 %) – objížďka tudy projde.
+   */
+  const RAMP = makeLandscape({
+    size: 30,
+    height: (x, y) => {
+      const t = Math.min(1, Math.max(0, (x - 15) / 4));
+      const a = 13 - 8 * t;
+      const b = 18 + 7 * t;
+      return 13.5 * Math.min(1, Math.max(0, (y - a) / (b - a)));
+    },
+  });
+  /** Posvátný háj 5 × 5 dubů po 5 m – nejbližší řada 2 m od osy (x = 0), z −10 až 10. */
+  const GROVE: ObstaclePlacement[] = [];
+  for (let i = 0; i < 5; i++) {
+    for (let k = 0; k < 5; k++) {
+      GROVE.push({
+        id: 1 + i * 5 + k,
+        kind: 'tree',
+        look: 'oak-1',
+        x: 2 + i * 5,
+        z: -10 + k * 5,
+        rotation: 0,
+        scale: 1,
+      });
+    }
+  }
+
+  it('prudký kus staré osy obejde serpentinou: sklon do 6 %, obejitý kus zaroste', () => {
+    const p = plan(RAMP);
+    expect(p.bypassed.length).toBeGreaterThanOrEqual(1);
+    expect(p.profile.some((q) => q.x > 20)).toBe(true);
+    expect(p.maxGrade).toBeLessThanOrEqual(WAGON_ROAD.maxGrade + 1e-9);
+    expect(p.maxCutM).toBeLessThanOrEqual(WAGON_ROAD.maxCutM);
+    expect(p.maxFillM).toBeLessThanOrEqual(WAGON_ROAD.maxFillM);
+    // začíná a končí na koncích staré cesty
+    expect(p.profile[0]).toMatchObject({ x: 0, z: -180 });
+    expect(p.profile[p.profile.length - 1]).toMatchObject({ x: 0, z: 180 });
+    expect(p.lengthM).toBeGreaterThan(p.oldLengthM);
+  });
+
+  it('náhled v prohlížeči = plán serveru i s objížďkou', () => {
+    const road = oldRoad();
+    const server = planWagonRoad(input(RAMP, road));
+    const browser = planWagonRoad({
+      ...input(transferPrecision(RAMP), road),
+      roads: [{ id: road.id, points: road.points, grade: road.grade }],
+    });
+    expect(server.ok && server.bypassed.length).toBeGreaterThanOrEqual(1);
+    expect(browser).toEqual(server);
+  });
+
+  it('posvátný háj u osy na svahu: objížďka kolem háje, žádný dub se nekácí', () => {
+    const layer = packObstacles(GROVE, 20, 15);
+    const p = planWagonRoad({ ...input(GENTLE), layer });
+    expect(p.ok).toBe(true);
+    if (!p.ok) return;
+    expect(p.bypassed.length).toBeGreaterThanOrEqual(1);
+    const grove = new Set(GROVE.map((o) => o.id));
+    expect([...p.felled, ...p.cleared].some((id) => grove.has(id))).toBe(false);
+    for (const o of GROVE) {
+      expect(distanceToLine(p.profile, o)).toBeGreaterThan(WAGON_ROAD.flatHalfM);
+    }
+  });
+
+  it('cesta bez problému: bez objížďky, osa staré cesty', () => {
+    for (const l of [GENTLE, MID]) {
+      const p = plan(l);
+      expect(p.bypassed).toEqual([]);
+      for (const q of p.profile) expect(q.x).toBe(0);
+    }
   });
 });

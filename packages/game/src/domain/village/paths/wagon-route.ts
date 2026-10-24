@@ -486,13 +486,14 @@ function endCells(grid: WagonGrid, p: PathPoint, radius: number): number[] {
  * pláně a příčného sklonu) + čas jízdy (`wagonTimeRate`, rychlost vozové cesty, sklon) + změna
  * směru; rozsah výšek pláně se po kroku rozšíří o L × sklon a omezí terénem ± `limit` – prázdný
  * rozsah = krok nejde (příliš strmě i s úvozem a náspem). Konce cesty mají pláň v terénu. Bez
- * trasy null.
+ * trasy (nebo po `maxLabels` štítcích – mez paměti a času) null.
  */
 export function findWagonRoute(
   grid: WagonGrid,
   from: PathPoint,
   to: PathPoint,
   tripsPerDay: number,
+  maxLabels = MAX_LABELS,
 ): WagonRouteCells | null {
   const { width: w, height: h, cellM, heights, blocked, limit, clearing, gx, gz } = grid;
   const timeRate = wagonTimeRate(tripsPerDay) / CART_SPEED.road.wagon;
@@ -604,7 +605,7 @@ export function findWagonRoute(
       found = id;
       break;
     }
-    if (labels.size > MAX_LABELS) return null;
+    if (labels.size > maxLabels) return null;
     const cost = labels.cost[id]!;
     const lo = labels.lo[id]!;
     const hi = labels.hi[id]!;
@@ -889,19 +890,12 @@ function profileAxis(
   return out;
 }
 
-/**
- * Navržené výšky pláně na ose (na mm): nejmenší zemní práce (plocha průřezu × délka) při sklonu
- * nejvýš WAGON_ROAD.maxGrade mezi každými dvěma body a posunu od terénu nejvýš `limit` buňky
- * (úvoz i násep); konce v terénu. Dynamické programování po bodech přes výšky po milimetrech
- * (klouzavé minimum). Nejde-li to, null.
- */
-export function profileHeights(
-  axis: readonly PathPoint[],
+/** Meze výšek pláně v bodech osy (mm): konce v terénu, jinak terén ± mez úprav (dolů na mm). */
+function heightBounds(
   natural: readonly number[],
   limits: readonly number[],
-): { heights: number[]; cost: number } | null {
-  const n = axis.length;
-  if (n < 2) return null;
+): { lo: number[]; hi: number[] } {
+  const n = natural.length;
   const lo: number[] = [];
   const hi: number[] = [];
   for (let i = 0; i < n; i++) {
@@ -915,62 +909,157 @@ export function profileHeights(
     lo.push(Math.ceil(hc - lim));
     hi.push(Math.floor(hc + lim));
   }
+  return { lo, hi };
+}
+
+/** Nejvyšší změna výšky pláně (mm) na kroku délky `d` m – dolů, sklon nikdy nepřekročí mez. */
+function stepMm(d: number): number {
+  // dolů, ne zaokrouhlit: sklon nikdy nepřekročí mez (zaokrouhlení nahoru dávalo 6,3–8 %)
+  return Math.floor(WAGON_ROAD.maxGrade * d * 1000 + 1e-9);
+}
+
+/**
+ * Navržené výšky pláně na ose (na mm): nejmenší zemní práce (plocha průřezu × délka) při sklonu
+ * nejvýš WAGON_ROAD.maxGrade mezi každými dvěma body a posunu od terénu nejvýš `limit` buňky
+ * (úvoz i násep); konce v terénu. Dynamické programování po bodech přes výšky po milimetrech
+ * (klouzavé minimum); ceny jen dvou řádků, rodiče po řádcích jako Int16 (rozsah řádku je nejvýš
+ * 2 × 3 m = 6 001 mm) – paměť ≈ 12 kB na bod osy (dřív ≈ 72 kB). Nejde-li to, null.
+ */
+export function profileHeights(
+  axis: readonly PathPoint[],
+  natural: readonly number[],
+  limits: readonly number[],
+): { heights: number[]; cost: number } | null {
+  const n = axis.length;
+  if (n < 2) return null;
+  const bounds = heightBounds(natural, limits);
   const ds: number[] = [];
   for (let i = 1; i < n; i++) {
     ds.push(length2(axis[i]!.x - axis[i - 1]!.x, axis[i]!.z - axis[i - 1]!.z));
   }
-  const weight = (i: number): number => ((ds[i - 1] ?? 0) + (ds[i] ?? 0)) / 2;
-  const rows: { cost: Float64Array; parent: Int32Array }[] = [];
-  const first = new Float64Array(hi[0]! - lo[0]! + 1);
-  rows.push({ cost: first, parent: new Int32Array(first.length).fill(-1) });
+  // jen výšky dosažitelné od začátku i ke konci – jiné na nejlevnější profil nikdy nepatří (výsledek
+  // je týž jako přes celé meze), DP je kratší a nemožný profil skončí hned
+  const lo = [...bounds.lo];
+  const hi = [...bounds.hi];
   for (let i = 1; i < n; i++) {
-    const prev = rows[i - 1]!;
+    const m = stepMm(ds[i - 1]!);
+    lo[i] = Math.max(lo[i]!, lo[i - 1]! - m);
+    hi[i] = Math.min(hi[i]!, hi[i - 1]! + m);
+    if (lo[i]! > hi[i]!) return null;
+  }
+  for (let i = n - 2; i >= 0; i--) {
+    const m = stepMm(ds[i]!);
+    lo[i] = Math.max(lo[i]!, lo[i + 1]! - m);
+    hi[i] = Math.min(hi[i]!, hi[i + 1]! + m);
+    if (lo[i]! > hi[i]!) return null;
+  }
+  const weight = (i: number): number => ((ds[i - 1] ?? 0) + (ds[i] ?? 0)) / 2;
+  const widest = Math.max(...hi.map((h, i) => h - lo[i]! + 1), 1);
+  // rodič je index v předchozím řádku – Int16 stačí pro meze úprav do 16 m
+  const Parent = widest > 32_767 ? Int32Array : Int16Array;
+  const parents: (Int16Array | Int32Array)[] = [new Parent(hi[0]! - lo[0]! + 1).fill(-1)];
+  // dva řádky cen na střídačku – bez nového pole na každý bod osy
+  let prev = new Float64Array(widest);
+  let cost = new Float64Array(widest);
+  let prevLen = hi[0]! - lo[0]! + 1;
+  const deque = new Int32Array(widest);
+  for (let i = 1; i < n; i++) {
     const plo = lo[i - 1]!;
-    const size = hi[i]! - lo[i]! + 1;
-    const cost = new Float64Array(Math.max(0, size)).fill(Infinity);
-    const parent = new Int32Array(Math.max(0, size)).fill(-1);
-    // dolů, ne zaokrouhlit: sklon nikdy nepřekročí mez (zaokrouhlení nahoru dávalo 6,3–8 %)
-    const m = Math.floor(WAGON_ROAD.maxGrade * ds[i - 1]! * 1000 + 1e-9);
+    const size = Math.max(0, hi[i]! - lo[i]! + 1);
+    cost.fill(Infinity, 0, size);
+    const parent = new Parent(size).fill(-1);
+    const m = stepMm(ds[i - 1]!);
     // klouzavé minimum přes okno [y − m, y + m] předchozího řádku
-    const deque: number[] = [];
     let head = 0;
+    let tail = 0;
     let next = 0;
     const w = weight(i);
     for (let k = 0; k < size; k++) {
       const y = lo[i]! + k;
-      const right = Math.min(prev.cost.length - 1, y + m - plo);
+      const right = Math.min(prevLen - 1, y + m - plo);
       while (next <= right) {
-        if (Number.isFinite(prev.cost[next]!)) {
-          while (deque.length > head && prev.cost[deque[deque.length - 1]!]! >= prev.cost[next]!) {
-            deque.pop();
-          }
-          deque.push(next);
+        if (Number.isFinite(prev[next]!)) {
+          while (tail > head && prev[deque[tail - 1]!]! >= prev[next]!) tail--;
+          deque[tail++] = next;
         }
         next++;
       }
       const left = y - m - plo;
-      while (deque.length > head && deque[head]! < left) head++;
-      if (deque.length === head) continue;
+      while (tail > head && deque[head]! < left) head++;
+      if (tail === head) continue;
       const best = deque[head]!;
       const offset = (y - natural[i]! * 1000) / 100;
-      cost[k] = prev.cost[best]! + sectionArea(offset, 0) * w;
+      cost[k] = prev[best]! + sectionArea(offset, 0) * w;
       parent[k] = best;
     }
-    rows.push({ cost, parent });
+    parents.push(parent);
+    [prev, cost] = [cost, prev];
+    prevLen = size;
   }
-  const last = rows[n - 1]!;
-  if (last.cost.length === 0 || !Number.isFinite(last.cost[0]!)) return null;
+  if (prevLen === 0 || !Number.isFinite(prev[0]!)) return null;
   const out = new Array<number>(n);
   let k = 0;
   for (let i = n - 1; i >= 0; i--) {
     out[i] = (lo[i]! + k) / 1000;
-    k = rows[i]!.parent[k]!;
+    k = parents[i]![k]!;
   }
-  return { heights: out, cost: last.cost[0]! };
+  return { heights: out, cost: prev[0]! };
+}
+
+/**
+ * Kde profil po ose nevyjde (roads.md – Postupná úprava a serpentiny): index prvního bodu, kde se
+ * dopředný rozsah výšek pláně (meze a krok jako `profileHeights`) vyprázdní; −1, když vyjde.
+ * Celočíselně na mm – stejně na serveru i v prohlížeči.
+ */
+export function profileFailure(
+  axis: readonly PathPoint[],
+  natural: readonly number[],
+  limits: readonly number[],
+): number {
+  const n = axis.length;
+  if (n < 2) return 0;
+  const { lo, hi } = heightBounds(natural, limits);
+  let a = lo[0]!;
+  let b = hi[0]!;
+  for (let i = 1; i < n; i++) {
+    const m = stepMm(length2(axis[i]!.x - axis[i - 1]!.x, axis[i]!.z - axis[i - 1]!.z));
+    a = Math.max(a - m, lo[i]!);
+    b = Math.min(b + m, hi[i]!);
+    if (a > b) return i;
+  }
+  return -1;
 }
 
 /** Osa jak je – bez vyhlazení (vozová cesta po staré cestě – její osa už je hladká). */
 const AS_IS: readonly { simplifyM: number; passes: number }[] = [{ simplifyM: 0, passes: 0 }];
+
+/** Leží bod do `radiusM` m od buňky u posvátného stromu (`sacred`)? */
+export function wagonNearSacred(grid: WagonGrid, p: PathPoint, radiusM: number): boolean {
+  let near = false;
+  cellsIn(grid, p.x - radiusM, p.z - radiusM, p.x + radiusM, p.z + radiusM, (c, x, z) => {
+    if (grid.sacred[c] === 1 && length2(x - p.x, z - p.z) <= radiusM) near = true;
+  });
+  return near;
+}
+
+/** Body osy `points` po nejvýš WAGON_ROAD.profileStepM (na cm) – body profilu `wagonProfile(…, true)`. */
+export function wagonAxisPoints(points: readonly PathPoint[]): PathPoint[] {
+  return profileAxis(points, AS_IS[0]!);
+}
+
+/**
+ * Kde profil po ose `points` jak je (`wagonProfile(…, true)`) nevyjde: index bodu v
+ * `wagonAxisPoints(points)` (`profileFailure`); −1, když vyjde.
+ */
+export function wagonProfileFailure(grid: WagonGrid, points: readonly PathPoint[]): number {
+  const axis = wagonAxisPoints(points);
+  const at = axis.map((p) => axisPoint(grid, p.x, p.z));
+  return profileFailure(
+    axis,
+    at.map((p) => p.natural),
+    at.map((p) => p.limit),
+  );
+}
 
 /**
  * Neprojede vůz osou `points` (stará cesta – roads.md, Vozová cesta po staré cestě)? Body osy po

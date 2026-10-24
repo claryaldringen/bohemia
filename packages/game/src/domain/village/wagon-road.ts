@@ -30,19 +30,31 @@ import { pathTerrainOf, pathWindowFor, PATH_WOODLAND, withObstacles } from './pa
 import { pathVillageOf } from './paths/village';
 import {
   WAGON_BIN_M,
+  findWagonRoute,
   profileCartMinutes,
   profileEdits,
   roadsCartMinutes,
+  straightenWagonRoute,
   wagonAxisBlocked,
+  wagonAxisPoints,
   wagonEarthworks,
   wagonGridHeight,
+  wagonNearSacred,
   wagonProfile,
+  wagonProfileFailure,
   wagonRoadGrid,
   type WagonGrid,
   type WagonTimeRoad,
 } from './paths/wagon-route';
 import { keepClear, type SwathTally } from './road-swath';
-import { OBSTACLE_COST, ROAD_SWATH, ROAD_UPGRADES, WAGON_ROAD, WAGON_STRAIGHTEN } from './rules';
+import {
+  OBSTACLE_COST,
+  ROAD_SWATH,
+  ROAD_UPGRADES,
+  WAGON_DETOUR,
+  WAGON_ROAD,
+  WAGON_STRAIGHTEN,
+} from './rules';
 import { roadNeedsUpgrade } from './road-upgrades';
 import { sacredSitesOf } from './sacred';
 import type {
@@ -325,6 +337,8 @@ function planGrid(
 interface WagonClearing {
   pieces: SwathTally[];
   sacred: boolean;
+  /** Nejbližší místo osy (m od začátku), kde stavba zasáhne posvátný strom; jinak Infinity. */
+  sacredArc: number;
 }
 
 const CUT: ReadonlySet<ObstacleKind> = new Set([
@@ -361,6 +375,7 @@ function wagonClearing(
       sacred: false,
     })),
     sacred: false,
+    sacredArc: Infinity,
   };
   const edits = profileEdits(profile, fords);
   if (edits.count === 0) return out;
@@ -422,6 +437,7 @@ function wagonClearing(
     if (sacredTree) {
       if (footprint) {
         out.sacred = true;
+        out.sacredArc = Math.min(out.sacredArc, nearest.arc);
         tally.sacred = true;
       }
       return;
@@ -711,20 +727,178 @@ export function planWagonRoad(input: WagonPlanInput): WagonRoadPlan {
     [from, to] = [to, from];
   }
   const grid = planGrid(input, axisBox(axis));
+  const links = chain.map((link) => link.road);
+  const old: OldChain = {
+    chain,
+    from,
+    to,
+    oldLengthM: chain.reduce((sum, link) => sum + profileLength(link.road.points), 0),
+    oldMaxGrade: chainMaxGrade(grid, links),
+    minutesBefore: roundMinutes(roadsCartMinutes(grid, links)),
+  };
   // vede po staré cestě (Martin 22. 10. 2026, #6), jen kličky do svahu se narovnají
   const straight = straightenStretches(grid, input.village, axis, input);
-  axis = straight.axis;
-  // vůz jí musí projet a profil vyjít
-  if (wagonAxisBlocked(grid, input.village, axis)) return { ok: false, reason: WAGON_BLOCKED };
-  const profile = wagonProfile(grid, axis, true);
-  if (!profile) return { ok: false, reason: WAGON_STEEP };
-  const oldLengthM = chain.reduce((sum, link) => sum + profileLength(link.road.points), 0);
+  const plan = planAlong(input, old, grid, straight.axis, straight.bypassed);
+  if (plan.ok) return plan;
+  // prudký kus nebo posvátný strom – serpentina (roads.md – Postupná úprava a serpentiny)
+  const detour = plan.failAt >= 0 ? detourPlan(input, old, straight, plan.failAt) : null;
+  return detour ?? { ok: false, reason: plan.reason };
+}
+
+/** Stará cesta, po které vozová cesta vede – řetěz, konce a co o ní plán hlásí. */
+interface OldChain {
+  chain: ChainLink<WagonPlanRoad>[];
+  from: PathPoint;
+  to: PathPoint;
+  oldLengthM: number;
+  oldMaxGrade: number;
+  minutesBefore: number | null;
+}
+
+/** Plán po ose, nebo důvod a místo selhání (index ve `wagonAxisPoints(axis)`, −1 – objížďka nepomůže). */
+type WagonAttempt =
+  Extract<WagonRoadPlan, { ok: true }> | { ok: false; reason: string; failAt: number };
+
+/** Profil selže do tolika metrů od buňky u posvátného stromu – důvodem je strom (WAGON_SACRED). */
+const SACRED_FAIL_M = 10;
+
+/** Délky od začátku po bodech osy (m). */
+function arcsOf(points: readonly PathPoint[]): number[] {
+  const out: number[] = [0];
+  for (let k = 1; k < points.length; k++) {
+    out.push(
+      out[k - 1]! + length2(points[k]!.x - points[k - 1]!.x, points[k]!.z - points[k - 1]!.z),
+    );
+  }
+  return out;
+}
+
+/**
+ * Objížďka kusu osy `axis[i..j]` (roads.md – Postupná úprava a serpentiny): `findWagonRoute` mezi
+ * jeho konci v okně kolem kusu (do stran `padM` m, nejvýš WAGON_DETOUR.maxLabels štítků), narovnaná
+ * a vyhlazená trasa (`wagonProfile`); body po WAGON_ROAD.profileStepM s konci přesně v bodech osy.
+ * Bez trasy null.
+ */
+function detourStretch(
+  input: WagonPlanInput,
+  axis: readonly PathPoint[],
+  i: number,
+  j: number,
+  padM: number,
+): PathPoint[] | null {
+  const stretch = axis.slice(i, j + 1);
+  const grid = planGrid(input, {
+    minX: Math.min(...stretch.map((p) => p.x)) - padM,
+    minZ: Math.min(...stretch.map((p) => p.z)) - padM,
+    maxX: Math.max(...stretch.map((p) => p.x)) + padM,
+    maxZ: Math.max(...stretch.map((p) => p.z)) + padM,
+  });
+  const route = findWagonRoute(grid, axis[i]!, axis[j]!, 0, WAGON_DETOUR.maxLabels);
+  if (!route) return null;
+  const straight = straightenWagonRoute(grid, route.points);
+  // vyhlazená osa, kde profil kusu vyjde s konci v terénu; jinak narovnaná trasa – celý profil
+  // (`planAlong`) konce kusu v terénu nepotřebuje
+  const local = wagonProfile(grid, straight);
+  const out = wagonAxisPoints(local ? local.profile : straight);
+  if (out.length < 2) return null;
+  out[0] = axis[i]!;
+  out[out.length - 1] = axis[j]!;
+  return out;
+}
+
+/**
+ * Serpentiny (roads.md – Postupná úprava a serpentiny): kolem místa selhání `failAt` se v oknech
+ * ±WAGON_DETOUR.windowsM m po ose zkusí objížďka (`detourStretch`) a celý plán po nové ose; vezme
+ * se nejlevnější hotový plán (práce, pak délka, pak pořadí oken). Když žádné okno nedá hotový plán,
+ * ale některé posune selhání za objížďku, pokračuje se od prvního takového (nejvýš
+ * WAGON_DETOUR.maxDetours míst). Obejitý kus staré osy jde do `bypassed`. Okna jsou z celočíselných
+ * indexů osy – server i prohlížeč najdou totéž. Nic nevyjde – null.
+ */
+function detourPlan(
+  input: WagonPlanInput,
+  old: OldChain,
+  start: { axis: PathPoint[]; bypassed: PathPoint[][] },
+  firstFail: number,
+): Extract<WagonRoadPlan, { ok: true }> | null {
+  let axis = start.axis;
+  let bypassed = start.bypassed;
+  let failAt = firstFail;
+  for (let round = 0; round < WAGON_DETOUR.maxDetours && failAt >= 0; round++) {
+    const cur = wagonAxisPoints(axis);
+    const arc = arcsOf(cur);
+    const f = Math.min(failAt, cur.length - 1);
+    let best: Extract<WagonRoadPlan, { ok: true }> | null = null;
+    let next: { axis: PathPoint[]; bypassed: PathPoint[][]; failAt: number } | null = null;
+    for (const halfM of WAGON_DETOUR.windowsM) {
+      let i = f;
+      while (i > 0 && arc[f]! - arc[i]! < halfM) i--;
+      let j = f;
+      while (j < cur.length - 1 && arc[j]! - arc[f]! < halfM) j++;
+      if (j - i < 2) continue;
+      const stretch = detourStretch(input, cur, i, j, halfM);
+      if (!stretch) continue;
+      const cand = [...cur.slice(0, i), ...stretch, ...cur.slice(j + 1)];
+      const candBypassed = [...bypassed, cur.slice(i, j + 1)];
+      const plan = planAlong(input, old, planGrid(input, axisBox(cand)), cand, candBypassed);
+      if (plan.ok) {
+        if (
+          !best ||
+          plan.laborManDays < best.laborManDays ||
+          (plan.laborManDays === best.laborManDays && plan.lengthM < best.lengthM)
+        ) {
+          best = plan;
+        }
+        continue;
+      }
+      // selhání až za objížďkou – další místo selhání
+      if (next || plan.failAt < 0) continue;
+      const candArc = arcsOf(wagonAxisPoints(cand));
+      const stretchEnd = arc[i]! + arcsOf(stretch)[stretch.length - 1]!;
+      if (candArc[Math.min(plan.failAt, candArc.length - 1)]! > stretchEnd + 1e-6) {
+        next = { axis: cand, bypassed: candBypassed, failAt: plan.failAt };
+      }
+    }
+    if (best) return best;
+    if (!next) return null;
+    ({ axis, bypassed, failAt } = next);
+  }
+  return null;
+}
+
+/**
+ * Plán vozové cesty po ose `axis` (stará osa, narovnaná nebo s objížďkou) nad mřížkou `grid`:
+ * průjezd, profil, zemní práce, kácení, lávky u nových brodů a úseky stavby. Kde to nejde, důvod
+ * a místo selhání (profil – `wagonProfileFailure`, posvátný strom – nejbližší místo osy u něj).
+ */
+function planAlong(
+  input: WagonPlanInput,
+  old: OldChain,
+  grid: WagonGrid,
+  axis: PathPoint[],
+  bypassed: PathPoint[][],
+): WagonAttempt {
+  const { chain, from, to, oldLengthM, oldMaxGrade } = old;
   const links = chain.map((link) => link.road);
-  const oldMaxGrade = chainMaxGrade(grid, links);
+  // vůz jí musí projet a profil vyjít
+  if (wagonAxisBlocked(grid, input.village, axis)) {
+    return { ok: false, reason: WAGON_BLOCKED, failAt: -1 };
+  }
+  const profile = wagonProfile(grid, axis, true);
+  if (!profile) {
+    // u posvátného stromu je mez zemních prací malá – hláška nesmí tvrdit, že je cesta moc prudká
+    const failAt = wagonProfileFailure(grid, axis);
+    const at = wagonAxisPoints(axis)[failAt];
+    const sacred = at !== undefined && wagonNearSacred(grid, at, SACRED_FAIL_M);
+    return { ok: false, reason: sacred ? WAGON_SACRED : WAGON_STEEP, failAt };
+  }
   const earth = wagonEarthworks(grid, profile.profile, profile.fords);
   const bounds = pieceBounds(profile.lengthM);
   const clearing = wagonClearing(input, grid, profile.profile, profile.fords, bounds);
-  if (clearing.sacred) return { ok: false, reason: WAGON_SACRED };
+  if (clearing.sacred) {
+    const arcs = arcsOf(profile.profile);
+    const k = arcs.findIndex((d) => d >= clearing.sacredArc - 1e-9);
+    return { ok: false, reason: WAGON_SACRED, failAt: k < 0 ? arcs.length - 1 : k };
+  }
   // lávky u brodů staré upravené cesty už stojí (`wagonChainStatus`); brod, který stará osa neměla
   // (narovnaná tětiva, serpentina), dostane lávku jako dřív – 4 stromy a 15 čd na brod
   // úsek bez určené krajiny (`ground`) lávky nezná – brody poblíž jeho osy se berou za staré
@@ -790,7 +964,7 @@ export function planWagonRoad(input: WagonPlanInput): WagonRoadPlan {
     pieces,
     lengthM: tenths(profile.lengthM),
     oldLengthM: tenths(oldLengthM),
-    bypassed: straight.bypassed,
+    bypassed,
     footbridgeTrees,
     missingWood,
     maxGrade: profile.maxGrade,
@@ -804,7 +978,7 @@ export function planWagonRoad(input: WagonPlanInput): WagonRoadPlan {
     trees: pieces.reduce((sum, p) => sum + p.trees, 0),
     cleared: clearing.pieces.flatMap((t) => t.cleared).sort((a, b) => a - b),
     felled: clearing.pieces.flatMap((t) => t.felled).sort((a, b) => a - b),
-    minutesBefore: roundMinutes(roadsCartMinutes(grid, links)),
+    minutesBefore: old.minutesBefore,
     minutesAfter: roundMinutes(profileCartMinutes(profile.profile, profile.fords))!,
   };
 }

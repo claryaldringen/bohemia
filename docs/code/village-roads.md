@@ -431,11 +431,20 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   `wagonProfile` bez vyhlazení, cena = zemní práce + zpevnění) a přijme tětivu, je-li levnější než
   stará osa nebo stará nejde; plán nese `bypassed` a `footbridgeTrees`, `startWagonRoad` je uloží
   (`RoadEarthwork.bypassed`, `Construction.wood`) a `wagonRoadsDay` po `absorbParallelRoads`
-  označí obejité zbytky `Road.abandoned` (`abandonBypassed`). `findWagonRoute`
-  a `straightenWagonRoute` (A\* a narovnání z 20. 10.) se nevolají – zůstávají jako mrtvý kód.
+  označí obejité zbytky `Road.abandoned` (`abandonBypassed`). **Serpentiny** (Úloha B, roads.md –
+  Postupná úprava a serpentiny): `planAlong` vrací i místo selhání (index ve `wagonAxisPoints` –
+  profil `wagonProfileFailure`/`profileFailure`, posvátný strom `WagonClearing.sacredArc`);
+  `detourPlan` kolem něj zkusí okna `WAGON_DETOUR.windowsM` (±60/120/200 m po ose, do stran stejně)
+  – `detourStretch`: `findWagonRoute` (A\*, mez `WAGON_DETOUR.maxLabels`) → `straightenWagonRoute`
+  → `wagonProfile` s vyhlazením (nevyjde-li s konci v terénu, narovnaná trasa) – vloží kus do osy
+  a spočítá celý plán nad mřížkou nové osy; nejlevnější hotový (práce, délka, pořadí oken), jinak
+  pokračuje od prvního okna, které posune selhání za objížďku (nejvýš `maxDetours`). Obejitý kus
+  jde do `bypassed`. Selže-li profil do 10 m od posvátného stromu (`wagonNearSacred`), důvod je
+  `WAGON_SACRED`. Plán bez selhání se nemění (stejná mřížka i osa jako dřív).
   Lávky u brodů chtějí dřevo (`planWoodFrom`/`takeWood`); `earthworkReachedM` počítá kácení před
   zemními pracemi. Ostatní: `wagonProfile` (víc stupňů vyhlazení osy pro hledanou trasu,
-  `profileHeights` – DP po cm, sklon ≤ 6 %, úvoz a násep ≤ 3 m), `wagonEarthworks` (objemy na
+  `profileHeights` – DP po mm jen v pásu výšek dosažitelných od začátku i ke konci, dva řádky cen
+  a rodiče Int16 ≈ 12 kB na bod osy, sklon ≤ 6 %, úvoz a násep ≤ 3 m), `wagonEarthworks` (objemy na
   rastru 1 m, `balanceEarth` – hlína z úvozu do náspu), `roadsCartMinutes` / `profileCartMinutes`.
   **Plán** `wagon-road.ts`: `planWagonRoad(WagonPlanInput)` – stejně na serveru
   (`wagonPlanInputOf`) i v prohlížeči (`LandscapeScene.previewWagonRoad`), krajina s přesností
