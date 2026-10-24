@@ -3,10 +3,9 @@
 // symetrie platí jen pro hlavní (docs/code/village-people.md – Příbuzenství). Kroky dne mutují stav.
 import { createRandom, deriveSeed } from '../landscape/random';
 import { isDynastyTracked, isLineMan, wivesOf } from './dynasty';
-import { villageManorId } from './manor';
 import { neighbor } from './marriage';
-import { ageYears, occupants } from './people';
-import { BIRTH_SPACING, DWELLINGS } from './rules';
+import { ageYears } from './people';
+import { BIRTH_SPACING } from './rules';
 import { LORD } from './rules-lord';
 import type { ChronicleEvent, Person, VillageState } from './types';
 
@@ -34,26 +33,21 @@ function wifeCounts(state: VillageState): Map<number, number> {
 }
 
 /**
- * Kde bude další manželka bydlet (lord.md – Manželky): v domě muže, nepřeplní-li ho; jinak
- * v prázdném obydlí (nejnižší id, ne dvorec) – po kroku 6 (`occupyEmptyDwellings`) na něj žádná
- * rodina k osídlení nečeká; jinak nikde (nepřijde).
+ * Kde bude další manželka bydlet (lord.md – Manželky – Bydlení; Martin 24. 10. 2026: „Vedlejší
+ * manželky odcházejí do vlastních obydlí až teprve, je-li dvorec přeplněný.“): vždy v domě muže,
+ * i když ho přeplní – z přeplněného domu pak při osídlení odchází vedlejší manželka s nejstarším
+ * synem (`secondaryWifeFamilies`). Muž bez obydlí – nikde (nepřijde).
  */
 function extraWifeHome(state: VillageState, man: Person): number | undefined {
-  const home = state.dwellings.find((d) => d.id === man.dwellingId);
-  if (home && occupants(state, home.id).length < DWELLINGS[home.type].capacity) return home.id;
-  const manor = villageManorId(state);
-  const occupied = new Set(state.people.map((p) => p.dwellingId));
-  return state.dwellings
-    .filter((d) => d.id !== manor && !occupied.has(d.id))
-    .sort((a, b) => a.id - b.id)[0]?.id;
+  return state.dwellings.some((d) => d.id === man.dwellingId) ? man.dwellingId : undefined;
 }
 
 /**
  * Další manželky z okolí dne (lord.md – Manželky): muž rodu od LORD.extraWifeFromAge let s 1 až
  * LORD.maxWives − 1 žijícími manželkami si s LORD.extraWifePerYear ročně přivede ženu z okolí
  * (16–22 let, rodiče neznámí). Muži v pořadí id, jeden los na muže z vlastního proudu
- * (`'wife:' + den`), takže sňatky ani porody vsi se nemění. V hladu ani bez místa (dům muže plný
- * a žádné prázdné obydlí) nepřijde. Hlavní manželka muže (`spouseId`) zůstává. Ves bez rodu – nic.
+ * (`'wife:' + den`), takže sňatky ani porody vsi se nemění. V hladu nepřijde, jinak bydlí v domě
+ * muže (`extraWifeHome`). Hlavní manželka muže (`spouseId`) zůstává. Ves bez rodu – nic.
  * Mutuje stav, vrací kroniku.
  */
 export function extraWivesDay(state: VillageState, day: number): ChronicleEvent[] {

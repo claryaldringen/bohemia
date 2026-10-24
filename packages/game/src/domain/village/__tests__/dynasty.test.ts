@@ -16,7 +16,7 @@ import {
 } from '../dynasty';
 import { LINE_NAMES, generatedLineName, suggestLineName } from '../dynasty-names';
 import { advanceVillage } from '../simulate';
-import type { Person, VillageState } from '../types';
+import type { Dwelling, Person, VillageState } from '../types';
 import { withBuiltFirstDwelling } from './village-fixtures';
 import { DAY, couple, dwelling, kin, village, type KinSpec } from './kin-fixtures';
 
@@ -267,7 +267,11 @@ describe('sledovaná ves – vcelku = po kouscích', () => {
     ...extra,
   });
 
-  /** Starší ves před rodem: vojvoda se ženou a dva ženatí synové se ženami – páry plodné. */
+  /**
+   * Starší ves před rodem: vojvoda se ženou a dva ženatí synové se ženami – páry plodné; dvě
+   * prázdná obydlí, do kterých synové odejdou (lord.md – Synové po sňatku) – jinak by další ženy
+   * přeplnily dvorec a vnuk by se za 5 let nenarodil.
+   */
   function olderVillage(): VillageState {
     const s = withBuiltFirstDwelling(
       foundVillage({ seed: 5, day: START, dwellingPosition: { x: 0, z: 0, rotation: 0 } }),
@@ -280,6 +284,13 @@ describe('sledovaná ves – vcelku = po kouscích', () => {
       person(6, 20, 'male', { spouseId: 7, fatherId: 2, motherId: 3 }),
       person(7, 19, 'female', { spouseId: 6 }),
     ];
+    const first = s.dwellings[0]!;
+    const shifted = (id: number, dx: number): Dwelling => ({
+      ...first,
+      id,
+      position: { ...first.position, x: first.position.x + dx },
+    });
+    s.dwellings.push(shifted(900, 30), shifted(901, -30));
     s.constructions = [];
     s.storesKg = 30_000;
     s.lastDay = START;

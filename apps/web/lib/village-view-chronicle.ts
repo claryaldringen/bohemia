@@ -245,6 +245,12 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return event.name === undefined
         ? 'Muž rodu má novou hlavní ženu.'
         : `Nová hlavní žena – ${event.name}.`;
+    case 'son-left-manor':
+      return event.name === undefined
+        ? 'Syn vojvody odešel z dvorce.'
+        : `Syn vojvody odešel z dvorce – ${event.name}.`;
+    case 'wife-left-manor':
+      return 'Vedlejší žena odešla z dvorce.';
     case 'death':
       return deathText(event.group, event.cause === 'hunger');
     case 'village-extinct':

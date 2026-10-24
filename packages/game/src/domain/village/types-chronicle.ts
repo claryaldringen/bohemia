@@ -36,6 +36,10 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'extra-wife'; name?: string }
   /** Muž rodu `name` má po smrti hlavní manželky novou hlavní (lord.md – Nová hlavní manželka). */
   | { kind: 'main-wife'; name?: string }
+  /** Ženatý muž rodu `name` odešel z dvorce do vlastního domu (lord.md – Synové po sňatku). */
+  | { kind: 'son-left-manor'; name?: string }
+  /** Vedlejší manželka odešla z přeplněného dvorce do vlastního domu (lord.md – Manželky). */
+  | { kind: 'wife-left-manor' }
   /**
    * `cause: 'hunger'` – zemřel hlady (nahromaděný hlad, population.md); jinak bez údaje. `name` –
    * jméno zemřelého muže rodu (lord.md – Kde se jméno ukazuje); ostatní ho nemají.

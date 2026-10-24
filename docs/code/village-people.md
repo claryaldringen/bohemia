@@ -91,13 +91,29 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     smrt hlavní smaže `spouseId` muže. `extraWivesDay` (krok po `arrangeMarriages`): muž rodu od
     `LORD.extraWifeFromAge` s 1–3 žijícími manželkami, v pořadí id jeden los (proud
     `'wife:' + den`, `LORD.extraWifePerYear`), ne v hladu; žena z okolí 16–22 let s `origin`
-    a svatební pauzou porodů bydlí v domě muže, nepřeplní-li ho, jinak v prázdném obydlí (ne
-    dvorec; po kroku 6 na něj nikdo nečeká), jinak nepřijde (kronika `extra-wife`). Ves bez rodu
-    – nic. `ensureMainWives` (v `dynastyDay` i před `arrangeMarriages` – osadníci výpravy, kde muž
+    a svatební pauzou porodů bydlí **vždy v domě muže**, i když ho přeplní (`extraWifeHome`;
+    Martin 24. 10. 2026 – vedlejší odchází až z přeplněného domu, viz Bydlení rodu); kronika
+    `extra-wife`. Ves bez rodu – nic. `ensureMainWives` (v `dynastyDay` i před `arrangeMarriages` – osadníci výpravy, kde muž
     přišel jen s vedlejší): muž bez `spouseId` se žijícími manželkami dostane hlavní – matku
     nejstaršího žijícího syna, jehož matka žije, jinak nejnižší id; jejím synům `mainWifeSon`,
     nebydlí-li s ním, přestěhuje se k němu se svobodnými dětmi i do přeplněného (kronika
     `main-wife`). Bez náhody; ve vsi bez vícežeňství se nic nestane.
+  - **Bydlení rodu** (`dynasty-housing.ts`, `households.ts`; lord.md – Manželky – Bydlení
+    a Přednost, Synové po sňatku): v dvorci vsi s rodem drží dům vojvoda (`familiesOf` – dvorec
+    nemá dědice mezi ženatými syny), **všichni ženatí muži rodu** jsou rodiny k osídlení, i nejstarší;
+    rodina muže rodu = on, **všechny jeho ženy z domu** (`wivesHere`) a svobodné děti. Svobodný muž
+    rodu z dvorce sám neodchází (`loneSonOf`). `secondaryWifeFamilies` – z přeplněného domu muže
+    rodu (každého, u vojvody dvorec) odchází vedlejší manželka se svobodnými dětmi, od té
+    s nejstarším synem (bez syna až po nich, při shodě nižší id), po jedné, dokud dům zůstává
+    přeplněný i po odchodu rodin, které odcházejí tak jako tak (`departingFamilies`); jen kdo dům
+    udrží. Zpět ji nevrací nic, jen `ensureMainWives` (nová hlavní). `settlingFamilies` – pořadí
+    při osídlení (`settleNewDwelling` – prázdné i dostavěné obydlí): ženatí muži rodu z dvorce od
+    nejstaršího → vedlejší manželky z přeplněných domů (dvorec první, pak od nejvíc přeplněného) →
+    `leavingFamilies`; ves bez rodu přesně `leavingFamilies`. `possibleNewHouseholds` přičte
+    vedlejší manželky (lidé k osídlení, „Rodina čeká na dům“). Kronika `son-left-manor` (jméno)
+    a `wife-left-manor` při odchodu z dvorce (`moveIn`). Samotné děti (nikdo od 16 let) muže rodu
+    jdou při rozpadu domácnosti k otci, i do přeplněného (`lineFatherOf` v `population.ts`). Dům
+    vedlejší manželky drží ona jako vdova, nejstarší ženatý syn je dědic (beze změny).
   - **Výměna lidí:** ves s rodem nedá sousedovi muže rodu ani manželku muže rodu (`keptByLine`
     v `people-trade.ts`, návrh Clauda).
 - **Sňatky** (`marriage.ts`, kinship.md – Sňatky; Martin, varianta c; 19. 10. 2026: „Vdova by se

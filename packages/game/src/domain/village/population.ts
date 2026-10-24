@@ -1,7 +1,7 @@
 import { createRandom, deriveSeed } from '../landscape/random';
 import { bury, hygieneDeathFactor, villageHygiene } from './cemetery';
 import { isOvercrowded } from './dwellings';
-import { markNewborn } from './dynasty';
+import { isDynastyTracked, isLineMan, markNewborn } from './dynasty';
 import { removePeople } from './kinship';
 import { ageGroup, ageYears, canBear, canFather, householdBreaksUp, occupants } from './people';
 import {
@@ -191,12 +191,27 @@ function roomiest(
 }
 
 /**
+ * Žijící otec – muž rodu – samotných dětí `members` mimo jejich dům `fromId` (první v pořadí
+ * lidí vsi); ve vsi bez rodu nikdo.
+ */
+function lineFatherOf(
+  state: VillageState,
+  members: readonly Person[],
+  fromId: number,
+): Person | undefined {
+  if (!isDynastyTracked(state)) return undefined;
+  const fathers = new Set(members.flatMap((m) => (m.fatherId === undefined ? [] : [m.fatherId])));
+  return state.people.find((p) => fathers.has(p.id) && isLineMan(p) && p.dwellingId !== fromId);
+}
+
+/**
  * Kam se rozpadlá domácnost přestěhuje (kinship.md – Domácnosti): k nejbližším příbuzným – do domu
  * syna, pak dcery, pak sourozence někoho z ní (v každé skupině dům s nejvíc volnými místy), jinak
  * do obydlí s nejvíc volnými místy (population.md – Rozpad domácnosti). Jen tam, kde se všichni
  * vejdou bez přeplnění (Martin, 19. 10. 2026: „Pokud by byla domácnost kam přijde přeplněná, ať
  * radši zůstane ve starém domě.“) – jinak null a domácnost zůstane doma. Samotné děti (nikdo od
- * 16 let) jdou k příbuzným i do přeplněného domu – samy bydlet nemohou (návrh Clauda).
+ * 16 let) jdou k příbuzným i do přeplněného domu – samy bydlet nemohou (návrh Clauda); ve vsi
+ * s rodem děti muže rodu nejdřív k otci (lord.md – Manželky – Dům vedlejší manželky).
  */
 function dissolveTarget(
   state: VillageState,
@@ -205,6 +220,8 @@ function dissolveTarget(
   fromId: number,
 ): { id: number } | null {
   const onlyChildren = members.every((p) => ageYears(p.bornDay, day) < AGE.fertile);
+  const father = onlyChildren ? lineFatherOf(state, members, fromId) : undefined;
+  if (father) return { id: father.dwellingId };
   const minFree = onlyChildren ? -Infinity : members.length;
   const ids = new Set(members.map((m) => m.id));
   const mothers = new Set(members.flatMap((m) => (m.motherId === undefined ? [] : [m.motherId])));

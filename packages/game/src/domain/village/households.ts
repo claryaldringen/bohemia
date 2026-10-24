@@ -8,7 +8,10 @@
 // sňatkem. Čisté funkce nad stavem vsi, kroky `settleNewDwelling` a `occupyEmptyDwellings` stav
 // mění.
 import { isFull } from './dwellings';
+import { currentLord, isDynastyTracked, isLineMan, isSecondaryWife } from './dynasty';
+import { secondaryWifeFamilies, settlingFamilies } from './dynasty-housing';
 import { withKinship } from './kinship';
+import { villageManorId } from './manor';
 import {
   ageGroup,
   ageYears,
@@ -45,10 +48,18 @@ function parentHere(p: Person, members: readonly Person[]): boolean {
   return members.some((m) => m.id === p.motherId || m.id === p.fatherId);
 }
 
-/** Žena muže `husband`, když bydlí s ním. */
-function wifeHere(husband: Person, members: readonly Person[]): Person | undefined {
-  if (husband.sex !== 'male' || husband.spouseId === undefined) return undefined;
-  return members.find((m) => m.id === husband.spouseId);
+/**
+ * Manželky muže `husband`, které bydlí s ním – u muže rodu i vedlejší (lord.md – Manželky; u ženy
+ * je `spouseId` její muž), jinak jeho jediná žena.
+ */
+function wivesHere(husband: Person, members: readonly Person[]): Person[] {
+  if (husband.sex !== 'male') return [];
+  return members.filter((m) => m.sex === 'female' && m.spouseId === husband.id);
+}
+
+/** Je `dwelling` dvorec vsi, která sleduje rod vojvody? */
+function isTrackedManor(state: VillageState, dwelling: Dwelling): boolean {
+  return isDynastyTracked(state) && villageManorId(state) === dwelling.id;
 }
 
 /** Svobodný v domácnosti – nemá v ní manžela / manželku. */
@@ -60,7 +71,10 @@ function unmarriedHere(p: Person, members: readonly Person[]): boolean {
 export interface Family {
   /** Domácnost, ze které odchází. */
   dwelling: Dwelling;
-  /** Muž (ženatý syn), jeho žena a jejich svobodné děti z téže domácnosti. */
+  /**
+   * Muž (ženatý syn), jeho žena (u muže rodu všechny jeho ženy z domu) a jejich svobodné děti
+   * z téže domácnosti; u vedlejší manželky z přeplněného domu ona a její svobodné děti.
+   */
   people: Person[];
 }
 
@@ -72,11 +86,13 @@ export interface Family {
  * muži se se ženou a dětmi smí oddělit – i ženatý muž bez rodičů v domě vedle dědice (starší vsi
  * mají rodiče neznámé). Odchází muž, žena a jejich svobodné děti z domu – jen když se zbytek
  * domácnosti nerozpadne (`householdBreaksUp`) a nový dům udrží (je v ní někdo 16–44; starší pár
- * by se rozpadl a vrátil). Od nejstaršího muže.
+ * by se rozpadl a vrátil). Od nejstaršího muže. V dvorci vsi s rodem drží dům vojvoda a odcházejí
+ * všichni ženatí muži, i nejstarší syn (lord.md – Synové po sňatku odcházejí z dvorce); muž rodu
+ * odchází se všemi ženami z domu.
  */
 export function familiesOf(state: VillageState, dwelling: Dwelling, day: number): Family[] {
   const members = occupants(state, dwelling.id);
-  const husbands = members.filter((m) => wifeHere(m, members)).sort(byAge);
+  const husbands = members.filter((m) => wivesHere(m, members).length > 0).sort(byAge);
   const sons = husbands.filter((h) => parentHere(h, members));
   const heir = sons[0];
   // bez ženatého syna drží dům vdova s vlastními dětmi (Martin, 19. 10. 2026 – ve Vlkově mladý
@@ -90,22 +106,27 @@ export function familiesOf(state: VillageState, dwelling: Dwelling, day: number)
         ageYears(w.bornDay, day) >= AGE.fertile &&
         members.some((c) => c.motherId === w.id),
     );
+  // dvorec vsi s rodem drží vojvoda – dědice mezi ženatými syny nemá (lord.md – Synové po sňatku)
+  const lord = isTrackedManor(state, dwelling) ? currentLord(state) : undefined;
+  const lordHolds = lord !== undefined && members.includes(lord);
   // s dědicem zůstávají jeho rodiče (otec nebo muž matky), bez něj nejstarší ženatý muž
   const stays = (h: Person): boolean =>
-    heir
-      ? h === heir || sons.some((s) => s.fatherId === h.id || s.motherId === h.spouseId)
-      : !widowHolds && h === husbands[0];
+    lordHolds
+      ? h === lord
+      : heir
+        ? h === heir || sons.some((s) => s.fatherId === h.id || s.motherId === h.spouseId)
+        : !widowHolds && h === husbands[0];
   const families: Family[] = [];
   for (const husband of husbands.filter((h) => !stays(h))) {
-    const wife = wifeHere(husband, members);
-    if (!wife) continue;
+    const wives = wivesHere(husband, members);
+    const wifeIds = new Set(wives.map((w) => w.id));
     const children = members.filter(
       (c) =>
-        (c.motherId === wife.id || c.fatherId === husband.id) &&
-        c.id !== wife.id &&
+        ((c.motherId !== undefined && wifeIds.has(c.motherId)) || c.fatherId === husband.id) &&
+        !wifeIds.has(c.id) &&
         unmarriedHere(c, members),
     );
-    const people = [husband, wife, ...children];
+    const people = [husband, ...wives, ...children];
     // rodina musí dům udržet sama (někdo 16–44) – starší pár by se v novém domě hned rozpadl,
     // vrátil k příbuzným a druhý den odešel znovu (stěhování tam a zpět, kalibrace 19. 10. 2026)
     if (householdBreaksUp(people, day)) continue;
@@ -122,7 +143,7 @@ function crowding(state: VillageState, dwelling: Dwelling): number {
 }
 
 /** Obydlí od nejvíc přeplněného, při shodě nižší id. */
-function byCrowding(state: VillageState): Dwelling[] {
+export function byCrowding(state: VillageState): Dwelling[] {
   return [...state.dwellings].sort(
     (a, b) => crowding(state, b) - crowding(state, a) || a.id - b.id,
   );
@@ -181,6 +202,8 @@ export function loneSonOf(
     (unmarriedHeir(members, day) ? unmarried[1] : unmarried[0]) ?? lodgerOf(members, day);
   // sám dům udrží jen člověk 16–44 – starší by se v novém domě rozpadl a vrátil (tam a zpět)
   if (!candidate || !holdsHousehold(candidate, day)) return undefined;
+  // svobodný muž rodu z dvorce sám neodchází – cvičí, dokud se neožení (lord.md – Synové po sňatku)
+  if (isLineMan(candidate) && isTrackedManor(state, dwelling)) return undefined;
   const staying = members.filter((m) => m.id !== candidate.id);
   return householdBreaksUp(staying, day) ? undefined : candidate;
 }
@@ -236,23 +259,39 @@ export function loneSons(state: VillageState, day: number): Person[] {
   });
 }
 
-/** Přestěhuje lidi do obydlí a zapíše založení domácnosti (mutuje stav). */
+/**
+ * Přestěhuje lidi do obydlí a zapíše založení domácnosti (mutuje stav); odchod muže rodu
+ * a vedlejší manželky z dvorce vsi s rodem i do kroniky (lord.md – Manželky – Rozhraní).
+ */
 function moveIn(
   state: VillageState,
   day: number,
   people: readonly Person[],
   dwellingId: number,
 ): void {
+  const first = people[0];
+  const fromManor =
+    first !== undefined &&
+    isDynastyTracked(state) &&
+    villageManorId(state) === first.dwellingId &&
+    first.dwellingId !== dwellingId;
   for (const p of people) p.dwellingId = dwellingId;
   state.chronicle.push({ day, kind: 'household-founded', dwellingId } satisfies ChronicleEvent);
+  if (!fromManor) return;
+  if (isLineMan(first)) {
+    const name = first.name === undefined ? {} : { name: first.name };
+    state.chronicle.push({ day, kind: 'son-left-manor', ...name } satisfies ChronicleEvent);
+  } else if (isSecondaryWife(state, first)) {
+    state.chronicle.push({ day, kind: 'wife-left-manor' } satisfies ChronicleEvent);
+  }
 }
 
 /**
- * Nové nebo prázdné obydlí osídlí první rodina, která se může oddělit (`leavingFamilies`); vrací,
- * jestli se někdo nastěhoval (mutuje stav).
+ * Nové nebo prázdné obydlí osídlí první rodina v pořadí přednosti (`settlingFamilies` – ve vsi bez
+ * rodu `leavingFamilies`); vrací, jestli se někdo nastěhoval (mutuje stav).
  */
 export function settleNewDwelling(state: VillageState, day: number, dwellingId: number): boolean {
-  const family = leavingFamilies(state, day)[0];
+  const family = settlingFamilies(state, day)[0];
   if (!family) return false;
   moveIn(state, day, family.people, dwellingId);
   return true;
@@ -279,12 +318,14 @@ export function occupyEmptyDwellings(state: VillageState, day: number): void {
  * Kolik nových domácností může ves založit (kinship.md – Lidé k osídlení): z každé domácnosti
  * rodiny, které dům nedrží a smí odejít (`departingFamilies` – i z neplného domu, Martin
  * 19. 10. 2026), a svobodní synové plných domů, ze kterých žádná rodina odejít nemůže
- * (`loneSonOf` – jen z plného domu).
+ * (`loneSonOf` – jen z plného domu). Ve vsi s rodem i vedlejší manželky, které by přeplněný dům
+ * muže rodu opustily, až z něj odejdou ženatí synové (`secondaryWifeFamilies`).
  */
 export function possibleNewHouseholds(state: VillageState, day: number): number {
   let count = 0;
   for (const d of state.dwellings) {
-    const families = departingFamilies(state, d, day).length;
+    const departing = departingFamilies(state, d, day);
+    const families = departing.length + secondaryWifeFamilies(state, d, day, departing).length;
     count += families > 0 ? families : loneSonOf(state, d, day) ? 1 : 0;
   }
   return count;

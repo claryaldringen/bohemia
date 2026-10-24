@@ -13,29 +13,21 @@ import { LORD } from '../rules-lord';
 import { advanceVillage } from '../simulate';
 import type { ChronicleEvent, Person, VillageState } from '../types';
 import { withBuiltFirstDwelling } from './village-fixtures';
-import { DAY, YEAR, couple, dwelling, kin, village, type KinSpec } from './kin-fixtures';
+import {
+  DAY,
+  LINE_LORD_ID,
+  YEAR,
+  couple,
+  dwelling,
+  trackedVillage,
+  type KinSpec,
+} from './kin-fixtures';
 
 // Manželky mužů rodu (lord.md – Rod vojvody, Manželky): víc manželek, další z okolí, porody
 // vedlejších manželek, nová hlavní manželka a výměna lidí, která rod nedá.
 
-const LORD_ID = 10;
-
-/** Sledovaná ves – vojvoda 10 v dvorci (1); příznak rodu má on a jeho synové. */
-function tracked(
-  specs: KinSpec[],
-  dwellings = [dwelling(1), dwelling(2), dwelling(3)],
-  extra: Partial<VillageState> = {},
-): VillageState {
-  const s = village(
-    specs.map((k) => kin(k)),
-    dwellings,
-    { manorId: 1, dynasty: { lordId: LORD_ID, lords: [{ id: LORD_ID, fromDay: DAY }] }, ...extra },
-  );
-  for (const p of s.people) {
-    if (p.sex === 'male' && (p.id === LORD_ID || p.fatherId === LORD_ID)) p.line = true;
-  }
-  return s;
-}
+const LORD_ID = LINE_LORD_ID;
+const tracked = trackedVillage;
 const byId = (s: VillageState, id: number): Person | undefined => s.people.find((p) => p.id === id);
 const ids = (people: readonly Person[]): number[] => people.map((p) => p.id);
 
@@ -87,14 +79,12 @@ describe('extraWivesDay – další manželky z okolí (lord.md – Manželky)',
     })),
   ];
 
-  it('do plného domu ne – jde do prázdného obydlí (ne do dvorce), bez něj nepřijde', () => {
+  it('přijde vždy do domu muže, i do plného – prázdné obydlí jinde nebere (Martin 24. 10. 2026)', () => {
     const s = tracked(fullManor, [dwelling(1), dwelling(2)]);
     wivesOver(s, 25);
     const wives = wivesOf(s, byId(s, LORD_ID)!);
-    expect(wives).toHaveLength(2);
-    expect(wives[1]?.dwellingId).toBe(2);
-    const alone = tracked(fullManor, [dwelling(1)]);
-    expect(wivesOver(alone, 25)).toEqual([]);
+    expect(wives).toHaveLength(LORD.maxWives);
+    for (const w of wives) expect(w.dwellingId).toBe(1);
   });
 
   it('po smrti manželky si vezme další', () => {
@@ -257,6 +247,72 @@ describe('porody vedlejších manželek (lord.md – Návštěvy a porody)', () 
     expect(child?.fatherId).toBe(LORD_ID);
     expect(child?.dwellingId).toBe(2);
     expect(s.people.some((p) => p.motherId === 41)).toBe(false);
+  });
+
+  /** Děti ženy `mother` po `years` letech porodů (seed `seed`). */
+  function childrenOf(s: VillageState, mother: number, years: number): Person[] {
+    for (let d = DAY + 1; d < DAY + Math.round(years * YEAR); d++) populationDay(s, d, 1);
+    return s.people.filter((p) => p.motherId === mother).sort((a, b) => a.bornDay - b.bornDay);
+  }
+
+  it('rozestup porodů i u vedlejší manželky v jiném domě', () => {
+    const s = tracked([
+      ...couple({ id: LORD_ID, age: 30 }, { id: 11, age: 46 }),
+      { id: 12, age: 20, sex: 'female', spouse: LORD_ID, home: 2 },
+    ]);
+    s.seed = 2;
+    const born = childrenOf(s, 12, 8).map((c) => c.bornDay);
+    expect(born.length).toBeGreaterThanOrEqual(2);
+    for (let i = 1; i < born.length; i++) {
+      expect(born[i]! - born[i - 1]!).toBeGreaterThanOrEqual(BIRTH_SPACING.afterBirthDays);
+    }
+  });
+
+  it('přeplnění tlumí porody podle domu vedlejší manželky, ne muže', () => {
+    // šest dívek bez rodičů bydlí buď u ní (přeplní její dům), nebo v dvorci (přeplní dvorec)
+    const births = (girlsHome: number): number => {
+      let count = 0;
+      for (let seed = 1; seed <= 60; seed++) {
+        const s = tracked([
+          ...couple({ id: LORD_ID, age: 30 }, { id: 11, age: 46 }),
+          { id: 12, age: 20, sex: 'female', spouse: LORD_ID, home: 2 },
+          ...[50, 51, 52, 53, 54, 55].map((id): KinSpec => ({
+            id,
+            age: 5,
+            sex: 'female',
+            home: girlsHome,
+          })),
+        ]);
+        s.seed = seed;
+        count += childrenOf(s, 12, 0.25).length;
+      }
+      return count;
+    };
+    expect(births(2) * 2).toBeLessThan(births(1));
+  });
+
+  it('ves bez vedlejších manželek – porody jako ve vsi bez rodu (stejné losy)', () => {
+    const specs: KinSpec[] = [
+      ...couple({ id: LORD_ID, age: 30 }, { id: 11, age: 22 }),
+      ...couple({ id: 40, age: 30, home: 2 }, { id: 41, age: 24, home: 2 }),
+      ...couple({ id: 42, age: 28, home: 3 }, { id: 43, age: 20, home: 3 }),
+    ];
+    // příznak a jméno rodu jsou jen ve sledované vsi – porovnává se zbytek
+    const plain = (s: VillageState): object[] =>
+      s.people.map((p) => {
+        const copy: Partial<Person> = { ...p };
+        delete copy.line;
+        delete copy.name;
+        return copy;
+      });
+    const s = tracked(specs);
+    const old = tracked(specs, undefined, { dynasty: NO_DYNASTY });
+    for (let d = DAY + 1; d < DAY + 3 * 365; d++) {
+      populationDay(s, d, 1);
+      populationDay(old, d, 1);
+    }
+    expect(s.people.length).toBeGreaterThan(specs.length);
+    expect(plain(s)).toEqual(plain(old));
   });
 });
 
