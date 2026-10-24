@@ -611,6 +611,12 @@ Clauda.
   v `foundVillage` (věky jako data v `rules*.ts`), `LORD.maxWives`.
 - Konec hry: `isGameOver` i bez mužů rodu, zastavení dopočtu vsí hráče, obrazovka „Rod vymřel“
   s kronikou rodu.
+- **Konec rodu – rozhodnutí implementace (návrh Clauda, 24. 10. 2026):** ves, ve které nezbyl muž
+  rodu (smrt i odchod), si zapíše den konce a kroniku „Ve vsi už nežije žádný muž rodu – posledním
+  vojvodou byl …“ a žije dál bez vojvody, dokud rod žije v jiné vsi hráče. Vymře-li rod všude, vsi
+  se dopočítají na dnešek a pak zaniknou ode dne konce rodu (nejpozdější den mezi vsemi). Kronika
+  rodu na obrazovce porážky je z vsi, kde rod skončil naposledy; vojvoda bez jména jako „Vojvoda“.
+  Po konci rodu žádný vojvoda není – Začít znovu předvyplní jméno zakladatele.
 - **Výcvik a nástupnictví – rozhodnutí implementace (návrh Clauda, 24. 10. 2026):** vojvoda
   cvičí, jen když bydlí v dvorci; cvičí všichni muži rodu v dvorci od 7 let (i bratři po
   nástupu). Matka **nezletilého** vojvody vede domácnost dvorce, i když se vdá; matka dospělého

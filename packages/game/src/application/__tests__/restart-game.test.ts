@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../domain/calendar';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
-import type { Position, VillageState } from '../../domain/village';
+import { isLineMan, type Position, type VillageState } from '../../domain/village';
+import { removePeople } from '../../domain/village/kinship';
 import { block, makeLandscape } from '../../domain/village/__tests__/placement-fixtures';
 import { foundVillageForSettlement } from '../found-village';
 import { loadVillage } from '../load-village';
@@ -59,6 +60,11 @@ async function playerWithVillage(kill: boolean): Promise<{
   return { settlements, villages, settlementId: seat.id, villageId: founded.village.id };
 }
 
+/** Zemřou všichni muži rodu (lord.md – Konec rodu) – rod vymře příští dopočítaný den. */
+function lineDiesOut(state: VillageState): void {
+  removePeople(state, new Set(state.people.filter(isLineMan).map((p) => p.id)));
+}
+
 /** Všichni zemřou – ves vymře příští dopočítaný den (jako ves uložená bez lidí). */
 function dieOut(state: VillageState): void {
   state.people = [];
@@ -90,6 +96,54 @@ describe('dynastyStatus', () => {
     );
     expect(fresh).toEqual({ settlements: [], villages: [], gameOver: false });
   });
+});
+
+describe('konec rodu (lord.md – Konec rodu)', () => {
+  it('rod vymřel – hra končí, ves s lidmi je opuštěná ode dne konce rodu a uložená', async () => {
+    const { settlements, villages, villageId } = await playerWithVillage(false);
+    villages.edit(villageId, lineDiesOut);
+    const status = await dynastyStatus(
+      { settlements, villages, landscapes },
+      { playerId: PLAYER, today: TODAY },
+    );
+    expect(status.gameOver).toBe(true);
+    const saved = villages.records.get(villageId)?.state;
+    expect(saved?.dynasty?.endedDay).toBe(TODAY - 39);
+    expect(saved?.abandonedDay).toBe(TODAY - 39);
+    expect(saved?.extinctDay).toBeUndefined();
+    expect(saved?.people.length).toBeGreaterThan(0);
+    expect(saved?.chronicle.filter((e) => e.kind === 'village-abandoned')).toEqual([
+      { day: TODAY - 39, kind: 'village-abandoned', reason: 'line-ended' },
+    ]);
+    expect(status.villages[0]?.state).toEqual(saved);
+    // další dopočet nic nemění – ves se nedopočítává
+    const version = villages.records.get(villageId)?.version;
+    const again = await dynastyStatus(
+      { settlements, villages, landscapes },
+      { playerId: PLAYER, today: TODAY + 20 },
+    );
+    expect(again.gameOver).toBe(true);
+    expect(villages.records.get(villageId)?.state.people).toEqual(saved?.people);
+    expect(villages.records.get(villageId)?.state.chronicle).toEqual(saved?.chronicle);
+    expect(villages.records.get(villageId)?.version).toBeGreaterThanOrEqual(version ?? 0);
+  }, 30_000);
+
+  it('restart bez abandon je po konci rodu povolen; se živým rodem odmítne', async () => {
+    const alive = await playerWithVillage(false);
+    expect(
+      await restartGame(
+        { ...alive, landscapes, seeds: seedsFrom(777) },
+        { playerId: PLAYER, today: TODAY },
+      ),
+    ).toEqual({ ok: false, reason: DYNASTY_ALIVE });
+    alive.villages.edit(alive.villageId, lineDiesOut);
+    const result = await restartGame(
+      { ...alive, landscapes, seeds: seedsFrom(777) },
+      { playerId: PLAYER, today: TODAY },
+    );
+    expect(result.ok).toBe(true);
+    expect(alive.settlements.archived.has(alive.settlementId)).toBe(true);
+  }, 30_000);
 });
 
 describe('restartGame', () => {

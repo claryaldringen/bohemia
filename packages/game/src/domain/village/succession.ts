@@ -109,8 +109,9 @@ function moveSuccessor(state: VillageState, heir: Person, day: number): void {
 /**
  * Nástupnictví (lord.md – Nástupnictví): zemřel-li vojvoda (nebo ves odešel), nastoupí
  * `successorOf` a přestěhuje se do dvorce (`moveSuccessor`). Kronika rodu (`dynasty.lords`) uzavře
- * starého vojvodu a přidá nového, kronika vsi `lord`. Bez muže rodu `lordId = null` (konec rodu).
- * Mutuje stav.
+ * starého vojvodu a přidá nového, kronika vsi `lord`. Bez muže rodu (smrt, odchod) `lordId = null`,
+ * `endedDay` a kronika `line-ended` se jménem posledního vojvody (lord.md – Konec rodu) – ves žije
+ * dál jako ves bez vojvody, hru ukončí až `isLineExtinct` přes všechny vsi hráče. Mutuje stav.
  */
 export function succeedLord(state: VillageState, day: number): ChronicleEvent[] {
   const dynasty = state.dynasty;
@@ -120,7 +121,11 @@ export function succeedLord(state: VillageState, day: number): ChronicleEvent[] 
   const heir = successorOf(state, dynasty.lordId);
   if (!heir) {
     dynasty.lordId = null;
-    return [];
+    // konec rodu ve vsi (lord.md – Konec rodu): den jen jednou, rod může žít v jiné vsi hráče
+    if (dynasty.endedDay !== undefined) return [];
+    dynasty.endedDay = day;
+    const lastName = last?.name === undefined ? {} : { name: last.name };
+    return [{ day, kind: 'line-ended', ...lastName }];
   }
   moveSuccessor(state, heir, day);
   dynasty.lordId = heir.id;

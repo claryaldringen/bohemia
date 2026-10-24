@@ -2,21 +2,27 @@
 
 import { useState, type ReactElement } from 'react';
 import type { VillageLifespan } from '@bohemia/game';
+import type { LineEndView } from '@/lib/line-end-view';
 import { formatInteger, plural } from '@/lib/village-format';
 import { Tooltip } from './Tooltip';
 
 /**
  * Obrazovka porážky jako v 0 A.D. (population.md – Hlad a vymření): přes zamrzlou, zašedlou scénu
  * panel „Rod vymřel“ se jménem vsi, roky jejího života a jediným tlačítkem Začít znovu. Žádné
- * vysvětlování – hráč ví, co se stalo.
+ * vysvětlování – hráč ví, co se stalo. Vymřel-li rod po meči (`line` – lord.md, Konec rodu),
+ * navíc kronika rodu – vojvodové po sobě s roky a poslední muž rodu (`name` a `lifespan` pak
+ * patří vsi, kde rod skončil).
  */
 export function DefeatScreen({
   name,
   lifespan,
+  line,
   onRestart,
 }: {
   name: string;
   lifespan: VillageLifespan;
+  /** Kronika rodu, který vymřel po meči; bez ní obrazovka vymřelé nebo opuštěné vsi. */
+  line?: LineEndView;
   /** Začít znovu na serveru – chyba česky, nebo null (stránka se pak načte znovu). */
   onRestart: () => Promise<string | null>;
 }): ReactElement {
@@ -62,6 +68,26 @@ export function DefeatScreen({
         >
           Rod vymřel
         </h1>
+        {line && (
+          <Tooltip content="Vojvodové rodu">
+            <ol
+              data-testid="defeat-lords"
+              tabIndex={0}
+              className="mx-auto mt-3 max-h-40 w-max overflow-y-auto font-serif text-[#e6d3a8] tabular-nums"
+            >
+              {line.lords.map((lord, i) => (
+                <li key={i}>
+                  {lord.name ?? 'Vojvoda'} {lord.fromYear}–{lord.toYear}
+                </li>
+              ))}
+            </ol>
+          </Tooltip>
+        )}
+        {line?.last !== undefined && (
+          <p data-testid="defeat-last" className="mt-2 font-serif text-sm text-[#c9b083] italic">
+            Zemřel {line.last} – poslední muž rodu
+          </p>
+        )}
         <p data-testid="defeat-village" className="mt-1 font-serif text-lg text-[#c9b083]">
           {name}
         </p>

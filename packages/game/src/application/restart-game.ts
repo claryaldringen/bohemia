@@ -1,7 +1,14 @@
 import type { Landscape } from '../domain/landscape';
-import { isGameOver, isVillageExtinct } from '../domain/village';
+import {
+  abandonForLineEnd,
+  isGameOver,
+  isLineExtinct,
+  isVillageDormant,
+  lineEndDay,
+} from '../domain/village';
 import { enterGame, settlementLandscape } from './enter-game';
 import { loadVillage } from './load-village';
+import { updateVillage } from './update-village';
 import type { LandscapeSource, SeedSource, Settlement, SettlementRepository } from './settlements';
 import type { Pause, VillageRecord, VillageRepository } from './villages';
 
@@ -36,7 +43,9 @@ export interface DynastyStatus {
 /**
  * Stav rodu hráče: všechny vsi jeho aktivních sídel (sídelní první, na každém sídle v pořadí
  * založení – migration.md, Víc vsí jednoho hráče) dopočítané do dneška (dopočet se uloží – ves
- * mohla mezitím vymřít). Hra končí, až vymřou všechny.
+ * mohla mezitím vymřít). Hra končí, až vymřou všechny, nebo vymře rod po meči (lord.md – Konec
+ * rodu) – pak každá ves, která ještě žije, zanikne ode dne konce rodu (`abandonForLineEnd`)
+ * a uloží se; dál se nedopočítává.
  */
 export async function dynastyStatus(
   deps: DynastyDeps,
@@ -44,8 +53,10 @@ export async function dynastyStatus(
 ): Promise<DynastyStatus> {
   const settlements = await deps.settlements.listActive(input.playerId);
   const villages: VillageRecord[] = [];
+  const landscapes = new Map<string, Landscape>();
   for (const settlement of settlements) {
     const landscape = settlementLandscape(settlement, deps.landscapes);
+    landscapes.set(settlement.id, landscape);
     for (const stored of await deps.villages.listBySettlement(settlement.id)) {
       const village = await loadVillage(deps, {
         villageId: stored.id,
@@ -53,6 +64,23 @@ export async function dynastyStatus(
         landscape,
       });
       if (village) villages.push(village);
+    }
+  }
+  const states = villages.map((v) => v.state);
+  const endDay = isLineExtinct(states) ? lineEndDay(states) : undefined;
+  if (endDay !== undefined) {
+    for (const [i, village] of villages.entries()) {
+      const landscape = landscapes.get(village.settlementId);
+      if (isVillageDormant(village.state) || !landscape) continue;
+      const result = await updateVillage(
+        deps.villages,
+        village.id,
+        input.today,
+        landscape,
+        (state) => ({ ok: true, state: abandonForLineEnd(state, endDay) }),
+        deps.pause,
+      );
+      if (result.ok) villages[i] = result.village;
     }
   }
   return { settlements, villages, gameOver: isGameOver(villages.map((v) => v.state)) };
@@ -84,10 +112,11 @@ export async function restartGame(
   input: RestartGameInput,
 ): Promise<RestartGameResult> {
   const status = await dynastyStatus(deps, input);
-  if (!input.abandon && status.villages.some((v) => !isVillageExtinct(v.state))) {
+  if (!input.abandon && status.villages.length > 0 && !status.gameOver) {
     return { ok: false, reason: DYNASTY_ALIVE };
   }
-  // bez abandon sem dojde jen hráč, jehož vsi všechny vymřely (konec hry)
+  // bez abandon sem dojde jen hráč, pro kterého hra skončila (vsi vymřely nebo rod vymřel), nebo
+  // hráč bez vsi
   if (status.villages.length > 0) {
     for (const settlement of status.settlements) await deps.settlements.archive(settlement.id);
   }

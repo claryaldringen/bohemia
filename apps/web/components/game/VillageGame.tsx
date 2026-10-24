@@ -1041,8 +1041,10 @@ export function VillageGame({
    * (obrazovka porážky) bez `abandon`, z nabídky se živou vsí s `abandon` (hráč to potvrdil).
    */
   const restart = async (abandon: boolean): Promise<string | null> => {
-    // nový začátek předvyplní poslední jméno vojvody (lord.md – Kde se jméno zadává)
-    rememberLordName(viewRef.current?.dynasty?.lordName);
+    // nový začátek předvyplní poslední jméno vojvody (lord.md – Kde se jméno zadává); po konci
+    // rodu žádný vojvoda není – jméno zakladatele, které hráč zadal (lord.md – Konec rodu)
+    const shown = viewRef.current;
+    rememberLordName(shown?.dynasty?.lordName ?? shown?.lineEnded?.lords[0]?.name);
     try {
       const result = await restartGame(abandon ? { abandon: true } : undefined);
       if ('error' in result) return result.error;
@@ -1226,10 +1228,22 @@ export function VillageGame({
         />
       )}
       {view?.journey && <JourneyBanner journey={view.journey} />}
-      {gameOver && view?.extinct && (
+      {gameOver && view?.lineEnded && (
+        <DefeatScreen
+          name={view.lineEnded.village}
+          lifespan={{
+            foundedYear: view.lineEnded.foundedYear,
+            extinctYear: view.lineEnded.endedYear,
+            years: view.lineEnded.years,
+          }}
+          line={view.lineEnded}
+          onRestart={() => restart(false)}
+        />
+      )}
+      {gameOver && !view?.lineEnded && view?.extinct && (
         <DefeatScreen name={view.name} lifespan={view.extinct} onRestart={() => restart(false)} />
       )}
-      {gameOver && !view?.extinct && view?.abandoned && (
+      {gameOver && !view?.lineEnded && !view?.extinct && view?.abandoned && (
         <DefeatScreen
           name={view.name}
           lifespan={{

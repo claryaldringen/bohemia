@@ -62,6 +62,7 @@ import {
   type PlayerToday,
 } from './game';
 import { neighbourScene, ownMapsAround } from './departure-view';
+import { lineEndView } from './line-end-view';
 import { villageListItem } from './village-list';
 import { buildVillageView, sceneOfVillage, type VillageView } from './village-view';
 
@@ -108,6 +109,24 @@ async function context(playerId: string, villageId: string): Promise<Context> {
 }
 
 /**
+ * Kontext akce, která mění stav: po konci hry (vymřely všechny vsi, nebo rod po meči) server akci
+ * nepřijme a vrátí pohled s `gameOver` – klient ukáže obrazovku konce. Konec rodu se zjistí
+ * dopočtem všech vsí hráče, takže platí hned, ne až v pohledu po akci.
+ */
+async function actionContext(
+  playerId: string,
+  villageId: string,
+): Promise<
+  { ok: true; ctx: Extract<Context, { ok: true }> } | { ok: false; result: VillageActionResult }
+> {
+  const ctx = await context(playerId, villageId);
+  if (!ctx.ok) return { ok: false, result: { error: ctx.error } };
+  const status = await dynastyOfPlayer(playerId, ctx.day);
+  if (status.gameOver) return { ok: false, result: await viewOf(ctx) };
+  return { ok: true, ctx };
+}
+
+/**
  * Pohled na ves z kontextu: všechny vsi hráče se dopočítají do dneška (přepínač vsí, konec hry
  * až po vymření všech) a vrátí se pohled na ves kontextu. `record` – ves právě uložená akcí
  * (kdyby ji dopočet všech vsí nenašel).
@@ -128,6 +147,7 @@ async function viewOf(
   const from = status.settlements.find((s) => s.id === current.settlementId);
   const view = buildVillageView(current, ctx.landscape, ctx.day, {
     gameOver: status.gameOver,
+    lineEnded: status.gameOver ? lineEndView(status.villages) : null,
     villages: status.villages.map((v) => villageListItem(v, ctx.day)),
     neighbours: neighbourSnapshot(
       sameMap.map((v) => v.state),
@@ -160,9 +180,9 @@ async function actOn(
   villageId: string,
   action: (ctx: Extract<Context, { ok: true }>) => Promise<VillageResult>,
 ): Promise<VillageActionResult> {
-  const ctx = await context(playerId, villageId);
-  if (!ctx.ok) return { error: ctx.error };
-  return toActionResult(ctx, await action(ctx));
+  const guarded = await actionContext(playerId, villageId);
+  if (!guarded.ok) return guarded.result;
+  return toActionResult(guarded.ctx, await action(guarded.ctx));
 }
 
 /**
@@ -282,8 +302,9 @@ export async function foundDevVillageForPlayer(
   devMode: boolean,
   villageId: string,
 ): Promise<VillageActionResult> {
-  const ctx = await context(playerId, villageId);
-  if (!ctx.ok) return { error: ctx.error };
+  const guarded = await actionContext(playerId, villageId);
+  if (!guarded.ok) return guarded.result;
+  const { ctx } = guarded;
   const result = await foundDevVillage(gameDeps(), {
     playerId,
     devMode,
@@ -580,8 +601,9 @@ export async function leaveVillageForPlayer(
   villageId: string,
   input: { dwellingIds: number[]; destination: LeaveDestination },
 ): Promise<VillageActionResult> {
-  const ctx = await context(playerId, villageId);
-  if (!ctx.ok) return { error: ctx.error };
+  const guarded = await actionContext(playerId, villageId);
+  if (!guarded.ok) return guarded.result;
+  const { ctx } = guarded;
   const result = await leaveVillage(gameDeps(), {
     playerId,
     villageId,
@@ -601,8 +623,9 @@ export async function settleJourneyForPlayer(
   villageId: string,
   input: { dwelling: Position },
 ): Promise<VillageActionResult> {
-  const ctx = await context(playerId, villageId);
-  if (!ctx.ok) return { error: ctx.error };
+  const guarded = await actionContext(playerId, villageId);
+  if (!guarded.ok) return guarded.result;
+  const { ctx } = guarded;
   return toActionResult(
     ctx,
     await settleJourney(gameDeps(), {

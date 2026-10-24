@@ -811,6 +811,58 @@ test('když ves vymře, hra skončí obrazovkou porážky – Začít znovu dá 
   ).toEqual([]);
 });
 
+test('když vymře rod po meči, hra skončí kronikou rodu – Začít znovu předvyplní jméno', async ({
+  page,
+}) => {
+  const { seat: s } = await newPlayer(page, 'konec-rodu');
+  await found(page, villageSpots(s.landscape).dwelling, 'Ctibor');
+  await expect(page.getByTestId('defeat-screen')).toHaveCount(0);
+
+  // Zemřeli všichni muži rodu, ženy zůstaly – rod skončil přímo v uložené vsi (jako by ho tak
+  // dopočítal server; lord.md – Konec rodu).
+  const state = await villageState(s.settlementId);
+  const men = new Set(state.people.filter((p) => p.line === true).map((p) => p.id));
+  state.people = state.people.filter((p) => !men.has(p.id));
+  for (const p of state.people)
+    if (p.spouseId !== undefined && men.has(p.spouseId)) delete p.spouseId;
+  const dynasty = state.dynasty!;
+  dynasty.lords.at(-1)!.toDay = state.lastDay;
+  dynasty.lordId = null;
+  dynasty.endedDay = state.lastDay;
+  state.chronicle.push({ day: state.lastDay, kind: 'line-ended', name: 'Ctibor' });
+  expect(state.people.length).toBeGreaterThan(0);
+  await writeVillageState(s.settlementId, state);
+  await page.reload();
+
+  const defeat = page.getByTestId('defeat-screen');
+  await expect(defeat).toBeVisible({ timeout: 30_000 });
+  await expect(defeat.getByRole('heading', { name: 'Rod vymřel' })).toBeVisible();
+  await expect(defeat.getByTestId('defeat-lords')).toHaveText(/^Ctibor \d+–\d+$/);
+  await expect(defeat.getByTestId('defeat-last')).toHaveText('Zemřel Ctibor – poslední muž rodu');
+  await expect(defeat.getByTestId('defeat-village')).toHaveText(suggestVillageName(s.seed));
+  await expect(defeat.getByTestId('defeat-years')).toHaveText('0 let');
+  // ves zanikla – opuštěná ode dne konce rodu, lidé zůstali jako záznam
+  const abandoned = await villageState(s.settlementId);
+  expect(abandoned.abandonedDay).toBe(state.lastDay);
+  expect(abandoned.extinctDay).toBeUndefined();
+  expect(abandoned.people.length).toBe(state.people.length);
+  expect(abandoned.chronicle.at(-1)).toEqual({
+    day: state.lastDay,
+    kind: 'village-abandoned',
+    reason: 'line-ended',
+  });
+  await page.screenshot({ path: test.info().outputPath('line-ended.png'), scale: 'css' });
+
+  // Začít znovu – nové sídlo, panel „Jméno vojvody“ předvyplněný jménem zakladatele.
+  const reloaded = page.waitForEvent('framenavigated', { timeout: 30_000 });
+  await defeat.getByRole('button', { name: 'Začít znovu' }).click();
+  await reloaded;
+  await expect(page.getByTestId('defeat-screen')).toHaveCount(0, { timeout: 30_000 });
+  const panel = page.getByTestId('line-name-panel');
+  await expect(panel).toBeVisible({ timeout: 30_000 });
+  await expect(panel.getByTestId('line-name-input')).toHaveValue('Ctibor');
+});
+
 test('nabídka hry (F10) zruší umisťování a Začít znovu se živou vsí po potvrzení dá nové sídlo', async ({
   page,
 }) => {
