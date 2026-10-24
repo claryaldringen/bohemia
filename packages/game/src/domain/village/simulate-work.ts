@@ -207,7 +207,8 @@ export const THRESH_RANK = CROP_ORDER.length * TASK_ORDER.length;
  * pracují zvlášť – jen v dílně (crafts.md, `workCrafts`); opravy jejich obydlí platí ves. Zvířata
  * (dojení a péči ženy, pasení výrostci) a domácí výrobu ženy – obojí bokem, z práce vsi
  * nebere (rozdělení práce je má jen pro postavy – `LaborDay.aside`). Cvičící vojvodova rodina
- * je mimo práci vsi (lord.md – Den rodiny), na pole jde jen při hladu (zásobník `lordField`).
+ * je mimo práci vsi (lord.md – Den rodiny), na pole jde jen při hladu (zásobník `lordField`)
+ * a s potřebným osevem, který ves sama nestihne (`lordHelp`).
  * Vrací, jestli ves dnes nestíhá polní práce v období (dřina), a podíl práce rodiny na poli, který
  * dnes úlohy spotřebovaly (`trainLordDay`).
  */
@@ -403,6 +404,8 @@ export function work(
     // vojvodova rodina na poli při hladu – jen úlohy dne (lord.md – Kdy jde rodina na pole); co
     // z minima dvorce rodina nepokryje, platí ves
     lordField: manor && productivity > 0 ? manor.field / productivity : 0,
+    // pomoc rodiny s potřebným osevem – jen co ves nestihne (lord.md – Kdy jde rodina na pole)
+    lordHelp: manor && productivity > 0 ? manor.help / productivity : 0,
     manorMin: manor?.uncovered ?? 0,
     householdElders: householdElders(villagers, day, manorSkip),
     // chůze pro vodu nad denní minimum (population.md – Práce, paths.md – Pochůzky pro vodu); vodu,
@@ -699,11 +702,19 @@ export function work(
   flushCartTrips(state, cartLog, day, landscape, obstacles);
   const hayMowing = state.hay?.mowing;
   // podíl práce rodiny na poli, který dnes úlohy spotřebovaly – zbytek dne cvičí (`trainLordDay`)
-  const lordField = manor && manor.field > 0 ? allocation.lordField / manor.field : 0;
+  // při hladu celá rodina (÷ `free`), u pomoci s osevem jen muži (÷ `freeMen`), ženy 0
+  const lordHunger = manor !== null && manor.field > 0;
+  const lordBase = manor ? (lordHunger ? manor.free : manor.freeMen) : 0;
+  const lordField = lordBase > 0 ? allocation.lordField / lordBase : 0;
   state.labor = laborDay(state, day, {
     allocation,
     ...(family && manor
-      ? { lord: { domestic: manor.dailyMin, counts: lordDayCounts(family, day, lordField) } }
+      ? {
+          lord: {
+            domestic: manor.dailyMin,
+            counts: lordDayCounts(family, day, lordField, lordHunger ? lordField : 0),
+          },
+        }
       : {}),
     fieldWork: [...fieldWork, ...extra.fieldWork],
     extraField: extra.labor,

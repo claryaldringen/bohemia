@@ -6,6 +6,7 @@ import { villageManorId } from './manor';
 import { ageGroup, ageYears, laborPerDay } from './people';
 import { dailyMinPerHousehold } from './productivity';
 import { AGE, LORD } from './rules';
+import { lordHelpShare } from './sowing';
 import type { ArmsSkills, ChronicleEvent, Person, VillageState } from './types';
 
 /** Co z vsi rodina potřebuje – lidé a dvorec. */
@@ -212,8 +213,20 @@ export interface ManorLabor {
   dailyMin: number;
   /** Denní minimum, na které rodina nestačí – jde z práce vsi (`allocateDay` – `manorMin`). */
   uncovered: number;
-  /** Co dospělí rodiny dají do sezónních úloh (`allocateDay` – `lordField`); mimo pole 0. */
+  /** Co dospělí rodiny dají do sezónních úloh při hladu (`allocateDay` – `lordField`); jinak 0. */
   field: number;
+  /**
+   * Pomoc s potřebným osevem (`allocateDay` – `lordHelp`): podíl dne z plánu (`lordHelpShare`) ×
+   * `freeMen`; při hladu a mimo okna pomoci 0.
+   */
+  help: number;
+  /** Práce dospělých rodiny po denním minimu dvorce – celý den rodiny při hladu (podíl ÷ `free`). */
+  free: number;
+  /**
+   * Práce cvičících mužů po minimu dvorce (minimum kryjí napřed ženy) – jen ta jde na pomoc s
+   * osevem; ženy na pole nechodí (Martin 23. 10. 2026: „Jen domácnost“), jen při hladu.
+   */
+  freeMen: number;
 }
 
 /**
@@ -221,7 +234,8 @@ export interface ManorLabor {
  * minimum celé domácnosti dvorce (s chůzí pro vodu) kryjí napřed starší dvorce, zbytek dospělí
  * rodiny – ženy, a co nestačí, muži mimo výcvik (návrh Clauda; výcvik se tím nezkrátí). Co ženám
  * zbude, je domácí výroba dvorce a do práce vsi nejde (Martin 23. 10. 2026: „Jen domácnost“).
- * Na poli (hlad – `state.lord.field`) dají všichni dospělí rodiny vše po minimu.
+ * Na poli (hlad – `state.lord.field`) dají všichni dospělí rodiny vše po minimu. Jinak s potřebným
+ * osevem jen podíl dne z plánu, a to jen práce cvičících mužů (`freeMen`; ženy a dcery jen při hladu; lord.md – Kdy jde rodina na pole, bod 1; `YearPlan.lordHelp`).
  */
 export function manorLabor(
   state: VillageState,
@@ -239,9 +253,15 @@ export function manorLabor(
   const capacity =
     [...family.household, ...family.trainees].reduce((sum, p) => sum + laborPerDay(p, day), 0) *
     Math.max(0, productivity);
+  const menCapacity =
+    family.trainees.reduce((sum, p) => sum + laborPerDay(p, day), 0) * Math.max(0, productivity);
   const dailyMin = Math.min(need, capacity);
-  const field = state.lord?.field?.reason === 'hunger' ? capacity - dailyMin : 0;
-  return { dailyMin, uncovered: need - dailyMin, field };
+  const free = capacity - dailyMin;
+  const freeMen = Math.min(free, menCapacity);
+  const hunger = state.lord?.field?.reason === 'hunger';
+  const field = hunger ? free : 0;
+  const help = hunger ? 0 : lordHelpShare(state.plan, day) * freeMen;
+  return { dailyMin, uncovered: need - dailyMin, field, help, free, freeMen };
 }
 
 /**
@@ -298,19 +318,20 @@ export function trainLordDay(state: VillageState, day: number, fieldShare = 0): 
 
 /**
  * Počty lidí cvičící rodiny dne (`LaborDay.lord` – pro scénu a lištu): na poli je podíl
- * `fieldShare` dospělých mužů a žen rodiny (zaokrouhleno), ostatní muži a chlapci cvičí a ženy
- * vedou domácnost dvorce.
+ * `fieldShare` dospělých mužů a podíl `womenShare` žen rodiny (zaokrouhleno; ženy jen při hladu,
+ * u pomoci s osevem 0), ostatní muži a chlapci cvičí a ženy vedou domácnost dvorce.
  */
 export function lordDayCounts(
   family: LordFamily,
   day: number,
   fieldShare: number,
+  womenShare = fieldShare,
 ): { training: number; field: number; household: number } {
   const adults = (people: Person[]): number =>
     people.filter((p) => ageGroup(p, day) !== 'child').length;
   const share = Math.min(1, Math.max(0, fieldShare));
   const men = Math.round(adults(family.trainees) * share);
-  const women = Math.round(adults(family.household) * share);
+  const women = Math.round(adults(family.household) * Math.min(1, Math.max(0, womenShare)));
   return {
     training: family.trainees.length - men,
     field: men + women,

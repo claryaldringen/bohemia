@@ -98,8 +98,15 @@ pozná hrozbu ze dvou odhadů, které už počítá – nový odhad nevzniká.
 1. **Ves nestihne potřebný osev.** Plán osevu (1. 9. a jeho jarní úprava – [pole](fields.md),
    Kolik ves oseje) počítá práci ve špičkách **bez rodiny**. Když by bez ní nestihla **potřebný
    osev** (tolik, aby neměla hlad), započítá rodinu – ale jen kolik chybí: v okně, kde práce
-   chybí (podzim, jaro, žně), dá každý dospělý rodiny podíl dne = chybějící práce ÷ práce rodiny,
-   zbytek dne cvičí. Osev navíc, stavby ani opravy rodina nedělá nikdy.
+   chybí (podzim, jaro, žně), dá každý cvičící muž rodiny (vojvoda a synové) podíl dne = chybějící práce ÷ práce mužů
+   rodiny, zbytek dne cvičí. Ženy a dcery s osevem nepomáhají – Martin 23. 10. 2026 zvolil pro
+   ně „Jen domácnost“: „Na pole nechodí vůbec, jen při hrozícím hladu (stejně jako vojvoda se
+   syny)“; pomoc s osevem hlad není (jdou jen v bodu 2). Osev navíc, stavby ani opravy rodina nedělá nikdy.
+   - Podíl dne dá rodina **až po práci vsi** – jen co ves ten den sama nestihne, takže vsi
+     neuvolní práci na stavby ani osev navíc; pomoc jde jen na práce osevu (vrácení, kopání, plet,
+     orba, setí), ne na seč, porážku ani péči o sad. Jař, která se nevejde, dá rodina napřed na jaře
+     (jarní úprava plánu podíl přepočítá podle skutečného zbytku), co jaro nepokryje, na podzim
+     (návrh Clauda).
 2. **Výhled jídla nevychází.** Když ves i po nouzové porážce šetří jídlem nebo hladoví (příděl pod
    plný – [populace](population.md), Stupně upozornění), jdou všichni dospělí rodiny (muži i ženy
    od 14 let) celý den do **potřebných sezónních úloh** (krok 3 pořadí práce – pole, seč, sklizeň,

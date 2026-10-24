@@ -13,6 +13,21 @@ export type LaborTaskName =
   TaskName | OrchardTaskName | 'plough' | 'mow' | 'slaughter' | 'grain-pit';
 
 /**
+ * Úlohy, na které jde pomoc rodiny vojvody (`lordHelp`): jen práce potřebného osevu – vrácení a
+ * kopání půdy, orba, setí, plet, žně a výmlat plodin. Seč, porážku, jámy na zrno a péči o sad
+ * rodina nepřebírá, stejně jako stavby a opravy (lord.md).
+ */
+const SOWING_HELP_TASKS: ReadonlySet<LaborTaskName> = new Set([
+  'reclaim',
+  'dig',
+  'plough',
+  'sow',
+  'weed',
+  'harvest',
+  'thresh',
+]);
+
+/**
  * Lehčí polní práce, které smějí dělat i ženy řemeslníků (crafts.md – Kdo dělá řemeslo; Martin
  * 22. 10. 2026: „setí, žně, mlácení zrna, v případě potřeby i okopávání motykou. Nekovou,
  * nekácí, neorou, nestaví.“): setí, okopávání, žně a výmlat.
@@ -45,6 +60,13 @@ export interface DayAllocationInput {
    * údaje 0.
    */
   lordField?: number;
+  /**
+   * Pomoc vojvodovy rodiny s potřebným osevem (lord.md – Kdy jde rodina na pole, bod 1; `manorLabor`
+   * – `help`, člověkodny před štěstím) – zásobník jako `lordField`, ale až po práci vsi: pokryje
+   * jen, co z úloh osevu ves nestihne, takže vsi nikdy neuvolní práci na stavby, opravy ani osev
+   * navíc (návrh Clauda). Bez údaje 0.
+   */
+  lordHelp?: number;
   /**
    * Denní minimum dvorce, které rodina nepokryje (`manorLabor` – `uncovered`, člověkodny po štěstí;
    * domácnost dvorce je jinak z `householdElders` vynechaná) – z práce vsi spolu s denním minimem;
@@ -87,7 +109,7 @@ export interface DayAllocation {
   away: number;
   /** Práce sedláků s vozy pro uhlí a rudu (nejvýš `carting`, po výpravách). */
   carting: number;
-  /** Kolik práce vojvodovy rodiny (`lordField`, po štěstí) dnes úlohy dne spotřebovaly. */
+  /** Kolik práce vojvodovy rodiny (`lordField` a `lordHelp`, po štěstí) dnes úlohy spotřebovaly. */
   lordField: number;
   tasks: Record<LaborTaskName, number>;
   /** Práce pro jednotlivé úlohy vstupu v jejich pořadí (stejný název může být víckrát – plodiny). */
@@ -151,6 +173,8 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
   let lightLeft = Math.max(0, (input.light ?? 0) * productivity);
   const lordPool = Math.max(0, (input.lordField ?? 0) * productivity);
   let lordLeft = lordPool;
+  const helpPool = Math.max(0, (input.lordHelp ?? 0) * productivity);
+  let helpLeft = helpPool;
   const taskAmounts = input.tasks.map((task) => {
     let amount = 0;
     if (LIGHT_LABOR_TASKS.has(task.name)) {
@@ -161,6 +185,12 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     lordLeft -= lord;
     amount += lord;
     amount += take(task.remaining - amount);
+    // pomoc rodiny s osevem až po práci vsi – jen co ves dnes nestihne
+    const help = SOWING_HELP_TASKS.has(task.name)
+      ? Math.max(0, Math.min(task.remaining - amount, helpLeft))
+      : 0;
+    helpLeft -= help;
+    amount += help;
     tasks[task.name] += amount;
     return amount;
   });
@@ -169,7 +199,7 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     eldersDailyMin,
     away,
     carting,
-    lordField: lordPool - lordLeft,
+    lordField: lordPool - lordLeft + (helpPool - helpLeft),
     tasks,
     taskAmounts,
     common: left,
