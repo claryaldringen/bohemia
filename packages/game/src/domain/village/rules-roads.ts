@@ -106,6 +106,10 @@ export const WEAR = {
   cartWeight: 2,
   seed: 50_000,
 } as const;
+// paths.md – Síť – kotvy (návrh Clauda, Úloha 5): cesta smí končit do `entranceM` (3 m) od vchodu
+// stavby, do `goalM` (7,5 m) od konce trasy k cíli bez vchodu (voda, dřevo, pole, sad, louka,
+// pastva) a do `goalM` od kraje mapy
+export const ROAD_ANCHORS = { entranceM: 3, goalM: 7.5 } as const;
 // wagons.md – Vyjeté cesty (návrh Clauda): úsek, kudy vozy dva roky po sobě jezdí aspoň
 // `tripsPerDay` jízd denně (roční průměr – ≈ 90 jízd za rok), se stane vozovou cestou; vozová cesta,
 // kudy 5 let po sobě jezdí pod polovinou, je zas jen pěší (zaroste podle provozu lidí)

@@ -102,8 +102,9 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   `VillageState.roads` (volitelný – starší vsi začnou sčítat při prvním dopočtu): úseky `Road`
   (id, osa na cm, den vzniku, stupeň `RoadGrade` – zatím jen `trodden`, provoz posledních 5 let,
   místa na stromy `spots` určená jednou při vzniku), stromy `RoadTree` (id od `ROAD_TREE_ID_BASE`
-  nad id vrstvy překážek, místo, poloha, druh, den uchycení a smrti), loňské úseky nad prahem
-  `candidates` a práce roku cest po místech `labor` (od 1. 11., z rozdělení práce dne). Roční
+  nad id vrstvy překážek, místo, poloha, druh, den uchycení a smrti), `candidates` (dřívější
+  loňské úseky nad prahem – od Úlohy 5 se nepíšou, čte je jen `withWearSeed`) a práce roku cest
+  po místech `labor` (od 1. 11., z rozdělení práce dne). Roční
   kontrola 1. 11. (`updateRoads`): roční síť `annualPathNetwork` (stejná `computePathNetwork`,
   průměrné člověkodny na den, sleva za pevné cesty) → provoz cest (`roadTraffic` – medián
   `traffic.raw` po ose) a zarůstání vyšlapané cesty **po kusech** (Martin, 19. 10. 2026 –
@@ -112,15 +113,13 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   starší vsi od další kontroly), po 5 letech zaroste – celý úsek zmizí, jinak `cutOvergrown`
   vyřízne tiché kusy a zbytek zůstane se starým id, konec u zarostlého kusu volný
   `VillageRoads.cutEnds`; nezaroste cesta, která se vylepšuje – `roadsInWork`, kus u živé jabloně
-  – `keepingApples`; upravená a hať nezarůstají) → nové cesty z úseků nad prahem
-  (`ROADS.tripsPerDay`), které leží i na loňských (`MATCH_M`) a nevedou po pevné cestě; konec se připojí k pevné cestě a ta se v rozcestí rozdělí (`splitRoad`) – osa se
-  jinak nikdy nemění → **falešná rozcestí** (uzel jen se dvěma úseky stejného stupně, bez
+  – `keepingApples`; upravená a hať nezarůstají) → (cesty pěších roční kontrola nezakládá –
+  vznikají měsíčně z vyšlapanosti, bod Vznik cest z vyšlapanosti níž; konec nové cesty se připojí
+  k pevné cestě a ta se v rozcestí rozdělí – `splitRoad`, osa se jinak nikdy nemění) → **falešná rozcestí** (uzel jen se dvěma úseky stejného stupně, bez
   rozdílného vylepšení) se spojí (`mergeRoadChains` – i po dokončení vylepšení ve
   `finishConstructions`, starší vsi při načtení `withMergedRoads` v `updateVillage`; id a den
   vzniku staršího, roads.md – Úseky a rozcestí; dva úseky mezi stejnými uzly do okruhu ne,
-  nejrovnější pokračování první) → **souběžné cesty** se nevytvoří (`alongsideRoad` ve
-  `formRoads` – do 12 m stejným směrem; konec nové cesty za souběžným kusem se k té cestě připojí
-  do 14 m – `joinPoint` s dosahem) a existující se sloučí (`mergeParallelRoads` – kus
+  nejrovnější pokračování první) → **souběžné cesty** (do 12 m stejným směrem) se sloučí (`mergeParallelRoads` – kus
   slabší cesty souběžný aspoň 25 m se vyřízne, `removeBraids` – copánek mezi stejnými uzly do
   25 m: zmizí oklika; vše v `tidyRoads`, příznak `parallelsChecked`) → **díry** (volný konec do 12 m od jiného
   úseku, který není u konce trasy roční sítě – brány, cíle) se napojí (`joinRoadGaps`, starší
@@ -146,6 +145,37 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   z dekorací, strom podle druhu z `ROAD_TREE_MODELS`, souš `snag-*` / `snag-oak`, pařez `stump`;
   meshe `pathside-<model>` – roční období a stíny jako stromy krajiny; přestaví se jen při změně
   `roadTreesKey`).
+
+- **Vznik cest z vyšlapanosti** (nový systém cest, Úloha 5; [paths.md – Vyšlapanost a vznik
+  cesty](../design/paths.md#vyšlapanost-a-vznik-cesty), Síť – kotvy, Stavba přes cestu; Martin, #6):
+  `roadsMonth` (`paths/roads.ts`) volá simulace **1. dne v měsíci na začátku dne** (před
+  `roadFieldsDay` a přepočtem tras) – sečte vyšlapanost (`settleVillageWear`), z čar uložených tras
+  (`routeLine`, nejsilnější trasa napřed, stálé pořadí; čáry a kotvy drží `monthRoutes` v paměti
+  podle `routes.key`) založí cesty a po vzniku uklidí síť – **nad kopií stavu** (`formRoadsKept`:
+  `formWearRuns` + `tidyRoads` nad kopií cest, `roadIds` staveb a kusů zemských stezek). Stav se
+  změní, jen když každá nová cesta úklid přežije (`survivedTidy` – po jejích bodech mimo dřívější
+  cesty vede po úklidu cesta aspoň `ON_ROAD_M`); kus, jehož cestu úklid smazal (objížďka souběžná se
+  starší cestou), se v dalším kole (nejvýš `FORM_ROUNDS`) vynechá – smazaná cesta nerozdělí cizí
+  cesty, nezmění jejich id, místa na stromy, stavby ani `nextId` (recenze Ú5, I1). Levná kontrola
+  `wearRoadDue` napřed: bez kusu, ze kterého by cesta vznikla, se kontext míst na stromy ani kopie
+  nestaví a úklid neběží. Konce tras pro úklid jsou kotvy (`anchorTermini` – dosah kotvy a kraj
+  mapy jako `nearAnchor`, nebo do 6 m). `formRoad` napřed spočítá osu bez rozdělení
+  (`plannedAxis`, `joinTarget`) – krátká cesta nic nerozdělí. Kronika `road-formed` jen pro cesty,
+  jejichž id úklid nepohltil. `formWearRuns` (`formRoadsFromWear` je obálka pro testy): body čáry po
+  `SAMPLE_M`, vyšlapanost `wearAt`; kus od `WEAR.roadAt` dál než `ON_ROAD_M` od pevné cesty se
+  prodlouží po čáře oběma směry, dokud je aspoň `WEAR.extendFrom`; vznikne jen, když je každý konec
+  u kotvy (`nearAnchor`) nebo u pevné cesty (připojí se do `ATTACH_M` – `joinPoint`, rozcestí
+  `splitRoad`), jinak počká na další měsíc; kratší než `MIN_ROAD_M` nic (`formRoad`). Provoz nové
+  cesty z provozního pole tras (`fieldTraffic` – medián `trafficAt`). Kotvy `paths/road-anchors.ts`:
+  `roadAnchors(routes, landscape)` – začátek trasy (brána domu) vchod, konec podle cíle
+  (`anchorKindOf`: `edge:*` kraj mapy, voda, dřevo, pastva, pole, sad, louka… cíl, stavby se vchodem
+  – `d`, `cemetery`, `pen`, `threshing-floor`, `idol`, `shrine`… – vchod), dosah `ROAD_ANCHORS`
+  (vchod 3 m, cíl a kraj mapy 7,5 m). Roční kandidáti (`formRoads`, `hotRuns`, `MATCH_M` u pěších)
+  zrušeni. **Stavba přes cestu:** objížďka dál než 5 m od staré osy se po vyšlapání stane cestou
+  napojenou rozcestími na zbytky staré cesty (test `road-form-wear.test.ts`); kus pod stavbou zatím
+  zůstává a úklid ho bere jako starší (silnější) – objížďku souběžnou s ním (Vlkov – polozemnice)
+  by pohltil, takže se nezaloží (`formRoadsKept`), dokud ho Úloha 7 nevyřadí ze sítě. `road-report.ts` vypisuje i `vzniklo` (kronika) a nová id úseků. Testy
+  `road-form-wear.test.ts`, `roads.test.ts` (1. 11. nezakládá, dopočet po kouscích).
 
 - **Vylepšení pevné cesty a chůze podle stupně** ([roads.md](../design/roads.md) – fáze 2):
   terén pěšin má příznaky `PATH_WETLAND` (mokřina – suchá rovina do 3 buněk od vody) a `PATH_WATER`;

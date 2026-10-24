@@ -236,7 +236,9 @@ přitom ležet každý rok přesně na stejném místě.“):
   cestě) a z nich udělá vyšlapanou cestu – **jen celou od kotvy ke kotvě** (Síť – kotvy níž):
   horký kus se po čáře trasy prodlouží oběma směry k nejbližší kotvě nebo pevné cestě, pokud
   vyšlapanost na prodloužení neklesne pod 500; jinak počká na další měsíc. Kratší než 15 m cestou
-  není (jako dřív).
+  není (jako dřív). Souběžnou cestu (do 12 m stejným směrem) vznik nehlídá – sloučí ji úklid
+  (Síť, krok 1; návrh Clauda, 24. 10. 2026): trasy se k cestám samy stahují (zvyk, sleva), takže
+  souběžná vyšlapaná pěšina skoro nevzniká, a objížďka stavby přes cestu (níž) souběžná být smí.
 - **Kolik to trvá** (vyšlapanost roste o provoz − 1 za den):
 
   | Cest za den | Cesta vznikne za      | Příklad                                 |
@@ -286,6 +288,10 @@ Návrh Clauda:
     jmenuje vchody, křižovatky a kraj mapy; cíl přidává Claude, protože cesta k vodě nebo na pole
     nemá vchod a končit musí (Vlkov – cesta k vodě). Zjednodušeno po recenzi (dřív „aspoň polovina
     cest končí do 25 m“).
+  - Návrh Clauda (24. 10. 2026, Úloha 5): kotvy dá sama sada tras – trasa začíná v bráně domu
+    a končí ve vchodu stavby (síť ji tam vede), u cíle bez vchodu nebo na kraji mapy. Vchod stavby,
+    kam nikdo nechodí, kotvou být nemusí – cesta tam nevznikne. Kotvou je i pevná cesta (nová cesta
+    se k ní připojí rozcestím).
 - **Pahýl** je konec mimo kotvu a mimo jinou cestu. Nevznikne – nová cesta se zakládá jen od kotvy
   ke kotvě (Vyšlapanost a vznik cesty). Zbude-li po zarůstání, dělení nebo spojování: kus od
   pahýlu k nejbližšímu uzlu kratší než **30 m** zmizí hned (křižovatka u něj se přepočítá a dvě
@@ -500,6 +506,7 @@ Návrh Clauda (odhady – ověří poslední úloha plánu):
 | Ploty chodcům touž funkcí jako vozům (`fencedCells`) – ulička 3 m mezi ohradami průchozí  | návrh Clauda |
 | Stavba přes cestu: kus pod ní opuštěný hned, objížďka se vyšlape a napojí                 | návrh Clauda |
 | Jízdy vozů do vyšlapanosti ročně z `flushCartTrips`; i přes osetý díl                     | návrh Clauda |
+| Kotvy z konců tras (brána, vchod stavby, cíl, kraj mapy); souběžné cesty sloučí úklid     | návrh Clauda |
 
 ## Nahrazená pravidla (22. 10. 2026)
 

@@ -17,8 +17,8 @@ import { husbandryDay } from './husbandry';
 import { arrangeMarriages } from './marriage';
 import { withOxen } from './oxen';
 import { overgrowthDay } from './overgrowth';
-import { roadsDay } from './paths/roads';
-import { refreshWalkDistances, settleVillageWear } from './paths/village';
+import { roadsDay, roadsMonth } from './paths/roads';
+import { refreshWalkDistances } from './paths/village';
 import { flushWear } from './paths/wear';
 import { roadFieldsDay } from './road-fields';
 import { villageSacredOaks } from './sacred';
@@ -149,12 +149,13 @@ function simulateDay(
   const idsBefore = state.nextId;
   // vzdálenosti chůze dílů po pěšinách – jen když se změnilo rozložení vsi (paths.md); bez
   // krajiny (kalibrace, testy) zůstávají přímé vzdálenosti
+  // vyšlapanost a vznik cest (paths.md – Vyšlapanost a vznik cesty): 1. dne v měsíci interval se
+  // stálými trasami a z vyšlapaných čar tras nové cesty; přepočet tras ji sečte sám (před novými
+  // trasami)
+  if (landscape && date.day === 1) roadsMonth(state, day, landscape, obstacles);
   // pevné cesty ubírají polím plochu (roads.md a fields.md – Cesta přes pole) – jen když se od
   // včerejška změnily cesty nebo čtverce polí
   if (landscape) roadFieldsDay(state, day, landscape);
-  // vyšlapanost (paths.md – Vyšlapanost a vznik cesty): 1. dne v měsíci interval se stálými
-  // trasami; přepočet tras ji sečte sám (před novými trasami)
-  if (landscape && date.day === 1) settleVillageWear(state, day, landscape);
   if (landscape) refreshWalkDistances(state, day, landscape, obstacles);
   // pokrytí výrobky řemeslníků ze včerejších zásob – meze produktivity celého dne (crafts.md)
   const coverage = craftCoverage(state, day);

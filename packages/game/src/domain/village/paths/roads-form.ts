@@ -6,7 +6,7 @@ import { HAY_WINTER_MONTHS } from '../hay';
 import { villageHerds } from '../livestock';
 import { obstacleChangesAt, type ObstacleChanges } from '../obstacles';
 import { villagePens } from '../oxen';
-import { ROADS } from '../rules';
+import { WEAR } from '../rules';
 import {
   type Construction,
   type HerdSpecies,
@@ -20,9 +20,7 @@ import {
 import {
   computePathNetwork,
   villagePathBounds,
-  pathStrength,
   simplifyPathLine,
-  type PathLine,
   type PathNetwork,
   type PathTraffic,
   type PathVillage,
@@ -40,16 +38,13 @@ import {
   END_SNAP_M,
   FORD_GAP_M,
   GROUND_GAP_M,
-  MATCH_M,
   MEASURE_STEP_M,
   MIN_ROAD_M,
   ON_ROAD_M,
-  PARALLEL_M,
   ROAD_CLEAR_M,
   RoadHit,
   SAMPLE_M,
   SIMPLIFY_M,
-  alongsideRoad,
   axisDistance,
   cm,
   dm,
@@ -60,7 +55,9 @@ import {
   roadGroundOf,
   roadLengthM,
 } from './roads-geometry';
+import { type RoadAnchors, nearAnchor } from './road-anchors';
 import { SpotContext, spotsForRoad } from './roads-trees';
+import { type TrafficField, trafficAt, wearAt } from './wear';
 
 /** Pevné cesty prázdné vsi – práce se začne sčítat od dne `day`. */
 export function emptyRoads(day: number): VillageRoads {
@@ -192,90 +189,141 @@ export function roadTraffic(points: readonly RoadPoint[], traffic: PathTraffic):
 }
 
 /**
- * Úseky roční sítě nad prahem (ROADS.tripsPerDay – síla pěšiny nad pathStrength prahu): osy po
- * SAMPLE_M rozdělené tam, kde provoz klesne pod práh.
+ * Provoz nové cesty z provozního pole tras (cest za den): medián bodů osy po MEASURE_STEP_M
+ * (`trafficAt` – celý provoz tras i se sousedními políčky). Na setiny.
  */
-export function hotRuns(lines: readonly PathLine[]): RoadPoint[][] {
-  const threshold = pathStrength(ROADS.tripsPerDay) - 1e-9;
-  const runs: RoadPoint[][] = [];
-  for (const line of lines) {
-    const { points, values } = resample(line.points, line.strength, SAMPLE_M);
-    let run: RoadPoint[] = [];
-    points.forEach((p, k) => {
-      if (values[k]! >= threshold) {
-        run.push(p);
-        return;
-      }
-      if (run.length >= 2) runs.push(run);
-      run = [];
-    });
-    if (run.length >= 2) runs.push(run);
-  }
-  return runs;
+export function fieldTraffic(points: readonly RoadPoint[], field: TrafficField): number {
+  const values = resample(points, null, MEASURE_STEP_M).points.map((p) =>
+    trafficAt(field, p.x, p.z),
+  );
+  if (values.length === 0) return 0;
+  values.sort((a, b) => a - b);
+  return values[Math.floor(values.length / 2)]! / 100;
+}
+
+/** Kus čáry trasy, ze kterého má vzniknout cesta (`formRoadsFromWear`). */
+export interface WearRun {
+  /** Stálý klíč kusu v tomto měsíci: pořadí čáry a začátek a konec kusu po SAMPLE_M. */
+  key: string;
+  points: RoadPoint[];
+  /** Připojit začátek / konec k pevné cestě do tolika metrů (false = konec u kotvy). */
+  start: number | false;
+  end: number | false;
 }
 
 /**
- * Nové pevné cesty (mutuje `roads`): po bodech letošních úseků nad prahem – bod, který leží i na
- * loňském úseku (MATCH_M) a nevede po pevné cestě (ON_ROAD_M), patří nové cestě. Souvislý běh
- * takových bodů je nová cesta; kde navazuje na pevnou cestu, připojí se k ní (rozdělí ji
- * v rozcestí). Vrátí nové cesty.
+ * Projde kusy čar tras, ze kterých má vzniknout cesta (paths.md – Vyšlapanost a vznik cesty):
+ * kus s vyšlapaností od `WEAR.roadAt` dál než ON_ROAD_M od pevné cesty (blíž jde trasa po cestě)
+ * se prodlouží po čáře oběma směry, dokud je vyšlapanost aspoň `WEAR.extendFrom`. Kus se nabídne
+ * `visit` jen celý od kotvy ke kotvě: každý konec u kotvy (`nearAnchor`), nebo u pevné cesty, ke
+ * které se připojí; jinak počká na další měsíc. `visit` vrátí `formed` (cesta vznikla – pevné cesty
+ * se změnily), `next`, nebo `stop`. Nic nemění.
  */
-export function formRoads(
+function eachWearRun(
   roads: VillageRoads,
-  runs: readonly RoadPoint[][],
-  day: number,
-  traffic: PathTraffic,
-  context: SpotContext,
-): Road[] {
-  const formed: Road[] = [];
-  const candidates = roads.candidates;
-  if (candidates.length === 0) return formed;
-  const lastYear = axisDistance(candidates);
-  for (const run of runs) {
-    const onRoadAt = axisDistance(roads.roads.map((r) => r.points));
-    const confirmed = run.map((p) => lastYear(p.x, p.z) <= MATCH_M);
-    // po pevné cestě, nebo souběžně s ní (do PARALLEL_M stejným směrem) – provoz patří jí, nová
-    // souběžná cesta nevznikne (Martin)
-    const onRoad = run.map(
-      (p, k) =>
-        onRoadAt(p.x, p.z) <= ON_ROAD_M ||
-        alongsideRoad(
-          roads.roads,
-          p,
-          run[Math.max(0, k - 1)]!,
-          run[Math.min(run.length - 1, k + 1)]!,
-        ),
-    );
+  lines: readonly (readonly RoadPoint[])[],
+  wear: ReadonlyMap<number, number>,
+  anchors: RoadAnchors,
+  visit: (run: WearRun) => 'formed' | 'next' | 'stop',
+): void {
+  let roadAt: ((x: number, z: number) => number) | null = null;
+  for (const [n, line] of lines.entries()) {
+    const run = resample(line, null, SAMPLE_M).points;
+    if (run.length < 2) continue;
+    const level = run.map((p) => wearAt(wear, p.x, p.z));
+    if (!level.some((w) => w >= WEAR.roadAt)) continue;
+    roadAt ??= axisDistance(roads.roads.map((r) => r.points));
+    const at = roadAt;
+    const onRoad = run.map((p) => at(p.x, p.z) <= ON_ROAD_M);
+    const warm = (k: number): boolean => level[k]! >= WEAR.extendFrom && !onRoad[k];
+    // konec kusu: u pevné cesty (připojí se do ATTACH_M), u kotvy (false – bez připojení), jinak
+    // null – cesta zatím nevznikne
+    const endAt = (k: number, outside: number): number | false | null => {
+      if (outside >= 0 && outside < run.length && onRoad[outside]) return ATTACH_M;
+      return nearAnchor(anchors, run[k]!.x, run[k]!.z) ? false : null;
+    };
     let i = 0;
     while (i < run.length) {
-      if (!confirmed[i] || onRoad[i]) {
+      if (!warm(i)) {
         i++;
         continue;
       }
       let j = i;
-      while (j + 1 < run.length && confirmed[j + 1] && !onRoad[j + 1]) j++;
-      // připojení konce: k pevné cestě, po které trasa vedla (ATTACH_M), nebo k té, se kterou
-      // vedla souběžně (do PARALLEL_M – konec nové cesty je od ní až o krok vzorkování dál)
-      const reach = (k: number): number | false =>
-        k < 0 || k >= run.length || !onRoad[k]
-          ? false
-          : onRoadAt(run[k]!.x, run[k]!.z) <= ON_ROAD_M
-            ? ATTACH_M
-            : PARALLEL_M + SAMPLE_M;
-      const road = formRoad(
-        roads,
-        run.slice(i, j + 1),
-        reach(i - 1),
-        reach(j + 1),
-        day,
-        traffic,
-        context,
-      );
-      if (road) formed.push(road);
-      i = j + 1;
+      while (j + 1 < run.length && warm(j + 1)) j++;
+      const next = j + 1;
+      const hot = level.slice(i, next).some((w) => w >= WEAR.roadAt);
+      const start = hot ? endAt(i, i - 1) : null;
+      const end = hot && start !== null ? endAt(j, next) : null;
+      if (start !== null && end !== null) {
+        const key = `${n}:${i}:${next}`;
+        const done = visit({ key, points: run.slice(i, next), start, end });
+        if (done === 'stop') return;
+        if (done === 'formed') roadAt = null;
+      }
+      i = next;
     }
   }
+}
+
+/**
+ * Vznikla by z vyšlapanosti aspoň jedna cesta (`formRoadsFromWear`)? Levná kontrola před
+ * měsíčním vznikem – bez kontextu míst na stromy a bez kopie stavu. Nic nemění.
+ */
+export function wearRoadDue(
+  roads: VillageRoads,
+  lines: readonly (readonly RoadPoint[])[],
+  wear: ReadonlyMap<number, number>,
+  anchors: RoadAnchors,
+): boolean {
+  let due = false;
+  eachWearRun(roads, lines, wear, anchors, (run) => {
+    due = plannedAxis(roads, run.points, run.start, run.end) !== null;
+    return due ? 'stop' : 'next';
+  });
+  return due;
+}
+
+/**
+ * Nové pevné cesty z vyšlapanosti (paths.md – Vyšlapanost a vznik cesty; mutuje `roads`): po
+ * čarách tras `lines` (od brány k cíli, nejsilnější napřed) z kusů od kotvy ke kotvě
+ * (`eachWearRun`), kus s klíčem ve `skip` vynechá. Konec u pevné cesty se k ní připojí (rozcestí
+ * – `splitRoad`). Kratší než MIN_ROAD_M nic. Souběžné cesty sloučí úklid (`tidyRoads`). Vrátí nové
+ * cesty s klíči kusů.
+ */
+export function formWearRuns(
+  roads: VillageRoads,
+  lines: readonly (readonly RoadPoint[])[],
+  wear: ReadonlyMap<number, number>,
+  anchors: RoadAnchors,
+  day: number,
+  context: SpotContext,
+  field: TrafficField | null = null,
+  skip: ReadonlySet<string> = new Set(),
+): { road: Road; key: string }[] {
+  const formed: { road: Road; key: string }[] = [];
+  const traffic = (points: readonly RoadPoint[]): number =>
+    field ? fieldTraffic(points, field) : 0;
+  eachWearRun(roads, lines, wear, anchors, (run) => {
+    if (skip.has(run.key)) return 'next';
+    const road = formRoad(roads, run.points, run.start, run.end, day, traffic, context);
+    if (!road) return 'next';
+    formed.push({ road, key: run.key });
+    return 'formed';
+  });
   return formed;
+}
+
+/** Nové pevné cesty z vyšlapanosti (`formWearRuns` – mutuje `roads`); vrátí nové cesty. */
+export function formRoadsFromWear(
+  roads: VillageRoads,
+  lines: readonly (readonly RoadPoint[])[],
+  wear: ReadonlyMap<number, number>,
+  anchors: RoadAnchors,
+  day: number,
+  context: SpotContext,
+  field: TrafficField | null = null,
+): Road[] {
+  return formWearRuns(roads, lines, wear, anchors, day, context, field).map((f) => f.road);
 }
 
 /** Vzdálenost bodu `hit` po ose cesty od jejího začátku (m). */
@@ -292,27 +340,26 @@ export function formRoad(
   joinStart: number | false,
   joinEnd: number | false,
   day: number,
-  traffic: PathTraffic,
+  /** Provoz roční sítě, nebo provoz nové osy (cest za den – vznik z vyšlapanosti). */
+  traffic: PathTraffic | ((points: readonly RoadPoint[]) => number),
   context: SpotContext,
 ): Road | null {
+  // napřed bez rozdělení: krátká cesta nevznikne a cizí cesty se nerozdělí
+  if (!plannedAxis(roads, points, joinStart, joinEnd)) return null;
   const axis = points.map((p) => ({ x: cm(p.x), z: cm(p.z) }));
   // napojení na pevnou cestu (případné rozdělení cesty v rozcestí) – nejdřív začátek, pak konec
   const start = joinStart !== false ? joinPoint(roads, axis[0]!, context, joinStart) : null;
   if (start) axis.unshift(start);
   const end = joinEnd !== false ? joinPoint(roads, axis[axis.length - 1]!, context, joinEnd) : null;
   if (end) axis.push(end);
-  const simple = simplifyPathLine(axis, [], SIMPLIFY_M).points.filter(
-    (p, k, all) => k === 0 || p.x !== all[k - 1]!.x || p.z !== all[k - 1]!.z,
-  );
-  const along = lengthsAlong(simple);
-  const length = along[along.length - 1] ?? 0;
-  if (simple.length < 2 || length < MIN_ROAD_M) return null;
+  const simple = roadAxisOf(axis);
+  if (!simple) return null;
   const road: Road = {
     id: roads.nextId++,
     points: simple,
     bornDay: day,
     grade: 'trodden',
-    traffic: [roadTraffic(simple, traffic)],
+    traffic: [typeof traffic === 'function' ? traffic(simple) : roadTraffic(simple, traffic)],
     spots: [],
     ground: roadGroundOf(simple, context.terrain),
   };
@@ -329,9 +376,60 @@ export function formRoad(
   return road;
 }
 
+/** Zjednodušená osa nové cesty z bodů na cm; kratší než MIN_ROAD_M null. */
+function roadAxisOf(axis: readonly RoadPoint[]): RoadPoint[] | null {
+  const simple = simplifyPathLine([...axis], [], SIMPLIFY_M).points.filter(
+    (p, k, all) => k === 0 || p.x !== all[k - 1]!.x || p.z !== all[k - 1]!.z,
+  );
+  const along = lengthsAlong(simple);
+  const length = along[along.length - 1] ?? 0;
+  return simple.length < 2 || length < MIN_ROAD_M ? null : simple;
+}
+
 /**
- * Bod, kde se konec nové cesty připojí k pevné cestě (do ATTACH_M): u konce pevné cesty do jejího
- * konce, jinak do nejbližšího bodu osy – pevná cesta se tam rozdělí na dva úseky (rozcestí).
+ * Osa, kterou by nová cesta z bodů `points` měla (připojení konců jako `formRoad`, ale bez
+ * rozdělení cest – bod rozcestí je týž); kratší než MIN_ROAD_M null. Nic nemění.
+ */
+function plannedAxis(
+  roads: VillageRoads,
+  points: readonly RoadPoint[],
+  joinStart: number | false,
+  joinEnd: number | false,
+): RoadPoint[] | null {
+  const axis = points.map((p) => ({ x: cm(p.x), z: cm(p.z) }));
+  const start = joinStart !== false ? joinTarget(roads, axis[0]!, joinStart) : null;
+  const end = joinEnd !== false ? joinTarget(roads, axis[axis.length - 1]!, joinEnd) : null;
+  if (start) axis.unshift(start.point);
+  if (end) axis.push(end.point);
+  return roadAxisOf(axis);
+}
+
+/**
+ * Kam se konec nové cesty připojí k pevné cestě (do `reach`): u konce pevné cesty do jejího konce
+ * (`hit` null), jinak do nejbližšího bodu osy (na cm) – tam se pevná cesta rozdělí. Nic nemění.
+ */
+function joinTarget(
+  roads: VillageRoads,
+  from: RoadPoint,
+  reach: number,
+): { point: RoadPoint; hit: RoadHit | null } | null {
+  const hit = nearestOnRoads(roads.roads, from.x, from.z);
+  if (!hit || hit.distance > reach) return null;
+  const road = roads.roads[hit.road]!;
+  const first = road.points[0]!;
+  const last = road.points[road.points.length - 1]!;
+  if (length2(hit.point.x - first.x, hit.point.z - first.z) <= END_SNAP_M) {
+    return { point: { ...first }, hit: null };
+  }
+  if (length2(hit.point.x - last.x, hit.point.z - last.z) <= END_SNAP_M) {
+    return { point: { ...last }, hit: null };
+  }
+  return { point: { x: cm(hit.point.x), z: cm(hit.point.z) }, hit };
+}
+
+/**
+ * Bod, kde se konec nové cesty připojí k pevné cestě (do ATTACH_M – `joinTarget`); uprostřed osy
+ * se pevná cesta rozdělí na dva úseky (rozcestí).
  */
 function joinPoint(
   roads: VillageRoads,
@@ -339,14 +437,9 @@ function joinPoint(
   context: SpotContext,
   reach = ATTACH_M,
 ): RoadPoint | null {
-  const hit = nearestOnRoads(roads.roads, from.x, from.z);
-  if (!hit || hit.distance > reach) return null;
-  const road = roads.roads[hit.road]!;
-  const first = road.points[0]!;
-  const last = road.points[road.points.length - 1]!;
-  if (length2(hit.point.x - first.x, hit.point.z - first.z) <= END_SNAP_M) return { ...first };
-  if (length2(hit.point.x - last.x, hit.point.z - last.z) <= END_SNAP_M) return { ...last };
-  return splitRoad(roads, hit, context);
+  const target = joinTarget(roads, from, reach);
+  if (!target) return null;
+  return target.hit ? splitRoad(roads, target.hit, context) : target.point;
 }
 
 /**

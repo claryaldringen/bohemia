@@ -39,6 +39,7 @@ import {
   splitRoad,
   splitRoadWork,
 } from './roads-form';
+import { type RoadAnchors, nearAnchor } from './road-anchors';
 import { SpotContext, plantingBlocker } from './roads-trees';
 
 /**
@@ -266,6 +267,12 @@ export function removeBraids(roads: VillageRoads, constructions: readonly Constr
 }
 
 /**
+ * Skutečné konce tras pro úklid (`tidyRoads`): body (konec do TERMINUS_M), nebo vlastní kontrola
+ * bodu (měsíční vznik – konec u kotvy, `nearAnchor`).
+ */
+export type RoadTermini = readonly RoadPoint[] | ((p: RoadPoint) => boolean);
+
+/**
  * Úklid pevných cest po roční kontrole (i převodu starší vsi – mutuje): souběžné cesty se sloučí,
  * díry se zacelí, falešná rozcestí spojí a určí se skutečné volné konce (roads.md – Úseky
  * a rozcestí).
@@ -273,11 +280,13 @@ export function removeBraids(roads: VillageRoads, constructions: readonly Constr
 export function tidyRoads(
   roads: VillageRoads,
   constructions: Construction[],
-  termini: readonly RoadPoint[],
+  termini: RoadTermini,
   context: SpotContext,
 ): void {
   // konce po zarostlém kusu jsou skutečné volné konce – díra se k nim nedoplní (roads.md)
-  const ends = [...termini, ...(roads.cutEnds ?? [])];
+  const cutEnds = roads.cutEnds ?? [];
+  const ends = (p: RoadPoint): boolean =>
+    isTerminus(p, cutEnds) || (typeof termini === 'function' ? termini(p) : isTerminus(p, termini));
   // po sloučení souběžných kusů a zacelení děr můžou vzniknout copánky – znovu, nejvýš pár kol
   for (let round = 0; round < TIDY_ROUNDS; round++) {
     const parallel = mergeParallelRoads(roads, constructions);
@@ -330,6 +339,15 @@ function isTerminus(p: RoadPoint, termini: readonly RoadPoint[]): boolean {
   return termini.some((t) => length2(t.x - p.x, t.z - p.z) <= TERMINUS_M);
 }
 
+/**
+ * Konce tras měsíčního vzniku (paths.md – Síť – kotvy, pahýly a úklid): konec úseku je skutečný
+ * konec, když leží u kotvy – v jejím dosahu nebo u kraje mapy (`nearAnchor`, stejně jako konec
+ * nové cesty), nebo do TERMINUS_M od ní. Jinde je to díra, kterou úklid zacelí.
+ */
+export function anchorTermini(anchors: RoadAnchors): (p: RoadPoint) => boolean {
+  return (p) => nearAnchor(anchors, p.x, p.z) || isTerminus(p, anchors.points);
+}
+
 /** Kolik konců úseků je v bodě (klíč na cm). */
 function endDegrees(roads: readonly Road[]): Map<string, number> {
   const count = new Map<string, number>();
@@ -345,11 +363,11 @@ function endDegrees(roads: readonly Road[]): Map<string, number> {
 
 /**
  * První díra (v pořadí úseků): volný konec úseku (žádný jiný úsek v něm nekončí), který není
- * skutečným koncem trasy (`termini`), a nejbližší bod jiného úseku do JOIN_GAP_M; jinak null.
+ * skutečným koncem trasy (`isEnd`), a nejbližší bod jiného úseku do JOIN_GAP_M; jinak null.
  */
 function firstGap(
   roads: VillageRoads,
-  termini: readonly RoadPoint[],
+  isEnd: (p: RoadPoint) => boolean,
 ): { road: Road; atStart: boolean; hit: RoadHit } | null {
   const degrees = endDegrees(roads.roads);
   for (const road of roads.roads) {
@@ -357,7 +375,7 @@ function firstGap(
     if (road.points.length < 2 || road.grade === 'wagon') continue;
     for (const atStart of [true, false]) {
       const p = atStart ? road.points[0]! : road.points[road.points.length - 1]!;
-      if ((degrees.get(endKey(p)) ?? 0) !== 1 || isTerminus(p, termini)) continue;
+      if ((degrees.get(endKey(p)) ?? 0) !== 1 || isEnd(p)) continue;
       const others = roads.roads.map((r) => (r === road ? { ...r, points: [] } : r));
       const hit = nearestOnRoads(others, p.x, p.z);
       if (hit && hit.distance <= JOIN_GAP_M) return { road, atStart, hit };
@@ -368,7 +386,7 @@ function firstGap(
 
 /**
  * Díry mezi úseky se zacelí (mutuje – roads.md, Úseky a rozcestí): volný konec úseku, který není
- * u brány domu ani u cíle (trasa roční sítě tudy pokračuje – `termini`) a leží do JOIN_GAP_M od
+ * u brány domu ani u cíle (trasa tudy pokračuje – `isEnd`) a leží do JOIN_GAP_M od
  * jiného úseku, se k němu napojí spojovacím kusem osy – do jeho konce (blíž než END_SNAP_M), jinak
  * do nejbližšího bodu osy, kde se ten úsek rozdělí (rozcestí). Uzel je pak společný – falešné
  * rozcestí spojí `mergeRoadChains`. Mokřina a brody napojeného úseku se určí znovu z terénu.
@@ -376,12 +394,12 @@ function firstGap(
  */
 function joinRoadGaps(
   roads: VillageRoads,
-  termini: readonly RoadPoint[],
+  isEnd: (p: RoadPoint) => boolean,
   context: SpotContext,
 ): boolean {
   let joined = false;
   for (let guard = roads.roads.length * 2; guard > 0; guard--) {
-    const gap = firstGap(roads, termini);
+    const gap = firstGap(roads, isEnd);
     if (!gap) break;
     const other = roads.roads[gap.hit.road]!;
     const first = other.points[0]!;
@@ -407,10 +425,9 @@ function joinRoadGaps(
  * vytrácí): konec, ve kterém nekončí jiný úsek, u brány domu nebo cíle (`termini`). Konec, kde
  * trasa pokračuje pěšinou dne, a rozcestí volné nejsou (mutuje).
  */
-function markRoadEnds(roads: VillageRoads, termini: readonly RoadPoint[]): void {
+function markRoadEnds(roads: VillageRoads, isEnd: (p: RoadPoint) => boolean): void {
   const degrees = endDegrees(roads.roads);
-  const open = (p: RoadPoint): boolean =>
-    (degrees.get(endKey(p)) ?? 0) === 1 && isTerminus(p, termini);
+  const open = (p: RoadPoint): boolean => (degrees.get(endKey(p)) ?? 0) === 1 && isEnd(p);
   for (const road of roads.roads) {
     if (road.points.length < 2) continue;
     road.openEnds = [open(road.points[0]!), open(road.points[road.points.length - 1]!)];

@@ -5,6 +5,7 @@ import { foundField, foundVillage, startNewDwelling } from '../actions';
 import { cellObstacles, obstacleChangesAt, obstacleStatus } from '../obstacles';
 import { computePathNetwork, pastureHerds, type PathVillage } from '../paths/network';
 import { addRoadLabor, plantingBlocker, roadTreeSpots, updateRoads } from '../paths/roads';
+import { encodeWear, wearKey } from '../paths/wear';
 import { pastureLivestock, pathVillageOf } from '../paths/village';
 import {
   checkDwellingPlacement,
@@ -19,7 +20,7 @@ import {
   roadTreeLook,
   roadTreeObstacleKind,
 } from '../road-trees';
-import { ROADS, ROAD_TREES } from '../rules';
+import { ROAD_TREES } from '../rules';
 import { advanceVillage } from '../simulate';
 import type {
   Dwelling,
@@ -173,43 +174,13 @@ describe('místa na stromy u cesty', () => {
 });
 
 describe('pevné cesty – roční kontrola (updateRoads)', () => {
-  it('vznikne až po dvou letech nad prahem a pak se nepohne, i když se práce mění', () => {
+  it('roční kontrola 1. 11. cesty pěších nezakládá – vznikají měsíčně z vyšlapanosti', () => {
+    // dřív: úsek nad prahem dva roky po sobě (kandidáti); teď `roadsMonth` (road-form-wear.test)
     const s = village();
-    const first = updateRoads(s, Y1, LANDSCAPE, null);
-    expect(first).toEqual([]);
+    expect(updateRoads(s, Y1, LANDSCAPE, null)).toEqual([]);
+    expect(updateRoads(s, NOV1(601), LANDSCAPE, null)).toEqual([]);
     expect(s.roads!.roads).toEqual([]);
-    expect(s.roads!.candidates.length).toBeGreaterThan(0);
-
-    const second = updateRoads(s, NOV1(601), LANDSCAPE, null);
-    expect(second.some((e) => e.kind === 'road-formed')).toBe(true);
-    const roads = json(s.roads!.roads);
-    expect(roads.length).toBeGreaterThan(0);
-    for (const r of roads) {
-      expect(r.bornDay).toBe(NOV1(601));
-      expect(r.grade).toBe('trodden');
-      expect(r.traffic[0]).toBeGreaterThanOrEqual(ROADS.tripsPerDay * ROADS.overgrowShare);
-    }
-
-    // jiná práce (pole na druhé straně vsi) a nové obydlí – pevné cesty zůstanou, kde byly
-    s.roads!.labor.shares = [{ target: { kind: 'field', id: 99 }, manDays: 5000 }];
-    s.roads!.labor.days = 365;
-    s.dwellings.push({ ...s.dwellings[0]!, id: 5, position: { x: -40, z: -60, rotation: 1 } });
-    updateRoads(s, NOV1(602), LANDSCAPE, null);
-    updateRoads(s, NOV1(603), LANDSCAPE, null);
-    const all = s.roads!.roads.flatMap((r) => r.points);
-    for (const r of roads) {
-      // body osy zůstanou (napojená cesta úsek jen rozdělí – přibude bod rozcestí)
-      for (const p of r.points) expect(all).toContainEqual(p);
-      expect(s.roads!.roads.find((x) => x.id === r.id)?.bornDay).toBe(r.bornDay);
-    }
-  });
-
-  it('bez loňského úseku nad prahem nevznikne nic', () => {
-    const s = village();
-    updateRoads(s, Y1, LANDSCAPE, null);
-    s.roads!.candidates = [];
-    updateRoads(s, NOV1(601), LANDSCAPE, null);
-    expect(s.roads!.roads).toEqual([]);
+    expect(s.roads!.candidates).toEqual([]);
   });
 
   it('pěšiny dne se k pevné cestě stahují (sleva v síti)', () => {
@@ -269,41 +240,6 @@ describe('pevné cesty – roční kontrola (updateRoads)', () => {
     expect(s.roads!.roads.some((r) => r.id === 501)).toBe(true);
     expect(s.roads!.trees).toContainEqual(tree);
   });
-
-  it('nová cesta, která kus vedla souběžně s jinou, se k ní připojí – díra nevznikne', () => {
-    // upravená cesta kus vedle trasy k vodě (trasa jde ≈ 4 m vedle ní): kus trasy podél ní cestou
-    // nebude (souběžná), za jejím koncem vznikne nová – její první bod je od konce staré ≈ 14 m
-    // (dřív díra; Vlkov 766 – cesta ke hřbitovu)
-    const s = village();
-    updateRoads(s, Y1, LANDSCAPE, null);
-    const side: Road = {
-      id: 500,
-      points: [
-        { x: 11.5, z: 12 },
-        { x: 11.5, z: 40 },
-      ],
-      bornDay: Y1 - 20 * 365,
-      grade: 'improved',
-      traffic: [5],
-      spots: [],
-    };
-    s.roads!.roads.push(side);
-    updateRoads(s, NOV1(601), LANDSCAPE, null);
-    updateRoads(s, NOV1(602), LANDSCAPE, null);
-    const north = s.roads!.roads.filter(
-      (r) => r.id !== 500 && r.points.some((p) => p.z > 60) && r.points.some((p) => p.z < 50),
-    );
-    expect(north.length).toBeGreaterThan(0);
-    // nová cesta k vodě končí v bodě, kde končí i jiný úsek (připojení), ne volně
-    const ends = s.roads!.roads.flatMap((r) => [r.points[0]!, r.points[r.points.length - 1]!]);
-    const south = north.map((r) =>
-      r.points[0]!.z < r.points[r.points.length - 1]!.z ? r.points[0]! : r.points.at(-1)!,
-    );
-    for (const end of south) {
-      const shared = ends.filter((q) => q.x === end.x && q.z === end.z).length;
-      expect(shared, `${end.x},${end.z}`).toBeGreaterThan(1);
-    }
-  }, 60_000);
 
   describe('zarůstá jen nepoužívaný kus (Martin, 19. 10. 2026)', () => {
     /** Cesta od vsi k potoku (k vodě se chodí silně) a dál podél břehu na východ (nikdo). */
@@ -604,8 +540,8 @@ describe('pevné cesty v simulaci', () => {
     const s = advanceVillage(old, Y1 + 3, LAYER, LANDSCAPE);
     expect(s.roads).toBeDefined();
     expect(s.roads!.roads).toEqual([]);
-    // první roční kontrola jen zapamatuje úseky nad prahem, práce se sčítá od 1. 11.
-    expect(s.roads!.candidates.length).toBeGreaterThan(0);
+    // roční kontrola cesty nezakládá ani nesbírá kandidáty, práce se sčítá od 1. 11.
+    expect(s.roads!.candidates).toEqual([]);
     expect(s.roads!.labor.from).toBe(Y1);
     expect(s.roads!.labor.days).toBe(4);
     // bez krajiny (kalibrace) se pevné cesty nepočítají
@@ -639,6 +575,10 @@ describe('pevné cesty v simulaci', () => {
       diesDay: Y1 + 300 * 365,
     });
     start.roads!.labor = { from: Y1, days: 365, shares: [] };
+    // vyšlapáno mezi vsí a vodou – 1. 11. (i 1. den v měsíci) vzniknou cesty z vyšlapanosti
+    const hot = new Map<number, number>();
+    for (let i = -4; i <= 3; i++) for (let j = -4; j <= 10; j++) hot.set(wearKey(i, j), 120_000);
+    start.roads!.wear = { day: start.lastDay + 1, cells: encodeWear(hot), labor: [] };
     const end = NOV1(601) + 9;
     const whole = advanceVillage(start, end, LAYER, LANDSCAPE);
     expect(whole.roads!.roads.length).toBeGreaterThan(1);
