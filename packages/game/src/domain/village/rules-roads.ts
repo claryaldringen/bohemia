@@ -25,10 +25,20 @@ export const ROADS = {
   tripsPerDay: 3,
   years: 2,
   overgrowYears: 5,
-  overgrowShare: 0.5,
   // roads.md – Zarůstá jen nepoužívaný kus (Martin, 19. 10. 2026: „ano“; délka kusu návrh Clauda):
   // provoz se v roční kontrole posuzuje po kusech osy ≈ 25 m
   pieceM: 25,
+} as const;
+// roads.md – Nový systém cest, paths.md – Zarůstání (Martin 23. 10. 2026: „Cesta, po které se
+// nechodí, postupně zaroste a zmizí. Platí to pro každou cestu, i upravenou a vozovou, jen pro ty
+// pomaleji.“; čísla návrh Clauda): kus cesty (≈ 25 m) má stav 0 až `keep` × `years` × 365,25
+// (setiny cest za den × dny); provoz kusu nad `keep` (setiny cest za den) stav doplňuje, pod ním
+// ubírá o rozdíl za den. Bez provozu zmizí vyšlapaná za 5 let, upravená (i s hatí a lávkou) za 15,
+// vozová za 30; zemská stezka a cesta ve vylepšení nezarůstají
+export const ROAD_DECAY = {
+  trodden: { keep: 100, years: 5 },
+  improved: { keep: 50, years: 15 },
+  wagon: { keep: 25, years: 30 },
 } as const;
 // wagons.md – Vozová síť a vyjeté cesty (Martin, 19. 10. 2026: „Vozy mohou cestu vyjezdit, ale
 // nemají takovou prostupnost jako lidé … ve svahu, kde lidé zvládnou chodit rovně, vůz bude muset

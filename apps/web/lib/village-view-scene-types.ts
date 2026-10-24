@@ -549,8 +549,13 @@ export interface SceneExpedition {
 
 export type SceneRoad = Pick<
   Road,
-  'id' | 'points' | 'grade' | 'ground' | 'openEnds' | 'cart' | 'swath' | 'lined'
+  'id' | 'points' | 'grade' | 'ground' | 'openEnds' | 'cart' | 'swath' | 'lined' | 'abandoned'
 > & {
+  /**
+   * Bledé kusy zarůstající cesty (paths.md – Zarůstání): střed kusu a krytí pásu 0–1 (na desetiny –
+   * od poloviny plného stavu úměrně klesá). Plné kusy chybí; bez zarůstání pole chybí.
+   */
+  fade?: { x: number; z: number; strength: number }[];
   /**
    * Rozestavěné vylepšení úseku – stupeň a průběh 0–1 na tomto úseku (vylepšení cesty hráče jde
    * po úsecích – `roadUpgradeProgress`); `fromEnd` – úsek leží v cestě obráceně, práce jde od

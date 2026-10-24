@@ -350,6 +350,8 @@ export function nearestRoad(
 ): number | null {
   let best: { id: number; d: number } | null = null;
   for (const road of village.roads ?? []) {
+    // opuštěný kus pod stavbou nejde vybrat (paths.md – Stavba přes cestu)
+    if (road.abandoned) continue;
     const d = distanceToPolyline(point, road.points);
     if (d <= reach && (best === null || d < best.d)) best = { id: road.id, d };
   }

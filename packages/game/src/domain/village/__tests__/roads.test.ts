@@ -6,8 +6,7 @@ import { cellObstacles, obstacleChangesAt, obstacleStatus } from '../obstacles';
 import { computePathNetwork, pastureHerds, type PathVillage } from '../paths/network';
 import { addRoadLabor, plantingBlocker, roadTreeSpots, updateRoads } from '../paths/roads';
 import { encodeWear, wearKey } from '../paths/wear';
-import { pastureLivestock, pathVillageOf, villagePathNetwork } from '../paths/village';
-import { storedRoutes } from '../paths/routes';
+import { pastureLivestock, pathVillageOf } from '../paths/village';
 import {
   checkDwellingPlacement,
   checkPlotPlacement,
@@ -85,20 +84,7 @@ function sideRoad(id: number, bornDay: number, grade: Road['grade'] = 'trodden')
   return { id, points, bornDay, grade, traffic: [], spots };
 }
 
-/** Trasy vsi (pro provoz kusů cest – roční kontrola bere provoz z uložených tras). */
-function withWalkRoutes(s: VillageState): void {
-  const network = villagePathNetwork(s, Y1, LANDSCAPE, null);
-  s.routes = { day: Y1, key: 'test', list: network ? storedRoutes(network) : [] };
-}
-
 const json = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
-
-/** Délka osy úseku (m). */
-const roadLengthOf = (road: Pick<Road, 'points'>): number =>
-  road.points.slice(1).reduce((sum, b, k) => {
-    const a = road.points[k]!;
-    return sum + Math.hypot(b.x - a.x, b.z - a.z);
-  }, 0);
 
 /** Body lomené čáry po ≈ 1 m (i mezi vrcholy). */
 function dense(points: readonly { x: number; z: number }[]): { x: number; z: number }[] {
@@ -214,130 +200,6 @@ describe('pevné cesty – roční kontrola (updateRoads)', () => {
       return d.reduce((a, b) => a + b, 0) / d.length;
     };
     expect(off([{ points: road }])).toBeLessThan(off(undefined) * 0.5);
-  });
-
-  it('vyšlapaná cesta bez provozu zaroste po pěti letech, upravená ne; stromy stojí dál', () => {
-    const s = village();
-    updateRoads(s, Y1, LANDSCAPE, null);
-    s.roads!.roads.push(sideRoad(500, Y1 - 20 * 365), {
-      ...sideRoad(501, Y1 - 20 * 365, 'improved'),
-      points: [
-        { x: -60, z: -135 },
-        { x: 130, z: -135 },
-      ],
-      spots: [],
-    });
-    const tree: RoadTree = {
-      id: ROAD_TREE_ID_BASE + 900,
-      spot: 1000,
-      x: s.roads!.roads.find((r) => r.id === 500)!.spots[0]!.x,
-      z: s.roads!.roads.find((r) => r.id === 500)!.spots[0]!.z,
-      species: 'oak',
-      rootedDay: Y1 - 30 * 365,
-      diesDay: Y1 + 300 * 365,
-    };
-    s.roads!.trees.push(tree);
-    for (let k = 1; k <= 4; k++) {
-      updateRoads(s, NOV1(600 + k), LANDSCAPE, null);
-      expect(s.roads!.roads.some((r) => r.id === 500)).toBe(true);
-    }
-    const events = updateRoads(s, NOV1(605), LANDSCAPE, null);
-    expect(events).toContainEqual({ day: NOV1(605), kind: 'road-overgrown', roadId: 500 });
-    expect(s.roads!.roads.some((r) => r.id === 500)).toBe(false);
-    expect(s.roads!.roads.some((r) => r.id === 501)).toBe(true);
-    expect(s.roads!.trees).toContainEqual(tree);
-  });
-
-  describe('zarůstá jen nepoužívaný kus (Martin, 19. 10. 2026)', () => {
-    /** Cesta od vsi k potoku (k vodě se chodí silně) a dál podél břehu na východ (nikdo). */
-    const toBank = (): Road => ({
-      id: 500,
-      points: [
-        { x: 0, z: 10 },
-        { x: 0, z: 70 },
-        { x: 130, z: 70 },
-      ],
-      bornDay: Y1 - 20 * 365,
-      grade: 'trodden',
-      traffic: [],
-      spots: [{ id: 1000, x: 100, z: 73 }],
-    });
-    const tree = (x: number, z: number): RoadTree => ({
-      id: ROAD_TREE_ID_BASE + 900,
-      spot: 1000,
-      x,
-      z,
-      species: 'oak',
-      rootedDay: Y1 - 30 * 365,
-      diesDay: Y1 + 300 * 365,
-    });
-
-    it('tichý konec úseku se po pěti letech oddělí a zaroste, zbytek zůstane se starým id', () => {
-      const s = village();
-      updateRoads(s, Y1, LANDSCAPE, null);
-      s.roads!.roads.push(toBank());
-      withWalkRoutes(s);
-      s.roads!.trees.push(tree(100, 73));
-      for (let k = 1; k <= 4; k++) {
-        expect(updateRoads(s, NOV1(600 + k), LANDSCAPE, null)).not.toContainEqual(
-          expect.objectContaining({ kind: 'road-overgrown' }),
-        );
-        const road = s.roads!.roads.find((r) => r.id === 500)!;
-        expect(roadLengthOf(road)).toBeCloseTo(190, 0);
-        // tiché kusy podél břehu počítají roky, kus k vodě ne
-        expect(Math.max(...road.quiet!.map((q) => q.years))).toBe(k);
-        expect(road.quiet!.every((q) => q.z > 40)).toBe(true);
-      }
-      const events = updateRoads(s, NOV1(605), LANDSCAPE, null);
-      const gone = events.filter((e) => e.kind === 'road-overgrown');
-      expect(gone).toHaveLength(1);
-      expect(gone[0]).not.toEqual(expect.objectContaining({ roadId: 500 }));
-      const kept = s.roads!.roads.find((r) => r.id === 500)!;
-      expect(kept.bornDay).toBe(Y1 - 20 * 365);
-      // zbytek vede od vsi k vodě, za ním nic
-      expect(kept.points[0]).toEqual({ x: 0, z: 10 });
-      expect(Math.max(...kept.points.map((p) => p.x))).toBeLessThan(60);
-      expect(s.roads!.roads.some((r) => r.points.some((p) => p.x > 100))).toBe(false);
-      // volný konec u zarostlého kusu – pás se tam vytrácí, díra se nedoplní
-      const end = kept.points[kept.points.length - 1]!;
-      expect(kept.openEnds![1]).toBe(true);
-      expect(s.roads!.cutEnds).toContainEqual(end);
-      // strom u zarostlého kusu stojí dál
-      expect(s.roads!.trees).toContainEqual(tree(100, 73));
-      // další rok se nic nemění
-      const before = json(kept);
-      updateRoads(s, NOV1(606), LANDSCAPE, null);
-      expect(s.roads!.roads.find((r) => r.id === 500)!.points).toEqual(before.points);
-    }, 60_000);
-
-    it('kus s živou jabloní nezaroste – zaroste jen tichý kus mezi', () => {
-      const s = village();
-      updateRoads(s, Y1, LANDSCAPE, null);
-      s.roads!.roads.push(toBank());
-      withWalkRoutes(s);
-      s.roads!.apples = [
-        { id: ROAD_TREE_ID_BASE + 950, roadId: 500, x: 125, z: 73, distanceM: 150, plantedDay: Y1 },
-      ];
-      for (let k = 1; k <= 5; k++) updateRoads(s, NOV1(600 + k), LANDSCAPE, null);
-      const near = s.roads!.roads.filter((r) => r.points.some((p) => p.x > 110));
-      // konec u jabloně zůstal jako samostatný úsek, jabloň patří jemu
-      expect(near).toHaveLength(1);
-      expect(near[0]!.id).not.toBe(500);
-      expect(s.roads!.apples![0]!.roadId).toBe(near[0]!.id);
-      expect(s.roads!.roads.some((r) => r.id === 500)).toBe(true);
-      // uprostřed u břehu cesta není
-      expect(s.roads!.roads.some((r) => r.points.some((p) => p.x > 50 && p.x < 90))).toBe(false);
-    }, 60_000);
-
-    it('starší ves: tiché kusy se počítají až od další roční kontroly – nic nezaroste hned', () => {
-      const s = village();
-      updateRoads(s, Y1, LANDSCAPE, null);
-      s.roads!.roads.push({ ...sideRoad(500, Y1 - 20 * 365), traffic: [0, 0, 0, 0] });
-      const events = updateRoads(s, NOV1(601), LANDSCAPE, null);
-      expect(events).not.toContainEqual(expect.objectContaining({ kind: 'road-overgrown' }));
-      const road = s.roads!.roads.find((r) => r.id === 500)!;
-      expect(road.quiet!.every((q) => q.years === 1)).toBe(true);
-    }, 60_000);
   });
 
   it('strom se uchytí na místě u cesty starší 5 let a stojí tam do smrti', () => {

@@ -39,19 +39,20 @@ import {
   emptyRoads,
   fieldTraffic,
   formWearRuns,
+  mergeRoadChains,
   roadTraffic,
   splitRoadWork,
   splitTrailPieces,
   wearRoadDue,
 } from './roads-form';
 import { annualCartNetwork, markCartRoads, takeOverCartRoads } from './roads-carts';
-import { type TrafficOf, overgrowRoads } from './roads-overgrow';
+import { abandonBlockedStretches, cutDeadRoads } from './roads-overgrow';
 import { anchorTermini, tidyRoads } from './roads-tidy';
 import { SpotContext, plantingBlocker, rootTrees } from './roads-trees';
 import { type RoadAnchors, roadAnchors } from './road-anchors';
 import { routeLine } from './routes';
 import { pathCellM, trailTerrain } from './terrain';
-import { settleVillageWear } from './village';
+import { settleVillageWear, villageBlockedAt } from './village';
 import { type TrafficField, addCartWear, addWearLabor, trafficField, wearMap } from './wear';
 import { villageCemeteries } from '../cemetery';
 import { visitKey } from '../abandonment';
@@ -177,6 +178,18 @@ export function roadsMonth(
   if (dateOfDayIndex(day).day !== 1) return;
   settleVillageWear(state, day, landscape);
   const roads = state.roads;
+  // zánik: kusy na nule pryč, kus pod hotovou stavbou opuštěný – napřed, aby souběžnost se starou
+  // cestou zmizela dřív, než z vyšlapané objížďky vznikne cesta (paths.md – Stavba přes cestu)
+  if (roads && roads.roads.length > 0) {
+    const gone = cutDeadRoads(roads, state.constructions, state.trails, day);
+    state.chronicle.push(...gone);
+    // odbočka zarostla – falešné rozcestí se spojí
+    if (gone.length > 0) mergeRoadChains(roads, state.constructions);
+    if (roads.roads.some((r) => !r.abandoned)) {
+      const blocked = villageBlockedAt(state, day, landscape);
+      if (blocked) abandonBlockedStretches(roads, state.constructions, state.trails, blocked);
+    }
+  }
   const routes = state.routes;
   if (!roads?.wear || !routes || routes.list.length === 0) return;
   const cellM = pathCellM(landscape);
@@ -241,8 +254,8 @@ const KEPT_AXIS_M = 1;
  * připojení) vede po úklidu pevná cesta aspoň v délce ON_ROAD_M (i pod jiným id po spojení).
  */
 function survivedTidy(road: Road, before: VillageRoads, after: VillageRoads): boolean {
-  const old = axisDistance(before.roads.map((r) => r.points));
-  const now = axisDistance(after.roads.map((r) => r.points));
+  const old = axisDistance(before.roads.filter((r) => !r.abandoned).map((r) => r.points));
+  const now = axisDistance(after.roads.filter((r) => !r.abandoned).map((r) => r.points));
   const own = resample(road.points, null, SAMPLE_M).points.filter((p) => old(p.x, p.z) > ON_ROAD_M);
   const kept = own.filter((p) => now(p.x, p.z) <= KEPT_AXIS_M).length;
   return kept * SAMPLE_M >= ON_ROAD_M;
@@ -373,7 +386,8 @@ export function updateRoads(
     const routes = state.routes;
     const cellM = pathCellM(landscape);
     const field = routes && routes.list.length > 0 ? trafficField(routes, cellM) : null;
-    const walk: TrafficOf = (points) => (field ? fieldTraffic(points, field) : 0);
+    const walk = (points: readonly RoadPoint[]): number =>
+      field ? fieldTraffic(points, field) : 0;
     // jízdy vozů za rok (wagons.md – Vyjeté cesty) – ves bez vozů nic
     const cart = annualCartNetwork(state, day, landscape, obstacles, changes, terrain);
     for (const road of roads.roads) {
@@ -389,11 +403,6 @@ export function updateRoads(
     }
     // jízdy vozů vyšlapou pěšinu jako chůze (jednou za rok; cesta pak vznikne z vyšlapanosti)
     if (cart && roads.wear) addCartWear(roads.wear, cart.traffic, Math.max(1, roads.labor.days));
-    // zarůstání vyšlapané cesty po kusech (upravená a hať nezarůstají, ani cesta, která se
-    // vylepšuje, a kus s jabloněmi – hráč do něj vložil práci; kus, kudy jezdí vozy, taky ne) –
-    // stromy u ní stojí dál
-    const cartOf: TrafficOf | null = cart ? (points) => roadTraffic(points, cart.traffic) : null;
-    events.push(...overgrowRoads(state, roads, day, walk, cartOf));
     markCartRoads(roads);
     const context: SpotContext = {
       terrain,
@@ -443,7 +452,7 @@ export {
   roadsInWork,
   withMergedRoads,
 } from './roads-form';
-export { type RoadPiece, keepingApples, roadPieces } from './roads-overgrow';
+export { type RoadPiece, roadPieces } from './road-condition';
 export { roadGroundOf, roadLengthM, roadWetM } from './roads-geometry';
 export { absorbParallelRoads, joinedRoadsOf, withJoinedRoads } from './roads-tidy';
 export { plantingBlocker, roadTreeSpots } from './roads-trees';

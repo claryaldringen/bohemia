@@ -51,6 +51,7 @@ export function emptyRoads(day: number): VillageRoads {
     candidates: [],
     labor: { from: day, days: 0, shares: [] },
     visits: { from: day, byKey: [] },
+    conditionSeeded: true,
   };
 }
 
@@ -176,7 +177,7 @@ function eachWearRun(
     if (run.length < 2) continue;
     const level = run.map((p) => wearAt(wear, p.x, p.z));
     if (!level.some((w) => w >= WEAR.roadAt)) continue;
-    roadAt ??= axisDistance(roads.roads.map((r) => r.points));
+    roadAt ??= axisDistance(roads.roads.filter((r) => !r.abandoned).map((r) => r.points));
     const at = roadAt;
     const onRoad = run.map((p) => at(p.x, p.z) <= ON_ROAD_M);
     const warm = (k: number): boolean => level[k]! >= WEAR.extendFrom && !onRoad[k];
@@ -417,13 +418,13 @@ export function splitRoad(roads: VillageRoads, hit: RoadHit, context: SpotContex
     ...(road.cartTraffic ? { cartTraffic: [...road.cartTraffic] } : {}),
   };
   road.spots = road.spots.filter((s) => secondAxis(s.x, s.z) >= firstAxis(s.x, s.z));
-  // tiché kusy podle polohy (roads.md – Zarůstá jen nepoužívaný kus)
-  if (road.quiet) {
-    const tail = road.quiet.filter((q) => secondAxis(q.x, q.z) < firstAxis(q.x, q.z));
-    const head = road.quiet.filter((q) => secondAxis(q.x, q.z) >= firstAxis(q.x, q.z));
-    if (tail.length > 0) rest.quiet = tail;
-    if (head.length > 0) road.quiet = head;
-    else delete road.quiet;
+  // stav kusů podle polohy (paths.md – Zarůstání)
+  if (road.condition) {
+    const tail = road.condition.filter((q) => secondAxis(q.x, q.z) < firstAxis(q.x, q.z));
+    const head = road.condition.filter((q) => secondAxis(q.x, q.z) >= firstAxis(q.x, q.z));
+    if (tail.length > 0) rest.condition = tail;
+    if (head.length > 0) road.condition = head;
+    else delete road.condition;
   }
   // jabloně podél druhé části patří novému úseku (roads.md – Vysazení jabloní)
   for (const apple of roads.apples ?? []) {
@@ -555,7 +556,7 @@ function chainPair(
   const ends = new Map<string, RoadEnd[]>();
   const endOf = (road: Road, atStart: boolean): RoadPoint =>
     atStart ? road.points[0]! : road.points[road.points.length - 1]!;
-  const valid = roads.roads.filter((r) => r.points.length >= 2);
+  const valid = roads.roads.filter((r) => r.points.length >= 2 && !r.abandoned);
   for (const road of valid) {
     for (const atStart of [true, false]) {
       const key = endKey(endOf(road, atStart));
@@ -655,10 +656,10 @@ function joinRoads(
   if (other.swath) road.swath = true;
   if (ground) road.ground = ground;
   else delete road.ground;
-  // tiché kusy obou (roads.md – Zarůstá jen nepoužívaný kus) – po bodech, osa se nemění
-  const quiet = [...(road.quiet ?? []), ...(other.quiet ?? [])];
-  if (quiet.length > 0) road.quiet = quiet;
-  else delete road.quiet;
+  // stav kusů obou (paths.md – Zarůstání) – po bodech, osa se nemění
+  const condition = [...(road.condition ?? []), ...(other.condition ?? [])];
+  if (condition.length > 0) road.condition = condition;
+  else delete road.condition;
   for (const apple of roads.apples ?? []) if (apple.roadId === other.id) apple.roadId = road.id;
   for (const c of constructions) {
     if (!c.roadIds?.includes(other.id)) continue;

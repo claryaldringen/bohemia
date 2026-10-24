@@ -14,5 +14,6 @@ export * from './earthworks';
 export * from './wagon-route';
 export * from './road-lining';
 export * from './routes';
+export * from './road-condition';
 export * from './wear';
 export * from './route-paths';

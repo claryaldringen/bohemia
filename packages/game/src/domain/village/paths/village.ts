@@ -66,7 +66,11 @@ import {
   type Walk,
 } from './walking';
 import { lineRoads } from './road-lining';
+import { roadAnchors } from './road-anchors';
+import { settleRoadCondition } from './road-condition';
 import { routePaths } from './route-paths';
+import { villageGrid } from './network-grid';
+import { villageBuildings } from './network-search';
 import { storedRoutes } from './routes';
 import { partWalkSpeed, roadTreeSpeed } from './walk-speed';
 import { accrueVisits, settleWear, trafficField, wearMap, wearRevisionKey } from './wear';
@@ -392,7 +396,61 @@ export function settleVillageWear(state: VillageState, day: number, landscape: L
   if (!wear || wear.day >= day) return;
   const routes = state.routes ?? { key: '', list: [] };
   accrueVisits(state.roads!, routes.list, day - wear.day);
-  settleWear(wear, trafficField(routes, pathCellM(landscape)), wear.day, day);
+  const field = trafficField(routes, pathCellM(landscape));
+  const from = wear.day;
+  settleWear(wear, field, from, day);
+  // stav cest po týchž intervalech (paths.md – Zarůstání)
+  const roads = state.roads!;
+  if (roads.roads.length > 0) {
+    const entrances = roadAnchors(routes.list, landscape).points.filter(
+      (a) => a.kind === 'entrance',
+    );
+    settleRoadCondition(roads, state.constructions, state.trails, field, entrances, from, day);
+  }
+}
+
+/**
+ * Neprůchodná plocha hotových staveb ve vsi (paths.md – Stavba přes cestu): pozemek, ohrada,
+ * hřbitov, okrsek svatyně, dům – buňky mřížky chodců bez cesty (`Infinity`), kde terén sám
+ * průchodný je; branka plot neuzavírá. Bez vsi null. Staví mřížku sítě pěšin (jednou za měsíc).
+ */
+export function villageBlockedAt(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+): ((x: number, z: number) => boolean) | null {
+  // rozložení vsi se mění zřídka – stejný otisk rozložení (`walkLayoutKey`) = táž plocha
+  const key = state.walkLayoutKey;
+  const last = lastBlocked.get(landscape);
+  if (key !== undefined && last?.key === key) return last.blocked;
+  const blocked = computeBlockedAt(state, day, landscape);
+  if (key !== undefined) lastBlocked.set(landscape, { key, blocked });
+  return blocked;
+}
+
+/** Poslední neprůchodná plocha vsi pro krajinu a otisk rozložení (jedna ves na krajinu). */
+const lastBlocked = new WeakMap<
+  Landscape,
+  { key: string; blocked: ((x: number, z: number) => boolean) | null }
+>();
+
+function computeBlockedAt(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+): ((x: number, z: number) => boolean) | null {
+  const village = pathVillageOf(state, day, landscape);
+  const bounds = villagePathBounds(village, landscape);
+  if (!bounds) return null;
+  const terrain = pathTerrainOf(landscape, pathWindowFor(landscape, bounds));
+  const grid = villageGrid({ village, terrain }, villageBuildings(village).all);
+  return (x, z) => {
+    const i = Math.round((x - grid.originX) / grid.cellM);
+    const j = Math.round((z - grid.originZ) / grid.cellM);
+    if (i < 0 || j < 0 || i >= grid.width || j >= grid.height) return false;
+    const c = j * grid.width + i;
+    return !Number.isFinite(grid.base[c]!) && Number.isFinite(terrain.cost[c]!);
+  };
 }
 
 /**

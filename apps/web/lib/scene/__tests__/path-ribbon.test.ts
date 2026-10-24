@@ -161,6 +161,18 @@ describe('pevné cesty z dat (roads.md)', () => {
     { x: 40, z: 30 },
   ]);
 
+  it('zarůstající cesta bledne: bledý kus má slabší krytí, plný kus 1 (paths.md – Zarůstání)', () => {
+    const fading = {
+      ...a,
+      fade: [{ x: 30, z: 0, strength: 0.4 }],
+    };
+    const [line] = roadBands([fading]).trodden;
+    const first = line!.strength[0]!;
+    const last = line!.strength[line!.strength.length - 1]!;
+    expect(first).toBe(1);
+    expect(last).toBeCloseTo(0.4, 5);
+  });
+
   it('cesta je plně vyšlapaná pěšina, volný konec se vytrácí, v rozcestí ne', () => {
     const [first, second] = roadBands([a, b]).trodden;
     expect(first!.points).toEqual(a.points);

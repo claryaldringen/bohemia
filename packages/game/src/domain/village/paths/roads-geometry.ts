@@ -222,6 +222,8 @@ export interface RoadHit {
 export function nearestOnRoads(roads: readonly Road[], x: number, z: number): RoadHit | null {
   let best: RoadHit | null = null;
   roads.forEach((road, r) => {
+    // opuštěný kus (pod stavbou) není ve vsi cestou, ke které se napojuje (paths.md)
+    if (road.abandoned) return;
     for (let k = 1; k < road.points.length; k++) {
       const a = road.points[k - 1]!;
       const b = road.points[k]!;

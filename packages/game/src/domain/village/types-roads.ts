@@ -36,7 +36,8 @@ export interface Road {
   grade: RoadGrade;
   /**
    * Provoz posledních let (cest za den – roční průměr, nejnovější poslední; nejvýš
-   * ROADS.overgrowYears) – podle něj vyšlapaná cesta zaroste.
+   * ROADS.overgrowYears) – historie pro převod starých vsí a vyjížďky vozů; zarůstání řídí
+   * stav kusů (`condition`).
    */
   traffic: number[];
   spots: RoadTreeSpot[];
@@ -52,12 +53,16 @@ export interface Road {
    */
   openEnds?: [boolean, boolean];
   /**
-   * Kusy osy (≈ ROADS.pieceM), kudy se chodí pod polovinou prahu (roads.md – Zarůstá jen
-   * nepoužívaný kus): střed kusu (m, na cm) a kolik ročních kontrol po sobě (nejvýš
-   * ROADS.overgrowYears). Jen u vyšlapané cesty; chybí = žádný (i u starších vsí – počítá se od
-   * další roční kontroly).
+   * Stav kusů osy (≈ ROADS.pieceM; paths.md – Zarůstání): střed kusu (m, na cm) a stav `c`
+   * (`ROAD_DECAY`) jen u kusů pod plným stavem; kus bez záznamu je plný, chybí-li pole, je plná
+   * celá cesta. Na nule kus zmizí (`roadsMonth`).
    */
-  quiet?: RoadQuietPiece[];
+  condition?: RoadConditionPiece[];
+  /**
+   * Opuštěný kus (paths.md – Stavba přes cestu): leží pod hotovou stavbou. Vypadne ze sítě –
+   * není řetězem, partnerem souběžné cesty ani cílem napojení – a jen bledne, dokud nezmizí.
+   */
+  abandoned?: true;
   /**
    * Vozová cesta (wagons.md – Vyjeté cesty): vyjetá vozy, širší, ve scéně dvě koleje, vůz po ní
    * projede i lesem. Chybí = pěší cesta.
@@ -93,11 +98,11 @@ export interface RoadLining {
   apples: number;
 }
 
-/** Tichý kus osy pevné cesty – střed kusu a roky po sobě pod polovinou prahu. */
-export interface RoadQuietPiece {
+/** Stav kusu osy pevné cesty – střed kusu a stav (setiny cest za den × dny, `ROAD_DECAY`). */
+export interface RoadConditionPiece {
   x: number;
   z: number;
-  years: number;
+  c: number;
 }
 
 /** Mokřina a brody na ose úseku – vzdálenosti od začátku osy (m, na decimetry). */
@@ -180,6 +185,12 @@ export interface VillageRoads {
    * se až po roce dat. Chybí = ještě neexistuje.
    */
   visits?: { from: number; byKey: [string, number][] };
+  /**
+   * Stav kusů cest je založený (`Road.condition`, paths.md – Převod starých vsí, bod 2): nová ves
+   * ho má od začátku, starší ves ho dostane při načtení z historie provozu (`withRoadCondition`)
+   * jednou. Chybí = ještě ne.
+   */
+  conditionSeeded?: true;
   /** Jabloně vysazené hráčem podél úseků (roads.md – Vysazení jabloní); chybí = žádné. */
   apples?: RoadApple[];
   /**

@@ -64,6 +64,9 @@ cestu, i upravenou a vozovou, jen pro ty pomaleji.“ Návrh Clauda:
 - **Kus pod stavbou:** postaví-li hráč hotovou stavbu přes cestu (pozemek, ohrada, hřbitov…), kus
   pod ní je hned opuštěný; lidé i vozy jdou objížďkou a ta se vyšlape v novou cestu napojenou na
   zbytky staré (paths.md – Stavba přes cestu; Vlkov 23. 10. 2026 – vůz pro vodu).
+  Opuštěný kus zůstane opuštěný i při nestejném zániku jeho částí a nedrží ho ani vchod; po zbourání
+  stavby se neobnovuje (návrh Clauda – obnova by vracela cestu do sítě, kterou už obešla
+  objížďka; kus jen zaroste podle druhu).
 - **Nezarůstá:** cesta, která se vylepšuje; cesta k vchodu stavby, ke které se chodí (paths.md –
   Vchody; odvozeno z konce cesty ve vchodu a návštěv stavby, bez zvláštního pole); zemská stezka.
 - **Jabloně už cestu nedrží** (výjimka – návrh Clauda 19. 10. 2026 – **zrušena** 22. 10. 2026
@@ -204,13 +207,12 @@ Text níž je historie.
     potkávají jen dva úseky (falešné rozcestí – odbočka zarostla, nová cesta navázala na konec
     jiné), spojí se do jednoho (Martin, 18. 10. 2026 – viz [Úseky a rozcestí](#úseky-a-rozcestí)).
     Rozcestí je ve scéně udusaný plácek – nejvyšlapanější místo cesty.
-  - **Zarůstání:** vyšlapaná cesta, kterou se **5 let po sobě** chodí pod polovinu prahu,
-    zaroste a zmizí (návrh Clauda) – **po kusech**: zaroste jen kus, kudy se nechodí, zbytek
-    zůstane (Martin, 19. 10. 2026 – [Zarůstá jen nepoužívaný kus](#zarůstá-jen-nepoužívaný-kus)).
-    Upravená cesta a hať nezarůstají, ani kus cesty s vysazenými jabloněmi (návrh Clauda
-    z 19. 10. 2026 – hráč do něj vložil práci; [Cesta je
-    cesta](#cesta-je-cesta--povrch-pod-ní-a-zarůstání)). Stromy u zarostlé cesty stojí dál,
-    dokud neodumřou.
+  - **Zarůstání:** každá cesta bez provozu postupně zaroste a zmizí, podle druhu (vyšlapaná
+    5, upravená 15, vozová 30 let) – **po kusech ≈ 25 m**: zaroste jen kus, kudy se nechodí,
+    zbytek zůstane (Martin, 22. 10. 2026 a 19. 10. 2026 – [Zarůstání podle
+    druhů](#zarůstání-podle-druhů-pravidlo-4)). Dřívější roční pravidlo „5 let po sobě pod
+    polovinou prahu“ a výjimky pro hať a cestu s jabloněmi jsou **nahrazené** (zrušené 22. 10. 2026). Stromy a jabloně u zarostlé cesty stojí dál, dokud neodumřou (jabloň se
+    přepojí na nejbližší zbylý úsek do 30 m, jinak zanikne – ať nevisí na smazané cestě).
 
 ## Stromy u pevných cest
 
@@ -385,7 +387,7 @@ a [paths.md – Rozhodnutí](paths.md#rozhodnutí). Tabulka níž je stav do 21.
 | Upravená cesta 3 m (vyšlapaná 1,9 m), bez kamenů; kmeny hatě na šířku upravené cesty     | návrh Clauda |
 | Po pevné cestě se chodí bez ohledu na povrch pod ní (pole, sad, les, svah)               | Martin       |
 | Výjimky: brod, neprůchodná místa, ploty hřbitova a ohrady, svatyně a stavby              | návrh Clauda |
-| Cesta s jabloněmi nezaroste (jako upravená, hať a stezka); díl pole o cestu nepřichází   | návrh Clauda |
+| ~~Cesta s jabloněmi nezaroste~~ (zrušeno 22. 10. 2026); díl pole o cestu nepřichází      | návrh Clauda |
 | Zarůstá jen nepoužívaný kus úseku, zbytek zůstane se starým id                           | Martin       |
 | Kusy ≈ 25 m, historie jen tichých kusů (střed a roky), volný konec u zarostlého kusu     | návrh Clauda |
 | ~~Pole lidi nezdržuje – nejkratší cesta i přes osetý díl~~ (změněno – rychlosti chůze)   | Martin       |
@@ -430,11 +432,10 @@ stezka leží.“
 - **Chůze pro práci** (`walking.ts`) povrch pod pevnou cestou nepočítala už dřív: po cestě podle
   stupně, mokřiny a brodů na ose (`roadPieceCost`), rovně jen mokřina a voda – pole, sad ani les
   chůzi nezdraží (hlídá test). Beze změny.
-- **Cesta s prací hráče nezaroste** (návrh Clauda – hráč do ní vložil práci): vyšlapaná cesta,
-  podél které jsou vysazené jabloně (živé, nebo se teprve sázejí – `keepingApples`; od zavedení
-  zarůstání po kusech drží jabloň kus cesty u sebe), nezaroste ani při malém provozu – stejně jako upravená cesta, hať s lávkou a hotová zemská stezka
-  (stupeň nad vyšlapanou) a cesta, která se vylepšuje. Až všechny jabloně dožijí (souš), může
-  zarůst jako jiná.
+- ~~**Cesta s prací hráče nezaroste**~~ (návrh Clauda; **nahrazeno** 22. 10. 2026 – Martin: „Platí
+  to pro každou cestu, i upravenou a vozovou“; `keepingApples` zaniklo): cestu drží jen provoz
+  (péče a sklizeň jabloní jsou trasy), zemská stezka a cesta, která se vylepšuje. Jabloně
+  po zaniklé cestě stojí dál na nejbližším zbylém úseku.
 - ~~**Díl pole pod cestou o plochu nepřichází**~~ (návrh Clauda; **zrušeno** 19. 10. 2026 –
   Martin: cesta poli plochu ubírá, viz [Cesta přes pole](#cesta-přes-pole)) – na rozdíl od stromu na poli
   (20 m²): (1) pevná cesta vzniká a zaniká sama provozem, hráč o ní nerozhoduje – ubírat pole by
@@ -467,8 +468,9 @@ stezka leží.“
 ## Zarůstá jen nepoužívaný kus
 
 **Nahrazeno 22. 10. 2026** stavem kusů podle druhu ([Zarůstání podle
-druhů](#zarůstání-podle-druhů-pravidlo-4)) – kusy ≈ 25 m a zbytek se starým id zůstávají, tiché
-roky (`Road.quiet`) a volné konce po zarostlém kusu (`cutEnds`) ne. Text níž je historie.
+druhů](#zarůstání-podle-druhů-pravidlo-4)) – kusy ≈ 25 m, zbytek se starým id a volné konce
+po zarostlém kusu (`cutEnds`) zůstávají, tiché roky (`Road.quiet`) a `keepingApples` **zanikly**.
+Text níž je historie.
 
 Martin (19. 10. 2026) na návrh „dlouhý úsek zaroste celý, i když se po jeho části dál chodí –
 zarůstá jen nepoužívaný kus úseku“: **„ano“**. Podrobnosti návrh Clauda.
@@ -478,12 +480,12 @@ zarůstá jen nepoužívaný kus úseku“: **„ano“**. Podrobnosti návrh Cl
   kus; provoz kusu je medián bodů po 3 m jako u celého úseku). 25 m je dost krátké, aby se tichý
   konec oddělil blízko místa, kde provoz spadne, a dost dlouhé (≥ 15 m – nejkratší pevná cesta),
   aby jedno místo provoz nezkreslilo a odříznutý kus i zbytek byly platné úseky.
-- **Historie:** úsek nese jen tiché kusy (`Road.quiet` – střed kusu na cm a kolik ročních kontrol
+- **Historie** (zaniklo 22. 10. 2026): úsek nese jen tiché kusy (`Road.quiet` – střed kusu na cm a kolik ročních kontrol
   po sobě je pod polovinou prahu, nejvýš 5), ne provoz po bodech – stav nebobtná (u Vlkova
   desítky čísel). Rok se přičte, když loni byl tichý kus do půl kusu od středu letošního (střed
   ve světě, takže dělení a spojování úseků historii nerozbije – kusy jdou podle polohy k nejbližší
   ose). Kus, kde se letos chodí, historii ztratí.
-- **Zarůstání kusu:** kus tichý **5 let po sobě** zaroste, když u něj (do 6 m od osy kusu) nestojí
+- **Zarůstání kusu** (nahrazeno – už nezávisí na jabloních): kus tichý **5 let po sobě** zaroste, když u něj (do 6 m od osy kusu) nestojí
   živá nebo sázená jabloň (`keepingApples`); upravená cesta, hať, stezka a cesta, která se
   vylepšuje, nezarůstají vůbec. Zaroste-li celý úsek, zmizí jako dřív. Jinak se tiché kusy
   vyříznou (`cutOvergrown`) a **zbytek zůstane pevnou cestou se starým id a dnem vzniku** (druhý

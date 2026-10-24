@@ -4,7 +4,7 @@ import { obstaclesOf } from '../../landscape';
 import { foundField, foundVillage } from '../actions';
 import { partWalkDistance } from '../fields';
 import { squareCareWork, squareWalkDistance } from '../orchard';
-import { keepingApples, roadGroundOf, roadPieces, roadsInWork, updateRoads } from '../paths/roads';
+import { roadGroundOf, roadsInWork } from '../paths/roads';
 import { PATH_FORD, PATH_WATER, PATH_WETLAND, type PathTerrain } from '../paths/terrain';
 import { refreshWalkDistances } from '../paths/village';
 import {
@@ -17,9 +17,9 @@ import {
   type WalkRoad,
 } from '../paths/walking';
 import { roadUpgradeCost, roadUpgradeOptions, startRoadUpgrade } from '../road-upgrades';
-import { ORCHARD, ROAD_UPGRADES, ROAD_WALK } from '../rules';
+import { ROAD_UPGRADES, ROAD_WALK } from '../rules';
 import { advanceVillage } from '../simulate';
-import type { Dwelling, Person, Road, RoadApple, VillageState } from '../types';
+import type { Dwelling, Person, Road, VillageState } from '../types';
 import { dwellingForestDistance } from '../wood';
 import { LANDSCAPE, pathTestTerrain } from './paths-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
@@ -294,77 +294,6 @@ describe('vylepšení pevné cesty', () => {
     expect(causeway.woodLogs).toBeCloseTo(20 - 14, 9);
     const done = advanceVillage(causeway, later.lastDay + 120, null);
     expect(done.roads!.roads[0]!.grade).toBe('causeway');
-  });
-
-  it('cesta, která se vylepšuje, nezaroste', () => {
-    // úsek stranou vsi, kudy nikdo nechodí – kusy čtyři roky tiché
-    const points = [
-      { x: 100, z: -130 },
-      { x: 140, z: -130 },
-    ];
-    const far = {
-      ...road(),
-      points,
-      traffic: [0, 0, 0, 0, 0],
-      quiet: roadPieces(points).map((p) => ({ x: p.x, z: p.z, years: 4 })),
-    };
-    const s = withRoad(village(), far);
-    const started = startRoadUpgrade(s, DAY, 7, 'improved', null);
-    started.constructions.at(-1)!.cost = 1e9;
-    updateRoads(started, dayIndexOf({ year: 600, month: 11, day: 1 }), LANDSCAPE, null);
-    expect(started.roads!.roads.some((r) => r.id === 7)).toBe(true);
-    const idle = withRoad(village(), far);
-    updateRoads(idle, dayIndexOf({ year: 600, month: 11, day: 1 }), LANDSCAPE, null);
-    expect(idle.roads!.roads.some((r) => r.id === 7)).toBe(false);
-  });
-});
-
-describe('cesta s prací hráče nezaroste (roads.md – návrh Clauda, 19. 10. 2026)', () => {
-  const NOV = dayIndexOf({ year: 600, month: 11, day: 1 });
-  /** Úsek stranou vsi, kudy nikdo nechodí – kusy čtyři roky tiché, letos pátý. */
-  const far = (grade: Road['grade'] = 'trodden'): Road => {
-    const points = [
-      { x: 100, z: -130 },
-      { x: 140, z: -130 },
-    ];
-    return {
-      ...road(grade),
-      points,
-      traffic: [0, 0, 0, 0, 0],
-      quiet: roadPieces(points).map((p) => ({ x: p.x, z: p.z, years: 4 })),
-    };
-  };
-  const apple = (plantedDay: number | null): RoadApple => ({
-    id: 2 ** 30 + 1,
-    roadId: 7,
-    x: 120,
-    z: -127,
-    distanceM: 150,
-    plantedDay,
-  });
-  /** Stojí úsek po roční kontrole? */
-  const stays = (r: Road, apples?: RoadApple[]): boolean => {
-    const s = withRoad(village(), r);
-    if (apples) s.roads!.apples = apples;
-    updateRoads(s, NOV, LANDSCAPE, null);
-    return s.roads!.roads.some((x) => x.id === 7);
-  };
-
-  it('vyšlapaná cesta bez provozu zaroste, upravená a hať s lávkou ne', () => {
-    expect(stays(far())).toBe(false);
-    expect(stays(far('improved'))).toBe(true);
-    expect(stays(far('causeway'))).toBe(true);
-  });
-
-  it('cesta s vysazenými jabloněmi nezaroste; až jabloně dožijí, zarůst může', () => {
-    expect(stays(far(), [apple(NOV - Math.round(10 * YEAR))])).toBe(true);
-    // jabloně se teprve sázejí
-    expect(stays(far(), [apple(null)])).toBe(true);
-    // souš po jabloni cestu nedrží
-    expect(stays(far(), [apple(NOV - Math.round((ORCHARD.endYear + 2) * YEAR))])).toBe(false);
-    expect(keepingApples({ apples: [apple(NOV - 400)] }, NOV)).toHaveLength(1);
-    expect(keepingApples({ apples: [apple(NOV - Math.round(70 * YEAR))] }, NOV)).toEqual([]);
-    expect(keepingApples({}, NOV)).toEqual([]);
   });
 });
 

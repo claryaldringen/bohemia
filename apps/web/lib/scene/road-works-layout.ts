@@ -121,6 +121,20 @@ function shownGrade(road: SceneRoad, d: number): RoadGrade {
   return d >= part[0] - 1e-6 && d <= part[1] + 1e-6 ? 'improved' : road.grade;
 }
 
+/** Krytí pásu cesty v bodě: bledý kus zarůstající cesty je slabší (`SceneRoad.fade`), jinak 1. */
+function fadeAt(road: SceneRoad, p: { x: number; z: number }): number {
+  let best = 1;
+  let nearest = 12.5;
+  for (const f of road.fade ?? []) {
+    const d = Math.hypot(f.x - p.x, f.z - p.z);
+    if (d <= nearest) {
+      nearest = d;
+      best = f.strength;
+    }
+  }
+  return best;
+}
+
 /** Pás cesty: vyšlapaná, upravená (širší), vyšlapaná vozová (wagons.md), vozová cesta (roads.md). */
 type BandKind = 'trodden' | 'improved' | 'cart' | 'wagon';
 
@@ -168,6 +182,7 @@ export function roadBands(roads: readonly SceneRoad[]): {
   };
   interface Piece {
     points: { x: number; z: number }[];
+    strength: number[];
     kind: BandKind;
     cart: boolean;
     openStart: boolean;
@@ -198,6 +213,7 @@ export function roadBands(roads: readonly SceneRoad[]): {
       if (points.length < 2) continue;
       pieces.push({
         points,
+        strength: points.map((p) => fadeAt(road, p)),
         kind: span.kind,
         cart: road.cart === true,
         openStart: span.from < 1e-6 && isOpen(road, k, 0),
@@ -243,7 +259,7 @@ export function roadBands(roads: readonly SceneRoad[]): {
     const narrowEnd = narrowing(piece, after);
     const line: RibbonLine = {
       points,
-      strength: points.map(() => 1),
+      strength: piece.strength,
       years: points.map(() => 0),
       openStart: piece.openStart,
       openEnd: piece.openEnd,
@@ -586,7 +602,7 @@ export function roadWorksKey(roads: readonly SceneRoad[] | undefined): string {
   return (roads ?? [])
     .map(
       (r) =>
-        `${r.id}:${r.grade}:${r.points.length}:${r.upgrade ? `${r.upgrade.grade}@${Math.round(r.upgrade.progress * 100)}${r.upgrade.fromEnd ? '<' : ''}` : ''}:${(r.ground?.wet ?? []).length},${(r.ground?.fords ?? []).length}`,
+        `${r.id}:${r.grade}${r.abandoned ? 'x' : ''}:${r.points.length}:${(r.fade ?? []).map((f) => f.strength).join(',')}:${r.upgrade ? `${r.upgrade.grade}@${Math.round(r.upgrade.progress * 100)}${r.upgrade.fromEnd ? '<' : ''}` : ''}:${(r.ground?.wet ?? []).length},${(r.ground?.fords ?? []).length}`,
     )
     .join(';');
 }
