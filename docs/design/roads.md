@@ -297,7 +297,8 @@ jednodušší jít přes pole, než ho obcházet i když je cesta přes pole pom
 
 - Dnes práce zdražuje **vzdušná vzdálenost** od obydlí: +1 % za každých 10 m nad 100 m (pole
   a sad – [fields.md](fields.md); kácení a palivo – [forest.md](forest.md)).
-- Nově se měří **chůzí** (návrh Clauda): délka trasy, kudy lidé skutečně jdou (roční síť),
+- Nově se měří **chůzí** (návrh Clauda): délka trasy, kudy lidé skutečně jdou (uložené trasy;
+  roční síť pěšin se od Úlohy 6 nepočítá),
   a úsek po cestě se započítá zkráceně podle rychlosti (po upravené cestě 340 m jako 200 m).
   Mokřina se počítá dvojnásobně (bahno), brod + 30 m (zout se, přebrodit). Vzdálenosti se
   přepočítají jednou za rok a po dokončení vylepšení.
@@ -657,6 +658,11 @@ Místa na stromy, uchycení, stromy jako překážka a stromy na poli platí dá
 
 Návrh Clauda (detaily, které návrh výš nechal otevřené – 18. 10. 2026):
 
+- **Nahrazeno (Martin, 22. 10. 2026 (zadání #6): „Cesty zakládají jen lidé tím, kudy chodí“):** roční síť pěšin se 1. 11.
+  nepočítá. Provoz cest je z tras (provozní pole tras), jízdy vozů jdou do vyšlapanosti
+  (`addCartWear`, `WEAR.cartWeight`) a vozy cesty nezakládají, jen převezmou vyšlapanou
+  (`takeOverCartRoads`); provoz ke stavbám (chátrání) se sčítá z tras po roce dat. Odrážky níž
+  o roční síti, jejím prahu a „dvou letech po sobě“ jsou historické.
 - **Rok cest a roční součty práce:** rok cest běží od jedné roční kontroly k další (1. 11. – 31. 10.). Simulace každý den přičte rozdělení práce dne po místech (pole, staveniště, sady,
   hřbitovy, kácení stromů pro stavby; práce „ve vsi“ ne) a roční síť bere průměr na den. Součty
   jsou ve stavu vsi, takže nezávisí na tom, po jakých kouscích se ves dopočítá.

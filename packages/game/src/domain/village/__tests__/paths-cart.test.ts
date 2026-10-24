@@ -715,11 +715,19 @@ function cartYears(
   return { state: s, route };
 }
 
-/** Body trasy vozů, které nevedou po cestě, kterou vozy mají (do 5 m, nebo souběžně do 12 m). */
+/**
+ * Body trasy vozů, které nevedou po žádné cestě (do 12 m) ani po vyšlapané ploše – vozy cesty
+ * nezakládají, jejich jízdy tedy musí aspoň vyšlapat pěšinu nebo vést po cestě.
+ */
 function lostRoute(state: VillageState, route: CartRoute, from: number, to: number): number {
-  const carts = state.roads!.roads.filter((r) => r.cart || r.grade !== 'trodden');
+  const roads = state.roads!.roads;
+  const worn = wearMap(state.roads!.wear!);
   return axisSamples(route).filter(
-    (p) => p.x >= from && p.x <= to && carts.every((r) => axisGap(r, p) > 12),
+    (p) =>
+      p.x >= from &&
+      p.x <= to &&
+      roads.every((r) => axisGap(r, p) > 12) &&
+      wearAt(worn, p.x, p.z) <= 0,
   ).length;
 }
 
@@ -787,6 +795,10 @@ describe('vyježděná cesta – vůz přebije vyšlapanou', () => {
     expect(roads.map((r) => r.id)).toContain(50);
     const mid = beside[Math.floor(beside.length / 2)]!;
     expect(wearAt(wearMap(state.roads!.wear!), mid.x, mid.z)).toBeGreaterThan(0);
+    // trasa vozů nezůstala bez cesty: každý její bod leží u cesty (do 12 m) nebo na vyšlapané ploše
+    expect(lostRoute(state, route, 55, 100)).toBe(0);
+    // vozy nezaložily souběžnou dvojici cest
+    expect(longestParallel(roads)).toBeLessThan(25);
   }, 60_000);
 
   it('ve svahu vede pěšina rovně a vozy serpentinou – vozová cesta nevznikne hned, pěšina zůstane', () => {

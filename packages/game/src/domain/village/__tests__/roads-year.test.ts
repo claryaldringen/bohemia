@@ -54,6 +54,31 @@ describe('1. 11. bez roční sítě pěšin', () => {
     expect(s.roads!.visits).toEqual({ from: Y1, byKey: [] });
   }, 60_000);
 
+  it('provoz ke hřbitovu: úmrtí za poslední rok je návštěva, bez úmrtí a tras ne', () => {
+    const run = (deathDay: number | null): ReadonlyMap<string, number> => {
+      const s = village();
+      s.cemeteries = [
+        { id: 3, squares: [], squareSizeM: 5, graves: 0 },
+      ] as unknown as VillageState['cemeteries'];
+      if (deathDay !== null) s.chronicle.push({ day: deathDay, kind: 'death', group: 'adult' });
+      s.roads!.labor.days = 365;
+      return roadsDay(s, Y1, LANDSCAPE, null)!;
+    };
+    expect(run(Y1 - 100).get(visitKey('cemetery', 3))).toBeGreaterThan(0);
+    expect(run(Y1 - 400).get(visitKey('cemetery', 3))).toBeUndefined();
+    expect(run(null).get(visitKey('cemetery', 3))).toBeUndefined();
+  }, 60_000);
+
+  it('provoz k ohradě z tras (pen:) se vrátí a součty se nulují', () => {
+    const s = village();
+    accrueVisits(s.roads!, [route(visitKey('pen', 4), 73)], 365);
+    s.roads!.labor.days = 365;
+    const visits = roadsDay(s, Y1, LANDSCAPE, null)!;
+    expect(visits.get(visitKey('pen', 4))).toBeCloseTo(0.73, 2);
+    expect(visits.get(visitKey('pen', 5))).toBeUndefined();
+    expect(s.roads!.visits).toEqual({ from: Y1, byKey: [] });
+  }, 60_000);
+
   it('opuštěná modla bez návštěv začne chátrat, navštěvovaná ne', () => {
     const s = village();
     s.sacredBuildings = [

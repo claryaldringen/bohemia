@@ -352,6 +352,8 @@ export function takeOverCartRoads(
     const points = classify(run);
     // souběžný kus kratší než PARALLEL_MIN_M vyšlapanou převezme; delší souběžný kus nic
     // nepřebírá (vozová cesta po ose vozů vznikne z vyšlapanosti)
+    // otevřený bod = mimo cestu nebo souběžně vedle vyšlapané (ne přímo na ní); nová cesta se
+    // z něj nezakládá, jen se případně převezme vyšlapaná vedle
     const open = (c: CartPoint): boolean => c.kind === 'free' || (c.kind === 'take' && !c.near);
     let i = 0;
     while (i < run.length) {
