@@ -1665,7 +1665,6 @@ describe('pevné cesty v pohledu na ves (roads.md)', () => {
       ],
       // keř, mladý strom, plný strom, souš, pařez, zmizelý pařez, strom odstraněný stavbou
       trees: [tree(1, 3), tree(2, 12), tree(3, 60), tree(4, 105), tree(5, 115), tree(6, 130)],
-      candidates: [],
       labor: { from: DAY - 10, days: 10, shares: [] },
     };
     s.roads.trees.push(tree(7, 50));

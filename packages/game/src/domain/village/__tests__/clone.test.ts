@@ -64,7 +64,6 @@ describe('cloneState', () => {
           diesDay: 90000,
         },
       ],
-      candidates: [[{ x: 1, z: 2 }]],
       labor: {
         from: 1600,
         days: 12,
@@ -83,7 +82,6 @@ describe('cloneState', () => {
     copy.roads!.roads[0]!.traffic.push(1);
     copy.roads!.roads[0]!.spots.pop();
     copy.roads!.trees[0]!.diesDay = 1;
-    copy.roads!.candidates[0]!.push({ x: 5, z: 5 });
     copy.roads!.labor.shares[0]!.manDays += 1;
     const ids = copy.roads!.labor.shares[1]!.target;
     if (ids.kind === 'trees') ids.ids.push(13);

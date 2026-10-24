@@ -169,19 +169,23 @@ export interface RoadWear {
   labor: RoadLaborShare[];
 }
 
+/**
+ * Pole cest ze starých vsí, která nový systém nezná (smaže je `withRoadsV2`): loňské úseky roční
+ * sítě nad prahem (`candidates` – čte je jen `withWearSeed`) a příznaky zacelených děr a sloučených
+ * souběžných cest. Jen pro převody – hra je nečte a nepíše.
+ */
+export interface LegacyRoadFields {
+  candidates?: RoadPoint[][];
+  endsChecked?: true;
+  parallelsChecked?: true;
+}
+
 /** Pevné cesty vsi (roads.md). */
 export interface VillageRoads {
   /** Další id úseku, místa a stromu (strom: ROAD_TREE_ID_BASE + id). */
   nextId: number;
   roads: Road[];
   trees: RoadTree[];
-  /**
-   * Úseky roční sítě nad prahem z poslední roční kontroly před vyšlapaností (osy po ≈ 4 m). Cesty
-   * z nich už nevznikají (vznik z vyšlapanosti – `roadsMonth`) a nic je nepíše; čte je jen převod
-   * starší vsi – podél nich se zaseje vyšlapanost (`withWearSeed`). Smaže se s převodem cest
-   * (plán cest v2, Úloha 14).
-   */
-  candidates: RoadPoint[][];
   /**
    * Práce od poslední roční kontroly (od 1. 11.) po místech – z rozdělení práce dne. Roční síť
    * z ní bere průměrné člověkodny na den (`manDays / days`).
@@ -219,15 +223,10 @@ export interface VillageRoads {
   /** Jabloně vysazené hráčem podél úseků (roads.md – Vysazení jabloní); chybí = žádné. */
   apples?: RoadApple[];
   /**
-   * Díry mezi úseky zacelené a volné konce určené (roads.md – Úseky a rozcestí) – roční kontrolou
-   * nebo převodem starší vsi při načtení (`withJoinedRoads`); chybí = ještě ne.
+   * Starší ves je převedená na nový systém cest (`withRoadsV2`, paths.md – Převod starých vsí):
+   * síť jednou uklizená, stará pole smazaná. Nová ves ho má od začátku. Chybí = ještě ne.
    */
-  endsChecked?: true;
-  /**
-   * Souběžné cesty sloučené (roads.md – Úseky a rozcestí) – roční kontrolou nebo převodem starší
-   * vsi při načtení; chybí = ještě ne.
-   */
-  parallelsChecked?: true;
+  v2?: true;
   /**
    * Otisk sítě po posledním měsíčním úklidu (paths.md – Síť – kotvy, pahýly a úklid): trasy
    * (`VillageRoutes.key`) a osy úseků – bez změny se úklid nepouští. Chybí = ještě neproběhl.

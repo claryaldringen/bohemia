@@ -103,8 +103,8 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   `VillageState.roads` (volitelný – starší vsi začnou sčítat při prvním dopočtu): úseky `Road`
   (id, osa na cm, den vzniku, stupeň `RoadGrade` – zatím jen `trodden`, provoz posledních 5 let,
   místa na stromy `spots` určená jednou při vzniku), stromy `RoadTree` (id od `ROAD_TREE_ID_BASE`
-  nad id vrstvy překážek, místo, poloha, druh, den uchycení a smrti), `candidates` (dřívější
-  loňské úseky nad prahem – od Úlohy 5 se nepíšou, čte je jen `withWearSeed`) a práce roku cest
+  nad id vrstvy překážek, místo, poloha, druh, den uchycení a smrti), příznak `v2` (ves převedená
+  `withRoadsV2`) a práce roku cest
   po místech `labor` (od 1. 11., z rozdělení práce dne). Roční
   kontrola 1. 11. (`updateRoads`; roční síť pěšin se od Úlohy 6 nepočítá, terén dává `annualTerrain`):
   provoz cest z provozního pole uložených tras (`fieldTraffic` – medián `trafficAt` po ose, `TrafficOf`)
@@ -117,9 +117,9 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   vzniku staršího, roads.md – Úseky a rozcestí; dva úseky mezi stejnými uzly do okruhu ne,
   nejrovnější pokračování první) → **souběžné cesty** (do 12 m stejným směrem) se sloučí (`mergeParallelRoads` – kus
   slabší cesty souběžný aspoň 25 m se vyřízne, `removeBraids` – copánek mezi stejnými uzly do
-  25 m: zmizí oklika; vše v `tidyRoads`, příznak `parallelsChecked`) → **díry** (volný konec do 12 m od jiného
+  25 m: zmizí oklika; vše v `tidyRoads`) → **díry** (volný konec do 12 m od jiného
   úseku, který není u konce trasy roční sítě – brány, cíle) se napojí (`joinRoadGaps`, starší
-  vsi jednou při načtení `withJoinedRoads` s příznakem `endsChecked`) a určí se skutečné volné
+  vsi jednou při načtení `withRoadsV2`) a určí se skutečné volné
   konce `Road.openEnds` (jen tam se pás cesty ve scéně vytrácí; pěšina dne se za koncem úseku
   neskrývá – `roadFade`) → místa na stromy (`roadTreeSpots`, `plantingBlocker` – ne ve vsi, na
   čtvercích staveb (pole ano – Pole jako krajina), v lese, ve vodě, u překážek krajiny) → konec pařezů a stromy odstraněné stavbou →
@@ -544,7 +544,7 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   provoz uložených tras po hranách buněk → `extractLines` (začátky tras jsou kotvy), síla v bodě
   `wearStrengthAt` = vyšlapanost / `roadAt` (od `visibleFrom`), stáří 0 – tentýž zdroj vezme scéna
   (Úloha 4a); `pathCellM(landscape)` je strana buňky tras. Stará ves: `withWearSeed`
-  (`updateVillage` před dopočtem) – chybí-li `wear`, podél loňských `candidates` (osa vzorkovaná po
+  (`updateVillage` před dopočtem) – chybí-li `wear`, podél loňských `LegacyRoadFields.candidates` (osa vzorkovaná po
   čtvrtině políčka, ± 1 políčko jako u tras) `WEAR.seed` 50 000, den `lastDay + 1`; ves bez cest
   nechá být, druhé načtení vrátí týž stav. `road-report.ts` vypisuje políčka a kB vyšlapanosti
   a čas `settleWear` a `encodeWear` zvlášť (`WEAR_TIMING` – hodiny dává jen měření). Vlkov
@@ -582,3 +582,13 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   cestu nedrží, péče a sklizeň jsou trasy). Web: `SceneRoad.fade` (bledé kusy – krytí od poloviny
   stavu úměrně, `fadeOf` ve `village-view-roads.ts`) → `roadBands` je dá do `strength`;
   `SceneRoad.abandoned` – `nearestRoad` ho nevybere.
+- **Převod starých vsí (Úloha 14, Martin 23. 10. 2026: jednou a idempotentně):** `withRoadsV2(state,
+landscape, obstacles)` v `paths/roads-v2.ts`, `updateVillage` ho volá po `withRoutes` (kotvy z tras).
+  Starší ves bez `roads.v2` dostane hned `tidyRoadsNow` (`roads.ts`, týž úklid jako měsíční
+  `tidyMonth` bez ohledu na `tidyKey`: souběžné cesty, copánky, díry, spojení, pahýly, cesty k
+  vchodům, křižovatky; bez tras jen `tidyRoads` bez kotev), smažou se stará pole `LegacyRoadFields`
+  (`candidates`, `endsChecked`, `parallelsChecked` – typy jen pro převody; `withJoinedRoads` zanikl)
+  a nastaví se `v2` (nová ves ho má z `emptyRoads`). Upravené a vozové cesty zůstanou, nepoužívané
+  bledne dál (`withRoadCondition`). `cutEnds` a `cartCandidates` zůstávají – pořád je čte a píše
+  úklid a převzetí vyšlapaných cest vozy. Ves bez cest a ves s `v2` vrací týž objekt. Test
+  `roads-v2.test.ts`.

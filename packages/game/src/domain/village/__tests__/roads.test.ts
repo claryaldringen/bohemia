@@ -173,7 +173,6 @@ describe('pevné cesty – roční kontrola (updateRoads)', () => {
     expect(updateRoads(s, Y1, LANDSCAPE, null)).toEqual([]);
     expect(updateRoads(s, NOV1(601), LANDSCAPE, null)).toEqual([]);
     expect(s.roads!.roads).toEqual([]);
-    expect(s.roads!.candidates).toEqual([]);
   });
 
   it('pěšiny dne se k pevné cestě stahují (sleva v síti)', () => {
@@ -283,7 +282,6 @@ describe('strom u cesty jako překážka stavby', () => {
       nextId: 1,
       roads: [],
       trees: [tree],
-      candidates: [],
       labor: { from: s.lastDay, days: 0, shares: [] },
     };
     return { s, tree, day: s.lastDay };
@@ -355,7 +353,6 @@ describe('práce za rok cest (addRoadLabor)', () => {
       nextId: 1,
       roads: [],
       trees: [],
-      candidates: [],
       labor: { from: 0, days: 0, shares: [] },
     };
     const day = (d: number, cells: TileCell[], manDays: number): LaborDay => ({
@@ -412,7 +409,6 @@ describe('pevné cesty v simulaci', () => {
     expect(s.roads).toBeDefined();
     expect(s.roads!.roads).toEqual([]);
     // roční kontrola cesty nezakládá ani nesbírá kandidáty, práce se sčítá od 1. 11.
-    expect(s.roads!.candidates).toEqual([]);
     expect(s.roads!.labor.from).toBe(Y1);
     expect(s.roads!.labor.days).toBe(4);
     // bez krajiny (kalibrace) se pevné cesty nepočítají
@@ -600,7 +596,6 @@ describe('pevné cesty a pěšiny s ohradami, pastvou, domy na polích a zbytky 
       nextId: 1,
       roads: [],
       trees: [tree],
-      candidates: [],
       labor: { from: day, days: 0, shares: [] },
     };
     const cells = [7, 8, 9, 10, 11].map((x) => ({ x, y: 3 }));

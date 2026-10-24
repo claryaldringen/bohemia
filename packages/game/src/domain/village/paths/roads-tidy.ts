@@ -1,8 +1,7 @@
 // Úklid sítě pevných cest: souběžné cesty, copánky, díry mezi úseky a volné konce (roads.md – Úseky a rozcestí).
 
-import { length2, type Landscape, type ObstacleLayer } from '../../landscape';
+import { length2 } from '../../landscape';
 import { cloneState } from '../clone';
-import { obstacleChangesAt } from '../obstacles';
 import { ROAD_TREES } from '../rules';
 import {
   type Construction,
@@ -10,7 +9,6 @@ import {
   type RoadGrade,
   type RoadPoint,
   type VillageRoads,
-  type VillageState,
 } from '../types';
 import { type PathTerrain } from './terrain';
 import {
@@ -30,17 +28,10 @@ import {
   roadLengthM,
   toSegment,
 } from './roads-geometry';
-import {
-  annualTerrain,
-  endKey,
-  mergeRoadChains,
-  roadsInWork,
-  splitRoad,
-  splitRoadWork,
-} from './roads-form';
-import { type RoadAnchors, nearAnchor, roadAnchors } from './road-anchors';
+import { endKey, mergeRoadChains, roadsInWork, splitRoad } from './roads-form';
+import { type RoadAnchors, nearAnchor } from './road-anchors';
 import { type StubNetwork, hasLoop, hasStubWork, splitLoops, trimStubs } from './roads-stubs';
-import { SpotContext, plantingBlocker } from './roads-trees';
+import { SpotContext } from './roads-trees';
 
 /**
  * Copánek: dva úseky mezi stejnými dvěma uzly, které se od sebe nevzdálí víc než tolik (m) –
@@ -330,8 +321,6 @@ export function tidyRoads(
     if (kept.length > 0) roads.cutEnds = kept;
     else delete roads.cutEnds;
   }
-  roads.endsChecked = true;
-  roads.parallelsChecked = true;
 }
 
 // --- díry mezi úseky ----------------------------------------------------------------------------
@@ -483,7 +472,6 @@ export function joinedRoadsOf(
     nextId: list.reduce((max, r) => Math.max(max, r.id), 0) + 1,
     roads: cloneState([...list]),
     trees: [],
-    candidates: [],
     labor: { from: 0, days: 0, shares: [] },
   };
   tidyRoads(roads, [], termini, {
@@ -495,43 +483,4 @@ export function joinedRoadsOf(
     split: () => undefined,
   });
   return roads.roads;
-}
-
-/**
- * Starší ves z doby před zacelováním děr a slučováním souběžných cest (bez
- * `VillageRoads.endsChecked` / `parallelsChecked`) – při načtení se souběžné úseky sloučí, díry
- * zacelí a určí se volné konce jako v roční kontrole (roční síť z práce od poslední kontroly).
- * Jednou: pak to dělá roční kontrola sama a stav nese příznak – bez cest i s příznakem vrátí týž
- * objekt (nic se neukládá).
- */
-export function withJoinedRoads(
-  state: VillageState,
-  landscape: Landscape,
-  obstacles: ObstacleLayer | null,
-): VillageState {
-  const checked = state.roads?.endsChecked && state.roads.parallelsChecked;
-  if (!state.roads || checked || state.roads.roads.length === 0) return state;
-  const next = cloneState(state);
-  const roads = next.roads!;
-  const day = next.lastDay;
-  const changes = obstacleChangesAt(next, day);
-  const terrain = annualTerrain(next, day, landscape, obstacles, changes);
-  if (terrain) {
-    tidyRoads(
-      roads,
-      next.constructions,
-      anchorTermini(roadAnchors(next.routes?.list ?? [], landscape)),
-      {
-        terrain,
-        blocked: plantingBlocker(next, landscape),
-        layer: obstacles,
-        changes,
-        seed: next.seed,
-        split: (from, to) => splitRoadWork(next.constructions, from, to),
-      },
-    );
-  }
-  roads.endsChecked = true;
-  roads.parallelsChecked = true;
-  return next;
 }

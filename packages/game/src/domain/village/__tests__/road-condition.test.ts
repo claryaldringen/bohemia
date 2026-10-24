@@ -41,7 +41,6 @@ function roadsOf(...list: Road[]): VillageRoads {
     nextId: 100,
     roads: list,
     trees: [],
-    candidates: [],
     labor: { from: 0, days: 0, shares: [] },
   };
 }

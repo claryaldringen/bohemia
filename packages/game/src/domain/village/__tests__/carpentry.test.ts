@@ -528,7 +528,6 @@ describe('dosah vozu – vozová síť (wagons.md – fáze 2)', () => {
       nextId: 3,
       roads: [road(1, 0, 60), road(2, 60, 120)],
       trees: [],
-      candidates: [],
       labor: { from: DAY, days: 0, shares: [] },
     };
     const piece = (roadId: number) => ({ roadId, grade: 'improved' as const, manDays: 0 });

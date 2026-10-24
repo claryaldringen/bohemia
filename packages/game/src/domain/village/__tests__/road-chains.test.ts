@@ -116,7 +116,6 @@ function withRoads(s: VillageState, roads: Road[]): VillageState {
     nextId: 50,
     roads,
     trees: [],
-    candidates: [],
     labor: { from: DAY, days: 0, shares: [] },
   };
   return s;

@@ -7,6 +7,7 @@
 import { WEAR } from '../rules-roads';
 import type {
   LaborDay,
+  LegacyRoadFields,
   LaborTarget,
   RoadLaborShare,
   RoadPoint,
@@ -537,7 +538,7 @@ function axisCells(points: readonly RoadPoint[], out: Set<number>): void {
 
 /**
  * Vyšlapanost staré vsi (paths.md – Převod starých vsí, bod 3): chybí-li, založí ji – podél
- * loňských úseků nad prahem (`VillageRoads.candidates`) `WEAR.seed` (polovina prahu cesty),
+ * loňských úseků nad prahem (`LegacyRoadFields.candidates`) `WEAR.seed` (polovina prahu cesty),
  * ostatní pěšiny od nuly; platí od dalšího dne dopočtu. Ves bez pevných cest nebo s vyšlapaností
  * vrátí týž stav (jednou a idempotentně).
  */
@@ -545,7 +546,9 @@ export function withWearSeed(state: VillageState): VillageState {
   const roads = state.roads;
   if (!roads || roads.wear) return state;
   const keys = new Set<number>();
-  for (const axis of roads.candidates) axisCells(axis, keys);
+  for (const axis of (roads as VillageRoads & LegacyRoadFields).candidates ?? []) {
+    axisCells(axis, keys);
+  }
   const cells = new Map<number, number>([...keys].map((k): [number, number] => [k, WEAR.seed]));
   const wear: RoadWear = { day: state.lastDay + 1, cells: encodeWear(cells), labor: [] };
   return { ...state, roads: { ...roads, wear } };

@@ -3,7 +3,8 @@ import { dayIndexOf } from '../../calendar';
 import { obstaclesOf } from '../../landscape';
 import { foundVillage } from '../actions';
 import { removeBraids } from '../paths/roads-tidy';
-import { joinedRoadsOf, updateRoads, withJoinedRoads } from '../paths/roads';
+import { joinedRoadsOf, updateRoads } from '../paths/roads';
+import { withRoadsV2 } from '../paths/roads-v2';
 import { ROAD_TREE_ID_BASE } from '../road-trees';
 import { advanceVillage } from '../simulate';
 import type { Dwelling, Person, Road, RoadGrade, VillageState } from '../types';
@@ -158,7 +159,6 @@ describe('souběžné pevné cesty se sloučí', () => {
           diesDay: Y1 + 30000,
         },
       ],
-      candidates: [],
       labor: { from: Y1 - 30, days: 30, shares: [] },
       apples: [
         {
@@ -171,15 +171,15 @@ describe('souběžné pevné cesty se sloučí', () => {
         },
       ],
     };
-    const migrated = withJoinedRoads(s, LANDSCAPE, LAYER);
+    const migrated = withRoadsV2(s, LANDSCAPE, LAYER);
     const ids = migrated.roads!.roads.map((r) => r.id).sort();
     expect(ids).not.toContain(2);
     expect(ids).toContain(1);
     expect(ids).toContain(3);
     expect(migrated.roads!.trees.map((t) => t.id)).toEqual([ROAD_TREE_ID_BASE + 30]);
     expect(migrated.roads!.apples![0]!.roadId).toBe(1);
-    expect(migrated.roads!.parallelsChecked).toBe(true);
-    expect(withJoinedRoads(migrated, LANDSCAPE, LAYER)).toBe(migrated);
+    expect(migrated.roads!.v2).toBe(true);
+    expect(withRoadsV2(migrated, LANDSCAPE, LAYER)).toBe(migrated);
   }, 60_000);
 
   it('copánek s krátkým vzdáleným kusem (Vlkov): slabší zmizí, jabloně přejdou', () => {
@@ -205,7 +205,6 @@ describe('souběžné pevné cesty se sloučí', () => {
         ]),
       ],
       trees: [],
-      candidates: [],
       apples: [
         { id: ROAD_TREE_ID_BASE + 1, roadId: 2, x: 50, z: 34, distanceM: 50, plantedDay: Y1 - 900 },
       ],
@@ -236,7 +235,6 @@ describe('souběžné pevné cesty se sloučí', () => {
         ]),
       ],
       trees: [],
-      candidates: [],
     } as unknown as NonNullable<VillageState['roads']>;
     expect(removeBraids(roads, [])).toBe(false);
     expect(roads.roads.map((r) => r.id)).toEqual([1, 2]);

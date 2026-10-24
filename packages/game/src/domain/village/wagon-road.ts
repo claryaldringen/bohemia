@@ -830,7 +830,6 @@ export function startWagonRoad(
     nextId: 1,
     roads: [],
     trees: [],
-    candidates: [],
     labor: { from: day, days: 0, shares: [] },
   };
   // lávky pro pěší u brodů chtějí dřevo jako u upravené cesty: klády z hromady, jinak nejbližší stromy

@@ -56,7 +56,6 @@ async function settled(): Promise<{ villages: InMemoryVillages; villageId: strin
         },
       ],
       trees: [],
-      candidates: [],
       labor: { from: TODAY - 100, days: 0, shares: [] },
     };
   });

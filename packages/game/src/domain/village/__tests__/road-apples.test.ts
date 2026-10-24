@@ -61,7 +61,6 @@ function village(day = DAY): VillageState {
     nextId: 50,
     roads: [road],
     trees: [],
-    candidates: [],
     labor: { from: day, days: 0, shares: [] },
   };
   return s;

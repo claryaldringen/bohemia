@@ -409,7 +409,6 @@ describe('voda v sudech (wagons.md – Co vozy vozí, paths.md – Pochůzky pro
         },
       ],
       trees: [],
-      candidates: [],
       labor: { from: DAY - 30, days: 30, shares: [] },
     };
     const road = villageCartDrives(s, DAY, LANDSCAPE, null)!;
