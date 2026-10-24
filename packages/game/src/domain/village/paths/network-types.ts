@@ -90,6 +90,8 @@ export interface NetworkRoute {
   /** Cest za den (váha trasy v provozu). */
   trips: number;
   cells: number[];
+  /** Stálá část `trips` (chůze na zavedené místo, ne práce dne). */
+  base?: number;
   visit?: string;
 }
 

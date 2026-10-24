@@ -212,6 +212,45 @@ describe('vyšlapanost – sčítání po intervalech', () => {
     expect(wear.day).toBe(1);
   });
 
+  it('stálá část tras za prací (base) vyšlape cestu i bez práce – pole za ≤ 1 700 dní', () => {
+    const field = trafficField(
+      routesOf([{ ...route(0, 0, 20, 160, { to: 'field:1', purpose: 'work' }), base: 160 }]),
+      CELL,
+    );
+    const wear = emptyWear();
+    settleWear(wear, field, 0, 1700);
+    expect(wearOfCell(wear, 10, 0)).toBeGreaterThanOrEqual(WEAR.roadAt);
+    // práce dne se nepřičítá dvakrát: base 160 + práce jen navíc podle podílu cíle
+    const busy = emptyWear();
+    busy.labor = [{ target: { kind: 'field', id: 1 }, manDays: 10 }];
+    settleWear(busy, field, 0, 1);
+    expect(wearOfCell(busy, 10, 0)).toBe(60 + 1000);
+  });
+
+  it('trasa za prací bez base (starší stav) vyšlapanost sama nenese', () => {
+    const field = trafficField(
+      routesOf([route(0, 0, 20, 160, { to: 'field:1', purpose: 'work' })]),
+      CELL,
+    );
+    const wear = emptyWear();
+    settleWear(wear, field, 0, 1700);
+    expect(wear.cells).toBe('');
+  });
+
+  it('provoz podél trasy za prací je celé trips, ať má base nebo ne (zarůstání)', () => {
+    for (const base of [undefined, 40]) {
+      const r = route(0, 0, 20, 160, { to: 'field:1', purpose: 'work' });
+      const field = trafficField(routesOf([base ? { ...r, base } : r]), CELL);
+      expect(trafficAt(field, 10 * CELL, 0)).toBe(160);
+    }
+  });
+
+  it('klíč políčka mimo rozsah selže hlasitě', () => {
+    expect(() => wearKey(40_000, 0)).toThrow(RangeError);
+    expect(() => wearKey(0, -32_769)).toThrow(RangeError);
+    expect(() => wearKey(-32_768, 32_767)).not.toThrow();
+  });
+
   it('interval projde jen sjednocení políček s provozem a s vyšlapaností', () => {
     const field = trafficField(routesOf([route(0, 0, 7, 300)]), CELL);
     const wear: RoadWear = {

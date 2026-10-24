@@ -360,13 +360,18 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   kódování `encodeWear` / `decodeWear` (seřazené klíče, rozdíl klíče a hodnota jako varint v base64
   – 5 bitů na znak, nuly se neukládají), `wearCellsOf(route, cellM)` – políčka trasy ± 1, každé
   jednou. **Provozní pole** `trafficField(routes, cellM)` se spočítá jednou pro `routes.key` (pár
-  posledních sad v paměti, kontrola počtu tras a součtu cest) – `cells`: cesty za den tras mimo
-  práci po políčkách, `targets`: pro cíl práce (`StoredRoute.to`) políčka tras k němu a kolik cest
-  jimi vede; `trafficAt(field, x, z)`. `settleWear(wear, field, fromDay, toDay)` projde jen
-  sjednocení políček pole, práce a vyšlapanosti: `w = clamp(w + (provoz − 100) × dny + práce, 0,
-max)`, práce intervalu `wear.labor` (klíč `wearLaborKey` = cíl trasy) se rozdělí po políčkách
+  posledních sad v paměti, kontrola počtu tras a součtu cest) – `cells`: cesty za den, které se
+  sčítají (trasy mimo práci celé, trasy `work` jen stálá část `StoredRoute.base`; `base` zapisuje
+  `network-targets.ts` přes `TripGroup.baseWeights` u pole, sadu, ohrady a staveniště a
+  `storedRoutes` ji ukládá), `targets`: pro cíl práce (`StoredRoute.to`) políčka tras k němu a kolik
+  cest jimi vede, `walk`: celé `trips` všech tras; `trafficAt(field, x, z)` čte `walk` (provoz pro
+  zarůstání). `wearKey` mimo ± 32 768 políček vyhodí `RangeError`. `settleWear(wear, field, fromDay, toDay)` projde jen
+  sjednocení políček pole, práce a vyšlapanosti: `w = clamp(min(w + práce, max) + (provoz − 100) × dny, 0, max)`, práce intervalu `wear.labor` (klíč `wearLaborKey` = cíl trasy) se rozdělí po políčkách
   tras k cíli podle jejich cest za den (celé setiny, dolů); vynuluje `labor`, posune `day`, vrátí
-  počet prošlých políček; poslední sečtená políčka drží v paměti (další interval je nedekóduje) –
+  počet prošlých políček; poslední sečtená políčka drží v paměti (další interval je nedekóduje, ale
+  `encodeWear` běží po každém intervalu – **povinnost Úlohy 3b:** držet pracovní `Map` v paměti a
+  kódovat jen při uložení stavu, studená políčka srovnávat jen při uložení; změřit `settleWear` a
+  `encodeWear` zvlášť) –
   syntetické měření ≈ 1,3 ms na interval při 4,5 tisících políček. Celá čísla, dopočet po kouscích
   = najednou (provoz v intervalu stálý).
   Ve výběru trasy: `PathNetworkInput.wear` (dekódovaná vyšlapanost) – `wearStrengths` dá buňkám

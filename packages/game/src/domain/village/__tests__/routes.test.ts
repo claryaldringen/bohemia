@@ -225,6 +225,20 @@ describe('trasy sítě pěšin (keepRoutes)', () => {
     );
   });
 
+  it('stálé cesty k poli nesou base (stálá část), nikdy víc než trips', () => {
+    const stored = storedRoutes(network);
+    const field = stored.filter((s) => s.to === 'field:7');
+    expect(field.length).toBeGreaterThan(0);
+    for (const s of field) {
+      expect(s.base).toBeGreaterThan(0);
+      expect(s.base).toBeLessThanOrEqual(s.trips);
+      expect(Number.isInteger(s.base)).toBe(true);
+    }
+    expect(stored.filter((s) => s.purpose !== 'work').every((s) => s.base === undefined)).toBe(
+      true,
+    );
+  });
+
   it('uložené trasy – setiny, bez tras pod MIN_TRIP, buňky tam a zpět', () => {
     const stored = storedRoutes(network);
     expect(stored.length).toBeGreaterThan(0);

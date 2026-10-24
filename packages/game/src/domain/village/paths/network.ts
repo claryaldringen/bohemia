@@ -186,12 +186,14 @@ export function computePathNetwork(input: PathNetworkInput): PathNetwork {
 /** Trasa posledního kola pro `PathNetwork.routes` – odkud (obydlí domácnosti), kam a proč. */
 function networkRoute(record: RouteRecord, homes: readonly Household[]): NetworkRoute {
   const { group } = record;
+  const base = Math.min(record.trips, group.baseWeights?.[record.home] ?? 0);
   return {
     from: `d:${homes[record.home]!.dwellingId}`,
     to: group.to,
     purpose: group.purpose,
     trips: record.trips,
     cells: record.cells,
+    ...(base > 0 ? { base } : {}),
     ...(group.visit ? { visit: group.visit } : {}),
   };
 }

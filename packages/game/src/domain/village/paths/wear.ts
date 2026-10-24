@@ -22,6 +22,9 @@ const KEY_SPAN = 65_536;
 
 /** Klíč políčka (i, j) – políčko i pokrývá světa x od i × 7,5 m do (i + 1) × 7,5 m. */
 export function wearKey(i: number, j: number): number {
+  if (!(Math.abs(i + 0.5) < KEY_OFFSET && Math.abs(j + 0.5) < KEY_OFFSET)) {
+    throw new RangeError(`Políčko vyšlapanosti mimo rozsah klíče: ${i}, ${j}`);
+  }
   return (i + KEY_OFFSET) * KEY_SPAN + (j + KEY_OFFSET);
 }
 
@@ -151,7 +154,10 @@ export interface TrafficTarget {
  * a pro každý cíl práce jeho políčka – práci intervalu nesou trasy k cíli podle svých cest za den.
  */
 export interface TrafficField {
+  /** Provoz, který se sčítá do vyšlapanosti: trasy mimo práci celé, trasy `work` jen `base`. */
   cells: ReadonlyMap<number, number>;
+  /** Celý provoz všech tras (`trips`, i `work`) – podle něj zarůstají kusy cest (`trafficAt`). */
+  walk: ReadonlyMap<number, number>;
   targets: ReadonlyMap<string, TrafficTarget>;
 }
 
@@ -176,10 +182,15 @@ function fieldCheck(list: readonly StoredRoute[]): string {
 
 function buildField(list: readonly StoredRoute[], cellM: number): TrafficField {
   const cells = new Map<number, number>();
+  const walk = new Map<number, number>();
   const covers = new Map<string, { cells: Map<number, number>; total: number }>();
   for (const route of list) {
     const routeCellsOf = wearCellsOf(route, cellM);
+    for (const c of routeCellsOf) walk.set(c, (walk.get(c) ?? 0) + route.trips);
     if (route.purpose === 'work') {
+      // stálá část (chůze na zavedené místo) se vyšlapává hned, práci dne nese `wear.labor`
+      const base = Math.min(route.trips, route.base ?? 0);
+      if (base > 0) for (const c of routeCellsOf) cells.set(c, (cells.get(c) ?? 0) + base);
       const target = covers.get(route.to) ?? { cells: new Map<number, number>(), total: 0 };
       covers.set(route.to, target);
       target.total += route.trips;
@@ -193,12 +204,13 @@ function buildField(list: readonly StoredRoute[], cellM: number): TrafficField {
     const keys = [...t.cells.keys()].sort((a, b) => a - b);
     targets.set(to, { cells: keys, cover: keys.map((k) => t.cells.get(k)!), total: t.total });
   }
-  return { cells, targets };
+  return { cells, walk, targets };
 }
 
 /**
  * Provozní pole tras (paths.md – Vyšlapanost, výkon): políčka 7,5 m se součtem cest za den tras
- * (i sousedi ± 1) – trasy za prací (účel `work`) jen jako podíly cíle, práci nese `wear.labor`.
+ * (i sousedi ± 1) – trasy za prací (účel `work`) jen stálou částí `base`, zbytek (práci dne) nese
+ * `wear.labor` podle podílů cíle, takže se nic nepočítá dvakrát.
  * Spočítá se jednou pro `routes.key` a drží v paměti (pár posledních sad tras).
  */
 export function trafficField(
@@ -216,9 +228,9 @@ export function trafficField(
   return field;
 }
 
-/** Provoz tras mimo práci v bodě světa (x, z) – setiny cest za den. */
+/** Celý provoz tras (i k cílům práce) v bodě světa (x, z) – setiny cest za den. */
 export function trafficAt(field: TrafficField, x: number, z: number): number {
-  return field.cells.get(wearCellAt(x, z)) ?? 0;
+  return field.walk.get(wearCellAt(x, z)) ?? 0;
 }
 
 // --- sčítání ------------------------------------------------------------------------------
@@ -281,7 +293,9 @@ export function settleWear(
   lastSettled = null;
   const labor = laborCells(wear.labor, field);
   const settle = (c: number, trips: number): void => {
-    const w = (cells.get(c) ?? 0) + (trips - WEAR.regrowPerDay) * days + (labor.get(c) ?? 0);
+    // nejdřív práce intervalu (ořez na strop), pak chůze a dorůstání po dnech (ořez na 0 a strop)
+    const worked = Math.min(WEAR.max, (cells.get(c) ?? 0) + (labor.get(c) ?? 0));
+    const w = worked + (trips - WEAR.regrowPerDay) * days;
     if (w > 0) cells.set(c, Math.min(WEAR.max, w));
     else cells.delete(c);
   };

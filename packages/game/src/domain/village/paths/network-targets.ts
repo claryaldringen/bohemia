@@ -81,6 +81,8 @@ export interface TripGroup {
   errand?: keyof PathErrands;
   sources: number[];
   weights: number[];
+  /** Stálá část `weights` po domácnostech (chůze na zavedené místo, ne práce dne). */
+  baseWeights?: number[];
   /** Stáří spojení po domácnostech (roky) – bez údaje stáří domácnosti. */
   years?: number[];
   maxCost: number;
@@ -174,6 +176,7 @@ export function tripGroups(
     trips: number,
     targetAge = 1,
     visit?: string,
+    baseTrips = 0,
   ): void => {
     if (sources.length === 0 || trips <= 0) return;
     groups.push({
@@ -181,6 +184,7 @@ export function tripGroups(
       purpose,
       sources,
       weights: shareWeights(homes, trips, targetAge),
+      ...(baseTrips > 0 ? { baseWeights: shareWeights(homes, baseTrips, targetAge) } : {}),
       maxCost: groupReach(grid, sources, homes),
       ...(visit ? { visit } : {}),
     });
@@ -203,7 +207,15 @@ export function tripGroups(
     const base = sown || founding ? BASE_TRIPS.field : BASE_TRIPS.fallow;
     // nově zakládané pole: pěšina se teprve vyšlapává
     const to = `field:${field.id}`;
-    target(to, 'work', squaresTarget(field.parts), base + work(to), founding ? 0.5 : 1);
+    target(
+      to,
+      'work',
+      squaresTarget(field.parts),
+      base + work(to),
+      founding ? 0.5 : 1,
+      undefined,
+      base,
+    );
   }
   // sad: zavedené místo jen k nejbližšímu sadu, práce dne tam, kde se dnes pracuje
   const orchards = v.orchards ?? [];
@@ -223,6 +235,7 @@ export function tripGroups(
       purpose: 'work',
       sources,
       weights,
+      baseWeights: homes.map((_, i) => (nearestOrchard[i] === k ? base[i]! : 0)),
       maxCost: groupReach(grid, sources, homes),
     });
   });
@@ -293,6 +306,7 @@ export function tripGroups(
       base + work(to),
       1,
       to,
+      base,
     );
   }
   // humno (production-chains.md – Humno): k hotovému vstupem na předku za výmlatem – nosí se na
@@ -310,6 +324,9 @@ export function tripGroups(
       'work',
       cellsAround(grid, floor.position, HUMNO.sizeM.z / 2 + grid.cellM),
       BASE_TRIPS.site + work(`site:${floor.id}`),
+      1,
+      undefined,
+      BASE_TRIPS.site,
     );
   }
   // obilné jámy (production-chains.md – Obilné jámy): k otevřené jámě pro zrno, k jámě, do které se
@@ -322,6 +339,9 @@ export function tripGroups(
       'work',
       cellsAround(grid, pit, GRAIN_PIT_REACH_M),
       BASE_TRIPS.grainPit + work(`grain-pit:${pit.id}`),
+      1,
+      undefined,
+      BASE_TRIPS.grainPit,
     );
   }
   for (const share of v.labor?.shares ?? []) {
@@ -352,7 +372,15 @@ export function tripGroups(
     if (!b) continue;
     if (!d.built) {
       const to = `site:${d.id}`;
-      target(to, 'work', cellsAround(grid, gateOf(b), 2.5), BASE_TRIPS.site + work(to));
+      target(
+        to,
+        'work',
+        cellsAround(grid, gateOf(b), 2.5),
+        BASE_TRIPS.site + work(to),
+        1,
+        undefined,
+        BASE_TRIPS.site,
+      );
     } else {
       const to = `dwelling:${d.id}`;
       const repair = work(to);
@@ -453,6 +481,9 @@ export function tripGroups(
       'work',
       cellsAround(grid, b.position, half + grid.cellM),
       BASE_TRIPS.site + work(`site:${b.id}`),
+      1,
+      undefined,
+      BASE_TRIPS.site,
     );
   }
   // kovář (crafts.md – Uhlí a ruda kováře): z kovárny na rudiště kopat a pro rudu, k milíři pro
