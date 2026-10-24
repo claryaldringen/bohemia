@@ -29,7 +29,10 @@ const seeds = (): SeedSource => {
   return { nextSeed: () => next++ };
 };
 
-/** Ves zakladatelů (dostavěná zemnice) a rodina syna v druhé zemnici – 7 lidí. */
+/**
+ * Ves zakladatelů rodu – vojvoda s manželkami, dostavěná zemnice (lord.md – Zakladatelé) – a rodina
+ * syna v druhé zemnici – 7 lidí.
+ */
 async function player(): Promise<{
   deps: {
     settlements: InMemorySettlements;
@@ -111,7 +114,8 @@ describe('leaveVillage – na téže mapě', () => {
     expect(result.to.state.constructions[0]).toMatchObject({ dwellingType: 'zemnice' });
     expect(result.to.state.constructions[0]!.position).toEqual(at(200, 200));
     expect(result.to.state.storesKg).toBeGreaterThan(0);
-    expect(result.from.state.people).toHaveLength(4);
+    // zůstalo 5 zakladatelů rodu
+    expect(result.from.state.people).toHaveLength(5);
     expect(result.from.state.chronicle.at(-1)).toMatchObject({
       kind: 'households-left',
       people: 2,
@@ -139,7 +143,7 @@ describe('leaveVillage – na téže mapě', () => {
     });
     expect(empty.ok).toBe(false);
     expect(deps.villages.records.size).toBe(1);
-    expect((await deps.villages.find(villageId))!.state.people).toHaveLength(6);
+    expect((await deps.villages.find(villageId))!.state.people).toHaveLength(7);
   });
 
   it('stará ves zná novou: pole přes její staveniště nejde', async () => {
@@ -267,7 +271,7 @@ describe('leaveVillage – na novou mapu', () => {
       destination: { kind: 'map', direction: 'E' },
     });
     expect(again).toEqual({ ok: false, reason: OWN_MAP_THERE });
-    expect((await deps.villages.find(villageId))!.state.people).toHaveLength(4);
+    expect((await deps.villages.find(villageId))!.state.people).toHaveLength(5);
     const west = await leaveVillage(deps, {
       playerId: PLAYER,
       villageId,

@@ -3,6 +3,7 @@ import {
   NEW_VILLAGE_MIN_DISTANCE_M,
   advanceVillage,
   checkDwellingPlacement,
+  checkPersonName,
   checkVillageName,
   distanceToVillages,
   squareCenter,
@@ -11,6 +12,7 @@ import {
   forestEdgeDistanceM,
   foundVillage,
   withLivestockLand,
+  normalizePersonName,
   normalizeVillageName,
   withPlots,
   withDwellingShapes,
@@ -41,7 +43,16 @@ export interface FoundVillageInput {
    * zásob a výchozího stáda.
    */
   settlers?: Settlers;
+  /**
+   * Jméno vojvody (lord.md – Kde se jméno zadává: jméno vojvody při založení hry) – jen písmena
+   * (`checkPersonName`). Bez něj vojvoda na jméno čeká. Jen první ves sídla
+   * (`foundVillageForSettlement`); další ves a osadníci ho nepoužijí.
+   */
+  lordName?: string;
 }
+
+/** Zakladatelé nové vsi (`foundVillage` – `lord`); bez nich ves bez rodu. */
+type Founders = { name?: string } | undefined;
 
 const ALREADY_FOUNDED = 'Ves už je založená.';
 /** Další ves na téže mapě musí stát dál od ostatních (migration.md – Odchod do nové vsi). */
@@ -49,16 +60,24 @@ export const TOO_CLOSE_TO_VILLAGE = `Nová ves musí stát nejméně ${NEW_VILLA
 
 /**
  * Založí první ves sídla: jméno, první zemnice a volitelně první pole (ověřené podle krajiny). Ves
- * se hned dopočítá do dneška – den založení už proběhl, jako po každé akci.
+ * zakládá vojvoda se svou rodinou (lord.md – Zakladatelé; Martin 24. 10. 2026: „Vesnici zakládá
+ * vojvoda a jeho rodina.“) – s ověřeným jménem `lordName`, bez něj vojvoda na jméno čeká. Ves se
+ * hned dopočítá do dneška – den založení už proběhl, jako po každé akci.
  */
 export async function foundVillageForSettlement(
   deps: { villages: VillageRepository; seeds: SeedSource },
   input: FoundVillageInput,
 ): Promise<VillageResult> {
+  let lord: { name?: string } = {};
+  if (input.lordName !== undefined) {
+    const check = checkPersonName(input.lordName);
+    if (!check.ok) return { ok: false, reason: check.reason ?? 'Neplatné jméno vojvody.' };
+    lord = { name: normalizePersonName(input.lordName) };
+  }
   if ((await deps.villages.listBySettlement(input.settlementId)).length > 0) {
     return { ok: false, reason: ALREADY_FOUNDED };
   }
-  const founded = foundedVillage(deps.seeds, input);
+  const founded = foundedVillage(deps.seeds, input, lord);
   if (!founded.ok) return founded;
   const created = await deps.villages.create(input.settlementId, founded.name, founded.state);
   return created === null ? { ok: false, reason: ALREADY_FOUNDED } : { ok: true, village: created };
@@ -91,21 +110,23 @@ export async function foundAnotherVillage(
 function foundedVillage(
   seeds: SeedSource,
   input: FoundVillageInput,
+  lord?: Founders,
 ): { ok: true; state: VillageState; name: string } | { ok: false; reason: string } {
   const name = checkVillageName(input.name);
   if (!name.ok) return { ok: false, reason: name.reason ?? 'Neplatné jméno vsi.' };
-  const founded = foundedVillageState(seeds.nextSeed(), input);
+  const founded = foundedVillageState(seeds.nextSeed(), input, lord);
   return founded.ok ? { ...founded, name: normalizeVillageName(input.name) } : founded;
 }
 
 /**
  * Stav nové vsi se seedem `seed` dopočítaný do dneška – první zemnice (a volitelně pole) ověřené
- * podle krajiny, s osadníky nebo se čtyřmi zakladateli; jinak důvod česky. Bez jména (to drží
- * záznam vsi).
+ * podle krajiny, s osadníky, s vojvodou a jeho rodinou (`lord` – lord.md, Zakladatelé), nebo se
+ * čtyřmi zakladateli vsi bez rodu; jinak důvod česky. Bez jména vsi (to drží záznam vsi).
  */
 export function foundedVillageState(
   seed: number,
-  input: Omit<FoundVillageInput, 'settlementId' | 'name'>,
+  input: Omit<FoundVillageInput, 'settlementId' | 'name' | 'lordName'>,
+  lord?: Founders,
 ): { ok: true; state: VillageState } | { ok: false; reason: string } {
   const obstacles = obstaclesOf(input.landscape);
   const dwelling = checkDwellingPlacement(
@@ -149,6 +170,7 @@ export function foundedVillageState(
     forestDistanceM: forestEdgeDistanceM(input.landscape, input.dwelling.x, input.dwelling.z),
     dwellingSpared: dwelling.spared,
     ...(input.settlers ? { settlers: input.settlers } : {}),
+    ...(lord ? { lord } : {}),
   });
   // nová ves nemá polozemnice bez pozemku – rovnou převedená (`withPlots` ji už nebude měnit),
   // první zemnice má svou variantu rozměrů od umístění (`withDwellingShapes` jen zapíše příznak);

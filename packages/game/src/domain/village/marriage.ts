@@ -221,6 +221,8 @@ function wed(
     brideId: bride.id,
     groomFromDwellingId: groomFrom,
     brideFromDwellingId: brideFrom,
+    // jméno muže rodu („Svatba – Bořivoj“, lord.md – Kde se jméno ukazuje); ostatní ho nemají
+    ...(groom.name === undefined ? {} : { name: groom.name }),
   };
 }
 
@@ -336,6 +338,7 @@ function outsideMarriages(
         dwellingId: p.dwellingId,
         groomId: p.id,
         brideId: bride.id,
+        ...(p.name === undefined ? {} : { name: p.name }),
       });
       continue;
     }

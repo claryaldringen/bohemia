@@ -352,9 +352,10 @@ test('nový hráč založí ves umístěním zemnice, přejmenuje ji a vybere ze
       { timeout: 20_000 },
     )
     .toBe('dwelling');
-  await expect(panel.getByTestId('selection-occupants')).toHaveText('4/6');
+  // ves zakládá vojvoda s hlavní a třemi vedlejšími manželkami (lord.md – Zakladatelé)
+  await expect(panel.getByTestId('selection-occupants')).toHaveText('5/6');
   // zemnice zakladatelů je dvorec – obyvatelé jako rodina; dovednosti jen v panelu osoby (lord.md)
-  await expect(panel.getByTestId('manor-family').getByRole('listitem')).toHaveCount(4);
+  await expect(panel.getByTestId('manor-family').getByRole('listitem')).toHaveCount(5);
   await expect(
     panel.getByTestId('manor-family').locator('[data-testid^="manor-arms-"]'),
   ).toHaveCount(0);

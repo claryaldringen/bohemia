@@ -69,8 +69,27 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   a `VillageState.dynasty` = `{ lordId, lords, endedDay? }` (`lords` – vojvodové po sobě pro
   kroniku rodu). `spouseId` u ženy = její muž (i vedlejší manželky), u muže hlavní manželka –
   `wivesOf`, `mainWifeOf`, `isSecondaryWife`. **Ves bez rodu** (`lords: []`, `NO_DYNASTY`,
-  `isDynastyTracked` false) se chová jako před rodem – zakládá ji `foundVillage` (zatím vždy)
+  `isDynastyTracked` false) se chová jako před rodem – zakládá ji `foundVillage` bez `lord`
+  (testy, e2e seed, starší varianty kalibrace, vývojová druhá ves `foundDevVillage`)
   i `travellingVillage`.
+  - **Zakladatelé** (lord.md – Zakladatelé; Martin 24. 10. 2026: „Vesnici zakládá vojvoda a jeho
+    rodina.“): `foundVillage({ …, lord: { name? } })` – vojvoda (`LORD.founders.lordAge` 25, id
+    2, `line`, jméno je-li zadané) s hlavní manželkou 22 (id 3, `spouseId` vojvody) a vedlejšími
+    20, 18, 16 (id 4–6); rodiče neznámí, všechny manželky `nextBirthFrom` = den + 9 měsíců;
+    `dynasty = { lordId: 2, lords: [{ id: 2, name?, fromDay }] }`. Všech pět na staveništi a pak
+    v první zemnici (5 ze 6 míst), zásoby a stáda z potřeby pěti lidí; rodina zpočátku pracuje
+    (nikdo mimo rodinu – `familyTrains` false). Bez `lord` dva páry `START_AGES`. Osadníci
+    (`settlers`) zakladatele nemění – vojvodou je nejstarší muž rodu mezi nimi (jeho jméno
+    zůstane), bez něj ves bez rodu (`lord` se nepoužije). Web zakládá první ves vždy s rodem
+    (`foundVillageForSettlement`, `lordName?`); `foundAnotherVillage` a odchod (`foundedVillageState`
+    bez `lord`) beze změny.
+  - **Jména od hráče** (lord.md – Jména): `checkPersonName` (`dynasty-names.ts`) – po
+    `normalizePersonName` (NFC, ořez) jen `\p{L}`, 1–`LORD.nameMaxLength` (20) znaků (počítá se
+    `[...name]`); důvody „Jen písmena.“, „Nejvýš 20 písmen.“, prázdné „Vojvoda potřebuje jméno.“ /
+    „Syn potřebuje jméno.“. `nameLineMan(state, personId, name, day)` (`dynasty.ts`) – jen žijící
+    muž rodu bez jména, trvalé, u vojvody i do `lords`, kronika `line-named`; use-case
+    `nameLineManInVillage` (`application/name-line-man.ts`, přes `updateLivingVillage`). Svatba
+    muže rodu (`marriage`, `bride-from-outside`) nese v kronice `name` ženicha.
   - **Převod** `withDynasty` (v obou řetězech převodů za `withKinship`, jen když `dynasty` chybí):
     vojvoda = nejstarší muž dvorce i chlapec, bez muže v dvorci nejstarší muž vsi, který se se
     ženou a svobodnými dětmi přestěhuje do dvorce (`moveIntoManor`); bez muže ve vsi ves bez

@@ -23,6 +23,8 @@ import type {
 export interface WeddingCouple {
   groomId?: number;
   brideId?: number;
+  /** Jméno ženicha – muže rodu (lord.md – Kde se jméno ukazuje: „Svatba – Bořivoj“); jinak chybí. */
+  name?: string;
 }
 
 export type ChronicleEvent = { day: number } & (
@@ -30,6 +32,8 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'birth' }
   /** Vojvodovi se narodil syn (lord.md – Rod vojvody) – čeká na jméno od hráče. */
   | { kind: 'line-birth' }
+  /** Hráč pojmenoval muže rodu (lord.md – Jména) – jméno je trvalé. */
+  | { kind: 'line-named'; name: string }
   /** Vojvodou se stal muž rodu `name` (lord.md – Nástupnictví); bez jména chybí. */
   | { kind: 'lord'; name?: string }
   /** Muž rodu `name` si vzal další manželku z okolí (lord.md – Manželky); bez jména chybí. */

@@ -2,7 +2,13 @@
 // fáze 1): kdo je muž rodu, manželky, převod starších vsí, jména vnuků při narození a dnešní
 // vojvoda. Ves bez rodu (`dynasty.lords` prázdné) se chová jako před rodem. Čisté funkce bez I/O.
 import { cloneState } from './clone';
-import { generatedLineName } from './dynasty-names';
+import {
+  LORD_NAME_MISSING,
+  SON_NAME_MISSING,
+  checkPersonName,
+  generatedLineName,
+  normalizePersonName,
+} from './dynasty-names';
 import { parentIndex, type ParentIndex } from './kinship';
 import { villageManorId } from './manor';
 import { ageYears } from './people';
@@ -167,4 +173,36 @@ export function markNewborn(state: VillageState, child: Person, day: number): Ch
   if (currentLord(state)?.id === father.id) return [{ day, kind: 'line-birth' }];
   child.name = generatedLineName(state, day, child.id);
   return [];
+}
+
+/** Pojmenovat jde jen žijícího muže rodu (lord.md – Jména). */
+export const NOT_LINE_MAN = 'Jméno dává vojvoda jen mužům rodu.';
+/** Jméno je trvalé (lord.md – Jména, návrh Clauda). */
+export const ALREADY_NAMED = 'Jméno už má – nejde ho změnit.';
+
+/**
+ * Hráč pojmenuje žijícího muže rodu bez jména (lord.md – Jména; Martin 24. 10. 2026: „Vojvoda
+ * vybírá jméno jen pro své syny.“ – vnuci mají jméno od narození, takže bez jména jsou jen vojvoda
+ * a jeho synové). Jméno se znormalizuje (`normalizePersonName`) a je trvalé; vojvodovi se doplní
+ * i do záznamu vojvodů (kronika rodu), kronika vsi dostane `line-named`. Vstupní stav se nemění;
+ * jinak důvod česky.
+ */
+export function nameLineMan(
+  state: VillageState,
+  personId: number,
+  name: string,
+  day: number,
+): { ok: true; state: VillageState } | { ok: false; reason: string } {
+  const man = state.people.find((p) => p.id === personId);
+  if (!man || !isLineMan(man)) return { ok: false, reason: NOT_LINE_MAN };
+  if (man.name !== undefined) return { ok: false, reason: ALREADY_NAMED };
+  const isLord = state.dynasty?.lordId === personId;
+  const check = checkPersonName(name, isLord ? LORD_NAME_MISSING : SON_NAME_MISSING);
+  if (!check.ok) return { ok: false, reason: check.reason ?? NOT_LINE_MAN };
+  const normalized = normalizePersonName(name);
+  const next = cloneState(state);
+  for (const p of next.people) if (p.id === personId) p.name = normalized;
+  for (const lord of next.dynasty?.lords ?? []) if (lord.id === personId) lord.name = normalized;
+  next.chronicle.push({ day, kind: 'line-named', name: normalized });
+  return { ok: true, state: next };
 }

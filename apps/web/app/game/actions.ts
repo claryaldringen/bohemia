@@ -23,6 +23,7 @@ import {
   leaveVillageForPlayer,
   settleJourneyForPlayer,
   plantRoadApplesForPlayer,
+  nameLineManForPlayer,
   renameVillageForPlayer,
   skipTimeForPlayerView,
   upgradeRoadForPlayer,
@@ -50,6 +51,7 @@ import {
   parseLeaveVillageInput,
   parseSettleJourneyInput,
   parsePlantRoadApplesInput,
+  parseNameLineManInput,
   parseRenameVillageInput,
   parseRestartGameInput,
   parseSkipTimeInput,
@@ -318,6 +320,14 @@ export async function plantRoadApples(input: unknown): Promise<VillageActionResu
  */
 export async function placeWorkshop(input: unknown): Promise<VillageActionResult> {
   return villageAction(input, parsePlaceWorkshopInput, placeWorkshopForPlayer);
+}
+
+/**
+ * Jméno vojvody nebo jeho syna (lord.md – Jména): `{ villageId, personId, name }`. Jestli jméno
+ * smí být, ověří use-case.
+ */
+export async function nameLineMan(input: unknown): Promise<VillageActionResult> {
+  return villageAction(input, parseNameLineManInput, nameLineManForPlayer);
 }
 
 /** Přejmenování vsi: `{ villageId, name }`. */

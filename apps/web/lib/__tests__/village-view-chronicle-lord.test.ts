@@ -15,4 +15,10 @@ describe('kronika – vojvodova rodina', () => {
       'Vojvodova rodina se vrací k výcviku.',
     );
   });
+
+  it('jméno muže rodu v 1. pádu (lord.md – Jména)', () => {
+    expect(chronicleText({ day: 3, kind: 'line-named', name: 'Mrdomír' }, 'Ves')).toBe(
+      'Muž rodu dostal jméno Mrdomír.',
+    );
+  });
 });
