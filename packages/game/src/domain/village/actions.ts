@@ -429,6 +429,9 @@ export function foundVillage(input: {
     lastDay: day - 1,
     nextId: constructionId + 1,
     people,
+    // zatím ves bez rodu – chová se jako před rodem; zakladatele rodu přidá založení s vojvodem
+    // (lord.md – Zakladatelé)
+    dynasty: { lordId: null, lords: [] },
     dwellings: [],
     fields: [],
     parts: [],

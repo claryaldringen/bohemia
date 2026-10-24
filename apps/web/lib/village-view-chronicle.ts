@@ -231,6 +231,12 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return `Osadníci založili ves ${villageName}.`;
     case 'birth':
       return 'Narodilo se dítě.';
+    case 'line-birth':
+      return 'Vojvodovi se narodil syn.';
+    case 'lord':
+      return event.name === undefined
+        ? 'Ves má nového vojvodu.'
+        : `Vojvodou se stal ${event.name}.`;
     case 'death':
       return deathText(event.group, event.cause === 'hunger');
     case 'village-extinct':

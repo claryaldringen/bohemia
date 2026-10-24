@@ -61,6 +61,26 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     Koně pod jezdci, kteří dnes jezdili, cvičí `trainHorsesDay` – `trainLordDay` vrací kroniku.
   - **Pasáci:** synové cvičící rodiny nepasou (`lordTraineeIds` v `youngsterCount`,
     `herdingDay`, `youngsterHerders`).
+- **Rod vojvody** (lord.md – Rod vojvody, fáze 1, #9; `dynasty.ts`, `dynasty-names.ts`): data
+  `Person.name` (jméno muže rodu), `line` (muž rodu po meči), `mainWifeSon` (syn hlavní manželky)
+  a `VillageState.dynasty` = `{ lordId, lords, endedDay? }` (`lords` – vojvodové po sobě pro
+  kroniku rodu). `spouseId` u ženy = její muž (i vedlejší manželky), u muže hlavní manželka –
+  `wivesOf`, `mainWifeOf`, `isSecondaryWife`. **Ves bez rodu** (`lords: []`, `NO_DYNASTY`,
+  `isDynastyTracked` false) se chová jako před rodem – zakládá ji `foundVillage` (zatím vždy)
+  i `travellingVillage`.
+  - **Převod** `withDynasty` (v obou řetězech převodů za `withKinship`, jen když `dynasty` chybí):
+    vojvoda = nejstarší muž dvorce i chlapec, bez muže v dvorci nejstarší muž vsi, který se se
+    ženou a svobodnými dětmi přestěhuje do dvorce (`moveIntoManor`); bez muže ve vsi ves bez
+    rodu. `line` vojvodovi a žijícím potomkům po meči (`parentIndex`, i přes zemřelé předky),
+    `mainWifeSon` žijícím synům vojvody; vojvoda a synové bez jména, ostatní muži rodu jméno
+    vygenerované. Nikdo jiný se nestěhuje (Vlkov: vojvoda 25 let a syn 3 roky, oba bez jména).
+  - **Narození:** `populationDay` volá u každého dítěte `markNewborn` – syn muže rodu `line`,
+    syn hlavní manželky `mainWifeSon`; syn vojvody bez jména (kronika `line-birth`), ostatní
+    jméno hned – `generatedLineName` (proud `'line-name:' + den + člověk`, jen jméno, které nenosí
+    žijící muž rodu; `LINE_NAMES` – 62 jmen). Úmrtí muže rodu nese v kronice `name`.
+  - **Vojvoda:** `currentLord` (žijící `lordId`); `dynastyDay` po `populationDay` – zemřel-li,
+    vojvodou je nejstarší muž rodu v dvorci (kronika `lord`, záznam v `lords`), bez něj `null`
+    (dočasně, nástupnictví přijde s Úlohou 4). `lordFamily` zatím dál bere `householdHead`.
 - **Sňatky** (`marriage.ts`, kinship.md – Sňatky; Martin, varianta c; 19. 10. 2026: „Vdova by se
   měla snažit co nejdříve vdát, ideálně ve vesnici.“): svobodný = muž od 16 / žena 16–44 bez
   manžela, i vdova s malými dětmi (`isSingle`); vdova / vdovec = svobodný s dítětem

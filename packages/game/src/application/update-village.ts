@@ -33,6 +33,7 @@ import {
   withGrainPits,
   withoutForeignGoods,
   withCattleKinds,
+  withDynasty,
   withIronBarsTrade,
   withThreshingGrace,
   withToolEquipment,
@@ -135,35 +136,38 @@ export async function updateVillage(
             withIronBarsTrade(
               withToolEquipment(
                 withCattleKinds(
-                  withKinship(
-                    // hotové upravené cesty a stezky lesem dostanou průsek (roads.md – Průsek lesem)
-                    withRoadSwaths(
-                      withJoinedRoads(
-                        withMergedRoads(
-                          withLivestockLand(
-                            withMergedFields(
-                              // varianty rozměrů domů (population.md) – po pozemcích, ať dům zná svůj
-                              withDwellingShapes(
-                                withPlots(
-                                  withForestDistances(
-                                    withObstacleClearing(record.state, obstacles),
+                  // ves z doby před rodem dostane rod vojvody (lord.md – Převod starších vsí)
+                  withDynasty(
+                    withKinship(
+                      // hotové upravené cesty a stezky lesem dostanou průsek (roads.md – Průsek lesem)
+                      withRoadSwaths(
+                        withJoinedRoads(
+                          withMergedRoads(
+                            withLivestockLand(
+                              withMergedFields(
+                                // varianty rozměrů domů (population.md) – po pozemcích, ať dům zná svůj
+                                withDwellingShapes(
+                                  withPlots(
+                                    withForestDistances(
+                                      withObstacleClearing(record.state, obstacles),
+                                      landscape,
+                                    ),
                                     landscape,
+                                    obstacles,
                                   ),
                                   landscape,
                                   obstacles,
                                 ),
-                                landscape,
-                                obstacles,
                               ),
+                              landscape,
                             ),
-                            landscape,
                           ),
+                          landscape,
+                          obstacles,
                         ),
-                        landscape,
                         obstacles,
+                        landscape,
                       ),
-                      obstacles,
-                      landscape,
                     ),
                   ),
                 ),

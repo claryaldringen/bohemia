@@ -35,6 +35,7 @@ import { swathRoadsInWork, trailsDay } from './trail';
 import { roadSwathDay } from './road-swath';
 import { wagonRoadsDay } from './wagon-road';
 import { isVillageDormant } from './departure';
+import { dynastyDay, withDynasty } from './dynasty';
 import { updateRuins } from './ruins';
 import {
   CHRONICLE_MAX_EVENTS,
@@ -95,7 +96,8 @@ export function* advanceVillageSteps(
   if (toDay < state.lastDay) {
     throw new RangeError(`Ves je dopočítaná do dne ${state.lastDay}, nelze zpět na ${toDay}.`);
   }
-  // ves z doby před příbuzenstvím dostane pohlaví a manžele (kinship.md), dobytek v obchodu tři
+  // ves z doby před příbuzenstvím dostane pohlaví a manžele (kinship.md), ves z doby před rodem
+  // rod vojvody (lord.md – Převod starších vsí), dobytek v obchodu tři
   // druhy (trade.md – Dobytek ve třech druzích), hřivny místo nástrojů v obchodu i ve vsi
   // (production-chains.md – Kovář), ves ze zboží zvenku o něj přijde (trade.md – Jen společné
   // suroviny), řemeslníci z doby před učením řemesla praxi (crafts.md – Učení řemesla) a ves z doby
@@ -106,7 +108,9 @@ export function* advanceVillageSteps(
         withOxen(
           withPenSpecies(
             withoutForeignGoods(
-              withIronBarsTrade(withToolEquipment(withCattleKinds(withKinship(state)))),
+              withIronBarsTrade(
+                withToolEquipment(withCattleKinds(withDynasty(withKinship(state)))),
+              ),
             ),
           ),
         ),
@@ -234,6 +238,8 @@ function simulateDay(
   );
   const events = populationDay(state, day, satiation, energy);
   state.chronicle.push(...events);
+  // dnešní vojvoda rodu (lord.md – Rod vojvody); ves bez rodu nic
+  state.chronicle.push(...dynastyDay(state, day));
   // štěstí na konci dne – hlad, úmrtí, přeplněnost, dřina, zásoby, ovoce, maso a posvátná místa
   // (happiness.md, diet.md)
   updateHappiness(state, day, { satiation, events, toil, fruit, obstacles, meatShare: meat });

@@ -1,6 +1,7 @@
 import { createRandom, deriveSeed } from '../landscape/random';
 import { bury, hygieneDeathFactor, villageHygiene } from './cemetery';
 import { isOvercrowded } from './dwellings';
+import { markNewborn } from './dynasty';
 import { removePeople } from './kinship';
 import { ageGroup, ageYears, canBear, canFather, householdBreaksUp, occupants } from './people';
 import {
@@ -314,10 +315,12 @@ export function populationDay(
     if (roll < Math.min(1, base + starvation)) {
       dead.add(person.id);
       const group = ageGroup(person, day);
+      // jméno zemřelého muže rodu (lord.md – Kde se jméno ukazuje); ostatní jméno nemají
+      const name = person.name === undefined ? {} : { name: person.name };
       events.push(
         roll < base
-          ? { day, kind: 'death', group }
-          : { day, kind: 'death', group, cause: 'hunger' },
+          ? { day, kind: 'death', group, ...name }
+          : { day, kind: 'death', group, cause: 'hunger', ...name },
       );
       // mohyla podle významu zemřelého – vojvodova rodina, hlava rodiny, dítě (cemetery.md)
       const full = bury(state, day, person);
@@ -350,15 +353,18 @@ export function populationDay(
       const roll = random.next();
       if (day < (pauses.get(mother.id) ?? day) || roll >= chance) continue;
       mother.nextBirthFrom = day + BIRTH_SPACING.afterBirthDays;
-      state.people.push({
+      const child: Person = {
         id: state.nextId++,
         bornDay: day,
         dwellingId: household,
         sex: random.next() < BOY_SHARE ? 'male' : 'female',
         motherId: mother.id,
         fatherId: father.id,
-      });
+      };
+      state.people.push(child);
       events.push({ day, kind: 'birth' });
+      // syn muže rodu – příznak rodu, jméno vnukovi (lord.md – Rod vojvody); ves bez rodu nic
+      events.push(...markNewborn(state, child, day));
     }
   }
 
