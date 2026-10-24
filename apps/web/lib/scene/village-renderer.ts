@@ -440,7 +440,11 @@ export class VillageRenderer {
     const day = this.ploughDay;
     // vůl táhne buď vůz, nebo rádlo (oxen.md – Voli se sdílí) – orba jen s páry, které nevozí
     const draft = draftTeamsToday(village, ploughTeamCount(village));
-    const routes = day ? splitStints(day.stints, draft.plough) : null;
+    const routes = day
+      ? day.stints.length > 0
+        ? splitStints(day.stints, draft.plough)
+        : Array.from({ length: draft.plough }, (): DayStint[] => [])
+      : null;
     const front = routes ? [] : ploughFront(village).slice(0, draft.plough);
     const pairs = routes ? routes.length : front.length;
     const oxenOut = pairs * DRAFT_OXEN.ard + draft.cartOxen;
@@ -453,10 +457,11 @@ export class VillageRenderer {
         'day',
         day.window,
         routes.map((r) => r.map((s) => [s.partId, s.from, s.to])),
+        village.ploughLegs ?? null,
       ]);
       if (key !== this.teamsKey) {
         this.teamsKey = key;
-        this.teams.setRoutes(routes, day.window, Date.now(), village.ploughApproach ?? null);
+        this.teams.setRoutes(routes, day.window, Date.now(), village.ploughLegs ?? null);
         teams = true;
       }
       if (this.fields.setFurrows(this.teams.furrows(Date.now()))) teams = true;
@@ -573,7 +578,9 @@ export class VillageRenderer {
     const window = this.dayWindow(village.labor.day);
     if (!window) return null;
     const stints = dayStints(village);
-    return stints.length > 0 ? { stints, window } : null;
+    if (stints.length > 0) return { stints, window };
+    // spřežení na poli v den bez orby stojí u čela orby (oxen.md – Spřežení zůstane na poli)
+    return village.ploughLegs?.stand ? { stints, window } : null;
   }
 
   /**

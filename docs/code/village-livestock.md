@@ -168,9 +168,15 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   v pořadí orby, `PloughWork.bands` (`PloughBand` – díly, osa, směr, blok). Díly pásu mají ve
   `field-progress` úsek celého pásu (`bandSpans`, `PartSpan.share` – podíl dílu; orba i setí),
   `PartView.furrow` → `SceneFieldPart.furrow`. Výkon `furrowEfficiency` (L / (L + v·t), `FURROW`)
-  a cesta k bloku `plough-trip.ts` (`ploughDayFactor` – pás na čele orby, `PloughWork.trip` se
-  spočítá při začátku bloku vozovou sítí `villageCartRoutes` jako dvoukolák, `travelShare`,
-  `TEAM_TRAVEL`) násobí denní kapacitu v `fieldTasks`; plán osevu `plannedFurrowEfficiency`.
+  a cesta k bloku `plough-trip.ts` (`ploughDayFactor` – pás na čele orby, cesta jen tam
+  `travelShare`, `TEAM_TRAVEL`) násobí denní kapacitu v `fieldTasks`; plán osevu
+  `plannedFurrowEfficiency`. **Spřežení zůstane na poli** (oxen.md, 24. 10. 2026):
+  `PloughWork.trip` (`PloughTrip` – blok, `arrived` den a odkud, `home` den návratu) – cestu dne
+  určí `ploughDayFactor` jednou (`PloughTravels`, ze stavu ráno: výjezd vozovou sítí
+  `villageCartRoutes` z ohrady, přesun od konce bloku `villageCartRoutes(…, from)`, u bloku nic),
+  večer `settlePloughTeams` (v `work` po osevu navíc) zapíše příjezd, jen když plodina dnes
+  orala, a návrat (zoráno potřebné, okno zítra neběží, ves bez párů). `ploughTeamsAfield` ráno:
+  vozy nemají páry (`cartFleetToday`) a voda ráno jen v den výjezdu.
   Postup po dílech zná úlohu `plough`
   (`field-progress.ts`), rozdělení práce posílá činnosti `plough`, `mow`, `slaughter`, `pen`.
 
@@ -232,8 +238,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `before`; `dayStints` (pruhy po pruzích obtisku; sousední díly pásu se stejným postupem jeden
   pruh přes celý pás – `bandCandidates`, `PloughField.length`, `DayStint.partIds`), `splitStints`
   (souvislé kusy fronty mezi spřežení), `startOfDayVillage` (pole na začátku dne); trasa
-  `ploughRoute` (z ohrady po cestě `SceneVillage.ploughApproach` – vozová síť z `village-view`,
-  řady všech pruhů s obraty, přesuny se zvednutým rádlem, večer po cestě zpět), `RouteTrack` (od příchodu plánu do konce
+  `ploughRoute` (cesty dne `SceneVillage.ploughLegs` ze `scenePloughLegs` – z `PloughWork.trip`
+  jádra, vozová síť: `out` výjezd z ohrady nebo přesun od konce bloku jen v den příjezdu,
+  `home` návrat do ohrady jen v den návratu, `stand` – den bez orby, spřežení na poli stojí na
+  čele (`ploughFrontBand`); jinak jen pruhy dne za celý den – pomaleji; řady všech pruhů
+  s obraty, přesuny se zvednutým rádlem), `RouteTrack` (od příchodu plánu do konce
   herního dne – okno z hodin světa, `realTimeOf`, nebo `VillageRenderer.setPloughClock`),
   `routePose`, brázda `routeFurrows` (pásy řad, kudy radlice projela – čistá funkce času)
   → `FieldRenderer.setFurrows` (obtisk `village-field-furrow-<id>` s krytím pole, v

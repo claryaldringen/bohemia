@@ -19,6 +19,7 @@ import { loopActivity, routeActivity, sameTeamActivity } from '../draft-state';
 import {
   TURN_RADIUS_M,
   createTeamPose,
+  routePose,
   ploughPath,
   ploughRoute,
   teamPose,
@@ -237,7 +238,10 @@ describe('co spřežení dělá', () => {
       { x: -30, z: -20 },
       { x: -10, z: 0 },
     ];
-    const route = ploughRoute(stints, { x: -60, z: -41 }, TURN_RADIUS_M, approach);
+    const route = ploughRoute(stints, { x: -60, z: -41 }, TURN_RADIUS_M, {
+      out: approach,
+      home: [...approach].reverse(),
+    });
     const track: RouteTrack = { route, startMs: 0, endMs: 100_000 };
     const kinds = Array.from({ length: 200 }, (_, i) => routeActivity(track, i * 500, true).kind);
     // pořadí: na pole, orba, přechod, orba, do ohrady
@@ -251,6 +255,47 @@ describe('co spřežení dělá', () => {
     expect([...parts]).toEqual([71, 72]);
     expect(routeActivity(track, 100_000, true)).toEqual({ kind: 'done', atPen: true });
     expect(routeActivity(track, 200_000, false)).toEqual({ kind: 'done', atPen: false });
+  });
+
+  it('spřežení na poli (oxen.md – Spřežení zůstane na poli): jen pruhy dne, večer stojí na poli', () => {
+    const stints: RouteStint[] = [
+      { fieldId: 7, partId: 71, field: { ...FIELD, rows: 2 } },
+      { fieldId: 7, partId: 72, field: { ...FIELD, x: 40, rows: 2 } },
+    ];
+    const stay = ploughRoute(stints, null, TURN_RADIUS_M, null);
+    const track: RouteTrack = { route: stay, startMs: 0, endMs: 100_000 };
+    const kinds = Array.from({ length: 200 }, (_, i) => routeActivity(track, i * 500, false).kind);
+    const order = kinds.filter((k, i) => i === 0 || k !== kinds[i - 1]);
+    expect(order).toEqual(['plough', 'between', 'plough']);
+    expect(routeActivity(track, 100_000, false)).toEqual({ kind: 'done', atPen: false });
+    // stejné pruhy za celý den – bez cest jede pomaleji než v den výjezdu a návratu
+    const road = [
+      { x: -60, z: -40 },
+      { x: -10, z: 0 },
+    ];
+    const full = ploughRoute(stints, null, TURN_RADIUS_M, { out: road, home: [...road].reverse() });
+    expect(stay.length).toBeLessThan(full.length - 100);
+    // v den výjezdu bez návratu: z ohrady na pole, večer zůstane na poli
+    const out = ploughRoute(stints, null, TURN_RADIUS_M, { out: road });
+    const outTrack: RouteTrack = { route: out, startMs: 0, endMs: 100_000 };
+    const outKinds = Array.from(
+      { length: 200 },
+      (_, i) => routeActivity(outTrack, i * 500, false).kind,
+    );
+    expect(outKinds[0]).toBe('to-field');
+    expect(outKinds).not.toContain('to-pen');
+  });
+
+  it('den bez orby: spřežení na poli stojí u čela orby, do ohrady nejde', () => {
+    const stand = ploughRoute([], null, TURN_RADIUS_M, { stand: { x: 12, z: -4 } });
+    const track: RouteTrack = { route: stand, startMs: 0, endMs: 1000 };
+    const pose = createTeamPose();
+    routePose(track, 500, pose, () => 0);
+    expect(Math.hypot(pose.yoke.x - 12, pose.yoke.z + 4)).toBeLessThan(0.1);
+    expect(routeActivity(track, 500, false)).toEqual({ kind: 'done', atPen: false });
+    // spřežení, které se ve scéně hýbe, dojde na čelo
+    const walk = ploughRoute([], { x: 0, z: -4 }, TURN_RADIUS_M, { stand: { x: 12, z: -4 } });
+    expect(walk.length).toBeCloseTo(12, 6);
   });
 
   it('stejná činnost – stejný díl; jiný díl nebo jiná činnost se liší', () => {

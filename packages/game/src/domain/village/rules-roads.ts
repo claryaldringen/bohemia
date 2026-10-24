@@ -64,8 +64,9 @@ export const ROAD_STUB = { remnantM: 30 } as const;
 export const FURROW = { speedMps: 0.64, turnS: 45, referenceM: 100, maxGain: 1.15 } as const;
 // oxen.md – Co nejdelší brázda (Martin, 19. 10. 2026: „na místo se dostane ideálně po nějaké už
 // hotové cestě“; návrh Clauda): spřežení jde ráno z ohrady k bloku a večer zpět vozovou sítí jako
-// dvoukolák bez nákladu ≈ 0,8 m/s po louce (cesta rychleji); orá se ≈ 6 h denně – cesta tam
-// a zpět ubírá orbě dne poměrný díl (nejvýš polovinu)
+// dvoukolák bez nákladu ≈ 0,8 m/s po louce (cesta rychleji); orá se ≈ 6 h denně – cesta
+// k bloku (výjezd z ohrady nebo přesun k dalšímu bloku; návrat večer je zadarmo) ubírá orbě dne
+// poměrný díl (nejvýš polovinu)
 export const TEAM_TRAVEL = { speedMps: 0.8, dayS: 6 * 3600, maxShare: 0.5 } as const;
 export const CART_ROUTES = {
   maxGrade: 0.1,

@@ -127,7 +127,11 @@ níž je návrh Clauda, čísla v `CART_JOBS` (`rules.ts`).
   dny orby si ves spočítá, co se víc vyplatí: orat celý den, nebo ráno svézt vodu vozem a orat
   o tolik méně. Pravidlo (návrh Clauda, čísla `MORNING_WATER`):
   1. **Kdy:** ráno dne, z plánu dne (deterministicky) – jen když dnes vodu neveze vůz se zbylými
-     voly a doma je vůz a pár u rádla. Osev navíc (fields.md) bere spřežení až po vodě – jako
+     voly a doma je vůz a pár u rádla. **Od 24. 10. 2026 jen pár doma** (návrh Clauda podle
+     Martina – [oxen.md](oxen.md), Spřežení zůstane na poli): spřežení zůstává na poli, dokud
+     nezorá, co okno potřebuje, takže ráno doma je pár jen v den výjezdu z ohrady; pár na poli
+     vodu nesveze a voda se ty dny nosí (nebo ji veze vůz se zbylými voly). „Rozhodne ekonomika“
+     platí dál pro dny, kdy pár doma je. Osev navíc (fields.md) bere spřežení až po vodě – jako
      práci, která zbude, dostane jen zbytek dne rádel.
   2. **Jízda:** jeden pár od rádla zapřáhne vůz (čtyřkolák pár, dvoukolák jednoho vola – druhý
      bez páru neorá) a sveze vodu jako jindy (`waterCartPlan`, levnější vůz). Jízdy zaberou
@@ -802,7 +806,7 @@ Návrh Clauda (19. 10. 2026) – jen zobrazení, simulace se nemění.
 
 | Rozhodnutí                                                                                                                                                                                                                                                                                                                                     | Kdo                                                                  |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| Voda ráno ve dny orby: pár od rádla sveze vodu, když orba dne nechá páru volnou chvíli nebo okno orby má rezervu (zbytek orby do poloviny kapacity zbývajících dnů); jinak orba přednost                                                                                                                                                       | Martin 24. 10. 2026 („Rozhodne ekonomika“); čísla návrh Clauda       |
+| Voda ráno ve dny orby: pár od rádla sveze vodu, když orba dne nechá páru volnou chvíli nebo okno orby má rezervu (zbytek orby do poloviny kapacity zbývajících dnů); jinak orba přednost; od 24. 10. jen pár doma (v den výjezdu), pár na poli vodu nesveze                                                                                    | Martin 24. 10. 2026 („Rozhodne ekonomika“); čísla návrh Clauda       |
 | Vůz jede tolikrát, kolikrát se naplní, zbytek nesou lidé rovnoměrně mezi jízdy; klády s vozem vždy na voze, bez něj dva lidé na kládu; v panelu vozu nosnost a náklad                                                                                                                                                                          | Martin (22. 10. 2026)                                                |
 | Vozy vozí seno, snopy, klády a zboží obchodu místo nosičů                                                                                                                                                                                                                                                                                      | Martin (19. 10. 2026)                                                |
 | Vůz smí přes zaseté pole, když jiná cesta není (metr jako 8 m louky); úroda na pojeté stopě se pošlape                                                                                                                                                                                                                                         | Martin 23. 10. 2026 („Vůz smí přes zaseté pole“); čísla návrh Clauda |

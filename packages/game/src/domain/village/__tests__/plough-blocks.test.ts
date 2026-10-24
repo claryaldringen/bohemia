@@ -3,9 +3,18 @@ import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
 import { fieldPartLooks, partsWorked, taskSpans } from '../field-progress';
 import { bandLengthM, furrowAxis, furrowEfficiency, ploughLayout } from '../plough-blocks';
-import { ploughDayFactor, plannedFurrowEfficiency, travelShare } from '../plough-trip';
+import {
+  ploughDayFactor,
+  ploughTeamsAfield,
+  plannedFurrowEfficiency,
+  settlePloughTeams,
+  travelShare,
+  type PloughTravels,
+} from '../plough-trip';
 import { FURROW, TEAM_TRAVEL } from '../rules';
 import { advanceVillage } from '../simulate';
+import type { DayTask } from '../simulate-plan';
+import { dayTaskOrder } from '../simulate-work';
 import type { FieldPart, VillageState } from '../types';
 import { createCropWork } from '../year-plan';
 import { withBuiltFirstDwelling } from './village-fixtures';
@@ -66,10 +75,10 @@ describe('výkon podle délky brázdy', () => {
     expect(furrowEfficiency(1000)).toBe(FURROW.maxGain);
   });
 
-  it('cesta k bloku a zpět ubírá den – po cestě 500 m pár procent, nejvýš polovinu', () => {
+  it('cesta k bloku ubírá den – po cestě 1 km pár procent, nejvýš polovinu', () => {
     expect(travelShare(0)).toBe(1);
-    expect(travelShare(500)).toBeCloseTo(1 - 1000 / TEAM_TRAVEL.speedMps / TEAM_TRAVEL.dayS, 12);
-    expect(travelShare(500)).toBeGreaterThan(0.9);
+    expect(travelShare(1000)).toBeCloseTo(1 - 1000 / TEAM_TRAVEL.speedMps / TEAM_TRAVEL.dayS, 12);
+    expect(travelShare(1000)).toBeGreaterThan(0.9);
     expect(travelShare(1e6)).toBe(1 - TEAM_TRAVEL.maxShare);
   });
 });
@@ -160,11 +169,11 @@ describe('bloky a pásy orby', () => {
 });
 
 describe('výkon spřežení za den', () => {
-  function village(parts: FieldPart[]): VillageState {
+  function village(parts: FieldPart[], today = DAY): VillageState {
     const s = withBuiltFirstDwelling(
-      foundVillage({ seed: 11, day: DAY - 10, dwellingPosition: { x: 0, z: 0, rotation: 0 } }),
+      foundVillage({ seed: 11, day: today - 10, dwellingPosition: { x: 0, z: 0, rotation: 0 } }),
     );
-    s.lastDay = DAY - 1;
+    s.lastDay = today - 1;
     s.fields = [{ id: 1 }, { id: 2 }];
     s.parts = parts;
     s.storesKg = 300;
@@ -210,7 +219,7 @@ describe('výkon spřežení za den', () => {
     expect(new Set(works).size).toBe(1);
   });
 
-  it('cesta se spočítá při začátku bloku a platí, dokud spřežení blok neopustí', () => {
+  it('spřežení vyjede z ohrady jednou, na poli zůstane a cestu platí jen při výjezdu a přesunu', () => {
     const parts = [
       ...rect(1, 0, 0, 4, 1),
       ...rect(50, 10, 0, 4, 1).map((p) => ({ ...p, distanceM: 600 })),
@@ -219,14 +228,140 @@ describe('výkon spřežení za den', () => {
     const byId = new Map(parts.map((p) => [p.id, p]));
     const work = createCropWork(parts, DAY, 0, true, undefined, 'spring');
     s.plan = { plannedDay: DAY, ard: true, ...work };
-    const first = ploughDayFactor(s, DAY, s.plan, byId, null, null);
-    expect(s.plan.plough!.trip).toEqual({ block: 0, costM: 60 });
+    const plough = s.plan.plough!;
+    // výjezd z ohrady – cesta jen tam (bez krajiny chůze k dílu), stav se ráno nemění
+    const travels: PloughTravels = new Map();
+    const first = ploughDayFactor(s, DAY, s.plan, byId, null, null, travels);
     expect(first).toBeCloseTo(furrowEfficiency(60) * travelShare(60), 12);
-    // druhý blok – daleko od vsi
-    s.plan.plough!.done = s.plan.plough!.required * 0.75;
-    const second = ploughDayFactor(s, DAY, s.plan, byId, null, null);
-    expect(s.plan.plough!.trip).toEqual({ block: 1, costM: 600 });
-    expect(second).toBeLessThan(first);
+    expect(plough.trip).toBeUndefined();
+    // druhé volání téhož dne vrátí totéž
+    expect(ploughDayFactor(s, DAY, s.plan, byId, null, null, travels)).toBe(first);
+    // den bez orby – spřežení nevyjede
+    settlePloughTeams(s, DAY, travels, false);
+    expect(plough.trip).toBeUndefined();
+    // den s orbou – večer je u bloku
+    plough.done = plough.required * 0.1;
+    settlePloughTeams(s, DAY, travels, false);
+    expect(plough.trip).toEqual({ block: 0, costM: 60, arrived: { day: DAY, from: null } });
+    // další den na poli – žádná cesta
+    const stay: PloughTravels = new Map();
+    expect(ploughDayFactor(s, DAY + 1, s.plan, byId, null, null, stay)).toBeCloseTo(
+      furrowEfficiency(60),
+      12,
+    );
+    plough.done = plough.required * 0.2;
+    settlePloughTeams(s, DAY + 1, stay, false);
+    expect(plough.trip!.arrived).toEqual({ day: DAY, from: null });
+    // přesun k dalšímu bloku – cesta od bloku k bloku (bez krajiny rozdíl vzdáleností od vsi)
+    plough.done = plough.required * 0.75;
+    const move: PloughTravels = new Map();
+    const moved = ploughDayFactor(s, DAY + 2, s.plan, byId, null, null, move);
+    expect(moved).toBeCloseTo(furrowEfficiency(60) * travelShare(540), 12);
+    plough.done = plough.required * 0.8;
+    settlePloughTeams(s, DAY + 2, move, false);
+    expect(plough.trip).toEqual({ block: 1, costM: 540, arrived: { day: DAY + 2, from: 0 } });
+    expect(ploughTeamsAfield(s)).toBe(true);
+    // zoráno vše potřebné – večer zpět do ohrady, další den je doma
+    plough.done = plough.required;
+    settlePloughTeams(s, DAY + 3, new Map(), false);
+    expect(plough.trip!.home).toBe(DAY + 3);
+    expect(ploughTeamsAfield(s)).toBe(false);
+  });
+
+  it('spřežení se vrátí, když okno orby končí nebo ves spřežení ztratí', () => {
+    const parts = rect(1, 0, 0, 4, 1);
+    const s = village(parts);
+    const work = createCropWork(parts, DAY, 0, true, undefined, 'spring');
+    s.plan = { plannedDay: DAY, ard: true, ...work };
+    const plough = s.plan.plough!;
+    plough.trip = { block: 0, costM: 60 };
+    // starší ves – spřežení u bloku (bez příjezdu), je na poli
+    expect(ploughTeamsAfield(s)).toBe(true);
+    settlePloughTeams(s, DAY, new Map(), true);
+    expect(plough.trip.home).toBe(DAY);
+    plough.trip = { block: 0, costM: 60 };
+    // poslední den okna jaře na podzim (30. 11.)
+    const last = at(600, 11, 30);
+    settlePloughTeams(s, last - 1, new Map(), false);
+    expect(plough.trip.home).toBeUndefined();
+    settlePloughTeams(s, last, new Map(), false);
+    expect(plough.trip.home).toBe(last);
+  });
+
+  it('ves orá: spřežení vyjede první den orby, zůstane na poli; dopočet najednou = po kouscích', () => {
+    const s = village(rect(1, 0, 0, 8, 2));
+    const whole = advanceVillage(s, DAY + 6, null);
+    const crop = whole.plan!.winter ?? whole.plan!;
+    expect(crop.plough!.done).toBeGreaterThan(0);
+    expect(crop.plough!.trip!.arrived).toEqual({ day: DAY, from: null });
+    let pieces = s;
+    for (const to of [DAY + 1, DAY + 2, DAY + 4, DAY + 6])
+      pieces = advanceVillage(pieces, to, null);
+    expect(pieces).toEqual(whole);
+  });
+
+  it('orba má přednost před výmlatem s dřívějším koncem okna (Martin, 24. 10. 2026)', () => {
+    const ploughed = (threshing: boolean): { plough: number; thresh: number } => {
+      const s = village(rect(1, 0, 0, 8, 2));
+      if (threshing) s.sheaves = { grainKg: 20_000, legumesKg: 0, work: { spring: 200 } };
+      const next = advanceVillage(s, DAY, null);
+      const sum = (activity: string): number =>
+        (next.labor?.shares ?? [])
+          .filter((x) => x.activity === activity)
+          .reduce((t, x) => t + x.manDays, 0);
+      return { plough: sum('plough'), thresh: sum('thresh') };
+    };
+    const busy = ploughed(true);
+    expect(busy.thresh).toBeGreaterThan(0);
+    expect(busy.plough).toBeGreaterThan(0);
+    expect(busy.plough).toBeCloseTo(ploughed(false).plough, 9);
+  });
+
+  it('v dubnu dostane orba práci první a osev zbytek – osev se nezastaví (Martin, 24. 10. 2026)', () => {
+    const april = at(601, 4, 10);
+    const parts = rect(1, 0, 0, 8, 2);
+    const s = village(parts, april);
+    const work = createCropWork(parts, april, 0, true, undefined, 'spring');
+    s.plan = { plannedDay: april - 20, ard: true, ...work };
+    s.plan.plough!.done = s.plan.plough!.required * 0.3;
+    // víc rukou, ať mají osev i orba z čeho brát
+    const adult = s.people.find((p) => p.bornDay < april - 18 * 365)!;
+    for (let i = 0; i < 12; i++)
+      s.people.push({ ...adult, id: 500 + i, spouseId: undefined, sex: i % 2 ? 'male' : 'female' });
+    const next = advanceVillage(s, april, null);
+    const sum = (activity: string): number =>
+      (next.labor?.shares ?? [])
+        .filter((x) => x.activity === activity)
+        .reduce((t, x) => t + x.manDays, 0);
+    expect(sum('plough')).toBeGreaterThan(0);
+    expect(sum('sow')).toBeGreaterThan(0);
+  });
+
+  it('v září dostanou jablka (dřívější konec okna) zbytek po orbě – pořadí úloh dne', () => {
+    const task = (name: DayTask['name'], end: number): DayTask => ({
+      name,
+      remaining: 1,
+      end,
+      tie: 0,
+      rank: 0,
+    });
+    const sorted = [task('orchard-harvest', 1), task('thresh', 2), task('plough', 9)].sort(
+      dayTaskOrder,
+    );
+    expect(sorted.map((t) => t.name)).toEqual(['plough', 'orchard-harvest', 'thresh']);
+  });
+
+  it('starší spřežení bez příjezdu mimo okno orby není na poli (vozy ani voda se neruší)', () => {
+    const parts = rect(1, 0, 0, 4, 1);
+    const s = village(parts);
+    const work = createCropWork(parts, DAY, 0, true, undefined, 'spring');
+    s.plan = { plannedDay: DAY, ard: true, ...work };
+    s.plan.plough!.trip = { block: 0, costM: 60 };
+    expect(ploughTeamsAfield(s, DAY)).toBe(true);
+    expect(ploughTeamsAfield(s, at(601, 1, 15))).toBe(false);
+    // s příjezdem je na poli, dokud se večer nevrátí domů
+    s.plan.plough!.trip = { block: 0, costM: 60, arrived: { day: DAY, from: null } };
+    expect(ploughTeamsAfield(s, at(601, 1, 15))).toBe(true);
   });
 
   it('plán osevu počítá s výkonem podle tvaru polí', () => {

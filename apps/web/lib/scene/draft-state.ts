@@ -44,13 +44,14 @@ export function loopActivity(track: TeamTrack, t: number, part: PloughedPart | n
 
 /**
  * Spřežení na trase celé dnešní orby (plough-day.ts) v okamžiku `nowMs`: na pruhu dílu orá
- * (i obrat na souvrati patří k pruhu), přesun před prvním pruhem je cesta na pole (z ohrady po
- * cestě `approach`), mezi pruhy přechod, za posledním návrat do ohrady; po konci trasy hotovo
- * (s cestou stojí u ohrady).
+ * (i obrat na souvrati patří k pruhu), přesun před prvním pruhem je cesta na pole (výjezd
+ * z ohrady nebo přesun od předchozího bloku), mezi pruhy přechod, za posledním návrat do ohrady
+ * (`home` – den návratu, oxen.md – Spřežení zůstane na poli); po konci trasy hotovo (s návratem
+ * stojí u ohrady, jinak na poli).
  */
-export function routeActivity(track: RouteTrack, nowMs: number, approach: boolean): TeamActivity {
+export function routeActivity(track: RouteTrack, nowMs: number, home: boolean): TeamActivity {
   const route = track.route;
-  const done: TeamActivity = { kind: 'done', atPen: approach };
+  const done: TeamActivity = { kind: 'done', atPen: home };
   if (route.length <= 0 || route.stints.length === 0) return done;
   if (nowMs >= track.endMs) return done;
   const s = routeDistance(track, nowMs);

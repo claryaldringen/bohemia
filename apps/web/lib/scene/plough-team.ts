@@ -9,6 +9,7 @@
 // souvratích), rádlo za ním drží pevnou vzdálenost oje (bod dráhy se stejnou tětivou) a na
 // souvrati ho oráč nadzvedne. Rozměry jsou skutečné (m) a celé spřežení se zvětší stejně jako
 // postavy (FIGURE_SCALE).
+import type { ScenePloughLegs } from '../village-view-scene-types';
 import { FIGURE_SCALE } from './villager-plan';
 
 /** Celé spřežení je stylizovaně zvětšené jako postavy a domácí zvířata. */
@@ -1154,15 +1155,17 @@ function segmentEnd(seg: PathSegment): PathPoint {
 
 /**
  * Trasa přes pruhy `stints` v daném pořadí (`ploughRoute`), s přesunem od místa `from` (kde
- * spřežení právě je) k první řadě; bez `from` začíná na první řadě. S `approach` (cesta z ohrady
- * k bloku – oxen.md, Co nejdelší brázda) začíná v ohradě, dojede po ní k první řadě a po poslední
- * řadě se po ní vrátí do ohrady.
+ * spřežení právě je) k první řadě; bez `from` začíná na první řadě. Cesty dne `legs` (oxen.md –
+ * Spřežení zůstane na poli): s `out` (výjezd z ohrady nebo přesun od předchozího bloku) jde
+ * napřed na jeho začátek a po něm k první řadě, s `home` se po poslední řadě vrátí do ohrady;
+ * bez nich spřežení zůstává na poli – trasa jsou jen pruhy dne. Den bez pruhů se `stand` – stojí
+ * u čela orby.
  */
 export function ploughRoute(
   stints: readonly RouteStint[],
   from: { x: number; z: number } | null = null,
   turnRadius = TURN_RADIUS_M,
-  approach: readonly { x: number; z: number }[] | null = null,
+  legs: PloughLegs | null = null,
 ): PloughRoute {
   const segments: PathSegment[] = [];
   const segmentStint: number[] = [];
@@ -1177,16 +1180,16 @@ export function ploughRoute(
     segments.push({ kind: 'line', length, x: at.x, z: at.z, dx: lx / length, dz: lz / length });
     segmentStint.push(-1);
   };
-  const road = approach && approach.length >= 2 ? approach : null;
-  if (road) {
-    // z místa, kde spřežení je, do ohrady (začátek cesty), pak po cestě k bloku
-    transit(road[0]!);
-    at = road[0]!;
-    for (const point of road.slice(1)) {
+  const along = (road: readonly { x: number; z: number }[]): void => {
+    for (const point of road) {
       transit(point);
       at = point;
     }
-  }
+  };
+  const out = legs?.out && legs.out.length >= 2 ? legs.out : null;
+  const home = legs?.home && legs.home.length >= 2 ? legs.home : null;
+  // z místa, kde spřežení je, na začátek cesty (ohrada nebo konec předchozího bloku), pak po ní
+  if (out) along(out);
   stints.forEach((stint) => {
     const plan = stintRows(stint.field, false, turnRadius);
     const first = plan.segments[0];
@@ -1207,14 +1210,55 @@ export function ploughRoute(
     });
     at = segmentEnd(plan.segments[plan.segments.length - 1]!);
   });
-  if (road && stints.length > 0) {
-    // večer zpět do ohrady po téže cestě
-    for (const point of [...road].reverse()) {
-      transit(point);
-      at = point;
+  // v den návratu večer od konce bloku po cestě do ohrady
+  if (home && stints.length > 0) along(home);
+  // den bez orby – spřežení na poli stojí u čela orby (dojde tam, kde právě je)
+  const stand = legs?.stand;
+  if (stand && stints.length === 0) {
+    transit(stand);
+    if (segments.length === 0) {
+      segments.push({ kind: 'line', length: 0.01, x: stand.x, z: stand.z, dx: 1, dz: 0 });
+      segmentStint.push(-1);
     }
   }
   return { ...pathOf(segments), stints: planned, segmentStint };
+}
+
+/** Cesty spřežení dne – typ z jádra (`SceneVillage.ploughLegs`), výjezd `out`, návrat `home`. */
+export type PloughLegs = ScenePloughLegs;
+
+/** Odstup sousedních spřežení kolmo na směr cesty (m) – jedno spřežení je široké ≈ 2,5 m. */
+export const TEAM_SPACING_M = 3;
+
+/**
+ * Cesty `i`-tého spřežení dne: víc spřežení nejede ani nestojí přes sebe, `i`-té se odsadí o
+ * `i * TEAM_SPACING_M` kolmo na směr cesty (výjezd a návrat jedou na téže straně); stojící
+ * spřežení, které směr nemá, se odsadí podél osy x. První spřežení zůstává na místě.
+ */
+export function offsetLegs(legs: PloughLegs, index: number): PloughLegs {
+  if (index <= 0) return legs;
+  const d = index * TEAM_SPACING_M;
+  const axis = legs.out ?? (legs.home ? [...legs.home].reverse() : null);
+  const a = axis?.[0];
+  const b = axis?.[axis.length - 1];
+  let nx = 0;
+  let nz = 1;
+  if (a && b) {
+    const len = Math.hypot(b.x - a.x, b.z - a.z);
+    if (len > 1e-6) {
+      nx = -(b.z - a.z) / len;
+      nz = (b.x - a.x) / len;
+    }
+  }
+  const shift = (p: { x: number; z: number }): { x: number; z: number } => ({
+    x: p.x + nx * d,
+    z: p.z + nz * d,
+  });
+  return {
+    ...(legs.out ? { out: legs.out.map(shift) } : {}),
+    ...(legs.home ? { home: legs.home.map(shift) } : {}),
+    ...(legs.stand ? { stand: shift(legs.stand) } : {}),
+  };
 }
 
 /**

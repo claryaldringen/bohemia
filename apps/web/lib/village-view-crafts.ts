@@ -6,6 +6,7 @@ import {
   SceneKilnState,
   CartLoad,
   SceneCart,
+  ScenePloughLegs,
   SceneVillage,
 } from './village-view-scene-types';
 import { VillageCrafts } from './village-view-types';
@@ -20,6 +21,8 @@ import {
   harvestReachState,
   obstacleIndex,
   planCrops,
+  ploughBlockEndPart,
+  ploughFrontBand,
   villageCartRoutes,
   villageCarts,
   CARTS,
@@ -300,28 +303,69 @@ export function sceneCarts(
 }
 
 /**
- * Cesta spřežení k bloku dnešní orby (oxen.md – Co nejdelší brázda): vozovou sítí jako dvoukolák
- * bez nákladu (pevná cesta rychleji, napříč přes neosetá pole, osetým dílem ne) z ohrady se
- * spřežením k prvnímu dílu dnešní orby. Bez orby dne nebo když spřežení nedojede, null.
+ * Cesty spřežení dne (oxen.md – Spřežení zůstane na poli): spřežení je na poli, dokud nezorá, co
+ * okno potřebuje – `out` jen v den příjezdu k bloku (výjezd z ohrady nebo přesun od konce
+ * předchozího bloku), `home` jen v den návratu (od konce bloku do ohrady). Z dat jádra
+ * (`PloughWork.trip`), trasy vozovou sítí jako dvoukolák bez nákladu (pevná cesta rychleji,
+ * napříč přes neosetá pole, osetým dílem ne). Bez cest null.
  */
-export function scenePloughApproach(
+export function scenePloughLegs(
   state: VillageState,
   day: number,
   landscape: Landscape,
   fields: SceneVillage['fields'],
-): { x: number; z: number }[] | null {
-  const share = laborReport(state)?.shares.find(
-    (s) =>
-      s.activity === 'plough' && s.target.kind === 'field' && (s.target.parts?.length ?? 0) > 0,
-  );
-  if (!share || share.target.kind !== 'field') return null;
-  const first = share.target.parts![0]!;
-  const part = fields.flatMap((f) => f.parts).find((p) => p.id === first);
-  if (!part) return null;
-  const route = villageCartRoutes(state, day, landscape, obstaclesOf(landscape), 'two-wheel', [
-    { x: part.x, z: part.z, reachM: part.size / 2 + 1.5 },
-  ])?.[0];
-  return route?.reached && route.points.length >= 2 ? simplifiedRoute(route.points) : null;
+): ScenePloughLegs | null {
+  if (!state.plan) return null;
+  const scene = new Map(fields.flatMap((f) => f.parts).map((p) => [p.id, p]));
+  const byId = new Map(state.parts.map((p) => [p.id, p]));
+  const obstacles = obstaclesOf(landscape);
+  const route = (
+    from: { x: number; z: number } | null,
+    partId: number | undefined,
+  ): { x: number; z: number }[] | null => {
+    const part = partId === undefined ? undefined : scene.get(partId);
+    if (!part) return null;
+    const target = { x: part.x, z: part.z, reachM: part.size / 2 + 1.5 };
+    const found = villageCartRoutes(state, day, landscape, obstacles, 'two-wheel', [target], from);
+    const r = found?.[0];
+    return r?.reached && r.points.length >= 2 ? simplifiedRoute(r.points) : null;
+  };
+  let out: { x: number; z: number }[] | null = null;
+  let home: { x: number; z: number }[] | null = null;
+  for (const { work } of planCrops(state.plan)) {
+    const plough = work.plough;
+    const trip = plough?.trip;
+    if (!plough || !trip) continue;
+    if (!out && trip.arrived?.day === state.lastDay) {
+      const first = plough.bands?.find((b) => b.block === trip.block)?.partIds[0];
+      const from = trip.arrived.from;
+      const end = from === null ? null : ploughBlockEndPart(plough, from, byId);
+      const start = end ? scene.get(end.id) : undefined;
+      if (from === null) out = route(null, first);
+      else if (start) out = route({ x: start.x, z: start.z }, first);
+    }
+    if (!home && trip.home === state.lastDay) {
+      const back = route(null, ploughBlockEndPart(plough, trip.block, byId)?.id);
+      if (back) home = [...back].reverse();
+    }
+  }
+  // den bez orby: spřežení na poli stojí u čela orby (díl, kde orba pokračuje)
+  let stand: { x: number; z: number } | null = null;
+  const ploughed = laborReport(state)?.shares.some((s) => s.activity === 'plough' && s.manDays > 0);
+  if (!out && !home && !ploughed) {
+    for (const { work } of planCrops(state.plan)) {
+      const trip = work.plough?.trip;
+      if (!trip || trip.home !== undefined) continue;
+      // blok, u kterého spřežení je (konec jeho pásů); bez něj čelo orby
+      const here = work.plough ? ploughBlockEndPart(work.plough, trip.block, byId) : null;
+      const band = here ? null : ploughFrontBand(work, byId, state.lastDay);
+      const part = scene.get(here?.id ?? band?.partIds[0] ?? -1);
+      if (part) stand = { x: part.x, z: part.z };
+      if (stand) break;
+    }
+  }
+  if (!out && !home && !stand) return null;
+  return { ...(out ? { out } : {}), ...(home ? { home } : {}), ...(stand ? { stand } : {}) };
 }
 
 /**

@@ -49,6 +49,7 @@ import {
   sceneRoadApples,
   type VillageView,
 } from '../village-view';
+import type { ScenePloughLegs } from '../village-view-scene-types';
 
 const DAY = dayIndexOf({ year: 503, month: 4, day: 12 });
 const SIZE = 16;
@@ -2228,6 +2229,31 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
     // tesař netopí – dílna nekouří; model zatím polozemnice (scéna)
     expect(view.scene.dwellings.find((d) => d.id === 50)).toMatchObject({ craft: 'carpenter' });
     expect(view.scene.dwellings.find((d) => d.id === 50)?.working).toBeUndefined();
+  });
+
+  it('spřežení na poli (oxen.md – Spřežení zůstane na poli): výjezd, stání u čela a návrat', () => {
+    const s = carpenterVillage();
+    s.plan = { plannedDay: DAY - 30, ard: true, ...createCropWork(s.parts, DAY - 30, 0, true) };
+    const plough = s.plan.plough!;
+    const legs = (): ScenePloughLegs | undefined =>
+      buildVillageView(record(s), landscape, DAY).scene.ploughLegs;
+    // den, jehož práci scéna ukazuje (poslední dopočítaný)
+    const today = s.lastDay;
+    // doma – žádné cesty
+    expect(legs()).toBeUndefined();
+    // na poli v den bez orby – stojí u čela orby
+    plough.trip = { block: 0, costM: 30, arrived: { day: today - 3, from: null } };
+    expect(legs()?.stand).toBeDefined();
+    expect(legs()?.out).toBeUndefined();
+    // v den výjezdu cesta z ohrady vozovou sítí, ne stání
+    plough.trip = { block: 0, costM: 30, arrived: { day: today, from: null } };
+    expect(legs()?.stand).toBeUndefined();
+    expect(legs()?.out?.length).toBeGreaterThanOrEqual(2);
+    // v den návratu cesta od bloku do ohrady
+    plough.trip = { block: 0, costM: 30, arrived: { day: today - 3, from: null }, home: today };
+    const home = legs()?.home;
+    expect(home?.length).toBeGreaterThanOrEqual(2);
+    expect(legs()?.out).toBeUndefined();
   });
 
   it('ohrada volů: voli vsi, místa, kolik volů ves chce, páry s rádlem a vozy (oxen.md)', () => {

@@ -26,7 +26,7 @@ import {
   sceneCarts,
   sceneKilnRemnants,
   sceneKilns,
-  scenePloughApproach,
+  scenePloughLegs,
   workshopSmokes,
 } from './village-view-crafts';
 import {
@@ -217,7 +217,7 @@ export function sceneVillage(
   const earthworks = sceneEarthworks(state, day);
   const home = wagonHome(state);
   const carts = sceneCarts(state, day, landscape, fields);
-  const ploughApproach = scenePloughApproach(state, day, landscape, fields);
+  const ploughLegs = scenePloughLegs(state, day, landscape, fields);
   const hayMeadows = hayMeadowLooks(state, day).map((view): SceneHayMeadow => {
     const center = tileCenterWorld(landscape, view.cell.x, view.cell.y);
     return {
@@ -265,7 +265,7 @@ export function sceneVillage(
     ...(plantedSaplings.length > 0 ? { plantedSaplings } : {}),
     ...(roadApples.length > 0 ? { roadApples } : {}),
     ...(carts.length > 0 ? { carts } : {}),
-    ...(ploughApproach ? { ploughApproach } : {}),
+    ...(ploughLegs ? { ploughLegs } : {}),
     ...(earthworks.length > 0 ? { earthworks } : {}),
     ...(state.routes ? { routes: { key: state.routes.key, list: state.routes.list } } : {}),
     ...(state.roads?.wear
