@@ -386,11 +386,12 @@ describe('stavba vozové cesty ve vsi', () => {
   }
 
   it('staví se po úsecích od vsi ven, hotový úsek je hned cesta; stará cesta zůstane', () => {
-    // stará cesta oklikou – vozová vede rovně, stará zůstane (kus souběžný u konců se vyřízne)
+    // stará cesta oklikou – vozová vede rovně, stará zůstane (kus souběžný u konců se vyřízne);
+    // severní konec leží v pásu kraje mapy (kotva) – stará cesta tam nekončí jako pahýl
     const bent = oldRoad([
       { x: 0, z: -180 },
       { x: 45, z: 0 },
-      { x: 0, z: 180 },
+      { x: 0, z: 190 },
     ]);
     const s = startWagonRoad(village(BUMP, bent), DAY, 1, BUMP, null);
     const c = s.constructions.find((x) => x.earthwork !== undefined)!;
@@ -424,7 +425,7 @@ describe('stavba vozové cesty ve vsi', () => {
     // kde z ní odbočí zbytek staré cesty (kus souběžný u konce se vyřízl hned)
     const ends = wagon.flatMap((r) => [r.points[0]!, r.points.at(-1)!]);
     expect(ends).toContainEqual({ x: 0, z: -180 });
-    expect(ends).toContainEqual({ x: 0, z: 180 });
+    expect(ends).toContainEqual({ x: 0, z: 190 });
     expect(wagon.reduce((sum, r) => sum + roadLengthM(r), 0)).toBeCloseTo(
       done.pieces.at(-1)!.toM,
       -1,

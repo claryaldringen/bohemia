@@ -47,7 +47,8 @@ import {
 } from './roads-form';
 import { annualCartNetwork, markCartRoads, takeOverCartRoads } from './roads-carts';
 import { abandonBlockedStretches, cutDeadRoads } from './roads-overgrow';
-import { anchorTermini, tidyRoads } from './roads-tidy';
+import { accessDue, accessRoads } from './roads-access';
+import { anchorTermini, markRoadEnds, tidyDue, tidyRoads } from './roads-tidy';
 import { SpotContext, plantingBlocker, rootTrees } from './roads-trees';
 import { type RoadAnchors, roadAnchors } from './road-anchors';
 import { routeLine } from './routes';
@@ -166,8 +167,9 @@ function annualTermini(state: VillageState, landscape: Landscape): (p: RoadPoint
  * Měsíční kontrola pevných cest 1. dne v měsíci (paths.md – Vyšlapanost a vznik cesty; mutuje
  * stav – volá simulace na začátku dne): vyšlapanost do dneška (`settleVillageWear`), z vyšlapaných
  * čar tras nové cesty od kotvy ke kotvě a po vzniku úklid sítě (`formRoadsKept`), kronika
- * `road-formed`. Jiné dny nic; bez vyšlapanosti, tras nebo horkého kusu jen sečte vyšlapanost
- * (kontext míst na stromy se nestaví).
+ * `road-formed`; pak měsíční úklid – pahýly a cesty k vchodům (`tidyMonth`), jen když se změnily
+ * trasy nebo cesty. Jiné dny nic; bez změny jen sečte vyšlapanost (kontext míst na stromy se
+ * nestaví).
  */
 export function roadsMonth(
   state: VillageState,
@@ -191,26 +193,111 @@ export function roadsMonth(
     }
   }
   const routes = state.routes;
-  if (!roads?.wear || !routes || routes.list.length === 0) return;
+  if (!state.roads || !routes || routes.list.length === 0) return;
   const cellM = pathCellM(landscape);
   const { lines, anchors } = monthRoutes(routes, landscape, cellM);
-  const wear = wearMap(roads.wear);
-  if (!wearRoadDue(roads, lines, wear, anchors)) return;
-  const base: Omit<SpotContext, 'split'> = {
-    terrain: trailTerrain(landscape, obstacles),
-    blocked: plantingBlocker(state, landscape),
-    layer: obstacles,
-    changes: obstacleChangesAt(state, day),
-    seed: state.seed,
-  };
-  const formed = formRoadsKept(state, roads, { lines, anchors, wear, day, base }, () =>
-    trafficField(routes, cellM),
-  );
-  // úklid může novou cestu spojit se starší – do kroniky jen cesty, jejichž id zůstalo
-  const kept = new Set(state.roads!.roads.map((r) => r.id));
-  for (const road of formed) {
-    if (kept.has(road.id)) state.chronicle.push({ day, kind: 'road-formed', roadId: road.id });
+  // kontext míst na stromy a provozní pole jen, když se cesty opravdu mění
+  let base: Omit<SpotContext, 'split'> | null = null;
+  const baseOf = (): Omit<SpotContext, 'split'> =>
+    (base ??= {
+      terrain: trailTerrain(landscape, obstacles),
+      blocked: plantingBlocker(state, landscape),
+      layer: obstacles,
+      changes: obstacleChangesAt(state, day),
+      seed: state.seed,
+    });
+  let field: TrafficField | null = null;
+  const fieldOf = (): TrafficField => (field ??= trafficField(routes, cellM));
+  const worn = state.roads.wear;
+  if (worn) {
+    const wear = wearMap(worn);
+    if (wearRoadDue(state.roads, lines, wear, anchors)) {
+      const formed = formRoadsKept(
+        state,
+        state.roads,
+        { lines, anchors, wear, day, base: baseOf() },
+        fieldOf,
+      );
+      // úklid může novou cestu spojit se starší – do kroniky jen cesty, jejichž id zůstalo
+      const kept = new Set(state.roads.roads.map((r) => r.id));
+      for (const road of formed) {
+        if (kept.has(road.id)) state.chronicle.push({ day, kind: 'road-formed', roadId: road.id });
+      }
+    }
   }
+  tidyMonth(state, routes, { lines, anchors, day, cellM }, baseOf, fieldOf);
+}
+
+/** Kolikrát běžel měsíční úklid (`tidyMonth`) – pro testy a měření, hra ho nečte. */
+export const TIDY_RUNS = { count: 0 };
+
+/** Otisk sítě pro měsíční úklid: osy, stupně a opuštění úseků (FNV-1a, 32 bitů). */
+function networkKey(roads: VillageRoads): number {
+  let hash = 0x811c9dc5;
+  const add = (text: string): void => {
+    for (let i = 0; i < text.length; i++) {
+      hash = Math.imul(hash ^ text.charCodeAt(i), 0x01000193) >>> 0;
+    }
+  };
+  for (const road of roads.roads) {
+    add(`|${road.id}:${road.grade}:${road.abandoned ? 1 : 0}:`);
+    for (const p of road.points) add(`${p.x},${p.z};`);
+  }
+  return hash;
+}
+
+/**
+ * Měsíční úklid sítě (paths.md – Síť – kotvy, pahýly a úklid; mutuje): okruhy, souběžné cesty,
+ * copánky, díry, spojení a pahýly (`tidyRoads` s kotvami a čarami tras), pak cesty k vchodům
+ * (`accessRoads`, kronika `road-formed`). Jen když se od posledního úklidu změnily trasy nebo
+ * cesty (`VillageRoads.tidyKey`) – jinak nic, ani kontext míst na stromy.
+ */
+function tidyMonth(
+  state: VillageState,
+  routes: VillageRoutes,
+  month: { lines: RoadPoint[][]; anchors: RoadAnchors; day: number; cellM: number },
+  base: () => Omit<SpotContext, 'split'>,
+  field: () => TrafficField,
+): void {
+  const roads = state.roads!;
+  const isEnd = anchorTermini(month.anchors);
+  const network = { isAnchor: isEnd, lines: month.lines, trails: state.trails };
+  // rozestavěný hřbitov nemá branku – cesta k vchodu až k hotovému (paths.md – Vchody)
+  const unbuilt = new Set(
+    villageCemeteries(state)
+      .filter((c) => c.builtDay === null)
+      .map((c) => visitKey('cemetery', c.id)),
+  );
+  const built = (visit: string): boolean => !unbuilt.has(visit);
+  // cesty beze změny: úklid jen, když nové kotvy a trasy dají práci (pahýl, díra, okruh, vchod)
+  if (
+    roads.tidyKey === networkKey(roads) &&
+    !tidyDue(roads, state.constructions, isEnd, network) &&
+    !accessDue(roads, routes.list, month.cellM, built)
+  ) {
+    return;
+  }
+  TIDY_RUNS.count++;
+  const context: SpotContext = {
+    ...base(),
+    split: (from, to) => {
+      splitRoadWork(state.constructions, from, to);
+      splitTrailPieces(state.trails, from, to);
+    },
+  };
+  tidyRoads(roads, state.constructions, isEnd, context, network);
+  const made = accessRoads(roads, routes.list, month.cellM, month.day, context, field(), built);
+  if (made.length > 0) {
+    mergeRoadChains(roads, state.constructions);
+    markRoadEnds(roads, isEnd);
+    const kept = new Set(roads.roads.map((r) => r.id));
+    for (const road of made) {
+      if (kept.has(road.id)) {
+        state.chronicle.push({ day: month.day, kind: 'road-formed', roadId: road.id });
+      }
+    }
+  }
+  roads.tidyKey = networkKey(roads);
 }
 
 /** Pracovní kopie částí stavu, které vznik cesty a úklid mění. */

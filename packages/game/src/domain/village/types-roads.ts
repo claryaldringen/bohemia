@@ -204,6 +204,11 @@ export interface VillageRoads {
    */
   parallelsChecked?: true;
   /**
+   * Otisk sítě po posledním měsíčním úklidu (paths.md – Síť – kotvy, pahýly a úklid): trasy
+   * (`VillageRoutes.key`) a osy úseků – bez změny se úklid nepouští. Chybí = ještě neproběhl.
+   */
+  tidyKey?: number;
+  /**
    * Konce úseků, od kterých zarostl nepoužívaný kus (roads.md – Zarůstá jen nepoužívaný kus) –
    * zůstávají volnými konci (pás cesty se tam vytrácí) a díra se k nim nedoplňuje; zmizí, když tam
    * už žádný úsek nekončí. Chybí = žádné.

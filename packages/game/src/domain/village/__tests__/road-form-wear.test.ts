@@ -405,6 +405,7 @@ describe('roadsMonth – měsíční vznik cest z vyšlapanosti', () => {
     s.roads.wear = { day: start, cells: encodeWear(hot), labor: [] };
     s.routes = { day: start, key: 'test-water-detour', list: [route] };
     const before = structuredClone(s.roads.roads);
+    let firstEnds: Road['openEnds'][] = [];
     for (let m = 5; m <= 16; m++) {
       roadsMonth(
         s,
@@ -413,8 +414,14 @@ describe('roadsMonth – měsíční vznik cest z vyšlapanosti', () => {
         null,
       );
       expect(s.roads.nextId, `měsíc ${m}`).toBe(50);
+      if (m === 5) firstEnds = s.roads.roads.map((r) => r.openEnds);
     }
-    expect(s.roads.roads).toEqual(before);
+    // první měsíční úklid jen určí volné konce (`openEnds`) – osa, id a místa na stromy beze změny
+    const plain = (list: readonly Road[]): Road[] =>
+      list.map((r) => ({ ...r, openEnds: undefined }));
+    expect(plain(s.roads.roads)).toEqual(plain(before));
+    // další měsíce volné konce už nemění
+    expect(s.roads.roads.map((r) => r.openEnds)).toEqual(firstEnds);
     expect(s.chronicle.some((e) => e.kind === 'road-formed')).toBe(false);
   });
 

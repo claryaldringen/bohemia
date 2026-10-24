@@ -59,16 +59,16 @@ function village(day: number): VillageState {
   return s;
 }
 
-/** Stranou vsi (z = −120) dva úseky s dírou 5 m mezi x = 0 a x = 5. */
+/** Stranou vsi (z = −100) dva úseky s dírou 5 m mezi x = 0 a x = 5 (mimo pás kraje mapy). */
 function withGap(s: VillageState): void {
   s.roads!.roads.push(
     road(500, [
-      [-60, -120],
-      [0, -120],
+      [-60, -100],
+      [0, -100],
     ]),
     road(501, [
-      [5, -120],
-      [130, -120],
+      [5, -100],
+      [100, -100],
     ]),
   );
 }
@@ -79,9 +79,9 @@ describe('díry mezi úseky pevných cest', () => {
     updateRoads(s, Y1, LANDSCAPE, null);
     withGap(s);
     updateRoads(s, NOV1(601), LANDSCAPE, null);
-    const side = s.roads!.roads.filter((r) => r.points.every((p) => p.z === -120));
+    const side = s.roads!.roads.filter((r) => r.points.every((p) => p.z === -100));
     expect(side.map((r) => r.id)).toEqual([500]);
-    expect(side[0]!.points.map((p) => p.x)).toEqual([-60, 0, 5, 130]);
+    expect(side[0]!.points.map((p) => p.x)).toEqual([-60, 0, 5, 100]);
     // konce v louce bez trasy – pás se tam nevytrácí jako u brány; stav je zkontrolovaný
     expect(side[0]!.openEnds).toEqual([false, false]);
     expect(s.roads!.endsChecked).toBe(true);

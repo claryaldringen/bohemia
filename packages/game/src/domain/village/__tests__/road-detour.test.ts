@@ -3,6 +3,7 @@ import { dayIndexOf } from '../../calendar';
 import { type GridWindow } from '../paths/network-grid';
 import { roadsMonth } from '../paths/roads';
 import { emptyRoads } from '../paths/roads-form';
+import { ATTACH_M, nearestOnRoads } from '../paths/roads-geometry';
 import { encodeRoute, routeLine } from '../paths/routes';
 import { encodeWear, wearCellAt } from '../paths/wear';
 import type { Road, StoredRoute, VillageState } from '../types';
@@ -93,12 +94,29 @@ describe('stavba přes cestu – objížďka (Vlkov, polozemnice 2630)', () => {
     expect(abandoned.length).toBeGreaterThan(0);
     expect(abandoned.every((r) => r.points.every((p) => p.z > 15 && p.z < 45))).toBe(true);
     const living = roads.filter((r) => !r.abandoned);
-    // zbytky staré cesty po obou stranách, první se starým id i místy na stromy
+    // zbytky staré cesty po obou stranách se s objížďkou spojily do jedné cesty se starým id
+    // (úklid – pahýly u pozemku zmizely, falešná rozcestí se spojila; Úloha 8)
     expect(living.some((r) => r.id === 1)).toBe(true);
-    expect(living.some((r) => r.points.every((p) => p.z > 30))).toBe(true);
+    expect(living.some((r) => r.points.some((p) => p.z > 60))).toBe(true);
+    expect(living.some((r) => r.points.some((p) => p.z < 10))).toBe(true);
     // objížďka vznikla (leží východně od domu) a navazuje na zbytky
     const detour = living.find((r) => r.points.some((p) => p.x > 66));
     expect(detour).toBeDefined();
+    // úklid pahýlů neodřízne napojení objížďky: oba její konce dál leží na cestě (do ATTACH_M)
+    // nebo u kotvy (brána domu, voda) – díra nevznikne
+    const others = living.filter((r) => r !== detour);
+    for (const end of [detour!.points[0]!, detour!.points[detour!.points.length - 1]!]) {
+      const hit = nearestOnRoads(others, end.x, end.z);
+      const atAnchor = end.z <= 4 || end.z >= 70;
+      expect(atAnchor || (hit !== null && hit.distance <= ATTACH_M)).toBe(true);
+    }
+    // zbytek staré cesty u domu bez trasy (pahýl) zmizel – žádný živý konec u pozemku
+    for (const r of living) {
+      for (const p of [r.points[0]!, r.points[r.points.length - 1]!]) {
+        expect(p.z > 15 && p.z < 45 && Math.abs(p.x - 60) < 2).toBe(false);
+      }
+    }
+    const nextId = s.roads!.nextId;
     const snapshot = JSON.stringify(
       living.map((r) => ({ id: r.id, spots: r.spots, points: r.points })),
     );
@@ -106,6 +124,7 @@ describe('stavba přes cestu – objížďka (Vlkov, polozemnice 2630)', () => {
     for (let m = 2; m <= 13; m++) roadsMonth(s, monthDay(m), LANDSCAPE, null);
     const after = s.roads!.roads.filter((r) => !r.abandoned);
     expect(after.map((r) => r.id).sort((a, b) => a - b)).toEqual(ids);
+    expect(s.roads!.nextId).toBe(nextId);
     expect(JSON.stringify(after.map((r) => ({ id: r.id, spots: r.spots, points: r.points })))).toBe(
       snapshot,
     );

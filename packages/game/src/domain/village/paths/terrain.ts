@@ -69,7 +69,7 @@ const WOODLAND_M = -6;
  */
 const WETLAND = { cells: 3, slope: 0.04 } as const;
 /** U okraje krajiny se nechodí (m). */
-const EDGE_MARGIN_M = 10;
+export const EDGE_MARGIN_M = 10;
 /** Okno terénu v mezipaměti je o tolik (m) větší než potřebné – ves roste a nepočítá se znovu. */
 const CACHE_MARGIN_M = 300;
 

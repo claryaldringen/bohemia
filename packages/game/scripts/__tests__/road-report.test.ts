@@ -23,7 +23,7 @@ function road(id: number, points: [number, number][]): Road {
 }
 
 describe('road-report', () => {
-  it('změří křižovatky a pahýly', () => {
+  it('změří křižovatky, pahýly a konce mimo kotvu', () => {
     const roads = [
       road(1, [
         [0, 0],
@@ -42,7 +42,26 @@ describe('road-report', () => {
         [0, 10],
       ]),
     ];
-    expect(networkShape(roads)).toEqual({ junctions: 1, stubs: 1 });
+    expect(networkShape(roads)).toEqual({
+      junctions: 1,
+      stubs: 1,
+      endsOffAnchor: 3,
+      looseEnds: ['2:trodden@200,0', '3:trodden@100,100', '4:trodden@0,10'],
+      parallelPairs: 0,
+    });
+    // konec u kotvy pahýl není; opuštěný kus se nepočítá
+    const atGate = (p: { x: number; z: number }): boolean => Math.hypot(p.x, p.z - 10) < 3;
+    const abandoned = {
+      ...road(5, [
+        [200, 0],
+        [200, 5],
+      ]),
+      abandoned: true as const,
+    };
+    expect(networkShape([...roads, abandoned], atGate)).toMatchObject({
+      stubs: 0,
+      endsOffAnchor: 2,
+    });
   });
 
   it('načte a dopočte syntetickou ves', async () => {

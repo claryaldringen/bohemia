@@ -118,8 +118,14 @@ export const WEAR = {
 } as const;
 // paths.md – Síť – kotvy (návrh Clauda, Úloha 5): cesta smí končit do `entranceM` (3 m) od vchodu
 // stavby, do `goalM` (7,5 m) od konce trasy k cíli bez vchodu (voda, dřevo, pole, sad, louka,
-// pastva) a do `goalM` od kraje mapy
+// pastva) a v pásu kraje mapy (`EDGE_MARGIN_M` + `TRAIL.edgeBandM` + `goalM` od okraje – tam končí
+// cesty k sousedům)
 export const ROAD_ANCHORS = { entranceM: 3, goalM: 7.5 } as const;
+// paths.md – Vchody (Martin, #6: „ke každé stavbě, kam se chodí, vede cesta až k jejímu vchodu,
+// i když se tam chodí málo, třeba k hřbitovu jen na pohřby.“; návrh Clauda): vchod má cestu, když
+// do `ROAD_ANCHORS.entranceM` od něj končí nebo vede pevná cesta; cesta k vchodu je nejméně
+// `minM` dlouhá (krátká spojka k cestě, která jde kolem)
+export const ROAD_ACCESS = { minM: 3 } as const;
 // wagons.md – Vyjeté cesty (návrh Clauda): úsek, kudy vozy dva roky po sobě jezdí aspoň
 // `tripsPerDay` jízd denně (roční průměr – ≈ 90 jízd za rok), se stane vozovou cestou; vozová cesta,
 // kudy 5 let po sobě jezdí pod polovinou, je zas jen pěší (zaroste podle provozu lidí)
