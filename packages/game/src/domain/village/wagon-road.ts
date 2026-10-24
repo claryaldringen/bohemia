@@ -759,9 +759,6 @@ interface OldChain {
 type WagonAttempt =
   Extract<WagonRoadPlan, { ok: true }> | { ok: false; reason: string; failAt: number };
 
-/** Profil selže do tolika metrů od buňky u posvátného stromu – důvodem je strom (WAGON_SACRED). */
-const SACRED_FAIL_M = 10;
-
 /** Délky od začátku po bodech osy (m). */
 function arcsOf(points: readonly PathPoint[]): number[] {
   const out: number[] = [0];
@@ -785,6 +782,7 @@ function detourStretch(
   i: number,
   j: number,
   padM: number,
+  budget: { left: number },
 ): PathPoint[] | null {
   const stretch = axis.slice(i, j + 1);
   const grid = planGrid(input, {
@@ -793,7 +791,7 @@ function detourStretch(
     maxX: Math.max(...stretch.map((p) => p.x)) + padM,
     maxZ: Math.max(...stretch.map((p) => p.z)) + padM,
   });
-  const route = findWagonRoute(grid, axis[i]!, axis[j]!, 0, WAGON_DETOUR.maxLabels);
+  const route = findWagonRoute(grid, axis[i]!, axis[j]!, 0, WAGON_DETOUR.maxLabels, budget);
   if (!route) return null;
   const straight = straightenWagonRoute(grid, route.points);
   // vyhlazená osa, kde profil kusu vyjde s konci v terénu; jinak narovnaná trasa – celý profil
@@ -823,6 +821,8 @@ function detourPlan(
   let axis = start.axis;
   let bypassed = start.bypassed;
   let failAt = firstFail;
+  // společný rozpočet štítků všech hledání plánu (rules-roads.ts – WAGON_DETOUR.totalLabels)
+  const budget = { left: WAGON_DETOUR.totalLabels };
   for (let round = 0; round < WAGON_DETOUR.maxDetours && failAt >= 0; round++) {
     const cur = wagonAxisPoints(axis);
     const arc = arcsOf(cur);
@@ -830,12 +830,13 @@ function detourPlan(
     let best: Extract<WagonRoadPlan, { ok: true }> | null = null;
     let next: { axis: PathPoint[]; bypassed: PathPoint[][]; failAt: number } | null = null;
     for (const halfM of WAGON_DETOUR.windowsM) {
+      if (budget.left <= 0) break;
       let i = f;
       while (i > 0 && arc[f]! - arc[i]! < halfM) i--;
       let j = f;
       while (j < cur.length - 1 && arc[j]! - arc[f]! < halfM) j++;
       if (j - i < 2) continue;
-      const stretch = detourStretch(input, cur, i, j, halfM);
+      const stretch = detourStretch(input, cur, i, j, halfM, budget);
       if (!stretch) continue;
       const cand = [...cur.slice(0, i), ...stretch, ...cur.slice(j + 1)];
       const candBypassed = [...bypassed, cur.slice(i, j + 1)];
@@ -888,7 +889,7 @@ function planAlong(
     // u posvátného stromu je mez zemních prací malá – hláška nesmí tvrdit, že je cesta moc prudká
     const failAt = wagonProfileFailure(grid, axis);
     const at = wagonAxisPoints(axis)[failAt];
-    const sacred = at !== undefined && wagonNearSacred(grid, at, SACRED_FAIL_M);
+    const sacred = at !== undefined && wagonNearSacred(grid, at, WAGON_DETOUR.sacredFailM);
     return { ok: false, reason: sacred ? WAGON_SACRED : WAGON_STEEP, failAt };
   }
   const earth = wagonEarthworks(grid, profile.profile, profile.fords);

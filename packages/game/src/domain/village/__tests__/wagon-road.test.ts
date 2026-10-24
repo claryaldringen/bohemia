@@ -27,6 +27,7 @@ import { roadPieceCost } from '../paths/walking';
 import { roadWalkSpeed } from '../paths/walk-speed';
 import { balanceEarth, profileEdits, profileHeights } from '../paths/wagon-route';
 import { CART_SPEED, ROAD_WALK, WAGON_ROAD } from '../rules';
+import { WAGON_DETOUR } from '../rules-roads';
 import { advanceVillage } from '../simulate';
 import type { Road, RoadProfilePoint, VillageState } from '../types';
 import {
@@ -1207,5 +1208,36 @@ describe('serpentiny – objížďka prudkého kusu (roads.md – Postupná úpr
       expect(p.bypassed).toEqual([]);
       for (const q of p.profile) expect(q.x).toBe(0);
     }
+  });
+  it('společný rozpočet štítků: po vyčerpání se objížďka nehledá, plán skončí jako moc prudký', () => {
+    const rules = WAGON_DETOUR as { totalLabels: number };
+    const saved = rules.totalLabels;
+    expect(planWagonRoad(input(RAMP))).toMatchObject({ ok: true });
+    rules.totalLabels = 0;
+    try {
+      expect(planWagonRoad(input(RAMP))).toEqual({ ok: false, reason: WAGON_STEEP });
+    } finally {
+      rules.totalLabels = saved;
+    }
+  });
+
+  it('posvátný les přes celou šířku: objížďka nevyjde, důvodem je strom (WAGON_SACRED)', () => {
+    const wall: ObstaclePlacement[] = [];
+    for (let k = 0; k < 120; k++) {
+      wall.push({
+        id: 1 + k,
+        kind: 'tree',
+        look: 'oak-1',
+        x: -297.5 + k * 5,
+        z: 0,
+        rotation: 0,
+        scale: 1,
+      });
+    }
+    const layer = packObstacles(wall, 20, 15);
+    expect(planWagonRoad({ ...input(GENTLE), layer })).toEqual({
+      ok: false,
+      reason: WAGON_SACRED,
+    });
   });
 });

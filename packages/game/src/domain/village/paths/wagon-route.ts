@@ -486,15 +486,18 @@ function endCells(grid: WagonGrid, p: PathPoint, radius: number): number[] {
  * pláně a příčného sklonu) + čas jízdy (`wagonTimeRate`, rychlost vozové cesty, sklon) + změna
  * směru; rozsah výšek pláně se po kroku rozšíří o L × sklon a omezí terénem ± `limit` – prázdný
  * rozsah = krok nejde (příliš strmě i s úvozem a náspem). Konce cesty mají pláň v terénu. Bez
- * trasy (nebo po `maxLabels` štítcích – mez paměti a času) null.
+ * trasy (nebo po `maxLabels` štítcích – mez paměti a času) null. Se `budget` je mez nejvýš
+ * `budget.left` štítků a hledání z něj spotřebované štítky odečte (společný rozpočet víc hledání).
  */
 export function findWagonRoute(
   grid: WagonGrid,
   from: PathPoint,
   to: PathPoint,
   tripsPerDay: number,
-  maxLabels = MAX_LABELS,
+  maxLabelsOwn = MAX_LABELS,
+  budget?: { left: number },
 ): WagonRouteCells | null {
+  const maxLabels = budget ? Math.min(maxLabelsOwn, budget.left) : maxLabelsOwn;
   const { width: w, height: h, cellM, heights, blocked, limit, clearing, gx, gz } = grid;
   const timeRate = wagonTimeRate(tripsPerDay) / CART_SPEED.road.wagon;
   const pave = WAGON_ROAD.pavingPerM;
@@ -605,7 +608,10 @@ export function findWagonRoute(
       found = id;
       break;
     }
-    if (labels.size > maxLabels) return null;
+    if (labels.size > maxLabels) {
+      if (budget) budget.left -= labels.size;
+      return null;
+    }
     const cost = labels.cost[id]!;
     const lo = labels.lo[id]!;
     const hi = labels.hi[id]!;
@@ -663,6 +669,7 @@ export function findWagonRoute(
       if (nid >= 0) heap.push(nid, nextCost + heuristic(n));
     }
   }
+  if (budget) budget.left -= labels.size;
   if (found < 0) return null;
   const cells: number[] = [];
   for (let id = labels.parent[found]!; id >= 0; id = labels.parent[id]!) {

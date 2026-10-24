@@ -183,7 +183,11 @@ Clauda, schválený Martinem 24. 10. 2026 („Návrhy k cestám schvaluji“):
   (`WAGON_DETOUR`, návrh Clauda). Obejitý kus staré osy zaroste (`bypassed`), lávka u nového brodu
   na objížďce se účtuje (4 stromy, 15 čd). `WAGON_STEEP` zůstane jen tehdy, když nevyjde žádné okno.
   Hledání v okně má mez **250 000 štítků** (paměť v prohlížeči ≈ 13 MB) – svah, který by chtěl
-  víc serpentin, než se do ní vejde, zůstane moc prudký. Okna se počítají z celočíselných indexů osy
+  víc serpentin, než se do ní vejde, zůstane moc prudký. Všechna hledání jednoho plánu (okna ×
+  místa selhání) sdílejí rozpočet **600 000 štítků** (podle počtu, ne času – server i prohlížeč
+  skončí na témže místě); po jeho vyčerpání se další okna nezkoušejí a plán skončí jako dnes
+  bez objížďky (moc prudká / posvátný strom). Selhání profilu **do 10 m** od posvátného stromu
+  hlásí strom (`WAGON_SACRED`), jinak strmost (`WAGON_STEEP`). Okna se počítají z celočíselných indexů osy
   a při shodě rozhoduje pevné pořadí (determinismus server × prohlížeč), plán se v prohlížeči drží
   v mezipaměti. Cesta, které profil vyjde, se nemění.
 - **Vlkov, zemská stezka na sever (cesta 547, 24. 10. 2026):** dřív `WAGON_SACRED`; teď objížďka
@@ -208,21 +212,21 @@ Martin: „Pokud vesničané upravují cestu, chci je na té cestě vidět praco
 
 ### Rozhodnutí nového systému
 
-| Rozhodnutí                                                                                    | Kdo          |
-| --------------------------------------------------------------------------------------------- | ------------ |
-| Pravidla 1–11, lidé při práci na cestě, přes ohrady se nechodí                                | Martin       |
-| Převod starých vsí jednou a idempotentně                                                      | Martin       |
-| Rychlosti druhů beze změny; stromy přidají i na hati a vozové cestě přes mokřinu              | návrh Clauda |
-| Zarůstání: udržení 1 / 0,5 / 0,25 cesty denně, bez provozu 5 / 15 / 30 let; stav po kusech    | návrh Clauda |
-| Opuštěná cesta mimo síť; jabloně cestu nedrží (provoz u jabloní ano)                          | návrh Clauda |
-| „Upravit cestu“ = úprava + hať + lávka, součet cen; `causeway` → upravená, `unbridged`        | návrh Clauda |
-| Vozová cesta po staré ose, kličku do svahu narovná tětivou (1,3×, 3 m, 120 m), je-li levnější | návrh Clauda |
-| Vozová cesta vede i uličkou mezi ohradami (`fencedCells` jako vozy)                           | návrh Clauda |
-| Kus cesty pod hotovou stavbou hned opuštěný, objížďka se vyšlape                              | návrh Clauda |
-| Rozdělanou úpravu a vozovou cestu jde zrušit – hotové úseky zůstanou, dřevo se vrátí          | návrh Clauda |
-| Svahy úvozů a náspů 15 let řídká tráva, lemy hran, kameny; výška se nezveličuje               | návrh Clauda |
-| Postavy u čela práce celé cesty; vozová cesta s kopáči, nosiči a dusáním                      | návrh Clauda |
-| Serpentiny: okna ±60/120/200 m, nejvýš 4 místa selhání, mez hledání 250 000 štítků            | návrh Clauda |
+| Rozhodnutí                                                                                       | Kdo          |
+| ------------------------------------------------------------------------------------------------ | ------------ |
+| Pravidla 1–11, lidé při práci na cestě, přes ohrady se nechodí                                   | Martin       |
+| Převod starých vsí jednou a idempotentně                                                         | Martin       |
+| Rychlosti druhů beze změny; stromy přidají i na hati a vozové cestě přes mokřinu                 | návrh Clauda |
+| Zarůstání: udržení 1 / 0,5 / 0,25 cesty denně, bez provozu 5 / 15 / 30 let; stav po kusech       | návrh Clauda |
+| Opuštěná cesta mimo síť; jabloně cestu nedrží (provoz u jabloní ano)                             | návrh Clauda |
+| „Upravit cestu“ = úprava + hať + lávka, součet cen; `causeway` → upravená, `unbridged`           | návrh Clauda |
+| Vozová cesta po staré ose, kličku do svahu narovná tětivou (1,3×, 3 m, 120 m), je-li levnější    | návrh Clauda |
+| Vozová cesta vede i uličkou mezi ohradami (`fencedCells` jako vozy)                              | návrh Clauda |
+| Kus cesty pod hotovou stavbou hned opuštěný, objížďka se vyšlape                                 | návrh Clauda |
+| Rozdělanou úpravu a vozovou cestu jde zrušit – hotové úseky zůstanou, dřevo se vrátí             | návrh Clauda |
+| Svahy úvozů a náspů 15 let řídká tráva, lemy hran, kameny; výška se nezveličuje                  | návrh Clauda |
+| Postavy u čela práce celé cesty; vozová cesta s kopáči, nosiči a dusáním                         | návrh Clauda |
+| Serpentiny: okna ±60/120/200 m, nejvýš 4 místa selhání, mez hledání 250 000 štítků, plán 600 000 | návrh Clauda |
 
 ## Proč
 

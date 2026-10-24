@@ -272,11 +272,17 @@ export const WAGON_STRAIGHTEN = { ratio: 1.3, climbM: 3, maxM: 120 } as const;
  * staré ose kolem místa selhání (do stran stejně daleko) a vezme se nejlevnější hotový plán;
  * nejvýš `maxDetours` míst selhání za sebou. Hledání v okně má mez `maxLabels` štítků (paměť
  * v prohlížeči ≈ 13 MB, čas ≈ 0,1–0,3 s) – objížďka, která se do ní nevejde, se nenajde.
+ * Všechna hledání jednoho plánu (okna × místa selhání) sdílejí rozpočet `totalLabels` štítků –
+ * podle počtu, ne času, takže server i prohlížeč skončí na témže místě; po vyčerpání se další
+ * okna nezkoušejí a plán skončí bez objížďky (moc prudká / posvátný strom). `sacredFailM`:
+ * selhání profilu do tolika metrů od buňky u posvátného stromu je důvodem strom (ne strmost).
  */
 export const WAGON_DETOUR = {
   windowsM: [60, 120, 200],
   maxDetours: 4,
   maxLabels: 250_000,
+  totalLabels: 600_000,
+  sacredFailM: 10,
 } as const;
 /**
  * roads.md a fields.md – Cesta ubírá poli plochu (Martin, 19. 10. 2026: „Ano má. Ono to stejně ve
