@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
-import { transferPrecision, type Landscape } from '../../landscape';
+import {
+  packObstacles,
+  transferPrecision,
+  type Landscape,
+  type ObstaclePlacement,
+} from '../../landscape';
 import { foundVillage } from '../actions';
 import { NO_OBSTACLE_CHANGES } from '../obstacles';
 import { cartRoadSpeed, cartRoutes, type CartRoute } from '../paths/cart';
@@ -28,10 +33,12 @@ import {
   WAGON_BUILDING,
   WAGON_EXISTS,
   WAGON_LOOP,
+  WAGON_SACRED,
   WAGON_STEEP,
   fordArcsOf,
   planWagonRoad,
   startWagonRoad,
+  wagonPlanInputOf,
   wagonChainStatus,
   type WagonPlanInput,
   type WagonRoadPlan,
@@ -685,5 +692,172 @@ describe('vozová síť a pěšiny s novými výškami', () => {
     expect(off.length).toBeLessThan(3);
     // bez úprav terénu je svah 15 % nad mezí vozu – oklika, nebo nedojede
     if (rough.reached) expect(rough.cost).toBeGreaterThan(smooth.cost * 1.2);
+  });
+});
+
+describe('narovnání kličky do svahu (Martin 22. 10. 2026, #6)', () => {
+  // klička: cesta v údolí (x = 0) se na svahu 8 % vyhne do boku (45 m) a vrátí se
+  const ZIGZAG = [
+    { x: 0, z: -180 },
+    { x: 0, z: -30 },
+    { x: 45, z: 0 },
+    { x: 0, z: 30 },
+    { x: 0, z: 190 },
+  ];
+  /** Svah 8 % po řádcích 14–17 (převýšení 3,6 m – konce tětivy leží v rovině); dno údolí široké 3 políčka, strmé boky (klička po nich nejde). */
+  const VALLEY = makeLandscape({
+    size: 30,
+    height: (x, y) =>
+      Math.min(17, Math.max(14, y)) * 15 * 0.08 + Math.max(0, Math.abs(x - 15) - 1.5) * 15 * 0.8,
+  });
+  const SLOPE = hill(0.08, 14, 17);
+
+  it('kde stará osa po bocích údolí nejde, klička se narovná tětivou a profil vyjde', () => {
+    const p = plan(VALLEY, oldRoad(ZIGZAG));
+    expect(p.bypassed).toHaveLength(1);
+    expect(p.bypassed[0]!.some((q) => q.x > 40)).toBe(true);
+    // osa už nekličkuje – celý profil leží v údolí
+    for (const q of p.profile) expect(Math.abs(q.x)).toBeLessThan(5);
+    expect(p.lengthM).toBeLessThan(p.oldLengthM);
+    expect(p.maxCutM).toBeLessThanOrEqual(WAGON_ROAD.maxCutM);
+    expect(p.maxFillM).toBeLessThanOrEqual(WAGON_ROAD.maxFillM);
+  });
+
+  it('kde je klička levnější než tětiva, zůstane osa po staré cestě (úvoz a násep)', () => {
+    const p = plan(SLOPE, oldRoad(ZIGZAG));
+    expect(p.bypassed).toEqual([]);
+    expect(p.profile.some((q) => q.x > 40)).toBe(true);
+  });
+
+  it('klička po rovině se nenarovná (převýšení pod 3 m)', () => {
+    const p = plan(FLAT, oldRoad(ZIGZAG));
+    expect(p.bypassed).toEqual([]);
+    expect(p.profile.some((q) => q.x > 40)).toBe(true);
+  });
+
+  it('náhled v prohlížeči = plán serveru i s narovnáním', () => {
+    const road = oldRoad(ZIGZAG);
+    const server = planWagonRoad(input(VALLEY, road));
+    const browser = planWagonRoad({
+      ...input(transferPrecision(VALLEY), road),
+      roads: [{ id: road.id, points: road.points, grade: road.grade }],
+    });
+    expect(server.ok && server.bypassed.length).toBe(1);
+    expect(browser).toEqual(server);
+  });
+
+  it('obejitý kus staré cesty po dostavění zaroste (opuštěný), vozová vede tětivou', () => {
+    const state = withBuiltFirstDwelling(
+      foundVillage({ seed: 11, day: DAY, dwellingPosition: { x: 20, z: -190, rotation: 0 } }),
+    );
+    state.lastDay = DAY;
+    state.roads = {
+      nextId: 2,
+      roads: [oldRoad(ZIGZAG)],
+      trees: [],
+      candidates: [],
+      labor: { from: DAY, days: 0, shares: [] },
+    };
+    let later = startWagonRoad(state, DAY, 1, VALLEY, null);
+    expect(later.roads!.earthworks![0]!.bypassed).toHaveLength(1);
+    for (let i = 0; i < 400 && later.roads!.earthworks![0]!.constructionId !== undefined; i++) {
+      later = advanceVillage(later, later.lastDay + 5, null, VALLEY);
+    }
+    const roads = later.roads!.roads;
+    const wagon = roads.filter((r) => r.grade === 'wagon');
+    expect(wagon.length).toBeGreaterThan(0);
+    for (const r of wagon) for (const q of r.points) expect(Math.abs(q.x)).toBeLessThan(5);
+    // obejitý kus je opuštěný, nic jiného nezůstalo živé; opuštěný kus není ramenem křižovatky
+    const rest = roads.filter((r) => r.grade !== 'wagon');
+    expect(rest.length).toBeGreaterThan(0);
+    expect(rest.every((r) => r.abandoned === true)).toBe(true);
+  });
+});
+
+describe('vozová cesta – výjimky z recenze 11a', () => {
+  /** Louka 450 m s mělkým potokem z ∈ (75, 90) – brod. */
+  const FORD_LAND: Landscape = {
+    ...makeLandscape({ size: 30, surface: (_x, y) => (y === 20 ? 'water' : 'meadow') }),
+    stream: [0, 8, 15, 22, 30].map((x) => ({
+      x,
+      y: 20.5,
+      halfWidthLeft: 0.08,
+      halfWidthRight: 0.08,
+      level: 0,
+      shallow: true,
+    })),
+  };
+  const oak = (id: number, x: number, z: number): ObstaclePlacement => ({
+    id,
+    kind: 'tree',
+    look: 'oak-1',
+    x,
+    z,
+    rotation: 0,
+    scale: 1,
+  });
+  const beech = (id: number, x: number, z: number): ObstaclePlacement => ({
+    ...oak(id, x, z),
+    look: 'beech-1',
+  });
+
+  function villageAt(home: { x: number; z: number }, road: Road): VillageState {
+    const s = withBuiltFirstDwelling(
+      foundVillage({ seed: 11, day: DAY, dwellingPosition: { ...home, rotation: 0 } }),
+    );
+    s.lastDay = DAY;
+    s.roads = {
+      nextId: 2,
+      roads: [road],
+      trees: [],
+      candidates: [],
+      labor: { from: DAY, days: 0, shares: [] },
+    };
+    return s;
+  }
+
+  it('stavba těsně u konce osy (do 9 m, vchod) cestu neblokuje, uprostřed ano', () => {
+    const at = (home: { x: number; z: number }): WagonRoadPlan =>
+      planWagonRoad(wagonPlanInputOf(villageAt(home, oldRoad()), DAY, 1, FLAT, null));
+    expect(at({ x: 6, z: -176 })).toMatchObject({ ok: true });
+    expect(at({ x: 4, z: 0 })).toEqual({ ok: false, reason: WAGON_BLOCKED });
+  });
+
+  it('posvátný dub v cestě vozové cestě zabrání (kácet se nesmí)', () => {
+    const placements: ObstaclePlacement[] = [];
+    let id = 1;
+    for (let x = -140; x <= -120; x += 5) {
+      for (let z = 40; z <= 60; z += 5) placements.push(oak(id++, x, z));
+    }
+    const layer = packObstacles(placements, 20, 15);
+    const through = oldRoad([
+      { x: -30, z: 50 },
+      { x: -150, z: 50 },
+    ]);
+    const base = { ...input(LANDSCAPE, through), layer, home: { x: -30, z: 50 } };
+    expect(planWagonRoad(base)).toEqual({ ok: false, reason: WAGON_SACRED });
+    // bez háje stejná cesta projde
+    expect(planWagonRoad({ ...base, layer: null })).toMatchObject({ ok: true });
+  });
+
+  it('lávka pro pěší u brodu chce dřevo jako u upravené cesty: 4 stromy, kácení před zemními pracemi', () => {
+    // potok z ∈ (75, 90) s brodem – cesta ho kříží
+    const ford = oldRoad([
+      { x: 0, z: 30 },
+      { x: 0, z: 140 },
+    ]);
+    const trees = [1, 2, 3, 4, 5, 6].map((k) => beech(k, 25 + k * 4, 100));
+    const layer = packObstacles(trees, 20, 15);
+    const s = villageAt({ x: 20, z: 20 }, ford);
+    const p = planWagonRoad(wagonPlanInputOf(s, DAY, 1, FORD_LAND, layer));
+    if (!p.ok) throw new Error(p.reason);
+    expect(p.footbridgeTrees).toBe(4);
+    const started = startWagonRoad(s, DAY, 1, FORD_LAND, layer);
+    const c = started.constructions.find((x) => x.earthwork !== undefined)!;
+    expect(c.wood?.trees).toBe(4);
+    expect(c.wood!.fromPile + c.wood!.fell.length).toBe(4);
+    const felling = c.wood!.fell.reduce((sum, t) => sum + t.cost, 0);
+    expect(felling).toBeGreaterThan(0);
+    expect(c.cost).toBeCloseTo(p.laborManDays + felling, 1);
   });
 });

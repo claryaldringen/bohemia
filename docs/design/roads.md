@@ -121,9 +121,15 @@ a úvozy musí být výrazně vidět.“ Nahrazuje „Co nejpříměji“ a „S
   a náspem, nebo když stará osa nejde vůbec („pokud to jde“). Jinde se osa nehýbe. Nejde-li to ani
   tak, úprava se nenabídne – důvod v popisku („Cesta je pro vůz moc prudká.“). Zjednodušeno po
   recenzi plánu 23. 10. 2026: dřív místní hledání `findWagonRoute` v okně ± 60 m – tětiva je
-  přímější, jednodušší a bez hledání.
-- **Obejitý kus staré cesty** se při dostavění úseku oddělí jako opuštěná vyšlapaná cesta
-  (`Road.abandoned`) – mimo síť, žádná křižovatka, zaroste za 5 let. Kus staré cesty pod vozovou
+  přímější, jednodušší a bez hledání. Konce tětivy leží na staré ose a pláň tam stojí v terénu, takže
+  tětiva musí mezi nimi vystoupat po sklonu ≤ 6 % (jinak se kus nenarovná a osa zůstane). Kandidátů
+  je nejvýš 8 – zkouší se od nejvíc ušetřené délky, kusy se nepřekrývají (`straightenStretches`).
+- **Cesta je pro vůz moc prudká – výjimka z pravidla „blokuje jen cena předem“** (návrh Clauda,
+  Úloha 11b, recenze 11a): důvody `WAGON_STEEP`, `WAGON_BLOCKED` a `WAGON_SACRED` nejsou herní
+  podmínka, ale geometrická nemožnost – profil nevyjde, vůz neprojede, dub se kácet nesmí. Úprava se
+  proto nenabídne, hráči se nic nezakazuje cenou.
+- **Obejitý kus staré cesty** se při dostavění úseku (`wagonRoadsDay`) oddělí jako opuštěná
+  vyšlapaná cesta (`Road.abandoned`; kusy drží `RoadEarthwork.bypassed`) – mimo síť, žádná křižovatka, zaroste za 5 let. Kus staré cesty pod vozovou
   zmizí hned (vozová ho nahradí, jak dřív `absorbParallelRoads`). Souběžné cesty tak nevzniknou.
 - **Náspy a úvozy výrazně vidět:** svahy holá hlína, která zarůstá pomalu – za 15 let jen řídkou
   trávou, nikdy úplně (dřív za 6 let plnou trávou); hrana úvozu světlý lem, pata náspu tmavý lem
@@ -138,11 +144,11 @@ a úvozy musí být výrazně vidět.“ Nahrazuje „Co nejpříměji“ a „S
   pracemi. Jinak důvod v popisku „Vůz po této cestě neprojede – překáží stavba, plot nebo voda.“
 - **Lávka u vozové cesty** (návrh Clauda, Úloha 11a): stojí stejně jako lávka u upravené cesty –
   4 stromy a 15 čd (táž stavba, Martin 22. 10. 2026: „Hať a lávka se postaví samy jako součást
-  úpravy cesty“). Zatím se počítá jen práce, dřevo do ceny vozové cesty doplní další úloha.
+  úpravy cesty“). Dřevo je v ceně stavby (Úloha 11b): klády z hromady, zbytek nejbližší stromy, kácení jde před
+  zemními pracemi; chybí-li dřevo, důvod „Na lávku chybí dřevo.“ (`WAGON_NO_WOOD`).
 - **Vlkov:** hotové vozové cesty zůstanou se svou osou; staré souběžné cesty vedle nich (voda)
-  pohltí převod (paths.md – Převod). Měření 24. 10. 2026 (Úloha 11a): cesta 372 jde po staré ose
-  rovně do svahu, který úvoz a násep 3 m nesrovnají – bez narovnání (11b) se nenabídne; kritérium
-  „úvoz a násep na herní kameře“ se ověří na jiné cestě.
+  pohltí převod (paths.md – Převod). Měření 24. 10. 2026 (Úloha 11a): cesta 372 (1 216 m, 1 466 čd, úvoz 1,8 m, násep 1,5 m) se po staré ose nabídne i bez narovnání,
+  tětiva ji nemění (Úloha 11b, měřeno 24. 10. 2026).
 
 ### Lidé při práci na cestě (Martin 22. 10. 2026, #3)
 

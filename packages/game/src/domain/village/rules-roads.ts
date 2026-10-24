@@ -240,6 +240,14 @@ export const WAGON_ROAD = {
   profileStepM: 2,
 } as const;
 /**
+ * roads.md – Vozová cesta, narovnání (Martin, 22. 10. 2026, #6: „Narovná se jen tam, kde pěší cesta
+ * kličkovala do svahu, pokud to jde, a obejitý kus staré cesty zaroste.“; čísla návrh Clauda):
+ * kličkující kus osy je nejvýš `maxM` m dlouhý, aspoň `ratio`× delší než tětiva mezi jeho konci
+ * a jeho konce se liší výškou aspoň o `climbM` m. Nahradí se tětivou, když profil po ní stojí méně
+ * práce než po staré ose, nebo stará osa nejde vůbec.
+ */
+export const WAGON_STRAIGHTEN = { ratio: 1.3, climbM: 3, maxM: 120 } as const;
+/**
  * roads.md a fields.md – Cesta ubírá poli plochu (Martin, 19. 10. 2026: „Ano má. Ono to stejně ve
  * výsledku bude tak, že pokud oráč narazí na cestu, tak spřežení otočí. Nebude pak moci vzniknout
  * takový růžek…“; čísla návrh Clauda): pás pevné cesty v šířce obtisku (vyšlapaná 1,9 m, vyježděná

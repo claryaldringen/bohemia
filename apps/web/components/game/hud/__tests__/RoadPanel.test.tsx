@@ -276,6 +276,8 @@ describe('SelectionPanel – vozová cesta (roads.md – Vozová cesta)', () => 
     pieces: [],
     lengthM: 412.4,
     oldLengthM: 300.2,
+    bypassed: [],
+    footbridgeTrees: 0,
     maxGrade: 0.06,
     oldMaxGrade: 0.142,
     maxCutM: 2.4,
