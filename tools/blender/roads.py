@@ -23,6 +23,10 @@ Výstup (apps/web/public/models/roads):
                         dvou příčných prazích, ty na čtyřech kůlech; zábradlí z tyče na jedné
                         straně (+x). Počátek na zemi pod středem lávky.
   road-bridge-posts.glb staveniště lávky – jen kůly a prahy (scéna je ukáže v první půli stavby)
+  junction-stone-1…2.glb vztyčený kámen u křižovatky (paths.md – Křižovatky): ≈ 1,6 m vysoký, nepravidelný
+                        štíhlý blok z kamene atlasu, zapuštěný do země; dvě podoby (výška a sklon)
+  junction-post-1…2.glb dřevěný kůl u křižovatky: ≈ 1,8 m, seříznutý nahoře; podoba 2 s příčkou
+                        (rozcestník). Rozmanitost dá hlavně natočení z losu znamení (junction.landmark.turn)
 Licence: kůra a kámen z 0 A.D. (CC BY-SA 3.0, Wildfire Games) – apps/web/public/models/roads/
 LICENSES.md.
 """
@@ -46,6 +50,7 @@ BRIDGE_DECK_Z = 0.62
 # oblasti atlasu (u0, v0, u1, v1) v 0–1, v odspodu jako v Blenderu
 BARK = (0.0, 0.0, 0.5, 1.0)
 ENDGRAIN = (0.5, 0.0, 1.0, 0.5)
+STONE = (0.5, 0.5, 1.0, 1.0)
 
 random.seed(7)
 
@@ -200,6 +205,46 @@ def build_bridge(bm, uv):
     )
 
 
+def build_stone(look):
+    """Vztyčený kámen: sploštělá vejčitá hrouda protažená do výšky, bez spodku v zemi."""
+
+    def build(bm, uv):
+        rnd = random.Random(40 + look)
+        height = (1.6, 1.5)[look - 1]
+        lean = (0.0, 0.07)[look - 1]
+        geo = bmesh.ops.create_icosphere(bm, subdivisions=2, radius=1.0)
+        for v in geo["verts"]:
+            x, y, z = v.co
+            k = 1.0 + rnd.uniform(-0.16, 0.16)
+            # užší nahoře, šikmo seříznutý vrch
+            taper = 1.0 - 0.28 * max(0.0, z)
+            v.co = (
+                x * 0.36 * k * taper + lean * (z + 1) * 0.5,
+                y * 0.24 * k * taper,
+                (z + 0.12 * x) * height / 2 + height / 2 - 0.25,
+            )
+        bm.verts.ensure_lookup_table()
+        for face in bm.faces:
+            for loop in face.loops:
+                co = loop.vert.co
+                loop[uv].uv = in_region(STONE, (co.x * 0.9 + co.y * 0.5) % 1.0, (co.z / 2.2) % 1.0)
+
+    return build
+
+
+def build_post(look):
+    """Dřevěný kůl s kosým seříznutím nahoře; podoba 2 má příčku (rozcestník)."""
+
+    def build(bm, uv):
+        random.seed(50 + look)
+        rod(bm, uv, (0, 0, -0.25), (0, 0, 1.78), 0.09, sides=9, bark_repeat=1.5)
+        rod(bm, uv, (0, 0, 1.78), (0.02, 0, 1.9), 0.06, sides=9)
+        if look == 2:
+            rod(bm, uv, (-0.3, 0, 1.45), (0.3, 0, 1.52), 0.04, sides=7)
+
+    return build
+
+
 def export(obj, path):
     bpy.ops.object.select_all(action="DESELECT")
     obj.select_set(True)
@@ -249,6 +294,10 @@ def main():
         "road-log": build_log,
         "road-bridge": build_bridge,
         "road-bridge-posts": posts_and_sills,
+        "junction-stone-1": build_stone(1),
+        "junction-stone-2": build_stone(2),
+        "junction-post-1": build_post(1),
+        "junction-post-2": build_post(2),
     }
     objs = []
     for name, build in parts.items():

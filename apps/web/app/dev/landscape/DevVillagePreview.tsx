@@ -91,6 +91,7 @@ import {
   demoRoadStage,
   withRoadCuts,
 } from './dev-road';
+import { junctionsDemo, type JunctionsDemo } from './dev-junctions';
 import { FOREST_TRAIL_STAGES, forestTrailDemo, type ForestTrailDemo } from './dev-forest-trail';
 import { demoCartSlope, type CartDemo } from './dev-cart';
 import {
@@ -222,6 +223,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [wagonDemo, setWagonDemo] = useState<WagonDemo | null>(null);
   // ukázka zemské stezky lesem s průsekem (roads.md – Průsek lesem, dev-forest-trail.ts)
   const [forestTrail, setForestTrail] = useState<ForestTrailDemo | null>(null);
+  // ukázka křižovatek – kříž, Y se znameními (paths.md – Křižovatky, dev-junctions.ts)
+  const [junctionDemo, setJunctionDemo] = useState<JunctionsDemo | null>(null);
   // ukázka karavany výpravy k sousedovi (trade.md – Ve scéně, dev-caravan.ts) – nosiči, pak vůz
   const [caravanDemo, setCaravanDemo] = useState<CaravanDemo | null>(null);
   // ukázka pohřbu (cemetery.md – Pohřeb ve scéně, dev-funeral.ts) – hlava rodiny, pak vojvoda
@@ -291,6 +294,11 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         ? { sacred: { oaks: sacredOaks, groves, buildings: sacredBuildings } }
         : {}),
     };
+    if (junctionDemo) {
+      base.roads = [...(base.roads ?? []), ...junctionDemo.roads];
+      base.junctions = junctionDemo.junctions;
+      base.roadTrees = [...(base.roadTrees ?? []), ...junctionDemo.roadTrees];
+    }
     // stezka lesem – osa a vykácený průsek z jádra (roads.md – Průsek lesem)
     if (forestTrail) {
       const changes = base.obstacles ?? NO_OBSTACLE_CHANGES;
@@ -427,6 +435,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     pathAge,
     road,
     forestTrail,
+    junctionDemo,
     roadStage,
     appleStage,
     gapClosed,
@@ -1512,6 +1521,17 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     if (next === 0) scene?.moveCameraTo(demo.focus.x, demo.focus.z);
   };
 
+  /** Křižovatky: kříž s kamenem, Y s kůlem, Y se stromem → nic (kamera ke střední). */
+  const toggleJunctions = (): void => {
+    if (junctionDemo) {
+      setJunctionDemo(null);
+      return;
+    }
+    const demo = junctionsDemo(decoded);
+    setJunctionDemo(demo);
+    scene?.moveCameraTo(demo.focus.x, demo.focus.z);
+  };
+
   const toggleWagonRoad = (): void => {
     const next = wagonDemo ? wagonDemo.stage + 1 : 0;
     if (next >= WAGON_DEMO_STAGES.length) {
@@ -1873,6 +1893,15 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
           data-testid="dev-forest-trail"
         >
           {forestTrail ? `Stezka lesem: ${FOREST_TRAIL_STAGES[forestTrail.stage]}` : 'Stezka lesem'}
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={toggleJunctions}
+          title="Křižovatky – kříž se stojícím kamenem, Y s dřevěným kůlem a Y se stromem (jdou označit)"
+          data-testid="dev-junctions"
+        >
+          {junctionDemo ? 'Křižovatky ✓' : 'Křižovatky'}
         </button>
         <button
           className={buttonClass}

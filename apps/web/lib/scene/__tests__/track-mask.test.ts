@@ -165,24 +165,39 @@ describe('pás z obtisku cesty a pěšiny', () => {
   it('pevná cesta: pás v šířce vyšlapané cesty, upravená širší, plácek v rozcestí', () => {
     const road = (id: number, points: { x: number; z: number }[], grade = 'trodden'): SceneRoad =>
       ({ id, points, grade }) as SceneRoad;
-    const track = roadTrack([
-      road(1, [
-        { x: 0, z: 0 },
-        { x: 30, z: 0 },
-      ]),
-      road(2, [
-        { x: 30, z: 0 },
-        { x: 60, z: 0 },
-      ]),
-      road(
-        3,
-        [
+    const track = roadTrack(
+      [
+        road(1, [
+          { x: 0, z: 0 },
           { x: 30, z: 0 },
-          { x: 30, z: 30 },
-        ],
-        'improved',
-      ),
-    ]);
+        ]),
+        road(2, [
+          { x: 30, z: 0 },
+          { x: 60, z: 0 },
+        ]),
+        road(
+          3,
+          [
+            { x: 30, z: 0 },
+            { x: 30, z: 30 },
+          ],
+          'improved',
+        ),
+      ],
+      [
+        {
+          id: 9,
+          x: 30,
+          z: 0,
+          shape: 'y',
+          rotation: 0,
+          spread: Math.PI / 4,
+          arms: [2, 3, 1],
+          landmark: { kind: 'tree', x: 34, z: 4, turn: 0, look: 1 },
+          bornDay: 0,
+        },
+      ],
+    );
     const halves = track.segments.map((s) => s.halfA);
     expect(Math.min(...halves)).toBeGreaterThan((ROAD_WIDTH_M.trodden / 2) * 0.8);
     expect(Math.max(...halves)).toBeGreaterThan((ROAD_WIDTH_M.improved / 2) * 0.8);

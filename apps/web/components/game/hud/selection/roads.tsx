@@ -24,6 +24,49 @@ export const ROAD_KIND_ICONS: Record<RoadKind, string> = {
   wagon: 'cesta-vozova',
 };
 
+/** Název a portrét křižovatky podle tvaru (paths.md – Křižovatky). */
+export const JUNCTION_NAMES = { cross: 'Křižovatka', y: 'Rozcestí' } as const;
+export const JUNCTION_ICONS = { cross: 'krizovatka-kriz', y: 'krizovatka-y' } as const;
+const LANDMARK_NAMES = {
+  tree: 'Strom u křižovatky',
+  stone: 'Vztyčený kámen',
+  post: 'Dřevěný kůl',
+} as const;
+
+/**
+ * Křižovatka (paths.md – Křižovatky; Martin, #6): kolik cest do ní vede, znamení (strom, vztyčený
+ * kámen, dřevěný kůl) a stáří – jen ikony a čísla, názvy v popiscích.
+ */
+export function JunctionBody({
+  details,
+}: {
+  details: Extract<SelectionDetails, { kind: 'junction' }>;
+}): ReactElement {
+  return (
+    <div className="flex min-w-0 flex-col justify-center gap-1.5">
+      <div className={ROW}>
+        <Stat icon="walk" name="Cesty do křižovatky" testId="selection-junction-roads">
+          {details.roads}
+        </Stat>
+        {details.landmark === 'tree' ? (
+          <Oaks count={1} name={LANDMARK_NAMES.tree} testId="selection-junction-landmark" />
+        ) : (
+          <Stat
+            icon={details.landmark === 'stone' ? 'ore' : 'wood'}
+            name={LANDMARK_NAMES[details.landmark]}
+            testId="selection-junction-landmark"
+          >
+            1
+          </Stat>
+        )}
+        <Stat icon="date" name="Stáří (roky)" testId="selection-junction-age">
+          {details.ageYears}
+        </Stat>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Pevná cesta (roads.md – Co hráč vidí, Cesta pro hráče – celý řetěz úseků): délka, u cesty
  * z víc stupňů délka po stupních, vozová část, stáří, stromy u ní, jabloně (z nich plodící),

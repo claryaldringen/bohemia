@@ -1176,6 +1176,47 @@ describe('SelectionPanel – obilná jáma (production-chains.md – Obilné já
   });
 });
 
+describe('SelectionPanel – křižovatka (paths.md – Křižovatky)', () => {
+  it('kříž: portrét s ikonou, počet cest, znamení a stáří – jen ikony a čísla', () => {
+    const html = render({
+      kind: 'junction',
+      id: 12,
+      shape: 'cross',
+      roads: 4,
+      landmark: 'stone',
+      ageYears: 37,
+    });
+    expect(html).toContain('data-kind="junction"');
+    expect(html).toContain('src="/icons/build/krizovatka-kriz.png"');
+    expect(html).toContain('>Křižovatka</h2>');
+    expect(text(html, 'selection-junction-roads')).toBe('4');
+    expect(text(html, 'selection-junction-age')).toBe('37');
+    expect(html).toContain('Vztyčený kámen');
+  });
+
+  it('Y se stromem a kůlem má vlastní ikonu a znamení', () => {
+    const y = render({
+      kind: 'junction',
+      id: 1,
+      shape: 'y',
+      roads: 3,
+      landmark: 'post',
+      ageYears: 0,
+    });
+    expect(y).toContain('src="/icons/build/krizovatka-y.png"');
+    expect(y).toContain('Dřevěný kůl');
+    const tree = render({
+      kind: 'junction',
+      id: 1,
+      shape: 'y',
+      roads: 3,
+      landmark: 'tree',
+      ageYears: 5,
+    });
+    expect(tree).toContain('Strom u křižovatky');
+  });
+});
+
 describe('SelectionPanel – milíř (crafts.md – Milíř u skácených buků)', () => {
   const kiln = (
     over: Partial<Extract<SelectionDetails, { kind: 'kiln' }>> = {},

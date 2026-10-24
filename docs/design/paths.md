@@ -389,6 +389,10 @@ Návrh Clauda:
   zanikne-li křižovatka, strom stojí dál jako strom u cesty, kámen a kůl zmizí; vznikne-li v témže uzlu křižovatka znovu, dostane totéž znamení (los je podle místa) a stojící strom převezme, druhé znamení nevznikne. Kámen je pro
   stavbu překážka jako balvan, kůl jako keř.
 - Návrh Clauda (24. 10. 2026, Úloha 9a – čisté funkce v `junctions.ts`):
+  - **ve scéně (Úloha 12):** obrys křižovatky tvoří pásy ramen v šířce nejširší cesty a vnitřní
+    rohy mezi rameny (kříž jako plus, Y jako tři pásy) – žádný kruh; kámen a kůl mají po dvou
+    podobách modelu (rozmanitost dá natočení z losu); panel kříže se jmenuje Křižovatka, panel Y
+    Rozcestí (jen v popisku portrétu), jinak jen ikony a čísla;
   - **tvar T** (rovná cesta a kolmá odbočka) vyjde podle nejmenšího součtu čtverců jako pootočené
     Y s β = 45° – odchylky 15°, 15° a 30° (1 350 °²); souměrné trojcestí s kmenem v odbočce by dalo
     30°, 0° a 30° (1 800 °²);

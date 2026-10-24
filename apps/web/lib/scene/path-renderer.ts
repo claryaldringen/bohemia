@@ -44,6 +44,7 @@ import {
   type RibbonLayer,
 } from './path-ribbon';
 import type { Track } from './track-mask';
+import { junctionsKey } from './junction-shape';
 import { RoadWorks, roadRibbonMeshes } from './road-works';
 import { earthworkSlopeGrid, earthworkSlopeKey, roadWorksKey } from './road-works-layout';
 import { HEIGHT_SCALE } from './constants';
@@ -333,7 +334,7 @@ export class VillagePaths {
   /** Pevné cesty a stromy u nich z dat vsi – přestaví se jen při změně. */
   private updateRoads(village: SceneVillage): void {
     const roads = village.roads ?? [];
-    const roadKey = `${roadsKey(roads)}|${roadWorksKey(roads)}|${earthworkSlopeKey(village.earthworks ?? [])}`;
+    const roadKey = `${roadsKey(roads)}|${roadWorksKey(roads)}|${junctionsKey(village.junctions)}|${earthworkSlopeKey(village.earthworks ?? [])}`;
     if (roadKey !== this.roadKey) {
       this.roadKey = roadKey;
       this.roads = roads;
@@ -341,13 +342,18 @@ export class VillagePaths {
       this.roadMeshes = [];
       // pevná cesta má stále plnou šířku – kreslí se jen z dat cest (ne podle polí dne);
       // upravená je jen širší (rozestavěná úprava od začátku úseku)
-      this.roadMeshes = roadRibbonMeshes(this.scene, roads, {
-        height: this.env.decalHeight,
-        smoothHeight: this.env.groundHeight,
-        material: (kind) => this.decalMaterial('roads', kind),
-        lift: { worn: LIFT.worn, earth: LIFT.earth, gravel: LIFT.gravel },
-        alphaIndex: ALPHA_INDEX,
-      });
+      this.roadMeshes = roadRibbonMeshes(
+        this.scene,
+        roads,
+        {
+          height: this.env.decalHeight,
+          smoothHeight: this.env.groundHeight,
+          material: (kind) => this.decalMaterial('roads', kind),
+          lift: { worn: LIFT.worn, earth: LIFT.earth, gravel: LIFT.gravel },
+          alphaIndex: ALPHA_INDEX,
+        },
+        village.junctions ?? [],
+      );
       // svahy úvozu a náspu vozových cest – holá hlína, zarůstá trávou podle stáří (roads.md)
       const slopes = earthworkSlopeGrid(
         village.earthworks ?? [],
@@ -371,10 +377,15 @@ export class VillagePaths {
       this.env.requestRender();
     }
     // kameny, hať, lávky a vytyčení (i jabloní, které čekají na výsadbu) – při změně dat
-    this.works.update(roads, village.roadApples ?? [], {
-      earthworks: village.earthworks ?? [],
-      preview: this.wagonPreview,
-    });
+    this.works.update(
+      roads,
+      village.roadApples ?? [],
+      {
+        earthworks: village.earthworks ?? [],
+        preview: this.wagonPreview,
+      },
+      village.junctions ?? [],
+    );
     const treeKey = `${roadTreesKey(village.roadTrees)}|${roadApplesKey(village.roadApples)}`;
     if (treeKey !== this.treeKey) {
       this.treeKey = treeKey;

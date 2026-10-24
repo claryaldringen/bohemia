@@ -73,6 +73,7 @@ import { applyPitCut, type PitCuts } from './pit-cut';
 import { instancesBounds, sameItems, sortByRank } from './plant-order';
 import { sameContent } from './same-content';
 import { roadCutKey, roadCutMask } from './road-cut-mask';
+import { junctionsKey } from './junction-shape';
 import { roadTrack, roadWorksKey } from './road-works-layout';
 import { applySeasonGround, applySeasonModel, applySeasonSnow } from './season-materials';
 import { trackMask, type Track, type TrackBounds, type TrackMask } from './track-mask';
@@ -605,9 +606,9 @@ export class FieldRenderer {
   /** Maska pásů cest a pěšin – sestaví se znovu jen při změně cest nebo sítě pěšin. */
   private trackMask(): TrackMask | null {
     const roads = this.village.roads ?? [];
-    const key = `${roadsKey(roads)}|${roadWorksKey(roads)}`;
+    const key = `${roadsKey(roads)}|${roadWorksKey(roads)}|${junctionsKey(this.village.junctions)}`;
     if (this.roads?.key !== key) {
-      this.roads = { key, track: roadTrack(roads) };
+      this.roads = { key, track: roadTrack(roads, this.village.junctions ?? []) };
       this.tracksStale = true;
     }
     if (this.tracksStale) {

@@ -1,15 +1,14 @@
-import { WAGON_ROAD, type RoadGrade } from '@bohemia/game';
-import type { SceneEarthwork, SceneRoad, SceneRoadApple } from '../village-view';
+import { WAGON_ROAD } from '@bohemia/game';
+import type { SceneEarthwork, SceneJunction, SceneRoad, SceneRoadApple } from '../village-view';
+import { junctionRibbons } from './junction-shape';
 import {
   CART_RUT_OFFSET_M,
   CART_WORN_LAYER,
   IMPROVED_WORN_LAYER,
-  JUNCTION,
   ROAD_WIDTH_M,
   ROAD_WORN_LAYER,
   WAGON_WORN_LAYER,
   ribbonTrack,
-  type RibbonJunction,
   type RibbonLine,
 } from './path-ribbon';
 import type { Track } from './track-mask';
@@ -112,13 +111,6 @@ function improvedPart(road: SceneRoad, length: number): [number, number] | null 
   if (!up || up.grade !== 'improved' || road.grade !== 'trodden') return null;
   const done = up.progress * length;
   return up.fromEnd ? [length - done, length] : [0, done];
-}
-
-/** Stupeň, který úsek ukazuje ve vzdálenosti `d` od začátku (rozestavěná úprava roste po cestě). */
-function shownGrade(road: SceneRoad, d: number): RoadGrade {
-  const part = improvedPart(road, roadLength(road));
-  if (!part) return road.grade;
-  return d >= part[0] - 1e-6 && d <= part[1] + 1e-6 ? 'improved' : road.grade;
 }
 
 /** Krytí pásu cesty v bodě: bledý kus zarůstající cesty je slabší (`SceneRoad.fade`), jinak 1. */
@@ -299,58 +291,17 @@ export function roadBands(roads: readonly SceneRoad[]): {
 }
 
 /**
- * Rozcestí pevných cest (roads.md – Co hráč vidí; Martin: „rozcestí by mělo být nejvyšlapanější
- * plochou“): body, kde končí aspoň tři úseky – plácek plné síly. Dočasně (do scény křižovatek,
- * plán cest v2, Úloha 12): úseky křižovatky končí v jejím středu (osa vede vchodem po rameni do
- * středu – paths.md, Křižovatky), takže kruh leží ve středu křižovatky. Patří k upravené cestě, když do
- * něj upravená část některého úseku vbíhá (je pak širší), jinak k vyšlapané.
- */
-export function roadJunctions(roads: readonly SceneRoad[]): {
-  trodden: RibbonJunction[];
-  improved: RibbonJunction[];
-  cart: RibbonJunction[];
-} {
-  const nodes = new Map<
-    string,
-    { x: number; z: number; count: number; improved: boolean; cart: boolean }
-  >();
-  for (const road of roads) {
-    if (road.points.length < 2) continue;
-    const length = roadLength(road);
-    for (const [p, d] of [
-      [road.points[0]!, 0],
-      [road.points[road.points.length - 1]!, length],
-    ] as const) {
-      const key = `${Math.round(p.x * 100)},${Math.round(p.z * 100)}`;
-      const node = nodes.get(key) ?? { x: p.x, z: p.z, count: 0, improved: false, cart: false };
-      node.count++;
-      node.improved ||= shownGrade(road, d) !== 'trodden';
-      node.cart ||= road.cart === true;
-      nodes.set(key, node);
-    }
-  }
-  const out = {
-    trodden: [] as RibbonJunction[],
-    improved: [] as RibbonJunction[],
-    cart: [] as RibbonJunction[],
-  };
-  for (const node of nodes.values()) {
-    if (node.count < JUNCTION.minLines) continue;
-    const list = node.improved ? out.improved : node.cart ? out.cart : out.trodden;
-    list.push({ x: node.x, z: node.z, strength: 1 });
-  }
-  return out;
-}
-
-/**
  * Pás pevných cest pro masku polí (track-mask.ts – pod cestou obilí neroste): vyšlapané, upravené
  * a vozové úseky v šířce prošlapané trávy obtisku (`ROAD_WORN_LAYER`, `IMPROVED_WORN_LAYER`,
  * `CART_WORN_LAYER` – šířky ROAD_LAND jako plocha, kterou cesta poli bere) a plácky rozcestí –
  * stejné průřezy jako obtisk cesty (`roadRibbonMeshes`).
  */
-export function roadTrack(roads: readonly SceneRoad[]): Track {
+export function roadTrack(
+  roads: readonly SceneRoad[],
+  junctionList: readonly SceneJunction[] = [],
+): Track {
   const bands = roadBands(roads);
-  const junctions = roadJunctions(roads);
+  const junctions = junctionRibbons(junctionList, roads);
   const parts = [
     ribbonTrack(bands.trodden, ROAD_WORN_LAYER, undefined, undefined, junctions.trodden),
     ribbonTrack(bands.improved, IMPROVED_WORN_LAYER, undefined, undefined, junctions.improved),

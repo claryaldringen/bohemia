@@ -6,6 +6,7 @@ import type { Scene } from '@babylonjs/core/scene';
 import { SACRED_BUILDINGS, roadChain, threshingFloorFootprint } from '@bohemia/game';
 import { scenePenSquares, type SceneVillage } from '../village-view';
 import { cellsBoundary, type CellSquare } from './field-cells';
+import { junctionShape } from './junction-shape';
 import { oreSiteDiscs, oreSiteOutline } from './ore-site-layout';
 import { GRAIN_PIT_RING_M } from './grain-pit-layout';
 import {
@@ -30,6 +31,8 @@ const DWELLING_RING_MARGIN_M = 1.2;
 /** Kroužek kolem posvátného dubu – kolem kruhu kamenů obětin (m). */
 const OAK_RING_RADIUS_M = 2.6;
 /** Čáry výběru úseku cesty od osy (m) – kousek za okrajem pásu vyšlapané a upravené cesty. */
+/** Obrys označené křižovatky leží tolik metrů za okrajem plácku. */
+const JUNCTION_RING_M = 0.35;
 const ROAD_RING_M = { trodden: 1.6, improved: 2.2 } as const;
 /**
  * Obrys čtverců (díl pole, pole, čtverec sadu, sad, hřbitov, háj, ohrada) prosvítá přes obilí,
@@ -225,6 +228,19 @@ export function targetOutline(village: SceneVillage, target: VillageTarget): Poi
       return [pit.x + GRAIN_PIT_RING_M * Math.cos(a), pit.z + GRAIN_PIT_RING_M * Math.sin(a)];
     });
     return [ring];
+  }
+  if (target.kind === 'junction') {
+    // obrys křižovatky (kříž nebo Y) kousek za okrajem plácku
+    const junction = village.junctions?.find((j) => j.id === target.id);
+    const shape = junction ? junctionShape(junction, village.roads ?? []) : null;
+    if (!junction || !shape) return [];
+    const ring: Point[] = shape.outline.map((p): Point => {
+      const dx = p.x - junction.x;
+      const dz = p.z - junction.z;
+      const len = Math.max(1e-6, Math.hypot(dx, dz));
+      return [p.x + (dx / len) * JUNCTION_RING_M, p.z + (dz / len) * JUNCTION_RING_M];
+    });
+    return [[...ring, ring[0]!]];
   }
   if (target.kind === 'road') {
     // celá cesta hráče (roads.md – Cesta pro hráče): čáry po obou stranách pásu přes všechny

@@ -32,6 +32,7 @@ import type { VillageHorses } from './horse-view';
 import type { VillageDugSite } from './ore-site-view';
 import type { VillageKiln } from './kiln-view';
 import type { VillageGrainPit } from './grain-pit-view';
+import type { VillageJunction } from './junction-view';
 import type { VillageThreshingFloor } from './village-view-types';
 import type { HouseholdRelocation } from './relocation-view';
 import { TREE_GROWTH_YEARS } from './orchard-look';
@@ -535,6 +536,13 @@ type SelectionKinds =
     } & VillageGrainPit)
   | ({
       /**
+       * Křižovatka cest (paths.md – Křižovatky; Martin, #6): kříž nebo Y, kolik cest do ní vede,
+       * znamení a stáří.
+       */
+      kind: 'junction';
+    } & VillageJunction)
+  | ({
+      /**
        * Humno (production-chains.md – Humno): hotové nebo staveniště, nevymlácené snopy vsi
        * a jestli se dnes mlátí.
        */
@@ -861,6 +869,11 @@ function selectionKinds(
     if (!scene.grainPits?.some((p) => p.id === target.id)) return null;
     const pit = view?.grainPits?.find((p) => p.id === target.id);
     return pit ? { kind: 'grain-pit', ...pit } : null;
+  }
+  if (target.kind === 'junction') {
+    if (!scene.junctions?.some((j) => j.id === target.id)) return null;
+    const junction = view?.junctions?.find((j) => j.id === target.id);
+    return junction ? { kind: 'junction', ...junction } : null;
   }
   if (target.kind === 'ore-site' || target.kind === 'clay-site') {
     if (!dugSiteOf(scene, target)) return null;
