@@ -218,7 +218,10 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   vylepšení (`fixedRoadIds`) živé. **Osa vede přesně do vchodu a odtud rovně po rameni do středu**
   (`bendEnd`) – úseky dál sdílejí bod uzlu, takže spojení, pahýly, copánky i díry v úklidu se
   nemění; oblouk po 1 m se uloží zjednodušený (`simplifyPathLine`, `SIMPLIFY_M`) – body osy
-  zdražují chůzi a vozy. Neohýbá se vozová cesta, stezka, cesta ve vylepšení ani úsek kratší než
+  zdražují chůzi a vozy. Oblouk, který by vedl neprůchodnou plochou (`JunctionRoads.blocked` –
+  `villageBlockedAt`) víc než neohnutá osa (`blockedRun` v `roads-overgrow.ts`, nejdelší běh vzorků
+  po 1 m), se nepoužije – jinak by ho měsíční kontrola opustila a vznikal by znovu (obilná jáma ve
+  Vlkově). Neohýbá se vozová cesta, stezka, cesta ve vylepšení ani úsek kratší než
   `bendM` (`isFixed` – rameno přesně v jejich směru). Beze změny (`keptJunction` – ohnuté konce
   leží přesně ve vchodech, počet ramen sedí) jen nová id úseků v `arms`; jinak `fitNode` znovu
   (id, den vzniku a znamení zůstanou; kámen a kůl se posunou do nejširší mezery, strom stojí).

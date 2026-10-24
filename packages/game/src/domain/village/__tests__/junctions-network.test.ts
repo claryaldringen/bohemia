@@ -12,6 +12,7 @@ import {
   type JunctionRoads,
 } from '../paths/junctions';
 import { emptyRoads, mergeRoadChains } from '../paths/roads-form';
+import { axisDistance, resample } from '../paths/roads-geometry';
 import { ROAD_TREE_ID_BASE } from '../road-trees';
 import { JUNCTION, ROAD_LAND } from '../rules';
 import type { Road, RoadGrade, RoadPoint, VillageRoads } from '../types';
@@ -106,6 +107,32 @@ describe('křižovatky v síti (updateJunctions)', () => {
     expect(roads.junctions).toBeUndefined();
     mergeRoadChains(roads, []);
     expect(roads.roads).toHaveLength(1);
+  });
+
+  it('ohyb konce přes neprůchodnou plochu se nedělá – cesta by se hned opustila (obilná jáma, Vlkov)', () => {
+    // Vlkov 24. 10. 2026: krátký úsek mezi dvěma křižovatkami vede kolem obilné jámy; ohnuté konce
+    // z něj udělaly tětivu přes jámu, měsíční kontrola ho opustila a z vyšlapanosti vznikl znovu
+    const make = (): VillageRoads => roadsOf([arm(1, 40, 0), arm(2, -40, 0), arm(3, 0, 40)]);
+    const offLines = axisDistance(make().roads.map((r) => r.points));
+    // všechno mimo původní osy (do 30 m od středu) je neprůchodné – jako jáma vedle cesty
+    const blocked = (p: RoadPoint): boolean =>
+      Math.hypot(p.x, p.z) < 30 && offLines(p.x, p.z) > 0.3;
+    const blockedRun = (points: readonly RoadPoint[]): number => {
+      let run = 0;
+      let best = 0;
+      for (const p of resample(points, null, 1).points) {
+        run = blocked(p) ? run + 1 : 0;
+        best = Math.max(best, run);
+      }
+      return best;
+    };
+    const free = make();
+    updateJunctions(free, DAY, SEED, allLive);
+    expect(Math.max(...free.roads.map((r) => blockedRun(r.points)))).toBeGreaterThanOrEqual(5);
+    const roads = make();
+    updateJunctions(roads, DAY, SEED, { ...allLive, blocked });
+    expect(roads.junctions).toHaveLength(1);
+    for (const r of roads.roads) expect(blockedRun(r.points)).toBeLessThan(5);
   });
 
   it('pevné rameno (vozová cesta) leží přesně ve směru cesty a osa se neohýbá', () => {

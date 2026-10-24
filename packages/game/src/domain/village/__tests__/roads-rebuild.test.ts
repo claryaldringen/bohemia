@@ -95,8 +95,9 @@ describe('rebuildRoads – jednorázová přestavba sítě', () => {
     const roads = next.roads!.roads;
     expect(roads.length).toBeGreaterThan(0);
     // stará cesta přes dům zmizela; osa nové cesty smí zjednodušením seříznout roh domu (vznik
-    // za běhu, `roadAxisOf`) – skrz dům nevede
-    expect(inHouses(next)).toBeLessThan(2.5);
+    // za běhu, `roadAxisOf`) a konec u křižovatky, který se do domu neohne (`bendEnd`) – skrz dům
+    // nevede
+    expect(inHouses(next)).toBeLessThan(3);
     expect(roads.some((r) => r.points.some((p) => p.x > 140 && p.z > 140))).toBe(false);
     expect(roads.some((r) => r.id < 100)).toBe(false);
     // upravená: nový úsek po staré ose je upravený i s hatí a lávkou

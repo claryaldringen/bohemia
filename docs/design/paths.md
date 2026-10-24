@@ -385,7 +385,11 @@ Návrh Clauda:
   ve vchodu, aby oblouk navazoval na obou koncích; body po 1 m, na cm; návrh Clauda 24. 10. 2026,
   Úloha 9a – kvadratická křivka by navazovala jen ve vchodu). Osa se tím u křižovatky změní – nahrazuje
   to dřívější „osa se nikdy nehýbe“ jen v tomto okolí. Kmeny hatě, místa na stromy a jabloně
-  v ohnutém kusu zůstanou, kde jsou (do 2,2 m od nové osy místo zmizí).
+  v ohnutém kusu zůstanou, kde jsou (do 2,2 m od nové osy místo zmizí). **Oblouk nevede
+  neprůchodnou plochou víc než neohnutá osa** (stavba, plot, obilná jáma, zemní práce – nejdelší
+  souvislý kus osy po 1 m; návrh Clauda 24. 10. 2026): jinak konec zůstane neohnutý a vede rovně do
+  středu. Krátká cesta mezi dvěma křižovatkami kolem obilné jámy ve Vlkově se dřív oběma oblouky
+  narovnala přes jámu, měsíční kontrola ji opustila a z vyšlapanosti vznikla znovu – každý měsíc.
 - **Znamení:** při vzniku křižovatky se jednou vylosuje (seed vsi a místo uzlu zaokrouhlené na metry) **strom 40 %,
   vztyčený kámen 30 %, dřevěný kůl 30 %**. Stojí v nejširší mezeře mezi rameny, 1,5 m za
   vzdáleností vchodů od středu, natočení a podoba (druh stromu – dub, jilm, topol jako u cest;
@@ -600,8 +604,9 @@ konce mimo kotvu 6 → 0, úsek přes dům 1 → 0, dvojice křižovatek pod roz
 +0,1 %. Přestavba trvá ≈ 4 s jednou za život vsi. Po 12 měsících je živých úseků 34 a křižovatek 12
 (dostavěná vozová cesta převzala dva upravené úseky). Otevřené: u obilné jámy mezi dvěma
 křižovatkami (≈ 243, −258) vznikne každý měsíc 17 m vyšlapaná cesta přes jámu, kterou kontrola hned
-opustí (+12 opuštěných kusů za rok) – nevzniká z vyšlapanosti (vznik přes neprůchodnou plochu
-zakázaný nepomohl), řešit zvlášť.
+opustí (+12 opuštěných kusů za rok). Příčina (R2): cesta vznikla z vyšlapanosti kolem jámy, ale
+oblouky obou konců do křižovatek ji narovnaly přes jámu – oblouk teď neprůchodnou plochou nevede víc
+než neohnutá osa (Křižovatky – Vchody).
 
 **Úloha R2:** hotové vozové cesty se po nových osách přepočítají i se zemními pracemi a budou
 rovnou hotové; úvozy a náspy, které nové osy nepoužijí, zarostou.
