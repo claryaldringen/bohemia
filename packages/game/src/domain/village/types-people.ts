@@ -42,7 +42,10 @@ export interface Person {
   /** Matka a otec (id) – chybí, když jsou neznámí (zakladatelé, lidé z okolí, starší vsi). */
   motherId?: number;
   fatherId?: number;
-  /** Manžel / manželka (id žijícího člověka ve vsi); svobodný, vdovec a vdova ho nemají. */
+  /**
+   * Manžel / manželka (id žijícího člověka ve vsi); svobodný, vdovec a vdova ho nemají. U ženy je
+   * to její muž (i u vedlejší manželky), u muže jeho hlavní manželka (lord.md – Manželky).
+   */
   spouseId?: number;
   /**
    * Ze které sousední vsi člověk přišel – nevěsta z okolí a lidé z výměny se sousedem (kinship.md,
@@ -66,6 +69,22 @@ export interface Person {
    * převod netřeba.
    */
   arms?: ArmsSkills;
+  /**
+   * Jméno muže rodu (lord.md – Jména): trvalé, jen písmena. Vojvodu a jeho syny pojmenuje hráč,
+   * vnuci ho dostanou při narození ze seznamu (`dynasty-names.ts`). Chybí – bez jména (ostatní
+   * lidé vsi, vojvoda a synové, dokud je hráč nepojmenuje).
+   */
+  name?: string;
+  /**
+   * Muž rodu po meči (lord.md – Kdo patří k rodu): vojvoda a jeho mužští potomci po otcích.
+   * Nastaví se při narození synovi muže rodu (starší vsi `withDynasty`). Jen muži; chybí – mimo rod.
+   */
+  line?: true;
+  /**
+   * Syn ženy, která byla hlavní manželkou svého muže (lord.md – Nástupnictví) – přednost
+   * v nástupnictví i po její smrti. Chybí – ne.
+   */
+  mainWifeSon?: true;
 }
 /** Luk, boj a jízda 0–100; `best` je nejvyšší dosažená hodnota (spodní hranice úbytku). */
 export interface ArmsSkills {

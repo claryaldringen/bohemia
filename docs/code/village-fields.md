@@ -63,7 +63,8 @@ true })` (práce cvičících mužů rodiny po minimu dvorce – `manorLabor.fre
   (měsíce `HARVEST_HANDS_MONTHS` z oken žní a výmlatu `CROP_WINDOWS` – 7–9 – a v okně zbývá žeň
   plánu nebo práce snopů) je jedno místo pravdy pro `workshopLabor` (řemeslník se syny →
   `WorkshopLabor.harvest`, `craft` 0), `manorLabor` (cvičící muži → `ManorLabor.harvest` =
-  `freeMen`, `help` 0) i `work()`; v `allocateDay` zásobníky `harvestHands` (`craftHarvestLabor`
+  `freeMen`, `help` 0 – i ženatí synové v dvorci; vedlejší manželky vojvody mimo dvorec ne, jsou
+  v `lordApartIds`, takže je nepočítá ani `harvestHelperLabor`) i `work()`; v `allocateDay` zásobníky `harvestHands` (`craftHarvestLabor`
   - výrostci od 10 let a starší po `HARVEST_HELPERS.perDay` – `harvestHelperLabor`, mimo
     `lordApartIds`) a `lordHarvest` jen na `HARVEST_HANDS_TASKS` (žeň, výmlat) za lehkou prací žen, před prací vsi,
     nevyužité propadne; spotřebu mužů vrací `lordField` (podíl dne ÷ `freeMen`). `sowingCapacity`

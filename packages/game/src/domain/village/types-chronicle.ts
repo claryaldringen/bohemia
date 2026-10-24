@@ -28,8 +28,23 @@ export interface WeddingCouple {
 export type ChronicleEvent = { day: number } & (
   | { kind: 'village-founded' }
   | { kind: 'birth' }
-  /** `cause: 'hunger'` – zemřel hlady (nahromaděný hlad, population.md); jinak bez údaje. */
-  | { kind: 'death'; group: 'child' | 'adult' | 'elder'; cause?: 'hunger' }
+  /** Vojvodovi se narodil syn (lord.md – Rod vojvody) – čeká na jméno od hráče. */
+  | { kind: 'line-birth' }
+  /** Vojvodou se stal muž rodu `name` (lord.md – Nástupnictví); bez jména chybí. */
+  | { kind: 'lord'; name?: string }
+  /** Muž rodu `name` si vzal další manželku z okolí (lord.md – Manželky); bez jména chybí. */
+  | { kind: 'extra-wife'; name?: string }
+  /** Muž rodu `name` má po smrti hlavní manželky novou hlavní (lord.md – Nová hlavní manželka). */
+  | { kind: 'main-wife'; name?: string }
+  /** Ženatý muž rodu `name` odešel z dvorce do vlastního domu (lord.md – Synové po sňatku). */
+  | { kind: 'son-left-manor'; name?: string }
+  /** Vedlejší manželka odešla z přeplněného dvorce do vlastního domu (lord.md – Manželky). */
+  | { kind: 'wife-left-manor' }
+  /**
+   * `cause: 'hunger'` – zemřel hlady (nahromaděný hlad, population.md); jinak bez údaje. `name` –
+   * jméno zemřelého muže rodu (lord.md – Kde se jméno ukazuje); ostatní ho nemají.
+   */
+  | { kind: 'death'; group: 'child' | 'adult' | 'elder'; cause?: 'hunger'; name?: string }
   /** Zemřel poslední člověk – ves vymřela (population.md – Hlad a vymření). */
   | { kind: 'village-extinct' }
   | { kind: 'household-founded'; dwellingId: number }

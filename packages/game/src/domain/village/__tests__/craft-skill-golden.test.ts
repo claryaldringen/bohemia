@@ -100,6 +100,8 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
       'sheaves',
       // nová ves bez jam (production-chains.md – Obilné jámy) – bez výmlatu se nic neukládá
       'grainPits',
+      // ves bez rodu (lord.md – Rod vojvody) – přibude jen značka `dynasty`
+      'dynasty',
     ]);
     const stripped = JSON.stringify(legacyShape(next), (key, value: unknown) =>
       marks.has(key) ? undefined : value,

@@ -332,10 +332,11 @@ Clauda.
   Sňatky).
 - **Další manželky (2.–4.)** jen **z okolí** – žena 16–22 let, rodiče neznámí, s **≈ 30 % ročně**
   pro muže rodu od 18 let s 1–3 žijícími manželkami (jako nevěsta z okolí). Proč z okolí: muži
-  rodu nesmějí brát ženy mužům vsi, ves by přišla o sňatky. V hladu nepřijde. Přijde, **vejde-li
-  se do domu muže** (nepřeplní ho), jinak jen do **prázdného obydlí, na které nečeká žádná rodina
-  k osídlení** – tam bydlí rovnou sama a nebere dům čekajícím. Bere si ji, kdykoli má méně než 4 –
-  i po smrti manželky.
+  rodu nesmějí brát ženy mužům vsi, ves by přišla o sňatky. V hladu nepřijde. Přijde **vždy do
+  domu muže**, i když ho přeplní – z přeplněného domu pak odchází vedlejší manželka podle Bydlení
+  (Martin, 24. 10. 2026: „Vedlejší manželky odcházejí do vlastních obydlí až teprve, je-li dvorec
+  přeplněný.“; dřívější návrh Clauda – do prázdného obydlí, je-li dům muže plný – zrušen po
+  recenzi 24. 10. 2026). Bere si ji, kdykoli má méně než 4 – i po smrti manželky.
 - **Bydlení** (Martin): vedlejší manželky bydlí s mužem, **dokud jeho dům není přeplněný** –
   vojvoda tak může žít v dvorci se dvěma manželkami a jejich dětmi. Je-li přeplněný, odchází
   **vedlejší manželka s nejstarším synem, který by se mohl starat už o dům**, se svými svobodnými
@@ -602,6 +603,16 @@ Clauda.
   v `foundVillage` (věky jako data v `rules*.ts`), `LORD.maxWives`.
 - Konec hry: `isGameOver` i bez mužů rodu, zastavení dopočtu vsí hráče, obrazovka „Rod vymřel“
   s kronikou rodu.
+- **Výcvik a nástupnictví – rozhodnutí implementace (návrh Clauda, 24. 10. 2026):** vojvoda
+  cvičí, jen když bydlí v dvorci; cvičí všichni muži rodu v dvorci od 7 let (i bratři po
+  nástupu). Matka **nezletilého** vojvody vede domácnost dvorce, i když se vdá; matka dospělého
+  vojvody a ostatní vdovy po vojvodovi pracují jako dosud. Vojvoda (a za nezletilého jeho matka)
+  dvorec při sňatku neopouští – druhý se přistěhuje do dvorce. Dvorec bez vojvody (rod skončil)
+  nedrží nikdo – ženatí muži z něj odcházejí všichni. Vdovu po vojvodovi pozná dítě s otcem
+  dřívějším vojvodou – bezdětnou ne (vdá se). Vedlejší manželka vojvody mimo dvorec kryje minimum
+  svého domu, nekryté platí ves; do 4 dospělých mimo rodinu se nepočítá. **Přeplnění** domu se
+  počítá ze všech lidí domu (i dětí a podnájemníků) jako u ostatních domácností – vedlejší
+  manželka tak může odejít i kvůli přeplnění, které nezpůsobila.
 - Testy: jména vnuků nezávisí na kouscích dopočtu, odcházejí všichni ženatí synové, přednost
   syna a pak vedlejší manželky, vedlejší odchází až z přeplněného dvorce a nevrací se, cvičí
   všichni synové v dvorci, nástupcem syn hlavní manželky i po její smrti, nezletilý vojvoda, nová
@@ -699,12 +710,15 @@ a začátek bez lidí mimo rodinu (viz Odpovědi Martina – 24. 10. 2026, odpov
 | Začátek bez lidí mimo rodinu: rodina zpočátku pracuje, pravidlo ≥ 4 dospělí mimo rodinu beze změny                                                                          | Martin (24. 10. 2026)  |
 | První generaci stačí partneři z okolí                                                                                                                                       | Martin (24. 10. 2026)  |
 | Zakladatelé: vojvoda 25, hlavní manželka 22, vedlejší 20, 18 a 16 let, bez dětí; všech 5 v první zemnici; rodina zpočátku pracuje                                           | návrh Clauda           |
-| Nejvýš 4 žijící manželky, hlavní je první; další jen z okolí ≈ 30 % ročně – do domu muže, vejde-li se, jinak do prázdného obydlí                                            | návrh Clauda           |
+| Nejvýš 4 žijící manželky, hlavní je první; další jen z okolí ≈ 30 % ročně – vždy do domu muže, i přeplněného                                                                | Martin (24. 10. 2026)  |
 | Přednost při osídlení: ženatý syn vojvody → vedlejší manželka z přeplněného domu muže rodu → ostatní                                                                        | návrh Clauda           |
 | Porody na ženu, žena nemusí bydlet s mužem; návštěvy vojvody jen ve scéně                                                                                                   | návrh Clauda           |
 | K rodině patří i vojvodovy vedlejší manželky mimo dvorec, jejich děti tam pracují; samotné děti jdou k otci                                                                 | návrh Clauda           |
 | Opravy domů rodiny ze společné práce vsi jako dosud (model práci mužů a žen nedělí)                                                                                         | návrh Clauda           |
 | Převod: dnešní žena muže rodu je hlavní manželka; Vlkov beze změny                                                                                                          | návrh Clauda           |
+| Převod: příznak „syn hlavní manželky“ mají všichni muži rodu kromě vojvody (ves měla jednu ženu na muže), jako při narození                                                 | návrh Clauda           |
+| Rod se sousedovi nedává – výměna lidí nevybere muže rodu ani manželku muže rodu                                                                                             | návrh Clauda           |
+| Z přeplněného domu odchází vedlejší manželka s nejstarším synem (bez syna až po nich, při shodě nejdéle vdaná), jen kolik je třeba                                          | Martin / návrh Clauda  |
 
 ## Odpovědi Martina (23. 10. 2026)
 

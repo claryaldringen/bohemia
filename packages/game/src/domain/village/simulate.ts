@@ -35,6 +35,8 @@ import { swathRoadsInWork, trailsDay } from './trail';
 import { roadSwathDay } from './road-swath';
 import { wagonRoadsDay } from './wagon-road';
 import { isVillageDormant } from './departure';
+import { withDynasty } from './dynasty';
+import { ensureMainWives, extraWivesDay } from './dynasty-wives';
 import { updateRuins } from './ruins';
 import {
   CHRONICLE_MAX_EVENTS,
@@ -50,6 +52,7 @@ import { eat, endThreshing, harvest, harvestWinter } from './simulate-food';
 import { LAST_JOIN_MONTH, isOn, joinFinishedParts, planYear, trimPlan } from './simulate-plan';
 import { work } from './simulate-work';
 import { lordFieldMode, trainLordDay, updateLordTraining } from './lord';
+import { dynastyDay } from './succession';
 
 /**
  * Dopočítá ves do dne `toDay` včetně – den po dni od `lastDay + 1`. Vstup nemění.
@@ -95,7 +98,8 @@ export function* advanceVillageSteps(
   if (toDay < state.lastDay) {
     throw new RangeError(`Ves je dopočítaná do dne ${state.lastDay}, nelze zpět na ${toDay}.`);
   }
-  // ves z doby před příbuzenstvím dostane pohlaví a manžele (kinship.md), dobytek v obchodu tři
+  // ves z doby před příbuzenstvím dostane pohlaví a manžele (kinship.md), ves z doby před rodem
+  // rod vojvody (lord.md – Převod starších vsí), dobytek v obchodu tři
   // druhy (trade.md – Dobytek ve třech druzích), hřivny místo nástrojů v obchodu i ve vsi
   // (production-chains.md – Kovář), ves ze zboží zvenku o něj přijde (trade.md – Jen společné
   // suroviny), řemeslníci z doby před učením řemesla praxi (crafts.md – Učení řemesla) a ves z doby
@@ -106,7 +110,9 @@ export function* advanceVillageSteps(
         withOxen(
           withPenSpecies(
             withoutForeignGoods(
-              withIronBarsTrade(withToolEquipment(withCattleKinds(withKinship(state)))),
+              withIronBarsTrade(
+                withToolEquipment(withCattleKinds(withDynasty(withKinship(state)))),
+              ),
             ),
           ),
         ),
@@ -213,11 +219,15 @@ function simulateDay(
   // `startKiln`, místo nové jámy), dokončení staveb (`finishConstructions`) a přestavby
   // (`decideRebuilds` – i na novém pozemku). Stavby hráče a zemní práce vozové cesty kontroluje akce
   // (`withoutBuiltOverGrainPits` v updateVillage). Co bere id až po kontrole (porody, sňatky,
-  // nevěsty z okolí), nic nestaví. Nový krok, který staví bez nového id nebo po kontrole, musí
-  // kontrolu spustit sám.
+  // nevěsty z okolí, další manželky), nic nestaví. Nový krok, který staví bez nového id nebo po
+  // kontrole, musí kontrolu spustit sám.
   if (state.nextId !== idsBefore) moveGrainFromCoveredPits(state, day, landscape);
-  // sňatky mezi domy – svobodní ve dvou domech se vezmou (population.md – Sňatky mezi domy)
+  // sňatky mezi domy – svobodní ve dvou domech se vezmou (population.md – Sňatky mezi domy); muž
+  // bez hlavní manželky, který nějakou manželku má (osadníci výpravy), se před nimi nežení
+  // (lord.md – Nová hlavní manželka); pak další manželky mužů rodu z okolí (lord.md – Manželky)
+  state.chronicle.push(...ensureMainWives(state, day));
   state.chronicle.push(...arrangeMarriages(state, day));
+  state.chronicle.push(...extraWivesDay(state, day));
   const { satiation, energy, fruit, meat } = eat(state, day, coverage);
   // vojvodova rodina (lord.md): při hladu jde od zítřka na pole, po 30 dnech plného přídělu zpět;
   // výcvik dne – kdo necvičil, zapomíná
@@ -234,6 +244,8 @@ function simulateDay(
   );
   const events = populationDay(state, day, satiation, energy);
   state.chronicle.push(...events);
+  // nová hlavní manželka a nástupnictví (lord.md – Rod vojvody); ves bez rodu nic
+  state.chronicle.push(...dynastyDay(state, day));
   // štěstí na konci dne – hlad, úmrtí, přeplněnost, dřina, zásoby, ovoce, maso a posvátná místa
   // (happiness.md, diet.md)
   updateHappiness(state, day, { satiation, events, toil, fruit, obstacles, meatShare: meat });

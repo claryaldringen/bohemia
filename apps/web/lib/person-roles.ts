@@ -50,6 +50,11 @@ export interface RolePerson {
 /** Domácnosti vsi pro role: dvorec vojvody (id obydlí) a řemeslo dílny. */
 export interface RoleHomes {
   manor: number | null;
+  /**
+   * Vojvoda vsi s rodem (`dynasty.lordId` – lord.md – Rod vojvody, Nástupnictví), i chlapec; bez
+   * něj je vojvodou nejstarší muž dvorce jako dřív.
+   */
+  lordId?: number | null;
   craft(home: number): Craft | null;
 }
 
@@ -150,7 +155,7 @@ export function personRoles(
   for (const [home, members] of byHome) {
     const title: HouseholdTitle =
       homes.manor === home ? 'voivode' : (homes.craft(home) ?? 'farmer');
-    const head = householdHead(members, title);
+    const head = householdHead(members, title, homes.lordId);
     const couple = new Set<number>();
     if (head) {
       couple.add(head.id);
@@ -218,8 +223,14 @@ function eldest(list: readonly RolePerson[]): RolePerson | null {
 }
 
 /** Hlava domácnosti podle druhu (`personRoles`). */
-function householdHead(members: readonly RolePerson[], title: HouseholdTitle): RolePerson | null {
+function householdHead(
+  members: readonly RolePerson[],
+  title: HouseholdTitle,
+  lordId: number | null = null,
+): RolePerson | null {
   if (title === 'voivode') {
+    const lord = lordId === null ? undefined : members.find((p) => p.id === lordId);
+    if (lord) return lord;
     const grown = members.filter((p) => p.age >= AGE.adult);
     return eldest(grown.filter((p) => p.sex === 'male')) ?? eldest(grown);
   }

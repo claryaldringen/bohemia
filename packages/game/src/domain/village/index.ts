@@ -39,6 +39,8 @@ export * from './labor';
 export { LABOR_TREES_SHOWN, laborReport } from './labor-report';
 export * from './population';
 export * from './kinship';
+export * from './dynasty';
+export * from './dynasty-names';
 export * from './households';
 export * from './marriage';
 export * from './extinction';

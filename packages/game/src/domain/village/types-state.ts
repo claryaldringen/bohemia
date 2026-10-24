@@ -345,6 +345,30 @@ export interface VillageState {
    * kácení se s nimi nekříží.
    */
   neighbours?: NeighbourSnapshot;
+  /**
+   * Rod vojvody (lord.md – Rod vojvody, fáze 1): dnešní vojvoda a vojvodové po sobě. Chybí – ves
+   * uložená před rodem (`withDynasty` ji převede); `lords` prázdné – ves bez rodu (chová se jako
+   * před rodem, končí jen vymřením).
+   */
+  dynasty?: DynastyState;
+}
+
+/** Rod vojvody ve vsi (lord.md – Rod vojvody). */
+export interface DynastyState {
+  /** Id dnešního vojvody (muž rodu); null – vojvoda není. */
+  lordId: number | null;
+  /** Vojvodové po sobě – pro kroniku rodu (kronika vsi se ořezává). */
+  lords: LordRecord[];
+  /** Den, kdy rod vymřel po meči (lord.md – Konec rodu); chybí – rod žije. */
+  endedDay?: number;
+}
+
+/** Vojvoda v kronice rodu – od kterého dne do kterého vládl (`toDay` chybí – vládne). */
+export interface LordRecord {
+  id: number;
+  name?: string;
+  fromDay: number;
+  toDay?: number;
 }
 
 /** Cesta lidí na novou mapu – směr, den odchodu a příjezdu (migration.md – fáze 4). */

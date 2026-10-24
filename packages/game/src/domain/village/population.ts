@@ -1,6 +1,7 @@
 import { createRandom, deriveSeed } from '../landscape/random';
 import { bury, hygieneDeathFactor, villageHygiene } from './cemetery';
 import { isOvercrowded } from './dwellings';
+import { isDynastyTracked, isLineMan, markNewborn } from './dynasty';
 import { removePeople } from './kinship';
 import { ageGroup, ageYears, canBear, canFather, householdBreaksUp, occupants } from './people';
 import {
@@ -190,12 +191,27 @@ function roomiest(
 }
 
 /**
+ * Žijící otec – muž rodu – samotných dětí `members` mimo jejich dům `fromId` (první v pořadí
+ * lidí vsi); ve vsi bez rodu nikdo.
+ */
+function lineFatherOf(
+  state: VillageState,
+  members: readonly Person[],
+  fromId: number,
+): Person | undefined {
+  if (!isDynastyTracked(state)) return undefined;
+  const fathers = new Set(members.flatMap((m) => (m.fatherId === undefined ? [] : [m.fatherId])));
+  return state.people.find((p) => fathers.has(p.id) && isLineMan(p) && p.dwellingId !== fromId);
+}
+
+/**
  * Kam se rozpadlá domácnost přestěhuje (kinship.md – Domácnosti): k nejbližším příbuzným – do domu
  * syna, pak dcery, pak sourozence někoho z ní (v každé skupině dům s nejvíc volnými místy), jinak
  * do obydlí s nejvíc volnými místy (population.md – Rozpad domácnosti). Jen tam, kde se všichni
  * vejdou bez přeplnění (Martin, 19. 10. 2026: „Pokud by byla domácnost kam přijde přeplněná, ať
  * radši zůstane ve starém domě.“) – jinak null a domácnost zůstane doma. Samotné děti (nikdo od
- * 16 let) jdou k příbuzným i do přeplněného domu – samy bydlet nemohou (návrh Clauda).
+ * 16 let) jdou k příbuzným i do přeplněného domu – samy bydlet nemohou (návrh Clauda); ve vsi
+ * s rodem děti muže rodu nejdřív k otci (lord.md – Manželky – Dům vedlejší manželky).
  */
 function dissolveTarget(
   state: VillageState,
@@ -204,6 +220,8 @@ function dissolveTarget(
   fromId: number,
 ): { id: number } | null {
   const onlyChildren = members.every((p) => ageYears(p.bornDay, day) < AGE.fertile);
+  const father = onlyChildren ? lineFatherOf(state, members, fromId) : undefined;
+  if (father) return { id: father.dwellingId };
   const minFree = onlyChildren ? -Infinity : members.length;
   const ids = new Set(members.map((m) => m.id));
   const mothers = new Set(members.flatMap((m) => (m.motherId === undefined ? [] : [m.motherId])));
@@ -314,10 +332,12 @@ export function populationDay(
     if (roll < Math.min(1, base + starvation)) {
       dead.add(person.id);
       const group = ageGroup(person, day);
+      // jméno zemřelého muže rodu (lord.md – Kde se jméno ukazuje); ostatní jméno nemají
+      const name = person.name === undefined ? {} : { name: person.name };
       events.push(
         roll < base
-          ? { day, kind: 'death', group }
-          : { day, kind: 'death', group, cause: 'hunger' },
+          ? { day, kind: 'death', group, ...name }
+          : { day, kind: 'death', group, cause: 'hunger', ...name },
       );
       // mohyla podle významu zemřelého – vojvodova rodina, hlava rodiny, dítě (cemetery.md)
       const full = bury(state, day, person);
@@ -330,14 +350,25 @@ export function populationDay(
   // porody – po domácnostech podle id (i zakladatelé na staveništi první zemnice), v domácnosti
   // po manželských párech podle id ženy: žena 16–44 s manželem od 16 let v témže domě
   // (kinship.md – Pohlaví), šance podle věku ženy, po svatbě a po porodu pauza (rozestup porodů);
-  // chlapec s pravděpodobností BOY_SHARE
+  // chlapec s pravděpodobností BOY_SHARE. Vedlejší manželka muže rodu nemusí bydlet s mužem
+  // (lord.md – Manželky, Návštěvy a porody) – jejího muže hledá mapa lidí, sestavená nejvýš jednou
+  // za den; přeplnění podle jejího domu
   const households = [...new Set(state.people.map((p) => p.dwellingId))].sort((a, b) => a - b);
   const pauses = birthPauses(state);
+  let everyone: Map<number, Person> | undefined;
+  const fatherOf = (mother: Person, members: readonly Person[]): Person | undefined => {
+    const here = members.find((m) => m.id === mother.spouseId);
+    if (here || mother.spouseId === undefined) return here;
+    everyone ??= new Map(state.people.map((p) => [p.id, p]));
+    const husband = everyone.get(mother.spouseId);
+    // jen vedlejší manželka (muž má hlavní jinou); ostatní páry rodí jen v témže domě
+    return husband && husband.spouseId !== mother.id ? husband : undefined;
+  };
   for (const household of households) {
     const members = occupants(state, household);
     const couples = members.flatMap((mother) => {
       if (!canBear(mother, day)) return [];
-      const father = members.find((m) => m.id === mother.spouseId);
+      const father = fatherOf(mother, members);
       return father && canFather(father, day) ? [{ mother, father }] : [];
     });
     for (const { mother, father } of couples) {
@@ -350,15 +381,18 @@ export function populationDay(
       const roll = random.next();
       if (day < (pauses.get(mother.id) ?? day) || roll >= chance) continue;
       mother.nextBirthFrom = day + BIRTH_SPACING.afterBirthDays;
-      state.people.push({
+      const child: Person = {
         id: state.nextId++,
         bornDay: day,
         dwellingId: household,
         sex: random.next() < BOY_SHARE ? 'male' : 'female',
         motherId: mother.id,
         fatherId: father.id,
-      });
+      };
+      state.people.push(child);
       events.push({ day, kind: 'birth' });
+      // syn muže rodu – příznak rodu, jméno vnukovi (lord.md – Rod vojvody); ves bez rodu nic
+      events.push(...markNewborn(state, child, day));
     }
   }
 

@@ -17,9 +17,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `research/2026-10-19-population-growth.md`) a **rozestup** `BIRTH_SPACING` (po porodu 21 měsíců,
   po svatbě a od založení vsi 9 měsíců – `Person.nextBirthFrom`; ve vsích uložených dřív od
   nejmladšího žijícího dítěte – `birthPauses`), potom `birthRatePerYear` (průměrný odstup =
-  1 / plodnost věku). **Domácnost drží člověk 16–44** (`householdBreaksUp` v `people.ts`;
-  osamělý 16–44 zůstává), rozpadlá jde k příbuzným (syn, dcera, sourozenec), jinak do domu
-  s nejvíc místy – jen kam se vejde bez přeplnění, jinak zůstane doma (Martin; samotné děti jdou
+  1 / plodnost věku). Vedlejší manželka muže rodu rodí i v jiném domě než muž (`fatherOf`
+  v `populationDay` – mapa lidí nejvýš jednou za den; pár v různých domech mimo to dál ne),
+  přeplnění podle domu ženy (lord.md – Návštěvy a porody). **Domácnost drží člověk 16–44**
+  (`householdBreaksUp` v `people.ts`; osamělý 16–44 zůstává), rozpadlá jde k příbuzným (syn,
+  dcera, sourozenec), jinak do domu s nejvíc místy – jen kam se vejde bez přeplnění, jinak zůstane doma (Martin; samotné děti jdou
   i do přeplněného).
 
 - **Osídlení obydlí** (`households.ts`; population.md – Nové obydlí, kinship.md – Domácnosti): nové
@@ -39,9 +41,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (zemnice 5, polozemnice 8 let). Obydlené stav neztrácí – opravy podle stáří (`repairNeedPerDay`)
   dál berou práci vsi, nedodělek se jen neudělá; přestavbu rozhoduje jen stáří (`wantsRebuild`).
 
-- **Vojvodova rodina** ([lord.md](../design/lord.md)): `lord.ts` – `lordFamily` (vojvoda =
-  `householdHead` dvorce, jen muž – dvorec vdovy vojvodu nemá; `trainees` potomci po meči od 7
-  let, `household` ženy rodiny, `others` zbytek – zeť pracuje se vsí), `trainingHours` (vojvoda
+- **Vojvodova rodina** ([lord.md](../design/lord.md)): `lord.ts` – `lordFamily` (ves bez rodu:
+  vojvoda = `householdHead` dvorce, jen muž – dvorec vdovy vojvodu nemá; `trainees` potomci po
+  meči od 7 let, `household` ženy rodiny, `others` zbytek – zeť pracuje se vsí; ves s rodem viz
+  Rod vojvody – Výcvik), `trainingHours` (vojvoda
   3 h v každém věku, výrostek od `LORD.youthFrom`), `armsCap`, `trainArms` / `decayArms`
   (dovednosti `Person.arms`, nejvyšší dosažená v `best`) a `familyTrains` (rodina cvičí, až má ves
   4 dospělé mimo rodinu, hystereze 3 – Martin 24. 10. 2026; bez vojvody false). Čísla `LORD`
@@ -61,6 +64,82 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     Koně pod jezdci, kteří dnes jezdili, cvičí `trainHorsesDay` – `trainLordDay` vrací kroniku.
   - **Pasáci:** synové cvičící rodiny nepasou (`lordTraineeIds` v `youngsterCount`,
     `herdingDay`, `youngsterHerders`).
+- **Rod vojvody** (lord.md – Rod vojvody, fáze 1, #9; `dynasty.ts`, `dynasty-names.ts`): data
+  `Person.name` (jméno muže rodu), `line` (muž rodu po meči), `mainWifeSon` (syn hlavní manželky)
+  a `VillageState.dynasty` = `{ lordId, lords, endedDay? }` (`lords` – vojvodové po sobě pro
+  kroniku rodu). `spouseId` u ženy = její muž (i vedlejší manželky), u muže hlavní manželka –
+  `wivesOf`, `mainWifeOf`, `isSecondaryWife`. **Ves bez rodu** (`lords: []`, `NO_DYNASTY`,
+  `isDynastyTracked` false) se chová jako před rodem – zakládá ji `foundVillage` (zatím vždy)
+  i `travellingVillage`.
+  - **Převod** `withDynasty` (v obou řetězech převodů za `withKinship`, jen když `dynasty` chybí):
+    vojvoda = nejstarší muž dvorce i chlapec, bez muže v dvorci nejstarší muž vsi, který se se
+    ženou a svobodnými dětmi přestěhuje do dvorce (`moveIntoManor`); bez muže ve vsi ves bez
+    rodu. `line` vojvodovi a žijícím potomkům po meči (`parentIndex`, i přes zemřelé předky),
+    `mainWifeSon` všem mužům rodu kromě vojvody (ves před rodem měla jednu ženu na muže – matka
+    byla hlavní manželkou otce, stejně jako u `markNewborn`); vojvoda a synové bez jména, ostatní
+    muži rodu jméno vygenerované. Nikdo jiný se nestěhuje (Vlkov: vojvoda 25 let a syn 3 roky,
+    oba bez jména).
+  - **Narození:** `populationDay` volá u každého dítěte `markNewborn` – syn muže rodu `line`,
+    syn hlavní manželky `mainWifeSon`; syn vojvody bez jména (kronika `line-birth`), ostatní
+    jméno hned – `generatedLineName` (proud `'line-name:' + den + člověk`, jen jméno, které nenosí
+    žijící muž rodu; `LINE_NAMES` – 62 jmen). Úmrtí muže rodu nese v kronice `name`.
+  - **Nástupnictví** (`succession.ts`, lord.md – Nástupnictví): `currentLord` (žijící `lordId`);
+    `dynastyDay` po `populationDay` = `ensureMainWives` + `succeedLord`. Zemřel-li vojvoda,
+    `successorOf`: nejstarší syn s `mainWifeSon` (i chlapec, i po smrti matky) → nejstarší syn →
+    nejstarší vnuk po meči (otec i z `ancestors`) → nejstarší muž rodu; bez náhody. Stěhování do
+    dvorce (`moveSuccessor`): nezletilý (do 16 let) s matkou, je-li svobodná a bydlí s ním, a jejími
+    dětmi do 16 let; dospělý s hlavní manželkou, jejími svobodnými dětmi a svými dětmi bez matky
+    v domě, vedlejší manželky z jeho domu se svobodnými dětmi jen, vejdou-li se (od nižšího id).
+    `lords` – `toDay` starému, nový záznam, kronika `lord`; bez muže rodu `lordId = null`.
+    `holdsManor` (`dynasty.ts`): dvorec drží vojvoda a za nezletilého jeho matka – `weddingHome`
+    stěhuje druhého k nim, `holdsHome` je bere jako dům držící. Dvorec bez vojvody nedrží nikdo –
+    ženatí muži z něj odcházejí všichni (`familiesOf`); rodina, ve které je vojvoda (matka
+    s mužem, nezletilý syn), neodchází.
+  - **Výcvik** (`lordFamily` → `dynastyFamily`; lord.md – Manželky – Výcvik, „Cvičí, dokud
+    neodejde“): vojvoda je `dynasty.lordId` (jen když bydlí v dvorci, jinak rodina není), cvičí
+    všichni muži rodu v dvorci od 7 let (synové všech manželek, ženatí synové čekající na dům,
+    vnuci, bratři); `household` = manželky vojvody v dvorci, matka nezletilého vojvody (i vdaná),
+    dcery mužů rodu i dřívějších vojvodů, ženy mužů rodu; `others` = zeť, vdovy po dřívějším
+    vojvodovi, chlapci pod 7 let. `wivesApart` = vedlejší manželky vojvody mimo dvorec – v
+    `lordApartIds`, ve `familyHomes` (spolu s dvorcem mimo minimum vsi – `villagersToday`,
+    `sowingCapacity`) a v `manorLabor` kryjí minimum svého domu, nekryté platí ves (`uncovered`),
+    zbytek jen do `free` (pole při hladu), ne do `freeMen` (osev, žeň). Do „4 dospělých mimo
+    rodinu“ se nepočítají. Jejich děti pracují se vsí. Vojvoda cvičí celý život (3 h).
+  - **Manželky** (`dynasty-wives.ts`, lord.md – Manželky): `spouseId` je **asymetrický** – žena
+    ukazuje na muže (i vedlejší), muž jen na hlavní; manželky muže = ženy s jeho id. Vedlejší
+    manželka se za živého muže nevdává (`isSingle`), smrt muže ovdoví všechny (`removePeople`),
+    smrt hlavní smaže `spouseId` muže. `extraWivesDay` (krok po `arrangeMarriages`): muž rodu od
+    `LORD.extraWifeFromAge` s 1–3 žijícími manželkami, v pořadí id jeden los (proud
+    `'wife:' + den`, `LORD.extraWifePerYear`), ne v hladu; žena z okolí 16–22 let s `origin`
+    a svatební pauzou porodů bydlí **vždy v domě muže**, i když ho přeplní (`extraWifeHome`;
+    Martin 24. 10. 2026 – vedlejší odchází až z přeplněného domu, viz Bydlení rodu); kronika
+    `extra-wife`. Ves bez rodu – nic. `ensureMainWives` (v `dynastyDay` i před `arrangeMarriages` – osadníci výpravy, kde muž
+    přišel jen s vedlejší): muž bez `spouseId` se žijícími manželkami dostane hlavní – matku
+    nejstaršího žijícího syna, jehož matka žije, jinak nejnižší id; jejím synům `mainWifeSon`,
+    nebydlí-li s ním, přestěhuje se k němu se svobodnými dětmi i do přeplněného (kronika
+    `main-wife`). Bez náhody; ve vsi bez vícežeňství se nic nestane.
+  - **Bydlení rodu** (`dynasty-housing.ts`, `households.ts`; lord.md – Manželky – Bydlení
+    a Přednost, Synové po sňatku): v dvorci vsi s rodem drží dům vojvoda (`familiesOf` – dvorec
+    nemá dědice mezi ženatými syny), **všichni ženatí muži rodu** jsou rodiny k osídlení, i nejstarší;
+    rodina muže rodu = on, **všechny jeho ženy z domu** (`wivesHere`) a svobodné děti. Svobodný muž
+    rodu z dvorce sám neodchází (`loneSonOf`). `secondaryWifeFamilies` – z přeplněného domu muže
+    rodu (každého, u vojvody dvorec) odchází vedlejší manželka se svobodnými dětmi, od té
+    s nejstarším synem (bez syna až po nich, při shodě nižší id), po jedné, dokud dům zůstává
+    přeplněný i po odchodu rodin, které odcházejí tak jako tak (`departingFamilies`); jen kdo dům
+    udrží. Zpět ji nevrací nic, jen `ensureMainWives` (nová hlavní). `settlingFamilies` – pořadí
+    při osídlení (`settleNewDwelling` – prázdné i dostavěné obydlí): ženatí muži rodu z dvorce od
+    nejstaršího → vedlejší manželky z přeplněných domů (dvorec první, pak od nejvíc přeplněného) →
+    `leavingFamilies`; ves bez rodu přesně `leavingFamilies`. `possibleNewHouseholds` přičte
+    vedlejší manželky (lidé k osídlení, „Rodina čeká na dům“). Kronika `son-left-manor` (jméno)
+    a `wife-left-manor` při odchodu z dvorce (`moveIn`). Samotné děti (nikdo od 16 let) muže rodu
+    jdou při rozpadu domácnosti k otci, i do přeplněného (`lineFatherOf` v `population.ts`). Dům
+    vedlejší manželky drží ona jako vdova, nejstarší ženatý syn je dědic (beze změny). Z přeplněného
+    dvorce odcházejí napřed vdovy po dřívějších vojvodech se svobodnými dětmi (`lordWidows` – kromě
+    matky vojvody; pozná je dítě s otcem z `lords`), pak vedlejší manželky nového vojvody. Rodiny
+    k oddělení (`familiesOf`, `departingFamilies`, `byCrowding`) jsou ve `families.ts` pod
+    `households.ts` i `dynasty-housing.ts` (bez cyklického importu; `households.ts` je re-exportuje).
+  - **Výměna lidí:** ves s rodem nedá sousedovi muže rodu ani manželku muže rodu (`keptByLine`
+    v `people-trade.ts`, návrh Clauda).
 - **Sňatky** (`marriage.ts`, kinship.md – Sňatky; Martin, varianta c; 19. 10. 2026: „Vdova by se
   měla snažit co nejdříve vdát, ideálně ve vesnici.“): svobodný = muž od 16 / žena 16–44 bez
   manžela, i vdova s malými dětmi (`isSingle`); vdova / vdovec = svobodný s dítětem

@@ -322,6 +322,8 @@ export function travellingVillage(
     lastDay: day,
     nextId: householdId + 1,
     people: settlers.people.map((p) => ({ ...p, dwellingId: householdId })),
+    // ves bez rodu jako nová ves z osadníků (`foundVillage`) – převod rodu ji nemá sledovat
+    dynasty: { lordId: null, lords: [] },
     dwellings: [],
     fields: [],
     parts: [],

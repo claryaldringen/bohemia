@@ -48,7 +48,7 @@ export interface ScenePerson {
  */
 export function scenePersons(
   state: Pick<VillageState, 'people' | 'dwellings' | 'manorId' | 'constructions'> &
-    Partial<Pick<VillageState, 'pens'>>,
+    Partial<Pick<VillageState, 'pens' | 'dynasty'>>,
   day: number,
 ): ScenePerson[] {
   const crafts = new Map<number, Craft>();
@@ -66,6 +66,7 @@ export function scenePersons(
   }));
   const roles = personRoles(people, {
     manor: villageManorId(state),
+    lordId: state.dynasty?.lordId ?? null,
     craft: (home) => crafts.get(home) ?? null,
   });
   const riders = new Set<number>();
