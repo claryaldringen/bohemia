@@ -12,7 +12,8 @@ vlevo / vpravo) – viz apps/web/lib/scene/fauna.ts.
 "pose": {"animation", "time"} je základní póza (bez ní klidová póza skinu), "keys": {"jméno":
 {"animation", "time"}} klíčové pózy – první je póza +1, druhá −1 (scéna mezi nimi přechází přes
 základní pózu), nepovinná třetí se přidává lineárně (domácí zvířata: hlava dole při pastvě –
-apps/web/lib/scene/livestock.ts). "key_gain" zesílí odchylku klíčových póz od základní, "symmetric" je zrcadlí
+apps/web/lib/scene/livestock.ts). Klíč může místo animace nést {"bend": {"deg", "pivot", "along",
+"above"}} – hlava a krk základní pózy se skloní (kůň, 0 A.D. u něj pastvu nemá). "key_gain" zesílí odchylku klíčových póz od základní, "symmetric" je zrcadlí
 podle pravé poloviny (animace se při mávání naklánějí do strany). "forward" je osa,
 kam model v 0 A.D. míří ("+y" / "-y"); výsledek míří vždy na -Y (v Babylonu +Z), křídla leží
 v ose X a střed obrysu základní pózy je v počátku. "size" model zvětší nebo zmenší tak, aby měl
@@ -249,6 +250,36 @@ def symmetrize(points, rest, pairs):
     return result
 
 
+def smoothstep(a, b, x):
+    t = min(1.0, max(0.0, (x - a) / (b - a)))
+    return t * t * (3 - 2 * t)
+
+
+def bend_pose(base, forward, bend):
+    """Sklon přední části těla dolů (hlava při pastvě). bend: {"deg", "pivot": [podél těla od zadu,
+    výška] jako podíl rozměrů, "along": [od, do] podíl délky těla a "above": [od, do] podíl výšky,
+    kde váha roste z 0 na 1}. Otáčí se kolem osy X (napříč tělem) přes pivot, váha = součin
+    hladkých přechodů podle polohy podél těla a výšky."""
+    sign = 1.0 if forward == "+y" else -1.0
+    ys = [sign * c.y for c in base]
+    zs = [c.z for c in base]
+    y0, y1, z0, z1 = min(ys), max(ys), min(zs), max(zs)
+    py = y0 + (y1 - y0) * bend["pivot"][0]
+    pz = z0 + (z1 - z0) * bend["pivot"][1]
+    out = []
+    for c, y in zip(base, ys):
+        w = smoothstep(*bend["along"], (y - y0) / (y1 - y0)) * smoothstep(
+            *bend["above"], (c.z - z0) / (z1 - z0)
+        )
+        # v souřadnicích „dopředu“ (dy) úhel dolů otáčí dy nahoru k dz záporně
+        a = -math.radians(bend["deg"]) * w
+        dy, dz = y - py, c.z - pz
+        ny = dy * math.cos(a) - dz * math.sin(a)
+        nz = dy * math.sin(a) + dz * math.cos(a)
+        out.append(Vector((c.x, sign * (py + ny), pz + nz)))
+    return out
+
+
 def import_animal(spec):
     root = ET.parse(spec["dae"]).getroot()
     up = root.findtext(".//c:asset/c:up_axis", default="Z_UP", namespaces=NS).strip()
@@ -267,8 +298,13 @@ def import_animal(spec):
     poses = {
         name: [fix @ transform(i) @ v for i, v in enumerate(positions)]
         for name, transform in [(None, pose)]
-        + [(k, skin_transform(root, skin, p)) for k, p in keys.items()]
+        + [(k, skin_transform(root, skin, p)) for k, p in keys.items() if "animation" in p]
     }
+    # Klíč „bend“ (kůň nemá v 0 A.D. pastvu): hlava a krk se v základní póze skloní kolem
+    # osy napříč tělem, viz bend_pose.
+    for name, key in keys.items():
+        if "bend" in key:
+            poses[name] = bend_pose(poses[None], spec["forward"], key["bend"])
     if spec.get("symmetric"):
         # Animace 0 A.D. se při mávání naklání do strany – klíčové pózy mají být souměrné, náklon
         # (do zatáčky) dělá scéna sama. Zachová se pravá polovina (x > 0).
@@ -401,7 +437,7 @@ def main():
         spec["dae"] = f"{art_dir}/{spec['dae']}"
         spec["texture"] = f"{art_dir}/{spec['texture']}"
         for pose in [spec.get("pose"), *spec.get("keys", {}).values()]:
-            if pose:
+            if pose and "animation" in pose:
                 pose["animation"] = f"{art_dir}/{pose['animation']}"
         obj = import_animal(spec)
         export(obj, f"{out_dir}/{spec['name']}.glb", spec.get("opaque", False))

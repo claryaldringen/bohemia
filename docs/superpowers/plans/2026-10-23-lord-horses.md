@@ -572,6 +572,8 @@ porážka), `types-chronicle.ts` (`foal-born`, `horse-trained`, `horse-retired`)
 
 ### Úloha 10: Scéna – ohrada koní a koně (Sonnet, ≈ 90 kroků)
 
+**Převzato z Úlohy 8 (recenze 24. 10. 2026):** varianta `pen-horse` v `pen.py` chybí – `pen.py` potřebuje atlas z `craft_atlas.py`, který lokálně není, a regenerace by přepsala `pen.glb`. Buď ohradu koní složit ze stávajícího přístřešku, jeslí a žlabu s vyšším pletencem (1,4 m), nebo atlas obnovit bez změny stávajících modelů.
+
 **Soubory:**
 
 - `pen-layout.ts` – výška plotu podle druhu (`PEN_FENCE` → styl podle `species`), žlab na obilí,
@@ -604,6 +606,8 @@ porážka), `types-chronicle.ts` (`foal-born`, `horse-trained`, `horse-retired`)
 `scene-village.md` – Domácí zvířata (koně na pastvě).
 
 ### Úloha 11: Scéna – jezdci a objížďka (Opus, ≈ 120 kroků)
+
+**Převzato z Úlohy 8 (recenze 24. 10. 2026):** sedlo a čabraka (`props/horse/*` z 0 A.D.) – `fauna_from_0ad.py` rekvizity koně neumí; doplnit, nebo jezdit bez sedla (raný středověk – sedlo s třmeny až později; zdůvodnit). Okem zkontrolovat velikost luku, štítu a sed jezdce na koni.
 
 **Soubory:**
 

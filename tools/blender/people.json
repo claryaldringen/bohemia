@@ -224,6 +224,30 @@
           "band": [0.75, 0.78, 0.95, 0.85],
           "rope": [0.06, 0.72, 0.14, 0.84]
         }
+      },
+      {
+        "name": "bow",
+        "dae": "meshes/props/bow_long_indian_a.dae",
+        "point": "prop-weapon_bow",
+        "texture": "textures/skins/props/wood_e.png"
+      },
+      {
+        "name": "training-sword",
+        "dae": "meshes/props/broadsword_celt.dae",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/wood_e.png"
+      },
+      {
+        "name": "wicker-shield",
+        "dae": "meshes/props/shield/round_noboss_f.dae",
+        "point": "prop-shield",
+        "texture": "textures/skins/props/basket_iber_1.dds"
+      },
+      {
+        "name": "spear",
+        "dae": "meshes/props/weap_shaft_wood_a.dae",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/wood_e.png"
       }
     ],
     "clips": [
@@ -304,6 +328,46 @@
             "R": [-0.47, 0.04, 0.98]
           }
         }
+      },
+      {
+        "name": "ride",
+        "animation": "animation/biped/rider/cavalry/crossbowman/pace_relax.dae",
+        "props": ["head"]
+      },
+      {
+        "name": "ride-trot",
+        "animation": "animation/biped/rider/cavalry/crossbowman/trot_relax.dae",
+        "props": ["head"]
+      },
+      {
+        "name": "ride-idle",
+        "animation": "animation/biped/rider/cavalry/crossbowman/idle_relax_01.dae",
+        "props": ["head"]
+      },
+      {
+        "name": "bow-draw",
+        "animation": "animation/biped/infantry/archer/idle_ready.dae",
+        "props": ["head", "bow"]
+      },
+      {
+        "name": "bow-release",
+        "animation": "animation/biped/infantry/archer/attack_ranged.dae",
+        "props": ["head", "bow"]
+      },
+      {
+        "name": "spear-thrust",
+        "animation": "animation/biped/infantry/spearman/attack_melee_01.dae",
+        "props": ["head", "spear"]
+      },
+      {
+        "name": "sword-strike",
+        "animation": "animation/biped/infantry/swordsman/attack_melee_shield_01.dae",
+        "props": ["head", "training-sword", "wicker-shield"]
+      },
+      {
+        "name": "shield-block",
+        "animation": "animation/biped/infantry/swordsman/idle_ready_shield_01.dae",
+        "props": ["head", "training-sword", "wicker-shield"]
       }
     ]
   }

@@ -23,3 +23,9 @@ těchto souborů, ne zbytku hry Bohemia.
 | `cow.glb`     | `cattle_female_a.dae`, `quadraped/bovidae_idle_a.dae`, `quadraped/bovidae_walk_relax.dae`, `quadraped/bovidae_feeding.dae`, `animal_cattle_beige.png` |
 | `pig.glb`     | `pig.dae`, `quadraped/animal_pig_idle_01.dae`, `quadraped/animal_pig_walk_01.dae`, `quadraped/animal_pig_feeding_01.dae`, `animal_pig_d.png`          |
 | `chicken.glb` | `chicken.dae`, `quadraped/chicken_idle_01.dae`, `quadraped/chicken_walk.dae`, `quadraped/chicken_idle_02.dae`, `animal_chicken_b.dds`                 |
+| `horse.glb`   | `horse_breed.dae`, `quadraped/horse_breed_idle_01.dae`, `quadraped/horse_breed_walk.dae`, `horse_brown.png`                                           |
+| `foal.glb`    | stejné soubory jako `horse.glb` (hříbě = tentýž model v ≈ 0,6× velikosti, v GLB zmenšený a s texturou 256 px)                                         |
+
+Kůň a hříbě: 0 A.D. pro koně `horse_breed` pastvu nemá, třetí klíčová póza (hlava dole) je proto
+vytvořená skriptem – hlava a krk základní pózy jsou skloněné dolů (klíč `bend` v `fauna.json`).
+Sedlo ani čabraka v modelu nejsou (kůň je v 0 A.D. bez nich), barvy hráče nemá.

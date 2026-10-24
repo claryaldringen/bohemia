@@ -22,7 +22,16 @@ export type VillagerClip =
   | 'build'
   | 'fruit'
   | 'carry-water'
-  | 'water-idle';
+  | 'water-idle'
+  // jezdec a výcvik vojvodovy rodiny (horses.md, lord.md) – jen `man.glb`
+  | 'ride'
+  | 'ride-trot'
+  | 'ride-idle'
+  | 'bow-draw'
+  | 'bow-release'
+  | 'spear-thrust'
+  | 'sword-strike'
+  | 'shield-block';
 
 /** Všechny klipy – GLB je musí mít (people.json, hlídá test). */
 export const VILLAGER_CLIPS: readonly VillagerClip[] = [
@@ -40,6 +49,15 @@ export const VILLAGER_CLIPS: readonly VillagerClip[] = [
   // pro vodu s vahadlem a vědry (provoz na cestách – villagers.md): chůze a stání
   'carry-water',
   'water-idle',
+  // jezdec (sed na koni) a výcvik s dřevěnými zbraněmi – klipy má jen `man.glb`
+  'ride',
+  'ride-trot',
+  'ride-idle',
+  'bow-draw',
+  'bow-release',
+  'spear-thrust',
+  'sword-strike',
+  'shield-block',
 ];
 
 /** Čas postav (s) ve skutečný okamžik `nowMs` – stejný počátek jako zvířata. */
