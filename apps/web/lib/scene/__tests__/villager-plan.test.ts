@@ -33,6 +33,7 @@ import {
   type VillagerPaths,
 } from '../villager-plan';
 import { orePitRadius } from '../ore-site-layout';
+import { context } from '../villager-plan-cast';
 
 /** Potok v pásu z ∈ (60, 70) – jinak všude suchá schůdná louka; strom 501 a 502 v lese. */
 const GROUND: VillagerGround = {
@@ -625,6 +626,35 @@ describe('walkRoute – trasa kolem domů', () => {
 
   it('přes vodu cesta nevede', () => {
     expect(walkRoute(ctx, { x: 100, z: 50 }, { x: 100, z: 80 })).toBeNull();
+  });
+});
+
+describe('walkRoute – ploty ohrad (paths.md – Ploty jsou neprůchodné)', () => {
+  const pen = (id: number, x: number): NonNullable<SceneVillage['pens']>[number] => ({
+    id,
+    cell: { x: id, y: 0 },
+    x,
+    z: 0,
+    size: 15,
+    built: true,
+    progress: 1,
+    oxen: 0,
+    trainees: 0,
+    cows: 0,
+  });
+  // dvě ohrady vedle sebe, mezi nimi ulička 3 m (plot stojí 1,5 m uvnitř čtverce)
+  const ctx = context({ ...village([]), pens: [pen(1, 100), pen(2, 118)] }, GROUND, 5, 10, null);
+
+  it('krátký pohyb neprotne plot ohrady, obejde ho', () => {
+    const r = walkRoute(ctx, { x: 100, z: -20 }, { x: 100, z: 20 })!;
+    expect(r).not.toBeNull();
+    expect(r.points.length).toBeGreaterThan(2);
+  });
+
+  it('uličkou mezi ohradami projde rovně', () => {
+    const r = walkRoute(ctx, { x: 109, z: -20 }, { x: 109, z: 20 })!;
+    expect(r).not.toBeNull();
+    expect(r.points).toHaveLength(2);
   });
 });
 

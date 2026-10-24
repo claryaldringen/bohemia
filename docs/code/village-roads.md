@@ -78,7 +78,9 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   ní jasně výraznější. Sníh přes `applySeasonGround` – materiály pěšin a cest zvlášť
   (`decalMaterial(group, kind)`, `SNOW`: pěšina dne 0,3, ať stopa ve sněhu trochu prosvítá, cesta
   0,55). Pěšiny dne stromy nemají (stromy jsou jen u pevných cest – níž).
-  Postavy: `path-router.ts` (trasa s tempem úseků) → `VillagerPaths.route` →
+  Postavy: `path-router.ts` – `routeWalker(routes, cellM)` (osa uložené trasy z `routeLine`, tempo
+  `PATH_WALK`; trasa od brány domu k cíli nebo obráceně; bez hledání cesty; `VillagePaths` ho staví
+  při změně klíče tras, bez tras `paths()` = null a postavy jdou krátkým pohybem) → `VillagerPaths.route` →
   `route(points, pace)` – `shuttle` jde po pěšině rychleji. Vývojová stránka: tlačítka
   **Pěšiny**, **Cesta** (ukázka pevné cesty se stromy v každém stadiu – `dev-road.ts`), **Provoz**
   (teplotní mapa) a **Stáří**.
