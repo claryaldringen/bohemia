@@ -7,7 +7,14 @@ import { LIVESTOCK_EPOCH_MS } from './livestock-motion';
 import { cast, figure } from './villager-plan-cast';
 import { doorPoint } from './villager-plan-geometry';
 import { type Context, type PlannedVillager } from './villager-plan-types';
-import { type PoseFn, type VillagerClip, type VillagerPose } from './villager-motion';
+import {
+  fetcher,
+  route,
+  type PoseFn,
+  type VillagerClip,
+  type VillagerKind,
+  type VillagerPose,
+} from './villager-motion';
 import { trainingGroundOf, type TrainingGround, type TrainingSpot } from './training-ground-layout';
 
 /**
@@ -24,6 +31,8 @@ const TURN_S = SHOT_S * 2;
 /** Dvojice se střídá v útoku a krytí po tolika s; u kůlu meč a oštěp po 4 s. */
 const BOUT_S = 1.6;
 const POST_SWITCH_S = 4;
+/** Ženy rodiny chodí od vchodu nejvýš tak daleko (m) – zůstávají na pozemku dvorce. */
+const HOUSEWORK_M = 3.5;
 
 /** Co cvičící dělá v hodinu `hour` (0–24): luk, boj, nebo nic (doma, na koni). */
 export function drillAt(
@@ -69,6 +78,7 @@ function drillPose(
   ground: TrainingGround,
   archer: { lane: number; rank: number; ranks: number },
   combat: { spot: TrainingSpot; role: 'pair-a' | 'pair-b' | 'post' | 'wait' },
+  rest: TrainingSpot,
   window: DayWindow | null,
 ): PoseFn {
   const lane = ground.lanes[archer.lane]!;
@@ -112,21 +122,58 @@ function drillPose(
       }
       return put(out, combat.spot, 'idle');
     }
-    out.hidden = true;
-    return put(out, lane.wait, 'idle');
+    // mimo výcvik (poledne, jízda, večer) ve dne stojí u dvorku jako ostatní muži mimo práci;
+    // skrytý je jen v noci (jako ženy rodiny)
+    put(out, rest, 'idle');
+    if (hour !== null && isNight(hour)) out.hidden = true;
+    return out;
   };
 }
 
-/** Žena rodiny u dvorce: ve dne před vchodem jako ženy u domů, jinak doma. */
-function householdPose(spot: TrainingSpot, window: DayWindow | null): PoseFn {
-  return (t, _herds, out) => {
+/** Noc (mimo dobu, kdy je rodina vidět u dvorku). */
+function isNight(hour: number): boolean {
+  return hour < HOUSEHOLD_HOURS[0] || hour >= HOUSEHOLD_HOURS[1];
+}
+
+/**
+ * Žena rodiny u dvorce: ve dne domácí práce jako ženy u domů (`domestic` – postává před vchodem
+ * a chodí kousek pro vodu a dřevo, tady po dvoře uvnitř pozemku), v noci doma.
+ */
+function householdPose(
+  spot: TrainingSpot,
+  who: { kind: VillagerKind; scale: number; phase: number },
+  window: DayWindow | null,
+): PoseFn {
+  // kousek od vchodu podél dvora (uvnitř pozemku)
+  const goal = { x: spot.x + spot.headingX * HOUSEWORK_M, z: spot.z + spot.headingZ * HOUSEWORK_M };
+  const work = fetcher(
+    route([
+      [spot.x, spot.z],
+      [goal.x, goal.z],
+    ]),
+    who.kind,
+    who.scale,
+    10 + who.phase * 8,
+    who.phase,
+  );
+  return (t, herds, out) => {
+    work(t, herds, out);
     const hour = hourOf(window, t);
-    put(out, spot, 'idle');
-    if (hour !== null && (hour < HOUSEHOLD_HOURS[0] || hour >= HOUSEHOLD_HOURS[1])) {
-      out.hidden = true;
-    }
+    if (hour !== null && isNight(hour)) out.hidden = true;
     return out;
   };
+}
+
+/** Kde muž rodiny stojí mimo výcvik: před vchodem dvorce, na druhé straně než ženy (uvnitř pozemku). */
+function restSpot(ctx: Context, homeId: number, i: number): TrainingSpot {
+  const home = ctx.homes.find((h) => h.id === homeId) ?? ctx.houses.find((h) => h.id === homeId);
+  if (!home) return { x: 0, z: 0, headingX: 0, headingZ: 1 };
+  const side = (i % 2 === 0 ? 1 : -1) * (3.4 + Math.floor(i / 2) * 1.1);
+  const door = doorPoint({ ...home, box: home.own ?? home.box }, side);
+  const hx = door.x - home.position.x;
+  const hz = door.z - home.position.z;
+  const n = Math.hypot(hx, hz) || 1;
+  return { x: door.x, z: door.z, headingX: hx / n, headingZ: hz / n };
 }
 
 /** Místo boje `k`-tého bojujícího: napřed dvojice, pak kůl, ostatní čekají u kůlu. */
@@ -167,7 +214,7 @@ export function lordFigures(
   const lanes = ground.lanes.length;
   const archers = lord.trainees.filter((h) => h.bow > 0).map((h) => h.id);
   const fighters = lord.trainees.filter((h) => h.combat > 0).map((h) => h.id);
-  for (const hours of lord.trainees) {
+  for (const [idx, hours] of lord.trainees.entries()) {
     const c = cast(ctx, `lord:${hours.id}`, { women: 0, child: false }, () =>
       ctx.roster!.takeId(hours.id),
     );
@@ -180,6 +227,7 @@ export function lordFigures(
       ground,
       { lane, rank: Math.floor(a / lanes), ranks: Math.max(1, ranks) },
       combatSpot(ground, Math.max(0, fighters.indexOf(hours.id))),
+      restSpot(ctx, lord.home, idx),
       window,
     );
     out.push(figure(c, pose, 'natural', { kind: 'lord', household: false }));
@@ -199,7 +247,9 @@ export function lordFigures(
       const hz = door.z - home.position.z;
       const n = Math.hypot(hx, hz) || 1;
       const spot = { x: door.x, z: door.z, headingX: hx / n, headingZ: hz / n };
-      out.push(figure(c, householdPose(spot, window), 'linen', { kind: 'lord', household: true }));
+      out.push(
+        figure(c, householdPose(spot, c.who, window), 'linen', { kind: 'lord', household: true }),
+      );
     });
   }
   return out;

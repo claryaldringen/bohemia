@@ -253,11 +253,12 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 - **Vojvodova rodina na dvorku** (lord.md – Ve scéně; `villager-plan-lord.ts`, Úloha 9): pohled
   posílá `SceneLabor.lord` (`village-view-scene.ts` – `sceneLord`) – obydlí vojvody, cvičící
   s hodinami dne z jádra (`trainingFamily` + `trainingHours`, jízda jen s koněm – `Horse.riderId`)
-  a ženy domácnosti dvorce; kdo je dnes na poli (podle počtů `LaborDay.lord`, napřed dospělí podle
-  id), tam není a je mezi ostatními. Obsazení `lordFigures` jde hned po pohřbu a karavanách
+  a ženy domácnosti dvorce; kdo je dnes na poli (podle počtů `LaborDay.lord`, napřed nejmladší dospělí –
+  jádro dává jen počty, jména volí scéna), tam není a je mezi ostatními. Obsazení `lordFigures` jde hned po pohřbu a karavanách
   (`takeId` – do práce vsi pak rodina nejde). Rozvrh (návrh Clauda): dva bloky od 8 a 14 h, v každém
-  polovina hodin – napřed luk, pak boj, pak jízda (na dvorku ten čas není); mimo bloky a v noci je
-  postava skrytá (`hidden`, panel „doma“). Luk: dráhy cvičiště, na střídačku po dvou výstřelech
+  polovina hodin – napřed luk, pak boj, pak jízda (na dvorku ten čas není); mimo bloky ve dne (7–19 h)
+  muži stojí (`idle`) u dvorku, skrytí (`hidden`) jsou jen v noci; ženy domácnosti chodí
+  mezi vchodem a kouskem dvora (`fetcher` jako domácí práce u domů). Luk: dráhy cvičiště, na střídačku po dvou výstřelech
   (`bow-draw` 2,2 s, `bow-release`), ostatní čekají v řadě za střelcem. Boj: napřed dvojice
   (útok `sword-strike` a krytí `shield-block` se střídají po 1,6 s), pak kůl (meč a oštěp po 4 s),
   ostatní čekají u kůlu. Ženy rodiny před vchodem domu dvorce (`own` – uvnitř pozemku) od 7 do

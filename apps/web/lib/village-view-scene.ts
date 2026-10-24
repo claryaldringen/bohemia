@@ -322,8 +322,8 @@ function sceneLabor(state: VillageState, people: SceneLabor['people']): SceneLab
 
 /**
  * Vojvodova rodina dne pro scénu (lord.md – Ve scéně): z cvičící rodiny (`trainingFamily`) a počtů
- * dne (`LaborDay.lord`). Na poli jsou napřed dospělí muži a ženy rodiny (podle id – jako počty
- * `lordDayCounts`), chlapci cvičí vždy; ostatní cvičí hodiny podle věku (`trainingHours`; jezdí
+ * dne (`LaborDay.lord`). Na poli jsou napřed nejmladší dospělí muži a ženy rodiny (jádro dává jen počty
+ * `lordDayCounts`, jména volí scéna), chlapci cvičí vždy; ostatní cvičí hodiny podle věku (`trainingHours`; jezdí
  * jen ten, kdo má koně – `Horse.riderId`) a ženy vedou domácnost dvorce. Bez cvičící rodiny null.
  */
 function sceneLord(state: VillageState, counts: LaborDay['lord'], day: number): SceneLord | null {
@@ -340,7 +340,9 @@ function sceneLord(state: VillageState, counts: LaborDay['lord'], day: number): 
     new Set(
       people
         .filter((p) => ageGroup(p, day) !== 'child')
-        .sort((a, b) => a.id - b.id)
+        // jádro pořadí na poli neurčuje (jen počty) – návrh Clauda: napřed nejmladší dospělí
+        // (silnější), vojvoda tak není vždy první
+        .sort((a, b) => b.bornDay - a.bornDay || a.id - b.id)
         .slice(0, Math.max(0, count))
         .map((p) => p.id),
     );

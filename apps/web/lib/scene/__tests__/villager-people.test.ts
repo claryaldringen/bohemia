@@ -677,16 +677,40 @@ describe('vojvodova rodina na dvorku (lord.md – Ve scéně)', () => {
     expect(pose(lord, hour(8.75)).stage).toBe('combat');
     expect(['sword-strike', 'shield-block', 'spear-thrust']).toContain(pose(lord, hour(8.75)).clip);
     expect(pose(boy, hour(8.75)).stage).toBe('bow');
-    // v noci a mimo bloky (jízda, poledne) nejsou vidět
-    for (const h of [2, 10.5, 12, 22]) {
+    // mimo bloky ve dne (jízda, poledne, večer) stojí u dvorku na pozemku, skrytí jsou jen v noci
+    for (const h of [10.5, 12, 17.5]) {
+      for (const who of [lord, boy]) {
+        const at = pose(who, hour(h));
+        expect(at.hidden).toBe(false);
+        expect(onManor(at.x, at.z)).toBe(true);
+        expect(at.clip).toBe('idle');
+        expect(at.stage).not.toBe('bow');
+      }
+    }
+    for (const h of [2, 5, 22]) {
       expect(pose(lord, hour(h)).hidden).toBe(true);
       expect(pose(boy, hour(h)).hidden).toBe(true);
     }
-    // žena rodiny ve dne před vchodem dvorce (uvnitř pozemku), v noci doma
+    // žena rodiny ve dne u dvorce (uvnitř pozemku), v noci doma
     const home = pose(wife, hour(11));
     expect(home.hidden).toBe(false);
     expect(onManor(home.x, home.z)).toBe(true);
     expect(pose(wife, hour(23)).hidden).toBe(true);
+  });
+
+  it('žena rodiny dělá domácí práce – celý den nestojí na místě, z pozemku nevychází', () => {
+    const wife = plan(manorVillage()).find((p) => p.person === 102)!;
+    const clips = new Set<string>();
+    const spots = new Set<string>();
+    for (let h = 7; h < 19; h += 0.05) {
+      const at = pose(wife, hour(h));
+      expect(at.hidden).toBe(false);
+      expect(onManor(at.x, at.z)).toBe(true);
+      clips.add(at.clip);
+      spots.add(`${at.x.toFixed(1)},${at.z.toFixed(1)}`);
+    }
+    expect(clips.size).toBeGreaterThan(2);
+    expect(spots.size).toBeGreaterThan(5);
   });
 
   it('nikdo z rodiny nejde do práce vsi; ostatní postavy na pozemku dvorce dál ne', () => {
@@ -699,7 +723,8 @@ describe('vojvodova rodina na dvorku (lord.md – Ve scéně)', () => {
     const others = people.filter((p) => p.job?.kind !== 'lord');
     expect(others.length).toBeGreaterThan(3);
     for (const p of others) {
-      for (const h of [6, 8.25, 9, 15]) {
+      // i trasy ze simulace (pěšiny, provoz) a místa před domem míjejí dvůr dvorce
+      for (let h = 0; h < 24; h += 0.25) {
         const at = pose(p, hour(h));
         if (!at.hidden) expect(onManor(at.x, at.z)).toBe(false);
       }
