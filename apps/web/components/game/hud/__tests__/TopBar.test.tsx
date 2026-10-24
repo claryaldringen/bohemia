@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { VillageView } from '@/lib/village-view';
 import {
+  LaborTooltip,
   SatiationTooltip,
   cartsLabel,
   dairyName,
@@ -54,6 +55,21 @@ describe('SatiationTooltip', () => {
     expect(html).toMatch(/data-share="dairy".*cheese\.png.*10 %/);
     expect(html).toMatch(/data-share="eggs".*eggs\.png.*5 %/);
     expect(html).toMatch(/data-share="fruit".*apples\.png.*0 %/);
+  });
+});
+
+describe('LaborTooltip – vojvodova rodina', () => {
+  it('řádek s ikonou dvorce: cvičí, při hladu na poli; bez rodiny jen název', () => {
+    const train = renderToStaticMarkup(
+      <LaborTooltip lord={{ training: 5, field: 0, household: 3 }} />,
+    );
+    expect(train).toContain('manor.png');
+    expect(train).toContain('Vojvodova rodina: 5 cvičí');
+    const field = renderToStaticMarkup(
+      <LaborTooltip lord={{ training: 0, field: 5, household: 3 }} />,
+    );
+    expect(field).toContain('Vojvodova rodina: 5 na poli');
+    expect(renderToStaticMarkup(<LaborTooltip lord={null} />)).not.toContain('village-labor-lord');
   });
 });
 

@@ -44,4 +44,31 @@ describe('scenePersons', () => {
       { id: 5, age: 25, sex: 'male', home: 12, role: 'farmer' },
     ]);
   });
+
+  it('dvorec: vnuk vojvody, snacha vojvody a dovednosti cvičeného', () => {
+    const people: Person[] = [
+      { id: 1, bornDay: born(60), dwellingId: 10, sex: 'male', spouseId: 2 },
+      { id: 2, bornDay: born(55), dwellingId: 10, sex: 'female', spouseId: 1 },
+      { id: 3, bornDay: born(30), dwellingId: 10, sex: 'male', fatherId: 1, spouseId: 4 },
+      { id: 4, bornDay: born(28), dwellingId: 10, sex: 'female', spouseId: 3 },
+      {
+        id: 5,
+        bornDay: born(9),
+        dwellingId: 10,
+        sex: 'male',
+        fatherId: 3,
+        arms: { bow: 12.4, combat: 0, riding: 0 },
+      },
+    ];
+    const list = scenePersons(
+      { people, dwellings: [dwelling(10)], manorId: 10, constructions: [] },
+      DAY,
+    );
+    const role = (id: number): string | undefined => list.find((p) => p.id === id)?.role;
+    expect(role(3)).toBe('voivode-son');
+    expect(role(4)).toBe('voivode-daughter-in-law');
+    expect(role(5)).toBe('voivode-grandson');
+    expect(list.find((p) => p.id === 5)?.arms).toEqual({ bow: 12, combat: 0, riding: 0 });
+    expect(list.find((p) => p.id === 3)?.arms).toBeUndefined();
+  });
 });

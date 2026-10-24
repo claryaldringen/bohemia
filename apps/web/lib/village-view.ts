@@ -305,6 +305,7 @@ export function buildVillageView(
     storesMonths: summary.storesMonths,
     satiation: summary.satiation,
     commonLaborPerDay: summary.commonLaborPerDay,
+    lord: state.labor?.lord ?? null,
     fullHousehold: summary.fullHousehold,
     build: buildOptions(state, landscape, summary.crafts.coverage),
     relocation: relocationOptions(state, landscape),

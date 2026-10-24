@@ -13,6 +13,7 @@ import {
   expeditionTo,
   familyBuyPrice,
   isHorseGood,
+  lordFamily,
   neighbourOf,
   neighbourStock,
   obstaclesOf,
@@ -36,6 +37,14 @@ import {
   type TrailOption,
   type VillageState,
 } from '@bohemia/game';
+import {
+  armsView,
+  personPortrait,
+  scenePersons,
+  type ArmsView,
+  type PersonPortraitIcon,
+} from './person-view';
+import { ROLE_NAMES } from './person-roles';
 
 /**
  * Výprava na cestě – co nesou, co přinesou, kdo s ní odešel a kdo přijde (rodiny, svobodní muži
@@ -121,6 +130,19 @@ export interface VillageNeighbour {
   room: { cows: number; oxen: number };
 }
 
+/**
+ * Obyvatel dvorce (lord.md – Co hráč vidí): portrét, role a věk; muži rodiny od 7 let (cvičí) nesou
+ * dovednosti `arms`, `horse` je u toho, kdo koně má (jezdí).
+ */
+export interface ManorMember {
+  id: number;
+  portrait: PersonPortraitIcon;
+  role: string;
+  age: number;
+  arms: ArmsView | null;
+  horse: boolean;
+}
+
 /** Dvorec vojvody pro panel výběru. */
 export interface VillageManor {
   /** Obydlí (id domácnosti), které je dvorcem. */
@@ -129,6 +151,26 @@ export interface VillageManor {
   trails: TrailOption[];
   /** Sousedé po hotových stezkách (v pořadí směrů). */
   neighbours: VillageNeighbour[];
+  /** Obyvatelé dvorce od nejstaršího (lord.md – Co hráč vidí). */
+  family?: ManorMember[];
+}
+
+/** Obyvatelé dvorce s rolí a dovednostmi (muži rodiny od 7 let vždy, i s nulami). */
+export function manorFamily(state: VillageState, day: number): ManorMember[] {
+  const manor = villageManor(state);
+  if (!manor) return [];
+  const trainees = new Set(lordFamily(state, day).trainees.map((p) => p.id));
+  return scenePersons(state, day)
+    .filter((p) => p.home === manor.id)
+    .map((p): ManorMember => ({
+      id: p.id,
+      portrait: personPortrait(p),
+      role: ROLE_NAMES[p.role],
+      age: p.age,
+      arms: p.arms ?? (trainees.has(p.id) ? armsView({ bow: 0, combat: 0, riding: 0 }) : null),
+      horse: p.horse === true,
+    }))
+    .sort((a, b) => b.age - a.age || a.id - b.id);
 }
 
 /**
@@ -296,5 +338,6 @@ export function manorView(
     neighbours: neighbourViews(state, day, landscape).filter(
       (n) => ownMaps[n.direction] === undefined,
     ),
+    family: manorFamily(state, day),
   };
 }

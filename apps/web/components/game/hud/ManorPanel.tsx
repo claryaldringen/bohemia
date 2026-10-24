@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactElement, type ReactNode } from 'react';
 import type { Direction8, TrailOption } from '@bohemia/game';
 import { useDismiss } from '@/hooks/use-dismiss';
-import type { VillageManor } from '@/lib/manor-view';
+import type { ManorMember, VillageManor } from '@/lib/manor-view';
 import { DIRECTION_NAMES } from '@/lib/trade-names';
 import { formatDecimal, formatInteger } from '@/lib/village-format';
 import { Tooltip } from './Tooltip';
@@ -221,5 +221,59 @@ export function ManorUpgrades({
         </div>
       )}
     </div>
+  );
+}
+
+/** Dovednosti rodiny v panelu – ikona, název v popisku a nejvyšší hodnota (lord.md). */
+const ARMS_STATS = [
+  { key: 'bow', icon: 'luk', name: 'Lukostřelba' },
+  { key: 'combat', icon: 'boj', name: 'Boj' },
+  { key: 'riding', icon: 'jizda', name: 'Jízda na koni' },
+] as const;
+
+/**
+ * Obyvatelé dvorce (lord.md – Co hráč vidí): u každého portrét s věkem (popisek role), u mužů
+ * rodiny ikony luku, boje a jízdy s čísly (popisek „Lukostřelba 64 / 100“). Jízda jen u toho,
+ * kdo koně má nebo už jezdil.
+ */
+export function ManorFamily({ family }: { family: readonly ManorMember[] }): ReactElement {
+  return (
+    <ul
+      data-testid="manor-family"
+      aria-label="Obyvatelé dvorce"
+      className="flex max-w-[26rem] flex-wrap gap-x-3 gap-y-1"
+    >
+      {family.map((m) => (
+        <li key={m.id} data-testid={`manor-member-${m.id}`} className="flex items-center gap-1.5">
+          <Tooltip placement="above" content={m.role}>
+            <span
+              className="hud-inset flex min-w-14 items-center gap-1 rounded px-1 text-xs tabular-nums text-[#ecdfc4]"
+              tabIndex={0}
+            >
+              <img src={`/icons/resources/${m.portrait}.png`} alt="" width={20} height={20} />
+              {m.age}
+            </span>
+          </Tooltip>
+          {m.arms &&
+            ARMS_STATS.filter((s) => s.key !== 'riding' || m.horse || m.arms!.riding > 0).map(
+              (s) => (
+                <Tooltip
+                  key={s.key}
+                  placement="above"
+                  content={`${s.name} ${m.arms![s.key]} / 100`}
+                >
+                  <span
+                    className="flex items-center gap-0.5 text-xs tabular-nums text-[#ecdfc4]"
+                    tabIndex={0}
+                  >
+                    <img src={`/icons/resources/${s.icon}.png`} alt="" width={20} height={20} />
+                    <span data-testid={`manor-arms-${s.key}-${m.id}`}>{m.arms![s.key]}</span>
+                  </span>
+                </Tooltip>
+              ),
+            )}
+        </li>
+      ))}
+    </ul>
   );
 }

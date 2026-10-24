@@ -3,6 +3,7 @@ import { type ReactElement } from 'react';
 import { VillageTarget } from '@/lib/scene/village-picking';
 import { HERD_LABELS, type SelectionDetails } from '@/lib/selection-details';
 import { formatInteger, formatPercent } from '@/lib/village-format';
+import type { ArmsView } from '@/lib/person-view';
 import { CartGoal } from '@/lib/draft-activity';
 import { Tooltip } from '../Tooltip';
 import { TargetButton, Stat, ROW, Flag } from './parts';
@@ -40,6 +41,35 @@ export function PersonPortrait({
   );
 }
 
+/** Dovednosti cvičeného člověka (lord.md – Co hráč vidí): luk, boj a jízda, jízda jen s koněm. */
+function PersonArms({
+  arms,
+  horse,
+}: {
+  arms: NonNullable<Extract<SelectionDetails, { kind: 'person' }>['arms']>;
+  horse: boolean;
+}): ReactElement {
+  const stats: { key: keyof ArmsView; icon: string; name: string }[] = [
+    { key: 'bow', icon: 'luk', name: 'Lukostřelba' },
+    { key: 'combat', icon: 'boj', name: 'Boj' },
+  ];
+  if (horse || arms.riding > 0) stats.push({ key: 'riding', icon: 'jizda', name: 'Jízda na koni' });
+  return (
+    <>
+      {stats.map((s) => (
+        <Stat
+          key={s.key}
+          icon={s.icon}
+          name={`${s.name} ${arms[s.key]} / 100`}
+          testId={`selection-person-arms-${s.key}`}
+        >
+          {arms[s.key]}
+        </Stat>
+      ))}
+    </>
+  );
+}
+
 /**
  * Člověk vsi (villagers.md – Výběr postavy): co právě dělá (jediný řádek slov), věk, dům (tlačítko
  * ho vybere) a u pasáka zvíře stáda.
@@ -64,6 +94,7 @@ export function PersonBody({
         <Stat icon="date" name="Věk (roky)" testId="selection-person-age">
           {formatInteger(details.age)}
         </Stat>
+        {details.arms && <PersonArms arms={details.arms} horse={details.horse === true} />}
         {home !== null && details.homeIcon && (
           <Tooltip content="Dům" placement="above">
             <button

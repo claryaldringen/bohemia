@@ -175,7 +175,39 @@ const neighbours: VillageNeighbour[] = [
   },
 ];
 
-const manor: VillageManor = { dwellingId: 3, trails, neighbours };
+const manor: VillageManor = {
+  dwellingId: 3,
+  trails,
+  neighbours,
+  family: [
+    {
+      id: 1,
+      portrait: 'man',
+      role: 'Vojvoda',
+      age: 42,
+      arms: { bow: 64, combat: 51, riding: 38 },
+      horse: true,
+    },
+    { id: 2, portrait: 'woman', role: 'Vojvodova žena', age: 39, arms: null, horse: false },
+    {
+      id: 3,
+      portrait: 'man',
+      role: 'Syn vojvody',
+      age: 21,
+      arms: { bow: 40, combat: 33, riding: 12 },
+      horse: true,
+    },
+    { id: 4, portrait: 'woman', role: 'Snacha vojvody', age: 19, arms: null, horse: false },
+    {
+      id: 5,
+      portrait: 'child',
+      role: 'Syn vojvody',
+      age: 11,
+      arms: { bow: 8, combat: 0, riding: 0 },
+      horse: false,
+    },
+  ],
+};
 
 const dwelling = (
   over: Partial<Extract<SelectionDetails, { kind: 'dwelling' }>> = {},

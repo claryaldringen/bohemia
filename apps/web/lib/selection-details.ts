@@ -33,6 +33,7 @@ import type { VillageGrainPit } from './grain-pit-view';
 import type { VillageThreshingFloor } from './village-view-types';
 import type { HouseholdRelocation } from './relocation-view';
 import { TREE_GROWTH_YEARS } from './orchard-look';
+import { personPortrait, type ArmsView, type PersonPortraitIcon } from './person-view';
 import { personActivity, type PersonFigureState } from './person-activity';
 import {
   cartActivityText,
@@ -456,6 +457,10 @@ type SelectionKinds =
       /** Ikona domu (`public/icons/build/` – typ obydlí nebo dílna). */
       homeIcon: string | null;
       herd: HerdSpecies | null;
+      /** Dovednosti, když se člověk cvičil (lord.md – Dovednosti); jinak null. */
+      arms?: ArmsView | null;
+      /** Má koně (jezdec – horses.md). */
+      horse?: boolean;
       /**
        * Oráč a honák u spřežení, vozka u vozu (villagers.md – Výběr postavy): tlačítko vybere
        * spřežení či vůz; ostatní null.
@@ -522,8 +527,7 @@ type SelectionKinds =
       kind: 'threshing-floor';
     } & VillageThreshingFloor);
 
-/** Portrét člověka podle věku a pohlaví (ikony lidí v `public/icons/resources/`). */
-export type PersonPortraitIcon = 'man' | 'woman' | 'child' | 'elder';
+export type { PersonPortraitIcon };
 
 /** Člověk u spřežení či vozu v panelu – id (tlačítko ho vybere) a portrét. */
 export interface CrewMember {
@@ -916,6 +920,8 @@ function personDetails(
     home: home ? home.id : null,
     homeIcon: home ? (home.craft ? CRAFT_LOOKS[home.craft].icon : home.type) : null,
     herd: herding ? (figure?.herd ?? null) : null,
+    arms: person.arms ?? null,
+    horse: person.horse === true,
     draft:
       job?.kind === 'plough'
         ? { kind: 'plough-team', team: job.team }
@@ -923,13 +929,6 @@ function personDetails(
           ? { kind: 'cart', id: job.cart }
           : null,
   };
-}
-
-/** Portrét člověka: starší, dítě (do 14 let), žena, nebo muž. */
-function personPortrait(person: { age: number; sex: string }): PersonPortraitIcon {
-  if (person.age >= AGE.elder) return 'elder';
-  if (person.age < AGE.adult) return 'child';
-  return person.sex === 'female' ? 'woman' : 'man';
 }
 
 /** Člověk u spřežení či vozu (id ze scény) – jen když ho ves ve scéně má. */
