@@ -333,14 +333,25 @@ export function populationDay(
   // porody – po domácnostech podle id (i zakladatelé na staveništi první zemnice), v domácnosti
   // po manželských párech podle id ženy: žena 16–44 s manželem od 16 let v témže domě
   // (kinship.md – Pohlaví), šance podle věku ženy, po svatbě a po porodu pauza (rozestup porodů);
-  // chlapec s pravděpodobností BOY_SHARE
+  // chlapec s pravděpodobností BOY_SHARE. Vedlejší manželka muže rodu nemusí bydlet s mužem
+  // (lord.md – Manželky, Návštěvy a porody) – jejího muže hledá mapa lidí, sestavená nejvýš jednou
+  // za den; přeplnění podle jejího domu
   const households = [...new Set(state.people.map((p) => p.dwellingId))].sort((a, b) => a - b);
   const pauses = birthPauses(state);
+  let everyone: Map<number, Person> | undefined;
+  const fatherOf = (mother: Person, members: readonly Person[]): Person | undefined => {
+    const here = members.find((m) => m.id === mother.spouseId);
+    if (here || mother.spouseId === undefined) return here;
+    everyone ??= new Map(state.people.map((p) => [p.id, p]));
+    const husband = everyone.get(mother.spouseId);
+    // jen vedlejší manželka (muž má hlavní jinou); ostatní páry rodí jen v témže domě
+    return husband && husband.spouseId !== mother.id ? husband : undefined;
+  };
   for (const household of households) {
     const members = occupants(state, household);
     const couples = members.flatMap((mother) => {
       if (!canBear(mother, day)) return [];
-      const father = members.find((m) => m.id === mother.spouseId);
+      const father = fatherOf(mother, members);
       return father && canFather(father, day) ? [{ mother, father }] : [];
     });
     for (const { mother, father } of couples) {

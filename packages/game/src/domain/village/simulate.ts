@@ -36,6 +36,7 @@ import { roadSwathDay } from './road-swath';
 import { wagonRoadsDay } from './wagon-road';
 import { isVillageDormant } from './departure';
 import { dynastyDay, withDynasty } from './dynasty';
+import { ensureMainWives, extraWivesDay } from './dynasty-wives';
 import { updateRuins } from './ruins';
 import {
   CHRONICLE_MAX_EVENTS,
@@ -217,11 +218,15 @@ function simulateDay(
   // `startKiln`, místo nové jámy), dokončení staveb (`finishConstructions`) a přestavby
   // (`decideRebuilds` – i na novém pozemku). Stavby hráče a zemní práce vozové cesty kontroluje akce
   // (`withoutBuiltOverGrainPits` v updateVillage). Co bere id až po kontrole (porody, sňatky,
-  // nevěsty z okolí), nic nestaví. Nový krok, který staví bez nového id nebo po kontrole, musí
-  // kontrolu spustit sám.
+  // nevěsty z okolí, další manželky), nic nestaví. Nový krok, který staví bez nového id nebo po
+  // kontrole, musí kontrolu spustit sám.
   if (state.nextId !== idsBefore) moveGrainFromCoveredPits(state, day, landscape);
-  // sňatky mezi domy – svobodní ve dvou domech se vezmou (population.md – Sňatky mezi domy)
+  // sňatky mezi domy – svobodní ve dvou domech se vezmou (population.md – Sňatky mezi domy); muž
+  // bez hlavní manželky, který nějakou manželku má (osadníci výpravy), se před nimi nežení
+  // (lord.md – Nová hlavní manželka); pak další manželky mužů rodu z okolí (lord.md – Manželky)
+  state.chronicle.push(...ensureMainWives(state, day));
   state.chronicle.push(...arrangeMarriages(state, day));
+  state.chronicle.push(...extraWivesDay(state, day));
   const { satiation, energy, fruit, meat } = eat(state, day, coverage);
   // vojvodova rodina (lord.md): při hladu jde od zítřka na pole, po 30 dnech plného přídělu zpět;
   // výcvik dne – kdo necvičil, zapomíná

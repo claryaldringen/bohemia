@@ -3,6 +3,7 @@
 // vojvoda. Ves bez rodu (`dynasty.lords` prázdné) se chová jako před rodem. Čisté funkce bez I/O.
 import { cloneState } from './clone';
 import { generatedLineName } from './dynasty-names';
+import { ensureMainWives } from './dynasty-wives';
 import { parentIndex, type ParentIndex } from './kinship';
 import { villageManorId } from './manor';
 import type { ChronicleEvent, DynastyState, Person, VillageState } from './types';
@@ -109,7 +110,7 @@ function founderOf(state: VillageState): Person | undefined {
  * týž objekt (idempotentní). Vojvodou je nejstarší muž dvorce, i chlapec; bez muže v dvorci
  * nejstarší muž vsi, který se s manželkou a svobodnými dětmi přestěhuje do dvorce; nikdo jiný se
  * nestěhuje (Vlkov beze změny). Příznak rodu dostane vojvoda a jeho žijící potomci po meči (i přes
- * zemřelé předky v rodokmenu), žijící synové vojvody jsou synové hlavní manželky. Vojvoda a jeho
+ * zemřelé předky v rodokmenu), muži rodu kromě vojvody jsou synové hlavní manželky. Vojvoda a jeho
  * synové jméno nemají (pojmenuje je hráč), ostatní muži rodu dostanou vygenerované. Ves bez muže
  * je ves bez rodu – převod sám hru neukončí.
  */
@@ -127,7 +128,9 @@ export function withDynasty(state: VillageState): VillageState {
   for (const p of [...next.people].sort((a, b) => a.id - b.id)) {
     if (p.sex !== 'male' || !descendsByFather(index, p.id, lord.id)) continue;
     p.line = true;
-    if (p.fatherId === lord.id) p.mainWifeSon = true;
+    // ves před rodem měla každý muž jednu ženu – matka každého muže rodu (kromě vojvody) byla
+    // hlavní manželkou jeho otce, stejně jako u `markNewborn`
+    if (p.id !== lord.id) p.mainWifeSon = true;
     // vnuci a další potomci – jméno hned (generované), vojvoda a synové čekají na hráče
     if (p.id !== lord.id && p.fatherId !== lord.id) p.name = generatedLineName(next, day, p.id);
   }
@@ -176,9 +179,10 @@ function keepLordId(state: VillageState, day: number): ChronicleEvent[] {
 }
 
 /**
- * Krok dne rodu po `populationDay` (simulate.ts): drží dnešního vojvodu. Jména a příznaky dnes
- * narozených dává `markNewborn` už při porodu. Ves bez rodu – nic. Mutuje stav.
+ * Krok dne rodu po `populationDay` (simulate.ts): muž, kterému dnes zemřela hlavní manželka, má
+ * novou (`ensureMainWives`), a drží dnešního vojvodu. Jména a příznaky dnes narozených dává
+ * `markNewborn` už při porodu. Ves bez rodu – nic. Mutuje stav.
  */
 export function dynastyDay(state: VillageState, day: number): ChronicleEvent[] {
-  return keepLordId(state, day);
+  return [...ensureMainWives(state, day), ...keepLordId(state, day)];
 }

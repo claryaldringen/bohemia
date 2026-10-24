@@ -156,7 +156,8 @@ směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, 
   `tradeQuote` je ocení a zkontroluje (`NO_PEOPLE_WANTED`, `OVER_PEOPLE_DEMAND`,
   `NO_EMIGRANTS`…). Koho ves dá, vybere `emigrantGroups` (`Emigrants` – rodiny podle
   `familiesOf`, pak svobodní muži, pak ženy 16–44 – `nextSingle`, z nejvíc přeplněného domu, ne
-  dvorec, ne dědic – `unmarriedHeir` v `households.ts` –, ne rozpad domácnosti; postupně, prefix
+  dvorec, ne dědic – `unmarriedHeir` v `households.ts` –, ne rozpad domácnosti, ve vsi s rodem ne
+  muž rodu ani manželka muže rodu – `keptByLine`, lord.md – Manželky; postupně, prefix
   stálý); odejdou hned v `startExpedition` (`removePeople` se směrem, `TradeExpedition.givePeople`
   i s `members` – pohlaví a den narození pro postavy karavany). Lidé souseda
   (`TradeExpedition.getPeople`, `ComingPeople`) přijdou v `finishExpeditions` – `settleNewcomers`

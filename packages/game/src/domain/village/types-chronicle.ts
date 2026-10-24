@@ -32,6 +32,10 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'line-birth' }
   /** Vojvodou se stal muž rodu `name` (lord.md – Nástupnictví); bez jména chybí. */
   | { kind: 'lord'; name?: string }
+  /** Muž rodu `name` si vzal další manželku z okolí (lord.md – Manželky); bez jména chybí. */
+  | { kind: 'extra-wife'; name?: string }
+  /** Muž rodu `name` má po smrti hlavní manželky novou hlavní (lord.md – Nová hlavní manželka). */
+  | { kind: 'main-wife'; name?: string }
   /**
    * `cause: 'hunger'` – zemřel hlady (nahromaděný hlad, population.md); jinak bez údaje. `name` –
    * jméno zemřelého muže rodu (lord.md – Kde se jméno ukazuje); ostatní ho nemají.

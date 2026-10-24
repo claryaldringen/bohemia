@@ -705,6 +705,9 @@ a začátek bez lidí mimo rodinu (viz Odpovědi Martina – 24. 10. 2026, odpov
 | K rodině patří i vojvodovy vedlejší manželky mimo dvorec, jejich děti tam pracují; samotné děti jdou k otci                                                                 | návrh Clauda           |
 | Opravy domů rodiny ze společné práce vsi jako dosud (model práci mužů a žen nedělí)                                                                                         | návrh Clauda           |
 | Převod: dnešní žena muže rodu je hlavní manželka; Vlkov beze změny                                                                                                          | návrh Clauda           |
+| Převod: příznak „syn hlavní manželky“ mají všichni muži rodu kromě vojvody (ves měla jednu ženu na muže), jako při narození                                                 | návrh Clauda           |
+| Rod se sousedovi nedává – výměna lidí nevybere muže rodu ani manželku muže rodu                                                                                             | návrh Clauda           |
+| Další manželka nebydlí sama v dvorci; v prázdném obydlí jen to s nejnižším id                                                                                               | návrh Clauda           |
 
 ## Odpovědi Martina (23. 10. 2026)
 

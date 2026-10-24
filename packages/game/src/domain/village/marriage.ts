@@ -377,7 +377,7 @@ function outsideMarriages(
 }
 
 /** Sousední ves podle losu 0–1 – jeden z osmi směrů (NEIGHBOR_DIRECTIONS). */
-function neighbor(roll: number): NeighborDirection {
+export function neighbor(roll: number): NeighborDirection {
   const i = Math.min(NEIGHBOR_DIRECTIONS.length - 1, Math.floor(roll * NEIGHBOR_DIRECTIONS.length));
   return NEIGHBOR_DIRECTIONS[i] ?? 'N';
 }

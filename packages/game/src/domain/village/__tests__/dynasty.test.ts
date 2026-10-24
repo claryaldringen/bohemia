@@ -70,10 +70,10 @@ describe('withDynasty – převod starších vsí (lord.md – Převod staršíc
     expect(new Set(names).size).toBe(3);
   });
 
-  it('žijící synové vojvody jsou synové hlavní manželky', () => {
+  it('muži rodu kromě vojvody jsou synové hlavní manželky (jako u narození)', () => {
     const s = withDynasty(family());
     const flagged = s.people.filter((p) => p.mainWifeSon).map((p) => p.id);
-    expect(flagged).toEqual([12, 14]);
+    expect(flagged).toEqual([12, 13, 14, 15, 17]);
     expect(mainWifeOf(s, byId(s, 10)!)?.id).toBe(11);
     expect(wivesOf(s, byId(s, 10)!).map((w) => w.id)).toEqual([11]);
     expect(isSecondaryWife(s, byId(s, 11)!)).toBe(false);

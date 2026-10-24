@@ -17,9 +17,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `research/2026-10-19-population-growth.md`) a **rozestup** `BIRTH_SPACING` (po porodu 21 měsíců,
   po svatbě a od založení vsi 9 měsíců – `Person.nextBirthFrom`; ve vsích uložených dřív od
   nejmladšího žijícího dítěte – `birthPauses`), potom `birthRatePerYear` (průměrný odstup =
-  1 / plodnost věku). **Domácnost drží člověk 16–44** (`householdBreaksUp` v `people.ts`;
-  osamělý 16–44 zůstává), rozpadlá jde k příbuzným (syn, dcera, sourozenec), jinak do domu
-  s nejvíc místy – jen kam se vejde bez přeplnění, jinak zůstane doma (Martin; samotné děti jdou
+  1 / plodnost věku). Vedlejší manželka muže rodu rodí i v jiném domě než muž (`fatherOf`
+  v `populationDay` – mapa lidí nejvýš jednou za den; pár v různých domech mimo to dál ne),
+  přeplnění podle domu ženy (lord.md – Návštěvy a porody). **Domácnost drží člověk 16–44**
+  (`householdBreaksUp` v `people.ts`; osamělý 16–44 zůstává), rozpadlá jde k příbuzným (syn,
+  dcera, sourozenec), jinak do domu s nejvíc místy – jen kam se vejde bez přeplnění, jinak zůstane doma (Martin; samotné děti jdou
   i do přeplněného).
 
 - **Osídlení obydlí** (`households.ts`; population.md – Nové obydlí, kinship.md – Domácnosti): nové
@@ -72,8 +74,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     vojvoda = nejstarší muž dvorce i chlapec, bez muže v dvorci nejstarší muž vsi, který se se
     ženou a svobodnými dětmi přestěhuje do dvorce (`moveIntoManor`); bez muže ve vsi ves bez
     rodu. `line` vojvodovi a žijícím potomkům po meči (`parentIndex`, i přes zemřelé předky),
-    `mainWifeSon` žijícím synům vojvody; vojvoda a synové bez jména, ostatní muži rodu jméno
-    vygenerované. Nikdo jiný se nestěhuje (Vlkov: vojvoda 25 let a syn 3 roky, oba bez jména).
+    `mainWifeSon` všem mužům rodu kromě vojvody (ves před rodem měla jednu ženu na muže – matka
+    byla hlavní manželkou otce, stejně jako u `markNewborn`); vojvoda a synové bez jména, ostatní
+    muži rodu jméno vygenerované. Nikdo jiný se nestěhuje (Vlkov: vojvoda 25 let a syn 3 roky,
+    oba bez jména).
   - **Narození:** `populationDay` volá u každého dítěte `markNewborn` – syn muže rodu `line`,
     syn hlavní manželky `mainWifeSon`; syn vojvody bez jména (kronika `line-birth`), ostatní
     jméno hned – `generatedLineName` (proud `'line-name:' + den + člověk`, jen jméno, které nenosí
@@ -81,6 +85,21 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   - **Vojvoda:** `currentLord` (žijící `lordId`); `dynastyDay` po `populationDay` – zemřel-li,
     vojvodou je nejstarší muž rodu v dvorci (kronika `lord`, záznam v `lords`), bez něj `null`
     (dočasně, nástupnictví přijde s Úlohou 4). `lordFamily` zatím dál bere `householdHead`.
+  - **Manželky** (`dynasty-wives.ts`, lord.md – Manželky): `spouseId` je **asymetrický** – žena
+    ukazuje na muže (i vedlejší), muž jen na hlavní; manželky muže = ženy s jeho id. Vedlejší
+    manželka se za živého muže nevdává (`isSingle`), smrt muže ovdoví všechny (`removePeople`),
+    smrt hlavní smaže `spouseId` muže. `extraWivesDay` (krok po `arrangeMarriages`): muž rodu od
+    `LORD.extraWifeFromAge` s 1–3 žijícími manželkami, v pořadí id jeden los (proud
+    `'wife:' + den`, `LORD.extraWifePerYear`), ne v hladu; žena z okolí 16–22 let s `origin`
+    a svatební pauzou porodů bydlí v domě muže, nepřeplní-li ho, jinak v prázdném obydlí (ne
+    dvorec; po kroku 6 na něj nikdo nečeká), jinak nepřijde (kronika `extra-wife`). Ves bez rodu
+    – nic. `ensureMainWives` (v `dynastyDay` i před `arrangeMarriages` – osadníci výpravy, kde muž
+    přišel jen s vedlejší): muž bez `spouseId` se žijícími manželkami dostane hlavní – matku
+    nejstaršího žijícího syna, jehož matka žije, jinak nejnižší id; jejím synům `mainWifeSon`,
+    nebydlí-li s ním, přestěhuje se k němu se svobodnými dětmi i do přeplněného (kronika
+    `main-wife`). Bez náhody; ve vsi bez vícežeňství se nic nestane.
+  - **Výměna lidí:** ves s rodem nedá sousedovi muže rodu ani manželku muže rodu (`keptByLine`
+    v `people-trade.ts`, návrh Clauda).
 - **Sňatky** (`marriage.ts`, kinship.md – Sňatky; Martin, varianta c; 19. 10. 2026: „Vdova by se
   měla snažit co nejdříve vdát, ideálně ve vesnici.“): svobodný = muž od 16 / žena 16–44 bez
   manžela, i vdova s malými dětmi (`isSingle`); vdova / vdovec = svobodný s dítětem
