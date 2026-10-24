@@ -643,6 +643,28 @@ ohrady k vodě 375 → 378 m (7,8 → 7,9 min), k dílům polí ⌀ 457 → 459 
 k vodě −5,6 %, k polím +3,6 % (nové svahy vedle starých). Přestavba ≈ 10 s. Po 1 i 12 měsících
 42 úseků a 10 křižovatek, opuštěné kusy nepřibývají (u obilné jámy už ne).
 
+**Chyba a přestávky** (návrh Clauda 24. 10. 2026, po recenzi): skončí-li přestavba výjimkou, ves
+zůstane se starou sítí, dostane příznak `rebuilt` i `rebuildFailed` a přestavba se už nezkouší –
+chyba je pro týž vstup deterministická a jinak by zablokovala každé načtení vsi. Server přestavbu
+počítá po krocích (průchody, přepočet vozových cest) a mezi nimi dává přestávky jako dlouhý dopočet
+(port `Pause`), takže ≈ 10 s výpočtu neblokuje ostatní požadavky; výsledek na přestávkách nezávisí.
+Odmítne-li se akce, se kterou se přestavba načetla, přestavba se neuloží a spočítá se při dalším
+načtení znovu; klient po přestavbě drží stará id úseků, takže první akce nad cestou může skončit
+„Cesta neexistuje.“ – obojí jen jednou za život vsi.
+
+**Pole pod novou sítí** (měření Vlkova ve scratchpadu po recenzi): přestavba pole ani díly nemění,
+půdu pod cestami přepočítá až první dopočítaný den (`roadFieldsDay`). Před přestavbou 1 pole,
+3 501 dílů, 77,333 ha (pod cestami 8 650 m²), zaseto 633 dílů, 14,097 ha, 2 455 kg osiva. Den po
+přestavbě 3 500 dílů, 77,323 ha (pod cestami 8 584 m²), zaseto **beze změny** – zmizel jen díl 796
+v přílohu (zbylo mu 10 m² vedle staré cesty) a dvěma zasetým dílům se posunem staré cesty změnila
+plocha o −1,2 a +3,0 m². Bez přestavby den poté 3 501 dílů, 77,333 ha, zaseto stejně. Po měsíci
+s přestavbou zaseto 691 dílů, 15,381 ha, 2 679 kg, bez ní 692 dílů, 15,403 ha, 2 683 kg – rozdíl
+není půda pod cestami, ale jiný díl vrácený z přílohu (chůze k dílu 3383 se změnila 422 → 475 m).
+Nová síť tedy nevede přes zasetý díl, kudy dřív cesta nevedla, a **zasetou půdu nebere** – pojistka
+v přestavbě není potřeba. Návrh Clauda pro případ, že by u jiné vsi brala: vyšlapanost se
+v přestavbě na políčkách zasetých dílů nesčítá (`seedWear`), cesta tam vznikne až z přirozené
+vyšlapanosti za běhu.
+
 ## Co se ukládá a co se dopočítá
 
 | Ve stavu vsi (nové)                                      | Dopočítá se (stejně na serveru i v prohlížeči)       |

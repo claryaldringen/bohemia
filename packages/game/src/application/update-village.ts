@@ -26,7 +26,7 @@ import {
   withVisitsSeed,
   withRoadCondition,
   withRoadsV2,
-  withRoadsRebuilt,
+  withRoadsRebuiltSteps,
   withDynasty,
   withBridgedRoads,
   withDwellingShapes,
@@ -85,6 +85,26 @@ async function advancedToTodayWithPauses(
     const step = steps.next();
     if (step.done) return step.value;
     const wait = pause();
+    if (wait) await wait;
+  }
+}
+
+/**
+ * Jednorázová přestavba sítě cest (`withRoadsRebuiltSteps` – paths.md, Jednorázová přestavba sítě)
+ * s přestávkami (`pause`) mezi průchody – sekundy výpočtu neblokují server. Stejný výsledek jako
+ * bez přestávek.
+ */
+async function rebuiltWithPauses(
+  state: VillageState,
+  landscape: Landscape,
+  obstacles: ObstacleLayer,
+  pause: Pause | undefined,
+): Promise<VillageState> {
+  const steps = withRoadsRebuiltSteps(state, landscape, obstacles);
+  for (;;) {
+    const step = steps.next();
+    if (step.done) return step.value;
+    const wait = pause?.();
     if (wait) await wait;
   }
 }
@@ -198,10 +218,11 @@ export async function updateVillage(
     // Převod starých vsí) – až po trasách, kotvy jsou z nich
     // a jednou přestaví síť cest z vyšlapanosti dnešních tras – vylepšení se přenesou (paths.md –
     // Jednorázová přestavba sítě, Martin 24. 10. 2026)
-    const current = withRoadsRebuilt(
+    const current = await rebuiltWithPauses(
       withRoadsV2(withRoutes(advanced, landscape, obstacles), landscape, obstacles),
       landscape,
       obstacles,
+      pause,
     );
     const changed = change(current);
     if (!changed.ok) return changed;

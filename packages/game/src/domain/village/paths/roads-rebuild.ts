@@ -26,15 +26,20 @@ import { encodeWear, flushWear, trafficField, wearMap } from './wear';
 const SHARE_STEP_M = 2;
 /** Krok vzorků staré osy stezky při hledání nepokrytých kusů (m). */
 const TRAIL_STEP_M = 1;
-/** Úsek vozové cesty leží na ose rozestavěných zemních prací, když je od ní nejvýš tolik (m). */
+/** Úsek vozové cesty leží na ose rozestavěných zemních prací, když je od ní nejvýš tolik (m)… */
 const BUILDING_M = 1;
+/** …aspoň takovým podílem délky. */
+const BUILDING_SHARE = 0.5;
 
 type Distance = (x: number, z: number) => number;
 
-/** Kolik průchodů přestavby proběhlo (`rebuildRoads`) – pro testy a měření, hra ho nečte. */
-export const REBUILD_PASSES = { count: 0 };
-/** Poslední přepočet vozových cest v přestavbě (`rebuildWagonRoads`) – pro testy a měření. */
-export const REBUILD_WAGONS: { last: WagonRebuild | null } = { last: null };
+/** Diagnostika přestavby pro testy a měření (parametr `report`) – hra ji nečte. */
+export interface RebuildReport {
+  /** Kolik průchodů proběhlo. */
+  passes: number;
+  /** Přepočet vozových cest (`rebuildWagonRoads`); null = ves bez vozových cest. */
+  wagons: WagonRebuild | null;
+}
 
 /** Osy starých cest, z nichž se vylepšení přenášejí na nové úseky. */
 interface Upgrades {
@@ -62,7 +67,22 @@ export function rebuildRoads(
   state: VillageState,
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
+  report?: RebuildReport,
 ): VillageState {
+  return drain(rebuildRoadsSteps(state, landscape, obstacles, report));
+}
+
+/**
+ * `rebuildRoads` po krocích – krok skončí po každém průchodu a kolem přepočtu vozových cest, aby
+ * server mezi nimi mohl dát přestávku (port `Pause`, jako dlouhý dopočet). Výsledek na krocích
+ * nezávisí.
+ */
+export function* rebuildRoadsSteps(
+  state: VillageState,
+  landscape: Landscape,
+  obstacles: ObstacleLayer | null,
+  report?: RebuildReport,
+): Generator<void, VillageState, void> {
   if (!state.roads || !state.routes || state.routes.list.length === 0) return state;
   const next = cloneState(state);
   const roads = next.roads!;
@@ -78,7 +98,9 @@ export function rebuildRoads(
       .filter((t) => typeof t.builtDay !== 'number')
       .flatMap((t) => t.pieces.map((p) => p.roadId)),
     ...roads.roads
-      .filter((r) => r.grade === 'wagon' && shareNear(r.points, building, BUILDING_M) >= 0.5)
+      .filter(
+        (r) => r.grade === 'wagon' && shareNear(r.points, building, BUILDING_M) >= BUILDING_SHARE,
+      )
       .map((r) => r.id),
     // opuštěné kusy pod stavbami jen dál blednou (paths.md – Stavba přes cestu)
     ...roads.roads.filter((r) => r.abandoned).map((r) => r.id),
@@ -104,13 +126,13 @@ export function rebuildRoads(
     trail.pieces = [];
   }
   const trailIds = new Set([...oldTrails.values()].flat().map((r) => r.id));
-  const live = old.filter((r) => !r.abandoned || trailIds.has(r.id));
+  // opuštěné kusy jsou všechny ve `fixed` – v `old` žádné není
   const upgrades: Upgrades = {
     improved: axisDistance(
-      live.filter((r) => r.grade !== 'trodden' || trailIds.has(r.id)).map((r) => r.points),
+      old.filter((r) => r.grade !== 'trodden' || trailIds.has(r.id)).map((r) => r.points),
     ),
-    cart: axisDistance(live.filter((r) => r.cart).map((r) => r.points)),
-    swath: axisDistance(live.filter((r) => r.swath).map((r) => r.points)),
+    cart: axisDistance(old.filter((r) => r.cart).map((r) => r.points)),
+    swath: axisDistance(old.filter((r) => r.swath).map((r) => r.points)),
   };
   const oldSpots = new Map<number, RoadTreeSpot>(
     old.flatMap((r) => r.spots.map((s): [number, RoadTreeSpot] => [s.id, s])),
@@ -147,10 +169,10 @@ export function rebuildRoads(
     return widths.get(road.points);
   };
   // vznik cest nahradí `next.roads` kopií (`commitDraft`) – po průchodu vždy znovu ze stavu
-  const settle = (width?: (road: Road) => number | undefined): void => {
+  function* settle(width?: (road: Road) => number | undefined): Generator<void, void, void> {
     for (let pass = 0; pass < ROAD_REBUILD.passes; pass++) {
       const before = networkOf(next.roads!);
-      REBUILD_PASSES.count++;
+      if (report) report.passes++;
       rebuildRoadsPass(next, day, landscape, obstacles, width);
       const current = next.roads!;
       // nová cesta, kterou průchod hned opustil (vede pod stavbou nebo zemními pracemi), zmizí
@@ -167,10 +189,11 @@ export function rebuildRoads(
       lineRoads(next, day, true);
       refreshWalkDistances(next, day, landscape, obstacles);
       if (pass > 0 && networkOf(next.roads!) === before) break;
+      yield;
     }
-  };
+  }
   const hasWagon = oldWagon.earthworks.size > 0 || old.some((r) => r.grade === 'wagon');
-  settle(hasWagon ? futureWagon : undefined);
+  yield* settle(hasWagon ? futureWagon : undefined);
   // vozové cesty po nových osách hotové i se zemními pracemi, pak síť znovu ustálit (křižovatky,
   // úklid a trasy po vozových cestách)
   if (hasWagon) {
@@ -178,9 +201,12 @@ export function rebuildRoads(
     const wagonAxes = old.filter((r) => r.grade === 'wagon');
     patchAxes(next.roads!, wagonAxes, day, context(), ROAD_REBUILD.wagonPatchM);
     const gone = new Set(next.roads!.roads.filter((r) => r.abandoned).map((r) => r.id));
-    REBUILD_WAGONS.last = rebuildWagonRoads(next, day, landscape, obstacles, oldWagon);
+    yield;
+    const wagons = rebuildWagonRoads(next, day, landscape, obstacles, oldWagon);
+    if (report) report.wagons = wagons;
     for (const r of next.roads!.roads) if (r.abandoned && !gone.has(r.id)) bypassed.add(r.id);
-    settle();
+    yield;
+    yield* settle();
   }
   next.roads!.trailsRestored = true;
   next.chronicle.length = chronicle;
@@ -192,20 +218,48 @@ export function rebuildRoads(
  * Starší ves jednou přestaví síť cest (`rebuildRoads`) a dostane příznak `roads.rebuilt`
  * (paths.md – Jednorázová přestavba sítě; jednou a idempotentně). Volá se při načtení po převodu
  * na nový systém (`withRoadsV2`) a po trasách. Ves bez cest, s příznakem nebo bez tras vrátí týž
- * objekt.
+ * objekt. Skončí-li přestavba chybou, ves zůstane jako dřív s příznakem a `rebuildFailed` – jinak
+ * by chyba (pro týž vstup deterministická) zablokovala každé další načtení.
  */
 export function withRoadsRebuilt(
   state: VillageState,
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
+  report?: RebuildReport,
 ): VillageState {
+  return drain(withRoadsRebuiltSteps(state, landscape, obstacles, report));
+}
+
+/** `withRoadsRebuilt` po krocích (`rebuildRoadsSteps`) – server mezi nimi dává přestávky. */
+export function* withRoadsRebuiltSteps(
+  state: VillageState,
+  landscape: Landscape,
+  obstacles: ObstacleLayer | null,
+  report?: RebuildReport,
+): Generator<void, VillageState, void> {
   const roads = state.roads;
   if (!roads || roads.rebuilt || !roads.v2) return state;
   if (!state.routes || state.routes.list.length === 0) return state;
-  const next = rebuildRoads(state, landscape, obstacles);
+  let next: VillageState;
+  try {
+    next = yield* rebuildRoadsSteps(state, landscape, obstacles, report);
+  } catch {
+    const failed = cloneState(state);
+    failed.roads!.rebuilt = 1;
+    failed.roads!.rebuildFailed = 1;
+    return failed;
+  }
   const flagged = next === state ? cloneState(state) : next;
   flagged.roads!.rebuilt = 1;
   return flagged;
+}
+
+/** Doběhne kroky najednou. */
+function drain<T>(steps: Generator<void, T, void>): T {
+  for (;;) {
+    const step = steps.next();
+    if (step.done) return step.value;
+  }
 }
 
 /**

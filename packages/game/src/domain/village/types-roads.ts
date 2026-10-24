@@ -240,6 +240,11 @@ export interface VillageRoads {
    */
   rebuilt?: 1;
   /**
+   * Přestavba skončila chybou – ves zůstala se starou sítí a přestavba se už nezkouší (paths.md –
+   * Jednorázová přestavba sítě). Chybí = proběhla, nebo ještě ne.
+   */
+  rebuildFailed?: 1;
+  /**
    * Otisk sítě po posledním měsíčním úklidu (paths.md – Síť – kotvy, pahýly a úklid): trasy
    * (`VillageRoutes.key`) a osy úseků – bez změny se úklid nepouští. Chybí = ještě neproběhl.
    */

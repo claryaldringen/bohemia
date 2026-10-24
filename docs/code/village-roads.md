@@ -670,7 +670,10 @@ landscape, obstacles)` v `paths/roads-v2.ts`, `updateVillage` ho volá po `withR
   úklid a převzetí vyšlapaných cest vozy. Ves bez cest a ves s `v2` vrací týž objekt. Test
   `roads-v2.test.ts`.
 - **Jednorázová přestavba sítě (Úloha R1, Martin 24. 10. 2026 – varianta A):** `withRoadsRebuilt(state,
-landscape, obstacles)` v `paths/roads-rebuild.ts`, `updateVillage` ho volá po `withRoadsV2`; ves
+landscape, obstacles)` v `paths/roads-rebuild.ts`; `updateVillage` volá po `withRoadsV2` jeho
+  kroky `withRoadsRebuiltSteps` (`rebuiltWithPauses` – port `Pause` mezi průchody a kolem přepočtu
+  vozových cest, generátor `rebuildRoadsSteps`). Výjimka v přestavbě → klon vstupu s `rebuilt: 1`
+  a `rebuildFailed: 1` (stará síť zůstane, příště se nezkouší); ves
   s `roads.v2` bez `roads.rebuilt` (nová ves má `rebuilt: 1` z `emptyRoads`) a s trasami. Čistá
   `rebuildRoads`: `seedWear` (vyšlapanost z `trafficField(routes).cells` × `ROAD_REBUILD.seedDays`,
   max se stávající), zahodí úseky mimo pevné (`Construction.roadIds`, úseky nehotových stezek,
@@ -692,15 +695,15 @@ landscape, obstacles)` v `paths/roads-rebuild.ts`, `updateVillage` ho volá po `
   vozových úseků a úseků v práci) se upraví a naplánují `planWagonRoad(wagonPlanInputOf(…))`;
   hotový plán zapíše `buildWagonRoadNow` (`wagon-road.ts` – zemní práce bez stavby, všechny
   `pieces` s `builtDay` = den přestavby, `buildPiece` – `addWagonRoad`, kácení, klády –, pak
-  `absorbParallelRoads` a `abandonBypassed` jako `wagonRoadsDay`). Výsledek v `REBUILD_WAGONS.last`
-  (měření). Průchody před přepočtem dostanou `rebuildRoadsPass(…, width)` → `roadsMonthRun` →
+  `absorbParallelRoads` a `abandonBypassed` jako `wagonRoadsDay`). Výsledek a počet průchodů
+  v nepovinném `RebuildReport` (parametr `report` – testy a měření). Průchody před přepočtem dostanou `rebuildRoadsPass(…, width)` → `roadsMonthRun` →
   `tidyMonth` → `JunctionRoads.width` (`spaceJunctions` – úsek u staré vozové osy má šířku
   `ROAD_LAND.widthM.wagon`), takže křižovatky s budoucím vozovým ramenem se odsunou předem. Pak
   znovu průchody až do ustálení. Kronika se vrátí na původní délku, `flushWear` na
   konci.
   Pozor: vznik cesty (`commitDraft`) nahradí `state.roads` kopií – po průchodu číst znovu ze stavu.
   `trailAxisRoads` (`trail-axis.ts`) bere křižovatky jako jeden uzel (`junctions`, konce ramen
-  nejblíž středu) – `restoredTrailPieces` je předává. Počítadlo `REBUILD_PASSES`. Test
+  nejblíž středu) – `restoredTrailPieces` je předává. Test
   `roads-rebuild.test.ts` (i syntetická ves s hotovou, nepoužitou a rozestavěnou vozovou cestou);
   měření Vlkova ve scratchpadu (`diag-rebuild/metrics.mts`). Scéna: `SceneEarthwork.abandonedYears`
   (`sceneEarthworks`) – svahy i lem opuštěné zemní práce zarostou za `SLOPE_LOOK.wildYears`

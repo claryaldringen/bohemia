@@ -5,7 +5,12 @@ import { naturalHeightAt } from '../paths/earthworks';
 import { DWELLING_PATH_BOX_M, inBuilding } from '../paths/network-grid';
 import { emptyRoads } from '../paths/roads-form';
 import { axisDistance, resample } from '../paths/roads-geometry';
-import { rebuildRoads, withRoadsRebuilt } from '../paths/roads-rebuild';
+import {
+  type RebuildReport,
+  rebuildRoads,
+  withRoadsRebuilt,
+  withRoadsRebuiltSteps,
+} from '../paths/roads-rebuild';
 import { routeLine } from '../paths/routes';
 import { pathCellM } from '../paths/terrain';
 import { refreshWalkDistances } from '../paths/village';
@@ -91,6 +96,29 @@ function inHouses(s: VillageState): number {
 /** Konec osy smí ležet u dveří – tolik m od konce se nepočítá. */
 const END_M = 3;
 
+/** Kontrola cesty ji opustí, když v neprůchodné ploše vede v kuse aspoň tolik m (roads-overgrow). */
+const BLOCK_MIN_RUN_M = 5;
+
+/** Nejdelší běh živé osy v kuse v půdorysu domu (m, po 0,25 m) – bez konců os. */
+function longestRunInHouses(s: VillageState): number {
+  let longest = 0;
+  for (const d of s.dwellings) {
+    const house = { position: d.position, box: DWELLING_PATH_BOX_M[d.type] };
+    for (const r of s.roads!.roads.filter((x) => !x.abandoned)) {
+      const ends = [r.points[0]!, r.points[r.points.length - 1]!];
+      let run = 0;
+      for (const p of resample(r.points, null, 0.25).points) {
+        const inside =
+          inBuilding(house, p.x, p.z, 0) &&
+          ends.every((e) => Math.hypot(e.x - p.x, e.z - p.z) > END_M);
+        run = inside ? run + 0.25 : 0;
+        longest = Math.max(longest, run);
+      }
+    }
+  }
+  return longest;
+}
+
 describe('rebuildRoads – jednorázová přestavba sítě', () => {
   it('cesta přes dům a pahýl zmizí, nové cesty vedou po trasách, upravená se přenese', () => {
     const { state, improved } = oldVillage();
@@ -106,6 +134,8 @@ describe('rebuildRoads – jednorázová přestavba sítě', () => {
     // za běhu, `roadAxisOf`) a konec u křižovatky, který se do domu neohne (`bendEnd`) – skrz dům
     // nevede
     expect(inHouses(next)).toBeLessThan(3);
+    // a žádný běh v domě nedosáhne délky, kdy kontrola cestu opustí
+    expect(longestRunInHouses(next)).toBeLessThan(BLOCK_MIN_RUN_M);
     expect(roads.some((r) => r.points.some((p) => p.x > 140 && p.z > 140))).toBe(false);
     expect(roads.some((r) => r.id < 100)).toBe(false);
     // upravená: nový úsek po staré ose je upravený i s hatí a lávkou
@@ -154,6 +184,52 @@ describe('rebuildRoads – jednorázová přestavba sítě', () => {
     expect(JSON.stringify(rebuildRoads(oldVillage().state, LANDSCAPE, null))).toBe(
       JSON.stringify(rebuilt),
     );
+  }, 120_000);
+
+  it('chyba v přestavbě ves nezablokuje – zůstane jako dřív, s příznakem (I1)', () => {
+    const { state } = oldVillage();
+    state.roads!.v2 = true;
+    // poškozená vyšlapanost – přestavba skončí výjimkou
+    state.roads!.wear = { day: START, cells: '!', labor: [] };
+    const before = JSON.stringify(state);
+    const next = withRoadsRebuilt(state, LANDSCAPE, null);
+    expect(JSON.stringify(state)).toBe(before);
+    expect(next.roads!.rebuilt).toBe(1);
+    expect(next.roads!.rebuildFailed).toBe(1);
+    // jinak beze změny – stará síť zůstala
+    const expected = cloneState(state);
+    expected.roads!.rebuilt = 1;
+    expected.roads!.rebuildFailed = 1;
+    expect(JSON.stringify(next)).toBe(JSON.stringify(expected));
+    // příště se už nezkouší
+    expect(withRoadsRebuilt(next, LANDSCAPE, null)).toBe(next);
+  }, 120_000);
+
+  it('po krocích (přestávky serveru) = najednou, kroky mezi průchody (I2)', () => {
+    const { state } = oldVillage();
+    state.roads!.v2 = true;
+    const steps = withRoadsRebuiltSteps(state, LANDSCAPE, null);
+    let yields = 0;
+    let step = steps.next();
+    while (!step.done) {
+      yields++;
+      step = steps.next();
+    }
+    const report: RebuildReport = { passes: 0, wagons: null };
+    const again = oldVillage().state;
+    again.roads!.v2 = true;
+    const whole = withRoadsRebuilt(again, LANDSCAPE, null, report);
+    expect(yields).toBeGreaterThanOrEqual(report.passes);
+    expect(report.passes).toBeGreaterThan(1);
+    expect(JSON.stringify(step.value)).toBe(JSON.stringify(whole));
+  }, 120_000);
+
+  it('přestavba díly ani pole nemění – půdu pod cestami přepočítá až dopočet (I3)', () => {
+    const { state } = oldVillage();
+    const next = rebuildRoads(state, LANDSCAPE, null);
+    expect(JSON.stringify(next.parts)).toBe(JSON.stringify(state.parts));
+    expect(JSON.stringify(next.fields)).toBe(JSON.stringify(state.fields));
+    expect(next.roadLandKey).toBe(state.roadLandKey);
   }, 120_000);
 });
 
