@@ -223,7 +223,7 @@ function roadsMonthRun(
     const gone = cutDeadRoads(roads, state.constructions, state.trails, day);
     state.chronicle.push(...gone);
     // odbočka zarostla – falešné rozcestí se spojí
-    if (gone.length > 0) mergeRoadChains(roads, state.constructions);
+    if (gone.length > 0) mergeRoadChains(roads, state.constructions, state.trails);
     if (roads.roads.some((r) => !r.abandoned)) {
       const blocked = villageBlockedAt(state, day, landscape);
       if (blocked) abandonBlockedStretches(roads, state.constructions, state.trails, blocked);
@@ -301,7 +301,7 @@ export function tidyRoadsNow(
       splitTrailPieces(state.trails, from, to);
     },
   };
-  tidyRoads(roads, state.constructions, () => false, context);
+  tidyRoads(roads, state.constructions, () => false, context, undefined, state.trails);
 }
 
 /** Kolikrát běžel měsíční úklid (`tidyMonth`) – pro testy a měření, hra ho nečte. */
@@ -374,10 +374,10 @@ function tidyMonth(
       splitTrailPieces(state.trails, from, to);
     },
   };
-  tidyRoads(roads, state.constructions, isEnd, context, network);
+  tidyRoads(roads, state.constructions, isEnd, context, network, state.trails);
   const made = accessRoads(roads, routes.list, month.cellM, month.day, context, field(), built);
   if (made.length > 0) {
-    mergeRoadChains(roads, state.constructions);
+    mergeRoadChains(roads, state.constructions, state.trails);
     markRoadEnds(roads, isEnd);
     const kept = new Set(roads.roads.map((r) => r.id));
     for (const road of made) {
@@ -471,7 +471,7 @@ function formRoadsKept(
     };
     const formed = formWearRuns(draft.roads, lines, wear, anchors, day, context, field(), skip);
     if (formed.length === 0) return [];
-    tidyRoads(draft.roads, draft.constructions, isEnd, context);
+    tidyRoads(draft.roads, draft.constructions, isEnd, context, undefined, draft.trails);
     const lost = formed.filter(({ road }) => !survivedTidy(road, roads, draft.roads));
     if (lost.length === 0) {
       commitDraft(state, draft);
@@ -605,7 +605,14 @@ export function updateRoads(
     }
     // díry: volný konec kus od jiného úseku (ne u brány ani cíle) se k němu napojí; falešná
     // rozcestí (odbočka zarostla, nová cesta navázala na konec jiné) – úseky se spojí
-    tidyRoads(roads, state.constructions, annualTermini(state, landscape), context);
+    tidyRoads(
+      roads,
+      state.constructions,
+      annualTermini(state, landscape),
+      context,
+      undefined,
+      state.trails,
+    );
   }
   // stromy: pařez zmizel, nebo strom odstranila stavba – místo je volné
   const removed = new Set(changes.removed);

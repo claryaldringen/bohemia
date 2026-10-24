@@ -96,7 +96,8 @@ async function advancedToTodayWithPauses(
  * před pozemky pozemek (`withPlots`), stavby z doby před variantami rozměrů variantu, nebo příznak
  * dnešního tvaru (`withDwellingShapes` – population.md), stará navazující pole se sloučí (`withMergedFields`) a vsím
  * z doby před dobytkem se doplní výchozí stádo a louka a les pro pastvu (`withLivestockLand`)
- * a pevné cesty z doby před slučováním úseků se spojí ve falešných rozcestích (`withMergedRoads`)
+ * a pevné cesty z doby před slučováním úseků se spojí ve falešných rozcestích a stezky bez úseků je
+ * znovu najdou po síti cest (`withMergedRoads`)
  * (díry a souběžné cesty uklidí `withRoadsV2` po trasách), hotové upravené cesty a stezky lesem dostanou
  * průsek (`withRoadSwaths`) a lidem z doby před příbuzenstvím se doplní
  * pohlaví a manželé (`withKinship`), dobytek v obchodu dostane tři druhy (`withCattleKinds` –
@@ -160,6 +161,7 @@ export async function updateVillage(
                             ),
                             landscape,
                           ),
+                          landscape,
                         ),
                         obstacles,
                         landscape,

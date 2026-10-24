@@ -51,7 +51,7 @@ a smysl přebytkům (obilí, sýr, maso, klády po mýcení) – jen se surovina
 - Stavba = pevná cesta stupně **upravená** po celé délce ([roads.md](roads.md) – 15 čd na 100 m),
   plus hať a lávka, kde vede mokřinou nebo přes potok. Kde už pevná cesta je, platí se jen
   vylepšení. Staví se ze společné práce vsi, po úsecích od vsi ven (vytyčení hned).
-- Hotová stezka je pevná cesta (nezaroste), stromy u ní rostou jako u ostatních pevných cest.
+- Hotová stezka je pevná cesta (nezaroste), stromy u ní rostou jako u ostatních pevných cest – kus pod hotovou stavbou se ale opustí a stezka vede po živých zbytcích (paths.md, Stavba přes cestu).
 - **Průsek lesem** (Martin, 19. 10. 2026: „Tam, kde zemská stezka prochází lesem, ať se les
   vykácí.“; podrobnosti návrh Clauda, [roads.md](roads.md) – Průsek lesem): kde stezka vede
   lesem, vykácí se pruh 3,5 m od osy (pás upravené cesty 3 m a 2 m z každé strany). Kácení je
@@ -353,7 +353,7 @@ Návrh Clauda (18. 10. 2026) – detaily, které návrh výš nechal otevřené:
 - **Stavba po úsecích:** jedna stavba `road` s `Construction.trail`; práce jde nejdřív na kácení
   dřeva, pak úsek po úseku od vsi ven – dostavěný úsek hned dostane nový stupeň (chodí se po něm
   rychleji, `trailsDay`), ve scéně je zbytek stezky vytyčený a úprava roste na úseku u čela
-  práce. Hotová stezka (`Trail.builtDay`) je upravená cesta – nezaroste.
+  práce. Hotová stezka (`Trail.builtDay`) je upravená cesta – nezaroste (kus pod hotovou stavbou se opustí, paths.md – Stavba přes cestu).
 - **Dny cesty:** 2 dny do 400 m stezky, každých dalších 250 m den navíc, nejvýš 6, a 1 den za
   krajem mapy (tedy 3–7 dní celkem).
 - **Sousedé:** povaha ze seedu vsi a směru (`neighbourOf` – dokud mapy nemají polohu ve světě,
