@@ -100,6 +100,10 @@ pozná hrozbu ze dvou odhadů, které už počítá – nový odhad nevzniká.
    osev** (tolik, aby neměla hlad), započítá rodinu – ale jen kolik chybí: v okně, kde práce
    chybí (podzim, jaro, žně), dá každý dospělý rodiny podíl dne = chybějící práce ÷ práce rodiny,
    zbytek dne cvičí. Osev navíc, stavby ani opravy rodina nedělá nikdy.
+   - Podíl dne dá rodina **až po práci vsi** – jen co ves ten den sama nestihne, takže vsi
+     neuvolní práci na stavby ani osev navíc. Jař, která se nevejde, dá rodina napřed na jaře
+     (jarní úprava plánu podíl přepočítá podle skutečného zbytku), co jaro nepokryje, na podzim
+     (návrh Clauda).
 2. **Výhled jídla nevychází.** Když ves i po nouzové porážce šetří jídlem nebo hladoví (příděl pod
    plný – [populace](population.md), Stupně upozornění), jdou všichni dospělí rodiny (muži i ženy
    od 14 let) celý den do **potřebných sezónních úloh** (krok 3 pořadí práce – pole, seč, sklizeň,

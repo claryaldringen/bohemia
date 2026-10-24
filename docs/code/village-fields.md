@@ -46,7 +46,17 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`daysUntilFoodHarvest`) a dobré zásoby štěstí; ustálená úroda `steadyHarvestKg` (kalibrace,
   kalkulačka – zásoba na cílové zásobě). Kalibrace vypisuje práci na poli a volnou práci po rocích
   (průměr, variační koeficient, změna z roku na rok). Volná práce plánu (`sowingCapacity`) je po
-  denním minimu dospělých (`adultDailyMin` – zvířata a domácí výroba bokem). Výhled jídla do sklizně (`eatDiet`) počítá s mlékem stád do sklizně
+  denním minimu dospělých (`adultDailyMin` – zvířata a domácí výroba bokem), bez cvičící
+  vojvodovy rodiny. **Pomoc rodiny s potřebným osevem** (lord.md – Kdy jde rodina na pole, bod 1):
+  když výběr bez rodiny nedá `harvestKg`, `planYear` vybere znovu se `sowingCapacity(…, { lord:
+true })` (práce dospělých rodiny po minimu dvorce – `manorLabor.free`) ještě před nouzovým osevem
+  a do `YearPlan.lordHelp` zapíše podíl dne rodiny po oknech (`lordSowingHelp` z
+  `chooseCrops(…).load`: chybějící práce ÷ práce rodiny, nejvýš 1; jař napřed z jara, zbytek
+  z podzimu). Osev navíc jsou dál díly mimo výběr a dostanou jen práci vsi. Den: `lordHelpShare`
+  (nejvyšší podíl oken dneška, okna `SOWING_CAPACITY_WINDOWS`) × `free` = `manorLabor.help` →
+  `allocateDay` – `lordHelp` až po práci vsi (jen co ves dnes nestihne, vsi neuvolní práci na
+  stavby ani osev navíc); podíl dne na poli pro `trainLordDay` = spotřeba ÷ `free`. Jarní úprava:
+  `trimPlan` v březnu–dubnu přepočítá `lordHelp` ze zbytku plánu (`springLordHelp`). Výhled jídla do sklizně (`eatDiet`) počítá s mlékem stád do sklizně
   (`milkAheadEnergy` z `milkEnergyBetween`) a celou zásobou sýra.
   Polní úlohy obou plodin řadí `fieldTasks` v `simulate-work.ts`
   (konec okna, ozim před jaří); `allocateDay` vrací i `taskAmounts` po úlohách vstupu (stejný

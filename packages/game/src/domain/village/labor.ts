@@ -46,6 +46,13 @@ export interface DayAllocationInput {
    */
   lordField?: number;
   /**
+   * Pomoc vojvodovy rodiny s potřebným osevem (lord.md – Kdy jde rodina na pole, bod 1; `manorLabor`
+   * – `help`, člověkodny před štěstím) – zásobník jako `lordField`, ale až po práci vsi: pokryje
+   * jen, co z úloh dne ves nestihne, takže vsi nikdy neuvolní práci na stavby, opravy ani osev
+   * navíc (návrh Clauda). Bez údaje 0.
+   */
+  lordHelp?: number;
+  /**
    * Denní minimum dvorce, které rodina nepokryje (`manorLabor` – `uncovered`, člověkodny po štěstí;
    * domácnost dvorce je jinak z `householdElders` vynechaná) – z práce vsi spolu s denním minimem;
    * bez údaje 0.
@@ -87,7 +94,7 @@ export interface DayAllocation {
   away: number;
   /** Práce sedláků s vozy pro uhlí a rudu (nejvýš `carting`, po výpravách). */
   carting: number;
-  /** Kolik práce vojvodovy rodiny (`lordField`, po štěstí) dnes úlohy dne spotřebovaly. */
+  /** Kolik práce vojvodovy rodiny (`lordField` a `lordHelp`, po štěstí) dnes úlohy spotřebovaly. */
   lordField: number;
   tasks: Record<LaborTaskName, number>;
   /** Práce pro jednotlivé úlohy vstupu v jejich pořadí (stejný název může být víckrát – plodiny). */
@@ -151,6 +158,8 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
   let lightLeft = Math.max(0, (input.light ?? 0) * productivity);
   const lordPool = Math.max(0, (input.lordField ?? 0) * productivity);
   let lordLeft = lordPool;
+  const helpPool = Math.max(0, (input.lordHelp ?? 0) * productivity);
+  let helpLeft = helpPool;
   const taskAmounts = input.tasks.map((task) => {
     let amount = 0;
     if (LIGHT_LABOR_TASKS.has(task.name)) {
@@ -161,6 +170,10 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     lordLeft -= lord;
     amount += lord;
     amount += take(task.remaining - amount);
+    // pomoc rodiny s osevem až po práci vsi – jen co ves dnes nestihne
+    const help = Math.max(0, Math.min(task.remaining - amount, helpLeft));
+    helpLeft -= help;
+    amount += help;
     tasks[task.name] += amount;
     return amount;
   });
@@ -169,7 +182,7 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     eldersDailyMin,
     away,
     carting,
-    lordField: lordPool - lordLeft,
+    lordField: lordPool - lordLeft + (helpPool - helpLeft),
     tasks,
     taskAmounts,
     common: left,

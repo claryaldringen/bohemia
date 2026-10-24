@@ -6,6 +6,7 @@ import { villageManorId } from './manor';
 import { ageGroup, ageYears, laborPerDay } from './people';
 import { dailyMinPerHousehold } from './productivity';
 import { AGE, LORD } from './rules';
+import { lordHelpShare } from './sowing';
 import type { ArmsSkills, ChronicleEvent, Person, VillageState } from './types';
 
 /** Co z vsi rodina potřebuje – lidé a dvorec. */
@@ -212,8 +213,15 @@ export interface ManorLabor {
   dailyMin: number;
   /** Denní minimum, na které rodina nestačí – jde z práce vsi (`allocateDay` – `manorMin`). */
   uncovered: number;
-  /** Co dospělí rodiny dají do sezónních úloh (`allocateDay` – `lordField`); mimo pole 0. */
+  /** Co dospělí rodiny dají do sezónních úloh při hladu (`allocateDay` – `lordField`); jinak 0. */
   field: number;
+  /**
+   * Pomoc s potřebným osevem (`allocateDay` – `lordHelp`): podíl dne z plánu (`lordHelpShare`) ×
+   * `free`; při hladu a mimo okna pomoci 0.
+   */
+  help: number;
+  /** Práce dospělých rodiny po denním minimu dvorce – celý den rodiny (podíl na poli ÷ `free`). */
+  free: number;
 }
 
 /**
@@ -221,7 +229,8 @@ export interface ManorLabor {
  * minimum celé domácnosti dvorce (s chůzí pro vodu) kryjí napřed starší dvorce, zbytek dospělí
  * rodiny – ženy, a co nestačí, muži mimo výcvik (návrh Clauda; výcvik se tím nezkrátí). Co ženám
  * zbude, je domácí výroba dvorce a do práce vsi nejde (Martin 23. 10. 2026: „Jen domácnost“).
- * Na poli (hlad – `state.lord.field`) dají všichni dospělí rodiny vše po minimu.
+ * Na poli (hlad – `state.lord.field`) dají všichni dospělí rodiny vše po minimu. Jinak s potřebným
+ * osevem jen podíl dne z plánu (lord.md – Kdy jde rodina na pole, bod 1; `YearPlan.lordHelp`).
  */
 export function manorLabor(
   state: VillageState,
@@ -240,8 +249,11 @@ export function manorLabor(
     [...family.household, ...family.trainees].reduce((sum, p) => sum + laborPerDay(p, day), 0) *
     Math.max(0, productivity);
   const dailyMin = Math.min(need, capacity);
-  const field = state.lord?.field?.reason === 'hunger' ? capacity - dailyMin : 0;
-  return { dailyMin, uncovered: need - dailyMin, field };
+  const free = capacity - dailyMin;
+  const hunger = state.lord?.field?.reason === 'hunger';
+  const field = hunger ? free : 0;
+  const help = hunger ? 0 : lordHelpShare(state.plan, day) * free;
+  return { dailyMin, uncovered: need - dailyMin, field, help, free };
 }
 
 /**

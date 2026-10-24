@@ -2,8 +2,16 @@ import { dateOfDayIndex, isLeapYear } from '../calendar';
 import { expectedNetKg, isSowableFertility } from './fields';
 import { expectedFlaxKg } from './flax';
 import { expectedLegumeKg, legumeEnergy } from './legumes';
-import { PLANNING_DAY, type WindowSegment } from './rules';
-import type { Crop, CropWork, FieldPart, TaskName, YearPlan } from './types';
+import { PLANNING_DAY, WINDOWS, WINTER_WINDOWS, type WindowSegment } from './rules';
+import type {
+  Crop,
+  CropWork,
+  FieldPart,
+  LordHelp,
+  LordHelpWindow,
+  TaskName,
+  YearPlan,
+} from './types';
 import { emptyTaskRecord, partWork, ploughRemaining, type PartWork } from './year-plan';
 
 // Kolik ozimu a kolik jaře ves oseje (fields.md – Ozim a jař, Kolik ves oseje). Ves vybírá díly
@@ -138,7 +146,7 @@ export function planLoad(plan: YearPlan | null, orchardAutumn: number): SowingLo
 }
 
 /** Práce kandidátů ve špičkách, kterou plán ozimu a jaře už nese (průběžný stav `chooseCrops`). */
-interface CropLoad {
+export interface CropLoad {
   winterAutumn: number;
   july: number;
   springReclaim: number;
@@ -525,6 +533,29 @@ function chooseFlax(
   return flaxKgOf(first.flax, input.day) > afterKg + EPSILON ? first : after;
 }
 
+/** Práce v oknech, kterou ves už má (`SowingLoad`) – výchozí zátěž výběru `chooseCrops`. */
+export function cropLoadOf(planned: SowingLoad): CropLoad {
+  // ozim na podzim: vrácení, kopání (orba) a setí; jablka se sklízejí po něm, ale v témže okně;
+  // v srpnu sklizeň jaře a výmlat ozimu (luštěniny přičte addLegume)
+  const load: CropLoad = {
+    winterAutumn:
+      planned.orchardAutumn +
+      planned.winter.reclaim +
+      (planned.winter.dig + planned.winter.plough) +
+      planned.winter.sow,
+    july: planned.winter.harvest,
+    springReclaim: planned.spring.reclaim,
+    springDig: planned.spring.dig + planned.spring.plough,
+    springSow: planned.spring.sow,
+    august: planned.spring.harvest + planned.winter.thresh,
+    ploughWinter: planned.winter.plough,
+    ploughSpring: planned.spring.plough,
+  };
+  if (planned.legume) addLegume(load, planned.legume);
+  if (planned.flax) addLegume(load, planned.flax);
+  return load;
+}
+
 /** Očekávaná energie výběru `chooseCrops` (kg obilí; luštěniny svou energií, len se nejí). */
 export function chosenEnergyKg(
   crops: {
@@ -554,35 +585,23 @@ export function chosenEnergyKg(
 export function chooseCrops(
   candidates: readonly FieldPart[] | readonly (readonly FieldPart[])[],
   input: CropChoiceInput,
-): { winter: FieldPart[]; spring: FieldPart[]; legume: FieldPart[]; flax: FieldPart[] } {
-  const planned = input.load;
+): {
+  winter: FieldPart[];
+  spring: FieldPart[];
+  legume: FieldPart[];
+  flax: FieldPart[];
+  /** Práce výběru v oknech (s výchozí zátěží) – podle ní pomoc rodiny s osevem (`lordSowingHelp`). */
+  load: CropLoad;
+} {
   const blocks = (candidates as readonly (FieldPart | readonly FieldPart[])[]).map(
     (c): readonly FieldPart[] => (Array.isArray(c) ? c : [c as FieldPart]),
   );
-  // ozim na podzim: vrácení, kopání (orba) a setí; jablka se sklízejí po něm, ale v témže okně;
-  // v srpnu sklizeň jaře a výmlat ozimu (luštěniny přičte addLegume)
-  const load: CropLoad = {
-    winterAutumn:
-      planned.orchardAutumn +
-      planned.winter.reclaim +
-      (planned.winter.dig + planned.winter.plough) +
-      planned.winter.sow,
-    july: planned.winter.harvest,
-    springReclaim: planned.spring.reclaim,
-    springDig: planned.spring.dig + planned.spring.plough,
-    springSow: planned.spring.sow,
-    august: planned.spring.harvest + planned.winter.thresh,
-    ploughWinter: planned.winter.plough,
-    ploughSpring: planned.spring.plough,
-  };
-  if (planned.legume) addLegume(load, planned.legume);
-  if (planned.flax) addLegume(load, planned.flax);
   const choice: Choice = {
     winter: [],
     spring: [],
     legume: [],
     flax: [],
-    load,
+    load: cropLoadOf(input.load),
     net: input.startKg,
     used: new Set(),
   };
@@ -602,5 +621,79 @@ export function chooseCrops(
     legumeTarget > EPSILON
       ? chooseSideCrop(blocks, withFlax, 'legume', legumeTarget, input, workOf)
       : withFlax;
-  return { winter: result.winter, spring: result.spring, legume: result.legume, flax: result.flax };
+  return {
+    winter: result.winter,
+    spring: result.spring,
+    legume: result.legume,
+    flax: result.flax,
+    load: result.load,
+  };
+}
+
+/**
+ * Měsíce oken volné práce `SowingCapacity` (lidé): podzim ozimu září–říjen, vrácení přílohu
+ * a kopání září–listopad i březen–duben, jaro březen–duben, sklizeň ozimu červenec, sklizeň jaře
+ * a výmlat srpen. Podle nich `sowingCapacity` i podíl dne rodiny na osevu (`lordHelpShare`).
+ */
+export const SOWING_CAPACITY_WINDOWS: Readonly<Record<LordHelpWindow, readonly WindowSegment[]>> = {
+  autumnWinter: WINTER_WINDOWS.sow,
+  autumn: WINDOWS.reclaim,
+  spring: WINDOWS.sow,
+  july: WINTER_WINDOWS.harvest,
+  august: WINDOWS.harvest,
+};
+
+/**
+ * Podíl dne dospělých cvičící vojvodovy rodiny po oknech, aby ves stihla výběr osevu `load`
+ * (lord.md – Kdy jde rodina na pole, bod 1): chybějící práce (zátěž nad volnou prací vsi bez
+ * rodiny `village`) ÷ práce rodiny v okně (`withLord − village`), nejvýš 1. Podzim ozimu,
+ * červenec a srpen přímo. Jař jako `fitsSpring` – vrácení a kopání na podzim, kolik po ozimu
+ * zbude (i s pomocí rodiny v září–říjnu), zbytek se setím na jaře: co chybí, dá rodina napřed na
+ * jaře (jarní úprava – `trimPlan` – ho přepočítá podle skutečného zbytku) a co jaro nepokryje ani
+ * s celou rodinou, z podzimu jaře (návrh Clauda). Podzim jaře zahrnuje i září–říjen, kde už rodina
+ * pomáhá s ozimem – jeho podíl kryje obojí (den bere nejvyšší podíl, `lordHelpShare`). Okna, kde
+ * nic nechybí, chybí; ves, která stihne vše sama, dostane {}.
+ */
+export function lordSowingHelp(
+  load: CropLoad,
+  village: SowingCapacity,
+  withLord: SowingCapacity,
+): LordHelp {
+  const help: LordHelp = {};
+  // podíl okna podle chybějící práce; vrací práci, kterou rodina v okně dá
+  const add = (window: LordHelpWindow, missing: number): number => {
+    const family = withLord[window] - village[window];
+    if (missing <= EPSILON || family <= EPSILON) return 0;
+    const share = Math.min(1, missing / family);
+    help[window] = share;
+    return share * family;
+  };
+  const autumnWinter = add('autumnWinter', load.winterAutumn - village.autumnWinter);
+  add('july', load.july - village.july);
+  add('august', load.august - village.august);
+  const autumnLeft = Math.max(0, village.autumn + autumnWinter - load.winterAutumn);
+  const over = Math.max(0, load.springReclaim + load.springDig - autumnLeft);
+  const short = load.springSow + over - village.spring;
+  const rest = Math.min(over, short - add('spring', short));
+  if (rest > EPSILON) add('autumn', autumnWinter + rest);
+  return help;
+}
+
+/**
+ * Podíl dnešního dne, který dospělí cvičící rodiny dají potřebnému osevu (`YearPlan.lordHelp`,
+ * lord.md – Kdy jde rodina na pole, bod 1): nejvyšší podíl oken, do kterých dnešek padne. Mimo
+ * okna (zima, květen–červen) a v plánu bez pomoci (i u starších vsí) 0.
+ */
+export function lordHelpShare(plan: YearPlan | null, day: number): number {
+  const help = plan?.lordHelp;
+  if (!help) return 0;
+  const { month } = dateOfDayIndex(day);
+  let share = 0;
+  for (const window of Object.keys(SOWING_CAPACITY_WINDOWS) as LordHelpWindow[]) {
+    const inWindow = SOWING_CAPACITY_WINDOWS[window].some(
+      ([from, to]) => month >= from && month <= to,
+    );
+    if (inWindow) share = Math.max(share, help[window] ?? 0);
+  }
+  return share;
 }

@@ -300,7 +300,17 @@ export interface YearPlan extends CropWork {
    * smaže. Chybí = žádné (i plány starších vsí).
    */
   extra?: ExtraPart[];
+  /**
+   * Podíl dne dospělých cvičící vojvodovy rodiny na potřebném osevu po oknech (lord.md – Kdy jde
+   * rodina na pole, bod 1; `lordSowingHelp`): jen když by ves bez rodiny potřebný osev nestihla.
+   * Plán 1. 9., jaro přepočítá jarní úprava (`trimPlan`). Chybí = 0 (i plány starších vsí).
+   */
+  lordHelp?: LordHelp;
 }
+/** Okna volné práce plánu osevu (`SowingCapacity` bez orby). */
+export type LordHelpWindow = 'autumnWinter' | 'autumn' | 'spring' | 'july' | 'august';
+/** Podíl dne rodiny 0–1 po oknech; okno bez pomoci chybí. */
+export type LordHelp = Partial<Record<LordHelpWindow, number>>;
 /**
  * Díl osevu navíc, na kterém ještě nezačala práce (fields.md – Osev navíc). `sownYears` – díl se
  * před plánem osíval nebo byl připravený (v přílohu leží jen od plánu): když na něm práce začne,
