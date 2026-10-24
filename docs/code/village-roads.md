@@ -496,6 +496,29 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   zarůstání uřízlo od okraje mapy: `trimStubs` upravené cesty záměrně nechává (zarůstají podle
   druhu), v základu byl pahýl také. Integrační test převodu: `application/__tests__/update-village-roads.test.ts`.
 
+- **Po Úloze 15 – pahýl a výkon** (24. 10. 2026, Claude Opus 5.5): zbytek upravené nebo vozové
+  cesty kratší než `ROAD_STUB.remnantM` (30 m) s koncem mimo kotvu zmizí v úklidu (`stubAction`
+  v `paths/roads-stubs.ts`; vozové cesty pahýly řeší také, okruhy dál ne), delší zarůstá.
+  Zrychlení `roadsMonth` (profil `--cpu-prof`, 2 roky Vlkova): 56 % času dělala neprůchodná
+  plocha `villageBlockedAt` – mezipaměť měla klíč `state.walkLayoutKey` se stadii dílů, takže
+  se přepočítávala skoro každý měsíc. Klíč jsou teď jen části rozložení, které dělají neprůchodné
+  (`walkLayoutParts` – obydlí, staveniště, hřbitovy, posvátná místa, ohrady, milíře, humna)
+  a zemní práce; výpočet pouští `villageGrid` bez polí, sadů, lesa a cest (jen zdražují). Druhá
+  byla `wearRoadDue` – blízkost vzorků čar k cestám (`eachWearRun`) se počítá líně jen u vzorků,
+  na kterých záleží, a čára bez vyšlapaného vzorku mimo cestu se přeskočí (dá totéž);
+  `axisDistance` má číselné kyblíky a vzdálenost bez objektu. Mezipaměti po čarách nepomohly –
+  trasy se přepočítají skoro každý měsíc. Determinismus: klíč pokrývá všechny vstupy plochy,
+  dopočet po kouscích (`wear-village.test.ts`) beze změny. Vlkov 10 let: `roadsMonth` Ø 48 →
+  14,4 ms (mez 5 ms – **pořád mimo**: zbytek je úklid sítě, křižovatky, provozní pole a čáry
+  tras pro nové trasy), pahýly 0, konce mimo kotvu 0, cesty 28, křižovatky 13, nová id 68,
+  dopočet 178,9 s proti základu `439338f8` 156,8 s (+14 %, souběžně, load 49 → 6). Podíl cest
+  (profil 10 let obou verzí souběžně, kroky `simulateDay`): kroky cest (`refreshWalkDistances`
+  s trasami, `roadFieldsDay`, `roadsMonth`, `roadsDay`) 124,1 s proti 115,6 s v základu, tedy
+  **cesty + 8,5 s (≈ 4 % dopočtu)**: chůze a trasy + 4,9 s, `roadFieldsDay` + 2,8 s, `roadsMonth`
+  - 2,2 s (v základu není), `roadsDay` − 1,5 s; celkem v tom běhu 220,8 s obě verze (load až 57),
+    ostatní kroky − 8,3 s (`work` − 7,2 s – ves se v obou verzích vyvíjí jinak). Zbytek rozdílu
+    mimo profil je mimo cesty (koně, rod vojvody, žně) a šum zatíženého stroje.
+
 - **Trasy ve stavu vsi** (nový systém cest, Úloha 1; [paths.md – Kdy se trasy počítají a co se
   ukládá](../design/paths.md#kdy-se-trasy-počítají-a-co-se-ukládá)): `VillageState.routes`
   (`VillageRoutes { day, key, list }`, typy v `types-routes.ts`) – trasy posledního kola sítě pěšin,
