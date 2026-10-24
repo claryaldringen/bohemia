@@ -95,6 +95,22 @@ describe('pochůzka se dokončí (villagers.md – Pochůzka se dokončí)', () 
     for (let t = 205.1; t < 900; t += 7) expect(at(t)).toHaveLength(0);
   });
 
+  it('mrtvý nebo odstěhovaný člověk pochůzku nedokončí – zmizí hned a nezůstane vybratelný', () => {
+    const before = [walker('w:0', 1, WATER), walker('w:1', 2, WATER, 0.3)];
+    const people = carryErrands(before, [], 150, new Set([2]));
+    expect(people.some((p) => p.person === 1)).toBe(false);
+    expect(shown(people, 150, 1)).toHaveLength(0);
+    expect(shown(people, 150, 2)).toHaveLength(1);
+  });
+
+  it('zbořený dům: živý člověk dojde k místu, kde dveře stály, a tam zmizí', () => {
+    const before = [walker('w:0', 1, WATER)];
+    // nový plán dům (a tedy postavu) nemá, člověk ale žije
+    const people = carryErrands(before, [], 150, new Set([1]));
+    expect(shown(people, 204.9, 1)[0]?.x).toBeLessThan(0.2);
+    expect(shown(people, 205.1, 1)).toHaveLength(0);
+  });
+
   it('stejný plán pokračuje plynule – nic nezmizí ani neskočí', () => {
     const before = [walker('w:0', 1, WATER)];
     const people = carryErrands(before, [walker('w:0', 1, WATER)], 150);
@@ -204,5 +220,48 @@ describe('pro dřevo k větší skupince stromů nebo k okraji lesa', () => {
     expect(end[0]).toBeLessThan(-74);
     expect(end[0]).toBeGreaterThan(-82);
     expect(path!.length).toBeLessThan(90);
+  });
+
+  it('skupinky stromů se při stejné značce stromů nepočítají znovu', () => {
+    let calls = 0;
+    const make = (token?: object): Context =>
+      ({
+        houses: [],
+        homes: [{ id: 1, box: { minX: -5, maxX: 5, minZ: -5, maxZ: 5 } }],
+        center: { x: 0, z: 0 },
+        graves: [],
+        paths: {
+          route: (a: { x: number; z: number }, b: { x: number; z: number }) => ({
+            points: [
+              [a.x, a.z],
+              [b.x, b.z],
+            ],
+            pace: [1],
+          }),
+          errand: () => ({ x: 148, z: 0 }),
+        },
+        ground: {
+          walkable: () => true,
+          tree: () => null,
+          treesToken: token,
+          treesIn: (x: number, z: number, half: number, max: number) => {
+            calls++;
+            return trees
+              .filter((t) => Math.abs(t.x - x) <= half && Math.abs(t.z - z) <= half)
+              .slice(0, max);
+          },
+        },
+      }) as unknown as Context;
+    const home = { id: 1, x: 0, z: 0 } as unknown as Parameters<typeof errandPath>[1];
+    const token = {};
+    errandPath(make(token), home, { x: 0, z: 0 }, 'wood');
+    const first = calls;
+    expect(first).toBeGreaterThan(0);
+    // nový plán (nový kontext), stejná značka → žádné nové čtení stromů
+    errandPath(make(token), home, { x: 0, z: 0 }, 'wood');
+    expect(calls).toBe(first);
+    // změna stromů (nová značka) → počítá se znovu
+    errandPath(make({}), home, { x: 0, z: 0 }, 'wood');
+    expect(calls).toBeGreaterThan(first);
   });
 });

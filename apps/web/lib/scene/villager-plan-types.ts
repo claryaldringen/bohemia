@@ -179,6 +179,11 @@ export interface VillagerGround {
   tree(id: number): { x: number; z: number } | null;
   /** Stojící dospělé stromy ve čtverci (střed, polovina strany) – nejvýš `max`. */
   treesIn(x: number, z: number, half: number, max: number): { x: number; z: number }[];
+  /**
+   * Značka stavu stromů: dokud je stejný objekt, jsou stromy (`treesIn`) tytéž – index skupinek
+   * stromů se mezi přeplánováními nepočítá znovu. Bez ní se počítá při každém plánu.
+   */
+  treesToken?: object;
 }
 
 /**

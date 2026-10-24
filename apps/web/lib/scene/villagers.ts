@@ -576,7 +576,10 @@ export class VillageVillagers {
         };
       });
     // pochůzka je celý cyklus (villagers.md – Pochůzka se dokončí): kdo je na cestě, dojde domů
-    this.people = carryErrands(this.people, planned, t);
+    const living = village.labor?.persons
+      ? new Set(village.labor.persons.map((person) => person.id))
+      : undefined;
+    this.people = carryErrands(this.people, planned, t, living);
     this.extent = unionExtent(
       caravanExtent(village),
       ...this.funerals.map((f) => f.extent),
@@ -671,13 +674,23 @@ export class VillageVillagers {
     this.env.onWeddings?.(plans);
   }
 
+  private treesToken?: { layer: ObstacleLayer; key: string; token: object };
+
   /** Terén pro plán: schůdná země z rastru zvířat, stromy z vrstvy překážek. */
   private groundFor(village: SceneVillage): VillagerGround | null {
     const grid = this.env.ground(village);
     if (!grid) return null;
     const layer = this.env.layer;
     const status = obstacleStatus(village.obstacles);
+    // stromy se mění jen s vrstvou překážek a pokácením / pařezy / sazenicemi – skupinky stromů
+    // pro dřevo (villager-plan-traffic.ts) se mezi přeplánováními nepočítají znovu
+    const o = village.obstacles;
+    const key = o ? `${o.removed.length},${o.stumps.length},${o.saplings.length}` : '';
+    if (this.treesToken?.layer !== layer || this.treesToken.key !== key) {
+      this.treesToken = { layer, key, token: {} };
+    }
     return {
+      treesToken: this.treesToken.token,
       walkable: (x, z) => grid.walkable(x, z),
       tree: (id) => {
         const i = obstacleIndex(layer, id);

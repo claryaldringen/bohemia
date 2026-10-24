@@ -177,8 +177,11 @@ export function groveSpots(trees: readonly Point[], door: Point, searchM = 400):
   return new GroveIndex(ground).nearest(door, Infinity, searchM);
 }
 
-/** Index skupinek stromů – jeden na plán (všechny domácnosti sdílejí načtené čtverce). */
-const grovesOfPlan = new WeakMap<Context, GroveIndex>();
+/**
+ * Index skupinek stromů – jeden na stav stromů (`treesToken`; bez značky na plán), všechny
+ * domácnosti i další přeplánování sdílejí načtené čtverce. WeakMap: se značkou zaniká index.
+ */
+const grovesOfPlan = new WeakMap<object, GroveIndex>();
 
 /**
  * Trasy pro dřevo k nejbližším větším skupinkám stromů (vrstva překážek se stavem vsi – pokácené
@@ -187,8 +190,9 @@ const grovesOfPlan = new WeakMap<Context, GroveIndex>();
  */
 function groveRoutes(ctx: Context, home: House, door: Point): Route[] {
   const out: Route[] = [];
-  let groves = grovesOfPlan.get(ctx);
-  if (!groves) grovesOfPlan.set(ctx, (groves = new GroveIndex(ctx.ground)));
+  const owner = ctx.ground.treesToken ?? ctx;
+  let groves = grovesOfPlan.get(owner);
+  if (!groves) grovesOfPlan.set(owner, (groves = new GroveIndex(ctx.ground)));
   for (const tree of groves.nearest(door, WOOD_CANDIDATES)) {
     if (Math.hypot(tree.x - door.x, tree.z - door.z) <= WOOD_GATHER_M) continue;
     const edge = towards(tree, door, WOOD_GATHER_M);

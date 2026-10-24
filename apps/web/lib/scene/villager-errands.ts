@@ -146,11 +146,16 @@ function sameErrand(a: PlannedVillager, b: PlannedVillager): boolean {
  * přeplánování ji vynechá); nové pochůzky začnou se svým cyklem ve dveřích (ne dřív, než se
  * jejich člověk vrátí); člověk, který se vrací, je v nové práci až po návratu. Bez minulého plánu
  * (první zobrazení vsi) je nový plán beze změny – proud je rozběhnutý.
+ *
+ * `living` = lidé vsi, kteří ve vsi jsou (bez něj se nekontroluje): kdo zemřel nebo odešel, jeho
+ * pochůzka se zruší hned – mrtvý nechodí ani nejde vybrat. Zmizel-li dům cíle (zboření), živý
+ * člověk dojde k místu, kde dveře stály, a tam zmizí (jako ve vchodu).
  */
 export function carryErrands(
   before: readonly PlannedVillager[],
   next: readonly PlannedVillager[],
   t: number,
+  living?: ReadonlySet<number>,
 ): PlannedVillager[] {
   if (before.length === 0) return [...next];
   const nextByKey = new Map(next.map((p) => [p.key, p]));
@@ -161,6 +166,7 @@ export function carryErrands(
   for (const p of before) {
     const errand = p.errand;
     if (!errand || !outside(errand, t)) continue;
+    if (living && p.person !== undefined && !living.has(p.person)) continue;
     const n = nextByKey.get(p.key);
     if (n && sameErrand(p, n)) continue;
     const untilS = homeAt(errand, t);
