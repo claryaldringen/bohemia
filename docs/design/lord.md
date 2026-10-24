@@ -611,7 +611,7 @@ Clauda.
 
 - [Koně](horses.md) – jízda, péče o koně, objížďky.
 - [Válka](war.md) – síla mužů rodiny, jezdci; vojvodovi synové jako první dobrovolníci.
-- Lov (zatím nenavržený) – divoká prasata, luk a jízda.
+- [Divoká zvěř](wildlife.md) – lov rodu (návrh 24. 10. 2026): divoká prasata, luk a jízda.
 - Vazalství a nástupnictví ([vize](vision.md)) – vycvičený dědic jako hodnota rodu.
 
 ## Otevřené otázky
