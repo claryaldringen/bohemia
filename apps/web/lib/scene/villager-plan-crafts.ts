@@ -3,7 +3,8 @@ import { AGE } from '@bohemia/game';
 import type { SceneLabor } from '../village-view';
 import { fetchCarriers, streamPhase } from './road-traffic';
 import { hash01 } from './smoke-schedule';
-import { shuttle, stand, walkSpeed } from './villager-motion';
+import { shuttle, stand, walkSpeed, type ShuttleOptions } from './villager-motion';
+import { shuttleErrand } from './villager-errands';
 import { craftSpots, forestKilnAnchor } from './workshop-layout';
 import { orePitRadius } from './ore-site-layout';
 import { GRAIN_PIT_RADIUS_M } from './grain-pit-layout';
@@ -121,7 +122,7 @@ export function smithFetchFigures(ctx: Context, labor: SceneLabor): PlannedVilla
       );
       if (!c) return;
       const who = c.who;
-      const pose = shuttle(path, {
+      const options: ShuttleOptions = {
         outClip: 'walk',
         outSpeed: walkSpeed(who.kind, 'walk', who.scale),
         endClip: 'idle',
@@ -132,9 +133,13 @@ export function smithFetchFigures(ctx: Context, labor: SceneLabor): PlannedVilla
         restS: TRAFFIC_HOME_S,
         restHidden: true,
         phase: streamPhase(k, base),
-      });
+      };
       const hair = child ? 'natural' : adultHair(who, ctx.sexes.married);
-      out.push(figure(c, pose, hair, { kind: 'fetch', goods }));
+      // pochůzka je celý cyklus – při změně plánu ji nosič dojde (villager-errands.ts)
+      out.push({
+        ...figure(c, shuttle(path, options), hair, { kind: 'fetch', goods }),
+        errand: shuttleErrand(path, options),
+      });
     });
   }
   return out;

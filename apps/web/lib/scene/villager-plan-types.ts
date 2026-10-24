@@ -6,7 +6,12 @@ import { type DayWindow } from './caravan';
 import { type FuneralPlan } from './funeral-plan';
 import { type WeddingPlan } from './wedding-plan';
 import { type CellSquare } from './field-cells';
-import { type PoseFn, type VillagerClip, type VillagerKind } from './villager-motion';
+import {
+  type PoseFn,
+  type ShuttleCycle,
+  type VillagerClip,
+  type VillagerKind,
+} from './villager-motion';
 import { DayRoster, type PersonJob } from './villager-roster';
 
 /**
@@ -149,6 +154,21 @@ export interface PlannedVillager {
   person?: number;
   /** Co postava dělá – činnost v panelu postavy (person-activity.ts); jen s `person`. */
   job?: PersonJob;
+  /**
+   * Pochůzka jako celý cyklus (villagers.md – Pochůzka se dokončí): z domu k cíli a zpět – při
+   * změně plánu ji postava na cestě dokončí (villager-errands.ts). Bez údaje není pochůzka.
+   */
+  errand?: Errand;
+}
+
+/** Cyklus pochůzky postavy (`shuttleCycle`) a jak ho změna plánu omezila. */
+export interface Errand extends ShuttleCycle {
+  /** Trasa a tempo – stejné u stejné postavy = táž pochůzka, pokračuje plynule. */
+  sig: string;
+  /** Nový člověk v proudu: do té doby (s) je doma, vyjde s cyklem (ne uprostřed cesty). */
+  fromS?: number;
+  /** Dokončovaná pochůzka: v tu chvíli (s) vejde do domu a z plánu odpadne. */
+  untilS?: number;
 }
 
 /** Terén pro postavy (bez vsi). */
@@ -159,6 +179,11 @@ export interface VillagerGround {
   tree(id: number): { x: number; z: number } | null;
   /** Stojící dospělé stromy ve čtverci (střed, polovina strany) – nejvýš `max`. */
   treesIn(x: number, z: number, half: number, max: number): { x: number; z: number }[];
+  /**
+   * Značka stavu stromů: dokud je stejný objekt, jsou stromy (`treesIn`) tytéž – index skupinek
+   * stromů se mezi přeplánováními nepočítá znovu. Bez ní se počítá při každém plánu.
+   */
+  treesToken?: object;
 }
 
 /**

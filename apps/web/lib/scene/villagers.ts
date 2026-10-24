@@ -45,6 +45,7 @@ import {
   type VillagerKind,
   type VillagerStage,
 } from './villager-motion';
+import { carryErrands, WALK_OVER_M } from './villager-errands';
 import { samePersonState, type PersonFigureState } from '../person-activity';
 import { RING_SIZE_M, SelectionRing } from './selection-ring';
 import { pickPersonHit, selectedFigure, type Project } from './villager-pick';
@@ -75,11 +76,6 @@ const HEAD_ROOM_M = 2.6;
 const SHADOW_SIZE_M = 1.15;
 const SHADOW_OPACITY = 0.5;
 const SHADOW_LIFT_M = 0.04;
-/**
- * Po přeplánování dojde postava na nové místo pěšky, když je od starého dál než `from` a blíž
- * než `to` (m) – další čtverec pole, další strom; dál (jiná práce jinde ve vsi) se objeví hned.
- */
-const WALK_OVER_M = { from: 2.5, to: 90 };
 /**
  * Svatební věnec nevěsty (kinship.md – Svatba ve scéně): vlasy po buňkách textury – kolik buněk
  * na šířku textury (kvítek nebo lístek na buňku, GLSL i WGSL číslo s tečkou).
@@ -555,15 +551,17 @@ export class VillageVillagers {
       draft: this.draft,
     });
     this.setCrew(plan.crew);
-    this.people = plan.people
+    const planned = plan.people
       .filter((p) => this.models?.has(p.kind))
       .map((p) => {
         const from = before.get(p.key);
         if (!from) return p;
         probe.hidden = false;
         const to = p.pose(t, herds, probe);
-        // karavana (caravan.ts) jde podle výpravy a pohřeb podle obřadu – nepřecházejí pěšky
+        // karavana (caravan.ts) jde podle výpravy a pohřeb podle obřadu – nepřecházejí pěšky;
+        // pochůzku na cestě postava dojde a nová začne ve dveřích (carryErrands níž)
         if (
+          p.errand ||
           p.key.startsWith('caravan:') ||
           p.key.startsWith('funeral:') ||
           p.key.startsWith('wedding:')
@@ -577,6 +575,11 @@ export class VillageVillagers {
           pose: walkThen(from.x, from.z, p.pose, t, walkSpeed(p.kind, 'walk', p.scale)),
         };
       });
+    // pochůzka je celý cyklus (villagers.md – Pochůzka se dokončí): kdo je na cestě, dojde domů
+    const living = village.labor?.persons
+      ? new Set(village.labor.persons.map((person) => person.id))
+      : undefined;
+    this.people = carryErrands(this.people, planned, t, living);
     this.extent = unionExtent(
       caravanExtent(village),
       ...this.funerals.map((f) => f.extent),
@@ -671,13 +674,23 @@ export class VillageVillagers {
     this.env.onWeddings?.(plans);
   }
 
+  private treesToken?: { layer: ObstacleLayer; key: string; token: object };
+
   /** Terén pro plán: schůdná země z rastru zvířat, stromy z vrstvy překážek. */
   private groundFor(village: SceneVillage): VillagerGround | null {
     const grid = this.env.ground(village);
     if (!grid) return null;
     const layer = this.env.layer;
     const status = obstacleStatus(village.obstacles);
+    // stromy se mění jen s vrstvou překážek a pokácením / pařezy / sazenicemi – skupinky stromů
+    // pro dřevo (villager-plan-traffic.ts) se mezi přeplánováními nepočítají znovu
+    const o = village.obstacles;
+    const key = o ? `${o.removed.length},${o.stumps.length},${o.saplings.length}` : '';
+    if (this.treesToken?.layer !== layer || this.treesToken.key !== key) {
+      this.treesToken = { layer, key, token: {} };
+    }
     return {
+      treesToken: this.treesToken.token,
       walkable: (x, z) => grid.walkable(x, z),
       tree: (id) => {
         const i = obstacleIndex(layer, id);

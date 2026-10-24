@@ -77,8 +77,19 @@ vodu a dřevo, vozy) už jsou v jádru.
   veze vůz v sudech** (wagons.md – Co vozy vozí), jde pěšky jen tolik, kolik vůz domácnosti
   nepřivezl (`SceneLabor.homes[].cartWater` – týž plán jako simulace, domácnostem nejdál od vody
   první).
-- **K lesu pro dřevo** – cesty na domácnost jako síť pěšin (léto 0,5, zima 1,2), jen do 220 m po
-  pěšině; tam s prázdnýma rukama, zpět s otepí.
+- **K lesu pro dřevo** – cesty na domácnost jako síť pěšin (léto 0,5, zima 1,2); tam s prázdnýma
+  rukama, zpět s otepí. Martin (24. 10. 2026): „Když jde někdo pro dřevo, tak musí dojít
+  k nejbližší větší skupince stromů či okraji lesa, tam to nasbírat, a pak s tím dojít až domů.“
+  Podrobnosti návrh Clauda: **cíl je nejbližší větší skupinka stromů nebo okraj lesa** – větší
+  skupinka = aspoň 6 stojících dospělých stromů do 15 m od jednoho z nich (`WOOD_GROVE`; osamělý
+  strom ani dvojice u cesty ne, okraj lesa podmínku splní vždy). Hledá se z vrstvy překážek se
+  stavem vsi (pokácené a odstraněné stromy se nepočítají – kde ves les vykácela, jde se k novému
+  okraji) do 250 m vzdušnou čarou od vchodu (`WOOD_SEARCH_M`); ze tří nejbližších skupinek
+  a konce pěšiny pro dřevo ze sítě pěšin (okraj lesa z jádra) vyhraje nejkratší trasa po
+  pěšinách. Postava se zastaví na volném místě na kraji skupinky, chvíli sbírá (shýbá se –
+  klip `weed`, 12 s – dřív 6 s) a s otepí jde až domů. **Mez 400 m po pěšině** (dřív 220 m; `ERRAND_MAX_M`)
+  – jádro chodí pro dřevo nejvýš za cenu `ERRAND_MAX_COST` 450 (cena ≥ délka, do kopce a lesem
+  víc), dál méně často a proud se nekreslí.
 - **Na pole a zpět** – jedna cesta za den na člověkoden polní práce (kopání, setí, pletí, žeň,
   seč na dílu, zakládání); od domu, ke kterému díly dnešní fronty patří (holdings.ts), k jeho
   prvnímu dílu.
@@ -89,6 +100,22 @@ vodu a dřevo, vozy) už jsou v jádru.
 - **Lidé v proudu** jsou rozestoupení (fáze se zlatým řezem – přibude-li člověk, ostatní zůstanou,
   kde byli), doma mezi cestami na chvíli zmizí (zajdou dovnitř). Vyjdou z nejbližšího volného
   místa u vchodu – u pozemků vedle sebe i o pár metrů dál.
+- **Pochůzka se dokončí** – Martin (24. 10. 2026): „Postavy musí svou činnost dokončit. Například
+  ženy nesoucí vodu nesmí z cesty náhle zmizet, ale musí dojít domů a do toho domu vejít.“
+  Podrobnosti návrh Clauda:
+  - **Pochůzka je celý cyklus:** vyjde z domu (volné místo u vchodu) → jde k cíli → u cíle pracuje
+    (voda – nabírá, dřevo – sbírá, milíř a pole – chvíli postojí) → vrací se s nákladem → vejde do
+    domu. Postava nikdy nezmizí ani neskočí uprostřed cyklu.
+  - **Při změně plánu** (nový den, jiný počet lidí v proudu, jiná trasa, jiný člověk v postavě –
+    los lidí je na každý den jiný): kdo je na cestě, svůj **rozběhnutý cyklus dokončí** po dosavadní
+    trase a zmizí až ve dveřích; další cyklus jde podle nového plánu. Klesne-li proud, přebyteční
+    svou cestu dojdou a zůstanou doma; stoupne-li, noví **vyjdou z domu**, až na ně podle fáze
+    přijde řada (ne uprostřed cesty). Proud tak zůstane plynulý – nový člověk vyjde zhruba tehdy,
+    kdy by vyšel ten předchozí.
+  - **Nikdo dvakrát:** člověk, který dokončuje cestu, se v novém plánu ukáže až po návratu – na
+    další cestu vyjde nejdřív s dalším cyklem, k jiné práci dojde od dveří.
+  - První zobrazení vsi ukáže proud rozběhnutý (svět běžel i předtím) – lidé jsou na cestě všude
+    po trase.
 - **Schůdná země přes celou krajinu** (pole do 800 m od obydlí): buňky po 4 m se počítají až při
   prvním dotazu a pamatují se (`lazyWalkable`).
 - **Nosiči kováře** (crafts.md – Uhlí a ruda kováře; Martin 20. 10. 2026: „Pokud má dostatečně

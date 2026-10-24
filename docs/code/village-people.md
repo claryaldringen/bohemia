@@ -316,7 +316,23 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`streamPhase`). `trafficFigures` ve `villager-plan-traffic.ts` – po pěšinách (`errandPath`, na vzdálený
   díl `fieldPath`: po pěšině k poli, `route(a, b, reach)`, a přes pole; kontrola `trafficRouteOk`
   – ohrady se neberou, do domu jen o `ROUTE_HOUSE_SLACK_M`), vyjde se od vchodu (`trafficDoor` –
-  volné místo do 16 m), doma na chvíli zmizí (`ShuttleOptions.restHidden`); pro vodu s vahadlem
+  volné místo do 16 m), doma na chvíli zmizí (`ShuttleOptions.restHidden`).
+  **Pochůzka se dokončí** (villagers.md – Pochůzka se dokončí; Martin 24. 10. 2026): postavy
+  proudu a nosiči kováře nesou `PlannedVillager.errand` (`shuttleErrand` – cyklus `shuttleCycle`:
+  délka, posun fáze, kdy v cyklu dojde domů, a otisk trasy `sig`); `VillageVillagers.rebuild`
+  po novém plánu volá `carryErrands(staré, nové, t)` (`villager-errands.ts`, čisté funkce, testy
+  `villager-errands.test.ts`): kdo je venku a v novém plánu nemá tutéž pochůzku (klíč, otisk,
+  člověk, postava), dojde ji jako postava `…#done` (`untilS` – ve dveřích zmizí, příští
+  přeplánování ji vynechá); nové pochůzky čekají doma do svého začátku cyklu (`fromS`,
+  `nextStart`) a ne dřív, než se jejich člověk vrátí; jiná práce člověka, který se vrací, je
+  skrytá do návratu a od dveří k ní dojde (`WALK_OVER_M`, přesunuté z `villagers.ts`). Bez
+  minulého plánu (první zobrazení) je proud rozběhnutý. Pochůzky se nepřecházejí `walkThen`.
+  **K lesu pro dřevo** (villagers.md – K lesu pro dřevo): `errandPath` pro dřevo vybere nejkratší
+  chůzi ke konci pěšiny pro dřevo (okraj lesa ze sítě pěšin jádra) nebo k jedné ze tří
+  nejbližších větších skupinek stromů (`WOOD_GROVE` – 6 stromů do 15 m, `GroveIndex` – stromy
+  z `VillagerGround.treesIn` líně po čtvercích 30 m, hustota jen u prošlých stromů, poloměry
+  30 → 250 m, `WOOD_SEARCH_M`; jeden index na plán), trasa `walkRoute` / `fieldPath`, cíl 2,5 m
+  před krajním stromem; mez `ERRAND_MAX_M.wood` 400 m. Pro vodu s vahadlem
   a vědry (klipy `carry-water` a `water-idle`, prop `yoke` – `procedural_yoke` v
   `people_from_0ad.py`, ruce `reach` na provazech). Schůdná země postav přes celou krajinu líně
   po 4 m (`lazyWalkable`, `VillageLivestock.walkGroundFor`) – pole až 800 m od obydlí; `inBox`

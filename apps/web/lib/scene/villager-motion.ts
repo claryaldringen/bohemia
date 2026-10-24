@@ -347,17 +347,36 @@ export interface ShuttleOptions {
 }
 
 /**
+ * Cyklus `shuttle` v čase postav (villagers.md – Pochůzka se dokončí): čas v cyklu je
+ * (t + `shiftS`) mod `cycleS`; od 0 jde tam, pracuje, vrací se a od `homeS` je doma (odpočívá).
+ */
+export interface ShuttleCycle {
+  cycleS: number;
+  shiftS: number;
+  homeS: number;
+}
+
+export function shuttleCycle(
+  r: Route,
+  o: Pick<ShuttleOptions, 'outSpeed' | 'endS' | 'backSpeed' | 'restS' | 'phase'>,
+): ShuttleCycle {
+  // po vyšlapané pěšině se jde rychleji (tempo úseků) – cesta trvá podle délky chůze
+  const walk = walkLengthOf(r);
+  const homeS = walk / Math.max(0.1, o.outSpeed) + o.endS + walk / Math.max(0.1, o.backSpeed);
+  const cycleS = homeS + o.restS;
+  return { cycleS, shiftS: o.phase * cycleS, homeS };
+}
+
+/**
  * Chůze tam a zpět po trase (nosič úrody, dřeva, vody): tam s `outClip`, na konci `endClip`
  * (nakládá), zpět s nákladem (`backClip`), na začátku chvíli stojí. Na koncích hledí podél
  * trasy ven.
  */
 export function shuttle(r: Route, o: ShuttleOptions): PoseFn {
-  // po vyšlapané pěšině se jde rychleji (tempo úseků) – cesta trvá podle délky chůze
   const walk = walkLengthOf(r);
   const outS = walk / Math.max(0.1, o.outSpeed);
   const backS = walk / Math.max(0.1, o.backSpeed);
-  const cycle = outS + o.endS + backS + o.restS;
-  const shift = o.phase * cycle;
+  const { cycleS: cycle, shiftS: shift } = shuttleCycle(r, o);
   return (t, _herds, out) => {
     const time = (((t + shift) % cycle) + cycle) % cycle;
     out.pace = 1;
