@@ -276,7 +276,7 @@ export function abandonBlockedStretches(
  * vede po živých zbytcích ve svém pořadí od vsi ven, opuštěné z ní vypadnou (zarostou jako každá
  * opuštěná cesta). Stupeň zůstane, práce u prvního kusu (jako `splitTrailPieces`).
  */
-function retrailPieces(
+export function retrailPieces(
   trails: readonly Trail[] | undefined,
   roads: VillageRoads,
   id: number,

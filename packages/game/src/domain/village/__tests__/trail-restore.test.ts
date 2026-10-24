@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
 import { withMergedRoads } from '../paths/roads';
+import { mergeParallelRoads } from '../paths/roads-tidy';
 import type { Road, Trail, VillageState } from '../types';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
@@ -20,6 +21,7 @@ function road(id: number, points: [number, number][], extra: Partial<Road> = {})
     points: points.map(([x, z]) => ({ x, z })),
     bornDay: Y1 - 300,
     traffic: [],
+    spots: [],
     ...extra,
   } as Road;
 }
@@ -132,5 +134,55 @@ describe('převod: stezka bez úseků je znovu najde po síti pevných cest', ()
   it('bez krajiny se úseky jen vyřadí', () => {
     const s = village(network(), [trail(1, 'N', [98, 10])]);
     expect(withMergedRoads(s).trails![0]!.pieces.map((p) => p.roadId)).toEqual([10]);
+  });
+});
+
+describe('obnova stezky je jednorázový převod', () => {
+  it('stezka, která o úseky přišla za běhu, se po dalším načtení nevzkřísí', () => {
+    const s = village(network(), [trail(1, 'N', [98, 99])]);
+    const migrated = withMergedRoads(s, LAND);
+    expect(migrated.roads!.trailsRestored).toBe(true);
+    // za běhu o úseky přijde (opuštěný zbytek vypadne ze stezky)
+    const later = structuredClone(migrated);
+    later.trails![0]!.pieces = [];
+    expect(withMergedRoads(later, LAND)).toBe(later);
+    expect(later.trails![0]!.pieces).toEqual([]);
+  });
+
+  it('bez příznaku se převod provede i na vsi bez nalezené osy a pak se označí', () => {
+    const roads = network().filter((r) => r.id !== 12 && r.id !== 13 && r.id !== 16);
+    const migrated = withMergedRoads(village(roads, [trail(1, 'N', [98])]), LAND);
+    expect(migrated.roads!.trailsRestored).toBe(true);
+  });
+});
+
+describe('řez úseku stezky', () => {
+  it('vyříznutí prostředního kusu nechá stezku vést po obou zbytcích', () => {
+    const s = village(
+      [
+        road(
+          1,
+          [
+            [60, 4],
+            [140, 4],
+          ],
+          { grade: 'wagon' },
+        ),
+        road(
+          2,
+          [
+            [0, 0],
+            [200, 0],
+          ],
+          { grade: 'trodden' },
+        ),
+      ],
+      [trail(1, 'E', [2])],
+    );
+    const roads = s.roads!;
+    expect(mergeParallelRoads(roads, [], s.trails)).toBe(true);
+    const ids = roads.roads.filter((r) => r.id !== 1).map((r) => r.id);
+    expect(ids.length).toBe(2);
+    expect(s.trails![0]!.pieces.map((p) => p.roadId)).toEqual(ids);
   });
 });

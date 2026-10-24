@@ -29,6 +29,7 @@ import {
   roadLengthM,
   toSegment,
 } from './roads-geometry';
+import { retrailPieces } from './roads-overgrow';
 import { dropGoneTrailPieces, endKey, mergeRoadChains, roadsInWork, splitRoad } from './roads-form';
 import { type RoadAnchors, nearAnchor } from './road-anchors';
 import { type StubNetwork, hasLoop, hasStubWork, splitLoops, trimStubs } from './roads-stubs';
@@ -121,7 +122,7 @@ export function absorbParallelRoads(
   constructions: Construction[],
   trails?: readonly Trail[],
 ): void {
-  if (mergeParallelRoads(roads, constructions)) {
+  if (mergeParallelRoads(roads, constructions, trails)) {
     mergeRoadChains(roads, constructions, trails);
     dropGoneTrailPieces(roads, trails);
   }
@@ -139,6 +140,8 @@ export function absorbParallelRoads(
 export function mergeParallelRoads(
   roads: VillageRoads,
   constructions: readonly Construction[],
+  /** Zemské stezky – po vyříznutí prostředního kusu vedou po obou zbytcích. */
+  trails?: readonly Trail[],
 ): boolean {
   const building = roadsInWork(constructions);
   let merged = false;
@@ -154,14 +157,21 @@ export function mergeParallelRoads(
       if (run) cut = { road, ...run };
     }
     if (!cut) break;
-    cutRoad(roads, cut.road, cut.from, cut.to, cut.partner);
+    cutRoad(roads, cut.road, cut.from, cut.to, cut.partner, trails);
     merged = true;
   }
   return merged;
 }
 
 /** Vyřízne z úseku `road` kus od `from` do `to` m (souběžný s `partner`) – mutuje. */
-function cutRoad(roads: VillageRoads, road: Road, from: number, to: number, partner: Road): void {
+function cutRoad(
+  roads: VillageRoads,
+  road: Road,
+  from: number,
+  to: number,
+  partner: Road,
+  trails?: readonly Trail[],
+): void {
   const length = roadLengthM(road);
   const pieces = [
     { a: 0, b: from },
@@ -216,6 +226,7 @@ function cutRoad(roads: VillageRoads, road: Road, from: number, to: number, part
     if (piece) (piece.condition ??= []).push(q);
   }
   const index = roads.roads.indexOf(road);
+  retrailPieces(trails, roads, road.id, road.points, made);
   roads.roads.splice(index, 1, ...made);
 }
 
@@ -312,7 +323,7 @@ export function tidyRoads(
   for (let round = 0; round < TIDY_ROUNDS; round++) {
     // okruh přes jeden uzel – dva úseky, malý okruh pak zmizí jako copánek a pahýl
     const loops = network ? splitLoops(roads, constructions, context, network.trails) : false;
-    const parallel = mergeParallelRoads(roads, constructions);
+    const parallel = mergeParallelRoads(roads, constructions, trails);
     joinRoadGaps(roads, ends, context);
     // copánky před spojováním – kusy silnější cesty se po odstranění slabší trasy spojí zpět
     const braids = removeBraids(roads, constructions);

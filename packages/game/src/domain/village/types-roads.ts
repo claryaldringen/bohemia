@@ -220,6 +220,12 @@ export interface VillageRoads {
    * cestou, upravená přes mokřinu nebo brod bez hatě dostane `unbridged`) jednou. Chybí = ještě ne.
    */
   bridgesSeeded?: true;
+  /**
+   * Zemské stezky, které přišly o úseky, jsou obnovené (`withMergedRoads`, trade.md – Zemská
+   * stezka): jednorázový převod starší vsi, nová ves ho má od začátku. Pozdější stezka bez úseků
+   * (opuštěný zbytek) se neobnovuje – dopočet nesmí záviset na tom, kdy se ves načte.
+   */
+  trailsRestored?: true;
   /** Jabloně vysazené hráčem podél úseků (roads.md – Vysazení jabloní); chybí = žádné. */
   apples?: RoadApple[];
   /**

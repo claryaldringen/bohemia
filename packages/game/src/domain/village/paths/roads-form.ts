@@ -53,6 +53,7 @@ export function emptyRoads(day: number): VillageRoads {
     visits: { from: day, byKey: [] },
     conditionSeeded: true,
     bridgesSeeded: true,
+    trailsRestored: true,
     v2: true,
   };
 }
@@ -574,9 +575,12 @@ export function withMergedRoads(
   const base = next ?? state;
   const ids = new Set(base.roads!.roads.map((r) => r.id));
   const stale = (base.trails ?? []).some((t) => t.pieces.some((p) => !ids.has(p.roadId)));
-  const restored = landscape ? restoredTrailPieces(base, landscape) : new Map<number, never>();
-  if (!next && !stale && restored.size === 0) return state;
+  // obnova jen jednou jako převod – pozdější ztráta úseků za běhu je legitimní
+  const convert = !!landscape && !base.roads!.trailsRestored;
+  const restored = convert ? restoredTrailPieces(base, landscape) : new Map<number, never>();
+  if (!next && !stale && !convert) return state;
   next ??= cloneState(state);
+  if (convert) next.roads!.trailsRestored = true;
   for (const trail of next.trails ?? []) {
     const pieces = restored.get(trail.id);
     if (pieces) trail.pieces = pieces;
