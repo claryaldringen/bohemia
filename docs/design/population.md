@@ -46,6 +46,10 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
 - **Anti-cíl:** ves, která se bez hráče rozpadne nebo vymře jen proto, že hráč pár dní nebyl
   online. Nestavění zpomalí růst, ale neruinuje ves. Pole obdělávají osadníci sami – ves, která
   má dost polí, bez hráče nehladoví. Hlad ji zabít může (Martin, 18. 10. 2026 – Hlad a vymření).
+- **Cíl:** ves s dostatkem polí roste sama (Martin 24. 10. 2026: „Teď žije vesnice v ideální
+  krajině … vesnice populačně roste i bez zásahu hráče, za předpokladu, že má dostatečnou rozlohu
+  polí.“) – dost polí ≈ 2,0–2,6 ha na člověka při úrodnosti 56 (diagnóza 24. 10. 2026, návrh
+  Clauda); úzkým hrdlem byly žně ([pole](fields.md) – Žně všemi rukama).
 - **Anti-cíl:** čísla typu „4,37 člověka“ – lidé jsou celí.
 
 ## Pojmy
@@ -309,7 +313,9 @@ bude ve vsi málo vhodných dětí na pasení, tak to omezí i velikost stád.�
 o zvířata – to obvykle dělají ženy. Starší lidé se zase starají o malé děti, a uvolňují práci
 zbytku rodiny.“
 
-- **Pracovní síla vsi** (pole, stavby, opravy) za den: **dospělý 1 člověkoden**, nikdo jiný.
+- **Pracovní síla vsi** (pole, stavby, opravy) za den: **dospělý 1 člověkoden**, nikdo jiný –
+  jen ve žňový den dají výrostci od 10 let a starší po 0,5 člověkodne na žeň a výmlat
+  ([pole](fields.md) – Žně všemi rukama, Martin 24. 10. 2026).
   - **Starší** dají 0,5 člověkodne, ale jen na **denní minimum své domácnosti** – hlídání malých
     dětí, oheň, vaření (návrh Clauda). Dospělí domácnosti dají na denní minimum jen zbytek:
     max(0, minimum domácnosti − 0,5 × starší v domácnosti). Co starším nad minimum zbude, do
@@ -703,6 +709,23 @@ před → po:
   (starší pár se stěhoval do prázdného domu, rozpadl se a vrátil); po změně to dělalo 5 vsí,
   oprava – rodina i svobodný muž odejdou, jen když nový dům udrží (někdo 16–44) – po ní nejvýš
   5 rozpadů na ves.
+
+**Žně všemi rukama a osev navíc v oběhu (24. 10. 2026,** [pole](fields.md) **– Žně všemi rukama,
+Osev navíc; návrh Clauda, Martin schválil):** zralý Vlkov (47,9 ha, 31 lidí) za 10 let 31 → 5
+lidí → 31 → 11, sklizeň za 10 let 17,5 → 24,8 t, osetá plocha průměrně 6,3 → 9,8 ha; úmrtí hladem
+dál ≈ 25 (přílohy už pod 70 %, osev navíc v oběhu vyčerpanou ves nezachrání – brání jen dalšímu
+vyčerpání). Čerstvé vsi `measure-village.ts 8 30` beze změny: 8/8 roste, lidí po 20 letech medián
+13, po 30 letech 20,5, hladem 0.
+
+Ověření na noc (dlouhá kalibrace jen v noci):
+
+```bash
+npx tsx packages/game/scripts/measure-village.ts 100 100 --out night-100x100.jsonl
+npx tsx packages/game/scripts/measure-village.ts 100 100 --out night-100x100.jsonl --report-only
+```
+
+Sledovat: kolik vsí roste bez zásahu hráče, lidé po 20, 30, 60 a 100 letech, úmrtí hladem a vlny
+hladu po ≈ 6 letech, osetá plocha ÷ pole a zásoby ÷ potřeba po 20. roce.
 
 ## Co hráč vidí
 

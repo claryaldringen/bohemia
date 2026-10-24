@@ -30,8 +30,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   Rozjetý plán zkrátí `trimPlan` (každý den 1. 9. – 30. 4., `plan-trim.ts`: nezačaté díly obilí
   od konce pořadí – nouzové první – přes `shrinkInPlan` / `dropFromWork` z `land-taken.ts`, ladem
   jako příloh – `FieldPart.fallowBeforePlan` – a na začátek osevu navíc).
-  **Osev navíc** (fields.md – Osev navíc, Martin 19. 10. 2026; `extra-sowing.ts`): ostatní díly od
-  70 % v pořadí výběru čekají v `YearPlan.extra` (`ExtraPart` – `sownYears` u dílu, který se
+  **Osev navíc** (fields.md – Osev navíc, Martin 19. 10. 2026; `extra-sowing.ts`): ostatní díly v oběhu
+  (`extraSowable` – `sowingGroup` 1–3: osévaný od 70 %, založený, příloh od 95 %; příloh 70–95 %
+  ne, Martin 24. 10. 2026) v pořadí výběru čekají v `YearPlan.extra` (`ExtraPart` – `sownYears` u dílu, který se
   osíval; plán k 1. 9., hotové díly `joinFinishedParts`, ubrané `trimPlanToTarget`); krok
   `extraSowingDay` ve `work()` z `afterBuild.left` (práce po stavbách a opravách) a ze zbylé
   kapacity spřežení (`FieldTaskEntry.teamDays`) začne díly navíc – ozim do 30. 10., pak jař
@@ -57,46 +58,56 @@ true })` (práce cvičících mužů rodiny po minimu dvorce – `manorLabor.fre
   `allocateDay` – `lordHelp` až po práci vsi, jen na úlohy osevu (`SOWING_HELP_TASKS`: vrácení, plet, žně, výmlat,
   kopání, orba, setí; jen co ves dnes nestihne, vsi neuvolní práci na stavby ani osev navíc);
   podíl dne na poli pro `trainLordDay` = spotřeba ÷ `freeMen` (při hladu ÷ `free`, i ženy). Jarní úprava:
-  `trimPlan` v březnu–dubnu přepočítá `lordHelp` ze zbytku plánu (`springLordHelp`). Výhled jídla do sklizně (`eatDiet`) počítá s mlékem stád do sklizně
-  (`milkAheadEnergy` z `milkEnergyBetween`) a celou zásobou sýra.
-  Polní úlohy obou plodin řadí `fieldTasks` v `simulate-work.ts`
-  (konec okna, ozim před jaří); `allocateDay` vrací i `taskAmounts` po úlohách vstupu (stejný
-  název víckrát). Sklizeň ozimu 31. 7. (`harvestWinter`), jaře 31. 8. – do snopů, výmlat hned
-  po žni (Snopy a výmlat níž); příděl počítá do sklizně
-  podle `daysUntilFoodHarvest` (31. 7., když ozim podle odhadu uživí srpen). Plán po plodinách
-  prochází `planCrops`, všechny díly `planPartIds`. **Luštěniny** (fields.md – Luštěniny, Martin 18. 10. 2026): třetí plodina `legume` (`YearPlan.legume?`, `LEGUME_WINDOWS` – jař se sklizní
-  v červenci, `LEGUMES` a `LEGUME_WORK_PER_HA` v `rules*.ts`, úroda `cropGrossPerHa` /
-  `cropSeedPerHa`, `partWork(…, crop)`); `chooseCrops` dostane `legumeTargetKg`
-  (`plannedLegumeKg` – rovnovážné hospodaření, diet.md, bez zásoby – `sowingTargets`) a `energyFloorKg` – obilí napřed na celý cíl, pak luštěniny na
-  díly výběru od domu (loňské luštěniny až nakonec) a obilí doplní energii (`chooseLegumes`);
-  sklizeň 31. 7. do `VillageState.legumesKg` (`harvestWinter`), osev úrodnost vrátí
-  (`LEGUMES.fertilityGain` v `endOfSeason`). Scéna: `SceneFieldPart.crop: 'legume'` – trsy
-  hrachu `crop-pea-green` / `crop-pea-ripe` a hromádky `pea-heap` v `crops.glb`.
-  **Len** (fields.md – Len, diet.md – Oděv; Martin 19. 10. 2026: „na částech pole musí být zasetý
-  len“, čísla návrh Clauda podle rešerše `research/2026-10-19-flax.md`): čtvrtá plodina `flax`
-  (`YearPlan.flax?`, `FLAX_WINDOWS` = okna luštěnin, `FLAX` a `FLAX_WORK_PER_HA` v `rules*.ts` –
-  potřeba 2 / 1 kg třeného lnu na dospělého / dítě, 550 kg/ha, osivo 0, neopletý 50 %, úrodnost
-  −0,18 v `endOfSeason`, nemlátí se); `flax.ts` – `flaxNeedKg`, `expectedFlaxKg`, `harvestFlax`
-  (31. 7. v `harvestWinter` – `VillageState.linen` = podíl oděvu vůči `YearPlan.flaxNeedKg`
-  zapsané v `planYear`; plán bez ní – starší ves, ves založená během roku – nic nezapíše, kronika
-  `linen-short`), `linenUnhappiness` (`HappinessFactors.linen`, až `FLAX.unhappiness` 4).
-  `chooseCrops` dostane `flaxTargetKg` – `chooseFlax`: napřed `chooseSideCrop` (před luštěninami)
-  na díly výběru obilí **od konce** (vysiluje půdu, delší příloh neleží domům v cestě; loňský len
-  až nakonec; když se práce nevejde, zkusí další díl – `fitsSideCrop`), obilí doplní energii, a
-  když nejde, len ubere obilí nejvýš o svůj díl – i se zásobami pod pojistkou. **Len napřed**
-  (fields.md, Martin 20. 10. 2026 – „občas mi to píše chybí len na oděv“): když to potřebu
-  nepokryje (ves bez volné práce – červenec plný ozimu, obilí doplněné za díl lnu práci hned zabere),
-  `flaxFirst` vyhradí díly a práci lnu před obilím (výběr `base` před `chooseGrain`; díl, který se
-  nevejde, přeskočí – bližší či menší) a obilí vybere po něm; bere se, co dá víc lnu – ves, které
-  len za obilím vycházel, má plán beze změny (zlatý otisk ve `flax.test.ts`). Trhání v červenci
-  napřed (`CROP_ORDER` – len první); `trimPlan` ani osev navíc len neubírají. Zpracování je v domácí výrobě
-  (přerozdělení), žádná zásoba v liště. Web: `SceneFieldPart.crop: 'flax'` a `bloom` (červen –
-  `FLAX_BLOOM_MONTH` ve `village-view-fields.ts`), scéna `FLAX_STYLES` / `FLAX_BLOOM` ve `field-crops.ts`
-  (druhy trsů `flax-green` / `flax-bloom` / `flax-ripe` – kopie uzlu `crop-sprout` s vlastní
-  geometrií, `CROP_NODE` ve `field-renderer.ts`; kvetoucí len napůl modré trsy), malé panáky,
-  nízká koruna; panel `CROP_LABELS.flax` (ikona `resources/flax` – `icons.py flax`),
-  `fieldPartName` („Zelený / Kvetoucí / Zralý len“, „Trhání lnu“), upozornění „Chybí len na oděv“,
-  `/dev/buildings` pole **Len** (`FLAX_SHOWCASE_PHASES`).
+  `trimPlan` v březnu–dubnu přepočítá `lordHelp` ze zbytku plánu (`springLordHelp`).
+  **Žně všemi rukama** (fields.md – Žně všemi rukama, `harvest-hands.ts`): `harvestHandsDay`
+  (měsíce `HARVEST_HANDS_MONTHS` z oken žní a výmlatu `CROP_WINDOWS` – 7–9 – a v okně zbývá žeň
+  plánu nebo práce snopů) je jedno místo pravdy pro `workshopLabor` (řemeslník se syny →
+  `WorkshopLabor.harvest`, `craft` 0), `manorLabor` (cvičící muži → `ManorLabor.harvest` =
+  `freeMen`, `help` 0) i `work()`; v `allocateDay` zásobníky `harvestHands` (`craftHarvestLabor`
+  - výrostci od 10 let a starší po `HARVEST_HELPERS.perDay` – `harvestHelperLabor`, mimo
+    `lordApartIds`) a `lordHarvest` jen na `HARVEST_HANDS_TASKS` (žeň, výmlat) za lehkou prací žen, před prací vsi,
+    nevyužité propadne; spotřebu mužů vrací `lordField` (podíl dne ÷ `freeMen`). `sowingCapacity`
+    přičte tytéž ruce (`craft + harvest` dílen, `freeMen`, `harvestHelperLabor` × štěstí) v oknech `july` a `august` a z výmlatu
+    v podzimních oknech nechá vsi jen její díl (volná práce vsi ÷ (vsi + ruce)). Výhled jídla do sklizně (`eatDiet`) počítá s mlékem stád do sklizně
+    (`milkAheadEnergy` z `milkEnergyBetween`) a celou zásobou sýra.
+    Polní úlohy obou plodin řadí `fieldTasks` v `simulate-work.ts`
+    (konec okna, ozim před jaří); `allocateDay` vrací i `taskAmounts` po úlohách vstupu (stejný
+    název víckrát). Sklizeň ozimu 31. 7. (`harvestWinter`), jaře 31. 8. – do snopů, výmlat hned
+    po žni (Snopy a výmlat níž); příděl počítá do sklizně
+    podle `daysUntilFoodHarvest` (31. 7., když ozim podle odhadu uživí srpen). Plán po plodinách
+    prochází `planCrops`, všechny díly `planPartIds`. **Luštěniny** (fields.md – Luštěniny, Martin 18. 10. 2026): třetí plodina `legume` (`YearPlan.legume?`, `LEGUME_WINDOWS` – jař se sklizní
+    v červenci, `LEGUMES` a `LEGUME_WORK_PER_HA` v `rules*.ts`, úroda `cropGrossPerHa` /
+    `cropSeedPerHa`, `partWork(…, crop)`); `chooseCrops` dostane `legumeTargetKg`
+    (`plannedLegumeKg` – rovnovážné hospodaření, diet.md, bez zásoby – `sowingTargets`) a `energyFloorKg` – obilí napřed na celý cíl, pak luštěniny na
+    díly výběru od domu (loňské luštěniny až nakonec) a obilí doplní energii (`chooseLegumes`);
+    sklizeň 31. 7. do `VillageState.legumesKg` (`harvestWinter`), osev úrodnost vrátí
+    (`LEGUMES.fertilityGain` v `endOfSeason`). Scéna: `SceneFieldPart.crop: 'legume'` – trsy
+    hrachu `crop-pea-green` / `crop-pea-ripe` a hromádky `pea-heap` v `crops.glb`.
+    **Len** (fields.md – Len, diet.md – Oděv; Martin 19. 10. 2026: „na částech pole musí být zasetý
+    len“, čísla návrh Clauda podle rešerše `research/2026-10-19-flax.md`): čtvrtá plodina `flax`
+    (`YearPlan.flax?`, `FLAX_WINDOWS` = okna luštěnin, `FLAX` a `FLAX_WORK_PER_HA` v `rules*.ts` –
+    potřeba 2 / 1 kg třeného lnu na dospělého / dítě, 550 kg/ha, osivo 0, neopletý 50 %, úrodnost
+    −0,18 v `endOfSeason`, nemlátí se); `flax.ts` – `flaxNeedKg`, `expectedFlaxKg`, `harvestFlax`
+    (31. 7. v `harvestWinter` – `VillageState.linen` = podíl oděvu vůči `YearPlan.flaxNeedKg`
+    zapsané v `planYear`; plán bez ní – starší ves, ves založená během roku – nic nezapíše, kronika
+    `linen-short`), `linenUnhappiness` (`HappinessFactors.linen`, až `FLAX.unhappiness` 4).
+    `chooseCrops` dostane `flaxTargetKg` – `chooseFlax`: napřed `chooseSideCrop` (před luštěninami)
+    na díly výběru obilí **od konce** (vysiluje půdu, delší příloh neleží domům v cestě; loňský len
+    až nakonec; když se práce nevejde, zkusí další díl – `fitsSideCrop`), obilí doplní energii, a
+    když nejde, len ubere obilí nejvýš o svůj díl – i se zásobami pod pojistkou. **Len napřed**
+    (fields.md, Martin 20. 10. 2026 – „občas mi to píše chybí len na oděv“): když to potřebu
+    nepokryje (ves bez volné práce – červenec plný ozimu, obilí doplněné za díl lnu práci hned zabere),
+    `flaxFirst` vyhradí díly a práci lnu před obilím (výběr `base` před `chooseGrain`; díl, který se
+    nevejde, přeskočí – bližší či menší) a obilí vybere po něm; bere se, co dá víc lnu – ves, které
+    len za obilím vycházel, má plán beze změny (zlatý otisk ve `flax.test.ts`). Trhání v červenci
+    napřed (`CROP_ORDER` – len první); `trimPlan` ani osev navíc len neubírají. Zpracování je v domácí výrobě
+    (přerozdělení), žádná zásoba v liště. Web: `SceneFieldPart.crop: 'flax'` a `bloom` (červen –
+    `FLAX_BLOOM_MONTH` ve `village-view-fields.ts`), scéna `FLAX_STYLES` / `FLAX_BLOOM` ve `field-crops.ts`
+    (druhy trsů `flax-green` / `flax-bloom` / `flax-ripe` – kopie uzlu `crop-sprout` s vlastní
+    geometrií, `CROP_NODE` ve `field-renderer.ts`; kvetoucí len napůl modré trsy), malé panáky,
+    nízká koruna; panel `CROP_LABELS.flax` (ikona `resources/flax` – `icons.py flax`),
+    `fieldPartName` („Zelený / Kvetoucí / Zralý len“, „Trhání lnu“), upozornění „Chybí len na oděv“,
+    `/dev/buildings` pole **Len** (`FLAX_SHOWCASE_PHASES`).
 
 - **Postup práce po čtvercích** (Martin – fields.md): kopání, setí a sklizeň mění díl, až k němu
   dojde práce. `field-progress.ts` (jen čte): díly plodiny v pořadí `CropWork.partIds` (dávka

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
 import type { PartInput } from '../actions';
-import { extraSowingCrop } from '../extra-sowing';
+import { extraPartsOf, extraSowable, extraSowingCrop, queueExtraParts } from '../extra-sowing';
 import { fieldPartLooks, partYearWork } from '../field-progress';
 import { planPartIds, tilledShare } from '../year-plan';
 import { advanceVillage } from '../simulate';
@@ -152,6 +152,44 @@ describe('osev navíc', () => {
       .reduce((sum, e) => sum + (e.kind === 'harvest' ? e.kg : 0), 0);
     expect(kg).toBeGreaterThan(500);
   }, 60_000);
+
+  it('jediný vstup do osevu navíc: příloh 70–95 % `extraPartsOf` zahodí, jarní hotové díly též', () => {
+    const s = richVillage();
+    const [a, b, c] = s.parts;
+    a!.state = 'fallow';
+    a!.fertilityShare = 0.8;
+    b!.state = 'fallow';
+    b!.fertilityShare = 0.97;
+    c!.state = 'sown';
+    c!.fertilityShare = 0.9;
+    const parts = extraPartsOf([a!, b!, c!]);
+    expect(parts.map((e) => e.id)).toEqual([b!.id, c!.id]);
+    const plan = { extra: [] } as unknown as NonNullable<VillageState['plan']>;
+    queueExtraParts(plan, parts);
+    expect(plan.extra!.map((e) => e.id)).toEqual([b!.id, c!.id]);
+  });
+
+  it('osev navíc jen na dílech v oběhu – ne na přílohu 70–95 % (Martin 24. 10. 2026)', () => {
+    const s0 = richVillage();
+    // třetina dílů je příloh odpočatý na 80 %, třetina na 96 %
+    s0.parts.forEach((p, i) => {
+      if (i % 3 === 0) return;
+      p.state = 'fallow';
+      p.fallowSinceDay = at(590, 9, 1);
+      p.sownYears = 0;
+      delete p.crop;
+      p.fertilityShare = i % 3 === 1 ? 0.8 : 0.96;
+    });
+    const tired = s0.parts.filter((_, i) => i % 3 === 1).map((p) => p.id);
+    expect(tired.every((id) => !extraSowable(s0.parts.find((p) => p.id === id)!))).toBe(true);
+    const planned = advanceVillage(s0, at(600, 9, 1), null);
+    const extra = new Set(planned.plan!.extra!.map((e) => e.id));
+    expect(extra.size).toBeGreaterThan(0);
+    for (const id of tired) expect(extra.has(id)).toBe(false);
+    // díly v oběhu (osévané od 70 %, příloh od 95 %) v osevu navíc jsou
+    const rested = s0.parts.filter((_, i) => i % 3 === 2).map((p) => p.id);
+    expect(rested.some((id) => extra.has(id))).toBe(true);
+  });
 
   it('ves se spřežením díly navíc orá – pásy orby pokrývají díly plodiny právě jednou', () => {
     const autumn = advanceVillage(ploughVillage(), at(600, 11, 30), null);

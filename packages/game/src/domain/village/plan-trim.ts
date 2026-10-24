@@ -2,7 +2,7 @@ import { startedPartIds } from './field-progress';
 import { expectedNetKg, isSowableFertility, partWalkDistance } from './fields';
 import { dropFromWork, shrinkInPlan } from './land-taken';
 import { expectedLegumeKg, legumeEnergy } from './legumes';
-import { extraPartOf, queueExtraParts } from './extra-sowing';
+import { extraPartsOf, queueExtraParts } from './extra-sowing';
 import type { Crop, CropWork, ExtraPart, FieldPart, VillageState, YearPlan } from './types';
 import { planCrops } from './year-plan';
 
@@ -120,8 +120,8 @@ export function trimPlanToTarget(
     if (energy - lost < targetKg - EPSILON) break;
     shrinkInPlan(state, plan, best.part, 1, day);
     dropFromWork(best.work, new Set([best.part.id]));
-    // do osevu navíc jen díl od 70 % (nouzový příloh tam nesmí)
-    if (isSowableFertility(best.part)) moved.push(extraPartOf(best.part));
+    // do osevu navíc jen díl v oběhu (nouzový ani odpočívající příloh tam nesmí)
+    moved.push(...extraPartsOf([best.part]));
     toFallow(best.part, plan.plannedDay);
     energy -= lost;
     removed.push(best.part.id);

@@ -2,7 +2,8 @@
 import { dateOfDayIndex, type CalendarDate } from '../calendar';
 import type { Landscape } from '../landscape';
 import { nextPloughPairs } from './draft';
-import { craftHouseholds } from './crafts';
+import { craftHouseholds, workshopLabor } from './crafts';
+import { harvestHelperLabor } from './harvest-hands';
 import { closeFieldFoodYear, sowingTargets, type SowingTargets } from './field-food';
 import { endOfSeason, expectedNetKg, sowingGroup } from './fields';
 import { plannedFurrowEfficiency } from './plough-trip';
@@ -14,7 +15,7 @@ import { plannedLegumeKg } from './husbandry';
 import { ableTeams, oxPens, ploughCapacityPerDay } from './oxen';
 import { trimPlanToTarget } from './plan-trim';
 import {
-  extraPartOf,
+  extraPartsOf,
   queueExtraParts,
   reclaimedLogs,
   sowParts,
@@ -160,12 +161,10 @@ export function planYear(
   }
   const sown = [...crops.winter, ...crops.spring, ...crops.legume, ...crops.flax];
   const chosen = new Set(sown.map((p) => p.id));
-  // osev navíc: ostatní díly, které ves smí osít, v pořadí výběru – dostanou práci, která zbude po
-  // stavbách (fields.md – Osev navíc); osévaný díl si pamatuje léta v řadě, než půjde ladem
-  const extra = blocks
-    .flat()
-    .filter((p) => !chosen.has(p.id))
-    .map(extraPartOf);
+  // osev navíc: ostatní díly v oběhu, v pořadí výběru – dostanou práci, která zbude po stavbách
+  // (fields.md – Osev navíc); příloh 70–95 % ne (`extraSowable`); osévaný díl si pamatuje léta
+  // v řadě, než půjde ladem
+  const extra = extraPartsOf(blocks.flat().filter((p) => !chosen.has(p.id)));
   if (extra.length > 0) state.plan.extra = extra;
   // vrácený mladý les dá za dospělé stromy klády (fields.md – Zarůstání, forest.md – Mýcení)
   addLogs(state, reclaimedLogs(sown, day));
@@ -233,7 +232,7 @@ export function joinFinishedParts(
   sowParts(spring, 'spring');
   // hotové díly, které potřebný osev nevzal, čekají v osevu navíc (fields.md – Osev navíc)
   unqueueExtraParts(target, taken);
-  queueExtraParts(target, rest.map(extraPartOf));
+  queueExtraParts(target, extraPartsOf(rest));
 }
 
 /**
@@ -295,7 +294,9 @@ export const SOW_AFTER_DIG_DAYS = 1;
  * práce po denním minimu (PEAK_CAPACITY_SHARE) krát dny oken – podzim pro ozim (září–říjen)
  * a celý podzim (září–listopad) bez výmlatu snopů, který ves čeká (production-chains.md – Humno),
  * jaro (březen–duben), červenec a srpen (sklizně, výmlat ozimu a luštěnin plán přičte). Domácnosti
- * dílen na pole nechodí (crafts.md) – nepočítají se; práce se zvířaty (diet.md) jde napřed.
+ * dílen na pole nechodí (crafts.md) – nepočítají se, jen v červenci a srpnu a ve výmlatu jaře
+ * v září přijdou žňové ruce (fields.md – Žně všemi rukama: řemeslníci se syny, cvičící muži rodiny,
+ * výrostci a starší); práce se zvířaty (diet.md) jde napřed.
  * Ves, která orá (`plough`), má navíc kapacitu spřežení v oknech orby (oxen.md – Jen rádlo):
  * denní orba všech spřežení krát dny oken kopání – září–říjen pro ozim (bez posledního dne, ať se
  * zaseje i poslední zoraný pruh), září–listopad a březen–duben pro jař a luštěniny. Cvičící
@@ -337,21 +338,38 @@ export function sowingCapacity(
   // s rodinou (`lord` – lord.md, Kdy jde rodina na pole, bod 1) i práce cvičících mužů rodiny
   // po minimu dvorce (`freeMen`; ženy jen při hladu) – jen lidé, spřežení ne
   const lordFree = options.lord === true && manor ? manor.freeMen : 0;
-  const free = (Math.max(0, capacity - dailyMin) + lordFree) * PEAK_CAPACITY_SHARE;
-  const days = (segments: Parameters<typeof windowDaysLeft>[1], sowing = false): number =>
-    free * Math.max(0, windowDaysLeft(day, segments) - (sowing ? SOW_AFTER_DIG_DAYS : 0));
+  const villageFree = Math.max(0, capacity - dailyMin);
+  const free = (villageFree + lordFree) * PEAK_CAPACITY_SHARE;
+  // žně všemi rukama (fields.md – Žně všemi rukama; Martin 24. 10. 2026: „Dílny i vojvodova
+  // rodina“): v oknech žní a výmlatu i řemeslníci se syny (`WorkshopLabor` – řemeslo i žeň), cvičící
+  // muži rodiny (`freeMen`) a výrostci se staršími (`harvestHelperLabor`) – tytéž ruce jako `work()`
+  const hands =
+    [...crafts].reduce((sum, id) => {
+      const labor = workshopLabor(state, day, id, coverage.pottery, productivity);
+      return sum + labor.craft + labor.harvest;
+    }, 0) +
+    (manor ? manor.freeMen : 0) +
+    harvestHelperLabor(state, day, apart, productivity, coverage.pottery) * productivity;
+  const harvestFree = (villageFree + hands) * PEAK_CAPACITY_SHARE;
+  const days = (
+    segments: Parameters<typeof windowDaysLeft>[1],
+    sowing = false,
+    perDay = free,
+  ): number =>
+    perDay * Math.max(0, windowDaysLeft(day, segments) - (sowing ? SOW_AFTER_DIG_DAYS : 0));
   // výmlat snopů hned po žni (production-chains.md – Humno) bere podzimní práci: co z něj zbývá
   // (na humnech nejvýš jejich kapacita za dny okna, v roce odkladu i nouzově), ubere podzim ozimu
-  // i celý podzim – mlátí se před setím ozimu
+  // i celý podzim – mlátí se před setím ozimu; žňové ruce mlátí se vsí, ves dá jen svůj díl
+  const villageShare = villageFree + hands > 0 ? villageFree / (villageFree + hands) : 1;
   const threshing = (segments: Parameters<typeof windowDaysLeft>[1]): number =>
-    pendingThreshLabor(state, day, windowDaysLeft(day, segments));
+    pendingThreshLabor(state, day, windowDaysLeft(day, segments)) * villageShare;
   const w = SOWING_CAPACITY_WINDOWS;
   const people: SowingCapacity = {
     autumnWinter: Math.max(0, days(w.autumnWinter, true) - threshing(w.autumnWinter)),
     autumn: Math.max(0, days(w.autumn) - threshing(w.autumn)),
     spring: days(w.spring, true),
-    july: days(w.july),
-    august: days(w.august),
+    july: days(w.july, false, harvestFree),
+    august: days(w.august, false, harvestFree),
   };
   if (!plough) return people;
   // výkon podle délky brázd polí, na která ves může zasít – na pevných cestách se brázda láme

@@ -106,7 +106,7 @@ describe('sklizeň jde do snopů', () => {
     expect(villageSheaves(s).grainKg).toBeCloseTo(s.threshingFromPlan!.harvestedKg!, 6);
     expect(s.storesKg).toBeLessThan(before.storesKg);
     // v září se mlátí na humně – rozdělení práce jde na humno
-    const september = advanceVillage(s, at(600, 9, 3), null);
+    const september = advanceVillage(s, at(600, 9, 1), null);
     expect(september.labor!.shares.filter((x) => x.activity === 'thresh')).toEqual([
       expect.objectContaining({ target: { kind: 'threshing-floor', id: 60_000 } }),
     ]);

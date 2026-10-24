@@ -76,6 +76,17 @@ export function reclaimedLogs(parts: readonly FieldPart[], day: number): number 
 }
 
 /**
+ * Smí díl do osevu navíc (fields.md – Osev navíc; Martin 24. 10. 2026)? Jen díl v oběhu: osévaný,
+ * který smí dál (od 70 %), čerstvě založený, nebo příloh odpočatý aspoň na
+ * `FERTILITY.fallowReady` – příloh 70–95 % ne, ať osev navíc nevyčerpá přílohy, ze kterých ves
+ * oseje příští rok (`sowingGroup` 1–3).
+ */
+export function extraSowable(part: FieldPart): boolean {
+  const group = sowingGroup(part);
+  return group !== null && group !== 4;
+}
+
+/**
  * Díl, který jde do osevu navíc (při plánu nevybraný, nebo ubraný z plánu): díl z přílohu jen id,
  * osévaný nebo připravený s léty v řadě, se kterými se po začátku práce osévá dál.
  */
@@ -83,6 +94,14 @@ export function extraPartOf(part: FieldPart): ExtraPart {
   return part.state === 'fallow' || part.fallowBeforePlan
     ? { id: part.id }
     : { id: part.id, sownYears: part.sownYears };
+}
+
+/**
+ * Jediné místo, kudy díly vstupují do osevu navíc (`planYear`, `trimPlan`, jarní hotové díly):
+ * jen díly, které `extraSowable` pustí, jako `ExtraPart`. Volat před změnou dílu (`toFallow`).
+ */
+export function extraPartsOf(parts: readonly FieldPart[]): ExtraPart[] {
+  return parts.filter(extraSowable).map(extraPartOf);
 }
 
 /**

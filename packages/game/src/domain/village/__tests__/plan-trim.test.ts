@@ -140,6 +140,23 @@ describe('zkrácení plánu podle zásob', () => {
     }
   });
 
+  it('ubraný příloh 70–95 % se do osevu navíc nevrací (Martin 24. 10. 2026)', () => {
+    const s = withOldPlan(600);
+    s.parts.forEach((p) => {
+      if (!p.fallowBeforePlan) p.sownYears = 1;
+      else {
+        p.state = 'fallow';
+        p.fertilityShare = 0.8;
+      }
+    });
+    const tired = new Set(s.parts.filter((p) => p.fallowBeforePlan).map((p) => p.id));
+    const day = at(601, 3, 1);
+    const removed = trimPlanToTarget(s, day, targetOf(s, day).targetKg, 0);
+    expect(removed.some((id) => tired.has(id))).toBe(true);
+    expect(s.plan!.extra!.length).toBeGreaterThan(0);
+    for (const entry of s.plan!.extra!) expect(tired.has(entry.id)).toBe(false);
+  });
+
   it('plán do cíle s rezervou se nezkrátí', () => {
     const s = withOldPlan(300);
     const day = at(601, 3, 1);

@@ -31,6 +31,7 @@ import {
   burnerDraws,
   burnerPlans,
   craftHouseholds,
+  craftHarvestLabor,
   craftLightLabor,
   ironTravellers,
   migrateBurners,
@@ -39,7 +40,8 @@ import {
   workCrafts,
   type SmithSupply,
 } from './crafts';
-import { lordDayCounts, manorLabor, trainingFamily } from './lord';
+import { harvestHandsDay, harvestHelperLabor } from './harvest-hands';
+import { lordApartIds, lordDayCounts, manorLabor, trainingFamily } from './lord';
 import { nextYearlyCommonLabor, repairNeedPerDay, yearlyCommonLabor } from './dwellings';
 import { animalCareNeed, dailyMilk } from './dairy';
 import { DIET, villageFoodNeed } from './diet';
@@ -414,6 +416,12 @@ export function work(
   // péče o koně – hodina denně na koně z práce vsi (horses.md – Péče)
   const horses = villageHorses(state);
   const horseCare = horseCareLabor(horses, day);
+  // žně všemi rukama (fields.md – Žně všemi rukama): ve žňový den řemeslníci se syny, výrostci
+  // a starší jen na žeň a výmlat (cvičící rodina – chlapci cvičí, starší kryjí dvorec – ne)
+  const harvestHands = harvestHandsDay(state, day)
+    ? craftHarvestLabor(state, day, crafts, coverage.pottery, productivity) +
+      harvestHelperLabor(state, day, lordApartIds(state, day), productivity, coverage.pottery)
+    : 0;
   const allocate = (): DayAllocation =>
     allocateDay({
       capacity: Math.max(
@@ -425,6 +433,9 @@ export function work(
       // vojvodova rodina na poli při hladu – jen úlohy dne (lord.md – Kdy jde rodina na pole); co
       // z minima dvorce rodina nepokryje, platí ves
       lordField: manor && productivity > 0 ? manor.field / productivity : 0,
+      harvestHands,
+      // cvičící muži rodiny ve žňový den – za žňovými rukama vsi, jen žeň a výmlat
+      lordHarvest: manor && productivity > 0 ? manor.harvest / productivity : 0,
       // pomoc rodiny s potřebným osevem – jen co ves nestihne (lord.md – Kdy jde rodina na pole)
       lordHelp: manor && productivity > 0 ? manor.help / productivity : 0,
       manorMin: manor?.uncovered ?? 0,
@@ -771,7 +782,7 @@ export function work(
   flushCartTrips(state, cartLog, day, landscape, obstacles);
   const hayMowing = state.hay?.mowing;
   // podíl práce rodiny na poli, který dnes úlohy spotřebovaly – zbytek dne cvičí (`trainLordDay`)
-  // při hladu celá rodina (÷ `free`), u pomoci s osevem jen muži (÷ `freeMen`), ženy 0
+  // při hladu celá rodina (÷ `free`), u pomoci s osevem a ve žních jen muži (÷ `freeMen`), ženy 0
   const lordHunger = manor !== null && manor.field > 0;
   const lordBase = manor ? (lordHunger ? manor.free : manor.freeMen) : 0;
   const lordField = lordBase > 0 ? allocation.lordField / lordBase : 0;

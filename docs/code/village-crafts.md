@@ -10,7 +10,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   a u uhlíře s milířem kus od zemnice – `MILIR`, `milirPosition`; `PlacementVillage.dwellings`
   nese `workshop.craft`, ať se do milíře nestaví). Domácnosti obývaných dílen (`craftHouseholds`)
   pracují v dílně (`workshopLabor` – po denním minimu, domácí výroba bokem; řemeslo dělají jen muži domácnosti – `craftHands` v `smith-supply.ts`, Martin 22. 10. 2026 – a zbytek práce žen `WorkshopLabor.light` dá `craftLightLabor` jako `light` do `allocateDay` – samostatný zásobník mimo `capacity`, kryje jen `LIGHT_LABOR_TASKS` (setí, okopávání, žně, výmlat), orbu, kácení ani stavby nikdy; měchař `smithBellows`, praxe `gainPractice` a `workshopSkill` taky jen muži; ve scéně `shareWorker` bere k dílně `onlySex: 'male'` (a `hasMen` nepočítá kojence jako `craftHands`) a `DayRoster.take` pouští ženy zaneprázdněných domácností jen s `light: true` (`LIGHT_ACTIVITIES` ve `villager-plan.ts`); `workCrafts` v kroku
-  práce – mimo `allocateDay`, do sil plánu osevu se nepočítají), jen dokud je co dělat: **podle potřeby** (Martin 18. 10. 2026 –
+  práce – mimo `allocateDay`, do sil plánu osevu se nepočítají – kromě žňových dnů: řemeslník se
+  syny pak jde na žeň a výmlat, `WorkshopLabor.harvest` místo `craft`, `craftHarvestLabor` →
+  `allocateDay` – `harvestHands`; fields.md – Žně všemi rukama, village-fields.md), jen dokud je co dělat: **podle potřeby** (Martin 18. 10. 2026 –
   volný čas na poli) kovář a hrnčíř vyrábějí do zásoby `craftTargets` (potřeba + opotřebení za
   rok), uhlíř má vždy milíř a z vypáleného nosí uhlí podle kování (Uhlíř níž); s plnou zásobou
   nebo bez vstupu je dílna v `restingCrafters`

@@ -29,7 +29,8 @@ const DAY = at(601, 9, 1);
 /** Díl 225 m² ve 100 m (bez příplatku za vzdálenost): kopání 2,25, setí 0,225, sklizeň 1,125 čd. */
 const DIG = 100 * 0.0225;
 const SOW = 10 * 0.0225;
-const HARVEST = 50 * 0.0225;
+// žeň: sklizeň 20 + odnos 10 (fields.md – Žně všemi rukama)
+const HARVEST = 30 * 0.0225;
 const THRESH = 15 * 0.0225;
 
 function part(id: number, over: Partial<FieldPart> = {}): FieldPart {
