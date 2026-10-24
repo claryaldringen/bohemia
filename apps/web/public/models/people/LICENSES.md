@@ -26,3 +26,14 @@ Nástroje a náklad (oba soubory): `props/tool_hoe.dae`, `props/tool_axe.dae`,
 Textury: `skeletal/celt/dress_female_01_01.png` (žena), `skeletal/celt/tunic_01_01.png` (muž),
 `props/head/celt_fem_b.dds` (žena), `props/head/celt_a.dds` (muž), `props/prop_weap.dds`,
 `props/basket_iber_1.dds`, `props/wood_e.png`.
+
+Jezdec a výcvik (jen `man.glb`, klipy `ride`, `ride-trot`, `ride-idle`, `bow-draw`,
+`bow-release`, `spear-thrust`, `sword-strike`, `shield-block`): animace
+`animation/biped/rider/cavalry/crossbowman/pace_relax.dae`, `trot_relax.dae`, `idle_relax_01.dae`,
+`animation/biped/infantry/archer/idle_ready.dae`, `attack_ranged.dae`,
+`animation/biped/infantry/spearman/attack_melee_01.dae`,
+`animation/biped/infantry/swordsman/attack_melee_shield_01.dae`, `idle_ready_shield_01.dae`.
+Rekvizity (výcvikové, dřevěné – všechny s texturou `props/wood_e.png`, štít s `props/basket_iber_1.dds`):
+`props/bow_long_indian_a.dae` (luk), `props/broadsword_celt.dae` (výcvikový meč),
+`props/weap_shaft_wood_a.dae` (kopí bez hrotu), `props/shield/round_noboss_f.dae` (pletený štít).
+Jezdecké klipy 0 A.D. mají na koni sed – poloha jezdce na koni se odvozuje ve scéně.

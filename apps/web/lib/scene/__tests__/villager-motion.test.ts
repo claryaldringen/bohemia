@@ -70,8 +70,20 @@ describe('villager-motion – pohyb jako funkce času', () => {
     const spec = JSON.parse(
       readFileSync(new URL('../../../../../tools/blender/people.json', import.meta.url), 'utf8'),
     ) as { name: string; clips: { name: string }[] }[];
+    const manOnly = [
+      'ride',
+      'ride-trot',
+      'ride-idle',
+      'bow-draw',
+      'bow-release',
+      'spear-thrust',
+      'sword-strike',
+      'shield-block',
+    ];
     for (const figure of spec) {
-      expect(figure.clips.map((c) => c.name).sort()).toEqual([...VILLAGER_CLIPS].sort());
+      const expected =
+        figure.name === 'man' ? VILLAGER_CLIPS : VILLAGER_CLIPS.filter((c) => !manOnly.includes(c));
+      expect(figure.clips.map((c) => c.name).sort()).toEqual([...expected].sort());
     }
   });
 });

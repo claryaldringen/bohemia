@@ -249,3 +249,13 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   **Kovář** (crafts.md – Uhlí a ruda kováře): kopáči na valu jámy s motykou (`oreDiggers`), nosiči
   uhlí a rudy s košem (`smithFetchFigures` – postava na každého nosiče z `LaborShare.ages`, nejvýš
   `FETCH_MAX`, ne proud; synové pod 14 let menší postavy dětí); kovář s vozem se nekreslí.
+
+## Jezdec a výcvik (klipy a rekvizity `man.glb` – lord-horses Úloha 8, zatím se nekreslí)
+
+`man.glb` nese navíc klipy `ride` (krok), `ride-trot`, `ride-idle` (sed z `rider/cavalry/crossbowman`),
+`bow-draw` a `bow-release` (luk), `spear-thrust`, `sword-strike`, `shield-block` a rekvizity `bow`,
+`training-sword`, `wicker-shield`, `spear` (všechny dřevěné, bez kovu; body `prop-weapon_bow`,
+`prop-weapon_R`, `prop-shield`). Jezdec nepřidává žádný vertex atribut (JOINTS_0, WEIGHTS_0,
+POSITION, NORMAL, TEXCOORD_0 jako dosud – 8 bufferů s VAT a barvou instance; hlídá `fauna.test.ts`).
+Klipy sedu mají sed na koni, poloha jezdce se odvodí z koně ve scéně (Úloha 11).
+`people_from_0ad.py` navíc umí `<polygons>` v COLLADA (luk, meč a štít z 0 A.D.).

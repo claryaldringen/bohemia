@@ -120,7 +120,11 @@ def triangles(root, geom_id):
     pos_src = mesh_el.find("c:vertices/c:input[@semantic='POSITION']", NS).get("source")[1:]
     positions = [Vector(v[:3]) for v in source_data(root, pos_src)]
     normals, uvs, tris = [], [], []
-    prims = mesh_el.findall("c:triangles", NS) + mesh_el.findall("c:polylist", NS)
+    prims = (
+        mesh_el.findall("c:triangles", NS)
+        + mesh_el.findall("c:polylist", NS)
+        + mesh_el.findall("c:polygons", NS)
+    )
     for prim in prims:
         inputs = prim.findall("c:input", NS)
         stride = max(int(i.get("offset")) for i in inputs) + 1
@@ -132,9 +136,15 @@ def triangles(root, geom_id):
             normals += [Vector(n[:3]) for n in source_data(root, n_in.get("source")[1:])]
         if t_in is not None:
             uvs += [t[:2] for t in source_data(root, t_in.get("source")[1:])]
-        p = ints(prim.find("c:p", NS))
-        vcount_el = prim.find("c:vcount", NS)
-        counts = ints(vcount_el) if vcount_el is not None else [3] * (len(p) // (stride * 3))
+        if prim.tag.endswith("polygons"):
+            # <polygons>: každý <p> je jeden mnohoúhelník (meče, luky, štíty z 0 A.D.)
+            polys = [ints(el) for el in prim.findall("c:p", NS)]
+            p = [i for poly in polys for i in poly]
+            counts = [len(poly) // stride for poly in polys]
+        else:
+            p = ints(prim.find("c:p", NS))
+            vcount_el = prim.find("c:vcount", NS)
+            counts = ints(vcount_el) if vcount_el is not None else [3] * (len(p) // (stride * 3))
         k = 0
         for count in counts:
             corners = []
