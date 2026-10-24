@@ -24,6 +24,7 @@ import {
   withPlots,
   withRoutes,
   withWearSeed,
+  withVisitsSeed,
   withDwellingShapes,
   withoutBuiltOverRuins,
   withoutBuiltOverGrainPits,
@@ -175,7 +176,7 @@ export async function updateVillage(
     // dvorec vojvody – starší ves ho dostane (nejstarší obydlí, trade.md); spřežení ohrad uložených
     // dřív se převedou na voly po kusech (oxen.md – Voli po kusech); ves z doby před vyšlapaností ji
     // dostane podél loňských úseků nad prahem (paths.md – Převod starých vsí, bod 3)
-    const base = withWearSeed(withManor(withOxen(migrated)));
+    const base = withVisitsSeed(withWearSeed(withManor(withOxen(migrated))));
     // jiné vsi na téže mapě – kontroly umístění a kácení o nich vědí (migration.md); přehled se
     // neukládá
     const neighbours = withNeighbours(base, await neighboursOf(villages, record, today));

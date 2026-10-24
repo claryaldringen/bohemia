@@ -1,6 +1,6 @@
 // Pevné cesty (docs/design/roads.md – Dvě vrstvy cest, Stromy u pevných cest). Simulace vsi
 // sčítá práci dne po místech a jednou za rok (1. 11.) spočítá stejnou funkcí jako pěšiny dne
-// (`computePathNetwork`) síť z celoroční práce (provoz cest, zarůstání, vozy). Cesta vzniká
+// kontrolu cest (provoz tras, zarůstání, převzetí vozy; síť pěšin se nepočítá). Cesta vzniká
 // měsíčně z vyšlapanosti (`roadsMonth` – paths.md, Vyšlapanost a vznik cesty): uloží se její osa
 // a od té doby se nehýbe – nové trasy se k ní přimknou (sleva v síti). Nepoužívaná vyšlapaná cesta
 // zaroste. U cesty se při vzniku určí místa na stromy; na volném místě se strom uchytí náhodou ze
@@ -35,24 +35,26 @@ import {
   roadGroundOf,
 } from './roads-geometry';
 import {
-  type AnnualNetwork,
-  annualPathNetwork,
+  annualTerrain,
   emptyRoads,
+  fieldTraffic,
   formWearRuns,
   roadTraffic,
   splitRoadWork,
   splitTrailPieces,
   wearRoadDue,
 } from './roads-form';
-import { annualCartNetwork, formCartRoads, markCartRoads } from './roads-carts';
-import { overgrowRoads } from './roads-overgrow';
-import { anchorTermini, networkTermini, tidyRoads } from './roads-tidy';
+import { annualCartNetwork, markCartRoads, takeOverCartRoads } from './roads-carts';
+import { type TrafficOf, overgrowRoads } from './roads-overgrow';
+import { anchorTermini, tidyRoads } from './roads-tidy';
 import { SpotContext, plantingBlocker, rootTrees } from './roads-trees';
 import { type RoadAnchors, roadAnchors } from './road-anchors';
 import { routeLine } from './routes';
 import { pathCellM, trailTerrain } from './terrain';
 import { settleVillageWear } from './village';
-import { type TrafficField, addWearLabor, trafficField, wearMap } from './wear';
+import { type TrafficField, addCartWear, addWearLabor, trafficField, wearMap } from './wear';
+import { villageCemeteries } from '../cemetery';
+import { visitKey } from '../abandonment';
 
 function isRoadYearDay(day: number): boolean {
   const date = dateOfDayIndex(day);
@@ -63,8 +65,8 @@ function isRoadYearDay(day: number): boolean {
  * Krok dne pro pevné cesty (mutuje stav – volá simulace na konci dne): 1. 11. roční kontrola
  * (`updateRoads`) a nový rok cest, pak práce dne do ročního součtu. Bez krajiny (kalibrace, testy)
  * nic – pevné cesty se počítají jen s krajinou sídla. Vsi bez pevných cest (starší) začnou sčítat.
- * Vrátí provoz roční sítě ke stavbám (`PathNetwork.visits` – opuštěné stavby, abandonment.md)
- * v den roční kontroly; ves bez obydlí prázdný, jiné dny (a bez krajiny) null.
+ * Vrátí provoz ke stavbám z tras za uplynulý rok (cesty za den – opuštěné stavby, abandonment.md)
+ * v den roční kontroly; starší ves bez roku dat a jiné dny (a bez krajiny) null.
  */
 export function roadsDay(
   state: VillageState,
@@ -80,14 +82,42 @@ export function roadsDay(
   let visits: ReadonlyMap<string, number> | null = null;
   if (isRoadYearDay(day) && roads.labor.from < day) {
     const changes = obstacleChangesAt(state, day);
-    const annual = annualPathNetwork(state, day, landscape, obstacles, changes);
-    state.chronicle.push(...updateRoads(state, day, landscape, obstacles, { annual, changes }));
-    visits = annual?.network.visits ?? new Map<string, number>();
+    // provoz ke stavbám z tras (chátrání staveb) – napřed, roční kontrola nuluje půlku součtů
+    visits = yearVisits(state, roads, day);
+    state.chronicle.push(...updateRoads(state, day, landscape, obstacles, { changes }));
     roads.labor = { from: day, days: 0, shares: [] };
   }
   addRoadLabor(roads, state.labor, day);
   addWearLabor(wear, state.labor, day);
   return visits;
+}
+
+/** Rok dat, bez kterého se o chátrání staveb nerozhoduje (návrh Clauda – Úloha 6). */
+const VISITS_YEAR_DAYS = 360;
+
+/**
+ * Provoz ke stavbám za rok z `roads.visits` (cesty za den po klíči stavby); nuluje součty. Ves
+ * s méně než rokem dat (starší ves po převodu) vrátí null a součty sčítá dál – stavby nezačnou
+ * chátrat naslepo. Hřbitov s úmrtím za poslední rok se navštívil (pohřeb je cesta ke hřbitovu).
+ */
+function yearVisits(
+  state: VillageState,
+  roads: VillageRoads,
+  day: number,
+): ReadonlyMap<string, number> | null {
+  const visits = (roads.visits ??= { from: roads.labor.from, byKey: [] });
+  if (visits.from > roads.labor.from && day - visits.from < VISITS_YEAR_DAYS) return null;
+  const days = Math.max(1, day - visits.from);
+  const map = new Map<string, number>();
+  for (const [key, sum] of visits.byKey) map.set(key, sum / days / 100);
+  if (state.chronicle.some((e) => e.kind === 'death' && day - e.day <= 365)) {
+    for (const c of villageCemeteries(state)) {
+      const key = visitKey('cemetery', c.id);
+      map.set(key, Math.max(map.get(key) ?? 0, 0.01));
+    }
+  }
+  roads.visits = { from: day, byKey: [] };
+  return map;
 }
 
 /** Čáry tras (nejsilnější napřed) a kotvy pro měsíční vznik cest. */
@@ -122,6 +152,13 @@ function monthRoutes(routes: VillageRoutes, landscape: Landscape, cellM: number)
   MONTH_ROUTES.set(key, { check, value });
   if (MONTH_ROUTES.size > MONTH_ROUTES_KEPT) MONTH_ROUTES.delete(MONTH_ROUTES.keys().next().value!);
   return value;
+}
+
+/** Konce, kde smí cesta končit (kotvy z tras) – bez tras žádné. */
+function annualTermini(state: VillageState, landscape: Landscape): (p: RoadPoint) => boolean {
+  const routes = state.routes;
+  if (!routes || routes.list.length === 0) return () => false;
+  return anchorTermini(monthRoutes(routes, landscape, pathCellM(landscape)).anchors);
 }
 
 /**
@@ -316,31 +353,31 @@ export function addRoadLabor(roads: VillageRoads, labor: LaborDay | undefined, d
  * Roční kontrola pevných cest v den `day` (1. 11.; mutuje stav): provoz cest za uplynulý rok,
  * zarůstání, vyježděné cesty (cesty pěších vznikají měsíčně – `roadsMonth`) a stromy u cest
  * (konec pařezů, odstraněné stavbou, uchycení nových). Vrátí události kroniky.
- * `precomputed` – roční síť a změny překážek, které už volající spočítal ze stejného stavu
- * (`roadsDay` – provoz ke stavbám z téže sítě).
+ * `precomputed` – změny překážek, které už volající spočítal ze stejného stavu
+ * (`roadsDay`).
  */
 export function updateRoads(
   state: VillageState,
   day: number,
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
-  precomputed?: { annual: AnnualNetwork | null; changes: ObstacleChanges },
+  precomputed?: { changes: ObstacleChanges },
 ): ChronicleEvent[] {
   const roads = (state.roads ??= emptyRoads(day));
   const changes = precomputed?.changes ?? obstacleChangesAt(state, day);
-  const annual = precomputed
-    ? precomputed.annual
-    : annualPathNetwork(state, day, landscape, obstacles, changes);
+  const terrain = annualTerrain(state, day, landscape, obstacles, changes);
   const events: ChronicleEvent[] = [];
   const blocked = plantingBlocker(state, landscape);
-  if (annual) {
-    const { network, terrain } = annual;
+  if (terrain) {
+    // provoz pěších kusů z provozního pole uložených tras (síť pěšin se neskládá znovu)
+    const routes = state.routes;
+    const cellM = pathCellM(landscape);
+    const field = routes && routes.list.length > 0 ? trafficField(routes, cellM) : null;
+    const walk: TrafficOf = (points) => (field ? fieldTraffic(points, field) : 0);
     // jízdy vozů za rok (wagons.md – Vyjeté cesty) – ves bez vozů nic
     const cart = annualCartNetwork(state, day, landscape, obstacles, changes, terrain);
     for (const road of roads.roads) {
-      road.traffic = [...road.traffic, roadTraffic(road.points, network.traffic)].slice(
-        -ROADS.overgrowYears,
-      );
+      road.traffic = [...road.traffic, walk(road.points)].slice(-ROADS.overgrowYears);
       if (cart || road.cartTraffic) {
         road.cartTraffic = [
           ...(road.cartTraffic ?? []),
@@ -350,10 +387,13 @@ export function updateRoads(
       // úseky z doby před mokřinou a brody (fáze 1) si je doplní
       road.ground ??= roadGroundOf(road.points, terrain);
     }
+    // jízdy vozů vyšlapou pěšinu jako chůze (jednou za rok; cesta pak vznikne z vyšlapanosti)
+    if (cart && roads.wear) addCartWear(roads.wear, cart.traffic, Math.max(1, roads.labor.days));
     // zarůstání vyšlapané cesty po kusech (upravená a hať nezarůstají, ani cesta, která se
     // vylepšuje, a kus s jabloněmi – hráč do něj vložil práci; kus, kudy jezdí vozy, taky ne) –
     // stromy u ní stojí dál
-    events.push(...overgrowRoads(state, roads, day, network.traffic, cart?.traffic ?? null));
+    const cartOf: TrafficOf | null = cart ? (points) => roadTraffic(points, cart.traffic) : null;
+    events.push(...overgrowRoads(state, roads, day, walk, cartOf));
     markCartRoads(roads);
     const context: SpotContext = {
       terrain,
@@ -366,19 +406,9 @@ export function updateRoads(
         splitTrailPieces(state.trails, from, to);
       },
     };
-    // vyježděné cesty – kde vozy jezdí nad prahem i loni: po vyšlapané cestě ji převezmou, jinde
-    // vznikne nová (wagons.md – Vyjeté cesty)
+    // vyježděné cesty – kde vozy jezdí nad prahem i loni, vyšlapanou cestu převezmou (wagons.md)
     if (cart) {
-      const formed = formCartRoads(
-        roads,
-        cart.runs,
-        roads.cartCandidates ?? [],
-        day,
-        network.traffic,
-        cart.traffic,
-        context,
-      );
-      for (const road of formed) events.push({ day, kind: 'road-formed', roadId: road.id });
+      takeOverCartRoads(roads, cart.runs, roads.cartCandidates ?? [], cart.traffic, context);
       const next = cart.runs.map((run) =>
         resample(run, null, CANDIDATE_STEP_M).points.map((p) => ({ x: dm(p.x), z: dm(p.z) })),
       );
@@ -389,8 +419,7 @@ export function updateRoads(
     }
     // díry: volný konec kus od jiného úseku (ne u brány ani cíle) se k němu napojí; falešná
     // rozcestí (odbočka zarostla, nová cesta navázala na konec jiné) – úseky se spojí
-    const termini = networkTermini(network.lines);
-    tidyRoads(roads, state.constructions, termini, context);
+    tidyRoads(roads, state.constructions, annualTermini(state, landscape), context);
   }
   // stromy: pařez zmizel, nebo strom odstranila stavba – místo je volné
   const removed = new Set(changes.removed);
@@ -408,8 +437,7 @@ export function updateRoads(
 
 export { addRoadCartTrips, annualCartNetwork, teamPens, villageCartRoutes } from './roads-carts';
 export {
-  type AnnualNetwork,
-  annualPathNetwork,
+  annualTerrain,
   mergeRoadChains,
   roadTraffic,
   roadsInWork,

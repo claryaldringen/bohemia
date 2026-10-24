@@ -11,9 +11,11 @@ import {
   type VillageRoads,
   type VillageState,
 } from '../types';
-import { type PathTraffic } from './network';
 import { axisDistance, axisSlice, groundPart, lengthsAlong } from './roads-geometry';
-import { roadTraffic, roadsInWork } from './roads-form';
+import { roadsInWork } from './roads-form';
+
+/** Provoz kusu osy (cest za den) – z provozního pole tras, nebo z jízd vozů. */
+export type TrafficOf = (points: readonly RoadPoint[]) => number;
 
 /**
  * Jabloně, které drží cestu (roads.md – Cesta s prací hráče nezaroste): živá jabloň nebo jabloň,
@@ -70,8 +72,8 @@ export function overgrowRoads(
   state: VillageState,
   roads: VillageRoads,
   day: number,
-  traffic: PathTraffic,
-  carts: PathTraffic | null = null,
+  traffic: TrafficOf,
+  carts: TrafficOf | null = null,
 ): ChronicleEvent[] {
   const events: ChronicleEvent[] = [];
   const building = roadsInWork(state.constructions);
@@ -87,9 +89,9 @@ export function overgrowRoads(
     const quiet: RoadQuietPiece[] = [];
     const dead = pieces.map((piece) => {
       const axis = axisSlice(road.points, piece.from, piece.to);
-      if (roadTraffic(axis, traffic) >= quietBelow) return false;
+      if (traffic(axis) >= quietBelow) return false;
       // kus, kudy jezdí vozy, není tichý (wagons.md – Vyjeté cesty)
-      if (carts && roadTraffic(axis, carts) >= CART_ROADS.tripsPerDay * CART_ROADS.dropShare) {
+      if (carts && carts(axis) >= CART_ROADS.tripsPerDay * CART_ROADS.dropShare) {
         return false;
       }
       let years = 1;
@@ -133,7 +135,7 @@ function cutOvergrown(
   road: Road,
   pieces: readonly RoadPiece[],
   dead: readonly boolean[],
-  traffic: PathTraffic,
+  traffic: TrafficOf,
 ): number[] {
   const alive: { a: number; b: number }[] = [];
   const gone: number[] = [];
@@ -158,7 +160,7 @@ function cutOvergrown(
       points,
       bornDay: road.bornDay,
       grade: road.grade,
-      traffic: [...road.traffic.slice(0, -1), roadTraffic(points, traffic)],
+      traffic: [...road.traffic.slice(0, -1), traffic(points)],
       spots: [],
       ...(road.ground ? { ground: groundPart(road.ground, a, b) } : {}),
       openEnds,

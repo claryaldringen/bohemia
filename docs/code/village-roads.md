@@ -105,9 +105,9 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   nad id vrstvy překážek, místo, poloha, druh, den uchycení a smrti), `candidates` (dřívější
   loňské úseky nad prahem – od Úlohy 5 se nepíšou, čte je jen `withWearSeed`) a práce roku cest
   po místech `labor` (od 1. 11., z rozdělení práce dne). Roční
-  kontrola 1. 11. (`updateRoads`): roční síť `annualPathNetwork` (stejná `computePathNetwork`,
-  průměrné člověkodny na den, sleva za pevné cesty) → provoz cest (`roadTraffic` – medián
-  `traffic.raw` po ose) a zarůstání vyšlapané cesty **po kusech** (Martin, 19. 10. 2026 –
+  kontrola 1. 11. (`updateRoads`; roční síť pěšin se od Úlohy 6 nepočítá, terén dává `annualTerrain`):
+  provoz cest z provozního pole uložených tras (`fieldTraffic` – medián `trafficAt` po ose, `TrafficOf`)
+  a zarůstání vyšlapané cesty **po kusech** (Martin, 19. 10. 2026 –
   roads.md, Zarůstá jen nepoužívaný kus: `overgrowRoads` – osa po kusech ≈ 25 m `roadPieces`,
   tichý kus pod polovinou prahu sčítá roky v `Road.quiet` (střed kusu, roky – jen tiché kusy,
   starší vsi od další kontroly), po 5 letech zaroste – celý úsek zmizí, jinak `cutOvergrown`

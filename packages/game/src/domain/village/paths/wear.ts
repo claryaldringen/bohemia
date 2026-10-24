@@ -12,6 +12,7 @@ import type {
   RoadPoint,
   RoadWear,
   StoredRoute,
+  VillageRoads,
   VillageRoutes,
   VillageState,
 } from '../types';
@@ -427,6 +428,48 @@ export function settleWear(
   return visited;
 }
 
+/** Provoz vozů po buňkách terénu (cest za den) – jako `PathTraffic`, bez závislosti na síti. */
+export interface CartWearTraffic {
+  originX: number;
+  originZ: number;
+  cellM: number;
+  width: number;
+  height: number;
+  raw: Float32Array;
+}
+
+/**
+ * Jízdy vozů za rok do vyšlapanosti (mutuje; roads.md – Vozy, paths.md – Vyšlapanost): políčko
+ * s jízdami (i sousedé ± 1 jako u tras) přibude o jízdy roku × `WEAR.cartWeight` cesty; v políčku
+ * platí nejvyšší provoz buněk terénu, které do něj padnou. `days` – dny roku, `raw` je průměr na
+ * den. Volá se jednou za rok (1. 11.) po sečtení vyšlapanosti k tomuto dni.
+ */
+export function addCartWear(wear: RoadWear, traffic: CartWearTraffic, days: number): void {
+  const peak = new Map<number, number>();
+  for (let z = 0; z < traffic.height; z++) {
+    for (let x = 0; x < traffic.width; x++) {
+      const r = traffic.raw[z * traffic.width + x]!;
+      if (r <= 0) continue;
+      const i = wearIndex(traffic.originX + x * traffic.cellM);
+      const j = wearIndex(traffic.originZ + z * traffic.cellM);
+      for (let di = -1; di <= 1; di++) {
+        for (let dj = -1; dj <= 1; dj++) {
+          const key = wearKey(i + di, j + dj);
+          if (r > (peak.get(key) ?? 0)) peak.set(key, r);
+        }
+      }
+    }
+  }
+  if (peak.size === 0) return;
+  const work = workOf(wear);
+  for (const key of [...peak.keys()].sort((a, b) => a - b)) {
+    const add = Math.round(peak.get(key)! * days * 100 * WEAR.cartWeight);
+    if (add > 0) work.cells.set(key, Math.min(WEAR.max, (work.cells.get(key) ?? 0) + add));
+  }
+  work.dirty = true;
+  work.rev = ++REVISIONS;
+}
+
 /** Kopie cíle práce do `wear.labor` – jen to, podle čeho se práce přiřadí trase (`wearLaborKey`). */
 function laborTargetCopy(target: LaborTarget): LaborTarget {
   switch (target.kind) {
@@ -506,4 +549,37 @@ export function withWearSeed(state: VillageState): VillageState {
   const cells = new Map<number, number>([...keys].map((k): [number, number] => [k, WEAR.seed]));
   const wear: RoadWear = { day: state.lastDay + 1, cells: encodeWear(cells), labor: [] };
   return { ...state, roads: { ...roads, wear } };
+}
+
+// --- provoz ke stavbám ---------------------------------------------------------------------
+
+/**
+ * Provoz ke stavbám za interval `days` dní (mutuje `roads.visits`): trasy s `visit` (hřbitov,
+ * modla, svatyně, ohrada – `StoredRoute.visit`) přičtou cesty za den × dny. Po intervalech jako
+ * vyšlapanost, takže dopočet po kouscích dá totéž. Chybí-li `visits`, založí se od začátku roku cest (`labor.from`).
+ */
+export function accrueVisits(
+  roads: VillageRoads,
+  routes: readonly StoredRoute[],
+  days: number,
+): void {
+  const visits = (roads.visits ??= { from: roads.labor.from, byKey: [] });
+  if (days <= 0) return;
+  const sums = new Map(visits.byKey);
+  for (const route of routes) {
+    if (!route.visit) continue;
+    sums.set(route.visit, (sums.get(route.visit) ?? 0) + route.trips * days);
+  }
+  visits.byKey = [...sums].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+}
+
+/**
+ * Provoz ke stavbám staré vsi (plán cest v2, Úloha 6): chybí-li `visits`, založí se od dalšího dne
+ * dopočtu – chátrání staveb pak rozhodne až po roce dat (návrh Clauda – stavby nezačnou chátrat
+ * naslepo). Ves bez cest nebo s provozem vrátí týž stav (jednou a idempotentně).
+ */
+export function withVisitsSeed(state: VillageState): VillageState {
+  const roads = state.roads;
+  if (!roads || roads.visits) return state;
+  return { ...state, roads: { ...roads, visits: { from: state.lastDay + 1, byKey: [] } } };
 }

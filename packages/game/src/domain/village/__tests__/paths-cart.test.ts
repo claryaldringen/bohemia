@@ -15,7 +15,8 @@ import {
 } from '../paths/cart';
 import { computePathNetwork, type PathVillage } from '../paths/network';
 import { addRoadCartTrips, roadLengthM, updateRoads, villageCartRoutes } from '../paths/roads';
-import { CART_ROUTES, CART_SPEED } from '../rules';
+import { CART_ROUTES, CART_SPEED, WEAR } from '../rules';
+import { wearAt, wearMap } from '../paths/wear';
 import { advanceVillage } from '../simulate';
 import type { CartKind, Dwelling, Person, Road, VillageState } from '../types';
 import { PATH_WETLAND, type PathTerrain } from '../paths/terrain';
@@ -509,21 +510,25 @@ function withCarts(day = NOV1(600) - 30): VillageState {
 }
 
 describe('vyjeté vozové cesty (roční kontrola)', () => {
-  it('kudy vozy dva roky jezdí, vznikne vozová cesta; bez vozů nic', () => {
+  it('jízdy vozů vyšlapou pěšinu (cesta pak vznikne z vyšlapanosti); bez vozů nic', () => {
     const s = withCarts();
     updateRoads(s, NOV1(600), pathLandscape(), null);
+    s.roads!.wear = { day: NOV1(600), cells: '', labor: [] };
     const run = (year: number): void => {
       s.roads!.labor.days = 365;
       addRoadCartTrips(s.roads!, [{ x: 100, z: -110, kind: 'two-wheel', trips: 200 }]);
       updateRoads(s, NOV1(year), pathLandscape(), null);
     };
     run(601);
+    // roční síť vozů už nové cesty nezakládá – jízdy jdou do vyšlapanosti (× WEAR.cartWeight)
     expect(s.roads!.roads.some((r) => r.cart)).toBe(false);
     expect(s.roads!.cartCandidates?.length).toBeGreaterThan(0);
+    const worn = [...wearMap(s.roads!.wear!).values()];
+    expect(worn.length).toBeGreaterThan(0);
+    expect(Math.max(...worn)).toBeGreaterThan(WEAR.visibleFrom);
     run(602);
-    const carts = s.roads!.roads.filter((r) => r.cart);
-    expect(carts.length).toBeGreaterThan(0);
-    expect(carts.every((r) => (r.cartTraffic?.at(-1) ?? 0) > 0)).toBe(true);
+    expect(Math.max(...wearMap(s.roads!.wear!).values())).toBeGreaterThan(WEAR.extendFrom);
+    expect(s.roads!.roads.some((r) => r.cart)).toBe(false);
     // bez vozů (ani ohrady se spřežením) žádná vozová cesta ani stopa ve stavu
     const none = withCarts();
     none.pens = [];
@@ -689,6 +694,7 @@ function cartYears(
   setup(s);
   const landscape = pathLandscape();
   updateRoads(s, NOV1(600), landscape, null);
+  s.roads!.wear = { day: NOV1(600), cells: '', labor: [] };
   s.roads!.roads.push({
     id: 50,
     points,
@@ -745,7 +751,7 @@ describe('vyježděná cesta – vůz přebije vyšlapanou', () => {
     expect(longestParallel(roads)).toBeLessThan(25);
   }, 60_000);
 
-  it('vozy objíždějí sad kus vedle vyšlapané cesty – osa vozu převezme, souběžná nezůstane', () => {
+  it('vozy objíždějí sad kus vedle vyšlapané cesty – cesty nepřebírají, pěšina se vyšlape po ose vozu', () => {
     // vyšlapaná cesta vede sadem (5 čtverců), vůz sadem neprojede – objede ho souběžně kus vedle
     const { state, route } = cartYears(
       [
@@ -774,18 +780,16 @@ describe('vyježděná cesta – vůz přebije vyšlapanou', () => {
     const beside = axisSamples(route).filter((p) => p.x > 55 && p.x < 100);
     expect(beside.length).toBeGreaterThan(5);
     expect(beside.every((p) => Math.abs(p.z + 22.5) > 5 && Math.abs(p.z + 22.5) <= 12)).toBe(true);
+    // vozy novou cestu nezakládají (vznikne z vyšlapanosti), cestu sadem nepřebírají – souběžný
+    // kus je dlouhý; jízdy kus vedle cesty vyšlapou pěšinu po ose vozů
     const roads = state.roads!.roads;
-    // vyježděná cesta vede kudy vůz, vyšlapaná sadem zmizela, souběžná dvojice nezůstala
-    expect(lostRoute(state, route, -5, 120)).toBe(0);
-    expect(longestParallel(roads)).toBeLessThan(25);
-    expect(
-      roads.some((r) =>
-        axisSamples(r).some((p) => p.x > 60 && p.x < 95 && Math.abs(p.z + 22.5) < 1),
-      ),
-    ).toBe(false);
+    expect(roads.some((r) => r.cart)).toBe(false);
+    expect(roads.map((r) => r.id)).toContain(50);
+    const mid = beside[Math.floor(beside.length / 2)]!;
+    expect(wearAt(wearMap(state.roads!.wear!), mid.x, mid.z)).toBeGreaterThan(0);
   }, 60_000);
 
-  it('ve svahu vede pěšina rovně a vozy serpentinou – zůstanou obě cesty', () => {
+  it('ve svahu vede pěšina rovně a vozy serpentinou – vozová cesta nevznikne hned, pěšina zůstane', () => {
     const s = withCarts();
     const landscape = SLOPE;
     updateRoads(s, NOV1(600), landscape, null);
@@ -811,7 +815,7 @@ describe('vyježděná cesta – vůz přebije vyšlapanou', () => {
       (r) => !r.cart && r.points.every((p) => Math.abs(p.x + 10) < 0.01),
     );
     expect(straight.reduce((sum, r) => sum + roadLengthM(r), 0)).toBeGreaterThan(40);
-    expect(roads.some((r) => r.cart)).toBe(true);
+    expect(roads.some((r) => r.cart)).toBe(false);
   }, 60_000);
 });
 

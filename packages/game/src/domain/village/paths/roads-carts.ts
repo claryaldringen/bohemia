@@ -24,11 +24,9 @@ import {
 import { cartObstacleMask, pathTerrainOf, pathWindowFor, type PathTerrain } from './terrain';
 import { pathVillageOf } from './village';
 import {
-  ATTACH_M,
   MATCH_M,
   MIN_ROAD_M,
   ON_ROAD_M,
-  PARALLEL_M,
   PARALLEL_MIN_M,
   RoadHit,
   SAMPLE_M,
@@ -39,7 +37,7 @@ import {
   resample,
   roadLengthM,
 } from './roads-geometry';
-import { formRoad, hitAt, roadTraffic, splitRoad } from './roads-form';
+import { hitAt, roadTraffic, splitRoad } from './roads-form';
 import { SpotContext } from './roads-trees';
 
 /**
@@ -310,28 +308,21 @@ function takeOverRoads(
 }
 
 /**
- * Vyježděné cesty z provozu vozů (mutuje – wagons.md, Vyjeté cesty; Martin, 19. 10. 2026: „Cesty
- * – pokud nějakou cestu vyjezdí vůz, bude to vyježděná cesta. Pokud vůz takhle vyjezdí vyšlapanou
- * cestu, tak to vozová cesta přebije.“). Po bodech letošních úseků vozů nad prahem, které leží
- * i na loňských (`CartPoint`): kudy vozy jedou po cestě, kterou už mají, provoz patří jí; po
- * vyšlapané cestě bez vozů ji převezmou (`takeOverRoads`); souvislý kus mimo cesty dá novou
- * vyježděnou cestu (konce u pevné cesty se k ní připojí). Kus souběžně vedle vyšlapané cesty
- * (do PARALLEL_M – vozy její osou nejedou) dá novou vyježděnou cestu po ose vozů, když je dlouhý
- * aspoň PARALLEL_MIN_M (souběžný kus vyšlapané pak zmizí – vozová je silnější, `mergeParallelRoads`),
- * kratší vyšlapanou převezme. Provoz vozů se tak nikdy neztratí a souběžná cesta nevznikne. Vrátí
- * nové cesty.
+ * Vozy převezmou vyšlapanou cestu (mutuje – wagons.md, Vyjeté cesty; Martin, 19. 10. 2026: „Pokud
+ * vůz takhle vyjezdí vyšlapanou cestu, tak to vozová cesta přebije.“). Nové cesty vozy už
+ * nezakládají – kudy vozy jezdit musí, tam jízdy vyšlapou pěšinu (`addCartWear`) a cesta vznikne
+ * měsíčně jako každá jiná. Po bodech letošních úseků vozů nad prahem, které leží i na loňských
+ * (`CartPoint`): po vyšlapané cestě bez vozů ji převezmou (`takeOverRoads`) – i kratší kus
+ * souběžně vedle ní (do PARALLEL_MIN_M).
  */
-export function formCartRoads(
+export function takeOverCartRoads(
   roads: VillageRoads,
   runs: readonly RoadPoint[][],
   candidates: readonly RoadPoint[][],
-  day: number,
-  traffic: PathTraffic,
   cartTraffic: PathTraffic,
   context: SpotContext,
-): Road[] {
-  const formed: Road[] = [];
-  if (candidates.length === 0) return formed;
+): void {
+  if (candidates.length === 0) return;
   const lastYear = axisDistance(candidates);
   const classify = (run: readonly RoadPoint[]): CartPoint[] =>
     run.map((p, k) => {
@@ -356,13 +347,12 @@ export function formCartRoads(
       }
       return { kind: 'free' };
     });
-  // trasa po trase – nová cesta z jedné trasy patří vozům i na dalších trasách téhož úseku
+  // trasa po trase – převzetí vyšlapané cesty vozy
   for (const run of runs) {
     const points = classify(run);
-    // nové cesty: souvislé kusy mimo cesty (i souběžné kus vedle vyšlapané); souběžný kus kratší
-    // než PARALLEL_MIN_M vyšlapanou převezme
+    // souběžný kus kratší než PARALLEL_MIN_M vyšlapanou převezme; delší souběžný kus nic
+    // nepřebírá (vozová cesta po ose vozů vznikne z vyšlapanosti)
     const open = (c: CartPoint): boolean => c.kind === 'free' || (c.kind === 'take' && !c.near);
-    const fresh: [number, number][] = [];
     let i = 0;
     while (i < run.length) {
       if (!open(points[i]!)) {
@@ -377,8 +367,6 @@ export function formCartRoads(
           const c = points[k]!;
           if (c.kind === 'take') points[k] = { ...c, near: true };
         }
-      } else {
-        fresh.push([i, j]);
       }
       i = j + 1;
     }
@@ -386,28 +374,5 @@ export function formCartRoads(
       c.kind === 'take' && c.near ? [{ road: c.road, at: c.at }] : [],
     );
     takeOverRoads(roads, taken, cartTraffic, context);
-    // připojení konce: k pevné cestě, po které trasa vedla (ATTACH_M), nebo k té, se kterou
-    // vedla souběžně (do PARALLEL_M – konec nové cesty je od ní až o krok vzorkování dál)
-    const reach = (k: number): number | false => {
-      const c = points[k];
-      if (!c || c.kind === 'skip' || c.kind === 'free') return false;
-      return c.near ? ATTACH_M : PARALLEL_M + SAMPLE_M;
-    };
-    for (const [from, to] of fresh) {
-      const road = formRoad(
-        roads,
-        run.slice(from, to + 1),
-        reach(from - 1),
-        reach(to + 1),
-        day,
-        traffic,
-        context,
-      );
-      if (!road) continue;
-      road.cart = true;
-      road.cartTraffic = [roadTraffic(road.points, cartTraffic)];
-      formed.push(road);
-    }
   }
-  return formed;
 }
