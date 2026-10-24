@@ -23,6 +23,7 @@ import {
   type Trail,
   type VillageRoads,
   type VillageRoutes,
+  type Cemetery,
   type VillageState,
 } from '../types';
 import {
@@ -100,9 +101,17 @@ export function roadsDay(
 const VISITS_YEAR_DAYS = 360;
 
 /**
+ * Pohřbívalo se do hřbitova za poslední rok? Pohřeb jde jen na jeden hřbitov (`bury`), takže
+ * návštěvu za pohřby dostane jen ten, kde je mohyla s dnem pohřbu v posledním roce (návrh Clauda).
+ */
+export function buriedWithinYear(cemetery: Cemetery, day: number): boolean {
+  return (cemetery.mounds ?? []).some((m) => day - m.day <= 365);
+}
+
+/**
  * Provoz ke stavbám za rok z `roads.visits` (cesty za den po klíči stavby); nuluje součty. Ves
  * s méně než rokem dat (starší ves po převodu) vrátí null a součty sčítá dál – stavby nezačnou
- * chátrat naslepo. Hřbitov s úmrtím za poslední rok se navštívil (pohřeb je cesta ke hřbitovu).
+ * chátrat naslepo. Hřbitov, kam se za poslední rok pohřbívalo, se navštívil (pohřeb je cesta ke hřbitovu).
  */
 function yearVisits(
   state: VillageState,
@@ -114,11 +123,10 @@ function yearVisits(
   const days = Math.max(1, day - visits.from);
   const map = new Map<string, number>();
   for (const [key, sum] of visits.byKey) map.set(key, sum / days / 100);
-  if (state.chronicle.some((e) => e.kind === 'death' && day - e.day <= 365)) {
-    for (const c of villageCemeteries(state)) {
-      const key = visitKey('cemetery', c.id);
-      map.set(key, Math.max(map.get(key) ?? 0, 0.01));
-    }
+  for (const c of villageCemeteries(state)) {
+    if (!buriedWithinYear(c, day)) continue;
+    const key = visitKey('cemetery', c.id);
+    map.set(key, Math.max(map.get(key) ?? 0, 0.01));
   }
   roads.visits = { from: day, byKey: [] };
   return map;
