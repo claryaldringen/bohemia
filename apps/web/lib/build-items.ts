@@ -45,6 +45,7 @@ import {
   type ThreshingFloorPlacementCheck,
   type TileCell,
   type Walk,
+  penSpecies,
 } from '@bohemia/game';
 import type { PlacementCost, SquaresVariant } from './scene/village-types';
 
@@ -581,7 +582,7 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
         warningCells: result.takenLand
           .filter((t) => sameGrid(t.grid, result.grid))
           .map((t) => t.cell),
-        cost: result.check.ok ? penPlacementCost(village, result) : null,
+        cost: result.check.ok ? penPlacementCost(village, result, species) : null,
       };
     },
   },
@@ -594,20 +595,23 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
  * počítá, jako by se kácelo u ohrady všech 6 stromů na čtverec bez klád; stromy ke kácení ukáže 0
  * (cena dřeva je v nabídce staveb).
  */
-function penPlacementCost(
+export function penPlacementCost(
   village: PlacementVillage,
   check: Pick<PenSquaresCheck, 'squares' | 'obstacleCost' | 'extendsPen'>,
+  species?: PenSpecies,
 ): PlacementCost {
   const n = Math.max(1, check.squares.length);
   // plot jen na nových vnějších stranách (oxen.md – Plot podle délky): rozšíření ušetří strany
   // sousedící s ohradou
   const extended = village.pens?.find((p) => p.id !== undefined && p.id === check.extendsPen);
+  // rozšíření bere druh cílové ohrady (jako startPen), jinak druh z umisťování
+  const penKind = extended ? penSpecies(extended) : species;
   const sides = newFenceSides(
     check.squares.map((q) => q.cell),
     extended ? [extended.cell, ...(extended.extraSquares ?? []).map((q) => q.cell)] : [],
   );
   const plan = planWoodFrom(
-    penTrees(n, sides),
+    penTrees(n, sides, penKind),
     {
       x: check.squares.reduce((sum, q) => sum + q.x, 0) / n,
       z: check.squares.reduce((sum, q) => sum + q.z, 0) / n,
@@ -622,7 +626,7 @@ function penPlacementCost(
       clearedTrees: check.squares.reduce((sum, q) => sum + q.clearedTrees, 0),
     },
   );
-  return { laborManDays: penLaborManDays(check.obstacleCost, plan, n, sides), trees: 0 };
+  return { laborManDays: penLaborManDays(check.obstacleCost, plan, n, sides, penKind), trees: 0 };
 }
 
 /** Stavba podle druhu. */

@@ -31,10 +31,15 @@ export function horseAgeYears(horse: Pick<Horse, 'bornDay'>, day: number): numbe
   return (day - horse.bornDay) / DAYS_PER_YEAR;
 }
 
-/** Hříbě (do roku), klisna, nebo jezdecký kůň. */
+/** Hříbě bez vlastního místa (do roku; horses.md), klisna, nebo jezdecký kůň. */
 export function horseKind(horse: Pick<Horse, 'bornDay' | 'sex'>, day: number): HorseKind {
-  if (horseAgeYears(horse, day) < HORSES.foalYears) return 'foal';
+  if (horseAgeYears(horse, day) < HORSES.placeFromYears) return 'foal';
   return horse.sex === 'female' ? 'mare' : 'riding';
+}
+
+/** Hříbě ve smyslu chovu a výcviku (do 3 let; horses.md) – jiná mez než místo v ohradě. */
+export function isFoalByAge(horse: Pick<Horse, 'bornDay'>, day: number): boolean {
+  return horseAgeYears(horse, day) < HORSES.foalUntilYears;
 }
 
 /** Místa ohrad koní na noc – hotové čtverce × 4. */

@@ -94,17 +94,19 @@ export const PEN_PLACES_PER_SQUARE = {
   horse: 4,
 } as const;
 /**
- * horses.md – Ohrada koní a Koně po kusech (návrh Clauda): kůň slouží 3–20 let, klisna se chová od 3 let,
- * na maso jde ≈ 100 kg; hříbě do roku nemá vlastní místo (saje u klisny). Péče, krmení a ceny
+ * horses.md – Ohrada koní a Koně po kusech (návrh Clauda): kůň slouží 3–20 let, klisna rodí od 4 do 20 let,
+ * na maso jde ≈ 100 kg. Dvě různé meze „hříběte“: `placeFromYears` – hříbě do roku nemá vlastní místo
+ * (saje u klisny); `foalUntilYears` – hříbě do 3 let (chov a výcvik: seno hříběte, jízda až od 3 let). Péče, krmení a ceny
  * přibudou s úlohami 5–7.
  */
 export const HORSES = {
   serviceFromYears: 3,
   serviceToYears: 20,
-  breedFromYears: 3,
+  breedFromYears: 4,
   breedToYears: 20,
   meatKg: 100,
-  foalYears: 1,
+  placeFromYears: 1,
+  foalUntilYears: 3,
 } as const;
 /**
  * oxen.md – Spřežení, Voli po kusech (návrh Clauda, Martin schválil): výcvik ≈ 2 roky, vůl slouží
