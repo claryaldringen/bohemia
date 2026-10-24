@@ -97,8 +97,9 @@ cestu, i upravenou a vozovou, jen pro ty pomaleji.“ Návrh Clauda:
   mít možnost stavbu zrušit.“, jen rozestavěné, nespotřebované suroviny se vrátí –
   [population.md](population.md)): rozdělanou úpravu cesty i vozovou cestu ve stavbě jde zrušit.
   Hotové úseky zůstanou vylepšené, rozdělaný úsek a zbytek cesty zůstanou v dosavadním druhu, klády
-  a skácené stromy se vrátí na hromadu bez zabudované části (jako u staveb), zemní práce, které už
-  proběhly, zůstanou v krajině jako úvoz a násep zarostlé vozové cesty. Cesta tím nezmizí – rušit
+  a skácené stromy se vrátí na hromadu bez zabudované části (jako u staveb), zemní práce hotových
+  úseků vozové cesty zůstanou v krajině jako úvoz a násep (rozdělaný úsek se vrací do původního
+  terénu). Cesta tím nezmizí – rušit
   cesty hráč dál nemůže.
 
 ### Vozová cesta po staré cestě (pravidlo 6)

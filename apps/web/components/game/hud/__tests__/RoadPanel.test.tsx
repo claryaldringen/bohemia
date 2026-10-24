@@ -27,6 +27,7 @@ const road = (
   wetM: 18,
   fords: 1,
   building: null,
+  cancelId: null,
   upgrades: [
     {
       upgrade: 'improved',
@@ -158,6 +159,18 @@ describe('SelectionPanel – pevná cesta', () => {
       }),
     );
     expect(dry).not.toContain('road-upgrade-parts');
+  });
+
+  it('rozdělanou úpravu nebo vozovou cestu jde zrušit – tlačítko Zrušit stavbu (Úloha 10b)', () => {
+    const details = {
+      ...road({
+        building: { grade: 'improved', progress: 0.4, treesToFell: 0 },
+        cancelId: 12,
+      }),
+      cancelConstructionId: 12,
+    } as SelectionDetails;
+    expect(render(details)).toContain('data-testid="cancel-construction"');
+    expect(render(road())).not.toContain('data-testid="cancel-construction"');
   });
 
   it('rozestavěné vylepšení ukáže průběh, hotová hať žádné tlačítko', () => {

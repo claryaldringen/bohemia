@@ -1074,6 +1074,7 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       wetM: 180,
       fords: 2,
       building: { grade: 'improved', progress: 0.55, treesToFell: 9 },
+      cancelId: null,
       upgrades: [
         {
           upgrade: 'improved',
