@@ -20,6 +20,7 @@ import {
   buildItemForKey,
   buildVariantName,
   dwellingPlacementCost,
+  penPlacementCost,
   penVariantSpecies,
 } from '../build-items';
 
@@ -367,6 +368,16 @@ describe('ohrada podle druhu (oxen.md – Ohrady podle druhu)', () => {
     );
     expect(five.check.ok).toBe(false);
     expect(five.check.reason).toMatch(/nejvýš 4 čtverce/);
+  });
+
+  it('cena u kurzoru nese druh – ohrada koní 50 čd a 8 stromů na čtverec (horses.md)', () => {
+    const cells = [{ x: 20, y: 20 }];
+    const sheep = penSquaresFromCells(landscape, village, cells, 'sheep');
+    const horse = penSquaresFromCells(landscape, village, cells, 'horse');
+    const sheepCost = penPlacementCost(village, sheep, 'sheep');
+    const horseCost = penPlacementCost(village, horse, 'horse');
+    expect(horseCost.laborManDays).toBeGreaterThan(sheepCost.laborManDays);
+    expect(penPlacementCost(village, horse).laborManDays).toBe(sheepCost.laborManDays);
   });
 
   it('nad ohradou téhož druhu ji rozšíří, jiný druh je nová ohrada vedle', () => {

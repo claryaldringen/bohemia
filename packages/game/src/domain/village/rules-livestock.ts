@@ -85,7 +85,29 @@ export const PEN_SQUARES = { max: 4 } as const;
  * čtverec i s telaty ve výcviku – vůl ≈ 400 kg, ≈ 6 m² s jeslemi a přístřeškem (rozhodnutí Clauda:
  * tažný vůl potřebuje víc místa než kráva a čtverec má i přístřešek, žlab a stoh).
  */
-export const PEN_PLACES_PER_SQUARE = { sheep: 130, goat: 100, pig: 80, cow: 45, team: 6 } as const;
+export const PEN_PLACES_PER_SQUARE = {
+  sheep: 130,
+  goat: 100,
+  pig: 80,
+  cow: 45,
+  team: 6,
+  horse: 4,
+} as const;
+/**
+ * horses.md – Ohrada koní a Koně po kusech (návrh Clauda): kůň slouží 3–20 let, klisna rodí od 4 do 20 let,
+ * na maso jde ≈ 100 kg. Dvě různé meze „hříběte“: `placeFromYears` – hříbě do roku nemá vlastní místo
+ * (saje u klisny); `foalUntilYears` – hříbě do 3 let (chov a výcvik: seno hříběte, jízda až od 3 let). Péče, krmení a ceny
+ * přibudou s úlohami 5–7.
+ */
+export const HORSES = {
+  serviceFromYears: 3,
+  serviceToYears: 20,
+  breedFromYears: 4,
+  breedToYears: 20,
+  meatKg: 100,
+  placeFromYears: 1,
+  foalUntilYears: 3,
+} as const;
 /**
  * oxen.md – Spřežení, Voli po kusech (návrh Clauda, Martin schválil): výcvik ≈ 2 roky, vůl slouží
  * ≈ 10 let, pak jde na maso; rádlo táhne pár (`teamSize`). Ves s ohradou volů drží aspoň `minCows`

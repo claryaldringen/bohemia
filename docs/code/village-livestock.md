@@ -315,3 +315,12 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 - **Panel ohrady a slepice v UI** (issue #3): panel ukazuje jen druh ohrady (`penHerd` v
   `selection-details.ts`), `LivestockSummary.chickens` zůstává v datech (scéna, vejce), ale
   žádné rozhraní ho nezobrazuje.
+
+- **Ohrada koní a koně po kusech** (horses.md, issue #5): `PenSpecies` + `'horse'`, `Pen.horses?:
+Horse[]` (`id`, `bornDay`, `sex`, `training`, `riderId?`). `horses.ts` – `horsePens`,
+  `villageHorses`, `horseKind` (hříbě do roku / klisna / jezdecký samec), `horsePlaces` (4 na hotový
+  čtverec, `PEN_PLACES_PER_SQUARE.horse`), `horseRoom` (hříbě místo nezabírá). Cena čtverce
+  50 čd a 8 stromů (`PEN_BY_SPECIES.horse`; `penBuildLabor` / `penLaborManDays` / `penTrees` berou
+  druh, rozšíření bere druh cílové ohrady), plot podle délky beze změny (`PEN_FENCE`).
+  `penOccupancy` počítá koně ohrady (chátrání `abandonment.ts` beze změny – prázdná ohrada chátrá).
+  Číslo `HORSES` v `rules-livestock.ts`, výška plotu `PEN_FENCE_HEIGHT_M` jen pro scénu.

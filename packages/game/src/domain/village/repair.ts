@@ -1,6 +1,6 @@
 import { readySquares, villageCemeteries } from './cemetery';
 import { sacredBuildLabor } from './costs';
-import { builtPenSquares } from './pens';
+import { builtPenSquares, penSpecies } from './pens';
 import { fencedSquareEquivalents, outerFenceSides, SQUARE_SIDES } from './fence-cost';
 import { penBuildLabor, villagePens } from './oxen';
 import { CEMETERY, PEN_FENCE, STRUCTURE_REPAIR } from './rules';
@@ -85,7 +85,7 @@ export function fullRepairManDays(state: VillageState, ref: StructureRef): numbe
     const cells = builtPenSquares(pen).map((q) => q.cell);
     return (
       share *
-      penBuildLabor() *
+      penBuildLabor(penSpecies(pen)) *
       (cells.length === 0
         ? 1
         : fencedSquareEquivalents(cells.length, outerFenceSides(cells), PEN_FENCE.share))
