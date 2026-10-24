@@ -44,16 +44,30 @@ function Line({
 }
 
 /**
+ * Trvalé upozornění, které čeká na hráče (lord.md – Kde se jméno zadává: „Syn vojvody čeká na
+ * jméno“) – nemizí po `NOTICE_MS`, klik ho vyřeší (otevře panel).
+ */
+export interface PinnedNotice {
+  kind: string;
+  text: string;
+  /** Kolik jich čeká – číslo se ukáže od dvou. */
+  count: number;
+  onOpen: () => void;
+}
+
+/**
  * Krátká oznámení nahoře uprostřed, která po pár sekundách zmizí (jako zprávy v 0 A.D.).
- * `status` je trvalý řádek (ves teď nejde zobrazit), nemizí.
+ * `status` je trvalý řádek (ves teď nejde zobrazit), nemizí; `pinned` také ne – čeká na hráče.
  */
 export function NoticeLines({
   notices,
   status,
+  pinned = null,
   onExpire,
 }: {
   notices: readonly NoticeLine[];
   status: string | null;
+  pinned?: PinnedNotice | null;
   onExpire: (id: number) => void;
 }): ReactElement {
   // Oblast aria-live existuje pořád – čtečka pak ohlásí i první oznámení.
@@ -70,6 +84,22 @@ export function NoticeLines({
         >
           {status}
         </p>
+      )}
+      {pinned && (
+        <button
+          type="button"
+          data-testid="pinned-notice"
+          data-kind={pinned.kind}
+          onClick={pinned.onOpen}
+          className="pointer-events-auto cursor-pointer font-serif text-base text-[#ffb35c] underline-offset-2 [text-shadow:0_1px_2px_rgb(0_0_0/0.95)] hover:underline"
+        >
+          {pinned.text}
+          {pinned.count > 1 && (
+            <span data-testid="pinned-notice-count" className="ml-1.5 tabular-nums">
+              {pinned.count}
+            </span>
+          )}
+        </button>
       )}
       <ol className="flex flex-col items-center gap-0.5">
         {notices.map((notice) => (

@@ -225,7 +225,8 @@ export function ManorUpgrades({
 }
 
 /**
- * Obyvatelé dvorce (lord.md – Co hráč vidí): u každého portrét s věkem (popisek role). Dovednosti
+ * Obyvatelé dvorce (lord.md – Co hráč vidí): u každého portrét s věkem (popisek role, u mužů rodu
+ * jméno – „Bořivoj – Syn vojvody“, lord.md – Kde se jméno ukazuje). Dovednosti
  * (luk, boj, jízda) ukazuje jen panel vybrané osoby (Martin 24. 10. 2026: „To by mělo být na
  * panelu té označené osoby“).
  */
@@ -238,7 +239,10 @@ export function ManorFamily({ family }: { family: readonly ManorMember[] }): Rea
     >
       {family.map((m) => (
         <li key={m.id} data-testid={`manor-member-${m.id}`} className="flex items-center gap-1.5">
-          <Tooltip placement="above" content={m.role}>
+          <Tooltip
+            placement="above"
+            content={m.name === undefined ? m.role : `${m.name} – ${m.role}`}
+          >
             <span
               className="hud-inset flex min-w-14 items-center gap-1 rounded px-1 text-xs tabular-nums text-[#ecdfc4]"
               tabIndex={0}

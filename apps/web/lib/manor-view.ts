@@ -140,6 +140,8 @@ export interface ManorMember {
   id: number;
   portrait: PersonPortraitIcon;
   role: string;
+  /** Jméno muže rodu (lord.md – Kde se jméno ukazuje); ostatní lidé chybí. */
+  name?: string;
   age: number;
   arms: ArmsView | null;
   horse: boolean;
@@ -168,6 +170,7 @@ export function manorFamily(state: VillageState, day: number): ManorMember[] {
       id: p.id,
       portrait: personPortrait(p),
       role: ROLE_NAMES[p.role],
+      ...(p.name !== undefined ? { name: p.name } : {}),
       age: p.age,
       arms: p.arms ?? (trainees.has(p.id) ? armsView({ bow: 0, combat: 0, riding: 0 }) : null),
       horse: p.horse === true,

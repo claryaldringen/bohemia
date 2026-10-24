@@ -404,7 +404,9 @@ Clauda.
   jen písmena. Když bude chtít vojvoda pojmenovat syna Mrdomír, může.“ Provedení (návrh Clauda):
   text se znormalizuje (Unicode NFC) a ořízne o mezery na krajích; pak smí obsahovat **jen
   písmena Unicode** (`\p{L}` – i diakritika, cyrilice) a mít **1–20 znaků**. Bez mezer, číslic,
-  pomlček a interpunkce, velikost písmen se nemění, stejné jméno dvou synů hra dovolí. Ověřuje
+  pomlček a interpunkce, velikost písmen se nemění, stejné jméno dvou synů hra dovolí. Neviditelná
+  „písmena“ (výplně hangulu U+115F, U+1160, U+3164, U+FFA0 – Unicode Default_Ignorable_Code_Point)
+  neprojdou – jméno nesmí vypadat prázdné (návrh Clauda, recenze úlohy 5). Ověřuje
   server, prohlížeč totéž jen ukazuje dopředu (důvod u pole: „Jen písmena“, „Nejvýš 20 písmen“).
 - **Jméno se neskloňuje** – stejně jako jméno vsi ([postavy](villagers.md)); texty stavějí jméno
   do 1. pádu („Svatba – Bořivoj“).
@@ -426,6 +428,12 @@ Clauda.
   syn žije, roste a od 7 let cvičí, jen v rozhraní je bez jména jako každý vesničan. Víc čekajících
   (dvojčata, hráč byl pryč – za skutečný den ≈ 2,7 roku) – upozornění ukáže počet a panel je
   nabízí od nejstaršího. Zemře-li syn bez jména, upozornění pro něj zmizí.
+- **Vojvoda bez jména ve vsi** (převod, výprava – návrh Clauda): panel „Jméno vojvody“ se nabídne
+  sám jednou za načtení stránky a jde zavřít (Esc); pak drží řádek **„Vojvoda čeká na jméno“**
+  stejně jako u syna. Číslo u upozornění je počet všech čekajících, panel je nabízí od vojvody.
+- **„Rodina čeká na dům“** (návrh Clauda): řádky upozornění se po pár sekundách ztratí a myší na
+  ně nejde, proto jména ženatých synů v dvorci stojí přímo v textu („Rodina čeká na dům –
+  Bořivoj“), ne v popisku.
 - **Čekající jména se neukládají zvlášť:** jsou to žijící muži rodu bez jména (vnuci dostávají
   jméno hned při narození) – fronta tak nemůže nesouhlasit se stavem vsi.
 - **Ves z výpravy** ([stěhování](migration.md)): má-li vojvoda nové vsi (nejstarší muž výpravy)
@@ -451,7 +459,7 @@ Clauda.
   **popisek portrétu** a postavy ve scéně „Bořivoj – vojvodův syn“.
 - **Panel dvorce:** popisky ikon mužů rodu („Bořivoj – Lukostřelba 64 / 100“).
 - **Upozornění a kronika:** „Syn vojvody čeká na jméno“; do kroniky „Narodil se syn vojvody“,
-  „Syn vojvody dostal jméno – Bořivoj“ (při potvrzení), „Svatba – Bořivoj“, „Bořivoj odešel
+  „Syn vojvody dostal jméno – Bořivoj“ / „Vojvoda dostal jméno – Bořivoj“ (při potvrzení), „Svatba – Bořivoj“, „Bořivoj odešel
   z dvorce“, „Zemřel Bořivoj“, „Vojvodou je Bořivoj“. Kronika zapíše jméno do události, text se
   pak nemění. Kronika v rozhraní zatím není ([obyvatelstvo](population.md)), data budou připravená.
 - Muž rodu, který dvorec opustil, nese jméno dál. Ostatní lidé zůstávají bez jmen.

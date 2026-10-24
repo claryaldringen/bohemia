@@ -188,6 +188,21 @@ describe('role lidí (person-roles.ts)', () => {
     expect(roles.get(1)).toBe('voivode');
     expect(personRoles(people, { manor: 5, craft: () => null }).get(3)).toBe('voivode');
   });
+
+  it('vedlejší manželka vojvody (lord.md – Manželky) – v dvorci i ve vlastním domě', () => {
+    const people: RolePerson[] = [
+      { id: 1, age: 40, sex: 'male', home: 5, spouse: 2 },
+      { id: 2, age: 35, sex: 'female', home: 5, spouse: 1 },
+      { id: 3, age: 30, sex: 'female', home: 5, spouse: 1 },
+      { id: 4, age: 38, sex: 'female', home: 6, spouse: 1 },
+      { id: 5, age: 18, sex: 'male', home: 6, mother: 4, father: 1 },
+    ];
+    const roles = personRoles(people, { manor: 5, lordId: 1, craft: () => null });
+    expect(roles.get(1)).toBe('voivode');
+    expect(roles.get(2)).toBe('voivode-wife');
+    expect(roles.get(3)).toBe('voivode-secondary-wife');
+    expect(roles.get(4)).toBe('voivode-secondary-wife');
+  });
 });
 
 describe('DayRoster – lidé dne k postavám', () => {

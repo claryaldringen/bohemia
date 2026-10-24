@@ -305,6 +305,7 @@ describe('selectionDetails', () => {
       relocation: null,
       relocate: view.relocation,
       manor: null,
+      lordWifeHome: null,
       // odejít smí: 4 lidé, unesou 3 od 7 let (75 kg), díl zásob 4/6 by byl víc
       leave: { households: [1], people: 4, foodKg: 75, cart: null, directions: LEAVE_DIRECTIONS },
     });

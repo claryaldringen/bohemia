@@ -7,6 +7,7 @@ import { PEN_NAMES } from '@/lib/build-items';
 import { formatPercent } from '@/lib/village-format';
 import { ROAD_KIND_NAMES, SACRED_BUILDING_NAMES } from '@/lib/village-view';
 import { CancelConstructionButton } from './RelocationControls';
+import { Tooltip } from './Tooltip';
 import {
   Portrait,
   Stat,
@@ -93,7 +94,13 @@ export function SelectionPanel({
     portrait = <Portrait icon={texts.portrait} name={texts.name} />;
     body = <DugSiteBody details={details} onSelectTarget={onSelectTarget} />;
   } else if (details.kind === 'person') {
-    portrait = <PersonPortrait icon={details.portrait} name={details.role} />;
+    portrait = (
+      <PersonPortrait
+        icon={details.portrait}
+        name={details.role}
+        personName={details.name ?? null}
+      />
+    );
     body = <PersonBody key={details.id} details={details} onSelectTarget={onSelectTarget} />;
   } else if (details.kind === 'plough-team') {
     portrait = <PersonPortrait icon="ox" name="Spřežení" testId="selection-team-portrait" />;
@@ -206,6 +213,13 @@ export function SelectionPanel({
     // dvorec vojvody (trade.md) – i když je to zatím zemnice zakladatelů
     portrait = details.manor ? (
       <Portrait icon={details.type} name="Dvorec vojvody" />
+    ) : details.lordWifeHome ? (
+      // dům vedlejší manželky jmenuje vojvodu – slova jen v popisku (lord.md – Kde se jméno ukazuje)
+      <Tooltip content={details.lordWifeHome} placement="above">
+        <div tabIndex={0} data-testid="selection-lord-wife-home">
+          {dwellingPortrait(details.type, details.workshop?.craft ?? null)}
+        </div>
+      </Tooltip>
     ) : (
       dwellingPortrait(details.type, details.workshop?.craft ?? null)
     );

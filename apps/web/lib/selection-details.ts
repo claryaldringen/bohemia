@@ -162,6 +162,11 @@ type SelectionKinds =
       /** Dvorec vojvody (trade.md) – vylepšení vsi; obyčejné obydlí null. */
       manor: VillageManor | null;
       /**
+       * Popisek domu vedlejší manželky vojvody, který vojvodu jmenuje (lord.md – Kde se jméno
+       * ukazuje); jiný dům null.
+       */
+      lordWifeHome?: string | null;
+      /**
        * Dvorec: kde ves bere výrobky řemeslníků a nákupy u sousedů na cestě (crafts.md – Nákup
        * u sousedů); u ostatních obydlí chybí.
        */
@@ -471,6 +476,8 @@ type SelectionKinds =
       id: number;
       portrait: PersonPortraitIcon;
       role: string;
+      /** Jméno muže rodu (lord.md – Kde se jméno ukazuje); ostatní lidé null. */
+      name?: string | null;
       activity: string;
       age: number;
       home: number | null;
@@ -811,6 +818,7 @@ function selectionKinds(
       relocation: household.relocation,
       relocate: view && household.relocationBlock === null ? view.relocation : null,
       manor: view?.manor?.dwellingId === household.dwellingId ? view.manor : null,
+      lordWifeHome: lordWifeHome(view, scene, household.dwellingId),
       ...(view?.manor?.dwellingId === household.dwellingId && view.crafts.sources
         ? { buying: { sources: view.crafts.sources, purchases: view.purchases ?? [] } }
         : {}),
@@ -986,6 +994,7 @@ function personDetails(
     id,
     portrait: personPortrait(person),
     role: ROLE_NAMES[herding && person.age < AGE.adult ? herdRole(person.sex) : person.role],
+    name: person.name ?? null,
     activity: personActivity(figure, scene, draft),
     age: person.age,
     home: home ? home.id : null,
@@ -1001,6 +1010,24 @@ function personDetails(
           ? { kind: 'cart', id: job.cart }
           : null,
   };
+}
+
+/**
+ * Dům vedlejší manželky vojvody mimo dvorec (lord.md – Manželky): popisek se jménem vojvody v 1. pádu
+ * (jméno se neskloňuje); jiný dům null.
+ */
+function lordWifeHome(
+  view: VillageView | null,
+  scene: SceneVillage,
+  dwellingId: number,
+): string | null {
+  if (view?.manor?.dwellingId === dwellingId) return null;
+  const wife = scene.labor?.persons?.some(
+    (p) => p.home === dwellingId && p.role === 'voivode-secondary-wife',
+  );
+  if (!wife) return null;
+  const lord = view?.dynasty?.lordName;
+  return lord === undefined ? 'Dům vedlejší ženy vojvody' : `Dům vedlejší ženy vojvody – ${lord}`;
 }
 
 /** Člověk u spřežení či vozu (id ze scény) – jen když ho ves ve scéně má. */

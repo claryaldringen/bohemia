@@ -28,6 +28,7 @@ import {
   foundVillage,
   getVillageView,
   leaveVillage,
+  nameLineMan,
   settleJourney,
   placeCemetery,
   placeDwelling,
@@ -80,7 +81,9 @@ import type { PersonFigureState } from '@/lib/person-activity';
 import { useSoundPreference } from './SoundToggle';
 import { rememberVillage } from '@/lib/village-choice';
 import type { VillageListItem } from '@/lib/village-list';
-import { newNotices } from '@/lib/village-notices';
+import { lineNameNotice, newNotices } from '@/lib/village-notices';
+import { lastLordName, rememberLordName } from '@/lib/lord-name-memory';
+import { personPortrait } from '@/lib/person-view';
 import {
   placementVillageFromScene,
   scenePlot,
@@ -98,6 +101,7 @@ import { DefeatScreen } from './hud/DefeatScreen';
 import { JourneyBanner } from './hud/RelocationControls';
 import { GameMenu } from './hud/GameMenu';
 import { Minimap } from './hud/Minimap';
+import { LineNamePanel } from './hud/LineNamePanel';
 import { NoticeLines, type NoticeLine } from './hud/NoticeLines';
 import { SelectionPanel } from './hud/SelectionPanel';
 import { TopBar } from './hud/TopBar';
@@ -330,6 +334,23 @@ export function VillageGame({
   // Po konci hry je přes všechno obrazovka porážky – nabídka se neukáže.
   const menuShown = menuOpen && !gameOver;
 
+  // Jména rodu (lord.md – Kde se jméno zadává). Bez vsi hráč nejdřív pojmenuje vojvodu – jméno
+  // odejde na server se založením vsi (zavře-li stránku dřív, panel se ukáže znovu). Ve vsi čeká
+  // muž rodu bez jména: vojvoda (převod, výprava) panel otevře sám, syn jen upozorněním.
+  const [founderName, setFounderName] = useState<string | null>(null);
+  const founderNameRef = useRef<string | null>(null);
+  const [namingId, setNamingId] = useState<number | null>(null);
+  const [dismissedLord, setDismissedLord] = useState<string | null>(null);
+  const foundingName = village === null && founderName === null && scene !== null;
+  const lineNotice = gameOver ? null : lineNameNotice(view);
+  const unnamed = view?.dynasty?.unnamed ?? [];
+  const unnamedLord = unnamed[0]?.lord ? unnamed[0] : undefined;
+  const lordKey = view && unnamedLord ? `${view.id}:${unnamedLord.id}` : null;
+  const namingTarget = gameOver
+    ? undefined
+    : (unnamed.find((u) => u.id === namingId) ??
+      (lordKey !== null && dismissedLord !== lordKey ? unnamedLord : undefined));
+
   // Pořadí odpovědí: dotaz, který začal dřív než už použitá odpověď, se zahodí.
   const requestSeq = useRef(0);
   const appliedSeq = useRef(0);
@@ -496,6 +517,11 @@ export function VillageGame({
     return () => setE2EHook('pollVillage', undefined);
   }, [pollNow]);
 
+  useEffect(() => {
+    setE2EHook('selectPerson', (id) => setSelected({ kind: 'person', id }));
+    return () => setE2EHook('selectPerson', undefined);
+  }, []);
+
   /** Akce nad vsí na serveru (ve frontě za předchozími); vrátí chybu pro hráče, nebo null. */
   const runAction = useCallback(
     (action: () => Promise<VillageData>): Promise<string | null> => {
@@ -564,7 +590,11 @@ export function VillageGame({
     const arrived = viewRef.current?.journey?.arrived === true;
     void runBuildAction(() =>
       villageId === null
-        ? foundVillage({ name: suggestVillageName(seed), dwelling: position })
+        ? foundVillage({
+            name: suggestVillageName(seed),
+            dwelling: position,
+            ...(founderNameRef.current !== null ? { lordName: founderNameRef.current } : {}),
+          })
         : arrived
           ? settleJourney({ villageId, dwelling: position })
           : placeDwelling({ villageId, type, position, ...(plot ? { plot } : {}) }),
@@ -885,13 +915,14 @@ export function VillageGame({
   }, [placement.active]);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      const target = event.target instanceof Element ? event.target : null;
-      if (target?.closest('input, textarea, select')) return;
+      // F10 otevře nabídku i z textového pole (panel jména má kurzor v poli hned po otevření)
       if (opensMenu(event)) {
         event.preventDefault(); // F10 v některých prohlížečích skočí do jejich nabídky
         openMenuRef.current();
         return;
       }
+      const target = event.target instanceof Element ? event.target : null;
+      if (target?.closest('input, textarea, select')) return;
       if (event.code === 'Escape' && placingRef.current === null) {
         setSelected(null);
         setBuildGroup(null);
@@ -1009,6 +1040,8 @@ export function VillageGame({
    * (obrazovka porážky) bez `abandon`, z nabídky se živou vsí s `abandon` (hráč to potvrdil).
    */
   const restart = async (abandon: boolean): Promise<string | null> => {
+    // nový začátek předvyplní poslední jméno vojvody (lord.md – Kde se jméno zadává)
+    rememberLordName(viewRef.current?.dynasty?.lordName);
     try {
       const result = await restartGame(abandon ? { abandon: true } : undefined);
       if ('error' in result) return result.error;
@@ -1018,6 +1051,37 @@ export function VillageGame({
       console.error('Nový začátek selhal.', error);
       return CONNECTION_FAILED;
     }
+  };
+
+  /** Jméno vojvody před založením vsi – odejde se založením (první zemnice). */
+  const confirmFounderName = (name: string): Promise<string | null> => {
+    founderNameRef.current = name;
+    setFounderName(name);
+    rememberLordName(name);
+    return Promise.resolve(null);
+  };
+
+  /** Hráč pojmenuje muže rodu ve vsi (server ověří a jméno uloží natrvalo). */
+  const confirmLineName = (
+    personId: number,
+    lord: boolean,
+    name: string,
+  ): Promise<string | null> => {
+    const villageId = viewRef.current?.id;
+    if (!villageId) return Promise.resolve(CONNECTION_FAILED);
+    return runAction(() => nameLineMan({ villageId, personId, name })).then((failure) => {
+      if (failure === null) {
+        setNamingId(null);
+        if (lord) rememberLordName(name);
+      }
+      return failure;
+    });
+  };
+
+  /** Zavře panel jména – vojvoda bez jména se sám znovu nenabídne, čeká upozornění. */
+  const closeLineName = (): void => {
+    setNamingId(null);
+    if (lordKey !== null) setDismissedLord(lordKey);
   };
 
   /** Odhlášení z nabídky – i se session už neplatnou (odhlášení v jiném panelu) na úvod. */
@@ -1112,15 +1176,44 @@ export function VillageGame({
       <BuildGrid
         options={options}
         active={placement.active ? placingItem : null}
-        disabled={scene === null}
+        disabled={scene === null || foundingName}
         group={buildGroup}
         onBuild={startBuild}
       />
       <NoticeLines
         notices={notices}
         status={villageError === null ? null : `Ves teď nejde zobrazit: ${villageError}`}
+        pinned={
+          lineNotice
+            ? {
+                kind: lineNotice.kind,
+                text: lineNotice.text,
+                count: lineNotice.count,
+                onOpen: () => setNamingId(lineNotice.personId),
+              }
+            : null
+        }
         onExpire={expireNotice}
       />
+      {foundingName && (
+        <LineNamePanel
+          lord
+          portrait="man"
+          initialName={lastLordName()}
+          taken={[]}
+          onConfirm={confirmFounderName}
+        />
+      )}
+      {!foundingName && namingTarget && (
+        <LineNamePanel
+          key={namingTarget.id}
+          lord={namingTarget.lord}
+          portrait={personPortrait({ age: namingTarget.age, sex: 'male' })}
+          taken={view?.dynasty?.taken ?? []}
+          onConfirm={(name) => confirmLineName(namingTarget.id, namingTarget.lord, name)}
+          onClose={closeLineName}
+        />
+      )}
       <CursorReason preview={placement.active ? placement.preview : null} />
       {menuShown && (
         <GameMenu
