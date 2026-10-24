@@ -1,5 +1,5 @@
 // Obsazení postav lidmi, vzhled (vlasy, oděv, pohlaví) a počty postav.
-import { AGE, SACRED_BUILDINGS, type Sex } from '@bohemia/game';
+import { AGE, PEN_FENCE_INSET_M, SACRED_BUILDINGS, type Sex } from '@bohemia/game';
 import type { LaborActivity, LaborShare, SceneLabor, SceneVillage } from '../village-view';
 import { scenePenSquares } from '../village-view';
 import { hash01 } from './smoke-schedule';
@@ -224,21 +224,44 @@ export function context(
   });
   // ohrady (oxen.md): oplocené čtverce – lidé stojí za plotem, dovnitř nechodí (ohrada o víc
   // čtvercích – oxen.md, Ohrady podle druhu – každý čtverec)
-  const pens: House[] = (village.pens ?? []).flatMap((pen) =>
-    scenePenSquares(pen).map((q) => {
-      const half = pen.size / 2;
+  const pens: House[] = (village.pens ?? []).flatMap((pen) => {
+    const squares = scenePenSquares(pen);
+    const rotation = pen.rotation ?? 0;
+    const cos = Math.cos(rotation);
+    const sin = Math.sin(rotation);
+    const half = pen.size / 2;
+    return squares.map((q) => {
+      // plot stojí PEN_FENCE_INSET_M uvnitř čtverce (paths.md – Ploty): okraj čtverce je ulička,
+      // kterou projde chodec; strana, kde navazuje další čtverec téže ohrady, plot nemá
+      const inset = { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
+      for (const o of squares) {
+        if (o === q) continue;
+        const dx = o.x - q.x;
+        const dz = o.z - q.z;
+        const lx = dx * cos - dz * sin;
+        const lz = dx * sin + dz * cos;
+        if (Math.abs(lz) < half && Math.abs(lx) > half) inset[lx > 0 ? 'maxX' : 'minX'] = -1;
+        if (Math.abs(lx) < half && Math.abs(lz) > half) inset[lz > 0 ? 'maxZ' : 'minZ'] = -1;
+      }
+      const fence = (side: keyof typeof inset): number =>
+        inset[side] === 0 ? PEN_FENCE_INSET_M : 0;
       return {
         id: pen.id,
         // natočená ohrada (fields.md – Natočené stavby) – čtverec v osách ohrady
-        position: { x: q.x, z: q.z, rotation: pen.rotation ?? 0 },
+        position: { x: q.x, z: q.z, rotation },
         built: pen.built,
         progress: pen.progress,
         inhabited: false,
-        box: { minX: -half, maxX: half, minZ: -half, maxZ: half },
+        box: {
+          minX: -half + fence('minX'),
+          maxX: half - fence('maxX'),
+          minZ: -half + fence('minZ'),
+          maxZ: half - fence('maxZ'),
+        },
         pen: true as const,
       };
-    }),
-  );
+    });
+  });
   const houses = [...dwellings, ...forestKilns, ...sacred, ...pens];
   for (const h of houses) {
     h.cos = Math.cos(h.position.rotation);

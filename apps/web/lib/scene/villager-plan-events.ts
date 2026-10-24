@@ -36,7 +36,7 @@ import {
   type VillagerGround,
   type VillagerPlanOptions,
 } from './villager-plan-types';
-import { inBox, trafficDoor, unit } from './villager-plan-geometry';
+import { inBox, trafficDoor, unit, walkRoute } from './villager-plan-geometry';
 import { STRANGER, adultHair, cast, context, figure } from './villager-plan-cast';
 
 /** Nejvýš tolik postav všech pohřbů dne (víc pohřbů naráz – nejnovější napřed). */
@@ -84,7 +84,8 @@ export function planFunerals(
         const house = dwellings.find((h) => h.id === id);
         return house ? trafficDoor(ctx, house) : null;
       },
-      route: (a, b) => ctx.paths?.route(a, b)?.points ?? null,
+      // úseky bez trasy obcházejí domy i ploty ohrad (lidé nesmí chodit přes ohrady)
+      route: (a, b) => walkRoute(ctx, a, b)?.points ?? null,
       standable: (x, z) =>
         ctx.ground.walkable(x, z) && !ctx.houses.some((h) => inBox(h, x, z, HOUSE_MARGIN_M)),
       figureScale: FIGURE_SCALE,
@@ -284,7 +285,8 @@ export function planWeddings(
         const house = dwellings.find((h) => h.id === id);
         return house ? trafficDoor(ctx, house) : null;
       },
-      route: (a, b) => ctx.paths?.route(a, b)?.points ?? null,
+      // úseky bez trasy obcházejí domy i ploty ohrad (lidé nesmí chodit přes ohrady)
+      route: (a, b) => walkRoute(ctx, a, b)?.points ?? null,
       standable: (x, z) =>
         ctx.ground.walkable(x, z) && !blocking.some((h) => inBox(h, x, z, HOUSE_MARGIN_M)),
       figureScale: FIGURE_SCALE,

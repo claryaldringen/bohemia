@@ -47,7 +47,7 @@ import type { Track } from './track-mask';
 import { RoadWorks, roadRibbonMeshes } from './road-works';
 import { earthworkSlopeGrid, earthworkSlopeKey, roadWorksKey } from './road-works-layout';
 import { HEIGHT_SCALE } from './constants';
-import { pathRouter } from './path-router';
+import { routeWalker } from './path-router';
 import {
   ROADSIDE_MODELS,
   isPathTreeModel,
@@ -157,6 +157,8 @@ export class VillagePaths {
   /** Pás pěšin dne pro masku polí (pod pěšinou obilí neroste – track-mask.ts). */
   private track: Track | null = null;
   private router: VillagerPaths | null = null;
+  /** Klíč tras, ze kterých je `router` (null = bez tras). */
+  private walkKey: string | null = null;
   private meshes: Mesh[] = [];
   /** Pevné cesty (obtisky z dat) a jejich klíč. */
   private roadMeshes: Mesh[] = [];
@@ -214,6 +216,14 @@ export class VillagePaths {
    */
   private updateRouteLines(village: SceneVillage): void {
     const list = village.routes?.list ?? null;
+    // postavy chodí po uložených trasách (path-router.ts) – nový klíč tras = nový chodec; bez tras
+    // (vývojová stránka bez serveru, zahozená data) postavy jdou krátkým pohybem
+    const walkKey = list ? (village.routes?.key ?? '') : null;
+    if (walkKey !== this.walkKey) {
+      this.walkKey = walkKey;
+      this.router = list ? routeWalker(list, pathCellM(this.env.landscape)) : null;
+      this.env.onChange();
+    }
     const cells = village.wear?.cells ?? null;
     const key = list && cells !== null ? `${village.routes?.key}|${village.wear?.day ?? ''}|` : '';
     if (key === this.linesKey) return;
@@ -486,16 +496,6 @@ export class VillagePaths {
     }
     for (const mesh of this.meshes) mesh.setEnabled(this.visible);
     this.rebuildHeatmap();
-    if (network) {
-      const route = pathRouter(network);
-      const errands = network.errands;
-      this.router = {
-        route: (a, b, reach) => route.route(a, b, reach),
-        errand: (dwellingId, kind) => errands.get(dwellingId)?.[kind] ?? null,
-      };
-    } else {
-      this.router = null;
-    }
     this.env.onChange();
   }
 

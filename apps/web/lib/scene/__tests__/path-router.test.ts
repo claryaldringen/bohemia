@@ -1,39 +1,69 @@
 import { describe, expect, it } from 'vitest';
-import { DWELLING_PATH_BOX_M, PATH_WALK, type PathLine } from '@bohemia/game';
-import { pathRouter } from '../path-router';
+import { DWELLING_PATH_BOX_M, PATH_WALK, type StoredRoute } from '@bohemia/game';
+import { routeWalker } from '../path-router';
 import { createVillagerPose, route, shuttle } from '../villager-motion';
 import { houseBox } from '../villager-plan';
 
-/** Pěšina po ose x z `from` do `to` (body po 5 m) se stálou silou. */
-function line(from: number, to: number, strength: number): PathLine {
-  const points = [];
-  for (let x = from; x <= to + 1e-9; x += 5) points.push({ x, z: 0 });
-  return {
-    points,
-    strength: points.map(() => strength),
-    years: points.map(() => 10),
-    openStart: true,
-    openEnd: true,
-  };
+const CELL_M = 5;
+
+/** Trasa po ose x od buňky `x0` o `n` (sudé) kroků na východ, buňky po 5 m. */
+function east(from: string, to: string, x0: number, n: number, trips = 100): StoredRoute {
+  return { from, to, purpose: 'water', trips, start: [x0, 0], steps: 'A'.repeat(n / 2) };
 }
 
-describe('pathRouter – chůze postav po pěšinách', () => {
-  it('k pěšině, po ní a od ní k cíli; na pěšině rychlejší tempo', () => {
-    const router = pathRouter({ lines: [line(0, 100, 1)] });
-    const r = router.route({ x: -2, z: 4 }, { x: 102, z: 3 })!;
+describe('routeWalker – chůze postav po uložených trasách', () => {
+  it('od brány po trase k cíli; po trase rychlejší tempo, odbočky mimo cestu', () => {
+    const walker = routeWalker([east('d:1', 'water', 0, 20)], CELL_M);
+    const r = walker.route({ x: -2, z: 4 }, { x: 102, z: 3 })!;
     expect(r.points[0]).toEqual([-2, 4]);
     expect(r.points[r.points.length - 1]).toEqual([102, 3]);
+    // body trasy jsou středy buněk (0 až 100 m) – postava jde přesně po nich
+    expect(r.points[1]![0]).toBeCloseTo(0, 6);
+    expect(r.points[r.points.length - 2]![0]).toBeCloseTo(100, 6);
     expect(r.pace).toHaveLength(r.points.length - 1);
     expect(r.pace[0]).toBe(1);
     expect(r.pace[r.pace.length - 1]).toBe(1);
-    const inner = r.pace.slice(1, -1);
-    for (const p of inner) expect(p).toBeCloseTo(PATH_WALK.speed, 9);
+    for (const p of r.pace.slice(1, -1)) expect(p).toBeCloseTo(PATH_WALK.speed, 9);
   });
 
-  it('daleko od pěšin nebo bez sítě se jde rovnou', () => {
-    expect(pathRouter({ lines: [] }).route({ x: 0, z: 0 }, { x: 50, z: 0 })).toBeNull();
-    const router = pathRouter({ lines: [line(0, 100, 1)] });
-    expect(router.route({ x: 0, z: 200 }, { x: 50, z: 200 })).toBeNull();
+  it('s id domácnosti vyhraje její vlastní trasa, i když je cizí blíž', () => {
+    const own = { ...east('d:1', 'field', 0, 20), start: [0, 6] as [number, number] };
+    const foreign = east('d:2', 'field', 0, 20);
+    const walker = routeWalker([foreign, own], CELL_M);
+    const a = { x: 0, z: 1 };
+    const b = { x: 100, z: 1 };
+    // bez id vyhraje geometricky bližší (cizí), s id vlastní
+    expect(walker.route(a, b)!.points[1]![1]).toBeCloseTo(0, 6);
+    expect(walker.route(a, b, undefined, 1)!.points[1]![1]).toBeCloseTo(6 * CELL_M, 6);
+    // bez vlastní trasy v dosahu zůstane záloha geometricky
+    expect(walker.route(a, b, undefined, 9)!.points[1]![1]).toBeCloseTo(0, 6);
+  });
+
+  it('zpět po téže trase obráceně', () => {
+    const walker = routeWalker([east('d:1', 'water', 0, 20)], CELL_M);
+    const r = walker.route({ x: 100, z: 1 }, { x: 0, z: 1 })!;
+    expect(r.points[1]![0]).toBeCloseTo(100, 6);
+    expect(r.points[r.points.length - 2]![0]).toBeCloseTo(0, 6);
+  });
+
+  it('bez trasy u začátku a cíle se jde rovnou', () => {
+    expect(routeWalker([], CELL_M).route({ x: 0, z: 0 }, { x: 50, z: 0 })).toBeNull();
+    const walker = routeWalker([east('d:1', 'water', 0, 20)], CELL_M);
+    expect(walker.route({ x: 0, z: 200 }, { x: 50, z: 200 })).toBeNull();
+    // cíl daleko od konce trasy (mimo dosah)
+    expect(walker.route({ x: 0, z: 0 }, { x: 100, z: 90 })).toBeNull();
+    // díl daleko v poli: s dosahem po trase k poli a dál rovně
+    expect(walker.route({ x: 0, z: 0 }, { x: 100, z: 90 }, 100)).not.toBeNull();
+  });
+
+  it('pochůzka domácnosti končí na konci její trasy pro vodu; cizí domácnost nic', () => {
+    const walker = routeWalker([east('d:1', 'water', 0, 20), east('d:2', 'wood', 0, 10)], CELL_M);
+    const end = walker.errand(1, 'water')!;
+    expect(end.x).toBeCloseTo(100, 6);
+    expect(end.z).toBeCloseTo(0, 6);
+    expect(walker.errand(1, 'wood')).toBeNull();
+    expect(walker.errand(3, 'water')).toBeNull();
+    expect(walker.errand(2, 'wood')!.x).toBeCloseTo(50, 6);
   });
 
   it('postava jde po pěšině rychleji (a rychleji kráčí)', () => {
