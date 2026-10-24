@@ -437,6 +437,8 @@ export const CART_JOBS = {
 
 // Voda ráno ve dny orby (wagons.md – Voda ráno ve dny orby; Martin 24. 10. 2026: „Rozhodne
 // ekonomika“, čísla návrh Clauda): pár od rádla sveze ráno vodu, jen když jízdy zaberou nejvýš
-// `maxTeamShare` dne páru (víc už není ráno) a když orba, kterou dnes nestihne, nechá oknu orby
-// rezervu – zbytek orby se vejde do `windowReserve` kapacity rádel ve zbývajících dnech okna.
+// `maxTeamShare` dne páru (víc už není ráno) a ušetřená práce za vodu převýší cenu odložené orby
+// = odložená orba (čd) × riziko nestihnutí osevu. Riziko je 0, dokud zbytek orby okna nepřesáhne
+// `windowReserve` orby, kterou rádla do konce okna zvládnou svým skutečným tempem; nad tím roste
+// (r − rezerva) ÷ (1 − r) a při r ≥ 1 je nekonečné.
 export const MORNING_WATER = { maxTeamShare: 0.25, windowReserve: 0.5 } as const;

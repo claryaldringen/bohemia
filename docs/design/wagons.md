@@ -132,23 +132,26 @@ níž je návrh Clauda, čísla v `CART_JOBS` (`rules.ts`).
   2. **Jízda:** jeden pár od rádla zapřáhne vůz (čtyřkolák pár, dvoukolák jednoho vola – druhý
      bez páru neorá) a sveze vodu jako jindy (`waterCartPlan`, levnější vůz). Jízdy zaberou
      **podíl dne páru** = jízdy ÷ jízdy vozu za den; nejvýš **čtvrtina dne** – víc už není ráno.
-  3. **Úspora:** ušetřená chůze s vědry − práce posádky (čd lidí dnes).
-  4. **Ztráta orby:** o kolik méně rádla dnes zorají – orba, kterou ves dnes opravdu naplánovala
-     (po rozdělení práce, ne podle toho, že úloha orby existuje), plus podíl dne páru u vody nad
-     dnešní kapacitu rádel. Dny bez orby (lidé mají přednější úlohy) nebo s malým kouskem orby
-     voda nic nestojí – voli by stáli.
-  5. **Porovnání:** orba, která se dnes nestihne, se neztratí – dorovná se v dalších dnech okna,
-     kdy by pár jinak stál, a lidé, kteří by orali, dnes dělají jiné úlohy. Dokud má okno orby
-     **rezervu** – zbytek orby každé plodiny (napřed plodina s dřívějším koncem okna, součtem) se
-     vejde do **poloviny** kapacity rádel ve zbývajících dnech jejího okna –, ztráta nestojí nic
-     a vyhraje úspora vody. Bez rezervy má **orba přednost**: osev by se nemusel stihnout a úroda
-     dílu je víc než desetiny čd vody.
+  3. **Přínos:** ušetřená chůze s vědry − práce posádky (čd lidí dnes).
+  4. **Odložená orba:** o kolik méně rádla dnes zorají (čd) – orba, kterou ves dnes opravdu
+     naplánovala (po rozdělení práce, ne podle toho, že úloha orby existuje), plus podíl dne páru
+     u vody nad dnešní kapacitu rádel. Dny bez orby (lidé mají přednější úlohy) nebo s malým
+     kouskem orby voda nic nestojí – voli by stáli.
+  5. **Cena a porovnání:** odložená orba se neztratí, dorovná se v dalších dnech okna – stojí jen
+     riziko, že se osev nestihne. Cena = odložená orba (čd) × `riziko`. Riziko se měří proti
+     **skutečnému tempu orby** (nejmenší z kapacity rádel a dnes naplánované orby – omezují ji
+     rádla i lidé; pomoc rodiny jen u setí se nepočítá): `r` = zbytek orby okna (po dnešní orbě,
+     napřed plodina s dřívějším koncem okna, součtem) ÷ orba, kterou ves do konce okna tímto
+     tempem zvládne. Do **polovičního** `r` (rezerva) je riziko 0, nad tím roste
+     (r − 0,5) ÷ (1 − r) a při `r ≥ 1` je nekonečné – osev by se nestihl, **orba má přednost**.
+     **Voda vyhraje, když přínos > cena.** Nejhorší okno rozhoduje; když se osev nestihne ani bez
+     zkrácení orby a rádla jedou naplno, plán vody se ani nepočítá.
   6. Ostatní jízdy (svoz, osivo, uhlí, ruda, klády) ve dny orby dál jen se zbylými voly.
   7. **Vlkov** (2 voli = jeden pár, čtyřkolák, 10 domácností 300–540 m od vody; rok od 20. 3.):
-     pár u vody ≈ 3 % dne, úspora ≈ 0,12 čd denně (chůze 0,17 − posádka 0,05). Voda vozem
+     pár u vody ≈ 3 % dne, přínos ≈ 0,12 čd denně (chůze 0,17 − posádka 0,05). Voda vozem
      **239 → 256 dní z 365**: nově 1.–4. 9. a 1.–4. 3. (orba 0 – voli stáli) a jarní orba
-     5.–10. 3. (okno do konce dubna má rezervu – rádla zorají ≈ 1,79 místo 1,85 čd denně).
-     Podzimní orba 5. 9. – listopad zůstává celá u rádel: okno ozimu nemá rezervu (ani dřív se
+     5.–10. 3. (okno do konce dubna má rezervu, cena 0 – rádla zorají ≈ 1,79 místo 1,85 čd denně).
+     Podzimní orba 5. 9. – listopad zůstává celá u rádel: okno ozimu nemá rezervu a cena odložené orby převýší přínos (ani dřív se
      orba ozimu do 31. 10. nestihla celá). Orba a setí po měsících i nedodělky na konci oken
      stejné jako dřív.
 - **Dosah:** vůz jede jen tam, kam ho pustí vozová síť – k milíři do 12 m (milíř u skácených buků v lese jen po

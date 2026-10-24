@@ -461,29 +461,31 @@ export function work(
   let morningTeam = 0;
   const pairs = ploughing && access && !jobs.water ? ploughPairsHome(state, day) : 0;
   if (pairs > 0 && fleet['two-wheel'] + fleet['four-wheel'] > 0) {
-    const plan = bestWaterPlan(
-      state,
-      {
-        'two-wheel': Math.min(1, fleet['two-wheel']),
-        'four-wheel': Math.min(1, fleet['four-wheel']),
-        oxen: DRAFT_OXEN.ard,
-      },
-      { landscape, drives: drivesOf, drives4: drives4Of, water: waterNeeds },
-    );
     let planned = 0;
     dayTasks.forEach((task, i) => {
       if (task.name !== 'plough' || task.remaining <= EPSILON) return;
       planned += ((allocation.taskAmounts[i] ?? 0) / task.remaining) * (task.field?.teamDays ?? 0);
     });
-    const morning = plan
-      ? morningWater({
-          plan,
-          capacity: ploughCap,
-          pairs,
-          planned,
-          windows: ploughWindowsToday(state, day, ploughFactor),
-        })
-      : null;
+    // plán vody se počítá na kopii stavu – uložený břeh (`waterCart`) se zapíše, až voda vyhraje
+    const scratch: VillageState = { ...state };
+    const morning = morningWater({
+      plan: () =>
+        bestWaterPlan(
+          scratch,
+          {
+            'two-wheel': Math.min(1, fleet['two-wheel']),
+            'four-wheel': Math.min(1, fleet['four-wheel']),
+            oxen: DRAFT_OXEN.ard,
+          },
+          { landscape, drives: drivesOf, drives4: drives4Of, water: waterNeeds },
+        ),
+      capacity: ploughCap,
+      pairs,
+      planned,
+      windows: ploughWindowsToday(state, day, ploughFactor),
+    });
+    if (morning && scratch.waterCart) state.waterCart = scratch.waterCart;
+    if (morning && scratch.waterCart4) state.waterCart4 = scratch.waterCart4;
     if (morning) {
       morningTeam = (morning.share * ploughCap) / pairs;
       cutPlough(dayTasks, ploughCap - morningTeam);

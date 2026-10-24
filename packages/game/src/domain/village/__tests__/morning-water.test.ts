@@ -33,7 +33,7 @@ describe('morningWater – rozhodne ekonomika', () => {
   const capacity = 1.8;
   it('s rezervou okna pár ráno sveze vodu a rádla zorají o jeho podíl dne méně', () => {
     const m = morningWater({
-      plan: plan(0.125),
+      plan: () => plan(0.125),
       capacity,
       pairs: 1,
       planned: capacity,
@@ -45,29 +45,114 @@ describe('morningWater – rozhodne ekonomika', () => {
   });
 
   it('těsné okno – orba má přednost', () => {
-    const tight = { need: 6, daysLeft: 4 };
+    const tight = { need: 8, daysLeft: 4 };
     expect(
-      morningWater({ plan: plan(0.125), capacity, pairs: 1, planned: capacity, windows: [tight] }),
+      morningWater({
+        plan: () => plan(0.125),
+        capacity,
+        pairs: 1,
+        planned: capacity,
+        windows: [tight],
+      }),
     ).toBeNull();
     // i pozdější okno se počítá součtem s dřívějším
     expect(
       morningWater({
-        plan: plan(0.125),
+        plan: () => plan(0.125),
         capacity,
         pairs: 1,
         planned: capacity,
         windows: [
           { need: 2, daysLeft: 30 },
-          { need: 30, daysLeft: 31 },
+          { need: 45, daysLeft: 31 },
         ],
       }),
     ).toBeNull();
   });
 
+  it('okno bez rezervy, ale s volným místem – cena orby je menší než přínos vody', () => {
+    // zbytek 4,4 z 7,2 (r ≈ 0,61): riziko ≈ 0,28 × odložených 0,225 čd ≈ 0,06 < přínos 0,12
+    const m = morningWater({
+      plan: () => plan(0.125),
+      capacity,
+      pairs: 1,
+      planned: capacity,
+      windows: [{ need: 6, daysLeft: 4 }],
+    })!;
+    expect(m.cost).toBeGreaterThan(0);
+    expect(m.cost).toBeLessThan(m.gain);
+    // větší úspora vyhraje i nad dražší orbou (tentýž zbytek, těsnější okno), menší prohraje
+    const tighter = [{ need: 7.2, daysLeft: 4 }];
+    expect(
+      morningWater({
+        plan: () => plan(0.125, 0.6),
+        capacity,
+        pairs: 1,
+        planned: capacity,
+        windows: tighter,
+      }),
+    ).not.toBeNull();
+    expect(
+      morningWater({
+        plan: () => plan(0.125),
+        capacity,
+        pairs: 1,
+        planned: capacity,
+        windows: tighter,
+      }),
+    ).toBeNull();
+  });
+
+  it('rezerva se měří proti skutečnému tempu orby, ne proti kapacitě rádel', () => {
+    // pět párů (kapacita 9), ale lidé naplánovali orbu jen na 8,9 čd dnes: tempo je to, co se
+    // opravdu zorá (8,9), ne kapacita; okno 40 čd na 5 dní by při plné kapacitě (45) vycházelo
+    // jako 0,8 – při tempu 8,9 je to 0,9+ → orba má přednost
+    const windows = [{ need: 40, daysLeft: 5 }];
+    expect(
+      morningWater({
+        plan: () => plan(0.25),
+        capacity: 9,
+        pairs: 5,
+        planned: 8.9,
+        windows,
+      }),
+    ).toBeNull();
+    // stejné okno a plně zaměstnaná rádla – zkrácení by stálo víc než voda dává
+    expect(
+      morningWater({ plan: () => plan(0.25), capacity: 9, pairs: 5, planned: 9, windows }),
+    ).toBeNull();
+    // ves s málo rukama (orba 1,0 z kapacity 9): pár stejně stojí, voda neubere z orby nic
+    const few = morningWater({
+      plan: () => plan(0.25),
+      capacity: 9,
+      pairs: 5,
+      planned: 1,
+      windows,
+    })!;
+    expect(few.cut).toBe(0);
+    expect(few.cost).toBe(0);
+  });
+
+  it('plán vody se nepočítá, když osev nelze stihnout ani bez zkrácení orby', () => {
+    let called = false;
+    const m = morningWater({
+      plan: () => {
+        called = true;
+        return plan(0.1);
+      },
+      capacity,
+      pairs: 1,
+      planned: capacity,
+      windows: [{ need: 30, daysLeft: 3 }],
+    });
+    expect(m).toBeNull();
+    expect(called).toBe(false);
+  });
+
   it('den bez orby nebo s kouskem orby – voda nic nestojí, i v těsném okně', () => {
     const tight = [{ need: 60, daysLeft: 2 }];
     const none = morningWater({
-      plan: plan(0.125),
+      plan: () => plan(0.125),
       capacity,
       pairs: 1,
       planned: 0,
@@ -75,7 +160,7 @@ describe('morningWater – rozhodne ekonomika', () => {
     });
     expect(none?.cut).toBe(0);
     const bit = morningWater({
-      plan: plan(0.125),
+      plan: () => plan(0.125),
       capacity,
       pairs: 1,
       planned: 0.1,
@@ -84,7 +169,7 @@ describe('morningWater – rozhodne ekonomika', () => {
     expect(bit?.cut).toBe(0);
     // dva páry – druhý pár orá dál, ztráta jen podílem jednoho páru
     const two = morningWater({
-      plan: plan(0.125),
+      plan: () => plan(0.125),
       capacity: 2 * capacity,
       pairs: 2,
       planned: 2 * capacity,
@@ -96,10 +181,14 @@ describe('morningWater – rozhodne ekonomika', () => {
   it('víc než ráno (čtvrtina dne) nebo bez úspory – pár zůstane u rádla', () => {
     const windows = [{ need: 6, daysLeft: 30 }];
     const long = plan(MORNING_WATER.maxTeamShare + 0.01);
-    expect(morningWater({ plan: long, capacity, pairs: 1, planned: 0, windows })).toBeNull();
+    expect(morningWater({ plan: () => long, capacity, pairs: 1, planned: 0, windows })).toBeNull();
     const futile = plan(0.1, 0.05, 0.05);
-    expect(morningWater({ plan: futile, capacity, pairs: 1, planned: 0, windows })).toBeNull();
-    expect(morningWater({ plan: plan(0.1), capacity, pairs: 0, planned: 0, windows })).toBeNull();
+    expect(
+      morningWater({ plan: () => futile, capacity, pairs: 1, planned: 0, windows }),
+    ).toBeNull();
+    expect(
+      morningWater({ plan: () => plan(0.1), capacity, pairs: 0, planned: 0, windows }),
+    ).toBeNull();
   });
 });
 
