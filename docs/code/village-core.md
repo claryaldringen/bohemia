@@ -133,6 +133,10 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   běhu, který stojí). Varianty pravidel jen pro kalibraci: `--variant meadow-burn` (pálení
   drnu). Řádek **Práce – hráč staví** sčítá rozdělení práce dne po skupinách (volná práce, pole,
   seč, porážka, denní minimum – hráč, který staví, se proto dopočítává den po dni – `trackLabor`).
+  Řádek **Vojvodova rodina a koně** (`scripts/lib/lord-columns.ts`, `addLordStep` po každém kroku,
+  od 3. roku vsi): podíl rodiny na kapacitě vsi, čd výcviku a pole za rok, průměr koní, obilí koní
+  (kg ročně), dny šetření jídlem a dovednosti mužů (luk, boj, jízda). `addLabor` dál počítá
+  kapacitu vsi včetně rodiny. Ve starších kontrolních bodech sloupce chybí (řádek se nevypíše).
   Ustálený stav bez simulace (osev, pole, práce po měsících, špičky, zásoby, dřevo, sad)
   okamžitě: `village-calculator.ts` (jádro `scripts/lib/steady-state.ts`). Kopii stavu na začátku
   `advanceVillage` dělá `cloneState` (`clone.ts` – ručně, stav jsou data jako v JSON) a stavby polí
