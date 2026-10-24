@@ -355,6 +355,11 @@ Horse[]` (`id`, `bornDay`, `sex`, `training`, `riderId?`). `horses.ts` – `hors
   3 roky ještě slouží; strop místa (jezdečtí, klisny, hříbata). `horse-riders.ts` – `assignRiders`
   (pár drží, volné koně od nejlépe vycvičeného vojvodovi a synům od nejstaršího), `trainHorsesDay`
   z `trainLordDay`: přírůstek 100 / (9 × 365,25) denně × podíl dne jezdce, bez obilí ½, stojí při
-  `horsesCaredToday` < 1 a `lord.field`; plný výcvik → `horse-trained`. `riderPower` = jízda ×
+  `horsesCaredToday` < 1 a `lord.field`; plný výcvik → `horse-trained`. V dnech na poli
+  (`lord.field`) `trainLordDay` nikoho nepočítá jako jezdce – i chlapci cvičí luk a boj bez koně.
+  `lord.ts` – `lordRides(state, day)` (pro scénu, jen čte): jezdci rodiny se svým koněm a hodinami
+  jízdy (vojvoda první, pak od nejstaršího), každý `HORSES.borderRideEveryDays` (7.) den hotová
+  zemská stezka k hranici (`trailId`, střídají se po id), doprovod výpravy, která dnes vyráží
+  (`escort` – nejstarší jezdec mimo vojvodu); v dnech na poli null. `riderPower` = jízda ×
   (0,4 + 0,6 × výcvik) jen pro panel. Čísla v `HORSES` (`birthDay`, `foalEveryYears`, `maresBase`,
-  `ridersPerMare`, `trainingFull`, `trainedAtYears`, `riderPower`).
+  `ridersPerMare`, `trainingFull`, `trainedAtYears`, `riderPower`, `borderRideEveryDays`).

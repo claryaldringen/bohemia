@@ -820,6 +820,28 @@ export interface SceneLord {
   trainees: { id: number; bow: number; combat: number; riding: number }[];
   /** Ženy rodiny u dvorce (id). */
   household: number[];
+  /**
+   * Jezdci dne (horses.md – Kdy a kam se jezdí, dokud není lov; z jádra `lordRides`): kdo jede, na
+   * kterém koni (id), výcvik koně a hodiny jízdy dne; vojvoda první. Jen cvičící (ne na poli). Bez
+   * údaje se dnes nejezdí – koně stojí v ohradě.
+   */
+  riders?: SceneRide[];
+  /** Dnes jedou jezdci po hotové zemské stezce (id) k hranici mapy místo objížďky polí. */
+  borderTrailId?: number;
+  /** Doprovod výpravy, která dnes vyráží – jezdec po její stezce k hranici mapy a zpět. */
+  escort?: SceneRide & { expeditionId: number; trailId: number };
+}
+
+/** Jezdec na koni ve scéně (`SceneLord.riders`). */
+export interface SceneRide {
+  /** Člověk (jezdec). */
+  id: number;
+  /** Kůň (id koně ohrady koní). */
+  horseId: number;
+  /** Výcvik koně 0–100. */
+  training: number;
+  /** Hodiny jízdy dne. */
+  hours: number;
 }
 
 /** Domácnost v provozu na cestách (`SceneLabor.homes`). */

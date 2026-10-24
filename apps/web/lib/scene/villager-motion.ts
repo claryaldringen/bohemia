@@ -86,6 +86,11 @@ export interface VillagerPose {
    * domů. Bez údaje – dělá svou práci (v průvodu jde za márami).
    */
   stage?: VillagerStage;
+  /**
+   * O kolik je postava výš nad zemí (m) – jezdec na koni sedí ve výšce sedla (riders.ts). Jen posun
+   * matice instance, žádný vertex atribut. Bez údaje na zemi.
+   */
+  lift?: number;
 }
 
 /** Úsek pochůzky postavy (`VillagerPose.stage`). */

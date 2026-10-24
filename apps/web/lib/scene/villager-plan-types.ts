@@ -1,4 +1,5 @@
 // Typy, konstanty a kontext plánu postav (rozhraní Context, Placer, House, Box…).
+import type { RidePlan } from './riders';
 import { type Craft, type Position, type ShapeFrame } from '@bohemia/game';
 import type { LaborActivity, SceneVillage } from '../village-view';
 import { type DayWindow } from './caravan';
@@ -229,6 +230,8 @@ export interface DraftCrews {
 export interface DraftCrew {
   teams: { ploughman: number | null; leader: number | null }[];
   carts: { cart: number; drover: number | null }[];
+  /** Jízdy dne vojvodovy rodiny (riders.ts) – koně kreslí livestock.ts. Bez údaje se nejezdí. */
+  rides?: RidePlan[];
 }
 
 /** Honák spřežení je výrostek – přednostně člověk nejblíž tomuto věku (oxen.md – honáček). */

@@ -53,6 +53,7 @@ import { SceneryCulling } from './scenery-culling';
 import { terrainMeshHeight } from './drape';
 import { InstanceHider } from './instance-hider';
 import { VillageLivestock } from './livestock';
+import { ridingHorseIds } from './riders';
 import { VillageVillagers } from './villagers';
 import type { FuneralTimeline } from './funeral-plan';
 import type { WeddingPlan } from './wedding-plan';
@@ -443,7 +444,13 @@ export class LandscapeScene {
         for (const listener of this.personListeners) listener(state);
       },
       // noví lidé u spřežení a vozů – výběr oráče, honáka či vozky jde za jejich spřežením
-      onCrew: () => this.syncDraftSelection(),
+      onCrew: () => {
+        this.syncDraftSelection();
+        // jezdečtí koně jdou s jezdci (riders.ts) – plány jízd z plánu postav
+        if (this.livestock?.setRides(this.villagers?.rides() ?? [], Date.now())) {
+          this.renderWhenReady();
+        }
+      },
     });
     this.villagers.select(this.selection?.kind === 'person' ? this.selection.id : null);
     this.syncDraftSelection();
@@ -1416,6 +1423,10 @@ export class LandscapeScene {
     if (this.village?.animateSmoke(epochMs, camera)) animated = true;
     // domácí zvířata – skutečný čas (epoch ms), ne herní: stejný okamžik = stejná póza
     if (this.livestock?.animate(epochMs, camera)) animated = true;
+    // koně na jízdě nestojí v ohradě (riders.ts, village-pens.ts)
+    if (this.village?.setRidingHorses(ridingHorseIds(this.villagers?.rides() ?? [], epochMs))) {
+      animated = true;
+    }
     // lidé ve vsi – skutečný čas jako zvířata
     if (this.villagers?.animate(epochMs, camera)) animated = true;
     // voli a krávy v ohradách a spřežení na poli (oxen.md) – skutečný čas jako zvířata

@@ -3,9 +3,9 @@
 // a zda vůbec cvičí, určuje jádro (`SceneLabor.lord`); scéna jen rozvrhne hodiny do dne.
 import type { SceneLabor, SceneLord } from '../village-view';
 import { type DayWindow } from './caravan';
-import { LIVESTOCK_EPOCH_MS } from './livestock-motion';
+import { DRILL_BLOCKS_H, hourOfDay, isRiding, ridePlans, riderPose, type RidePlan } from './riders';
 import { cast, figure } from './villager-plan-cast';
-import { doorPoint } from './villager-plan-geometry';
+import { doorPoint, walkRoute } from './villager-plan-geometry';
 import { type Context, type PlannedVillager } from './villager-plan-types';
 import {
   fetcher,
@@ -16,13 +16,14 @@ import {
   type VillagerPose,
 } from './villager-motion';
 import { trainingGroundOf, type TrainingGround, type TrainingSpot } from './training-ground-layout';
+import type { Point } from './villager-plan-types';
 
 /**
  * Rozvrh výcviku dne (lord.md – Den rodiny: dva bloky, dopoledne a odpoledne – Vegetius; návrh
  * Clauda): bloky začínají v 8 a ve 14 h, v každém polovina hodin dne – napřed luk, pak boj, pak
- * jízda (jezdce kreslí jízda, na dvorku ten čas není). Ženy rodiny jsou u dvorce od 7 do 19 h.
+ * jízda (jezdce v tu dobu kreslí riders.ts na koni, na dvorku ten čas není). Ženy rodiny jsou u dvorce od 7 do 19 h.
  */
-export const DRILL_BLOCKS_H: readonly number[] = [8, 14];
+export { DRILL_BLOCKS_H };
 export const HOUSEHOLD_HOURS: readonly [number, number] = [7, 19];
 /** Výstřel: míření (bow-draw) a výstřel (bow-release) – s; střídačka u terče po dvou výstřelech. */
 const SHOT_S = 3.2;
@@ -50,13 +51,7 @@ export function drillAt(
   return null;
 }
 
-/** Hodina herního dne (0–24) v čase `t` (s – villagerSeconds); bez hodin světa null. */
-function hourOf(window: DayWindow | null, t: number): number | null {
-  if (!window || window.endMs <= window.startMs) return null;
-  const length = window.endMs - window.startMs;
-  const ms = t * 1000 + LIVESTOCK_EPOCH_MS - window.startMs;
-  return ((((ms % length) + length) % length) / length) * 24;
-}
+const hourOf = hourOfDay;
 
 function put(out: VillagerPose, s: TrainingSpot, clip: VillagerClip): VillagerPose {
   out.x = s.x;
@@ -195,23 +190,51 @@ function combatSpot(
   };
 }
 
+/** Kůl na koně u brány (training-ground-layout – `hitch`), bez něj místo u cvičného kůlu. */
+function hitchSpot(ground: TrainingGround): TrainingSpot {
+  const hitch = ground.pieces.find((p) => p.part === 'hitch');
+  if (!hitch) return ground.post;
+  return {
+    x: hitch.x,
+    z: hitch.z,
+    headingX: Math.sin(hitch.rotation),
+    headingZ: Math.cos(hitch.rotation),
+  };
+}
+
 /**
  * Rodina na dvorku (lord.md – Ve scéně; villagers.md – výjimka z pravidla „nikdo nestojí na
  * oploceném pozemku“): cvičící muži a chlapci na cvičišti (`trainingGroundOf`), ženy rodiny
  * u dvorce. Lidé s pevným místem dne – berou se z rozpisu lidí (`takeId`) hned po pohřbu
- * a karavanách, do práce vsi pak nejdou. Bez lidí ve scéně, rodiny nebo cvičiště nic.
+ * a karavanách, do práce vsi pak nejdou. Jezdci dne (`SceneLord.riders`, doprovod výpravy) jsou
+ * ve dne na koni (riders.ts – `ridePlans`) a plány jízd jdou koním (`rides`). Bez lidí ve scéně,
+ * rodiny nebo cvičiště nic.
  */
 export function lordFigures(
   ctx: Context,
   labor: SceneLabor,
   window: DayWindow | null,
-): PlannedVillager[] {
+): { people: PlannedVillager[]; rides: RidePlan[] } {
   const lord = labor.lord;
-  if (!lord || !ctx.roster) return [];
+  if (!lord || !ctx.roster) return { people: [], rides: [] };
   const ground = trainingGroundOf(ctx.village);
-  if (!ground || ground.home !== lord.home) return [];
+  if (!ground || ground.home !== lord.home) return { people: [], rides: [] };
   const out: PlannedVillager[] = [];
+  // jízdy dne – po pěšinách a kolem domů (walkRoute), jinak rovně; přes pole nikdy (rider-route.ts)
+  const rides = ridePlans({
+    village: ctx.village,
+    lord,
+    hitch: hitchSpot(ground),
+    homes: ctx.homes.map((h) => ({ x: h.position.x, z: h.position.z })),
+    leg: (a, b): Point[] => {
+      const r = walkRoute(ctx, a, b);
+      return r ? r.points.map(([x, z]) => ({ x, z })) : [a, b];
+    },
+    window,
+  });
+  const riding = new Map(rides.map((r) => [r.riderId, r]));
   const lanes = ground.lanes.length;
+  // jezdci cvičí luk a boj na dvorku jako ostatní, na koni jsou jen v bloku jízdy
   const archers = lord.trainees.filter((h) => h.bow > 0).map((h) => h.id);
   const fighters = lord.trainees.filter((h) => h.combat > 0).map((h) => h.id);
   for (const [idx, hours] of lord.trainees.entries()) {
@@ -230,7 +253,13 @@ export function lordFigures(
       restSpot(ctx, lord.home, idx),
       window,
     );
-    out.push(figure(c, pose, 'natural', { kind: 'lord', household: false }));
+    const ride = riding.get(hours.id);
+    const mounted = ride ? riderPose(ride) : null;
+    const posed: PoseFn =
+      ride && mounted
+        ? (t, herds, o) => (isRiding(ride, t) ? mounted(t, herds, o) : pose(t, herds, o))
+        : pose;
+    out.push(figure(c, posed, 'natural', { kind: 'lord', household: false }));
   }
   const home =
     ctx.homes.find((h) => h.id === lord.home) ?? ctx.houses.find((h) => h.id === lord.home);
@@ -252,5 +281,5 @@ export function lordFigures(
       );
     });
   }
-  return out;
+  return { people: out, rides };
 }

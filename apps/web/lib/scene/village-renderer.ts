@@ -228,6 +228,9 @@ export class VillageRenderer {
   /** Cvičiště vojvodovy rodiny na dvorku dvorce (lord.md – training-ground.ts). */
   private readonly training: TrainingGroundRenderer;
   private readonly penAnimals: PenAnimals;
+  private penInput: { village: SceneVillage; oxenOut: number } | null = null;
+  private ridingHorses: ReadonlySet<number> = new Set();
+  private ridingKey = '';
   private readonly teams: PloughTeams;
   private teamsKey = '';
   /** Vozy se spřežením – svoz a výprava, vůz bez jízdy u ohrady (wagons.md – village-carts.ts). */
@@ -403,6 +406,30 @@ export class VillageRenderer {
     );
   }
 
+  /** Zvířata v ohradách podle poslední vsi a koní na jízdě (`setRidingHorses`). */
+  private applyPenHerds(): boolean {
+    if (!this.penInput) return false;
+    const herds = penHerds(this.penInput.village, this.penInput.oxenOut, this.ridingHorses);
+    return this.penAnimals.set(
+      this.pens.builtPens().flatMap(({ id, layout }) => {
+        const herd = herds.get(id);
+        return herd ? penAnimalsFor(layout, herd) : [];
+      }),
+    );
+  }
+
+  /**
+   * Koně, kteří jsou teď na jízdě (riders.ts) – nestojí v ohradě (village-pens.ts). Vrátí true,
+   * když se ohrady změnily.
+   */
+  setRidingHorses(ids: ReadonlySet<number>): boolean {
+    const key = [...ids].sort((a, b) => a - b).join(',');
+    if (key === this.ridingKey) return false;
+    this.ridingKey = key;
+    this.ridingHorses = ids;
+    return this.applyPenHerds();
+  }
+
   /**
    * Ohrady (stavba po fázích), zvířata v nich a spřežení na čele orby (oxen.md – Spřežení
    * postupuje s orbou: pruh u čáry práce, další den dojde na nové čelo). Vrátí true, když se
@@ -416,13 +443,9 @@ export class VillageRenderer {
     const routes = day ? splitStints(day.stints, draft.plough) : null;
     const front = routes ? [] : ploughFront(village).slice(0, draft.plough);
     const pairs = routes ? routes.length : front.length;
-    const herds = penHerds(village, pairs * DRAFT_OXEN.ard + draft.cartOxen);
-    const animals = this.penAnimals.set(
-      this.pens.builtPens().flatMap(({ id, layout }) => {
-        const herd = herds.get(id);
-        return herd ? penAnimalsFor(layout, herd) : [];
-      }),
-    );
+    const oxenOut = pairs * DRAFT_OXEN.ard + draft.cartOxen;
+    this.penInput = { village, oxenOut };
+    const animals = this.applyPenHerds();
     let teams = false;
     if (day && routes) {
       // celá dnešní orba za herní den (ladicí): trasy po dílech dne, brázda za rádlem

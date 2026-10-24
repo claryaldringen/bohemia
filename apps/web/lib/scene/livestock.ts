@@ -1,3 +1,12 @@
+import {
+  createRideState,
+  RIDE_HORSE_SCALE,
+  rideArea,
+  rideHorsePose,
+  isRiding,
+  ridePlansKey,
+  type RidePlan,
+} from './riders';
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import type { Camera } from '@babylonjs/core/Cameras/camera';
 import { BoundingInfo } from '@babylonjs/core/Culling/boundingInfo';
@@ -120,7 +129,14 @@ interface Group {
    * Zvíře teď není vidět (dobytek karavany za krajem mapy nebo na cestě druhým směrem) – zapíše
    * se s nulovým měřítkem. Bez funkce vidět vždy.
    */
-  hidden?(index: number): boolean;
+  hidden?(index: number, clock: LivestockClock): boolean;
+  /**
+   * Skupina teď stojí (jezdecký kůň u kůlu – riders.ts): jednou se zapíše a dál se nepřekresluje.
+   * Bez funkce se hýbe vždy.
+   */
+  still?(clock: LivestockClock): boolean;
+  /** Stojící skupina je zapsaná (`still`). */
+  settled?: boolean;
   /** Kde byla zvířata naposled zapsaná – i odtud je musí kamera „pustit“. */
   written: BoundingInfo | null;
   current: BoundingInfo;
@@ -143,6 +159,9 @@ export class VillageLivestock {
   /** Dobytek karavan výprav a jeho klíč (trade.md – Dobytek ve třech druzích). */
   private caravans: CaravanHerd[] = [];
   private caravansKey = '';
+  /** Jízdy dne (riders.ts – z plánu postav) a jejich klíč. */
+  private rides: readonly RidePlan[] = [];
+  private ridesKey = '';
   /** Poslední rozmístění kuřat a stád – dobytek karavan ho nepřeplánuje. */
   private plan: { chickens: ReturnType<typeof planLivestock>['chickens']; herds: Herd[] } | null =
     null;
@@ -181,6 +200,19 @@ export class VillageLivestock {
   }
 
   /**
+   * Jezdečtí koně dne (riders.ts – plány jízd z plánu postav, villagers.ts `rides`). Vrátí true,
+   * když se ve scéně něco změnilo.
+   */
+  setRides(rides: readonly RidePlan[], nowMs: number): boolean {
+    if (this.disposed) return false;
+    const key = ridePlansKey(rides);
+    if (key === this.ridesKey) return false;
+    this.ridesKey = key;
+    this.rides = rides;
+    return this.rebuild(nowMs, false);
+  }
+
+  /**
    * Posune zvířata v záběru `camera` na okamžik `nowMs` (bez kamery všechna). Vrátí true,
    * když se v záběru něco pohnulo.
    */
@@ -189,6 +221,9 @@ export class VillageLivestock {
     const clock = this.clock(nowMs);
     let moved = false;
     for (const group of this.groups) {
+      // stojící jezdecký kůň se zapíše jednou – nastaví překreslení jen jedoucí
+      const still = group.still?.(clock) ?? false;
+      if (still && group.settled) continue;
       const area = group.prepare(clock);
       this.setBounds(group.current, area);
       if (camera) {
@@ -200,6 +235,7 @@ export class VillageLivestock {
         if (Vector3.Distance(camera.globalPosition, center) > ANIMATE_RANGE_M) continue;
       }
       this.writeGroup(group, clock);
+      group.settled = still;
       moved = true;
     }
     for (const kind of this.kinds.values()) {
@@ -370,6 +406,23 @@ export class VillageLivestock {
       });
     }
 
+    // jezdečtí koně dne (horses.md – Ve scéně; riders.ts) – na trase objížďky, jinak u kůlu
+    for (const plan of this.rides) {
+      const area = rideArea(plan);
+      addArea('horse', area);
+      const state = createRideState();
+      groups.push({
+        members: [{ species: 'horse', slot: slot('horse'), scale: RIDE_HORSE_SCALE }],
+        prepare: () => area,
+        pose: (_index, clock, out) => rideHorsePose(plan, clock.seconds, state, out),
+        // mimo blok jízdy je kůň v ohradě (village-pens.ts) – tady se nekreslí
+        still: (clock) => !isRiding(plan, clock.seconds),
+        hidden: (_index, clock) => !isRiding(plan, clock.seconds),
+        written: null,
+        current: new BoundingInfo(Vector3.Zero(), Vector3.Zero()),
+      });
+    }
+
     let changed = this.groups.length > 0 || groups.length > 0;
     for (const species of SPECIES) {
       const count = counts.get(species) ?? 0;
@@ -480,7 +533,7 @@ export class VillageLivestock {
       const kind = this.kinds.get(member.species);
       if (!kind) return;
       const pose = group.pose(index, clock, this.pose);
-      const scale = group.hidden?.(index) ? 0 : member.scale;
+      const scale = group.hidden?.(index, clock) ? 0 : member.scale;
       const { x, z } = pose;
       const e = SLOPE_STEP_M;
       const gx = (height(x + e, z) - height(x - e, z)) / (2 * e);
