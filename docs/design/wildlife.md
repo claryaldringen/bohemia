@@ -3,7 +3,8 @@
 Stav: **návrh k připomínkám** (24. 10. 2026). Implementace zatím není. Navazuje na
 [koně](horses.md), [vojvodovu rodinu](lord.md), [stravu a dobytek](diet.md), [pole](fields.md)
 a [les](forest.md). Čísla zdůvodňuje [rešerše](research/2026-10-24-wildlife.md). Co níž není
-výslovně Martinovo, je návrh Clauda.
+výslovně Martinovo, je návrh Clauda. Otevřené otázky Martin uzavřel 24. 10. 2026 (sekce
+[Odpovědi Martina](#odpovědi-martina-24-10-2026)).
 
 ## Proč
 
@@ -29,12 +30,14 @@ Martin, 24. 10. 2026:
   škod, ale i méně lovu.
 - **Cíl:** prasata a jeleni **škodí na polích u lesa**, vlci na dobytku, liška na slepicích; brání
   se **lovem z koně, hlídáním polí a psy** (Martin).
+- **Cíl:** hráč vidí stavy zvěře **hrubě** (ikona s odhadem), ne přesná čísla.
 - **Cíl:** výcvik rodu (luk, boj, jízda) a koně konečně něco dávají – **úlovek, maso a menší
   škody**; lov sám je výcvik.
 - **Cíl:** vesničané sami chytají **drobnou zvěř a ryby**, rybáři stojí ve scéně **u loviště
   s prutem** (Martin).
 - **Ne-cíl (teď):** srnec, tur, zubr, los, rys, bobr (modely v 0 A.D. chybí), kůže a kožešiny jako
-  surovina (Martin nechce nové suroviny – [obchod](trade.md), Jen společné suroviny), sokolnictví,
+  surovina (Martin, 24. 10. 2026: „Zatím mimo hru“; navíc nechce nové suroviny –
+  [obchod](trade.md), Jen společné suroviny), sokolnictví,
   ploty kolem polí (Martin), vlčí jámy a pasti, zvěř přecházející mezi mapami, lovecké právo vůči
   sousedům, nemoci zvěře, zvířata po kusech se jmény.
 - **Anti-cíl:** zvěř jako pohroma, která ves vyhladí – škody jsou desetiny úrody, ne celá; lov
@@ -136,7 +139,15 @@ vesničanů.
   utíkají).
 - **Na lovu** může být lovec zraněn: na lovu prasat **0,5 %**, na lovu medvěda **5 % × (1 −
   boj ÷ 200)** na lovce a den, náhodou ze seedu vsi a dne. Zraněný **60 dní** necvičí, neloví ani
-  nepracuje. Smrt na lovu ne (otázka 2).
+  nepracuje.
+- **Vzácně i smrt** (Martin, 24. 10. 2026: „Vzácně i smrt“; čísla návrh Clauda): na lovu prasat
+  **0,02 %**, na lovu medvěda **0,3 %** na lovce a den (jelen, zajíc a vlk bez šance na smrt),
+  vynásobeno **(2 − boj ÷ 100)** (vyšší při nízké dovednosti) a **× 2 pěšky bez koně**; los ze
+  stejného seedu vsi a dne jako zranění, nezávisle na něm. Typicky tak rod přijde o lovce
+  **jednou za několik desítek let** (zima se třemi lovci ≈ 1 %). Zabít může i vojvodu a dědice –
+  nástupnictví podle [vojvodovy rodiny](lord.md) (Rod vojvody); **vymře-li rod po meči, hra
+  končí** (Rod vojvody – Konec rodu), takže lov může konec hry způsobit. Kronika: „Bořivoj zahynul
+  na lovu divočáka“.
 
 ## Obrana polí (Martin – lov z koně, hlídání, psi; čísla návrh Clauda)
 
@@ -153,14 +164,21 @@ Celková škoda dílu = škoda × (1 − jezdecká hlídka) × (1 − noční hl
 - **Úlovek z hlídky:** k akumulátoru prasat se přičte **0,01 × součet sil × prasata ÷ strop**
   denně (≈ 1–2 prasata za léto).
 
-### Noční hlídka vesničanů – práce vsi
+### Noční hlídka vesničanů – kombinace (Martin, 24. 10. 2026)
 
-- **Kdo a kdy:** dospělí vsi střídavě, každou noc okna zrání, na dílech, kterým by **bez hlídky
-  hrozilo aspoň 10 % úrody** za sezónu (odhad 1. 6. ze stavu zvěře a jezdecké hlídky – ves to
-  pozná sama, hráč nic nezadává; Martin – vesničané sami používají, co jim ulehčí práci).
-- **Cena:** **1 hlídač na 5 ha** hlídaných dílů, **0,3 člověkodne za noc** (hlídač ráno dospí –
-  návrh). Patří do **potřebných sezónních úloh** (krok 3 pořadí práce, za polními úlohami dne) –
-  v žních tak soupeří se sklizní, což je zamýšlená volba.
+Martin, 24. 10. 2026: „Kombinace“ – napřed hlídají staří a výrostci, dospělí z práce vsi jen tam,
+kde to nestačí.
+
+- **Kdy a kde:** každou noc okna zrání, na dílech, kterým by **bez hlídky hrozilo aspoň 10 %
+  úrody** za sezónu (odhad 1. 6. ze stavu zvěře a jezdecké hlídky – ves to pozná sama, hráč nic
+  nezadává; Martin – vesničané sami používají, co jim ulehčí práci).
+- **1. stupeň – zdarma, mimo práci vsi:** hlídají **staří a výrostci** (ti, kdo jinak pasou nebo
+  dělají práci, která propadá – [populace](population.md), Práce), **1 hlídač na 5 ha**
+  hlídaných dílů, jako pasení, bez člověkodnů z práce vsi. Díly s největší hrozbou škody napřed.
+- **2. stupeň – dospělí z práce vsi:** kde po 1. stupni zbývá **hrozba škody ≥ 10 % úrody** dílu
+  a hlídačů nemá kdo dodat, přidají se **dospělí**: **1 hlídač na 5 ha**, **0,3 člověkodne za
+  noc** (hlídač ráno dospí – návrh). Patří do **potřebných sezónních úloh** (krok 3 pořadí práce,
+  za polními úlohami dne) – v žních tak soupeří se sklizní, což je zamýšlená volba.
 - **Účinek:** škoda prasat a jelenů na hlídaném dílu **−60 %** (oheň, řehtačky, křik), vrány
   **celé** (hlídač je i ve dne – děti s řehtačkou; jen zobrazení).
 
@@ -189,8 +207,17 @@ Celková škoda dílu = škoda × (1 − jezdecká hlídka) × (1 − noční hl
 
 ### Kdy
 
-- **Velký lov:** **listopad–únor, každý 7. den** (od 1. 11.; ≈ 17 dní) – celý den místo výcviku.
-  Zima je doba lovu (po žních, zvěř je vykrmená, ve sněhu jsou stopy).
+- **Velký lov – obojí** (Martin, 24. 10. 2026: „Obojí“): rod loví **sám podle kalendáře –
+  listopad–únor, každý 7. den** (od 1. 11.; ≈ 17 dní), celý den místo výcviku. Zima je doba lovu
+  (po žních, zvěř je vykrmená, ve sněhu jsou stopy). **A hráč může na dvorci vyhlásit lov
+  navíc**, např. když prasata škodí (viz níž).
+- **Lov navíc na pokyn hráče** (návrh Clauda): tlačítko na panelu dvorce ve stylu 0 A.D. (ikona
+  oštěpu, bez popisku, důvod odepření u kurzoru; popisek jen v tooltipu). Vyhlásí **jeden den
+  lovu** – celý den místo výcviku, stejná pravidla úlovku a rizika jako kalendářní lov. Smí se
+  **v sezóně i mimo ni**, jen ne **březen–květen** (hájení mláďat – selata a kolouši, ne pro
+  medvěda se nic nemění) a **nejvýš jednou za 3 dny**; lovců je nejvýš tolik, kolik jich je
+  zdravých a bez práce v nejbližším kroku dne. Mimo zimu den lovu chybí v hlídce, výcviku
+  a práci odešlých synů ve vsi – to je cena hráčova rozhodnutí. Kalendářní lov hráč nevypíná.
 - **Letní hlídka:** červen–říjen v bloku jízdy (výš) – menší úlovky, hlavně menší škody.
 - **Výcvik:** den lovu se počítá jako výcvik (6 h): jezdec **jízda 3 h a luk 3 h**, pěší **luk 2 h
   a boj 4 h** (oštěp); kůň se cvičí jako při jízdě. Odešlým synům lov zpomalí úbytek dovedností.
@@ -275,9 +302,12 @@ Celková škoda dílu = škoda × (1 − jezdecká hlídka) × (1 − noční hl
 
 ## Co hráč vidí (UI jako 0 A.D.)
 
-- **Klik na divoké zvíře** vybere jeho druh: ikona druhu a čísla stavu (jelen 2 · laň 5 ·
-  kolouch 3), v popisku „Les uživí 10“ a loňská škoda (kg obilí, strhnutý dobytek).
-- **Panel dvorce:** řádek lovu – ikony úlovků letos s čísly a maso v kg; **psi** – ikona psa
+- **Klik na divoké zvíře** vybere jeho druh: ikona druhu s **hrubým odhadem stavu** (Martin, 24. 10. 2026 nechal na Claudovi; návrh Clauda): tři stupně plnosti ikony podle stavu ÷ strop
+  (**málo** do ⅓ stropu, **středně** do ⅔, **hodně** nad ⅔; nad stropem „plno“), slova a bližší
+  údaje (např. „Les uživí 10“, loňská škoda v kg obilí, strhnutý dobytek) jen v tooltipu –
+  přesné počty kusů (jelen 2 · laň 5) hráč nevidí.
+- **Panel dvorce:** tlačítko **lov navíc** (výš), řádek lovu – ikony úlovků letos s čísly a maso
+  v kg; **psi** – ikona psa
   „6 / 7“ (v popisku obilí psů za den, červeně bez obilí).
 - **Panel dílu pole:** ikona prasete a **škoda letos v %** (červeně od 10 %), ikona ohně, když se
   díl hlídá; v popisku vzdálenost k lesu.
@@ -313,32 +343,42 @@ Celková škoda dílu = škoda × (1 − jezdecká hlídka) × (1 − noční hl
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                                      | Kdo                    |
-| --------------------------------------------------------------------------------------------------------------- | ---------------------- |
-| Divoké prase, jelen a laň, vlk, medvěd, zajíc, liška, ptáci, ryby – součást simulace                            | Martin (24. 10. 2026)  |
-| Stáda jako počty s rozmnožováním, ne na úkor náročnosti                                                         | Martin (24. 10. 2026)  |
-| Loví vojvoda a synové – ze dvorce na koních, ostatní pěšky s oštěpy a psy; vesničané jen drobné a ryby s prutem | Martin (24. 10. 2026)  |
-| Obrana polí lovem z koně, hlídáním a psy, ne ploty                                                              | Martin (24. 10. 2026)  |
-| Prasata ničí úrodu a bez koně jsou téměř neulovitelná                                                           | Martin (22. 10. 2026)  |
-| Zvěř patří vsi, strop z lesa do 1 km; jeden přepočet 1. 5.                                                      | návrh Clauda           |
-| Stropy: jelení 5 a prasata 5 na 100 ha lesa (bez lesa prasat vsi), zajíci 15 na 100 ha luk a polí, lišky 1      | návrh Clauda (rešerše) |
-| Vlci 0–5 podle lesa 100–200 ha, doplní polovinu chybějícího ročně; medvěd od 150 ha lesa, vrací se za 3 roky    | návrh Clauda (rešerše) |
-| Kolouši = laně × 0,6, úmrtnost 10 % + 1 % na vlka; selata = dospělí × 1, úmrtnost 20 %; zajíci × 2              | návrh Clauda (rešerše) |
-| Škoda 1. 6. – sklizeň: prase 1 kg, jelen 0,6 kg denně; váha 1 do 50 m od lesa, 0 od 250 m; nejvýš 50 % dílu     | návrh Clauda (rešerše) |
-| Vlčí díl dosavadních ztrát stáda (3 / 3 / 2 / 1 %) podle počtu vlků; liška 2 % vajec                            | návrh Clauda           |
-| Jezdecká hlídka do 60 %, noční hlídka vesničanů −60 % za 0,3 čd na 5 ha, kde hrozí ≥ 10 %                       | návrh Clauda           |
-| Smečka dvorce 1 pes na lovce + 1 (nejvýš 8), 0,3 kg obilí denně                                                 | návrh Clauda           |
-| Velký lov listopad–únor každý 7. den jako výcvik; akumulátor úlovku; jeleni ne laně                             | návrh Clauda           |
-| Ryby a oka jen při potřebě bílkovin nebo hladu, z práce, která by propadla; rybáři s prutem u tůní              | návrh Clauda           |
-| Bez smrti od zvěře; zranění jen na lovu, 60 dní                                                                 | návrh Clauda           |
+| Rozhodnutí                                                                                                         | Kdo                                                    |
+| ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------ |
+| Divoké prase, jelen a laň, vlk, medvěd, zajíc, liška, ptáci, ryby – součást simulace                               | Martin (24. 10. 2026)                                  |
+| Stáda jako počty s rozmnožováním, ne na úkor náročnosti                                                            | Martin (24. 10. 2026)                                  |
+| Loví vojvoda a synové – ze dvorce na koních, ostatní pěšky s oštěpy a psy; vesničané jen drobné a ryby s prutem    | Martin (24. 10. 2026)                                  |
+| Obrana polí lovem z koně, hlídáním a psy, ne ploty                                                                 | Martin (24. 10. 2026)                                  |
+| Prasata ničí úrodu a bez koně jsou téměř neulovitelná                                                              | Martin (22. 10. 2026)                                  |
+| Zvěř patří vsi, strop z lesa do 1 km; jeden přepočet 1. 5.                                                         | návrh Clauda                                           |
+| Stropy: jelení 5 a prasata 5 na 100 ha lesa (bez lesa prasat vsi), zajíci 15 na 100 ha luk a polí, lišky 1         | návrh Clauda (rešerše)                                 |
+| Vlci 0–5 podle lesa 100–200 ha, doplní polovinu chybějícího ročně; medvěd od 150 ha lesa, vrací se za 3 roky       | návrh Clauda (rešerše)                                 |
+| Kolouši = laně × 0,6, úmrtnost 10 % + 1 % na vlka; selata = dospělí × 1, úmrtnost 20 %; zajíci × 2                 | návrh Clauda (rešerše)                                 |
+| Škoda 1. 6. – sklizeň: prase 1 kg, jelen 0,6 kg denně; váha 1 do 50 m od lesa, 0 od 250 m; nejvýš 50 % dílu        | návrh Clauda (rešerše)                                 |
+| Vlčí díl dosavadních ztrát stáda (3 / 3 / 2 / 1 %) podle počtu vlků; liška 2 % vajec                               | návrh Clauda                                           |
+| Jezdecká hlídka do 60 %, noční hlídka vesničanů −60 % za 0,3 čd na 5 ha, kde hrozí ≥ 10 %                          | návrh Clauda                                           |
+| Smečka dvorce 1 pes na lovce + 1 (nejvýš 8), 0,3 kg obilí denně                                                    | návrh Clauda                                           |
+| Velký lov listopad–únor každý 7. den jako výcvik; akumulátor úlovku; jeleni ne laně                                | návrh Clauda                                           |
+| Ryby a oka jen při potřebě bílkovin nebo hladu, z práce, která by propadla; rybáři s prutem u tůní                 | návrh Clauda                                           |
+| Zvěř nezabíjí mimo lov; zranění jen na lovu, 60 dní                                                                | návrh Clauda                                           |
+| Noční hlídka: kombinace – napřed staří a výrostci zdarma, kde hrozí ≥ 10 % a nemá kdo, dospělí z práce vsi         | Martin (24. 10. 2026)                                  |
+| Lov smí člena rodu vzácně i zabít; šance prasata 0,02 %, medvěd 0,3 % na den, vyšší bez koně a při nízkém boji     | Martin (24. 10. 2026), čísla návrh Clauda              |
+| Velký lov obojí: rod loví sám v zimě každý 7. den a hráč může vyhlásit lov navíc (mimo březen–květen, 1× za 3 dny) | Martin (24. 10. 2026), pravidla návrh Clauda           |
+| Kůže a kožešiny zatím mimo hru                                                                                     | Martin (24. 10. 2026)                                  |
+| Stavy zvěře hráči hrubě: ikona o třech stupních podle stropu, slova jen v tooltipu                                 | návrh Clauda (Martin nechal na Claudovi, 24. 10. 2026) |
 
-## Otevřené otázky pro Martina
+## Odpovědi Martina (24. 10. 2026)
 
-1. **Noční hlídka** jako práce dospělých vsi (0,3 čd za noc, v žních soupeří se sklizní) – nebo
-   mají hlídat zdarma starší a výrostci jako pasení?
-2. **Smí lov zabít člena rodu** (kanec, medvěd), nebo jen zranit na 60 dní, jak navrhuji?
-3. **Vidí hráč přesné stavy zvěře** (jelen 2 · laň 5), nebo jen hrubě (málo / hodně)?
-4. **Spouští lov hráč** (tlačítko na dvorci, jako rozkaz v 0 A.D.), nebo rod loví sám podle
-   kalendáře, jak navrhuji?
-5. **Kůže a kožešiny z lovu** – nechat mimo hru (bez nové suroviny), nebo přidat kožešiny jako
-   zboží a štěstí?
+Všech pět otázek je uzavřeno; pravidla jsou zapsána výš.
+
+1. **Noční hlídka:** Martin: „Kombinace“ – hlídají napřed staří a výrostci (bez práce vsi), a kde
+   to nestačí (hrozí škoda ≥ 10 % a nemá kdo), přidají se dospělí z práce vsi (0,3 čd na 5 ha za
+   noc). → Noční hlídka vesničanů.
+2. **Smrt na lovu:** Martin: „Vzácně i smrt“ – lov smí člena rodu i zabít; čísla (0,02 % prasata,
+   0,3 % medvěd, vyšší bez koně a při nízkém boji) jsou návrh Clauda, kronika, vymření rodu může
+   ukončit hru ([vojvodova rodina](lord.md) – Konec rodu). → Nebezpečí pro lidi.
+3. **Spouštění lovu:** Martin: „Obojí“ – rod loví sám podle kalendáře a hráč může vyhlásit lov
+   navíc; tlačítko, omezení (mimo březen–květen, jednou za 3 dny) navrhl Claude. → Kdy.
+4. **Kůže a kožešiny:** Martin: „Zatím mimo hru“. → Cíle, ne-cíle, anti-cíle.
+5. **Stavy zvěře hráči:** hrubě (ikona s odhadem, slova jen v tooltipu) – Martin nechal na
+   Claudovi, návrh Clauda. → Co hráč vidí.
