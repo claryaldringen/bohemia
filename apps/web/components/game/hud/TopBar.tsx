@@ -69,6 +69,42 @@ function Resource({
   );
 }
 
+/** Lidí ve vsi – děti, dospělí a starší. */
+function villagePeople(view: Pick<VillageView, 'people'>): number {
+  return view.people.children + view.people.adults + view.people.elders;
+}
+
+/** Je ve vsi víc lidí, než kolik uživí pole (fields.md – Co hráč vidí, Pole uživí)? */
+export function fieldCapacityShort(view: Pick<VillageView, 'people' | 'fieldCapacity'>): boolean {
+  const capacity = view.fieldCapacity;
+  return !!capacity && villagePeople(view) > Math.round(capacity.people);
+}
+
+/**
+ * Tooltip pole uživí (fields.md – Co hráč vidí): kolik lidí uživí pole v ustáleném oběhu a kolik
+ * jich ve vsi je (červeně, když je lidí víc), pod tím pole v oběhu a úrodnost.
+ */
+export function FieldCapacityTooltip({ view }: { view: VillageView }): ReactElement {
+  const capacity = view.fieldCapacity;
+  if (!capacity) return <span>Pole</span>;
+  return (
+    <span className="block" data-testid="field-capacity-tooltip">
+      <span className="font-semibold">Pole uživí ≈ {formatInteger(capacity.people)} lidí</span>
+      <span
+        data-testid="field-capacity-people"
+        className={`mt-0.5 flex items-center gap-1 tabular-nums ${fieldCapacityShort(view) ? 'font-semibold text-red-400' : 'text-[#bfa77a]'}`}
+      >
+        <img src="/icons/resources/people.png" alt="Lidé" width={16} height={16} />
+        {villagePeople(view)}
+      </span>
+      <span className="mt-0.5 block text-[#bfa77a] tabular-nums">
+        pole v oběhu {formatDecimal(capacity.rotationHa, 1)} ha · úrodnost{' '}
+        {formatInteger(capacity.fertility)}
+      </span>
+    </span>
+  );
+}
+
 /** Zdroje stravy v tooltipu nasycení – ikona, název a podíl na energii (diet.md). */
 const DIET_SOURCES: readonly {
   key: keyof VillageView['diet']['shares'];
@@ -446,6 +482,17 @@ export function TopBar({
           <Resource icon="fields" name="Pole – celková rozloha" testId="village-fields">
             {formatHa(view.fields.reduce((sum, f) => sum + f.areaM2, 0))}
           </Resource>
+          {view.fieldCapacity && (
+            <Resource
+              icon="family"
+              name={<FieldCapacityTooltip view={view} />}
+              testId="village-field-capacity"
+            >
+              <span className={fieldCapacityShort(view) ? 'text-red-400' : undefined}>
+                ≈ {formatInteger(view.fieldCapacity.people)}
+              </span>
+            </Resource>
+          )}
           <Resource icon="wood" name="Klády na hromadě" testId="village-wood">
             {formatInteger(view.woodLogs)}
           </Resource>

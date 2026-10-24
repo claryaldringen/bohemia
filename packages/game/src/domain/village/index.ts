@@ -5,6 +5,7 @@ export * from './people';
 export * from './food';
 export * from './diet';
 export * from './field-food';
+export * from './field-capacity';
 export * from './dairy';
 export * from './legumes';
 export { expectedFlaxKg, flaxNeedKg, linenCoverage, linenUnhappiness } from './flax';

@@ -181,3 +181,12 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   doplní popisek „Volná práce“ řádkem s ikonou dvorce (`resources/manor.png`) z `view.lord`
   (`LaborDay.lord`). Kronika: „Vojvodova rodina jde na pole – ves šetří jídlem / nestihne osev“
   a „se vrací k výcviku“. Ikony kreslí `tools/blender/arms_icons.py` (CC0).
+
+## Pole uživí ≈ N lidí
+
+Horní lišta (`hud/TopBar.tsx`): ikona `resources/family.png` s „≈ N“ za plochou pole
+(`village-field-capacity`), tooltip `FieldCapacityTooltip`, červeně při `fieldCapacityShort`
+(lidí víc než N). Hodnota je `view.fieldCapacity` (`lib/village-view.ts`, `fieldCapacityView`)
+z jádra `fieldCapacity` (`packages/game/src/domain/village/field-capacity.ts`; tam i `ROTATION`,
+`ROTATION_FACTOR`, `netYieldPerHa`, které kalkulačka přebírá přes `scripts/lib/steady-state.ts`).
+Pravidla: `docs/design/fields.md` – Co hráč vidí.

@@ -1,4 +1,5 @@
 import {
+  fieldCapacity,
   BUILD_COSTS,
   isCancellable,
   paymentValueKg,
@@ -250,6 +251,22 @@ export function sceneOfVillage(
  * Pohled na ves v den `day` (ves má být dopočítaná do tohoto dne). `context` – konec hry a vsi
  * hráče pro přepínač (vstupní bod je zná ze všech vsí hráče).
  */
+/** Pole uživí ≈ N lidí (fields.md – Co hráč vidí) – výpočet je v jádru, tady jen tvar pro panel. */
+function fieldCapacityView(
+  state: VillageState,
+  day: number,
+  potteryCoverage: number,
+): VillageView['fieldCapacity'] {
+  const capacity = fieldCapacity(state, day, potteryCoverage);
+  return (
+    capacity && {
+      people: capacity.people,
+      rotationHa: capacity.rotationHa,
+      fertility: capacity.fertility,
+    }
+  );
+}
+
 export function buildVillageView(
   record: VillageRecord,
   landscape: Landscape,
@@ -311,6 +328,7 @@ export function buildVillageView(
     crafts: craftsView(state, summary, landscape),
     storesMonths: summary.storesMonths,
     satiation: summary.satiation,
+    fieldCapacity: fieldCapacityView(state, day, summary.crafts.coverage.pottery),
     commonLaborPerDay: summary.commonLaborPerDay,
     lord: state.labor?.lord ?? null,
     fullHousehold: summary.fullHousehold,

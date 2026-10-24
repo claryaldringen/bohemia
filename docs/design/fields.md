@@ -1544,6 +1544,15 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
   nestačí klády), nebo krátký červený důvod, proč pole neprojde. Výměru, úrodnost a stadia
   dílů ukáže panel vybraného pole. Pole jde natočit po 15° (Natočené stavby): [ a ] před prvním
   čtvercem otáčejí mřížku, nad polem se malování chytí jeho mřížky.
+- **Pole uživí ≈ N lidí** (Martin, 24. 10. 2026 schválil Z5 z diagnózy růstu): v horní liště
+  vedle plochy pole ikona rodiny s číslem „≈ N“ – kolik lidí uživí pole vsi v ustáleném oběhu.
+  Tooltip: „Pole uživí ≈ N lidí“, pod tím ikona lidí s počtem lidí ve vsi (**červeně, když je
+  lidí víc než N**), pole v oběhu a průměrná úrodnost. Výpočet (návrh Clauda, jádro
+  `fieldCapacity`): pole v oběhu (osev, hotové k osevu a příloh, který nezarostl) ÷ oběh
+  (`ROTATION_FACTOR`) = osev; osev × čistá úroda při průměrné přirozené úrodnosti dílů
+  (`netYieldPerHa`, vážené plochou) = roční úroda; ta ÷ úroda potřebná na jednoho průměrného
+  člověka vsi (jeho potřeba z pole `fieldFoodShare` a pojistka zásob – `steadyHarvestKg`, tedy
+  stejná pravidla jako `village-calculator.ts`) = N. Strop práce ve žních v čísle není.
 - **Zakládání:** pole se zakládá jako stavba po dílech od obydlí – rozpracovaný díl se rozrývá
   po řádcích, stromy a kameny z hotového dílu zmizí.
 - **Klik vybere díl, dvojklik celé pole** (Martin, 19. 10. 2026: „Když kliknu na pole, zobrazí
