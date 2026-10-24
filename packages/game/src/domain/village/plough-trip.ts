@@ -110,7 +110,10 @@ export function bandFurrowM(
   return free / runs.length;
 }
 
-/** Podíl dne, který spřežení orá, když cesta k bloku stojí `costM` (m jízdy po louce). */
+/**
+ * Podíl dne, který spřežení orá, když cesta k bloku stojí `costM` (m jízdy po louce) – jen cesta
+ * k bloku (výjezd nebo přesun), večerní návrat je zadarmo (návrh Clauda).
+ */
 export function travelShare(costM: number): number {
   const seconds = costM / TEAM_TRAVEL.speedMps;
   return 1 - Math.min(TEAM_TRAVEL.maxShare, seconds / TEAM_TRAVEL.dayS);
@@ -137,9 +140,21 @@ function afield(plough: PloughWork | undefined): boolean {
   return plough?.trip !== undefined && plough.trip.home === undefined;
 }
 
-/** Je ráno některé spřežení vsi na poli (oxen.md – Spřežení zůstane na poli)? */
-export function ploughTeamsAfield(state: Pick<VillageState, 'plan'>): boolean {
-  return state.plan ? planCrops(state.plan).some(({ work }) => afield(work.plough)) : false;
+/**
+ * Je ráno některé spřežení vsi na poli (oxen.md – Spřežení zůstane na poli)? S `day` se starší
+ * `trip` bez příjezdu (`arrived`) mimo okno orby nepočítá: spřežení by večer šlo domů, ale jeho
+ * první ráno by jinak odečetlo vozům všechny páry a zrušilo vodu.
+ */
+export function ploughTeamsAfield(state: Pick<VillageState, 'plan'>, day?: number): boolean {
+  if (!state.plan) return false;
+  const month = day === undefined ? null : dateOfDayIndex(day).month;
+  return planCrops(state.plan).some(({ crop, work }) => {
+    if (!afield(work.plough)) return false;
+    // starší ves bez příjezdu: mimo okno orby (ani dnes se neoře) je spřežení už doma
+    if (month !== null && !work.plough?.trip?.arrived)
+      return windowEndOf(cropTaskWindows(crop, 'plough'), month) !== null;
+    return true;
+  });
 }
 
 /** Díl, u kterého spřežení blok `block` dooralo – první díl posledního pásu bloku. */

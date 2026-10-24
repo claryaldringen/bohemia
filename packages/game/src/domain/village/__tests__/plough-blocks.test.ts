@@ -13,6 +13,8 @@ import {
 } from '../plough-trip';
 import { FURROW, TEAM_TRAVEL } from '../rules';
 import { advanceVillage } from '../simulate';
+import type { DayTask } from '../simulate-plan';
+import { dayTaskOrder } from '../simulate-work';
 import type { FieldPart, VillageState } from '../types';
 import { createCropWork } from '../year-plan';
 import { withBuiltFirstDwelling } from './village-fixtures';
@@ -167,11 +169,11 @@ describe('bloky a pásy orby', () => {
 });
 
 describe('výkon spřežení za den', () => {
-  function village(parts: FieldPart[]): VillageState {
+  function village(parts: FieldPart[], today = DAY): VillageState {
     const s = withBuiltFirstDwelling(
-      foundVillage({ seed: 11, day: DAY - 10, dwellingPosition: { x: 0, z: 0, rotation: 0 } }),
+      foundVillage({ seed: 11, day: today - 10, dwellingPosition: { x: 0, z: 0, rotation: 0 } }),
     );
-    s.lastDay = DAY - 1;
+    s.lastDay = today - 1;
     s.fields = [{ id: 1 }, { id: 2 }];
     s.parts = parts;
     s.storesKg = 300;
@@ -313,6 +315,53 @@ describe('výkon spřežení za den', () => {
     expect(busy.thresh).toBeGreaterThan(0);
     expect(busy.plough).toBeGreaterThan(0);
     expect(busy.plough).toBeCloseTo(ploughed(false).plough, 9);
+  });
+
+  it('v dubnu dostane orba práci první a osev zbytek – osev se nezastaví (Martin, 24. 10. 2026)', () => {
+    const april = at(601, 4, 10);
+    const parts = rect(1, 0, 0, 8, 2);
+    const s = village(parts, april);
+    const work = createCropWork(parts, april, 0, true, undefined, 'spring');
+    s.plan = { plannedDay: april - 20, ard: true, ...work };
+    s.plan.plough!.done = s.plan.plough!.required * 0.3;
+    // víc rukou, ať mají osev i orba z čeho brát
+    const adult = s.people.find((p) => p.bornDay < april - 18 * 365)!;
+    for (let i = 0; i < 12; i++)
+      s.people.push({ ...adult, id: 500 + i, spouseId: undefined, sex: i % 2 ? 'male' : 'female' });
+    const next = advanceVillage(s, april, null);
+    const sum = (activity: string): number =>
+      (next.labor?.shares ?? [])
+        .filter((x) => x.activity === activity)
+        .reduce((t, x) => t + x.manDays, 0);
+    expect(sum('plough')).toBeGreaterThan(0);
+    expect(sum('sow')).toBeGreaterThan(0);
+  });
+
+  it('v září dostanou jablka (dřívější konec okna) zbytek po orbě – pořadí úloh dne', () => {
+    const task = (name: DayTask['name'], end: number): DayTask => ({
+      name,
+      remaining: 1,
+      end,
+      tie: 0,
+      rank: 0,
+    });
+    const sorted = [task('orchard-harvest', 1), task('thresh', 2), task('plough', 9)].sort(
+      dayTaskOrder,
+    );
+    expect(sorted.map((t) => t.name)).toEqual(['plough', 'orchard-harvest', 'thresh']);
+  });
+
+  it('starší spřežení bez příjezdu mimo okno orby není na poli (vozy ani voda se neruší)', () => {
+    const parts = rect(1, 0, 0, 4, 1);
+    const s = village(parts);
+    const work = createCropWork(parts, DAY, 0, true, undefined, 'spring');
+    s.plan = { plannedDay: DAY, ard: true, ...work };
+    s.plan.plough!.trip = { block: 0, costM: 60 };
+    expect(ploughTeamsAfield(s, DAY)).toBe(true);
+    expect(ploughTeamsAfield(s, at(601, 1, 15))).toBe(false);
+    // s příjezdem je na poli, dokud se večer nevrátí domů
+    s.plan.plough!.trip = { block: 0, costM: 60, arrived: { day: DAY, from: null } };
+    expect(ploughTeamsAfield(s, at(601, 1, 15))).toBe(true);
   });
 
   it('plán osevu počítá s výkonem podle tvaru polí', () => {

@@ -647,10 +647,12 @@ a zpět** (Co nejdelší brázda – Cesta na místo výš). Podrobnosti **návr
 ## Orba má přednost (24. 10. 2026)
 
 Stav: **Martin, 24. 10. 2026:** „Co může být přednějšího než orba?“ Podrobnosti **návrh
-Clauda**: v rozdělení práce dne dostane orba rádlem přednost před všemi sezónními úlohami včetně
-žně a výmlatu – hned po denním minimu domácností, péči o koně, výpravách a vozech pro kováře
-(`dayTaskOrder`). Spřežení potřebuje jen oráče (a honáka), jinak voli stojí; dřív se úlohy řadily
-jen podle nejbližšího konce okna, takže výmlat jaře v září nebo žeň braly lidi před orbou.
+Clauda**: v rozdělení práce dne dostane orba rádlem přednost před sezónními úlohami, s nimiž
+se její okno překrývá – osevem (osev jde stejně za pluhem a dostane zbytek rukou), výmlatem jaře
+v září a sklizní jablek (září – říjen) –, hned po denním minimu domácností, péči o koně,
+výpravách a vozech pro kováře (`dayTaskOrder`). Žeň a výmlat ozimu se s orbou nepřekrývají.
+Spřežení potřebuje jen oráče (a honáka), jinak voli stojí; dřív se úlohy řadily jen podle
+nejbližšího konce okna, takže výmlat jaře v září nebo jablka braly lidi před orbou.
 Kapacita rádel (`ploughCap`) se nemění.
 
 ## Co hráč vidí

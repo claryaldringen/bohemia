@@ -457,6 +457,7 @@ export class VillageRenderer {
         'day',
         day.window,
         routes.map((r) => r.map((s) => [s.partId, s.from, s.to])),
+        village.ploughLegs ?? null,
       ]);
       if (key !== this.teamsKey) {
         this.teamsKey = key;

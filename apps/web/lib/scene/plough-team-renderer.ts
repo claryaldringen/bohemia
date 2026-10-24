@@ -31,6 +31,7 @@ import {
   createTeamPose,
   pathAt,
   ploughRoute,
+  offsetLegs,
   type PloughLegs,
   routeFurrows,
   routePose,
@@ -217,8 +218,10 @@ export class PloughTeams {
         from = { x: pose.yoke.x, z: pose.yoke.z };
       }
       // výjezd / přesun a návrat jen ve dny, kdy k nim došlo (oxen.md – Spřežení zůstane na poli)
+      // víc spřežení se odsadí vedle sebe (`offsetLegs`)
+      const mine = legs ? offsetLegs(legs, i) : null;
       return {
-        route: { route: ploughRoute(stints, from, undefined, legs), startMs, endMs },
+        route: { route: ploughRoute(stints, from, undefined, mine), startMs, endMs },
         home: (legs?.home?.length ?? 0) >= 2,
       };
     });

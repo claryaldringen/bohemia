@@ -268,7 +268,7 @@ export function work(
   const teamsCap = ploughCapacityPerDay(state, coverage.tools, day);
   const ploughCap = teamsCap * teamsHomeShare(state, day);
   // spřežení na poli od rána (oxen.md – Spřežení zůstane na poli) – cesta dne jednou za den
-  const afield = ploughTeamsAfield(state);
+  const afield = ploughTeamsAfield(state, day);
   const travels: PloughTravels = new Map();
   const ploughFactor = (cropWork: CropWork): number =>
     ploughDayFactor(state, day, cropWork, partsById, landscape, obstacles, travels);

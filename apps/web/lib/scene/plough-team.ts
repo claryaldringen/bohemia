@@ -9,6 +9,7 @@
 // souvratích), rádlo za ním drží pevnou vzdálenost oje (bod dráhy se stejnou tětivou) a na
 // souvrati ho oráč nadzvedne. Rozměry jsou skutečné (m) a celé spřežení se zvětší stejně jako
 // postavy (FIGURE_SCALE).
+import type { ScenePloughLegs } from '../village-view-scene-types';
 import { FIGURE_SCALE } from './villager-plan';
 
 /** Celé spřežení je stylizovaně zvětšené jako postavy a domácí zvířata. */
@@ -1223,11 +1224,41 @@ export function ploughRoute(
   return { ...pathOf(segments), stints: planned, segmentStint };
 }
 
-/** Cesty spřežení dne (`ScenePloughLegs` – výjezd nebo přesun `out`, návrat `home`). */
-export interface PloughLegs {
-  out?: readonly { x: number; z: number }[];
-  home?: readonly { x: number; z: number }[];
-  stand?: { x: number; z: number };
+/** Cesty spřežení dne – typ z jádra (`SceneVillage.ploughLegs`), výjezd `out`, návrat `home`. */
+export type PloughLegs = ScenePloughLegs;
+
+/** Odstup sousedních spřežení kolmo na směr cesty (m) – jedno spřežení je široké ≈ 2,5 m. */
+export const TEAM_SPACING_M = 3;
+
+/**
+ * Cesty `i`-tého spřežení dne: víc spřežení nejede ani nestojí přes sebe, `i`-té se odsadí o
+ * `i * TEAM_SPACING_M` kolmo na směr cesty (výjezd a návrat jedou na téže straně); stojící
+ * spřežení, které směr nemá, se odsadí podél osy x. První spřežení zůstává na místě.
+ */
+export function offsetLegs(legs: PloughLegs, index: number): PloughLegs {
+  if (index <= 0) return legs;
+  const d = index * TEAM_SPACING_M;
+  const axis = legs.out ?? (legs.home ? [...legs.home].reverse() : null);
+  const a = axis?.[0];
+  const b = axis?.[axis.length - 1];
+  let nx = 0;
+  let nz = 1;
+  if (a && b) {
+    const len = Math.hypot(b.x - a.x, b.z - a.z);
+    if (len > 1e-6) {
+      nx = -(b.z - a.z) / len;
+      nz = (b.x - a.x) / len;
+    }
+  }
+  const shift = (p: { x: number; z: number }): { x: number; z: number } => ({
+    x: p.x + nx * d,
+    z: p.z + nz * d,
+  });
+  return {
+    ...(legs.out ? { out: legs.out.map(shift) } : {}),
+    ...(legs.home ? { home: legs.home.map(shift) } : {}),
+    ...(legs.stand ? { stand: shift(legs.stand) } : {}),
+  };
 }
 
 /**

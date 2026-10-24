@@ -8,6 +8,8 @@ import {
   TRANSIT_SPEED_M_S,
   TURN_RADIUS_M,
   ardReach,
+  offsetLegs,
+  TEAM_SPACING_M,
   createTeamPose,
   pathAt,
   ploughPath,
@@ -330,5 +332,38 @@ describe('plough-team – přechod na nové místo', () => {
     expect(transitTrack(path, here, t).transit).toBeNull();
     const away = { ...far, x: FIELD.x - TRANSIT_M.max - 30 };
     expect(transitTrack(path, away, t).transit).toBeNull();
+  });
+});
+
+describe('offsetLegs – spřežení vedle sebe', () => {
+  const legs = {
+    out: [
+      { x: 0, z: 0 },
+      { x: 100, z: 0 },
+    ],
+    home: [
+      { x: 100, z: 0 },
+      { x: 0, z: 0 },
+    ],
+    stand: { x: 50, z: 10 },
+  };
+
+  it('první spřežení zůstává na místě', () => {
+    expect(offsetLegs(legs, 0)).toEqual(legs);
+  });
+
+  it('další se odsadí kolmo na směr cesty o pořadí krát rozestup', () => {
+    const second = offsetLegs(legs, 2);
+    expect(second.out?.[0]?.x).toBeCloseTo(0);
+    expect(Math.abs(second.out?.[0]?.z ?? 0)).toBeCloseTo(2 * TEAM_SPACING_M);
+    expect(second.out?.[1]?.z).toBeCloseTo(second.out?.[0]?.z ?? NaN);
+    // návrat jede opačně, ale odsazení je pořád na téže straně jako výjezd
+    expect(second.home?.[0]?.z).toBeCloseTo(second.out?.[1]?.z ?? NaN);
+  });
+
+  it('stojící spřežení se odsadí o pořadí krát rozestup, dvě nestojí na témže místě', () => {
+    const a = offsetLegs(legs, 0).stand!;
+    const b = offsetLegs(legs, 1).stand!;
+    expect(Math.hypot(a.x - b.x, a.z - b.z)).toBeCloseTo(TEAM_SPACING_M);
   });
 });

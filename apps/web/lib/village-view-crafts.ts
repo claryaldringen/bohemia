@@ -356,8 +356,10 @@ export function scenePloughLegs(
     for (const { work } of planCrops(state.plan)) {
       const trip = work.plough?.trip;
       if (!trip || trip.home !== undefined) continue;
-      const band = ploughFrontBand(work, byId, state.lastDay);
-      const part = scene.get(band?.partIds[0] ?? -1);
+      // blok, u kterého spřežení je (konec jeho pásů); bez něj čelo orby
+      const here = work.plough ? ploughBlockEndPart(work.plough, trip.block, byId) : null;
+      const band = here ? null : ploughFrontBand(work, byId, state.lastDay);
+      const part = scene.get(here?.id ?? band?.partIds[0] ?? -1);
       if (part) stand = { x: part.x, z: part.z };
       if (stand) break;
     }
