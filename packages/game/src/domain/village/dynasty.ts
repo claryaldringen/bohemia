@@ -203,6 +203,8 @@ export function nameLineMan(
   const next = cloneState(state);
   for (const p of next.people) if (p.id === personId) p.name = normalized;
   for (const lord of next.dynasty?.lords ?? []) if (lord.id === personId) lord.name = normalized;
-  next.chronicle.push({ day, kind: 'line-named', name: normalized });
+  // kronika říká, koho se jméno týká (vojvoda, nebo syn vojvody – lord.md, Kde se jméno ukazuje)
+  const who = isLord ? 'lord' : man.fatherId === state.dynasty?.lordId ? 'son' : undefined;
+  next.chronicle.push({ day, kind: 'line-named', name: normalized, ...(who ? { who } : {}) });
   return { ok: true, state: next };
 }

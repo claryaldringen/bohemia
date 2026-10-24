@@ -439,6 +439,8 @@ export interface VillageView {
    * bez cvičící rodiny null.
    */
   lord?: { training: number; field: number; household: number } | null;
+  /** Rod vojvody pro jména (lord.md – Jména); ves bez rodu null, starší pohled bez pole. */
+  dynasty?: DynastyView | null;
   /** Některá rodina se může oddělit a nečeká na ni žádné obydlí (upozornění „Rodina čeká na dům“). */
   fullHousehold: boolean;
   /** Nabídka staveb – hráč staví kdy chce, předem musí ves mít suroviny a lidi k osídlení. */
@@ -772,4 +774,29 @@ export interface VillageThreshing {
   sheavesKg?: number;
   emergency?: true;
   floorShort?: true;
+}
+
+/** Muž rodu bez jména – čeká, až ho hráč pojmenuje (lord.md – Kde se jméno zadává). */
+export interface UnnamedLineMan {
+  id: number;
+  /** Věk v celých letech (portrét v panelu jména). */
+  age: number;
+  /** Je to vojvoda (popisek „Jméno vojvody“), jinak jeho syn („Jméno syna“). */
+  lord: boolean;
+}
+
+/** Rod vojvody pro rozhraní jmen (lord.md – Jména, Kde se jméno zadává, Kde se jméno ukazuje). */
+export interface DynastyView {
+  lordId: number | null;
+  /** Jméno dnešního vojvody; chybí – vojvoda jméno ještě nemá. */
+  lordName?: string;
+  /**
+   * Žijící muži rodu bez jména – vojvoda první, pak od nejstaršího. Fronta se neukládá, je to stav
+   * vsi (lord.md – Čekající jména se neukládají zvlášť).
+   */
+  unnamed: UnnamedLineMan[];
+  /** Jména žijících mužů rodu – kostka nabízí přednostně jiná (`suggestLineName`). */
+  taken: string[];
+  /** Jména ženatých synů rodu, kteří bydlí v dvorci – čekají na dům („Rodina čeká na dům“). */
+  waitingHome: string[];
 }

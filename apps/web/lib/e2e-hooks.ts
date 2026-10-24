@@ -17,6 +17,8 @@ export interface E2EHooks {
   projectToScreen?: (x: number, z: number) => { x: number; y: number } | null;
   /** Zeptá se na ves hned (dotazování jinak čeká na další herní den – v testech ≈ 86 s). */
   pollVillage?: () => void;
+  /** Vybere člověka vsi (id), jako by hráč klikl na jeho postavu – postavy ve scéně chodí. */
+  selectPerson?: (id: number) => void;
 }
 
 declare global {

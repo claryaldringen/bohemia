@@ -18,7 +18,11 @@ describe('kronika – vojvodova rodina', () => {
 
   it('jméno muže rodu v 1. pádu (lord.md – Jména)', () => {
     expect(chronicleText({ day: 3, kind: 'line-named', name: 'Mrdomír' }, 'Ves')).toBe(
-      'Muž rodu dostal jméno Mrdomír.',
+      'Muž rodu dostal jméno – Mrdomír.',
     );
+    // kronika říká, koho se jméno týká (lord.md – Kde se jméno ukazuje)
+    const son = { day: 3, kind: 'line-named', name: 'Bořivoj', who: 'son' } as const;
+    expect(chronicleText(son, 'Ves')).toBe('Syn vojvody dostal jméno – Bořivoj.');
+    expect(chronicleText({ ...son, who: 'lord' }, 'Ves')).toBe('Vojvoda dostal jméno – Bořivoj.');
   });
 });

@@ -73,6 +73,7 @@ import {
 } from './relocation-view';
 
 import { manorView } from './manor-view';
+import { dynastyView } from './dynasty-view';
 import { horsesView, type VillageHorses } from './horse-view';
 
 import { dugSitesField } from './ore-site-view';
@@ -331,6 +332,7 @@ export function buildVillageView(
     fieldCapacity: fieldCapacityView(state, day, summary.crafts.coverage.pottery),
     commonLaborPerDay: summary.commonLaborPerDay,
     lord: state.labor?.lord ?? null,
+    dynasty: dynastyView(state, day),
     fullHousehold: summary.fullHousehold,
     build: buildOptions(state, landscape, summary.crafts.coverage),
     relocation: relocationOptions(state, landscape),

@@ -19,11 +19,15 @@ export function normalizePersonName(name: string): string {
  * Jméno muže rodu po normalizaci (lord.md – Jména; Martin 24. 10. 2026: „Vlastní text bez
  * kontroly. Povolená jsou jen písmena.“): jen písmena Unicode (i diakritika, cyrilice) a 1 až
  * `LORD.nameMaxLength` znaků (počítají se znaky, ne jednotky UTF-16). Prázdné – `missing`.
+ * Neviditelná „písmena“ (výplně hangulu U+115F, U+1160, U+3164, U+FFA0 – vlastnost Unicode
+ * Default_Ignorable_Code_Point) neprojdou – jméno nesmí vypadat prázdné ani skrývat znaky.
  */
 export function checkPersonName(name: string, missing = LORD_NAME_MISSING): PlacementCheck {
   const normalized = normalizePersonName(name);
   if (normalized.length === 0) return { ok: false, reason: missing };
-  if (!/^\p{L}+$/u.test(normalized)) return { ok: false, reason: 'Jen písmena.' };
+  if (!/^\p{L}+$/u.test(normalized) || /\p{Default_Ignorable_Code_Point}/u.test(normalized)) {
+    return { ok: false, reason: 'Jen písmena.' };
+  }
   if ([...normalized].length > LORD.nameMaxLength) {
     return { ok: false, reason: `Nejvýš ${LORD.nameMaxLength} písmen.` };
   }

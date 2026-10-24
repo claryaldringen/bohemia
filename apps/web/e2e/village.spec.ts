@@ -261,8 +261,25 @@ async function newPlayer(page: Page, prefix: string): Promise<{ email: string; s
   return { email, seat: await seat(email) };
 }
 
-/** Založí ves umístěním první zemnice z mřížky staveb. */
-async function found(page: Page, dwelling: Position): Promise<void> {
+/** Pojmenuje vojvodu v panelu jména před založením vsi (lord.md – Kde se jméno zadává). */
+async function nameLord(page: Page, name: string): Promise<void> {
+  const panel = page.getByTestId('line-name-panel');
+  await expect(panel).toBeVisible({ timeout: 30_000 });
+  await panel.getByTestId('line-name-input').fill(name);
+  await panel.getByTestId('line-name-input').press('Enter');
+  await expect(panel).toHaveCount(0);
+}
+
+/**
+ * Založí ves umístěním první zemnice z mřížky staveb – nejdřív pojmenuje vojvodu (`lordName`; null
+ * – vojvoda už jméno má).
+ */
+async function found(
+  page: Page,
+  dwelling: Position,
+  lordName: string | null = 'Bořivoj',
+): Promise<void> {
+  if (lordName !== null) await nameLord(page, lordName);
   await page.getByTestId('build-grid').getByRole('button', { name: 'Zemnice' }).click();
   await confirmPlacement(page, { kind: 'dwelling', type: 'zemnice', position: dwelling });
   // ves zakládají 4 lidé – v den založení se ale může narodit dítě, proto aspoň 4
@@ -363,6 +380,105 @@ test('nový hráč založí ves umístěním zemnice, přejmenuje ji a vybere ze
   // Ves je uložená na serveru – po novém načtení stránky je tu dál i s novým jménem.
   await page.reload();
   await expect(page.getByTestId('village-name')).toHaveText('Testovice', { timeout: 30_000 });
+});
+
+test('jména rodu – vojvoda před první zemnicí, syn bez jména čeká upozorněním', async ({
+  page,
+}) => {
+  const { seat: s } = await newPlayer(page, 'jmena');
+  const spots = villageSpots(s.landscape);
+  // Bez vsi se nejdřív pojmenuje vojvoda – zemnice počká (lord.md – Kde se jméno zadává).
+  const panel = page.getByTestId('line-name-panel');
+  await expect(panel).toBeVisible({ timeout: 30_000 });
+  await expect(panel).toHaveAttribute('data-lord', 'true');
+  await expect(
+    page.getByTestId('build-grid').getByRole('button', { name: 'Zemnice' }),
+  ).toBeDisabled();
+  const input = panel.getByTestId('line-name-input');
+  const confirm = panel.getByTestId('line-name-confirm');
+  // Jen písmena – důvod u kurzoru (popisek fajfky), fajfka zašedlá.
+  await input.fill('Bořivoj1');
+  await expect(confirm).toBeDisabled();
+  await confirm.hover({ force: true });
+  await expect(
+    panel.getByRole('tooltip').filter({ hasText: 'Jen písmena.' }).first(),
+  ).toBeVisible();
+  // Kostka navrhne jméno ze seznamu rodu.
+  await panel.getByTestId('line-name-dice').click();
+  await expect(input).toHaveValue(/^\p{L}+$/u);
+  await expect(confirm).toBeEnabled();
+  await page.screenshot({ path: test.info().outputPath('line-name-panel.png'), scale: 'css' });
+  await input.fill('Mrdomír');
+  await input.press('Enter');
+  await expect(panel).toHaveCount(0);
+
+  await found(page, spots.dwelling, null);
+  const founded = await villageState(s.settlementId);
+  const lordId = founded.dynasty!.lordId!;
+  expect(founded.people.find((p) => p.id === lordId)?.name).toBe('Mrdomír');
+  // Jméno v panelu vojvody – první řádek nad rolí, popisek portrétu „Mrdomír – Vojvoda“.
+  await page.evaluate((id) => window.__bohemiaE2E!.selectPerson!(id), lordId);
+  const selection = page.getByTestId('selection-panel');
+  await expect(selection.getByTestId('selection-person-name')).toHaveText('Mrdomír');
+  await expect(selection).toContainText('Mrdomír – Vojvoda');
+
+  // Syn vojvody bez jména (narodil se hlavní manželce) – trvalé upozornění, klik otevře panel.
+  const lord = founded.people.find((p) => p.id === lordId)!;
+  const sonId = Math.max(...founded.people.map((p) => p.id)) + 1;
+  const son: VillageState['people'][number] = {
+    ...lord,
+    id: sonId,
+    bornDay: founded.lastDay - 8 * 365,
+    fatherId: lordId,
+    motherId: lord.spouseId!,
+    mainWifeSon: true,
+  };
+  delete son.name;
+  delete son.spouseId;
+  delete son.arms;
+  founded.people.push(son);
+  await writeVillageState(s.settlementId, founded);
+  await pollVillage(page);
+  const notice = page.getByTestId('pinned-notice');
+  await expect(notice).toHaveText('Syn vojvody čeká na jméno', { timeout: 20_000 });
+  await notice.click();
+  await expect(panel).toHaveAttribute('data-lord', 'false');
+  await input.fill('Ctibor');
+  await input.press('Enter');
+  await expect(panel).toHaveCount(0);
+  await expect(notice).toHaveCount(0, { timeout: 20_000 });
+  const named = await villageState(s.settlementId);
+  expect(named.people.find((p) => p.id === sonId)?.name).toBe('Ctibor');
+  expect(named.chronicle.at(-1)).toMatchObject({ kind: 'line-named', name: 'Ctibor', who: 'son' });
+  await page.evaluate((id) => window.__bohemiaE2E!.selectPerson!(id), sonId);
+  await expect(selection.getByTestId('selection-person-name')).toHaveText('Ctibor');
+  await expect(selection).toContainText('Ctibor – Syn vojvody');
+});
+
+test('psaní jména vojvody nespouští zkratky hry a mimo pole nejde založit ves', async ({
+  page,
+}) => {
+  await newPlayer(page, 'psani');
+  const panel = page.getByTestId('line-name-panel');
+  await expect(panel).toBeVisible({ timeout: 30_000 });
+  const input = panel.getByTestId('line-name-input');
+  const zemnice = page.getByTestId('build-grid').getByRole('button', { name: 'Zemnice' });
+  // Písmeno zkratky (Z = zemnice), mezera, šipky i Ctrl + A zůstanou v poli.
+  await input.fill('');
+  await input.press('KeyZ');
+  await input.press('Space');
+  await input.press('KeyB');
+  await input.press('ArrowLeft');
+  await input.press('ArrowRight');
+  await input.press('Control+A');
+  await input.press('End');
+  await expect(input).toHaveValue('z b');
+  await expect(zemnice).toHaveAttribute('aria-pressed', 'false');
+  // Zkratka stavby po kliku mimo pole nezačne umisťovat zemnici, dokud vojvoda nemá jméno.
+  await page.mouse.click(10, 300);
+  await page.keyboard.press('z');
+  await expect(zemnice).toHaveAttribute('aria-pressed', 'false');
+  await expect(panel).toBeVisible();
 });
 
 test('obydlí jde stavět, jen když je kým ho osadit – pole kdykoli', async ({ page }) => {
@@ -734,6 +850,8 @@ test('nabídka hry (F10) zruší umisťování a Začít znovu se živou vsí po
   await expect(grid.getByRole('button')).toHaveCount(1);
   await expect(grid.getByRole('button', { name: 'Zemnice' })).toBeVisible();
   await expect(page.getByTestId('village-name')).toHaveCount(0);
+  // panel jména vojvody znovu, předvyplněný posledním jménem (lord.md – Kde se jméno zadává)
+  await expect(page.getByTestId('line-name-input')).toHaveValue('Bořivoj');
 
   const fresh = await seat(email);
   expect(fresh.settlementId).not.toBe(s.settlementId);

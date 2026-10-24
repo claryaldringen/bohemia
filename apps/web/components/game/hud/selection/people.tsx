@@ -15,26 +15,46 @@ import { TargetButton, Stat, ROW, Flag } from './parts';
 export function PersonPortrait({
   icon,
   name,
+  personName = null,
   testId = 'selection-person-portrait',
 }: {
   icon: string;
   name: string;
+  /**
+   * Jméno muže rodu (lord.md – Kde se jméno ukazuje): první řádek nad rolí, popisek portrétu
+   * „Bořivoj – Syn vojvody“; ostatní lidé bez jména.
+   */
+  personName?: string | null;
   testId?: string;
 }): ReactElement {
+  const image = (
+    <div className="hud-inset h-20 w-20 overflow-hidden rounded">
+      <img
+        src={`/icons/resources/${icon}.png`}
+        alt=""
+        width={64}
+        height={64}
+        data-testid={testId}
+        data-portrait={icon}
+        className="h-full w-full"
+      />
+    </div>
+  );
   return (
     <div className="flex min-w-20 shrink-0 flex-col items-center gap-1">
-      <div className="hud-inset h-20 w-20 overflow-hidden rounded">
-        <img
-          src={`/icons/resources/${icon}.png`}
-          alt=""
-          width={64}
-          height={64}
-          data-testid={testId}
-          data-portrait={icon}
-          className="h-full w-full"
-        />
-      </div>
+      {personName === null ? (
+        image
+      ) : (
+        <Tooltip content={`${personName} – ${name}`} placement="above">
+          <div tabIndex={0}>{image}</div>
+        </Tooltip>
+      )}
       <h2 className="text-center font-serif text-sm leading-tight whitespace-nowrap text-[#f3dfb0]">
+        {personName !== null && (
+          <span data-testid="selection-person-name" className="block text-base">
+            {personName}
+          </span>
+        )}
         {name}
       </h2>
     </div>

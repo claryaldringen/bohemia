@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { newNotices, otherVillageNotices, villageNotices } from '../village-notices';
+import {
+  lineNameNotice,
+  newNotices,
+  otherVillageNotices,
+  villageNotices,
+} from '../village-notices';
 import type { VillageListItem } from '../village-list';
 import type { VillageView } from '../village-view';
 
@@ -906,5 +911,52 @@ describe('nákup u sousedů (crafts.md)', () => {
         text: 'Vesničané koupili nástroje a keramiku u souseda (sever)',
       },
     ]);
+  });
+});
+
+describe('lineNameNotice – muži rodu bez jména (lord.md – Kde se jméno zadává)', () => {
+  const dynasty = (
+    unnamed: { id: number; age: number; lord: boolean }[],
+  ): VillageView['dynasty'] => ({
+    lordId: 1,
+    unnamed,
+    taken: [],
+    waitingHome: [],
+  });
+
+  it('bez čekajících (i bez rodu) nic', () => {
+    expect(lineNameNotice(null)).toBeNull();
+    expect(lineNameNotice(view())).toBeNull();
+    expect(lineNameNotice(view({ dynasty: dynasty([]) }))).toBeNull();
+  });
+
+  it('syn vojvody čeká – počet všech, panel na prvního ve frontě', () => {
+    const sons = dynasty([
+      { id: 7, age: 2, lord: false },
+      { id: 9, age: 0, lord: false },
+    ]);
+    expect(lineNameNotice(view({ dynasty: sons }))).toEqual({
+      kind: 'line-name',
+      tone: 'warn',
+      text: 'Syn vojvody čeká na jméno',
+      count: 2,
+      personId: 7,
+    });
+    const lord = dynasty([{ id: 1, age: 30, lord: true }]);
+    expect(lineNameNotice(view({ dynasty: lord }))).toMatchObject({
+      text: 'Vojvoda čeká na jméno',
+      count: 1,
+      personId: 1,
+    });
+  });
+
+  it('„Rodina čeká na dům“ jmenuje ženaté syny, kteří čekají v dvorci', () => {
+    const waiting = view({
+      fullHousehold: true,
+      dynasty: { ...dynasty([])!, waitingHome: ['Bořivoj', 'Ctibor'] },
+    });
+    expect(villageNotices(waiting).find((n) => n.kind === 'full-household')?.text).toBe(
+      'Rodina čeká na dům – Bořivoj, Ctibor',
+    );
   });
 });

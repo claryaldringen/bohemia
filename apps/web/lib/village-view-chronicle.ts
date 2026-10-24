@@ -234,7 +234,11 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
     case 'line-birth':
       return 'Vojvodovi se narodil syn.';
     case 'line-named':
-      return `Muž rodu dostal jméno ${event.name}.`;
+      return event.who === 'lord'
+        ? `Vojvoda dostal jméno – ${event.name}.`
+        : event.who === 'son'
+          ? `Syn vojvody dostal jméno – ${event.name}.`
+          : `Muž rodu dostal jméno – ${event.name}.`;
     case 'lord':
       return event.name === undefined
         ? 'Ves má nového vojvodu.'

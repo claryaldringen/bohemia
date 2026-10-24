@@ -21,6 +21,8 @@ export type PersonRole =
   | `${HouseholdTitle}-daughter`
   | 'voivode-grandson'
   | 'voivode-daughter-in-law'
+  /** Vedlejší manželka vojvody (lord.md – Manželky) – i ve vlastním domě mimo dvorec. */
+  | 'voivode-secondary-wife'
   | 'old-man'
   | 'old-woman'
   | 'child'
@@ -77,6 +79,7 @@ export const ROLE_NAMES: Record<PersonRole, string> = {
   'voivode-daughter': 'Dcera vojvody',
   'voivode-grandson': 'Vnuk vojvody',
   'voivode-daughter-in-law': 'Snacha vojvody',
+  'voivode-secondary-wife': 'Vojvodova vedlejší žena',
   farmer: 'Rolník',
   'farmer-wife': 'Žena rolníka',
   'farmer-son': 'Syn rolníka',
@@ -152,6 +155,9 @@ export function personRoles(
     if (p.father !== undefined) parents.add(p.father);
   }
   const roles = new Map<number, PersonRole>();
+  // vedlejší manželka vojvody (lord.md – Manželky): jeho žena, ale on má za hlavní manželku jinou
+  const lordId = homes.lordId ?? null;
+  const lord = lordId === null ? undefined : people.find((p) => p.id === lordId);
   for (const [home, members] of byHome) {
     const title: HouseholdTitle =
       homes.manor === home ? 'voivode' : (homes.craft(home) ?? 'farmer');
@@ -166,7 +172,11 @@ export function personRoles(
       (p.father !== undefined && couple.has(p.father));
     const ids = new Map(members.map((p) => [p.id, p]));
     for (const p of members) {
-      roles.set(p.id, roleOf(p, title, head, childOfHead, ids, parents));
+      const secondary = lord !== undefined && p.spouse === lord.id && lord.spouse !== p.id;
+      roles.set(
+        p.id,
+        secondary ? 'voivode-secondary-wife' : roleOf(p, title, head, childOfHead, ids, parents),
+      );
     }
   }
   return roles;

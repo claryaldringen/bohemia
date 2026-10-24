@@ -38,6 +38,8 @@ export interface ScenePerson {
   sex: Sex;
   home: number;
   role: PersonRole;
+  /** Jméno muže rodu (lord.md – Kde se jméno ukazuje); ostatní lidé jsou bez jmen. */
+  name?: string;
   arms?: ArmsView;
   horse?: true;
 }
@@ -77,6 +79,9 @@ export function scenePersons(
   const arms = new Map(
     state.people.flatMap((p) => (p.arms ? [[p.id, armsView(p.arms)] as const] : [])),
   );
+  const names = new Map(
+    state.people.flatMap((p) => (p.name !== undefined ? [[p.id, p.name] as const] : [])),
+  );
   return people
     .map((p) => ({
       id: p.id,
@@ -84,6 +89,7 @@ export function scenePersons(
       sex: p.sex,
       home: p.home,
       role: roles.get(p.id)!,
+      ...(names.has(p.id) ? { name: names.get(p.id)! } : {}),
       ...(arms.has(p.id) ? { arms: arms.get(p.id)! } : {}),
       ...(riders.has(p.id) ? { horse: true as const } : {}),
     }))

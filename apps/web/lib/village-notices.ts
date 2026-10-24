@@ -192,7 +192,10 @@ export function villageNotices(view: VillageView): VillageNotice[] {
   // rodina, která smí odejít, nemá kam (dřív „Domácnost je plná“ – od 19. 10. 2026 smí ženatý pár
   // odejít i z neplného domu, kinship.md – Lidé k osídlení)
   if (view.fullHousehold) {
-    notices.push({ kind: 'full-household', tone: 'info', text: 'Rodina čeká na dům' });
+    // ženatí synové rodu v dvorci čekají na dům jménem (lord.md – Kde se jméno ukazuje)
+    const sons = view.dynasty?.waitingHome ?? [];
+    const text = sons.length > 0 ? `Rodina čeká na dům – ${sons.join(', ')}` : 'Rodina čeká na dům';
+    notices.push({ kind: 'full-household', tone: 'info', text });
   }
   // stádo se nevejde do ohrad – nadbytek půjde při porážce na maso (oxen.md – Ohrady podle druhu)
   const short = view.penShort ?? [];
@@ -524,4 +527,33 @@ function chronicleNotices(previous: VillageView, next: VillageView): VillageNoti
     notices.push(notice);
   }
   return notices;
+}
+
+/**
+ * Trvalé upozornění „Syn vojvody čeká na jméno“ (lord.md – Kde se jméno zadává; Martin 24. 10. 2026:
+ * „Hráči se vypíše upozornění a bude se čekat na jeho reakci.“) – nemizí jako ostatní, dokud hráč
+ * muže nepojmenuje. Text podle prvního ve frontě (vojvoda, jinak nejstarší syn), číslo je počet
+ * všech čekajících; klik otevře panel jména na `personId`.
+ */
+export interface LineNameNotice {
+  kind: 'line-name';
+  tone: 'warn';
+  text: string;
+  count: number;
+  personId: number;
+}
+
+/** Upozornění na muže rodu bez jména; nikdo nečeká (nebo ves vymřela) – null. */
+export function lineNameNotice(view: VillageView | null): LineNameNotice | null {
+  if (!view || view.extinct) return null;
+  const unnamed = view.dynasty?.unnamed ?? [];
+  const first = unnamed[0];
+  if (!first) return null;
+  return {
+    kind: 'line-name',
+    tone: 'warn',
+    text: first.lord ? 'Vojvoda čeká na jméno' : 'Syn vojvody čeká na jméno',
+    count: unnamed.length,
+    personId: first.id,
+  };
 }
