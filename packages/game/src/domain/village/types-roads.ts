@@ -132,6 +132,19 @@ export interface RoadLaborShare {
   manDays: number;
 }
 
+/**
+ * Vyšlapanost (paths.md – Vyšlapanost a vznik cesty): setiny cesty na políčko 7,5 m, sčítá se po
+ * intervalech (`paths/wear.ts` – `settleWear`).
+ */
+export interface RoadWear {
+  /** Den posledního sčtu – `cells` platí na jeho začátek. */
+  day: number;
+  /** Nenulová políčka – seřazené klíče, rozdíly a hodnoty jako varint v base64 (`encodeWear`). */
+  cells: string;
+  /** Práce od `day` po místech (člověkodny celkem) – v intervalu ji nesou trasy za prací. */
+  labor: RoadLaborShare[];
+}
+
 /** Pevné cesty vsi (roads.md). */
 export interface VillageRoads {
   /** Další id úseku, místa a stromu (strom: ROAD_TREE_ID_BASE + id). */
@@ -194,6 +207,8 @@ export interface VillageRoads {
    * i bez cesty (úvoz je v krajině). Chybí = žádné.
    */
   earthworks?: RoadEarthwork[];
+  /** Vyšlapanost (paths.md – Vyšlapanost a vznik cesty); chybí = ještě se nesčítá. */
+  wear?: RoadWear;
 }
 
 /** Bod profilu vozové cesty – osa (m, na cm) a navržená výška pláně (m, na cm). */

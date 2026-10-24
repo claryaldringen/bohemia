@@ -91,6 +91,19 @@ export const CART_TRAMPLE = {
 // paths.md – Kudy (návrh Clauda, Úloha 2): zvyk – místo bez vyšlapané pěšiny stojí pro výběr trasy
 // o `offRoad` (25 %) víc, plně vyšlapané nic; čas chůze se počítá skutečnými rychlostmi
 export const ROUTE_HABIT = { offRoad: 0.25 } as const;
+// paths.md – Vyšlapanost a vznik cesty (návrh Clauda, Úloha 3a): číslo na políčko `cellM` (7,5 m)
+// v setinách cesty – trasa přidá své cesty za den, tráva ubere `regrowPerDay` (1 cesta), mezi 0
+// a `max` (1 500 cest); cesta vznikne od `roadAt` (1 000), prodlouží se, kudy je aspoň `extendFrom`
+// (500), pěšina je vidět od `visibleFrom` (50); jízda vozu za `cartWeight` cesty
+export const WEAR = {
+  cellM: 7.5,
+  regrowPerDay: 100,
+  max: 150_000,
+  roadAt: 100_000,
+  extendFrom: 50_000,
+  visibleFrom: 5_000,
+  cartWeight: 2,
+} as const;
 // wagons.md – Vyjeté cesty (návrh Clauda): úsek, kudy vozy dva roky po sobě jezdí aspoň
 // `tripsPerDay` jízd denně (roční průměr – ≈ 90 jízd za rok), se stane vozovou cestou; vozová cesta,
 // kudy 5 let po sobě jezdí pod polovinou, je zas jen pěší (zaroste podle provozu lidí)

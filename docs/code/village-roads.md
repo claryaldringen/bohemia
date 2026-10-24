@@ -352,3 +352,29 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
     `keepRoutes`); stará ves bez tras nebo s jiným otiskem je dostane při načtení – `withRoutes`
     v `updateVillage` po dopočtu (síť dne `lastDay`, bez posunu dne, jednou a idempotentně). Testy
     `routes.test.ts`, use-case ve `villages.test.ts`.
+- **Vyšlapanost** (nový systém cest, Úloha 3a – jádro, ze simulace se zatím nevolá;
+  [paths.md – Vyšlapanost a vznik cesty](../design/paths.md#vyšlapanost-a-vznik-cesty)):
+  `VillageRoads.wear?` (`RoadWear { day, cells, labor }`) – setiny cesty na políčko 7,5 m světa,
+  čísla `WEAR` v `rules-roads.ts` (práh cesty `roadAt` 100 000, strop `max` 150 000, tráva ubere
+  `regrowPerDay` 100 denně). `paths/wear.ts`: klíč políčka `wearKey(i, j)` / `wearCellAt(x, z)`,
+  kódování `encodeWear` / `decodeWear` (seřazené klíče, rozdíl klíče a hodnota jako varint v base64
+  – 5 bitů na znak, nuly se neukládají), `wearCellsOf(route, cellM)` – políčka trasy ± 1, každé
+  jednou. **Provozní pole** `trafficField(routes, cellM)` se spočítá jednou pro `routes.key` (pár
+  posledních sad v paměti, kontrola počtu tras a součtu cest) – `cells`: cesty za den, které se
+  sčítají (trasy mimo práci celé, trasy `work` jen stálá část `StoredRoute.base`; `base` zapisuje
+  `network-targets.ts` přes `TripGroup.baseWeights` u pole, sadu, ohrady a staveniště a
+  `storedRoutes` ji ukládá), `targets`: pro cíl práce (`StoredRoute.to`) políčka tras k němu a kolik
+  cest jimi vede, `walk`: celé `trips` všech tras; `trafficAt(field, x, z)` čte `walk` (provoz pro
+  zarůstání). `wearKey` mimo ± 32 768 políček vyhodí `RangeError`. `settleWear(wear, field, fromDay, toDay)` projde jen
+  sjednocení políček pole, práce a vyšlapanosti: `w = clamp(min(w + práce, max) + (provoz − 100) × dny, 0, max)`, práce intervalu `wear.labor` (klíč `wearLaborKey` = cíl trasy) se rozdělí po políčkách
+  tras k cíli podle jejich cest za den (celé setiny, dolů); vynuluje `labor`, posune `day`, vrátí
+  počet prošlých políček; poslední sečtená políčka drží v paměti (další interval je nedekóduje, ale
+  `encodeWear` běží po každém intervalu – **povinnost Úlohy 3b:** držet pracovní `Map` v paměti a
+  kódovat jen při uložení stavu, studená políčka srovnávat jen při uložení; změřit `settleWear` a
+  `encodeWear` zvlášť) –
+  syntetické měření ≈ 1,3 ms na interval při 4,5 tisících políček. Celá čísla, dopočet po kouscích
+  = najednou (provoz v intervalu stálý).
+  Ve výběru trasy: `PathNetworkInput.wear` (dekódovaná vyšlapanost) – `wearStrengths` dá buňkám
+  okna sílu vyšlapanost / `roadAt` (od `visibleFrom`), `computePathNetwork` ji drží jako spodní mez
+  síly jako u pevných cest, takže se trasy slévají po vyšlapaných pěšinách. Kdo ji předá (Úloha 3b),
+  musí ji zahrnout do klíče sítě. Testy `wear.test.ts`, slévání ve `paths-network.test.ts`.

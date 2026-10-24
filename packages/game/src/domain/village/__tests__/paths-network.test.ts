@@ -15,6 +15,8 @@ import {
   type PathVillage,
 } from '../paths/network';
 import { WATER_FETCHING } from '../rules';
+import { WEAR } from '../rules-roads';
+import { wearCellAt } from '../paths/wear';
 import { villageGrid } from '../paths/network-grid';
 import { trodden } from '../paths/network-search';
 import { pathCostFactor } from '../paths/walk-speed';
@@ -471,6 +473,44 @@ describe('computePathNetwork – pěšiny vsi', () => {
     // společný úsek je silnější než pěšina jedné domácnosti
     const strengths = network.lines.map((l) => Math.max(...l.strength));
     expect(Math.max(...strengths)).toBeGreaterThan(Math.min(...strengths));
+  });
+
+  it('trasy se slévají po vyšlapanosti – bez ní jde každá domácnost ke hřbitovu zvlášť', () => {
+    // domy daleko od sebe jako u návštěv hřbitova níž – bez vyšlapanosti se trasy neslijí
+    const people = { children: 0, adults: 8, elders: 0 };
+    const v = village({
+      dwellings: [house(1, -40, 0), house(2, 40, 0)],
+      cemeteries: [{ id: 7, squares: [part(-7.5, -67.5), part(7.5, -67.5)] }],
+      labor: { day: 4000, month: 6, people, shares: [] },
+    });
+    // vyšlapaná pěšina první domácnosti ke hřbitovu a od druhého domu šikmo k ní – kmen do Y
+    const wear = new Map<number, number>();
+    const tread = (ax: number, az: number, bx: number, bz: number): void => {
+      const n = Math.ceil(Math.hypot(bx - ax, bz - az));
+      for (let i = 0; i <= n; i++) {
+        wear.set(wearCellAt(ax + ((bx - ax) * i) / n, az + ((bz - az) * i) / n), WEAR.roadAt);
+      }
+    };
+    tread(-41, 8, -15, -15);
+    tread(-15, -15, -15, -50);
+    tread(-15, -50, -11, -60);
+    tread(41, 8, -15, -15);
+    // buňky, které obě trasy ke hřbitovu sdílejí (kmen)
+    const shared = (wearOf?: ReadonlyMap<number, number>): number => {
+      const n = computePathNetwork({
+        village: v,
+        terrain,
+        keepRoutes: true,
+        ...(wearOf ? { wear: wearOf } : {}),
+      });
+      const [a, b] = (n.routes ?? [])
+        .filter((r) => r.to === 'cemetery:7')
+        .map((r) => new Set(r.cells));
+      return [...a!].filter((c) => b!.has(c)).length;
+    };
+    // bez vyšlapanosti se trasy potkají až u branky, s ní jdou ≥ 30 m společným kmenem
+    expect(shared()).toBeLessThanOrEqual(2);
+    expect(shared(wear)).toBeGreaterThanOrEqual(8);
   });
 
   it('nové obydlí pěšiny teprve vyšlapává (stáří), odjakživa stojící je má', () => {

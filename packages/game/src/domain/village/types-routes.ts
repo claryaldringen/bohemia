@@ -23,6 +23,11 @@ export interface StoredRoute {
   start: [number, number];
   /** Kroky po 8 směrech, 3 bity na krok – dva kroky na znak base64, lichý konec s `=`. */
   steps: string;
+  /**
+   * Stálá část `trips` (setiny cest za den) – chůze na zavedené místo (pole, sad, ohrada, vchod
+   * stavby), ne práce dne. Nese vyšlapanost i provoz; chybí = 0 (starší trasy). Nejvýš `trips`.
+   */
+  base?: number;
   /** Stavba, jejíž provoz trasa nese (`<druh>:<id>` – abandonment.md, `PathNetwork.visits`). */
   visit?: string;
 }

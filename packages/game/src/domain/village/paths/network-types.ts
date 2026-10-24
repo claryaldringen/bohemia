@@ -90,6 +90,8 @@ export interface NetworkRoute {
   /** Cest za den (váha trasy v provozu). */
   trips: number;
   cells: number[];
+  /** Stálá část `trips` (chůze na zavedené místo, ne práce dne). */
+  base?: number;
   visit?: string;
 }
 
@@ -262,6 +264,12 @@ export interface PathNetworkInput {
   annual?: boolean;
   /** Zapsat trasy posledního kola (`PathNetwork.routes`) – čáry ani provoz se tím nemění. */
   keepRoutes?: boolean;
+  /**
+   * Vyšlapanost (`decodeWear` – wear.ts): síla pěšiny buňky nikdy neklesne pod vyšlapanost / práh
+   * cesty (od viditelné), takže se trasy slévají po vyšlapaných pěšinách (paths.md – Slévání).
+   * Chybí = žádná.
+   */
+  wear?: ReadonlyMap<number, number>;
 }
 
 /** Kola hledání: první trasy (každá další se přidá k už vyšlapaným) a jedno kolo se slevou z prvního. */

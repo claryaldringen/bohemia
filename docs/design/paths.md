@@ -217,6 +217,18 @@ přitom ležet každý rok přesně na stejném místě.“):
   sadu tras (`routes.key`) a drží v paměti, ne ve stavu. Interval pak projde jen políčka s provozem
   nebo s vyšlapaností – jinak by se při dopočtu desítek let (intervaly po dnech, kdy se ves mění)
   trasy razítkovaly znovu a znovu. Z téhož pole bere provoz i stav kusů cest (Zarůstání).
+- **Trasy za prací (návrh Clauda, 24. 10. 2026):** trasy s účelem práce (pole, sad, stavby,
+  ohrady, kácení, seč…) nesou v intervalu skutečně odvedenou práci (`wear.labor`, 1 cesta na
+  člověkoden), rozdělenou po trasách k cíli podle jejich cest za den; práce dne, kdy se trasy počítaly, se
+  do vyšlapanosti nepočítá – jinak by se práce jednoho dne počítala celý interval. **Stálá část**
+  cest (`StoredRoute.base` – chůze na zavedené místo: pole 1,6 cesty za den, ladem 0,4, sad,
+  ohrada, vchod stavby, staveniště) vyšlapanost nese celou dobu, jako každá jiná trasa („ke každé
+  stavbě, kam se chodí, vede cesta“ – Martin, #6), a práce z `wear.labor` se přičte navíc; trasy
+  bez `base` (starší stav) mají stálou část 0. Provoz kusů cest (`trafficAt`, zarůstání) je u tras
+  za prací vždy celé `trips`. Zjednodušení: nošení uhlí, rudy a hlíny se počítá 1 cestou na
+  člověkoden; práce bez pěší trasy (celá ves, vůz pro vodu) se nepočítá. Práce intervalu se
+  přičte před chůzí a dorůstáním (ořez na strop, pak na 0 a strop); zlomky podílů práce po
+  políčkách se zaokrouhlují dolů (až 1 setina na políčko a interval).
 - **Pěšina, kterou hráč vidí**, jsou čáry tras se silou = vyšlapanost / 1 000 (nejvýš 1), od
   vyšlapanosti 50; vzhled jako dřív pěšina dne (nevýrazná: pás 0,6–1,2 m, krytí 0,2–0,45 – Martin 19. 10. 2026). Nová pěšina tak začíná slabě a sílí, až se z ní stane cesta.
 - **Cesta vznikne**, když vyšlapanost podél trasy dosáhne **1 000**. Měsíční kontrola (1. dne

@@ -111,12 +111,17 @@ export function routeLine(route: RouteCode, cellM: number): PathPoint[] {
 export function storedRoutes(network: Pick<PathNetwork, 'routes' | 'traffic'>): StoredRoute[] {
   return (network.routes ?? [])
     .filter((r) => r.trips >= MIN_TRIP)
-    .map((r) => ({
-      from: r.from,
-      to: r.to,
-      purpose: r.purpose,
-      trips: Math.round(r.trips * 100),
-      ...encodeRoute(r.cells, network.traffic),
-      ...(r.visit ? { visit: r.visit } : {}),
-    }));
+    .map((r) => {
+      const trips = Math.round(r.trips * 100);
+      const base = Math.min(trips, Math.round((r.base ?? 0) * 100));
+      return {
+        from: r.from,
+        to: r.to,
+        purpose: r.purpose,
+        trips,
+        ...(base > 0 ? { base } : {}),
+        ...encodeRoute(r.cells, network.traffic),
+        ...(r.visit ? { visit: r.visit } : {}),
+      };
+    });
 }
