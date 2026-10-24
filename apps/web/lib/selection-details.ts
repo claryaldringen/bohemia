@@ -432,6 +432,8 @@ type SelectionKinds =
       building: { grade: RoadGrade; progress: number; treesToFell: number } | null;
       /** Vylepšení, která úsek nabízí – cena a proč teď nejde. */
       upgrades: RoadUpgradeOption[];
+      /** Rozdělaná úprava nebo vozová cesta, kterou jde zrušit (id stavby); jinak null. */
+      cancelId: number | null;
       /** Vozová cesta (roads.md – Vozová cesta) – stav, průběh stavby a proč teď nejde. */
       wagon: VillageRoad['wagon'];
       /** Jabloně podél úseku a „Vysadit jabloně“ (roads.md – Vysazení jabloní). */
@@ -705,6 +707,8 @@ function cancellableConstruction(
       return among((c) => c.kind === 'orchard' && c.orchardId === details.id);
     case 'pen':
       return among((c) => c.kind === 'pen' && c.penId === details.id);
+    case 'road':
+      return details.cancelId ?? undefined;
     default:
       return undefined;
   }

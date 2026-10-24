@@ -13,6 +13,7 @@ import {
 import { DAYS_PER_TREE_YEAR } from './village-view-buildings';
 import {
   earthworkProgressOf,
+  isCancellable,
   earthworkSpansOf,
   villageWagonEarthworks,
   wagonChainConstruction,
@@ -259,6 +260,17 @@ function chainTreeSpeed(members: readonly Road[]): number {
   return length > 0 ? Math.round((sum / length) * 1000) / 1000 : 0;
 }
 
+/** Rozdělaná úprava (`upgradeId`) nebo vozová cesta cesty `roadId`, kterou jde zrušit; jinak null. */
+function cancelRoadWork(
+  state: VillageState,
+  roadId: number,
+  upgradeId: number | undefined,
+): number | null {
+  const id = upgradeId ?? wagonChainConstruction(state, roadId)?.id;
+  const c = id === undefined ? undefined : state.constructions.find((x) => x.id === id);
+  return c && isCancellable(c) ? c.id : null;
+}
+
 /** Vozová cesta u cesty hráče pro panel – stav, průběh stavby a proč ji teď nejde zadat. */
 function wagonView(
   state: VillageState,
@@ -343,6 +355,7 @@ export function roadViews(
           ? { grade: work.roadGrade, progress: work.progress, treesToFell: work.treesToFell }
           : null,
       upgrades: roadUpgradeOptions(state, r.id, day, obstacles, walk, landscape),
+      cancelId: cancelRoadWork(state, r.id, work?.id),
       wagon: wagonView(state, r.id, earthworks),
       apples: {
         trees: living.length,

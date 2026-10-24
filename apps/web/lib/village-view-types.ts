@@ -210,6 +210,8 @@ export interface VillageRoad {
   /** Rozestavěné vylepšení – na jaký stupeň, průběh 0–1 a stromy ke skácení; jinak null. */
   building: { grade: RoadGrade; progress: number; treesToFell: number } | null;
   upgrades: RoadUpgradeOption[];
+  /** Rozdělaná úprava nebo vozová cesta, kterou jde zrušit (id stavby); jinak null. */
+  cancelId: number | null;
   /**
    * Vozová cesta (roads.md – Vozová cesta): hotová, staví se (průběh 0–1), nebo zatím žádná –
    * a proč ji teď nejde zadat (bez hledání trasy; trasu, cenu a co přinese spočítá náhled ve

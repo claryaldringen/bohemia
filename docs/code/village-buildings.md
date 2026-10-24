@@ -291,7 +291,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `isCancellable`, `cancelConstruction(state, day, constructionId)` (vrací nový stav; RangeError,
   když stavba není nebo nejde). Zrušitelné: `dwelling` (i dílna a stěhování; ne první zemnice
   zakladatelů s `dwellingId`), `field`, `cemetery`, `orchard` (ne obnova – `renewal`), `idol`,
-  `shrine`, `pen`, `threshing-floor`; ostatní druhy (`rebuild`, `repair`, `ard`, `road`,
+  `shrine`, `pen`, `threshing-floor`, `road` (rozdělaná úprava cesty i vozová cesta, ne zemská
+  stezka s `trail` – hotové úseky zůstanou: `dropRoadUpgrade` dá stupeň úsekům, na které podle
+  `roadUpgradeProgress` práce došla; `dropWagonRoad` zkrátí zemní práce na hotové úseky, bez nich je
+  smaže; panel cesty: `VillageRoad.cancelId`); ostatní druhy (`rebuild`, `repair`, `ard`,
   `road-apples`) ne. `dropSite` odstraní vytýčení: nehotové díly pole (`state: 'founding'`),
   nevysázené čtverce sadu (prázdný sad zmizí), čtverce rozšíření hřbitova či ohrady podle
   `constructionId` (základ nehotového hřbitova či ohrady, `builtDay` null, zmizí celý i
