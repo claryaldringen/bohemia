@@ -255,7 +255,7 @@ Dlouhý běh jen v noci (Martin), přes den pozastavit (`kill -STOP` / `-CONT`).
 
 ## Rod vojvody – zakladatelé, manželky, jména, domácnost synů a konec rodu (#9, fáze 1)
 
-Stav: **návrh ke schválení** (24. 10. 2026, issue #9 „Vojvodská rodina“). Implementace zatím není.
+Stav: **schváleno** (Martin 24. 10. 2026: „Schvaluji“; issue #9 „Vojvodská rodina“). Implementace zatím není – přijde po cestách a růstu populace.
 Martin 24. 10. 2026 schválil rozdělení issue do fází: **1)** jména, synové po sňatku odcházejí
 z dvorce, vojvoda cvičí celý život → **2)** dělení vsi a odchod mladšího syna → **3)** správa vsi
 NPC → **4)** seniorát a rodové panství. K nástupnictví a náhodě „bez pozvánky“ Martin: „S tímhle
