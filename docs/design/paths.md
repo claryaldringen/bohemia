@@ -396,7 +396,11 @@ Návrh Clauda:
   stavbu překážka jako balvan, kůl jako keř.
 - Návrh Clauda (24. 10. 2026, Úloha 9a – čisté funkce v `junctions.ts`):
   - **ve scéně (Úloha 12):** obrys křižovatky tvoří pásy ramen v šířce nejširší cesty a vnitřní
-    rohy mezi rameny (kříž jako plus, Y jako tři pásy) – žádný kruh; kámen a kůl mají po dvou
+    rohy mezi rameny (kříž jako plus, Y jako tři pásy) – žádný kruh; plácek má povrch a měkké
+    okraje navazujících cest, vnitřní rohy jsou oblouk a ramena plynule přecházejí do pásů, koleje
+    vozové cesty vedou přes plácek, jen kudy vozová cesta vede skrz (Martin 24. 10. 2026: „ty
+    ostrý křižovatky už jsou upravený?“, „Předtím ty křižovatky byly tedy lepší“ – žádný šedý
+    štěrkový plácek; provedení návrh Clauda); kámen a kůl mají po dvou
     podobách modelu (rozmanitost dá natočení z losu); panel kříže se jmenuje Křižovatka, panel Y
     Rozcestí (jen v popisku portrétu), jinak jen ikony a čísla;
   - **tvar T** (rovná cesta a kolmá odbočka) vyjde podle nejmenšího součtu čtverců jako pootočené

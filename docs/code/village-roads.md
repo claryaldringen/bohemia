@@ -237,14 +237,20 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   `junctionEntranceM`, obrys proti směru hodin: u každého ramene dva rohy ve vchodu (± půl šířky
   nejširší cesty kolmo na rameno) a mezi sousedními rameny vnitřní roh na ose mezery, kde se
   protnou okraje pásů (nejvýš u vchodů, ± 12 % nepravidelnost podle polohy; od mezery 180° střed).
-  `junctionRibbons(junctions, roads)` – plácky po vrstvách obtisku nejširší cesty (vozová cesta pro
-  vozy `wagon` → `roads-wagon-worn/earth`, jinak upravená, jinak vyjetá `cart`, jinak vyšlapaná)
-  s `RibbonJunction.outline`; `path-ribbon.ts` `addOutline` kreslí vějíř ze středu po
-  obrysu a měkký okraj (u vchodů po straně pásu, u vnitřních rohů od středu), obrys pro užší
-  vrstvu (holá hlína) má užší ramena, ale vchody na stejném místě (`RibbonJunction.outlineFor`) –
-  hlína plácku navazuje na hlínu pásů (oprava 24. 10. 2026, Martin: „křižovatky vypadají extrémně
-  divně“ – křižovatka vozových cest se dřív kreslila obtisky upravené cesty jako tmavá skvrna); maska polí (`ribbonTrack`) bere kruh o průměrném
-  poloměru obrysu. Znamení: `junctionLandmarkPieces` → modely `junction-stone-1…2`,
+  Obrys (výběr) má mezi rameny oblouk tečný k okrajům pásů (`CORNER_ROUND` × půl šířky, tečné
+  body nejvýš ve vchodech; mezera od 180° oblouk kolem středu). Obtisk plácku (oprava
+  24. 10. 2026 – Martin: „ty ostrý křižovatky už jsou upravený?“, „Předtím ty křižovatky byly tedy
+  lepší“; šedý štěrk plácku `roads-wagon-gravel-hub` a obrys s tvrdým okrajem zmizely):
+  `junctionCuts` – pásy cest končí v řezu `entranceM + JUNCTION_CUT_EXTRA_M` (1,5 m) od středu
+  (`roadBands(roads, cuts)` vrací i `arms` – kus osy od řezu do středu, druh pásu, sílu),
+  `junctionPatchGrid(arms, cuts, 'worn' | 'earth')` → `junction-patch.ts`: krytí = průřez pásu
+  navazující cesty podle vzdálenosti k osám ramen, ramena slitá hladkým minimem (oblouk ve
+  vnitřních rozích), v řezu přesně průřez pásu; obtisky `roads-junction-worn/earth` (barva
+  a povrch jako cesty, bez štěrku). Koleje (`gravel`, `ruts`) přes plácek jen mezi rameny téhož
+  druhu kolejí, která svírají aspoň 120° (`throughCurve`), jinak dojdou ke středu a vytratí se.
+  Krátký úsek celý v dosahu řezu je celý rameno (`openM` – vytrácí se k volnému konci). Maska
+  polí (`roadTrack`) se neřeže – pásy do středu a kruh o průměrném poloměru obrysu
+  (`junctionRibbons`, plácek upravené vrstvy i u vozové cesty). Znamení: `junctionLandmarkPieces` → modely `junction-stone-1…2`,
   `junction-post-1…2` (`tools/blender/roads.py`, atlas jako hať, 0 A.D. textury, vlastní tvary)
   v instancích `RoadWorks.update(…, junctions)`; strom je dál `roadTrees` (stejně jako dřív).
   Kámen a kůl se jako překážky dál počítají jádrem (`obstacleChangesAt` – balvan a keř), scéna je
