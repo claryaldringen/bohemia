@@ -88,6 +88,15 @@ function fullVillage(day = DAY): VillageState {
   return s;
 }
 
+/**
+ * Dva dospělí 18 let navíc v prvním obydlí (mutuje stav) – vojvodova rodina pak cvičí mimo práci
+ * vsi s dílnou i bez ní (lord.md – Zakládání vsi), srovnání vsí ukáže jen práci dílny.
+ */
+function withTwoMore(s: VillageState): VillageState {
+  s.people.push(person(8, 18, 1, s.lastDay), person(9, 18, 1, s.lastDay));
+  return s;
+}
+
 /** Přidá hotovou dílnu `craft` s domácností dvou dospělých (id lidí od `firstPerson`). */
 function withWorkshop(
   s: VillageState,
@@ -206,8 +215,12 @@ describe('řemeslník na plný úvazek (crafts.md – Práce a jídlo)', () => {
   });
 
   it('práce mužů domácnosti dílny nejde na pole; ženy po domácnosti dělají lehčí práce se vsí', () => {
-    const withCraft = advanceVillage(withWorkshop(fullVillage(), 'potter'), DAY + 1, null);
-    const empty = withWorkshop(fullVillage(), 'potter');
+    const withCraft = advanceVillage(
+      withWorkshop(withTwoMore(fullVillage()), 'potter'),
+      DAY + 1,
+      null,
+    );
+    const empty = withWorkshop(withTwoMore(fullVillage()), 'potter');
     empty.people = empty.people.filter((p) => p.dwellingId !== WORKSHOP_ID);
     const without = advanceVillage(empty, DAY + 1, null);
     // zvířata a domácí výroba jdou bokem (population.md – Práce); řemeslo dělá muž, žena po
@@ -616,13 +629,13 @@ describe('řemeslníci vyrábějí podle potřeby, volný čas pracují pro ves 
   });
 
   it('kovář bez uhlí pomáhá vsi a dílna hlásí, že čeká na uhlí', () => {
-    const s = withWorkshop(fullVillage(), 'smith');
+    const s = withWorkshop(withTwoMore(fullVillage()), 'smith');
     s.crafts = { charcoalKg: 0, potteryKg: 0 };
     const after = advanceVillage(s, DAY + 1, null);
     expect(after.dwellings.find((d) => d.id === WORKSHOP_ID)?.workshop?.activity).toBe(
       'no-charcoal',
     );
-    const empty = withWorkshop(fullVillage(), 'smith');
+    const empty = withWorkshop(withTwoMore(fullVillage()), 'smith');
     empty.people = empty.people.filter((p) => p.dwellingId !== WORKSHOP_ID);
     const without = advanceVillage(empty, DAY + 1, null);
     expect(after.commonLaborHistory.at(-1)!).toBeGreaterThan(without.commonLaborHistory.at(-1)!);

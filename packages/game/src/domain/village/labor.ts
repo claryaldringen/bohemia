@@ -39,6 +39,19 @@ export interface DayAllocationInput {
    */
   light?: number;
   /**
+   * Práce vojvodovy rodiny na poli (lord.md – Kdy jde rodina na pole; `manorLabor`, člověkodny před
+   * štěstím) – samostatný zásobník mimo `capacity` jako `light`: pokryje jen úlohy dne (`tasks` –
+   * pole, orba, seč, sklizeň, výmlat…), nikdy stavby ani opravy; co nevyužije, propadne. Bez
+   * údaje 0.
+   */
+  lordField?: number;
+  /**
+   * Denní minimum dvorce, které rodina nepokryje (`manorLabor` – `uncovered`, člověkodny po štěstí;
+   * domácnost dvorce je jinak z `householdElders` vynechaná) – z práce vsi spolu s denním minimem;
+   * bez údaje 0.
+   */
+  manorMin?: number;
+  /**
    * Přirážka denního minima za chůzi pro vodu po domácnostech (člověkodny, ve stejném pořadí jako
    * `householdElders` – `householdWaterLabor`); bez údaje 0. Kryjí ji starší jako zbytek minima.
    */
@@ -74,6 +87,8 @@ export interface DayAllocation {
   away: number;
   /** Práce sedláků s vozy pro uhlí a rudu (nejvýš `carting`, po výpravách). */
   carting: number;
+  /** Kolik práce vojvodovy rodiny (`lordField`, po štěstí) dnes úlohy dne spotřebovaly. */
+  lordField: number;
   tasks: Record<LaborTaskName, number>;
   /** Práce pro jednotlivé úlohy vstupu v jejich pořadí (stejný název může být víckrát – plodiny). */
   taskAmounts: number[];
@@ -111,7 +126,7 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     adults += adultDailyMin(own, elders, productivity);
   });
   const eldersDailyMin = minimums - adults;
-  const dailyMin = take(adults);
+  const dailyMin = take(adults + Math.max(0, input.manorMin ?? 0));
   // výpravy (trade.md – Doprava): nosiči jsou na cestě celé dny – po denním minimu, před vším
   // ostatním
   const away = take(input.away ?? 0);
@@ -131,19 +146,34 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     'orchard-care': 0,
     'orchard-harvest': 0,
   };
-  // lehká práce žen řemeslníků – jen na lehké úlohy, napřed ta, pak obecná kapacita
+  // lehká práce žen řemeslníků – jen na lehké úlohy, napřed ta, pak práce vojvodovy rodiny na poli
+  // (jen úlohy dne), pak obecná kapacita
   let lightLeft = Math.max(0, (input.light ?? 0) * productivity);
+  const lordPool = Math.max(0, (input.lordField ?? 0) * productivity);
+  let lordLeft = lordPool;
   const taskAmounts = input.tasks.map((task) => {
     let amount = 0;
     if (LIGHT_LABOR_TASKS.has(task.name)) {
       amount = Math.min(task.remaining, lightLeft);
       lightLeft -= amount;
     }
+    const lord = Math.max(0, Math.min(task.remaining - amount, lordLeft));
+    lordLeft -= lord;
+    amount += lord;
     amount += take(task.remaining - amount);
     tasks[task.name] += amount;
     return amount;
   });
-  return { dailyMin, eldersDailyMin, away, carting, tasks, taskAmounts, common: left };
+  return {
+    dailyMin,
+    eldersDailyMin,
+    away,
+    carting,
+    lordField: lordPool - lordLeft,
+    tasks,
+    taskAmounts,
+    common: left,
+  };
 }
 
 /**

@@ -7,6 +7,7 @@ import { toolEquipmentKg } from './iron';
 import { sowingTargets } from './field-food';
 import { expectedNetKg } from './fields';
 import { villageLaborFactor } from './happiness';
+import { lordApartIds } from './lord';
 import { villageFoodCosts } from './husbandry';
 import { villageLegumesKg } from './legumes';
 import { legumeNeedPerYear } from './livestock';
@@ -392,6 +393,8 @@ export function planPurchases(
   const needs = craftNeeds(state, day);
   const costs = villageFoodCosts(state, day, coverage.tools);
   const sown = state.parts.filter((p) => p.state === 'sown' || p.state === 'ready');
+  // cvičící vojvodova rodina práci vsi nedává (lord.md – Den rodiny)
+  const apart = lordApartIds(state, day);
   const ctx: BuyingContext = {
     day,
     coverage,
@@ -401,7 +404,7 @@ export function planPurchases(
     storedKg: Math.max(0, state.storesKg) + villageLegumesKg(state),
     households: new Set(state.people.map((p) => p.dwellingId)).size,
     yearlyLabor:
-      state.people.reduce((sum, p) => sum + laborPerDay(p, day), 0) *
+      state.people.reduce((sum, p) => sum + (apart.has(p.id) ? 0 : laborPerDay(p, day)), 0) *
       DAYS_PER_YEAR *
       villageLaborFactor(state),
     grainPerKg: costs.grainPerKg,

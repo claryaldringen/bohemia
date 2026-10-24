@@ -39,6 +39,7 @@ import {
   workCrafts,
   type SmithSupply,
 } from './crafts';
+import { lordApartIds, lordDayCounts, manorLabor, trainingFamily } from './lord';
 import { nextYearlyCommonLabor, repairNeedPerDay, yearlyCommonLabor } from './dwellings';
 import { animalCareNeed, dailyMilk } from './dairy';
 import { DIET, villageFoodNeed } from './diet';
@@ -205,8 +206,10 @@ export const THRESH_RANK = CROP_ORDER.length * TASK_ORDER.length;
  * population.md). Veškerou práci násobí štěstí (happiness.md). Domácnosti obývaných dílen
  * pracují zvlášť – jen v dílně (crafts.md, `workCrafts`); opravy jejich obydlí platí ves. Zvířata
  * (dojení a péči ženy, pasení výrostci) a domácí výrobu ženy – obojí bokem, z práce vsi
- * nebere (rozdělení práce je má jen pro postavy – `LaborDay.aside`). Vrací, jestli ves dnes
- * nestíhá polní práce v období (dřina).
+ * nebere (rozdělení práce je má jen pro postavy – `LaborDay.aside`). Cvičící vojvodova rodina
+ * je mimo práci vsi (lord.md – Den rodiny), na pole jde jen při hladu (zásobník `lordField`).
+ * Vrací, jestli ves dnes nestíhá polní práce v období (dřina), a podíl práce rodiny na poli, který
+ * dnes úlohy spotřebovaly (`trainLordDay`).
  */
 export function work(
   state: VillageState,
@@ -214,7 +217,7 @@ export function work(
   obstacles: ObstacleLayer | null,
   coverage: CraftCoverage,
   landscape: Landscape | null,
-): { toil: boolean } {
+): { toil: boolean; lordField: number } {
   const month = dateOfDayIndex(day).month;
   // jízdy vozů dne (svoz, voda, uhlí, ruda, klády, osivo) – zapíše `flushCartTrips`
   const cartLog: CartTripLog = [];
@@ -326,11 +329,22 @@ export function work(
   const crafts = craftHouseholds(state, resting);
   // kdo jde pro kování k vozu, ve vsi ani v dílně nepracuje (wagons.md – Kování vozů)
   const travelling = ironTravellers(state);
+  // vojvodova rodina (lord.md – Den rodiny): když cvičí, je mimo práci vsi jako dílny – vojvoda,
+  // jeho synové a ženy rodiny; ostatní v dvorci (zeť) pracují se vsí. Denní minimum dvorce kryje
+  // rodina (`manorLabor`), proto domácnost dvorce v minimu vsi chybí
+  // režim výcviku se rozhodl na začátku dne (`updateLordTraining` v `simulateDay`) – všichni
+  // čtenáři dne (pasení, plán osevu, nákupy, práce) vidí týž stav
+  const family = trainingFamily(state, day);
+  const apart = lordApartIds(state, day);
+  const manorSkip = new Set<number>(family?.lord ? [family.lord.dwellingId] : []);
   const villagers =
-    crafts.size > 0 || travelling.size > 0
-      ? state.people.filter((p) => !crafts.has(p.dwellingId) && !travelling.has(p.id))
+    crafts.size > 0 || travelling.size > 0 || apart.size > 0
+      ? state.people.filter(
+          (p) => !crafts.has(p.dwellingId) && !travelling.has(p.id) && !apart.has(p.id),
+        )
       : state.people;
-  const waterNeeds = householdWater(villagers, state.dwellings);
+  const waterNeeds = householdWater(villagers, state.dwellings, manorSkip);
+  const manor = family ? manorLabor(state, day, coverage.pottery, productivity, family) : null;
   // uhlí ke kováři (crafts.md – Uhlí a ruda kováře): co dnes uhlíři vytahají z vypálených milířů
   // a do které kovárny se to nese
   const deliveries = charcoalDeliveries(
@@ -386,7 +400,11 @@ export function work(
     ),
     // ženy řemeslníků: zbytek po domácnosti jde jen na lehčí polní práce se vsí (crafts.md)
     light: craftLightLabor(state, day, crafts, coverage.pottery, productivity),
-    householdElders: householdElders(villagers, day),
+    // vojvodova rodina na poli při hladu – jen úlohy dne (lord.md – Kdy jde rodina na pole); co
+    // z minima dvorce rodina nepokryje, platí ves
+    lordField: manor && productivity > 0 ? manor.field / productivity : 0,
+    manorMin: manor?.uncovered ?? 0,
+    householdElders: householdElders(villagers, day, manorSkip),
     // chůze pro vodu nad denní minimum (population.md – Práce, paths.md – Pochůzky pro vodu); vodu,
     // kterou přivezl vůz, nenosí a platí díl práce posádky (wagons.md – Co vozy vozí)
     householdWater: jobs.water ? jobs.water.water : waterNeeds.map((h) => h.labor),
@@ -680,8 +698,13 @@ export function work(
   // všechny jízdy dne do provozu cest a pošlapání úrody na jednom místě (wagons.md)
   flushCartTrips(state, cartLog, day, landscape, obstacles);
   const hayMowing = state.hay?.mowing;
+  // podíl práce rodiny na poli, který dnes úlohy spotřebovaly – zbytek dne cvičí (`trainLordDay`)
+  const lordField = manor && manor.field > 0 ? allocation.lordField / manor.field : 0;
   state.labor = laborDay(state, day, {
     allocation,
+    ...(family && manor
+      ? { lord: { domestic: manor.dailyMin, counts: lordDayCounts(family, day, lordField) } }
+      : {}),
     fieldWork: [...fieldWork, ...extra.fieldWork],
     extraField: extra.labor,
     repairs,
@@ -725,7 +748,7 @@ export function work(
     })),
     ...threshSeasonTasks(state, day),
   ];
-  return { toil: isToilDay(seasonTasks, pace, day) };
+  return { toil: isToilDay(seasonTasks, pace, day), lordField };
 }
 
 /**

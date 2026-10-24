@@ -19,7 +19,12 @@ export const LORD = {
    * tolik dospělých mimo rodinu, ať nekmitá mezi prací a cvičením.
    */
   keepVillageAdults: 3,
-  /** lord.md – Den rodiny: hodin výcviku denně podle věku (chlapec 7–9 / 10–13, muž 14–44, starší). */
+  /** lord.md – Den rodiny: od tohoto věku cvičí chlapec jako výrostek (10–13 let – luk, boj, jízda). */
+  youthFrom: 10,
+  /**
+   * lord.md – Den rodiny: hodin výcviku denně podle věku (chlapec 7–9 / 10–13, muž 14–44, vojvoda
+   * v každém věku a muži od 45 let – zbytek dne vojvoda vsi vládne).
+   */
   hours: { boy: 2, youth: 4, man: 6, older: 3 },
   /** lord.md – Den rodiny: rozdělení hodin na luk / boj / jízdu (podíly dne), s koněm a bez. */
   split: {

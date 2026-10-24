@@ -236,9 +236,10 @@ describe('výprava', () => {
   });
 
   it('nosiči mají vlastní podíl práce – výprava trvá jen dny cesty i bez volné práce', () => {
-    // ves se dvanácti dospělými navíc; domácí výroba s velkým nedodělkem sní všechnu volnou práci
+    // ves se čtrnácti dospělými navíc (vojvoda se ženou nenosí – lord.md, Den rodiny); domácí
+    // výroba s velkým nedodělkem sní všechnu volnou práci
     const base = trading();
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 14; i++) {
       base.people.push({
         id: 700 + i,
         bornDay: DAY - Math.ceil((25 + i) * 365.25),

@@ -303,6 +303,11 @@ export interface VillageState {
    * vylepšení vsi. Chybí u vsí uložených dřív – doplní ho `withManor` nebo první dopočítaný den.
    */
   manorId?: number;
+  /**
+   * Režim vojvodovy rodiny (lord.md – Zakládání vsi, Kdy jde rodina na pole): chybí = rodina
+   * pracuje jako ostatní (ves má málo dospělých mimo rodinu, i starší ves před výcvikem).
+   */
+  lord?: LordState;
   /** Zemské stezky k sousedům (trade.md – Zemská stezka); chybí = žádné. */
   trails?: Trail[];
   /** Obchod se sousedy – zásoby a poptávka sousedů a výpravy (trade.md – Obchod); chybí = nic. */
@@ -407,4 +412,17 @@ export interface Trail {
   startedDay: number;
   /** Den dostavění; dokud se staví, null. */
   builtDay: number | null;
+}
+
+/** Režim vojvodovy rodiny (lord.md) – uložený kvůli hysterezi, ať rodina nekmitá den po dni. */
+export interface LordState {
+  /** Rodina cvičí místo práce (`familyTrains` s hysterezí); chybí = pracuje jako ostatní. */
+  trains?: true;
+  /**
+   * Rodina je na poli (lord.md – Kdy jde rodina na pole): od kterého dne a proč – hlad (výhled pod
+   * plný příděl); `sowing` přidá pomoc s potřebným osevem. Chybí = rodina cvičí.
+   */
+  field?: { since: number; reason: 'hunger' | 'sowing' };
+  /** Dní s plným přídělem po sobě, co je rodina na poli – návrat po `LORD.backToTrainingDays`. */
+  fedDays?: number;
 }

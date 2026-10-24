@@ -134,7 +134,9 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
     // otisk se změnil 22. 10. 2026: řemeslo dělají jen muži domácnosti, ženy dávají zbytek práce
     // po domácnosti vsi (crafts.md – Kdo dělá řemeslo); dřív 2f488a15; 23. 10. 2026 podruhé (6bd77b28): práce žen
     // je samostatný zásobník jen na setí, okopávání, žně a výmlat, ne do orby, kácení a staveb;
-    // dřív d7d45927
-    expect(hash(stripped)).toBe('6bd77b28');
+    // dřív d7d45927; 24. 10. 2026 potřetí (e92e2e86): ves má mimo dvorec 4 dospělé dílen, vojvodova
+    // rodina proto cvičí mimo práci vsi a minimum dvorce kryje sama (lord.md – Den rodiny,
+    // Zakládání vsi) – ves má méně práce, jinak staví, orá i jí; dřív 6bd77b28
+    expect(hash(stripped)).toBe('e92e2e86');
   }, 120_000);
 });

@@ -93,6 +93,12 @@ export interface DayWork {
   mowing?: { mowing: HayMowing; before: number; after: number; labor?: number };
   /** Práce řemeslníků po dílnách (crafts.md); bez údaje žádná. */
   workshops?: WorkshopDay[];
+  /**
+   * Cvičící vojvodova rodina (lord.md – Den rodiny): denní minimum dvorce z práce rodiny
+   * (člověkodny – do domácí práce jako u dílen) a počty lidí pro `LaborDay.lord`; bez údaje
+   * rodina pracuje jako ostatní.
+   */
+  lord?: { domestic: number; counts: NonNullable<LaborDay['lord']> };
   /** Pokrytí nástroji dne – podíl žně a odnosu na sklizni (meze); bez údaje 0. */
   toolCoverage?: number;
   /** Nosiči výprav k sousedům po zemských stezkách (trade.md); bez údaje žádní. */
@@ -264,7 +270,10 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
   add(
     'domestic',
     { kind: 'village' },
-    allocation.dailyMin - waterCrew + workshops.reduce((sum, w) => sum + w.domestic, 0),
+    allocation.dailyMin -
+      waterCrew +
+      workshops.reduce((sum, w) => sum + w.domestic, 0) +
+      (work.lord?.domestic ?? 0),
   );
   // řemeslníci: uhlíř a hrnčíř kácejí u svého stromu, výroba v dílně – uhlíř u svých milířů
   // (samostatné stavby u skácených buků – crafts.md, Milíř u skácených buků), a sází mladé buky
@@ -359,6 +368,7 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
     shares,
     ...(work.herders !== undefined ? { herders: work.herders } : {}),
     ...(work.aside ? { aside: asideShares(state, work.aside) } : {}),
+    ...(work.lord ? { lord: work.lord.counts } : {}),
   };
 }
 
