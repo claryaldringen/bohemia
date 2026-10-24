@@ -133,7 +133,7 @@ describe('vylepšení celé cesty hráče', () => {
     const from183 = roadUpgradeOptions(s, 183, DAY, null);
     expect(from103).toEqual(from183);
     expect(from103.map((o) => o.upgrade)).toEqual(['improved']);
-    expect(from103[0]!.laborManDays).toBe(roadUpgradeCost(s.roads!.roads[1]!, 'improved').manDays);
+    expect(from103[0]!.laborManDays).toBe(roadUpgradeCost(s.roads!.roads[1]!).manDays);
     const started = startRoadUpgrade(s, DAY, 103, 'improved', null);
     expect(started.constructions.at(-1)).toMatchObject({ roadIds: [183], roadGrade: 'improved' });
     // jiný úsek téže cesty se už vylepšuje

@@ -170,11 +170,11 @@ export function parsePlacePenInput(
 /** Vstup vylepšení pevné cesty `{ roadId, upgrade }` (roads.md), jinak null. */
 export function parseUpgradeRoadInput(
   value: unknown,
-): { roadId: number; upgrade: 'improved' | 'causeway' } | null {
+): { roadId: number; upgrade: 'improved' } | null {
   if (!isRecord(value)) return null;
   const { roadId, upgrade } = value;
   if (!Number.isInteger(roadId) || (roadId as number) <= 0) return null;
-  if (upgrade !== 'improved' && upgrade !== 'causeway') return null;
+  if (upgrade !== 'improved') return null;
   return { roadId: roadId as number, upgrade };
 }
 

@@ -72,6 +72,7 @@ function reshapeRoad(roads: VillageRoads, road: Road, segments: readonly Segment
       openEnds,
       ...(s.kind === 'abandoned' ? { abandoned: true as const } : {}),
       ...(road.cart ? { cart: true as const } : {}),
+      ...(road.unbridged ? { unbridged: true as const } : {}),
       ...(road.swath ? { swath: true as const } : {}),
       ...(road.cartTraffic ? { cartTraffic: [...road.cartTraffic] } : {}),
     };

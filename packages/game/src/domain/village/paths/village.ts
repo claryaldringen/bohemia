@@ -330,6 +330,8 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
             id: r.id,
             points: r.points,
             grade: r.grade,
+            // upravená cesta přes mokřinu bez hatě (roads.md – Vylepšení cesty)
+            ...(r.unbridged ? { unbridged: true } : {}),
             // vozová cesta (wagons.md) – ves bez vozových cest beze změny
             ...(r.cart ? { cart: true } : {}),
             // stromy u cesty (roads.md – Stromy u cesty zrychlí chůzi) – jen kde nějaké jsou

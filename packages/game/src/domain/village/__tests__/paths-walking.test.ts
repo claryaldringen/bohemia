@@ -348,10 +348,10 @@ describe('rychlosti chůze (walk-speed.ts)', () => {
     expect(pathCostFactor(0.5)).toBeCloseTo(1 - (1 - 1 / 1.3) * 0.5, 9);
     expect(roadWalkSpeed('trodden', false)).toBe(1.5);
     expect(roadWalkSpeed('improved', false)).toBe(1.7);
-    expect(roadWalkSpeed('causeway', false)).toBe(1.7);
     expect(roadWalkSpeed('trodden', true)).toBe(0.5);
-    expect(roadWalkSpeed('improved', true)).toBe(0.5);
-    expect(roadWalkSpeed('causeway', true)).toBe(1.7);
+    // upravená má hať, jen bez ní (`unbridged`) v mokřině zpomalí
+    expect(roadWalkSpeed('improved', true)).toBe(1.7);
+    expect(roadWalkSpeed('improved', true, 0, true)).toBe(0.5);
     expect(FASTEST_WALK_SHARE).toBeCloseTo(1 / 1.7, 9);
     // pole: v osevu od orby po žeň 0,5, strniště 0,8, úhor, příloh a zakládaný díl jako louka
     for (const look of ['plowed', 'sown', 'sprouted', 'green', 'ripe', 'harvesting'] as const) {

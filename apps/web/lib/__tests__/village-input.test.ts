@@ -214,12 +214,12 @@ describe('vstupy víc vsí a přestěhování (migration.md)', () => {
 });
 
 describe('parseUpgradeRoadInput', () => {
-  it('úsek a vylepšení – jen upravená cesta nebo hať a lávka', () => {
+  it('úsek a vylepšení – jen úprava cesty (hať a lávka jsou její součástí)', () => {
     expect(parseUpgradeRoadInput({ roadId: 4, upgrade: 'improved' })).toEqual({
       roadId: 4,
       upgrade: 'improved',
     });
-    expect(parseUpgradeRoadInput({ roadId: 4, upgrade: 'causeway' })?.upgrade).toBe('causeway');
+    expect(parseUpgradeRoadInput({ roadId: 4, upgrade: 'causeway' })).toBeNull();
     expect(parseUpgradeRoadInput({ roadId: 4, upgrade: 'trodden' })).toBeNull();
     expect(parseUpgradeRoadInput({ roadId: 0, upgrade: 'improved' })).toBeNull();
     expect(parseUpgradeRoadInput({ roadId: 1.5, upgrade: 'improved' })).toBeNull();

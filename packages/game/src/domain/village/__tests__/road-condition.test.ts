@@ -70,7 +70,6 @@ describe('zarůstání podle druhů (paths.md – Zarůstání)', () => {
     for (const [grade, kind] of [
       ['trodden', ROAD_DECAY.trodden],
       ['improved', ROAD_DECAY.improved],
-      ['causeway', ROAD_DECAY.improved],
       ['wagon', ROAD_DECAY.wagon],
     ] as const) {
       const days = survivesDays(grade);

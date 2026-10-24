@@ -52,6 +52,7 @@ export function emptyRoads(day: number): VillageRoads {
     labor: { from: day, days: 0, shares: [] },
     visits: { from: day, byKey: [] },
     conditionSeeded: true,
+    bridgesSeeded: true,
   };
 }
 
@@ -417,6 +418,7 @@ export function splitRoad(roads: VillageRoads, hit: RoadHit, context: SpotContex
     spots: road.spots.filter((s) => secondAxis(s.x, s.z) < firstAxis(s.x, s.z)),
     ...(road.ground ? { ground: groundPart(road.ground, splitAt, total) } : {}),
     ...(road.cart ? { cart: true as const } : {}),
+    ...(road.unbridged ? { unbridged: true as const } : {}),
     ...(road.swath ? { swath: true as const } : {}),
     ...(road.cartTraffic ? { cartTraffic: [...road.cartTraffic] } : {}),
   };
@@ -587,6 +589,7 @@ function chainPair(
       if (a.road === b.road || a.road.grade !== b.road.grade) continue;
       // vozová a pěší cesta zůstanou dva úseky (wagons.md – Vyjeté cesty)
       if (!!a.road.cart !== !!b.road.cart) continue;
+      if (!!a.road.unbridged !== !!b.road.unbridged) continue;
       // dva úseky mezi stejnými uzly (dvě trasy) se nespojí do okruhu – copánek řeší
       // `removeBraids`, vzdálené trasy zůstanou dvě
       if (endKey(endOf(a.road, !a.atStart)) === endKey(endOf(b.road, !b.atStart))) continue;

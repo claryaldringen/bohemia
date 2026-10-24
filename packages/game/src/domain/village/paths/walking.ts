@@ -1,6 +1,7 @@
 import { length2, type Landscape } from '../../landscape';
 import { PATH_WALK, ROAD_WALK } from '../rules';
 import type { RoadGrade, RoadGround, RoadLining } from '../types';
+import { roadBridged } from '../types-roads';
 import { nearestPartFinder } from './nearest';
 import { PathHeap, squareCells, type PathLine, type PathPoint, type PathVillage } from './network';
 import {
@@ -42,6 +43,8 @@ export interface WalkGraph {
 export interface WalkRoad {
   points: readonly PathPoint[];
   grade: RoadGrade;
+  /** Upravená cesta bez hatě a lávky (`Road.unbridged`) – v mokřině i na brodu jako vyšlapaná. */
+  unbridged?: boolean | undefined;
   ground?: RoadGround;
   /** Olemování stromy a jabloněmi (`Road.lined`) – zrychlí chůzi mimo mokřinu; chybí = bez. */
   lined?: RoadLining;
@@ -201,11 +204,11 @@ export function roadPieceCost(road: WalkRoad, from: number, to: number): number 
     const start = Math.max(at, a);
     const end = Math.min(to, b);
     cost += (start - at) / dry;
-    cost += (end - start) / roadWalkSpeed(road.grade, true);
+    cost += (end - start) / roadWalkSpeed(road.grade, true, 0, road.unbridged === true);
     at = end;
   }
   cost += Math.max(0, to - at) / dry;
-  if (road.grade !== 'causeway') {
+  if (!roadBridged(road)) {
     for (const ford of road.ground?.fords ?? []) {
       if (ford >= from && ford < to) cost += ROAD_WALK.fordExtraM;
     }

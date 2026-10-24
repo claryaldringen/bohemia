@@ -27,8 +27,13 @@ export const ROAD_KIND_ORDER: readonly RoadKind[] = [
 ];
 
 /** Druh úseku pro hráče: vyšlapaný s vozy je vyježděný, jinak podle stupně. */
-export function roadKind(road: Pick<Road, 'grade' | 'cart'>): RoadKind {
-  return road.grade === 'trodden' && road.cart ? 'cart' : road.grade;
+export function roadKind(road: Pick<Road, 'grade' | 'cart' | 'unbridged' | 'ground'>): RoadKind {
+  if (road.grade === 'trodden') return road.cart ? 'cart' : 'trodden';
+  // upravená cesta přes mokřinu nebo brod s hatí a lávkou (roads.md – Vylepšení cesty)
+  const wet = road.ground
+    ? road.ground.wet.some(([a, b]) => b > a) || road.ground.fords.length > 0
+    : false;
+  return road.grade === 'improved' && wet && !road.unbridged ? 'causeway' : road.grade;
 }
 
 /** Úsek, jak ho řetěz potřebuje – id a osa. */

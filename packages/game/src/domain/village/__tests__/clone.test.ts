@@ -157,7 +157,7 @@ describe('cloneState – dvorec, stezky a obchod (trade.md)', () => {
         {
           id: 40,
           direction: 'SE' as const,
-          pieces: [{ roadId: 3, grade: 'causeway' as const, manDays: 12.5 }],
+          pieces: [{ roadId: 3, grade: 'improved' as const, manDays: 12.5 }],
           lengthM: 640.2,
           startedDay: 100,
           builtDay: null,

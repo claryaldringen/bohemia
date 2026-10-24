@@ -65,7 +65,6 @@ const TIDY_ROUNDS = 3;
 const GRADE_RANK: Readonly<Record<RoadGrade, number>> = {
   trodden: 0,
   improved: 1,
-  causeway: 2,
   wagon: 3,
 };
 
@@ -180,6 +179,7 @@ function cutRoad(roads: VillageRoads, road: Road, from: number, to: number, part
       spots: [],
       ...(road.ground ? { ground: groundPart(road.ground, a, b) } : {}),
       ...(road.cart ? { cart: true as const } : {}),
+      ...(road.unbridged ? { unbridged: true as const } : {}),
       ...(road.swath ? { swath: true as const } : {}),
       ...(road.cartTraffic ? { cartTraffic: [...road.cartTraffic] } : {}),
     };

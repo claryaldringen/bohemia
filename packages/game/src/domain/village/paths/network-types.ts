@@ -197,6 +197,8 @@ export interface PathVillage {
     id?: number;
     points: readonly PathPoint[];
     grade?: RoadGrade;
+    /** Upravená cesta bez hatě a lávky (`Road.unbridged`). */
+    unbridged?: boolean;
     cart?: boolean;
     lined?: RoadLining;
   }[];

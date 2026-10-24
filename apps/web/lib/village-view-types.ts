@@ -241,7 +241,6 @@ export const ROAD_KIND_NAMES: Record<RoadKind, string> = {
 /** Tlačítka vylepšení – název akce. */
 export const ROAD_UPGRADE_NAMES: Record<RoadUpgrade, string> = {
   improved: 'Upravit cestu',
-  causeway: 'Postavit hať a lávku',
 };
 
 /** Jídlo pro horní lištu a tooltip nasycení (diet.md) – energie, pestrost a podíly na energii. */

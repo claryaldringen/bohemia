@@ -1073,14 +1073,19 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       treeSpeed: 0.035,
       wetM: 180,
       fords: 2,
-      building: { grade: 'causeway', progress: 0.55, treesToFell: 9 },
+      building: { grade: 'improved', progress: 0.55, treesToFell: 9 },
       upgrades: [
         {
-          upgrade: 'causeway',
+          upgrade: 'improved',
           laborManDays: 233,
           trees: 26,
           treesToFell: 11,
           swathTrees: 0,
+          parts: {
+            improved: { manDays: 100, trees: 0 },
+            causeway: { manDays: 90, trees: 18 },
+            footbridge: { manDays: 30, trees: 8 },
+          },
           blocked: 'Vylepšení cesty se už staví.',
         },
       ],

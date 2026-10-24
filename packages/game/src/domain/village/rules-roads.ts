@@ -88,7 +88,7 @@ export const CART_SPEED = {
   ploughed: 0.6,
   wet: 0.55,
   sown: 0.125,
-  road: { trodden: 1.3, cart: 1.6, improved: 1.8, causeway: 1.8, wagon: 2.2 },
+  road: { trodden: 1.3, cart: 1.6, improved: 1.8, wagon: 2.2 },
 } as const;
 // wagons.md – Vůz přes zaseté pole (návrh Clauda): stopa vozu přes osetý díl je široká `trackM`
 // a jede se tam i zpět (2 průjezdy na jízdu); úroda na pošlapané ploše je pryč celá (`lossShare`
@@ -250,7 +250,7 @@ export const WAGON_ROAD = {
  * cesty – jinak zůstane loukou (mez u cesty). Počítá se po buňkách `cells` × `cells` na čtverec.
  */
 export const ROAD_LAND = {
-  widthM: { trodden: 1.9, cart: 2.6, improved: 3, causeway: 3, wagon: 3.5 },
+  widthM: { trodden: 1.9, cart: 2.6, improved: 3, wagon: 3.5 },
   turnRadiusM: 5,
   cornerMinM2: 80,
   stripMinM: 3,
@@ -285,7 +285,7 @@ export const ROAD_APPLES = {
 // Vozová cesta (roads.md – Vozová cesta; návrh Clauda, schváleno 20. 10. 2026) pěšky 1,7 jako
 // upravená, v mokřině drží jako hať (zpevněné koleje), brod zůstává brodem (+ 30 m)
 export const ROAD_WALK = {
-  speed: { trodden: 1.5, improved: 1.7, causeway: 1.7, wagon: 1.7 },
+  speed: { trodden: 1.5, improved: 1.7, wagon: 1.7 },
   wetSpeed: 0.5,
   causewayWetSpeed: 1.7,
   fordExtraM: 30,

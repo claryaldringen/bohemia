@@ -404,8 +404,9 @@ function acrossRotation(tx: number, tz: number): number {
 
 /** Podíl hotové hatě a lávky 0–1 (hotová hať 1, rozestavěná podle průběhu, jinak 0). */
 function causewayShare(road: SceneRoad): number {
-  if (road.grade === 'causeway') return 1;
-  return road.upgrade?.grade === 'causeway' ? road.upgrade.progress : 0;
+  // hať a lávka jsou součástí úpravy – má je každá upravená cesta, která není `unbridged`
+  if (road.grade === 'improved' && !road.unbridged) return 1;
+  return road.upgrade?.grade === 'improved' && road.grade !== 'wagon' ? road.upgrade.progress : 0;
 }
 
 /**
@@ -485,7 +486,7 @@ export function stakingLines(roads: readonly SceneRoad[]): Point[][] {
     const length = roadLength(road);
     const done = up.progress * length;
     const spans: [number, number][] =
-      up.grade === 'improved'
+      road.grade === 'trodden'
         ? [up.fromEnd ? [0, length - done] : [done, length]]
         : [
             ...(road.ground?.wet ?? []),
@@ -604,7 +605,7 @@ export function roadWorksKey(roads: readonly SceneRoad[] | undefined): string {
   return (roads ?? [])
     .map(
       (r) =>
-        `${r.id}:${r.grade}${r.abandoned ? 'x' : ''}:${r.points.length}:${(r.fade ?? []).map((f) => f.strength).join(',')}:${r.upgrade ? `${r.upgrade.grade}@${Math.round(r.upgrade.progress * 100)}${r.upgrade.fromEnd ? '<' : ''}` : ''}:${(r.ground?.wet ?? []).length},${(r.ground?.fords ?? []).length}`,
+        `${r.id}:${r.grade}${r.unbridged ? 'u' : ''}${r.abandoned ? 'x' : ''}:${r.points.length}:${(r.fade ?? []).map((f) => f.strength).join(',')}:${r.upgrade ? `${r.upgrade.grade}@${Math.round(r.upgrade.progress * 100)}${r.upgrade.fromEnd ? '<' : ''}` : ''}:${(r.ground?.wet ?? []).length},${(r.ground?.fords ?? []).length}`,
     )
     .join(';');
 }

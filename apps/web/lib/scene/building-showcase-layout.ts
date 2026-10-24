@@ -1353,23 +1353,23 @@ export function showcaseRoads(progress: number): SceneRoad[] {
     { x: 0, z: z + 1.5 },
     { x: 20, z },
   ];
-  const building = (grade: 'improved' | 'causeway'): Partial<SceneRoad> =>
-    p < 1 ? { upgrade: { grade, progress: p } } : {};
+  const building = (): Partial<SceneRoad> =>
+    p < 1 ? { upgrade: { grade: 'improved', progress: p } } : {};
   return [
     { id: 1, points: axis(ROADS_Z), grade: 'trodden', ground: { wet: [], fords: [] } },
     {
       id: 2,
       points: axis(ROADS_Z - ROADS_STEP_Z),
       grade: p < 1 ? 'trodden' : 'improved',
-      ground: { wet: [[14, 24]], fords: [] },
-      ...building('improved'),
+      ground: { wet: [], fords: [] },
+      ...building(),
     },
     {
       id: 3,
       points: axis(ROADS_Z - 2 * ROADS_STEP_Z),
-      grade: p < 1 ? 'improved' : 'causeway',
+      grade: p < 1 ? 'trodden' : 'improved',
       ground: { wet: [[6, 20]], fords: [30] },
-      ...building('causeway'),
+      ...building(),
     },
   ];
 }

@@ -559,7 +559,16 @@ export type SceneJunction = RoadJunction;
 
 export type SceneRoad = Pick<
   Road,
-  'id' | 'points' | 'grade' | 'ground' | 'openEnds' | 'cart' | 'swath' | 'lined' | 'abandoned'
+  | 'id'
+  | 'points'
+  | 'grade'
+  | 'unbridged'
+  | 'ground'
+  | 'openEnds'
+  | 'cart'
+  | 'swath'
+  | 'lined'
+  | 'abandoned'
 > & {
   /**
    * Bledé kusy zarůstající cesty (paths.md – Zarůstání): střed kusu a krytí pásu 0–1 (na desetiny –

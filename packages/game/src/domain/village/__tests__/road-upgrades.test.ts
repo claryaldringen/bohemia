@@ -16,7 +16,12 @@ import {
   type WalkGround,
   type WalkRoad,
 } from '../paths/walking';
-import { roadUpgradeCost, roadUpgradeOptions, startRoadUpgrade } from '../road-upgrades';
+import {
+  roadUpgradeCost,
+  roadUpgradeOptions,
+  startRoadUpgrade,
+  withBridgedRoads,
+} from '../road-upgrades';
 import { ROAD_UPGRADES, ROAD_WALK } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { Dwelling, Person, Road, VillageState } from '../types';
@@ -59,7 +64,11 @@ function village(): VillageState {
 }
 
 /** Pevná cesta (100 m po ose z) s mokřinou 20 m a jedním brodem. */
-function road(grade: Road['grade'] = 'trodden', ground = { wet: [[30, 50]], fords: [60] }): Road {
+function road(
+  grade: Road['grade'] = 'trodden',
+  ground = { wet: [[30, 50]], fords: [60] },
+  unbridged = false,
+): Road {
   return {
     id: 7,
     points: [
@@ -71,6 +80,7 @@ function road(grade: Road['grade'] = 'trodden', ground = { wet: [[30, 50]], ford
     traffic: [5],
     spots: [],
     ground: { wet: ground.wet as [number, number][], fords: ground.fords },
+    ...(unbridged ? { unbridged: true as const } : {}),
   };
 }
 
@@ -170,7 +180,7 @@ describe('chůze podle stupně cesty, mokřiny a brodů', () => {
     expect(across).toBeLessThan(40 + 10 + ROAD_WALK.fordExtraM + 2);
   });
 
-  it('po cestě: vyšlapaná 1,5×, upravená 1,7×, mokřina 0,5× (s hatí 1,7×), brod + 30 m bez lávky', () => {
+  it('po cestě: vyšlapaná 1,5×, upravená 1,7×, mokřina 0,5× (upravená s hatí 1,7×), brod + 30 m bez lávky', () => {
     const plain = (grade: Road['grade']): WalkRoad => ({
       points: [],
       grade,
@@ -179,16 +189,16 @@ describe('chůze podle stupně cesty, mokřiny a brodů', () => {
     // Martin (19. 10. 2026): „stálá vyšlapaná cesta 1.5“, „Upravená cesta: 1.7“
     expect(roadPieceCost(plain('trodden'), 0, 150)).toBeCloseTo(100, 9);
     expect(roadPieceCost(plain('improved'), 0, 170)).toBeCloseTo(100, 9);
-    expect(roadPieceCost(plain('causeway'), 0, 170)).toBeCloseTo(100, 9);
-    const wet = (grade: Road['grade']): WalkRoad => ({
+    const wet = (grade: Road['grade'], unbridged = false): WalkRoad => ({
       points: [],
       grade,
+      unbridged,
       ground: { wet: [[10, 20]], fords: [30] },
     });
-    // 30 m sucho po upravené + 10 m mokřiny po upravené + brod 30
-    expect(roadPieceCost(wet('improved'), 0, 40)).toBeCloseTo(30 / 1.7 + 10 / 0.5 + 30, 9);
-    // hať a lávka: i přes mokřinu 1,7×, brod bez zdržení
-    expect(roadPieceCost(wet('causeway'), 0, 40)).toBeCloseTo(40 / 1.7, 9);
+    // upravená bez hatě a lávky: 30 m sucho + 10 m mokřiny po vyšlapané + brod 30
+    expect(roadPieceCost(wet('improved', true), 0, 40)).toBeCloseTo(30 / 1.7 + 10 / 0.5 + 30, 9);
+    // upravená s hatí a lávkou: i přes mokřinu 1,7×, brod bez zdržení
+    expect(roadPieceCost(wet('improved'), 0, 40)).toBeCloseTo(40 / 1.7, 9);
     // kus osy jen zčásti v mokřině
     expect(roadPieceCost(wet('trodden'), 15, 25)).toBeCloseTo(5 / 0.5 + 5 / 1.5, 9);
   });
@@ -227,9 +237,10 @@ describe('chůze podle stupně cesty, mokřiny a brodů', () => {
       { x: 4, z: 0 },
       { x: 4, z: 70 },
     ];
-    const roadOf = (grade: Road['grade']): WalkRoad => ({
+    const roadOf = (grade: Road['grade'], unbridged = false): WalkRoad => ({
       points: axis,
       grade,
+      unbridged,
       ground: roadGroundOf(axis, ground.terrain),
     });
     const trodden = walkingDistances(
@@ -239,7 +250,7 @@ describe('chůze podle stupně cesty, mokřiny a brodů', () => {
       ground,
     )[0]!;
     const causeway = walkingDistances(
-      walkGraph([], { roads: [roadOf('causeway')], ground }),
+      walkGraph([], { roads: [roadOf('improved')], ground }),
       origin,
       target,
       ground,
@@ -252,48 +263,120 @@ describe('chůze podle stupně cesty, mokřiny a brodů', () => {
 
 describe('vylepšení pevné cesty', () => {
   it('ceny: upravená 15 čd na 100 m, hať 1 strom a 2 čd na 2 m, lávka 4 stromy a 15 čd', () => {
-    expect(roadUpgradeCost(road(), 'improved')).toEqual({ manDays: 15, trees: 0 });
-    expect(roadUpgradeCost(road(), 'causeway')).toEqual({
+    const dry = road('trodden', { wet: [], fords: [] });
+    expect(roadUpgradeCost(dry)).toEqual({ manDays: 15, trees: 0 });
+    const bridge = {
       manDays: (20 / 2) * ROAD_UPGRADES.causewayPer2M.manDays + ROAD_UPGRADES.footbridge.manDays,
       trees: 10 + ROAD_UPGRADES.footbridge.trees,
-    });
+    };
+    // úprava přes mokřinu a brod = úprava + hať + lávka jednou cenou
+    expect(roadUpgradeCost(road())).toEqual({ manDays: 15 + bridge.manDays, trees: bridge.trees });
+    // upravená bez hatě jen hať a lávka; upravená s hatí a vozová nic
+    expect(roadUpgradeCost(road('improved', undefined, true))).toEqual(bridge);
+    expect(roadUpgradeCost(road('improved'))).toEqual({ manDays: 0, trees: 0 });
+    expect(roadUpgradeCost(road('wagon'))).toEqual({ manDays: 0, trees: 0 });
   });
 
-  it('nabídka: vyšlapaná – úprava, hať až po úpravě; bez mokřiny a brodu hať není', () => {
+  it('nabídka: jedna „Upravit cestu“ – vyšlapané úseky i upravené bez hatě; hotová nic', () => {
     const s = withRoad(village());
+    s.woodLogs = 20;
     const options = roadUpgradeOptions(s, 7, DAY, null);
-    expect(options.map((o) => o.upgrade)).toEqual(['improved', 'causeway']);
+    expect(options.map((o) => o.upgrade)).toEqual(['improved']);
     expect(options[0]!.blocked).toBeNull();
-    expect(options[1]!.blocked).toMatch(/upravit/);
+    // cena = úprava + hať + lávka
+    expect(options[0]!.laborManDays).toBe(roadUpgradeCost(road()).manDays);
+    expect(options[0]!.trees).toBe(14);
+    // rozpad ceny: úprava + hať + lávka dávají celek
+    const { improved, causeway, footbridge } = options[0]!.parts;
+    expect(improved.manDays).toBe(15);
+    expect(footbridge).toEqual({
+      manDays: ROAD_UPGRADES.footbridge.manDays,
+      trees: ROAD_UPGRADES.footbridge.trees,
+    });
+    expect(improved.manDays + causeway.manDays + footbridge.manDays).toBeCloseTo(
+      options[0]!.laborManDays,
+      9,
+    );
+    expect(causeway.trees + footbridge.trees).toBe(options[0]!.trees);
     const dry = withRoad(village(), road('trodden', { wet: [], fords: [] }));
-    expect(roadUpgradeOptions(dry, 7, DAY, null).map((o) => o.upgrade)).toEqual(['improved']);
-    const improved = withRoad(village(), road('improved'));
-    expect(roadUpgradeOptions(improved, 7, DAY, null).map((o) => o.upgrade)).toEqual(['causeway']);
-    expect(roadUpgradeOptions(improved, 7, DAY, null)[0]!.blocked).toBeNull();
+    expect(roadUpgradeOptions(dry, 7, DAY, null)[0]!.laborManDays).toBe(15);
+    // upravená bez hatě (starší cesta) nabídne jen hať a lávku
+    const unbridged = withRoad(village(), road('improved', undefined, true));
+    unbridged.woodLogs = 20;
+    const bridgeOnly = roadUpgradeOptions(unbridged, 7, DAY, null);
+    expect(bridgeOnly.map((o) => o.upgrade)).toEqual(['improved']);
+    expect(bridgeOnly[0]!.laborManDays).toBe(
+      roadUpgradeCost(road('improved', undefined, true)).manDays,
+    );
+    expect(bridgeOnly[0]!.blocked).toBeNull();
     // bez dřeva (prázdná vrstva, žádné klády) hať nejde
-    expect(roadUpgradeOptions(improved, 7, DAY, LAYER)[0]!.blocked).toMatch(/dřevo/);
-    expect(roadUpgradeOptions(withRoad(village(), road('causeway')), 7, DAY, null)).toEqual([]);
+    unbridged.woodLogs = 0;
+    expect(roadUpgradeOptions(unbridged, 7, DAY, LAYER)[0]!.blocked).toMatch(/dřevo/);
+    // upravená s hatí a vozová cesta další úpravu nenabízí
+    expect(roadUpgradeOptions(withRoad(village(), road('improved')), 7, DAY, null)).toEqual([]);
+    expect(roadUpgradeOptions(withRoad(village(), road('wagon')), 7, DAY, null)).toEqual([]);
   });
 
   it('vylepšení je stavba ze společné práce – po dokončení nový stupeň a kronika', () => {
     const s = withRoad(village());
+    // hať a lávka: dřevo z hromady klád (14 stromů), práce úpravy i hatě jednou stavbou
+    s.woodLogs = 20;
     const started = startRoadUpgrade(s, DAY, 7, 'improved', null);
+    expect(started.woodLogs).toBeCloseTo(20 - 14, 9);
     const c = started.constructions.at(-1)!;
-    expect(c).toMatchObject({ kind: 'road', roadIds: [7], roadGrade: 'improved', cost: 15 });
+    expect(c).toMatchObject({ kind: 'road', roadIds: [7], roadGrade: 'improved', cost: 50 });
     expect(roadsInWork(started.constructions).has(7)).toBe(true);
     expect(() => startRoadUpgrade(started, DAY, 7, 'improved', null)).toThrow(/vylepšuje/);
-    const later = advanceVillage(started, DAY + 60, null);
+    const later = advanceVillage(started, DAY + 300, null);
     expect(later.roads!.roads[0]!.grade).toBe('improved');
+    expect(later.roads!.roads[0]!.unbridged).toBeUndefined();
     expect(later.constructions.some((x) => x.kind === 'road')).toBe(false);
     expect(later.chronicle).toContainEqual(
       expect.objectContaining({ kind: 'construction-finished', constructionKind: 'road' }),
     );
-    // hať a lávka: dřevo z hromady klád, práce i s kácením zbytku
+    // starší upravená cesta bez hatě (`unbridged`): dostaví jen hať a lávku
+    later.roads!.roads[0]!.unbridged = true;
     later.woodLogs = 20;
-    const causeway = startRoadUpgrade(later, later.lastDay, 7, 'causeway', null);
-    expect(causeway.woodLogs).toBeCloseTo(20 - 14, 9);
-    const done = advanceVillage(causeway, later.lastDay + 120, null);
-    expect(done.roads!.roads[0]!.grade).toBe('causeway');
+    const bridged = startRoadUpgrade(later, later.lastDay, 7, 'improved', null);
+    expect(bridged.constructions.at(-1)!.cost).toBe(35);
+    const done = advanceVillage(bridged, later.lastDay + 200, null);
+    expect(done.roads!.roads[0]!.grade).toBe('improved');
+    expect(done.roads!.roads[0]!.unbridged).toBeUndefined();
+  });
+});
+
+describe('převod na úpravu s hatí a lávkou (withBridgedRoads)', () => {
+  it('causeway se stane upravenou, upravená přes mokřinu bez hatě dostane unbridged; jednou', () => {
+    const s = withRoad(village(), road('improved'));
+    s.roads!.roads.push(
+      { ...road('improved', { wet: [], fords: [] }), id: 8 },
+      { ...road('trodden'), id: 9 },
+      { ...road('improved'), id: 10, grade: 'causeway' as unknown as Road['grade'] },
+    );
+    s.constructions.push({
+      id: 99,
+      kind: 'road',
+      startedDay: DAY,
+      cost: 10,
+      done: 0,
+      dwellingType: null,
+      position: null,
+      dwellingId: null,
+      fieldId: null,
+      roadIds: [10],
+      roadGrade: 'causeway' as unknown as Road['grade'],
+    });
+    const once = withBridgedRoads(s);
+    expect(s.roads!.roads[0]!.unbridged).toBeUndefined();
+    const [wetRoad, dryRoad, trodden, hat] = once.roads!.roads;
+    expect(wetRoad!.unbridged).toBe(true);
+    expect(dryRoad!.unbridged).toBeUndefined();
+    expect(trodden!.unbridged).toBeUndefined();
+    expect([hat!.grade, hat!.unbridged]).toEqual(['improved', undefined]);
+    expect(once.constructions.at(-1)!.roadGrade).toBe('improved');
+    expect(once.roads!.bridgesSeeded).toBe(true);
+    // idempotentní – po převodu a po dostavění hatě se nic nemění
+    expect(withBridgedRoads(once)).toBe(once);
   });
 });
 
@@ -361,11 +444,11 @@ describe('vzdálenost práce chůzí – pole, sad, palivo', () => {
     ];
     const ground = roadGroundOf(axis, walkGroundOf(LANDSCAPE).terrain);
     expect(ground.wet.length).toBeGreaterThan(0);
-    const base: Road = { ...road('improved'), points: axis, ground };
+    const base: Road = { ...road('improved', undefined, true), points: axis, ground };
     const s = withRoad(farmed(), base);
     refreshWalkDistances(s, DAY, LANDSCAPE, null);
     const improved = partWalkDistance(s.parts.find((p) => p.cell?.y === 16)!);
-    s.roads!.roads[0]!.grade = 'causeway';
+    delete s.roads!.roads[0]!.unbridged;
     refreshWalkDistances(s, DAY, LANDSCAPE, null);
     const causeway = partWalkDistance(s.parts.find((p) => p.cell?.y === 16)!);
     expect(causeway).toBeLessThan(improved);

@@ -23,12 +23,7 @@ import { addTrailRoads, roadLengthM, roadsInWork } from './paths/roads';
 import { trailTerrain, type PathTerrain } from './paths/terrain';
 import type { Walk } from './paths/walking';
 import { plotCells } from './plot-cells';
-import {
-  roadMidpoint,
-  roadNeedsCauseway,
-  roadUpgradeCost,
-  roadUpgradeProgress,
-} from './road-upgrades';
+import { roadMidpoint, roadUpgradeCost, roadUpgradeProgress } from './road-upgrades';
 import { roadSwathTally } from './road-swath';
 import { HUMNO, ROAD_SWATH, TRADE, TRAIL } from './rules';
 import { sacredSitesOf } from './sacred';
@@ -449,7 +444,6 @@ export function builtTrail(
 function upgradedGrade(current: RoadGrade, target: TrailPiece['grade']): RoadGrade {
   // vozová cesta (roads.md – Vozová cesta) zůstane vozovou – je víc než upravená i hať
   if (current === 'wagon' || target === 'wagon') return 'wagon';
-  if (current === 'causeway' || target === 'causeway') return 'causeway';
   return 'improved';
 }
 
@@ -462,18 +456,16 @@ function pieceOf(
   swath: { cost: number; trees: number; sacred: boolean } | null,
 ): { piece: TrailPiece; trees: number; swathTrees: number; sacred: boolean } {
   // po vozové cestě stezka vede bez práce – je zpevněná (roads.md – Vozová cesta)
-  const grade =
-    road.grade === 'wagon' ? 'wagon' : roadNeedsCauseway(road) ? 'causeway' : 'improved';
-  const improve = road.grade === 'trodden' ? roadUpgradeCost(road, 'improved') : null;
-  const causeway =
-    grade === 'causeway' && road.grade !== 'causeway' ? roadUpgradeCost(road, 'causeway') : null;
+  const grade = road.grade === 'wagon' ? 'wagon' : 'improved';
+  // úprava (i s hatí a lávkou přes mokřinu a brod) jednou cenou
+  const work = roadUpgradeCost(road);
   return {
     piece: {
       roadId: road.id,
       grade,
-      manDays: tenths((improve?.manDays ?? 0) + (causeway?.manDays ?? 0) + (swath?.cost ?? 0)),
+      manDays: tenths(work.manDays + (swath?.cost ?? 0)),
     },
-    trees: causeway?.trees ?? 0,
+    trees: work.trees,
     swathTrees: swath?.trees ?? 0,
     sacred: swath?.sacred ?? false,
   };
@@ -803,7 +795,9 @@ function upgradePieces(state: VillageState, trail: Trail, count: number): void {
   const roads = state.roads?.roads ?? [];
   for (const piece of trail.pieces.slice(0, count)) {
     const road = roads.find((r) => r.id === piece.roadId);
-    if (road) road.grade = upgradedGrade(road.grade, piece.grade);
+    if (!road) continue;
+    road.grade = upgradedGrade(road.grade, piece.grade);
+    if (road.grade === 'improved') delete road.unbridged;
   }
 }
 

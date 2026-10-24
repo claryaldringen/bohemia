@@ -90,7 +90,7 @@ cestu, i upravenou a vozovou, jen pro ty pomaleji.“ Návrh Clauda:
   upravená cesta bez nich dostane převodem příznak `Road.unbridged` a „Upravit cestu“ u ní postaví
   jen hať a lávku.
 - **Vozová cesta** staví hať přes mokřinu (jako dřív zpevnění) a nově i lávku pro pěší vedle
-  brodu.
+  brodu (15 čd na brod v ceně úseku; vůz jede dál brodem, pěší lávkou bez zdržení).
 - **Hráč cesty nezakládá ani neruší** (pravidla 3 a 8) – vylepšuje (upravená, vozová), sází
   jabloně a zakládá zemskou stezku (beze změny).
 - **Zrušení rozdělané úpravy** (návrh Clauda podle zrušení staveb – Martin 23. 10. 2026: „Potřebuju
@@ -236,7 +236,7 @@ Text níž je historie.
 
 ## Vylepšení cesty (staví hráč)
 
-**Od 22. 10. 2026** je hať a lávka součástí úpravy (pravidlo 7) – stupeň 3 se nenabízí zvlášť
+**Od 22. 10. 2026** je hať a lávka součástí úpravy (pravidlo 7) – stupeň `causeway` zanikl a nenabízí se zvlášť
 ([Úprava cesty s hatí a lávkou](#úprava-cesty-s-hatí-a-lávkou-pravidla-7-a-8)). Ceny platí dál.
 
 Hráč klikne na pevnou cestu – vybere se celá cesta (řetěz úseků – [Cesta pro
@@ -244,12 +244,12 @@ hráče](#cesta-pro-hráče)), v panelu je stupeň, délka, stáří, stromy a j
 vylepšení (ikony, cena v popisku – jako v 0 A.D.). Vylepšení je stavba ze
 společné práce vsi; stromy bere jako obydlí (klády z hromady, pak nejbližší dospělé stromy).
 
-| Stupeň                     | Co se udělá                                                                                               | Cena (návrh Clauda)                                       | Rychlost chůze (návrh Clauda)         |
-| -------------------------- | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------- |
-| 1. **Vyšlapaná cesta**     | vznikne sama                                                                                              | –                                                         | 1,5× proti louce (i vyježděná)        |
-| 2. **Upravená cesta**      | vyrovnaná a rozšířená – širší vyšlapaná cesta (bez strouhy)                                               | **15 člověkodní na 100 m**                                | 1,7×                                  |
-| 3. **Hať a lávka** (po 2.) | povalový chodník přes mokřinu, lávka z kmenů přes potok                                                   | hať **1 strom a 2 čd na 2 m**, lávka **4 stromy a 15 čd** | 1,7× i přes mokřinu; brod bez zdržení |
-| **Vozová cesta**           | nová přímější trasa s úvozy, náspy a serpentinami do 6 %, zpevněné koleje – [Vozová cesta](#vozová-cesta) | zemní práce 0,5 čd/m³, zpevnění 0,3 čd/m, kácení          | 1,7× i přes mokřinu; vůz 2,2×         |
+| Stupeň                       | Co se udělá                                                                                               | Cena (návrh Clauda)                                       | Rychlost chůze (návrh Clauda)         |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------- |
+| 1. **Vyšlapaná cesta**       | vznikne sama                                                                                              | –                                                         | 1,5× proti louce (i vyježděná)        |
+| 2. **Upravená cesta**        | vyrovnaná a rozšířená – širší vyšlapaná cesta (bez strouhy)                                               | **15 člověkodní na 100 m**                                | 1,7×                                  |
+| (součást 2.) **Hať a lávka** | povalový chodník přes mokřinu, lávka z kmenů přes potok – staví se s úpravou, ne zvlášť                   | hať **1 strom a 2 čd na 2 m**, lávka **4 stromy a 15 čd** | 1,7× i přes mokřinu; brod bez zdržení |
+| **Vozová cesta**             | nová přímější trasa s úvozy, náspy a serpentinami do 6 %, zpevněné koleje – [Vozová cesta](#vozová-cesta) | zemní práce 0,5 čd/m³, zpevnění 0,3 čd/m, kácení          | 1,7× i přes mokřinu; vůz 2,2×         |
 
 - **Stupeň 3** jde jen na úseku, který vede mokřinou (rovina podél potoka) nebo brodí potok –
   jinak se nenabízí.
@@ -277,7 +277,7 @@ jednodušší jít přes pole, než ho obcházet i když je cesta přes pole pom
 | stálá vyšlapaná cesta                                               | 1,5                                                | 1,3                                                   |
 | vyježděná cesta (vyšlapaná s příznakem vozová)                      | 1,5                                                | 1,6                                                   |
 | upravená cesta                                                      | 1,7                                                | 1,8                                                   |
-| hať a lávka                                                         | 1,7, i přes mokřinu (návrh Clauda)                 | hať 1,8, i přes mokřinu; lávka ne (brod)              |
+| upravená cesta s hatí a lávkou (součást úpravy)                     | 1,7, i přes mokřinu (návrh Clauda)                 | hať 1,8, i přes mokřinu; lávka ne (brod)              |
 | díl pole v osevu – od orby nebo kopání po sklizeň (zoraný … ve žni) | 0,5                                                | neprojede (po pevné cestě ano)                        |
 | strniště po sklizni                                                 | 0,8                                                | 0,8 – žeň po strništi, připravený díl do osevu        |
 | mokřina bez cesty i po vyšlapané, vyježděné či upravené cestě       | 0,5                                                | 0,55                                                  |
@@ -729,13 +729,13 @@ Návrh Clauda (18. 10. 2026):
 - **Výběr:** kliknutí do 2,5 m od osy vybere úsek (po obydlí, posvátných místech, pozemku
   a ohradě, před polem); zvýrazní se čarami po obou stranách pásu. Panel: portrét stupně, délka,
   stáří, stromy u úseku, mokřina a brody, průběh rozestavěného vylepšení a tlačítka vylepšení
-  (ikony, v popisku název, práce a dřevo; zašedlé s důvodem červeně – „Nejdřív je potřeba cestu
-  upravit.“, „Cesta se už vylepšuje.“, „Na hať a lávku chybí dřevo.“).
+  (ikony, v popisku název, rozpad ceny na úpravu, hať a lávku s prací a dřevem a celek; zašedlé
+  s důvodem červeně – „Cesta se už vylepšuje.“, „Na hať a lávku chybí dřevo.“).
 - **Ceny** podle tabulky výš: upravená cesta 15 čd na 100 m délky úseku (bez přirážky za
   vzdálenost – pracuje se na cestě), hať 1 strom a 2 čd na 2 m mokřiny (stromy nahoru na celé),
   lávka 4 stromy a 15 čd na brod; dřevo jako obydlí – celé klády z hromady, zbytek nejbližší
-  dospělé stromy k polovině úseku (kácení v ceně). Hať a lávka se nabízí, jen když úsek vede
-  mokřinou nebo přes brod, a jde až po upravené cestě.
+  dospělé stromy k polovině úseku (kácení v ceně). Hať a lávka se staví jen na úseku přes
+  mokřinu nebo brod, jako součást úpravy; upravená cesta bez nich (`unbridged`) nabídne jen je.
 - **Vylepšení je stavba** ze společné práce (lidé pracují podél úseku u čela práce); úsek během
   stavby nezaroste; když se rozdělí, stavba platí pro oba kusy. Po dokončení dostane úsek nový
   stupeň a kronika „Cesta je vylepšená – chodí se po ní rychleji.“
@@ -886,8 +886,8 @@ neměly být dvě cesty, ale měly by se spojit do jedné“ a „cesty by se na
   druzích (ikony druhů – vyšlapaná, vyježděná, upravená, hať; `VillageRoad.kinds`), stáří
   nejstaršího úseku, stromy, jabloně, mokřina a brody celé cesty; portrét podle převládajícího
   druhu (nejdelší – `VillageRoad.roadKind`).
-- **Vylepšení celé cesty:** úprava vylepší všechny vyšlapané úseky cesty, hať a lávka všechny
-  úseky přes mokřinu či brod, které ji nemají (až jsou upravené) – jedna stavba, cena za úseky
+- **Vylepšení celé cesty:** úprava vylepší všechny vyšlapané úseky cesty, u úseků přes mokřinu či brod
+  i hať a lávku (a upravené úseky bez nich je dostaví) – jedna stavba, cena za úseky
   dohromady, dřevo k polovině cesty. Stavba jde po cestě úsek po úseku (čelo práce, postavy
   i rozestavěný pás ve scéně – úsek ležící v cestě obráceně se upravuje od konce své osy), stupeň
   dostanou úseky po dokončení – stejné stupně se pak spojí. Výsadba jabloní vylepšení nebrání.

@@ -1135,6 +1135,7 @@ export function balanceEarth(cut: Float64Array, fill: Float64Array): WagonEarthw
 export interface WagonTimeRoad {
   points: readonly PathPoint[];
   grade?: RoadGrade;
+  unbridged?: boolean | undefined;
   cart?: boolean;
   ground?: RoadGround;
   lined?: RoadLining;
@@ -1181,6 +1182,7 @@ export function roadsCartMinutes(grid: WagonGrid, roads: readonly WagonTimeRoad[
           road.cart === true,
           wet,
           roadTreeSpeed(road.lined),
+          road.unbridged === true,
         );
         const ford = flags & PATH_FORD ? CART_ROUTES.fordCost : 1;
         cost += (piece / speed) * gradeFactor(grade) * ford;

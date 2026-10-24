@@ -3,7 +3,7 @@ import { useState, type ReactElement } from 'react';
 import { type SelectionDetails } from '@/lib/selection-details';
 import { formatDecimal, formatInteger } from '@/lib/village-format';
 import { ROAD_KIND_NAMES, ROAD_UPGRADE_NAMES } from '@/lib/village-view';
-import { RoadKind, RoadUpgrade, WagonRoadPlan } from '@bohemia/game';
+import { RoadKind, RoadUpgrade, RoadUpgradeParts, WagonRoadPlan } from '@bohemia/game';
 import { SwathTrees } from '../ManorPanel';
 import { Tooltip } from '../Tooltip';
 import { Stat, Bar, ROW, Commands, WoodToFell, formatSpeedGain } from './parts';
@@ -218,6 +218,7 @@ export function RoadBody({
             content={
               <span className="flex flex-col gap-0.5">
                 <span>{ROAD_UPGRADE_NAMES[option.upgrade]}</span>
+                <UpgradeParts parts={option.parts} />
                 <span className="flex items-center gap-2 tabular-nums">
                   <span className="flex items-center gap-1">
                     <img src="/icons/resources/labor.png" alt="" width={16} height={16} />
@@ -335,5 +336,45 @@ export function RoadBody({
         </Tooltip>
       </Commands>
     </div>
+  );
+}
+
+const UPGRADE_PART_NAMES = {
+  improved: 'Úprava',
+  causeway: 'Hať',
+  footbridge: 'Lávka',
+} as const;
+
+/**
+ * Rozpad ceny úpravy cesty v popisku: úprava, hať přes mokřinu a lávka přes brod – každá část,
+ * která se staví, s prací a dřevem (celek pod tím). Jen když se staví víc než jedna část.
+ */
+function UpgradeParts({ parts }: { parts: RoadUpgradeParts }): ReactElement | null {
+  const rows = (Object.keys(UPGRADE_PART_NAMES) as (keyof typeof UPGRADE_PART_NAMES)[]).filter(
+    (key) => parts[key].manDays > 0 || parts[key].trees > 0,
+  );
+  if (rows.length < 2) return null;
+  return (
+    <span data-testid="road-upgrade-parts" className="flex flex-col gap-0.5 tabular-nums">
+      {rows.map((key) => (
+        <span
+          key={key}
+          data-testid={`road-upgrade-part-${key}`}
+          className="flex items-center gap-2"
+        >
+          <span className="w-12">{UPGRADE_PART_NAMES[key]}</span>
+          <span className="flex items-center gap-1">
+            <img src="/icons/resources/labor.png" alt="" width={16} height={16} />
+            {formatDecimal(parts[key].manDays, 0)}
+          </span>
+          {parts[key].trees > 0 && (
+            <span className="flex items-center gap-1">
+              <img src="/icons/resources/wood.png" alt="" width={16} height={16} />
+              {parts[key].trees}
+            </span>
+          )}
+        </span>
+      ))}
+    </span>
   );
 }

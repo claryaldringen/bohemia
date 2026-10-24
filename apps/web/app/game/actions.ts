@@ -273,7 +273,7 @@ export async function placePen(input: unknown): Promise<VillageActionResult> {
 
 /**
 /**
- * Vylepšení pevné cesty (roads.md): `{ villageId, roadId, upgrade: 'improved' | 'causeway' }` –
+ * Úprava pevné cesty s hatí a lávkou (roads.md): `{ villageId, roadId, upgrade: 'improved' }` –
  * server ho ověří znovu (`roadUpgradeOptions`).
  */
 export async function upgradeRoad(input: unknown): Promise<VillageActionResult> {
