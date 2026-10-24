@@ -12,6 +12,7 @@ import {
   emigrantGroups,
   expeditionTo,
   familyBuyPrice,
+  isHorseGood,
   neighbourOf,
   neighbourStock,
   obstaclesOf,
@@ -165,17 +166,22 @@ export function neighbourViews(
         tripDays: trailTripDays(trail.lengthM),
         carts: trailCartPassable(state, trail, landscape) ? carts : [],
         room: { cows: cattleRoom(state, 'cows'), oxen: cattleRoom(state, 'youngOxen') },
-        offers: neighbour.offers.map((good) => ({
-          good,
-          price: Math.round(buyPrice(good) * 100) / 100,
-          left: Math.max(0, stock.supply[good] ?? 0),
-        })),
-        demands: neighbour.demands.map((good) => ({
-          good,
-          price: Math.round(sellPrice(good) * 100) / 100,
-          left: Math.max(0, stock.demand[good] ?? 0),
-          have: villageGoodStock(state, good, day),
-        })),
+        // koně (horses.md – Nákup a prodej) zatím bez řádků – panel a ikony přidá úloha 13
+        offers: neighbour.offers
+          .filter((good) => !isHorseGood(good))
+          .map((good) => ({
+            good,
+            price: Math.round(buyPrice(good) * 100) / 100,
+            left: Math.max(0, stock.supply[good] ?? 0),
+          })),
+        demands: neighbour.demands
+          .filter((good) => !isHorseGood(good))
+          .map((good) => ({
+            good,
+            price: Math.round(sellPrice(good) * 100) / 100,
+            left: Math.max(0, stock.demand[good] ?? 0),
+            have: villageGoodStock(state, good, day),
+          })),
         people: {
           offers: {
             families: people.families.map((children) => ({

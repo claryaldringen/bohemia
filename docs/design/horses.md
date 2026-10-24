@@ -134,11 +134,15 @@ Tři řádky v panelu obchodu jako u dobytka ([obchod](trade.md) – Dobytek ve 
   neověřeno). Přirážky jako u ostatního zboží (soused prodá za 0,96 hodnoty).
 - **Koupený jezdecký kůň** přijde se svým věkem a výcvikem (soused prodá koně 3–12 let, ne
   dosluhujícího).
-- **Kdo nabízí a shání:** **pastevci** nabízejí hříbata a klisny, jezdecké koně jen některý rok;
-  **obilnáři a řemeslníci** shánějí jezdecké koně (jejich vojvodové jezdí taky); **lesní ves** koně
-  nemá. Roční množství 1–3 koně.
+- **Kdo nabízí a shání:** **pastevci** nabízejí hříbata a klisny, jezdecké koně jen některý rok
+  (v polovině let); **obilnáři a řemeslníci** shánějí jezdecké koně (jejich vojvodové jezdí taky)
+  a – návrh Clauda při implementaci – i hříbata a klisny na vlastní chov, ať má ves komu prodat,
+  co jí z chovu přebývá; **lesní ves** koně nemá. Roční množství 1–3 koně každého druhu.
+- **Koupené hříbě** má 1–3 roky (odstavené, má vlastní místo) a pohlaví ze seedu, **koupená
+  klisna** 4–12 let (návrh Clauda).
 - **Ves prodá** hříbata, klisny nad chovné a jezdecké koně bez jezdce – nikdy koně, na kterém
-  někdo jezdí.
+  někdo jezdí. Jezdecké koně napřed nejméně vycvičené; když na žádném nikdo nejezdí a ves má
+  klisnu, nejlépe vycvičený zůstane jako chovný hřebec (návrh Clauda – jako chovný pár krav).
 - **Místo:** koupený kůň potřebuje volné místo v ohradě koní („Tolik koní se do ohrady koní
   nevejde.“).
 - **Doprava:** po svých s honákem jako dobytek, **honák na 4 koně** (koně se vedou na ohlávce, ne

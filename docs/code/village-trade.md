@@ -116,6 +116,29 @@ směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, 
   místa v ohradě; karavana – `SceneExpedition.cattle`, `CaravanColumn.animals` po dvou za vozy,
   kreslí `VillageLivestock` modelem krávy (`caravan-cattle.ts`).
 
+- **Koně ve třech druzích** (horses.md – Nákup a prodej; Martin 23. 10. 2026: koně jako ostatní
+  zvířata; čísla návrh Clauda; `horse-trade.ts`): `HorseGood` = `foals` | `mares` |
+  `ridingHorses` (kusy, `HORSE_GOODS`, `isHorseGood`, `isLivestockGood` = dobytek nebo koně).
+  Hodnoty `TRADE_GOOD_VALUES` 800 / 1 600 / 2 400 – jezdecký kůň má cenu **za kus** podle výcviku
+  (`horseValueKg` = 2 400 + 1 200 × výcvik/100): `tradeQuote` sčítá prodávané koně
+  (`horsesSaleValues` – napřed nejméně vycvičení) a koně souseda (`offeredHorses`). Ves prodá
+  (`horsesForSale`) jen koně bez jezdce: hříbata do 3 let (napřed nejstarší), klisny nad chovné
+  (`horsesWanted.mares` nejmladších zůstane) a jezdecké koně – bez koně s jezdcem a s klisnou
+  zůstane nejlépe vycvičený hřebec. Koupě potřebuje místo v ohradách koní (`horseTradeRoom` – bez
+  koní na cestě, `horseRoomBlocked` – „Tolik koní se do ohrady koní nevejde.“). Koupení koně se
+  věkem a výcvikem určí při odchodu výpravy (`boughtHorses` → `TradeExpedition.horses?`, chybí =
+  žádní): los ze seedu souseda, roku obchodu, druhu a pořadí koně v roce (`neighbour-horse:…`) –
+  hříbě 1–3 roky, klisna 4–12, jezdecký kůň 3–12 s výcvikem podle věku; `finishExpeditions` je
+  přidá (`addHorses` – do volných míst, přebytek do první ohrady koní, bez ohrady na maso).
+  Doprava: honák na 4 koně (`TRADE.horsesPerDrover`) zvlášť od honáků dobytka (`legCrew`). Sousedé:
+  koně mimo povahu (`PROFILE_ORDER` bez nich – ostatní zboží souseda beze změny, hlídá otisk
+  v `neighbours.test.ts`), `NEIGHBOURS.horseKinds` – pastevci nabízejí všechny tři, obilnáři
+  a řemeslníci shánějí všechny tři, lesní ves nic; 1–3 kusy z proudu `neighbour-horses:<směr>`.
+  Jezdecké koně mají pastevci jen některý rok (`seasonSupply` – `HORSE_TRADE.ridingYearChance`,
+  proud `neighbour-horses:<směr>:<rok>`). Uložený zbytek roku bez koní se nezahodí (`sameGoods`
+  koně nepočítá) – koně přibudou 1. 11. Web: názvy v `TRADE_GOOD_NAMES`, řádky v panelu zatím
+  skryté (`manor-view.ts`) – přidá úloha 13; karavana koně nenese (`carries`).
+
 - **Výměna lidí** (trade.md – Výměna lidí; Martin 19. 10. 2026: „Se sousedem půjde vyměnit
   i lidi…“, „Mohou se stěhovat celé rodiny i jen dospělí. Podle toho, co je v nabídce.“;
   `people-trade.ts`): soused má na rok obchodu lidi navíc, nebo je shání (`neighbourPeople` – ze

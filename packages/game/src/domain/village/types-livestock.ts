@@ -121,6 +121,9 @@ export interface Horse {
   riderId?: number;
 }
 
+/** Kůň v obchodu – bez id (dostane ho až ve vsi) a bez jezdce (horses.md – Nákup a prodej). */
+export type TradedHorse = Omit<Horse, 'id' | 'riderId'>;
+
 /**
  * Další čtverec ohrady za prvním (oxen.md – Ohrady podle druhu): ohrada se maluje po čtvercích
  * jako hřbitov, nejvýš PEN_SQUARES.max čtverců. Rozšíření ve stavbě nese `constructionId` – do

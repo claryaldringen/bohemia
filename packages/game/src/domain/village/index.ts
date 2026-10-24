@@ -290,6 +290,17 @@ export {
   cattleRoomBlocked,
   withCattleKinds,
 } from './cattle-trade';
+// koně v obchodu (horses.md – Nákup a prodej) – příchod a odchod koní (`addHorses`,
+// `removeHorses`) jsou kroky obchodu
+export {
+  NO_HORSE_ROOM,
+  horseRoomBlocked,
+  horseTradeRoom,
+  horseValueKg,
+  horsesForSale,
+  horsesSaleValues,
+  offeredHorses,
+} from './horse-trade';
 // výměna lidí se sousedem – příchod lidí (`settleNewcomers`) je krok simulace a zůstává uvnitř
 export {
   NO_PEOPLE,

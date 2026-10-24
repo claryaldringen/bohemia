@@ -1,6 +1,6 @@
 // Obchod se sousedy a výměna lidí (část rozdělených pravidel, rozcestník je rules.ts).
 
-import type { NeighbourGood, TradeGood } from './types';
+import type { HorseGood, NeighbourGood, TradeGood } from './types';
 
 // trade.md – Obchod (návrh Clauda, schváleno 18. 10. 2026): výměna podle hodnot v kg obilí. Soused
 // bere s přirážkou ≈ 20 % (prodává o ni dráž, kupuje o ni levněji), co shání, za to dá o 20 % víc,
@@ -10,13 +10,15 @@ import type { NeighbourGood, TradeGood } from './types';
 // rovnoměrně mezi jízdy (wagons.md – Obchod, Martin 22. 10. 2026); cesta tam a zpět 2–6 dní podle délky stezky (2 dny do 400 m, každých
 // dalších 250 m den navíc – návrh Clauda) + 1 den za krajem mapy. Zásoby a poptávka sousedů se
 // doplní 1. 11. Ves si nechá aspoň 2 krávy (chovný pár – návrh Clauda). Krávy a voli jdou po svých
-// s honákem – jako lidé ve výměně lidí nepotřebují nosiče, honák je člověk výpravy.
+// s honákem – jako lidé ve výměně lidí nepotřebují nosiče, honák je člověk výpravy. Koně
+// (horses.md – Nákup a prodej, návrh Clauda) se vedou na ohlávce, ne ženou – honák na 4 koně.
 export const TRADE = {
   markup: 0.2,
   demandBonus: 0.2,
   offerDiscount: 0.2,
   porterKg: 25,
   headsPerDrover: 10,
+  horsesPerDrover: 4,
   logCarriers: 2,
   // wagons.md – Opakované jízdy vozu: zbytek aspoň půl vozu = vůz jede ještě jednou (Martin 23. 10. 2026)
   restTripShare: 0.5,
@@ -78,6 +80,18 @@ export const NEIGHBOURS = {
     crafters: ['cows', 'youngOxen', 'trainedOxen'],
   },
   cattleAlways: ['herders'],
+  /**
+   * Koně podle povahy (horses.md – Nákup a prodej, návrh Clauda): pastevci nabízejí hříbata,
+   * klisny a jezdecké koně (ty jen některý rok – `HORSE_TRADE.ridingYearChance`), obilnáři
+   * a řemeslníci shánějí jezdecké koně (jejich vojvodové jezdí taky) – a hříbata a klisny na
+   * vlastní chov, ať má ves komu prodat, co jí z chovu přebývá; lesní ves koně nemá.
+   */
+  horseKinds: {
+    farmers: { offers: [], demands: ['foals', 'mares', 'ridingHorses'] },
+    herders: { offers: ['foals', 'mares', 'ridingHorses'], demands: [] },
+    woodsmen: { offers: [], demands: [] },
+    crafters: { offers: [], demands: ['foals', 'mares', 'ridingHorses'] },
+  },
 } as const satisfies Record<string, unknown> & {
   kinds: Record<
     string,
@@ -85,6 +99,7 @@ export const NEIGHBOURS = {
   >;
   cattleKinds: Record<string, readonly TradeGood[]>;
   cattleAlways: readonly string[];
+  horseKinds: Record<string, { offers: readonly HorseGood[]; demands: readonly HorseGood[] }>;
 };
 // trade.md – Obchod, hodnoty zboží v kg obilí (rešerše research/2026-10-18-trade-values.md, návrh
 // Clauda): obilí 1, luštěniny 1, maso 3, sýr 4, keramika 3, uhlí 0,5 (kg), kráva 600, kláda 40
@@ -106,8 +121,35 @@ export const TRADE_GOOD_VALUES = {
   cows: { valueKg: 600, carryKg: 0 },
   youngOxen: { valueKg: 350, carryKg: 0 },
   trainedOxen: { valueKg: 1200, carryKg: 0 },
+  // horses.md – Nákup a prodej: jezdecký kůň má cenu za kus podle výcviku (`HORSE_TRADE`), tady
+  // jen základ – nevycvičený tříletý
+  foals: { valueKg: 800, carryKg: 0 },
+  mares: { valueKg: 1600, carryKg: 0 },
+  ridingHorses: { valueKg: 2400, carryKg: 0 },
   logs: { valueKg: 40, carryKg: 100 },
 } as const satisfies Record<TradeGood, { valueKg: number; carryKg: number }>;
+/**
+ * horses.md – Nákup a prodej (Martin 23. 10. 2026: koně jako ostatní zvířata; čísla návrh Clauda):
+ * hříbě 800 kg obilí (víc než mladý vůl – kůň je vzácný, chov dražší), chovná klisna 1 600 (víc
+ * než vycvičený vůl), jezdecký kůň 2 400 (3 roky, nevycvičený) – 3 600 (12 let, vycvičený)
+ * lineárně podle výcviku (`ridingPerTrainingKg` za celý výcvik – 2–3 vycvičení voli; údržba koně
+ * ≈ 1,4× vola). Soused má každého koně 1–3 kusy ročně, pastevci jezdecké koně jen některý rok
+ * (`ridingYearChance`). Koupený kůň přijde se svým věkem: hříbě 1–3 roky (odstavené, má vlastní
+ * místo), klisna 4–12 let (chovná), jezdecký kůň 3–12 let s výcvikem podle věku – soused
+ * neprodá dosluhujícího.
+ */
+export const HORSE_TRADE = {
+  ridingPerTrainingKg: 1200,
+  perYear: { min: 1, max: 3 },
+  ridingYearChance: 0.5,
+  ages: {
+    foals: { from: 1, to: 3 },
+    mares: { from: 4, to: 12 },
+    ridingHorses: { from: 3, to: 12 },
+  },
+} as const satisfies Record<string, unknown> & {
+  ages: Record<HorseGood, { from: number; to: number }>;
+};
 /**
  * trade.md – Dobytek ve třech druzích (návrh Clauda): vycvičený vůl od souseda má za sebou
  * `servedYears` let služby (zbývá mu 7 z 10); ves prodá jen vycvičené voly mimo posledních
