@@ -34,8 +34,11 @@ dědictví, sňatky a nástupnictví potřebují vědět, kdo je čí. Postavy v
   seedu vsi a dne (návrh Clauda).
 - **Rodit může jen žena 16–44 let, která má manžela** (porody dnes po „párech“ – teď po
   manželských párech; četnost porodů beze změny). Muž je plodný od 16 let bez horní meze
-  (návrh Clauda).
-- Zakladatelé vsi: dva páry – muž a žena v každém (návrh Clauda; dnes 4 lidé).
+  (návrh Clauda). Návrh issue #9: **vedlejší manželka muže rodu** rodí, i když s mužem nebydlí –
+  muž ji navštěvuje (Martin, 24. 10. 2026 – [vojvodova rodina](lord.md), Manželky).
+- Zakladatelé vsi: dva páry – muž a žena v každém (návrh Clauda; dnes 4 lidé). **Návrh issue #9
+  fáze 1** (Martin, 24. 10. 2026): vojvoda se 4 manželkami – hlavní a 3 vedlejšími, bez
+  konkubín (Martin je týž den zrušil) – [vojvodova rodina](lord.md) – Rod vojvody, Zakladatelé.
 - **Starší vsi** (lidé bez pohlaví): pohlaví se jednou doplní deterministicky (střídavě podle
   věku tak, aby dvojice v domě byly muž a žena, kde to jde); rodiče neznámí = nepříbuzní;
   manželé se doplní z dnešních párů v domě (nejstarší muž s nejstarší ženou…) – návrh Clauda.
@@ -69,6 +72,10 @@ dědictví, sňatky a nástupnictví potřebují vědět, kdo je čí. Postavy v
   s ≈ 20 % ročně **vdá pryč** (dřív jen pryč, 30 % ročně). Ves tak lidi z okolí bere i dává
   (návrh Clauda). Až budou okolní vsi (NPC vojvodové, další hráči – [válka](war.md),
   [stěhování](migration.md)), sňatky půjdou přes ně.
+- **Muži rodu vojvody** (návrh issue #9, Martin 24. 10. 2026) smějí mít až 4 manželky; první je
+  hlavní a podle pravidel výš, další (vedlejší) jen z okolí. Vedlejší manželka bydlí s mužem,
+  dokud jeho dům není přeplněný, pak se svými dětmi ve vlastním obydlí – [vojvodova
+  rodina](lord.md), Manželky. Ostatní muži mají jednu manželku.
 - **Vdovy a vdovci** se znovu žení a vdávají co nejdřív – žádná čekací doba; dítě s novým mužem
   nejdřív za 9 měsíců (population.md – rozestup porodů).
 
@@ -158,7 +165,9 @@ rodiny (návrh Clauda – Martin uvidí):
   a jen dokud dům zůstával plný – pravidlo bylo kvůli stěhování tam a zpět, které po zavedení
   příbuzenství odpadlo (hlídá test).
 - **Dědic:** nejstarší ženatý syn zůstává s rodiči (dnešní dědic u neplodných rodičů platí
-  obecně – dům dědí nejstarší syn).
+  obecně – dům dědí nejstarší syn). **Výjimka – dvorec vojvody** (Martin, 24. 10. 2026, issue #9
+  fáze 1): po sňatku odcházejí všichni synové včetně nejstaršího; svobodní synové sami
+  neodcházejí (návrh Clauda) – [vojvodova rodina](lord.md) – Rod vojvody.
 - **Nejstarší dítě smí odejít samo** (Martin): z plného i přeplněného domu (Martin, 18. 10. 2026:
   „ať prázdný dům obsadí i plná domácnost“) smí do prázdného nebo nového domu odejít i
   **svobodný** nejstarší syn (od 16 let) – a oženit se tam (sňatkem ve vsi nebo z okolí). **Dál
