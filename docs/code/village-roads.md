@@ -482,6 +482,43 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   0 / 0 / 1. Po Úloze 1 (24. 10. 2026): dopočet 1 rok 19,9 s, stav 1 079 kB, z toho trasy 144
   (17,0 kB).
 
+- **Závěrečné ověření na Vlkově** (nový systém cest, Úloha 15, 24. 10. 2026; kopie `diag-vlkov2`, den
+  114 037; základ = commit `439338f8` před Úlohou 1 ve vedlejším worktree, měřeno současně na
+  zatíženém stroji, základ je před koňmi, vojvodovou rodinou a žněmi, takže rozdíl času není jen
+  z cest). `road-report.ts` navíc píše `trasy přes neprůchodné` (uložené trasy, jejichž vnitřek
+  jde přes `villageBlockedAt` – stavby, ohrady) a `roadsMonth` (počet a čas měsíčních kontrol přes
+  `ROADS_MONTH_TIMING` v `paths/roads.ts`, hodiny jen v měření). Po 10 letech: cesty 29 (mez 38),
+  křižovatky 14 (18), pahýly 1 (0), konce mimo kotvu 1 (0), nová id 68 (100), vchody bez cesty 0,
+  trasy přes neprůchodné 0, dopočet 186,8 / 201,9 s proti základu 160,5 / 174,2 s (+16 %, mez
+  +5 %), `roadsMonth` Ø 48 ms (mez 5 ms). Po 40 letech: cesty 30, křižovatky 14, konce mimo kotvu 3
+  (vše upravené), dopočet 261,2 s proti 241,7 s (+19,5 s, mez +1 s), `roadsMonth` Ø 37 ms, stav
+  1 009 kB (základ 1 051). Pahýl a konec mimo kotvu je 25m zbytek upravené cesty 547, kterou
+  zarůstání uřízlo od okraje mapy: `trimStubs` upravené cesty záměrně nechává (zarůstají podle
+  druhu), v základu byl pahýl také. Integrační test převodu: `application/__tests__/update-village-roads.test.ts`.
+
+- **Po Úloze 15 – pahýl a výkon** (24. 10. 2026, Claude Opus 5.5): zbytek upravené nebo vozové
+  cesty kratší než `ROAD_STUB.remnantM` (30 m) s koncem mimo kotvu zmizí v úklidu (`stubAction`
+  v `paths/roads-stubs.ts`; vozové cesty pahýly řeší také, okruhy dál ne), delší zarůstá.
+  Zrychlení `roadsMonth` (profil `--cpu-prof`, 2 roky Vlkova): 56 % času dělala neprůchodná
+  plocha `villageBlockedAt` – mezipaměť měla klíč `state.walkLayoutKey` se stadii dílů, takže
+  se přepočítávala skoro každý měsíc. Klíč jsou teď jen části rozložení, které dělají neprůchodné
+  (`walkLayoutParts` – obydlí, staveniště, hřbitovy, posvátná místa, ohrady, milíře, humna)
+  a zemní práce; výpočet pouští `villageGrid` bez polí, sadů, lesa a cest (jen zdražují). Druhá
+  byla `wearRoadDue` – blízkost vzorků čar k cestám (`eachWearRun`) se počítá líně jen u vzorků,
+  na kterých záleží, a čára bez vyšlapaného vzorku mimo cestu se přeskočí (dá totéž);
+  `axisDistance` má číselné kyblíky a vzdálenost bez objektu. Mezipaměti po čarách nepomohly –
+  trasy se přepočítají skoro každý měsíc. Determinismus: klíč pokrývá všechny vstupy plochy,
+  dopočet po kouscích (`wear-village.test.ts`) beze změny. Vlkov 10 let: `roadsMonth` Ø 48 →
+  14,4 ms (mez 5 ms – **pořád mimo**: zbytek je úklid sítě, křižovatky, provozní pole a čáry
+  tras pro nové trasy), pahýly 0, konce mimo kotvu 0, cesty 28, křižovatky 13, nová id 68,
+  dopočet 178,9 s proti základu `439338f8` 156,8 s (+14 %, souběžně, load 49 → 6). Podíl cest
+  (profil 10 let obou verzí souběžně, kroky `simulateDay`): kroky cest (`refreshWalkDistances`
+  s trasami, `roadFieldsDay`, `roadsMonth`, `roadsDay`) 124,1 s proti 115,6 s v základu, tedy
+  **cesty + 8,5 s (≈ 4 % dopočtu)**: chůze a trasy + 4,9 s, `roadFieldsDay` + 2,8 s, `roadsMonth`
+  - 2,2 s (v základu není), `roadsDay` − 1,5 s; celkem v tom běhu 220,8 s obě verze (load až 57),
+    ostatní kroky − 8,3 s (`work` − 7,2 s – ves se v obou verzích vyvíjí jinak). Zbytek rozdílu
+    mimo profil je mimo cesty (koně, rod vojvody, žně) a šum zatíženého stroje.
+
 - **Trasy ve stavu vsi** (nový systém cest, Úloha 1; [paths.md – Kdy se trasy počítají a co se
   ukládá](../design/paths.md#kdy-se-trasy-počítají-a-co-se-ukládá)): `VillageState.routes`
   (`VillageRoutes { day, key, list }`, typy v `types-routes.ts`) – trasy posledního kola sítě pěšin,

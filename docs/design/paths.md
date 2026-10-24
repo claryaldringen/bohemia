@@ -303,7 +303,11 @@ Návrh Clauda:
   výjimka podle délky ani podle toho, že tudy vede trasa – kus, jehož konec není u kotvy, mizí
   celý až k nejbližšímu uzlu. **Upravená a vozová cesta** (hráč do ní investoval) mizí jen
   pomaleji (Martin, #6: „Platí to pro každou cestu, i upravenou a vozovou, jen pro ty pomaleji“):
-  zarůstá podle `ROAD_DECAY`, nezkracuje se.
+  zarůstá podle `ROAD_DECAY`, nezkracuje se. Návrh Clauda (24. 10. 2026, Vlkov – 25 m zbytek
+  upravené cesty 547 po uříznutí zarůstáním od kraje mapy): **zbytek upravené nebo vozové cesty
+  kratší než 30 m** (`ROAD_STUB.remnantM`) s koncem mimo kotvu se v úklidu sloučí se sousední
+  cestou (konec u jiné cesty – díra, krok 2; uzel, ze kterého vycházel, se spojí – krok 3), jinak
+  zmizí; delší upravený nebo vozový úsek bez cíle dál jen zarůstá.
 - **Úklid** po každé změně cest (měsíční kontrola, dostavěné vylepšení, převod) v pevném pořadí:
   1. **souběžné cesty a copánky** – dnešní pravidla ([roads.md – Úseky a
      rozcestí](roads.md#úseky-a-rozcestí): do 12 m stejným směrem, kus od 25 m; copánek mezi
@@ -327,7 +331,7 @@ Návrh Clauda:
   - úklid běží v měsíční kontrole, jen když se od minulého úklidu změnily cesty, nebo když nové
     kotvy a trasy dají práci (pahýl, díra, okruh, vchod bez cesty) – bez změny nic, žádná nová id;
   - **upravená a vozová cesta** (postavil je hráč – Převod: „upravené a vozové zůstanou“) se jako
-    pahýl neodstraňuje; upravený kus kratší než 15 m zmizí, delší zůstane a zarůstá podle druhu;
+    pahýl neodstraňuje; zbytek kratší než 30 m zmizí (výš), delší zůstane a zarůstá podle druhu;
   - vyšlapaný pahýl zmizí vždy, i delší než 30 m a i když po něm vede trasa (stará cesta oklikou
     u vozové cesty zůstává, jen když oba konce leží u kotev nebo na jiných cestách);
   - kraj mapy je kotva v pásu od okraje terénu pěšin (10 m) po konec zemských stezek k sousedům
@@ -546,6 +550,11 @@ Návrh Clauda (odhady – ověří poslední úloha plánu):
   Do prohlížeče jen při změně klíče, ne s každým dotazem na ves.
 - **Scéna** trasy jen dekóduje – žádné A\* v prohlížeči (dřív výpočet sítě ve třech úlohách).
 
+**Ověřeno na Vlkově (24. 10. 2026, Úloha 15):** dopočet 10 let +16 % a 40 let +19,5 s proti stavu
+před novým systémem (mez byla +5 % a +1 s), měsíční kontrola Ø 37–48 ms (odhad 5 ms), stav vsi
+–42 kB (mez +50 kB splněna). Odchylka od odhadů je otevřená otázka pro Martina (viz závěr plánu
+cest v2), ne tichá oprava.
+
 ## Rozhodnutí
 
 | Rozhodnutí                                                                                       | Kdo          |
@@ -560,7 +569,7 @@ Návrh Clauda (odhady – ověří poslední úloha plánu):
 | Vyšlapanost 7,5 m, ± 1 políčko, + provoz − 1 za den, 0–1 500, cesta od 1 000, vůz × 2            | návrh Clauda |
 | Vznik jen celé cesty od kotvy ke kotvě, prodloužení do vyšlapanosti 500; měsíční kontrola        | návrh Clauda |
 | Kotvy: vchod, křižovatka, kraj mapy a cíl (konec trasy k vodě, dřevu, poli, sadu, louce)         | návrh Clauda |
-| Pahýl (konec mimo kotvu) zmizí bez ohledu na délku; upravená a vozová zarůstá; opuštěná mimo síť | návrh Clauda |
+| Pahýly zmizí vždy; upravená a vozová zarůstá, jejich zbytky pod 30 m zmizí; opuštěná je mimo síť | návrh Clauda |
 | Křižovatka: Y s β 30–60°, natočení po 5°, vchod 1,5 × šířka, oblouk 12 m, dvě po 10 m            | návrh Clauda |
 | Znamení: strom 40 %, kámen 30 %, kůl 30 %; strom roste jako strom u cesty                        | návrh Clauda |
 | Cesta k vchodu bez ohledu na vyšlapanost, nezarůstá, dokud se ke stavbě chodí                    | návrh Clauda |

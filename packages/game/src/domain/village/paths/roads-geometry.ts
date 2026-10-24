@@ -173,11 +173,26 @@ export function toSegment(
   return { distance: length2(x - (a.x + dx * t), z - (a.z + dz * t)), t };
 }
 
+/** Vzdálenost bodu od úsečky a–b – týž výpočet jako `toSegment`, bez objektu výsledku. */
+function segmentDistance(x: number, z: number, a: RoadPoint, b: RoadPoint): number {
+  const dx = b.x - a.x;
+  const dz = b.z - a.z;
+  const l2 = dx * dx + dz * dz;
+  const t = l2 > 0 ? Math.min(1, Math.max(0, ((x - a.x) * dx + (z - a.z) * dz) / l2)) : 0;
+  return length2(x - (a.x + dx * t), z - (a.z + dz * t));
+}
+
+/** Číslo kyblíku (souřadnice kyblíku do ±32 767 – mapa do ±327 km). */
+function bucketKey(bx: number, bz: number): number {
+  return (bx + 0x8000) * 0x10000 + (bz + 0x8000);
+}
+
 /** Vzdálenost od nejbližší osy (přesně do BUCKET_M, dál Infinity) – úsečky po kyblících. */
 export function axisDistance(
   polylines: readonly (readonly RoadPoint[])[],
 ): (x: number, z: number) => number {
-  const buckets = new Map<string, [RoadPoint, RoadPoint][]>();
+  // kyblík jako číslo (bez skládání řetězců – dotaz je v měsíční kontrole cest nejčastější)
+  const buckets = new Map<number, [RoadPoint, RoadPoint][]>();
   for (const line of polylines) {
     for (let k = 1; k < line.length; k++) {
       const a = line[k - 1]!;
@@ -188,7 +203,7 @@ export function axisDistance(
       const z1 = Math.floor(Math.max(a.z, b.z) / BUCKET_M);
       for (let bz = z0; bz <= z1; bz++) {
         for (let bx = x0; bx <= x1; bx++) {
-          const key = `${bx},${bz}`;
+          const key = bucketKey(bx, bz);
           const list = buckets.get(key);
           if (list) list.push([a, b]);
           else buckets.set(key, [[a, b]]);
@@ -202,9 +217,9 @@ export function axisDistance(
     const bz = Math.floor(z / BUCKET_M);
     for (let dz = -1; dz <= 1; dz++) {
       for (let dx = -1; dx <= 1; dx++) {
-        for (const [a, b] of buckets.get(`${bx + dx},${bz + dz}`) ?? []) {
-          best = Math.min(best, toSegment(x, z, a, b).distance);
-        }
+        const list = buckets.get(bucketKey(bx + dx, bz + dz));
+        if (!list) continue;
+        for (const [a, b] of list) best = Math.min(best, segmentDistance(x, z, a, b));
       }
     }
     return best;

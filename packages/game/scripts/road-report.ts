@@ -29,6 +29,8 @@ import {
 import { anchorTermini } from '../src/domain/village/paths/roads-tidy';
 import { JUNCTION_RUNS } from '../src/domain/village/paths/junctions';
 import { routeLine } from '../src/domain/village/paths/routes';
+import { ROADS_MONTH_TIMING } from '../src/domain/village/paths/roads';
+import { villageBlockedAt } from '../src/domain/village/paths/village';
 import { pathCellM } from '../src/domain/village/paths/terrain';
 import { updateVillage } from '../src/application/update-village';
 import { WEAR_TIMING, decodeWear } from '../src/domain/village/paths/wear';
@@ -72,6 +74,11 @@ export interface RoadReport {
   /** Opuštěné kusy pod stavbou (nejsou v síti) a stavby bez cesty do vchodu (paths.md – Vchody). */
   abandoned: number;
   entrancesWithoutRoad: number;
+  /** Uložené trasy, které uvnitř (mimo první a poslední 3 body) vedou přes neprůchodnou plochu (ohrada, stavba). */
+  routesThroughBlocked: number;
+  /** Čas měsíčních kontrol `roadsMonth` během dopočtu (ms) a jejich počet. */
+  monthMs: number;
+  months: number;
   /** Cesty založené během dopočtu (kronika `road-formed`) a nová id úseků (i pohlcené úklidem). */
   formed: number;
   newIds: number;
@@ -196,6 +203,20 @@ function entrancesWithoutRoad(state: VillageState, landscape: Landscape): number
   return missing;
 }
 
+/** Uložené trasy vedoucí uvnitř přes neprůchodnou plochu vsi (ohrady, stavby – paths.md). */
+function routesThroughBlocked(state: VillageState, landscape: Landscape): number {
+  const blocked = villageBlockedAt(state, state.lastDay, landscape);
+  if (!blocked) return 0;
+  const cellM = pathCellM(landscape);
+  let bad = 0;
+  for (const route of state.routes?.list ?? []) {
+    const line = routeLine(route, cellM);
+    const inner = line.slice(3, Math.max(3, line.length - 3));
+    if (inner.some((p) => blocked(p.x, p.z))) bad++;
+  }
+  return bad;
+}
+
 /** Načte a dopočte ves, vrátí naměřená čísla. */
 export async function roadReport(
   input: RoadReportInput,
@@ -206,6 +227,9 @@ export async function roadReport(
   const landscape = generateLandscapeAttempt(input.landscapeSeed, input.layerVersions);
   const landscapeMs = performance.now() - t;
   WEAR_TIMING.clock = (): number => performance.now();
+  ROADS_MONTH_TIMING.clock = (): number => performance.now();
+  ROADS_MONTH_TIMING.ms = 0;
+  ROADS_MONTH_TIMING.runs = 0;
   const repo = new SingleVillageRepository('settlement-1', input.name ?? 'Ves', input.state);
   const keep = (state: VillageState): { ok: true; state: VillageState } => ({ ok: true, state });
   const start = input.state.lastDay;
@@ -228,6 +252,7 @@ export async function roadReport(
   if (!done.ok) throw new Error(done.reason);
   const { settleMs, settles, encodeMs, encodes } = WEAR_TIMING;
   WEAR_TIMING.clock = null;
+  ROADS_MONTH_TIMING.clock = null;
 
   const state = done.village.state;
   onState?.(state);
@@ -259,6 +284,9 @@ export async function roadReport(
     junctionBends: JUNCTION_RUNS.bends - runs.bends,
     abandoned: all.length - roads.length,
     entrancesWithoutRoad: entrancesWithoutRoad(state, landscape),
+    routesThroughBlocked: routesThroughBlocked(state, landscape),
+    monthMs: ROADS_MONTH_TIMING.ms,
+    months: ROADS_MONTH_TIMING.runs,
     formed: state.chronicle.filter((e) => e.kind === 'road-formed' && e.day > start).length,
     newIds: (state.roads?.nextId ?? 1) - (input.state.roads?.nextId ?? 1),
     routes: state.routes?.list.length ?? 0,
@@ -314,6 +342,8 @@ export function formatReport(r: RoadReport): string {
     `souběžné páry ${r.parallelPairs}`,
     `opuštěné ${r.abandoned}`,
     `vchody bez cesty ${r.entrancesWithoutRoad}`,
+    `trasy přes neprůchodné ${r.routesThroughBlocked}`,
+    `roadsMonth ${r.months}× ${r.monthMs.toFixed(0)} ms (Ø ${(r.monthMs / Math.max(1, r.months)).toFixed(1)} ms)`,
     `vzniklo ${r.formed} (nových id ${r.newIds})`,
     `trasy ${r.routes} (${r.routesKb.toFixed(1)} kB)`,
     `vyšlapanost ${r.wearCells} políček (${r.wearKb.toFixed(1)} kB)`,

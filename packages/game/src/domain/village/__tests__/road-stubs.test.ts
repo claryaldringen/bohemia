@@ -11,6 +11,7 @@ import { mergeParallelRoads, removeBraids } from '../paths/roads-tidy';
 import { type SpotContext } from '../paths/roads-trees';
 import { encodeRoute } from '../paths/routes';
 import { EDGE_MARGIN_M, pathCellM, trailTerrain } from '../paths/terrain';
+import { ROAD_STUB } from '../rules';
 import type { Road, RoadGrade, RoadPoint, StoredRoute, VillageRoads, VillageState } from '../types';
 import { village } from './abandonment-fixtures';
 import { LANDSCAPE } from './paths-fixtures';
@@ -153,6 +154,148 @@ describe('pahýly a okruhy', () => {
     const improved = roadsOf(list('improved'));
     expect(trimStubs(improved, [], { isAnchor, lines: [line] })).toBe(false);
     expect(improved.roads.some((r) => r.id === 3)).toBe(true);
+  });
+
+  it('zbytek upravené a vozové cesty pod 30 m bez kotvy zmizí, delší zůstane (Vlkov – 25 m)', () => {
+    const net = (grade: RoadGrade, length: number): VillageRoads =>
+      roadsOf([
+        road(1, [
+          [0, 0],
+          [100, 0],
+        ]),
+        road(2, [
+          [100, 0],
+          [200, 0],
+        ]),
+        road(
+          3,
+          [
+            [100, 0],
+            [100, length],
+          ],
+          grade,
+        ),
+      ]);
+    const isAnchor = anchorsAt([
+      [0, 0],
+      [200, 0],
+    ]);
+    const stub = { isAnchor, lines: [] };
+    expect(ROAD_STUB.remnantM).toBe(30);
+    for (const grade of ['improved', 'wagon'] as const) {
+      const short = net(grade, 25);
+      expect(trimStubs(short, [], stub)).toBe(true);
+      expect(short.roads.map((r) => r.id)).toEqual([1, 2]);
+      // uzel u zmizelého zbytku se spojí – zbude jedna cesta od kotvy ke kotvě
+      mergeRoadChains(short, []);
+      expect(short.roads).toHaveLength(1);
+      const long = net(grade, 35);
+      expect(trimStubs(long, [], stub)).toBe(false);
+      expect(long.roads.some((r) => r.id === 3)).toBe(true);
+    }
+  });
+
+  describe('zbytek vozové cesty – hranice a výjimky', () => {
+    const base = (length: number, endX = 100): VillageRoads =>
+      roadsOf([
+        road(1, [
+          [0, 0],
+          [100, 0],
+        ]),
+        road(2, [
+          [100, 0],
+          [200, 0],
+        ]),
+        road(
+          3,
+          [
+            [100, 0],
+            [endX, length],
+          ],
+          'wagon',
+        ),
+      ]);
+    const isAnchor = anchorsAt([
+      [0, 0],
+      [200, 0],
+    ]);
+    const stub = { isAnchor, lines: [] };
+
+    it('hranice 30 m: 29,9 m zmizí, 30 m zůstane', () => {
+      const under = base(ROAD_STUB.remnantM - 0.1);
+      expect(trimStubs(under, [], stub)).toBe(true);
+      expect(under.roads.some((r) => r.id === 3)).toBe(false);
+      const exact = base(ROAD_STUB.remnantM);
+      expect(trimStubs(exact, [], stub)).toBe(false);
+      expect(exact.roads.some((r) => r.id === 3)).toBe(true);
+    });
+
+    it('konec u kotvy nebo na jiné cestě zbytek nedělá pahýlem', () => {
+      const atAnchor = roadsOf([
+        road(1, [
+          [0, 0],
+          [100, 0],
+        ]),
+        road(
+          2,
+          [
+            [100, 0],
+            [100, 20],
+          ],
+          'wagon',
+        ),
+      ]);
+      expect(
+        trimStubs(atAnchor, [], {
+          isAnchor: anchorsAt([
+            [0, 0],
+            [100, 20],
+          ]),
+          lines: [],
+        }),
+      ).toBe(false);
+      // krátký zbytek, jehož volný konec leží u jiné cesty (díra, kterou zacelí joinRoadGaps)
+      const onRoad = base(0);
+      onRoad.roads[2]!.points = [
+        { x: 100, z: 0 },
+        { x: 110, z: 1 },
+      ];
+      expect(trimStubs(onRoad, [], stub)).toBe(false);
+    });
+
+    it('hotový úsek rozestavěné vozové cesty (stavba bez roadIds) úklid nesmaže', () => {
+      const net = base(25);
+      net.earthworks = [
+        {
+          id: 1,
+          profile: [
+            { x: 100, z: 0, y: 0 },
+            { x: 100, z: 25, y: 0 },
+            { x: 100, z: 120, y: 0 },
+          ],
+          pieces: [
+            { toM: 25, manDays: 1, builtDay: START },
+            { toM: 120, manDays: 4, builtDay: null },
+          ],
+          startedDay: START,
+          constructionId: 9,
+        },
+      ];
+      expect(trimStubs(net, [], stub)).toBe(false);
+      expect(net.roads.some((r) => r.id === 3)).toBe(true);
+      // dostavěná (bez constructionId) už je jen zbytek kratší než mez
+      delete net.earthworks[0]!.constructionId;
+      expect(trimStubs(net, [], stub)).toBe(true);
+    });
+
+    it('úsek ve stavbě upravené cesty (roadIds) úklid nesmaže', () => {
+      const net = base(25);
+      const work = [
+        { id: 9, kind: 'road', roadIds: [3] } as unknown as Parameters<typeof trimStubs>[1][number],
+      ];
+      expect(trimStubs(net, work, stub)).toBe(false);
+      expect(trimStubs(net, [], stub)).toBe(true);
+    });
   });
 
   it('malý okruh přes jeden uzel se rozdělí a zmizí jako copánek a pahýl', () => {

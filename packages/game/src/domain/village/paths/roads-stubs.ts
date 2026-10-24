@@ -5,8 +5,9 @@
 
 import { length2 } from '../../landscape';
 import type { Construction, Road, RoadPoint, Trail, VillageRoads } from '../types';
+import { ROAD_STUB } from '../rules';
 import { fixedRoadIds } from './road-condition';
-import { END_SNAP_M, MIN_ROAD_M, nearestOnRoads, roadLengthM } from './roads-geometry';
+import { END_SNAP_M, nearestOnRoads, roadLengthM } from './roads-geometry';
 import { endKey, splitRoad } from './roads-form';
 import { relinkApples } from './roads-overgrow';
 import { type SpotContext } from './roads-trees';
@@ -32,17 +33,35 @@ function liveEnds(roads: readonly Road[]): Map<string, number> {
   return count;
 }
 
-/** Úseky, které úklid pahýlů nemění: ve stavbě, zemské stezky a vozové cesty (zemní práce). */
+/**
+ * Úseky, které úklid nemění: ve stavbě a zemské stezky; okruhy navíc nedělí vozové cesty (zemní
+ * práce). Zbytek vozové cesty jako pahýl ano (`stubAction`).
+ */
 function untouchable(
+  roads: VillageRoads,
   constructions: readonly Construction[],
   trails: readonly Trail[] | undefined,
+  wagon: boolean = true,
 ): (road: Road) => boolean {
   const fixed = fixedRoadIds(constructions, trails);
+  // rozestavěná vozová cesta nemá `roadIds` – její hotové úseky leží na ose zemních prací,
+  // které ještě drží stavbu (`constructionId`); zbytek pod mezí by v cestě nechal trvalou díru
+  const building = (roads.earthworks ?? [])
+    .filter((e) => e.constructionId !== undefined && e.profile.length >= 2)
+    .map((e) => [{ points: e.profile.map((p) => ({ x: p.x, z: p.z })) } as Road]);
+  const inWork = (road: Road): boolean =>
+    building.some((axis) =>
+      [road.points[0]!, road.points[road.points.length - 1]!].every((p) => {
+        const hit = nearestOnRoads(axis, p.x, p.z);
+        return hit !== null && hit.distance <= END_SNAP_M;
+      }),
+    );
   return (road) =>
     road.abandoned === true ||
     road.points.length < 2 ||
-    road.grade === 'wagon' ||
-    fixed.has(road.id);
+    (wagon && road.grade === 'wagon') ||
+    fixed.has(road.id) ||
+    (road.grade === 'wagon' && inWork(road));
 }
 
 /** Index prvního okruhu přes jeden uzel (začíná i končí v rozcestí); jinak −1. */
@@ -61,7 +80,7 @@ export function hasLoop(
   constructions: readonly Construction[],
   trails?: readonly Trail[],
 ): boolean {
-  return loopIndex(roads, untouchable(constructions, trails)) >= 0;
+  return loopIndex(roads, untouchable(roads, constructions, trails)) >= 0;
 }
 
 /**
@@ -75,7 +94,7 @@ export function splitLoops(
   context: SpotContext,
   trails?: readonly Trail[],
 ): boolean {
-  const skip = untouchable(constructions, trails);
+  const skip = untouchable(roads, constructions, trails);
   let split = false;
   for (let guard = roads.roads.length; guard > 0; guard--) {
     const index = loopIndex(roads, skip);
@@ -145,13 +164,14 @@ type StubAction = { kind: 'drop' } | { kind: 'keep' };
  * Pahýl (paths.md – Síť – kotvy, pahýly a úklid; Martin, #6: „Pahýly bez cíle nevznikají, a když
  * po dělení a spojování cest nějaký zbude, sloučí se se sousední cestou nebo zmizí.“): vyšlapaný
  * úsek, jehož konec nekončí u kotvy ani na jiné cestě, zmizí v nejbližším úklidu – bez ohledu na
- * délku (konec, který leží u jiné cesty, sloučí `joinRoadGaps`). Upravenou cestu postavil hráč
- * (Martin, #6: „Platí to pro každou cestu, i upravenou a vozovou, jen pro ty pomaleji“) – ta
- * zarůstá podle druhu (`ROAD_DECAY`) a zmizí jen kratší než MIN_ROAD_M (návrh Clauda).
+ * délku (konec, který leží u jiné cesty, sloučí `joinRoadGaps`). Upravenou a vozovou cestu postavil
+ * hráč (Martin, #6: „Platí to pro každou cestu, i upravenou a vozovou, jen pro ty pomaleji“) – ta
+ * zarůstá podle druhu (`ROAD_DECAY`); zmizí jen zbytek kratší než `ROAD_STUB.remnantM` (návrh
+ * Clauda – Vlkov: 25 m upravené cesty po uříznutí zarůstáním od kraje mapy).
  */
 function stubAction(stub: Stub): StubAction {
   if (stub.road.grade !== 'trodden') {
-    return stub.length < MIN_ROAD_M ? { kind: 'drop' } : { kind: 'keep' };
+    return stub.length < ROAD_STUB.remnantM ? { kind: 'drop' } : { kind: 'keep' };
   }
   return { kind: 'drop' };
 }
@@ -168,7 +188,7 @@ export function hasStubWork(
   constructions: readonly Construction[],
   network: StubNetwork,
 ): boolean {
-  const skip = untouchable(constructions, network.trails);
+  const skip = untouchable(roads, constructions, network.trails, false);
   const accepted = new Set<string>();
   for (let guard = roads.roads.length * 2; guard > 0; guard--) {
     const stub = firstStub(roads, skip, network.isAnchor, accepted);
@@ -181,15 +201,15 @@ export function hasStubWork(
 
 /**
  * Pahýly (paths.md – Síť – kotvy, pahýly a úklid; mutuje): zmizí (`stubAction`);
- * uzel u zmizelého pahýlu pak spojí `mergeRoadChains`. Vozové cesty, cesty ve stavbě a zemské
- * stezky se nemění. Vrátí, jestli něco změnil.
+ * uzel u zmizelého pahýlu pak spojí `mergeRoadChains`. Cesty ve stavbě a zemské stezky se
+ * nemění. Vrátí, jestli něco změnil.
  */
 export function trimStubs(
   roads: VillageRoads,
   constructions: readonly Construction[],
   network: StubNetwork,
 ): boolean {
-  const skip = untouchable(constructions, network.trails);
+  const skip = untouchable(roads, constructions, network.trails, false);
   const accepted = new Set<string>();
   let changed = false;
   for (let guard = roads.roads.length * 2; guard > 0; guard--) {
@@ -201,7 +221,7 @@ export function trimStubs(
       changed = true;
       continue;
     }
-    // upravená cesta zůstane (zarůstá podle druhu)
+    // upravená a vozová cesta od ROAD_STUB.remnantM zůstane (zarůstá podle druhu)
     accepted.add(stubEndKey(stub));
   }
   return changed;

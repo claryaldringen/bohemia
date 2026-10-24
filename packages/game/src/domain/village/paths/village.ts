@@ -421,12 +421,25 @@ export function villageBlockedAt(
   day: number,
   landscape: Landscape,
 ): ((x: number, z: number) => boolean) | null {
-  // rozložení vsi se mění zřídka – stejný otisk rozložení (`walkLayoutKey`) = táž plocha
-  const key = state.walkLayoutKey;
+  // neprůchodné dělají jen stavby, ploty a úpravy terénu (`villageGrid`) – klíč jsou jen ony (části
+  // `walkLayoutKey` a zemní práce vozových cest), ne pole, sady, les, cesty ani stáda: ty chůzi jen
+  // zdraží a mění se skoro každý měsíc. Okno mřížky leží na mřížce krajiny (`pathWindowFor`), takže
+  // větší okno buňky staveb neposune
+  const k = walkLayoutParts(state, day);
+  const key = JSON.stringify([
+    k.dwellings,
+    k.sites,
+    k.cemeteries,
+    k.sacred,
+    k.pens,
+    k.kilns,
+    k.floors,
+    state.roads?.earthworks ?? [],
+  ]);
   const last = lastBlocked.get(landscape);
-  if (key !== undefined && last?.key === key) return last.blocked;
+  if (last?.key === key) return last.blocked;
   const blocked = computeBlockedAt(state, day, landscape);
-  if (key !== undefined) lastBlocked.set(landscape, { key, blocked });
+  lastBlocked.set(landscape, { key, blocked });
   return blocked;
 }
 
@@ -445,7 +458,9 @@ function computeBlockedAt(
   const bounds = villagePathBounds(village, landscape);
   if (!bounds) return null;
   const terrain = pathTerrainOf(landscape, pathWindowFor(landscape, bounds));
-  const grid = villageGrid({ village, terrain }, villageBuildings(village).all);
+  // pole, sady, les a cesty jen mění cenu průchodných buněk – bez nich táž neprůchodná plocha
+  const fenced: PathVillage = { ...village, fields: [], orchards: [], woods: [], roads: [] };
+  const grid = villageGrid({ village: fenced, terrain }, villageBuildings(village).all);
   return (x, z) => {
     const i = Math.round((x - grid.originX) / grid.cellM);
     const j = Math.round((z - grid.originZ) / grid.cellM);
@@ -509,6 +524,43 @@ function computeVillageNetwork(
  * (`walkStageKey`) – promítají se nejvýš jednou za měsíc (Martin, 18. 10. 2026).
  */
 export function walkLayoutKey(state: VillageState, day: number): string {
+  const k = walkLayoutParts(state, day);
+  return JSON.stringify([
+    k.dwellings,
+    k.sites,
+    k.parts,
+    k.orchards,
+    k.cemeteries,
+    k.sacred,
+    // bez pevných cest, ohrad a stád prázdné – klíč starších vsí zůstane stejný
+    ...(k.roads !== null ? [k.roads] : []),
+    ...(k.pens.length > 0 ? [k.pens] : []),
+    ...(k.herds > 0 ? [k.herds] : []),
+    ...(k.woods.length > 0 ? [k.woods] : []),
+    // milíře uhlířů (crafts.md – Milíř u skácených buků) – bez nich klíč beze změny
+    ...(k.kilns !== null ? [k.kilns] : []),
+    // humna (production-chains.md – Humno) – bez nich klíč beze změny
+    ...(k.floors !== null ? [k.floors] : []),
+  ]);
+}
+
+/** Části klíče rozložení (`walkLayoutKey`) – stavby a ploty bere i neprůchodná plocha vsi. */
+interface WalkLayoutParts {
+  dwellings: string[];
+  sites: string[];
+  parts: string[];
+  orchards: string[];
+  cemeteries: string[];
+  sacred: string;
+  roads: string | null;
+  pens: string[];
+  herds: number;
+  woods: string[];
+  kilns: string | null;
+  floors: string | null;
+}
+
+function walkLayoutParts(state: VillageState, day: number): WalkLayoutParts {
   const occupied = new Set(state.people.map((p) => p.dwellingId));
   const age = (since: number): number =>
     Math.round(pathAgeFactor((day - since) / DAYS_PER_YEAR) * 10);
@@ -563,23 +615,20 @@ export function walkLayoutKey(state: VillageState, day: number): string {
     position: f.position,
     built: f.builtDay !== null,
   }));
-  return JSON.stringify([
+  return {
     dwellings,
     sites,
     parts,
     orchards,
     cemeteries,
     sacred,
-    // bez pevných cest, ohrad a stád prázdné – klíč starších vsí zůstane stejný
-    ...(roads.length > 0 ? [roadsKey(roads)] : []),
-    ...(pens.length > 0 ? [pens] : []),
-    ...(herds > 0 ? [herds] : []),
-    ...(woods.length > 0 ? [woods] : []),
-    // milíře uhlířů (crafts.md – Milíř u skácených buků) – bez nich klíč beze změny
-    ...(kilns.length > 0 ? [kilnsKey(kilns)] : []),
-    // humna (production-chains.md – Humno) – bez nich klíč beze změny
-    ...(floors.length > 0 ? [threshingFloorsKey(floors)] : []),
-  ]);
+    roads: roads.length > 0 ? roadsKey(roads) : null,
+    pens,
+    herds,
+    woods,
+    kilns: kilns.length > 0 ? kilnsKey(kilns) : null,
+    floors: floors.length > 0 ? threshingFloorsKey(floors) : null,
+  };
 }
 
 /**

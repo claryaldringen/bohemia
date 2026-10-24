@@ -40,6 +40,12 @@ export const ROAD_DECAY = {
   improved: { keep: 50, years: 15 },
   wagon: { keep: 25, years: 30 },
 } as const;
+// paths.md – Síť – kotvy, pahýly a úklid (Martin, #6: „Pahýly bez cíle nevznikají, a když po dělení
+// a spojování cest nějaký zbude, sloučí se se sousední cestou nebo zmizí.“; číslo návrh Clauda
+// 24. 10. 2026): zbytek upravené nebo vozové cesty kratší než `remnantM` s koncem mimo kotvu se
+// v úklidu sloučí se sousední cestou (konec u jiné cesty – díra), jinak zmizí; delší zarůstá
+// (`ROAD_DECAY`)
+export const ROAD_STUB = { remnantM: 30 } as const;
 // wagons.md – Vozová síť a vyjeté cesty (Martin, 19. 10. 2026: „Vozy mohou cestu vyjezdit, ale
 // nemají takovou prostupnost jako lidé … ve svahu, kde lidé zvládnou chodit rovně, vůz bude muset
 // vyjezdit serpentiny.“; čísla návrh Clauda – rešerše fáze 1 je ověří): sklon ve směru jízdy nad

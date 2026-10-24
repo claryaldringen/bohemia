@@ -180,12 +180,20 @@ function eachWearRun(
     if (!level.some((w) => w >= WEAR.roadAt)) continue;
     roadAt ??= axisDistance(roads.roads.filter((r) => !r.abandoned).map((r) => r.points));
     const at = roadAt;
-    const onRoad = run.map((p) => at(p.x, p.z) <= ON_ROAD_M);
-    const warm = (k: number): boolean => level[k]! >= WEAR.extendFrom && !onRoad[k];
+    // blízkost k cestám této čáry (síť z jejího začátku) jen u vzorků, na kterých záleží –
+    // vyšlapaných a jejich sousedů; líně
+    const near = new Int8Array(run.length);
+    const onRoad = (k: number): boolean => {
+      if (near[k] === 0) near[k] = at(run[k]!.x, run[k]!.z) <= ON_ROAD_M ? 1 : -1;
+      return near[k] === 1;
+    };
+    // kus vznikne jen kolem vyšlapaného vzorku mimo cestu – čára bez něj nic nedá
+    if (!level.some((w, k) => w >= WEAR.roadAt && !onRoad(k))) continue;
+    const warm = (k: number): boolean => level[k]! >= WEAR.extendFrom && !onRoad(k);
     // konec kusu: u pevné cesty (připojí se do ATTACH_M), u kotvy (false – bez připojení), jinak
     // null – cesta zatím nevznikne
     const endAt = (k: number, outside: number): number | false | null => {
-      if (outside >= 0 && outside < run.length && onRoad[outside]) return ATTACH_M;
+      if (outside >= 0 && outside < run.length && onRoad(outside)) return ATTACH_M;
       return nearAnchor(anchors, run[k]!.x, run[k]!.z) ? false : null;
     };
     let i = 0;
