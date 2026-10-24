@@ -242,7 +242,7 @@ function networkKey(roads: VillageRoads): number {
     }
   };
   for (const road of roads.roads) {
-    add(`|${road.id}:${road.grade}:${road.abandoned ? 1 : 0}:`);
+    add(`|${road.id}:${road.grade}${road.unbridged ? 'u' : ''}:${road.abandoned ? 1 : 0}:`);
     for (const p of road.points) add(`${p.x},${p.z};`);
   }
   return hash;

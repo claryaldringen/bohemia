@@ -24,19 +24,11 @@ const road = (
   upgrades: [
     {
       upgrade: 'improved',
-      laborManDays: 18,
-      trees: 0,
-      treesToFell: 0,
-      swathTrees: 0,
-      blocked: null,
-    },
-    {
-      upgrade: 'causeway',
-      laborManDays: 33,
+      laborManDays: 51,
       trees: 13,
       treesToFell: 5,
       swathTrees: 0,
-      blocked: 'Nejdřív je potřeba cestu upravit.',
+      blocked: null,
     },
   ],
   wagon: { status: 'none', progress: 0, blocked: null },
@@ -111,11 +103,25 @@ describe('SelectionPanel – pevná cesta', () => {
     expect(html).toContain('Vyježděná cesta');
   });
 
-  it('tlačítka vylepšení s ikonou – nedostupné zašedlé s důvodem', () => {
+  it('jedno tlačítko „Upravit cestu“ (hať a lávka jsou jeho součástí) s cenou i dřevem', () => {
     const html = render(road());
     expect(button(html, 'improved')).not.toContain('disabled=""');
-    expect(button(html, 'causeway')).toContain('disabled=""');
-    expect(html).toContain('/icons/build/hat.png');
+    expect(html).not.toContain('road-upgrade-causeway');
+    const blocked = render(
+      road({
+        upgrades: [
+          {
+            upgrade: 'improved',
+            laborManDays: 51,
+            trees: 13,
+            treesToFell: 5,
+            swathTrees: 0,
+            blocked: 'Na hať a lávku chybí dřevo.',
+          },
+        ],
+      }),
+    );
+    expect(button(blocked, 'improved')).toContain('disabled=""');
   });
 
   it('rozestavěné vylepšení ukáže průběh, hotová hať žádné tlačítko', () => {

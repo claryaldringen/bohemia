@@ -223,7 +223,7 @@ describe('kudy vůz projede', () => {
       { x: 0, z: 0 },
       { x: 0, z: 115 },
     ];
-    expect(route({ roads: [{ id: 1, points: bridge, grade: 'causeway' }] }, across).reached).toBe(
+    expect(route({ roads: [{ id: 1, points: bridge, grade: 'improved' }] }, across).reached).toBe(
       false,
     );
   });
@@ -324,11 +324,17 @@ describe('rychlost vozu podle povrchu a cesty (wagons.md – Vozová síť, rych
       { id: 1, points: axis(-120), grade: 'trodden' },
       { id: 2, points: axis(-105), grade: 'trodden', cart: true },
       { id: 3, points: axis(-90), grade: 'improved' },
-      { id: 4, points: axis(-75), grade: 'causeway' },
+      { id: 4, points: axis(-75), grade: 'improved' },
       // přes mokřinu (ground.wet 90–120 m od začátku osy = x ∈ [30, 60])
       { id: 5, points: axis(-45), grade: 'trodden', ground: { wet: [[90, 120]], fords: [] } },
-      { id: 6, points: axis(-30), grade: 'causeway', ground: { wet: [[90, 120]], fords: [] } },
-      { id: 7, points: axis(-15), grade: 'improved', ground: { wet: [[90, 120]], fords: [] } },
+      { id: 6, points: axis(-30), grade: 'improved', ground: { wet: [[90, 120]], fords: [] } },
+      {
+        id: 7,
+        points: axis(-15),
+        grade: 'improved',
+        unbridged: true,
+        ground: { wet: [[90, 120]], fords: [] },
+      },
       // vyšlapaná přes zakládaný díl (x = 97,5, z = 7,5) – cesta přebije díl
       { id: 8, points: axis(7.5), grade: 'trodden' },
     ];
@@ -353,11 +359,11 @@ describe('rychlost vozu podle povrchu a cesty (wagons.md – Vozová síť, rych
     close(at(grid, 0, -120), CART_SPEED.road.trodden);
     close(at(grid, 0, -105), CART_SPEED.road.cart);
     close(at(grid, 0, -90), CART_SPEED.road.improved);
-    close(at(grid, 0, -75), CART_SPEED.road.causeway);
+    close(at(grid, 0, -75), CART_SPEED.road.improved);
     // cesta přes mokřinu: vyšlapaná a upravená bahnem jako bez cesty, hať rychle
     close(at(grid, 45, -45), CART_SPEED.wet);
     close(at(grid, 45, -15), CART_SPEED.wet);
-    close(at(grid, 45, -30), CART_SPEED.road.causeway);
+    close(at(grid, 45, -30), CART_SPEED.road.improved);
     // táž cesta mimo mokřinu na ose
     close(at(grid, 0, -45), CART_SPEED.road.trodden);
     // díly polí
@@ -378,7 +384,9 @@ describe('rychlost vozu podle povrchu a cesty (wagons.md – Vozová síť, rych
       cartRoadSpeed('trodden', true, false),
     );
     expect(cartRoadSpeed('improved', true, false)).toBe(CART_SPEED.road.improved);
-    expect(cartRoadSpeed('causeway', false, true)).toBe(CART_SPEED.road.causeway);
+    expect(cartRoadSpeed('improved', false, true)).toBe(CART_SPEED.road.improved);
+    // upravená bez hatě (`unbridged`) v mokřině jako vyšlapaná – bahno
+    expect(cartRoadSpeed('improved', false, true, 0, true)).toBe(CART_SPEED.wet);
     expect(cartRoadSpeed('trodden', true, true)).toBe(CART_SPEED.wet);
     expect(cartPartSpeed('sown')).toBe(CART_SPEED.sown);
     expect(cartPartSpeed('shrubs')).toBe(0);
@@ -417,7 +425,7 @@ describe('rychlost vozu podle povrchu a cesty (wagons.md – Vozová síť, rych
     const ground = { wet: [[50, 80]] as [number, number][], fords: [] };
     const dry = along({ id: 1, points: line, grade: 'trodden' }, wetTerrain);
     const muddy = along({ id: 1, points: line, grade: 'trodden', ground }, wetTerrain);
-    const causeway = along({ id: 1, points: line, grade: 'causeway', ground }, wetTerrain);
+    const causeway = along({ id: 1, points: line, grade: 'improved', ground }, wetTerrain);
     const none = along(null, wetTerrain);
     expect(causeway.cost).toBeLessThan(muddy.cost);
     expect(muddy.cost).toBeGreaterThan(dry.cost);

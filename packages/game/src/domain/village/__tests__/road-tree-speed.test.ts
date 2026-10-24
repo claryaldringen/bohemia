@@ -165,7 +165,7 @@ describe('rychlost po cestě se stromy (roadTreeSpeed)', () => {
 
   it('stejný přírůstek v chůzi i ve vozové síti, v mokřině a na hati v mokřině nic', () => {
     const gain = roadTreeSpeed(full(0.4, 0.6));
-    for (const grade of ['trodden', 'improved', 'causeway'] as const) {
+    for (const grade of ['trodden', 'improved'] as const) {
       expect(roadWalkSpeed(grade, false, gain) - roadWalkSpeed(grade, false)).toBeCloseTo(gain, 12);
       expect(
         cartRoadSpeed(grade, false, false, gain) - cartRoadSpeed(grade, false, false),
@@ -247,7 +247,7 @@ describe('vozová síť po cestě se stromy', () => {
       { id: 2, points: axis(-105), grade: 'trodden', cart: true, lined: { trees: 0, apples: 1 } },
       { id: 3, points: axis(-90), grade: 'trodden', cart: true },
       { id: 4, points: axis(-45), grade: 'trodden', ground: wet, lined: { trees: 0, apples: 1 } },
-      { id: 5, points: axis(-30), grade: 'causeway', ground: wet, lined: { trees: 0, apples: 1 } },
+      { id: 5, points: axis(-30), grade: 'improved', ground: wet, lined: { trees: 0, apples: 1 } },
     ];
     const grid = cartGrid({ village: { dwellings: [], fields: [], roads }, terrain: marsh });
     const close = (cost: number, speed: number): void => expect(cost).toBeCloseTo(1 / speed, 5);
@@ -257,8 +257,8 @@ describe('vozová síť po cestě se stromy', () => {
     // mimo mokřinu rychleji, v mokřině jako bez stromů
     close(at(grid, 0, -45), CART_SPEED.road.trodden + 0.05);
     close(at(grid, 45, -45), CART_SPEED.wet);
-    close(at(grid, 0, -30), CART_SPEED.road.causeway + 0.05);
-    close(at(grid, 45, -30), CART_SPEED.road.causeway);
+    close(at(grid, 0, -30), CART_SPEED.road.improved + 0.05);
+    close(at(grid, 45, -30), CART_SPEED.road.improved);
   });
 
   it('brod pod cestou se stromy zůstává brodem', () => {

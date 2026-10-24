@@ -455,11 +455,11 @@ export function placePenForPlayer(
   );
 }
 
-/** Vylepšení pevné cesty (roads.md – Vylepšení cesty): upravená cesta, nebo hať a lávka. */
+/** Úprava pevné cesty (roads.md – Vylepšení cesty): úprava, hať přes mokřinu a lávka přes brod. */
 export function upgradeRoadForPlayer(
   playerId: string,
   villageId: string,
-  input: { roadId: number; upgrade: 'improved' | 'causeway' },
+  input: { roadId: number; upgrade: 'improved' },
 ): Promise<VillageActionResult> {
   return actOn(playerId, villageId, (ctx) =>
     upgradeRoad(

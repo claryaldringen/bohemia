@@ -245,7 +245,7 @@ export function roadsKey(roads: PathVillage['roads']): string {
       const b = r.points[r.points.length - 1];
       // vozová cesta s příznakem navíc – klíč pěších cest se nemění (wagons.md)
       return a && b
-        ? `${r.points.length}:${a.x},${a.z}:${b.x},${b.z}:${r.grade ?? ''}${r.cart ? ':v' : ''}`
+        ? `${r.points.length}:${a.x},${a.z}:${b.x},${b.z}:${r.grade ?? ''}${r.cart ? ':v' : ''}${r.unbridged ? ':u' : ''}`
         : '';
     })
     .join(';');

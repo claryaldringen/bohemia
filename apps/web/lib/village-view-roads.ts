@@ -182,6 +182,8 @@ export function sceneRoads(
       id: r.id,
       points: r.points.map((p) => ({ x: p.x, z: p.z })),
       grade: r.grade,
+      // upravená bez hatě a lávky (starší cesta) – ve scéně je nemá
+      ...(r.unbridged ? { unbridged: true as const } : {}),
       // vozová cesta (wagons.md – Vyjeté cesty) – dvě koleje
       ...(r.cart ? { cart: true as const } : {}),
       // průsek lesem (roads.md – Průsek lesem) – plocha korun nad ním zapadne

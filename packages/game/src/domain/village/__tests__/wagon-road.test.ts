@@ -295,11 +295,11 @@ describe('rychlosti – vozová cesta', () => {
   it('vůz 2,2 i v mokřině, pěšky 1,7 i v mokřině, brod zůstává brodem', () => {
     expect(cartRoadSpeed('wagon', false, false)).toBe(CART_SPEED.road.wagon);
     expect(cartRoadSpeed('wagon', false, true)).toBe(CART_SPEED.road.wagon);
-    expect(cartRoadSpeed('improved', false, true)).toBe(CART_SPEED.wet);
+    expect(cartRoadSpeed('improved', false, true, 0, true)).toBe(CART_SPEED.wet);
     expect(CART_SPEED.road.wagon).toBe(2.2);
     expect(roadWalkSpeed('wagon', false)).toBe(1.7);
     expect(roadWalkSpeed('wagon', true)).toBe(ROAD_WALK.causewayWetSpeed);
-    expect(roadWalkSpeed('improved', true)).toBe(ROAD_WALK.wetSpeed);
+    expect(roadWalkSpeed('improved', true, 0, true)).toBe(ROAD_WALK.wetSpeed);
     // stromy u cesty přidají i vozové cestě
     expect(cartRoadSpeed('wagon', false, false, 0.03)).toBeCloseTo(2.23, 9);
     const road = {

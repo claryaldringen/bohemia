@@ -53,10 +53,10 @@ import { penPathSquares } from './network-keys';
  * z terénu), neprůchodná buňka (voda, sráz, balvan) neprůchodnou a ploty hřbitova a ohrady,
  * okrsek svatyně a stavby vsi zůstávají překážkou.
  */
-function roadCellCost(grade: RoadGrade | undefined, flags: number, dry?: number): number {
+function roadCellCost(cls: RoadClass | undefined, flags: number, dry?: number): number {
   const wet = (flags & PATH_WETLAND) !== 0;
   if (!wet && dry !== undefined && dry > 0) return 1 / dry;
-  return 1 / roadWalkSpeed(grade ?? 'trodden', wet);
+  return 1 / roadWalkSpeed(cls?.grade ?? 'trodden', wet, 0, cls?.unbridged ?? false);
 }
 
 export interface Grid {
@@ -499,7 +499,7 @@ export function villageGrid(input: PathNetworkInput, buildings: readonly Buildin
     const dry = roadTreeSpeedMask(grid, v.roads);
     for (let c = 0; c < road.length; c++) {
       if (road[c] && Number.isFinite(grid.base[c]!) && !(grid.flags[c]! & PATH_WATER)) {
-        grid.base[c] = roadCellCost(ROAD_GRADES[roads[c]!], grid.flags[c]!, dry?.[c]);
+        grid.base[c] = roadCellCost(ROAD_CLASSES[roads[c]!], grid.flags[c]!, dry?.[c]);
         plain[c] = 1;
         anyPlain = true;
       }
@@ -684,17 +684,40 @@ export function roadMask(grid: GridWindow, roads: PathVillage['roads']): Uint8Ar
   return mask;
 }
 
-/** Stupně cest od nejpomalejšího – index v masce `roadGradeMask`. */
-const ROAD_GRADES: readonly RoadGrade[] = ['trodden', 'improved', 'causeway', 'wagon'];
+/** Třída cesty pro cenu buňky – stupeň a jestli upravená cesta nemá hať (`Road.unbridged`). */
+interface RoadClass {
+  grade: RoadGrade;
+  unbridged: boolean;
+}
+
+/** Třídy cest od nejpomalejší – index v masce `roadGradeMask`. */
+const ROAD_CLASSES: readonly RoadClass[] = [
+  { grade: 'trodden', unbridged: false },
+  { grade: 'improved', unbridged: true },
+  { grade: 'improved', unbridged: false },
+  { grade: 'wagon', unbridged: false },
+];
+
+/** Index třídy v `ROAD_CLASSES`. */
+function roadClassIndex(road: {
+  grade?: RoadGrade | undefined;
+  unbridged?: boolean | undefined;
+}): number {
+  const grade = road.grade ?? 'trodden';
+  const found = ROAD_CLASSES.findIndex(
+    (c) => c.grade === grade && (grade !== 'improved' || c.unbridged === (road.unbridged === true)),
+  );
+  return Math.max(0, found);
+}
 
 /**
- * Nejvyšší stupeň pevné cesty po buňkách (index v ROAD_GRADES) – buňky jako `roadMask`; mimo
+ * Nejvyšší stupeň pevné cesty po buňkách (index v ROAD_CLASSES) – buňky jako `roadMask`; mimo
  * cesty 0. Cesta bez stupně je vyšlapaná.
  */
 function roadGradeMask(grid: GridWindow, roads: PathVillage['roads']): Uint8Array {
   const mask = new Uint8Array(grid.width * grid.height);
   for (const road of roads ?? []) {
-    const grade = Math.max(0, ROAD_GRADES.indexOf(road.grade ?? 'trodden'));
+    const grade = roadClassIndex(road);
     eachRoadCell(grid, road.points, (c) => {
       if (grade > mask[c]!) mask[c] = grade;
     });
@@ -712,7 +735,12 @@ function roadTreeSpeedMask(grid: GridWindow, roads: PathVillage['roads']): Float
   if (!(roads ?? []).some((road) => roadTreeSpeed(road.lined) > 0)) return null;
   const mask = new Float64Array(grid.width * grid.height);
   for (const road of roads ?? []) {
-    const speed = roadWalkSpeed(road.grade ?? 'trodden', false, roadTreeSpeed(road.lined));
+    const speed = roadWalkSpeed(
+      road.grade ?? 'trodden',
+      false,
+      roadTreeSpeed(road.lined),
+      road.unbridged === true,
+    );
     eachRoadCell(grid, road.points, (c) => {
       if (speed > mask[c]!) mask[c] = speed;
     });

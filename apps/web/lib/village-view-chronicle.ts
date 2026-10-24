@@ -438,7 +438,7 @@ export function constructionLabel(c: ConstructionSummary): string {
   if (c.kind === 'pen') return 'Ohrada';
   if (c.kind === 'ard') return 'Rádlo';
   if (c.kind === 'road' && c.wagon) return 'Vozová cesta';
-  if (c.kind === 'road') return c.roadGrade === 'causeway' ? 'Hať a lávka' : 'Úprava cesty';
+  if (c.kind === 'road') return 'Úprava cesty';
   if (c.kind === 'road-apples') return 'Jabloně u cesty';
   if (c.kind === 'threshing-floor') return 'Humno';
   if (c.kind === 'repair') return `Oprava – ${REPAIR_NAMES[c.repair?.structure ?? 'idol']}`;

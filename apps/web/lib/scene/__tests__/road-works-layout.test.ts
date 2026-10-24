@@ -164,15 +164,17 @@ describe('vylepšené cesty ve scéně (road-works-layout)', () => {
     expect(meshes('trodden', { grade: 'improved', progress: 0.4 }).sort()).toEqual(
       ['roads-earth', 'roads-improved-earth', 'roads-improved-worn', 'roads-worn'].sort(),
     );
-    // mimo mokřinu a brod žádné díly (kameny ani strouha nejsou)
-    expect(logPieces([road({ grade: 'improved' })])).toEqual([]);
-    expect(bridgePieces([road({ grade: 'improved' })])).toEqual([]);
+    // bez hatě a lávky (`unbridged`) žádné díly (kameny ani strouha nejsou)
+    expect(logPieces([road({ grade: 'improved', unbridged: true })])).toEqual([]);
+    expect(bridgePieces([road({ grade: 'improved', unbridged: true })])).toEqual([]);
     engine.dispose();
   });
 
   it('hať: kmeny napříč po mokřině na šířku upravené cesty, rozestavěná po podílu průběhu', () => {
-    expect(logPieces([road({ grade: 'improved' })])).toEqual([]);
-    const full = logPieces([road({ grade: 'causeway' })]);
+    // upravená bez hatě (starší cesta) žádnou nemá
+    expect(logPieces([road({ grade: 'improved', unbridged: true })])).toEqual([]);
+    expect(logPieces([road({ grade: 'trodden' })])).toEqual([]);
+    const full = logPieces([road({ grade: 'improved' })]);
     expect(full.length).toBeCloseTo(20 / (LOG_SPACING_M * LOG_SCALE), -1);
     for (const log of full) {
       // kmen dlouhý jako upravená cesta široká (±4 %) – hať navazuje bez zúžení
@@ -183,7 +185,7 @@ describe('vylepšené cesty ve scéně (road-works-layout)', () => {
       expect(Math.abs(Math.abs(log.rotationY) - Math.PI / 2)).toBeLessThan(0.1);
     }
     const half = logPieces([
-      road({ grade: 'improved', upgrade: { grade: 'causeway', progress: 0.5 } }),
+      road({ grade: 'trodden', upgrade: { grade: 'improved', progress: 0.5 } }),
     ]);
     expect(half.length).toBeCloseTo(full.length / 2, -1);
     expect(Math.max(...half.map((l) => l.x))).toBeLessThan(51);
@@ -191,13 +193,13 @@ describe('vylepšené cesty ve scéně (road-works-layout)', () => {
 
   it('lávka přes brod: nejdřív kůly a prahy, pak celá; podél osy', () => {
     expect(
-      bridgePieces([road({ grade: 'improved', upgrade: { grade: 'causeway', progress: 0.1 } })]),
+      bridgePieces([road({ grade: 'trodden', upgrade: { grade: 'improved', progress: 0.1 } })]),
     ).toEqual([]);
     const posts = bridgePieces([
-      road({ grade: 'improved', upgrade: { grade: 'causeway', progress: 0.5 } }),
+      road({ grade: 'trodden', upgrade: { grade: 'improved', progress: 0.5 } }),
     ]);
     expect(posts.map((b) => b.stage)).toEqual(['posts']);
-    const done = bridgePieces([road({ grade: 'causeway' })]);
+    const done = bridgePieces([road({ grade: 'improved' })]);
     expect(done).toHaveLength(1);
     expect(done[0]!).toMatchObject({ x: 70, z: 0, stage: 'deck' });
     expect(done[0]!.ends[1][0] - done[0]!.ends[0][0]).toBeCloseTo(BRIDGE_LENGTH_M, 9);
@@ -209,7 +211,7 @@ describe('vylepšené cesty ve scéně (road-works-layout)', () => {
     expect(improve).toHaveLength(2);
     expect(improve[0]![0]![0]).toBeCloseTo(0, 9);
     const causeway = stakingLines([
-      road({ grade: 'improved', upgrade: { grade: 'causeway', progress: 0.2 } }),
+      road({ grade: 'improved', unbridged: true, upgrade: { grade: 'improved', progress: 0.2 } }),
     ]);
     expect(causeway).toHaveLength(4);
     // provázek po okrajích širší upravené cesty

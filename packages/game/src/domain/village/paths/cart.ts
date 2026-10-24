@@ -186,9 +186,11 @@ export function cartRoadSpeed(
   cart: boolean,
   wet: boolean,
   treeSpeed = 0,
+  unbridged = false,
 ): number {
-  // hať i vozová cesta (zpevněné koleje – roads.md, Vozová cesta) drží rychlost i v mokřině
-  if (grade === 'causeway' || grade === 'wagon') {
+  // hať upravené cesty i vozová cesta (zpevněné koleje – roads.md, Vozová cesta) drží rychlost
+  // i v mokřině
+  if (grade === 'wagon' || (grade === 'improved' && !unbridged)) {
     return CART_SPEED.road[grade] + (wet ? 0 : treeSpeed);
   }
   if (wet) return CART_SPEED.wet;
@@ -218,8 +220,9 @@ function cartRoadCosts(grid: GridWindow, roads: CartVillage['roads']): Float32Ar
   for (const road of roads) {
     const grade = road.grade ?? 'trodden';
     const cart = road.cart === true;
-    const dryCost = 1 / cartRoadSpeed(grade, cart, false, roadTreeSpeed(road.lined));
-    const wetCost = 1 / cartRoadSpeed(grade, cart, true);
+    const unbridged = road.unbridged === true;
+    const dryCost = 1 / cartRoadSpeed(grade, cart, false, roadTreeSpeed(road.lined), unbridged);
+    const wetCost = 1 / cartRoadSpeed(grade, cart, true, 0, unbridged);
     const wet = road.ground?.wet ?? [];
     const mark = (x: number, z: number, along: number): void => {
       const fi = (x - grid.originX) / grid.cellM;

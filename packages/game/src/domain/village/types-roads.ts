@@ -10,11 +10,17 @@ export interface RoadPoint {
 }
 
 /**
- * Stupeň pevné cesty (roads.md – Vylepšení cesty): vyšlapaná (vznikne sama), upravená, hať
- * s lávkou a vozová cesta (staví hráč – roads.md, Vozová cesta: vlastní přímější trasa se zemními
- * pracemi a zpevněnými kolejemi).
+ * Stupeň pevné cesty (roads.md – Vylepšení cesty): vyšlapaná (vznikne sama), upravená a vozová
+ * cesta (staví hráč – roads.md, Vozová cesta: vlastní přímější trasa se zemními pracemi
+ * a zpevněnými kolejemi). Hať přes mokřinu a lávka přes brod jsou součástí úpravy (Martin,
+ * 24. 10. 2026) – upravená cesta je má, pokud není `unbridged`.
  */
-export type RoadGrade = 'trodden' | 'improved' | 'causeway' | 'wagon';
+export type RoadGrade = 'trodden' | 'improved' | 'wagon';
+
+/** Upravená cesta přes mokřinu a brod, která hať a lávku má (jen ta chůzí v mokřině neztrácí). */
+export function roadBridged(road: { grade: RoadGrade; unbridged?: boolean | undefined }): boolean {
+  return road.grade === 'improved' && !road.unbridged;
+}
 
 /** Místo na strom u pevné cesty – určené jednou při vzniku cesty (roads.md – Stromy). */
 export interface RoadTreeSpot {
@@ -34,6 +40,11 @@ export interface Road {
   /** Herní den vzniku (rozdělený úsek ho zdědí). */
   bornDay: number;
   grade: RoadGrade;
+  /**
+   * Upravená cesta přes mokřinu nebo brod bez hatě a lávky (starší cesty upravené před tím, než
+   * se hať a lávka staly součástí úpravy; roads.md – Vylepšení cesty). Dostaví je „Upravit cestu“.
+   */
+  unbridged?: true;
   /**
    * Provoz posledních let (cest za den – roční průměr, nejnovější poslední; nejvýš
    * ROADS.overgrowYears) – historie pro převod starých vsí a vyjížďky vozů; zarůstání řídí
@@ -196,6 +207,12 @@ export interface VillageRoads {
    * jednou. Chybí = ještě ne.
    */
   conditionSeeded?: true;
+  /**
+   * Hať a lávka jsou součástí úpravy (roads.md – Vylepšení cesty): nová ves to má od začátku,
+   * starší ves ho dostane při načtení (`withBridgedRoads` – stupeň `causeway` se stane upravenou
+   * cestou, upravená přes mokřinu nebo brod bez hatě dostane `unbridged`) jednou. Chybí = ještě ne.
+   */
+  bridgesSeeded?: true;
   /** Jabloně vysazené hráčem podél úseků (roads.md – Vysazení jabloní); chybí = žádné. */
   apples?: RoadApple[];
   /**
