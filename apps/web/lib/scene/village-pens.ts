@@ -55,13 +55,15 @@ export function scenePenViews(village: Pick<SceneVillage, 'pens' | 'dwellings'>)
  * u rádel (plough-front.ts – `ploughFront`) a voli vozů (`draftTeamsToday`): odcházejí z ohrad
  * v pořadí id, ostatní zůstanou v ohradě; bez údaje jsou v den orby na poli všichni. Koně ohrady
  * koní: v létě s pasákem jsou na pastvě se stády (`grazingHorses`), v ohradě zůstanou jen koně pod
- * jezdcem; v zimě a bez pasáka stojí všichni v ohradě (horses.md – Ve scéně). Koně jezdců dne
- * (`SceneLord.riders`, doprovod výpravy) jsou s jezdci (riders.ts), v ohradě nestojí.
+ * jezdcem; v zimě a bez pasáka stojí všichni v ohradě (horses.md – Ve scéně). Kůň jezdce je
+ * mimo ohradu jen v bloku jízdy (`ridingNow` – id koní na cestě, riders.ts `isRiding`), jinak
+ * stojí v ohradě v noci i v zimě a v létě podle `grazingHorses`.
  */
 export function penHerds(
   village: Pick<SceneVillage, 'pens' | 'labor'> &
     Partial<Pick<SceneVillage, 'dwellings' | 'livestock'>>,
   oxenOut = ploughingToday(village) ? Infinity : 0,
+  ridingNow: ReadonlySet<number> = new Set(),
 ): Map<number, PenHerd> {
   const pens = village.pens ?? [];
   // voli venku patří ohradám v pořadí id (jako páry v plough-front.ts)
@@ -74,11 +76,8 @@ export function penHerds(
     out -= n;
   }
   const grazing = new Set(grazingHorses(village).map((h) => h.id));
-  // jezdečtí koně dne jsou s jezdci u dvorce a na objížďce (riders.ts), ne v ohradě
-  const lord = village.labor?.lord;
-  for (const r of [...(lord?.riders ?? []), ...(lord?.escort ? [lord.escort] : [])]) {
-    grazing.add(r.horseId);
-  }
+  // kůň na jízdě je mimo ohradu (jeho kůň jede s jezdcem – riders.ts), jinak v ohradě
+  for (const id of ridingNow) grazing.add(id);
   const herds = new Map<number, PenHerd>();
   for (const pen of pens) {
     if (!pen.built) continue;

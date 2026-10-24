@@ -112,6 +112,8 @@ pozná hrozbu ze dvou odhadů, které už počítá – nový odhad nevzniká.
    od 14 let) celý den do **potřebných sezónních úloh** (krok 3 pořadí práce – pole, seč, sklizeň,
    výmlat). Mimo sezónu, kdy na poli práce není, cvičí dál. Chlapci 7–13 let cvičí vždy (do práce
    vsi nejdou ani ostatní výrostci).
+   - **Ve dnech na poli nikdo nejezdí, ani chlapci** (návrh Clauda): koně stojí a jízda ani
+     výcvik koně nepostupují; luk a boj chlapci cvičí dál. (Dřív jim jízda rostla na stojícím koni.)
    - **Návrat k výcviku**, až výhled vychází s plným přídělem **30 dní po sobě** (hystereze – ať
      rodina neskáče mezi polem a dvorkem den po dni).
 

@@ -243,7 +243,7 @@ rozmístění (`livestock-golden`) zůstává. Klíč plánu v `livestock.ts` ne
 Jedno rozhodnutí `grazingHorses` sdílí `planLivestock`, `penHerds` (kůň na pastvě není v ohradě)
 a `villageKey`. Koňák: `labor-report.ts` dává podíl `horse-care` (hodina denně na koně, poměrně
 po ohradách koní) a `villager-plan.ts` ho pošle k plotu ohrady (`penFence`); zimní `animal-care`
-bere jen ohradu, která není koňská. Koně jezdců dne v ohradě nestojí (`penHerds` – jsou u dvorce, viz Jezdci); vedení koňákem ke dvorci se nekreslí. Koně nad
+bere jen ohradu, která není koňská. Kůň jezdce je mimo ohradu jen v bloku jízdy (`penHerds(…, ridingNow)` – id koní z `ridingHorseIds`, `VillageRenderer.setRidingHorses` z `LandscapeScene.animate`), jinak v ohradě i v noci a v zimě; vedení koňákem se nekreslí. Koně nad
 kapacitu míst se nevykreslí (`horseAnimalsFor`, 4 na čtverec – jádro tolik nepustí). Modely krávy,
 koně a hříběte se stahují po druzích (`PenAnimals.load`, `morphKindsToLoad`), takže kůň, který
 přijde později, se vykreslí. Koně se v noci do ohrady nezahánějí – sdílený nedodělek se dnem a nocí.
@@ -264,8 +264,12 @@ Kdo, kdy a na kterém koni jede, určuje jádro (`lordRides` → `SceneLord.ride
   (po celé jízdě znovu od kůlu), `rideSpot` – poloha a směr. Skupiny po 4 (`rideGroups`).
 - **Plán dne** `lib/scene/riders.ts`: `ridePlans` (v `lordFigures`, `villager-plan-lord.ts`) – trasa,
   místo ve skupině (po dvou, 3,6 m za sebou, 0,9 m stranou), víc skupin rozestoupeně po trase,
-  koně u kůlu vedle sebe. `rideState` – ve dne (`RIDE_HOURS` 7–19 h) na trase, jinak u kůlu (viz
-  horses.md – Kdy jsou jezdci venku). Plány jdou přes `DraftCrew.rides` → `VillageVillagers.rides()`
+  koně u kůlu vedle sebe. `rideBlocks` – bloky jízdy z hodin jádra (`DRILL_BLOCKS_H` 8 a 14 h, po luku a boji jako
+  `drillAt`). `rideState` – jede jen v bloku (`isRiding`): od kůlu po trase a v půlce bloku zpět,
+  takže blok začíná i končí u kůlu; mimo blok jezdec cvičí na dvorku (`lordFigures`) a kůň je
+  v ohradě, mezi bloky ho `livestock.ts` skrývá (`Group.hidden`). Jízda k hranici a doprovod se
+  do bloku nevejdou – jen vyjedou a vrátí se, neprojedou celou trasu (známé omezení, doprovod
+  není sladěný s karavanou; horses.md – Kdy jsou jezdci venku). Plány jdou přes `DraftCrew.rides` → `VillageVillagers.rides()`
   → `onCrew` → `VillageLivestock.setRides`.
 - **Kreslení a buffery:** jezdec = instance `villagers-man` s klipem `ride` / `ride-trot`
   (`riderPose`), zvednutá o výšku sedu `RIDER_SEAT_M` × `RIDE_HORSE_SCALE` přes `VillagerPose.lift`

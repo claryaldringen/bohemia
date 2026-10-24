@@ -3,8 +3,8 @@ import {
   RIDE_HORSE_SCALE,
   rideArea,
   rideHorsePose,
+  isRiding,
   ridePlansKey,
-  rideState,
   type RidePlan,
 } from './riders';
 import '@babylonjs/core/Meshes/thinInstanceMesh';
@@ -129,7 +129,7 @@ interface Group {
    * Zvíře teď není vidět (dobytek karavany za krajem mapy nebo na cestě druhým směrem) – zapíše
    * se s nulovým měřítkem. Bez funkce vidět vždy.
    */
-  hidden?(index: number): boolean;
+  hidden?(index: number, clock: LivestockClock): boolean;
   /**
    * Skupina teď stojí (jezdecký kůň u kůlu – riders.ts): jednou se zapíše a dál se nepřekresluje.
    * Bez funkce se hýbe vždy.
@@ -411,12 +411,13 @@ export class VillageLivestock {
       const area = rideArea(plan);
       addArea('horse', area);
       const state = createRideState();
-      const probe = createRideState();
       groups.push({
         members: [{ species: 'horse', slot: slot('horse'), scale: RIDE_HORSE_SCALE }],
         prepare: () => area,
         pose: (_index, clock, out) => rideHorsePose(plan, clock.seconds, state, out),
-        still: (clock) => !rideState(plan, clock.seconds, probe).riding,
+        // mimo blok jízdy je kůň v ohradě (village-pens.ts) – tady se nekreslí
+        still: (clock) => !isRiding(plan, clock.seconds),
+        hidden: (_index, clock) => !isRiding(plan, clock.seconds),
         written: null,
         current: new BoundingInfo(Vector3.Zero(), Vector3.Zero()),
       });
@@ -532,7 +533,7 @@ export class VillageLivestock {
       const kind = this.kinds.get(member.species);
       if (!kind) return;
       const pose = group.pose(index, clock, this.pose);
-      const scale = group.hidden?.(index) ? 0 : member.scale;
+      const scale = group.hidden?.(index, clock) ? 0 : member.scale;
       const { x, z } = pose;
       const e = SLOPE_STEP_M;
       const gx = (height(x + e, z) - height(x - e, z)) / (2 * e);

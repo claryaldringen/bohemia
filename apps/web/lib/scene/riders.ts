@@ -24,7 +24,12 @@ import type { PoseFn } from './villager-motion';
 import { squareCorners } from './villager-plan-geometry';
 import { WINTER_MONTHS, type Point, type Square } from './villager-plan-types';
 
-/** Jezdci jsou venku ve dne (h herního dne) – v noci kůň stojí u kůlu a jezdec je doma. */
+/**
+ * Bloky výcviku dne (lord.md – Den rodiny: dopoledne a odpoledne; návrh Clauda): začínají v 8 a ve
+ * 14 h, v každém polovina hodin dne – napřed luk, pak boj, pak jízda (`drillAt`, `rideBlocks`).
+ */
+export const DRILL_BLOCKS_H: readonly number[] = [8, 14];
+/** Jezdec mimo blok jízdy (bez výcviku) je vidět ve dne (h) – v noci je doma. */
 export const RIDE_HOURS: readonly [number, number] = [7, 19];
 /** Velikost jezdeckého koně ve scéně (jako kůň na pastvě – 1,0–1,12). */
 export const RIDE_HORSE_SCALE = 1.06;
@@ -52,8 +57,13 @@ export interface RidePlan {
   /** Vzdálenost za čelem skupiny (m) a stranou od osy (m, vlevo kladně). */
   behind: number;
   side: number;
-  /** Posun skupiny po trase (m) – víc skupin jede po okruhu rozestoupeně. */
+  /** Posun skupiny po trase (m); bloky jízdy začínají vždy u kůlu, takže 0. */
   offset: number;
+  /**
+   * Bloky jízdy dne (h herního dne, od–do): jede se jen v nich, jinak jezdec cvičí na dvorku a kůň
+   * je v ohradě. Null – bez rozvrhu (ukázky bez hodin světa) se jede nepřetržitě.
+   */
+  blocks: readonly (readonly [number, number])[] | null;
   /** Kde kůň stojí, když se nejede – u kůlu u brány dvorce, čelem ke kůlu. */
   hitch: TrainingSpot;
   window: DayWindow | null;
@@ -85,6 +95,22 @@ export interface RidePlanInput {
   homes: readonly Point[];
   leg: RideLeg;
   window: DayWindow | null;
+}
+
+/**
+ * Bloky jízdy jezdce (h herního dne): v každém bloku výcviku (`DRILL_BLOCKS_H`) po luku a boji
+ * (stejné dělení jako `drillAt`) polovina hodin jízdy dne (`SceneRide.hours`).
+ */
+export function rideBlocks(lord: SceneLord, ride: SceneRide): [number, number][] {
+  const hours = lord.trainees.find((h) => h.id === ride.id);
+  const n = DRILL_BLOCKS_H.length;
+  const before = ((hours?.bow ?? 0) + (hours?.combat ?? 0)) / n;
+  return ride.hours > 0
+    ? DRILL_BLOCKS_H.map((start): [number, number] => [
+        start + before,
+        start + before + ride.hours / n,
+      ])
+    : [];
 }
 
 /**
@@ -126,13 +152,16 @@ export function ridePlans(input: RidePlanInput): RidePlan[] {
   const groups = rideGroups(riders);
   groups.forEach((group, g) => {
     group.forEach((ride: SceneRide, k) => {
+      // víc skupin jede ve stejných blocích vedle sebe (každá o dvě šířky dál od osy)
+      const lane = group.length === 1 ? 0 : (k % 2 === 0 ? 1 : -1) * SIDE_M;
       plans.push({
         riderId: ride.id,
         horseId: ride.horseId,
         route: patrol,
         behind: Math.floor(k / 2) * GAP_M,
-        side: group.length === 1 ? 0 : (k % 2 === 0 ? 1 : -1) * SIDE_M,
-        offset: patrol ? (g * patrol.length) / groups.length : 0,
+        side: lane + g * 2 * SIDE_M,
+        offset: 0,
+        blocks: window ? rideBlocks(lord, ride) : null,
         hitch: at(plans.length),
         window,
       });
@@ -146,6 +175,7 @@ export function ridePlans(input: RidePlanInput): RidePlan[] {
       behind: 0,
       side: 0,
       offset: 0,
+      blocks: window ? rideBlocks(lord, lord.escort) : null,
       hitch: at(plans.length),
       window,
     });
@@ -154,14 +184,16 @@ export function ridePlans(input: RidePlanInput): RidePlan[] {
 }
 
 /**
- * Kde je jezdec s koněm v čase `t` (s skutečného času): ve dne (`RIDE_HOURS`, bez hodin světa
- * vždy) po trase – ujetá vzdálenost je čistá funkce času (`rideDistance`), skupina za čelem po
- * dvou; jinak (noc, bez trasy) kůň stojí u kůlu.
+ * Kde je jezdec s koněm v čase `t` (s skutečného času). Jede jen v bloku jízdy (`blocks`, podíl
+ * z hodin jádra – `rideBlocks`): blok začíná u kůlu, kůň jede po trase tempem `rideDistance`
+ * z počátku bloku a v druhé půlce bloku se po téže trase vrací, takže na konci stojí zase u kůlu
+ * (návrh Clauda: den má 86 s, okruh nebo cesta k hranici se do bloku nevejde, proto jen vyjede
+ * a vrátí se). Mimo blok kůň stojí u kůlu (jezdec cvičí, kůň je v ohradě – `riding` false). Bez
+ * rozvrhu (`blocks` null, bez hodin světa) jede nepřetržitě po celé trase.
  */
 export function rideState(plan: RidePlan, t: number, out: RideState): RideState {
-  const hour = hourOfDay(plan.window, t);
-  const day = hour === null || (hour >= RIDE_HOURS[0] && hour < RIDE_HOURS[1]);
-  if (!plan.route || !day) {
+  const block = plan.route ? rideBlockAt(plan, t) : null;
+  if (!plan.route || (plan.blocks && !block)) {
     out.x = plan.hitch.x;
     out.z = plan.hitch.z;
     out.headingX = plan.hitch.headingX;
@@ -171,13 +203,49 @@ export function rideState(plan: RidePlan, t: number, out: RideState): RideState 
     out.distance = 0;
     return out;
   }
-  const s = rideDistance(plan.route, t) + plan.offset - plan.behind;
-  rideSpot(plan.route, s, out);
+  let d: number;
+  let back = false;
+  if (block) {
+    // v půlce bloku se jede zpět po téže trase
+    const hourS = (plan.window!.endMs - plan.window!.startMs) / 1000 / 24;
+    const half = block.length / 2;
+    back = block.elapsed > half;
+    d = rideDistance(plan.route, Math.min(block.elapsed, block.length - block.elapsed) * hourS);
+  } else {
+    d = rideDistance(plan.route, t) + plan.offset;
+  }
+  rideSpot(plan.route, Math.max(0, d - plan.behind), out);
+  if (back) {
+    out.headingX = -out.headingX;
+    out.headingZ = -out.headingZ;
+  }
   out.x -= out.headingZ * plan.side;
   out.z += out.headingX * plan.side;
   out.riding = true;
-  out.distance = s;
+  out.distance = d;
   return out;
+}
+
+/** Blok jízdy, ve kterém je čas `t`: hodiny od začátku a délka bloku (h); jinak null. */
+export function rideBlockAt(plan: RidePlan, t: number): { elapsed: number; length: number } | null {
+  if (!plan.blocks) return null;
+  const hour = hourOfDay(plan.window, t);
+  if (hour === null) return null;
+  for (const [from, to] of plan.blocks) {
+    if (hour >= from && hour < to) return { elapsed: hour - from, length: to - from };
+  }
+  return null;
+}
+
+/** Id koní, kteří jsou v čase `nowMs` (epoch ms) na jízdě. */
+export function ridingHorseIds(plans: readonly RidePlan[], nowMs: number): Set<number> {
+  const t = (nowMs - LIVESTOCK_EPOCH_MS) / 1000;
+  return new Set(plans.filter((p) => isRiding(p, t)).map((p) => p.horseId));
+}
+
+/** Jede jezdec v čase `t` (je v bloku jízdy, nebo bez rozvrhu s trasou)? */
+export function isRiding(plan: RidePlan, t: number): boolean {
+  return plan.route !== null && (plan.blocks ? rideBlockAt(plan, t) !== null : true);
 }
 
 /** Obal míst, kam se kůň plánu dostane (trasa i kůl) – pro ořez. */
@@ -243,7 +311,7 @@ export function ridePlansKey(plans: readonly RidePlan[]): string {
   return plans
     .map(
       (p) =>
-        `${p.riderId}:${p.horseId}:${p.route ? `${p.route.length.toFixed(1)}/${p.route.points.length}` : '-'}:${p.offset.toFixed(1)}:${p.hitch.x.toFixed(1)},${p.hitch.z.toFixed(1)}:${p.window?.startMs ?? ''}`,
+        `${p.riderId}:${p.horseId}:${p.route ? `${p.route.length.toFixed(1)}/${p.route.points.length}` : '-'}:${p.offset.toFixed(1)}:${p.hitch.x.toFixed(1)},${p.hitch.z.toFixed(1)}:${p.window?.startMs ?? ''}:${p.blocks?.map((b) => b.join('-')).join(',') ?? ''}`,
     )
     .join('|');
 }

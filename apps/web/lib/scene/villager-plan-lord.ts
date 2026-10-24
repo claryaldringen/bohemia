@@ -3,7 +3,7 @@
 // a zda vůbec cvičí, určuje jádro (`SceneLabor.lord`); scéna jen rozvrhne hodiny do dne.
 import type { SceneLabor, SceneLord } from '../village-view';
 import { type DayWindow } from './caravan';
-import { hourOfDay, ridePlans, riderPose, type RidePlan } from './riders';
+import { DRILL_BLOCKS_H, hourOfDay, isRiding, ridePlans, riderPose, type RidePlan } from './riders';
 import { cast, figure } from './villager-plan-cast';
 import { doorPoint, walkRoute } from './villager-plan-geometry';
 import { type Context, type PlannedVillager } from './villager-plan-types';
@@ -21,9 +21,9 @@ import type { Point } from './villager-plan-types';
 /**
  * Rozvrh výcviku dne (lord.md – Den rodiny: dva bloky, dopoledne a odpoledne – Vegetius; návrh
  * Clauda): bloky začínají v 8 a ve 14 h, v každém polovina hodin dne – napřed luk, pak boj, pak
- * jízda (jezdce kreslí jízda, na dvorku ten čas není). Ženy rodiny jsou u dvorce od 7 do 19 h.
+ * jízda (jezdce v tu dobu kreslí riders.ts na koni, na dvorku ten čas není). Ženy rodiny jsou u dvorce od 7 do 19 h.
  */
-export const DRILL_BLOCKS_H: readonly number[] = [8, 14];
+export { DRILL_BLOCKS_H };
 export const HOUSEHOLD_HOURS: readonly [number, number] = [7, 19];
 /** Výstřel: míření (bow-draw) a výstřel (bow-release) – s; střídačka u terče po dvou výstřelech. */
 const SHOT_S = 3.2;
@@ -234,20 +234,14 @@ export function lordFigures(
   });
   const riding = new Map(rides.map((r) => [r.riderId, r]));
   const lanes = ground.lanes.length;
-  // jezdci jsou na koni – dráhy a místa boje dostanou jen ostatní
-  const drilling = lord.trainees.filter((h) => !riding.has(h.id));
-  const archers = drilling.filter((h) => h.bow > 0).map((h) => h.id);
-  const fighters = drilling.filter((h) => h.combat > 0).map((h) => h.id);
+  // jezdci cvičí luk a boj na dvorku jako ostatní, na koni jsou jen v bloku jízdy
+  const archers = lord.trainees.filter((h) => h.bow > 0).map((h) => h.id);
+  const fighters = lord.trainees.filter((h) => h.combat > 0).map((h) => h.id);
   for (const [idx, hours] of lord.trainees.entries()) {
     const c = cast(ctx, `lord:${hours.id}`, { women: 0, child: false }, () =>
       ctx.roster!.takeId(hours.id),
     );
     if (!c) continue;
-    const ride = riding.get(hours.id);
-    if (ride) {
-      out.push(figure(c, riderPose(ride), 'natural', { kind: 'lord', household: false }));
-      continue;
-    }
     const a = Math.max(0, archers.indexOf(hours.id));
     const lane = a % lanes;
     const ranks = Math.ceil((archers.length - lane) / lanes);
@@ -259,7 +253,13 @@ export function lordFigures(
       restSpot(ctx, lord.home, idx),
       window,
     );
-    out.push(figure(c, pose, 'natural', { kind: 'lord', household: false }));
+    const ride = riding.get(hours.id);
+    const mounted = ride ? riderPose(ride) : null;
+    const posed: PoseFn =
+      ride && mounted
+        ? (t, herds, o) => (isRiding(ride, t) ? mounted(t, herds, o) : pose(t, herds, o))
+        : pose;
+    out.push(figure(c, posed, 'natural', { kind: 'lord', household: false }));
   }
   const home =
     ctx.homes.find((h) => h.id === lord.home) ?? ctx.houses.find((h) => h.id === lord.home);

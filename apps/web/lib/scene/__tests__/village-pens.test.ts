@@ -185,7 +185,7 @@ describe('ohrada koní ve vsi (horses.md – Ve scéně)', () => {
     expect(penHerds(withHorses(winter)).get(20)!.horses).toEqual(['mare', 'foal', 'riding']);
   });
 
-  it('kůň jezdce dne je s jezdcem, ne v ohradě (riders.ts)', () => {
+  it('kůň jezdce je mimo ohradu jen na jízdě, v noci a v zimě stojí v ohradě (riders.ts)', () => {
     const v = withHorses(winter);
     const riding: SceneVillage = {
       ...v,
@@ -199,7 +199,10 @@ describe('ohrada koní ve vsi (horses.md – Ve scéně)', () => {
         },
       },
     };
-    expect(penHerds(riding).get(20)!.horses).toEqual(['mare', 'foal']);
+    // mimo blok jízdy (bez `ridingNow`) i v zimě v ohradě
+    expect(penHerds(riding).get(20)!.horses).toEqual(['mare', 'foal', 'riding']);
+    // na jízdě venku
+    expect(penHerds(riding, 0, new Set([3])).get(20)!.horses).toEqual(['mare', 'foal']);
   });
 
   it('v létě s pasáky jsou koně na pastvě, v ohradě zůstane jen kůň pod jezdcem', () => {

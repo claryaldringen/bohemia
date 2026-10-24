@@ -4,6 +4,8 @@ import { createLivestockPose, LIVESTOCK_EPOCH_MS } from '../livestock-motion';
 import { straightLeg } from '../rider-route';
 import {
   createRideState,
+  isRiding,
+  ridingHorseIds,
   RIDE_HORSE_SCALE,
   RIDER_SEAT_M,
   ridePlans,
@@ -50,7 +52,7 @@ describe('jezdec na koni (horses.md – Ve scéně)', () => {
       [12, 2],
     ]);
     for (const plan of plans) {
-      const t = at(10);
+      const t = at(8.4);
       const horse = rideHorsePose(plan, t, createRideState(), createLivestockPose());
       const rider = riderPose(plan)(t, [], createVillagerPose());
       expect(rider.x).toBeCloseTo(horse.x, 6);
@@ -61,15 +63,59 @@ describe('jezdec na koni (horses.md – Ve scéně)', () => {
     }
   });
 
-  it('v noci kůň stojí u kůlu a jezdec je doma; ve dne jedou za sebou', () => {
+  it('jede jen v bloku jízdy (po luku a boji), jinak kůň stojí u kůlu a jezdec je doma', () => {
     const [lead, second] = ridePlans(input(LORD));
+    // trainees prázdné: luk ani boj, bloky jízdy 8–9 a 14–15 h (po hodině z dvou)
+    expect(lead!.blocks).toEqual([
+      [8, 9],
+      [14, 15],
+    ]);
     const night = rideHorsePose(lead!, at(23), createRideState(), createLivestockPose());
     expect(night.stride).toBe(0);
     expect(riderPose(lead!)(at(23), [], createVillagerPose()).hidden).toBe(true);
-    const a = rideHorsePose(lead!, at(12), createRideState(), createLivestockPose());
-    const b = rideHorsePose(second!, at(12), createRideState(), createLivestockPose());
+    expect(isRiding(lead!, at(12))).toBe(false);
+    expect(isRiding(lead!, at(8.4))).toBe(true);
+    expect(isRiding(lead!, at(14.4))).toBe(true);
+    const a = rideHorsePose(lead!, at(8.4), createRideState(), createLivestockPose());
+    const b = rideHorsePose(second!, at(8.4), createRideState(), createLivestockPose());
     expect(Math.hypot(a.x - b.x, a.z - b.z)).toBeGreaterThan(1);
     expect(Math.hypot(a.x - night.x, a.z - night.z)).toBeGreaterThan(0);
+  });
+
+  it('blok jízdy začíná po luku a boji podle hodin jádra', () => {
+    const lord: SceneLord = {
+      ...LORD,
+      trainees: [{ id: 10, bow: 2, combat: 2, riding: 2 } as SceneLord['trainees'][number]],
+    };
+    const [plan] = ridePlans(input(lord));
+    expect(plan!.blocks).toEqual([
+      [10, 11],
+      [16, 17],
+    ]);
+  });
+
+  it('blok začíná i končí u kůlu – ráno žádný pop-in uprostřed trasy, večer žádný skok', () => {
+    const [plan] = ridePlans(input(LORD));
+    const pose = (hour: number): { x: number; z: number } =>
+      rideHorsePose(plan!, at(hour), createRideState(), createLivestockPose());
+    const hitch = (p: { x: number; z: number }): number =>
+      Math.hypot(p.x - plan!.hitch.x, p.z - plan!.hitch.z);
+    // těsně před začátkem (u kůlu) a těsně po začátku bloku: kousek od kůlu
+    expect(hitch(pose(7.99))).toBeLessThan(0.5);
+    expect(hitch(pose(8.01))).toBeLessThan(3);
+    // konec bloku: zpět u kůlu a hned po něm stojí tamtéž
+    expect(hitch(pose(8.99))).toBeLessThan(3);
+    expect(hitch(pose(9.01))).toBeLessThan(0.5);
+    // v půlce bloku je od kůlu nejdál
+    expect(hitch(pose(8.5))).toBeGreaterThan(hitch(pose(8.1)));
+  });
+
+  it('koně na jízdě v čase (ohrada je pustí jen v bloku)', () => {
+    const plans = ridePlans(input(LORD));
+    const ms = (hour: number): number => LIVESTOCK_EPOCH_MS + at(hour) * 1000;
+    expect([...ridingHorseIds(plans, ms(8.4))].sort()).toEqual([1, 2]);
+    expect(ridingHorseIds(plans, ms(12)).size).toBe(0);
+    expect(ridingHorseIds(plans, ms(23)).size).toBe(0);
   });
 
   it('bez jezdců žádné jízdy', () => {

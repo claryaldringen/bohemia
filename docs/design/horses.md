@@ -189,11 +189,17 @@ Tři řádky v panelu obchodu jako u dobytka ([obchod](trade.md) – Dobytek ve 
 - **Jezdec** = postava `man.glb` s novou animací sedu z `art/animation/biped/rider/cavalry/` (stejná
   kostra bipeda) – nový klip v GLB. Poloha a natočení jezdce se odvodí z koně v `animate()` (takt
   `WATER_FPS`); jedoucí jezdec nastaví `needsRender`, stojící ne.
-- **Kdy jsou jezdci venku (návrh Clauda, 24. 10. 2026):** herní den trvá ≈ 86 s, objížďka polí
-  měří stovky metrů až kilometry a krokem 1,5 m/s trvá déle než den. Jezdci s koněm proto ve
-  scéně jezdí celý den (7–19 h) po trase dne dokola – ujetá vzdálenost je čistá funkce
-  skutečného času – a luk a boj jezdce se na dvorku nekreslí (jádro jim hodiny počítá dál).
-  V noci je jezdec doma a kůň stojí u kůlu u brány dvorce, v ohradě koně jezdců dne nestojí.
+- **Kdy jsou jezdci venku (návrh Clauda, 24. 10. 2026):** scéna ukazuje to, co simuluje jádro
+  ([lord.md](lord.md) – Výcvik: v každém ze dvou bloků dne napřed luk, pak boj, pak jízda).
+  Jezdec jede **jen v bloku jízdy** (`SceneRide.hours` ÷ počet bloků, po luku a boji); zbytek dne
+  střílí a bojuje na dvorku jako ostatní. Herní den trvá ≈ 86 s, blok jízdy tedy jen několik
+  sekund, a okruh polí ani cesta k hranici (stovky metrů až kilometry krokem 1,5 m/s) se do
+  něj nevejde. Proto jezdec **jen vyjede po trase dne a vrátí se**: blok začíná u kůlu u brány,
+  v půlce bloku se otočí a na konci stojí zase u kůlu (žádný pop-in uprostřed trasy a večerní
+  skok koně). Jízda k hranici a doprovod výpravy se kreslí stejně, bez dojetí ke kraji
+  (jednodušší než pokračování přes bloky a dny). Mimo blok je kůň v ohradě (v noci a v zimě
+  vždy; v létě podle pasáka jako ostatní koně, kůň s jezdcem se nepase), v ohradě ho ráno vede ven
+  koňák – ve scéně kůň v bloku jen vyjede od kůlu a po bloku se vrátí do ohrady bez vedení.
 - **Technické riziko – 8 vertex bufferů WebGPU:** postava jich má právě 8, jezdec **nesmí přidat
   žádný atribut** – sed, barevný plášť ani příznak „na koni“ nejdou do vertexů, jen do animace nebo
   textury. U koně s morph targety ověřit počet bufferů (kráva a vůl mají stejné řešení, takže by
