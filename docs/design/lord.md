@@ -23,6 +23,8 @@ pocítí, že vojvodův dvůr něco stojí – a že rod, který nemá komu vele
   (Martin).
 - **Cíl:** vojvodova **žena a dcery vedou jen domácnost** (Martin, 23. 10. 2026).
 - **Cíl:** při **hrozícím hladu** jde celá rodina na pole (Martin).
+- **Cíl:** ve **žních a výmlatu** jdou na pole i cvičící muži rodiny (Martin 24. 10. 2026: „Dílny
+  i vojvodova rodina“ – mění pravidlo „vojvoda a synové nepracují na poli“, issue #8).
 - **Cíl:** na **dvorku dvorce stojí terče** na lukostřelbu (Martin).
 - **Cíl:** výcvik se **ukládá u člověka** jako zkušenost – lov a válka ho později využijí (návrh
   Clauda).
@@ -130,6 +132,13 @@ pozná hrozbu ze dvou odhadů, které už počítá – nový odhad nevzniká.
      výcvik koně nepostupují; luk a boj chlapci cvičí dál. (Dřív jim jízda rostla na stojícím koni.)
    - **Návrat k výcviku**, až výhled vychází s plným přídělem **30 dní po sobě** (hystereze – ať
      rodina neskáče mezi polem a dvorkem den po dni).
+
+3. **Žně a výmlat** (Martin 24. 10. 2026: „Dílny i vojvodova rodina“ – ves hladověla, protože
+   žně stihla jen část dospělých). Ve **žňový den** ([pole](fields.md) – Žně všemi rukama: okna
+   žní a výmlatu červenec–září, dokud je co sklízet nebo mlátit) dají cvičící muži rodiny celou
+   práci po denním minimu dvorce na žeň a výmlat – před prací vsi; co žně nespotřebují, cvičí
+   (podíl dne jako u pomoci s osevem). Pomoc s osevem (bod 1) ten den není – muži jsou na žních.
+   Ženy a dcery dál jen domácnost, chlapci 7–13 let cvičí; při hladu platí bod 2.
 
 - Proč tyto dva: první chrání před hladem příští rok (osev), druhý před hladem teď; oba jsou čistá
   funkce stavu a dne, takže výsledek nezávisí na tom, po jakých kouscích se ves dopočítá.

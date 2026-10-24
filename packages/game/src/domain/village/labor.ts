@@ -32,6 +32,15 @@ const SOWING_HELP_TASKS: ReadonlySet<LaborTaskName> = new Set([
  * 22. 10. 2026: „setí, žně, mlácení zrna, v případě potřeby i okopávání motykou. Nekovou,
  * nekácí, neorou, nestaví.“): setí, okopávání, žně a výmlat.
  */
+/**
+ * Úlohy žňových rukou (fields.md – Žně všemi rukama; `harvestHands`, `lordHarvest`): žeň
+ * (sklizeň, vázání, odnos) a výmlat.
+ */
+export const HARVEST_HANDS_TASKS: ReadonlySet<LaborTaskName> = new Set<LaborTaskName>([
+  'harvest',
+  'thresh',
+]);
+
 export const LIGHT_LABOR_TASKS: ReadonlySet<LaborTaskName> = new Set<LaborTaskName>([
   'sow',
   'weed',
@@ -60,6 +69,18 @@ export interface DayAllocationInput {
    * údaje 0.
    */
   lordField?: number;
+  /**
+   * Žňové ruce (fields.md – Žně všemi rukama; člověkodny před štěstím): řemeslníci se syny
+   * (`craftHarvestLabor`) a výrostci a starší (`harvestHelperLabor`) ve žňové dny – samostatný
+   * zásobník mimo `capacity` jako `light`, pokryje jen žeň a výmlat (`HARVEST_HANDS_TASKS`) před
+   * prací vsi; co nevyužije, propadne. Bez údaje 0.
+   */
+  harvestHands?: number;
+  /**
+   * Cvičící muži vojvodovy rodiny ve žňové dny (`manorLabor` – `harvest`, člověkodny před štěstím)
+   * – zásobník jako `harvestHands`, za ním; spotřebu vrací `lordField`. Bez údaje 0.
+   */
+  lordHarvest?: number;
   /**
    * Pomoc vojvodovy rodiny s potřebným osevem (lord.md – Kdy jde rodina na pole, bod 1; `manorLabor`
    * – `help`, člověkodny před štěstím) – zásobník jako `lordField`, ale až po práci vsi: pokryje
@@ -117,8 +138,13 @@ export interface DayAllocation {
   away: number;
   /** Práce sedláků s vozy pro uhlí a rudu (nejvýš `carting`, po výpravách). */
   carting: number;
-  /** Kolik práce vojvodovy rodiny (`lordField` a `lordHelp`, po štěstí) dnes úlohy spotřebovaly. */
+  /**
+   * Kolik práce vojvodovy rodiny (`lordField`, `lordHarvest` a `lordHelp`, po štěstí) dnes úlohy
+   * spotřebovaly.
+   */
   lordField: number;
+  /** Kolik žňových rukou (`harvestHands`, po štěstí) dnes žeň a výmlat spotřebovaly. */
+  harvestHands: number;
   tasks: Record<LaborTaskName, number>;
   /** Práce pro jednotlivé úlohy vstupu v jejich pořadí (stejný název může být víckrát – plodiny). */
   taskAmounts: number[];
@@ -181,6 +207,11 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
   // lehká práce žen řemeslníků – jen na lehké úlohy, napřed ta, pak práce vojvodovy rodiny na poli
   // (jen úlohy dne), pak obecná kapacita
   let lightLeft = Math.max(0, (input.light ?? 0) * productivity);
+  // žňové ruce (fields.md – Žně všemi rukama) – jen žeň a výmlat, za lehkou prací žen
+  const handsPool = Math.max(0, (input.harvestHands ?? 0) * productivity);
+  let handsLeft = handsPool;
+  const lordHarvestPool = Math.max(0, (input.lordHarvest ?? 0) * productivity);
+  let lordHarvestLeft = lordHarvestPool;
   const lordPool = Math.max(0, (input.lordField ?? 0) * productivity);
   let lordLeft = lordPool;
   const helpPool = Math.max(0, (input.lordHelp ?? 0) * productivity);
@@ -190,6 +221,13 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     if (LIGHT_LABOR_TASKS.has(task.name)) {
       amount = Math.min(task.remaining, lightLeft);
       lightLeft -= amount;
+    }
+    if (HARVEST_HANDS_TASKS.has(task.name)) {
+      const hands = Math.max(0, Math.min(task.remaining - amount, handsLeft));
+      handsLeft -= hands;
+      const lordHands = Math.max(0, Math.min(task.remaining - amount - hands, lordHarvestLeft));
+      lordHarvestLeft -= lordHands;
+      amount += hands + lordHands;
     }
     const lord = Math.max(0, Math.min(task.remaining - amount, lordLeft));
     lordLeft -= lord;
@@ -210,7 +248,8 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     horseCare,
     away,
     carting,
-    lordField: lordPool - lordLeft + (helpPool - helpLeft),
+    lordField: lordPool - lordLeft + (lordHarvestPool - lordHarvestLeft) + (helpPool - helpLeft),
+    harvestHands: handsPool - handsLeft,
     tasks,
     taskAmounts,
     common: left,

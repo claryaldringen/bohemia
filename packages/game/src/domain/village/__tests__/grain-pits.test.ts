@@ -578,6 +578,7 @@ describe('práce na jámách v rozdělení práce', () => {
         dailyMin: 0,
         eldersDailyMin: 0,
         lordField: 0,
+        harvestHands: 0,
         horseCare: 0,
         away: 0,
         carting: 0,

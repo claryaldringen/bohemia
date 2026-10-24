@@ -52,6 +52,7 @@ import type {
   WorkshopActivity,
   WorkshopFelling,
 } from './types';
+import { harvestHandsDay } from './harvest-hands';
 import {
   basketManDaysPerKg,
   craftHands,
@@ -267,6 +268,26 @@ export function craftLightLabor(
     light += workshopLabor(state, day, id, potteryCoverage, productivity).light;
   }
   return light / productivity;
+}
+
+/**
+ * Žňové ruce dílen (fields.md – Žně všemi rukama): práce řemeslníků a synů domácností dílen,
+ * které dnes pracují (`households`), ve žňový den (`WorkshopLabor.harvest`). Člověkodny před
+ * štěstím (jako `craftLightLabor`).
+ */
+export function craftHarvestLabor(
+  state: VillageState,
+  day: number,
+  households: ReadonlySet<number>,
+  potteryCoverage: number,
+  productivity: number,
+): number {
+  if (households.size === 0 || productivity <= 0 || !harvestHandsDay(state, day)) return 0;
+  let hands = 0;
+  for (const id of households) {
+    hands += workshopLabor(state, day, id, potteryCoverage, productivity).harvest;
+  }
+  return hands / productivity;
 }
 
 /** Obývané dílny řemesla `craft` v pořadí id. */
@@ -684,6 +705,11 @@ export interface WorkshopLabor {
    * (crafts.md – Kdo dělá řemeslo); `workCrafts` ji nepoužije, do práce vsi ji přidá krok práce.
    */
   light: number;
+  /**
+   * Práce řemeslníka a synů ve žňový den (fields.md – Žně všemi rukama, `harvestHandsDay`; čd po
+   * štěstí) – jde na žeň a výmlat se vsí (`craftHarvestLabor`), řemeslo (`craft`) ten den stojí.
+   */
+  harvest: number;
   skill: number;
 }
 
@@ -728,12 +754,16 @@ export function workshopLabor(
   // řemeslo dělá jen řemeslník a jeho synové; zbytek práce žen jde do lehčích prací se vsí
   const handsCapacity =
     craftHands(members, day).reduce((sum, p) => sum + laborPerDay(p, day), 0) * productivity;
-  const craft = Math.min(left, handsCapacity);
+  const hands = Math.min(left, handsCapacity);
+  // ve žňový den jde řemeslník se syny na pole (fields.md – Žně všemi rukama; Martin 24. 10. 2026:
+  // „Dílny i vojvodova rodina“), ženy dál domácnost a lehčí práce
+  const harvest = harvestHandsDay(state, day);
   return {
     capacity,
     dailyMin,
-    craft,
-    light: left - craft,
+    craft: harvest ? 0 : hands,
+    light: left - hands,
+    harvest: harvest ? hands : 0,
     skill: workshopSkill(state, dwellingId, day, away),
   };
 }

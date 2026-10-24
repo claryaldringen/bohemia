@@ -211,6 +211,7 @@ describe('práce opravy', () => {
         dailyMin: 0,
         eldersDailyMin: 0,
         lordField: 0,
+        harvestHands: 0,
         common: 4,
       },
       repairs: [],

@@ -27,6 +27,11 @@ const at = (year: number, month: number, day: number): number => dayIndexOf({ ye
 const START = at(600, 8, 31);
 const PLAN_DAY = at(600, 9, 1);
 const OUTSIDE = 500;
+/**
+ * Zásoby, se kterými ves potřebný osev bez rodiny nestihne – i se žňovými rukama ve výmlatu
+ * (fields.md – Žně všemi rukama).
+ */
+const SHORT_STORES = 2000;
 
 const person = (
   id: number,
@@ -47,8 +52,8 @@ const parts = (count: number): PartInput[] =>
 
 /**
  * Ves k 31. 8. 600 s dostatkem půdy (600 dílů po 225 m², úrodnost 0,9): cvičící dvorec (vojvoda
- * 40, žena 38, syn 17 se snachou 16, syn 11) a 4 dospělí jinde. Se zásobami 4000 kg potřebný osev
- * bez rodiny nestihne, s 8000 kg ano.
+ * 40, žena 38, syn 17 se snachou 16, syn 11) a 4 dospělí jinde. Se zásobami 2000 kg potřebný osev
+ * bez rodiny nestihne (`SHORT_STORES`), s 8000 kg ano.
  */
 function sowingVillage(storesKg: number): VillageState {
   const s = withBuiltFirstDwelling(
@@ -253,7 +258,7 @@ describe('plán osevu s rodinou (planYear, trimPlan)', () => {
   });
 
   it('ves, která osev nestihne – rodina dá podíl v oknech, kde práce chybí, v zimě cvičí', () => {
-    const planned = advanceVillage(sowingVillage(4000), PLAN_DAY, null);
+    const planned = advanceVillage(sowingVillage(SHORT_STORES), PLAN_DAY, null);
     const help = planned.plan!.lordHelp!;
     expect(help).toBeDefined();
     const shares = Object.values(help);
@@ -280,18 +285,18 @@ describe('plán osevu s rodinou (planYear, trimPlan)', () => {
   });
 
   it('osev navíc se kvůli rodině nezvětší a pomoc nezávisí na dopočtu po kouscích', () => {
-    const alone = advanceVillage(sowingVillage(4000), PLAN_DAY, null);
-    const once = advanceVillage(sowingVillage(4000), at(600, 9, 20), null);
-    let pieces = sowingVillage(4000);
-    for (const day of [PLAN_DAY, at(600, 9, 7), at(600, 9, 20)]) {
+    const alone = advanceVillage(sowingVillage(SHORT_STORES), PLAN_DAY, null);
+    const once = advanceVillage(sowingVillage(SHORT_STORES), at(600, 10, 20), null);
+    let pieces = sowingVillage(SHORT_STORES);
+    for (const day of [PLAN_DAY, at(600, 9, 7), at(600, 10, 20)]) {
       pieces = advanceVillage(pieces, day, null);
     }
     expect(pieces).toEqual(once);
     // osev navíc dostane jen práci vsi – stejně jako ves, kde rodina nepomáhá
     const noHelp = structuredClone(alone);
     delete noHelp.plan!.lordHelp;
-    const helped = advanceVillage(alone, at(600, 9, 20), null);
-    const unhelped = advanceVillage(noHelp, at(600, 9, 20), null);
+    const helped = advanceVillage(alone, at(600, 10, 20), null);
+    const unhelped = advanceVillage(noHelp, at(600, 10, 20), null);
     // rodina pomáhala (cvičila méně), volná práce vsi na stavby a osev navíc den po dni stejná
     const bow = (v: VillageState): number => v.people.find((p) => p.id === 12)!.arms!.bow;
     expect(bow(helped)).toBeLessThan(bow(unhelped));
@@ -299,7 +304,7 @@ describe('plán osevu s rodinou (planYear, trimPlan)', () => {
   });
 
   it('jarní úprava přepočítá pomoc podle zbytku plánu', () => {
-    const planned = advanceVillage(sowingVillage(4000), PLAN_DAY, null);
+    const planned = advanceVillage(sowingVillage(SHORT_STORES), PLAN_DAY, null);
     const spring = structuredClone(planned);
     delete spring.plan!.lordHelp;
     spring.lastDay = at(601, 2, 28);

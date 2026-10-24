@@ -92,6 +92,12 @@ Vzhled podle Martina (modely se připravují v `tools/blender/`):
   vsi v kroku práce) – návrh Clauda: samostatný zásobník lehké práce, který pokryje jen setí,
   okopávání, žně a výmlat (orbu, kácení ani stavby nikdy), ve scéně ho zastanou ženy u těchto prací; praxi v řemesle ženy nezískávají a výkon dílny podle ní neurčují. Domácnost
   bez muže schopného práce (vdova s dětmi) drží dílnu celá, ať nestojí.
+- **Řemeslníci na žních** (Martin 24. 10. 2026: „Dílny i vojvodova rodina“): ve **žňový den**
+  ([pole](fields.md) – Žně všemi rukama: okna žní a výmlatu červenec–září, dokud je co sklízet
+  nebo mlátit) jde řemeslník se syny na žeň a výmlat – jejich práce po denním minimu domácnosti
+  (`WorkshopLabor.harvest`) pokryje jen žeň a výmlat, před prací vsi; řemeslo ten den stojí
+  (pálící milíř dohoří sám). Co žně nespotřebují, propadne (návrh Clauda). Ženy řemeslníků dál
+  domácnost a lehčí práce jako jindy. Mimo žňové dny řemeslo.
 - **Volný čas pracují pro ves** (Martin 18. 10. 2026: „Ano, pokud uhlíř a kovář budou mít volný
   čas, ať pracují na poli jako zbytek vesnice.“): když řemeslník nemá v dílně co dělat, jeho
   domácnost ten den pracuje jako ostatní domácnosti – pole, stavby, společná práce vsi (část
