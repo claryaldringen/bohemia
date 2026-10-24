@@ -135,6 +135,15 @@ describe('křižovatky blízko sebe (updateJunctions)', () => {
     expect(json(roads)).toEqual(before);
   });
 
+  it('šířka pro rozestup jiná než podle stupně (přestavba – budoucí vozová cesta) → odsunou se dál', () => {
+    const roads = crossAndY();
+    const wagon = ROAD_LAND.widthM.wagon;
+    expect(updateJunctions(roads, DAY, SEED, { ...allLive, width: () => wagon })).toBe(true);
+    const min = junctionSpacingM([wagon], [wagon]);
+    expect(gap(roads)).toBeGreaterThanOrEqual(min);
+    expect(gap(roads)).toBeLessThan(min + 0.04);
+  });
+
   it('pevná spojka (zemská stezka, cesta ve vylepšení) se neslučuje ani nehýbe – obě zůstanou', () => {
     const roads = twoYs();
     updateJunctions(roads, DAY, SEED, allLive);

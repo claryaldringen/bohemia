@@ -348,6 +348,12 @@ export interface RoadEarthwork {
   startedDay: number;
   /** Stavba (id), dokud se staví; pak chybí. */
   constructionId?: number;
+  /**
+   * Den, kdy zemní práce přestala patřit cestě (jednorázová přestavba sítě – paths.md): terén
+   * zůstává (herní data), svahy zarůstají; kde vede nová zemní práce, kreslí svahy ta. Chybí =
+   * zemní práce vozové cesty.
+   */
+  abandonedDay?: number;
 }
 
 /** Druh vozu (wagons.md – Vůz): dvoukolák (svoz), čtyřkolák (obchod – hůř se otáčí). */

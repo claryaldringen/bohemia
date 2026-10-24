@@ -573,8 +573,9 @@ nová ves ho má od začátku), po převodu na nový systém (Převod starých v
    na políčku (provoz − 1 cesta) × 365 dní, nejvýš strop; kde je vyšlapanost už vyšší, zůstane.
    Trasy za prací nesou jen stálou část jako za běhu (Vyšlapanost a vznik cesty).
 2. **Všechny cesty se zahodí** i s křižovatkami – kromě pevných výjimek: cesta ve vylepšení (stavba
-   s úseky), úseky rozestavěné zemské stezky, **hotová vozová cesta** (přepočte ji až Úloha R2,
-   zemní práce zatím zůstávají beze změny) a opuštěný kus pod stavbou (jen dál bledne).
+   s úseky), úseky rozestavěné zemské stezky, hotové úseky **rozestavěné** vozové cesty (leží na ose
+   zemních prací se stavbou) a opuštěný kus pod stavbou (jen dál bledne). Hotová vozová cesta se
+   zahodí taky a pro přenos vylepšení je upravenou cestou (bod 8).
 3. **Cesty vzniknou znovu** stejnými funkcemi jako za běhu: měsíční kontrola bez ohledu na datum
    a s úklidem vždy – vznik z vyšlapanosti od kotvy ke kotvě, úklid (souběžné, copánky, díry,
    spojení, pahýly), cesty k vchodům, kusy pod stavbami a křižovatky i s rozestupem. Po každém
@@ -597,6 +598,31 @@ nová ves ho má od začátku), po převodu na nový systém (Převod starých v
    od osy + 4 m, dál stojí bez cesty do smrti (křižovatka ho může převzít za znamení, jako po
    zaniklé křižovatce); jabloň patří nejbližšímu živému úseku. Olemování se přepočítá. Stav kusů
    nových úseků je plný. Kronika se nemění.
+8. **Vozové cesty** (Úloha R2, návrh Clauda 24. 10. 2026 podle varianty A), když se síť po bodech 3–7
+   ustálí:
+   - **Kus staré vozové osy, kam nová síť nedosáhla** (dál než 4 m, souvisle aspoň **60 m** –
+     `ROAD_REBUILD.wagonPatchM`, ≈ úsek stavby), se vrátí jako upravený úsek napojený na síť – jako
+     u stezek (bod 5). Bez toho by vozová cesta, po které se skoro nechodí, zmizela (Vlkov: 1 km
+     k severnímu okraji mapy). Kratší kusy (zbytky ve vsi, které nová síť vede jinudy) se nevrací.
+   - **Staré hotové zemní práce přestanou patřit cestě** (`abandonedDay`): terén zůstává (je to
+     herní terén – cesty i stavby s ním počítají), svahy zarostou (níž).
+   - **Řetěz nové sítě** (úseky mezi rozcestími a konci), jehož aspoň **60 %** délky leží do **4 m**
+     od osy staré vozové cesty, se upraví (zaplaceno – „Napřed uprav cestu.“ přestavbu nezastaví)
+     a **naplánuje jako vozová cesta stejně jako na serveru** – po ose řetězu, s narovnáním kliček
+     a objížďkou či serpentinami, nad terénem i se starými zemními pracemi (kde stará pláň leží,
+     nová skoro nic nekope). Plán se **zapíše rovnou hotový**: zemní práce se všemi úseky
+     dostavěnými v den přestavby, bez stavby a bez ceny; kácení z plánu je provedené jako po stavbě
+     (pařezy, klády na hromadu, lávky u nových brodů bez dřeva – zaplaceno); stará cesta pod
+     vozovou zmizí a obejité kusy jsou opuštěné a zarostou jako po stavbě. Nevyjde-li plán (moc
+     krátká, okruh, moc prudká…), řetěz zůstane upravený. Pak se síť znovu ustálí (body 3–7 –
+     křižovatky, úklid a trasy po vozových cestách).
+   - **Rozestup křižovatek:** úsek, jehož aspoň 60 % délky leží u staré vozové osy, má už při
+     ustalování sítě (body 3–7) pro rozestup křižovatek šířku vozové cesty (3,5 m → 12,1 m) –
+     křižovatka s vozovým ramenem se po přepočtu nehne, takže se odsune předem.
+   - **Rozestavěná vozová cesta** (zemní práce se stavbou) se nemění a dostaví se normálně.
+   - **Svahy staré zemní práce zarostou** celé i s lemem za **5 let** jako opuštěná cesta
+     (`SLOPE_LOOK.wildYears`); kde vede nová zemní práce (do dosahu svahů), kreslí svahy jen ta – kus
+     staré, který nová osa použila, tak vypadá jako nový, nepoužitý zaroste.
 
 Vlkov (den 114787, měření ve scratchpadu R1): 49 úseků → 46 (živých 36 → 33), křižovatky 12 → 10,
 konce mimo kotvu 6 → 0, úsek přes dům 1 → 0, dvojice křižovatek pod rozestupem 2 → 1, upravené
@@ -608,8 +634,14 @@ opustí (+12 opuštěných kusů za rok). Příčina (R2): cesta vznikla z vyšl
 oblouky obou konců do křižovatek ji narovnaly přes jámu – oblouk teď neprůchodnou plochou nevede víc
 než neohnutá osa (Křižovatky – Vchody).
 
-**Úloha R2:** hotové vozové cesty se po nových osách přepočítají i se zemními pracemi a budou
-rovnou hotové; úvozy a náspy, které nové osy nepoužijí, zarostou.
+**Vlkov po R2** (den 114787, měření ve scratchpadu R2): vozové úseky 18 (2 994 m, z toho 358 m
+rozestavěné cesty) → 13 (2 860 m); nové hotové zemní práce 11× (2 502 m – 433 m a 663 m po staré
+ose, 1 085 m k severnímu okraji vrácený kus), 3 krátké řetězy u starých vozových os zůstaly upravené
+(„moc krátká“); 14 starých zemních prací (2 656 m) zarůstá, rozestavěné 4044 a 4046 beze změny.
+Dvojice křižovatek pod rozestupem 2 → 0, úsek přes dům 1 → 0, odkazy na zmizelé úseky 0. Vůz od
+ohrady k vodě 375 → 378 m (7,8 → 7,9 min), k dílům polí ⌀ 457 → 459 m (9,5 → 9,6 min); chůze
+k vodě −5,6 %, k polím +3,6 % (nové svahy vedle starých). Přestavba ≈ 10 s. Po 1 i 12 měsících
+42 úseků a 10 křižovatek, opuštěné kusy nepřibývají (u obilné jámy už ne).
 
 ## Co se ukládá a co se dopočítá
 

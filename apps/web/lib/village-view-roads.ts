@@ -56,7 +56,8 @@ import { trailRoadWork } from './trail-view';
 
 /**
  * Zemní práce vozových cest pro scénu (roads.md – Vozová cesta): profily, hotová délka (jako
- * terén sítě pěšin na serveru – `earthworkSpansOf`), úseky se stářím v celých letech.
+ * terén sítě pěšin na serveru – `earthworkSpansOf`), úseky se stářím v celých letech, zemní práce
+ * bez cesty (přestavba sítě) s roky od opuštění.
  */
 export function sceneEarthworks(state: VillageState, day: number): SceneEarthwork[] {
   const spans = earthworkSpansOf(state);
@@ -74,6 +75,9 @@ export function sceneEarthworks(state: VillageState, day: number): SceneEarthwor
     })),
     ...(e.constructionId !== undefined
       ? { building: true as const, constructionId: e.constructionId }
+      : {}),
+    ...(e.abandonedDay !== undefined
+      ? { abandonedYears: Math.max(0, Math.floor((day - e.abandonedDay) / DAYS_PER_YEAR)) }
       : {}),
   }));
 }

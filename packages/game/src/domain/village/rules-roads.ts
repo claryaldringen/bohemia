@@ -50,8 +50,17 @@ export const ROAD_STUB = { remnantM: 30 } as const;
 // nové cesty, které vedou zhruba tam, kde staré“; čísla návrh Clauda): vyšlapanost se naseje, jako by
 // se po dnešních trasách chodilo `seedDays` dní; nový úsek, jehož aspoň `share` délky leží do `nearM`
 // od osy staré upravené cesty (stezky), je upravený s hatí a lávkou (stejně příznak vyježděná
-// a průsek); kus staré stezky dál než `nearM` od nové sítě se vrátí; průchodů nejvýš `passes`
-export const ROAD_REBUILD = { seedDays: 365, nearM: 4, share: 0.6, passes: 4 } as const;
+// a průsek); kus staré stezky dál než `nearM` od nové sítě se vrátí; průchodů nejvýš `passes`.
+// Vozové cesty (R2): řetěz nové sítě s aspoň `share` délky do `nearM` od staré vozové osy se
+// přepočítá jako hotová vozová cesta; souvislý kus staré vozové osy dál než `nearM` od nové sítě
+// a aspoň `wagonPatchM` dlouhý (≈ úsek stavby – k okraji mapy, kudy se nechodí) se vrátí
+export const ROAD_REBUILD = {
+  seedDays: 365,
+  nearM: 4,
+  share: 0.6,
+  passes: 4,
+  wagonPatchM: 60,
+} as const;
 // wagons.md – Vozová síť a vyjeté cesty (Martin, 19. 10. 2026: „Vozy mohou cestu vyjezdit, ale
 // nemají takovou prostupnost jako lidé … ve svahu, kde lidé zvládnou chodit rovně, vůz bude muset
 // vyjezdit serpentiny.“; čísla návrh Clauda – rešerše fáze 1 je ověří): sklon ve směru jízdy nad

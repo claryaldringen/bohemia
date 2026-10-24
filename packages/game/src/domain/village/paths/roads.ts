@@ -214,6 +214,8 @@ function roadsMonthRun(
   day: number,
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
+  /** Šířka úseku pro rozestup křižovatek (`JunctionRoads.width`) – jen přestavba sítě. */
+  width?: (road: Road) => number | undefined,
 ): void {
   settleVillageWear(state, day, landscape);
   const roads = state.roads;
@@ -264,7 +266,13 @@ function roadsMonthRun(
   }
   const walk = (): ((x: number, z: number) => boolean) | null =>
     villageBlockedAt(state, day, landscape);
-  tidyMonth(state, routes, { lines, anchors, day, cellM, walk }, baseOf, fieldOf);
+  tidyMonth(
+    state,
+    routes,
+    { lines, anchors, day, cellM, walk, ...(width ? { width } : {}) },
+    baseOf,
+    fieldOf,
+  );
 }
 
 /**
@@ -318,9 +326,11 @@ export function rebuildRoadsPass(
   day: number,
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
+  /** Šířka úseku pro rozestup křižovatek – úsek, ze kterého bude vozová cesta (R2). */
+  width?: (road: Road) => number | undefined,
 ): void {
   if (state.roads) delete state.roads.tidyKey;
-  roadsMonthRun(state, day, landscape, obstacles);
+  roadsMonthRun(state, day, landscape, obstacles, width);
 }
 
 /** Kolikrát běžel měsíční úklid (`tidyMonth`) – pro testy a měření, hra ho nečte. */
@@ -358,6 +368,8 @@ function tidyMonth(
     cellM: number;
     /** Neprůchodná plocha vsi (stavby, ploty, zemní práce) – jen když se křižovatka posouvá. */
     walk: () => ((x: number, z: number) => boolean) | null;
+    /** Šířka úseku pro rozestup křižovatek (`JunctionRoads.width`) – jen přestavba sítě. */
+    width?: (road: Road) => number | undefined;
   },
   base: () => Omit<SpotContext, 'split'>,
   field: () => TrafficField,
@@ -385,6 +397,7 @@ function tidyMonth(
       anchor: (p) => nearEntrance(p, entrances),
       // nový střed křižovatky nesmí do domu, plotu ani zemních prací
       blocked: (p) => (walkable ??= month.walk())?.(p.x, p.z) ?? false,
+      ...(month.width ? { width: month.width } : {}),
     });
   };
   // cesty beze změny: úklid jen, když nové kotvy a trasy dají práci (pahýl, díra, okruh, vchod)

@@ -1,8 +1,9 @@
 import type { Landscape, ObstacleLayer } from '../../landscape';
 import { cloneState } from '../clone';
 import { obstacleChangesAt } from '../obstacles';
-import { ROAD_REBUILD, ROAD_TREES, WEAR } from '../rules';
+import { ROAD_LAND, ROAD_REBUILD, ROAD_TREES, WEAR } from '../rules';
 import { villageManor } from '../manor';
+import { type OldWagonRoads, type WagonRebuild, rebuildWagonRoads } from '../wagon-rebuild';
 import { trailAxisRoads, trailStart } from '../trail-axis';
 import type {
   Road,
@@ -25,11 +26,15 @@ import { encodeWear, flushWear, trafficField, wearMap } from './wear';
 const SHARE_STEP_M = 2;
 /** Krok vzorků staré osy stezky při hledání nepokrytých kusů (m). */
 const TRAIL_STEP_M = 1;
+/** Úsek vozové cesty leží na ose rozestavěných zemních prací, když je od ní nejvýš tolik (m). */
+const BUILDING_M = 1;
 
 type Distance = (x: number, z: number) => number;
 
 /** Kolik průchodů přestavby proběhlo (`rebuildRoads`) – pro testy a měření, hra ho nečte. */
 export const REBUILD_PASSES = { count: 0 };
+/** Poslední přepočet vozových cest v přestavbě (`rebuildWagonRoads`) – pro testy a měření. */
+export const REBUILD_WAGONS: { last: WagonRebuild | null } = { last: null };
 
 /** Osy starých cest, z nichž se vylepšení přenášejí na nové úseky. */
 interface Upgrades {
@@ -41,15 +46,17 @@ interface Upgrades {
 /**
  * Jednorázová přestavba sítě cest (paths.md – Jednorázová přestavba sítě; Martin 24. 10. 2026,
  * varianta A). Čistá funkce – vstupní stav nemění. Vyšlapanost se naseje z dnešních tras (`seedWear`),
- * všechny cesty kromě pevných výjimek (cesty ve vylepšení, hotové vozové – Úloha R2, úseky
- * rozestavěné stezky, opuštěné kusy pod stavbami) zmizí i s křižovatkami a vzniknou znovu týmiž
+ * všechny cesty kromě pevných výjimek (cesty ve vylepšení, hotové úseky rozestavěné vozové cesty,
+ * úseky rozestavěné stezky, opuštěné kusy pod stavbami) zmizí i s křižovatkami a vzniknou znovu týmiž
  * funkcemi jako za běhu (`rebuildRoadsPass` – vznik od kotvy ke kotvě, úklid, cesty k vchodům,
  * křižovatky) po průchodech,
  * mezi nimiž se přepočítají trasy (`refreshWalkDistances`), dokud se síť nemění (nejvýš
  * `ROAD_REBUILD.passes`). Vylepšení se přenesou (`transferUpgrades`), kusy hotových stezek, kam nová
- * síť nedosáhla, se vrátí (`patchTrails`) a stezky se znovu najdou po síti (`restoreTrails`);
- * stromy a jabloně u cest zůstanou a patří nejbližšímu novému úseku. Kronika se nemění. Ves bez cest
- * nebo bez tras vrátí týž objekt.
+ * síť nedosáhla, se vrátí (`patchAxes`) a stezky se znovu najdou po síti (`restoreTrails`);
+ * stromy a jabloně u cest zůstanou a patří nejbližšímu novému úseku. Hotové vozové cesty se po
+ * nových osách přepočítají a jsou hned hotové i se zemními pracemi, staré zemní práce zůstanou
+ * jen terénem a zarostou (`rebuildWagonRoads`); pak se síť znovu ustálí. Kronika se nemění. Ves bez
+ * cest nebo bez tras vrátí týž objekt.
  */
 export function rebuildRoads(
   state: VillageState,
@@ -61,16 +68,31 @@ export function rebuildRoads(
   const roads = next.roads!;
   const day = next.lastDay;
   const chronicle = next.chronicle.length;
+  // hotové úseky rozestavěné vozové cesty leží na ose jejích zemních prací – zůstanou
+  const building = axisDistance(
+    (roads.earthworks ?? []).filter((e) => e.constructionId !== undefined).map((e) => e.profile),
+  );
   const fixed = new Set<number>([
     ...next.constructions.flatMap((c) => c.roadIds ?? []),
     ...(next.trails ?? [])
       .filter((t) => typeof t.builtDay !== 'number')
       .flatMap((t) => t.pieces.map((p) => p.roadId)),
-    ...roads.roads.filter((r) => r.grade === 'wagon').map((r) => r.id),
+    ...roads.roads
+      .filter((r) => r.grade === 'wagon' && shareNear(r.points, building, BUILDING_M) >= 0.5)
+      .map((r) => r.id),
     // opuštěné kusy pod stavbami jen dál blednou (paths.md – Stavba přes cestu)
     ...roads.roads.filter((r) => r.abandoned).map((r) => r.id),
   ]);
   const old = roads.roads.filter((r) => !fixed.has(r.id));
+  // hotové vozové cesty se po nových osách přepočítají (R2) – jejich osy a zemní práce
+  const oldWagon: OldWagonRoads = {
+    near: axisDistance(old.filter((r) => r.grade === 'wagon').map((r) => r.points)),
+    earthworks: new Set(
+      (roads.earthworks ?? [])
+        .filter((e) => e.constructionId === undefined && e.abandonedDay === undefined)
+        .map((e) => e.id),
+    ),
+  };
   const byId = new Map(roads.roads.map((r) => [r.id, r] as const));
   const oldTrails = new Map<number, Road[]>();
   for (const trail of next.trails ?? []) {
@@ -110,23 +132,55 @@ export function rebuildRoads(
       splitTrailPieces(next.trails, from, to);
     },
   });
+  // obejité kusy přepočtených vozových cest – opuštěné jako po stavbě, nemažou se
+  const bypassed = new Set<number>();
+  let patched = false;
+  // úsek, ze kterého bude vozová cesta, má pro rozestup křižovatek šířku vozové – po přepočtu se
+  // křižovatka s vozovým ramenem už nehne (mezipaměť podle pole bodů – posun uzlu ho nahradí)
+  const widths = new WeakMap<readonly RoadPoint[], number | undefined>();
+  const futureWagon = (road: Road): number | undefined => {
+    if (!widths.has(road.points)) {
+      const wagon =
+        road.grade !== 'wagon' && shareNear(road.points, oldWagon.near) >= ROAD_REBUILD.share;
+      widths.set(road.points, wagon ? ROAD_LAND.widthM.wagon : undefined);
+    }
+    return widths.get(road.points);
+  };
   // vznik cest nahradí `next.roads` kopií (`commitDraft`) – po průchodu vždy znovu ze stavu
-  for (let pass = 0; pass < ROAD_REBUILD.passes; pass++) {
-    const before = networkOf(next.roads!);
-    REBUILD_PASSES.count++;
-    rebuildRoadsPass(next, day, landscape, obstacles);
-    const current = next.roads!;
-    // nová cesta, kterou průchod hned opustil (vede pod stavbou nebo zemními pracemi), zmizí
-    current.roads = current.roads.filter((r) => !r.abandoned || r.id < firstNew);
-    if (pass === 0) patchTrails(current, oldTrails, day, context());
-    transferUpgrades(current, upgrades, fixed);
-    restoreTrails(next, landscape);
-    relinkTrees(current, oldSpots);
-    relinkApples(current);
-    for (const road of current.roads) delete road.lined;
-    lineRoads(next, day, true);
-    refreshWalkDistances(next, day, landscape, obstacles);
-    if (pass > 0 && networkOf(next.roads!) === before) break;
+  const settle = (width?: (road: Road) => number | undefined): void => {
+    for (let pass = 0; pass < ROAD_REBUILD.passes; pass++) {
+      const before = networkOf(next.roads!);
+      REBUILD_PASSES.count++;
+      rebuildRoadsPass(next, day, landscape, obstacles, width);
+      const current = next.roads!;
+      // nová cesta, kterou průchod hned opustil (vede pod stavbou nebo zemními pracemi), zmizí
+      current.roads = current.roads.filter(
+        (r) => !r.abandoned || r.id < firstNew || bypassed.has(r.id),
+      );
+      if (!patched) patchAxes(current, [...oldTrails.values()].flat(), day, context());
+      patched = true;
+      transferUpgrades(current, upgrades, fixed);
+      restoreTrails(next, landscape);
+      relinkTrees(current, oldSpots);
+      relinkApples(current);
+      for (const road of current.roads) delete road.lined;
+      lineRoads(next, day, true);
+      refreshWalkDistances(next, day, landscape, obstacles);
+      if (pass > 0 && networkOf(next.roads!) === before) break;
+    }
+  };
+  const hasWagon = oldWagon.earthworks.size > 0 || old.some((r) => r.grade === 'wagon');
+  settle(hasWagon ? futureWagon : undefined);
+  // vozové cesty po nových osách hotové i se zemními pracemi, pak síť znovu ustálit (křižovatky,
+  // úklid a trasy po vozových cestách)
+  if (hasWagon) {
+    // kus staré vozové cesty, kam nová síť nedosáhla (1 km k severnímu okraji Vlkova), nezmizí
+    const wagonAxes = old.filter((r) => r.grade === 'wagon');
+    patchAxes(next.roads!, wagonAxes, day, context(), ROAD_REBUILD.wagonPatchM);
+    const gone = new Set(next.roads!.roads.filter((r) => r.abandoned).map((r) => r.id));
+    REBUILD_WAGONS.last = rebuildWagonRoads(next, day, landscape, obstacles, oldWagon);
+    for (const r of next.roads!.roads) if (r.abandoned && !gone.has(r.id)) bypassed.add(r.id);
+    settle();
   }
   next.roads!.trailsRestored = true;
   next.chronicle.length = chronicle;
@@ -186,11 +240,15 @@ function seedWear(state: VillageState, landscape: Landscape): void {
   };
 }
 
-/** Podíl délky osy `points`, který leží do `ROAD_REBUILD.nearM` od os `near`. */
-function shareNear(points: readonly RoadPoint[], near: Distance): number {
+/** Podíl délky osy `points`, který leží do `within` (m, jinak `ROAD_REBUILD.nearM`) od os `near`. */
+function shareNear(
+  points: readonly RoadPoint[],
+  near: Distance,
+  within: number = ROAD_REBUILD.nearM,
+): number {
   const samples = resample(points, null, SHARE_STEP_M).points;
   if (samples.length === 0) return 0;
-  const close = samples.filter((p) => near(p.x, p.z) <= ROAD_REBUILD.nearM).length;
+  const close = samples.filter((p) => near(p.x, p.z) <= within).length;
   return close / samples.length;
 }
 
@@ -225,46 +283,49 @@ function transferUpgrades(
 }
 
 /**
- * Kusy os hotových stezek, kam nová síť nedosáhla (dál než `ROAD_REBUILD.nearM` – typicky k okraji
- * mapy, kudy se skoro nechodí), se vrátí jako úseky téhož stupně napojené na síť (mutuje) – stezka
- * tak dál vede od dvorce ke kraji mapy. Kus kratší než `ROAD_REBUILD.nearM` se nevrací.
+ * Kusy starých os (`axes` – úseky hotových stezek, staré vozové cesty), kam nová síť nedosáhla (dál
+ * než `ROAD_REBUILD.nearM` – typicky k okraji mapy, kudy se skoro nechodí), se vrátí jako úseky
+ * téhož stupně napojené na síť (mutuje) – stezka tak dál vede od dvorce ke kraji mapy. Kus vozové
+ * cesty se vrátí upravený (vozová se po něm přepočítá – R2). Kus kratší než `minM` (a než
+ * `ROAD_REBUILD.nearM`) se nevrací.
  */
-function patchTrails(
+function patchAxes(
   roads: VillageRoads,
-  oldTrails: ReadonlyMap<number, readonly Road[]>,
+  axes: readonly Road[],
   day: number,
   context: SpotContext,
+  minM: number = 0,
 ): void {
   const reach = ROAD_REBUILD.nearM + 1;
-  for (const axis of oldTrails.values()) {
-    for (const old of axis) {
-      if (roads.roads.some((r) => r.id === old.id)) continue;
-      const net = axisDistance(roads.roads.filter((r) => !r.abandoned).map((r) => r.points));
-      const samples = resample(old.points, null, TRAIL_STEP_M).points;
-      const length = roadLengthM(old);
-      const runs: [number, number][] = [];
-      let from = -1;
-      samples.forEach((p, k) => {
-        const far = net(p.x, p.z) > ROAD_REBUILD.nearM;
-        if (far && from < 0) from = k;
-        const last = k === samples.length - 1;
-        if (from >= 0 && (!far || last)) {
-          runs.push([from * TRAIL_STEP_M, (far ? k : k - 1) * TRAIL_STEP_M]);
-          from = -1;
-        }
-      });
-      for (const [a, b] of runs) {
-        const points = axisSlice(
-          old.points,
-          Math.max(0, a - ROAD_REBUILD.nearM),
-          Math.min(length, b + ROAD_REBUILD.nearM),
-        );
-        const road = formRoad(roads, points, reach, reach, day, () => 0, context, reach);
-        if (!road) continue;
-        road.grade = old.grade;
-        road.bornDay = old.bornDay;
-        if (old.swath) road.swath = true;
+  for (const old of axes) {
+    if (roads.roads.some((r) => r.id === old.id)) continue;
+    const net = axisDistance(roads.roads.filter((r) => !r.abandoned).map((r) => r.points));
+    const samples = resample(old.points, null, TRAIL_STEP_M).points;
+    const length = roadLengthM(old);
+    const runs: [number, number][] = [];
+    let from = -1;
+    samples.forEach((p, k) => {
+      const far = net(p.x, p.z) > ROAD_REBUILD.nearM;
+      if (far && from < 0) from = k;
+      const last = k === samples.length - 1;
+      if (from >= 0 && (!far || last)) {
+        runs.push([from * TRAIL_STEP_M, (far ? k : k - 1) * TRAIL_STEP_M]);
+        from = -1;
       }
+    });
+    for (const [a, b] of runs) {
+      if (b - a < minM) continue;
+      const points = axisSlice(
+        old.points,
+        Math.max(0, a - ROAD_REBUILD.nearM),
+        Math.min(length, b + ROAD_REBUILD.nearM),
+      );
+      const road = formRoad(roads, points, reach, reach, day, () => 0, context, reach);
+      if (!road) continue;
+      // kus hotové vozové cesty se vrátí upravený – vozová se po nové ose přepočítá (R2)
+      road.grade = old.grade === 'wagon' ? 'improved' : old.grade;
+      road.bornDay = old.bornDay;
+      if (old.swath) road.swath = true;
     }
   }
 }

@@ -388,6 +388,11 @@ export interface JunctionRoads {
    * a ohnutý konec osy přes něj nevede (`bendEnd`).
    */
   blocked?: (p: RoadPoint) => boolean;
+  /**
+   * Šířka pásu úseku pro rozestup křižovatek (m), jiná než podle stupně – přestavba sítě: úsek, ze
+   * kterého bude vozová cesta, má šířku vozové (křižovatka s vozovým ramenem se pak už nehne).
+   */
+  width?: (road: Road) => number | undefined;
 }
 
 /** Kolikrát se křižovatka spočítala znovu a kolik konců os se ohnulo – pro měření, hra je nečte. */
@@ -836,7 +841,8 @@ function spaceJunctions(
   isLive: (end: RoadEnd) => boolean,
   net: JunctionRoads,
 ): boolean {
-  const widths = (hub: Hub): number[] => hub.live.map((e) => roadLandWidthM(e.road));
+  const widths = (hub: Hub): number[] =>
+    hub.live.map((e) => net.width?.(e.road) ?? roadLandWidthM(e.road));
   const pinned = (hub: Hub): boolean => net.anchor?.(hub.center) ?? false;
   const stuck = new Set<string>();
   let done = false;
