@@ -38,16 +38,30 @@ function liveEnds(roads: readonly Road[]): Map<string, number> {
  * práce). Zbytek vozové cesty jako pahýl ano (`stubAction`).
  */
 function untouchable(
+  roads: VillageRoads,
   constructions: readonly Construction[],
   trails: readonly Trail[] | undefined,
   wagon: boolean = true,
 ): (road: Road) => boolean {
   const fixed = fixedRoadIds(constructions, trails);
+  // rozestavěná vozová cesta nemá `roadIds` – její hotové úseky leží na ose zemních prací,
+  // které ještě drží stavbu (`constructionId`); zbytek pod mezí by v cestě nechal trvalou díru
+  const building = (roads.earthworks ?? [])
+    .filter((e) => e.constructionId !== undefined && e.profile.length >= 2)
+    .map((e) => [{ points: e.profile.map((p) => ({ x: p.x, z: p.z })) } as Road]);
+  const inWork = (road: Road): boolean =>
+    building.some((axis) =>
+      [road.points[0]!, road.points[road.points.length - 1]!].every((p) => {
+        const hit = nearestOnRoads(axis, p.x, p.z);
+        return hit !== null && hit.distance <= END_SNAP_M;
+      }),
+    );
   return (road) =>
     road.abandoned === true ||
     road.points.length < 2 ||
     (wagon && road.grade === 'wagon') ||
-    fixed.has(road.id);
+    fixed.has(road.id) ||
+    (road.grade === 'wagon' && inWork(road));
 }
 
 /** Index prvního okruhu přes jeden uzel (začíná i končí v rozcestí); jinak −1. */
@@ -66,7 +80,7 @@ export function hasLoop(
   constructions: readonly Construction[],
   trails?: readonly Trail[],
 ): boolean {
-  return loopIndex(roads, untouchable(constructions, trails)) >= 0;
+  return loopIndex(roads, untouchable(roads, constructions, trails)) >= 0;
 }
 
 /**
@@ -80,7 +94,7 @@ export function splitLoops(
   context: SpotContext,
   trails?: readonly Trail[],
 ): boolean {
-  const skip = untouchable(constructions, trails);
+  const skip = untouchable(roads, constructions, trails);
   let split = false;
   for (let guard = roads.roads.length; guard > 0; guard--) {
     const index = loopIndex(roads, skip);
@@ -174,7 +188,7 @@ export function hasStubWork(
   constructions: readonly Construction[],
   network: StubNetwork,
 ): boolean {
-  const skip = untouchable(constructions, network.trails, false);
+  const skip = untouchable(roads, constructions, network.trails, false);
   const accepted = new Set<string>();
   for (let guard = roads.roads.length * 2; guard > 0; guard--) {
     const stub = firstStub(roads, skip, network.isAnchor, accepted);
@@ -195,7 +209,7 @@ export function trimStubs(
   constructions: readonly Construction[],
   network: StubNetwork,
 ): boolean {
-  const skip = untouchable(constructions, network.trails, false);
+  const skip = untouchable(roads, constructions, network.trails, false);
   const accepted = new Set<string>();
   let changed = false;
   for (let guard = roads.roads.length * 2; guard > 0; guard--) {
