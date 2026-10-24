@@ -149,6 +149,8 @@ describe('síť pěšin na skutečné krajině – zlatý otisk', () => {
     // za 130 m chůze úměrně méně často a nejvýš 450 m) – provoz pochůzek pro vodu je vyšší.
     // 20. 10. 2026 počtvrté: varianty rozměrů domů (population.md – Varianty rozměrů) – obdélníky
     // domů (neprůchodné buňky a brány) jsou podle tvaru domu, ne jednoho pro všechny
-    expect(networkFingerprint(network)).toBe('74902:8362b6f6');
+    // 24. 10. 2026: zvyk (ROUTE_HABIT 25 % mimo vyšlapané) a ploty ohrad, hřbitovů a příkop svatyně
+    // neprůchodné (Úloha 2 nového systému cest) – trasy se drží pěšin a obcházejí ploty
+    expect(networkFingerprint(network)).toBe('75105:8d05ea3d');
   }, 30_000);
 });
