@@ -74,6 +74,16 @@ export function isGrainHorse(horse: Pick<Horse, 'bornDay' | 'sex'>, day: number)
 }
 
 /**
+ * Id hřebce – nejstaršího jezdeckého koně (samce od 3 let) ve vsi, při shodě stáří nižší id;
+ * ostatní jezdečtí koně jsou valaši (horses.md – Chov). Bez jezdeckého koně undefined.
+ */
+export function stallionId(horses: readonly Horse[], day: number): number | undefined {
+  return horses
+    .filter((h) => isGrainHorse(h, day))
+    .sort((a, b) => a.bornDay - b.bornDay || a.id - b.id)[0]?.id;
+}
+
+/**
  * Obilí koní na dnešek (kg – horses.md, Krmení; Martin 23. 10. 2026): jezdecký kůň 1,5 kg denně
  * celý rok, klisny a hříbata nic.
  */

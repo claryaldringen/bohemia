@@ -1671,7 +1671,11 @@ def icon_ard():
     return True
 
 
-def icon_animal(name, folder=FAUNA, tint=None, turn=-115):
+MARE_FOAL_X, MARE_FOAL_Y = 1.6, -0.9  # hříbě u klisny (m, ladí se podle náhledu)
+RIDER_LIFT, RIDER_TURN = 1.18, -115.0  # sedlo nad zemí a natočení jezdce ke směru koně
+
+
+def stand_animal(name, folder=FAUNA, tint=None, turn=-115, loc=(0.0, 0.0), scale=1.0):
     """Zvíře stáda (model z `models/fauna/`, vůl ze spřežení `models/plough/`) z boku ve 3/4:
     morph targety pózy (krok, pastva) vypnuté – stojí; pomocná koule v GLB vola pryč."""
     objs = []
@@ -1704,10 +1708,38 @@ def icon_animal(name, folder=FAUNA, tint=None, turn=-115):
     for o in roots:
         o.location.z -= low
     bpy.context.view_layer.update()
+    if scale != 1.0 or loc != (0.0, 0.0):  # společník v ikoně (hříbě u klisny): menší a vedle
+        shift = Matrix.Translation(Vector((loc[0], loc[1], 0.0))) @ Matrix.Scale(scale, 4)
+        for o in roots:
+            o.matrix_world = shift @ o.matrix_world
+        bpy.context.view_layer.update()
     if tint:
         tint_imported(meshes, tint)
+    return meshes
+
+
+def icon_animal(name, folder=FAUNA, tint=None, turn=-115):
+    meshes = stand_animal(name, folder, tint, turn)
     sun(az=-50, el=48, strength=4.0)
     camera(world_points(meshes), az=0, el=16, margin=1.06)
+    return True
+
+
+def icon_mare():
+    """Klisna s hříbětem po boku (horses.md – Co hráč vidí): světlá klisna a vedle ní malé hříbě."""
+    mare = stand_animal("horse", tint=(1.7, 1.5, 1.2))
+    foal = stand_animal("foal", tint=(1.5, 1.35, 1.15), loc=(MARE_FOAL_X, MARE_FOAL_Y), scale=0.8)
+    sun(az=-50, el=48, strength=4.0)
+    camera(world_points(mare + foal), az=0, el=16, margin=1.06)
+    return True
+
+
+def icon_rider_horse():
+    """Jezdecký kůň s jezdcem v sedle (klip `ride` z man.glb jako ve scéně)."""
+    horse = stand_animal("horse")
+    man = place_person("man", loc=(0.0, 0.0, RIDER_LIFT), turn=RIDER_TURN, frame=12, clip="ride")
+    sun(az=-50, el=48, strength=4.0)
+    camera(world_points(horse + man), az=0, el=16, margin=1.06)
     return True
 
 
@@ -2608,8 +2640,8 @@ BUILD = {
 # ze snímku klipu `idle`.
 
 
-def place_person(name, loc=(0.0, 0.0, 0.0), scale=1.0, turn=-20.0, frame=12):
-    """Vesničan `man` / `woman` stojící v pozici `loc`: klip idle na snímku `frame`, natočený."""
+def place_person(name, loc=(0.0, 0.0, 0.0), scale=1.0, turn=-20.0, frame=12, clip="idle"):
+    """Vesničan `man` / `woman` v pozici `loc`: klip `clip` (idle, ride) na snímku `frame`, natočený."""
     before = set(bpy.data.objects)
     bpy.ops.import_scene.gltf(filepath=f"{PEOPLE}/{name}.glb")
     new = [o for o in bpy.data.objects if o not in before]
@@ -2618,7 +2650,7 @@ def place_person(name, loc=(0.0, 0.0, 0.0), scale=1.0, turn=-20.0, frame=12):
     for o in helpers:
         bpy.data.objects.remove(o, do_unlink=True)
     rig = next(o for o in new if o.type == "ARMATURE")
-    idle = next(a for a in bpy.data.actions if a.name.startswith("idle"))
+    idle = next(a for a in bpy.data.actions if a.name == clip or a.name.startswith(clip))
     if rig.animation_data is None:
         rig.animation_data_create()
     rig.animation_data.action = idle
@@ -2747,8 +2779,8 @@ RESOURCES = {
     "young-ox": lambda: icon_animal("ox", folder=PLOUGH, tint=(1.3, 1.18, 1.0)),
     # koně (horses.md – Co hráč vidí): hříbě (světlejší, menší), klisna (světlejší srst) a jezdecký kůň z modelů 0 A.D.
     "foal": lambda: icon_animal("foal", tint=(1.5, 1.35, 1.15)),
-    "mare": lambda: icon_animal("horse", tint=(1.7, 1.5, 1.2)),
-    "horse": lambda: icon_animal("horse"),
+    "mare": icon_mare,
+    "horse": icon_rider_horse,
     "ard": icon_ard,
     "ozim": icon_ozim,
     "jar": icon_jar,

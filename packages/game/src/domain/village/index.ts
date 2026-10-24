@@ -312,6 +312,7 @@ export {
   isFoalByAge,
   isGrainHorse,
   penHorses,
+  stallionId,
   villageHorses,
   type HorseKind,
 } from './horses';

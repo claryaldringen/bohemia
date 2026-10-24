@@ -83,6 +83,19 @@ describe('koně se nevejdou do ohrady (horses.md – Chov)', () => {
     expect(horsesOverRoom(horseVillage([horse(1, 4)], 2), START)).toBe(false);
     expect(horsesOverRoom(horseVillage(), START)).toBe(false);
   });
+
+  it('stejná poptávka jako horsesWanted: ořezané místy, klisna bez jezdců drží jednoho koně', () => {
+    // tři jezdci + dvě klisny = 5 proti 4 místům – wanted je ořezané na místa, přesto nevejde
+    const full = horseVillage([horse(1, 4)], 1);
+    const wanted = horsesWanted(full, START);
+    expect(wanted.riding + wanted.mares).toBe(4);
+    expect(horsesOverRoom(full, START)).toBe(true);
+    // bez jezdců, ale s klisnou: aspoň jeden jezdecký kůň + klisna se vejdou
+    const mareOnly = horseVillage([horse(2, 6, 'female')], 1);
+    const none = { trainees: [] };
+    expect(horsesWanted(mareOnly, START, none)).toMatchObject({ riding: 1, mares: 1 });
+    expect(horsesOverRoom(mareOnly, START, none)).toBe(false);
+  });
 });
 
 describe('koně na maso 1. 11. (horses.md – Chov)', () => {

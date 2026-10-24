@@ -10,8 +10,8 @@ import {
   horsePlaces,
   horsesOverRoom,
   horsesWanted,
-  isGrainHorse,
   penHorses,
+  stallionId,
   villageHorses,
   type HorseKind,
   type VillageState,
@@ -60,9 +60,7 @@ export function horsesView(state: VillageState, day: number): VillageHorses | nu
   if (pens.length === 0) return null;
   const all = villageHorses(state);
   const fed = state.horsesFed !== false;
-  const stallionId = all
-    .filter((h) => isGrainHorse(h, day))
-    .sort((a, b) => a.bornDay - b.bornDay || a.id - b.id)[0]?.id;
+  const stallion = stallionId(all, day);
   const horses = pens
     .flatMap((pen) => penHorses(pen).map((h) => ({ pen, h })))
     .map(({ pen, h }): VillageHorse => ({
@@ -70,7 +68,7 @@ export function horsesView(state: VillageState, day: number): VillageHorses | nu
       kind: horseKind(h, day),
       ageYears: Math.floor(horseAgeYears(h, day) + 1e-9),
       training: Math.min(1, Math.max(0, h.training / HORSES.trainingFull)),
-      stallion: h.id === stallionId,
+      stallion: h.id === stallion,
       penId: pen.id,
     }))
     .sort((a, b) => b.ageYears - a.ageYears || a.id - b.id);

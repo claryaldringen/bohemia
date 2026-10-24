@@ -28,6 +28,24 @@ export interface HorsesWanted {
   foals: number;
 }
 
+/** Kolik jezdeckých koní a klisen ves chce, než se ořeže místy v ohradách. */
+function horsesDesired(
+  state: Pick<VillageState, 'pens' | 'people' | 'manorId' | 'dwellings' | 'constructions'>,
+  day: number,
+  family: Pick<LordFamily, 'trainees'>,
+): { riders: number; riding: number; mares: number } {
+  const riders = familyRiders(family, day).length;
+  // klisna bez hřebce nerodí – i bez jezdců ves drží aspoň jednoho chovného samce
+  const hasMare = horsePens(state)
+    .flatMap((pen) => [...penHorses(pen)])
+    .some((h) => h.sex === 'female' && !isFoalByAge(h, day));
+  return {
+    riders,
+    riding: Math.max(riders, hasMare ? 1 : 0),
+    mares: HORSES.maresBase + Math.floor(riders / HORSES.ridersPerMare),
+  };
+}
+
 /**
  * Kolik koní ves chce (horses.md – Chov): jezdeckého koně na každého jezdce rodiny, klisny
  * `maresBase` + 1 na každých `ridersPerMare` jezdců a hříbata na hřebečky, kteří budou za 3 roky
@@ -39,21 +57,14 @@ export function horsesWanted(
   day: number,
   family: Pick<LordFamily, 'trainees'> = lordFamily(state, day),
 ): HorsesWanted {
-  const riders = familyRiders(family, day).length;
+  const desired = horsesDesired(state, day, family);
   const lastServing = HORSES.serviceToYears - HORSES.foalUntilYears;
   const servingLater = horsePens(state)
     .flatMap((pen) => [...penHorses(pen)])
     .filter((h) => isGrainHorse(h, day) && horseAgeYears(h, day) < lastServing).length;
   const places = horsePlaces(state);
-  // klisna bez hřebce nerodí – i bez jezdců ves drží aspoň jednoho chovného samce
-  const hasMare = horsePens(state)
-    .flatMap((pen) => [...penHorses(pen)])
-    .some((h) => h.sex === 'female' && !isFoalByAge(h, day));
-  const riding = Math.min(Math.max(riders, hasMare ? 1 : 0), places);
-  const mares = Math.min(
-    HORSES.maresBase + Math.floor(riders / HORSES.ridersPerMare),
-    places - riding,
-  );
+  const riding = Math.min(desired.riding, places);
+  const mares = Math.min(desired.mares, places - riding);
   const foals = Math.min(
     Math.max(0, family.trainees.length - servingLater),
     places - riding - mares,
@@ -63,7 +74,8 @@ export function horsesWanted(
 
 /**
  * Ves chce víc jezdeckých koní a klisen, než se vejde do ohrad koní (horses.md – Chov: „Koně se
- * nevejdou do ohrady“ jako u stád) – jen ves s ohradou koní. Hříbata se do toho nepočítají.
+ * nevejdou do ohrady“ jako u stád) – jen ves s ohradou koní. Počítá se z téže neořezané poptávky
+ * jako `horsesWanted` (klisna bez jezdců = aspoň jeden jezdecký kůň). Hříbata se nepočítají.
  */
 export function horsesOverRoom(
   state: Pick<VillageState, 'pens' | 'people' | 'manorId' | 'dwellings' | 'constructions'>,
@@ -71,9 +83,8 @@ export function horsesOverRoom(
   family: Pick<LordFamily, 'trainees'> = lordFamily(state, day),
 ): boolean {
   if (horsePens(state).length === 0) return false;
-  const riders = familyRiders(family, day).length;
-  const mares = HORSES.maresBase + Math.floor(riders / HORSES.ridersPerMare);
-  return riders + mares > horsePlaces(state);
+  const desired = horsesDesired(state, day, family);
+  return desired.riding + desired.mares > horsePlaces(state);
 }
 
 /**
