@@ -313,7 +313,11 @@ describe('nouzová porážka', () => {
     const whole = advanceVillage(start, end, null);
     const events = whole.chronicle.filter((e) => e.kind === 'emergency-slaughter');
     expect(events.length).toBeGreaterThanOrEqual(1);
-    expect(events[0]!.day).toBe(at(600, 11, 10));
+    // ves bez sena napřed porazí ovce a krávy, na které seno nezbude (oxen.md – Co nejvíc sena
+    // a co největší stáda, 24. 10. 2026) – jejich maso oddálí nouzovou porážku o dva dny
+    const hay = whole.chronicle.filter((e) => e.kind === 'hay-slaughter');
+    expect(hay.map((e) => e.day)).toEqual([at(600, 11, 10)]);
+    expect(events[0]!.day).toBe(at(600, 11, 12));
     expect(whole.chronicle.some((e) => e.kind === 'hunger-began')).toBe(false);
     expect(whole.hungry).toBe(false);
     expect(whole.ration).toBeUndefined();

@@ -142,7 +142,8 @@ describe('rovnovážné hospodaření – pasáci (diet.md)', () => {
     const half = winterTargets(s, day, { oxen: 0, hayKg: Infinity, herding: 0.5 });
     // co výrostci neuhlídali, jde na maso (winterTargets – herdingCoverage)
     expect(half.pig).toBeLessThan(watched.pig);
-    expect(half.sheep).toBeLessThan(watched.sheep);
+    // pasáci hlídají v pořadí přednosti – krávy, ovce a kozy napřed (24. 10. 2026)
+    expect(half.sheep).toBeCloseTo(watched.sheep, 9);
     // plán (rovnovážné hospodaření) pasáky nepočítá – ovce napřed nezaberou místo prasatům
     const plan = sizeHerdsToNeed(s, day, watched).keep;
     expect(plan.sheep).toBeGreaterThan(LIVESTOCK.breedingMin);

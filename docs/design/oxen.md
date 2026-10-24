@@ -330,6 +330,50 @@ Původní pravidla (18. 10. 2026; dávka a práce výš nahrazeny):
   motykou~~ – od 19. 10. 2026 orají pomaleji, viz Jen rádlo); když sena chybí přes polovinu, jeden
   vůl uhyne a spřežení se rozpadne (návrh Clauda).
 
+## Co nejvíc sena a co největší stáda (24. 10. 2026)
+
+Martin, 24. 10. 2026: „**Nemohla by se ves snažit posekat co nejvíc sena (to je přece omezeno
+rozlohou luk) a chovat co největší stáda? Krávy a hlavně voli jsou životně důležití, pak jsou
+ovce, kozy a prasata jsou důležitá nejméně. Když se v zimě zjistí, že pro krávy není krmení, tak
+se dají prodat nebo porazit.**“ Na návrh Clauda níž Martin, 24. 10. 2026: „**Ano souhlasím**“.
+Pravidla jsou návrh Clauda, schválený Martinem 24. 10. 2026 (nahrazují „jen tolik, kolik je
+potřeba“ v Senu výš – ve Vlkově se tak na 9 krav nikdy nesekalo a stádo krav se každý rok
+vracelo na chovný pár):
+
+1. **Seč co nejvíc.** 1. 6. ves naplánuje seč **všech luk na dosah** – úhor ve fázi louky
+   a přirozené louky do 600 m od obydlí, od nejbližší. Seno na zimní stádo, které ves má, a na
+   voly ohrad (dřívější potřeba) se seče jako dřív – podle konce okna seče mezi polními pracemi.
+   **Zbytek luk jen z volné práce:** za všemi úlohami dne (pletí, žně, orba, výmlat), před
+   stavbami; co volná práce do konce července nestihne, zůstane neposečené. Odvoz sena stejně
+   (vozem, na zádech).
+2. **Co největší stáda podle přednosti:** **voli → krávy → ovce → kozy → prasata**. V tomto
+   pořadí jde seno na zimu, pastva i pasáci (dřív ovce na vlnu před kravami nad chovné stádo).
+   Stáda drží tolik, kolik uživí seno, pastva, les, pasáci a místa v ohradách – **ne podle ceny
+   jídla v práci** (rovnovážné hospodaření stádo už nezmenšuje – diet.md).
+3. **Zima.** 1. 11. ves spočítá, kolik zvířat seno uživí, a v pořadí přednosti si je nechá; zbytek
+   jde na maso (prasata → kozy → ovce → krávy). Když seno během zimy nevystačí do konce března,
+   ves **hned porazí** tolik kusů (kozy → ovce → krávy), aby ostatní měli celou dávku – zvířata
+   nehladoví (dřív zimní úhyn 1. 3.). Chovný pár zůstane vždy (přežije o větvích a slámě).
+4. **Prodej jen hráč** (obchod se sousedy, trade.md) – ves sama zvířata neprodává ani nekupuje
+   (Martin 24. 10. 2026 odmítl, aby ves kupovala voly sama).
+5. **Náhrada volů i po rozpadu páru.** Náhrada posledního páru k orbě (telata z přírůstku nad
+   chovným párem krav) platí i tehdy, když už ves pár nemá, pokud má rádlo a pár nemá ani necvičí
+   (dřív jen dokud pár ještě sloužil – Vlkov zůstal s jedním volem).
+
+Staré vsi se nepřevádějí – pravidla platí od dalšího dne (seč od 1. 6., porážka od 1. 11.).
+
+**Naměřeno (24. 10. 2026):** Vlkov 8 let dopředu ze stavu 16. 4. 814 – seč 19–59 t sena ročně
+(dřív 8–21 t jen na stádo), volná práce v červnu klesla z 3–10 na ≈ 0,2 čd/den (seč ji vezme
+celou); krávy 2,6 → 8,2 (dřív 2,6 → 6,4), ovce 15 → 78 (dřív vrchol 66, pak 31), voli: výcvik
+
+1. 4. 815 a 1. 4. 816, pár zase od 1. 5. 818 (dřív výcvik až 1. 4. 820); hlad 1× ročně
+      v letech 818–820 bez úmrtí hladem (dřív 18 úmrtí v letech 820–821); porážka pro nedostatek sena
+      ani jednou. Čtyři čerstvé vsi × 15 let (hráč staví): krávy na 10 lidí 2,9 → 6,1, kozy 12,6 →
+      18,3, ovce a prasata beze změny, nasycení 100 % let; seč 3,4 → 18 čd na člověka a rok, volná
+      práce 56,5 → 40 čd (29 → 21 %). **Otevřené:** seno v listopadu Vlkovu zbývá ≈ 40 t nad potřebu
+      (stádo roste jen o mláďata a ohrady) – omezit seč na seno pro stádo s jarním přírůstkem, nebo
+      seč z volné práce dát až za stavby? Rozhodne Martin.
+
 ## Účinek na práci
 
 - **Zpracování půdy na dílech v oběhu** (zkopaný díl po sklizni, mladý úhor 1–2 roky): místo kopání
@@ -696,6 +740,8 @@ Kapacita rádel (`ploughCap`) se nemění.
 | Přirozené louky do 600 m od obydlí; louky na seno ve scéně z dat                                                                                                                                                                                                                                                                               | návrh Clauda                                               |
 | Ohrada smí na pole – čtverec pole pod ní z pole zmizí                                                                                                                                                                                                                                                                                          | Martin (18. 10. 2026)                                      |
 | Spřežení postupuje s orbou po čtvercích                                                                                                                                                                                                                                                                                                        | Martin (19. 10. 2026)                                      |
+| Seč všech luk na dosah – potřeba stáda podle okna, zbytek jen z volné práce; stáda co největší (voli → krávy → ovce → kozy → prasata)                                                                                                                                                                                                          | Martin (24. 10. 2026), pravidla návrh Clauda               |
+| Porážka 1. 11. podle sena v pořadí přednosti, v zimě hned při nedostatku sena (místo úhynu); náhrada volů i po rozpadu páru                                                                                                                                                                                                                    | návrh Clauda, schválil Martin (24. 10. 2026)               |
 | Kulaté rohy zorané plochy podle obratu spřežení                                                                                                                                                                                                                                                                                                | Martin (19. 10. 2026)                                      |
 | Roh 5 m, jen vnější rohy oraných dílů, úrodu neubírá                                                                                                                                                                                                                                                                                           | návrh Clauda                                               |
 | Ladění: spřežení projede celou dnešní orbu za herní den a nechává brázdu                                                                                                                                                                                                                                                                       | Martin (19. 10. 2026)                                      |

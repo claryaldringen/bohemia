@@ -2,6 +2,22 @@
 
 Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). Pravidla a rozhodnutí: diet.md, oxen.md, wagons.md v `docs/design/`.
 
+- **Co nejvíc sena a co největší stáda** (oxen.md – Co nejvíc sena a co největší stáda; Martin 24. 10. 2026, návrh Clauda schválený): `planMowing` (hay.ts) plánuje **všechny louky na dosah**
+  od nejbližší; `HayMowing.needed` = práce na seno pro zimní stádo (`winterHayNeedKg`) – úloha
+  `mow` (simulate-work.ts) ji má podle konce okna seče, zbytek (`mowingNeededRemaining` = 0) jde
+  s `end: Infinity` za všechny úlohy dne, před stavby; seč bez `needed` (uložená dřív) je celá
+  potřebná. Přednost stád `HERD_PRIORITY` (livestock.ts – krávy, ovce, kozy, prasata; voli před
+  všemi) pro pastvu a seno (`winterTargets`), pasáky (`watchedShares` po druzích)
+  i výrostky (`youngRoomTargets` nad `breedingFloor`). `sizeHerdsToNeed` stádo nezmenšuje – celé
+  stádo v nosnosti a jen plán luštěnin (`legumeKg`, `sufficient`); `keepUneatable` zrušeno, maso
+  navíc z mláďat `MEAT_ORDER` prasata, kozy, ovce, krávy. **V zimě** `hayShortSlaughter`
+  (husbandryDay před `feedHay`): seno do konce března (`hayWinterDaysLeft`, `hayLeftAvailable`)
+  po volech a koních v pořadí přednosti, chybí-li na celý kus, hned porazí celé kusy (kozy,
+  ovce, krávy) i všechny čekající (`culling`), chovný pár zůstane, maso do uzení – kronika
+  `hay-slaughter`, upozornění „Chybí seno – porazili …“. Zimní úhyn `starveHerds` zrušen (kronika
+  `herd-starved` jen ze starších vsí). Náhrada posledního páru (`oxenTraining` – `lastPair`) platí
+  i po rozpadu páru, když ves má rádlo (`villageArds`). Ves sama nekupuje ani neprodává.
+
 - **Strava a dobytek** ([diet.md](../design/diet.md)): jídlo dne `eatDiet` / `villageMeal`
   (`diet.ts`) – ovoce (jablka; v rozhraní „ovoce“) rovným dílem do zkažení 1. 3., čerstvé mléko
   a vejce, maso rovným dílem do zkažení 31. 8. (`daysUntilMeatEnd`; 1. 9. ráno se zbytek zkazí –
@@ -28,8 +44,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   **Stáda realističtěji** (diet.md, Martin 19. 10. 2026; čísla návrh Clauda podle rešerše
   `research/2026-10-19-herds-hay-meat.md`): roční ztráty `LIVESTOCK.lossPerYear` (ovce 12, kozy
   10, prasata 12, skot 6 %) po dnech (`herdLosses`, i z `young`); nosnost `winterTargets` –
-  pastva a seno podle přednosti (`GRAZING_ORDER`: voli, ovce na vlnu `minSheep`, krávy `minCows`, ovce,
-  kozy – napřed zarůstající příloh `goatBrowseHa`, zbytek krav), seno po ztrátách ve stohu
+  pastva a seno podle přednosti (`HERD_PRIORITY` od 24. 10. 2026: voli, krávy, ovce,
+  kozy – napřed zarůstající příloh `goatBrowseHa`; dřív `GRAZING_ORDER` s ovcemi na vlnu napřed), seno po ztrátách ve stohu
   (`winterHayAvailable`), prasata podle lesa celý rok, nejvýš podíl uhlídaný pasáky (`herding`);
   **místa na noc** (oxen.md – Ohrady podle druhu, diet.md – Místa na noc): `WinterInput.room` =
   `herdRoom` (pens.ts – ohrady svého druhu `penCapacity` + pár kusů u domů `homesteadRoom`) – přes
@@ -91,7 +107,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `foundingLivestock` a seno na první zimu (`foundVillage` – `winterHayKg`). Vlna není
   zásoba – porážka zapíše podíl oděvu `LivestockState.wool` (`recordWool`, kronika `wool-short`,
   upozornění „Chybí vlna na oděv“ pod `WOOL.noticeBelow`), štěstí `HappinessFactors.wool` až −6 (`woolUnhappiness`); vsi
-  bez zápisu (dřívější) beze změny do porážky 1. 11. Práce na vlně je v `DOMESTIC` (přerozdělení). Zimní úhyn 1. 3.
+  bez zápisu (dřívější) beze změny do porážky 1. 11. Práce na vlně je v `DOMESTIC` (přerozdělení). Zimní úhyn 1. 3. (do 24. 10. 2026 – nahradila ho `hayShortSlaughter`)
   (`starveHerds` z `herdHayCoverage` – pod polovinou přídělu, chovný pár přežije, kronika
   `herd-starved`). **Pasáci** (`herding.ts`, `HERDING`): plný pasák 40 krav (i voli), 100 ovcí či
   koz, 50 prasat, výrostek 7–13 let `childShare` 40 %; **pasou jen výrostci** (`isYoungster`,

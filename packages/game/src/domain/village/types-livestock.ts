@@ -81,6 +81,12 @@ export interface HayMowing {
   required: number;
   done: number;
   yieldKg: number;
+  /**
+   * Práce seče na seno pro zimní stádo (člověkodny, prvních louk od obydlí) – má přednost podle okna
+   * seče; zbytek luk jen z volné práce (oxen.md – Co nejvíc sena a co největší stáda). Chybí = celá
+   * seč (uložená před 24. 10. 2026).
+   */
+  needed?: number;
   /** Svoz sena, který převzaly vozy (wagons.md – Vůz; člověkodny seče); chybí = 0. */
   hauled?: number;
   /** Kam vůz při seči dojede – spočítá se při prvním svozu (wagons.md). Chybí = ještě ne. */

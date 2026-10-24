@@ -1,4 +1,4 @@
-import { dateOfDayIndex } from '../calendar';
+import { dateOfDayIndex, dayIndexOf, isLeapYear } from '../calendar';
 import {
   length2,
   surfaceAt,
@@ -25,8 +25,10 @@ import type {
 // Seno (oxen.md – Seno, diet.md – Dobytek): přes zimu (listopad–březen) žerou seno krávy, voli,
 // ovce a kozy (Martin 19. 10. 2026 – ovce a kozy v zimě taky). Seno dává úhor ve fázi louky
 // a přirozené louky krajiny do 600 m od vsi (Martin 18. 10. 2026: „měly by jít posekat všechny
-// louky“) – ≈ 1,5 t/ha; ves seče jen tolik, kolik zimní stádo potřebuje, nejbližší louky napřed,
-// v červnu–červenci jako polní práce (seč, sušení, svoz a stohování 10–15 člověkodní na hektar).
+// louky“) – ≈ 1,5 t/ha; ves seče všechny louky na dosah (Martin 24. 10. 2026: „posekat co nejvíc
+// sena“), nejbližší napřed – seno na zimní stádo podle okna seče jako polní práce, zbytek luk jen
+// z volné práce (oxen.md – Co nejvíc sena a co největší stáda); v červnu–červenci (seč, sušení,
+// svoz a stohování 10–15 člověkodní na hektar).
 // Stoh ztrácí počasím a plísní (10 % ročně) a zbytek loňského sena se do nové seče zkazí.
 
 /**
@@ -94,6 +96,25 @@ export function dailyHerdHayKg(herds: Readonly<Record<HerdSpecies, number>>): nu
  */
 export function winterHayAvailable(hayKg: number): number {
   return hayKg * hayKeep(WINTER_STORAGE_DAYS);
+}
+
+/**
+ * Seno, které ze zásoby zbude na `days` zbývajících dní zimy (kg) – po ztrátách ve stohu za polovinu
+ * té doby (jako `winterHayAvailable` k 1. 11.).
+ */
+export function hayLeftAvailable(hayKg: number, days: number): number {
+  return hayKg * hayKeep(days / 2);
+}
+
+/** Dní zimního krmení od dneška (včetně) do konce března; mimo zimu 0. */
+export function hayWinterDaysLeft(day: number): number {
+  if (!isHayWinter(day)) return 0;
+  const { year, month } = dateOfDayIndex(day);
+  if (month <= 3) return dayIndexOf({ year, month: 4, day: 1 }) - day;
+  // listopad a prosinec – do Silvestra a pak leden až březen příštího roku (bez dayIndexOf za
+  // koncem světa)
+  const newYear = dayIndexOf({ year, month: 12, day: 31 }) + 1;
+  return newYear - day + 31 + (isLeapYear(year + 1) ? 29 : 28) + 31;
 }
 
 /** Den ve stohu (mutuje stav): seno ztrácí počasím a plísní (HAY.storageLossPerYear). */
@@ -274,12 +295,13 @@ function walkMeadows(
 const WALK_ROUNDS = 3;
 
 /**
- * Plán seče (1. 6.): seno, které zimní stádo potřebuje (`needKg` – `winterHayKg`), se ztrátou ve
- * stohu do zkrmení a bez zásoby, z luk od nejbližší k obydlí – dílů úhoru ve fázi louky
- * a s krajinou i přirozených luk (`naturalMeadows`) –, dokud úroda sena potřebu nepokryje. Práce na hektar
- * podle pokrytí nástroji (kosy – `hayWorkPerHa`). Vzdálenost je chůze po pěšinách jako u polních
- * prací: díly `partWalkDistance`, přirozené louky přes `walk` (bez něj rovně). Bez potřeby nebo
- * bez luk null.
+ * Plán seče (1. 6.): všechny louky na dosah od nejbližší k obydlí – díly úhoru ve fázi louky
+ * a s krajinou i přirozené louky (`naturalMeadows`; oxen.md – Co nejvíc sena a co největší stáda,
+ * Martin 24. 10. 2026: „posekat co nejvíc sena“). Práce na seno, které zimní stádo potřebuje
+ * (`needKg` – `winterHayKg`, se ztrátou ve stohu do zkrmení a bez zásoby), je `needed` – má
+ * přednost podle okna seče; zbytek luk ves seče jen z volné práce (simulate-work.ts). Práce na
+ * hektar podle pokrytí nástroji (kosy – `hayWorkPerHa`). Vzdálenost je chůze po pěšinách jako
+ * u polních prací: díly `partWalkDistance`, přirozené louky přes `walk` (bez něj rovně). Bez luk null.
  */
 export function planMowing(
   state: VillageState,
@@ -290,13 +312,12 @@ export function planMowing(
   walk: MeadowWalk | null = null,
 ): HayMowing | null {
   const need = needKg / PLAN_HAY_KEEP - villageHayKg(state);
-  if (need <= EPSILON) return null;
   const parts = state.parts
     .filter((p) => isHayMeadow(p, day))
     .map((p): HaySquare => ({ partId: p.id, areaM2: p.areaM2, distanceM: partWalkDistance(p) }));
   const meadows = naturalMeadows(state, landscape);
   if (walk && meadows.length > 0) {
-    walkMeadows(meadows, parts, need, walk, fastestWalkShare(state.roads?.roads));
+    walkMeadows(meadows, parts, Infinity, walk, fastestWalkShare(state.roads?.roads));
   }
   const candidates: HaySquare[] = [
     ...parts,
@@ -310,15 +331,17 @@ export function planMowing(
   const workPerHa = hayWorkPerHa(toolCoverage);
   let required = 0;
   let yieldKg = 0;
+  // práce na seno pro zimní stádo – louky od nejbližší, dokud úroda potřebu nepokryje
+  let needed = need <= EPSILON ? 0 : null;
   for (const square of candidates) {
-    if (yieldKg >= need - EPSILON) break;
     squares.push(square);
     required += mowWeight(square) * workPerHa;
     yieldKg += (square.areaM2 / M2_PER_HA) * HAY.yieldKgPerHa;
+    if (needed === null && yieldKg >= need - EPSILON) needed = required;
   }
   if (squares.length === 0) return null;
   const partIds = squares.flatMap((sq) => (sq.partId === undefined ? [] : [sq.partId]));
-  return { partIds, squares, required, done: 0, yieldKg };
+  return { partIds, squares, required, done: 0, yieldKg, needed: needed ?? required };
 }
 
 /**
@@ -348,6 +371,16 @@ export function mowingRemaining(state: VillageState, day: number): number {
   const mowing = state.hay?.mowing;
   if (!mowing || !isMowingSeason(day)) return 0;
   return Math.max(0, mowing.required - mowing.done);
+}
+
+/**
+ * Zbývající práce seče na seno pro zimní stádo (člověkodny – přednost podle okna seče); zbytek luk
+ * jen z volné práce. Seč uložená bez `needed` (před 24. 10. 2026) je celá potřebná. Mimo okno 0.
+ */
+export function mowingNeededRemaining(state: VillageState, day: number): number {
+  const mowing = state.hay?.mowing;
+  if (!mowing || !isMowingSeason(day)) return 0;
+  return Math.max(0, Math.min(mowing.required, mowing.needed ?? mowing.required) - mowing.done);
 }
 
 /** Vloží práci do seče – posečené seno přibude do zásoby poměrně k práci (mutuje stav). */

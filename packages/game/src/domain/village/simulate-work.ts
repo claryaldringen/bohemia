@@ -52,7 +52,7 @@ import {
   type PloughTravels,
 } from './plough-trip';
 import { isToilDay, windowEndDay } from './happiness';
-import { MOWING_WINDOWS, mow, mowingRemaining } from './hay';
+import { MOWING_WINDOWS, mow, mowingNeededRemaining, mowingRemaining } from './hay';
 import { herdingDay, recordHerding } from './herding';
 import { horseCareLabor, villageHorses } from './horses';
 import { villageHoldings, workOrder } from './holdings';
@@ -320,10 +320,20 @@ export function work(
     const tie = orchard.name === ORCHARD_TASK_NAMES.harvest ? 0 : 2;
     dayTasks.push({ ...orchard, tie, rank: 0 });
   }
+  // seč: seno na zimní stádo podle konce okna seče; zbytek luk jen z volné práce – za všemi
+  // úlohami dne (pletí, žně, orba, výmlat mají přednost), před stavbami (oxen.md – Co nejvíc sena
+  // a co největší stáda)
   const mowing = mowingRemaining(state, day);
   if (mowing > 0) {
-    const end = windowEndOf(MOWING_WINDOWS, month) ?? month;
-    dayTasks.push({ name: 'mow', remaining: mowing, end, tie: 2, rank: 1 });
+    const needed = mowingNeededRemaining(state, day);
+    const end = needed > EPSILON ? (windowEndOf(MOWING_WINDOWS, month) ?? month) : Infinity;
+    dayTasks.push({
+      name: 'mow',
+      remaining: needed > EPSILON ? needed : mowing,
+      end,
+      tie: 2,
+      rank: 1,
+    });
   }
   // porážka a uzení – maso se musí zpracovat hned, před polními úlohami téhož měsíce (diet.md)
   const butchery = slaughterRemaining(state, day);

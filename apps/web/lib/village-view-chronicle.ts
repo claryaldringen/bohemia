@@ -317,6 +317,10 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return `Zbytek uzeného masa se zkazil: ${formatInteger(event.kg)} kg.`;
     case 'wool-short':
       return `Ovcí je na oděv málo – ${formatInteger(Math.floor(event.sheep))} z ${formatInteger(event.needed)}, lidem chybí vlna.`;
+    case 'hay-slaughter': {
+      const animals = formatAnimals(event.animals);
+      return `Seno do jara nevystačí – vesničané porazili ${animals !== '' ? animals : 'dobytek'}: ${formatInteger(event.kg)} kg masa.`;
+    }
     case 'herd-starved':
       return `Přes zimu chybělo seno – uhynulo ${formatInteger(
         Object.values(event.animals).reduce((sum, n) => sum + n, 0),

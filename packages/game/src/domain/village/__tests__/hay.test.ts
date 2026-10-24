@@ -66,23 +66,30 @@ function village(day: number): VillageState {
 }
 
 describe('plán seče', () => {
-  it('seče se jen úhor ve fázi louky, od obydlí, dokud seno nepokryje potřebu stáda', () => {
+  it('seče se úhor ve fázi louky, všechny díly od obydlí – potřeba stáda napřed (24. 10. 2026)', () => {
     const day = at(600, 6, 1);
     const s = village(day);
     s.parts = [meadow(1, 300), meadow(2, 100), meadow(3, 200), meadow(4, 50, 599)];
     expect(isHayMeadow(s.parts[3]!, day)).toBe(false); // mladý příloh
-    // 3 t sena v zimě → dva hektary nejblíž
+    // všechny louky na dosah od nejbližší (oxen.md – Co nejvíc sena a co největší stáda); 3 t sena
+    // v zimě → potřeba dva hektary nejblíž
     const mowing = planMowing(s, day, fed(3000))!;
-    expect(mowing.partIds).toEqual([2, 3]);
-    expect(mowing.yieldKg).toBeCloseTo(2 * HAY.yieldKgPerHa, 9);
+    expect(mowing.partIds).toEqual([2, 3, 1]);
+    expect(mowing.yieldKg).toBeCloseTo(3 * HAY.yieldKgPerHa, 9);
     // bez kovářových kos 15 čd/ha, díl 200 m od obydlí o 10 % dráž; s kosami 10 čd/ha
     const worst = HAY_WORK_PER_HA.worst;
-    expect(mowing.required).toBeCloseTo(worst + worst * 1.1, 9);
-    expect(planMowing(s, day, fed(3000), 1)!.required).toBeCloseTo(HAY_WORK_PER_HA.best * 2.1, 9);
-    // zásoba se odečte, bez potřeby se neseče
+    expect(mowing.needed).toBeCloseTo(worst + worst * 1.1, 9);
+    expect(mowing.required).toBeGreaterThan(mowing.needed! + worst);
+    expect(planMowing(s, day, fed(3000), 1)!.needed).toBeCloseTo(HAY_WORK_PER_HA.best * 2.1, 9);
+    // zásoba se odečte z potřeby; bez potřeby se seče jen z volné práce
     s.hay = { kg: 2500, mowing: null };
-    expect(planMowing(s, day, fed(3000))!.partIds).toEqual([2]);
+    expect(planMowing(s, day, fed(3000))!.needed).toBeCloseTo(worst, 9);
     s.hay.kg = 5000;
+    const extra = planMowing(s, day, fed(3000))!;
+    expect(extra.partIds).toEqual([2, 3, 1]);
+    expect(extra.needed).toBe(0);
+    // bez luk nic
+    s.parts = [];
     expect(planMowing(s, day, fed(3000))).toBeNull();
   });
 
@@ -149,14 +156,16 @@ describe('simulace – seno za rok', () => {
     s.parts = [meadow(1, 100), meadow(2, 150), meadow(3, 200)];
     s.livestock!.herds.cow = 2;
     const june = advanceVillage(s, at(600, 6, 10), null);
-    expect(june.hay!.mowing!.partIds).toEqual([1, 2]);
+    // seno na stádo ze dvou dílů nejblíž, třetí z volné práce (24. 10. 2026)
+    expect(june.hay!.mowing!.partIds).toEqual([1, 2, 3]);
+    expect(june.hay!.mowing!.needed!).toBeLessThan(june.hay!.mowing!.required);
     const looks = fieldPartLooks(june, june.lastDay);
     expect(looks.get(1)?.look).toBe('mown');
-    expect(looks.get(3)?.look).toBe('pasture');
+    expect(looks.get(3)?.look).toBe('meadow'); // v plánu seče, ještě neposečený
     const summer = advanceVillage(june, at(600, 8, 1), null);
     // posečené seno už ve stohu trochu ztratilo
-    expect(summer.hay!.kg).toBeGreaterThan(2950);
-    expect(summer.hay!.kg).toBeLessThan(3000);
+    expect(summer.hay!.kg).toBeGreaterThan(4400);
+    expect(summer.hay!.kg).toBeLessThan(4500);
     expect(summer.labor).toBeDefined();
     expect(fieldPartLooks(summer, summer.lastDay).get(2)?.look).toBe('haystacks');
     const spring = advanceVillage(summer, at(601, 4, 1), null);
@@ -176,7 +185,9 @@ describe('seno ze všech luk', () => {
     // 3 t sena = 2 ha ≈ 89 políček přirozené louky nejblíž obydlí (díl úhoru je dál)
     expect(mowing.squares!.length).toBeGreaterThan(80);
     expect(mowing.squares![0]!.cell).toBeDefined();
-    expect(mowing.squares!.every((sq) => sq.partId === undefined)).toBe(true);
+    expect(mowing.squares!.slice(0, 80).every((sq) => sq.partId === undefined)).toBe(true);
+    // i díl úhoru dál – všechny louky na dosah (24. 10. 2026)
+    expect(mowing.partIds).toEqual([1]);
     const distances = mowing.squares!.map((sq) => sq.distanceM);
     expect([...distances].sort((a, b) => a - b)).toEqual(distances);
     // žádné políčko lesa ani pod obydlím
@@ -201,20 +212,20 @@ describe('seno ze všech luk', () => {
     expect(mowing.squares![0]!.partId).toBe(1);
     expect(mowing.squares![0]!.distanceM).toBe(5);
     const natural = mowing.squares!.filter((sq) => sq.cell !== undefined);
-    const east = natural.filter((sq) => sq.cell!.x >= 8).length;
-    expect(east).toBeGreaterThan(natural.length - east);
+    // nejbližší louky (≈ 2 ha) leží po pěšině na východ
+    const near = natural.slice(0, 80);
+    const east = near.filter((sq) => sq.cell!.x >= 8).length;
+    expect(east).toBeGreaterThan(near.length - east);
     const distances = mowing.squares!.map((sq) => sq.distanceM);
     expect([...distances].sort((a, b) => a - b)).toEqual(distances);
-    // síť měří jen louky, které se do seče mohou dostat (chůze ≥ 3/4 přímé vzdálenosti)
-    expect(measured).toHaveLength(1);
-    expect(measured[0]!).toBeGreaterThan(natural.length);
-    expect(measured[0]!).toBeLessThan(16 * 16 - 1);
+    // síť měří všechny louky na dosah jednou (seče se všechny – 24. 10. 2026)
+    expect(measured).toEqual([natural.length]);
     // bez sítě pěšin (null) se měří rovně
     const straight = planMowing(s, day, fed(3000), 0, landscape, () => null)!;
-    const straightNatural = straight.squares!.filter((sq) => sq.cell !== undefined);
+    const straightNatural = straight.squares!.filter((sq) => sq.cell !== undefined).slice(0, 80);
     const straightEast = straightNatural.filter((sq) => sq.cell!.x >= 8).length;
     expect(Math.abs(2 * straightEast - straightNatural.length)).toBeLessThan(
-      east * 2 - natural.length,
+      east * 2 - near.length,
     );
   });
 
