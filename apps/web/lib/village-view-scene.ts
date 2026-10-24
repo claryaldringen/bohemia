@@ -257,6 +257,10 @@ export function sceneVillage(
     ...(carts.length > 0 ? { carts } : {}),
     ...(ploughApproach ? { ploughApproach } : {}),
     ...(earthworks.length > 0 ? { earthworks } : {}),
+    ...(state.routes ? { routes: { key: state.routes.key, list: state.routes.list } } : {}),
+    ...(state.roads?.wear
+      ? { wear: { day: state.roads.wear.day, cells: state.roads.wear.cells } }
+      : {}),
     ...(home
       ? { home: { x: Math.round(home.x * 100) / 100, z: Math.round(home.z * 100) / 100 } }
       : {}),

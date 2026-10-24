@@ -391,6 +391,26 @@ function addRibbon(
   }
 }
 
+/** Pás pěšin dne (z tras) – bez kruhových plácků v rozcestí (roads-v2 plán, Úloha 4a). */
+export function dayPathRibbons(
+  lines: readonly RibbonLine[],
+  layer: RibbonLayer,
+  widthAt?: (x: number, z: number) => number,
+  alphaAt?: (x: number, z: number) => number,
+): DecalGrid {
+  return pathRibbons(lines, layer, widthAt, alphaAt, []);
+}
+
+/** Maska polí pod pěšinami dne – bez plácků (viz `dayPathRibbons`). */
+export function dayPathTrack(
+  lines: readonly RibbonLine[],
+  layer: RibbonLayer,
+  widthAt?: (x: number, z: number) => number,
+  alphaAt?: (x: number, z: number) => number,
+): Track {
+  return ribbonTrack(lines, layer, widthAt, alphaAt, []);
+}
+
 /**
  * Pás pěšin či cest pro masku polí (fields.md – Co hráč vidí, Martin 19. 10. 2026: „Tam, kde je
  * cesta, prostě obilí neroste.“): úsečky mezi průřezy pásu (`ribbonSections` – stejné vlnění

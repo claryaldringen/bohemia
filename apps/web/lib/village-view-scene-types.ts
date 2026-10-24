@@ -27,6 +27,7 @@ import {
   type RoadTreeLook,
   type SacredBuildingKind,
   type SquareGrid,
+  type StoredRoute,
   type TileCell,
   type PenSpecies,
 } from '@bohemia/game';
@@ -327,8 +328,27 @@ export interface SceneVillage {
    * a vozů jedou po upraveném terénu (`PathVillage.earthworks`). Bez údaje žádné.
    */
   earthworks?: SceneEarthwork[];
+  /**
+   * Trasy lidí (paths.md – Trasy) – pěšiny ve scéně vedou po nich. `list` je při dotazu na ves
+   * `null`, když klient už má trasy téhož `key` (klient drží poslední – `keepSceneRoutes`).
+   */
+  routes?: SceneRoutes;
+  /** Vyšlapanost (síla pěšin) – `cells` je `null` při dotazu, když klient má týž `day`. */
+  wear?: SceneWear;
   /** Střed vsi (dvorec) – vozová cesta se staví od konce blíž k němu (náhled). */
   home?: { x: number; z: number };
+}
+
+/** Uložené trasy vsi pro scénu (`VillageRoutes`); `list` null = beze změny oproti klientovi. */
+export interface SceneRoutes {
+  key: string;
+  list: StoredRoute[] | null;
+}
+
+/** Vyšlapanost vsi pro scénu (`RoadWear` bez práce); `cells` null = beze změny oproti klientovi. */
+export interface SceneWear {
+  day: number;
+  cells: string | null;
 }
 
 /** Rudiště kováře ve scéně (crafts.md – Uhlí a ruda kováře). */

@@ -14,6 +14,8 @@ import {
   wearCellsOf,
   wearKey,
   wearLaborKey,
+  wearMap,
+  wearRevisionKey,
 } from '../paths/wear';
 import type { RoadWear, StoredRoute, VillageRoutes } from '../types';
 
@@ -299,5 +301,33 @@ describe('provozní pole', () => {
     const field = trafficField(routes, CELL);
     expect(trafficField(structuredClone(routes), CELL)).toBe(field);
     expect(trafficField(routesOf(routes.list, 'other-key'), CELL)).not.toBe(field);
+  });
+});
+
+describe('klíč vyšlapanosti pro síť', () => {
+  const field = trafficField(routesOf([route(0, 0, 20, 500)]), CELL);
+
+  it('mění se při sčítání a po zápisu odpovídá kódu; bez změny stejný', () => {
+    const wear = emptyWear();
+    const before = wearRevisionKey(wear);
+    settleWear(wear, field, 0, 30);
+    const mid = wearRevisionKey(wear);
+    expect(mid).not.toBe(before);
+    expect(wearRevisionKey(wear)).toBe(mid);
+    settleWear(wear, field, 30, 60);
+    expect(wearRevisionKey(wear)).not.toBe(mid);
+    flushWear(wear);
+    expect(wearRevisionKey(wear)).toBe(`c${wear.cells}`);
+  });
+
+  it('políčka před zápisem a po něm dávají totéž (wearMap, trafficAt)', () => {
+    const wear = emptyWear();
+    settleWear(wear, field, 0, 90);
+    const before = new Map(wearMap(wear));
+    const traffic = trafficAt(field, 5 * CELL, 0);
+    flushWear(wear);
+    expect(new Map(wearMap(wear))).toEqual(before);
+    expect(decodeWear(wear.cells)).toEqual(before);
+    expect(trafficAt(field, 5 * CELL, 0)).toBe(traffic);
   });
 });

@@ -52,6 +52,7 @@ import { usePolling } from '@/hooks/use-polling';
 import { authClient } from '@/lib/auth-client';
 import { buildItem, buildItemForKey, penVariantSpecies } from '@/lib/build-items';
 import { setE2EHook } from '@/lib/e2e-hooks';
+import { keepSceneData, knownSceneData } from '@/lib/scene-routes';
 import { opensMenu } from '@/lib/game-menu';
 import { nextPollDelayMs } from '@/lib/village-polling';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
@@ -346,7 +347,11 @@ export function VillageGame({
 
   /** Použije nový stav vsi a ohlásí upozornění, která mezitím nově vznikla. */
   const applyVillage = useCallback(
-    (next: VillageData): void => {
+    (received: VillageData): void => {
+      // trasy a vyšlapanost, které server neposlal (klient je má), se doplní z posledního pohledu
+      const next = isVillageView(received)
+        ? { ...received, scene: keepSceneData(received.scene, viewRef.current?.scene) }
+        : received;
       setVillage(next);
       if (!isVillageView(next)) return;
       viewRef.current = next;
@@ -446,6 +451,7 @@ export function VillageGame({
     const result = await getVillageView({
       villageId: viewRef.current?.id ?? null,
       ...(known ? { known } : {}),
+      ...knownSceneData(viewRef.current?.scene),
     });
     if (busyRef.current || seq < appliedSeq.current) return;
     appliedSeq.current = seq;
