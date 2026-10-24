@@ -399,9 +399,16 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   balvan) nebo stavba blíž než půl šířky vozu (`inBuilding` přesně v bodě, ne po buňkách) →
   `WAGON_BLOCKED`; posvátný strom přesně kácením (`wagonClearing` → `WAGON_SACRED`);
   `wagonProfile(grid, osa, asIs = true)` – profil po ose jak je, nevyjde-li sklon 6 % ani s úvozem
-  a náspem 3 m → `WAGON_STEEP` „Cesta je pro vůz moc prudká.“ `findWagonRoute`
-  a `straightenWagonRoute` (A\* a narovnání z 20. 10.) se teď nevolají – Úloha 11b je smaže nebo
-  použije. Ostatní: `wagonProfile` (víc stupňů vyhlazení osy pro hledanou trasu,
+  a náspem 3 m → `WAGON_STEEP` „Cesta je pro vůz moc prudká.“ **Narovnání** (Úloha 11b):
+  `straightenStretches` v `wagon-road.ts` (`WAGON_STRAIGHTEN` – 1,3× / 3 m / 120 m) na osu po 6 m
+  najde kličkující kusy, zkusí nejvýš 8 tětiv od nejvíc ušetřené délky (`wagonAxisBlocked` +
+  `wagonProfile` bez vyhlazení, cena = zemní práce + zpevnění) a přijme tětivu, je-li levnější než
+  stará osa nebo stará nejde; plán nese `bypassed` a `footbridgeTrees`, `startWagonRoad` je uloží
+  (`RoadEarthwork.bypassed`, `Construction.wood`) a `wagonRoadsDay` po `absorbParallelRoads`
+  označí obejité zbytky `Road.abandoned` (`abandonBypassed`). `findWagonRoute`
+  a `straightenWagonRoute` (A\* a narovnání z 20. 10.) se nevolají – zůstávají jako mrtvý kód.
+  Lávky u brodů chtějí dřevo (`planWoodFrom`/`takeWood`); `earthworkReachedM` počítá kácení před
+  zemními pracemi. Ostatní: `wagonProfile` (víc stupňů vyhlazení osy pro hledanou trasu,
   `profileHeights` – DP po cm, sklon ≤ 6 %, úvoz a násep ≤ 3 m), `wagonEarthworks` (objemy na
   rastru 1 m, `balanceEarth` – hlína z úvozu do náspu), `roadsCartMinutes` / `profileCartMinutes`.
   **Plán** `wagon-road.ts`: `planWagonRoad(WagonPlanInput)` – stejně na serveru

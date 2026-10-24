@@ -331,6 +331,8 @@ export interface RoadEarthwork {
   pieces: RoadEarthworkPiece[];
   /** Indexy bodů profilu v brodu (vzestupně); chybí = žádné. */
   fords?: number[];
+  /** Obejité kusy staré osy (narovnání) – po dostavění zarostou (`Road.abandoned`). */
+  bypassed?: RoadPoint[][];
   /** Den zadání stavby. */
   startedDay: number;
   /** Stavba (id), dokud se staví; pak chybí. */

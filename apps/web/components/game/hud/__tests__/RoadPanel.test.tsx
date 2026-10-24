@@ -276,6 +276,9 @@ describe('SelectionPanel – vozová cesta (roads.md – Vozová cesta)', () => 
     pieces: [],
     lengthM: 412.4,
     oldLengthM: 300.2,
+    bypassed: [],
+    footbridgeTrees: 0,
+    missingWood: 0,
     maxGrade: 0.06,
     oldMaxGrade: 0.142,
     maxCutM: 2.4,
@@ -310,6 +313,12 @@ describe('SelectionPanel – vozová cesta (roads.md – Vozová cesta)', () => 
     expect(html).toMatch(/data-testid="wagon-grade"[^>]*>sklon 14,2 % → 6 %</);
     expect(html).toMatch(/data-testid="wagon-earthworks"[^>]*>úvoz 2,4 m · násep 1,1 m</);
     expect(html).toContain('neprojede → 7,4 min');
+  });
+
+  it('chybí dřevo na lávku: tlačítko zašedlé s důvodem', () => {
+    const html = renderWith(road(), { ...plan, footbridgeTrees: 4, missingWood: 2 });
+    expect(wagonButton(html)).toContain('disabled=""');
+    expect(html).toContain('Na lávku chybí dřevo.');
   });
 
   it('než se trasa najde, tlačítko čeká; trasa nejde – důvod červeně', () => {

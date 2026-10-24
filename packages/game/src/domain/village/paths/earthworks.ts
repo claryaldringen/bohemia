@@ -166,11 +166,13 @@ export function terrainEditsFrom(spans: readonly EarthworkSpan[]): TerrainEdits 
  */
 export function earthworkReachedM(
   earthwork: Pick<RoadEarthwork, 'profile' | 'pieces'>,
-  construction?: Pick<Construction, 'done' | 'cost'> | null,
+  construction?: Pick<Construction, 'done' | 'cost' | 'wood'> | null,
 ): number {
   const total = profileLength(earthwork.profile);
   if (!construction) return total;
-  let left = Math.min(construction.done, construction.cost);
+  // kácení stromů na lávky jde před zemními pracemi
+  const felling = construction.wood?.fell.reduce((sum, t) => sum + t.cost, 0) ?? 0;
+  let left = Math.max(0, Math.min(construction.done, construction.cost) - felling);
   let from = 0;
   for (const piece of earthwork.pieces) {
     if (piece.builtDay !== null) {
