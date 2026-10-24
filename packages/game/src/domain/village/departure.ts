@@ -7,17 +7,19 @@ import { villageManor } from './manor';
 import { ageYears, occupants } from './people';
 import { relocationBlock } from './relocation';
 import { leavingCart, takeLeavingCart } from './carts';
-import { CARTS, DWELLINGS, LEAVING, RUIN_YEARS } from './rules';
+import { CARTS, CHRONICLE_MAX_EVENTS, DWELLINGS, LEAVING, RUIN_YEARS } from './rules';
 import { sheavesOutlook, takeSheaves } from './threshing';
 import { DIRECTION_VECTORS } from './trail';
 import type {
   Ancestor,
   Cart,
   CartKind,
+  ChronicleEvent,
   Direction8,
   DwellingRuin,
   Emigrant,
   HerdSpecies,
+  LivestockState,
   NeighborDirection,
   Ox,
   Person,
@@ -78,6 +80,22 @@ export function isVillageDormant(
   state: Pick<VillageState, 'extinctDay' | 'abandonedDay' | 'journey'>,
 ): boolean {
   return isVillageExtinct(state) || isVillageAbandoned(state) || isVillageTravelling(state);
+}
+
+/**
+ * Ves zanikne, protože rod vymřel (lord.md – Konec rodu; Martin: „ves zanikne“): od dne `day`
+ * je opuštěná (kronika „Ves opuštěna – rod vymřel“), dál se nedopočítává (`isVillageDormant`)
+ * a lidé v ní zůstanou jen jako záznam – pohled je nezobrazí (`abandonedVillageAt`). Vymřelá,
+ * opuštěná i putující ves zůstane beze změny (týž objekt). Vstup nemění.
+ */
+export function abandonForLineEnd(state: VillageState, day: number): VillageState {
+  if (isVillageDormant(state)) return state;
+  const event: ChronicleEvent = { day, kind: 'village-abandoned', reason: 'line-ended' };
+  return {
+    ...state,
+    abandonedDay: day,
+    chronicle: [...state.chronicle, event].slice(-CHRONICLE_MAX_EVENTS),
+  };
 }
 
 /** Žije ve vsi někdo (pro konec hry) – nevymřela a není opuštěná; ves na cestě žije. */
@@ -415,9 +433,9 @@ export function travelDays(edgeM: number, trailBuilt: boolean): number {
 const RUIN_DAYS = RUIN_YEARS * DAYS_PER_YEAR;
 
 /**
- * Opuštěná ves v den `day` jen pro pohled (migration.md – opuštěná ves se nesimuluje): obydlí
- * chátrají ode dne odchodu pevným podílem prázdného obydlí (`emptyLifespanYears`), na nule se
- * zřítí a zůstane zbytek jámy, který RUIN_YEARS zarůstá; pole leží ladem od dne odchodu
+ * Opuštěná ves v den `day` jen pro pohled (migration.md – opuštěná ves se nesimuluje): nikdo
+ * v ní nežije, obydlí chátrají ode dne odchodu pevným podílem prázdného obydlí
+ * (`emptyLifespanYears`), na nule se zřítí a zůstane zbytek jámy, který RUIN_YEARS zarůstá; pole leží ladem od dne odchodu
  * a rozestavěné stavby zmizí. Žijící ves vrací beze změny (týž objekt).
  */
 export function abandonedVillageAt(state: VillageState, day: number): VillageState {
@@ -450,7 +468,25 @@ export function abandonedVillageAt(state: VillageState, day: number): VillageSta
     void crop; // ladem už nic neroste
     return { ...rest, state: 'fallow' as const, fallowSinceDay: since };
   });
-  return { ...state, dwellings, ruins, parts, constructions: [] };
+  // nikdo v ní nežije – ani lidé, kteří zůstali jako záznam po konci rodu (`abandonForLineEnd`),
+  // ani jejich dobytek (lord.md – Konec rodu: scéna bez lidí, dýmu a zvířat)
+  const { looseOxen, ...kept } = state;
+  void looseOxen;
+  return {
+    ...kept,
+    people: [],
+    ...(state.livestock ? { livestock: withoutAnimals(state.livestock) } : {}),
+    dwellings,
+    ruins,
+    parts,
+    constructions: [],
+  };
+}
+
+/** Stáda opuštěné vsi – bez kusů. */
+function withoutAnimals(livestock: LivestockState): LivestockState {
+  const none = Object.fromEntries(HERDS.map((s) => [s, 0])) as Record<HerdSpecies, number>;
+  return { ...livestock, herds: { ...none }, young: { ...none } };
 }
 
 /** Lidé ve vsi (obydlí `dwellingId`) – kolik jich odejde s domácností. */

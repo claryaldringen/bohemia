@@ -57,6 +57,14 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `restartGame` (bez vstupu po konci hry, `{ abandon: true }` z nabídky) a `hud/DefeatScreen.tsx`
   (Rod vymřel, jméno, roky, Začít znovu → `window.location.reload()` kvůli nové krajině). Scéna:
   neobývaná obydlí nemají dým ani zvířata a hlína u vchodu zarůstá (`ABANDONED_EARTH_ALPHA`).
+  **Konec rodu** (lord.md – Konec rodu): nezbyl-li ve vsi muž rodu (smrt, odchod), `succeedLord`
+  zapíše jednou `dynasty.endedDay` a kroniku `line-ended` se jménem posledního vojvody – ves žije
+  dál bez vojvody. `isLineExtinct` (ves sleduje rod a v žádné vsi hráče nežije muž rodu, ani
+  chlapec) je druhá podmínka `isGameOver`; vsi bez rodu i před převodem končí jen vymřením.
+  `dynastyStatus` po dopočtu každou žijící ves zastaví `abandonForLineEnd(lineEndDay)` (nejpozdější
+  `endedDay`; `abandonedDay`, kronika `village-abandoned` s `reason: 'line-ended'`, lidé zůstanou
+  jako záznam) a uloží; `restartGame` bez `abandon` povolí podle `gameOver`. Pohled
+  `abandonedVillageAt` lidi a dobytek opuštěné vsi nezobrazí (přepínač vsí ukáže 0 lidí).
   **Stupně hladu** (population.md – Hlad a vymření, Martin 19. 10. 2026): `eat` zapíše příděl do
   sklizně `VillageState.ration` (jen když ves šetří – `hungry`), `hungerLevel` v `summary.ts` →
   `VillageSummary.hunger` (`fed` / `rationing` 90–100 % / `hungry` pod `STARVATION.fedFrom` /
