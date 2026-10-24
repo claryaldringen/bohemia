@@ -16,6 +16,7 @@ import { instanceMatrices, loadMergedModel, type ModelInstance } from './instanc
 import {
   CART_RUT_LAYER,
   WAGON_EARTH_LAYER,
+  WAGON_GRAVEL_JUNCTION_LAYER,
   WAGON_GRAVEL_LAYER,
   WAGON_WORN_LAYER,
   CART_WORN_LAYER,
@@ -299,9 +300,19 @@ export function roadRibbonMeshes(
     ['roads-cart-hub', [], 'earth', CART_HUB_LAYER, EARTH_COLOR, junctions.cart],
     ['roads-cart-ruts', bands.ruts, 'earth', CART_RUT_LAYER, EARTH_COLOR, []],
     // vozová cesta (roads.md – Vozová cesta): pás 3,5 m a zpevněné koleje se štěrkem a kameny
-    ['roads-wagon-worn', bands.wagon, 'worn', WAGON_WORN_LAYER, WORN_COLOR, []],
-    ['roads-wagon-earth', bands.wagon, 'earth', WAGON_EARTH_LAYER, EARTH_COLOR, []],
+    // křižovatka vozových cest – plácek z týchž obtisků (hlína uprostřed užší), ne upravená
+    ['roads-wagon-worn', bands.wagon, 'worn', WAGON_WORN_LAYER, WORN_COLOR, junctions.wagon],
+    ['roads-wagon-earth', bands.wagon, 'earth', WAGON_EARTH_LAYER, EARTH_COLOR, junctions.wagon],
     ['roads-wagon-gravel', bands.gravel, 'gravel', WAGON_GRAVEL_LAYER, GRAVEL_COLOR, []],
+    // plácek křižovatky má i štěrk, ať není světlejší a holejší než navazující pásy
+    [
+      'roads-wagon-gravel-hub',
+      [],
+      'gravel',
+      WAGON_GRAVEL_JUNCTION_LAYER,
+      GRAVEL_COLOR,
+      junctions.wagon,
+    ],
   ];
   const meshes: Mesh[] = [];
   for (const [name, lines, kind, layer, color, nodes] of ribbons) {

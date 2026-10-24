@@ -237,10 +237,13 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   `junctionEntranceM`, obrys proti směru hodin: u každého ramene dva rohy ve vchodu (± půl šířky
   nejširší cesty kolmo na rameno) a mezi sousedními rameny vnitřní roh na ose mezery, kde se
   protnou okraje pásů (nejvýš u vchodů, ± 12 % nepravidelnost podle polohy; od mezery 180° střed).
-  `junctionRibbons(junctions, roads)` – plácky po vrstvách obtisku (upravená, jinak vozová, jinak
-  vyšlapaná) s `RibbonJunction.outline`; `path-ribbon.ts` `addOutline` kreslí vějíř ze středu po
+  `junctionRibbons(junctions, roads)` – plácky po vrstvách obtisku nejširší cesty (vozová cesta pro
+  vozy `wagon` → `roads-wagon-worn/earth`, jinak upravená, jinak vyjetá `cart`, jinak vyšlapaná)
+  s `RibbonJunction.outline`; `path-ribbon.ts` `addOutline` kreslí vějíř ze středu po
   obrysu a měkký okraj (u vchodů po straně pásu, u vnitřních rohů od středu), obrys pro užší
-  vrstvu (holá hlína) se zmenší od středu; maska polí (`ribbonTrack`) bere kruh o průměrném
+  vrstvu (holá hlína) má užší ramena, ale vchody na stejném místě (`RibbonJunction.outlineFor`) –
+  hlína plácku navazuje na hlínu pásů (oprava 24. 10. 2026, Martin: „křižovatky vypadají extrémně
+  divně“ – křižovatka vozových cest se dřív kreslila obtisky upravené cesty jako tmavá skvrna); maska polí (`ribbonTrack`) bere kruh o průměrném
   poloměru obrysu. Znamení: `junctionLandmarkPieces` → modely `junction-stone-1…2`,
   `junction-post-1…2` (`tools/blender/roads.py`, atlas jako hať, 0 A.D. textury, vlastní tvary)
   v instancích `RoadWorks.update(…, junctions)`; strom je dál `roadTrees` (stejně jako dřív).
@@ -467,7 +470,7 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   (`editSurfaceHeights`, `recomputeNormals` jako Babylon), `TerrainMesh.setTerrainEdits`,
   `applyTerrainEdits` v `landscape-scene.ts` před obnovou vsi, `terrainChanged` (pole po blocích –
   `#t` v klíči bloku, pěšiny, cesty), pás `roadBands` `wagon` + `gravel` (`WAGON_*_LAYER`), svahy
-  `earthworkSlopeGrid` (`roads-slopes`, zarůstají pomalu podle `SLOPE_LOOK` – za 15 let řídká tráva, nikdy plná; lem hrany úvozu a paty náspu `earthworkEdges` – `roads-edge-cut` světlý, `roads-edge-fill` tmavý; sníh na svazích tenčí `SNOW_SLOPE`; kameny na svazích zatím ne – později s modelem; nosiči kmenů u hatě a kůly u lávky ve scéně zatím ne – scéna nemá data o hati), vytyčení
+  `earthworkSlopeGrid` (`roads-slopes`, krytí podle strmosti úpravy napříč osou `SLOPE_GRADE` proti původnímu terénu, takže úvoz 0,8 m a násep 1 m jsou plně vidět i na bočním svahu 50 % a dorovnání o pár cm nic; ke koncům hotové osy, na které nenavazuje jiná zemní práce (`SLOPE_JOIN_M`), a krajům řezu se vytrácí `SLOPE_FADE_M`; plácek křižovatky vozových cest má i štěrk (`roads-wagon-gravel-hub`), kde je blíž jiná osa (sousední zemní práce, vnitřek oblouku), kreslí jen ta – `SLOPE_OVERLAP_M`, bez tmavých šmouh a rovných hran po řezech; zarůstají pomalu podle `SLOPE_LOOK` – za 15 let řídká tráva, nikdy plná; lem hrany úvozu a paty náspu `earthworkEdges` – jen vně strmého svahu, kde potká původní terén, `roads-edge-cut` světlý, `roads-edge-fill` tmavý; sníh na svazích tenčí `SNOW_SLOPE`; kameny na svazích zatím ne – později s modelem; nosiči kmenů u hatě a kůly u lávky ve scéně zatím ne – scéna nemá data o hati), vytyčení
   `wagonStakingLines`. Ukázka `/dev/landscape` **Vozová cesta** (`dev-wagon-road.ts` – svahy, které vozová cesta po
   staré ose srovná; hotové úseky nahradí starou cestu).
 

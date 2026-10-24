@@ -141,6 +141,16 @@ export const WAGON_GRAVEL_LAYER: RibbonLayer = {
   widthFactor: 1,
   wobble: 0,
 };
+/**
+ * Štěrk plácku křižovatky vozových cest: ramena přes obě koleje (2 × CART_RUT_OFFSET_M + šířka
+ * koleje), jinak by plácek byl jen holá světlá hlína bez štěrku jako navazující pásy.
+ */
+export const WAGON_GRAVEL_JUNCTION_LAYER: RibbonLayer = {
+  ...WAGON_GRAVEL_LAYER,
+  width: { weak: 2 * CART_RUT_OFFSET_M + 0.55, strong: 2 * CART_RUT_OFFSET_M + 0.55 },
+  softM: 0.3,
+  junction: { scale: 1, alpha: 0.75 },
+};
 
 /**
  * Čára pásu – pěšina z jádra, u pevné cesty navíc zúžení konců (roads.md – Cesta pro hráče;
@@ -195,6 +205,11 @@ export interface RibbonJunction {
    */
   outline?: readonly { x: number; z: number }[];
   widthM?: number;
+  /**
+   * Obrys pro užší vrstvu (šířka ramen v m): ramena užší, ale vchody na stejném místě – holá
+   * hlína plácku navazuje na hlínu pásů cest ve vchodech (bez něj se obrys zmenší od středu).
+   */
+  outlineFor?: (widthM: number) => readonly { x: number; z: number }[];
 }
 
 /** Poměr, kterým vrstva zmenší obrys křižovatky: šířka vrstvy ku šířce ramen (nejvýš 1,2). */
@@ -204,8 +219,16 @@ function outlineScale(junction: RibbonJunction, layer: RibbonLayer): number {
 }
 
 /** Obrys křižovatky vrstvy: zmenšený (zvětšený) od středu. */
-function layerOutline(junction: RibbonJunction, layer: RibbonLayer): { x: number; z: number }[] {
+function layerOutline(
+  junction: RibbonJunction,
+  layer: RibbonLayer,
+): readonly { x: number; z: number }[] {
   const s = outlineScale(junction, layer);
+  if (junction.outlineFor && junction.widthM !== undefined) {
+    return Math.abs(s - 1) < 1e-6
+      ? (junction.outline ?? [])
+      : junction.outlineFor(junction.widthM * s);
+  }
   return (junction.outline ?? []).map((p) => ({
     x: junction.x + (p.x - junction.x) * s,
     z: junction.z + (p.z - junction.z) * s,
