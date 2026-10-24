@@ -404,7 +404,7 @@ export interface RoadCapsule {
 }
 
 /** Bod osy `d` metrů od jejího prvního bodu (za koncem poslední bod). */
-function pointFrom(line: readonly RoadPoint[], d: number): RoadPoint {
+export function pointFrom(line: readonly RoadPoint[], d: number): RoadPoint {
   let walked = 0;
   for (let i = 1; i < line.length; i++) {
     const a = line[i - 1]!;

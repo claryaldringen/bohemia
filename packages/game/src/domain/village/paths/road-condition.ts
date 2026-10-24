@@ -103,7 +103,7 @@ export function liveRoadEnd(
   frozen: ReadonlySet<number>,
 ): boolean {
   if (road.abandoned || road.points.length < 2) return false;
-  if (frozen.has(road.id) || endsAtEntrance(road, entrances)) return true;
+  if (road.link || frozen.has(road.id) || endsAtEntrance(road, entrances)) return true;
   const { keep } = decayOf(road);
   if (Math.round((road.cartTraffic?.[road.cartTraffic.length - 1] ?? 0) * 100) >= keep) return true;
   const pieces = roadPieces(road.points);
@@ -143,7 +143,7 @@ export function settleRoadCondition(
   if (days <= 0 || roads.roads.length === 0) return;
   const frozen = fixedRoadIds(constructions, trails);
   for (const road of roads.roads) {
-    if (frozen.has(road.id) || road.points.length < 2) continue;
+    if (frozen.has(road.id) || road.link || road.points.length < 2) continue;
     const full = roadFullCondition(road);
     const { keep } = decayOf(road);
     // opuštěná cesta u vchodu se nedrží – po ní nikdo nechodí, časem zmizí

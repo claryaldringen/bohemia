@@ -80,6 +80,11 @@ export interface Road {
    */
   swath?: true;
   /**
+   * Spojka dvou křižovatek (paths.md – Křižovatky): krátká cesta mezi dvěma křižovatkami, na které
+   * se rozdělil uzel s 5+ cestami. Drží se jako živá (nezarůstá) a neohýbá se.
+   */
+  link?: true;
+  /**
    * Kolik délky úseku lemují stromy u cesty a jabloně (roads.md – Stromy u cesty zrychlí chůzi)
    * – podle toho je chůze i jízda vozem po úseku rychlejší (`roadTreeSpeed`). Určí se 1. dne
    * v měsíci (`lineRoads`); chybí = ještě neurčeno (nový úsek, starší ves – určí se hned další

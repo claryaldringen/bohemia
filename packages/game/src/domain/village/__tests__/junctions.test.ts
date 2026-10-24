@@ -185,14 +185,14 @@ describe('splitCrowdedNode – pět cest dají dvě křižovatky a spojku', () =
 
 describe('drawLandmark – znamení křižovatky', () => {
   it('týž seed a id dají totéž znamení', () => {
-    expect(drawLandmark(1234, 17)).toEqual(drawLandmark(1234, 17));
-    expect(drawLandmark(99, 3)).toEqual(drawLandmark(99, 3));
+    expect(drawLandmark(1234, '17,3')).toEqual(drawLandmark(1234, '17,3'));
+    expect(drawLandmark(99, '3,3')).toEqual(drawLandmark(99, '3,3'));
   });
 
   it('strom 40 %, kámen 30 %, kůl 30 %; podoba 1–2; strom má druh', () => {
     const count = { tree: 0, stone: 0, post: 0 };
     for (let id = 1; id <= 2000; id++) {
-      const mark = drawLandmark(4242, id);
+      const mark = drawLandmark(4242, String(id));
       count[mark.kind]++;
       expect(mark.look === 1 || mark.look === 2).toBe(true);
       expect(mark.turn).toBeGreaterThanOrEqual(0);

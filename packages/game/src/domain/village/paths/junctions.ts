@@ -21,7 +21,7 @@ import type {
   RoadTreeSpecies,
   VillageRoads,
 } from '../types';
-import { roadLandWidthM } from './road-land';
+import { pointFrom, roadLandWidthM } from './road-land';
 import { simplifyPathLine } from './network-lines';
 import {
   DAYS_PER_YEAR,
@@ -307,12 +307,18 @@ export interface LandmarkDraw {
   species?: RoadTreeSpecies;
 }
 
+/** Klíč místa křižovatky pro los znamení – poloha uzlu zaokrouhlená na metry (mřížka 1 m). */
+export function landmarkKey(center: RoadPoint): string {
+  return `${Math.round(center.x)},${Math.round(center.z)}`;
+}
+
 /**
- * Znamení křižovatky ze seedu vsi a id křižovatky (paths.md – Křižovatky): strom 40 %, vztyčený
- * kámen 30 %, dřevěný kůl 30 %; jednou vylosované zůstane – týž seed a id dají vždy totéž.
+ * Znamení křižovatky ze seedu vsi a místa křižovatky (`landmarkKey`; paths.md – Křižovatky): strom
+ * 40 %, vztyčený kámen 30 %, dřevěný kůl 30 %; jednou vylosované zůstane – týž seed a místo dají
+ * vždy totéž, i když křižovatka zanikne a v témže uzlu vznikne znovu.
  */
-export function drawLandmark(seed: number, id: number): LandmarkDraw {
-  const random = createRandom(deriveSeed(seed, `junction-landmark:${id}`));
+export function drawLandmark(seed: number, key: string): LandmarkDraw {
+  const random = createRandom(deriveSeed(seed, `junction-landmark:${key}`));
   const roll = random.next();
   const { tree, stone } = JUNCTION.landmark;
   const kind: JunctionLandmarkKind = roll < tree ? 'tree' : roll < tree + stone ? 'stone' : 'post';
@@ -377,22 +383,6 @@ function fromNode(end: RoadEnd): readonly RoadPoint[] {
   return end.atStart ? end.road.points : [...end.road.points].reverse();
 }
 
-/** Bod osy `d` metrů od jejího prvního bodu (za koncem poslední bod). */
-function pointFrom(line: readonly RoadPoint[], d: number): RoadPoint {
-  let walked = 0;
-  for (let i = 1; i < line.length; i++) {
-    const a = line[i - 1]!;
-    const b = line[i]!;
-    const seg = length2(b.x - a.x, b.z - a.z);
-    if (seg > 0 && walked + seg >= d) {
-      const t = (d - walked) / seg;
-      return { x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t };
-    }
-    walked += seg;
-  }
-  return line[line.length - 1]!;
-}
-
 /** Směr cesty od středu (paths.md – Křižovatky): k bodu osy `JUNCTION.bendM` daleko. */
 function endDir(center: RoadPoint, end: RoadEnd): number {
   const p = pointFrom(fromNode(end), JUNCTION.bendM);
@@ -404,7 +394,12 @@ function endDir(center: RoadPoint, end: RoadEnd): number {
  * a úsek kratší než `JUNCTION.bendM` (spojka do branky – ohnul by se celý).
  */
 function isFixed(road: Road, net: JunctionRoads): boolean {
-  return road.grade === 'wagon' || net.fixed.has(road.id) || roadLengthM(road) < JUNCTION.bendM;
+  return (
+    road.link === true ||
+    road.grade === 'wagon' ||
+    net.fixed.has(road.id) ||
+    roadLengthM(road) < JUNCTION.bendM
+  );
 }
 
 /**
@@ -464,15 +459,21 @@ function clearAround(roads: VillageRoads, ends: readonly RoadEnd[], center: Road
   }
 }
 
-/** Znamení nové křižovatky (`drawLandmark`); strom roste jako strom u cesty (keř hned). */
+/**
+ * Znamení nové křižovatky (`drawLandmark` podle místa uzlu); strom roste jako strom u cesty (keř
+ * hned). Stojí-li v okolí strom po zaniklé křižovatce (spot bez cesty a bez křižovatky), převezme
+ * se – v témže uzlu nevznikne druhé znamení.
+ */
 function newLandmark(
   roads: VillageRoads,
   seed: number,
   id: number,
+  center: RoadPoint,
   day: number,
   place: RoadPoint,
 ): JunctionLandmark {
-  const draw = drawLandmark(seed, id);
+  const key = landmarkKey(center);
+  const draw = drawLandmark(seed, key);
   const landmark: JunctionLandmark = {
     kind: draw.kind,
     x: place.x,
@@ -481,10 +482,27 @@ function newLandmark(
     look: draw.look,
   };
   if (draw.kind === 'tree' && draw.species) {
+    const reach = length2(place.x - center.x, place.z - center.z) + JUNCTION.landmarkGapM * 2;
+    const roadSpots = new Set(roads.roads.flatMap((r) => r.spots.map((q) => q.id)));
+    const live = new Set((roads.junctions ?? []).map((j) => j.id));
+    const orphan = roads.trees.find(
+      (t) =>
+        t.id >= ROAD_TREE_ID_BASE &&
+        !roadSpots.has(t.spot) &&
+        !live.has(t.spot) &&
+        length2(t.x - center.x, t.z - center.z) <= reach,
+    );
+    if (orphan) {
+      orphan.spot = id;
+      landmark.x = orphan.x;
+      landmark.z = orphan.z;
+      landmark.treeId = orphan.id;
+      return landmark;
+    }
     const life = ROAD_TREES.lifeYears[draw.species];
     const years =
       life.from +
-      createRandom(deriveSeed(seed, `junction-tree:${id}`)).next() * (life.to - life.from);
+      createRandom(deriveSeed(seed, `junction-tree:${key}`)).next() * (life.to - life.from);
     const treeId = ROAD_TREE_ID_BASE + roads.nextId++;
     roads.trees.push({
       id: treeId,
@@ -583,7 +601,7 @@ function fitNode(
     ? prev.landmark.kind === 'tree'
       ? prev.landmark
       : { ...prev.landmark, x: place.x, z: place.z }
-    : newLandmark(roads, seed, id, day, place);
+    : newLandmark(roads, seed, id, center, day, place);
   return {
     junction: {
       id,
@@ -600,21 +618,8 @@ function fitNode(
   };
 }
 
-/**
- * Křižovatky sítě (paths.md – Křižovatky; mutuje – měsíční úklid, krok 6): v uzlu, kde končí 3 nebo
- * 4 živé cesty (`live` – opuštěná ani pahýl se nepočítá), stojí křižovatka – kříž nebo Y natočené
- * k cestám, konce os vedou přesně do vchodů. Beze změny ramen zůstane, jak je; přibude-li nebo
- * ubude-li rameno, tvar a natočení se spočítají znovu a znamení zůstane; klesnou-li živá ramena pod
- * 3, křižovatka zanikne (strom znamení stojí dál jako strom u cesty). Uzel s 5+ živými cestami
- * křižovatku zatím nemá (nečeká se – `splitCrowdedNode`). Vrátí, jestli se něco změnilo; beze
- * změny nic, ani nová id.
- */
-export function updateJunctions(
-  roads: VillageRoads,
-  day: number,
-  seed: number,
-  net: JunctionRoads,
-): boolean {
+/** Konce úseků podle uzlů (klíč na cm). */
+function nodesOf(roads: VillageRoads): Map<string, RoadEnd[]> {
   const nodes = new Map<string, RoadEnd[]>();
   for (const road of roads.roads) {
     if (road.points.length < 2) continue;
@@ -625,12 +630,84 @@ export function updateJunctions(
       else nodes.set(key, [{ road, atStart }]);
     }
   }
+  return nodes;
+}
+
+/**
+ * Uzly s 5+ živými cestami (mutuje): středy se posunou o polovinu `JUNCTION.pairM` (`splitCrowdedNode`),
+ * konce každé skupiny se přesunou do svého středu a mezi středy vznikne spojka (`Road.link`).
+ * Vrátí, jestli se nějaký uzel rozdělil.
+ */
+function splitCrowded(
+  roads: VillageRoads,
+  day: number,
+  nodes: Map<string, RoadEnd[]>,
+  isLive: (end: RoadEnd) => boolean,
+): boolean {
+  let done = false;
+  for (const ends of nodes.values()) {
+    const live = ends.filter(isLive);
+    if (live.length < 5) continue;
+    const first = live[0]!;
+    const at = first.atStart
+      ? first.road.points[0]!
+      : first.road.points[first.road.points.length - 1]!;
+    const center = { x: at.x, z: at.z };
+    const parts = splitCrowdedNode(
+      center,
+      live.map((e) => endDir(center, e)),
+    );
+    if (!parts) continue;
+    parts.groups.forEach((group, g) => {
+      const c = parts.centers[g]!;
+      for (const i of group) {
+        const { road, atStart } = live[i]!;
+        road.points[atStart ? 0 : road.points.length - 1] = { x: c.x, z: c.z };
+      }
+    });
+    roads.roads.push({
+      id: roads.nextId++,
+      points: [{ ...parts.centers[0] }, { ...parts.centers[1] }],
+      bornDay: day,
+      grade: 'trodden',
+      traffic: [],
+      spots: [],
+      link: true,
+    });
+    done = true;
+  }
+  return done;
+}
+
+/**
+ * Křižovatky sítě (paths.md – Křižovatky; mutuje – měsíční úklid, krok 6): v uzlu, kde končí 3 nebo
+ * 4 živé cesty (`live` – opuštěná ani pahýl se nepočítá), stojí křižovatka – kříž nebo Y natočené
+ * k cestám, konce os vedou přesně do vchodů. Beze změny ramen zůstane, jak je; přibude-li nebo
+ * ubude-li rameno, tvar a natočení se spočítají znovu a znamení zůstane; klesnou-li živá ramena pod
+ * 3, křižovatka zanikne (strom znamení stojí dál jako strom u cesty). Uzel s 5+ živými cestami se
+ * nejdřív rozdělí na dva uzly se spojkou (`splitCrowded`). Vrátí, jestli se něco změnilo; beze
+ * změny nic, ani nová id.
+ */
+export function updateJunctions(
+  roads: VillageRoads,
+  day: number,
+  seed: number,
+  net: JunctionRoads,
+): boolean {
+  const isLive = (e: RoadEnd): boolean => e.road.link === true || net.live(e.road, e.atStart);
+  let split = false;
+  // uzel s 5+ živými cestami se rozdělí; skupina o 4+ ramenech (8+ cest) se dělí dál
+  for (let pass = 0; pass < 3; pass++) {
+    if (!splitCrowded(roads, day, nodesOf(roads), isLive)) break;
+    split = true;
+  }
+  const nodes = nodesOf(roads);
   const old = new Map((roads.junctions ?? []).map((j) => [nodeKey(j), j]));
   const next: RoadJunction[] = [];
-  let changed = false;
+  let changed = split;
   for (const [key, ends] of nodes) {
     if (ends.length < 3) continue;
-    const live = ends.filter((e) => net.live(e.road, e.atStart));
+    const live = ends.filter(isLive);
     if (live.length < 3 || live.length > 4) continue;
     const first = live[0]!;
     const at = first.atStart

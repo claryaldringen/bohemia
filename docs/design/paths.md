@@ -375,13 +375,13 @@ Návrh Clauda:
   Úloha 9a – kvadratická křivka by navazovala jen ve vchodu). Osa se tím u křižovatky změní – nahrazuje
   to dřívější „osa se nikdy nehýbe“ jen v tomto okolí. Kmeny hatě, místa na stromy a jabloně
   v ohnutém kusu zůstanou, kde jsou (do 2,2 m od nové osy místo zmizí).
-- **Znamení:** při vzniku křižovatky se jednou vylosuje (seed vsi a id křižovatky) **strom 40 %,
+- **Znamení:** při vzniku křižovatky se jednou vylosuje (seed vsi a místo uzlu zaokrouhlené na metry) **strom 40 %,
   vztyčený kámen 30 %, dřevěný kůl 30 %**. Stojí v nejširší mezeře mezi rameny, 1,5 m za
   vzdáleností vchodů od středu, natočení a podoba (druh stromu – dub, jilm, topol jako u cest;
   model kamene a kůlu ze 2 podob – zjednodušení po recenzi) z téhož losu. Zůstane, dokud křižovatka stojí – i když se změní
   tvar (kříž ↔ Y) nebo natočení; posune se jen do nejširší mezery. Strom roste jako strom u cesty
   (keř → mladý strom → plný za 40 let) a je to strom u cesty se vším (překážka stavby, kláda);
-  zanikne-li křižovatka, strom stojí dál jako strom u cesty, kámen a kůl zmizí. Kámen je pro
+  zanikne-li křižovatka, strom stojí dál jako strom u cesty, kámen a kůl zmizí; vznikne-li v témže uzlu křižovatka znovu, dostane totéž znamení (los je podle místa) a stojící strom převezme, druhé znamení nevznikne. Kámen je pro
   stavbu překážka jako balvan, kůl jako keř.
 - Návrh Clauda (24. 10. 2026, Úloha 9a – čisté funkce v `junctions.ts`):
   - **tvar T** (rovná cesta a kolmá odbočka) vyjde podle nejmenšího součtu čtverců jako pootočené
@@ -389,9 +389,12 @@ Návrh Clauda:
     30°, 0° a 30° (1 800 °²);
   - **pevná cesta** určí natočení přesně (mimo krok 5°); je-li pevných víc, vyhraje ta, se kterou
     jsou odchylky ostatních nejmenší, a další pevná navazuje rovným kusem (Úloha 9b);
-  - **pět a víc cest:** skupiny sousedních ramen jsou polovina a zbytek (u pěti 2 + 3) s co
+  - **druhá pevná cesta** v uzlu (např. vozová cesta a zemská stezka) nemá rovný kus do vchodu:
+    končí ve středu a přiřadí se k ramenu s nejmenší odchylkou (odchylka od původního návrhu, cesta
+    pak nemusí vést přesně do vchodu; případ je vzácný);
+  - **pět a víc cest:** spojka (`Road.link`) se drží jako živá, nezarůstá a neohýbá se; skupiny sousedních ramen jsou polovina a zbytek (u pěti 2 + 3) s co
     největšími mezerami na hranicích skupin; středy se posunou o 5 m ke svým ramenům;
-  - **znamení:** los ze seedu vsi a štítku `junction-landmark:<id>` – druh, podoba (1–2), natočení
+  - **znamení:** los ze seedu vsi a štítku `junction-landmark:<x,z>` (uzel na metry) – druh, podoba (1–2), natočení
     po celých stupních a druh stromu podle podílů stromů u cest; při shodě dvou nejširších mezer
     rozhodne první od nejmenšího úhlu.
 - Návrh Clauda (24. 10. 2026, Úloha 9b – zapojení do sítě):
@@ -410,7 +413,7 @@ Návrh Clauda:
     posunou do nejširší mezery; místo se stromem do 2,2 m od nové osy zůstane;
   - plocha pod křižovatkou, kde se neorá: pásy ramen a spojnice sousedních ramen ve vzdálenosti
     šířky nejširší cesty od středu (místo kruhu 1,3 × šířka);
-  - uzel s 5+ živými cestami (nečeká se; Vlkov žádný) zatím křižovatku nemá.
+  - uzel s 5+ živými cestami (nečeká se; Vlkov žádný) se při měsíčním úklidu rozdělí na dvě křižovatky se spojkou (i opakovaně, 8+ cest).
 - **Změna:** přibude-li nebo ubude-li rameno, tvar a natočení se spočítají znovu, znamení zůstane;
   klesnou-li živá ramena na 2, křižovatka zanikne a cesty se spojí.
 - **Data:** `VillageRoads.junctions` – id, střed, tvar, natočení, β, ramena (id úseku ve vchodu),

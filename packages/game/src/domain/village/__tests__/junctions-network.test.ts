@@ -7,6 +7,7 @@ import {
   junctionArmDirs,
   junctionEntranceM,
   junctionEntrances,
+  landmarkKey,
   updateJunctions,
   type JunctionRoads,
 } from '../paths/junctions';
@@ -65,7 +66,7 @@ describe('křižovatky v síti (updateJunctions)', () => {
       expect(entrance).toEqual(entrances[k]);
       expect(center).toEqual({ x: 0, z: 0 });
     });
-    const draw = drawLandmark(SEED, j!.id);
+    const draw = drawLandmark(SEED, landmarkKey(j!));
     expect(j!.landmark.kind).toBe(draw.kind);
     expect(j!.landmark.look).toBe(draw.look);
     // podruhé nic – žádná nová id, osy beze změny
@@ -199,5 +200,55 @@ describe('křižovatky v síti (updateJunctions)', () => {
     for (const s of axis.spots) expect(far(s)).toBeGreaterThanOrEqual(2.2);
     expect(axis.spots.map((s) => s.id)).toContain(51);
     expect(JUNCTION.bendM).toBe(12);
+  });
+
+  it('pět živých cest → dvě křižovatky 10 m od sebe a spojka (Martin, #6 bod 9)', () => {
+    const roads = roadsOf([
+      arm(1, 40, 0),
+      arm(2, 12, 38),
+      arm(3, -32, 24),
+      arm(4, -32, -24),
+      arm(5, 12, -38),
+    ]);
+    expect(updateJunctions(roads, DAY, SEED, allLive)).toBe(true);
+    expect(roads.junctions).toHaveLength(2);
+    const [a, b] = roads.junctions!;
+    expect(Math.hypot(a!.x - b!.x, a!.z - b!.z)).toBeCloseTo(JUNCTION.pairM, 1);
+    const link = roads.roads.filter((r) => r.link);
+    expect(link).toHaveLength(1);
+    expect(link[0]!.points).toHaveLength(2);
+    // spojka je rameno obou křižovatek, ostatní cesty každá právě jedné
+    expect(a!.arms).toContain(link[0]!.id);
+    expect(b!.arms).toContain(link[0]!.id);
+    const used = [...a!.arms, ...b!.arms].filter((id) => id !== link[0]!.id);
+    expect([...used].sort()).toEqual([1, 2, 3, 4, 5]);
+    expect(a!.arms.length + b!.arms.length).toBe(5 + 2);
+    // podruhé nic
+    const before = json(roads);
+    expect(updateJunctions(roads, DAY + 30, SEED, allLive)).toBe(false);
+    expect(json(roads)).toEqual(before);
+  });
+
+  it('znamení podle místa: po zániku a novém vzniku v témže uzlu stejné, bez druhého stromu', () => {
+    for (let seed = 1; seed < 60; seed++) {
+      const roads = roadsOf([arm(1, 40, 0), arm(2, -40, 0), arm(3, 0, 40)]);
+      updateJunctions(roads, DAY, seed, allLive);
+      const first = json(roads.junctions![0]!);
+      // jedna cesta osiřela → křižovatka zanikne, pak ožije
+      const dead: JunctionRoads = { live: (r) => r.id !== 3, fixed: new Set() };
+      updateJunctions(roads, DAY + 30, seed, dead);
+      expect(roads.junctions).toBeUndefined();
+      updateJunctions(roads, DAY + 60, seed, allLive);
+      const again = roads.junctions![0]!;
+      expect(again.id).not.toBe(first.id);
+      expect(again.landmark.kind).toBe(first.landmark.kind);
+      expect(again.landmark.look).toBe(first.landmark.look);
+      expect(again.landmark.turn).toBe(first.landmark.turn);
+      expect([again.landmark.x, again.landmark.z]).toEqual([first.landmark.x, first.landmark.z]);
+      if (first.landmark.kind === 'tree') {
+        expect(roads.trees).toHaveLength(1);
+        expect(again.landmark.treeId).toBe(first.landmark.treeId);
+      }
+    }
   });
 });
