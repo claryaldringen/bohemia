@@ -270,7 +270,9 @@ Podrobně v [roads.md – Nový systém cest](roads.md#nový-systém-cest-22-10-
 Clauda): pevná cesta má **stav** po kusech ≈ 25 m. Provoz trasy po kusu ho udržuje, pod
 udržovacím prahem druhu klesá; když dojde na nulu, kus zmizí. Vyšlapaná a vyježděná cesta bez
 provozu zaroste za **5 let**, upravená (s hatí a lávkou) za **15 let**, vozová za **30 let**;
-zemská stezka nezarůstá (beze změny). Opuštěná cesta (žádná trasa po ní celý měsíc) se vyřadí ze
+zemská stezka a cesta ve vylepšení nezarůstají. **Udržovací práh** (návrh Clauda, `ROAD_DECAY`):
+vyšlapaná 1 cesta za den, upravená 0,5, vozová 0,25; stav kusu (plný = práh × roky × 365,25 dne) se
+sčítá po týchž intervalech jako vyšlapanost. Opuštěná cesta (žádná trasa po ní celý měsíc) se vyřadí ze
 sítě – není ramenem křižovatky ani cestou hráče – a jen bledne, dokud nezmizí; vrátí-li se na ni
 provoz, ožije.
 

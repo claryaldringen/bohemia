@@ -135,7 +135,7 @@ export function mergeParallelRoads(
   const building = roadsInWork(constructions);
   let merged = false;
   for (let guard = roads.roads.length * 2; guard > 0; guard--) {
-    const order = [...roads.roads].sort(strongerRoad);
+    const order = roads.roads.filter((r) => !r.abandoned).sort(strongerRoad);
     let cut: { road: Road; from: number; to: number; partner: Road } | null = null;
     // od nejslabší – se silnějšími než ona
     for (let i = order.length - 1; i > 0 && !cut; i--) {
@@ -201,10 +201,10 @@ function cutRoad(roads: VillageRoads, road: Road, from: number, to: number, part
     if (apple.roadId !== road.id) continue;
     apple.roadId = (nearPiece(apple.x, apple.z) ?? partner).id;
   }
-  // tiché kusy k nejbližšímu zbytku (roads.md – Zarůstá jen nepoužívaný kus)
-  for (const q of road.quiet ?? []) {
+  // stav kusů k nejbližšímu zbytku (paths.md – Zarůstání)
+  for (const q of road.condition ?? []) {
     const piece = nearPiece(q.x, q.z);
-    if (piece) (piece.quiet ??= []).push(q);
+    if (piece) (piece.condition ??= []).push(q);
   }
   const index = roads.roads.indexOf(road);
   roads.roads.splice(index, 1, ...made);
@@ -234,7 +234,7 @@ export function removeBraids(roads: VillageRoads, constructions: readonly Constr
     [endKey(r.points[0]!), endKey(r.points[r.points.length - 1]!)].sort().join('|');
   let removed = false;
   for (let guard = roads.roads.length; guard > 0; guard--) {
-    const order = [...roads.roads].filter((r) => r.points.length >= 2).sort(braidOrder);
+    const order = roads.roads.filter((r) => r.points.length >= 2 && !r.abandoned).sort(braidOrder);
     let braid: { weak: Road; strong: Road } | null = null;
     for (let i = order.length - 1; i > 0 && !braid; i--) {
       const weak = order[i]!;
@@ -340,7 +340,7 @@ export function anchorTermini(anchors: RoadAnchors): (p: RoadPoint) => boolean {
 function endDegrees(roads: readonly Road[]): Map<string, number> {
   const count = new Map<string, number>();
   for (const road of roads) {
-    if (road.points.length < 2) continue;
+    if (road.points.length < 2 || road.abandoned) continue;
     for (const p of [road.points[0]!, road.points[road.points.length - 1]!]) {
       const key = endKey(p);
       count.set(key, (count.get(key) ?? 0) + 1);
@@ -360,7 +360,7 @@ function firstGap(
   const degrees = endDegrees(roads.roads);
   for (const road of roads.roads) {
     // vozová cesta končí, kde ji stavba vede (rozestavěná uprostřed trasy) – osa se neprodlouží
-    if (road.points.length < 2 || road.grade === 'wagon') continue;
+    if (road.points.length < 2 || road.grade === 'wagon' || road.abandoned) continue;
     for (const atStart of [true, false]) {
       const p = atStart ? road.points[0]! : road.points[road.points.length - 1]!;
       if ((degrees.get(endKey(p)) ?? 0) !== 1 || isEnd(p)) continue;
@@ -417,7 +417,7 @@ function markRoadEnds(roads: VillageRoads, isEnd: (p: RoadPoint) => boolean): vo
   const degrees = endDegrees(roads.roads);
   const open = (p: RoadPoint): boolean => (degrees.get(endKey(p)) ?? 0) === 1 && isEnd(p);
   for (const road of roads.roads) {
-    if (road.points.length < 2) continue;
+    if (road.points.length < 2 || road.abandoned) continue;
     road.openEnds = [open(road.points[0]!), open(road.points[road.points.length - 1]!)];
   }
 }

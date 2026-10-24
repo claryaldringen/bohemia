@@ -13,7 +13,7 @@ import {
   terrainEditsOf,
   withTerrainEdits,
 } from '../paths/earthworks';
-import { joinedRoadsOf, roadLengthM, updateRoads } from '../paths/roads';
+import { joinedRoadsOf, roadLengthM, roadsMonth, updateRoads } from '../paths/roads';
 import { pathTerrainOf, pathWindowFor } from '../paths/terrain';
 import { pathVillageOf } from '../paths/village';
 import { roadPieceCost } from '../paths/walking';
@@ -536,12 +536,14 @@ describe('stará cesta zůstane – nepoužívaná zaroste', () => {
       swath: true,
     };
     s.roads!.roads.push(meander, wagon);
-    for (let k = 1; k <= 4; k++) {
-      updateRoads(s, NOV1(600 + k), LANDSCAPE, null);
-      expect(s.roads!.roads.some((r) => r.id === 500)).toBe(true);
-    }
-    const events = updateRoads(s, NOV1(605), LANDSCAPE, null);
-    expect(events).toContainEqual(expect.objectContaining({ kind: 'road-overgrown' }));
+    s.roads!.wear ??= { day: NOV1(600), cells: '', labor: [] };
+    // měsíčně bez provozu (paths.md – Zarůstání): vyšlapaná cesta zaroste za pět let (± měsíc)
+    const first = (m: number): number =>
+      dayIndexOf({ year: 600 + Math.floor((10 + m) / 12), month: 1 + ((10 + m) % 12), day: 1 });
+    for (let m = 1; m <= 58; m++) roadsMonth(s, first(m), LANDSCAPE, null);
+    expect(s.roads!.roads.some((r) => r.id === 500)).toBe(true);
+    for (let m = 59; m <= 64; m++) roadsMonth(s, first(m), LANDSCAPE, null);
+    expect(s.chronicle).toContainEqual(expect.objectContaining({ kind: 'road-overgrown' }));
     expect(s.roads!.roads.some((r) => r.id === 500 && r.points.some((p) => p.x > 30))).toBe(false);
     // vozová cesta stojí dál (nezarůstá)
     expect(s.roads!.roads.find((r) => r.id === 501)?.grade).toBe('wagon');

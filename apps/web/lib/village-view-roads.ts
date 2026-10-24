@@ -27,6 +27,7 @@ import {
   roadAppleStage,
   roadApplesOption,
   roadLengthM,
+  roadFullCondition,
   roadTreeLook,
   roadTreeSpeed,
   roadUpgradeOptions,
@@ -196,6 +197,9 @@ export function sceneRoads(
             },
           }
         : {}),
+      // opuštěný kus pod stavbou a bledé kusy zarůstající cesty (paths.md – Zarůstání)
+      ...(r.abandoned ? { abandoned: true as const } : {}),
+      ...(fadeOf(r) ? { fade: fadeOf(r)! } : {}),
       // skutečné volné konce (brána, cíl) – jen tam se pás cesty vytrácí
       ...(r.openEnds ? { openEnds: [r.openEnds[0], r.openEnds[1]] as [boolean, boolean] } : {}),
       // loňské jízdy vozů – náhled vozové cesty (roads.md – Vozová cesta); jen kde vozy jezdí
@@ -408,4 +412,18 @@ export function sceneRoadTrees(
     const growth = Math.round(look.growth * ROAD_TREE_GROWTH_STEPS) / ROAD_TREE_GROWTH_STEPS;
     return [{ id: t.id, x: t.x, z: t.z, species: t.species, stage: look.stage, growth }];
   });
+}
+
+/** Bledé kusy cesty – krytí pásu od poloviny plného stavu úměrně klesá, na desetiny. */
+function fadeOf(road: Road): { x: number; z: number; strength: number }[] | undefined {
+  if (!road.condition) return undefined;
+  const full = roadFullCondition(road);
+  const fade = road.condition
+    .map((q) => ({
+      x: q.x,
+      z: q.z,
+      strength: Math.round(Math.max(0, Math.min(1, (2 * q.c) / full)) * 10) / 10,
+    }))
+    .filter((q) => q.strength < 1);
+  return fade.length > 0 ? fade : undefined;
 }

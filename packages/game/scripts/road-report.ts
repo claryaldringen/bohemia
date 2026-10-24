@@ -1,5 +1,5 @@
 // Měření cest na kopii vsi (docs/superpowers/plans/2026-10-23-roads-v2.md – Úloha 0):
-// npx tsx packages/game/scripts/road-report.ts <soubor.json> [--years N]
+// npx tsx packages/game/scripts/road-report.ts <soubor.json> [--years N] [--roads cesty.json]
 //
 // Soubor: { "state": <stav vsi>, "landscapeSeed": číslo, "layerVersions": {…}, "name"?: text } –
 // tedy sloupce `village.state`, `settlement.landscape_seed` a `settlement.layer_versions` z DB.
@@ -9,7 +9,7 @@
 // koncem), uložené trasy (počet, kB) a vyšlapanost (políčka, kB, čas sčítání `settleWear` a zápisu
 // `encodeWear` za dopočet zvlášť). Další úlohy přidají vlastní řádky. Kopii stavu
 // necommitovat (je jen ve scratchpadu).
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { generateLandscapeAttempt, type LayerVersions } from '../src/domain/landscape';
 import type { Road, VillageState } from '../src/domain/village';
 import { updateVillage } from '../src/application/update-village';
@@ -97,7 +97,11 @@ export function networkShape(roads: readonly Road[]): { junctions: number; stubs
 }
 
 /** Načte a dopočte ves, vrátí naměřená čísla. */
-export async function roadReport(input: RoadReportInput, years: number): Promise<RoadReport> {
+export async function roadReport(
+  input: RoadReportInput,
+  years: number,
+  onState?: (state: VillageState) => void,
+): Promise<RoadReport> {
   let t = performance.now();
   const landscape = generateLandscapeAttempt(input.landscapeSeed, input.layerVersions);
   const landscapeMs = performance.now() - t;
@@ -125,6 +129,7 @@ export async function roadReport(input: RoadReportInput, years: number): Promise
   WEAR_TIMING.clock = null;
 
   const state = done.village.state;
+  onState?.(state);
   const roads = state.roads?.roads ?? [];
   const wear = state.roads?.wear;
   const byGrade: RoadReport['byGrade'] = {};
@@ -184,13 +189,19 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const yearsAt = args.indexOf('--years');
   const years = yearsAt >= 0 ? Number(args[yearsAt + 1]) : 1;
-  const file = args.find((a, i) => !a.startsWith('--') && i !== yearsAt + 1);
+  const roadsAt = args.indexOf('--roads');
+  const roadsFile = roadsAt >= 0 ? args[roadsAt + 1] : undefined;
+  const value = (i: number, at: number): boolean => at >= 0 && i === at + 1;
+  const file = args.find((a, i) => !a.startsWith('--') && !value(i, yearsAt) && !value(i, roadsAt));
   if (!file || !Number.isFinite(years) || years < 0) {
     console.error('Použití: road-report.ts <soubor.json> [--years N]');
     process.exit(1);
   }
   const input = JSON.parse(readFileSync(file, 'utf8')) as RoadReportInput;
-  console.log(formatReport(await roadReport(input, years)));
+  const dump = (state: VillageState): void => {
+    if (roadsFile) writeFileSync(roadsFile, JSON.stringify(state.roads?.roads ?? []));
+  };
+  console.log(formatReport(await roadReport(input, years, dump)));
 }
 
 if (process.argv[1]?.endsWith('road-report.ts')) {

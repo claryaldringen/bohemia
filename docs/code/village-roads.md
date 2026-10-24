@@ -107,13 +107,8 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   po místech `labor` (od 1. 11., z rozdělení práce dne). Roční
   kontrola 1. 11. (`updateRoads`; roční síť pěšin se od Úlohy 6 nepočítá, terén dává `annualTerrain`):
   provoz cest z provozního pole uložených tras (`fieldTraffic` – medián `trafficAt` po ose, `TrafficOf`)
-  a zarůstání vyšlapané cesty **po kusech** (Martin, 19. 10. 2026 –
-  roads.md, Zarůstá jen nepoužívaný kus: `overgrowRoads` – osa po kusech ≈ 25 m `roadPieces`,
-  tichý kus pod polovinou prahu sčítá roky v `Road.quiet` (střed kusu, roky – jen tiché kusy,
-  starší vsi od další kontroly), po 5 letech zaroste – celý úsek zmizí, jinak `cutOvergrown`
-  vyřízne tiché kusy a zbytek zůstane se starým id, konec u zarostlého kusu volný
-  `VillageRoads.cutEnds`; nezaroste cesta, která se vylepšuje – `roadsInWork`, kus u živé jabloně
-  – `keepingApples`; upravená a hať nezarůstají) → (cesty pěších roční kontrola nezakládá –
+  (zarůstání je od Úlohy 7 měsíční – `road-condition.ts`, `roads-overgrow.ts`, bod **Stav cest**
+  níž) → (cesty pěších roční kontrola nezakládá –
   vznikají měsíčně z vyšlapanosti, bod Vznik cest z vyšlapanosti níž; konec nové cesty se připojí
   k pevné cestě a ta se v rozcestí rozdělí – `splitRoad`, osa se jinak nikdy nemění) → **falešná rozcestí** (uzel jen se dvěma úseky stejného stupně, bez
   rozdílného vylepšení) se spojí (`mergeRoadChains` – i po dokončení vylepšení ve
@@ -410,7 +405,7 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   `network-targets.ts` přes `TripGroup.baseWeights` u pole, sadu, ohrady a staveniště a
   `storedRoutes` ji ukládá), `targets`: pro cíl práce (`StoredRoute.to`) políčka tras k němu a kolik
   cest jimi vede, `walk`: celé `trips` všech tras; `trafficAt(field, x, z)` čte `walk` (provoz pro
-  zarůstání). `wearKey` mimo ± 32 768 políček vyhodí `RangeError`. `settleWear(wear, field, fromDay, toDay)` projde jen
+  zarůstání cest). `wearKey` mimo ± 32 768 políček vyhodí `RangeError`. `settleWear(wear, field, fromDay, toDay)` projde jen
   sjednocení políček pole, práce a vyšlapanosti: `w = clamp(min(w + práce, max) + (provoz − 100) × dny, 0, max)`, práce intervalu `wear.labor` (klíč `wearLaborKey` = cíl trasy) se rozdělí po políčkách
   tras k cíli podle jejich cest za den (celé setiny, dolů); vynuluje `labor`, posune `day`, vrátí
   počet prošlých políček. **Pracovní políčka** drží dopočet v paměti (`WeakMap` podle objektu
@@ -444,3 +439,33 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   feat/landscape týž okamžik 23,5 s), 40 let 246,4 s (základ 253,5 s) – mez + 1 s drží; `settleWear`
   za 40 let 373 intervalů celkem 36 ms, `encodeWear` jednou; vyšlapanost po roce 698 políček
   (4,6 kB), po 40 letech 326 políček (1,7 kB).
+
+- **Stav cest a zarůstání podle druhů** (plán cest v2, Úloha 7; paths.md – Zarůstání, Stavba přes
+  cestu; Martin 23. 10. 2026: „Cesta, po které se nechodí, postupně zaroste a zmizí. Platí to pro
+  každou cestu, i upravenou a vozovou, jen pro ty pomaleji.“). `Road.condition` – stav kusů osy ≈ 25 m
+  (`roadPieces`: střed, `c`; jen kusy pod plným stavem, chybí = plný), plný stav
+  `roadFullCondition` = `ROAD_DECAY[druh].keep × years × 365,25` (vyšlapaná 5 let, upravená i hať 15,
+  vozová 30; čísla v `rules-roads.ts`). `settleRoadCondition` (`road-condition.ts`) se volá
+  z `settleVillageWear` po `settleWear` se stejným polem a týmiž dny `from`–`to`, takže dopočet po
+  kouscích = najednou (celá čísla; provoz kusu = medián `trafficAt` po 3 m, nejméně loňské jízdy
+  vozů): `c = clamp(c + (provoz − keep) × dny, 0, plný)`. Nezarůstá zemská stezka, cesta ve
+  vylepšení (`fixedRoadIds`) a cesta, jejíž konec leží do `ROAD_ANCHORS.entranceM` od vchodu
+  (kotva `entrance` z tras – ke stavbě se chodí; bez pole `Road.access`). **Zánik v `roadsMonth`**
+  (1. dne v měsíci, po `settleVillageWear`, **před** vznikem `formRoadsKept`): `cutDeadRoads`
+  (`roads-overgrow.ts`) – kus na nule pryč, celá cesta pryč, jinak `reshapeRoad` rozřízne úsek
+  (první živý zbytek si nechá id, místa na stromy a jabloně jdou k nejbližšímu živému, `cutEnds`),
+  kronika `road-overgrown`, pak `mergeRoadChains`; `abandonBlockedStretches` – kus osy v
+  neprůchodné ploše hotových staveb (`villageBlockedAt` v `village.ts`: mřížka sítě pěšin, buňky
+  `Infinity` mimo brány; pozemek, ohrada, hřbitov, okrsek svatyně, dům) se vyřízne jako
+  `Road.abandoned` (řez o vzorek od stavby, zbytek < `MIN_ROAD_M` se přidá), celá cesta pod stavbou
+  zůstane jedním opuštěným úsekem. **Opuštěný úsek není v síti:** `roadChains`/`roadChain`,
+  `nearestOnRoads` (napojení, díry), `chainPair`, `mergeParallelRoads`, `removeBraids`,
+  `endDegrees`, `markRoadEnds`, vznik cest (`eachWearRun` – není „už cesta“), `survivedTidy`
+  ho přeskakují; jen bledne podle druhu a zmizí. Díky tomu objížďka kolem stavby přestane být
+  „souběžná se starou cestou“ a vznikne. `withRoadCondition` (`update-village.ts`, jednou, příznak
+  `VillageRoads.conditionSeeded`, nová ves ho má z `emptyRoads`): kus s provozem loni nad `keep`
+  plný, jinak plný × (1 − tiché roky / roky druhu), nejvýš `years − 1` tichých let – nic nezmizí
+  hned. Starý `Road.quiet`, `overgrowRoads`, `keepingApples` a roční zarůstání zanikly (jabloně
+  cestu nedrží, péče a sklizeň jsou trasy). Web: `SceneRoad.fade` (bledé kusy – krytí od poloviny
+  stavu úměrně, `fadeOf` ve `village-view-roads.ts`) → `roadBands` je dá do `strength`;
+  `SceneRoad.abandoned` – `nearestRoad` ho nevybere.

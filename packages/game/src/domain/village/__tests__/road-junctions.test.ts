@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { obstaclesOf } from '../../landscape';
 import { foundVillage } from '../actions';
-import { mergeRoadChains, roadPieces, updateRoads, withMergedRoads } from '../paths/roads';
+import {
+  mergeRoadChains,
+  roadPieces,
+  roadsMonth,
+  updateRoads,
+  withMergedRoads,
+} from '../paths/roads';
 import { finishRoadUpgrade } from '../road-upgrades';
 import { advanceVillage } from '../simulate';
 import type {
@@ -382,11 +388,11 @@ function withBranch(s: VillageState): void {
       {
         bornDay: Y1 - 8 * 365,
         traffic: [0, 0, 0, 0],
-        // kusy čtyři roky tiché – letos pátý (roads.md – Zarůstá jen nepoužívaný kus)
-        quiet: roadPieces([
+        // kusy skoro bez stavu – do měsíce zarostou (paths.md – Zarůstání)
+        condition: roadPieces([
           { x: 0, z: -120 },
           { x: 0, z: -200 },
-        ]).map((p) => ({ x: p.x, z: p.z, years: 4 })),
+        ]).map((p) => ({ x: p.x, z: p.z, c: 1 })),
       },
     ),
   );
@@ -396,8 +402,9 @@ describe('slučování v roční kontrole', () => {
   it('po zarostnutí odbočky se úsek sloučí', () => {
     const s = village(Y1 - 30);
     withBranch(s);
-    const events = updateRoads(s, NOV1(601), LANDSCAPE, null);
-    expect(events).toContainEqual({ day: NOV1(601), kind: 'road-overgrown', roadId: 502 });
+    s.roads!.wear ??= { day: Y1, cells: '', labor: [] };
+    roadsMonth(s, NOV1(601), LANDSCAPE, null);
+    expect(s.chronicle).toContainEqual({ day: NOV1(601), kind: 'road-overgrown', roadId: 502 });
     const side = s.roads!.roads.filter((r) => r.points.every((p) => p.z === -120));
     expect(side.map((r) => r.id)).toEqual([500]);
     expect(side[0]!.points.map((p) => p.x)).toEqual([-60, 0, 130]);
