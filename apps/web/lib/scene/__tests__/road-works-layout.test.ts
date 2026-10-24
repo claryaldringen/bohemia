@@ -348,6 +348,42 @@ describe('vozová cesta ve scéně (roads.md – Vozová cesta)', () => {
     expect(earthworkSlopeGrid([earthwork({ shownM: 0 })], (x) => height(x), base, 1)).toBeNull();
   });
 
+  it('hlína jen na strmém svahu, okraje sítě měkké, překryv os se nesčítá (Martin 24. 10. 2026)', () => {
+    // hustý profil (po 1 m), ať jsou vidět konce osy
+    const dense = Array.from({ length: 41 }, (_, k) => ({ x: 0, z: k, y: 1 }));
+    const long = earthwork({ profile: dense });
+    // mírné dorovnání: pláň o 0,2 m níž po celé šířce řezu – žádná široká šmouha
+    const gentle = earthworkSlopeGrid([long], (x) => (Math.abs(x) < 9 ? 2.8 : 3), base, 1)!;
+    gentle.alphas.forEach((a, v) => {
+      if (Math.abs(gentle.positions[v * 2]!) < 8) expect(a).toBe(0);
+    });
+    // jen nízký schod 0,2 m na kraji – slabě
+    expect(Math.max(...gentle.alphas)).toBeLessThan(0.15);
+    // úvoz 1 : 1 – hlína plně, ale první a poslední řez osy bez krytí (žádná rovná hrana)
+    const grid = earthworkSlopeGrid([long], (x) => height(x), base, 1)!;
+    const lanes = grid.positions.length / 2 / dense.length;
+    const section = (k: number): number[] =>
+      Array.from(grid.alphas.slice(k * lanes, (k + 1) * lanes));
+    expect(Math.max(...section(20))).toBeGreaterThan(0.9);
+    expect(Math.max(...section(0))).toBe(0);
+    expect(Math.max(...section(dense.length - 1))).toBe(0);
+    // kraje řezu bez krytí, i když úprava terénu sahá až k nim
+    const wide = earthworkSlopeGrid([long], (x) => 3 - Math.abs(x) * 0.5, base, 1)!;
+    expect(wide.alphas[20 * lanes]).toBe(0);
+    expect(wide.alphas[21 * lanes - 1]).toBe(0);
+    // druhá osa kolmo přes konec první: řezy první osy blíž druhé ose se vytrácejí
+    const across = earthwork({
+      id: 2,
+      profile: Array.from({ length: 41 }, (_, k) => ({ x: k - 20, z: 40, y: 1 })),
+    });
+    const both = earthworkSlopeGrid([long, across], (x) => height(x), base, 1)!;
+    const near = Array.from({ length: lanes }, (_, l) => l).filter((l) => {
+      const v = (38 * lanes + l) * 2;
+      return Math.abs(both.positions[v]!) > 4;
+    });
+    for (const l of near) expect(both.alphas[38 * lanes + l]).toBe(0);
+  });
+
   it('lem: hrana úvozu světlý, pata náspu tmavý, jen u okraje svahu', () => {
     // mírnější svah (1 : 2), ať okraj leží ve více řezech
     const soft = (x: number): number => Math.min(3, 1 + Math.max(0, Math.abs(x) - 2.75) * 0.5);

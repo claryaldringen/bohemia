@@ -195,6 +195,11 @@ export interface RibbonJunction {
    */
   outline?: readonly { x: number; z: number }[];
   widthM?: number;
+  /**
+   * Obrys pro užší vrstvu (šířka ramen v m): ramena užší, ale vchody na stejném místě – holá
+   * hlína plácku navazuje na hlínu pásů cest ve vchodech (bez něj se obrys zmenší od středu).
+   */
+  outlineFor?: (widthM: number) => readonly { x: number; z: number }[];
 }
 
 /** Poměr, kterým vrstva zmenší obrys křižovatky: šířka vrstvy ku šířce ramen (nejvýš 1,2). */
@@ -204,8 +209,16 @@ function outlineScale(junction: RibbonJunction, layer: RibbonLayer): number {
 }
 
 /** Obrys křižovatky vrstvy: zmenšený (zvětšený) od středu. */
-function layerOutline(junction: RibbonJunction, layer: RibbonLayer): { x: number; z: number }[] {
+function layerOutline(
+  junction: RibbonJunction,
+  layer: RibbonLayer,
+): readonly { x: number; z: number }[] {
   const s = outlineScale(junction, layer);
+  if (junction.outlineFor && junction.widthM !== undefined) {
+    return Math.abs(s - 1) < 1e-6
+      ? (junction.outline ?? [])
+      : junction.outlineFor(junction.widthM * s);
+  }
   return (junction.outline ?? []).map((p) => ({
     x: junction.x + (p.x - junction.x) * s,
     z: junction.z + (p.z - junction.z) * s,

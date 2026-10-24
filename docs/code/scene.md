@@ -126,7 +126,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   opar, vodu, zvuky a uniformy a jednou překreslí – vzhled se mění nejvýš jednou za herní den.
   Shadery v `season-materials.ts` (GLSL i WGSL, bez textury navíc – šum je procedurální):
   terén (tráva podle vah vrstev, sníh podle šumu a sklonu, ne na dně potoka), obtisky vsi
-  (`applySeasonGround`), PBR stromy a dekorace (`applySeasonModel` podle jména modelu –
+  (`applySeasonGround`; obtisky jsou poloprůhledné a krytí se v překryvu sčítá – v zimě je každý
+  překryv tmavší skvrna ve sněhu: plácek křižovatky patří do vrstvy navazující cesty, svahy
+  zemních prací kreslí jen nejbližší osa – village-roads.md), PBR stromy a dekorace (`applySeasonModel` podle jména modelu –
   druhy v `season-foliage.ts`: listnáče se barví a opadávají, z koruny zbudou větvičky, kůra
   ztratí zelený tón; jehličí a kameny pod sněhem; rákos stojí suchý; trnka a jabloně kvetou),
   střechy (`applySeasonSnow`), tvary na zemi se StandardMaterial (`applySeasonRelief`) –

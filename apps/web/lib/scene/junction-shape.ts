@@ -118,31 +118,44 @@ export function junctionShape(
 }
 
 /**
- * Plácky křižovatek po vrstvách obtisku cest: upravená (je-li v ní upravená cesta), jinak vozová,
- * jinak vyšlapaná – jako dřív rozcestí. Plácek nese obrys (`RibbonJunction.outline`), ne kruh.
+ * Plácky křižovatek po vrstvách obtisku cest: vozová cesta pro vozy (je-li v ní), jinak upravená,
+ * jinak vyjetá vozová, jinak vyšlapaná – jako dřív rozcestí. Plácek nese obrys
+ * (`RibbonJunction.outline`), ne kruh, a obrys užších vrstev (`outlineFor`).
  */
 export function junctionRibbons(
   junctions: readonly SceneJunction[],
   roads: readonly SceneRoad[],
-): { trodden: RibbonJunction[]; improved: RibbonJunction[]; cart: RibbonJunction[] } {
+): {
+  trodden: RibbonJunction[];
+  improved: RibbonJunction[];
+  cart: RibbonJunction[];
+  wagon: RibbonJunction[];
+} {
   const out = {
     trodden: [] as RibbonJunction[],
     improved: [] as RibbonJunction[],
     cart: [] as RibbonJunction[],
+    wagon: [] as RibbonJunction[],
   };
   for (const junction of junctions) {
     const shape = junctionShape(junction, roads);
     if (!shape) continue;
     const arms = shape.arms.map((a) => roads.find((r) => r.id === a.roadId)!);
+    // plácek ve vrstvě nejširší cesty – vozová (pás 3,5 m, hlína uprostřed), jinak upravená…
+    // ve stejném obtisku a barvě jako navazující pásy, ne tmavší skvrna jiné vrstvy
+    const wagon = arms.some((r) => r.grade === 'wagon');
     const improved = arms.some((r) => r.grade !== 'trodden');
     const cart = arms.some((r) => r.cart === true);
-    const list = improved ? out.improved : cart ? out.cart : out.trodden;
+    const list = wagon ? out.wagon : improved ? out.improved : cart ? out.cart : out.trodden;
+    const dirs = shape.arms.map((a) => a.dir);
+    const seed = seedOf(junction);
     list.push({
       x: junction.x,
       z: junction.z,
       strength: 1,
       outline: shape.outline,
       widthM: shape.widthM,
+      outlineFor: (widthM) => outlineOf(junction, dirs, shape.entranceM, widthM / 2, seed),
     });
   }
   return out;

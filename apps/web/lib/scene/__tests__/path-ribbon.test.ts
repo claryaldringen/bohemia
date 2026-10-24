@@ -279,7 +279,12 @@ describe('rozcestí – udusaný plácek (Martin: „rozcestí by mělo být nej
   });
 
   it('pevné cesty: křižovatka tří úseků – vrstva podle nejširší cesty, ne podle počtu konců', () => {
-    const road = (id: number, x: number, z: number, grade: 'trodden' | 'improved' = 'trodden') => ({
+    const road = (
+      id: number,
+      x: number,
+      z: number,
+      grade: 'trodden' | 'improved' | 'wagon' = 'trodden',
+    ) => ({
       id,
       points: [
         { x, z },
@@ -303,6 +308,7 @@ describe('rozcestí – udusaný plácek (Martin: „rozcestí by mělo být nej
       trodden: [],
       improved: [],
       cart: [],
+      wagon: [],
     });
     expect(
       junctionRibbons([j], [road(1, 30, 0), road(2, -30, 0), road(3, 0, 30)]).trodden,
@@ -320,6 +326,19 @@ describe('rozcestí – udusaný plácek (Martin: „rozcestí by mělo být nej
     );
     expect(carts.cart).toHaveLength(1);
     expect(carts.trodden).toEqual([]);
+    // vozová cesta pro vozy (roads.md) – plácek z obtisků vozové cesty, ne upravené (tmavá skvrna)
+    const wagons = junctionRibbons(
+      [j],
+      [road(1, 30, 0, 'wagon'), road(2, -30, 0, 'improved'), road(3, 0, 30)],
+    );
+    expect(wagons.wagon).toHaveLength(1);
+    expect(wagons.improved).toEqual([]);
+    // užší vrstva (holá hlína): ramena užší, vchody na stejném místě – hlína navazuje na pás cesty
+    const plate = wagons.wagon[0]!;
+    const narrow = plate.outlineFor!(plate.widthM! * 0.5);
+    const reach = (pts: readonly { x: number; z: number }[]): number =>
+      Math.max(...pts.map((p) => Math.hypot(p.x - plate.x, p.z - plate.z)));
+    expect(reach(narrow)).toBeGreaterThan(reach(plate.outline!) * 0.95);
   });
 
   it('vozová cesta: širší pás bez holé hlíny a dvě koleje po 0,65 m od osy (wagons.md)', () => {
