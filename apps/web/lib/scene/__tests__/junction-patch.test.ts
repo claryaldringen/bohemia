@@ -1,7 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import type { SceneRoad } from '../../village-view';
-import { junctionPatch, patchAlpha, PATCH_CORE, type PatchArm } from '../junction-patch';
-import { junctionPatchGrid, roadBands, type JunctionCut } from '../road-works-layout';
+import {
+  junctionPatch,
+  mergeGrids,
+  patchAlpha,
+  PATCH_CORE,
+  type PatchArm,
+} from '../junction-patch';
+import {
+  cutAxisEnd,
+  junctionPatchGrid,
+  roadBands,
+  throughCurve,
+  type JunctionCut,
+} from '../road-works-layout';
 
 // Plácek křižovatky se stejnými měkkými okraji jako pásy cest (Martin 24. 10. 2026: „ty ostrý
 // křižovatky už jsou upravený?“) – oblouk ve vnitřních rozích, plynulý přechod z pásu do plácku.
@@ -83,7 +95,9 @@ describe('plácek křižovatky (junction-patch.ts)', () => {
       for (const p of vertices) expect((p.x * c.x + p.z * c.z) / len).toBeLessThanOrEqual(R + 1e-4);
     }
     // jen vrcholy trojúhelníků s nějakým krytím
-    expect(vertices.length).toBeLessThan(24 * 160);
+    expect(vertices.length).toBeLessThan(10 * 80);
+    // rozumný počet trojúhelníků na křižovatku (dvě vrstvy) – oblouk a měkký okraj zůstávají
+    expect(grid.indices.length / 3).toBeLessThan(1500);
   });
 
   it('pásy cest končí v řezu a kus do středu je rameno plácku; koleje vedou skrz', () => {
@@ -205,5 +219,94 @@ describe('plácek křižovatky (junction-patch.ts)', () => {
     };
     expect(near(0, 4.95)).toBeLessThan(0.05);
     expect(near(0, 2)).toBeGreaterThan(0.5);
+  });
+
+  it('smíšená křižovatka: pás u řezu nezužuje ze středu, v řezu má plnou šířku jako rameno plácku', () => {
+    const roads: SceneRoad[] = [
+      {
+        id: 1,
+        points: [
+          { x: 30, z: 0 },
+          { x: 0, z: 0 },
+        ],
+        grade: 'wagon',
+      },
+      {
+        id: 2,
+        points: [
+          { x: 0, z: 0 },
+          { x: -30, z: 0 },
+        ],
+        grade: 'trodden',
+      },
+    ];
+    const bands = roadBands(roads, [{ x: 0, z: 0, radius: 6 }]);
+    for (const line of [...bands.wagon, ...bands.trodden]) {
+      expect(line.narrowStart).toBeUndefined();
+      expect(line.narrowEnd).toBeUndefined();
+    }
+    // bez křižovatky se užší druh dál zužuje u uzlu
+    const plain = roadBands(roads);
+    expect([...plain.wagon, ...plain.trodden].some((l) => l.narrowStart || l.narrowEnd)).toBe(true);
+  });
+
+  it('cutAxisEnd: řez na kružnici, krátký úsek celý do plácku, osa uvnitř', () => {
+    const c = { x: 0, z: 0 };
+    const cut = cutAxisEnd(
+      [
+        { x: 20, z: 0 },
+        { x: 0, z: 0 },
+      ],
+      c,
+      6,
+    );
+    expect(cut.kept.at(-1)!.x).toBeCloseTo(6, 9);
+    expect(cut.inner[0]!.x).toBeCloseTo(6, 9);
+    expect(cut.inner.at(-1)).toEqual(c);
+    // zbylo by méně než 1 m pásu – celé rameno
+    const short = cutAxisEnd(
+      [
+        { x: 6.5, z: 0 },
+        { x: 0, z: 0 },
+      ],
+      c,
+      6,
+    );
+    expect(short.kept).toEqual([]);
+    expect(short.inner).toHaveLength(2);
+    // osa celá uvnitř kružnice
+    expect(cutAxisEnd([{ x: 3, z: 0 }, c], c, 6).kept).toEqual([]);
+  });
+
+  it('throughCurve: začíná a končí v řezech, zatáčka 120° má body po ≈ 0,5 m a drží se uvnitř', () => {
+    const a = arm(0).axis;
+    const b = arm(120).axis;
+    const curve = throughCurve(a, b);
+    expect(curve[0]).toEqual(a[0]);
+    expect(curve.at(-1)!.x).toBeCloseTo(b[0]!.x, 9);
+    expect(curve.at(-1)!.z).toBeCloseTo(b[0]!.z, 9);
+    expect(curve.length).toBeGreaterThan(10);
+    for (let i = 1; i < curve.length; i++) {
+      const d = Math.hypot(curve[i]!.x - curve[i - 1]!.x, curve[i]!.z - curve[i - 1]!.z);
+      expect(d).toBeLessThan(0.8);
+    }
+    for (const p of curve) expect(Math.hypot(p.x, p.z)).toBeLessThanOrEqual(R + 1e-6);
+  });
+
+  it('patchAlpha: souměrná podle os a bez ramen nula; otevřené rameno slábne k volnému konci', () => {
+    const arms = [arm(0), arm(180)];
+    expect(patchAlpha(arms, { x: 3, z: 0.4 })).toBeCloseTo(patchAlpha(arms, { x: -3, z: 0.4 }), 9);
+    expect(patchAlpha(arms, { x: 3, z: 0.4 })).toBeCloseTo(patchAlpha(arms, { x: 3, z: -0.4 }), 9);
+    expect(patchAlpha([], { x: 1, z: 1 })).toBe(0);
+    const open = [{ ...arm(0), openM: 3 }];
+    expect(patchAlpha(open, { x: 7.9, z: 0 })).toBeLessThan(patchAlpha(open, { x: 3, z: 0 }));
+  });
+
+  it('mergeGrids: slučuje sítě s posunutými indexy (i velká pole)', () => {
+    const g = junctionPatch({ x: 0, z: 0 }, y());
+    const merged = mergeGrids(Array.from({ length: 60 }, () => g));
+    expect(merged.alphas.length).toBe(g.alphas.length * 60);
+    expect(merged.indices.length).toBe(g.indices.length * 60);
+    expect(merged.indices[g.indices.length]).toBe(g.indices[0]! + g.alphas.length);
   });
 });

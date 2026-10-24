@@ -321,8 +321,12 @@ export function roadBands(
     if (points.length < 2) continue;
     const before = neighbour(piece, piece.from);
     const after = neighbour(piece, piece.to);
-    const narrowStart = narrowing(piece, before);
-    const narrowEnd = narrowing(piece, after);
+    // konec v řezu křižovatky: pás tam začíná v plné šířce svého druhu, tak jako rameno plácku –
+    // zúžení ze středu křižovatky by udělalo schod
+    const cutAt = (end: 0 | 1): boolean =>
+      junctionEnds.some((e) => e.piece === piece && e.end === end);
+    const narrowStart = cutAt(0) ? undefined : narrowing(piece, before);
+    const narrowEnd = cutAt(1) ? undefined : narrowing(piece, after);
     const line: RibbonLine = {
       points,
       strength: piece.strength,

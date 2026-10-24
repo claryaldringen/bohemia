@@ -37,8 +37,8 @@ export const PATCH_CORE = 0.35;
  */
 export const PATCH_BLEND = 0.8;
 /** Krok paprsků (rad) a počet kroků po paprsku od středu k okraji plácku. */
-const RAY_STEP = (2.5 * Math.PI) / 180;
-const RINGS = 24;
+const RAY_STEP = (5 * Math.PI) / 180;
+const RINGS = 10;
 /** Paprsky blíž než tolik (rad) se sloučí – vynucený paprsek do rohu průřezu má přednost. */
 const RAY_MERGE = (0.6 * Math.PI) / 180;
 /** O kolik (m) osa ramene za řezem pokračuje rovně – pás tam navazuje. */
@@ -225,18 +225,19 @@ function emptyGrid(): DecalGrid {
 
 /** Sloučí sítě plácků do jedné (jeden obtisk na vrstvu). */
 export function mergeGrids(grids: readonly DecalGrid[]): DecalGrid {
-  const positions: number[] = [];
-  const alphas: number[] = [];
-  const indices: number[] = [];
+  const vertices = grids.reduce((n, g) => n + g.alphas.length, 0);
+  const triangles = grids.reduce((n, g) => n + g.indices.length, 0);
+  const positions = new Float32Array(vertices * 2);
+  const alphas = new Float32Array(vertices);
+  const indices = new Uint32Array(triangles);
+  let v = 0;
+  let t = 0;
   for (const grid of grids) {
-    const base = alphas.length;
-    positions.push(...grid.positions);
-    alphas.push(...grid.alphas);
-    for (const i of grid.indices) indices.push(base + i);
+    positions.set(grid.positions, v * 2);
+    alphas.set(grid.alphas, v);
+    for (let i = 0; i < grid.indices.length; i++) indices[t + i] = v + grid.indices[i]!;
+    v += grid.alphas.length;
+    t += grid.indices.length;
   }
-  return {
-    positions: Float32Array.from(positions),
-    alphas: Float32Array.from(alphas),
-    indices: Uint32Array.from(indices),
-  };
+  return { positions, alphas, indices };
 }
