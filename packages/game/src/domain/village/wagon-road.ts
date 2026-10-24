@@ -125,6 +125,8 @@ export interface WagonPlanInput {
   roadId: number;
   /** Střed vsi (dvorec) – stavba jde od konce blíž k němu ven; bez vsi od začátku řetězu. */
   home: PathPoint | null;
+  /** Klády na hromadě vsi (kusy) – na lávky u brodů; bez údaje žádné. */
+  woodLogs?: number;
 }
 
 /** Úsek stavby vozové cesty – konec na ose (m), práce celkem a po druzích, stromy. */
@@ -153,6 +155,8 @@ export type WagonRoadPlan =
       oldLengthM: number;
       /** Stromy na lávky pro pěší u brodů (`ROAD_UPGRADES.footbridge`) – klády z hromady, jinak pokácené. */
       footbridgeTrees: number;
+      /** Kolik dřeva na lávky chybí (hromada + nejbližší stromy) – stavba nejde zahájit. */
+      missingWood: number;
       /** Obejité kusy staré osy (narovnání) – po dostavění zarostou (`Road.abandoned`). */
       bypassed: PathPoint[][];
       /** Nejprudší místo nové trasy (m/m) a staré cesty (terén pod ní). */
@@ -510,13 +514,23 @@ function subdivide(axis: readonly PathPoint[], stepM: number): PathPoint[] {
   return out;
 }
 
-/** Práce profilu (čd): zemní práce s převozem a zpevnění kolejí; null – profil nevyšel. */
-function profileCost(grid: WagonGrid, axis: readonly PathPoint[]): number | null {
+/**
+ * Práce profilu (čd): zemní práce s převozem, zpevnění kolejí a kácení (`wagonClearing`); null –
+ * profil nevyšel nebo stavbě stojí v cestě posvátný strom.
+ */
+function profileCost(
+  grid: WagonGrid,
+  input: Pick<WagonPlanInput, 'layer' | 'changes' | 'claimed'>,
+  axis: readonly PathPoint[],
+): number | null {
   const p = wagonProfile(grid, axis, true);
   if (!p) return null;
   const earth = wagonEarthworks(grid, p.profile, p.fords);
+  const clearing = wagonClearing(input, grid, p.profile, p.fords, [p.lengthM]);
+  if (clearing.sacred) return null;
   let sum = WAGON_ROAD.pavingPerM * p.lengthM;
   earth.labor.forEach((v) => (sum += v));
+  for (const piece of clearing.pieces) sum += piece.cost;
   return sum;
 }
 
@@ -528,13 +542,15 @@ const STRAIGHTEN_STEP_M = 6;
  * Narovná kličkující kusy osy (roads.md – Vozová cesta, narovnání; Martin 22. 10. 2026, #6): kus
  * nejvýš `WAGON_STRAIGHTEN.maxM` m, kde je osa aspoň `ratio`× delší než tětiva mezi konci a konce
  * se liší výškou aspoň o `climbM` m, se nahradí tětivou, když ji vůz projede, profil po ní vyjde
- * a stojí méně práce než profil po staré ose (nebo stará osa nejde vůbec). Jinak osa zůstane.
+ * a stojí méně práce (zemní práce, zpevnění i kácení) než po staré ose (nebo stará osa nejde
+ * vůbec). Tětiva přes posvátný strom se zahodí – osa zůstane stará. Jinak osa zůstane.
  * Vrací novou osu a obejité kusy staré (zarostou). Bez narovnání je osa beze změny.
  */
 export function straightenStretches(
   grid: WagonGrid,
   village: PathVillage,
   axis: readonly PathPoint[],
+  input: Pick<WagonPlanInput, 'layer' | 'changes' | 'claimed'>,
 ): { axis: PathPoint[]; bypassed: PathPoint[][] } {
   const s = subdivide(axis, STRAIGHTEN_STEP_M);
   const arc: number[] = [0];
@@ -563,11 +579,11 @@ export function straightenStretches(
     tries++;
     const line = [s[i]!, s[j]!];
     if (wagonAxisBlocked(grid, village, line)) continue;
-    const straight = profileCost(grid, line);
+    const straight = profileCost(grid, input, line);
     if (straight === null) continue;
     const oldCost = wagonAxisBlocked(grid, village, s.slice(i, j + 1))
       ? null
-      : profileCost(grid, s.slice(i, j + 1));
+      : profileCost(grid, input, s.slice(i, j + 1));
     if (oldCost !== null && straight >= oldCost) continue;
     taken.push({ i, j });
   }
@@ -603,6 +619,35 @@ function abandonBypassed(
 const BYPASS_MATCH_M = 2;
 
 /**
+ * Obejité kusy, které už dostavěná část vozové cesty (prvních `builtM` m od vsi) minula: konec
+ * kusu leží na profilu nejdál `builtM` od začátku. Rozestavěná cesta tak neopustí starou cestu
+ * dřív, než ji nová trasa nahradí.
+ */
+export function bypassedUpTo(earthwork: RoadEarthwork, builtM: number): PathPoint[][] {
+  const bypassed = earthwork.bypassed ?? [];
+  if (bypassed.length === 0) return [];
+  const arcs: number[] = [0];
+  for (let k = 1; k < earthwork.profile.length; k++) {
+    const a = earthwork.profile[k - 1]!;
+    const b = earthwork.profile[k]!;
+    arcs.push(arcs[k - 1]! + length2(b.x - a.x, b.z - a.z));
+  }
+  return bypassed.filter((kus) => {
+    const end = kus[kus.length - 1]!;
+    let best = 0;
+    let bestD = Infinity;
+    earthwork.profile.forEach((q, k) => {
+      const d = length2(q.x - end.x, q.z - end.z);
+      if (d < bestD) {
+        bestD = d;
+        best = k;
+      }
+    });
+    return arcs[best]! <= builtM + 1e-6;
+  });
+}
+
+/**
  * Naplánuje vozovou cestu pro cestu hráče `roadId` (roads.md – Vozová cesta po staré cestě): osa
  * staré cesty (řetěz úseků od konce blíž vsi), průjezd (`wagonAxisBlocked`), profil po ní
  * (`wagonProfile` bez vyhlazení – nejde-li ani s úvozem a náspem 3 m, cesta je pro vůz moc
@@ -628,7 +673,7 @@ export function planWagonRoad(input: WagonPlanInput): WagonRoadPlan {
   }
   const grid = planGrid(input, axisBox(axis));
   // vede po staré cestě (Martin 22. 10. 2026, #6), jen kličky do svahu se narovnají
-  const straight = straightenStretches(grid, input.village, axis);
+  const straight = straightenStretches(grid, input.village, axis, input);
   axis = straight.axis;
   // vůz jí musí projet a profil vyjít
   if (wagonAxisBlocked(grid, input.village, axis)) return { ok: false, reason: WAGON_BLOCKED };
@@ -642,6 +687,23 @@ export function planWagonRoad(input: WagonPlanInput): WagonRoadPlan {
   const clearing = wagonClearing(input, grid, profile.profile, profile.fords, bounds);
   if (clearing.sacred) return { ok: false, reason: WAGON_SACRED };
   const fordArcs = fordArcsOf(profile.profile, profile.fords);
+  const footbridgeTrees = fordArcs.length * ROAD_UPGRADES.footbridge.trees;
+  const missingWood =
+    footbridgeTrees > 0
+      ? planWoodFrom(
+          footbridgeTrees,
+          profileAt(profile.profile, profile.lengthM / 2),
+          {
+            logs: input.woodLogs ?? 0,
+            changes: () => input.changes,
+            claimed: () => new Set(input.claimed ?? []),
+          },
+          {
+            obstacles: input.layer,
+            clearedIds: [...clearing.pieces.flatMap((t) => [...t.cleared, ...t.felled])],
+          },
+        ).missing
+      : 0;
   const pieces: WagonPiecePlan[] = bounds.map((toM, k) => {
     const fromM = k > 0 ? bounds[k - 1]! : 0;
     let earthManDays = 0;
@@ -678,7 +740,8 @@ export function planWagonRoad(input: WagonPlanInput): WagonRoadPlan {
     lengthM: tenths(profile.lengthM),
     oldLengthM: tenths(oldLengthM),
     bypassed: straight.bypassed,
-    footbridgeTrees: fordArcs.length * ROAD_UPGRADES.footbridge.trees,
+    footbridgeTrees,
+    missingWood,
     maxGrade: profile.maxGrade,
     oldMaxGrade,
     maxCutM: tenths(profile.maxCutM),
@@ -743,6 +806,7 @@ export function wagonPlanInputOf(
     earthworks: villageWagonEarthworks(state),
     roadId,
     home: wagonHome(state),
+    woodLogs: woodLogs(state),
   };
 }
 
@@ -948,10 +1012,12 @@ export function wagonRoadsDay(
     // kácení na lávky jde před zemními pracemi
     let left = Math.max(0, Math.min(c.done, c.cost) - woodFellingCost(c.wood));
     let built = false;
+    let builtM = 0;
     for (let k = 0; k < earthwork.pieces.length; k++) {
       const piece = earthwork.pieces[k]!;
       if (left + 1e-9 < piece.manDays) break;
       left -= piece.manDays;
+      builtM = piece.toM;
       if (piece.builtDay === null) {
         buildPiece(state, earthwork, k, day, landscape, obstacles);
         built = true;
@@ -960,7 +1026,7 @@ export function wagonRoadsDay(
     // stará cesta po ose vozové cesty zmizí hned, úseky se spojí
     if (built && state.roads) {
       absorbParallelRoads(state.roads, state.constructions);
-      abandonBypassed(state.roads.roads, earthwork.bypassed ?? []);
+      abandonBypassed(state.roads.roads, bypassedUpTo(earthwork, builtM));
     }
   }
 }

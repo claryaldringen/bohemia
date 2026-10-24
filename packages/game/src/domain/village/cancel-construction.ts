@@ -5,6 +5,7 @@ import { villagePens } from './oxen';
 import { returnConstructionWood } from './relocation';
 import { roadUpgradeProgress } from './road-upgrades';
 import { villageThreshingFloors } from './threshing-floors';
+import { bypassedUpTo } from './wagon-road';
 import type { Construction, ConstructionKind, RoadEarthwork, VillageState } from './types';
 
 // Zrušení rozestavěné stavby (Martin 23. 10. 2026: „Potřebuju mít možnost stavbu zrušit.“):
@@ -97,7 +98,12 @@ function dropWagonRoad(next: VillageState, c: Construction): void {
     next.roads.earthworks = earthworks.filter((e) => e.id !== earthwork.id);
     return;
   }
-  trimEarthwork(earthwork, built[built.length - 1]!.toM);
+  const builtM = built[built.length - 1]!.toM;
+  // obejité kusy, které hotová část nenahradila, se nechají být (jejich stará cesta žije dál)
+  const passed = bypassedUpTo(earthwork, builtM);
+  if (passed.length > 0) earthwork.bypassed = passed;
+  else delete earthwork.bypassed;
+  trimEarthwork(earthwork, builtM);
   earthwork.pieces = built;
   delete earthwork.constructionId;
 }

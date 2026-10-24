@@ -657,6 +657,7 @@ export class LandscapeScene {
             earthworks: village.earthworks ?? [],
             roadId,
             home: village.home ?? null,
+            woodLogs: village.woodLogs ?? 0,
           });
     this.wagonPlan = { key, plan };
     this.paths?.setWagonPreview(show && plan.ok ? [plan.profile] : []);
@@ -1659,6 +1660,7 @@ function wagonPreviewKey(village: SceneVillage, roadId: number): string {
     (village.orchards ?? []).map((o) => o.squares.length),
     (village.cemeteries ?? []).map((c) => c.squares.length),
     (village.pens ?? []).map((p) => [p.id, p.x, p.z]),
+    village.woodLogs ?? 0,
     changes ? [changes.removed.length, changes.stumps.length, (changes.added ?? []).length] : 0,
   ]);
 }

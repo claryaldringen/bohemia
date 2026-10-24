@@ -3,7 +3,13 @@ import { useState, type ReactElement } from 'react';
 import { type SelectionDetails } from '@/lib/selection-details';
 import { formatDecimal, formatInteger } from '@/lib/village-format';
 import { ROAD_KIND_NAMES, ROAD_UPGRADE_NAMES } from '@/lib/village-view';
-import { RoadKind, RoadUpgrade, RoadUpgradeParts, WagonRoadPlan } from '@bohemia/game';
+import {
+  RoadKind,
+  RoadUpgrade,
+  RoadUpgradeParts,
+  WAGON_NO_WOOD,
+  WagonRoadPlan,
+} from '@bohemia/game';
 import { SwathTrees } from '../ManorPanel';
 import { Tooltip } from '../Tooltip';
 import { Stat, Bar, ROW, Commands, WoodToFell, formatSpeedGain } from './parts';
@@ -36,6 +42,17 @@ export function minutesText(minutes: number | null): string {
   return `${minutes < 10 ? formatDecimal(minutes, 1) : formatInteger(minutes)} min`;
 }
 
+/** Proč vozovou cestu nejde zahájit (cena předem): stavba sama, trasa, nebo chybějící dřevo na lávku. */
+function wagonReason(
+  blocked: string | null,
+  plan: WagonRoadPlan | null | undefined,
+): string | null {
+  if (blocked) return blocked;
+  if (!plan) return null;
+  if (!plan.ok) return plan.reason;
+  return plan.missingWood > 0 ? WAGON_NO_WOOD : null;
+}
+
 /**
  * Popisek tlačítka „Upravit pro vozy“ (roads.md – Vozová cesta): cena (práce, stromy v průseku),
  * délka nové trasy proti staré, nejprudší místo, největší úvoz a násep a doba jízdy vozem dřív
@@ -48,7 +65,7 @@ export function WagonTooltip({
   blocked: string | null;
   plan: WagonRoadPlan | null | undefined;
 }): ReactElement {
-  const reason = blocked ?? (plan && !plan.ok ? plan.reason : null);
+  const reason = wagonReason(blocked, plan);
   return (
     <span className="flex flex-col gap-0.5">
       <span>Upravit pro vozy</span>
@@ -107,8 +124,7 @@ export function RoadBody({
     setBusy(true);
     void onBuildWagon(details.id).finally(() => setBusy(false));
   };
-  const wagonBlocked =
-    details.wagon.blocked ?? (wagonPlan && !wagonPlan.ok ? wagonPlan.reason : null);
+  const wagonBlocked = wagonReason(details.wagon.blocked, wagonPlan);
   const run = (upgrade: RoadUpgrade): void => {
     if (!onUpgrade || busy) return;
     setBusy(true);
