@@ -36,6 +36,7 @@ import {
   type PathPoint,
   type PathVillage,
   ROAD_STRENGTH,
+  SHRINE_SITE_COST,
   WOOD_COST,
   type Square,
 } from './network-types';
@@ -536,14 +537,17 @@ export function villageGrid(input: PathNetworkInput, buildings: readonly Buildin
     }
   };
   for (const cemetery of v.cemeteries ?? []) {
+    // rozšíření ve stavbě (`pending`) je staveniště – průchodné jako rozestavěný hřbitov
+    const done = cemetery.built === false ? [] : cemetery.squares.filter((q) => !q.pending);
+    const doneCells = new Set(squareCells(grid, done).inside);
     for (const c of squareCells(grid, cemetery.squares).inside) {
-      if (cemetery.built === false) grid.base[c] = grid.base[c]! * CEMETERY_COST;
+      if (!doneCells.has(c)) grid.base[c] = grid.base[c]! * CEMETERY_COST;
       grid.village[c] = 1;
     }
-    if (cemetery.built !== false) {
+    if (done.length > 0) {
       const entrance = cemeteryEntrance(cemetery, v.dwellings);
       const gate = entrance ? gateCells(entrance) : new Set<number>();
-      fence(fencedCells(grid, cemetery.squares, CEMETERY_FENCE_INSET_M), gate);
+      fence(fencedCells(grid, done, CEMETERY_FENCE_INSET_M), gate);
     }
   }
   for (const pen of v.pens ?? []) {
@@ -574,8 +578,10 @@ export function villageGrid(input: PathNetworkInput, buildings: readonly Buildin
       b.position.x + half,
       b.position.z + half,
       (c) => {
-        // příkop svatyně je neprůchodný (paths.md – Kudy), vchází se přes val u hrotu okvětí
-        if (!gate.has(c)) grid.base[c] = Infinity;
+        // hotová svatyně je neprůchodná celou plochou (paths.md – Kudy), vchází se přes val u
+        // hrotu okvětí; staveniště je průchodné (cena jako rozestavěná ohrada)
+        if (!b.built) grid.base[c] = grid.base[c]! * SHRINE_SITE_COST;
+        else if (!gate.has(c)) grid.base[c] = Infinity;
         grid.village[c] = 1;
       },
     );

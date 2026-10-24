@@ -456,8 +456,18 @@ describe('computePathNetwork – pěšiny vsi', () => {
     const wood = [1, 2, 3].map((id) => key(network.errands.get(id)!.wood));
     expect(new Set(wood).size).toBe(1);
     // k vodě (z 40–55) vedou méně než tři souběžné pěšiny
-    const lanes = network.lines.filter((l) => l.points.some((p) => p.z > 40 && p.z < 55));
-    expect(lanes.length).toBeLessThan(3);
+    // pruhy se počítají v každé řadě z zvlášť (pruh = shluk bodů, od dalšího dál než 6 m, jako
+    // dřívější pásy `round(x / 6)`) – šikmá slitá pěšina se nepočítá za víc pruhů; tři samostatné
+    // pěšiny (x = -13, 0, 14) by dál daly 3
+    const rows = new Map<number, number[]>();
+    for (const p of samples(network).filter((q) => q.z > 40 && q.z < 55)) {
+      const row = Math.round(p.z);
+      rows.set(row, [...(rows.get(row) ?? []), p.x]);
+    }
+    const laneCount = (xs: number[]): number =>
+      [...xs].sort((m, n) => m - n).filter((x, i, all) => i === 0 || x - all[i - 1]! > 6).length;
+    expect(rows.size).toBeGreaterThan(5);
+    expect(Math.max(...[...rows.values()].map(laneCount))).toBeLessThan(3);
     // společný úsek je silnější než pěšina jedné domácnosti
     const strengths = network.lines.map((l) => Math.max(...l.strength));
     expect(Math.max(...strengths)).toBeGreaterThan(Math.min(...strengths));
@@ -845,5 +855,84 @@ describe('zvyk a ploty (paths.md – Kudy, Martin 22. 10. 2026)', () => {
     const inside = samples(network).filter((p) => Math.abs(p.x) < 12 && Math.abs(p.z + 67.5) < 5);
     expect(inside).toEqual([]);
     expect(samples(network).some((p) => Math.abs(p.x) < 20 && p.z < -50)).toBe(true);
+  });
+
+  it('volba trasy: o 25 % kratší nevyšlapaná trasa vyhraje nad pevnou cestou, o 15 % ne', () => {
+    const costs = {
+      base: new Float32Array([1, 1]),
+      previous: new Float32Array(2),
+      cost: new Float32Array(2),
+      plain: new Uint8Array([0, 1]),
+    };
+    const meadow = (ratio: number): number => ratio * trodden(costs, 0, 0);
+    const road = trodden(costs, 1, 0);
+    expect(meadow(0.75)).toBeLessThan(road);
+    expect(meadow(0.85)).toBeGreaterThan(road);
+  });
+
+  it('trasa obchází hotovou ohradu, i když přes ni je kratší', () => {
+    const pens = [{ ...part(0, 37.5), id: 4, built: true, stocked: false }];
+    const network = computePathNetwork({ village: village({ pens }), terrain });
+    const inside = samples(network).filter((p) => Math.abs(p.x) < 6 && Math.abs(p.z - 37.5) < 6);
+    expect(inside).toEqual([]);
+    // voda za ohradou (z ≈ 56) je dál dosažitelná
+    expect(samples(network).some((p) => p.z > 45)).toBe(true);
+  });
+
+  it('trasa projde uličkou mezi dvěma ohradami', () => {
+    const pens = [
+      { ...part(-7.5, 37.5), id: 4, built: true, stocked: false },
+      { ...part(7.5, 37.5), id: 5, built: true, stocked: false },
+    ];
+    const network = computePathNetwork({
+      village: village({ pens, dwellings: [house(1, 0, 0)] }),
+      terrain,
+    });
+    const alley = samples(network).filter((p) => Math.abs(p.x) < 2 && p.z > 31 && p.z < 44);
+    expect(alley.length).toBeGreaterThan(10);
+  });
+
+  it('natočená ohrada (po 15°) je uvnitř neprůchodná, kousek za plotem průchozí', () => {
+    const pens = [{ ...part(0, 37.5), rotation: Math.PI / 12, id: 4, built: true }];
+    const grid = villageGrid({ village: village({ pens }), terrain }, []);
+    expect(grid.base[cellAt(grid, 0, 37.5)]).toBe(Infinity);
+    expect(Number.isFinite(grid.base[cellAt(grid, 0, 37.5 + 11)]!)).toBe(true);
+  });
+
+  it('svatyně: hotová je neprůchodná plochou kromě vchodu, staveniště průchodné', () => {
+    const shrine = (built: boolean): NonNullable<PathVillage['sacred']> => ({
+      oaks: [],
+      groves: [],
+      buildings: [{ id: 1, kind: 'shrine', position: { x: 0, z: 37.5, rotation: 0 }, built }],
+    });
+    const done = villageGrid({ village: village({ sacred: shrine(true) }), terrain }, []);
+    expect(done.base[cellAt(done, -8, 37.5)]).toBe(Infinity);
+    expect(done.base[cellAt(done, 0, 37.5)]).toBe(Infinity);
+    // vchod na předku (+z): kruh branky pár metrů do plochy je otevřený
+    expect(Number.isFinite(done.base[cellAt(done, 0, 37.5 + 14)]!)).toBe(true);
+    const site = villageGrid({ village: village({ sacred: shrine(false) }), terrain }, []);
+    expect(Number.isFinite(site.base[cellAt(site, 0, 37.5)]!)).toBe(true);
+    expect(Number.isFinite(site.base[cellAt(site, -8, 37.5)]!)).toBe(true);
+  });
+
+  it('rozestavěné rozšíření hřbitova je průchodné, hotová část ne', () => {
+    const cemetery = {
+      id: 7,
+      squares: [part(-7.5, -67.5), { ...part(7.5, -67.5), pending: true }],
+      built: true,
+    };
+    const grid = villageGrid({ village: village({ cemeteries: [cemetery] }), terrain }, []);
+    expect(grid.base[cellAt(grid, -7.5, -67.5)]).toBe(Infinity);
+    expect(Number.isFinite(grid.base[cellAt(grid, 7.5, -67.5)]!)).toBe(true);
+  });
+
+  it('branka jedné ohrady neodemkne sousední plot', () => {
+    const pens = [
+      { ...part(0, 37.5), id: 4, built: true },
+      { ...part(18, 37.5), id: 5, built: true },
+    ];
+    const grid = villageGrid({ village: village({ pens }), terrain }, []);
+    expect(grid.base[cellAt(grid, 0, 37.5)]).toBe(Infinity);
+    expect(grid.base[cellAt(grid, 18, 37.5)]).toBe(Infinity);
   });
 });

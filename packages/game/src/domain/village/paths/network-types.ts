@@ -392,7 +392,8 @@ export const CEMETERY_COST = 15;
 
 export const PEN_COST = 15;
 
-/** Svatyně – ohrazený posvátný okrsek (modla stojí na malém půdorysu – neprůchodná). */
+/** Staveniště svatyně – průchodné, jen pomalejší (hotová svatyně je neprůchodná celou plochou). */
+export const SHRINE_SITE_COST = 2.5;
 
 /**
  * Pěšina ke vchodu stavby (paths.md – Vchody) končí kus před ním (m) – v buňkách do

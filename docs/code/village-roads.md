@@ -78,8 +78,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     (`rules-roads.ts`) – `trodden` v `network-search.ts` zdraží nevyšlapané místo o 25 % jen pro výběr
     trasy (pod pevnou cestou a osevem 0; čas chůze zůstává skutečný). Hotová ohrada a hřbitov jsou
     v `villageGrid` neprůchodné přes `fencedCells` (stejná funkce jako u vozů, ulička 3 m zůstává),
-    vstup jen buňkami branky (`gateCells` kolem `penSquaresEntrance` / `cemeteryEntrance`); příkop
-    svatyně neprůchodný kromě vchodu. `PEN_COST` / `CEMETERY_COST` platí už jen pro staveniště.
+    vstup jen buňkami branky (`gateCells` kolem `penSquaresEntrance` / `cemeteryEntrance`); hotová
+    svatyně je neprůchodná celou plochou `footprintM` (30 m, ne jen příkop – uvnitř stojí modla
+    a obětiny) kromě vchodu. Staveniště (rozestavěná ohrada, hřbitov i jeho rozšíření `pending`,
+    svatyně) je průchodné: `PEN_COST` / `CEMETERY_COST` / `SHRINE_SITE_COST`. Branka odemyká jen
+    buňky vlastního plotu.
     Martin 22. 10. 2026 (#3): „Lidi nesmí chodit přes ohrady. Vždyť jsou oplocené.“
 
 - **Pevné cesty a stromy u nich** ([docs/design/roads.md](../design/roads.md) – fáze 1; výběr,
