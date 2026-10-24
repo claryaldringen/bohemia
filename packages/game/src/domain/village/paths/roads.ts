@@ -35,6 +35,7 @@ import { annualCartNetwork, formCartRoads, markCartRoads } from './roads-carts';
 import { overgrowRoads } from './roads-overgrow';
 import { networkTermini, tidyRoads } from './roads-tidy';
 import { SpotContext, plantingBlocker, rootTrees } from './roads-trees';
+import { addWearLabor } from './wear';
 
 function isRoadYearDay(day: number): boolean {
   const date = dateOfDayIndex(day);
@@ -56,6 +57,9 @@ export function roadsDay(
 ): ReadonlyMap<string, number> | null {
   if (!landscape) return null;
   const roads = (state.roads ??= emptyRoads(day));
+  // vyšlapanost (paths.md – Vyšlapanost a vznik cesty) – nová ves od dneška od nuly, starší ves
+  // ji dostane při načtení (`withWearSeed`)
+  const wear = (roads.wear ??= { day, cells: '', labor: [] });
   let visits: ReadonlyMap<string, number> | null = null;
   if (isRoadYearDay(day) && roads.labor.from < day) {
     const changes = obstacleChangesAt(state, day);
@@ -65,6 +69,7 @@ export function roadsDay(
     roads.labor = { from: day, days: 0, shares: [] };
   }
   addRoadLabor(roads, state.labor, day);
+  addWearLabor(wear, state.labor, day);
   return visits;
 }
 

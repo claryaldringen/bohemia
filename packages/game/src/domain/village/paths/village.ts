@@ -39,6 +39,7 @@ import {
   pathPlotOf,
   villagePathBounds,
   roadsKey,
+  type PathLine,
   type PathNetwork,
   type PathPlot,
   type PathPoint,
@@ -48,6 +49,7 @@ import {
 import {
   PATH_FOREST_EDGE,
   obstaclePosition,
+  pathCellM,
   pathTerrainOf,
   pathWindowFor,
   withObstacles,
@@ -63,8 +65,10 @@ import {
   type Walk,
 } from './walking';
 import { lineRoads } from './road-lining';
+import { routePaths } from './route-paths';
 import { storedRoutes } from './routes';
 import { partWalkSpeed, roadTreeSpeed } from './walk-speed';
+import { encodeWear, settleWear, trafficField, wearMap } from './wear';
 
 // Pěšiny ze stavu vsi (paths.md – Pěšiny a práce): server skládá ves pro pěšiny stejně jako
 // scéna (village-view.ts – SceneVillage), spočítá stejnou síť a z ní vzdálenosti chůze dílů
@@ -363,6 +367,29 @@ const lastNetworks = new WeakMap<
   { obstacles: ObstacleLayer | null; input: string; network: PathNetwork | null }
 >();
 
+/** Vyšlapanost vsi, jak ji dopočet právě drží (`wearMap`); bez ní null. */
+function villageWear(state: VillageState): ReadonlyMap<number, number> | null {
+  const wear = state.roads?.wear;
+  return wear ? wearMap(wear) : null;
+}
+
+/** Čáry pěšin vsi z uložených tras se silou z vyšlapanosti (`routePaths`) – pro chůzi. */
+function villageRouteLines(state: VillageState, cellM: number): PathLine[] {
+  return routePaths(state.routes?.list ?? [], villageWear(state) ?? new Map(), cellM);
+}
+
+/**
+ * Vyšlapanost do začátku dne `day` (paths.md – Vyšlapanost a vznik cesty; mutuje stav): interval
+ * od posledního sčtu s provozním polem uložených tras – volá se 1. dne v měsíci a před přepočtem
+ * tras (trasy se v intervalu nemění). Bez vyšlapanosti nic; bez tras jen dorůstá tráva.
+ */
+export function settleVillageWear(state: VillageState, day: number, landscape: Landscape): void {
+  const wear = state.roads?.wear;
+  if (!wear || wear.day >= day) return;
+  const routes = state.routes ?? { key: '', list: [] };
+  settleWear(wear, trafficField(routes, pathCellM(landscape)), wear.day, day);
+}
+
 /**
  * Síť pěšin vsi v den `day` (stejná funkce jako ve scéně). Bez obydlí null. Vrstva překážek
  * přidá kmeny, keře a kameny (bez ní jen terén). Stejný vstup jako minule = táž síť (sdílený
@@ -376,10 +403,12 @@ export function villagePathNetwork(
   /** Ves pro pěšiny, kterou už volající spočítal ze stejného stavu a dne. */
   village: PathVillage = pathVillageOf(state, day, landscape),
 ): PathNetwork | null {
-  const input = JSON.stringify(village);
+  const wear = villageWear(state);
+  // vyšlapanost je vstup sítě (slévání tras) – patří do klíče
+  const input = `${JSON.stringify(village)}|${wear ? encodeWear(wear) : ''}`;
   const last = lastNetworks.get(landscape);
   if (last && last.obstacles === obstacles && last.input === input) return last.network;
-  const network = computeVillageNetwork(state, day, landscape, obstacles, village);
+  const network = computeVillageNetwork(state, day, landscape, obstacles, village, wear);
   lastNetworks.set(landscape, { obstacles, input, network });
   return network;
 }
@@ -390,6 +419,7 @@ function computeVillageNetwork(
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
   village: PathVillage,
+  wear: ReadonlyMap<number, number> | null,
 ): PathNetwork | null {
   const bounds = villagePathBounds(village, landscape);
   if (!bounds) return null;
@@ -400,6 +430,7 @@ function computeVillageNetwork(
     village,
     terrain,
     keepRoutes: true,
+    ...(wear && wear.size > 0 ? { wear } : {}),
     ...(obstacles ? { tree: (id: number) => obstaclePosition(obstacles, id) } : {}),
   });
 }
@@ -568,7 +599,8 @@ export function walkDistancesTo(
   const network = villagePathNetwork(state, day, landscape, obstacles, village);
   if (!network) return null;
   const ground = withFieldWalk(walkGroundOf(landscape), village.fields);
-  const graph = walkGraph(network.lines, { roads: state.roads?.roads ?? [], ground });
+  const lines = villageRouteLines(state, network.traffic.cellM);
+  const graph = walkGraph(lines, { roads: state.roads?.roads ?? [], ground });
   return walkingDistances(graph, dwellingOrigins(state), targets, ground).map(
     (walk) => Math.floor(walk * WALK_ROUNDING) / WALK_ROUNDING,
   );
@@ -609,6 +641,8 @@ export function refreshWalkDistances(
   const unchanged = state.walkLayoutKey === key;
   state.walkLayoutKey = key;
   if (unchanged) return;
+  // vyšlapanost do dneška ještě se starými trasami – nové trasy se po ní slévají (paths.md)
+  settleVillageWear(state, day, landscape);
   const village = pathVillageOf(state, day, landscape);
   const network = villagePathNetwork(state, day, landscape, obstacles, village);
   // trasy pro týž otisk rozložení (paths.md – Kdy se trasy počítají a co se ukládá)
@@ -623,7 +657,9 @@ export function refreshWalkDistances(
     return;
   }
   const ground = withFieldWalk(walkGroundOf(landscape), village.fields);
-  const graph = walkGraph(network.lines, { roads: state.roads?.roads ?? [], ground });
+  // pěšiny z tras se silou z vyšlapanosti – tentýž zdroj jako scéna (paths.md – Pěšiny a práce)
+  const lines = villageRouteLines(state, network.traffic.cellM);
+  const graph = walkGraph(lines, { roads: state.roads?.roads ?? [], ground });
   const origins = dwellingOrigins(state);
   const rounded = (walk: number): number => Math.floor(walk * WALK_ROUNDING) / WALK_ROUNDING;
   const parts = state.parts.filter((p) => p.cell !== undefined);

@@ -5,6 +5,7 @@ import { encodeRoute } from '../paths/routes';
 import {
   decodeWear,
   encodeWear,
+  flushWear,
   settleWear,
   trafficAt,
   trafficField,
@@ -47,6 +48,13 @@ function route(
 
 function routesOf(list: StoredRoute[], key = `k${Math.random()}`): VillageRoutes {
   return { day: 0, key, list };
+}
+
+/** Sčítání jako na konci dopočtu – pracovní políčka zapsaná do `wear.cells`. */
+function settle(...args: Parameters<typeof settleWear>): number {
+  const visited = settleWear(...args);
+  flushWear(args[0]);
+  return visited;
 }
 
 function emptyWear(day = 0): RoadWear {
@@ -104,10 +112,10 @@ describe('vyšlapanost – sčítání po intervalech', () => {
   it('3 cesty denně dosáhnou prahu cesty za 500 dní', () => {
     const field = trafficField(routesOf([route(0, 0, 20, 300)]), CELL);
     const at499 = emptyWear();
-    settleWear(at499, field, 0, 499);
+    settle(at499, field, 0, 499);
     expect(wearOfCell(at499, 10, 0)).toBeLessThan(WEAR.roadAt);
     const at500 = emptyWear();
-    settleWear(at500, field, 0, 500);
+    settle(at500, field, 0, 500);
     expect(wearOfCell(at500, 10, 0)).toBe(WEAR.roadAt);
     expect(at500.day).toBe(500);
   });
@@ -115,27 +123,27 @@ describe('vyšlapanost – sčítání po intervalech', () => {
   it('pod 1 cestou denně se nevyšlape nic', () => {
     for (const trips of [100, 90]) {
       const wear = emptyWear();
-      settleWear(wear, trafficField(routesOf([route(0, 0, 20, trips)]), CELL), 0, 2000);
+      settle(wear, trafficField(routesOf([route(0, 0, 20, trips)]), CELL), 0, 2000);
       expect(wear.cells).toBe('');
     }
   });
 
   it('strop a pokles na nulu nejvýš za 1 500 dní', () => {
     const wear = emptyWear();
-    settleWear(wear, trafficField(routesOf([route(0, 0, 20, 3000)]), CELL), 0, 1000);
+    settle(wear, trafficField(routesOf([route(0, 0, 20, 3000)]), CELL), 0, 1000);
     expect(wearOfCell(wear, 10, 0)).toBe(WEAR.max);
     const none = trafficField(routesOf([]), CELL);
-    settleWear(wear, none, 1000, 2499);
+    settle(wear, none, 1000, 2499);
     expect(wearOfCell(wear, 10, 0)).toBe(100);
-    settleWear(wear, none, 2499, 2500);
+    settle(wear, none, 2499, 2500);
     expect(wear.cells).toBe('');
   });
 
   it('trasa posunutá o políčko sčítá dál', () => {
     const wear = emptyWear();
-    settleWear(wear, trafficField(routesOf([route(0, 0, 20, 300)]), CELL), 0, 250);
+    settle(wear, trafficField(routesOf([route(0, 0, 20, 300)]), CELL), 0, 250);
     // o 2 buňky (7,5 m) vedle – políčko řady 1 je soused obou
-    settleWear(wear, trafficField(routesOf([route(0, 2, 20, 300)]), CELL), 250, 500);
+    settle(wear, trafficField(routesOf([route(0, 2, 20, 300)]), CELL), 250, 500);
     expect(wearOfCell(wear, 10, 2)).toBe(WEAR.roadAt);
   });
 
@@ -163,7 +171,7 @@ describe('vyšlapanost – sčítání po intervalech', () => {
     const results = [1, 7, 30, 400].map((chunk) => {
       const wear = start();
       for (let day = 0; day < 400; day += chunk) {
-        settleWear(wear, field, day, Math.min(400, day + chunk));
+        settle(wear, field, day, Math.min(400, day + chunk));
       }
       return wear.cells;
     });
@@ -182,7 +190,7 @@ describe('vyšlapanost – sčítání po intervalech', () => {
     );
     const wear = emptyWear();
     wear.labor = [{ target: { kind: 'field', id: 1 }, manDays: 37.333 }];
-    settleWear(wear, field, 0, 9);
+    settle(wear, field, 0, 9);
     const values = [...decodeWear(wear.cells).values()];
     expect(values.length).toBeGreaterThan(0);
     expect(values.every((v) => Number.isInteger(v) && v > 0 && v <= WEAR.max)).toBe(true);
@@ -196,14 +204,14 @@ describe('vyšlapanost – sčítání po intervalech', () => {
     ];
     const field = trafficField(routesOf(list), CELL);
     const idle = emptyWear();
-    settleWear(idle, field, 0, 10);
+    settle(idle, field, 0, 10);
     expect(idle.cells).toBe('');
     const wear = emptyWear();
     wear.labor = [
       { target: { kind: 'field', id: 1 }, manDays: 10 },
       { target: { kind: 'field', id: 2 }, manDays: 40 },
     ];
-    settleWear(wear, field, 0, 1);
+    settle(wear, field, 0, 1);
     // jen první trasa: 1 000 × 50 / 200 − 100; jen druhá: 1 000 × 150 / 200 − 100; obě: 1 000 − 100
     expect(wearOfCell(wear, 2, 0)).toBe(150);
     expect(wearOfCell(wear, 2, 20)).toBe(650);
@@ -218,12 +226,12 @@ describe('vyšlapanost – sčítání po intervalech', () => {
       CELL,
     );
     const wear = emptyWear();
-    settleWear(wear, field, 0, 1700);
+    settle(wear, field, 0, 1700);
     expect(wearOfCell(wear, 10, 0)).toBeGreaterThanOrEqual(WEAR.roadAt);
     // práce dne se nepřičítá dvakrát: base 160 + práce jen navíc podle podílu cíle
     const busy = emptyWear();
     busy.labor = [{ target: { kind: 'field', id: 1 }, manDays: 10 }];
-    settleWear(busy, field, 0, 1);
+    settle(busy, field, 0, 1);
     expect(wearOfCell(busy, 10, 0)).toBe(60 + 1000);
   });
 
@@ -233,7 +241,7 @@ describe('vyšlapanost – sčítání po intervalech', () => {
       CELL,
     );
     const wear = emptyWear();
-    settleWear(wear, field, 0, 1700);
+    settle(wear, field, 0, 1700);
     expect(wear.cells).toBe('');
   });
 
@@ -265,7 +273,7 @@ describe('vyšlapanost – sčítání po intervalech', () => {
       ),
       labor: [],
     };
-    expect(settleWear(wear, field, 0, 3)).toBe(18 + 2);
+    expect(settle(wear, field, 0, 3)).toBe(18 + 2);
   });
 });
 

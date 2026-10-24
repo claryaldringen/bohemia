@@ -121,13 +121,18 @@ export interface PathTerrain {
 }
 
 /** Mřížka celé krajiny: bodů na stranu, bod (0, 0) ve světě a krok (m). */
+/** Strana buňky mřížky pěšin krajiny (m) – v ní jsou uložené trasy (`VillageState.routes`). */
+export function pathCellM(l: Landscape): number {
+  return l.cellSizeM / PATH_GRID_PER_TILE;
+}
+
 function gridOf(l: Landscape): { n: number; originX: number; originZ: number; step: number } {
   const half = (l.size * l.cellSizeM) / 2;
   return {
     n: (l.size - 1) * PATH_GRID_PER_TILE + 1,
     originX: -half + l.cellSizeM / 2,
     originZ: -half + l.cellSizeM / 2,
-    step: l.cellSizeM / PATH_GRID_PER_TILE,
+    step: pathCellM(l),
   };
 }
 

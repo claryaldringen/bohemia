@@ -15,3 +15,4 @@ export * from './wagon-route';
 export * from './road-lining';
 export * from './routes';
 export * from './wear';
+export * from './route-paths';

@@ -439,6 +439,9 @@ příznak `VillageRoads.v2`).
    nezmizí hned.
 3. **Vyšlapanost** se založí z loňských úseků nad prahem (`VillageRoads.candidates`): podél nich
    500 (polovina prahu) – rozjeté cesty se neztratí. Ostatní pěšiny začnou od nuly.
+   Návrh Clauda (24. 10. 2026): „podél“ = políčka, kterými osa úseku vede, i sousední (± 1 jako
+   u tras – trasa o políčko vedle sčítá dál); vyšlapanost platí od dalšího dne dopočtu. Nová ves
+   začíná od nuly prvním dnem s trasami.
 4. **Úklid sítě** (Síť – kroky 1–4): souběžné se sloučí – starou vyšlapanou nebo upravenou cestu
    vedle vozové pohltí vozová (Vlkov – voda), copánky, díry, spojení, pahýly.
 5. **Křižovatky** v uzlech se 3–4 cestami (ramena podle provozu z posledního roku) – kulaté plácky
