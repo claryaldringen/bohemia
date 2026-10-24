@@ -42,6 +42,7 @@ import {
   villageBuildings,
 } from './network-search';
 import { extractLines } from './network-lines';
+import { wearStrengths } from './wear';
 
 export {
   PATH_TRAFFIC,
@@ -129,8 +130,9 @@ export function computePathNetwork(input: PathNetworkInput): PathNetwork {
     heap: new PathHeap(),
     sinks: new Uint8Array(all),
   };
-  // pevné cesty: od začátku jako plná pěšina (sleva), síla buňky nikdy pod ni neklesne
-  const fixed = roadCells(grid);
+  // pevné cesty: od začátku jako plná pěšina (sleva), síla buňky nikdy pod ni neklesne;
+  // vyšlapanost stejně (paths.md – Slévání): vyšlapaná pěšina zlevní trasu od prvního kola
+  const fixed = strongerOf(roadCells(grid), input.wear ? wearStrengths(grid, input.wear) : null);
   const costs: PassCosts = {
     base: grid.base,
     previous: fixed ? new Float32Array(fixed) : new Float32Array(all),
@@ -209,3 +211,10 @@ function visitsOf(groups: readonly TripGroup[]): Map<string, number> {
 }
 
 // --- osy pěšin -------------------------------------------------------------------------------
+
+/** Silnější ze dvou sil pěšin po buňkách (mutuje první); chybí-li jedna, druhá. */
+function strongerOf(a: Float32Array | null, b: Float32Array | null): Float32Array | null {
+  if (!a || !b) return a ?? b;
+  for (let c = 0; c < a.length; c++) a[c] = Math.max(a[c]!, b[c]!);
+  return a;
+}

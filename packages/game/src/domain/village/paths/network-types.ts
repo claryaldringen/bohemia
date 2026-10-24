@@ -262,6 +262,12 @@ export interface PathNetworkInput {
   annual?: boolean;
   /** Zapsat trasy posledního kola (`PathNetwork.routes`) – čáry ani provoz se tím nemění. */
   keepRoutes?: boolean;
+  /**
+   * Vyšlapanost (`decodeWear` – wear.ts): síla pěšiny buňky nikdy neklesne pod vyšlapanost / práh
+   * cesty (od viditelné), takže se trasy slévají po vyšlapaných pěšinách (paths.md – Slévání).
+   * Chybí = žádná.
+   */
+  wear?: ReadonlyMap<number, number>;
 }
 
 /** Kola hledání: první trasy (každá další se přidá k už vyšlapaným) a jedno kolo se slevou z prvního. */
