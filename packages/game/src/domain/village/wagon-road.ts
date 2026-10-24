@@ -29,11 +29,10 @@ import { pathTerrainOf, pathWindowFor, PATH_WOODLAND, withObstacles } from './pa
 import { pathVillageOf } from './paths/village';
 import {
   WAGON_BIN_M,
-  findWagonRoute,
-  straightenWagonRoute,
   profileCartMinutes,
   profileEdits,
   roadsCartMinutes,
+  wagonAxisBlocked,
   wagonEarthworks,
   wagonGridHeight,
   wagonProfile,
@@ -60,39 +59,32 @@ import { isWoodTreeId } from './woods';
 // Vozová cesta (roads.md – Vozová cesta; Martin, 20. 10. 2026: „Měla by přibýt cesta upravená pro
 // vůz. Ta bude vozu dávat ještě větší rychlost, bude mít vyježděné, ale zpevněné koleje. Zároveň
 // dojde k podstatné změně – tato cesta spojí dva body, které spojuje stará cesta pro pěší, ale co
-// nejvíc přímo tak, aby vůz projel.“). Hráč vybere cestu (řetěz úseků – road-chains.ts) a v panelu
-// potvrdí „Upravit pro vozy“: mezi jejími konci (rozcestí nebo volné konce) se najde vlastní
-// trasa (paths/wagon-route.ts – sklon do 6 % s úvozem a náspem do 3 m, serpentiny samy), spočítá
-// se profil, zemní práce, zpevnění kolejí a kácení a vznikne stavba ze společné práce po úsecích
-// od vsi ven. Hotový úsek je hned pevná cesta stupně `wagon` (sjízdná – vůz 2,2, pěšky 1,7
-// i v mokřině), terén se upraví podle profilu (paths/earthworks.ts). Stará cesta zůstane jako
-// samostatná pevná cesta s dnešními pravidly – provoz se sám přesune na rychlejší cestu
-// a nepoužívané kusy staré cesty po 5 letech zarostou. Čisté funkce – náhled v prohlížeči počítá
-// totéž (`planWagonRoad`) jako server při zahájení stavby (`startWagonRoad`).
+// nejvíc přímo tak, aby vůz projel.“; Martin 22. 10. 2026, #6: „Vozová cesta: vznikne ze staré
+// pěší cesty a vede po ní.“). Hráč vybere cestu (řetěz úseků – road-chains.ts) a v panelu potvrdí
+// „Upravit pro vozy“: osa vozové cesty je osa staré cesty (řetěz mezi rozcestími nebo volnými
+// konci), po ní profil (paths/wagon-route.ts – sklon do 6 % s úvozem a náspem do 3 m), zemní
+// práce, zpevnění kolejí a kácení a vznikne stavba ze společné práce po úsecích od vsi ven. Hotový
+// úsek je hned pevná cesta stupně `wagon` (sjízdná – vůz 2,2, pěšky 1,7 i v mokřině), terén se
+// upraví podle profilu (paths/earthworks.ts) a kus staré cesty pod ním zmizí (`absorbParallelRoads`)
+// – souběžné cesty nevzniknou. Čisté funkce – náhled v prohlížeči počítá totéž (`planWagonRoad`)
+// jako server při zahájení stavby (`startWagonRoad`).
 
 export const WAGON_NO_ROAD = 'Cesta tu už není.';
 export const WAGON_LOOP = 'Cesta je okruh – vozová cesta potřebuje dva konce.';
 export const WAGON_SHORT = 'Cesta je na úpravu pro vozy moc krátká.';
 export const WAGON_EXISTS = 'Cesta už je upravená pro vozy.';
 export const WAGON_BUILDING = 'Cesta se už upravuje pro vozy.';
-export const WAGON_NO_ROUTE =
-  'Vůz tudy neprojede ani s úvozem a náspem – překáží sráz, voda nebo stavby.';
+export const WAGON_BLOCKED = 'Vůz po této cestě neprojede – překáží stavba, plot nebo voda.';
+export const WAGON_STEEP = 'Cesta je pro vůz moc prudká.';
 export const WAGON_SACRED = 'Vozové cestě stojí v cestě posvátný dub – kácet se nesmí.';
-/** Trasa vede velkou oklikou – mezi stavbami se vozová cesta nevejde (délky v m). */
-export function wagonDetourReason(lengthM: number, oldLengthM: number): string {
-  return `Vozová cesta by vedla velkou oklikou (${Math.round(lengthM)} m místo ${Math.round(oldLengthM)} m) – mezi stavbami se nevejde.`;
-}
 
 /** Kratší cesta se pro vozy neupravuje (m) – jako nejkratší pevná cesta. */
 const MIN_CHAIN_M = 15;
-/** Okno hledání kolem staré cesty a spojnice konců: násobek spojnice + rezerva, meze (m). */
-const WINDOW_PAD = { share: 0.4, extraM: 60, minM: 60, maxM: 220 } as const;
 /**
- * Oklika: nová trasa delší než `factor` × stará a zároveň o víc než `extraM`, přestože stará cesta
- * je dost mírná i pro vozovou cestu (nejprudší místo do WAGON_ROAD.maxGrade) – délku tedy nedělá
- * svah (serpentiny), ale stavby: vozová cesta se mezi nimi nevejde (krátké cesty mezi domy).
+ * Okraj mřížky kolem staré cesty (m) – vejde se pláň, svahy úvozu a náspu, průsek a vzdálenost
+ * ke stavbám, která omezuje úpravy terénu (`WagonGrid.limit`).
  */
-const DETOUR = { factor: 3, extraM: 60 } as const;
+const GRID_PAD_M = 30;
 /** Úprava terénu menší než tolik (m) nechá překážku stát. */
 const FOOTPRINT_M = 0.1;
 
@@ -191,6 +183,20 @@ function chainEnds(chain: readonly ChainLink<WagonPlanRoad>[]): [PathPoint, Path
   return [a, b];
 }
 
+/** Osa řetězu – body úseků v pořadí a směru řetězu, společné uzly jednou. */
+function chainAxis(chain: readonly ChainLink<WagonPlanRoad>[]): PathPoint[] {
+  const out: PathPoint[] = [];
+  for (const link of chain) {
+    const pts = link.reversed ? [...link.road.points].reverse() : link.road.points;
+    for (const p of pts) {
+      const last = out[out.length - 1];
+      if (last && cmKey(last) === cmKey(p)) continue;
+      out.push({ x: p.x, z: p.z });
+    }
+  }
+  return out;
+}
+
 /** Uzly řetězu – konce všech jeho úseků (na cm). */
 function chainNodes(chain: readonly ChainLink<WagonPlanRoad>[]): Set<string> {
   const out = new Set<string>();
@@ -240,23 +246,18 @@ export function wagonChainStatus(
   return { status: 'none', blocked: null };
 }
 
-/** Okno hledání – obdélník staré cesty a konců s rezervou. */
-function searchBox(
-  chain: readonly ChainLink<WagonPlanRoad>[],
-  a: PathPoint,
-  b: PathPoint,
-): { minX: number; minZ: number; maxX: number; maxZ: number } {
-  const pts = [a, b, ...chain.flatMap((link) => link.road.points)];
-  const chord = length2(b.x - a.x, b.z - a.z);
-  const pad = Math.min(
-    WINDOW_PAD.maxM,
-    Math.max(WINDOW_PAD.minM, chord * WINDOW_PAD.share + WINDOW_PAD.extraM),
-  );
+/** Okno mřížky – obdélník osy s okrajem GRID_PAD_M. */
+function axisBox(axis: readonly PathPoint[]): {
+  minX: number;
+  minZ: number;
+  maxX: number;
+  maxZ: number;
+} {
   return {
-    minX: Math.min(...pts.map((p) => p.x)) - pad,
-    minZ: Math.min(...pts.map((p) => p.z)) - pad,
-    maxX: Math.max(...pts.map((p) => p.x)) + pad,
-    maxZ: Math.max(...pts.map((p) => p.z)) + pad,
+    minX: Math.min(...axis.map((p) => p.x)) - GRID_PAD_M,
+    minZ: Math.min(...axis.map((p) => p.z)) - GRID_PAD_M,
+    maxX: Math.max(...axis.map((p) => p.x)) + GRID_PAD_M,
+    maxZ: Math.max(...axis.map((p) => p.z)) + GRID_PAD_M,
   };
 }
 
@@ -481,8 +482,10 @@ function chainMaxGrade(grid: WagonGrid, roads: readonly WagonPlanRoad[]): number
 }
 
 /**
- * Naplánuje vozovou cestu pro cestu hráče `roadId` (roads.md – Vozová cesta): trasa mezi konci
- * řetězu (`findWagonRoute`), profil (`wagonProfile`), zemní práce s převozem hlíny
+ * Naplánuje vozovou cestu pro cestu hráče `roadId` (roads.md – Vozová cesta po staré cestě): osa
+ * staré cesty (řetěz úseků od konce blíž vsi), průjezd (`wagonAxisBlocked`), profil po ní
+ * (`wagonProfile` bez vyhlazení – nejde-li ani s úvozem a náspem 3 m, cesta je pro vůz moc
+ * prudká), zemní práce s převozem hlíny
  * (`wagonEarthworks`), zpevnění kolejí, kácení (`wagonClearing`) a úseky stavby od vsi ven; k tomu
  * délka, nejprudší místo, největší úvoz a násep a doba jízdy vozem dřív a teď. Čistá funkce
  * vstupu – stejně na serveru i v prohlížeči. Kde to nejde, důvod česky.
@@ -491,34 +494,25 @@ export function planWagonRoad(input: WagonPlanInput): WagonRoadPlan {
   const state = wagonChainStatus(input.roads, input.earthworks, input.roadId);
   if (state.blocked) return { ok: false, reason: state.blocked };
   const chain = roadChain(input.roads, input.roadId);
-  let [from, to] = chainEnds(chain);
+  let axis = chainAxis(chain);
+  let from = axis[0]!;
+  let to = axis[axis.length - 1]!;
   if (
     input.home &&
     length2(to.x - input.home.x, to.z - input.home.z) <
       length2(from.x - input.home.x, from.z - input.home.z)
   ) {
+    axis = axis.reverse();
     [from, to] = [to, from];
   }
-  const grid = planGrid(input, searchBox(chain, from, to));
-  const trips = Math.max(
-    0,
-    ...chain.map((link) => link.road.cartTraffic?.[link.road.cartTraffic.length - 1] ?? 0),
-  );
-  const route = findWagonRoute(grid, from, to, trips);
-  if (!route) return { ok: false, reason: WAGON_NO_ROUTE };
-  // co nejpříměji – přímé úseky, kudy vůz projede a profil vyjde
-  const profile = wagonProfile(grid, straightenWagonRoute(grid, route.points));
-  if (!profile) return { ok: false, reason: WAGON_NO_ROUTE };
+  const grid = planGrid(input, axisBox(axis));
+  // vede po staré cestě (Martin 22. 10. 2026, #6) – vůz jí musí projet a profil vyjít
+  if (wagonAxisBlocked(grid, input.village, axis)) return { ok: false, reason: WAGON_BLOCKED };
+  const profile = wagonProfile(grid, axis, true);
+  if (!profile) return { ok: false, reason: WAGON_STEEP };
   const oldLengthM = chain.reduce((sum, link) => sum + profileLength(link.road.points), 0);
   const links = chain.map((link) => link.road);
   const oldMaxGrade = chainMaxGrade(grid, links);
-  if (
-    profile.lengthM > oldLengthM * DETOUR.factor &&
-    profile.lengthM - oldLengthM > DETOUR.extraM &&
-    oldMaxGrade <= WAGON_ROAD.maxGrade
-  ) {
-    return { ok: false, reason: wagonDetourReason(profile.lengthM, oldLengthM) };
-  }
   const earth = wagonEarthworks(grid, profile.profile, profile.fords);
   const bounds = pieceBounds(profile.lengthM);
   const clearing = wagonClearing(input, grid, profile.profile, profile.fords, bounds);

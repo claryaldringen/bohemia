@@ -3,7 +3,9 @@ import { obstacleStatus, type ObstacleChanges } from '../obstacles';
 import {
   CART_ROUTES,
   CART_SPEED,
+  CEMETERY_FENCE_INSET_M,
   OBSTACLE_COST,
+  PEN_FENCE_INSET_M,
   ROAD_SWATH,
   SACRED_BUILDINGS,
   TEAM_TRAVEL,
@@ -12,12 +14,19 @@ import {
 import { sacredSitesOf } from '../sacred';
 import type { RoadGrade, RoadGround, RoadLining, RoadProfilePoint } from '../types';
 import { isWoodTreeId } from '../woods';
-import { CART_HEADINGS, CART_HEADING_LENGTHS, CART_HEADING_VIA, cartRoadSpeed } from './cart';
+import {
+  CART_HEADINGS,
+  CART_HEADING_LENGTHS,
+  CART_HEADING_VIA,
+  cartRoadSpeed,
+  roadBandCells,
+} from './cart';
 import { editedHeight, terrainEditsFrom, type TerrainEdits } from './earthworks';
 import {
   PathHeap,
   buildingBounds,
   cellsIn,
+  fencedCells,
   inBuilding,
   penPathSquares,
   simplifyPathLine,
@@ -110,6 +119,11 @@ export interface WagonGrid extends GridWindow {
   blocked: Uint8Array;
   /** 1 = u posvátného stromu – nikdy tudy (ani u konce cesty). */
   sacred: Uint8Array;
+  /**
+   * `blocked` bez okrajů staveb (domy, pozemky… s půl vozovkou) – po staré cestě se stavby měří
+   * přesně v bodech osy (`wagonAxisBlocked`), ne po buňkách.
+   */
+  barred: Uint8Array;
   /** Nejvýš o kolik metrů se tu terén smí upravit (úvoz i násep) – u staveb a vody méně. */
   limit: Float32Array;
   /** Kácení průseku (čd na metr cesty buňkou) – stromy a podrost v lese. */
@@ -136,21 +150,16 @@ function cellAt(grid: GridWindow, x: number, z: number): number {
   return j * grid.width + i;
 }
 
-/** Buňky pod osami pevných cest (body osy po třetině buňky – jako vozová síť). */
+/**
+ * Buňky pod pevnými cestami – pás `roadBandCells` jako vozová síť (vůz pevnou cestu projede i šikmo
+ * lesem nebo polem).
+ */
 function roadCells(grid: GridWindow, roads: PathVillage['roads']): Uint8Array {
   const out = new Uint8Array(grid.width * grid.height);
-  const step = grid.cellM / 3;
   for (const road of roads ?? []) {
-    const pts = road.points;
-    for (let k = 1; k < pts.length; k++) {
-      const a = pts[k - 1]!;
-      const b = pts[k]!;
-      const n = Math.max(1, Math.ceil(length2(b.x - a.x, b.z - a.z) / step));
-      for (let q = 0; q <= n; q++) {
-        const c = cellAt(grid, a.x + ((b.x - a.x) * q) / n, a.z + ((b.z - a.z) * q) / n);
-        if (c >= 0) out[c] = 1;
-      }
-    }
+    roadBandCells(grid, road.points, (c) => {
+      out[c] = 1;
+    });
   }
   return out;
 }
@@ -197,7 +206,8 @@ function seedDistance(grid: GridWindow, seed: Uint8Array, cap: number): Float32A
 /**
  * Mřížka pro trasu vozové cesty (roads.md – Vozová cesta): zakázané jako u vozové sítě – voda
  * jen brodem, sráz, balvany a výchozy, osetý díl (a křoviny, mladý les – kromě dílů pod pevnou
- * cestou), sad, hřbitov, ohrada (i jejich okraj), okrsek svatyně, domy, pozemky, staveniště,
+ * cestou), sad (i okraj), hřbitov a ohrada uvnitř plotu (ulička 3 m mezi nimi průjezdná – jako
+ * `cart.ts`), okrsek svatyně, domy, pozemky, staveniště,
  * milíř a modla s půl vozovkou, posvátné duby a háje (i s pláni kolem – průsek by je vykácel)
  * a samotné stromy a keře mimo les (cesta je objede). Les ano – stromy a podrost se vykácí jako
  * průsek (`clearing` – čd na metr podle tabulky překážek). Kolik se smí terén upravit: úvoz
@@ -217,6 +227,7 @@ export function wagonRoadGrid(input: WagonGridInput): WagonGrid {
     flags: t.flags,
     blocked: new Uint8Array(all),
     sacred: new Uint8Array(all),
+    barred: new Uint8Array(all),
     limit: new Float32Array(all),
     clearing: new Float32Array(all),
     gx: new Float32Array(all),
@@ -239,19 +250,23 @@ export function wagonRoadGrid(input: WagonGridInput): WagonGrid {
       for (const c of squareCells(grid, [part]).inside) if (!onRoad[c]) blocked[c] = 1;
     }
   }
-  // sad, hřbitov, ohrada – i jejich okraj (plot, stromy); okrsek svatyně
-  const fenced = [
-    ...(v.orchards ?? []).map((o) => o.squares),
-    ...(v.cemeteries ?? []).map((c) => c.squares),
-    ...(v.pens ?? []).map((p) => penPathSquares(p)),
-  ];
-  for (const squares of fenced) {
-    if (squares.length === 0) continue;
-    const { inside, edge } = squareCells(grid, squares);
-    for (const c of [...inside, ...edge]) {
-      blocked[c] = 1;
-      seed[c] = 1;
-    }
+  // sad – i jeho okraj (stromy v řadách); hřbitov a ohrada jako vozová síť jen uvnitř plotu 1,5 m
+  // od okraje čtverců – uličkou 3 m mezi dvěma sousedními vede i vozová cesta (roads.md – Vozová
+  // cesta po staré cestě; Martin 23. 10. 2026 – oxen.md, Plot ohrady podle délky); okrsek svatyně
+  const block = (c: number): void => {
+    blocked[c] = 1;
+    seed[c] = 1;
+  };
+  for (const o of v.orchards ?? []) {
+    if (o.squares.length === 0) continue;
+    const { inside, edge } = squareCells(grid, o.squares);
+    for (const c of [...inside, ...edge]) block(c);
+  }
+  for (const cemetery of v.cemeteries ?? []) {
+    for (const c of fencedCells(grid, cemetery.squares, CEMETERY_FENCE_INSET_M)) block(c);
+  }
+  for (const pen of v.pens ?? []) {
+    for (const c of fencedCells(grid, penPathSquares(pen), PEN_FENCE_INSET_M)) block(c);
   }
   for (const b of v.sacred?.buildings ?? []) {
     if (b.kind !== 'shrine') continue;
@@ -268,12 +283,13 @@ export function wagonRoadGrid(input: WagonGridInput): WagonGrid {
       },
     );
   }
-  // domy, pozemky, staveniště, milíř a modla – s půl vozovkou
+  // domy, pozemky, staveniště, milíř a modla – s půl vozovkou (do `blocked` až po překážkách)
   const margin = HOUSE_MARGIN_M + WAGON_ROAD.bedHalfM;
+  const houses = new Uint8Array(all);
   for (const b of villageBuildings(v).all) {
     const [x0, z0, x1, z1] = buildingBounds(b, margin);
     cellsIn(grid, x0, z0, x1, z1, (c, x, z) => {
-      if (inBuilding(b, x, z, margin)) blocked[c] = 1;
+      if (inBuilding(b, x, z, margin)) houses[c] = 1;
       if (inBuilding(b, x, z, 0)) seed[c] = 1;
     });
   }
@@ -284,9 +300,12 @@ export function wagonRoadGrid(input: WagonGridInput): WagonGrid {
   const maxZ = t.originZ + (t.height - 1) * t.cellM;
   const cutSum = new Float32Array(all);
   const bedSum = new Float32Array(all);
+  // samotný strom, keř či kmen na pevné cestě ji nezavře (vůz po ní jede – stavba ho vykácí),
+  // posvátný strom ano
   const markBlocked = (x: number, z: number, radius: number, sacred = false): void => {
     const reach = Math.max(radius, t.cellM / 2);
     cellsIn(grid, x - reach, z - reach, x + reach, z + reach, (c, cx, cz) => {
+      if (!sacred && onRoad[c]) return;
       if (radius <= t.cellM / 2 || length2(cx - x, cz - z) <= radius) {
         blocked[c] = 1;
         if (sacred) grid.sacred[c] = 1;
@@ -332,6 +351,8 @@ export function wagonRoadGrid(input: WagonGridInput): WagonGrid {
     if (isWoodTreeId(o.id)) take(o.kind, o.x, o.z, true, 0);
     else markBlocked(o.x, o.z, 0);
   }
+  grid.barred.set(blocked);
+  for (let c = 0; c < all; c++) if (houses[c]) blocked[c] = 1;
   const area = t.cellM * t.cellM;
   for (let c = 0; c < all; c++) {
     grid.clearing[c] =
@@ -947,14 +968,47 @@ function profileHeights(
   return { heights: out, cost: last.cost[0]! };
 }
 
+/** Osa jak je – bez vyhlazení (vozová cesta po staré cestě – její osa už je hladká). */
+const AS_IS: readonly { simplifyM: number; passes: number }[] = [{ simplifyM: 0, passes: 0 }];
+
+/**
+ * Neprojede vůz osou `points` (stará cesta – roads.md, Vozová cesta po staré cestě)? Body osy po
+ * WAGON_ROAD.profileStepM mimo okolí konců (konec cesty bývá u vchodu stavby): zakázaná buňka
+ * (plot, voda mimo brod, sráz, balvan – `barred`) nebo bod u stavby blíž než vozová síť pustí vůz
+ * (půl šířky vozu – stará cesta tam vede a vůz po ní jezdí). Strom či keř na pevné cestě ji
+ * nezavře (`wagonRoadGrid`), posvátný strom hlídá přesně kácení (`wagonClearing`).
+ */
+export function wagonAxisBlocked(
+  grid: WagonGrid,
+  village: PathVillage,
+  points: readonly PathPoint[],
+): boolean {
+  if (points.length < 2) return true;
+  const ends = [points[0]!, points[points.length - 1]!];
+  const buildings = villageBuildings(village).all;
+  const margin = HOUSE_MARGIN_M + CART_ROUTES.widthM / 2;
+  for (const p of profileAxis(points, AS_IS[0]!)) {
+    if (ends.some((e) => length2(e.x - p.x, e.z - p.z) <= END_REACH_FAR_M)) continue;
+    const c = cellAt(grid, p.x, p.z);
+    if (c < 0 || (grid.barred[c] === 1 && grid.sacred[c] !== 1)) return true;
+    if (buildings.some((b) => inBuilding(b, p.x, p.z, margin))) return true;
+  }
+  return false;
+}
+
 /**
  * Profil vozové cesty na trase `points` (konce cesty a středy buněk): osa vyhlazená (kde to nejde
  * se sklonem, jak ji našlo hledání), body po WAGON_ROAD.profileStepM, navržené výšky
- * (`profileHeights`). Bez profilu null.
+ * (`profileHeights`). `asIs` – osa staré cesty bez vyhlazení (vozová cesta vede po ní, průjezd
+ * hlídá `wagonAxisBlocked`). Bez profilu null.
  */
-export function wagonProfile(grid: WagonGrid, points: readonly PathPoint[]): WagonProfile | null {
+export function wagonProfile(
+  grid: WagonGrid,
+  points: readonly PathPoint[],
+  asIs = false,
+): WagonProfile | null {
   let best: { profile: WagonProfile; cost: number } | null = null;
-  for (const smooth of SMOOTHING) {
+  for (const smooth of asIs ? AS_IS : SMOOTHING) {
     const axis = profileAxis(points, smooth);
     if (axis.length < 2) return null;
     const at = axis.map((p) => axisPoint(grid, p.x, p.z));

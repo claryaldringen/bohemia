@@ -389,25 +389,30 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   cesta spojí dva body, které spojuje stará cesta pro pěší, ale co nejvíc přímo tak, aby vůz
   projel“; čísla `WAGON_ROAD` v `rules*.ts`, rešerše `research/2026-10-20-earthworks.md`): stupeň
   `wagon` (`RoadGrade`, `RoadKind`, vůz `CART_SPEED.road.wagon` 2,2, pěšky 1,7, v mokřině jako hať,
-  brod zůstává; pás `ROAD_LAND.widthM.wagon` 3,5 m). **Trasa** `paths/wagon-route.ts`
-  (deterministická vrstva): `wagonRoadGrid` (zákazy jako vozová síť, mez úprav terénu `limit`
-  u staveb a vody), `findWagonRoute` – A\* po terénu pěšin × 16 směrů (`CART_HEADINGS`), zatáčení
-  `WAGON_ROAD.turnSteps`, štítky s rozsahem výšky pláně (sklon hledání 5,5 %), **co nejpříměji**
-  (Martin 20. 10. 2026: „Co nejpříměji“ – metr délky `WAGON_ROAD.directPerM` 25 čd, víc než metr
-  nejhlubšího úvozu; mezi stejně dlouhými stavba + čas vozu za `trafficYears`),
-  `straightenWagonRoute` (přímé úseky, kudy vůz projede a profil vyjde – rozsahy výšek odpředu
-  i odzadu, rohy do 45°, posvátný strom `WagonGrid.sacred` ani u konce); `wagonProfile` (víc stupňů vyhlazení osy,
+  brod zůstává; pás `ROAD_LAND.widthM.wagon` 3,5 m). **Trasa po staré ose** (Úloha 11a; Martin 22. 10. 2026, #6: „vznikne ze staré pěší cesty a vede po ní“): osa = řetěz úseků cesty hráče
+  (`chainAxis` v `wagon-road.ts`, od konce blíž vsi), bez vyhledávání a bez vyhlazení. Mřížka
+  `paths/wagon-route.ts` (deterministická vrstva): `wagonRoadGrid` – zákazy jako vozová síť, ohrada
+  a hřbitov jen uvnitř plotu (`fencedCells`, ulička 3 m průjezdná – natočená ohrada jen buňky celé
+  uvnitř), pevná cesta pásem `roadBandCells` z `cart.ts` (díl pole ani samotný strom či keř na ní
+  ji nezavřou), `barred` = zákazy bez okrajů staveb, mez úprav terénu `limit` u staveb a vody;
+  `wagonAxisBlocked` – body osy po 2 m mimo 9 m u konců: `barred` (plot, voda mimo brod, sráz,
+  balvan) nebo stavba blíž než půl šířky vozu (`inBuilding` přesně v bodě, ne po buňkách) →
+  `WAGON_BLOCKED`; posvátný strom přesně kácením (`wagonClearing` → `WAGON_SACRED`);
+  `wagonProfile(grid, osa, asIs = true)` – profil po ose jak je, nevyjde-li sklon 6 % ani s úvozem
+  a náspem 3 m → `WAGON_STEEP` „Cesta je pro vůz moc prudká.“ `findWagonRoute`
+  a `straightenWagonRoute` (A\* a narovnání z 20. 10.) se teď nevolají – Úloha 11b je smaže nebo
+  použije. Ostatní: `wagonProfile` (víc stupňů vyhlazení osy pro hledanou trasu,
   `profileHeights` – DP po cm, sklon ≤ 6 %, úvoz a násep ≤ 3 m), `wagonEarthworks` (objemy na
   rastru 1 m, `balanceEarth` – hlína z úvozu do náspu), `roadsCartMinutes` / `profileCartMinutes`.
   **Plán** `wagon-road.ts`: `planWagonRoad(WagonPlanInput)` – stejně na serveru
   (`wagonPlanInputOf`) i v prohlížeči (`LandscapeScene.previewWagonRoad`), krajina s přesností
-  prohlížeče (`browserLandscape` – bit po bitu stejně), důvody česky (`WAGON_*`, oklika
-  `wagonDetourReason`), kácení `wagonClearing` (průsek, pláň a zemní práce); `wagonChainStatus`
+  prohlížeče (`browserLandscape` – bit po bitu stejně), důvody česky (`WAGON_*`), kácení `wagonClearing` (průsek, pláň a zemní práce); `wagonChainStatus`
   (zemní práce k cestě – `chainEarthwork`, oba konce profilu v uzlech řetězu). **Stavba**
   `startWagonRoad` → `VillageRoads.earthworks` (`RoadEarthwork` – profil, úseky ≈ 60 m od vsi ven
   `pieces`, `constructionId`) a stavba `road` s `Construction.earthwork`; krok `wagonRoadsDay`
   (po `trailsDay`) dá dostavěné úseky hned jako pevnou cestu (`addWagonRoad` v `paths/roads-trails.ts`),
-  `finishWagonRoad`; stará cesta po ose vozové zmizí hned (`absorbParallelRoads`); vozová cesta
+  `finishWagonRoad`; stará cesta pod hotovým úsekem (táž osa) zmizí hned (`absorbParallelRoads`)
+  – souběžná nevznikne; vozová cesta
   nezarůstá, souběhem se neřeže, konce se nenapojují samy. Práce
   `{ kind: 'wagon' }` (`wagonWorkTarget`). **Výšky jako herní data** (landscape.md – Úpravy
   terénu): `paths/earthworks.ts` – `terrainEditsOf` / `terrainEditsFrom` (mezipaměť),
@@ -421,7 +426,8 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   `applyTerrainEdits` v `landscape-scene.ts` před obnovou vsi, `terrainChanged` (pole po blocích –
   `#t` v klíči bloku, pěšiny, cesty), pás `roadBands` `wagon` + `gravel` (`WAGON_*_LAYER`), svahy
   `earthworkSlopeGrid` (`roads-slopes`, zarostou za `SLOPE_GRASS_YEARS`), vytyčení
-  `wagonStakingLines`. Ukázka `/dev/landscape` **Vozová cesta** (`dev-wagon-road.ts`).
+  `wagonStakingLines`. Ukázka `/dev/landscape` **Vozová cesta** (`dev-wagon-road.ts` – svahy, které vozová cesta po
+  staré ose srovná; hotové úseky nahradí starou cestu).
 
 - **Stromy u cesty zrychlí chůzi** ([roads.md](../design/roads.md); Martin 20. 10. 2026:
   „…přidat třeba 0.03? A pokud to budou jabloně, přidalo by se 0.05.“; čísla `ROAD_TREE_SPEED`):
