@@ -1204,7 +1204,7 @@ export function penHerd(
   species: PenSpecies,
   herds: Record<HerdSpecies, number>,
 ): { species: HerdSpecies; count: number } | null {
-  if (species === 'team') return null;
+  if (species === 'team' || species === 'horse') return null;
   const herd: HerdSpecies = species === 'cattle' ? 'cow' : species;
   return { species: herd, count: herds[herd] };
 }

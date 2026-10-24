@@ -445,6 +445,7 @@ export const PEN_NAMES: Record<PenSpecies, string> = {
   pig: 'Ohrada prasat',
   cattle: 'Ohrada skotu',
   team: 'Ohrada volů',
+  horse: 'Ohrada koní',
 };
 
 /** Ikona a název zvířat ohrady podle druhu (ikony `public/icons/resources/`). */

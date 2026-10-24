@@ -21,12 +21,19 @@ import type {
 // a pasáků (`winterTargets` – vstup `room`). Nezávisí na stádech ani spřežení (bez cyklů importu).
 
 /** Druhy ohrad v pořadí, jak je přepíná Tab při umisťování (oxen.md – Výběr druhu). */
-export const PEN_SPECIES: readonly PenSpecies[] = ['sheep', 'goat', 'pig', 'cattle', 'team'];
+export const PEN_SPECIES: readonly PenSpecies[] = [
+  'sheep',
+  'goat',
+  'pig',
+  'cattle',
+  'team',
+  'horse',
+];
 
 /** Druh stáda, které ohrada drží (skot = krávy a telata); spřežení stádo nedrží (null). */
 export function penHerdSpecies(species: PenSpecies): HerdSpecies | null {
   if (species === 'cattle') return 'cow';
-  if (species === 'team') return null;
+  if (species === 'team' || species === 'horse') return null;
   return species;
 }
 
@@ -75,7 +82,10 @@ export function isPenBuilding(pen: Pick<Pen, 'builtDay' | 'extraSquares'>): bool
 export function penPlaces(pen: Pen): number {
   const species = penSpecies(pen);
   const herd = penHerdSpecies(species);
-  return builtPenSquares(pen).length * PEN_PLACES_PER_SQUARE[herd ?? 'team'];
+  return (
+    builtPenSquares(pen).length *
+    PEN_PLACES_PER_SQUARE[herd ?? (species === 'horse' ? 'horse' : 'team')]
+  );
 }
 
 const DAYS_PER_YEAR = 365.25;
@@ -183,6 +193,10 @@ export function penOccupancy(state: Pick<VillageState, 'pens' | 'livestock'>): M
     const species = penSpecies(pen);
     if (species === 'team') {
       out.set(pen.id, oxenOf(pen).length);
+      continue;
+    }
+    if (species === 'horse') {
+      out.set(pen.id, (pen.horses ?? []).length);
       continue;
     }
     const herd = penHerdSpecies(species)!;

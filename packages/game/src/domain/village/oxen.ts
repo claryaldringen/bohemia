@@ -49,6 +49,18 @@ import { planCrops, ploughToHoe } from './year-plan';
  * každý čtverec a plot jen strany, které nesousedí s ohradou ani s dalším novým čtvercem.
  */
 export const PEN = { laborManDays: 40, trees: 6 } as const;
+/**
+ * horses.md – Ohrada koní (návrh Clauda): čtverec 50 člověkodní a 8 stromů (vyšší, pevnější plot);
+ * plot podle délky beze změny (`PEN_FENCE`). Ostatní ohrady `PEN`.
+ */
+export const PEN_BY_SPECIES = {
+  default: PEN,
+  horse: { laborManDays: 50, trees: 8 },
+} as const;
+
+function penCost(species?: PenSpecies): { readonly laborManDays: number; readonly trees: number } {
+  return species === 'horse' ? PEN_BY_SPECIES.horse : PEN_BY_SPECIES.default;
+}
 /** oxen.md – Spřežení: rádlo z 1 stromu za 5 člověkodní. */
 export const ARD = { laborManDays: 5, trees: 1 } as const;
 
@@ -696,8 +708,9 @@ export interface PenInput {
 }
 
 /** Práce na čtverci ohrady bez dřeva – cena čtverce minus kácení jeho stromů u blízkého lesa. */
-export function penBuildLabor(): number {
-  return PEN.laborManDays - PEN.trees * FELLING_MAN_DAYS_PER_TREE;
+export function penBuildLabor(species?: PenSpecies): number {
+  const cost = penCost(species);
+  return cost.laborManDays - cost.trees * FELLING_MAN_DAYS_PER_TREE;
 }
 
 /**
@@ -709,17 +722,21 @@ export function penLaborManDays(
   wood: Pick<WoodPlan, 'fell'>,
   squares = 1,
   fenceSides = squares * SQUARE_SIDES,
+  species?: PenSpecies,
 ): number {
   return (
-    penBuildLabor() * fencedSquareEquivalents(squares, fenceSides, PEN_FENCE.share) +
+    penBuildLabor(species) * fencedSquareEquivalents(squares, fenceSides, PEN_FENCE.share) +
     obstacleCost +
     wood.fell.reduce((sum, t) => sum + t.cost, 0)
   );
 }
 
 /** Stromy na ohradu: zbytek za každý čtverec a strom na každou novou stranu plotu. */
-export function penTrees(squares: number, fenceSides: number): number {
-  return (PEN.trees - PEN_FENCE.trees) * squares + (PEN_FENCE.trees * fenceSides) / SQUARE_SIDES;
+export function penTrees(squares: number, fenceSides: number, species?: PenSpecies): number {
+  return (
+    (penCost(species).trees - PEN_FENCE.trees) * squares +
+    (PEN_FENCE.trees * fenceSides) / SQUARE_SIDES
+  );
 }
 
 /** Políčka ohrady (hotová i rozestavěné), na které nové čtverce navazují. */
@@ -747,6 +764,7 @@ export function planPenWood(
   obstacles: ObstacleLayer | null,
   walk?: Walk,
   extendId?: number,
+  species?: PenSpecies,
 ): WoodPlan {
   const target =
     extendId === undefined ? undefined : villagePens(state).find((p) => p.id === extendId);
@@ -756,7 +774,7 @@ export function planPenWood(
   );
   return penWood(
     state,
-    penTrees(squares.length, sides),
+    penTrees(squares.length, sides, target ? penSpecies(target) : species),
     squaresCenter(squares),
     day,
     obstacles,
@@ -783,7 +801,7 @@ export function startPen(
   walk?: Walk,
   extendId?: number,
 ): VillageState {
-  const plan = planPenWood(state, input.squares, day, obstacles, walk, extendId);
+  const plan = planPenWood(state, input.squares, day, obstacles, walk, extendId, input.species);
   if (plan.missing > 0) throw new RangeError('Na ohradu chybí dřevo – klády ani stromy nestačí.');
   const next = structuredClone(state);
   recordClearedObstacles(
@@ -834,6 +852,7 @@ export function startPen(
       plan,
       input.squares.length,
       fenceSides,
+      target ? penSpecies(target) : input.species,
     ),
     done: 0,
     dwellingType: null,

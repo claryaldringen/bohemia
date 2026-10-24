@@ -270,7 +270,7 @@ describe('vstup server actions s natočením', () => {
       species: 'sheep',
       grid,
     });
-    expect(parsePlacePenInput({ cells: [{ x: 0, y: 0 }], species: 'horse' })).toBeNull();
+    expect(parsePlacePenInput({ cells: [{ x: 0, y: 0 }], species: 'dragon' })).toBeNull();
     expect(parsePlacePenInput({ cells: [], grid })).toBeNull();
     expect(parsePlaceFieldInput({ cells: [{ x: 1, y: 1 }] })).toEqual({ cells: [{ x: 1, y: 1 }] });
   });

@@ -198,3 +198,5 @@ export const PEN_FENCE_INSET_M = CEMETERY_FENCE_INSET_M;
 // oxen.md – Plot podle délky (návrh Clauda): polovina práce ohrady (`PEN.laborManDays`) a 4 stromy ze
 // 6 (`PEN.trees`) jsou plot, tedy strana čtverce stojí osminu práce a strom.
 export const PEN_FENCE = { share: 0.5, trees: 4 } as const;
+/** horses.md – Ohrada koní (návrh Clauda): plot koní je vyšší (jen pro scénu). */
+export const PEN_FENCE_HEIGHT_M = { default: 1.1, horse: 1.4 } as const;

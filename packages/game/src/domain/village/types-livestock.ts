@@ -99,7 +99,20 @@ export interface HaySquare {
  * vlastní ohradu, ať se nemíchají.“): ovce, kozy, prasata, skot (krávy a telata) a spřežení volů
  * (výcvik a voli – s kravami se nemíchají).
  */
-export type PenSpecies = 'sheep' | 'goat' | 'pig' | 'cattle' | 'team';
+export type PenSpecies = 'sheep' | 'goat' | 'pig' | 'cattle' | 'team' | 'horse';
+
+/**
+ * Kůň ohrady koní (horses.md – Koně po kusech): kus s vlastním dnem narození, pohlavím
+ * a výcvikem. Hříbě do roku nemá vlastní místo. `riderId` – jezdec, který na koni jezdí (úloha 6).
+ */
+export interface Horse {
+  id: number;
+  bornDay: number;
+  sex: 'male' | 'female';
+  /** Výcvik pod sedlem (0 = nevycvičený). */
+  training: number;
+  riderId?: number;
+}
 
 /**
  * Další čtverec ohrady za prvním (oxen.md – Ohrady podle druhu): ohrada se maluje po čtvercích
@@ -139,6 +152,8 @@ export interface Pen {
    * (`withPenSpecies` – se spřežením nebo výcvikem `team`, jinak `cattle`).
    */
   species?: PenSpecies;
+  /** Koně ohrady koní (horses.md); u jiných ohrad chybí. */
+  horses?: Horse[];
   /** První čtverec ohrady (přístřešek a jesle) v její mřížce (`grid`); bez ní políčko krajiny. */
   cell: TileCell;
   /** Další čtverce ohrady (rozšíření i čtverce namalované najednou); bez údaje jen první. */
