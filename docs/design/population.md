@@ -84,6 +84,9 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
   Clauda, aby první nová domácnost mohla vzniknout do pár let; zůstávají i s porody od 16 let –
   Martin). Jsou to **dva páry** ([kinship.md](kinship.md)): manželé 25 let a chlapec 13 a dívka
   12 let, kteří nejsou příbuzní (rodiče neznámí) a vezmou se, až dorostou. Ves dostane navržené staročeské jméno, které hráč může kdykoli změnit.
+  **Návrh issue #9 fáze 1** (Martin, 24. 10. 2026 – zatím neimplementováno): ves založí **vojvoda
+  se 4 manželkami a 4 konkubínami** (9 lidí bez dětí); konkubíny bydlí v dvorci, dokud hráč
+  nepostaví obydlí – [vojvodova rodina](lord.md), Rod vojvody – Zakladatelé.
 - **První zemnici si osadníci postaví sami** (Martin, 17. 10. 2026: „první zemnice byla
   postavena hrozně rychle – nebyl vidět průběh stavby“): je to stavba jako každá jiná – roste
   ze společné práce vsi a hráč vidí její fáze. Startovní domácnosti zbývá ≈ 1,2 člověkodne
@@ -456,6 +459,9 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
   vsi, roky jejího života a jediné tlačítko **Začít znovu**. To staré sídlo i s vymřelou vsí
   odloží do archivu a hráč dostane **nové sídelní sídlo s novou krajinou** – zakládá ves od
   první zemnice jako nový hráč (návrh Clauda; vazalství a rod se vyřeší s jejich mechanikami).
+  **Návrh issue #9 fáze 1** (Martin, 24. 10. 2026): hra končí i tehdy, když **vymře rod vojvody po
+  meči** (zemře poslední muž rodu, i dítě) – obrazovka „Rod vymřel“, vsi se přestanou dopočítávat
+  a zaniknou jako opuštěné, Začít znovu beze změny ([vojvodova rodina](lord.md) – Konec rodu).
 - **Začít znovu z nabídky** (Martin, 18. 10. 2026: „Měl bych mít k dispozici menu, ve kterém
   bych mohl restartovat hru.“): nabídka hry jako v 0 A.D. (tlačítko vpravo v horní liště, F10)
   má **Začít znovu**, **Odhlásit** a **Zpět do hry**. Začít znovu jde i se živou vsí – po

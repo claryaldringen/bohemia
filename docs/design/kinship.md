@@ -34,8 +34,11 @@ dědictví, sňatky a nástupnictví potřebují vědět, kdo je čí. Postavy v
   seedu vsi a dne (návrh Clauda).
 - **Rodit může jen žena 16–44 let, která má manžela** (porody dnes po „párech“ – teď po
   manželských párech; četnost porodů beze změny). Muž je plodný od 16 let bez horní meze
-  (návrh Clauda).
-- Zakladatelé vsi: dva páry – muž a žena v každém (návrh Clauda; dnes 4 lidé).
+  (návrh Clauda). Návrh issue #9: rodí i **konkubína žijícího muže rodu**, její dítě není
+  legitimní (Martin, 24. 10. 2026 – [vojvodova rodina](lord.md), Manželky a konkubíny).
+- Zakladatelé vsi: dva páry – muž a žena v každém (návrh Clauda; dnes 4 lidé). **Návrh issue #9
+  fáze 1** (Martin, 24. 10. 2026): vojvoda se 4 manželkami a 4 konkubínami – [vojvodova
+  rodina](lord.md) – Rod vojvody, Zakladatelé.
 - **Starší vsi** (lidé bez pohlaví): pohlaví se jednou doplní deterministicky (střídavě podle
   věku tak, aby dvojice v domě byly muž a žena, kde to jde); rodiče neznámí = nepříbuzní;
   manželé se doplní z dnešních párů v domě (nejstarší muž s nejstarší ženou…) – návrh Clauda.
@@ -69,6 +72,9 @@ dědictví, sňatky a nástupnictví potřebují vědět, kdo je čí. Postavy v
   s ≈ 20 % ročně **vdá pryč** (dřív jen pryč, 30 % ročně). Ves tak lidi z okolí bere i dává
   (návrh Clauda). Až budou okolní vsi (NPC vojvodové, další hráči – [válka](war.md),
   [stěhování](migration.md)), sňatky půjdou přes ně.
+- **Muži rodu vojvody** (návrh issue #9, Martin 24. 10. 2026) smějí mít až 4 manželky
+  a 4 konkubíny; první manželka podle pravidel výš, další manželky a konkubíny jen z okolí –
+  [vojvodova rodina](lord.md), Manželky a konkubíny. Ostatní muži mají jednu manželku.
 - **Vdovy a vdovci** se znovu žení a vdávají co nejdřív – žádná čekací doba; dítě s novým mužem
   nejdřív za 9 měsíců (population.md – rozestup porodů).
 

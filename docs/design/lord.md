@@ -37,9 +37,9 @@ pocítí, že vojvodův dvůr něco stojí – a že rod, který nemá komu vele
 ## Kdo je vojvodova rodina (návrh Clauda)
 
 - **Domácnost vojvody** – lidé dvorce ([obchod](trade.md) – Dvorec vojvody; na začátku první
-  zemnice zakladatelů). **Vojvoda** je hlava dvorce jako dnes – nejstarší muž od 14 let i ve stáří
-  ([postavy](villagers.md) – Role). Dvorec bez muže od 14 let vojvodu nemá – nikdo necvičí
-  (návrh Clauda).
+  zemnice zakladatelů). **Vojvoda** je hlava dvorce – dosud nejstarší muž od 14 let i ve stáří
+  ([postavy](villagers.md) – Role), od issue #9 nejbližší muž rodu, i chlapec (Rod vojvody –
+  Nástupnictví). Dvorec bez vojvody nikdo necvičí (návrh Clauda).
 - **Cvičí:** vojvoda a jeho **potomci po meči** v dvorci – synové a vnuci (synové dědice; od fáze 1
   issue #9 dvorec dědice nemá – vnuci jen u ženatého syna, který čeká na dům, viz Rod vojvody).
 - **Jen domácnost:** vojvodova žena, dcery, **snachy** (ženy synů v dvorci) a vnučky.
@@ -48,15 +48,16 @@ pocítí, že vojvodův dvůr něco stojí – a že rod, který nemá komu vele
 - **Kdo dvorec opustí** (ženatý syn do vlastního domu – od fáze 1 issue #9 každý, dcera k muži), přestane být rodinou
   a pracuje; naučené mu zůstane (Výcvik níž). Kdo se do dvorce přivdá, patří k rodině. Dvorec má
   nejvýš 10 míst, takže rodina je shora omezená.
-- **Nástupnictví** beze změny: po smrti vojvody je vojvodou nejstarší muž dvorce, výcvik běží dál.
-  Vojvodou se tak může stát i zeť – viz Otevřené otázky. Od fáze 1 issue #9 se nejdřív vrací
-  nejstarší syn (Rod vojvody – Přechodné nástupnictví).
+- **Nástupnictví:** po smrti vojvody je vojvodou nejbližší muž rodu – vrací se nejstarší syn
+  (Martin, 24. 10. 2026 – Rod vojvody, Nástupnictví). Zeť ani jiný muž mimo rod vojvodou není:
+  bez muže rodu po meči hra končí (Rod vojvody – Konec rodu).
+- **Konkubíny** a jejich děti k rodině nepatří – bydlí ve vlastních obydlích a pracují jako
+  ostatní (Martin, 24. 10. 2026 – Rod vojvody, Manželky a konkubíny).
 
 ### Zakládání vsi (Martin 24. 10. 2026)
 
-Nová ves má jednu domácnost zakladatelů (dva páry, chlapec a dívka v první zemnici, která je
-dvorcem). Kdyby vojvoda cvičil a jeho žena vedla jen domácnost, neměl by kdo stavět obydlí.
-Martin: „Až má ves ≥ 4 dospělé mimo rodinu“ (volba z nabídky).
+Kdyby vojvoda cvičil a jeho ženy vedly jen domácnost, neměl by kdo stavět obydlí. Martin: „Až
+má ves ≥ 4 dospělé mimo rodinu“ (volba z nabídky).
 
 - **Rodina cvičí místo práce, až má ves aspoň 4 dospělé (od 14 let) mimo vojvodovu rodinu**
   (cvičící muži a ženy domácnosti se nepočítají). Do té doby pracuje jako ostatní.
@@ -64,6 +65,11 @@ Martin: „Až má ves ≥ 4 dospělé mimo rodinu“ (volba z nabídky).
   ať rodina nekmitá mezi polem a dvorkem. Režim se pamatuje (volitelná část stavu).
 - Čistá funkce stavu a dne (`familyTrains`); čísla `LORD.minVillageAdults` a
   `LORD.keepVillageAdults`.
+- **Se zakladateli z issue #9** (vojvoda, 4 manželky, 4 konkubíny – Rod vojvody, Zakladatelé) jsou
+  konkubíny mimo rodinu, takže ves má 4 dospělé mimo rodinu od prvního dne a **rodina cvičí hned**
+  (návrh Clauda – pravidlo beze změny). Pracují 4 konkubíny – víc práce než dřív (2 dospělí
+  zakladatelé), vojvoda pomáhá jen s chybějícím osevem (Kdy jde rodina na pole). V hájení dospělí
+  neumírají, takže hystereze do 30 let nezasáhne.
 
 ## Den rodiny (návrh Clauda)
 
@@ -241,24 +247,91 @@ npx tsx packages/game/scripts/measure-village.ts --report-only --out lord-horses
 
 Dlouhý běh jen v noci (Martin), přes den pozastavit (`kill -STOP` / `-CONT`).
 
-## Rod vojvody – jména a domácnost synů (#9, fáze 1)
+## Rod vojvody – zakladatelé, jména, domácnost synů a konec rodu (#9, fáze 1)
 
 Stav: **návrh ke schválení** (24. 10. 2026, issue #9 „Vojvodská rodina“). Implementace zatím není.
 Martin 24. 10. 2026 schválil rozdělení issue do fází: **1)** jména, synové po sňatku odcházejí
 z dvorce, vojvoda cvičí celý život → **2)** dělení vsi a odchod mladšího syna → **3)** správa vsi
 NPC → **4)** seniorát a rodové panství. K nástupnictví a náhodě „bez pozvánky“ Martin: „S tímhle
-počkáme, dokud nebude fungovat NPC mechanika.“ Co níž není výslovně Martinovo, je návrh Clauda.
+počkáme, dokud nebude fungovat NPC mechanika.“ Fázi 1 týž den doplnil: „**Vesnici zakládá
+vojvoda a jeho rodina. Na úplném začátku bude vojvoda, který má 4 manželky a další 4 konkubíny.
+Potomci s manželkami jsou legitimními potomky vojvody, potomci s konkubínami jsou normální
+obyvatelé vesnice. Pokud rod po meči zcela vymře, hra končí.**“ Co níž není výslovně Martinovo, je
+návrh Clauda.
 
 ### Kdo patří k rodu
 
-- **Rod** = vojvoda, kterého hráč pojmenoval při založení hry, a jeho **legitimní mužští potomci**
-  (Martin, 24. 10. 2026). Výklad návrh Clauda: **po meči** – synové, synové synů a dál, ne synové
-  dcer – stejně jako u výcviku (Kdo je vojvodova rodina). Legitimní jsou ve hře všichni, děti se
-  rodí jen v manželství.
-- U člověka se uloží **příznak rodu** (volitelná část stavu), nastaví se při narození podle otce.
-  Rod tak nezávisí na tom, jak dlouho rodokmen drží zemřelé předky ([příbuzenství](kinship.md) –
-  Rodokmen).
-- Ženy rodu ani ostatní lidé vsi jméno nemají ([postavy](villagers.md) – jména se nezobrazují).
+- **Rod** = vojvoda, kterého hráč pojmenoval při založení hry, a jeho **legitimní mužští potomci
+  po meči** (Martin, 24. 10. 2026) – synové, synové synů a dál, ne synové dcer, stejně jako
+  u výcviku (Kdo je vojvodova rodina). **Legitimní je dítě manželky** muže rodu, **dítě konkubíny**
+  je běžný obyvatel vsi (Martin).
+- U člověka se uloží **příznak rodu** (volitelná část stavu), nastaví se při narození synovi
+  manželky muže rodu. Rod tak nezávisí na tom, jak dlouho rodokmen drží zemřelé předky
+  ([příbuzenství](kinship.md) – Rodokmen).
+- Ženy rodu, děti konkubín ani ostatní lidé vsi jméno nemají ([postavy](villagers.md) – jména se
+  nezobrazují).
+
+### Zakladatelé (Martin 24. 10. 2026; věk a bydlení návrh Clauda)
+
+- **Kdo přijde:** vojvoda **25 let**, **4 manželky** 23, 21, 19 a 17 let a **4 konkubíny** 22, 20,
+  18 a 16 let – 9 lidí bez dětí, rodiče neznámí. Nahrazují dnešní dva páry (manželé 25 let,
+  chlapec 13 a dívka 12 let – [obyvatelstvo](population.md), Založení vsi). Proč: ženy
+  v nejplodnějším věku (porody od 16, nejvíc ve 20–24 – Růst populace) a rozložené, ať první porody
+  nepřijdou najednou; vojvoda jako dnešní zakladatel – hájení (30 let) ho ochrání do 55 let, rod
+  tak v hájení vymřít nemůže. První dítě nejdřív za 9 měsíců (rozestup po svatbě platí
+  i konkubínám).
+- **Bez nepříbuzného páru:** děti první generace mají všechny jednoho otce – jsou to nevlastní
+  sourozenci a ve vsi se nevezmou. Ženy a muže jim dá okolí: nevěsta z okolí ≈ 30 % ročně, k dceři
+  z domu konkubíny (dům bez mužů) se přižení ženich z okolí s ≈ 50 % ročně
+  ([příbuzenství](kinship.md) – Sňatky). Viz Otevřené otázky.
+- **Kde bydlí:** do dostavění první zemnice všichni na staveništi jako dnes. Pak se do zemnice –
+  dvorce – nastěhuje celá devítka; konkubíny v dvorci bydlí, **dokud hráč nepostaví obydlí**
+  (jinde nemají kde a staveniště, které nezvyšuje úmrtnost, by bylo únikem). Zemnice má 6 míst –
+  dvorec je **přeplněný o 3** (méně porodů, víc úmrtí dětí), dokud konkubíny neodejdou. V dvorci
+  konkubíny k rodině nepatří a pracují jako zeť v dvorci.
+- **Každá konkubína** (i s dětmi) je **rodina k osídlení** – upozornění „Rodina čeká na dům“ ukáže
+  od začátku 4. Hráč hned vidí, že má stavět; nové či prázdné obydlí obsadí podle přednosti
+  (Synové po sňatku): ženatý syn vojvody → konkubína z dvorce (nejdřív ta s nejvíc dětmi, pak
+  nejstarší) → ostatní jako dosud.
+- **Rodina cvičí od prvního dne** – 4 konkubíny jsou 4 dospělí mimo rodinu (Zakládání vsi výš).
+- **Ves z výpravy** ([stěhování](migration.md)) zakladatele nemění – odejdou, kdo odejdou.
+
+### Manželky a konkubíny (Martin 24. 10. 2026; podrobnosti návrh Clauda)
+
+- **Kdo:** víc manželek a konkubíny smí mít **každý muž rodu** (Martin – volba z nabídky), ostatní
+  muži vsi mají jednu manželku jako dosud.
+- **Kolik:** nejvýš **4 žijící manželky a 4 konkubíny** – jako zakladatel (`LORD.maxWives`,
+  `LORD.maxConcubines`).
+- **První manželka** jako dosud – sňatek ve vsi nebo nevěsta z okolí ([příbuzenství](kinship.md) –
+  Sňatky).
+- **Další manželky (2.–4.)** jen **z okolí** – žena 16–22 let, rodiče neznámí, s **≈ 30 % ročně** pro
+  muže rodu od 18 let s 1–3 žijícími manželkami (jako nevěsta z okolí). Proč z okolí: muži rodu
+  nesmějí brát ženy mužům vsi, ves by přišla o sňatky. Platí dnešní brzdy – v hladu a do
+  přeplněného domu z okolí nikdo nepřijde. Další manželka se stěhuje k muži (vojvodovi do dvorce,
+  synovi do jeho domu). Bere si ji, kdykoli má méně než 4 – i po smrti manželky.
+- **Konkubíny** jen **z okolí** – žena 16–22 let, rodiče neznámí, s ≈ 30 % ročně pro muže rodu od
+  18 let s aspoň jednou manželkou a méně než 4 konkubínami. Přijde **jen do prázdného obydlí, na
+  které nečeká žádná rodina k osídlení** – bydlí sama (Martin), nepřeplní dvorec a nebere dům
+  čekajícím. Hráč, který staví dopředu, tak rodu přidá ženy; v hladu nepřijde.
+- **Bydlení:** manželky v domácnosti muže, **konkubína ve vlastním obydlí se svými dětmi**
+  (Martin) – běžná domácnost vsi, kterou drží ona; dědí ji nejstarší ženatý syn jako jiný dům
+  ([příbuzenství](kinship.md) – Domácnosti).
+- **Práce:** **manželky vedou domácnost, konkubíny pracují** jako ostatní vesničanky (Martin).
+  Manželky v dvorci žijí jako dosud vojvodova žena – na pole jen při hrozícím hladu (Kdy jde rodina
+  na pole). Manželky syna, který dvorec opustil, pracují jako ženy rolníků – rodinou je jen
+  domácnost dvorce (Martin, 23. 10. 2026). Viz Otevřené otázky.
+- **Porody:** plodnost a rozestup **na ženu** jako dosud ([obyvatelstvo](population.md) – Růst
+  populace), počet žen muže je nemění – muž je plodný bez omezení. Rodit smí manželka
+  i **konkubína žijícího muže**; otcem je její muž, takže děti konkubín a manželek jsou nevlastní
+  sourozenci a nevezmou se.
+- **Legitimita:** syn manželky muže rodu dostane příznak rodu a jméno (Jména); **dítě konkubíny**
+  je bez příznaku i jména a žije s matkou (Martin).
+- **Po smrti muže:** manželky jsou vdovy a vdávají se hned ([příbuzenství](kinship.md)); konkubína
+  je svobodná jako vdova – smí se vdát, děti a dům zůstávají jí. Nový vojvoda konkubíny ani vdovy
+  po otci nepřebírá – za syna zemřelého se nevdávají.
+- **Rozhraní:** role „konkubína“ v panelu člověka, jméno jejího muže v popisku; manželky mají role
+  jako dosud (vojvodova žena, snacha). Kronika: „Bořivoj si vzal další ženu“, „Bořivoj si přivedl
+  konkubínu“.
 
 ### Jména
 
@@ -274,7 +347,8 @@ počkáme, dokud nebude fungovat NPC mechanika.“ Co níž není výslovně Mar
   server, prohlížeč totéž jen ukazuje dopředu (důvod u pole: „Jen písmena“, „Nejvýš 20 písmen“).
 - **Jméno se neskloňuje** – stejně jako jméno vsi ([postavy](villagers.md)); texty stavějí jméno
   do 1. pádu („Svatba – Bořivoj“).
-- **Jméno je trvalé** – po potvrzení nejde změnit (návrh Clauda, viz Otevřené otázky).
+- **Jméno je trvalé** – po potvrzení nejde změnit (návrh Clauda; Martin 24. 10. 2026 nechal bez
+  odpovědi): hráč se nepřepíše a kronika drží jedno jméno.
 
 ### Kde se jméno zadává (výjimka z „bez popisků“: textové pole)
 
@@ -330,11 +404,12 @@ počkáme, dokud nebude fungovat NPC mechanika.“ Co níž není výslovně Mar
 - **Bez volného obydlí** (Martin, 24. 10. 2026): „Cvičí, dokud neodejde.“ Ženatý syn s rodinou
   zůstává v dvorci a cvičí dál, jeho žena je snacha (jen domácnost), jeho synové jsou vnuci
   v dvorci a cvičí také. Upozornění „Rodina čeká na dům“ jako u ostatních domů (jméno v popisku).
-- **Přestěhování, když se obydlí uvolní** (návrh Clauda): ženatý syn vojvody je vždy rodinou
-  k osídlení a **má přednost** před rodinami z ostatních domů, nejdřív nejstarší – dokud bydlí
-  v dvorci, cvičí a ves za něj platí prací. Odejde se ženou a dětmi hned ten den, kdy je obydlí
-  prázdné nebo dostavěné. Od odchodu pracuje jako rolník a dovednosti mu klesají (Výcvik
-  a zkušenost – −5 % ročně, nejníž polovina nejvyšší dosažené).
+- **Přestěhování, když se obydlí uvolní** (návrh Clauda; Martin 24. 10. 2026 nechal bez
+  odpovědi): ženatý syn vojvody je vždy rodinou k osídlení a **má přednost** před rodinami
+  z ostatních domů, nejdřív nejstarší – dokud bydlí v dvorci, cvičí a ves za něj platí prací. Po
+  synech jdou konkubíny z dvorce (Zakladatelé), pak ostatní jako dosud. Odejde se ženou a dětmi
+  hned ten den, kdy je obydlí prázdné nebo dostavěné. Od odchodu pracuje jako rolník a dovednosti
+  mu klesají (Výcvik a zkušenost – −5 % ročně, nejníž polovina nejvyšší dosažené).
 - Ženatý syn se smí i **přiženit k vdově nebo dědičce**, která drží dům ([příbuzenství](kinship.md)
   – Sňatky) – dědicem dvorce není.
 - **Svobodní synové z dvorce sami neodcházejí** (návrh Clauda – výjimka z „nejstarší dítě smí
@@ -350,17 +425,69 @@ počkáme, dokud nebude fungovat NPC mechanika.“ Co níž není výslovně Mar
 - Syn, který se po letech na poli stane vojvodou, začíná od toho, co mu zůstalo (nejméně polovina
   nejvyšší dosažené), a zkušenost prohlubuje – jak popisuje issue.
 
-### Přechodné nástupnictví (návrh Clauda – do fáze 3)
+### Nástupnictví (Martin 24. 10. 2026 – „Nejstarší syn se vrátí“)
 
-- Dnes je vojvodou nejstarší muž dvorce. Když ženatí synové odcházejí, zůstal by dvorec po smrti
-  vojvody často jen s vdovou a malými dětmi – **bez vojvody, bez výcviku a bez jmen**.
-- Proto: **po smrti vojvody se do dvorce vrátí jeho nejstarší žijící syn od 14 let ve vsi** se
-  ženou a svobodnými dětmi a je vojvodou. Je to část issue pro hráče „s pozvánkou“ („přebírá
-  vesnici nejstarší syn, nastěhuje se zpátky do vojvodského dvorce“); náhoda „bez pozvánky“ čeká
-  na fázi 3 (Martin). Kdo v jeho domě zůstane (ženatý syn – dědic podle kinship.md), dům drží;
-  prázdný dům osídlí čekající rodina. Vdova po vojvodovi a svobodní sourozenci zůstávají v dvorci.
-- Bez syna nejstarší vnuk po meči od 14 let ve vsi, bez něj dnešní pravidlo – nejstarší muž dvorce
-  (i zeť, viz Otevřené otázky). Kronika „Vojvodou je Bořivoj“.
+- Dosud byl vojvodou nejstarší muž dvorce. Když ženatí synové odcházejí, zůstal by dvorec po smrti
+  vojvody často jen s vdovami a malými dětmi – bez vojvody, bez výcviku a bez jmen.
+- **Po smrti vojvody se do dvorce vrátí jeho nejstarší žijící syn ve vsi** se svou domácností
+  (manželky, svobodné děti) a je vojvodou; **bez syna nejstarší vnuk po meči** (Martin). Kdo v jeho domě
+  zůstane (ženatý syn – dědic podle kinship.md), dům drží; prázdný dům osídlí čekající rodina.
+  Konkubíny nového vojvody zůstávají ve svých domech. Náhoda „bez pozvánky“ čeká na fázi 3
+  (Martin).
+- **Bez syna i vnuka** nejstarší žijící muž rodu ve vsi – bratr, synovec… (návrh Clauda); muži rodu
+  v jiných vsích hráče řeší fáze 2–4. **Zeť ani jiný muž mimo rod vojvodou není** – bez muže rodu
+  hra končí (Konec rodu; Martin). Případ „vojvoda mimo rod“ tím odpadá.
+- **Nezletilý vojvoda** (návrh Clauda): je-li nejbližším mužem rodu chlapec, je vojvodou on – rod po
+  meči žije (Martin). Bydlí-li jinde, vrátí se do dvorce s matkou a sourozenci do 16 let; cvičí
+  jako chlapci jeho věku (Den rodiny), jméno mu dá hráč, jestli ho ještě nemá. Matka dvorec drží
+  a vede domácnost – vdá-li se, muž se přižení k ní (jako k vdově, která drží dům – kinship.md)
+  a pracuje jako zeť; chlapec tak z dvorce neodejde.
+- Vdovy po vojvodovi zůstávají v dvorci se svými dětmi, dokud se nevdají (vdávají se hned –
+  kinship.md), svobodní synové zůstávají a cvičí. Kronika „Vojvodou je Bořivoj“.
+
+### Konec rodu – konec hry (Martin 24. 10. 2026 – „Začít znovu, ves zanikne“)
+
+- **Kdy:** v den, kdy zemře **poslední žijící muž rodu** v kterékoli vsi hráče – **i chlapec nebo
+  kojenec** (Martin: „Pokud rod po meči zcela vymře, hra končí“). Ženy rodu, synové dcer ani děti
+  konkubín rod nedrží. Dítě narozené po smrti otce hra nemá (rodí jen žena se žijícím mužem), rod
+  tedy nezachrání.
+- **Dosavadní konec hry zůstává:** vymřou-li všechny vsi ([obyvatelstvo](population.md) – Hlad
+  a vymření), vymřel i rod. Vymření rodu je nová, dřívější podmínka – ves s lidmi, ale bez mužů
+  rodu, končí. Ves bez rodu od převodu (Převod níž) končí jen vymřením.
+- **Výpočet:** čistá funkce stavu vsí (`isGameOver` rozšířené o rod) po dopočtu všech vsí hráče
+  na dnešek; den konce (pro kroniku) je den smrti posledního muže rodu, dál se vsi nedopočítávají.
+  Výsledek nezávisí na tom, po jakých kouscích se vsi dopočítají.
+- **Co hráč vidí:** obrazovka porážky jako dosud přes zamrzlou scénu – nadpis **„Rod vymřel“**,
+  **kronika rodu**: vojvodové po sobě se jmény a roky („Bořivoj 500–541“…), poslední muž rodu
+  („Zemřel Ctibor – poslední muž rodu“), jméno vsi a roky jejího života, a jediné tlačítko
+  **Začít znovu**. Obrazovka zůstane i po odhlášení, dokud hráč nezačne znovu.
+- **Co se stane se vsí** (Martin: „ves zanikne“): všechny vsi hráče se **přestanou dopočítávat**
+  a kronika zapíše „Ves opuštěna – rod vymřel“ – jako opuštěná ves po odchodu všech
+  ([stěhování](migration.md) – Odchod do nové vsi), ne vymřelá. Scéna bez lidí, dýmu a zvířat,
+  stavby stojí, jak byly. Stav vsi v DB zůstane s důvodem konce „rod vymřel“ (lidé jako záznam,
+  nikdo v ní nežije).
+- **Začít znovu** jako dosud: sídlo i se vsí jde do archivu, hráč dostane nové sídelní sídlo
+  s novou krajinou a panel „Jméno vojvody“ předvyplněný posledním jménem – nový rod se
+  zakladateli výš. Začít znovu z nabídky se živým rodem se nemění.
+- Až bude sdílená mapa světa, zaniklá ves na ní zůstane a chátrá ([opuštěné
+  stavby](abandonment.md)) – navrhne mapa světa.
+
+### Dopad na kalibraci a hlad (kvalitativně – ověří úloha „růst populace“)
+
+- **Víc úst od začátku:** 9 lidí místo 4. Startovní zásoby na 18 měsíců ([pole](fields.md) –
+  Start) se počítají na potřebu zakladatelů – ověřit, že vydrží stejně dlouho.
+- **Práce:** pracují 4 konkubíny (dřív 2 dospělí; výrostci 12 a 13 let do práce nešli), první
+  zemnice a pole budou rychlejší. Bez práce vsi je ale 5 z 9 dospělých – víc než schválených
+  25–30 %; podíl klesá, jak ves roste.
+- **Porody:** 8 plodných žen místo jedné → ≈ 3 porody ročně od druhého roku (dřív ≈ 0,35 a druhý
+  pár až za ≈ 4 roky). Tlumí je přeplněný dvorec (9 lidí v 6 místech), dokud hráč nepostaví
+  obydlí konkubínám, a hlad.
+- **Hlad:** víc malých dětí brzy, ženy dvorce jdou na pole jen při hrozícím hladu. Riziko je
+  druhý a třetí rok, kdy dojdou startovní zásoby; hájení chrání dospělé, děti hladem neumírají.
+- **Rod a dvorec:** synové 4 manželek a další ženy z okolí rod rychle rozrostou; drží ho přeplněný
+  dvorec a brzdy pro ženy z okolí. Měřit: lidé, domy a muži rodu v letech 10, 30 a 60, podíl práce
+  rodiny, roky hladu, čekající rodiny a jak často hra skončí vymřením rodu (v hájení nemůže).
+  Kalibraci pouštět jen na Martinův pokyn.
 
 ### Převod starších vsí (jednou a idempotentně)
 
@@ -369,8 +496,15 @@ počkáme, dokud nebude fungovat NPC mechanika.“ Co níž není výslovně Mar
   vojvody“ a upozornění „Syn vojvody čeká na jméno“ s počtem synů (i dospělých); jména dává hráč,
   jak chce Martin. **Ostatní muži rodu** (vnuci, pravnuci) dostanou jména vygenerovaná.
 - **Ženatí synové v dvorci** se nestěhují nuceně – cvičí, dokud se neuvolní obydlí, a pak
-  odcházejí podle přednosti. Dvorec bez vojvody (bez muže od 14 let) rod nedostane, dokud vojvodu
-  nemá.
+  odcházejí podle přednosti.
+- **Manželky a konkubíny se zpětně nedoplňují** (návrh Clauda) – Vlkov má vojvodu s jednou ženou
+  a tak zůstane. Dnešní ženy mužů rodu jsou jejich manželky a děti narozené dosud jsou legitimní;
+  další manželky a konkubíny přicházejí od převodu podle pravidel výš. Zakladatelé (9 lidí) platí
+  jen pro nově založené vsi.
+- **Dvorec bez muže od 14 let:** rod se založí na nejstarším muži dvorce, i chlapci; bez muže
+  v dvorci na nejstarším muži vsi, který se s domácností do dvorce přestěhuje jako vojvoda
+  (Nástupnictví). Ves bez jediného muže rod nemá a končí jen vymřením – **převod sám hru
+  neukončí**.
 
 ### Pro implementaci fáze 1 (poznámky, ne kód)
 
@@ -379,10 +513,17 @@ počkáme, dokud nebude fungovat NPC mechanika.“ Co níž není výslovně Mar
   seznam jmen jako data domény.
 - Akce: jméno vojvody jako součást založení první vsi a pojmenování muže rodu (`villageId`,
   `personId`, jméno) – server ověří, že jde o žijícího muže rodu bez jména.
-- Odchod ženatých synů a jejich přednost v pravidlech osídlení (`departingFamilies`), přechodné
-  nástupnictví tam, kde se dnes určuje vojvoda.
+- Odchod ženatých synů, přednost synů a konkubín v pravidlech osídlení (`departingFamilies`),
+  nástupnictví po meči tam, kde se dnes určuje vojvoda (i `lib/person-roles.ts`).
+- Volitelné části stavu: víc manželek u muže rodu (dnes jeden manžel / manželka), konkubína
+  s odkazem na muže, důvod konce vsi. Porody počítají páry žena – muž, kde žena je manželka nebo
+  konkubína žijícího muže. Zakladatelé v `foundVillage` (věky jako data v `rules*.ts`).
+- Konec hry: `isGameOver` i bez mužů rodu, zastavení dopočtu vsí hráče, obrazovka „Rod vymřel“
+  s kronikou rodu.
 - Testy: jména vnuků nezávisí na kouscích dopočtu, odcházejí všichni ženatí synové, přednost
-  syna, návrat nejstaršího syna, převod je idempotentní.
+  syna, návrat nejstaršího syna, nezletilý vojvoda, konkubína jen do prázdného obydlí, dítě
+  konkubíny bez příznaku rodu, konec hry po smrti posledního muže rodu, převod je idempotentní
+  a hru neukončí.
 
 ## Pro implementaci (poznámky, ne kód)
 
@@ -402,63 +543,78 @@ počkáme, dokud nebude fungovat NPC mechanika.“ Co níž není výslovně Mar
 
 ## Otevřené otázky
 
-- **Zeť jako vojvoda.** Po smrti vojvody bez syna je vojvodou nejstarší muž dvorce, třeba zeť.
-  Martin (24. 10. 2026): „Tohle pořešíme později, až budeme řešit nástupnické linie.“ Zatím platí
-  stávající pravidlo návrhu bez zvláštností: rodina = nový vojvoda a jeho potomci po meči
-  v dvorci, synové předchozího vojvody jsou rolníci.
+Uzavřené 24. 10. 2026: **zeť jako vojvoda**, **přechodné nástupnictví** a **vojvoda mimo rod**
+(Martin – vrací se nejstarší syn, bez muže rodu po meči hra končí); **změnu jména** a **přednost
+ženatých synů** Martin nechal bez odpovědi – platí návrh Clauda (jméno je trvalé, synové mají
+přednost).
 
 **Fáze 1 issue #9 (Rod vojvody):**
 
-- **Přechodné nástupnictví.** Po smrti vojvody se do dvorce vrátí nejstarší syn a je vojvodou
-  (návrh Clauda, do fáze 3). Platí? Bez toho by dvorec, ze kterého odešli všichni ženatí synové,
-  po smrti vojvody často zůstal bez vojvody.
-- **Vojvoda mimo rod.** Zemře-li vojvoda bez syna i vnuka po meči (u nové vsi stačí smrt
-  zakladatele před dospěním syna), vojvodou je chlapec zakladatelů nebo zeť – bez jména a mimo rod.
-  Návrh Clauda: hráč ho pojmenuje panelem „Jméno vojvody“ a začne s ním nový rod. Nebo počkat na
-  nástupnické linie jako u zetě?
-- **Změna jména.** Návrh Clauda: jméno je trvalé (hráč se nepřepíše, kronika drží jedno jméno).
-  Nebo dovolit přejmenování jako u vsi?
-- **Přednost ženatých synů vojvody** při osídlení prázdného či nového obydlí (návrh Clauda – ves
-  tím získá pracovníky dřív). Nebo pořadí jako u ostatních (z nejvíc přeplněného domu)?
+- **Přeplněný dvorec.** Vojvoda se 4 manželkami a jejich dětmi se nevejde do zemnice (6 míst) ani
+  do dvorce (10); přeplněnost tlumí porody manželek, zvyšuje úmrtnost dětí rodu a další manželka
+  z okolí do přeplněného dvorce nepřijde. Návrh Clauda: beze změny – rod roste pomaleji a hráč má
+  důvod stavět dvorec. Nebo dvorci přidat místa za každou manželku?
+- **Konkubína jen do prázdného obydlí.** Návrh Clauda: konkubína z okolí přijde, jen když ve vsi
+  stojí prázdné obydlí, na které nikdo nečeká. Nebo přijde vždy a do postavení domu bydlí u muže
+  (přeplnění)?
+- **Manželky synů mimo dvorec.** Martin: „Manželky vedou domácnost.“ Výklad návrh Clauda: jen
+  v dvorci (rodina = domácnost dvorce – Martin, 23. 10. 2026); manželky syna s vlastním domem
+  pracují jako ženy rolníků. Nebo vedou jen domácnost manželky každého muže rodu (dražší rod,
+  méně práce vsi)?
+- **Zakladatelé bez nepříbuzného páru.** Děti první generace jsou všechny nevlastní sourozenci,
+  partnery jim dá jen okolí. Návrh Clauda: stačí (okolí bere i dává). Nebo k zakladatelům přidat
+  nepříbuzný pár jako dosud (chlapec 13 a dívka 12 let)?
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                                 | Kdo                    |
-| ---------------------------------------------------------------------------------------------------------- | ---------------------- |
-| Vojvoda a synové nepracují na poli, cvičí lukostřelbu, boj a jízdu; na pole jen při hladu                  | Martin (22. 10. 2026)  |
-| Terče na lukostřelbu na dvorku dvorce                                                                      | Martin (22. 10. 2026)  |
-| Vojvodova žena a dcery jen domácnost, na pole jen při hrozícím hladu                                       | Martin (23. 10. 2026)  |
-| Jízda jen s koněm                                                                                          | Martin (22. 10. 2026)  |
-| Rodina = domácnost dvorce; cvičí potomci po meči, snachy jen domácnost, zeť pracuje                        | návrh Clauda           |
-| Výcvik od 7 let (luk), od 10 boj a jízda; 2 / 4 / 6 h denně, od 45 let 3 h; synové nepasou                 | návrh Clauda           |
-| Dva bloky denně, luk hlavní, cvičné zbraně ze dřeva a proutí – bez zbraní jako surovin                     | návrh Clauda (rešerše) |
-| Na pole: chybí práce na potřebný osev (jen podíl dne), nebo nevychází výhled jídla; návrat po 30 dnech     | návrh Clauda           |
-| Dovednosti luk / boj / jízda 0–100 u člověka; 29 % zbytku za rok při 2 h; stropy 40 / 100 / −3 ročně       | návrh Clauda           |
-| Bez výcviku −5 % ročně, nejníž polovina nejvyšší dosažené                                                  | návrh Clauda           |
-| 2 slaměné terče, střelnice 20 m, cvičný kůl, stojan, kůl na koně; bez ceny; bez dvorce 1 terč u zemnice    | návrh Clauda           |
-| Síla v boji 1 × (1 + boj / 100) – jen návrh pro válku                                                      | návrh Clauda           |
-| Cvičí jen domácnost dvorce (kdo se oddělí, pracuje jako ostatní)                                           | Martin (23. 10. 2026)  |
-| Rodina cvičí, až má ves aspoň 4 dospělé mimo rodinu; do té doby pracuje                                    | Martin (24. 10. 2026)  |
-| Zpět k práci až pod 3 dospělé mimo rodinu (hystereze)                                                      | návrh Clauda           |
-| Zeť jako vojvoda: řešit později, s nástupnickými liniemi                                                   | Martin (24. 10. 2026)  |
-| Ztráta ≈ 25–30 % práce vsi je v pořádku                                                                    | Martin (23. 10. 2026)  |
-| Issue #9 ve fázích: 1) jména, odchod synů, vojvoda cvičí celý život → 2) dělení vsi → 3) NPC → 4) seniorát | Martin (24. 10. 2026)  |
-| Nástupnictví a náhoda „bez pozvánky“ až s mechanikou NPC                                                   | Martin (24. 10. 2026)  |
-| Jméno vojvody vybírá hráč při založení hry, jména synů hráč, jména vnuků se generují                       | Martin (24. 10. 2026)  |
-| Jméno je vlastní text bez kontroly, jen písmena                                                            | Martin (24. 10. 2026)  |
-| Jména mají legitimní mužští potomci vojvody                                                                | Martin (24. 10. 2026)  |
-| Narození syna: upozornění, čeká se na hráče, do té doby syn bez jména                                      | Martin (24. 10. 2026)  |
-| Po sňatku odcházejí z dvorce všichni synové včetně nejstaršího; bez obydlí cvičí, dokud neodejde           | Martin (24. 10. 2026)  |
-| Vojvoda cvičí celý život (na rozdíl od synů), hlad a stáří jako dosud                                      | Martin (24. 10. 2026)  |
-| Rod po meči, příznak rodu u člověka od narození                                                            | návrh Clauda           |
-| Jméno: NFC, oříznuté okraje, 1–20 písmen Unicode, bez mezer; ověřuje server; neskloňuje se; trvalé         | návrh Clauda           |
-| Panel jména (portrét, pole, kostka, potvrdit) před první zemnicí; Začít znovu ho předvyplní                | návrh Clauda           |
-| Upozornění „Syn vojvody čeká na jméno“ nemizí, počet, od nejstaršího; svět běží dál                        | návrh Clauda           |
-| Vnuci: jméno při narození ze seznamu ≈ 60 slovanských jmen, ze seedu vsi a dne, ne jméno žijícího          | návrh Clauda           |
-| Jméno v panelu a popisku člověka, v panelu dvorce, v upozorněních a kronice; ostatní bez jmen              | návrh Clauda           |
-| Ženatý syn vojvody má přednost při osídlení; svobodní synové z dvorce sami neodcházejí                     | návrh Clauda           |
-| Přechodně po smrti vojvody se vrací nejstarší syn, pak vnuk po meči, pak nejstarší muž dvorce              | návrh Clauda           |
-| Převod: vojvoda a synové čekají na jméno od hráče, ostatní muži rodu generovaná, bez stěhování             | návrh Clauda           |
+| Rozhodnutí                                                                                                                            | Kdo                    |
+| ------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| Vojvoda a synové nepracují na poli, cvičí lukostřelbu, boj a jízdu; na pole jen při hladu                                             | Martin (22. 10. 2026)  |
+| Terče na lukostřelbu na dvorku dvorce                                                                                                 | Martin (22. 10. 2026)  |
+| Vojvodova žena a dcery jen domácnost, na pole jen při hrozícím hladu                                                                  | Martin (23. 10. 2026)  |
+| Jízda jen s koněm                                                                                                                     | Martin (22. 10. 2026)  |
+| Rodina = domácnost dvorce; cvičí potomci po meči, snachy jen domácnost, zeť pracuje                                                   | návrh Clauda           |
+| Výcvik od 7 let (luk), od 10 boj a jízda; 2 / 4 / 6 h denně, od 45 let 3 h; synové nepasou                                            | návrh Clauda           |
+| Dva bloky denně, luk hlavní, cvičné zbraně ze dřeva a proutí – bez zbraní jako surovin                                                | návrh Clauda (rešerše) |
+| Na pole: chybí práce na potřebný osev (jen podíl dne), nebo nevychází výhled jídla; návrat po 30 dnech                                | návrh Clauda           |
+| Dovednosti luk / boj / jízda 0–100 u člověka; 29 % zbytku za rok při 2 h; stropy 40 / 100 / −3 ročně                                  | návrh Clauda           |
+| Bez výcviku −5 % ročně, nejníž polovina nejvyšší dosažené                                                                             | návrh Clauda           |
+| 2 slaměné terče, střelnice 20 m, cvičný kůl, stojan, kůl na koně; bez ceny; bez dvorce 1 terč u zemnice                               | návrh Clauda           |
+| Síla v boji 1 × (1 + boj / 100) – jen návrh pro válku                                                                                 | návrh Clauda           |
+| Cvičí jen domácnost dvorce (kdo se oddělí, pracuje jako ostatní)                                                                      | Martin (23. 10. 2026)  |
+| Rodina cvičí, až má ves aspoň 4 dospělé mimo rodinu; do té doby pracuje                                                               | Martin (24. 10. 2026)  |
+| Zpět k práci až pod 3 dospělé mimo rodinu (hystereze)                                                                                 | návrh Clauda           |
+| ~~Zeť jako vojvoda: řešit později~~ – zeť vojvodou není, bez muže rodu hra končí                                                      | Martin (24. 10. 2026)  |
+| Ztráta ≈ 25–30 % práce vsi je v pořádku                                                                                               | Martin (23. 10. 2026)  |
+| Issue #9 ve fázích: 1) jména, odchod synů, vojvoda cvičí celý život → 2) dělení vsi → 3) NPC → 4) seniorát                            | Martin (24. 10. 2026)  |
+| Nástupnictví a náhoda „bez pozvánky“ až s mechanikou NPC                                                                              | Martin (24. 10. 2026)  |
+| Jméno vojvody vybírá hráč při založení hry, jména synů hráč, jména vnuků se generují                                                  | Martin (24. 10. 2026)  |
+| Jméno je vlastní text bez kontroly, jen písmena                                                                                       | Martin (24. 10. 2026)  |
+| Jména mají legitimní mužští potomci vojvody                                                                                           | Martin (24. 10. 2026)  |
+| Narození syna: upozornění, čeká se na hráče, do té doby syn bez jména                                                                 | Martin (24. 10. 2026)  |
+| Po sňatku odcházejí z dvorce všichni synové včetně nejstaršího; bez obydlí cvičí, dokud neodejde                                      | Martin (24. 10. 2026)  |
+| Vojvoda cvičí celý život (na rozdíl od synů), hlad a stáří jako dosud                                                                 | Martin (24. 10. 2026)  |
+| Rod po meči; legitimní jsou děti manželek, děti konkubín jsou běžní obyvatelé                                                         | Martin (24. 10. 2026)  |
+| Příznak rodu u člověka od narození                                                                                                    | návrh Clauda           |
+| Jméno: NFC, oříznuté okraje, 1–20 písmen Unicode, bez mezer; ověřuje server; neskloňuje se; trvalé (Martin bez odpovědi)              | návrh Clauda           |
+| Panel jména (portrét, pole, kostka, potvrdit) před první zemnicí; Začít znovu ho předvyplní                                           | návrh Clauda           |
+| Upozornění „Syn vojvody čeká na jméno“ nemizí, počet, od nejstaršího; svět běží dál                                                   | návrh Clauda           |
+| Vnuci: jméno při narození ze seznamu ≈ 60 slovanských jmen, ze seedu vsi a dne, ne jméno žijícího                                     | návrh Clauda           |
+| Jméno v panelu a popisku člověka, v panelu dvorce, v upozorněních a kronice; ostatní bez jmen                                         | návrh Clauda           |
+| Ženatý syn vojvody má přednost při osídlení (Martin bez odpovědi), po něm konkubíny z dvorce; svobodní synové sami neodcházejí        | návrh Clauda           |
+| Po smrti vojvody se do dvorce vrací nejstarší syn, bez něj vnuk po meči                                                               | Martin (24. 10. 2026)  |
+| Bez syna i vnuka nejstarší muž rodu ve vsi; vojvodou je i chlapec                                                                     | návrh Clauda           |
+| Převod: vojvoda a synové čekají na jméno od hráče, ostatní muži rodu generovaná, bez stěhování                                        | návrh Clauda           |
+| Převod: manželky a konkubíny se zpětně nedoplňují; rod i v dvorci bez muže od 14 let; převod hru neukončí                             | návrh Clauda           |
+| Ves zakládá vojvoda se 4 manželkami a 4 konkubínami                                                                                   | Martin (24. 10. 2026)  |
+| Víc manželek a konkubíny smějí mít všichni muži rodu                                                                                  | Martin (24. 10. 2026)  |
+| Konkubíny bydlí ve vlastních obydlích se svými dětmi                                                                                  | Martin (24. 10. 2026)  |
+| Manželky vedou domácnost, konkubíny pracují                                                                                           | Martin (24. 10. 2026)  |
+| Vymře-li rod po meči, hra končí; Začít znovu, ves zanikne                                                                             | Martin (24. 10. 2026)  |
+| Zakladatelé: vojvoda 25, manželky 23–17, konkubíny 22–16 let, bez dětí; konkubíny v dvorci do postavení obydlí; rodina cvičí hned     | návrh Clauda           |
+| Nejvýš 4 manželky a 4 konkubíny; další manželky a konkubíny jen z okolí ≈ 30 % ročně; konkubína jen do prázdného obydlí               | návrh Clauda           |
+| Plodnost a rozestup na ženu; rodí i konkubína žijícího muže; po jeho smrti je svobodná                                                | návrh Clauda           |
+| Konec hry smrtí posledního muže rodu (i dítěte); vsi se přestanou dopočítávat, „Ves opuštěna“, obrazovka „Rod vymřel“ s kronikou rodu | návrh Clauda           |
 
 ## Odpovědi Martina (23. 10. 2026)
 
@@ -470,3 +626,13 @@ počkáme, dokud nebude fungovat NPC mechanika.“ Co níž není výslovně Mar
 
 1. **Zakládání vsi:** „Až má ves ≥ 4 dospělé mimo rodinu“.
 2. **Zeť jako vojvoda:** „Tohle pořešíme později, až budeme řešit nástupnické linie.“
+3. **Zakladatelé a rod:** „Vesnici zakládá vojvoda a jeho rodina. Na úplném začátku bude vojvoda,
+   který má 4 manželky a další 4 konkubíny. Potomci s manželkami jsou legitimními potomky vojvody,
+   potomci s konkubínami jsou normální obyvatelé vesnice. Pokud rod po meči zcela vymře, hra
+   končí.“
+4. **Kdo smí mít víc žen:** všichni muži rodu (volba z nabídky).
+5. **Kde bydlí konkubíny:** ve vlastních obydlích se svými dětmi (volba z nabídky).
+6. **Práce:** „Manželky vedou domácnost, konkubíny pracují“ (volba z nabídky).
+7. **Konec hry:** „Začít znovu, ves zanikne“ (volba z nabídky).
+8. **Nástupnictví:** „Nejstarší syn se vrátí“ (volba z nabídky); vojvoda mimo rod odpadá.
+9. **Změna jména a přednost synů při osídlení:** bez odpovědi – platí návrh Clauda.
