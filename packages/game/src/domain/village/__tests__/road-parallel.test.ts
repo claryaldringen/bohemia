@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { obstaclesOf } from '../../landscape';
 import { foundVillage } from '../actions';
+import { removeBraids } from '../paths/roads-tidy';
 import { joinedRoadsOf, updateRoads, withJoinedRoads } from '../paths/roads';
 import { ROAD_TREE_ID_BASE } from '../road-trees';
 import { advanceVillage } from '../simulate';
@@ -180,6 +181,66 @@ describe('souběžné pevné cesty se sloučí', () => {
     expect(migrated.roads!.parallelsChecked).toBe(true);
     expect(withJoinedRoads(migrated, LANDSCAPE, LAYER)).toBe(migrated);
   }, 60_000);
+
+  it('copánek s krátkým vzdáleným kusem (Vlkov): slabší zmizí, jabloně přejdou', () => {
+    const roads = {
+      nextId: 50,
+      roads: [
+        road(
+          1,
+          [
+            [0, 0],
+            [100, 0],
+          ],
+          Y1 - 365,
+          'improved',
+        ),
+        road(2, [
+          [0, 0],
+          [40, 10],
+          [45, 30],
+          [55, 30],
+          [60, 10],
+          [100, 0],
+        ]),
+      ],
+      trees: [],
+      candidates: [],
+      apples: [
+        { id: ROAD_TREE_ID_BASE + 1, roadId: 2, x: 50, z: 34, distanceM: 50, plantedDay: Y1 - 900 },
+      ],
+    } as unknown as NonNullable<VillageState['roads']>;
+    expect(removeBraids(roads, [])).toBe(true);
+    expect(roads.roads.map((r) => r.id)).toEqual([1]);
+    expect(roads.apples![0]!.roadId).toBe(1);
+  });
+
+  it('copánek s dlouhým vzdáleným kusem: zůstanou obě cesty', () => {
+    const roads = {
+      nextId: 50,
+      roads: [
+        road(
+          1,
+          [
+            [0, 0],
+            [100, 0],
+          ],
+          Y1 - 365,
+          'improved',
+        ),
+        road(2, [
+          [0, 0],
+          [25, 30],
+          [75, 30],
+          [100, 0],
+        ]),
+      ],
+      trees: [],
+      candidates: [],
+    } as unknown as NonNullable<VillageState['roads']>;
+    expect(removeBraids(roads, [])).toBe(false);
+    expect(roads.roads.map((r) => r.id)).toEqual([1, 2]);
+  });
 
   it('upravená cesta je silnější než starší vyšlapaná – zůstane ona', () => {
     const roads = joinedRoadsOf(

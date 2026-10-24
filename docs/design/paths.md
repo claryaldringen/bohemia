@@ -307,7 +307,7 @@ Návrh Clauda:
 - **Úklid** po každé změně cest (měsíční kontrola, dostavěné vylepšení, převod) v pevném pořadí:
   1. **souběžné cesty a copánky** – dnešní pravidla ([roads.md – Úseky a
      rozcestí](roads.md#úseky-a-rozcestí): do 12 m stejným směrem, kus od 25 m; copánek mezi
-     stejnými uzly do 25 m); silnější je vyšší druh, pak víc provozu, pak starší – vozová
+     stejnými uzly do 25 m, krátký vzdálený kus se toleruje – níž); silnější je vyšší druh, pak víc provozu, pak starší – vozová
      a upravená cesta tak pohltí souběžnou vyšlapanou (Vlkov – voda);
   2. **díry** do 14 m mezi konci a cestou se zacelí (jako dřív);
   3. **uzly se dvěma konci** se spojí do jednoho úseku (jako dřív `mergeRoadChains`, různé druhy
@@ -318,6 +318,11 @@ Návrh Clauda:
 - **Jedna cesta hráče se v uzlu nepotká sama se sebou** (pravidlo 11): ramena křižovatky patří
   různým cestám hráče. Dva úseky mezi stejnými uzly jsou copánek (krok 1) a okruh přes jednu
   křižovatku se rozdělí v nejvzdálenějším bodě na dvě cesty hráče.
+- Návrh Clauda (24. 10. 2026, Vlkov – voda, copánek s krátkým vzdáleným kusem): slabší úsek smí od
+  silnějšího odběhnout nad 25 m souvisle nejvýš max(25 m, 8 % své délky) a nejdál 50 m – oblouk
+  kolem překážky je pořád ta samá cesta, jinak by copánek unikl o pár metrů (496 vs. 509: 26,6 m
+  na ≈ 10 m). Delší nebo vzdálenější kus = dvě cesty. Jabloně smazaného úseku přecházejí na
+  silnější cestu bez omezení dosahu (jsou u téže trasy, nezanikají).
 - Návrh Clauda (24. 10. 2026, Úloha 8):
   - úklid běží v měsíční kontrole, jen když se od minulého úklidu změnily cesty, nebo když nové
     kotvy a trasy dají práci (pahýl, díra, okruh, vchod bez cesty) – bez změny nic, žádná nová id;
