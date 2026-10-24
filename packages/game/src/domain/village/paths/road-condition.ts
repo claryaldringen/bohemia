@@ -123,7 +123,8 @@ export function settleRoadCondition(
     if (frozen.has(road.id) || road.points.length < 2) continue;
     const full = roadFullCondition(road);
     const { keep } = decayOf(road);
-    const held = endsAtEntrance(road, entrances);
+    // opuštěná cesta u vchodu se nedrží – po ní nikdo nechodí, časem zmizí
+    const held = !road.abandoned && endsAtEntrance(road, entrances);
     const cart = Math.round((road.cartTraffic?.[road.cartTraffic.length - 1] ?? 0) * 100);
     const old = road.condition ?? [];
     const next: RoadConditionPiece[] = [];

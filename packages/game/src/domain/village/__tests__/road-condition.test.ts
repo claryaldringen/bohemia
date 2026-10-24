@@ -10,7 +10,14 @@ import {
 import { roadChains } from '../paths/road-chains';
 import { type TrafficField, wearCellAt } from '../paths/wear';
 import { ROAD_DECAY } from '../rules';
-import type { Construction, Road, RoadPoint, VillageRoads, VillageState } from '../types';
+import type {
+  Construction,
+  Road,
+  RoadApple,
+  RoadPoint,
+  VillageRoads,
+  VillageState,
+} from '../types';
 
 const YEAR = 365.25;
 const NO_TRAFFIC: TrafficField = { cells: new Map(), walk: new Map(), targets: new Map() };
@@ -202,6 +209,83 @@ describe('opuštěný kus pod stavbou (paths.md – Stavba přes cestu)', () => 
     }
     expect(roads.roads).toHaveLength(0);
     expect(day).toBeLessThanOrEqual(5 * YEAR + 60);
+  });
+});
+
+describe('zánik kusů – zbytky, jabloně, volné konce', () => {
+  /** Cesta 200 m, kusy podle `c` (stav kusu po kusu v pořadí od začátku osy). */
+  function withPieces(r: Road, c: (k: number) => number): Road {
+    r.condition = roadPieces(r.points).map((p, k) => ({ x: p.x, z: p.z, c: c(k) }));
+    return r;
+  }
+
+  it('opuštěný úsek s nestejným stavem kusů zůstane opuštěný – zbytky neoživnou', () => {
+    const r = withPieces(road(1, 'trodden', 0, 200), (k) => (k === 4 ? 0 : 30));
+    r.abandoned = true;
+    const roads = roadsOf(r);
+    cutDeadRoads(roads, [], undefined, 10);
+    expect(roads.roads.length).toBeGreaterThanOrEqual(2);
+    expect(roads.roads.every((x) => x.abandoned === true)).toBe(true);
+    expect(roadChains(roads.roads)).toHaveLength(0);
+  });
+
+  it('zarostlý kus uprostřed: zbytky mají volné konce u řezu, stromy stojí dál u zbytku', () => {
+    const r = withPieces(road(1, 'trodden', 0, 200), (k) => (k === 4 ? 0 : 30));
+    r.spots = [
+      { id: 1, x: 3, z: 10 },
+      { id: 2, x: 3, z: 190 },
+      { id: 3, x: 3, z: 112 },
+    ];
+    const roads = roadsOf(r);
+    const events = cutDeadRoads(roads, [], undefined, 10);
+    expect(events.map((e) => e.kind)).toEqual(['road-overgrown']);
+    expect(roads.roads).toHaveLength(2);
+    const [first, second] = roads.roads as [Road, Road];
+    expect(first.id).toBe(1);
+    expect(first.openEnds).toEqual([false, true]);
+    expect(second.openEnds).toEqual([true, false]);
+    expect(roads.cutEnds).toHaveLength(2);
+    // strom na zaniklém kuse zmizel z míst, ostatní zůstaly u svých zbytků
+    expect(first.spots.map((s) => s.id)).toEqual([1]);
+    expect(second.spots.map((s) => s.id)).toEqual([2]);
+  });
+
+  it('jabloně jdou ke zbytku, po zaniklé cestě se přepojí na nejbližší jinou nebo zaniknou', () => {
+    const apple = (id: number, roadId: number, x: number, z: number): RoadApple => ({
+      id,
+      roadId,
+      x,
+      z,
+      distanceM: 50,
+      plantedDay: 0,
+    });
+    // cesta 1 se rozřízne, jabloň u druhého zbytku přejde na jeho nové id
+    const cut = withPieces(road(1, 'trodden', 0, 200), (k) => (k === 4 ? 0 : 30));
+    const a = roadsOf(cut);
+    a.apples = [apple(1, 1, 4, 20), apple(2, 1, 4, 180)];
+    cutDeadRoads(a, [], undefined, 10);
+    const ids = a.roads.map((x) => x.id);
+    expect(a.apples.map((x) => x.roadId)).toEqual([ids[0], ids[1]]);
+    // celá cesta zanikne: jabloň u sousední cesty se přepojí, osamělá zanikne
+    const dying = withPieces(road(1, 'trodden', 0, 100), () => 0);
+    const b = roadsOf(dying, road(2, 'trodden', 20, 100));
+    b.apples = [apple(1, 1, 4, 20), apple(2, 1, -500, 20)];
+    cutDeadRoads(b, [], undefined, 10);
+    expect(b.roads.map((x) => x.id)).toEqual([2]);
+    expect(b.apples).toEqual([expect.objectContaining({ id: 1, roadId: 2 })]);
+  });
+
+  it('opuštěná cesta končící u vchodu se nedrží a zmizí', () => {
+    const r = road(1, 'trodden', 0, 60);
+    r.abandoned = true;
+    const roads = roadsOf(r);
+    const entrance = [{ x: 0, z: 0 }];
+    let day = 0;
+    for (; day < 6 * YEAR && roads.roads.length > 0; day += 30) {
+      settleRoadCondition(roads, [], undefined, NO_TRAFFIC, entrance, day, day + 30);
+      cutDeadRoads(roads, [], undefined, day + 30);
+    }
+    expect(roads.roads).toHaveLength(0);
   });
 });
 

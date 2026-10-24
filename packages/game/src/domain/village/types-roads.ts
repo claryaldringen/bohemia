@@ -36,7 +36,8 @@ export interface Road {
   grade: RoadGrade;
   /**
    * Provoz posledních let (cest za den – roční průměr, nejnovější poslední; nejvýš
-   * ROADS.overgrowYears) – podle něj vyšlapaná cesta zaroste.
+   * ROADS.overgrowYears) – historie pro převod starých vsí a vyjížďky vozů; zarůstání řídí
+   * stav kusů (`condition`).
    */
   traffic: number[];
   spots: RoadTreeSpot[];

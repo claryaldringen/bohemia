@@ -17,6 +17,7 @@ import {
   groundPart,
   lengthsAlong,
   resample,
+  toSegment,
 } from './roads-geometry';
 
 /** Úsek osy a co s ním: žije, je opuštěný (pod stavbou), nebo zmizel. */
@@ -115,6 +116,37 @@ function reshapeRoad(roads: VillageRoads, road: Road, segments: readonly Segment
   return gone;
 }
 
+/** Nejdál od cesty, kam se přepojí jabloň po zániku její cesty (m); dál jabloň zanikne. */
+const APPLE_RELINK_M = 30;
+
+/**
+ * Jabloně, jejichž úsek zanikl (`goneId` už v síti není): přepojí se na nejbližší zbývající úsek
+ * do `APPLE_RELINK_M` (živý má přednost před opuštěným), jinak zanikají – nevisí na smazané cestě
+ * (olemování a hlášení práce jsou podle `roadId`; roads.md – zarůstání, jabloně).
+ */
+function relinkApples(roads: VillageRoads, goneId: number): void {
+  const apples = roads.apples;
+  if (!apples?.some((a) => a.roadId === goneId)) return;
+  roads.apples = apples.filter((apple) => {
+    if (apple.roadId !== goneId) return true;
+    let best: Road | null = null;
+    let bestD = APPLE_RELINK_M;
+    for (const r of roads.roads) {
+      let dist = Infinity;
+      for (let k = 1; k < r.points.length; k++) {
+        dist = Math.min(dist, toSegment(apple.x, apple.z, r.points[k - 1]!, r.points[k]!).distance);
+      }
+      if (r.abandoned) dist += 0.01;
+      if (dist < bestD) {
+        best = r;
+        bestD = dist;
+      }
+    }
+    if (best) apple.roadId = best.id;
+    return best !== null;
+  });
+}
+
 /**
  * Kusy na nule (`condition`) zmizí (mutuje; paths.md – Zarůstání): celá cesta pryč, nebo se
  * zbytky rozříznou (`reshapeRoad`). Cesta ve vylepšení se nemění. Vrátí události kroniky
@@ -136,6 +168,7 @@ export function cutDeadRoads(
     const dead = pieces.map((piece) => conditionOf(road.condition!, piece, 1) <= 0);
     if (dead.every(Boolean)) {
       roads.roads.splice(roads.roads.indexOf(road), 1);
+      relinkApples(roads, road.id);
       events.push({ day, kind: 'road-overgrown', roadId: road.id });
       continue;
     }
@@ -145,6 +178,10 @@ export function cutDeadRoads(
     // zbytek živé cesty kratší než MIN_ROAD_M by jen překážel – zmizí s ostatními
     for (const s of segments) {
       if (s.kind === 'alive' && s.b - s.a < MIN_ROAD_M) s.kind = 'gone';
+    }
+    // opuštěný úsek zůstane opuštěný i po rozříznutí – živé zbytky neoživnou
+    if (road.abandoned) {
+      for (const s of segments) if (s.kind === 'alive') s.kind = 'abandoned';
     }
     for (const roadId of reshapeRoad(roads, road, mergeSegments(segments))) {
       events.push({ day, kind: 'road-overgrown', roadId });
