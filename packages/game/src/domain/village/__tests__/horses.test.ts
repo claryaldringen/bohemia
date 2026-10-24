@@ -4,7 +4,15 @@ import { packObstacles } from '../../landscape';
 import { abandonmentDay, stockedPenIds } from '../abandonment';
 import { foundPen, foundVillage } from '../actions';
 import { cancelConstruction } from '../cancel-construction';
-import { horseKind, horsePlaces, horsePens, horseRoom, penHorses, villageHorses } from '../horses';
+import {
+  horseKind,
+  horsePlaces,
+  horsePens,
+  horseRoom,
+  penHorses,
+  stallionId,
+  villageHorses,
+} from '../horses';
 import {
   PEN,
   PEN_BY_SPECIES,
@@ -145,5 +153,21 @@ describe('ohrada koní', () => {
     s.pens = [horsePen(1, [horse(1, DAY - 2000)])];
     expect(stockedPenIds(s).has(9)).toBe(true);
     expect(abandonmentDay(s, DAY, null)).toEqual([]);
+  });
+});
+
+describe('hřebec (horses.md – Chov)', () => {
+  it('je nejstarší samec od 3 let, při shodě nižší id; klisny a hříbata ne', () => {
+    const day = dayIndexOf({ year: 601, month: 1, day: 10 });
+    const h = (id: number, age: number, sex: 'male' | 'female'): Horse => ({
+      id,
+      bornDay: Math.round(day - age * 365.25),
+      sex,
+      training: 0,
+    });
+    expect(
+      stallionId([h(1, 12, 'female'), h(3, 6, 'male'), h(2, 6, 'male'), h(4, 1, 'male')], day),
+    ).toBe(2);
+    expect(stallionId([h(1, 12, 'female'), h(4, 1, 'male')], day)).toBeUndefined();
   });
 });

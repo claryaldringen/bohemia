@@ -12,6 +12,7 @@ import {
   fieldPartsFromCells,
   generateLandscapeAttempt,
   orchardPartsFromCells,
+  penSquaresFromCells,
   suggestVillageName,
   tileCenterWorld,
   tileOfWorldPoint,
@@ -524,6 +525,70 @@ test('hráč založí hřbitov po čtvercích a vybere ho – panel ukáže hrob
   await pollVillage(page);
   await expect(panel.getByTestId('selection-graves')).toHaveText('3/56', { timeout: 20_000 });
   await expect(panel.getByTestId('selection-years')).toBeVisible();
+});
+
+test('hráč postaví ohradu koní z rozcestníku ohrad – panel ukáže koně, místa a obilí', async ({
+  page,
+}) => {
+  const { seat: s } = await newPlayer(page, 'kone');
+  const spots = villageSpots(s.landscape);
+  await found(page, spots.dwelling);
+  const grid = page.getByTestId('build-grid');
+  const village: PlacementVillage = {
+    dwellings: [{ type: 'zemnice', position: spots.dwelling }],
+    constructions: [],
+    parts: [],
+  };
+  const tile = tileOfWorldPoint(s.landscape, spots.dwelling.x, spots.dwelling.z)!;
+  const cell = [3, 4, 5, 6]
+    .flatMap((r) => [
+      { x: tile.x + r, y: tile.y },
+      { x: tile.x - r, y: tile.y },
+      { x: tile.x, y: tile.y + r },
+      { x: tile.x, y: tile.y - r },
+    ])
+    .find((c) => penSquaresFromCells(s.landscape, village, [c], 'horse').check.ok);
+  expect(cell).toBeDefined();
+
+  // Rozcestník ohrad (O) nabízí i Ohradu koní – druh z mřížky staveb.
+  await page.keyboard.press('o');
+  const horsePen = grid.getByRole('button', { name: 'Ohrada koní' });
+  await expect(horsePen).toBeVisible();
+  await horsePen.click();
+  await confirmPlacement(page, { kind: 'squares', cells: [cell!], variant: 'horse' });
+  await expect
+    .poll(async () => (await villageState(s.settlementId)).pens?.[0]?.species)
+    .toBe('horse');
+
+  // Hotová ohrada se dvěma koněm v uložené vsi – panel: koně / místa, obilí a seno na zimu.
+  const state = await villageState(s.settlementId);
+  const pen = state.pens![0]!;
+  pen.builtDay = state.lastDay;
+  pen.horses = [
+    { id: 1, bornDay: state.lastDay - 3000, sex: 'male', training: 50 },
+    { id: 2, bornDay: state.lastDay - 2300, sex: 'female', training: 0 },
+  ];
+  state.constructions = state.constructions.filter((c) => c.kind !== 'pen');
+  await writeVillageState(s.settlementId, state);
+  await pollVillage(page);
+  await page.keyboard.press('r');
+  const point = await page.evaluate((p) => window.__bohemiaE2E!.projectToScreen!(p.x, p.z), pen);
+  expect(point).not.toBeNull();
+  const panel = page.getByTestId('selection-panel');
+  await expect
+    .poll(
+      async () => {
+        await page.mouse.move(point!.x - 3, point!.y);
+        await page.mouse.click(point!.x, point!.y);
+        return panel.getAttribute('data-kind');
+      },
+      { timeout: 20_000 },
+    )
+    .toBe('pen');
+  await expect(panel.getByTestId('selection-pen-animals')).toHaveText('2/4', { timeout: 20_000 });
+  await expect(panel.getByTestId('selection-horses-grain')).toHaveText('1,5');
+  await expect(panel.getByTestId('selection-horses-hay')).toBeVisible();
+  await expect(panel.getByTestId('selection-horse-1')).toHaveText('8');
 });
 
 test('hráč vysadí sad po čtvercích a vybere ho – panel ukáže výsadbu, stáří a úrodu', async ({

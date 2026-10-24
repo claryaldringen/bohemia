@@ -9,6 +9,7 @@ import {
   NOT_OFFERED,
   NOT_WANTED,
   NO_COW_ROOM,
+  NO_HORSE_ROOM,
   NO_EMIGRANTS,
   NO_OX_ROOM,
   NO_PEOPLE_OFFERED,
@@ -20,6 +21,7 @@ import {
   OVER_SUPPLY,
   UNFAIR,
   expeditionTransport,
+  isHorseGood,
   tradePeopleCount,
   type TradeGood,
   type TradeGoods,
@@ -68,11 +70,12 @@ export const EMPTY_SELECTION: TradeSelection = { give: {}, get: {}, people: NOBO
 
 /**
  * Kolik kusů dobytka druhu `good` se do vsi vejde (trade.md – Dobytek ve třech druzích): krávy do
- * ohrad skotu, voli do ohrad volů (mladí i vycvičení sdílejí místa); jiné zboží bez meze.
+ * ohrad skotu, voli do ohrad volů (mladí i vycvičení sdílejí místa), koně do ohrad koní; jiné zboží bez meze.
  */
 function roomFor(neighbour: VillageNeighbour, good: TradeGood): number {
   if (good === 'cows') return neighbour.room.cows;
   if (good === 'youngOxen' || good === 'trainedOxen') return neighbour.room.oxen;
+  if (isHorseGood(good)) return neighbour.room.horses;
   return Infinity;
 }
 
@@ -188,11 +191,14 @@ function peopleBlocked(neighbour: VillageNeighbour, people: PreviewPeople): stri
 
 /**
  * Proč se koupený dobytek do vsi nevejde (jako `cattleRoomBlocked` jádra – krávy a voli zvlášť,
- * mladí a vycvičení voli dohromady), nebo null.
+ * mladí a vycvičení voli dohromady, koně všech druhů dohromady), nebo null.
  */
 function roomBlocked(neighbour: VillageNeighbour, get: TradeGoods): string | null {
   if ((get.cows ?? 0) > neighbour.room.cows) return NO_COW_ROOM;
   if ((get.youngOxen ?? 0) + (get.trainedOxen ?? 0) > neighbour.room.oxen) return NO_OX_ROOM;
+  // koně všech tří druhů sdílejí místa v ohradách koní (horses.md – Nákup a prodej)
+  const horses = (get.foals ?? 0) + (get.mares ?? 0) + (get.ridingHorses ?? 0);
+  if (horses > neighbour.room.horses) return NO_HORSE_ROOM;
   return null;
 }
 

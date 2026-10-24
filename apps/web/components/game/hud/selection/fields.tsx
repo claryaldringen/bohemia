@@ -1,6 +1,7 @@
 /** Panel výběru pole, dílu pole, sadu, hřbitova, ohrady a obilné jámy. */
 import { type ReactElement } from 'react';
 import { CART_NAMES, MAX_PEN_SQUARES } from '@bohemia/game';
+import type { VillageHorse, VillageHorses } from '@/lib/horse-view';
 import { PART_COLORS, SURFACE_COLORS } from '@/lib/minimap';
 import { VillageTarget } from '@/lib/scene/village-picking';
 import {
@@ -414,6 +415,86 @@ export function OrchardBody({
   );
 }
 
+/** Ikona a název druhu koně v seznamu ohrady. */
+const HORSE_KIND_NAMES: Record<VillageHorse['kind'], { icon: string; name: string }> = {
+  foal: { icon: 'foal', name: 'Hříbě' },
+  mare: { icon: 'mare', name: 'Klisna' },
+  riding: { icon: 'horse', name: 'Jezdecký kůň' },
+};
+
+/**
+ * Koně ohrady koní (horses.md – Co hráč vidí): místa v ohradách koní / kolik koní ves chce
+ * (červeně, když se nevejdou), obilí koní za den (červeně, když ho nemají), seno na zimu a seznam
+ * koní této ohrady – druh, věk, výcvik (přesýpací hodiny do 12 let) a hřebec (podkova).
+ */
+function HorsesBlock({ horses, penId }: { horses: VillageHorses; penId: number }): ReactElement {
+  const wanted = horses.wanted.riding + horses.wanted.mares + horses.wanted.foals;
+  const grainAlert = !horses.fed && horses.grainKgPerDay > 0;
+  const mine = horses.horses.filter((h) => h.penId === penId);
+  return (
+    <>
+      <div className="flex items-center gap-3">
+        <Stat
+          src="/icons/build/ohrada.png"
+          name={`Místa v ohradách koní / kolik koní ves chce (jezdečtí ${formatInteger(horses.wanted.riding)}, klisny ${formatInteger(horses.wanted.mares)}, hříbata ${formatInteger(horses.wanted.foals)}); koní ve vsi ${formatInteger(horses.count)}`}
+          testId="selection-horses-need"
+          alert={horses.overRoom}
+        >
+          {formatInteger(horses.places)}/{formatInteger(wanted)}
+        </Stat>
+        <Stat
+          icon="food"
+          name={
+            grainAlert
+              ? 'Obilí koní za den (kg) – koně jsou bez obilí, výcvik se zpomalil'
+              : 'Obilí koní za den (kg)'
+          }
+          testId="selection-horses-grain"
+          alert={grainAlert}
+        >
+          {formatDecimal(horses.grainKgPerDay, horses.grainKgPerDay % 1 === 0 ? 0 : 1)}
+        </Stat>
+        <Stat icon="hay" name="Seno koní na zimu" testId="selection-horses-hay">
+          {formatTons(horses.hayWinterKg)}
+        </Stat>
+      </div>
+      {mine.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          {mine.map((h) => {
+            const kind = HORSE_KIND_NAMES[h.kind];
+            const training = h.kind === 'riding' && h.training < 1;
+            return (
+              <span key={h.id} className="flex items-center gap-1">
+                <Stat
+                  icon={kind.icon}
+                  name={`${kind.name}${h.stallion ? ' – hřebec' : ''}, ${formatInteger(h.ageYears)} ${plural(h.ageYears, 'rok', 'roky', 'let')}${training ? `, výcvik ${formatPercent(h.training)}` : ''}`}
+                  testId={`selection-horse-${h.id}`}
+                >
+                  {formatInteger(h.ageYears)}
+                </Stat>
+                {training && (
+                  <Stat
+                    icon="hourglass"
+                    name={`Výcvik koně (hotový ve 12 letech) ${formatPercent(h.training)}`}
+                    testId={`selection-horse-${h.id}-training`}
+                  >
+                    {formatPercent(h.training)}
+                  </Stat>
+                )}
+                {h.stallion && (
+                  <Stat icon="jizda" name="Hřebec" testId={`selection-horse-${h.id}-stallion`}>
+                    {''}
+                  </Stat>
+                )}
+              </span>
+            );
+          })}
+        </div>
+      )}
+    </>
+  );
+}
+
 /**
  * Ohrada (oxen.md – Co hráč vidí, Ohrady podle druhu): rozestavěná jen průběh stavby; hotová druh
  * zvířat s obsazením a místy na noc (v ohradě / místa), místa všech ohrad druhu / kolik jich stádo
@@ -500,6 +581,7 @@ export function PenBody({
         </Stat>
         <Wear condition={details.condition} abandoned={details.abandoned} />
       </div>
+      {details.horses && <HorsesBlock horses={details.horses} penId={details.id} />}
       {details.repair !== null && <RepairBar value={details.repair} />}
       {details.extension !== null && (
         <Bar value={details.extension} name="Rozšíření ohrady" testId="selection-extension" />

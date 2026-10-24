@@ -325,8 +325,15 @@ describe('ohrada podle druhu (oxen.md – Ohrady podle druhu)', () => {
   const item = buildItem('pen');
   if (item.placement !== 'squares') throw new Error('Ohrada se maluje po čtvercích.');
 
-  it('druhy v rozcestníku: ovce, kozy, prasata, skot, voli – s názvy ohrad', () => {
-    expect(PEN_VARIANTS.map((v) => v.id)).toEqual(['sheep', 'goat', 'pig', 'cattle', 'team']);
+  it('druhy v rozcestníku: ovce, kozy, prasata, skot, voli, koně – s názvy ohrad', () => {
+    expect(PEN_VARIANTS.map((v) => v.id)).toEqual([
+      'sheep',
+      'goat',
+      'pig',
+      'cattle',
+      'team',
+      'horse',
+    ]);
     expect(item.variants).toBe(PEN_VARIANTS);
     expect(PEN_VARIANTS.map((v) => buildVariantName(item, v))).toEqual([
       'Ohrada ovcí',
@@ -334,12 +341,14 @@ describe('ohrada podle druhu (oxen.md – Ohrady podle druhu)', () => {
       'Ohrada prasat',
       'Ohrada skotu',
       'Ohrada volů',
+      'Ohrada koní',
     ]);
-    expect(PEN_VARIANTS.at(-1)!.name).toBe('Voli');
+    expect(PEN_VARIANTS.at(-1)!.name).toBe('Koně');
     // ikony zvířat – i u kurzoru
-    expect(PEN_VARIANTS.map((v) => v.icon)).toEqual(['sheep', 'goat', 'pig', 'cow', 'ox']);
+    expect(PEN_VARIANTS.map((v) => v.icon)).toEqual(['sheep', 'goat', 'pig', 'cow', 'ox', 'horse']);
     expect(penVariantSpecies(undefined)).toBe('sheep');
     expect(penVariantSpecies('team')).toBe('team');
+    expect(penVariantSpecies('horse')).toBe('horse');
   });
 
   it('maluje se po čtvercích jako hřbitov – nejvýš 4, cena roste s čtverci', () => {

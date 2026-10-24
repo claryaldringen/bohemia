@@ -24,7 +24,7 @@ describe('BuildGrid – rozcestník ohrady', () => {
     expect(html).not.toContain('data-group');
   });
 
-  it('otevřená ohrada: ohrada (zpět) a pět druhů, druhy bez zkratky', () => {
+  it('otevřená ohrada: ohrada (zpět) a šest druhů, druhy bez zkratky', () => {
     const html = renderToStaticMarkup(
       <BuildGrid
         options={OPTIONS}
@@ -41,9 +41,11 @@ describe('BuildGrid – rozcestník ohrady', () => {
       'Ohrada prasat',
       'Ohrada skotu',
       'Ohrada volů',
+      'Ohrada koní',
     ]);
     expect(html).toContain('data-group="pen"');
     expect(html).toContain('/icons/resources/sheep.png');
+    expect(html).toContain('/icons/resources/horse.png');
     // zkratku má jen stavba, ne druhy
     expect(html.match(/aria-keyshortcuts=/g)).toHaveLength(1);
   });

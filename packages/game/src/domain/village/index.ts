@@ -302,7 +302,21 @@ export {
   offeredHorses,
 } from './horse-trade';
 // koně po kusech (horses.md – Koně po kusech): věk, druh a místa ohrad koní pro scénu a rozhraní
-export { horseKind, type HorseKind } from './horses';
+export {
+  horseAgeYears,
+  horseGrainToday,
+  horseHayDailyKg,
+  horseKind,
+  horsePlaces,
+  horsesInPlaces,
+  isFoalByAge,
+  isGrainHorse,
+  penHorses,
+  stallionId,
+  villageHorses,
+  type HorseKind,
+} from './horses';
+export { horsesOverRoom, horsesWanted } from './horse-breeding';
 // výměna lidí se sousedem – příchod lidí (`settleNewcomers`) je krok simulace a zůstává uvnitř
 export {
   NO_PEOPLE,

@@ -428,7 +428,8 @@ const THRESHING_FLOOR: BuildItem & { placement: 'threshing-floor' } = {
 
 /**
  * Druhy ohrady v pořadí rozcestníku mřížky staveb (oxen.md – Ohrady podle druhu): ovce, kozy, prasata,
- * skot, voli (ohrada volů – oxen.md, Ohrada volů; v kódu druh `team`) – ikony zvířat
+ * skot, voli (ohrada volů – oxen.md, Ohrada volů; v kódu druh `team`), koně (ohrada koní – horses.md) –
+ * ikony zvířat
  * (`public/icons/resources/`).
  */
 export const PEN_VARIANTS: readonly (SquaresVariant & { id: PenSpecies })[] = [
@@ -437,6 +438,7 @@ export const PEN_VARIANTS: readonly (SquaresVariant & { id: PenSpecies })[] = [
   { id: 'pig', icon: 'pig', name: 'Prasata' },
   { id: 'cattle', icon: 'cow', name: 'Skot' },
   { id: 'team', icon: 'ox', name: 'Voli' },
+  { id: 'horse', icon: 'horse', name: 'Koně' },
 ];
 
 /** Název ohrady podle druhu – portrét panelu (oxen.md – Ohrady podle druhu). */
