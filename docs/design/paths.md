@@ -546,6 +546,11 @@ Návrh Clauda (odhady – ověří poslední úloha plánu):
   Do prohlížeče jen při změně klíče, ne s každým dotazem na ves.
 - **Scéna** trasy jen dekóduje – žádné A\* v prohlížeči (dřív výpočet sítě ve třech úlohách).
 
+**Ověřeno na Vlkově (24. 10. 2026, Úloha 15):** dopočet 10 let +16 % a 40 let +19,5 s proti stavu
+před novým systémem (mez byla +5 % a +1 s), měsíční kontrola Ø 37–48 ms (odhad 5 ms), stav vsi
+–42 kB (mez +50 kB splněna). Odchylka od odhadů je otevřená otázka pro Martina (viz závěr plánu
+cest v2), ne tichá oprava.
+
 ## Rozhodnutí
 
 | Rozhodnutí                                                                                       | Kdo          |

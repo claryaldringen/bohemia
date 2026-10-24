@@ -180,6 +180,33 @@ export function roadsMonth(
   obstacles: ObstacleLayer | null,
 ): void {
   if (dateOfDayIndex(day).day !== 1) return;
+  const clock = ROADS_MONTH_TIMING.clock;
+  if (!clock) {
+    roadsMonthRun(state, day, landscape, obstacles);
+    return;
+  }
+  const t0 = clock();
+  roadsMonthRun(state, day, landscape, obstacles);
+  ROADS_MONTH_TIMING.ms += clock() - t0;
+  ROADS_MONTH_TIMING.runs++;
+}
+
+/**
+ * Měření (`road-report.ts`): hodiny volajícího a součet času měsíčních kontrol (`roadsMonth`).
+ * Ve hře hodiny chybí a nic se neměří – výsledek na nich nezávisí.
+ */
+export const ROADS_MONTH_TIMING: { clock: (() => number) | null; ms: number; runs: number } = {
+  clock: null,
+  ms: 0,
+  runs: 0,
+};
+
+function roadsMonthRun(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer | null,
+): void {
   settleVillageWear(state, day, landscape);
   const roads = state.roads;
   // zánik: kusy na nule pryč, kus pod hotovou stavbou opuštěný – napřed, aby souběžnost se starou

@@ -482,6 +482,20 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   0 / 0 / 1. Po Úloze 1 (24. 10. 2026): dopočet 1 rok 19,9 s, stav 1 079 kB, z toho trasy 144
   (17,0 kB).
 
+- **Závěrečné ověření na Vlkově** (nový systém cest, Úloha 15, 24. 10. 2026; kopie `diag-vlkov2`, den
+  114 037; základ = commit `439338f8` před Úlohou 1 ve vedlejším worktree, měřeno současně na
+  zatíženém stroji, základ je před koňmi, vojvodovou rodinou a žněmi, takže rozdíl času není jen
+  z cest). `road-report.ts` navíc píše `trasy přes neprůchodné` (uložené trasy, jejichž vnitřek
+  jde přes `villageBlockedAt` – stavby, ohrady) a `roadsMonth` (počet a čas měsíčních kontrol přes
+  `ROADS_MONTH_TIMING` v `paths/roads.ts`, hodiny jen v měření). Po 10 letech: cesty 29 (mez 38),
+  křižovatky 14 (18), pahýly 1 (0), konce mimo kotvu 1 (0), nová id 68 (100), vchody bez cesty 0,
+  trasy přes neprůchodné 0, dopočet 186,8 / 201,9 s proti základu 160,5 / 174,2 s (+16 %, mez
+  +5 %), `roadsMonth` Ø 48 ms (mez 5 ms). Po 40 letech: cesty 30, křižovatky 14, konce mimo kotvu 3
+  (vše upravené), dopočet 261,2 s proti 241,7 s (+19,5 s, mez +1 s), `roadsMonth` Ø 37 ms, stav
+  1 009 kB (základ 1 051). Pahýl a konec mimo kotvu je 25m zbytek upravené cesty 547, kterou
+  zarůstání uřízlo od okraje mapy: `trimStubs` upravené cesty záměrně nechává (zarůstají podle
+  druhu), v základu byl pahýl také. Integrační test převodu: `application/__tests__/update-village-roads.test.ts`.
+
 - **Trasy ve stavu vsi** (nový systém cest, Úloha 1; [paths.md – Kdy se trasy počítají a co se
   ukládá](../design/paths.md#kdy-se-trasy-počítají-a-co-se-ukládá)): `VillageState.routes`
   (`VillageRoutes { day, key, list }`, typy v `types-routes.ts`) – trasy posledního kola sítě pěšin,
