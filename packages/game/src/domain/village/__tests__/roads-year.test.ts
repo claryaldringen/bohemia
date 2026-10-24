@@ -54,13 +54,25 @@ describe('1. 11. bez roční sítě pěšin', () => {
     expect(s.roads!.visits).toEqual({ from: Y1, byKey: [] });
   }, 60_000);
 
-  it('provoz ke hřbitovu: úmrtí za poslední rok je návštěva, bez úmrtí a tras ne', () => {
+  it('provoz ke hřbitovu: pohřeb za poslední rok je návštěva, bez úmrtí a tras ne', () => {
     const run = (deathDay: number | null): ReadonlyMap<string, number> => {
       const s = village();
+      const mounds =
+        deathDay === null
+          ? []
+          : [
+              {
+                cell: { x: 0, y: 0 },
+                column: 0,
+                row: 0,
+                size: 'normal',
+                rank: 'adult',
+                day: deathDay,
+              },
+            ];
       s.cemeteries = [
-        { id: 3, squares: [], squareSizeM: 5, graves: 0 },
+        { id: 3, squares: [], squareSizeM: 5, graves: 0, mounds },
       ] as unknown as VillageState['cemeteries'];
-      if (deathDay !== null) s.chronicle.push({ day: deathDay, kind: 'death', group: 'adult' });
       s.roads!.labor.days = 365;
       return roadsDay(s, Y1, LANDSCAPE, null)!;
     };

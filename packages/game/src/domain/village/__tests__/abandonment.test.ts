@@ -11,6 +11,8 @@ import {
   visitKey,
 } from '../abandonment';
 import { bury } from '../cemetery';
+import { buriedWithinYear } from '../paths/roads';
+import type { Cemetery } from '../types';
 import { cloneState } from '../clone';
 import { computePathNetwork, type PathVillage } from '../paths/network';
 import { pathVillageOf } from '../paths/village';
@@ -308,5 +310,37 @@ describe('cloneState – chátrání staveb', () => {
     copy.sacredRuins![0]!.position.x = 99;
     expect(s.sacredBuildings[0]!.wear!.condition).toBe(0.7);
     expect(s.sacredRuins[0]!.position.x).toBe(1);
+  });
+});
+
+describe('pohřby drží navštěvovaný jen hřbitov, kam se pohřbívá', () => {
+  const mound = (day: number): NonNullable<Cemetery['mounds']>[number] => ({
+    cell: { x: 14, y: 8 },
+    column: 0,
+    row: 0,
+    size: 'normal',
+    rank: 'adult',
+    day,
+  });
+
+  it('pohřeb za poslední rok drží jen hřbitov s mohylou, starý hřbitov ne', () => {
+    const fresh = cemetery(20, { mounds: [mound(Y1 - 100)] });
+    const old = cemetery(21, { mounds: [mound(Y1 - 5 * 365)] });
+    expect(buriedWithinYear(fresh, Y1)).toBe(true);
+    expect(buriedWithinYear(old, Y1)).toBe(false);
+    expect(buriedWithinYear(cemetery(22), Y1)).toBe(false);
+  });
+
+  it('pohřeb jde na jeden hřbitov – druhý bez návštěv začne chátrat, jediný otevřený se drží', () => {
+    const s = village();
+    s.cemeteries = [
+      cemetery(20),
+      cemetery(21, { squares: [{ cell: { x: 30, y: 8 }, x: 400, z: 300, waterDistanceM: 100 }] }),
+    ];
+    bury(s, Y1 - 10);
+    const buried = s.cemeteries.filter((c) => buriedWithinYear(c, Y1));
+    expect(buried).toHaveLength(1);
+    const other = s.cemeteries.find((c) => c !== buried[0])!;
+    expect(buriedWithinYear(other, Y1)).toBe(false);
   });
 });

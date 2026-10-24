@@ -91,6 +91,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`rules-buildings.ts`, `rules-people.ts`; `GRAVE_PLACES.marginM` 2 m) – vchod `cemeteryEntrance`,
   `penEntrance`, `penSquaresEntrance` v `paths/entrances.ts`. Vrstva překážek a zlaté otisky krajiny
   se nemění.
+- **Návštěva hřbitova z pohřbů** (`buriedWithinYear` v `paths/roads.ts`): 0,01 dostane jen hřbitov
+  s mohylou s dnem pohřbu v posledních 365 dnech, ne všechny (starý hřbitov chátrá dál).
 - **Hřbitov** (`cemetery.ts`, cemetery.md): čtverce s 56 místy na hroby, zemřelý se pohřbí do
   hotového hřbitova s místem nejblíž k obydlím (`bury(state, day, person)` v `populationDay` – za
   života, před `removePeople`), kronika `cemetery-full` (žádné volné místo). **Mohyly podle
