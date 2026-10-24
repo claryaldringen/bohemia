@@ -126,8 +126,9 @@ export function lateRisk(windows: readonly PloughWindow[], pace: number, ploughe
 
 /**
  * Voda ráno ve dny orby (wagons.md – Voda ráno ve dny orby; Martin 24. 10. 2026: „Rozhodne
- * ekonomika“): pár od rádla sveze ráno vodu (`plan` – jeden vůz, počítá se až po levném
- * zamítnutí), když jízdy zaberou nejvýš MORNING_WATER.maxTeamShare dne páru a **přínos** (úspora
+ * ekonomika“): pár od rádla, který je ráno doma (v den výjezdu – spřežení na poli vodu nesveze,
+ * oxen.md – Spřežení zůstane na poli; rozhoduje `work`), sveze ráno vodu (`plan` – jeden vůz,
+ * počítá se až po levném zamítnutí), když jízdy zaberou nejvýš MORNING_WATER.maxTeamShare dne páru a **přínos** (úspora
  * vody − posádka, čd) je větší než **cena** (odložená orba `cut` × `lateRisk`). Odložená orba =
  * dnes naplánovaná orba (`planned`) + podíl dne páru nad kapacitu rádel (`capacity` páry `pairs`).
  * Riziko se měří proti skutečnému tempu orby `min(capacity, planned)` – omezují ji rádla i lidé

@@ -148,7 +148,8 @@ const lastCartRoutes = new WeakMap<
  * Dosah vozů vsi (wagons.md – Vozová síť; rozhraní pro svoz – „dojede vůz k cíli a za kolik“):
  * trasy vozu `kind` od ohrad se spřežením ke všem cílům najednou (jedno hledání) – dojede,
  * cena, délka a osa trasy pro scénu. Terén pěšin v okně vsi a cílů, překážky krajiny a stavby vsi
- * jako v síti pěšin, pevné cesty podle stupně a příznaku vozová. Bez ohrady se spřežením (nebo
+ * jako v síti pěšin, pevné cesty podle stupně a příznaku vozová. S `from` trasa odtud (spřežení
+ * na poli jede k dalšímu bloku – oxen.md, Spřežení zůstane na poli). Bez ohrady se spřežením (nebo
  * bez obydlí) null. Čistá funkce stavu – výsledek se pamatuje pro stejný vstup.
  */
 export function villageCartRoutes(
@@ -158,20 +159,23 @@ export function villageCartRoutes(
   obstacles: ObstacleLayer | null,
   kind: CartKind,
   targets: readonly CartTarget[],
+  from: { x: number; z: number } | null = null,
 ): CartRoute[] | null {
   // mokřina na ose pevných cest (Road.ground) – vůz ji vidí jako chůze
   const village = cartVillageOf(pathVillageOf(state, day, landscape), state.roads?.roads ?? []);
-  const depots = cartDepots(village, teamPens(state));
+  const pens = cartDepots(village, teamPens(state));
+  const depots = from && pens.length > 0 ? [{ x: from.x, z: from.z }] : pens;
   const bounds = pathBounds(village);
   if (depots.length === 0 || !bounds) return null;
   const margin = 20;
+  const ends = from ? [...targets, { x: from.x, z: from.z, reachM: 0 }] : targets;
   const box = {
-    minX: Math.min(bounds.minX, ...targets.map((t) => t.x - t.reachM - margin)),
-    minZ: Math.min(bounds.minZ, ...targets.map((t) => t.z - t.reachM - margin)),
-    maxX: Math.max(bounds.maxX, ...targets.map((t) => t.x + t.reachM + margin)),
-    maxZ: Math.max(bounds.maxZ, ...targets.map((t) => t.z + t.reachM + margin)),
+    minX: Math.min(bounds.minX, ...ends.map((t) => t.x - t.reachM - margin)),
+    minZ: Math.min(bounds.minZ, ...ends.map((t) => t.z - t.reachM - margin)),
+    maxX: Math.max(bounds.maxX, ...ends.map((t) => t.x + t.reachM + margin)),
+    maxZ: Math.max(bounds.maxZ, ...ends.map((t) => t.z + t.reachM + margin)),
   };
-  const key = JSON.stringify([village, kind, targets, box]);
+  const key = JSON.stringify([village, kind, targets, box, from]);
   const last = lastCartRoutes.get(landscape);
   if (last && last.obstacles === obstacles && last.key === key) return last.routes;
   const terrain = pathTerrainOf(landscape, pathWindowFor(landscape, box));

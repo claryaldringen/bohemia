@@ -45,7 +45,12 @@ import { lordApartIds, lordDayCounts, manorLabor, trainingFamily } from './lord'
 import { nextYearlyCommonLabor, repairNeedPerDay, yearlyCommonLabor } from './dwellings';
 import { animalCareNeed, dailyMilk } from './dairy';
 import { DIET, villageFoodNeed } from './diet';
-import { ploughDayFactor } from './plough-trip';
+import {
+  ploughDayFactor,
+  ploughTeamsAfield,
+  settlePloughTeams,
+  type PloughTravels,
+} from './plough-trip';
 import { isToilDay, windowEndDay } from './happiness';
 import { MOWING_WINDOWS, mow, mowingRemaining } from './hay';
 import { herdingDay, recordHerding } from './herding';
@@ -223,6 +228,16 @@ function cutPlough(tasks: readonly DayTask[], teamDays: number): void {
 }
 
 /**
+ * Pořadí úloh dne v rozdělení práce: orba rádlem napřed (oxen.md – Orba má přednost; Martin
+ * 24. 10. 2026: „Co může být přednějšího než orba?“ – spřežení potřebuje jen oráče, jinak voli
+ * stojí), pak nejbližší konec okna, přednost (`tie`) a pořadí úloh.
+ */
+export function dayTaskOrder(a: DayTask, b: DayTask): number {
+  const plough = (t: DayTask): number => (t.name === 'plough' ? 0 : 1);
+  return plough(a) - plough(b) || a.end - b.end || a.tie - b.tie || a.rank - b.rank;
+}
+
+/**
  * Krok 3: rozdělení práce vsi (population.md – Práce; Martin 19. 10. 2026: „pokud se něco staví,
  * tak čas věnují primárně té stavbě – zemědělství jenom natolik, aby vesnice neměla hlad“).
  * Polní úlohy obou plodin a orba (`fieldTasks`), sezónní práce v sadech, seč sena a porážka podle
@@ -250,9 +265,13 @@ export function work(
   // orba: páry volů s rádlem, se železnou špičkou od kováře rychleji (oxen.md); slabí voli po
   // zimě pomaleji; voli s vozem na výpravě neorají (wagons.md)
   const partsById = new Map(state.parts.map((p) => [p.id, p]));
-  const ploughCap = ploughCapacityPerDay(state, coverage.tools, day) * teamsHomeShare(state, day);
+  const teamsCap = ploughCapacityPerDay(state, coverage.tools, day);
+  const ploughCap = teamsCap * teamsHomeShare(state, day);
+  // spřežení na poli od rána (oxen.md – Spřežení zůstane na poli) – cesta dne jednou za den
+  const afield = ploughTeamsAfield(state);
+  const travels: PloughTravels = new Map();
   const ploughFactor = (cropWork: CropWork): number =>
-    ploughDayFactor(state, day, cropWork, partsById, landscape, obstacles);
+    ploughDayFactor(state, day, cropWork, partsById, landscape, obstacles, travels);
   const owned = fieldTasks(state, day, ploughCap, ploughFactor);
   const dayTasks: DayTask[] = owned.map((field) => ({
     name: field.name,
@@ -318,14 +337,15 @@ export function work(
       rank: 1,
     });
   }
-  dayTasks.sort((a, b) => a.end - b.end || a.tie - b.tie || a.rank - b.rank);
+  dayTasks.sort(dayTaskOrder);
   // vozy (wagons.md – Vůz): dvoukoláky s volem, který dnes neorá, vozí snopy a seno tam, kam
   // dojedou – převezmou kus nošení a jde s nimi honák a nakladač (úloha pak chce méně práce); ve
   // dny orby (i orby osevu navíc) jdou páry napřed k rádlům, vozy táhne zbytek volů (oxen.md –
   // Voli se sdílí)
   const ploughing =
     owned.some((task) => task.name === 'plough') || extraSowingWantsTeam(state, day);
-  const fleet = cartFleetToday(state, day, ploughing);
+  // spřežení na poli zůstává u rádla i v den bez orby (oxen.md – Spřežení zůstane na poli)
+  const fleet = cartFleetToday(state, day, ploughing || afield);
   // dosah vozů má ves s hotovou ohradou volů i bez vozů – měří, co by dnes vozy ušetřily
   // (wagons.md – Kolik vozů ves chce): nošení, které dnes opravdu proběhlo, a jízdy pro uhlí, rudu
   // a vodu; čtyřkolák po louce a strništi, na zoraný díl ne (wagons.md – Co se vozí a na čem) –
@@ -468,9 +488,10 @@ export function work(
   let allocation = allocate();
   // voda ráno ve dny orby (wagons.md – Voda ráno ve dny orby; Martin 24. 10. 2026: „Rozhodne
   // ekonomika“): pár od rádla sveze vodu, když orba, kterou ves dnes opravdu naplánovala, nechá
-  // páru volnou chvíli, nebo když okno orby má rezervu – rádla pak zorají o tolik méně
+  // páru volnou chvíli, nebo když okno orby má rezervu – rádla pak zorají o tolik méně; jen pár,
+  // který ráno vyjíždí z ohrady – pár na poli vodu nesveze (oxen.md – Spřežení zůstane na poli)
   let morningTeam = 0;
-  const pairs = ploughing && access && !jobs.water ? ploughPairsHome(state, day) : 0;
+  const pairs = ploughing && !afield && access && !jobs.water ? ploughPairsHome(state, day) : 0;
   if (pairs > 0 && fleet['two-wheel'] + fleet['four-wheel'] > 0) {
     let planned = 0;
     dayTasks.forEach((task, i) => {
@@ -710,6 +731,8 @@ export function work(
     toolCoverage: coverage.tools,
     order: () => workOrder(villageHoldings(state)),
   });
+  // večer: spřežení, které dnes vyjelo a oralo, je u bloku; po zorání okna zpět do ohrady
+  settlePloughTeams(state, day, travels, teamsCap <= EPSILON);
   const supply: SmithSupply = {
     fetch: fetchPlans,
     burners,

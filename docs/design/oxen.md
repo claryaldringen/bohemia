@@ -476,19 +476,22 @@ Clauda**:
   0,3 ha za den platí pro brázdu 100 m; jeden díl (15 m) ≈ 44 %, pás 45 m ≈ 80 %, 200 m a víc
   nejvýš +15 % (`FURROW` v `rules.ts`, `furrowEfficiency`). Denní orba spřežení je
   0,3 ha × výkon pásu, na kterém spřežení právě orá.
-- **Cesta na místo:** spřežení jde ráno z ohrady k bloku a večer zpět **vozovou sítí jako
+- **Cesta na místo:** ~~spřežení jde ráno z ohrady k bloku a večer zpět~~ (od 24. 10. 2026
+  zůstává na poli – Spřežení zůstane na poli níž) **vozovou sítí jako
   dvoukolák bez nákladu** (`villageCartRoutes`): nejrychlejší trasa – pevná cesta (cena 0,6),
   napříč přes neosetá pole (louka, úhor, strniště 1, zoraný a zakládaný díl 1,6), osetým dílem
   nikdy. Cestu ubírá orbě dne poměrným dílem (≈ 0,8 m/s, orá se ≈ 6 h denně, nejvýš polovina dne –
-  `TEAM_TRAVEL`); po cestě 500 m ≈ 6 %. Cena cesty se spočítá, když spřežení začne nový blok
+  `TEAM_TRAVEL`); ~~po cestě 500 m ≈ 6 %~~ (tam a zpět; od 24. 10. jen tam – po cestě 500 m
+  ≈ 3 % v den výjezdu). ~~Cena cesty se spočítá, když spřežení začne nový blok~~
   (`PloughWork.trip`); bez krajiny (kalibrace) chůze k dílu.
 - **Plán osevu** počítá s výkonem podle tvaru polí, na která může ves zasít (průměr výkonu jejich
   pásů – `plannedFurrowEfficiency`), cestu neodhaduje (je malá).
 - **Ve scéně:** herní jádro posílá u dílů orby osu brázd a směr orby (`SceneFieldPart.furrow`) –
   podle nich vede obtisk zorané části i čára práce; spřežení jede pruhem přes celý pás
   (`bandCandidates`, pruh `PloughField.length`), při ladicí orbě za den (Orba za herní den níž)
-  vyjde z ohrady po cestě (`SceneVillage.ploughApproach`), zorá dnešní pruhy pásů za sebou
-  a večer se po cestě vrátí.
+  ~~vyjde z ohrady po cestě (`SceneVillage.ploughApproach`), zorá dnešní pruhy pásů za sebou
+  a večer se po cestě vrátí~~ – od 24. 10. 2026 jen v den výjezdu a návratu (Spřežení zůstane na
+  poli níž).
 - **Kalibrace se nemění** – hráč skriptu ohrady nestaví; sonda „plná domácnost se spřežením“
   ukazuje průměrnou délku brázdy a její výkon.
 
@@ -612,6 +615,44 @@ a nechávalo za sebou brázdu. Tak budu moci určit, jak se to chová.“ – **
 - **Při omezeném pohybu** (a bez hodin herního dne) se orba za den nepřehrává – pole ukáže
   konec dne a spřežení stojí na čele jako dřív.
 
+## Spřežení zůstane na poli (24. 10. 2026)
+
+Stav: **Martin, 24. 10. 2026:** „Ve hře teď dny nemáme. Ať spřežení orá, dokud nebude všechno,
+co je potřeba, zorané. Tím ušetříme každodenní cesty na pole a návraty domů a poměrně k tomu
+můžeme spřežení zpomalit, takže se na něj bude lépe koukat.“ – **ruší denní cestu z ohrady
+a zpět** (Co nejdelší brázda – Cesta na místo výš). Podrobnosti **návrh Clauda**:
+
+- **Výjezd:** spřežení plodiny vyjede z ohrady k prvnímu bloku v den, kdy začne orat (první den
+  orby v okně, kdy orba opravdu proběhne – den, kdy lidé neorají, spřežení zůstává doma).
+- **Na poli:** zůstává u bloku, i ve dny, kdy se neorá (lidé mají přednější práci) – voli jsou
+  u rádla, vozy je ten den nemají (Voli se sdílí). Po zorání bloku se přesune k dalšímu bloku
+  (od konce posledního pásu bloku vozovou sítí jako dřív).
+- **Návrat:** večer dne, kdy je zoráno všechno, co okno potřebuje (orba bez osevu navíc), kdy
+  okno orby zítra už neběží, nebo když ves páry s rádlem nemá – zpět do ohrady.
+- **Cesta ubírá orbě jen při výjezdu a přesunu** (cesta jen tam, stejná čísla `TEAM_TRAVEL`);
+  návrat jde po poslední brázdě – zbytek orby posledního dne je menší než den, takže ho
+  nezkrátí. Ostatní dny orá spřežení celý den. Na cestě 500 m to dělá ≈ 6 % dne navíc oproti
+  denní cestě tam a zpět.
+- **Stav:** `PloughWork.trip` – blok, u kterého spřežení je, den a odkud přijelo (`arrived`)
+  a den návratu (`home`). Zapíše se večer (`settlePloughTeams`), výkon dne počítá
+  `ploughDayFactor` ze stavu ráno. Starší ves se záznamem bez příjezdu má spřežení u bloku, kde
+  naposled oralo (na poli); po zorání se večer vrátí.
+- **Voda ráno ve dny orby** ([wagons.md](wagons.md)) jen pro pár doma – v den výjezdu; pár na
+  poli vodu nesveze.
+- **Ve scéně:** spřežení na poli orá dnešní pruhy celý herní den (bez ranní cesty z ohrady
+  a večerního návratu), takže jede pomaleji; cesta z ohrady jen v den výjezdu, přesun mezi bloky
+  v den přesunu, návrat do ohrady v den návratu; mezi dny bez orby stojí u čela orby. Polohu bere
+  scéna z dat jádra (`trip`).
+
+## Orba má přednost (24. 10. 2026)
+
+Stav: **Martin, 24. 10. 2026:** „Co může být přednějšího než orba?“ Podrobnosti **návrh
+Clauda**: v rozdělení práce dne dostane orba rádlem přednost před všemi sezónními úlohami včetně
+žně a výmlatu – hned po denním minimu domácností, péči o koně, výpravách a vozech pro kováře
+(`dayTaskOrder`). Spřežení potřebuje jen oráče (a honáka), jinak voli stojí; dřív se úlohy řadily
+jen podle nejbližšího konce okna, takže výmlat jaře v září nebo žeň braly lidi před orbou.
+Kapacita rádel (`ploughCap`) se nemění.
+
 ## Co hráč vidí
 
 - V nabídce staveb **ohrada** (název a cena v tooltipu).
@@ -696,3 +737,6 @@ a nechávalo za sebou brázdu. Tak budu moci určit, jak se to chová.“ – **
 | Páry k rádlům s hysterezí – mění se, jen když potřeba trvá dva plány po sobě                                                                                                                                                                                                                                                                   | návrh Clauda, hystereze rozhodnutí Clauda                  |
 | Krávy navíc přes zimu na telata, která ves do výcviku potřebuje                                                                                                                                                                                                                                                                                | rozhodnutí Clauda                                          |
 | Náhrada posledního páru k orbě bere telata i pod cílem krav, dokud zůstane chovný pár; krávy na telata rok předem                                                                                                                                                                                                                              | návrh Clauda (20. 10. 2026), rok předem rozhodnutí Clauda  |
+| „Ať spřežení orá, dokud nebude všechno, co je potřeba, zorané.“ – spřežení zůstane na poli, cesta jen při výjezdu, přesunu (a návratu)                                                                                                                                                                                                         | Martin (24. 10. 2026)                                      |
+| Výjezd v den, kdy orba proběhne; návrat večer po zorání okna, na konci okna nebo bez párů; návrat orbu nekrátí; pár na poli vodu nesveze                                                                                                                                                                                                       | návrh Clauda                                               |
+| „Co může být přednějšího než orba?“ – orba rádlem první ze sezónních úloh, hned po minimu, koních, výpravách a vozech pro kováře                                                                                                                                                                                                               | Martin (24. 10. 2026), pořadí návrh Clauda                 |

@@ -253,11 +253,24 @@ export interface PloughWork {
    */
   bands?: PloughBand[];
   /**
-   * Cesta spřežení k bloku, který právě orá (oxen.md – Co nejdelší brázda): blok (`PloughBand.block`)
-   * a cena cesty tam (m jízdy po louce – vozová síť, bez krajiny vzdálenost dílů od obydlí). Spočítá
-   * se, když spřežení začne nový blok.
+   * Spřežení na poli (oxen.md – Spřežení zůstane na poli): blok (`PloughBand.block`), u kterého je,
+   * a cena poslední cesty k němu (m jízdy po louce – vozová síť z ohrady nebo od předchozího bloku,
+   * bez krajiny vzdálenost dílů od obydlí). Zapíše se večer dne, kdy spřežení k bloku přijelo
+   * a oralo. Chybí = spřežení plodiny je v ohradě.
    */
-  trip?: { block: number; costM: number };
+  trip?: PloughTrip;
+}
+/** Kde je spřežení plodiny (`PloughWork.trip`). */
+export interface PloughTrip {
+  block: number;
+  costM: number;
+  /**
+   * Den příjezdu k bloku a odkud – blok (`PloughBand.block`), null = z ohrady. Chybí = starší ves
+   * (spřežení u bloku, kde naposled oralo).
+   */
+  arrived?: { day: number; from: number | null };
+  /** Den, kdy se spřežení večer vrátilo do ohrady – od dalšího dne je doma. Chybí = na poli. */
+  home?: number;
 }
 /**
  * Pás orby: díly v řadě podél brázdy (v pořadí podél), osa brázd v mřížce pole (`x` – podél

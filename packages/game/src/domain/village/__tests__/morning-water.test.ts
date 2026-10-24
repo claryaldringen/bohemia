@@ -4,6 +4,7 @@ import { foundVillage } from '../actions';
 import { storedWaterCartDrive, waterCartPlan, type WaterCartPlan } from '../cart-jobs';
 import { morningWater, ploughWindowsToday, waterHouseholdsToday } from '../morning-water';
 import { MORNING_WATER } from '../rules';
+import { ploughTeamsAfield } from '../plough-trip';
 import { advanceVillage } from '../simulate';
 import type { FieldPart, LaborShare, Person, VillageState } from '../types';
 import { createCropWork } from '../year-plan';
@@ -262,17 +263,17 @@ describe('voda ráno ve dny orby (wagons.md – Voda ráno ve dny orby)', () => 
   const EARLY = at(601, 3, 2);
   const LATE = at(601, 4, 29);
 
-  it('okno s rezervou – ráno voda vozem, orba o podíl dne páru menší', () => {
-    const s = ploughVillage(EARLY - 2);
+  it('okno s rezervou – v den výjezdu ráno voda vozem, orba o podíl dne páru menší', () => {
+    const s = ploughVillage(EARLY - 3);
     expect(ploughWindowsToday(s, EARLY, () => 1)[0]!.daysLeft).toBe(59);
-    // chůze k vodě se změří první den – voda vozem až druhý
-    const next = advanceVillage(s, EARLY, null, LANDSCAPE);
+    // chůze k vodě se změří první den (v únoru, bez orby) – voda vozem v den výjezdu (1. 3.)
+    const next = advanceVillage(s, EARLY - 1, null, LANDSCAPE);
     const water = shares(next, 'haul').filter((h) => h.job === 'water');
     expect(water).toHaveLength(1);
     expect(water[0]!.fourWheel).toBe(1);
-    const plain = ploughVillage(EARLY - 2);
+    const plain = ploughVillage(EARLY - 3);
     delete plain.carts;
-    const walking = advanceVillage(plain, EARLY, null, LANDSCAPE);
+    const walking = advanceVillage(plain, EARLY - 1, null, LANDSCAPE);
     const ploughed = manDays(shares(next, 'plough'));
     expect(ploughed).toBeGreaterThan(0);
     expect(ploughed).toBeLessThan(manDays(shares(walking, 'plough')));
@@ -293,16 +294,12 @@ describe('voda ráno ve dny orby (wagons.md – Voda ráno ve dny orby)', () => 
     expect(shares(next, 'haul').filter((h) => h.job === 'water')).toEqual([]);
   }, 60_000);
 
-  it('den, kdy lidem orba nezbude – voda zadarmo i v těsném okně, orba se nezmenší', () => {
-    const s = ploughVillage(LATE - 2, 0);
-    const next = advanceVillage(s, LATE, null, LANDSCAPE);
-    expect(shares(next, 'haul').filter((h) => h.job === 'water')).toHaveLength(1);
-    const plain = ploughVillage(LATE - 2, 0);
-    delete plain.carts;
-    const walking = advanceVillage(plain, LATE, null, LANDSCAPE);
-    expect(manDays(shares(next, 'plough'))).toBeGreaterThanOrEqual(
-      manDays(shares(walking, 'plough')),
-    );
+  it('pár na poli vodu nesveze – další dny orby se voda nosí (oxen.md – Spřežení zůstane na poli)', () => {
+    const s = advanceVillage(ploughVillage(EARLY - 3), EARLY - 1, null, LANDSCAPE);
+    expect(ploughTeamsAfield(s)).toBe(true);
+    const next = advanceVillage(s, EARLY, null, LANDSCAPE);
+    expect(manDays(shares(next, 'plough'))).toBeGreaterThan(0);
+    expect(shares(next, 'haul').filter((h) => h.job === 'water')).toEqual([]);
   }, 60_000);
 
   it('dopočet najednou = po kouscích', () => {
