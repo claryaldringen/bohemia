@@ -324,6 +324,21 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return event.horses === 1
         ? 'Přes zimu chybělo seno – kůň uhynul.'
         : `Přes zimu chybělo seno – uhynuli koně (${event.horses}).`;
+    case 'foal-born':
+      return event.foals === 1
+        ? 'V ohradě koní se narodilo hříbě.'
+        : `V ohradě koní se narodila hříbata (${event.foals}).`;
+    case 'horse-trained':
+      return 'Kůň je vycvičený pod jezdcem.';
+    case 'horse-retired':
+      if (event.reason === 'age') {
+        return event.horses === 1
+          ? 'Kůň dosloužil – zestárl a šel na maso.'
+          : `Koně dosloužili – zestárli a šli na maso (${event.horses}).`;
+      }
+      return event.horses === 1
+        ? 'Kůň navíc šel na maso.'
+        : `Koně navíc šli na maso (${event.horses}).`;
     case 'orchard-gone':
       return 'Starý sad dosloužil a zarostl loukou.';
     case 'orchard-renewal-started':

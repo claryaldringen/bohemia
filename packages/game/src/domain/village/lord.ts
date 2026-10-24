@@ -1,5 +1,7 @@
 // Vojvodova rodina a dovednosti (docs/design/lord.md): kdo patří k rodině, výcvik den po dni, růst
 // a úbytek dovedností, denní minimum dvorce a kdy jde rodina na pole.
+import { assignRiders, NO_RIDERS, trainHorsesDay } from './horse-riders';
+import { horsePens } from './horses';
 import { householdHead } from './households';
 import { adultDailyMin, waterFetchingLabor } from './labor';
 import { villageManorId } from './manor';
@@ -293,27 +295,36 @@ export function lordFieldMode(state: VillageState, day: number): ChronicleEvent[
 const NO_ARMS: ArmsSkills = { bow: 0, combat: 0, riding: 0 };
 
 /**
- * Výcvik dne (lord.md – Výcvik a zkušenost; mutuje lidi): cvičící rodiny dostanou `trainArms`
- * podle hodin dne (zatím bez koně – jízda 0); dospělí na poli jen `1 − fieldShare` dne (podíl
- * práce rodiny, který dnes spotřebovaly úlohy), chlapci 7–13 let cvičí vždy. Kdo dnes necvičí
- * (rodina celý den na poli, muž mimo dvorec, rodina pracuje jako ostatní), zapomíná (`decayArms`).
+ * Výcvik dne (lord.md – Výcvik a zkušenost; mutuje lidi a koně): cvičící rodiny dostanou
+ * `trainArms` podle hodin dne – jízdu jen jezdec s koněm (horses.md – Výcvik koně a jezdec, páry
+ * `assignRiders` drží i mimo výcvik); dospělí na poli jen `1 − fieldShare` dne (podíl práce
+ * rodiny, který dnes spotřebovaly úlohy), chlapci 7–13 let cvičí vždy. Kdo dnes necvičí (rodina
+ * celý den na poli, muž mimo dvorec, rodina pracuje jako ostatní), zapomíná (`decayArms`). Koně
+ * se cvičí pod jezdci, kteří dnes jezdili (`trainHorsesDay`); vrací události kroniky.
  */
-export function trainLordDay(state: VillageState, day: number, fieldShare = 0): void {
+export function trainLordDay(state: VillageState, day: number, fieldShare = 0): ChronicleEvent[] {
   const family = trainingFamily(state, day);
   const trainees = new Set(family ? family.trainees.map((p) => p.id) : []);
   const onField = Math.min(1, Math.max(0, fieldShare));
+  const mounted =
+    horsePens(state).length > 0
+      ? assignRiders(state, day, family ?? lordFamily(state, day))
+      : NO_RIDERS;
+  const riding = new Map<number, number>();
   for (const p of state.people) {
     if (family && trainees.has(p.id)) {
       const share = ageGroup(p, day) === 'child' ? 1 : 1 - onField;
-      const h = trainingHours(p, day, family.lord, false);
+      const h = trainingHours(p, day, family.lord, mounted.has(p.id));
       if (share > 0 && h.bow + h.combat + h.riding > 0) {
         const hours = { bow: h.bow * share, combat: h.combat * share, riding: h.riding * share };
         p.arms = trainArms(p.arms ?? NO_ARMS, hours, armsCap(p, day));
+        if (hours.riding > 0) riding.set(p.id, share);
         continue;
       }
     }
     if (p.arms) p.arms = decayArms(p.arms);
   }
+  return family ? trainHorsesDay(state, day, riding) : [];
 }
 
 /**

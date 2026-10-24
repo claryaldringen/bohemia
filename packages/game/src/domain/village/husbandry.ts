@@ -17,6 +17,7 @@ import {
 } from './hay';
 import { foodCosts, type FoodCosts } from './economy';
 import { herdingCoverage } from './herding';
+import { horsesDay } from './horse-breeding';
 import { horsesWinterEnd } from './horse-feed';
 import { horseHayDailyKg, horsesInPlaces, villageHorses } from './horses';
 import { HORSES } from './rules';
@@ -264,6 +265,8 @@ export function husbandryDay(
     winterEnd && horsesKg > 0 ? horsesHayCoverage(state, villageOxen(state), horsesKg) : 1;
   const events = penDay(state, day, winterEnd, toolCoverage);
   if (horsesCoverage < 1) events.push(...horsesWinterEnd(state, day, horsesCoverage));
+  // chov koní – hříbata 1. 5., koně na maso 1. 11. před porážkou stád (horses.md – Chov)
+  events.push(...horsesDay(state, day));
   // voli osadníků bez ohrady přejdou do první ohrady volů (migration.md – Vůz při odchodu)
   events.push(...looseOxenDay(state, day));
   if (winterEnd) {

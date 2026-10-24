@@ -143,6 +143,15 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'ox-died'; penId: number; training: boolean; oxen?: number }
   /** Koně uhynuli 1. 3. pro nedostatek sena (horses.md – Krmení). */
   | { kind: 'horse-starved'; penId: number; horses: number }
+  /** Klisny ohrady porodily 1. 5. hříbata (horses.md – Chov; `foals` – kolik). */
+  | { kind: 'foal-born'; penId: number; foals: number }
+  /** Kůň pod jezdcem došel plného výcviku (horses.md – Výcvik koně a jezdec). */
+  | { kind: 'horse-trained'; penId: number; horseId: number }
+  /**
+   * Koně šli 1. 11. na maso (horses.md – Chov): dosloužili ve 20 letech (`age`), nebo jich ves má
+   * víc, než chce (`surplus` – nejdřív nejstarší).
+   */
+  | { kind: 'horse-retired'; penId: number; horses: number; reason: 'age' | 'surplus' }
   /** Sad dosloužil (60. rok) a vrátil se v louku. */
   | { kind: 'orchard-gone'; orchardId: number }
   /** Vesničané zařadili čtverce starého sadu do obnovy (orchard.md – Obnova sadu). */

@@ -109,6 +109,15 @@ export const PEN_PLACES_PER_SQUARE = {
  * (`trainingWithoutGrain` – Martin: „zpomalí“, polovina návrh Clauda). Ves koním obilí znovu
  * nasype, až jí po lidech a koních do sklizně zbude `grainResumeDays` dní obilí koní navíc
  * (hystereze proti přeskakování den po dni na hraně zásob – návrh Clauda).
+ *
+ * horses.md – Chov (návrh Clauda): klisna 4–20 let rodí každý `foalEveryYears` rok (podle parity
+ * roku a svého id), hříbata `birthDay` 1. 5., jen když má ves jezdeckého koně od 3 let (hřebec).
+ * Ves chce jezdeckého koně na každého muže rodiny od 10 let a `maresBase` + 1 klisnu na každých
+ * `ridersPerMare` jezdců; hříbata podle hřebečků, kteří budou za `foalUntilYears` let chybět.
+ * horses.md – Výcvik koně a jezdec (Martin 22. 10. 2026: jízda od 3 let, výcvik hotový ve 12 –
+ * `trainedAtYears`; čísla návrh Clauda): výcvik 0–`trainingFull` roste denně, kdy na koni jezdec
+ * cvičí, aby od 3 do 12 let došel na plný (≈ 11 % ročně). Co jezdec na koni dokáže = jízda ×
+ * (`riderPower.base` + `riderPower.perTraining` × výcvik).
  */
 export const HORSES = {
   serviceFromYears: 3,
@@ -124,6 +133,13 @@ export const HORSES = {
   pastureHa: 1,
   trainingWithoutGrain: 0.5,
   grainResumeDays: 30,
+  birthDay: { month: 5, day: 1 },
+  foalEveryYears: 2,
+  maresBase: 1,
+  ridersPerMare: 3,
+  trainingFull: 100,
+  trainedAtYears: 12,
+  riderPower: { base: 0.4, perTraining: 0.6 },
 } as const;
 /**
  * oxen.md – Spřežení, Voli po kusech (návrh Clauda, Martin schválil): výcvik ≈ 2 roky, vůl slouží

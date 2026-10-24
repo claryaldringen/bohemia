@@ -54,8 +54,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 'hunger' }` (kronika `lord-to-field`), rodina dá od zítřka práci dospělých po minimu do úloh
     dne (`lordField`); po `LORD.backToTrainingDays` (30) dnech plného přídělu po sobě
     (`lord.fedDays`) zpět (`lord-to-training`).
-  - **Výcvik:** `trainLordDay` po jídle – cvičící `trainArms` (bez koně, jízda 0), dospělí jen
-    `1 − podíl práce na poli`, chlapci 7–13 vždy; kdo necvičí a má `arms`, `decayArms`.
+  - **Výcvik:** `trainLordDay` po jídle – cvičící `trainArms`, dospělí jen
+    `1 − podíl práce na poli`, chlapci 7–13 vždy; kdo necvičí a má `arms`, `decayArms`. Jízdu
+    (`trainingHours(…, hasHorse)`) cvičí jen jezdec s koněm – páry `assignRiders`
+    (`horse-riders.ts`, i když rodina necvičí); bez koně jízda 0 a hodiny jdou do luku a boje.
+    Koně pod jezdci, kteří dnes jezdili, cvičí `trainHorsesDay` – `trainLordDay` vrací kroniku.
   - **Pasáci:** synové cvičící rodiny nepasou (`lordTraineeIds` v `youngsterCount`,
     `herdingDay`, `youngsterHerders`).
 - **Sňatky** (`marriage.ts`, kinship.md – Sňatky; Martin, varianta c; 19. 10. 2026: „Vdova by se
