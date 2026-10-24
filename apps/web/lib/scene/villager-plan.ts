@@ -476,6 +476,9 @@ export function placer(ctx: Context, share: SceneLaborShare, count: number): Pla
     case 'animal-care':
       // v zimě u ohrady (krmení, voda, kydání), jinak u domů (prasata, slepice)
       return t.kind === 'pen' ? penFence(ctx, t.id) : domestic(ctx);
+    case 'horse-care':
+      // koňák u ohrady koní (horses.md – Péče), bez ohrady u domů
+      return t.kind === 'pen' ? penFence(ctx, t.id) : domestic(ctx);
     case 'slaughter':
       // porážka a uzení u vsi (diet.md) – na udusané zemi kousek od domů jako výmlat
       return threshing(ctx, count);

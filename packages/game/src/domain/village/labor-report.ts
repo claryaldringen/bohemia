@@ -1,5 +1,7 @@
 import type { WorkshopDay } from './crafts';
 import { isVillageExtinct } from './extinction';
+import { penSpecies } from './pens';
+import { horsePens, horsesInPlaces, penHorses } from './horses';
 import type { GrainPitDay } from './grain-pits';
 import type { DayAllocation, LaborTaskName } from './labor';
 import { villageOrchards } from './orchard';
@@ -275,6 +277,8 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
       workshops.reduce((sum, w) => sum + w.domestic, 0) +
       (work.lord?.domestic ?? 0),
   );
+  // péče o koně (horses.md – Péče): koňák ráno a večer u ohrad koní, poměrně k počtu koní
+  horseCareShares(state, day, allocation.horseCare, add);
   // řemeslníci: uhlíř a hrnčíř kácejí u svého stromu, výroba v dílně – uhlíř u svých milířů
   // (samostatné stavby u skácených buků – crafts.md, Milíř u skácených buků), a sází mladé buky
   // na pařezy (crafts.md – Uhlíř)
@@ -373,6 +377,30 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
 }
 
 /**
+ * Péče o koně dne po ohradách koní (poměrně k počtu koní s místem), bez hotové ohrady u vsi.
+ * Podíl je mimo společnou práci (`allocation.horseCare` se bere hned za denním minimem).
+ */
+function horseCareShares(
+  state: VillageState,
+  day: number,
+  total: number,
+  add: (activity: LaborActivity, target: LaborTarget, manDays: number) => void,
+): void {
+  if (total <= 0) return;
+  const pens = horsePens(state)
+    .filter((p) => p.builtDay !== null)
+    .map((pen) => ({ id: pen.id, horses: horsesInPlaces(penHorses(pen), day) }))
+    .filter((p) => p.horses > 0);
+  const horses = pens.reduce((sum, p) => sum + p.horses, 0);
+  if (horses === 0) {
+    add('horse-care', { kind: 'village' }, total);
+    return;
+  }
+  for (const pen of pens)
+    add('horse-care', { kind: 'pen', id: pen.id }, (total * pen.horses) / horses);
+}
+
+/**
  * Výmlat dne po místech (production-chains.md – Humno): práce na humnech rovným dílem mezi hotová
  * humna, nouzový výmlat na udusané zemi u vsi; bez rozdělení (starší volání) celý u vsi.
  */
@@ -398,7 +426,7 @@ function threshShares(
  * nějakou má – diet.md), jinak u domů, domácí výroba u domů.
  */
 function asideShares(state: VillageState, aside: AsideWork): LaborShare[] {
-  const pen = (state.pens ?? []).find((p) => p.builtDay !== null);
+  const pen = (state.pens ?? []).find((p) => p.builtDay !== null && penSpecies(p) !== 'horse');
   const shares: LaborShare[] = [];
   const add = (activity: LaborActivity, target: LaborTarget, manDays: number): void => {
     const rounded = Math.round(manDays * 1000) / 1000;

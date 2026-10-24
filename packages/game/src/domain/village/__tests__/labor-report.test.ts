@@ -216,4 +216,46 @@ describe('laborReport – rozdělení práce dne', () => {
     }
     expect(laborReport(chunked)).toEqual(laborReport(whole));
   });
+
+  it('péče o koně je podíl horse-care u ohrady koní a součet podílů sedí (horses.md – Péče)', () => {
+    const day = at(600, 7, 1);
+    const s0 = bare(day);
+    s0.pens = [
+      {
+        id: 90,
+        species: 'horse',
+        cell: { x: 4, y: 4 },
+        x: 0,
+        z: 0,
+        builtDay: day - 400,
+        team: null,
+        training: null,
+        horses: [1, 2, 3].map((id) => ({ id, bornDay: day - 6 * 365, sex: 'male', training: 0 })),
+      },
+      {
+        id: 91,
+        cell: { x: 8, y: 4 },
+        x: 30,
+        z: 0,
+        builtDay: day - 400,
+        team: null,
+        training: null,
+        oxen: 0,
+        trainees: 0,
+        cows: 2,
+      },
+    ] as unknown as VillageState['pens'];
+    const s = advanceVillage(s0, day + 1, null);
+    const report = laborReport(s)!;
+    const care = of(report.shares, 'horse-care');
+    expect(care).toHaveLength(1);
+    expect(care[0]!.target).toEqual({ kind: 'pen', id: 90 });
+    expect(care[0]!.manDays).toBeCloseTo(0.3, 2);
+    // péče se nepočítá dvakrát: součet podílů je kapacita vsi
+    expect(total(report.shares)).toBeCloseTo(capacity(s), 1);
+    // práce bokem (péče o krávy) nemíří k ohradě koní
+    for (const share of report.aside ?? []) {
+      expect(share.target).not.toEqual({ kind: 'pen', id: 90 });
+    }
+  });
 });

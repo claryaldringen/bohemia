@@ -4,6 +4,7 @@
 // stoh sena z models/fields/haystack.glb, vytyčení kolíky a provázkem a obtisk vyšlapaného bláta.
 // Kde co stojí a co z ohrady při průběhu stavby stojí, počítá pen-layout.ts. Všechno v instancích
 // pro všechny ohrady najednou – každý díl stojí na svém místě terénu.
+import type { PenSpecies } from '@bohemia/game';
 import type { Material } from '@babylonjs/core/Materials/material';
 import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
@@ -81,6 +82,8 @@ export interface PenView {
   condition?: number;
   extra?: readonly { x: number; z: number }[];
   pending?: readonly CellSquare[];
+  /** Druh ohrady – koně mají vyšší plot (pen-layout.ts); bez údaje jako ostatní. */
+  species?: PenSpecies;
 }
 
 interface PenEntry {
@@ -143,6 +146,7 @@ export class PenRenderer {
         facing.z,
         square.rotation ?? 0,
         ...extra.flatMap((q) => [q.x, q.z]),
+        view.species ?? '',
       ].join(',');
       const pendingKey = (view.pending ?? []).map((q) => `${q.x},${q.z}`).join(';');
       const stage = penStage(view.progress);
@@ -156,7 +160,7 @@ export class PenRenderer {
       if (current?.key === key) continue;
       changed = true;
       const same = current?.layoutKey === layoutKey;
-      const layout = same ? current.layout : penLayout(square, facing, extra);
+      const layout = same ? current.layout : penLayout(square, facing, extra, view.species);
       let mud = same ? current.mud : null;
       let string = same && current.pendingKey === pendingKey ? current.string : null;
       if (current && !same) current.mud?.dispose();

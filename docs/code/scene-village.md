@@ -222,7 +222,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   stoupá s plností o `GRAIN_RISE_M`), u prázdné jámy hliněné dno `FLOOR`; materiál má `zOffset`,
   aby louka neprosvítala. Bez nové textury, jen barvy vrcholů.
 
-## Kůň a hříbě (modely – lord-horses Úloha 8, zatím se nekreslí)
+## Kůň a hříbě (modely – Úloha 8; ve scéně Úloha 10)
 
 `apps/web/public/models/fauna/horse.glb` (≈ 175 kB, 2,2 m dlouhý) a `foal.glb` (≈ 165 kB, 1,3 m,
 ≈ 0,6×) z `tools/blender/fauna_from_0ad.py` + `fauna.json` (`horse_breed.dae`, `horse_brown.png`).
@@ -231,4 +231,19 @@ tedy stejné vertex buffery jako kráva (POSITION, NORMAL, TEXCOORD_0 + 3 klíč
 limit WebGPU je 8; hlídá `lib/scene/__tests__/fauna.test.ts`). Pastva: 0 A.D. u `horse_breed`
 žádnou nemá, klíč `graze` je proto vytvořený skriptem (`"bend"` – krk a hlava základní pózy se
 skloní o 85°, nos skončí ≈ 0,6 m nad zemí). Sedlo a čabraka v modelu nejsou. Velikost ve scéně
-(SCALE kůň +20 %) a kreslení patří do Úlohy 10.
+(`SCALE` v `livestock-placement.ts`: kůň 1,0–1,12, hříbě 1,0–1,15; v ohradě `HORSE_SCALE` / `FOAL_SCALE`
+v `pen-animals.ts`).
+
+**Koně na pastvě (Úloha 10):** `LivestockSpecies` má `horse` a `foal` (modely `horse.glb`, `foal.glb`
+jako kráva, pózy `GAIT`). `grazingHorses(village)` v `livestock-placement.ts`: v létě (mimo
+`HAY_WINTER_MONTHS`), je-li pasák navíc (`herderCount` ≥ stáda ovcí s kozami, krav a prasat + 1; stádo nikdy samo, koně jdou na pastvu poslední), se pasou koně ohrad koní **bez jezdce**
+(`riderId`); v zimě, bez pasáka a bez herního dne stojí v ohradě. Pasou se jako vlastní stádo
+(`kind 'cattle'`, index `HORSE_HERD_INDEX`) spočítané **až po** ostatních stádech, takže jejich
+rozmístění (`livestock-golden`) zůstává. Klíč plánu v `livestock.ts` nese i koně na pastvě.
+Jedno rozhodnutí `grazingHorses` sdílí `planLivestock`, `penHerds` (kůň na pastvě není v ohradě)
+a `villageKey`. Koňák: `labor-report.ts` dává podíl `horse-care` (hodina denně na koně, poměrně
+po ohradách koní) a `villager-plan.ts` ho pošle k plotu ohrady (`penFence`); zimní `animal-care`
+bere jen ohradu, která není koňská. Ranní vedení jezdeckých koní ke dvorci je Úloha 11. Koně nad
+kapacitu míst se nevykreslí (`horseAnimalsFor`, 4 na čtverec – jádro tolik nepustí). Modely krávy,
+koně a hříběte se stahují po druzích (`PenAnimals.load`, `morphKindsToLoad`), takže kůň, který
+přijde později, se vykreslí. Koně se v noci do ohrady nezahánějí – sdílený nedodělek se dnem a nocí.

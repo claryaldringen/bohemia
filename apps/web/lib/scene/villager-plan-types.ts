@@ -59,6 +59,7 @@ export const WOMEN: Record<LaborActivity, number> = {
   slaughter: 0.4,
   milking: 0.9,
   'animal-care': 0.4,
+  'horse-care': 0.4,
   herding: 0.2,
   'orchard-care': 0.3,
   'orchard-harvest': 0.6,

@@ -10,6 +10,7 @@ import {
   type DwellingType,
   type ShapeFrame,
   type ForestField,
+  type HorseKind,
   type Landscape,
   type Position,
   type Relief,
@@ -34,7 +35,7 @@ import { localToWorld, sceneFrame } from './village-layout';
 // (v zimě ovce, kozy a krávy bez ohrady vždy). Stáda se drží mimo jídlo pro lidi – osetý díl,
 // louku před sečí, sad a záhony pozemků.
 
-export type LivestockSpecies = 'sheep' | 'goat' | 'cow' | 'pig' | 'chicken';
+export type LivestockSpecies = 'sheep' | 'goat' | 'cow' | 'pig' | 'chicken' | 'horse' | 'foal';
 
 /** Co z vsi pro scénu (SceneVillage) zvířata potřebují – pohřebiště jen tam, kde už jsou. */
 export interface LivestockVillage {
@@ -82,6 +83,8 @@ export interface LivestockVillage {
     rotation?: number;
     /** Další čtverce ohrady (oxen.md – Ohrady podle druhu). */
     extraSquares?: readonly { x: number; z: number }[];
+    /** Koně ohrady koní (horses.md) – v létě se pasou se stády (`grazingHorses`). */
+    horses?: readonly { id: number; kind: HorseKind; riderId?: number }[];
   }[];
   /**
    * Rozdělení práce dne: herní den (na louce na seno se pase jen po seči; bez něj se tam nepase)
@@ -278,6 +281,8 @@ const SCALE: Record<LivestockSpecies, { from: number; to: number }> = {
   sheep: { from: 1.12, to: 1.3 },
   goat: { from: 1.12, to: 1.3 },
   cow: { from: 1.08, to: 1.2 },
+  horse: { from: 1.0, to: 1.12 },
+  foal: { from: 1.0, to: 1.15 },
   pig: { from: 1.1, to: 1.3 },
   chicken: { from: 1.35, to: 1.6 },
 };
@@ -289,7 +294,7 @@ function between(range: { from: number; to: number }, t: number): number {
 }
 
 /** Počet domácností – hotová obydlí, ve kterých někdo bydlí (bez údaje = obývané). */
-export function householdCount(village: LivestockVillage): number {
+export function householdCount(village: Pick<LivestockVillage, 'dwellings'>): number {
   return village.dwellings.filter((d) => d.built && d.inhabited !== false).length;
 }
 
@@ -501,9 +506,38 @@ export function squareLookup(
   };
 }
 
+/** Pořadí stáda koní v semínku náhody (stáda krav a ovcí mají 0, 1, …). */
+const HORSE_HERD_INDEX = 100;
+
+/**
+ * Koně, kteří se dnes pasou (horses.md – Krmení, Ve scéně): v létě (mimo zimní měsíce), když je
+ * pasák, všichni koně ohrad koní bez jezdce; kůň s jezdcem (`riderId`) je u něj, ne na pastvě.
+ * V zimě, bez pasáka a bez herního dne stojí koně v ohradě.
+ */
+export function grazingHorses(
+  village: Pick<LivestockVillage, 'pens' | 'labor'> &
+    Partial<Pick<LivestockVillage, 'dwellings' | 'livestock'>>,
+): { id: number; kind: HorseKind }[] {
+  const day = village.labor?.day;
+  if (day === undefined || HAY_WINTER_MONTHS.includes(dateOfDayIndex(day).month)) return [];
+  // Martin: stádo nikdy samo – koně jdou na pastvu poslední, jen s pasákem navíc: každé ze stád
+  // ovcí, krav a prasat má vlastního pasáka a jeden zbývá (to samé rozhodnutí použije
+  // `planLivestock`, `penHerds` i `villageKey`; bez koní se ostatní stáda nemění)
+  const counts = herdCounts({ dwellings: village.dwellings ?? [], livestock: village.livestock });
+  const others =
+    Math.ceil((counts.sheep + counts.goat) / FLOCK_SIZE) +
+    Math.ceil(counts.cow / COWS_PER_HERD) +
+    Math.ceil(counts.pig / PIGS_PER_HERD);
+  if (herderCount(village.labor) < others + 1) return [];
+  return (village.pens ?? [])
+    .flatMap((pen) => pen.horses ?? [])
+    .filter((h) => h.riderId === undefined)
+    .map((h) => ({ id: h.id, kind: h.kind }));
+}
+
 /** Kolik zvířat kterého druhu se pase: od herního jádra, jinak z domácností (starší data). */
 export function herdCounts(
-  village: LivestockVillage,
+  village: Pick<LivestockVillage, 'dwellings' | 'livestock'>,
 ): Readonly<Record<'sheep' | 'goat' | 'pig' | 'cow', number>> {
   if (village.livestock) {
     const { sheep, goat, pig, cow } = village.livestock;
@@ -616,6 +650,23 @@ export function planLivestock(
         break;
       }
     }
+  }
+  // Koně ohrady koní se pasou se stády (horses.md – Krmení, Ve scéně): vlastní stádo s pasákem,
+  // spočítané až po ostatních, aby jejich rozmístění zůstalo beze změny.
+  const grazing = grazingHorses(village);
+  if (grazing.length > 0) {
+    const horseHerd = buildHerd(
+      'cattle',
+      grazing.map((h) => (h.kind === 'foal' ? 'foal' : 'horse')),
+      center,
+      meadow,
+      PASTURE_REACH_M,
+      starts,
+      seed,
+      HORSE_HERD_INDEX,
+      fallow,
+    );
+    if (horseHerd) herds.push(horseHerd);
   }
   // Stáda bez pasáka se nepasou – stojí u domů (Martin: „nesmí se potulovat sama“).
   const home = (x: number, z: number, margin: number): boolean =>

@@ -27,10 +27,25 @@ import type { HeightFn } from './village-meshes';
 import { villagerSeconds } from './villager-motion';
 import { loadBakedModel } from './villagers';
 
-/** Kráva jako ve stádu vsi (SCALE.cow v livestock-placement.ts). */
+/** Kráva a kůň jako ve stádu vsi (SCALE.cow a SCALE.horse v livestock-placement.ts). */
 const COW_SCALE = 1.14;
+const HORSE_SCALE = 1.06;
+const FOAL_SCALE = 1.08;
+/** Zvířata s pózami z morph targetů (kráva, kůň, hříbě) – model stáda vsi. */
+type MorphKind = 'cow' | 'horse' | 'foal';
+const MORPH_KINDS: readonly MorphKind[] = ['cow', 'horse', 'foal'];
+const MORPH_SCALE: Record<MorphKind, number> = {
+  cow: COW_SCALE,
+  horse: HORSE_SCALE,
+  foal: FOAL_SCALE,
+};
 /** Měkký stín: délka a šířka (m) a krytí uprostřed. */
-const SHADOW = { ox: [2.4 * TEAM_SCALE, 1.0 * TEAM_SCALE], cow: [2.1 * COW_SCALE, 0.85] } as const;
+const SHADOW = {
+  ox: [2.4 * TEAM_SCALE, 1.0 * TEAM_SCALE],
+  cow: [2.1 * COW_SCALE, 0.85],
+  horse: [2.2 * HORSE_SCALE, 0.8],
+  foal: [1.5 * FOAL_SCALE, 0.6],
+} as const;
 const SHADOW_OPACITY = 0.5;
 const SHADOW_LIFT_M = 0.045;
 /** Dál od kamery (m) se zvířata nehýbou – jsou pár pixelů. */
@@ -53,9 +68,15 @@ interface CowKind {
 export class PenAnimals {
   private animals: readonly PenAnimal[] = [];
   private ox: BakedKind | null = null;
-  private cow: CowKind | null = null;
+  private readonly morph: Record<MorphKind, CowKind | null> = {
+    cow: null,
+    horse: null,
+    foal: null,
+  };
   private shadow: { mesh: Mesh; matrices: Float32Array } | null = null;
   private loading: Promise<void> | null = null;
+  /** Druhy, jejichž model se už stahuje nebo stáhl. */
+  private readonly requested = new Set<MorphKind>();
   private readonly bounds = new BoundingInfo(Vector3.Zero(), Vector3.Zero());
   private key = '';
   private disposed = false;
@@ -67,17 +88,18 @@ export class PenAnimals {
 
   /**
    * Zvířata ohrad; modely se stáhnou s prvním zvířetem. Vrátí true, když se něco změnilo. Kreslí
-   * jen voly a krávy – ovce, kozy a prasata v ohradě na noc kreslí stáda vsi (livestock.ts).
+   * voly, krávy, koně a hříbata – ovce, kozy a prasata v ohradě na noc kreslí stáda vsi
+   * (livestock.ts).
    */
   set(all: readonly PenAnimal[]): boolean {
-    const animals = all.filter((a) => a.kind === 'ox' || a.kind === 'cow');
+    const animals = all.filter((a) => a.kind === 'ox' || isMorph(a.kind));
     const key = animals
       .map((a) => `${a.kind}:${a.x.toFixed(2)},${a.z.toFixed(2)}:${a.scale ?? 1}`)
       .join(';');
     if (key === this.key) return false;
     this.key = key;
     this.animals = animals;
-    if (animals.length > 0) void this.load();
+    if (animals.length > 0) this.load();
     this.allocate();
     this.updateBounds();
     if (this.loaded) this.write(villagerSeconds(Date.now()), false);
@@ -106,17 +128,19 @@ export class PenAnimals {
       this.ox.manager.texture?.dispose();
       this.ox.mesh.dispose();
     }
-    this.cow?.mesh.material?.dispose();
-    this.cow?.mesh.dispose();
+    for (const kind of MORPH_KINDS) {
+      this.morph[kind]?.mesh.material?.dispose();
+      this.morph[kind]?.mesh.dispose();
+      this.morph[kind] = null;
+    }
     this.shadow?.mesh.material?.dispose(true, true);
     this.shadow?.mesh.dispose();
     this.ox = null;
-    this.cow = null;
     this.shadow = null;
   }
 
   private get loaded(): boolean {
-    return this.ox !== null || this.cow !== null;
+    return this.ox !== null || MORPH_KINDS.some((k) => this.morph[k] !== null);
   }
 
   private count(kind: PenAnimal['kind']): number {
@@ -126,7 +150,6 @@ export class PenAnimals {
   /** Buffery instancí podle počtu zvířat. */
   private allocate(): void {
     const oxen = this.count('ox');
-    const cows = this.count('cow');
     if (this.ox) {
       const kind = this.ox;
       const n = Math.max(1, oxen);
@@ -145,14 +168,17 @@ export class PenAnimals {
       kind.mesh.thinInstanceCount = oxen;
       kind.mesh.setEnabled(oxen > 0);
     }
-    if (this.cow) {
-      const n = Math.max(1, cows);
-      this.cow.matrices = new Float32Array(n * 16);
-      this.cow.states = new Float32Array(n * 2);
-      this.cow.mesh.thinInstanceSetBuffer('matrix', this.cow.matrices, 16, false);
-      this.cow.mesh.thinInstanceSetBuffer('livestockState', this.cow.states, 2, false);
-      this.cow.mesh.thinInstanceCount = cows;
-      this.cow.mesh.setEnabled(cows > 0);
+    for (const name of MORPH_KINDS) {
+      const kind = this.morph[name];
+      if (!kind) continue;
+      const count = this.count(name);
+      const n = Math.max(1, count);
+      kind.matrices = new Float32Array(n * 16);
+      kind.states = new Float32Array(n * 2);
+      kind.mesh.thinInstanceSetBuffer('matrix', kind.matrices, 16, false);
+      kind.mesh.thinInstanceSetBuffer('livestockState', kind.states, 2, false);
+      kind.mesh.thinInstanceCount = count;
+      kind.mesh.setEnabled(count > 0);
     }
     if (this.shadow) {
       const n = this.animals.length;
@@ -167,7 +193,7 @@ export class PenAnimals {
   private write(t: number, frozen: boolean): void {
     const height = this.env.groundHeight;
     let ox = 0;
-    let cow = 0;
+    const written: Record<MorphKind, number> = { cow: 0, horse: 0, foal: 0 };
     this.animals.forEach((animal, i) => {
       const pose = penAnimalPose(animal, t);
       const y = height(pose.x, pose.z);
@@ -186,11 +212,14 @@ export class PenAnimals {
           );
         }
         ox++;
-      } else {
-        if (this.cow) {
+      } else if (isMorph(animal.kind)) {
+        const name = animal.kind;
+        const kind = this.morph[name];
+        const index = written[name]++;
+        if (kind) {
           writeInstanceMatrix(
-            this.cow.matrices,
-            cow,
+            kind.matrices,
+            index,
             {
               x: pose.x,
               y,
@@ -201,14 +230,13 @@ export class PenAnimals {
               tiltX: 0,
               tiltZ: 0,
             },
-            COW_SCALE,
+            MORPH_SCALE[name],
           );
-          this.cow.states[cow * 2] = 0;
-          this.cow.states[cow * 2 + 1] = pose.head;
+          kind.states[index * 2] = 0;
+          kind.states[index * 2 + 1] = pose.head;
         }
-        cow++;
       }
-      const base = animal.kind === 'ox' ? SHADOW.ox : SHADOW.cow;
+      const base = animal.kind === 'ox' ? SHADOW.ox : SHADOW[animal.kind as MorphKind];
       const scale = animal.scale ?? 1;
       this.writeShadow(i, pose.x, y, pose.z, hx, hz, [base[0] * scale, base[1] * scale]);
     });
@@ -217,9 +245,11 @@ export class PenAnimals {
       this.ox.mesh.thinInstanceBufferUpdated('bakedVertexAnimationSettingsInstanced');
       this.ox.manager.time = frozen ? 0 : (t % 3600) + 3600;
     }
-    if (this.cow) {
-      this.cow.mesh.thinInstanceBufferUpdated('matrix');
-      this.cow.mesh.thinInstanceBufferUpdated('livestockState');
+    for (const name of MORPH_KINDS) {
+      const kind = this.morph[name];
+      if (!kind) continue;
+      kind.mesh.thinInstanceBufferUpdated('matrix');
+      kind.mesh.thinInstanceBufferUpdated('livestockState');
     }
     this.shadow?.mesh.thinInstanceBufferUpdated('matrix');
   }
@@ -236,8 +266,12 @@ export class PenAnimals {
       new Vector3(Math.min(...xs) - pad, low - 1, Math.min(...zs) - pad),
       new Vector3(Math.max(...xs) + pad, low + HEAD_ROOM_M, Math.max(...zs) + pad),
     );
-    // kráva se ořezává podle obalu zvířat (model je jen předloha v počátku)
-    this.cow?.mesh.setBoundingInfo(new BoundingInfo(this.bounds.minimum, this.bounds.maximum));
+    // kráva, kůň a hříbě se ořezávají podle obalu zvířat (model je jen předloha v počátku)
+    for (const name of MORPH_KINDS) {
+      this.morph[name]?.mesh.setBoundingInfo(
+        new BoundingInfo(this.bounds.minimum, this.bounds.maximum),
+      );
+    }
   }
 
   /** Stín pod zvířetem: elipsa natočená ve směru hlavy. */
@@ -261,40 +295,63 @@ export class PenAnimals {
     m[o + 15] = 1;
   }
 
-  private load(): Promise<void> {
+  /**
+   * Modely se stahují po druzích: vůl a stín s prvním zvířetem, kráva, kůň a hříbě až když se
+   * ohrada poprvé objeví s tímto druhem (koně přijdou z pastvy, narodí se hříbě, přibude ohrada).
+   */
+  private load(): void {
     this.loading ??= (async (): Promise<void> => {
-      const [ox, cow] = await Promise.allSettled([
-        loadBakedModel(this.scene, '/models/plough/ox.glb'),
-        loadGeometry(this.scene, '/models/fauna/cow.glb'),
-      ]);
+      const result = (
+        await Promise.allSettled([loadBakedModel(this.scene, '/models/plough/ox.glb')])
+      )[0]!;
       if (this.disposed || this.scene.isDisposed) return;
-      if (ox.status === 'fulfilled' && ox.value) {
-        this.ox = createBakedFigure(this.scene, 'pen-ox', ox.value);
-      } else {
-        console.warn('Model vola se nepodařilo načíst.', ox.status === 'rejected' ? ox.reason : '');
-      }
-      if (cow.status === 'fulfilled' && cow.value) {
-        this.cow = this.createCow(standOnGround(cow.value));
+      if (result.status === 'fulfilled' && result.value) {
+        this.ox = createBakedFigure(this.scene, 'pen-ox', result.value);
       } else {
         console.warn(
-          'Model krávy se nepodařilo načíst.',
-          cow.status === 'rejected' ? cow.reason : '',
+          'Model vola se nepodařilo načíst.',
+          result.status === 'rejected' ? result.reason : '',
         );
       }
-      this.shadow = createBlobShadow(this.scene, 'pen-animal-shadow', SHADOW_OPACITY);
-      this.allocate();
-      this.updateBounds();
-      if (this.loaded) {
-        this.write(villagerSeconds(Date.now()), false);
-        this.env.onLoaded();
-      }
+      this.finishLoad();
     })();
-    return this.loading;
+    for (const name of morphKindsToLoad(this.animals, this.requested)) {
+      this.requested.add(name);
+      void (async (): Promise<void> => {
+        const [result] = await Promise.allSettled([
+          loadGeometry(this.scene, `/models/fauna/${name}.glb`),
+        ]);
+        if (this.disposed || this.scene.isDisposed) return;
+        if (result?.status === 'fulfilled' && result.value) {
+          this.morph[name] = this.createMorph(name, standOnGround(result.value));
+        } else {
+          console.warn(
+            `Model zvířete ${name} se nepodařilo načíst.`,
+            result?.status === 'rejected' ? result.reason : '',
+          );
+        }
+        this.finishLoad();
+      })();
+    }
   }
 
-  private createCow(geometry: NonNullable<Awaited<ReturnType<typeof loadGeometry>>>): CowKind {
+  /** Po dotažení modelu: stín, buffery, obal a první zápis; pak překreslení. */
+  private finishLoad(): void {
+    this.shadow ??= createBlobShadow(this.scene, 'pen-animal-shadow', SHADOW_OPACITY);
+    this.allocate();
+    this.updateBounds();
+    if (this.loaded) {
+      this.write(villagerSeconds(Date.now()), false);
+      this.env.onLoaded();
+    }
+  }
+
+  private createMorph(
+    name: MorphKind,
+    geometry: NonNullable<Awaited<ReturnType<typeof loadGeometry>>>,
+  ): CowKind {
     // Jméno mimo předpony vrhačů stínů – stínová mapa je statická (zvířata mají vlastní stín).
-    const mesh = new Mesh('pen-cow', this.scene);
+    const mesh = new Mesh(`pen-${name}`, this.scene);
     geometry.vertexData.applyToMesh(mesh);
     mesh.setVerticesData('livestockKeyA', geometry.keyA, false, 3);
     mesh.setVerticesData('livestockKeyB', geometry.keyB, false, 3);
@@ -307,7 +364,7 @@ export class PenAnimals {
     mesh.isPickable = false;
     mesh.doNotSyncBoundingInfo = true;
     mesh.freezeWorldMatrix();
-    const material = new StandardMaterial('pen-cow-material', this.scene);
+    const material = new StandardMaterial(`pen-${name}-material`, this.scene);
     // bez mipmap jako u zvířat vsi – ostrůvky textury na černém pozadí by z dálky ztmavly
     geometry.texture?.updateSamplingMode(Constants.TEXTURE_BILINEAR_SAMPLINGMODE);
     material.diffuseTexture = geometry.texture;
@@ -318,4 +375,16 @@ export class PenAnimals {
     mesh.material = material;
     return { mesh, matrices: new Float32Array(16), states: new Float32Array(2) };
   }
+}
+
+/** Druhy s pózami z morph targetů, které ohrady právě drží a jejichž model se ještě nestahuje. */
+export function morphKindsToLoad(
+  animals: readonly Pick<PenAnimal, 'kind'>[],
+  requested: ReadonlySet<MorphKind>,
+): MorphKind[] {
+  return MORPH_KINDS.filter((k) => !requested.has(k) && animals.some((a) => a.kind === k));
+}
+
+function isMorph(kind: PenAnimal['kind']): kind is MorphKind {
+  return kind === 'cow' || kind === 'horse' || kind === 'foal';
 }

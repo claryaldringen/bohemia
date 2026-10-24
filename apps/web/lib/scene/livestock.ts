@@ -46,6 +46,7 @@ import {
   grazedMeadow,
   grazedPart,
   grazingDay,
+  grazingHorses,
   herdCounts,
   herderCount,
   lazyWalkable,
@@ -59,7 +60,15 @@ import {
 } from './livestock-placement';
 import type { StreamCenterline } from './stream-geometry';
 
-const SPECIES: readonly LivestockSpecies[] = ['sheep', 'goat', 'cow', 'pig', 'chicken'];
+const SPECIES: readonly LivestockSpecies[] = [
+  'sheep',
+  'goat',
+  'cow',
+  'pig',
+  'chicken',
+  'horse',
+  'foal',
+];
 /** Dál od kamery (m) se zvířata nehýbou – jsou pár pixelů a pohyb by jen zbytečně kreslil. */
 const ANIMATE_RANGE_M = 900;
 /** Po takovém posunu středu vsi (m) se rastr terénu pro zvířata spočítá znovu. */
@@ -561,7 +570,8 @@ function villageKey(village: LivestockVillage): string {
   );
   // skutečné počty stád (diet.md) – narození, porážka a krávy v ohradě přeplánují stáda
   const counts = herdCounts(village);
-  const herds = `${counts.sheep},${counts.goat},${counts.pig},${counts.cow}`;
+  const horses = grazingHorses(village).map((h) => `${h.id}${h.kind[0]}`);
+  const herds = `${counts.sheep},${counts.goat},${counts.pig},${counts.cow},${horses.join('.')}`;
   return `${dwellings.join(';')}|${parts.join(';')}|${meadows.join(';')}|${squares.join(';')}|${herds}|${herders}`;
 }
 

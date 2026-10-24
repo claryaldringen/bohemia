@@ -312,6 +312,13 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   argument `decay`; místo dílu `penDecayPlace`), bláto mizí (`PEN_MUD_BY_STAGE`), stoh jen
   u celé, plot `decayFence`.
 
+- **Ohrada koní ve scéně** ([horses.md](../design/horses.md) – Ve scéně): `ScenePen.species 'horse'`,
+  `ScenePen.horses` (`id`, `kind` z `horseKind`, `riderId`; plní `scenePens`). `penLayout(..., species)`:
+  vyšší plot `PEN_FENCE_HORSE` (≈ 1,4 m; `PenLayout.fenceStyle`, `penFenceStage` ho bere z rozložení),
+  4 místa na čtverec (`horseSpotKept`: žlab, jesle, pastva + 1; v dalších čtvercích rohy mřížky);
+  přístřešek, jesle a žlab z `pen.glb` beze změny (varianta `pen-horse` v `pen.py` není).
+  `PenHerd.horses` – klisny a jezdečtí koně po jednom na místo, hříbě vedle klisny bez místa
+  (`horseAnimalsFor`); `penHerds` dá do ohrady jen koně, kteří se dnes nepasou.
 - **Panel ohrady a slepice v UI** (issue #3): panel ukazuje jen druh ohrady (`penHerd` v
   `selection-details.ts`), `LivestockSummary.chickens` zůstává v datech (scéna, vejce), ale
   žádné rozhraní ho nezobrazuje.

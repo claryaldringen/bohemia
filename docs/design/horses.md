@@ -190,7 +190,7 @@ Tři řádky v panelu obchodu jako u dobytka ([obchod](trade.md) – Dobytek ve 
   žádný atribut** – sed, barevný plášť ani příznak „na koni“ nejdou do vertexů, jen do animace nebo
   textury. U koně s morph targety ověřit počet bufferů (kráva a vůl mají stejné řešení, takže by
   měl projít; když ne, pózy do textury jako u postav).
-- **Ohrada koní:** model `pen.py` s vyšším plotem, žlabem na obilí pod přístřeškem; koně stojí
+- **Ohrada koní:** plot ze stejných dílů `pen.glb` (z `pen.py`) postavený vyšší (≈ 1,4 m; návrh Clauda – samostatný model neexistuje), žlabem na obilí pod přístřeškem; koně stojí
   a pasou se, hříbata u klisen; ráno a večer u ní koňák, ráno vede jezdecké koně ke dvorci.
 - **Výběr:** klik na koně v ohradě vybere ohradu; klik na jezdce nebo jeho koně vybere člověka
   (vojvoda, vojvodův syn) – kroužek ho sleduje, panel ukáže i koně (věk, výcvik, obilí).

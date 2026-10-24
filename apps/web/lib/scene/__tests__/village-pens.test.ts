@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { HAY_WINTER_MONTHS, dateOfDayIndex } from '@bohemia/game';
 import type { SceneVillage } from '../../village-view';
 import { ploughingToday } from '../plough-front';
+import { grazingHorses } from '../livestock-placement';
 import { penHerds, scenePenViews } from '../village-pens';
 
 // Ohrady ve vsi (oxen.md): pohled na ohrady a zvířata v nich (kde se orá – plough-front.test.ts).
@@ -141,5 +143,65 @@ describe('ohrada o víc čtvercích (oxen.md – Ohrady podle druhu)', () => {
     });
     expect(view!.extra).toHaveLength(2);
     expect(view!.pending).toBeUndefined();
+  });
+});
+
+describe('ohrada koní ve vsi (horses.md – Ve scéně)', () => {
+  const days = Array.from({ length: 365 }, (_, d) => d);
+  const summer = days.find((d) => !HAY_WINTER_MONTHS.includes(dateOfDayIndex(d).month))!;
+  const winter = days.find((d) => HAY_WINTER_MONTHS.includes(dateOfDayIndex(d).month))!;
+  const horses = [
+    { id: 1, kind: 'mare' as const },
+    { id: 2, kind: 'foal' as const },
+    { id: 3, kind: 'riding' as const, riderId: 7 },
+  ];
+  const withHorses = (day: number): SceneVillage => ({
+    ...village,
+    labor: { day, month: 1, people: { children: 2, adults: 4, elders: 0 }, shares: [] },
+    pens: [
+      {
+        id: 20,
+        species: 'horse',
+        cell: { x: 2, y: 3 },
+        x: 37.5,
+        z: 52.5,
+        size: CELL,
+        built: true,
+        progress: 1,
+        oxen: 0,
+        trainees: 0,
+        cows: 0,
+        horses,
+      },
+    ],
+  });
+
+  it('pohled ohrady nese druh (vyšší plot)', () => {
+    expect(scenePenViews(withHorses(winter))[0]!.species).toBe('horse');
+    expect(scenePenViews(village)[0]!.species).toBeUndefined();
+  });
+
+  it('v zimě všichni koně v ohradě', () => {
+    expect(penHerds(withHorses(winter)).get(20)!.horses).toEqual(['mare', 'foal', 'riding']);
+  });
+
+  it('v létě s pasáky jsou koně na pastvě, v ohradě zůstane jen kůň pod jezdcem', () => {
+    const v = withHorses(summer);
+    // jedna domácnost = stádo ovcí s kozami, krav a prasat; koně potřebují pasáka navíc
+    const herders = { ...v, labor: { ...v.labor!, herders: { children: 4 } } };
+    expect(penHerds(herders).get(20)!.horses).toEqual(['riding']);
+    // bez údaje o pasácích jdou všechna stáda na pastvu
+    expect(penHerds(v).get(20)!.horses).toEqual(['riding']);
+  });
+
+  it('stádo nikdy samo: bez pasáka navíc zůstávají koně v ohradě (stejně jako ve stádech)', () => {
+    const v = withHorses(summer);
+    for (const children of [1, 3]) {
+      const few = { ...v, labor: { ...v.labor!, herders: { children } } };
+      expect(grazingHorses(few)).toEqual([]);
+      expect(penHerds(few).get(20)!.horses).toEqual(['mare', 'foal', 'riding']);
+    }
+    const enough = { ...v, labor: { ...v.labor!, herders: { children: 4 } } };
+    expect(grazingHorses(enough).map((h) => h.kind)).toEqual(['mare', 'foal']);
   });
 });
