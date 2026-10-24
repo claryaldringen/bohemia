@@ -185,6 +185,18 @@ export function trainingFamily(
   return family.lord ? family : null;
 }
 
+/**
+ * Id lidí cvičící rodiny, kteří jsou mimo práci vsi (cvičící muži a domácnost vojvody) – jedno
+ * místo pravdy pro `work()`, plán osevu (`sowingCapacity`) i nákupy (`craft-buying`).
+ */
+export function lordApartIds(
+  state: LordView & Pick<VillageState, 'lord'>,
+  day: number,
+): ReadonlySet<number> {
+  const family = trainingFamily(state, day);
+  return new Set(family ? [...family.trainees, ...family.household].map((p) => p.id) : []);
+}
+
 /** Id cvičících z rodiny, která cvičí (vojvodovi synové nepasou – lord.md, Den rodiny). */
 export function lordTraineeIds(
   state: LordView & Pick<VillageState, 'lord'>,

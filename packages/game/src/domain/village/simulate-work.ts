@@ -39,7 +39,7 @@ import {
   workCrafts,
   type SmithSupply,
 } from './crafts';
-import { lordDayCounts, manorLabor, updateLordTraining } from './lord';
+import { lordApartIds, lordDayCounts, manorLabor, trainingFamily } from './lord';
 import { nextYearlyCommonLabor, repairNeedPerDay, yearlyCommonLabor } from './dwellings';
 import { animalCareNeed, dailyMilk } from './dairy';
 import { DIET, villageFoodNeed } from './diet';
@@ -332,8 +332,10 @@ export function work(
   // vojvodova rodina (lord.md – Den rodiny): když cvičí, je mimo práci vsi jako dílny – vojvoda,
   // jeho synové a ženy rodiny; ostatní v dvorci (zeť) pracují se vsí. Denní minimum dvorce kryje
   // rodina (`manorLabor`), proto domácnost dvorce v minimu vsi chybí
-  const family = updateLordTraining(state, day);
-  const apart = new Set(family ? [...family.trainees, ...family.household].map((p) => p.id) : []);
+  // režim výcviku se rozhodl na začátku dne (`updateLordTraining` v `simulateDay`) – všichni
+  // čtenáři dne (pasení, plán osevu, nákupy, práce) vidí týž stav
+  const family = trainingFamily(state, day);
+  const apart = lordApartIds(state, day);
   const manorSkip = new Set<number>(family?.lord ? [family.lord.dwellingId] : []);
   const villagers =
     crafts.size > 0 || travelling.size > 0 || apart.size > 0

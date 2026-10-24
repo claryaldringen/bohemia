@@ -7,6 +7,7 @@ import { closeFieldFoodYear, sowingTargets, type SowingTargets } from './field-f
 import { endOfSeason, expectedNetKg, sowingGroup } from './fields';
 import { plannedFurrowEfficiency } from './plough-trip';
 import { villageLaborFactor } from './happiness';
+import { lordApartIds, manorLabor, trainingFamily } from './lord';
 import { EMERGENCY_GROUP, sowingBlocks, villageHoldings, workOrder } from './holdings';
 import { flaxNeedKg } from './flax';
 import { plannedLegumeKg } from './husbandry';
@@ -264,19 +265,27 @@ export function sowingCapacity(
   pairs?: number,
 ): SowingCapacity {
   const crafts = craftHouseholds(state);
+  // cvičící vojvodova rodina je mimo práci vsi (lord.md – Den rodiny), jako ji vyřazuje `work()`
+  const apart = lordApartIds(state, day);
   // práci násobí štěstí vsi (happiness.md) a dřevěné nářadí od tesaře (wagons.md); zvířata
   // a domácí výroba jdou bokem, denní minimum kryjí napřed starší (population.md – Práce)
   const productivity = villageProductivity(state, coverage);
   const capacity =
-    state.people.reduce((sum, p) => sum + (crafts.has(p.dwellingId) ? 0 : laborPerDay(p, day)), 0) *
-    productivity;
+    state.people.reduce(
+      (sum, p) => sum + (crafts.has(p.dwellingId) || apart.has(p.id) ? 0 : laborPerDay(p, day)),
+      0,
+    ) * productivity;
   const minimum = dailyMinPerHousehold(coverage.pottery);
   // denní minimum s přirážkou za chůzi pro vodu (population.md – Práce)
-  const water = householdWaterLabor(state.people, state.dwellings, crafts);
-  const dailyMin = householdElders(state.people, day, crafts).reduce(
-    (sum, elders, k) => sum + adultDailyMin(minimum + water[k]!, elders, productivity),
-    0,
-  );
+  // denní minimum dvorce kryje cvičící rodina (`manorLabor`), ves platí jen, co rodina nepokryje
+  const family = trainingFamily(state, day);
+  const skip = family?.lord ? new Set([...crafts, family.lord.dwellingId]) : crafts;
+  const water = householdWaterLabor(state.people, state.dwellings, skip);
+  const dailyMin =
+    householdElders(state.people, day, skip).reduce(
+      (sum, elders, k) => sum + adultDailyMin(minimum + water[k]!, elders, productivity),
+      0,
+    ) + (family ? manorLabor(state, day, coverage.pottery, productivity, family).uncovered : 0);
   const free = Math.max(0, capacity - dailyMin) * PEAK_CAPACITY_SHARE;
   const days = (segments: Parameters<typeof windowDaysLeft>[1], sowing = false): number =>
     free * Math.max(0, windowDaysLeft(day, segments) - (sowing ? SOW_AFTER_DIG_DAYS : 0));

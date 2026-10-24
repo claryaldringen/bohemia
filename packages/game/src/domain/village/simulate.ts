@@ -48,7 +48,7 @@ import { decideRebuilds, finishConstructions } from './simulate-build';
 import { eat, endThreshing, harvest, harvestWinter } from './simulate-food';
 import { LAST_JOIN_MONTH, isOn, joinFinishedParts, planYear, trimPlan } from './simulate-plan';
 import { work } from './simulate-work';
-import { lordFieldMode, trainLordDay } from './lord';
+import { lordFieldMode, trainLordDay, updateLordTraining } from './lord';
 
 /**
  * Dopočítá ves do dne `toDay` včetně – den po dni od `lastDay + 1`. Vstup nemění.
@@ -138,6 +138,9 @@ function simulateDay(
   landscape: Landscape | null,
 ): void {
   const date = dateOfDayIndex(day);
+  // vojvodova rodina (lord.md): cvičí, nebo pracuje – rozhodnout jednou na začátku dne, ať ho
+  // stejně vidí pasení, plán osevu, nákupy i `work()` (i v den přechodu)
+  updateLordTraining(state, day);
   // nové stavby dne – jámy pod nimi se vyprázdní (production-chains.md – Obilné jámy): stavby vsi
   // vznikají jen s novým id z `nextId`, viz kontrola níž
   const idsBefore = state.nextId;

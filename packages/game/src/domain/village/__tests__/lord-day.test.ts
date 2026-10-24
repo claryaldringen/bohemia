@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
-import { craftCoverage } from '../crafts';
+import { craftCoverage, craftHouseholds, craftLightLabor } from '../crafts';
 import { allocateDay } from '../labor';
 import { lordFieldMode, manorLabor, trainLordDay } from '../lord';
+import { laborPerDay } from '../people';
 import { dailyMinPerHousehold, NO_CRAFTS } from '../productivity';
 import { LORD } from '../rules';
 import { advanceVillage } from '../simulate';
-import { villageProductivity } from '../simulate-plan';
+import { sowingCapacity, villageProductivity } from '../simulate-plan';
 import type { Person, VillageState } from '../types';
 import { DAY, couple, dwelling, kin, village, type KinSpec } from './kin-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
@@ -205,4 +206,48 @@ describe('dopočet po kouscích a starší ves bez `lord` a `arms`', () => {
     expect(JSON.stringify(parts)).toBe(JSON.stringify(once));
     expect(once.people.find((p) => p.id === 12)?.arms?.bow).toBeGreaterThan(20);
   }, 120_000);
+});
+
+describe('cvičící rodina a plánování (lord.md – Den rodiny)', () => {
+  it('plán osevu nepočítá práci cvičící rodiny jako práci vsi', () => {
+    const training = lordVillage();
+    training.lord = { trains: true };
+    const working = lordVillage();
+    const day = at(601, 9, 5);
+    const coverage = craftCoverage(training, day);
+    const withFamily = sowingCapacity(working, day, coverage);
+    const without = sowingCapacity(training, day, coverage);
+    expect(without.autumnWinter).toBeLessThan(withFamily.autumnWinter);
+    expect(without.spring).toBeLessThan(withFamily.spring);
+  });
+
+  it('v den přechodu na výcvik vidí všichni čtenáři dne týž stav', () => {
+    const transition = lordVillage();
+    const trained = lordVillage();
+    trained.lord = { trains: true };
+    // plánovací den (1. 9.) čte kapacitu osevu před prací dne
+    const day = at(601, 9, 1);
+    transition.lastDay = day - 1;
+    trained.lastDay = day - 1;
+    const a = advanceVillage(transition, day, null);
+    const b = advanceVillage(trained, day, null);
+    expect(a.lord).toEqual({ trains: true });
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+  });
+
+  it('ženy rodiny nejdou do lehké práce a chlapec 7–13 let na pole', () => {
+    const s = lordVillage();
+    const day = START + 1;
+    const coverage = craftCoverage(s, day);
+    const p = villageProductivity(s, coverage);
+    expect(craftLightLabor(s, day, craftHouseholds(s), coverage.pottery, p)).toBe(0);
+    const boy = s.people.find((x) => x.id === 14)!;
+    expect(laborPerDay(boy, day)).toBe(0);
+    const hungry = lordVillage();
+    hungry.lord = { trains: true, field: { since: START, reason: 'hunger' } };
+    const field = manorLabor(hungry, day, coverage.pottery, p).field;
+    const adults = hungry.people.filter((x) => [10, 11, 12, 13].includes(x.id));
+    const capacity = adults.reduce((sum, x) => sum + laborPerDay(x, day), 0) * p;
+    expect(field).toBeCloseTo(capacity - manorLabor(hungry, day, coverage.pottery, p).dailyMin, 5);
+  });
 });
