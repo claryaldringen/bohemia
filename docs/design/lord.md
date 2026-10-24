@@ -613,6 +613,13 @@ Clauda.
   svého domu, nekryté platí ves; do 4 dospělých mimo rodinu se nepočítá. **Přeplnění** domu se
   počítá ze všech lidí domu (i dětí a podnájemníků) jako u ostatních domácností – vedlejší
   manželka tak může odejít i kvůli přeplnění, které nezpůsobila.
+- **Zakladatelé a jména – rozhodnutí implementace (návrh Clauda, 24. 10. 2026):** první ves
+  sídla zakládá vždy vojvoda s manželkami (i bez jména – čeká na hráče); vývojová druhá ves,
+  ves z výpravy a ves bez `lord` (testy, starší varianty kalibrace) jsou beze změny. Ves
+  osadníků: vojvodou je nejstarší muž rodu mezi nimi a jeho jméno zůstane, bez muže rodu je ves
+  bez rodu. Důvody u jména: „Jen písmena.“, „Nejvýš 20 písmen.“, prázdné „Vojvoda potřebuje
+  jméno.“ (u syna „Syn potřebuje jméno.“), pojmenovaný „Jméno už má – nejde ho změnit.“. Kronika
+  vsi: „Muž rodu dostal jméno …“; svatba muže rodu nese jeho jméno (i nevěsta z okolí).
 - Testy: jména vnuků nezávisí na kouscích dopočtu, odcházejí všichni ženatí synové, přednost
   syna a pak vedlejší manželky, vedlejší odchází až z přeplněného dvorce a nevrací se, cvičí
   všichni synové v dvorci, nástupcem syn hlavní manželky i po její smrti, nezletilý vojvoda, nová

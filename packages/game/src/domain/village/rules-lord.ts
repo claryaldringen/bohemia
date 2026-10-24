@@ -63,4 +63,11 @@ export const LORD = {
   extraWifeFromAge: 18,
   /** lord.md – Manželky: věk další manželky z okolí (16–22 let). */
   extraWifeAge: { from: 16, to: 22 },
+  /**
+   * lord.md – Zakladatelé (Martin 24. 10. 2026; věk návrh Clauda): ves zakládá vojvoda s hlavní
+   * a třemi vedlejšími manželkami – věk vojvody a manželek od hlavní (první je hlavní).
+   */
+  founders: { lordAge: 25, wifeAges: [22, 20, 18, 16] },
+  /** lord.md – Jména: jméno muže rodu má nejvýš tolik písmen (návrh Clauda). */
+  nameMaxLength: 20,
 } as const;

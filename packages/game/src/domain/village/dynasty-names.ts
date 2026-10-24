@@ -1,7 +1,34 @@
 // Jména mužů rodu (lord.md – Jména, Generovaná jména vnuků): seznam předkřesťanských slovanských
 // mužských jmen (svět začíná roku 500) a deterministická volba jména vnukovi. Čisté funkce bez I/O.
 import { createRandom, deriveSeed } from '../landscape/random';
+import type { PlacementCheck } from './placement';
+import { LORD } from './rules';
 import type { VillageState } from './types';
+
+/** Prázdné jméno vojvody (lord.md – Kde se jméno zadává: jméno vojvody při založení hry). */
+export const LORD_NAME_MISSING = 'Vojvoda potřebuje jméno.';
+/** Prázdné jméno syna (lord.md – Kde se jméno zadává: narození syna vojvody). */
+export const SON_NAME_MISSING = 'Syn potřebuje jméno.';
+
+/** Jméno muže rodu znormalizované (Unicode NFC) a bez mezer na krajích (lord.md – Jména). */
+export function normalizePersonName(name: string): string {
+  return name.normalize('NFC').trim();
+}
+
+/**
+ * Jméno muže rodu po normalizaci (lord.md – Jména; Martin 24. 10. 2026: „Vlastní text bez
+ * kontroly. Povolená jsou jen písmena.“): jen písmena Unicode (i diakritika, cyrilice) a 1 až
+ * `LORD.nameMaxLength` znaků (počítají se znaky, ne jednotky UTF-16). Prázdné – `missing`.
+ */
+export function checkPersonName(name: string, missing = LORD_NAME_MISSING): PlacementCheck {
+  const normalized = normalizePersonName(name);
+  if (normalized.length === 0) return { ok: false, reason: missing };
+  if (!/^\p{L}+$/u.test(normalized)) return { ok: false, reason: 'Jen písmena.' };
+  if ([...normalized].length > LORD.nameMaxLength) {
+    return { ok: false, reason: `Nejvýš ${LORD.nameMaxLength} písmen.` };
+  }
+  return { ok: true, reason: null };
+}
 
 /**
  * Předkřesťanská slovanská mužská jména (lord.md – Generovaná jména vnuků; seznam z návrhu doplnila

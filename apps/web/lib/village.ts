@@ -12,6 +12,7 @@ import {
   cancelUnfinishedConstruction,
   foundDevVillage,
   foundVillageForSettlement,
+  nameLineManInVillage,
   placeCemetery,
   placeDwelling,
   placeField,
@@ -249,7 +250,7 @@ export async function skipTimeForPlayerView(
 /** Založení první vsi na sídelním sídle hráče (první zemnice). */
 export async function foundVillageForPlayer(
   playerId: string,
-  input: { name: string; dwelling: Position; fieldCells?: TileCell[] },
+  input: { name: string; dwelling: Position; fieldCells?: TileCell[]; lordName?: string },
 ): Promise<VillageActionResult> {
   const today = await playerToday(playerId);
   if (!today.ok) return { error: today.error };
@@ -413,6 +414,20 @@ export function placeWorkshopForPlayer(
     placeWorkshop(
       { villages: villages() },
       { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, ...input },
+    ),
+  );
+}
+
+/** Hráč pojmenuje vojvodu nebo jeho syna (lord.md – Jména) – ves ověří `actOn`. */
+export function nameLineManForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { personId: number; name: string },
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, (ctx) =>
+    nameLineManInVillage(
+      { villages: villages() },
+      { villageId: ctx.villageId, today: ctx.day, landscape: ctx.landscape, ...input },
     ),
   );
 }

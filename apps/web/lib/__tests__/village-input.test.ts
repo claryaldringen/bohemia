@@ -12,6 +12,7 @@ import {
   parsePosition,
   parseSkipTimeInput,
   parseCancelConstructionInput,
+  parseNameLineManInput,
   parseRelocateHouseholdInput,
   parseVillageId,
   villageIdOf,
@@ -71,6 +72,17 @@ describe('ověření vstupu server actions vsi', () => {
       dwelling,
       fieldCells: [],
     });
+    // jméno vojvody (lord.md – Zakladatelé) – jen tvar, písmena ověří use-case; bez něj čeká
+    expect(parseFoundVillageInput({ name: 'Libice', dwelling, lordName: 'Bořivoj' })).toEqual({
+      name: 'Libice',
+      dwelling,
+      fieldCells: [],
+      lordName: 'Bořivoj',
+    });
+    expect(parseFoundVillageInput({ name: 'Libice', dwelling, lordName: 7 })).toBeNull();
+    expect(
+      parseFoundVillageInput({ name: 'Libice', dwelling, lordName: 'x'.repeat(201) }),
+    ).toBeNull();
     expect(parseRenameVillageInput({ name: 'Lhota' })).toEqual({ name: 'Lhota' });
     expect(parseRenameVillageInput({ name: 'x'.repeat(201) })).toBeNull();
     expect(parseRenameVillageInput('Lhota')).toBeNull();
@@ -210,6 +222,18 @@ describe('vstupy víc vsí a přestěhování (migration.md)', () => {
     expect(parseCancelConstructionInput({ constructionId: -1 })).toBeNull();
     expect(parseCancelConstructionInput({ constructionId: '12' })).toBeNull();
     expect(parseCancelConstructionInput(undefined)).toBeNull();
+  });
+
+  it('pojmenování muže rodu – kladné id člověka a jméno (písmena ověří use-case)', () => {
+    expect(parseNameLineManInput({ personId: 12, name: 'Mrdomír' })).toEqual({
+      personId: 12,
+      name: 'Mrdomír',
+    });
+    expect(parseNameLineManInput({ personId: 0, name: 'Mrdomír' })).toBeNull();
+    expect(parseNameLineManInput({ personId: '12', name: 'Mrdomír' })).toBeNull();
+    expect(parseNameLineManInput({ personId: 12, name: 5 })).toBeNull();
+    expect(parseNameLineManInput({ personId: 12, name: 'x'.repeat(201) })).toBeNull();
+    expect(parseNameLineManInput(null)).toBeNull();
   });
 });
 

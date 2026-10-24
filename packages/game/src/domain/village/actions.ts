@@ -33,6 +33,8 @@ import { copyPlot } from './plots';
 import type { Walk } from './paths/walking';
 import { ageGroup } from './people';
 import { settlersMaxId, type Settlers } from './departure';
+import { isLineMan } from './dynasty';
+import { checkPersonName, normalizePersonName } from './dynasty-names';
 import { relocationAffordability, relocationBlock } from './relocation';
 import {
   CRAFTS,
@@ -43,6 +45,7 @@ import {
   START_AGES,
   START_SEXES,
   BIRTH_SPACING,
+  LORD,
   START_STORES_MONTHS,
   dwellingBuildLabor,
   workshopTrees,
@@ -54,6 +57,7 @@ import type {
   Craft,
   BuildableDwellingType,
   DwellingPlot,
+  DynastyState,
   FieldSurface,
   OrchardSquare,
   Person,
@@ -337,7 +341,61 @@ function addField(state: VillageState, day: number, field: FieldInput): void {
 }
 
 /**
- * Založí ves: 4 lidé podle START_AGES, zásoby na START_STORES_MONTHS a stavba první zemnice
+ * Zakladatelé rodu (lord.md – Zakladatelé; Martin 24. 10. 2026: „Vesnici zakládá vojvoda a jeho
+ * rodina.“): vojvoda a jeho manželky podle `LORD.founders` od id `lordId` – vojvoda, hlavní
+ * manželka, vedlejší od nejstarší. Rodiče neznámí, bez dětí; všechny manželky porodí nejdřív za
+ * 9 měsíců jako po svatbě. Vojvoda má příznak rodu a jméno, je-li zadané.
+ */
+function dynastyFounders(
+  lordId: number,
+  dwellingId: number,
+  day: number,
+  name: string | undefined,
+): { people: Person[]; dynasty: DynastyState } {
+  const { lordAge, wifeAges } = LORD.founders;
+  const bornDay = (age: number): number => day - Math.ceil(age * DAYS_PER_YEAR);
+  const lord: Person = {
+    id: lordId,
+    bornDay: bornDay(lordAge),
+    dwellingId,
+    sex: 'male',
+    spouseId: lordId + 1,
+    line: true,
+    ...(name === undefined ? {} : { name }),
+  };
+  const wives = wifeAges.map((age, i): Person => ({
+    id: lordId + 1 + i,
+    bornDay: bornDay(age),
+    dwellingId,
+    sex: 'female',
+    spouseId: lordId,
+    // první dítě nejdřív za 9 měsíců jako po svatbě (population.md – rozestup porodů)
+    nextBirthFrom: day + BIRTH_SPACING.afterWeddingDays,
+  }));
+  return {
+    people: [lord, ...wives],
+    dynasty: {
+      lordId,
+      lords: [{ id: lordId, ...(name === undefined ? {} : { name }), fromDay: day }],
+    },
+  };
+}
+
+/**
+ * Rod vsi osadníků (návrh Clauda – rod ve víc vsích řeší fáze 2–4): vojvodou je nejstarší muž rodu
+ * mezi nimi, bez něj je nová ves bez rodu.
+ */
+function settlersDynasty(people: readonly Person[], day: number): DynastyState {
+  const lord = people.filter(isLineMan).sort((a, b) => a.bornDay - b.bornDay || a.id - b.id)[0];
+  // nový objekt – stav vsi se nesmí dělit o `NO_DYNASTY`
+  if (!lord) return { lordId: null, lords: [] };
+  const name = lord.name === undefined ? {} : { name: lord.name };
+  return { lordId: lord.id, lords: [{ id: lord.id, ...name, fromDay: day }] };
+}
+
+/**
+ * Založí ves: s vojvodou (`lord`) jeho rodina podle LORD.founders (lord.md – Zakladatelé), bez něj
+ * ves bez rodu se 4 lidmi podle START_AGES; zásoby na START_STORES_MONTHS a stavba první zemnice
  * (population.md – Založení vsi). Zemnici si zakladatelé postaví vlastní prací jako každou
  * stavbu – do dostavění bydlí na staveništi a pak se do ní nastěhují (jejich domácnost má id
  * budoucí zemnice, stavba ho nese v `dwellingId`). První pole je volitelné (hráč staví, kdy
@@ -379,6 +437,13 @@ export function foundVillage(input: {
    * staveništi první zemnice, dokud ji nepostaví.
    */
   settlers?: Settlers;
+  /**
+   * Ves zakládá vojvoda s manželkami (lord.md – Zakladatelé) – `name` jméno vojvody (jen písmena,
+   * `checkPersonName`); bez jména na ně vojvoda čeká. Bez `lord` ves bez rodu se dvěma páry (testy,
+   * starší varianty kalibrace). S osadníky se nepoužije – zakladatele nemění (vojvodou je nejstarší
+   * muž rodu mezi nimi).
+   */
+  lord?: { name?: string };
 }): VillageState {
   const { seed, day, dwellingPosition, firstField } = input;
   const dwellingObstacleIds = input.dwellingObstacleIds ?? [];
@@ -394,18 +459,35 @@ export function foundVillage(input: {
   if (input.dwellingSpared) validateSpared(input.dwellingSpared);
   const { settlers } = input;
   if (settlers && settlers.people.length === 0) throw new RangeError('Osadníci chybí.');
+  const lordName = input.lord?.name;
+  if (lordName !== undefined) {
+    const check = checkPersonName(lordName);
+    if (!check.ok) throw new RangeError(check.reason ?? 'Neplatné jméno vojvody.');
+  }
+
   // osadníci si nesou id ze staré vsi – nová ves čísluje za nimi
   const householdId = settlers ? settlersMaxId(settlers) + 1 : 1;
+  const founders =
+    !settlers && input.lord
+      ? dynastyFounders(
+          householdId + 1,
+          householdId,
+          day,
+          lordName === undefined ? undefined : normalizePersonName(lordName),
+        )
+      : null;
   // zakladatelé jsou dva páry (kinship.md – Pohlaví): manželé 25 let a chlapec s dívkou, kteří
   // nejsou příbuzní (rodiče neznámí) – vezmou se, až dorostou
   const people: Person[] = settlers
     ? settlers.people.map((p) => ({ ...p, dwellingId: householdId }))
-    : START_AGES.map((age, i) => ({
-        id: householdId + 1 + i,
-        bornDay: day - Math.ceil(age * DAYS_PER_YEAR),
-        dwellingId: householdId,
-        sex: START_SEXES[i] ?? 'male',
-      }));
+    : founders
+      ? founders.people
+      : START_AGES.map((age, i) => ({
+          id: householdId + 1 + i,
+          bornDay: day - Math.ceil(age * DAYS_PER_YEAR),
+          dwellingId: householdId,
+          sex: START_SEXES[i] ?? 'male',
+        }));
   const livestock = {
     ...(settlers
       ? { herds: { ...settlers.herds }, young: { ...settlers.young } }
@@ -414,7 +496,7 @@ export function foundVillage(input: {
     pensFromDay: penGraceEnd(day),
   };
   const [husband, wife] = people;
-  if (!settlers && husband && wife) {
+  if (!settlers && !founders && husband && wife) {
     husband.spouseId = wife.id;
     wife.spouseId = husband.id;
     // první dítě nejdřív za 9 měsíců jako po svatbě (population.md – rozestup porodů)
@@ -429,9 +511,10 @@ export function foundVillage(input: {
     lastDay: day - 1,
     nextId: constructionId + 1,
     people,
-    // zatím ves bez rodu – chová se jako před rodem; zakladatele rodu přidá založení s vojvodem
-    // (lord.md – Zakladatelé)
-    dynasty: { lordId: null, lords: [] },
+    // ves bez rodu (bez vojvody) se chová jako před rodem (lord.md – Zakladatelé)
+    dynasty: settlers
+      ? settlersDynasty(people, day)
+      : (founders?.dynasty ?? { lordId: null, lords: [] }),
     dwellings: [],
     fields: [],
     parts: [],

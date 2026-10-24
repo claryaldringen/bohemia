@@ -67,17 +67,22 @@ export function parseName(value: unknown): string | null {
   return typeof value === 'string' && value.length <= MAX_RAW_NAME_LENGTH ? value : null;
 }
 
-/** Vstup založení vsi `{ name, dwelling, fieldCells? }` (bez čtverců = bez pole), jinak null. */
+/**
+ * Vstup založení vsi `{ name, dwelling, fieldCells?, lordName? }` (bez čtverců = bez pole, bez
+ * `lordName` vojvoda na jméno čeká – lord.md, Zakladatelé), jinak null.
+ */
 export function parseFoundVillageInput(
   value: unknown,
-): { name: string; dwelling: Position; fieldCells: TileCell[] } | null {
+): { name: string; dwelling: Position; fieldCells: TileCell[]; lordName?: string } | null {
   if (!isRecord(value)) return null;
   const name = parseName(value.name);
   const dwelling = parsePosition(value.dwelling);
   const fieldCells = value.fieldCells === undefined ? [] : parseCells(value.fieldCells);
-  return name !== null && dwelling !== null && fieldCells !== null
+  const lordName = value.lordName === undefined ? undefined : parseName(value.lordName);
+  if (name === null || dwelling === null || fieldCells === null || lordName === null) return null;
+  return lordName === undefined
     ? { name, dwelling, fieldCells }
-    : null;
+    : { name, dwelling, fieldCells, lordName };
 }
 
 /** Vstup přejmenování vsi `{ name }`, jinak null. */
@@ -341,6 +346,17 @@ export function parseRelocateHouseholdInput(value: unknown): {
   const dwellingId = parsePositiveInt(value.dwellingId);
   const dwelling = parsePlaceDwellingInput(value);
   return dwellingId !== null && dwelling !== null ? { dwellingId, ...dwelling } : null;
+}
+
+/**
+ * Vstup pojmenování muže rodu `{ personId, name }` (lord.md – Jména; jestli jméno smí být, ověří
+ * use-case), jinak null.
+ */
+export function parseNameLineManInput(value: unknown): { personId: number; name: string } | null {
+  if (!isRecord(value)) return null;
+  const personId = parsePositiveInt(value.personId);
+  const name = parseName(value.name);
+  return personId !== null && name !== null ? { personId, name } : null;
 }
 
 /** Vstup zrušení rozestavěné stavby `{ constructionId }`, jinak null. */
