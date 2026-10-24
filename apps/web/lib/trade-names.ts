@@ -44,6 +44,15 @@ export const TRADE_GOOD_NAMES: Record<
     unit: 'ks',
     icon: 'ox',
   },
+  // koně ve třech druzích (horses.md – Nákup a prodej); řádky v panelu a ikony přidá úloha 13
+  foals: { name: 'Hříbata', genitive: 'hříbat', unit: 'ks', icon: 'foal' },
+  mares: { name: 'Klisny', genitive: 'klisen', unit: 'ks', icon: 'mare' },
+  ridingHorses: {
+    name: 'Jezdečtí koně',
+    genitive: 'jezdeckých koní',
+    unit: 'ks',
+    icon: 'horse',
+  },
   logs: { name: 'Klády', genitive: 'klád', unit: 'ks', icon: 'wood' },
   pottery: { name: 'Keramika', genitive: 'keramiky', unit: 'kg', icon: 'pottery' },
   ironBars: { name: 'Hřivny', genitive: 'hřiven', unit: 'kg', icon: 'iron-bars' },

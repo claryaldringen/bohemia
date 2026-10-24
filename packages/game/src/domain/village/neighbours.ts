@@ -8,10 +8,11 @@ import { dateOfDayIndex } from '../calendar';
 import { createRandom, deriveSeed, type Random } from '../landscape/random';
 import { suggestVillageName } from './names';
 import { neighbourPeople, storedNeighbourPeople } from './people-trade';
-import { NEIGHBOR_DIRECTIONS, NEIGHBOURS, TRADE, TRADE_GOOD_VALUES } from './rules';
+import { HORSE_TRADE, NEIGHBOR_DIRECTIONS, NEIGHBOURS, TRADE, TRADE_GOOD_VALUES } from './rules';
 import type {
   CattleGood,
   Direction8,
+  HorseGood,
   NeighbourGood,
   NeighbourStock,
   TradeGood,
@@ -27,13 +28,27 @@ export function isCattleGood(good: string): good is CattleGood {
   return (CATTLE_GOODS as readonly string[]).includes(good);
 }
 
-/** Zboží obchodu v pořadí panelu (obilí a jídlo, dobytek a dřevo, výrobky řemesel). */
+/** Druhy koní v obchodu v pořadí panelu (horses.md – Nákup a prodej). */
+export const HORSE_GOODS: readonly HorseGood[] = ['foals', 'mares', 'ridingHorses'];
+
+/** Je zboží kůň (hříbě, klisna nebo jezdecký kůň)? */
+export function isHorseGood(good: string): good is HorseGood {
+  return (HORSE_GOODS as readonly string[]).includes(good);
+}
+
+/** Jde zboží po svých s honákem (dobytek a koně) – nese ho nikdo? */
+export function isLivestockGood(good: string): good is CattleGood | HorseGood {
+  return isCattleGood(good) || isHorseGood(good);
+}
+
+/** Zboží obchodu v pořadí panelu (obilí a jídlo, dobytek, koně a dřevo, výrobky řemesel). */
 export const TRADE_GOODS: readonly TradeGood[] = [
   'grain',
   'legumes',
   'meat',
   'cheese',
   ...CATTLE_GOODS,
+  ...HORSE_GOODS,
   'logs',
   'pottery',
   'ironBars',
@@ -41,13 +56,14 @@ export const TRADE_GOODS: readonly TradeGood[] = [
 ];
 
 /**
- * Pořadí zboží v povaze souseda – jako TRADE_GOODS, dobytek vcelku (`cattle`) na místě krav. Podle
- * něj se losují zásoby a poptávka (`neighbourOf`), takže ostatní zboží souseda zůstalo, jaké bylo
- * před dobytkem ve třech druzích.
+ * Pořadí zboží v povaze souseda – jako TRADE_GOODS, dobytek vcelku (`cattle`) na místě krav, bez
+ * koní (ti mají vlastní losy – `horseAmounts`). Podle něj se losují zásoby a poptávka
+ * (`neighbourOf`), takže ostatní zboží souseda zůstalo, jaké bylo před dobytkem ve třech druzích
+ * a před koňmi.
  */
 const PROFILE_ORDER: readonly NeighbourGood[] = TRADE_GOODS.flatMap((g): NeighbourGood[] => {
   if (g === 'cows') return ['cattle'];
-  return isCattleGood(g) ? [] : [g];
+  return isLivestockGood(g) ? [] : [g];
 });
 
 /** Čím se soused živí (trade.md – Sousedé): obilnáři, pastevci, lesní ves, řemeslníci. */
@@ -133,6 +149,26 @@ function amounts(
 }
 
 /**
+ * Koně souseda podle povahy (horses.md – Nákup a prodej): roční množství každého druhu, který
+ * nabízí (`supply`) a shání (`demand`), HORSE_TRADE.perYear kusů – losy z vlastního proudu, ať se
+ * ostatní zboží souseda nezmění (jako `extra` u dobytka).
+ */
+function horseAmounts(
+  seed: number,
+  direction: Direction8,
+  kind: NeighbourKind,
+): { supply: TradeGoods; demand: TradeGoods } {
+  const rnd = createRandom(deriveSeed(seed, `neighbour-horses:${direction}`));
+  const { offers, demands } = NEIGHBOURS.horseKinds[kind];
+  const roll = (): number => between(rnd, HORSE_TRADE.perYear.min, HORSE_TRADE.perYear.max);
+  const supply: TradeGoods = {};
+  const demand: TradeGoods = {};
+  for (const good of offers) supply[good] = roll();
+  for (const good of demands) demand[good] = roll();
+  return { supply, demand };
+}
+
+/**
  * Čím se živí soused ve směru `direction`: kolem vsi je každý druh dvakrát, rozdaný do směrů
  * deterministicky ze seedu (co ves potřebuje, to některý soused nabízí).
  */
@@ -163,8 +199,15 @@ export function neighbourOf(seed: number, direction: Direction8): Neighbour {
   const cattle = NEIGHBOURS.cattleKinds[kind];
   const extra = createRandom(deriveSeed(seed, `neighbour-cattle:${direction}`));
   const always = (NEIGHBOURS.cattleAlways as readonly string[]).includes(kind);
-  const supply = amounts(offerTokens, NEIGHBOURS.supplyKg, rnd, extra, cattle, always);
-  const demand = amounts(demandTokens, NEIGHBOURS.demandKg, rnd, extra, cattle, false);
+  const horses = horseAmounts(seed, direction, kind);
+  const supply = {
+    ...amounts(offerTokens, NEIGHBOURS.supplyKg, rnd, extra, cattle, always),
+    ...horses.supply,
+  };
+  const demand = {
+    ...amounts(demandTokens, NEIGHBOURS.demandKg, rnd, extra, cattle, false),
+    ...horses.demand,
+  };
   const offers = ordered(Object.keys(supply) as TradeGood[]);
   const demands = ordered(Object.keys(demand) as TradeGood[]);
   const name = suggestVillageName(deriveSeed(seed, `neighbour-name:${direction}`));
@@ -177,6 +220,24 @@ export function tradeSeason(day: number): number {
   const { month, day: restock } = TRADE.restockDay;
   const after = date.month > month || (date.month === month && date.day >= restock);
   return after ? date.year : date.year - 1;
+}
+
+/**
+ * Zásoba souseda na rok obchodu `season` (doplnění 1. 11.): roční zásoba z povahy, jen jezdecké
+ * koně mají pastevci jen některý rok (horses.md – Nákup a prodej; HORSE_TRADE.ridingYearChance) –
+ * los z proudu koní souseda a roku. Nový objekt.
+ */
+export function seasonSupply(
+  neighbour: Pick<Neighbour, 'direction' | 'supply'>,
+  seed: number,
+  season: number,
+): TradeGoods {
+  const supply = { ...neighbour.supply };
+  if (supply.ridingHorses !== undefined) {
+    const rnd = createRandom(deriveSeed(seed, `neighbour-horses:${neighbour.direction}:${season}`));
+    if (rnd.next() >= HORSE_TRADE.ridingYearChance) supply.ridingHorses = 0;
+  }
+  return supply;
 }
 
 /**
@@ -203,7 +264,7 @@ export function neighbourStock(
   return {
     direction,
     season,
-    supply: { ...neighbour.supply },
+    supply: seasonSupply(neighbour, state.seed, season),
     demand: { ...neighbour.demand },
     people: neighbourPeople(state.seed, direction, season),
   };

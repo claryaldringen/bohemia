@@ -1,6 +1,7 @@
 // Typy stavu vsi – Obchod se sousedy.
 // Rozcestník je `types.ts`; tento soubor jen drží část typů.
 
+import type { TradedHorse } from './types-livestock';
 import type { Sex } from './types-people';
 import type { Direction8 } from './types-state';
 
@@ -11,6 +12,13 @@ import type { Direction8 } from './types-state';
  * voli (do ohrady volů, táhnou hned) – kusy. Dřív jeden druh `cattle` = krávy (`withCattleKinds`).
  */
 export type CattleGood = 'cows' | 'youngOxen' | 'trainedOxen';
+
+/**
+ * Koně v obchodu (horses.md – Nákup a prodej; Martin 23. 10. 2026: koně jde nakupovat a prodávat
+ * jako ostatní zvířata; druhy návrh Clauda): hříbata (do 3 let), chovné klisny a jezdečtí koně –
+ * kusy, do ohrady koní. Jezdecký kůň má cenu za kus podle výcviku (`horseValueKg`).
+ */
+export type HorseGood = 'foals' | 'mares' | 'ridingHorses';
 
 /**
  * Zboží obchodu (trade.md – Sousedé): jen to, co ves sama má – obilí, maso, sýr, luštěniny (kg),
@@ -25,6 +33,7 @@ export type TradeGood =
   | 'cheese'
   | 'legumes'
   | CattleGood
+  | HorseGood
   | 'logs'
   | 'pottery'
   | 'ironBars'
@@ -34,7 +43,7 @@ export type TradeGood =
  * Zboží v povaze souseda (NEIGHBOURS.kinds): zboží obchodu, nebo dobytek vcelku (`cattle`) – ten
  * se podle druhu souseda rozloží na krávy a voly (`NEIGHBOURS.cattleKinds`, `neighbourOf`).
  */
-export type NeighbourGood = Exclude<TradeGood, CattleGood> | 'cattle';
+export type NeighbourGood = Exclude<TradeGood, CattleGood | HorseGood> | 'cattle';
 
 /** Množství zboží (jen uvedené druhy, kg nebo kusy podle druhu). */
 export type TradeGoods = Partial<Record<TradeGood, number>>;
@@ -142,6 +151,11 @@ export interface TradeExpedition {
    * neorají, dokud se výprava nevrátí. Chybí = výprava bez vozů.
    */
   carts?: number[];
+  /**
+   * Koně, které výprava přivede (horses.md – Nákup a prodej) – věk a výcvik z nabídky souseda
+   * v den odchodu (`offeredHorses`), v pořadí hříbata, klisny, jezdečtí koně. Chybí = žádní.
+   */
+  horses?: TradedHorse[];
 }
 
 /** Výrobky řemeslníků, které ves kupuje u sousedů (kg – crafts.md, Nákup u sousedů). */

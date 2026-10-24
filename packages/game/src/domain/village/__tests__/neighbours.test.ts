@@ -2,21 +2,38 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import {
   CATTLE_GOODS,
+  HORSE_GOODS,
   TRADE_GOODS,
   isCattleGood,
+  isHorseGood,
   neighbourKind,
   neighbourOf,
   neighbourStock,
+  seasonSupply,
   tradeSeason,
   type NeighbourKind,
 } from '../neighbours';
-import { NEIGHBOURS, TRADE_GOOD_VALUES } from '../rules';
+import { HORSE_TRADE, NEIGHBOURS, TRADE_GOOD_VALUES } from '../rules';
 import { DIRECTIONS } from '../trail';
-import type { NeighbourGood, TradeGood, VillageState } from '../types';
+import type { NeighbourGood, TradeGood, TradeGoods, VillageState } from '../types';
 
-/** Zboží souseda jako v povaze – dobytek vcelku (`cattle`). */
+/** Zboží souseda jako v povaze – dobytek vcelku (`cattle`), koně mimo povahu (`horseKinds`). */
 function tokens(goods: readonly TradeGood[]): NeighbourGood[] {
-  return [...new Set(goods.map((g): NeighbourGood => (isCattleGood(g) ? 'cattle' : g)))];
+  return [
+    ...new Set(
+      goods.flatMap((g): NeighbourGood[] => {
+        if (isHorseGood(g)) return [];
+        return [isCattleGood(g) ? 'cattle' : g];
+      }),
+    ),
+  ];
+}
+
+/** FNV-1a otisk řetězce (hex). */
+function fnv(text: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193);
+  return (h >>> 0).toString(16);
 }
 
 /** Zboží povahy rozložené na zboží obchodu – dobytek na druhy dobytka souseda. */
@@ -62,7 +79,7 @@ describe('povaha souseda', () => {
         expect(n.demands.some((g) => n.offers.includes(g))).toBe(false);
         for (const g of [...n.offers, ...n.demands]) expect(TRADE_GOODS).toContain(g);
         expect(n.name.length).toBeGreaterThan(0);
-        for (const g of n.offers) {
+        for (const g of n.offers.filter((x) => !isHorseGood(x))) {
           const value = n.supply[g]! * TRADE_GOOD_VALUES[g].valueKg;
           expect(n.supply[g]).toBeGreaterThanOrEqual(1);
           expect(value).toBeLessThanOrEqual(NEIGHBOURS.supplyKg.to + TRADE_GOOD_VALUES[g].valueKg);
@@ -78,12 +95,17 @@ describe('povaha souseda', () => {
       const wants: readonly NeighbourGood[] = [kind.always, ...kind.needs];
       expect(kind.offers.some((g) => wants.includes(g))).toBe(false);
     }
-    const offered = new Set(kindsOf.flatMap((k) => expanded(NEIGHBOURS.kinds[k].offers, k)));
-    const wanted = new Set(
-      kindsOf.flatMap((k) =>
+    // koně mimo povahu – podle `horseKinds` (horses.md – Nákup a prodej)
+    const offered = new Set([
+      ...kindsOf.flatMap((k) => expanded(NEIGHBOURS.kinds[k].offers, k)),
+      ...kindsOf.flatMap((k) => NEIGHBOURS.horseKinds[k].offers),
+    ]);
+    const wanted = new Set([
+      ...kindsOf.flatMap((k) =>
         expanded([NEIGHBOURS.kinds[k].always, ...NEIGHBOURS.kinds[k].needs], k),
       ),
-    );
+      ...kindsOf.flatMap((k) => NEIGHBOURS.horseKinds[k].demands),
+    ]);
     for (const g of TRADE_GOODS) {
       expect(offered.has(g)).toBe(true);
       expect(wanted.has(g)).toBe(true);
@@ -123,8 +145,39 @@ describe('povaha souseda', () => {
     expect(farmersWithCattle).toBeGreaterThan(0);
   });
 
-  it('všech 11 druhů zboží má hodnotu – jen to, co má i ves (dobytek ve třech druzích)', () => {
-    expect(TRADE_GOODS).toHaveLength(11);
+  it('koně podle povahy (horses.md – Nákup a prodej) – ostatní zboží souseda beze změny', () => {
+    // otisk zboží bez koní (seedy 1–40, všechny směry) – spočítaný před obchodem s koňmi
+    let all = '';
+    for (let seed = 1; seed <= 40; seed++) {
+      for (const d of DIRECTIONS) {
+        const n = neighbourOf(seed, d);
+        const strip = (goods: TradeGoods): TradeGoods =>
+          Object.fromEntries(Object.entries(goods).filter(([g]) => !isHorseGood(g)));
+        all += JSON.stringify([
+          n.name,
+          n.kind,
+          n.offers.filter((g) => !isHorseGood(g)),
+          n.demands.filter((g) => !isHorseGood(g)),
+          strip(n.supply),
+          strip(n.demand),
+        ]);
+        const horses = NEIGHBOURS.horseKinds[n.kind];
+        expect(n.offers.filter(isHorseGood)).toEqual([...horses.offers]);
+        expect(n.demands.filter(isHorseGood)).toEqual([...horses.demands]);
+        for (const g of horses.offers) {
+          expect(n.supply[g]).toBeGreaterThanOrEqual(HORSE_TRADE.perYear.min);
+          expect(n.supply[g]).toBeLessThanOrEqual(HORSE_TRADE.perYear.max);
+        }
+      }
+    }
+    expect(fnv(all)).toBe('e75e79d8');
+    expect(NEIGHBOURS.horseKinds.herders.offers).toEqual([...HORSE_GOODS]);
+    expect(NEIGHBOURS.horseKinds.woodsmen).toEqual({ offers: [], demands: [] });
+  });
+
+  it('všech 14 druhů zboží má hodnotu – jen to, co má i ves (dobytek a koně ve třech druzích)', () => {
+    expect(TRADE_GOODS).toHaveLength(14);
+    expect(TRADE_GOODS.filter(isHorseGood)).toEqual(['foals', 'mares', 'ridingHorses']);
     expect(TRADE_GOODS.filter(isCattleGood)).toEqual(['cows', 'youngOxen', 'trainedOxen']);
     expect(Object.keys(TRADE_GOOD_VALUES).sort()).toEqual([...TRADE_GOODS].sort());
     for (const g of TRADE_GOODS) expect(TRADE_GOOD_VALUES[g].valueKg).toBeGreaterThan(0);
@@ -142,7 +195,8 @@ describe('roční zásoby a doplnění 1. 11.', () => {
     const day = dayIndexOf({ year: 600, month: 12, day: 1 });
     const fresh = neighbourStock({ seed: 3 }, 'S', day);
     expect(fresh.season).toBe(600);
-    expect(fresh.supply).toEqual(neighbourOf(3, 'S').supply);
+    // jezdecké koně mají pastevci jen některý rok (horses.md – Nákup a prodej)
+    expect(fresh.supply).toEqual(seasonSupply(neighbourOf(3, 'S'), 3, tradeSeason(day)));
     const used = { ...fresh, supply: {} };
     const state = { seed: 3, trade: { neighbours: [used], expeditions: [], nextId: 1 } } as Pick<
       VillageState,
@@ -150,6 +204,8 @@ describe('roční zásoby a doplnění 1. 11.', () => {
     >;
     expect(neighbourStock(state, 'S', day + 100).supply).toEqual({});
     const nextYear = dayIndexOf({ year: 601, month: 11, day: 1 });
-    expect(neighbourStock(state, 'S', nextYear).supply).toEqual(neighbourOf(3, 'S').supply);
+    expect(neighbourStock(state, 'S', nextYear).supply).toEqual(
+      seasonSupply(neighbourOf(3, 'S'), 3, tradeSeason(nextYear)),
+    );
   });
 });
