@@ -138,7 +138,9 @@ export const ROAD_ACCESS = { minM: 3 } as const;
 // vchodu obloukem s body po `bendStepM` (1 m); natočení a rozevření Y po `rotationStepDeg` (5°),
 // β z `spreadDeg` (30–60°); uzel s 5+ cestami = dvě křižovatky `pairM` (10 m) od sebe; znamení
 // strom 40 %, vztyčený kámen 30 %, dřevěný kůl 30 % ze `landmarkLooks` (2) podob, `landmarkGapM`
-// (1,5 m) za vchody v nejširší mezeře mezi rameny
+// (1,5 m) za vchody v nejširší mezeře mezi rameny; dvě křižovatky nejméně dosah plácku jedné +
+// dosah druhé + `spacingReserveM` (1 m) od sebe – dosah je kružnice opsaná obrysu (vchod a půl
+// šířky nejširší cesty; paths.md – Křižovatky, Rozestup, návrh Clauda 24. 10. 2026)
 export const JUNCTION = {
   entranceWidths: 1.5,
   bendM: 12,
@@ -149,6 +151,11 @@ export const JUNCTION = {
   landmark: { tree: 0.4, stone: 0.3, post: 0.3 },
   landmarkLooks: 2,
   landmarkGapM: 1.5,
+  spacingReserveM: 1,
+  // přídavek k rozestupu při odsunutí (m) – středy na cm i po zaokrouhlení nad rozestupem
+  spacingTieM: 0.02,
+  // nejmenší vzdálenost nového konce osy od sousedního bodu osy (m) při posunu křižovatky
+  spacingStepM: 1,
 } as const;
 // wagons.md – Vyjeté cesty (návrh Clauda): úsek, kudy vozy dva roky po sobě jezdí aspoň
 // `tripsPerDay` jízd denně (roční průměr – ≈ 90 jízd za rok), se stane vozovou cestou; vozová cesta,

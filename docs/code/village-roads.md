@@ -232,6 +232,21 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   nejširší cesty. Scéna: `SceneVillage.junctions` (Úloha 12 níž). Měření `road-report.ts` – objekty po tvarech
   a znameních, uzly 5+, přepočty a ohyby (`JUNCTION_RUNS`). Testy `junctions-network.test.ts`,
   `road-stubs.test.ts` (Y u branky hřbitova, 12 měsíců beze změny).
+  **Rozestup (paths.md – Křižovatky, Rozestup; Martin 24. 10. 2026):** `junctionReachM(widths)` –
+  dosah plácku (kružnice opsaná obrysu ve scéně: `length2(vchod, půl šířky nejširší cesty)`),
+  `junctionSpacingM(a, b)` = dosah + dosah + `JUNCTION.spacingReserveM` (1 m; vyšlapané ≈ 7 m,
+  vozové ≈ 12,1 m). `spaceJunctions` v `updateJunctions` po `splitCrowded`, před tvarem: uzly s 3–4
+  živými konci (`hubsOf`, pořadí podle klíče – nezávisí na pořadí úseků), nejbližší dvojice pod
+  rozestupem napřed, po každé změně znovu (`guard` = počet uzlů). **Sloučení** (`mergeHubs`):
+  jediný spojovací úsek, ne v `fixed` (stezka, vylepšení), živý v obou uzlech a bez něj nejvýš
+  4 živé konce (dvě Y) → konce do středu mezi uzly (na cm), spojka zmizí (`relinkApples`), zůstane
+  křižovatka s menším id (znamení, vznik), druhá zanikne; `fitNode` pak dá kříž. **Odsunutí**
+  (`moveHub`) jinak: oba uzly po spojnici o půl chybějícího rozestupu + `SPACING_TIE` (2 cm – po
+  zaokrouhlení na cm nad rozestupem, podruhé nic); konce úseků i `junction.x/z` se posunou, ohnuté
+  konce `fitNode` ohne znovu. Kotva `net.anchor` (`tidyMonth`: do `ROAD_ANCHORS.entranceM` od vchodu
+  – `nearEntrance` v `road-condition.ts`) se nehýbe; dvě kotvy zůstanou. Starší vsi se srovnají
+  v prvním měsíci (Vlkov 114701: J563/J564 → kříž, J569/J570 6 → 12,1 m, J574/J578 11,7 → 12,1 m;
+  dopočet 40 dní = 13 + 27). Testy `junctions-spacing.test.ts`.
   **Scéna (Úloha 12):** `lib/scene/junction-shape.ts` (čisté, bez Babylonu; test
   `junction-shape.test.ts`). `junctionShape(j, roads)` – ramena jen s cestou, vchody z
   `junctionEntranceM`, obrys proti směru hodin: u každého ramene dva rohy ve vchodu (± půl šířky

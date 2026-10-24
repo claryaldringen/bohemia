@@ -49,7 +49,7 @@ import {
 import { annualCartNetwork, markCartRoads, takeOverCartRoads } from './roads-carts';
 import { abandonBlockedStretches, cutDeadRoads } from './roads-overgrow';
 import { accessDue, accessRoads } from './roads-access';
-import { fixedRoadIds, liveRoadEnd } from './road-condition';
+import { fixedRoadIds, liveRoadEnd, nearEntrance } from './road-condition';
 import { updateJunctions } from './junctions';
 import { anchorTermini, markRoadEnds, tidyDue, tidyRoads } from './roads-tidy';
 import { SpotContext, plantingBlocker, rootTrees } from './roads-trees';
@@ -262,7 +262,9 @@ function roadsMonthRun(
       }
     }
   }
-  tidyMonth(state, routes, { lines, anchors, day, cellM }, baseOf, fieldOf);
+  const walk = (): ((x: number, z: number) => boolean) | null =>
+    villageBlockedAt(state, day, landscape);
+  tidyMonth(state, routes, { lines, anchors, day, cellM, walk }, baseOf, fieldOf);
 }
 
 /**
@@ -291,7 +293,9 @@ export function tidyRoadsNow(
     const cellM = pathCellM(landscape);
     const { lines, anchors } = monthRoutes(routes, landscape, cellM);
     const fieldOf = (): TrafficField => trafficField(routes, cellM);
-    tidyMonth(state, routes, { lines, anchors, day, cellM }, baseOf, fieldOf);
+    const walk = (): ((x: number, z: number) => boolean) | null =>
+      villageBlockedAt(state, day, landscape);
+    tidyMonth(state, routes, { lines, anchors, day, cellM, walk }, baseOf, fieldOf);
     return;
   }
   const context: SpotContext = {
@@ -332,7 +336,14 @@ function networkKey(roads: VillageRoads): number {
 function tidyMonth(
   state: VillageState,
   routes: VillageRoutes,
-  month: { lines: RoadPoint[][]; anchors: RoadAnchors; day: number; cellM: number },
+  month: {
+    lines: RoadPoint[][];
+    anchors: RoadAnchors;
+    day: number;
+    cellM: number;
+    /** Neprůchodná plocha vsi (stavby, ploty, zemní práce) – jen když se křižovatka posouvá. */
+    walk: () => ((x: number, z: number) => boolean) | null;
+  },
   base: () => Omit<SpotContext, 'split'>,
   field: () => TrafficField,
 ): void {
@@ -351,9 +362,14 @@ function tidyMonth(
     const frozen = fixedRoadIds(state.constructions, state.trails);
     const entrances = month.anchors.points.filter((a) => a.kind === 'entrance');
     const traffic = field();
+    let walkable: ReturnType<typeof month.walk> | undefined;
     return updateJunctions(roads, month.day, state.seed, {
       live: (road, atStart) => liveRoadEnd(road, atStart, traffic, entrances, frozen),
       fixed: frozen,
+      // uzel u vchodu se při rozestupu křižovatek nehýbe – vchod by přišel o cestu
+      anchor: (p) => nearEntrance(p, entrances),
+      // nový střed křižovatky nesmí do domu, plotu ani zemních prací
+      blocked: (p) => (walkable ??= month.walk())?.(p.x, p.z) ?? false,
     });
   };
   // cesty beze změny: úklid jen, když nové kotvy a trasy dají práci (pahýl, díra, okruh, vchod)
