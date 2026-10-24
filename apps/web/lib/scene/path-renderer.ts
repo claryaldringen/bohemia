@@ -5,9 +5,9 @@ import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
+import { routeLinesOf } from '../scene-routes';
 import {
   computePathNetwork,
-  decodeWear,
   isWoodTreeId,
   type ObstacleChanges,
   obstaclePosition,
@@ -16,7 +16,6 @@ import {
   pathTerrainOf,
   pathWindowFor,
   roadsKey,
-  routePaths,
   villagePathBounds,
   withObstacles,
   type Landscape,
@@ -216,18 +215,11 @@ export class VillagePaths {
   private updateRouteLines(village: SceneVillage): void {
     const list = village.routes?.list ?? null;
     const cells = village.wear?.cells ?? null;
-    const key = list
-      ? `${village.routes?.key}|${village.wear?.day ?? ''}|${cells === null ? 0 : 1}`
-      : '';
+    const key = list && cells !== null ? `${village.routes?.key}|${village.wear?.day ?? ''}|` : '';
     if (key === this.linesKey) return;
     this.linesKey = key;
-    this.routeLines = list
-      ? routePaths(
-          list,
-          cells === null ? new Map() : decodeWear(cells),
-          pathCellM(this.env.landscape),
-        )
-      : null;
+    // bez vyšlapanosti (ves bez `state.roads`, zahozená data) čáry sítě – pěšiny nezmizí
+    this.routeLines = routeLinesOf(village, pathCellM(this.env.landscape));
     if (this.network && this.key !== '') {
       const network = this.network;
       const stats = this.stats;

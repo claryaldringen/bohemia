@@ -330,7 +330,7 @@ export interface SceneVillage {
   earthworks?: SceneEarthwork[];
   /**
    * Trasy lidí (paths.md – Trasy) – pěšiny ve scéně vedou po nich. `list` je při dotazu na ves
-   * `null`, když klient už má trasy téhož `key` (klient drží poslední – `keepSceneRoutes`).
+   * `null`, když klient už má trasy téhož `key` (klient drží poslední – `keepSceneData`).
    */
   routes?: SceneRoutes;
   /** Vyšlapanost (síla pěšin) – `cells` je `null` při dotazu, když klient má týž `day`. */

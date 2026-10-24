@@ -52,7 +52,7 @@ import { usePolling } from '@/hooks/use-polling';
 import { authClient } from '@/lib/auth-client';
 import { buildItem, buildItemForKey, penVariantSpecies } from '@/lib/build-items';
 import { setE2EHook } from '@/lib/e2e-hooks';
-import { keepSceneData, knownSceneData } from '@/lib/scene-routes';
+import { keepSceneData, knownSceneData, lostSceneData } from '@/lib/scene-routes';
 import { opensMenu } from '@/lib/game-menu';
 import { nextPollDelayMs } from '@/lib/village-polling';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
@@ -186,6 +186,13 @@ function squareStructures(
       }));
   }
   return [];
+}
+
+/** Pohled bez otisku – další dotaz pošle plný pohled. */
+function withoutStamp(view: VillageView): VillageView {
+  const rest = { ...view };
+  delete rest.stamp;
+  return rest;
 }
 
 function isVillageView(state: VillageData): state is VillageView {
@@ -354,7 +361,11 @@ export function VillageGame({
         : received;
       setVillage(next);
       if (!isVillageView(next)) return;
-      viewRef.current = next;
+      // zahozená trasy nebo vyšlapanost: bez otisku, ať další dotaz doručí plný pohled hned
+      viewRef.current =
+        isVillageView(received) && lostSceneData(received.scene, next.scene)
+          ? withoutStamp(next)
+          : next;
       // nový pohled napřed – chyba při porovnání (pohled z doby před změnou kódu) se nesmí
       // opakovat při každém dalším dotazu
       const previous = noticedRef.current;

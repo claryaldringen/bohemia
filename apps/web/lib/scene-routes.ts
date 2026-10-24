@@ -2,6 +2,7 @@
 // v dotazu na ves pošle klíč tras a den vyšlapanosti, které má, server při shodě pošle `null`
 // a klient drží poslední.
 
+import { decodeWear, routePaths, type PathLine } from '@bohemia/game';
 import type { SceneVillage } from './village-view-scene-types';
 
 /** Klíče, které klient má – příloha dotazu na ves. */
@@ -34,6 +35,14 @@ export function trimKnownSceneData(scene: SceneVillage, known: KnownSceneData): 
   };
 }
 
+/** Klient: server trasy nebo vyšlapanost vynechal, ale předchozí pohled je nemá (zahozeno). */
+export function lostSceneData(received: SceneVillage, kept: SceneVillage): boolean {
+  return (
+    (received.routes?.list === null && !kept.routes) ||
+    (received.wear?.cells === null && !kept.wear)
+  );
+}
+
 /** Klient: doplní vynechané trasy a vyšlapanost z předchozího pohledu (téhož klíče). */
 export function keepSceneData(
   next: SceneVillage,
@@ -54,4 +63,14 @@ export function keepSceneData(
   delete rest.routes;
   delete rest.wear;
   return { ...rest, ...(routes ? { routes } : {}), ...(wear ? { wear } : {}) };
+}
+
+/**
+ * Čáry pěšin z tras a vyšlapanosti. Bez tras nebo bez vyšlapanosti (ves bez `state.roads`,
+ * zahozená data) `null` – scéna pak kreslí čáry sítě, pěšiny nezmizí.
+ */
+export function routeLinesOf(scene: SceneVillage, cellM: number): PathLine[] | null {
+  const list = scene.routes?.list ?? null;
+  const cells = scene.wear?.cells ?? null;
+  return list && cells !== null ? routePaths(list, decodeWear(cells), cellM) : null;
 }

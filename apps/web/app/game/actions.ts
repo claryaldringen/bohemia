@@ -120,7 +120,15 @@ function trimKnown<T extends VillageView | VillageUnchanged | null | { error: st
   result: T,
   input: unknown,
 ): T {
-  if (result === null || !('scene' in result) || typeof input !== 'object' || input === null) {
+  if (
+    result === null ||
+    !('scene' in result) ||
+    // jen pohled té vsi, na kterou se klient ptal (fallback na první ves netrimovat)
+    !('id' in result) ||
+    result.id !== villageIdOf(input) ||
+    typeof input !== 'object' ||
+    input === null
+  ) {
     return result;
   }
   const known: KnownSceneData = {

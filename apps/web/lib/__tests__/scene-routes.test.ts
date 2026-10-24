@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { keepSceneData, knownSceneData, trimKnownSceneData } from '../scene-routes';
+import {
+  routeLinesOf,
+  keepSceneData,
+  knownSceneData,
+  lostSceneData,
+  trimKnownSceneData,
+} from '../scene-routes';
 import type { SceneVillage } from '../village-view-scene-types';
 
 const route = { from: 'd:1', to: 'water', purpose: 'water', trips: 100, start: [0, 0], steps: '' };
@@ -40,6 +46,25 @@ describe('trasy a vyšlapanost jen při změně klíče', () => {
     const lost = keepSceneData(trimmed, scene('k0', 0));
     expect(lost.routes).toBeUndefined();
     expect(lost.wear).toBeUndefined();
+  });
+
+  it('zahozená data se poznají (pohled se uloží bez otisku)', () => {
+    const before = scene('k1', 30);
+    const trimmed = trimKnownSceneData(scene('k1', 30), knownSceneData(before));
+    expect(lostSceneData(trimmed, keepSceneData(trimmed, before))).toBe(false);
+    expect(lostSceneData(trimmed, keepSceneData(trimmed, scene('k0', 0)))).toBe(true);
+    expect(lostSceneData(before, keepSceneData(before, undefined))).toBe(false);
+  });
+
+  it('stará ves bez vyšlapanosti nebo tras: bez čar tras (scéna kreslí čáry sítě)', () => {
+    const old = { routes: { key: 'k1', list: [route as never] } } as unknown as SceneVillage;
+    expect(routeLinesOf(old, 1)).toBeNull();
+    const dropped = { ...scene('k1', 3), wear: { day: 3, cells: null } } as SceneVillage;
+    expect(routeLinesOf(dropped, 1)).toBeNull();
+    expect(routeLinesOf({} as SceneVillage, 1)).toBeNull();
+    expect(
+      routeLinesOf({ ...scene('k1', 3), wear: { day: 3, cells: '' } } as SceneVillage, 1),
+    ).not.toBeNull();
   });
 
   it('klient bez tras neposílá klíče', () => {

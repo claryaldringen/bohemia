@@ -61,11 +61,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   **Úloha 4a – pěšiny z tras:** čáry obtisku a pás pod nimi dává `routePaths(SceneVillage.routes.list,
 decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), přestaví se jen při
   změně `routes.key` / `wear.day` (síť pro `paths()` a teplotní mapu se dál počítá z
-  `pathNetworkKey`, postavy po trasách přijdou v 4b); bez tras (vývojová stránka) čáry sítě.
+  `pathNetworkKey`, postavy po trasách přijdou v 4b); bez tras nebo bez vyšlapanosti (stará ves bez `state.roads`, zahozená data; `routeLinesOf`) i na vývojové stránce (`app/dev/landscape`, trasy nedostává) čáry sítě.
   Pěšiny dne nemají kruhové plácky (`dayPathRibbons` / `dayPathTrack` v `path-ribbon.ts`).
   **Data jen při změně:** `lib/scene-routes.ts` – dotaz na ves nese `routesKey` a `wearDay`,
   server (`trimKnown` v `app/game/actions.ts`) při shodě pošle `routes.list` / `wear.cells` jako
-  `null`, klient (`keepSceneData` v `applyVillage`) doplní z posledního pohledu; akce vracejí vše.
+  `null`, klient (`keepSceneData` v `applyVillage`) doplní z posledního pohledu; akce vracejí vše. Když klient data nemá z čeho doplnit (`lostSceneData`), uloží pohled bez `stamp` a další dotaz pošle plný pohled hned. `trimKnown` ořezává jen pohled vsi, na kterou se klient ptal (`result.id`). Klíč vyšlapanosti je `wear.day` (`settleWear` posouvá den vždy; změna `cells` ve stejný den by potřebovala `rev`).
   Scéna `path-renderer.ts` (`VillagePaths` v `LandscapeScene`: přepočet jen při změně
   `pathNetworkKey`, odloženě; výpočet sítě, obtisky a pás pod nimi v polích jdou ve třech
   úlohách – mezi ně se vejde snímek pohybu kamery) – obtisky `paths-worn` / `paths-earth` z `path-ribbon.ts` **nad**
