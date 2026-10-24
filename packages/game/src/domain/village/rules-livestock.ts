@@ -96,8 +96,19 @@ export const PEN_PLACES_PER_SQUARE = {
 /**
  * horses.md – Ohrada koní a Koně po kusech (návrh Clauda): kůň slouží 3–20 let, klisna rodí od 4 do 20 let,
  * na maso jde ≈ 100 kg. Dvě různé meze „hříběte“: `placeFromYears` – hříbě do roku nemá vlastní místo
- * (saje u klisny); `foalUntilYears` – hříbě do 3 let (chov a výcvik: seno hříběte, jízda až od 3 let). Péče, krmení a ceny
- * přibudou s úlohami 5–7.
+ * (saje u klisny); `foalUntilYears` – hříbě do 3 let (chov a výcvik: seno hříběte, jízda až od 3 let). Ceny
+ * přibudou s úlohami 6–7.
+ *
+ * horses.md – Péče (Martin 23. 10. 2026: „Ano, sedí“ – hodina denně na koně z práce vsi): péče
+ * `careManDaysPerDay` 0,1 člověkodne (1 hodina) na koně celý rok, hříbě do roka u klisny nic navíc.
+ * horses.md – Krmení (Martin 23. 10. 2026: obilí ≈ 550 kg ročně – „Ano, sedí“; ostatní čísla návrh
+ * Clauda podle rešerše): jezdecký kůň `grainKgPerDay` 1,5 kg obilí denně celý rok, klisny a hříbata
+ * obilí nedostanou. Seno v zimě `hayKg` – kůň 6 kg (jako vůl), jezdecký kůň bez obilí 7 kg, hříbě
+ * v první zimě (do roka) 3 kg, dál do 3 let 5 kg (klisna obilí nikdy nedostává – 6 kg, návrh
+ * Clauda). Pastva v létě `pastureHa` 1 ha na koně. Bez obilí výcvik koně roste polovičním tempem
+ * (`trainingWithoutGrain` – Martin: „zpomalí“, polovina návrh Clauda). Ves koním obilí znovu
+ * nasype, až jí po lidech a koních do sklizně zbude `grainResumeDays` dní obilí koní navíc
+ * (hystereze proti přeskakování den po dni na hraně zásob – návrh Clauda).
  */
 export const HORSES = {
   serviceFromYears: 3,
@@ -107,6 +118,12 @@ export const HORSES = {
   meatKg: 100,
   placeFromYears: 1,
   foalUntilYears: 3,
+  careManDaysPerDay: 0.1,
+  grainKgPerDay: 1.5,
+  hayKg: { horse: 6, horseNoGrain: 7, foalFirstWinter: 3, foal: 5 },
+  pastureHa: 1,
+  trainingWithoutGrain: 0.5,
+  grainResumeDays: 30,
 } as const;
 /**
  * oxen.md – Spřežení, Voli po kusech (návrh Clauda, Martin schválil): výcvik ≈ 2 roky, vůl slouží

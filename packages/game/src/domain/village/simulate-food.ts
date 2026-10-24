@@ -4,6 +4,7 @@ import { recordFieldFood } from './field-food';
 import { harvestFlax } from './flax';
 import { dayMealInput, emergencySlaughter } from './emergency-slaughter';
 import { drawGrainPits, settleGrainPits } from './grain-pits';
+import { feedHorseGrain } from './horse-feed';
 import { addSheaves } from './threshing';
 import type { CraftCoverage, VillageState } from './types';
 import { harvestKg, taskRemaining } from './year-plan';
@@ -66,7 +67,8 @@ export function endThreshing(state: VillageState): void {
  * vrací nasycení (energie × kvalita stravy), energii, jestli se jedlo ovoce, a podíl energie
  * z masa (štěstí) a zapíše začátek a konec hladu. Hlad začíná
  * už tehdy, když příděl energie podle výhledu do sklizně klesne pod plný – i když se dnes jí
- * dosyta ovocem a obilí nevystačí až po 1. 3.
+ * dosyta ovocem a obilí nevystačí až po 1. 3. Po lidech dostanou obilí jezdečtí koně
+ * (`feedHorseGrain`).
  */
 export function eat(
   state: VillageState,
@@ -82,7 +84,8 @@ export function eat(
   // (diet.md – Nouzová porážka)
   const emergency = emergencySlaughter(state, day, coverage.pottery, milked);
   if (emergency) state.chronicle.push(emergency);
-  const meal = eatDiet(dayMealInput(state, day, coverage.pottery, milked));
+  const mealInput = dayMealInput(state, day, coverage.pottery, milked);
+  const meal = eatDiet(mealInput);
   state.storesKg = meal.grainKg;
   // jámy po ztrátách a jídle dne – snědené zrno z otevřené jámy, dosloužilé prázdné se zasypou
   settleGrainPits(state, day, coverage.pottery);
@@ -108,6 +111,8 @@ export function eat(
     state.hungry = hungry;
     state.chronicle.push({ day, kind: hungry ? 'hunger-began' : 'hunger-ended' });
   }
+  // obilí koní po lidech – jen co lidem do sklizně zbude navíc (horses.md – Krmení)
+  feedHorseGrain(state, day, meal.grainSpareKg, mealInput.daysToHarvest);
   return {
     satiation: meal.diet.satiation,
     energy: meal.diet.energy,

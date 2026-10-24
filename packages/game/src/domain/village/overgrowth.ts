@@ -6,6 +6,7 @@ import { grazingDemandHa, naturalPastureHa, villageHerds } from './livestock';
 import { pastureGrazing } from './pasture';
 import { keepSwathsClearOfWoods } from './road-swath';
 import { villageOxen } from './oxen';
+import { horsesInPlaces, villageHorses } from './horses';
 import { OVERGROWTH } from './rules';
 import { copyGrid, squareCenter } from './square-grid';
 import { fieldGridOf } from './squares';
@@ -74,7 +75,10 @@ export function overgrowthDay(
   const { year } = dateOfDayIndex(day);
   const seasonStart = dayIndexOf({ year, ...OVERGROWTH.seasonStart });
   // jen co pasáci uhlídali – stádo bez pasáka se nepase (diet.md – Pasáci)
-  const demand = grazingDemandHa(villageHerds(state), villageOxen(state)) * herdingCoverage(state);
+  // i koně (horses.md – Krmení: pasou se se stády)
+  const horses = horsesInPlaces(villageHorses(state), day);
+  const demand =
+    grazingDemandHa(villageHerds(state), villageOxen(state), horses) * herdingCoverage(state);
   const grazed = grazedPartIds(state, day, demand);
   const mown = mownPartIds(state);
   for (const part of fallow) {

@@ -6,6 +6,7 @@ import {
   legumeStorageLossPerYear,
   villageLegumesKg,
 } from './legumes';
+import { horseGrainToday, villageHorses } from './horses';
 import { ageGroup } from './people';
 import { storageLossPerYear } from './productivity';
 import { FIELD_FOOD, FIELD_STORES, FOOD_NEED_KG_PER_YEAR, LEGUMES } from './rules';
@@ -145,10 +146,11 @@ export interface SowingTargets {
  * Luštěniny se zasejí i tehdy, když obilí ves nepotřebuje. `potteryCoverage` – nádoby od hrnčíře
  * zmenšují ztráty (crafts.md). Potřeba podle růstu vsi (fields.md – Osev podle růstu vsi): do
  * příští sklizně a rok po ní podle výhledu lidí (`expectedYearlyFoodNeed` – děti dorostou, narodí
- * se další), ne podle dnešního počtu.
+ * se další), ne podle dnešního počtu. Obilí jezdeckých koní (horses.md – Krmení: 1,5 kg denně) se
+ * přičte do příští sklizně i rok po ní celé – koně jedí jen obilí z pole.
  */
 export function sowingTargets(
-  state: Pick<VillageState, 'people' | 'fieldFood'> & FieldStoresState,
+  state: Pick<VillageState, 'people' | 'fieldFood' | 'pens'> & FieldStoresState,
   day: number,
   legumeNeedKg: number,
   potteryCoverage: number,
@@ -164,8 +166,11 @@ export function sowingTargets(
     harvestDay + DAYS_PER_YEAR,
   );
   const share = fieldFoodShare(state);
-  const need = share * yearly;
-  const needAfter = share * yearlyAfter;
+  // obilí koní za rok podle dnešních jezdeckých koní; ves bez koní nic
+  const horses = villageHorses(state);
+  const horseGrain = horses.length > 0 ? horseGrainToday(horses, day) * DAYS_PER_YEAR : 0;
+  const need = share * yearly + horseGrain;
+  const needAfter = share * yearlyAfter + horseGrain;
   const loss = storageLossPerYear(potteryCoverage);
   const legumeLoss = legumeStorageLossPerYear(potteryCoverage);
   // luštěnin se do jejich sklizně sní nejvýš strop – co nad něj zbude, sní se příští rok

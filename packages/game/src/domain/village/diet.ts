@@ -272,6 +272,11 @@ export interface DietResult {
    * menší). Pod 1 ves hladoví.
    */
   outlook: number;
+  /**
+   * Obilí, které po dnešním jídle zbude navíc do sklizně (kg, i se snopy) – lidé jedí napřed, z něj
+   * dostanou obilí koně (horses.md – Krmení); 0, když ves šetří.
+   */
+  grainSpareKg: number;
 }
 
 /**
@@ -315,6 +320,7 @@ export function eatDiet(input: DietInput): DietResult {
       legumesKg: legumes,
       diet: dietOf(0, 0, NOTHING),
       outlook: 1,
+      grainSpareKg: ahead,
     };
   }
   const days = Math.max(1, input.daysToHarvest);
@@ -372,8 +378,10 @@ export function eatDiet(input: DietInput): DietResult {
     (need - daily) * days - meatUntilHarvest - fruitRation * rotDays - milkEnergy - extraDairy;
   let outlook = 1;
   let grainToday: number;
+  let grainSpareKg = 0;
   if (ahead >= grainNeed) {
     grainToday = need - today;
+    grainSpareKg = ahead - grainNeed;
   } else {
     const even =
       (ahead + fruitRation * rotDays + milkEnergy + meatUntilHarvest + daily * days + extraDairy) /
@@ -420,6 +428,7 @@ export function eatDiet(input: DietInput): DietResult {
     legumesKg: Math.max(0, legumes - eaten.legumesKg),
     diet,
     outlook: Math.min(1, outlook),
+    grainSpareKg,
   };
 }
 

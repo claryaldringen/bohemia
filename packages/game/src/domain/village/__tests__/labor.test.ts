@@ -20,7 +20,9 @@ const base = {
 const DAILY_MIN = dailyMinPerHousehold(NO_CRAFTS.pottery);
 
 function sum(r: ReturnType<typeof allocateDay>): number {
-  return r.dailyMin + r.away + Object.values(r.tasks).reduce((a, b) => a + b, 0) + r.common;
+  return (
+    r.dailyMin + r.horseCare + r.away + Object.values(r.tasks).reduce((a, b) => a + b, 0) + r.common
+  );
 }
 
 describe('allocateDay', () => {
@@ -89,6 +91,25 @@ describe('allocateDay', () => {
     expect(short.away).toBeCloseTo(1 - DAILY_MIN);
     expect(short.common).toBe(0);
     expect(allocateDay(base).away).toBe(0);
+  });
+  it('péče o koně: hned za denním minimem, před výpravami (horses.md – Péče)', () => {
+    // 5 koní = 0,5 člověkodne z práce vsi
+    const r = allocateDay({
+      ...base,
+      horseCare: 0.5,
+      away: 1.5,
+      tasks: [{ name: 'dig', remaining: 5 }],
+    });
+    expect(r.dailyMin).toBeCloseTo(DAILY_MIN);
+    expect(r.horseCare).toBeCloseTo(0.5);
+    expect(r.away).toBeCloseTo(1.5);
+    expect(r.tasks.dig).toBeCloseTo(2.6 - DAILY_MIN - 0.5 - 1.5);
+    expect(sum(r)).toBeCloseTo(2.6);
+    // málo práce: péče před výpravou, výprava dostane zbytek
+    const short = allocateDay({ ...base, capacity: DAILY_MIN + 0.3, horseCare: 0.5, away: 1 });
+    expect(short.horseCare).toBeCloseTo(0.3);
+    expect(short.away).toBe(0);
+    expect(allocateDay(base).horseCare).toBe(0);
   });
   it('malá kapacita: vše ostatní nula, nic záporné', () => {
     const r = allocateDay({ ...base, capacity: 0.3, tasks: [{ name: 'dig', remaining: 3 }] });

@@ -12,6 +12,7 @@ import { villageOrchards } from '../orchard';
 import { herdingCoverage } from '../herding';
 import { grazedPartIds, isGrazeableFallow } from '../overgrowth';
 import { villageOxen, villagePens } from '../oxen';
+import { horsesInPlaces, villageHorses } from '../horses';
 import { penCells, penSpecies } from '../pens';
 import { ageGroup } from '../people';
 import { partStage } from '../summary';
@@ -112,7 +113,7 @@ function fencedExtra(pen: Pen): PenSquare[] {
 function cattlePenned(
   state: Pick<VillageState, 'pens'>,
   day: number,
-  species: 'cattle' | 'team' = 'cattle',
+  species: 'cattle' | 'team' | 'horse' = 'cattle',
 ): boolean {
   return (
     HAY_WINTER_MONTHS.includes(dateOfDayIndex(day).month) &&
@@ -147,7 +148,10 @@ export function pastureLivestock(
  */
 export function pastureGrazedParts(state: VillageState, day: number): Set<number> {
   const oxen = cattlePenned(state, day, 'team') ? 0 : villageOxen(state);
-  const demand = grazingDemandHa(pastureLivestock(state, day), oxen) * herdingCoverage(state);
+  // koně se pasou se stády (horses.md – Krmení), v zimě stojí v ohradě jako voli
+  const horses = cattlePenned(state, day, 'horse') ? 0 : horsesInPlaces(villageHorses(state), day);
+  const demand =
+    grazingDemandHa(pastureLivestock(state, day), oxen, horses) * herdingCoverage(state);
   return grazedPartIds(state, day, demand);
 }
 

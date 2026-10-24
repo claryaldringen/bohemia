@@ -3,7 +3,9 @@ import type { CalendarDate } from '../calendar';
 import { SLAUGHTER_DAY, spoilMeat } from './diet';
 import {
   feedHay,
+  HAY_WINTER_DAYS,
   herdHayCoverage,
+  horsesHayCoverage,
   isHayWinter,
   MOWING_DAY,
   planMowing,
@@ -15,6 +17,9 @@ import {
 } from './hay';
 import { foodCosts, type FoodCosts } from './economy';
 import { herdingCoverage } from './herding';
+import { horsesWinterEnd } from './horse-feed';
+import { horseHayDailyKg, horsesInPlaces, villageHorses } from './horses';
+import { HORSES } from './rules';
 import type { Landscape, ObstacleLayer } from '../landscape';
 import {
   BIRTH_DAY,
@@ -108,15 +113,22 @@ function hayOxen(state: VillageState): number {
 /**
  * Seno, které ves na zimu potřebuje (kg – oxen.md, Seno): zimní stádo, které si chce nechat
  * (nosnost pastvy, lesa, pasáků a místo pro mláďata zmenšená podle potřeby – `wantedWinterHerds`),
- * a voli ohrad, po zimní dávce celou zimu, a kusy na maso, dokud nepřijdou na řadu zimní porážky
- * (`winterWaitHayKg` – diet.md, Porážka v zimě).
+ * a voli ohrad, po zimní dávce celou zimu, koně (horses.md – Krmení; jezdečtí s obilím, hříbata
+ * podle stáří v den seče), a kusy na maso, dokud nepřijdou na řadu zimní porážky (`winterWaitHayKg`
+ * – diet.md, Porážka v zimě).
  */
 export function winterHayNeedKg(state: VillageState, day: number, toolCoverage = 0): number {
   const input = farmInput(state, day, toolCoverage);
   const herds = wantedWinterHerds(state, day, input);
   return (
-    winterHayKg(herds, hayOxen(state)) + winterWaitHayKg(state, day, herds, input.oxen, input.room)
+    winterHayKg(herds, hayOxen(state), horseHayDailyKg(villageHorses(state), day)) +
+    winterWaitHayKg(state, day, herds, input.oxen, input.room)
   );
+}
+
+/** Seno koní za den zimy (kg) – jezdečtí koně bez obilí 7 kg (`state.horsesFed`). */
+function horsesHayToday(state: VillageState, day: number): number {
+  return horseHayDailyKg(villageHorses(state), day, state.horsesFed !== false);
 }
 
 /**
@@ -143,9 +155,19 @@ function farmInput(
   herding: number;
   costs: FoodCosts;
   room?: Record<HerdSpecies, number>;
+  horsePastureHa?: number;
+  horseHayKg?: number;
 } {
+  const horses = villageHorses(state);
   return {
     oxen: villageOxen(state),
+    // koně se pasou se stády a seno mají před nimi (horses.md – Krmení)
+    ...(horses.length > 0
+      ? {
+          horsePastureHa: horsesInPlaces(horses, day) * HORSES.pastureHa,
+          horseHayKg: horseHayDailyKg(horses, day) * HAY_WINTER_DAYS,
+        }
+      : {}),
     // chovné krávy a krávy navíc na telata, která ves do výcviku volů potřebuje
     minCows: breedingCows(state) + oxenCalvesWanted(state, day),
     minSheep: woolSheep(state, day),
@@ -233,8 +255,15 @@ export function husbandryDay(
   rotHay(state);
   const winterEnd = isOn(date, WINTER_END);
   // pokrytí sena stáda – s voly, kteří zimu přečkali (dřív, než penDay rozhodne o jejich úhynu)
-  const herdCoverage = winterEnd ? herdHayCoverage(state, villageOxen(state), livestock.herds) : 1;
+  // a koně (horses.md – Krmení) – seno mají po volech a před stádem
+  const horsesKg = horsesHayToday(state, day);
+  const herdCoverage = winterEnd
+    ? herdHayCoverage(state, villageOxen(state), livestock.herds, horsesKg)
+    : 1;
+  const horsesCoverage =
+    winterEnd && horsesKg > 0 ? horsesHayCoverage(state, villageOxen(state), horsesKg) : 1;
   const events = penDay(state, day, winterEnd, toolCoverage);
+  if (horsesCoverage < 1) events.push(...horsesWinterEnd(state, day, horsesCoverage));
   // voli osadníků bez ohrady přejdou do první ohrady volů (migration.md – Vůz při odchodu)
   events.push(...looseOxenDay(state, day));
   if (winterEnd) {
@@ -304,6 +333,7 @@ export function husbandryDay(
   }
   // zimní porážka po dnech – čerstvé maso dne; zbytek 31. 3. do uzení (diet.md – Porážka v zimě)
   winterSlaughterDay(state, day);
-  if (isHayWinter(day)) feedHay(state, villageOxen(state), livestock.herds);
+  if (isHayWinter(day))
+    feedHay(state, villageOxen(state), livestock.herds, horsesHayToday(state, day));
   return events;
 }

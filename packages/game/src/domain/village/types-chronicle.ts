@@ -141,6 +141,8 @@ export type ChronicleEvent = { day: number } & (
    * (`oxen` – kolik; chybí = spřežení se rozpadlo ve vsích uložených dřív).
    */
   | { kind: 'ox-died'; penId: number; training: boolean; oxen?: number }
+  /** Koně uhynuli 1. 3. pro nedostatek sena (horses.md – Krmení). */
+  | { kind: 'horse-starved'; penId: number; horses: number }
   /** Sad dosloužil (60. rok) a vrátil se v louku. */
   | { kind: 'orchard-gone'; orchardId: number }
   /** Vesničané zařadili čtverce starého sadu do obnovy (orchard.md – Obnova sadu). */

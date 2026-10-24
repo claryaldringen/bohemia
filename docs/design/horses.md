@@ -90,6 +90,10 @@ stojí obilí a práci vsi hned, užitek přinese až s lovem a válkou.
   jezdec na něm cvičí dál.
 - **Bez sena** v zimě jako voli: když koně dostanou za zimu pod polovinu přídělu sena, 1. 3. jich
   uhyne tolik, aby ostatní měli polovinu – nejdřív nejmladší.
+- **Na hraně zásob** (návrh Clauda): koně dostanou obilí, jen když lidem po dnešním jídle zbude do
+  sklizně tolik obilí navíc, aby vystačilo i koním. Když jeden den nedostanou, dostanou ho znovu až
+  s rezervou 30 dní obilí koní navíc – krmení se nepřepíná den po dni. Klisna obilí nedostává nikdy,
+  má 6 kg sena; 7 kg má jen jezdecký kůň bez obilí.
 - **Na nouzovou porážku koně nejdou** – stojí v ohradě mimo stáda jako voli ([strava](diet.md) –
   Nouzová porážka).
 
