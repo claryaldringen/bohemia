@@ -30,7 +30,11 @@ Slovanů: posvátné duby, dubové háje, dřevěné modly a nakonec svatyni jak
   Clauda), takže jedna špatná zima ves nezlomí a jedna socha ji hned nespasí.
 - **Co ubírá** (návrh Clauda, doladí se hraním):
   - **hlad:** nasycení pod 0,9 ubere až **40** (lineárně k nulovému nasycení),
-  - **úmrtí** za poslední rok: dospělý −3, dítě −5, dohromady nejvýš **−20**,
+  - **úmrtí** za poslední rok: **max(0,5; 5 − 0,06 × věk v letech)** za každého zemřelého,
+    dohromady nejvýš **−20** – Martin (24. 10. 2026): „Ať úmrtí dál srážejí štěstí, ale tím
+    způsobem, že čím starší zemřelý bude, tím míň to štěstí ubere.“ Čísla návrh Clauda:
+    novorozenec 5, 15 let 4,1, 30 let 3,2, 50 let 2, 60 let 1,4, 70 let 0,8, od 75 let 0,5.
+    Úmrtí zapsaná před touto změnou (bez věku) ubírají postaru – dítě 5, dospělý a starší 3,
   - **přeplněnost:** podíl lidí v přeplněných domácnostech × **15**,
   - **dřina:** podíl dní za posledních 60, kdy ves nestihla práci v období (polní práce se
     nedodělala), × **15**. Den dřiny (rozhodnutí kontroléru): ves by polní práce, které právě
@@ -48,8 +52,8 @@ Slovanů: posvátné duby, dubové háje, dřevěné modly a nakonec svatyni jak
   - štěstí 0 → **× 0,8**, štěstí 50 → **× 1**, štěstí 100 → **× 1,1** (mezi tím lineárně).
   - Násobí se s mezemi produktivity od řemeslníků ([řemesla](crafts.md) – zatím nejsou).
 - Simulace vede štěstí den po dni (posun o denní podíl tak, aby za měsíc ubylo 10 % rozdílu);
-  úmrtí posledního roku a dny dřiny si pamatuje ve stavu vsi. Úmrtí dospělého i staršího ubere
-  3, dítěte 5. Ves uložená před zavedením štěstí začne na 50.
+  úmrtí posledního roku a dny dřiny si pamatuje ve stavu vsi. Úmrtí ubere podle věku zemřelého
+  (výš). Ves uložená před zavedením štěstí začne na 50.
 
 ## Posvátná místa
 
@@ -228,6 +232,7 @@ Každé místo přidá k cílovému štěstí; posvátná místa dohromady nejv�
 | --------------------------------------------------------------------------------------- | ----------------------------------------- |
 | Štěstí obyvatel ovlivňuje produktivitu práce; zvyšují ho sakrální stavby                | Martin                                    |
 | Snižuje ho hlad, úmrtí, přeplněnost a dřina                                             | návrh Clauda, Martin potvrdil             |
+| Úmrtí staršího ubere méně (24. 10. 2026); vzorec 5 − 0,06 × věk, nejméně 0,5            | Martin; čísla návrh Clauda                |
 | Štěstí 0 → práce × 0,8, 50 → × 1, 100 → × 1,1                                           | návrh Clauda, Martin potvrdil (doladí se) |
 | Velké solitérní duby a dubové háje vesničané při mýcení nechají; stanou se stavbou      | Martin                                    |
 | Dřevěná modla; svatyně podle Perynu jako nejvyšší úroveň                                | Martin                                    |

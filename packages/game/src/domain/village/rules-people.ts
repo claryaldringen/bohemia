@@ -259,12 +259,17 @@ export const HAPPINESS = {
   monthlyShare: 0.1,
 } as const;
 // happiness.md – Co ubírá: hlad (nasycení pod 0,9 ubere až 40, lineárně k nulovému nasycení),
-// úmrtí za poslední rok (dospělý i starší −3, dítě −5, dohromady nejvýš −20), přeplněnost (podíl
+// úmrtí za poslední rok (max(0,5; 5 − 0,06 × věk v letech) za každého, dohromady nejvýš −20; Martin
+// 24. 10. 2026: čím starší zemřelý, tím míň ubere; událost bez věku – dítě 5, dospělý a starší 3), přeplněnost (podíl
 // lidí v přeplněných domácnostech × 15), dřina (podíl dní za posledních 60, kdy ves nestíhala
 // polní práce v období, × 15)
 export const HAPPINESS_PENALTY = {
   hungerFrom: 0.9,
   hungerMax: 40,
+  deathPointsAtBirth: 5,
+  deathPointsPerYear: 0.06,
+  deathPointsMin: 0.5,
+  /** Záloha pro události kroniky bez věku (starší uložené vsi). */
   deathPoints: { child: 5, adult: 3, elder: 3 },
   deathsMax: 20,
   deathsWindowDays: 365,

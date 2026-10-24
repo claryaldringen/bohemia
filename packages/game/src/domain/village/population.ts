@@ -334,10 +334,11 @@ export function populationDay(
       const group = ageGroup(person, day);
       // jméno zemřelého muže rodu (lord.md – Kde se jméno ukazuje); ostatní jméno nemají
       const name = person.name === undefined ? {} : { name: person.name };
+      const age = ageYears(person.bornDay, day);
       events.push(
         roll < base
-          ? { day, kind: 'death', group, ...name }
-          : { day, kind: 'death', group, cause: 'hunger', ...name },
+          ? { day, kind: 'death', group, age, ...name }
+          : { day, kind: 'death', group, age, cause: 'hunger', ...name },
       );
       // mohyla podle významu zemřelého – vojvodova rodina, hlava rodiny, dítě (cemetery.md)
       const full = bury(state, day, person);

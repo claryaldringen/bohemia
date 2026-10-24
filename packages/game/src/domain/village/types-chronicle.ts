@@ -41,10 +41,18 @@ export type ChronicleEvent = { day: number } & (
   /** Vedlejší manželka odešla z přeplněného dvorce do vlastního domu (lord.md – Manželky). */
   | { kind: 'wife-left-manor' }
   /**
-   * `cause: 'hunger'` – zemřel hlady (nahromaděný hlad, population.md); jinak bez údaje. `name` –
-   * jméno zemřelého muže rodu (lord.md – Kde se jméno ukazuje); ostatní ho nemají.
+   * `age` – věk zemřelého v celých letech (štěstí: starší ubere méně, happiness.md); starší
+   * události bez něj. `cause: 'hunger'` – zemřel hlady (nahromaděný hlad, population.md); jinak
+   * bez údaje. `name` – jméno zemřelého muže rodu (lord.md – Kde se jméno ukazuje); ostatní ho
+   * nemají.
    */
-  | { kind: 'death'; group: 'child' | 'adult' | 'elder'; cause?: 'hunger'; name?: string }
+  | {
+      kind: 'death';
+      group: 'child' | 'adult' | 'elder';
+      age?: number;
+      cause?: 'hunger';
+      name?: string;
+    }
   /** Zemřel poslední člověk – ves vymřela (population.md – Hlad a vymření). */
   | { kind: 'village-extinct' }
   | { kind: 'household-founded'; dwellingId: number }
