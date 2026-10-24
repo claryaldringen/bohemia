@@ -83,10 +83,14 @@ function pieceTraffic(axis: readonly RoadPoint[], field: TrafficField): number {
 }
 
 /** Cesta končí do ROAD_ANCHORS.entranceM od některého vchodu (kotvy `entrance`). */
+/** Bod u vchodu – do `ROAD_ANCHORS.entranceM` od něj (paths.md – Vchody). */
+export function nearEntrance(e: RoadPoint, entrances: readonly RoadPoint[]): boolean {
+  return entrances.some((p) => length2(p.x - e.x, p.z - e.z) <= ROAD_ANCHORS.entranceM);
+}
+
 function endsAtEntrance(road: Road, entrances: readonly RoadPoint[]): boolean {
   const ends = [road.points[0]!, road.points[road.points.length - 1]!];
-  const reach = ROAD_ANCHORS.entranceM;
-  return ends.some((e) => entrances.some((p) => length2(p.x - e.x, p.z - e.z) <= reach));
+  return ends.some((e) => nearEntrance(e, entrances));
 }
 
 /**

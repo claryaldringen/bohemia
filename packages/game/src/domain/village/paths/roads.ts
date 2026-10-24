@@ -49,7 +49,7 @@ import {
 import { annualCartNetwork, markCartRoads, takeOverCartRoads } from './roads-carts';
 import { abandonBlockedStretches, cutDeadRoads } from './roads-overgrow';
 import { accessDue, accessRoads } from './roads-access';
-import { fixedRoadIds, liveRoadEnd } from './road-condition';
+import { fixedRoadIds, liveRoadEnd, nearEntrance } from './road-condition';
 import { updateJunctions } from './junctions';
 import { anchorTermini, markRoadEnds, tidyDue, tidyRoads } from './roads-tidy';
 import { SpotContext, plantingBlocker, rootTrees } from './roads-trees';
@@ -354,6 +354,8 @@ function tidyMonth(
     return updateJunctions(roads, month.day, state.seed, {
       live: (road, atStart) => liveRoadEnd(road, atStart, traffic, entrances, frozen),
       fixed: frozen,
+      // uzel u vchodu se při rozestupu křižovatek nehýbe – vchod by přišel o cestu
+      anchor: (p) => nearEntrance(p, entrances),
     });
   };
   // cesty beze změny: úklid jen, když nové kotvy a trasy dají práci (pahýl, díra, okruh, vchod)

@@ -368,9 +368,9 @@ Návrh Clauda:
 
 - **Kdy:** v uzlu, kde končí **3 nebo 4 živé cesty** (každou vede trasa aspoň v udržovacím prahu
   jejího druhu – opuštěná ani pahýl se nepočítá). Dvě cesty křižovatku nemají (spojí se). Pět a víc
-  se nečeká; kdyby se sešly, uzel se rozdělí na **dvě křižovatky 10 m od sebe** spojené krátkou
-  cestou – ramena se rozdělí na dvě skupiny sousedních podle úhlu, každá skupina 2–3 ramena plus
-  spojka.
+  se nečeká; kdyby se sešly, uzel se rozdělí na **dvě křižovatky 10 m od sebe** (u širších cest
+  dál – Rozestup níž) spojené krátkou cestou – ramena se rozdělí na dvě skupiny sousedních podle
+  úhlu, každá skupina 2–3 ramena plus spojka.
 - **Tvar:** **kříž** – 4 ramena po 90°; **Y** – 3 ramena: kmen a dvě větve souměrně kolem směru
   proti kmeni, každá větev o β = 30–60° (po 5°) od té osy (β = 60° je souměrné trojcestí po 120°,
   β = 30° klasické Y).
@@ -429,6 +429,25 @@ Návrh Clauda:
   - plocha pod křižovatkou, kde se neorá: pásy ramen a spojnice sousedních ramen ve vzdálenosti
     šířky nejširší cesty od středu (místo kruhu 1,3 × šířka);
   - uzel s 5+ živými cestami (nečeká se; Vlkov žádný) se při měsíčním úklidu rozdělí na dvě křižovatky se spojkou (i opakovaně, 8+ cest).
+- **Rozestup** (Martin 24. 10. 2026 na dotaz, jestli se pustit do křižovatek blízko sebe – Vlkov měl
+  dvě dvojice jen ≈ 6 m od sebe a jejich plácky se překrývaly: „jo, pusť se do toho“; pravidlo návrh
+  Clauda): dvě křižovatky **nesmějí stát tak blízko, aby se jejich plácky překrývaly**. Nejmenší
+  rozestup středů = dosah plácku jedné + dosah druhé + **1 m** rezervy (kus cesty mezi nimi); dosah
+  je kružnice opsaná obrysu – vchod (1,5 × šířka) a půl šířky nejširší cesty v ramenech:
+  vyšlapaná ≈ 3 m, upravená ≈ 4,7 m, vozová ≈ 5,5 m, takže dvě vyšlapané ≈ 7 m, dvě vozové
+  ≈ 12,1 m. Při měsíčním úklidu (před tvarem křižovatek; nejbližší dvojice napřed):
+  - **vejdou-li se do jedné** – spojuje je jediný úsek a bez něj do nich vedou nejvýš 4 živé cesty
+    (tj. dvě Y) –, **sloučí se** do jedné křižovatky (kříž) uprostřed mezi nimi, krátký spojovací
+    úsek zmizí; zůstane starší křižovatka i se znamením (kámen a kůl se posunou, strom druhé stojí
+    dál jako strom u cesty);
+  - **jinak** (5 a víc cest, spojka je zemská stezka nebo cesta ve vylepšení – ta se neruší, nebo je
+    spojuje víc úseků) se **odsunou od sebe** po spojnici středů na nejmenší rozestup, každá o půl;
+  - uzel **u vchodu** (do 3 m) se nehýbe – sloučí se do něj, nebo se odsune jen druhá (vchod by
+    přišel o cestu);
+  - rozestup roste se šířkou cest – vylepší-li se cesty, dvojice se srovná v dalším měsíci; starší
+    vsi se srovnají v prvním měsíci (Vlkov: dvě Y 6,7 m od sebe → kříž, dva kříže 6 m od sebe
+    → 12,1 m, kříž a Y 11,7 m od sebe → 12,1 m; křižovatek 14 → 12 – o jednu sloučením, další
+    zanikla nezávisle při úklidu).
 - **Změna:** přibude-li nebo ubude-li rameno, tvar a natočení se spočítají znovu, znamení zůstane;
   klesnou-li živá ramena na 2, křižovatka zanikne a cesty se spojí.
 - **Data:** `VillageRoads.junctions` – id, střed, tvar, natočení, β, ramena (id úseku ve vchodu),
@@ -573,6 +592,7 @@ cest v2), ne tichá oprava.
 | Kotvy: vchod, křižovatka, kraj mapy a cíl (konec trasy k vodě, dřevu, poli, sadu, louce)         | návrh Clauda |
 | Pahýly zmizí vždy; upravená a vozová zarůstá, jejich zbytky pod 30 m zmizí; opuštěná je mimo síť | návrh Clauda |
 | Křižovatka: Y s β 30–60°, natočení po 5°, vchod 1,5 × šířka, oblouk 12 m, dvě po 10 m            | návrh Clauda |
+| Rozestup křižovatek: dosahy plácků + 1 m; dvě Y se sloučí, jinak se odsunou                      | návrh Clauda |
 | Znamení: strom 40 %, kámen 30 %, kůl 30 %; strom roste jako strom u cesty                        | návrh Clauda |
 | Cesta k vchodu bez ohledu na vyšlapanost, nezarůstá, dokud se ke stavbě chodí                    | návrh Clauda |
 | Převod: causeway → upravená, stav z historie, vyšlapanost z kandidátů, úklid, křižovatky         | návrh Clauda |
