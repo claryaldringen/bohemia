@@ -70,6 +70,13 @@ export type NoticeKind =
   | 'team-ready'
   | 'team-retired'
   | 'ox-died'
+  /** Koně (horses.md – Co hráč vidí): bez obilí, nevejdou se do ohrady, hříbě, vycvičení, dosloužili, uhynuli. */
+  | 'horses-ungrained'
+  | 'horses-short'
+  | 'foal-born'
+  | 'horse-trained'
+  | 'horse-retired'
+  | 'horse-starved'
   | 'orchard-renewal'
   | 'orchard-gone'
   | 'bride-from-outside'
@@ -200,6 +207,14 @@ export function villageNotices(view: VillageView): VillageNotice[] {
   // Kolik volů ves chce)
   if (view.oxen?.overRoom) {
     notices.push({ kind: 'oxen-short', tone: 'warn', text: 'Voli se nevejdou do ohrady' });
+  }
+  // koně (horses.md – Co hráč vidí): ves chce víc koní, než se vejde do ohrad koní; jezdečtí koně
+  // bez obilí (výcvik se zpomalil)
+  if (view.horses?.overRoom) {
+    notices.push({ kind: 'horses-short', tone: 'warn', text: 'Koně se nevejdou do ohrady' });
+  }
+  if (view.horses && !view.horses.fed && view.horses.grainKgPerDay > 0) {
+    notices.push({ kind: 'horses-ungrained', tone: 'warn', text: 'Koně jsou bez obilí' });
   }
   // výmlat (production-chains.md – Humno): bez humna ves nemlátí – upozornění s předstihem, aby
   // ves nezahynula hladem jen proto, že hráč o humnu nevěděl (anti-cíl)
@@ -384,6 +399,23 @@ const CHRONICLE_NOTICES: Partial<
     kind: 'ox-died',
     tone: 'warn',
     text: `${oxenText(entry.oxen, 'Vůl uhynul', 'Vůl uhynul', 'Voli uhynuli')} – chybělo seno`,
+  }),
+  // koně po kusech (horses.md – Chov, Krmení, Výcvik koně)
+  'foal-born': (entry) => ({
+    kind: 'foal-born',
+    tone: 'info',
+    text: entry.horses === 1 ? 'Narodilo se hříbě' : 'Narodila se hříbata',
+  }),
+  'horse-trained': () => ({ kind: 'horse-trained', tone: 'info', text: 'Kůň je vycvičený' }),
+  'horse-retired': (entry) => ({
+    kind: 'horse-retired',
+    tone: 'info',
+    text: entry.horses === 1 ? 'Kůň dosloužil' : 'Koně dosloužili',
+  }),
+  'horse-starved': (entry) => ({
+    kind: 'horse-starved',
+    tone: 'warn',
+    text: `${entry.horses === 1 ? 'Kůň uhynul' : 'Koně uhynuli'} – chybělo seno`,
   }),
   'orchard-renewal-started': () => ({
     kind: 'orchard-renewal',

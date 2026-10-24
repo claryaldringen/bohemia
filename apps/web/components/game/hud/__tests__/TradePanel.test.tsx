@@ -28,7 +28,7 @@ const neighbour = (over: Partial<VillageNeighbour> = {}): VillageNeighbour => ({
   },
   expedition: null,
   carts: [],
-  room: { cows: 40, oxen: 6 },
+  room: { cows: 40, oxen: 6, horses: 0 },
   ...over,
 });
 
@@ -78,7 +78,7 @@ describe('náhled výměny', () => {
 });
 
 describe('dobytek ve třech druzích (trade.md; Martin 20. 10. 2026)', () => {
-  const herders = (room = { cows: 40, oxen: 3 }): VillageNeighbour =>
+  const herders = (room = { cows: 40, oxen: 3, horses: 0 }): VillageNeighbour =>
     neighbour({
       offers: [
         { good: 'cows', price: 576, left: 2 },
@@ -116,9 +116,9 @@ describe('dobytek ve třech druzích (trade.md; Martin 20. 10. 2026)', () => {
     expect(tradePreview(n, pay, { youngOxen: 3, trainedOxen: 1 }).blocked).toMatch(
       /do ohrady volů nevejde/,
     );
-    expect(tradePreview(herders({ cows: 1, oxen: 3 }), pay, { cows: 2 }).blocked).toMatch(
-      /do ohrady skotu nevejde/,
-    );
+    expect(
+      tradePreview(herders({ cows: 1, oxen: 3, horses: 0 }), pay, { cows: 2 }).blocked,
+    ).toMatch(/do ohrady skotu nevejde/);
     // dobytek nese jen honák – zpátky stačí jeden člověk, tam nosiči obilí
     expect(tradePreview(n, {}, { cows: 2 }).porters).toBe(1);
   });
@@ -465,5 +465,40 @@ describe('odeslání výpravy (Martin 19. 10. 2026 – „dál nějak nevím, co
     );
     expect(textOf(html, 'trade-saved')).toBe(`−${preview.savedManDays}`);
     expect(html).toContain(`vozy ušetří ${preview.savedManDays} proti nosičům`);
+  });
+});
+
+describe('koně ve třech druzích (horses.md – Nákup a prodej)', () => {
+  const stud = (room = { cows: 0, oxen: 0, horses: 2 }): VillageNeighbour =>
+    neighbour({
+      offers: [
+        { good: 'foals', price: 800, left: 2 },
+        { good: 'mares', price: 1600, left: 1 },
+        { good: 'ridingHorses', price: 2400, left: 3 },
+      ],
+      demands: [{ good: 'grain', price: 1, left: 5000, have: 5000 }],
+      room,
+    });
+
+  it('tři řádky s ikonami hříběte, klisny a koně a popiskem s místem v ohradě', () => {
+    const html = renderToStaticMarkup(<NeighbourTrade neighbour={stud()} />);
+    for (const good of ['foals', 'mares', 'ridingHorses']) {
+      expect(html).toContain(`data-testid="trade-get-${good}"`);
+    }
+    expect(html).toContain('/icons/resources/foal.png');
+    expect(html).toContain('/icons/resources/mare.png');
+    expect(html).toContain('/icons/resources/horse.png');
+    expect(textOf(html, 'trade-get-ridingHorses-note')).toContain(
+      'Do ohrady koní se vejde ještě 2',
+    );
+  });
+
+  it('náhled – koně všech druhů dohromady se nevejdou do ohrady koní', () => {
+    const n = stud();
+    const pay = { grain: 5000 };
+    expect(tradePreview(n, pay, { foals: 1, mares: 1 }).blocked).toBeNull();
+    expect(tradePreview(n, pay, { foals: 1, mares: 1, ridingHorses: 1 }).blocked).toMatch(
+      /do ohrady koní nevejde/,
+    );
   });
 });

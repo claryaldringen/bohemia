@@ -1,4 +1,5 @@
 import {
+  HORSES,
   AGE,
   CARTS,
   DRAFT_OXEN,
@@ -27,6 +28,7 @@ import {
 } from '@bohemia/game';
 import type { LeaveDirection } from './departure-view';
 import type { VillageManor } from './manor-view';
+import type { VillageHorses } from './horse-view';
 import type { VillageDugSite } from './ore-site-view';
 import type { VillageKiln } from './kiln-view';
 import type { VillageGrainPit } from './grain-pit-view';
@@ -396,6 +398,11 @@ type SelectionKinds =
       training: { progress: number; daysLeft: number } | null;
       /** Zásoba sena vsi (kg). */
       hayKg: number;
+      /**
+       * Koně vsi po kusech, kolik jich ves chce a obilí (horses.md – Co hráč vidí) – jen u ohrady
+       * koní; jinak null.
+       */
+      horses?: VillageHorses | null;
       /** Stav hotové ohrady 0–1 (abandonment.md). */
       condition: number;
       /** Opuštěná – bez zvířat a nikdo k ní nechodí, chátrá. */
@@ -461,6 +468,11 @@ type SelectionKinds =
       arms?: ArmsView | null;
       /** Má koně (jezdec – horses.md). */
       horse?: boolean;
+      /**
+       * Kůň, na kterém jezdec jezdí (horses.md – Co hráč vidí): věk, výcvik 0–1 a dostává-li obilí;
+       * bez koně null.
+       */
+      mount?: SelectionPersonMount | null;
       /**
        * Oráč a honák u spřežení, vozka u vozu (villagers.md – Výběr postavy): tlačítko vybere
        * spřežení či vůz; ostatní null.
@@ -653,6 +665,15 @@ export function orchardSquareName(
  * Údaje o vybraném cíli plus rozestavěná stavba, kterou jde zrušit (`cancelConstructionId`,
  * cancel-construction.ts) – tlačítko Zrušit stavbu v panelu.
  */
+/** Kůň pod jezdcem v panelu člověka. */
+export interface SelectionPersonMount {
+  ageYears: number;
+  training: number;
+  fed: boolean;
+  /** Obilí koně za den (kg). */
+  grainKgPerDay: number;
+}
+
 export type SelectionDetails = SelectionKinds & { cancelConstructionId?: number };
 
 /** Rozestavěná stavba vybraného cíle, kterou jde zrušit; jinak undefined. */
@@ -711,7 +732,7 @@ function selectionKinds(
   draft: DraftFigureState | null = null,
 ): SelectionKinds | null {
   if (!target) return null;
-  if (target.kind === 'person') return personDetails(scene, target.id, person, draft);
+  if (target.kind === 'person') return personDetails(view, scene, target.id, person, draft);
   if (target.kind === 'plough-team') return teamDetails(scene, target.team, draft);
   if (target.kind === 'cart') return cartDetails(scene, target.id, draft);
   if (target.kind === 'dwellings') return dwellingsDetails(view, scene, target.ids);
@@ -893,12 +914,25 @@ function selectionKinds(
   };
 }
 
+/** Kůň jezdce `riderId` z pohledu na ves (jede-li na koni); jinak null. */
+function mountOf(view: VillageView | null, riderId: number): SelectionPersonMount | null {
+  const horse = view?.horses?.horses.find((h) => h.riderId === riderId);
+  if (!view?.horses || !horse) return null;
+  return {
+    ageYears: horse.ageYears,
+    training: horse.training,
+    fed: view.horses.fed,
+    grainKgPerDay: HORSES.grainKgPerDay,
+  };
+}
+
 /**
  * Člověk vsi (villagers.md – Výběr postavy): kdo to je z lidí ve scéně (`labor.persons`), co dělá
  * ze stavu jeho postavy (`person` – hlásí scéna; jiný člověk nebo nic – „doma“). Výrostek, který
  * dnes pase, je pasáček / pasačka.
  */
 function personDetails(
+  view: VillageView | null,
   scene: SceneVillage,
   id: number,
   state: PersonFigureState | null,
@@ -922,6 +956,7 @@ function personDetails(
     herd: herding ? (figure?.herd ?? null) : null,
     arms: person.arms ?? null,
     horse: person.horse === true,
+    mount: mountOf(view, id),
     draft:
       job?.kind === 'plough'
         ? { kind: 'plough-team', team: job.team }
@@ -1230,6 +1265,7 @@ function penDetails(view: VillageView | null, id: number): SelectionDetails | nu
     team: pen.team,
     training: pen.training,
     hayKg: view.hayKg,
+    horses: pen.species === 'horse' ? (view.horses ?? null) : null,
     condition: pen.condition,
     abandoned: pen.abandoned,
     repair: pen.repair,

@@ -173,6 +173,9 @@ function roomNote(neighbour: VillageNeighbour, good: TradeGood): string | null {
   if (good === 'youngOxen' || good === 'trainedOxen') {
     return `Do ohrady volů se vejde ještě ${tradeAmountText(neighbour.room.oxen, 'ks')} (mladí i vycvičení)`;
   }
+  if (good === 'foals' || good === 'mares' || good === 'ridingHorses') {
+    return `Do ohrady koní se vejde ještě ${tradeAmountText(neighbour.room.horses, 'ks')} (hříbata do roku místo nezabírají)`;
+  }
   return null;
 }
 

@@ -46,6 +46,7 @@ import {
 import { type HouseholdRelocation } from './relocation-view';
 
 import { type VillageManor } from './manor-view';
+import { type VillageHorses } from './horse-view';
 
 import { type VillageDugSite } from './ore-site-view';
 
@@ -408,6 +409,11 @@ export interface VillageView {
    * a upozornění „Voli se nevejdou do ohrady“; bez ohrady volů bez údaje.
    */
   oxen?: VillageOxen;
+  /**
+   * Koně vsi po kusech, kolik jich ves chce a obilí (horses.md – Co hráč vidí) – panel ohrady
+   * koní a upozornění; ves bez ohrady koní bez údaje.
+   */
+  horses?: VillageHorses;
   /** Snopy a výmlat (production-chains.md – Humno); ves bez snopů a upozornění bez údaje. */
   threshing?: VillageThreshing;
   /** Humna pro panel výběru (production-chains.md – Humno) – hotová i rozestavěná; bez humna bez údaje. */
@@ -543,6 +549,8 @@ export interface VillageView {
     byCart?: true;
     /** Kolik volů se vycvičilo, dosloužilo nebo uhynulo (oxen.md – Voli po kusech). */
     oxen?: number;
+    /** Kolik koní se narodilo, dosloužilo nebo uhynulo (horses.md – Chov, Krmení). */
+    horses?: number;
     dateLabel: string;
     text: string;
   }[];

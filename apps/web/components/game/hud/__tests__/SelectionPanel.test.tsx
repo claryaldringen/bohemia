@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { SelectionDetails, SelectionWorkshop } from '@/lib/selection-details';
+import type { VillageHorses } from '@/lib/horse-view';
 import type { BuildOption } from '@/lib/village-view';
 import { JourneyBanner, LeaveCompass } from '../RelocationControls';
 import { SelectionPanel } from '../SelectionPanel';
@@ -43,6 +44,66 @@ const render = (details: SelectionDetails): string =>
 
 const text = (html: string, testId: string): string | undefined =>
   new RegExp(`data-testid="${testId}"[^>]*>([^<]*)<`).exec(html)?.[1];
+
+const HORSES: VillageHorses = {
+  count: 3,
+  kinds: { riding: 2, mares: 1, foals: 0 },
+  places: 8,
+  wanted: { riding: 3, mares: 2, foals: 1 },
+  overRoom: false,
+  fed: true,
+  grainKgPerDay: 3,
+  hayWinterKg: 2718,
+  horses: [
+    { id: 1, kind: 'riding', ageYears: 8, training: 0.5, stallion: true, penId: 90 },
+    { id: 2, kind: 'riding', ageYears: 12, training: 1, stallion: false, penId: 90 },
+    { id: 3, kind: 'mare', ageYears: 6, training: 0, stallion: false, penId: 90 },
+    { id: 4, kind: 'foal', ageYears: 0, training: 0, stallion: false, penId: 91 },
+  ],
+};
+
+describe('SelectionPanel – ohrada koní (horses.md – Co hráč vidí)', () => {
+  const horsePen = (horses: Partial<VillageHorses> = {}): string =>
+    render(
+      pen({
+        species: 'horse',
+        places: 8,
+        animals: 3,
+        herdPlaces: null,
+        herd: null,
+        horses: { ...HORSES, ...horses },
+      }),
+    );
+
+  it('koně / místa, kolik ves chce, obilí a seno na zimu, seznam koní jen z této ohrady', () => {
+    const html = horsePen();
+    expect(text(html, 'selection-pen-animals')).toBe('3/8');
+    expect(text(html, 'selection-horses-need')).toBe('8/6');
+    expect(html).not.toContain('data-alert');
+    expect(text(html, 'selection-horses-grain')).toBe('3');
+    expect(text(html, 'selection-horses-hay')).toBe('2,7 t');
+    expect(html).toContain('/icons/resources/horse.png');
+    expect(html).toContain('/icons/resources/mare.png');
+    // hříbě z jiné ohrady v seznamu není
+    expect(html).not.toContain('data-testid="selection-horse-4"');
+    expect(text(html, 'selection-horse-1')).toBe('8');
+    // výcvik jen pod 12 let (přesýpací hodiny s procenty), hřebec s podkovou
+    expect(text(html, 'selection-horse-1-training')).toBe('50 %');
+    expect(html).not.toContain('data-testid="selection-horse-2-training"');
+    expect(html).toContain('data-testid="selection-horse-1-stallion"');
+    expect(html).not.toContain('data-testid="selection-horse-2-stallion"');
+  });
+
+  it('červeně: ves chce víc koní, než je míst; koně bez obilí', () => {
+    const html = horsePen({ overRoom: true, fed: false, places: 4 });
+    expect(html).toMatch(
+      /data-testid="selection-horses-need"[^>]*data-alert|data-alert[^>]*selection-horses-need/,
+    );
+    expect(html).toMatch(
+      /data-testid="selection-horses-grain"[^>]*data-alert|data-alert[^>]*selection-horses-grain/,
+    );
+  });
+});
 
 describe('SelectionPanel – ohrada', () => {
   it('hotová ohrada: zvířata svého druhu a místa, čtverce, seno v tunách, stádo jen druhu ohrady', () => {
@@ -1266,6 +1327,24 @@ describe('SelectionPanel – postava (villagers.md – Výběr postavy)', () => 
     expect(foot).toContain('selection-person-arms-bow');
     expect(foot).not.toContain('selection-person-arms-riding');
     expect(render(person())).not.toContain('selection-person-arms');
+  });
+
+  it('jezdec – kůň pod ním: věk, výcvik do 12 let a obilí (červeně, když chybí)', () => {
+    const arms = { bow: 64, combat: 51, riding: 38 };
+    const mount = { ageYears: 8, training: 0.5, fed: true, grainKgPerDay: 1.5 };
+    const html = render(person({ arms, horse: true, mount }));
+    expect(text(html, 'selection-person-mount-age')).toBe('8');
+    expect(text(html, 'selection-person-mount-training')).toBe('50 %');
+    expect(text(html, 'selection-person-mount-grain')).toBe('1,5');
+    expect(html).not.toContain('data-alert');
+    const done = render(
+      person({ arms, horse: true, mount: { ...mount, training: 1, fed: false } }),
+    );
+    expect(done).not.toContain('selection-person-mount-training');
+    expect(done).toMatch(
+      /data-testid="selection-person-mount-grain"[^>]*data-alert|data-alert[^>]*selection-person-mount-grain/,
+    );
+    expect(render(person({ arms, horse: true }))).not.toContain('selection-person-mount');
   });
 
   it('pasáček u stáda – ikona zvířete; bez domu ve scéně bez tlačítka', () => {

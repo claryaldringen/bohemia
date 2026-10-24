@@ -760,10 +760,40 @@ describe('selectionDetails – posvátná místa', () => {
       team: { ageYears: 3, yearsLeft: 7 },
       training: null,
       hayKg: 3200,
+      horses: null,
       condition: 0.7,
       abandoned: false,
       repair: 0.25,
     });
+    // ohrada koní nese koně vsi (horses.md – Co hráč vidí); jezdec nese svého koně
+    const horses = {
+      count: 1,
+      kinds: { riding: 1, mares: 0, foals: 0 },
+      places: 4,
+      wanted: { riding: 1, mares: 1, foals: 0 },
+      overRoom: false,
+      fed: false,
+      grainKgPerDay: 1.5,
+      hayWinterKg: 1057,
+      horses: [
+        {
+          id: 7,
+          kind: 'riding' as const,
+          ageYears: 5,
+          training: 0.2,
+          stallion: true,
+          penId: 90,
+          riderId: 10,
+        },
+      ],
+    };
+    const stud = {
+      ...view,
+      horses,
+      pens: view.pens.map((p) => (p.id === 90 ? { ...p, species: 'horse' as const } : p)),
+    };
+    expect(selectionDetails(stud, scene, { kind: 'pen', id: 90 })).toMatchObject({ horses });
+    expect(selectionDetails(view, scene, { kind: 'pen', id: 90 })).toMatchObject({ horses: null });
     expect(selectionDetails(view, scene, { kind: 'pen', id: 91 })).toMatchObject({
       kind: 'pen',
       built: false,

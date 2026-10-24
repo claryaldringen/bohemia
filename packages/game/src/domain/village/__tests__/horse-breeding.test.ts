@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { horseBirths, horsesDay, horsesWanted, retireHorses } from '../horse-breeding';
+import {
+  horseBirths,
+  horsesDay,
+  horsesOverRoom,
+  horsesWanted,
+  retireHorses,
+} from '../horse-breeding';
 import { villageHorses } from '../horses';
 import { HORSES } from '../rules';
 import { advanceVillage } from '../simulate';
@@ -67,6 +73,15 @@ describe('kolik koní ves chce (horses.md – Chov)', () => {
   it('strop jsou místa v ohradách koní', () => {
     const s = horseVillage([horse(1, 4)], 1);
     expect(horsesWanted(s, START)).toEqual({ riding: 3, mares: 1, foals: 0 });
+  });
+});
+
+describe('koně se nevejdou do ohrady (horses.md – Chov)', () => {
+  it('ves chce víc koní, než je míst; s dost místy ne; bez ohrady koní nikdy', () => {
+    // tři jezdci a dvě klisny = 5 koní
+    expect(horsesOverRoom(horseVillage([horse(1, 4)], 1), START)).toBe(true);
+    expect(horsesOverRoom(horseVillage([horse(1, 4)], 2), START)).toBe(false);
+    expect(horsesOverRoom(horseVillage(), START)).toBe(false);
   });
 });
 

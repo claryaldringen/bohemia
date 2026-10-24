@@ -136,8 +136,11 @@ směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, 
   a řemeslníci shánějí všechny tři, lesní ves nic; 1–3 kusy z proudu `neighbour-horses:<směr>`.
   Jezdecké koně mají pastevci jen některý rok (`seasonSupply` – `HORSE_TRADE.ridingYearChance`,
   proud `neighbour-horses:<směr>:<rok>`). Uložený zbytek roku bez koní se nezahodí (`sameGoods`
-  koně nepočítá) – koně přibudou 1. 11. Web: názvy v `TRADE_GOOD_NAMES`, řádky v panelu zatím
-  skryté (`manor-view.ts`) – přidá úloha 13; karavana koně nenese (`carries`).
+  koně nepočítá) – koně přibudou 1. 11. Web: názvy a ikony `foal`, `mare`, `horse` v `TRADE_GOOD_NAMES`, řádky v panelu
+  obchodu jako u dobytka (`TradePanel`); `manor-view.ts` je neskrývá, jen řádek nabídky se zásobou 0
+  (pastevec v roce bez jezdeckých koní) vynechá. Místo v ohradách koní `VillageNeighbour.room.horses`
+  (`horseTradeRoom`), popisek řádku a důvod v náhledu (`trade-quote.ts`, `NO_HORSE_ROOM` – koně
+  všech tří druhů dohromady); karavana koně nenese (`carries`).
 
 - **Výměna lidí** (trade.md – Výměna lidí; Martin 19. 10. 2026: „Se sousedem půjde vyměnit
   i lidi…“, „Mohou se stěhovat celé rodiny i jen dospělí. Podle toho, co je v nabídce.“;

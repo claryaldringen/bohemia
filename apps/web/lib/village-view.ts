@@ -72,6 +72,7 @@ import {
 } from './relocation-view';
 
 import { manorView } from './manor-view';
+import { horsesView, type VillageHorses } from './horse-view';
 
 import { dugSitesField } from './ore-site-view';
 
@@ -148,6 +149,11 @@ export function chronicle(state: VillageState, name: string): VillageView['chron
       event.oxen !== undefined
         ? { oxen: event.oxen }
         : {}),
+      ...(event.kind === 'horse-starved' || event.kind === 'horse-retired'
+        ? { horses: event.horses }
+        : event.kind === 'foal-born'
+          ? { horses: event.foals }
+          : {}),
       ...(event.kind === 'crafts-bought'
         ? { direction: event.direction, products: boughtProducts(event.get) }
         : {}),
@@ -376,6 +382,7 @@ export function buildVillageView(
     pens: penViews(state, day, summary),
     ...penShortOf(state),
     ...oxenViewOf(summary),
+    ...horsesViewOf(state, day),
     ...threshingOf(state, day),
     ...threshingFloorsOf(state, summary.constructions),
     roads: roadViews(state, landscape, day, summary),
@@ -405,6 +412,12 @@ function purchaseViews(state: VillageState): VillagePurchase[] {
     daysLeft: purchaseDaysLeft(p),
     progress: p.days > 0 ? Math.min(1, p.done / p.days) : 1,
   }));
+}
+
+/** Koně vsi (`VillageView.horses`); ves bez ohrady koní bez údaje. */
+function horsesViewOf(state: VillageState, day: number): { horses?: VillageHorses } {
+  const horses = horsesView(state, day);
+  return horses ? { horses } : {};
 }
 
 /** Místa stáda druhu ohrady (`VillagePen.herdPlaces`) – u ohrady volů null. */

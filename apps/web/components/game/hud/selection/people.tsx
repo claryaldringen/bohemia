@@ -2,7 +2,7 @@
 import { type ReactElement } from 'react';
 import { VillageTarget } from '@/lib/scene/village-picking';
 import { HERD_LABELS, type SelectionDetails } from '@/lib/selection-details';
-import { formatInteger, formatPercent } from '@/lib/village-format';
+import { formatDecimal, formatInteger, formatPercent, plural } from '@/lib/village-format';
 import type { ArmsView } from '@/lib/person-view';
 import { CartGoal } from '@/lib/draft-activity';
 import { Tooltip } from '../Tooltip';
@@ -70,6 +70,46 @@ function PersonArms({
   );
 }
 
+/** Kůň pod jezdcem (horses.md – Co hráč vidí): věk, výcvik (přesýpací hodiny do 12 let), obilí. */
+function PersonMount({
+  mount,
+}: {
+  mount: NonNullable<Extract<SelectionDetails, { kind: 'person' }>['mount']>;
+}): ReactElement {
+  return (
+    <>
+      <Stat
+        icon="horse"
+        name={`Kůň jezdce – ${formatInteger(mount.ageYears)} ${plural(mount.ageYears, 'rok', 'roky', 'let')}`}
+        testId="selection-person-mount-age"
+      >
+        {formatInteger(mount.ageYears)}
+      </Stat>
+      {mount.training < 1 && (
+        <Stat
+          icon="hourglass"
+          name={`Výcvik koně (hotový ve 12 letech) ${formatPercent(mount.training)}`}
+          testId="selection-person-mount-training"
+        >
+          {formatPercent(mount.training)}
+        </Stat>
+      )}
+      <Stat
+        icon="food"
+        name={
+          mount.fed
+            ? 'Obilí koně za den (kg)'
+            : 'Obilí koně za den (kg) – kůň je bez obilí, výcvik se zpomalil'
+        }
+        testId="selection-person-mount-grain"
+        alert={!mount.fed}
+      >
+        {formatDecimal(mount.grainKgPerDay, 1)}
+      </Stat>
+    </>
+  );
+}
+
 /**
  * Člověk vsi (villagers.md – Výběr postavy): co právě dělá (jediný řádek slov), věk, dům (tlačítko
  * ho vybere) a u pasáka zvíře stáda.
@@ -95,6 +135,7 @@ export function PersonBody({
           {formatInteger(details.age)}
         </Stat>
         {details.arms && <PersonArms arms={details.arms} horse={details.horse === true} />}
+        {details.mount && <PersonMount mount={details.mount} />}
         {home !== null && details.homeIcon && (
           <Tooltip content="Dům" placement="above">
             <button

@@ -45,7 +45,7 @@ a mladá bříza z modelů krajiny
 `apps/web/public/models/decor/` a `trees/`, fields.md – Zarůstání), condition (stav stavby –
 zšedlý rozštípnutý kůl s prasklinou a mechem) a abandoned (opuštěná stavba – padlý kůl
 v kopřivách z `apps/web/public/models/dwellings/decay.glb`, abandonment.md) a zvířata stád do panelu
-ohrady – sheep, goat, pig, cow, chicken
+ohrady – sheep, goat, pig, cow, chicken, foal, mare, horse
 (modely `apps/web/public/models/fauna/`) a ox (vůl ze spřežení `apps/web/public/models/plough/ox.glb`;
 v obchodu vycvičený vůl) a young-ox (mladý vůl do výcviku – týž vůl světlejší a menší, stojí na
 stejné zemi; trade.md – Dobytek ve třech druzích),
@@ -2745,6 +2745,10 @@ RESOURCES = {
     "ox": lambda: icon_animal("ox", folder=PLOUGH),
     # mladý vůl do výcviku (trade.md – Dobytek ve třech druzích): světlejší srst, v ikoně menší
     "young-ox": lambda: icon_animal("ox", folder=PLOUGH, tint=(1.3, 1.18, 1.0)),
+    # koně (horses.md – Co hráč vidí): hříbě (světlejší, menší), klisna (světlejší srst) a jezdecký kůň z modelů 0 A.D.
+    "foal": lambda: icon_animal("foal", tint=(1.5, 1.35, 1.15)),
+    "mare": lambda: icon_animal("horse", tint=(1.7, 1.5, 1.2)),
+    "horse": lambda: icon_animal("horse"),
     "ard": icon_ard,
     "ozim": icon_ozim,
     "jar": icon_jar,
@@ -2791,7 +2795,7 @@ def backdrop(src, dst, size):
 
 
 # Ikony surovin vykreslené menší než ostatní (podíl velikosti) – stojí na stejné zemi jako plná ikona.
-SMALLER = {"young-ox": 0.72}
+SMALLER = {"young-ox": 0.72, "foal": 0.7}
 
 
 def small(src, dst, size, fit=1.0):

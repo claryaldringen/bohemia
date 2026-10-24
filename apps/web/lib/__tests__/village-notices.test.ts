@@ -431,6 +431,65 @@ describe('newNotices – porážka a spřežení (diet.md, oxen.md)', () => {
     expect(newNotices(null, after)).toEqual([]);
   });
 
+  it('koně (horses.md – Co hráč vidí): bez obilí, nevejdou se, hříbata, vycvičení, dosloužili, uhynuli', () => {
+    const horses = {
+      count: 4,
+      kinds: { riding: 2, mares: 2, foals: 0 },
+      places: 8,
+      wanted: { riding: 3, mares: 2, foals: 0 },
+      overRoom: false,
+      fed: true,
+      grainKgPerDay: 3,
+      hayWinterKg: 2000,
+      horses: [],
+    };
+    expect(villageNotices(view({ horses }))).toEqual([]);
+    expect(villageNotices(view({ horses: { ...horses, overRoom: true } }))).toEqual([
+      { kind: 'horses-short', tone: 'warn', text: 'Koně se nevejdou do ohrady' },
+    ]);
+    // bez obilí jen když nějaký kůň obilí jí
+    expect(villageNotices(view({ horses: { ...horses, fed: false } }))).toEqual([
+      { kind: 'horses-ungrained', tone: 'warn', text: 'Koně jsou bez obilí' },
+    ]);
+    expect(villageNotices(view({ horses: { ...horses, fed: false, grainKgPerDay: 0 } }))).toEqual(
+      [],
+    );
+    // nově vzniklé se ohlásí jednou
+    expect(
+      newNotices(view({ horses }), view({ horses: { ...horses, fed: false } })).map((n) => n.text),
+    ).toEqual(['Koně jsou bez obilí']);
+    const entry = (
+      day: number,
+      kind: VillageView['chronicle'][number]['kind'],
+      n?: number,
+    ): VillageView['chronicle'][number] => ({
+      day,
+      kind,
+      dateLabel: '',
+      text: '',
+      ...(n === undefined ? {} : { horses: n }),
+    });
+    expect(
+      newNotices(
+        view({ dayIndex: 3000 }),
+        view({
+          dayIndex: 3010,
+          chronicle: [
+            entry(3009, 'horse-starved', 2),
+            entry(3008, 'horse-retired', 1),
+            entry(3007, 'horse-trained'),
+            entry(3005, 'foal-born', 1),
+          ],
+        }),
+      ).map((n) => n.text),
+    ).toEqual([
+      'Narodilo se hříbě',
+      'Kůň je vycvičený',
+      'Kůň dosloužil',
+      'Koně uhynuli – chybělo seno',
+    ]);
+  });
+
   it('voli po kusech (oxen.md): vycvičení, dosloužilí a uhynulí podle počtu', () => {
     const before = view({ dayIndex: 2000 });
     const oxen = (

@@ -62,6 +62,21 @@ export function horsesWanted(
 }
 
 /**
+ * Ves chce víc jezdeckých koní a klisen, než se vejde do ohrad koní (horses.md – Chov: „Koně se
+ * nevejdou do ohrady“ jako u stád) – jen ves s ohradou koní. Hříbata se do toho nepočítají.
+ */
+export function horsesOverRoom(
+  state: Pick<VillageState, 'pens' | 'people' | 'manorId' | 'dwellings' | 'constructions'>,
+  day: number,
+  family: Pick<LordFamily, 'trainees'> = lordFamily(state, day),
+): boolean {
+  if (horsePens(state).length === 0) return false;
+  const riders = familyRiders(family, day).length;
+  const mares = HORSES.maresBase + Math.floor(riders / HORSES.ridersPerMare);
+  return riders + mares > horsePlaces(state);
+}
+
+/**
  * Hříbata 1. 5. (horses.md – Chov; mutuje stav): klisna 4–20 let rodí každý druhý rok – podle
  * parity roku a svého id, ne náhodou, ať je chov stálý – jen když má ves jezdeckého koně od 3 let
  * (nejstarší je hřebec). Pohlaví ze seedu vsi, dne a klisny. Hříbě potřebuje místo v ohradách

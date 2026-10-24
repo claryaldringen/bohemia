@@ -119,6 +119,33 @@ describe('výměna lidí v panelu obchodu (trade.md – Výměna lidí)', () => 
   });
 });
 
+describe('koně v panelu obchodu (horses.md – Nákup a prodej)', () => {
+  it('řádky koní se ukážou, jen když je soused nabízí (zásoba 0 se skryje); místo v ohradě', () => {
+    const s = village();
+    // pastevci na severu nabízejí koně všech tří druhů; jezdecké jen některý rok (zásoba 0)
+    const herders = neighbourOf(s.seed, 'N');
+    s.trails![0]!.direction = 'N';
+    s.trade!.neighbours = [
+      {
+        ...s.trade!.neighbours![0]!,
+        direction: 'N',
+        supply: { ...herders.supply, foals: 2, mares: 1, ridingHorses: 0 },
+        demand: { ...herders.demand },
+      },
+    ];
+    const [n] = neighbourViews(s, DAY);
+    expect(n!.offers.find((r) => r.good === 'foals')?.left).toBe(2);
+    expect(n!.offers.some((r) => r.good === 'mares')).toBe(true);
+    expect(n!.offers.some((r) => r.good === 'ridingHorses')).toBe(false);
+    // statkáři na jihu koně shánějí – řádek se ukáže
+    s.trails![0]!.direction = 'S';
+    s.trade!.neighbours = [{ ...s.trade!.neighbours![0]!, direction: 'S' }];
+    expect(neighbourViews(s, DAY)[0]!.demands.some((r) => r.good === 'foals')).toBe(true);
+    // ves bez ohrady koní koně nevezme
+    expect(n!.room.horses).toBe(0);
+  });
+});
+
 describe('výprava na cestě v panelu – tempo z práce dne (trade.md – Obchod)', () => {
   const sent = (today: number | null, done = 24): VillageState => {
     const s = village();

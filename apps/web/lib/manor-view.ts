@@ -12,6 +12,7 @@ import {
   emigrantGroups,
   expeditionTo,
   familyBuyPrice,
+  horseTradeRoom,
   isHorseGood,
   lordFamily,
   neighbourOf,
@@ -125,9 +126,10 @@ export interface VillageNeighbour {
   /**
    * Kolik koupeného dobytka se do vsi vejde (trade.md – Dobytek ve třech druzích; `cattleRoom`):
    * krávy do ohrad skotu, voli (mladí i vycvičení dohromady) do ohrad volů – bez dobytka, který
-   * výpravy na cestě teprve přivedou.
+   * výpravy na cestě teprve přivedou; koně (hříbata, klisny i jezdečtí dohromady) do ohrad koní
+   * (`horseTradeRoom`).
    */
-  room: { cows: number; oxen: number };
+  room: { cows: number; oxen: number; horses: number };
 }
 
 /**
@@ -207,23 +209,25 @@ export function neighbourViews(
         lengthM: Math.round(trail.lengthM),
         tripDays: trailTripDays(trail.lengthM),
         carts: trailCartPassable(state, trail, landscape) ? carts : [],
-        room: { cows: cattleRoom(state, 'cows'), oxen: cattleRoom(state, 'youngOxen') },
-        // koně (horses.md – Nákup a prodej) zatím bez řádků – panel a ikony přidá úloha 13
+        room: {
+          cows: cattleRoom(state, 'cows'),
+          oxen: cattleRoom(state, 'youngOxen'),
+          horses: horseTradeRoom(state, day),
+        },
+        // pastevec v roce bez koní nabízí zásobu 0 – řádek se neukazuje (horses.md – Nákup a prodej)
         offers: neighbour.offers
-          .filter((good) => !isHorseGood(good))
           .map((good) => ({
             good,
             price: Math.round(buyPrice(good) * 100) / 100,
             left: Math.max(0, stock.supply[good] ?? 0),
-          })),
-        demands: neighbour.demands
-          .filter((good) => !isHorseGood(good))
-          .map((good) => ({
-            good,
-            price: Math.round(sellPrice(good) * 100) / 100,
-            left: Math.max(0, stock.demand[good] ?? 0),
-            have: villageGoodStock(state, good, day),
-          })),
+          }))
+          .filter((row) => !isHorseGood(row.good) || row.left > 0),
+        demands: neighbour.demands.map((good) => ({
+          good,
+          price: Math.round(sellPrice(good) * 100) / 100,
+          left: Math.max(0, stock.demand[good] ?? 0),
+          have: villageGoodStock(state, good, day),
+        })),
         people: {
           offers: {
             families: people.families.map((children) => ({
