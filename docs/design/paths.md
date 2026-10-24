@@ -385,7 +385,11 @@ Návrh Clauda:
   ve vchodu, aby oblouk navazoval na obou koncích; body po 1 m, na cm; návrh Clauda 24. 10. 2026,
   Úloha 9a – kvadratická křivka by navazovala jen ve vchodu). Osa se tím u křižovatky změní – nahrazuje
   to dřívější „osa se nikdy nehýbe“ jen v tomto okolí. Kmeny hatě, místa na stromy a jabloně
-  v ohnutém kusu zůstanou, kde jsou (do 2,2 m od nové osy místo zmizí).
+  v ohnutém kusu zůstanou, kde jsou (do 2,2 m od nové osy místo zmizí). **Oblouk nevede
+  neprůchodnou plochou víc než neohnutá osa** (stavba, plot, obilná jáma, zemní práce – nejdelší
+  souvislý kus osy po 1 m; návrh Clauda 24. 10. 2026): jinak konec zůstane neohnutý a vede rovně do
+  středu. Krátká cesta mezi dvěma křižovatkami kolem obilné jámy ve Vlkově se dřív oběma oblouky
+  narovnala přes jámu, měsíční kontrola ji opustila a z vyšlapanosti vznikla znovu – každý měsíc.
 - **Znamení:** při vzniku křižovatky se jednou vylosuje (seed vsi a místo uzlu zaokrouhlené na metry) **strom 40 %,
   vztyčený kámen 30 %, dřevěný kůl 30 %**. Stojí v nejširší mezeře mezi rameny, 1,5 m za
   vzdáleností vchodů od středu, natočení a podoba (druh stromu – dub, jilm, topol jako u cest;
@@ -558,6 +562,113 @@ příznak `VillageRoads.v2`).
 6. Smažou se nepotřebná pole (`candidates`, `cartCandidates`, `quiet`, `parallelsChecked`,
    `endsChecked`, `cutEnds`). Druhé načtení vrátí týž stav.
 
+## Jednorázová přestavba sítě (24. 10. 2026)
+
+Martin 24. 10. 2026: „Chápu, že cesty, co jsou teď ve Vlkově, se nějak historicky vyvíjely. Můžeš
+však udělat jednorázovou opravu, která všechny cesty předělá správně?“ – na návrh Clauda zvolil
+**variantu A**: „vylepšení se přenesou na nové cesty, které vedou zhruba tam, kde staré; vozové
+cesty se po nových osách přepočítají i se zemními pracemi a budou rovnou hotové (už jsou
+zaplacené); staré úvozy a náspy, které nové osy nepoužijí, zarostou.“
+
+Postup (návrh Clauda) – starší ves při načtení jednou a idempotentně (příznak `roads.rebuilt`,
+nová ves ho má od začátku), po převodu na nový systém (Převod starých vsí) a po trasách:
+
+1. **Vyšlapanost** se naseje, jako by se po dnešních trasách chodilo **rok** (`ROAD_REBUILD.seedDays`):
+   na políčku (provoz − 1 cesta) × 365 dní, nejvýš strop; kde je vyšlapanost už vyšší, zůstane.
+   Trasy za prací nesou jen stálou část jako za běhu (Vyšlapanost a vznik cesty).
+2. **Všechny cesty se zahodí** i s křižovatkami – kromě pevných výjimek: cesta ve vylepšení (stavba
+   s úseky), úseky rozestavěné zemské stezky, hotové úseky **rozestavěné** vozové cesty (leží na ose
+   zemních prací se stavbou) a opuštěný kus pod stavbou (jen dál bledne). Hotová vozová cesta se
+   zahodí taky a pro přenos vylepšení je upravenou cestou (bod 8).
+3. **Cesty vzniknou znovu** stejnými funkcemi jako za běhu: měsíční kontrola bez ohledu na datum
+   a s úklidem vždy – vznik z vyšlapanosti od kotvy ke kotvě, úklid (souběžné, copánky, díry,
+   spojení, pahýly), cesty k vchodům, kusy pod stavbami a křižovatky i s rozestupem. Po každém
+   průchodu se přepočítají trasy (po nových cestách) a průchod se opakuje, dokud se síť nemění,
+   nejvýš **4×** (`ROAD_REBUILD.passes`). Nová cesta, kterou průchod hned opustil (vede pod
+   stavbou), zmizí – stará cesta to nebyla.
+4. **Přenos vylepšení:** nový úsek, jehož aspoň **60 %** délky leží do **4 m** od osy staré upravené
+   cesty nebo stezky, je upravený **i s hatí a lávkou jako hotové** (staré „bez hatě“ se nepřenáší
+   – za variantu A je zaplacené); stejně se přenese příznak vyježděná a průsek lesem. Nic se
+   nesnižuje.
+5. **Zemské stezky:** kus osy hotové stezky, kam nová síť nedosáhla (dál než 4 m – typicky k okraji
+   mapy, kudy se skoro nechodí), se vrátí jako úsek téhož stupně napojený na síť. Stezka bez úseků
+   se pak znovu najde po síti od dvorce ke kraji mapy – napřed po upravených a vozových cestách,
+   jinak i po vyšlapaných, které se na ní upraví (stezka je upravená cesta). Křižovatka je pro
+   hledání jeden uzel (ramena končí ve vchodech, ne v jednom bodě). Bez spojení stezka zůstane bez
+   úseků jako dřív.
+6. **Rozestavěná vylepšení** (cesta i zemní práce s rozestavěnou stavbou) se nemění a dostaví se
+   normálně.
+7. **Stromy a jabloně u cest** zůstávají: strom patří nejbližšímu novému úseku do své vzdálenosti
+   od osy + 4 m, dál stojí bez cesty do smrti (křižovatka ho může převzít za znamení, jako po
+   zaniklé křižovatce); jabloň patří nejbližšímu živému úseku. Olemování se přepočítá. Stav kusů
+   nových úseků je plný. Kronika se nemění.
+8. **Vozové cesty** (Úloha R2, návrh Clauda 24. 10. 2026 podle varianty A), když se síť po bodech 3–7
+   ustálí:
+   - **Kus staré vozové osy, kam nová síť nedosáhla** (dál než 4 m, souvisle aspoň **60 m** –
+     `ROAD_REBUILD.wagonPatchM`, ≈ úsek stavby), se vrátí jako upravený úsek napojený na síť – jako
+     u stezek (bod 5). Bez toho by vozová cesta, po které se skoro nechodí, zmizela (Vlkov: 1 km
+     k severnímu okraji mapy). Kratší kusy (zbytky ve vsi, které nová síť vede jinudy) se nevrací.
+   - **Staré hotové zemní práce přestanou patřit cestě** (`abandonedDay`): terén zůstává (je to
+     herní terén – cesty i stavby s ním počítají), svahy zarostou (níž).
+   - **Řetěz nové sítě** (úseky mezi rozcestími a konci), jehož aspoň **60 %** délky leží do **4 m**
+     od osy staré vozové cesty, se upraví (zaplaceno – „Napřed uprav cestu.“ přestavbu nezastaví)
+     a **naplánuje jako vozová cesta stejně jako na serveru** – po ose řetězu, s narovnáním kliček
+     a objížďkou či serpentinami, nad terénem i se starými zemními pracemi (kde stará pláň leží,
+     nová skoro nic nekope). Plán se **zapíše rovnou hotový**: zemní práce se všemi úseky
+     dostavěnými v den přestavby, bez stavby a bez ceny; kácení z plánu je provedené jako po stavbě
+     (pařezy, klády na hromadu, lávky u nových brodů bez dřeva – zaplaceno); stará cesta pod
+     vozovou zmizí a obejité kusy jsou opuštěné a zarostou jako po stavbě. Nevyjde-li plán (moc
+     krátká, okruh, moc prudká…), řetěz zůstane upravený. Pak se síť znovu ustálí (body 3–7 –
+     křižovatky, úklid a trasy po vozových cestách).
+   - **Rozestup křižovatek:** úsek, jehož aspoň 60 % délky leží u staré vozové osy, má už při
+     ustalování sítě (body 3–7) pro rozestup křižovatek šířku vozové cesty (3,5 m → 12,1 m) –
+     křižovatka s vozovým ramenem se po přepočtu nehne, takže se odsune předem.
+   - **Rozestavěná vozová cesta** (zemní práce se stavbou) se nemění a dostaví se normálně.
+   - **Svahy staré zemní práce zarostou** celé i s lemem za **5 let** jako opuštěná cesta
+     (`SLOPE_LOOK.wildYears`); kde vede nová zemní práce (do dosahu svahů), kreslí svahy jen ta – kus
+     staré, který nová osa použila, tak vypadá jako nový, nepoužitý zaroste.
+
+Vlkov (den 114787, měření ve scratchpadu R1): 49 úseků → 46 (živých 36 → 33), křižovatky 12 → 10,
+konce mimo kotvu 6 → 0, úsek přes dům 1 → 0, dvojice křižovatek pod rozestupem 2 → 1, upravené
+481 m → 510 m, stezka na východ (dřív bez spojení) vede ke kraji mapy; chůze k vodě −0,9 %, k polím
++0,1 %. Přestavba trvá ≈ 4 s jednou za život vsi. Po 12 měsících je živých úseků 34 a křižovatek 12
+(dostavěná vozová cesta převzala dva upravené úseky). Otevřené: u obilné jámy mezi dvěma
+křižovatkami (≈ 243, −258) vznikne každý měsíc 17 m vyšlapaná cesta přes jámu, kterou kontrola hned
+opustí (+12 opuštěných kusů za rok). Příčina (R2): cesta vznikla z vyšlapanosti kolem jámy, ale
+oblouky obou konců do křižovatek ji narovnaly přes jámu – oblouk teď neprůchodnou plochou nevede víc
+než neohnutá osa (Křižovatky – Vchody).
+
+**Vlkov po R2** (den 114787, měření ve scratchpadu R2): vozové úseky 18 (2 994 m, z toho 358 m
+rozestavěné cesty) → 13 (2 860 m); nové hotové zemní práce 11× (2 502 m – 433 m a 663 m po staré
+ose, 1 085 m k severnímu okraji vrácený kus), 3 krátké řetězy u starých vozových os zůstaly upravené
+(„moc krátká“); 14 starých zemních prací (2 656 m) zarůstá, rozestavěné 4044 a 4046 beze změny.
+Dvojice křižovatek pod rozestupem 2 → 0, úsek přes dům 1 → 0, odkazy na zmizelé úseky 0. Vůz od
+ohrady k vodě 375 → 378 m (7,8 → 7,9 min), k dílům polí ⌀ 457 → 459 m (9,5 → 9,6 min); chůze
+k vodě −5,6 %, k polím +3,6 % (nové svahy vedle starých). Přestavba ≈ 10 s. Po 1 i 12 měsících
+42 úseků a 10 křižovatek, opuštěné kusy nepřibývají (u obilné jámy už ne).
+
+**Chyba a přestávky** (návrh Clauda 24. 10. 2026, po recenzi): skončí-li přestavba výjimkou, ves
+zůstane se starou sítí, dostane příznak `rebuilt` i `rebuildFailed` a přestavba se už nezkouší –
+chyba je pro týž vstup deterministická a jinak by zablokovala každé načtení vsi. Server přestavbu
+počítá po krocích (průchody, přepočet vozových cest) a mezi nimi dává přestávky jako dlouhý dopočet
+(port `Pause`), takže ≈ 10 s výpočtu neblokuje ostatní požadavky; výsledek na přestávkách nezávisí.
+Odmítne-li se akce, se kterou se přestavba načetla, přestavba se neuloží a spočítá se při dalším
+načtení znovu; klient po přestavbě drží stará id úseků, takže první akce nad cestou může skončit
+„Cesta neexistuje.“ – obojí jen jednou za život vsi.
+
+**Pole pod novou sítí** (měření Vlkova ve scratchpadu po recenzi): přestavba pole ani díly nemění,
+půdu pod cestami přepočítá až první dopočítaný den (`roadFieldsDay`). Před přestavbou 1 pole,
+3 501 dílů, 77,333 ha (pod cestami 8 650 m²), zaseto 633 dílů, 14,097 ha, 2 455 kg osiva. Den po
+přestavbě 3 500 dílů, 77,323 ha (pod cestami 8 584 m²), zaseto **beze změny** – zmizel jen díl 796
+v přílohu (zbylo mu 10 m² vedle staré cesty) a dvěma zasetým dílům se posunem staré cesty změnila
+plocha o −1,2 a +3,0 m². Bez přestavby den poté 3 501 dílů, 77,333 ha, zaseto stejně. Po měsíci
+s přestavbou zaseto 691 dílů, 15,381 ha, 2 679 kg, bez ní 692 dílů, 15,403 ha, 2 683 kg – rozdíl
+není půda pod cestami, ale jiný díl vrácený z přílohu (chůze k dílu 3383 se změnila 422 → 475 m).
+Nová síť tedy nevede přes zasetý díl, kudy dřív cesta nevedla, a **zasetou půdu nebere** – pojistka
+v přestavbě není potřeba. Návrh Clauda pro případ, že by u jiné vsi brala: vyšlapanost se
+v přestavbě na políčkách zasetých dílů nesčítá (`seedWear`), cesta tam vznikne až z přirozené
+vyšlapanosti za běhu.
+
 ## Co se ukládá a co se dopočítá
 
 | Ve stavu vsi (nové)                                      | Dopočítá se (stejně na serveru i v prohlížeči)       |
@@ -568,6 +679,7 @@ příznak `VillageRoads.v2`).
 | `Road.abandoned` – opuštěná cesta mimo síť               | cesty hráče (řetězy), kotvy a pahýly                 |
 | `roads.junctions` – tvar, natočení, ramena, znamení      | obrys křižovatky, oblouky do vchodů (osa je uložená) |
 | `roads.v2` – převod hotový                               | vzdálenosti chůze (uložené jako dřív)                |
+| `roads.rebuilt` – jednorázová přestavba sítě hotová      |                                                      |
 
 ## Výkon
 
@@ -616,6 +728,8 @@ cest v2), ne tichá oprava.
 | Stavba přes cestu: kus pod ní opuštěný hned, objížďka se vyšlape a napojí                        | návrh Clauda |
 | Jízdy vozů do vyšlapanosti ročně z `flushCartTrips`; i přes osetý díl                            | návrh Clauda |
 | Kotvy z konců tras (brána, vchod stavby, cíl, kraj mapy); souběžné cesty sloučí úklid            | návrh Clauda |
+| Jednorázová přestavba sítě, varianta A – vylepšení se přenesou                                   | Martin       |
+| Přestavba: vyšlapanost za rok, 4 průchody, přenos 60 % do 4 m, kusy stezek se vrátí              | návrh Clauda |
 
 ## Nahrazená pravidla (22. 10. 2026)
 

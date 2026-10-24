@@ -121,8 +121,11 @@ export interface WagonPlanRoad extends WagonTimeRoad {
   cartTraffic?: readonly number[];
 }
 
-/** Zemní práce vsi pro náhled – kus osy a jestli se ještě staví. */
-export type WagonPlanEarthwork = EarthworkSpan & { building?: boolean };
+/**
+ * Zemní práce vsi pro náhled – kus osy, jestli se ještě staví a jestli už nepatří cestě (přestavba
+ * sítě – jen terén).
+ */
+export type WagonPlanEarthwork = EarthworkSpan & { building?: boolean; abandoned?: boolean };
 
 /** Co náhled i zahájení stavby potřebují – stejné na serveru i v prohlížeči. */
 export interface WagonPlanInput {
@@ -245,13 +248,13 @@ function chainNodes(chain: readonly ChainLink<WagonPlanRoad>[]): Set<string> {
  * se plánovala – i když se k ní mezitím připojily hotové úseky vozové cesty). Cesta, která s ní
  * sdílí jen rozcestí, ji nemá.
  */
-function chainEarthwork<E extends { profile: readonly PathPoint[] }>(
+function chainEarthwork<E extends { profile: readonly PathPoint[]; abandoned?: boolean }>(
   earthworks: readonly E[],
   chain: readonly ChainLink<WagonPlanRoad>[],
 ): E | null {
   const nodes = chainNodes(chain);
   for (const e of earthworks) {
-    if (e.profile.length < 2) continue;
+    if (e.profile.length < 2 || e.abandoned) continue;
     if (nodes.has(cmKey(e.profile[0]!)) && nodes.has(cmKey(e.profile[e.profile.length - 1]!))) {
       return e;
     }
@@ -1000,6 +1003,7 @@ export function villageWagonEarthworks(state: VillageState): WagonPlanEarthwork[
   return (state.roads?.earthworks ?? []).map((e, k) => ({
     ...spans[k]!,
     ...(e.constructionId !== undefined ? { building: true } : {}),
+    ...(e.abandonedDay !== undefined ? { abandoned: true } : {}),
   }));
 }
 
@@ -1298,6 +1302,43 @@ export function wagonRoadsDay(
       );
     }
   }
+}
+
+/**
+ * Vozová cesta hotová hned (jednorázová přestavba sítě – paths.md; mutuje stav): zemní práce
+ * z plánu `plan` se všemi úseky dostavěnými v den `day`, bez stavby a bez ceny (už jsou zaplacené).
+ * Úseky jsou pevnou cestou stupně `wagon` s kácením jako po stavbě (`buildPiece` – pařezy, klády na
+ * hromadu), stará cesta pod nimi zmizí (`absorbParallelRoads`) a obejité kusy jsou opuštěné
+ * (`abandonBypassed`) – jako po dostavění (`wagonRoadsDay`). Vrátí nové zemní práce.
+ */
+export function buildWagonRoadNow(
+  state: VillageState,
+  plan: Extract<WagonRoadPlan, { ok: true }>,
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer | null,
+): RoadEarthwork {
+  const earthwork: RoadEarthwork = {
+    id: state.nextId++,
+    profile: plan.profile,
+    pieces: plan.pieces.map((p) => ({ toM: p.toM, manDays: p.manDays, builtDay: null })),
+    ...(plan.fords.length > 0 ? { fords: plan.fords } : {}),
+    ...(plan.bypassed.length > 0 ? { bypassed: plan.bypassed } : {}),
+    startedDay: day,
+  };
+  (state.roads!.earthworks ??= []).push(earthwork);
+  for (let k = 0; k < earthwork.pieces.length; k++) {
+    buildPiece(state, earthwork, k, day, landscape, obstacles);
+  }
+  const builtM = earthwork.pieces[earthwork.pieces.length - 1]!.toM;
+  const roads = state.roads!;
+  absorbParallelRoads(roads, state.constructions, state.trails);
+  abandonBypassed(
+    roads.roads,
+    bypassedUpTo(earthwork, builtM),
+    profilePrefix(earthwork.profile, builtM),
+  );
+  return earthwork;
 }
 
 /** Dostavěná vozová cesta (mutuje stav): zemní práce bez stavby, kronika jako vylepšení cesty. */

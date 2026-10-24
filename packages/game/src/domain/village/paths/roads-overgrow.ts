@@ -201,6 +201,24 @@ const BLOCK_STEP_M = 1;
 const BLOCK_MIN_RUN_M = 5;
 
 /**
+ * Nejdelší souvislý běh vzorků osy (po BLOCK_STEP_M) v neprůchodné ploše – 0 = osa jí nevede. Běh
+ * aspoň BLOCK_MIN_RUN_M je kus pod stavbou (`abandonBlockedStretches`). Nic nemění.
+ */
+export function blockedRun(
+  points: readonly RoadPoint[],
+  blocked: (x: number, z: number) => boolean,
+): number {
+  if (points.length < 2) return 0;
+  let run = 0;
+  let best = 0;
+  for (const p of resample(points, null, BLOCK_STEP_M).points) {
+    run = blocked(p.x, p.z) ? run + 1 : 0;
+    if (run > best) best = run;
+  }
+  return best;
+}
+
+/**
  * Kus pod hotovou stavbou je opuštěný (mutuje; paths.md – Stavba přes cestu, návrh Clauda – Vlkov
  * 23. 10. 2026): kus osy, který leží v neprůchodné ploše (`blocked`), se vyřízne jako opuštěný
  * úsek (`Road.abandoned`) – vypadne ze sítě a zaroste; zbytky po stranách žijí dál se starým id

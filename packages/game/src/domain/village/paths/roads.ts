@@ -214,6 +214,8 @@ function roadsMonthRun(
   day: number,
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
+  /** Šířka úseku pro rozestup křižovatek (`JunctionRoads.width`) – jen přestavba sítě. */
+  width?: (road: Road) => number | undefined,
 ): void {
   settleVillageWear(state, day, landscape);
   const roads = state.roads;
@@ -264,7 +266,13 @@ function roadsMonthRun(
   }
   const walk = (): ((x: number, z: number) => boolean) | null =>
     villageBlockedAt(state, day, landscape);
-  tidyMonth(state, routes, { lines, anchors, day, cellM, walk }, baseOf, fieldOf);
+  tidyMonth(
+    state,
+    routes,
+    { lines, anchors, day, cellM, walk, ...(width ? { width } : {}) },
+    baseOf,
+    fieldOf,
+  );
 }
 
 /**
@@ -308,6 +316,23 @@ export function tidyRoadsNow(
   tidyRoads(roads, state.constructions, () => false, context, undefined, state.trails);
 }
 
+/**
+ * Jeden průchod jednorázové přestavby sítě (`rebuildRoads` – paths.md, Jednorázová přestavba sítě;
+ * mutuje): měsíční kontrola dne `day` bez ohledu na datum a s úklidem vždy – zánik a kusy pod
+ * stavbami, vznik cest z vyšlapanosti od kotvy ke kotvě, úklid, cesty k vchodům a křižovatky.
+ */
+export function rebuildRoadsPass(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer | null,
+  /** Šířka úseku pro rozestup křižovatek – úsek, ze kterého bude vozová cesta (R2). */
+  width?: (road: Road) => number | undefined,
+): void {
+  if (state.roads) delete state.roads.tidyKey;
+  roadsMonthRun(state, day, landscape, obstacles, width);
+}
+
 /** Kolikrát běžel měsíční úklid (`tidyMonth`) – pro testy a měření, hra ho nečte. */
 export const TIDY_RUNS = { count: 0 };
 
@@ -343,6 +368,8 @@ function tidyMonth(
     cellM: number;
     /** Neprůchodná plocha vsi (stavby, ploty, zemní práce) – jen když se křižovatka posouvá. */
     walk: () => ((x: number, z: number) => boolean) | null;
+    /** Šířka úseku pro rozestup křižovatek (`JunctionRoads.width`) – jen přestavba sítě. */
+    width?: (road: Road) => number | undefined;
   },
   base: () => Omit<SpotContext, 'split'>,
   field: () => TrafficField,
@@ -370,6 +397,7 @@ function tidyMonth(
       anchor: (p) => nearEntrance(p, entrances),
       // nový střed křižovatky nesmí do domu, plotu ani zemních prací
       blocked: (p) => (walkable ??= month.walk())?.(p.x, p.z) ?? false,
+      ...(month.width ? { width: month.width } : {}),
     });
   };
   // cesty beze změny: úklid jen, když nové kotvy a trasy dají práci (pahýl, díra, okruh, vchod)

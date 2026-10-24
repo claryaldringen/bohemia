@@ -7,7 +7,15 @@ import { DWELLING_PATH_BOX_M } from './paths/network-grid';
 import { EDGE_MARGIN_M } from './paths/terrain';
 import { plotCells } from './plot-cells';
 import { TRAIL } from './rules';
-import type { Direction8, Dwelling, Road, Trail, TrailPiece, VillageState } from './types';
+import type {
+  Direction8,
+  Dwelling,
+  Road,
+  RoadJunction,
+  Trail,
+  TrailPiece,
+  VillageState,
+} from './types';
 
 const H = Math.SQRT1_2;
 /** Jednotkový směr ve světě – sever je +z, východ +x (minimapa a kamera – sever nahoře). */
@@ -91,22 +99,42 @@ export function trailAxisRoads(
   direction: Direction8,
   start: { x: number; z: number },
   landscape: Pick<Landscape, 'size' | 'cellSizeM'>,
+  junctions: readonly RoadJunction[] = [],
+  /** I vyšlapané cesty (přestavba sítě – stezka se po nich znovu upraví). */
+  trodden = false,
 ): Road[] | null {
   const fixed = roads
-    .filter((r) => !r.abandoned && r.grade !== 'trodden' && r.points.length >= 2)
+    .filter((r) => !r.abandoned && (trodden || r.grade !== 'trodden') && r.points.length >= 2)
     .sort((a, b) => a.id - b.id);
+  // konce ramen křižovatky leží ve vchodech, ne v jednom bodě – uzel je celá křižovatka
+  // (paths.md – Křižovatky; Jednorázová přestavba sítě)
+  const atJunction = new Map<string, { key: string; x: number; z: number }>();
+  for (const j of junctions) {
+    for (const id of j.arms) {
+      const road = fixed.find((r) => r.id === id);
+      if (!road) continue;
+      const a = road.points[0]!;
+      const b = road.points[road.points.length - 1]!;
+      const end =
+        (a.x - j.x) ** 2 + (a.z - j.z) ** 2 <= (b.x - j.x) ** 2 + (b.z - j.z) ** 2 ? a : b;
+      atJunction.set(`${id}:${nodeKey(end)}`, { key: `j${j.id}`, x: j.x, z: j.z });
+    }
+  }
   const nodes = new Map<string, { x: number; z: number; arms: Arm[] }>();
-  const node = (p: { x: number; z: number }): { arms: Arm[] } => {
-    const key = nodeKey(p);
+  const keyOf = (road: Road, p: { x: number; z: number }): string =>
+    atJunction.get(`${road.id}:${nodeKey(p)}`)?.key ?? nodeKey(p);
+  const node = (road: Road, p: { x: number; z: number }): { arms: Arm[] } => {
+    const junction = atJunction.get(`${road.id}:${nodeKey(p)}`);
+    const key = junction?.key ?? nodeKey(p);
     let n = nodes.get(key);
-    if (!n) nodes.set(key, (n = { x: p.x, z: p.z, arms: [] }));
+    if (!n) nodes.set(key, (n = { x: junction?.x ?? p.x, z: junction?.z ?? p.z, arms: [] }));
     return n;
   };
   for (const road of fixed) {
     const a = road.points[0]!;
     const b = road.points[road.points.length - 1]!;
-    node(a).arms.push({ road, to: nodeKey(b) });
-    node(b).arms.push({ road, to: nodeKey(a) });
+    node(road, a).arms.push({ road, to: keyOf(road, b) });
+    node(road, b).arms.push({ road, to: keyOf(road, a) });
   }
   // Dijkstra (sítě jsou malé – výběr nejbližšího uzlu průchodem, při shodě menší klíč)
   const dist = new Map<string, number>();
@@ -193,7 +221,7 @@ export function restoredTrailPieces(
   if (!manor) return restored;
   const start = trailStart(landscape, manor);
   for (const trail of lost) {
-    const axis = trailAxisRoads(roads, trail.direction, start, landscape);
+    const axis = trailAxisRoads(roads, trail.direction, start, landscape, state.roads?.junctions);
     if (!axis || axis.length === 0) continue;
     restored.set(
       trail.id,

@@ -811,9 +811,11 @@ const SLOPE_STEP_M = 0.5;
 /**
  * Vzhled svahů úvozu a náspu (roads.md – Vozová cesta, Martin 22. 10. 2026: „Náspy a úvozy musí být
  * výrazně vidět“): holá hlína zarůstá pomalu – za `grassYears` let jen řídkou trávou (zbude
- * `oldAlpha` krytí hlíny), nikdy úplně; lem hrany úvozu a paty náspu je široký `edgeM` m.
+ * `oldAlpha` krytí hlíny), nikdy úplně; lem hrany úvozu a paty náspu je široký `edgeM` m. Zemní
+ * práce bez cesty (přestavba sítě – paths.md) zaroste celá i s lemem za `wildYears` let jako
+ * opuštěná cesta (návrh Clauda 24. 10. 2026).
  */
-export const SLOPE_LOOK = { grassYears: 15, oldAlpha: 0.45, edgeM: 0.6 };
+export const SLOPE_LOOK = { grassYears: 15, oldAlpha: 0.45, edgeM: 0.6, wildYears: 5 };
 /**
  * Strmost úpravy napříč osou (změna odchylky terénu PROTI PŮVODNÍMU terénu na metr – boční sklon
  * terénu se tím odečte, výkop 0,8 m a násep 1 m jsou strmé stejně na rovině i na svahu 50 %),
@@ -913,10 +915,14 @@ export function nearestAxis(
   };
 }
 
-/** Hotové osy zemních prací, vzdálenost k nejbližší a které jejich konce navazují na jinou osu. */
+/**
+ * Hotové osy zemních prací, vzdálenost k nejbližší (`distance`) a k nejbližší zemní práci vozové
+ * cesty (`live` – bez opuštěných) a které jejich konce navazují na jinou osu.
+ */
 interface SlopeContext {
   shown: SceneEarthwork[];
   distance: (x: number, z: number) => number;
+  live: (x: number, z: number) => number;
   joined: Map<SceneEarthwork, { start: boolean; end: boolean }>;
 }
 
@@ -931,9 +937,13 @@ function slopeContext(earthworks: readonly SceneEarthwork[]): SlopeContext {
     const at = lengthsAlong(e.profile);
     return e.profile.filter((_, k) => at[k]! <= e.shownM + 1e-6);
   });
+  // konec zemní práce vozové cesty nenavazuje na opuštěnou (ta zarůstá) – vytrácí se jako volný
   const joinedTo = (self: number, p: { x: number; z: number }): boolean =>
     axes.some((axis, o) => {
       if (o === self) return false;
+      if (shown[o]!.abandonedYears !== undefined && shown[self]!.abandonedYears === undefined) {
+        return false;
+      }
       for (let k = 1; k < axis.length; k++) {
         const a = axis[k - 1]!;
         const b = axis[k]!;
@@ -951,7 +961,8 @@ function slopeContext(earthworks: readonly SceneEarthwork[]): SlopeContext {
       end: axis.length > 0 && endM > 0 && joinedTo(i, axisAt(e.profile, endM)),
     });
   });
-  const context = { shown, distance: nearestAxis(axes), joined };
+  const live = nearestAxis(axes.filter((_, i) => shown[i]!.abandonedYears === undefined));
+  const context = { shown, distance: nearestAxis(axes), live, joined };
   contexts.set(earthworks, context);
   return context;
 }
@@ -973,8 +984,12 @@ function slopeLattice(
   const alphas: number[] = [];
   const indices: number[] = [];
   const lanes = Math.round((2 * SLOPE_REACH_M) / SLOPE_STEP_M) + 1;
-  const { shown, distance, joined } = slopeContext(earthworks);
+  const { shown, distance, live, joined } = slopeContext(earthworks);
   for (const e of shown) {
+    // zemní práce bez cesty zarůstá celá (SLOPE_LOOK.wildYears); kde vede živá, kreslí jen ta
+    const abandoned = e.abandonedYears !== undefined;
+    const wild = abandoned ? 1 - smooth(0, SLOPE_LOOK.wildYears, e.abandonedYears!) : 1;
+    if (wild <= 0) continue;
     const join = joined.get(e)!;
     const profile = e.profile;
     const at = lengthsAlong(profile);
@@ -1024,10 +1039,14 @@ function slopeLattice(
       for (let l = 0; l < lanes; l++) {
         const t = Math.abs(-SLOPE_REACH_M + l * SLOPE_STEP_M);
         let alpha =
-          section[l]! * Math.max(0, ends) * Math.min(1, (SLOPE_REACH_M - t) / SLOPE_FADE_M);
+          section[l]! * wild * Math.max(0, ends) * Math.min(1, (SLOPE_REACH_M - t) / SLOPE_FADE_M);
         if (alpha > 0) {
-          const closer = t - distance(positions[(start + l) * 2]!, positions[(start + l) * 2 + 1]!);
+          const x = positions[(start + l) * 2]!;
+          const z = positions[(start + l) * 2 + 1]!;
+          // živá zemní práce ustoupí jen živé, opuštěná každé bližší a celá živé v dosahu svahů
+          const closer = t - (abandoned ? distance(x, z) : live(x, z));
           alpha *= 1 - smooth(SLOPE_OVERLAP_M.from, SLOPE_OVERLAP_M.none, closer);
+          if (abandoned) alpha *= smooth(SLOPE_REACH_M - SLOPE_FADE_M, SLOPE_REACH_M, live(x, z));
         }
         alphas.push(alpha);
       }
@@ -1099,7 +1118,7 @@ export function earthworkSlopeKey(earthworks: readonly SceneEarthwork[]): string
   return earthworks
     .map(
       (e) =>
-        `${e.id}@${Math.round(e.shownM * 10)}:${e.pieces.map((p) => Math.min(SLOPE_LOOK.grassYears, p.ageYears ?? 0)).join(',')}`,
+        `${e.id}@${Math.round(e.shownM * 10)}:${e.pieces.map((p) => Math.min(SLOPE_LOOK.grassYears, p.ageYears ?? 0)).join(',')}${e.abandonedYears !== undefined ? `x${Math.min(SLOPE_LOOK.wildYears, e.abandonedYears)}` : ''}`,
     )
     .join(';');
 }
