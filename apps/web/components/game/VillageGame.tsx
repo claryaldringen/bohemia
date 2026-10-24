@@ -781,7 +781,8 @@ export function VillageGame({
   };
 
   const startBuild = (kind: BuildKind, variant?: string): void => {
-    if (!scene || !(kind in options)) return;
+    // dokud se nepojmenuje vojvoda, ves se nezakládá – ani zkratkou, ani klikem mimo panel jména
+    if (!scene || foundingName || !(kind in options)) return;
     const item = buildItem(kind);
     // stavba s druhy je rozcestník: tlačítko i zkratka otevřou v mřížce druhy, znovu je zavřou
     if (item.placement === 'squares' && item.variants && variant === undefined) {

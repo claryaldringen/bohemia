@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type FormEvent, type ReactElement } from 'react';
+import { useEffect, useId, useState, type FormEvent, type ReactElement } from 'react';
 import {
   checkPersonName,
   LORD_NAME_MISSING,
@@ -53,6 +53,7 @@ export function LineNamePanel({
   const [busy, setBusy] = useState(false);
   const [serverReason, setServerReason] = useState<string | null>(null);
   const label = lineNameLabel(lord);
+  const reasonId = useId();
   const reason = lineNameReason(draft, lord) ?? serverReason;
 
   useEffect(() => {
@@ -107,6 +108,7 @@ export function LineNamePanel({
           onChange={(event) => change(event.target.value)}
           aria-label={label}
           aria-invalid={draft.trim() !== '' && reason !== null}
+          aria-describedby={reason !== null ? reasonId : undefined}
           autoFocus
           autoComplete="off"
           spellCheck={false}
@@ -114,6 +116,12 @@ export function LineNamePanel({
           className="hud-inset w-44 rounded px-2 py-1 font-serif text-base text-[#f3dfb0] outline-none aria-invalid:text-[#ff7a66]"
         />
       </Tooltip>
+      {/* důvod odmítnutí i pro čtečku (vidět je v popisku u kurzoru) */}
+      {reason !== null && (
+        <span id={reasonId} className="sr-only">
+          {reason}
+        </span>
+      )}
       <Tooltip content="Navrhni jméno" placement="above">
         <button
           type="button"

@@ -455,6 +455,32 @@ test('jména rodu – vojvoda před první zemnicí, syn bez jména čeká upozo
   await expect(selection).toContainText('Ctibor – Syn vojvody');
 });
 
+test('psaní jména vojvody nespouští zkratky hry a mimo pole nejde založit ves', async ({
+  page,
+}) => {
+  await newPlayer(page, 'psani');
+  const panel = page.getByTestId('line-name-panel');
+  await expect(panel).toBeVisible({ timeout: 30_000 });
+  const input = panel.getByTestId('line-name-input');
+  const zemnice = page.getByTestId('build-grid').getByRole('button', { name: 'Zemnice' });
+  // Písmeno zkratky (Z = zemnice), mezera, šipky i Ctrl + A zůstanou v poli.
+  await input.fill('');
+  await input.press('KeyZ');
+  await input.press('Space');
+  await input.press('KeyB');
+  await input.press('ArrowLeft');
+  await input.press('ArrowRight');
+  await input.press('Control+A');
+  await input.press('End');
+  await expect(input).toHaveValue('z b');
+  await expect(zemnice).toHaveAttribute('aria-pressed', 'false');
+  // Zkratka stavby po kliku mimo pole nezačne umisťovat zemnici, dokud vojvoda nemá jméno.
+  await page.mouse.click(10, 300);
+  await page.keyboard.press('z');
+  await expect(zemnice).toHaveAttribute('aria-pressed', 'false');
+  await expect(panel).toBeVisible();
+});
+
 test('obydlí jde stavět, jen když je kým ho osadit – pole kdykoli', async ({ page }) => {
   const { seat: s } = await newPlayer(page, 'stavby');
   const spots = villageSpots(s.landscape);
