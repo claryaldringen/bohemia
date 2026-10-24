@@ -53,6 +53,7 @@ import { type VillageDugSite } from './ore-site-view';
 import { type VillageKiln } from './kiln-view';
 
 import { type VillageGrainPit } from './grain-pit-view';
+import { type VillageJunction } from './junction-view';
 
 import type { VillageListItem } from './village-list';
 
@@ -584,6 +585,11 @@ export interface VillageView {
    * zapečetěné jámy nejsou vidět. Chybí = žádná.
    */
   grainPits?: VillageGrainPit[];
+  /**
+   * Křižovatky cest (paths.md – Křižovatky) pro panel výběru – tvar, počet cest, znamení, stáří.
+   * Chybí = žádná.
+   */
+  junctions?: VillageJunction[];
 }
 
 /** Nákup u souseda na cestě (crafts.md – Nákup u sousedů). */

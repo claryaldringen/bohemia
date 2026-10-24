@@ -3,8 +3,15 @@ import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
 import type { PathLine } from '@bohemia/game';
-import type { SceneEarthwork, SceneRoad, SceneRoadApple } from '../village-view';
+import type { SceneEarthwork, SceneJunction, SceneRoad, SceneRoadApple } from '../village-view';
 import { applyGammaFog } from './gamma-fog';
+import {
+  JUNCTION_MODELS,
+  junctionLandmarkPieces,
+  junctionRibbons,
+  junctionsKey,
+  type JunctionModel,
+} from './junction-shape';
 import { instanceMatrices, loadMergedModel, type ModelInstance } from './instanced-model';
 import {
   CART_RUT_LAYER,
@@ -27,7 +34,6 @@ import {
   bridgePieces,
   logPieces,
   roadBands,
-  roadJunctions,
   roadWorksKey,
   stakingLines,
   wagonStakingKey,
@@ -44,13 +50,23 @@ import { createDecalMesh, type HeightFn } from './village-meshes';
 // 19. 10. 2026 – strouha a kameny zrušené). Kde co leží, počítá road-works-layout.ts z dat vsi;
 // přestaví se jen při změně dat.
 
-type RoadModel = 'road-log' | 'road-bridge' | 'road-bridge-posts';
-const MODELS: readonly RoadModel[] = ['road-log', 'road-bridge', 'road-bridge-posts'];
+type RoadModel = 'road-log' | 'road-bridge' | 'road-bridge-posts' | JunctionModel;
+const MODELS: readonly RoadModel[] = [
+  'road-log',
+  'road-bridge',
+  'road-bridge-posts',
+  ...JUNCTION_MODELS,
+];
 /** Kmeny kousek zapuštěné do bláta, lávka do břehů (m). */
 const SINK_M = {
   'road-log': 0.06,
   'road-bridge': 0.05,
   'road-bridge-posts': 0.05,
+  // vztyčený kámen a kůl jsou do země zapuštěné v modelu (junction-*.glb) – stojí na terénu
+  'junction-stone-1': 0,
+  'junction-stone-2': 0,
+  'junction-post-1': 0,
+  'junction-post-2': 0,
 };
 
 export interface RoadWorksEnvironment {
@@ -92,8 +108,9 @@ export class RoadWorks {
       earthworks: [],
       preview: [],
     },
+    junctions: readonly SceneJunction[] = [],
   ): void {
-    const key = `${roadWorksKey(roads)}|${appleStakingKey(apples)}|${wagonStakingKey(wagon.earthworks, wagon.preview)}`;
+    const key = `${roadWorksKey(roads)}|${junctionsKey(junctions)}|${appleStakingKey(apples)}|${wagonStakingKey(wagon.earthworks, wagon.preview)}`;
     if (key === this.key) return;
     this.key = key;
     const h = this.env.groundHeight;
@@ -108,7 +125,11 @@ export class RoadWorks {
     // lávka leží na vyšším z obou břehů – ne na dně potoka
     const bridgeY = (b: (typeof bridges)[number]): number =>
       Math.max(h(b.ends[0][0], b.ends[0][1]), h(b.ends[1][0], b.ends[1][1]));
+    const landmarks = junctionLandmarkPieces(junctions);
+    const landmarkOf = (model: JunctionModel): ModelInstance[] =>
+      landmarks.filter((p) => p.model === model).map((p) => at(model, { ...p, scale: 1 }));
     this.instances = new Map<RoadModel, ModelInstance[]>([
+      ...JUNCTION_MODELS.map((m): [RoadModel, ModelInstance[]] => [m, landmarkOf(m)]),
       ['road-log', logPieces(roads).map((p) => at('road-log', p))],
       [
         'road-bridge',
@@ -241,10 +262,11 @@ export function roadRibbonMeshes(
   scene: Scene,
   roads: readonly SceneRoad[],
   o: RoadRibbonOptions,
+  junctionList: readonly SceneJunction[] = [],
 ): Mesh[] {
   const bands = roadBands(roads);
-  // rozcestí – udusaný plácek v pásu cesty, která do něj vbíhá nejširší
-  const junctions = roadJunctions(roads);
+  // křižovatka – udusaný obrys z pásů ramen v šířce nejširší cesty (junction-shape.ts), ne kruh
+  const junctions = junctionRibbons(junctionList, roads);
   const ribbons: [
     string,
     readonly PathLine[],

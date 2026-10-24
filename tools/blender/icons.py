@@ -20,7 +20,7 @@ stezka od brány dvorce – trade.md), obchod (pytle obilí, hrnce, klády a sý
 s vodou a valem, hromádka bahenní rudy a motyka – crafts.md, Uhlí a ruda kováře), humno (mlat pod
 širým nebem bez přístřešku, stoh slámy a cepy – production-chains.md, Humno), hliniste (jámy
 se šedookrovou stěnou jílu, hromádka hlíny a rýč – crafts.md, Hlína hrnčíře) a milir (kouřící milíř
-mezi pařezy skácených buků – crafts.md, Milíř u skácených buků) a obilna-jama (otevřená obilná
+mezi pařezy skácených buků – crafts.md, Milíř u skácených buků) a krizovatka-kriz a krizovatka-y (kříž a Y cest se znamením – paths.md, Křižovatky) a obilna-jama (otevřená obilná
 jáma se zrnem, hroudami pečeti a lopatou – production-chains.md, Obilné jámy) – portréty do panelu
 výběru;
 (64 × 64 PNG) – `resources/` people, food, wood, labor, satiation, date, apples, happiness
@@ -782,6 +782,35 @@ def icon_road(grade):
         place_root(objs, (math.sin(2.6 * 0.6) * 0.25, 2.6, -0.05), 0.0, 1.0)
     sun(az=-55, el=46)
     camera([Vector((-3.2, -4.6, 0)), Vector((3.2, 4.6, 1.4)), Vector((-3.2, 4.6, 0)), Vector((3.2, -4.6, 0))], az=24, el=42, margin=0.92)
+
+
+def icon_junction(shape):
+    """Portrét křižovatky (paths.md – Křižovatky): kříž ze dvou pásů, nebo Y ze tří, v mezeře
+    znamení – vztyčený kámen (kříž), dřevěný kůl (Y)."""
+    gr = ground(6.4, mat("g", tex=f"{TEX}/grass-dirt.jpg", scale=0.25, tint=(0.8, 0.82, 0.6)), z=-0.02, fade=0.72)
+    earth = mat("earth", tex=f"{TEX}/mud.jpg", scale=0.5, tint=(0.82, 0.66, 0.48))
+    if shape == "kriz":
+        angles = [0.0, math.pi / 2, math.pi, 3 * math.pi / 2]
+    else:
+        beta = math.radians(40)
+        angles = [0.0, math.pi - beta, math.pi + beta]
+    for k, a in enumerate(angles):
+        # pás ramene délky 5,5 m od středu (směr a od osy +Y proti směru hodin)
+        strip = road_strip(1.6, 5.5, earth, wobble=0.1, seed=3 + k)
+        strip.location = (-math.sin(a) * 2.75, math.cos(a) * 2.75, 0.0)
+        strip.rotation_euler = (0.0, 0.0, a)
+    # střed – plácek mezi rameny
+    bm = bmesh.new()
+    bmesh.ops.create_circle(bm, cap_ends=True, radius=1.5, segments=14)
+    to_obj(bm, "hub", earth, smooth=False).location.z = 0.006
+    if shape == "kriz":
+        objs = place_model("junction-stone-1", folder=ROADS)
+        place_root(objs, (2.9, 2.9, 0.0), 0.6, 1.0)
+    else:
+        objs = place_model("junction-post-2", folder=ROADS)
+        place_root(objs, (0.0, -3.4, 0.0), 0.5, 1.0)
+    sun(az=-55, el=46)
+    camera([Vector((-4.2, -4.2, 0)), Vector((4.2, 4.2, 1.8)), Vector((-4.2, 4.2, 0)), Vector((4.2, -4.2, 0))], az=24, el=42, margin=0.92)
 
 
 def icon_walk():
@@ -2624,6 +2653,8 @@ BUILD = {
     "cesta-vozova": lambda: icon_road("cesta-vozova"),
     "cesta-upravena": lambda: icon_road("cesta-upravena"),
     "hat": lambda: icon_road("hat"),
+    "krizovatka-kriz": lambda: icon_junction("kriz"),
+    "krizovatka-y": lambda: icon_junction("y"),
     "jablone": icon_jablone,
     "stezka": icon_stezka,
     "obchod": icon_obchod,

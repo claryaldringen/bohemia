@@ -189,6 +189,27 @@ export interface RibbonJunction {
   x: number;
   z: number;
   strength: number;
+  /**
+   * Obrys křižovatky pevných cest (junction-shape.ts) – mnohoúhelník kolem středu místo kruhu;
+   * `widthM` je šířka jeho ramen, podle ní se obrys pro vrstvu užší (holá hlína) zmenší.
+   */
+  outline?: readonly { x: number; z: number }[];
+  widthM?: number;
+}
+
+/** Poměr, kterým vrstva zmenší obrys křižovatky: šířka vrstvy ku šířce ramen (nejvýš 1,2). */
+function outlineScale(junction: RibbonJunction, layer: RibbonLayer): number {
+  const width = layer.width.strong * layer.widthFactor;
+  return Math.min(1.2, width / Math.max(0.1, junction.widthM ?? width));
+}
+
+/** Obrys křižovatky vrstvy: zmenšený (zvětšený) od středu. */
+function layerOutline(junction: RibbonJunction, layer: RibbonLayer): { x: number; z: number }[] {
+  const s = outlineScale(junction, layer);
+  return (junction.outline ?? []).map((p) => ({
+    x: junction.x + (p.x - junction.x) * s,
+    z: junction.z + (p.z - junction.z) * s,
+  }));
 }
 
 /**
@@ -448,6 +469,13 @@ export function ribbonTrack(
   });
   const discs = junctions.flatMap((junction, k): TrackDisc[] => {
     const { x, z, strength } = junction;
+    if (junction.outline && junction.outline.length > 0) {
+      // maska polí je kruh o poloměru obrysu (průměr vzdáleností rohů od středu)
+      const ring = layerOutline(junction, layer);
+      const radius = ring.reduce((sum, p) => sum + Math.hypot(p.x - x, p.z - z), 0) / ring.length;
+      const depth = layer.alpha(strength) > 0 ? alphaAt(x, z) : 0;
+      return radius > 0 && depth > 0 ? [{ line: lines.length + k, x, z, radius, depth }] : [];
+    }
     const width = layer.width.weak + (layer.width.strong - layer.width.weak) * strength;
     const radius =
       width * layer.widthFactor * widthAt(x, z) * (layer.junction?.scale ?? JUNCTION.scale);
@@ -478,6 +506,10 @@ function addJunction(
     width * layer.widthFactor * widthAt(x, z) * (layer.junction?.scale ?? JUNCTION.scale);
   const alpha = layer.alpha(strength) * (layer.junction?.alpha ?? 1) * alphaAt(x, z);
   if (radius <= 0 || alpha <= 0) return;
+  if (junction.outline && junction.outline.length > 0) {
+    addOutline(junction, layer, alpha, positions, alphas, indices);
+    return;
+  }
   const seed = (Math.round(x * 2) * 73856093) ^ (Math.round(z * 2) * 19349663);
   const center = positions.length / 2;
   positions.push(x, z);
@@ -495,6 +527,49 @@ function addJunction(
     const inner = center + 1 + k * 2;
     const next = center + 1 + ((k + 1) % n) * 2;
     indices.push(center, inner, next, inner, inner + 1, next, next, inner + 1, next + 1);
+  }
+}
+
+/**
+ * Plácek křižovatky pevných cest: vějíř trojúhelníků ze středu po obrysu (plné krytí) a měkký
+ * okraj ven – u rohů ve vchodech kolmo na rameno (pás cesty tam pokračuje), u vnitřních rohů od
+ * středu. Žádný kruh.
+ */
+function addOutline(
+  junction: RibbonJunction,
+  layer: RibbonLayer,
+  alpha: number,
+  positions: number[],
+  alphas: number[],
+  indices: number[],
+): void {
+  const ring = layerOutline(junction, layer);
+  const { x, z } = junction;
+  const n = ring.length;
+  const center = positions.length / 2;
+  positions.push(x, z);
+  alphas.push(alpha);
+  // rohy ve vchodu jsou po dvou za sebou (indexy 3k, 3k + 1), třetí je vnitřní roh
+  ring.forEach((p, k) => {
+    positions.push(p.x, p.z);
+    alphas.push(alpha);
+    const entrance = k % 3 !== 2;
+    let dx = p.x - x;
+    let dz = p.z - z;
+    if (entrance) {
+      // směr od druhého rohu téhož vchodu – měkký okraj jde po straně pásu
+      const other = ring[k % 3 === 0 ? k + 1 : k - 1]!;
+      dx = p.x - other.x;
+      dz = p.z - other.z;
+    }
+    const len = Math.max(1e-6, Math.hypot(dx, dz));
+    positions.push(p.x + (dx / len) * layer.softM, p.z + (dz / len) * layer.softM);
+    alphas.push(0);
+  });
+  for (let k = 0; k < n; k++) {
+    const a = center + 1 + k * 2;
+    const b = center + 1 + ((k + 1) % n) * 2;
+    indices.push(center, a, b, a, a + 1, b, b, a + 1, b + 1);
   }
 }
 

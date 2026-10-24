@@ -18,7 +18,8 @@ import {
   roadFade,
   type RibbonLayer,
 } from '../path-ribbon';
-import { roadBands, roadJunctions } from '../road-works-layout';
+import { junctionRibbons } from '../junction-shape';
+import { roadBands } from '../road-works-layout';
 
 const line = (strength: number, open = true): PathLine => ({
   points: [
@@ -277,32 +278,46 @@ describe('rozcestí – udusaný plácek (Martin: „rozcestí by mělo být nej
     );
   });
 
-  it('pevné cesty: rozcestí tří úseků, u upravené cesty v pásu upravené', () => {
+  it('pevné cesty: křižovatka tří úseků – vrstva podle nejširší cesty, ne podle počtu konců', () => {
     const road = (id: number, x: number, z: number, grade: 'trodden' | 'improved' = 'trodden') => ({
       id,
       points: [
-        { x: 0, z: 0 },
         { x, z },
+        { x: 0, z: 0 },
       ],
       grade,
     });
-    expect(roadJunctions([road(1, 30, 0), road(2, -30, 0)])).toEqual({
+    const j = {
+      id: 9,
+      x: 0,
+      z: 0,
+      shape: 'y' as const,
+      rotation: 0,
+      spread: Math.PI / 3,
+      arms: [1, 2, 3],
+      landmark: { kind: 'tree' as const, x: 5, z: 5, turn: 0, look: 1 },
+      bornDay: 0,
+    };
+    // bez křižovatky nic – tři konce v jednom bodě už nejsou kruhový plácek
+    expect(junctionRibbons([], [road(1, 30, 0), road(2, -30, 0), road(3, 0, 30)])).toEqual({
       trodden: [],
       improved: [],
       cart: [],
     });
-    expect(roadJunctions([road(1, 30, 0), road(2, -30, 0), road(3, 0, 30)]).trodden).toEqual([
-      { x: 0, z: 0, strength: 1 },
-    ]);
-    const mixed = roadJunctions([road(1, 30, 0, 'improved'), road(2, -30, 0), road(3, 0, 30)]);
+    expect(
+      junctionRibbons([j], [road(1, 30, 0), road(2, -30, 0), road(3, 0, 30)]).trodden,
+    ).toHaveLength(1);
+    const mixed = junctionRibbons(
+      [j],
+      [road(1, 30, 0, 'improved'), road(2, -30, 0), road(3, 0, 30)],
+    );
     expect(mixed.improved).toHaveLength(1);
     expect(mixed.trodden).toEqual([]);
     // vozová cesta (wagons.md) – plácek na šířku vozové cesty
-    const carts = roadJunctions([
-      { ...road(1, 30, 0), cart: true as const },
-      road(2, -30, 0),
-      road(3, 0, 30),
-    ]);
+    const carts = junctionRibbons(
+      [j],
+      [{ ...road(1, 30, 0), cart: true as const }, road(2, -30, 0), road(3, 0, 30)],
+    );
     expect(carts.cart).toHaveLength(1);
     expect(carts.trodden).toEqual([]);
   });

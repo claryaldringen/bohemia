@@ -10,6 +10,7 @@ import { isRotatedSquare, squareContains, type CellSquare } from './field-cells'
 import { insideOreSite, oreHeapRadius, oreSiteDiscs } from './ore-site-layout';
 import { insideGrainPit } from './grain-pit-layout';
 import { scenePenSquares, type SceneVillage } from '../village-view';
+import { nearestJunction } from './junction-shape';
 import { footprintRect, pointInPolygon, type Point } from './village-layout';
 
 // Výběr obydlí, polí, sadů a hřbitovů kliknutím do scény – čisté funkce bez Babylonu (paprsek
@@ -46,6 +47,11 @@ export type VillageTarget =
    * (`roadChainIds`), ať se klikne na kterýkoli.
    */
   | { kind: 'road'; id: number }
+  /**
+   * Křižovatka cest (paths.md – Křižovatky; Martin, #6: „samostatný objekt, který jde označit“):
+   * id křižovatky; klik do `JUNCTION_PICK_M` od středu.
+   */
+  | { kind: 'junction'; id: number }
   /** Rudiště kováře – jámy a hromada rudy (id kovárny – crafts.md, Uhlí a ruda kováře). */
   | { kind: 'ore-site'; id: number }
   /** Hliniště hrnčíře – jámy a hromada hlíny (id dílny hrnčíře – crafts.md, Hlína hrnčíře). */
@@ -93,6 +99,8 @@ const DWELLING_PICK_MARGIN_M = 1;
 const SACRED_PICK_HEIGHT_M = { idol: 3, shrine: 4.5 } as const;
 /** Úsek pevné cesty: zásah do tolika metrů od osy (pás cesty a kousek vedle). */
 export const ROAD_PICK_M = 2.5;
+/** Křižovatka: zásah do tolika metrů od středu (vchody jsou od středu 2,85–5,25 m). */
+export const JUNCTION_PICK_M = 3;
 /** Rudiště: krok výšky paprsku přes hromadu rudy (m). */
 const ORE_SITE_PICK_STEP_M = 0.25;
 /** Milíř: zásah do poloměru kupy s kouskem kolem, od země do výšky kupy (m). */
@@ -271,6 +279,9 @@ export function pickVillageTarget(
   // ohrada o víc čtvercích (oxen.md – Ohrady podle druhu) – kterýkoli její čtverec
   const pen = (village.pens ?? []).find((p) => scenePenSquares(p).some(hit));
   if (pen) return { kind: 'pen', id: pen.id };
+  // křižovatka přebíjí cesty, které do ní vbíhají (je to samostatný objekt)
+  const junction = nearestJunction(village.junctions, ground, JUNCTION_PICK_M);
+  if (junction !== null) return { kind: 'junction', id: junction };
   const road = nearestRoad(village, ground, ROAD_PICK_M);
   // celá cesta hráče – navazující úseky různého stupně jsou jedna cesta (Martin)
   if (road !== null)
@@ -380,6 +391,7 @@ export function targetExists(village: SceneVillage, target: VillageTarget): bool
   }
   if (target.kind === 'pen') return (village.pens ?? []).some((p) => p.id === target.id);
   if (target.kind === 'road') return (village.roads ?? []).some((r) => r.id === target.id);
+  if (target.kind === 'junction') return (village.junctions ?? []).some((j) => j.id === target.id);
   if (target.kind === 'ore-site' || target.kind === 'clay-site') {
     return dugSiteOf(village, target) !== undefined;
   }

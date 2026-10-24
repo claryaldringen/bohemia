@@ -79,6 +79,7 @@ import { dugSitesField } from './ore-site-view';
 import { kilnsField } from './kiln-view';
 
 import { grainPitsField } from './grain-pit-view';
+import { junctionsField } from './junction-view';
 
 import { sceneTrails } from './trail-view';
 
@@ -399,6 +400,7 @@ export function buildVillageView(
     ...dugSitesField(state, day),
     ...kilnsField(state, day),
     ...grainPitsField(state, day),
+    ...junctionsField(state, day),
   };
 }
 

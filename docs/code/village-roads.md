@@ -70,8 +70,9 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   `pathNetworkKey`, odloženě; výpočet sítě, obtisky a pás pod nimi v polích jdou ve třech
   úlohách – mezi ně se vejde snímek pohybu kamery) – obtisky `paths-worn` / `paths-earth` z `path-ribbon.ts` **nad**
   obtisky polí a vsi (alphaIndex 3 / 3,5, lift 0,05 / 0,055, zOffset −3,5 / −4; přes osetý díl
-  úzká stopa; v pevné cestě se pěšina dne ztrácí – `roadFade`; rozcestí pevných cest (konec aspoň tří čar) je
-  udusaný plácek `roadJunctions`, pěšiny dne ho nemají). **Pěšina dne
+  úzká stopa; v pevné cestě se pěšina dne ztrácí – `roadFade`; křižovatka pevných cest je udusaný obrys
+  `junctionShape` (Úloha 12 – viz Křižovatky níž; kruhy `roadJunctions` zmizely), pěšiny dne
+  plácek nemají). **Pěšina dne
   je nevýrazná** (Martin, 19. 10. 2026: „denní pěšina ať je nevýrazná“): vrstvy `PATH_WORN_LAYER`
   / `PATH_EARTH_LAYER` – slabě prošlapaná tráva 0,6–1,2 m, krytí 0,2–0,45, holá hlína jen u silné
   pěšiny, úzká a slabá, rozcestí jen jemně (`RibbonLayer.junction`); pevná cesta (`ROAD_*`) je vedle
@@ -228,10 +229,30 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   a zmizí s křižovatkou. Uzel s 5+ živými konci křižovatku zatím nemá (`splitCrowdedNode` se
   nevolá – na Vlkově žádný). Plocha pod křižovatkou (`roadCapsules` v `road-land.ts`): místo kruhu
   pásy ramen (pásy cest) a spojnice sousedních ramen (mezera pod 180°) ve vzdálenosti šířky
-  nejširší cesty. Scéna: `SceneVillage.junctions` (data pro Úlohu 12), do té doby kruh
-  `roadJunctions` (ve středu, kde končí ≥ 3 úseky). Měření `road-report.ts` – objekty po tvarech
+  nejširší cesty. Scéna: `SceneVillage.junctions` (Úloha 12 níž). Měření `road-report.ts` – objekty po tvarech
   a znameních, uzly 5+, přepočty a ohyby (`JUNCTION_RUNS`). Testy `junctions-network.test.ts`,
   `road-stubs.test.ts` (Y u branky hřbitova, 12 měsíců beze změny).
+  **Scéna (Úloha 12):** `lib/scene/junction-shape.ts` (čisté, bez Babylonu; test
+  `junction-shape.test.ts`). `junctionShape(j, roads)` – ramena jen s cestou, vchody z
+  `junctionEntranceM`, obrys proti směru hodin: u každého ramene dva rohy ve vchodu (± půl šířky
+  nejširší cesty kolmo na rameno) a mezi sousedními rameny vnitřní roh na ose mezery, kde se
+  protnou okraje pásů (nejvýš u vchodů, ± 12 % nepravidelnost podle polohy; od mezery 180° střed).
+  `junctionRibbons(junctions, roads)` – plácky po vrstvách obtisku (upravená, jinak vozová, jinak
+  vyšlapaná) s `RibbonJunction.outline`; `path-ribbon.ts` `addOutline` kreslí vějíř ze středu po
+  obrysu a měkký okraj (u vchodů po straně pásu, u vnitřních rohů od středu), obrys pro užší
+  vrstvu (holá hlína) se zmenší od středu; maska polí (`ribbonTrack`) bere kruh o průměrném
+  poloměru obrysu. Znamení: `junctionLandmarkPieces` → modely `junction-stone-1…2`,
+  `junction-post-1…2` (`tools/blender/roads.py`, atlas jako hať, 0 A.D. textury, vlastní tvary)
+  v instancích `RoadWorks.update(…, junctions)`; strom je dál `roadTrees` (stejně jako dřív).
+  Kámen a kůl se jako překážky dál počítají jádrem (`obstacleChangesAt` – balvan a keř), scéna je
+  nekreslí z `obstacles`. Klíč `junctionsKey` je v klíčích `path-renderer`, `field-renderer`
+  i `RoadWorks`. Výběr: `{ kind: 'junction', id }` – `nearestJunction` do `JUNCTION_PICK_M` (3 m)
+  od středu, přebíjí cestu; obrys výběru `selection-highlight.ts` (obrys + 0,35 m); údaje panelu
+  `junction-view.ts` (`VillageView.junctions`: tvar, počet cest, znamení, stáří), panel
+  `JunctionBody` (`selection/roads.tsx` – ikony `krizovatka-kriz` / `krizovatka-y` z
+  `tools/blender/icons.py`, počet cest, znamení, stáří; názvy jen v popiscích). Náhled
+  `/dev/panels?panel=krizovatka`, ukázka tří křižovatek `/dev/landscape` (tlačítko Křižovatky,
+  `dev-junctions.ts`).
 
 - **Vylepšení pevné cesty a chůze podle stupně** ([roads.md](../design/roads.md) – fáze 2):
   terén pěšin má příznaky `PATH_WETLAND` (mokřina – suchá rovina do 3 buněk od vody) a `PATH_WATER`;

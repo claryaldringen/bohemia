@@ -1055,6 +1055,18 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
     },
   },
   {
+    key: 'krizovatka',
+    label: 'Křižovatka',
+    details: {
+      kind: 'junction',
+      id: 12,
+      shape: 'cross',
+      roads: 4,
+      landmark: 'stone',
+      ageYears: 37,
+    },
+  },
+  {
     key: 'cesta',
     label: 'Cesta',
     details: {

@@ -30,7 +30,13 @@ import {
   ThreshingFloorBody,
 } from './selection/fields';
 import { Oaks, OakAge, SACRED_ICONS, SacredBody } from './selection/sacred';
-import { ROAD_KIND_ICONS, RoadBody } from './selection/roads';
+import {
+  JUNCTION_ICONS,
+  JUNCTION_NAMES,
+  JunctionBody,
+  ROAD_KIND_ICONS,
+  RoadBody,
+} from './selection/roads';
 export { ROAD_KIND_ICONS } from './selection/roads';
 
 /**
@@ -109,6 +115,11 @@ export function SelectionPanel({
   } else if (details.kind === 'grain-pit') {
     portrait = <Portrait icon="obilna-jama" name="Obilná jáma" />;
     body = <GrainPitBody details={details} />;
+  } else if (details.kind === 'junction') {
+    portrait = (
+      <Portrait icon={JUNCTION_ICONS[details.shape]} name={JUNCTION_NAMES[details.shape]} />
+    );
+    body = <JunctionBody details={details} />;
   } else if (details.kind === 'road') {
     portrait = (
       <Portrait icon={ROAD_KIND_ICONS[details.roadKind]} name={ROAD_KIND_NAMES[details.roadKind]} />
