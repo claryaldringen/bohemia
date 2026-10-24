@@ -53,12 +53,18 @@ export function houseBox(type: DwellingType, frame: ShapeFrame = PLAIN_FRAME): B
  */
 export function plotBox(
   position: Position,
-  plot: { x: number; z: number; size: number; rotation?: number },
+  plot: { x: number; z: number; size: number; rotation?: number; yard?: { x: number; z: number } },
 ): Box {
   const c = Math.cos(position.rotation);
   const s = Math.sin(position.rotation);
+  // u dvorce i dvůr – druhé políčko pozemku za plotem (trade.md); stojí na něm jen vojvodova
+  // rodina (lord.md – Ve scéně, villager-plan-lord.ts)
+  const corners = [
+    ...squareCorners(plot),
+    ...(plot.yard ? squareCorners({ x: plot.yard.x, z: plot.yard.z, size: plot.size }) : []),
+  ];
   // rohy políčka (natočeného pozemku) do os modelu (inverze localToWorld)
-  const local = squareCorners(plot).map(([x, z]) => {
+  const local = corners.map(([x, z]) => {
     const dx = x! - position.x;
     const dz = z! - position.z;
     return [dx * c - dz * s, dx * s + dz * c] as const;

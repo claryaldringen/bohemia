@@ -50,6 +50,8 @@ import { OrchardRenderer } from './orchard-renderer';
 import { PenAnimals } from './pen-animals';
 import { penAnimalsFor } from './pen-layout';
 import { PenRenderer } from './pen-renderer';
+import { TrainingGroundRenderer } from './training-ground';
+import { trainingGroundOf } from './training-ground-layout';
 import {
   PLOUGH_DAY_DEBUG,
   dayStints,
@@ -223,6 +225,8 @@ export class VillageRenderer {
   private readonly wild: WildGrowthRenderer;
   /** Ohrady s přístřeškem, zvířata v nich a spřežení na poli (oxen.md – village-pens.ts). */
   private readonly pens: PenRenderer;
+  /** Cvičiště vojvodovy rodiny na dvorku dvorce (lord.md – training-ground.ts). */
+  private readonly training: TrainingGroundRenderer;
   private readonly penAnimals: PenAnimals;
   private readonly teams: PloughTeams;
   private teamsKey = '';
@@ -313,6 +317,12 @@ export class VillageRenderer {
       mudMaterial: () => decalMaterial(this.meshHost, 'mud'),
       fences: this.fences,
     });
+    this.training = new TrainingGroundRenderer(scene, {
+      groundHeight: context.groundHeight,
+      addShadowCaster: (mesh) => context.addShadowCaster(mesh),
+      onAsyncChange: () => context.onAsyncChange(),
+      prepareMaterial: prepareDwellingMaterial,
+    });
     this.penAnimals = new PenAnimals(scene, {
       groundHeight: context.groundHeight,
       onLoaded: () => context.requestRender(),
@@ -365,6 +375,7 @@ export class VillageRenderer {
     const plots = this.plots.update(plotViews(village.dwellings));
     const sacred = this.sacred.update(village.sacred);
     const pens = this.updatePens(village);
+    const training = this.training.update(trainingGroundOf(village));
     const models = this.updateModels();
     const sites = this.updateConstruction();
     const decay = this.updateDecay();
@@ -381,6 +392,7 @@ export class VillageRenderer {
       plots ||
       sacred ||
       pens ||
+      training ||
       models ||
       sites ||
       decay ||
@@ -863,6 +875,7 @@ export class VillageRenderer {
     this.plots.dispose();
     // ohrady uvolní své ploty – před sdílenými ploty
     this.pens.dispose();
+    this.training.dispose();
     this.fences.dispose();
     this.orchards.dispose();
     this.sacred.dispose();

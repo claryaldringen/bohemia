@@ -14,6 +14,7 @@ import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import { Scene } from '@babylonjs/core/scene';
 import {
+  MANOR_AT,
   SHOWCASE_BUILDINGS,
   SHOWCASE_CARTS,
   SHOWCASE_DECAY,
@@ -43,6 +44,8 @@ import { createEngine, type RendererName } from './create-engine';
 import type { PitCut } from './dwelling-pit';
 import { eaveTufts, type TuftModel } from './dwelling-decor';
 import { HomesteadRenderer, type PlotView } from './homestead';
+import { TrainingGroundRenderer } from './training-ground';
+import { manorTrainingGround } from './training-ground-layout';
 import { applyGammaFog } from './gamma-fog';
 import {
   addInstancedModel,
@@ -194,6 +197,8 @@ export class BuildingShowcase {
   private variants: VillageRenderer | null = null;
   /** Pozemky polozemnic – plot a záhony po fázích jako ve vsi (homestead.ts). */
   private plots: HomesteadRenderer | null = null;
+  /** Cvičiště na dvorku dvorce (lord.md – training-ground.ts). */
+  private training: TrainingGroundRenderer | null = null;
   private fences: WovenFenceRenderer | null = null;
   private shadows: SunShadows | null = null;
   /** Vrhače stínu přidané dřív, než vznikne stínová mapa. */
@@ -430,6 +435,7 @@ export class BuildingShowcase {
     this.kilnDemo?.dispose();
     this.variants?.dispose();
     this.plots?.dispose();
+    this.training?.dispose();
     this.fences?.dispose();
     this.ploughDemo?.dispose();
     this.carts?.dispose();
@@ -738,6 +744,20 @@ export class BuildingShowcase {
       prepareWeedMaterial: prepareTuftMaterial,
       fences: this.fences,
     });
+    this.training = new TrainingGroundRenderer(scene, {
+      groundHeight: () => 0,
+      addShadowCaster: addCaster,
+      onAsyncChange,
+      prepareMaterial: prepareModelMaterial,
+    });
+    this.training.update(
+      manorTrainingGround({
+        x: MANOR_AT.x,
+        z: MANOR_AT.z,
+        size: 15,
+        yard: { x: MANOR_AT.x, z: MANOR_AT.z - 15 },
+      }),
+    );
     this.carts = new CartRenderer(scene, {
       baseUrl: '/models/',
       groundHeight: showcaseCartGround,

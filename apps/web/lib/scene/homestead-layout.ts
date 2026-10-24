@@ -20,6 +20,7 @@ import {
   type ShapeFrame,
 } from '@bohemia/game';
 import { seededRandom, shapedToWorld, type Point } from './village-layout';
+import { rangeStrip } from './training-ground-layout';
 import {
   decayFence,
   fenceStage,
@@ -352,6 +353,8 @@ function flatLayout(
             minZ: square.yard.z - yardHalf,
             maxZ: square.yard.z + yardHalf,
           },
+          // pruh střelnice vedle domu (lord.md – Terče a cvičiště na dvorku)
+          rangeStrip(square),
         ]
       : []),
   ];

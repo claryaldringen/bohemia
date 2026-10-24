@@ -163,6 +163,20 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   opravy – `showcaseRepair`). Opravovaná svatyně (`SceneSacred.buildings[].repairing`) má ohniště
   studená až do konce opravy (`sacredDecayParts(…, cold)`, bez dýmu).
 
+- **Cvičiště na dvorku dvorce** (lord.md – Terče a cvičiště na dvorku; Martin 22. 10. 2026: „Na
+  dvorku vojvodova dvorce tak musí být terče na lukostřelbu.“; podoba návrh Clauda): jen scéna –
+  není stavba ani překážka, nemá stav, síť pěšin ani vrstvu překážek nemění.
+  `training-ground-layout.ts` (čisté funkce, testy): `trainingGroundOf` – dvorec s dvorem má
+  cvičiště vždy (`manorTrainingGround`): střelnice `RANGE_M` = 20 m podél delší osy pruhem vedle
+  domu (≈ 0,35 strany políčka od osy), 2 terče 1,8 m před koncem dvora, proutěný plůtek za nimi;
+  brána je uprostřed konce dvora, pruh ji míjí. Na druhé straně dvorku cvičný kůl u plotu, stojan
+  se zbraněmi, dvě místa pro dvojice a u brány kůl na koně. Záhony dvorce pruh střelnice vynechají
+  (`rangeStrip` v `homestead-layout.ts`). Bez dvorce (`hutTrainingGround` – jen když rodina dnes
+  cvičí, `labor.lord.home`): 1 terč ≈ 10 m od obydlí na straně odvrácené od ostatních obydlí
+  (osamělé obydlí – před vchodem) a kůl stranou. Modely `training.glb` (`tools/blender/training_ground.py`,
+  vlastní CC0, paleta 8 × 1 px, jeden materiál) – `training-ground.ts` v nehybných instancích
+  (měřítko jako postavy – `FIGURE_SCALE`), instance jen při změně cvičiště.
+
 - **Řemeslné dílny** (ve hře od 18. 10. 2026, pravidla v [docs/design/crafts.md](../design/crafts.md),
   jádro a rozhraní viz Ves – Řemesla): `public/models/crafts/`
   hrnčíř, kovář a tesař (polozemnice s přístřeškem o `PORCH` 3,6 m vpředu, pod ním pec / výheň
