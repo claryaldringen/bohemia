@@ -364,14 +364,15 @@ export interface LordRides {
  * Kdo dnes jede a na kterém koni (horses.md – Výcvik koně a jezdec, Kdy a kam se jezdí): stejné
  * jako jízda v `trainLordDay` – jezdec z cvičící rodiny se svým koněm (`Horse.riderId`, kůň ve
  * službě) a hodinami jízdy dne (`trainingHours`), vojvoda první, pak od nejstaršího. V dnech na poli
- * a bez cvičící rodiny null; ves bez jezdců prázdné `riders`. Jen čte stav (pro scénu).
+ * (hlad, žňový den cvičících mužů) a bez cvičící rodiny null; ves bez jezdců prázdné `riders`. Jen čte stav (pro scénu).
  */
-export function lordRides(
-  state: LordView & Pick<VillageState, 'lord' | 'pens' | 'trails' | 'trade'>,
-  day: number,
-): LordRides | null {
+export function lordRides(state: VillageState, day: number): LordRides | null {
   const family = trainingFamily(state, day);
   if (!family || state.lord?.field) return null;
+  // ve žňový den jdou cvičící muži na žeň (`manorLabor` – `harvest`) a nejezdí (kůň stojí)
+  if (harvestHandsDay(state, day) && family.trainees.some((p) => ageGroup(p, day) !== 'child')) {
+    return null;
+  }
   const trainees = new Map(family.trainees.map((p) => [p.id, p]));
   const lordId = family.lord?.id;
   const riders: (LordRide & { bornDay: number })[] = [];

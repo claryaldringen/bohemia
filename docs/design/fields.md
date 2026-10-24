@@ -595,7 +595,8 @@ jenom natolik, aby vesnice neměla hlad.“ Martin schválil návrh, podrobnosti
 - **Osev navíc** = ostatní díly **v oběhu** – osévaný díl, který smí dál (aktuální úrodnost aspoň
   70 % přirozené), čerstvě založený díl a příloh odpočatý aspoň na 95 % (Martin 24. 10. 2026;
   dřív i příloh 70–95 % – osev navíc ho vytěžil a ves pak neměla z čeho osít potřebný osev; nouzový
-  příloh pod 70 % nikdy), v pořadí výběru (Přílohová soustava –
+  příloh pod 70 % nikdy; platí všude, kudy díly do osevu navíc přijdou – plán k 1. 9., zkrácení
+  rozjetého plánu i jarní hotové díly), v pořadí výběru (Přílohová soustava –
   Pořadí, po úsecích hospodářství od domu ven), **jen obilí**. Dostanou jen práci, která zbude po
   stavbách a opravách obydlí (Práce, bod 6); spřežení orají napřed potřebný osev, díly navíc jen
   kapacitou, která zbude (a ne v den, kdy spřežení vozí). Bez kontroly kapacity plánu – je to
@@ -773,15 +774,19 @@ vesnice populačně roste i bez zásahu hráče, za předpokladu, že má dostat
 
 - **Žňový den** = den v oknech žní a výmlatu kterékoli plodiny (červenec – žeň ozimu, luštěnin
   a lnu; srpen – výmlat ozimu a luštěnin, žeň jaře; září – výmlat jaře), kdy má ves v okně ještě
-  co sklízet nebo mlátit.
+  co sklízet nebo **opravdu jde mlátit** (snopy a humno s kapacitou, nebo nouzový výmlat; ves
+  bez humna se snopy, které nesmí mlátit, žňový den nemá – řemeslo a výcvik běží).
 - Ve žňový den jdou na žeň a výmlat i **řemeslníci se syny** ([crafts.md](crafts.md) –
   Řemeslníci na žních; řemeslo ten den stojí, ženy řemeslníků dál domácnost a lehčí práce) a
   **cvičící muži vojvodovy rodiny** ([lord.md](lord.md) – Kdy jde rodina na pole, bod 3; ženy
   rodiny dál jen domácnost). Mimo žňové dny dělají řemeslo a cvičí.
 - **Výrostci a starší** (Martin 24. 10. 2026): výrostci od 10 let a starší dají ve žňový den po
-  **0,5 člověkodne** – vázání, odnos, paběrky ([rešerše](research/2026-10-17-zemedelstvi-populace.md)
+  **0,5 člověkodne celkem** – vázání, odnos, paběrky ([rešerše](research/2026-10-17-zemedelstvi-populace.md)
   §5: dítě 7–13 let 0,3, starší 0,5). Chlapci a starší cvičící vojvodovy rodiny ne (cvičí, kryjí
-  dvorec). Dětem pasení a starším denní minimum zůstávají (žňová práce je navíc).
+  dvorec). Je to **celkem** 0,5 čd, ne navíc k tomu, co už dělají: starší, kteří kryjí denní minimum
+  domácnosti, žeň nepřidají (dají jen to, co jim nad minimum zbude), výrostek pasoucí stáda dá
+  žeň jen do 0,5 čd (po odečtení pasení). Cvičící muži vojvodovy rodiny na poli ve žňový den
+  nejezdí na koních (kůň stojí).
 - Jejich práce jde **jen na žeň a výmlat, před prací vsi** – ves má o to víc práce na setí,
   stavby a opravy; co žně a výmlat nespotřebují, řemeslu propadne (návrh Clauda).
 - **Plán osevu** (Kolik ves oseje) s nimi počítá v červenci a srpnu a ve výmlatu jaře v září

@@ -307,7 +307,8 @@ cart-renderer.ts) – proto nešli vybrat. Podrobnosti jsou návrh Clauda – je
 
 - Noc se nemodeluje – lidé pracují pořád (herní den trvá ≈ 86 s).
 - **Žně všemi rukama** ([pole](fields.md); Martin 24. 10. 2026): výrostci od 10 let a starší dají
-  ve žňový den po 0,5 člověkodne na žeň a výmlat (vázání, odnos, paběrky), stejně jdou na žně
+  ve žňový den **celkem** 0,5 člověkodne na žeň a výmlat (vázání, odnos, paběrky; starší po minimu
+  domácnosti, výrostek po pasení), stejně jdou na žně
   řemeslníci se syny a cvičící muži vojvodovy rodiny. Ve scéně zatím nemají vlastní postavy na
   poli – žeň a výmlat ukazují postavy podle rozdělení práce vsi (návrh Clauda, doplnit později).
 - Pohyb běží ve skutečném čase jako u domácích zvířat – ve zrychleném světě se lidé nehýbou

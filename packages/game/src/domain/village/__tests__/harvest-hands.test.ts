@@ -4,13 +4,14 @@ import { foundVillage, type PartInput } from '../actions';
 import { craftCoverage, craftHarvestLabor, newWorkshop, workshopLabor } from '../crafts';
 import { harvestHandsDay, harvestHelperLabor, HARVEST_HANDS_MONTHS } from '../harvest-hands';
 import { allocateDay } from '../labor';
-import { manorLabor } from '../lord';
+import { lordApartIds, lordRides, manorLabor } from '../lord';
 import { NO_CRAFTS } from '../productivity';
 import { CRAFT_BASE, FIELD_WORK_PER_HA, HARVEST_HELPERS, HARVEST_WORK_PER_HA } from '../rules';
 import { advanceVillage } from '../simulate';
 import { sowingCapacity, villageProductivity } from '../simulate-plan';
 import type { Person, VillageState } from '../types';
 import { dwelling } from './kin-fixtures';
+import { threshTasks } from '../threshing';
 import { planCrops } from '../year-plan';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
@@ -115,6 +116,19 @@ describe('žňový den (harvestHandsDay)', () => {
     expect(harvestHandsDay(s, at(600, 10, 10))).toBe(false);
   });
 
+  it('výmlat bez humna a bez nouzového výmlatu žňový den není – řemeslo a výcvik běží', () => {
+    const s = harvestVillage();
+    s.plan = null;
+    s.sheaves = { grainKg: 100, legumesKg: 0, work: { spring: 5 } };
+    const day = at(600, 9, 10);
+    const canThresh = threshTasks(s, day).length > 0;
+    expect(harvestHandsDay(s, day)).toBe(canThresh);
+    if (!canThresh) {
+      expect(workshopLabor(s, day, WORKSHOP, 0, 1).harvest).toBe(0);
+      expect(manorLabor(s, day, 0, 1).harvest).toBe(0);
+    }
+  });
+
   it('žeň z plánu: v okně sklizně ano, před ním ne', () => {
     const s = advanceVillage(harvestVillage(), at(600, 9, 1), null, null);
     expect(s.plan).not.toBeNull();
@@ -128,6 +142,25 @@ describe('žňový den (harvestHandsDay)', () => {
     }
     expect(harvestHandsDay(s, at(601, 6, 10))).toBe(false);
     expect([at(601, 7, 10), at(601, 8, 10)].some((d) => harvestHandsDay(s, d))).toBe(true);
+  });
+});
+
+describe('jízdy vojvodovy rodiny ve žních (lordRides)', () => {
+  it('ve žňový den, kdy jdou cvičící muži na pole, nikdo nejezdí', () => {
+    const s = advanceVillage(harvestVillage(), at(600, 9, 1), null, null);
+    s.lord = { trains: true };
+    for (const { work } of planCrops(s.plan!)) {
+      for (const task of ['reclaim', 'dig', 'sow', 'weed'] as const) {
+        work.done[task] = work.required[task];
+      }
+      if (work.plough) work.plough.done = work.plough.required;
+    }
+    s.sheaves = { grainKg: 0, legumesKg: 0 };
+    const harvestDay = [at(601, 7, 10), at(601, 8, 10)].find((d) => harvestHandsDay(s, d))!;
+    expect(harvestDay).toBeDefined();
+    expect(lordRides(s, harvestDay)).toBeNull();
+    // mimo žně se jezdí (výcvik běží)
+    expect(lordRides(s, at(601, 5, 10))).not.toBeNull();
   });
 });
 
@@ -181,11 +214,49 @@ describe('výrostci a starší ve žních (harvestHelperLabor)', () => {
       person(5, 50, 1, 'female'),
       person(6, 12, 2, 'male'),
     ];
-    expect(harvestHelperLabor(people, day)).toBeCloseTo(4 * HARVEST_HELPERS.perDay, 12);
-    expect(harvestHelperLabor(people, day, new Set([6]))).toBeCloseTo(
+    const base = harvestVillage();
+    const view = (list: Person[]): VillageState => ({
+      ...base,
+      people: list,
+      livestock: undefined,
+    });
+    // bez stád pasení 0, starší bez dvorce nad minimum (jediný starší nekryje ani minimum domácnosti)
+    expect(harvestHelperLabor(view(people.filter((p) => p.id !== 5)), day)).toBeCloseTo(
       3 * HARVEST_HELPERS.perDay,
       12,
     );
+    expect(
+      harvestHelperLabor(view(people.filter((p) => p.id !== 5)), day, new Set([6])),
+    ).toBeCloseTo(2 * HARVEST_HELPERS.perDay, 12);
+  });
+
+  it('starší, který kryje denní minimum, žeň nepřidá; nad minimum ano (celkem 0,5, ne +0,5)', () => {
+    const base = harvestVillage();
+    const elder = (id: number, dwellingId: number): Person => person(id, 55, dwellingId, 'female');
+    const view = (list: Person[]): VillageState => ({
+      ...base,
+      people: list,
+      livestock: undefined,
+    });
+    const one = [elder(1, OUTSIDE), person(2, 30, OUTSIDE, 'male')];
+    expect(harvestHelperLabor(view(one), START)).toBe(0);
+    // dva starší v domácnosti: minimum (< 1 čd) kryjí napřed, žeň dá jen zbytek
+    const two = [elder(1, OUTSIDE), elder(3, OUTSIDE), person(2, 30, OUTSIDE, 'male')];
+    const labor = harvestHelperLabor(view(two), START);
+    expect(labor).toBeGreaterThan(0);
+    expect(labor).toBeLessThan(2 * HARVEST_HELPERS.perDay);
+  });
+
+  it('výrostek, který pase stáda, dá žeň jen do celkových 0,5 čd', () => {
+    const base = harvestVillage();
+    const list = [person(1, 11, OUTSIDE, 'male'), person(2, 30, OUTSIDE, 'male')];
+    const noHerds = harvestHelperLabor({ ...base, people: list, livestock: undefined }, START);
+    expect(noHerds).toBeCloseTo(HARVEST_HELPERS.perDay, 12);
+    const herds = harvestVillage().livestock;
+    if (herds) {
+      const withHerds = harvestHelperLabor({ ...base, people: list, livestock: herds }, START);
+      expect(withHerds).toBeLessThanOrEqual(noHerds);
+    }
   });
 });
 
@@ -243,8 +314,11 @@ describe('plán osevu (sowingCapacity)', () => {
     const capacity = sowingCapacity(s, day, coverage);
     const labor = workshopLabor(s, day, WORKSHOP, coverage.pottery, p);
     const manor = manorLabor(s, day, coverage.pottery, p);
-    // syn hrnčíře (11 let) je výrostek – 0,5 čd
-    const hands = labor.craft + labor.harvest + manor.freeMen + HARVEST_HELPERS.perDay * p;
+    // syn hrnčíře (11 let) je výrostek – celkem 0,5 čd (po odečtení pasení)
+    const helpers = harvestHelperLabor(s, day, lordApartIds(s, day), p, coverage.pottery) * p;
+    expect(helpers).toBeGreaterThan(0);
+    expect(helpers).toBeLessThanOrEqual(HARVEST_HELPERS.perDay * p + 1e-9);
+    const hands = labor.craft + labor.harvest + manor.freeMen + helpers;
     const springPerDay = capacity.spring / (30 + 31 - 1);
     expect(capacity.july / 31 - springPerDay).toBeCloseTo(hands, 9);
     expect(capacity.august / 31 - springPerDay).toBeCloseTo(hands, 9);

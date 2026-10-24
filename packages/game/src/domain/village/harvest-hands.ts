@@ -2,8 +2,18 @@
 // rodina“) – jedno místo pravdy pro plán osevu (`sowingCapacity`) i práci dne (`work()`).
 import { dateOfDayIndex } from '../calendar';
 import { ageGroup, ageYears } from './people';
-import { CROP_ORDER, CROP_WINDOWS, HARVEST_HELPERS, type WindowSegment } from './rules';
-import { sheafWork, THRESHED_CROPS } from './threshing';
+import {
+  CROP_ORDER,
+  CROP_WINDOWS,
+  HARVEST_HELPERS,
+  LABOR_PER_DAY,
+  type WindowSegment,
+} from './rules';
+import { herdingDay, type HerdingState } from './herding';
+import { householdWater } from './labor';
+import { villageOxen } from './oxen';
+import { dailyMinPerHousehold } from './productivity';
+import { sheafWork, threshTasks, THRESHED_CROPS } from './threshing';
 import type { Person, VillageState } from './types';
 import { activeTasks, neededTaskRemaining, planCrops } from './year-plan';
 
@@ -28,13 +38,11 @@ export const HARVEST_HANDS_MONTHS: ReadonlySet<number> = new Set(
 
 /**
  * Je dnes žňový den (fields.md – Žně všemi rukama)? Měsíc okna žní nebo výmlatu a ves má v jeho
- * okně ještě co sklízet (plán) nebo mlátit (snopy) – pak jdou na pole i řemeslníci se syny
+ * okně ještě co sklízet (plán) nebo opravdu jde mlátit (snopy a humno či nouzový výmlat –
+ * `threshTasks`; ves bez humna se snopy, které nesmí mlátit, žňový den nemá) – pak jdou na pole i řemeslníci se syny
  * a cvičící muži vojvodovy rodiny; jinak dělají řemeslo a cvičí.
  */
-export function harvestHandsDay(
-  state: Pick<VillageState, 'plan' | 'sheaves'>,
-  day: number,
-): boolean {
+export function harvestHandsDay(state: VillageState, day: number): boolean {
   const { month } = dateOfDayIndex(day);
   if (!HARVEST_HANDS_MONTHS.has(month)) return false;
   if (state.plan) {
@@ -47,9 +55,14 @@ export function harvestHandsDay(
       }
     }
   }
-  return THRESHED_CROPS.some(
-    (crop) => inSegments(CROP_WINDOWS[crop].thresh, month) && sheafWork(state, crop) > EPSILON,
-  );
+  if (
+    !THRESHED_CROPS.some(
+      (crop) => inSegments(CROP_WINDOWS[crop].thresh, month) && sheafWork(state, crop) > EPSILON,
+    )
+  ) {
+    return false;
+  }
+  return threshTasks(state, day).some((task) => task.remaining > EPSILON);
 }
 
 /**
@@ -66,14 +79,40 @@ export function isHarvestHelper(person: Person, day: number): boolean {
 
 /**
  * Práce výrostků a starších ve žních (čd za den před štěstím) – lidé mimo `apart` (cvičící
- * vojvodova rodina – chlapci cvičí vždy, starší kryjí dvorec).
+ * vojvodova rodina – chlapci cvičí vždy, starší kryjí dvorec). Každý dá **celkem** `perDay`
+ * (Martin 24. 10. 2026: „po 0,5 čd“), ne k tomu, co už dělá: starší kryje denní minimum domácnosti
+ * (`adultDailyMin`) – žeň dá jen to, co mu nad minimum zbude; výrostek 7–13 let pasoucí stáda
+ * (`herdingDay`) má za sebou svůj podíl pasení, žeň dá zbytek do `perDay`.
  */
 export function harvestHelperLabor(
-  people: readonly Person[],
+  state: Pick<VillageState, 'people' | 'dwellings' | 'livestock' | 'pens'> & HerdingState,
   day: number,
   apart: ReadonlySet<number> = new Set(),
+  productivity = 1,
+  potteryCoverage = 0,
 ): number {
-  let count = 0;
-  for (const p of people) if (!apart.has(p.id) && isHarvestHelper(p, day)) count++;
-  return count * HARVEST_HELPERS.perDay;
+  let youths = 0;
+  const elders = new Map<number, number>();
+  for (const p of state.people) {
+    if (apart.has(p.id) || !isHarvestHelper(p, day)) continue;
+    if (ageGroup(p, day) === 'elder') elders.set(p.dwellingId, (elders.get(p.dwellingId) ?? 0) + 1);
+    else youths++;
+  }
+  let total = youths * HARVEST_HELPERS.perDay;
+  if (youths > 0) {
+    total -= Math.min(total, herdingDay(state, day, villageOxen(state)).free);
+  }
+  if (elders.size > 0 && productivity > 0) {
+    const minimum = dailyMinPerHousehold(potteryCoverage);
+    const water = new Map(
+      householdWater(state.people, state.dwellings).map((h) => [h.dwellingId, h.labor]),
+    );
+    for (const [id, count] of elders) {
+      const own = minimum + (water.get(id) ?? 0);
+      // starší kryjí minimum po `elder` × produktivita; nad ně žeň
+      const spare = count * LABOR_PER_DAY.elder - own / productivity;
+      total += Math.min(count * HARVEST_HELPERS.perDay, Math.max(0, spare));
+    }
+  }
+  return total;
 }

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
 import type { PartInput } from '../actions';
-import { extraSowable, extraSowingCrop } from '../extra-sowing';
+import { extraPartsOf, extraSowable, extraSowingCrop, queueExtraParts } from '../extra-sowing';
 import { fieldPartLooks, partYearWork } from '../field-progress';
 import { planPartIds, tilledShare } from '../year-plan';
 import { advanceVillage } from '../simulate';
@@ -152,6 +152,22 @@ describe('osev navíc', () => {
       .reduce((sum, e) => sum + (e.kind === 'harvest' ? e.kg : 0), 0);
     expect(kg).toBeGreaterThan(500);
   }, 60_000);
+
+  it('jediný vstup do osevu navíc: příloh 70–95 % `extraPartsOf` zahodí, jarní hotové díly též', () => {
+    const s = richVillage();
+    const [a, b, c] = s.parts;
+    a!.state = 'fallow';
+    a!.fertilityShare = 0.8;
+    b!.state = 'fallow';
+    b!.fertilityShare = 0.97;
+    c!.state = 'sown';
+    c!.fertilityShare = 0.9;
+    const parts = extraPartsOf([a!, b!, c!]);
+    expect(parts.map((e) => e.id)).toEqual([b!.id, c!.id]);
+    const plan = { extra: [] } as unknown as NonNullable<VillageState['plan']>;
+    queueExtraParts(plan, parts);
+    expect(plan.extra!.map((e) => e.id)).toEqual([b!.id, c!.id]);
+  });
 
   it('osev navíc jen na dílech v oběhu – ne na přílohu 70–95 % (Martin 24. 10. 2026)', () => {
     const s0 = richVillage();

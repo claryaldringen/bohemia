@@ -420,7 +420,7 @@ export function work(
   // a starší jen na žeň a výmlat (cvičící rodina – chlapci cvičí, starší kryjí dvorec – ne)
   const harvestHands = harvestHandsDay(state, day)
     ? craftHarvestLabor(state, day, crafts, coverage.pottery, productivity) +
-      harvestHelperLabor(state.people, day, lordApartIds(state, day))
+      harvestHelperLabor(state, day, lordApartIds(state, day), productivity, coverage.pottery)
     : 0;
   const allocate = (): DayAllocation =>
     allocateDay({

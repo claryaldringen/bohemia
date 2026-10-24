@@ -15,8 +15,7 @@ import { plannedLegumeKg } from './husbandry';
 import { ableTeams, oxPens, ploughCapacityPerDay } from './oxen';
 import { trimPlanToTarget } from './plan-trim';
 import {
-  extraPartOf,
-  extraSowable,
+  extraPartsOf,
   queueExtraParts,
   reclaimedLogs,
   sowParts,
@@ -165,10 +164,7 @@ export function planYear(
   // osev navíc: ostatní díly v oběhu, v pořadí výběru – dostanou práci, která zbude po stavbách
   // (fields.md – Osev navíc); příloh 70–95 % ne (`extraSowable`); osévaný díl si pamatuje léta
   // v řadě, než půjde ladem
-  const extra = blocks
-    .flat()
-    .filter((p) => !chosen.has(p.id) && extraSowable(p))
-    .map(extraPartOf);
+  const extra = extraPartsOf(blocks.flat().filter((p) => !chosen.has(p.id)));
   if (extra.length > 0) state.plan.extra = extra;
   // vrácený mladý les dá za dospělé stromy klády (fields.md – Zarůstání, forest.md – Mýcení)
   addLogs(state, reclaimedLogs(sown, day));
@@ -236,7 +232,7 @@ export function joinFinishedParts(
   sowParts(spring, 'spring');
   // hotové díly, které potřebný osev nevzal, čekají v osevu navíc (fields.md – Osev navíc)
   unqueueExtraParts(target, taken);
-  queueExtraParts(target, rest.map(extraPartOf));
+  queueExtraParts(target, extraPartsOf(rest));
 }
 
 /**
@@ -353,7 +349,7 @@ export function sowingCapacity(
       return sum + labor.craft + labor.harvest;
     }, 0) +
     (manor ? manor.freeMen : 0) +
-    harvestHelperLabor(state.people, day, apart) * productivity;
+    harvestHelperLabor(state, day, apart, productivity, coverage.pottery) * productivity;
   const harvestFree = (villageFree + hands) * PEAK_CAPACITY_SHARE;
   const days = (
     segments: Parameters<typeof windowDaysLeft>[1],

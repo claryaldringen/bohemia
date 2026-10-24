@@ -391,7 +391,7 @@ describe('len napřed – ves, které len za obilím vycházel, má plán beze z
     // – plán osevu ho počítá do podzimní práce; a s jarním vrácením přílohu pod jař (21. 10. 2026)
     // a se žněmi všemi rukama (fields.md – Žně všemi rukama, 24. 10. 2026): žeň 30 místo 50 čd/ha
     // a výrostci se staršími ve žních – červenec a srpen pojmou víc dílů, výběr se mění
-    expect(fingerprint(plans)).toBe('660:531c689c');
+    expect(fingerprint(plans)).toBe('660:49172c6b');
   });
 });
 

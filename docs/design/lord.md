@@ -135,9 +135,9 @@ pozná hrozbu ze dvou odhadů, které už počítá – nový odhad nevzniká.
 
 3. **Žně a výmlat** (Martin 24. 10. 2026: „Dílny i vojvodova rodina“ – ves hladověla, protože
    žně stihla jen část dospělých). Ve **žňový den** ([pole](fields.md) – Žně všemi rukama: okna
-   žní a výmlatu červenec–září, dokud je co sklízet nebo mlátit) dají cvičící muži rodiny celou
+   žní a výmlatu červenec–září, dokud je co sklízet nebo opravdu jde mlátit) dají cvičící muži rodiny celou
    práci po denním minimu dvorce na žeň a výmlat – před prací vsi; co žně nespotřebují, cvičí
-   (podíl dne jako u pomoci s osevem). Pomoc s osevem (bod 1) ten den není – muži jsou na žních.
+   (podíl dne jako u pomoci s osevem). Pomoc s osevem (bod 1) ten den není – muži jsou na žních a nejezdí na koních.
    Ženy a dcery dál jen domácnost, chlapci 7–13 let cvičí; při hladu platí bod 2.
 
 - Proč tyto dva: první chrání před hladem příští rok (osev), druhý před hladem teď; oba jsou čistá
