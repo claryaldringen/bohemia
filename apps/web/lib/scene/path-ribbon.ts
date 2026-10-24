@@ -141,6 +141,16 @@ export const WAGON_GRAVEL_LAYER: RibbonLayer = {
   widthFactor: 1,
   wobble: 0,
 };
+/**
+ * Štěrk plácku křižovatky vozových cest: ramena přes obě koleje (2 × CART_RUT_OFFSET_M + šířka
+ * koleje), jinak by plácek byl jen holá světlá hlína bez štěrku jako navazující pásy.
+ */
+export const WAGON_GRAVEL_JUNCTION_LAYER: RibbonLayer = {
+  ...WAGON_GRAVEL_LAYER,
+  width: { weak: 2 * CART_RUT_OFFSET_M + 0.55, strong: 2 * CART_RUT_OFFSET_M + 0.55 },
+  softM: 0.3,
+  junction: { scale: 1, alpha: 0.75 },
+};
 
 /**
  * Čára pásu – pěšina z jádra, u pevné cesty navíc zúžení konců (roads.md – Cesta pro hráče;

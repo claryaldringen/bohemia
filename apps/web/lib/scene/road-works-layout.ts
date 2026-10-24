@@ -572,11 +572,15 @@ const SLOPE_STEP_M = 0.5;
  */
 export const SLOPE_LOOK = { grassYears: 15, oldAlpha: 0.45, edgeM: 0.6 };
 /**
- * Strmost úpravy napříč osou (změna odchylky terénu na metr), od které je hlína svahu vidět
- * a od které plně: svah výkopu a náspu 1 : 1 je plně vidět, mírné dorovnání terénu (plochá pláň,
- * pár cm na šířku pláně) hlínu nemá – jinak by z něj byla široká tmavá šmouha mimo cestu.
+ * Strmost úpravy napříč osou (změna odchylky terénu PROTI PŮVODNÍMU terénu na metr – boční sklon
+ * terénu se tím odečte, výkop 0,8 m a násep 1 m jsou strmé stejně na rovině i na svahu 50 %),
+ * od které je hlína svahu vidět a od které plně: svah 1 : 1 je plně vidět, mírné dorovnání
+ * terénu (plochá pláň, pár cm na šířku pláně) hlínu nemá – jinak by z něj byla široká tmavá šmouha
+ * mimo cestu. Strmost se bere jako největší v okolí ±1 řezu, ať ji nezředí vyhlazený terén.
  */
-const SLOPE_GRADE = { from: 0.12, full: 0.45 } as const;
+const SLOPE_GRADE = { from: 0.08, full: 0.25 } as const;
+/** Konec osy, ke kterému do tolika metrů dosahuje jiná osa, na ni navazuje a nevytrácí se. */
+const SLOPE_JOIN_M = 1;
 /** Lem okraje: odchylka terénu (m), do které se místo bere za okraj svahu (a nad kterou už ne). */
 const EDGE_DIFF_M = { full: 0.1, none: 0.3 } as const;
 /**
@@ -609,8 +613,26 @@ interface SlopeLattice {
   indices: Uint32Array;
 }
 
+/** Vzdálenost bodu od úsečky (m). */
+function distanceToSegment(
+  x: number,
+  z: number,
+  ax: number,
+  az: number,
+  bx: number,
+  bz: number,
+): number {
+  const dx = bx - ax;
+  const dz = bz - az;
+  const l2 = dx * dx + dz * dz;
+  const t = l2 > 0 ? Math.min(1, Math.max(0, ((x - ax) * dx + (z - az) * dz) / l2)) : 0;
+  const ex = x - (ax + dx * t);
+  const ez = z - (az + dz * t);
+  return Math.sqrt(ex * ex + ez * ez);
+}
+
 /** Vzdálenost k nejbližší hotové ose zemních prací – úsečky v přihrádkách po SLOPE_REACH_M. */
-function nearestAxis(
+export function nearestAxis(
   axes: readonly { x: number; z: number }[][],
 ): (x: number, z: number) => number {
   const cell = SLOPE_REACH_M;
@@ -640,16 +662,55 @@ function nearestAxis(
     for (let i = ci - 1; i <= ci + 1; i++) {
       for (let j = cj - 1; j <= cj + 1; j++) {
         for (const [ax, az, bx, bz] of bins.get(`${i},${j}`) ?? []) {
-          const dx = bx - ax;
-          const dz = bz - az;
-          const l2 = dx * dx + dz * dz;
-          const t = l2 > 0 ? Math.min(1, Math.max(0, ((x - ax) * dx + (z - az) * dz) / l2)) : 0;
-          best = Math.min(best, Math.hypot(x - (ax + dx * t), z - (az + dz * t)));
+          best = Math.min(best, distanceToSegment(x, z, ax, az, bx, bz));
         }
       }
     }
     return best;
   };
+}
+
+/** Hotové osy zemních prací, vzdálenost k nejbližší a které jejich konce navazují na jinou osu. */
+interface SlopeContext {
+  shown: SceneEarthwork[];
+  distance: (x: number, z: number) => number;
+  joined: Map<SceneEarthwork, { start: boolean; end: boolean }>;
+}
+
+const contexts = new WeakMap<readonly SceneEarthwork[], SlopeContext>();
+
+/** Společné podklady svahů – staví se jednou pro dané zemní práce (svahy i lem). */
+function slopeContext(earthworks: readonly SceneEarthwork[]): SlopeContext {
+  const cached = contexts.get(earthworks);
+  if (cached) return cached;
+  const shown = earthworks.filter((e) => e.profile.length >= 2 && e.shownM > 0);
+  const axes = shown.map((e) => {
+    const at = lengthsAlong(e.profile);
+    return e.profile.filter((_, k) => at[k]! <= e.shownM + 1e-6);
+  });
+  const joinedTo = (self: number, p: { x: number; z: number }): boolean =>
+    axes.some((axis, o) => {
+      if (o === self) return false;
+      for (let k = 1; k < axis.length; k++) {
+        const a = axis[k - 1]!;
+        const b = axis[k]!;
+        if (distanceToSegment(p.x, p.z, a.x, a.z, b.x, b.z) <= SLOPE_JOIN_M) return true;
+      }
+      return false;
+    });
+  const joined = new Map<SceneEarthwork, { start: boolean; end: boolean }>();
+  shown.forEach((e, i) => {
+    const axis = axes[i]!;
+    const at = lengthsAlong(e.profile);
+    const endM = Math.min(e.shownM, at[at.length - 1]!);
+    joined.set(e, {
+      start: axis.length > 0 && joinedTo(i, axis[0]!),
+      end: axis.length > 0 && endM > 0 && joinedTo(i, axisAt(e.profile, endM)),
+    });
+  });
+  const context = { shown, distance: nearestAxis(axes), joined };
+  contexts.set(earthworks, context);
+  return context;
 }
 
 /**
@@ -669,13 +730,9 @@ function slopeLattice(
   const alphas: number[] = [];
   const indices: number[] = [];
   const lanes = Math.round((2 * SLOPE_REACH_M) / SLOPE_STEP_M) + 1;
-  const shown = earthworks.filter((e) => e.profile.length >= 2 && e.shownM > 0);
-  const axisOf = (e: SceneEarthwork): { x: number; z: number }[] => {
-    const at = lengthsAlong(e.profile);
-    return e.profile.filter((_, k) => at[k]! <= e.shownM + 1e-6);
-  };
-  const distance = nearestAxis(shown.map(axisOf));
+  const { shown, distance, joined } = slopeContext(earthworks);
   for (const e of shown) {
+    const join = joined.get(e)!;
     const profile = e.profile;
     const at = lengthsAlong(profile);
     const endM = Math.min(e.shownM, at[at.length - 1]!);
@@ -697,7 +754,12 @@ function slopeLattice(
       const nx = -(b.z - a.z) / tl;
       const nz = (b.x - a.x) / tl;
       const grass = Math.min(1, ageAt(at[k]!) / SLOPE_LOOK.grassYears);
-      const ends = Math.min(1, at[k]! / SLOPE_FADE_M, (endM - at[k]!) / SLOPE_FADE_M);
+      // konec, na který navazuje další zemní práce, se nevytrácí (mezera mezi úseky)
+      const ends = Math.min(
+        join.start ? 1 : at[k]! / SLOPE_FADE_M,
+        join.end ? 1 : (endM - at[k]!) / SLOPE_FADE_M,
+        1,
+      );
       const start = positions.length / 2;
       const diffs: number[] = [];
       for (let l = 0; l < lanes; l++) {
@@ -707,11 +769,14 @@ function slopeLattice(
         positions.push(x, z);
         diffs.push((height(x, z) - base(x, z)) / scale);
       }
-      const grades = diffs.map((_, l) => {
+      const central = diffs.map((_, l) => {
         const lo = Math.max(0, l - 1);
         const hi = Math.min(lanes - 1, l + 1);
         return Math.abs(diffs[hi]! - diffs[lo]!) / ((hi - lo) * SLOPE_STEP_M);
       });
+      const grades = central.map((_, l) =>
+        Math.max(central[Math.max(0, l - 1)]!, central[l]!, central[Math.min(lanes - 1, l + 1)]!),
+      );
       const section = alphasOf(diffs, grades, grass);
       for (let l = 0; l < lanes; l++) {
         const t = Math.abs(-SLOPE_REACH_M + l * SLOPE_STEP_M);
