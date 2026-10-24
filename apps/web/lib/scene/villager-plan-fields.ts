@@ -348,7 +348,7 @@ export function carriers(ctx: Context, share: SceneLaborShare, fieldId: number):
       x: square.x + ax.x * cu + az.x * cv,
       z: square.z + ax.z * cu + az.z * cv,
     };
-    const path = walkRoute(ctx, door, edge) ?? fieldPath(ctx, door, edge);
+    const path = walkRoute(ctx, door, edge, home.id) ?? fieldPath(ctx, door, edge, home.id);
     if (!path) return fallback();
     return shuttle(path, {
       outClip: 'walk',

@@ -237,9 +237,12 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   a vědry (klipy `carry-water` a `water-idle`, prop `yoke` – `procedural_yoke` v
   `people_from_0ad.py`, ruce `reach` na provazech). Schůdná země postav přes celou krajinu líně
   po 4 m (`lazyWalkable`, `VillageLivestock.walkGroundFor`) – pole až 800 m od obydlí; `inBox`
-  má rychlé odmítnutí podle dosahu domu, `routeWalker` (`path-router.ts`) vede postavy po uložených trasách simulace a pamatuje si dotazy; krátké
-  pohyby (`walkRoute`) obcházejí plot ohrady (box ohrady = plot odsazený `PEN_FENCE_INSET_M`, ulička 3 m
-  mezi ohradami průchozí; strana, kde navazuje další čtverec téže ohrady, plot nemá).
+  má rychlé odmítnutí podle dosahu domu, `routeWalker` (`path-router.ts`) vede postavy po
+  uložených trasách simulace a pamatuje si dotazy (`route(a, b, reach, dwellingId)` – trasa
+  domácnosti `d:<id>` má přednost před geometricky bližší cizí); krátké pohyby (`walkRoute`)
+  obcházejí plot ohrady (box ohrady = plot odsazený `PEN_FENCE_INSET_M`, ulička 3 m mezi
+  ohradami průchozí; strana, kde navazuje další čtverec téže ohrady, plot nemá). Svatby, pohřby
+  a karavany bez uložené trasy jdou také přes `walkRoute`, plot nepřekročí.
   **Kovář** (crafts.md – Uhlí a ruda kováře): kopáči na valu jámy s motykou (`oreDiggers`), nosiči
   uhlí a rudy s košem (`smithFetchFigures` – postava na každého nosiče z `LaborShare.ages`, nejvýš
   `FETCH_MAX`, ne proud; synové pod 14 let menší postavy dětí); kovář s vozem se nekreslí.

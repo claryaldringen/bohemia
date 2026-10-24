@@ -63,7 +63,7 @@ export function errandPath(
   if (!end) return null;
   // pěšina končí u vody / pod stromy – postava se zastaví na nejbližším volném místě
   const goal = nearestFree(ctx, end.x, end.z, 4) ?? (kind === 'water' ? end : null);
-  const along = paths.route(door, end);
+  const along = paths.route(door, end, undefined, home.id);
   if (!goal || !along || along.points.length < 2) return null;
   const points = [...along.points.slice(0, -1), [goal.x, goal.z] as const];
   if (!trafficRouteOk(ctx, points, false)) return null;
@@ -269,7 +269,7 @@ export function trafficRoutes(ctx: Context, labor: SceneLabor): TrafficRoute[] {
       'kiln',
       `kiln:${t.id}:${t.kiln ?? ''}`,
       share.manDays * FIELD_TRIPS_PER_MAN_DAY,
-      walkRoute(ctx, door, edge) ?? fieldPath(ctx, door, edge),
+      walkRoute(ctx, door, edge, home.id) ?? fieldPath(ctx, door, edge, home.id),
       TRAFFIC_LOOK.kiln.women,
       home.id,
     );
@@ -300,7 +300,7 @@ export function trafficRoutes(ctx: Context, labor: SceneLabor): TrafficRoute[] {
         'field',
         `field:${share.activity}:${fieldId}:${home.id}`,
         trips,
-        walkRoute(ctx, door, edge) ?? fieldPath(ctx, door, edge),
+        walkRoute(ctx, door, edge, home.id) ?? fieldPath(ctx, door, edge, home.id),
         WOMEN[share.activity],
         home.id,
       );

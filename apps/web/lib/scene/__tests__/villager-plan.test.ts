@@ -1643,6 +1643,67 @@ describe('vchody domů podle varianty rozměrů (population.md – Varianty rozm
   });
 });
 
+describe('svatba – průvod nepřejde plot ohrady (paths.md – Ploty jsou neprůchodné)', () => {
+  const DAY = 1000;
+  const START = LIVESTOCK_EPOCH_MS + 5_000_000;
+  const dayWindow = (day: number): { startMs: number; endMs: number } => ({
+    startMs: START + (day - DAY) * 86_000,
+    endMs: START + (day - DAY + 1) * 86_000,
+  });
+  const base: SceneVillage = {
+    ...village([]),
+    sacred: { oaks: [{ id: 77, x: 10, z: 60 }], groves: [], buildings: [] },
+    weddings: [
+      {
+        key: `${DAY}:0`,
+        day: DAY,
+        bride: { id: 50, age: 19, from: 2 },
+        groom: { id: 51, age: 23, from: 2 },
+        home: 2,
+        guests: [],
+      },
+    ],
+  };
+
+  it('úsek bez uložené trasy vede kolem plotu, ne skrz něj', () => {
+    const free = planWeddings(base, GROUND, { seed: 3, dayWindow })[0]!.village.path.points;
+    const a = free[0]!;
+    const b = free[free.length - 1]!;
+    // ohrada napříč cestou, o kus vpravo: obejít ji jde jen z té strany (vlevo stojí domy)
+    const mid = { x: (a[0] + b[0]) / 2 + 4, z: (a[1] + b[1]) / 2 };
+    const penned: SceneVillage = {
+      ...base,
+      pens: [
+        {
+          id: 1,
+          cell: { x: 1, y: 0 },
+          x: mid.x,
+          z: mid.z,
+          size: 15,
+          built: true,
+          progress: 1,
+          oxen: 0,
+          trainees: 0,
+          cows: 0,
+        },
+      ],
+    };
+    const points = planWeddings(penned, GROUND, { seed: 3, dayWindow })[0]!.village.path.points;
+    // plot stojí 1,5 m uvnitř čtverce 15 m; žádný bod úseku nesmí ležet na plotu
+    const half = 6;
+    for (let i = 1; i < points.length; i++) {
+      const [px, pz] = points[i - 1]!;
+      const [qx, qz] = points[i]!;
+      for (let s = 0; s <= 40; s++) {
+        const x = px + ((qx - px) * s) / 40;
+        const z = pz + ((qz - pz) * s) / 40;
+        const inside = Math.abs(x - mid.x) < half - 0.3 && Math.abs(z - mid.z) < half - 0.3;
+        expect(inside).toBe(false);
+      }
+    }
+  });
+});
+
 describe('svatba – průvod mimo rozpočet pracujících (kinship.md – Svatba ve scéně)', () => {
   const DAY = 1000;
   const START = LIVESTOCK_EPOCH_MS + 5_000_000;

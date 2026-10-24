@@ -295,8 +295,8 @@ export const FIELD_ENTRY_M = 260;
  * pěšinách k nejbližšímu bodu pěšiny u dílu a od něj rovně přes pole (pole lidi nezdržuje –
  * paths.md); rovný kus musí vést po suchu. Bez pěšin nebo přes vodu null.
  */
-export function fieldPath(ctx: Context, door: Point, edge: Point): Route | null {
-  const along = ctx.paths?.route(door, edge, FIELD_ENTRY_M);
+export function fieldPath(ctx: Context, door: Point, edge: Point, homeId?: number): Route | null {
+  const along = ctx.paths?.route(door, edge, FIELD_ENTRY_M, homeId);
   if (!along || along.points.length < 2 || !trafficRouteOk(ctx, along.points)) return null;
   return route(along.points, along.pace);
 }
@@ -308,7 +308,7 @@ export const ROUTE_HOUSE_SLACK_M = 1.5;
  * Trasa po pěšinách pro provoz na cestách projde: odbočka na pěšinu a (`lastLeg`) z ní k cíli po
  * suchu mimo hroby; nikde přes dům nebo pozemek – vyhlazená pěšina smí jen o kousek
  * (ROUTE_HOUSE_SLACK_M) zasáhnout do rohu (síť pěšin domy obchází sama); k brance ohrady vede
- * pěšina krmení, ohrada se proto nekontroluje.
+ * pěšina krmení; ploty ohrad (`houses`) se kontrolují v `pathRouteOk`, tady ne.
  */
 export function trafficRouteOk(
   ctx: Pick<Context, 'houses' | 'ground' | 'graves'>,
@@ -362,8 +362,9 @@ export function walkRoute(
   ctx: Pick<Context, 'houses' | 'ground' | 'graves'> & { paths?: VillagerPaths | null },
   a: Point,
   b: Point,
+  homeId?: number,
 ): Route | null {
-  const along = ctx.paths?.route(a, b);
+  const along = ctx.paths?.route(a, b, undefined, homeId);
   if (along && along.points.length >= 2 && pathRouteOk(ctx, along.points)) {
     return route(along.points, along.pace);
   }

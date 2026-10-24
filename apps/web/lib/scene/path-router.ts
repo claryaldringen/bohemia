@@ -21,7 +21,7 @@ type Found = ReturnType<VillagerPaths['route']>;
 
 /**
  * Postavy po uložených trasách: `route(a, b)` najde trasu, která začíná u `a` (brána domu) a končí
- * u `b` (nejvýš `reach` m), nebo opačně; `errand` je konec trasy domácnosti pro vodu nebo dřevo.
+ * u `b` (nejvýš `reach` m), nebo opačně (trasa domácnosti `dwellingId` má přednost); `errand` je konec trasy domácnosti pro vodu nebo dřevo.
  */
 export function routeWalker(routes: readonly StoredRoute[], cellM: number): VillagerPaths {
   const walked: WalkedRoute[] = [];
@@ -37,8 +37,15 @@ export function routeWalker(routes: readonly StoredRoute[], cellM: number): Vill
   const memo = new Map<string, Found>();
   const dist = (p: readonly [number, number], x: number, z: number): number =>
     Math.hypot(p[0] - x, p[1] - z);
-  const find = (a: { x: number; z: number }, b: { x: number; z: number }, reach: number): Found => {
-    let best: { points: readonly (readonly [number, number])[]; cost: number } | null = null;
+  const find = (
+    a: { x: number; z: number },
+    b: { x: number; z: number },
+    reach: number,
+    dwellingId?: number,
+  ): Found => {
+    type Pick = { points: readonly (readonly [number, number])[]; cost: number };
+    let own: Pick | null = null;
+    let other: Pick | null = null;
     for (const w of walked) {
       const first = w.points[0]!;
       const last = w.points[w.points.length - 1]!;
@@ -50,10 +57,16 @@ export function routeWalker(routes: readonly StoredRoute[], cellM: number): Vill
         if (near > START_REACH_M || far > reach) continue;
         // blíž k oběma koncům; při shodě víc používaná trasa
         const cost = near + far - w.route.trips / 1e6;
-        if (best && best.cost <= cost) continue;
-        best = { points: reversed ? [...w.points].reverse() : w.points, cost };
+        const mine = dwellingId !== undefined && w.home === `d:${dwellingId}`;
+        const current = mine ? own : other;
+        if (current && current.cost <= cost) continue;
+        const pick = { points: reversed ? [...w.points].reverse() : w.points, cost };
+        if (mine) own = pick;
+        else other = pick;
       }
     }
+    // trasa domácnosti má přednost před geometricky bližší trasou cizí domácnosti
+    const best: Pick | null = own ?? other;
     if (!best) return null;
     const points: [number, number][] = [
       [a.x, a.z],
@@ -67,11 +80,11 @@ export function routeWalker(routes: readonly StoredRoute[], cellM: number): Vill
     return { points, pace };
   };
   return {
-    route(a, b, reach = START_REACH_M) {
-      const key = `${a.x.toFixed(2)},${a.z.toFixed(2)},${b.x.toFixed(2)},${b.z.toFixed(2)},${reach}`;
+    route(a, b, reach = START_REACH_M, dwellingId) {
+      const key = `${a.x.toFixed(2)},${a.z.toFixed(2)},${b.x.toFixed(2)},${b.z.toFixed(2)},${reach},${dwellingId ?? ''}`;
       if (memo.has(key)) return memo.get(key)!;
       if (memo.size >= MEMO_SIZE) memo.clear();
-      const found = find(a, b, reach);
+      const found = find(a, b, reach, dwellingId);
       memo.set(key, found);
       return found;
     },

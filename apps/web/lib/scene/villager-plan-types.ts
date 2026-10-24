@@ -167,12 +167,14 @@ export interface VillagerPaths {
   /**
    * Trasa z `a` do `b` po pěšinách – body [x, z] od `a` do `b` a tempo úseků (po pěšině se jde
    * rychleji – paths.md), nebo null – jde se rovnou. `reach` = jak daleko od pěšiny smí cíl být
-   * (bez údaje kousek – díl daleko v poli: po pěšině k poli a přes pole).
+   * (bez údaje kousek – díl daleko v poli: po pěšině k poli a přes pole). `dwellingId` = obydlí
+   * domácnosti: její trasa (`d:<id>`) má přednost před geometricky bližší trasou cizí domácnosti.
    */
   route(
     a: { x: number; z: number },
     b: { x: number; z: number },
     reach?: number,
+    dwellingId?: number,
   ): { points: readonly (readonly [number, number])[]; pace: readonly number[] } | null;
   /** Kam chodí domácnost (id obydlí) pro vodu nebo dřevo – konec její pěšiny, nebo null. */
   errand(dwellingId: number, kind: 'water' | 'wood'): { x: number; z: number } | null;

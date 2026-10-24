@@ -26,6 +26,19 @@ describe('routeWalker – chůze postav po uložených trasách', () => {
     for (const p of r.pace.slice(1, -1)) expect(p).toBeCloseTo(PATH_WALK.speed, 9);
   });
 
+  it('s id domácnosti vyhraje její vlastní trasa, i když je cizí blíž', () => {
+    const own = { ...east('d:1', 'field', 0, 20), start: [0, 6] as [number, number] };
+    const foreign = east('d:2', 'field', 0, 20);
+    const walker = routeWalker([foreign, own], CELL_M);
+    const a = { x: 0, z: 1 };
+    const b = { x: 100, z: 1 };
+    // bez id vyhraje geometricky bližší (cizí), s id vlastní
+    expect(walker.route(a, b)!.points[1]![1]).toBeCloseTo(0, 6);
+    expect(walker.route(a, b, undefined, 1)!.points[1]![1]).toBeCloseTo(6 * CELL_M, 6);
+    // bez vlastní trasy v dosahu zůstane záloha geometricky
+    expect(walker.route(a, b, undefined, 9)!.points[1]![1]).toBeCloseTo(0, 6);
+  });
+
   it('zpět po téže trase obráceně', () => {
     const walker = routeWalker([east('d:1', 'water', 0, 20)], CELL_M);
     const r = walker.route({ x: 100, z: 1 }, { x: 0, z: 1 })!;
