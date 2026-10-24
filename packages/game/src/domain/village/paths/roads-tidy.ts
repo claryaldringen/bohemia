@@ -47,6 +47,15 @@ import { SpotContext, plantingBlocker } from './roads-trees';
  * slabší zmizí (lidé chodí po silnější).
  */
 const BRAID_M = 25;
+/**
+ * Krátký vzdálený kus copánku (návrh Clauda, Vlkov 24. 10. 2026): slabší úsek smí od silnějšího
+ * odběhnout nad BRAID_M, ale souvisle nejvýš max(BRAID_FAR_RUN_M, BRAID_FAR_SHARE délky úseku)
+ * a nejdál BRAID_FAR_MAX_M – oblouk kolem překážky je pořád ta samá cesta. Delší nebo vzdálenější
+ * kus jsou dvě cesty.
+ */
+const BRAID_FAR_RUN_M = 25;
+const BRAID_FAR_SHARE = 0.08;
+const BRAID_FAR_MAX_M = 2 * BRAID_M;
 /** Trasa delší o víc než tento násobek je u copánku oklika – zmizí ona. */
 const BRAID_LONGER = 1.05;
 /** Kol úklidu (souběžné kusy → díry → copánky) nejvýš. */
@@ -225,7 +234,8 @@ function braidOrder(a: Road, b: Road): number {
 
 /**
  * Copánky se rozpletou (mutuje): dva úseky mezi stejnými dvěma uzly (oba konce společné), slabší
- * (`braidOrder` – nižší stupeň, oklika) se od silnějšího nikde nevzdálí víc než BRAID_M – slabší
+ * (`braidOrder` – nižší stupeň, oklika) se od silnějšího nikde nevzdálí víc než BRAID_M (krátký
+ * vzdálený kus se toleruje, BRAID_FAR_RUN_M) – slabší
  * zmizí jako vyříznutý souběžný kus (`cutRoad` – stromy u něj stojí dál, jabloně patří
  * silnějšímu). Cesty ve stavbě zůstanou. Vrátí, jestli něco odstranil.
  */
@@ -246,13 +256,20 @@ export function removeBraids(roads: VillageRoads, constructions: readonly Constr
       for (const strong of order.slice(0, i)) {
         if (endsOf(strong) !== key) continue;
         const axis = strong.points;
-        const far = resample(weak.points, null, PARALLEL_STEP_M).points.some((p) => {
+        const limit = Math.max(BRAID_FAR_RUN_M, BRAID_FAR_SHARE * roadLengthM(weak));
+        let run = 0;
+        let far = false;
+        for (const p of resample(weak.points, null, PARALLEL_STEP_M).points) {
           let best = Infinity;
           for (let k = 1; k < axis.length; k++) {
             best = Math.min(best, toSegment(p.x, p.z, axis[k - 1]!, axis[k]!).distance);
           }
-          return best > BRAID_M;
-        });
+          run = best > BRAID_M ? run + PARALLEL_STEP_M : 0;
+          if (best > BRAID_FAR_MAX_M || run > limit) {
+            far = true;
+            break;
+          }
+        }
         if (!far) {
           braid = { weak, strong };
           break;
