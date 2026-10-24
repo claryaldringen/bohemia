@@ -158,7 +158,9 @@ rodiny (návrh Clauda – Martin uvidí):
   a jen dokud dům zůstával plný – pravidlo bylo kvůli stěhování tam a zpět, které po zavedení
   příbuzenství odpadlo (hlídá test).
 - **Dědic:** nejstarší ženatý syn zůstává s rodiči (dnešní dědic u neplodných rodičů platí
-  obecně – dům dědí nejstarší syn).
+  obecně – dům dědí nejstarší syn). **Výjimka – dvorec vojvody** (Martin, 24. 10. 2026, issue #9
+  fáze 1): po sňatku odcházejí všichni synové včetně nejstaršího; svobodní synové sami
+  neodcházejí (návrh Clauda) – [vojvodova rodina](lord.md) – Rod vojvody.
 - **Nejstarší dítě smí odejít samo** (Martin): z plného i přeplněného domu (Martin, 18. 10. 2026:
   „ať prázdný dům obsadí i plná domácnost“) smí do prázdného nebo nového domu odejít i
   **svobodný** nejstarší syn (od 16 let) – a oženit se tam (sňatkem ve vsi nebo z okolí). **Dál
