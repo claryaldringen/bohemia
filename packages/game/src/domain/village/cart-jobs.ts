@@ -257,6 +257,11 @@ export interface WaterCartPlan {
   /** Kolik vody vůz přivezl (l) a za kolik jízd (podíl na náklad – jako svoz). */
   litres: number;
   trips: number;
+  /**
+   * Kolik dní vozu se spřežením jízdy zaberou (jízdy ÷ jízdy vozu za den – `cartTripsPerDay`) –
+   * podíl dne páru, který ráno sveze vodu od rádla (wagons.md – Voda ráno ve dny orby).
+   */
+  cartDays: number;
   /** Kolik vozů jelo a jakých. */
   carts: number;
   kind: CartKind;
@@ -376,6 +381,7 @@ export function waterCartPlan(
     saved,
     litres,
     trips,
+    cartDays: trips / tripsPerCart,
     carts: Math.min(carts, Math.max(1, Math.ceil(trips / tripsPerCart - EPSILON))),
     kind,
     spot: { x: drive.x, z: drive.z },

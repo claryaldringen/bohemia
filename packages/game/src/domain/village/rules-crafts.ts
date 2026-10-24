@@ -434,3 +434,9 @@ export const CART_JOBS = {
   order: readonly CartJob[];
   water: { barrelL: Record<CartKind, number> } & Record<string, unknown>;
 } & Record<string, unknown>;
+
+// Voda ráno ve dny orby (wagons.md – Voda ráno ve dny orby; Martin 24. 10. 2026: „Rozhodne
+// ekonomika“, čísla návrh Clauda): pár od rádla sveze ráno vodu, jen když jízdy zaberou nejvýš
+// `maxTeamShare` dne páru (víc už není ráno) a když orba, kterou dnes nestihne, nechá oknu orby
+// rezervu – zbytek orby se vejde do `windowReserve` kapacity rádel ve zbývajících dnech okna.
+export const MORNING_WATER = { maxTeamShare: 0.25, windowReserve: 0.5 } as const;

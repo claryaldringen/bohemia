@@ -249,6 +249,14 @@ export {
   type SmithCart,
   type WaterCartPlan,
 } from './cart-jobs';
+export {
+  morningWater,
+  ploughWindowsToday,
+  villagersToday,
+  waterHouseholdsToday,
+  type MorningWater,
+  type PloughWindow,
+} from './morning-water';
 export * from './paths';
 export * from './road-trees';
 export * from './road-upgrades';

@@ -222,7 +222,14 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   sjede, uložený ve `VillageState.waterCart` – čtyřkolák `waterCart4` – podle klíče chůze, tedy
   i podle pevných cest a měsíčních stadií dílů; v době osevu může vyjít null a po žni jízda) a `waterCartPlan` z
   `householdWater` (labor.ts) – přirážka za vodu se zmenší a přičte se díl posádky (v denním
-  minimu). Jízdy vozí `villageCartDrives` (vozová síť – cena v m po louce a konec trasy, bez
+  minimu); výběr druhu vozu `bestWaterPlan` (simulate-hauls.ts). **Voda ráno ve dny orby**
+  (`morning-water.ts`, wagons.md – Voda ráno ve dny orby): když vodu neveze vůz se zbylými voly,
+  `work()` po prvním rozdělení práce spočítá orbu, kterou ves dnes opravdu naplánovala, a
+  `morningWater` rozhodne (podíl dne páru `WaterCartPlan.cartDays`, rezerva okna
+  `ploughWindowsToday`, `MORNING_WATER`); vyhraje-li voda, `cutPlough` zkrátí orbu dne o podíl
+  páru (i kapacitu pro osev navíc) a práce se rozdělí znovu. Domácnosti pro vodu
+  `villagersToday` / `waterHouseholdsToday` – týž výběr pro simulaci i scénu (bez dílen,
+  kování a dvorce cvičící rodiny). Jízdy vozí `villageCartDrives` (vozová síť – cena v m po louce a konec trasy, bez
   krajiny vzdušně), do ročního provozu cest `addRoadCartTrips`. Rozdělení práce: `haul`
   s `LaborShare.job` (`charcoal` / `ore` / `clay` / `seed` / `water`), cíl milíř (`kiln` i u
   dílny), rudiště (`ore`), hliniště (`clay`), díl pole, sad (jablka – orchard.md, Jablka vozem:
@@ -234,7 +241,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   osivo `outbound` (`CartShuttle.loadedOut` – naložené tam), trasa k milíři a břehu
   (`cartRouteToday`); voda, uhlí, ruda a osivo jezdí tempem volů ve skutečném čase (`steadyJob`
   v `village-carts.ts`), ne v okně herního dne jako svoz úrody. Komu vůz vodu přivezl, ukazuje
-  `SceneLabor.homes[].cartWater` (týž `waterCartPlan` ve `village-view-scene.ts` – druh vozu
+  `SceneLabor.homes[].cartWater` (týž `waterCartPlan` z `waterHouseholdsToday` ve `village-view-scene.ts` – druh vozu
   vítězného plánu z `LaborShare.fourWheel` a jeho uložená jízda `storedWaterCartDrive`) – pěšky pro
   ni chodí méně lidí (Postavy – Provoz na cestách).
 
