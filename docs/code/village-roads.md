@@ -666,3 +666,21 @@ landscape, obstacles)` v `paths/roads-v2.ts`, `updateVillage` ho volá po `withR
   bledne dál (`withRoadCondition`). `cutEnds` a `cartCandidates` zůstávají – pořád je čte a píše
   úklid a převzetí vyšlapaných cest vozy. Ves bez cest a ves s `v2` vrací týž objekt. Test
   `roads-v2.test.ts`.
+- **Jednorázová přestavba sítě (Úloha R1, Martin 24. 10. 2026 – varianta A):** `withRoadsRebuilt(state,
+landscape, obstacles)` v `paths/roads-rebuild.ts`, `updateVillage` ho volá po `withRoadsV2`; ves
+  s `roads.v2` bez `roads.rebuilt` (nová ves má `rebuilt: 1` z `emptyRoads`) a s trasami. Čistá
+  `rebuildRoads`: `seedWear` (vyšlapanost z `trafficField(routes).cells` × `ROAD_REBUILD.seedDays`,
+  max se stávající), zahodí úseky mimo pevné (`Construction.roadIds`, úseky nehotových stezek,
+  `grade: 'wagon'` – R2, opuštěné) a `junctions`, pak průchody `rebuildRoadsPass` (`roads.ts` –
+  `roadsMonthRun` s `tidyKey` smazaným) → v 1. průchodu `patchTrails` (nepokryté kusy starých os
+  hotových stezek přes `formRoad`) → `transferUpgrades` (podíl délky do `nearM` od starých
+  upravených / vyježděných / průsekových os, `shareNear`) → `restoreTrails` (`trailAxisRoads`,
+  záložně s `trodden = true` a úpravou vyšlapaných úseků na ose) → `relinkTrees` (stromy bez místa
+  k nejbližšímu úseku do `ROAD_TREES.offsetM.to + nearM`) a `relinkApples` → `lineRoads(all)` →
+  `refreshWalkDistances` (nové trasy); konec, když se `networkOf` (osy živých úseků a středy
+  křižovatek bez id) nezmění, nejvýš `ROAD_REBUILD.passes`. Nové úseky opuštěné v průchodu
+  (id ≥ původní `nextId`) se smažou. Kronika se vrátí na původní délku, `flushWear` na konci.
+  Pozor: vznik cesty (`commitDraft`) nahradí `state.roads` kopií – po průchodu číst znovu ze stavu.
+  `trailAxisRoads` (`trail-axis.ts`) bere křižovatky jako jeden uzel (`junctions`, konce ramen
+  nejblíž středu) – `restoredTrailPieces` je předává. Počítadlo `REBUILD_PASSES`. Test
+  `roads-rebuild.test.ts`; měření Vlkova ve scratchpadu (`diag-rebuild/metrics.mts`).

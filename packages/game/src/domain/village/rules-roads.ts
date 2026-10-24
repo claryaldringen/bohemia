@@ -46,6 +46,12 @@ export const ROAD_DECAY = {
 // v úklidu sloučí se sousední cestou (konec u jiné cesty – díra), jinak zmizí; delší zarůstá
 // (`ROAD_DECAY`)
 export const ROAD_STUB = { remnantM: 30 } as const;
+// paths.md – Jednorázová přestavba sítě (Martin 24. 10. 2026, varianta A: „vylepšení se přenesou na
+// nové cesty, které vedou zhruba tam, kde staré“; čísla návrh Clauda): vyšlapanost se naseje, jako by
+// se po dnešních trasách chodilo `seedDays` dní; nový úsek, jehož aspoň `share` délky leží do `nearM`
+// od osy staré upravené cesty (stezky), je upravený s hatí a lávkou (stejně příznak vyježděná
+// a průsek); kus staré stezky dál než `nearM` od nové sítě se vrátí; průchodů nejvýš `passes`
+export const ROAD_REBUILD = { seedDays: 365, nearM: 4, share: 0.6, passes: 4 } as const;
 // wagons.md – Vozová síť a vyjeté cesty (Martin, 19. 10. 2026: „Vozy mohou cestu vyjezdit, ale
 // nemají takovou prostupnost jako lidé … ve svahu, kde lidé zvládnou chodit rovně, vůz bude muset
 // vyjezdit serpentiny.“; čísla návrh Clauda – rešerše fáze 1 je ověří): sklon ve směru jízdy nad

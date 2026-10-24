@@ -308,6 +308,21 @@ export function tidyRoadsNow(
   tidyRoads(roads, state.constructions, () => false, context, undefined, state.trails);
 }
 
+/**
+ * Jeden průchod jednorázové přestavby sítě (`rebuildRoads` – paths.md, Jednorázová přestavba sítě;
+ * mutuje): měsíční kontrola dne `day` bez ohledu na datum a s úklidem vždy – zánik a kusy pod
+ * stavbami, vznik cest z vyšlapanosti od kotvy ke kotvě, úklid, cesty k vchodům a křižovatky.
+ */
+export function rebuildRoadsPass(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer | null,
+): void {
+  if (state.roads) delete state.roads.tidyKey;
+  roadsMonthRun(state, day, landscape, obstacles);
+}
+
 /** Kolikrát běžel měsíční úklid (`tidyMonth`) – pro testy a měření, hra ho nečte. */
 export const TIDY_RUNS = { count: 0 };
 

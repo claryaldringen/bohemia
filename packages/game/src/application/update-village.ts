@@ -26,6 +26,7 @@ import {
   withVisitsSeed,
   withRoadCondition,
   withRoadsV2,
+  withRoadsRebuilt,
   withDynasty,
   withBridgedRoads,
   withDwellingShapes,
@@ -195,7 +196,13 @@ export async function updateVillage(
     // zobrazuje, ať je scéna má (paths.md – Kdy se trasy počítají a co se ukládá)
     // starší ves přejde na nový systém cest: jednou uklidí síť a smaže stará pole (paths.md –
     // Převod starých vsí) – až po trasách, kotvy jsou z nich
-    const current = withRoadsV2(withRoutes(advanced, landscape, obstacles), landscape, obstacles);
+    // a jednou přestaví síť cest z vyšlapanosti dnešních tras – vylepšení se přenesou (paths.md –
+    // Jednorázová přestavba sítě, Martin 24. 10. 2026)
+    const current = withRoadsRebuilt(
+      withRoadsV2(withRoutes(advanced, landscape, obstacles), landscape, obstacles),
+      landscape,
+      obstacles,
+    );
     const changed = change(current);
     if (!changed.ok) return changed;
     // na místo zříceniny jde stavět – stavba zbytek jámy odstraní (ruins.ts); stavba na obilné
