@@ -314,10 +314,11 @@ export function populationDay(
     if (roll < Math.min(1, base + starvation)) {
       dead.add(person.id);
       const group = ageGroup(person, day);
+      const age = ageYears(person.bornDay, day);
       events.push(
         roll < base
-          ? { day, kind: 'death', group }
-          : { day, kind: 'death', group, cause: 'hunger' },
+          ? { day, kind: 'death', group, age }
+          : { day, kind: 'death', group, age, cause: 'hunger' },
       );
       // mohyla podle významu zemřelého – vojvodova rodina, hlava rodiny, dítě (cemetery.md)
       const full = bury(state, day, person);

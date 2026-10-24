@@ -28,8 +28,9 @@ export interface WeddingCouple {
 export type ChronicleEvent = { day: number } & (
   | { kind: 'village-founded' }
   | { kind: 'birth' }
+  /** `age` – věk zemřelého v celých letech (štěstí: starší ubere méně, happiness.md); starší události bez něj. */
   /** `cause: 'hunger'` – zemřel hlady (nahromaděný hlad, population.md); jinak bez údaje. */
-  | { kind: 'death'; group: 'child' | 'adult' | 'elder'; cause?: 'hunger' }
+  | { kind: 'death'; group: 'child' | 'adult' | 'elder'; age?: number; cause?: 'hunger' }
   /** Zemřel poslední člověk – ves vymřela (population.md – Hlad a vymření). */
   | { kind: 'village-extinct' }
   | { kind: 'household-founded'; dwellingId: number }

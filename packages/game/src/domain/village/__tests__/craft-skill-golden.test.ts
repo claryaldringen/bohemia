@@ -100,10 +100,12 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
       'sheaves',
       // nová ves bez jam (production-chains.md – Obilné jámy) – bez výmlatu se nic neukládá
       'grainPits',
+      // věk zemřelého v události úmrtí (happiness.md – Co ubírá) – jen zápis do kroniky
+      'age', // hash 3bd10c3d: úmrtí podle věku mění štěstí (a tím práci), jinak shodné s f0150b51
     ]);
     const stripped = JSON.stringify(legacyShape(next), (key, value: unknown) =>
       marks.has(key) ? undefined : value,
     );
-    expect(hash(stripped)).toBe('f0150b51');
+    expect(hash(stripped)).toBe('3bd10c3d');
   }, 120_000);
 });
