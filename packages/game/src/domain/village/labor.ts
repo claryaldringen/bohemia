@@ -13,6 +13,21 @@ export type LaborTaskName =
   TaskName | OrchardTaskName | 'plough' | 'mow' | 'slaughter' | 'grain-pit';
 
 /**
+ * Úlohy, na které jde pomoc rodiny vojvody (`lordHelp`): jen práce potřebného osevu – vrácení a
+ * kopání půdy, orba, setí, plet, žně a výmlat plodin. Seč, porážku, jámy na zrno a péči o sad
+ * rodina nepřebírá, stejně jako stavby a opravy (lord.md).
+ */
+const SOWING_HELP_TASKS: ReadonlySet<LaborTaskName> = new Set([
+  'reclaim',
+  'dig',
+  'plough',
+  'sow',
+  'weed',
+  'harvest',
+  'thresh',
+]);
+
+/**
  * Lehčí polní práce, které smějí dělat i ženy řemeslníků (crafts.md – Kdo dělá řemeslo; Martin
  * 22. 10. 2026: „setí, žně, mlácení zrna, v případě potřeby i okopávání motykou. Nekovou,
  * nekácí, neorou, nestaví.“): setí, okopávání, žně a výmlat.
@@ -48,7 +63,7 @@ export interface DayAllocationInput {
   /**
    * Pomoc vojvodovy rodiny s potřebným osevem (lord.md – Kdy jde rodina na pole, bod 1; `manorLabor`
    * – `help`, člověkodny před štěstím) – zásobník jako `lordField`, ale až po práci vsi: pokryje
-   * jen, co z úloh dne ves nestihne, takže vsi nikdy neuvolní práci na stavby, opravy ani osev
+   * jen, co z úloh osevu ves nestihne, takže vsi nikdy neuvolní práci na stavby, opravy ani osev
    * navíc (návrh Clauda). Bez údaje 0.
    */
   lordHelp?: number;
@@ -171,7 +186,9 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     amount += lord;
     amount += take(task.remaining - amount);
     // pomoc rodiny s osevem až po práci vsi – jen co ves dnes nestihne
-    const help = Math.max(0, Math.min(task.remaining - amount, helpLeft));
+    const help = SOWING_HELP_TASKS.has(task.name)
+      ? Math.max(0, Math.min(task.remaining - amount, helpLeft))
+      : 0;
     helpLeft -= help;
     amount += help;
     tasks[task.name] += amount;

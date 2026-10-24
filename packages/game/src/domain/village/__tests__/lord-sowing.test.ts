@@ -180,13 +180,49 @@ describe('práce dne (manorLabor, allocateDay)', () => {
     const p = villageProductivity(s, coverage);
     const october = manorLabor(s, at(600, 10, 5), coverage.pottery, p);
     expect(october.free).toBeGreaterThan(0);
-    expect(october.help).toBeCloseTo(0.3 * october.free, 12);
+    expect(october.help).toBeCloseTo(0.3 * october.freeMen, 12);
     expect(october.field).toBe(0);
     expect(manorLabor(s, at(600, 12, 5), coverage.pottery, p).help).toBe(0);
     s.lord = { trains: true, field: { since: START, reason: 'hunger' } };
     const hungry = manorLabor(s, at(600, 10, 5), coverage.pottery, p);
     expect(hungry.field).toBe(hungry.free);
     expect(hungry.help).toBe(0);
+  });
+
+  it('s osevem pomáhají jen muži – žena a dcery ne, při hladu celá rodina', () => {
+    const s = sowingVillage(8000);
+    s.plan = { plannedDay: PLAN_DAY, lordHelp: { autumnWinter: 1 } } as YearPlan;
+    s.people.push(person(15, 15, s.manorId!, 'female', { fatherId: 10, motherId: 11 }));
+    const coverage = craftCoverage(s, START);
+    const p = villageProductivity(s, coverage);
+    const day = at(600, 10, 5);
+    const women = s.people.filter((q) => q.dwellingId === s.manorId && q.sex === 'female');
+    expect(women.length).toBeGreaterThanOrEqual(3);
+    const calm = manorLabor(s, day, coverage.pottery, p);
+    expect(calm.freeMen).toBeGreaterThan(0);
+    expect(calm.freeMen).toBeLessThan(calm.free);
+    expect(calm.help).toBeCloseTo(calm.freeMen, 12);
+    s.lord = { trains: true, field: { since: START, reason: 'hunger' } };
+    const hungry = manorLabor(s, day, coverage.pottery, p);
+    expect(hungry.field).toBe(hungry.free);
+    expect(hungry.field).toBeGreaterThan(calm.help);
+  });
+
+  it('pomoc rodiny jde jen na práce osevu, ne na seč a jiné úlohy dne', () => {
+    const base = { householdElders: [0], potteryCoverage: NO_CRAFTS.pottery, capacity: 0 };
+    const a = allocateDay({
+      ...base,
+      lordHelp: 5,
+      tasks: [
+        { name: 'mow', remaining: 2 },
+        { name: 'orchard-care', remaining: 2 },
+        { name: 'sow', remaining: 2 },
+      ],
+    });
+    expect(a.tasks.mow).toBe(0);
+    expect(a.tasks['orchard-care']).toBe(0);
+    expect(a.tasks.sow).toBeCloseTo(2, 12);
+    expect(a.lordField).toBeCloseTo(2, 12);
   });
 
   it('pomoc rodiny jde až po práci vsi – vsi neuvolní práci na stavby ani osev navíc', () => {
@@ -233,7 +269,8 @@ describe('plán osevu s rodinou (planYear, trimPlan)', () => {
     expect(load.winterAutumn).toBeGreaterThan(village.autumnWinter);
     // v září rodina pomáhá, v zimě cvičí celý den
     const september = advanceVillage(planned, at(600, 9, 10), null);
-    expect(september.labor?.lord?.field).toBeGreaterThan(0);
+    expect(lordHelpShare(planned.plan!, at(600, 9, 10))).toBeGreaterThan(0);
+    expect(september.labor?.lord?.household).toBe(2);
     const winter = advanceVillage(september, at(600, 12, 10), null);
     expect(winter.labor?.lord).toEqual({
       training: 3,

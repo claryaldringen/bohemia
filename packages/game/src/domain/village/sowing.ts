@@ -644,7 +644,7 @@ export const SOWING_CAPACITY_WINDOWS: Readonly<Record<LordHelpWindow, readonly W
 };
 
 /**
- * Podíl dne dospělých cvičící vojvodovy rodiny po oknech, aby ves stihla výběr osevu `load`
+ * Podíl dne mužů cvičící vojvodovy rodiny po oknech, aby ves stihla výběr osevu `load`
  * (lord.md – Kdy jde rodina na pole, bod 1): chybějící práce (zátěž nad volnou prací vsi bez
  * rodiny `village`) ÷ práce rodiny v okně (`withLord − village`), nejvýš 1. Podzim ozimu,
  * červenec a srpen přímo. Jař jako `fitsSpring` – vrácení a kopání na podzim, kolik po ozimu
@@ -680,7 +680,7 @@ export function lordSowingHelp(
 }
 
 /**
- * Podíl dnešního dne, který dospělí cvičící rodiny dají potřebnému osevu (`YearPlan.lordHelp`,
+ * Podíl dnešního dne, který muži cvičící rodiny dají potřebnému osevu (`YearPlan.lordHelp`,
  * lord.md – Kdy jde rodina na pole, bod 1): nejvyšší podíl oken, do kterých dnešek padne. Mimo
  * okna (zima, květen–červen) a v plánu bez pomoci (i u starších vsí) 0.
  */

@@ -49,13 +49,14 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   denním minimu dospělých (`adultDailyMin` – zvířata a domácí výroba bokem), bez cvičící
   vojvodovy rodiny. **Pomoc rodiny s potřebným osevem** (lord.md – Kdy jde rodina na pole, bod 1):
   když výběr bez rodiny nedá `harvestKg`, `planYear` vybere znovu se `sowingCapacity(…, { lord:
-true })` (práce dospělých rodiny po minimu dvorce – `manorLabor.free`) ještě před nouzovým osevem
+true })` (práce cvičících mužů rodiny po minimu dvorce – `manorLabor.freeMen`; ženy a dcery jen při hladu) ještě před nouzovým osevem
   a do `YearPlan.lordHelp` zapíše podíl dne rodiny po oknech (`lordSowingHelp` z
-  `chooseCrops(…).load`: chybějící práce ÷ práce rodiny, nejvýš 1; jař napřed z jara, zbytek
+  `chooseCrops(…).load`: chybějící práce ÷ práce mužů rodiny, nejvýš 1; jař napřed z jara, zbytek
   z podzimu). Osev navíc jsou dál díly mimo výběr a dostanou jen práci vsi. Den: `lordHelpShare`
-  (nejvyšší podíl oken dneška, okna `SOWING_CAPACITY_WINDOWS`) × `free` = `manorLabor.help` →
-  `allocateDay` – `lordHelp` až po práci vsi (jen co ves dnes nestihne, vsi neuvolní práci na
-  stavby ani osev navíc); podíl dne na poli pro `trainLordDay` = spotřeba ÷ `free`. Jarní úprava:
+  (nejvyšší podíl oken dneška, okna `SOWING_CAPACITY_WINDOWS`) × `freeMen` = `manorLabor.help` →
+  `allocateDay` – `lordHelp` až po práci vsi, jen na úlohy osevu (`SOWING_HELP_TASKS`: vrácení, plet, žně, výmlat,
+  kopání, orba, setí; jen co ves dnes nestihne, vsi neuvolní práci na stavby ani osev navíc);
+  podíl dne na poli pro `trainLordDay` = spotřeba ÷ `freeMen` (při hladu ÷ `free`, i ženy). Jarní úprava:
   `trimPlan` v březnu–dubnu přepočítá `lordHelp` ze zbytku plánu (`springLordHelp`). Výhled jídla do sklizně (`eatDiet`) počítá s mlékem stád do sklizně
   (`milkAheadEnergy` z `milkEnergyBetween`) a celou zásobou sýra.
   Polní úlohy obou plodin řadí `fieldTasks` v `simulate-work.ts`

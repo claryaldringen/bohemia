@@ -301,7 +301,7 @@ export interface YearPlan extends CropWork {
    */
   extra?: ExtraPart[];
   /**
-   * Podíl dne dospělých cvičící vojvodovy rodiny na potřebném osevu po oknech (lord.md – Kdy jde
+   * Podíl dne mužů cvičící vojvodovy rodiny na potřebném osevu po oknech (lord.md – Kdy jde
    * rodina na pole, bod 1; `lordSowingHelp`): jen když by ves bez rodiny potřebný osev nestihla.
    * Plán 1. 9., jaro přepočítá jarní úprava (`trimPlan`). Chybí = 0 (i plány starších vsí).
    */

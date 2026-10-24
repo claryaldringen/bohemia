@@ -299,8 +299,8 @@ export const SOW_AFTER_DIG_DAYS = 1;
  * Ves, která orá (`plough`), má navíc kapacitu spřežení v oknech orby (oxen.md – Jen rádlo):
  * denní orba všech spřežení krát dny oken kopání – září–říjen pro ozim (bez posledního dne, ať se
  * zaseje i poslední zoraný pruh), září–listopad a březen–duben pro jař a luštěniny. Cvičící
- * vojvodova rodina je mimo práci vsi; s `lord` se přičte i práce jejích dospělých po minimu dvorce
- * (`manorLabor` – `free`, lord.md – Kdy jde rodina na pole, bod 1) – jen do plánu potřebného osevu.
+ * vojvodova rodina je mimo práci vsi; s `lord` se přičte i práce jejích mužů po minimu dvorce
+ * (`manorLabor` – `freeMen`, lord.md – Kdy jde rodina na pole, bod 1) – jen do plánu potřebného osevu.
  */
 export function sowingCapacity(
   state: VillageState,
@@ -334,9 +334,9 @@ export function sowingCapacity(
       (sum, elders, k) => sum + adultDailyMin(minimum + water[k]!, elders, productivity),
       0,
     ) + (manor ? manor.uncovered : 0);
-  // s rodinou (`lord` – lord.md, Kdy jde rodina na pole, bod 1) i práce dospělých cvičící rodiny
-  // po minimu dvorce – jen lidé, spřežení ne
-  const lordFree = options.lord === true && manor ? manor.free : 0;
+  // s rodinou (`lord` – lord.md, Kdy jde rodina na pole, bod 1) i práce cvičících mužů rodiny
+  // po minimu dvorce (`freeMen`; ženy jen při hladu) – jen lidé, spřežení ne
+  const lordFree = options.lord === true && manor ? manor.freeMen : 0;
   const free = (Math.max(0, capacity - dailyMin) + lordFree) * PEAK_CAPACITY_SHARE;
   const days = (segments: Parameters<typeof windowDaysLeft>[1], sowing = false): number =>
     free * Math.max(0, windowDaysLeft(day, segments) - (sowing ? SOW_AFTER_DIG_DAYS : 0));

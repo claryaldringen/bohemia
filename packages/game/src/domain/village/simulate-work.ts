@@ -702,11 +702,19 @@ export function work(
   flushCartTrips(state, cartLog, day, landscape, obstacles);
   const hayMowing = state.hay?.mowing;
   // podíl práce rodiny na poli, který dnes úlohy spotřebovaly – zbytek dne cvičí (`trainLordDay`)
-  const lordField = manor && manor.free > 0 ? allocation.lordField / manor.free : 0;
+  // při hladu celá rodina (÷ `free`), u pomoci s osevem jen muži (÷ `freeMen`), ženy 0
+  const lordHunger = manor !== null && manor.field > 0;
+  const lordBase = manor ? (lordHunger ? manor.free : manor.freeMen) : 0;
+  const lordField = lordBase > 0 ? allocation.lordField / lordBase : 0;
   state.labor = laborDay(state, day, {
     allocation,
     ...(family && manor
-      ? { lord: { domestic: manor.dailyMin, counts: lordDayCounts(family, day, lordField) } }
+      ? {
+          lord: {
+            domestic: manor.dailyMin,
+            counts: lordDayCounts(family, day, lordField, lordHunger ? lordField : 0),
+          },
+        }
       : {}),
     fieldWork: [...fieldWork, ...extra.fieldWork],
     extraField: extra.labor,
