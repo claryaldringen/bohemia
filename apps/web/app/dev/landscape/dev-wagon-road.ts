@@ -1,13 +1,14 @@
 // VÝVOJOVÝ NÁSTROJ – ukázka vozové cesty na /dev/landscape (bez databáze a simulace; roads.md –
 // Vozová cesta). Na louce mapy se najdou dvě místa: krátký prudký svah s rovinou kolem (stará
-// vyšlapaná cesta přes něj rovně, po ní jezdí hodně vozů – vyplatí se úvoz a násep) a nejprudší
-// dlouhý svah (cesta rovně do kopce, vozů málo – serpentina). Vozové cesty mezi konci starých
-// naplánuje herní jádro (`planWagonRoad` – stejná funkce jako server při zahájení stavby): sklon
-// do 6 %, úvozy a náspy do 3 m, serpentiny. Stadia ukázky: náhled (vytyčení tras), stavba
-// v půlce (hotové úseky jsou cesta, terén upravený, zbytek vytyčený), hotová (čerstvá hlína na
-// svazích), po letech (svahy zarostlé).
+// vyšlapaná cesta přes něj rovně, po ní jezdí hodně vozů) a nejprudší dlouhý svah, který vozová
+// cesta po staré ose ještě srovná (cesta rovně do kopce). Vozové cesty po starých naplánuje herní
+// jádro (`planWagonRoad` – stejná funkce jako server při zahájení stavby): po ose staré cesty,
+// sklon do 6 %, úvozy a náspy do 3 m. Stadia ukázky: náhled (vytyčení tras), stavba v půlce
+// (hotové úseky jsou cesta a nahradily starou, terén upravený, zbytek vytyčený), hotová (čerstvá
+// hlína na svazích), po letech (svahy zarostlé).
 import {
   NO_OBSTACLE_CHANGES,
+  WAGON_ROAD,
   planWagonRoad,
   surfaceAt,
   tileCenterWorld,
@@ -41,13 +42,13 @@ export interface WagonDemo {
 
 /**
  * Místa ukázky: `notch` – krátký prudký svah (3–4 políčka) s největším převýšením a po 3
- * políčkách roviny kolem, obchodní cesta s `trips` jízdami vozů denně (čas jízdy váží víc než
- * stavba – úvoz a násep); `slope` – nejprudší dlouhý svah (6–12 políček, převýšení aspoň
- * `riseM`, louka i `side` políček do stran – serpentina se vejde mimo les) bez vozů.
+ * políčkách roviny kolem, obchodní cesta s `trips` jízdami vozů denně; `slope` – nejprudší dlouhý
+ * svah (6–12 políček, převýšení aspoň `riseM`, louka i `side` políček do stran) bez vozů. Obojí jen
+ * tak prudké, aby ho vozová cesta po staré ose srovnala (sklon 6 % a úvoz a násep do 3 m).
  */
 const PLACES = {
   notch: { spans: [3, 4], flat: 3, side: 0, riseM: 4, trips: 80, by: 'rise' },
-  slope: { spans: [6, 7, 8, 9, 10, 11, 12], flat: 1, side: 4, riseM: 6, trips: 0, by: 'grade' },
+  slope: { spans: [6, 7, 8, 9, 10, 11, 12], flat: 1, side: 1, riseM: 6, trips: 0, by: 'grade' },
 } as const;
 
 type Place = (typeof PLACES)[keyof typeof PLACES];
@@ -95,6 +96,12 @@ function demoRoute(
           if (!clear) continue;
           const rise = Math.abs(height(bx + sx * span, by + sy * span) - height(bx, by));
           if (rise < place.riseM) continue;
+          // vozová cesta po staré ose: převýšení srovná sklon 6 % po celé délce a úvoz a násep
+          const reach =
+            WAGON_ROAD.maxGrade * (span + 2 * place.flat) * l.cellSizeM +
+            WAGON_ROAD.maxCutM +
+            WAGON_ROAD.maxFillM;
+          if (rise > reach * 0.9) continue;
           const grade = place.by === 'rise' ? rise : rise / (span * l.cellSizeM);
           const a: [number, number] = [bx - sx * place.flat, by - sy * place.flat];
           const b: [number, number] = [
@@ -152,8 +159,8 @@ function demoRoute(
 }
 
 /**
- * Ukázka: krátký prudký svah s obchodní cestou (úvoz a násep) a nejprudší dlouhý svah
- * (serpentina) – vozové cesty naplánuje jádro. Bez vhodných míst prázdné.
+ * Ukázka: krátký prudký svah s obchodní cestou a nejprudší dlouhý svah – vozové cesty po staré ose
+ * s úvozem a náspem naplánuje jádro. Bez vhodných míst prázdné.
  */
 export function demoWagonRoads(
   l: Landscape,
@@ -181,7 +188,10 @@ function axisAt(points: readonly { x: number; z: number }[], d: number): { x: nu
   return points[points.length - 1]!;
 }
 
-/** Cesty a zemní práce ukázky ve stadiu: staré cesty, hotové úseky vozových cest, profily. */
+/**
+ * Cesty a zemní práce ukázky ve stadiu: hotové úseky vozových cest, za nimi zbytek staré cesty po
+ * téže ose (hotový úsek starou cestu nahradí), profily.
+ */
 export function wagonDemoVillage(
   demo: WagonDemo,
   ids: { earthwork: number; road: number },
@@ -201,8 +211,8 @@ export function wagonDemoVillage(
   const stumps: number[] = [];
   demo.routes.forEach((route, k) => {
     const { plan } = route;
-    roads.push(route.old);
     if (stage.progress === null) {
+      roads.push(route.old);
       preview.push(plan.profile.map((p) => ({ x: p.x, z: p.z })));
       return;
     }
@@ -222,6 +232,14 @@ export function wagonDemoVillage(
     if (axis.length >= 2 && builtM > 0) {
       roads.push({ id: ids.road + k, points: axis, grade: 'wagon', swath: true });
     }
+    // zbytek staré cesty za hotovými úseky (vozová vede po její ose)
+    const rest = [axisAt(plan.profile, builtM)];
+    along = 0;
+    plan.profile.forEach((p, i) => {
+      if (i > 0) along += Math.hypot(p.x - plan.profile[i - 1]!.x, p.z - plan.profile[i - 1]!.z);
+      if (along > builtM + 1e-6) rest.push({ x: p.x, z: p.z });
+    });
+    if (rest.length >= 2) roads.push({ ...route.old, points: rest });
     earthworks.push({
       id: ids.earthwork + k,
       profile: plan.profile,

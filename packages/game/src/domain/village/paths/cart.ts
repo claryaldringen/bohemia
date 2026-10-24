@@ -208,15 +208,53 @@ export function cartRoadSpeed(
 const ROAD_BAND_CELLS = 0.75;
 
 /**
- * Cena metru po pevných cestách po buňkách (pás `ROAD_BAND_CELLS` kolem bodů osy po třetině
- * buňky, mokřina podle polohy na ose z `ground.wet`, mimo ni i se stromy u cesty – `lined`); mimo
- * cesty 0, v buňce víc cest nejrychlejší. Bez cest null.
+ * Buňky pásu pevné cesty (`ROAD_BAND_CELLS` kolem bodů osy po třetině buňky): `mark(c, along)`
+ * pro každou buňku pásu a vzdálenost bodu osy od začátku (m) – buňka může přijít víckrát. Vozová
+ * síť i mřížka vozové cesty (`wagonRoadGrid`) tak berou pevnou cestu stejně.
+ */
+export function roadBandCells(
+  grid: GridWindow,
+  points: readonly PathPoint[],
+  mark: (c: number, along: number) => void,
+): void {
+  const step = grid.cellM / 3;
+  const band2 = ROAD_BAND_CELLS * ROAD_BAND_CELLS;
+  const markAt = (x: number, z: number, along: number): void => {
+    const fi = (x - grid.originX) / grid.cellM;
+    const fj = (z - grid.originZ) / grid.cellM;
+    const i0 = Math.max(0, Math.ceil(fi - ROAD_BAND_CELLS));
+    const i1 = Math.min(grid.width - 1, Math.floor(fi + ROAD_BAND_CELLS));
+    const j0 = Math.max(0, Math.ceil(fj - ROAD_BAND_CELLS));
+    const j1 = Math.min(grid.height - 1, Math.floor(fj + ROAD_BAND_CELLS));
+    for (let j = j0; j <= j1; j++) {
+      for (let i = i0; i <= i1; i++) {
+        if ((i - fi) * (i - fi) + (j - fj) * (j - fj) > band2) continue;
+        mark(j * grid.width + i, along);
+      }
+    }
+  };
+  if (points.length === 1) markAt(points[0]!.x, points[0]!.z, 0);
+  let along = 0;
+  for (let k = 1; k < points.length; k++) {
+    const a = points[k - 1]!;
+    const b = points[k]!;
+    const length = length2(b.x - a.x, b.z - a.z);
+    const n = Math.max(1, Math.ceil(length / step));
+    for (let q = 0; q <= n; q++) {
+      markAt(a.x + ((b.x - a.x) * q) / n, a.z + ((b.z - a.z) * q) / n, along + (length * q) / n);
+    }
+    along += length;
+  }
+}
+
+/**
+ * Cena metru po pevných cestách po buňkách (pás `roadBandCells`, mokřina podle polohy na ose
+ * z `ground.wet`, mimo ni i se stromy u cesty – `lined`); mimo cesty 0, v buňce víc cest
+ * nejrychlejší. Bez cest null.
  */
 function cartRoadCosts(grid: GridWindow, roads: CartVillage['roads']): Float32Array | null {
   if (!roads || roads.length === 0) return null;
   const out = new Float32Array(grid.width * grid.height);
-  const step = grid.cellM / 3;
-  const band2 = ROAD_BAND_CELLS * ROAD_BAND_CELLS;
   for (const road of roads) {
     const grade = road.grade ?? 'trodden';
     const cart = road.cart === true;
@@ -224,35 +262,10 @@ function cartRoadCosts(grid: GridWindow, roads: CartVillage['roads']): Float32Ar
     const dryCost = 1 / cartRoadSpeed(grade, cart, false, roadTreeSpeed(road.lined), unbridged);
     const wetCost = 1 / cartRoadSpeed(grade, cart, true, 0, unbridged);
     const wet = road.ground?.wet ?? [];
-    const mark = (x: number, z: number, along: number): void => {
-      const fi = (x - grid.originX) / grid.cellM;
-      const fj = (z - grid.originZ) / grid.cellM;
+    roadBandCells(grid, road.points, (c, along) => {
       const cost = wet.some(([a, b]) => along >= a && along <= b) ? wetCost : dryCost;
-      const i0 = Math.max(0, Math.ceil(fi - ROAD_BAND_CELLS));
-      const i1 = Math.min(grid.width - 1, Math.floor(fi + ROAD_BAND_CELLS));
-      const j0 = Math.max(0, Math.ceil(fj - ROAD_BAND_CELLS));
-      const j1 = Math.min(grid.height - 1, Math.floor(fj + ROAD_BAND_CELLS));
-      for (let j = j0; j <= j1; j++) {
-        for (let i = i0; i <= i1; i++) {
-          if ((i - fi) * (i - fi) + (j - fj) * (j - fj) > band2) continue;
-          const c = j * grid.width + i;
-          if (out[c] === 0 || cost < out[c]!) out[c] = cost;
-        }
-      }
-    };
-    const pts = road.points;
-    if (pts.length === 1) mark(pts[0]!.x, pts[0]!.z, 0);
-    let along = 0;
-    for (let k = 1; k < pts.length; k++) {
-      const a = pts[k - 1]!;
-      const b = pts[k]!;
-      const length = length2(b.x - a.x, b.z - a.z);
-      const n = Math.max(1, Math.ceil(length / step));
-      for (let q = 0; q <= n; q++) {
-        mark(a.x + ((b.x - a.x) * q) / n, a.z + ((b.z - a.z) * q) / n, along + (length * q) / n);
-      }
-      along += length;
-    }
+      if (out[c] === 0 || cost < out[c]!) out[c] = cost;
+    });
   }
   return out;
 }

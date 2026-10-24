@@ -130,8 +130,19 @@ a úvozy musí být výrazně vidět.“ Nahrazuje „Co nejpříměji“ a „S
   (obtisk ≈ 0,6 m), na svazích výkopu drobné kameny, sníh na svazích tenčí. Výška terénu se
   nezveličuje – je to herní terén. Kritérium: na herní kameře ve Vlkově jsou úvoz 0,8 m a násep
   1 m (cesta 372) poznat bez výběru cesty.
+- **Kudy vůz po staré cestě neprojede** (návrh Clauda, Úloha 11a): v bodech osy po 2 m (kromě
+  9 m u konců – konec bývá u vchodu stavby) nesmí být plot ohrady či hřbitova, sad, voda mimo
+  brod, sráz ani balvan, ani stavba blíž než půl šířky vozu (1,25 m + 0,4 m – jako vozová síť;
+  měří se přesně v bodě, ne po čtvercích mřížky). Samotný strom nebo keř u staré cesty ji nezavře
+  – stavba ho vykácí. Posvátný strom zakáže úpravu, jen když stojí na pláni nebo pod zemními
+  pracemi. Jinak důvod v popisku „Vůz po této cestě neprojede – překáží stavba, plot nebo voda.“
+- **Lávka u vozové cesty** (návrh Clauda, Úloha 11a): stojí stejně jako lávka u upravené cesty –
+  4 stromy a 15 čd (táž stavba, Martin 22. 10. 2026: „Hať a lávka se postaví samy jako součást
+  úpravy cesty“). Zatím se počítá jen práce, dřevo do ceny vozové cesty doplní další úloha.
 - **Vlkov:** hotové vozové cesty zůstanou se svou osou; staré souběžné cesty vedle nich (voda)
-  pohltí převod (paths.md – Převod).
+  pohltí převod (paths.md – Převod). Měření 24. 10. 2026 (Úloha 11a): cesta 372 jde po staré ose
+  rovně do svahu, který úvoz a násep 3 m nesrovnají – bez narovnání (11b) se nenabídne; kritérium
+  „úvoz a násep na herní kameře“ se ověří na jiné cestě.
 
 ### Lidé při práci na cestě (Martin 22. 10. 2026, #3)
 

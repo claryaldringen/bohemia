@@ -81,12 +81,14 @@ describe('buildWagonRoad', () => {
     expect(c.cost).toBeGreaterThan(0);
     // stará cesta zůstává
     expect(state.roads!.roads.find((r) => r.id === 1)?.grade).toBe('trodden');
-    // přímější než klikatá stará cesta
+    // po staré cestě i s jejím ohybem (Martin 22. 10. 2026, #6: „vznikne ze staré pěší cesty
+    // a vede po ní“) – ohyb (40, −60) je bodem osy
     const profile = state.roads!.earthworks![0]!.profile;
     const length = profile
       .slice(1)
       .reduce((sum, p, k) => sum + Math.hypot(p.x - profile[k]!.x, p.z - profile[k]!.z), 0);
-    expect(length).toBeLessThan(125);
+    expect(length).toBeCloseTo(Math.hypot(40, 50) + Math.hypot(40, 60), 1);
+    expect(profile).toContainEqual(expect.objectContaining({ x: 40, z: -60 }));
     // podruhé: stavba už běží
     expect(await buildWagonRoad({ villages }, { ...base, roadId: 1 })).toEqual({
       ok: false,
