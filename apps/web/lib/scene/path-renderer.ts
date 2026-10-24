@@ -46,7 +46,12 @@ import {
 import type { Track } from './track-mask';
 import { junctionsKey } from './junction-shape';
 import { RoadWorks, roadRibbonMeshes } from './road-works';
-import { earthworkSlopeGrid, earthworkSlopeKey, roadWorksKey } from './road-works-layout';
+import {
+  earthworkEdges,
+  earthworkSlopeGrid,
+  earthworkSlopeKey,
+  roadWorksKey,
+} from './road-works-layout';
 import { HEIGHT_SCALE } from './constants';
 import { routeWalker } from './path-router';
 import {
@@ -98,6 +103,10 @@ const Z_OFFSET = { worn: -3.5, earth: -4, gravel: -4.5, slope: -3.2 };
 const SNOW = { roads: 0.55, paths: 0.3 } as const;
 /** Holá hlína svahů úvozu a náspu – o něco tmavší než udusaná cesta. */
 const SLOPE_COLOR: [number, number, number] = [0.78, 0.64, 0.5];
+/** Lem hrany úvozu (světlá odkrytá zemina) a paty náspu (tmavá nakypřená hlína) – Úloha 13. */
+const EDGE_COLOR = { cut: [0.95, 0.86, 0.7], fill: [0.4, 0.3, 0.22] } as const;
+/** Sníh na svazích výkopu leží tenčí – hlína prosvítá (roads.md). */
+const SNOW_SLOPE = 0.3;
 /** Přes osetý díl (pěšina ho obchází – výjimečně) jen úzká stopa: násobek šířky. */
 const SOWN_WIDTH = 0.45;
 
@@ -372,6 +381,27 @@ export class VillagePaths {
         mesh.material = this.decalMaterial('roads', 'slope');
         mesh.alphaIndex = ALPHA_INDEX.slope;
         this.roadMeshes.push(mesh);
+        // lem hrany úvozu a paty náspu (obtisk ≈ 0,6 m) – svah je poznat i z dálky
+        const edges = earthworkEdges(
+          village.earthworks ?? [],
+          this.env.decalHeight,
+          this.env.baseHeight ?? this.env.decalHeight,
+          HEIGHT_SCALE,
+        );
+        for (const kind of ['cut', 'fill'] as const) {
+          const grid = edges[kind];
+          if (!grid) continue;
+          const edgeMesh = createDecalMesh(this.scene, `roads-edge-${kind}`, grid, {
+            height: this.env.decalHeight,
+            smoothHeight: this.env.groundHeight,
+            lift: LIFT.slope + 0.003,
+            color: [...EDGE_COLOR[kind]],
+            uv: 9,
+          });
+          edgeMesh.material = this.decalMaterial('roads', 'slope');
+          edgeMesh.alphaIndex = ALPHA_INDEX.slope + 0.1;
+          this.roadMeshes.push(edgeMesh);
+        }
       }
       for (const mesh of this.roadMeshes) mesh.setEnabled(this.visible);
       this.env.requestRender();
@@ -551,7 +581,7 @@ export class VillagePaths {
       });
       applyPitCut(decal, this.env.pitCuts);
       // tráva usychá jako terén, v zimě pěšinu zasype sníh – ušlapaná stopa prosvítá
-      applySeasonGround(decal, SNOW[group]);
+      applySeasonGround(decal, kind === 'slope' ? SNOW_SLOPE : SNOW[group]);
       const texture = decal.diffuseTexture;
       if (texture instanceof Texture && !texture.isReady()) {
         texture.onLoadObservable.addOnce(() => this.env.requestRender());

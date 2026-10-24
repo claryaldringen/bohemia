@@ -1864,3 +1864,70 @@ describe('výmlat na humně (production-chains.md – Humno; issue #3)', () => {
     expect(Math.hypot(pose.x - FLOOR.x, pose.z - FLOOR.z)).toBeGreaterThan(20);
   });
 });
+
+describe('lidé při práci na cestě (roads.md – Lidé při práci na cestě)', () => {
+  const line = (z: number, from: number, to: number): { x: number; z: number }[] => {
+    const out = [];
+    for (let x = from; x <= to; x += 10) out.push({ x, z });
+    return out;
+  };
+
+  it('úprava víc úseků: postavy stojí u čela na úseku, kde se pracuje', () => {
+    const base = village([{ activity: 'build', target: { kind: 'road', id: 2 }, manDays: 4 }]);
+    const v: SceneVillage = {
+      ...base,
+      roads: [
+        { id: 1, points: line(100, -100, 0), grade: 'improved' },
+        {
+          id: 2,
+          points: line(100, 0, 100),
+          grade: 'trodden',
+          upgrade: { grade: 'improved', progress: 0.5 },
+        },
+        { id: 3, points: line(100, 100, 200), grade: 'trodden' },
+      ],
+    };
+    const people = planVillagers(v, GROUND, { seed: 3, herds: 0 }).filter((p) =>
+      p.key.startsWith('build:'),
+    );
+    expect(people.length).toBeGreaterThan(0);
+    for (const p of people) {
+      const { x, z } = at(p, 5);
+      expect(Math.abs(x - 50)).toBeLessThan(25);
+      expect(Math.abs(z - 100)).toBeLessThan(4);
+    }
+  });
+
+  it('vozová cesta ve stavbě: kopáči v úvozu u čela a nosiči, kteří chodí s koši', () => {
+    const base = village([
+      { activity: 'build', target: { kind: 'wagon', id: 5, x: 60, z: 100 }, manDays: 8 },
+    ]);
+    const v: SceneVillage = {
+      ...base,
+      earthworks: [
+        {
+          id: 1,
+          profile: line(100, 0, 120).map((p) => ({ ...p, y: 0 })),
+          reachedM: 60,
+          shownM: 60,
+          pieces: [{ toM: 120, ageYears: null }],
+          building: true,
+        },
+      ],
+    };
+    const people = planVillagers(v, GROUND, { seed: 3, herds: 0 }).filter((p) =>
+      p.key.startsWith('build:'),
+    );
+    expect(people.length).toBeGreaterThanOrEqual(3);
+    const clips = new Set<string>();
+    for (const p of people) {
+      for (let t = 0; t < 120; t += 3) {
+        const pose = at(p, t);
+        clips.add(pose.clip);
+        expect(Math.hypot(pose.x - 60, pose.z - 100)).toBeLessThan(14);
+      }
+    }
+    expect(clips.has('hoe')).toBe(true);
+    expect(clips.has('carry')).toBe(true);
+  });
+});

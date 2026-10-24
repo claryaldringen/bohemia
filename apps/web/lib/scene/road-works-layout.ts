@@ -565,23 +565,35 @@ export function roadWorksKey(roads: readonly SceneRoad[] | undefined): string {
 const SLOPE_REACH_M = WAGON_ROAD.flatHalfM + 7;
 /** Krok příčného řezu svahů (m). */
 const SLOPE_STEP_M = 0.5;
-/** Za kolik let svahy úvozu a náspu zarostou trávou (holá hlína zmizí – návrh Clauda). */
-export const SLOPE_GRASS_YEARS = 6;
-/** Hlína prosvítá i na zarostlém svahu (podíl krytí). */
-const SLOPE_OLD_ALPHA = 0.12;
+/**
+ * Vzhled svahů úvozu a náspu (roads.md – Vozová cesta, Martin 22. 10. 2026: „Náspy a úvozy musí být
+ * výrazně vidět“): holá hlína zarůstá pomalu – za `grassYears` let jen řídkou trávou (zbude
+ * `oldAlpha` krytí hlíny), nikdy úplně; lem hrany úvozu a paty náspu je široký `edgeM` m.
+ */
+export const SLOPE_LOOK = { grassYears: 15, oldAlpha: 0.45, edgeM: 0.6 };
+/** Odchylka terénu od původního (m), od které je svah vidět; pod ní jde o lem okraje. */
+const SLOPE_MIN_DIFF_M = 0.08;
+/** Lem okraje svahu: odchylka terénu (m), pod kterou se bere za okraj. */
+const EDGE_MAX_DIFF_M = 0.5;
+
+interface SlopeLattice {
+  positions: Float32Array;
+  alphas: Float32Array;
+  indices: Uint32Array;
+}
 
 /**
- * Holá hlína na svazích úvozu a náspu vozové cesty (roads.md – Vozová cesta): síť příčných řezů
- * podél hotové části osy (`shownM` – i rozestavěný úsek podle průběhu) po bodech profilu, krytí podle toho, o kolik se terén
- * upravil (`height` po úpravě proti `base` původnímu – m s převýšením scény, `scale` převýšení),
- * a podle stáří úseku – svah zarůstá trávou za SLOPE_GRASS_YEARS let. Bez svahů null.
+ * Síť příčných řezů podél hotové části osy (`shownM` – i rozestavěný úsek podle průběhu) po bodech
+ * profilu; `alphaAt` dostane odchylku terénu proti původnímu (m, kladná = násep) a podíl zarostlosti
+ * 0–1 a vrátí krytí. Bez nenulového krytí null.
  */
-export function earthworkSlopeGrid(
+function slopeLattice(
   earthworks: readonly SceneEarthwork[],
   height: (x: number, z: number) => number,
   base: (x: number, z: number) => number,
   scale: number,
-): { positions: Float32Array; alphas: Float32Array; indices: Uint32Array } | null {
+  alphaAt: (diff: number, grass: number) => number,
+): SlopeLattice | null {
   const positions: number[] = [];
   const alphas: number[] = [];
   const indices: number[] = [];
@@ -607,17 +619,14 @@ export function earthworkSlopeGrid(
       const tl = Math.hypot(b.x - a.x, b.z - a.z) || 1;
       const nx = -(b.z - a.z) / tl;
       const nz = (b.x - a.x) / tl;
-      const grass = Math.min(1, ageAt(at[k]!) / SLOPE_GRASS_YEARS);
-      const fade = 1 - (1 - SLOPE_OLD_ALPHA) * grass * grass * (3 - 2 * grass);
+      const grass = Math.min(1, ageAt(at[k]!) / SLOPE_LOOK.grassYears);
       const start = positions.length / 2;
       for (let l = 0; l < lanes; l++) {
         const t = -SLOPE_REACH_M + l * SLOPE_STEP_M;
         const x = p.x + nx * t;
         const z = p.z + nz * t;
-        const diff = Math.abs(height(x, z) - base(x, z)) / scale;
-        const s = Math.min(1, Math.max(0, (diff - 0.08) / 0.4));
         positions.push(x, z);
-        alphas.push(s * s * (3 - 2 * s) * fade);
+        alphas.push(alphaAt((height(x, z) - base(x, z)) / scale, grass));
       }
       if (previous >= 0) {
         for (let l = 0; l < lanes - 1; l++) {
@@ -629,7 +638,7 @@ export function earthworkSlopeGrid(
       previous = start;
     }
   }
-  if (indices.length === 0) return null;
+  if (indices.length === 0 || !alphas.some((v) => v > 0)) return null;
   return {
     positions: new Float32Array(positions),
     alphas: new Float32Array(alphas),
@@ -637,12 +646,51 @@ export function earthworkSlopeGrid(
   };
 }
 
+/**
+ * Holá hlína na svazích úvozu a náspu vozové cesty: krytí podle toho, o kolik se terén upravil
+ * (`height` po úpravě proti `base` původnímu – m s převýšením scény, `scale` převýšení), a podle
+ * stáří úseku (`SLOPE_LOOK`). Bez svahů null.
+ */
+export function earthworkSlopeGrid(
+  earthworks: readonly SceneEarthwork[],
+  height: (x: number, z: number) => number,
+  base: (x: number, z: number) => number,
+  scale: number,
+): SlopeLattice | null {
+  return slopeLattice(earthworks, height, base, scale, (diff, grass) => {
+    const s = Math.min(1, Math.max(0, (Math.abs(diff) - SLOPE_MIN_DIFF_M) / 0.4));
+    const fade = 1 - (1 - SLOPE_LOOK.oldAlpha) * grass * grass * (3 - 2 * grass);
+    return s * s * (3 - 2 * s) * fade;
+  });
+}
+
+/**
+ * Lem okraje svahů: `cut` – hrana úvozu (světlý), `fill` – pata náspu (tmavý). Pás kolem místa,
+ * kde se terén právě přestává lišit od původního (odchylka do `EDGE_MAX_DIFF_M`); široký
+ * ≈ `SLOPE_LOOK.edgeM`, bez zarůstání. Bez lemu null.
+ */
+export function earthworkEdges(
+  earthworks: readonly SceneEarthwork[],
+  height: (x: number, z: number) => number,
+  base: (x: number, z: number) => number,
+  scale: number,
+): { cut: SlopeLattice | null; fill: SlopeLattice | null } {
+  const edge = (sign: 1 | -1): SlopeLattice | null =>
+    slopeLattice(earthworks, height, base, scale, (diff) => {
+      const d = diff * sign;
+      if (d < 0.03 || d > EDGE_MAX_DIFF_M) return 0;
+      // plný uprostřed pásu, ven (k původnímu terénu) a dovnitř slábne
+      return Math.min(1, (d - 0.03) / 0.07, (EDGE_MAX_DIFF_M - d) / 0.1);
+    });
+  return { cut: edge(-1), fill: edge(1) };
+}
+
 /** Klíč svahů vozových cest – hotová délka po decimetrech a stáří úseků. */
 export function earthworkSlopeKey(earthworks: readonly SceneEarthwork[]): string {
   return earthworks
     .map(
       (e) =>
-        `${e.id}@${Math.round(e.shownM * 10)}:${e.pieces.map((p) => Math.min(SLOPE_GRASS_YEARS, p.ageYears ?? 0)).join(',')}`,
+        `${e.id}@${Math.round(e.shownM * 10)}:${e.pieces.map((p) => Math.min(SLOPE_LOOK.grassYears, p.ageYears ?? 0)).join(',')}`,
     )
     .join(';');
 }
