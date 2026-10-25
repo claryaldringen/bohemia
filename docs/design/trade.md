@@ -255,7 +255,9 @@ Podrobnosti níž jsou návrh Clauda. Implementace `cattle-trade.ts` (jádro) a 
     **3 roky služby** (zbývá jim 7 z 10 – `CATTLE_TRADE.servedYears`); ves prodá vycvičené voly
     doma (ne ty, kteří táhnou vůz výpravy na cestě), mimo posledních 2 let služby – dosluhujícího
     vola soused nekoupí; napřed ty, kteří slouží nejdéle.
-- **Místa:** krávy jen do volných míst hotových ohrad skotu, voli do volných míst ohrad volů –
+- **Místa:** krávy jen do volných míst hotových ohrad skotu – a nejvýš tolik, kolik se jich i s jarními
+  telaty vejde do ohrady skotu a k domům (oxen.md – Stáda podle práce na seč; 1. 11. by je ves nad
+  to porazila) –, voli do volných míst ohrad volů –
   mladí i vycvičení sdílejí místa (6 na čtverec), bez dobytka, který výpravy na cestě teprve
   přivedou, a bez volů bez ohrady. Jinak výměna nejde: „**Tolik krav se do ohrady skotu
   nevejde.**“ / „**Tolik volů se do ohrady volů nevejde.**“ Kdo se po návratu nevejde (místa

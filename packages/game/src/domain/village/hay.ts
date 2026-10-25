@@ -402,9 +402,10 @@ export function planMowing(
 }
 
 /**
- * Plán otavy (1. 8. – oxen.md, Seno, dvě seče): jen louky, které se letos posekly v 1. seči (u
- * rozpracované jen posečená část), v pořadí 1. seče, dokud otava (`aftermathYieldShare`) nepokryje,
- * co stádům ze stropu chybí (`need` bez dnešní zásoby). Práce na hektar `aftermathWorkShare`
+ * Plán otavy (1. 8. – oxen.md, Seno, dvě seče): louky, které se letos posekly v 1. seči (u
+ * rozpracované jen posečená část), v pořadí 1. seče; seče se (`wanted`), dokud otava
+ * (`aftermathYieldShare`) nepokryje, co stádům ze stropu chybí (`need` bez dnešní zásoby) – zbytek
+ * luk zůstane pro dobytek, který přibude (`raiseAftermath`). Práce na hektar `aftermathWorkShare`
  * 1. seče. Bez 1. seče, posečených luk nebo potřeby null – 1. seč pak zůstane.
  */
 export function planAftermath(
@@ -426,13 +427,109 @@ export function planAftermath(
     ),
   };
   const aftermath = { cut: 2 as const };
+  const targets = mowingTargets(state, need);
+  if (targets.cap <= EPSILON) return null;
+  // v seči jsou všechny posečené louky – strop práce `wanted` se zvedne, přibude-li dobytek
+  // (`raiseAftermath`)
   const plan = mowingPlan(
     mown,
-    mowingTargets(state, need),
+    { necessary: targets.necessary, cap: Infinity },
     hayWorkPerHa(toolCoverage) * mowingWorkShare(aftermath),
     mowingYieldPerHa(aftermath),
   );
-  return plan ? { ...plan, done: 0, ...aftermath, firstCut } : null;
+  if (!plan) return null;
+  const mowing: HayMowing = { ...plan, done: 0, ...aftermath, firstCut };
+  return { ...mowing, wanted: workForYield(mowing, partsById, targets.cap) };
+}
+
+/**
+ * Práce seče od začátku (člověkodny), po které seno dosáhne `kg` – celé louky v pořadí seče jako
+ * `mowingPlan`; víc, než louky dají, = celá seč.
+ */
+function workForYield(
+  mowing: HayMowing,
+  partsById: ReadonlyMap<number, FieldPart>,
+  kg: number,
+): number {
+  if (kg <= EPSILON) return 0;
+  const perHa = mowingYieldPerHa(mowing);
+  let yieldKg = 0;
+  for (const span of squareSpans(mowing, partsById)) {
+    yieldKg += (span.square.areaM2 / M2_PER_HA) * perHa;
+    if (yieldKg >= kg - EPSILON) return mowing.required * span.end;
+  }
+  return mowing.required;
+}
+
+/**
+ * Otava, když přibyl dobytek (oxen.md – Seno, dvě seče; koupený i na cestě): strop práce
+ * (`wanted`) a nutná práce (`needed`) se zvednou podle dnešní potřeby (`need`) – posečená otava
+ * a co stádům ještě chybí; nikdy neklesnou (mutuje stav). Mimo otavu nic.
+ */
+export function raiseAftermath(state: VillageState, need: MowingNeed): void {
+  const mowing = state.hay?.mowing;
+  if (!mowing || mowingCut(mowing) !== 2 || mowing.required <= EPSILON) return;
+  const partsById = new Map(state.parts.map((p) => [p.id, p]));
+  const targets = mowingTargets(state, need);
+  const mown = (mowing.yieldKg * mowing.done) / mowing.required;
+  const work = (kg: number): number => workForYield(mowing, partsById, mown + Math.max(0, kg));
+  mowing.wanted = Math.max(mowing.wanted ?? mowing.required, work(targets.cap));
+  mowing.needed = Math.max(mowing.needed ?? mowing.required, work(targets.necessary));
+}
+
+/**
+ * Volná práce na seč (oxen.md – Stáda podle práce na seč; mutuje stav): práce dne `labor`, která
+ * po polních pracích zbyla na seč (nutná seč a co šlo dál – stavby, seč navíc, nic), převedená na
+ * seno podle dnešní seče (kg na člověkoden plánu – i s chůzí na louky), bez ní podle práce na
+ * hektar (`hayWorkPerHa`). V oknech 1. seče a otavy zvlášť; jen se zápisem sezóny (`mowFree`).
+ */
+export function recordMowingLabor(
+  state: VillageState,
+  day: number,
+  labor: number,
+  toolCoverage: number,
+): void {
+  const free = state.hay?.mowFree;
+  if (!free || labor <= EPSILON) return;
+  const cut = isMowingSeason(day, 1) ? 1 : isMowingSeason(day, 2) ? 2 : null;
+  if (cut === null) return;
+  const kind = cut === 2 ? { cut: 2 as const } : {};
+  const mowing = state.hay?.mowing;
+  const kgPerManDay =
+    mowing && mowingCut(mowing) === cut && mowing.required > EPSILON
+      ? mowing.yieldKg / mowing.required
+      : mowingYieldPerHa(kind) / (hayWorkPerHa(toolCoverage) * mowingWorkShare(kind));
+  if (cut === 1) free.first += labor * kgPerManDay;
+  else free.second += labor * kgPerManDay;
+}
+
+/** Začátek sezóny seče (25. 5.) – zápis volné práce od nuly (mutuje stav; bez sena nic). */
+export function startMowingSeason(state: VillageState): void {
+  if (state.hay) state.hay.mowFree = { first: 0, second: 0 };
+}
+
+/**
+ * Konec sezóny seče (po otavě – mutuje stav): kolik sena ves v obou oknech stihla posekat
+ * (`mowCapacityKg`) – 1. seč a otava nejvýš `aftermathYieldShare` 1. seče (jen na jejích loukách).
+ */
+export function closeMowingSeason(state: VillageState): void {
+  const hay = state.hay;
+  const free = hay?.mowFree;
+  if (!hay || !free) return;
+  hay.mowCapacityKg = free.first + Math.min(free.second, free.first * HAY_CUTS.aftermathYieldShare);
+  delete hay.mowFree;
+}
+
+/** Je den po konci okna otavy (`HAY_CUTS.second.to`)? – sezóna seče se uzavře. */
+export function isAfterMowingSeason(day: number): boolean {
+  const { month, day: d } = dateOfDayIndex(day);
+  const { to } = HAY_CUTS.second;
+  return month * 100 + d > to.month * 100 + to.day;
+}
+
+/** Seno (kg ze seče), které ves loni stihla posekat prací po polních pracích; bez zápisu undefined. */
+export function mowingCapacityKg(state: Pick<VillageState, 'hay'>): number | undefined {
+  return state.hay?.mowCapacityKg;
 }
 
 /** Posečené louky seče (díl, který už není, vypadne) – rozpracovaná jen posečenou plochou. */
@@ -475,7 +572,7 @@ export function isMowingSeason(day: number, cut: 1 | 2 = 1): boolean {
 export function mowingRemaining(state: VillageState, day: number): number {
   const mowing = state.hay?.mowing;
   if (!mowing || !isMowingSeason(day, mowingCut(mowing))) return 0;
-  return Math.max(0, mowing.required - mowing.done);
+  return Math.max(0, Math.min(mowing.required, mowing.wanted ?? mowing.required) - mowing.done);
 }
 
 /**
@@ -486,7 +583,8 @@ export function mowingRemaining(state: VillageState, day: number): number {
 export function mowingNeededRemaining(state: VillageState, day: number): number {
   const mowing = state.hay?.mowing;
   if (!mowing || !isMowingSeason(day, mowingCut(mowing))) return 0;
-  return Math.max(0, Math.min(mowing.required, mowing.needed ?? mowing.required) - mowing.done);
+  const wanted = Math.min(mowing.required, mowing.wanted ?? mowing.required);
+  return Math.max(0, Math.min(wanted, mowing.needed ?? mowing.required) - mowing.done);
 }
 
 /** Vloží práci do seče – posečené seno přibude do zásoby poměrně k práci (mutuje stav). */

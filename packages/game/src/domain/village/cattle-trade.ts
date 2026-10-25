@@ -6,10 +6,10 @@
 // služby). Ves prodá krávy ze stáda (chovný pár zůstane), mladé voly z volů ve výcviku a vycvičené
 // voly doma mimo posledních let služby. Dobytek jde po svých s honákem (trade.ts – `carriers`).
 // Čisté funkce bez I/O.
-import { ensureLivestock } from './livestock';
+import { ensureLivestock, roomForWinter } from './livestock';
 import { CATTLE_GOODS, neighbourOf } from './neighbours';
 import { isTrained, oxPens, oxPlaces, oxenComing, oxenHome, oxenToEdit, villageOxen } from './oxen';
-import { builtPenSquares, oxenOf, oxTrainedDay, penCapacity, penSpecies } from './pens';
+import { builtPenSquares, herdRoom, oxenOf, oxTrainedDay, penCapacity, penSpecies } from './pens';
 import { CATTLE_TRADE, OXEN, PEN_PLACES_PER_SQUARE, TRADE } from './rules';
 import type { CattleGood, NeighbourStock, Ox, TradeGood, TradeGoods, VillageState } from './types';
 
@@ -20,7 +20,7 @@ export const NO_COW_ROOM = 'Tolik krav se do ohrady skotu nevejde.';
 export const NO_OX_ROOM = 'Tolik volů se do ohrady volů nevejde.';
 
 /** Krávy, které výpravy na cestě teprve přivedou. */
-function cowsComing(state: Pick<VillageState, 'trade'>): number {
+export function cowsComing(state: Pick<VillageState, 'trade'>): number {
   return (state.trade?.expeditions ?? []).reduce((sum, e) => sum + (e.get.cows ?? 0), 0);
 }
 
@@ -49,13 +49,15 @@ export function cattleForSale(state: VillageState, good: CattleGood, day: number
 }
 
 /**
- * Kolik dobytka druhu `good` se do vsi vejde (kusy): krávy do volných míst hotových ohrad skotu,
- * voli do volných míst hotových ohrad volů – bez dobytka, který výpravy na cestě teprve přivedou,
- * a volů bez ohrady.
+ * Kolik dobytka druhu `good` se do vsi vejde (kusy): krávy do volných míst hotových ohrad skotu
+ * tak, aby se i s jarními telaty vešly na noc (`roomForWinter` – ohrady skotu a u domů; 1. 11. ves
+ * nad ně krávy porazí – oxen.md, Kapacita ohrady), voli do volných míst hotových ohrad volů – bez
+ * dobytka, který výpravy na cestě teprve přivedou, a volů bez ohrady.
  */
 export function cattleRoom(state: VillageState, good: CattleGood): number {
   if (good === 'cows') {
-    const free = penCapacity(state).cow - (state.livestock?.herds.cow ?? 0) - cowsComing(state);
+    const places = Math.min(penCapacity(state).cow, roomForWinter(herdRoom(state), 'cow'));
+    const free = places - (state.livestock?.herds.cow ?? 0) - cowsComing(state);
     return Math.max(0, Math.floor(free + EPSILON));
   }
   const free =

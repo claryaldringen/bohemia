@@ -152,9 +152,14 @@ describe('plán seče', () => {
     // posečené díly 1. seče zůstanou posečené (zarůstání, pastva) i s otavou
     s.hay.mowing = after;
     expect([...mownPartIds(s)].sort()).toEqual([2, 3]);
-    // otava jen do stropu – chybí 0,3 t → stačí louka 2
+    // strop otava nepokryje – seče se celá
+    expect(after.wanted).toBeCloseTo(after.required, 9);
+    // otava jen do stropu – chybí 0,3 t → stačí louka 2; louka 3 zůstane v seči pro dobytek, který
+    // přibude (raiseAftermath)
     s.hay = { kg: 4200, mowing: first };
-    expect(planAftermath(s, need(1000, 4500))!.partIds).toEqual([2]);
+    const capped = planAftermath(s, need(1000, 4500))!;
+    expect(capped.partIds).toEqual([2, 3]);
+    expect(capped.wanted).toBeCloseTo(worst * HAY_CUTS.aftermathWorkShare, 9);
     // seno na strop už je – otava se neplánuje, 1. seč zůstane
     s.hay.kg = 5000;
     expect(planAftermath(s, need(1000, 4500))).toBeNull();

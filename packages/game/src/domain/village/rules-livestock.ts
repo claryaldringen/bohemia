@@ -20,8 +20,9 @@ export const WOOL = {
 /**
  * diet.md – Nouzová porážka (Martin 19. 10. 2026: „Ano, udělej to všechno“; podrobnosti návrh
  * Clauda): když výhled jídla do sklizně nevychází, ves dřív, než ubere z přídělu, porazí zvířata
- * navíc v pořadí `order` – prasata (žerou les, ne seno), kozy, krávy nad chovné, ovce nad ovce na
- * vlnu. Porazí tolik, aby výhled vyšel i s rezervou `reserveShare` potřeby energie do sklizně
+ * navíc v pořadí `order` – prasata (žerou les, ne seno), kozy, ovce nad ovce na vlnu, krávy nad
+ * chovné; voli nikdy (oxen.md – Co nejvíc sena a co největší stáda, přednost voli → krávy → ovce →
+ * kozy → prasata; Martin 24. 10. 2026; dřív krávy před ovcemi). Porazí tolik, aby výhled vyšel i s rezervou `reserveShare` potřeby energie do sklizně
  * (ztráty zásob skladováním a uzením výhled nezná – bez rezervy by ves porážela den co den po
  * kouscích), a nejvýš tolik, kolik pod stropem masa ve stravě (DIET.caps.meat) pomůže. Když
  * schodek celý nepokryje (málo zvířat navíc, strop masa), porazí jen tehdy, zvedne-li příděl
@@ -61,7 +62,7 @@ export const HERD_BREEDING = {
  */
 export const HERD_RETIREMENT = { sheep: 1 / 8, goat: 1 / 8, pig: 1 / 4, cow: 1 / 10 } as const;
 export const EMERGENCY_SLAUGHTER = {
-  order: ['pig', 'goat', 'cow', 'sheep'],
+  order: ['pig', 'goat', 'sheep', 'cow'],
   reserveShare: 0.05,
   minGain: 0.02,
   pigForestShare: 0.5,

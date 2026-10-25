@@ -18,7 +18,8 @@ import {
   trainTeamsWhenReady,
   villageOxen,
 } from '../oxen';
-import { oxTrainedDay } from '../pens';
+import { roomForWinter } from '../livestock';
+import { herdRoom, oxTrainedDay, penCapacity } from '../pens';
 import { CATTLE_TRADE, OXEN, TRADE } from '../rules';
 import { advanceVillage } from '../simulate';
 import {
@@ -134,16 +135,18 @@ describe('koupě – krávy', () => {
     expect(tradeQuote(noPen, { direction: 'S', give: payFor(get), get }, DAY).blocked).toBe(
       NO_COW_ROOM,
     );
-    // plná ohrada – místo pro jednu
+    // plná ohrada – místo pro jednu: krávy se i s jarními telaty musí vejít do ohrady skotu a k domům
+    // (roomForWinter – 1. 11. ves nad ně porazí)
+    const places = Math.min(penCapacity(s).cow, roomForWinter(herdRoom(s), 'cow'));
     const full = structuredClone(s);
-    full.livestock!.herds.cow = 44;
+    full.livestock!.herds.cow = Math.floor(places) - 1;
     expect(cattleRoom(full, 'cows')).toBe(1);
     expect(tradeQuote(full, { direction: 'S', give: payFor(get), get }, DAY).blocked).toBe(
       NO_COW_ROOM,
     );
     // na cestě – krávy výpravy místo zabírají, po návratu jsou ve stádě
     const away = startExpedition(s, DAY, { direction: 'S', give: payFor(get), get });
-    expect(cattleRoom(away, 'cows')).toBe(45 - 6 - 2);
+    expect(cattleRoom(away, 'cows')).toBe(Math.floor(places - 6 - 2));
     const back = returned(away, DAY + 5);
     expect(back.livestock!.herds.cow).toBeCloseTo(8, 9);
     expect(back.chronicle.at(-1)).toMatchObject({ kind: 'trade-returned', get: { cows: 2 } });

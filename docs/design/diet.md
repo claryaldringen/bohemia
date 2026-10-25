@@ -514,8 +514,9 @@ zásoby ≈ 3,6 t na ≈ 4,2 t potřeby do žní, jí 94 % přídělu – a při
     v létě zůstane spodní hranice i se selaty; od 1. 9. se do prasat nad hranicí počítají
     i selata (níž);
   - na jaře se stádo prasat zdvojnásobí (mláďata 1. 4.), takže se z prasnic do podzimu obnoví;
-    co prasata nad hranicí nepokryjí, porazí ves dál v pořadí (kozy, krávy nad chovné, ovce nad
-    ovce na vlnu), a když ani to nestačí, šetří přídělem. Číslo `EMERGENCY_SLAUGHTER.pigForestShare`
+    co prasata nad hranicí nepokryjí, porazí ves dál v pořadí (kozy, ovce nad ovce na vlnu,
+    krávy nad chovné – přednost stád, oxen.md, Co nejvíc sena a co největší stáda; dřív krávy před
+    ovcemi; voli nikdy), a když ani to nestačí, šetří přídělem. Číslo `EMERGENCY_SLAUGHTER.pigForestShare`
     (0,5).
 - **Selata od 1. 9.** – Martin, 19. 10. 2026: „**Ano ke všem návrhům**“ na návrh „letošní selata
   smějí od 1. 9. na nouzovou porážku“ (Náměty – Hladový podzim): maso se 1. 9. kazí, do podzimní

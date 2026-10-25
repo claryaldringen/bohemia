@@ -482,6 +482,17 @@ export interface WinterInput {
   horsePastureHa?: number;
   /** Seno koní na zimu (kg) – mají ho po volech, před stádem. Bez údaje 0. */
   horseHayKg?: number;
+  /**
+   * Seno pro stádo (bez volů a koní), které ves stihne posekat prací po polních pracích, po
+   * ztrátách ve stohu (kg – oxen.md, Stáda podle práce na seč): víc stáda, než na kolik se seno
+   * stihne posekat, si ves nenechá. Bez údaje bez meze.
+   */
+  mowKg?: number;
+  /**
+   * Krávy, které výprava teprve přivede (trade.md – Dobytek ve třech druzích): místo, pastvu i seno
+   * mají první z krav, jako by už byly ve stádu. Bez údaje 0.
+   */
+  cowsComing?: number;
 }
 
 /**
@@ -538,13 +549,14 @@ function watchedShares(
 }
 
 /**
- * Co stáda unesou přes zimu – kusy po druzích (aspoň chovný pár, který ves má). Pastva a seno se
- * dělí podle přednosti (`HERD_PRIORITY` – voli první, pak krávy, ovce a kozy – ty spásají napřed
- * křoviny); prasata podle lesa (pasou se v něm celý rok – žaludy, bukvice, kořínky); a jen tolik,
- * kolik pasáci uhlídali (`herding` – co nikdo neuhlídal, jde na maso) – pasáci hlídají v pořadí
- * přednosti (`watchedShares`). Nejvýš tolik,
- * kolik se i s jarními mláďaty vejde do ohrad svého druhu a u domů (`room` – oxen.md, Ohrady podle
- * druhu; co se nevejde, jde na maso).
+ * Co stáda unesou přes zimu – kusy po druzích (aspoň chovný pár, který ves má). Pastva, seno
+ * a seno, které ves stihne posekat (`mowKg` – oxen.md, Stáda podle práce na seč), se dělí podle
+ * přednosti (`HERD_PRIORITY` – voli první, krávy na cestě, pak krávy, ovce a kozy – ty spásají
+ * napřed křoviny); prasata podle lesa (pasou se v něm celý rok – žaludy, bukvice, kořínky); a jen
+ * tolik, kolik pasáci uhlídali (`herding` – co nikdo neuhlídal, jde na maso) – pasáci hlídají
+ * v pořadí přednosti (`watchedShares`). Nejvýš tolik, kolik se i s jarními mláďaty vejde do ohrad
+ * svého druhu a u domů (`room` – oxen.md, Ohrady podle druhu; co se nevejde, jde na maso) – místa
+ * se uplatní dřív než pastva a seno: kusy, které se nevejdou, si je neberou.
  */
 export function winterTargets(
   state: VillageState,
@@ -554,17 +566,27 @@ export function winterTargets(
   const herds = villageHerds(state);
   const watched = watchedShares(herds, Math.min(1, Math.max(0, input.herding ?? 1)));
   const breeding = (s: HerdSpecies): number => Math.min(herds[s], LIVESTOCK.breedingMin);
+  // krávy na cestě mají místo, pastvu i seno první z krav (koupené – trade.md)
+  const coming = Math.max(0, input.cowsComing ?? 0);
+  const comingHay = coming * HAY.dailyKg.cow * HAY_WINTER_DAYS;
   let pasture = Math.max(
     0,
-    pastureHa(state, day) - input.oxen * LIVESTOCK.oxPastureHa - (input.horsePastureHa ?? 0),
+    pastureHa(state, day) -
+      input.oxen * LIVESTOCK.oxPastureHa -
+      (input.horsePastureHa ?? 0) -
+      coming * LIVESTOCK.pastureHa.cow,
   );
   let browse = goatBrowseHa(state);
   let hay = Math.max(
     0,
     winterHayAvailable(input.hayKg) -
       input.oxen * HAY.dailyKg.ox * HAY_WINTER_DAYS -
-      (input.horseHayKg ?? 0),
+      (input.horseHayKg ?? 0) -
+      comingHay,
   );
+  let mow = input.mowKg === undefined ? Infinity : Math.max(0, input.mowKg - comingHay);
+  const room = (s: HerdSpecies): number =>
+    Math.max(0, roomForWinter(input.room, s) - (s === 'cow' ? coming : 0));
   const targets = herdRecord(() => 0);
   const take = (species: Exclude<HerdSpecies, 'pig'>): void => {
     const per = LIVESTOCK.pastureHa[species];
@@ -572,17 +594,28 @@ export function winterTargets(
     const own = species === 'goat' ? browse : 0;
     const heads = Math.max(
       0,
-      Math.min(herds[species] * watched[species], (pasture + own) / per, hay / winterHay),
+      Math.min(
+        herds[species] * watched[species],
+        room(species),
+        (pasture + own) / per,
+        hay / winterHay,
+        mow / winterHay,
+      ),
     );
     const grazing = heads * per;
     const fromBrowse = Math.min(own, grazing);
     browse -= fromBrowse;
     pasture = Math.max(0, pasture - (grazing - fromBrowse));
     hay = Math.max(0, hay - heads * winterHay);
+    mow = Math.max(0, mow - heads * winterHay);
     targets[species] += heads;
   };
   for (const species of HERD_PRIORITY) if (species !== 'pig') take(species);
-  targets.pig = Math.min(herds.pig * watched.pig, pigForestHa(state) / LIVESTOCK.forestHaPerPig);
+  targets.pig = Math.min(
+    herds.pig * watched.pig,
+    room('pig'),
+    pigForestHa(state) / LIVESTOCK.forestHaPerPig,
+  );
   // ohrady svého druhu a pár kusů u domů (oxen.md – Ohrady podle druhu) – chovný pár zůstane vždy
   return herdRecord((s) =>
     Math.max(breeding(s), Math.min(targets[s], roomForWinter(input.room, s))),

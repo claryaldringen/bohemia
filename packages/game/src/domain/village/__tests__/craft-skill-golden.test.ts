@@ -105,10 +105,13 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
       // věk zemřelého v události úmrtí (happiness.md – Co ubírá) – jen zápis do kroniky
       'age', // hash 3bd10c3d: úmrtí podle věku mění štěstí (a tím práci), jinak shodné s f0150b51
       // hash f78f3f13 (25. 10. 2026): porody brzdí jen energie, ne pestrost – víc porodů
+      // hash 1661516a (25. 10. 2026): stáda jen na seno, které ves stihne posekat (oxen.md – Stáda
+      // podle práce na seč) – zápis volné práce na seč, menší stáda po první sezóně, otava se
+      // stropem práce, nouzová porážka ovce před kravami
     ]);
     const stripped = JSON.stringify(legacyShape(next), (key, value: unknown) =>
       marks.has(key) ? undefined : value,
     );
-    expect(hash(stripped)).toBe('f78f3f13');
+    expect(hash(stripped)).toBe('1661516a');
   }, 120_000);
 });

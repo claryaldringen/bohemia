@@ -401,10 +401,42 @@ nesečou – seno na první zimu si přivedou osadníci.
 161 čd (využití 98 → 51 %); červenec seč 120 → 0, volné 0 → 117 čd; srpen a září beze změny (volné
 157 a 126 čd, otava v 816 není potřeba). 8 let: seč 21–60 t → 8–26 t 1. seč a od 820 otava
 4–6 t; seno 1. 11. 20–60 t → 11–27 t; krávy 2,6 → 13,7 / 2,6 → 11,5, ovce do 819 víc (76 proti
-59), voli 4 → 3, pár celou dobu, úmrtí hladem 0 v obou. **Otevřené:** od 821 seče ves méně (11 t
+59), voli 4 → 3, pár celou dobu, úmrtí hladem 0 v obou. Od 821 sekla ves méně (11 t 1. seče
+a otava) a v 823 ovce klesly na 2 (dřív 63) – příčina a oprava v oddílu níž.
 
-1. seče a otava) a v 823 ovce klesly na 2 (dřív 63) – příčina (práce v červnu, strop podle
-   pasáků) zatím neprověřena.
+## Stáda podle práce na seč (25. 10. 2026)
+
+Martin, 25. 10. 2026: seče vložit tak, „**aby to neohrozilo ostatní polní práce**“ – polní práce
+mají přednost. Recenze dvou sečí ve Vlkově: pole přibývají, pletí v červnu sní všechnu práci
+a nutná seč (seno na dnešní stádo) práci nedostane – 821 jen 120 z 269 čd, seno chybí, zima
+poráží a krávy (přednost) vytlačí ovce: 104 → 27 (821), 58 → 2 (823). Pravidla jsou **návrh
+Clauda**:
+
+1. **Stáda jen na seno, které ves stihne posekat.** Ves si každý den v oknech seče zapíše práci,
+   která **po polních pracích** zbyla (nutná seč, stavby, opravy, osev a seč navíc i nevyužitá),
+   převedenou na seno podle dnešní seče (kg na člověkoden plánu i s chůzí na louky; bez plánu
+   podle práce na hektar). Po otavě (1. 10.) z ní ves ví **strop sena**: 1. seč a otava nejvýš
+   40 % 1. seče (otava jen na jejích loukách). Cílová velikost stád – plán seče (25. 5., 1. 8.)
+   i porážka 1. 11. – se do toho sena po ztrátách ve stohu vejde v pořadí přednosti: voli a koně
+   první, pak krávy → ovce → kozy (prasata seno nežerou). Krávy tak nevytlačí ovce kvůli senu,
+   které stejně nikdo neposeče, a nutná seč se vejde do práce, kterou ves po polních pracích má.
+   **Proč loňská práce:** je to přímé měření všeho, co ves opravdu dělá (pletí, žně, pasení,
+   péče), deterministické (zápis ve stavu den po dni – nezávisí na tom, po jakých kouscích se ves
+   dopočítá) a bez nového modelu práce po měsících. Rostou-li pole, strop se srovná o sezónu
+   později – tlumí to rezerva 20 % a otava. Ves bez zápisu (nová ves, převod, seč rozjetá před 25. 10. 2026) stáda stropem nemezí až do první celé sezóny.
+2. **Místa v ohradách před senem.** Kusy, které se i s jarními mláďaty nevejdou do ohrad svého
+   druhu a k domům, si pastvu ani seno neberou (dřív si je vzaly a stádo se srazilo na místa až
+   na konci – ovcím chybělo).
+3. **Koupený dobytek.** Krávy a voli, které výprava teprve vede, se počítají do seče (nutné seno
+   i strop) i do zimy (místo, pastva a seno mají první z krav, voli s voly). Otava má v seči
+   všechny louky posečené v 1. seči a seče do stropu; přibude-li dobytek během okna otavy
+   (koupený i na cestě), strop otavy se zvedne. Obchod nekoupí víc krav, než kolik se **i s
+   jarními telaty** vejde do ohrady skotu a k domům – stejné pravidlo jako porážka 1. 11. kvůli
+   místům (dřív se až 29 % koupených krav 1. 11. porazilo, i když seno bylo); důvod u kurzoru
+   „Tolik krav se do ohrady skotu nevejde.“
+4. **Nouzová porážka** (hlad – [diet.md](diet.md), Nouzová porážka) v pořadí přednosti: prasata →
+   kozy → ovce → krávy, voli nikdy; chovný pár, krávy na mléko a voly a ovce na vlnu zůstanou.
+   Dřív krávy před ovcemi.
 
 ## Účinek na práci
 

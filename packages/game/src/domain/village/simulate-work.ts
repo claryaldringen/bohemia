@@ -52,7 +52,7 @@ import {
   type PloughTravels,
 } from './plough-trip';
 import { isToilDay, windowEndDay } from './happiness';
-import { mow, mowingNeededRemaining, mowingRemaining } from './hay';
+import { mow, mowingNeededRemaining, mowingRemaining, recordMowingLabor } from './hay';
 import { herdingDay, recordHerding } from './herding';
 import { horseCareLabor, villageHorses } from './horses';
 import { villageHoldings, workOrder } from './holdings';
@@ -554,6 +554,8 @@ export function work(
   // práce dne na obilných jamách – u které jámy (rozdělení práce)
   let grainPits = null as ReturnType<typeof workGrainPits>;
   let mowLabor: number | undefined;
+  // práce, kterou dnes dostala nutná seč (i posádky vozů) – volná práce na seč (níž)
+  let mowWork = 0;
   const mowingBefore = state.hay?.mowing?.done ?? 0;
   dayTasks.forEach((task, i) => {
     const labor = allocation.taskAmounts[i] ?? 0;
@@ -643,6 +645,7 @@ export function work(
     } else if (task.name === 'mow') {
       mow(state, amount);
       mowLabor = haul ? labor - crew : labor;
+      mowWork += labor;
     } else if (task.name === 'slaughter') {
       workSlaughter(state, amount);
     } else if (task.name === 'grain-pit') {
@@ -675,6 +678,10 @@ export function work(
     purchases.reduce((sum, p) => sum + p.manDays, 0),
   );
   const trade = workExpeditions(state, allocation.away - purchaseLabor);
+  // volná práce na seč (oxen.md – Stáda podle práce na seč): co po polních pracích zbylo – nutná
+  // seč a společná práce (stavby, opravy, osev a seč navíc, nevyužitá) – podle ní ves příští rok
+  // drží stáda
+  recordMowingLabor(state, day, mowWork + allocation.common, coverage.tools);
   let common = allocation.common;
   // kácení u stromů, kam vůz dojede, před dnešní prací – co se dnes skácí, mohly odvézt vozy
   const fellingBefore = access
