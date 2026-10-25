@@ -97,7 +97,7 @@ paths.md – Stálé trasy), `paths/walk-speed.ts` (`partWalkSpeed` → rychlost
 `isCropPart` – sleva pěšiny na poli nikdy / vždy stejně), `paths/network-grid.ts`,
 `paths/walking.ts` (`withFieldWalk`), `paths/cart.ts` (`cartPartSpeed` – jen zarostlý díl
 neprůjezdný, jinak `field`; čtyřkolák bez výjimky zoraného dílu), `carts.ts`
-(`harvestReachState` pro mřížku zbytečný – pošlapání dál podle dnešního stadia),
+(`harvestReachState` pro mřížku zbytečný),
 `paths/network-search.ts` + `paths/cart.ts` (remízy).
 
 **Rozhodnutí:**
@@ -111,15 +111,22 @@ neprůjezdný, jinak `field`; čtyřkolák bez výjimky zoraného dílu), `carts
   (u vozu stav buňka × směr). Hledání chodců (A\*) dobírá všechny stavy s klíčem ≤ cena cíle,
   aby rozhodnutí neviselo na tom, co se vytáhlo z haldy dřív; volba mezi koncovými buňkami
   a směry cíle také podle indexu. Sleva z vyšlapanosti po setinách síly pěšiny.
-- **Pošlapání:** beze změny pravidla – po nalezení trasy se díly pod ní, které jsou ten den
-  osetí, pošlapou (`CART_TRAMPLE`).
+- **Pošlapání odstranit** (Martin 25. 10. 2026: „Pokud vůz pojede přes pole, tak žádnou úrodu
+  nepošlape – je to přiměřené herní zjednodušení.“): smazat `CART_TRAMPLE`
+  (`rules-roads.ts`), `trampleSownParts` (`cart-jobs.ts`) a jeho volání v `cart-jobs.ts`,
+  `paths/cart.ts`, `year-plan.ts`; pole `FieldPart.trampledM2` (`types-land.ts`, `fields.ts`) –
+  volitelné pole ve starém stavu se při načtení ignoruje; v `year-plan.ts` odečet pošlapané
+  plochy ze sklizně; kronika / upozornění na pošlapání; testy `cart-jobs.test.ts`,
+  `cart-trips.test.ts`, `year-plan.test.ts`. Scénu (`TRAMPLED`, `trampled…` ve
+  `village-renderer*.ts`, `sacred-renderer.ts`, `showcase-sites.ts`, `village-construction.ts`,
+  `pen-layout.ts`) se netýká – jde o jiné „pošlapané“ (zdupaná půda staveb); ověřit `grep`em.
 
 **Postup:**
 
 - [ ] Krok 1: Testy – cena buňky pole stejná pro všechna stadia (chůze i vůz, oba druhy vozu);
       zarostlý díl dál neprůjezdný vozem; úvrať jako louka; trasa k poli končí na stejné buňce
       v osevu i ve strništi; dvě symetrické cesty (zrcadlová mapa) → vždy táž trasa a táž po
-      přidání vzdálené překážky; táž mapa, jiné pořadí cílů → tytéž trasy; pošlapání jen přes
+      přidání vzdálené překážky; táž mapa, jiné pořadí cílů → tytéž trasy; (pošlapání odpadlo) jen přes
       díl dnes osetý; pole umístěné v lese – trasa se při kácení stromů na něm nemění.
 - [ ] Krok 2: Testy selžou. Krok 3: Implementace. Krok 4: Přepis zlatých otisků (`paths-*`,
       `cart*`, `wagons*`, `plough*`, `road-tree-speed`) – každý s důvodem v commitu; vlastnosti
@@ -191,15 +198,15 @@ práce dne, převážení) a úprava bodů „Trasy ve stavu vsi“ a „Vyšlap
 **Postup:**
 
 - [ ] Krok 1: Výchozí stav (feat/landscape po sloučení `fix/roads-audit-1`, příp. rotace): 12
-      měsíců dopočtu – audit a–j po měsících, pošlapaná úroda (m² a kg za rok, `trampledM2`),
+      měsíců dopočtu – audit a–j po měsících, (pošlapání odpadlo),
       časy chůze k dílům (`walkDistanceM` – průměr, max), jízdy a časy vozů (voda, svoz, spřežení
       k orbě), dosah svozu žně (dnes 84 % plochy), počet přepočtů tras a změněných buněk tras.
 - [ ] Krok 2: Totéž po A1–A2b. Krok 3: Srovnání do tabulky (`docs/code/village-roads.md` –
       Měření cest, bod „Stálé trasy – Vlkov“).
 - [ ] Krok 4: Stabilita sítě – mezi měsíci bez změny mapy 0 změněných buněk tras; souběh (d)
       a smyčky (g) neklesnou pod výchozí stav.
-- [ ] Krok 5: Překročí-li pošlapání nebo dosah svozu meze (níž – Kritéria), **nezačínat B**
-      a vrátit Martinovi čísla s volbou (cena vozu 4 / 1,67 / jiná, úsek po poli podle stadia).
+- [ ] Krok 5: Překročí-li dosah svozu mez (níž – Kritéria), **nezačínat B**
+      a vrátit Martinovi čísla s volbou (cena vozu je rozhodnutá 4; zbývá úsek po poli podle stadia).
 - [ ] Krok 6: Commit `docs: stálé trasy – ověření na Vlkově`.
 
 ### Úloha B1: Mezipaměť mřížky a tras vozů, chůze jen při změně mapy (≈ 130 kroků)
@@ -259,8 +266,7 @@ v čase), `apps/web/app/game/actions.ts`, `apps/web/hooks/use-polling.ts` (ově�
 
 ## Rizika
 
-- **Pošlapání úrody (největší pro hru):** vůz s cenou pole 4 jede přes osetý díl ochotněji než
-  dnes (8) – víc pošlapané úrody tam, kde je objížďka 4–8× delší; ve strništi naopak objíždí
+- **Dosah svozu:** vůz s cenou pole 4 jede přes osetý díl ochotněji než dnes (8), ve strništi naopak objíždí
   (4 místo 1,25) a svoz uvnitř pole je dražší – **dosah svozu může klesnout** (mez hledání
   `maxCost`) a nosí se víc ručně. A3 měří obojí; záloha: poslední úsek vozu po poli (od vjezdu
   k dílu) podle dnešního stadia mimo mřížku – mřížka i trasy k poli zůstanou stálé.
@@ -289,15 +295,18 @@ v čase), `apps/web/app/game/actions.ts`, `apps/web/hooks/use-polling.ts` (ově�
 - Zasetí, sklizeň a zakládání dílu nezmění žádnou uloženou trasu ani mřížku vozu (test i Vlkov:
   mezi měsíci bez změny mapy 0 změněných buněk tras).
 - Vyšlapanost přibývá jen v buňkách tras; souběžné pásy (audit d) po 12 měsících ne víc než dnes.
-- Pošlapaná úroda Vlkova za rok nejvýš + 50 % proti dnešku a nejvýš 1 % sklizně; dosah svozu žně
+- Žádné pošlapání úrody (`grep` na `CART_TRAMPLE` / `trampledM2` prázdný); dosah svozu žně
   nejvýš − 5 p. b. (84 % → ≥ 79 %) – jinak rozhodne Martin (A3 krok 5).
 - Rok dopočtu Vlkova ≤ 25 s (dnes 47–53 s) a otisk stavu po 31 / 365 / 1 095 dnech po B stejný
   jako po A.
 - Stará ves se převede jednou (druhé načtení nic nemění); `typecheck`, `lint`, `test`,
   `format:check`, u B2 i `test:e2e`.
 
-## Otevřené otázky pro Martina
+## Otázky pro Martina – rozhodnuto 25. 10. 2026
 
-- Cena pole pro vůz: 4 (průměr – návrh Clauda) nebo 1,67 (jako zoraná půda – víc zkratek
-  a pošlapané úrody)? Rozhodne před A1; A3 může přinést čísla pro obě.
-- Čtyřkolák na poli: stálá cena jako dvoukolák, nebo dražší (např. 6)?
+Martin: „Ať je stejná cena jako u dvoukoláku. 4 je asi dobrý průměr. Pokud vůz pojede přes pole,
+tak žádnou úrodu nepošlape – je to přiměřené herní zjednodušení.“
+
+- ~~Cena pole pro vůz~~ – **4**, dvoukolák i čtyřkolák stejně.
+- ~~Čtyřkolák na poli~~ – stálá cena jako dvoukolák.
+- ~~Pošlapání úrody~~ – odpadá (úloha A1).

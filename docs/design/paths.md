@@ -197,7 +197,7 @@ Beze změny proti dřívějšku (Martin 18.–19. 10. 2026, čísla návrh Claud
 - **Vozy** jezdí jako dřív po trasách vozové sítě ze stejné funkce na serveru i v prohlížeči
   (`villageCartRoutes`). Voda vozem je už uložená (`VillageState.waterCart`, scéna ji čte přes
   `storedWaterCartDrive` – totéž co simulace); uložení ostatních tras vozů je zjednodušení na
-  později. Jízdy vozů zapisuje do provozu cest a pošlapání úrody jediné místo – denní deník jízd
+  později. Jízdy vozů zapisuje do provozu cest (do 25. 10. 2026 i do pošlapání úrody, to zmizelo) jediné místo – denní deník jízd
   (`CartTripLog`, `flushCartTrips`).
 
 ## Stálé trasy (25. 10. 2026)
@@ -219,7 +219,7 @@ změně stadia hledaly znovu (měření 25. 10. 2026: hledání tras vozů 67 % 
 
 1. **Pole má stálou cenu průjezdu** bez ohledu na stadium dílu (zakládaný, zoraný, osetý,
    rostoucí, zralý, žeň, strniště, úhor): **chůze 0,6** louky (cena buňky 1,67 – `FIELD_WALK.field`),
-   **vůz 0,25** louky (cena 4 – `CART_SPEED.field`, dvoukolák i čtyřkolák). Čísla jsou časový
+   **vůz 0,25** louky (cena 4 – `CART_SPEED.field`, dvoukolák i čtyřkolák; rozhodl Martin 25. 10. 2026: „Ať je stejná cena jako u dvoukoláku. 4 je asi dobrý průměr. Pokud vůz pojede přes pole, tak žádnou úrodu nepošlape – je to přiměřené herní zjednodušení.“). Čísla jsou časový
    průměr dnešních cen přes rok (cena buňky = 1 / rychlost; průměrný čas přechodu v náhodný den):
 
    | Díl přes rok                                                     | Chůze – cena | Vůz – cena |
@@ -240,17 +240,18 @@ změně stadia hledaly znovu (měření 25. 10. 2026: hledání tras vozů 67 % 
      do mapy se počítají **v konečné podobě od umístění** (plot ohrady a hřbitova neprůchodný už
      od založení – trasa ke staveništi končí u něj), ne až po dokončení. Zjednodušení: než se pole
      v lese vymýtí, může přes něj vést trasa mezi stojícími stromy.
-   - **Pošlapání úrody zůstává** ([wagons.md – Vůz přes zaseté pole](wagons.md#vozová-síť-a-vyjeté-cesty)):
-     vede-li trasa vozu přes díl, který je ten den osetý, úroda se pošlape jako dosud (`CART_TRAMPLE`).
-     Vůz se ale osetému dílu nevyhýbá víc než jinému poli – přes pole jede, když je objížďka víc
-     než 4× delší (dosud 8× u osetého, 1,25× u strniště). Kudy přes osetý díl jezdit musí, tam
-     časem vznikne cesta a pošlapávat přestane (jako dosud).
+   - **Vůz přes pole úrodu nepošlape** (Martin 25. 10. 2026: „Pokud vůz pojede přes pole, tak
+     žádnou úrodu nepošlape – je to přiměřené herní zjednodušení.“). `CART_TRAMPLE`,
+     `FieldPart.trampledM2` i pošlapání v kronice a upozorněních zmizí. Vůz se osetému dílu
+     nevyhýbá víc než jinému poli – přes pole jede, když je objížďka víc než 4× delší (dosud 8×
+     u osetého, 1,25× u strniště).
    - **Čas chůze pro práci** (`walkDistanceM` dílu a sadu, palivo, voda) se počítá touž stálou
      cenou – průměrný čas, ne čas dne; mění se jen se změnou mapy.
    - **Čtyřkolák** „zakládaný (zoraný) díl objede“ (wagons.md, Martin 20. 10. 2026 „Po strništích
      a loukách může libovolně“) – stadium už mapa nezná; čtyřkolák platí na poli stálou cenu
-     jako dvoukolák (otázka pro Martina níž). Připravený díl jako strniště při žni
-     (`harvestReachState`) pro mřížku vozu zmizí – dnešní stadium rozhodne jen o pošlapání.
+     jako dvoukolák (rozhodl Martin 25. 10. 2026: „Ať je stejná cena jako u dvoukoláku.“). Připravený
+     díl jako strniště při žni (`harvestReachState`) pro mřížku vozu zmizí – stadium už nerozhoduje
+     o ničem (ani o pošlapání, to zmizelo).
 
 2. **Trasa za prací míří na pole jako celek.** Cílem trasy je pole (`field:<id>`): trasa končí na
    první buňce pole, kam od domu dojde nejlevněji (okraj, vstup) – s jednou cenou celého pole je
@@ -298,7 +299,7 @@ změně stadia hledaly znovu (měření 25. 10. 2026: hledání tras vozů 67 % 
 - **Trasy se s osevem a sklizní nemění:** kdo chodil kolem pole, chodí tak celý rok. Přes pole se
   jde, když je obchůzka loukou víc než 1,67× delší (proti pevné cestě víc než ≈ 3×).
 - **Vozy přes pole** podle průměru: v době osevu o něco ochotněji (4 místo 8), ve strništi méně
-  (4 místo 1,25) – pošlapané úrody může být víc, ověří plán (A3) na Vlkově.
+  (4 místo 1,25) – dosah svozu může klesnout, ověří plán (A3) na Vlkově. Pošlapání úrody odpadlo (Martin 25. 10. 2026).
 - **Postavy** jdou po uložené trase jako dosud; trasy do prohlížeče chodí méně často.
 - **Čas cest k dílům** se během roku nemění (průměr) – výživa vsi se může o málo posunout.
 
@@ -323,14 +324,15 @@ paměti – hlídá test a měření (Vlkov: rok dopočtu ≈ 50 s, cíl ≈ 20�
 - ~~Cesty za den trasy za prací = stálá část + práce dne přepočtu~~ – jen stálá část; práce
   intervalu z `wear.labor`.
 - ~~Plot a stavba do mapy až po dokončení, díl pole až po založení~~ – od umístění.
-- ~~Čtyřkolák zakládaný díl objede~~ – stálá cena (otázka níž).
+- ~~Čtyřkolák zakládaný díl objede~~ – stálá cena jako dvoukolák (Martin 25. 10. 2026).
 
-### Otevřené otázky pro Martina
+### Otázky pro Martina – rozhodnuto 25. 10. 2026
 
-- **Vůz přes pole:** stálá cena 4 (průměr – návrh Clauda), nebo 1,67 jako zoraná půda? S 1,67 by
-  vůz jezdil přes osetá pole, kdykoli je objížďka o 67 % delší – zkratek i pošlapané úrody víc.
-- **Čtyřkolák na poli:** stačí stálá cena jako dvoukolák (zoraný díl už nepozná), nebo pole
-  dražší, např. 6?
+- ~~**Vůz přes pole:** stálá cena 4, nebo 1,67?~~ – **4**, „4 je asi dobrý průměr“.
+- ~~**Čtyřkolák na poli:** stálá cena jako dvoukolák, nebo dražší?~~ – **stejná cena jako
+  dvoukolák** („Ať je stejná cena jako u dvoukoláku.“).
+- ~~Pošlapání úrody vozem~~ – **vůz přes pole úrodu nepošlape** („je to přiměřené herní
+  zjednodušení“).
 
 ## Vyšlapanost a vznik cesty
 
@@ -398,8 +400,7 @@ přitom ležet každý rok přesně na stejném místě.“):
   cesty, kudy vozy jezdí – roční kontrola 1. 11. podle provozu vozů (wagons.md – Vyjeté cesty,
   `markCartRoads`, převzetí kusu `takeOverRoads`); samostatné zakládání vozových cest z kandidátů
   (`formCartRoads`) zmizí – vozová trasa mimo cesty vyšlape cestu jako lidé. Jízda přes osetý díl
-  (Martin 23. 10. 2026: „Vůz smí přes zaseté pole“ – jen když jiná cesta není, úroda se pošlape) se
-  počítá jako každá jiná: kudy vůz jezdit musí, tam vznikne cesta a vůz pak pošlapávat přestane.
+  (Martin 23. 10. 2026: „Vůz smí přes zaseté pole“ – jen když jiná cesta není; ~~úroda se pošlape~~ od 25. 10. 2026 se nepošlape) se počítá jako každá jiná: kudy vůz jezdit musí, tam vznikne cesta.
 - **Kronika** jako dřív: „Kudy se chodí léta, vyšlapala se pevná cesta.“
 
 ## Zarůstání (pravidlo 4)
@@ -510,7 +511,7 @@ Nový systém přehrazení řeší sám (návrh Clauda):
 - **Objížďka:** trasy (a vozy) obejdou stavbu nejrychlejší cestou kolem – uličkou, okrajem pole,
   loukou; vůz přes osetý díl jen když jinudy nejde. Vyšlapaná objížďka se stane cestou jako každá
   jiná a napojí se na zbytky staré cesty (kotva „jiná cesta“ – `joinPoint`, `splitRoad`). Kudy vede
-  nová cesta, tudy pak jezdí i vůz a úrodu už nepošlapává.
+  nová cesta, tudy pak jezdí i vůz (úrodu od 25. 10. 2026 nepošlapává nikdy).
 - Nahrazuje „zrušit kus cesty pod stavbou může přijít později“ ([roads.md – Co platí
   dál](roads.md#cesta-je-cesta--povrch-pod-ní-a-zarůstání)). Branka nového obydlí do cizího
   pozemku dál nesmí (Vchody).
@@ -857,38 +858,39 @@ cest v2), ne tichá oprava.
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                       | Kdo          |
-| ------------------------------------------------------------------------------------------------ | ------------ |
-| Pravidla 1–11 nového systému cest                                                                | Martin       |
-| Lidé na upravované cestě vidět pracovat; přes ohrady se nechodí, dovnitř brankou                 | Martin       |
-| Staré vsi převést jednou a idempotentně, nezahodit                                               | Martin       |
-| Čísla vzniku a zarůstání zvolí Claude sám                                                        | Martin       |
-| Trasy ukládá simulace do stavu (řetězový kód), scéna je jen čte                                  | návrh Clauda |
-| Zvyk × 1,25 mimo cestu – louka jen při úspoře přes 20 % času                                     | návrh Clauda |
-| Ploty ohrad a hřbitova neprůchodné, trasa končí v brance; pohřby jsou trasa                      | návrh Clauda |
-| Vyšlapanost ~~7,5 m, ± 1 políčko~~, + provoz − 1 za den, 0–1 500, cesta od 1 000, vůz × 2        | návrh Clauda |
-| Vznik jen celé cesty od kotvy ke kotvě, prodloužení do vyšlapanosti 500; měsíční kontrola        | návrh Clauda |
-| Kotvy: vchod, křižovatka, kraj mapy a cíl (konec trasy k vodě, dřevu, poli, sadu, louce)         | návrh Clauda |
-| Pahýly zmizí vždy; upravená a vozová zarůstá, jejich zbytky pod 30 m zmizí; opuštěná je mimo síť | návrh Clauda |
-| Křižovatka: Y s β 30–60°, natočení po 5°, vchod 1,5 × šířka, oblouk 12 m, dvě po 10 m            | návrh Clauda |
-| Rozestup křižovatek: dosahy plácků + 1 m; dvě Y se sloučí, jinak se odsunou                      | návrh Clauda |
-| Znamení: strom 40 %, kámen 30 %, kůl 30 %; strom roste jako strom u cesty                        | návrh Clauda |
-| Cesta k vchodu bez ohledu na vyšlapanost, nezarůstá, dokud se ke stavbě chodí                    | návrh Clauda |
-| Převod: causeway → upravená, stav z historie, vyšlapanost z kandidátů, úklid, křižovatky         | návrh Clauda |
-| Převod po krocích s úlohami – stará ves hratelná po každé úloze; trasy při načtení               | návrh Clauda |
-| Provozní pole vyšlapanosti v paměti; dopočet 40 let Vlkova nejvýš + 1 s                          | návrh Clauda |
-| Ploty chodcům touž funkcí jako vozům (`fencedCells`) – ulička 3 m mezi ohradami průchozí         | návrh Clauda |
-| Stavba přes cestu: kus pod ní opuštěný hned, objížďka se vyšlape a napojí                        | návrh Clauda |
-| Jízdy vozů do vyšlapanosti ročně z `flushCartTrips`; i přes osetý díl                            | návrh Clauda |
-| Kotvy z konců tras (brána, vchod stavby, cíl, kraj mapy); souběžné cesty sloučí úklid            | návrh Clauda |
-| Panel cesty ukáže oba konce (stavba, křižovatka, kraj mapy), klik je vybere                      | Martin       |
-| Konce cesty podle kotev úklidu: křižovatka, kotva, kraj mapy, jiná cesta, jinak nikam            | návrh Clauda |
-| Jednorázová přestavba sítě, varianta A – vylepšení se přenesou                                   | Martin       |
-| Přestavba: vyšlapanost za rok, 4 průchody, přenos 60 % do 4 m, kusy stezek se vrátí              | návrh Clauda |
-| Stálé trasy: průměr ceny pole místo stadia, přepočet jen se změnou mapy; i výpočet v paměti      | Martin       |
-| Pole i stavba do mapy tras od umístění; měsíční kontrola mění mapu jen se změnou sítě cest       | Martin       |
-| Pole chůze 0,6, vůz 0,25; remízy podle indexu buňky; vyšlapanost 3,75 m bez sousedů              | návrh Clauda |
-| Trasy k práci dne nad stálými, měsíčně při změně míst; lidé a stáda jen převáží cesty za den     | návrh Clauda |
+| Rozhodnutí                                                                                               | Kdo          |
+| -------------------------------------------------------------------------------------------------------- | ------------ |
+| Pravidla 1–11 nového systému cest                                                                        | Martin       |
+| Lidé na upravované cestě vidět pracovat; přes ohrady se nechodí, dovnitř brankou                         | Martin       |
+| Staré vsi převést jednou a idempotentně, nezahodit                                                       | Martin       |
+| Čísla vzniku a zarůstání zvolí Claude sám                                                                | Martin       |
+| Trasy ukládá simulace do stavu (řetězový kód), scéna je jen čte                                          | návrh Clauda |
+| Zvyk × 1,25 mimo cestu – louka jen při úspoře přes 20 % času                                             | návrh Clauda |
+| Ploty ohrad a hřbitova neprůchodné, trasa končí v brance; pohřby jsou trasa                              | návrh Clauda |
+| Vyšlapanost ~~7,5 m, ± 1 políčko~~, + provoz − 1 za den, 0–1 500, cesta od 1 000, vůz × 2                | návrh Clauda |
+| Vznik jen celé cesty od kotvy ke kotvě, prodloužení do vyšlapanosti 500; měsíční kontrola                | návrh Clauda |
+| Kotvy: vchod, křižovatka, kraj mapy a cíl (konec trasy k vodě, dřevu, poli, sadu, louce)                 | návrh Clauda |
+| Pahýly zmizí vždy; upravená a vozová zarůstá, jejich zbytky pod 30 m zmizí; opuštěná je mimo síť         | návrh Clauda |
+| Křižovatka: Y s β 30–60°, natočení po 5°, vchod 1,5 × šířka, oblouk 12 m, dvě po 10 m                    | návrh Clauda |
+| Rozestup křižovatek: dosahy plácků + 1 m; dvě Y se sloučí, jinak se odsunou                              | návrh Clauda |
+| Znamení: strom 40 %, kámen 30 %, kůl 30 %; strom roste jako strom u cesty                                | návrh Clauda |
+| Cesta k vchodu bez ohledu na vyšlapanost, nezarůstá, dokud se ke stavbě chodí                            | návrh Clauda |
+| Převod: causeway → upravená, stav z historie, vyšlapanost z kandidátů, úklid, křižovatky                 | návrh Clauda |
+| Převod po krocích s úlohami – stará ves hratelná po každé úloze; trasy při načtení                       | návrh Clauda |
+| Provozní pole vyšlapanosti v paměti; dopočet 40 let Vlkova nejvýš + 1 s                                  | návrh Clauda |
+| Ploty chodcům touž funkcí jako vozům (`fencedCells`) – ulička 3 m mezi ohradami průchozí                 | návrh Clauda |
+| Stavba přes cestu: kus pod ní opuštěný hned, objížďka se vyšlape a napojí                                | návrh Clauda |
+| Jízdy vozů do vyšlapanosti ročně z `flushCartTrips`; i přes osetý díl                                    | návrh Clauda |
+| Kotvy z konců tras (brána, vchod stavby, cíl, kraj mapy); souběžné cesty sloučí úklid                    | návrh Clauda |
+| Panel cesty ukáže oba konce (stavba, křižovatka, kraj mapy), klik je vybere                              | Martin       |
+| Konce cesty podle kotev úklidu: křižovatka, kotva, kraj mapy, jiná cesta, jinak nikam                    | návrh Clauda |
+| Jednorázová přestavba sítě, varianta A – vylepšení se přenesou                                           | Martin       |
+| Přestavba: vyšlapanost za rok, 4 průchody, přenos 60 % do 4 m, kusy stezek se vrátí                      | návrh Clauda |
+| Stálé trasy: průměr ceny pole místo stadia, přepočet jen se změnou mapy; i výpočet v paměti              | Martin       |
+| Pole i stavba do mapy tras od umístění; měsíční kontrola mění mapu jen se změnou sítě cest               | Martin       |
+| Cena pole pro vůz 4, čtyřkolák stejně jako dvoukolák; vůz přes pole úrodu nepošlape (herní zjednodušení) | Martin       |
+| Pole chůze 0,6, vůz 0,25; remízy podle indexu buňky; vyšlapanost 3,75 m bez sousedů                      | návrh Clauda |
+| Trasy k práci dne nad stálými, měsíčně při změně míst; lidé a stáda jen převáží cesty za den             | návrh Clauda |
 
 ## Nahrazená pravidla (22. 10. 2026)
 
