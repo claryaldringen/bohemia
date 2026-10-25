@@ -98,16 +98,18 @@ export interface Season {
   flaxNeedKg?: number; // potřeba lnu k 1. 9. – pro VillageState.linen při trhání
 }
 // types-state.ts: season: Season | null; threshingSeason: Season | null
-// types-land.ts:  FieldPart.next?: 'spring'           – díl po ozimu čeká na jař
+// types-land.ts:  FieldPart.next?: 'spring' | 'winter' – po ozimu čeká na jař, po jaři (1. osev) na ozim
 //                 FieldPart.fallowBeforeSeason?: {…}  – příloh před sezónou (dnes …BeforePlan)
 ```
 
-Čisté funkce v novém `rotation.ts`: `nextSowing(part)` → `'first' | 'spring' | 'late' |
-'emergency' | 'rest' | null` (hotový nebo odpočatý ≥ 95 %, po ozimu, příloh 70–95 %, 40–70 %,
-odpočívá, v sezóně či zakládaný); `sowingCropToday(kind, day)` (z `extraSowingCrop` – ozim jen,
+Čisté funkce v novém `rotation.ts`: `nextSowing(part)` → `'first' | 'spring' | 'winter' | 'late' |
+'emergency' | 'rest' | null` (hotový nebo odpočatý ≥ 95 %, po ozimu, po jaři jako prvním osevu,
+příloh 70–95 %, 40–70 %, odpočívá, v sezóně či zakládaný); `sowingCropToday(kind, day)` (z `extraSowingCrop` – ozim jen,
 když po dnešku zbývá den setí ozimu; jař v oknech kopání jaře, na jaře jen dokud zbývá den setí);
 `rotateAfterSeason(part, day)` (1. 9. místo větve `sown` v `endOfSeason`: ozim jako první osev
-a úrodnost ≥ 70 % → `ready` + `next: 'spring'`, jinak úhor); `neededSelection(state, day,
+a úrodnost ≥ 70 % → `ready` + `next: 'spring'`, obilní jař jako první osev a úrodnost ≥ 70 % →
+`ready` + `next: 'winter'` – Martin 25. 10. 2026: „Jestli bude možné mu dát ozim, ať dostane
+ozim.“, jinak úhor); `neededSelection(state, day,
 targets)` → díly, které mají přibýt k nutným plodinám (s plodinou), a nezačaté nutné díly, které
 ves už nepotřebuje; `moveParts(from, to, ids, parts)` v `land-taken.ts` – přesune díly s jejich
 hotovou prací (podle `taskSpans`), součet hotové práce se nezmění.
@@ -141,27 +143,37 @@ nemění.
 **Soubory:** nový `rotation.ts`; `types-land.ts` (`FieldPart.next?`, JSDoc s odkazem na fields.md);
 `sowing.ts` (vytáhnout řazení `chooseFlax` – od konce, `chooseLegumes` – od domu – do sdílených
 funkcí); `extra-sowing.ts` (`extraSowingCrop`, `sowParts`, `reclaimedLogs` přesunout do
-`rotation.ts`, v `extra-sowing.ts` jen re-export do Úlohy 4); nový `__tests__/rotation.test.ts`.
+`rotation.ts`, v `extra-sowing.ts` jen re-export do Úlohy 4); nový
+`__tests__/sowing-rotation.test.ts` (`rotation.test.ts` už testuje natočené stavby). Sdílené řazení
+(`SideCrop`, `rotatedFor`, `sideCropOrder`) zůstává do Úlohy 3 v `sowing.ts` – `rotation.ts`
+importuje `field-progress.ts` a import opačným směrem by uzavřel kruh přes `summary.ts` → `lord.ts`
+(rozbité načtení `costs.ts` v testech vozů).
 
-- [ ] `nextSowing(part)` podle `state`, `next`, `fertilityShare` (`FERTILITY.fallowReady`,
+- [x] `nextSowing(part)` podle `state`, `next`, `fertilityShare` (`FERTILITY.fallowReady`,
       `sowableMin`, `emergencyMin`) – `sowingGroup` zůstává pro pořadí.
-- [ ] `sowingCropToday(kind, day)` – `'first'` → ozim / jař podle oken (`windowOpen`), `'spring'`
+- [x] `sowingCropToday(kind, day)` – `'first'` → ozim / jař podle oken (`windowOpen`), `'spring'`
       → jen jař; test na 29. 10., 30. 10., 31. 10., 1. 3., 29. 4., 30. 4.
-- [ ] `rotateAfterSeason(part, day)` – úrodnost jako `endOfSeason`, pak ozim s `sownYears` 1
-      a úrodností ≥ 70 % → `ready` + `next: 'spring'`; jař, luštěniny, len, nouzový osev a druhý
-      osev → `fallow` (`fallowSinceDay`, `sownYears` 0, bez `crop`, bez bonusu). Test oběhu: díl
+- [x] `rotateAfterSeason(part, day)` – úrodnost jako `endOfSeason`, pak ozim s `sownYears` 1
+      a úrodností ≥ 70 % → `ready` + `next: 'spring'`; obilní jař s `sownYears` 1 a úrodností
+      ≥ 70 % → `ready` + `next: 'winter'` (Martin 25. 10. 2026 – díl, který nestihl ozim, dostane
+      ozim; `nextSowing` → `'winter'`, plodina dne jako první osev); luštěniny, len, nouzový osev
+      a druhý osev → `fallow` (`fallowSinceDay`, `sownYears` 0, bez `crop`, bez bonusu). Test oběhu: díl
       95 % → 12 sezón (ozim, jař, 10 let úhoru) → zase `first`; čerstvý 100 % → úhor 8 let;
       luštěniny po ozimu → úhor 4 roky, len → 12 let.
-- [ ] `neededSelection(state, day, targets)`: zasetá a začatá nutná práce sezóny (očekávaná energie
+- [x] `neededSelection(state, day, targets)`: zasetá a začatá nutná práce sezóny (očekávaná energie
       jako dnes `planEnergyKg` – plná práce, dnešní úrodnost) + kandidáti v pořadí `sowingBlocks`
       (skupiny 1–3, pak 4, pak `EMERGENCY_GROUP` s `expectedNetKg > 0`); len od konce do
-      `flaxNeedKg`, luštěniny od domu do `targets.legumeKg` (napřed díly `'spring'`, pak
+      `targets.flaxNeedKg`, luštěniny od domu do `targets.legumeKg` (napřed díly `'spring'`, pak
       `'first'`), obilí do `targets.harvestKg`; plodina z `sowingCropToday`. Vrací díly k přidání
-      s plodinou (`join`) a nutné díly bez začaté práce, které ves už nepotřebuje (`release`).
-- [ ] Testy výběru (len od konce, luštěniny od domu, stop po pokrytí, nouzové jen při
+      s plodinou (`join`) a nutné díly bez začaté práce, které ves už nepotřebuje (`release` – jen
+      obilí, až nad toleranci `FIELD_STORES.trimMarginYears × targets.needKg`, nouzové první, pak
+      nejdál od domu; návrh Clauda). `targets` = `harvestKg`, `legumeKg`, `needKg`
+      (`SowingTargets`) + `flaxNeedKg` (potřeba lnu sezóny). Díly po prvním osevu (`next`) mají
+      v `sowingGroup` skupinu 1 (jako osévaný díl) – před čerstvými.
+- [x] Testy výběru (len od konce, luštěniny od domu, stop po pokrytí, nouzové jen při
       nedostatku, release) a determinismu (stejný vstup → stejný výstup, nezávisle na pořadí
       `state.parts`).
-- [ ] Commit `feat(game): osevní postup dílu a výběr nutných dílů – čisté funkce`.
+- [x] Commit `feat(game): osevní postup dílu a výběr nutných dílů – čisté funkce`.
 
 **Hotovo:** `typecheck`, `lint`, `test` (otisky beze změny), `format:check`.
 
@@ -383,9 +395,9 @@ a novým kódem, bez zásahu hráče, a jednou se dvěma stavbami zadanými v du
    práci dílu z `taskSpans` (pořadí po čtvercích). Invariant v testu: součet hotové práce přes
    plodiny se přesunem nezmění, čelo práce ve scéně neposkočí.
 3. **Podzim bez odhadu:** ves začne ozim na všech dílech na řadě; co setí do konce října
-   nestihne, jde na jaro jako jař a po ní do úhoru (jen jeden osev v oběhu – víc vracení
-   přílohu). Měří Úloha 9 (ozimy přesunuté na jaro); otevřená volba ve fields.md (druhý osev
-   ozimem).
+   nestihne, jde na jaro jako jař a po ní – když to úrodnost dovolí – ozim (Martin 25. 10. 2026),
+   pak úhor. Měří Úloha 9 (ozimy přesunuté na jaro); dřívější otevřená volba ve fields.md (druhý osev
+   ozimem) je rozhodnutá.
 4. **Orba po pásech:** díly přibývající po dávkách mohou zkrátit brázdu a zpomalit orbu – dávky
    (1. 9., 1. 11.) a test brázdy v Úloze 5; díly nad potřebu se orají po jednom jako dnes osev
    navíc.
@@ -405,6 +417,6 @@ a novým kódem, bez zásahu hráče, a jednou se dvěma stavbami zadanými v du
 
 ## Mimo plán
 
-- Kratší úhor (trojpolí), druhý osev ozimem po jaři – jen na Martinův pokyn (fields.md – Otevřené).
+- Kratší úhor (trojpolí) – jen na Martinův pokyn. (Ozim po jaři jako prvním osevu Martin rozhodl 25. 10. 2026 – je v Úloze 1.)
 - Autopilot staveb, předvídání staveb vesničany (Martin: vesničané stavby dopředu neznají).
 - Změny sena, stád a výmlatu na humně.

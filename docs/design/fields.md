@@ -300,6 +300,8 @@ Stav: **Martin, 25. 10. 2026:** „Tím pádem by teď ves měla vyrobit maximum
 kolik jí umožňuje rozloha polí a množství lidí.“ – „Ne, stavby mají pořád přednost, ale vesničané
 neví dopředu že budou něco stavět, takže ve chvíli, kdy stavba přijde, prostě vesnice o část úrody
 přijde.“ – „Proč se pořád vymýšlí nějaký plán osevu 1. září?“ – a „Ano“ k návrhu Clauda níže.
+K otevřené otázce dílu, který nestihl ozim (Martin, 25. 10. 2026): „Jestli bude možné mu dát
+ozim, ať dostane ozim.“
 Pravidla jsou **návrh Clauda, schválený Martinem 25. 10. 2026**; podrobnosti, které v návrhu
 nebyly, jsou označené jako návrh Clauda. Implementace podle plánu
 [2026-10-25-sowing-rotation](../superpowers/plans/2026-10-25-sowing-rotation.md).
@@ -338,10 +340,17 @@ Seno, dvě seče).
      (září–listopad), zbytek v březnu–dubnu, a seje v březnu–dubnu. Jen když díl smí dál (aspoň
      70 % přirozené, `FERTILITY.sowableMin`) – odpočatý díl má po ozimu 83 %, mez se uplatní jen
      u dílů starších vsí, které se osévaly víc let v řadě.
-   - **Po jaři úhor** – i po luštěninách a lnu a i tehdy, když byla jař prvním osevem oběhu
-     (ozim nestihla). Úhor je příloh (Přílohová soustava, Příloh a pastva, Zarůstání beze změny):
-     pase se, seče, zarůstá a vrací se mu 2,5 % přirozené ročně; odpočatý je zase na řadě
-     s prvním osevem.
+   - **Po jaři úhor** – i po luštěninách a lnu. Úhor je příloh (Přílohová soustava, Příloh
+     a pastva, Zarůstání beze změny): pase se, seče, zarůstá a vrací se mu 2,5 % přirozené ročně;
+     odpočatý je zase na řadě s prvním osevem.
+   - **Jař jako první osev – pak ozim** (Martin 25. 10. 2026: „Jestli bude možné mu dát ozim, ať
+     dostane ozim.“): díl, který ozim nestihl a jako první osev oběhu dostal jař, dostane po její
+     sklizni ozim, když smí dál (aspoň 70 % přirozené, `FERTILITY.sowableMin` – stejná mez jako po
+     ozimu; odpočatý díl má po jaři 83 %), a teprve po něm jde do úhoru. Oběh je tak stejně dlouhý
+     jako ozim – jař, jen v obráceném pořadí (95 → 83 → 71 %). Když ani tenhle ozim do konce října
+     nezačne, oseje se díl na jaře jaří (bod 2) a po ní jde do úhoru – v oběhu jsou vždy nejvýš dva
+     osevy (návrh Clauda). Luštěniny a len jako první osev mají po sobě úhor (jsou místo jaře, ne
+     zmeškaný ozim).
    - **Luštěniny a len jsou místo jaře:** berou díly na řadě s jaří – len od konce pořadí (nejdál
      od domu, jako dosud), luštěniny od domu –, dokud nepokryjí svou potřebu (bod 3); zbytek je
      obilní jař. Když díly na řadě s jaří nestačí, vezmou i díly na řadě s prvním osevem (ty pak
@@ -405,7 +414,10 @@ Seno, dvě seče).
    - **Díl, na kterém začala práce jako na nutném, nutným zůstane** – co ves začala proti hladu,
      dodělá. Díl nad potřebu se stane nutným, když potřeba vzroste (narození, díl zabraný stavbou,
      slabší úroda), v pořadí od domu. Díl, na kterém práce ještě nezačala a který ves už
-     nepotřebuje, prostě čeká jako díl nad potřebu – zkrácení plánu odpadá.
+     nepotřebuje, prostě čeká jako díl nad potřebu – zkrácení plánu odpadá. Nutný ho ves přestane
+     brát, až když úroda nutných dílů převyšuje potřebu o víc než desetinu roční potřeby z pole
+     (`FIELD_STORES.trimMarginYears`, jako dosud zkrácení plánu), aby díly mezi nutnými a nad
+     potřebu nepřebíhaly den co den (návrh Clauda); nejdřív nouzový příloh, pak nejdál od domu.
    - **Vojvodova rodina** ([lord.md](lord.md) – Kdy jde rodina na pole, bod 1) pomáhá s prací
      nutných dílů, kterou ves sama do konce okna nestihne: podíl dne mužů rodiny se počítá každý
      den v oknech ze zbývající nutné práce okna a volné práce vsi do jeho konce (jako dosavadní
@@ -441,7 +453,8 @@ Seno, dvě seče).
    s hotovou prací a jsou nutné, nic zasetého ani rozkopaného nepropadne; podíl rodiny a potřeba
    lnu z plánu doběhnou do konce hospodářského roku. Nezačaté díly osevu navíc a ostatní díly
    dostanou místo v postupu podle svého stavu: hotový díl a odpočatý příloh první osev, díl po
-   letošním ozimu, který byl prvním osevem, jař, ostatní po sklizni úhor (i nad 70 %, když se
+   letošním ozimu, který byl prvním osevem, jař, díl po letošní jaři, která byla prvním osevem,
+   ozim (Martin 25. 10. 2026), ostatní po sklizni úhor (i nad 70 %, když se
    osévaly víc let v řadě).
 
 8. **Determinismus a výkon:** postup dílu, nutné díly i podíl rodiny jsou čisté funkce stavu
@@ -452,11 +465,9 @@ Seno, dvě seče).
 nutné a nad potřebu), úroda, nasycení, volná práce a doba staveb proti dosavadnímu kódu;
 kalibrace jen na Martinův pokyn.
 
-**Otevřené (výchozí volba platí, dokud Martin nerozhodne jinak):** díl, který nestihl ozim
-a dostal jař jako první osev, jde doslova podle „po jaři úhor“ hned do úhoru (osetý jen jednou,
-po 3–5 letech je zase na řadě). Druhá možnost: dostane ještě ozim, aby měl v oběhu vždy jeden
-ozim a jeden jař (méně vracení přílohu, o stav dílu víc). Ověření na Vlkově ukáže, kolik dílů se
-to týká.
+**Rozhodnuto (dříve otevřené):** díl, který nestihl ozim a dostal jař jako první osev, dostane
+příště ozim, když to úrodnost dovolí (Martin 25. 10. 2026: „Jestli bude možné mu dát ozim, ať
+dostane ozim.“ – bod 1, Jař jako první osev). Ověření na Vlkově ukáže, kolik dílů se to týká.
 
 ### ~~Kolik ves oseje (rozhodují obyvatelé)~~
 

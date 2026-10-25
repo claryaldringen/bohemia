@@ -349,8 +349,26 @@ function copyChoice(c: Choice): Choice {
   };
 }
 
-/** Plodina na díly výběru obilí – luštěniny, nebo len (stejná okna – jař se sklizní v červenci). */
-type SideCrop = Extract<Crop, 'legume' | 'flax'>;
+/** Plodina místo jaře – luštěniny, nebo len. */
+export type SideCrop = Extract<Crop, 'legume' | 'flax'>;
+
+/**
+ * Střídání plodin (fields.md – Luštěniny, Len): napřed díly, které loni plodinu `crop` neměly,
+ * pak ostatní – jinak v pořadí `parts`.
+ */
+export function rotatedFor(parts: readonly FieldPart[], crop: SideCrop): FieldPart[] {
+  return [...parts.filter((p) => p.crop !== crop), ...parts.filter((p) => p.crop === crop)];
+}
+
+/**
+ * Pořadí dílů pro luštěniny nebo len z dílů seřazených od domu (fields.md – Luštěniny, Len):
+ * luštěniny od domu (půdu zlepší), len od konce – vysiluje půdu, jeho delší příloh tak neleží
+ * domům v cestě; jen díly od 70 % (nouzový příloh jen na obilí) a se střídáním plodin.
+ */
+export function sideCropOrder(fromHome: readonly FieldPart[], crop: SideCrop): FieldPart[] {
+  const sowable = fromHome.filter(isSowableFertility);
+  return rotatedFor(crop === 'flax' ? sowable.reverse() : sowable, crop);
+}
 
 /** Energie dílu plodiny v kg obilí – luštěniny se jedí, len ne. */
 function sideCropEnergy(crop: SideCrop, part: FieldPart, day: number): number {
@@ -431,18 +449,12 @@ function chooseSideCrop(
   let cropNet = 0;
   while (cropNet < targetKg - EPSILON) {
     const grain = new Set([...choice.winter, ...choice.spring]);
-    // nouzový příloh pod 70 % (fields.md – Nouzový osev) jen na obilí – kvůli hladu
-    const fromHome = blocks.flatMap((block) =>
-      block.filter((p) => grain.has(p) && isSowableFertility(p)),
+    // luštěniny od domu, len od konce výběru, jen díly od 70 % (nouzový příloh jen na obilí)
+    // a se střídáním plodin (`sideCropOrder`)
+    const rotated = sideCropOrder(
+      blocks.flatMap((block) => block.filter((p) => grain.has(p))),
+      crop,
     );
-    // luštěniny od domu (půdu zlepší); len od konce výběru – vysiluje půdu, jeho delší příloh tak
-    // neleží domům v cestě (fields.md – Len)
-    const order = crop === 'flax' ? fromHome.reverse() : fromHome;
-    // střídání plodin: napřed díly, které loni tutéž plodinu neměly
-    const rotated = [
-      ...order.filter((p) => p.crop !== crop),
-      ...order.filter((p) => p.crop === crop),
-    ];
     // len (je ho málo, bez něj chybí oděv) zkusí další díl, když se práce prvního nevejde – třeba
     // jař, když červencovou sklizeň už nese ozim; luštěniny jen první díl (jako dřív)
     const next =
@@ -493,10 +505,7 @@ function flaxFirst(
     ...sowable.filter((p) => selected.has(p)).reverse(),
     ...sowable.filter((p) => !selected.has(p)),
   ];
-  const rotated = [
-    ...order.filter((p) => p.crop !== 'flax'),
-    ...order.filter((p) => p.crop === 'flax'),
-  ];
+  const rotated = rotatedFor(order, 'flax');
   let kg = 0;
   for (const part of rotated) {
     if (kg >= targetKg - EPSILON) break;

@@ -116,6 +116,20 @@ true })` (práce cvičících mužů rodiny po minimu dvorce – `manorLabor.fre
     `fieldPartName` („Zelený / Kvetoucí / Zralý len“, „Trhání lnu“), upozornění „Chybí len na oděv“,
     `/dev/buildings` pole **Len** (`FLAX_SHOWCASE_PHASES`).
 
+- **Osevní postup po dílech** (fields.md – Osevní postup po dílech a setí do konce okna, 25. 10.
+  2026; plán `2026-10-25-sowing-rotation`, Úloha 1 – **zatím nezapojené**, ves dál osévá podle
+  plánu): `rotation.ts` – `nextSowing` (co je na dílu na řadě: `first`, `spring` po ozimu,
+  `winter` po jaři jako prvním osevu – Martin 25. 10. 2026, `late` příloh 70–95 %, `emergency`,
+  `rest`; díl v sezóně null), `sowingCropToday` (ozim, dokud po dnešku zbývá den setí ozimu, pak
+  jař v oknech kopání; díl po ozimu jen jař – osev navíc `extraSowingCrop` je totéž co první
+  osev), `rotateAfterSeason` (1. 9.: úrodnost jako `endOfSeason`, ozim / obilní jař jako první
+  osev od 70 % → `ready` + `FieldPart.next`, jinak úhor bez bonusu) a `neededSelection` (k práci
+  plánu přibírá díly na řadě v pořadí `sowingBlocks` – len od konce, luštěniny od domu, napřed
+  díly po ozimu (`sideCropOrder` v `sowing.ts`), obilí do `harvestKg`, nouzové přílohy až za
+  ostatními; nezačaté obilí nad toleranci `FIELD_STORES.trimMarginYears` vrátí v `release`).
+  `sowingGroup` dává připravenému dílu s `next` skupinu 1. Sem se přesunuly i `sowParts`
+  a `reclaimedLogs` (`extra-sowing.ts` je re-exportuje do Úlohy 4).
+
 - **Postup práce po čtvercích** (Martin – fields.md): kopání, setí a sklizeň mění díl, až k němu
   dojde práce. `field-progress.ts` (jen čte): díly plodiny v pořadí `CropWork.partIds` (dávka
   po úsecích hospodářství od domu ven – řadí `createCropWork` s `workOrder`, ves bez hospodářství

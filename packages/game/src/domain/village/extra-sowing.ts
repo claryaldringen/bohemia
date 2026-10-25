@@ -1,7 +1,7 @@
 import { dateOfDayIndex } from '../calendar';
-import { fallowStage, partOvergrowthYears, sowingGroup } from './fields';
+import { sowingGroup } from './fields';
 import { dropFromWork } from './land-taken';
-import { CROP_WINDOWS } from './rules';
+import { extraSowingCrop, reclaimedLogs, sowParts, windowOpen } from './rotation';
 import type {
   Crop,
   CropWork,
@@ -11,8 +11,7 @@ import type {
   VillageState,
   YearPlan,
 } from './types';
-import { addLogs, logsFromClearedTrees } from './wood';
-import { woodMatureShare, woodTreesOnArea } from './woods';
+import { addLogs } from './wood';
 import {
   TASK_ORDER,
   addCropTaskWork,
@@ -22,7 +21,6 @@ import {
   partWeight,
   partWork,
   cropTaskRemaining,
-  windowEndOf,
   type CropTask,
   type PartWork,
   type WorkOrder,
@@ -35,45 +33,14 @@ import {
 // v pořadí výběru a dostanou jen práci, která zbude po stavbách – jen obilí. Díl, na kterém práce
 // začala, patří k ozimu nebo jaři plánu jako potřebný (setí, pletí, sklizeň i výmlat mají přednost).
 
+// osev, klády z vracení přílohu a plodina dne jsou v osevním postupu (rotation.ts) – re-export do
+// zrušení osevu navíc (plán 2026-10-25-sowing-rotation, Úloha 4)
+export { extraSowingCrop, reclaimedLogs, sowParts };
+
 /** Tolerance porovnání práce (člověkodny). */
 const EPSILON = 1e-9;
 /** Měsíce, kdy osev navíc nezačne až do dalšího plánu (květen–srpen) – seznam se smaže. */
 const CLOSED_MONTHS: readonly [number, number] = [5, 8];
-
-/**
- * Vybrané díly se osejí plodinou `crop` (příloh se vrací do osevu – zarůstání začne znovu); díl
- * z přílohu si pamatuje, jak ležel, kdyby ho plán podle zásob zase ubral (fields.md – Osev podle
- * zásob).
- */
-export function sowParts(parts: readonly FieldPart[], crop: Crop): void {
-  for (const part of parts) {
-    if (part.state === 'fallow') {
-      part.fallowBeforePlan = {
-        sinceDay: part.fallowSinceDay,
-        ...(part.overgrowthYears !== undefined ? { overgrowthYears: part.overgrowthYears } : {}),
-      };
-      part.fallowSinceDay = null;
-      part.sownYears = 0;
-      delete part.overgrowthYears;
-    }
-    part.state = 'sown';
-    part.crop = crop;
-  }
-}
-
-/**
- * Klády z vracených dílů v mladém lese (fields.md – Zarůstání): dospělých stromů jako v lese vsi
- * stejného stáří (`woodMatureShare` × hustota lesa) – za každý celý strom kláda (forest.md –
- * Mýcení). Díly ve stavu před osevem.
- */
-export function reclaimedLogs(parts: readonly FieldPart[], day: number): number {
-  let trees = 0;
-  for (const part of parts) {
-    if (part.state !== 'fallow' || fallowStage(part, day) !== 'young-forest') continue;
-    trees += woodTreesOnArea(part.areaM2) * woodMatureShare(partOvergrowthYears(part));
-  }
-  return logsFromClearedTrees(Math.floor(trees + 1e-9));
-}
 
 /**
  * Smí díl do osevu navíc (fields.md – Osev navíc; Martin 24. 10. 2026)? Jen díl v oběhu: osévaný,
@@ -126,24 +93,6 @@ export function unqueueExtraParts(plan: YearPlan, ids: ReadonlySet<number>): voi
 /** Díl smí do osevu navíc: připravený, nebo příloh, který smí osít (přílohová soustava). */
 function isWaiting(part: FieldPart): boolean {
   return (part.state === 'fallow' || part.state === 'ready') && sowingGroup(part) !== null;
-}
-
-/** Okno úlohy plodiny dnes běží. */
-function windowOpen(crop: Crop, task: 'reclaim' | 'dig' | 'sow', day: number): boolean {
-  return windowEndOf(CROP_WINDOWS[crop][task], dateOfDayIndex(day).month) !== null;
-}
-
-/**
- * Plodina, kterou dnes začíná osev navíc (fields.md – Osev navíc): ozim, dokud po dnešku zbývá
- * den setí ozimu (zaseje se, co je zkopané do včerejška), potom jař v oknech kopání jaře – na
- * jaře jen dokud po dnešku zbývá den setí. Jinak null (díly navíc čekají; po dubnu zůstanou ladem).
- */
-export function extraSowingCrop(day: number): 'winter' | 'spring' | null {
-  if (windowOpen('winter', 'sow', day) && windowOpen('winter', 'sow', day + 1)) return 'winter';
-  if (!windowOpen('spring', 'dig', day)) return null;
-  return !windowOpen('spring', 'sow', day) || windowOpen('spring', 'sow', day + 1)
-    ? 'spring'
-    : null;
 }
 
 /** Vstup kroku osevu navíc. */
