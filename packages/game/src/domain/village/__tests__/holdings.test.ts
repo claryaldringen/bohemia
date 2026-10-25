@@ -390,11 +390,14 @@ describe('ves hospodaří podle domů', () => {
     // ves seje na potřebu po růstu (fields.md – Osev podle růstu vsi) – víc dílů i dál od domu;
     // postup dílu (dva osevy, pak aspoň 10 let úhoru – fields.md, Osevní postup po dílech) nechá
     // blíž domu úhor (pastvinu), přes který se k osetým dílům dál chodí. Měří se obdělané díly
-    // 31. 8. (25. 10. 2026: 0,14 proti 0,08 bez úseků; 0,49 v Úloze 3 měřilo 2. 9. přibrané díly
-    // včetně neobdělaných, dřív se osévalo třikrát v řadě – 0,7); práh těsně pod naměřenou
-    // hodnotou, ověří Vlkov (plán osevního postupu, Úloha 9)
-    expect(reachNow).toBeGreaterThan(0.12);
-    expect(reachNow).toBeGreaterThan(reachOld + 0.04);
+    // 31. 8. (25. 10. 2026: 0,146 proti 0,083 bez úseků; 0,49 v Úloze 3 měřilo 2. 9. přibrané
+    // díly včetně neobdělaných, dřív se osévalo třikrát v řadě – 0,7). Ověření na Vlkově (plán
+    // osevního postupu, Úloha 9 – fields.md, Naměřeno): 30. 8. po letech 0,00–0,79, průměr 0,48
+    // (dosavadní kód 0,61) – po dvou osevech u domu tam díly u domu odpočívají a osévají se
+    // vzdálenější, takže skutečná ves práh nezpřísní; práh hlídá tuto ves těsně pod naměřenou
+    // hodnotou (0,12 → 0,14, rozdíl proti úsekům 0,04 → 0,05)
+    expect(reachNow).toBeGreaterThan(0.14);
+    expect(reachNow).toBeGreaterThan(reachOld + 0.05);
     // osévá se pořád podobně – úseky jídlo neberou
     const sownParts = (xs: VillageState[]): number =>
       mean(xs.map((s) => s.parts.filter((p) => p.state === 'sown').length));
