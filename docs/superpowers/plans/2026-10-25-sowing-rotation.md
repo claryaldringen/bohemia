@@ -354,18 +354,38 @@ dni roku.
 `application/update-village.ts` (řetěz za `withSeason`),
 nový `__tests__/rotation-migration.test.ts`.
 
-- [ ] `withSowingRotation(state)` (jen když sezóna nese `extra`, `extraLeft` nebo chybí značka
+- [x] `withSowingRotation(state)` (jen když sezóna nese `extra`, `extraLeft` nebo chybí značka
       převodu): plodiny sezóny zůstanou s hotovou prací a jsou nutné (i začaté díly osevu navíc –
       `extraLeft` se přičte k potřebné práci); `extra` → díly čekají podle stavu (osévaný díl
       se `sownYears` → `ready`, příloh → `fallow`); `lordHelp`, `flaxNeedKg` zůstanou do 31. 8.;
-      `fallowBeforePlan` → `fallowBeforeSeason`; `next: 'spring'` jen dílům v ozimu sezóny, které
-      byly prvním osevem (`sownYears` 0) – zbytek dopočítá `rotateAfterSeason` 1. 9.
-- [ ] Testy na ručně postavené vsi s plánem ve 4 dnech (1. 9., 25. 10., 15. 3., 15. 6.): zasetá
+      `fallowBeforePlan` → `fallowBeforeSeason`; ~~`next: 'spring'` jen dílům v ozimu sezóny, které
+      byly prvním osevem (`sownYears` 0)~~ – zbytek dopočítá `rotateAfterSeason` 1. 9.
+- [x] Testy na ručně postavené vsi s plánem ve 4 dnech (1. 9., 25. 10., 15. 3., 15. 6.): zasetá
       plocha, hotová práce a úroda k 31. 8. stejné jako bez převodu; dvojí převod = jeden;
       dopočet po kouscích.
-- [ ] Ověřit na kopii Vlkova (jen čtená, mimo DB – JSON stavu do `/tmp`, ne do repa): převod
+- [x] Ověřit na kopii Vlkova (jen čtená, mimo DB – JSON stavu do `/tmp`, ne do repa): převod
       a 1 rok dopočtu bez chyby, žádný díl nezmizí, zasetá plocha k 31. 8. ≥ před převodem.
-- [ ] Commit `feat(game): převod starších vsí na osevní postup`.
+- [x] Commit `feat(game): převod starších vsí na osevní postup`.
+
+**Hotovo:** `typecheck`, `lint`, `test`, `format:check` (adaptéry beze změny – `test:db` ne).
+Značka `VillageState.sowingRotation` – i nová ves od založení (`foundVillage`), převod je pak
+no-op; otisky `smith-golden` a `craft-skill-golden` ji nepočítají (jako `dynasty`), jinak beze
+změny. `extraLeft` už je v `required` (stará `neededTaskRemaining` ho jen odečítala) – převod
+jen smaže klíč. `fallowBeforePlan` přejmenované v kódu na `FieldPart.fallowBeforeSeason`.
+**`next` převod nenastavuje** (návrh Clauda): v osevním postupu díl v sezóně nese `next` jen
+z doby před osevem (`sowParts` ho nechá pro `returnPart`) a `rotateAfterSeason` ho 1. 9. smaže
+a odvodí z `sownYears` – `next: 'spring'` na zasetém ozimu by uvolněný díl poslal jen na jař.
+Testy `rotation-migration.test.ts`: stav nové vsi převedený zpět do tvaru plánu (1. 9., 25. 10., 15. 3., 15. 6., 10. 8.) se převede na totéž (díly, sezóna, snopy, zaseto ha, hotové čd) a do 31. 8. dopočte shodně; `extraLeft`, `extra`, `fallowBeforePlan`, dvojí převod, chyba → ves se
+načte se značkou, dopočet po kouscích. **Vlkov** (27. 8. 817, výpis `diag-sowing/convert.txt`
+ve scratchpadu): převod 1 ms, díly i práce beze změny (19,9 ha, 1246,8 z 1486,3 čd, snopy 0,
+585 × `fallowBeforeSeason`); sezóna 816/817 doběhne jako starým plánem (jař 2429 kg); za 12
+měsíců bez výjimky a bez hladu – ozim 9,8 ha / 2879 kg, jař 18,2 ha, luštěniny 0,4 ha, osev
+28,6 ha proti starému plánu 23,0 ha (ozim 14,5 ha / 3376 kg); zásoby 664 kg + snopy 2156 kg
+(výmlat po žních) proti 3261 kg. Převod uprostřed roku (starý plán do 25. 10., 15. 3., 15. 6.,
+pak osevní postup do 27. 8. 818): zaseté a rozdělané beze změny, ozim 3478 / 3361 / 3376 kg
+proti 3376 kg, žádný hlad. **Známá mez:** ves uložená s plánem mezi 1. 11. a 31. 8. nechá
+nezasetý ozim plánu v ozimu do 31. 8. jako starý plán (přesun do jaře je jen první den po
+setí ozimu) – zkopané a zorané nepropadne; Vlkov se to netýká (ozim zasetý celý).
 
 ## Úloha 7 – Scéna a panely – Příště, Na řadě, nad potřebu
 

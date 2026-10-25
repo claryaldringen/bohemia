@@ -15,7 +15,7 @@ import { EMERGENCY_GROUP, sowingBlocks, villageHoldings } from './holdings';
 import { expectedLegumeKg, legumeEnergy } from './legumes';
 import { CROP_WINDOWS, FERTILITY, FIELD_STORES } from './rules';
 import { sideCropOrder, type SideCrop } from './sowing';
-import type { Crop, FieldPart, VillageState } from './types';
+import type { Crop, FarmSeason, FieldPart, SeasonCrop, VillageState } from './types';
 import { logsFromClearedTrees } from './wood';
 import { woodMatureShare, woodTreesOnArea } from './woods';
 import { seasonCrops, windowEndOf } from './year-plan';
@@ -111,7 +111,7 @@ export function rotateAfterSeason(part: FieldPart, day: number): void {
 export function sowParts(parts: readonly FieldPart[], crop: Crop): void {
   for (const part of parts) {
     if (part.state === 'fallow') {
-      part.fallowBeforePlan = {
+      part.fallowBeforeSeason = {
         sinceDay: part.fallowSinceDay,
         ...(part.overgrowthYears !== undefined ? { overgrowthYears: part.overgrowthYears } : {}),
       };
@@ -127,13 +127,13 @@ export function sowParts(parts: readonly FieldPart[], crop: Crop): void {
 /**
  * Díl, který ves k letošní práci přibrala a pak z ní vyřadila (uvolněný nutný díl, nezasetá jař –
  * fields.md, Osevní postup po dílech, body 2 a 3), se vrátí, jak byl (mění ho na místě): příloh
- * leží ladem jako předtím (`fallowBeforePlan`), hotový díl a díl po prvním osevu zase čeká na
+ * leží ladem jako předtím (`fallowBeforeSeason`), hotový díl a díl po prvním osevu zase čeká na
  * řadě (`next` zůstal). Rozkopání propadne.
  */
 export function returnPart(part: FieldPart, startDay: number): void {
-  const before = part.fallowBeforePlan;
+  const before = part.fallowBeforeSeason;
   delete part.crop;
-  delete part.fallowBeforePlan;
+  delete part.fallowBeforeSeason;
   if (!before) {
     part.state = 'ready';
     return;
@@ -160,13 +160,13 @@ export function reclaimedLogs(parts: readonly FieldPart[], day: number): number 
 
 /**
  * Klády z mladého lesa na přibraných dílech, které ves vyklučila (fields.md – Zarůstání,
- * forest.md – Mýcení): stáří lesa podle stavu před osevem (`fallowBeforePlan`) – jinak jako
+ * forest.md – Mýcení): stáří lesa podle stavu před osevem (`fallowBeforeSeason`) – jinak jako
  * `reclaimedLogs`.
  */
 export function clearedLogs(parts: readonly FieldPart[], day: number): number {
   let trees = 0;
   for (const part of parts) {
-    const before = part.fallowBeforePlan;
+    const before = part.fallowBeforeSeason;
     if (!before || before.overgrowthYears === undefined) continue;
     const was = { fallowSinceDay: before.sinceDay, overgrowthYears: before.overgrowthYears };
     if (fallowStage(was, day) !== 'young-forest') continue;
@@ -406,4 +406,83 @@ export function surplusOrder(state: VillageState, used: ReadonlySet<number>): Fi
   const parts = byId(state.parts);
   const holdings = villageHoldings(parts === state.parts ? state : { ...state, parts: [...parts] });
   return sowingBlocks(parts, holdings).flat().filter(free);
+}
+
+/** Díl osevu navíc z doby ročního plánu – `sownYears`: osévaný díl ležel ladem jen od plánu. */
+interface LegacyExtraPart {
+  id: number;
+  sownYears?: number;
+}
+/** Hospodářský rok uložený s ročním plánem: osev navíc a čekající příprava jeho dílů. */
+type LegacySeason = FarmSeason & { extra?: LegacyExtraPart[] };
+type LegacyCrop = SeasonCrop & { extraLeft?: unknown };
+type LegacyPart = FieldPart & { fallowBeforePlan?: FieldPart['fallowBeforeSeason'] };
+
+/** Hospodářský rok bez klíčů ročního plánu (`extra`, `extraLeft`). */
+function seasonWithoutPlan(season: LegacySeason | null): FarmSeason | null {
+  if (!season) return null;
+  const legacy =
+    season.extra !== undefined || season.crops.some((c: LegacyCrop) => c.extraLeft !== undefined);
+  if (!legacy) return season;
+  const copy: LegacySeason = {
+    ...season,
+    crops: season.crops.map((c) => {
+      const crop: LegacyCrop = { ...c };
+      delete crop.extraLeft;
+      return crop;
+    }),
+  };
+  delete copy.extra;
+  return copy;
+}
+
+/** Převod bez značky – může selhat na poškozeném stavu (`withSowingRotation` ho zachytí). */
+function convertToRotation(state: VillageState): VillageState {
+  const season = state.season as LegacySeason | null;
+  const inSeason = new Set(season?.crops.flatMap((c) => c.partIds));
+  const waiting = new Map((season?.extra ?? []).map((e) => [e.id, e]));
+  let partsChanged = false;
+  const parts = state.parts.map((p: LegacyPart) => {
+    const sownYears = waiting.get(p.id)?.sownYears;
+    const restore = sownYears !== undefined && p.state === 'fallow' && !inSeason.has(p.id);
+    if (p.fallowBeforePlan === undefined && !restore) return p;
+    partsChanged = true;
+    const part: LegacyPart = { ...p };
+    if (part.fallowBeforePlan !== undefined) {
+      part.fallowBeforeSeason = part.fallowBeforePlan;
+      delete part.fallowBeforePlan;
+    }
+    if (restore) {
+      // osévaný díl ležel ladem jen od plánu – zase čeká na řadě s léty v řadě
+      part.state = 'ready';
+      part.fallowSinceDay = null;
+      part.sownYears = sownYears;
+      delete part.overgrowthYears;
+    }
+    return part;
+  });
+  const next = seasonWithoutPlan(season);
+  const threshing = seasonWithoutPlan(state.threshingSeason as LegacySeason | null);
+  if (!partsChanged && next === state.season && threshing === state.threshingSeason) return state;
+  return { ...state, parts, season: next, threshingSeason: threshing };
+}
+
+/**
+ * Ves uložená s ročním plánem přejde na osevní postup po dílech jednou (fields.md – Osevní postup
+ * po dílech, bod 7 – Starší vsi; značka `VillageState.sowingRotation`). Volat po `withSeason`.
+ * Plodiny hospodářského roku zůstanou s hotovou prací a jsou nutné – i začaté díly osevu navíc:
+ * jejich čekající příprava (`extraLeft`) je v potřebné práci, převodem se stane nutnou. Díly
+ * osevu navíc, na kterých práce nezačala (`extra`), čekají podle stavu – osévaný díl, který ležel
+ * ladem jen od plánu, je zase na řadě s léty v řadě, příloh leží dál. Příloh vracený do osevu si
+ * pamatuje stav před sezónou (`fallowBeforeSeason`). Co na dílu poroste příště (`next`), dopočítá
+ * `rotateAfterSeason` 1. 9.; pomoc rodiny a potřeba lnu zůstanou do konce roku. Při chybě se ves
+ * načte beze změny se značkou (jako `withRoadsRebuilt`). Vstupní stav nemění.
+ */
+export function withSowingRotation(state: VillageState): VillageState {
+  if (state.sowingRotation) return state;
+  try {
+    return { ...convertToRotation(state), sowingRotation: true };
+  } catch {
+    return { ...state, sowingRotation: true };
+  }
 }

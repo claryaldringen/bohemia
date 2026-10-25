@@ -97,7 +97,7 @@ export interface FieldPart {
    * ho ves podle zásob z plánu ubrala dřív, než na něm začne práce, vrátí se do přílohu, jak byl
    * (fields.md – Osev podle zásob). Smaže se na konci hospodářského roku; chybí = díl se nevrací.
    */
-  fallowBeforePlan?: { sinceDay: number | null; overgrowthYears?: number };
+  fallowBeforeSeason?: { sinceDay: number | null; overgrowthYears?: number };
   /**
    * Na dílu leží drn – louka, kterou ves se spřežením založila bez motyky (oxen.md – Jen rádlo):
    * rozorá ho až první orba (`PLOUGH_SOD_FACTOR`), bez spřežení ho rozruší motyka jako vrácení

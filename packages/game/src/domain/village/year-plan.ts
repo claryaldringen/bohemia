@@ -658,7 +658,7 @@ type LegacyPlan = CropWork & {
   flaxNeedKg?: number;
   /**
    * Osev navíc ročního plánu (díly s `sownYears`) – zůstane v hospodářském roce jako starý klíč,
-   * převede ho Úloha 6 plánu osevního postupu (fields.md – Osevní postup po dílech, bod 7); stejně
+   * převede ho hned potom `withSowingRotation` (fields.md – Osevní postup po dílech, bod 7); stejně
    * čekající přípravu dílů osevu navíc v plodinách.
    */
   extra?: unknown;

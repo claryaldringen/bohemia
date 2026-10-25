@@ -242,7 +242,7 @@ describe('postup dílu – co poroste příště', () => {
       sownYears: 0,
     });
     expect(lying.crop).toBeUndefined();
-    expect(lying.fallowBeforePlan).toBeUndefined();
+    expect(lying.fallowBeforeSeason).toBeUndefined();
     expect(nextSowing(lying)).toBe('first');
   });
 });

@@ -37,6 +37,7 @@ import {
   withCattleKinds,
   withIronBarsTrade,
   withSeason,
+  withSowingRotation,
   withThreshingGrace,
   withToolEquipment,
   type VillageState,
@@ -171,7 +172,10 @@ export async function updateVillage(
                               withDwellingShapes(
                                 withPlots(
                                   withForestDistances(
-                                    withObstacleClearing(withSeason(record.state), obstacles),
+                                    withObstacleClearing(
+                                      withSowingRotation(withSeason(record.state)),
+                                      obstacles,
+                                    ),
                                     landscape,
                                   ),
                                   landscape,

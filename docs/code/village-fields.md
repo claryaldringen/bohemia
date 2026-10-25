@@ -15,6 +15,18 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   Uložené vsi převádí `withSeason` (`year-plan.ts`; v `advanceVillage` i `updateVillage`) jednou
   a idempotentně: `plannedDay` → `startDay`, jař z nejvyšší úrovně + `winter` / `legume` / `flax`
   → `crops`. Změna je jen tvar a názvy, chování a otisky beze změny.
+- **Převod starších vsí na osevní postup** (`withSowingRotation`, `rotation.ts`; fields.md – Osevní
+  postup po dílech, bod 7; Úloha 6 plánu): v `advanceVillage` i `updateVillage` hned za
+  `withSeason`, jednou – značka `VillageState.sowingRotation` (dostane ji i nová ves; otisky ji
+  nepočítají). Plodiny hospodářského roku zůstanou s hotovou prací (díly, `required` / `done`,
+  orba, sklizeň, snopy) a jsou nutné: čekající příprava začatých dílů osevu navíc
+  (`CropWork.extraLeft`) je v potřebné práci, převod jen smaže klíč. Nezačaté díly osevu navíc
+  (`YearPlan.extra`): osévaný díl, který ležel ladem jen od plánu (`sownYears` v záznamu), je
+  `ready` s léty v řadě, příloh leží dál. `fallowBeforePlan` → `FieldPart.fallowBeforeSeason`.
+  Postup (`next`) převod nenastavuje – 1. 9. ho z `sownYears` dopočítá `rotateAfterSeason`
+  (osévané díly s víc lety v řadě jdou do úhoru). Při chybě vrátí vstup se značkou (jako
+  `withRoadsRebuilt`). Testy `rotation-migration.test.ts`: stav nové vsi převedený zpět do tvaru
+  plánu (1. 9., 25. 10., 15. 3., 15. 6., 10. 8.) se převede na totéž a dopočte do 31. 8. stejně.
 - **Ozim a jař – osevní postup po dílech** (fields.md – Osevní postup po dílech a setí do konce
   okna, 25. 10. 2026): ves nemá plán k 1. 9. Hospodářský rok `FarmSeason` (1. 9. – 31. 8.) nese
   práci dílů po plodinách jako `SeasonCrop`; díly osevu mají `crop?` (chybí = jař). Okna prací
@@ -27,9 +39,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`moveParts` v `land-taken.ts`: příprava půdy podle úseků `taskSpans`, na začátek pořadí jaře,
   `crop: 'spring'`); první den po setí jaře, luštěnin a lnu vypadnou nezasetí z práce
   (`releasePart` – `shrinkInPlan`, `dropFromWork`, `returnPart`: příloh podle
-  `fallowBeforePlan`, jinak `ready`, `next` zůstane). Napřed `fellReclaimed` – klády
+  `fallowBeforeSeason`, jinak `ready`, `next` zůstane). Napřed `fellReclaimed` – klády
   (`clearedLogs`) za díly, přes které došlo čelo vracení přílohu (`taskSpans('reclaim')`),
-  a `fallowBeforePlan.overgrowthYears` pryč (uvolněný díl se vrátí bez lesa). Ve dnech, kdy může
+  a `fallowBeforeSeason.overgrowthYears` pryč (uvolněný díl se vrátí bez lesa). Ve dnech, kdy může
   začít ozim nebo jař (`sowingCropToday('first')`), `fieldSowingTargets` → `neededSelection`
   (pořadí: len, obilí do `energyFloorKg`, luštěniny, obilí do `harvestKg`; v dávce obilí ozim
   před jaří) → **čelo práce** (`workFront`, `frontRoom`, `WORK_FRONT_DAYS`): díl přibude, jen
@@ -58,7 +70,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   i schodek) vyrovná po třetinách, pod pojistkou doplní do pojistky hned; luštěniny potřeba bez
   zbytku zásoby.
   Nutné díly navíc ves uvolní (`neededSelection.release` v `seasonDay` – nouzové první, pak nejdál
-  od domu, ladem jako příloh – `FieldPart.fallowBeforePlan` – nebo zpět na řadu).
+  od domu, ladem jako příloh – `FieldPart.fallowBeforeSeason` – nebo zpět na řadu).
   **Díly nad potřebu** (fields.md – Osevní postup po dílech, bod 3, Martin 25. 10. 2026;
   `surplus-fields.ts`): krok `surplusFieldDay` ve `work()` z `afterBuild.left` (práce po stavbách
   a opravách) a ze zbylých dnů spřežení (`FieldTaskEntry.teamDays`) napřed dělá úlohy ozimu a jaře

@@ -652,7 +652,7 @@ masa, a přesto od 1. 3. kopal ≈ 9,7 člověkodne denně – volná práce nul
     čelo práce i vzhled dílů (postup po čtvercích) zůstanou, kde byly – práce plodiny ubude
     o podíl ubraného dílu stejně, jako když díl zabere stavba (`shrinkInPlan`).
   - **Ubraný díl leží ladem jako příloh** – díl, který se letos vracel z přílohu, jak ležel předtím
-    (den, od kdy ležel ladem, i roky bez pastvy – `FieldPart.fallowBeforePlan`, smaže se na konci
+    (den, od kdy ležel ladem, i roky bez pastvy – `FieldPart.fallowBeforeSeason`, smaže se na konci
     hospodářského roku), ostatní od 1. 9. jako nevybraný díl. Od 19. 10. 2026 **čeká v osevu
     navíc** (Osev navíc výše) – na začátku seznamu, nejblíž domu první (ve výběru byl před
     ostatními); oseje se, zbude-li po stavbách práce. Nouzový příloh pod 70 % ubírá zkrácení

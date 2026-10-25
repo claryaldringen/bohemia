@@ -33,6 +33,7 @@ export * from './villages-apart';
 export * from './fields';
 export * from './holdings';
 export * from './year-plan';
+export { withSowingRotation } from './rotation';
 export * from './sowing';
 export * from './field-progress';
 export * from './labor';

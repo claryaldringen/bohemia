@@ -231,6 +231,11 @@ export interface VillageState {
   emigrants?: Emigrant[];
   plotsMigrated?: true;
   /**
+   * Ves prošla převodem na osevní postup po dílech (`withSowingRotation`, fields.md – Osevní
+   * postup po dílech, bod 7) – i ves bez ročního plánu; chybí = ještě ne.
+   */
+  sowingRotation?: true;
+  /**
    * Stavby uložené před variantami rozměrů (population.md – Varianty rozměrů) prošly kontrolou,
    * jestli se do své varianty vejdou (`withDwellingShapes`) – nové vsi ho mají od založení.
    */

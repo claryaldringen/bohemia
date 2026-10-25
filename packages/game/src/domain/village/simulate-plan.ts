@@ -346,7 +346,7 @@ function frontRoom(front: Front, crop: Crop): boolean {
 /**
  * Klády za mladý les skácený při vracení přílohu (fields.md – Zarůstání, forest.md – Mýcení): za
  * díly, přes které čelo vracení přílohu došlo, dospělé stromy jako v lese vsi stejného stáří (za
- * celý strom kláda). Díl si pamatuje, že je vyklučený (`fallowBeforePlan` bez zarůstání) –
+ * celý strom kláda). Díl si pamatuje, že je vyklučený (`fallowBeforeSeason` bez zarůstání) –
  * uvolněný se vrátí jako příloh bez lesa a křovin a klády podruhé nedá.
  */
 function fellReclaimed(state: VillageState, season: FarmSeason, day: number): void {
@@ -357,19 +357,19 @@ function fellReclaimed(state: VillageState, season: FarmSeason, day: number): vo
     partsById ??= new Map(state.parts.map((p) => [p.id, p]));
     const byId = partsById;
     const overgrown = work.reclaimIds.some(
-      (id) => byId.get(id)?.fallowBeforePlan?.overgrowthYears !== undefined,
+      (id) => byId.get(id)?.fallowBeforeSeason?.overgrowthYears !== undefined,
     );
     if (!overgrown) continue;
     const position = taskPosition(work, 'reclaim');
     for (const span of taskSpans(work, byId, 'reclaim', day)) {
       if (span.end > position + EPSILON) break;
       const part = byId.get(span.id);
-      if (part?.fallowBeforePlan?.overgrowthYears !== undefined) parts.push(part);
+      if (part?.fallowBeforeSeason?.overgrowthYears !== undefined) parts.push(part);
     }
   }
   if (parts.length === 0) return;
   addLogs(state, clearedLogs(parts, day));
-  for (const part of parts) delete part.fallowBeforePlan!.overgrowthYears;
+  for (const part of parts) delete part.fallowBeforeSeason!.overgrowthYears;
 }
 
 /**
