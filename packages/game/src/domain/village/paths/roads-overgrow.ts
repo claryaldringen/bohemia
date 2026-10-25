@@ -10,7 +10,7 @@ import {
   type Trail,
   type VillageRoads,
 } from '../types';
-import { conditionOf, fixedRoadIds, roadPieces } from './road-condition';
+import { capUnderBuilding, conditionOf, fixedRoadIds, roadPieces } from './road-condition';
 import {
   MIN_ROAD_M,
   axisDistance,
@@ -285,6 +285,11 @@ export function abandonBlockedStretches(
       retrailPieces(trails, roads, road.id, axis, roads.roads.slice(at, at + merged.length));
     }
     changed = true;
+  }
+  // opuštěný kus pod stavbou zmizí do roka (paths.md – Stavba přes cestu, návrh Clauda 25. 10. 2026)
+  for (const road of roads.roads) {
+    if (!road.abandoned || frozen.has(road.id)) continue;
+    capUnderBuilding(road, (axis) => blockedRun(axis, blocked) >= BLOCK_MIN_RUN_M);
   }
   return changed;
 }

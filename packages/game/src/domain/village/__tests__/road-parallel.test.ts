@@ -2,12 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { obstaclesOf } from '../../landscape';
 import { foundVillage } from '../actions';
-import { removeBraids } from '../paths/roads-tidy';
+import { axisDistance } from '../paths/roads-geometry';
+import { removeBraids, tidyRoads } from '../paths/roads-tidy';
 import { joinedRoadsOf, updateRoads } from '../paths/roads';
 import { withRoadsV2 } from '../paths/roads-v2';
 import { ROAD_TREE_ID_BASE } from '../road-trees';
 import { advanceVillage } from '../simulate';
-import type { Dwelling, Person, Road, RoadGrade, VillageState } from '../types';
+import type { Dwelling, Person, Road, RoadGrade, VillageRoads, VillageState } from '../types';
 import { LANDSCAPE, pathTestTerrain } from './paths-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
@@ -332,4 +333,81 @@ describe('souběžné pevné cesty v roční kontrole', () => {
     }
     expect(chunked).toEqual(json(whole));
   }, 60_000);
+});
+
+describe('vozová cesta se napojí (paths.md – Síť, Martin 25. 10. 2026)', () => {
+  const lane = (): Road =>
+    road(1, [
+      [0, 0],
+      [200, 0],
+    ]);
+  const wagon = (): Road => ({
+    ...road(
+      2,
+      [
+        [100, 6.2],
+        [100, 300],
+      ],
+      Y1 - 365,
+      'wagon',
+    ),
+  });
+
+  it('volný konec hotové vozové 6,2 m od cesty se napojí do rozcestí', () => {
+    const out = joinedRoadsOf([lane(), wagon()], [], TERRAIN);
+    const w = out.find((r) => r.grade === 'wagon')!;
+    expect(w.points[0]!.z).toBeCloseTo(0, 5);
+    expect(out.filter((r) => r.grade === 'trodden')).toHaveLength(2);
+  });
+
+  it('díra přes opuštěný kus se zacelí k živé cestě za ním, ne k opuštěnému', () => {
+    const left = road(1, [
+      [0, 0],
+      [100, 0],
+    ]);
+    const gone: Road = {
+      ...road(3, [
+        [100, 0],
+        [108, 0],
+      ]),
+      abandoned: true,
+    };
+    const right = road(4, [
+      [108, 0],
+      [200, 0],
+    ]);
+    const out = joinedRoadsOf([left, gone, right], [], TERRAIN);
+    const live = out.filter((r) => !r.abandoned);
+    expect(live.some((r) => axisDistance([r.points])(104, 0) < 0.01)).toBe(true);
+  });
+
+  it('rozestavěná vozová cesta (konec na ose zemních prací se stavbou) se neprodlouží', () => {
+    const roads: VillageRoads = {
+      nextId: 10,
+      roads: [lane(), wagon()],
+      trees: [],
+      labor: { from: 0, days: 0, shares: [] },
+      earthworks: [
+        {
+          id: 1,
+          profile: [
+            { x: 100, z: 300, y: 0 },
+            { x: 100, z: 0, y: 0 },
+          ],
+          pieces: [{ toM: 300, manDays: 10, builtDay: null }],
+          startedDay: Y1,
+          constructionId: 7,
+        },
+      ],
+    };
+    tidyRoads(roads, [], [], {
+      terrain: TERRAIN,
+      blocked: () => false,
+      layer: null,
+      changes: { removed: [], stumps: [], saplings: [] },
+      seed: 0,
+      split: () => undefined,
+    });
+    expect(roads.roads.find((r) => r.grade === 'wagon')!.points[0]).toEqual({ x: 100, z: 6.2 });
+  });
 });

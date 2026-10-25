@@ -59,6 +59,14 @@ export interface FieldPart {
   sownYears: number; // kolik let v řadě oseto
   /** Co je na osetém dílu zaseto; chybí u dílů mimo osev a u starších vsí (= jař). */
   crop?: Crop;
+  /**
+   * Co na připraveném dílu poroste příště (fields.md – Osevní postup po dílech a setí do konce
+   * okna, bod 1): `'spring'` – díl po ozimu čeká na jař, `'winter'` – díl po jaři, která byla
+   * prvním osevem oběhu, čeká na ozim (Martin 25. 10. 2026: „Jestli bude možné mu dát ozim, ať
+   * dostane ozim.“). Nastaví `rotateAfterSeason`, smaže osev (`sowParts`). Chybí = první osev
+   * oběhu (čerstvě založený díl), u přílohu podle úrodnosti (`nextSowing`).
+   */
+  next?: 'spring' | 'winter';
   fallowSinceDay: number | null; // od kdy leží v přílohu
   foundingCost: number; // člověkodny (povrch × plocha + překážky)
   foundingDone: number;
@@ -89,7 +97,7 @@ export interface FieldPart {
    * ho ves podle zásob z plánu ubrala dřív, než na něm začne práce, vrátí se do přílohu, jak byl
    * (fields.md – Osev podle zásob). Smaže se na konci hospodářského roku; chybí = díl se nevrací.
    */
-  fallowBeforePlan?: { sinceDay: number | null; overgrowthYears?: number };
+  fallowBeforeSeason?: { sinceDay: number | null; overgrowthYears?: number };
   /**
    * Na dílu leží drn – louka, kterou ves se spřežením založila bez motyky (oxen.md – Jen rádlo):
    * rozorá ho až první orba (`PLOUGH_SOD_FACTOR`), bez spřežení ho rozruší motyka jako vrácení

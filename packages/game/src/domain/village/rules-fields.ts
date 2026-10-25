@@ -42,6 +42,12 @@ export const FIELD_STORES = {
   cushionYears: 1 / 3,
   trimMarginYears: 0.1,
 } as const;
+// fields.md – Osevní postup po dílech, Postup práce po dílech (návrh Clauda v duchu Martina
+// 25. 10. 2026: „orají a sejí od začátku okna do konce okna všechno připravené, dokud stačí lidé
+// a spřežení“): nutné díly přibývají k práci po dávkách na čele – rozdělaná práce otevřených oken
+// (vrácení přílohu, kopání, orba, setí) nejvýš na tolik dní volné práce vsi (spřežení na tolik
+// dní orby); další díl přibude, až čelo dávku dodělá
+export const WORK_FRONT_DAYS = 3;
 // fields.md – Kolik ves oseje (návrh Clauda)
 export const PEAK_CAPACITY_SHARE = 1; // ve špičce smí jít na pole všechna práce po denním minimu (kalibrace z 0,8)
 // fields.md – Úroda (hrubá úroda na hektar podle úrodnosti)
@@ -54,6 +60,8 @@ export const UNWEEDED_YIELD = 0.6; // neopletý díl dá 60 % (návrh Clauda, ka
 // přirozené za rok (oprava podle rešerše, bylo 5 %): z 0,64 na 0,95 za 13 let. Nouzově (Nouzový
 // osev) smí ves osít jen příloh aspoň na `emergencyMin` přirozené – Martin 19. 10. 2026: „ves
 // neoseje díly pod 40 % úrodnosti“ (díl na nule by se na 70 % vracel 28 let).
+// Osevní postup (fields.md – Osevní postup po dílech): díl dá dva osevy (ozim a jař) a jde do úhoru.
+export const SOWN_ROUNDS = 2;
 export const FERTILITY = {
   sowDepletion: 0.12,
   fallowRecovery: 0.025,
@@ -321,7 +329,7 @@ export const ORCHARD_SEASON = { startMonth: 3, autumnPlantingFromMonth: 9 } as c
 // fields.md – Kolik ves oseje (k 1. září), Práce a Včasnost (sklizeň jaře do konce srpna, ozimu
 // do konce července, výmlat jaře v září). Musí souhlasit s okny: sklizeň je poslední den okna
 // harvest své plodiny, plán den po sklizni jaře, konec výmlatu den po konci okna thresh jaře
-// (hlídá rules.test.ts) – tehdy se zahodí loňský plán u výmlatu (`threshingFromPlan`); snopy, které
+// (hlídá rules.test.ts) – tehdy se zahodí loňský plán u výmlatu (`threshingSeason`); snopy, které
 // výmlat nestihl, zůstávají (Sheaves – mlátí se dál).
 export const HARVEST_DAY = { month: 8, day: 31 } as const;
 export const WINTER_HARVEST_DAY = { month: 7, day: 31 } as const;

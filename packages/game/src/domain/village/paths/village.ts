@@ -67,7 +67,7 @@ import {
 } from './walking';
 import { lineRoads } from './road-lining';
 import { roadAnchors } from './road-anchors';
-import { settleRoadCondition } from './road-condition';
+import { settleRoadCondition, trafficOnRoads } from './road-condition';
 import { routePaths } from './route-paths';
 import { villageGrid } from './network-grid';
 import { villageBuildings } from './network-search';
@@ -398,7 +398,8 @@ export function settleVillageWear(state: VillageState, day: number, landscape: L
   if (!wear || wear.day >= day) return;
   const routes = state.routes ?? { key: '', list: [] };
   accrueVisits(state.roads!, routes.list, day - wear.day);
-  const field = trafficField(routes, pathCellM(landscape));
+  const cellM = pathCellM(landscape);
+  const field = trafficField(routes, cellM);
   const from = wear.day;
   settleWear(wear, field, from, day);
   // stav cest po týchž intervalech (paths.md – Zarůstání)
@@ -407,7 +408,9 @@ export function settleVillageWear(state: VillageState, day: number, landscape: L
     const entrances = roadAnchors(routes.list, landscape).points.filter(
       (a) => a.kind === 'entrance',
     );
-    settleRoadCondition(roads, state.constructions, state.trails, field, entrances, from, day);
+    // stav nesou jen trasy, které šly po cestě (paths.md – Zarůstání, Provoz po cestě)
+    const traffic = trafficOnRoads(routes.list, cellM);
+    settleRoadCondition(roads, state.constructions, state.trails, traffic, entrances, from, day);
   }
 }
 

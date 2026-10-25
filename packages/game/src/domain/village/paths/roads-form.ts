@@ -56,6 +56,7 @@ export function emptyRoads(day: number): VillageRoads {
     trailsRestored: true,
     v2: true,
     rebuilt: 1,
+    repaired: 1,
   };
 }
 

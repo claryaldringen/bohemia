@@ -16,7 +16,7 @@ import { villageOxen } from './oxen';
 import { dailyMinPerHousehold } from './productivity';
 import { sheafWork, threshTasks, THRESHED_CROPS } from './threshing';
 import type { Person, VillageState } from './types';
-import { activeTasks, neededTaskRemaining, planCrops } from './year-plan';
+import { activeTasks, neededTaskRemaining, seasonCrops } from './year-plan';
 
 const EPSILON = 1e-9;
 
@@ -46,8 +46,8 @@ export const HARVEST_HANDS_MONTHS: ReadonlySet<number> = new Set(
 export function harvestHandsDay(state: VillageState, day: number): boolean {
   const { month } = dateOfDayIndex(day);
   if (!HARVEST_HANDS_MONTHS.has(month)) return false;
-  if (state.plan) {
-    for (const { crop, work } of planCrops(state.plan)) {
+  if (state.season) {
+    for (const { crop, work } of seasonCrops(state.season)) {
       if (
         activeTasks(work, day, crop).includes('harvest') &&
         neededTaskRemaining(work, 'harvest') > 0

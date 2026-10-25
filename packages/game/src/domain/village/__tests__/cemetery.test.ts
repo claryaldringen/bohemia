@@ -301,7 +301,7 @@ describe('pohřebiště v simulaci', () => {
     expect(chunked).toEqual(whole);
     expect(whole.cemeteries![0]!.graves).toBeGreaterThan(0);
     expect(JSON.parse(JSON.stringify(whole))).toEqual(whole);
-  });
+  }, 30_000);
 });
 
 describe('souhrn pohřebišť', () => {

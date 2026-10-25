@@ -2,7 +2,7 @@
 // Rozcestník je `types.ts`; tento soubor jen drží část typů.
 
 import type { ChronicleEvent, LaborDay } from './types-chronicle';
-import type { Construction, SacredBuildingKind, YearPlan } from './types-construction';
+import type { Construction, SacredBuildingKind, FarmSeason } from './types-construction';
 import type {
   Cart,
   CharcoalUse,
@@ -65,8 +65,8 @@ export interface VillageState {
   fields: Field[];
   parts: FieldPart[];
   constructions: Construction[];
-  plan: YearPlan | null;
-  threshingFromPlan: YearPlan | null;
+  season: FarmSeason | null;
+  threshingSeason: FarmSeason | null;
   storesKg: number;
   /**
    * Nedodělek domácí výroby – jen ve vsích uložených před 19. 10. 2026; domácí výroba z práce
@@ -230,6 +230,16 @@ export interface VillageState {
   /** Dcery, které se vdaly pryč – záznam se směrem jejich nové vsi (kinship.md); chybí = žádné. */
   emigrants?: Emigrant[];
   plotsMigrated?: true;
+  /**
+   * Ves prošla převodem na osevní postup po dílech (`withSowingRotation`, fields.md – Osevní
+   * postup po dílech, bod 7) – i ves bez ročního plánu; chybí = ještě ne.
+   */
+  sowingRotation?: true;
+  /**
+   * Převod na osevní postup selhal (zpráva chyby) – ves zůstala beze změny, jen se značkou
+   * `sowingRotation`; aplikace chybu zapíše do logu (`updateVillage`).
+   */
+  sowingRotationFailed?: string;
   /**
    * Stavby uložené před variantami rozměrů (population.md – Varianty rozměrů) prošly kontrolou,
    * jestli se do své varianty vejdou (`withDwellingShapes`) – nové vsi ho mají od založení.

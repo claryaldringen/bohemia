@@ -1,5 +1,5 @@
 /** Panel výběru pole, dílu pole, sadu, hřbitova, ohrady a obilné jámy. */
-import { type ReactElement } from 'react';
+import { type ReactElement, type ReactNode } from 'react';
 import { CART_NAMES, MAX_PEN_SQUARES } from '@bohemia/game';
 import type { VillageHorse, VillageHorses } from '@/lib/horse-view';
 import { PART_COLORS, SURFACE_COLORS } from '@/lib/minimap';
@@ -23,6 +23,40 @@ import {
 import { DWELLING_NAMES } from '@/lib/village-view';
 import { Tooltip } from '../Tooltip';
 import { Stat, Bar, Wear, RepairBar, ROW, formatM2, Walk, Flag, formatTons } from './parts';
+
+/** Krátký název plodiny malými písmeny (ozim, jař, luštěniny, len) – do popisků. */
+function cropShort(crop: keyof typeof CROP_LABELS): string {
+  return CROP_LABELS[crop].name.split(' – ')[0]!.toLowerCase();
+}
+
+/**
+ * Příloh ikonou – čtvereček barvy mladého přílohu jako v řádku dílů podle stadia (úhor a odpočívající
+ * díly – fields.md, Osevní postup po dílech, bod 6) s číslem.
+ */
+function FallowStat({
+  name,
+  testId,
+  children,
+}: {
+  name: string;
+  testId: string;
+  children: ReactNode;
+}): ReactElement {
+  return (
+    <Tooltip content={name} placement="above">
+      <span className="flex shrink-0 items-center gap-1 whitespace-nowrap" tabIndex={0}>
+        <span
+          aria-hidden
+          className="inline-block h-3 w-3 rounded-sm border border-black/50"
+          style={{ background: `rgb(${PART_COLORS['young-fallow'].join(' ')})` }}
+        />
+        <span data-testid={testId} className="text-sm font-semibold tabular-nums">
+          {children}
+        </span>
+      </span>
+    </Tooltip>
+  );
+}
 
 /**
  * Tlačítko „Označit všechna pole“ (Martin 24. 10. 2026): vybere všechna pole vsi najednou, i když
@@ -156,6 +190,32 @@ export function FieldBody({
           </li>
         ))}
       </ul>
+      {(details.turn.length > 0 || details.resting > 0) && (
+        <ul aria-label="Na řadě" className={ROW}>
+          {details.turn.map(({ crop, count, surplus }) => (
+            <li key={crop}>
+              <Stat
+                icon={CROP_LABELS[crop].icon}
+                name={`Na řadě – ${cropShort(crop)}${
+                  surplus > 0
+                    ? `; nad potřebu letos ${surplus} ${plural(surplus, 'díl', 'díly', 'dílů')}`
+                    : ''
+                }`}
+                testId={`selection-turn-${crop}`}
+              >
+                {count}
+              </Stat>
+            </li>
+          ))}
+          {details.resting > 0 && (
+            <li>
+              <FallowStat name="Odpočívá – příloh pod 95 %" testId="selection-resting">
+                {details.resting}
+              </FallowStat>
+            </li>
+          )}
+        </ul>
+      )}
       {details.surfaces.length > 0 && (
         <ul aria-label="Povrch dílů při založení" className="flex flex-wrap gap-x-2.5 gap-y-1">
           {details.surfaces.map(({ surface, count }) => (
@@ -194,8 +254,9 @@ export const PREP_LOOKS: Record<'reclaim' | 'plough' | 'dig', { icon: string; na
  * Díl pole (fields.md – Co hráč vidí; Martin 19. 10. 2026: „Když kliknu na pole, zobrazí se mi
  * jen to jedno políčko s parametry.“): výměra, úrodnost (v popisku přirozená), cesta z domu
  * a hospodářství – ikona domu, kliknutím vybere dům; osetý díl letošní práci (příprava půdy,
- * setí s ikonou plodiny, sklizeň) a kolikátý rok je v osevu; příloh roky ladem, zarůstání,
- * pastvu a seč; zakládaný díl průběh, zbývající práci a stromy na klády.
+ * setí s ikonou plodiny, sklizeň); osevní postup – kolikátý osev oběhu, co poroste příště (u úhoru
+ * odpočinek k 95 %) a díl nad potřebu (fields.md – Osevní postup po dílech, bod 6); příloh roky
+ * ladem, zarůstání, pastvu a seč; zakládaný díl průběh, zbývající práci a stromy na klády.
  */
 export function FieldPartBody({
   details,
@@ -204,7 +265,7 @@ export function FieldPartBody({
   details: Extract<SelectionDetails, { kind: 'field-part' }>;
   onSelectTarget?: (target: VillageTarget) => void;
 }): ReactElement {
-  const { crop, holding, founding } = details;
+  const { crop, holding, founding, next, rest } = details;
   const fallow = details.fallowYears !== null;
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
@@ -296,10 +357,40 @@ export function FieldPartBody({
           <Stat icon="harvest" name="Sklizeň" testId="selection-harvest">
             {formatPercent(crop.harvest)}
           </Stat>
+        </div>
+      )}
+      {(next !== null || details.sownYears !== null || details.surplus) && (
+        <div className={ROW}>
           {details.sownYears !== null && (
-            <Stat icon="date" name="Rok osevu za sebou" testId="selection-sown-years">
+            <Stat
+              icon="date"
+              name={`${details.sownYears + 1}. osev oběhu`}
+              testId="selection-sown-years"
+            >
               {details.sownYears + 1}.
             </Stat>
+          )}
+          {next === 'fallow' && rest && (
+            <FallowStat
+              name={`Příště úhor – odpočinek k 95 %, osev za ≈ ${rest.years} ${plural(rest.years, 'rok', 'roky', 'let')}`}
+              testId="selection-next"
+            >
+              {formatPercent(rest.share)}
+            </FallowStat>
+          )}
+          {next !== null && next !== 'fallow' && (
+            <Flag
+              icon={CROP_LABELS[next].icon}
+              name={`Příště – ${cropShort(next)}`}
+              testId="selection-next"
+            />
+          )}
+          {details.surplus && (
+            <Flag
+              icon="hourglass"
+              name="Jen z volné práce – stavby mají přednost"
+              testId="selection-surplus"
+            />
           )}
         </div>
       )}

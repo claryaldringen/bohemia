@@ -250,7 +250,10 @@ function ploughVillage(day: number, hands = 8): VillageState {
   s.carts = [{ id: 1, kind: 'four-wheel', builtDay: day - 10 }];
   s.fields = [{ id: 1 }];
   s.parts = [part(1, 2), part(2, 3)];
-  s.plan = { plannedDay: at(600, 9, 1), ...createCropWork(s.parts, at(600, 9, 1), 0, true) };
+  s.season = {
+    startDay: at(600, 9, 1),
+    crops: [{ crop: 'spring', ...createCropWork(s.parts, at(600, 9, 1), 0, true) }],
+  };
   return s;
 }
 

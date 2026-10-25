@@ -48,8 +48,8 @@ import {
 } from './roads-form';
 import { annualCartNetwork, markCartRoads, takeOverCartRoads } from './roads-carts';
 import { abandonBlockedStretches, cutDeadRoads } from './roads-overgrow';
-import { accessDue, accessRoads } from './roads-access';
-import { fixedRoadIds, liveRoadEnd, nearEntrance } from './road-condition';
+import { accessDue, accessRoads, gateGuardOf, type GateGuard } from './roads-access';
+import { fixedRoadIds, liveRoadEnd, nearEntrance, trafficOnRoads } from './road-condition';
 import { updateJunctions } from './junctions';
 import { anchorTermini, markRoadEnds, tidyDue, tidyRoads } from './roads-tidy';
 import { SpotContext, plantingBlocker, rootTrees } from './roads-trees';
@@ -384,11 +384,14 @@ function tidyMonth(
       .map((c) => visitKey('cemetery', c.id)),
   );
   const built = (visit: string): boolean => !unbuilt.has(visit);
+  // ohyb do vchodu jen u volných úseků a ne přes plot, stavbu ani vodu (paths.md – Cesta do branky)
+  const guard = (): GateGuard =>
+    gateGuardOf(fixedRoadIds(state.constructions, state.trails), month.walk, () => base().terrain);
   // křižovatky (krok 6) – ramena jen z živých cest; i bez úklidu, provoz se mění s trasami
   const junctions = (): boolean => {
     const frozen = fixedRoadIds(state.constructions, state.trails);
     const entrances = month.anchors.points.filter((a) => a.kind === 'entrance');
-    const traffic = field();
+    const traffic = trafficOnRoads(routes.list, month.cellM);
     let walkable: ReturnType<typeof month.walk> | undefined;
     return updateJunctions(roads, month.day, state.seed, {
       live: (road, atStart) => liveRoadEnd(road, atStart, traffic, entrances, frozen),
@@ -404,7 +407,7 @@ function tidyMonth(
   if (
     roads.tidyKey === networkKey(roads) &&
     !tidyDue(roads, state.constructions, isEnd, network) &&
-    !accessDue(roads, routes.list, month.cellM, built)
+    !accessDue(roads, routes.list, month.cellM, built, guard())
   ) {
     // ohnuté konce os nic dalšího neuklidí (konce zůstanou ve středu) – otisk sítě se jen posune
     if (junctions()) roads.tidyKey = networkKey(roads);
@@ -419,7 +422,16 @@ function tidyMonth(
     },
   };
   tidyRoads(roads, state.constructions, isEnd, context, network, state.trails);
-  const made = accessRoads(roads, routes.list, month.cellM, month.day, context, field(), built);
+  const made = accessRoads(
+    roads,
+    routes.list,
+    month.cellM,
+    month.day,
+    context,
+    field(),
+    built,
+    guard(),
+  );
   if (made.length > 0) {
     mergeRoadChains(roads, state.constructions, state.trails);
     markRoadEnds(roads, isEnd);

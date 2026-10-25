@@ -637,8 +637,16 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   `roadFullCondition` = `ROAD_DECAY[druh].keep × years × 365,25` (vyšlapaná 5 let, upravená i hať 15,
   vozová 30; čísla v `rules-roads.ts`). `settleRoadCondition` (`road-condition.ts`) se volá
   z `settleVillageWear` po `settleWear` se stejným polem a týmiž dny `from`–`to`, takže dopočet po
-  kouscích = najednou (celá čísla; provoz kusu = medián `trafficAt` po 3 m, nejméně loňské jízdy
-  vozů): `c = clamp(c + (provoz − keep) × dny, 0, plný)`. Nezarůstá zemská stezka, cesta ve
+  kouscích = najednou (celá čísla; provoz kusu = medián provozu po cestě po 3 m, nejméně loňské
+  jízdy vozů): `c = clamp(c + (provoz − keep) × dny, 0, plný)`. **Provoz po cestě** (Martin 25. 10. 2026: „proč by lidé chodili kousek vedle, když tam je cesta?“): `trafficOnRoads(routes,
+cellM)` (`road-condition.ts`, index buněk tras v `WeakMap` podle pole tras) – součet `trips` tras,
+  které mají buňku (`routeCells`) do `ROAD_TRAFFIC.bandCells` (0,75) buňky od bodu osy (pás jako
+  `roadBandCells`), každá trasa jednou; ne provozní pole vyšlapanosti (`trafficAt` – políčka 7,5 m
+  i se sousedy, dosah ≈ 11 m – zůstává pro vznik a vyšlapanost). Stejně `liveRoadEnd` (živá ramena
+  křižovatek – `tidyMonth`). **Opuštěný úsek** provoz nedostane nikdy (ani jízdy vozů) – bledne
+  podle druhu. Kus pod hotovou stavbou: `capUnderBuilding` z `abandonBlockedStretches` (každý měsíc
+  pro všechny opuštěné; kus osy s během ≥ `BLOCK_MIN_RUN_M` v neprůchodné ploše) – stav nejvýš
+  `keep × ROAD_TRAFFIC.underBuildingDays` (330), zmizí do roka. Nezarůstá zemská stezka, cesta ve
   vylepšení (`fixedRoadIds`) a cesta, jejíž konec leží do `ROAD_ANCHORS.entranceM` od vchodu
   (kotva `entrance` z tras – ke stavbě se chodí; bez pole `Road.access`). **Zánik v `roadsMonth`**
   (1. dne v měsíci, po `settleVillageWear`, **před** vznikem `formRoadsKept`): `cutDeadRoads`
@@ -701,7 +709,11 @@ landscape, obstacles)` v `paths/roads-rebuild.ts`; `updateVillage` volá po `wit
   hotový plán zapíše `buildWagonRoadNow` (`wagon-road.ts` – zemní práce bez stavby, všechny
   `pieces` s `builtDay` = den přestavby, `buildPiece` – `addWagonRoad`, kácení, klády –, pak
   `absorbParallelRoads` a `abandonBypassed` jako `wagonRoadsDay`). Výsledek a počet průchodů
-  v nepovinném `RebuildReport` (parametr `report` – testy a měření). Průchody před přepočtem dostanou `rebuildRoadsPass(…, width)` → `roadsMonthRun` →
+  v nepovinném `RebuildReport` (parametr `report` – testy a měření). Řetěz pod podílem: kusy jeho
+  osy (`chainPoints`) u staré vozové osy souvisle aspoň `wagonPatchM` (`nearStretches`) se naplánují
+  samy – `planWagonRoad` s `roads: [kus]` (syntetický upravený úsek id −1, řetěz je jen on),
+  `buildWagonRoadNow` geometricky (`absorbParallelRoads` vyřízne starou cestu pod ním), zbytky
+  napojí další ustálení. `patchAxes` napojuje konce vrácených kusů do `ROAD_JOIN.gapM` (12 m). Průchody před přepočtem dostanou `rebuildRoadsPass(…, width)` → `roadsMonthRun` →
   `tidyMonth` → `JunctionRoads.width` (`spaceJunctions` – úsek u staré vozové osy má šířku
   `ROAD_LAND.widthM.wagon`), takže křižovatky s budoucím vozovým ramenem se odsunou předem. Pak
   znovu průchody až do ustálení. Kronika se vrátí na původní délku, `flushWear` na
@@ -714,3 +726,29 @@ landscape, obstacles)` v `paths/roads-rebuild.ts`; `updateVillage` volá po `wit
   (`sceneEarthworks`) – svahy i lem opuštěné zemní práce zarostou za `SLOPE_LOOK.wildYears`
   (`slopeLattice`), opuštěná ustoupí živé zemní práci v dosahu svahů (`SlopeContext.live`) a živá
   na opuštěnou nenavazuje (konec se vytrácí).
+- **Jednorázová oprava sítě (Martin 25. 10. 2026 – „ty cesty pořád zlobí“, hřbitov ve Vlkově):**
+  `withRoadsRepaired` / `withRoadsRepairedSteps` (`paths/roads-repair.ts`) při načtení po přestavbě
+  (`update-village.ts` – `withPauses`, port `Pause` mezi kroky), příznak `VillageRoads.repaired`
+  (nová ves ho má z `emptyRoads`), chyba → `repairFailed` a ves beze změny (try/catch jako
+  přestavba). `repairRoadsSteps`: `abandonBlockedStretches` (kusy pod stavbami, stav do roka) →
+  `tidyRoadsNow` (díry i u hotových vozových cest, ohyb do branek, křižovatky) →
+  `joinWagonChains` (řetěz bez vozové, oba konce na vozové cestě – `endsOf.wagonAt`: konec jiné
+  vozové v témž bodě nebo rameno křižovatky s vozovým ramenem do 15 m –, podíl ≥ `share` u os
+  hotových zemních prací → upravit, `planWagonRoad`, `buildWagonRoadNow`) → přepočet tras
+  a úklid → `abandonLooseWagons` (vozová s volným koncem mimo kotvu, bez provozu po cestě a bez
+  jízd → `abandoned`; ne do `ROAD_LOOSE_WAGON.freshDays` od dostavění – `wagonBuiltDay`, poslední
+  `builtDay` živých hotových zemních prací pod úsekem, bez nich `bornDay` – a ne na hotových zemních
+  pracích s aspoň jedním napojeným koncem) → přepočet tras a úklid. Diagnostika `RepairReport`. **Díry** (`firstGap`,
+  `roads-tidy.ts`): vozová cesta se vynechá jen tam, kde její konec leží do 2 m od osy zemních
+  prací se stavbou (`BUILDING_END_M`); opuštěné úseky nejsou cílem napojení. **Ohyb do branky**
+  (`gateBend`, `roads-access.ts`): trasa ke stavbě (`accessRoutes`), žádný živý úsek nekončí do
+  `ROAD_ANCHORS.entranceM` od vchodu, nejbližší úsek do té vzdálenosti není vozový ani zamčený
+  (`GateGuard.fixed` = `fixedRoadIds`) → osa
+  `axisSlice(0, at − bendM)` + bod `ROAD_GATE.frontM` před vchodem (po čáře trasy zpět) +
+  `axisSlice(at + bendM, konec)`, jen když nová část osy po 0,5 m nikde neleží v `GateGuard.blocked`
+  (`gateGuardOf` v `tidyMonth`: `villageBlockedAt` a voda bez brodu z `trailTerrain`, obojí líně);
+  konce zůstanou, `ground` znovu, `lined` pryč. `accessDue` (se stejnou hlídkou) ho
+  hlásí, takže úklid proběhne; podruhé nic (osa do `toleranceM` od bodu). Testy
+  `road-condition.test.ts` (provoz po cestě), `road-parallel.test.ts` (vozové díry),
+  `road-gate.test.ts`, `roads-loose-wagons.test.ts`, `roads-rebuild.test.ts` (oprava,
+  `nearStretches`).

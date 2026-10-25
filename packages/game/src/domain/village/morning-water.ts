@@ -5,7 +5,7 @@ import { householdWater, type HouseholdWater } from './labor';
 import { familyHomes, lordApartIds, trainingFamily } from './lord';
 import { MORNING_WATER } from './rules';
 import type { CropWork, Person, VillageState } from './types';
-import { cropTaskWindows, neededTaskRemaining, planCrops, windowEndOf } from './year-plan';
+import { cropTaskWindows, neededTaskRemaining, seasonCrops, windowEndOf } from './year-plan';
 
 const EPS = 1e-9;
 const MONTHS = 12;
@@ -64,10 +64,10 @@ export function ploughWindowsToday(
   day: number,
   factor: (work: CropWork) => number,
 ): PloughWindow[] {
-  if (!state.plan) return [];
+  if (!state.season) return [];
   const { year, month } = dateOfDayIndex(day);
   const windows: { end: number; need: number; daysLeft: number }[] = [];
-  for (const { crop, work } of planCrops(state.plan)) {
+  for (const { crop, work } of seasonCrops(state.season)) {
     const left = neededTaskRemaining(work, 'plough');
     if (left <= EPS) continue;
     const end = windowEndOf(cropTaskWindows(crop, 'plough'), month);

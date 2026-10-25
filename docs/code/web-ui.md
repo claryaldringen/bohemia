@@ -256,6 +256,27 @@ zahodí zaniklá pole (jedno zbylé je pole) a panel `FieldsBody` ukáže souče
 (`selection-area`) a počet polí (`selection-fields-count`). Výměru jednoho pole ukazuje
 `selection-area` v panelu pole (ha) a dílu (m²).
 
+## Panel pole a dílu – osevní postup
+
+fields.md – Osevní postup po dílech a setí do konce okna, bod 6 (návrh Clauda, Martin schválil 25. 10. 2026). Data: `fieldViews` (`lib/village-view-fields.ts`) volá jednou `partYearWork`
+a `partRotation` z jádra; díl (`VillageFieldPart`) nese `next`, `rest` a `work.surplus`, pole
+`turn` – díly na řadě mimo letošní práci podle ozimu a jaře, odpočívající příloh (pod 95 %)
+a díly letošní práce nad potřebu podle obilí. `selectionDetails` z nich dělá `next`, `rest`,
+`surplus` (díl) a `turn` (jen nenulové) a `resting` (pole). Panel (`hud/selection/fields.tsx`):
+
+- **Díl** (`FieldPartBody`) – řádek osevního postupu: `selection-sown-years` (ikona `date`,
+  „N. osev oběhu“), `selection-next` – ikona plodiny (`Flag`, popisek „Příště – jař“) nebo úhor
+  čtverečkem barvy mladého přílohu (`FallowStat`) s odpočinkem k 95 % (popisek „osev za ≈ N
+  let“), `selection-surplus` (ikona `hourglass`, „Jen z volné práce – stavby mají přednost“).
+- **Pole** (`FieldBody`) – seznam „Na řadě“ pod díly podle stadia: `selection-turn-winter` /
+  `selection-turn-spring` (ikona plodiny s počtem, v popisku „nad potřebu letos N dílů“)
+  a `selection-resting` (čtvereček přílohu s počtem).
+
+Návrh Clauda: „na řadě“ v poli jsou díly, které čekají mimo letošní práci (díly letošní práce
+počítají plodiny); nad potřebu v popisku jsou díly letošní práce nad potřebu té plodiny – díl na
+řadě, který ves vezme z volné práce, se tam přesune. Ukázky `/dev/panels?panel=pole`,
+`pole-dil`, `pole-dil-na-rade`.
+
 ## Vozy, uhlí, keramika a nářadí mimo lištu
 
 Martin 24. 10. 2026: počet vozů ne na liště, ale v ohradě s voly; uhlí u uhlíře; keramiku a

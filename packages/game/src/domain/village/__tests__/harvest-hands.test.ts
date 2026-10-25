@@ -12,7 +12,7 @@ import { sowingCapacity, villageProductivity } from '../simulate-plan';
 import type { Person, VillageState } from '../types';
 import { dwelling } from './kin-fixtures';
 import { threshTasks } from '../threshing';
-import { planCrops } from '../year-plan';
+import { seasonCrops } from '../year-plan';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
 // Žně a výmlat všemi rukama (fields.md – Žně všemi rukama; Martin 24. 10. 2026: „Dílny i vojvodova
@@ -108,7 +108,7 @@ describe('žňový den (harvestHandsDay)', () => {
 
   it('jen když je v okně co sklízet nebo mlátit', () => {
     const s = harvestVillage();
-    s.plan = null;
+    s.season = null;
     expect(harvestHandsDay(s, at(600, 9, 10))).toBe(false);
     s.sheaves = { grainKg: 100, legumesKg: 0, work: { spring: 5 } };
     expect(harvestHandsDay(s, at(600, 9, 10))).toBe(true);
@@ -118,7 +118,7 @@ describe('žňový den (harvestHandsDay)', () => {
 
   it('výmlat bez humna a bez nouzového výmlatu žňový den není – řemeslo a výcvik běží', () => {
     const s = harvestVillage();
-    s.plan = null;
+    s.season = null;
     s.sheaves = { grainKg: 100, legumesKg: 0, work: { spring: 5 } };
     const day = at(600, 9, 10);
     const canThresh = threshTasks(s, day).length > 0;
@@ -131,10 +131,10 @@ describe('žňový den (harvestHandsDay)', () => {
 
   it('žeň z plánu: v okně sklizně ano, před ním ne', () => {
     const s = advanceVillage(harvestVillage(), at(600, 9, 1), null, null);
-    expect(s.plan).not.toBeNull();
+    expect(s.season).not.toBeNull();
     s.sheaves = { grainKg: 0, legumesKg: 0 };
     // plán zasetý a zapletý – žeň čeká
-    for (const { work } of planCrops(s.plan!)) {
+    for (const { work } of seasonCrops(s.season!)) {
       for (const task of ['reclaim', 'dig', 'sow', 'weed'] as const) {
         work.done[task] = work.required[task];
       }
@@ -149,7 +149,7 @@ describe('jízdy vojvodovy rodiny ve žních (lordRides)', () => {
   it('ve žňový den, kdy jdou cvičící muži na pole, nikdo nejezdí', () => {
     const s = advanceVillage(harvestVillage(), at(600, 9, 1), null, null);
     s.lord = { trains: true };
-    for (const { work } of planCrops(s.plan!)) {
+    for (const { work } of seasonCrops(s.season!)) {
       for (const task of ['reclaim', 'dig', 'sow', 'weed'] as const) {
         work.done[task] = work.required[task];
       }
@@ -167,7 +167,7 @@ describe('jízdy vojvodovy rodiny ve žních (lordRides)', () => {
 describe('řemeslníci ve žních (workshopLabor, craftHarvestLabor)', () => {
   it('ve žňový den řemeslo stojí, hrnčíř jde na žeň; žena dál domácnost a lehké práce', () => {
     const s = harvestVillage();
-    s.plan = null;
+    s.season = null;
     s.sheaves = { grainKg: 100, legumesKg: 0, work: { spring: 5 } };
     const day = at(600, 9, 10);
     const calm = workshopLabor(s, at(600, 10, 10), WORKSHOP, 0);
@@ -185,7 +185,7 @@ describe('řemeslníci ve žních (workshopLabor, craftHarvestLabor)', () => {
 describe('vojvodova rodina ve žních (manorLabor)', () => {
   it('ve žňový den dají cvičící muži práci po minimu dvorce na žeň, ženy ne, pomoc s osevem 0', () => {
     const s = harvestVillage();
-    s.plan = null;
+    s.season = null;
     s.sheaves = { grainKg: 100, legumesKg: 0, work: { spring: 5 } };
     const coverage = craftCoverage(s, START);
     const p = villageProductivity(s, coverage);

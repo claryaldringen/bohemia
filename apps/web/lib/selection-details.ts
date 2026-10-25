@@ -19,6 +19,7 @@ import {
   type HerdSpecies,
   type PenSpecies,
   type PartStage,
+  type NextCrop,
   type PartYearWork,
   type RoadGrade,
   type RoadUpgradeOption,
@@ -226,6 +227,14 @@ type SelectionKinds =
        * Luštěniny).
        */
       crops: { crop: Crop; count: number }[];
+      /**
+       * Na řadě (fields.md – Osevní postup po dílech, bod 6): díly mimo letošní práci, které čekají
+       * na ozim či jař (jen nenulové, i když jsou nad potřebu jen díly letošní práce), a kolik dílů
+       * letošní práce té plodiny je nad potřebu.
+       */
+      turn: { crop: 'winter' | 'spring'; count: number; surplus: number }[];
+      /** Odpočívající příloh (pod 95 %) – díly. */
+      resting: number;
       /** Díly s popelem z vymýceného lesa (fields.md – Úroda). */
       ashParts: number;
       /** Nejvyšší letošní bonus úrodnosti z popela (+40 první sezónu, +20 druhou), jinak 0. */
@@ -284,6 +293,12 @@ type SelectionKinds =
       crop: NonNullable<PartYearWork['crop']> | null;
       /** Letošní seč sena – kolik je posečeno 0–1; díl, který se neseče, null. */
       mow: number | null;
+      /** Co na dílu poroste příště (osevní postup); zakládaný díl null. */
+      next: NextCrop | null;
+      /** Úhor: odpočinek k 95 % (0–1) a roky do osevu (≈); jinak null. */
+      rest: { share: number; years: number } | null;
+      /** Díl letošní práce nad potřebu – jen z volné práce, stavby mají přednost. */
+      surplus: boolean;
       /** Zakládá se – průběh, zbývající práce (člověkodny) a stromy na klády; jinak null. */
       founding: { progress: number; laborLeft: number; trees: number } | null;
       /** Id všech polí vsi – tlačítko „Označit všechna pole“. */
@@ -961,6 +976,12 @@ function selectionKinds(
       const count = field.crops[crop] ?? 0;
       return count > 0 ? [{ crop, count }] : [];
     }),
+    turn: (['winter', 'spring'] as const).flatMap((crop) => {
+      const count = field.turn[crop];
+      const surplus = field.turn.surplus[crop];
+      return count > 0 ? [{ crop, count, surplus }] : [];
+    }),
+    resting: field.turn.resting,
     ashParts: field.ashParts,
     ashBonus: field.ashBonus,
     overgrowingM2: field.overgrowingM2,
@@ -1144,6 +1165,9 @@ function fieldPartDetails(
     grazed: shown.grazed ?? null,
     crop: part.work?.crop ?? null,
     mow: part.work?.mow ?? null,
+    next: part.next ?? null,
+    rest: part.rest ?? null,
+    surplus: part.work?.surplus === true,
     founding: part.founding ?? null,
     fieldIds: view?.fields.map((f) => f.id) ?? [],
   };

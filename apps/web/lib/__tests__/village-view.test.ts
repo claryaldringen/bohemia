@@ -12,6 +12,7 @@ import {
   checkSacredBuildingPlacement,
   checkWorkshopPlacement,
   createCropWork,
+  springCrop,
   dayIndexOf,
   fieldPartsFromCells,
   foundCemetery,
@@ -171,6 +172,48 @@ describe('buildVillageView – díl pole pro panel (fields.md – Co hráč vid�
   });
 });
 
+describe('buildVillageView – osevní postup v panelu (fields.md – Osevní postup po dílech)', () => {
+  it('díl: co poroste příště, úhor s odpočinkem, nad potřebu; pole: na řadě a odpočívá', () => {
+    const s = settled();
+    s.constructions = s.constructions.filter((c) => c.kind !== 'field');
+    for (const p of s.parts) {
+      p.foundingDone = p.foundingCost;
+      p.state = 'ready';
+    }
+    const [afterWinter, resting, surplus] = s.parts;
+    afterWinter!.next = 'spring';
+    afterWinter!.sownYears = 1;
+    resting!.state = 'fallow';
+    resting!.fertilityShare = 0.76;
+    resting!.fallowSinceDay = DAY - 400;
+    surplus!.state = 'sown';
+    surplus!.crop = 'winter';
+    s.season = {
+      startDay: DAY - 200,
+      crops: [
+        {
+          crop: 'winter',
+          surplus: true,
+          ...createCropWork([surplus!], DAY - 200, 1, false, undefined, 'winter'),
+        },
+      ],
+    };
+    const field = buildVillageView(record(s), landscape, DAY).fields[0]!;
+    const shown = new Map(field.parts.map((p) => [p.id, p]));
+    expect(shown.get(afterWinter!.id)).toMatchObject({ next: 'spring' });
+    expect(shown.get(resting!.id)).toMatchObject({
+      next: 'fallow',
+      rest: { share: 0.8, years: 8 },
+    });
+    // nezasetý díl nad potřebu – příště jeho plodina
+    expect(shown.get(surplus!.id)).toMatchObject({ next: 'winter', work: { surplus: true } });
+    expect(field.turn.resting).toBe(1);
+    expect(field.turn.winter + field.turn.spring).toBe(s.parts.length - 2);
+    expect(field.turn.spring).toBeGreaterThan(0);
+    expect(field.turn.surplus).toEqual({ winter: 1, spring: 0 });
+  });
+});
+
 describe('buildVillageView – zarůstání (fields.md)', () => {
   it('díly přílohu: roky bez pastvy, kde se pase, zarůstající plocha; les vsi se stromy', () => {
     const s = settled();
@@ -241,7 +284,8 @@ describe('humno (production-chains.md – Humno)', () => {
   });
 
   it('výmlat: po žni ves bez humna mlátí nouzově (upozornění), s humnem ne', () => {
-    // ves sklízí jař 31. 8. 503 – před žní nic
+    // ves založená v dubnu sklízí jař 31. 8. 503 (hladová ves bere obilí před luštěninami –
+    // fields.md, Osevní postup po dílech) – před žní nic
     const summer = advanceVillage(state(), dayIndexOf({ year: 503, month: 8, day: 10 }), null);
     const before = buildVillageView(record(summer), landscape, summer.lastDay);
     expect(before.threshing).toBeUndefined();
@@ -438,6 +482,7 @@ describe('buildVillageView', () => {
         stages: { founding: 5 },
         surfaces: { meadow: 5 },
         crops: {},
+        turn: { winter: 0, spring: 0, resting: 0, surplus: { winter: 0, spring: 0 } },
         ashParts: 0,
         ashBonus: 0,
         overgrowingM2: 0,
@@ -694,11 +739,14 @@ describe('buildVillageView', () => {
     const parts = scene.fields[0]!.parts;
     const sown = parts.filter((p) => p.stage === 'sown');
     expect(sown.length).toBeGreaterThan(0);
-    for (const p of sown) expect(['stubble', 'plowed', 'sown']).toContain(p.look);
-    // jeden rozpracovaný díl na úlohu – kopání: hotová část zoraná, zbytek loňské strniště
+    // díly přibývají den po dni – čerstvě založený díl ještě holá zem
+    for (const p of sown) expect(['stubble', 'bare', 'plowed', 'sown']).toContain(p.look);
+    // jeden rozpracovaný díl na úlohu – kopání: hotová část zoraná, zbytek loňské strniště nebo
+    // holá zem (čerstvě založený díl na řadě s prvním osevem)
     const working = parts.filter((p) => p.work !== undefined && p.look === 'plowed');
     expect(working).toHaveLength(1);
-    expect(working[0]).toMatchObject({ look: 'plowed', before: 'stubble' });
+    expect(working[0]!.look).toBe('plowed');
+    expect(['stubble', 'bare']).toContain(working[0]!.before);
     expect(working[0]!.work).toBeGreaterThan(0);
     expect(working[0]!.work).toBeLessThan(1);
     const dig = scene.labor?.shares.find((x) => x.activity === 'dig');
@@ -744,7 +792,11 @@ describe('buildVillageView', () => {
         training: null,
       },
     ];
-    s.plan = { plannedDay: DAY - 200, ard: true, ...createCropWork([], DAY - 200, 0, true) };
+    s.season = {
+      startDay: DAY - 200,
+      ard: true,
+      crops: [{ crop: 'spring', ...createCropWork([], DAY - 200, 0, true) }],
+    };
     const { scene } = buildVillageView(record(s), landscape, DAY);
     expect(scene.fields.every((f) => f.ard === true)).toBe(true);
     expect(scene.ploughTeam).toBe(true);
@@ -2238,8 +2290,12 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
 
   it('spřežení na poli (oxen.md – Spřežení zůstane na poli): výjezd, stání u čela a návrat', () => {
     const s = carpenterVillage();
-    s.plan = { plannedDay: DAY - 30, ard: true, ...createCropWork(s.parts, DAY - 30, 0, true) };
-    const plough = s.plan.plough!;
+    s.season = {
+      startDay: DAY - 30,
+      ard: true,
+      crops: [{ crop: 'spring', ...createCropWork(s.parts, DAY - 30, 0, true) }],
+    };
+    const plough = springCrop(s.season).plough!;
     const legs = (): ScenePloughLegs | undefined =>
       buildVillageView(record(s), landscape, DAY).scene.ploughLegs;
     // den, jehož práci scéna ukazuje (poslední dopočítaný)

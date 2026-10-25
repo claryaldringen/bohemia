@@ -11,6 +11,7 @@ import {
   CELL_SIZE_M,
   effectiveFertility,
   fallowYears,
+  partRotation,
   partYearWork,
   partWalkDistance,
   squareExpectedYieldKg,
@@ -27,6 +28,7 @@ import {
   type Landscape,
   type OrchardSquare,
   type PartStage,
+  type PartRotation,
   type PartYearWork,
   type SquareGrid,
   type TileCell,
@@ -77,6 +79,7 @@ export const FLAX_BLOOM_MONTH = 6;
 export function fieldViews(state: VillageState, day: number): VillageView['fields'] {
   const holdings = villageHoldings(state);
   const work = partYearWork(state, day);
+  const rotation = partRotation(state, day, work);
   const holdingOf = (id: number): number | null => {
     const at = holdings.byPart.get(id);
     return at ? (holdings.sectors[at.sector]?.dwellingId ?? null) : null;
@@ -91,6 +94,7 @@ export function fieldViews(state: VillageState, day: number): VillageView['field
     const stages: Partial<Record<PartStage, number>> = {};
     const surfaces: Partial<Record<FieldSurface, number>> = {};
     const crops: Partial<Record<Crop, number>> = {};
+    const turn = { winter: 0, spring: 0, resting: 0, surplus: { winter: 0, spring: 0 } };
     let ashParts = 0;
     let ashBonus = 0;
     let overgrowingM2 = 0;
@@ -105,6 +109,11 @@ export function fieldViews(state: VillageState, day: number): VillageView['field
         const crop = p.crop ?? 'spring';
         crops[crop] = (crops[crop] ?? 0) + 1;
       }
+      const r = rotation.get(p.id);
+      if (r?.onTurn && (r.next === 'winter' || r.next === 'spring')) turn[r.next]++;
+      else if (r?.next === 'fallow' && p.state === 'fallow') turn.resting++;
+      const yearCrop = work.get(p.id)?.crop?.crop;
+      if (r?.surplus && (yearCrop === 'winter' || yearCrop === 'spring')) turn.surplus[yearCrop]++;
       if (p.bonusUntilDay !== null && p.bonusUntilDay >= day) ashParts++;
       ashBonus = Math.max(ashBonus, forestBonus(p, day));
     }
@@ -115,10 +124,13 @@ export function fieldViews(state: VillageState, day: number): VillageView['field
       stages,
       surfaces,
       crops,
+      turn,
       ashParts,
       ashBonus,
       overgrowingM2,
-      parts: parts.map((p) => fieldPartView(p, day, holdingOf(p.id), work.get(p.id))),
+      parts: parts.map((p) =>
+        fieldPartView(p, day, holdingOf(p.id), work.get(p.id), rotation.get(p.id)),
+      ),
     };
   });
 }
@@ -132,6 +144,7 @@ function fieldPartView(
   day: number,
   holding: number | null,
   work: PartYearWork | undefined,
+  rotation: PartRotation | undefined,
 ): VillageFieldPart {
   const ash = forestBonus(part, day);
   const crop = work?.crop;
@@ -163,9 +176,12 @@ function fieldPartView(
                 }
               : {}),
             ...(work.mow !== undefined ? { mow: hundredths(work.mow) } : {}),
+            ...(work.surplus ? { surplus: true as const } : {}),
           },
         }
       : {}),
+    ...(rotation ? { next: rotation.next } : {}),
+    ...(rotation?.rest ? { rest: rotation.rest } : {}),
     ...(part.state === 'founding'
       ? {
           founding: {

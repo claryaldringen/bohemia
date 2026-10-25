@@ -313,7 +313,7 @@ export interface ManorLabor {
  * zbude, je domácí výroba dvorce a do práce vsi nejde (Martin 23. 10. 2026: „Jen domácnost“).
  * Na poli (hlad – `state.lord.field`) dají všichni dospělí rodiny vše po minimu. Ve žňový den
  * (`harvestHandsDay`) dají cvičící muži `freeMen` na žeň a výmlat. Jinak s potřebným
- * osevem jen podíl dne z plánu, a to jen práce cvičících mužů (`freeMen`; ženy a dcery jen při hladu; lord.md – Kdy jde rodina na pole, bod 1; `YearPlan.lordHelp`).
+ * osevem jen podíl dne z plánu, a to jen práce cvičících mužů (`freeMen`; ženy a dcery jen při hladu; lord.md – Kdy jde rodina na pole, bod 1; `FarmSeason.lordHelp`).
  */
 export function manorLabor(
   state: VillageState,
@@ -359,7 +359,7 @@ export function manorLabor(
   // ve žňový den jdou cvičící muži na žeň a výmlat (Martin 24. 10. 2026: „Dílny i vojvodova
   // rodina“) – ženy rodiny dál jen domácnost
   const harvest = !hunger && harvestHandsDay(state, day) ? freeMen : 0;
-  const help = hunger || harvest > 0 ? 0 : lordHelpShare(state.plan, day) * freeMen;
+  const help = hunger || harvest > 0 ? 0 : lordHelpShare(state.season, day) * freeMen;
   return {
     dailyMin,
     uncovered: need + apartNeed - dailyMin,

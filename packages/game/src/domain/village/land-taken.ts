@@ -15,10 +15,11 @@ import type {
   SquareGrid,
   TileCell,
   VillageState,
-  YearPlan,
+  FarmSeason,
+  SeasonCrop,
 } from './types';
 import { addLogs, logsFromClearedTrees } from './wood';
-import { partWeight, planCrops } from './year-plan';
+import { TASK_ORDER, createCropWork, partWeight, seasonCrops } from './year-plan';
 
 // Pole a sad ustupují stavbám (population.md – Obydlí na poli a v sadu; Martin, 18. 10. 2026:
 // „domy by měly jít stavět na polích a v sadech. Pole a sad se prostě zmenší o plochu domu“ –
@@ -305,7 +306,7 @@ function resizeParts(
     if (Math.abs(lost) <= EPSILON) continue;
     const share = left > 0 ? lost / part.areaM2 : 1;
     // plán, seč a založení podle plochy před zmenšením (váha dílu v pořadí práce)
-    if (state.plan) shrinkInPlan(state, state.plan, part, share, day);
+    if (state.season) shrinkInPlan(state, state.season, part, share, day);
     shrinkInMowing(state, part, share);
     shrinkFounding(state, part, share);
     loss.set(part.fieldId, (loss.get(part.fieldId) ?? 0) + lost);
@@ -315,9 +316,9 @@ function resizeParts(
     }
     // z pořadí práce hned – další díly se počítají už bez něj
     removed.add(part.id);
-    for (const plan of [state.plan, state.threshingFromPlan]) {
+    for (const plan of [state.season, state.threshingSeason]) {
       if (!plan) continue;
-      for (const { work } of planCrops(plan)) dropFromWork(work, new Set([part.id]));
+      for (const { work } of seasonCrops(plan)) dropFromWork(work, new Set([part.id]));
     }
     dropFromMowing(state, part.id);
     handOverObstacles(state, part, day);
@@ -365,13 +366,13 @@ function setTaskWork(work: CropWork, task: PartTask, required: number, done: num
  */
 export function shrinkInPlan(
   state: VillageState,
-  plan: YearPlan,
+  plan: FarmSeason,
   part: FieldPart,
   share: number,
   day: number,
 ): void {
   const partsById = new Map(state.parts.map((p) => [p.id, p]));
-  for (const { work } of planCrops(plan)) {
+  for (const { work } of seasonCrops(plan)) {
     if (work.harvestedKg !== null || !work.partIds.includes(part.id)) continue;
     for (const task of PART_TASKS) {
       const span = taskSpans(work, partsById, task, day).find((s) => s.id === part.id);
@@ -425,6 +426,84 @@ export function dropFromWork(work: CropWork, removed: ReadonlySet<number>): void
   const reclaimIds = work.reclaimIds.filter((id) => !removed.has(id));
   if (reclaimIds.length > 0) work.reclaimIds = reclaimIds;
   else delete work.reclaimIds;
+}
+
+/** Úlohy, jejichž práci si díl při přesunu mezi plodinami nese (příprava půdy je stejná). */
+const CARRIED_TASKS: ReadonlySet<PartTask> = new Set(['reclaim', 'plough', 'dig']);
+
+/**
+ * Přesune díly `ids` z práce plodiny `from` do práce plodiny `to` (mutuje hospodářský rok) – ozim,
+ * na kterém do konce okna nezačalo setí, jde do jaře (fields.md – Osevní postup po dílech, bod 2).
+ * Díl si nese potřebnou i hotovou přípravu půdy (vrácení přílohu, orba, kopání – podle úseků
+ * `taskSpans`, ne podle sazeb dne: zasetý díl by vrácení přílohu už neměl); setí a další práce
+ * podle sazeb nové plodiny – v téže plodině (díl nad potřebu se stane nutným) si nese i je. Přesunuté díly jdou na začátek pořadí `to` (obdělávaly se napřed) –
+ * součet hotové práce přes plodiny se nezmění. Plodiny s různým způsobem přípravy (orba proti
+ * motyce) si přípravu nenesou.
+ */
+export function moveParts(
+  state: VillageState,
+  season: FarmSeason,
+  from: SeasonCrop,
+  to: SeasonCrop,
+  ids: readonly number[],
+  day: number,
+  toolCoverage: number,
+): void {
+  const moved = new Set(ids);
+  const partsById = new Map(state.parts.map((p) => [p.id, p]));
+  const parts = from.partIds
+    .filter((id) => moved.has(id))
+    .map((id) => partsById.get(id))
+    .filter((p): p is FieldPart => p !== undefined);
+  if (parts.length === 0) return;
+  const plough = to.plough !== undefined;
+  const carry = (from.plough !== undefined) === plough;
+  const carried = new Map<PartTask, { required: number; done: number }>();
+  for (const task of PART_TASKS) {
+    if (!carry || (!CARRIED_TASKS.has(task) && from.crop !== to.crop)) continue;
+    const { required } = taskWork(from, task);
+    const position = taskPosition(from, task);
+    const sum = { required: 0, done: 0 };
+    for (const span of taskSpans(from, partsById, task, day)) {
+      if (!moved.has(span.id)) continue;
+      const own = span.share ?? 1;
+      sum.required += (span.end - span.start) * required * own;
+      sum.done +=
+        (Math.min(span.end, Math.max(span.start, position)) - span.start) * required * own;
+    }
+    carried.set(task, sum);
+  }
+  const reclaimIds = carry ? (from.reclaimIds ?? []).filter((id) => moved.has(id)) : [];
+  const sodIds = carry ? (from.plough?.sodIds ?? []).filter((id) => moved.has(id)) : [];
+  // díl po dílu – úseky dalšího dílu se počítají už bez předchozího
+  for (const part of parts) {
+    shrinkInPlan(state, season, part, 1, day);
+    dropFromWork(from, new Set([part.id]));
+  }
+  const fresh = createCropWork(parts, day, toolCoverage, plough, (ps) => [...ps], to.crop);
+  for (const task of TASK_ORDER) {
+    const own = carried.get(task as PartTask);
+    to.required[task] += own ? own.required : fresh.required[task];
+    if (own) to.done[task] += own.done;
+  }
+  to.partIds = [...fresh.partIds, ...to.partIds];
+  const reclaim = carry ? reclaimIds : (fresh.reclaimIds ?? []);
+  if (reclaim.length > 0) to.reclaimIds = [...reclaim, ...(to.reclaimIds ?? [])];
+  if (!to.plough || !fresh.plough) return;
+  const own = carried.get('plough');
+  to.plough.partIds = [...fresh.plough.partIds, ...to.plough.partIds];
+  to.plough.required += own ? own.required : fresh.plough.required;
+  to.plough.done += own?.done ?? 0;
+  to.plough.weight += fresh.plough.weight;
+  const sod = carry ? sodIds : (fresh.plough.sodIds ?? []);
+  if (sod.length > 0) to.plough.sodIds = [...sod, ...(to.plough.sodIds ?? [])];
+  if (to.plough.bands && fresh.plough.bands) {
+    const shift = fresh.plough.bands.reduce((max, b) => Math.max(max, b.block + 1), 0);
+    to.plough.bands = [
+      ...fresh.plough.bands,
+      ...to.plough.bands.map((b) => ({ ...b, block: b.block + shift })),
+    ];
+  }
 }
 
 /**

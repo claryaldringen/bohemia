@@ -415,7 +415,40 @@ sčítá po týchž intervalech jako vyšlapanost. Opuštěná cesta (žádná t
 sítě – není ramenem křižovatky ani cestou hráče – a jen bledne, dokud nezmizí; vrátí-li se na ni
 provoz, ožije.
 
+### Provoz po cestě (Martin 25. 10. 2026)
+
+Martin 25. 10. 2026: „Počkej, takže když jde člověk 11 m vedle cesty, tak se to bere, jako by šel po
+cestě, ale když jsou konce cesty od sebe dál než 5 m, tak se to bere, jako by byly nespojené?“
+a „proč by lidé chodili kousek vedle, když tam je cesta?“ Ve Vlkově objížďky kolem nových pozemků
+držely opuštěné kusy staré cesty naplno (stav cesty bral provoz z políček 7,5 m i se sousedy –
+dosah ≈ 11 m), takže kolem pozemků zůstávaly smyčky.
+
+- **Stav kusu cesty nese jen provoz tras, které šly po ní** – trasa prošla pásem úseku v mřížce
+  chodců (buňka do 0,75 buňky od osy, jako pás cesty pro vozy; při buňce 3,75 m ≈ 2,8 m – jen
+  zaokrouhlení mřížky, mřížka vede cestu nejbližší řadou buněk). Žádné sousední políčko. Platí pro
+  zarůstání i pro živá ramena křižovatek. Návrh Clauda – čísla v `ROAD_TRAFFIC`.
+- **Ověření pásu na Vlkově** (scratchpad `diag-roads-band`, návrh Clauda): po 1 / 6 / 12 měsících
+  s jednorázovou opravou sítě i bez ní je stav kusů živých úseků min i medián 94 / 93 / 91 % (bledne
+  jen vozová cesta k okraji mapy bez vozů – za 30 let); do 5 let by nezarostl žádný kus, po kterém
+  vedou trasy. Trasa vede vedle pásu jen u dvou kusů, kde se osa od trasy rozchází: stará vyšlapaná
+  #906 podél plotu hřbitova (bez opravy; oprava ji nahradí vozovou) a začátek vozové #936 (osa
+  zemních prací až 9 m od trasy) – blednou za 11 a 53 let. Pás 1 buňky by je držel jen překlopením
+  mediánu, rozchod os řeší oprava sítě, ne šířka pásu – **pás zůstává 0,75 buňky**.
+- **Opuštěný úsek provoz nedostane nikdy** – bledne podle druhu a zmizí. Souběžný úsek, kudy trasy
+  nevedou, zaroste.
+- **Kus pod hotovou stavbou zmizí do roka** (stav nejvýš na 330 dní – s měsíční kontrolou nejpozději
+  ve 12. měsíci), ať je jakéhokoli druhu (návrh Clauda).
+- Pravidlo 3 („cesta nemusí ležet každý rok přesně na stejném místě“) platí pro **vznik**
+  z vyšlapanosti – tam tolerance (políčka 7,5 m se sousedy) zůstává.
+
 ## Síť – kotvy, pahýly a úklid (pravidlo 11)
+
+**Vozové cesty se napojují taky** (Martin 25. 10. 2026: „Žádná cesta nemůže existovat jen tak sama
+v prostoru, vždycky musí spojovat dvě místa – kombinaci budov a křižovatek.“; návrh Clauda): úklid
+zacelí díru do 12 m (`ROAD_JOIN`) i u hotové vozové cesty – dřív je vynechával (Vlkov: vozová
+k severnímu okraji končila 6,2 m od cesty u hřbitova a byla bez napojení). Vynechá jen konec
+rozestavěné vozové cesty (leží na ose zemních prací se stavbou – stavba ji tam vede dál). Opuštěný
+kus cílem napojení není – díra se zacelí k živé cestě za ním.
 
 Návrh Clauda:
 
@@ -653,6 +686,17 @@ i když se tam chodí málo, třeba k hřbitovu jen na pohřby.“ Podrobnosti n
   ([abandonment.md](abandonment.md)) ji přestane držet a zaroste podle druhu.
 - **Hřbitov (Vlkov):** plot je neprůchodný, trasy končí v brance, pohřby a návštěvy jdou do
   provozu – cesta vede do branky, ne podél plotu.
+- **Cesta do branky** (Martin 25. 10. 2026: „Jeden z největších problémů vidím tady u hřbitova“;
+  návrh Clauda): cesta, která jde do 3 m od vchodu, ale v něm nekončí, vchod dřív „obsloužila“ jen
+  tím, že šla kolem (Vlkov: 1,9 m od branky hřbitova). Teď se její osa **ohne přes bod 1,5 m před
+  vchodem** (ve směru, odkud trasa přichází; ohyb 4 m osy na každou stranu, konce cesty zůstanou),
+  takže cesta skutečně ústí do branky. Vozová cesta se neohýbá (zemní práce) – je široká 3,5 m
+  a vchod do 3 m od osy má na okraji cesty (zjednodušení). Neohýbá se ani úsek ve vylepšení ani
+  zemská stezka (osa leží na rozestavěných zemních pracích a kusech stezky), a nová osa ani bod
+  před vchodem nesmí vést přes plot, stavbu ani vodu bez brodu (vzorky po 0,5 m). Pak cesta
+  zůstane, jak je: vede do 3 m od vchodu, takže krátká spojka do branky nevznikne (vchod cestu
+  má – kotva vchodu do 3 m) a spojka by byla kratší než nejkratší cesta k vchodu; branku obslouží
+  okraj cesty jako u vozové (návrh Clauda).
 - **Staveniště** mají práci ze všech stran jako dřív – plot nebo příkop teprve vzniká; cesta
   k vchodu vznikne až u hotové stavby.
 
@@ -778,6 +822,11 @@ nová ves ho má od začátku), po převodu na nový systém (Převod starých v
      ustalování sítě (body 3–7) pro rozestup křižovatek šířku vozové cesty (3,5 m → 12,1 m) –
      křižovatka s vozovým ramenem se po přepočtu nehne, takže se odsune předem.
    - **Rozestavěná vozová cesta** (zemní práce se stavbou) se nemění a dostaví se normálně.
+   - **Po kusech řetězu** (návrh Clauda 25. 10. 2026 – Vlkov: řetěz u hřbitova ležel u staré
+     vozové osy jen 33 %, a tak nebyl vozovou cestou ani jeho kus po ní): řetěz pod 60 %, jehož kus
+     leží u staré vozové osy souvisle aspoň 60 m, má vozovou cestu jen na tom kusu (uzly na koncích
+     kusu); zbytek zůstane, jak je. Vrácený kus staré osy (stezky i vozové) se napojí na síť do
+     12 m jako díra v úklidu (dřív do 5 m).
    - **Svahy staré zemní práce zarostou** celé i s lemem za **5 let** jako opuštěná cesta
      (`SLOPE_LOOK.wildYears`); kde vede nová zemní práce (do dosahu svahů), kreslí svahy jen ta – kus
      staré, který nová osa použila, tak vypadá jako nový, nepoužitý zaroste.
@@ -822,6 +871,51 @@ Nová síť tedy nevede přes zasetý díl, kudy dřív cesta nevedla, a **zaset
 v přestavbě není potřeba. Návrh Clauda pro případ, že by u jiné vsi brala: vyšlapanost se
 v přestavbě na políčkách zasetých dílů nesčítá (`seedWear`), cesta tam vznikne až z přirozené
 vyšlapanosti za běhu.
+
+## Jednorázová oprava sítě (25. 10. 2026)
+
+Martin 25. 10. 2026: „Prosím tě, ty cesty pořád zlobí“; „Jeden z největších problémů vidím tady
+u hřbitova“; „Žádná cesta nemůže existovat jen tak sama v prostoru, vždycky musí spojovat dvě místa
+– kombinaci budov a křižovatek.“ Audit Vlkova (den 115545) našel u hřbitova vozovou cestu
+k severnímu okraji mapy, která končila 6,2 m od cesty (přestavba ji vrátila, ale napojovala jen do
+5 m a úklid vozové díry vynechával), vyšlapanou cestu podél plotu místo vozové (řetěz u staré
+vozové osy jen 33 %) a branku „obslouženou“ cestou, která šla 1,9 m kolem.
+
+Postup (návrh Clauda) – ves po přestavbě sítě při načtení **jednou a idempotentně** (příznak
+`roads.repaired`, nová ves ho má od začátku; při chybě ves zůstane jako dřív s příznakem
+`repairFailed` jako u přestavby; server dává mezi kroky přestávky):
+
+1. Kusy pod hotovými stavbami jsou opuštěné a zmizí do roka (Provoz po cestě).
+2. Úklid se všemi pravidly výš – díry do 12 m i u hotových vozových cest, cesty ohnuté do branek
+   (Vchody), křižovatky.
+3. **Vozová spojka:** řetěz bez vozové cesty, jehož oba konce navazují na vozovou cestu (konec nebo
+   rameno téže křižovatky) a jehož aspoň 60 % délky leží do 4 m od osy hotových zemních prací (i těch,
+   které přestavba opustila), se naplánuje jako hotová vozová cesta stejně jako v přestavbě
+   (zaplaceno). Vozová cesta tak vede vcelku.
+4. Vozová cesta, která ani pak není napojená (volný konec mimo kotvu) a nejezdí ani nechodí se po
+   ní, je opuštěná a zaroste. **Ne čerstvá** – do roka od dostavění zemních prací (bez nich od
+   vzniku úseku) po ní zatím nikdo jet nemusel – a **nikdy vozová cesta na hotových zemních
+   pracích, která je aspoň jedním koncem napojená na síť**: ta se pro nulový provoz neopouští
+   a zarůstá pomalu podle druhu (návrh Clauda, `ROAD_LOOSE_WAGON`). Opustit se tak dá jen stará
+   vozová cesta bez napojení, nebo na zemních pracích, které přestavba opustila.
+5. Trasy se přepočítají a síť se znovu uklidí.
+
+**Vlkov** (den 115545, měření ve scratchpadu `diag-roads-after`): oprava ≈ 2 s; vozová #941 – nová
+vozová spojka 72 m po staré vozové ose podél hřbitova (dřív vyšlapaná #906) – #975 k severnímu okraji
+jsou jedna vozová cesta (#975 napojená, dřív volný konec); tři další krátké řetězy „moc krátká“.
+Audit živé sítě před / po opravě / po 1 / po 12 měsících: konec mimo kotvu 3 / 0 / 2 / 2 (po měsíci
+dva konce řezu pod novou stavbou – Stavba přes cestu, bez opravy totéž), pahýl 9 / 9 / 9 / 16, přes
+stavbu nebo pole 8 / 9 / 8 / 9, souběh 0, mezera 0, smyčka 3 / 3 / 3 / 6, kličky 9 / 9 / 9 / 9,
+provoz 0 4 / 4 / 5 / 4. Opuštěné kusy 15 → 15 / 16 / **5** (pod stavbami zmizely do roka, ostatní
+blednou podle druhu – dřív je provoz objížděk držel naplno). Celá síť i s opuštěnými po 12 měsících
+s opravou / bez ní: konec mimo kotvu 7 / 17, pahýl 18 / 27, přes stavbu nebo pole 11 / 24, mezera
+1 / 9, smyčka 8 / 11, kličky 9 / 12. Stabilita: úseky 24 → 25 → 32, křižovatky 9 → 9 → 12 (bez
+opravy 24 → 24 → 31 a 9 → 9 → 13 – ves dál staví). Živé cesty, po kterých trasy jdou, nezarůstají:
+úseky s kusem pod udržovacím prahem (provoz po cestě) jsou 6 před a 8 po roce s opravou i bez ní –
+vozové k okrajům mapy bez provozu, krátké kusy u křižovatek a západní zbytek #906 (0,58 cesty za den
+i podle starého pole). **Zbývá** (návrhy 3–5 auditu): vozová spojka vede po
+staré ose a JV roh plotu hřbitova přetíná o 2,5 m (dřív vyšlapaná o 3,5 m – odstup od plotů);
+branka je 3,0 m od osy vozové cesty (na jejím okraji – vozová se neohýbá).
 
 ## Co se ukládá a co se dopočítá
 

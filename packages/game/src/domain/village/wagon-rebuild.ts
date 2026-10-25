@@ -5,7 +5,7 @@
 
 import type { Landscape, ObstacleLayer } from '../landscape';
 import { roadChain, roadChains } from './paths/road-chains';
-import { resample } from './paths/roads-geometry';
+import { axisSlice, resample } from './paths/roads-geometry';
 import { ROAD_REBUILD } from './rules';
 import type { Road, RoadPoint, VillageState } from './types';
 import { buildWagonRoadNow, planWagonRoad, wagonPlanInputOf } from './wagon-road';
@@ -31,6 +31,41 @@ function shareNear(points: readonly RoadPoint[], near: (x: number, z: number) =>
   if (samples.length === 0) return 0;
   const close = samples.filter((p) => near(p.x, p.z) <= ROAD_REBUILD.nearM).length;
   return close / samples.length;
+}
+
+/**
+ * Kusy osy `axis` (od–do v m), které leží do `ROAD_REBUILD.nearM` od os `near` souvisle aspoň
+ * `minM` (paths.md – Jednorázová přestavba sítě, bod 8; návrh Clauda 25. 10. 2026 – Vlkov: řetěz
+ * u hřbitova měl u staré vozové osy jen 33 %, a tak vozovou cestou nebyl ani jeho kus po ní).
+ * Vzorky po SHARE_STEP_M. Nic nemění.
+ */
+export function nearStretches(
+  axis: readonly RoadPoint[],
+  near: (x: number, z: number) => number,
+  minM: number,
+): [number, number][] {
+  const samples = resample(axis, null, SHARE_STEP_M).points;
+  const out: [number, number][] = [];
+  let from = -1;
+  samples.forEach((p, k) => {
+    const close = near(p.x, p.z) <= ROAD_REBUILD.nearM;
+    if (close && from < 0) from = k;
+    const last = k === samples.length - 1;
+    if (from >= 0 && (!close || last)) {
+      const to = close ? k : k - 1;
+      if ((to - from) * SHARE_STEP_M >= minM) out.push([from * SHARE_STEP_M, to * SHARE_STEP_M]);
+      from = -1;
+    }
+  });
+  return out;
+}
+
+/** Osa řetězu v jeho pořadí (body úseků po směru řetězu, společné uzly jednou). */
+function chainPoints(chain: readonly { road: Road; reversed: boolean }[]): RoadPoint[] {
+  return chain.flatMap(({ road, reversed }, k) => {
+    const points = reversed ? [...road.points].reverse() : road.points;
+    return k === 0 ? points : points.slice(1);
+  });
 }
 
 /** Úseky, které práce drží (vylepšení ve stavbě, nehotová zemská stezka) – řetěz s nimi se nemění. */
@@ -106,5 +141,49 @@ export function rebuildWagonRoads(
     }
     out.built.push(buildWagonRoadNow(state, plan, day, landscape, obstacles).id);
   }
+  // řetěz pod podílem: jeho kus u staré vozové osy delší než `wagonPatchM` je vozový sám – plán po
+  // ose kusu jako samostatného řetězu (uzly na koncích kusu), stará cesta pod ním zmizí
+  // (`absorbParallelRoads`) a zbytky řetězu se napojí v dalším ustálení sítě
+  const stretches = roadChains(state.roads.roads)
+    .filter((chain) => partialCandidate(chain, old, busy))
+    .flatMap((chain) => {
+      const axis = chainPoints(chain);
+      return nearStretches(axis, old.near, ROAD_REBUILD.wagonPatchM).map(([a, b]) =>
+        axisSlice(axis, a, b),
+      );
+    });
+  for (const points of stretches) {
+    const stretch: Road = {
+      id: -1,
+      points,
+      bornDay: day,
+      grade: 'improved',
+      traffic: [],
+      spots: [],
+    };
+    const input = {
+      ...wagonPlanInputOf(state, day, stretch.id, landscape, obstacles),
+      roads: [stretch],
+    };
+    const plan = planWagonRoad(input);
+    if (!plan.ok) {
+      out.failed.push(plan.reason);
+      continue;
+    }
+    out.built.push(buildWagonRoadNow(state, plan, day, landscape, obstacles).id);
+  }
   return out;
+}
+
+/** Řetěz pod podílem `ROAD_REBUILD.share` – bez vozové, opuštěné a bez práce (kusy `nearStretches`). */
+function partialCandidate(
+  chain: readonly { road: Road }[],
+  old: OldWagonRoads,
+  busy: ReadonlySet<number>,
+): boolean {
+  if (chain.length === 0) return false;
+  if (chain.some((l) => l.road.grade === 'wagon' || l.road.abandoned || busy.has(l.road.id))) {
+    return false;
+  }
+  return !wagonCandidate(chain, old, busy);
 }

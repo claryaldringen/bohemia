@@ -19,7 +19,7 @@ import type {
   LaborTarget,
   StructureRepair,
   VillageState,
-  YearPlan,
+  FarmSeason,
 } from './types';
 import { roadApplesWorkRoad } from './road-apples';
 import { roadWorkFront } from './road-upgrades';
@@ -27,7 +27,7 @@ import { trailWorkRoad } from './trail';
 import { wagonWorkTarget } from './wagon-road';
 import { woodFellingCost } from './wood';
 import { partsWorked, type PartTask } from './field-progress';
-import { planPartIds, type CropTask } from './year-plan';
+import { seasonPartIds, type CropTask } from './year-plan';
 
 /** Hektar v m² – plocha sadu na jabloň u cesty. */
 const M2_PER_HA = 10_000;
@@ -81,10 +81,10 @@ export interface DayWork {
   /** Polní úlohy dne po plodinách (bez nich se práce polí dělí podle plochy plánu). */
   fieldWork?: FieldTaskWork[];
   /**
-   * Polní práce navíc ze společné práce – po stavbách (fields.md – Osev navíc); její úlohy jsou
-   * ve `fieldWork`. Bez údaje 0.
+   * Práce dílů nad potřebu ze společné práce – po stavbách (fields.md – Osevní postup po dílech,
+   * bod 3); její úlohy jsou ve `fieldWork`. Bez údaje 0.
    */
-  extraField?: number;
+  surplusField?: number;
   /** Seč navíc z práce po stavbách (oxen.md – Seno, dvě seče; člověkodny). Bez údaje 0. */
   extraMow?: number;
   /**
@@ -382,11 +382,11 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
   }
   // nákup u sousedů – malá skupina po stezce nebo krajinou ke kraji mapy (crafts.md)
   for (const p of work.purchases ?? []) add('trade', p.target, p.manDays);
-  // opravy obydlí jdou ze společné práce po stavbách (population.md – Práce), polní práce navíc
-  // z toho, co zbude po nich (fields.md – Osev navíc)
+  // opravy obydlí jdou ze společné práce po stavbách (population.md – Práce), díly nad potřebu
+  // z toho, co zbude po nich (fields.md – Osevní postup po dílech, bod 3)
   let invested =
     work.repairs.reduce((sum, r) => sum + r.manDays, 0) +
-    (work.extraField ?? 0) +
+    (work.surplusField ?? 0) +
     (work.extraMow ?? 0);
   // honáci a nakladači klád jdou ze společné práce (wagons.md); sedláci s uhlím a rudou mají
   // vlastní podíl práce vsi před úlohami (`allocation.carting` – crafts.md, Uhlí a ruda kováře)
@@ -571,21 +571,23 @@ export function laborReport(state: Pick<VillageState, 'labor' | 'extinctDay'>): 
 }
 
 /**
- * Podíly polí na ploše plánu se počítají jednou na plán – díly plánu jen přibývají
- * (`joinFinishedParts`) a plocha ani pole dílu se nemění; simulace se ptá každý den.
+ * Podíly polí na ploše hospodářského roku se počítají znovu, jen když se změní jeho díly (nutné
+ * díly přibývají i ubývají – `seasonDay`); plocha ani pole dílu se nemění; simulace se ptá každý
+ * den.
  */
 const planAreas = new WeakMap<
-  YearPlan,
-  { parts: number; shares: { id: number; share: number }[] }
+  FarmSeason,
+  { parts: string; shares: { id: number; share: number }[] }
 >();
 
 /** Pole s díly v letošním plánu a jejich podíl na ploše plánu (podle id pole). */
 function planFieldAreas(state: VillageState): { id: number; share: number }[] {
-  const plan = state.plan;
+  const plan = state.season;
   if (plan === null) return [];
   const cached = planAreas.get(plan);
-  const partIds = planPartIds(plan);
-  if (cached && cached.parts === partIds.length) return cached.shares;
+  const partIds = seasonPartIds(plan);
+  const key = partIds.join(',');
+  if (cached && cached.parts === key) return cached.shares;
   const inPlan = new Set(partIds);
   const areas = new Map<number, number>();
   let total = 0;
@@ -598,7 +600,7 @@ function planFieldAreas(state: VillageState): { id: number; share: number }[] {
     total <= 0
       ? []
       : [...areas].sort(([a], [b]) => a - b).map(([id, area]) => ({ id, share: area / total }));
-  planAreas.set(plan, { parts: partIds.length, shares });
+  planAreas.set(plan, { parts: key, shares });
   return shares;
 }
 

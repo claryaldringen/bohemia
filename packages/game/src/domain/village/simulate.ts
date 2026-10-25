@@ -24,6 +24,8 @@ import { roadFieldsDay } from './road-fields';
 import { villageSacredOaks } from './sacred';
 import { moveGrainFromCoveredPits } from './grain-pit-site';
 import { withThreshingGrace, spoilSheaves } from './threshing';
+import { withSeason } from './year-plan';
+import { withSowingRotation } from './rotation';
 import { sacredOakEvents } from './sacred-life';
 import { orchardSeasonDay } from './orchard';
 import { inLuckyYears, nextStarvationDays, populationDay } from './population';
@@ -49,7 +51,7 @@ import type { VillageState } from './types';
 import { rotLogs } from './wood';
 import { decideRebuilds, finishConstructions } from './simulate-build';
 import { eat, endThreshing, harvest, harvestWinter } from './simulate-food';
-import { LAST_JOIN_MONTH, isOn, joinFinishedParts, planYear, trimPlan } from './simulate-plan';
+import { isOn, lordHelpDay, seasonDay, startSeason } from './simulate-plan';
 import { work } from './simulate-work';
 import { lordFieldMode, trainLordDay, updateLordTraining } from './lord';
 import { dynastyDay } from './succession';
@@ -103,7 +105,8 @@ export function* advanceVillageSteps(
   // druhy (trade.md – Dobytek ve třech druzích), hřivny místo nástrojů v obchodu i ve vsi
   // (production-chains.md – Kovář), ves ze zboží zvenku o něj přijde (trade.md – Jen společné
   // suroviny), řemeslníci z doby před učením řemesla praxi (crafts.md – Učení řemesla) a ves z doby
-  // před snopy rok odkladu mlácení (production-chains.md – Starší vsi) – jednou, idempotentně
+  // před snopy rok odkladu mlácení (production-chains.md – Starší vsi) a ves s ročním plánem osevní
+  // postup po dílech (fields.md – Osevní postup po dílech, bod 7) – jednou, idempotentně
   const next = cloneState(
     withThreshingGrace(
       withCraftSkill(
@@ -111,7 +114,9 @@ export function* advanceVillageSteps(
           withPenSpecies(
             withoutForeignGoods(
               withIronBarsTrade(
-                withToolEquipment(withCattleKinds(withDynasty(withKinship(state)))),
+                withToolEquipment(
+                  withCattleKinds(withDynasty(withKinship(withSowingRotation(withSeason(state))))),
+                ),
               ),
             ),
           ),
@@ -180,16 +185,22 @@ function simulateDay(
   state.chronicle.push(...husbandryDay(state, day, coverage.tools, landscape, obstacles));
   // ušetřené posvátné duby stářím usychají a souše padají – den plyne z dubu (happiness.md)
   state.chronicle.push(...sacredOakEvents(villageSacredOaks(state), obstacles, day));
-  if (isOn(date, PLANNING_DAY)) planYear(state, day, coverage, landscape);
-  if (date.month >= PLANNING_DAY.month || date.month <= LAST_JOIN_MONTH) {
-    joinFinishedParts(state, day, coverage, landscape);
-    // má-li ves zásob dost, rozjetý plán se zkrátí hned, ne až 1. 9. (fields.md – Osev podle zásob)
-    trimPlan(state, day, coverage);
-  }
+  // 1. 9. nový hospodářský rok a postup dílů, každý den nutné díly a konce oken setí (fields.md –
+  // Osevní postup po dílech); podíl dne rodiny na nutné práci (lord.md – Kdy jde rodina na pole)
+  if (isOn(date, PLANNING_DAY)) startSeason(state, day, coverage, landscape);
+  const waiting = seasonDay(state, day, coverage);
+  lordHelpDay(state, day, coverage, landscape, waiting);
   // nákup výrobků řemeslníků u sousedů – jednou za rok po sklizni, ves se rozhodne sama
   // (crafts.md – Nákup u sousedů); skupina vyrazí hned
   startPurchases(state, day, coverage, landscape);
-  const { toil, lordField } = work(state, day, obstacles, coverage, landscape);
+  const { toil, lordField } = work(
+    state,
+    day,
+    obstacles,
+    coverage,
+    landscape,
+    new Set(waiting.map((j) => j.crop)),
+  );
   // nástroje a nádoby v užívání se opotřebí (crafts.md – Účinek)
   wearCraftStocks(state, day);
   // zemské stezky – dostavěné úseky od vsi ven hned vylepšené, vrácené výpravy (trade.md)

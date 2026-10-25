@@ -515,7 +515,7 @@ export function villageMeal(
   const need = villageFoodNeed(state, day);
   // jako simulace – ozim uživí srpen, když pokryje potřebu z pole (fields.md – Ozim a jař)
   const daysToHarvest = daysUntilFoodHarvest(
-    state.plan,
+    state.season,
     state.parts,
     day,
     need * fieldFoodShare(state),

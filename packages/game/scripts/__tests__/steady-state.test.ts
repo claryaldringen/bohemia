@@ -36,10 +36,11 @@ const START: SteadyInput = {
 };
 
 describe('ustálený oběh z pravidel', () => {
-  it('oběh dílu: roky osevu do 70 % a přílohu do 95 % přirozené úrodnosti', () => {
+  it('oběh dílu: dva osevy (úrodnost nad 70 %) a příloh do 95 % přirozené úrodnosti', () => {
+    expect(ROTATION.sown).toBe(2);
+    expect(ROTATION.fallow).toBe(8);
     let share = 1 - FERTILITY.sowDepletion * ROTATION.sown;
-    expect(share).toBeLessThan(FERTILITY.sowableMin);
-    expect(share + FERTILITY.sowDepletion).toBeGreaterThanOrEqual(FERTILITY.sowableMin - 1e-9);
+    expect(share).toBeGreaterThanOrEqual(FERTILITY.sowableMin - 1e-9);
     share += FERTILITY.fallowRecovery * ROTATION.fallow;
     expect(share).toBeGreaterThanOrEqual(FERTILITY.fallowReady - 1e-9);
     expect(ROTATION_FACTOR).toBeCloseTo((ROTATION.sown + ROTATION.fallow) / ROTATION.sown);

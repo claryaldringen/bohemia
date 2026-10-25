@@ -532,8 +532,10 @@ export function foundVillage(input: {
         ...(input.forestDistanceM === undefined ? {} : { forestDistanceM: input.forestDistanceM }),
       },
     ],
-    plan: null,
-    threshingFromPlan: null,
+    season: null,
+    threshingSeason: null,
+    // nová ves rovnou s osevním postupem po dílech (fields.md – Osevní postup po dílech, bod 7)
+    sowingRotation: true,
     storesKg: food ? food.grainKg : (annualNeed * START_STORES_MONTHS) / MONTHS_PER_YEAR,
     // nová ves mlátí až na humně, které postaví hráč – bez odkladu (production-chains.md – Humno)
     sheaves: { grainKg: 0, legumesKg: 0 },

@@ -2,7 +2,7 @@
 
 import { length2 } from '../../landscape';
 import { cloneState } from '../clone';
-import { ROAD_TREES } from '../rules';
+import { ROAD_JOIN, ROAD_TREES } from '../rules';
 import {
   type Construction,
   type Road,
@@ -351,10 +351,12 @@ export function tidyRoads(
 
 /**
  * Volný konec úseku se k jinému úseku napojí, když je od jeho osy nebo konce nejvýš tak daleko
- * (m) – díry po přimknutí trasy kus vedle nebo po úseku, kde provoz na chvíli klesl pod práh
- * (Vlkov: 5,3 m mezi úseky v polích, 11,6 m u brány domu).
+ * (m – `ROAD_JOIN.gapM`) – díry po přimknutí trasy kus vedle nebo po úseku, kde provoz na chvíli
+ * klesl pod práh (Vlkov: 5,3 m mezi úseky v polích, 11,6 m u brány domu, 6,2 m vozová u hřbitova).
  */
-const JOIN_GAP_M = 12;
+const JOIN_GAP_M = ROAD_JOIN.gapM;
+/** Konec vozové cesty na ose rozestavěných zemních prací (do tolika m) – stavba ji tam vede dál. */
+const BUILDING_END_M = 2;
 /**
  * Konec úseku je skutečný volný konec (brána domu, cíl – pole, voda, les –, slepý konec), když
  * do tolika metrů (m) leží kotva nebo konec trasy – trasa tam nepokračuje. Jinde pokračuje (díra).
@@ -415,13 +417,22 @@ function firstGap(
   isEnd: (p: RoadPoint) => boolean,
 ): { road: Road; atStart: boolean; hit: RoadHit } | null {
   const degrees = endDegrees(roads.roads);
+  let building: ((x: number, z: number) => number) | null = null;
+  // rozestavěná vozová cesta končí, kde ji stavba vede (uprostřed trasy) – osa se neprodlouží;
+  // hotová vozová se napojí jako každá jiná (paths.md – Síť, Martin 25. 10. 2026: „Žádná cesta
+  // nemůže existovat jen tak sama v prostoru“)
+  const underConstruction = (p: RoadPoint): boolean =>
+    (building ??= axisDistance(
+      (roads.earthworks ?? []).filter((e) => e.constructionId !== undefined).map((e) => e.profile),
+    ))(p.x, p.z) <= BUILDING_END_M;
   for (const road of roads.roads) {
-    // vozová cesta končí, kde ji stavba vede (rozestavěná uprostřed trasy) – osa se neprodlouží
-    if (road.points.length < 2 || road.grade === 'wagon' || road.abandoned) continue;
+    if (road.points.length < 2 || road.abandoned) continue;
     for (const atStart of [true, false]) {
       const p = atStart ? road.points[0]! : road.points[road.points.length - 1]!;
       if ((degrees.get(endKey(p)) ?? 0) !== 1 || isEnd(p)) continue;
-      const others = roads.roads.map((r) => (r === road ? { ...r, points: [] } : r));
+      if (road.grade === 'wagon' && underConstruction(p)) continue;
+      // opuštěný kus (jen bledne) cílem napojení není – díra se zacelí k živé cestě za ním
+      const others = roads.roads.map((r) => (r === road || r.abandoned ? { ...r, points: [] } : r));
       const hit = nearestOnRoads(others, p.x, p.z);
       // ne zpět do uzlu, ze kterého úsek vychází – vznikl by okruh (krátká odbočka tam a zpět)
       const own = atStart ? road.points[road.points.length - 1]! : road.points[0]!;
