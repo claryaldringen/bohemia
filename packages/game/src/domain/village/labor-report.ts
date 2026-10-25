@@ -571,12 +571,13 @@ export function laborReport(state: Pick<VillageState, 'labor' | 'extinctDay'>): 
 }
 
 /**
- * Podíly polí na ploše plánu se počítají jednou na plán – díly plánu jen přibývají
- * (`joinFinishedParts`) a plocha ani pole dílu se nemění; simulace se ptá každý den.
+ * Podíly polí na ploše hospodářského roku se počítají znovu, jen když se změní jeho díly (nutné
+ * díly přibývají i ubývají – `seasonDay`); plocha ani pole dílu se nemění; simulace se ptá každý
+ * den.
  */
 const planAreas = new WeakMap<
   FarmSeason,
-  { parts: number; shares: { id: number; share: number }[] }
+  { parts: string; shares: { id: number; share: number }[] }
 >();
 
 /** Pole s díly v letošním plánu a jejich podíl na ploše plánu (podle id pole). */
@@ -585,7 +586,8 @@ function planFieldAreas(state: VillageState): { id: number; share: number }[] {
   if (plan === null) return [];
   const cached = planAreas.get(plan);
   const partIds = seasonPartIds(plan);
-  if (cached && cached.parts === partIds.length) return cached.shares;
+  const key = partIds.join(',');
+  if (cached && cached.parts === key) return cached.shares;
   const inPlan = new Set(partIds);
   const areas = new Map<number, number>();
   let total = 0;
@@ -598,7 +600,7 @@ function planFieldAreas(state: VillageState): { id: number; share: number }[] {
     total <= 0
       ? []
       : [...areas].sort(([a], [b]) => a - b).map(([id, area]) => ({ id, share: area / total }));
-  planAreas.set(plan, { parts: partIds.length, shares });
+  planAreas.set(plan, { parts: key, shares });
   return shares;
 }
 

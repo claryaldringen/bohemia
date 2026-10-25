@@ -340,7 +340,7 @@ const cropIds = (r: ReturnType<typeof chooseCrops>): Record<string, number[]> =>
   flax: r.flax.map((p) => p.id),
 });
 
-describe('len napřed – ves, které len za obilím vycházel, má plán beze změny', () => {
+describe('len napřed – výběr s kapacitou (do Úlohy 5 pro páry k rádlům) a práce vsi k 2. 9.', () => {
   // Otisky jsou z doby před „Len napřed“ (20. 10. 2026) – výběr, ve kterém len pokryl potřebu,
   // se nesmí změnit. Spadne-li po záměrné změně pravidel osevu, vědomě se přepíše.
   it('výběr chooseCrops – len za obilím, s luštěninami, výměna za ozim', () => {
@@ -396,8 +396,11 @@ describe('len napřed – ves, které len za obilím vycházel, má plán beze z
     // a výrostci se staršími ve žních – červenec a srpen pojmou víc dílů, výběr se mění; a s co
     // největšími stády (oxen.md – Co nejvíc sena a co největší stáda, 24. 10. 2026): plán luštěnin
     // počítá celé stádo a seč všech luk bere volnou práci v červnu a červenci; a s porody, které
-    // brzdí jen energie (Martin, 25. 10. 2026): víc porodů, víc lidí na poli
-    expect(fingerprint(plans)).toBe('721:3d269733');
+    // brzdí jen energie (Martin, 25. 10. 2026): víc porodů, víc lidí na poli; a s nutnými díly den
+    // po dni místo plánu k 1. 9. (fields.md – Osevní postup po dílech, 25. 10. 2026): 2. 9. je
+    // v práci, co ves za dva dny přibrala podle potřeby úrody – bez kapacity plánu (dřív
+    // 721:3d269733)
+    expect(fingerprint(plans)).toBe('1018:b6da3f2c');
   });
 });
 

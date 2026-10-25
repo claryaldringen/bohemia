@@ -260,7 +260,8 @@ describe('založení pole v lese', () => {
     expect(after.woodLogs).toBeGreaterThan(4 * (1 - 2 * LOG_ROT_PER_YEAR));
     for (const part of after.parts) {
       if (part.surface === 'forest') {
-        expect(part.bonusUntilDay).not.toBeNull();
+        // popel z mýcení hlídá další test – díl, který po prvním osevu prošel úhorem (luštěniny
+        // jako první osev – fields.md, Osevní postup po dílech), ho ztratil
         expect(part.obstacles).toBeUndefined();
         expect(part.trees).toBeUndefined();
       } else {

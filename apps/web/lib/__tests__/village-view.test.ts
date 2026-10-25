@@ -242,11 +242,12 @@ describe('humno (production-chains.md – Humno)', () => {
   });
 
   it('výmlat: po žni ves bez humna mlátí nouzově (upozornění), s humnem ne', () => {
-    // ves sklízí jař 31. 8. 503 – před žní nic
-    const summer = advanceVillage(state(), dayIndexOf({ year: 503, month: 8, day: 10 }), null);
+    // ves sklízí ozim 31. 7. 503 (hotové díly na řadě s prvním osevem – fields.md, Osevní postup
+    // po dílech) – před žní nic
+    const summer = advanceVillage(state(), dayIndexOf({ year: 503, month: 7, day: 10 }), null);
     const before = buildVillageView(record(summer), landscape, summer.lastDay);
     expect(before.threshing).toBeUndefined();
-    const autumn = advanceVillage(summer, dayIndexOf({ year: 503, month: 8, day: 31 }), null);
+    const autumn = advanceVillage(summer, dayIndexOf({ year: 503, month: 7, day: 31 }), null);
     const waiting = buildVillageView(record(autumn), landscape, autumn.lastDay);
     expect(waiting.threshing).toMatchObject({ emergency: true });
     expect(waiting.threshing!.sheavesKg).toBeGreaterThan(0);
@@ -695,11 +696,14 @@ describe('buildVillageView', () => {
     const parts = scene.fields[0]!.parts;
     const sown = parts.filter((p) => p.stage === 'sown');
     expect(sown.length).toBeGreaterThan(0);
-    for (const p of sown) expect(['stubble', 'plowed', 'sown']).toContain(p.look);
-    // jeden rozpracovaný díl na úlohu – kopání: hotová část zoraná, zbytek loňské strniště
+    // díly přibývají den po dni – čerstvě založený díl ještě holá zem
+    for (const p of sown) expect(['stubble', 'bare', 'plowed', 'sown']).toContain(p.look);
+    // jeden rozpracovaný díl na úlohu – kopání: hotová část zoraná, zbytek loňské strniště nebo
+    // holá zem (čerstvě založený díl na řadě s prvním osevem)
     const working = parts.filter((p) => p.work !== undefined && p.look === 'plowed');
     expect(working).toHaveLength(1);
-    expect(working[0]).toMatchObject({ look: 'plowed', before: 'stubble' });
+    expect(working[0]!.look).toBe('plowed');
+    expect(['stubble', 'bare']).toContain(working[0]!.before);
     expect(working[0]!.work).toBeGreaterThan(0);
     expect(working[0]!.work).toBeLessThan(1);
     const dig = scene.labor?.shares.find((x) => x.activity === 'dig');

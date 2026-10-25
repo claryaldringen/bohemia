@@ -50,7 +50,7 @@ import type { VillageState } from './types';
 import { rotLogs } from './wood';
 import { decideRebuilds, finishConstructions } from './simulate-build';
 import { eat, endThreshing, harvest, harvestWinter } from './simulate-food';
-import { LAST_JOIN_MONTH, isOn, joinFinishedParts, planYear, trimPlan } from './simulate-plan';
+import { isOn, lordHelpDay, seasonDay, startSeason } from './simulate-plan';
 import { work } from './simulate-work';
 import { lordFieldMode, trainLordDay, updateLordTraining } from './lord';
 import { dynastyDay } from './succession';
@@ -181,12 +181,11 @@ function simulateDay(
   state.chronicle.push(...husbandryDay(state, day, coverage.tools, landscape, obstacles));
   // ušetřené posvátné duby stářím usychají a souše padají – den plyne z dubu (happiness.md)
   state.chronicle.push(...sacredOakEvents(villageSacredOaks(state), obstacles, day));
-  if (isOn(date, PLANNING_DAY)) planYear(state, day, coverage, landscape);
-  if (date.month >= PLANNING_DAY.month || date.month <= LAST_JOIN_MONTH) {
-    joinFinishedParts(state, day, coverage, landscape);
-    // má-li ves zásob dost, rozjetý plán se zkrátí hned, ne až 1. 9. (fields.md – Osev podle zásob)
-    trimPlan(state, day, coverage);
-  }
+  // 1. 9. nový hospodářský rok a postup dílů, každý den nutné díly a konce oken setí (fields.md –
+  // Osevní postup po dílech); podíl dne rodiny na nutné práci (lord.md – Kdy jde rodina na pole)
+  if (isOn(date, PLANNING_DAY)) startSeason(state, day, coverage, landscape);
+  seasonDay(state, day, coverage);
+  lordHelpDay(state, day, coverage, landscape);
   // nákup výrobků řemeslníků u sousedů – jednou za rok po sklizni, ves se rozhodne sama
   // (crafts.md – Nákup u sousedů); skupina vyrazí hned
   startPurchases(state, day, coverage, landscape);

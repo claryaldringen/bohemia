@@ -9,6 +9,7 @@ import { expectedLegumeKg, legumeEnergy } from '../legumes';
 import {
   neededSelection,
   nextSowing,
+  returnPart,
   rotateAfterSeason,
   sowParts,
   sowingCropToday,
@@ -202,13 +203,40 @@ describe('postup dílu – co poroste příště', () => {
     expect(emergency.fertilityShare).toBeCloseTo(0.48, 9);
   });
 
-  it('díl na řadě, který se v sezóně neosel, čeká dál; zasetím `next` zmizí', () => {
+  it('díl na řadě, který se v sezóně neosel, čeká dál; `next` zmizí až s koncem sezóny', () => {
     const p = part(1, { next: 'spring', sownYears: 1, fertilityShare: 0.83 });
     rotateAfterSeason(p, at(601, 9, 1));
     expect(p).toMatchObject({ state: 'ready', next: 'spring', fertilityShare: 0.83 });
     sowParts([p], 'spring');
+    expect(p).toMatchObject({ state: 'sown', crop: 'spring', next: 'spring' });
+    rotateAfterSeason(p, at(602, 9, 1));
     expect(p.next).toBeUndefined();
-    expect(p.state).toBe('sown');
+    expect(p.state).toBe('fallow');
+  });
+
+  it('vyřazený díl se vrátí, jak byl – příloh ladem od dřív, hotový díl na řadě', () => {
+    const ready = part(1, { next: 'spring', sownYears: 1, fertilityShare: 0.83 });
+    const lying = part(2, {
+      state: 'fallow',
+      fallowSinceDay: at(590, 9, 1),
+      overgrowthYears: 3,
+      fertilityShare: 0.97,
+    });
+    sowParts([ready, lying], 'spring');
+    expect(lying).toMatchObject({ state: 'sown', fallowSinceDay: null });
+    returnPart(ready, at(600, 9, 1));
+    returnPart(lying, at(600, 9, 1));
+    expect(ready).toMatchObject({ state: 'ready', next: 'spring', sownYears: 1 });
+    expect(ready.crop).toBeUndefined();
+    expect(lying).toMatchObject({
+      state: 'fallow',
+      fallowSinceDay: at(590, 9, 1),
+      overgrowthYears: 3,
+      sownYears: 0,
+    });
+    expect(lying.crop).toBeUndefined();
+    expect(lying.fallowBeforePlan).toBeUndefined();
+    expect(nextSowing(lying)).toBe('first');
   });
 });
 
@@ -262,6 +290,38 @@ describe('výběr nutných dílů', () => {
     expect(late.join.map((j) => j.crop)).toEqual(['spring', 'spring', 'spring']);
     // mimo okna nic
     expect(neededSelection(s, at(600, 12, 15), { ...NO_NEED, harvestKg }).join).toEqual([]);
+  });
+
+  it('díl po jaři prvním osevem (`next: winter`): ozim do konce okna setí ozimu, pak záložní jař', () => {
+    const s = village(8);
+    const order = blockOrder(s);
+    const after = s.parts.slice(5);
+    for (const p of after) Object.assign(p, { next: 'winter', sownYears: 1, fertilityShare: 0.83 });
+    const ids = after.map((p) => p.id);
+    // díly po prvním osevu jsou v pořadí bloků před čerstvými
+    expect(blockOrder(s).slice(0, 3).sort()).toEqual([...ids].sort());
+    expect(order).toHaveLength(8);
+    const harvestKg = netOf(s, ids);
+    const autumn = neededSelection(s, SEPT_1, { ...NO_NEED, harvestKg }).join;
+    expect(autumn.map((j) => j.id).sort()).toEqual([...ids].sort());
+    expect(autumn.every((j) => j.crop === 'winter')).toBe(true);
+    const late = neededSelection(s, at(600, 11, 5), { ...NO_NEED, harvestKg }).join;
+    expect(late.map((j) => j.id).sort()).toEqual([...ids].sort());
+    expect(late.every((j) => j.crop === 'spring')).toBe(true);
+    // len ani luštěniny díl po jaři neberou – jsou místo jaře, ne místo ozimu
+    const side = neededSelection(s, at(601, 3, 10), { ...NO_NEED, legumeKg: 1e9, flaxNeedKg: 1e9 });
+    expect(side.join.filter((j) => ids.includes(j.id))).toEqual([]);
+  });
+
+  it('len a luštěniny jen v den, kdy může začít jař', () => {
+    const s = village(8);
+    const targets = { ...NO_NEED, legumeKg: 1e9, flaxNeedKg: 1e9 };
+    expect(neededSelection(s, at(600, 12, 15), targets).join).toEqual([]);
+    expect(neededSelection(s, at(601, 4, 30), targets).join).toEqual([]);
+    const crops = new Set(
+      neededSelection(s, at(601, 4, 29), { ...targets, flaxNeedKg: 1 }).join.map((j) => j.crop),
+    );
+    expect(crops).toEqual(new Set(['legume', 'flax']));
   });
 
   it('díly po ozimu jsou na řadě před čerstvými – s jaří', () => {

@@ -88,7 +88,8 @@ describe('postup po čtvercích', () => {
     expect(levels).toEqual([...levels].sort((a, b) => b - a));
     expect(states).toContain('plowed');
     expect(states).toContain('stubble');
-    const dug = states.filter((x) => x !== 'stubble').length / states.length;
+    // díly přibývají den po dni – čerstvě založené díly (holá zem) ještě čekají jako strniště
+    const dug = states.filter((x) => x === 'sown' || x === 'plowed').length / states.length;
     expect(dug).toBeCloseTo(taskPosition(winter, 'dig'), 1);
     // čelo kopání: fieldFrontiers a rozpracovaný díl s podílem práce a vzhledem zbytku
     const frontier = frontierPart(winter, byId(s), 'dig', s.lastDay)!;
@@ -155,8 +156,11 @@ describe('postup po čtvercích', () => {
 
   it('nutná seč dostane práci mužů i v okně pletí – plejí napřed ženy a děti (fields.md – Pletí jednou a rychle)', () => {
     let s = advanceVillage(penned(), at(602, 5, 25), null);
-    // pletí jaře znovu od začátku – vydrží do konce května
-    springCrop(s.season!).done.weed = 0;
+    // pletí znovu od začátku a velké (jař je po ozimu a luštěninách malá) – vydrží do konce května
+    for (const crop of s.season!.crops) {
+      crop.required.weed *= 20;
+      crop.done.weed = 0;
+    }
     // 1. seč s velkou nutnou prací – ves by sekala celý den
     s.hay = {
       kg: 0,
@@ -171,10 +175,12 @@ describe('postup po čtvercích', () => {
     };
     let busyDays = 0;
     for (let day = at(602, 5, 26); day <= at(602, 5, 31); day++) {
-      const weedBefore = neededTaskRemaining(springCrop(s.season!), 'weed');
+      const weedLeft = (v: VillageState): number =>
+        v.season!.crops.reduce((sum, c) => sum + neededTaskRemaining(c, 'weed'), 0);
+      const weedBefore = weedLeft(s);
       s = advanceVillage(s, day, null);
       // pletí, které ten den ves nedokončila – plely ženy a děti, muži sekali
-      if (weedBefore > 1e-6 && neededTaskRemaining(springCrop(s.season!), 'weed') > 1e-6) {
+      if (weedBefore > 1e-6 && weedLeft(s) > 1e-6) {
         busyDays++;
         expect(s.labor!.shares.some((x) => x.activity === 'weed')).toBe(true);
         expect(s.labor!.shares.some((x) => x.activity === 'mow')).toBe(true);
@@ -274,7 +280,9 @@ describe('přirozená stadia podle kalendáře', () => {
     const winter = seasonCrop(s.season!, 'winter')!.partIds;
     const spring = springCrop(s.season!).partIds;
     // 1. 9. se už začíná kopat – nic není zasetého
-    for (const state of statesInOrder(s, winter)) expect(['stubble', 'plowed']).toContain(state);
+    for (const state of statesInOrder(s, winter)) {
+      expect(['stubble', 'bare', 'plowed']).toContain(state);
+    }
     s = advanceVillage(s, at(601, 9, 30), null);
     expect(statesInOrder(s, winter)).toContain('sown');
     s = advanceVillage(s, at(601, 11, 15), null);
@@ -288,7 +296,8 @@ describe('přirozená stadia podle kalendáře', () => {
     for (const state of statesInOrder(s, winter)) expect(['ripe', 'harvesting']).toContain(state);
     s = advanceVillage(s, at(602, 8, 1), null);
     expect(new Set(statesInOrder(s, winter))).toEqual(new Set(['stubble']));
-    if (spring.length > 0) expect(statesInOrder(s, spring)).toContain('ripe');
+    // jař 1. 8. zralá – malou jař (po ozimu a luštěninách) už ves žne
+    for (const state of statesInOrder(s, spring)) expect(['ripe', 'harvesting']).toContain(state);
   });
 
   it('připravený díl rozrytý drn (louka založená rádlem drn), mladý příloh, starší příloh bez seče pastvina', () => {

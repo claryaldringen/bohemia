@@ -112,8 +112,9 @@ export function rotateAfterSeason(part: FieldPart, day: number): void {
 
 /**
  * Vybrané díly se osejí plodinou `crop` (příloh se vrací do osevu – zarůstání začne znovu); díl
- * z přílohu si pamatuje, jak ležel, kdyby ho plán podle zásob zase ubral (fields.md – Osev podle
- * zásob). Díl na řadě po prvním osevu přestane čekat (`FieldPart.next`).
+ * z přílohu si pamatuje, jak ležel, kdyby ho ves zase uvolnila (`returnPart`). Díl na řadě si
+ * do konce sezóny nechá, co na něm mělo růst (`FieldPart.next`) – uvolněný nebo nezasetý díl na
+ * řadu přijde zase stejně; 1. 9. ho `rotateAfterSeason` smaže.
  */
 export function sowParts(parts: readonly FieldPart[], crop: Crop): void {
   for (const part of parts) {
@@ -126,10 +127,29 @@ export function sowParts(parts: readonly FieldPart[], crop: Crop): void {
       part.sownYears = 0;
       delete part.overgrowthYears;
     }
-    delete part.next;
     part.state = 'sown';
     part.crop = crop;
   }
+}
+
+/**
+ * Díl, který ves k letošní práci přibrala a pak z ní vyřadila (uvolněný nutný díl, nezasetá jař –
+ * fields.md, Osevní postup po dílech, body 2 a 3), se vrátí, jak byl (mění ho na místě): příloh
+ * leží ladem jako předtím (`fallowBeforePlan`), hotový díl a díl po prvním osevu zase čeká na
+ * řadě (`next` zůstal). Rozkopání propadne.
+ */
+export function returnPart(part: FieldPart, startDay: number): void {
+  const before = part.fallowBeforePlan;
+  delete part.crop;
+  delete part.fallowBeforePlan;
+  if (!before) {
+    part.state = 'ready';
+    return;
+  }
+  part.state = 'fallow';
+  part.fallowSinceDay = before.sinceDay ?? startDay;
+  part.sownYears = 0;
+  if (before.overgrowthYears !== undefined) part.overgrowthYears = before.overgrowthYears;
 }
 
 /**

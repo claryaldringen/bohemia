@@ -400,9 +400,11 @@ describe('ves hospodaří podle domů', () => {
     const reachOld = mean(
       old.map((s) => reachableShare(withCells(s), villageHoldings(withCells(s)))),
     );
-    // ves seje na potřebu po růstu (fields.md – Osev podle růstu vsi) – víc dílů i dál od domu
-    expect(reachNow).toBeGreaterThan(0.7);
-    expect(reachNow).toBeGreaterThan(reachOld + 0.5);
+    // ves seje na potřebu po růstu (fields.md – Osev podle růstu vsi) – víc dílů i dál od domu;
+    // postup dílu (dva osevy, pak úhor – fields.md, Osevní postup po dílech) nechá blíž domu úhor,
+    // zatímco dál se seje (0,49 proti 0,001 bez úseků; dřív se osévalo třikrát v řadě – 0,7)
+    expect(reachNow).toBeGreaterThan(0.4);
+    expect(reachNow).toBeGreaterThan(reachOld + 0.4);
     // osévá se pořád podobně – úseky jídlo neberou
     const sownParts = (xs: VillageState[]): number =>
       mean(xs.map((s) => s.parts.filter((p) => p.state === 'sown').length));
@@ -436,9 +438,10 @@ describe('ves hospodaří podle domů', () => {
     const looks = fieldPartLooks(state, state.lastDay);
     const untouched = ['stubble', 'pasture', 'bare'];
     const done = winter.partIds.map((id) => !untouched.includes(looks.get(id)!.look));
+    // díly přibývají den po dni – ves bez staveb už může mít zkopané všechny
     const firstUndone = done.indexOf(false);
-    expect(firstUndone).toBeGreaterThan(0);
-    expect(done.slice(firstUndone + 1).every((d) => !d)).toBe(true);
+    expect(done[0]).toBe(true);
+    if (firstUndone >= 0) expect(done.slice(firstUndone + 1).every((d) => !d)).toBe(true);
   }, 30_000);
 
   it('po kouscích dá stejný stav jako jedním voláním', () => {

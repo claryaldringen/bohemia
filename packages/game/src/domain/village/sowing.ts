@@ -660,7 +660,7 @@ export const SOWING_CAPACITY_WINDOWS: Readonly<Record<LordHelpWindow, readonly W
  * rodiny `village`) ÷ práce rodiny v okně (`withLord − village`), nejvýš 1. Podzim ozimu,
  * červenec a srpen přímo. Jař jako `fitsSpring` – vrácení a kopání na podzim, kolik po ozimu
  * zbude (i s pomocí rodiny v září–říjnu), zbytek se setím na jaře: co chybí, dá rodina napřed na
- * jaře (jarní úprava – `trimPlan` – ho přepočítá podle skutečného zbytku) a co jaro nepokryje ani
+ * jaře (`lordHelpDay` ho každý den přepočítá podle skutečného zbytku) a co jaro nepokryje ani
  * s celou rodinou, z podzimu jaře (návrh Clauda). Podzim jaře zahrnuje i září–říjen, kde už rodina
  * pomáhá s ozimem – jeho podíl kryje obojí (den bere nejvyšší podíl, `lordHelpShare`). Okna, kde
  * nic nechybí, chybí; ves, která stihne vše sama, dostane {}.

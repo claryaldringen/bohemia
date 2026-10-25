@@ -303,6 +303,9 @@ describe('výkon spřežení za den', () => {
   it('orba má přednost před výmlatem s dřívějším koncem okna (Martin, 24. 10. 2026)', () => {
     const ploughed = (threshing: boolean): { plough: number; thresh: number } => {
       const s = village(rect(1, 0, 0, 8, 2));
+      // hotové díly na řadě s prvním osevem – 1. 9. přibudou k ozimu (fields.md – Osevní postup
+      // po dílech); díly po dvou osevech by šly do úhoru
+      for (const p of s.parts) Object.assign(p, { state: 'ready', sownYears: 0 });
       if (threshing) s.sheaves = { grainKg: 20_000, legumesKg: 0, work: { spring: 200 } };
       const next = advanceVillage(s, DAY, null);
       const sum = (activity: string): number =>

@@ -249,7 +249,7 @@ describe('práce dne (manorLabor, allocateDay)', () => {
   });
 });
 
-describe('plán osevu s rodinou (planYear, trimPlan)', () => {
+describe('nutná práce s rodinou (lordHelpDay)', () => {
   it('ves, která osev stihne bez rodiny – lordHelp chybí, rodina jen cvičí', () => {
     const planned = advanceVillage(sowingVillage(8000), PLAN_DAY, null);
     expect(planned.season).toBeDefined();
@@ -284,7 +284,7 @@ describe('plán osevu s rodinou (planYear, trimPlan)', () => {
     });
   });
 
-  it('osev navíc se kvůli rodině nezvětší a pomoc nezávisí na dopočtu po kouscích', () => {
+  it('pomoc se přepočítá každý den v oknech a nezávisí na dopočtu po kouscích', () => {
     const alone = advanceVillage(sowingVillage(SHORT_STORES), PLAN_DAY, null);
     const once = advanceVillage(sowingVillage(SHORT_STORES), at(600, 10, 20), null);
     let pieces = sowingVillage(SHORT_STORES);
@@ -292,23 +292,21 @@ describe('plán osevu s rodinou (planYear, trimPlan)', () => {
       pieces = advanceVillage(pieces, day, null);
     }
     expect(pieces).toEqual(once);
-    // osev navíc dostane jen práci vsi – stejně jako ves, kde rodina nepomáhá
+    // podíl dne není rozhodnutí k 1. 9. – druhý den v okně ho ves spočítá znovu ze zbytku práce
     const noHelp = structuredClone(alone);
     delete noHelp.season!.lordHelp;
-    const helped = advanceVillage(alone, at(600, 10, 20), null);
-    const unhelped = advanceVillage(noHelp, at(600, 10, 20), null);
-    // rodina pomáhala (cvičila méně), volná práce vsi na stavby a osev navíc den po dni stejná
-    const bow = (v: VillageState): number => v.people.find((p) => p.id === 12)!.arms!.bow;
-    expect(bow(helped)).toBeLessThan(bow(unhelped));
-    expect(helped.commonLaborHistory).toEqual(unhelped.commonLaborHistory);
+    expect(advanceVillage(noHelp, PLAN_DAY + 1, null).season!.lordHelp).toEqual(
+      advanceVillage(alone, PLAN_DAY + 1, null).season!.lordHelp,
+    );
   });
 
-  it('jarní úprava přepočítá pomoc podle zbytku plánu', () => {
+  it('na jaře se pomoc přepočítá podle zbytku nutné práce', () => {
     const planned = advanceVillage(sowingVillage(SHORT_STORES), PLAN_DAY, null);
-    const spring = structuredClone(planned);
+    // ozim, který do konce října nezačal, jde do jaře (fields.md – Osevní postup po dílech)
+    const spring = advanceVillage(planned, at(601, 2, 28), null);
     delete spring.season!.lordHelp;
-    spring.lastDay = at(601, 2, 28);
-    spring.storesKg = 1500;
+    // bez zásob – ves nezačaté nutné díly neuvolní
+    spring.storesKg = 0;
     // ves přes zimu přišla o dospělého – jař bez rodiny nestihne, rodina dál cvičí (3 jinde)
     spring.people = spring.people.filter((p) => p.id !== 23);
     const march = advanceVillage(spring, at(601, 3, 1), null);

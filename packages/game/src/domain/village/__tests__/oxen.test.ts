@@ -698,6 +698,8 @@ describe('orba rádlem', () => {
       part(i + 1, { areaM2: 2250, distanceM: 100 + i, cell: { x: i, y: 0 } }),
     );
     s.season = createPlan(s.parts, at(600, 9, 1), 0, true);
+    // bez zásob – nezačaté díly ves potřebuje a neuvolní je (fields.md – Osevní postup po dílech)
+    s.storesKg = 0;
     s.hay = { kg: 0, mowing: null, winter: { oxenNeedKg: 2400, oxenEatenKg: 0 } };
     const spring = advanceVillage(s, at(601, 3, 1), null);
     expect(spring.pens![0]!.oxen).toEqual([]);

@@ -69,7 +69,8 @@ export function extraPartOf(part: FieldPart): ExtraPart {
 }
 
 /**
- * Jediné místo, kudy díly vstupují do osevu navíc (`planYear`, `trimPlan`, jarní hotové díly):
+ * Jediné místo, kudy díly vstupují do osevu navíc (od hospodářského roku bez plánu je nic neplní –
+ * díly nad potřebu přinese Úloha 4 plánu osevního postupu):
  * jen díly, které `extraSowable` pustí, jako `ExtraPart`. Volat před změnou dílu (`toFallow`).
  */
 export function extraPartsOf(parts: readonly FieldPart[]): ExtraPart[] {
