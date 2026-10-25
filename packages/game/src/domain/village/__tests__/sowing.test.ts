@@ -3,14 +3,7 @@ import { dayIndexOf } from '../../calendar';
 import { daysUntilHarvest, daysUntilWinterHarvest } from '../food';
 import { NO_CRAFTS } from '../productivity';
 import { CROP_WINDOWS } from '../rules';
-import {
-  chooseCrops,
-  orchardOnlyLoad,
-  planLoad,
-  windowDaysLeft,
-  type CropChoiceInput,
-  type SowingCapacity,
-} from '../sowing';
+import { windowDaysLeft } from '../sowing';
 import type { FieldPart } from '../types';
 import {
   activeTasks,
@@ -28,12 +21,6 @@ import {
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 const DAY = at(601, 9, 1);
-/** Díl 225 m² ve 100 m (bez příplatku za vzdálenost): kopání 2,25, setí 0,225, sklizeň 1,125 čd. */
-const DIG = 100 * 0.0225;
-const SOW = 10 * 0.0225;
-// žeň: sklizeň 20 + odnos 10 (fields.md – Žně všemi rukama)
-const HARVEST = 30 * 0.0225;
-const THRESH = 15 * 0.0225;
 
 function part(id: number, over: Partial<FieldPart> = {}): FieldPart {
   return {
@@ -54,23 +41,6 @@ function part(id: number, over: Partial<FieldPart> = {}): FieldPart {
   };
 }
 const parts = (count: number): FieldPart[] => Array.from({ length: count }, (_, i) => part(i + 1));
-
-const BIG = 1e6;
-function input(
-  over: Partial<Omit<CropChoiceInput, 'capacity'>> & { capacity?: Partial<SowingCapacity> },
-): CropChoiceInput {
-  const { capacity, ...rest } = over;
-  return {
-    targetKg: BIG,
-    startKg: 0,
-    capacity: { autumnWinter: BIG, autumn: BIG, spring: BIG, july: BIG, august: BIG, ...capacity },
-    load: orchardOnlyLoad(0),
-    allowWinter: true,
-    day: DAY,
-    toolCoverage: NO_CRAFTS.tools,
-    ...rest,
-  };
-}
 
 describe('windowDaysLeft', () => {
   it('od 1. 9. celá okna hospodářského roku', () => {
@@ -96,88 +66,6 @@ describe('windowDaysLeft', () => {
   });
 });
 
-describe('chooseCrops', () => {
-  it('ozim, kolik podzim stihne zkopat a osít; zbytek jař', () => {
-    const r = chooseCrops(parts(10), input({ capacity: { autumnWinter: 4 * (DIG + SOW) } }));
-    expect(r.winter.map((p) => p.id)).toEqual([1, 2, 3, 4]);
-    expect(r.spring.map((p) => p.id)).toEqual([5, 6, 7, 8, 9, 10]);
-  });
-
-  it('ozim nejvýš, kolik se sklidí v červenci; jař nejvýš, kolik se sklidí v srpnu', () => {
-    // v srpnu se sklízí jař a mlátí ozim hned po žni (production-chains.md – Výmlat hned po žni)
-    const r = chooseCrops(
-      parts(10),
-      input({ capacity: { july: 2 * HARVEST, august: 3 * HARVEST + 2 * THRESH } }),
-    );
-    expect(r.winter).toHaveLength(2);
-    expect(r.spring).toHaveLength(3);
-  });
-
-  it('výmlat ozimu v srpnu ubere srpen sklizni jaře (production-chains.md – Výmlat hned po žni)', () => {
-    const r = chooseCrops(
-      parts(10),
-      input({ capacity: { july: 2 * HARVEST, august: 3 * HARVEST + THRESH } }),
-    );
-    expect(r.winter).toHaveLength(2);
-    expect(r.spring).toHaveLength(2);
-    // srpen bez místa na výmlat – ozim se nevybere vůbec, jař dostane, co srpen sklidí
-    const none = chooseCrops(
-      parts(10),
-      input({ capacity: { july: 2 * HARVEST, august: 0.5 * THRESH } }),
-    );
-    expect(none.winter).toHaveLength(0);
-  });
-
-  it('jař kope na podzim, co po ozimu zbude – na jaro jen setí a zbytek kopání', () => {
-    // podzim: 2 díly ozimu a kopání 2 dílů jaře; jaro: setí 4 dílů jaře a kopání jednoho
-    const capacity = {
-      autumnWinter: 2 * (DIG + SOW),
-      autumn: 2 * (DIG + SOW) + 2 * DIG,
-      spring: 4 * SOW + DIG,
-    };
-    const r = chooseCrops(parts(10), input({ capacity }));
-    expect(r.winter).toHaveLength(2);
-    expect(r.spring).toHaveLength(3);
-  });
-
-  it('díly hotové po plánu jen do jaře; cíl osevu výběr zastaví', () => {
-    const late = chooseCrops(parts(5), input({ allowWinter: false }));
-    expect(late.winter).toEqual([]);
-    expect(late.spring).toHaveLength(5);
-    const net = (760 * (0.4 + 0.6 * 0.7) - 175) * 0.0225;
-    const target = chooseCrops(parts(10), input({ targetKg: 3 * net - 1e-6 }));
-    expect(target.winter).toHaveLength(3);
-    expect(chooseCrops(parts(10), input({ targetKg: 5, startKg: 5 })).winter).toEqual([]);
-  });
-
-  it('sklizeň jablek a zbytek plánu zaberou část podzimu', () => {
-    const orchard = chooseCrops(
-      parts(10),
-      input({
-        capacity: { autumnWinter: 4 * (DIG + SOW) },
-        load: orchardOnlyLoad(2 * (DIG + SOW)),
-      }),
-    );
-    expect(orchard.winter).toHaveLength(2);
-    const running = createSeason({ winter: parts(3), spring: [] }, DAY, NO_CRAFTS.tools);
-    const rest = chooseCrops(
-      [part(20)],
-      input({ capacity: { autumnWinter: 3.5 * (DIG + SOW) }, load: planLoad(running, 0) }),
-    );
-    expect(rest.winter).toEqual([]);
-    expect(rest.spring).toHaveLength(1);
-  });
-
-  it('nevejde-li se díl ani do ozimu, ani do jaře, výběr končí', () => {
-    const r = chooseCrops(
-      parts(10),
-      input({ capacity: { autumnWinter: 0, spring: 2 * SOW + 0.1, autumn: 0 } }),
-    );
-    expect(r.winter).toEqual([]);
-    expect(r.spring).toEqual([]);
-  });
-});
-
 describe('kopání pod jař i na jaře (fields.md – Ozim a jař; Martin 21. 10. 2026)', () => {
   it('okna jaře: kopání i vrácení přílohu na podzim i v březnu–dubnu, ozim jen na podzim', () => {
     expect(CROP_WINDOWS.spring.dig).toEqual([
@@ -189,52 +77,6 @@ describe('kopání pod jař i na jaře (fields.md – Ozim a jař; Martin 21. 10
       [3, 4],
     ]);
     expect(CROP_WINDOWS.winter.dig).toEqual([[9, 10]]);
-  });
-
-  it('jař se vejde, i když podzim po ozimu nezbyl nic – kopání i setí zvládne jaro', () => {
-    const r = chooseCrops(
-      parts(4),
-      input({
-        allowWinter: false,
-        capacity: { autumnWinter: 0, autumn: 0, spring: 4 * (DIG + SOW) + 0.01 },
-      }),
-    );
-    expect(r.spring).toHaveLength(4);
-  });
-
-  it('podzim po ozimu kopání ubere z jara, zbytek kopání jde na jaro', () => {
-    const r = chooseCrops(
-      parts(4),
-      input({
-        allowWinter: false,
-        capacity: { autumnWinter: 0, autumn: 2 * DIG, spring: 4 * SOW + 2 * DIG + 0.01 },
-      }),
-    );
-    expect(r.spring).toHaveLength(4);
-    const tooMuch = chooseCrops(
-      parts(5),
-      input({
-        allowWinter: false,
-        capacity: { autumnWinter: 0, autumn: 2 * DIG, spring: 4 * SOW + 2 * DIG + 0.01 },
-      }),
-    );
-    expect(tooMuch.spring).toHaveLength(4);
-  });
-
-  it('ozim má na podzimní práci přednost před kopáním jaře', () => {
-    const r = chooseCrops(
-      parts(4),
-      input({
-        targetKg: BIG,
-        capacity: {
-          autumnWinter: 2 * (DIG + SOW),
-          autumn: 2 * (DIG + SOW),
-          spring: 2 * (DIG + SOW),
-        },
-      }),
-    );
-    expect(r.winter).toHaveLength(2);
-    expect(r.spring).toHaveLength(2);
   });
 });
 

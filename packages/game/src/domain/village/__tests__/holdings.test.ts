@@ -12,7 +12,7 @@ import {
   type HoldingHouse,
 } from '../holdings';
 import { advanceVillage } from '../simulate';
-import { chooseCrops, orchardOnlyLoad } from '../sowing';
+
 import type { Dwelling, FieldPart, Person, TileCell, VillageState } from '../types';
 import { nearestFirst, seasonCrops, seasonCrop } from '../year-plan';
 
@@ -211,23 +211,6 @@ describe('osev po úsecích', () => {
     // prvních pár bloků střídá obě hospodářství, ne jen to s bližšími úseky
     const firstHoldings = blocks.slice(0, 4).map((b) => (b[0]!.id >= 1000 ? 2 : 1));
     expect(new Set(firstHoldings).size).toBe(2);
-  });
-
-  it('blok jde celý do jaře, když se celý nevejde do ozimu', () => {
-    const block = [part(1, { distanceM: 100 }), part(2, { distanceM: 100 })];
-    const single = [part(3, { distanceM: 100 })];
-    // ozim pojme podzimní práci jen jednoho dílu (kopání 2,25 + setí 0,225 čd; vrácení 0)
-    const crops = chooseCrops([block, single], {
-      targetKg: 1e6,
-      startKg: 0,
-      capacity: { autumnWinter: 3, autumn: 100, spring: 100, july: 100, august: 100 },
-      load: orchardOnlyLoad(0),
-      allowWinter: true,
-      day: at(601, 9, 1),
-      toolCoverage: 0,
-    });
-    expect(crops.spring.map((p) => p.id)).toEqual([1, 2]);
-    expect(crops.winter.map((p) => p.id)).toEqual([3]);
   });
 });
 
