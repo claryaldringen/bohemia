@@ -8,6 +8,7 @@ import {
   harvestKg,
   partWork,
   taskRemaining,
+  withOnceWeedingRates,
   withoutWinterWeeding,
 } from '../year-plan';
 
@@ -171,6 +172,29 @@ describe('harvestKg', () => {
     expect(converted.required.weed).toBe(plan.required.weed);
     expect(withoutWinterWeeding(converted)).toBe(converted);
     expect(withoutWinterWeeding(plan)).toBe(plan);
+  });
+  it('starší plán jaře, luštěnin a lnu se staršími sazbami pletí se přepočte na nové – jednou a idempotentně', () => {
+    // starší sazby (fields.md – Pletí jednou a rychle, „Dřív“): jař 30 čd/ha, luštěniny a len 40
+    // čd/ha při nejhorší mezi; setí 10 čd/ha – stejné jako dnes
+    const sow = plan.required.sow;
+    const old: YearPlan = {
+      ...plan,
+      required: { ...plan.required, weed: sow * 3 },
+      done: { ...plan.done, weed: sow * 1.5 },
+      legume: {
+        ...plan,
+        required: { ...plan.required, weed: sow * 4 },
+        done: { ...plan.done, weed: 0 },
+      },
+    };
+    const converted = withOnceWeedingRates(old);
+    // nová nejhorší mez 8 (jař) a 10 (luštěniny) čd/ha – hotový podíl pletí zůstane
+    expect(converted.required.weed).toBeCloseTo(sow * 0.8, 9);
+    expect(converted.done.weed).toBeCloseTo(sow * 0.4, 9);
+    expect(converted.legume!.required.weed).toBeCloseTo(sow * 1, 9);
+    expect(withOnceWeedingRates(converted)).toBe(converted);
+    // nový plán zůstane, jak je
+    expect(withOnceWeedingRates(plan)).toBe(plan);
   });
   it('pošlapaná plocha (vůz přes zaseté pole) úrodu nedá', () => {
     const trampled = part({ trampledM2: 1000 });

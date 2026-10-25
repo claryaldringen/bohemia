@@ -81,11 +81,20 @@ export const HARVEST_HELPERS = { youthFromAge: 10, perDay: 0.5 } as const;
 // uvolnit ruce dospělým.“; číslo návrh Clauda): výrostci 7–13 let, kteří zrovna nepasou, plejí
 // v okně pletí po 0,5 člověkodne denně (pasáci mají přednost)
 export const WEEDING_CHILDREN = { perDay: 0.5 } as const;
+// fields.md – Pletí jednou a rychle – kdo pleje (návrh Clauda podle Martina 19. 10. 2026: „Domácí
+// výrobu z většiny obstarají ženy“): ženy nesou 3/4 denního minima domácností – plejí jen prací nad
+// svůj díl. Muži plejí, co by děti a ženy dnešním skutečným tempem × `paceShare` nestihly do konce
+// okna bez posledních `spareDays` dní – rezerva na výpravy, vozy a seč, které ženám a mužům práci
+// v dalších dnech vezmou (pletí se v okně dodělá).
+export const WEEDING_WOMEN = { dailyMinShare: 0.75, paceShare: 0.8, spareDays: 5 } as const;
 // fields.md – Pletí jednou a rychle (Martin 25. 10. 2026: „Ve středověku se plelo jednou, rychle
 // a dělaly to hlavně ženy a děti … Jakmile obilí trochu vzešlo, tehdejší vysoké odrůdy pole
 // zastínily a další plevel už nevzešel.“; sazba návrh Clauda podle Martina): jedno projití pole
 // krátce po vzejití – obilí 8 / 5 člověkodní na hektar (dřív 30 / 15)
 const GRAIN_WEEDING_PER_HA: Bounds = { worst: 8, best: 5 };
+// fields.md – Pletí jednou a rychle: nejhorší mez starších sazeb pletí (jař 30, luštěniny a len 40
+// čd/ha) – jen k převodu plánů starších vsí na nové sazby (`withOnceWeedingRates`)
+export const LEGACY_WEEDING_WORST_PER_HA = { grain: 30, lowCrop: 40 } as const;
 // fields.md – Pletí jednou a rychle: luštěniny a len zastíní pole méně – 10 / 6 (dřív 40 / 20)
 const LOW_CROP_WEEDING_PER_HA: Bounds = { worst: 10, best: 6 };
 // fields.md – Práce (člověkodny na osetý hektar – meze)

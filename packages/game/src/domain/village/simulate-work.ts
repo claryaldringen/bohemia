@@ -119,6 +119,7 @@ import {
   neededTaskRemaining,
   windowEndOf,
   type CropTask,
+  withOnceWeedingRates,
   withoutWinterWeeding,
 } from './year-plan';
 import { build, decayEmptyDwellings, woodworkToday } from './simulate-build';
@@ -262,8 +263,9 @@ export function work(
   landscape: Landscape | null,
 ): { toil: boolean; lordField: number } {
   const month = dateOfDayIndex(day).month;
-  // starší plán s pletím ozimu – ozim se neplete (fields.md – Pletí jednou a rychle)
-  if (state.plan) state.plan = withoutWinterWeeding(state.plan);
+  // starší plán s pletím ozimu – ozim se neplete; pletí jaře, luštěnin a lnu ze starších sazeb
+  // na nové (fields.md – Pletí jednou a rychle)
+  if (state.plan) state.plan = withOnceWeedingRates(withoutWinterWeeding(state.plan));
   // jízdy vozů dne (svoz, voda, uhlí, ruda, klády, osivo) – zapíše `flushCartTrips`
   const cartLog: CartTripLog = [];
   // orba: páry volů s rádlem, se železnou špičkou od kováře rychleji (oxen.md); slabí voli po
@@ -452,7 +454,8 @@ export function work(
   const weeders = dayTasks.some((t) => t.name === 'weed' && t.remaining > EPSILON)
     ? weedingChildren(state, day)
     : [];
-  // plejí hlavně ženy a děti (fields.md – Pletí jednou a rychle) – podíl žen na práci vsi
+  // plejí hlavně ženy a děti (fields.md – Pletí jednou a rychle) – práce žen vsi nad jejich díl
+  // denního minima
   const villageLabor = villagers.reduce((sum, p) => sum + laborPerDay(p, day), 0);
   const womenLabor = villagers.reduce(
     (sum, p) => sum + (p.sex === 'female' ? laborPerDay(p, day) : 0),
@@ -480,7 +483,7 @@ export function work(
       lordField: manor && productivity > 0 ? manor.field / productivity : 0,
       harvestHands,
       weedChildren: weeders.length * WEEDING_CHILDREN.perDay,
-      weedWomen: villageLabor > 0 ? womenLabor / villageLabor : 0,
+      womenLabor,
       ...(weedDaysLeft === undefined ? {} : { weedDaysLeft }),
       // cvičící muži rodiny ve žňový den – za žňovými rukama vsi, jen žeň a výmlat
       lordHarvest: manor && productivity > 0 ? manor.harvest / productivity : 0,

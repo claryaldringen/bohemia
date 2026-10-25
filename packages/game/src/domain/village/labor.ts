@@ -1,6 +1,6 @@
 import { ageGroup } from './people';
 import { dailyMinPerHousehold } from './productivity';
-import { LABOR_PER_DAY, WATER_FETCHING } from './rules';
+import { LABOR_PER_DAY, WATER_FETCHING, WEEDING_WOMEN } from './rules';
 import type { Dwelling, OrchardTaskName, Person, TaskName } from './types';
 
 /**
@@ -88,16 +88,18 @@ export interface DayAllocationInput {
    */
   weedChildren?: number;
   /**
-   * Podíl žen na práci vsi (0–1; fields.md – Pletí jednou a rychle – plejí hlavně ženy a děti):
-   * pletí bere po dětech a lehké práci žen řemeslníků napřed tento podíl práce vsi zbylé po
-   * výpravách a vozech – i před úlohami, které jsou v pořadí dřív; co nedoplejí, doplejí muži až po
-   * ostatních úlohách dne (seč, setí, orba). Bez údaje 0 – pleje se jen z toho, co úlohy nechají.
+   * Práce žen vsi za den (člověkodny před štěstím; fields.md – Pletí jednou a rychle – plejí hlavně
+   * ženy a děti). Ženy nesou díl denního minima domácností (`WEEDING_WOMEN.dailyMinShare`) – pletí
+   * bere po dětech a lehké práci žen řemeslníků jen jejich práci nad tento díl (nejvýš co vsi
+   * zbylo po minimu, koních, výpravách a vozech), i před úlohami, které jsou v pořadí dřív; co
+   * nedoplejí, doplejí muži až po ostatních úlohách dne (seč, setí, orba). Bez údaje 0 – pleje se
+   * jen z toho, co úlohy nechají.
    */
-  weedWomen?: number;
+  womenLabor?: number;
   /**
    * Kolik dní zbývá do konce okna pletí i s dneškem (fields.md – Pletí jednou a rychle): muži
-   * plejí jen tolik, kolik by děti a ženy dnešním tempem do konce okna nestihly. Bez údaje muži
-   * doplejí, co jim ostatní úlohy nechají.
+   * plejí jen tolik, kolik by děti a ženy dnešním tempem s rezervou do konce okna bez posledních
+   * dní nestihly (`WEEDING_WOMEN`). Bez údaje muži doplejí, co jim ostatní úlohy nechají.
    */
   weedDaysLeft?: number;
   /**
@@ -166,7 +168,7 @@ export interface DayAllocation {
   harvestHands: number;
   /** Kolik práce dětí (`weedChildren`, po štěstí) dnes pletí spotřebovalo; chybí = 0. */
   weedChildren?: number;
-  /** Kolik práce žen vsi (`weedWomen`, po štěstí) dnes pletí spotřebovalo; chybí = 0. */
+  /** Kolik práce žen vsi (`womenLabor`, po štěstí) dnes pletí spotřebovalo; chybí = 0. */
   weedWomen?: number;
   tasks: Record<LaborTaskName, number>;
   /** Práce pro jednotlivé úlohy vstupu v jejich pořadí (stejný název může být víckrát – plodiny). */
@@ -244,24 +246,33 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
   let helpLeft = helpPool;
   const taskAmounts = input.tasks.map(() => 0);
   // pletí napřed (fields.md – Pletí jednou a rychle): děti, ženy řemeslníků, pak ženy vsi – jejich
-  // podíl práce, která zbyla po výpravách a vozech
-  let womenLeft = Math.min(1, Math.max(0, input.weedWomen ?? 0)) * left;
-  // kolik děti a ženy dnes na pletí mají – tímto tempem by plely i dalších dní okna
-  const weedPace = kidsLeft + lightLeft + womenLeft;
+  // práce nad jejich díl denního minima domácností
+  let womenLeft = Math.min(
+    left,
+    Math.max(
+      0,
+      Math.max(0, input.womenLabor ?? 0) * productivity - WEEDING_WOMEN.dailyMinShare * dailyMin,
+    ),
+  );
   let weedWomen = 0;
+  let weedLight = 0;
   input.tasks.forEach((task, i) => {
     if (task.name !== 'weed') return;
     let amount = Math.min(task.remaining, kidsLeft);
     kidsLeft -= amount;
     const light = Math.min(task.remaining - amount, lightLeft);
     lightLeft -= light;
+    weedLight += light;
     amount += light;
     const women = take(Math.min(task.remaining - amount, womenLeft));
     womenLeft -= women;
     weedWomen += women;
     taskAmounts[i] = amount + women;
   });
-  // muži plejí jen, co by děti a ženy do konce okna nestihly (bez údaje o okně všechno)
+  // muži plejí jen, co by děti a ženy do konce okna nestihly (bez údaje o okně všechno) – odhad
+  // opatrně: z práce, kterou dnes na pletí opravdu daly, s rezervou a bez posledních dní okna
+  // (výpravy, vozy a seč jim v dalších dnech práci vezmou – WEEDING_WOMEN)
+  const weedPace = (kidsPool - kidsLeft + weedLight + weedWomen) * WEEDING_WOMEN.paceShare;
   const weedLeft = input.tasks.reduce(
     (sum, task, i) => (task.name === 'weed' ? sum + task.remaining - (taskAmounts[i] ?? 0) : sum),
     0,
@@ -269,7 +280,10 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
   let menWeed =
     input.weedDaysLeft === undefined
       ? Infinity
-      : Math.max(0, weedLeft - weedPace * Math.max(0, input.weedDaysLeft - 1));
+      : Math.max(
+          0,
+          weedLeft - weedPace * Math.max(0, input.weedDaysLeft - 1 - WEEDING_WOMEN.spareDays),
+        );
   const allot = (task: { name: LaborTaskName; remaining: number }, i: number): void => {
     let amount = taskAmounts[i] ?? 0;
     // pletí mužů (a vše za ním) jen do jejich dílu

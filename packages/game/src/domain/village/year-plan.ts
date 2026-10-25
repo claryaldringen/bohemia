@@ -17,6 +17,7 @@ import {
   FLAX,
   LEGUMES,
   SEED_KG_PER_HA,
+  LEGACY_WEEDING_WORST_PER_HA,
   UNWEEDED_YIELD,
   YIELD_BASE_KG_PER_HA,
   type WindowSegment,
@@ -486,6 +487,40 @@ export function withoutWinterWeeding(plan: YearPlan): YearPlan {
       required: { ...winter.required, weed: 0 },
       done: { ...winter.done, weed: 0 },
     },
+  };
+}
+
+/**
+ * Pletí jednou a rychle (fields.md): plán jaře, luštěnin a lnu ze starších sazeb (30 / 15 a 40 / 20
+ * čd/ha v květnu–červnu) by se v jediném květnovém okně nestihl – úroda by klesla. Požadované
+ * i hotové pletí se přepočte na nové sazby (× nová ÷ stará nejhorší mez, hotový podíl zůstane).
+ * Starší plán se pozná podle pletí na setí: víc, než dá nová nejhorší mez (setí 10 čd/ha je
+ * stejné). Idempotentní – plán s novými sazbami vrací týž.
+ */
+export function withOnceWeedingRates(plan: YearPlan): YearPlan {
+  const rescale = (work: CropWork, crop: Crop): CropWork => {
+    const newWorst = fieldWorkPerHa('weed', 0, crop);
+    const limit = (work.required.sow * newWorst) / fieldWorkPerHa('sow', 0, crop);
+    if (work.required.weed <= limit * (1 + 1e-9)) return work;
+    const k =
+      newWorst /
+      (crop === 'spring' ? LEGACY_WEEDING_WORST_PER_HA.grain : LEGACY_WEEDING_WORST_PER_HA.lowCrop);
+    return {
+      ...work,
+      required: { ...work.required, weed: work.required.weed * k },
+      done: { ...work.done, weed: work.done.weed * k },
+    };
+  };
+  const spring = rescale(plan, 'spring');
+  const legume = plan.legume && rescale(plan.legume, 'legume');
+  const flax = plan.flax && rescale(plan.flax, 'flax');
+  if (spring === plan && legume === plan.legume && flax === plan.flax) return plan;
+  return {
+    ...plan,
+    required: spring.required,
+    done: spring.done,
+    ...(legume ? { legume } : {}),
+    ...(flax ? { flax } : {}),
   };
 }
 

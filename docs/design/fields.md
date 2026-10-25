@@ -820,6 +820,8 @@ velký, že plevel udusí.**“ Pravidla (návrh Clauda podle Martina):
   úrodu (obilí 60 %, luštěniny a len 50 %).
 - **Ozim se neplete** – žádná úloha pletí, plná úroda bez pletí. Starší vsi s rozdělaným nebo
   chybějícím pletím ozimu ho ztratí (úloha zmizí, úroda se nesráží – převod jednou, idempotentně).
+  Rozdělané pletí jaře, luštěnin a lnu ze starších sazeb se přepočte na nové (hotový podíl
+  zůstane) – starý požadavek by se v jediném květnu nestihl a úroda by klesla.
 - **Jař, luštěniny a len** se plejí **v květnu** (vzejdou 3–4 týdny po setí v březnu–dubnu);
   v červnu se už neplete – červen patří 1. seči ([oxen.md](oxen.md) – Seno, dvě seče).
 
@@ -833,11 +835,15 @@ velký, že plevel udusí.**“ Pravidla (návrh Clauda podle Martina):
 Nejlepší mez posouvají nástroje od kováře jako u ostatní polní práce.
 
 - **Kdo pleje – hlavně ženy a děti.** Pletí bere práci v tomto pořadí: **děti 7–13 let**, které
-  nepasou (Pletí – děti), lehká práce **žen řemeslníků**, pak **ženy vsi** – jejich podíl na práci
-  vsi (podíl dospělých žen mezi dospělými, kteří dnes pracují se vsí), i před úlohami, které jsou
-  v pořadí dne dřív (setí, seč). **Muži** doplejí jen zbytek – jen tolik, kolik by děti a ženy
-  dnešním tempem **do konce okna nestihly**, a to až **po ostatních úlohách dne** (nutná seč,
-  orba, setí) – muži tak sekají (seč kosou dělali muži) a ženy plejí.
+  nepasou (Pletí – děti), lehká práce **žen řemeslníků**, pak **ženy vsi** – jejich práce nad
+  jejich díl denního minima domácností: domácnost z většiny obstarají ženy (Martin 19. 10. 2026),
+  ženy nesou **3/4 denního minima** (návrh Clauda) –, i před úlohami, které jsou v pořadí dne dřív
+  (setí, seč). **Muži** doplejí jen zbytek – jen tolik, kolik by děti a ženy **do konce okna
+  nestihly**, a to až **po ostatních úlohách dne** (nutná seč, orba, setí) – muži tak sekají (seč
+  kosou dělali muži) a ženy plejí. Odhad je opatrný (návrh Clauda): tempo dětí a žen je práce,
+  kterou dnes pletí opravdu daly, **× 0,8**, a nepočítá **posledních 5 dní okna** – výpravy, vozy
+  a seč jim v dalších dnech práci vezmou a pletí se v okně musí dodělat (stavby se staví až
+  z práce po úlohách dne, pletí neberou).
 - Ve scéně plejí ženy (podíl žen z jádra) a děti, sečou hlavně muži.
 
 První sezónu po vymýcení lesa se díl **neplete** (viz Úroda).
@@ -1792,6 +1798,7 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Zatím jen motyky; rádlo a voli později                                                                                                        | Martin (17. 10. 2026)                           |
 | Polní práce 163 (s řemesly 100) člověkodní/ha: kopání 100 (50), pletí 8 (5), sklizeň 20 (15) + odnos 10, výmlat 15 (10) – od 25. 10. 2026     | Martin – oprava podle rešerše 17. 10. 2026      |
 | Pletí jednou a rychle: jař, luštěniny a len v květnu (8 / 5, 10 / 6), ozim se neplete; plejí děti → ženy → muži (zbytek po ostatních úlohách) | návrh Clauda podle Martina 25. 10. 2026         |
+| Pletí: ženy nesou 3/4 denního minima a plejí prací nad něj; muži plejí s rezervou (tempo žen a dětí × 0,8, bez posledních 5 dní okna)         | návrh Clauda                                    |
 | Založení a vrácení přílohu: louka 100 (90), nálet a křoviny 100 (60), les 250 (150) člověkodní/ha                                             | Martin – oprava podle rešerše 17. 10. 2026      |
 | Obnova v přílohu 2,5 % za rok – příloh 13 let, pole ≈ 5,3× osevu (rozhodnutí: 2 %, viz Přílohová soustava – k potvrzení)                      | Martin – oprava podle rešerše 17. 10. 2026      |
 | Vymýcený les +40 / +20 / 0 úrodnosti podle sezóny osevu, první sezónu bez pletí – i u dílů pole v lese                                        | Martin – oprava podle rešerše 17. 10. 2026      |
