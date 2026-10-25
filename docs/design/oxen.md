@@ -204,7 +204,11 @@ volů (`draft.ts`).
   2, … párů (kapacita páru jako dřív spřežení – 0,3 ha za den, délka brázdy a cesta k bloku)
   a nejméně párů, se kterými vybere totéž jako bez meze orby, je **potřeba** toho roku
   (`DraftState.ploughNeed`, nejvýš 8). Do prvního plánu pár na každou ohradu volů. Co páry
-  nezorají, se dál nezaseje.
+  nezorají, se dál nezaseje. **Od osevního postupu po dílech** ([fields.md](fields.md) – Osevní
+  postup po dílech, Páry k rádlům; návrh Clauda 25. 10. 2026) ves plán nemá: potřeba je nejméně
+  párů, které v oknech orby zorají **všechny díly na řadě** v hospodářském roce – nutné i nad
+  potřebu (ozim v září–říjnu, jař na podzim i na jaře, bez posledního dne okna; výkon páru
+  0,3 ha za den × délka brázdy dílů). Ves tak chce víc volů a sena než dřív – měří Úloha 9.
 - **Páry se nemění rok od roku** (návrh Clauda 20. 10. 2026: pár, který ves vycvičila,
   drží do konce služby, nový pár a rádlo jen když potřeba trvá; hystereze – rozhodnutí Clauda,
   `nextPloughPairs`): ves páry k rádlům (`DraftState.ploughPairs`) změní, jen když potřeba leží
@@ -613,6 +617,13 @@ Clauda**:
   `TEAM_TRAVEL`); ~~po cestě 500 m ≈ 6 %~~ (tam a zpět; od 24. 10. jen tam – po cestě 500 m
   ≈ 3 % v den výjezdu). ~~Cena cesty se spočítá, když spřežení začne nový blok~~
   (`PloughWork.trip`); bez krajiny (kalibrace) chůze k dílu.
+- **Díly po dávkách** (osevní postup po dílech – fields.md; návrh Clauda 25. 10. 2026): nutné
+  díly přibývají den po dni, jak se vejdou do čela práce, díly nad potřebu po jednom – každá
+  dávka s vlastními bloky by brázdu zkrátila (ozim ≈ 0,6 výkonu proti 1,0 najednou). Proto díl
+  přibude **s celým svým pásem** (pás z rozvržení dílů, které ves ten den pro plodinu vybrala;
+  u dílů nad potřebu z dílů na řadě) a pásy, na kterých ještě nezačala žádná práce, se s novou
+  dávkou rozvrhnou znovu. Rozpracovaný pás ani hotová práce se nemění; brázda vyjde jako u všech
+  dílů najednou, jen díly, o které potřeba během podzimu vzroste, se k zoraným pásům nepřipojí.
 - **Plán osevu** počítá s výkonem podle tvaru polí, na která může ves zasít (průměr výkonu jejich
   pásů – `plannedFurrowEfficiency`), cestu neodhaduje (je malá).
 - **Ve scéně:** herní jádro posílá u dílů orby osu brázd a směr orby (`SceneFieldPart.furrow`) –
@@ -757,7 +768,9 @@ a zpět** (Co nejdelší brázda – Cesta na místo výš). Podrobnosti **návr
   u rádla, vozy je ten den nemají (Voli se sdílí). Po zorání bloku se přesune k dalšímu bloku
   (od konce posledního pásu bloku vozovou sítí jako dřív).
 - **Návrat:** večer dne, kdy je zoráno všechno, co okno potřebuje (orba bez osevu navíc), kdy
-  okno orby zítra už neběží, nebo když ves páry s rádlem nemá – zpět do ohrady.
+  okno orby zítra už neběží, nebo když ves páry s rádlem nemá – zpět do ohrady. Nutné díly
+  přibývají po dávkách (čelo práce – fields.md, Osevní postup po dílech): má-li plodina zoráno,
+  ale její nutné díly čekají, až lidé dosejí, spřežení na poli počká (návrh Clauda 25. 10. 2026).
 - **Cesta ubírá orbě jen při výjezdu a přesunu** (cesta jen tam, stejná čísla `TEAM_TRAVEL`);
   návrat jde po poslední brázdě – zbytek orby posledního dne je menší než den, takže ho
   nezkrátí. Ostatní dny orá spřežení celý den. Na cestě 500 m to dělá ≈ 6 % dne navíc oproti

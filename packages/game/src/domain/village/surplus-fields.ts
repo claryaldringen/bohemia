@@ -7,6 +7,7 @@ import {
   surplusOrder,
   windowOpen,
 } from './rotation';
+import { ploughLayout } from './plough-blocks';
 import { CROP_ORDER } from './rules';
 import type { CropWork, FieldPart, SeasonCrop, SurplusCrop, VillageState } from './types';
 import {
@@ -149,6 +150,13 @@ export function surplusWantsTeam(
   });
 }
 
+/** Pás orby, do kterého díl `part` patří mezi díly `candidates` (`ploughLayout`) – díly pásu. */
+function bandWith(part: FieldPart, candidates: readonly FieldPart[]): FieldPart[] {
+  const byId = new Map(candidates.map((p) => [p.id, p]));
+  const band = ploughLayout(candidates).bands.find((b) => b.partIds.includes(part.id));
+  return band ? band.partIds.flatMap((id) => byId.get(id) ?? []) : [part];
+}
+
 /**
  * Krok dílů nad potřebu (fields.md – Osevní postup po dílech, bod 3; mutuje stav): práce, která
  * zbyla po stavbách a opravách obydlí, jde napřed na úlohy ozimu a jaře nad potřebu (příprava
@@ -202,19 +210,22 @@ export function surplusFieldDay(
       const existing = surplusCrop(season, crop);
       if (existing && prepLeft(existing) > EPSILON) break;
       order ??= surplusOrder(state, used);
-      const part = order.find(
-        (p) => !used.has(p.id) && startsToday(p, crop, day, input.toolCoverage, plough),
-      );
+      const startable = (p: FieldPart): boolean =>
+        !used.has(p.id) && startsToday(p, crop, day, input.toolCoverage, plough);
+      const part = order.find(startable);
       if (!part) break;
-      used.add(part.id);
-      // jeden díl – pořadí práce je dané
-      const single = (parts: readonly FieldPart[]): FieldPart[] => [...parts];
-      if (existing) addToCropWork(existing, [part], day, input.toolCoverage, single, crop);
+      // se spřežením přibude díl s celým svým pásem dílů na řadě – brázda jako u nutných dílů
+      // (oxen.md – Co nejdelší brázda; návrh Clauda, 25. 10. 2026), jinak jeden díl
+      const unit = plough ? bandWith(part, order.filter(startable)) : [part];
+      for (const p of unit) used.add(p.id);
+      // pořadí práce je dané (orba podle pásu)
+      const asIs = (parts: readonly FieldPart[]): FieldPart[] => [...parts];
+      if (existing) addToCropWork(existing, unit, day, input.toolCoverage, asIs, crop);
       else {
-        const fresh = createCropWork([part], day, input.toolCoverage, plough, single, crop);
+        const fresh = createCropWork(unit, day, input.toolCoverage, plough, asIs, crop);
         putSeasonCrop(season, { crop, surplus: true, ...fresh });
       }
-      sowParts([part], crop);
+      sowParts(unit, crop);
       const work = surplusCrop(season, crop)!;
       for (const task of PREP_TASKS) put(work, task);
     }

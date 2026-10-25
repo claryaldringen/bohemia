@@ -327,6 +327,24 @@ nad potřebu), `simulate-plan.ts` (`wantedPloughPairsOf` → `ploughPairsForRota
 
 **Hotovo:** jako Úloha 3; v kódu žádné `chooseCrops`, `wantedPloughPairsOf`.
 
+**Provedení (25. 10. 2026, návrh Clauda):** dávky 1. 9. / 1. 11. z plánu nahradilo čelo práce
+z Úlohy 3 (díly přibývají den po dni) – proto: díl nutné plodiny přibude s celým pásem
+z rozvržení výběru dne (`joinBands` v `seasonDay`), díl nad potřebu s celým pásem dílů na řadě
+(`bandWith` v `surplus-fields.ts`), nezačaté pásy se s dávkou rozvrhnou znovu
+(`relayUntouchedBands` v `plough-trip.ts`; čísla nových bloků za všemi dosavadními). Test
+`plough-blocks.test.ts` (Orba po dávkách dílů, pole 24 × 16): výkon brázdy ozimu k 31. 10.
+0,60 → 0,97 (najednou 1,04), díly nad potřebu 0,44 → 1,12–1,13 (= najednou), 2. 9. přesně jako
+najednou; zbylý rozdíl ozimu = díly, o které potřeba během podzimu vzroste (k zoraným pásům se
+nepřipojí) – test hlídá ≥ 90 %. Spřežení na poli počká, když má plodina zoráno, ale její nutné
+díly čekají na čelo (`settlePloughTeams(…, waiting)`). `ploughPairsForRotation` – ozim v okně
+orby ozimu, vše v okně orby jaře, výkon páru `pairCapacityPerDay` × `plannedFurrowEfficiency`
+dílů na řadě (`onTurn` – přílohy 70–95 % a nouzové ne). `finishPlanByHoe` → `finishSeasonByHoe`
+(i nad potřebu – už dřív přes `seasonCrops`). Otisky beze změny: `smith-golden` a
+`craft-skill-golden` mají díly bez políček (pole z obrysu – každý díl je pás sám pro sebe, pás
+dávky = díl); páry k rádlům vyšly stejně (otisk stavu se nezměnil). `chooseCrops` a výběr s kapacitou v `sowing.ts` zůstávají jen
+kvůli testům výběru (`sowing`, `flax`, `legumes`, `holdings`, `lord-sowing`) – smazat s nimi
+v Úloze 8.
+
 ## Úloha 6 – Převod starších vsí
 
 **Cíl:** Ves uložená s plánem (Vlkov) se převede jednou a bez ztráty zasetého, ať je v kterémkoli

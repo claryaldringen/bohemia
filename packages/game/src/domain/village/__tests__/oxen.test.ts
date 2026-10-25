@@ -30,7 +30,7 @@ import { PLOUGH_HA_PER_DAY, PLOUGH_SOD_FACTOR, hasSod, ploughWorkPerHa } from '.
 import { NO_CRAFTS } from '../productivity';
 import { cloneState } from '../clone';
 import { advanceVillage } from '../simulate';
-import { chooseCrops, orchardOnlyLoad } from '../sowing';
+import { ploughPairsForRotation } from '../simulate-plan';
 import type { ChronicleEvent, FieldPart, VillageState } from '../types';
 import {
   createCropWork,
@@ -552,30 +552,30 @@ describe('orba rádlem', () => {
     expect(createCropWork([part(1), sod], day, 0, false).plough).toBeUndefined();
   });
 
-  it('plán osevu nevybere víc, než spřežení v oknech orby stihnou zorat', () => {
+  it('páry k rádlům zorají v oknech orby všechny díly na řadě – nejvýš OXEN.maxPairs', () => {
+    // fields.md – Osevní postup po dílech, Páry k rádlům: nutné i nad potřebu (návrh Clauda)
     const day = at(600, 9, 1);
-    const parts = Array.from({ length: 30 }, (_, i) => part(i + 1, { distanceM: 100 + i }));
-    const people = 1e9;
-    const crops = chooseCrops(parts, {
-      targetKg: 1e9,
-      startKg: 0,
-      capacity: {
-        autumnWinter: people,
-        autumn: people,
-        spring: people,
-        july: people,
-        august: people,
-        plough: { autumnWinter: 25, autumn: 45, spring: 30 },
-      },
-      load: orchardOnlyLoad(0),
-      allowWinter: true,
-      day,
-      toolCoverage: 0,
-      plough: true,
-    });
-    // 10 čd orby na díl: ozim do 25 (2 díly), jař na podzim zbytek do 45 a na jaře 30 (5 dílů)
-    expect(crops.winter).toHaveLength(2);
-    expect(crops.spring).toHaveLength(5);
+    const s = withOxen(withTeam(day));
+    const parts = (from: number, n: number, over: Partial<FieldPart> = {}): FieldPart[] =>
+      Array.from({ length: n }, (_, i) =>
+        part(from + i, { distanceM: 100 + i, state: 'ready', sownYears: 0, ...over }),
+      );
+    const pairs = (list: FieldPart[]): number => {
+      s.parts = list;
+      return ploughPairsForRotation(s, day, 0, null);
+    };
+    // pár zorá na podzim ≈ 0,3 ha × výkon brázdy 100 m za den – pět hektarů ozimu stihne sám
+    expect(pairs(parts(1, 5))).toBe(1);
+    const autumn = pairs(parts(1, 40));
+    expect(autumn).toBeGreaterThan(1);
+    expect(pairs(parts(1, 80))).toBeGreaterThanOrEqual(autumn);
+    expect(pairs(parts(1, 5000))).toBe(OXEN.maxPairs);
+    // úhor, který odpočívá, se neorá; jař po ozimu se orá i na jaře – na hektar méně párů než ozim
+    const resting = { state: 'fallow' as const, fallowSinceDay: day - 100, fertilityShare: 0.3 };
+    expect(pairs([...parts(1, 5), ...parts(100, 500, resting)])).toBe(1);
+    const spring = pairs([...parts(1, 5), ...parts(100, 70, { next: 'spring' })]);
+    expect(spring).toBeGreaterThan(1);
+    expect(spring).toBeLessThanOrEqual(autumn);
   });
 
   it('slabí voli po zimě orají na jaře jen podílem; na podzim zase plnou silou', () => {

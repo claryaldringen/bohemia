@@ -193,15 +193,19 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   „Pokud je k dispozici rádlo, kopání motykou úplně vynech.“): plán s vycvičeným spřežením
   (`FarmSeason.ard`) orá všechny díly všech plodin (`CropWork.plough` – `partIds` = díly plodiny,
   `required.dig` 0, i prázdná plodina orbu má, ať přidané díly orá – `addToCropWork` podle
-  `work.plough`); drn (`hasSod` – příloh ve fázi louky, louka založená rádlem `FieldPart.sod`)
+  `work.plough`; nutné díly přibývají po dávkách čela – díl s celým pásem z rozvržení výběru
+  plodiny `joinBands` v `seasonDay`, nezačaté pásy se s dávkou rozvrhnou znovu
+  `relayUntouchedBands` v `plough-trip.ts`; díly nad potřebu po pásech `bandWith` v
+  `surplus-fields.ts` – brázda jako najednou, test `plough-blocks.test.ts`, Orba po dávkách dílů); drn (`hasSod` – příloh ve fázi louky, louka založená rádlem `FieldPart.sod`)
   `PLOUGH_SOD_FACTOR` (2,5×) práce a ve váze orby (`PloughWork.sodIds`), křoviny a mladý les
   vrácení ručně a pak běžná orba. Založení louky vsí se spřežením jen za překážky
   (`partFoundingCost(…, ard)`, díl dostane `sod`, bez překážek hotový hned – `foundPart` v `build`;
-  u kurzoru `PlacementVillage.ploughTeam`). Plán osevu hlídá kapacitu spřežení
-  (`SowingCapacity.plough` – okna orby, `fitsWinter` / `fitsSpringPlough`), co nezorají, se
-  nezaseje (setí za `tilledShare`). Úloha `plough` v oknech kopání, nejvýš `ploughCapacityPerDay`
-  (slabí voli po zimě `team.weak` od 1. 3.). Ztráta posledního spřežení: `finishPlanByHoe` →
-  `ploughToHoe` – letošní plán dokončí motyka (kopání s hotovým podílem, kam došla orba). Starší
+  u kurzoru `PlacementVillage.ploughTeam`). Co nezorají, se nezaseje (setí za `tilledShare`);
+  nutné díly přibývají, jen když se vejdou do čela práce i spřežení (`workFront`). Úloha `plough`
+  v oknech kopání, nejvýš `ploughCapacityPerDay` (slabí voli po zimě `team.weak` od 1. 3.), díly
+  nad potřebu jen zbylou kapacitou (`surplusFieldDay` – `teamDays`). Ztráta posledního spřežení:
+  `finishSeasonByHoe` → `ploughToHoe` – letošní práci všech plodin (i nad potřebu) dokončí motyka
+  (kopání s hotovým podílem, kam došla orba). Starší
   plán s částí kopanou motykou doběhne (`digWeight`). **Co nejdelší brázda** (oxen.md; Martin 19. 10. 2026): `plough-blocks.ts` – `ploughLayout` rozloží díly plodiny na bloky (sousední díly
   pole) a pásy podél osy bloku (`furrowAxis` – delší průměrná brázda, Martin: i sever – jih;
   ve scéně textury a koruna dílu orby podél brázdy – `DecalPiece.rows`), bloky od
@@ -215,8 +219,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `PloughWork.trip` (`PloughTrip` – blok, `arrived` den a odkud, `home` den návratu) – cestu dne
   určí `ploughDayFactor` jednou (`PloughTravels`, ze stavu ráno: výjezd vozovou sítí
   `villageCartRoutes` z ohrady, přesun od konce bloku `villageCartRoutes(…, from)`, u bloku nic),
-  večer `settlePloughTeams` (v `work` po osevu navíc) zapíše příjezd, jen když plodina dnes
-  orala, a návrat (zoráno potřebné, okno zítra neběží, ves bez párů). `ploughTeamsAfield` ráno:
+  večer `settlePloughTeams` (v `work` po dílech nad potřebu) zapíše příjezd, jen když plodina dnes
+  orala, a návrat (zoráno potřebné a nutné díly plodiny nečekají na čelo – `waiting` ze
+  `seasonDay`; okno zítra neběží; ves bez párů). `ploughTeamsAfield` ráno:
   vozy nemají páry (`cartFleetToday`) a voda ráno jen v den výjezdu.
   Postup po dílech zná úlohu `plough`
   (`field-progress.ts`), rozdělení práce posílá činnosti `plough`, `mow`, `slaughter`, `pen`.
@@ -232,8 +237,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`oxenTrainingTarget`, páry, telata jen nad `breedingCows`; krávy navíc na telata
   `oxenCalvesWanted` v `minCows`), převod starých vsí `withOxen` (spřežení = 2 voli, výcvik = 2 telata – čtení
   přes `oxenOf` funguje i bez převodu). `draft.ts`: páry k rádlům k 1. 9. (potřeba `DraftState.ploughNeed` – nejméně
-  párů, se kterými plán osevu vybere totéž jako bez meze orby; páry `ploughPairs` s hysterezí
-  `nextPloughPairs` – mění se, jen když potřeba trvá dva plány po sobě), rok vozů
+  párů, které v oknech orby zorají všechny díly na řadě po postupu – nutné i nad potřebu,
+  `ploughPairsForRotation` v `simulate-plan.ts`: ozim v podzimním okně, jař na podzim a na jaře,
+  výkon páru `pairCapacityPerDay` × `plannedFurrowEfficiency`; páry `ploughPairs` s hysterezí
+  `nextPloughPairs` – mění se, jen když potřeba trvá dva roky po sobě), rok vozů
   (`DraftState.demand.days` – každý den `CartDemandDay`: dnešní nošení podél pevných cest
   a jinam, úspory jízd dvoukoláku pro uhlí, rudu, hlínu a vodu, den orby; čtyřkoláky výprav
   `'four-wheel'`; `addCartDemand`, `addExpeditionDemand`; 1. 11. `closeCartYear` → `lastYear`

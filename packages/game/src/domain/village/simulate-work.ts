@@ -263,8 +263,11 @@ export function work(
   obstacles: ObstacleLayer | null,
   coverage: CraftCoverage,
   landscape: Landscape | null,
-  neededWaiting = false,
+  waiting: ReadonlySet<Crop> = new Set(),
 ): { toil: boolean; lordField: number } {
+  // nutné díly čekají na čelo práce (`seasonDay`) – nové díly nad potřebu nezačnou, spřežení
+  // jejich plodiny zůstane na poli
+  const neededWaiting = waiting.size > 0;
   const month = dateOfDayIndex(day).month;
   // starší hospodářský rok s pletím ozimu – ozim se neplete; pletí jaře, luštěnin a lnu ze
   // starších sazeb na nové (fields.md – Pletí jednou a rychle)
@@ -783,7 +786,7 @@ export function work(
   );
   if (extraMow > EPSILON) mow(state, extraMow);
   // večer: spřežení, které dnes vyjelo a oralo, je u bloku; po zorání okna zpět do ohrady
-  settlePloughTeams(state, day, travels, teamsCap <= EPSILON);
+  settlePloughTeams(state, day, travels, teamsCap <= EPSILON, waiting);
   const supply: SmithSupply = {
     fetch: fetchPlans,
     burners,

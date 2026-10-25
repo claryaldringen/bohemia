@@ -40,7 +40,7 @@ import { seasonCrops, ploughToHoe } from './year-plan';
 // voli se sdílí – orba a svoz se nepřekrývají. Kolik volů ves chce, rozhoduje draft.ts; výcvik
 // začne sám, když jich ves chce víc, než má, a je pro ně místo. Přes zimu voli žerou seno – když
 // chybí přes polovinu, část uhyne; když chybí méně, slabí voli orají na jaře pomaleji. Ves, která
-// orá, nekope (oxen.md – Jen rádlo); přijde-li o poslední pár s rádlem, letošní plán dokončí motyka.
+// orá, nekope (oxen.md – Jen rádlo); přijde-li o poslední pár s rádlem, letošní práci plodin dokončí motyka.
 
 /**
  * oxen.md – Ohrada: 40 člověkodní a 6 stromů (kůly, přístřešek) na čtverec ohrady. Plot podle
@@ -243,10 +243,11 @@ export function oxAgeYears(ox: Pick<Ox, 'trainedDay'>, day: number): number | nu
 }
 
 /**
- * Letošní plán, který oraly páry volů, dokončí motyka – ves už žádný pár s rádlem nemá (mutuje
- * stav; oxen.md – Jen rádlo). Jen letos: plán k 1. 9. už vznikne bez orby.
+ * Letošní práci plodin, které oraly páry volů – nutných i nad potřebu –, dokončí motyka: ves už
+ * žádný pár s rádlem nemá (mutuje stav; oxen.md – Jen rádlo). Díly, které přibudou potom, kope
+ * motyka (plodina bez orby).
  */
-function finishPlanByHoe(state: VillageState, day: number, toolCoverage: number): void {
+function finishSeasonByHoe(state: VillageState, day: number, toolCoverage: number): void {
   if (!state.season || ableTeams(state, day) > 0) return;
   const crops = seasonCrops(state.season);
   if (!crops.some(({ work }) => work.plough)) return;
@@ -339,7 +340,7 @@ export function looseOxenDay(state: VillageState, day: number): ChronicleEvent[]
  * 1. 3. (konec zimy) rozhodne pokrytí sena: pod polovinu část volů uhyne – tolik, aby ostatní měli
  * polovinu přídělu, nejdřív nejmladší (`ox-died`); přeživší i voli při pokrytí do 1 orají na jaře
  * jen podílem kapacity podle pokrytí (`Ox.weak`). Když ves přijde o poslední pár s rádlem, letošní
- * plán dokončí motyka (`finishPlanByHoe`). Vrátí události kroniky.
+ * práci plodin dokončí motyka (`finishSeasonByHoe`). Vrátí události kroniky.
  */
 export function penDay(
   state: VillageState,
@@ -349,7 +350,7 @@ export function penDay(
 ): ChronicleEvent[] {
   const pens = oxPens(state);
   if (pens.length === 0 || villageOxen(state) === 0) {
-    finishPlanByHoe(state, day, toolCoverage);
+    finishSeasonByHoe(state, day, toolCoverage);
     return [];
   }
   const events: ChronicleEvent[] = [];
@@ -365,7 +366,7 @@ export function penDay(
     const ready = oxen.filter((ox) => ox.trainedDay === day).length;
     if (ready > 0) events.push({ day, kind: 'team-ready', penId: pen.id, oxen: ready });
   }
-  finishPlanByHoe(state, day, toolCoverage);
+  finishSeasonByHoe(state, day, toolCoverage);
   return events;
 }
 

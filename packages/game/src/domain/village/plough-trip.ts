@@ -1,6 +1,6 @@
 import { dateOfDayIndex } from '../calendar';
 import type { Landscape, ObstacleLayer } from '../landscape';
-import { taskPosition, taskSpans } from './field-progress';
+import { startedPartIds, taskPosition, taskSpans } from './field-progress';
 import { partWalkDistance } from './fields';
 import { bandLengthM, bandPartWeight, furrowEfficiency, ploughLayout } from './plough-blocks';
 import { roadCapsules, roadFreeRuns, type RoadCapsule } from './paths/road-land';
@@ -8,7 +8,7 @@ import { villageCartRoutes } from './paths/roads';
 import { TEAM_TRAVEL } from './rules';
 import { fieldGridOf } from './squares';
 import { rotationCosSin, squareCenter } from './square-grid';
-import type { CropWork, FieldPart, PloughBand, PloughWork, VillageState } from './types';
+import type { Crop, CropWork, FieldPart, PloughBand, PloughWork, VillageState } from './types';
 import { cropTaskWindows, cropTaskRemaining, seasonCrops, windowEndOf } from './year-plan';
 
 // Výkon spřežení za den (oxen.md – Co nejdelší brázda): kromě sazby orby ho ubírají obraty na
@@ -38,6 +38,46 @@ export function ploughFrontBand(
   const front = taskSpans(work, partsById, 'plough', day).find((s) => s.end > position + 1e-9);
   if (!front) return null;
   return bands.find((band) => band.partIds.includes(front.id)) ?? null;
+}
+
+/**
+ * Pásy nezačatých dílů rozvrhne znovu (oxen.md – Co nejdelší brázda; fields.md – Osevní postup po
+ * dílech; mutuje `work`): díly přibývají po dávkách (čelo práce), dávka s vlastními bloky by
+ * brázdu zkrátila. Pásy za posledním pásem, na kterém začala některá úloha (i vracení přílohu),
+ * se s přidanou dávkou rozvrhnou spolu (`ploughLayout`) – hotová práce, čelo i rozpracovaný pás
+ * zůstanou, nové bloky dostanou čísla za všemi dosavadními (spřežení k nim jede jako k dalšímu
+ * bloku). Volat po přidání dávky (`addToCropWork`).
+ */
+export function relayUntouchedBands(
+  work: CropWork,
+  partsById: ReadonlyMap<number, FieldPart>,
+  day: number,
+): void {
+  const plough = work.plough;
+  const bands = plough?.bands;
+  if (!plough || !bands || bands.length < 2) return;
+  const started = startedPartIds(work, partsById, day);
+  let cut = -1;
+  bands.forEach((band, i) => {
+    if (band.partIds.some((id) => started.has(id))) cut = i;
+  });
+  const tail = bands.slice(cut + 1);
+  if (tail.length < 2) return;
+  const tailIds = new Set(tail.flatMap((band) => band.partIds));
+  const parts = [...tailIds].flatMap((id) => {
+    const part = partsById.get(id);
+    return part ? [part] : [];
+  });
+  if (parts.length !== tailIds.size) return;
+  const layout = ploughLayout(parts);
+  const next = bands.reduce((max, band) => Math.max(max, band.block + 1), 0);
+  plough.bands = [
+    ...bands.slice(0, cut + 1),
+    ...layout.bands.map((band) => ({ ...band, block: band.block + next })),
+  ];
+  const order = layout.order.map((p) => p.id);
+  plough.partIds = [...plough.partIds.filter((id) => !tailIds.has(id)), ...order];
+  work.partIds = [...work.partIds.filter((id) => !tailIds.has(id)), ...order];
 }
 
 /**
@@ -263,13 +303,15 @@ export function ploughDayFactor(
  * Večer dne (oxen.md – Spřežení zůstane na poli; mutuje `PloughWork.trip`): spřežení plodiny,
  * které dnes vyjelo nebo se přesunulo a oralo, je u nového bloku; spřežení na poli se vrátí do
  * ohrady, když je zoráno vše, co okno potřebuje, okno zítra už neběží nebo ves páry s rádlem
- * nemá (`noTeams`). Dny bez orby zůstává na poli.
+ * nemá (`noTeams`). Dny bez orby zůstává na poli – i když má plodina zoráno, ale nutné díly
+ * plodiny čekají na čelo práce (`waiting` – přibudou, až lidé dosejí; Martin 24. 10. 2026).
  */
 export function settlePloughTeams(
   state: VillageState,
   day: number,
   travels: PloughTravels,
   noTeams: boolean,
+  waiting: ReadonlySet<Crop> = new Set(),
 ): void {
   if (!state.season) return;
   const tomorrow = dateOfDayIndex(day + 1).month;
@@ -282,9 +324,10 @@ export function settlePloughTeams(
       plough.trip = { block, costM, arrived: { day, from } };
     }
     if (!afield(plough)) continue;
+    const more = !work.surplus && waiting.has(crop);
     if (
       noTeams ||
-      cropTaskRemaining(work, 'plough') <= EPS ||
+      (cropTaskRemaining(work, 'plough') <= EPS && !more) ||
       windowEndOf(cropTaskWindows(crop, 'plough'), tomorrow) === null
     ) {
       plough.trip!.home = day;
