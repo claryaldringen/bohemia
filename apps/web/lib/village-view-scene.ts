@@ -129,7 +129,7 @@ export function sceneVillage(
       },
     ];
   });
-  const looks = fieldPartLooks(state, day);
+  const looks = fieldPartLooks(state, day, true);
   // len kvete v červnu (fields.md – Len)
   const flaxBloom = dateOfDayIndex(day).month === FLAX_BLOOM_MONTH;
   // kam stáda dojdou – jen ves se skutečnými stády (bez nich scéna stáda odvodí z domácností)

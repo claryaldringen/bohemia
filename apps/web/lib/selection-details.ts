@@ -977,7 +977,7 @@ function selectionKinds(
     turn: (['winter', 'spring'] as const).flatMap((crop) => {
       const count = field.turn[crop];
       const surplus = field.turn.surplus[crop];
-      return count > 0 || surplus > 0 ? [{ crop, count, surplus }] : [];
+      return count > 0 ? [{ crop, count, surplus }] : [];
     }),
     resting: field.turn.resting,
     ashParts: field.ashParts,

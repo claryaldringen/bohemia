@@ -92,6 +92,13 @@ describe('partRotation – co poroste příště', () => {
     expect(second.get(3)).toMatchObject({ next: 'fallow', round: 2 });
   });
 
+  it('první osev jaří zasetý na jaře: příště ozim, ne jař (setí až od 1. 9.)', () => {
+    const day = at(600, 4, 10);
+    const a = part(1);
+    const shown = partRotation(village([a], seasonWith([a], 'spring', day, 1)), day);
+    expect(shown.get(1)).toEqual({ next: 'winter', round: 1 });
+  });
+
   it('díl letošní práce nad potřebu', () => {
     const day = at(600, 9, 5);
     const a = part(1);
@@ -107,11 +114,11 @@ describe('partRotation – co poroste příště', () => {
 
 describe('fieldPartLooks – strniště po prvním osevu', () => {
   it('díl na řadě po ozimu či jaři vypadá jako strniště, nový hotový díl jako rozrytý drn', () => {
-    const looks = fieldPartLooks(
-      village([part(1, { next: 'spring', sownYears: 1 }), part(2)]),
-      at(600, 9, 5),
-    );
+    const state = village([part(1, { next: 'spring', sownYears: 1 }), part(2)]);
+    const looks = fieldPartLooks(state, at(600, 9, 5), true);
     expect(looks.get(1)).toEqual({ look: 'stubble' });
     expect(looks.get(2)).toEqual({ look: 'bare' });
+    // simulace (chůze, vozy, pastva) bere skutečný stav dílu – strniště jen pro scénu
+    expect(fieldPartLooks(state, at(600, 9, 5)).get(1)).toEqual({ look: 'bare' });
   });
 });

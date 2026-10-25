@@ -75,24 +75,26 @@ export function partRotation(
   yearWork: ReadonlyMap<number, PartYearWork> = partYearWork(state, day),
 ): Map<number, PartRotation> {
   const result = new Map<number, PartRotation>();
-  const crops = new Map<SowingKind, 'winter' | 'spring'>();
-  const cropOf = (kind: SowingKind): 'winter' | 'spring' => {
-    const known = crops.get(kind);
+  const crops = new Map<string, 'winter' | 'spring'>();
+  const cropOf = (kind: SowingKind, from: number): 'winter' | 'spring' => {
+    const key = `${kind}:${from}`;
+    const known = crops.get(key);
     if (known) return known;
-    const crop = cropFrom(kind, day);
-    crops.set(kind, crop);
+    const crop = cropFrom(kind, from);
+    crops.set(key, crop);
     return crop;
   };
   // díl, který čeká (hotový, po prvním osevu, příloh): na řadě s obilím, nebo úhor
-  const waiting = (part: FieldPart, extraYears: number): PartRotation => {
+  // `from` – od kdy se obilí hledá (zasetý díl až od začátku dalšího hospodářského roku)
+  const waiting = (part: FieldPart, extraYears: number, from: number): PartRotation => {
     const kind = nextSowing(part);
-    if (kind !== null && onTurn(kind)) return { next: cropOf(kind) };
+    if (kind !== null && onTurn(kind)) return { next: cropOf(kind, from) };
     return { next: 'fallow', rest: restOf(part, extraYears) };
   };
   for (const part of state.parts) {
     if (part.state === 'founding') continue;
     if (part.state !== 'sown') {
-      const shown = waiting(part, 0);
+      const shown = waiting(part, 0, day);
       result.set(part.id, shown.next === 'fallow' ? shown : { ...shown, onTurn: true });
       continue;
     }
@@ -107,7 +109,12 @@ export function partRotation(
     // zaseto: co přijde po sezóně – postup na kopii dílu (stav se nemění)
     const after = { ...part };
     rotateAfterSeason(after, seasonEndAfter(day));
-    result.set(part.id, { ...waiting(after, 1), ...round, ...surplus });
+    // setí po sezóně proběhne až od 1. 9., ne dnes (jař v březnu by jinak ukázala jař místo ozimu)
+    result.set(part.id, {
+      ...waiting(after, 1, Math.max(day, seasonEndAfter(day))),
+      ...round,
+      ...surplus,
+    });
   }
   return result;
 }

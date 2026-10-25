@@ -588,7 +588,11 @@ export function partYearWork(state: VillageState, day: number): Map<number, Part
  * příloh, zarůstající příloh (křoviny, mladý les) a louka na seno podle seče.
  * Podíl práce je po dvacetinách (začatá práce aspoň jedna dvacetina).
  */
-export function fieldPartLooks(state: VillageState, day: number): Map<number, PartView> {
+export function fieldPartLooks(
+  state: VillageState,
+  day: number,
+  sceneOnly = false,
+): Map<number, PartView> {
   const views = new Map<number, PartView>();
   const partsById = new Map(state.parts.map((p) => [p.id, p]));
   const mown = mownShares(state, partsById);
@@ -602,9 +606,10 @@ export function fieldPartLooks(state: VillageState, day: number): Map<number, Pa
       const work = part.foundingCost > 0 ? part.foundingDone / part.foundingCost : 0;
       // louku zakládanou rádlem jen vyklízí od překážek – drn zůstane do orby (oxen.md – Jen rádlo)
       views.set(part.id, { look: part.sod ? 'pasture' : 'bare', work: Math.min(1, work) });
-    } else if (part.state === 'ready' && part.next !== undefined && !part.sod) {
-      // díl po prvním osevu oběhu čeká na řadě – strniště do podzimní práce (fields.md – Osevní
-      // postup po dílech, bod 6)
+    } else if (sceneOnly && part.state === 'ready' && part.next !== undefined && !part.sod) {
+      // jen pro scénu (`sceneOnly`): díl po prvním osevu oběhu čeká na řadě – strniště do podzimní
+      // práce (fields.md – Osevní postup po dílech, bod 6); chůze, vozy a pastva (simulace) berou
+      // skutečný stav dílu, takže vzhled strniště je nemění
       views.set(part.id, { look: 'stubble' });
     } else if (part.state === 'ready' || part.state === 'sown') {
       views.set(part.id, { look: part.sod ? 'pasture' : 'bare' });
