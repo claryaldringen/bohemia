@@ -91,6 +91,7 @@ const view = {
       overcrowded: false,
       condition: 0.8,
       ages: [27, 26, 15, 3],
+      residents: [],
       ageYears: 2,
       relocation: null,
       relocationBlock: null,
@@ -105,6 +106,7 @@ const view = {
       overcrowded: false,
       condition: 1,
       ages: [24, 22],
+      residents: [],
       ageYears: 1,
       // kovářova domácnost si staví nový dům (stavba 9 – migration.md)
       relocation: { constructionId: 9, type: 'polozemnice', progress: 0.4, treesToFell: 5 },
@@ -296,6 +298,7 @@ describe('selectionDetails', () => {
       occupants: 4,
       capacity: 6,
       ages: [27, 26, 15, 3],
+      residents: [],
       condition: 0.8,
       ageYears: 2,
       full: false,

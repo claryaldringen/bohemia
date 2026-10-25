@@ -21,6 +21,18 @@ export function personPortrait(person: { age: number; sex: string }): PersonPort
   return person.sex === 'female' ? 'woman' : 'man';
 }
 
+/**
+ * Obyvatel obydlí pro panel (Martin 25. 10. 2026: počty rodiny a řádek obyvatel se duplikovaly):
+ * portrét, role, věk a u muže rodu jméno (lord.md – Kde se jméno ukazuje).
+ */
+export interface DwellingResident {
+  id: number;
+  portrait: PersonPortraitIcon;
+  role: string;
+  name?: string;
+  age: number;
+}
+
 /** Dovednosti se zbraní a na koni celými čísly 0–100 (lord.md – Dovednosti). */
 export interface ArmsView {
   bow: number;
