@@ -11,6 +11,7 @@ import {
   withRoadsRebuilt,
   withRoadsRebuiltSteps,
 } from '../paths/roads-rebuild';
+import { withRoadsRepaired, withRoadsRepairedSteps } from '../paths/roads-repair';
 import { routeLine } from '../paths/routes';
 import { pathCellM } from '../paths/terrain';
 import { refreshWalkDistances } from '../paths/village';
@@ -24,6 +25,8 @@ import {
   wagonPlanInputOf,
   wagonRoadsDay,
 } from '../wagon-road';
+import { nearStretches } from '../wagon-rebuild';
+import { ROAD_REBUILD } from '../rules';
 import { village } from './abandonment-fixtures';
 import { LANDSCAPE } from './paths-fixtures';
 
@@ -52,6 +55,7 @@ function oldVillage(): { state: VillageState; improved: RoadPoint[] } {
   s.lastDay = START;
   const roads = emptyRoads(START);
   delete roads.rebuilt;
+  delete roads.repaired;
   roads.nextId = 100;
   s.roads = roads;
   refreshWalkDistances(s, START, LANDSCAPE, null);
@@ -373,4 +377,79 @@ describe('rebuildRoads – vozové cesty (R2, Martin 24. 10. 2026 – varianta A
     expect(whole.roads!.roads.some((r) => r.grade === 'wagon' && !r.abandoned)).toBe(true);
     expect(dangling(whole)).toEqual([]);
   }, 240_000);
+});
+
+describe('withRoadsRepaired – jednorázová oprava sítě (Martin 25. 10. 2026)', () => {
+  function rebuiltVillage(): VillageState {
+    const { state } = oldVillage();
+    state.roads!.v2 = true;
+    return withRoadsRebuilt(state, LANDSCAPE, null);
+  }
+
+  it('příznak jednou a idempotentně, po krocích = najednou, nová ves ho má od začátku', () => {
+    const rebuilt = rebuiltVillage();
+    const before = JSON.stringify(rebuilt);
+    const once = withRoadsRepaired(rebuilt, LANDSCAPE, null);
+    expect(JSON.stringify(rebuilt)).toBe(before);
+    expect(once.roads!.repaired).toBe(1);
+    expect(once.roads!.repairFailed).toBeUndefined();
+    expect(withRoadsRepaired(once, LANDSCAPE, null)).toBe(once);
+    const steps = withRoadsRepairedSteps(rebuiltVillage(), LANDSCAPE, null);
+    let step = steps.next();
+    let yields = 0;
+    while (!step.done) {
+      yields++;
+      step = steps.next();
+    }
+    expect(yields).toBeGreaterThan(1);
+    expect(JSON.stringify(step.value)).toBe(JSON.stringify(once));
+    expect(emptyRoads(START).repaired).toBe(1);
+    // ves bez přestavby se neopravuje (přestavba přijde napřed)
+    const plain = oldVillage().state;
+    expect(withRoadsRepaired(plain, LANDSCAPE, null)).toBe(plain);
+  }, 120_000);
+
+  it('chyba v opravě ves nezablokuje – zůstane jako dřív, s příznakem', () => {
+    const rebuilt = rebuiltVillage();
+    rebuilt.routes!.list[0]!.steps = '!';
+    const next = withRoadsRepaired(rebuilt, LANDSCAPE, null);
+    const expected = cloneState(rebuilt);
+    expected.roads!.repaired = 1;
+    expected.roads!.repairFailed = 1;
+    expect(JSON.stringify(next)).toBe(JSON.stringify(expected));
+    expect(withRoadsRepaired(next, LANDSCAPE, null)).toBe(next);
+  }, 120_000);
+
+  it('dopočet po opravě po kouscích = vcelku', () => {
+    const repaired = withRoadsRepaired(rebuiltVillage(), LANDSCAPE, null);
+    const to = START + 40;
+    const whole = advanceVillage(cloneState(repaired), to, null, LANDSCAPE);
+    const pieces = advanceVillage(
+      advanceVillage(cloneState(repaired), START + 13, null, LANDSCAPE),
+      to,
+      null,
+      LANDSCAPE,
+    );
+    expect(JSON.stringify(pieces)).toBe(JSON.stringify(whole));
+  }, 120_000);
+});
+
+describe('nearStretches – kus řetězu u staré vozové osy (návrh Clauda 25. 10. 2026)', () => {
+  it('kus delší než wagonPatchM se najde i v řetězu s podílem pod 60 %, kratší ne', () => {
+    // řetěz 300 m po ose x; stará vozová osa vede u něj jen v x ∈ [100, 190] (30 %)
+    const axis = [
+      { x: 0, z: 0 },
+      { x: 300, z: 0 },
+    ];
+    const near = (x: number, z: number): number =>
+      x >= 100 && x <= 190 ? Math.abs(z) : 50 + Math.abs(z);
+    const stretches = nearStretches(axis, near, ROAD_REBUILD.wagonPatchM);
+    expect(stretches).toHaveLength(1);
+    expect(stretches[0]![0]).toBeCloseTo(100, 0);
+    expect(stretches[0]![1]).toBeCloseTo(190, 0);
+    // 50 m u osy – kratší než wagonPatchM, zůstane upravený
+    const short = (x: number, z: number): number =>
+      x >= 100 && x <= 150 ? Math.abs(z) : 50 + Math.abs(z);
+    expect(nearStretches(axis, short, ROAD_REBUILD.wagonPatchM)).toEqual([]);
+  });
 });

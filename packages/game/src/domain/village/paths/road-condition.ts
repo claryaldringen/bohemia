@@ -3,18 +3,19 @@
 // celými čísly (setiny cest za den × dny) po týchž intervalech jako vyšlapanost.
 
 import { length2 } from '../../landscape';
-import { ROADS, ROAD_ANCHORS, ROAD_DECAY } from '../rules';
+import { ROADS, ROAD_ANCHORS, ROAD_DECAY, ROAD_TRAFFIC } from '../rules';
 import {
   type Construction,
   type Road,
   type RoadConditionPiece,
   type RoadPoint,
+  type StoredRoute,
   type Trail,
   type VillageRoads,
   type VillageState,
 } from '../types';
 import { MEASURE_STEP_M, axisSlice, lengthsAlong, resample } from './roads-geometry';
-import { type TrafficField, trafficAt } from './wear';
+import { routeCells } from './routes';
 
 /** Kolik dní má rok ve stavu cest (jako herní rok). */
 const DAYS_PER_YEAR = 365.25;
@@ -74,10 +75,74 @@ export function conditionOf(
   return c;
 }
 
-/** Provoz kusu osy (setiny cest za den): medián provozního pole po MEASURE_STEP_M. */
-function pieceTraffic(axis: readonly RoadPoint[], field: TrafficField): number {
+/**
+ * Provoz po cestě v bodě osy (setiny cest za den): součet cest za den tras, které šly po cestě –
+ * mají buňku do `ROAD_TRAFFIC.bandM` od bodu (paths.md – Zarůstání, Provoz po cestě).
+ */
+export type RoadTraffic = (x: number, z: number) => number;
+
+/** Bez provozu. */
+export const NO_ROAD_TRAFFIC: RoadTraffic = () => 0;
+
+/** Klíč buňky mřížky chodců (celá čísla buněk světa – `routeCells`). */
+function cellKey(i: number, j: number): number {
+  return (i + 32768) * 65536 + (j + 32768);
+}
+
+/** Index tras po buňkách posledních sad tras (podle pole tras – dopočet je střídá jen málo). */
+const ROAD_TRAFFIC_CACHE = new WeakMap<
+  readonly StoredRoute[],
+  { cellM: number; at: RoadTraffic }
+>();
+
+/**
+ * Provoz po cestě ze sady tras (paths.md – Zarůstání, Martin 25. 10. 2026: „proč by lidé chodili
+ * kousek vedle, když tam je cesta?“): trasa nese provoz bodu osy jen, když jí vede – prošla pásem
+ * úseku v mřížce chodců: některá její buňka (`routeCells`) je do `ROAD_TRAFFIC.bandCells` buňky od
+ * bodu (jako `roadBandCells`); každá trasa jednou.
+ * Žádné sousední políčko provozního pole (to je pro vznik cest – vyšlapanost). Nic nemění.
+ */
+export function trafficOnRoads(routes: readonly StoredRoute[], cellM: number): RoadTraffic {
+  const cached = ROAD_TRAFFIC_CACHE.get(routes);
+  if (cached && cached.cellM === cellM) return cached.at;
+  const cells = new Map<number, number[]>();
+  routes.forEach((route, k) => {
+    if (route.trips <= 0) return;
+    for (const [i, j] of routeCells(route)) {
+      const key = cellKey(i, j);
+      const list = cells.get(key);
+      if (!list) cells.set(key, [k]);
+      else if (list[list.length - 1] !== k) list.push(k);
+    }
+  });
+  const band = ROAD_TRAFFIC.bandCells;
+  const at: RoadTraffic = (x, z) => {
+    // pás jako `roadBandCells`: buňky do `bandCells` buňky od bodu osy
+    const fi = x / cellM;
+    const fj = z / cellM;
+    const seen = new Set<number>();
+    let sum = 0;
+    for (let i = Math.ceil(fi - band); i <= Math.floor(fi + band); i++) {
+      for (let j = Math.ceil(fj - band); j <= Math.floor(fj + band); j++) {
+        const list = cells.get(cellKey(i, j));
+        if (!list || (i - fi) * (i - fi) + (j - fj) * (j - fj) > band * band) continue;
+        for (const k of list) {
+          if (seen.has(k)) continue;
+          seen.add(k);
+          sum += routes[k]!.trips;
+        }
+      }
+    }
+    return sum;
+  };
+  ROAD_TRAFFIC_CACHE.set(routes, { cellM, at });
+  return at;
+}
+
+/** Provoz kusu osy (setiny cest za den): medián provozu po cestě (`RoadTraffic`) po MEASURE_STEP_M. */
+function pieceTraffic(axis: readonly RoadPoint[], traffic: RoadTraffic): number {
   const values = resample(axis, null, MEASURE_STEP_M)
-    .points.map((p) => trafficAt(field, p.x, p.z))
+    .points.map((p) => traffic(p.x, p.z))
     .sort((a, b) => a - b);
   return values.length === 0 ? 0 : values[Math.floor(values.length / 2)]!;
 }
@@ -102,7 +167,7 @@ function endsAtEntrance(road: Road, entrances: readonly RoadPoint[]): boolean {
 export function liveRoadEnd(
   road: Road,
   atStart: boolean,
-  field: TrafficField,
+  traffic: RoadTraffic,
   entrances: readonly RoadPoint[],
   frozen: ReadonlySet<number>,
 ): boolean {
@@ -113,7 +178,7 @@ export function liveRoadEnd(
   const pieces = roadPieces(road.points);
   const piece = atStart ? pieces[0] : pieces[pieces.length - 1];
   if (!piece) return false;
-  return pieceTraffic(axisSlice(road.points, piece.from, piece.to), field) >= keep;
+  return pieceTraffic(axisSlice(road.points, piece.from, piece.to), traffic) >= keep;
 }
 
 /** Úseky, které se nemění: ve vylepšení (stavby `road`) a zemské stezky (nezarůstají). */
@@ -130,7 +195,8 @@ export function fixedRoadIds(
 /**
  * Stav cest za dny `from`–`to` (mutuje; paths.md – Zarůstání, Martin 23. 10. 2026): každý kus osy
  * (`roadPieces`) přičte (provoz − `keep` druhu) × dny, nejvýš do plného stavu a nejníž na nulu;
- * provoz je medián provozního pole tras po kusu (a jízdy vozů loni). Zemská stezka, cesta ve
+ * provoz je medián provozu po cestě po kusu (`trafficOnRoads` – jen trasy, které šly po ní; a jízdy
+ * vozů loni). Opuštěný úsek provoz nedostane nikdy – bledne a zmizí. Zemská stezka, cesta ve
  * vylepšení a cesta, která končí ve vchodu (`entrances` – kotvy z tras: ke stavbě se chodí),
  * nezarůstají. Uloží jen kusy pod plným stavem. Jen sčítá – kusy na nule vyřízne `cutDeadRoads`.
  */
@@ -138,7 +204,7 @@ export function settleRoadCondition(
   roads: VillageRoads,
   constructions: readonly Construction[],
   trails: readonly Trail[] | undefined,
-  field: TrafficField,
+  traffic: RoadTraffic,
   entrances: readonly RoadPoint[],
   from: number,
   to: number,
@@ -152,20 +218,54 @@ export function settleRoadCondition(
     const { keep } = decayOf(road);
     // opuštěná cesta u vchodu se nedrží – po ní nikdo nechodí, časem zmizí
     const held = !road.abandoned && endsAtEntrance(road, entrances);
-    const cart = Math.round((road.cartTraffic?.[road.cartTraffic.length - 1] ?? 0) * 100);
+    // opuštěný úsek provoz nedostane (paths.md – Zarůstání, Martin 25. 10. 2026)
+    const cart = road.abandoned
+      ? 0
+      : Math.round((road.cartTraffic?.[road.cartTraffic.length - 1] ?? 0) * 100);
     const old = road.condition ?? [];
     const next: RoadConditionPiece[] = [];
     for (const piece of roadPieces(road.points)) {
       const before = conditionOf(old, piece, full);
-      const traffic = held
+      const on = held
         ? keep
-        : Math.max(pieceTraffic(axisSlice(road.points, piece.from, piece.to), field), cart);
-      const c = Math.max(0, Math.min(full, before + (traffic - keep) * days));
+        : road.abandoned
+          ? 0
+          : Math.max(pieceTraffic(axisSlice(road.points, piece.from, piece.to), traffic), cart);
+      const c = Math.max(0, Math.min(full, before + (on - keep) * days));
       if (c < full) next.push({ x: piece.x, z: piece.z, c });
     }
     if (next.length > 0) road.condition = next;
     else delete road.condition;
   }
+}
+
+/**
+ * Opuštěný kus pod hotovou stavbou zmizí do roka (`ROAD_TRAFFIC.underBuildingDays`; paths.md –
+ * Stavba přes cestu, návrh Clauda 25. 10. 2026; mutuje): kusy osy pod stavbou (`under` – osa kusu
+ * vede neprůchodnou plochou) mají stav nejvýš udržovací práh × ty dny. Jen snižuje – opakovaně
+ * beze změny. Vrátí, jestli něco snížil.
+ */
+export function capUnderBuilding(
+  road: Road,
+  under: (axis: readonly RoadPoint[]) => boolean,
+): boolean {
+  if (!road.abandoned || road.points.length < 2) return false;
+  const { keep } = decayOf(road);
+  const full = roadFullCondition(road);
+  const cap = keep * ROAD_TRAFFIC.underBuildingDays;
+  if (cap >= full) return false;
+  const old = road.condition ?? [];
+  let changed = false;
+  const next: RoadConditionPiece[] = [];
+  for (const piece of roadPieces(road.points)) {
+    const before = conditionOf(old, piece, full);
+    const c = under(axisSlice(road.points, piece.from, piece.to)) ? Math.min(before, cap) : before;
+    if (c !== before) changed = true;
+    if (c < full) next.push({ x: piece.x, z: piece.z, c });
+  }
+  if (!changed) return false;
+  road.condition = next;
+  return true;
 }
 
 /**

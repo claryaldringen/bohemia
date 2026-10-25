@@ -1,7 +1,7 @@
 import type { Landscape, ObstacleLayer } from '../../landscape';
 import { cloneState } from '../clone';
 import { obstacleChangesAt } from '../obstacles';
-import { ROAD_LAND, ROAD_REBUILD, ROAD_TREES, WEAR } from '../rules';
+import { ROAD_JOIN, ROAD_LAND, ROAD_REBUILD, ROAD_TREES, WEAR } from '../rules';
 import { villageManor } from '../manor';
 import { type OldWagonRoads, type WagonRebuild, rebuildWagonRoads } from '../wagon-rebuild';
 import { trailAxisRoads, trailStart } from '../trail-axis';
@@ -340,8 +340,9 @@ function transferUpgrades(
  * Kusy starých os (`axes` – úseky hotových stezek, staré vozové cesty), kam nová síť nedosáhla (dál
  * než `ROAD_REBUILD.nearM` – typicky k okraji mapy, kudy se skoro nechodí), se vrátí jako úseky
  * téhož stupně napojené na síť (mutuje) – stezka tak dál vede od dvorce ke kraji mapy. Kus vozové
- * cesty se vrátí upravený (vozová se po něm přepočítá – R2). Kus kratší než `minM` (a než
- * `ROAD_REBUILD.nearM`) se nevrací.
+ * cesty se vrátí upravený (vozová se po něm přepočítá – R2). Konce se napojí na síť do
+ * `ROAD_JOIN.gapM` (jako díra v úklidu). Kus kratší než `minM` (a než `ROAD_REBUILD.nearM`) se
+ * nevrací.
  */
 function patchAxes(
   roads: VillageRoads,
@@ -374,7 +375,10 @@ function patchAxes(
         Math.max(0, a - ROAD_REBUILD.nearM),
         Math.min(length, b + ROAD_REBUILD.nearM),
       );
-      const road = formRoad(roads, points, reach, reach, day, () => 0, context, reach);
+      // napojí se do ROAD_JOIN.gapM jako díra v úklidu – vrácený kus nezůstane sám v prostoru
+      // (Vlkov: vozová k severnímu okraji končila 6,2 m od cesty u hřbitova)
+      const join = ROAD_JOIN.gapM;
+      const road = formRoad(roads, points, join, join, day, () => 0, context, reach);
       if (!road) continue;
       // kus hotové vozové cesty se vrátí upravený – vozová se po nové ose přepočítá (R2)
       road.grade = old.grade === 'wagon' ? 'improved' : old.grade;
