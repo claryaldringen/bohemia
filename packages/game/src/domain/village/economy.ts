@@ -1,5 +1,5 @@
 import { effectiveFertility, expectedNetKg, grossYieldPerHa, reclaimCostPerHa } from './fields';
-import { HAY, PLAN_HAY_KEEP } from './hay';
+import { HAY, PLAN_HAY_KEEP, mowingWorkShare, mowingYieldPerHa } from './hay';
 import { fieldWorkPerHa, hayWorkPerHa } from './productivity';
 import { FERTILITY, LEGUMES, SEED_KG_PER_HA } from './rules';
 import type { FieldPart, FieldTask, VillageState } from './types';
@@ -83,7 +83,8 @@ export function foodCosts(
   const workPerHa = hayWorkPerHa(toolCoverage);
   const meadowFactor =
     mowing && mowing.yieldKg > 0
-      ? mowing.required / ((mowing.yieldKg / HAY.yieldKgPerHa) * workPerHa)
+      ? mowing.required /
+        ((mowing.yieldKg / mowingYieldPerHa(mowing)) * workPerHa * mowingWorkShare(mowing))
       : TYPICAL_MEADOW_FACTOR;
   return {
     grainPerKg: grainWork / grainKg,

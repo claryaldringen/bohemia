@@ -59,6 +59,12 @@ true })` (práce cvičících mužů rodiny po minimu dvorce – `manorLabor.fre
   kopání, orba, setí; jen co ves dnes nestihne, vsi neuvolní práci na stavby ani osev navíc);
   podíl dne na poli pro `trainLordDay` = spotřeba ÷ `freeMen` (při hladu ÷ `free`, i ženy). Jarní úprava:
   `trimPlan` v březnu–dubnu přepočítá `lordHelp` ze zbytku plánu (`springLordHelp`).
+  **Pletí – děti** (fields.md – Pletí – děti, 25. 10. 2026): `weedingChildren` (harvest-hands.ts)
+  = věk výrostků 7–13 let mimo `lordTraineeIds` bez pasáků (`herdingDay` – `freeHerders.children`,
+  pasou nejstarší); `work()` je počítá jen v den s úlohou `weed` a dá `allocateDay` zásobník
+  `weedChildren` (× `WEEDING_CHILDREN.perDay` 0,5) jen na pletí, před `light` a prací vsi;
+  spotřeba `DayAllocation.weedChildren`. `laborDay` rozdělí podíly pletí poměrem dětí a jejich díl
+  nese `ages` (`DayWork.weedChildAges`) – scéna kreslí malé postavy (`villager-plan.ts`, `ages`).
   **Žně všemi rukama** (fields.md – Žně všemi rukama, `harvest-hands.ts`): `harvestHandsDay`
   (měsíce `HARVEST_HANDS_MONTHS` z oken žní a výmlatu `CROP_WINDOWS` – 7–9 – a v okně zbývá žeň
   plánu nebo práce snopů) je jedno místo pravdy pro `workshopLabor` (řemeslník se syny →

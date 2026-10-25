@@ -2,6 +2,47 @@
 
 Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). Pravidla a rozhodnutí: diet.md, oxen.md, wagons.md v `docs/design/`.
 
+- **Stáda podle práce na seč** (oxen.md – Stáda podle práce na seč; návrh Clauda 25. 10. 2026):
+  simulate-work.ts po úlohách dne zapíše `recordMowingLabor` (hay.ts) – postup nutné seče (s vozy)
+  a `allocation.common`, převedené na seno podle dnešní seče, do `hay.mowFree` (1. seč / otava);
+  `startMowingSeason` 25. 5., `closeMowingSeason` po 30. 9. (`isAfterMowingSeason`) →
+  `hay.mowCapacityKg` (1. seč + otava nejvýš `aftermathYieldShare` 1. seče). `farmInput`
+  (husbandry.ts) dá `mowKg` (`mowableHerdHayKg` – strop × `PLAN_HAY_KEEP` bez sena `hayOxen`
+  a koní) a `cowsComing`; `winterTargets` dělí `mowKg` jako seno v pořadí `HERD_PRIORITY`
+  a místa (`roomForWinter`) uplatní před pastvou a senem. Koupený dobytek: `hayOxen` + `oxenComing`,
+  `withCowsComing` v `mowingNeed` a `winterHayNeedKg`; otava má v seči všechny posečené louky
+  1. seče se stropem práce `HayMowing.wanted` (`mowingRemaining`, `mowingNeededRemaining`),
+     přibude-li dobytek (`hayCattle` > `HayMowing.cattle`), `raiseAftermath` strop zvedne.
+     `cattleRoom` (cattle-trade.ts) – krávy nejvýš `min(penCapacity.cow, roomForWinter(herdRoom))`.
+     Nouzová porážka `EMERGENCY_SLAUGHTER.order` prasata, kozy, ovce, krávy.
+- **Dvě seče podle stád** (oxen.md – Seno, dvě seče; Martin 25. 10. 2026, návrh Clauda schválený):
+  `HAY_CUTS` (rules-livestock.ts) – 1. seč 25. 5. – 30. 6. (`MOWING_DAY`, plán `planMowing`),
+  otava 1. 8. – 30. 9. (`AFTERMATH_DAY`, plán `planAftermath` – jen posečené louky 1. seče,
+  rozpracovaná posečenou plochou, výnos `aftermathYieldShare` 0,4, práce na ha
+  `aftermathWorkShare` 0,6). `mowingNeed` (husbandry.ts): `necessaryKg` = dnešní stádo (nejvýš
+  `wantedWinterHerds`), voli `hayOxen`, koně a čekající na porážku; `capKg` = `winterHayNeedKg`
+  × (1 + `reserve` 0,2). Plán (`mowingPlan` v hay.ts) bere louky od nejbližší do stropu bez zásoby
+  (`mowingTargets`), `needed` = práce do nutného. Otava nahradí `hay.mowing` (`cut: 2`,
+  `firstCut` – posečené díly, plocha přirozených luk a seno 1. seče: `mownPartIds`,
+  `hayPlanPartIds`, `hayPlanNaturalHa`, `seasonHayYieldKg`); bez potřeby otavy zůstane 1. seč.
+  Okno podle seče `isMowingSeason(day, cut)` / `mowingCut`. Práce (simulate-work.ts): úloha
+  `mow` jen s nutnou prací (`mowingNeededRemaining`), `end: Infinity`, `tie: 3` – za všemi
+  úlohami dne, před stavbami; **seč navíc** (`extraMow`) až po stavbách, opravách a osevu navíc,
+  pěšky, v `LaborDay` přes `DayWork.extraMow` (díl `mow`, ne `idle`). Seč bez `needed` (uložená
+  před 24. 10. 2026) je celá nutná. Výnos a práce otavy znají `economy.ts` (`mowingYieldPerHa`,
+  `mowingWorkShare`) a `land-taken.ts`. Předtím (24. 10. 2026) se plánovaly všechny louky na
+  dosah 1. 6. a seč běžela v červnu–červenci. Přednost stád `HERD_PRIORITY` (livestock.ts – krávy, ovce, kozy, prasata; voli před
+  všemi) pro pastvu a seno (`winterTargets`), pasáky (`watchedShares` po druzích)
+  i výrostky (`youngRoomTargets` nad `breedingFloor`). `sizeHerdsToNeed` stádo nezmenšuje – celé
+  stádo v nosnosti a jen plán luštěnin (`legumeKg`, `sufficient`); `keepUneatable` zrušeno, maso
+  navíc z mláďat `MEAT_ORDER` prasata, kozy, ovce, krávy. **V zimě** `hayShortSlaughter`
+  (husbandryDay před `feedHay`): seno do konce března (`hayWinterDaysLeft`, `hayLeftAvailable`)
+  po volech a koních v pořadí přednosti, chybí-li na celý kus, hned porazí celé kusy (kozy,
+  ovce, krávy) i všechny čekající (`culling`), chovný pár zůstane, maso do uzení – kronika
+  `hay-slaughter`, upozornění „Chybí seno – porazili …“. Zimní úhyn `starveHerds` zrušen (kronika
+  `herd-starved` jen ze starších vsí). Náhrada posledního páru (`oxenTraining` – `lastPair`) platí
+  i po rozpadu páru, když ves má rádlo (`villageArds`). Ves sama nekupuje ani neprodává.
+
 - **Strava a dobytek** ([diet.md](../design/diet.md)): jídlo dne `eatDiet` / `villageMeal`
   (`diet.ts`) – ovoce (jablka; v rozhraní „ovoce“) rovným dílem do zkažení 1. 3., čerstvé mléko
   a vejce, maso rovným dílem do zkažení 31. 8. (`daysUntilMeatEnd`; 1. 9. ráno se zbytek zkazí –
@@ -28,8 +69,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   **Stáda realističtěji** (diet.md, Martin 19. 10. 2026; čísla návrh Clauda podle rešerše
   `research/2026-10-19-herds-hay-meat.md`): roční ztráty `LIVESTOCK.lossPerYear` (ovce 12, kozy
   10, prasata 12, skot 6 %) po dnech (`herdLosses`, i z `young`); nosnost `winterTargets` –
-  pastva a seno podle přednosti (`GRAZING_ORDER`: voli, ovce na vlnu `minSheep`, krávy `minCows`, ovce,
-  kozy – napřed zarůstající příloh `goatBrowseHa`, zbytek krav), seno po ztrátách ve stohu
+  pastva a seno podle přednosti (`HERD_PRIORITY` od 24. 10. 2026: voli, krávy, ovce,
+  kozy – napřed zarůstající příloh `goatBrowseHa`; dřív `GRAZING_ORDER` s ovcemi na vlnu napřed), seno po ztrátách ve stohu
   (`winterHayAvailable`), prasata podle lesa celý rok, nejvýš podíl uhlídaný pasáky (`herding`);
   **místa na noc** (oxen.md – Ohrady podle druhu, diet.md – Místa na noc): `WinterInput.room` =
   `herdRoom` (pens.ts – ohrady svého druhu `penCapacity` + pár kusů u domů `homesteadRoom`) – přes
@@ -48,7 +89,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `DIET.caps`; pak do potřeby × 1,1 (`BALANCE.proteinReserve`) nejlevnější (přežvýkavci
   v pořadí, prasata a luštěniny cenou), nad 88 % (`minProteinCoverage`) jen bílkoviny levnější
   než z obilí. Týž plán `balancedPlan` (s luštěninami – zásoba luštěnin stádo
-  nezmenší) řídí seč 1. 6. (`wantedWinterHerds`), luštěniny osevu 1. 9. (`plannedLegumeKg` →
+  nezmenší) řídí seč 25. 5. a otavu 1. 8. (`wantedWinterHerds`), luštěniny osevu 1. 9. (`plannedLegumeKg` →
   `sowingTargets`) i porážku 1. 11.; zbytek i dospělé kusy na maso, ale stádo v nosnosti jen
   o tolik masa, kolik ves do 31. 8. sní pod stropem (`keepUneatable`, `meatEatableKg` – zbytek
   žije; co přeroste nosnost, jde vždy – diet.md, Chovné stádo podle potřeby); stádo pod potřebou dá na
@@ -91,7 +132,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `foundingLivestock` a seno na první zimu (`foundVillage` – `winterHayKg`). Vlna není
   zásoba – porážka zapíše podíl oděvu `LivestockState.wool` (`recordWool`, kronika `wool-short`,
   upozornění „Chybí vlna na oděv“ pod `WOOL.noticeBelow`), štěstí `HappinessFactors.wool` až −6 (`woolUnhappiness`); vsi
-  bez zápisu (dřívější) beze změny do porážky 1. 11. Práce na vlně je v `DOMESTIC` (přerozdělení). Zimní úhyn 1. 3.
+  bez zápisu (dřívější) beze změny do porážky 1. 11. Práce na vlně je v `DOMESTIC` (přerozdělení). Zimní úhyn 1. 3. (do 24. 10. 2026 – nahradila ho `hayShortSlaughter`)
   (`starveHerds` z `herdHayCoverage` – pod polovinou přídělu, chovný pár přežije, kronika
   `herd-starved`). **Pasáci** (`herding.ts`, `HERDING`): plný pasák 40 krav (i voli), 100 ovcí či
   koz, 50 prasat, výrostek 7–13 let `childShare` 40 %; **pasou jen výrostci** (`isYoungster`,

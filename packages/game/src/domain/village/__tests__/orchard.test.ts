@@ -510,7 +510,8 @@ describe('advanceVillage – sad', () => {
     const s = withOrchard(base, 400, at(570, 4, 1)); // 9 ha – sklizeň ≈ 72 člověkodní
     // zásoby přes rok spotřeby – ves podle zásob oseje menší plán (fields.md – Osev podle zásob),
     // první úsek od domu se tak vejde do podzimu a v plánu je i ozim
-    s.storesKg = 1200;
+    // (24. 10. 2026: plán luštěnin počítá celé stádo – plán osevu je jiný, zásoby 1 800 kg)
+    s.storesKg = 1800;
     // snopy se nemlátí (výmlat má v září vlastní konec okna) – test hlídá jen sad a pole
     s.sheaves = { grainKg: 0, legumesKg: 0 };
     const day = advanceVillage(s, at(601, 9, 2), null);

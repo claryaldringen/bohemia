@@ -40,7 +40,7 @@ import {
   workCrafts,
   type SmithSupply,
 } from './crafts';
-import { harvestHandsDay, harvestHelperLabor } from './harvest-hands';
+import { harvestHandsDay, harvestHelperLabor, weedingChildren } from './harvest-hands';
 import { lordApartIds, lordDayCounts, manorLabor, trainingFamily } from './lord';
 import { nextYearlyCommonLabor, repairNeedPerDay, yearlyCommonLabor } from './dwellings';
 import { animalCareNeed, dailyMilk } from './dairy';
@@ -52,7 +52,7 @@ import {
   type PloughTravels,
 } from './plough-trip';
 import { isToilDay, windowEndDay } from './happiness';
-import { MOWING_WINDOWS, mow, mowingRemaining } from './hay';
+import { mow, mowingNeededRemaining, mowingRemaining, recordMowingLabor } from './hay';
 import { herdingDay, recordHerding } from './herding';
 import { horseCareLabor, villageHorses } from './horses';
 import { villageHoldings, workOrder } from './holdings';
@@ -99,6 +99,7 @@ import {
   GRAIN_PITS,
   HARVEST_DAY,
   ORCHARD_WINDOWS,
+  WEEDING_CHILDREN,
 } from './rules';
 import type {
   CartTripLog,
@@ -320,10 +321,12 @@ export function work(
     const tie = orchard.name === ORCHARD_TASK_NAMES.harvest ? 0 : 2;
     dayTasks.push({ ...orchard, tie, rank: 0 });
   }
-  const mowing = mowingRemaining(state, day);
-  if (mowing > 0) {
-    const end = windowEndOf(MOWING_WINDOWS, month) ?? month;
-    dayTasks.push({ name: 'mow', remaining: mowing, end, tie: 2, rank: 1 });
+  // seč (oxen.md – Seno, dvě seče): nutné seno (dnešní stádo) až za všemi úlohami dne – polním
+  // pracím (pletí, žně, odnos, výmlat, orba, setí, kopání) práci nikdy nebere –, před stavbami;
+  // seč navíc pro růst stád až z práce po stavbách (níž)
+  const neededMowing = mowingNeededRemaining(state, day);
+  if (neededMowing > EPSILON) {
+    dayTasks.push({ name: 'mow', remaining: neededMowing, end: Infinity, tie: 3, rank: 1 });
   }
   // porážka a uzení – maso se musí zpracovat hned, před polními úlohami téhož měsíce (diet.md)
   const butchery = slaughterRemaining(state, day);
@@ -442,6 +445,10 @@ export function work(
     ? craftHarvestLabor(state, day, crafts, coverage.pottery, productivity) +
       harvestHelperLabor(state, day, lordApartIds(state, day), productivity, coverage.pottery)
     : 0;
+  // děti 7–13 let, které nepasou, plejí (fields.md – Pletí – děti) – jen když je co plet
+  const weeders = dayTasks.some((t) => t.name === 'weed' && t.remaining > EPSILON)
+    ? weedingChildren(state, day)
+    : [];
   const allocate = (): DayAllocation =>
     allocateDay({
       capacity: Math.max(
@@ -454,6 +461,7 @@ export function work(
       // z minima dvorce rodina nepokryje, platí ves
       lordField: manor && productivity > 0 ? manor.field / productivity : 0,
       harvestHands,
+      weedChildren: weeders.length * WEEDING_CHILDREN.perDay,
       // cvičící muži rodiny ve žňový den – za žňovými rukama vsi, jen žeň a výmlat
       lordHarvest: manor && productivity > 0 ? manor.harvest / productivity : 0,
       // pomoc rodiny s potřebným osevem – jen co ves nestihne (lord.md – Kdy jde rodina na pole)
@@ -546,6 +554,8 @@ export function work(
   // práce dne na obilných jamách – u které jámy (rozdělení práce)
   let grainPits = null as ReturnType<typeof workGrainPits>;
   let mowLabor: number | undefined;
+  // postup nutné seče dnes (s vozy víc, než na ni ves dala práce – svoz) – volná práce na seč (níž)
+  let mowWork = 0;
   const mowingBefore = state.hay?.mowing?.done ?? 0;
   dayTasks.forEach((task, i) => {
     const labor = allocation.taskAmounts[i] ?? 0;
@@ -634,7 +644,8 @@ export function work(
       threshing.ground += split.ground;
     } else if (task.name === 'mow') {
       mow(state, amount);
-      if (haul) mowLabor = labor - crew;
+      mowLabor = haul ? labor - crew : labor;
+      mowWork += amount;
     } else if (task.name === 'slaughter') {
       workSlaughter(state, amount);
     } else if (task.name === 'grain-pit') {
@@ -667,6 +678,10 @@ export function work(
     purchases.reduce((sum, p) => sum + p.manDays, 0),
   );
   const trade = workExpeditions(state, allocation.away - purchaseLabor);
+  // volná práce na seč (oxen.md – Stáda podle práce na seč): co po polních pracích zbylo – nutná
+  // seč a společná práce (stavby, opravy, osev a seč navíc, nevyužitá) – podle ní ves příští rok
+  // drží stáda
+  recordMowingLabor(state, day, mowWork + allocation.common, coverage.tools);
   let common = allocation.common;
   // kácení u stromů, kam vůz dojede, před dnešní prací – co se dnes skácí, mohly odvézt vozy
   const fellingBefore = access
@@ -731,6 +746,14 @@ export function work(
     toolCoverage: coverage.tools,
     order: () => workOrder(villageHoldings(state)),
   });
+  // seč navíc pro růst stád (oxen.md – Seno, dvě seče; Martin 19. 10. 2026: „pokud se něco staví,
+  // tak čas věnují primárně té stavbě“): jen z práce, která zbude po stavbách, opravách a osevu
+  // navíc – pěšky, bez vozů; co nestihne do konce okna, zůstane neposečené
+  const extraMow = Math.max(
+    0,
+    Math.min(afterBuild.left - extra.labor, mowingRemaining(state, day)),
+  );
+  if (extraMow > EPSILON) mow(state, extraMow);
   // večer: spřežení, které dnes vyjelo a oralo, je u bloku; po zorání okna zpět do ohrady
   settlePloughTeams(state, day, travels, teamsCap <= EPSILON);
   const supply: SmithSupply = {
@@ -821,6 +844,8 @@ export function work(
       : {}),
     fieldWork: [...fieldWork, ...extra.fieldWork],
     extraField: extra.labor,
+    ...(extraMow > EPSILON ? { extraMow } : {}),
+    ...(weeders.length > 0 ? { weedChildAges: weeders } : {}),
     repairs,
     constructions,
     workshops,
@@ -838,7 +863,9 @@ export function work(
             mowing: hayMowing,
             before: mowingBefore,
             after: hayMowing.done,
-            ...(mowLabor !== undefined ? { labor: mowLabor } : {}),
+            ...(mowLabor !== undefined || extraMow > EPSILON
+              ? { labor: (mowLabor ?? 0) + (extraMow > EPSILON ? extraMow : 0) }
+              : {}),
           },
         }
       : {}),

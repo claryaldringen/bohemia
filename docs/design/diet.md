@@ -182,6 +182,8 @@ Martin: „**Určitě doplň roční ztráty stáda.**“
 
 #### Skladba stáda
 
+**Změna (24. 10. 2026):** pořadí přednosti je **voli → krávy → ovce → kozy → prasata** pro seno, pastvu i pasáky a stáda jsou co největší ([orání rádlem](oxen.md) – Co nejvíc sena a co největší stáda; Martin: „Krávy a hlavně voli jsou životně důležití, pak jsou ovce, kozy a prasata jsou důležitá nejméně.“). Pořadí níž (ovce na vlnu napřed) platilo do té doby.
+
 Martin: „**A primárním zvířetem by měly být ovce, protože dávají všechny 3 věci – vlnu, mléko
 i maso. Kozy dávají asi o něco více mléka (nutno ověřit) a spasou i to, co ovce ne. A kráva sice
 asi dává nejvíc mléka a masa, ale také bude asi nejnáročnější na chov, nicméně je potřebujeme
@@ -296,6 +298,8 @@ Martin na otázku „Má se chovné stádo zmenšovat podle toho, kolik masa ves
 
 #### Pasáci
 
+**Změna (24. 10. 2026):** pasáci hlídají napřed krávy, pak ovce, kozy a prasata (dřív napřed ovce na vlnu, zbytek rovným podílem) – oxen.md, Co nejvíc sena a co největší stáda.
+
 Martin: „**jeden ovčák/pasák krav – zvládne kočírovat jen omezené stádo ne? Že třeba vesnice, kde
 mohou pást jen 2 malí kluci, nezvládne udržet stádo 100 krav**“.
 
@@ -333,7 +337,7 @@ není.**“ Mění dřívější pravidlo „na úhoru pasáček se zvířaty �
 jen po seči na otavě“ (18. 10. 2026). Detaily návrh Clauda:
 
 - **Pastviny – louky určené ke spásání:** přirozené louky do 600 m a příloh ve fázi louky, kromě
-  luk, které ves letos potřebuje na seno (plán seče 1. 6.; do něj loňský) – ty až po seči na
+  luk, které ves letos potřebuje na seno (plán 1. seče 25. 5.; do něj loňský) – ty až po seči na
   otavě.
 - **Mladý příloh (1–2 roky)** dá jen **třetinu píce** louky (plevel, výmladky obilí, řídký drn –
   rešerše: první roky přílohu porost teprve zapojuje); **louka letošní seče** jen **třetinu** –
@@ -362,6 +366,8 @@ jen po seči na otavě“ (18. 10. 2026). Detaily návrh Clauda:
 - Slepice kolem domů a voli nebo krávy v ohradě pasáka nepotřebují.
 
 #### Zimní krmení a zimní úhyn
+
+**Změna (24. 10. 2026, návrh Clauda, schválený Martinem):** zimní úhyn nahradila porážka – když seno během zimy nevystačí do konce března, ves hned porazí tolik koz, ovcí a krav (v tomto pořadí), aby ostatní měli celou dávku; chovný pár zůstane. Martin: „Když se v zimě zjistí, že pro krávy není krmení, tak se dají prodat nebo porazit.“ Prodává jen hráč (oxen.md – Co nejvíc sena a co největší stáda). Odstavec o úhynu níž platil do té doby.
 
 Martin: „**Nezdá se mi, že bychom sklízeli tolik sena, že by to stáda uživilo.**“
 
@@ -508,8 +514,9 @@ zásoby ≈ 3,6 t na ≈ 4,2 t potřeby do žní, jí 94 % přídělu – a při
     v létě zůstane spodní hranice i se selaty; od 1. 9. se do prasat nad hranicí počítají
     i selata (níž);
   - na jaře se stádo prasat zdvojnásobí (mláďata 1. 4.), takže se z prasnic do podzimu obnoví;
-    co prasata nad hranicí nepokryjí, porazí ves dál v pořadí (kozy, krávy nad chovné, ovce nad
-    ovce na vlnu), a když ani to nestačí, šetří přídělem. Číslo `EMERGENCY_SLAUGHTER.pigForestShare`
+    co prasata nad hranicí nepokryjí, porazí ves dál v pořadí (kozy, ovce nad ovce na vlnu,
+    krávy nad chovné – přednost stád, oxen.md, Co nejvíc sena a co největší stáda; dřív krávy před
+    ovcemi; voli nikdy), a když ani to nestačí, šetří přídělem. Číslo `EMERGENCY_SLAUGHTER.pigForestShare`
     (0,5).
 - **Selata od 1. 9.** – Martin, 19. 10. 2026: „**Ano ke všem návrhům**“ na návrh „letošní selata
   smějí od 1. 9. na nouzovou porážku“ (Náměty – Hladový podzim): maso se 1. 9. kazí, do podzimní
@@ -569,6 +576,15 @@ zásoby ≈ 3,6 t na ≈ 4,2 t potřeby do žní, jí 94 % přídělu – a při
 - **Nákazy:** výjimečný rok (dobytčí mor – Winchester 1319–1320 přišel o víc než polovinu skotu).
 
 ### Rovnovážné hospodaření (Martin, 19. 10. 2026; pravidla a čísla návrh Clauda)
+
+**Změna (24. 10. 2026, návrh Clauda, schválený Martinem):** cena jídla v práci **stádo už
+nezmenšuje** – ves chová co největší stáda, kolik uživí seno, pastva, les, pasáci a místa
+v ohradách (oxen.md – Co nejvíc sena a co největší stáda). Z rovnovážného hospodaření zůstává
+**plán luštěnin**: celé stádo v nosnosti dá bílkoviny a luštěniny dorovnají jen to, co chybí
+do potřeby s rezervou, a jen když jsou levnější než bílkoviny z obilí (nad 88 % potřeby) –
+pravidla 1 a 2 níž platí už jen pro luštěniny. Když stádo potřebu nepokryje, jdou při porážce
+na maso i letošní mláďata navíc (Chovné stádo podle potřeby) – v opačném pořadí přednosti
+(prasata, kozy, ovce, krávy).
 
 Martin: „**ok, udělej to tak, aby ves hospodařila rovnovážně. Tj. aby byla sytá, měla ± ideální
 kombinaci stravy, ale aby jí zároveň zbylo co nejvíce volného času na rozvoj.**“
@@ -681,7 +697,7 @@ práci.
   na chovný pár a ovce na vlnu by odchovávala roky.
 - **Kdy se rozhodne:** při porážce 1. 11. podle ovcí, které ves nechá přes zimu (stříž na jaře) –
   platí do další porážky (`LivestockState.wool`). Vsi uložené dřív se do první porážky nemění –
-  stáda ani štěstí; hranici ale použije už plán seče 1. 6. a luštěnin 1. 9.
+  stáda ani štěstí; hranici ale použije už plán 1. seče 25. 5. a luštěnin 1. 9.
 - **Když ovcí na vlnu není dost** (ves je neuživí – pastva, seno, pasáci –, nebo je ještě nemá):
   (Martin potvrdil 19. 10. 2026) kronika `wool-short` a krátký řádek **„Chybí vlna na oděv“** (až pod 95 % oděvu – ovce průběžně
   hynou a stádo na hranici by hlásilo drobnosti); štěstí ubere **až 6** podle chybějícího podílu

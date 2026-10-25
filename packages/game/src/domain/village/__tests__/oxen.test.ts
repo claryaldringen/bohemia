@@ -208,12 +208,27 @@ describe('ohrada', () => {
     // přímo: z 5,5 krávy při cíli 4 jen jedno tele, ze 4,6 žádné
     const t = withOxen(withTeam(day));
     t.pens![0]!.oxen = [];
+    // bez rádla – náhrada posledního páru neplatí (oxen.md – Co nejvíc sena a co největší stáda)
+    t.ards = 0;
     t.livestock!.herds.cow = 5.5;
     expect(oxenTraining(t, day, goal(2, 1, 4), null)).toEqual({ calves: 1, ards: 0 });
     trainTeamsWhenReady(t, day, null, goal(2, 1, 4));
     expect(t.livestock!.herds.cow).toBeCloseTo(4.5, 9);
     t.livestock!.herds.cow = 4.6;
     expect(oxenTraining(t, day, goal(4, 1, 4), null)).toMatch(/přírůstek/);
+  });
+
+  it('náhrada volů i po rozpadu páru – ves má rádlo, pár nemá ani necvičí (24. 10. 2026)', () => {
+    const day = at(600, 5, 1);
+    const t = withOxen(withTeam(day));
+    t.pens![0]!.oxen = [];
+    t.ards = 1;
+    // 4,6 krávy pod chovným stádem 4 + přírůstek – dřív by výcvik čekal (pár už nesloužil)
+    t.livestock!.herds.cow = 4.6;
+    expect(oxenTraining(t, day, goal(4, 1, 4), null)).toEqual({ calves: 2, ards: 0 });
+    // chovný pár krav zůstane – z 3,5 krávy jen jedno tele
+    t.livestock!.herds.cow = 3.5;
+    expect(oxenTraining(t, day, goal(4, 1, 4), null)).toEqual({ calves: 1, ards: 0 });
   });
 
   it('náhrada posledního páru k orbě má přednost před cílem krav – dokud zůstane chovný pár', () => {

@@ -1,6 +1,6 @@
-import { dateOfDayIndex, dayIndexOf, isLeapYear } from '../calendar';
+import { dateOfDayIndex } from '../calendar';
 import type { ObstacleLayer } from '../landscape';
-import { HAY, isHayWinter, oxenHayCoverage, villageHayKg } from './hay';
+import { HAY, hayWinterDaysLeft, oxenHayCoverage, villageHayKg } from './hay';
 import { butcher, ensureLivestock, LIVESTOCK } from './livestock';
 import { obstacleChangesAt, recordClearedObstacles } from './obstacles';
 import { PLOUGH_HA_PER_DAY, ploughWorkPerHa } from './plough';
@@ -469,17 +469,6 @@ export function lastingOxen(
   return n;
 }
 
-/** Dní zimního krmení od dneška do konce března včetně dneška (mimo zimu 0). */
-function hayWinterDaysLeft(day: number): number {
-  if (!isHayWinter(day)) return 0;
-  const { year, month } = dateOfDayIndex(day);
-  if (month <= 3) return dayIndexOf({ year, month: 4, day: 1 }) - day;
-  // listopad a prosinec – do Silvestra a pak leden až březen příštího roku (bez dayIndexOf za
-  // koncem světa)
-  const newYear = dayIndexOf({ year, month: 12, day: 31 }) + 1;
-  return newYear - day + 31 + (isLeapYear(year + 1) ? 29 : 28) + 31;
-}
-
 /** Rádla, která se právě vyrábějí (stavby `ard`). */
 function pendingArds(state: Pick<VillageState, 'constructions'>): number {
   return state.constructions.filter((c) => c.kind === 'ard').length;
@@ -530,8 +519,9 @@ export interface OxenGoal {
  * tolik telat, kolik chybí, kolik se jich vejde do hotových ohrad volů, kolik jich je ve stádu krav
  * nad chovnými kravami (`goal.breedingCows` – telata jen z přírůstku, stádo pod cíl neklesne; jinak
  * výcvik počká na mláďata 1. 4.) a v zimě kolik jich seno uživí do konce března. Výjimka: náhrada
- * posledního páru k orbě (ves orá, pár dosluhuje a jiný nemá ani necvičí) vezme telata, dokud zůstane
- * chovný pár krav (LIVESTOCK.breedingMin) – ať ves po dosloužení páru neorá motykou. Rádlo se vyrobí,
+ * posledního páru k orbě (ves orá nebo má rádlo, pár dosluhuje či už se rozpadl a jiný nemá ani
+ * necvičí) vezme telata, dokud zůstane chovný pár krav (LIVESTOCK.breedingMin) – ať ves po
+ * dosloužení páru neorá motykou (oxen.md – Co nejvíc sena a co největší stáda, bod 5). Rádlo se vyrobí,
  * jen když s novými voly vznikne pár k orbě, na který rádlo chybí (`goal.ploughPairs`); na rádlo
  * musí být dřevo.
  */
@@ -553,9 +543,13 @@ export function oxenTraining(
   const cows = state.livestock?.herds.cow ?? 0;
   // telata jen z přírůstku nad chovnými kravami; náhrada posledního páru k orbě (pár dosluhuje,
   // jiný ves nemá ani necvičí) má přednost – telata se pro ni vezmou, dokud zůstane chovný pár
-  // krav (návrh Clauda 20. 10. 2026 – ať ves neorá motykou)
+  // krav (návrh Clauda 20. 10. 2026 – ať ves neorá motykou); i po rozpadu páru, když ves má rádlo
+  // (návrh Clauda, schválený Martinem 24. 10. 2026)
   const lasting = lastingOxen(state, day);
-  const lastPair = goal.ploughPairs > 0 && ableTeams(state, day) > 0 && lasting < DRAFT_OXEN.ard;
+  const lastPair =
+    goal.ploughPairs > 0 &&
+    (ableTeams(state, day) > 0 || villageArds(state) > 0) &&
+    lasting < DRAFT_OXEN.ard;
   const spare = Math.floor(cows - goal.breedingCows + EPSILON);
   const urgent = lastPair
     ? Math.min(DRAFT_OXEN.ard - lasting, Math.floor(cows - LIVESTOCK.breedingMin + EPSILON))

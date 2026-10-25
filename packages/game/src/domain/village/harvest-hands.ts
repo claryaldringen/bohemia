@@ -9,7 +9,8 @@ import {
   LABOR_PER_DAY,
   type WindowSegment,
 } from './rules';
-import { herdingDay, type HerdingState } from './herding';
+import { herdingDay, isYoungster, type HerdingState } from './herding';
+import { lordTraineeIds } from './lord';
 import { householdWater } from './labor';
 import { villageOxen } from './oxen';
 import { dailyMinPerHousehold } from './productivity';
@@ -115,4 +116,23 @@ export function harvestHelperLabor(
     }
   }
   return total;
+}
+
+/**
+ * Děti při pletí (fields.md – Pletí – děti; Martin 25. 10. 2026: „Pletí se často účastnily děti.“):
+ * výrostci 7–13 let (bez cvičících synů vojvodovy rodiny), kteří dnes nepasou – pasáci mají
+ * přednost (`herdingDay`; pasou nejstarší, plejí mladší). Každé dá `WEEDING_CHILDREN.perDay`.
+ * Vrátí věk plejících dětí (roky), od nejstaršího.
+ */
+export function weedingChildren(
+  state: Pick<VillageState, 'livestock' | 'pens'> & HerdingState,
+  day: number,
+): number[] {
+  const family = lordTraineeIds(state, day);
+  const ages = state.people
+    .filter((p) => isYoungster(p, day) && !family.has(p.id))
+    .map((p) => ageYears(p.bornDay, day))
+    .sort((a, b) => b - a);
+  if (ages.length === 0) return [];
+  return ages.slice(herdingDay(state, day, villageOxen(state)).freeHerders.children);
 }

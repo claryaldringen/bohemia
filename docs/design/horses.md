@@ -79,7 +79,7 @@ stojí obilí a práci vsi hned, užitek přinese až s lovem a válkou.
   pastvy ([strava](diet.md) – Dobytek); pasou se se stády.
 - **Zima (listopad–březen):** **seno 6 kg denně** (jako vůl, ≈ 0,9 t za zimu), kůň bez obilí
   **7 kg**; hříbě v první zimě 3 kg, dál 5 kg. Seno dostanou po volech a před kravami, ovcemi
-  a kozami ([orba](oxen.md) – Seno); seč 1. 6. s koňmi počítá.
+  a kozami ([orba](oxen.md) – Seno); seč (25. 5. a otava 1. 8.) s koňmi počítá.
 - **Obilí: jezdecký kůň 1,5 kg denně celý rok** ≈ **550 kg ročně** – obilí tří dospělých (dospělý
   180 kg). Klisny a hříbata obilí nedostanou (rešerše – Baker: klisny a mladé klisny bez ovsa).
   Dvě třetiny dávky středověkého tažného koně (≈ 2,2 kg) – menší kůň, cvičí, netáhne celý den.

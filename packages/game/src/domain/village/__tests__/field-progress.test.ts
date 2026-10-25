@@ -15,7 +15,9 @@ import { laborReport } from '../labor-report';
 import { advanceVillage } from '../simulate';
 import type { FieldPart, VillageState } from '../types';
 import { PLOUGH_SOD_FACTOR } from '../plough';
-import { partWeight, planPartIds } from '../year-plan';
+import { activeTasks, neededTaskRemaining, partWeight, planCrops, planPartIds } from '../year-plan';
+import { herdingDay } from '../herding';
+import { villageOxen } from '../oxen';
 import { withRoomyPens } from './village-fixtures';
 
 // Postup práce po čtvercích (fields.md; Martin, 18. 10. 2026): kopání, setí a sklizeň mění díl, až
@@ -121,8 +123,68 @@ describe('postup po čtvercích', () => {
     }
   });
 
+  it('děti 7–13 let, které nepasou, plejí – malé postavy (fields.md – Pletí – děti)', () => {
+    const start = penned();
+    const nextId = Math.max(...start.people.map((p) => p.id)) + 1;
+    // šest dětí 7–12 let – část pase, ostatní plejí
+    const home = start.people[0]!.dwellingId;
+    for (let k = 0; k < 6; k++) {
+      start.people.push({ id: nextId + k, bornDay: at(590 + k, 3, 1), dwellingId: home });
+    }
+    let s = advanceVillage(start, at(602, 4, 30), null);
+    let kidsDays = 0;
+    for (let day = at(602, 5, 1); day <= at(602, 6, 30); day++) {
+      s = advanceVillage(s, day, null);
+      const kids = s.labor!.shares.filter((x) => x.activity === 'weed' && x.ages !== undefined);
+      if (kids.length === 0) continue;
+      kidsDays++;
+      expect(kids.every((x) => x.ages!.every((age) => age >= 7 && age <= 13))).toBe(true);
+      // pasáci mají přednost – plejí jen ti, kdo nepasou
+      if (herdingDay(s, day, villageOxen(s)).demand > 0) {
+        expect(kids[0]!.ages!.length).toBeLessThan(6);
+      }
+    }
+    expect(kidsDays).toBeGreaterThan(0);
+  });
+
+  it('seč nebere práci polním úlohám – pletí má přednost (oxen.md – Seno, dvě seče)', () => {
+    let s = advanceVillage(penned(), at(602, 5, 25), null);
+    // pletí ozimu znovu od začátku – vydrží do června
+    s.plan!.winter!.done.weed = 0;
+    // 1. seč s velkou nutnou prací – ves by sekala celý den, kdyby jí pletí nechalo
+    s.hay = {
+      kg: 0,
+      mowing: {
+        partIds: [],
+        squares: [{ cell: { x: 0, y: 0 }, areaM2: 1_000_000, distanceM: 0 }],
+        required: 10_000,
+        done: 0,
+        yieldKg: 150_000,
+        needed: 10_000,
+      },
+    };
+    let busyDays = 0;
+    let mowDays = 0;
+    for (let day = at(602, 5, 26); day <= at(602, 6, 30); day++) {
+      s = advanceVillage(s, day, null);
+      const mown = s.labor!.shares.some((x) => x.activity === 'mow');
+      if (mown) mowDays++;
+      // pletí, které ten den ves nedokončila – na seč nezbylo nic
+      const weedLeft = planCrops(s.plan!).some(
+        ({ crop, work }) =>
+          activeTasks(work, day, crop).includes('weed') && neededTaskRemaining(work, 'weed') > 1e-6,
+      );
+      if (weedLeft) {
+        busyDays++;
+        expect(mown).toBe(false);
+      }
+    }
+    expect(busyDays).toBeGreaterThan(0);
+    expect(mowDays).toBeGreaterThan(0);
+  });
+
   it('sklizeň ozimu v červenci: sklizené díly s panáky, nesklizené zůstanou zralé', () => {
-    const s = advanceVillage(penned(), at(602, 7, 10), null);
+    const s = advanceVillage(penned(), at(602, 7, 5), null);
     const states = statesInOrder(s, s.plan!.winter!.partIds);
     expect(states).toContain('harvesting');
     expect(states).toContain('ripe');
@@ -303,7 +365,7 @@ describe('letošní práce na dílu (panel dílu – fields.md, Co hráč vidí)
   });
 
   it('sklizeň ozimu v červenci po dílech: sklizené díly 1, nezačaté 0', () => {
-    const s = advanceVillage(penned(), at(602, 7, 10), null);
+    const s = advanceVillage(penned(), at(602, 7, 5), null);
     const looks = fieldPartLooks(s, s.lastDay);
     const work = partYearWork(s, s.lastDay);
     const harvests = s.plan!.winter!.partIds.map((id) => work.get(id)!.crop!.harvest);

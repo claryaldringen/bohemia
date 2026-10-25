@@ -25,15 +25,20 @@ const EPSILON = 1e-9;
 
 /** Díly přílohu v letošním plánu seče (hay.ts – `planMowing`); bez seče žádné. */
 export function hayPlanPartIds(state: Pick<VillageState, 'hay'>): Set<number> {
-  return new Set(state.hay?.mowing?.partIds ?? []);
+  const mowing = state.hay?.mowing;
+  // u otavy i díly posečené v 1. seči (oxen.md – Seno, dvě seče)
+  return new Set([...(mowing?.partIds ?? []), ...(mowing?.firstCut?.partIds ?? [])]);
 }
 
 /** Přirozené louky letošní seče (ha) – políčka krajiny v plánu seče. */
 export function hayPlanNaturalHa(state: Pick<VillageState, 'hay'>): number {
-  const squares = state.hay?.mowing?.squares ?? [];
-  return (
-    squares.filter((s) => s.partId === undefined).reduce((sum, s) => sum + s.areaM2, 0) / M2_PER_HA
-  );
+  const mowing = state.hay?.mowing;
+  const squares = mowing?.squares ?? [];
+  const planM2 = squares
+    .filter((s) => s.partId === undefined)
+    .reduce((sum, s) => sum + s.areaM2, 0);
+  // u otavy přirozené louky posečené v 1. seči (otava jen na nich)
+  return Math.max(planM2, mowing?.firstCut?.naturalM2 ?? 0) / M2_PER_HA;
 }
 
 /** Pastviny po dílech přílohu v pořadí, jak je stáda spásají. */

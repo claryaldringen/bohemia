@@ -1,3 +1,4 @@
+import { seasonHayYieldKg } from './hay';
 import { dateOfDayIndex } from '../calendar';
 import type { Landscape } from '../landscape';
 import { createRandom, deriveSeed } from '../landscape/random';
@@ -400,7 +401,7 @@ export function planPurchases(
     coverage,
     needs,
     grainKg: sown.reduce((sum, p) => sum + Math.max(0, expectedNetKg(p, day)), 0),
-    hayKg: state.hay?.mowing?.yieldKg ?? 0,
+    hayKg: seasonHayYieldKg(state.hay?.mowing),
     storedKg: Math.max(0, state.storesKg) + villageLegumesKg(state),
     households: new Set(state.people.map((p) => p.dwellingId)).size,
     yearlyLabor:

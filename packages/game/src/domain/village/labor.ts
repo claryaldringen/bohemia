@@ -82,6 +82,12 @@ export interface DayAllocationInput {
    */
   lordHarvest?: number;
   /**
+   * Děti při pletí (fields.md – Pletí – děti; `weedingChildren` × `WEEDING_CHILDREN.perDay`,
+   * člověkodny před štěstím) – zásobník mimo `capacity` jako `harvestHands`, pokryje jen pletí, před
+   * prací dospělých; co nevyužije, propadne. Bez údaje 0.
+   */
+  weedChildren?: number;
+  /**
    * Pomoc vojvodovy rodiny s potřebným osevem (lord.md – Kdy jde rodina na pole, bod 1; `manorLabor`
    * – `help`, člověkodny před štěstím) – zásobník jako `lordField`, ale až po práci vsi: pokryje
    * jen, co z úloh osevu ves nestihne, takže vsi nikdy neuvolní práci na stavby, opravy ani osev
@@ -145,6 +151,8 @@ export interface DayAllocation {
   lordField: number;
   /** Kolik žňových rukou (`harvestHands`, po štěstí) dnes žeň a výmlat spotřebovaly. */
   harvestHands: number;
+  /** Kolik práce dětí (`weedChildren`, po štěstí) dnes pletí spotřebovalo; chybí = 0. */
+  weedChildren?: number;
   tasks: Record<LaborTaskName, number>;
   /** Práce pro jednotlivé úlohy vstupu v jejich pořadí (stejný název může být víckrát – plodiny). */
   taskAmounts: number[];
@@ -212,15 +220,23 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
   let handsLeft = handsPool;
   const lordHarvestPool = Math.max(0, (input.lordHarvest ?? 0) * productivity);
   let lordHarvestLeft = lordHarvestPool;
+  // děti při pletí (fields.md – Pletí – děti) – jen pletí, před dospělými
+  const kidsPool = Math.max(0, (input.weedChildren ?? 0) * productivity);
+  let kidsLeft = kidsPool;
   const lordPool = Math.max(0, (input.lordField ?? 0) * productivity);
   let lordLeft = lordPool;
   const helpPool = Math.max(0, (input.lordHelp ?? 0) * productivity);
   let helpLeft = helpPool;
   const taskAmounts = input.tasks.map((task) => {
     let amount = 0;
+    if (task.name === 'weed') {
+      amount = Math.min(task.remaining, kidsLeft);
+      kidsLeft -= amount;
+    }
     if (LIGHT_LABOR_TASKS.has(task.name)) {
-      amount = Math.min(task.remaining, lightLeft);
-      lightLeft -= amount;
+      const light = Math.min(task.remaining - amount, lightLeft);
+      lightLeft -= light;
+      amount += light;
     }
     if (HARVEST_HANDS_TASKS.has(task.name)) {
       const hands = Math.max(0, Math.min(task.remaining - amount, handsLeft));
@@ -250,6 +266,7 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     carting,
     lordField: lordPool - lordLeft + (lordHarvestPool - lordHarvestLeft) + (helpPool - helpLeft),
     harvestHands: handsPool - handsLeft,
+    ...(kidsPool > 0 ? { weedChildren: kidsPool - kidsLeft } : {}),
     tasks,
     taskAmounts,
     common: left,

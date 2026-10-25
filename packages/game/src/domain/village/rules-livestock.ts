@@ -20,8 +20,9 @@ export const WOOL = {
 /**
  * diet.md – Nouzová porážka (Martin 19. 10. 2026: „Ano, udělej to všechno“; podrobnosti návrh
  * Clauda): když výhled jídla do sklizně nevychází, ves dřív, než ubere z přídělu, porazí zvířata
- * navíc v pořadí `order` – prasata (žerou les, ne seno), kozy, krávy nad chovné, ovce nad ovce na
- * vlnu. Porazí tolik, aby výhled vyšel i s rezervou `reserveShare` potřeby energie do sklizně
+ * navíc v pořadí `order` – prasata (žerou les, ne seno), kozy, ovce nad ovce na vlnu, krávy nad
+ * chovné; voli nikdy (oxen.md – Co nejvíc sena a co největší stáda, přednost voli → krávy → ovce →
+ * kozy → prasata; Martin 24. 10. 2026; dřív krávy před ovcemi). Porazí tolik, aby výhled vyšel i s rezervou `reserveShare` potřeby energie do sklizně
  * (ztráty zásob skladováním a uzením výhled nezná – bez rezervy by ves porážela den co den po
  * kouscích), a nejvýš tolik, kolik pod stropem masa ve stravě (DIET.caps.meat) pomůže. Když
  * schodek celý nepokryje (málo zvířat navíc, strop masa), porazí jen tehdy, zvedne-li příděl
@@ -61,7 +62,7 @@ export const HERD_BREEDING = {
  */
 export const HERD_RETIREMENT = { sheep: 1 / 8, goat: 1 / 8, pig: 1 / 4, cow: 1 / 10 } as const;
 export const EMERGENCY_SLAUGHTER = {
-  order: ['pig', 'goat', 'cow', 'sheep'],
+  order: ['pig', 'goat', 'sheep', 'cow'],
   reserveShare: 0.05,
   minGain: 0.02,
   pigForestShare: 0.5,
@@ -192,3 +193,19 @@ export const PEN_GRACE = { graceDays: 365 } as const;
 // a stohování – celkem 10–15 člověkodní na hektar louky. Nejlepší mez s nástroji od kováře (kosy),
 // nejhorší bez nich. Dřív 6 člověkodní (jen seč).
 export const HAY_WORK_PER_HA: Bounds = { worst: 15, best: 10 };
+/**
+ * oxen.md – Seno, dvě seče (Martin 25. 10. 2026: „Tak ony jsou v roce 2 senoseče: 1. konec května
+ * – konec června 2. srpen – září.“; čísla návrh Clauda schválený Martinem 25. 10. 2026):
+ * 1. seč v okně 25. 5. – 30. 6., 2. seč (otava) 1. 8. – 30. 9. jen na loukách posečených letos
+ * v 1. seči. Otava dá ≈ 40 % sena 1. seče (`aftermathYieldShare`) a stojí 60 % práce na hektar
+ * (`aftermathWorkShare` – kosí se celá plocha, ≈ 2,5 čd/ha, obracení, hrabání a svoz jen podle
+ * hmoty, ≈ 40 %; zaokrouhleno nahoru, otava v kratších a rosnějších dnech schne pomaleji). Seče se
+ * na zimu stád v cílové velikosti a 20 % rezervy navíc (`reserve`).
+ */
+export const HAY_CUTS = {
+  first: { from: { month: 5, day: 25 }, to: { month: 6, day: 30 } },
+  second: { from: { month: 8, day: 1 }, to: { month: 9, day: 30 } },
+  aftermathYieldShare: 0.4,
+  aftermathWorkShare: 0.6,
+  reserve: 0.2,
+} as const;

@@ -243,7 +243,7 @@ describe('giveWayToBuilding – orba rádlem a seč sena', () => {
       delete p.crop;
     }
     const day = at(601, 6, 20);
-    const mowing = planMowing(s, day, 150_000)!;
+    const mowing = planMowing(s, day, { necessaryKg: 150_000, capKg: 150_000 })!;
     expect(mowing.partIds).toHaveLength(12);
     mowing.done = mowing.required * 0.3;
     s.hay = { kg: 0, mowing };

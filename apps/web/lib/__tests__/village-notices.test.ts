@@ -539,6 +539,25 @@ describe('newNotices – porážka a spřežení (diet.md, oxen.md)', () => {
     ]);
   });
 
+  it('porážka pro nedostatek sena – varování, kolik kusů čeho (oxen.md)', () => {
+    const after = view({
+      dayIndex: 1001,
+      chronicle: [
+        {
+          day: 1001,
+          kind: 'hay-slaughter',
+          kg: 230,
+          animals: { sheep: 3 },
+          dateLabel: '',
+          text: '',
+        },
+      ],
+    });
+    expect(newNotices(view(), after)).toEqual([
+      { kind: 'hay-slaughter', tone: 'warn', text: 'Chybí seno – porazili 3 ovce' },
+    ]);
+  });
+
   it('nevěsta a ženich z okolí a dcera vdaná pryč – fakt (kinship.md)', () => {
     const after = view({
       dayIndex: 1003,

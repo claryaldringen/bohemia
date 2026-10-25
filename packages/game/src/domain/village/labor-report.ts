@@ -85,6 +85,13 @@ export interface DayWork {
    * ve `fieldWork`. Bez údaje 0.
    */
   extraField?: number;
+  /** Seč navíc z práce po stavbách (oxen.md – Seno, dvě seče; člověkodny). Bez údaje 0. */
+  extraMow?: number;
+  /**
+   * Věk dětí, které dnes plejí (fields.md – Pletí – děti) – jejich díl pletí
+   * (`allocation.weedChildren`) jde do zvláštního podílu s `ages` (malé postavy ve scéně).
+   */
+  weedChildAges?: readonly number[];
   /** Opravy po obydlích (poměrně k potřebě). */
   repairs: { dwellingId: number; manDays: number }[];
   constructions: ConstructionWork[];
@@ -214,6 +221,12 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
 
   let harvestTarget: { target: LaborTarget; manDays: number } | null = null;
   let sowTarget: { target: LaborTarget; manDays: number } | null = null;
+  // díl dětí na pletí (fields.md – Pletí – děti) – malé postavy podle věku
+  const kidsAges = work.weedChildAges ?? [];
+  const kidsWeed =
+    kidsAges.length > 0 && allocation.tasks.weed > 0
+      ? Math.min(1, (allocation.weedChildren ?? 0) / allocation.tasks.weed)
+      : 0;
   for (const { task, fieldId, manDays, parts, progress } of fieldShares(state, day, work)) {
     const target: LaborTarget =
       parts.length > 0
@@ -223,6 +236,9 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
       add('harvest', target, manDays * (1 - carryShare));
       add('carry', target, manDays * carryShare);
       if (!harvestTarget || manDays > harvestTarget.manDays) harvestTarget = { target, manDays };
+    } else if (task === 'weed' && kidsWeed > 0) {
+      add('weed', target, manDays * (1 - kidsWeed));
+      add('weed', target, manDays * kidsWeed, undefined, undefined, undefined, kidsAges);
     } else {
       add(task, target, manDays);
       if (task === 'sow' && (!sowTarget || manDays > sowTarget.manDays)) {
@@ -356,7 +372,10 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
   for (const p of work.purchases ?? []) add('trade', p.target, p.manDays);
   // opravy obydlí jdou ze společné práce po stavbách (population.md – Práce), polní práce navíc
   // z toho, co zbude po nich (fields.md – Osev navíc)
-  let invested = work.repairs.reduce((sum, r) => sum + r.manDays, 0) + (work.extraField ?? 0);
+  let invested =
+    work.repairs.reduce((sum, r) => sum + r.manDays, 0) +
+    (work.extraField ?? 0) +
+    (work.extraMow ?? 0);
   // honáci a nakladači klád jdou ze společné práce (wagons.md); sedláci s uhlím a rudou mají
   // vlastní podíl práce vsi před úlohami (`allocation.carting` – crafts.md, Uhlí a ruda kováře)
   for (const haul of hauls) if (haul.job === 'logs') invested += haul.manDays;

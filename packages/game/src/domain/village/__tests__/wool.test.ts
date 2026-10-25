@@ -3,7 +3,7 @@ import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
 import { happinessFactors } from '../happiness';
 import { winterHayKg } from '../hay';
-import { LIVESTOCK, sizeHerdsToNeed, slaughter, winterTargets } from '../livestock';
+import { LIVESTOCK, slaughter, winterTargets } from '../livestock';
 import { WOOL } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { HerdSpecies, VillageState } from '../types';
@@ -21,7 +21,6 @@ const herds = (over: Partial<Record<HerdSpecies, number>>): Record<HerdSpecies, 
   cow: 0,
   ...over,
 });
-const COSTS = { grainPerKg: 0.6, legumePerKg: 0.8, hayPerKg: 0.0125 };
 
 function village(day = at(600, 9, 2)): VillageState {
   const s = withBuiltFirstDwelling(
@@ -89,51 +88,32 @@ describe('vlna na oděv', () => {
     expect(s.livestock!.herds.sheep).toBeCloseTo(8, 9);
   });
 
-  it('plán chovu: ovce na vlnu zůstanou, i když bílkoviny dají prasata', () => {
-    const s = village(at(600, 11, 1));
-    const day = s.lastDay;
-    const keep = herds({ sheep: 40, goat: 2, pig: 60, cow: 2 });
-    const expensiveHay = { ...COSTS, hayPerKg: 0.2 };
-    const without = sizeHerdsToNeed(s, day, keep, { costs: expensiveHay });
-    const withWool = sizeHerdsToNeed(s, day, keep, { costs: expensiveHay, minSheep: 12 });
-    // bez hranice drahé seno ovce sníží k chovnému páru, s hranicí jich zůstane na vlnu
-    expect(without.keep.sheep).toBeLessThan(12);
-    expect(withWool.keep.sheep).toBeGreaterThanOrEqual(12 - 1e-9);
-    // nad nosnost nic – hranice vyšší než stádo nechá celé stádo
-    const few = sizeHerdsToNeed(s, day, herds({ sheep: 5, pig: 2 }), { minSheep: 12 });
-    expect(few.keep.sheep).toBeCloseTo(5, 9);
-  });
-
-  it('pastva a seno napřed ovcím na vlnu, pak kravám na mléko a voly', () => {
+  it('pastva a seno napřed kravám, pak ovcím – i ovcím na vlnu (24. 10. 2026)', () => {
     const s = village(at(600, 11, 1));
     const day = s.lastDay;
     s.livestock!.herds = herds({ sheep: 20, cow: 6 });
-    // pastva na 10 ovcí a 1 krávu (ovce 0,2 ha, kráva 1 ha), seno dost
-    s.livestock!.land = { meadowHa: 0, forestHa: 0 };
-    const pasture = 10 * LIVESTOCK.pastureHa.sheep + 1 * LIVESTOCK.pastureHa.cow;
-    s.livestock!.land.meadowHa = pasture;
-    const plain = winterTargets(s, day, { oxen: 0, hayKg: Infinity, minCows: 4 });
-    const wool = winterTargets(s, day, { oxen: 0, hayKg: Infinity, minCows: 4, minSheep: 10 });
-    // bez ovcí na vlnu bere pastvu napřed kráva (4 krávy zaberou 4 ha – víc není), s nimi ovce
-    expect(wool.sheep).toBeGreaterThan(plain.sheep);
-    expect(wool.sheep).toBeGreaterThanOrEqual(10 - 1e-6);
-    expect(wool.cow).toBeLessThanOrEqual(plain.cow + 1e-9);
+    // pastva na 4 krávy a 10 ovcí (ovce 0,2 ha, kráva 1 ha), seno dost
+    s.livestock!.land = {
+      meadowHa: 4 * LIVESTOCK.pastureHa.cow + 10 * LIVESTOCK.pastureHa.sheep,
+      forestHa: 0,
+    };
+    const wool = winterTargets(s, day, { oxen: 0, hayKg: Infinity, minCows: 4, minSheep: 20 });
+    // krávy mají přednost (oxen.md – Co nejvíc sena a co největší stáda) – ovce na vlnu nepomůžou
+    expect(wool.cow).toBeCloseTo(6, 9);
+    expect(wool.sheep).toBeCloseTo(LIVESTOCK.breedingMin, 9);
   });
 
-  it('pasáci hlídají napřed ovce na vlnu', () => {
+  it('pasáci hlídají napřed ovce, pak prasata – ovce na vlnu nic nemění (24. 10. 2026)', () => {
     const s = village(at(600, 11, 1));
     const day = s.lastDay;
     s.livestock!.herds = herds({ sheep: 20, pig: 20 });
     s.livestock!.land = { meadowHa: 1000, forestHa: 1000 };
-    // pasáci uhlídali polovinu potřeby
+    // pasáci uhlídali polovinu potřeby (0,6 pasáka): ovce celé (0,2), prasata zbytek (0,1 z 0,4)
     const plain = winterTargets(s, day, { oxen: 0, hayKg: Infinity, herding: 0.5 });
     const wool = winterTargets(s, day, { oxen: 0, hayKg: Infinity, herding: 0.5, minSheep: 15 });
-    expect(plain.sheep).toBeCloseTo(10, 9);
-    expect(wool.sheep).toBeGreaterThanOrEqual(15 - 1e-9);
-    // co pasáci uhlídali celkem, se nezvětší – prasat je méně
-    expect(wool.pig).toBeLessThan(plain.pig);
-    const units = (t: Record<HerdSpecies, number>): number => t.sheep / 100 + t.pig / 50;
-    expect(units(wool)).toBeCloseTo(units(plain), 9);
+    expect(plain.sheep).toBeCloseTo(20, 9);
+    expect(plain.pig).toBeCloseTo(5, 9);
+    expect(wool).toEqual(plain);
   });
 
   it('chybí-li ovce, porážka zapíše nedostatek vlny – štěstí ubere až 6', () => {

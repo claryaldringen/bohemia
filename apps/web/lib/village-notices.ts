@@ -65,6 +65,7 @@ export type NoticeKind =
   /** Lnu na oděv všech je málo (fields.md – Len, diet.md – Oděv). */
   | 'linen-short'
   | 'herd-starved'
+  | 'hay-slaughter'
   /** Ovcí je málo na vlnu pro oděv všech (diet.md – Oděv). */
   | 'wool-short'
   | 'team-ready'
@@ -374,6 +375,16 @@ const CHRONICLE_NOTICES: Partial<
     tone: 'warn',
     text: 'Dobytek hynul – chybělo seno',
   }),
+  // seno do jara nevystačí – ves porazila kusy, na které nezbude (oxen.md – Co nejvíc sena a co
+  // největší stáda)
+  'hay-slaughter': (entry) => {
+    const animals = entry.animals ? formatAnimals(entry.animals) : '';
+    return {
+      kind: 'hay-slaughter',
+      tone: 'warn',
+      text: animals !== '' ? `Chybí seno – porazili ${animals}` : 'Chybí seno – porazili dobytek',
+    };
+  },
   // ovcí přes zimu méně, než je třeba na vlnu pro oděv všech (diet.md – Oděv)
   'wool-short': () => ({ kind: 'wool-short', tone: 'warn', text: 'Chybí vlna na oděv' }),
   // voli po kusech (oxen.md); kronika uložená dřív – spřežení

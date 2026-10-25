@@ -44,7 +44,8 @@ import { daysUntilFoodHarvest } from './year-plan';
 // podrobnosti návrh Clauda). Ves, které výhled jídla do sklizně nevychází, nejdřív porazí
 // zvířata navíc a teprve potom, když maso nestačí, ubírá z přídělu. Prasata první (žerou les,
 // ne seno) nad chovné prasnice (polovina toho, kolik prasat uživí les – Martin 19. 10. 2026), pak
-// kozy, krávy nad chovné (mléko a voly) a ovce nad ovce na vlnu; chovný pár každého druhu zůstává,
+// kozy, ovce nad ovce na vlnu a krávy nad chovné (mléko a voly – přednost stád, oxen.md); chovný
+// pár každého druhu zůstává,
 // spřežení a telata ve výcviku jsou v ohradách mimo stáda. Letošní mláďata ne – kromě selat od 1. 9.
 // (Martin 19. 10. 2026: „Ano ke všem návrhům“ – maso se 1. 9. kazí a do podzimní porážky ves
 // hladoví; nad chovnými prasnicemi jsou v září skoro jen selata). Maso jde do zásoby jako z podzimní

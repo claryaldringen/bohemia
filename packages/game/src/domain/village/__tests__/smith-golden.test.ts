@@ -138,7 +138,10 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
     // je samostatný zásobník jen na setí, okopávání, žně a výmlat, ne do orby, kácení a staveb;
     // dřív d7d45927; 24. 10. 2026 potřetí (e92e2e86): ves má mimo dvorec 4 dospělé dílen, vojvodova
     // rodina proto cvičí mimo práci vsi a minimum dvorce kryje sama (lord.md – Den rodiny,
-    // Zakládání vsi) – ves má méně práce, jinak staví, orá i jí; dřív 6bd77b28
-    expect(hash(stripped)).toBe('e92e2e86');
+    // Zakládání vsi) – ves má méně práce, jinak staví, orá i jí; dřív 6bd77b28; 25. 10. 2026
+    // počtvrté (573d22e4): stáda jen na seno, které ves stihne posekat (oxen.md – Stáda podle práce
+    // na seč) – stav nese zápis volné práce na seč a po první sezóně menší stáda, otava má všechny
+    // posečené louky se stropem práce; nouzová porážka bere ovce před kravami; dřív e92e2e86
+    expect(hash(stripped)).toBe('573d22e4');
   }, 120_000);
 });

@@ -792,6 +792,21 @@ vesnice populačně roste i bez zásahu hráče, za předpokladu, že má dostat
 - **Plán osevu** (Kolik ves oseje) s nimi počítá v červenci a srpnu a ve výmlatu jaře v září
   (ves dá z výmlatu jen svůj díl) – tytéž ruce jako práce dne.
 
+#### Pletí – děti (25. 10. 2026)
+
+Martin (25. 10. 2026) k tabulce vytížení Vlkova (květen 100 % – pletí 366 čd): „**Pletí se často
+účastnily děti. To by mohlo uvolnit ruce dospělým.**“ Pravidla (návrh Clauda, schválený Martinem 25. 10. 2026):
+
+- V okně pletí (květen–červen), kdy ves má co plet, jdou plet **děti 7–13 let, které zrovna
+  nepasou** – **pasáci mají přednost** (pasou nejstarší, plejí mladší). Synové cvičící vojvodovy
+  rodiny ne (cvičí).
+- Každé dítě dá **0,5 člověkodne denně** (návrh Clauda; rešerše §5 – dítě 7–13 let 0,3–0,5),
+  jen na pletí a **před dospělými** – ti mají o to víc práce na seč, stavby a opravy; co pletí
+  nespotřebuje, propadne (děti si hrají).
+- Ve scéně plejí **malé postavy dětí** podle věku.
+- Plán osevu se nemění – pletí jeho kapacitu neomezuje (okna Kolik ves oseje jsou podzim, jaro,
+  červenec a srpen).
+
 První sezónu po vymýcení lesa se díl **neplete** (viz Úroda).
 
 - **Vzdálenost:** práce na dílu je o 1 % dražší za každých 10 m nad 100 m od nejbližšího

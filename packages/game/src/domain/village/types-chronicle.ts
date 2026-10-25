@@ -161,9 +161,15 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'meat-spoiled'; kg: number }
   /**
    * Přes zimu chybělo přes polovinu sena – část stáda uhynula (diet.md – Zimní úhyn, 1. 3.); kusy
-   * po druzích na setiny.
+   * po druzích na setiny. Jen kronika uložená před 24. 10. 2026 – od té doby ves poráží
+   * (`hay-slaughter`).
    */
   | { kind: 'herd-starved'; animals: Partial<Record<HerdSpecies, number>> }
+  /**
+   * Seno do konce března nevystačí – ves hned porazila kusy, na které nezbude (oxen.md – Co nejvíc
+   * sena a co největší stáda): kolik kg masa a kusů (na setiny) kterého druhu.
+   */
+  | { kind: 'hay-slaughter'; kg: number; animals: Partial<Record<HerdSpecies, number>> }
   /**
    * Při porážce: ovce, které ves nechala přes zimu (`sheep`, na desetiny), nedají vlnu na oděv pro
    * všechny – potřeba by byla `needed` ovcí (diet.md – Oděv).

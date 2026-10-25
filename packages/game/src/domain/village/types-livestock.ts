@@ -68,6 +68,18 @@ export interface HayState {
     horsesNeedKg?: number;
     horsesEatenKg?: number;
   };
+  /**
+   * Volná práce na seč letošních oken (oxen.md – Stáda podle práce na seč): práce, která po
+   * polních pracích zbyla na seč (nutná seč, stavby, seč navíc i nevyužitá), převedená na seno
+   * podle dnešní seče (kg) – v 1. seči a v otavě zvlášť. Začne 25. 5., 1. 10. se uzavře do
+   * `mowCapacityKg`. Chybí = mimo sezónu (i seč rozjetá před 25. 10. 2026 – letos bez stropu).
+   */
+  mowFree?: { first: number; second: number };
+  /**
+   * Kolik sena (kg ze seče) ves v obou oknech loni stihla posekat prací po polních pracích – strop
+   * cílových stád (`mowingCapacityKg`). Chybí = ves ještě sezónu nezapsala, stáda bez stropu.
+   */
+  mowCapacityKg?: number;
 }
 
 /**
@@ -81,12 +93,33 @@ export interface HayMowing {
   required: number;
   done: number;
   yieldKg: number;
+  /**
+   * Práce seče na seno pro zimní stádo (člověkodny, prvních louk od obydlí) – po polních pracích,
+   * před stavbami; zbytek luk jen z práce po stavbách (oxen.md – Seno, dvě seče). Chybí = celá
+   * seč (uložená před 24. 10. 2026).
+   */
+  needed?: number;
+  /**
+   * Kolik práce ze seče ves letos chce (člověkodny – do stropu stád, oxen.md, Seno, dvě seče);
+   * zbytek luk zůstane. U otavy jsou v seči všechny louky posečené v 1. seči a strop se zvedne, když
+   * přibude dobytek (`cattle`). Chybí = celá seč.
+   */
+  wanted?: number;
+  /** U otavy: krávy a voli (i na cestě), se kterými plán počítal – víc = plán znovu. */
+  cattle?: number;
   /** Svoz sena, který převzaly vozy (wagons.md – Vůz; člověkodny seče); chybí = 0. */
   hauled?: number;
   /** Kam vůz při seči dojede – spočítá se při prvním svozu (wagons.md). Chybí = ještě ne. */
   cartReach?: CartReach;
   /** Kam při seči dojede čtyřkolák (ne na zoraný díl, širší oblouk). Chybí = ještě ne. */
   cartReach4?: CartReach;
+  /**
+   * Která seč (oxen.md – Seno, dvě seče): 2 = otava (1. 8. – 30. 9.) jen na loukách posečených
+   * v 1. seči; chybí = 1. seč (25. 5. – 30. 6.; i seč uložená před 25. 10. 2026).
+   */
+  cut?: 2;
+  /** U otavy, co se letos posekalo v 1. seči – díly, plocha přirozených luk a seno (kg). */
+  firstCut?: { partIds: number[]; naturalM2: number; yieldKg: number };
 }
 
 /** Louka v seči: díl úhoru ve fázi louky, nebo políčko přirozené louky krajiny (oxen.md – Seno). */
