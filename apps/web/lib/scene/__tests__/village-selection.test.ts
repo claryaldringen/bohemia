@@ -1,3 +1,4 @@
+import type { VillageRoadEnd } from '../../road-end-view';
 import { describe, expect, it } from 'vitest';
 import type { SceneVillage } from '../../village-view';
 import type { VillageTarget } from '../village-picking';
@@ -236,6 +237,20 @@ describe('výpis výběru do konzole (Martin 24. 10. 2026)', () => {
     expect(text).toMatch(/^road 2 – úseky /);
     expect(text).toContain('9');
     expect(text).toContain('kliknutý úsek 9');
+  });
+  it('cesta – oba konce z pohledu na ves (Martin 25. 10. 2026)', () => {
+    const end = (log: string): VillageRoadEnd => ({
+      kind: 'place',
+      name: '',
+      icon: null,
+      arrow: null,
+      target: null,
+      log,
+    });
+    const text = describeTarget({ kind: 'road', id: 2, segment: 2 }, { roads }, [
+      { segments: [2], ends: [end('dwelling 12'), end('junction 565')] },
+    ]);
+    expect(text).toMatch(/ – od dwelling 12 do junction 565$/);
   });
   it('ostatní – typ a id', () => {
     expect(describeTarget({ kind: 'dwelling', id: 5 }, { roads })).toBe('dwelling {"id":5}');

@@ -342,6 +342,19 @@ Návrh Clauda:
     malý okruh se rozdělí a zmizí jako copánek a pahýl.
   - Vchod má cestu, i když kolem něj (do 3 m) vede pevná cesta, která v něm nekončí; cesta k vchodu
     smí být kratší než 15 m (spojka do branky, nejméně 3 m).
+- **Co hráč vidí – konce cesty** (Martin 25. 10. 2026: „Žádná cesta nemůže existovat jen tak sama
+  v prostoru, vždycky musí spojovat dvě místa – kombinaci budov a křižovatek. Pokud cestu označím,
+  měl bych v panelu cesty vidět, která místa to jsou a moci je také označit.“): panel cesty ukáže
+  oba konce cesty hráče jako ikony – stavbu u vchodu (obydlí, hřbitov, ohrada, humno, modla,
+  svatyně, obilná jáma…) nebo cíl bez vchodu (pole, sad, háj, voda, les, louka, pastva),
+  křižovatku, jinou cestu (napojení bez křižovatky), kraj mapy se šipkou směru. Klik na ikonu
+  vybere stavbu, pole, křižovatku či cestu; kraj mapy, voda a les vybrat nejdou. Název je jen
+  v popisku („Obydlí – polozemnice“, „Křižovatka“, „Kraj mapy – sever“). Konec, který nikam
+  nevede (porušení pravidla 11), je červené varování „Cesta tu nikam nevede.“ – pomůže hledat
+  chyby sítě. Návrh Clauda: co na konci je, se pozná stejnými kotvami jako v úklidu – napřed
+  křižovatka, která má úsek v rameni, pak nejbližší kotva v dosahu (vchod 3 m, cíl 7,5 m, nejméně
+  6 m jako konec trasy), pás kraje mapy, jiná cesta do 4 m; jinak nikam. Vlkov (den 115545):
+  z 23 cest mají 3 konec nikam (cesty 975, 1012, 1019).
 
 ## Stavba přes cestu (Vlkov, Martin 23. 10. 2026)
 
@@ -728,6 +741,8 @@ cest v2), ne tichá oprava.
 | Stavba přes cestu: kus pod ní opuštěný hned, objížďka se vyšlape a napojí                        | návrh Clauda |
 | Jízdy vozů do vyšlapanosti ročně z `flushCartTrips`; i přes osetý díl                            | návrh Clauda |
 | Kotvy z konců tras (brána, vchod stavby, cíl, kraj mapy); souběžné cesty sloučí úklid            | návrh Clauda |
+| Panel cesty ukáže oba konce (stavba, křižovatka, kraj mapy), klik je vybere                      | Martin       |
+| Konce cesty podle kotev úklidu: křižovatka, kotva, kraj mapy, jiná cesta, jinak nikam            | návrh Clauda |
 | Jednorázová přestavba sítě, varianta A – vylepšení se přenesou                                   | Martin       |
 | Přestavba: vyšlapanost za rok, 4 průchody, přenos 60 % do 4 m, kusy stezek se vrátí              | návrh Clauda |
 

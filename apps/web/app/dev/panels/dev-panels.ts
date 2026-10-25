@@ -1087,6 +1087,24 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       kind: 'road',
       id: 4,
       segments: [4, 9, 12],
+      ends: [
+        {
+          kind: 'place',
+          name: 'Obydlí – polozemnice',
+          icon: '/icons/build/polozemnice.png',
+          arrow: null,
+          target: { kind: 'dwelling', id: 1 },
+          log: 'dwelling 1',
+        },
+        {
+          kind: 'none',
+          name: 'Cesta tu nikam nevede.',
+          icon: null,
+          arrow: null,
+          target: null,
+          log: 'nikam',
+        },
+      ],
       roadKind: 'improved',
       lengthM: 1240,
       kinds: [

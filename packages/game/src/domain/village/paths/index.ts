@@ -8,6 +8,7 @@ export * from './roads';
 export * from './entrances';
 export * from './cart';
 export * from './road-chains';
+export * from './road-ends';
 export * from './road-land';
 export * from './walk-speed';
 export * from './earthworks';

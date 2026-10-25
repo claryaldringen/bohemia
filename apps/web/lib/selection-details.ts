@@ -438,6 +438,8 @@ type SelectionKinds =
       id: number;
       /** Úseky cesty hráče (řetěz – roads.md, Cesta pro hráče). */
       segments: number[];
+      /** Oba konce cesty – co na nich je a co klik vybere (paths.md – pravidlo 11). */
+      ends: VillageRoad['ends'];
       /** Převládající druh cesty (vyšlapaná, vyježděná, upravená, hať) – portrét. */
       roadKind: VillageRoad['roadKind'];
       lengthM: number;
