@@ -43,6 +43,7 @@ it('kraj mapy a konec nikam nejsou tlačítka – nic nevyberou', () => {
       <RoadEndIcon
         end={{
           kind: 'none',
+          alert: true,
           name: 'Cesta tu nikam nevede.',
           icon: null,
           arrow: null,
@@ -55,6 +56,32 @@ it('kraj mapy a konec nikam nejsou tlačítka – nic nevyberou', () => {
   );
   expect(host.querySelector('button')).toBeNull();
   expect(host.querySelector('[data-testid="end"]')!.getAttribute('data-alert')).toBe('true');
+  act(() => root.unmount());
+  host.remove();
+});
+
+it('jiná cesta bez křižovatky je klikatelná, ale s varováním', () => {
+  const host = document.createElement('div');
+  document.body.append(host);
+  const root = createRoot(host);
+  act(() =>
+    root.render(
+      <RoadEndIcon
+        end={{
+          kind: 'road',
+          name: 'Cesta končí na jiné cestě bez křižovatky.',
+          icon: '/icons/build/cesta.png',
+          arrow: null,
+          target: { kind: 'road', id: 3 },
+          alert: true,
+          log: 'road 3 (!)',
+        }}
+        testId="end"
+      />,
+    ),
+  );
+  expect(host.querySelector('button')).not.toBeNull();
+  expect(host.querySelector('[data-end-kind="road"]')!.getAttribute('data-alert')).toBe('true');
   act(() => root.unmount());
   host.remove();
 });

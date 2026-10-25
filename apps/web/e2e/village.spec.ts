@@ -693,7 +693,8 @@ test('panel cesty ukáže oba konce – klik na napojenou cestu ji vybere, konec
   const end = panel.getByTestId('selection-road-end-1');
   await expect(start).toHaveAttribute('data-end-kind', 'none');
   await expect(start).toHaveAttribute('aria-label', 'Cesta tu nikam nevede.');
-  await expect(end).toHaveAttribute('aria-label', 'Jiná cesta');
+  await expect(end).toHaveAttribute('aria-label', 'Cesta končí na jiné cestě bez křižovatky.');
+  await expect(page.locator('[data-end-kind="road"][data-alert]')).toHaveCount(1);
   // Klik na konec vybere napojenou cestu B – ta nikam nevede na žádném konci.
   await end.click();
   await expect(panel.getByTestId('selection-road-end-1')).toHaveAttribute('data-end-kind', 'none');

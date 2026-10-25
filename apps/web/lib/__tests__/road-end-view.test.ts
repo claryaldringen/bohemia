@@ -54,6 +54,22 @@ describe('roadEndView', () => {
     });
   });
 
+  it('svatyně, rudiště a hliniště se dají vybrat', () => {
+    const st = {
+      ...state,
+      sacredBuildings: [{ id: 5, kind: 'shrine' }],
+    } as unknown as VillageState;
+    expect(
+      roadEndView(st, roads, { kind: 'place', place: 'sacred:5', anchor: 'entrance' }),
+    ).toMatchObject({ name: 'Svatyně', target: { kind: 'sacred', id: 5 }, alert: false });
+    expect(roadEndView(st, roads, { kind: 'place', place: 'ore:2', anchor: 'goal' })).toMatchObject(
+      { name: 'Rudiště', target: { kind: 'ore-site', id: 2 } },
+    );
+    expect(
+      roadEndView(st, roads, { kind: 'place', place: 'clay:3', anchor: 'goal' }),
+    ).toMatchObject({ name: 'Hliniště', target: { kind: 'clay-site', id: 3 } });
+  });
+
   it('křižovatka, kraj mapy, jiná cesta (id cesty hráče) a nikam', () => {
     expect(roadEndView(state, roads, { kind: 'junction', id: 565 })).toMatchObject({
       name: 'Křižovatka',
@@ -66,10 +82,13 @@ describe('roadEndView', () => {
     });
     expect(roadEndView(state, roads, { kind: 'road', roadId: 7 })).toMatchObject({
       target: { kind: 'road', id: 3 },
-      log: 'road 3',
+      alert: true,
+      name: 'Cesta končí na jiné cestě bez křižovatky.',
+      log: 'road 3 (!)',
     });
     expect(roadEndView(state, roads, { kind: 'none' })).toMatchObject({
       kind: 'none',
+      alert: true,
       name: 'Cesta tu nikam nevede.',
       target: null,
     });

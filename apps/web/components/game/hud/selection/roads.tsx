@@ -70,7 +70,7 @@ export function JunctionBody({
 /**
  * Konec cesty (paths.md – pravidlo 11, Co hráč vidí; Martin 25. 10. 2026): ikona stavby,
  * křižovatky nebo jiné cesty – klik ji vybere –, šipka ke kraji mapy, nebo červené varování, když
- * cesta nikam nevede. Název jen v popisku.
+ * cesta nikam nevede; jiná cesta bez křižovatky je klikatelná, ale s varováním. Název jen v popisku.
  */
 export function RoadEndIcon({
   end,
@@ -83,7 +83,19 @@ export function RoadEndIcon({
 }): ReactElement {
   if (end.target && end.icon) {
     return (
-      <span data-end-kind={end.kind} className="contents">
+      <span
+        data-end-kind={end.kind}
+        {...(end.alert ? { 'data-alert': true } : {})}
+        className={end.alert ? 'relative inline-flex' : 'contents'}
+      >
+        {end.alert && (
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute -right-1 -top-1 z-10 text-sm font-bold leading-none text-red-400"
+          >
+            !
+          </span>
+        )}
         <TargetButton
           src={end.icon}
           name={end.name}
@@ -94,17 +106,17 @@ export function RoadEndIcon({
       </span>
     );
   }
-  const glyph = end.kind === 'none' ? '!' : end.arrow;
+  const glyph = end.alert ? '!' : end.arrow;
   return (
     <Tooltip content={end.name} placement="above">
       <span
         data-testid={testId}
         data-end-kind={end.kind}
-        {...(end.kind === 'none' ? { 'data-alert': true } : {})}
+        {...(end.alert ? { 'data-alert': true } : {})}
         aria-label={end.name}
         tabIndex={0}
         className={`inline-flex h-7 w-7 items-center justify-center text-base font-bold ${
-          end.kind === 'none' ? 'text-red-400' : ''
+          end.alert ? 'text-red-400' : ''
         }`}
       >
         {glyph ??

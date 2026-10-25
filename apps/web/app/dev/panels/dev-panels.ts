@@ -1098,6 +1098,7 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
         },
         {
           kind: 'none',
+          alert: true,
           name: 'Cesta tu nikam nevede.',
           icon: null,
           arrow: null,

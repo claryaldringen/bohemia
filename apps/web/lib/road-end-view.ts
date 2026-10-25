@@ -23,7 +23,9 @@ export interface VillageRoadEnd {
   arrow: string | null;
   /** Co klik vybere; kraj mapy, voda, les a nikam vybrat nejdou. */
   target: VillageTarget | null;
-  /** Výpis do konzole (`dwelling 12`, `junction 565`, `edge N`, `water`, `nikam`). */
+  /** Porušení pravidla 11 (nikam, jiná cesta bez křižovatky) – panel ukáže varování. */
+  alert?: boolean;
+  /** Výpis do konzole (`dwelling 12`, `junction 565`, `edge N`, `water`, `nikam`, `do road 3 (!)`). */
   log: string;
 }
 
@@ -45,6 +47,8 @@ const PLACES: Record<
   orchard: { name: 'Sad', icon: build('sad'), target: 'orchard' },
   oak: { name: 'Posvátný dub', icon: build('dub'), target: 'sacred-oak' },
   grove: { name: 'Dubový háj', icon: build('haj'), target: 'grove' },
+  ore: { name: 'Rudiště', icon: build('rudiste'), target: 'ore-site' },
+  clay: { name: 'Hliniště', icon: build('hliniste'), target: 'clay-site' },
   kiln: { name: 'Milíř', icon: build('milir'), target: 'kiln' },
   water: { name: 'Voda', icon: resource('jar') },
   wood: { name: 'Les', icon: resource('wood') },
@@ -58,7 +62,8 @@ const nowhere: VillageRoadEnd = {
   icon: null,
   arrow: null,
   target: null,
-  log: 'nikam',
+  alert: true,
+  log: 'nikam (!)',
 };
 
 function placeView(state: VillageState, place: string): VillageRoadEnd {
@@ -75,11 +80,21 @@ function placeView(state: VillageState, place: string): VillageRoadEnd {
       icon: build(dwelling.type),
       arrow: null,
       target: { kind: 'dwelling', id: dwelling.id },
+      alert: false,
       log: `dwelling ${dwelling.id}`,
     };
   }
+  // oprava modly či svatyně (`sacred:<id>`) – druh podle stavby
+  const sacred = prefix === 'sacred' ? state.sacredBuildings?.find((b) => b.id === id) : undefined;
   // staveniště, které není obydlí, je humno (network-targets – `site:<id humna>`)
-  const known = PLACES[prefix === 'site' ? 'threshing-floor' : prefix];
+  const known =
+    PLACES[
+      prefix === 'site'
+        ? 'threshing-floor'
+        : prefix === 'sacred'
+          ? (sacred?.kind ?? 'idol')
+          : prefix
+    ];
   if (!known) {
     return {
       kind: 'place',
@@ -87,6 +102,7 @@ function placeView(state: VillageState, place: string): VillageRoadEnd {
       icon: resource('walk'),
       arrow: null,
       target: null,
+      alert: false,
       log: place,
     };
   }
@@ -97,6 +113,7 @@ function placeView(state: VillageState, place: string): VillageRoadEnd {
     icon: known.icon,
     arrow: null,
     target: target as VillageTarget | null,
+    alert: false,
     log: target ? `${target.kind} ${id}` : prefix,
   };
 }
@@ -119,6 +136,7 @@ export function roadEndView(
         icon: build(JUNCTION_ICONS[shape]),
         arrow: null,
         target: { kind: 'junction', id: end.id },
+        alert: false,
         log: `junction ${end.id}`,
       };
     }
@@ -129,6 +147,7 @@ export function roadEndView(
         icon: null,
         arrow: DIRECTION_NAMES[end.direction].arrow,
         target: null,
+        alert: false,
         log: `edge ${end.direction}`,
       };
     case 'road': {
@@ -136,11 +155,12 @@ export function roadEndView(
       const id = roadChainIds(roads, end.roadId)[0] ?? end.roadId;
       return {
         kind: 'road',
-        name: 'Jiná cesta',
+        name: 'Cesta končí na jiné cestě bez křižovatky.',
         icon: build('cesta'),
         arrow: null,
         target: { kind: 'road', id },
-        log: `road ${id}`,
+        alert: true,
+        log: `road ${id} (!)`,
       };
     }
     case 'none':

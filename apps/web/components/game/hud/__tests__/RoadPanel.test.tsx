@@ -107,6 +107,7 @@ describe('SelectionPanel – pevná cesta', () => {
           },
           {
             kind: 'none',
+            alert: true,
             name: 'Cesta tu nikam nevede.',
             icon: null,
             arrow: null,

@@ -347,7 +347,9 @@ Návrh Clauda:
   měl bych v panelu cesty vidět, která místa to jsou a moci je také označit.“): panel cesty ukáže
   oba konce cesty hráče jako ikony – stavbu u vchodu (obydlí, hřbitov, ohrada, humno, modla,
   svatyně, obilná jáma…) nebo cíl bez vchodu (pole, sad, háj, voda, les, louka, pastva),
-  křižovatku, jinou cestu (napojení bez křižovatky), kraj mapy se šipkou směru. Klik na ikonu
+  křižovatku, kraj mapy se šipkou směru. Jiná cesta (napojení bez křižovatky) **není platný konec**
+  – porušuje pravidlo 11 – a ukáže se jako varování s vykřičníkem „Cesta končí na jiné cestě bez
+  křižovatky.“; klik dál vybere tu druhou cestu, ať je vidět, co je to za kus. Klik na ikonu
   vybere stavbu, pole, křižovatku či cestu; kraj mapy, voda a les vybrat nejdou. Název je jen
   v popisku („Obydlí – polozemnice“, „Křižovatka“, „Kraj mapy – sever“). Konec, který nikam
   nevede (porušení pravidla 11), je červené varování „Cesta tu nikam nevede.“ – pomůže hledat
