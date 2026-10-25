@@ -397,6 +397,10 @@ export function shareWorker(
       ...(age !== undefined ? { age } : {}),
     });
   }
+  if (share.activity === 'weed' && age !== undefined) {
+    // děti při pletí (fields.md – Pletí – děti) – malé postavy podle věku
+    return roster.take({ from: AGE.olderChild, to: CHILD_UNDER, sex, age });
+  }
   if (
     share.activity === 'plant' ||
     (share.activity === 'fell' && share.construction === undefined)

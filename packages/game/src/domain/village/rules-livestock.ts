@@ -192,3 +192,19 @@ export const PEN_GRACE = { graceDays: 365 } as const;
 // a stohování – celkem 10–15 člověkodní na hektar louky. Nejlepší mez s nástroji od kováře (kosy),
 // nejhorší bez nich. Dřív 6 člověkodní (jen seč).
 export const HAY_WORK_PER_HA: Bounds = { worst: 15, best: 10 };
+/**
+ * oxen.md – Seno, dvě seče (Martin 25. 10. 2026: „Tak ony jsou v roce 2 senoseče: 1. konec května
+ * – konec června 2. srpen – září.“; čísla návrh Clauda schválený Martinem 25. 10. 2026):
+ * 1. seč v okně 25. 5. – 30. 6., 2. seč (otava) 1. 8. – 30. 9. jen na loukách posečených letos
+ * v 1. seči. Otava dá ≈ 40 % sena 1. seče (`aftermathYieldShare`) a stojí 60 % práce na hektar
+ * (`aftermathWorkShare` – kosí se celá plocha, ≈ 2,5 čd/ha, obracení, hrabání a svoz jen podle
+ * hmoty, ≈ 40 %; zaokrouhleno nahoru, otava v kratších a rosnějších dnech schne pomaleji). Seče se
+ * na zimu stád v cílové velikosti a 20 % rezervy navíc (`reserve`).
+ */
+export const HAY_CUTS = {
+  first: { from: { month: 5, day: 25 }, to: { month: 6, day: 30 } },
+  second: { from: { month: 8, day: 1 }, to: { month: 9, day: 30 } },
+  aftermathYieldShare: 0.4,
+  aftermathWorkShare: 0.6,
+  reserve: 0.2,
+} as const;

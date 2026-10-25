@@ -77,6 +77,10 @@ export const HARVEST_WORK_PER_HA: Record<'reap' | 'carry', Bounds> = {
 // starší 0,5 člověkodne): výrostci od 10 let a starší dají ve žňové dny po 0,5 člověkodne na žeň
 // a výmlat (vázání, odnos, paběrky)
 export const HARVEST_HELPERS = { youthFromAge: 10, perDay: 0.5 } as const;
+// fields.md – Pletí – děti (Martin 25. 10. 2026: „Pletí se často účastnily děti. To by mohlo
+// uvolnit ruce dospělým.“; číslo návrh Clauda): výrostci 7–13 let, kteří zrovna nepasou, plejí
+// v okně pletí po 0,5 člověkodne denně (pasáci mají přednost)
+export const WEEDING_CHILDREN = { perDay: 0.5 } as const;
 // fields.md – Práce (člověkodny na osetý hektar – meze)
 export const FIELD_WORK_PER_HA: Record<FieldTask, Bounds> = {
   dig: { worst: 100, best: 50 },

@@ -29,10 +29,13 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   jako zbytek minima, i v plánu osevu (`sowingCapacity`) a v dílnách (`workshopLabor`); bez
   krajiny 0. `allocateDay`: denní minimum → péče o koně (`horseCare` – `horseCareLabor`, horses.md – Péče; pokrytí v `state.horsesCaredToday`) → výpravy (`away`) → potřebné sezónní úlohy v pořadí `dayTaskOrder` – **orba rádlem první** (oxen.md – Orba má přednost, Martin 24. 10. 2026; překrývá se jen s osevem, výmlatem jaře a jablky, žeň ne), pak nejbližší konec okna (žeň a výmlat napřed ze žňových rukou – `harvestHands`, `lordHarvest`, fields.md – Žně všemi rukama) → `common` (volná práce
   v liště, `commonLaborHistory`) do staveb (`build`) → z toho, co stavby nespotřebovaly, opravy
-  obydlí (`afterConstructions`) → zbytek (místo pro polní práci navíc – fields.md, Osev navíc)
-  propadne. Zvířata a domácí výroba (`DOMESTIC`) jdou bokem – jen `LaborDay.aside` pro postavy;
+  obydlí (`afterConstructions`) → osev navíc (fields.md) → **seč navíc** pro růst stád (oxen.md –
+  Seno, dvě seče; `extraMow`) → zbytek propadne. **Seč nutného sena** je úloha dne `mow` za
+  všemi ostatními (`end: Infinity`, `tie: 3`) – polním pracím práci nikdy nebere, stavbám ano. Zvířata a domácí výroba (`DOMESTIC`) jdou bokem – jen `LaborDay.aside` pro postavy;
   `domesticBacklog` a přirážka paliva zmizely (starší vsi pole jen nesou). Úlohy dne berou práci
-  ze zásobníků v pořadí **`light`** (ženy řemeslníků, jen lehké úlohy) → **`lordField`**
+  ze zásobníků v pořadí **`weedChildren`** (děti 7–13 let, které nepasou, jen pletí –
+  `weedingChildren` v harvest-hands.ts, `WEEDING_CHILDREN` 0,5 čd; fields.md – Pletí – děti) →
+  **`light`** (ženy řemeslníků, jen lehké úlohy) → **`lordField`**
   (vojvodova rodina na poli při hladu, jen úlohy dne, nikdy stavby; co nevyužije, propadne) →
   obecná kapacita. **Cvičící vojvodova rodina** (lord.md) je mimo `villagers` jako dílny; minimum
   dvorce kryje sama (`manorLabor`, domácnost dvorce je ve `householdElders` / `householdWater`

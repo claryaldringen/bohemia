@@ -159,8 +159,10 @@ describe('vzdálenost chůze dílů pole (refreshWalkDistances)', () => {
       expect(p.walkDistanceM!).toBeLessThanOrEqual(p.distanceM);
       expect(distanceFactor(partWalkDistance(p))).toBeLessThanOrEqual(distanceFactor(p.distanceM));
     }
-    // ve stavu jen otisky – rozložení se stadii z 1. dne v měsíci (1. 6. = DAY)
-    expect(s.walkStages).toBe(walkLayoutHash(walkStageKey(s, DAY)));
+    // ve stavu jen otisky – stadia z prvního přepočtu (ráno 2. 6.); díly, které se ten den
+    // dozaložily (bez seče 1. 6. – oxen.md, Seno, dvě seče – má ves na zakládání víc práce), se do
+    // chůze promítnou až 1. dne v měsíci
+    expect(s.walkStages).toBe(walkLayoutHash(walkStageKey(withField(), DAY + 1)));
     expect(s.walkLayoutKey).toBe(
       walkLayoutHash(`${walkLayoutKey(s, DAY + 1)}|${s.walkStages}|${WALK_VERSION}`),
     );

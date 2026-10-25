@@ -2,11 +2,23 @@
 
 Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). Pravidla a rozhodnutí: diet.md, oxen.md, wagons.md v `docs/design/`.
 
-- **Co nejvíc sena a co největší stáda** (oxen.md – Co nejvíc sena a co největší stáda; Martin 24. 10. 2026, návrh Clauda schválený): `planMowing` (hay.ts) plánuje **všechny louky na dosah**
-  od nejbližší; `HayMowing.needed` = práce na seno pro zimní stádo (`winterHayNeedKg`) – úloha
-  `mow` (simulate-work.ts) ji má podle konce okna seče, zbytek (`mowingNeededRemaining` = 0) jde
-  s `end: Infinity` za všechny úlohy dne, před stavby; seč bez `needed` (uložená dřív) je celá
-  potřebná. Přednost stád `HERD_PRIORITY` (livestock.ts – krávy, ovce, kozy, prasata; voli před
+- **Dvě seče podle stád** (oxen.md – Seno, dvě seče; Martin 25. 10. 2026, návrh Clauda schválený):
+  `HAY_CUTS` (rules-livestock.ts) – 1. seč 25. 5. – 30. 6. (`MOWING_DAY`, plán `planMowing`),
+  otava 1. 8. – 30. 9. (`AFTERMATH_DAY`, plán `planAftermath` – jen posečené louky 1. seče,
+  rozpracovaná posečenou plochou, výnos `aftermathYieldShare` 0,4, práce na ha
+  `aftermathWorkShare` 0,6). `mowingNeed` (husbandry.ts): `necessaryKg` = dnešní stádo (nejvýš
+  `wantedWinterHerds`), voli `hayOxen`, koně a čekající na porážku; `capKg` = `winterHayNeedKg`
+  × (1 + `reserve` 0,2). Plán (`mowingPlan` v hay.ts) bere louky od nejbližší do stropu bez zásoby
+  (`mowingTargets`), `needed` = práce do nutného. Otava nahradí `hay.mowing` (`cut: 2`,
+  `firstCut` – posečené díly, plocha přirozených luk a seno 1. seče: `mownPartIds`,
+  `hayPlanPartIds`, `hayPlanNaturalHa`, `seasonHayYieldKg`); bez potřeby otavy zůstane 1. seč.
+  Okno podle seče `isMowingSeason(day, cut)` / `mowingCut`. Práce (simulate-work.ts): úloha
+  `mow` jen s nutnou prací (`mowingNeededRemaining`), `end: Infinity`, `tie: 3` – za všemi
+  úlohami dne, před stavbami; **seč navíc** (`extraMow`) až po stavbách, opravách a osevu navíc,
+  pěšky, v `LaborDay` přes `DayWork.extraMow` (díl `mow`, ne `idle`). Seč bez `needed` (uložená
+  před 24. 10. 2026) je celá nutná. Výnos a práce otavy znají `economy.ts` (`mowingYieldPerHa`,
+  `mowingWorkShare`) a `land-taken.ts`. Předtím (24. 10. 2026) se plánovaly všechny louky na
+  dosah 1. 6. a seč běžela v červnu–červenci. Přednost stád `HERD_PRIORITY` (livestock.ts – krávy, ovce, kozy, prasata; voli před
   všemi) pro pastvu a seno (`winterTargets`), pasáky (`watchedShares` po druzích)
   i výrostky (`youngRoomTargets` nad `breedingFloor`). `sizeHerdsToNeed` stádo nezmenšuje – celé
   stádo v nosnosti a jen plán luštěnin (`legumeKg`, `sufficient`); `keepUneatable` zrušeno, maso
@@ -64,7 +76,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `DIET.caps`; pak do potřeby × 1,1 (`BALANCE.proteinReserve`) nejlevnější (přežvýkavci
   v pořadí, prasata a luštěniny cenou), nad 88 % (`minProteinCoverage`) jen bílkoviny levnější
   než z obilí. Týž plán `balancedPlan` (s luštěninami – zásoba luštěnin stádo
-  nezmenší) řídí seč 1. 6. (`wantedWinterHerds`), luštěniny osevu 1. 9. (`plannedLegumeKg` →
+  nezmenší) řídí seč 25. 5. a otavu 1. 8. (`wantedWinterHerds`), luštěniny osevu 1. 9. (`plannedLegumeKg` →
   `sowingTargets`) i porážku 1. 11.; zbytek i dospělé kusy na maso, ale stádo v nosnosti jen
   o tolik masa, kolik ves do 31. 8. sní pod stropem (`keepUneatable`, `meatEatableKg` – zbytek
   žije; co přeroste nosnost, jde vždy – diet.md, Chovné stádo podle potřeby); stádo pod potřebou dá na

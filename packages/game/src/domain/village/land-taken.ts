@@ -1,6 +1,6 @@
 import { tileOfWorldPoint, type Landscape } from '../landscape';
 import { PART_TASKS, taskPosition, taskSpans, type PartTask } from './field-progress';
-import { HAY, mowingPosition, mowingSpans } from './hay';
+import { mowingPosition, mowingSpans, mowingYieldPerHa } from './hay';
 import { recordClearedObstacles } from './obstacles';
 import { normalizeGrid, squareKey } from './square-grid';
 import { PolygonIndex, villageLandSquares, type LandSquare, type SquaresVillage } from './squares';
@@ -446,7 +446,10 @@ function shrinkInMowing(state: VillageState, part: FieldPart, share: number): vo
     mowing.required - share * (span.end - span.start) * mowing.required,
   );
   mowing.done = Math.max(0, Math.min(mowing.required, mowing.done - share * doneOnPart));
-  mowing.yieldKg = Math.max(0, mowing.yieldKg - (share * part.areaM2 * HAY.yieldKgPerHa) / 10_000);
+  mowing.yieldKg = Math.max(
+    0,
+    mowing.yieldKg - (share * part.areaM2 * mowingYieldPerHa(mowing)) / 10_000,
+  );
   // louka v pořadí seče (s přirozenými loukami) nese plochu z plánu – ubude jí stejný podíl
   for (const square of mowing.squares ?? []) {
     if (square.partId === part.id) square.areaM2 *= 1 - share;
@@ -458,6 +461,8 @@ function dropFromMowing(state: VillageState, partId: number): void {
   const hay = state.hay;
   if (!hay?.mowing) return;
   hay.mowing.partIds = hay.mowing.partIds.filter((id) => id !== partId);
+  const firstCut = hay.mowing.firstCut;
+  if (firstCut) firstCut.partIds = firstCut.partIds.filter((id) => id !== partId);
   if (hay.mowing.squares) {
     hay.mowing.squares = hay.mowing.squares.filter((sq) => sq.partId !== partId);
   }

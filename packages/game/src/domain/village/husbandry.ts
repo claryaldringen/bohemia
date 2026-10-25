@@ -2,12 +2,15 @@ import { dateOfDayIndex } from '../calendar';
 import type { CalendarDate } from '../calendar';
 import { SLAUGHTER_DAY, spoilMeat } from './diet';
 import {
+  AFTERMATH_DAY,
   feedHay,
   HAY_WINTER_DAYS,
   horsesHayCoverage,
   isHayWinter,
   MOWING_DAY,
+  planAftermath,
   planMowing,
+  type MowingNeed,
   rotHay,
   spoilOldHay,
   villageHay,
@@ -19,7 +22,7 @@ import { herdingCoverage } from './herding';
 import { horsesDay } from './horse-breeding';
 import { horsesWinterEnd } from './horse-feed';
 import { horseHayDailyKg, horsesInPlaces, villageHorses } from './horses';
-import { HORSES } from './rules';
+import { HAY_CUTS, HORSES } from './rules';
 import type { Landscape, ObstacleLayer } from '../landscape';
 import {
   BIRTH_DAY,
@@ -28,9 +31,11 @@ import {
   ensureLivestock,
   herdBirths,
   herdLosses,
+  herdRecord,
   householdCount,
   slaughter,
   hayShortSlaughter,
+  villageHerds,
   wantedWinterHerds,
   winterSlaughterDay,
   winterWaitHayKg,
@@ -59,8 +64,8 @@ import { recordWool, woolSheep } from './wool';
 // Den hospodářství vsi (diet.md, oxen.md) – stáda, seno a ohrady v pevném pořadí, před plánem
 // osevu a prací dne: roční ztráty stád a seno ve stohu (každý den), ohrady volů (výcvik, stáří
 // volů, 1. 3. pokrytí sena), 1. 4. mláďata a konec zimy, výcvik
-// volů, kdykoli jde (začíná sám), 1. 6. zkažené loňské seno a plán seče (s krajinou
-// i přirozené louky), 1. 9. zkažené maso, 1. 11. porážka a začátek zimy, v zimě porážka při nedostatku sena a seno. Mléko a vejce se jí čerstvé v kroku jídla (diet.ts),
+// volů, kdykoli jde (začíná sám), 25. 5. zkažené loňské seno a plán 1. seče (s krajinou
+// i přirozené louky), 1. 8. plán otavy, 1. 9. zkažené maso, 1. 11. porážka a začátek zimy, v zimě porážka při nedostatku sena a seno. Mléko a vejce se jí čerstvé v kroku jídla (diet.ts),
 // dojení, péče a pasení jsou práce dne.
 
 /** Konec zimy pro voly a stádo (1. 3.) – pokrytí sena rozhodne o jarní orbě a úhynu. */
@@ -112,8 +117,8 @@ function hayOxen(state: VillageState): number {
 
 /**
  * Seno, které ves na zimu potřebuje (kg – oxen.md, Seno): zimní stádo, které si chce nechat
- * (nosnost pastvy, lesa, pasáků a místo pro mláďata – `wantedWinterHerds`; má přednost v seči,
- * zbytek luk z volné práce – oxen.md, Co nejvíc sena a co největší stáda),
+ * (nosnost pastvy, lesa, pasáků a místo pro mláďata – `wantedWinterHerds`; s rezervou strop seče –
+ * `mowingNeed`, oxen.md, Seno, dvě seče),
  * a voli ohrad, po zimní dávce celou zimu, koně (horses.md – Krmení; jezdečtí s obilím, hříbata
  * podle stáří v den seče), a kusy na maso, dokud nepřijdou na řadu zimní porážky (`winterWaitHayKg`
  * – diet.md, Porážka v zimě).
@@ -125,6 +130,31 @@ export function winterHayNeedKg(state: VillageState, day: number, toolCoverage =
     winterHayKg(herds, hayOxen(state), horseHayDailyKg(villageHorses(state), day)) +
     winterWaitHayKg(state, day, herds, input.oxen, input.room)
   );
+}
+
+/**
+ * Kolik sena ves na zimu seče (oxen.md – Seno, dvě seče; návrh Clauda schválený Martinem
+ * 25. 10. 2026): nutné je seno na dnešní stádo i s letošními mláďaty (nejvýš zimní stádo, které si
+ * ves chce nechat – zbytek půjde 1. 11. na maso), voly ohrad a koně, a na kusy čekající na zimní
+ * porážku; strop je zimní stádo v cílové velikosti (`winterHayNeedKg` – pastva, les, pasáci a místa
+ * v ohradách v pořadí přednosti) a rezerva `HAY_CUTS.reserve` – víc stáda nesnědí, shnilo by.
+ */
+export function mowingNeed(state: VillageState, day: number, toolCoverage = 0): MowingNeed {
+  const input = farmInput(state, day, toolCoverage);
+  const wanted = wantedWinterHerds(state, day, input);
+  const today = villageHerds(state);
+  const oxen = hayOxen(state);
+  const horsesKg = horseHayDailyKg(villageHorses(state), day);
+  const waiting = winterWaitHayKg(state, day, wanted, input.oxen, input.room);
+  return {
+    necessaryKg:
+      winterHayKg(
+        herdRecord((s) => Math.min(today[s], wanted[s])),
+        oxen,
+        horsesKg,
+      ) + waiting,
+    capKg: (winterHayKg(wanted, oxen, horsesKg) + waiting) * (1 + HAY_CUTS.reserve),
+  };
 }
 
 /** Seno koní za den zimy (kg) – jezdečtí koně bez obilí 7 kg (`state.horsesFed`). */
@@ -294,12 +324,18 @@ export function husbandryDay(
     const mowing = planMowing(
       state,
       day,
-      winterHayNeedKg(state, day, toolCoverage),
+      mowingNeed(state, day, toolCoverage),
       toolCoverage,
       landscape,
       walk,
     );
     if (mowing || state.hay) state.hay = { ...villageHay(state), mowing };
+  }
+  // otava jen na loukách posečených v 1. seči, kolik stádům ze stropu chybí; bez ní 1. seč zůstane
+  // (oxen.md – Seno, dvě seče)
+  if (isOn(date, AFTERMATH_DAY) && state.hay) {
+    const aftermath = planAftermath(state, mowingNeed(state, day, toolCoverage), toolCoverage);
+    if (aftermath) state.hay.mowing = aftermath;
   }
   // uzené maso z loňské porážky vydrží přes žně – 1. 9. se zbytek zkazí (diet.md)
   const spoiled = spoilMeat(state, day);

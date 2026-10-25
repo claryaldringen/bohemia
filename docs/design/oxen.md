@@ -239,7 +239,7 @@ volů (`draft.ts`).
   – výcvik pro ně telata nebere. **Rádlo k páru bez výcviku** (návrh Clauda): když ves má pár
   k orbě, na který rádlo chybí (koupený vycvičený vůl k vlastnímu), vyrobí ho bez výcviku. Ves
   prodá voly ve výcviku a vycvičené voly mimo posledních 2 let služby.
-- **Seno:** seč 1. 6. počítá s voly, které ves cvičí a krmí, aspoň s těmi, které má.
+- **Seno:** seč (25. 5. a otava 1. 8.) počítá s voly, které ves cvičí a krmí, aspoň s těmi, které má.
 - **Panel ohrady volů:** voli v ohradě, místa / kolik volů ves chce (červeně, když chybí;
   v popisku vycvičení a ve výcviku – jako `herdPlaces` u stád), páry s rádlem / páry k orbě
   (ikona rádla `resources/ard.png`), vozy má / chce po druzích, nejstarší vůl (stáří, kolik let
@@ -362,17 +362,49 @@ vracelo na chovný pár):
 
 Staré vsi se nepřevádějí – pravidla platí od dalšího dne (seč od 1. 6., porážka od 1. 11.).
 
-**Naměřeno (24. 10. 2026):** Vlkov 8 let dopředu ze stavu 16. 4. 814 – seč 19–59 t sena ročně
-(dřív 8–21 t jen na stádo), volná práce v červnu klesla z 3–10 na ≈ 0,2 čd/den (seč ji vezme
-celou); krávy 2,6 → 8,2 (dřív 2,6 → 6,4), ovce 15 → 78 (dřív vrchol 66, pak 31), voli: výcvik
+**Naměřeno (24. 10. 2026):** Vlkov 8 let dopředu ze stavu 16. 4. 814 – seč 19–59 t sena ročně (dřív 8–21 t jen na stádo), volná práce v červnu klesla z 3–10 na ≈ 0,2 čd/den (seč ji vezme celou); krávy 2,6 → 8,2 (dřív 2,6 → 6,4), ovce 15 → 78 (dřív vrchol 66, pak 31), voli: výcvik od 1. 4. 815 a 1. 4. 816, pár zase od 1. 5. 818 (dřív výcvik až 1. 4. 820); hlad 1× ročně v letech 818–820 bez úmrtí hladem (dřív 18 úmrtí v letech 820–821); porážka pro nedostatek sena ani jednou. Čtyři čerstvé vsi × 15 let (hráč staví): krávy na 10 lidí 2,9 → 6,1, kozy 12,6 → 18,3, ovce a prasata beze změny, nasycení 100 % let; seč 3,4 → 18 čd na člověka a rok, volná práce 56,5 → 40 čd (29 → 21 %). ~~**Otevřené:** seno v listopadu Vlkovu zbývá ≈ 40 t nad potřebu (stádo roste jen o mláďata a ohrady) – omezit seč na seno pro stádo s jarním přírůstkem, nebo seč z volné práce dát až za stavby?~~ Rozhodnuto 25. 10. 2026 – obojí (Seno – dvě seče podle stád níž).
 
-1. 4. 815 a 1. 4. 816, pár zase od 1. 5. 818 (dřív výcvik až 1. 4. 820); hlad 1× ročně
-      v letech 818–820 bez úmrtí hladem (dřív 18 úmrtí v letech 820–821); porážka pro nedostatek sena
-      ani jednou. Čtyři čerstvé vsi × 15 let (hráč staví): krávy na 10 lidí 2,9 → 6,1, kozy 12,6 →
-      18,3, ovce a prasata beze změny, nasycení 100 % let; seč 3,4 → 18 čd na člověka a rok, volná
-      práce 56,5 → 40 čd (29 → 21 %). **Otevřené:** seno v listopadu Vlkovu zbývá ≈ 40 t nad potřebu
-      (stádo roste jen o mláďata a ohrady) – omezit seč na seno pro stádo s jarním přírůstkem, nebo
-      seč z volné práce dát až za stavby? Rozhodne Martin.
+## Seno – dvě seče podle stád (25. 10. 2026)
+
+Martin, 25. 10. 2026: „**Tak ony jsou v roce 2 senoseče: 1. konec května – konec června 2. srpen
+– září. Takže mi hoď tabulku s vytížením vesnice a zkusíme tam někam ty senoseče nacpat tak aby to
+neohrozilo ostatní polní práce.**“ Po tabulce vytížení Vlkova (květen 100 % – pletí 366 čd; volné:
+červen 175 čd, srpen 157, září 126) a návrhu Clauda: „**Pletí se často účastnily děti. To by mohlo
+uvolnit ruce dospělým. Jinak tu senoseč dej tak jak navrhuješ.**“ Pravidla jsou návrh Clauda,
+schválený Martinem 25. 10. 2026 (nahrazují seč 1. 6. – 31. 7. a „seč co nejvíc“ z oddílu výš):
+
+1. **Dvě seče.** 1. seč v okně **25. 5. – 30. 6.** (plán 25. 5. – zbytek loňského sena se zkazí),
+   **otava** v okně **1. 8. – 30. 9.** (plán 1. 8.) jen na loukách posečených letos v 1. seči
+   (u rozpracované louky jen posečená část). Otava dá **≈ 40 %** sena 1. seče a stojí **60 %
+   práce** na hektar – kosí se celá plocha (≈ 2,5 čd/ha), obracení, hrabání a svoz jen podle
+   hmoty a otava v kratších a rosnějších dnech schne pomaleji (návrh Clauda). Tuna sena z otavy
+   tak stojí ≈ 1,5× víc práce – napřed se seče 1. seč, otava jen dorovná, co ve stohu chybí.
+2. **Kolik.** Seče se tolik, kolik stáda sní: **strop** = seno na zimu pro stáda v cílové velikosti
+   (co dovolí pastva, les, pasáci a místa v ohradách – pořadí voli → krávy → ovce → kozy →
+   prasata, i s letošními mláďaty), voly ohrad a koně **a 20 % rezervy**, bez zásoby ve stohu.
+   Louky od nejbližší, dokud úroda strop nepokryje – ne všechny louky (Vlkov by jinak sekl přes
+   35 t a seno by shnilo).
+3. **Čí práce.** Seno **nutné** – na dnešní stádo i s letošními mláďaty (nejvýš zimní stádo, které
+   si ves chce nechat; zbytek půjde na maso), voly, koně a kusy čekající na zimní porážku – jde
+   **po všech polních pracích dne, před stavbami**. **Seč navíc** (do stropu, pro růst stád) jen
+   z práce, která zbude **po stavbách, opravách a osevu navíc** (Martin 19. 10. 2026: „pokud se
+   něco staví, tak čas věnují primárně té stavbě – zemědělství jenom natolik, aby vesnice neměla
+   hlad“), pěšky bez vozů. Seč **nikdy nebere práci polním úlohám** (pletí, žně, odnos, výmlat,
+   orba, setí, kopání) – co volná práce do konce okna nestihne, zůstane neposečené.
+4. **Děti při pletí** uvolní ruce dospělým – [fields.md](fields.md), Pletí – děti.
+
+Seč uložená dřív platí jako 1. seč (po 30. 6. se už neseče); nové vsi založené po 25. 5. letos
+nesečou – seno na první zimu si přivedou osadníci.
+
+**Naměřeno (25. 10. 2026):** Vlkov ze stavu 16. 4. 814 (před → po). Vytížení: květen beze změny
+(pletí 366 čd, 100 %; oba výrostci pasou, děti při pletí 0); červen seč 208 → 73 čd, volné 7 →
+161 čd (využití 98 → 51 %); červenec seč 120 → 0, volné 0 → 117 čd; srpen a září beze změny (volné
+157 a 126 čd, otava v 816 není potřeba). 8 let: seč 21–60 t → 8–26 t 1. seč a od 820 otava
+4–6 t; seno 1. 11. 20–60 t → 11–27 t; krávy 2,6 → 13,7 / 2,6 → 11,5, ovce do 819 víc (76 proti
+59), voli 4 → 3, pár celou dobu, úmrtí hladem 0 v obou. **Otevřené:** od 821 seče ves méně (11 t
+
+1. seče a otava) a v 823 ovce klesly na 2 (dřív 63) – příčina (práce v červnu, strop podle
+   pasáků) zatím neprověřena.
 
 ## Účinek na práci
 

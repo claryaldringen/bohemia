@@ -336,7 +336,7 @@ není.**“ Mění dřívější pravidlo „na úhoru pasáček se zvířaty �
 jen po seči na otavě“ (18. 10. 2026). Detaily návrh Clauda:
 
 - **Pastviny – louky určené ke spásání:** přirozené louky do 600 m a příloh ve fázi louky, kromě
-  luk, které ves letos potřebuje na seno (plán seče 1. 6.; do něj loňský) – ty až po seči na
+  luk, které ves letos potřebuje na seno (plán 1. seče 25. 5.; do něj loňský) – ty až po seči na
   otavě.
 - **Mladý příloh (1–2 roky)** dá jen **třetinu píce** louky (plevel, výmladky obilí, řídký drn –
   rešerše: první roky přílohu porost teprve zapojuje); **louka letošní seče** jen **třetinu** –
@@ -695,7 +695,7 @@ práci.
   na chovný pár a ovce na vlnu by odchovávala roky.
 - **Kdy se rozhodne:** při porážce 1. 11. podle ovcí, které ves nechá přes zimu (stříž na jaře) –
   platí do další porážky (`LivestockState.wool`). Vsi uložené dřív se do první porážky nemění –
-  stáda ani štěstí; hranici ale použije už plán seče 1. 6. a luštěnin 1. 9.
+  stáda ani štěstí; hranici ale použije už plán 1. seče 25. 5. a luštěnin 1. 9.
 - **Když ovcí na vlnu není dost** (ves je neuživí – pastva, seno, pasáci –, nebo je ještě nemá):
   (Martin potvrdil 19. 10. 2026) kronika `wool-short` a krátký řádek **„Chybí vlna na oděv“** (až pod 95 % oděvu – ovce průběžně
   hynou a stádo na hranici by hlásilo drobnosti); štěstí ubere **až 6** podle chybějícího podílu

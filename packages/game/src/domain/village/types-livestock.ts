@@ -93,6 +93,13 @@ export interface HayMowing {
   cartReach?: CartReach;
   /** Kam při seči dojede čtyřkolák (ne na zoraný díl, širší oblouk). Chybí = ještě ne. */
   cartReach4?: CartReach;
+  /**
+   * Která seč (oxen.md – Seno, dvě seče): 2 = otava (1. 8. – 30. 9.) jen na loukách posečených
+   * v 1. seči; chybí = 1. seč (25. 5. – 30. 6.; i seč uložená před 25. 10. 2026).
+   */
+  cut?: 2;
+  /** U otavy, co se letos posekalo v 1. seči – díly, plocha přirozených luk a seno (kg). */
+  firstCut?: { partIds: number[]; naturalM2: number; yieldKg: number };
 }
 
 /** Louka v seči: díl úhoru ve fázi louky, nebo políčko přirozené louky krajiny (oxen.md – Seno). */
