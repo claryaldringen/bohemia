@@ -349,6 +349,35 @@ describe('vozová cesta ve scéně (roads.md – Vozová cesta)', () => {
     expect(earthworkSlopeGrid([earthwork({ shownM: 0 })], (x) => height(x), base, 1)).toBeNull();
   });
 
+  it('zemní práce bez cesty (přestavba sítě) zaroste i s lemem; kde vede živá, kreslí jen ta', () => {
+    const sum = (g: ReturnType<typeof earthworkSlopeGrid>): number =>
+      g ? g.alphas.reduce((a, b) => a + b, 0) : 0;
+    const grid = (list: SceneEarthwork[]): ReturnType<typeof earthworkSlopeGrid> =>
+      earthworkSlopeGrid(list, (x) => height(x), base, 1);
+    const live = sum(grid([earthwork()]));
+    // hned po přestavbě vypadá stejně, za pár let řidší, za `wildYears` let zarostlá úplně
+    expect(sum(grid([earthwork({ abandonedYears: 0 })]))).toBeCloseTo(live, 3);
+    const later = sum(grid([earthwork({ abandonedYears: 2 })]));
+    expect(later).toBeGreaterThan(0);
+    expect(later).toBeLessThan(live * 0.9);
+    expect(grid([earthwork({ abandonedYears: SLOPE_LOOK.wildYears })])).toBeNull();
+    const edges = earthworkEdges(
+      [earthwork({ abandonedYears: SLOPE_LOOK.wildYears })],
+      (x) => height(x),
+      base,
+      1,
+    );
+    expect(edges.cut).toBeNull();
+    expect(edges.fill).toBeNull();
+    // nová osa 1 m vedle staré: svahy kreslí jen nová – stejně jako sama, stará nic
+    const shifted = earthwork({ id: 2, profile: profile.map((p) => ({ ...p, x: p.x + 1 })) });
+    const alone = grid([shifted])!;
+    const both = grid([earthwork({ abandonedYears: 0 }), shifted])!;
+    const n = alone.alphas.length;
+    expect(Math.max(...both.alphas.slice(0, both.alphas.length - n))).toBe(0);
+    expect([...both.alphas.slice(both.alphas.length - n)]).toEqual([...alone.alphas]);
+  });
+
   it('hlína jen na strmém svahu, okraje sítě měkké, překryv os se nesčítá (Martin 24. 10. 2026)', () => {
     // hustý profil (po 1 m), ať jsou vidět konce osy
     const dense = Array.from({ length: 41 }, (_, k) => ({ x: 0, z: k, y: 1 }));

@@ -57,6 +57,8 @@ import { type VillageJunction } from './junction-view';
 
 import type { VillageListItem } from './village-list';
 
+import type { LineEndView } from './line-end-view';
+
 import {
   type VillageAbandonment,
   type VillageJourneyView,
@@ -530,6 +532,11 @@ export interface VillageView {
    * s tlačítkem Začít znovu.
    */
   gameOver: boolean;
+  /**
+   * Hra skončila, protože vymřel rod po meči (lord.md – Konec rodu) – kronika rodu pro obrazovku
+   * porážky; jinak chybí.
+   */
+  lineEnded?: LineEndView;
   scene: SceneVillage;
   /**
    * Posledních CHRONICLE_LENGTH událostí, nejnovější první (`kind` – druh pro upozornění, `kg` –

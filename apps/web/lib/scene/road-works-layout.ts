@@ -1,19 +1,24 @@
 import { WAGON_ROAD } from '@bohemia/game';
 import type { SceneEarthwork, SceneJunction, SceneRoad, SceneRoadApple } from '../village-view';
 import { junctionRibbons } from './junction-shape';
+import { junctionPatch, mergeGrids, type PatchArm } from './junction-patch';
 import {
   CART_RUT_OFFSET_M,
   CART_WORN_LAYER,
+  IMPROVED_EARTH_LAYER,
   IMPROVED_WORN_LAYER,
+  ROAD_EARTH_LAYER,
   ROAD_WIDTH_M,
   ROAD_WORN_LAYER,
+  WAGON_EARTH_LAYER,
   WAGON_WORN_LAYER,
   ribbonTrack,
+  type RibbonLayer,
   type RibbonLine,
 } from './path-ribbon';
 import type { Track } from './track-mask';
 import { hash01 } from './smoke-schedule';
-import type { Point } from './village-layout';
+import type { DecalGrid, Point } from './village-layout';
 
 // Vylepšené pevné cesty ve scéně bez Babylonu (docs/design/roads.md – Co hráč vidí): upravená
 // cesta je jen širší vyšlapaná cesta (Martin, 19. 10. 2026: „upravená cesta ať je prostě jenom
@@ -128,7 +133,7 @@ function fadeAt(road: SceneRoad, p: { x: number; z: number }): number {
 }
 
 /** Pás cesty: vyšlapaná, upravená (širší), vyšlapaná vozová (wagons.md), vozová cesta (roads.md). */
-type BandKind = 'trodden' | 'improved' | 'cart' | 'wagon';
+export type BandKind = 'trodden' | 'improved' | 'cart' | 'wagon';
 
 /** Šířka pásu (m) – jako obtisk plné síly (ROAD_WORN_LAYER, IMPROVED_*, CART_WORN_LAYER). */
 const BAND_WIDTH_M: Record<BandKind, number> = {
@@ -146,7 +151,10 @@ const BAND_WIDTH_M: Record<BandKind, number> = {
  * vozová – cesta hráče, roads.md), širší se k užšímu plynule zúží (`narrowStart` / `narrowEnd`)
  * a koleje vozové cesty se vytratí.
  */
-export function roadBands(roads: readonly SceneRoad[]): {
+export function roadBands(
+  roads: readonly SceneRoad[],
+  cuts: readonly JunctionCut[] = [],
+): {
   trodden: RibbonLine[];
   improved: RibbonLine[];
   /** Vyšlapaná vozová cesta (wagons.md – Vyjeté cesty) – širší, bez holé hlíny uprostřed. */
@@ -157,6 +165,8 @@ export function roadBands(roads: readonly SceneRoad[]): {
   wagon: RibbonLine[];
   /** Zpevněné koleje vozové cesty – štěrk a kameny po CART_RUT_OFFSET_M od osy. */
   gravel: RibbonLine[];
+  /** Ramena křižovatek (`cuts`) – kus osy od řezu pásu do středu, kreslí ho plácek. */
+  arms: JunctionArmBand[];
 } {
   const ends = roads.flatMap((r) => [r.points[0], r.points[r.points.length - 1]]);
   const joined = (p: { x: number; z: number } | undefined, own: number): boolean =>
@@ -173,6 +183,10 @@ export function roadBands(roads: readonly SceneRoad[]): {
     return road.openEnds ? road.openEnds[end] : true;
   };
   interface Piece {
+    road: SceneRoad;
+    /** Konce osy úseku před řezem u křižovatky – podle nich se hledají sousední pásy. */
+    from: Pt;
+    to: Pt;
     points: { x: number; z: number }[];
     strength: number[];
     kind: BandKind;
@@ -204,6 +218,9 @@ export function roadBands(roads: readonly SceneRoad[]): {
       const points = axisPart(road.points, span.from, span.to);
       if (points.length < 2) continue;
       pieces.push({
+        road,
+        from: points[0]!,
+        to: points[points.length - 1]!,
         points,
         strength: points.map((p) => fadeAt(road, p)),
         kind: span.kind,
@@ -235,6 +252,55 @@ export function roadBands(roads: readonly SceneRoad[]): {
     const ratio = BAND_WIDTH_M[other.kind] / BAND_WIDTH_M[piece.kind];
     return ratio < 1 - 1e-6 ? ratio : undefined;
   };
+  // křižovatky: pás končí v řezu (`JunctionCut.radius` od středu), kus osy do středu kreslí plácek
+  const junctionEnds: { piece: Piece; end: 0 | 1; arm: JunctionArmBand }[] = [];
+  const atCut = (p: Pt): number =>
+    cuts.findIndex((c) => Math.hypot(c.x - p.x, c.z - p.z) <= JUNCTION_END_M);
+  for (const piece of pieces) {
+    for (const end of [1, 0] as const) {
+      const pts = piece.points;
+      if (pts.length < 2) continue;
+      const j = atCut(end === 1 ? pts[pts.length - 1]! : pts[0]!);
+      if (j < 0) continue;
+      const toward = end === 1 ? pts : [...pts].reverse();
+      const cut = cutAxisEnd(toward, cuts[j]!, cuts[j]!.radius);
+      piece.points = end === 1 ? cut.kept : [...cut.kept].reverse();
+      // celý krátký úsek v plácku: k volnému konci (branka) se rameno vytrácí jako pás
+      const farOpen = end === 1 ? piece.openStart : piece.openEnd;
+      junctionEnds.push({
+        piece,
+        end,
+        arm: {
+          junction: j,
+          kind: piece.kind,
+          axis: cut.inner,
+          strength: fadeAt(piece.road, cut.inner[0]!),
+          ...(cut.kept.length === 0 && farOpen
+            ? { openM: Math.min(OPEN_FADE_M, roadLength({ points: cut.inner }) / 3) }
+            : {}),
+        },
+      });
+    }
+  }
+  for (const piece of pieces) piece.strength = piece.points.map((p) => fadeAt(piece.road, p));
+  // koleje přes plácek: dvě ramena téhož druhu kolejí, mezi nimiž vede cesta skrz
+  const rutKind = (piece: Piece): 'gravel' | 'ruts' | null =>
+    piece.kind === 'wagon' ? 'gravel' : piece.cart ? 'ruts' : null;
+  const throughs: { a: (typeof junctionEnds)[number]; b: (typeof junctionEnds)[number] }[] = [];
+  const paired = new Set<(typeof junctionEnds)[number]>();
+  junctionEnds.forEach((a, i) => {
+    for (const b of junctionEnds.slice(i + 1)) {
+      const kind = rutKind(a.piece);
+      if (kind === null || a.arm.junction !== b.arm.junction || rutKind(b.piece) !== kind) continue;
+      if (a.arm.openM !== undefined || b.arm.openM !== undefined) continue;
+      const ta = armTangent(a.arm.axis);
+      const tb = armTangent(b.arm.axis);
+      if (ta.x * tb.x + ta.z * tb.z > -RUT_THROUGH_COS) continue;
+      throughs.push({ a, b });
+      paired.add(a);
+      paired.add(b);
+    }
+  });
   const out = {
     trodden: [] as RibbonLine[],
     improved: [] as RibbonLine[],
@@ -242,13 +308,25 @@ export function roadBands(roads: readonly SceneRoad[]): {
     ruts: [] as RibbonLine[],
     wagon: [] as RibbonLine[],
     gravel: [] as RibbonLine[],
+    arms: junctionEnds.map((e) => e.arm),
+  };
+  const addRuts = (list: RibbonLine[], line: RibbonLine): void => {
+    for (const offset of [CART_RUT_OFFSET_M, -CART_RUT_OFFSET_M]) {
+      const rut = offsetPolyline(line.points, offset).map(([x, z]) => ({ x, z }));
+      list.push({ ...line, points: rut });
+    }
   };
   for (const piece of pieces) {
     const { points } = piece;
-    const before = neighbour(piece, points[0]!);
-    const after = neighbour(piece, points[points.length - 1]!);
-    const narrowStart = narrowing(piece, before);
-    const narrowEnd = narrowing(piece, after);
+    if (points.length < 2) continue;
+    const before = neighbour(piece, piece.from);
+    const after = neighbour(piece, piece.to);
+    // konec v řezu křižovatky: pás tam začíná v plné šířce svého druhu, tak jako rameno plácku –
+    // zúžení ze středu křižovatky by udělalo schod
+    const cutAt = (end: 0 | 1): boolean =>
+      junctionEnds.some((e) => e.piece === piece && e.end === end);
+    const narrowStart = cutAt(0) ? undefined : narrowing(piece, before);
+    const narrowEnd = cutAt(1) ? undefined : narrowing(piece, after);
     const line: RibbonLine = {
       points,
       strength: piece.strength,
@@ -259,35 +337,200 @@ export function roadBands(roads: readonly SceneRoad[]): {
       ...(narrowEnd !== undefined ? { narrowEnd } : {}),
     };
     out[piece.kind].push(line);
-    if (piece.kind === 'wagon') {
-      // zpevněné koleje se vytratí, kde vozová cesta přechází v jinou
-      const rutLine = {
-        ...line,
-        openStart: line.openStart || (before !== null && before.kind !== 'wagon'),
-        openEnd: line.openEnd || (after !== null && after.kind !== 'wagon'),
-      };
-      delete rutLine.narrowStart;
-      delete rutLine.narrowEnd;
-      for (const offset of [CART_RUT_OFFSET_M, -CART_RUT_OFFSET_M]) {
-        const rut = offsetPolyline(points, offset).map(([x, z]) => ({ x, z }));
-        out.gravel.push({ ...rutLine, points: rut });
-      }
-    } else if (piece.cart) {
-      // koleje se vytratí, kde vozová cesta přechází v jinou
-      const rutLine = {
-        ...line,
-        openStart: line.openStart || (before !== null && !before.cart),
-        openEnd: line.openEnd || (after !== null && !after.cart),
-      };
-      delete rutLine.narrowStart;
-      delete rutLine.narrowEnd;
-      for (const offset of [CART_RUT_OFFSET_M, -CART_RUT_OFFSET_M]) {
-        const rut = offsetPolyline(points, offset).map(([x, z]) => ({ x, z }));
-        out.ruts.push({ ...rutLine, points: rut });
+    const kind = rutKind(piece);
+    if (kind === null) continue;
+    // koleje se vytratí, kde vozová cesta přechází v jinou – i na plácku křižovatky, kudy
+    // vozová cesta nevede skrz (koleje tam dojdou až ke středu a vytratí se)
+    const other = (n: Piece | null): boolean =>
+      n !== null && (kind === 'gravel' ? n.kind !== 'wagon' : !n.cart);
+    let rutPoints = points;
+    let openStart = line.openStart || other(before);
+    let openEnd = line.openEnd || other(after);
+    for (const e of junctionEnds) {
+      if (e.piece !== piece || paired.has(e)) continue;
+      const inner = [...e.arm.axis].reverse();
+      if (e.end === 1) {
+        rutPoints = [...rutPoints, ...e.arm.axis.slice(1)];
+        openEnd = true;
+      } else {
+        rutPoints = [...inner.slice(0, -1), ...rutPoints];
+        openStart = true;
       }
     }
+    addRuts(out[kind], {
+      points: rutPoints,
+      strength: rutPoints.map((p) => fadeAt(piece.road, p)),
+      years: rutPoints.map(() => 0),
+      openStart,
+      openEnd,
+    });
+  }
+  for (const { a, b } of throughs) {
+    const points = throughCurve(a.arm.axis, b.arm.axis);
+    addRuts(out[rutKind(a.piece)!], {
+      points,
+      strength: points.map((_, k) => {
+        const u = k / Math.max(1, points.length - 1);
+        return a.arm.strength + (b.arm.strength - a.arm.strength) * u;
+      }),
+      years: points.map(() => 0),
+      openStart: false,
+      openEnd: false,
+    });
   }
   return out;
+}
+
+/** Bod (m). */
+type Pt = { x: number; z: number };
+
+/** Křižovatka pro obtisk: střed a vzdálenost řezu pásů cest od středu (`junctionCuts`). */
+export interface JunctionCut {
+  x: number;
+  z: number;
+  radius: number;
+}
+
+/** Rameno křižovatky v obtisku: kus osy od řezu pásu (první bod) do středu, druh pásu a síla. */
+export interface JunctionArmBand {
+  /** Index křižovatky v `cuts`. */
+  junction: number;
+  kind: BandKind;
+  axis: Pt[];
+  strength: number;
+  /** Krátký úsek celý v plácku s volným koncem (branka): rameno se k němu vytrácí na tolik m. */
+  openM?: number;
+}
+
+/** Konec úseku je ve středu křižovatky, když je od něj nejvýš tolik (m). */
+const JUNCTION_END_M = 0.3;
+/** Koleje vedou přes plácek mezi rameny, která svírají aspoň 120° (zatáčka nejvýš 60°). */
+const RUT_THROUGH_COS = 0.5;
+/** Zbylo-li by z pásu za řezem méně než tolik (m), celý úsek patří plácku. */
+const MIN_KEPT_M = 1;
+/**
+ * Volný konec pásu se vytrácí na takové délce (m) – jako `END_FADE_M` v path-ribbon.ts; krátké
+ * rameno nejvýš na třetině délky, ať je cesta k brance vidět.
+ */
+const OPEN_FADE_M = 3;
+
+/**
+ * Konec osy u křižovatky (poslední bod je střed): osa do řezu `radius` m od středu a kus od řezu do
+ * středu; když by z pásu zbylo méně než MIN_KEPT_M (krátký úsek, např. 5 m k brance), `kept` je
+ * prázdné a celá osa je rameno plácku.
+ */
+export function cutAxisEnd(
+  points: readonly Pt[],
+  center: Pt,
+  radius: number,
+): { kept: Pt[]; inner: Pt[] } {
+  for (let i = points.length - 2; i >= 0; i--) {
+    const a = points[i]!;
+    if (Math.hypot(a.x - center.x, a.z - center.z) < radius) continue;
+    const b = points[i + 1]!;
+    // průsečík úsečky a–b s kružnicí řezu (a je venku, b uvnitř)
+    const dx = b.x - a.x;
+    const dz = b.z - a.z;
+    const fx = a.x - center.x;
+    const fz = a.z - center.z;
+    const qa = dx * dx + dz * dz;
+    const qb = 2 * (fx * dx + fz * dz);
+    const qc = fx * fx + fz * fz - radius * radius;
+    const t =
+      qa > 0
+        ? Math.min(1, Math.max(0, (-qb - Math.sqrt(Math.max(0, qb * qb - 4 * qa * qc))) / (2 * qa)))
+        : 0;
+    const cut = { x: a.x + dx * t, z: a.z + dz * t };
+    const kept = t < 1e-6 ? points.slice(0, i + 1) : [...points.slice(0, i + 1), cut];
+    const inner = t > 1 - 1e-6 ? points.slice(i + 1) : [cut, ...points.slice(i + 1)];
+    if (kept.length < 2 || inner.length < 2 || roadLength({ points: kept }) < MIN_KEPT_M) break;
+    return { kept, inner };
+  }
+  return { kept: [], inner: [...points] };
+}
+
+/** Směr ramene v řezu – od středu ven. */
+function armTangent(axis: readonly Pt[]): Pt {
+  const a = axis[0]!;
+  const b = axis[1]!;
+  const l = Math.max(1e-6, Math.hypot(a.x - b.x, a.z - b.z));
+  return { x: (a.x - b.x) / l, z: (a.z - b.z) / l };
+}
+
+/**
+ * Osa kolejí přes plácek z řezu jednoho ramene do řezu druhého: kubická Bézierova křivka s tečnou
+ * ve směru ramen (rovně proti sobě je to přímka středem), body po ≈ 0,5 m.
+ */
+export function throughCurve(from: readonly Pt[], to: readonly Pt[]): Pt[] {
+  const a = from[0]!;
+  const b = to[0]!;
+  const ta = armTangent(from);
+  const tb = armTangent(to);
+  const center = from[from.length - 1]!;
+  const reach =
+    0.5 *
+    Math.min(
+      Math.hypot(a.x - center.x, a.z - center.z),
+      Math.hypot(b.x - center.x, b.z - center.z),
+    );
+  const c1 = { x: a.x - ta.x * reach, z: a.z - ta.z * reach };
+  const c2 = { x: b.x - tb.x * reach, z: b.z - tb.z * reach };
+  const n = Math.max(2, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.5));
+  return Array.from({ length: n + 1 }, (_, k) => {
+    const u = k / n;
+    const v = 1 - u;
+    return {
+      x: v * v * v * a.x + 3 * v * v * u * c1.x + 3 * v * u * u * c2.x + u * u * u * b.x,
+      z: v * v * v * a.z + 3 * v * v * u * c1.z + 3 * v * u * u * c2.z + u * u * u * b.z,
+    };
+  });
+}
+
+/** Vrstvy pásů podle druhu – plácek bere průřez navazujícího pásu (vyjetá vozová hlínu nemá). */
+const PATCH_LAYERS: Record<'worn' | 'earth', Record<BandKind, RibbonLayer | null>> = {
+  worn: {
+    trodden: ROAD_WORN_LAYER,
+    improved: IMPROVED_WORN_LAYER,
+    cart: CART_WORN_LAYER,
+    wagon: WAGON_WORN_LAYER,
+  },
+  earth: {
+    trodden: ROAD_EARTH_LAYER,
+    improved: IMPROVED_EARTH_LAYER,
+    cart: null,
+    wagon: WAGON_EARTH_LAYER,
+  },
+};
+
+/**
+ * Plácky křižovatek jedné vrstvy obtisku (prošlapaná tráva, hlína): ramena v šířce, měkkém okraji
+ * a krytí pásu cesty, který do ramene vede – plácek navazuje na pásy bez řezu (junction-patch.ts).
+ */
+export function junctionPatchGrid(
+  arms: readonly JunctionArmBand[],
+  cuts: readonly JunctionCut[],
+  decal: 'worn' | 'earth',
+): DecalGrid {
+  const grids = cuts.flatMap((cut, j) => {
+    const patchArms = arms
+      .filter((a) => a.junction === j)
+      .flatMap((a): PatchArm[] => {
+        const layer = PATCH_LAYERS[decal][a.kind];
+        if (!layer) return [];
+        const width = layer.width.weak + (layer.width.strong - layer.width.weak) * a.strength;
+        return [
+          {
+            axis: a.axis,
+            half: (width / 2) * layer.widthFactor,
+            softM: layer.softM,
+            alpha: layer.alpha(a.strength),
+            ...(a.openM !== undefined ? { openM: a.openM } : {}),
+          },
+        ];
+      });
+    return patchArms.length > 0 ? [junctionPatch(cut, patchArms)] : [];
+  });
+  return mergeGrids(grids);
 }
 
 /**
@@ -568,9 +811,11 @@ const SLOPE_STEP_M = 0.5;
 /**
  * Vzhled svahů úvozu a náspu (roads.md – Vozová cesta, Martin 22. 10. 2026: „Náspy a úvozy musí být
  * výrazně vidět“): holá hlína zarůstá pomalu – za `grassYears` let jen řídkou trávou (zbude
- * `oldAlpha` krytí hlíny), nikdy úplně; lem hrany úvozu a paty náspu je široký `edgeM` m.
+ * `oldAlpha` krytí hlíny), nikdy úplně; lem hrany úvozu a paty náspu je široký `edgeM` m. Zemní
+ * práce bez cesty (přestavba sítě – paths.md) zaroste celá i s lemem za `wildYears` let jako
+ * opuštěná cesta (návrh Clauda 24. 10. 2026).
  */
-export const SLOPE_LOOK = { grassYears: 15, oldAlpha: 0.45, edgeM: 0.6 };
+export const SLOPE_LOOK = { grassYears: 15, oldAlpha: 0.45, edgeM: 0.6, wildYears: 5 };
 /**
  * Strmost úpravy napříč osou (změna odchylky terénu PROTI PŮVODNÍMU terénu na metr – boční sklon
  * terénu se tím odečte, výkop 0,8 m a násep 1 m jsou strmé stejně na rovině i na svahu 50 %),
@@ -670,10 +915,14 @@ export function nearestAxis(
   };
 }
 
-/** Hotové osy zemních prací, vzdálenost k nejbližší a které jejich konce navazují na jinou osu. */
+/**
+ * Hotové osy zemních prací, vzdálenost k nejbližší (`distance`) a k nejbližší zemní práci vozové
+ * cesty (`live` – bez opuštěných) a které jejich konce navazují na jinou osu.
+ */
 interface SlopeContext {
   shown: SceneEarthwork[];
   distance: (x: number, z: number) => number;
+  live: (x: number, z: number) => number;
   joined: Map<SceneEarthwork, { start: boolean; end: boolean }>;
 }
 
@@ -688,9 +937,13 @@ function slopeContext(earthworks: readonly SceneEarthwork[]): SlopeContext {
     const at = lengthsAlong(e.profile);
     return e.profile.filter((_, k) => at[k]! <= e.shownM + 1e-6);
   });
+  // konec zemní práce vozové cesty nenavazuje na opuštěnou (ta zarůstá) – vytrácí se jako volný
   const joinedTo = (self: number, p: { x: number; z: number }): boolean =>
     axes.some((axis, o) => {
       if (o === self) return false;
+      if (shown[o]!.abandonedYears !== undefined && shown[self]!.abandonedYears === undefined) {
+        return false;
+      }
       for (let k = 1; k < axis.length; k++) {
         const a = axis[k - 1]!;
         const b = axis[k]!;
@@ -708,7 +961,8 @@ function slopeContext(earthworks: readonly SceneEarthwork[]): SlopeContext {
       end: axis.length > 0 && endM > 0 && joinedTo(i, axisAt(e.profile, endM)),
     });
   });
-  const context = { shown, distance: nearestAxis(axes), joined };
+  const live = nearestAxis(axes.filter((_, i) => shown[i]!.abandonedYears === undefined));
+  const context = { shown, distance: nearestAxis(axes), live, joined };
   contexts.set(earthworks, context);
   return context;
 }
@@ -730,8 +984,12 @@ function slopeLattice(
   const alphas: number[] = [];
   const indices: number[] = [];
   const lanes = Math.round((2 * SLOPE_REACH_M) / SLOPE_STEP_M) + 1;
-  const { shown, distance, joined } = slopeContext(earthworks);
+  const { shown, distance, live, joined } = slopeContext(earthworks);
   for (const e of shown) {
+    // zemní práce bez cesty zarůstá celá (SLOPE_LOOK.wildYears); kde vede živá, kreslí jen ta
+    const abandoned = e.abandonedYears !== undefined;
+    const wild = abandoned ? 1 - smooth(0, SLOPE_LOOK.wildYears, e.abandonedYears!) : 1;
+    if (wild <= 0) continue;
     const join = joined.get(e)!;
     const profile = e.profile;
     const at = lengthsAlong(profile);
@@ -781,10 +1039,14 @@ function slopeLattice(
       for (let l = 0; l < lanes; l++) {
         const t = Math.abs(-SLOPE_REACH_M + l * SLOPE_STEP_M);
         let alpha =
-          section[l]! * Math.max(0, ends) * Math.min(1, (SLOPE_REACH_M - t) / SLOPE_FADE_M);
+          section[l]! * wild * Math.max(0, ends) * Math.min(1, (SLOPE_REACH_M - t) / SLOPE_FADE_M);
         if (alpha > 0) {
-          const closer = t - distance(positions[(start + l) * 2]!, positions[(start + l) * 2 + 1]!);
+          const x = positions[(start + l) * 2]!;
+          const z = positions[(start + l) * 2 + 1]!;
+          // živá zemní práce ustoupí jen živé, opuštěná každé bližší a celá živé v dosahu svahů
+          const closer = t - (abandoned ? distance(x, z) : live(x, z));
           alpha *= 1 - smooth(SLOPE_OVERLAP_M.from, SLOPE_OVERLAP_M.none, closer);
+          if (abandoned) alpha *= smooth(SLOPE_REACH_M - SLOPE_FADE_M, SLOPE_REACH_M, live(x, z));
         }
         alphas.push(alpha);
       }
@@ -856,7 +1118,7 @@ export function earthworkSlopeKey(earthworks: readonly SceneEarthwork[]): string
   return earthworks
     .map(
       (e) =>
-        `${e.id}@${Math.round(e.shownM * 10)}:${e.pieces.map((p) => Math.min(SLOPE_LOOK.grassYears, p.ageYears ?? 0)).join(',')}`,
+        `${e.id}@${Math.round(e.shownM * 10)}:${e.pieces.map((p) => Math.min(SLOPE_LOOK.grassYears, p.ageYears ?? 0)).join(',')}${e.abandonedYears !== undefined ? `x${Math.min(SLOPE_LOOK.wildYears, e.abandonedYears)}` : ''}`,
     )
     .join(';');
 }

@@ -141,16 +141,6 @@ export const WAGON_GRAVEL_LAYER: RibbonLayer = {
   widthFactor: 1,
   wobble: 0,
 };
-/**
- * Štěrk plácku křižovatky vozových cest: ramena přes obě koleje (2 × CART_RUT_OFFSET_M + šířka
- * koleje), jinak by plácek byl jen holá světlá hlína bez štěrku jako navazující pásy.
- */
-export const WAGON_GRAVEL_JUNCTION_LAYER: RibbonLayer = {
-  ...WAGON_GRAVEL_LAYER,
-  width: { weak: 2 * CART_RUT_OFFSET_M + 0.55, strong: 2 * CART_RUT_OFFSET_M + 0.55 },
-  softM: 0.3,
-  junction: { scale: 1, alpha: 0.75 },
-};
 
 /**
  * Čára pásu – pěšina z jádra, u pevné cesty navíc zúžení konců (roads.md – Cesta pro hráče;
@@ -200,16 +190,12 @@ export interface RibbonJunction {
   z: number;
   strength: number;
   /**
-   * Obrys křižovatky pevných cest (junction-shape.ts) – mnohoúhelník kolem středu místo kruhu;
-   * `widthM` je šířka jeho ramen, podle ní se obrys pro vrstvu užší (holá hlína) zmenší.
+   * Obrys křižovatky pevných cest (junction-shape.ts) – jen pro masku polí (`ribbonTrack` – kruh
+   * o průměrném poloměru obrysu); obtisk plácku kreslí junction-patch.ts. `widthM` je šířka ramen,
+   * podle ní se obrys pro užší vrstvu zmenší.
    */
   outline?: readonly { x: number; z: number }[];
   widthM?: number;
-  /**
-   * Obrys pro užší vrstvu (šířka ramen v m): ramena užší, ale vchody na stejném místě – holá
-   * hlína plácku navazuje na hlínu pásů cest ve vchodech (bez něj se obrys zmenší od středu).
-   */
-  outlineFor?: (widthM: number) => readonly { x: number; z: number }[];
 }
 
 /** Poměr, kterým vrstva zmenší obrys křižovatky: šířka vrstvy ku šířce ramen (nejvýš 1,2). */
@@ -224,11 +210,6 @@ function layerOutline(
   layer: RibbonLayer,
 ): readonly { x: number; z: number }[] {
   const s = outlineScale(junction, layer);
-  if (junction.outlineFor && junction.widthM !== undefined) {
-    return Math.abs(s - 1) < 1e-6
-      ? (junction.outline ?? [])
-      : junction.outlineFor(junction.widthM * s);
-  }
   return (junction.outline ?? []).map((p) => ({
     x: junction.x + (p.x - junction.x) * s,
     z: junction.z + (p.z - junction.z) * s,
@@ -384,12 +365,13 @@ export function ribbonSections(
         ? 1
         : line.narrowEnd + (1 - line.narrowEnd) * smoothstep(0, NARROW_M, length - d),
     );
+    // u konců bez kolísání šířky – navazující pás i plácek křižovatky mají na spoji stejnou šířku
     const half =
       (width / 2) *
       layer.widthFactor *
       narrow *
       widthAt(cx, cz) *
-      (1 + (noise1(seed + 17, d / (WOBBLE_WAVE_M * 0.6)) - 0.5) * 2 * WIDTH_JITTER);
+      (1 + (noise1(seed + 17, d / (WOBBLE_WAVE_M * 0.6)) - 0.5) * 2 * WIDTH_JITTER * ends);
     sections.push({
       cx,
       cz,
@@ -529,10 +511,8 @@ function addJunction(
     width * layer.widthFactor * widthAt(x, z) * (layer.junction?.scale ?? JUNCTION.scale);
   const alpha = layer.alpha(strength) * (layer.junction?.alpha ?? 1) * alphaAt(x, z);
   if (radius <= 0 || alpha <= 0) return;
-  if (junction.outline && junction.outline.length > 0) {
-    addOutline(junction, layer, alpha, positions, alphas, indices);
-    return;
-  }
+  // plácek křižovatky pevných cest kreslí junction-patch.ts
+  if (junction.outline && junction.outline.length > 0) return;
   const seed = (Math.round(x * 2) * 73856093) ^ (Math.round(z * 2) * 19349663);
   const center = positions.length / 2;
   positions.push(x, z);
@@ -550,49 +530,6 @@ function addJunction(
     const inner = center + 1 + k * 2;
     const next = center + 1 + ((k + 1) % n) * 2;
     indices.push(center, inner, next, inner, inner + 1, next, next, inner + 1, next + 1);
-  }
-}
-
-/**
- * Plácek křižovatky pevných cest: vějíř trojúhelníků ze středu po obrysu (plné krytí) a měkký
- * okraj ven – u rohů ve vchodech kolmo na rameno (pás cesty tam pokračuje), u vnitřních rohů od
- * středu. Žádný kruh.
- */
-function addOutline(
-  junction: RibbonJunction,
-  layer: RibbonLayer,
-  alpha: number,
-  positions: number[],
-  alphas: number[],
-  indices: number[],
-): void {
-  const ring = layerOutline(junction, layer);
-  const { x, z } = junction;
-  const n = ring.length;
-  const center = positions.length / 2;
-  positions.push(x, z);
-  alphas.push(alpha);
-  // rohy ve vchodu jsou po dvou za sebou (indexy 3k, 3k + 1), třetí je vnitřní roh
-  ring.forEach((p, k) => {
-    positions.push(p.x, p.z);
-    alphas.push(alpha);
-    const entrance = k % 3 !== 2;
-    let dx = p.x - x;
-    let dz = p.z - z;
-    if (entrance) {
-      // směr od druhého rohu téhož vchodu – měkký okraj jde po straně pásu
-      const other = ring[k % 3 === 0 ? k + 1 : k - 1]!;
-      dx = p.x - other.x;
-      dz = p.z - other.z;
-    }
-    const len = Math.max(1e-6, Math.hypot(dx, dz));
-    positions.push(p.x + (dx / len) * layer.softM, p.z + (dz / len) * layer.softM);
-    alphas.push(0);
-  });
-  for (let k = 0; k < n; k++) {
-    const a = center + 1 + k * 2;
-    const b = center + 1 + ((k + 1) % n) * 2;
-    indices.push(center, a, b, a, a + 1, b, b, a + 1, b + 1);
   }
 }
 

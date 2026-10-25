@@ -603,6 +603,11 @@ export interface SceneEarthwork {
   building?: true;
   /** Stavba, která zemní práci dělá (cíl práce `wagon` nese její id) – jen když se staví. */
   constructionId?: number;
+  /**
+   * Celé roky od chvíle, kdy zemní práce přestala patřit cestě (přestavba sítě – terén zůstává,
+   * svahy zarůstají; `RoadEarthwork.abandonedDay`); u zemní práce vozové cesty chybí.
+   */
+  abandonedYears?: number;
 }
 /** Strom u pevné cesty pro scénu – poloha, druh a vzhled v den pohledu (`roadTreeLook`). */
 export type SceneRoadTree = Pick<RoadTree, 'id' | 'x' | 'z' | 'species'> & RoadTreeLook;

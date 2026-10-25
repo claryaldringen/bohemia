@@ -22,7 +22,7 @@ import type {
   VillageRoads,
 } from '../types';
 import { pointFrom, roadLandWidthM } from './road-land';
-import { relinkApples } from './roads-overgrow';
+import { blockedRun, relinkApples } from './roads-overgrow';
 import { simplifyPathLine } from './network-lines';
 import {
   DAYS_PER_YEAR,
@@ -383,8 +383,16 @@ export interface JunctionRoads {
   fixed: ReadonlySet<number>;
   /** Kotva (vchod, cíl tras) – uzel v ní se při rozestupu křižovatek nehýbe. */
   anchor?: (p: RoadPoint) => boolean;
-  /** Neprůchodné místo (dům, plot, úprava terénu, voda) – nový střed křižovatky v něm být nesmí. */
+  /**
+   * Neprůchodné místo (dům, plot, úprava terénu, voda) – nový střed křižovatky v něm být nesmí
+   * a ohnutý konec osy přes něj nevede (`bendEnd`).
+   */
   blocked?: (p: RoadPoint) => boolean;
+  /**
+   * Šířka pásu úseku pro rozestup křižovatek (m), jiná než podle stupně – přestavba sítě: úsek, ze
+   * kterého bude vozová cesta, má šířku vozové (křižovatka s vozovým ramenem se pak už nehne).
+   */
+  width?: (road: Road) => number | undefined;
 }
 
 /** Kolikrát se křižovatka spočítala znovu a kolik konců os se ohnulo – pro měření, hra je nečte. */
@@ -429,8 +437,17 @@ function isFixed(road: Road, net: JunctionRoads): boolean {
  * Konec osy do vchodu (mutuje): posledních `JUNCTION.bendM` osy obloukem do vchodu (`bendRoadEnd`)
  * a odtud rovně po rameni do středu – úseky křižovatky tak dál sdílejí bod uzlu (spojení, pahýly
  * a copánky v úklidu beze změny). Konec, který k vchodu nemíří (daleký konec blíž), se nechá.
+ * Nechá se i konec, jehož oblouk by vedl neprůchodnou plochou (`blocked` – obilná jáma, dům) víc
+ * než neohnutá osa (nejdelší běh vzorků – `blockedRun`): měsíční kontrola by cestu hned opustila
+ * a z vyšlapanosti by vznikla znovu (Vlkov 24. 10. 2026 – každý měsíc 17 m přes obilnou jámu).
  */
-function bendEnd(end: RoadEnd, center: RoadPoint, entrance: RoadPoint, armDir: number): boolean {
+function bendEnd(
+  end: RoadEnd,
+  center: RoadPoint,
+  entrance: RoadPoint,
+  armDir: number,
+  blocked?: (p: RoadPoint) => boolean,
+): boolean {
   const line = [...fromNode(end)].reverse();
   const gap = (p: RoadPoint): number => length2(p.x - entrance.x, p.z - entrance.z);
   if (gap(line[0]!) <= gap(line[line.length - 1]!)) return false;
@@ -458,6 +475,11 @@ function bendEnd(end: RoadEnd, center: RoadPoint, entrance: RoadPoint, armDir: n
     after.every((p, i) => p.x === before[i]!.x && p.z === before[i]!.z)
   ) {
     return false;
+  }
+  // oblouk nesmí vést neprůchodnou plochou víc než neohnutá osa
+  if (blocked) {
+    const at = (x: number, z: number): boolean => blocked({ x, z });
+    if (blockedRun(after, at) > blockedRun(before, at)) return false;
   }
   end.road.points = after;
   return true;
@@ -611,7 +633,7 @@ function fitNode(
   live.forEach((end, i) => {
     const k = fit.assign[i]!;
     arms[k] = end.road.id;
-    if (!fixed[i] && bendEnd(end, center, entrances[k]!, armDirs[k]!)) {
+    if (!fixed[i] && bendEnd(end, center, entrances[k]!, armDirs[k]!, net.blocked)) {
       bent = true;
       JUNCTION_RUNS.bends++;
     }
@@ -819,7 +841,8 @@ function spaceJunctions(
   isLive: (end: RoadEnd) => boolean,
   net: JunctionRoads,
 ): boolean {
-  const widths = (hub: Hub): number[] => hub.live.map((e) => roadLandWidthM(e.road));
+  const widths = (hub: Hub): number[] =>
+    hub.live.map((e) => net.width?.(e.road) ?? roadLandWidthM(e.road));
   const pinned = (hub: Hub): boolean => net.anchor?.(hub.center) ?? false;
   const stuck = new Set<string>();
   let done = false;

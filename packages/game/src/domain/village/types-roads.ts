@@ -234,6 +234,17 @@ export interface VillageRoads {
    */
   v2?: true;
   /**
+   * Síť je jednou přestavěná (`withRoadsRebuilt`, paths.md – Jednorázová přestavba sítě): cesty
+   * vznikly znovu z vyšlapanosti dnešních tras a vylepšení se přenesla. Hodnota je verze přestavby;
+   * nová ves ji má od začátku. Chybí = ještě ne.
+   */
+  rebuilt?: 1;
+  /**
+   * Přestavba skončila chybou – ves zůstala se starou sítí a přestavba se už nezkouší (paths.md –
+   * Jednorázová přestavba sítě). Chybí = proběhla, nebo ještě ne.
+   */
+  rebuildFailed?: 1;
+  /**
    * Otisk sítě po posledním měsíčním úklidu (paths.md – Síť – kotvy, pahýly a úklid): trasy
    * (`VillageRoutes.key`) a osy úseků – bez změny se úklid nepouští. Chybí = ještě neproběhl.
    */
@@ -342,6 +353,12 @@ export interface RoadEarthwork {
   startedDay: number;
   /** Stavba (id), dokud se staví; pak chybí. */
   constructionId?: number;
+  /**
+   * Den, kdy zemní práce přestala patřit cestě (jednorázová přestavba sítě – paths.md): terén
+   * zůstává (herní data), svahy zarůstají; kde vede nová zemní práce, kreslí svahy ta. Chybí =
+   * zemní práce vozové cesty.
+   */
+  abandonedDay?: number;
 }
 
 /** Druh vozu (wagons.md – Vůz): dvoukolák (svoz), čtyřkolák (obchod – hůř se otáčí). */

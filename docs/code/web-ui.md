@@ -212,6 +212,26 @@ Pravidla: `docs/design/lord.md` – Jména, Kde se jméno zadává, Kde se jmén
 - **e2e:** helper `found()` pojmenuje vojvodu (`nameLord`); test „jména rodu“ – důvod, kostka,
   jméno v panelu osoby (háček `selectPerson`), syn bez jména → upozornění → pojmenování.
 
+## Obrazovka porážky – konec rodu
+
+Pravidla: `docs/design/lord.md` – Konec rodu. Základ obrazovky popisuje `docs/code/village-core.md`
+(Konec hry).
+
+- **Pohled:** `view.lineEnded` (`lib/line-end-view.ts`, `lineEndView` přes všechny vsi hráče
+  v `lib/village.ts`, jen při `gameOver`) – vojvodové po sobě (`lords` – jméno, rok od–do),
+  `last` (poslední vojvoda) a ves, kde rod skončil (nejpozdější `endedDay`) – jméno, roky
+  založení a konce rodu.
+- **Obrazovka:** `hud/DefeatScreen.tsx` s `line` – pod nadpisem „Rod vymřel“ kronika rodu
+  („Bořivoj 500–541“, `data-testid="defeat-lords"`, posuvná), „Zemřel Ctibor – poslední muž rodu“
+  (`defeat-last`), jméno a roky vsi, jediné Začít znovu. `VillageGame` ji ukáže před variantou
+  vymřelé a opuštěné vsi.
+- **Předvyplnění:** po konci rodu vojvoda není – Začít znovu zapamatuje jméno zakladatele
+  (`lineEnded.lords[0]`) a panel „Jméno vojvody“ ho předvyplní.
+- **Kronika vsi:** `line-ended` – „Ve vsi už nežije žádný muž rodu – posledním vojvodou byl …“,
+  `village-abandoned` s `reason: 'line-ended'` – „Ves … opuštěna – rod vymřel.“
+- **e2e:** test „když vymře rod po meči…“ – muži rodu odstraněni v uložené vsi, kronika rodu,
+  ves opuštěná s lidmi jako záznamem, Začít znovu předvyplní jméno.
+
 ## Pole uživí ≈ N lidí
 
 Horní lišta (`hud/TopBar.tsx`): ikona lidí (`village-people`) ukazuje „lidí / ≈ N“ (`peopleLabel`),

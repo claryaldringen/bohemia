@@ -47,6 +47,11 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'main-wife'; name?: string }
   /** Ženatý muž rodu `name` odešel z dvorce do vlastního domu (lord.md – Synové po sňatku). */
   | { kind: 'son-left-manor'; name?: string }
+  /**
+   * Ve vsi nezbyl žijící muž rodu (lord.md – Konec rodu) – `name` posledního vojvody vsi, bez
+   * jména chybí. Hra končí, až rod nezbude v žádné vsi hráče.
+   */
+  | { kind: 'line-ended'; name?: string }
   /** Vedlejší manželka odešla z přeplněného dvorce do vlastního domu (lord.md – Manželky). */
   | { kind: 'wife-left-manor' }
   /**
@@ -117,8 +122,11 @@ export type ChronicleEvent = { day: number } & (
    * a lidí, na novou mapu i se směrem (na téže mapě bez směru).
    */
   | { kind: 'households-left'; households: number; people: number; direction?: Direction8 }
-  /** Odešli všichni – ves je opuštěná (migration.md). */
-  | { kind: 'village-abandoned' }
+  /**
+   * Odešli všichni – ves je opuštěná (migration.md); `reason: 'line-ended'` – rod vymřel a ves
+   * zanikla s lidmi jako záznamem (lord.md – Konec rodu).
+   */
+  | { kind: 'village-abandoned'; reason?: 'line-ended' }
   /** Lidé vyrazili na novou mapu – dorazí v den `arrivalDay` (migration.md – fáze 4). */
   | { kind: 'journey-started'; direction: Direction8; arrivalDay: number }
   /**

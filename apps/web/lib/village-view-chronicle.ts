@@ -257,6 +257,10 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
         : `Syn vojvody odešel z dvorce – ${event.name}.`;
     case 'wife-left-manor':
       return 'Vedlejší žena odešla z dvorce.';
+    case 'line-ended':
+      return event.name === undefined
+        ? 'Ve vsi už nežije žádný muž rodu.'
+        : `Ve vsi už nežije žádný muž rodu – posledním vojvodou byl ${event.name}.`;
     case 'death':
       return deathText(event.group, event.cause === 'hunger');
     case 'village-extinct':
@@ -298,7 +302,9 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
     case 'households-left':
       return householdsLeftText(event.households, event.people, event.direction);
     case 'village-abandoned':
-      return `Odešli všichni – ves ${villageName} je opuštěná.`;
+      return event.reason === 'line-ended'
+        ? `Ves ${villageName} opuštěna – rod vymřel.`
+        : `Odešli všichni – ves ${villageName} je opuštěná.`;
     case 'journey-started':
       return `Lidé vyrazili na ${DIRECTION_NAMES[event.direction].name} – na místo nové vsi dorazí ${formatGameDate(dateOfDayIndex(event.arrivalDay))}.`;
     case 'harvest':

@@ -152,10 +152,14 @@ describe('succeedLord – nástup a stěhování', () => {
     expect(lordFamily(s, DAY + 1).trainees.map((p) => p.id)).toEqual([20, 22]);
   });
 
-  it('bez muže rodu lordId = null a kronika rodu uzavřená', () => {
+  it('bez muže rodu lordId = null, kronika rodu uzavřená a rod ve vsi skončil', () => {
     const s = tracked([{ id: 21, age: 20, sex: 'female', mother: 11, father: 10 }]);
-    expect(afterDeath(s)).toEqual([]);
-    expect(s.dynasty).toEqual({ lordId: null, lords: [{ id: 10, fromDay: DAY, toDay: DAY + 1 }] });
+    expect(afterDeath(s)).toEqual([{ day: DAY + 1, kind: 'line-ended' }]);
+    expect(s.dynasty).toEqual({
+      lordId: null,
+      lords: [{ id: 10, fromDay: DAY, toDay: DAY + 1 }],
+      endedDay: DAY + 1,
+    });
     expect(succeedLord(s, DAY + 2)).toEqual([]);
     expect(s.dynasty?.lords).toEqual([{ id: 10, fromDay: DAY, toDay: DAY + 1 }]);
   });

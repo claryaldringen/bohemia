@@ -150,7 +150,9 @@ a úvozy musí být výrazně vidět.“ Nahrazuje „Co nejpříměji“ a „S
   úpravy cesty“). Dřevo je v ceně stavby (Úloha 11b): klády z hromady, zbytek nejbližší stromy, kácení jde před
   zemními pracemi; chybí-li dřevo, důvod „Na lávku chybí dřevo.“ (`WAGON_NO_WOOD`).
 - **Vlkov:** hotové vozové cesty zůstanou se svou osou; staré souběžné cesty vedle nich (voda)
-  pohltí převod (paths.md – Převod). Měření 24. 10. 2026 (Úloha 11a): cesta 372 (1 216 m, 1 466 čd, úvoz 1,8 m, násep 1,5 m) se po staré ose nabídne i bez narovnání,
+  pohltí převod (paths.md – Převod). _Od 24. 10. 2026 (Martin, varianta A) je jednorázová přestavba
+  sítě přepočítá po nových osách i se zemními pracemi a jsou hned hotové; staré úvozy a náspy, které
+  nové osy nepoužijí, zarostou ([paths.md – Jednorázová přestavba sítě](paths.md#jednorázová-přestavba-sítě-24-10-2026), bod 8)._ Měření 24. 10. 2026 (Úloha 11a): cesta 372 (1 216 m, 1 466 čd, úvoz 1,8 m, násep 1,5 m) se po staré ose nabídne i bez narovnání,
   tětiva ji nemění (Úloha 11b, měřeno 24. 10. 2026).
 
 ### Postupná úprava a serpentiny (24. 10. 2026)
