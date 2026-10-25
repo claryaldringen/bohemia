@@ -438,6 +438,19 @@ Clauda**:
    kozy → ovce → krávy, voli nikdy; chovný pár, krávy na mléko a voly a ovce na vlnu zůstanou.
    Dřív krávy před ovcemi.
 
+Práce na seč se počítá postupem seče – s vozy (svoz) posekne ves víc, než na seč dá práce; jinak
+by strop vyšel podhodnocený (Vlkov 821: 10,9 t místo 19,1 t, ovce by klesly na 2).
+
+**Naměřeno (25. 10. 2026):** Vlkov ze stavu 16. 4. 814, 8 let (před → po). Nutná seč splněná
+816–820 (80 až 228 čd) i 822 (201 z 212 čd); **821 jen 147 z 270 a 823 138 z 277 čd** – pole
+se rozšířila do června (pletí 81 → 179 a 113 → 156 čd), strop z loňské práce je o rok pozadu.
+Ovce 1. 11.: 821 27 → 50, 822 40 → 58, 823 2 → 24; krávy 2,6 → 11,3 (dřív 11,5), voli 4 → 3,
+pár celou dobu, úmrtí hladem 0; dní hladu v 823 5 → 22 (nouzová porážka 1. 9.). Oprava stropu
+podle letošního pletí (25. 5.) skoro nic nezměnila (ovce 823 24 → 22) – zavržena.
+**Otevřené (otázka na Martina):** plán osevu (1. 9.) bere celý červen pro pletí, takže pole
+každý rok sní práci, kterou loni dostala seč, a stáda se zmenšují o rok pozdě. Má plán osevu
+nechat v červnu práci na seno pro chovné minimum (voli, krávy na mléko a voly, ovce na vlnu)?
+
 ## Účinek na práci
 
 - **Zpracování půdy na dílech v oběhu** (zkopaný díl po sklizni, mladý úhor 1–2 roky): místo kopání

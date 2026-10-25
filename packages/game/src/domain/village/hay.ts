@@ -479,8 +479,8 @@ export function raiseAftermath(state: VillageState, need: MowingNeed): void {
 
 /**
  * Volná práce na seč (oxen.md – Stáda podle práce na seč; mutuje stav): práce dne `labor`, která
- * po polních pracích zbyla na seč (nutná seč a co šlo dál – stavby, seč navíc, nic), převedená na
- * seno podle dnešní seče (kg na člověkoden plánu – i s chůzí na louky), bez ní podle práce na
+ * po polních pracích zbyla na seč (postup nutné seče – s vozy víc než práce, svoz – a co šlo dál:
+ * stavby, seč navíc, nic), převedená na seno podle dnešní seče (kg na člověkoden plánu – i s chůzí na louky), bez ní podle práce na
  * hektar (`hayWorkPerHa`). V oknech 1. seče a otavy zvlášť; jen se zápisem sezóny (`mowFree`).
  */
 export function recordMowingLabor(

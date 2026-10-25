@@ -554,7 +554,7 @@ export function work(
   // práce dne na obilných jamách – u které jámy (rozdělení práce)
   let grainPits = null as ReturnType<typeof workGrainPits>;
   let mowLabor: number | undefined;
-  // práce, kterou dnes dostala nutná seč (i posádky vozů) – volná práce na seč (níž)
+  // postup nutné seče dnes (s vozy víc, než na ni ves dala práce – svoz) – volná práce na seč (níž)
   let mowWork = 0;
   const mowingBefore = state.hay?.mowing?.done ?? 0;
   dayTasks.forEach((task, i) => {
@@ -645,7 +645,7 @@ export function work(
     } else if (task.name === 'mow') {
       mow(state, amount);
       mowLabor = haul ? labor - crew : labor;
-      mowWork += labor;
+      mowWork += amount;
     } else if (task.name === 'slaughter') {
       workSlaughter(state, amount);
     } else if (task.name === 'grain-pit') {

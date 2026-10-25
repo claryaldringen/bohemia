@@ -3,14 +3,14 @@
 Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). Pravidla a rozhodnutí: diet.md, oxen.md, wagons.md v `docs/design/`.
 
 - **Stáda podle práce na seč** (oxen.md – Stáda podle práce na seč; návrh Clauda 25. 10. 2026):
-  simulate-work.ts po úlohách dne zapíše `recordMowingLabor` (hay.ts) – práce nutné seče
-  - `allocation.common`, převedená na seno podle dnešní seče, do `hay.mowFree` (1. seč / otava);
-    `startMowingSeason` 25. 5., `closeMowingSeason` po 30. 9. (`isAfterMowingSeason`) →
-    `hay.mowCapacityKg` (1. seč + otava nejvýš `aftermathYieldShare` 1. seče). `farmInput`
-    (husbandry.ts) dá `mowKg` (`mowableHerdHayKg` – strop × `PLAN_HAY_KEEP` bez sena `hayOxen`
-    a koní) a `cowsComing`; `winterTargets` dělí `mowKg` jako seno v pořadí `HERD_PRIORITY`
-    a místa (`roomForWinter`) uplatní před pastvou a senem. Koupený dobytek: `hayOxen` + `oxenComing`,
-    `withCowsComing` v `mowingNeed` a `winterHayNeedKg`; otava má v seči všechny posečené louky
+  simulate-work.ts po úlohách dne zapíše `recordMowingLabor` (hay.ts) – postup nutné seče (s vozy)
+  a `allocation.common`, převedené na seno podle dnešní seče, do `hay.mowFree` (1. seč / otava);
+  `startMowingSeason` 25. 5., `closeMowingSeason` po 30. 9. (`isAfterMowingSeason`) →
+  `hay.mowCapacityKg` (1. seč + otava nejvýš `aftermathYieldShare` 1. seče). `farmInput`
+  (husbandry.ts) dá `mowKg` (`mowableHerdHayKg` – strop × `PLAN_HAY_KEEP` bez sena `hayOxen`
+  a koní) a `cowsComing`; `winterTargets` dělí `mowKg` jako seno v pořadí `HERD_PRIORITY`
+  a místa (`roomForWinter`) uplatní před pastvou a senem. Koupený dobytek: `hayOxen` + `oxenComing`,
+  `withCowsComing` v `mowingNeed` a `winterHayNeedKg`; otava má v seči všechny posečené louky
   1. seče se stropem práce `HayMowing.wanted` (`mowingRemaining`, `mowingNeededRemaining`),
      přibude-li dobytek (`hayCattle` > `HayMowing.cattle`), `raiseAftermath` strop zvedne.
      `cattleRoom` (cattle-trade.ts) – krávy nejvýš `min(penCapacity.cow, roomForWinter(herdRoom))`.
