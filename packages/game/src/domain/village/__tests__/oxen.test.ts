@@ -26,6 +26,7 @@ import {
 } from '../oxen';
 import { oxTrainedDay } from '../pens';
 import { DRAFT_OXEN, OXEN, PEN_PLACES_PER_SQUARE } from '../rules';
+import { laborPerDay } from '../people';
 import { PLOUGH_HA_PER_DAY, PLOUGH_SOD_FACTOR, hasSod, ploughWorkPerHa } from '../plough';
 import { NO_CRAFTS } from '../productivity';
 import { cloneState } from '../clone';
@@ -556,6 +557,11 @@ describe('orba rádlem', () => {
     // fields.md – Osevní postup po dílech, Páry k rádlům: nutné i nad potřebu (návrh Clauda)
     const day = at(600, 9, 1);
     const s = withOxen(withTeam(day));
+    // dost lidí na všechny páry – jinak by počet párů omezila obsluha (test níž)
+    s.people = Array.from({ length: OXEN.maxPairs * OXEN.crewPerPair }, (_, i) => ({
+      ...s.people[0]!,
+      id: 1000 + i,
+    }));
     const parts = (from: number, n: number, over: Partial<FieldPart> = {}): FieldPart[] =>
       Array.from({ length: n }, (_, i) =>
         part(from + i, { distanceM: 100 + i, state: 'ready', sownYears: 0, ...over }),
@@ -576,6 +582,20 @@ describe('orba rádlem', () => {
     const spring = pairs([...parts(1, 5), ...parts(100, 70, { next: 'spring' })]);
     expect(spring).toBeGreaterThan(1);
     expect(spring).toBeLessThanOrEqual(autumn);
+  });
+
+  it('páry k rádlům nepřesáhnou to, co ves s lidmi obslouží', () => {
+    // oxen.md – Páry k rádlům: oráč + setí na pár (OXEN.crewPerPair), návrh Clauda
+    const day = at(600, 9, 1);
+    const s = withOxen(withTeam(day));
+    s.parts = Array.from({ length: 5000 }, (_, i) =>
+      part(i + 1, { distanceM: 100 + (i % 7), state: 'ready', sownYears: 0 }),
+    );
+    const adults = s.people.filter((p) => laborPerDay(p, day) >= 1);
+    expect(adults.length).toBeGreaterThan(0);
+    const staffed = Math.max(1, Math.floor(adults.length / OXEN.crewPerPair));
+    expect(ploughPairsForRotation(s, day, 0, null)).toBeLessThanOrEqual(staffed);
+    expect(ploughPairsForRotation(s, day, 0, null)).toBeLessThan(OXEN.maxPairs);
   });
 
   it('slabí voli po zimě orají na jaře jen podílem; na podzim zase plnou silou', () => {

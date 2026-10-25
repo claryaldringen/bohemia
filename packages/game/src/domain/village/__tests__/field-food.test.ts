@@ -379,15 +379,19 @@ describe('osev podle stravy v simulaci', () => {
           0,
         );
     };
-    // zásoby z pole 1. 9. nad cílem (pojistka + rezerva) – ves nemusí ten rok sít nic
+    // zásoby z pole nad cílem (pojistka + rezerva) 1. 9. i 1. 7. příštího roku (kdy se měří
+    // zasetá plocha) – jen tehdy ves nemusí ten rok sít obilí
     const covered: boolean[] = [];
+    const coversNeed = (day: number): boolean =>
+      fieldStoresKg(s, day) >=
+      storesTargetKg(yearlyFieldNeed(s, day), bufferKg(yearlyFoodNeed(s, day)));
     for (let year = 600; year <= 610; year++) {
       const day = at(year, 9, 2);
       s = advanceVillage(s, day, null);
       grain.push(grainKg(day, false));
-      const need = yearlyFieldNeed(s, day);
-      covered.push(fieldStoresKg(s, day) >= storesTargetKg(need, bufferKg(yearlyFoodNeed(s, day))));
+      const coveredSept = coversNeed(day);
       s = advanceVillage(s, at(year + 1, 7, 1), null);
+      covered.push(coveredSept && coversNeed(at(year + 1, 7, 1)));
       allGrain.push(grainKg(at(year + 1, 7, 1), true));
     }
     // první roky jen luštěniny, nutné obilí až zásoby klesnou k cíli; s díly nad potřebu (fields.md

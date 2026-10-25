@@ -209,6 +209,10 @@ volů (`draft.ts`).
   párů, které v oknech orby zorají **všechny díly na řadě** v hospodářském roce – nutné i nad
   potřebu (ozim v září–říjnu, jař na podzim i na jaře, bez posledního dne okna; výkon páru
   0,3 ha za den × délka brázdy dílů). Ves tak chce víc volů a sena než dřív – měří Úloha 9.
+  **Strop podle lidí** (návrh Clauda 25. 10. 2026, recenze Úlohy 5): nejvýš tolik párů, kolik ves
+  obslouží – pár chce oráče a setí za zoranou částí (0,3 ha za den × 10 člověkodnů na hektar ≈ 3),
+  tedy `OXEN.crewPerPair` = 4 dospělí na pár (nejméně 1 pár). Jinak by malá ves s velkým polem
+  chtěla až 8 párů a seno na ně, které by stejně nezorala ani nezasela.
 - **Páry se nemění rok od roku** (návrh Clauda 20. 10. 2026: pár, který ves vycvičila,
   drží do konce služby, nový pár a rádlo jen když potřeba trvá; hystereze – rozhodnutí Clauda,
   `nextPloughPairs`): ves páry k rádlům (`DraftState.ploughPairs`) změní, jen když potřeba leží

@@ -13,6 +13,7 @@ import {
   ploughDayFactor,
   ploughTeamsAfield,
   plannedFurrowEfficiency,
+  relayUntouchedBands,
   settlePloughTeams,
   travelShare,
   type PloughTravels,
@@ -23,7 +24,14 @@ import type { DayTask } from '../simulate-plan';
 import { dayTaskOrder } from '../simulate-work';
 import type { CropWork, FieldPart, VillageState } from '../types';
 import { surplusFieldDay } from '../surplus-fields';
-import { createCropWork, seasonCrop, seasonCrops, springCrop, surplusCrop } from '../year-plan';
+import {
+  addToCropWork,
+  createCropWork,
+  seasonCrop,
+  seasonCrops,
+  springCrop,
+  surplusCrop,
+} from '../year-plan';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
 // Co nejdelší brázda (oxen.md; Martin, 19. 10. 2026: „Volské spřežení chce rýt co nejdelší
@@ -68,6 +76,26 @@ function rect(
     for (let x = 0; x < w; x++) parts.push(part(first + y * w + x, x0 + x, y0 + y, { fieldId }));
   return parts;
 }
+
+describe('rozvržení nezačatých pásů', () => {
+  it('trip.block po relay uprostřed bloku – zbytek bloku s rozpracovaným pásem drží číslo', () => {
+    // jeden blok 4 × 3 čtverce: pás 0 se začne orat, přibude dávka u téhož bloku
+    const work = createCropWork(rect(1, 0, 0, 4, 3), DAY, 0, true, undefined, 'winter');
+    const bands = work.plough!.bands!;
+    expect(bands.length).toBeGreaterThan(1);
+    expect(new Set(bands.map((b) => b.block)).size).toBe(1);
+    const block = bands[0]!.block;
+    // rozpracovaný první pás
+    work.plough!.done = work.plough!.required * 0.05;
+    addToCropWork(work, rect(100, 0, 3, 4, 2), DAY, 0, undefined, 'winter');
+    const partsById = new Map(
+      [...rect(1, 0, 0, 4, 3), ...rect(100, 0, 3, 4, 2)].map((p) => [p.id, p]),
+    );
+    relayUntouchedBands(work, partsById, DAY);
+    // zbytek téhož bloku i s dávkou se spojil a drží číslo bloku, na kterém spřežení stojí
+    expect(work.plough!.bands!.every((b) => b.block === block)).toBe(true);
+  });
+});
 
 describe('výkon podle délky brázdy', () => {
   it('krátká brázda víc obratů – jeden díl ≈ 0,44, referenční 1, dlouhá nejvýš +15 %', () => {

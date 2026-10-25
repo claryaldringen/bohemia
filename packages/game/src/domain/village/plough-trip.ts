@@ -46,7 +46,7 @@ export function ploughFrontBand(
  * brázdu zkrátila. Pásy za posledním pásem, na kterém začala některá úloha (i vracení přílohu),
  * se s přidanou dávkou rozvrhnou spolu (`ploughLayout`) – hotová práce, čelo i rozpracovaný pás
  * zůstanou, nové bloky dostanou čísla za všemi dosavadními (spřežení k nim jede jako k dalšímu
- * bloku). Volat po přidání dávky (`addToCropWork`).
+ * bloku), jen zbytek bloku rozpracovaného pásu zůstane pod jeho číslem. Volat po přidání dávky (`addToCropWork`).
  */
 export function relayUntouchedBands(
   work: CropWork,
@@ -71,9 +71,21 @@ export function relayUntouchedBands(
   if (parts.length !== tailIds.size) return;
   const layout = ploughLayout(parts);
   const next = bands.reduce((max, band) => Math.max(max, band.block + 1), 0);
+  // zbytek bloku, na kterém stojí rozpracovaný pás, zůstane v jeho bloku – spřežení nejede
+  // k novému bloku a cestu neplatí znovu (`PloughWork.trip.block`)
+  const cutBlock = cut >= 0 ? bands[cut]!.block : null;
+  const rest = new Set(
+    tail.filter((band) => band.block === cutBlock).flatMap((band) => band.partIds),
+  );
+  const keepLayoutBlock = layout.bands.find((band) =>
+    band.partIds.some((id) => rest.has(id)),
+  )?.block;
   plough.bands = [
     ...bands.slice(0, cut + 1),
-    ...layout.bands.map((band) => ({ ...band, block: band.block + next })),
+    ...layout.bands.map((band) => ({
+      ...band,
+      block: band.block === keepLayoutBlock && cutBlock !== null ? cutBlock : band.block + next,
+    })),
   ];
   const order = layout.order.map((p) => p.id);
   plough.partIds = [...plough.partIds.filter((id) => !tailIds.has(id)), ...order];

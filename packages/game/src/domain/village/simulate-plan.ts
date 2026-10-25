@@ -682,7 +682,8 @@ export function sowingCapacity(
  * řadě v hospodářském roce od `day` (1. 9. po postupu dílů) – nutné i nad potřebu, ves chce zorat
  * všechno (návrh Clauda). Ozim (první osev, ozim po jaři) se orá v podzimním okně ozimu, jař po
  * ozimu na podzim po ozimu nebo na jaře; výkon páru `ploughCapacityPerDay` podle délky brázd dílů
- * (`plannedFurrowEfficiency`). Přílohy 70–95 % a nouzové (jen při hladu) nepočítá.
+ * (`plannedFurrowEfficiency`); nejvýš tolik párů, kolik ves obslouží lidmi (`OXEN.crewPerPair`).
+ * Přílohy 70–95 % a nouzové (jen při hladu) nepočítá.
  */
 export function ploughPairsForRotation(
   state: VillageState,
@@ -704,7 +705,11 @@ export function ploughPairsForRotation(
   const perPair =
     pairCapacityPerDay(toolCoverage) *
     plannedFurrowEfficiency([...autumn, ...spring], state, landscape);
-  if (perPair <= 0) return OXEN.maxPairs;
+  // páry, které ves s lidmi, co má, obslouží: oráč na pár a setí za ním (`OXEN.crewPerPair`)
+  const crew = state.people.reduce((sum, p) => sum + laborPerDay(p, day), 0);
+  const staffed = Math.max(1, Math.floor(crew / OXEN.crewPerPair + EPSILON));
+  const cap = Math.min(OXEN.maxPairs, staffed);
+  if (perPair <= 0) return cap;
   // dny oken orby do konce hospodářského roku – ozim jen na podzim, jař na podzim i na jaře
   const days = (crop: Crop): number =>
     Math.max(1, windowDaysLeft(day, cropTaskWindows(crop, 'plough')) - SOW_AFTER_DIG_DAYS);
@@ -712,7 +717,7 @@ export function ploughPairsForRotation(
     autumnLoad / (perPair * days('winter')),
     allLoad / (perPair * days('spring')),
   );
-  return Math.min(OXEN.maxPairs, Math.max(1, Math.ceil(pairs - EPSILON)));
+  return Math.min(cap, Math.max(1, Math.ceil(pairs - EPSILON)));
 }
 
 /** Zbývající sklizeň jablek (září–říjen) – ves s ní při plánu osevu počítá (orchard.md). */
