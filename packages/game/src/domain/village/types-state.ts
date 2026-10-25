@@ -236,6 +236,11 @@ export interface VillageState {
    */
   sowingRotation?: true;
   /**
+   * Převod na osevní postup selhal (zpráva chyby) – ves zůstala beze změny, jen se značkou
+   * `sowingRotation`; aplikace chybu zapíše do logu (`updateVillage`).
+   */
+  sowingRotationFailed?: string;
+  /**
    * Stavby uložené před variantami rozměrů (population.md – Varianty rozměrů) prošly kontrolou,
    * jestli se do své varianty vejdou (`withDwellingShapes`) – nové vsi ho mají od založení.
    */

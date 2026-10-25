@@ -476,13 +476,15 @@ function convertToRotation(state: VillageState): VillageState {
  * ladem jen od plánu, je zase na řadě s léty v řadě, příloh leží dál. Příloh vracený do osevu si
  * pamatuje stav před sezónou (`fallowBeforeSeason`). Co na dílu poroste příště (`next`), dopočítá
  * `rotateAfterSeason` 1. 9.; pomoc rodiny a potřeba lnu zůstanou do konce roku. Při chybě se ves
- * načte beze změny se značkou (jako `withRoadsRebuilt`). Vstupní stav nemění.
+ * načte beze změny se značkou (jako `withRoadsRebuilt`; zpráva chyby zůstane v `sowingRotationFailed`). Vstupní stav nemění.
  */
 export function withSowingRotation(state: VillageState): VillageState {
   if (state.sowingRotation) return state;
   try {
     return { ...convertToRotation(state), sowingRotation: true };
-  } catch {
-    return { ...state, sowingRotation: true };
+  } catch (error) {
+    // ves se načte a počítá dál; příznak s chybou si přečte aplikace a zapíše ji (`updateVillage`)
+    const message = error instanceof Error ? error.message : String(error);
+    return { ...state, sowingRotation: true, sowingRotationFailed: message };
   }
 }

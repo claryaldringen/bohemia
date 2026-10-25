@@ -150,6 +150,12 @@ export async function updateVillage(
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const record = await villages.find(villageId);
     if (record === null) return { ok: false, reason: NO_VILLAGE };
+    // převod na osevní postup selhal při tomto načtení – ves jde dál, chyba se zapíše do logu
+    const rotated = withSowingRotation(withSeason(record.state));
+    const failure = rotated.sowingRotationFailed;
+    if (failure !== undefined && record.state.sowingRotationFailed === undefined) {
+      console.error(`Ves ${villageId}: převod na osevní postup selhal: ${failure}`);
+    }
     // ohrady uložené dřív dostanou druh (oxen.md – Ohrady podle druhu); ves z doby před snopy
     // rok odkladu mlácení od dneška (production-chains.md – Starší vsi); zásoba nástrojů do
     // vybavení domácností a hřivny místo nástrojů v obchodu (production-chains.md – Kovář)
@@ -172,10 +178,7 @@ export async function updateVillage(
                               withDwellingShapes(
                                 withPlots(
                                   withForestDistances(
-                                    withObstacleClearing(
-                                      withSowingRotation(withSeason(record.state)),
-                                      obstacles,
-                                    ),
+                                    withObstacleClearing(rotated, obstacles),
                                     landscape,
                                   ),
                                   landscape,
