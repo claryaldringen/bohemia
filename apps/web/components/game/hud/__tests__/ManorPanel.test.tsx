@@ -2,7 +2,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { DIRECTIONS, type TrailOption } from '@bohemia/game';
 import type { ManorMember } from '@/lib/manor-view';
-import { ManorFamily, ManorUpgrades, TrailCompass } from '../ManorPanel';
+import { ManorUpgrades, TrailCompass } from '../ManorPanel';
+import { DwellingResidents } from '../selection/dwelling';
 
 // Dvorec vojvody v panelu výběru (trade.md – Co hráč vidí): vylepšení vsi ikonami, růžice stezek
 // do 8 směrů s cenou v popisku a zašedlé s důvodem.
@@ -107,8 +108,8 @@ describe('rodina ve dvorci (lord.md – Co hráč vidí)', () => {
     ...over,
   });
   const html = renderToStaticMarkup(
-    <ManorFamily
-      family={[
+    <DwellingResidents
+      residents={[
         member({}),
         member({
           id: 2,
@@ -130,8 +131,8 @@ describe('rodina ve dvorci (lord.md – Co hráč vidí)', () => {
   );
 
   it('panel dvorce dovednosti neukazuje – ty jsou v panelu vybrané osoby', () => {
-    expect(html).toContain('data-testid="manor-member-1"');
-    expect(html).toContain('data-testid="manor-member-2"');
+    expect(html).toContain('data-testid="resident-1"');
+    expect(html).toContain('data-testid="resident-2"');
     expect(html).not.toContain('manor-arms-');
     expect(html).not.toContain('Lukostřelba');
   });

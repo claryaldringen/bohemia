@@ -36,7 +36,12 @@ import type { VillageJunction } from './junction-view';
 import type { VillageThreshingFloor } from './village-view-types';
 import type { HouseholdRelocation } from './relocation-view';
 import { TREE_GROWTH_YEARS } from './orchard-look';
-import { personPortrait, type ArmsView, type PersonPortraitIcon } from './person-view';
+import {
+  personPortrait,
+  type ArmsView,
+  type DwellingResident,
+  type PersonPortraitIcon,
+} from './person-view';
 import { personActivity, type PersonFigureState } from './person-activity';
 import {
   cartActivityText,
@@ -144,6 +149,8 @@ type SelectionKinds =
       capacity: number;
       /** Věk obyvatel v letech, od nejstaršího. */
       ages: number[];
+      /** Obyvatelé s portrétem, rolí a věkem, od nejstaršího. */
+      residents: DwellingResident[];
       condition: number;
       ageYears: number;
       full: boolean;
@@ -803,6 +810,7 @@ function selectionKinds(
       family: household.family,
       capacity: household.capacity,
       ages: household.ages,
+      residents: household.residents,
       condition: household.condition,
       ageYears: household.ageYears,
       full: household.full,

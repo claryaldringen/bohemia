@@ -73,6 +73,8 @@ import {
 } from './relocation-view';
 
 import { manorView } from './manor-view';
+import { personPortrait, scenePersons, type DwellingResident } from './person-view';
+import { ROLE_NAMES } from './person-roles';
 import { dynastyView } from './dynasty-view';
 import { horsesView, type VillageHorses } from './horse-view';
 
@@ -283,6 +285,7 @@ export function buildVillageView(
   const obstacles = obstaclesOf(landscape);
   const summary = summarizeVillage(state, day, obstacles);
   const gameOver = context.gameOver ?? false;
+  const persons = scenePersons(state, day);
   return {
     id: record.id,
     settlementId: record.settlementId,
@@ -302,6 +305,16 @@ export function buildVillageView(
     dayIndex: day,
     people: summary.people,
     households: summary.households.map((h) => {
+      const residents = persons
+        .filter((p) => p.home === h.dwellingId)
+        .map((p): DwellingResident => ({
+          id: p.id,
+          portrait: personPortrait(p),
+          role: ROLE_NAMES[p.role],
+          ...(p.name !== undefined ? { name: p.name } : {}),
+          age: p.age,
+        }))
+        .sort((a, b) => b.age - a.age || a.id - b.id);
       const dwelling = state.dwellings.find((d) => d.id === h.dwellingId);
       return {
         ...h,
@@ -309,6 +322,7 @@ export function buildVillageView(
           .filter((p) => p.dwellingId === h.dwellingId)
           .map((p) => ageYears(p.bornDay, day))
           .sort((a, b) => b - a),
+        residents,
         ageYears: dwelling ? Math.max(0, Math.floor((day - dwelling.builtDay) / DAYS_PER_YEAR)) : 0,
         relocation: householdRelocation(state, summary.constructions, h.dwellingId),
         relocationBlock: householdRelocationBlock(state, h.dwellingId),

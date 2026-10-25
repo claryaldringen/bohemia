@@ -1,5 +1,6 @@
 // Typy pohledu na ves (DTO panelu) – nabídka staveb, panel, řemesla, pole, sady.
 
+import type { DwellingResident } from './person-view';
 import { SceneVillage } from './village-view-scene-types';
 import {
   CRAFT_PRODUCTS,
@@ -378,6 +379,8 @@ export interface VillageView {
     condition: number;
     /** Věk obyvatel v celých letech, od nejstaršího. */
     ages: number[];
+    /** Obyvatelé s portrétem, rolí a věkem, od nejstaršího (panel obydlí). */
+    residents: DwellingResident[];
     /** Stáří obydlí v celých letech. */
     ageYears: number;
     /** Domácnost si staví nový dům (migration.md – Přestěhování domácnosti); jinak null. */

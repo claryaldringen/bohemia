@@ -505,11 +505,16 @@ describe('buildVillageView', () => {
         overcrowded: false,
         condition: 1,
         ages: [25, 25, 13, 12],
+        residents: expect.any(Array),
         ageYears: 0,
         relocation: null,
         relocationBlock: null,
       },
     ]);
+    // obyvatelé s portrétem a rolí, od nejstaršího
+    const residents = view.households[0]!.residents;
+    expect(residents.map((r) => r.age)).toEqual([25, 25, 13, 12]);
+    expect(residents.every((r) => r.role.length > 0)).toBe(true);
   });
 
   it('scéna: zemnice zakladatelů je do dostavění staveniště', () => {
