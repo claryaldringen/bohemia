@@ -416,7 +416,10 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     for (const id of seasonPartIds(s.season!)) {
       expect(s.parts.find((p) => p.id === id)?.overgrowthYears).toBeUndefined();
     }
-    expect(s.woodLogs ?? 0).toBeGreaterThan(0);
+    // klády až za stromy, které ves při vracení přílohu opravdu skácela – ne při přibrání dílu
+    expect(s.woodLogs ?? 0).toBe(0);
+    const felled = advanceVillage(s, at(620, 12, 1), null);
+    expect(felled.woodLogs ?? 0).toBeGreaterThan(0);
   });
 
   it('1. 9. příloh 15 let: vrátí se bez bonusu úrodnosti', () => {

@@ -399,8 +399,10 @@ describe('len napřed – výběr s kapacitou (do Úlohy 5 pro páry k rádlům)
     // brzdí jen energie (Martin, 25. 10. 2026): víc porodů, víc lidí na poli; a s nutnými díly den
     // po dni místo plánu k 1. 9. (fields.md – Osevní postup po dílech, 25. 10. 2026): 2. 9. je
     // v práci, co ves za dva dny přibrala podle potřeby úrody – bez kapacity plánu (dřív
-    // 721:3d269733)
-    expect(fingerprint(plans)).toBe('1018:b6da3f2c');
+    // 721:3d269733); a s postupem práce po dílech od čela (fields.md – Postup práce po dílech,
+    // 25. 10. 2026): 2. 9. je v práci jen dávka, kterou ves za WORK_FRONT_DAYS stihne (dřív
+    // 1018:b6da3f2c)
+    expect(fingerprint(plans)).toBe('167:3d9cb32c');
   });
 });
 

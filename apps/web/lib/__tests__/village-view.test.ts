@@ -242,12 +242,12 @@ describe('humno (production-chains.md – Humno)', () => {
   });
 
   it('výmlat: po žni ves bez humna mlátí nouzově (upozornění), s humnem ne', () => {
-    // ves sklízí ozim 31. 7. 503 (hotové díly na řadě s prvním osevem – fields.md, Osevní postup
-    // po dílech) – před žní nic
-    const summer = advanceVillage(state(), dayIndexOf({ year: 503, month: 7, day: 10 }), null);
+    // ves založená v dubnu sklízí jař 31. 8. 503 (hladová ves bere obilí před luštěninami –
+    // fields.md, Osevní postup po dílech) – před žní nic
+    const summer = advanceVillage(state(), dayIndexOf({ year: 503, month: 8, day: 10 }), null);
     const before = buildVillageView(record(summer), landscape, summer.lastDay);
     expect(before.threshing).toBeUndefined();
-    const autumn = advanceVillage(summer, dayIndexOf({ year: 503, month: 7, day: 31 }), null);
+    const autumn = advanceVillage(summer, dayIndexOf({ year: 503, month: 8, day: 31 }), null);
     const waiting = buildVillageView(record(autumn), landscape, autumn.lastDay);
     expect(waiting.threshing).toMatchObject({ emergency: true });
     expect(waiting.threshing!.sheavesKg).toBeGreaterThan(0);

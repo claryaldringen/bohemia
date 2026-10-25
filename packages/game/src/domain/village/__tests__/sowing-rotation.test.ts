@@ -92,7 +92,15 @@ const blockOrder = (s: VillageState): number[] =>
     .flat()
     .map((p) => p.id);
 
-const NO_NEED: NeededTargets = { harvestKg: 0, legumeKg: 0, flaxNeedKg: 0, needKg: 1_000 };
+// bez rezervy (`energyFloorKg` 0) jdou luštěniny před obilím – pořadí obilí do rezervy hlídá
+// test „obilí do roční potřeby před luštěninami“
+const NO_NEED: NeededTargets = {
+  harvestKg: 0,
+  energyFloorKg: 0,
+  legumeKg: 0,
+  flaxNeedKg: 0,
+  needKg: 1_000,
+};
 const SEPT_1 = at(600, 9, 1);
 
 /** Očekávaná čistá úroda dílů (kg) – o kousek méně, ať poslední díl ještě přibude. */
@@ -363,6 +371,39 @@ describe('výběr nutných dílů', () => {
     ]);
   });
 
+  it('obilí do roční potřeby před luštěninami – hladová ves luštěniny nevezme (obilí má přednost)', () => {
+    const s = village(8);
+    const order = blockOrder(s);
+    const legumeKg =
+      expectedLegumeKg(
+        s.parts.find((p) => p.id === order[0])!,
+        SEPT_1,
+      ) - 0.01;
+    // roční potřeba bez rezervy pokryje celé pole – na luštěniny díl nezbude
+    const hungry = neededSelection(s, SEPT_1, {
+      ...NO_NEED,
+      legumeKg,
+      harvestKg: 1e9,
+      energyFloorKg: 1e9,
+    });
+    expect(hungry.join.map((j) => j.crop)).not.toContain('legume');
+    expect(hungry.join.map((j) => j.id)).toEqual(order);
+    // potřebu bez rezervy kryjí dva díly – luštěniny až za nimi, pak obilí do rezervy
+    const floorKg = netOf(s, order.slice(0, 2));
+    const fed = neededSelection(s, SEPT_1, {
+      ...NO_NEED,
+      legumeKg,
+      harvestKg: floorKg + netOf(s, order.slice(3, 4)) + legumeEnergy(legumeKg),
+      energyFloorKg: floorKg,
+    });
+    expect(fed.join).toEqual([
+      { id: order[0]!, crop: 'winter' },
+      { id: order[1]!, crop: 'winter' },
+      { id: order[2]!, crop: 'legume' },
+      { id: order[3]!, crop: 'winter' },
+    ]);
+  });
+
   it('luštěniny se počítají do energie – obilí doplní jen zbytek', () => {
     const s = village(8);
     const order = blockOrder(s);
@@ -424,6 +465,7 @@ describe('výběr nutných dílů', () => {
     Object.assign(s.parts[9]!, { state: 'fallow', fertilityShare: 0.6, fallowSinceDay: 0 });
     const targets: NeededTargets = {
       harvestKg: 1e9,
+      energyFloorKg: 0,
       legumeKg: 5,
       flaxNeedKg: 2,
       needKg: 1_000,

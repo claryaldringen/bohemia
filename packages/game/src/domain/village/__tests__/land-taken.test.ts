@@ -201,7 +201,8 @@ describe('giveWayToBuilding – díl pole v plánu osevu', () => {
 
 describe('giveWayToBuilding – orba rádlem a seč sena', () => {
   it('díl oraný rádlem (i s drnem): orba a setí zbylých dílů zůstanou, kde byly', () => {
-    const base = advanceVillage(village(), at(600, 9, 2), null);
+    // díly přibývají k ozimu po dávkách na čele práce – v polovině října jich ozim má víc
+    const base = advanceVillage(village(), at(600, 10, 15), null);
     const day = base.lastDay;
     const byId = new Map(base.parts.map((p) => [p.id, p]));
     const ids = seasonCrop(base.season!, 'winter')!.partIds;

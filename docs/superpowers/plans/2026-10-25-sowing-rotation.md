@@ -246,6 +246,19 @@ nestihl setí, jde na jaře do jaře, nezasetá jař čeká na další sezónu. 
 `joinFinishedParts`, `plan-trim`. Přesáhne-li 150 kroků: 3a nový rok, výběr a konce oken,
 3b sklizeň, rodina, úklid testů.
 
+**Oprava po recenzi (review-sowing-3, 25. 10. 2026 – návrh Clauda v duchu Martina):** hladová ves
+s nutnými díly přibranými najednou celý podzim jen vracela příloh a nezasela nic (C1) a klády
+z mladého lesa dostávala při každém přibrání (C2). Oprava: díly přibývají **po dávkách na čele
+práce** (`workFront`, `WORK_FRONT_DAYS` = 3 dny volné práce a orby – fields.md, Postup práce po
+dílech), pořadí výběru len → obilí do `energyFloorKg` → luštěniny → obilí do `harvestKg` (obilí má
+přednost, I3), v dávce ozim před jaří; čekající díly výběru počítá `lordHelpDay`; uvolnění obilí
+nebrzdí přibírání lnu a luštěnin. Klády `clearedLogs` až za díly, přes které došlo čelo vracení
+přílohu; vyklučený díl se po uvolnění vrátí bez lesa. Testy: `season-day.test.ts` (hladová ves
+ze sondy zaseje ozim i jař, nouzové až po připravených; dávky rostou s čelem; uvolnění – čelo
+a vzhled se nepohnou; klády jen za skácené), `sowing-rotation.test.ts` (obilí do roční potřeby
+před luštěninami), `emergency-sowing.test.ts` (původní síla – osetý nouzový je nejvíc zotavený,
+nezasetý zbude, −12 %), dosažitelnost v `holdings.test.ts` měří obdělané díly 31. 8. (0,14).
+
 ## Úloha 4 – Díly nad potřebu po stavbách
 
 **Cíl:** Ostatní díly na řadě (jen obilí) dostanou práci po stavbách a opravách obydlí – všechna
@@ -267,7 +280,9 @@ stane nutným, když potřeba vzroste.
       v liště beze změny – test, že práce dílů nad potřebu je nesnižuje.
 - [ ] Testy: ves bez staveb obdělá i díly nad potřebu; stavba zadaná v květnu → díly nad potřebu
       bez pletí (úroda × nevypletý podíl), v červenci bez žní (propadne); nutné díly beze ztráty;
-      povýšení dílu při narození / zabrání stavbou; po kouscích. `extra-sowing.test.ts` přepsat na
+      povýšení dílu při narození / zabrání stavbou; po kouscích; **nutné díly před stavbou**
+      (stavba stojí, dokud nutná práce v okně zbývá – přesunuto z Úlohy 3 po recenzi). Díly nad
+      potřebu berou práci až za čelem nutných dílů (`workFront`). `extra-sowing.test.ts` přepsat na
       `surplus-fields.test.ts`.
 - [ ] Nové otisky s komentářem. Commit `feat(game): díly nad potřebu po stavbách`.
 

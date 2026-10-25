@@ -1,13 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage, type PartInput } from '../actions';
-import { taskPosition, taskSpans } from '../field-progress';
+import { isSowableFertility } from '../fields';
+import { fieldPartLooks, taskPosition, taskSpans } from '../field-progress';
 import { moveParts } from '../land-taken';
-import { sowParts } from '../rotation';
+import { reclaimedLogs, sowParts } from '../rotation';
 import { advanceVillage } from '../simulate';
+import { seasonDay } from '../simulate-plan';
 import type { CropWork, VillageState } from '../types';
 import { NO_CRAFTS } from '../productivity';
-import { createSeason, seasonCrop, seasonCrops, seasonPartIds, springCrop } from '../year-plan';
+import {
+  addToCropWork,
+  createSeason,
+  seasonCrop,
+  seasonCrops,
+  seasonPartIds,
+  springCrop,
+} from '../year-plan';
 
 // Nutné díly den po dni (fields.md – Osevní postup po dílech a setí do konce okna, 25. 10. 2026):
 // ves nemá plán k 1. 9. – díly na řadě přibývají k letošní práci podle potřeby úrody, ozim, který
@@ -86,8 +95,12 @@ describe('nutné díly den po dni', () => {
     start.storesKg = 0;
     const october = advanceVillage(start, at(600, 10, 31), null);
     const before = seasonCrop(october.season!, 'winter')!;
+    // ves bere díly po dávkách na čele – na konci okna přidáme tři nezačaté, ať je co přesunout
+    const added = october.parts.filter((p) => p.state === 'ready').slice(0, 3);
+    addToCropWork(before, added, october.lastDay, NO_CRAFTS.tools, undefined, 'winter');
+    sowParts(added, 'winter');
     const late = unsown(october, before);
-    expect(late.length).toBeGreaterThan(0);
+    expect(late).toEqual(expect.arrayContaining(added.map((p) => p.id)));
     const november = advanceVillage(october, at(600, 11, 1), null);
     const winter = seasonCrop(november.season!, 'winter')!;
     expect(unsown(november, winter)).toEqual([]);
@@ -103,8 +116,11 @@ describe('nutné díly den po dni', () => {
     const start = village(200);
     start.storesKg = 0;
     const april = advanceVillage(start, at(601, 4, 30), null);
+    const added = april.parts.filter((p) => p.state === 'ready').slice(0, 3);
+    addToCropWork(springCrop(april.season!), added, april.lastDay, NO_CRAFTS.tools);
+    sowParts(added, 'spring');
     const late = unsown(april, springCrop(april.season!));
-    expect(late.length).toBeGreaterThan(0);
+    expect(late).toEqual(expect.arrayContaining(added.map((p) => p.id)));
     const may = advanceVillage(april, at(601, 5, 1), null);
     const spring = springCrop(may.season!);
     expect(unsown(may, spring)).toEqual([]);
@@ -143,6 +159,141 @@ describe('nutné díly den po dni', () => {
       expect(advanceVillage(pieces, end, null)).toEqual(whole);
     }
   }, 120_000);
+});
+
+/**
+ * Hladová ves ze sondy recenze (Úloha 3): 133 dílů po 225 m², čtyři lidé, zásoby 0 – u domu
+ * 60 nouzových přílohů (55 %), dál 73 odpočatých (97 %).
+ */
+function hungryVillage(): VillageState {
+  const parts: PartInput[] = Array.from({ length: 133 }, (_, i) => ({
+    areaM2: 225,
+    distanceM: 50 + Math.round((50 * i) / 132),
+    naturalFertility: 70,
+    surface: 'meadow',
+    obstacleCost: 0,
+  }));
+  const s = foundVillage({
+    seed: 42,
+    day: at(600, 6, 1),
+    dwellingPosition: POSITION,
+    firstField: { outline: OUTLINE, parts },
+  });
+  s.constructions = [];
+  s.lastDay = at(600, 8, 31);
+  s.storesKg = 0;
+  s.parts.forEach((p, i) => {
+    p.foundingDone = p.foundingCost;
+    p.state = 'fallow';
+    p.fallowSinceDay = at(590, 9, 1);
+    p.fertilityShare = i < 60 ? 0.55 : 0.97;
+  });
+  return s;
+}
+
+/** Díly plodiny, na kterých setí začalo. */
+function sownIds(s: VillageState, work: CropWork): number[] {
+  const byId = new Map(s.parts.map((p) => [p.id, p]));
+  const position = taskPosition(work, 'sow');
+  return taskSpans(work, byId, 'sow', s.lastDay)
+    .filter((span) => position > span.start + 1e-9)
+    .map((span) => span.id);
+}
+
+describe('postup práce po dílech od čela (fields.md – Postup práce po dílech)', () => {
+  it('hladová ves zaseje ozim i jař – nejlepší díly napřed, nouzové u domu až po nich', () => {
+    const start = hungryVillage();
+    const emergency = new Set(start.parts.filter((p) => !isSowableFertility(p)).map((p) => p.id));
+    const october = advanceVillage(start, at(600, 10, 31), null);
+    const winter = seasonCrop(october.season!, 'winter')!;
+    const sownWinter = sownIds(october, winter);
+    expect(sownWinter.length).toBeGreaterThanOrEqual(10);
+    expect(sownWinter.filter((id) => emergency.has(id))).toEqual([]);
+    // v práci je jen čelo – nezasetých dílů ozimu nanejvýš pár
+    expect(unsown(october, winter).length).toBeLessThanOrEqual(3);
+    const april = advanceVillage(october, at(601, 4, 30), null);
+    expect(sownIds(april, springCrop(april.season!)).length).toBeGreaterThanOrEqual(10);
+    expect(unsown(april, springCrop(april.season!)).length).toBeLessThanOrEqual(3);
+  }, 60_000);
+
+  it('díly přibývají po dávkách, jak se čelo posouvá – ozim roste celý podzim', () => {
+    const start = village(80);
+    start.storesKg = 0;
+    const first = advanceVillage(start, at(600, 9, 1), null);
+    const october = advanceVillage(first, at(600, 10, 31), null);
+    const n1 = seasonCrop(first.season!, 'winter')!.partIds.length;
+    const winter = seasonCrop(october.season!, 'winter')!;
+    expect(n1).toBeGreaterThan(0);
+    expect(winter.partIds.length).toBeGreaterThan(n1);
+    // ves s málem práce zaseje, co stihne – všechno přibrané až na čelo
+    expect(sownIds(october, winter).length).toBeGreaterThan(n1);
+    expect(unsown(october, winter).length).toBeLessThanOrEqual(1);
+  }, 60_000);
+
+  it('uvolnění nezačatých dílů: čelo práce i vzhled zbylých dílů se nepohnou', () => {
+    const start = village(80);
+    start.storesKg = 0;
+    const dug = advanceVillage(start, at(601, 3, 25), null);
+    const day = at(601, 3, 26);
+    const spring = springCrop(dug.season!);
+    expect(spring.done.dig).toBeGreaterThan(0);
+    // k jaři přibude pět nezačatých dílů, pak ves přijde k velké zásobě
+    const added = dug.parts.filter((p) => p.state === 'ready').slice(0, 5);
+    addToCropWork(spring, added, dug.lastDay, NO_CRAFTS.tools);
+    sowParts(added, 'spring');
+    dug.storesKg = 20_000;
+    const before = structuredClone(springCrop(dug.season!));
+    const looksBefore = fieldPartLooks(dug, day);
+    seasonDay(dug, day, NO_CRAFTS);
+    const after = springCrop(dug.season!);
+    const removed = before.partIds.filter((id) => !after.partIds.includes(id));
+    expect(removed.length).toBeGreaterThan(0);
+    for (const id of removed) {
+      expect(looksBefore.get(id)?.work ?? 0).toBe(0);
+      expect(dug.parts.find((p) => p.id === id)!.state).toBe('ready');
+    }
+    expect(after.partIds).toEqual(before.partIds.filter((id) => !removed.includes(id)));
+    expect(after.done.dig).toBe(before.done.dig);
+    expect(after.done.sow).toBe(before.done.sow);
+    const looksAfter = fieldPartLooks(dug, day);
+    for (const id of after.partIds) expect(looksAfter.get(id)).toEqual(looksBefore.get(id));
+  }, 60_000);
+
+  it('klády jen za skácené stromy – uvolněný vyklučený díl je podruhé nedá', () => {
+    const day = at(601, 4, 29);
+    const forest = (felled: boolean): VillageState => {
+      const s = village(3, day);
+      for (const p of s.parts) {
+        Object.assign(p, { state: 'fallow', fallowSinceDay: at(575, 9, 1), overgrowthYears: 25 });
+      }
+      s.woodLogs = 0;
+      s.storesKg = 0;
+      s.season = createSeason({ winter: [], spring: s.parts }, at(600, 9, 1), NO_CRAFTS.tools);
+      sowParts(s.parts, 'spring');
+      const work = springCrop(s.season);
+      if (felled) work.done.reclaim = work.required.reclaim;
+      return s;
+    };
+    // přibrání ani uvolnění klády nedá; nevyklučený díl je po uvolnění zase mladý les
+    const standing = forest(false);
+    seasonDay(standing, day + 1, NO_CRAFTS);
+    seasonDay(standing, day + 2, NO_CRAFTS);
+    expect(standing.woodLogs).toBe(0);
+    expect(standing.parts.every((p) => p.state !== 'fallow' || p.overgrowthYears === 25)).toBe(
+      true,
+    );
+    // vyklučený díl dá klády jednou; 1. 5. nezasetý vypadne – vrátí se bez lesa
+    const felled = forest(true);
+    seasonDay(felled, day + 1, NO_CRAFTS);
+    const logs = felled.woodLogs ?? 0;
+    expect(logs).toBeGreaterThan(0);
+    seasonDay(felled, day + 2, NO_CRAFTS);
+    expect(felled.woodLogs).toBe(logs);
+    expect(felled.parts.every((p) => p.state === 'fallow' && p.overgrowthYears === undefined)).toBe(
+      true,
+    );
+    expect(reclaimedLogs(felled.parts, day + 2)).toBe(0);
+  });
 });
 
 describe('přesun dílů mezi plodinami (moveParts)', () => {

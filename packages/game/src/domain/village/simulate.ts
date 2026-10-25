@@ -184,8 +184,8 @@ function simulateDay(
   // 1. 9. nový hospodářský rok a postup dílů, každý den nutné díly a konce oken setí (fields.md –
   // Osevní postup po dílech); podíl dne rodiny na nutné práci (lord.md – Kdy jde rodina na pole)
   if (isOn(date, PLANNING_DAY)) startSeason(state, day, coverage, landscape);
-  seasonDay(state, day, coverage);
-  lordHelpDay(state, day, coverage, landscape);
+  const waiting = seasonDay(state, day, coverage);
+  lordHelpDay(state, day, coverage, landscape, waiting);
   // nákup výrobků řemeslníků u sousedů – jednou za rok po sklizni, ves se rozhodne sama
   // (crafts.md – Nákup u sousedů); skupina vyrazí hned
   startPurchases(state, day, coverage, landscape);

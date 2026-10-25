@@ -249,8 +249,9 @@ type HarvestEvent = Extract<ChronicleEvent, { kind: 'harvest' }>;
 
 describe('luštěniny v simulaci', () => {
   it('ves je k 1. 9. zaseje, 31. 7. sklidí do snopů, po žni vymlátí do zásoby a jí je celý rok', () => {
-    // první rok jde všechna založená půda na obilí (obilí má přednost), luštěniny od druhého
-    const planned = advanceVillage(found(at(600, 3, 1)), at(601, 9, 2), null);
+    // první rok jde všechna založená půda na obilí (obilí má přednost), luštěniny od druhého – po
+    // obilí do roční potřeby, jak se čelo práce posouvá (fields.md – Postup práce po dílech)
+    const planned = advanceVillage(found(at(600, 3, 1)), at(601, 11, 30), null);
     const legume = seasonCrop(planned.season, 'legume');
     expect(legume).toBeDefined();
     expect(legume!.partIds.length).toBeGreaterThan(0);

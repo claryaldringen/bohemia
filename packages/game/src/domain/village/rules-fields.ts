@@ -42,6 +42,12 @@ export const FIELD_STORES = {
   cushionYears: 1 / 3,
   trimMarginYears: 0.1,
 } as const;
+// fields.md – Osevní postup po dílech, Postup práce po dílech (návrh Clauda v duchu Martina
+// 25. 10. 2026: „orají a sejí od začátku okna do konce okna všechno připravené, dokud stačí lidé
+// a spřežení“): nutné díly přibývají k práci po dávkách na čele – rozdělaná práce otevřených oken
+// (vrácení přílohu, kopání, orba, setí) nejvýš na tolik dní volné práce vsi (spřežení na tolik
+// dní orby); další díl přibude, až čelo dávku dodělá
+export const WORK_FRONT_DAYS = 3;
 // fields.md – Kolik ves oseje (návrh Clauda)
 export const PEAK_CAPACITY_SHARE = 1; // ve špičce smí jít na pole všechna práce po denním minimu (kalibrace z 0,8)
 // fields.md – Úroda (hrubá úroda na hektar podle úrodnosti)

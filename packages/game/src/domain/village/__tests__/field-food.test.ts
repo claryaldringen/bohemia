@@ -23,9 +23,11 @@ import { daysUntilLegumeHarvest, expectedLegumeKg, legumeEnergy } from '../legum
 import { expectedNetKg } from '../fields';
 import { NO_CRAFTS, storageLossPerYear } from '../productivity';
 import { FIELD_FOOD, FIELD_STORES, FOOD_NEED_KG_PER_YEAR, LEGUMES } from '../rules';
+import { neededSelection } from '../rotation';
 import { advanceVillage } from '../simulate';
+import { fieldSowingTargets } from '../simulate-plan';
 import { withThreshingFloor } from './village-fixtures';
-import type { DietDay, VillageState } from '../types';
+import type { Crop, DietDay, VillageState } from '../types';
 import { seasonCrops } from '../year-plan';
 
 // Osev podle stravy a podle zásob (fields.md – Kolik ves oseje, Osev podle stravy, Osev podle
@@ -77,16 +79,29 @@ function village(stores = 0): VillageState {
 }
 
 /** Očekávaná energie plánu (kg obilí) – obilí a luštěniny jejich energií. */
+/**
+ * Energie dílů, které ves k osevu vybrala – přibraných na čelo práce i čekajících na něj ve výběru
+ * (fields.md – Osevní postup po dílech, bod 3).
+ */
 function planEnergy(s: VillageState, day: number): number {
   const byId = new Map(s.parts.map((p) => [p.id, p]));
+  const energy = (id: number, crop: Crop): number => {
+    const part = byId.get(id)!;
+    return crop === 'legume' ? legumeEnergy(expectedLegumeKg(part, day)) : expectedNetKg(part, day);
+  };
   let kg = 0;
   for (const { crop, work } of seasonCrops(s.season!)) {
-    for (const id of work.partIds) {
-      const part = byId.get(id)!;
-      kg +=
-        crop === 'legume' ? legumeEnergy(expectedLegumeKg(part, day)) : expectedNetKg(part, day);
-    }
+    for (const id of work.partIds) kg += energy(id, crop);
   }
+  const t = fieldSowingTargets(s, day, NO_CRAFTS);
+  const { join } = neededSelection(s, day, {
+    harvestKg: t.harvestKg,
+    energyFloorKg: t.energyFloorKg,
+    legumeKg: t.legumeKg,
+    needKg: t.needKg,
+    flaxNeedKg: s.season?.flaxNeedKg ?? 0,
+  });
+  for (const { id, crop } of join) kg += energy(id, crop);
   return kg;
 }
 

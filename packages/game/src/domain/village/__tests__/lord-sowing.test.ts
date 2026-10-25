@@ -5,8 +5,14 @@ import { craftCoverage } from '../crafts';
 import { allocateDay } from '../labor';
 import { manorLabor } from '../lord';
 import { NO_CRAFTS } from '../productivity';
+import { neededSelection } from '../rotation';
 import { advanceVillage } from '../simulate';
-import { orchardHarvestLoad, sowingCapacity, villageProductivity } from '../simulate-plan';
+import {
+  fieldSowingTargets,
+  orchardHarvestLoad,
+  sowingCapacity,
+  villageProductivity,
+} from '../simulate-plan';
 import {
   cropLoadOf,
   lordHelpShare,
@@ -16,6 +22,7 @@ import {
   type SowingCapacity,
 } from '../sowing';
 import type { Person, VillageState, FarmSeason } from '../types';
+import { partWork, springCrop, type PartWork } from '../year-plan';
 import { dwelling } from './kin-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
@@ -267,9 +274,27 @@ describe('nutná práce s rodinou (lordHelpDay)', () => {
       expect(share).toBeGreaterThan(0);
       expect(share).toBeLessThanOrEqual(1);
     }
-    // plán počítá s rodinou: bez ní by se jeho práce do volné práce vsi nevešla
+    // podíl počítá s rodinou: bez ní by se nutná práce – přibraná i čekající na čelo práce
+    // (fields.md – Postup práce po dílech) – do volné práce vsi nevešla
     const coverage = craftCoverage(planned, PLAN_DAY);
-    const load = cropLoadOf(planLoad(planned.season!, orchardHarvestLoad(planned)));
+    const rest = planLoad(planned.season!, orchardHarvestLoad(planned));
+    const t = fieldSowingTargets(planned, PLAN_DAY, coverage);
+    const { join } = neededSelection(planned, PLAN_DAY, {
+      harvestKg: t.harvestKg,
+      energyFloorKg: t.energyFloorKg,
+      legumeKg: t.legumeKg,
+      needKg: t.needKg,
+      flaxNeedKg: planned.season!.flaxNeedKg ?? 0,
+    });
+    expect(join.length).toBeGreaterThan(0);
+    const plough = springCrop(planned.season!).plough !== undefined;
+    for (const { id, crop } of join) {
+      const part = planned.parts.find((p) => p.id === id)!;
+      const work = partWork(part, PLAN_DAY, coverage.tools, plough, crop);
+      const into = rest[crop];
+      if (into) for (const key of Object.keys(work) as (keyof PartWork)[]) into[key] += work[key];
+    }
+    const load = cropLoadOf(rest);
     const village = sowingCapacity(planned, PLAN_DAY, coverage);
     expect(load.winterAutumn).toBeGreaterThan(village.autumnWinter);
     // v září rodina pomáhá, v zimě cvičí celý den
@@ -307,8 +332,10 @@ describe('nutná práce s rodinou (lordHelpDay)', () => {
     delete spring.season!.lordHelp;
     // bez zásob – ves nezačaté nutné díly neuvolní
     spring.storesKg = 0;
-    // ves přes zimu přišla o dospělého – jař bez rodiny nestihne, rodina dál cvičí (3 jinde)
+    // ves přes zimu přišla o dospělého a jař na podzim nezkopala (ves pracuje od čela – ozim
+    // napřed) – jař bez rodiny nestihne, rodina dál cvičí (3 jinde)
     spring.people = spring.people.filter((p) => p.id !== 23);
+    springCrop(spring.season!).done.dig = 0;
     const march = advanceVillage(spring, at(601, 3, 1), null);
     expect(march.lord?.trains).toBe(true);
     expect(march.season!.lordHelp?.spring).toBeGreaterThan(0);

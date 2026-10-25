@@ -286,16 +286,24 @@ describe('přirozená stadia podle kalendáře', () => {
     s = advanceVillage(s, at(601, 9, 30), null);
     expect(statesInOrder(s, winter)).toContain('sown');
     s = advanceVillage(s, at(601, 11, 15), null);
-    expect(new Set(statesInOrder(s, winter))).toEqual(new Set(['sprouted']));
+    // díly přibývaly k ozimu po dávkách na čele práce – v listopadu je ozim celý
+    const winterAll = seasonCrop(s.season!, 'winter')!.partIds;
+    // poslední díl čela mohla ves do konce října zasít jen zčásti
+    const winterSown = winterAll.slice(0, -1);
+    // poslední dávka čela zaseta koncem října – ještě nevzešla
+    expect(statesInOrder(s, winterAll)).toContain('sprouted');
+    for (const state of statesInOrder(s, winterAll)) expect(['sprouted', 'sown']).toContain(state);
     if (spring.length > 0) expect(statesInOrder(s, spring)).not.toContain('sprouted');
     s = advanceVillage(s, at(602, 5, 15), null);
-    expect(new Set(statesInOrder(s, winter))).toEqual(new Set(['green']));
+    expect(new Set(statesInOrder(s, winterSown))).toEqual(new Set(['green']));
     s = advanceVillage(s, at(602, 7, 1), null);
     // 1. 7. zraje a hned se začíná žnout od obydlí
-    expect(statesInOrder(s, winter)).toContain('ripe');
-    for (const state of statesInOrder(s, winter)) expect(['ripe', 'harvesting']).toContain(state);
+    expect(statesInOrder(s, winterSown)).toContain('ripe');
+    for (const state of statesInOrder(s, winterSown)) {
+      expect(['ripe', 'harvesting']).toContain(state);
+    }
     s = advanceVillage(s, at(602, 8, 1), null);
-    expect(new Set(statesInOrder(s, winter))).toEqual(new Set(['stubble']));
+    expect(new Set(statesInOrder(s, winterSown))).toEqual(new Set(['stubble']));
     // jař 1. 8. zralá – malou jař (po ozimu a luštěninách) už ves žne
     for (const state of statesInOrder(s, spring)) expect(['ripe', 'harvesting']).toContain(state);
   });
@@ -382,10 +390,13 @@ describe('letošní práce na dílu (panel dílu – fields.md, Co hráč vidí)
     );
     expect(harvests).toContain(0);
     expect(harvests).toContain(1);
-    for (const id of seasonCrop(s.season!, 'winter')!.partIds) {
+    const ids = seasonCrop(s.season!, 'winter')!.partIds;
+    for (const id of ids) {
       const { harvest, sow } = work.get(id)!.crop!;
-      // setí hotové – podíl z odvedené a potřebné práce (desetinná čísla)
-      expect(sow).toBeCloseTo(1, 9);
+      // setí hotové – podíl z odvedené a potřebné práce (desetinná čísla); poslední díl čela
+      // mohla ves do konce října zasít jen zčásti (fields.md – Osevní postup po dílech, bod 2)
+      if (id === ids.at(-1)) expect(sow).toBeGreaterThan(0);
+      else expect(sow).toBeCloseTo(1, 9);
       const look = looks.get(id)!;
       if (look.look === 'ripe') expect(harvest).toBe(0);
       if (look.look === 'harvesting' && look.work === undefined) expect(harvest).toBe(1);

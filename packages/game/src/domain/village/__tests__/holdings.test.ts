@@ -326,11 +326,15 @@ function building<T extends { state: VillageState }>(v: T): T {
   return v;
 }
 
-function seasons(start: VillageState, years: number): VillageState[] {
+/**
+ * Stav vsi `years` let po sobě – 2. 9. (začátek hospodářského roku), s `cultivated` 31. 8. (konec
+ * roku: osety jsou díly, které ves opravdu obdělala – fields.md, Postup práce po dílech).
+ */
+function seasons(start: VillageState, years: number, cultivated = false): VillageState[] {
   let state = structuredClone(start);
   const out: VillageState[] = [];
   for (let year = 0; year < years; year++) {
-    const planDay = at(600 + year, 9, 2);
+    const planDay = cultivated ? at(601 + year, 8, 31) : at(600 + year, 9, 2);
     while (state.lastDay < planDay) {
       pin(state, state.lastDay + 1);
       state.storesKg = start.storesKg;
@@ -385,8 +389,8 @@ describe('ves hospodaří podle domů', () => {
     // hráč staví – ves oseje jen potřebné (osev navíc by obdělal celé pole)
     const now = building(village(true));
     const before = building(village(false));
-    const after = seasons(now.state, 20).slice(5);
-    const old = seasons(before.state, 20).slice(5);
+    const after = seasons(now.state, 20, true).slice(5);
+    const old = seasons(before.state, 20, true).slice(5);
     const mean = (xs: number[]): number => xs.reduce((a, b) => a + b, 0) / xs.length;
     const patchesNow = mean(after.map((s) => sownPatches(s, now.cellOf)));
     const patchesOld = mean(old.map((s) => sownPatches(s, before.cellOf)));
@@ -401,10 +405,13 @@ describe('ves hospodaří podle domů', () => {
       old.map((s) => reachableShare(withCells(s), villageHoldings(withCells(s)))),
     );
     // ves seje na potřebu po růstu (fields.md – Osev podle růstu vsi) – víc dílů i dál od domu;
-    // postup dílu (dva osevy, pak úhor – fields.md, Osevní postup po dílech) nechá blíž domu úhor,
-    // zatímco dál se seje (0,49 proti 0,001 bez úseků; dřív se osévalo třikrát v řadě – 0,7)
-    expect(reachNow).toBeGreaterThan(0.4);
-    expect(reachNow).toBeGreaterThan(reachOld + 0.4);
+    // postup dílu (dva osevy, pak aspoň 10 let úhoru – fields.md, Osevní postup po dílech) nechá
+    // blíž domu úhor (pastvinu), přes který se k osetým dílům dál chodí. Měří se obdělané díly
+    // 31. 8. (25. 10. 2026: 0,14 proti 0,08 bez úseků; 0,49 v Úloze 3 měřilo 2. 9. přibrané díly
+    // včetně neobdělaných, dřív se osévalo třikrát v řadě – 0,7); práh těsně pod naměřenou
+    // hodnotou, ověří Vlkov (plán osevního postupu, Úloha 9)
+    expect(reachNow).toBeGreaterThan(0.12);
+    expect(reachNow).toBeGreaterThan(reachOld + 0.04);
     // osévá se pořád podobně – úseky jídlo neberou
     const sownParts = (xs: VillageState[]): number =>
       mean(xs.map((s) => s.parts.filter((p) => p.state === 'sown').length));
@@ -413,10 +420,27 @@ describe('ves hospodaří podle domů', () => {
 
   it('práce jde po úsecích, v úseku od domu ven – kopání ozimu je předpona pořadí', () => {
     // hráč staví – ves oseje jen potřebné, osev navíc ozim nezvětší ani nezmenší
-    const [planned] = seasons(building(village()).state, 2).slice(1);
-    const holdings = villageHoldings(planned!);
-    for (const { work } of seasonCrops(planned!.season!)) {
-      const sectors = work.partIds.map((id) => holdings.byPart.get(id)!.sector);
+    const [end] = seasons(building(village()).state, 1, true);
+    // díly přibývají po dávkách na čele práce (fields.md – Postup práce po dílech) – každá dávka
+    // dne jde po úsecích, v úseku od domu ven
+    let planned = end!;
+    const batches: number[][] = [];
+    for (let day = at(601, 9, 1); day <= at(601, 9, 3); day++) {
+      const before = new Map(
+        (planned.season ? seasonCrops(planned.season) : []).map((c) => [c.crop, c.work.partIds]),
+      );
+      pin(planned, day);
+      planned = advanceVillage(planned, day, null);
+      for (const { crop, work } of seasonCrops(planned.season!)) {
+        const had = new Set(before.get(crop) ?? []);
+        const batch = work.partIds.filter((id) => !had.has(id));
+        if (batch.length > 0) batches.push(batch);
+      }
+    }
+    expect(batches.length).toBeGreaterThan(0);
+    const holdings = villageHoldings(planned);
+    for (const batch of batches) {
+      const sectors = batch.map((id) => holdings.byPart.get(id)!.sector);
       // úseky za sebou bez přerušení
       const seen = new Set<number>();
       sectors.forEach((s, i) => {
@@ -424,9 +448,9 @@ describe('ves hospodaří podle domů', () => {
         seen.add(s);
       });
       // v úseku od domu ven
-      work.partIds.forEach((id, i) => {
+      batch.forEach((id, i) => {
         if (i === 0 || sectors[i - 1] !== sectors[i]) return;
-        const prev = holdings.byPart.get(work.partIds[i - 1]!)!.distanceM;
+        const prev = holdings.byPart.get(batch[i - 1]!)!.distanceM;
         expect(holdings.byPart.get(id)!.distanceM).toBeGreaterThanOrEqual(prev);
       });
     }

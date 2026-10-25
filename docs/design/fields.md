@@ -385,6 +385,27 @@ Seno, dvě seče).
      podle zasetého podílu, jako dosud. Jař nezasetá do konce dubna čeká na další jaro – díl
      leží přes léto jako příloh a rozkopání propadne (návrh Clauda; jarní práce dosud stačila,
      stane se to málokdy).
+   - **Postup práce po dílech od čela** (návrh Clauda v duchu Martina 25. 10. 2026 – „orají
+     a sejí od začátku okna do konce okna všechno připravené, dokud stačí lidé a spřežení; co se
+     do konce okna nestihne, zůstane na další sezónu“): ves nebere k práci všechny nutné díly
+     najednou – úlohy dne jdou po úlohách přes celou plodinu (vrácení přílohu před kopáním), takže
+     hladová ves by celý podzim jen vracela příloh na všech dílech a nezasela nic. Díly přibývají
+     **po dávkách na čele práce**: rozdělaná příprava půdy a setí v oknech, která dnes běží, smí
+     být nejvýš na `WORK_FRONT_DAYS` = 3 dny volné práce vsi po denním minimu (spřežení na 3 dny
+     orby); další díl přibude, až čelo dávku dodělá – díl tak projde přípravou půdy až k setí,
+     než ves vezme další. Na podzim brzdí ozim jen jeho vlastní čelo (len, luštěniny a jař
+     s kopáním do listopadu ozim nepředběhnou). Žádný strop podle plánu: dokud je okno otevřené
+     a potřeba trvá, ves bere další díly. Díly výběru, které na čelo ještě nepřibyly, počítá
+     podíl vojvodovy rodiny jako práci, která zbývá (lord.md – Kdy jde rodina na pole).
+   - **Pořadí dávek:** len (je ho málo, bez něj chybí oděv), **obilí do roční potřeby bez
+     rezervy** (proti hladu – obilí má přednost), luštěniny, pak obilí do celé potřeby úrody;
+     obilí v pořadí přílohové soustavy (připravené díly a díly s nejmenší prací přípravy, blíž
+     k domu, nouzové přílohy až po nich), v dávce ozim před jaří (jeho okno končí dřív). Dávka
+     dne jde po úsecích od domu ven (Postup práce po čtvercích).
+   - **Klády jen za skácené stromy** (Zarůstání): mladý les na přibraném dílu dá klády, až přes
+     díl přejde čelo vracení přílohu – ne při přibrání. Vyklučený díl si to pamatuje: když ho ves
+     uvolní (nezasetá jař 1. 5., velká zásoba), vrátí se jako příloh bez lesa a křovin a klády
+     podruhé nedá.
 
 3. **Nutné díly – práce proti hladu má přednost před stavbami:**
    - **Potřeba úrody** je dosavadní cíl osevu bez plánu: energie, kterou má dát příští sklizeň

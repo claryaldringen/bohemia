@@ -25,11 +25,18 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`moveParts` v `land-taken.ts`: příprava půdy podle úseků `taskSpans`, na začátek pořadí jaře,
   `crop: 'spring'`); první den po setí jaře, luštěnin a lnu vypadnou nezasetí z práce
   (`releasePart` – `shrinkInPlan`, `dropFromWork`, `returnPart`: příloh podle
-  `fallowBeforePlan`, jinak `ready`, `next` zůstane). Ve dnech, kdy může začít ozim nebo jař
-  (`sowingCropToday('first')`), `fieldSowingTargets` → `neededSelection` → přibrané díly
-  `addToCropWork` / nová plodina `putSeasonCrop` (`workOrder`), klády `reclaimedLogs`,
-  `sowParts` (`next` zůstává do konce sezóny); `release` (nezačaté díly nad potřebu +
-  `FIELD_STORES.trimMarginYears`) → `releasePart`. Ves bez roku (založená během roku) ho dostane
+  `fallowBeforePlan`, jinak `ready`, `next` zůstane). Napřed `fellReclaimed` – klády
+  (`clearedLogs`) za díly, přes které došlo čelo vracení přílohu (`taskSpans('reclaim')`),
+  a `fallowBeforePlan.overgrowthYears` pryč (uvolněný díl se vrátí bez lesa). Ve dnech, kdy může
+  začít ozim nebo jař (`sowingCropToday('first')`), `fieldSowingTargets` → `neededSelection`
+  (pořadí: len, obilí do `energyFloorKg`, luštěniny, obilí do `harvestKg`; v dávce obilí ozim
+  před jaří) → **čelo práce** (`workFront`, `frontRoom`, `WORK_FRONT_DAYS`): díl přibude, jen
+  když rozdělaná příprava a setí v dnes otevřených oknech plodin se stejným nebo dřívějším
+  koncem okna přípravy (`prepEnd`) je pod 3 dny volné práce (`freeLabor`) a orby
+  (`ploughCapacityPerDay`); ostatní čekají – `seasonDay` je vrátí a `lordHelpDay` je přičte
+  k zátěži (`partWork`). Přibrané díly `addToCropWork` / `putSeasonCrop` (dávka dne
+  `workOrder`), `sowParts` (`next` zůstává do konce sezóny); `release` (nezačaté díly nad
+  potřebu + `FIELD_STORES.trimMarginYears`, jen když nepřibírá obilí) → `releasePart`. Ves bez roku (založená během roku) ho dostane
   s prvním dílem. `startedPartIds` nebere úlohu bez práce (ozim se neplete) za začatou.
   `chooseCrops` (`sowing.ts`) zůstává jen pro páry k rádlům a kalkulačku (do Úlohy 5 a 8 plánu
   osevního postupu). **Cíl osevu podle stravy a zásob** (fields.md – Osev
@@ -218,7 +225,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   fázi louky vynuluje, od křovin ne. Stadia `OVERGROWTH_STAGES` (5 křoviny, 15 mladý les, 30 les)
   → `fallowStage` / `PartStage` `shrubs`, `young-forest`; křoviny a mladý les nejsou pastvinou
   (`pastureHa`), nesečou se (`isHayMeadow`) a rádlo je nezorá; vrácení podle stadia
-  (`RECLAIM_COST_PER_HA` – louka, křoviny, les) a mladý les dá klády (`reclaimedLogs`). Díl v lese
+  (`RECLAIM_COST_PER_HA` – louka, křoviny, les) a mladý les dá klády (`reclaimedLogs`; nutné díly
+  až za skácené stromy – `clearedLogs` ve `fellReclaimed`). Díl v lese
   z pole vypadne (`dropForestParts`, pole bez dílů zanikne, kronika `part-became-forest` s polem
   a počtem dílů, upozornění) do **lesa vsi** `VillageState.woods` (`woods.ts`: políčko, střed,
   plocha, povrch, den – stáří od 30 let): jeho stromy jsou překážky nad vrstvou jako stromy
