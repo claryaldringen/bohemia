@@ -27,6 +27,7 @@ import {
   withRoadCondition,
   withRoadsV2,
   withRoadsRebuiltSteps,
+  withRoadsRepairedSteps,
   withDynasty,
   withBridgedRoads,
   withDwellingShapes,
@@ -90,17 +91,14 @@ async function advancedToTodayWithPauses(
 }
 
 /**
- * Jednorázová přestavba sítě cest (`withRoadsRebuiltSteps` – paths.md, Jednorázová přestavba sítě)
- * s přestávkami (`pause`) mezi průchody – sekundy výpočtu neblokují server. Stejný výsledek jako
- * bez přestávek.
+ * Jednorázová přestavba a oprava sítě cest (`withRoadsRebuiltSteps`, `withRoadsRepairedSteps` –
+ * paths.md, Jednorázová přestavba sítě a Jednorázová oprava sítě) s přestávkami (`pause`) mezi
+ * kroky – sekundy výpočtu neblokují server. Stejný výsledek jako bez přestávek.
  */
-async function rebuiltWithPauses(
-  state: VillageState,
-  landscape: Landscape,
-  obstacles: ObstacleLayer,
+async function withPauses(
+  steps: Generator<void, VillageState, void>,
   pause: Pause | undefined,
 ): Promise<VillageState> {
-  const steps = withRoadsRebuiltSteps(state, landscape, obstacles);
   for (;;) {
     const step = steps.next();
     if (step.done) return step.value;
@@ -217,13 +215,17 @@ export async function updateVillage(
     // starší ves přejde na nový systém cest: jednou uklidí síť a smaže stará pole (paths.md –
     // Převod starých vsí) – až po trasách, kotvy jsou z nich
     // a jednou přestaví síť cest z vyšlapanosti dnešních tras – vylepšení se přenesou (paths.md –
-    // Jednorázová přestavba sítě, Martin 24. 10. 2026)
-    const current = await rebuiltWithPauses(
-      withRoadsV2(withRoutes(advanced, landscape, obstacles), landscape, obstacles),
-      landscape,
-      obstacles,
+    // Jednorázová přestavba sítě, Martin 24. 10. 2026) – a jednou ji opraví: vozové cesty napojené,
+    // cesty do branek (paths.md – Jednorázová oprava sítě, Martin 25. 10. 2026)
+    const rebuilt = await withPauses(
+      withRoadsRebuiltSteps(
+        withRoadsV2(withRoutes(advanced, landscape, obstacles), landscape, obstacles),
+        landscape,
+        obstacles,
+      ),
       pause,
     );
+    const current = await withPauses(withRoadsRepairedSteps(rebuilt, landscape, obstacles), pause);
     const changed = change(current);
     if (!changed.ok) return changed;
     // na místo zříceniny jde stavět – stavba zbytek jámy odstraní (ruins.ts); stavba na obilné

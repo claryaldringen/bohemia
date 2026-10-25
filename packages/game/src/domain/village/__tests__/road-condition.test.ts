@@ -1,14 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { cutDeadRoads, abandonBlockedStretches } from '../paths/roads-overgrow';
 import {
+  NO_ROAD_TRAFFIC,
+  type RoadTraffic,
   roadFullCondition,
   roadPieces,
   settleRoadCondition,
+  trafficOnRoads,
   withRoadCondition,
   withRoadConditionOf,
 } from '../paths/road-condition';
+import { routeCells } from '../paths/routes';
 import { roadChains } from '../paths/road-chains';
-import { type TrafficField, wearCellAt } from '../paths/wear';
+import { trafficAt, trafficField } from '../paths/wear';
 import { ROAD_DECAY } from '../rules';
 import type {
   Construction,
@@ -17,10 +21,11 @@ import type {
   RoadPoint,
   VillageRoads,
   VillageState,
+  StoredRoute,
 } from '../types';
 
 const YEAR = 365.25;
-const NO_TRAFFIC: TrafficField = { cells: new Map(), walk: new Map(), targets: new Map() };
+const NO_TRAFFIC: RoadTraffic = NO_ROAD_TRAFFIC;
 
 function road(id: number, grade: Road['grade'] = 'trodden', x = 0, lengthM = 100): Road {
   return {
@@ -45,15 +50,13 @@ function roadsOf(...list: Road[]): VillageRoads {
   };
 }
 
-/** Provozní pole s `trips` (setiny cest za den) podél osy x = `x`, z ∈ [0, lengthM]. */
-function trafficAlong(x: number, trips: number, lengthM = 100): TrafficField {
-  const walk = new Map<number, number>();
-  for (let z = 0; z <= lengthM; z++) walk.set(wearCellAt(x, z), trips);
-  return { cells: new Map(), walk, targets: new Map() };
+/** Provoz po cestě `trips` (setiny cest za den) podél osy x = `x`, z ∈ [0, lengthM]. */
+function trafficAlong(x: number, trips: number, lengthM = 100): RoadTraffic {
+  return (px, pz) => (Math.abs(px - x) <= 1 && pz >= 0 && pz <= lengthM ? trips : 0);
 }
 
 /** Po `days` dnech v krocích po 30 dnech (měsíčně): kolik dnů přežije cesta `road`. */
-function survivesDays(grade: Road['grade'], field: TrafficField = NO_TRAFFIC): number {
+function survivesDays(grade: Road['grade'], field: RoadTraffic = NO_TRAFFIC): number {
   const roads = roadsOf(road(1, grade));
   let day = 0;
   for (; day < 40 * YEAR; day += 30) {
@@ -379,5 +382,68 @@ describe('stav cest staré vsi (withRoadCondition)', () => {
     ] as RoadPoint[]);
     expect(pieces).toHaveLength(4);
     expect(pieces[0]!.z).toBeCloseTo(12.5, 1);
+  });
+});
+
+describe('provoz po cestě (paths.md – Zarůstání, Martin 25. 10. 2026)', () => {
+  const CELL_M = 1.25;
+  /** Trasa na sever od buňky (i, 0) o `n` buněk – kód kroků 0,1 (směr 2) po dvou. */
+  const north = (i: number, n: number, trips: number): StoredRoute => ({
+    from: 'a',
+    to: 'b',
+    purpose: 'water',
+    trips,
+    start: [i, 0],
+    steps: 'S'.repeat(n / 2),
+  });
+
+  it('trasa po cestě nese provoz, trasa 5 m vedle ne (provozní pole vyšlapanosti ano)', () => {
+    const along = north(0, 80, 300);
+    expect(routeCells(along).slice(0, 3)).toEqual([
+      [0, 0],
+      [0, 1],
+      [0, 2],
+    ]);
+    expect(trafficOnRoads([along], CELL_M)(0.4, 50)).toBe(300);
+    const beside = north(4, 80, 300);
+    expect(trafficOnRoads([beside], CELL_M)(0, 50)).toBe(0);
+    // vyšlapanost má toleranci (pravidlo 3) – pole tras sem 5 m vedle dosáhne
+    expect(trafficAt(trafficField({ key: 'x', list: [beside] }, CELL_M), 0, 50)).toBeGreaterThan(0);
+    // dvě trasy po cestě se sčítají, každá jednou
+    expect(trafficOnRoads([along, north(1, 80, 50)], CELL_M)(0.6, 50)).toBe(350);
+  });
+
+  it('souběžná cesta 5 m vedle trasy zaroste podle druhu', () => {
+    const traffic = trafficOnRoads([north(4, 160, 300)], CELL_M);
+    const days = survivesDays('trodden', traffic);
+    expect(Math.abs(days - ROAD_DECAY.trodden.years * YEAR)).toBeLessThanOrEqual(30);
+  });
+
+  it('opuštěný úsek provoz nedostane – i s trasou po ose bledne a zmizí podle druhu', () => {
+    const roads = roadsOf({ ...road(1, 'improved'), abandoned: true });
+    const traffic = trafficAlong(0, 1000, 100);
+    let day = 0;
+    for (; day < 40 * YEAR && roads.roads.length > 0; day += 30) {
+      settleRoadCondition(roads, [], undefined, traffic, [], day, day + 30);
+      cutDeadRoads(roads, [], undefined, day + 30);
+    }
+    expect(Math.abs(day - ROAD_DECAY.improved.years * YEAR)).toBeLessThanOrEqual(30);
+  });
+
+  it('opuštěný kus pod hotovou stavbou zmizí do roka, vozová taky', () => {
+    for (const grade of ['trodden', 'wagon'] as const) {
+      const roads = roadsOf(road(1, grade, 0, 200));
+      const blocked = (_x: number, z: number): boolean => z >= 70 && z <= 110;
+      let day = 0;
+      for (; day < 2 * YEAR; day += 30) {
+        abandonBlockedStretches(roads, [], undefined, blocked);
+        settleRoadCondition(roads, [], undefined, trafficAlong(0, 1000, 200), [], day, day + 30);
+        cutDeadRoads(roads, [], undefined, day + 30);
+        if (!roads.roads.some((r) => r.abandoned)) break;
+      }
+      expect(day).toBeLessThan(YEAR);
+      // živé zbytky po stranách zůstanou
+      expect(roads.roads.length).toBe(2);
+    }
   });
 });

@@ -40,6 +40,23 @@ export const ROAD_DECAY = {
   improved: { keep: 50, years: 15 },
   wagon: { keep: 25, years: 30 },
 } as const;
+// paths.md – Zarůstání, Provoz po cestě (Martin 25. 10. 2026: „proč by lidé chodili kousek vedle,
+// když tam je cesta?“; čísla návrh Clauda): provoz kusu cesty nesou jen trasy, které šly po ní –
+// prošly pásem úseku v mřížce chodců: buňkou do `bandCells` buňky od bodu osy (jako pás cesty
+// pro vozy – `roadBandCells`; jen zaokrouhlení mřížky, při buňce 3,75 m ≈ 2,8 m – mřížka chodců
+// vede cestu nejbližší řadou buněk); opuštěný úsek provoz nedostane nikdy, kus pod hotovou stavbou
+// má stav nejvýš na `underBuildingDays` dní – s měsíční kontrolou zmizí do roka
+export const ROAD_TRAFFIC = { bandCells: 0.75, underBuildingDays: 330 } as const;
+// paths.md – Síť – kotvy, pahýly a úklid (Martin 25. 10. 2026: „Žádná cesta nemůže existovat jen
+// tak sama v prostoru, vždycky musí spojovat dvě místa – kombinaci budov a křižovatek.“; číslo
+// návrh Clauda): volný konec úseku (i vozového – kromě rozestavěné vozové cesty) do `joinGapM` od
+// jiného úseku se v úklidu napojí; stejně daleko se napojí vrácený kus staré osy v přestavbě
+export const ROAD_JOIN = { gapM: 12 } as const;
+// paths.md – Vchody, Cesta do branky (Martin 25. 10. 2026: „Jeden z největších problémů vidím tady
+// u hřbitova“; číslo návrh Clauda): cesta, která jde do `ROAD_ANCHORS.entranceM` od vchodu, ale
+// nekončí v něm, se ohne přes bod `frontM` před vchodem (ve směru, odkud trasa přichází); ohyb
+// zabere `bendM` osy na každou stranu; osa do `toleranceM` od bodu už vede do vchodu
+export const ROAD_GATE = { frontM: 1.5, bendM: 4, toleranceM: 0.5 } as const;
 // paths.md – Síť – kotvy, pahýly a úklid (Martin, #6: „Pahýly bez cíle nevznikají, a když po dělení
 // a spojování cest nějaký zbude, sloučí se se sousední cestou nebo zmizí.“; číslo návrh Clauda
 // 24. 10. 2026): zbytek upravené nebo vozové cesty kratší než `remnantM` s koncem mimo kotvu se

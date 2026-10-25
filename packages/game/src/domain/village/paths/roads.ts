@@ -49,7 +49,7 @@ import {
 import { annualCartNetwork, markCartRoads, takeOverCartRoads } from './roads-carts';
 import { abandonBlockedStretches, cutDeadRoads } from './roads-overgrow';
 import { accessDue, accessRoads } from './roads-access';
-import { fixedRoadIds, liveRoadEnd, nearEntrance } from './road-condition';
+import { fixedRoadIds, liveRoadEnd, nearEntrance, trafficOnRoads } from './road-condition';
 import { updateJunctions } from './junctions';
 import { anchorTermini, markRoadEnds, tidyDue, tidyRoads } from './roads-tidy';
 import { SpotContext, plantingBlocker, rootTrees } from './roads-trees';
@@ -388,7 +388,7 @@ function tidyMonth(
   const junctions = (): boolean => {
     const frozen = fixedRoadIds(state.constructions, state.trails);
     const entrances = month.anchors.points.filter((a) => a.kind === 'entrance');
-    const traffic = field();
+    const traffic = trafficOnRoads(routes.list, month.cellM);
     let walkable: ReturnType<typeof month.walk> | undefined;
     return updateJunctions(roads, month.day, state.seed, {
       live: (road, atStart) => liveRoadEnd(road, atStart, traffic, entrances, frozen),

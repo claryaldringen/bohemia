@@ -245,6 +245,14 @@ export interface VillageRoads {
    */
   rebuildFailed?: 1;
   /**
+   * Síť je jednou opravená (`withRoadsRepaired`, paths.md – Jednorázová oprava sítě 25. 10. 2026):
+   * díry i u vozových cest zacelené, vozové spojky po staré vozové ose, cesty ohnuté do branek.
+   * Nová ves ho má od začátku. Chybí = ještě ne.
+   */
+  repaired?: 1;
+  /** Oprava skončila chybou – ves zůstala jako dřív a oprava se už nezkouší. Chybí = ne. */
+  repairFailed?: 1;
+  /**
    * Otisk sítě po posledním měsíčním úklidu (paths.md – Síť – kotvy, pahýly a úklid): trasy
    * (`VillageRoutes.key`) a osy úseků – bez změny se úklid nepouští. Chybí = ještě neproběhl.
    */
