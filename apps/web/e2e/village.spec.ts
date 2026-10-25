@@ -21,6 +21,7 @@ import {
   type LayerVersions,
   type PlacementVillage,
   type Position,
+  type Road,
   type TileCell,
   type VillageState,
 } from '@bohemia/game';
@@ -649,6 +650,54 @@ test('hráč založí hřbitov po čtvercích a vybere ho – panel ukáže hrob
   await pollVillage(page);
   await expect(panel.getByTestId('selection-graves')).toHaveText('3/56', { timeout: 20_000 });
   await expect(panel.getByTestId('selection-years')).toBeVisible();
+});
+
+test('panel cesty ukáže oba konce – klik na napojenou cestu ji vybere, konec nikam varuje', async ({
+  page,
+}) => {
+  const { seat: s } = await newPlayer(page, 'konce-cesty');
+  const spots = villageSpots(s.landscape);
+  await found(page, spots.dwelling);
+  // Dvě upravené cesty u vsi (úklid je nesmaže): A končí na B bez křižovatky, jinak nikam.
+  const state = withBuiltFirstDwelling(await villageState(s.settlementId));
+  const { x, z } = spots.dwelling;
+  const roadOf = (id: number, points: Road['points']): Road => ({
+    id,
+    points,
+    bornDay: state.lastDay,
+    grade: 'improved',
+    traffic: [],
+    spots: [],
+  });
+  const a = state.nextId++;
+  const b = state.nextId++;
+  state.roads = {
+    ...(state.roads ?? { roads: [] }),
+    roads: [
+      roadOf(a, [
+        { x: x + 20, z: z + 20 },
+        { x: x + 20, z: z + 60 },
+      ]),
+      roadOf(b, [
+        { x: x, z: z + 62 },
+        { x: x + 40, z: z + 62 },
+      ]),
+    ],
+  } as VillageState['roads'];
+  await writeVillageState(s.settlementId, state);
+  await pollVillage(page);
+  await page.evaluate((id) => window.__bohemiaE2E!.selectRoad!(id), a);
+  const panel = page.getByTestId('selection-panel');
+  await expect(panel).toHaveAttribute('data-kind', 'road');
+  const start = panel.getByTestId('selection-road-end-0');
+  const end = panel.getByTestId('selection-road-end-1');
+  await expect(start).toHaveAttribute('data-end-kind', 'none');
+  await expect(start).toHaveAttribute('aria-label', 'Cesta tu nikam nevede.');
+  await expect(end).toHaveAttribute('aria-label', 'Cesta končí na jiné cestě bez křižovatky.');
+  await expect(page.locator('[data-end-kind="road"][data-alert]')).toHaveCount(1);
+  // Klik na konec vybere napojenou cestu B – ta nikam nevede na žádném konci.
+  await end.click();
+  await expect(panel.getByTestId('selection-road-end-1')).toHaveAttribute('data-end-kind', 'none');
 });
 
 test('hráč postaví ohradu koní z rozcestníku ohrad – panel ukáže koně, místa a obilí', async ({

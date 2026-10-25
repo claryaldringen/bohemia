@@ -140,6 +140,7 @@ export function SelectionPanel({
         onPlantApples={onPlantRoadApples}
         onBuildWagon={onBuildWagonRoad}
         wagonPlan={wagonPlan}
+        onSelectTarget={onSelectTarget}
       />
     );
   } else if (details.kind === 'pen') {

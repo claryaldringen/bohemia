@@ -19,6 +19,8 @@ export interface E2EHooks {
   pollVillage?: () => void;
   /** Vybere člověka vsi (id), jako by hráč klikl na jeho postavu – postavy ve scéně chodí. */
   selectPerson?: (id: number) => void;
+  /** Vybere cestu hráče (id kteréhokoli úseku) – úzký pás cesty se v softwarovém kreslení špatně trefuje. */
+  selectRoad?: (id: number) => void;
 }
 
 declare global {

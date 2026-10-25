@@ -55,6 +55,7 @@ import { type VillageKiln } from './kiln-view';
 
 import { type VillageGrainPit } from './grain-pit-view';
 import { type VillageJunction } from './junction-view';
+import { type VillageRoadEnd } from './road-end-view';
 
 import type { VillageListItem } from './village-list';
 
@@ -191,6 +192,11 @@ export interface VillageRoad {
   id: number;
   /** Úseky cesty v pořadí podél ní – výběr kteréhokoli vybere celou cestu. */
   segments: number[];
+  /**
+   * Oba konce cesty v jejím pořadí (paths.md – pravidlo 11, Co hráč vidí; Martin 25. 10. 2026):
+   * stavba či cíl, křižovatka, kraj mapy, jiná cesta, nebo nikam – klik vybere, co jde vybrat.
+   */
+  ends: [VillageRoadEnd, VillageRoadEnd];
   /**
    * Druh cesty, který na ní převládá (podle délky; při shodě lepší) – portrét panelu. Vyšlapaná
    * s vozy je vyježděná (wagons.md – Vyježděná cesta, `roadKind`).

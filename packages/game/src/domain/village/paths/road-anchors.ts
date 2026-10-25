@@ -8,7 +8,7 @@
 
 import { type Landscape } from '../../landscape';
 import { ROAD_ANCHORS, TRAIL } from '../rules-roads';
-import type { RoadPoint, RoutePurpose, StoredRoute } from '../types';
+import type { Direction8, RoadPoint, RoutePurpose, StoredRoute } from '../types';
 import { routeCells } from './routes';
 import { EDGE_MARGIN_M, pathCellM } from './terrain';
 
@@ -20,6 +20,12 @@ export interface RoadAnchor {
   z: number;
   kind: RoadAnchorKind;
   reachM: number;
+  /**
+   * Místo kotvy – klíč z trasy (`StoredRoute.from` na začátku, `to` na konci: `d:<id>`,
+   * `cemetery:<id>`, `field:<id>`, `water`, `edge:N`…) pro panel cesty (konce cesty). Úklid ho
+   * nepotřebuje.
+   */
+  place?: string;
 }
 
 /** Kotvy vsi: konce tras a kraj mapy (polovina strany krajiny, m). */
@@ -49,12 +55,13 @@ export function anchorKindOf(to: string, purpose: RoutePurpose): RoadAnchorKind 
   return ENTRANCE_TARGETS.has(prefix) ? 'entrance' : 'goal';
 }
 
-function anchorOf(p: RoadPoint, kind: RoadAnchorKind): RoadAnchor {
+function anchorOf(p: RoadPoint, kind: RoadAnchorKind, place: string): RoadAnchor {
   return {
     x: p.x,
     z: p.z,
     kind,
     reachM: kind === 'entrance' ? ROAD_ANCHORS.entranceM : ROAD_ANCHORS.goalM,
+    place,
   };
 }
 
@@ -66,17 +73,17 @@ export function roadAnchors(routes: readonly StoredRoute[], landscape: Landscape
   const cellM = pathCellM(landscape);
   const points: RoadAnchor[] = [];
   const seen = new Set<string>();
-  const add = (cell: [number, number] | undefined, kind: RoadAnchorKind): void => {
+  const add = (cell: [number, number] | undefined, kind: RoadAnchorKind, place: string): void => {
     if (!cell) return;
     const key = `${kind}:${cell[0]},${cell[1]}`;
     if (seen.has(key)) return;
     seen.add(key);
-    points.push(anchorOf({ x: cell[0] * cellM, z: cell[1] * cellM }, kind));
+    points.push(anchorOf({ x: cell[0] * cellM, z: cell[1] * cellM }, kind, place));
   };
   for (const route of routes) {
     const cells = routeCells(route);
-    add(cells[0], 'entrance');
-    add(cells[cells.length - 1], anchorKindOf(route.to, route.purpose));
+    add(cells[0], 'entrance', route.from);
+    add(cells[cells.length - 1], anchorKindOf(route.to, route.purpose), route.to);
   }
   return { points, halfM: (landscape.size * landscape.cellSizeM) / 2 };
 }
@@ -87,11 +94,22 @@ export function roadAnchors(routes: readonly StoredRoute[], landscape: Landscape
  * (cesta k sousedovi má konec tam), s tolerancí `goalM` na vzorkování.
  */
 export function nearAnchor(anchors: RoadAnchors, x: number, z: number): boolean {
-  const edge = anchors.halfM - EDGE_MARGIN_M - TRAIL.edgeBandM - ROAD_ANCHORS.goalM;
-  if (Math.abs(x) >= edge || Math.abs(z) >= edge) return true;
+  if (edgeDirectionAt(anchors, x, z)) return true;
   return anchors.points.some((a) => {
     const dx = a.x - x;
     const dz = a.z - z;
     return dx * dx + dz * dz <= a.reachM * a.reachM;
   });
+}
+
+/**
+ * Leží bod (x, z) u kraje mapy (pás jako v `nearAnchor`)? Směr kraje (sever = +z, východ = +x;
+ * v rohu šikmo), jinak null.
+ */
+export function edgeDirectionAt(anchors: RoadAnchors, x: number, z: number): Direction8 | null {
+  const edge = anchors.halfM - EDGE_MARGIN_M - TRAIL.edgeBandM - ROAD_ANCHORS.goalM;
+  const ns = z >= edge ? 'N' : z <= -edge ? 'S' : '';
+  const ew = x >= edge ? 'E' : x <= -edge ? 'W' : '';
+  const direction = `${ns}${ew}`;
+  return direction === '' ? null : (direction as Direction8);
 }

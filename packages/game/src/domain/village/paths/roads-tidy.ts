@@ -359,7 +359,7 @@ const JOIN_GAP_M = 12;
  * Konec úseku je skutečný volný konec (brána domu, cíl – pole, voda, les –, slepý konec), když
  * do tolika metrů (m) leží kotva nebo konec trasy – trasa tam nepokračuje. Jinde pokračuje (díra).
  */
-const TERMINUS_M = 6;
+export const TERMINUS_M = 6;
 
 function isTerminus(p: RoadPoint, termini: readonly RoadPoint[]): boolean {
   return termini.some((t) => length2(t.x - p.x, t.z - p.z) <= TERMINUS_M);

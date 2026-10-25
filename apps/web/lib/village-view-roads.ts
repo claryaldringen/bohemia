@@ -34,6 +34,8 @@ import {
   roadUpgradeOptions,
   roadUpgradeProgress,
   roadChains,
+  chainEnds,
+  roadEndsNetwork,
   roadKind,
   ROAD_KIND_ORDER,
   type RoadKind,
@@ -53,6 +55,7 @@ import {
 import { fruitVisible, treeGrowth } from './orchard-look';
 
 import { trailRoadWork } from './trail-view';
+import { roadEndView, type VillageRoadEnd } from './road-end-view';
 
 /**
  * Zemní práce vozových cest pro scénu (roads.md – Vozová cesta): profily, hotová délka (jako
@@ -315,7 +318,13 @@ export function roadViews(
   const removed = new Set(obstacleChangesAt(state, day).removed);
   const apples = (state.roads?.apples ?? []).filter((a) => !removed.has(a.id));
   const earthworks = villageWagonEarthworks(state);
+  const endsNet = roadEndsNetwork(state, landscape);
   return roadChains(roads).map((chain) => {
+    const found = chainEnds(endsNet, chain);
+    const ends: [VillageRoadEnd, VillageRoadEnd] = [
+      roadEndView(state, roads, found?.[0] ?? { kind: 'none' }),
+      roadEndView(state, roads, found?.[1] ?? { kind: 'none' }),
+    ];
     const members = chain.map((link) => link.road);
     const ids = new Set(members.map((r) => r.id));
     const r = members[0]!;
@@ -340,6 +349,7 @@ export function roadViews(
     return {
       id: r.id,
       segments: members.map((m) => m.id),
+      ends,
       roadKind: prevailing,
       lengthM: Math.round(members.reduce((sum, m) => sum + roadLengthM(m), 0)),
       kinds,

@@ -1,5 +1,5 @@
 import { roadChainIds } from '@bohemia/game';
-import type { SceneVillage } from '../village-view';
+import type { SceneVillage, VillageRoad } from '../village-view';
 import {
   personExists,
   selectedFieldPart,
@@ -112,16 +112,21 @@ export function selectsAllDwellings(event: {
 
 /**
  * Výpis výběru do konzole prohlížeče – typ a id objektu, ať Martin může říct, který objekt zlobí
- * (Martin 24. 10. 2026). U cesty všechny úseky řetězu a úsek pod kurzorem.
+ * (Martin 24. 10. 2026). U cesty všechny úseky řetězu, úsek pod kurzorem a oba konce cesty
+ * z pohledu na ves (`VillageRoad.ends` – Martin 25. 10. 2026), např. `… – od dwelling 12 do
+ * junction 565`.
  */
 export function describeTarget(
   target: VillageTarget,
   village: Pick<SceneVillage, 'roads'>,
+  views: readonly Pick<VillageRoad, 'segments' | 'ends'>[] = [],
 ): string {
   if (target.kind === 'road') {
     const chain = roadChainIds(village.roads ?? [], target.segment ?? target.id);
     const clicked = target.segment === undefined ? '' : `, kliknutý úsek ${target.segment}`;
-    return `road ${target.id} – úseky ${chain.join(', ')}${clicked}`;
+    const view = views.find((v) => v.segments.includes(target.segment ?? target.id));
+    const ends = view ? ` – od ${view.ends[0].log} do ${view.ends[1].log}` : '';
+    return `road ${target.id} – úseky ${chain.join(', ')}${clicked}${ends}`;
   }
   const { kind, ...rest } = target;
   return `${kind} ${JSON.stringify(rest)}`;

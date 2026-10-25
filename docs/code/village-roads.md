@@ -166,7 +166,7 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   `roadAnchors(routes, landscape)` – začátek trasy (brána domu) vchod, konec podle cíle
   (`anchorKindOf`: `edge:*` kraj mapy, voda, dřevo, pastva, pole, sad, louka… cíl, stavby se vchodem
   – `d`, `cemetery`, `pen`, `threshing-floor`, `idol`, `shrine`… – vchod), dosah `ROAD_ANCHORS`
-  (vchod 3 m, cíl 7,5 m; kraj mapy = pás `EDGE_MARGIN_M` + `TRAIL.edgeBandM` + 7,5 m od okraje, `nearAnchor`). Roční kandidáti (`formRoads`, `hotRuns`, `MATCH_M` u pěších)
+  (vchod 3 m, cíl 7,5 m; kraj mapy = pás `EDGE_MARGIN_M` + `TRAIL.edgeBandM` + 7,5 m od okraje, `nearAnchor`, směr `edgeDirectionAt`; `RoadAnchor.place` – klíč trasy pro konce cesty v panelu, `paths/road-ends.ts` – [web-ui.md – Konce cesty](web-ui.md#konce-cesty-v-panelu-cesty)). Roční kandidáti (`formRoads`, `hotRuns`, `MATCH_M` u pěších)
   zrušeni. **Stavba přes cestu:** objížďka dál než 5 m od staré osy se po vyšlapání stane cestou
   napojenou rozcestími na zbytky staré cesty (test `road-form-wear.test.ts`); kus pod stavbou zatím
   zůstává a úklid ho bere jako starší (silnější) – objížďku souběžnou s ním (Vlkov – polozemnice)
@@ -256,8 +256,7 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   nejširší cesty kolmo na rameno) a mezi sousedními rameny vnitřní roh na ose mezery, kde se
   protnou okraje pásů (nejvýš u vchodů, ± 12 % nepravidelnost podle polohy; od mezery 180° střed).
   Obrys (výběr) má mezi rameny oblouk tečný k okrajům pásů (`CORNER_ROUND` × půl šířky, tečné
-  body nejvýš ve vchodech; mezera od 180° oblouk kolem středu). Obtisk plácku (oprava
-  24. 10. 2026 – Martin: „ty ostrý křižovatky už jsou upravený?“, „Předtím ty křižovatky byly tedy
+  body nejvýš ve vchodech; mezera od 180° oblouk kolem středu). Obtisk plácku (oprava 24. 10. 2026 – Martin: „ty ostrý křižovatky už jsou upravený?“, „Předtím ty křižovatky byly tedy
   lepší“; šedý štěrk plácku `roads-wagon-gravel-hub` a obrys s tvrdým okrajem zmizely):
   `junctionCuts` – pásy cest končí v řezu `entranceM + JUNCTION_CUT_EXTRA_M` (1,5 m) od středu
   (`roadBands(roads, cuts)` vrací i `arms` – kus osy od řezu do středu, druh pásu, sílu),

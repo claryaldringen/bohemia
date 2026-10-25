@@ -424,7 +424,11 @@ export function VillageGame({
     () =>
       scene?.onSelect((target, additive, double) => {
         // typ a id objektu pod kurzorem do konzole (Martin 24. 10. 2026)
-        if (target) console.info('[výběr]', describeTarget(target, sceneVillageRef.current));
+        if (target)
+          console.info(
+            '[výběr]',
+            describeTarget(target, sceneVillageRef.current, viewRef.current?.roads),
+          );
         // stavby jiné vsi na téže mapě se nevybírají – klik na ně jako na prázdnou zem
         setSelected((prev) =>
           nextSelection(
@@ -519,7 +523,11 @@ export function VillageGame({
 
   useEffect(() => {
     setE2EHook('selectPerson', (id) => setSelected({ kind: 'person', id }));
-    return () => setE2EHook('selectPerson', undefined);
+    setE2EHook('selectRoad', (id) => setSelected({ kind: 'road', id }));
+    return () => {
+      setE2EHook('selectPerson', undefined);
+      setE2EHook('selectRoad', undefined);
+    };
   }, []);
 
   /** Akce nad vsí na serveru (ve frontě za předchozími); vrátí chybu pro hráče, nebo null. */

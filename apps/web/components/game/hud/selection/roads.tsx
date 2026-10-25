@@ -3,6 +3,8 @@ import { useState, type ReactElement } from 'react';
 import { type SelectionDetails } from '@/lib/selection-details';
 import { formatDecimal, formatInteger } from '@/lib/village-format';
 import { ROAD_KIND_NAMES, ROAD_UPGRADE_NAMES } from '@/lib/village-view';
+import { JUNCTION_ICONS, JUNCTION_NAMES, type VillageRoadEnd } from '@/lib/road-end-view';
+import type { VillageTarget } from '@/lib/scene/village-picking';
 import {
   RoadKind,
   RoadUpgrade,
@@ -12,7 +14,7 @@ import {
 } from '@bohemia/game';
 import { SwathTrees } from '../ManorPanel';
 import { Tooltip } from '../Tooltip';
-import { Stat, Bar, ROW, Commands, WoodToFell, formatSpeedGain } from './parts';
+import { Stat, Bar, ROW, Commands, TargetButton, WoodToFell, formatSpeedGain } from './parts';
 import { Oaks } from './sacred';
 
 /** Portréty stupňů cesty a ikony tlačítek vylepšení (`/icons/build/<ikona>.png`). */
@@ -24,9 +26,7 @@ export const ROAD_KIND_ICONS: Record<RoadKind, string> = {
   wagon: 'cesta-vozova',
 };
 
-/** Název a portrét křižovatky podle tvaru (paths.md – Křižovatky). */
-export const JUNCTION_NAMES = { cross: 'Křižovatka', y: 'Rozcestí' } as const;
-export const JUNCTION_ICONS = { cross: 'krizovatka-kriz', y: 'krizovatka-y' } as const;
+export { JUNCTION_ICONS, JUNCTION_NAMES };
 const LANDMARK_NAMES = {
   tree: 'Strom u křižovatky',
   stone: 'Vztyčený kámen',
@@ -64,6 +64,67 @@ export function JunctionBody({
         </Stat>
       </div>
     </div>
+  );
+}
+
+/**
+ * Konec cesty (paths.md – pravidlo 11, Co hráč vidí; Martin 25. 10. 2026): ikona stavby,
+ * křižovatky nebo jiné cesty – klik ji vybere –, šipka ke kraji mapy, nebo červené varování, když
+ * cesta nikam nevede; jiná cesta bez křižovatky je klikatelná, ale s varováním. Název jen v popisku.
+ */
+export function RoadEndIcon({
+  end,
+  testId,
+  onSelectTarget,
+}: {
+  end: VillageRoadEnd;
+  testId: string;
+  onSelectTarget?: ((target: VillageTarget) => void) | undefined;
+}): ReactElement {
+  if (end.target && end.icon) {
+    return (
+      <span
+        data-end-kind={end.kind}
+        {...(end.alert ? { 'data-alert': true } : {})}
+        className={end.alert ? 'relative inline-flex' : 'contents'}
+      >
+        {end.alert && (
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute -right-1 -top-1 z-10 text-sm font-bold leading-none text-red-400"
+          >
+            !
+          </span>
+        )}
+        <TargetButton
+          src={end.icon}
+          name={end.name}
+          testId={testId}
+          target={end.target}
+          onSelectTarget={onSelectTarget}
+        />
+      </span>
+    );
+  }
+  const glyph = end.alert ? '!' : end.arrow;
+  return (
+    <Tooltip content={end.name} placement="above">
+      <span
+        data-testid={testId}
+        data-end-kind={end.kind}
+        {...(end.alert ? { 'data-alert': true } : {})}
+        aria-label={end.name}
+        tabIndex={0}
+        className={`inline-flex h-7 w-7 items-center justify-center text-base font-bold ${
+          end.alert ? 'text-red-400' : ''
+        }`}
+      >
+        {glyph ??
+          (end.icon && (
+            <img src={end.icon} alt="" width={128} height={128} className="h-full w-full" />
+          ))}
+      </span>
+    </Tooltip>
   );
 }
 
@@ -154,12 +215,14 @@ export function RoadBody({
   onPlantApples,
   onBuildWagon,
   wagonPlan,
+  onSelectTarget,
 }: {
   details: Extract<SelectionDetails, { kind: 'road' }>;
   onUpgrade?: (roadId: number, upgrade: RoadUpgrade) => Promise<void>;
   onPlantApples?: (roadId: number) => Promise<void>;
   onBuildWagon?: (roadId: number) => Promise<void>;
   wagonPlan?: WagonRoadPlan | null;
+  onSelectTarget?: ((target: VillageTarget) => void) | undefined;
 }): ReactElement {
   const [busy, setBusy] = useState(false);
   const buildWagon = (): void => {
@@ -183,6 +246,16 @@ export function RoadBody({
     <div className="hud-split">
       <div className="flex min-w-0 flex-col justify-center gap-1.5">
         <div className={ROW}>
+          <RoadEndIcon
+            end={details.ends[0]}
+            testId="selection-road-end-0"
+            onSelectTarget={onSelectTarget}
+          />
+          <RoadEndIcon
+            end={details.ends[1]}
+            testId="selection-road-end-1"
+            onSelectTarget={onSelectTarget}
+          />
           <Tooltip content="Délka" placement="above">
             <span
               data-testid="selection-length"

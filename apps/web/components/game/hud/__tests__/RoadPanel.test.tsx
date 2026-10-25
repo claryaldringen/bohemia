@@ -12,12 +12,32 @@ const PARTS = {
   footbridge: { manDays: 15, trees: 4 },
 };
 
+const ENDS: Extract<SelectionDetails, { kind: 'road' }>['ends'] = [
+  {
+    kind: 'place',
+    name: 'Obydlí – polozemnice',
+    icon: '/icons/build/polozemnice.png',
+    arrow: null,
+    target: { kind: 'dwelling', id: 12 },
+    log: 'dwelling 12',
+  },
+  {
+    kind: 'junction',
+    name: 'Křižovatka',
+    icon: '/icons/build/krizovatka-kriz.png',
+    arrow: null,
+    target: { kind: 'junction', id: 565 },
+    log: 'junction 565',
+  },
+];
+
 const road = (
   over: Partial<Extract<SelectionDetails, { kind: 'road' }>> = {},
 ): SelectionDetails => ({
   kind: 'road',
   id: 4,
   segments: [4],
+  ends: ENDS,
   roadKind: 'trodden',
   lengthM: 120,
   kinds: [{ kind: 'trodden', lengthM: 120 }],
@@ -64,6 +84,45 @@ const plantButton = (html: string): string | undefined =>
   /<button[^>]*data-testid="road-plant-apples"[^>]*>/.exec(html)?.[0];
 
 describe('SelectionPanel – pevná cesta', () => {
+  it('oba konce cesty: ikona stavby a křižovatky, názvy jen v popiscích (Martin 25. 10. 2026)', () => {
+    const html = render(road());
+    expect(html).toContain('data-testid="selection-road-end-0"');
+    expect(html).toContain('aria-label="Obydlí – polozemnice"');
+    expect(html).toContain('/icons/build/polozemnice.png');
+    expect(html).toContain('aria-label="Křižovatka"');
+    expect(html).toContain('/icons/build/krizovatka-kriz.png');
+  });
+
+  it('kraj mapy se šipkou směru, konec nikam červeně s varováním', () => {
+    const html = render(
+      road({
+        ends: [
+          {
+            kind: 'edge',
+            name: 'Kraj mapy – sever',
+            icon: null,
+            arrow: '↑',
+            target: null,
+            log: 'edge N',
+          },
+          {
+            kind: 'none',
+            alert: true,
+            name: 'Cesta tu nikam nevede.',
+            icon: null,
+            arrow: null,
+            target: null,
+            log: 'nikam',
+          },
+        ],
+      }),
+    );
+    expect(html).toContain('aria-label="Kraj mapy – sever"');
+    expect(html).toContain('↑');
+    expect(html).toMatch(/data-end-kind="none"[^>]*data-alert="true"/);
+    expect(html).toContain('aria-label="Cesta tu nikam nevede."');
+  });
+
   it('vyježděná cesta je vlastní druh – portrét a název, ne vyšlapaná s ikonou vozu', () => {
     const html = render(road({ roadKind: 'cart', kinds: [{ kind: 'cart', lengthM: 120 }] }));
     expect(html).toContain('Vyježděná cesta');
