@@ -426,6 +426,14 @@ Sondy bez kováře (kovárna zrušená) na čerstvém stavu z 31. 1. 801, kdy ve
   o její podíl zmenší; po konci hospodářského roku (`endOfSeason`) se nuluje. Čtyřkolák platí
   stejně; zoraný díl čtyřkolák dál objede. Pošlapání platí u **všech** jízd vozů (voda, uhlí,
   ruda, osivo, klády, svoz); díl, který už není osetý (např. právě sklízený), se nepošlapává.
+- **Stálé trasy vozů (Martin 25. 10. 2026 – [paths.md – Stálé trasy](paths.md#stálé-trasy-25-10-2026)):**
+  vozová síť nezná stadium dílu – **celé pole stojí vozu stálou průměrnou cenu 4** (rychlost
+  0,25 – časový průměr trojpolí: osetý díl 8, strniště 1,25, úhor 1) od chvíle, kdy ho hráč
+  umístí; úvrať jako louka, zarostlý díl neprůjezdný jako dosud. Trasa vozu k témuž cíli je tak
+  celý rok stejná a mřížka i trasy se drží v paměti podle mapy tras. Přes pole vůz jede, když je
+  objížďka víc než 4× delší; **pošlapání zůstává** – podle toho, co je na dílu ten den zaseto.
+  Nahrazuje ceny dílů podle stadia v tabulce Rychlosti (osetý, zoraný, strniště, připravený díl)
+  i „zoraný díl čtyřkolák objede“ (otázka pro Martina v paths.md).
 - **Vyježděné cesty** (Martin, 19. 10. 2026: „Cesty – pokud nějakou cestu vyjezdí vůz, bude to
   vyježděná cesta. Pokud vůz takhle vyjezdí vyšlapanou cestu, tak to vozová cesta přebije.“):
   **Nahrazeno (Martin, 22. 10. 2026 (zadání #6): „Cesty zakládají jen lidé tím, kudy chodí“):** vozy nové cesty nezakládají –
