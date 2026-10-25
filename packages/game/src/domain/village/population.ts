@@ -29,10 +29,14 @@ const MIN_WAIT_YEARS = 0.25; // nejkratší průměrné čekání na početí po
 type AgeGroup = 'child' | 'adult' | 'elder';
 const AGE_GROUPS: readonly AgeGroup[] = ['child', 'adult', 'elder'];
 
-/** Vliv hladu na porody: 0 při nasycení ≤ 0,5, lineárně 1 při nasycení ≥ 0,95. */
-function hungerBirthFactor(satiation: number): number {
+/**
+ * Vliv hladu na porody: 0 při energii ≤ 0,5, lineárně 1 při energii ≥ 0,95. Brzdí jen opravdový
+ * hlad (podíl kalorií proti potřebě), ne jednotvárná strava (Martin, 25. 10. 2026; population.md
+ * – Růst populace, diet.md).
+ */
+function hungerBirthFactor(energy: number): number {
   const span = HUNGER.birthsFullAt - HUNGER.birthsStopAt;
-  return Math.min(1, Math.max(0, (satiation - HUNGER.birthsStopAt) / span));
+  return Math.min(1, Math.max(0, (energy - HUNGER.birthsStopAt) / span));
 }
 
 /**
@@ -52,13 +56,13 @@ export function birthRatePerYear(age: number): number {
  * a přeplnění; v pauze po svatbě nebo porodu (`Person.nextBirthFrom`) ji počítá `populationDay`.
  */
 export function birthChancePerDay(ctx: {
-  satiation: number;
+  energy: number;
   overcrowded: boolean;
   motherAge: number;
 }): number {
   return (
     (birthRatePerYear(ctx.motherAge) / DAYS_PER_RISK_YEAR) *
-    hungerBirthFactor(ctx.satiation) *
+    hungerBirthFactor(ctx.energy) *
     (ctx.overcrowded ? CROWDED_BIRTH_FACTOR : 1)
   );
 }
@@ -292,8 +296,8 @@ function birthPauses(state: VillageState): Map<number, number> {
 }
 
 /**
- * Jeden den populace (porody podle nasycení `satiation`, úmrtnost hladem podle energie `energy` –
- * diet.md): úmrtí (lidé podle id, každý zemřelý se pohřbí – cemetery.md; zemřel hlady,
+ * Jeden den populace (porody i úmrtnost hladem podle energie `energy`, nasycení `satiation` jen jako její
+ * výchozí hodnota – diet.md): úmrtí (lidé podle id, každý zemřelý se pohřbí – cemetery.md; zemřel hlady,
  * když los padl do části rizika z nahromaděného hladu `state.starvationDays`), porody
  * (domácnosti podle id, jeden pokus na manželský pár – kinship.md), pak rozpad domácností. Hygiena platí podle
  * pohřebišť na začátku dne. Mutuje stav a vrací události dne.
@@ -374,7 +378,7 @@ export function populationDay(
     });
     for (const { mother, father } of couples) {
       const chance = birthChancePerDay({
-        satiation,
+        energy,
         overcrowded: crowded.get(household) ?? false,
         motherAge: ageYears(mother.bornDay, day),
       });

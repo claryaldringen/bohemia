@@ -93,9 +93,10 @@ Raně středověká strava nebyla jen obilí. Plné nasycení potřebuje kombina
 
 - **Hladem se umírá z energie, ne z pestrosti:** nahromaděný hlad ([populace](population.md) –
   Hlad a vymření) roste jen z nedostatku **energie** (pod 90 %).
-- **Nasycení** (energie × kvalita z bílkovin) dál řídí porody (pod 50 % se nerodí, plně od 95 %)
-  a štěstí (hlad ubírá štěstí, pod 90 %). Nedostatek bílkovin tak sníží porody a štěstí – ves jen
-  s obilím (≈ 80 %) se množí pomaleji a je méně šťastná, ale neumírá.
+- **Porody** brzdí jen **energie** (pod 50 % se nerodí, plně od 95 %; Martin, 25. 10. 2026: „Ok, ať
+  porody brzdí jen opravdový hlad.“ – návrh Clauda, schválený). **Nasycení** (energie × kvalita
+  z bílkovin) dál řídí štěstí (hlad ubírá štěstí, pod 90 %). Nedostatek bílkovin tak sníží jen
+  štěstí – ves jen s obilím (≈ 80 %) se množí naplno, je méně šťastná a neumírá.
 
 ### Mléko a sýr (Martin: „Ovce, kozy i krávy jsou mléčná zvířata“; čísla rešerše)
 
@@ -631,7 +632,7 @@ podle zásob – beze změny), stropy podílů energie a 1,6 g/kg zůstávají.
      **nejlevnější zdroj** – přežvýkavci v pořadí ovce → kozy → krávy, prasata a luštěniny s nimi
      soupeří cenou; nad **88 % potřeby** jen zdroj, jehož kilogram bílkovin nestojí víc práce než
      kilogram bílkovin z obilí. **„± ideál“ je 88–100 % bílkovin** – kvalita stravy 0,90–0,94
-     (s ovocem víc); pod 88 % nasycení znatelně ubírá (porody, štěstí), nad potřebu bílkoviny nic
+     (s ovocem víc); pod 88 % nasycení znatelně ubírá (štěstí; porody jen podle energie), nad potřebu bílkoviny nic
      nepřidají.
   - Proč ovce napřed i tam, kde jsou prasata levnější (rozhodnutí Clauda podle zadání „ovce
     přednost“): seřadit i šetřící zdroje jen podle ceny dalo v kalibraci vsi s prasaty a bez ovcí
@@ -731,7 +732,7 @@ Rozhodnutí kontroléru tam, kde návrh nedává číslo nebo postup (Martin je 
   přijdou na řadu); když by obilí do zkažení ovoce nebylo potřeba, jí se do té doby jen maso
   a ovoce a obilí zůstane na dobu po nich (jako dřív u jablek).
 - **Hlad z energie:** nahromaděný hlad i přirážka úmrtnosti za dnešní hlad počítají s energií,
-  porody a štěstí s nasycením (energie × kvalita z bílkovin). Hlad v rozhraní (upozornění) =
+  štěstí s nasycením (porody jen s energií; energie × kvalita z bílkovin). Hlad v rozhraní (upozornění) =
   výhled energie. Ovoce se do výhledu počítá do zkažení, maso, luštěniny a vejce dnešním
   přídělem. **Mléko a sýr** (změna 19. 10. 2026 s osevem podle stravy, návrh Clauda): mléko stád
   od zítřka do sklizně podle doby dojení a celá zásoba sýra, dohromady nejvýš strop mléka a sýra

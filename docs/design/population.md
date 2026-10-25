@@ -360,7 +360,9 @@ zbytku rodiny.“
   (ve 20–24 letech ≈ 31 měsíců – intervaly mezi porody 24–39 měsíců, Macfarlane 2002). Vsi uložené
   dřív se počítají od nejmladšího žijícího dítěte. Porody od 16 let jsou oprava podle rešerše (dřív
   od 14 – plodnost od 14 je optimistická); pro práci, odemčení nového obydlí a rozpad domácnosti
-  je dospělý dál od 14. Hlad porody tlumí až zastaví, přeplněnost je výrazně sníží (beze změny).
+  je dospělý dál od 14. Porody tlumí až zastaví jen opravdový hlad – **energie** (podíl kalorií proti potřebě) pod 95 %,
+  při 50 % a méně se nerodí; jednotvárná strava je nebrzdí (Martin, 25. 10. 2026: „Ok, ať porody
+  brzdí jen opravdový hlad.“ – návrh Clauda, schválený). Přeplněnost je výrazně sníží (beze změny).
 - **Úmrtí:** zhruba 40 % dětí se nedožije 14 let (v polozemnici méně než v zemnici; Lahovice:
   41 % do 20 let – Zazvonilová a kol. 2020); dospělí umírají asi **2 % ročně** (oprava podle
   rešerše, dřív 1,5 % – v Lahovicích umírali muži v průměru ve 43–47 a ženy ve 39–43 letech),
@@ -428,8 +430,8 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
 
 - **Hladem se umírá z energie, ne z pestrosti** ([strava](diet.md), od 18. 10. 2026): nahromaděný
   hlad i přirážka úmrtnosti za dnešní hlad počítají s pokrytím energie; nasycení se stravou
-  (energie × pestrost) řídí porody a štěstí. Ves jen s obilím (80 %) se množí pomaleji, ale
-  hladem neumírá.
+  (energie × pestrost) řídí štěstí; porody od 25. 10. 2026 řídí jen energie (viz Porody). Ves jen
+  s obilím (80 %) hladem neumírá a množí se naplno, je jen méně šťastná.
 - **Nahromaděný hlad** vsi se měří ve **dnech bez jídla**: každý den přibude
   max(0, 0,9 − energie) / 0,9 – den bez jídla je celý den, den o polovičním přídělu ≈ 0,44
   a při 80 % ≈ 0,11 (mírný nedostatek tělo snese – návrh Clauda, upraveno 18. 10. 2026). Když
@@ -443,7 +445,7 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
   každé úmrtí zvedne příděl ostatním. Při polovičním přídělu začnou děti a starší umírat po
   ≈ 5–6 týdnech, ves se během dalších ≈ 6 týdnů zmenší na ≈ 45–50 % lidí a zbylí jsou sytí. Mírný
   nedostatek (80 % přídělu) začne zabíjet děti a starší až po ≈ 4–5 měsících a za rok stojí
-  ≈ 15 % lidí. Porody se zastaví už při nasycení 0,5 (Růst populace).
+  ≈ 15 % lidí. Porody se zastaví už při energii 0,5 (Růst populace).
 - **Napřed nouzová porážka:** ves, které výhled do sklizně nevychází, nejdřív porazí zvířata
   navíc a teprve pak ubírá z přídělu ([strava](diet.md) – Nouzová porážka, Martin 19. 10. 2026).
 - **Stupně upozornění** (Martin, 19. 10. 2026; příděl = rovný díl zásob do sklizně podle výhledu):
