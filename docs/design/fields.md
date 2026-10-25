@@ -506,6 +506,47 @@ Seno, dvě seče).
 nutné a nad potřebu), úroda, nasycení, volná práce a doba staveb proti dosavadnímu kódu;
 kalibrace jen na Martinův pokyn.
 
+**Naměřeno – Vlkov a čerstvé vsi** (25. 10. 2026, dopočet den po dni bez zásahu hráče, ne
+kalibrace; dosavadní kód → osevní postup). Vlkov od 27. 8. 817 (40 lidí, 78,8 ha pole, 1 pár
+k rádlu), hospodářské roky; zásoby = zásoby + snopy + luštěniny 1. 9. na konci roku v ročních
+potřebách z pole:
+
+| Rok     | Zaseto ha   | Úroda t     | Zásoby 1. 9. | Dny hladu (úmrtí) | Volná práce čd/člověk |
+| ------- | ----------- | ----------- | ------------ | ----------------- | --------------------- |
+| 817/818 | 23,1 → 28,5 | 5,48 → 6,83 | 1,05 → 1,33  | 0 → 3             | 71 → 66               |
+| 818/819 | 19,7 → 26,6 | 4,73 → 6,32 | 0,78 → 1,29  | 0 → 0             | 50 → 38               |
+| 819/820 | 19,1 → 22,9 | 4,66 → 6,17 | 0,77 → 1,35  | 335 (3) → 0       | 77 → 57               |
+| 820/821 | 19,6 → 27,7 | 4,33 → 6,56 | 0,76 → 1,57  | 317 → 0           | 49 → 37               |
+| 821/822 | 15,2 → 25,7 | 4,73 → 6,18 | 0,85 → 1,72  | 334 → 0           | 48 → 32               |
+| 822/823 | 16,1 → 17,3 | 3,81 → 4,79 | 0,71 → 1,63  | 61 → 0            | 39 → 36               |
+| 823/824 | 18,3 → 20,0 | 4,54 → 4,60 | 0,87 → 1,81  | 335 → 0           | 40 → 47               |
+| 824/825 | 17,9 → 19,8 | 4,13 → 4,45 | 0,79 → 1,75  | 40 → 0            | 41 → 43               |
+
+- Ves oseje každý rok víc než dosavadní kód a sklidí víc (8 let 36,4 → 45,9 t); dosavadní kód od
+  třetího roku hladoví, osevní postup ne. Všechny díly zahájené ozimem jsou 1. 11. zasety, jař
+  1. 5. celá. Díly nad potřebu Vlkov nemá – potřeba úrody pokryje všechny díly na řadě; osev
+     omezuje rozloha polí (odpočaté přílohy), ne lidé: volno v květnu–září 15–46 %, osev klesá
+     s vyčerpanými přílohy (28,5 → 19,8 ha).
+- Rozdíl 2,8 proti 3,3 t k 27. 8. 818 (recenze převodu) je načasování: v roce převodu ozim
+  9,8 ha a jař 18,2 ha (dosavadní kód 14,5 a 8,3 ha – převedená sezóna měla na podzim 200 dílů
+  po ozimu, které se do potřeby počítaly, a jař přibyla na jaře, když zásoby klesaly). Jař se
+  sklízí v srpnu a mlátí v září – 1. 9. je obilí 6,67 proti 5,29 t, 1. 11. 1,14 proti 0,88 roční
+  potřeby. Cena: 3 dny hladu v roce převodu (nejnižší nasycení 0,75 proti 0,82).
+- Orba: páry k rádlům 1 jako dosud, voli 8 → 6 stejně; pásy delší (průměr brázdy 120–219 m proti
+  66–135 m). Seno a stáda: seno 14–26 t jako dosud, víc prasat a koz (krmení obilím).
+- Dosažitelnost osetých dílů od domu (podíl bez přecházení přílohu) 30. 8.: 0,00–0,79, průměr
+  0,48 (dosavadní kód 0,61). Po dvou osevech u domu odpočívá v každém úseku nejbližší díl a osévají
+  se vzdálenější odpočaté díly (819/820: všech 11 úseků s osevem začíná přílohem – 0,00).
+- Stavby skript nezadal: Vlkov 1. 4. 819 neměl suroviny na dílnu ani lidi na zemnici – doba
+  staveb proti dosavadnímu kódu zůstává neověřená.
+- Čerstvé vsi (4 skutečné krajiny × 14 hospodářských let, hráč staví zemnice a zakládá pole do
+  1,8 ha na člověka – stejně pro oba kódy): zaseto 219 → 215 ha, úroda 87,7 → 92,1 t, zásoby
+  1. 11. 4,1 → 4,4 roční potřeby, hlad 0 → 0, volná práce 50 → 55 čd na člověka a rok; díly nad
+     potřebu 26–36 ha na ves (víc než polovina osevu).
+- Dopočet je deterministický (po 1 dni, po 30 dnech i naráz stejný stav), ale pomalejší: 24
+  měsíců Vlkova 104 → 163 s (+57 %, cíl +10 %). Čas berou trasy vozů a spřežení – díly přibývají
+  den po dni, cíle tras se mění a trasy se hledají znovu (paměť 8 tras místo jedné nepomohla).
+
 **Rozhodnuto (dříve otevřené):** díl, který nestihl ozim a dostal jař jako první osev, dostane
 příště ozim, když to úrodnost dovolí (Martin 25. 10. 2026: „Jestli bude možné mu dát ozim, ať
 dostane ozim.“ – bod 1, Jař jako první osev). Ověření na Vlkově ukáže, kolik dílů se to týká.

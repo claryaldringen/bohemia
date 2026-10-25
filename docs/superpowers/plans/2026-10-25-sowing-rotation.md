@@ -428,17 +428,17 @@ fields.md a nový výpočet.
 **Cíl:** Kopii Vlkova (JSON stavu, jen čtená) dopočítat 8 let dosavadním kódem (`feat/landscape`)
 a novým kódem, bez zásahu hráče, a jednou se dvěma stavbami zadanými v dubnu 2. roku.
 
-- [ ] Tabulka po hospodářských letech: osev ha (ozim, jař, luštěniny, len; nutné / nad potřebu),
+- [x] Tabulka po hospodářských letech: osev ha (ozim, jař, luštěniny, len; nutné / nad potřebu),
       úroda (kg energie), zásoby z pole po sklizni ÷ potřeba, nejnižší nasycení roku, úmrtí hladem,
       volná práce (čd na člověka a rok), dny dostavění staveb, ozimy přesunuté na jaro, jař
       nezasetá do 30. 4.
 - [ ] Čas dopočtu 8 let – starý a nový kód (nejvýš +10 %); determinismus – dopočet po 1 dni
       a po 30 dnech dá stejný stav.
-- [ ] Test dosažitelnosti (`holdings.test.ts`, recenze review-sowing-3b – Important 1): práh
+- [x] Test dosažitelnosti (`holdings.test.ts`, recenze review-sowing-3b – Important 1): práh
       obdělaných dílů 31. 8. byl v Úloze 3 snížen 0,4 → 0,12 (rozdíl proti staré verzi 0,04) –
       ověřit na Vlkově a práh zpřísnit podle naměřeného.
-- [ ] Výsledek do fields.md (Osevní postup – Naměřeno), zprávu Martinovi s tabulkou.
-- [ ] Commit `docs: osevní postup – ověření na Vlkově`.
+- [x] Výsledek do fields.md (Osevní postup – Naměřeno), zprávu Martinovi s tabulkou.
+- [x] Commit `docs: osevní postup – ověření na Vlkově`.
 
 **Kritéria hotovo (Vlkov 8 let):**
 
@@ -451,6 +451,43 @@ a novým kódem, bez zásahu hráče, a jednou se dvěma stavbami zadanými v du
   s dosavadním kódem; v letech bez staveb jde volná práce v oknech na díly nad potřebu.
 - **Kód:** `grep -rn "YearPlan\|planYear\|trimPlan\|extraSowing\|chooseCrops"` mimo převod = 0;
   `typecheck`, `lint`, `test`, `format:check`, `test:e2e` zelené.
+
+**Úloha 9 – naměřeno** (25. 10. 2026, skripty a výpis mimo repo – `scratchpad/diag-sowing/`:
+`years.mts` Vlkov den po dni, `fresh.mts` čerstvé vsi, `verify.txt`; tabulka v fields.md –
+Naměřeno – Vlkov a čerstvé vsi):
+
+- **Osev:** ✓ – každý rok víc než dosavadní kód (28,5 / 26,6 / 22,9 / 27,7 / 25,7 / 17,3 / 20,0 /
+  19,8 ha proti 23,1 / 19,7 / 19,1 / 19,6 / 15,2 / 16,1 / 18,3 / 17,9 ha); ozim zahájený a do 1. 11.
+  nezasetý 0 dílů, jař nezasetá k 1. 5. 0 dílů. Díly nad potřebu Vlkov nemá – potřeba úrody pokryje
+  všechny díly na řadě, osev omezují odpočaté přílohy (volno v květnu–září zůstává 15–46 %).
+  „≈ šestina polí“ neplatí doslova: 17–28 ha z 78,8 ha (ves bere i přílohy 70–95 %, když je
+  potřebuje).
+- **Úroda a hlad:** ✓ – úroda 36,4 → 45,9 t za 8 let, zásoby 1. 9. 1,29–1,81 roční potřeby z pole
+  (dosavadní kód 0,71–1,05 a od třetího roku 300+ dní hladu, 3 úmrtí hladem); osevní postup bez
+  hladu kromě 3 dnů v roce převodu (méně ozimu – převedená sezóna). Nasycení 0,81–0,82 (strava,
+  ne obilí) – kritérium „≥ 0,95“ měří energii, dny hladu 0.
+- **Méně obilí než dosavadní kód?** Jen snímek 27. 8. 818 z recenze převodu (2,8 proti 3,3 t) –
+  načasování: jař 18,2 ha se sklízí v srpnu a mlátí v září; 1. 9. 6,67 proti 5,29 t, úroda roku
+  6,83 proti 5,48 t. Chyba v kódu se nenašla, oprava žádná.
+- **Volná práce a stavby:** volná práce 32–66 čd na člověka a rok (dosavadní 39–77) – jde do
+  polí. Stavby skript nezadal (Vlkov 1. 4. 819 neměl suroviny na dílnu ani lidi na zemnici) –
+  kritérium doby staveb neověřené.
+- **Orba, seno, stáda:** páry k rádlům 1 jako dosud, voli 8 → 6 stejně, brázdy delší (120–219 m
+  proti 66–135 m); seno a stáda jako dosud, víc prasat a koz.
+- **Dosažitelnost:** Vlkov 30. 8. 0,00–0,79, průměr 0,48 (dosavadní 0,61) – po dvou osevech
+  odpočívá díl u domu v každém úseku (819/820 všech 11 úseků s osevem začíná přílohem). Test ve
+  `holdings.test.ts` naměřil 0,146 proti 0,083 – práh 0,12 → 0,14 a rozdíl 0,04 → 0,05.
+- **Čerstvé vsi** (4 × 14 let, stejné pravidlo hráče pro oba kódy): zaseto 219 → 215 ha, úroda
+  87,7 → 92,1 t, hlad 0 → 0, zásoby 1. 11. 4,1 → 4,4 roční potřeby, díly nad potřebu 26–36 ha
+  na ves.
+- **Determinismus:** ✓ – Vlkov do 1. 11. 817 po 1 dni, po 30 dnech i naráz stejný otisk stavu.
+- **Výkon:** ✗ – 24 měsíců Vlkova 104 → 163 s (+57 %, 8 let den po dni souběžně 554 → 827 s).
+  Profil: trasy vozů a spřežení (`villageCartRoutes` – svoz `flushCartTrips` a přejezdy orby
+  `moveCost`) +7 s z +9 s za 3 měsíce, denní pomoc rodiny (`lordHelpDay` → `sowingCapacity`)
+  ≈ 4 %. Díly přibývají den po dni, cíle tras se mění a paměť poslední trasy nezabírá; paměť
+  8 tras místo jedné nepomohla (zkoušeno, vráceno). Návrh Clauda na samostatnou úlohu: trasy
+  od ohrad hledat jednou pro okno vsi bez cílů (cíle jen čtou výsledek), pomoc rodiny počítat
+  jednou za den.
 
 ## Rizika
 
