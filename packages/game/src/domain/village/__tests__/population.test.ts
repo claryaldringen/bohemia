@@ -74,7 +74,7 @@ const ctx = {
 describe('birthChancePerDay', () => {
   // population.md – Růst populace: plodnost podle věku ženy, po porodu pauza 21 měsíců – průměrný
   // odstup porodů = 1 / plodnost věku (rešerše 2026-10-19-population-growth.md)
-  const at25 = { satiation: 1, overcrowded: false, motherAge: 25 };
+  const at25 = { energy: 1, overcrowded: false, motherAge: 25 };
   const rate25 = birthRatePerYear(25);
   it('průměrný odstup porodů = pauza + čekání = 1 / plodnost věku', () => {
     for (const age of [16, 22, 27, 33, 38, 42]) {
@@ -98,11 +98,44 @@ describe('birthChancePerDay', () => {
   it('při plném nasycení denní šance podle věku ženy', () => {
     expect(birthChancePerDay(at25)).toBeCloseTo(rate25 / 365, 10);
   });
-  it('při nasycení 0,5 se nerodí', () => {
-    expect(birthChancePerDay({ ...at25, satiation: 0.5 })).toBe(0);
+  it('při energii 0,5 se nerodí', () => {
+    expect(birthChancePerDay({ ...at25, energy: 0.5 })).toBe(0);
   });
   it('mezi 0,5 a 0,95 roste lineárně', () => {
-    expect(birthChancePerDay({ ...at25, satiation: 0.725 })).toBeCloseTo(rate25 / 365 / 2, 10);
+    expect(birthChancePerDay({ ...at25, energy: 0.725 })).toBeCloseTo(rate25 / 365 / 2, 10);
+  });
+  it('energie 0,7 dává (0,7 − 0,5) / 0,45 plné šance', () => {
+    expect(birthChancePerDay({ ...at25, energy: 0.7 })).toBeCloseTo(
+      (rate25 / 365) * (0.2 / 0.45),
+      10,
+    );
+  });
+  it('pestrost porody nebrzdí – plný příděl a pestrost 0,8 rodí naplno', () => {
+    // populationDay dostává nasycení = energie × pestrost, porody ale řídí energie
+    const count = (satiation: number, energy: number): number => {
+      let births = 0;
+      for (let seed = 1; seed <= 20; seed++) {
+        const day0 = FOUNDED + 5 * YEAR;
+        const state = village(
+          seed,
+          [
+            { ...ofAge(1, 25, 1, day0), sex: 'male', spouseId: 2 },
+            { ...ofAge(2, 25, 1, day0), sex: 'female', spouseId: 1 },
+          ],
+          [dwelling(1)],
+        );
+        for (let day = day0; day < day0 + 365; day++) {
+          births += populationDay(state, day, satiation, energy).filter(
+            (e) => e.kind === 'birth',
+          ).length;
+        }
+      }
+      return births;
+    };
+    const full = count(1, 1);
+    const mono = count(0.8, 1);
+    expect(full).toBeGreaterThan(0);
+    expect(mono).toBe(full);
   });
   it('přeplněnost násobí 0,3', () => {
     expect(birthChancePerDay({ ...at25, overcrowded: true })).toBeCloseTo((rate25 / 365) * 0.3, 10);

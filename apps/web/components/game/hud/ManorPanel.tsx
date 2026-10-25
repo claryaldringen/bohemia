@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactElement, type ReactNode } from 'react';
 import type { Direction8, TrailOption } from '@bohemia/game';
 import { useDismiss } from '@/hooks/use-dismiss';
-import type { ManorMember, VillageManor } from '@/lib/manor-view';
+import type { VillageManor } from '@/lib/manor-view';
 import { DIRECTION_NAMES } from '@/lib/trade-names';
 import { formatDecimal, formatInteger } from '@/lib/village-format';
 import { Tooltip } from './Tooltip';
@@ -221,38 +221,5 @@ export function ManorUpgrades({
         </div>
       )}
     </div>
-  );
-}
-
-/**
- * Obyvatelé dvorce (lord.md – Co hráč vidí): u každého portrét s věkem (popisek role, u mužů rodu
- * jméno – „Bořivoj – Syn vojvody“, lord.md – Kde se jméno ukazuje). Dovednosti
- * (luk, boj, jízda) ukazuje jen panel vybrané osoby (Martin 24. 10. 2026: „To by mělo být na
- * panelu té označené osoby“).
- */
-export function ManorFamily({ family }: { family: readonly ManorMember[] }): ReactElement {
-  return (
-    <ul
-      data-testid="manor-family"
-      aria-label="Obyvatelé dvorce"
-      className="flex max-w-[26rem] flex-wrap gap-x-3 gap-y-1"
-    >
-      {family.map((m) => (
-        <li key={m.id} data-testid={`manor-member-${m.id}`} className="flex items-center gap-1.5">
-          <Tooltip
-            placement="above"
-            content={m.name === undefined ? m.role : `${m.name} – ${m.role}`}
-          >
-            <span
-              className="hud-inset flex min-w-14 items-center gap-1 rounded px-1 text-xs tabular-nums text-[#ecdfc4]"
-              tabIndex={0}
-            >
-              <img src={`/icons/resources/${m.portrait}.png`} alt="" width={20} height={20} />
-              {m.age}
-            </span>
-          </Tooltip>
-        </li>
-      ))}
-    </ul>
   );
 }

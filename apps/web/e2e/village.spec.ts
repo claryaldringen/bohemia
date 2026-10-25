@@ -372,10 +372,17 @@ test('nový hráč založí ves umístěním zemnice, přejmenuje ji a vybere ze
   // ves zakládá vojvoda s hlavní a třemi vedlejšími manželkami (lord.md – Zakladatelé)
   await expect(panel.getByTestId('selection-occupants')).toHaveText('5/6');
   // zemnice zakladatelů je dvorec – obyvatelé jako rodina; dovednosti jen v panelu osoby (lord.md)
-  await expect(panel.getByTestId('manor-family').getByRole('listitem')).toHaveCount(5);
+  await expect(panel.getByTestId('selection-residents').getByRole('listitem')).toHaveCount(5);
   await expect(
-    panel.getByTestId('manor-family').locator('[data-testid^="manor-arms-"]'),
+    panel.getByTestId('selection-residents').locator('[data-testid^="manor-arms-"]'),
   ).toHaveCount(0);
+  // klik na portrét vojvody vybere osobu a otevře panel osoby
+  await panel
+    .getByTestId('selection-residents')
+    .getByRole('button', { name: /Vojvoda/ })
+    .first()
+    .click();
+  await expect(panel).toHaveAttribute('data-kind', 'person');
 
   // Ves je uložená na serveru – po novém načtení stránky je tu dál i s novým jménem.
   await page.reload();

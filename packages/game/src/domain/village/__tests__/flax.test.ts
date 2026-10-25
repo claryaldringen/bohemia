@@ -392,8 +392,9 @@ describe('len napřed – ves, které len za obilím vycházel, má plán beze z
     // a se žněmi všemi rukama (fields.md – Žně všemi rukama, 24. 10. 2026): žeň 30 místo 50 čd/ha
     // a výrostci se staršími ve žních – červenec a srpen pojmou víc dílů, výběr se mění; a s co
     // největšími stády (oxen.md – Co nejvíc sena a co největší stáda, 24. 10. 2026): plán luštěnin
-    // počítá celé stádo a seč všech luk bere volnou práci v červnu a červenci
-    expect(fingerprint(plans)).toBe('659:28fd597f');
+    // počítá celé stádo a seč všech luk bere volnou práci v červnu a červenci; a s porody, které
+    // brzdí jen energie (Martin, 25. 10. 2026): víc porodů, víc lidí na poli
+    expect(fingerprint(plans)).toBe('721:3d269733');
   });
 });
 

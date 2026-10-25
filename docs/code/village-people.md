@@ -19,7 +19,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   nejmladšího žijícího dítěte – `birthPauses`), potom `birthRatePerYear` (průměrný odstup =
   1 / plodnost věku). Vedlejší manželka muže rodu rodí i v jiném domě než muž (`fatherOf`
   v `populationDay` – mapa lidí nejvýš jednou za den; pár v různých domech mimo to dál ne),
-  přeplnění podle domu ženy (lord.md – Návštěvy a porody). **Domácnost drží člověk 16–44**
+  přeplnění podle domu ženy (lord.md – Návštěvy a porody) a hlad podle **energie** dne
+  (`hungerBirthFactor` v `population.ts`, `HUNGER.birthsStopAt/FullAt`; pestrost porody nebrzdí,
+  Martin 25. 10. 2026). **Domácnost drží člověk 16–44**
   (`householdBreaksUp` v `people.ts`; osamělý 16–44 zůstává), rozpadlá jde k příbuzným (syn,
   dcera, sourozenec), jinak do domu s nejvíc místy – jen kam se vejde bez přeplnění, jinak zůstane doma (Martin; samotné děti jdou
   i do přeplněného).

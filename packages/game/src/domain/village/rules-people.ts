@@ -87,7 +87,8 @@ export const CROWDED_BIRTH_FACTOR = 0.3;
 export const CROWDED_DEATH_FACTOR = 1.5;
 export const LUCKY_YEARS = 30;
 export const LUCKY_CHILD_DEATH_FACTOR = 0.5;
-// population.md – Růst populace (hlad tlumí porody a zvyšuje úmrtnost); fields.md – Zásoby a nasycení
+// population.md – Růst populace (hlad tlumí porody podle energie, ne pestrosti – Martin, 25. 10. 2026 –
+// a zvyšuje úmrtnost); fields.md – Zásoby a nasycení
 export const HUNGER = { birthsStopAt: 0.5, birthsFullAt: 0.95, deathExtraAtZero: 3 } as const;
 // population.md – Hlad a vymření (Martin, 18. 10. 2026; čísla návrh Clauda): nahromaděný hlad
 // vsi ve „dnech bez jídla“ – pod `fedFrom` přibude za den (fedFrom − nasycení) / fedFrom (bez

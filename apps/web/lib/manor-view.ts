@@ -41,9 +41,9 @@ import {
 import {
   armsView,
   personPortrait,
+  type DwellingResident,
   scenePersons,
   type ArmsView,
-  type PersonPortraitIcon,
 } from './person-view';
 import { ROLE_NAMES } from './person-roles';
 
@@ -136,13 +136,7 @@ export interface VillageNeighbour {
  * Obyvatel dvorce (lord.md – Co hráč vidí): portrét, role a věk; muži rodiny od 7 let (cvičí) nesou
  * dovednosti `arms`, `horse` je u toho, kdo koně má (jezdí).
  */
-export interface ManorMember {
-  id: number;
-  portrait: PersonPortraitIcon;
-  role: string;
-  /** Jméno muže rodu (lord.md – Kde se jméno ukazuje); ostatní lidé chybí. */
-  name?: string;
-  age: number;
+export interface ManorMember extends DwellingResident {
   arms: ArmsView | null;
   horse: boolean;
 }

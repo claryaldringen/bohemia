@@ -1,3 +1,4 @@
+import type { DwellingResident } from '@/lib/person-view';
 import { DIRECTIONS, type TrailOption } from '@bohemia/game';
 import type { VillageManor, VillageNeighbour } from '@/lib/manor-view';
 import type { SelectionDetails, SelectionLeave } from '@/lib/selection-details';
@@ -175,6 +176,15 @@ const neighbours: VillageNeighbour[] = [
   },
 ];
 
+/** Obyvatelé z věků (ukázka a testy) – portrét podle věku, role z věku. */
+const residentsOf = (ages: number[]): DwellingResident[] =>
+  ages.map((age, i) => ({
+    id: i + 1,
+    portrait: age >= 60 ? 'elder' : age < 15 ? 'child' : i % 2 === 0 ? 'man' : 'woman',
+    role: age < 15 ? 'Dítě' : 'Rolník',
+    age,
+  }));
+
 const manor: VillageManor = {
   dwellingId: 3,
   trails,
@@ -219,6 +229,7 @@ const dwelling = (
   family: { men: 2, women: 3, boys: 1, girls: 1, elderMen: 0, elderWomen: 1, couples: 2 },
   capacity: 8,
   ages: [61, 34, 31, 27, 24, 11, 6, 2],
+  residents: residentsOf([61, 34, 31, 27, 24, 11, 6, 2]),
   condition: 0.72,
   ageYears: 23,
   full: true,
@@ -280,6 +291,7 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       overcrowded: true,
       family: { men: 3, women: 4, boys: 2, girls: 2, elderMen: 1, elderWomen: 0, couples: 3 },
       ages: [63, 41, 38, 35, 33, 29, 26, 14, 11, 8, 5, 1],
+      residents: residentsOf([63, 41, 38, 35, 33, 29, 26, 14, 11, 8, 5, 1]),
       rebuild: { progress: 0.3, type: 'dvorec', treesToFell: 7 },
       manor,
       // nákup u sousedů (crafts.md): nástroje a keramika u souseda, dřevěné nářadí od vlastního
@@ -340,6 +352,7 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       full: false,
       family: { men: 1, women: 1, boys: 2, girls: 0, elderMen: 1, elderWomen: 0, couples: 1 },
       ages: [58, 32, 29, 7, 3],
+      residents: residentsOf([58, 32, 29, 7, 3]),
       workshop: {
         craft: 'burner',
         activity: 'felling',
@@ -404,6 +417,7 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       full: false,
       family: { men: 1, women: 1, boys: 1, girls: 1, elderMen: 0, elderWomen: 0, couples: 1 },
       ages: [34, 31, 9, 6],
+      residents: residentsOf([34, 31, 9, 6]),
       workshop: {
         craft: 'burner',
         activity: 'resting',

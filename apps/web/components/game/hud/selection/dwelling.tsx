@@ -1,15 +1,12 @@
 /** Panel výběru obydlí, dvorce vojvody a skupiny obydlí. */
 import { type ReactElement } from 'react';
-import {
-  type BuildableDwellingType,
-  type FamilyCounts,
-  Direction8,
-  TradeGoods,
-} from '@bohemia/game';
+import { type BuildableDwellingType, Direction8, TradeGoods } from '@bohemia/game';
 import { VillageTarget } from '@/lib/scene/village-picking';
 import { type SelectionDetails } from '@/lib/selection-details';
 import { PreviewPeople } from '@/lib/trade-quote';
-import { ManorFamily, ManorUpgrades } from '../ManorPanel';
+import type { DwellingResident } from '@/lib/person-view';
+import { Tooltip } from '../Tooltip';
+import { ManorUpgrades } from '../ManorPanel';
 import { TradePanel } from '../TradePanel';
 import { LeaveControls, RelocateButtons, RelocationProgress } from '../RelocationControls';
 import { Stat, Bar, ROW, Commands, WoodToFell } from './parts';
@@ -77,26 +74,7 @@ export function DwellingBody({
             {details.ageYears}
           </Stat>
         </div>
-        <FamilyRow family={details.family} />
-        {details.manor?.family?.length ? (
-          <ManorFamily family={details.manor.family} />
-        ) : (
-          // nejvýš 8 věků v řádku (8 × 1,75rem + mezery) – dvorec má 10 lidí a víc
-          <ul
-            data-testid="selection-ages"
-            aria-label="Věk obyvatel"
-            className="flex max-w-[15.75rem] flex-wrap gap-1"
-          >
-            {details.ages.map((age, i) => (
-              <li
-                key={i}
-                className="hud-inset min-w-7 rounded px-1 text-center text-xs tabular-nums text-[#ecdfc4]"
-              >
-                {age}
-              </li>
-            ))}
-          </ul>
-        )}
+        <DwellingResidents residents={details.residents} onSelect={onSelectTarget} />
         <Bar value={details.condition} name="Stav" testId="selection-condition" />
         {details.rebuild && (
           <div className={ROW}>
@@ -182,29 +160,44 @@ export function DwellingsBody({
 }
 
 /**
- * Rodiny v obydlí (kinship.md – Co hráč vidí): muži, ženy, děti, starší a manželské páry – ikony
- * s čísly, bez slov (rozhraní jako v 0 A.D.).
+ * Obyvatelé obydlí (lord.md – Co hráč vidí; dvorec i běžná obydlí): u každého portrét s věkem (popisek role, u mužů rodu
+ * jméno – „Bořivoj – Syn vojvody“, lord.md – Kde se jméno ukazuje). Dovednosti
+ * (luk, boj, jízda) ukazuje jen panel vybrané osoby (Martin 24. 10. 2026: „To by mělo být na
+ * panelu té označené osoby“).
  */
-export function FamilyRow({ family }: { family: FamilyCounts }): ReactElement {
-  const items: { icon: string; name: string; value: number }[] = [
-    { icon: 'man', name: 'Muži', value: family.men },
-    { icon: 'woman', name: 'Ženy', value: family.women },
-    { icon: 'child', name: 'Děti', value: family.boys + family.girls },
-    { icon: 'elder', name: 'Starší', value: family.elderMen + family.elderWomen },
-    { icon: 'ring', name: 'Manželské páry', value: family.couples },
-  ];
+export function DwellingResidents({
+  residents,
+  onSelect,
+}: {
+  residents: readonly DwellingResident[];
+  /** Klik na portrét vybere osobu (villagers.md – Výběr postavy). */
+  onSelect?: ((target: VillageTarget) => void) | undefined;
+}): ReactElement {
   return (
-    <div data-testid="selection-family" className="flex flex-wrap items-center gap-x-3 gap-y-1">
-      {items.map((item) => (
-        <Stat
-          key={item.icon}
-          icon={item.icon}
-          name={item.name}
-          testId={`selection-family-${item.icon}`}
-        >
-          {item.value}
-        </Stat>
+    <ul
+      data-testid="selection-residents"
+      aria-label="Obyvatelé"
+      className="flex max-w-[26rem] flex-wrap gap-x-3 gap-y-1"
+    >
+      {residents.map((m) => (
+        <li key={m.id} data-testid={`resident-${m.id}`} className="flex items-center gap-1.5">
+          <Tooltip
+            placement="above"
+            content={m.name === undefined ? m.role : `${m.name} – ${m.role}`}
+          >
+            <button
+              type="button"
+              aria-label={m.name === undefined ? m.role : `${m.name} – ${m.role}`}
+              data-testid={`resident-select-${m.id}`}
+              onClick={() => onSelect?.({ kind: 'person', id: m.id })}
+              className="hud-inset flex min-w-14 cursor-pointer items-center gap-1 rounded px-1 text-xs tabular-nums text-[#ecdfc4]"
+            >
+              <img src={`/icons/resources/${m.portrait}.png`} alt="" width={20} height={20} />
+              {m.age}
+            </button>
+          </Tooltip>
+        </li>
       ))}
-    </div>
+    </ul>
   );
 }

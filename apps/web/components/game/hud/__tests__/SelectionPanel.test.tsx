@@ -1,3 +1,4 @@
+import type { DwellingResident } from '@/lib/person-view';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { SelectionDetails, SelectionWorkshop } from '@/lib/selection-details';
@@ -250,34 +251,31 @@ describe('SelectionPanel – posvátný dub a háj', () => {
   });
 });
 
-// Panel obydlí (kinship.md – Co hráč vidí): muži, ženy, děti, starší a manželské páry.
-describe('SelectionPanel – rodiny v obydlí', () => {
-  it('muži, ženy, děti, starší a páry ikonami s čísly', () => {
-    const html = render({
-      kind: 'dwelling',
-      id: 1,
-      type: 'polozemnice',
-      occupants: 8,
-      family: { men: 2, women: 2, boys: 1, girls: 2, elderMen: 0, elderWomen: 1, couples: 2 },
-      capacity: 8,
-      ages: [52, 30, 27, 24, 22, 9, 6, 2],
-      condition: 1,
-      ageYears: 3,
-      full: true,
-      overcrowded: false,
-      rebuild: null,
-      workshop: null,
-      relocation: null,
-      relocate: null,
-      manor: null,
-      leave: null,
-    });
-    expect(text(html, 'selection-family-man')).toBe('2');
-    expect(text(html, 'selection-family-woman')).toBe('2');
-    expect(text(html, 'selection-family-child')).toBe('3');
-    expect(text(html, 'selection-family-elder')).toBe('1');
-    expect(text(html, 'selection-family-ring')).toBe('2');
-    expect(html).toContain('/icons/resources/ring.png');
+/** Obyvatelé z věků (ukázka a testy) – portrét podle věku, role z věku. */
+const residentsOf = (ages: number[]): DwellingResident[] =>
+  ages.map((age, i) => ({
+    id: i + 1,
+    portrait: age >= 60 ? 'elder' : age < 15 ? 'child' : i % 2 === 0 ? 'man' : 'woman',
+    role: age < 15 ? 'Dítě' : 'Rolník',
+    age,
+  }));
+
+// Panel obydlí: obyvatelé jednou, portrétem s věkem (Martin 25. 10. 2026).
+describe('SelectionPanel – obyvatelé obydlí', () => {
+  it('portréty s věkem místo řádku počtů rodiny', () => {
+    const html = render(
+      dwelling({
+        residents: [
+          { id: 5, portrait: 'elder', role: 'Starý muž', age: 63 },
+          { id: 6, portrait: 'child', role: 'Dítě', age: 6 },
+        ],
+      }),
+    );
+    expect(html).toContain('data-testid="selection-residents"');
+    expect(html).toContain('/icons/resources/elder.png');
+    expect(html).toContain('aria-label="Starý muž"');
+    expect(html).not.toContain('selection-family');
+    expect(html).not.toContain('/icons/resources/ring.png');
   });
 });
 
@@ -302,6 +300,7 @@ const dwelling = (
   family: { men: 1, women: 1, boys: 1, girls: 1, elderMen: 0, elderWomen: 0, couples: 1 },
   capacity: 6,
   ages: [30, 28, 6, 2],
+  residents: residentsOf([30, 28, 6, 2]),
   condition: 0.9,
   ageYears: 4,
   full: false,
@@ -749,7 +748,7 @@ describe('SelectionPanel – rozvržení', () => {
     expect(html).toContain('class="hud-commands"');
     // údaje před příkazy, tlačítka v nich
     expect(html.indexOf('selection-occupants')).toBeLessThan(commands);
-    expect(html.indexOf('selection-ages')).toBeLessThan(commands);
+    expect(html.indexOf('selection-residents')).toBeLessThan(commands);
     for (const id of ['manor-upgrades', 'relocate-zemnice', 'leave-village']) {
       expect(html.indexOf(`data-testid="${id}"`)).toBeGreaterThan(commands);
     }
@@ -761,11 +760,12 @@ describe('SelectionPanel – rozvržení', () => {
     expect(html).not.toContain('selection-commands');
   });
 
-  it('věk obyvatel nejvýš po 8 v řádku – další řádek pod nimi', () => {
-    const html = render(dwelling({ ages: [63, 41, 38, 35, 33, 29, 26, 14, 11, 8, 5, 1] }));
-    const list = /<ul data-testid="selection-ages"[^>]*class="([^"]*)"/.exec(html)?.[1] ?? '';
-    // 8 × 1,75rem + 7 mezer po 0,25rem
-    expect(list.split(' ')).toEqual(expect.arrayContaining(['flex-wrap', 'max-w-[15.75rem]']));
+  it('obyvatelé se při mnoha lidech zalomí', () => {
+    const html = render(
+      dwelling({ residents: residentsOf([63, 41, 38, 35, 33, 29, 26, 14, 11, 8]) }),
+    );
+    const list = /<ul data-testid="selection-residents"[^>]*class="([^"]*)"/.exec(html)?.[1] ?? '';
+    expect(list.split(' ')).toEqual(expect.arrayContaining(['flex-wrap', 'max-w-[26rem]']));
   });
 
   it('víc obydlí: počty vlevo, přestěhovat a odejít vpravo', () => {
