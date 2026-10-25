@@ -391,7 +391,9 @@ schválený Martinem 25. 10. 2026 (nahrazují seč 1. 6. – 31. 7. a „seč co
    něco staví, tak čas věnují primárně té stavbě – zemědělství jenom natolik, aby vesnice neměla
    hlad“), pěšky bez vozů. Seč **nikdy nebere práci polním úlohám** (pletí, žně, odnos, výmlat,
    orba, setí, kopání) – co volná práce do konce okna nestihne, zůstane neposečené.
-4. **Děti při pletí** uvolní ruce dospělým – [fields.md](fields.md), Pletí – děti.
+4. **Děti při pletí** uvolní ruce dospělým – [fields.md](fields.md), Pletí – děti. Od 25. 10. 2026
+   se pleje jednou v květnu, hlavně ženy a děti – muži sekají ([fields.md](fields.md), Pletí
+   jednou a rychle); seč tak před pletím mužů přednost má.
 
 Seč uložená dřív platí jako 1. seč (po 30. 6. se už neseče); nové vsi založené po 25. 5. letos
 nesečou – seno na první zimu si přivedou osadníci.
@@ -447,9 +449,15 @@ se rozšířila do června (pletí 81 → 179 a 113 → 156 čd), strop z loňsk
 Ovce 1. 11.: 821 27 → 50, 822 40 → 58, 823 2 → 24; krávy 2,6 → 11,3 (dřív 11,5), voli 4 → 3,
 pár celou dobu, úmrtí hladem 0; dní hladu v 823 5 → 22 (nouzová porážka 1. 9.). Oprava stropu
 podle letošního pletí (25. 5.) skoro nic nezměnila (ovce 823 24 → 22) – zavržena.
-**Otevřené (otázka na Martina):** plán osevu (1. 9.) bere celý červen pro pletí, takže pole
+~~**Otevřené (otázka na Martina):** plán osevu (1. 9.) bere celý červen pro pletí, takže pole
 každý rok sní práci, kterou loni dostala seč, a stáda se zmenšují o rok pozdě. Má plán osevu
-nechat v červnu práci na seno pro chovné minimum (voli, krávy na mléko a voly, ovce na vlnu)?
+nechat v červnu práci na seno pro chovné minimum (voli, krávy na mléko a voly, ovce na vlnu)?~~
+**Rozhodnuto 25. 10. 2026 – lehkým pletím** (Martin: „Ve středověku se plelo jednou, rychle
+a dělaly to hlavně ženy a děti, takže z práce dospělých to moc neubírá.“ a „Ozim se plít asi
+nemusí – v dubnu už je tak velký, že plevel udusí.“): pleje se jednou, jen jař, luštěniny a len
+v květnu (8 / 5 a 10 / 6 čd/ha), ozim vůbec; plejí děti → ženy, muži jen zbytek po ostatních
+úlohách dne – v červnu se neplete a nutná seč dostane práci mužů i v posledním květnovém týdnu
+([fields.md](fields.md) – Pletí jednou a rychle). Plán osevu se nemění.
 
 ## Účinek na práci
 

@@ -1012,8 +1012,8 @@ export interface BalanceOptions {
  * livestock.ts).
  */
 export const TYPICAL_FOOD_COSTS: FoodCosts = {
-  grainPerKg: 0.565,
-  legumePerKg: 0.83,
+  grainPerKg: 0.508,
+  legumePerKg: 0.729,
   hayPerKg: 0.0127,
 };
 

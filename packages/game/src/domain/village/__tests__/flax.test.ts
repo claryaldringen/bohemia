@@ -120,7 +120,7 @@ describe('kolik lnu ves potřebuje a výnos', () => {
     const grain = partWork(p, DAY, NO_CRAFTS.tools, false, 'spring');
     expect(flax.dig).toBeCloseTo(grain.dig, 9);
     expect(flax.sow).toBeCloseTo(grain.sow, 9);
-    expect(flax.weed / grain.weed).toBeCloseTo(40 / 30, 9);
+    expect(flax.weed / grain.weed).toBeCloseTo(10 / 8, 9);
     // obilí: sklizeň 20 + odnos 10 (fields.md – Žně všemi rukama)
     expect(flax.harvest / grain.harvest).toBeCloseTo(55 / 30, 9);
     expect(flax.thresh).toBe(0);

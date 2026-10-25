@@ -17,6 +17,7 @@ import {
   FLAX,
   LEGUMES,
   SEED_KG_PER_HA,
+  LEGACY_WEEDING_WORST_PER_HA,
   UNWEEDED_YIELD,
   YIELD_BASE_KG_PER_HA,
   type WindowSegment,
@@ -506,8 +507,62 @@ export function cropSeedPerHa(crop: Crop): number {
   return SEED_KG_PER_HA;
 }
 
-/** Podíl úrody neopletého dílu plodiny (luštěniny a len plevel snášejí hůř). */
+/**
+ * Ozim se neplete (fields.md – Pletí jednou a rychle; Martin 25. 10. 2026: „Ozim se plít asi
+ * nemusí – v dubnu už je tak velký, že plevel udusí.“): starší hospodářský rok s pletím ozimu ho
+ * ztratí (požadované i hotové pletí 0). Idempotentní – bez pletí ozimu vrací týž rok.
+ */
+export function withoutWinterWeeding(season: FarmSeason): FarmSeason {
+  const winter = seasonCrop(season, 'winter');
+  if (!winter || (winter.required.weed === 0 && winter.done.weed === 0)) return season;
+  return {
+    ...season,
+    crops: season.crops.map((c) =>
+      c === winter
+        ? {
+            ...winter,
+            required: { ...winter.required, weed: 0 },
+            done: { ...winter.done, weed: 0 },
+          }
+        : c,
+    ),
+  };
+}
+
+/**
+ * Pletí jednou a rychle (fields.md): práce jaře, luštěnin a lnu ze starších sazeb (30 / 15 a 40 /
+ * 20 čd/ha v květnu–červnu) by se v jediném květnovém okně nestihla – úroda by klesla. Požadované
+ * i hotové pletí se přepočte na nové sazby (× nová ÷ stará nejhorší mez, hotový podíl zůstane).
+ * Starší práce se pozná podle pletí na setí: víc, než dá nová nejhorší mez (setí 10 čd/ha je
+ * stejné). Idempotentní – rok s novými sazbami vrací týž.
+ */
+export function withOnceWeedingRates(season: FarmSeason): FarmSeason {
+  const rescale = (work: SeasonCrop): SeasonCrop => {
+    const crop = work.crop;
+    if (crop === 'winter') return work;
+    const newWorst = fieldWorkPerHa('weed', 0, crop);
+    const limit = (work.required.sow * newWorst) / fieldWorkPerHa('sow', 0, crop);
+    if (work.required.weed <= limit * (1 + 1e-9)) return work;
+    const k =
+      newWorst /
+      (crop === 'spring' ? LEGACY_WEEDING_WORST_PER_HA.grain : LEGACY_WEEDING_WORST_PER_HA.lowCrop);
+    return {
+      ...work,
+      required: { ...work.required, weed: work.required.weed * k },
+      done: { ...work.done, weed: work.done.weed * k },
+    };
+  };
+  const crops = season.crops.map(rescale);
+  if (crops.every((c, i) => c === season.crops[i])) return season;
+  return { ...season, crops };
+}
+
+/**
+ * Podíl úrody neopletého dílu plodiny (luštěniny a len plevel snášejí hůř). Ozim se neplete
+ * (fields.md – Pletí jednou a rychle) – plná úroda, i když starší plán pletí ozimu měl.
+ */
 function unweededYield(crop: Crop): number {
+  if (crop === 'winter') return 1;
   if (crop === 'legume') return LEGUMES.unweededYield;
   if (crop === 'flax') return FLAX.unweededYield;
   return UNWEEDED_YIELD;

@@ -227,6 +227,19 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
     kidsAges.length > 0 && allocation.tasks.weed > 0
       ? Math.min(1, (allocation.weedChildren ?? 0) / allocation.tasks.weed)
       : 0;
+  // díl žen vsi na pletí dospělých (fields.md – Pletí jednou a rychle) – postavy hlavně ženy
+  const adultWeed = allocation.tasks.weed - (allocation.weedChildren ?? 0);
+  const womenWeed =
+    adultWeed > 0 ? Math.min(1, Math.max(0, (allocation.weedWomen ?? 0) / adultWeed)) : 0;
+  const addWeed = (target: LaborTarget, manDays: number): void => {
+    const before = shares.length;
+    add('weed', target, manDays * (1 - kidsWeed));
+    const adults = shares[before];
+    if (adults && womenWeed > 0) adults.women = Math.round(womenWeed * 1000) / 1000;
+    if (kidsWeed > 0) {
+      add('weed', target, manDays * kidsWeed, undefined, undefined, undefined, kidsAges);
+    }
+  };
   for (const { task, fieldId, manDays, parts, progress } of fieldShares(state, day, work)) {
     const target: LaborTarget =
       parts.length > 0
@@ -236,9 +249,8 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
       add('harvest', target, manDays * (1 - carryShare));
       add('carry', target, manDays * carryShare);
       if (!harvestTarget || manDays > harvestTarget.manDays) harvestTarget = { target, manDays };
-    } else if (task === 'weed' && kidsWeed > 0) {
-      add('weed', target, manDays * (1 - kidsWeed));
-      add('weed', target, manDays * kidsWeed, undefined, undefined, undefined, kidsAges);
+    } else if (task === 'weed') {
+      addWeed(target, manDays);
     } else {
       add(task, target, manDays);
       if (task === 'sow' && (!sowTarget || manDays > sowTarget.manDays)) {

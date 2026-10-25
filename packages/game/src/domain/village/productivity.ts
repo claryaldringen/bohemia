@@ -10,6 +10,7 @@ import {
   STORAGE_LOSS_PER_YEAR,
   WOODWORK_LABOR,
   WOOD_TOOLS_LABOR,
+  WINTER_WORK_PER_HA,
 } from './rules';
 import type { Bounds, CraftCoverage, Crop, FieldSurface, FieldTask } from './types';
 
@@ -27,9 +28,9 @@ export function withinBounds(bounds: Bounds, coverage: number): number {
   return bounds.worst + (bounds.best - bounds.worst) * share;
 }
 
-/** Sazby polní práce plodiny – luštěniny a len vlastní, obilí společné. */
+/** Sazby polní práce plodiny – luštěniny a len vlastní, obilí společné (ozim bez pletí). */
 const CROP_WORK_PER_HA: Record<Crop, Record<FieldTask, Bounds>> = {
-  winter: FIELD_WORK_PER_HA,
+  winter: WINTER_WORK_PER_HA,
   spring: FIELD_WORK_PER_HA,
   legume: LEGUME_WORK_PER_HA,
   flax: FLAX_WORK_PER_HA,

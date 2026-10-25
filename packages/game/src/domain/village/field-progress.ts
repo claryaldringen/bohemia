@@ -205,6 +205,9 @@ export function startedPartIds(
 ): Set<number> {
   const started = new Set<number>();
   for (const task of PART_TASKS) {
+    // úloha bez práce (ozim se neplete, bez přílohu se nevrací) díl nezačala
+    const required = task === 'plough' ? (work.plough?.required ?? 0) : work.required[task];
+    if (required <= 0) continue;
     const position = taskPosition(work, task);
     for (const span of taskSpans(work, partsById, task, day)) {
       if (position > span.start + EPSILON) started.add(span.id);

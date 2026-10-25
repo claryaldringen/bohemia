@@ -186,7 +186,8 @@ export function planVillagersWithCrew(
     const c = cast(
       ctx,
       `${share.activity}:${targetKey(share.target)}:${i}`,
-      { women: womenChance(WOMEN[share.activity], ctx.sexes.women), child },
+      // podíl žen z jádra (pletí – ženy vsi napřed), jinak podle činnosti
+      { women: share.women ?? womenChance(WOMEN[share.activity], ctx.sexes.women), child },
       (sex) => shareWorker(ctx, share, i, sex, age),
     );
     if (!c) return;

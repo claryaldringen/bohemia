@@ -137,7 +137,7 @@ describe('výnos a práce luštěnin', () => {
     const legume = partWork(p, DAY, NO_CRAFTS.tools, false, 'legume');
     expect(legume.dig).toBeCloseTo(grain.dig, 9);
     expect(legume.sow).toBeCloseTo(grain.sow, 9);
-    expect(legume.weed).toBeCloseTo(40 * 0.0225, 9);
+    expect(legume.weed).toBeCloseTo(10 * 0.0225, 9);
     expect(legume.harvest).toBeCloseTo(55 * 0.0225, 9);
     expect(legume.thresh).toBeCloseTo(10 * 0.0225, 9);
   });

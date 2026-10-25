@@ -293,7 +293,7 @@ export function steadyState(input: SteadyInput): SteadyResult {
       const amount =
         name === 'reclaim'
           ? reclaimHa * reclaimPerHa * factor
-          : ha * fieldWorkPerHa(name, NO_CRAFTS.tools) * factor;
+          : ha * fieldWorkPerHa(name, NO_CRAFTS.tools, crop) * factor;
       fieldWork[name] += amount;
       const segments = CROP_WINDOWS[crop][name];
       items.push({
@@ -392,9 +392,10 @@ export function steadyState(input: SteadyInput): SteadyResult {
       free: free * window(3, 4),
     },
     {
-      name: 'pletí (květen–červen)',
-      need: fieldWorkPerHa('weed', 0) * sown * factor,
-      free: free * window(5, 6),
+      // ozim se neplete, jař jednou v květnu (fields.md – Pletí jednou a rychle)
+      name: 'pletí (květen, jař)',
+      need: fieldWorkPerHa('weed', 0) * (sown - winter) * factor,
+      free: free * window(5, 5),
     },
     {
       name: 'léto (horší z července a srpna)',
