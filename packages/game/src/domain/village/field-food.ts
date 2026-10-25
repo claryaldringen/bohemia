@@ -112,7 +112,7 @@ export function storesNeeded(
 
 /** Cíle plánu osevu (fields.md – Kolik ves oseje, Osev podle zásob). */
 export interface SowingTargets {
-  /** Kolik energie (kg obilí, luštěniny svou energií) má dát úroda plánu – cíl `chooseCrops`. */
+  /** Kolik energie (kg obilí, luštěniny svou energií) má dát úroda plánu – cíl osevu (`neededSelection`). */
   targetKg: number;
   /**
    * Kolik energie má dát úroda kvůli jídlu (kg obilí) – cíl bez luštěnin navíc na bílkoviny; když

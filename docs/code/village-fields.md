@@ -7,8 +7,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   do 31. 8. – `startDay`, `crops: SeasonCrop[]` (`SeasonCrop` = `CropWork` + `crop`; pořadí
   ozim, luštěniny, len, jař; jař je vždy; za nimi ozim a jař nad potřebu se `surplus: true` –
   `surplusCrop`, `putSeasonCrop` / `dropSeasonCrop` je řadí zvlášť), `ard`, `flaxNeedKg`,
-  `lordHelp`. Dřívější
-  `YearPlan` (jař nahoře, ozim v `winter?`) → `FarmSeason`; stav vsi nese `VillageState.season`
+  `lordHelp`. Stav vsi nese `VillageState.season`
   a `threshingSeason` (dřív `plan`, `threshingFromPlan`). Název `FarmSeason`, protože `Season`
   je roční období kalendáře. Přístup: `seasonCrop(season, crop)`, `springCrop(season)`,
   `seasonCrops`, `seasonPartIds`, `putSeasonCrop` / `dropSeasonCrop` (`year-plan.ts`).
@@ -21,7 +20,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   nepočítají). Plodiny hospodářského roku zůstanou s hotovou prací (díly, `required` / `done`,
   orba, sklizeň, snopy) a jsou nutné: čekající příprava začatých dílů osevu navíc
   (`CropWork.extraLeft`) je v potřebné práci, převod jen smaže klíč. Nezačaté díly osevu navíc
-  (`YearPlan.extra`): osévaný díl, který ležel ladem jen od plánu (`sownYears` v záznamu), je
+  (starší tvar stavu): osévaný díl, který ležel ladem jen od plánu (`sownYears` v záznamu), je
   `ready` s léty v řadě, příloh leží dál. `fallowBeforePlan` → `FieldPart.fallowBeforeSeason`.
   Postup (`next`) převod nenastavuje – 1. 9. ho z `sownYears` dopočítá `rotateAfterSeason`
   (osévané díly s víc lety v řadě jdou do úhoru). Při chybě vrátí vstup se značkou (jako
@@ -33,8 +32,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `CROP_WINDOWS` (`WINDOWS` = jař, `WINTER_WINDOWS`) v `rules*.ts`. Krok 1 `startSeason`
   (`simulate-plan.ts`, 1. 9.): `closeFieldFoodYear`, `rotateAfterSeason` všech dílů (`rotation.ts`
   – ozim i jař jako první osev → `ready` s `FieldPart.next`, jinak úhor), prázdný rok
-  (`createSeason`, `ard` podle spřežení) s `flaxNeedKg`; páry k rádlům zatím z `chooseCrops`
-  (`wantedPloughPairsOf`). Krok 2 `seasonDay` (každý den): konce oken setí – první den po setí
+  (`createSeason`, `ard` podle spřežení) s `flaxNeedKg`; páry k rádlům z `ploughPairsForRotation`
+  (`nextPloughPairs` v `draft.ts`). Krok 2 `seasonDay` (každý den): konce oken setí – první den po setí
   ozimu jdou díly ozimu bez zasetého podílu (`unsownPartIds` – úsek setí nezačal) do jaře
   (`moveParts` v `land-taken.ts`: příprava půdy podle úseků `taskSpans`, na začátek pořadí jaře,
   `crop: 'spring'`); první den po setí jaře, luštěnin a lnu vypadnou nezasetí z práce
@@ -52,8 +51,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `workOrder`), `sowParts` (`next` zůstává do konce sezóny); `release` (nezačaté díly nad
   potřebu + `FIELD_STORES.trimMarginYears`, jen když nepřibírá obilí) → `releasePart`. Ves bez roku (založená během roku) ho dostane
   s prvním dílem. `startedPartIds` nebere úlohu bez práce (ozim se neplete) za začatou.
-  `chooseCrops` (`sowing.ts`) zůstává jen pro páry k rádlům a kalkulačku (do Úlohy 5 a 8 plánu
-  osevního postupu). **Cíl osevu podle stravy a zásob** (fields.md – Osev
+  `sowing.ts` nese už jen okna a zátěž pro pomoc rodiny (`planLoad`, `cropLoadOf`,
+  `lordSowingHelp`) a `sideCropOrder`. **Cíl osevu podle stravy a zásob** (fields.md – Osev
   podle stravy, Osev podle zásob, 19. 10. 2026): `sowingTargets` ve `field-food.ts` (v plánu
   `fieldSowingTargets`) – potřeba z pole (podíl jídla z pole za uplynulý hospodářský rok –
   `VillageState.fieldFood`, součty v `eat`, uzávěrka 1. 9. `closeFieldFoodYear`; nejméně
@@ -146,11 +145,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     název víckrát). Sklizeň ozimu 31. 7. (`harvestWinter`), jaře 31. 8. – do snopů, výmlat hned
     po žni (Snopy a výmlat níž); příděl počítá do sklizně
     podle `daysUntilFoodHarvest` (31. 7., když ozim podle odhadu uživí srpen). Plán po plodinách
-    prochází `seasonCrops`, všechny díly `seasonPartIds`. **Luštěniny** (fields.md – Luštěniny, Martin 18. 10. 2026): třetí plodina `legume` (`YearPlan.legume?`, `LEGUME_WINDOWS` – jař se sklizní
+    prochází `seasonCrops`, všechny díly `seasonPartIds`. **Luštěniny** (fields.md – Luštěniny, Martin 18. 10. 2026): třetí plodina `legume` (`SeasonCrop` s `crop: 'legume'`, `LEGUME_WINDOWS` – jař se sklizní
     v červenci, `LEGUMES` a `LEGUME_WORK_PER_HA` v `rules*.ts`, úroda `cropGrossPerHa` /
-    `cropSeedPerHa`, `partWork(…, crop)`); `chooseCrops` dostane `legumeTargetKg`
-    (`plannedLegumeKg` – rovnovážné hospodaření, diet.md, bez zásoby – `sowingTargets`) a `energyFloorKg` – obilí napřed na celý cíl, pak luštěniny na
-    díly výběru od domu (loňské luštěniny až nakonec) a obilí doplní energii (`chooseLegumes`);
+    `cropSeedPerHa`, `partWork(…, crop)`); cíl luštěnin `legumeTargetKg`
+    (`plannedLegumeKg` – rovnovážné hospodaření, diet.md, bez zásoby – `sowingTargets`) a `energyFloorKg`
+    pokrývá `neededSelection` (luštěniny od domu, loňské až nakonec – `sideCropOrder`);
     sklizeň 31. 7. do `VillageState.legumesKg` (`harvestWinter`), osev úrodnost vrátí
     (`LEGUMES.fertilityGain` v `endOfSeason`). Scéna: `SceneFieldPart.crop: 'legume'` – trsy
     hrachu `crop-pea-green` / `crop-pea-ripe` a hromádky `pea-heap` v `crops.glb`.
@@ -162,18 +161,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     (31. 7. v `harvestWinter` – `VillageState.linen` = podíl oděvu vůči `FarmSeason.flaxNeedKg`
     zapsané v `startSeason`; rok bez ní – starší ves, ves založená během roku – nic nezapíše, kronika
     `linen-short`), `linenUnhappiness` (`HappinessFactors.linen`, až `FLAX.unhappiness` 4).
-    Od osevního postupu po dílech len a luštěniny bere `neededSelection` (místo jaře, len od konce,
-    luštěniny od domu – `sideCropOrder`); dřívější výběr: `chooseCrops` dostane `flaxTargetKg` –
-    `chooseFlax`: napřed `chooseSideCrop` (před luštěninami)
-    na díly výběru obilí **od konce** (vysiluje půdu, delší příloh neleží domům v cestě; loňský len
-    až nakonec; když se práce nevejde, zkusí další díl – `fitsSideCrop`), obilí doplní energii, a
-    když nejde, len ubere obilí nejvýš o svůj díl – i se zásobami pod pojistkou. **Len napřed**
-    (fields.md, Martin 20. 10. 2026 – „občas mi to píše chybí len na oděv“): když to potřebu
-    nepokryje (ves bez volné práce – červenec plný ozimu, obilí doplněné za díl lnu práci hned zabere),
-    `flaxFirst` vyhradí díly a práci lnu před obilím (výběr `base` před `chooseGrain`; díl, který se
-    nevejde, přeskočí – bližší či menší) a obilí vybere po něm; bere se, co dá víc lnu – ves, které
-    len za obilím vycházel, má plán beze změny (zlatý otisk ve `flax.test.ts`). Trhání v červenci
-    napřed (`CROP_ORDER` – len první); `trimPlan` ani osev navíc len neubírají. Zpracování je v domácí výrobě
+    Len a luštěniny bere `neededSelection` (místo jaře, len od konce – vysiluje půdu, delší příloh
+    neleží domům v cestě; luštěniny od domu – `sideCropOrder`; loňská plodina až nakonec). Trhání
+    v červenci napřed (`CROP_ORDER` – len první); díly nad potřebu len neubírají. Zpracování je v domácí výrobě
     (přerozdělení), žádná zásoba v liště. Web: `SceneFieldPart.crop: 'flax'` a `bloom` (červen –
     `FLAX_BLOOM_MONTH` ve `village-view-fields.ts`), scéna `FLAX_STYLES` / `FLAX_BLOOM` ve `field-crops.ts`
     (druhy trsů `flax-green` / `flax-bloom` / `flax-ripe` – kopie uzlu `crop-sprout` s vlastní
@@ -222,7 +212,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (prstence po 15 m, v každém tolik dílů po směru, kolik čtverců má první prstenec – výseče kolem
   samoty, lány za domy v řadě). Nic se neukládá, vše se odvodí z polohy domů a čtverců. Plán osevu
   bere `sowingBlocks` (bloky úseku ve skupině přílohové soustavy od domu ven, osev mezi
-  hospodářstvími podle plochy) a `chooseCrops` dává blok celý do ozimu, nebo do jaře; pořadí práce
+  hospodářstvími podle plochy) a osevní postup bere díly na řadě po blocích; pořadí práce
   `workOrder`. Ves bez hospodářství (bez domů nebo bez políček – i `measure-village.ts --land v1`)
   jede dřívějším pořadím bit po bitu; kalibrace na skutečných krajinách hospodaří podle domů. Měření `packages/game/scripts/measure-holdings.ts`; na
   `/dev/landscape` tlačítka „Hospodaření“ (ukázka po 20 letech simulace), „Úseky“ (překryv

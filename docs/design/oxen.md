@@ -200,7 +200,9 @@ Co níž není výslovně Martinovo, je návrh Clauda.
 Jako se stády (Martin výš): ves si sama spočítá, kolik volů chce, a strop jsou místa v ohradách
 volů (`draft.ts`).
 
-- **Páry k rádlům:** tolik, aby voli zorali celý osev v oknech orby. K 1. 9. plán osevu zkusí 1,
+- **Páry k rádlům:** tolik, aby voli zorali celý osev v oknech orby (od 25. 10. 2026 osev
+  osevního postupu – [pole](fields.md), Osevní postup po dílech; ~~roční plán osevu~~ se ruší).
+  K 1. 9. ves zkusí 1,
   2, … párů (kapacita páru jako dřív spřežení – 0,3 ha za den, délka brázdy a cesta k bloku)
   a nejméně párů, se kterými vybere totéž jako bez meze orby, je **potřeba** toho roku
   (`DraftState.ploughNeed`, nejvýš 8). Do prvního plánu pár na každou ohradu volů. Co páry
@@ -539,7 +541,7 @@ nezvládne“ a vracení orby motyce (Účinek na práci, Implementace výš). P
 Clauda**:
 
 - **Ves se spřežením orá všechno:** plán osevu k 1. 9. vznikne, když ves má vycvičené spřežení,
-  s orbou celé plodiny – ozim, jař i luštěniny (`YearPlan.ard`, `CropWork.plough` se všemi díly,
+  s orbou celé plodiny – ozim, jař i luštěniny (`FarmSeason.ard`, `CropWork.plough` se všemi díly,
   kopání 0); díly přidané během roku k plánu, který orá, orá taky. Plodina se tak buď celá orá,
   nebo celá kope – nic se nepamatuje po dílech.
 - **Drn orbou křížem, 2,5× práce:** příloh ve fázi louky a louka založená rádlem se orají
@@ -554,7 +556,7 @@ Clauda**:
   (bez překážek je díl připravený hned) a díl nese drn (`FieldPart.sod`) do první orby. Křoviny
   a les se zakládají jako dřív. Když ves spřežení do plánu ztratí, drn rozruší motyka jako vrácení
   louky. Cena u kurzoru podle `PlacementVillage.ploughTeam` (v prohlížeči `SceneVillage.ploughTeam`).
-- **Kapacita:** plán osevu (`chooseCrops`, `sowingCapacity`) hlídá i orbu spřežení v jejích
+- **Kapacita:** osevní postup (`neededSelection`, `sowingCapacity` – pomoc rodiny) hlídá i orbu spřežení v jejích
   oknech – ozim v září–říjnu (bez posledního dne, ať se zaseje i poslední zoraný pruh), jař
   a luštěniny na podzim, kolik po ozimu zbude, a zbytek v březnu–dubnu. Co spřežení nestihnou,
   ves nezaseje (motyka nepomůže); víc ohrad se spřežením = víc kapacity. Orbu dál dělají lidé

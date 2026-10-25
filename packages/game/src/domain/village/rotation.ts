@@ -13,7 +13,7 @@ import {
 import { expectedFlaxKg } from './flax';
 import { EMERGENCY_GROUP, sowingBlocks, villageHoldings } from './holdings';
 import { expectedLegumeKg, legumeEnergy } from './legumes';
-import { CROP_WINDOWS, FERTILITY, FIELD_STORES } from './rules';
+import { CROP_WINDOWS, FERTILITY, FIELD_STORES, SOWN_ROUNDS } from './rules';
 import { sideCropOrder, type SideCrop } from './sowing';
 import type { Crop, FarmSeason, FieldPart, SeasonCrop, VillageState } from './types';
 import { logsFromClearedTrees } from './wood';
@@ -91,7 +91,7 @@ export function rotateAfterSeason(part: FieldPart, day: number): void {
   endOfSeason(part, day);
   if (!sown || part.state !== 'sown') return;
   delete part.crop;
-  if (part.sownYears === 1 && (crop === 'winter' || crop === 'spring')) {
+  if (part.sownYears === SOWN_ROUNDS - 1 && (crop === 'winter' || crop === 'spring')) {
     part.state = 'ready';
     part.next = crop === 'winter' ? 'spring' : 'winter';
     return;

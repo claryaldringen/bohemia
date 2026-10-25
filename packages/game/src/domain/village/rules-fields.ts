@@ -60,6 +60,8 @@ export const UNWEEDED_YIELD = 0.6; // neopletý díl dá 60 % (návrh Clauda, ka
 // přirozené za rok (oprava podle rešerše, bylo 5 %): z 0,64 na 0,95 za 13 let. Nouzově (Nouzový
 // osev) smí ves osít jen příloh aspoň na `emergencyMin` přirozené – Martin 19. 10. 2026: „ves
 // neoseje díly pod 40 % úrodnosti“ (díl na nule by se na 70 % vracel 28 let).
+// Osevní postup (fields.md – Osevní postup po dílech): díl dá dva osevy (ozim a jař) a jde do úhoru.
+export const SOWN_ROUNDS = 2;
 export const FERTILITY = {
   sowDepletion: 0.12,
   fallowRecovery: 0.025,

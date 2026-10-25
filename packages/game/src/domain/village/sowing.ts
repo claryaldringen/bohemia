@@ -12,23 +12,13 @@ import type {
 } from './types';
 import { emptyTaskRecord, ploughRemaining, seasonCrop, type PartWork } from './year-plan';
 
-// Kolik ozimu a kolik jaře ves oseje (fields.md – Ozim a jař, Kolik ves oseje). Ves vybírá díly
-// v pořadí přílohové soustavy, dokud nepokryje cíl osevu; každý díl dá do ozimu, pokud ho
-// podzimní práce stihne vrátit z přílohu, zkopat a osít do konce října a sklidit v červenci,
-// jinak do jaře, pokud se jař vejde do jarní a srpnové práce – kopání jaře přitom jde na podzim,
-// kolik ho po ozimu stihne, a na jaro jen zbytek. Co se nevejde nikam, ves letos neoseje.
-// Luštěniny (fields.md – Luštěniny): obilí má přednost – po výběru obilí dostanou luštěniny díly
-// toho výběru od domu, dokud očekávaná úroda nepokryje cíl luštěnin a práce se vejde jako jař
-// (sklizeň v červenci), a obilí doplní energii, kterou luštěniny dají méně. Len (fields.md – Len)
-// stejně, jen před luštěninami a od konce výběru obilí (vysiluje půdu – jeho delší příloh neleží
-// domům v cestě): dostane díly, dokud nepokryje potřebu vsi na oděv, a obilí doplní celou energii
-// dílu (len se nejí). Len je povinný (Len napřed): když za obilím potřebu nepokryje – ves nemá
-// volnou práci, sklizeň ozimu zaplní červenec –, vyhradí se jeho díly a práce napřed a obilí se
-// vybere až po něm.
-// Ves se spřežením (oxen.md – Jen rádlo) orá všechno a nekope: díl se vejde, jen když ho spřežení
-// v oknech orby stihnou zorat (orba ozimu v září–říjnu, jaře na podzim, kolik po ozimu zbude,
-// a zbytek na jaře) – víc ohrad se spřežením = víc kapacity. Orbu přitom dělají i lidé (oráč
-// a honáček), takže se počítá i do práce lidí jako kopání.
+// Okna volné práce a zátěž osevu (fields.md – Ozim a jař, Osevní postup po dílech): kolik dnů
+// okna ještě zbývá (`windowDaysLeft`), práce, kterou rozběhnutý hospodářský rok ještě nese
+// (`planLoad`, `cropLoadOf`), a podíl dne rodiny vojvody na osevu, když ves bez ní nutnou práci
+// nestihne (`lordSowingHelp`, `lordHelpShare`). Které díly se osejí, určuje osevní postup
+// (`rotation.ts`); tady zůstalo jen pořadí dílů pro luštěniny a len (`sideCropOrder`).
+// Ves se spřežením (oxen.md – Jen rádlo) orá všechno a nekope; orba se počítá do práce lidí
+// (oráč a honáček) jako kopání.
 
 /** Tolerance proti chybám desetinných čísel při porovnání práce s kapacitou. */
 const EPSILON = 1e-9;

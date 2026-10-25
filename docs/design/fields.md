@@ -642,7 +642,7 @@ masa, a přesto od 1. 3. kopal ≈ 9,7 člověkodne denně – volná práce nul
   zásob tolik jako Vlkov, nezaseje obilí ani tak.
 - ~~**Zkrácení rozjetého plánu**~~ (nahrazeno 25. 10. 2026 – nezačatý díl, který ves nepotřebuje,
   čeká jako díl nad potřebu; Osevní postup po dílech)
-  (`trimPlanToTarget` v `plan-trim.ts`, krok simulace `trimPlan`):
+  (dřívější zkrácení plánu v kroku simulace):
   **každý den od 1. 9. do 30. 4.** (okna kopání a setí – výpočet je levný: cíl a součet úrody plánu)
   ves spočítá cíl podle zásob znovu. Když očekávaná úroda plánu (obilí a luštěniny jako
   při plánu k 1. 9.) převyšuje cíl o víc než **desetinu roční potřeby z pole**, ubírá z obilí (ozim
@@ -864,7 +864,11 @@ Výchozí osevní systém je přílohová soustava raných Slovanů (Martin). Pr
   díl se osévá rok po roku, dokud jeho aktuální úrodnost neklesne pod **70 %**
   přirozené. Osetý rok ji sníží o 12 % přirozené, takže čerstvý díl se oseje **3 roky** po sobě
   (100 → 88 → 76 → 64 %). Pak jde do **přílohu**.
-- **Příloh:** díl leží ladem a pase se na něm (viz Příloh a pastva). Úrodnost se mu vrací o
+- **Příloh (od 25. 10. 2026 po dvou osevech):** díl dá ozim a jař (úrodnost 100 → 88 → 76 %,
+  průměr osevu 0,94) a pak leží 8 let (z 76 % na 95 %): oběh 10 let, pole **≈ 5,0× osevu**
+  (`ROTATION_FACTOR` = 10 / 2, `SOWN_ROUNDS`; dřív 16 / 3 ≈ 5,3). Čísla v odstavci níže jsou
+  dřívější stav (3 osevy, příloh 13 let) – historie.
+- ~~**Příloh (dřív):**~~ díl leží ladem a pase se na něm (viz Příloh a pastva). Úrodnost se mu vrací o
   **2,5 %** přirozené za rok (nejvýš na přirozenou) – z 64 % se na **95 %** dostane za **13 let**.
   Jeden oběh dílu tak trvá zhruba 16 let a oseto je
   v průměru asi 19 % půdy: ves potřebuje pole **≈ 5,3× větší než osev** (dvojpolní systém by
@@ -1150,6 +1154,12 @@ První sezónu po vymýcení lesa se díl **neplete** (viz Úroda).
   jako louka, tedy za 100 na hektar.
 
 ### Ozim a jař
+
+> **Od 25. 10. 2026** určuje plodinu dílu osevní postup (Osevní postup po dílech výše: díl je na
+> řadě s ozimem či jařem podle oken, ne podle výběru s kapacitou). ~~Výběr ozimu a jaře podle
+> toho, kolik podzim stihne zkopat a osít (dřívější výběr s kapacitou)~~ je zrušený; okna práce a sklizně
+> níže platí dál. Kapacitu používá jen odhad ve skriptech (`steady-state.ts`) a omezuje v něm
+> ozim.
 
 Stav: **návrh Clauda, Martin schválil směr 18. 10. 2026** (Martin: „Klidně můžeš už teď
 zapracovat mechaniku s ozimí, pokud to odpovídá praxi ranného středověku.“). Řeší jarní úzké
@@ -1845,7 +1855,7 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
   Tooltip: „Pole uživí ≈ N lidí“, pod tím ikona lidí s počtem lidí ve vsi (**červeně, když je
   lidí víc než N**), pole v oběhu a průměrná úrodnost. Výpočet (návrh Clauda, jádro
   `fieldCapacity`): pole v oběhu (osev, hotové k osevu a příloh, který nezarostl) ÷ oběh
-  (`ROTATION_FACTOR`) = osev; osev × čistá úroda při průměrné přirozené úrodnosti dílů
+  (`ROTATION_FACTOR`, dnes 10 / 2 = 5,0) = osev; osev × čistá úroda při průměrné přirozené úrodnosti dílů
   (`netYieldPerHa`, vážené plochou) = roční úroda; ta ÷ úroda potřebná na jednoho průměrného
   člověka vsi (jeho potřeba z pole `fieldFoodShare` a pojistka zásob – `steadyHarvestKg`, tedy
   stejná pravidla jako `village-calculator.ts`) = N. Strop práce ve žních v čísle není.
