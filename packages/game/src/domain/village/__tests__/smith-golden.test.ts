@@ -142,6 +142,8 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
     // počtvrté (573d22e4): stáda jen na seno, které ves stihne posekat (oxen.md – Stáda podle práce
     // na seč) – stav nese zápis volné práce na seč a po první sezóně menší stáda, otava má všechny
     // posečené louky se stropem práce; nouzová porážka bere ovce před kravami; dřív e92e2e86
-    expect(hash(stripped)).toBe('573d22e4');
+    // 25. 10. 2026 popáté (8c518a4a): jen přejmenování plánu na hospodářský rok (`season`, `crops`) –
+    // bez klíčů `plan` a `season` zůstal a87dde34; dřív 573d22e4
+    expect(hash(stripped)).toBe('8c518a4a');
   }, 120_000);
 });

@@ -24,7 +24,7 @@ import {
   distanceFactor,
   fieldPartsFromCells,
   placementVillageOf,
-  planCrops,
+  seasonCrops,
   type Dwelling,
   type FieldPart,
   type Person,
@@ -119,8 +119,8 @@ function village(l: Landscape, layout: Layout): VillageState | null {
     fields: [{ id: 99 }],
     parts: [],
     constructions: [],
-    plan: null,
-    threshingFromPlan: null,
+    season: null,
+    threshingSeason: null,
     storesKg: 2000,
     hungry: false,
     commonLaborHistory: [],
@@ -286,7 +286,7 @@ function run(start: VillageState): Run {
     }
     if (year < FROM_YEAR) continue;
     metrics.push(measure(l, state));
-    for (const { work } of state.plan ? planCrops(state.plan) : []) {
+    for (const { work } of state.season ? seasonCrops(state.season) : []) {
       workMd += Object.values(work.required).reduce((a, b) => a + b, 0);
     }
   }

@@ -3,8 +3,8 @@ import { expectedNetKg, isSowableFertility, partWalkDistance } from './fields';
 import { dropFromWork, shrinkInPlan } from './land-taken';
 import { expectedLegumeKg, legumeEnergy } from './legumes';
 import { extraPartsOf, queueExtraParts } from './extra-sowing';
-import type { Crop, CropWork, ExtraPart, FieldPart, VillageState, YearPlan } from './types';
-import { planCrops } from './year-plan';
+import type { Crop, CropWork, ExtraPart, FieldPart, VillageState, FarmSeason } from './types';
+import { seasonCrops } from './year-plan';
 
 // Zkrácení rozjetého plánu podle zásob (fields.md – Kolik ves oseje, Osev podle zásob; Martin
 // 19. 10. 2026: „Ano“ k návrhu „Rozjetá práce na poli půjde přerušit hned: když ves podle nového
@@ -29,10 +29,10 @@ function partEnergy(part: FieldPart, crop: Crop, day: number): number {
 }
 
 /** Očekávaná energie úrody plánu (kg obilí) – plodiny, které se ještě nesklidily. */
-export function planEnergyKg(state: VillageState, plan: YearPlan, day: number): number {
+export function planEnergyKg(state: VillageState, plan: FarmSeason, day: number): number {
   const partsById = new Map(state.parts.map((p) => [p.id, p]));
   let energy = 0;
-  for (const { crop, work } of planCrops(plan)) {
+  for (const { crop, work } of seasonCrops(plan)) {
     if (work.harvestedKg !== null) continue;
     for (const id of work.partIds) {
       const part = partsById.get(id);
@@ -66,10 +66,10 @@ function lastUntouched(
 }
 
 /** Ubraný díl leží ladem – příloh, ze kterého se vracel, jak ležel; jinak příloh od plánu. */
-function toFallow(part: FieldPart, plannedDay: number): void {
+function toFallow(part: FieldPart, startDay: number): void {
   const before = part.fallowBeforePlan;
   part.state = 'fallow';
-  part.fallowSinceDay = before ? before.sinceDay : plannedDay;
+  part.fallowSinceDay = before ? before.sinceDay : startDay;
   part.sownYears = 0;
   delete part.crop;
   if (before?.overgrowthYears !== undefined) part.overgrowthYears = before.overgrowthYears;
@@ -81,7 +81,7 @@ function toFallow(part: FieldPart, plannedDay: number): void {
  * plánu převyšuje `targetKg` o víc než `marginKg`, ubírá z obilí (ozim a jař – luštěniny se sejí
  * podle bílkovin) nezačaté díly od konce pořadí práce, dokud úroda bez dalšího dílu neklesne pod
  * cíl. Z konců obou plodin jde první díl dál od domu (chůze po pěšinách). Ubrané díly jdou na
- * začátek osevu navíc (`YearPlan.extra`). Vrací id ubraných dílů.
+ * začátek osevu navíc (`FarmSeason.extra`). Vrací id ubraných dílů.
  */
 export function trimPlanToTarget(
   state: VillageState,
@@ -89,7 +89,7 @@ export function trimPlanToTarget(
   targetKg: number,
   marginKg: number,
 ): number[] {
-  const plan = state.plan;
+  const plan = state.season;
   if (!plan) return [];
   let energy = planEnergyKg(state, plan, day);
   if (energy <= targetKg + marginKg + EPSILON) return [];
@@ -98,7 +98,7 @@ export function trimPlanToTarget(
   for (;;) {
     const partsById = new Map(state.parts.map((p) => [p.id, p]));
     let best: { part: FieldPart; crop: Crop; work: CropWork } | null = null;
-    for (const { crop, work } of planCrops(plan)) {
+    for (const { crop, work } of seasonCrops(plan)) {
       // ubírá se jen obilí – luštěniny podle bílkovin a len na oděv zůstanou
       if (crop === 'legume' || crop === 'flax' || work.harvestedKg !== null) continue;
       const part = lastUntouched(work, partsById, day);
@@ -122,7 +122,7 @@ export function trimPlanToTarget(
     dropFromWork(best.work, new Set([best.part.id]));
     // do osevu navíc jen díl v oběhu (nouzový ani odpočívající příloh tam nesmí)
     moved.push(...extraPartsOf([best.part]));
-    toFallow(best.part, plan.plannedDay);
+    toFallow(best.part, plan.startDay);
     energy -= lost;
     removed.push(best.part.id);
   }

@@ -17,7 +17,7 @@ import {
 } from '../rotation';
 import { FERTILITY, FIELD_STORES } from '../rules';
 import type { FieldPart, VillageState } from '../types';
-import { createYearPlan } from '../year-plan';
+import { createSeason, seasonCrop } from '../year-plan';
 
 // Osevní postup po dílech (fields.md – Osevní postup po dílech a setí do konce okna, 25. 10. 2026):
 // co na dílu poroste příště, plodina dne a výběr nutných dílů – čisté funkce, zatím nezapojené.
@@ -77,7 +77,7 @@ function village(count: number): VillageState {
     firstField: { outline: OUTLINE, parts },
   });
   s.constructions = [];
-  s.plan = null;
+  s.season = null;
   for (const p of s.parts) {
     p.foundingDone = p.foundingCost;
     p.state = 'ready';
@@ -339,7 +339,7 @@ describe('výběr nutných dílů', () => {
     const s = village(8);
     const order = blockOrder(s);
     const parts = order.map((id) => s.parts.find((p) => p.id === id)!);
-    s.plan = createYearPlan({ winter: parts.slice(0, 6), spring: [] }, SEPT_1, 1);
+    s.season = createSeason({ winter: parts.slice(0, 6), spring: [] }, SEPT_1, 1);
     sowParts(parts.slice(0, 6), 'winter');
     const needKg = 1_000;
     // potřeba klesla na 3 díly – uvolní 3 nejvzdálenější
@@ -353,7 +353,7 @@ describe('výběr nutných dílů', () => {
     const near = netOf(s, order.slice(0, 6)) + 1 - margin;
     expect(neededSelection(s, SEPT_1, { ...NO_NEED, harvestKg: near, needKg }).release).toEqual([]);
     // díl, na kterém začala práce, zůstane nutný
-    const winter = s.plan.winter!;
+    const winter = seasonCrop(s.season, 'winter')!;
     winter.done.sow = winter.required.sow;
     expect(neededSelection(s, SEPT_1, { ...NO_NEED, harvestKg, needKg }).release).toEqual([]);
   });

@@ -4,7 +4,7 @@ import { isHayMeadow, mowingPosition, mowingSpans } from './hay';
 import { PLOUGH_SOD_FACTOR } from './plough';
 import { partStage } from './summary';
 import type { Crop, CropWork, FieldPart, PloughBand, TileCell, VillageState } from './types';
-import { cropTaskRemaining, cropTaskWindows, planCrops } from './year-plan';
+import { cropTaskRemaining, cropTaskWindows, seasonCrops } from './year-plan';
 
 // Postup práce po čtvercích (fields.md – Postup práce po čtvercích; Martin, 18. 10. 2026): plán
 // vede práci za celou plodinu, díl po dílu ji odvozuje odsud – díly plodiny v pořadí `partIds`
@@ -267,10 +267,10 @@ export function frontierPart(
  */
 export function fieldFrontiers(state: VillageState, day: number): Map<number, PartTask[]> {
   const frontiers = new Map<number, PartTask[]>();
-  if (state.plan === null) return frontiers;
+  if (state.season === null) return frontiers;
   const partsById = new Map(state.parts.map((p) => [p.id, p]));
   const month = dateOfDayIndex(day).month;
-  for (const { crop, work } of planCrops(state.plan)) {
+  for (const { crop, work } of seasonCrops(state.season)) {
     for (const task of PART_TASKS) {
       const open = cropTaskWindows(crop, task).some(([from, to]) => month >= from && month <= to);
       if (!open || cropTaskRemaining(work, task) <= 0) continue;
@@ -534,8 +534,8 @@ export interface PartYearWork {
 export function partYearWork(state: VillageState, day: number): Map<number, PartYearWork> {
   const result = new Map<number, PartYearWork>();
   const partsById = new Map(state.parts.map((p) => [p.id, p]));
-  const plan = state.plan ?? state.threshingFromPlan;
-  for (const { crop, work } of plan ? planCrops(plan) : []) {
+  const plan = state.season ?? state.threshingSeason;
+  for (const { crop, work } of plan ? seasonCrops(plan) : []) {
     const tasks = ['reclaim', 'plough', 'dig', 'sow', 'harvest'] as const;
     const spans = new Map(
       tasks.map((task) => [
@@ -571,7 +571,7 @@ export function partYearWork(state: VillageState, day: number): Map<number, Part
   for (const [id, mown] of mownShares(state, partsById)) {
     result.set(id, { ...result.get(id), mow: mown });
   }
-  for (const { id } of state.plan?.extra ?? []) {
+  for (const { id } of state.season?.extra ?? []) {
     if (partsById.has(id) && !result.get(id)?.crop)
       result.set(id, { ...result.get(id), extra: true });
   }
@@ -590,8 +590,8 @@ export function fieldPartLooks(state: VillageState, day: number): Map<number, Pa
   const views = new Map<number, PartView>();
   const partsById = new Map(state.parts.map((p) => [p.id, p]));
   const mown = mownShares(state, partsById);
-  const plan = state.plan ?? state.threshingFromPlan;
-  for (const { crop, work } of plan ? planCrops(plan) : []) {
+  const plan = state.season ?? state.threshingSeason;
+  for (const { crop, work } of plan ? seasonCrops(plan) : []) {
     cropLooks(crop, work, partsById, day, views);
   }
   for (const part of state.parts) {

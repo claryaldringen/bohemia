@@ -26,7 +26,7 @@ import { FIELD_FOOD, FIELD_STORES, FOOD_NEED_KG_PER_YEAR, LEGUMES } from '../rul
 import { advanceVillage } from '../simulate';
 import { withThreshingFloor } from './village-fixtures';
 import type { DietDay, VillageState } from '../types';
-import { planCrops } from '../year-plan';
+import { seasonCrops } from '../year-plan';
 
 // Osev podle stravy a podle zásob (fields.md – Kolik ves oseje, Osev podle stravy, Osev podle
 // zásob).
@@ -80,7 +80,7 @@ function village(stores = 0): VillageState {
 function planEnergy(s: VillageState, day: number): number {
   const byId = new Map(s.parts.map((p) => [p.id, p]));
   let kg = 0;
-  for (const { crop, work } of planCrops(s.plan!)) {
+  for (const { crop, work } of seasonCrops(s.season!)) {
     for (const id of work.partIds) {
       const part = byId.get(id)!;
       kg +=
@@ -351,7 +351,7 @@ describe('osev podle stravy v simulaci', () => {
       s = advanceVillage(s, day, null);
       const byId = new Map(s.parts.map((p) => [p.id, p]));
       grain.push(
-        planCrops(s.plan!)
+        seasonCrops(s.season!)
           .filter(({ crop }) => crop !== 'legume' && crop !== 'flax')
           .reduce(
             (sum, { work }) =>

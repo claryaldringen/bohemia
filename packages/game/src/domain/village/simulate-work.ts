@@ -115,10 +115,11 @@ import {
   addCropTaskWork,
   cropTaskDone,
   cropTaskWindows,
-  planCrops,
+  seasonCrops,
   neededTaskRemaining,
   windowEndOf,
   type CropTask,
+  springCrop,
 } from './year-plan';
 import { build, decayEmptyDwellings, woodworkToday } from './simulate-build';
 import {
@@ -170,8 +171,8 @@ export function fieldTasks(
     const remaining = neededTaskRemaining(work, name);
     if (remaining > 0) entries.push({ name, crop, remaining, work, end, rank });
   };
-  if (state.plan !== null) {
-    for (const { crop, work } of planCrops(state.plan)) {
+  if (state.season !== null) {
+    for (const { crop, work } of seasonCrops(state.season)) {
       for (const name of activeTasks(work, day, crop)) if (name !== 'thresh') add(crop, work, name);
       if (neededTaskRemaining(work, 'plough') > 0) add(crop, work, 'plough');
     }
@@ -195,12 +196,13 @@ export function fieldTasks(
  * přijde další vymlácené zrno a neúplná obilná jáma počká (production-chains.md – Obilné jámy).
  */
 export function springHarvestAhead(state: VillageState, month: number): boolean {
-  const plan = state.plan;
+  const plan = state.season;
+  const spring = plan ? springCrop(plan) : null;
   return (
     month <= HARVEST_DAY.month &&
-    plan !== null &&
-    plan.harvestedKg === null &&
-    plan.partIds.length > 0
+    spring !== null &&
+    spring.harvestedKg === null &&
+    spring.partIds.length > 0
   );
 }
 

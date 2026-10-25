@@ -191,7 +191,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   voli první, krávy, ovce a kozy poměrně; pokrytí volů `oxenHayCoverage` a stáda
   `herdHayCoverage` k 1. 3.). **Orba – jen rádlo** (oxen.md – Jen rádlo; Martin 19. 10. 2026:
   „Pokud je k dispozici rádlo, kopání motykou úplně vynech.“): plán s vycvičeným spřežením
-  (`YearPlan.ard`) orá všechny díly všech plodin (`CropWork.plough` – `partIds` = díly plodiny,
+  (`FarmSeason.ard`) orá všechny díly všech plodin (`CropWork.plough` – `partIds` = díly plodiny,
   `required.dig` 0, i prázdná plodina orbu má, ať přidané díly orá – `addToCropWork` podle
   `work.plough`); drn (`hasSod` – příloh ve fázi louky, louka založená rádlem `FieldPart.sod`)
   `PLOUGH_SOD_FACTOR` (2,5×) práce a ve váze orby (`PloughWork.sodIds`), křoviny a mladý les

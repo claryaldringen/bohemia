@@ -9,7 +9,7 @@ import { TEAM_TRAVEL } from './rules';
 import { fieldGridOf } from './squares';
 import { rotationCosSin, squareCenter } from './square-grid';
 import type { CropWork, FieldPart, PloughBand, PloughWork, VillageState } from './types';
-import { cropTaskWindows, neededTaskRemaining, planCrops, windowEndOf } from './year-plan';
+import { cropTaskWindows, neededTaskRemaining, seasonCrops, windowEndOf } from './year-plan';
 
 // Výkon spřežení za den (oxen.md – Co nejdelší brázda): kromě sazby orby ho ubírají obraty na
 // souvrati (krátká brázda – `furrowEfficiency` pásu, který se právě orá) a cesta k bloku
@@ -145,10 +145,10 @@ function afield(plough: PloughWork | undefined): boolean {
  * `trip` bez příjezdu (`arrived`) mimo okno orby nepočítá: spřežení by večer šlo domů, ale jeho
  * první ráno by jinak odečetlo vozům všechny páry a zrušilo vodu.
  */
-export function ploughTeamsAfield(state: Pick<VillageState, 'plan'>, day?: number): boolean {
-  if (!state.plan) return false;
+export function ploughTeamsAfield(state: Pick<VillageState, 'season'>, day?: number): boolean {
+  if (!state.season) return false;
   const month = day === undefined ? null : dateOfDayIndex(day).month;
-  return planCrops(state.plan).some(({ crop, work }) => {
+  return seasonCrops(state.season).some(({ crop, work }) => {
     if (!afield(work.plough)) return false;
     // starší ves bez příjezdu: mimo okno orby (ani dnes se neoře) je spřežení už doma
     if (month !== null && !work.plough?.trip?.arrived)
@@ -271,9 +271,9 @@ export function settlePloughTeams(
   travels: PloughTravels,
   noTeams: boolean,
 ): void {
-  if (!state.plan) return;
+  if (!state.season) return;
   const tomorrow = dateOfDayIndex(day + 1).month;
-  for (const { crop, work } of planCrops(state.plan)) {
+  for (const { crop, work } of seasonCrops(state.season)) {
     const plough = work.plough;
     if (!plough) continue;
     const today = travels.get(work);

@@ -2,7 +2,7 @@
 // Rozcestník je `types.ts`; tento soubor jen drží část typů.
 
 import type { Craft } from './types-crafts';
-import type { AbandonedStructure } from './types-land';
+import type { AbandonedStructure, Crop } from './types-land';
 import type { DwellingPlot, DwellingType, Position } from './types-people';
 import type { RoadGrade } from './types-roads';
 
@@ -283,23 +283,24 @@ export interface PloughBand {
   sweep: 1 | -1;
   block: number;
 }
+/** Práce jedné plodiny hospodářského roku (fields.md – Osevní postup po dílech). */
+export interface SeasonCrop extends CropWork {
+  crop: Crop;
+}
 /**
- * Roční plán osevu (k 1. 9.): na nejvyšší úrovni jař (tvar plánu z doby před ozimem), ozim
- * zvlášť v `winter` – chybí u plánů bez ozimu (i u starších vsí).
+ * Hospodářský rok 1. 9. – 31. 8. (název `FarmSeason`, protože `Season` je roční období
+ * kalendáře): evidence práce dílů po plodinách v pořadí ozim, luštěniny, len, jař – plodina
+ * v `crops` je jen, když ji ves má.
  */
-export interface YearPlan extends CropWork {
-  plannedDay: number;
+export interface FarmSeason {
+  startDay: number;
+  crops: SeasonCrop[];
   /**
    * Ves letos orá rádlem (oxen.md – Jen rádlo): plán vznikl, když ves měla vycvičené spřežení –
    * ve scéně má pak celé pole kulaté rohy. Zůstane, i když spřežení během roku zmizí a zbytek
    * plánu dokončí motyka. Chybí = ves letos kope motykou (i plány starších vsí).
    */
   ard?: true;
-  winter?: CropWork;
-  /** Luštěniny (fields.md – Luštěniny) – chybí u plánů bez luštěnin (i u starších vsí). */
-  legume?: CropWork;
-  /** Len (fields.md – Len) – chybí u plánů bez lnu (i u starších vsí). */
-  flax?: CropWork;
   /**
    * Kolik třeného lnu ves při plánu potřebovala na oděv za rok (kg – fields.md, Len): podle toho
    * se při trhání zapíše, na jaký podíl oděvu len je (`VillageState.linen`). Chybí u plánů

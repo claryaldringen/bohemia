@@ -48,7 +48,14 @@ import {
 } from './sowing';
 import type { CraftCoverage, Crop, CropWork, Dwelling, FieldPart, VillageState } from './types';
 import { addLogs } from './wood';
-import { addToCropWork, createPlan, createYearPlan, planPartIds, type CropTask } from './year-plan';
+import {
+  addToCropWork,
+  createPlan,
+  createSeason,
+  seasonPartIds,
+  springCrop,
+  type CropTask,
+} from './year-plan';
 
 export type DayOfYear = Readonly<Pick<CalendarDate, 'month' | 'day'>>;
 
@@ -151,13 +158,13 @@ export function planYear(
   // plán vzniká před změnou stavu dílů – vrácení přílohu se počítá jen u dílů v přílohu; práce
   // plánu (i orba – železná špička rádla od kováře) platí podle dnešního pokrytí nástroji celý
   // hospodářský rok
-  state.plan = createYearPlan(crops, day, coverage.tools, plough, workOrder(holdings));
+  state.season = createSeason(crops, day, coverage.tools, plough, workOrder(holdings));
   // podle potřeby lnu při plánu se při trhání zapíše, na kolik oděvu len je (fields.md – Len)
-  state.plan.flaxNeedKg = flaxNeed;
+  state.season.flaxNeedKg = flaxNeed;
   // podíl dne rodiny po oknech – jen kolik ves bez ní nestihne (lord.md – Kdy jde rodina na pole)
   if (sowing !== choice) {
     const help = lordSowingHelp(crops.load, choice.capacity, sowing.capacity);
-    if (Object.keys(help).length > 0) state.plan.lordHelp = help;
+    if (Object.keys(help).length > 0) state.season.lordHelp = help;
   }
   const sown = [...crops.winter, ...crops.spring, ...crops.legume, ...crops.flax];
   const chosen = new Set(sown.map((p) => p.id));
@@ -165,7 +172,7 @@ export function planYear(
   // (fields.md – Osev navíc); příloh 70–95 % ne (`extraSowable`); osévaný díl si pamatuje léta
   // v řadě, než půjde ladem
   const extra = extraPartsOf(blocks.flat().filter((p) => !chosen.has(p.id)));
-  if (extra.length > 0) state.plan.extra = extra;
+  if (extra.length > 0) state.season.extra = extra;
   // vrácený mladý les dá za dospělé stromy klády (fields.md – Zarůstání, forest.md – Mýcení)
   addLogs(state, reclaimedLogs(sown, day));
   for (const part of state.parts) {
@@ -195,15 +202,15 @@ export function joinFinishedParts(
 ): void {
   const ready = state.parts.filter((p) => p.state === 'ready');
   if (ready.length === 0) return;
-  const plan = state.plan;
-  const inPlan = new Set(plan ? planPartIds(plan) : []);
+  const plan = state.season;
+  const inPlan = new Set(plan ? seasonPartIds(plan) : []);
   // díly plánu (oseté) se počítají do cíle první – nové přibudou, jen když ho nepokryjí
   const startKg = state.parts
     .filter((p) => inPlan.has(p.id))
     .reduce((sum, p) => sum + expectedNetKg(p, day), 0);
   // jař se buď celá orá, nebo celá kope (oxen.md – Jen rádlo): k plánu, který orá, přibudou díly
   // k orbě; bez plánu podle toho, jestli ves má pár volů s rádlem
-  const plough = plan ? plan.plough !== undefined : ableTeams(state, day) > 0;
+  const plough = plan ? springCrop(plan).plough !== undefined : ableTeams(state, day) > 0;
   const holdings = villageHoldings(state);
   // hotové díly (skupina 2 přílohové soustavy) po úsecích hospodářství
   const blocks = sowingBlocks(state.parts, holdings, 2);
@@ -225,9 +232,9 @@ export function joinFinishedParts(
   if (target === null) {
     // ves, která do 1. 9. plán neměla – i plán bez dílů, jen pro osev navíc
     target = createPlan(spring, day, coverage.tools, plough, order);
-    state.plan = target;
+    state.season = target;
   } else if (spring.length > 0) {
-    addToCropWork(target, spring, day, coverage.tools, order);
+    addToCropWork(springCrop(target), spring, day, coverage.tools, order);
   }
   sowParts(spring, 'spring');
   // hotové díly, které potřebný osev nevzal, čekají v osevu navíc (fields.md – Osev navíc)
@@ -254,7 +261,7 @@ export function fieldSowingTargets(
  * ještě nezačala práce – od konce pořadí práce (fields.md – Kolik ves oseje, Osev podle zásob).
  */
 export function trimPlan(state: VillageState, day: number, coverage: CraftCoverage): void {
-  if (!state.plan) return;
+  if (!state.season) return;
   const targets = fieldSowingTargets(state, day, coverage);
   trimPlanToTarget(state, day, targets.targetKg, FIELD_STORES.trimMarginYears * targets.needKg);
   springLordHelp(state, day, coverage);
@@ -267,7 +274,7 @@ export function trimPlan(state: VillageState, day: number, coverage: CraftCovera
  * pomůže víc, když dohnala, méně. Jen cvičící rodina; ves, která zbytek stihne sama, pomoc nemá.
  */
 function springLordHelp(state: VillageState, day: number, coverage: CraftCoverage): void {
-  const plan = state.plan;
+  const plan = state.season;
   const { month } = dateOfDayIndex(day);
   if (!plan || !SOWING_CAPACITY_WINDOWS.spring.some(([from, to]) => month >= from && month <= to)) {
     return;

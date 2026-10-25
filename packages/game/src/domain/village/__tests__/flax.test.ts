@@ -19,9 +19,10 @@ import {
   cropSeedPerHa,
   harvestKg,
   partWork,
-  planCrops,
-  planPartIds,
+  seasonCrops,
+  seasonPartIds,
   type PartWork,
+  seasonCrop,
 } from '../year-plan';
 
 // Len (fields.md – Len, diet.md – Oděv; Martin 19. 10. 2026: „na částech pole musí být zasetý
@@ -378,7 +379,9 @@ describe('len napřed – ves, které len za obilím vycházel, má plán beze z
     for (const year of [601, 602, 603]) {
       state = advanceVillage(state, at(year, 9, 2), null);
       plans.push(
-        Object.fromEntries(planCrops(state.plan!).map(({ crop, work }) => [crop, work.partIds])),
+        Object.fromEntries(
+          seasonCrops(state.season!).map(({ crop, work }) => [crop, work.partIds]),
+        ),
       );
     }
     expect(state.chronicle.some((e) => e.kind === 'linen-short')).toBe(false);
@@ -408,8 +411,8 @@ describe('oděv ze lnu – trhání a štěstí', () => {
 
   it('plán starší vsi (bez potřeby lnu) při trhání oděv nezapíše', () => {
     const s = advanceVillage(found(at(600, 3, 1)), at(600, 7, 30), null);
-    expect(s.plan).not.toBeNull();
-    expect(s.plan!.flaxNeedKg).toBeUndefined();
+    expect(s.season).not.toBeNull();
+    expect(s.season!.flaxNeedKg).toBeUndefined();
     const after = advanceVillage(s, at(600, 8, 1), null);
     expect(after.linen).toBeUndefined();
     expect(after.chronicle.some((e) => e.kind === 'linen-short')).toBe(false);
@@ -418,7 +421,7 @@ describe('oděv ze lnu – trhání a štěstí', () => {
   it('plán bez lnu s potřebou: podíl 0, upozornění do kroniky', () => {
     const s = advanceVillage(found(at(600, 3, 1)), at(600, 7, 31), null);
     const copy = JSON.parse(JSON.stringify(s)) as VillageState;
-    copy.plan!.flaxNeedKg = 12;
+    copy.season!.flaxNeedKg = 12;
     const event = harvestFlax(copy, copy.lastDay);
     expect(copy.linen).toBe(0);
     expect(event).toEqual({ day: copy.lastDay, kind: 'linen-short', kg: 0, neededKg: 12 });
@@ -429,19 +432,19 @@ describe('len v simulaci', () => {
   it('ves ho k 1. 9. zaseje na potřebu, 31. 7. vytrhá a oděv má celý', () => {
     // první plán po založení pole je jen jař (díly hotové během roku) – len až k 1. 9.
     const planned = advanceVillage(found(at(600, 3, 1)), at(601, 9, 2), null);
-    const flax = planned.plan?.flax;
+    const flax = seasonCrop(planned.season, 'flax');
     expect(flax).toBeDefined();
-    expect(planned.plan!.flaxNeedKg).toBeCloseTo(flaxNeedKg(planned, at(601, 9, 1)), 9);
+    expect(planned.season!.flaxNeedKg).toBeCloseTo(flaxNeedKg(planned, at(601, 9, 1)), 9);
     const byId = new Map(planned.parts.map((p) => [p.id, p]));
     expect(flax!.partIds.every((id) => byId.get(id)?.crop === 'flax')).toBe(true);
-    expect(planPartIds(planned.plan!)).toEqual(expect.arrayContaining(flax!.partIds));
+    expect(seasonPartIds(planned.season!)).toEqual(expect.arrayContaining(flax!.partIds));
     const expected = flax!.partIds.reduce(
       (sum, id) => sum + expectedFlaxKg(byId.get(id)!, planned.lastDay),
       0,
     );
-    expect(expected).toBeGreaterThanOrEqual(planned.plan!.flaxNeedKg! - 1e-9);
+    expect(expected).toBeGreaterThanOrEqual(planned.season!.flaxNeedKg! - 1e-9);
     const pulled = advanceVillage(planned, at(602, 8, 1), null);
-    const work = pulled.plan!.flax!;
+    const work = seasonCrop(pulled.season!, 'flax')!;
     expect(work.harvestedKg).toBeGreaterThan(0);
     expect(work.done.thresh).toBe(0);
     expect(pulled.linen).toBe(1);
@@ -461,14 +464,14 @@ describe('len v simulaci', () => {
     const all = poor.parts.reduce((sum, p) => sum + expectedNetKg(p, at(601, 9, 1)), 0);
     expect(all).toBeLessThan(targets.energyFloorKg);
     const planned = advanceVillage(poor, at(601, 9, 2), null);
-    const flax = planned.plan?.flax;
+    const flax = seasonCrop(planned.season, 'flax');
     expect(flax).toBeDefined();
     const byId = new Map(planned.parts.map((p) => [p.id, p]));
     const expected = flax!.partIds.reduce(
       (sum, id) => sum + expectedFlaxKg(byId.get(id)!, planned.lastDay),
       0,
     );
-    expect(expected).toBeGreaterThanOrEqual(planned.plan!.flaxNeedKg! - 1e-9);
+    expect(expected).toBeGreaterThanOrEqual(planned.season!.flaxNeedKg! - 1e-9);
     const pulled = advanceVillage(planned, at(602, 8, 1), null);
     expect(pulled.linen).toBe(1);
   });

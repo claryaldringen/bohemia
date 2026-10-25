@@ -24,6 +24,7 @@ import { roadFieldsDay } from './road-fields';
 import { villageSacredOaks } from './sacred';
 import { moveGrainFromCoveredPits } from './grain-pit-site';
 import { withThreshingGrace, spoilSheaves } from './threshing';
+import { withSeason } from './year-plan';
 import { sacredOakEvents } from './sacred-life';
 import { orchardSeasonDay } from './orchard';
 import { inLuckyYears, nextStarvationDays, populationDay } from './population';
@@ -111,7 +112,7 @@ export function* advanceVillageSteps(
           withPenSpecies(
             withoutForeignGoods(
               withIronBarsTrade(
-                withToolEquipment(withCattleKinds(withDynasty(withKinship(state)))),
+                withToolEquipment(withCattleKinds(withDynasty(withKinship(withSeason(state))))),
               ),
             ),
           ),

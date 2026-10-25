@@ -35,6 +35,7 @@ import { summarizeVillage } from '../summary';
 import type { ChronicleEvent, Orchard, Position, TileCell, VillageState } from '../types';
 import { block, makeLandscape } from './placement-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
+import { seasonCrop, springCrop } from '../year-plan';
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 const POSITION: Position = { x: 0, z: 0, rotation: 0 };
@@ -517,8 +518,8 @@ describe('advanceVillage – sad', () => {
     const day = advanceVillage(s, at(601, 9, 2), null);
     expect(day.orchardWork!.done).toBeGreaterThan(1);
     // i před ozimem – jablka se sklízejí první, ozim dostane zbytek podzimu
-    expect(day.plan?.winter).toBeDefined();
-    for (const work of [day.plan, day.plan?.winter]) {
+    expect(seasonCrop(day.season, 'winter')).toBeDefined();
+    for (const work of [day.season && springCrop(day.season), seasonCrop(day.season, 'winter')]) {
       expect(work?.done.dig ?? 0).toBe(0);
       expect(work?.done.reclaim ?? 0).toBe(0);
     }

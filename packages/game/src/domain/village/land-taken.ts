@@ -15,10 +15,10 @@ import type {
   SquareGrid,
   TileCell,
   VillageState,
-  YearPlan,
+  FarmSeason,
 } from './types';
 import { addLogs, logsFromClearedTrees } from './wood';
-import { partWeight, planCrops } from './year-plan';
+import { partWeight, seasonCrops } from './year-plan';
 
 // Pole a sad ustupují stavbám (population.md – Obydlí na poli a v sadu; Martin, 18. 10. 2026:
 // „domy by měly jít stavět na polích a v sadech. Pole a sad se prostě zmenší o plochu domu“ –
@@ -305,7 +305,7 @@ function resizeParts(
     if (Math.abs(lost) <= EPSILON) continue;
     const share = left > 0 ? lost / part.areaM2 : 1;
     // plán, seč a založení podle plochy před zmenšením (váha dílu v pořadí práce)
-    if (state.plan) shrinkInPlan(state, state.plan, part, share, day);
+    if (state.season) shrinkInPlan(state, state.season, part, share, day);
     shrinkInMowing(state, part, share);
     shrinkFounding(state, part, share);
     loss.set(part.fieldId, (loss.get(part.fieldId) ?? 0) + lost);
@@ -315,9 +315,9 @@ function resizeParts(
     }
     // z pořadí práce hned – další díly se počítají už bez něj
     removed.add(part.id);
-    for (const plan of [state.plan, state.threshingFromPlan]) {
+    for (const plan of [state.season, state.threshingSeason]) {
       if (!plan) continue;
-      for (const { work } of planCrops(plan)) dropFromWork(work, new Set([part.id]));
+      for (const { work } of seasonCrops(plan)) dropFromWork(work, new Set([part.id]));
     }
     dropFromMowing(state, part.id);
     handOverObstacles(state, part, day);
@@ -365,13 +365,13 @@ function setTaskWork(work: CropWork, task: PartTask, required: number, done: num
  */
 export function shrinkInPlan(
   state: VillageState,
-  plan: YearPlan,
+  plan: FarmSeason,
   part: FieldPart,
   share: number,
   day: number,
 ): void {
   const partsById = new Map(state.parts.map((p) => [p.id, p]));
-  for (const { work } of planCrops(plan)) {
+  for (const { work } of seasonCrops(plan)) {
     if (work.harvestedKg !== null || !work.partIds.includes(part.id)) continue;
     for (const task of PART_TASKS) {
       const span = taskSpans(work, partsById, task, day).find((s) => s.id === part.id);

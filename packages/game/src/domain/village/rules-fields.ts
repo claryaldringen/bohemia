@@ -296,7 +296,7 @@ export const ORCHARD_SEASON = { startMonth: 3, autumnPlantingFromMonth: 9 } as c
 // fields.md – Kolik ves oseje (k 1. září), Práce a Včasnost (sklizeň jaře do konce srpna, ozimu
 // do konce července, výmlat jaře v září). Musí souhlasit s okny: sklizeň je poslední den okna
 // harvest své plodiny, plán den po sklizni jaře, konec výmlatu den po konci okna thresh jaře
-// (hlídá rules.test.ts) – tehdy se zahodí loňský plán u výmlatu (`threshingFromPlan`); snopy, které
+// (hlídá rules.test.ts) – tehdy se zahodí loňský plán u výmlatu (`threshingSeason`); snopy, které
 // výmlat nestihl, zůstávají (Sheaves – mlátí se dál).
 export const HARVEST_DAY = { month: 8, day: 31 } as const;
 export const WINTER_HARVEST_DAY = { month: 7, day: 31 } as const;

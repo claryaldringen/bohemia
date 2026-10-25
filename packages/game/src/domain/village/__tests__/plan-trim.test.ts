@@ -10,7 +10,7 @@ import { FIELD_STORES } from '../rules';
 import { sowingTargets } from '../field-food';
 import { advanceVillage } from '../simulate';
 import type { VillageState } from '../types';
-import { createPlan } from '../year-plan';
+import { createPlan, springCrop } from '../year-plan';
 
 // Zkrácení rozjetého plánu podle zásob (fields.md – Kolik ves oseje, Osev podle zásob).
 
@@ -55,7 +55,7 @@ function withOldPlan(storesKg: number): VillageState {
       p.fallowBeforePlan = { sinceDay: at(590, 9, 1), overgrowthYears: 2 };
     }
   });
-  s.plan = createPlan(s.parts, at(600, 9, 1), NO_CRAFTS.tools);
+  s.season = createPlan(s.parts, at(600, 9, 1), NO_CRAFTS.tools);
   return s;
 }
 
@@ -67,14 +67,14 @@ describe('zkrácení plánu podle zásob', () => {
     const s0 = withOldPlan(600);
     const day = at(601, 3, 1);
     const target = targetOf(s0, day);
-    expect(planEnergyKg(s0, s0.plan!, day)).toBeGreaterThan(target.targetKg * 1.3);
+    expect(planEnergyKg(s0, s0.season!, day)).toBeGreaterThan(target.targetKg * 1.3);
     const s = advanceVillage(s0, day, null);
-    const kept = s.plan!.partIds;
-    expect(kept.length).toBeLessThan(s0.plan!.partIds.length);
+    const kept = springCrop(s.season!).partIds;
+    expect(kept.length).toBeLessThan(springCrop(s0.season!).partIds.length);
     // ubírá se od konce pořadí práce – zbylé díly jsou začátek původního pořadí
-    expect(kept).toEqual(s0.plan!.partIds.slice(0, kept.length));
+    expect(kept).toEqual(springCrop(s0.season!).partIds.slice(0, kept.length));
     // úroda plánu pokryje cíl, s dalším ubraným dílem už ne
-    const energy = planEnergyKg(s, s.plan!, day);
+    const energy = planEnergyKg(s, s.season!, day);
     expect(energy).toBeGreaterThanOrEqual(target.targetKg - 1e-6);
     const removed = s.parts.filter((p) => !kept.includes(p.id));
     for (const part of removed) {
@@ -89,15 +89,15 @@ describe('zkrácení plánu podle zásob', () => {
     const plain = removed.find((p) => p.id === s0.parts[110]!.id);
     if (plain) expect(plain.fallowSinceDay).toBe(at(600, 9, 1));
     // práce ubyla úměrně – plán zkopaný ani zasetý není
-    expect(s.plan!.required.dig).toBeLessThan(s0.plan!.required.dig);
-    expect(s.plan!.done.sow).toBe(0);
+    expect(springCrop(s.season!).required.dig).toBeLessThan(springCrop(s0.season!).required.dig);
+    expect(springCrop(s.season!).done.sow).toBe(0);
   });
 
   it('rozpracovaný a zasetý díl zůstane, čelo práce i vzhled dílů se nepohnou', () => {
     const dug = advanceVillage(withOldPlan(300), at(601, 3, 25), null);
-    const plan = dug.plan!;
-    expect(plan.done.dig).toBeGreaterThan(0);
-    expect(plan.done.sow).toBeGreaterThan(0);
+    const plan = dug.season!;
+    expect(springCrop(plan).done.dig).toBeGreaterThan(0);
+    expect(springCrop(plan).done.sow).toBeGreaterThan(0);
     // ves přišla k velké zásobě – plán podle zásob je skoro nulový
     const rich: VillageState = structuredClone(dug);
     rich.storesKg = 20_000;
@@ -106,19 +106,24 @@ describe('zkrácení plánu podle zásob', () => {
     const trimmed = structuredClone(rich);
     const removed = trimPlanToTarget(trimmed, day, 0, 0);
     expect(removed.length).toBeGreaterThan(0);
-    const after = trimmed.plan!;
+    const after = trimmed.season!;
     // zůstaly díly, na kterých práce začala; hotová práce se nezměnila
-    expect(after.done.dig).toBe(plan.done.dig);
-    expect(after.done.sow).toBe(plan.done.sow);
+    expect(springCrop(after).done.dig).toBe(springCrop(plan).done.dig);
+    expect(springCrop(after).done.sow).toBe(springCrop(plan).done.sow);
     const looksAfter = fieldPartLooks(trimmed, day);
-    for (const id of after.partIds) expect(looksAfter.get(id)).toEqual(looksBefore.get(id));
+    for (const id of springCrop(after).partIds)
+      expect(looksAfter.get(id)).toEqual(looksBefore.get(id));
     // čelo kopání je teď na konci zbylých dílů nebo uvnitř posledního – ubrané díly práci neměly
-    expect(taskPosition(after, 'dig')).toBeGreaterThan(taskPosition(plan, 'dig'));
+    expect(taskPosition(springCrop(after), 'dig')).toBeGreaterThan(
+      taskPosition(springCrop(plan), 'dig'),
+    );
     for (const id of removed) {
       expect(looksBefore.get(id)?.work ?? 0).toBe(0);
       expect(trimmed.parts.find((p) => p.id === id)!.state).toBe('fallow');
     }
-    expect(after.partIds).toEqual(plan.partIds.filter((id) => !removed.includes(id)));
+    expect(springCrop(after).partIds).toEqual(
+      springCrop(plan).partIds.filter((id) => !removed.includes(id)),
+    );
   });
 
   it('ubrané díly čekají v osevu navíc – nejblíž domu první, osévané s léty v řadě', () => {
@@ -130,8 +135,8 @@ describe('zkrácení plánu podle zásob', () => {
     const removed = trimPlanToTarget(s, day, targetOf(s, day).targetKg, 0);
     expect(removed.length).toBeGreaterThan(20);
     // ubírá se od konce – v osevu navíc v opačném pořadí (ve výběru byly před ostatními)
-    expect(s.plan!.extra!.map((e) => e.id)).toEqual([...removed].reverse());
-    for (const entry of s.plan!.extra!) {
+    expect(s.season!.extra!.map((e) => e.id)).toEqual([...removed].reverse());
+    for (const entry of s.season!.extra!) {
       const part = s.parts.find((p) => p.id === entry.id)!;
       expect(part.state).toBe('fallow');
       // díl, který se vracel z přílohu, se z něj vrátí znovu; osévaný se osévá dál
@@ -153,17 +158,17 @@ describe('zkrácení plánu podle zásob', () => {
     const day = at(601, 3, 1);
     const removed = trimPlanToTarget(s, day, targetOf(s, day).targetKg, 0);
     expect(removed.some((id) => tired.has(id))).toBe(true);
-    expect(s.plan!.extra!.length).toBeGreaterThan(0);
-    for (const entry of s.plan!.extra!) expect(tired.has(entry.id)).toBe(false);
+    expect(s.season!.extra!.length).toBeGreaterThan(0);
+    for (const entry of s.season!.extra!) expect(tired.has(entry.id)).toBe(false);
   });
 
   it('plán do cíle s rezervou se nezkrátí', () => {
     const s = withOldPlan(300);
     const day = at(601, 3, 1);
-    const energy = planEnergyKg(s, s.plan!, day);
+    const energy = planEnergyKg(s, s.season!, day);
     expect(trimPlanToTarget(s, day, energy - 1, 2)).toEqual([]);
     expect(trimPlanToTarget(s, day, energy, 0)).toEqual([]);
-    expect(s.plan!.partIds).toHaveLength(133);
+    expect(springCrop(s.season!).partIds).toHaveLength(133);
     const margin = FIELD_STORES.trimMarginYears * targetOf(s, day).needKg;
     expect(margin).toBeGreaterThan(0);
   });

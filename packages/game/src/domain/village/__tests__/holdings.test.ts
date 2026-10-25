@@ -14,7 +14,7 @@ import {
 import { advanceVillage } from '../simulate';
 import { chooseCrops, orchardOnlyLoad } from '../sowing';
 import type { Dwelling, FieldPart, Person, TileCell, VillageState } from '../types';
-import { nearestFirst, planCrops } from '../year-plan';
+import { nearestFirst, seasonCrops, seasonCrop } from '../year-plan';
 
 // Hospodaření podle polohy domů (fields.md; Martin, 18. 10. 2026): díl patří k nejbližšímu domu,
 // hospodářství se dělí na úseky od domu, ves osévá po celých úsecích a práce jde v úseku od domu
@@ -274,8 +274,8 @@ function village(cells = true): { state: VillageState; cellOf: Map<number, TileC
     fields: [{ id: 1 }],
     parts,
     constructions: [],
-    plan: null,
-    threshingFromPlan: null,
+    season: null,
+    threshingSeason: null,
     storesKg: 1500,
     domesticBacklog: 0,
     hungry: false,
@@ -413,7 +413,7 @@ describe('ves hospodaří podle domů', () => {
     // hráč staví – ves oseje jen potřebné, osev navíc ozim nezvětší ani nezmenší
     const [planned] = seasons(building(village()).state, 2).slice(1);
     const holdings = villageHoldings(planned!);
-    for (const { work } of planCrops(planned!.plan!)) {
+    for (const { work } of seasonCrops(planned!.season!)) {
       const sectors = work.partIds.map((id) => holdings.byPart.get(id)!.sector);
       // úseky za sebou bez přerušení
       const seen = new Set<number>();
@@ -432,7 +432,7 @@ describe('ves hospodaří podle domů', () => {
     let state = planned!;
     pin(state, state.lastDay + 1);
     state = advanceVillage(state, at(601, 9, 20), null);
-    const winter = state.plan!.winter!;
+    const winter = seasonCrop(state.season!, 'winter')!;
     const looks = fieldPartLooks(state, state.lastDay);
     const untouched = ['stubble', 'pasture', 'bare'];
     const done = winter.partIds.map((id) => !untouched.includes(looks.get(id)!.look));

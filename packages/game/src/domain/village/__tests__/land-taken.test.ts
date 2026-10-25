@@ -29,8 +29,10 @@ import {
   createCropWork,
   expectedWinterKg,
   partWeight,
-  planPartIds,
+  seasonPartIds,
   tilledShare,
+  seasonCrop,
+  putSeasonCrop,
 } from '../year-plan';
 import { block, clearingRect, makeLandscape } from './placement-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
@@ -108,7 +110,7 @@ describe('giveWayToBuilding – díl pole v plánu osevu', () => {
   it('pozemek na čtverci: díl zmizí z pole, z plánu i z fronty práce – ostatní díly beze změny', () => {
     const base = autumn();
     const day = base.lastDay;
-    const winter = base.plan!.winter!;
+    const winter = seasonCrop(base.season!, 'winter')!;
     const byId = new Map(base.parts.map((p) => [p.id, p]));
     const frontier = frontierPart(winter, byId, 'dig', day)!;
     // hotový díl, čelo kopání a díl, ke kterému práce ještě nedošla
@@ -118,13 +120,13 @@ describe('giveWayToBuilding – díl pole v plánu osevu', () => {
       const before = fieldPartLooks(s, day);
       giveWayToBuilding(s, day, [whole(part.cell!)]);
       expect(partOf(s, id)).toBeUndefined();
-      expect(planPartIds(s.plan!)).not.toContain(id);
+      expect(seasonPartIds(s.season!)).not.toContain(id);
       const after = fieldPartLooks(s, day);
       const others = winter.partIds.filter((x) => x !== id);
       for (const other of others) expect(after.get(other)).toEqual(before.get(other));
       // potřebná práce zbylých dílů úměrná jejich váze, jako před stavbou
       for (const task of ['dig', 'sow', 'weed', 'harvest', 'thresh'] as const) {
-        expect(s.plan!.winter!.required[task] / weight(s, others)).toBeCloseTo(
+        expect(seasonCrop(s.season!, 'winter')!.required[task] / weight(s, others)).toBeCloseTo(
           winter.required[task] / weight(base, winter.partIds),
           9,
         );
@@ -146,7 +148,7 @@ describe('giveWayToBuilding – díl pole v plánu osevu', () => {
   it('zemnice přes dva díly: oba se zmenší o průnik, díl pod prahem zmizí; úroda úměrně', () => {
     const s = advanceVillage(village(), at(601, 6, 30), null);
     const day = s.lastDay;
-    const work = s.plan!.winter!;
+    const work = seasonCrop(s.season!, 'winter')!;
     // zaseto a opleto celé – úroda (při plné sklizni) je úměrná ploše
     expect(work.done.sow).toBeCloseTo(work.required.sow, 9);
     expect(work.done.weed).toBeCloseTo(work.required.weed, 9);
@@ -162,12 +164,12 @@ describe('giveWayToBuilding – díl pole v plánu osevu', () => {
     ]);
     expect(partOf(next, a)!.areaM2).toBeCloseTo(125, 9);
     expect(partOf(next, b)).toBeUndefined(); // zbylo by 35 m² < 45 m²
-    expect(expectedWinterKg(next.plan!.winter!, next.parts, day)).toBeCloseTo(
+    expect(expectedWinterKg(seasonCrop(next.season!, 'winter')!, next.parts, day)).toBeCloseTo(
       kg - (partKg(a) * 100) / CELL - partKg(b),
       9,
     );
-    const ids = next.plan!.winter!.partIds;
-    expect(next.plan!.winter!.required.harvest / weight(next, ids)).toBeCloseTo(
+    const ids = seasonCrop(next.season!, 'winter')!.partIds;
+    expect(seasonCrop(next.season!, 'winter')!.required.harvest / weight(next, ids)).toBeCloseTo(
       work.required.harvest / weight(s, work.partIds),
       9,
     );
@@ -187,13 +189,13 @@ describe('giveWayToBuilding – díl pole v plánu osevu', () => {
   it('sklizená plodina se nemění – úroda je v zásobách, výmlat zůstane', () => {
     const s = advanceVillage(village(), at(601, 8, 15), null);
     const day = s.lastDay;
-    const work: CropWork = structuredClone(s.plan!.winter!);
+    const work: CropWork = structuredClone(seasonCrop(s.season!, 'winter')!);
     expect(work.harvestedKg).not.toBeNull();
     const id = work.partIds[3]!;
     giveWayToBuilding(s, day, [whole(partOf(s, id)!.cell!)]);
-    expect(s.plan!.winter!.required).toEqual(work.required);
-    expect(s.plan!.winter!.done).toEqual(work.done);
-    expect(s.plan!.winter!.partIds).toEqual(work.partIds.filter((x) => x !== id));
+    expect(seasonCrop(s.season!, 'winter')!.required).toEqual(work.required);
+    expect(seasonCrop(s.season!, 'winter')!.done).toEqual(work.done);
+    expect(seasonCrop(s.season!, 'winter')!.partIds).toEqual(work.partIds.filter((x) => x !== id));
   });
 });
 
@@ -202,7 +204,7 @@ describe('giveWayToBuilding – orba rádlem a seč sena', () => {
     const base = advanceVillage(village(), at(600, 9, 2), null);
     const day = base.lastDay;
     const byId = new Map(base.parts.map((p) => [p.id, p]));
-    const ids = base.plan!.winter!.partIds;
+    const ids = seasonCrop(base.season!, 'winter')!.partIds;
     // ozim orá spřežení celý (oxen.md – Jen rádlo), třetí díl je drn louky založené rádlem
     const sod = ids[2]!;
     byId.get(sod)!.sod = true;
@@ -215,7 +217,7 @@ describe('giveWayToBuilding – orba rádlem a seč sena', () => {
     expect(work.plough!.sodIds).toEqual([sod]);
     work.plough!.done = work.plough!.required * 0.4;
     work.done.sow = work.required.sow * tilledShare(work) * 0.5;
-    base.plan!.winter = work;
+    putSeasonCrop(base.season!, { crop: 'winter', ...work });
     for (const id of [ids[1]!, sod]) {
       const s = structuredClone(base);
       const before = fieldPartLooks(s, day);
@@ -223,20 +225,20 @@ describe('giveWayToBuilding – orba rádlem a seč sena', () => {
       const after = fieldPartLooks(s, day);
       const rest = ids.filter((x) => x !== id);
       for (const other of rest) expect(after.get(other)).toEqual(before.get(other));
-      const plough = s.plan!.winter!.plough!;
+      const plough = seasonCrop(s.season!, 'winter')!.plough!;
       expect(plough.partIds).not.toContain(id);
       expect(plough.sodIds ?? []).not.toContain(id);
       // váha orby = váha zbylých dílů, kopání plodina nemá
       const restWeight = rest.reduce((sum, x) => sum + partWeight(partOf(s, x)!), 0);
       expect(plough.weight).toBeCloseTo(restWeight, 9);
       expect(plough.digWeight).toBeUndefined();
-      expect(s.plan!.winter!.required.dig).toBe(0);
+      expect(seasonCrop(s.season!, 'winter')!.required.dig).toBe(0);
     }
   });
 
   it('díl úhoru v seči: zmizí ze seče, zmenšenému ubude práce i seno; seč ostatních stojí', () => {
     const s = advanceVillage(village(), at(600, 9, 2), null);
-    s.plan = null;
+    s.season = null;
     for (const p of s.parts) {
       p.state = 'fallow';
       p.fallowSinceDay = at(595, 9, 1);
@@ -397,7 +399,7 @@ describe('startNewDwelling – pole ustoupí stavbě', () => {
   it('po stavbě na poli dopočet po kouscích s JSON dá stejný stav', () => {
     const s = settled(advanceVillage(village(), at(601, 6, 30), null));
     const day = s.lastDay;
-    const [a, b] = s.plan!.winter!.partIds as [number, number];
+    const [a, b] = seasonCrop(s.season!, 'winter')!.partIds as [number, number];
     const built = startNewDwelling(s, day, 'zemnice', { x: 0, z: 0, rotation: 0 }, 0, [], {
       takenLand: [
         { cell: partOf(s, a)!.cell!, areaM2: 57.12, cellAreaM2: CELL },

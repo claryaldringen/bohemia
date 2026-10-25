@@ -10,9 +10,9 @@ import type {
   LordHelp,
   LordHelpWindow,
   TaskName,
-  YearPlan,
+  FarmSeason,
 } from './types';
-import { emptyTaskRecord, partWork, ploughRemaining, type PartWork } from './year-plan';
+import { emptyTaskRecord, partWork, ploughRemaining, seasonCrop, type PartWork } from './year-plan';
 
 // Kolik ozimu a kolik jaře ves oseje (fields.md – Ozim a jař, Kolik ves oseje). Ves vybírá díly
 // v pořadí přílohové soustavy, dokud nepokryje cíl osevu; každý díl dá do ozimu, pokud ho
@@ -135,13 +135,15 @@ function remaining(work: CropWork | undefined): PartWork {
 }
 
 /** Zátěž z rozběhnutého plánu (zbytek práce ozimu, jaře, luštěnin a lnu) a ze sklizně jablek. */
-export function planLoad(plan: YearPlan | null, orchardAutumn: number): SowingLoad {
+export function planLoad(plan: FarmSeason | null, orchardAutumn: number): SowingLoad {
   return {
     orchardAutumn,
-    winter: remaining(plan?.winter),
-    spring: remaining(plan ?? undefined),
-    ...(plan?.legume ? { legume: remaining(plan.legume) } : {}),
-    ...(plan?.flax ? { flax: remaining(plan.flax) } : {}),
+    winter: remaining(plan ? seasonCrop(plan, 'winter') : undefined),
+    spring: remaining(plan ? seasonCrop(plan, 'spring') : undefined),
+    ...(plan && seasonCrop(plan, 'legume')
+      ? { legume: remaining(seasonCrop(plan, 'legume')) }
+      : {}),
+    ...(plan && seasonCrop(plan, 'flax') ? { flax: remaining(seasonCrop(plan, 'flax')) } : {}),
   };
 }
 
@@ -689,11 +691,11 @@ export function lordSowingHelp(
 }
 
 /**
- * Podíl dnešního dne, který muži cvičící rodiny dají potřebnému osevu (`YearPlan.lordHelp`,
+ * Podíl dnešního dne, který muži cvičící rodiny dají potřebnému osevu (`FarmSeason.lordHelp`,
  * lord.md – Kdy jde rodina na pole, bod 1): nejvyšší podíl oken, do kterých dnešek padne. Mimo
  * okna (zima, květen–červen) a v plánu bez pomoci (i u starších vsí) 0.
  */
-export function lordHelpShare(plan: YearPlan | null, day: number): number {
+export function lordHelpShare(plan: FarmSeason | null, day: number): number {
   const help = plan?.lordHelp;
   if (!help) return 0;
   const { month } = dateOfDayIndex(day);

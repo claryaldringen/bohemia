@@ -31,7 +31,7 @@ import { withPlots } from '../plots';
 import { advanceVillage } from '../simulate';
 import { summarizeVillage } from '../summary';
 import type { Craft, Person, VillageState } from '../types';
-import { planCrops } from '../year-plan';
+import { seasonCrops } from '../year-plan';
 import { makeLandscape } from './placement-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
@@ -356,7 +356,7 @@ describe('pokrytí a meze produktivity (crafts.md – Účinek)', () => {
       }
       founded.done = founded.cost;
       const after = advanceVillage(s, at(600, 9, 1), null);
-      const crops = planCrops(after.plan!);
+      const crops = seasonCrops(after.season!);
       const dig = crops.reduce((sum, c) => sum + c.work.required.dig, 0);
       const sow = crops.reduce((sum, c) => sum + c.work.required.sow, 0);
       return dig / sow;

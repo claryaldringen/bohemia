@@ -108,10 +108,12 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
       // hash 1661516a (25. 10. 2026): stáda jen na seno, které ves stihne posekat (oxen.md – Stáda
       // podle práce na seč) – zápis volné práce na seč, menší stáda po první sezóně, otava se
       // stropem práce, nouzová porážka ovce před kravami
+      // hash 39b51dd8 (25. 10. 2026): jen přejmenování plánu na hospodářský rok (`season`, `crops`) –
+      // bez klíčů `plan` a `season` zůstal 46b42f4f
     ]);
     const stripped = JSON.stringify(legacyShape(next), (key, value: unknown) =>
       marks.has(key) ? undefined : value,
     );
-    expect(hash(stripped)).toBe('1661516a');
+    expect(hash(stripped)).toBe('39b51dd8');
   }, 120_000);
 });

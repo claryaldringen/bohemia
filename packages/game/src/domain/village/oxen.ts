@@ -27,7 +27,7 @@ import type {
 } from './types';
 import type { Walk } from './paths/walking';
 import { claimedObstacles, planWoodFrom, takeWood, woodLogs, type WoodPlan } from './wood';
-import { planCrops, ploughToHoe } from './year-plan';
+import { seasonCrops, ploughToHoe } from './year-plan';
 
 // Ohrada volů a orba rádlem (oxen.md, schváleno 18. 10. 2026; voli po kusech – Martin 20. 10. 2026:
 // „Ať to funguje jako se stády - ohrada pro voly udrží určitý počet spřežení a když bude vesnice
@@ -247,8 +247,8 @@ export function oxAgeYears(ox: Pick<Ox, 'trainedDay'>, day: number): number | nu
  * stav; oxen.md – Jen rádlo). Jen letos: plán k 1. 9. už vznikne bez orby.
  */
 function finishPlanByHoe(state: VillageState, day: number, toolCoverage: number): void {
-  if (!state.plan || ableTeams(state, day) > 0) return;
-  const crops = planCrops(state.plan);
+  if (!state.season || ableTeams(state, day) > 0) return;
+  const crops = seasonCrops(state.season);
   if (!crops.some(({ work }) => work.plough)) return;
   const partsById = new Map(state.parts.map((p) => [p.id, p]));
   for (const { crop, work } of crops) ploughToHoe(work, partsById, toolCoverage, crop);

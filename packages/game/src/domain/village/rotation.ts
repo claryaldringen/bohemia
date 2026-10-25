@@ -18,7 +18,7 @@ import { sideCropOrder, type SideCrop } from './sowing';
 import type { Crop, FieldPart, VillageState } from './types';
 import { logsFromClearedTrees } from './wood';
 import { woodMatureShare, woodTreesOnArea } from './woods';
-import { planCrops, windowEndOf } from './year-plan';
+import { seasonCrops, windowEndOf } from './year-plan';
 
 // Osevní postup po dílech a setí do konce okna (fields.md, 25. 10. 2026 – návrh Clauda, Martin:
 // „Ano“; k dílu, který nestihl ozim: „Jestli bude možné mu dát ozim, ať dostane ozim.“). Ves nemá
@@ -201,8 +201,8 @@ function seasonOf(
   day: number,
 ): SeasonWork {
   const season: SeasonWork = { energyKg: 0, legumeKg: 0, flaxKg: 0, ids: new Set(), untouched: [] };
-  if (!state.plan) return season;
-  for (const { crop, work } of planCrops(state.plan)) {
+  if (!state.season) return season;
+  for (const { crop, work } of seasonCrops(state.season)) {
     for (const id of work.partIds) season.ids.add(id);
     if (work.harvestedKg !== null) continue;
     const grain = crop === 'winter' || crop === 'spring';

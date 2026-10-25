@@ -9,7 +9,8 @@ import type {
   ExtraTask,
   FieldPart,
   VillageState,
-  YearPlan,
+  FarmSeason,
+  SeasonCrop,
 } from './types';
 import { addLogs } from './wood';
 import {
@@ -18,6 +19,10 @@ import {
   addToCropWork,
   createCropWork,
   cropTaskDone,
+  dropSeasonCrop,
+  putSeasonCrop,
+  seasonCrop,
+  springCrop,
   partWeight,
   partWork,
   cropTaskRemaining,
@@ -29,7 +34,7 @@ import {
 // Osev navíc (fields.md – Kolik ves oseje, Osev navíc; Martin 19. 10. 2026: „Vesničané se snaží
 // vyrobit co nejvíce jídla (později přibudou nejspíš i jiné suroviny), ale pokud se něco staví, tak
 // čas věnují primárně té stavbě – zemědělství jenom natolik, aby vesnice neměla hlad.“). Potřebný
-// osev je plán k 1. 9. (`chooseCrops`); ostatní díly, které ves smí osít, čekají v `YearPlan.extra`
+// osev je plán k 1. 9. (`chooseCrops`); ostatní díly, které ves smí osít, čekají v `FarmSeason.extra`
 // v pořadí výběru a dostanou jen práci, která zbude po stavbách – jen obilí. Díl, na kterém práce
 // začala, patří k ozimu nebo jaři plánu jako potřebný (setí, pletí, sklizeň i výmlat mají přednost).
 
@@ -75,7 +80,11 @@ export function extraPartsOf(parts: readonly FieldPart[]): ExtraPart[] {
  * Přidá díly do osevu navíc (mutuje plán) – na začátek (`front`, ubrané z plánu: ve výběru byly
  * před ostatními), nebo na konec; díl, který na seznamu už je, se nepřidá.
  */
-export function queueExtraParts(plan: YearPlan, parts: readonly ExtraPart[], front = false): void {
+export function queueExtraParts(
+  plan: FarmSeason,
+  parts: readonly ExtraPart[],
+  front = false,
+): void {
   const queued = new Set((plan.extra ?? []).map((e) => e.id));
   const added = parts.filter((e) => !queued.has(e.id));
   if (added.length === 0) return;
@@ -83,7 +92,7 @@ export function queueExtraParts(plan: YearPlan, parts: readonly ExtraPart[], fro
 }
 
 /** Díly, které ves zařadila do potřebného osevu, z osevu navíc zmizí (mutuje plán). */
-export function unqueueExtraParts(plan: YearPlan, ids: ReadonlySet<number>): void {
+export function unqueueExtraParts(plan: FarmSeason, ids: ReadonlySet<number>): void {
   if (!plan.extra) return;
   const left = plan.extra.filter((e) => !ids.has(e.id));
   if (left.length > 0) plan.extra = left;
@@ -208,15 +217,15 @@ function extraLeftOf(work: CropWork, task: ExtraTask): number {
  * (wagons.md – Co vozy vozí). Stejné podmínky jako začátek `extraSowingDay` (bez práce dne).
  */
 export function extraSowingWantsTeam(state: VillageState, day: number): boolean {
-  const plan = state.plan;
+  const plan = state.season;
   if (!plan) return false;
   const month = dateOfDayIndex(day).month;
   if (month >= CLOSED_MONTHS[0] && month <= CLOSED_MONTHS[1]) return false;
   const crop = extraSowingCrop(day);
   if (crop === null) return false;
-  const existing = crop === 'winter' ? (plan.winter ?? null) : plan;
+  const existing = seasonCrop(plan, crop) ?? null;
   if (!plan.extra && !existing?.extraLeft) return false;
-  return (existing ?? plan).plough !== undefined;
+  return (existing ?? springCrop(plan)).plough !== undefined;
 }
 
 /**
@@ -234,21 +243,21 @@ export function extraSowingDay(
   input: ExtraSowingInput,
 ): { fieldWork: ExtraFieldWork[]; labor: number } {
   const none = { fieldWork: [], labor: 0 };
-  const plan = state.plan;
+  const plan = state.season;
   if (!plan) return none;
   const month = dateOfDayIndex(day).month;
   if (month >= CLOSED_MONTHS[0] && month <= CLOSED_MONTHS[1]) {
     // po dubnu osev navíc nezačne ani se nedokope – zbylé díly leží ladem do dalšího plánu
     delete plan.extra;
-    for (const work of [plan, plan.winter]) if (work) delete work.extraLeft;
+    for (const work of plan.crops) delete work.extraLeft;
     return none;
   }
   const crop = extraSowingCrop(day);
   if (crop === null || input.labor <= EPSILON) return none;
-  const existing = crop === 'winter' ? (plan.winter ?? null) : plan;
+  const existing = seasonCrop(plan, crop) ?? null;
   if (!plan.extra && !existing?.extraLeft) return none;
   // ves se spřežením orá všechno (oxen.md – Jen rádlo): plodina se buď celá orá, nebo celá kope
-  const ploughs = (existing ?? plan).plough !== undefined;
+  const ploughs = (existing ?? springCrop(plan)).plough !== undefined;
   if (ploughs && input.ploughCap <= EPSILON) return none;
   const reclaimOpen = windowOpen(crop, 'reclaim', day);
   const till: ExtraTask = ploughs ? 'plough' : 'dig';
@@ -294,9 +303,11 @@ export function extraSowingDay(
     return none;
   }
 
-  const work =
-    existing ?? createCropWork([], day, input.toolCoverage, ploughs, input.order(), crop);
-  if (!existing) plan.winter = work;
+  const work: SeasonCrop = existing ?? {
+    crop,
+    ...createCropWork([], day, input.toolCoverage, ploughs, input.order(), crop),
+  };
+  if (!existing) putSeasonCrop(plan, work);
   const snapshots = picked.map((p) => snapshotOf(p.part));
   if (picked.length > 0) {
     addToCropWork(
@@ -348,7 +359,7 @@ export function extraSowingDay(
   }
   for (const p of unstarted) waiting.add(p.entry.id);
   if (!existing && work.partIds.length === 0) {
-    delete plan.winter;
+    dropSeasonCrop(plan, 'winter');
   } else {
     // příprava půdy začatých dílů navíc dál čeká na volnou práci – potřebná práce zůstala
     const extraLeft: Partial<Record<ExtraTask, number>> = {};

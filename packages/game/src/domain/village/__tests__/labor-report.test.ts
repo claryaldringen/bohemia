@@ -46,7 +46,7 @@ function bare(day: number): VillageState {
   s.parts = [];
   s.fields = [];
   s.constructions = [];
-  s.plan = null;
+  s.season = null;
   s.storesKg = 5000;
   return s;
 }

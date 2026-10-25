@@ -6,7 +6,7 @@ import { expectedNetKg, grossYieldPerHa, isEmergencyFallow, isSowableFertility }
 import { FERTILITY, SEED_KG_PER_HA } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { FieldPart, VillageState } from '../types';
-import { planPartIds } from '../year-plan';
+import { seasonPartIds, seasonCrop } from '../year-plan';
 
 // Nouzový osev (fields.md – Přílohová soustava, Nouzový osev; Martin 19. 10. 2026): když díly od
 // 70 % nepokryjí potřebný osev, ves smí osít i příloh pod 70 % – nejvíc zotavený první.
@@ -73,8 +73,8 @@ describe('nouzový osev přílohu pod 70 %', () => {
 
   it('ves, které díly od 70 % nestačí, oseje příloh pod 70 % – nejvíc zotavený první', () => {
     const planned = advanceVillage(poorVillage(10, 0), at(600, 9, 1), null);
-    const plan = planned.plan!;
-    const inPlan = new Set(planPartIds(plan));
+    const plan = planned.season!;
+    const inPlan = new Set(seasonPartIds(plan));
     const byId = new Map(planned.parts.map((p) => [p.id, p]));
     // osévané díly od 70 % jsou v plánu všechny
     for (const p of planned.parts.slice(0, 10)) expect(inPlan.has(p.id)).toBe(true);
@@ -86,7 +86,10 @@ describe('nouzový osev přílohu pod 70 %', () => {
     const highestLeft = Math.max(...left.map((p) => p.fertilityShare));
     expect(lowestChosen).toBeGreaterThanOrEqual(highestLeft - 1e-9);
     // jen obilí – luštěniny a len na nouzový příloh nejdou
-    for (const id of [...(plan.legume?.partIds ?? []), ...(plan.flax?.partIds ?? [])]) {
+    for (const id of [
+      ...(seasonCrop(plan, 'legume')?.partIds ?? []),
+      ...(seasonCrop(plan, 'flax')?.partIds ?? []),
+    ]) {
       expect(isEmergency(byId.get(id)!)).toBe(false);
     }
     // osev navíc nouzový příloh nebere
@@ -105,7 +108,7 @@ describe('nouzový osev přílohu pod 70 %', () => {
     empty.areaM2 = 0;
     expect(expectedNetKg(empty, at(600, 9, 1))).toBe(0);
     const planned = advanceVillage(s, at(600, 9, 1), null);
-    const inPlan = new Set(planPartIds(planned.plan!));
+    const inPlan = new Set(seasonPartIds(planned.season!));
     expect(inPlan.has(empty.id)).toBe(false);
     expect(planned.parts.some((p) => inPlan.has(p.id) && isEmergency(p))).toBe(true);
   }, 60_000);
@@ -131,7 +134,7 @@ describe('nouzový osev přílohu pod 70 %', () => {
     const ready = fallows[30]!;
     ready.fertilityShare = 0.4 - FERTILITY.fallowRecovery;
     const planned = advanceVillage(s, at(600, 9, 1), null);
-    const inPlan = new Set(planPartIds(planned.plan!));
+    const inPlan = new Set(seasonPartIds(planned.season!));
     const byId = new Map(planned.parts.map((p) => [p.id, p]));
     expect(byId.get(ready.id)!.fertilityShare).toBeCloseTo(0.4, 9);
     expect(inPlan.has(ready.id)).toBe(true);
@@ -142,7 +145,7 @@ describe('nouzový osev přílohu pod 70 %', () => {
 
   it('ves, které díly od 70 % stačí, nouzový příloh neoseje', () => {
     const planned = advanceVillage(poorVillage(100, 3_000), at(600, 9, 1), null);
-    const inPlan = new Set(planPartIds(planned.plan!));
+    const inPlan = new Set(seasonPartIds(planned.season!));
     expect(inPlan.size).toBeGreaterThan(0);
     expect(planned.parts.some((p) => inPlan.has(p.id) && isEmergency(p))).toBe(false);
   }, 60_000);

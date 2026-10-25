@@ -37,10 +37,12 @@ import {
   createPlan,
   partWeight,
   partWork,
-  planCrops,
-  planPartIds,
+  seasonCrops,
+  seasonPartIds,
   ploughToHoe,
   tilledShare,
+  seasonCrop,
+  springCrop,
 } from '../year-plan';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
@@ -600,13 +602,13 @@ describe('orba rádlem', () => {
     s.storesKg = 300;
     // 1. 9. – plán osevu a první den orby (setí jde za zoranou částí od dalšího dne)
     const sept = advanceVillage(s, at(600, 9, 1), null);
-    const plan = sept.plan!;
+    const plan = sept.season!;
     expect(plan.ard).toBe(true);
-    for (const { work } of planCrops(plan)) {
+    for (const { work } of seasonCrops(plan)) {
       expect(work.plough!.partIds).toEqual(work.partIds);
       expect(work.required.dig).toBe(0);
     }
-    expect(planPartIds(plan).length).toBeGreaterThan(0);
+    expect(seasonPartIds(plan).length).toBeGreaterThan(0);
     const ploughShares = sept.labor!.shares.filter((share) => share.activity === 'plough');
     expect(ploughShares.length).toBeGreaterThan(0);
     expect(sept.labor!.shares.some((share) => share.activity === 'dig')).toBe(false);
@@ -695,15 +697,15 @@ describe('orba rádlem', () => {
     s.parts = Array.from({ length: 4 }, (_, i) =>
       part(i + 1, { areaM2: 2250, distanceM: 100 + i, cell: { x: i, y: 0 } }),
     );
-    s.plan = createPlan(s.parts, at(600, 9, 1), 0, true);
+    s.season = createPlan(s.parts, at(600, 9, 1), 0, true);
     s.hay = { kg: 0, mowing: null, winter: { oxenNeedKg: 2400, oxenEatenKg: 0 } };
     const spring = advanceVillage(s, at(601, 3, 1), null);
     expect(spring.pens![0]!.oxen).toEqual([]);
     expect(spring.chronicle.some((e) => e.kind === 'ox-died')).toBe(true);
     // jaro kopou motyky – plán orbu nemá, ves letos ale orala (kulaté rohy zůstanou)
-    expect(spring.plan!.plough).toBeUndefined();
-    expect(spring.plan!.required.dig).toBeGreaterThan(0);
-    expect(spring.plan!.ard).toBe(true);
+    expect(springCrop(spring.season!).plough).toBeUndefined();
+    expect(springCrop(spring.season!).required.dig).toBeGreaterThan(0);
+    expect(spring.season!.ard).toBe(true);
     // uhynulí voli na maso nejdou (voli po kusech – oxen.md); na jaře kopou
     const later = advanceVillage(spring, at(601, 3, 6), null);
     expect(later.labor!.shares.some((share) => share.activity === 'dig')).toBe(true);
@@ -765,10 +767,10 @@ describe('dopočet a staré vsi', () => {
     expect(retired.day).toBeGreaterThan(at(600, 9, 1));
     // letošní plán po odchodu spřežení kopala motyka, další plán už orbu nemá
     const october = advanceVillage(s, retired.day, null);
-    expect(october.plan!.ard).toBe(true);
-    expect(planCrops(october.plan!).some(({ work }) => work.plough)).toBe(false);
-    expect(whole.plan!.ard).toBeUndefined();
-    expect(planCrops(whole.plan!).some(({ work }) => work.plough)).toBe(false);
+    expect(october.season!.ard).toBe(true);
+    expect(seasonCrops(october.season!).some(({ work }) => work.plough)).toBe(false);
+    expect(whole.season!.ard).toBeUndefined();
+    expect(seasonCrops(whole.season!).some(({ work }) => work.plough)).toBe(false);
   });
 
   it('ves s plánem z doby, kdy rádlo nebralo drn: plán doběhne, od 1. 9. orá všechno', () => {
@@ -781,10 +783,10 @@ describe('dopočet a staré vsi', () => {
     // starý plán: spřežení oralo první čtyři díly, poslední dva kopala motyka (jeden vrácený)
     const plan = createPlan(s.parts, at(600, 9, 1), 0, false);
     const ploughed = createCropWork(s.parts.slice(0, 4), at(600, 9, 1), 0, true).plough!;
-    plan.plough = { ...ploughed, digWeight: 2 * partWeight(s.parts[4]!) };
-    plan.required.dig = 2 * 100 * partWeight(s.parts[4]!);
-    (plan.plough as { returned?: number[] }).returned = [6];
-    s.plan = JSON.parse(JSON.stringify(plan)) as typeof plan;
+    springCrop(plan).plough = { ...ploughed, digWeight: 2 * partWeight(s.parts[4]!) };
+    springCrop(plan).required.dig = 2 * 100 * partWeight(s.parts[4]!);
+    (springCrop(plan).plough as { returned?: number[] }).returned = [6];
+    s.season = JSON.parse(JSON.stringify(plan)) as typeof plan;
     s.storesKg = 300;
     // seno na zimu – voli přežijí a orají dál
     s.hay = { kg: 20_000, mowing: null };
@@ -796,10 +798,13 @@ describe('dopočet a staré vsi', () => {
     expect(chunked).toEqual(whole);
     // jaro: kopání starého plánu doběhlo
     const spring = advanceVillage(s, at(601, 5, 1), null);
-    expect(spring.plan!.done.dig).toBeCloseTo(spring.plan!.required.dig, 6);
+    expect(springCrop(spring.season!).done.dig).toBeCloseTo(
+      springCrop(spring.season!).required.dig,
+      6,
+    );
     // nový plán orá všechno
-    expect(whole.plan!.ard).toBe(true);
-    for (const { work } of planCrops(whole.plan!)) {
+    expect(whole.season!.ard).toBe(true);
+    for (const { work } of seasonCrops(whole.season!)) {
       expect(work.plough!.partIds).toEqual(work.partIds);
       expect(work.required.dig).toBe(0);
     }
@@ -810,14 +815,17 @@ describe('dopočet a staré vsi', () => {
     const s = village(day);
     s.fields = [{ id: 1 }];
     s.parts = [part(1, { areaM2: 2250, cell: { x: 0, y: 0 } })];
-    s.plan = { plannedDay: at(600, 9, 1), ...createCropWork(s.parts, at(600, 9, 1), 0) };
+    s.season = {
+      startDay: at(600, 9, 1),
+      crops: [{ crop: 'spring', ...createCropWork(s.parts, at(600, 9, 1), 0) }],
+    };
     delete s.livestock;
     delete s.meatKg;
     delete s.hay;
     delete s.pens;
     delete s.diet;
     const json = JSON.parse(JSON.stringify(s)) as VillageState;
-    expect(json.plan!.plough).toBeUndefined();
+    expect(springCrop(json.season!).plough).toBeUndefined();
     const next = advanceVillage(json, at(601, 9, 2), null);
     expect(next.livestock).toBeDefined();
     expect(next.diet).toBeDefined();
@@ -846,7 +854,7 @@ describe('kopie stavu', () => {
     s.cheeseKg = 20;
     const state = advanceVillage(s, at(600, 11, 20), null);
     // orba s drnem, zimní seno a porážka – všechna nová pole stavu jsou vyplněná
-    const work = state.plan!.winter ?? state.plan!;
+    const work = seasonCrop(state.season!, 'winter') ?? springCrop(state.season!);
     work.plough ??= { partIds: [1], required: 1, done: 0, weight: 0.1 };
     work.plough.sodIds = [2];
     expect(state.livestock?.slaughterWork).toBeDefined();
@@ -863,6 +871,8 @@ describe('kopie stavu', () => {
     expect(state.livestock!.herds.sheep).not.toBe(999);
     expect(state.pens![0]!.oxen![0]!.trainedDay).not.toBe(-1);
     expect(state.hay!.winter!.oxenEatenKg).not.toBe(-1);
-    expect((copy.plan!.winter ?? copy.plan!).plough!.sodIds).toEqual([2]);
+    expect((seasonCrop(copy.season!, 'winter') ?? springCrop(copy.season!)).plough!.sodIds).toEqual(
+      [2],
+    );
   });
 });

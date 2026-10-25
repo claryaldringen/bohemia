@@ -16,7 +16,7 @@ import { advanceVillage } from '../simulate';
 import type { DayTask } from '../simulate-plan';
 import { dayTaskOrder } from '../simulate-work';
 import type { FieldPart, VillageState } from '../types';
-import { createCropWork } from '../year-plan';
+import { createCropWork, seasonCrop, springCrop } from '../year-plan';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
 // Co nejdelší brázda (oxen.md; Martin, 19. 10. 2026: „Volské spřežení chce rýt co nejdelší
@@ -210,8 +210,8 @@ describe('výkon spřežení za den', () => {
     expect(factor(long)).toBeGreaterThan(2 * factor(scattered));
     // ves s dlouhým polem orá: plán orby jde po pásech a zorané díly pásu postupují spolu
     const s = advanceVillage(village(long), DAY + 3, null);
-    const plan = s.plan!;
-    const crop = plan.winter ?? plan;
+    const plan = s.season!;
+    const crop = seasonCrop(plan, 'winter') ?? springCrop(plan);
     expect(crop.plough!.bands!.length).toBeGreaterThan(0);
     const looks = fieldPartLooks(s, s.lastDay);
     const band = crop.plough!.bands![0]!;
@@ -227,15 +227,15 @@ describe('výkon spřežení za den', () => {
     const s = village(parts);
     const byId = new Map(parts.map((p) => [p.id, p]));
     const work = createCropWork(parts, DAY, 0, true, undefined, 'spring');
-    s.plan = { plannedDay: DAY, ard: true, ...work };
-    const plough = s.plan.plough!;
+    s.season = { startDay: DAY, ard: true, crops: [{ crop: 'spring', ...work }] };
+    const plough = springCrop(s.season).plough!;
     // výjezd z ohrady – cesta jen tam (bez krajiny chůze k dílu), stav se ráno nemění
     const travels: PloughTravels = new Map();
-    const first = ploughDayFactor(s, DAY, s.plan, byId, null, null, travels);
+    const first = ploughDayFactor(s, DAY, springCrop(s.season), byId, null, null, travels);
     expect(first).toBeCloseTo(furrowEfficiency(60) * travelShare(60), 12);
     expect(plough.trip).toBeUndefined();
     // druhé volání téhož dne vrátí totéž
-    expect(ploughDayFactor(s, DAY, s.plan, byId, null, null, travels)).toBe(first);
+    expect(ploughDayFactor(s, DAY, springCrop(s.season), byId, null, null, travels)).toBe(first);
     // den bez orby – spřežení nevyjede
     settlePloughTeams(s, DAY, travels, false);
     expect(plough.trip).toBeUndefined();
@@ -245,7 +245,7 @@ describe('výkon spřežení za den', () => {
     expect(plough.trip).toEqual({ block: 0, costM: 60, arrived: { day: DAY, from: null } });
     // další den na poli – žádná cesta
     const stay: PloughTravels = new Map();
-    expect(ploughDayFactor(s, DAY + 1, s.plan, byId, null, null, stay)).toBeCloseTo(
+    expect(ploughDayFactor(s, DAY + 1, springCrop(s.season), byId, null, null, stay)).toBeCloseTo(
       furrowEfficiency(60),
       12,
     );
@@ -255,7 +255,7 @@ describe('výkon spřežení za den', () => {
     // přesun k dalšímu bloku – cesta od bloku k bloku (bez krajiny rozdíl vzdáleností od vsi)
     plough.done = plough.required * 0.75;
     const move: PloughTravels = new Map();
-    const moved = ploughDayFactor(s, DAY + 2, s.plan, byId, null, null, move);
+    const moved = ploughDayFactor(s, DAY + 2, springCrop(s.season), byId, null, null, move);
     expect(moved).toBeCloseTo(furrowEfficiency(60) * travelShare(540), 12);
     plough.done = plough.required * 0.8;
     settlePloughTeams(s, DAY + 2, move, false);
@@ -272,8 +272,8 @@ describe('výkon spřežení za den', () => {
     const parts = rect(1, 0, 0, 4, 1);
     const s = village(parts);
     const work = createCropWork(parts, DAY, 0, true, undefined, 'spring');
-    s.plan = { plannedDay: DAY, ard: true, ...work };
-    const plough = s.plan.plough!;
+    s.season = { startDay: DAY, ard: true, crops: [{ crop: 'spring', ...work }] };
+    const plough = springCrop(s.season).plough!;
     plough.trip = { block: 0, costM: 60 };
     // starší ves – spřežení u bloku (bez příjezdu), je na poli
     expect(ploughTeamsAfield(s)).toBe(true);
@@ -291,7 +291,7 @@ describe('výkon spřežení za den', () => {
   it('ves orá: spřežení vyjede první den orby, zůstane na poli; dopočet najednou = po kouscích', () => {
     const s = village(rect(1, 0, 0, 8, 2));
     const whole = advanceVillage(s, DAY + 6, null);
-    const crop = whole.plan!.winter ?? whole.plan!;
+    const crop = seasonCrop(whole.season!, 'winter') ?? springCrop(whole.season!);
     expect(crop.plough!.done).toBeGreaterThan(0);
     expect(crop.plough!.trip!.arrived).toEqual({ day: DAY, from: null });
     let pieces = s;
@@ -322,8 +322,8 @@ describe('výkon spřežení za den', () => {
     const parts = rect(1, 0, 0, 8, 2);
     const s = village(parts, april);
     const work = createCropWork(parts, april, 0, true, undefined, 'spring');
-    s.plan = { plannedDay: april - 20, ard: true, ...work };
-    s.plan.plough!.done = s.plan.plough!.required * 0.3;
+    s.season = { startDay: april - 20, ard: true, crops: [{ crop: 'spring', ...work }] };
+    springCrop(s.season).plough!.done = springCrop(s.season).plough!.required * 0.3;
     // víc rukou, ať mají osev i orba z čeho brát
     const adult = s.people.find((p) => p.bornDay < april - 18 * 365)!;
     for (let i = 0; i < 12; i++)
@@ -355,12 +355,12 @@ describe('výkon spřežení za den', () => {
     const parts = rect(1, 0, 0, 4, 1);
     const s = village(parts);
     const work = createCropWork(parts, DAY, 0, true, undefined, 'spring');
-    s.plan = { plannedDay: DAY, ard: true, ...work };
-    s.plan.plough!.trip = { block: 0, costM: 60 };
+    s.season = { startDay: DAY, ard: true, crops: [{ crop: 'spring', ...work }] };
+    springCrop(s.season).plough!.trip = { block: 0, costM: 60 };
     expect(ploughTeamsAfield(s, DAY)).toBe(true);
     expect(ploughTeamsAfield(s, at(601, 1, 15))).toBe(false);
     // s příjezdem je na poli, dokud se večer nevrátí domů
-    s.plan.plough!.trip = { block: 0, costM: 60, arrived: { day: DAY, from: null } };
+    springCrop(s.season).plough!.trip = { block: 0, costM: 60, arrived: { day: DAY, from: null } };
     expect(ploughTeamsAfield(s, at(601, 1, 15))).toBe(true);
   });
 
@@ -396,11 +396,11 @@ describe('zoraná zem jen kam došla orba (Martin, 19. 10. 2026)', () => {
     // vrácení křovin (lidé) hotové, orba nezačala: díl není zoraný
     const s = {
       parts,
-      plan: { plannedDay: DAY, ard: true as const, ...work },
+      plan: { startDay: DAY, ard: true as const, ...work },
     } as unknown as VillageState;
     for (const p of parts) p.state = 'sown';
     work.done.reclaim = work.required.reclaim;
-    const looks = fieldPartLooks({ ...s, threshingFromPlan: null } as VillageState, DAY + 1);
+    const looks = fieldPartLooks({ ...s, threshingSeason: null } as VillageState, DAY + 1);
     for (const p of parts) expect(looks.get(p.id)!.look).not.toBe('plowed');
   });
 });

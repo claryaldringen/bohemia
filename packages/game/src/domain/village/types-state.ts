@@ -2,7 +2,7 @@
 // Rozcestník je `types.ts`; tento soubor jen drží část typů.
 
 import type { ChronicleEvent, LaborDay } from './types-chronicle';
-import type { Construction, SacredBuildingKind, YearPlan } from './types-construction';
+import type { Construction, SacredBuildingKind, FarmSeason } from './types-construction';
 import type {
   Cart,
   CharcoalUse,
@@ -65,8 +65,8 @@ export interface VillageState {
   fields: Field[];
   parts: FieldPart[];
   constructions: Construction[];
-  plan: YearPlan | null;
-  threshingFromPlan: YearPlan | null;
+  season: FarmSeason | null;
+  threshingSeason: FarmSeason | null;
   storesKg: number;
   /**
    * Nedodělek domácí výroby – jen ve vsích uložených před 19. 10. 2026; domácí výroba z práce

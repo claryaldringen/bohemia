@@ -21,7 +21,7 @@ import {
 import { TAKEN_LAND_TREE_M2 } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { ChronicleEvent, LandTaker, TileCell, VillageState } from '../types';
-import { createCropWork, planPartIds } from '../year-plan';
+import { createCropWork, seasonPartIds, seasonCrop, putSeasonCrop } from '../year-plan';
 import { block, makeLandscape } from './placement-fixtures';
 
 // Pole jako krajina (fields.md; Martin, 18. 10. 2026: „Pole by se mělo chovat jako normální
@@ -68,7 +68,7 @@ function othersUnchanged(before: VillageState, after: VillageState, gone: number
   const day = before.lastDay;
   const was = fieldPartLooks(before, day);
   const now = fieldPartLooks(after, day);
-  for (const id of planPartIds(after.plan!)) {
+  for (const id of seasonPartIds(after.season!)) {
     if (gone.includes(id)) continue;
     expect(now.get(id)).toEqual(was.get(id));
   }
@@ -85,7 +85,7 @@ describe('stavby po čtvercích na poli – čtverec z pole zmizí', () => {
       takenLand: [whole(cell)],
     });
     expect(partAt(next, cell)).toBeUndefined();
-    expect(planPartIds(next.plan!)).not.toContain(id);
+    expect(seasonPartIds(next.season!)).not.toContain(id);
     expect(next.orchards?.at(-1)?.squares.map((q) => q.cell)).toEqual([cell]);
     expect(takenBy(next)).toEqual(['orchard']);
     othersUnchanged(s, next, [id]);
@@ -113,7 +113,7 @@ describe('stavby po čtvercích na poli – čtverec z pole zmizí', () => {
       null,
     );
     expect(partAt(pen, cell)).toBeUndefined();
-    expect(planPartIds(pen.plan!)).not.toContain(id);
+    expect(seasonPartIds(pen.season!)).not.toContain(id);
     expect(takenBy(pen)).toEqual(['pen']);
     othersUnchanged(s, pen, [id]);
   });
@@ -141,23 +141,29 @@ describe('stavby po čtvercích na poli – čtverec z pole zmizí', () => {
     const s = autumn();
     // část ozimu jde do luštěnin (plodina plánu jako ozim a jař)
     const byId = new Map(s.parts.map((p) => [p.id, p]));
-    const legumeIds = s.plan!.winter!.partIds.slice(-3);
-    s.plan!.winter!.partIds = s.plan!.winter!.partIds.slice(0, -3);
-    s.plan!.legume = createCropWork(
-      legumeIds.map((id) => byId.get(id)!),
-      s.lastDay,
+    const legumeIds = seasonCrop(s.season!, 'winter')!.partIds.slice(-3);
+    seasonCrop(s.season!, 'winter')!.partIds = seasonCrop(s.season!, 'winter')!.partIds.slice(
       0,
+      -3,
     );
+    putSeasonCrop(s.season!, {
+      crop: 'legume',
+      ...createCropWork(
+        legumeIds.map((id) => byId.get(id)!),
+        s.lastDay,
+        0,
+      ),
+    });
     const target = byId.get(legumeIds[1]!)!;
-    const required = s.plan!.legume.required.sow;
+    const required = seasonCrop(s.season!, 'legume')!.required.sow;
     const next = foundOrchard(s, s.lastDay, {
       squares: [{ cell: target.cell!, areaM2: CELL, distanceM: 70, obstacleCost: 0 }],
       takenLand: [whole(target.cell!)],
     });
-    expect(next.plan!.legume!.partIds).toEqual(
-      s.plan!.legume.partIds.filter((id) => id !== target.id),
+    expect(seasonCrop(next.season!, 'legume')!.partIds).toEqual(
+      seasonCrop(s.season!, 'legume')!.partIds.filter((id) => id !== target.id),
     );
-    expect(next.plan!.legume!.required.sow).toBeLessThan(required);
+    expect(seasonCrop(next.season!, 'legume')!.required.sow).toBeLessThan(required);
   });
 
   it('po stavbách na poli dopočet po kouscích s JSON dá stejný stav', () => {

@@ -7,7 +7,7 @@ import { drawGrainPits, settleGrainPits } from './grain-pits';
 import { feedHorseGrain } from './horse-feed';
 import { addSheaves } from './threshing';
 import type { CraftCoverage, VillageState } from './types';
-import { harvestKg, taskRemaining } from './year-plan';
+import { harvestKg, seasonCrop, springCrop, taskRemaining } from './year-plan';
 import { SATIATION_EPSILON } from './simulate-plan';
 
 /**
@@ -18,14 +18,14 @@ import { SATIATION_EPSILON } from './simulate-plan';
 export function harvestWinter(state: VillageState, day: number): void {
   const linen = harvestFlax(state, day);
   if (linen) state.chronicle.push(linen);
-  const legume = state.plan?.legume;
+  const legume = state.season ? seasonCrop(state.season, 'legume') : undefined;
   if (legume && legume.harvestedKg === null) {
     const kg = harvestKg(legume, state.parts, day, 'legume');
     legume.harvestedKg = kg;
     addSheaves(state, 'legume', kg, taskRemaining(legume, 'thresh'));
     state.chronicle.push({ day, kind: 'harvest', kg: Math.round(kg), crop: 'legume' });
   }
-  const winter = state.plan?.winter;
+  const winter = state.season ? seasonCrop(state.season, 'winter') : undefined;
   if (!winter || winter.harvestedKg !== null) return;
   const kg = harvestKg(winter, state.parts, day);
   winter.harvestedKg = kg;
@@ -38,18 +38,20 @@ export function harvestWinter(state: VillageState, day: number): void {
  * – Humno); plán (i s ozimem) jde k výmlatu.
  */
 export function harvest(state: VillageState, day: number): void {
-  const plan = state.plan;
+  const plan = state.season;
   if (plan === null) return;
-  const kg = harvestKg(plan, state.parts, day);
-  plan.harvestedKg = kg;
-  addSheaves(state, 'spring', kg, taskRemaining(plan, 'thresh'));
+  const spring = springCrop(plan);
+  const kg = harvestKg(spring, state.parts, day);
+  spring.harvestedKg = kg;
+  addSheaves(state, 'spring', kg, taskRemaining(spring, 'thresh'));
   // plán jen s ozimem jař nesklízí – žádná sklizeň do kroniky
-  if (!plan.winter) state.chronicle.push({ day, kind: 'harvest', kg: Math.round(kg) });
-  else if (plan.partIds.length > 0) {
+  if (!seasonCrop(plan, 'winter'))
+    state.chronicle.push({ day, kind: 'harvest', kg: Math.round(kg) });
+  else if (spring.partIds.length > 0) {
     state.chronicle.push({ day, kind: 'harvest', kg: Math.round(kg), crop: 'spring' });
   }
-  state.threshingFromPlan = plan;
-  state.plan = null;
+  state.threshingSeason = plan;
+  state.season = null;
 }
 
 /**
@@ -58,7 +60,7 @@ export function harvest(state: VillageState, day: number): void {
  * nevymlácená část 1. 3. propadla).
  */
 export function endThreshing(state: VillageState): void {
-  state.threshingFromPlan = null;
+  state.threshingSeason = null;
 }
 
 /**

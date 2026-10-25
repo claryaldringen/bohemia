@@ -12,6 +12,7 @@ import {
   checkSacredBuildingPlacement,
   checkWorkshopPlacement,
   createCropWork,
+  springCrop,
   dayIndexOf,
   fieldPartsFromCells,
   foundCemetery,
@@ -744,7 +745,11 @@ describe('buildVillageView', () => {
         training: null,
       },
     ];
-    s.plan = { plannedDay: DAY - 200, ard: true, ...createCropWork([], DAY - 200, 0, true) };
+    s.season = {
+      startDay: DAY - 200,
+      ard: true,
+      crops: [{ crop: 'spring', ...createCropWork([], DAY - 200, 0, true) }],
+    };
     const { scene } = buildVillageView(record(s), landscape, DAY);
     expect(scene.fields.every((f) => f.ard === true)).toBe(true);
     expect(scene.ploughTeam).toBe(true);
@@ -2238,8 +2243,12 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
 
   it('spřežení na poli (oxen.md – Spřežení zůstane na poli): výjezd, stání u čela a návrat', () => {
     const s = carpenterVillage();
-    s.plan = { plannedDay: DAY - 30, ard: true, ...createCropWork(s.parts, DAY - 30, 0, true) };
-    const plough = s.plan.plough!;
+    s.season = {
+      startDay: DAY - 30,
+      ard: true,
+      crops: [{ crop: 'spring', ...createCropWork(s.parts, DAY - 30, 0, true) }],
+    };
+    const plough = springCrop(s.season).plough!;
     const legs = (): ScenePloughLegs | undefined =>
       buildVillageView(record(s), landscape, DAY).scene.ploughLegs;
     // den, jehož práci scéna ukazuje (poslední dopočítaný)

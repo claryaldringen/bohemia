@@ -19,7 +19,7 @@ import type {
   LaborTarget,
   StructureRepair,
   VillageState,
-  YearPlan,
+  FarmSeason,
 } from './types';
 import { roadApplesWorkRoad } from './road-apples';
 import { roadWorkFront } from './road-upgrades';
@@ -27,7 +27,7 @@ import { trailWorkRoad } from './trail';
 import { wagonWorkTarget } from './wagon-road';
 import { woodFellingCost } from './wood';
 import { partsWorked, type PartTask } from './field-progress';
-import { planPartIds, type CropTask } from './year-plan';
+import { seasonPartIds, type CropTask } from './year-plan';
 
 /** Hektar v m² – plocha sadu na jabloň u cesty. */
 const M2_PER_HA = 10_000;
@@ -563,16 +563,16 @@ export function laborReport(state: Pick<VillageState, 'labor' | 'extinctDay'>): 
  * (`joinFinishedParts`) a plocha ani pole dílu se nemění; simulace se ptá každý den.
  */
 const planAreas = new WeakMap<
-  YearPlan,
+  FarmSeason,
   { parts: number; shares: { id: number; share: number }[] }
 >();
 
 /** Pole s díly v letošním plánu a jejich podíl na ploše plánu (podle id pole). */
 function planFieldAreas(state: VillageState): { id: number; share: number }[] {
-  const plan = state.plan;
+  const plan = state.season;
   if (plan === null) return [];
   const cached = planAreas.get(plan);
-  const partIds = planPartIds(plan);
+  const partIds = seasonPartIds(plan);
   if (cached && cached.parts === partIds.length) return cached.shares;
   const inPlan = new Set(partIds);
   const areas = new Map<number, number>();

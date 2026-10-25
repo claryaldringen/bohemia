@@ -19,7 +19,7 @@ import { villageSheaves } from '../threshing';
 import { withThreshingFloor } from './village-fixtures';
 import { chooseCrops, orchardOnlyLoad, type CropChoiceInput } from '../sowing';
 import type { ChronicleEvent, FieldPart, VillageState } from '../types';
-import { cropGrossPerHa, harvestKg, partWork, planCrops } from '../year-plan';
+import { cropGrossPerHa, harvestKg, partWork, seasonCrops, seasonCrop } from '../year-plan';
 
 // Luštěniny (diet.md a fields.md – Luštěniny; Martin 18. 10. 2026): plodina na poli podle
 // bílkovin, které chybí po obilí, mléku a vejcích; obilí má přednost; zásoba se jí celý rok;
@@ -251,7 +251,7 @@ describe('luštěniny v simulaci', () => {
   it('ves je k 1. 9. zaseje, 31. 7. sklidí do snopů, po žni vymlátí do zásoby a jí je celý rok', () => {
     // první rok jde všechna založená půda na obilí (obilí má přednost), luštěniny od druhého
     const planned = advanceVillage(found(at(600, 3, 1)), at(601, 9, 2), null);
-    const legume = planned.plan?.legume;
+    const legume = seasonCrop(planned.season, 'legume');
     expect(legume).toBeDefined();
     expect(legume!.partIds.length).toBeGreaterThan(0);
     const byId = new Map(planned.parts.map((p) => [p.id, p]));
@@ -265,7 +265,7 @@ describe('luštěniny v simulaci', () => {
     // sklizeň jde do snopů, mlátí se v srpnu na humně (production-chains.md – Humno)
     expect(villageSheaves(harvested).legumesKg).toBeGreaterThan(0);
     // luštěniny i obilí z plánu, ozim i jař dál
-    expect(planCrops(harvested.plan!).map((c) => c.crop)).toContain('spring');
+    expect(seasonCrops(harvested.season!).map((c) => c.crop)).toContain('spring');
     // v srpnu má přednost žeň jaře – co výmlat v srpnu nestihne, vymlátí v září
     const threshed = advanceVillage(harvested, at(602, 9, 30), null);
     expect(villageSheaves(threshed).legumesKg).toBe(0);
@@ -277,7 +277,7 @@ describe('luštěniny v simulaci', () => {
 
   it('úroda luštěnin podle jejich výnosu a osiva (harvestKg s plodinou)', () => {
     const s = advanceVillage(found(at(600, 3, 1)), at(602, 7, 30), null);
-    const work = s.plan!.legume!;
+    const work = seasonCrop(s.season!, 'legume')!;
     const kg = harvestKg(work, s.parts, s.lastDay, 'legume');
     const asGrain = harvestKg(work, s.parts, s.lastDay, 'spring');
     expect(kg).toBeGreaterThan(0);
