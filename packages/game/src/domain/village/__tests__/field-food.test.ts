@@ -4,9 +4,11 @@ import { foundVillage } from '../actions';
 import type { PartInput } from '../actions';
 import { DIET } from '../diet';
 import {
+  bufferKg,
   closeFieldFoodYear,
   fieldFoodShare,
   fieldShareOf,
+  fieldStoresKg,
   recordFieldFood,
   sowingTargets,
   steadyHarvestKg,
@@ -360,27 +362,42 @@ describe('osev podle stravy v simulaci', () => {
     const start = found(at(600, 3, 15), 270);
     start.storesKg = 8 * yearlyFoodNeed(start, start.foundedDay);
     const grain: number[] = [];
+    // nutné i nad potřebu zasetá do 1. 7. (nezasetá jař nad potřebu 1. 5. vypadne) – osev obilí
+    // nesmí po prvním roce vypadnout ani jednou
+    const allGrain: number[] = [];
     let s = start;
+    const grainKg = (day: number, withSurplus: boolean): number => {
+      const byId = new Map(s.parts.map((p) => [p.id, p]));
+      return seasonCrops(s.season!)
+        .filter(
+          ({ crop, work }) =>
+            crop !== 'legume' && crop !== 'flax' && (withSurplus || !work.surplus),
+        )
+        .reduce(
+          (sum, { work }) =>
+            sum + work.partIds.reduce((kg, id) => kg + expectedNetKg(byId.get(id)!, day), 0),
+          0,
+        );
+    };
+    // zásoby z pole 1. 9. nad cílem (pojistka + rezerva) – ves nemusí ten rok sít nic
+    const covered: boolean[] = [];
     for (let year = 600; year <= 610; year++) {
       const day = at(year, 9, 2);
       s = advanceVillage(s, day, null);
-      const byId = new Map(s.parts.map((p) => [p.id, p]));
-      grain.push(
-        seasonCrops(s.season!)
-          .filter(({ crop, work }) => crop !== 'legume' && crop !== 'flax' && !work.surplus)
-          .reduce(
-            (sum, { work }) =>
-              sum + work.partIds.reduce((kg, id) => kg + expectedNetKg(byId.get(id)!, day), 0),
-            0,
-          ),
-      );
+      grain.push(grainKg(day, false));
+      const need = yearlyFieldNeed(s, day);
+      covered.push(fieldStoresKg(s, day) >= storesTargetKg(need, bufferKg(yearlyFoodNeed(s, day))));
+      s = advanceVillage(s, at(year + 1, 7, 1), null);
+      allGrain.push(grainKg(at(year + 1, 7, 1), true));
     }
     // první roky jen luštěniny, nutné obilí až zásoby klesnou k cíli; s díly nad potřebu (fields.md
     // – Osevní postup po dílech, bod 5; 25. 10. 2026) zásoby zase rostou a nutné obilí smí pár let
-    // ustat (dřív každý rok od prvního) – ke konci ho ves zase seje
+    // ustat (dřív každý rok od prvního) – obilí (nutné i nad potřebu) ale seje každý rok od prvního
+    // a nutné ke konci zase
     expect(grain[0]).toBe(0);
     const first = grain.findIndex((kg) => kg > 0);
     expect(first).toBeGreaterThan(0);
+    expect(allGrain.every((kg, i) => i < first || kg > 0 || covered[i])).toBe(true);
     expect(grain.slice(-3).every((kg) => kg > 0)).toBe(true);
     // bez hladu: nikdo hladem neumřel a hlad se nenahromadil (energie dne pod 0,9 – population.md);
     // v září a říjnu, než porážka dá maso, smí ves krátce šetřit

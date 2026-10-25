@@ -427,7 +427,12 @@ Seno, dvě seče).
      obydlí** (Práce, bod 6). Když stavba přijde, ves o část jejich úrody přijde – nevypletý díl
      dá jen část úrody (Pletí), co žně do konce okna nesklidí, propadne. Výmlat na humně je
      společný pro všechny snopy jako dosud (humno nerozlišuje, odkud snopy jsou; v okně výmlatu
-     snopy nehnijí – návrh Clauda). Nový díl nad potřebu začne, jen když po stavbách práce zbude
+     snopy nehnijí – návrh Clauda). **Asymetrie (návrh Clauda, 25. 10. 2026):** výmlat snopů
+     z dílů nad potřebu je nutná práce před stavbami – úroda už je sklizená a snopy by po okně
+     výmlatu shnily; pomocné ruce na žně (dílny a vojvodova rodina – Žně všemi rukama) ale
+     pomáhají jen nutným dílům – žně nad potřebu dostanou jen práci, která po stavbách zbude, a co
+     nesklidí, propadne.
+     Nový díl nad potřebu začne, jen když po stavbách práce zbude
      (nejvýš jeden rozpracovaný na plodinu, jako osev navíc); spřežení orají napřed nutné díly,
      díly nad potřebu jen kapacitou, která zbude. **Změna proti osevu navíc:** setí až odnos
      začatého dílu nad potřebu už nemá přednost před stavbami (Martin 25. 10. 2026 – „ve chvíli,

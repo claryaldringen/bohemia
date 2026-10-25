@@ -183,6 +183,23 @@ describe('díly nad potřebu po stavbách', () => {
     }
   }, 60_000);
 
+  it('vše nad potřebu zaseto, pak stavba vezme všechnu volnou práci – ves nehladoví', () => {
+    const sown = advanceVillage(readyVillage(30, 225, 3_800), at(600, 10, 31), null);
+    expect(sowSplit(sown, surplusCrop(sown.season!, 'winter')!).unsown).toEqual([]);
+    const busy = structuredClone(sown);
+    busy.constructions = [bigBuild(at(600, 10, 31))];
+    // přes žně a výmlat do dalšího podzimu – úrodu nad potřebu vzala stavba, nutné díly ves uživí
+    const summer = advanceVillage(busy, at(601, 8, 31), null);
+    // po žních je hospodářský rok na humně (`threshingSeason`)
+    const reaped = summer.threshingSeason ?? summer.season;
+    expect(surplusCrop(reaped, 'winter')!.harvestedKg ?? 0).toBe(0);
+    expect(seasonCrop(reaped, 'winter')!.harvestedKg).toBeGreaterThan(0);
+    const s = advanceVillage(summer, at(601, 10, 31), null);
+    expect(s.constructions.map((c) => c.id)).toContain(999);
+    expect(s.chronicle.filter((e) => e.kind === 'death' && e.cause === 'hunger')).toHaveLength(0);
+    expect(s.starvationDays ?? 0).toBe(0);
+  }, 120_000);
+
   it('stavba v květnu – jař nad potřebu bez pletí; v červenci – ozim nad potřebu bez žní', () => {
     const april = advanceVillage(richVillage(), at(601, 4, 30), null);
     expect(surplusCrop(april.season!, 'spring')!.partIds.length).toBeGreaterThan(0);
