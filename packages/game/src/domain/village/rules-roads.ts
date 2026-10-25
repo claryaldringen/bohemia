@@ -52,6 +52,11 @@ export const ROAD_TRAFFIC = { bandCells: 0.75, underBuildingDays: 330 } as const
 // návrh Clauda): volný konec úseku (i vozového – kromě rozestavěné vozové cesty) do `joinGapM` od
 // jiného úseku se v úklidu napojí; stejně daleko se napojí vrácený kus staré osy v přestavbě
 export const ROAD_JOIN = { gapM: 12 } as const;
+// paths.md – Jednorázová oprava sítě (číslo návrh Clauda): nenapojená vozová cesta bez provozu se
+// v opravě opustí, ale ne do `freshDays` od dostavění zemních prací (bez nich od vzniku úseku) – po
+// nové cestě zatím nikdo nejel; vozová cesta na hotových zemních pracích napojená aspoň jedním
+// koncem na síť se pro nulový provoz neopouští nikdy (zarůstá pomalu podle druhu – `ROAD_DECAY`)
+export const ROAD_LOOSE_WAGON = { freshDays: 365 } as const;
 // paths.md – Vchody, Cesta do branky (Martin 25. 10. 2026: „Jeden z největších problémů vidím tady
 // u hřbitova“; číslo návrh Clauda): cesta, která jde do `ROAD_ANCHORS.entranceM` od vchodu, ale
 // nekončí v něm, se ohne přes bod `frontM` před vchodem (ve směru, odkud trasa přichází); ohyb

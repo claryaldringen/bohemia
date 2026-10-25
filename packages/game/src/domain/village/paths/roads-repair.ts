@@ -5,7 +5,7 @@
 
 import type { Landscape, ObstacleLayer } from '../../landscape';
 import { cloneState } from '../clone';
-import { ROAD_REBUILD } from '../rules';
+import { ROAD_LOOSE_WAGON, ROAD_REBUILD } from '../rules';
 import type { Road, RoadPoint, VillageState } from '../types';
 import { roadChain, roadChains } from './road-chains';
 import { anchorTermini } from './roads-tidy';
@@ -148,10 +148,37 @@ function joinWagonChains(
 }
 
 /**
+ * Den dostavění vozové cesty: poslední dostavěný kus hotových zemních prací (ne rozestavěných ani
+ * opuštěných přestavbou), na kterých úsek leží (aspoň `ROAD_REBUILD.share` délky do `nearM` od
+ * profilu); bez nich null.
+ */
+function wagonBuiltDay(road: Road, state: VillageState): number | null {
+  let built: number | null = null;
+  for (const e of state.roads!.earthworks ?? []) {
+    if (e.constructionId !== undefined || e.abandonedDay !== undefined) continue;
+    if (shareNear(road.points, axisDistance([e.profile])) < ROAD_REBUILD.share) continue;
+    for (const piece of e.pieces) {
+      if (piece.builtDay !== null && (built === null || piece.builtDay > built)) {
+        built = piece.builtDay;
+      }
+    }
+  }
+  return built;
+}
+
+/**
  * Vozová cesta, která zůstala bez napojení (volný konec mimo kotvu i po úklidu – díra větší než
  * `ROAD_JOIN.gapM`) a po které nejde žádná trasa ani vůz, je opuštěná – bledne a zmizí (mutuje).
+ * Ne čerstvá – do `ROAD_LOOSE_WAGON.freshDays` od dostavění (`wagonBuiltDay`, bez zemních prací
+ * od vzniku úseku) po ní zatím nikdo jet nemusel – a nikdy vozová cesta na hotových zemních
+ * pracích, která je aspoň jedním koncem napojená na síť (zarůstá pomalu podle druhu).
  */
-function abandonLooseWagons(state: VillageState, landscape: Landscape, report: RepairReport): void {
+export function abandonLooseWagons(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  report: RepairReport,
+): void {
   const roads = state.roads!;
   const routes = state.routes!.list;
   const isEnd = anchorTermini(roadAnchors(routes, landscape));
@@ -163,7 +190,11 @@ function abandonLooseWagons(state: VillageState, landscape: Landscape, report: R
       continue;
     }
     const ends = [road.points[0]!, road.points[road.points.length - 1]!];
-    if (ends.every((p) => linked(road, p) || isEnd(p))) continue;
+    const joined = ends.filter((p) => linked(road, p) || isEnd(p)).length;
+    if (joined === ends.length) continue;
+    const built = wagonBuiltDay(road, state);
+    if (day - (built ?? road.bornDay) < ROAD_LOOSE_WAGON.freshDays) continue;
+    if (built !== null && joined > 0) continue;
     if ((road.cartTraffic?.[road.cartTraffic.length - 1] ?? 0) > 0) continue;
     if (resample(road.points, null, STEP_M).points.some((p) => traffic(p.x, p.z) > 0)) continue;
     road.abandoned = true;
@@ -214,7 +245,7 @@ export function* repairRoadsSteps(
     yield;
     tidyRoadsNow(next, landscape, obstacles);
   }
-  abandonLooseWagons(next, landscape, report);
+  abandonLooseWagons(next, day, landscape, report);
   yield;
   refreshWalkDistances(next, day, landscape, obstacles);
   yield;

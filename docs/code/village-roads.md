@@ -256,8 +256,7 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   nejširší cesty kolmo na rameno) a mezi sousedními rameny vnitřní roh na ose mezery, kde se
   protnou okraje pásů (nejvýš u vchodů, ± 12 % nepravidelnost podle polohy; od mezery 180° střed).
   Obrys (výběr) má mezi rameny oblouk tečný k okrajům pásů (`CORNER_ROUND` × půl šířky, tečné
-  body nejvýš ve vchodech; mezera od 180° oblouk kolem středu). Obtisk plácku (oprava
-  24. 10. 2026 – Martin: „ty ostrý křižovatky už jsou upravený?“, „Předtím ty křižovatky byly tedy
+  body nejvýš ve vchodech; mezera od 180° oblouk kolem středu). Obtisk plácku (oprava 24. 10. 2026 – Martin: „ty ostrý křižovatky už jsou upravený?“, „Předtím ty křižovatky byly tedy
   lepší“; šedý štěrk plácku `roads-wagon-gravel-hub` a obrys s tvrdým okrajem zmizely):
   `junctionCuts` – pásy cest končí v řezu `entranceM + JUNCTION_CUT_EXTRA_M` (1,5 m) od středu
   (`roadBands(roads, cuts)` vrací i `arms` – kus osy od řezu do středu, druh pásu, sílu),
@@ -639,9 +638,8 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   vozová 30; čísla v `rules-roads.ts`). `settleRoadCondition` (`road-condition.ts`) se volá
   z `settleVillageWear` po `settleWear` se stejným polem a týmiž dny `from`–`to`, takže dopočet po
   kouscích = najednou (celá čísla; provoz kusu = medián provozu po cestě po 3 m, nejméně loňské
-  jízdy vozů): `c = clamp(c + (provoz − keep) × dny, 0, plný)`. **Provoz po cestě** (Martin
-  25. 10. 2026: „proč by lidé chodili kousek vedle, když tam je cesta?“): `trafficOnRoads(routes,
-  cellM)` (`road-condition.ts`, index buněk tras v `WeakMap` podle pole tras) – součet `trips` tras,
+  jízdy vozů): `c = clamp(c + (provoz − keep) × dny, 0, plný)`. **Provoz po cestě** (Martin 25. 10. 2026: „proč by lidé chodili kousek vedle, když tam je cesta?“): `trafficOnRoads(routes,
+cellM)` (`road-condition.ts`, index buněk tras v `WeakMap` podle pole tras) – součet `trips` tras,
   které mají buňku (`routeCells`) do `ROAD_TRAFFIC.bandCells` (0,75) buňky od bodu osy (pás jako
   `roadBandCells`), každá trasa jednou; ne provozní pole vyšlapanosti (`trafficAt` – políčka 7,5 m
   i se sousedy, dosah ≈ 11 m – zůstává pro vznik a vyšlapanost). Stejně `liveRoadEnd` (živá ramena
@@ -738,13 +736,19 @@ landscape, obstacles)` v `paths/roads-rebuild.ts`; `updateVillage` volá po `wit
   vozové v témž bodě nebo rameno křižovatky s vozovým ramenem do 15 m –, podíl ≥ `share` u os
   hotových zemních prací → upravit, `planWagonRoad`, `buildWagonRoadNow`) → přepočet tras
   a úklid → `abandonLooseWagons` (vozová s volným koncem mimo kotvu, bez provozu po cestě a bez
-  jízd → `abandoned`) → přepočet tras a úklid. Diagnostika `RepairReport`. **Díry** (`firstGap`,
+  jízd → `abandoned`; ne do `ROAD_LOOSE_WAGON.freshDays` od dostavění – `wagonBuiltDay`, poslední
+  `builtDay` živých hotových zemních prací pod úsekem, bez nich `bornDay` – a ne na hotových zemních
+  pracích s aspoň jedním napojeným koncem) → přepočet tras a úklid. Diagnostika `RepairReport`. **Díry** (`firstGap`,
   `roads-tidy.ts`): vozová cesta se vynechá jen tam, kde její konec leží do 2 m od osy zemních
   prací se stavbou (`BUILDING_END_M`); opuštěné úseky nejsou cílem napojení. **Ohyb do branky**
   (`gateBend`, `roads-access.ts`): trasa ke stavbě (`accessRoutes`), žádný živý úsek nekončí do
-  `ROAD_ANCHORS.entranceM` od vchodu, nejbližší úsek do té vzdálenosti není vozový → osa
+  `ROAD_ANCHORS.entranceM` od vchodu, nejbližší úsek do té vzdálenosti není vozový ani zamčený
+  (`GateGuard.fixed` = `fixedRoadIds`) → osa
   `axisSlice(0, at − bendM)` + bod `ROAD_GATE.frontM` před vchodem (po čáře trasy zpět) +
-  `axisSlice(at + bendM, konec)`; konce zůstanou, `ground` znovu, `lined` pryč. `accessDue` ho
+  `axisSlice(at + bendM, konec)`, jen když nová část osy po 0,5 m nikde neleží v `GateGuard.blocked`
+  (`gateGuardOf` v `tidyMonth`: `villageBlockedAt` a voda bez brodu z `trailTerrain`, obojí líně);
+  konce zůstanou, `ground` znovu, `lined` pryč. `accessDue` (se stejnou hlídkou) ho
   hlásí, takže úklid proběhne; podruhé nic (osa do `toleranceM` od bodu). Testy
   `road-condition.test.ts` (provoz po cestě), `road-parallel.test.ts` (vozové díry),
-  `road-gate.test.ts`, `roads-rebuild.test.ts` (oprava, `nearStretches`).
+  `road-gate.test.ts`, `roads-loose-wagons.test.ts`, `roads-rebuild.test.ts` (oprava,
+  `nearStretches`).

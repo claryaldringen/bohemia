@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { accessDue, accessRoads } from '../paths/roads-access';
+import { accessDue, accessRoads, gateGuardOf, type GateGuard } from '../paths/roads-access';
 import { axisDistance } from '../paths/roads-geometry';
 import type { SpotContext } from '../paths/roads-trees';
 import { ROAD_GATE } from '../rules';
 import type { Road, RoadGrade, StoredRoute, VillageRoads } from '../types';
+import { PATH_FORD, PATH_WATER } from '../paths/terrain';
 import { pathTestTerrain } from './paths-fixtures';
 
 // Cesta do branky (paths.md – Vchody; Martin 25. 10. 2026: „Jeden z největších problémů vidím
@@ -81,6 +82,68 @@ describe('cesta do branky (paths.md – Vchody)', () => {
       expect(accessDue(roads, [ROUTE], CELL_M)).toBe(false);
       accessRoads(roads, [ROUTE], CELL_M, 0, CONTEXT, null);
       expect(JSON.stringify(roads)).toBe(before);
+    }
+  });
+
+  it('zamčený úsek (vylepšení, zemská stezka) se neohne', () => {
+    const roads = roadsWith('improved', [
+      [0, 0],
+      [100, 0],
+    ]);
+    const guard: GateGuard = { fixed: new Set([1]), blocked: () => false };
+    const before = JSON.stringify(roads);
+    expect(accessDue(roads, [ROUTE], CELL_M, () => true, guard)).toBe(false);
+    accessRoads(roads, [ROUTE], CELL_M, 0, CONTEXT, null, () => true, guard);
+    expect(JSON.stringify(roads)).toBe(before);
+  });
+
+  it('osa ohybu ani bod před brankou nevedou přes plot, stavbu ani vodu – pak se neohne', () => {
+    // roh plotu mezi starou osou (z = 0) a bodem před brankou (50; 1)
+    const fence = (x: number, z: number): boolean => x >= 47.6 && x <= 48.4 && z >= 0.3 && z <= 2;
+    // voda v buňce bodu před brankou (brod by nevadil)
+    const terrain = pathTestTerrain();
+    const flags = terrain.flags.slice();
+    const cell = (x: number, z: number): number =>
+      Math.round((z - terrain.originZ) / terrain.cellM) * terrain.width +
+      Math.round((x - terrain.originX) / terrain.cellM);
+    flags[cell(50, 2.5 - ROAD_GATE.frontM)] = PATH_WATER;
+    const wet = { ...terrain, flags };
+    const ford = { ...terrain, flags: flags.map((f) => (f ? PATH_WATER | PATH_FORD : f)) };
+    const cases: [GateGuard, boolean][] = [
+      [
+        gateGuardOf(
+          new Set(),
+          () => fence,
+          () => terrain,
+        ),
+        false,
+      ],
+      [
+        gateGuardOf(
+          new Set(),
+          () => null,
+          () => wet,
+        ),
+        false,
+      ],
+      [
+        gateGuardOf(
+          new Set(),
+          () => null,
+          () => ford,
+        ),
+        true,
+      ],
+    ];
+    for (const [guard, bends] of cases) {
+      const roads = roadsWith('trodden', [
+        [0, 0],
+        [100, 0],
+      ]);
+      const before = JSON.stringify(roads);
+      expect(accessDue(roads, [ROUTE], CELL_M, () => true, guard)).toBe(bends);
+      accessRoads(roads, [ROUTE], CELL_M, 0, CONTEXT, null, () => true, guard);
+      expect(JSON.stringify(roads) !== before).toBe(bends);
     }
   });
 });

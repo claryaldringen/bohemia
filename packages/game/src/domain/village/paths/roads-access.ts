@@ -12,13 +12,61 @@ import {
   axisSlice,
   cm,
   lengthsAlong,
+  resample,
   roadGroundOf,
   toSegment,
 } from './roads-geometry';
 import { fieldTraffic, formRoad, plannedAxis } from './roads-form';
 import { type SpotContext } from './roads-trees';
 import { routeLine } from './routes';
+import { PATH_FORD, PATH_WATER, type PathTerrain } from './terrain';
 import { type TrafficField } from './wear';
+
+/** Krok vzorků nové osy ohybu při kontrole překážek (m) – jemnější než buňka mřížky chodců. */
+const BEND_CHECK_STEP_M = 0.5;
+
+/** Co ohyb do vchodu nesmí (`gateBend`; paths.md – Vchody, Cesta do branky). */
+export interface GateGuard {
+  /**
+   * Úseky, které se neohýbají – ve vylepšení a zemské stezky (`fixedRoadIds`): osa leží na
+   * rozestavěných zemních pracích a kusech stezky. Hotová vozová cesta se neohýbá nikdy (osa leží
+   * na profilu zemních prací).
+   */
+  fixed: ReadonlySet<number>;
+  /** Neprůchodné místo pro novou osu – plot, stavba, voda. Volá se jen u úseku, který by se ohnul. */
+  blocked: (x: number, z: number) => boolean;
+}
+
+const NO_GUARD: GateGuard = { fixed: new Set(), blocked: () => false };
+
+/**
+ * Hlídka ohybu: zamčené úseky `fixed`, neprůchodná plocha vsi (`walk` – `villageBlockedAt`, plot,
+ * stavba, zemní práce; spočte se až u prvního ohybu) a voda bez brodu v mřížce terénu (`terrain`,
+ * také až u ohybu).
+ */
+export function gateGuardOf(
+  fixed: ReadonlySet<number>,
+  walk: () => ((x: number, z: number) => boolean) | null,
+  terrain: () => PathTerrain,
+): GateGuard {
+  let fenced: ((x: number, z: number) => boolean) | null | undefined;
+  let grid: PathTerrain | undefined;
+  const wet = (x: number, z: number): boolean => {
+    grid ??= terrain();
+    const i = Math.round((x - grid.originX) / grid.cellM);
+    const j = Math.round((z - grid.originZ) / grid.cellM);
+    if (i < 0 || j < 0 || i >= grid.width || j >= grid.height) return false;
+    const flags = grid.flags[j * grid.width + i]!;
+    return (flags & PATH_WATER) !== 0 && (flags & PATH_FORD) === 0;
+  };
+  return {
+    fixed,
+    blocked: (x, z) => {
+      if (fenced === undefined) fenced = walk();
+      return (fenced?.(x, z) ?? false) || wet(x, z);
+    },
+  };
+}
 
 /**
  * Nejvytíženější trasa ke každé stavbě se vchodem, ke které se chodí (`StoredRoute.visit` – provoz
@@ -90,9 +138,17 @@ interface GateBend {
  * se neohýbají) vede do `ROAD_ANCHORS.entranceM` od vchodu trasy, žádný úsek tam nekončí a osa
  * nevede bodem `ROAD_GATE.frontM` před vchodem (ve směru, odkud trasa přichází) – osa se ohne přes
  * ten bod, `ROAD_GATE.bendM` na každou stranu od nejbližšího bodu osy; konce úseku zůstanou.
- * Vrátí novou osu nejbližšího takového úseku, jinak null. Nic nemění.
+ * Zamčený úsek (`guard.fixed` – vylepšení, stezka) se neohne a nová osa ani bod před vchodem
+ * nesmí vést neprůchodným místem (`guard.blocked` – plot, stavba, voda); pak cesta zůstane, jak je
+ * (vchod do `entranceM` od ní cestu má). Vrátí novou osu nejbližšího takového úseku, jinak null.
+ * Nic nemění.
  */
-function gateBend(roads: VillageRoads, route: StoredRoute, cellM: number): GateBend | null {
+function gateBend(
+  roads: VillageRoads,
+  route: StoredRoute,
+  cellM: number,
+  guard: GateGuard,
+): GateBend | null {
   const line = routeLine(route, cellM);
   if (line.length < 2) return null;
   const gate = line[line.length - 1]!;
@@ -128,7 +184,8 @@ function gateBend(roads: VillageRoads, route: StoredRoute, cellM: number): GateB
       };
     }
   }
-  if (!best || best.road.grade === 'wagon') return null;
+  // zemní práce (hotová vozová, rozestavěné vylepšení) a stezka drží osu – neohýbá se
+  if (!best || best.road.grade === 'wagon' || guard.fixed.has(best.road.id)) return null;
   const { road, at } = best;
   if (axisDistance([road.points])(front.x, front.z) <= ROAD_GATE.toleranceM) return null;
   const along = lengthsAlong(road.points);
@@ -136,10 +193,14 @@ function gateBend(roads: VillageRoads, route: StoredRoute, cellM: number): GateB
   const from = at - ROAD_GATE.bendM;
   const to = at + ROAD_GATE.bendM;
   if (from < ROAD_GATE.toleranceM || to > length - ROAD_GATE.toleranceM) return null;
-  return {
-    road,
-    points: [...axisSlice(road.points, 0, from), front, ...axisSlice(road.points, to, length)],
-  };
+  const head = axisSlice(road.points, 0, from);
+  const tail = axisSlice(road.points, to, length);
+  // nová osa ani bod před vchodem nevedou přes plot, stavbu ani vodu – jinak cesta zůstane, jak je
+  const bent = [head[head.length - 1]!, front, tail[0]!];
+  if (resample(bent, null, BEND_CHECK_STEP_M).points.some((p) => guard.blocked(p.x, p.z))) {
+    return null;
+  }
+  return { road, points: [...head, front, ...tail] };
 }
 
 /** Chybí cesta k vchodu některé stavby (`accessRoads` by něco založil)? Nic nemění. */
@@ -148,9 +209,11 @@ export function accessDue(
   routes: readonly StoredRoute[],
   cellM: number,
   built: (visit: string) => boolean = () => true,
+  guard: GateGuard = NO_GUARD,
 ): boolean {
   return accessRoutes(routes, built).some(
-    (route) => accessPlan(roads, route, cellM) !== null || gateBend(roads, route, cellM) !== null,
+    (route) =>
+      accessPlan(roads, route, cellM) !== null || gateBend(roads, route, cellM, guard) !== null,
   );
 }
 
@@ -160,7 +223,7 @@ export function accessDue(
  * cesta, vznikne vyšlapaná cesta po nejvytíženější trase od vchodu k první pevné cestě (připojí se
  * do ATTACH_M – rozcestí), jinak celou trasou až k bráně domu – bez ohledu na vyšlapanost. Kratší
  * než `ROAD_ACCESS.minM` nevznikne. Cesta, která jde kolem vchodu a nekončí v něm, se do něj ohne
- * (`gateBend`). Dokud se ke stavbě chodí, cesta nezarůstá (končí ve vchodu –
+ * (`gateBend`, jen volný úsek a ne přes překážku – `guard`). Dokud se ke stavbě chodí, cesta nezarůstá (končí ve vchodu –
  * `settleRoadCondition`). Vrátí nové cesty.
  */
 export function accessRoads(
@@ -171,6 +234,7 @@ export function accessRoads(
   context: SpotContext,
   field: TrafficField | null,
   built: (visit: string) => boolean = () => true,
+  guard: GateGuard = NO_GUARD,
 ): Road[] {
   const made: Road[] = [];
   const traffic = (points: readonly RoadPoint[]): number =>
@@ -179,7 +243,7 @@ export function accessRoads(
     const plan = accessPlan(roads, route, cellM);
     if (!plan) {
       // cesta jde kolem vchodu – ohne se do něj (paths.md – Vchody, Cesta do branky)
-      const bend = gateBend(roads, route, cellM);
+      const bend = gateBend(roads, route, cellM, guard);
       if (bend) {
         bend.road.points = bend.points;
         bend.road.ground = roadGroundOf(bend.points, context.terrain);
