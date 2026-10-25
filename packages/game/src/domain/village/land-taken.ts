@@ -436,7 +436,7 @@ const CARRIED_TASKS: ReadonlySet<PartTask> = new Set(['reclaim', 'plough', 'dig'
  * na kterém do konce okna nezačalo setí, jde do jaře (fields.md – Osevní postup po dílech, bod 2).
  * Díl si nese potřebnou i hotovou přípravu půdy (vrácení přílohu, orba, kopání – podle úseků
  * `taskSpans`, ne podle sazeb dne: zasetý díl by vrácení přílohu už neměl); setí a další práce
- * podle sazeb nové plodiny. Přesunuté díly jdou na začátek pořadí `to` (obdělávaly se napřed) –
+ * podle sazeb nové plodiny – v téže plodině (díl nad potřebu se stane nutným) si nese i je. Přesunuté díly jdou na začátek pořadí `to` (obdělávaly se napřed) –
  * součet hotové práce přes plodiny se nezmění. Plodiny s různým způsobem přípravy (orba proti
  * motyce) si přípravu nenesou.
  */
@@ -460,7 +460,7 @@ export function moveParts(
   const carry = (from.plough !== undefined) === plough;
   const carried = new Map<PartTask, { required: number; done: number }>();
   for (const task of PART_TASKS) {
-    if (!carry || !CARRIED_TASKS.has(task)) continue;
+    if (!carry || (!CARRIED_TASKS.has(task) && from.crop !== to.crop)) continue;
     const { required } = taskWork(from, task);
     const position = taskPosition(from, task);
     const sum = { required: 0, done: 0 };

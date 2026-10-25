@@ -32,6 +32,7 @@ import type {
   VillageState,
   FarmSeason,
   SeasonCrop,
+  SurplusCrop,
 } from './types';
 
 const M2_PER_HA = 10_000;
@@ -297,7 +298,15 @@ export function seasonCrop(
   season: FarmSeason | null | undefined,
   crop: Crop,
 ): SeasonCrop | undefined {
-  return season?.crops.find((c) => c.crop === crop);
+  return season?.crops.find((c) => c.crop === crop && !c.surplus);
+}
+
+/** Obilí nad potřebu hospodářského roku (fields.md – Osevní postup po dílech, bod 3); chybí = nic. */
+export function surplusCrop(
+  season: FarmSeason | null | undefined,
+  crop: SurplusCrop,
+): SeasonCrop | undefined {
+  return season?.crops.find((c) => c.crop === crop && c.surplus === true);
 }
 
 /** Jařní plodina hospodářského roku – je v něm vždy. */
@@ -309,22 +318,30 @@ export function springCrop(season: FarmSeason): SeasonCrop {
 
 const CROP_ORDER: readonly Crop[] = ['winter', 'legume', 'flax', 'spring'];
 
-/** Vloží plodinu na její místo v pořadí ozim, luštěniny, len, jař (nahradí stejnou plodinu). */
+/** Pořadí plodiny v hospodářském roce – nutné v pořadí `CROP_ORDER`, obilí nad potřebu za nimi. */
+function cropRank(work: SeasonCrop): number {
+  return (work.surplus ? CROP_ORDER.length : 0) + CROP_ORDER.indexOf(work.crop);
+}
+
+/**
+ * Vloží plodinu na její místo v pořadí ozim, luštěniny, len, jař, pak ozim a jař nad potřebu
+ * (nahradí stejnou plodinu – nutnou, nebo nad potřebu).
+ */
 export function putSeasonCrop(season: FarmSeason, work: SeasonCrop): void {
-  season.crops = season.crops.filter((c) => c.crop !== work.crop);
-  const rank = CROP_ORDER.indexOf(work.crop);
-  const at = season.crops.findIndex((c) => CROP_ORDER.indexOf(c.crop) > rank);
+  const rank = cropRank(work);
+  season.crops = season.crops.filter((c) => cropRank(c) !== rank);
+  const at = season.crops.findIndex((c) => cropRank(c) > rank);
   season.crops.splice(at < 0 ? season.crops.length : at, 0, work);
 }
 
-/** Odebere plodinu z hospodářského roku (jař se neodebírá). */
-export function dropSeasonCrop(season: FarmSeason, crop: Crop): void {
-  season.crops = season.crops.filter((c) => c.crop !== crop);
+/** Odebere plodinu z hospodářského roku – nutnou, nebo nad potřebu (`surplus`); jař se neodebírá. */
+export function dropSeasonCrop(season: FarmSeason, crop: Crop, surplus = false): void {
+  season.crops = season.crops.filter((c) => c.crop !== crop || (c.surplus === true) !== surplus);
 }
 
 /**
  * Práce hospodářského roku po plodinách v pořadí ozim, luštěniny, len, jař (jen plodiny, které
- * ves má; jař je vždy).
+ * ves má; jař je vždy), za nimi obilí nad potřebu (`SeasonCrop.surplus`).
  */
 export function seasonCrops(season: FarmSeason): { crop: Crop; work: SeasonCrop }[] {
   return season.crops.map((work) => ({ crop: work.crop, work }));
@@ -341,7 +358,7 @@ export function ploughsThisYear(state: Pick<VillageState, 'season' | 'threshingS
   return plan.ard === true || seasonCrops(plan).some(({ work }) => work.plough !== undefined);
 }
 
-/** Všechny díly hospodářského roku – ozim, luštěniny, len i jař. */
+/** Všechny díly hospodářského roku – ozim, luštěniny, len i jař, nutné i nad potřebu. */
 export function seasonPartIds(season: FarmSeason): number[] {
   return season.crops.flatMap((work) => work.partIds);
 }
@@ -408,13 +425,11 @@ export function cropTaskRemaining(work: CropWork, task: CropTask): number {
 }
 
 /**
- * Zbývající potřebná práce úlohy nebo orby – bez přípravy půdy dílů osevu navíc, která čeká na
- * volnou práci po stavbách (`CropWork.extraLeft`, fields.md – Osev navíc).
+ * Zbývající nutná práce úlohy nebo orby (fields.md – Osevní postup po dílech, bod 3): obilí nad
+ * potřebu (`SeasonCrop.surplus`) nutnou práci nemá – všechna jeho práce jde až po stavbách.
  */
-export function neededTaskRemaining(work: CropWork, task: CropTask): number {
-  const remaining = cropTaskRemaining(work, task);
-  if (task !== 'reclaim' && task !== 'dig' && task !== 'plough') return remaining;
-  return Math.max(0, remaining - (work.extraLeft?.[task] ?? 0));
+export function neededTaskRemaining(work: CropWork & { surplus?: true }, task: CropTask): number {
+  return work.surplus ? 0 : cropTaskRemaining(work, task);
 }
 
 /** Odvedená práce úlohy nebo orby (člověkodny). */
@@ -641,13 +656,18 @@ type LegacyPlan = CropWork & {
   legume?: CropWork;
   flax?: CropWork;
   flaxNeedKg?: number;
-  extra?: FarmSeason['extra'];
+  /**
+   * Osev navíc ročního plánu (díly s `sownYears`) – zůstane v hospodářském roce jako starý klíč,
+   * převede ho Úloha 6 plánu osevního postupu (fields.md – Osevní postup po dílech, bod 7); stejně
+   * čekající přípravu dílů osevu navíc v plodinách.
+   */
+  extra?: unknown;
   lordHelp?: FarmSeason['lordHelp'];
 };
 
 function seasonOfPlan(plan: LegacyPlan): FarmSeason {
   const { plannedDay, ard, winter, legume, flax, flaxNeedKg, extra, lordHelp, ...spring } = plan;
-  const season: FarmSeason = {
+  const season: FarmSeason & { extra?: unknown } = {
     startDay: plannedDay,
     ...(ard ? { ard } : {}),
     crops: [],

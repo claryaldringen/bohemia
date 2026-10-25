@@ -56,6 +56,7 @@ import type {
   Dwelling,
   FarmSeason,
   FieldPart,
+  SeasonCrop,
   VillageState,
 } from './types';
 import { addLogs } from './wood';
@@ -65,12 +66,14 @@ import {
   createSeason,
   cropTaskWindows,
   dropSeasonCrop,
+  nearestFirst,
   partWork,
   ploughRemaining,
   putSeasonCrop,
   seasonCrop,
   seasonCrops,
   springCrop,
+  surplusCrop,
   type CropTask,
   type PartWork,
   windowEndOf,
@@ -178,10 +181,35 @@ function releasePart(state: VillageState, season: FarmSeason, id: number, day: n
   returnPart(part, season.startDay);
 }
 
+/** Plodina hospodářského roku – nutná, nebo nad potřebu; chybí-li, založí se bez dílů. */
+function cropOf(
+  season: FarmSeason,
+  crop: Crop,
+  surplus: boolean,
+  day: number,
+  tools: number,
+): SeasonCrop {
+  const found =
+    surplus && crop !== 'legume' && crop !== 'flax'
+      ? surplusCrop(season, crop)
+      : seasonCrop(season, crop);
+  if (found) return found;
+  // jař se buď celá orá, nebo celá kope (oxen.md – Jen rádlo) – nové plodiny jako jař
+  const plough = springCrop(season).plough !== undefined;
+  const work: SeasonCrop = {
+    crop,
+    ...(surplus ? { surplus: true as const } : {}),
+    ...createCropWork([], day, tools, plough, nearestFirst, crop),
+  };
+  putSeasonCrop(season, work);
+  return work;
+}
+
 /**
  * Konce oken setí (fields.md – Osevní postup po dílech, bod 2): ozim, na kterém do konce října
- * setí nezačalo, jde do jaře i se zkopanou či zoranou částí (`moveParts`); jař, luštěniny a len
- * nezasetý do konce dubna z letošní práce vypadne – díl čeká na další sezónu (`returnPart`).
+ * setí nezačalo, jde do jaře i se zkopanou či zoranou částí (`moveParts`) – nutný do nutné jaře,
+ * nad potřebu do jaře nad potřebu; jař, luštěniny a len nezasetý do konce dubna z letošní práce
+ * vypadne – díl čeká na další sezónu (`returnPart`).
  */
 function sowingWindowsEnd(
   state: VillageState,
@@ -189,22 +217,64 @@ function sowingWindowsEnd(
   day: number,
   tools: number,
 ): void {
-  const winter = seasonCrop(season, 'winter');
-  if (winter && sowingJustEnded('winter', day)) {
+  for (const surplus of [false, true]) {
+    const winter = surplus ? surplusCrop(season, 'winter') : seasonCrop(season, 'winter');
+    if (!winter || !sowingJustEnded('winter', day)) continue;
     const ids = unsownPartIds(state, winter, day);
-    if (ids.length > 0) {
-      moveParts(state, season, winter, springCrop(season), ids, day, tools);
-      const moved = new Set(ids);
-      for (const part of state.parts) if (moved.has(part.id)) part.crop = 'spring';
-      if (winter.partIds.length === 0) dropSeasonCrop(season, 'winter');
+    if (ids.length === 0) continue;
+    moveParts(
+      state,
+      season,
+      winter,
+      cropOf(season, 'spring', surplus, day, tools),
+      ids,
+      day,
+      tools,
+    );
+    const moved = new Set(ids);
+    for (const part of state.parts) if (moved.has(part.id)) part.crop = 'spring';
+    if (winter.partIds.length === 0) dropSeasonCrop(season, 'winter', surplus);
+  }
+  const ended: [SeasonCrop | undefined, boolean][] = [
+    [seasonCrop(season, 'legume'), false],
+    [seasonCrop(season, 'flax'), false],
+    [seasonCrop(season, 'spring'), false],
+    [surplusCrop(season, 'spring'), true],
+  ];
+  for (const [work, surplus] of ended) {
+    if (!work || !sowingJustEnded(work.crop, day)) continue;
+    for (const id of unsownPartIds(state, work, day)) releasePart(state, season, id, day);
+    if ((surplus || work.crop !== 'spring') && work.partIds.length === 0) {
+      dropSeasonCrop(season, work.crop, surplus);
     }
   }
-  for (const crop of ['legume', 'flax', 'spring'] as const) {
-    const work = seasonCrop(season, crop);
-    if (!work || !sowingJustEnded(crop, day)) continue;
-    for (const id of unsownPartIds(state, work, day)) releasePart(state, season, id, day);
-    if (crop !== 'spring' && work.partIds.length === 0) dropSeasonCrop(season, crop);
+}
+
+/**
+ * Díly nad potřebu, které se staly nutnými (fields.md – Osevní postup po dílech, bod 3): přejdou
+ * do nutné plodiny i s hotovou prací (`moveParts`) – na čelo práce nečekají, práce na nich už
+ * začala. Vrací díly výběru, které nejsou povýšené.
+ */
+function promoteSurplus(
+  state: VillageState,
+  join: readonly NeededJoin[],
+  day: number,
+  tools: number,
+): NeededJoin[] {
+  const season = state.season;
+  if (!season) return [...join];
+  const rest: NeededJoin[] = [];
+  for (const j of join) {
+    const from =
+      j.crop === 'winter' || j.crop === 'spring' ? surplusCrop(season, j.crop) : undefined;
+    if (!from || !from.partIds.includes(j.id)) {
+      rest.push(j);
+      continue;
+    }
+    moveParts(state, season, from, cropOf(season, j.crop, false, day, tools), [j.id], day, tools);
+    if (from.partIds.length === 0) dropSeasonCrop(season, j.crop, true);
   }
+  return rest;
 }
 
 /** Úlohy přípravy půdy a setí, které čelo práce nutných dílů hlídá. */
@@ -254,6 +324,8 @@ function workFront(state: VillageState, day: number, coverage: CraftCoverage): F
   };
   if (!state.season) return front;
   for (const { crop, work } of seasonCrops(state.season)) {
+    // díly nad potřebu dostanou jen práci po stavbách – čelo nutných dílů nebrzdí
+    if (work.surplus) continue;
     const rest = (task: (typeof FRONT_TASKS)[number]): number =>
       Math.max(0, work.required[task] - work.done[task]);
     const left = { reclaim: rest('reclaim'), dig: rest('dig'), sow: rest('sow') };
@@ -333,7 +405,7 @@ export function seasonDay(state: VillageState, day: number, coverage: CraftCover
   }
   if (sowingCropToday('first', day) === null) return [];
   const targets = fieldSowingTargets(state, day, coverage);
-  const { join, release } = neededSelection(state, day, {
+  const { join: selected, release } = neededSelection(state, day, {
     harvestKg: targets.harvestKg,
     energyFloorKg: targets.energyFloorKg,
     legumeKg: targets.legumeKg,
@@ -342,6 +414,7 @@ export function seasonDay(state: VillageState, day: number, coverage: CraftCover
   });
   const season0 = state.season;
   if (season0) for (const id of release) releasePart(state, season0, id, day);
+  const join = promoteSurplus(state, selected, day, coverage.tools);
   if (join.length === 0) return [];
   // jař se buď celá orá, nebo celá kope (oxen.md – Jen rádlo) – nové plodiny jako jař
   const plough = state.season

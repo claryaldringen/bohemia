@@ -196,7 +196,7 @@ export function taskPosition(work: CropWork, task: PartTask, done?: number): num
 
 /**
  * Díly plodiny, na kterých už začala práce – některá úloha (i orba) přešla začátek jejich úseku
- * (fields.md – Osev podle zásob, Osev navíc). Úseky dílů se spočítají jednou za úlohu.
+ * (fields.md – Osevní postup po dílech). Úseky dílů se spočítají jednou za úlohu.
  */
 export function startedPartIds(
   work: CropWork,
@@ -526,8 +526,10 @@ export interface PartYearWork {
     harvest: number;
   };
   mow?: number;
-  /** Díl osevu navíc čeká na volnou práci (fields.md – Osev navíc) – práce na něm ještě nezačala. */
-  extra?: true;
+  /**
+   * Díl nad potřebu (fields.md – Osevní postup po dílech, bod 3) – jeho práce jde až po stavbách.
+   */
+  surplus?: true;
 }
 
 /**
@@ -568,15 +570,12 @@ export function partYearWork(state: VillageState, day: number): Map<number, Part
           sow: harvested ? 1 : (share('sow', id) ?? 0),
           harvest: harvested ? 1 : (share('harvest', id) ?? 0),
         },
+        ...(work.surplus ? { surplus: true as const } : {}),
       });
     }
   }
   for (const [id, mown] of mownShares(state, partsById)) {
     result.set(id, { ...result.get(id), mow: mown });
-  }
-  for (const { id } of state.season?.extra ?? []) {
-    if (partsById.has(id) && !result.get(id)?.crop)
-      result.set(id, { ...result.get(id), extra: true });
   }
   return result;
 }

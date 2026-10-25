@@ -5,7 +5,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 - **Hospodářský rok** (`FarmSeason`, `types-construction.ts`; fields.md – Osevní postup po dílech,
   Úloha 2 plánu `docs/superpowers/plans/2026-10-25-sowing-rotation.md`): evidence práce od 1. 9.
   do 31. 8. – `startDay`, `crops: SeasonCrop[]` (`SeasonCrop` = `CropWork` + `crop`; pořadí
-  ozim, luštěniny, len, jař; jař je vždy), `ard`, `flaxNeedKg`, `extra`, `lordHelp`. Dřívější
+  ozim, luštěniny, len, jař; jař je vždy; za nimi ozim a jař nad potřebu se `surplus: true` –
+  `surplusCrop`, `putSeasonCrop` / `dropSeasonCrop` je řadí zvlášť), `ard`, `flaxNeedKg`,
+  `lordHelp`. Dřívější
   `YearPlan` (jař nahoře, ozim v `winter?`) → `FarmSeason`; stav vsi nese `VillageState.season`
   a `threshingSeason` (dřív `plan`, `threshingFromPlan`). Název `FarmSeason`, protože `Season`
   je roční období kalendáře. Přístup: `seasonCrop(season, crop)`, `springCrop(season)`,
@@ -57,16 +59,24 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   zbytku zásoby.
   Nutné díly navíc ves uvolní (`neededSelection.release` v `seasonDay` – nouzové první, pak nejdál
   od domu, ladem jako příloh – `FieldPart.fallowBeforePlan` – nebo zpět na řadu).
-  **Osev navíc** (fields.md – Osev navíc, Martin 19. 10. 2026; `extra-sowing.ts`): ostatní díly v oběhu
-  (`extraSowable` – `sowingGroup` 1–3: osévaný od 70 %, založený, příloh od 95 %; příloh 70–95 %
-  ne, Martin 24. 10. 2026) v pořadí výběru čekají v `FarmSeason.extra` (`ExtraPart` – `sownYears` u dílu, který se
-  osíval; od osevního postupu po dílech je nic neplní – díly nad potřebu přinese Úloha 4); krok
-  `extraSowingDay` ve `work()` z `afterBuild.left` (práce po stavbách a opravách) a ze zbylé
-  kapacity spřežení (`FieldTaskEntry.teamDays`) začne díly navíc – ozim do 30. 10., pak jař
-  (`extraSowingCrop`), jen obilí – a přidá je k práci plodiny (`addToCropWork`); jejich příprava
-  půdy čeká v `CropWork.extraLeft` (potřebné úlohy berou `neededTaskRemaining`), setí až výmlat
-  jsou potřebné. Od 1. 5. se `extra` smaže. Volná práce v liště (`allocation.common`) je před
-  polem navíc; v rozdělení práce `DayWork.extraField`. **Nouzový osev** (fields.md – Přílohová
+  **Díly nad potřebu** (fields.md – Osevní postup po dílech, bod 3, Martin 25. 10. 2026;
+  `surplus-fields.ts`): krok `surplusFieldDay` ve `work()` z `afterBuild.left` (práce po stavbách
+  a opravách) a ze zbylých dnů spřežení (`FieldTaskEntry.teamDays`) napřed dělá úlohy ozimu a jaře
+  nad potřebu (`SeasonCrop.surplus` – příprava, setí, pletí, žně, odnos v pořadí jako
+  `fieldTasks`), pak bere další díly na řadě s obilím (`surplusOrder` v `rotation.ts` – první
+  osev, jař po ozimu, ozim po jaři; přílohy 70–95 % a nouzové ne) po jednom: nový díl plodiny
+  začne, až má rozpracovaný díl hotovou přípravu půdy; plodina dne `sowingCropToday`, příloh mimo
+  okno vracení nezačne. Nový díl nezačne, dokud nutné díly čekají na čelo (`seasonDay` vrací
+  čekající, `work(…, neededWaiting)`). Konec října: nezasetý ozim nad potřebu → jař nad potřebu
+  (`moveParts`); 1. 5. nezasetá jař nad potřebu z práce vypadne. Sklizeň do snopů jako nutné
+  (`harvestSurplus` v `simulate-food.ts`, kronika součtem); výhled jídla (`daysUntilFoodHarvest`)
+  počítá jen nutný ozim. Povýšení: `neededSelection` bere při rostoucí potřebě napřed díly nad
+  potřebu (plodina zůstává) a `seasonDay` je přesune do nutné plodiny i s hotovou prací
+  (`promoteSurplus` → `moveParts`, v téže plodině nese i setí a další práci) – na čelo nečekají.
+  Čelo nutných dílů (`workFront`) díly nad potřebu nepočítá. Spřežení dílů nad potřebu jde večer
+  domů jen po zorání (`settlePloughTeams` – `cropTaskRemaining`); `surplusWantsTeam` drží páry
+  u rádel místo vozů. V rozdělení práce `DayWork.surplusField`; panel dílu
+  `PartYearWork.surplus`. **Nouzový osev** (fields.md – Přílohová
   soustava, Martin 19. 10. 2026): když díly od 70 % nedají `SowingTargets.harvestKg`, plán vybere
   znovu i s přílohy pod 70 % (`sowingBlocks(…, EMERGENCY_GROUP)`, `isEmergencyFallow`, čistá
   úroda > 0), jen obilí, a jen od 40 % přirozené (`FERTILITY.emergencyMin` – Martin: „ves neoseje
@@ -165,14 +175,13 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   plánu): `rotation.ts` – `nextSowing` (co je na dílu na řadě: `first`, `spring` po ozimu,
   `winter` po jaři jako prvním osevu – Martin 25. 10. 2026, `late` příloh 70–95 %, `emergency`,
   `rest`; díl v sezóně null), `sowingCropToday` (ozim, dokud po dnešku zbývá den setí ozimu, pak
-  jař v oknech kopání; díl po ozimu jen jař – osev navíc `extraSowingCrop` je totéž co první
-  osev), `rotateAfterSeason` (1. 9.: úrodnost jako `endOfSeason`, ozim / obilní jař jako první
+  jař v oknech kopání; díl po ozimu jen jař), `rotateAfterSeason` (1. 9.: úrodnost jako `endOfSeason`, ozim / obilní jař jako první
   osev od 70 % → `ready` + `FieldPart.next`, jinak úhor bez bonusu) a `neededSelection` (k práci
   plánu přibírá díly na řadě v pořadí `sowingBlocks` – len od konce, luštěniny od domu, napřed
   díly po ozimu (`sideCropOrder` v `sowing.ts`), obilí do `harvestKg`, nouzové přílohy až za
   ostatními; nezačaté obilí nad toleranci `FIELD_STORES.trimMarginYears` vrátí v `release`).
   `sowingGroup` dává připravenému dílu s `next` skupinu 1. Sem se přesunuly i `sowParts`
-  a `reclaimedLogs` (`extra-sowing.ts` je re-exportuje do Úlohy 4).
+  a `reclaimedLogs`.
 
 - **Postup práce po čtvercích** (Martin – fields.md): kopání, setí a sklizeň mění díl, až k němu
   dojde práce. `field-progress.ts` (jen čte): díly plodiny v pořadí `CropWork.partIds` (dávka

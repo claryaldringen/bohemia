@@ -367,7 +367,7 @@ describe('osev podle stravy v simulaci', () => {
       const byId = new Map(s.parts.map((p) => [p.id, p]));
       grain.push(
         seasonCrops(s.season!)
-          .filter(({ crop }) => crop !== 'legume' && crop !== 'flax')
+          .filter(({ crop, work }) => crop !== 'legume' && crop !== 'flax' && !work.surplus)
           .reduce(
             (sum, { work }) =>
               sum + work.partIds.reduce((kg, id) => kg + expectedNetKg(byId.get(id)!, day), 0),
@@ -375,11 +375,13 @@ describe('osev podle stravy v simulaci', () => {
           ),
       );
     }
-    // první roky jen luštěniny, obilí až zásoby klesnou k cíli – a pak už každý rok
+    // první roky jen luštěniny, nutné obilí až zásoby klesnou k cíli; s díly nad potřebu (fields.md
+    // – Osevní postup po dílech, bod 5; 25. 10. 2026) zásoby zase rostou a nutné obilí smí pár let
+    // ustat (dřív každý rok od prvního) – ke konci ho ves zase seje
     expect(grain[0]).toBe(0);
     const first = grain.findIndex((kg) => kg > 0);
     expect(first).toBeGreaterThan(0);
-    expect(grain.slice(first).every((kg) => kg > 0)).toBe(true);
+    expect(grain.slice(-3).every((kg) => kg > 0)).toBe(true);
     // bez hladu: nikdo hladem neumřel a hlad se nenahromadil (energie dne pod 0,9 – population.md);
     // v září a říjnu, než porážka dá maso, smí ves krátce šetřit
     expect(s.chronicle.filter((e) => e.kind === 'death' && e.cause === 'hunger')).toHaveLength(0);

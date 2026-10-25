@@ -55,7 +55,6 @@ import { isToilDay, windowEndDay } from './happiness';
 import { mow, mowingNeededRemaining, mowingRemaining, recordMowingLabor } from './hay';
 import { herdingDay, recordHerding } from './herding';
 import { horseCareLabor, villageHorses } from './horses';
-import { villageHoldings, workOrder } from './holdings';
 import {
   slaughterRemaining,
   villageChickens,
@@ -65,7 +64,7 @@ import {
 } from './livestock';
 import { ploughCapacityPerDay, ploughPairsHome, villageOxen } from './oxen';
 import { morningWater, ploughWindowsToday, villagersToday } from './morning-water';
-import { extraSowingDay, extraSowingWantsTeam } from './extra-sowing';
+import { surplusFieldDay, surplusWantsTeam } from './surplus-fields';
 import { threshingFloorHaulPoints } from './threshing-floors';
 import { grainPitTask, workGrainPits } from './grain-pits';
 import { chooseGrainPitSite } from './grain-pit-site';
@@ -169,12 +168,13 @@ export function fieldTasks(
     const order =
       TASK_ORDER.indexOf(name === 'plough' ? 'dig' : name) - (name === 'plough' ? 0.5 : 0);
     const rank = CROP_ORDER.indexOf(crop) * TASK_ORDER.length + order;
-    // příprava půdy dílů osevu navíc čeká na volnou práci (fields.md – Osev navíc)
     const remaining = neededTaskRemaining(work, name);
     if (remaining > 0) entries.push({ name, crop, remaining, work, end, rank });
   };
   if (state.season !== null) {
     for (const { crop, work } of seasonCrops(state.season)) {
+      // díly nad potřebu dostanou práci až po stavbách (`surplusFieldDay`)
+      if (work.surplus) continue;
       for (const name of activeTasks(work, day, crop)) if (name !== 'thresh') add(crop, work, name);
       if (neededTaskRemaining(work, 'plough') > 0) add(crop, work, 'plough');
     }
@@ -263,6 +263,7 @@ export function work(
   obstacles: ObstacleLayer | null,
   coverage: CraftCoverage,
   landscape: Landscape | null,
+  neededWaiting = false,
 ): { toil: boolean; lordField: number } {
   const month = dateOfDayIndex(day).month;
   // starší hospodářský rok s pletím ozimu – ozim se neplete; pletí jaře, luštěnin a lnu ze
@@ -350,10 +351,10 @@ export function work(
   dayTasks.sort(dayTaskOrder);
   // vozy (wagons.md – Vůz): dvoukoláky s volem, který dnes neorá, vozí snopy a seno tam, kam
   // dojedou – převezmou kus nošení a jde s nimi honák a nakladač (úloha pak chce méně práce); ve
-  // dny orby (i orby osevu navíc) jdou páry napřed k rádlům, vozy táhne zbytek volů (oxen.md –
-  // Voli se sdílí)
+  // dny orby (i orby dílů nad potřebu) jdou páry napřed k rádlům, vozy táhne zbytek volů (oxen.md
+  // – Voli se sdílí)
   const ploughing =
-    owned.some((task) => task.name === 'plough') || extraSowingWantsTeam(state, day);
+    owned.some((task) => task.name === 'plough') || surplusWantsTeam(state, day, neededWaiting);
   // spřežení na poli zůstává u rádla i v den bez orby (oxen.md – Spřežení zůstane na poli)
   const fleet = cartFleetToday(state, day, ploughing || afield);
   // dosah vozů má ves s hotovou ohradou volů i bez vozů – měří, co by dnes vozy ušetřily
@@ -704,8 +705,9 @@ export function work(
   );
   const trade = workExpeditions(state, allocation.away - purchaseLabor);
   // volná práce na seč (oxen.md – Stáda podle práce na seč): co po polních pracích zbylo – nutná
-  // seč a společná práce (stavby, opravy, osev a seč navíc, nevyužitá) – podle ní ves příští rok
-  // drží stáda
+  // seč a společná práce (stavby, opravy, díly nad potřebu a seč navíc, nevyužitá) – podle ní ves
+  // příští rok drží stáda; práce dílů nad potřebu ji nezmenší (fields.md – Osevní postup po
+  // dílech, bod 4)
   recordMowingLabor(state, day, mowWork + allocation.common, coverage.tools);
   let common = allocation.common;
   // kácení u stromů, kam vůz dojede, před dnešní prací – co se dnes skácí, mohly odvézt vozy
@@ -758,25 +760,26 @@ export function work(
     return { dwellingId: d.id, manDays };
   });
   decayEmptyDwellings(state, day, new Set(households.map((d) => d.id)));
-  // osev navíc (fields.md – Osev navíc): práce, která zbude po stavbách a opravách, jde na díly,
-  // které ves smí osít navíc; páry s rádlem jen s kapacitou, která po potřebné orbě zbyla (vozy
-  // ve dny orby páry neberou – oxen.md, Voli se sdílí) – co zbude i potom, propadne
-  const extra = extraSowingDay(state, day, {
+  // díly nad potřebu (fields.md – Osevní postup po dílech, bod 3; Martin 25. 10. 2026: „ve
+  // chvíli, kdy stavba přijde, prostě vesnice o část úrody přijde“): práce, která zbude po
+  // stavbách a opravách, jde na všechnu jejich práci na poli; páry s rádlem jen s kapacitou, která
+  // po nutné orbě zbyla (vozy ve dny orby páry neberou – oxen.md, Voli se sdílí)
+  const surplus = surplusFieldDay(state, day, {
     labor: afterBuild.left,
-    ploughCap: Math.max(
+    teamDays: Math.max(
       0,
       ploughCap - morningTeam - owned.reduce((sum, t) => sum + (t.teamDays ?? 0), 0),
     ),
     ploughFactor,
     toolCoverage: coverage.tools,
-    order: () => workOrder(villageHoldings(state)),
+    neededWaiting,
   });
   // seč navíc pro růst stád (oxen.md – Seno, dvě seče; Martin 19. 10. 2026: „pokud se něco staví,
-  // tak čas věnují primárně té stavbě“): jen z práce, která zbude po stavbách, opravách a osevu
-  // navíc – pěšky, bez vozů; co nestihne do konce okna, zůstane neposečené
+  // tak čas věnují primárně té stavbě“): jen z práce, která zbude po stavbách, opravách a dílech
+  // nad potřebu – pěšky, bez vozů; co nestihne do konce okna, zůstane neposečené
   const extraMow = Math.max(
     0,
-    Math.min(afterBuild.left - extra.labor, mowingRemaining(state, day)),
+    Math.min(afterBuild.left - surplus.labor, mowingRemaining(state, day)),
   );
   if (extraMow > EPSILON) mow(state, extraMow);
   // večer: spřežení, které dnes vyjelo a oralo, je u bloku; po zorání okna zpět do ohrady
@@ -867,8 +870,8 @@ export function work(
           },
         }
       : {}),
-    fieldWork: [...fieldWork, ...extra.fieldWork],
-    extraField: extra.labor,
+    fieldWork: [...fieldWork, ...surplus.fieldWork],
+    surplusField: surplus.labor,
     ...(extraMow > EPSILON ? { extraMow } : {}),
     ...(weeders.length > 0 ? { weedChildAges: weeders } : {}),
     repairs,

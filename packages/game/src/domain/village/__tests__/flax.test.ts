@@ -380,7 +380,10 @@ describe('len napřed – výběr s kapacitou (do Úlohy 5 pro páry k rádlům)
       state = advanceVillage(state, at(year, 9, 2), null);
       plans.push(
         Object.fromEntries(
-          seasonCrops(state.season!).map(({ crop, work }) => [crop, work.partIds]),
+          seasonCrops(state.season!).map(({ crop, work }) => [
+            work.surplus ? `${crop}+` : crop,
+            work.partIds,
+          ]),
         ),
       );
     }
@@ -401,8 +404,10 @@ describe('len napřed – výběr s kapacitou (do Úlohy 5 pro páry k rádlům)
     // v práci, co ves za dva dny přibrala podle potřeby úrody – bez kapacity plánu (dřív
     // 721:3d269733); a s postupem práce po dílech od čela (fields.md – Postup práce po dílech,
     // 25. 10. 2026): 2. 9. je v práci jen dávka, kterou ves za WORK_FRONT_DAYS stihne (dřív
-    // 1018:b6da3f2c)
-    expect(fingerprint(plans)).toBe('167:3d9cb32c');
+    // 1018:b6da3f2c); a s díly nad potřebu po stavbách (fields.md – Osevní postup po dílech,
+    // bod 3, 25. 10. 2026): ves bez staveb obdělá i díly nad potřebu – víc zásob, jiná potřeba
+    // úrody (dřív 167:3d9cb32c)
+    expect(fingerprint(plans)).toBe('171:fcbccd0e');
   });
 });
 

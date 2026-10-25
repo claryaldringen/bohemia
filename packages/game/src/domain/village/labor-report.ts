@@ -81,10 +81,10 @@ export interface DayWork {
   /** Polní úlohy dne po plodinách (bez nich se práce polí dělí podle plochy plánu). */
   fieldWork?: FieldTaskWork[];
   /**
-   * Polní práce navíc ze společné práce – po stavbách (fields.md – Osev navíc); její úlohy jsou
-   * ve `fieldWork`. Bez údaje 0.
+   * Práce dílů nad potřebu ze společné práce – po stavbách (fields.md – Osevní postup po dílech,
+   * bod 3); její úlohy jsou ve `fieldWork`. Bez údaje 0.
    */
-  extraField?: number;
+  surplusField?: number;
   /** Seč navíc z práce po stavbách (oxen.md – Seno, dvě seče; člověkodny). Bez údaje 0. */
   extraMow?: number;
   /**
@@ -382,11 +382,11 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
   }
   // nákup u sousedů – malá skupina po stezce nebo krajinou ke kraji mapy (crafts.md)
   for (const p of work.purchases ?? []) add('trade', p.target, p.manDays);
-  // opravy obydlí jdou ze společné práce po stavbách (population.md – Práce), polní práce navíc
-  // z toho, co zbude po nich (fields.md – Osev navíc)
+  // opravy obydlí jdou ze společné práce po stavbách (population.md – Práce), díly nad potřebu
+  // z toho, co zbude po nich (fields.md – Osevní postup po dílech, bod 3)
   let invested =
     work.repairs.reduce((sum, r) => sum + r.manDays, 0) +
-    (work.extraField ?? 0) +
+    (work.surplusField ?? 0) +
     (work.extraMow ?? 0);
   // honáci a nakladači klád jdou ze společné práce (wagons.md); sedláci s uhlím a rudou mají
   // vlastní podíl práce vsi před úlohami (`allocation.carting` – crafts.md, Uhlí a ruda kováře)

@@ -288,6 +288,17 @@ stane nutným, když potřeba vzroste.
 
 **Hotovo:** jako Úloha 3; v kódu žádné `extraSowing`, `ExtraPart`, `extraLeft`.
 
+**Provedení (25. 10. 2026, návrh Clauda):** `surplusFieldDay(state, day, { labor, teamDays,
+ploughFactor, toolCoverage, neededWaiting })` – vstup `order` odpadl (díl nad potřebu přibývá po
+jednom). „Rozpracovaný“ = plodina nad potřebu má nehotovou přípravu půdy; nový díl nezačne, dokud
+nutné díly čekají na čelo (`seasonDay` vrací čekající → `work(…, neededWaiting)`). Povýšení
+(`promoteSurplus` v `simulate-plan.ts`) jde mimo čelo, `moveParts` v téže plodině nese i setí
+a další práci. Přídělový výhled (`daysUntilFoodHarvest`) počítá jen nutný ozim. Konec října: ozim
+nad potřebu → jař nad potřebu; 1. 5. nezasetá jař nad potřebu vypadne. Starý `extra` a `extraLeft`
+ze stavu s ročním plánem zůstávají jako netypované klíče – převede je Úloha 6. Otisky: jen
+`flax.test.ts` (171:fcbccd0e, plodiny nad potřebu s klíčem `winter+`); `field-food.test.ts` – nutné
+obilí smí s díly nad potřebu pár let ustat (zásoby rostou), test hlídá poslední tři roky.
+
 ## Úloha 5 – Orba a spřežení – pásy, cesta k bloku, páry k rádlům
 
 **Cíl:** Ves s voly orá nutné díly v souvislých pásech i bez plánu, díly nad potřebu zbylou
@@ -385,6 +396,9 @@ a novým kódem, bez zásahu hráče, a jednou se dvěma stavbami zadanými v du
       nezasetá do 30. 4.
 - [ ] Čas dopočtu 8 let – starý a nový kód (nejvýš +10 %); determinismus – dopočet po 1 dni
       a po 30 dnech dá stejný stav.
+- [ ] Test dosažitelnosti (`holdings.test.ts`, recenze review-sowing-3b – Important 1): práh
+      obdělaných dílů 31. 8. byl v Úloze 3 snížen 0,4 → 0,12 (rozdíl proti staré verzi 0,04) –
+      ověřit na Vlkově a práh zpřísnit podle naměřeného.
 - [ ] Výsledek do fields.md (Osevní postup – Naměřeno), zprávu Martinovi s tabulkou.
 - [ ] Commit `docs: osevní postup – ověření na Vlkově`.
 

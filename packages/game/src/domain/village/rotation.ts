@@ -78,14 +78,6 @@ export function sowingCropToday(kind: SowingKind | null, day: number): 'winter' 
 }
 
 /**
- * Plodina, kterou dnes začíná osev navíc (fields.md – Osev navíc) – jako první osev oběhu
- * (`sowingCropToday`). Zmizí s osevem navíc (plán – Úloha 4).
- */
-export function extraSowingCrop(day: number): 'winter' | 'spring' | null {
-  return sowingCropToday('first', day);
-}
-
-/**
  * Konec hospodářského roku (1. 9.) pro jeden díl podle postupu (fields.md – Osevní postup po
  * dílech, bod 1) – mění ho na místě. Úrodnost jako `endOfSeason`; pak ozim, který byl prvním
  * osevem oběhu, čeká na jař a jař, která byla prvním osevem (ozim nestihla), na ozim (Martin
@@ -230,22 +222,39 @@ interface SeasonWork {
   ids: Set<number>;
   /** Nezačaté díly obilí (ozim, jař) – kandidáti uvolnění. */
   untouched: { part: FieldPart; crop: Crop }[];
+  /** Díly obilí nad potřebu v pořadí práce (ozim, pak jař) – kandidáti povýšení na nutné. */
+  surplus: { part: FieldPart; crop: Crop }[];
 }
 
 /**
  * Zasetá a začatá nutná práce sezóny: očekávaná úroda plodin, které se ještě nesklidily (plná
- * práce, dnešní úrodnost – jako dosud plán), a nezačaté díly obilí.
+ * práce, dnešní úrodnost – jako dosud plán), nezačaté díly obilí a díly nad potřebu (jejich úroda
+ * se do potřeby nepočítá – stavby mají přednost).
  */
 function seasonOf(
   state: VillageState,
   partsById: ReadonlyMap<number, FieldPart>,
   day: number,
 ): SeasonWork {
-  const season: SeasonWork = { energyKg: 0, legumeKg: 0, flaxKg: 0, ids: new Set(), untouched: [] };
+  const season: SeasonWork = {
+    energyKg: 0,
+    legumeKg: 0,
+    flaxKg: 0,
+    ids: new Set(),
+    untouched: [],
+    surplus: [],
+  };
   if (!state.season) return season;
   for (const { crop, work } of seasonCrops(state.season)) {
     for (const id of work.partIds) season.ids.add(id);
     if (work.harvestedKg !== null) continue;
+    if (work.surplus) {
+      for (const id of work.partIds) {
+        const part = partsById.get(id);
+        if (part) season.surplus.push({ part, crop });
+      }
+      continue;
+    }
     const grain = crop === 'winter' || crop === 'spring';
     const started = grain ? startedPartIds(work, partsById, day) : null;
     for (const id of work.partIds) {
@@ -297,8 +306,9 @@ function releasable(season: SeasonWork, targets: NeededTargets, day: number): nu
  * založené, odpočaté, přílohy 70–95 % a nakonec nouzové přílohy s kladnou úrodou), v dávce ozim
  * před jaří (jeho okno končí dřív); plodina `sowingCropToday`. Len a luštěniny místo jaře – len od
  * konce, luštěniny od domu, napřed díly po ozimu, pak díly s prvním osevem – do své potřeby.
- * Když potřebu úroda převyšuje a obilí nepřibírá, vrátí nezačaté díly obilí k uvolnění
- * (`release`). Stav nemění.
+ * Když potřeba vzroste (narození, díl zabraný stavbou, slabší úroda), stane se nutným napřed díl
+ * nad potřebu, na kterém práce začala (v pořadí jeho práce, plodina zůstává). Když potřebu úroda
+ * převyšuje a obilí nepřibírá, vrátí nezačaté díly obilí k uvolnění (`release`). Stav nemění.
  */
 export function neededSelection(
   state: VillageState,
@@ -324,13 +334,22 @@ export function neededSelection(
   const join: NeededJoin[] = [];
   const used = new Set<number>();
   let energy = season.energyKg;
-  // obilí do `limitKg` v pořadí bloků; nouzové přílohy až za ostatními, jen s kladnou úrodou
+  // obilí do `limitKg`: napřed díly nad potřebu, na kterých práce začala (povýšení – plodina
+  // zůstává), pak díly na řadě v pořadí bloků; nouzové přílohy až za ostatními, jen s kladnou
+  // úrodou
   const grain = (limitKg: number): void => {
     if (energy >= limitKg - ENERGY_EPSILON) return;
+    const batch: NeededJoin[] = [];
+    for (const { part, crop } of season.surplus) {
+      if (energy >= limitKg - ENERGY_EPSILON) break;
+      if (used.has(part.id)) continue;
+      batch.push({ id: part.id, crop });
+      used.add(part.id);
+      energy += expectedNetKg(part, day);
+    }
     emergency ??= sowingBlocks(parts, holdings, EMERGENCY_GROUP)
       .flat()
       .filter((p) => kind(p) === 'emergency' && expectedNetKg(p, day) > 0);
-    const batch: NeededJoin[] = [];
     for (const p of [...regular, ...emergency]) {
       if (energy >= limitKg - ENERGY_EPSILON) break;
       if (used.has(p.id)) continue;
@@ -368,4 +387,23 @@ export function neededSelection(
   // len a luštěniny přibírají kvůli své potřebě – uvolnění obilí nebrzdí
   const grainJoins = join.some((j) => j.crop === 'winter' || j.crop === 'spring');
   return { join, release: grainJoins ? [] : releasable(season, targets, day) };
+}
+
+/** Díl na řadě s obilím – první osev, jař po ozimu, ozim po jaři (ne příloh 70–95 % ani nouzový). */
+export function onTurn(kind: SowingKind | null): boolean {
+  return kind === 'first' || kind === 'spring' || kind === 'winter';
+}
+
+/**
+ * Pořadí dílů nad potřebu (fields.md – Osevní postup po dílech, bod 3): díly na řadě s obilím,
+ * které nejsou v letošní práci (`used`), v pořadí přílohové soustavy po úsecích od domu
+ * (`sowingBlocks`) – přílohy 70–95 % a nouzové ne, ať ves nevyčerpá přílohy, ze kterých oseje
+ * příští rok. Stav nemění.
+ */
+export function surplusOrder(state: VillageState, used: ReadonlySet<number>): FieldPart[] {
+  const free = (p: FieldPart): boolean => !used.has(p.id) && onTurn(nextSowing(p));
+  if (!state.parts.some(free)) return [];
+  const parts = byId(state.parts);
+  const holdings = villageHoldings(parts === state.parts ? state : { ...state, parts: [...parts] });
+  return sowingBlocks(parts, holdings).flat().filter(free);
 }

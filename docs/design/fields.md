@@ -432,9 +432,21 @@ Seno, dvě seče).
      díly nad potřebu jen kapacitou, která zbude. **Změna proti osevu navíc:** setí až odnos
      začatého dílu nad potřebu už nemá přednost před stavbami (Martin 25. 10. 2026 – „ve chvíli,
      kdy stavba přijde, prostě vesnice o část úrody přijde“).
+     Podrobnosti (návrh Clauda, Úloha 4 plánu): díly nad potřebu jsou díly na řadě s obilím
+     (první osev, jař po ozimu, ozim po jaři) – přílohy 70–95 % a nouzové ne, ať ves nevyčerpá
+     přílohy, ze kterých oseje příští rok. Berou se v pořadí přílohové soustavy od domu, po
+     jednom na plodinu: další díl začne, až má rozpracovaný díl hotovou přípravu půdy (setí, pletí
+     a žně hotových dílů mají přednost před novým dílem). Nový díl nad potřebu nezačne, dokud
+     nutné díly čekají na čelo práce (Postup práce po dílech) – díly nad potřebu berou práci až
+     za čelem nutných. Ozim nad potřebu, na kterém do konce října setí nezačalo, se oseje na jaře
+     jaří nad potřebu (zkopaná část se počítá); jař nad potřebu nezasetá do konce dubna čeká na
+     další sezónu – jako u nutných dílů. Přídělový výhled do sklizně (Ozim a jař) počítá jen nutný
+     ozim – úroda nad potřebu není jistá, stavba ji může vzít.
    - **Díl, na kterém začala práce jako na nutném, nutným zůstane** – co ves začala proti hladu,
      dodělá. Díl nad potřebu se stane nutným, když potřeba vzroste (narození, díl zabraný stavbou,
-     slabší úroda), v pořadí od domu. Díl, na kterém práce ještě nezačala a který ves už
+     slabší úroda), v pořadí od domu – napřed díly nad potřebu, na kterých práce už začala (na čelo
+     nečekají, plodina zůstává a hotová práce včetně setí jde s nimi), pak další díly na řadě
+     (návrh Clauda). Díl, na kterém práce ještě nezačala a který ves už
      nepotřebuje, prostě čeká jako díl nad potřebu – zkrácení plánu odpadá. Nutný ho ves přestane
      brát, až když úroda nutných dílů převyšuje potřebu o víc než desetinu roční potřeby z pole
      (`FIELD_STORES.trimMarginYears`, jako dosud zkrácení plánu), aby díly mezi nutnými a nad

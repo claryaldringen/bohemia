@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage, type PartInput } from '../actions';
-import { extraSowingCrop } from '../extra-sowing';
 import { expectedNetKg, sowingGroup } from '../fields';
 import { expectedFlaxKg } from '../flax';
 import { sowingBlocks, villageHoldings } from '../holdings';
@@ -272,12 +271,6 @@ describe('plodina dne', () => {
     expect(sowingCropToday('spring', at(601, 4, 30))).toBeNull();
     expect(sowingCropToday('rest', at(600, 9, 1))).toBeNull();
     expect(sowingCropToday(null, at(600, 9, 1))).toBeNull();
-  });
-
-  it('osev navíc začíná stejnou plodinou jako první osev', () => {
-    for (let day = at(600, 1, 1); day < at(601, 1, 1); day++) {
-      expect(extraSowingCrop(day)).toBe(sowingCropToday('first', day));
-    }
   });
 });
 

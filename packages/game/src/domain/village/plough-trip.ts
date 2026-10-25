@@ -9,7 +9,7 @@ import { TEAM_TRAVEL } from './rules';
 import { fieldGridOf } from './squares';
 import { rotationCosSin, squareCenter } from './square-grid';
 import type { CropWork, FieldPart, PloughBand, PloughWork, VillageState } from './types';
-import { cropTaskWindows, neededTaskRemaining, seasonCrops, windowEndOf } from './year-plan';
+import { cropTaskWindows, cropTaskRemaining, seasonCrops, windowEndOf } from './year-plan';
 
 // Výkon spřežení za den (oxen.md – Co nejdelší brázda): kromě sazby orby ho ubírají obraty na
 // souvrati (krátká brázda – `furrowEfficiency` pásu, který se právě orá) a cesta k bloku
@@ -284,7 +284,7 @@ export function settlePloughTeams(
     if (!afield(plough)) continue;
     if (
       noTeams ||
-      neededTaskRemaining(work, 'plough') <= EPS ||
+      cropTaskRemaining(work, 'plough') <= EPS ||
       windowEndOf(cropTaskWindows(crop, 'plough'), tomorrow) === null
     ) {
       plough.trip!.home = day;

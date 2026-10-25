@@ -189,7 +189,7 @@ function simulateDay(
   // nákup výrobků řemeslníků u sousedů – jednou za rok po sklizni, ves se rozhodne sama
   // (crafts.md – Nákup u sousedů); skupina vyrazí hned
   startPurchases(state, day, coverage, landscape);
-  const { toil, lordField } = work(state, day, obstacles, coverage, landscape);
+  const { toil, lordField } = work(state, day, obstacles, coverage, landscape, waiting.length > 0);
   // nástroje a nádoby v užívání se opotřebí (crafts.md – Účinek)
   wearCraftStocks(state, day);
   // zemské stezky – dostavěné úseky od vsi ven hned vylepšené, vrácené výpravy (trade.md)
