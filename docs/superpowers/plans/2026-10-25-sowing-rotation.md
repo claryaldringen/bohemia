@@ -397,14 +397,14 @@ odpočinku k 95 %), `apps/web/lib/village-view-fields.ts`, `village-view-types.t
 `selection-details.ts`, `components/game/hud/SelectionPanel.tsx`, ikony (stávající ikony plodin
 a přílohu – nic nového nekreslit), `apps/web/lib/__tests__/village-view.test.ts`, e2e panelu pole.
 
-- [ ] Panel dílu: **Příště** (ikona ozim / jař / luštěniny / len / úhor, u úhoru % odpočinku,
+- [x] Panel dílu: **Příště** (ikona ozim / jař / luštěniny / len / úhor, u úhoru % odpočinku,
       popisek „Osev za ≈ N let“), osetý díl „1. / 2. osev oběhu“, díl nad potřebu popisek „Jen
       z volné práce – stavby mají přednost“. Jen ikony s čísly, slova v `Tooltip`.
-- [ ] Panel pole: **Na řadě** – počty dílů s ozimem, s jaří, odpočívajících; v popisku kolik je
+- [x] Panel pole: **Na řadě** – počty dílů s ozimem, s jaří, odpočívajících; v popisku kolik je
       nad potřebu.
-- [ ] Strniště po ozimu (`ready` + `next`) vypadá jako strniště do začátku podzimní práce
+- [x] Strniště po ozimu (`ready` + `next`) vypadá jako strniště do začátku podzimní práce
       (`fieldPartLooks`) – test vzhledu.
-- [ ] Commit `feat(web): panel dílu a pole – osevní postup`.
+- [x] Commit `feat(web): panel dílu a pole – osevní postup`.
 
 **Hotovo:** `typecheck`, `lint`, `test`, `format:check`, `test:e2e`.
 

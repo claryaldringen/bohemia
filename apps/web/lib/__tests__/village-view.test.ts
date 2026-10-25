@@ -172,6 +172,48 @@ describe('buildVillageView – díl pole pro panel (fields.md – Co hráč vid�
   });
 });
 
+describe('buildVillageView – osevní postup v panelu (fields.md – Osevní postup po dílech)', () => {
+  it('díl: co poroste příště, úhor s odpočinkem, nad potřebu; pole: na řadě a odpočívá', () => {
+    const s = settled();
+    s.constructions = s.constructions.filter((c) => c.kind !== 'field');
+    for (const p of s.parts) {
+      p.foundingDone = p.foundingCost;
+      p.state = 'ready';
+    }
+    const [afterWinter, resting, surplus] = s.parts;
+    afterWinter!.next = 'spring';
+    afterWinter!.sownYears = 1;
+    resting!.state = 'fallow';
+    resting!.fertilityShare = 0.76;
+    resting!.fallowSinceDay = DAY - 400;
+    surplus!.state = 'sown';
+    surplus!.crop = 'winter';
+    s.season = {
+      startDay: DAY - 200,
+      crops: [
+        {
+          crop: 'winter',
+          surplus: true,
+          ...createCropWork([surplus!], DAY - 200, 1, false, undefined, 'winter'),
+        },
+      ],
+    };
+    const field = buildVillageView(record(s), landscape, DAY).fields[0]!;
+    const shown = new Map(field.parts.map((p) => [p.id, p]));
+    expect(shown.get(afterWinter!.id)).toMatchObject({ next: 'spring' });
+    expect(shown.get(resting!.id)).toMatchObject({
+      next: 'fallow',
+      rest: { share: 0.8, years: 8 },
+    });
+    // nezasetý díl nad potřebu – příště jeho plodina
+    expect(shown.get(surplus!.id)).toMatchObject({ next: 'winter', work: { surplus: true } });
+    expect(field.turn.resting).toBe(1);
+    expect(field.turn.winter + field.turn.spring).toBe(s.parts.length - 2);
+    expect(field.turn.spring).toBeGreaterThan(0);
+    expect(field.turn.surplus).toEqual({ winter: 1, spring: 0 });
+  });
+});
+
 describe('buildVillageView – zarůstání (fields.md)', () => {
   it('díly přílohu: roky bez pastvy, kde se pase, zarůstající plocha; les vsi se stromy', () => {
     const s = settled();
@@ -440,6 +482,7 @@ describe('buildVillageView', () => {
         stages: { founding: 5 },
         surfaces: { meadow: 5 },
         crops: {},
+        turn: { winter: 0, spring: 0, resting: 0, surplus: { winter: 0, spring: 0 } },
         ashParts: 0,
         ashBonus: 0,
         overgrowingM2: 0,

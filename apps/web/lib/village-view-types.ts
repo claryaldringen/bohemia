@@ -29,6 +29,7 @@ import {
   type FieldSurface,
   type HungerLevel,
   type PartStage,
+  type NextCrop,
   type PartYearWork,
   type RelocationBlock,
   type RoadApplesOption,
@@ -491,6 +492,16 @@ export interface VillageView {
     surfaces: Partial<Record<FieldSurface, number>>;
     /** Oseté díly podle plodiny (fields.md – Ozim a jař); díl bez plodiny je jař. */
     crops: Partial<Record<Crop, number>>;
+    /**
+     * Na řadě (fields.md – Osevní postup po dílech, bod 6): díly mimo letošní práci, které čekají
+     * na ozim či jař, odpočívající příloh (pod 95 %) a díly letošní práce nad potřebu podle obilí.
+     */
+    turn: {
+      winter: number;
+      spring: number;
+      resting: number;
+      surplus: { winter: number; spring: number };
+    };
     /** Díly v okně bonusu úrodnosti po vymýcení lesa (fields.md – Úroda). */
     ashParts: number;
     /** Nejvyšší letošní bonus úrodnosti z popela (+40 první sezónu osevu, +20 druhou), jinak 0. */
@@ -720,6 +731,13 @@ export interface VillageFieldPart {
   fallowYears?: number;
   /** Letošní práce na dílu (`partYearWork` – podíly na setiny); díl bez letošní práce chybí. */
   work?: PartYearWork;
+  /**
+   * Co na dílu poroste příště (`partRotation` – fields.md, Osevní postup po dílech, bod 6) – plodina,
+   * nebo úhor; zakládaný díl chybí.
+   */
+  next?: NextCrop;
+  /** Úhor: odpočinek k 95 % (setiny) a roky do osevu (≈). */
+  rest?: { share: number; years: number };
   /** Zakládaný díl: průběh 0–1 (setiny), zbývající práce (člověkodny) a dospělé stromy na klády. */
   founding?: { progress: number; laborLeft: number; trees: number };
 }

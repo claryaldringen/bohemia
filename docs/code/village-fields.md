@@ -194,6 +194,15 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   ostatními; nezačaté obilí nad toleranci `FIELD_STORES.trimMarginYears` vrátí v `release`).
   `sowingGroup` dává připravenému dílu s `next` skupinu 1. Sem se přesunuly i `sowParts`
   a `reclaimedLogs`.
+  **Panel – Příště a Na řadě** (fields.md – Osevní postup po dílech, bod 6; Úloha 7):
+  `part-rotation.ts` – `partRotation(state, day, yearWork?)` → díl id → `PartRotation`: `next`
+  (`NextCrop` – plodina nebo `'fallow'`; nezasetý díl letošní práce svou plodinu, zasetý postup na
+  kopii dílu přes `rotateAfterSeason` k dalšímu 1. 9., díl na řadě ozim / jař podle
+  `sowingCropToday` den po dni dopředu), `rest` (úhor: `fertilityShare / FERTILITY.fallowReady`
+  na setiny a roky do osevu po `fallowRecovery`), `round` (kolikátý osev oběhu), `onTurn` (na
+  řadě mimo letošní práci), `surplus` (díl letošní práce nad potřebu). Zakládaný díl chybí. Jen
+  čte stav. `fieldPartLooks`: připravený díl s `next` (po prvním osevu) je strniště, dokud na něj
+  nepřijde podzimní práce.
 
 - **Postup práce po čtvercích** (Martin – fields.md): kopání, setí a sklizeň mění díl, až k němu
   dojde práce. `field-progress.ts` (jen čte): díly plodiny v pořadí `CropWork.partIds` (dávka
@@ -271,8 +280,8 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   vystouplého obilí a stromy. Data panelu: `VillageView.fields[].parts` (`VillageFieldPart` –
   úsporně, výchozí údaje chybí: výměra jen u neúplného čtverce, přirozená úrodnost jen když se
   liší, `holding` = obydlí hospodářství z `villageHoldings`, `work` = `partYearWork` z
-  `field-progress.ts` – plodina, příprava půdy `reclaim` / `plough` / `dig`, setí, sklizeň, seč;
-  rok osevu, roky ladem, zakládání), `VillageOrchard.cells` (`VillageOrchardSquare` – stáří,
+  `field-progress.ts` – plodina, příprava půdy `reclaim` / `plough` / `dig`, setí, sklizeň, seč,
+  `surplus`; `next` a `rest` z `partRotation`; osev oběhu, roky ladem, zakládání), `VillageOrchard.cells` (`VillageOrchardSquare` – stáří,
   `squareExpectedYieldKg`, výsadba, obnova, cesta); co je vidět (vzhled, stadium, zarůstání,
   pastva) bere `selectionDetails` ze scény (`selectedFieldPart`, `selectedOrchardSquare`).
   Panel: `FieldPartBody` / `OrchardSquareBody`, název pod portrétem `fieldPartName` /
@@ -280,7 +289,8 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   `resources/harvest` (srp s klasy) a `resources/walk` (šlépěje – cesta z domu). Při malování
   po čtvercích vybraný díl dá mřížku svého pole (`wholeTarget` ve `startBuild`).
   `/dev/landscape` vybírá jako hra (čísla panelu odhaduje `app/dev/landscape/dev-selection.ts`),
-  `/dev/panels?panel=pole-dil` (`pole-dil-priloh`, `pole-dil-zaklada`, `sad-ctverec`).
+  `/dev/panels?panel=pole-dil` (`pole-dil-na-rade`, `pole-dil-priloh`, `pole-dil-zaklada`,
+  `sad-ctverec`).
 
 - **Pole ve scéně** (fields.md – Co hráč vidí; podle 0 A.D.): vzhled dílu `FieldLook`
   (`village-view-scene-types.ts`: `bare`, `plowed`, `sown`, `sprouted`, `green`, `ripe`, `harvesting`,

@@ -482,7 +482,10 @@ Seno, dvě seče).
      kolikátého roku v osevu). Díl nad potřebu má v popisku „Jen z volné práce – stavby mají
      přednost“ (dosud „čeká na volnou práci“).
    - **Panel pole:** vedle osetých dílů podle plodiny **na řadě** – počet dílů na řadě s ozimem,
-     s jaří a odpočívajících; v popisku, kolik z dílů na řadě je nad potřebu.
+     s jaří a odpočívajících; v popisku, kolik z dílů na řadě je nad potřebu. Upřesnění (návrh
+     Clauda, 25. 10. 2026): na řadě jsou díly, které čekají mimo letošní práci (díly letošní
+     práce ukazují plodiny), a nad potřebu díly, které ves z řady vzala k letošní práci nad
+     potřebu.
    - Scéna beze změny – díl ukazuje svůj stav (strniště po ozimu do podzimní orby, zkopaná zem,
      příloh) a práce postupuje po čtvercích. Upozornění beze změny (hlad, chybí len na oděv).
 

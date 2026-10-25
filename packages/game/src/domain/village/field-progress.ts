@@ -602,6 +602,10 @@ export function fieldPartLooks(state: VillageState, day: number): Map<number, Pa
       const work = part.foundingCost > 0 ? part.foundingDone / part.foundingCost : 0;
       // louku zakládanou rádlem jen vyklízí od překážek – drn zůstane do orby (oxen.md – Jen rádlo)
       views.set(part.id, { look: part.sod ? 'pasture' : 'bare', work: Math.min(1, work) });
+    } else if (part.state === 'ready' && part.next !== undefined && !part.sod) {
+      // díl po prvním osevu oběhu čeká na řadě – strniště do podzimní práce (fields.md – Osevní
+      // postup po dílech, bod 6)
+      views.set(part.id, { look: 'stubble' });
     } else if (part.state === 'ready' || part.state === 'sown') {
       views.set(part.id, { look: part.sod ? 'pasture' : 'bare' });
     } else if (isOvergrown(part)) {

@@ -36,6 +36,7 @@ export * from './year-plan';
 export { withSowingRotation } from './rotation';
 export * from './sowing';
 export * from './field-progress';
+export * from './part-rotation';
 export * from './labor';
 export { LABOR_TREES_SHOWN, laborReport } from './labor-report';
 export * from './population';
