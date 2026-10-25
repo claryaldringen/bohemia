@@ -31,13 +31,18 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   v liště, `commonLaborHistory`) do staveb (`build`) → z toho, co stavby nespotřebovaly, opravy
   obydlí (`afterConstructions`) → osev navíc (fields.md) → **seč navíc** pro růst stád (oxen.md –
   Seno, dvě seče; `extraMow`) → zbytek propadne. **Seč nutného sena** je úloha dne `mow` za
-  všemi ostatními (`end: Infinity`, `tie: 3`) – polním pracím práci nikdy nebere, stavbám ano. Zvířata a domácí výroba (`DOMESTIC`) jdou bokem – jen `LaborDay.aside` pro postavy;
+  všemi ostatními (`end: Infinity`, `tie: 3`) – polním pracím práci nikdy nebere (kromě pletí
+  mužů, které jde až za ní), stavbám ano. Zvířata a domácí výroba (`DOMESTIC`) jdou bokem – jen `LaborDay.aside` pro postavy;
   `domesticBacklog` a přirážka paliva zmizely (starší vsi pole jen nesou). Úlohy dne berou práci
   ze zásobníků v pořadí **`weedChildren`** (děti 7–13 let, které nepasou, jen pletí –
   `weedingChildren` v harvest-hands.ts, `WEEDING_CHILDREN` 0,5 čd; fields.md – Pletí – děti) →
-  **`light`** (ženy řemeslníků, jen lehké úlohy) → **`lordField`**
+  **`light`** (ženy řemeslníků, jen lehké úlohy) → u pletí **ženy vsi** (`weedWomen` – podíl žen
+  na práci vsi; pletí je bere napřed, i před úlohami dřív v pořadí) → **`lordField`**
   (vojvodova rodina na poli při hladu, jen úlohy dne, nikdy stavby; co nevyužije, propadne) →
-  obecná kapacita. **Cvičící vojvodova rodina** (lord.md) je mimo `villagers` jako dílny; minimum
+  obecná kapacita. **Pletí mužů až za ostatními úlohami dne** (fields.md – Pletí jednou a rychle):
+  co děti a ženy nedoplejí, dostane obecnou kapacitu až po všech ostatních úlohách dne včetně
+  nutné seče, a jen díl, který by děti a ženy do konce okna nestihly (`weedDaysLeft`) – jen
+  v tom se pořadí úloh dne liší. **Cvičící vojvodova rodina** (lord.md) je mimo `villagers` jako dílny; minimum
   dvorce kryje sama (`manorLabor`, domácnost dvorce je ve `householdElders` / `householdWater`
   vynechaná přes `skip`), co nepokryje, jde z práce vsi jako `manorMin`. `DayAllocation.lordField`
   = spotřebovaná práce rodiny; `work()` vrací podíl `lordField` pro `trainLordDay`.

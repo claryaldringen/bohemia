@@ -81,16 +81,30 @@ export const HARVEST_HELPERS = { youthFromAge: 10, perDay: 0.5 } as const;
 // uvolnit ruce dospělým.“; číslo návrh Clauda): výrostci 7–13 let, kteří zrovna nepasou, plejí
 // v okně pletí po 0,5 člověkodne denně (pasáci mají přednost)
 export const WEEDING_CHILDREN = { perDay: 0.5 } as const;
+// fields.md – Pletí jednou a rychle (Martin 25. 10. 2026: „Ve středověku se plelo jednou, rychle
+// a dělaly to hlavně ženy a děti … Jakmile obilí trochu vzešlo, tehdejší vysoké odrůdy pole
+// zastínily a další plevel už nevzešel.“; sazba návrh Clauda podle Martina): jedno projití pole
+// krátce po vzejití – obilí 8 / 5 člověkodní na hektar (dřív 30 / 15)
+const GRAIN_WEEDING_PER_HA: Bounds = { worst: 8, best: 5 };
+// fields.md – Pletí jednou a rychle: luštěniny a len zastíní pole méně – 10 / 6 (dřív 40 / 20)
+const LOW_CROP_WEEDING_PER_HA: Bounds = { worst: 10, best: 6 };
 // fields.md – Práce (člověkodny na osetý hektar – meze)
 export const FIELD_WORK_PER_HA: Record<FieldTask, Bounds> = {
   dig: { worst: 100, best: 50 },
   sow: { worst: 10, best: 10 },
-  weed: { worst: 30, best: 15 },
+  weed: GRAIN_WEEDING_PER_HA,
   harvest: {
     worst: HARVEST_WORK_PER_HA.reap.worst + HARVEST_WORK_PER_HA.carry.worst,
     best: HARVEST_WORK_PER_HA.reap.best + HARVEST_WORK_PER_HA.carry.best,
   },
   thresh: { worst: 15, best: 10 },
+};
+// fields.md – Pletí jednou a rychle (Martin 25. 10. 2026: „Ozim se plít asi nemusí – v dubnu už je
+// tak velký, že plevel udusí.“): ozim se neplete – sazby jako jař bez pletí, úrodu bez pletí
+// nesráží (`unweededYield` se na ozim nepoužije)
+export const WINTER_WORK_PER_HA: Record<FieldTask, Bounds> = {
+  ...FIELD_WORK_PER_HA,
+  weed: { worst: 0, best: 0 },
 };
 // fields.md – Založení pole (povrch dílu za hektar – meze)
 export const FOUNDING_COST_PER_HA: Record<FieldSurface, Bounds> = {
@@ -135,7 +149,8 @@ export const FIELD_LIMITS = { maxDistanceM: 800, minAreaM2: 1000 } as const;
 // „Ano udělej to tak.“ – návrh Clauda: i vrácení přílohu pod jař smí na jaře, ne jen kopání); seje se na jaře, sklízí v srpnu a mlátí
 // hned po žni v září (production-chains.md – Výmlat hned po žni; Martin 20. 10. 2026: „Staří
 // slované se snažili dělat výmlat hned. Klasy neskladovali.“). Výmlat, který okno nestihne,
-// pokračuje dál, dokud je co mlátit (snopy čekají a kazí se – THRESHING).
+// pokračuje dál, dokud je co mlátit (snopy čekají a kazí se – THRESHING). Pletí jaře v květnu –
+// vzejde 3–4 týdny po setí (fields.md – Pletí jednou a rychle, Martin 25. 10. 2026).
 export const WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
   reclaim: [
     [9, 11],
@@ -146,23 +161,24 @@ export const WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
     [3, 4],
   ],
   sow: [[3, 4]],
-  weed: [[5, 6]],
+  weed: [[5, 5]],
   harvest: [[8, 8]],
   thresh: [[9, 9]],
 };
 // fields.md – Ozim a jař (návrh Clauda, Martin schválil směr 18. 10. 2026): ozim se vrací
-// z přílohu, kope a seje v září–říjnu, plete v květnu–červnu jako jař, sklízí v červenci
-// a mlátí hned po žni v srpnu (production-chains.md – Výmlat hned po žni)
+// z přílohu, kope a seje v září–říjnu, neplete se (fields.md – Pletí jednou a rychle, Martin
+// 25. 10. 2026: „v dubnu už je tak velký, že plevel udusí“), sklízí v červenci a mlátí hned po
+// žni v srpnu (production-chains.md – Výmlat hned po žni)
 export const WINTER_WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
   reclaim: [[9, 10]],
   dig: [[9, 10]],
   sow: [[9, 10]],
-  weed: [[5, 6]],
+  weed: [],
   harvest: [[7, 7]],
   thresh: [[8, 8]],
 };
 // fields.md – Luštěniny (rešerše 2026-10-18-legumes.md): luštěniny jsou jař – kopou se na podzim
-// nebo na jaře, sejí v březnu–dubnu, pletou v květnu–červnu, sklízejí (trhají) v červenci a mlátí
+// nebo na jaře, sejí v březnu–dubnu, pletou v květnu, sklízejí (trhají) v červenci a mlátí
 // hned po sklizni v srpnu na humně jako obilí (production-chains.md – Humno, návrh Clauda)
 export const LEGUME_WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
   ...WINDOWS,
@@ -212,7 +228,7 @@ export const LEGUME_HARVEST_WORK_PER_HA: Record<'reap' | 'carry', Bounds> = {
 export const LEGUME_WORK_PER_HA: Record<FieldTask, Bounds> = {
   dig: FIELD_WORK_PER_HA.dig,
   sow: FIELD_WORK_PER_HA.sow,
-  weed: { worst: 40, best: 20 },
+  weed: LOW_CROP_WEEDING_PER_HA,
   harvest: {
     worst: LEGUME_HARVEST_WORK_PER_HA.reap.worst + LEGUME_HARVEST_WORK_PER_HA.carry.worst,
     best: LEGUME_HARVEST_WORK_PER_HA.reap.best + LEGUME_HARVEST_WORK_PER_HA.carry.best,
@@ -245,7 +261,7 @@ export const FLAX = {
 export const FLAX_WORK_PER_HA: Record<FieldTask, Bounds> = {
   dig: FIELD_WORK_PER_HA.dig,
   sow: FIELD_WORK_PER_HA.sow,
-  weed: { worst: 40, best: 20 },
+  weed: LOW_CROP_WEEDING_PER_HA,
   harvest: { worst: 55, best: 55 },
   thresh: { worst: 0, best: 0 },
 };

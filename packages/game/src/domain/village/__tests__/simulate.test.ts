@@ -359,11 +359,13 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     expect(planPartIds(s.plan!).length).toBeGreaterThan(0);
     const ha = (work: (typeof crops)[number]['work']): number =>
       work.partIds.reduce((sum, id) => sum + s.parts.find((p) => p.id === id)!.areaM2, 0) / 10_000;
-    for (const { work } of crops) {
+    for (const { crop, work } of crops) {
       if (work.partIds.length === 0) continue;
       expect(work.required.reclaim).toBeGreaterThanOrEqual(100 * ha(work) - 1e-6);
       expect(work.required.reclaim).toBeLessThan(100 * ha(work) * 1.1);
-      expect(work.required.weed).toBeGreaterThan(0);
+      // ozim se neplete (fields.md – Pletí jednou a rychle)
+      if (crop === 'winter') expect(work.required.weed).toBe(0);
+      else expect(work.required.weed).toBeGreaterThan(0);
       expect(work.reclaimIds).toEqual(work.partIds);
     }
     for (const id of planPartIds(s.plan!)) {
@@ -410,8 +412,9 @@ describe('advanceVillage – roční plán a sklizeň', () => {
       const part = s.parts.find((p) => p.id === id);
       expect(part).toMatchObject({ state: 'sown', fallowSinceDay: null, bonusUntilDay: null });
     }
-    for (const { work } of crops) {
-      if (work.partIds.length > 0) expect(work.required.weed).toBeGreaterThan(0);
+    for (const { crop, work } of crops) {
+      if (work.partIds.length > 0 && crop !== 'winter')
+        expect(work.required.weed).toBeGreaterThan(0);
     }
   });
 

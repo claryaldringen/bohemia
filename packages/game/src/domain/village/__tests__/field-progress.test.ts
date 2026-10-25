@@ -15,7 +15,7 @@ import { laborReport } from '../labor-report';
 import { advanceVillage } from '../simulate';
 import type { FieldPart, VillageState } from '../types';
 import { PLOUGH_SOD_FACTOR } from '../plough';
-import { activeTasks, neededTaskRemaining, partWeight, planCrops, planPartIds } from '../year-plan';
+import { neededTaskRemaining, partWeight, planPartIds } from '../year-plan';
 import { herdingDay } from '../herding';
 import { villageOxen } from '../oxen';
 import { withRoomyPens } from './village-fixtures';
@@ -147,11 +147,11 @@ describe('postup po čtvercích', () => {
     expect(kidsDays).toBeGreaterThan(0);
   });
 
-  it('seč nebere práci polním úlohám – pletí má přednost (oxen.md – Seno, dvě seče)', () => {
+  it('nutná seč dostane práci mužů i v okně pletí – plejí napřed ženy a děti (fields.md – Pletí jednou a rychle)', () => {
     let s = advanceVillage(penned(), at(602, 5, 25), null);
-    // pletí ozimu znovu od začátku – vydrží do června
-    s.plan!.winter!.done.weed = 0;
-    // 1. seč s velkou nutnou prací – ves by sekala celý den, kdyby jí pletí nechalo
+    // pletí jaře znovu od začátku – vydrží do konce května
+    s.plan!.done.weed = 0;
+    // 1. seč s velkou nutnou prací – ves by sekala celý den
     s.hay = {
       kg: 0,
       mowing: {
@@ -164,23 +164,17 @@ describe('postup po čtvercích', () => {
       },
     };
     let busyDays = 0;
-    let mowDays = 0;
-    for (let day = at(602, 5, 26); day <= at(602, 6, 30); day++) {
+    for (let day = at(602, 5, 26); day <= at(602, 5, 31); day++) {
+      const weedBefore = neededTaskRemaining(s.plan!, 'weed');
       s = advanceVillage(s, day, null);
-      const mown = s.labor!.shares.some((x) => x.activity === 'mow');
-      if (mown) mowDays++;
-      // pletí, které ten den ves nedokončila – na seč nezbylo nic
-      const weedLeft = planCrops(s.plan!).some(
-        ({ crop, work }) =>
-          activeTasks(work, day, crop).includes('weed') && neededTaskRemaining(work, 'weed') > 1e-6,
-      );
-      if (weedLeft) {
+      // pletí, které ten den ves nedokončila – plely ženy a děti, muži sekali
+      if (weedBefore > 1e-6 && neededTaskRemaining(s.plan!, 'weed') > 1e-6) {
         busyDays++;
-        expect(mown).toBe(false);
+        expect(s.labor!.shares.some((x) => x.activity === 'weed')).toBe(true);
+        expect(s.labor!.shares.some((x) => x.activity === 'mow')).toBe(true);
       }
     }
     expect(busyDays).toBeGreaterThan(0);
-    expect(mowDays).toBeGreaterThan(0);
   });
 
   it('sklizeň ozimu v červenci: sklizené díly s panáky, nesklizené zůstanou zralé', () => {

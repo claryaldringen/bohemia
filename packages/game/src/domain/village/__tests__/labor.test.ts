@@ -271,3 +271,74 @@ describe('afterConstructions (population.md – Práce)', () => {
     expect(afterConstructions(-1, 0.5)).toEqual({ repairs: 0, left: 0 });
   });
 });
+
+describe('pletí – děti, ženy, muži (fields.md – Pletí jednou a rychle)', () => {
+  // po denním minimu zbude 6 člověkodní, polovina je práce žen
+  const day = { ...base, capacity: DAILY_MIN + 6, weedWomen: 0.5 };
+
+  it('pleje napřed dětmi, pak ženami vsi; muži až po ostatních úlohách dne (seč)', () => {
+    const r = allocateDay({
+      ...day,
+      weedChildren: 1,
+      tasks: [
+        { name: 'weed', remaining: 5 },
+        { name: 'mow', remaining: 4 },
+      ],
+    });
+    expect(r.weedChildren).toBeCloseTo(1, 9);
+    expect(r.weedWomen).toBeCloseTo(3, 9);
+    expect(r.tasks.weed).toBeCloseTo(4, 9);
+    expect(r.tasks.mow).toBeCloseTo(3, 9);
+    expect(r.common).toBeCloseTo(0, 9);
+  });
+
+  it('co děti a ženy nestihnou, doplejí muži, když jim ostatní úlohy něco nechají', () => {
+    const r = allocateDay({ ...day, weedChildren: 1, tasks: [{ name: 'weed', remaining: 5 }] });
+    expect(r.tasks.weed).toBeCloseTo(5, 9);
+    expect(r.weedWomen).toBeCloseTo(3, 9);
+    expect(r.common).toBeCloseTo(2, 9);
+  });
+
+  it('ženy plejí napřed, i když je pletí v pořadí úloh až za kopáním', () => {
+    const r = allocateDay({
+      ...day,
+      tasks: [
+        { name: 'dig', remaining: 6 },
+        { name: 'weed', remaining: 2 },
+      ],
+    });
+    expect(r.tasks.weed).toBeCloseTo(2, 9);
+    expect(r.weedWomen).toBeCloseTo(2, 9);
+    expect(r.tasks.dig).toBeCloseTo(4, 9);
+    expect(r.taskAmounts).toEqual([expect.closeTo(4, 9), expect.closeTo(2, 9)]);
+  });
+
+  it('muži plejí, jen co ženy a děti do konce okna nestihnou – jinak volná práce zůstane', () => {
+    const tasks = [{ name: 'weed' as const, remaining: 9 }];
+    // ženy a děti dají 4 za den: zbytek 5 stihnou do konce okna (za 2 další dny) – muži neplejí
+    const early = allocateDay({ ...day, weedChildren: 1, weedDaysLeft: 3, tasks });
+    expect(early.tasks.weed).toBeCloseTo(4, 9);
+    expect(early.common).toBeCloseTo(3, 9);
+    // poslední dva dny: zbytek 5 – ženy a děti zítra 4, muži dnes 1
+    const late = allocateDay({ ...day, weedChildren: 1, weedDaysLeft: 2, tasks });
+    expect(late.tasks.weed).toBeCloseTo(5, 9);
+    // poslední den doplejí muži, co mohou
+    const last = allocateDay({ ...day, weedChildren: 1, weedDaysLeft: 1, tasks });
+    expect(last.tasks.weed).toBeCloseTo(7, 9);
+    expect(last.common).toBeCloseTo(0, 9);
+  });
+
+  it('bez podílu žen pleje jen to, co zbude po ostatních úlohách', () => {
+    const r = allocateDay({
+      ...day,
+      weedWomen: undefined,
+      tasks: [
+        { name: 'weed', remaining: 2 },
+        { name: 'mow', remaining: 5 },
+      ],
+    });
+    expect(r.tasks.mow).toBeCloseTo(5, 9);
+    expect(r.tasks.weed).toBeCloseTo(1, 9);
+    expect(r.weedWomen ?? 0).toBe(0);
+  });
+});

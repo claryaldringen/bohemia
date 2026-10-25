@@ -926,7 +926,8 @@ function recordHarvest(
       ((winter?.reclaim ?? 0) + (winter?.dig ?? 0) + (winter?.sow ?? 0)) /
         (free * windowDays(9, 10, year - 1)),
     spring: 1 - (springDig + spring.sow) / (free * windowDays(3, 4)),
-    weed: 1 - (spring.weed + (winter?.weed ?? 0)) / (free * windowDays(5, 6)),
+    // ozim se neplete, jař jednou v květnu (fields.md – Pletí jednou a rychle)
+    weed: 1 - spring.weed / (free * windowDays(5, 5)),
     summer: 1 - Math.max(winter?.harvest ?? 0, spring.harvest) / (free * windowDays(7, 7)),
   };
   record.finished = planCrops(plan).every(({ work }) =>

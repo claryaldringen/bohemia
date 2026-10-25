@@ -471,8 +471,30 @@ export function cropSeedPerHa(crop: Crop): number {
   return SEED_KG_PER_HA;
 }
 
-/** Podíl úrody neopletého dílu plodiny (luštěniny a len plevel snášejí hůř). */
+/**
+ * Ozim se neplete (fields.md – Pletí jednou a rychle; Martin 25. 10. 2026: „Ozim se plít asi
+ * nemusí – v dubnu už je tak velký, že plevel udusí.“): starší plán s pletím ozimu ho ztratí
+ * (požadované i hotové pletí 0). Idempotentní – bez pletí ozimu vrací týž plán.
+ */
+export function withoutWinterWeeding(plan: YearPlan): YearPlan {
+  const winter = plan.winter;
+  if (!winter || (winter.required.weed === 0 && winter.done.weed === 0)) return plan;
+  return {
+    ...plan,
+    winter: {
+      ...winter,
+      required: { ...winter.required, weed: 0 },
+      done: { ...winter.done, weed: 0 },
+    },
+  };
+}
+
+/**
+ * Podíl úrody neopletého dílu plodiny (luštěniny a len plevel snášejí hůř). Ozim se neplete
+ * (fields.md – Pletí jednou a rychle) – plná úroda, i když starší plán pletí ozimu měl.
+ */
 function unweededYield(crop: Crop): number {
+  if (crop === 'winter') return 1;
   if (crop === 'legume') return LEGUMES.unweededYield;
   if (crop === 'flax') return FLAX.unweededYield;
   return UNWEEDED_YIELD;

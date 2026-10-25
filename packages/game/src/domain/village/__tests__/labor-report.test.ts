@@ -259,3 +259,17 @@ describe('laborReport – rozdělení práce dne', () => {
     }
   });
 });
+
+describe('laborReport – pletí (fields.md – Pletí jednou a rychle)', () => {
+  it('v květnu plejí napřed ženy – muži jen, co by ženy do konce okna nestihly', () => {
+    let s = found(at(500, 9, 2));
+    let weed: LaborShare[] = [];
+    for (let day = at(501, 5, 1); day <= at(501, 5, 31) && weed.length === 0; day += 2) {
+      s = advanceVillage(s, day, null);
+      weed = of(s.labor!.shares, 'weed').filter((x) => !x.ages);
+    }
+    expect(weed.length).toBeGreaterThan(0);
+    // zakladatelé – muž a žena; na začátku okna stihne pletí žena, muž nepleje
+    for (const share of weed) expect(share.women).toBe(1);
+  });
+});

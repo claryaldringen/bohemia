@@ -502,6 +502,12 @@ export interface LaborShare {
    * a ruda kováře): kovář, nebo jeho synové; postavy pod 14 let jsou děti. U ostatní práce chybí.
    */
   ages?: number[];
+  /**
+   * Podíl žen mezi dospělými, kteří práci dělají (0–1) – u pletí dospělých (fields.md – Pletí
+   * jednou a rychle: plejí napřed ženy vsi, muži jen zbytek). U ostatní práce chybí – scéna vezme
+   * podíl podle činnosti.
+   */
+  women?: number;
 }
 
 /** Rozdělení práce jednoho dne – uložené ve stavu vsi (`VillageState.labor`). */

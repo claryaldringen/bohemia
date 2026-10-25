@@ -65,6 +65,17 @@ true })` (práce cvičících mužů rodiny po minimu dvorce – `manorLabor.fre
   `weedChildren` (× `WEEDING_CHILDREN.perDay` 0,5) jen na pletí, před `light` a prací vsi;
   spotřeba `DayAllocation.weedChildren`. `laborDay` rozdělí podíly pletí poměrem dětí a jejich díl
   nese `ages` (`DayWork.weedChildAges`) – scéna kreslí malé postavy (`villager-plan.ts`, `ages`).
+  **Pletí jednou a rychle** (fields.md, 25. 10. 2026): sazby `GRAIN_WEEDING_PER_HA` 8 / 5
+  a `LOW_CROP_WEEDING_PER_HA` 10 / 6 (luštěniny, len) v rules-fields.ts; okno jaře, luštěnin a lnu
+  `[[5, 5]]`, ozim `weed: []` a `WINTER_WORK_PER_HA` (pletí 0 – `CROP_WORK_PER_HA.winter`
+  v productivity.ts); `unweededYield('winter')` = 1 (year-plan.ts) a `withoutWinterWeeding`
+  (idempotentně na začátku `work()`) vynuluje pletí ozimu ve starším plánu. Ženy: `work()` dá
+  `allocateDay` podíl žen na práci vsi `weedWomen` (`p.sex === 'female'` mezi `villagers`);
+  `allocateDay` pleje napřed (děti → `light` → ženy = podíl × práce po výpravách a vozech, i před
+  úlohami dřív v pořadí), pak ostatní úlohy a teprve pak muži zbytek pletí (`allot` ve třech
+  průchodech) – jen díl, který by děti a ženy dnešním tempem do konce okna nestihly
+  (`weedDaysLeft` z `work()` podle konce okna úloh `weed`); spotřeba `DayAllocation.weedWomen`. `laborDay` dá podílu pletí dospělých
+  `LaborShare.women` (ženy ÷ pletí dospělých) – scéna podle něj kreslí ženy.
   **Žně všemi rukama** (fields.md – Žně všemi rukama, `harvest-hands.ts`): `harvestHandsDay`
   (měsíce `HARVEST_HANDS_MONTHS` z oken žní a výmlatu `CROP_WINDOWS` – 7–9 – a v okně zbývá žeň
   plánu nebo práce snopů) je jedno místo pravdy pro `workshopLabor` (řemeslník se syny →
