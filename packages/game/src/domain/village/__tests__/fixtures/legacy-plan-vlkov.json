@@ -1,0 +1,979 @@
+{
+  "note": "V\u00fd\u0159ez ze skute\u010dn\u00e9ho stavu Vlkova (feat/landscape) \u2013 ro\u010dn\u00ed pl\u00e1n a p\u00e1r d\u00edl\u016f, tvar p\u0159ed osevn\u00edm postupem",
+  "plan": {
+    "ard": true,
+    "done": {
+      "dig": 0,
+      "sow": 105.34818032499996,
+      "weed": 37.01104513,
+      "thresh": 0,
+      "harvest": 263.37045081249994,
+      "reclaim": 30.38094
+    },
+    "flax": {
+      "done": {
+        "dig": 0,
+        "sow": 1.5266475,
+        "weed": 0.50706,
+        "thresh": 0,
+        "harvest": 8.396561250000001,
+        "reclaim": 0
+      },
+      "hauled": 3.1353924478484196,
+      "plough": {
+        "done": 0.9159885,
+        "trip": {
+          "home": 115721,
+          "block": 0,
+          "costM": 694.2409228634541,
+          "arrived": {
+            "day": 115720,
+            "from": null
+          }
+        },
+        "bands": [
+          {
+            "axis": "x",
+            "block": 0,
+            "sweep": 1,
+            "partIds": [3042, 3043, 3044]
+          }
+        ],
+        "weight": 0.15266475,
+        "partIds": [3042, 3043, 3044],
+        "required": 0.9159885
+      },
+      "partIds": [3042, 3043, 3044],
+      "required": {
+        "dig": 0,
+        "sow": 1.5266475,
+        "weed": 0.50706,
+        "thresh": 0,
+        "harvest": 8.396561250000001,
+        "reclaim": 0
+      },
+      "cartReach": {
+        "share": 1,
+        "points": [
+          {
+            "x": 112.5,
+            "z": -592.5,
+            "weight": 1
+          }
+        ]
+      },
+      "seedReach": {
+        "share": 1,
+        "points": [
+          {
+            "x": 112.5,
+            "z": -592.5,
+            "weight": 1
+          }
+        ]
+      },
+      "cartReach4": {
+        "share": 1,
+        "points": [
+          {
+            "x": 112.5,
+            "z": -592.5,
+            "weight": 1
+          }
+        ]
+      },
+      "seedHauled": 0.15266475000000002,
+      "harvestedKg": 45.2754225
+    },
+    "hauled": 98.01185078110092,
+    "legume": {
+      "done": {
+        "dig": 0,
+        "sow": 21.398597499999994,
+        "weed": 10.699298749999997,
+        "thresh": 0,
+        "harvest": 85.59438999999998,
+        "reclaim": 0
+      },
+      "hauled": 31.921322565313393,
+      "plough": {
+        "done": 15.407486250000002,
+        "trip": {
+          "home": 115731,
+          "block": 8,
+          "costM": 995.0029876411081,
+          "arrived": {
+            "day": 115730,
+            "from": 6
+          }
+        },
+        "bands": [
+          {
+            "axis": "x",
+            "block": 0,
+            "sweep": 1,
+            "partIds": [3198]
+          },
+          {
+            "axis": "x",
+            "block": 1,
+            "sweep": 1,
+            "partIds": [3209]
+          },
+          {
+            "axis": "x",
+            "block": 2,
+            "sweep": 1,
+            "partIds": [3261]
+          }
+        ],
+        "sodIds": [3111, 3112, 3113, 3114, 3095, 3096, 3097, 3098, 2922, 2938, 2954],
+        "weight": 2.1398597500000003,
+        "partIds": [3198, 3209, 3261],
+        "required": 15.407486250000002
+      },
+      "partIds": [3198, 3209, 3261],
+      "required": {
+        "dig": 0,
+        "sow": 21.398597499999994,
+        "weed": 10.699298749999997,
+        "thresh": 12.839158500000003,
+        "harvest": 85.59438999999998,
+        "reclaim": 0
+      },
+      "cartReach": {
+        "share": 1,
+        "points": [
+          {
+            "x": 337.5,
+            "z": -412.5,
+            "weight": 1
+          }
+        ]
+      },
+      "seedReach": {
+        "share": 1,
+        "points": [
+          {
+            "x": 337.5,
+            "z": -412.5,
+            "weight": 1
+          }
+        ]
+      },
+      "cartReach4": {
+        "share": 1,
+        "points": [
+          {
+            "x": 337.5,
+            "z": -412.5,
+            "weight": 1
+          }
+        ]
+      },
+      "seedHauled": 1.50479901613275,
+      "harvestedKg": 312.31588035200025
+    },
+    "plough": {
+      "done": 134.16791223750008,
+      "trip": {
+        "home": 115887,
+        "block": 6,
+        "costM": 1824.618588938868,
+        "arrived": {
+          "day": 115886,
+          "from": 4
+        }
+      },
+      "bands": [
+        {
+          "axis": "y",
+          "block": 0,
+          "sweep": 1,
+          "partIds": [2900, 2916, 2932, 2948, 2964, 2980, 2996]
+        },
+        {
+          "axis": "y",
+          "block": 0,
+          "sweep": 1,
+          "partIds": [2885, 2901, 2917, 2933, 2949, 2965, 2981, 2997, 3013, 3029]
+        },
+        {
+          "axis": "y",
+          "block": 0,
+          "sweep": 1,
+          "partIds": [
+            2870, 2886, 2902, 2918, 2934, 2950, 2966, 2982, 2998, 3014, 3030, 3046, 3062, 3078
+          ]
+        },
+        {
+          "axis": "y",
+          "block": 0,
+          "sweep": 1,
+          "partIds": [
+            2671, 2685, 2701, 2717, 2733, 2749, 2765, 2781, 2797, 2813, 2827, 2840, 2855, 2871,
+            2887, 2903, 2919, 2935, 2951, 2967, 2983, 2999, 3015, 3031, 3047, 3063, 3079
+          ]
+        },
+        {
+          "axis": "y",
+          "block": 0,
+          "sweep": 1,
+          "partIds": [
+            2672, 2686, 2702, 2718, 2734, 2750, 2766, 2782, 2798, 2814, 2828, 2841, 2856, 2872,
+            2888, 2904, 2920, 2936, 2952, 2968, 2984, 3000, 3016, 3032, 3048, 3064, 3080
+          ]
+        },
+        {
+          "axis": "y",
+          "block": 0,
+          "sweep": 1,
+          "partIds": [
+            2673, 2687, 2703, 2719, 2735, 2751, 2767, 2783, 2799, 2815, 2829, 2842, 2857, 2873,
+            2889, 2905, 2921, 2937, 2953, 2969, 2985, 3001, 3017, 3033, 3049, 3065, 3081
+          ]
+        },
+        {
+          "axis": "y",
+          "block": 0,
+          "sweep": 1,
+          "partIds": [
+            2674, 2688, 2704, 2720, 2736, 2752, 2768, 2784, 2800, 2816, 2830, 2843, 2858, 2874,
+            2890, 2906
+          ]
+        },
+        {
+          "axis": "y",
+          "block": 0,
+          "sweep": 1,
+          "partIds": [2675, 2689, 2705, 2721, 2737, 2753, 2769, 2785, 2801, 2817, 2831, 2844, 2859]
+        },
+        {
+          "axis": "y",
+          "block": 0,
+          "sweep": 1,
+          "partIds": [3028]
+        },
+        {
+          "axis": "y",
+          "block": 0,
+          "sweep": 1,
+          "partIds": [2700, 2716, 2732, 2748, 2764, 2780, 2796]
+        },
+        {
+          "axis": "y",
+          "block": 0,
+          "sweep": 1,
+          "partIds": [2970, 2986, 3002, 3018, 3034, 3050, 3066, 3082]
+        },
+        {
+          "axis": "x",
+          "block": 1,
+          "sweep": 1,
+          "partIds": [3058]
+        },
+        {
+          "axis": "x",
+          "block": 2,
+          "sweep": 1,
+          "partIds": [314, 315, 316]
+        },
+        {
+          "axis": "x",
+          "block": 2,
+          "sweep": 1,
+          "partIds": [335, 336, 337]
+        },
+        {
+          "axis": "x",
+          "block": 2,
+          "sweep": 1,
+          "partIds": [357, 358, 359]
+        },
+        {
+          "axis": "x",
+          "block": 2,
+          "sweep": 1,
+          "partIds": [378, 379, 725, 726]
+        },
+        {
+          "axis": "x",
+          "block": 2,
+          "sweep": 1,
+          "partIds": [729, 730, 731, 732]
+        },
+        {
+          "axis": "x",
+          "block": 2,
+          "sweep": 1,
+          "partIds": [735, 736]
+        },
+        {
+          "axis": "x",
+          "block": 3,
+          "sweep": 1,
+          "partIds": [1273, 1274]
+        },
+        {
+          "axis": "x",
+          "block": 3,
+          "sweep": 1,
+          "partIds": [1288, 1289, 1290, 1291]
+        },
+        {
+          "axis": "x",
+          "block": 4,
+          "sweep": 1,
+          "partIds": [468]
+        },
+        {
+          "axis": "x",
+          "block": 4,
+          "sweep": 1,
+          "partIds": [469, 470]
+        },
+        {
+          "axis": "x",
+          "block": 4,
+          "sweep": 1,
+          "partIds": [471, 472, 220]
+        },
+        {
+          "axis": "x",
+          "block": 4,
+          "sweep": 1,
+          "partIds": [473, 474, 240]
+        },
+        {
+          "axis": "x",
+          "block": 4,
+          "sweep": 1,
+          "partIds": [508, 475, 476, 260, 261]
+        },
+        {
+          "axis": "x",
+          "block": 4,
+          "sweep": 1,
+          "partIds": [512, 477, 478, 280, 281, 282]
+        },
+        {
+          "axis": "x",
+          "block": 4,
+          "sweep": 1,
+          "partIds": [515, 516, 479, 480, 300, 301, 302, 303]
+        },
+        {
+          "axis": "x",
+          "block": 4,
+          "sweep": 1,
+          "partIds": [518, 519, 520, 481, 482, 320, 321, 322, 323]
+        },
+        {
+          "axis": "x",
+          "block": 4,
+          "sweep": 1,
+          "partIds": [521, 522, 523, 524, 483, 484, 340, 341, 342, 343, 344]
+        },
+        {
+          "axis": "x",
+          "block": 4,
+          "sweep": 1,
+          "partIds": [525]
+        },
+        {
+          "axis": "x",
+          "block": 4,
+          "sweep": 1,
+          "partIds": [348, 349]
+        },
+        {
+          "axis": "x",
+          "block": 4,
+          "sweep": 1,
+          "partIds": [528, 485, 486, 360, 361, 362, 363, 364, 365, 366, 367, 368, 369, 370]
+        },
+        {
+          "axis": "x",
+          "block": 4,
+          "sweep": 1,
+          "partIds": [487, 488]
+        },
+        {
+          "axis": "x",
+          "block": 4,
+          "sweep": 1,
+          "partIds": [381, 382, 383, 384, 385, 386, 387, 388, 389, 390, 391]
+        },
+        {
+          "axis": "x",
+          "block": 4,
+          "sweep": 1,
+          "partIds": [401, 402, 403, 404, 405, 406, 407, 408, 409, 410, 411, 412]
+        },
+        {
+          "axis": "x",
+          "block": 4,
+          "sweep": 1,
+          "partIds": [422, 423, 424, 425, 426, 427, 428, 429, 430, 431, 432, 433, 434]
+        },
+        {
+          "axis": "x",
+          "block": 4,
+          "sweep": 1,
+          "partIds": [3714, 3715, 3716, 3717, 3718, 3719, 3720, 3721, 3722, 3723, 3724, 3725, 3726]
+        },
+        {
+          "axis": "x",
+          "block": 4,
+          "sweep": 1,
+          "partIds": [
+            3748, 3749, 3750, 3751, 3752, 3753, 3754, 3755, 3756, 3757, 3758, 3759, 3760, 3761
+          ]
+        },
+        {
+          "axis": "x",
+          "block": 4,
+          "sweep": 1,
+          "partIds": [
+            3782, 3783, 3784, 3785, 3786, 3787, 3788, 3789, 3790, 3791, 3792, 3793, 3794, 3795,
+            3796, 3797
+          ]
+        },
+        {
+          "axis": "x",
+          "block": 5,
+          "sweep": 1,
+          "partIds": [1900]
+        },
+        {
+          "axis": "x",
+          "block": 6,
+          "sweep": 1,
+          "partIds": [3150, 3151, 3152, 3153, 3154, 3155, 3156]
+        },
+        {
+          "axis": "x",
+          "block": 6,
+          "sweep": 1,
+          "partIds": [3165, 3166, 3167, 3168, 3169, 3170]
+        },
+        {
+          "axis": "x",
+          "block": 6,
+          "sweep": 1,
+          "partIds": [3178, 3179, 3180, 3181, 3182]
+        }
+      ],
+      "sodIds": [
+        2900, 2916, 2932, 2948, 2964, 2980, 2996, 2885, 2901, 2917, 2933, 2949, 2965, 2981, 2997,
+        3013, 3029, 2870, 2886, 2902, 2918, 2934, 2950, 2966, 2982, 2998, 3014, 3030, 3046, 3062,
+        3078, 2671, 2685, 2701, 2717, 2733, 2749, 2765, 2781, 2797, 2813, 2827, 2840, 2855, 2871,
+        2887, 2903, 2919, 2935, 2951, 2967, 2983, 2999, 3015, 3031, 3047, 3063, 3079, 2672, 2686,
+        2702, 2718, 2734, 2750, 2766, 2782, 2798, 2814, 2828, 2841, 2856, 2872, 2888, 2904, 2920,
+        2936, 2952, 2968, 2984, 3000, 3016, 3032, 3048, 3064, 3080, 2673, 2687, 2703, 2719, 2735,
+        2751, 2767, 2783, 2799, 2815, 2829, 2842, 2857, 2873, 2889, 2905, 2921, 2937, 2953, 2969,
+        2985, 3001, 3017, 3033, 3049, 3065, 3081, 2674, 2688, 2704, 2720, 2736, 2752, 2768, 2784,
+        2800, 2816, 2830, 2843, 2858, 2874, 2890, 2906, 2675, 2689, 2705, 2721, 2737, 2753, 2769,
+        2785, 2801, 2817, 2831, 2844, 2859, 2700, 2716, 2732, 2748, 2764, 2780, 2796, 2970, 2986,
+        3002, 3018, 3034, 3050, 3066, 3082, 314, 315, 316, 335, 336, 337, 357, 358, 468, 469, 470,
+        471, 472, 220, 473, 474, 240, 508, 475, 476, 260, 261, 512, 477, 478, 280, 281, 282, 515,
+        516, 479, 480, 300, 301, 302, 303, 518, 519, 520, 481, 482, 320, 321, 322, 323, 521, 522,
+        523, 524, 483, 484, 340, 341, 342, 343, 344, 525, 348, 349, 528, 485, 486, 360, 361, 362,
+        363, 364, 365, 366, 367, 368, 369, 370, 487, 488, 381, 382, 383, 384, 385, 386, 387, 388,
+        389, 390, 391, 401, 402, 403, 404, 405, 406, 407, 408, 409, 410, 411, 412, 422, 423, 424,
+        425, 426, 427, 428, 429, 430, 431, 432, 433, 434, 1900
+      ],
+      "weight": 10.534818032499993,
+      "partIds": [2900, 2916, 2932],
+      "required": 134.16791223750008
+    },
+    "winter": {
+      "done": {
+        "dig": 0,
+        "sow": 121.44088011842358,
+        "weed": 0,
+        "thresh": 0,
+        "harvest": 303.60220029605887,
+        "reclaim": 0
+      },
+      "hauled": 113.31337204740137,
+      "plough": {
+        "done": 107.02228931602194,
+        "trip": {
+          "home": 115720,
+          "block": 11,
+          "costM": 1016.9940293344374,
+          "arrived": {
+            "day": 115718,
+            "from": 10
+          }
+        },
+        "bands": [
+          {
+            "axis": "x",
+            "block": 0,
+            "sweep": 1,
+            "partIds": [1871, 1872]
+          },
+          {
+            "axis": "x",
+            "block": 1,
+            "sweep": 1,
+            "partIds": [3199]
+          }
+        ],
+        "sodIds": [
+          1871, 1872, 3210, 3219, 3220, 3228, 3229, 3230, 3237, 3238, 3241, 3242, 3243, 3244, 3245,
+          3246, 3247, 3251, 3252, 3253, 3254, 3255, 3256, 1869, 3607, 3608, 3609, 3594, 3595, 3596,
+          3597, 3580, 3581, 3582, 3583, 3584, 3585, 3565, 3566, 3567, 3568, 3569, 3570, 3546, 3547,
+          3548, 3549, 3550, 3551, 3552, 3524, 3525, 3526, 3527, 3528, 3529, 3530, 3531, 3532, 3533,
+          3493, 3494, 3495, 3496, 3497, 3498, 3499, 3500, 3501, 3502, 3503, 3451, 3452, 3453, 3454,
+          3455, 3456, 3457, 3458, 3459, 3460, 3461, 3462, 3463, 3464, 3465, 3466, 3467, 3468, 3469,
+          3470, 3471, 3472, 3473, 3699, 3700, 3701, 3708, 3709, 3710, 3711, 3712, 3713, 3695, 3696,
+          3697, 3702, 3703, 3704, 3705, 3706, 3707, 3691, 3692, 3693, 3687, 3688, 3689, 3684, 3685,
+          3680, 3681, 3676, 3677, 3510, 3480, 3481, 3482, 3616, 3622, 3615, 3621, 3627, 3633, 3639,
+          3645, 3651, 3657, 3614, 3620, 3626, 3632, 3638, 3644, 3650, 3656, 3662, 3088, 3104, 3120,
+          3610, 3611, 3612, 3613
+        ],
+        "weight": 12.144088011842358,
+        "partIds": [1871, 1872, 3199],
+        "required": 107.02228931602194
+      },
+      "partIds": [1871, 1872, 3199],
+      "required": {
+        "dig": 0,
+        "sow": 121.44088011842358,
+        "weed": 0,
+        "thresh": 121.44088011842358,
+        "harvest": 303.60220029605887,
+        "reclaim": 0
+      },
+      "cartReach": {
+        "share": 1,
+        "points": [
+          {
+            "x": 322.5,
+            "z": -307.5,
+            "weight": 1
+          }
+        ]
+      },
+      "seedReach": {
+        "share": 1,
+        "points": [
+          {
+            "x": 322.5,
+            "z": -307.5,
+            "weight": 1
+          }
+        ]
+      },
+      "cartReach4": {
+        "share": 1,
+        "points": [
+          {
+            "x": 322.5,
+            "z": -307.5,
+            "weight": 1
+          }
+        ]
+      },
+      "seedHauled": 12.144088011842358,
+      "harvestedKg": 2332.510726254418
+    },
+    "partIds": [2900, 2916, 2932],
+    "required": {
+      "dig": 0,
+      "sow": 105.34818032499996,
+      "weed": 37.01104513,
+      "thresh": 105.34818032499996,
+      "harvest": 263.37045081249994,
+      "reclaim": 30.38094
+    },
+    "cartReach": {
+      "share": 1,
+      "points": [
+        {
+          "x": -262.5,
+          "z": -67.5,
+          "weight": 1
+        }
+      ]
+    },
+    "seedReach": {
+      "share": 1,
+      "points": [
+        {
+          "x": -262.5,
+          "z": -67.5,
+          "weight": 1
+        }
+      ]
+    },
+    "cartReach4": {
+      "share": 1,
+      "points": [
+        {
+          "x": -262.5,
+          "z": -67.5,
+          "weight": 1
+        }
+      ]
+    },
+    "flaxNeedKg": 49,
+    "plannedDay": 115663,
+    "reclaimIds": [359, 378, 379],
+    "seedHauled": 10.534818032499997,
+    "harvestedKg": null
+  },
+  "threshingFromPlan": null,
+  "parts": [
+    {
+      "id": 1871,
+      "cell": {
+        "x": 83,
+        "y": 44
+      },
+      "crop": "winter",
+      "state": "sown",
+      "areaM2": 225,
+      "fieldId": 10,
+      "surface": "forest",
+      "distanceM": 66.53821499193326,
+      "sownYears": 0,
+      "foundingCost": 5.625,
+      "foundingDone": 5.625,
+      "bonusUntilDay": null,
+      "walkDistanceM": 23.2,
+      "fallowSinceDay": null,
+      "fertilityShare": 0.7050000000000008,
+      "fallowBeforePlan": {
+        "sinceDay": 113106
+      },
+      "naturalFertility": 37
+    },
+    {
+      "id": 1872,
+      "cell": {
+        "x": 84,
+        "y": 44
+      },
+      "crop": "winter",
+      "state": "sown",
+      "areaM2": 225,
+      "fieldId": 10,
+      "surface": "forest",
+      "distanceM": 81.1218839323545,
+      "sownYears": 0,
+      "foundingCost": 5.625,
+      "foundingDone": 5.625,
+      "bonusUntilDay": null,
+      "walkDistanceM": 41.9,
+      "fallowSinceDay": null,
+      "fertilityShare": 0.7050000000000008,
+      "fallowBeforePlan": {
+        "sinceDay": 113106
+      },
+      "naturalFertility": 30
+    },
+    {
+      "id": 2900,
+      "sod": true,
+      "cell": {
+        "x": 73,
+        "y": 15
+      },
+      "crop": "spring",
+      "state": "sown",
+      "areaM2": 225,
+      "fieldId": 10,
+      "surface": "meadow",
+      "distanceM": 429.69060007880387,
+      "sownYears": 0,
+      "foundingCost": 0,
+      "foundingDone": 0,
+      "bonusUntilDay": null,
+      "walkDistanceM": 369.3,
+      "fallowSinceDay": null,
+      "fertilityShare": 1,
+      "fallowBeforePlan": {
+        "sinceDay": 114567,
+        "overgrowthYears": 2
+      },
+      "naturalFertility": 32
+    },
+    {
+      "id": 2916,
+      "sod": true,
+      "cell": {
+        "x": 73,
+        "y": 16
+      },
+      "crop": "spring",
+      "state": "sown",
+      "areaM2": 225,
+      "fieldId": 10,
+      "surface": "meadow",
+      "distanceM": 415.1718775992556,
+      "sownYears": 0,
+      "foundingCost": 0,
+      "foundingDone": 0,
+      "bonusUntilDay": null,
+      "walkDistanceM": 346.4,
+      "fallowSinceDay": null,
+      "fertilityShare": 1,
+      "fallowBeforePlan": {
+        "sinceDay": 114567,
+        "overgrowthYears": 2
+      },
+      "naturalFertility": 23
+    },
+    {
+      "id": 2932,
+      "sod": true,
+      "cell": {
+        "x": 73,
+        "y": 17
+      },
+      "crop": "spring",
+      "state": "sown",
+      "areaM2": 225,
+      "fieldId": 10,
+      "surface": "meadow",
+      "distanceM": 400.6886123943379,
+      "sownYears": 0,
+      "foundingCost": 0,
+      "foundingDone": 0,
+      "bonusUntilDay": null,
+      "walkDistanceM": 326.9,
+      "fallowSinceDay": null,
+      "fertilityShare": 1,
+      "fallowBeforePlan": {
+        "sinceDay": 114567,
+        "overgrowthYears": 2
+      },
+      "naturalFertility": 23
+    },
+    {
+      "id": 3042,
+      "cell": {
+        "x": 71,
+        "y": 24
+      },
+      "crop": "flax",
+      "state": "sown",
+      "areaM2": 225,
+      "fieldId": 10,
+      "surface": "forest",
+      "distanceM": 312.577936297497,
+      "sownYears": 0,
+      "foundingCost": 3.376849315068493,
+      "foundingDone": 3.376849315068493,
+      "bonusUntilDay": 115443,
+      "walkDistanceM": 244.1,
+      "fallowSinceDay": null,
+      "fertilityShare": 0.905,
+      "fallowBeforePlan": {
+        "sinceDay": 115297
+      },
+      "naturalFertility": 46
+    },
+    {
+      "id": 3043,
+      "cell": {
+        "x": 72,
+        "y": 24
+      },
+      "crop": "flax",
+      "state": "sown",
+      "areaM2": 225,
+      "fieldId": 10,
+      "surface": "shrub",
+      "distanceM": 306.34299684745747,
+      "sownYears": 0,
+      "foundingCost": 10.350739726027397,
+      "foundingDone": 10.350739726027397,
+      "bonusUntilDay": null,
+      "walkDistanceM": 232.8,
+      "fallowSinceDay": null,
+      "fertilityShare": 0.905,
+      "fallowBeforePlan": {
+        "sinceDay": 115297
+      },
+      "naturalFertility": 38
+    },
+    {
+      "id": 3044,
+      "cell": {
+        "x": 73,
+        "y": 24
+      },
+      "crop": "flax",
+      "state": "sown",
+      "areaM2": 225,
+      "fieldId": 10,
+      "surface": "meadow",
+      "distanceM": 300.7276129239891,
+      "sownYears": 0,
+      "foundingCost": 0,
+      "foundingDone": 0,
+      "bonusUntilDay": null,
+      "walkDistanceM": 224.4,
+      "fallowSinceDay": null,
+      "fertilityShare": 0.905,
+      "fallowBeforePlan": {
+        "sinceDay": 115297
+      },
+      "naturalFertility": 35
+    },
+    {
+      "id": 3198,
+      "cell": {
+        "x": 98,
+        "y": 48
+      },
+      "crop": "legume",
+      "state": "sown",
+      "areaM2": 225,
+      "fieldId": 10,
+      "surface": "meadow",
+      "distanceM": 30.930891045751405,
+      "sownYears": 2,
+      "foundingCost": 0,
+      "foundingDone": 0,
+      "bonusUntilDay": null,
+      "walkDistanceM": 84.1,
+      "fallowSinceDay": null,
+      "fertilityShare": 0.76,
+      "naturalFertility": 20
+    },
+    {
+      "id": 3199,
+      "cell": {
+        "x": 99,
+        "y": 48
+      },
+      "crop": "winter",
+      "state": "sown",
+      "areaM2": 225,
+      "fieldId": 10,
+      "surface": "shrub",
+      "distanceM": 22.90312960402066,
+      "sownYears": 4,
+      "foundingCost": 4.352217354599928,
+      "foundingDone": 4.352217354599928,
+      "bonusUntilDay": null,
+      "walkDistanceM": 93.9,
+      "fallowSinceDay": null,
+      "fertilityShare": 0.8200000000000001,
+      "naturalFertility": 28
+    },
+    {
+      "id": 3209,
+      "cell": {
+        "x": 99,
+        "y": 49
+      },
+      "crop": "legume",
+      "state": "sown",
+      "areaM2": 225,
+      "fieldId": 10,
+      "surface": "forest",
+      "distanceM": 37.47894929348182,
+      "sownYears": 2,
+      "foundingCost": 3.380543386499819,
+      "foundingDone": 3.380543386499819,
+      "bonusUntilDay": 115302,
+      "walkDistanceM": 109.7,
+      "fallowSinceDay": null,
+      "fertilityShare": 0.76,
+      "naturalFertility": 23
+    },
+    {
+      "id": 3261,
+      "cell": {
+        "x": 92,
+        "y": 47
+      },
+      "crop": "legume",
+      "state": "sown",
+      "areaM2": 170.5,
+      "roadM2": 54.5,
+      "fieldId": 10,
+      "roadCut": [
+        511, 127, 31, 15, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0
+      ],
+      "surface": "meadow",
+      "distanceM": 112.11423539298117,
+      "sownYears": 2,
+      "foundingCost": 0,
+      "foundingDone": 0,
+      "bonusUntilDay": null,
+      "walkDistanceM": 20,
+      "fallowSinceDay": null,
+      "fertilityShare": 0.76,
+      "naturalFertility": 28
+    },
+    {
+      "id": 11,
+      "cell": {
+        "x": 43,
+        "y": 55
+      },
+      "state": "fallow",
+      "areaM2": 225,
+      "fieldId": 10,
+      "surface": "meadow",
+      "distanceM": 114.0527795516382,
+      "sownYears": 0,
+      "foundingCost": 0.8999999999999999,
+      "foundingDone": 0.8999999999999999,
+      "bonusUntilDay": null,
+      "walkDistanceM": 470.2,
+      "fallowSinceDay": 113836,
+      "fertilityShare": 0.5600000000000008,
+      "naturalFertility": 39
+    },
+    {
+      "id": 12,
+      "cell": {
+        "x": 44,
+        "y": 55
+      },
+      "state": "fallow",
+      "areaM2": 225,
+      "fieldId": 10,
+      "surface": "meadow",
+      "distanceM": 104.56124552857351,
+      "sownYears": 0,
+      "foundingCost": 0.8999999999999999,
+      "foundingDone": 0.8999999999999999,
+      "bonusUntilDay": null,
+      "walkDistanceM": 465.2,
+      "fallowSinceDay": 113836,
+      "fertilityShare": 0.5550000000000008,
+      "naturalFertility": 64
+    },
+    {
+      "id": 13,
+      "cell": {
+        "x": 45,
+        "y": 55
+      },
+      "state": "fallow",
+      "areaM2": 225,
+      "fieldId": 10,
+      "surface": "meadow",
+      "distanceM": 96.47834787929719,
+      "sownYears": 0,
+      "foundingCost": 0.8999999999999999,
+      "foundingDone": 0.8999999999999999,
+      "bonusUntilDay": null,
+      "walkDistanceM": 458.1,
+      "fallowSinceDay": 113836,
+      "fertilityShare": 0.5550000000000008,
+      "naturalFertility": 64
+    }
+  ]
+}

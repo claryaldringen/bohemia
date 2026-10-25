@@ -163,6 +163,10 @@ export const OXEN = {
   minCows: 3,
   cowsPerOx: 0.5,
   maxPairs: 8,
+  // lidí (dospělých na plný úvazek) na jeden pár v oknech orby: oráč + setí za zoranou částí
+  // (0,3 ha za den × 10 člověkodnů na hektar setí ≈ 3) – víc párů, než ves s lidmi obslouží,
+  // nechce (oxen.md – Páry k rádlům; návrh Clauda)
+  crewPerPair: 4,
 } as const;
 /**
  * oxen.md – Potah (Martin 20. 10. 2026: „rádlo táhnou 2 voli, 4kolový vůz také dva voli

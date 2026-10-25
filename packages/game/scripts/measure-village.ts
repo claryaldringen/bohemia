@@ -124,8 +124,10 @@ import {
   grossYieldPerHa,
   isCemeteryBuilding,
   laborPerDay,
-  planCrops,
-  planPartIds,
+  seasonCrop,
+  seasonCrops,
+  springCrop,
+  seasonPartIds,
   ploughWorkPerHa,
   bandLengthM,
   furrowEfficiency,
@@ -727,7 +729,12 @@ function foodTrack(
     const need = people.reduce((sum, p) => sum + foodNeedPerDay(p, d), 0);
     // výhled sklizně podle plánu na začátku kroku – když se během kroku změní (setí, pletí
     // ozimu), zásoby na konci nesedí a krok se přepočítá den po dni
-    const days = daysUntilFoodHarvest(before.plan, before.parts, d, need * fieldFoodShare(before));
+    const days = daysUntilFoodHarvest(
+      before.season,
+      before.parts,
+      d,
+      need * fieldFoodShare(before),
+    );
     const eaten = eatDay(stores, need, days, NO_CRAFTS.pottery);
     satiation.push(eaten.satiation);
     stores = eaten.storesKg;
@@ -890,9 +897,9 @@ function recordHarvest(
   const target =
     steadyHarvestKg(fieldNeed, buffer, NO_CRAFTS.pottery) + storesTargetKg(fieldNeed, buffer);
   if (target > 0) result.storesToTarget.set(year, fieldStoresKg(after, day + 1) / target);
-  const plan = after.threshingFromPlan;
+  const plan = after.threshingSeason;
   if (plan && after.people.length > 0) {
-    const work = planCrops(plan).reduce(
+    const work = seasonCrops(plan).reduce(
       (sum, { work: w }) =>
         sum + Object.values(w.required).reduce((a, b) => a + b, 0) + (w.plough?.required ?? 0),
       0,
@@ -900,7 +907,7 @@ function recordHarvest(
     result.fieldWork.set(year, work / after.people.length);
     if (plan.flaxNeedKg !== undefined) {
       const byId = new Map(after.parts.map((p) => [p.id, p]));
-      const m2 = (plan.flax?.partIds ?? []).reduce(
+      const m2 = (seasonCrop(plan, 'flax')?.partIds ?? []).reduce(
         (sum, id) => sum + (byId.get(id)?.areaM2 ?? 0),
         0,
       );
@@ -917,8 +924,8 @@ function recordHarvest(
   const free = capacity - dailyMinPerHousehold(NO_CRAFTS.pottery);
   const windowDays = (from: number, to: number, y = year): number =>
     dayIndexOf({ year: y, month: to + 1, day: 1 }) - dayIndexOf({ year: y, month: from, day: 1 });
-  const spring = plan.required;
-  const winter = plan.winter?.required;
+  const spring = springCrop(plan).required;
+  const winter = seasonCrop(plan, 'winter')?.required;
   const springDig = Math.max(0, spring.dig - (result.autumnDig.get(year) ?? 0));
   record.reserves = {
     autumn:
@@ -930,18 +937,18 @@ function recordHarvest(
     weed: 1 - spring.weed / (free * windowDays(5, 5)),
     summer: 1 - Math.max(winter?.harvest ?? 0, spring.harvest) / (free * windowDays(7, 7)),
   };
-  record.finished = planCrops(plan).every(({ work }) =>
+  record.finished = seasonCrops(plan).every(({ work }) =>
     (['sow', 'weed', 'harvest'] as const).every((t) => work.done[t] >= work.required[t] - 1e-6),
   );
 }
 
 /** Průměrná délka brázdy pásů orby plánu (m, váhou plochy dílů pásu); bez orby 0. */
 function planFurrowM(state: VillageState): number {
-  if (!state.plan) return 0;
+  if (!state.season) return 0;
   const byId = new Map(state.parts.map((p) => [p.id, p]));
   let area = 0;
   let sum = 0;
-  for (const { work } of planCrops(state.plan)) {
+  for (const { work } of seasonCrops(state.season)) {
     for (const band of work.plough?.bands ?? []) {
       const a = band.partIds.reduce((acc, id) => acc + (byId.get(id)?.areaM2 ?? 0), 0);
       area += a;
@@ -954,8 +961,8 @@ function planFurrowM(state: VillageState): number {
 /** 1. 9. po plánu osevu: osev, velikost pole a stav dílů (u sond). */
 function recordPlan(result: RunResult, after: VillageState, pinned: boolean): void {
   const day = after.lastDay;
-  const sown = new Set(after.plan ? planPartIds(after.plan) : []);
-  const winter = new Set(after.plan?.winter?.partIds ?? []);
+  const sown = new Set(after.season ? seasonPartIds(after.season) : []);
+  const winter = new Set(seasonCrop(after.season, 'winter')?.partIds ?? []);
   const area = (keep: (p: VillageState['parts'][number]) => boolean): number =>
     after.parts.filter(keep).reduce((sum, p) => sum + p.areaM2, 0) / M2_PER_HA;
   const year = dateOfDayIndex(day).year + 1;
@@ -971,8 +978,8 @@ function recordPlan(result: RunResult, after: VillageState, pinned: boolean): vo
     fieldHa: area(() => true),
     reserves: NO_RESERVES,
     finished: false,
-    plough: after.plan
-      ? planCrops(after.plan).reduce((sum, { work }) => sum + (work.plough?.required ?? 0), 0)
+    plough: after.season
+      ? seasonCrops(after.season).reduce((sum, { work }) => sum + (work.plough?.required ?? 0), 0)
       : 0,
     furrowM: planFurrowM(after),
   });
@@ -1160,8 +1167,8 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
     }
 
     // poslední den února: kolik kopání jaře stihl podzim (zbytek jde na jaro)
-    if (isOn(dateOfDayIndex(day + 1), SPRING_START) && after.plan) {
-      result.autumnDig.set(date.year, after.plan.done.dig);
+    if (isOn(dateOfDayIndex(day + 1), SPRING_START) && after.season) {
+      result.autumnDig.set(date.year, springCrop(after.season).done.dig);
     }
     if (isOn(date, HARVEST_DAY)) recordHarvest(result, after, opts.pinned);
     if (isOn(date, PLANNING_DAY)) {

@@ -6,9 +6,23 @@ import { dayMealInput, emergencySlaughter } from './emergency-slaughter';
 import { drawGrainPits, settleGrainPits } from './grain-pits';
 import { feedHorseGrain } from './horse-feed';
 import { addSheaves } from './threshing';
-import type { CraftCoverage, VillageState } from './types';
-import { harvestKg, taskRemaining } from './year-plan';
+import type { CraftCoverage, SurplusCrop, VillageState } from './types';
+import { harvestKg, seasonCrop, springCrop, surplusCrop, taskRemaining } from './year-plan';
 import { SATIATION_EPSILON } from './simulate-plan';
+
+/**
+ * Sklizeň obilí nad potřebu do snopů jako nutného (fields.md – Osevní postup po dílech, bod 3):
+ * úroda podle práce, kterou díly po stavbách dostaly (nevypletý díl jen část, nesklizené
+ * propadne); výmlat na humně je společný. Vrací čistou úrodu (kg); null = dnes nic nesklidila.
+ */
+function harvestSurplus(state: VillageState, crop: SurplusCrop, day: number): number | null {
+  const work = surplusCrop(state.season, crop);
+  if (!work || work.harvestedKg !== null) return null;
+  const kg = harvestKg(work, state.parts, day);
+  work.harvestedKg = kg;
+  addSheaves(state, crop, kg, taskRemaining(work, 'thresh'));
+  return kg;
+}
 
 /**
  * 31. 7. (po jídle dne): čistá úroda ozimu a luštěnin do snopů – vymlátí se v srpnu na humně
@@ -18,19 +32,25 @@ import { SATIATION_EPSILON } from './simulate-plan';
 export function harvestWinter(state: VillageState, day: number): void {
   const linen = harvestFlax(state, day);
   if (linen) state.chronicle.push(linen);
-  const legume = state.plan?.legume;
+  const legume = state.season ? seasonCrop(state.season, 'legume') : undefined;
   if (legume && legume.harvestedKg === null) {
     const kg = harvestKg(legume, state.parts, day, 'legume');
     legume.harvestedKg = kg;
     addSheaves(state, 'legume', kg, taskRemaining(legume, 'thresh'));
     state.chronicle.push({ day, kind: 'harvest', kg: Math.round(kg), crop: 'legume' });
   }
-  const winter = state.plan?.winter;
-  if (!winter || winter.harvestedKg !== null) return;
-  const kg = harvestKg(winter, state.parts, day);
-  winter.harvestedKg = kg;
-  addSheaves(state, 'winter', kg, taskRemaining(winter, 'thresh'));
-  state.chronicle.push({ day, kind: 'harvest', kg: Math.round(kg), crop: 'winter' });
+  const winter = state.season ? seasonCrop(state.season, 'winter') : undefined;
+  let kg: number | null = null;
+  if (winter && winter.harvestedKg === null) {
+    kg = harvestKg(winter, state.parts, day);
+    winter.harvestedKg = kg;
+    addSheaves(state, 'winter', kg, taskRemaining(winter, 'thresh'));
+  }
+  const surplus = harvestSurplus(state, 'winter', day);
+  if (kg !== null || surplus !== null) {
+    const total = (kg ?? 0) + (surplus ?? 0);
+    state.chronicle.push({ day, kind: 'harvest', kg: Math.round(total), crop: 'winter' });
+  }
 }
 
 /**
@@ -38,18 +58,20 @@ export function harvestWinter(state: VillageState, day: number): void {
  * – Humno); plán (i s ozimem) jde k výmlatu.
  */
 export function harvest(state: VillageState, day: number): void {
-  const plan = state.plan;
+  const plan = state.season;
   if (plan === null) return;
-  const kg = harvestKg(plan, state.parts, day);
-  plan.harvestedKg = kg;
-  addSheaves(state, 'spring', kg, taskRemaining(plan, 'thresh'));
+  const spring = springCrop(plan);
+  spring.harvestedKg = harvestKg(spring, state.parts, day);
+  addSheaves(state, 'spring', spring.harvestedKg, taskRemaining(spring, 'thresh'));
+  const kg = spring.harvestedKg + (harvestSurplus(state, 'spring', day) ?? 0);
   // plán jen s ozimem jař nesklízí – žádná sklizeň do kroniky
-  if (!plan.winter) state.chronicle.push({ day, kind: 'harvest', kg: Math.round(kg) });
-  else if (plan.partIds.length > 0) {
+  if (!seasonCrop(plan, 'winter') && !surplusCrop(plan, 'winter'))
+    state.chronicle.push({ day, kind: 'harvest', kg: Math.round(kg) });
+  else if (kg > 0 || spring.partIds.length > 0) {
     state.chronicle.push({ day, kind: 'harvest', kg: Math.round(kg), crop: 'spring' });
   }
-  state.threshingFromPlan = plan;
-  state.plan = null;
+  state.threshingSeason = plan;
+  state.season = null;
 }
 
 /**
@@ -58,7 +80,7 @@ export function harvest(state: VillageState, day: number): void {
  * nevymlácená část 1. 3. propadla).
  */
 export function endThreshing(state: VillageState): void {
-  state.threshingFromPlan = null;
+  state.threshingSeason = null;
 }
 
 /**

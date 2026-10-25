@@ -96,6 +96,7 @@ describe('luštěniny v liště', () => {
     stages: {},
     surfaces: {},
     crops: legume > 0 ? { spring: 3, legume } : { spring: 3 },
+    turn: { winter: 0, spring: 0, resting: 0, surplus: { winter: 0, spring: 0 } },
     ashParts: 0,
     ashBonus: 0,
     overgrowingM2: 0,

@@ -20,7 +20,7 @@ import {
   cartsAway,
   harvestReachState,
   obstacleIndex,
-  planCrops,
+  seasonCrops,
   ploughBlockEndPart,
   ploughFrontBand,
   villageCartRoutes,
@@ -315,7 +315,7 @@ export function scenePloughLegs(
   landscape: Landscape,
   fields: SceneVillage['fields'],
 ): ScenePloughLegs | null {
-  if (!state.plan) return null;
+  if (!state.season) return null;
   const scene = new Map(fields.flatMap((f) => f.parts).map((p) => [p.id, p]));
   const byId = new Map(state.parts.map((p) => [p.id, p]));
   const obstacles = obstaclesOf(landscape);
@@ -332,7 +332,7 @@ export function scenePloughLegs(
   };
   let out: { x: number; z: number }[] | null = null;
   let home: { x: number; z: number }[] | null = null;
-  for (const { work } of planCrops(state.plan)) {
+  for (const { work } of seasonCrops(state.season)) {
     const plough = work.plough;
     const trip = plough?.trip;
     if (!plough || !trip) continue;
@@ -353,7 +353,7 @@ export function scenePloughLegs(
   let stand: { x: number; z: number } | null = null;
   const ploughed = laborReport(state)?.shares.some((s) => s.activity === 'plough' && s.manDays > 0);
   if (!out && !home && !ploughed) {
-    for (const { work } of planCrops(state.plan)) {
+    for (const { work } of seasonCrops(state.season)) {
       const trip = work.plough?.trip;
       if (!trip || trip.home !== undefined) continue;
       // blok, u kterého spřežení je (konec jeho pásů); bez něj čelo orby
@@ -458,8 +458,8 @@ function cartRouteToday(
     const goal = nearestToCentroid(parts);
     if (!goal) return null;
     // žeň – vůz jede po strništi sklízené plodiny (jako dosah svozu v jádru)
-    const work = state.plan
-      ? planCrops(state.plan).find((c) => c.work.partIds.some((id) => ids.has(id)))?.work
+    const work = state.season
+      ? seasonCrops(state.season).find((c) => c.work.partIds.some((id) => ids.has(id)))?.work
       : undefined;
     const reachState = job.load === 'sheaves' && work ? harvestReachState(state, work) : state;
     axis = routeTo(reachState, goal, CARTS.reachM);

@@ -1,16 +1,19 @@
 import { grossYieldPerHa, isOvergrown } from './fields';
 import { bufferKg, steadyHarvestKg, yearlyFoodNeed, fieldFoodShare } from './field-food';
 import { NO_CRAFTS } from './productivity';
-import { FERTILITY, SEED_KG_PER_HA } from './rules';
+import { FERTILITY, SEED_KG_PER_HA, SOWN_ROUNDS } from './rules';
 import type { VillageState } from './types';
 
 const EPSILON = 1e-9;
 
-/** Oběh dílu podle pravidel (fields.md – Přílohová soustava): roky osevu a přílohu do 95 %. */
+/**
+ * Oběh dílu podle pravidel (fields.md – Osevní postup po dílech, Přílohová soustava): dva osevy
+ * (`SOWN_ROUNDS`, úrodnost 100 → 88 → 76 %) a příloh do 95 % (8 let).
+ */
 export function rotationYears(): { sown: number; fallow: number } {
   let share = 1;
   let sown = 0;
-  while (share >= FERTILITY.sowableMin - EPSILON) {
+  while (sown < SOWN_ROUNDS && share >= FERTILITY.sowableMin - EPSILON) {
     share -= FERTILITY.sowDepletion;
     sown++;
   }
@@ -23,11 +26,11 @@ export function rotationYears(): { sown: number; fallow: number } {
 }
 
 export const ROTATION = rotationYears();
-/** Pole na celý oběh ÷ osev (dnes 16 / 3 ≈ 5,3). */
+/** Pole na celý oběh ÷ osev (dnes 10 / 2 = 5,0). */
 export const ROTATION_FACTOR = (ROTATION.sown + ROTATION.fallow) / ROTATION.sown;
 
 /**
- * Průměrný podíl přirozené úrodnosti za roky osevu (1; 0,88; 0,76 → 0,88). Úroda je lineární
+ * Průměrný podíl přirozené úrodnosti za roky osevu (1; 0,88 → 0,94). Úroda je lineární
  * v úrodnosti, takže úroda při průměrném podílu = průměr úrod.
  */
 export function averageSownShare(): number {

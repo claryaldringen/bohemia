@@ -28,6 +28,7 @@ import type { ChronicleEvent, VillageState } from '../types';
 import { threshingFloorHaulPoints } from '../threshing-floors';
 import { THRESHING_FLOOR_ENTRANCE_M } from '../paths/entrances';
 import { withThreshingFloor } from './village-fixtures';
+import { seasonCrop, springCrop } from '../year-plan';
 
 // Snopy a výmlat hned po žni (production-chains.md – Humno): sklizeň jde do snopů, výmlat je
 // převádí do zásob – ozim a luštěniny v srpnu, jař v září, na humně (kapacita se sčítá), starší
@@ -103,7 +104,7 @@ describe('sklizeň jde do snopů', () => {
     const s = advanceVillage(before, at(600, 8, 31), null);
     const harvest = harvests(s).at(-1)!;
     expect(harvest.kg).toBeGreaterThan(0);
-    expect(villageSheaves(s).grainKg).toBeCloseTo(s.threshingFromPlan!.harvestedKg!, 6);
+    expect(villageSheaves(s).grainKg).toBeCloseTo(springCrop(s.threshingSeason!).harvestedKg!, 6);
     expect(s.storesKg).toBeLessThan(before.storesKg);
     // v září se mlátí na humně – rozdělení práce jde na humno
     const september = advanceVillage(s, at(600, 9, 1), null);
@@ -477,7 +478,7 @@ describe('výhled jídla a plán osevu', () => {
   it('plán osevu k 1. 9. odečte čekající výmlat z podzimní práce – méně ozimu', () => {
     const august = advanceVillage(withThreshingFloor(bare(at(600, 3, 15))), at(601, 8, 31), null);
     const winterParts = (s: VillageState): number =>
-      advanceVillage(s, at(601, 9, 1), null).plan?.winter?.partIds.length ?? 0;
+      seasonCrop(advanceVillage(s, at(601, 9, 1), null).season, 'winter')?.partIds.length ?? 0;
     const free = structuredClone(august);
     free.sheaves = { grainKg: 0, legumesKg: 0 };
     // velký nevymlácený výmlat v roce odkladu bez humna – vezme celý podzim

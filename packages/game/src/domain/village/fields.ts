@@ -167,7 +167,7 @@ export function partFoundingCost(
  */
 export function endOfSeason(part: FieldPart, day: number): void {
   // příloh, ze kterého se díl loni vracel, už plán zkrátit nemůže (fields.md – Osev podle zásob)
-  delete part.fallowBeforePlan;
+  delete part.fallowBeforeSeason;
   delete part.trampledM2;
   if (part.state === 'sown') {
     // díl prošel orbou – drn louky založené rádlem je rozoraný (oxen.md – Jen rádlo)
@@ -200,14 +200,15 @@ export function endOfSeason(part: FieldPart, day: number): void {
 
 /**
  * Skupina dílu v pořadí přílohové soustavy (fields.md – Přílohová soustava): 1 osévaný díl, který
- * smí dál (≥ 0,7), 2 čerstvě založený (připravený), 3 příloh zotavený aspoň na 0,95, 4 příloh
+ * smí dál (≥ 0,7) – i připravený díl po prvním osevu oběhu (`FieldPart.next`, fields.md – Osevní
+ * postup po dílech) –, 2 čerstvě založený (připravený), 3 příloh zotavený aspoň na 0,95, 4 příloh
  * 0,7–0,95; jiný díl (zakládaný, vyčerpaný příloh) null.
  */
 export type SowingGroup = 1 | 2 | 3 | 4;
 export function sowingGroup(p: FieldPart): SowingGroup | null {
   const sowable = isSowableFertility(p);
   if (p.state === 'sown') return sowable ? 1 : null;
-  if (p.state === 'ready') return 2;
+  if (p.state === 'ready') return p.next ? 1 : 2;
   if (p.state !== 'fallow' || !sowable) return null;
   return p.fertilityShare >= FERTILITY.fallowReady - EPSILON ? 3 : 4;
 }

@@ -2,7 +2,7 @@
 // Rozcestník je `types.ts`; tento soubor jen drží část typů.
 
 import type { Craft } from './types-crafts';
-import type { AbandonedStructure } from './types-land';
+import type { AbandonedStructure, Crop } from './types-land';
 import type { DwellingPlot, DwellingType, Position } from './types-people';
 import type { RoadGrade } from './types-roads';
 
@@ -209,15 +209,7 @@ export interface CropWork {
   seedHauled?: number;
   /** Kam vůz s osivem dojede – spočítá se při prvním odvozu osiva. Chybí = ještě ne. */
   seedReach?: CartReach;
-  /**
-   * Příprava půdy začatých dílů osevu navíc, která čeká na volnou práci (fields.md – Osev navíc):
-   * vrácení přílohu, kopání a orba (člověkodny) – nemají přednost před stavbami, dostanou jen
-   * práci, která po nich zbude. Setí, pletí, sklizeň a výmlat těch dílů jsou potřebné. Chybí = nic.
-   */
-  extraLeft?: Partial<Record<ExtraTask, number>>;
 }
-/** Příprava půdy dílu osevu navíc, která čeká na volnou práci (`CropWork.extraLeft`). */
-export type ExtraTask = 'reclaim' | 'dig' | 'plough';
 /**
  * Kam vozy na úloze dojedou (wagons.md – Vůz, vozová síť): podíl práce úlohy na místech, kam vůz
  * dojede (0–1), a body jízd s vahou (podíl jízd) – do ročního provozu cest.
@@ -283,23 +275,33 @@ export interface PloughBand {
   sweep: 1 | -1;
   block: number;
 }
+/** Obilí, které ves oseje i nad potřebu (fields.md – Osevní postup po dílech, bod 3). */
+export type SurplusCrop = 'winter' | 'spring';
+/** Práce jedné plodiny hospodářského roku (fields.md – Osevní postup po dílech). */
+export interface SeasonCrop extends CropWork {
+  crop: Crop;
+  /**
+   * Díly nad potřebu (fields.md – Osevní postup po dílech, bod 3; jen ozim a jař): všechna jejich
+   * práce na poli – příprava půdy, setí, pletí, žně a odnos – jde až po stavbách a opravách
+   * obydlí (Martin 25. 10. 2026: „ve chvíli, kdy stavba přijde, prostě vesnice o část úrody
+   * přijde“). Chybí = nutné díly (práce proti hladu před stavbami).
+   */
+  surplus?: true;
+}
 /**
- * Roční plán osevu (k 1. 9.): na nejvyšší úrovni jař (tvar plánu z doby před ozimem), ozim
- * zvlášť v `winter` – chybí u plánů bez ozimu (i u starších vsí).
+ * Hospodářský rok 1. 9. – 31. 8. (název `FarmSeason`, protože `Season` je roční období
+ * kalendáře): evidence práce dílů po plodinách v pořadí ozim, luštěniny, len, jař, za nimi ozim
+ * a jař nad potřebu (`SeasonCrop.surplus`) – plodina v `crops` je jen, když ji ves má.
  */
-export interface YearPlan extends CropWork {
-  plannedDay: number;
+export interface FarmSeason {
+  startDay: number;
+  crops: SeasonCrop[];
   /**
    * Ves letos orá rádlem (oxen.md – Jen rádlo): plán vznikl, když ves měla vycvičené spřežení –
    * ve scéně má pak celé pole kulaté rohy. Zůstane, i když spřežení během roku zmizí a zbytek
    * plánu dokončí motyka. Chybí = ves letos kope motykou (i plány starších vsí).
    */
   ard?: true;
-  winter?: CropWork;
-  /** Luštěniny (fields.md – Luštěniny) – chybí u plánů bez luštěnin (i u starších vsí). */
-  legume?: CropWork;
-  /** Len (fields.md – Len) – chybí u plánů bez lnu (i u starších vsí). */
-  flax?: CropWork;
   /**
    * Kolik třeného lnu ves při plánu potřebovala na oděv za rok (kg – fields.md, Len): podle toho
    * se při trhání zapíše, na jaký podíl oděvu len je (`VillageState.linen`). Chybí u plánů
@@ -307,16 +309,9 @@ export interface YearPlan extends CropWork {
    */
   flaxNeedKg?: number;
   /**
-   * Osev navíc (fields.md – Osev navíc): díly, které ves smí osít a do potřebného osevu je
-   * nevybrala, v pořadí výběru – dostanou jen práci, která zbude po stavbách. Na seznamu jsou,
-   * dokud na nich práce nezačne (pak patří k ozimu nebo jaři jako potřebné); po dubnu se seznam
-   * smaže. Chybí = žádné (i plány starších vsí).
-   */
-  extra?: ExtraPart[];
-  /**
-   * Podíl dne mužů cvičící vojvodovy rodiny na potřebném osevu po oknech (lord.md – Kdy jde
-   * rodina na pole, bod 1; `lordSowingHelp`): jen když by ves bez rodiny potřebný osev nestihla.
-   * Plán 1. 9., jaro přepočítá jarní úprava (`trimPlan`). Chybí = 0 (i plány starších vsí).
+   * Podíl dne mužů cvičící vojvodovy rodiny na nutné práci po oknech (lord.md – Kdy jde rodina
+   * na pole, bod 1; `lordSowingHelp`): jen když by ves bez rodiny nutnou práci nestihla. Přepočet
+   * každý den v oknech (`lordHelpDay`). Chybí = 0 (i plány starších vsí).
    */
   lordHelp?: LordHelp;
 }
@@ -324,12 +319,3 @@ export interface YearPlan extends CropWork {
 export type LordHelpWindow = 'autumnWinter' | 'autumn' | 'spring' | 'july' | 'august';
 /** Podíl dne rodiny 0–1 po oknech; okno bez pomoci chybí. */
 export type LordHelp = Partial<Record<LordHelpWindow, number>>;
-/**
- * Díl osevu navíc, na kterém ještě nezačala práce (fields.md – Osev navíc). `sownYears` – díl se
- * před plánem osíval nebo byl připravený (v přílohu leží jen od plánu): když na něm práce začne,
- * osévá se dál s tolika lety v řadě; chybí = díl ležel v přílohu (vrací se z něj).
- */
-export interface ExtraPart {
-  id: number;
-  sownYears?: number;
-}

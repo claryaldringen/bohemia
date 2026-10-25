@@ -111,8 +111,8 @@ má ves ≥ 4 dospělé mimo rodinu“ (volba z nabídky).
 Martin: „pokud by měla ves hladovět, tak ano“; ženy a dcery „stejně jako vojvoda se syny“. Ves
 pozná hrozbu ze dvou odhadů, které už počítá – nový odhad nevzniká.
 
-1. **Ves nestihne potřebný osev.** Plán osevu (1. 9. a jeho jarní úprava – [pole](fields.md),
-   Kolik ves oseje) počítá práci ve špičkách **bez rodiny**. Když by bez ní nestihla **potřebný
+1. **Ves nestihne potřebný osev.** Osevní postup po dílech ([pole](fields.md), od 25. 10. 2026;
+   ~~plán osevu k 1. 9. a jeho jarní úprava~~ se ruší) počítá práci ve špičkách **bez rodiny**. Když by bez ní nestihla **potřebný
    osev** (tolik, aby neměla hlad), započítá rodinu – ale jen kolik chybí: v okně, kde práce
    chybí (podzim, jaro, žně), dá každý cvičící muž rodiny (vojvoda a synové) podíl dne = chybějící práce ÷ práce mužů
    rodiny, zbytek dne cvičí. Ženy a dcery s osevem nepomáhají – Martin 23. 10. 2026 zvolil pro

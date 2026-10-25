@@ -383,7 +383,8 @@ export const CART_DEMAND = {
 } as const satisfies { maxCarts: Record<CartKind, number> } & Record<string, unknown>;
 // wagons.md – Co vozy vozí (Martin 19. 10. 2026: „Pokud budou mít k dispozici vůz, ať na pole, pro
 // vodu nebo pro dřevěné uhlí jede vůz.“; čísla návrh Clauda): dvoukolák, který dnes nesváží úrodu,
-// seno ani klády a jehož voli neorají (ani orbu navíc – fields.md, Osev navíc), jede v pořadí:
+// seno ani klády a jehož voli neorají (ani díly nad potřebu – fields.md, Osevní postup po dílech),
+// jede v pořadí:
 // - `charcoal` – uhlí z vypáleného milíře ke kováři: z vytahání, třídění a odnosu
 //   (CHARCOAL_KILN.drawManDaysPerTree – 2 čd na buk po 120 kg) je `carryShare` odnos v koších
 //   (120 kg uhlí ≈ 8 košů po 15 kg – objemová hmotnost dřevěného uhlí ≈ 250 kg/m³, FAO 1987,

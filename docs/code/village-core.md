@@ -27,10 +27,19 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   Martin 19. 10. 2026): `householdWaterLabor` / `waterFetchingLabor` z `Dwelling.waterWalkM` –
   cesty (`WATER_FETCHING` 0,4 na člověka) × 2 × (chůze − 100 m) ÷ 1 m/s ÷ 10 h; starší ji kryjí
   jako zbytek minima, i v plánu osevu (`sowingCapacity`) a v dílnách (`workshopLabor`); bez
-  krajiny 0. `allocateDay`: denní minimum → péče o koně (`horseCare` – `horseCareLabor`, horses.md – Péče; pokrytí v `state.horsesCaredToday`) → výpravy (`away`) → potřebné sezónní úlohy v pořadí `dayTaskOrder` – **orba rádlem první** (oxen.md – Orba má přednost, Martin 24. 10. 2026; překrývá se jen s osevem, výmlatem jaře a jablky, žeň ne), pak nejbližší konec okna (žeň a výmlat napřed ze žňových rukou – `harvestHands`, `lordHarvest`, fields.md – Žně všemi rukama) → `common` (volná práce
+  krajiny 0. Před prací dne (`simulate.ts`): 1. 9. `startSeason`, každý den `seasonDay` (konce oken
+  setí, nutné díly podle potřeby úrody – fields.md, Osevní postup po dílech) a `lordHelpDay`
+  (podíl dne rodiny na nutné práci); potřebné sezónní úlohy jsou práce nutných dílů – plodiny
+  hospodářského roku bez `SeasonCrop.surplus` (`fieldTasks`; `neededTaskRemaining` je u dílů nad
+  potřebu 0). `allocateDay`: denní minimum → péče o koně (`horseCare` – `horseCareLabor`, horses.md – Péče; pokrytí v `state.horsesCaredToday`) → výpravy (`away`) → potřebné sezónní úlohy v pořadí `dayTaskOrder` – **orba rádlem první** (oxen.md – Orba má přednost, Martin 24. 10. 2026; překrývá se jen s osevem, výmlatem jaře a jablky, žeň ne), pak nejbližší konec okna (žeň a výmlat napřed ze žňových rukou – `harvestHands`, `lordHarvest`, fields.md – Žně všemi rukama) → `common` (volná práce
   v liště, `commonLaborHistory`) do staveb (`build`) → z toho, co stavby nespotřebovaly, opravy
-  obydlí (`afterConstructions`) → osev navíc (fields.md) → **seč navíc** pro růst stád (oxen.md –
-  Seno, dvě seče; `extraMow`) → zbytek propadne. **Seč nutného sena** je úloha dne `mow` za
+  obydlí (`afterConstructions`) → **díly nad potřebu** (`surplusFieldDay` – fields.md, Osevní
+  postup po dílech, bod 3; Martin 25. 10. 2026: „ve chvíli, kdy stavba přijde, prostě vesnice
+  o část úrody přijde“): všechna jejich práce na poli (příprava půdy, setí, pletí, žně, odnos)
+  a nové díly – nutná práce proti hladu je tak před stavbami, díly nad potřebu až po nich → **seč
+  navíc** pro růst stád (oxen.md – Seno, dvě seče; `extraMow`) → zbytek propadne. Volná práce
+  v liště a zápis na seč (`recordMowingLabor` z `mowWork + allocation.common`) počítají práci
+  dílů nad potřebu jako volnou – strop stád nezmenší. **Seč nutného sena** je úloha dne `mow` za
   všemi ostatními (`end: Infinity`, `tie: 3`) – polním pracím práci nikdy nebere (kromě pletí
   mužů, které jde až za ní), stavbám ano. Zvířata a domácí výroba (`DOMESTIC`) jdou bokem – jen `LaborDay.aside` pro postavy;
   `domesticBacklog` a přirážka paliva zmizely (starší vsi pole jen nesou). Úlohy dne berou práci

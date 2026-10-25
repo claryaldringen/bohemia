@@ -79,7 +79,7 @@ export function dayMealInput(
   const milk = dailyMilk(dams, day);
   // ozim uživí srpen, když pokryje potřebu z pole, na kterou ves osévala (fields.md – Ozim a jař)
   const daysToHarvest = daysUntilFoodHarvest(
-    state.plan,
+    state.season,
     state.parts,
     day,
     need * fieldFoodShare(state),

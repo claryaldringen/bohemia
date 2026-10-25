@@ -213,7 +213,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   čísla `CART_JOBS` v `rules*.ts`, návrh Clauda): `cart-jobs.ts` + `planCartJobs` v `simulate-hauls.ts`.
   Dvoukolák, který dnes nesváží úrodu ani seno (`planTaskHauls`) a nevozí klády (ty mají přednost
   – `logHaulCandidates` / `logHaulPlan` před rozdělením práce, `haulLogs` po něm), jede v pořadí
-  `CART_JOBS.order` – ne když voli orají ani orbu navíc (`extraSowingWantsTeam`): **uhlí** – kam
+  `CART_JOBS.order` – ne když voli orají ani orbu navíc (`surplusWantsTeam`): **uhlí** – kam
   dnes uhlíř vytahal uhlí (`charcoalDeliveries`), jízda k milíři (`kilnCartDrive`, uložená
   v `CharcoalKiln.cart`), `kilnCartOffer` (jen když je práce sedláka na kg menší než nošení
   kovářovou domácností – Martin 20. 10. 2026: „přiveze uhlí sedlák s vozem (a odečte se jeho
