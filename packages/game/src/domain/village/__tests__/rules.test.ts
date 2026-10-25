@@ -2,7 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { dateOfDayIndex, dayIndexOf } from '../../calendar';
 import {
   APPLE_ROT_DAY,
+  CROP_WINDOWS,
   DWELLINGS,
+  FIELD_WORK_PER_HA,
+  FLAX_WORK_PER_HA,
+  LEGUME_WORK_PER_HA,
   HARVEST_DAY,
   LEGUME_WINDOWS,
   ORCHARD_PLANTING_WINDOWS,
@@ -13,6 +17,7 @@ import {
   WINDOWS,
   WINTER_HARVEST_DAY,
   WINTER_WINDOWS,
+  WINTER_WORK_PER_HA,
   childDeathsPerYear,
 } from '../rules';
 import { seasonBounds } from '../orchard';
@@ -49,7 +54,24 @@ describe('data polního roku souhlasí s okny prací', () => {
     expect(WINTER_HARVEST_DAY.month).toBeLessThan(HARVEST_DAY.month);
     const sowEnd = Math.max(...WINTER_WINDOWS.sow.map(([, to]) => to));
     expect(sowEnd).toBeLessThan(Math.max(...WINDOWS.dig.filter(([f]) => f >= 9).map(([, t]) => t)));
-    expect(WINTER_WINDOWS.weed).toEqual(WINDOWS.weed);
+  });
+
+  it('pleje se jednou a rychle – jař, luštěniny a len v květnu, ozim vůbec (fields.md – Pletí jednou a rychle)', () => {
+    expect(CROP_WINDOWS.winter.weed).toEqual([]);
+    expect(WINTER_WORK_PER_HA.weed).toEqual({ worst: 0, best: 0 });
+    for (const crop of ['spring', 'legume', 'flax'] as const) {
+      expect(CROP_WINDOWS[crop].weed).toEqual([[5, 5]]);
+    }
+    // v červnu (1. seč) se už neplete
+    for (const crop of ['winter', 'spring', 'legume', 'flax'] as const) {
+      expect(CROP_WINDOWS[crop].weed.some(([from, to]) => 6 >= from && 6 <= to)).toBe(false);
+    }
+  });
+
+  it('sazba pletí: obilí 8 / 5, luštěniny a len 10 / 6 člověkodní na hektar', () => {
+    expect(FIELD_WORK_PER_HA.weed).toEqual({ worst: 8, best: 5 });
+    expect(LEGUME_WORK_PER_HA.weed).toEqual({ worst: 10, best: 6 });
+    expect(FLAX_WORK_PER_HA.weed).toEqual({ worst: 10, best: 6 });
   });
 
   it('výmlat hned po žni – měsíc po sklizni plodiny (production-chains.md – Výmlat hned po žni)', () => {

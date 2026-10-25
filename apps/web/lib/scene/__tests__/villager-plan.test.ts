@@ -34,6 +34,7 @@ import {
 } from '../villager-plan';
 import { orePitRadius } from '../ore-site-layout';
 import { context } from '../villager-plan-cast';
+import { WOMEN } from '../villager-plan-types';
 
 /** Potok v pásu z ∈ (60, 70) – jinak všude suchá schůdná louka; strom 501 a 502 v lese. */
 const GROUND: VillagerGround = {
@@ -1965,5 +1966,31 @@ describe('lidé při práci na cestě (roads.md – Lidé při práci na cestě)
       .map((p) => at(p, 0));
     expect(diggers.length).toBeGreaterThan(0);
     for (const d of diggers) expect(Math.abs(d.headingX)).toBeLessThan(0.2);
+  });
+});
+
+describe('pletí hlavně ženy a děti, seč hlavně muži (fields.md – Pletí jednou a rychle)', () => {
+  it('pletí dospělých podle podílu žen z jádra – ženy vsi plejí napřed', () => {
+    let weeders = 0;
+    let weedWomen = 0;
+    for (let seed = 1; seed <= 12; seed++) {
+      const people = planVillagers(
+        village([{ activity: 'weed', target: { kind: 'field', id: 7 }, manDays: 4, women: 1 }], 5),
+        GROUND,
+        { seed, herds: 0 },
+      );
+      for (const p of people) {
+        if (!p.key.startsWith('weed:')) continue;
+        weeders++;
+        if (p.kind === 'woman') weedWomen++;
+      }
+    }
+    expect(weeders).toBeGreaterThan(0);
+    expect(weedWomen).toBe(weeders);
+  });
+
+  it('bez údaje jádra: pletí hlavně ženy, seč hlavně muži (podíl činnosti)', () => {
+    expect(WOMEN.weed).toBeGreaterThanOrEqual(0.85);
+    expect(WOMEN.mow).toBeLessThanOrEqual(0.15);
   });
 });

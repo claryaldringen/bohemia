@@ -1,5 +1,5 @@
 // Práce dne – polní úlohy v pořadí a `work()` s rozdělením práce vsi.
-import { dateOfDayIndex } from '../calendar';
+import { dateOfDayIndex, dayIndexOf } from '../calendar';
 import type { Landscape, ObstacleLayer } from '../landscape';
 import { carpentryHelp, restingCarpenters, workCarpenters } from './carpentry';
 import {
@@ -119,6 +119,8 @@ import {
   neededTaskRemaining,
   windowEndOf,
   type CropTask,
+  withOnceWeedingRates,
+  withoutWinterWeeding,
 } from './year-plan';
 import { build, decayEmptyDwellings, woodworkToday } from './simulate-build';
 import {
@@ -261,6 +263,9 @@ export function work(
   landscape: Landscape | null,
 ): { toil: boolean; lordField: number } {
   const month = dateOfDayIndex(day).month;
+  // starší plán s pletím ozimu – ozim se neplete; pletí jaře, luštěnin a lnu ze starších sazeb
+  // na nové (fields.md – Pletí jednou a rychle)
+  if (state.plan) state.plan = withOnceWeedingRates(withoutWinterWeeding(state.plan));
   // jízdy vozů dne (svoz, voda, uhlí, ruda, klády, osivo) – zapíše `flushCartTrips`
   const cartLog: CartTripLog = [];
   // orba: páry volů s rádlem, se železnou špičkou od kováře rychleji (oxen.md); slabí voli po
@@ -449,12 +454,28 @@ export function work(
   const weeders = dayTasks.some((t) => t.name === 'weed' && t.remaining > EPSILON)
     ? weedingChildren(state, day)
     : [];
+  // plejí hlavně ženy a děti (fields.md – Pletí jednou a rychle) – práce žen vsi nad jejich díl
+  // denního minima
+  const villageLabor = villagers.reduce((sum, p) => sum + laborPerDay(p, day), 0);
+  const womenLabor = villagers.reduce(
+    (sum, p) => sum + (p.sex === 'female' ? laborPerDay(p, day) : 0),
+    0,
+  );
+  // dní do konce okna pletí i s dneškem (nejbližší konec mezi plodinami) – muži plejí jen, co by
+  // ženy a děti do konce okna nestihly
+  const weedEnd = Math.min(
+    ...dayTasks.filter((t) => t.name === 'weed' && t.remaining > EPSILON).map((t) => t.end),
+  );
+  const weedDaysLeft = Number.isFinite(weedEnd)
+    ? dayIndexOf(
+        weedEnd >= 12
+          ? { year: dateOfDayIndex(day).year + 1, month: 1, day: 1 }
+          : { year: dateOfDayIndex(day).year, month: weedEnd + 1, day: 1 },
+      ) - day
+    : undefined;
   const allocate = (): DayAllocation =>
     allocateDay({
-      capacity: Math.max(
-        0,
-        villagers.reduce((sum, p) => sum + laborPerDay(p, day), 0) - restingCarry,
-      ),
+      capacity: Math.max(0, villageLabor - restingCarry),
       // ženy řemeslníků: zbytek po domácnosti jde jen na lehčí polní práce se vsí (crafts.md)
       light: craftLightLabor(state, day, crafts, coverage.pottery, productivity),
       // vojvodova rodina na poli při hladu – jen úlohy dne (lord.md – Kdy jde rodina na pole); co
@@ -462,6 +483,8 @@ export function work(
       lordField: manor && productivity > 0 ? manor.field / productivity : 0,
       harvestHands,
       weedChildren: weeders.length * WEEDING_CHILDREN.perDay,
+      womenLabor,
+      ...(weedDaysLeft === undefined ? {} : { weedDaysLeft }),
       // cvičící muži rodiny ve žňový den – za žňovými rukama vsi, jen žeň a výmlat
       lordHarvest: manor && productivity > 0 ? manor.harvest / productivity : 0,
       // pomoc rodiny s potřebným osevem – jen co ves nestihne (lord.md – Kdy jde rodina na pole)

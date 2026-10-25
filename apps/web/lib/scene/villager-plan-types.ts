@@ -56,12 +56,14 @@ export const WOMEN: Record<LaborActivity, number> = {
   reclaim: 0.2,
   dig: 0.3,
   sow: 0.3,
-  weed: 0.7,
+  // plejí hlavně ženy a děti, kosou sekají muži (fields.md – Pletí jednou a rychle, Martin
+  // 25. 10. 2026) – u pletí dospělých bere scéna podíl žen z jádra (`LaborShare.women`)
+  weed: 0.9,
   harvest: 0.65,
   carry: 0.5,
   thresh: 0.3,
   plough: 0,
-  mow: 0.3,
+  mow: 0.1,
   slaughter: 0.4,
   milking: 0.9,
   'animal-care': 0.4,

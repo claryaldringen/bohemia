@@ -338,6 +338,10 @@ zbytku rodiny.“
 - **Bokem – mimo práci vsi:** dojení a péče o zvířata (ženy), pasení (výrostci) a domácí výroba
   (z většiny ženy – i zpracování vlny a lnu na oděv a palivo, forest.md – Palivo). Práci vsi
   neberou; ve scéně jsou ženy dál u domů a dojí, výrostci u stád (jen zobrazení).
+- **Pletí – hlavně ženy a děti** (Martin 25. 10. 2026: „Ve středověku se plelo jednou, rychle
+  a dělaly to hlavně ženy a děti“): pletí bere práci napřed z dětí 7–13 let, které nepasou, pak
+  z žen – jejich podíl na práci vsi –, muži doplejí jen zbytek po ostatních úlohách dne (seč) –
+  [fields.md](fields.md), Pletí jednou a rychle.
 - Pole jsou společná, a proto se práce počítá **za celou ves** – dospělí všech domácností
   pracují pro ves. Pořadí práce dne (denní minimum domácností, lidé na výpravách k sousedům,
   potřebné sezónní úlohy, **společná práce vsi** do staveb, opravy obydlí, zbytek) popisuje
