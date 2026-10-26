@@ -1,4 +1,6 @@
+import { WILDLIFE_LAND } from '../rules-wildlife';
 import type { VillageState } from '../types';
+import { freshWildlife } from '../wildlife';
 
 /**
  * Ves, ve které první zemnice už stojí – jako vsi uložené dřív, než si ji zakladatelé začali
@@ -82,5 +84,18 @@ export function withThreshingFloor(state: VillageState): VillageState {
   state.threshingFloors = [
     { id: 60_000, position: { x: -300, z: 300, rotation: 0 }, builtDay: state.foundedDay },
   ];
+  return state;
+}
+
+/**
+ * Ves bez ryb a zajíců (mutuje stav): vesničané nemají co chytat (wildlife.md – Drobná zvěř a ryby),
+ * takže testy hladu, nečinné práce a stavby nepočítají s jídlem z vody a ok. Ostatní zvěř
+ * (krajina, vlci, lišky) je výchozí.
+ */
+export function withoutSmallGame(state: VillageState): VillageState {
+  const wildlife = state.wildlife ?? freshWildlife({ ...WILDLIFE_LAND.defaultLand }, 0);
+  wildlife.fishKg = 0;
+  wildlife.hares = 0;
+  state.wildlife = wildlife;
   return state;
 }

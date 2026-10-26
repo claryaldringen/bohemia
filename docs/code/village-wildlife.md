@@ -173,3 +173,19 @@ backDay: bearBackDay(day) }`.
   (`parseDeclareHuntInput` → `declareHuntForPlayer`).
 - **UI:** `VillageManor.huntDenied` (`manor-view.ts`) = text důvodu, nebo null; tlačítko
   `manor-hunt` (ikona oštěpu) v `ManorUpgrades`, zašedlé s červeným důvodem v tooltipu.
+
+## Ryby a oka vesničanů (W7, `small-game.ts`)
+
+Návrh: wildlife.md – Drobná zvěř a ryby, Rozhodnutí při implementaci W7. Čísla `SMALL_GAME`
+(rules-wildlife.ts).
+
+- `smallGameDay(state, day, labor, urgent)` – volá ho `work()` (simulate-work.ts): při hladu
+  (`state.hungry`) hned po kládách a vodě, před stavbami (z `common`); jinak až z
+  `afterBuild.left − surplus.labor − extraMow`, tedy ze zbytku po dílech nad potřebu a seči navíc.
+  Chytá se, jen když `smallGameCapacity` > 0 (sezóna, zásoba nad ¼ stropu) a ves `wantsProtein`
+  (nebo hladoví).
+- Duben–listopad ryby (biomasa `fishKg`), prosinec–březen oka (`hares`, zlomek kusu). Maso jde do
+  `state.meatKg` bez práce porážky. Stav pro scénu v `wildlife.smallGame.today`; rozdělení práce
+  má činnosti `fish` (cíl `{ kind: 'pool', index }`) a `snare`.
+- `wildlifeYearDay` 1. 5. uloží maso ze zvěře minulého roku (`lastWildMeatKg`) a vynuluje `year`.
+- Testy ves bez ryb a zajíců: `withoutSmallGame` ve `village-fixtures.ts`.

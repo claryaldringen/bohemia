@@ -366,6 +366,10 @@ export type LaborActivity =
   | 'horse-care'
   /** Kování jezdeckých koní vlastním kovářem u ohrady koní (horses.md – Kování). */
   | 'horse-shoeing'
+  /** Rybaření vesničanů u tůně (wildlife.md – Drobná zvěř a ryby; rybář s prutem). */
+  | 'fish'
+  /** Oka na zajíce v zimě (wildlife.md – Drobná zvěř a ryby). */
+  | 'snare'
   /** Sezónní práce v sadech (orchard.md). */
   | 'orchard-care'
   | 'orchard-harvest'
@@ -432,6 +436,8 @@ export type LaborTarget =
        */
       progress?: [number, number][];
     }
+  /** Loviště ryb – tůň do 1 km od vsi (pořadí od nejbližší; wildlife.md – Drobná zvěř a ryby). */
+  | { kind: 'pool'; index: number }
   /** Hotové obydlí (id) – opravy, přestavba, práce řemeslníka v dílně. */
   | { kind: 'dwelling'; id: number }
   /** Staveniště nového obydlí – id stavby. */

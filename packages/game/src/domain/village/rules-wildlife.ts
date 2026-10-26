@@ -172,3 +172,15 @@ export const HUNT_RISK = {
   bear: { injury: 0.05, death: 0.003 },
   footDeathFactor: 2,
 } as const;
+
+/** Ryby a oka vesničanů (wildlife.md – Drobná zvěř a ryby – vesničané sami). */
+export const SMALL_GAME = {
+  /** Hodin práce na člověkoden. */
+  hoursPerManDay: 10,
+  /** Ryby (duben–listopad): kg za hodinu při plném stropu (× biomasa ÷ strop) a jedlý podíl. */
+  fish: { kgPerHour: 0.4, edible: 0.6, fromMonth: 4, toMonth: 11, maxPerPool: 3 },
+  /** Oka (prosinec–březen): zajíců za hodinu při plném stropu a kg masa na zajíce. */
+  snares: { perHour: 0.05, meatKg: 2 },
+  /** Loví se, dokud je zvěře nad tímto podílem stropu (chytá se aspoň 0,1 kg za hodinu). */
+  minStockShare: 0.25,
+} as const;

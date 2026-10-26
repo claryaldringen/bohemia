@@ -28,7 +28,7 @@ import { FIELD_FOOD, FIELD_STORES, FOOD_NEED_KG_PER_YEAR, LEGUMES } from '../rul
 import { neededSelection } from '../rotation';
 import { advanceVillage } from '../simulate';
 import { fieldSowingTargets } from '../simulate-plan';
-import { withThreshingFloor } from './village-fixtures';
+import { withThreshingFloor, withoutSmallGame } from './village-fixtures';
 import type { Crop, DietDay, VillageState } from '../types';
 import { seasonCrops } from '../year-plan';
 
@@ -55,13 +55,15 @@ const field = (count = 180): PartInput[] =>
 
 // ves s humnem – mlátí hned po žni (production-chains.md – Humno)
 const found = (day: number, parts = 180): VillageState =>
-  withThreshingFloor(
-    foundVillage({
-      seed: 42,
-      day,
-      dwellingPosition: POSITION,
-      firstField: { outline: OUTLINE, parts: field(parts) },
-    }),
+  withoutSmallGame(
+    withThreshingFloor(
+      foundVillage({
+        seed: 42,
+        day,
+        dwellingPosition: POSITION,
+        firstField: { outline: OUTLINE, parts: field(parts) },
+      }),
+    ),
   );
 
 const diet = (shares: Partial<DietDay['shares']>): DietDay => ({

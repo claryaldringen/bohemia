@@ -203,6 +203,10 @@ function shareText(
       return 'porází dobytek';
     case 'herding':
       return 'pase';
+    case 'fish':
+      return 'chytá ryby';
+    case 'snare':
+      return 'staví oka na zajíce';
     case 'pen':
       return 'staví ohradu';
     case 'orchard-harvest':

@@ -28,7 +28,12 @@ import {
   springCrop,
   dropSeasonCrop,
 } from '../year-plan';
-import { withBuiltFirstDwelling, withManorElsewhere, withThreshingFloor } from './village-fixtures';
+import {
+  withBuiltFirstDwelling,
+  withManorElsewhere,
+  withThreshingFloor,
+  withoutSmallGame,
+} from './village-fixtures';
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 const YEAR = 365.25;
@@ -82,7 +87,7 @@ function withoutFields(day: number, extra: Person[] = []): VillageState {
   s.constructions = [];
   s.storesKg = 5000;
   s.people.push(...extra);
-  return s;
+  return withoutSmallGame(s);
 }
 const adultOfAge = (id: number, years: number, day: number): Person => ({
   id,
@@ -456,7 +461,7 @@ describe('advanceVillage – roční plán a sklizeň', () => {
       ...plan,
       crops: plan.crops.map((c) => ({ ...c, done: { ...c.required } })),
     };
-    return s;
+    return withoutSmallGame(s);
   }
   const hungerEvents = (s: VillageState): ChronicleEvent[] =>
     s.chronicle.filter((e) => e.kind === 'hunger-began' || e.kind === 'hunger-ended');

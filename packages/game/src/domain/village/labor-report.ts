@@ -87,6 +87,8 @@ export interface DayWork {
   surplusField?: number;
   /** Seč navíc z práce po stavbách (oxen.md – Seno, dvě seče; člověkodny). Bez údaje 0. */
   extraMow?: number;
+  /** Ryby a oka vesničanů ze zbytku práce (W7; wildlife.md); bez údaje žádné. */
+  smallGame?: { activity: LaborActivity; target: LaborTarget; manDays: number }[];
   /**
    * Věk dětí, které dnes plejí (fields.md – Pletí – děti) – jejich díl pletí
    * (`allocation.weedChildren`) jde do zvláštního podílu s `ages` (malé postavy ve scéně).
@@ -390,6 +392,10 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
     work.repairs.reduce((sum, r) => sum + r.manDays, 0) +
     (work.surplusField ?? 0) +
     (work.extraMow ?? 0);
+  for (const g of work.smallGame ?? []) {
+    invested += g.manDays;
+    add(g.activity, g.target, g.manDays);
+  }
   // honáci a nakladači klád jdou ze společné práce (wagons.md); sedláci s uhlím a rudou mají
   // vlastní podíl práce vsi před úlohami (`allocation.carting` – crafts.md, Uhlí a ruda kováře)
   for (const haul of hauls) if (haul.job === 'logs') invested += haul.manDays;

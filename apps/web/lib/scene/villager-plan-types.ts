@@ -70,6 +70,9 @@ export const WOMEN: Record<LaborActivity, number> = {
   'horse-care': 0.4,
   'horse-shoeing': 0,
   herding: 0.2,
+  // rybáři a oka na zajíce (wildlife.md – Drobná zvěř a ryby) – scéna je dokreslí až s W11
+  fish: 0.2,
+  snare: 0.3,
   'orchard-care': 0.3,
   'orchard-harvest': 0.6,
   build: 0.15,

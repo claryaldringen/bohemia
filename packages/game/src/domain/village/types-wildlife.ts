@@ -38,6 +38,30 @@ export interface WildlifeState {
   dogs?: ManorDogs;
   /** Velký lov rodu (W4; wildlife.md – Lov rodu); chybí = rod ještě nelovil. */
   hunt?: HuntState;
+  /** Ryby a oka vesničanů (W7; wildlife.md – Drobná zvěř a ryby); chybí = ještě nic nechytali. */
+  smallGame?: SmallGameState;
+}
+
+/** Úlovek ryb a zajíců od 1. 5. (kg masa se počítá zvlášť). */
+export interface SmallGameYear {
+  fishKg: number;
+  hares: number;
+  /** Maso ryb a zajíců od 1. 5. (kg; jí se čerstvé, bez práce porážky). */
+  meatKg: number;
+  /** Dny, kdy se chytalo. */
+  days: number;
+}
+
+/**
+ * Ryby a oka vesničanů (W7): dnešní rybáři pro scénu (rybáři s prutem u tůní), úlovek roku
+ * a loňské maso ze zvěře (velký lov i drobná zvěř) pro rozhodnutí, jestli ves bílkoviny chce.
+ */
+export interface SmallGameState {
+  /** Dnešní chytání: rybáři po tůních (index tůně → počet lidí) nebo oka; null = dnes ne. */
+  today: { day: number; kind: 'fish' | 'snare'; pools: number[]; kg: number } | null;
+  year: SmallGameYear;
+  /** Maso ze zvěře (velký lov i drobná zvěř) minulého roku (kg). */
+  lastWildMeatKg?: number;
 }
 
 /** Smečka dvorce: počet s podílem kusu a zda ji ves naposled nakrmila (štěňata jen z nakrmené). */

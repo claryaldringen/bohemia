@@ -535,6 +535,10 @@ export function placer(ctx: Context, share: SceneLaborShare, count: number): Pla
       // parta porážky stojí u stanoviště (villager-plan-slaughter.ts); zbytek podílu – uzení
       // a práce kolem – na udusané zemi kousek od domů jako výmlat
       return threshing(ctx, count);
+    case 'fish':
+    case 'snare':
+      // rybáře u tůně s prutem dokreslí scéna zvěře (W11)
+      return none;
     case 'herding':
       // dospělí pasáci stojí u stád spolu s dětmi (`herders`, diet.md – Pasáci)
       return none;

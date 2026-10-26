@@ -292,7 +292,14 @@ function simulateDay(
   state.chronicle.push(...dynastyDay(state, day));
   // štěstí na konci dne – hlad, úmrtí, přeplněnost, dřina, zásoby, ovoce, maso a posvátná místa
   // (happiness.md, diet.md)
-  updateHappiness(state, day, { satiation, events: happinessEvents, toil, fruit, obstacles, meatShare: meat });
+  updateHappiness(state, day, {
+    satiation,
+    events: happinessEvents,
+    toil,
+    fruit,
+    obstacles,
+    meatShare: meat,
+  });
   if (state.people.length === 0) {
     // zemřel poslední člověk – ves vymřela, dál se nesimuluje (ani sklizeň dne)
     state.extinctDay = day;

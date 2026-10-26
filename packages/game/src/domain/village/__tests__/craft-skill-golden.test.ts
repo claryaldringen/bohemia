@@ -123,6 +123,7 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
     // hash 5e3b6c4c (26. 10. 2026 (W3 šelmy; wildlife.md – Vlci na dobytku): vlčí díl ztrát jen venku a medvěd bere prasata, takže stáda jdou po dnech jinak; dřív 39b51dd8); 26. 10. 2026 podruhé (oprava po recenzi W3): medvěd bere jen z prasat nad chovný pár a kronika šelem jde po měsících (jiné události kroniky), dřív 5e3b6c4c)
     // hash 89e5e1ce (26. 10. 2026 (W4 psi dvorce a velký lov rodu; wildlife.md – Psi, Lov rodu): obilí psů dvorce se sije z pole a pěší lovci a odešlí synové chybí v den lovu v práci vsi, takže se mění sklizeň, plán osevu a stav zvěře; dřív 5362ef6)
     // hash c98b44a4 (26. 10. 2026, oprava po recenzi W4): psi dvorce vznikají hned (ne až 1. 5.), rodina na poli neloví a slabý jezdec jde pěšky – jiný lov, obilí psů a práce vsi; dřív 89e5e1ce
-    expect(hash(stripped)).toBe('c98b44a4');
+    // hash 7fc9acc1 (26. 10. 2026, W7 ryby a oka; wildlife.md – Drobná zvěř a ryby): vesničané chytají ryby a zajíce z volné práce (nebo při hladu před stavbami), maso jde do zásoby bez porážky – jiná práce vsi, zásoby a stav zvěře; dřív c98b44a4
+    expect(hash(stripped)).toBe('7fc9acc1');
   }, 120_000);
 });

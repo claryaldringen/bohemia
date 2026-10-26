@@ -154,6 +154,7 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
     // 26. 10. 2026 podruhé (oprava po recenzi W3): medvěd bere jen z prasat nad chovný pár a kronika šelem jde po měsících (jiné události kroniky); dřív e3e385c3
     // 26. 10. 2026 (W4 psi dvorce a velký lov rodu; wildlife.md – Psi, Lov rodu): obilí psů dvorce se sije z pole a pěší lovci a odešlí synové chybí v den lovu v práci vsi, takže se mění sklizeň, plán osevu a stav zvěře; dřív cc8c88e1
     // hash c3eb2c09 (26. 10. 2026, oprava po recenzi W4): psi dvorce vznikají hned, rodina na poli neloví, slabý jezdec jde pěšky a pěší lov je vydatnější – jiný lov a obilí psů; dřív f335bac8
-    expect(hash(stripped)).toBe('c3eb2c09');
+    // hash 13eb70fa (26. 10. 2026, W7 ryby a oka; wildlife.md – Drobná zvěř a ryby): vesničané chytají ryby a zajíce z volné práce (nebo při hladu před stavbami), maso jde do zásoby bez porážky – jiná práce vsi, zásoby a stav zvěře; dřív c3eb2c09
+    expect(hash(stripped)).toBe('13eb70fa');
   }, 120_000);
 });

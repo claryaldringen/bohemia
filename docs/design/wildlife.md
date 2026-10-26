@@ -446,3 +446,19 @@ Martin: „Souhlasím se všemi návrhy“ – tři otázky z plánu jsou uzavř
   chybí v práci vsi.
 - **Ikona lovu** na panelu dvorce je oštěp; důvod odepření (hájení, 3 dny, není kdo, už vyhlášeno)
   je červeně v popisku.
+
+## Rozhodnutí při implementaci W7 (26. 10. 2026, návrh Clauda)
+
+- **Zdroj práce:** v klidu ryby a oka jen ze **zbytku společné práce** po stavbách, opravách, dílech
+  nad potřebu a seči navíc (Odpovědi Martina 26. 10. 2026, bod 2) – starší nad denním minimem
+  a nepasoucí výrostci jsou v té společné práci už započtení, zvláštní zásobník nemají. **Při
+  hladu** (`hungry`) jde práce na ryby a oka hned za polními úlohami, před stavbami.
+- **Kolik lidí:** nejvýš 3 na tůň (`land.pools`; bez tůní, ale s vodou 1 loviště). V zimě oka
+  stejný strop lidí.
+- **Úlovek:** jak v návrhu; ryby i zajíci ubývají zlomkem (bez náhody), chytá se do čtvrtiny
+  stropu. Maso jde rovnou do zásoby, bez práce porážky.
+- **Chce bílkoviny:** roční potřeba masa po obilí, mléku, vejcích a luštěninách je větší než maso
+  stád (`yearlyMeatPerHead` × stáda) + maso ze zvěře loni (velký lov i drobná zvěř, uložené při
+  přepočtu 1. 5.). Úlovek roku se tak sám brzdí.
+- **Pro scénu (W11):** `wildlife.smallGame.today` (rybáři po tůních) a podíly práce `fish` (cíl
+  `pool` – pořadí tůně) a `snare`; „rybář s prutem u loviště“ (Martin 24. 10. 2026).

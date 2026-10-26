@@ -37,7 +37,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   postup po dílech, bod 3; Martin 25. 10. 2026: „ve chvíli, kdy stavba přijde, prostě vesnice
   o část úrody přijde“): všechna jejich práce na poli (příprava půdy, setí, pletí, žně, odnos)
   a nové díly – nutná práce proti hladu je tak před stavbami, díly nad potřebu až po nich → **seč
-  navíc** pro růst stád (oxen.md – Seno, dvě seče; `extraMow`) → zbytek propadne. Volná práce
+  navíc** pro růst stád (oxen.md – Seno, dvě seče; `extraMow`) → **ryby a oka vesničanů**
+  (`smallGameDay`, W7 – jen když ves chce bílkoviny; při hladu už před stavbami) → zbytek propadne. Volná práce
   v liště a zápis na seč (`recordMowingLabor` z `mowWork + allocation.common`) počítají práci
   dílů nad potřebu jako volnou – strop stád nezmenší. **Seč nutného sena** je úloha dne `mow` za
   všemi ostatními (`end: Infinity`, `tie: 3`) – polním pracím práci nikdy nebere (kromě pletí
