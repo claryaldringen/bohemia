@@ -117,7 +117,8 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   `finishConstructions`, starší vsi při načtení `withMergedRoads` v `updateVillage`; id a den
   vzniku staršího, roads.md – Úseky a rozcestí; dva úseky mezi stejnými uzly do okruhu ne,
   nejrovnější pokračování první) → **souběžné cesty** (do 12 m stejným směrem) se sloučí (`mergeParallelRoads` – kus
-  slabší cesty souběžný aspoň 25 m se vyřízne, `removeBraids` – copánek mezi stejnými uzly do
+  slabší cesty souběžný aspoň 25 m se vyřízne, `removeBraids` – copánek přes 1–2 mezilehlé uzly
+  (`ringBraid`, jen se stavbami vsi `SpotContext.buildings` – níž) a copánek mezi stejnými uzly do
   25 m: zmizí oklika; vše v `tidyRoads`) → **díry** (volný konec do 12 m od jiného
   úseku, který není u konce trasy roční sítě – brány, cíle) se napojí (`joinRoadGaps`, starší
   vsi jednou při načtení `withRoadsV2`) a určí se skutečné volné
@@ -179,11 +180,15 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   [Vchody](../design/paths.md#vchody); Martin 22. 10. 2026, pravidla 10 a 11): `roadsMonth` po
   zániku kusů a vzniku z vyšlapanosti pustí `tidyMonth` – jen když se od posledního úklidu změnily
   osy úseků (`VillageRoads.tidyKey`, otisk FNV-1a `networkKey`), nebo nové kotvy a trasy dají práci
-  (`tidyDue` – okruh, díra, pahýl; `accessDue` – vchod bez cesty, počítá tutéž cestu jako `accessRoads` přes `accessPlan`, takže vchod bez možné cesty úklid nespouští); jinak nic, ani kontext míst na
+  (`tidyDue` – okruh, díra, pahýl, copánek přes křižovatku `hasRingBraid`; `accessDue` – vchod bez cesty, počítá tutéž cestu jako `accessRoads` přes `accessPlan`, takže vchod bez možné cesty úklid nespouští); jinak nic, ani kontext míst na
   stromy (čítač `TIDY_RUNS` pro testy). Pořadí: `tidyRoads` s kotvami a čarami tras (`StubNetwork`):
   okruh přes jeden uzel se rozdělí v nejvzdálenějším bodě (`splitLoops`, `roads-stubs.ts`) →
   souběžné → díry (`joinRoadGaps` už nespojí konec zpět do uzlu, ze kterého úsek vychází – vznikal
-  okruh tam a zpět) → copánky → spojení → **pahýly** (`trimStubs`: konec vyšlapaného úseku mimo kotvu a mimo jinou cestu zmizí bez ohledu na délku
+  okruh tam a zpět) → copánky (mezi týmiž uzly, pak **přes křižovatku** – `ringBraid`: slabší úsek
+  A–B, druhá větev přes 1–2 uzly jen ze silnějších úseků, `staysNear` 25 m, okruh do 150 m a uvnitř
+  nejvýš jedna stavba – `ringBuildingPoints` z `pathVillageOf`, líně přes `ringBuildingsOf`
+  v `roads.ts`, `insideRing` sudý počet průsečíků; `ROAD_BRAID_RING`, paths.md – Copánek přes
+  křižovatku; starší ves bez převodu – `tidyDue` ho najde i v síti beze změny) → spojení → **pahýly** (`trimStubs`: konec vyšlapaného úseku mimo kotvu a mimo jinou cestu zmizí bez ohledu na délku
   – nejbližší úklid, ne až zarůstání; upravená cesta zmizí jen kratší než `MIN_ROAD_M` a jinak zarůstá
   podle `ROAD_DECAY`, vozová, rozestavěná a zemská stezka se nemění) → **cesty k vchodům** (`accessRoads`, `roads-access.ts`: stavba s trasou s provozem
   stavby – `StoredRoute.visit` – do vchodu, hotová – rozestavěný hřbitov ne; když u vchodu do 3 m

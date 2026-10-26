@@ -411,3 +411,108 @@ describe('vozová cesta se napojí (paths.md – Síť, Martin 25. 10. 2026)', (
     expect(roads.roads.find((r) => r.grade === 'wagon')!.points[0]).toEqual({ x: 100, z: 6.2 });
   });
 });
+
+describe('copánek přes křižovatku (paths.md – Copánek přes křižovatku)', () => {
+  type Pt = [number, number];
+  const at = (dz: number, pts: Pt[]): Pt[] => pts.map(([x, z]) => [x, z + dz]);
+  /** Silnější větev z A (0, 0) do B (60, 0) přes `via` (upravené úseky, z uzlů ramena na sever). */
+  function ring(via: Pt[], dz = 0, weakGrade: RoadGrade = 'trodden'): VillageRoads {
+    const nodes: Pt[] = [[0, 0], ...via, [60, 0]];
+    const strong = nodes
+      .slice(1)
+      .map((p, k) => road(k + 1, at(dz, [nodes[k]!, p]), Y1 - 2000, 'improved'));
+    const arms = via.map((p, k) =>
+      road(10 + k, at(dz, [p, [p[0], p[1] + 40]]), Y1 - 2000, 'improved'),
+    );
+    // slabší vyšlapaný úsek z A do B jižním obloukem (až 12 m od uzlů)
+    const weak = road(
+      20,
+      at(dz, [
+        [0, 0],
+        [30, -12],
+        [60, 0],
+      ]),
+      Y1 - 1000,
+      weakGrade,
+    );
+    return {
+      nextId: 50,
+      roads: [...strong, ...arms, weak],
+      trees: [],
+      labor: { from: Y1, days: 365, shares: [] },
+    } as unknown as VillageRoads;
+  }
+  const ids = (roads: VillageRoads): number[] => roads.roads.map((r) => r.id).sort((a, b) => a - b);
+
+  it('copánek přes jeden mezilehlý uzel: slabší úsek zmizí', () => {
+    const roads = ring([[30, 8]]);
+    expect(removeBraids(roads, [], () => [])).toBe(true);
+    expect(ids(roads)).toEqual([1, 2, 10]);
+    // bez staveb vsi se copánek přes křižovatku nehledá
+    expect(removeBraids(ring([[30, 8]]), [])).toBe(false);
+  });
+
+  it('copánek přes dva mezilehlé uzly: slabší úsek zmizí', () => {
+    const roads = ring([
+      [20, 6],
+      [40, 6],
+    ]);
+    expect(removeBraids(roads, [], () => [])).toBe(true);
+    expect(ids(roads)).toEqual([1, 2, 3, 10, 11]);
+  });
+
+  it('jedna stavba uvnitř okruhu – copánek; dvě stavby (cesta kolem pozemků) zůstanou', () => {
+    const one = ring([[30, 8]]);
+    expect(removeBraids(one, [], () => [{ x: 30, z: -3 }])).toBe(true);
+    const two = ring([[30, 8]]);
+    const plots = [
+      { x: 22, z: -3 },
+      { x: 38, z: -3 },
+    ];
+    expect(removeBraids(two, [], () => plots)).toBe(false);
+    expect(ids(two)).toEqual([1, 2, 10, 20]);
+  });
+
+  it('okruh delší než 150 m zůstane', () => {
+    const roads = ring([[30, 8]]);
+    const weak = roads.roads.find((r) => r.id === 20)!;
+    weak.points = [
+      { x: 0, z: 0 },
+      { x: 10, z: -20 },
+      { x: 50, z: -20 },
+      { x: 60, z: 0 },
+    ];
+    // slabá větev ≈ 85 m + silnější ≈ 64 m – pod mezí; s dalším kličkováním nad ni
+    expect(removeBraids(json(roads), [], () => [])).toBe(true);
+    weak.points.splice(2, 0, { x: 30, z: -24 }, { x: 30, z: -16 });
+    expect(removeBraids(roads, [], () => [])).toBe(false);
+  });
+
+  it('výsledek nezávisí na kouscích dopočtu přes 1. 11. (roční úklid)', () => {
+    const start = village(NOV1(601) - 12);
+    updateRoads(start, Y1, LANDSCAPE, null);
+    // vše upravené – úsek bez provozu tak do roka nezaroste, zmizí jen copánek
+    const extra = ring([[30, 8]], -110, 'improved').roads.map((r) => ({ ...r, id: r.id + 600 }));
+    start.roads!.roads.push(...extra);
+    start.roads!.nextId = Math.max(start.roads!.nextId, 700);
+    start.roads!.labor = { from: Y1, days: 365, shares: [] };
+    const end = NOV1(601) + 9;
+    const whole = advanceVillage(start, end, LAYER, LANDSCAPE);
+    const live = whole.roads!.roads.filter((r) => !r.abandoned).map((r) => r.id);
+    expect(live).not.toContain(620);
+    expect(live).toContain(610);
+    const steps = [1, 3, 5, 2, 7];
+    let chunked = json(start);
+    for (let i = 0; chunked.lastDay < end; i++) {
+      chunked = json(
+        advanceVillage(
+          chunked,
+          Math.min(end, chunked.lastDay + steps[i % steps.length]!),
+          LAYER,
+          LANDSCAPE,
+        ),
+      );
+    }
+    expect(chunked).toEqual(json(whole));
+  }, 60_000);
+});

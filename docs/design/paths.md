@@ -581,7 +581,8 @@ Návrh Clauda:
 - **Úklid** po každé změně cest (měsíční kontrola, dostavěné vylepšení, převod) v pevném pořadí:
   1. **souběžné cesty a copánky** – dnešní pravidla ([roads.md – Úseky a
      rozcestí](roads.md#úseky-a-rozcestí): do 12 m stejným směrem, kus od 25 m; copánek mezi
-     stejnými uzly do 25 m, krátký vzdálený kus se toleruje – níž); silnější je vyšší druh, pak víc provozu, pak starší – vozová
+     stejnými uzly do 25 m, krátký vzdálený kus se toleruje – níž; copánek přes 1–2 mezilehlé uzly
+     – [Copánek přes křižovatku](#copánek-přes-křižovatku-26-10-2026)); silnější je vyšší druh, pak víc provozu, pak starší – vozová
      a upravená cesta tak pohltí souběžnou vyšlapanou (Vlkov – voda);
   2. **díry** do 14 m mezi konci a cestou se zacelí (jako dřív);
   3. **uzly se dvěma konci** se spojí do jednoho úseku (jako dřív `mergeRoadChains`, různé druhy
@@ -627,6 +628,30 @@ Návrh Clauda:
   křižovatka, která má úsek v rameni, pak nejbližší kotva v dosahu (vchod 3 m, cíl 7,5 m, nejméně
   6 m jako konec trasy), pás kraje mapy, jiná cesta do 4 m; jinak nikam. Vlkov (den 115545):
   z 23 cest mají 3 konec nikam (cesty 975, 1012, 1019).
+
+## Copánek přes křižovatku (26. 10. 2026)
+
+Martin 26. 10. 2026: „Udělej zrychlení a opravy cest“ – zbylé návrhy auditu cest Vlkova
+(25. 10. 2026). Audit našel okruhy, které úklid nechal: copánek se ruší jen mezi týmiž dvěma uzly,
+ale dvě souběžné cesty spojené přes mezilehlou křižovatku (Vlkov den 115545: upravené cesty 781
+a 786 a vozová 940 kolem jednoho domu, 83 m) zůstanou obě.
+
+Pravidlo (návrh Clauda, čísla `ROAD_BRAID_RING`):
+
+- Slabší úsek A–B zmizí jako copánek i tehdy, když druhá větev z A do B vede přes **1–2 mezilehlé
+  uzly** a skládá se jen ze silnějších úseků (pořadí jako u copánku – vyšší druh, oklika delší
+  o víc než 5 %, víc provozu, starší). Slabší úsek se od druhé větve nesmí vzdálit víc než 25 m
+  (krátký vzdálený kus se toleruje jako u copánku) – je to tatáž cesta.
+- **Okruh** obou větví je nejvýš **150 m** a uvnitř leží **nejvýš jedna stavba** (obydlí s pozemkem,
+  ohrada, hřbitov, modla, svatyně, humno, milíř – počítá se střed). Víc staveb uvnitř je cesta kolem
+  pozemků (každá strana slouží jiným vchodům) – zůstane, stejně jako delší okruh.
+- Vozová cesta a cesta ve stavbě jako slabší nezmizí (hráč do ní investoval), jako u copánku.
+- Úklid ji hledá v kroku 1 po copáncích mezi týmiž uzly; měsíční kontrola ji hledá i v síti beze
+  změny, takže **starší ves převod nepotřebuje** – copánek zmizí při nejbližším měsíčním kroku cest.
+- Vlkov: na stavu z auditu (den 115545) zmizí upravená 786 (okruh 781 + 786 + 940 kolem domu);
+  na stavu 26. 10. (den 116969) upravená spojka 1037 (14 m) v trojúhelníku vozových cest u křižovatky
+  na západě vsi. Okruh vozových cest 936 + 1041 + 1054 kolem ohrady zůstává – všechny tři jsou
+  vozové (1054 vede po téže ose jako 936 a 1041).
 
 ## Stavba přes cestu (Vlkov, Martin 23. 10. 2026)
 
