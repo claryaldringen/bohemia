@@ -124,6 +124,7 @@ import {
   withOnceWeedingRates,
   withoutWinterWeeding,
 } from './year-plan';
+import { payWatch, watchWanted } from './wildlife-damage';
 import { build, decayEmptyDwellings, woodworkToday } from './simulate-build';
 import {
   bestWaterPlan,
@@ -328,6 +329,12 @@ export function work(
       tie: 1,
       rank: THRESH_RANK + CROP_ORDER.length,
     });
+  }
+  // noční hlídka polí (wildlife.md – Noční hlídka vesničanů, 2. stupeň): dospělí z práce vsi za
+  // polními úlohami dne – v žních soupeří se sklizní (zamýšlená volba), před sečí a stavbami
+  const watchLabor = watchWanted(state, day);
+  if (watchLabor > EPSILON) {
+    dayTasks.push({ name: 'watch', remaining: watchLabor, end: Infinity, tie: 2, rank: 2 });
   }
   const orchard = orchardTask(state, day);
   if (orchard) {
@@ -676,6 +683,8 @@ export function work(
       workSlaughter(state, amount);
     } else if (task.name === 'grain-pit') {
       grainPits = workGrainPits(state, day, amount, moreGrain, pitSite);
+    } else if (task.name === 'watch') {
+      payWatch(state, day, task.remaining, amount);
     } else {
       workOrchards(state, amount);
     }

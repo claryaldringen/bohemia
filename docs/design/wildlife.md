@@ -375,6 +375,8 @@ kde to nestačí.
 
 | Rozhodnutí                                                                                                                               | Kdo                                                    |
 | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| Jezdecká hlídka bez pravidla „kůň jen když je silnější“ (jede, kdo jede objížďku)                                                        | návrh Clauda (W6)                                      |
+| Noční hlídka: staří a výrostci se počítají 1. 6. na celou sezónu, dospělí denně                                                          | návrh Clauda (W6)                                      |
 | Divoké prase, jelen a laň, vlk, medvěd, zajíc, liška, ptáci, ryby – součást simulace                                                     | Martin (24. 10. 2026)                                  |
 | Stáda jako počty s rozmnožováním, ne na úkor náročnosti                                                                                  | Martin (24. 10. 2026)                                  |
 | Loví vojvoda a synové – ze dvorce na koních, ostatní pěšky s oštěpy a psy; vesničané jen drobné a ryby s prutem                          | Martin (24. 10. 2026)                                  |

@@ -54,6 +54,7 @@ import { decideRebuilds, finishConstructions } from './simulate-build';
 import { eat, endThreshing, harvest, harvestWinter } from './simulate-food';
 import { isOn, lordHelpDay, seasonDay, startSeason } from './simulate-plan';
 import { work } from './simulate-work';
+import { patrolHuntDay } from './field-patrol';
 import { huntDay, planHuntDay } from './hunt';
 import { dogsYear } from './manor-dogs';
 import { wildlifeYearDay, withWildlife } from './wildlife';
@@ -274,6 +275,8 @@ function simulateDay(
   // úlovek velkého lovu a maso do zásoby; den lovu je výcvik (wildlife.md – Lov rodu)
   const huntEvents = huntDay(state, day, lordField);
   state.chronicle.push(...huntEvents);
+  // úlovek prasat z jezdecké hlídky polí (červen–říjen; wildlife.md – Obrana polí)
+  patrolHuntDay(state, day);
   // a koně pod jezdci (horses.md – Výcvik koně a jezdec) – po péči (`work()`) a obilí (`eat()`)
   state.chronicle.push(...trainLordDay(state, day, lordField));
   // nahromaděný hlad se počítá z dnešní energie (hladem se umírá z energie, ne z pestrosti –

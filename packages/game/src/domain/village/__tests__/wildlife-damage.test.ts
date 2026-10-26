@@ -169,10 +169,15 @@ describe('škoda dne', () => {
     const big = forestVillage(40_000, 8); // 20 ha
     const small = forestVillage(10_000, 8); // 5 ha → ½
     const tiny = forestVillage(2_000, 8); // 1 ha → 1/10
-    for (const s of [big, small, tiny]) wildlifeDamageDay(s, JUNE);
+    // bez noční hlídky (ta má vlastní test v field-guard.test.ts)
+    for (const s of [big, small, tiny]) {
+      delete s.wildlife!.watch;
+      wildlifeDamageDay(s, JUNE);
+    }
     // vrány se s plochou škálují stejně → odečti jejich podíl počítaný bez zvěře
     const noGame = (areaM2: number): number => {
       const s = forestVillage(areaM2, 0);
+      delete s.wildlife!.watch;
       wildlifeDamageDay(s, JUNE);
       return s.wildlife!.damage!.totalKg;
     };

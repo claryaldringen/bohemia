@@ -28,7 +28,7 @@ import { villageHorses } from './horses';
 
 const EPSILON = 1e-9;
 
-function emptyHunt(): HuntState {
+export function emptyHunt(): HuntState {
   return {
     hope: { boar: 0, deer: 0, wolf: 0, bear: 0 },
     today: null,
