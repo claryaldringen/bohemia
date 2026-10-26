@@ -150,19 +150,6 @@ export const SLAUGHTER_ROLES: readonly SlaughterRole[] = ['butcher', 'bowl', 'ho
 
 /** Rekvizita v ruce podle klipu (people.json – propy se ukazují jen v klipu). */
 export type SlaughterProp = 'mallet' | 'knife' | 'bowl' | 'axe' | 'meat';
-const CLIP_PROPS: Partial<Record<VillagerClip, SlaughterProp>> = {
-  build: 'mallet',
-  butcher: 'knife',
-  gut: 'knife',
-  bleed: 'bowl',
-  fell: 'axe',
-  'carry-meat': 'meat',
-  'carry-meat-idle': 'meat',
-};
-
-export function slaughterProp(clip: VillagerClip): SlaughterProp | null {
-  return CLIP_PROPS[clip] ?? null;
-}
 
 /** Obydlí pro porážku: bod před vchodem (volné místo) a směr ven z domu (jednotkový). */
 export interface SlaughterHome {
@@ -365,6 +352,17 @@ function animalLocal(species: HerdSpecies, size: TrestleSize): { side: number; f
   return { side: -(TRESTLE[size].halfX + 0.5 + CARCASS[species].halfWidth), front: 0.15 };
 }
 
+/**
+ * Řezník při vyvržení stojí z boku visícího zvířete (u kratšího konce bidla, tam, kde předtím leželo
+ * zvíře) – nezakrývá ho z pohledu zepředu (Martin 26. 10. 2026, kontrola snímků).
+ */
+function gutLocal(size: TrestleSize): { side: number; front: number } {
+  return { side: -(TRESTLE[size].halfX + 0.45), front: 0.1 };
+}
+
+/** Miska stojí na zemi vedle necek u hlavy visícího zvířete (necky 1,4 m – za jejich koncem). */
+const BOWL_LOCAL = { side: 0.98, front: 0.05 } as const;
+
 function blockLocal(size: TrestleSize): { side: number; front: number } {
   return { side: TRESTLE[size].halfX + 0.9, front: 0.3 };
 }
@@ -385,7 +383,8 @@ function footprint(o: Spot, species: HerdSpecies, size: TrestleSize): Point[] {
     local(o, a.side - c.halfWidth - 0.5, a.front),
     local(o, b.side, b.front),
     local(o, b.side, b.front + 0.6),
-    local(o, 0, Math.max(0.75, t.front + 0.15)),
+    local(o, gutLocal(size).side, gutLocal(size).front),
+    local(o, BOWL_LOCAL.side, BOWL_LOCAL.front),
   ];
 }
 
@@ -424,7 +423,11 @@ function placeTrestle(
  */
 export function slaughterSites(input: SlaughterInput): SlaughterSite[] {
   const heads = input.heads ?? {};
-  const count = stationCount(heads, input.figures);
+  const total = Object.values(heads).reduce((sum, n) => sum + Math.max(0, n ?? 0), 0);
+  // zimní den s méně než jedním kusem (zlomek ≈ 0,04 prasete denně): stanoviště jen v tom podílu
+  // dní, jaký zlomek je – průměr přes zimu odpovídá kusům, ne porážce každý den (návrh Clauda)
+  const today = total >= 1 || slaughterRoll(input.seed, input.day, 0) < total;
+  const count = today ? stationCount(heads, input.figures) : 0;
   const homes = [...input.homes].sort((a, b) => a.id - b.id);
   if (count === 0 || homes.length === 0) return [];
   const weights: Partial<Record<HerdSpecies, number>> = { ...heads };
@@ -543,12 +546,13 @@ export function slaughterStation(
   const neck = a.front + 0.32 * L;
   const outer = a.side - W;
   const toAnimal = D(1, 0);
-  const gutSpot = P(0, Math.max(0.75, t.front + 0.15));
+  const g = gutLocal(site.trestle);
+  const gutSpot = P(g.side, g.front);
   const chopSpot = P(0.45, Math.max(0.8, t.front + 0.2));
   const takeSpot = P(-0.55, Math.max(0.75, t.front + 0.1));
   const wait = (m: number): Point => P(b.side - 0.35 + 0.45 * (m - 1), b.front + 0.9);
   const pick = (m: number): Point => P(b.side + (m - 1.5) * 0.3, b.front + 0.55);
-  const bowlSpot = P(outer - 0.1, neck + 0.75);
+  const bowlSpot = P(BOWL_LOCAL.side, BOWL_LOCAL.front);
   const hasBowl = crew.includes('bowl');
   const runner = crew.includes('holder') ? crew.indexOf('holder') : crew.length > 1 ? 1 : 0;
   const scripts: Script[] = crew.map(() => ({ steps: [], last: site.door }));
@@ -596,16 +600,21 @@ export function slaughterStation(
       stepAt(
         hoistS + Math.hypot(via.x - s.steps.at(-2)!.x, via.z - s.steps.at(-2)!.z) / VIA_M_S,
         target,
-        role === 'butcher' ? back : dirTo(target, center),
+        dirTo(target, center),
         'idle',
       ),
     );
     // vyvržení
-    if (role === 'butcher') addStep(s, stepAt(at(GUT_F), gutSpot, back, 'gut'));
+    if (role === 'butcher') addStep(s, stepAt(at(GUT_F), gutSpot, dirTo(gutSpot, center), 'gut'));
     // rozčtvrcení: řezník seká, nosič nese čtvrtinu na prkno
     for (let k = 0; k < T.quarterSteps; k++) {
       const k0 = q0 + k * qd;
-      if (role === 'butcher') addStep(s, stepAt(at(k0), chopSpot, dirTo(chopSpot, center), 'fell'));
+      if (role === 'butcher') {
+        // od boku, kde vyvrhoval, jde k prknu předem – aby u první čtvrtiny už sekal
+        const lead =
+          k === 0 ? Math.hypot(chopSpot.x - gutSpot.x, chopSpot.z - gutSpot.z) / VIA_M_S + 0.3 : 0;
+        addStep(s, stepAt(at(k0) - lead, chopSpot, dirTo(chopSpot, center), 'fell'));
+      }
       if (m !== runner) {
         if (role === 'butcher')
           addStep(s, stepAt(at(k0 + 0.5 * qd), chopSpot, dirTo(chopSpot, center), 'idle'));

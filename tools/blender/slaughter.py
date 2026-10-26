@@ -1,4 +1,4 @@
-"""Rekvizity porážky (docs/design/slaughter.md, docs/code/scene-village.md – Porážka ve scéně):
+"""Rekvizity porážky (docs/design/diet.md – Porážka ve scéně, docs/code/scene-village.md – Porážka ve scéně):
 kozlina (trojnožka s bidlem, provazem a háky) ve dvou velikostech, necky, špalek s prknem a miska.
 
 blender -b --factory-startup --python tools/blender/slaughter.py -- \
@@ -20,7 +20,7 @@ Výstup slaughter.glb – díly (uzly):
                  trámcích, bez krve (krev jen v misce); leží pod hlavou visícího zvířete.
   block          špalek r 0,3 m, výška 0,55 m, na něm prkno 0,7 × 0,34 × 0,04 m (vršek prkna 0,59 m)
                  – na prkno se kladou kýty.
-  bowl           miska (horní r 0,14 m, dno 0,08 m, výška 0,09 m) s krví, dno na zemi.
+  bowl           miska (horní r 0,19 m, dno 0,12 m, výška 0,13 m, tmavá kůra, tmavá hladina) s krví, dno na zemi.
 Licence: kůra a čela z 0 A.D. (CC BY-SA 3.0, Wildfire Games) – zbytek vlastní;
 apps/web/public/models/slaughter/LICENSES.md.
 """
@@ -119,7 +119,7 @@ def build_atlas():
     px[r0:r1, c0:c1] = np.array([0.2, 0.2, 0.21], np.float32) * (0.8 + 0.4 * noise(r1 - r0, c1 - c0, 6, 6)[..., None])
     # krev: tmavě rudohnědá
     r0, r1, c0, c1 = region_px(BLOOD)
-    px[r0:r1, c0:c1] = np.array([0.32, 0.04, 0.03], np.float32) * (0.8 + 0.4 * noise(r1 - r0, c1 - c0, 5, 9)[..., None])
+    px[r0:r1, c0:c1] = np.array([0.12, 0.03, 0.025], np.float32) * (0.8 + 0.4 * noise(r1 - r0, c1 - c0, 5, 9)[..., None])
     image = bpy.data.images.new("slaughter-atlas", ATLAS, ATLAS)
     rgba = np.concatenate([np.clip(px, 0, 1), np.ones((ATLAS, ATLAS, 1), np.float32)], axis=-1)
     image.pixels.foreach_set(rgba.reshape(-1))
@@ -238,7 +238,7 @@ def build_block(bm, uv):
 
 
 def build_bowl(bm, uv):
-    sides, r_top, r_bot, h = 10, 0.14, 0.08, 0.09
+    sides, r_top, r_bot, h = 10, 0.19, 0.12, 0.13
     top = [bm.verts.new((math.cos(2 * math.pi * k / sides) * r_top, math.sin(2 * math.pi * k / sides) * r_top, h)) for k in range(sides)]
     bot = [bm.verts.new((math.cos(2 * math.pi * k / sides) * r_bot, math.sin(2 * math.pi * k / sides) * r_bot, 0)) for k in range(sides)]
     for k in range(sides):
@@ -250,13 +250,13 @@ def build_bowl(bm, uv):
         for pts in quads:
             face = bm.faces.new(pts)
             for loop, (u, v) in zip(face.loops, [(0, 0), (1, 0), (1, 1), (0, 1)]):
-                loop[uv].uv = at(PLANK, u, v)
+                loop[uv].uv = at(BARK, u, v)
     c = bm.verts.new((0, 0, 0))
     for k in range(sides):
         face = bm.faces.new((c, bot[k], bot[(k + 1) % sides]))
         for loop in face.loops:
-            loop[uv].uv = at(PLANK, 0.5, 0.5)
-    level = h - 0.02
+            loop[uv].uv = at(BARK, 0.5, 0.5)
+    level = h - 0.035
     r_lv = r_bot + (r_top - r_bot) * level / h
     lc = bm.verts.new((0, 0, level))
     ring = [bm.verts.new((math.cos(2 * math.pi * k / sides) * r_lv, math.sin(2 * math.pi * k / sides) * r_lv, level)) for k in range(sides)]

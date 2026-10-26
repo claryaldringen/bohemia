@@ -44,7 +44,7 @@ const standable = (x: number, z: number): boolean =>
 
 function input(over: Partial<SlaughterInput> = {}): SlaughterInput {
   return {
-    heads: { pig: 0.3 },
+    heads: { pig: 1 },
     day: 1200,
     seed: 77,
     window: WINDOW,
@@ -99,12 +99,26 @@ describe('slaughterSites – stanoviště, druh a parta', () => {
     const homes = new Set<number>();
     const species = new Map<string, number>();
     for (let day = 1200; day < 1400; day++) {
-      const st = one(slaughterPlan(input({ day, heads: { pig: 0.3, sheep: 0.1 } })));
+      const st = one(slaughterPlan(input({ day, heads: { pig: 3, sheep: 1 } })));
       homes.add(st.home);
       species.set(st.species, (species.get(st.species) ?? 0) + 1);
     }
     expect(homes.size).toBe(3);
     expect(species.get('pig')!).toBeGreaterThan(species.get('sheep')! * 1.8);
+  });
+
+  it('zimní zlomek kusů: stanoviště jen v podílu dní, průměr odpovídá kusům', () => {
+    let days = 0;
+    const N = 2000;
+    for (let day = 1000; day < 1000 + N; day++) {
+      if (slaughterPlan(input({ day, heads: { pig: 0.2, sheep: 0.1 } }))) days++;
+    }
+    expect(days / N).toBeGreaterThan(0.25);
+    expect(days / N).toBeLessThan(0.35);
+    // celé kusy se poráží vždy
+    for (let day = 1000; day < 1050; day++) {
+      expect(slaughterPlan(input({ day, heads: { pig: 1 } }))).not.toBeNull();
+    }
   });
 
   it('kráva u branky ohrady skotu na velké kozlině, bez ohrady u domu', () => {
@@ -227,6 +241,24 @@ describe('slaughterState – fáze a zvíře v čase', () => {
     expect(Math.hypot(pig.trough.x - pig.hang.x, pig.trough.z - pig.hang.z)).toBeLessThan(1e-9);
     const alone = one(slaughterPlan(input({ heads: { pig: 1 }, figures: 1 })));
     expect(alone.bowl).toBeNull();
+  });
+
+  it('řezník při vyvržení stojí z boku visícího zvířete, miska vedle necek u kozliny', () => {
+    for (const st of [pig, one(slaughterPlan(input({ heads: { cow: 1 } })))]) {
+      const p = plan(st);
+      const pose = slaughterPose(p, st, 0, 1, atF(0.5), createVillagerPose());
+      // v osách stanoviště: side podél bidla, front k vchodu
+      const dx = pose.x - st.x;
+      const dz = pose.z - st.z;
+      const front = dx * st.headingX + dz * st.headingZ;
+      const side = dx * st.headingZ - dz * st.headingX;
+      expect(Math.abs(front)).toBeLessThan(0.3);
+      expect(Math.abs(side)).toBeGreaterThan(1);
+      const bowl = st.bowl!;
+      const bx = bowl.x - st.x;
+      const bz = bowl.z - st.z;
+      expect(Math.hypot(bx, bz)).toBeLessThan(1.3);
+    }
   });
 
   it('klipy fází: vykrvení nůž v kleku, vyvržení vestoje, rozčtvrcení sekera, odnos masa', () => {
