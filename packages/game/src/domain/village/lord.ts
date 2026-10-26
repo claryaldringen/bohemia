@@ -5,10 +5,11 @@ import { isUnshod } from './horse-shoeing-term';
 import { horsePens, isGrainHorse, penHorses } from './horses';
 import { currentLord, isDynastyTracked, isLineMan, lineMen } from './dynasty';
 import { harvestHandsDay } from './harvest-hands';
+import { huntToday } from './hunt-party';
 import { householdHead } from './households';
 import { adultDailyMin, waterFetchingLabor } from './labor';
 import { villageManorId } from './manor';
-import { ageGroup, ageYears, laborPerDay } from './people';
+import { ageGroup, ageYears, isInjured, laborPerDay } from './people';
 import { dailyMinPerHousehold } from './productivity';
 import { AGE, HORSES, LORD } from './rules';
 import { HUNT } from './rules-wildlife';
@@ -427,6 +428,8 @@ export function trainLordDay(state: VillageState, day: number, fieldShare = 0): 
   const huntRiders = new Set(hunt?.day === day ? hunt.riders.map((r) => r.personId) : []);
   const huntFoot = new Set(hunt?.day === day ? hunt.foot : []);
   for (const p of state.people) {
+    // zraněný na lovu necvičí (wildlife.md – Nebezpečí pro lidi) a nezapomíná
+    if (isInjured(p, day)) continue;
     if (family && trainees.has(p.id)) {
       const share = ageGroup(p, day) === 'child' ? 1 : 1 - onField;
       const hunting = huntRiders.has(p.id) || huntFoot.has(p.id);
@@ -485,12 +488,15 @@ export function lordRides(state: VillageState, day: number): LordRides | null {
     return null;
   }
   const trainees = new Map(family.trainees.map((p) => [p.id, p]));
+  const hunting = new Set(huntToday(state, day)?.riders.map((r) => r.personId));
   const lordId = family.lord?.id;
   const riders: (LordRide & { bornDay: number })[] = [];
   for (const pen of horsePens(state)) {
     for (const horse of penHorses(pen)) {
       const rider = horse.riderId === undefined ? undefined : trainees.get(horse.riderId);
-      if (!rider || !isGrainHorse(horse, day)) continue;
+      // zraněný nejezdí; kdo dnes loví, objížďku nejede (wildlife.md – Lov rodu)
+      if (!rider || !isGrainHorse(horse, day) || isInjured(rider, day)) continue;
+      if (hunting.has(rider.id)) continue;
       const hours = trainingHours(rider, day, family.lord, true).riding;
       if (hours <= 0) continue;
       riders.push({

@@ -65,7 +65,9 @@ export type ChronicleEvent = { day: number } & (
       kind: 'death';
       group: 'child' | 'adult' | 'elder';
       age?: number;
-      cause?: 'hunger';
+      cause?: 'hunger' | 'hunt';
+      /** Zvěř, na jejímž lovu muž zahynul (`cause: 'hunt'`). */
+      prey?: 'boar' | 'bear';
       name?: string;
     }
   /** Zemřel poslední člověk – ves vymřela (population.md – Hlad a vymření). */
@@ -209,6 +211,8 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'predator-kill'; species: HerdSpecies; by: 'wolf' | 'bear'; heads: number }
   /** Velký lov rodu (wildlife.md – Lov rodu): úlovek dne, maso do zásoby a nejlepší lovec. */
   | { kind: 'hunt'; kills: HuntKills; meatKg: number; names: string[] }
+  /** Lovec byl zraněn a 60 dní nepracuje (wildlife.md – Nebezpečí pro lidi). */
+  | { kind: 'hunt-injury'; prey: 'boar' | 'bear'; name?: string }
   /** Po žních: zvěř a vrány zničily `kg` obilí na polích (wildlife.md – Škody). */
   | { kind: 'wildlife-damage'; kg: number }
   /** Sad dosloužil (60. rok) a vrátil se v louku. */

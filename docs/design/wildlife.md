@@ -429,3 +429,18 @@ Martin: „Souhlasím se všemi návrhy“ – tři otázky z plánu jsou uzavř
    → Drobná zvěř a ryby.
 3. **Maso z úlovku:** velká zvěř se zpracuje jako porážka (1 člověkoden na 20 kg masa a pak
    uzení); ryby a zajíci se jedí čerstvé bez práce navíc. → Lov rodu, Kolik.
+
+## Rozhodnutí při implementaci W5 (26. 10. 2026, návrh Clauda)
+
+- **Zranění a smrt jen na lovu prasat a medvěda.** Jelen, zajíc a vlk nemají šanci ani na zranění,
+  ani na smrt. Lov „na prasata a jeleny zároveň“ nese riziko prasete, pokud ve vsi nějaká prasata
+  jsou.
+- **Zraněný vojvoda zůstává vojvodou**, jen 60 dní necvičí, neloví ani nepracuje (první den po
+  zranění je den 1).
+- **Smrt před zraněním:** kdo při témže losu zahyne, zraněn není. Oba losy se losují vždy, ať
+  výsledek jednoho lovce nemění losy dalších.
+- **Lov navíc platí zítra:** hráč ho vyhlásí dnes (dnešní den je už odsimulovaný). Zítřejší den,
+  který je už kalendářním lovem, se znovu vyhlásit nedá. Jezdci lovu nejedou objížďku polí a pěší
+  chybí v práci vsi.
+- **Ikona lovu** na panelu dvorce je oštěp; důvod odepření (hájení, 3 dny, není kdo, už vyhlášeno)
+  je červeně v popisku.

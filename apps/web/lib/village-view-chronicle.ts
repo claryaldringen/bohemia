@@ -262,7 +262,15 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
         ? 'Ve vsi už nežije žádný muž rodu.'
         : `Ve vsi už nežije žádný muž rodu – posledním vojvodou byl ${event.name}.`;
     case 'death':
+      if (event.cause === 'hunt') {
+        const prey = event.prey === 'bear' ? 'medvěda' : 'divočáka';
+        return `${event.name ?? 'Muž rodu'} zahynul na lovu ${prey}.`;
+      }
       return deathText(event.group, event.cause === 'hunger');
+    case 'hunt-injury': {
+      const prey = event.prey === 'bear' ? 'medvěda' : 'divočáka';
+      return `${event.name ?? 'Lovec'} byl zraněn na lovu ${prey} – 60 dní nepracuje.`;
+    }
     case 'village-extinct':
       return `Zemřel poslední obyvatel – ves ${villageName} vymřela.`;
     case 'household-founded':

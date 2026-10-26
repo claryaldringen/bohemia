@@ -152,9 +152,23 @@ export const HUNT = {
   /** Medvěd jen v listopadu, na každý druhý lov sezóny (návrh Clauda, ať listopad nepropadne). */
   bearMonth: 11,
   bearEveryNth: 2,
+  /** Lov navíc na pokyn hráče (wildlife.md – Kdy): ne v březnu až květnu, jednou za 3 dny. */
+  extra: { closedFromMonth: 3, closedToMonth: 5, minGapDays: 3 },
   /** Hodiny výcviku v den lovu (celý den místo výcviku, 6 h). */
   training: {
     rider: { bow: 3, combat: 0, riding: 3 },
     foot: { bow: 2, combat: 4, riding: 0 },
   },
+} as const;
+
+/**
+ * Nebezpečí na lovu (wildlife.md – Nebezpečí pro lidi): na lovce a den zranění `injury` (u medvěda
+ * × (1 − boj ÷ 200)) a smrt `death` × (2 − boj ÷ 100), pěšky × `footDeathFactor`. Jelen, zajíc a vlk
+ * bez šance na zranění i smrt; zraněný nepracuje, necvičí ani neloví `injuryDays` dní.
+ */
+export const HUNT_RISK = {
+  injuryDays: 60,
+  boar: { injury: 0.005, death: 0.0002 },
+  bear: { injury: 0.05, death: 0.003 },
+  footDeathFactor: 2,
 } as const;

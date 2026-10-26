@@ -29,6 +29,8 @@ export interface RelocationActions {
 export interface ManorActions {
   /** Zadá stavbu zemské stezky do směru (server action) – hotovo, až se vrátí. */
   onBuildTrail?: (direction: Direction8) => Promise<void>;
+  /** Vyhlásí lov navíc na zítřek (server action) – vrátí důvod odepření, nebo null. */
+  onDeclareHunt?: () => Promise<string | null | void>;
   /**
    * Vyšle výpravu k sousedovi (server action) – hotovo, až se vrátí; vrátí důvod, proč ji server
    * odmítl, nebo null (panel obchodu ho ukáže pod tlačítkem).
@@ -48,6 +50,7 @@ export function DwellingBody({
   onCancelConstruction,
   onLeave,
   onBuildTrail,
+  onDeclareHunt,
   onSendExpedition,
 }: {
   details: Extract<SelectionDetails, { kind: 'dwelling' }>;
@@ -96,6 +99,7 @@ export function DwellingBody({
             <ManorUpgrades
               manor={details.manor}
               onBuildTrail={onBuildTrail}
+              onDeclareHunt={onDeclareHunt}
               trade={() => (
                 <TradePanel
                   neighbours={details.manor?.neighbours ?? []}

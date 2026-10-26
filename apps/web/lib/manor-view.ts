@@ -14,6 +14,8 @@ import {
   familyBuyPrice,
   horseTradeRoom,
   isHorseGood,
+  canDeclareHunt,
+  HUNT_DENIED_TEXT,
   lordFamily,
   neighbourOf,
   neighbourStock,
@@ -141,8 +143,16 @@ export interface ManorMember extends DwellingResident {
   horse: boolean;
 }
 
+/** Proč dnes nejde vyhlásit lov navíc (česky), nebo null. */
+function huntDeniedText(state: VillageState, day: number): string | null {
+  const denied = canDeclareHunt(state, day);
+  return denied === null ? null : HUNT_DENIED_TEXT[denied];
+}
+
 /** Dvorec vojvody pro panel výběru. */
 export interface VillageManor {
+  /** Lov navíc na zítřek: důvod odepření česky, nebo null (lze vyhlásit; wildlife.md – Lov rodu). */
+  huntDenied: string | null;
   /** Obydlí (id domácnosti), které je dvorcem. */
   dwellingId: number;
   /** Zemské stezky do 8 směrů – hotové, rozestavěné a nabídka nových (cena, délka, důvod). */
@@ -334,6 +344,7 @@ export function manorView(
   const obstacles = obstaclesOf(landscape);
   return {
     dwellingId: manor.id,
+    huntDenied: huntDeniedText(state, day),
     trails: trailOptions(state, day, landscape, obstacles, villageRoadWalk(state, landscape)),
     // tím směrem, kde leží vlastní ves, soused bez simulace není (migration.md)
     neighbours: neighbourViews(state, day, landscape).filter(

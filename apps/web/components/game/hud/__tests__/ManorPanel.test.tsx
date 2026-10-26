@@ -85,13 +85,19 @@ describe('vylepšení vsi ve dvorci', () => {
   it('stezka a obchod; obchod bez hotové stezky zašedlý s důvodem', () => {
     const none = trails.map((t) => ({ ...t, status: 'none' as const }));
     const html = renderToStaticMarkup(
-      <ManorUpgrades manor={{ dwellingId: 1, trails: none, neighbours: [] }} trade={() => null} />,
+      <ManorUpgrades
+        manor={{ dwellingId: 1, huntDenied: null, trails: none, neighbours: [] }}
+        trade={() => null}
+      />,
     );
     expect(html).toContain('data-testid="manor-trail"');
     expect(button(html, 'manor-trade')).toContain('disabled=""');
     expect(html).toContain('Nejdřív je potřeba postavit zemskou stezku.');
     const built = renderToStaticMarkup(
-      <ManorUpgrades manor={{ dwellingId: 1, trails, neighbours: [] }} trade={() => null} />,
+      <ManorUpgrades
+        manor={{ dwellingId: 1, huntDenied: null, trails, neighbours: [] }}
+        trade={() => null}
+      />,
     );
     expect(button(built, 'manor-trade')).not.toContain('disabled=""');
   });

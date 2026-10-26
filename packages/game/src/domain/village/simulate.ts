@@ -272,7 +272,8 @@ function simulateDay(
   // výcvik dne – kdo necvičil, zapomíná
   state.chronicle.push(...lordFieldMode(state, day));
   // úlovek velkého lovu a maso do zásoby; den lovu je výcvik (wildlife.md – Lov rodu)
-  state.chronicle.push(...huntDay(state, day, lordField));
+  const huntEvents = huntDay(state, day, lordField);
+  state.chronicle.push(...huntEvents);
   // a koně pod jezdci (horses.md – Výcvik koně a jezdec) – po péči (`work()`) a obilí (`eat()`)
   state.chronicle.push(...trainLordDay(state, day, lordField));
   // nahromaděný hlad se počítá z dnešní energie (hladem se umírá z energie, ne z pestrosti –
@@ -285,6 +286,8 @@ function simulateDay(
   );
   const events = populationDay(state, day, satiation, energy);
   state.chronicle.push(...events);
+  // kdo zahynul na lovu, ves oplakává jako každé úmrtí (štěstí), i když zápis dělá lov
+  events.push(...huntEvents.filter((e) => e.kind === 'death'));
   // nová hlavní manželka a nástupnictví (lord.md – Rod vojvody); ves bez rodu nic
   state.chronicle.push(...dynastyDay(state, day));
   // štěstí na konci dne – hlad, úmrtí, přeplněnost, dřina, zásoby, ovoce, maso a posvátná místa

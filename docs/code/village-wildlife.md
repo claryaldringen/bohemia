@@ -148,3 +148,28 @@ backDay: bearBackDay(day) }`.
   (`HUNT.base.boar.foot` 0,15 × 0,3) ≈ 1 prase za zimu. Místo pro W5: `extraDay`, `lastExtraDay`, `HuntDay.extra`.
 - **Vlkov (kopie 5. 6. 820, 2 roky):** bez koní a s jedním dospělým synem rodu nikdo nelovil víc než
   zlomky (naděje prasat 0,35, jelenů 0,6), 2 psi; rok 56 s (dřív 59,9 s). `diag-wildlife/w4.txt`.
+
+## Riziko lovu a lov navíc (W5, `hunt.ts`, `application/declare-hunt.ts`)
+
+- **Riziko** (`huntRisk(state, day, quarry)`, volá ho `huntDay` na konci dne lovu; `quarry` = `'boar'`, když
+  je cílem `game` a jsou prasata, `'bear'` při lovu medvěda, jinak žádné riziko – jelen a vlk bez
+  zranění i smrti). Čísla v `HUNT_RISK` (`rules-wildlife.ts`): zranění prasata 0,5 %, medvěd
+  5 % × (1 − boj ÷ 200); smrt prasata 0,02 %, medvěd 0,3 %, obojí × (2 − boj ÷ 100) a × 2 pěšky.
+  Lovci (jezdci + pěší) podle id, každý vždy **dva losy** (zranění, smrt) z vlastního proudu
+  `createRandom(deriveSeed(seed, 'hunt:' + day))` – porody a úmrtí (`'day:'`) se nemění. Smrt má
+  přednost: `bury` + `removePeople`, událost `death { cause: 'hunt', prey }` (do štěstí jde přes
+  `events` v `simulateDay`), mrtvý zmizí z `hunt.today`; nástupnictví a konec rodu řeší `dynastyDay`
+  týž den. Zranění: `Person.injuredUntilDay = day + 1 + 60`, kronika `hunt-injury`.
+- **Zraněný** (`isInjured` v `people.ts`): `laborPerDay` 0, `huntPool` ho vynechá (`manor`, `boys`,
+  `away`), `trainLordDay` ho přeskočí (necvičí ani nezapomíná), `lordRides` ho nevyvede na objížďku.
+- **Lov navíc:** `canDeclareHunt(state, day)` (`day` = dnešní odsimulovaný den, lov je zítra) vrací
+  `null` nebo `'closed-season'` (zítra březen–květen, `HUNT.extra`), `'already'` (zítra je lov
+  vyhlášený nebo kalendářní), `'too-soon'` (méně než 3 dny od `lastExtraDay`), `'no-hunters'` (rodina
+  necvičí, nebo není muž dvorce mimo pole / odešlý syn zdravý). `declareHunt` zapíše `extraDay` a
+  `lastExtraDay` = `day + 1`; `planHuntDay` ho zítra vezme (`HuntDay.extra`). Jezdci lovu nejedou
+  objížďku (`lordRides` je vynechá) a pěší chybí v práci. Texty důvodů `HUNT_DENIED_TEXT`.
+- **Use-case** `declareHuntInVillage` (`updateLivingVillage`: ves se dopočítá do dneška, důvod
+  odepření jde jako `reason`, nic se neuloží). Server action `declareHunt({ villageId })`
+  (`parseDeclareHuntInput` → `declareHuntForPlayer`).
+- **UI:** `VillageManor.huntDenied` (`manor-view.ts`) = text důvodu, nebo null; tlačítko
+  `manor-hunt` (ikona oštěpu) v `ManorUpgrades`, zašedlé s červeným důvodem v tooltipu.

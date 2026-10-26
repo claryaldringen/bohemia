@@ -142,10 +142,12 @@ export function TrailCompass({
 export function ManorUpgrades({
   manor,
   onBuildTrail,
+  onDeclareHunt,
   trade,
 }: {
   manor: VillageManor;
   onBuildTrail?: (direction: Direction8) => Promise<void>;
+  onDeclareHunt?: () => Promise<string | null | void>;
   trade?: (close: () => void) => ReactNode;
 }): ReactElement {
   const [open, setOpen] = useState<'trail' | 'trade' | null>(null);
@@ -176,6 +178,40 @@ export function ManorUpgrades({
             width={40}
             height={40}
             className="h-full w-full"
+          />
+        </button>
+      </Tooltip>
+      <Tooltip
+        placement="above"
+        content={
+          <span className="flex flex-col gap-0.5">
+            <span>Lov navíc</span>
+            {manor.huntDenied !== null && (
+              <span data-testid="hunt-blocked" className="font-semibold text-red-400">
+                {manor.huntDenied}
+              </span>
+            )}
+          </span>
+        }
+      >
+        <button
+          type="button"
+          data-testid="manor-hunt"
+          aria-label="Lov navíc"
+          disabled={manor.huntDenied !== null || !onDeclareHunt || busy}
+          onClick={() => {
+            if (!onDeclareHunt || busy) return;
+            setBusy(true);
+            void onDeclareHunt().finally(() => setBusy(false));
+          }}
+          className={iconButton(busy)}
+        >
+          <img
+            src="/icons/resources/spear.png"
+            alt=""
+            width={40}
+            height={40}
+            className="h-full w-full object-contain p-1"
           />
         </button>
       </Tooltip>

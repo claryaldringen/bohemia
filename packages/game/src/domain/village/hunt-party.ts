@@ -2,7 +2,7 @@
 import { lineMen } from './dynasty';
 import type { LordFamily } from './lord';
 import { villageManorId } from './manor';
-import { ageGroup, ageYears } from './people';
+import { ageGroup, ageYears, isInjured } from './people';
 import { HUNT, MANOR_DOGS } from './rules-wildlife';
 import type { HuntDay, Person, VillageState } from './types';
 
@@ -16,15 +16,16 @@ export interface HuntPool {
   away: Person[];
 }
 
-/** Z koho se skládá lov dne (bez zranění a bez koní – ty řeší `planHuntDay`). */
+/** Z koho se skládá lov dne (bez zraněných a bez koní – ty řeší `planHuntDay`). */
 export function huntPool(
   state: Pick<VillageState, 'people' | 'manorId' | 'dwellings' | 'constructions' | 'dynasty'>,
   day: number,
   family: Pick<LordFamily, 'trainees'>,
 ): HuntPool {
   const manorMen = new Set(family.trainees.map((p) => p.id));
-  const manor = family.trainees.filter((p) => ageYears(p.bornDay, day) >= HUNT.riderFromAge);
-  const boys = family.trainees.filter((p) => {
+  const fit = family.trainees.filter((p) => !isInjured(p, day));
+  const manor = fit.filter((p) => ageYears(p.bornDay, day) >= HUNT.riderFromAge);
+  const boys = fit.filter((p) => {
     const age = ageYears(p.bornDay, day);
     return age >= HUNT.escortFromAge && age < HUNT.riderFromAge;
   });
@@ -34,7 +35,8 @@ export function huntPool(
       !manorMen.has(p.id) &&
       p.dwellingId !== manorId &&
       ageGroup(p, day) === 'adult' &&
-      p.arms !== undefined,
+      p.arms !== undefined &&
+      !isInjured(p, day),
   );
   return { manor, boys, away };
 }

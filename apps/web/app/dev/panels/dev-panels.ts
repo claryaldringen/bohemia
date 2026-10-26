@@ -187,6 +187,7 @@ const residentsOf = (ages: number[]): DwellingResident[] =>
 
 const manor: VillageManor = {
   dwellingId: 3,
+  huntDenied: null,
   trails,
   neighbours,
   family: [

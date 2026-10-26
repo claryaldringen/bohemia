@@ -70,6 +70,7 @@ export function SelectionPanel({
   onBuildWagonRoad,
   wagonPlan,
   onBuildTrail,
+  onDeclareHunt,
   onSendExpedition,
 }: {
   details: SelectionDetails | null;
@@ -232,6 +233,7 @@ export function SelectionPanel({
         onCancelConstruction={onCancelConstruction}
         onLeave={onLeave}
         onBuildTrail={onBuildTrail}
+        onDeclareHunt={onDeclareHunt}
         onSendExpedition={onSendExpedition}
       />
     );

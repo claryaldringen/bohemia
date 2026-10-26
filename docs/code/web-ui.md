@@ -6,7 +6,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `foundDevVillage`, `placeDwelling`, `relocateHousehold`, `cancelConstruction`, `leaveVillage`,
   `settleJourney`, `placeWorkshop`,
   `placeField`, `placeCemetery`, `placeOrchard`, `placeSacred`, `placePen`,
-  `buildTrail`, `sendExpedition`, `renameVillage`, `nameLineMan` → `VillageView` / `null` / `{ error }`; `restartGame(input?)` → `{ ok: true }` /
+  `buildTrail`, `sendExpedition`, `declareHunt`, `renameVillage`, `nameLineMan` → `VillageView` / `null` / `{ error }`; `restartGame(input?)` → `{ ok: true }` /
   `{ error }`). **Každá akce nad vsí nese `villageId`** (UUID – `villageIdOf` v
   `lib/village-input.ts`) a server ověří, že ves patří hráči (`context` v `lib/village.ts` →
   `findPlayerVillage`); `getVillageView({ villageId: null })` = první ves hráče (zakládá-li ves,
@@ -14,7 +14,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   přijímá volitelné `lordName` (`parseFoundVillageInput`; písmena ověří use-case, bez jména vojvoda
   čeká) a ves zakládá vždy vojvoda s manželkami; `nameLineMan({ villageId, personId, name })`
   pojmenuje vojvodu nebo jeho syna (`parseNameLineManInput` → `nameLineManForPlayer` → use-case
-  `nameLineManInVillage`). Composition root `lib/village.ts` (pohled na ves
+  `nameLineManInVillage`); `declareHunt({ villageId })` vyhlásí lov navíc na zítřek
+  (`parseDeclareHuntInput` → `declareHuntForPlayer` → `declareHuntInVillage`, tlačítko
+  `manor-hunt` v `ManorUpgrades`; důvod odepření dává pohled `VillageManor.huntDenied`).
+  Composition root `lib/village.ts` (pohled na ves
   dopočítá všechny vsi hráče – přepínač a konec hry), `lib/village-view.ts` (DTO, smí i do
   prohlížeče – `id`, `settlementId`, `villages` pro přepínač, `relocation` cena nového domu bez
   lidí k osídlení), `lib/village-list.ts`, `lib/relocation-view.ts`. Vybraná ves se pamatuje

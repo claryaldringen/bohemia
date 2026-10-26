@@ -2,6 +2,9 @@ import { test, expect, type Page } from '@playwright/test';
 import { Client } from 'pg';
 import {
   buyPrice,
+  dateOfDayIndex,
+  dayIndexOf,
+  getWorldState,
   cemeteryPartsFromCells,
   neighbourOf,
   sellPrice,
@@ -1435,4 +1438,122 @@ test('lidé odejdou na novou mapu – po cestě umístí první zemnici', async 
     )
     .toBeUndefined();
   await expect(page.getByTestId('journey-banner')).toHaveCount(0);
+});
+
+/** Posune čas hráče tak, aby jeho dnešek byl `month`. `day`. příštího herního roku (accounts.md). */
+async function shiftPlayerTo(email: string, month: number, day: number): Promise<number> {
+  const world = {
+    startMs: Date.parse('2000-01-01T00:00:00+01:00'),
+    endMs: Date.parse('2200-01-01T00:00:00+01:00'),
+  };
+  const now = getWorldState(Date.now(), world);
+  if (now.status !== 'running') throw new Error('Testovací svět neběží.');
+  const today = dayIndexOf(now.date);
+  const target = dayIndexOf({ year: now.date.year + 1, month, day });
+  await query(
+    `INSERT INTO player_time_offset (player_id, offset_days)
+     SELECT id, $2 FROM "user" WHERE email = $1
+     ON CONFLICT (player_id) DO UPDATE SET offset_days = $2, updated_at = now()`,
+    [email, target - today],
+  );
+  return target;
+}
+
+test('dvorec: lov navíc – v dubnu je hájení, v létě se zítra loví', async ({ page }) => {
+  const { email, seat: s } = await newPlayer(page, 'lov');
+  const spots = villageSpots(s.landscape);
+
+  // Hráčův dnešek je 10. 4. – ves se založí v době hájení
+  await shiftPlayerTo(email, 4, 10);
+  await page.reload();
+  await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
+  await found(page, spots.dwelling);
+
+  // Dvorec, vedle čtyři dospělí (rodina cvičí a loví) a zvěř ve stavu, jaký ukládá server
+  const state = withBuiltFirstDwelling(await villageState(s.settlementId));
+  const [neighbour] = freeHomes(s.landscape, spots.dwelling, [spots.dwelling], 1);
+  const home = state.nextId++;
+  state.dwellings.push({
+    id: home,
+    type: 'zemnice',
+    builtDay: state.lastDay,
+    condition: 1,
+    position: neighbour!,
+  });
+  const adultBorn = state.lastDay - Math.ceil(20 * 365.25);
+  for (const sex of ['male', 'male', 'female', 'female'] as const) {
+    state.people.push({ id: state.nextId++, bornDay: adultBorn, dwellingId: home, sex });
+  }
+  state.storesKg = 4000;
+  state.lord = { trains: true };
+  await writeVillageState(s.settlementId, state);
+  await pollVillage(page);
+
+  await page.keyboard.press('r');
+  const panel = page.getByTestId('selection-panel');
+  await expect
+    .poll(
+      async () => {
+        const point = await page.evaluate(
+          (p) => window.__bohemiaE2E!.projectToScreen!(p.x, p.z),
+          spots.dwelling,
+        );
+        if (!point) return null;
+        await page.mouse.move(point.x - 3, point.y);
+        await page.mouse.click(point.x, point.y);
+        return panel.getByTestId('manor-upgrades').count();
+      },
+      { timeout: 30_000 },
+    )
+    .toBe(1);
+
+  // Duben: tlačítko je zašedlé a popisek dává důvod
+  const hunt = panel.getByTestId('manor-hunt');
+  await expect(hunt).toBeDisabled();
+  await expect(panel.getByTestId('hunt-blocked')).toContainText('hájení');
+
+  // Léto: čas hráče na 10. 7., stav vsi o den před ním
+  const july = await shiftPlayerTo(email, 7, 10);
+  const summer = await villageState(s.settlementId);
+  summer.lastDay = july - 1;
+  await writeVillageState(s.settlementId, summer);
+  await page.reload();
+  await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
+  await page.keyboard.press('r');
+  await expect
+    .poll(
+      async () => {
+        const point = await page.evaluate(
+          (p) => window.__bohemiaE2E!.projectToScreen!(p.x, p.z),
+          spots.dwelling,
+        );
+        if (!point) return null;
+        await page.mouse.move(point.x - 3, point.y);
+        await page.mouse.click(point.x, point.y);
+        return panel.getByTestId('manor-upgrades').count();
+      },
+      { timeout: 30_000 },
+    )
+    .toBe(1);
+  await expect(hunt).toBeEnabled({ timeout: 20_000 });
+  await hunt.click();
+  await expect
+    .poll(async () => (await villageState(s.settlementId)).wildlife?.hunt?.extraDay, {
+      timeout: 30_000,
+    })
+    .toBe(july + 1);
+  await expect(page.locator('[data-testid="village-notice"][data-kind="error"]')).toHaveCount(0);
+  // druhý lov hned po něm tlačítko nepustí
+  await expect(hunt).toBeDisabled({ timeout: 20_000 });
+  expect(dateOfDayIndex(july).month).toBe(7);
+
+  // Zítra: čas hráče o dva dny dál – ves se dopočítá a lov proběhl
+  await shiftPlayerTo(email, 7, 12);
+  await page.reload();
+  await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
+  await expect
+    .poll(async () => (await villageState(s.settlementId)).wildlife?.hunt?.year.days ?? 0, {
+      timeout: 30_000,
+    })
+    .toBeGreaterThanOrEqual(1);
 });

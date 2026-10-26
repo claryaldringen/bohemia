@@ -23,6 +23,7 @@ import {
 } from '@bohemia/game';
 import {
   buildTrail,
+  declareHunt,
   cancelConstruction,
   foundDevVillage,
   foundVillage,
@@ -1185,6 +1186,16 @@ export function VillageGame({
           return villageId
             ? runBuildAction(() => buildTrail({ villageId, direction }))
             : Promise.resolve();
+        }}
+        onDeclareHunt={() => {
+          const villageId = viewRef.current?.id;
+          // důvod odepření se ukáže řádkem nahoře (u kurzoru) a tlačítko ho má v popisku
+          return villageId
+            ? runAction(() => declareHunt({ villageId })).then((failure) => {
+                if (failure !== null) pushNotice({ kind: 'error', tone: 'error', text: failure });
+                return failure;
+              })
+            : Promise.resolve(null);
         }}
         onSendExpedition={(direction, give, get, people) => {
           const villageId = viewRef.current?.id;
