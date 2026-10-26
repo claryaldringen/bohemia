@@ -843,8 +843,8 @@ studeným startem každý den; `cart-memo.test.ts`).
   K tomu mez buněk: součet `cells.length` pamatovaných tras na mřížku nejvýš
   `MAX_CELLS_PER_GRID` (200 tis.) – nad ni vypadnou nejstarší hledání (použité hledání se řadí na
   konec fronty), aby paměť při dlouhém dopočtu nerostla do stovek MB. `dist` / `parent` hledání se
-  nepamatují (desítky MB). `forgetCartRoutes(landscape)` – studený
-  start v testech.
+  k mřížce nepamatují – všechna hledání sdílí jednu sadu polí (B2a níž).
+  `forgetCartRoutes(landscape)` – studený start v testech.
 - **Chůze** (`walkingDistances`, `paths/walking.ts`): horní mez napřed – rovně z obydlí ke každému
   cíli se spočítá první; uzel sítě, ke kterému je rovně aspoň tak daleko jako nejdelší z nich, do
   hledání nevstupuje (cestu k žádnému cíli nezkrátí). `cheapest` spočítá přesně napřed kandidáta
@@ -857,3 +857,23 @@ studeným startem každý den; `cart-memo.test.ts`).
   svozu; mřížka vozu z paměti v ≈ polovině volání (jinak nový díl nebo zarostlý díl). Přepočet
   chůze 31 % (`walkingDistances` 14 % – skoro celé `groundWalkLength`, síť pěšin 5 %). Další krok
   B2 (rychlejší `cartRoutes`).
+- **Rychlejší hledání vozu** (B2a, `cartRoutesOn` v `paths/cart.ts`): stavy (buňka × směr) jen
+  v typovaných polích, cíle po buňkách v řetězech indexů místo `Map`, pole `dist` / `parent` /
+  ceny kroků jedna sada pro všechna hledání (roste podle největší mřížky – u Vlkova ≈ 45 MB)
+  s razítkem běhu po buňkách místo nulování. Cena kroku z buňky bez zatočení se spočítá jednou za
+  hledání pro všech 16 směrů (dřív v každém ze 16 stavů buňky znovu); zatočení se přičte zvlášť
+  ve stejném pořadí sčítání. Cíl mimo souvislý kus mřížky depa (`cartParts` – kroky vozu bez
+  ohledu na směr jízdy, krok platí oběma směry; po mřížce ve `WeakMap`) se nečeká – hledání
+  skončí po posledním dosažitelném cíli místo prohledání celé mřížky do `maxCost`. Halda
+  (`PathHeap`), pořadí kroků a pravidla remíz zůstaly, výsledek bit po bitu týž:
+  `cart-routes-fast.test.ts` porovná s původní implementací (`fixtures/cart-routes-reference.ts`)
+  50 náhodných map (rovné se samými remízami, pestré, drahé nad `maxCost`, zdi a nedosažitelné
+  cíle). Otisk roku Vlkova `75dad0432a58` na stavu B1 před i po;
+  na `feat/landscape` s ohradou koní `a92138125afb` před i po, vcelku i po dnech se studeným
+  startem.
+- **Naměřeno B2a** (Vlkov rok vcelku, `diag-b2/cpu.mts`, střídavě před / po, 2×, zátěž 7–27):
+  stěna 38,2–39,1 s → 30,4–30,7 s, CPU 44,4–45,4 s → 34,7–34,8 s. `cartRoutesOn` 16,4 s (39 %) →
+  8,4 s (27 %); 37 hledání z prvních 120 dní samostatně ≈ 6,9 s → 3,1–3,5 s CPU. Zbývá: hledání
+  do konce mřížky, když cíl leží ve stejném kusu, ale vůz k němu nedojede (zatáčení) nebo je dál
+  než `maxCost` – ≈ 35 % vytažených stavů; přepočet chůze (`walkingDistances` 20 %, z toho
+  `groundWalkLength` 16 %), mřížka vozu (`cartGrid` 8 %).

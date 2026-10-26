@@ -104,7 +104,10 @@ const DEPOT_REACH_M = 15;
 /** Okraj domu, kam vůz nesmí (m) – jako u pěšin, k tomu půl šířky vozu. */
 const HOUSE_MARGIN_M = 0.4;
 
-/** Mřížka pro vůz: cena povrchu za metr (Infinity = neprojede) a výšky buněk. */
+/**
+ * Mřížka pro vůz: cena povrchu za metr (Infinity = neprojede) a výšky buněk. Po prvním hledání
+ * (`cartRoutesOn`) se nemění – souvislé kusy mřížky se pamatují k ní (`cartParts`).
+ */
 export interface CartGrid extends GridWindow {
   cost: Float32Array;
   heights: Float32Array | null;
@@ -419,11 +422,114 @@ export function cartRoutes(input: CartRoutesInput): { grid: CartGrid; routes: Ca
   return { grid, routes: cartRoutesOn(grid, input) };
 }
 
+/** Posun indexu buňky o krok směru (po řádcích mřížky šířky `w`). */
+const DIR_DI = Int8Array.from(DIRS, ([i]) => i);
+const DIR_DJ = Int8Array.from(DIRS, ([, j]) => j);
+/** Krok vede přes dvě buňky (úhlopříčka, skok) – 1, po ose 0. */
+const DIR_HAS_VIA = Uint8Array.from(DIR_VIA, (via) => (via.length > 0 ? 1 : 0));
+const DIR_IS_DIAGONAL = Uint8Array.from(DIAGONAL, (d) => (d ? 1 : 0));
+
+/**
+ * Opakovaně použitá pole hledání (`cartRoutesOn`) – hledání je synchronní a jedno po druhém,
+ * takže stačí jedna sada; roste podle největší mřížky (u Vlkova ≈ 140 tis. buněk × 16 směrů
+ * ≈ 45 MB). Mezi hledáními se nenulují – stav buňky platí jen s razítkem běhu (`searchRun`), jako
+ * v síti pěšin (`SearchState`). Ceny jako Float64 – Float32 by z platných záznamů haldy dělal
+ * zastaralé.
+ */
+let searchDist = new Float64Array(0);
+let searchParent = new Int32Array(0);
+/** Ceny kroků z buňky po směrech (-1 neprojede) a běh hledání, ve kterém se buňce spočítaly. */
+let searchEdge = new Float64Array(0);
+let searchEdgeRun = new Uint32Array(0);
+/** Běh hledání, ve kterém buňka dostala ceny a předchůdce svých 16 stavů (jinak neplatí). */
+let searchStateRun = new Uint32Array(0);
+let searchRun = 0;
+const searchHeap = new PathHeap();
+
+/** Souvislé kusy mřížky vozu (`cartParts`) – po mřížce; mřížka se po prvním hledání nemění. */
+const CART_PARTS = new WeakMap<CartGrid, Int32Array>();
+
+/**
+ * Souvislé kusy mřížky: buňky, mezi kterými vůz projede bez ohledu na směr jízdy a zatáčení
+ * (tytéž kroky jako hledání – neprůjezdná buňka, roh u úhlopříčky a skoku, sklon). Krok platí
+ * oběma směry (sklon i rohy jsou souměrné), takže kus je opravdu „kam se odtud dá dojet“ –
+ * hledání se směrem jízdy dojede jen do svého kusu. Neprůjezdná buňka -1.
+ */
+function cartParts(grid: CartGrid): Int32Array {
+  const known = CART_PARTS.get(grid);
+  if (known) return known;
+  const { width: w, height: h, cost, heights } = grid;
+  const road = grid.road ?? null;
+  const all = w * h;
+  const part = new Int32Array(all).fill(-1);
+  const queue = new Int32Array(all);
+  const step = grid.cellM;
+  let parts = 0;
+  for (let seed = 0; seed < all; seed++) {
+    if (part[seed] !== -1 || cost[seed] === Infinity) continue;
+    part[seed] = parts;
+    let head = 0;
+    let tail = 0;
+    queue[tail++] = seed;
+    while (head < tail) {
+      const c = queue[head++]!;
+      const i = c % w;
+      const j = (c - i) / w;
+      for (let k = 0; k < HEADINGS; k++) {
+        const ii = i + DIR_DI[k]!;
+        const jj = j + DIR_DJ[k]!;
+        if (ii < 0 || jj < 0 || ii >= w || jj >= h) continue;
+        const n = jj * w + ii;
+        if (part[n] !== -1 || cost[n] === Infinity) continue;
+        if (!passable(cost, road, heights, c, n, k, i, j, w, DIR_LEN[k]! * step)) continue;
+        part[n] = parts;
+        queue[tail++] = n;
+      }
+    }
+    parts++;
+  }
+  CART_PARTS.set(grid, part);
+  return part;
+}
+
+/**
+ * Projede vůz krokem `k` z buňky `c` (sloupec `i`, řádek `j`) do průjezdné `n`? Rohy úhlopříčky
+ * a skoku a sklon ve směru jízdy – jako v hledání (`cartRoutesOn`).
+ */
+function passable(
+  cost: Float32Array,
+  road: Uint8Array | null,
+  heights: Float32Array | null,
+  c: number,
+  n: number,
+  k: number,
+  i: number,
+  j: number,
+  w: number,
+  length: number,
+): boolean {
+  if (!(road && DIAGONAL[k] && road[c] && road[n])) {
+    for (const [vi, vj] of DIR_VIA[k]!) {
+      if (cost[(j + vj) * w + i + vi] === Infinity) return false;
+    }
+  }
+  const rise = heights ? Math.abs(heights[n]! - heights[c]!) : 0;
+  return !(rise / length > CART_ROUTES.maxGrade);
+}
+
 /**
  * Trasy vozu po hotové mřížce `grid` (`cartGrid`) – hledání jako `cartRoutes`. Trasa k cíli
  * nezávisí na ostatních cílech: hledání je do posledního cíle pro všechny cíle totéž a remízy
  * rozhoduje nižší index (paths.md – Stálé trasy, pravidlo 3) – proto jde hledat po kouscích
  * a pamatovat po cílech (`villageCartRoutes`).
+ *
+ * Rychlé hledání (docs/code/village-roads.md – Trasy v paměti): stavy (buňka × směr) jen
+ * v typovaných polích, cíle po buňkách v řetězech indexů, pole hledání opakovaně s razítkem běhu
+ * po buňkách (`searchDist`), ceny kroků z buňky jednou za hledání pro všech 16 směrů (zatočení se
+ * přičte zvlášť – součet ve stejném pořadí). Cíl mimo souvislý kus mřížky depa (`cartParts`) se
+ * nečeká – hledání skončí po posledním dosažitelném cíli místo prohledání celé mřížky. Halda,
+ * pořadí kroků a pravidla remíz jsou táž jako dřív, výsledek bit po bitu stejný (test
+ * `cart-routes-fast`).
  */
 export function cartRoutesOn(
   grid: CartGrid,
@@ -432,6 +538,7 @@ export function cartRoutesOn(
   const { width: w, height: h, cost, heights } = grid;
   const road = grid.road ?? null;
   const all = w * h;
+  const targetCount = input.targets.length;
   const routes: CartRoute[] = input.targets.map(() => ({
     reached: false,
     cost: Infinity,
@@ -439,33 +546,89 @@ export function cartRoutesOn(
     points: [],
     cells: [],
   }));
-  // cíle po buňkách
-  const goals = new Map<number, number[]>();
-  input.targets.forEach((target, k) => {
-    for (const c of cellsNear(grid, target, target.reachM)) {
-      const list = goals.get(c);
-      if (list) list.push(k);
-      else goals.set(c, [k]);
-    }
-  });
   const starts = [...new Set(input.depots.flatMap((d) => cellsNear(grid, d, DEPOT_REACH_M)))];
-  if (goals.size === 0 || starts.length === 0) return routes;
+  if (starts.length === 0) return routes;
+  // cíle po buňkách: řetěz záznamů (cíl, další záznam buňky) – v buňce cíle vzestupně
+  const goalCells = input.targets.map((target) => cellsNear(grid, target, target.reachM));
+  let entries = 0;
+  for (const cells of goalCells) entries += cells.length;
+  if (entries === 0) return routes;
+  const goalHead = new Int32Array(all).fill(-1);
+  const goalNext = new Int32Array(entries);
+  const goalTarget = new Int32Array(entries);
+  let entry = 0;
+  for (let k = targetCount - 1; k >= 0; k--) {
+    for (const c of goalCells[k]!) {
+      goalTarget[entry] = k;
+      goalNext[entry] = goalHead[c]!;
+      goalHead[c] = entry++;
+    }
+  }
+  // čeká se jen na cíle v souvislém kusu některého depa – ostatní hledání nedosáhne
+  const parts = cartParts(grid);
+  const startParts = new Set(starts.map((c) => parts[c]!));
+  const awaited = new Uint8Array(targetCount);
+  let left = 0;
+  for (let k = 0; k < targetCount; k++) {
+    if (goalCells[k]!.some((c) => startParts.has(parts[c]!))) {
+      awaited[k] = 1;
+      left++;
+    }
+  }
+  if (left === 0) return routes;
   const states = all * HEADINGS;
-  const dist = new Float64Array(states).fill(Infinity);
-  const parent = new Int32Array(states).fill(-1);
-  const heap = new PathHeap();
+  if (searchDist.length < states) {
+    searchDist = new Float64Array(states);
+    searchParent = new Int32Array(states);
+    searchEdge = new Float64Array(states);
+  }
+  if (searchEdgeRun.length < all || searchRun === 0xffffffff) {
+    searchEdgeRun = new Uint32Array(Math.max(all, searchEdgeRun.length));
+    searchStateRun = new Uint32Array(Math.max(all, searchStateRun.length));
+    searchRun = 0;
+  }
+  const run = ++searchRun;
+  const edge = searchEdge;
+  const edgeRun = searchEdgeRun;
+  const stateRun = searchStateRun;
+  const dist = searchDist;
+  const parent = searchParent;
+  const heap = searchHeap;
+  heap.clear();
   for (const c of starts.sort((a, b) => a - b)) {
+    stateRun[c] = run;
     for (let hd = 0; hd < HEADINGS; hd++) {
       const s = c * HEADINGS + hd;
       dist[s] = 0;
+      parent[s] = -1;
       heap.push(s, 0);
     }
   }
   const turnSteps = CART_ROUTES.turnSteps[input.kind];
   const step = grid.cellM;
-  const best = new Int32Array(input.targets.length).fill(-1);
-  const bestD = new Float64Array(input.targets.length).fill(Infinity);
-  let left = new Set([...goals.values()].flat()).size;
+  // kroky směrů na této mřížce: posun indexu, buňky rohů, délka (m) a cena zatočení
+  const offset = new Int32Array(HEADINGS);
+  const via0 = new Int32Array(HEADINGS);
+  const via1 = new Int32Array(HEADINGS);
+  const length = new Float64Array(HEADINGS);
+  for (let k = 0; k < HEADINGS; k++) {
+    offset[k] = DIR_DJ[k]! * w + DIR_DI[k]!;
+    const via = DIR_VIA[k]!;
+    if (via.length > 0) {
+      via0[k] = via[0]![1] * w + via[0]![0];
+      via1[k] = via[1]![1] * w + via[1]![0];
+    }
+    length[k] = DIR_LEN[k]! * step;
+  }
+  const turnPrice = new Float64Array(2 * turnSteps + 1);
+  for (let turn = -turnSteps; turn <= turnSteps; turn++) {
+    turnPrice[turn + turnSteps] = CART_ROUTES.turnCost * Math.abs(turn);
+  }
+  const maxGrade = CART_ROUTES.maxGrade;
+  const gradeCost = CART_ROUTES.gradeCost;
+  const maxCost = CART_ROUTES.maxCost;
+  const best = new Int32Array(targetCount).fill(-1);
+  const bestD = new Float64Array(targetCount).fill(Infinity);
   // po posledním cíli se dobírají stavy se stejnou cenou – z koncových stavů cíle (buňka × směr)
   // se stejnou cenou vyhraje nižší index (paths.md – Stálé trasy, pravidlo 3)
   let limit = Infinity;
@@ -473,70 +636,87 @@ export function cartRoutesOn(
     const s = heap.pop();
     const d = heap.topKey;
     if (d > dist[s]!) continue;
-    if (d > CART_ROUTES.maxCost) break;
-    const c = Math.floor(s / HEADINGS);
-    const hd = s - c * HEADINGS;
-    const reachedHere = goals.get(c);
-    if (reachedHere) {
-      for (const k of reachedHere) {
-        if (best[k]! < 0) {
-          best[k] = s;
-          bestD[k] = d;
-          if (--left === 0) limit = d;
-        } else if (d === bestD[k]! && s < best[k]!) best[k] = s;
-      }
+    if (d > maxCost) break;
+    // HEADINGS = 16: buňka a směr ze stavu posunem a maskou
+    const c = s >> 4;
+    const hd = s & 15;
+    for (let e = goalHead[c]!; e >= 0; e = goalNext[e]!) {
+      const k = goalTarget[e]!;
+      if (best[k]! < 0) {
+        best[k] = s;
+        bestD[k] = d;
+        if (awaited[k] && --left === 0) limit = d;
+      } else if (d === bestD[k]! && s < best[k]!) best[k] = s;
     }
     if (left === 0) continue;
-    const i = c % w;
-    const j = (c - i) / w;
-    const own = cost[c]!;
+    // ceny kroků z buňky bez zatočení – spočítané jednou za hledání pro všech 16 směrů
+    // (z buňky se vyjíždí až v 16 stavech, každý zkouší 3–5 směrů)
+    const base = c * HEADINGS;
+    if (edgeRun[c] !== run) {
+      edgeRun[c] = run;
+      const i = c % w;
+      const j = (c - i) / w;
+      const own = cost[c]!;
+      const onRoad = road !== null && road[c] !== 0;
+      for (let k = 0; k < HEADINGS; k++) {
+        edge[base + k] = -1;
+        const ii = i + DIR_DI[k]!;
+        const jj = j + DIR_DJ[k]!;
+        if (ii < 0 || jj < 0 || ii >= w || jj >= h) continue;
+        const n = c + offset[k]!;
+        const next = cost[n]!;
+        if (next === Infinity) continue;
+        // úhlopříčka z cesty na cestu jede po ose cesty – roh vedle (les, okraj domu) ji nezastaví;
+        // pás cesty na mřížce je jen obraz osy (ohyb cesty u domu by jinak nesjel)
+        if (
+          DIR_HAS_VIA[k] &&
+          !(onRoad && DIR_IS_DIAGONAL[k] && road[n]) &&
+          (cost[c + via0[k]!] === Infinity || cost[c + via1[k]!] === Infinity)
+        ) {
+          continue;
+        }
+        const len = length[k]!;
+        const rise = heights ? Math.abs(heights[n]! - heights[c]!) : 0;
+        const grade = rise / len;
+        if (grade > maxGrade) continue;
+        const g = grade / maxGrade;
+        edge[base + k] = len * ((own + next) / 2) * (1 + gradeCost * g * g);
+      }
+    }
     for (let turn = -turnSteps; turn <= turnSteps; turn++) {
-      const k = (hd + turn + HEADINGS) % HEADINGS;
-      const [di, dj] = DIRS[k]!;
-      const ii = i + di;
-      const jj = j + dj;
-      if (ii < 0 || jj < 0 || ii >= w || jj >= h) continue;
-      const n = jj * w + ii;
-      const next = cost[n]!;
-      if (next === Infinity) continue;
-      // úhlopříčka z cesty na cestu jede po ose cesty – roh vedle (les, okraj domu) ji nezastaví;
-      // pás cesty na mřížce je jen obraz osy (ohyb cesty u domu by jinak nesjel)
-      let blocked = false;
-      if (!(road && DIAGONAL[k] && road[c] && road[n])) {
-        for (const [vi, vj] of DIR_VIA[k]!) {
-          if (cost[(j + vj) * w + i + vi] === Infinity) blocked = true;
+      const k = (hd + turn + HEADINGS) & 15;
+      const price = edge[base + k]!;
+      if (price < 0) continue;
+      const n = c + offset[k]!;
+      // cena kroku po kvantech (`quantizedStep`) – součty přesné, remízy opravdové
+      const nd = d + quantizedStep(price + turnPrice[turn + turnSteps]!);
+      const ns = n * HEADINGS + k;
+      if (stateRun[n] !== run) {
+        // buňka v tomto hledání poprvé – její stavy zatím bez ceny a předchůdce
+        stateRun[n] = run;
+        const first = n * HEADINGS;
+        for (let q = first; q < first + HEADINGS; q++) {
+          dist[q] = Infinity;
+          parent[q] = -1;
         }
       }
-      if (blocked) continue;
-      const length = DIR_LEN[k]! * step;
-      const rise = heights ? Math.abs(heights[n]! - heights[c]!) : 0;
-      const grade = rise / length;
-      if (grade > CART_ROUTES.maxGrade) continue;
-      const g = grade / CART_ROUTES.maxGrade;
-      // cena kroku po kvantech (`quantizedStep`) – součty přesné, remízy opravdové
-      const nd =
-        d +
-        quantizedStep(
-          length * ((own + next) / 2) * (1 + CART_ROUTES.gradeCost * g * g) +
-            CART_ROUTES.turnCost * Math.abs(turn),
-        );
-      const ns = n * HEADINGS + k;
-      if (nd < dist[ns]!) {
+      const old = dist[ns]!;
+      if (nd < old) {
         dist[ns] = nd;
         parent[ns] = s;
         heap.push(ns, nd);
-      } else if (nd === dist[ns]! && s < parent[ns]!) {
+      } else if (nd === old && s < parent[ns]!) {
         // remíza – vyhraje předchůdce s nižším indexem (buňka × směr)
         parent[ns] = s;
       }
     }
   }
-  input.targets.forEach((_, k) => {
+  for (let k = 0; k < targetCount; k++) {
     const end = best[k]!;
-    if (end < 0) return;
+    if (end < 0) continue;
     const cells: number[] = [];
     for (let s = end; s >= 0; s = parent[s]!) {
-      const c = Math.floor(s / HEADINGS);
+      const c = s >> 4;
       if (cells[cells.length - 1] !== c) cells.push(c);
     }
     cells.reverse();
@@ -555,7 +735,7 @@ export function cartRoutesOn(
       points: simplifyPathLine(raw, [], 0.5).points,
       cells,
     };
-  });
+  }
   return routes;
 }
 
