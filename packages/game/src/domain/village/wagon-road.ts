@@ -562,7 +562,7 @@ function profileCost(
   return sum;
 }
 
-/** Kolik tětiv nejvýš vyzkoušet (od nejvíc ušetřené délky) – ohraničuje cenu plánování. */
+/** Kolik tětiv nejvýš vyzkoušet (vlásenky napřed, pak od nejvíc ušetřené délky) – ohraničuje cenu plánování. */
 const STRAIGHTEN_TRIES = 8;
 const STRAIGHTEN_STEP_M = 6;
 
@@ -605,7 +605,10 @@ export function straightenStretches(
       candidates.push({ i, j, saved: along - chord, hairpin });
     }
   }
-  candidates.sort((p, q) => q.saved - p.saved || p.i - q.i || q.j - p.j);
+  // vlásenky napřed – běžné kličky je nevytlačí z limitu zkoušených tětiv
+  candidates.sort(
+    (p, q) => Number(q.hairpin) - Number(p.hairpin) || q.saved - p.saved || p.i - q.i || q.j - p.j,
+  );
   const taken: { i: number; j: number }[] = [];
   let tries = 0;
   for (const { i, j, hairpin } of candidates) {
@@ -797,7 +800,14 @@ export function planWagonRoad(input: WagonPlanInput): WagonRoadPlan {
   if (plan.ok) return plan;
   // prudký kus nebo posvátný strom – serpentina (roads.md – Postupná úprava a serpentiny)
   const detour = plan.failAt >= 0 ? detourPlan(input, old, straight, plan.failAt) : null;
-  return detour ?? { ok: false, reason: plan.reason };
+  if (detour) return detour;
+  // vlásenka bez průjezdné tětivy i bez objížďky: úprava po staré ose projde jako dřív
+  // (paths.md – Vozová cesta bez vlásenky; návrh Clauda)
+  if (plan.reason === WAGON_HAIRPIN_REASON) {
+    const along = planAlong(input, old, grid, straight.axis, straight.bypassed, true);
+    if (along.ok) return along;
+  }
+  return { ok: false, reason: plan.reason };
 }
 
 /** Stará cesta, po které vozová cesta vede – řetěz, konce a co o ní plán hlásí. */
@@ -932,6 +942,8 @@ function planAlong(
   grid: WagonGrid,
   axis: PathPoint[],
   bypassed: PathPoint[][],
+  /** Vlásenku na ose nepřijímat (výchozí) – po staré ose, když tětiva ani objížďka nejde. */
+  allowHairpin = false,
 ): WagonAttempt {
   const { chain, from, to, oldLengthM, oldMaxGrade } = old;
   const links = chain.map((link) => link.road);
@@ -940,7 +952,7 @@ function planAlong(
     return { ok: false, reason: WAGON_BLOCKED, failAt: -1 };
   }
   // vlásenka na rovině – objížďka jako u prudkého kusu (paths.md – Vozová cesta bez vlásenky)
-  const hairpin = wagonHairpinAt(grid, axis);
+  const hairpin = allowHairpin ? -1 : wagonHairpinAt(grid, axis);
   if (hairpin >= 0) return { ok: false, reason: WAGON_HAIRPIN_REASON, failAt: hairpin };
   const profile = wagonProfile(grid, axis, true);
   if (!profile) {

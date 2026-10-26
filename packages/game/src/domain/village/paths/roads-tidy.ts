@@ -2,7 +2,7 @@
 
 import { length2 } from '../../landscape';
 import { cloneState } from '../clone';
-import { ROAD_BRAID_RING, ROAD_JOIN, ROAD_TREES } from '../rules';
+import { ROAD_ANCHORS, ROAD_BRAID_RING, ROAD_JOIN, ROAD_TREES } from '../rules';
 import {
   type Construction,
   type Road,
@@ -281,45 +281,77 @@ function insideRing(ring: readonly RoadPoint[], p: RoadPoint): boolean {
   return inside;
 }
 
+/** Stavba pro okruh copánku – body, kterými leží na zemi (jedna stavba = jeden člen v okruhu). */
+export type RingBuilding = readonly RoadPoint[];
+
+/** Střed a rohy čtverce (bez natočení – konzervativně o kousek víc, než zabírá). */
+function squarePoints(s: { x: number; z: number; size: number }): RoadPoint[] {
+  const h = s.size / 2;
+  return [
+    { x: s.x, z: s.z },
+    { x: s.x - h, z: s.z - h },
+    { x: s.x + h, z: s.z - h },
+    { x: s.x + h, z: s.z + h },
+    { x: s.x - h, z: s.z + h },
+  ];
+}
+
 /**
- * Body staveb vsi pro okruh copánku (paths.md – Copánek přes křižovatku) – jeden na stavbu: obydlí
- * (střed pozemku, bez něj dům, i rozestavěné), ohrada, hřbitov (střed čtverců), modla a svatyně,
- * humno, milíř.
+ * Stavby vsi pro okruh copánku (paths.md – Copánek přes křižovatku) – jedna na stavbu: obydlí
+ * (střed pozemku, bez něj dům, i rozestavěné), modla a svatyně, humno, milíř a obilná jáma jedním
+ * bodem; pozemky – díl pole (všechny díly), sad, hřbitov a ohrada – středy a rohy všech čtverců:
+ * stavba je uvnitř okruhu, když je uvnitř kterýkoli z těch bodů (návrh Clauda, konzervativně).
  */
-export function ringBuildingPoints(village: PathVillage): RoadPoint[] {
-  const out: RoadPoint[] = [];
+export function ringBuildingPoints(village: PathVillage): RingBuilding[] {
+  const out: RingBuilding[] = [];
   for (const d of village.dwellings) {
-    out.push(d.plot ? { x: d.plot.x, z: d.plot.z } : { x: d.position.x, z: d.position.z });
+    out.push([d.plot ? { x: d.plot.x, z: d.plot.z } : { x: d.position.x, z: d.position.z }]);
   }
-  for (const p of village.pens ?? []) out.push({ x: p.x, z: p.z });
+  for (const p of village.pens ?? []) out.push([p, ...(p.extra ?? [])].flatMap(squarePoints));
+  for (const f of village.fields) {
+    if (f.parts.length > 0) out.push(f.parts.flatMap(squarePoints));
+  }
+  for (const o of village.orchards ?? []) {
+    if (o.squares.length > 0) out.push(o.squares.flatMap(squarePoints));
+  }
   for (const c of village.cemeteries ?? []) {
-    if (c.squares.length === 0) continue;
-    let x = 0;
-    let z = 0;
-    for (const s of c.squares) {
-      x += s.x;
-      z += s.z;
-    }
-    out.push({ x: x / c.squares.length, z: z / c.squares.length });
+    if (c.squares.length > 0) out.push(c.squares.flatMap(squarePoints));
   }
-  for (const b of village.sacred?.buildings ?? []) out.push({ x: b.position.x, z: b.position.z });
-  for (const f of village.threshingFloors ?? []) out.push({ x: f.position.x, z: f.position.z });
-  for (const k of village.kilns ?? []) out.push({ x: k.x, z: k.z });
+  for (const b of village.sacred?.buildings ?? []) out.push([{ x: b.position.x, z: b.position.z }]);
+  for (const f of village.threshingFloors ?? []) out.push([{ x: f.position.x, z: f.position.z }]);
+  for (const k of village.kilns ?? []) out.push([{ x: k.x, z: k.z }]);
+  for (const g of village.grainPits ?? []) out.push([{ x: g.x, z: g.z }]);
   return out;
+}
+
+/**
+ * Je úsek `weak` jediným přístupem k některému vchodu stavby (paths.md – Copánek přes křižovatku)?
+ * Vchod leží do `ROAD_ANCHORS.entranceM` od jeho osy a žádný jiný živý úsek tam nevede – tak
+ * `accessRoads` pozná, že vchod cestu má. Zrušený by ji vchod hned dostal znovu (oscilace).
+ */
+function soleAccess(order: readonly Road[], weak: Road, entrances: readonly RoadPoint[]): boolean {
+  if (entrances.length === 0) return false;
+  const onWeak = axisDistance([weak.points]);
+  const others = axisDistance(order.filter((r) => r !== weak).map((r) => r.points));
+  return entrances.some(
+    (e) => onWeak(e.x, e.z) <= ROAD_ANCHORS.entranceM && others(e.x, e.z) > ROAD_ANCHORS.entranceM,
+  );
 }
 
 /**
  * Copánek přes křižovatku (paths.md – Copánek přes křižovatku; rules-roads.ts – ROAD_BRAID_RING):
  * nejslabší úsek A–B (`order` od silnějšího), ke kterému vede souběžně (`staysNear`) druhá větev
  * z A do B přes 1 až `maxNodes` mezilehlé uzly jen ze silnějších úseků; okruh obou větví nejvýš
- * `maxM` m a uvnitř nejvýš `maxInside` staveb (`buildings` – počítají se, až když sedí délka
- * a souběh). Vozová a rozestavěná cesta jako slabší nezmizí. Vrátí slabý úsek a úsek druhé větve
+ * `maxM` m a uvnitř nejvýš `maxInside` staveb a pozemků (0) (`buildings` – počítají se, až když sedí délka
+ * a souběh). Vozová a rozestavěná cesta jako slabší nezmizí, ani úsek, který je jediným přístupem
+ * k vchodu stavby (`entrances`). Vrátí slabý úsek a úsek druhé větve
  * nejblíž jeho středu, nebo null.
  */
 function ringBraid(
   order: readonly Road[],
   building: ReadonlySet<number>,
-  buildings: () => readonly RoadPoint[],
+  buildings: () => readonly RingBuilding[],
+  entrances?: () => readonly RoadPoint[],
 ): { weak: Road; strong: Road } | null {
   const ends: [string, string][] = order.map((r) => [
     endKey(r.points[0]!),
@@ -355,8 +387,10 @@ function ringBraid(
     }
     const ring = [...weak.points, ...way.reverse()];
     let inside = 0;
-    for (const p of buildings()) {
-      if (insideRing(ring, p) && ++inside > ROAD_BRAID_RING.maxInside) return null;
+    for (const building of buildings()) {
+      if (building.some((p) => insideRing(ring, p)) && ++inside > ROAD_BRAID_RING.maxInside) {
+        return null;
+      }
     }
     const half = roadLengthM(weak) / 2;
     const mid = axisSlice(weak.points, half, half)[0]!;
@@ -376,6 +410,7 @@ function ringBraid(
     if (building.has(weak.id) || weak.grade === 'wagon') continue;
     const [from, to] = ends[i]!;
     if (from === to || lengths[i]! >= ROAD_BRAID_RING.maxM) continue;
+    if (entrances && soleAccess(order, weak, entrances())) continue;
     // druhá větev – úseky silnější než slabý (index < i), uzly se neopakují
     const walk = (node: string, path: number[], seen: string[], lengthM: number): Road | null => {
       for (const k of at.get(node) ?? []) {
@@ -420,7 +455,8 @@ function ringBraid(
 export function removeBraids(
   roads: VillageRoads,
   constructions: readonly Construction[],
-  buildings?: () => readonly RoadPoint[],
+  buildings?: () => readonly RingBuilding[],
+  entrances?: () => readonly RoadPoint[],
 ): boolean {
   const building = roadsInWork(constructions);
   const endsOf = (r: Road): string =>
@@ -443,7 +479,7 @@ export function removeBraids(
         }
       }
     }
-    if (!braid && buildings) braid = ringBraid(order, building, buildings);
+    if (!braid && buildings) braid = ringBraid(order, building, buildings, entrances);
     if (!braid) break;
     cutRoad(roads, braid.weak, 0, roadLengthM(braid.weak), braid.strong);
     removed = true;
@@ -458,9 +494,10 @@ export function removeBraids(
 export function hasRingBraid(
   roads: VillageRoads,
   constructions: readonly Construction[],
-  buildings: () => readonly RoadPoint[],
+  buildings: () => readonly RingBuilding[],
+  entrances?: () => readonly RoadPoint[],
 ): boolean {
-  return ringBraid(braidOrderOf(roads), roadsInWork(constructions), buildings) !== null;
+  return ringBraid(braidOrderOf(roads), roadsInWork(constructions), buildings, entrances) !== null;
 }
 
 /**
@@ -496,9 +533,9 @@ export function tidyRoads(
     const parallel = mergeParallelRoads(roads, constructions, trails);
     joinRoadGaps(roads, ends, context);
     // copánky před spojováním – kusy silnější cesty se po odstranění slabší trasy spojí zpět
-    const braids = removeBraids(roads, constructions, context.buildings);
+    const braids = removeBraids(roads, constructions, context.buildings, context.entrances);
     mergeRoadChains(roads, constructions, trails);
-    const more = removeBraids(roads, constructions, context.buildings);
+    const more = removeBraids(roads, constructions, context.buildings, context.entrances);
     if (more) mergeRoadChains(roads, constructions, trails);
     if (!loops && !parallel && !braids && !more) break;
   }
@@ -556,7 +593,8 @@ export function tidyDue(
   termini: (p: RoadPoint) => boolean,
   network: StubNetwork,
   /** Stavby vsi – copánek přes křižovatku (`hasRingBraid`); bez nich se nehledá. */
-  buildings?: () => readonly RoadPoint[],
+  buildings?: () => readonly RingBuilding[],
+  entrances?: () => readonly RoadPoint[],
 ): boolean {
   const cutEnds = roads.cutEnds ?? [];
   const ends = (p: RoadPoint): boolean => isTerminus(p, cutEnds) || termini(p);
@@ -564,7 +602,7 @@ export function tidyDue(
     hasLoop(roads, constructions, network.trails) ||
     firstGap(roads, ends) !== null ||
     hasStubWork(roads, constructions, network) ||
-    (buildings !== undefined && hasRingBraid(roads, constructions, buildings))
+    (buildings !== undefined && hasRingBraid(roads, constructions, buildings, entrances))
   );
 }
 

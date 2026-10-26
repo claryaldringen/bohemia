@@ -1294,4 +1294,37 @@ describe('vozová cesta bez vlásenky (paths.md – Vozová cesta bez vlásenky)
     expect(wagonHairpinAt(gridOf(hill(0.15, 0, 30)), turn)).toBe(-1);
     expect(wagonHairpinAt(gridOf(FLAT), turn)).toBeGreaterThanOrEqual(0);
   });
+  // ohrady po obou stranách a mezi rameny vlásenky (z = -180 až 30): vůz projede jen uličkami po
+  // staré ose, tětiva přes ohrady nejde a objížďka mimo ně také ne
+  const PENS: NonNullable<PathVillage['pens']>[number][] = [];
+  for (let x = -52.5; x < 290; x += 15) {
+    for (let z = -172.5; z < 100; z += 15) {
+      PENS.push({
+        id: PENS.length + 1,
+        built: true,
+        cell: { x: Math.round((x + 217.5) / 15), y: Math.round((z + 217.5) / 15) },
+        x,
+        z,
+        size: 15,
+      });
+    }
+  }
+
+  it('tětiva přes překážku a bez objížďky: úprava po staré ose projde (návrh Clauda)', () => {
+    const p = planWagonRoad({
+      ...input(FLAT, oldRoad(HAIRPIN)),
+      village: { dwellings: [], fields: [], pens: PENS },
+    });
+    expect(p.ok).toBe(true);
+    if (p.ok) {
+      expect(p.bypassed).toEqual([]);
+      expect(p.lengthM).toBeCloseTo(p.oldLengthM, 0);
+    }
+  });
+
+  it('tětiva přes překážku, ale s objížďkou: vlásenka se objede', () => {
+    const p = plan(FLAT, oldRoad(HAIRPIN));
+    expect(p.bypassed.length).toBeGreaterThan(0);
+    expect(wagonHairpinAt(gridOf(FLAT), p.profile)).toBe(-1);
+  });
 });

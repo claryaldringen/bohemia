@@ -3,6 +3,7 @@ import { dayIndexOf } from '../../calendar';
 import { obstaclesOf } from '../../landscape';
 import { foundVillage } from '../actions';
 import { axisDistance } from '../paths/roads-geometry';
+import * as roadsTidy from '../paths/roads-tidy';
 import { removeBraids, tidyRoads } from '../paths/roads-tidy';
 import { joinedRoadsOf, updateRoads } from '../paths/roads';
 import { withRoadsV2 } from '../paths/roads-v2';
@@ -461,16 +462,69 @@ describe('copánek přes křižovatku (paths.md – Copánek přes křižovatku)
     expect(ids(roads)).toEqual([1, 2, 3, 10, 11]);
   });
 
-  it('jedna stavba uvnitř okruhu – copánek; dvě stavby (cesta kolem pozemků) zůstanou', () => {
+  it('okruh kolem stavby zůstane (Martin 26. 10. 2026), prázdný okruh zmizí', () => {
     const one = ring([[30, 8]]);
-    expect(removeBraids(one, [], () => [{ x: 30, z: -3 }])).toBe(true);
-    const two = ring([[30, 8]]);
-    const plots = [
-      { x: 22, z: -3 },
-      { x: 38, z: -3 },
-    ];
-    expect(removeBraids(two, [], () => plots)).toBe(false);
-    expect(ids(two)).toEqual([1, 2, 10, 20]);
+    expect(removeBraids(one, [], () => [[{ x: 30, z: -3 }]])).toBe(false);
+    expect(ids(one)).toEqual([1, 2, 10, 20]);
+    expect(removeBraids(ring([[30, 8]]), [], () => [[{ x: 90, z: -3 }]])).toBe(true);
+  });
+
+  it('pozemky uvnitř okruhu se počítají: okruh kolem dílu pole zůstane (návrh Clauda)', () => {
+    const { ringBuildingPoints } = roadsTidy;
+    const village = {
+      dwellings: [{ id: 1, type: 'pit', position: { x: 30, z: 0 }, built: true }],
+      // pole s dílem, jehož střed leží mimo okruh, ale roh do něj zasahuje
+      fields: [{ id: 1, parts: [{ cell: { x: 0, z: 0 }, x: 30, z: -14, size: 10 }] }],
+    } as unknown as Parameters<typeof ringBuildingPoints>[0];
+    const buildings = ringBuildingPoints(village);
+    expect(buildings).toHaveLength(2);
+    expect(removeBraids(ring([[30, 8]]), [], () => buildings)).toBe(false);
+    // jen díl pole (střed mimo okruh, roh uvnitř) okruh také drží
+    expect(removeBraids(ring([[30, 8]]), [], () => buildings.slice(1))).toBe(false);
+  });
+
+  it('jediný přístup ke stavbě uvnitř okruhu zůstane; dva měsíční kroky = jeden', () => {
+    const gate = [{ x: 30, z: -12 }];
+    const sole = ring([[30, 8]]);
+    expect(
+      removeBraids(
+        sole,
+        [],
+        () => [],
+        () => gate,
+      ),
+    ).toBe(false);
+    expect(ids(sole)).toEqual([1, 2, 10, 20]);
+    // vchod má cestu i jinde (silnější úsek do 3 m) – slabší úsek smí zmizet
+    const served = ring([[30, 8]]);
+    expect(
+      removeBraids(
+        served,
+        [],
+        () => [],
+        () => [{ x: 30, z: 8 }],
+      ),
+    ).toBe(true);
+    // bez vchodu u slabého úseku: první krok ho zruší, druhý už nic nemění (žádná oscilace)
+    const twice = ring([[30, 8]]);
+    expect(
+      removeBraids(
+        twice,
+        [],
+        () => [],
+        () => [{ x: 30, z: 40 }],
+      ),
+    ).toBe(true);
+    const after = ids(twice);
+    expect(
+      removeBraids(
+        twice,
+        [],
+        () => [],
+        () => [{ x: 30, z: 40 }],
+      ),
+    ).toBe(false);
+    expect(ids(twice)).toEqual(after);
   });
 
   it('okruh delší než 150 m zůstane', () => {

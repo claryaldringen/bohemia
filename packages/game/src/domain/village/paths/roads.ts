@@ -51,7 +51,14 @@ import { abandonBlockedStretches, cutDeadRoads } from './roads-overgrow';
 import { accessDue, accessRoads, gateGuardOf, type GateGuard } from './roads-access';
 import { fixedRoadIds, liveRoadEnd, nearEntrance, trafficOnRoads } from './road-condition';
 import { updateJunctions } from './junctions';
-import { anchorTermini, markRoadEnds, ringBuildingPoints, tidyDue, tidyRoads } from './roads-tidy';
+import {
+  type RingBuilding,
+  anchorTermini,
+  markRoadEnds,
+  ringBuildingPoints,
+  tidyDue,
+  tidyRoads,
+} from './roads-tidy';
 import { SpotContext, plantingBlocker, rootTrees } from './roads-trees';
 import { type RoadAnchors, roadAnchors } from './road-anchors';
 import { routeLine } from './routes';
@@ -236,6 +243,7 @@ function roadsMonthRun(
   const cellM = pathCellM(landscape);
   const { lines, anchors } = monthRoutes(routes, landscape, cellM);
   const buildings = ringBuildingsOf(state, day, landscape);
+  const entrances = entrancesOf(state, landscape);
   // kontext míst na stromy a provozní pole jen, když se cesty opravdu mění
   let base: Omit<SpotContext, 'split'> | null = null;
   const baseOf = (): Omit<SpotContext, 'split'> =>
@@ -246,6 +254,7 @@ function roadsMonthRun(
       changes: obstacleChangesAt(state, day),
       seed: state.seed,
       buildings,
+      entrances,
     });
   let field: TrafficField | null = null;
   const fieldOf = (): TrafficField => (field ??= trafficField(routes, cellM));
@@ -271,7 +280,7 @@ function roadsMonthRun(
   tidyMonth(
     state,
     routes,
-    { lines, anchors, day, cellM, walk, buildings, ...(width ? { width } : {}) },
+    { lines, anchors, day, cellM, walk, buildings, entrances, ...(width ? { width } : {}) },
     baseOf,
     fieldOf,
   );
@@ -291,6 +300,7 @@ export function tidyRoadsNow(
   if (!roads || roads.roads.length === 0) return;
   const day = state.lastDay;
   const buildings = ringBuildingsOf(state, day, landscape);
+  const entrances = entrancesOf(state, landscape);
   const baseOf = (): Omit<SpotContext, 'split'> => ({
     terrain: trailTerrain(landscape, obstacles),
     blocked: plantingBlocker(state, landscape),
@@ -298,6 +308,7 @@ export function tidyRoadsNow(
     changes: obstacleChangesAt(state, day),
     seed: state.seed,
     buildings,
+    entrances,
   });
   const routes = state.routes;
   delete roads.tidyKey;
@@ -307,7 +318,13 @@ export function tidyRoadsNow(
     const fieldOf = (): TrafficField => trafficField(routes, cellM);
     const walk = (): ((x: number, z: number) => boolean) | null =>
       villageBlockedAt(state, day, landscape);
-    tidyMonth(state, routes, { lines, anchors, day, cellM, walk, buildings }, baseOf, fieldOf);
+    tidyMonth(
+      state,
+      routes,
+      { lines, anchors, day, cellM, walk, buildings, entrances },
+      baseOf,
+      fieldOf,
+    );
     return;
   }
   const context: SpotContext = {
@@ -363,9 +380,19 @@ function ringBuildingsOf(
   state: VillageState,
   day: number,
   landscape: Landscape,
-): () => readonly RoadPoint[] {
-  let points: readonly RoadPoint[] | null = null;
+): () => readonly RingBuilding[] {
+  let points: readonly RingBuilding[] | null = null;
   return () => (points ??= ringBuildingPoints(pathVillageOf(state, day, landscape)));
+}
+
+/** Vchody staveb (kotvy tras) pro copánek přes křižovatku – líně, ze stejných tras jako měsíční úklid. */
+function entrancesOf(state: VillageState, landscape: Landscape): () => readonly RoadPoint[] {
+  return () => {
+    const routes = state.routes;
+    if (!routes || routes.list.length === 0) return [];
+    const { anchors } = monthRoutes(routes, landscape, pathCellM(landscape));
+    return anchors.points.filter((a) => a.kind === 'entrance');
+  };
 }
 
 /**
@@ -388,7 +415,9 @@ function tidyMonth(
     /** Šířka úseku pro rozestup křižovatek (`JunctionRoads.width`) – jen přestavba sítě. */
     width?: (road: Road) => number | undefined;
     /** Stavby vsi pro copánek přes křižovatku (`ringBuildingsOf`). */
-    buildings: () => readonly RoadPoint[];
+    buildings: () => readonly (readonly RoadPoint[])[];
+    /** Vchody staveb – jediný přístup k vchodu copánek nezruší (`entrancesOf`). */
+    entrances: () => readonly RoadPoint[];
   },
   base: () => Omit<SpotContext, 'split'>,
   field: () => TrafficField,
@@ -425,7 +454,7 @@ function tidyMonth(
   // cesty beze změny: úklid jen, když nové kotvy a trasy dají práci (pahýl, díra, okruh, vchod)
   if (
     roads.tidyKey === networkKey(roads) &&
-    !tidyDue(roads, state.constructions, isEnd, network, month.buildings) &&
+    !tidyDue(roads, state.constructions, isEnd, network, month.buildings, month.entrances) &&
     !accessDue(roads, routes.list, month.cellM, built, guard())
   ) {
     // ohnuté konce os nic dalšího neuklidí (konce zůstanou ve středu) – otisk sítě se jen posune
@@ -663,6 +692,7 @@ export function updateRoads(
       changes,
       seed: state.seed,
       buildings: ringBuildingsOf(state, day, landscape),
+      entrances: entrancesOf(state, landscape),
       split: (from, to) => {
         splitRoadWork(state.constructions, from, to);
         splitTrailPieces(state.trails, from, to);
