@@ -99,8 +99,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   id) skryje `InstanceHider` podle id (3D stromy, impostory i dekorace krajiny – jen meshe
   z `addTrees` / `addDecorations` / `addImpostors`, ne les vsi); ozdoby bez id skrývá pod
   stavbami a poli podle tvaru. Skrytí jde do zdroje (stín) i přes `onApply` do ořezu (klon
-  kamery). Na místo pokáceného stromu dá `felled-trees.ts` pařez,
-  po TREE_SAPLING_AFTER_YEARS mladý stromek. **Vymýcený les** (`cleared-forest.ts`, čistý
+  kamery). Na místo pokáceného stromu dá `felled-trees.ts` pařez
+  (mladý stromek jen nízký pahýl – `stumpScale`), po TREE_SAPLING_AFTER_YEARS mladý stromek. **Vymýcený les** (`cleared-forest.ts`, čistý
   modul): maska po políčkách ze stavu vsi – políčko lesa bez aspoň poloviny dospělých stromů
   nebo pod založeným dílem pole, a paseky pod stavbami v lese přesně podle tvaru
   (`ClearedForest.areas` – vyklízené plochy obydlí a dílen s pruhem pod korunami
@@ -111,11 +111,33 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   navíc), stínová mapa se jednou překreslí a minimapa kreslí vykácený les jako paseku. Vše jen
   při změně (`applyVillage`).
 
+- **Paseka klučení** (forest.md – Klučení lesa pro pole – postup; Úloha 5 plánu
+  `2026-10-27-forest-clearing.md`): vzhled dílu dává jádro (`fieldPartLooks` – `slash` s podílem
+  kácení, `burnt` s podílem pálení a `before: 'slash'`, po dohoření `burnt` do první práce,
+  pak `before: 'burnt'` pod kopáním či setím). Obtisky v `LOOK_STYLES` (`field-crops.ts`):
+  paseka = hrabanka lesa (`forest-floor`) se skvrnami rozryté hlíny, spálenina = černá zem se
+  šedým popelem. Pařezy padlých stromů kreslí `felled-trees.ts` (`obstacles.stumps`); čtverec
+  je vymýcený les, jakmile padne polovina dospělých stromů (`CLEARED_SHARE`), po dohoření jsou
+  stromy čtverce odstraněné (žádné pařezy). **Hromady větví** – `clearing-slash-layout.ts`
+  (čisté): `slashHeapSites` 2–4 místa na čtverec z `hash01(id dílu, k)`, uvnitř čtverce
+  `SLASH_EDGE_MARGIN_M` od okraje, `STUMP_CLEAR_M` od všech překážek vrstvy na čtverci (stálá
+  místa – neskáčou, jak stromy padají), tři velikosti; `clearingHeaps` podle povrchu pod
+  hromadou po pruzích práce jako obtisk (`workFrame` / `workSteps`): paseka → hromada větví,
+  spálenina → ohořelý zbytek na stejném místě, jinde nic. `clearing-slash.ts` (`ClearingSlash`)
+  – dvě vlastní procedurální sítě (kupa klestí s klacky; placka popela s ohořelými pahýly),
+  thin instances (pozice, normála, barva + matice = 7 vertex bufferů), PBR s `applyGammaFog`
+  a sněhem; přestaví se jen při změně `clearingHeapsKey` (díly s pasekou či spáleninou,
+  vzhled, hotové pruhy). Kupa větví vrhá stín, popel ne. **Hromady klád u lesa** –
+  `SceneVillage.logStacks` kreslí `LogPile` stejnou sítí kmenů jako hromadu u vsi (nejvýš
+  MAX_SHOWN_LOGS na hromadu); místo `logStackSite` (`log-pile-layout.ts`) do STACK_REACH_M od
+  kotvy po kružnicích ven, mimo díly polí, hřbitovy, vodu, cesty a obydlí, bez stojících
+  stromů (pařezy, keře a kameny nevadí), pro 3 hranice, jinak méně (`LogPileSite.stacks`);
+  předchozí volné místo zůstane (hromada neskáče). Ohně a kouř pálení jsou Úloha 6.
+
 - **Obtisky cest a křižovatky** (podrobně village-roads.md – Křižovatky, Scéna): pás cesty
   (`path-ribbon.ts`) má průřez ze čtyř bodů – plné krytí do 0,35 × půl šířky od osy, k okraji pásu
   a měkkému okraji lineárně do nuly; u konců pásu (4 m) se osa nevlní a šířka nekolísá, takže
-  navazující pás i plácek sedí na spoji. **Plácek křižovatky** (`junction-patch.ts`, oprava
-  24. 10. 2026 – Martin: „ty ostrý křižovatky už jsou upravený?“ a „Předtím ty křižovatky byly
+  navazující pás i plácek sedí na spoji. **Plácek křižovatky** (`junction-patch.ts`, oprava 24. 10. 2026 – Martin: „ty ostrý křižovatky už jsou upravený?“ a „Předtím ty křižovatky byly
   tedy lepší“: šedý štěrkový plácek s ostrým obrysem a rovně uříznutými rameny zmizel): pásy cest
   končí v řezu 1,5 m za vchody (`junctionCuts`, `roadBands(roads, cuts)`), kus osy do středu je
   rameno plácku. Krytí v bodě je průřez pásu podle vzdálenosti k osám ramen, ramena slitá hladkým

@@ -267,16 +267,23 @@ díly pole, vodu, cesty a stavby; bez místa `null`); `log-pile.ts` (hromada u v
 (`SceneVillage.logStacks?: { id, x, z, logs }[]` v celých kládách, `woodLogs` = u vsi,
 `SceneFieldPart.burnedDay?`); `village-renderer.ts` (zapojení, `needsRender` při změně).
 
-- [ ] Ověř pařezy mladých stromků a souší ve `felled-trees.ts` (měřítko pařezu) a že
+- [x] Ověř pařezy mladých stromků a souší ve `felled-trees.ts` (měřítko pařezu) a že
       `villageClearedForest` (`cleared-forest.ts`) přepne čtverec na vymýcený, jakmile padne
       polovina dospělých stromů – jinak oprav.
-- [ ] Hromady větví na `slash` a na nevypálené části `burnt` (`work`, `before`); na spálenině
+- [x] Hromady větví na `slash` a na nevypálené části `burnt` (`work`, `before`); na spálenině
       ohořelé zbytky do první práce.
-- [ ] Testy layoutů (deterministická místa, ne na pařezu, hromada klád ne na poli ani ve vodě).
-- [ ] Commit `feat(web): paseka s hromadami větví a hromady klád u lesa`.
+- [x] Testy layoutů (deterministická místa, ne na pařezu, hromada klád ne na poli ani ve vodě).
+- [x] Commit `feat(web): paseka s hromadami větví a hromady klád u lesa`.
 
 **Hotovo:** `typecheck`, `lint`, `test`, `test:e2e` (importy Babylonu), `format:check`; snímek
 paseky malý, až na konci.
+
+**Provedení (návrh Clauda 26. 10. 2026):** sítě hromad větví a ohořelého zbytku jsou
+procedurální v `clearing-slash.ts` (jednodušší než Blender – žádný soubor modelu ani licence,
+tři velikosti = násobek instance); `ClearingSlash` i hromady u lesa zapojené v
+`landscape-scene.ts` vedle `LogPile` (tam se hromada klád kreslí). Pařez mladého stromku
+zmenšen (`stumpScale`). Mapa kódu: `docs/code/scene.md` – Paseka klučení. E2e a snímek
+zůstávají na Úlohu 6 (bez dev serveru).
 
 ## Úloha 6 – Scéna – ohně a kouř, postavy u ohňů, ukázka cyklu
 

@@ -1,6 +1,7 @@
 // Hromada klád u vsi (forest.md – Mýcení a hromada klád) bez Babylonu: kde leží a jak jsou klády
 // složené. Vesničané ji založí u obydlí nejblíž lesu na volném místě vedle něj (návrh Clauda);
-// kláda = jeden velký strom. Hromada roste s mýcením a ubývá, jak se staví.
+// kláda = jeden velký strom. Hromada roste s mýcením a ubývá, jak se staví. Hromady klád u lesa
+// (forest.md – Klučení lesa pro pole – postup) leží u paseky, ze které klády jsou.
 import {
   dwellingClearing,
   dwellingShape,
@@ -15,11 +16,13 @@ import {
   tileOfWorldPoint,
   type Landscape,
   type ObstacleChanges,
+  type ObstacleKind,
   type ObstacleLayer,
   type Point,
 } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 import { isRotatedSquare, squareContains } from './field-cells';
+import { distanceToPolyline } from './village-picking';
 import { dwellingArea, footprintRect, localToWorld } from './village-layout';
 
 /** Kláda – délka a poloměr (m): kmen velkého stromu přeřezaný na délku srubu. */
@@ -29,25 +32,41 @@ export const LOG_RADIUS_M = 0.21;
 const STACK_BASE = 6;
 const STACK_SIZE = (STACK_BASE * (STACK_BASE + 1)) / 2;
 /** Nejvíc hranic vedle sebe – větší zásobu ukáže jen číslo v liště. */
-const MAX_STACKS = 3;
+export const MAX_STACKS = 3;
 /** Nejvíc klád, které scéna ukáže. */
 export const MAX_SHOWN_LOGS = STACK_SIZE * MAX_STACKS;
 /** Mezera mezi hranicemi (m). */
 const STACK_GAP_M = 0.35;
 const STACK_WIDTH_M = STACK_BASE * 2 * LOG_RADIUS_M;
+/** Šířka hromady o `stacks` hranicích vedle sebe (m). */
+export function pileWidth(stacks: number): number {
+  return stacks * STACK_WIDTH_M + (stacks - 1) * STACK_GAP_M;
+}
 /** Půdorys celé hromady (všech hranic) – podle něj se hledá volné místo, aby neskákala. */
-export const PILE_WIDTH_M = MAX_STACKS * STACK_WIDTH_M + (MAX_STACKS - 1) * STACK_GAP_M;
+export const PILE_WIDTH_M = pileWidth(MAX_STACKS);
 export const PILE_DEPTH_M = LOG_LENGTH_M + 0.6;
 /** Odstup hromady od stěny obydlí (m) – za okapem, ještě na udusané ploše u obydlí. */
 const SITE_GAP_M = 1.5;
 /** Volno kolem hromady bez překážek (m). */
 const FREE_MARGIN_M = 0.4;
+/** Hromada klád u lesa: nejdál od kotvy (m) a volno kolem ní bez stromů (m). */
+export const STACK_REACH_M = 20;
+const STACK_MARGIN_M = 0.3;
+/** Odstup hromady u lesa od osy pevné cesty (m). */
+const ROAD_CLEAR_M = 3;
+/**
+ * Co hromadě klád u lesa nepřekáží: pařezy, keře a drobné kameny (klády leží mezi nimi) – stojící
+ * stromy, souše, padlé kmeny, mladé stromky, balvany a výchozy ano.
+ */
+const STACK_TOLERATED: ReadonlySet<ObstacleKind> = new Set(['stump', 'shrub', 'stone']);
 
 /** Místo hromady: střed ve světě a natočení (klády leží podél místní osy z). */
 export interface LogPileSite {
   x: number;
   z: number;
   rotation: number;
+  /** Kolik hranic se na místo vejde (1–MAX_STACKS); bez údaje MAX_STACKS. */
+  stacks?: number;
 }
 
 /** Kláda hromady v místních souřadnicích (x napříč, y nahoru od země, z podél klád). */
@@ -71,10 +90,11 @@ function hash(i: number, k: number): number {
 /**
  * Klády hromady v místních souřadnicích: hranice po 21 (řady 6–5–4–3–2–1) vedle sebe, plní se
  * zdola a hranice po hranici – hromada tak ubývá shora a od poslední hranice. Nejvýš
- * MAX_SHOWN_LOGS.
+ * MAX_SHOWN_LOGS (na místě pro méně hranic `stacks` × 21).
  */
-export function logPileLayout(count: number): LogPlacement[] {
-  const shown = Math.max(0, Math.min(MAX_SHOWN_LOGS, Math.floor(count)));
+export function logPileLayout(count: number, stacks = MAX_STACKS): LogPlacement[] {
+  const shown = Math.max(0, Math.min(STACK_SIZE * stacks, MAX_SHOWN_LOGS, Math.floor(count)));
+  const width = pileWidth(stacks);
   const logs: LogPlacement[] = [];
   const rowHeight = LOG_RADIUS_M * Math.sqrt(3);
   for (let i = 0; i < shown; i++) {
@@ -85,7 +105,7 @@ export function logPileLayout(count: number): LogPlacement[] {
       k -= STACK_BASE - row;
       row++;
     }
-    const stackLeft = -PILE_WIDTH_M / 2 + stack * (STACK_WIDTH_M + STACK_GAP_M);
+    const stackLeft = -width / 2 + stack * (STACK_WIDTH_M + STACK_GAP_M);
     const inRow = STACK_BASE - row;
     const rowLeft = stackLeft + (STACK_WIDTH_M - inRow * 2 * LOG_RADIUS_M) / 2;
     const radius = LOG_RADIUS_M * (0.88 + 0.12 * hash(i, 1));
@@ -188,7 +208,57 @@ export function logPileSite(
     const [x, z] = localToWorld(home.position, lx, lz);
     return { x, z, rotation: home.position.rotation + turn };
   });
-  return sites.find((site) => isFree(landscape, village, layer, changes, site, home.id)) ?? null;
+  return (
+    sites.find((site) =>
+      isFree(landscape, village, layer, changes, site, {
+        homeId: home.id,
+        margin: FREE_MARGIN_M,
+        blocks: () => true,
+        dense: false,
+      }),
+    ) ?? null
+  );
+}
+
+/**
+ * Kde leží hromada klád u lesa (forest.md – Klučení lesa pro pole – postup): na volném místě do
+ * STACK_REACH_M od kotvy (střed čtverce, na kterém padl první dospělý strom) – po kružnicích od
+ * kotvy ven, pro všechny hranice, a když se nevejdou, pro méně hranic. Volné = v krajině, ne ve
+ * vodě, na dílech polí ani hřbitovech, na cestách ani u obydlí, bez stojících stromů (pařezy,
+ * keře a kameny nevadí). Předchozí místo `previous`, které je pořád volné, zůstane – hromada
+ * neskáče, když okolo padají stromy. Bez místa null – hromada se nekreslí.
+ */
+export function logStackSite(
+  landscape: Landscape,
+  village: SceneVillage,
+  layer: ObstacleLayer,
+  changes: ObstacleChanges,
+  anchor: { x: number; z: number },
+  previous: LogPileSite | null = null,
+): LogPileSite | null {
+  const options = {
+    homeId: null,
+    margin: STACK_MARGIN_M,
+    blocks: (kind: ObstacleKind) => !STACK_TOLERATED.has(kind),
+    dense: true,
+  };
+  if (previous && isFree(landscape, village, layer, changes, previous, options)) return previous;
+  for (let stacks = MAX_STACKS; stacks >= 1; stacks--) {
+    for (let r = 2.5; r <= STACK_REACH_M; r += 2.5) {
+      const steps = Math.max(8, Math.round((2 * Math.PI * r) / 2.5));
+      for (let i = 0; i < steps; i++) {
+        const a = (2 * Math.PI * i) / steps;
+        const x = anchor.x + r * Math.cos(a);
+        const z = anchor.z + r * Math.sin(a);
+        // klády míří ke kotvě (od paseky), nebo napříč
+        for (const turn of [0, Math.PI / 2]) {
+          const site: LogPileSite = { x, z, rotation: Math.PI / 2 - a + turn, stacks };
+          if (isFree(landscape, village, layer, changes, site, options)) return site;
+        }
+      }
+    }
+  }
+  return null;
 }
 
 function isFree(
@@ -197,9 +267,31 @@ function isFree(
   layer: ObstacleLayer,
   changes: ObstacleChanges,
   site: LogPileSite,
-  homeId: number,
+  options: {
+    /** Obydlí, u kterého hromada leží (bez pozemku smí na jeho vyklizenou plochu). */
+    homeId: number | null;
+    margin: number;
+    /** Které stojící překážky hromadě vadí. */
+    blocks: (kind: ObstacleKind) => boolean;
+    /** Zkoušet i středy stran a cesty (hromada u lesa). */
+    dense: boolean;
+  },
 ): boolean {
-  const corners = rectangleCorners(site.x, site.z, PILE_WIDTH_M, PILE_DEPTH_M, site.rotation);
+  const width = pileWidth(site.stacks ?? MAX_STACKS);
+  const corners = rectangleCorners(site.x, site.z, width, PILE_DEPTH_M, site.rotation);
+  const points: Point[] = [...corners, [site.x, site.z]];
+  if (options.dense) {
+    for (let k = 0; k < corners.length; k++) {
+      const a = corners[k]!;
+      const b = corners[(k + 1) % corners.length]!;
+      points.push([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]);
+    }
+    for (const road of village.roads ?? []) {
+      if (points.some(([x, z]) => distanceToPolyline({ x, z }, road.points) < ROAD_CLEAR_M)) {
+        return false;
+      }
+    }
+  }
   const taken = new Set<string>();
   // natočené díly (fields.md – Natočené stavby) nejsou políčka – test bodu v jejich osách
   const squares = [
@@ -208,7 +300,7 @@ function isFree(
   ];
   const turned = squares.filter((p) => isRotatedSquare(p));
   for (const p of squares) if (!isRotatedSquare(p)) taken.add(`${p.cell.x},${p.cell.y}`);
-  for (const [x, z] of [...corners, [site.x, site.z] as Point]) {
+  for (const [x, z] of points) {
     const tile = tileOfWorldPoint(landscape, x, z);
     if (!tile || surfaceAt(landscape, tile.x, tile.y) === 'water') return false;
     if (taken.has(`${tile.x},${tile.y}`)) return false;
@@ -216,15 +308,15 @@ function isFree(
   }
   for (const d of village.dwellings) {
     // vlastní pozemek je oplocený a plný záhonů – hromada leží za plotem
-    if (d.id === homeId && !d.plot) continue;
+    if (d.id === options.homeId && !d.plot) continue;
     const area = d.plot ? dwellingArea(d) : dwellingClearing(d.type, d.position, dwellingShape(d));
     if (polygonsOverlap(corners, area)) return false;
   }
   const margin = rectangleCorners(
     site.x,
     site.z,
-    PILE_WIDTH_M + 2 * FREE_MARGIN_M,
-    PILE_DEPTH_M + 2 * FREE_MARGIN_M,
+    width + 2 * options.margin,
+    PILE_DEPTH_M + 2 * options.margin,
     site.rotation,
   );
   const xs = margin.map((p) => p[0]);
@@ -238,7 +330,7 @@ function isFree(
     Math.max(...zs),
   )) {
     const kind = status.kindOf(layer, i);
-    if (kind === null) continue;
+    if (kind === null || !options.blocks(kind)) continue;
     if (pointInPolygon([layer.x[i]!, layer.z[i]!], margin)) return false;
   }
   return true;

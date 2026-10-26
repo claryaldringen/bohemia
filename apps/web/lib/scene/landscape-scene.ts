@@ -37,6 +37,7 @@ import { decorPlacements } from './decor-placement';
 import { addDecorations } from './decorations';
 import { addFauna, type Fauna } from './fauna';
 import { birdFlocks, fishSchools } from './fauna-placement';
+import { ClearingSlash } from './clearing-slash';
 import { FelledTrees } from './felled-trees';
 import { LogPile } from './log-pile';
 import { sameClearing, villageClearedForest, type ClearedForest } from './cleared-forest';
@@ -223,6 +224,7 @@ export class LandscapeScene {
   /** Pařezy a nálet po pokácených stromech. */
   private felled: FelledTrees | null = null;
   private logPile: LogPile | null = null;
+  private clearingSlash: ClearingSlash | null = null;
   private village: VillageRenderer | null = null;
   /** Domácí zvířata vsi (ozdoba) – slepice u obydlí, stáda na loukách a v lese. */
   private livestock: VillageLivestock | null = null;
@@ -398,6 +400,16 @@ export class LandscapeScene {
     this.logPile?.dispose();
     this.logPile = new LogPile(this.scene, {
       landscape,
+      layer: obstacles,
+      groundHeight,
+      addShadowCaster: (mesh) => {
+        if (this.shadows) this.shadows.addCaster(mesh);
+        else this.pendingCasters.push(mesh);
+      },
+    });
+    // hromady větví na pasece a ohořelé zbytky na spálenině (forest.md – Klučení lesa pro pole)
+    this.clearingSlash?.dispose();
+    this.clearingSlash = new ClearingSlash(this.scene, {
       layer: obstacles,
       groundHeight,
       addShadowCaster: (mesh) => {
@@ -1282,7 +1294,9 @@ export class LandscapeScene {
     const felled = this.obstacles
       ? (this.felled?.update(this.obstacles, changes, this.villageState.plantedSaplings) ?? false)
       : false;
-    const logs = this.logPile?.update(this.villageState, changes) ?? false;
+    const piles = this.logPile?.update(this.villageState, changes) ?? false;
+    const slash = this.clearingSlash?.update(this.villageState) ?? false;
+    const logs = piles || slash;
     const animals = this.livestock?.update(this.villageState, Date.now()) ?? false;
     // oráč, honák a vozka jsou lidé vsi – kolik spřežení a vozů ves dnes kreslí
     const people =

@@ -216,8 +216,10 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   hromada u vsi = `pileLogs`. Dřevo je surovina předem (`villageStock` s vrstvou překážek:
   klády + stromy, které jde skácet – počet stromů vrstvy v mezipaměti). Palivo je v domácí výrobě
   bokem – přirážka za les daleko zmizela (`forestDistanceM` / `forestWalkM` se dál měří). Scéna: hromada klád `lib/scene/log-pile.ts` (místo
-  a hranice v `log-pile-layout.ts`, bez volného místa se nekreslí), staveniště ukazuje průběh
-  bez kácení (`buildProgress`).
+  a hranice v `log-pile-layout.ts`, bez volného místa se nekreslí) – `SceneVillage.woodLogs` je
+  hromada u vsi (`pileLogs`), `SceneVillage.logStacks` hromady u lesa v celých kládách (místo
+  `logStackSite`, viz `docs/code/scene.md` – Paseka klučení); staveniště ukazuje průběh bez
+  kácení (`buildProgress`).
 
 - **Upozornění** (`lib/village-notices.ts`): rodina čeká na dům (fakt), stupně hladu (šetří
   jídlem, hladoví, umírají hlady – jen nejvyšší), nouzová porážka,

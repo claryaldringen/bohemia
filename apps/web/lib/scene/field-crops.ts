@@ -19,10 +19,18 @@ export type Rgb = readonly [number, number, number];
 
 /**
  * Textury obtisků pole: z 0 A.D. (apps/web/public/textures/fields/ – zorané pole, osetá zem,
- * strniště, porost shora) a z terénu (tráva, tráva s hlínou, bahno).
+ * strniště, porost shora) a z terénu (tráva, tráva s hlínou, bahno, hrabanka lesa).
  */
 export type FieldTexture =
-  'farmland' | 'sown' | 'stubble' | 'crop' | 'grass' | 'grass-flowers' | 'grass-dirt' | 'mud';
+  | 'farmland'
+  | 'sown'
+  | 'stubble'
+  | 'crop'
+  | 'grass'
+  | 'grass-flowers'
+  | 'grass-dirt'
+  | 'mud'
+  | 'forest-floor';
 
 /**
  * Trsy (uzly crops.glb – `crop-<druh>`): obilí zelené s klasy, zralé, vzcházející, strniště;
@@ -64,6 +72,7 @@ export const FIELD_TEXTURES: Record<FieldTexture, { url: string; repeatM: number
     'grass-flowers': { url: '/textures/terrain/grass-flowers.jpg', repeatM: 65, rows: false },
     'grass-dirt': { url: '/textures/terrain/grass-dirt.jpg', repeatM: 20, rows: false },
     mud: { url: '/textures/terrain/mud.jpg', repeatM: 14, rows: false },
+    'forest-floor': { url: '/textures/terrain/forest-floor.jpg', repeatM: 16, rows: false },
   };
 
 export interface LookStyle {
@@ -103,13 +112,14 @@ export const LOOK_STYLES: Record<FieldLook, LookStyle> = {
     hay: false,
     weeds: 0,
   },
-  // klučení lesa (forest.md – Klučení lesa pro pole – postup): zatím paseka jako rozrytý drn
-  // a spálenina tmavá s šedým popelem – vlastní obtisky a hromady větví přijdou se scénou paseky
+  // klučení lesa (forest.md – Klučení lesa pro pole – postup): paseka je hrabanka lesa se
+  // zbytky klestí a rozrytou hlínou (hromady větví kreslí clearing-slash.ts), spálenina černá
+  // zem s šedým popelem ve skvrnách
   slash: {
-    texture: 'grass-dirt',
-    tint: [0.82, 0.68, 0.54],
+    texture: 'forest-floor',
+    tint: [0.78, 0.7, 0.58],
     alpha: 1,
-    patches: { texture: 'mud', tint: [0.9, 0.76, 0.6], alpha: 0.75 },
+    patches: { texture: 'mud', tint: [0.62, 0.5, 0.38], alpha: 0.6 },
     crop: null,
     stooks: false,
     hay: false,
@@ -117,9 +127,9 @@ export const LOOK_STYLES: Record<FieldLook, LookStyle> = {
   },
   burnt: {
     texture: 'mud',
-    tint: [0.3, 0.27, 0.25],
+    tint: [0.2, 0.18, 0.17],
     alpha: 1,
-    patches: { texture: 'grass-dirt', tint: [0.55, 0.54, 0.52], alpha: 0.5 },
+    patches: { texture: 'grass-dirt', tint: [0.62, 0.61, 0.59], alpha: 0.55 },
     crop: null,
     stooks: false,
     hay: false,

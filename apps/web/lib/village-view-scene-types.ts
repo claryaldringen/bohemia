@@ -214,8 +214,17 @@ export interface SceneVillage {
    * nich počítá klády z mýcení stejně jako server. Bez údaje žádné.
    */
   reservedTrees?: number[];
-  /** Klády na hromadě v kusech – scéna je složí u obydlí nejblíž lesu. Bez údaje žádné. */
+  /**
+   * Klády na hromadě u vsi v kusech (zásoba bez hromad u lesa – `pileLogs`) – scéna je složí
+   * u obydlí nejblíž lesu. Bez údaje žádné.
+   */
   woodLogs?: number;
+  /**
+   * Hromady klád u lesa (forest.md – Klučení lesa pro pole – postup): id, kotva (střed čtverce,
+   * na kterém padl první dospělý strom) a klády v celých kusech – scéna je složí na volném místě
+   * u kotvy. Bez údaje žádné.
+   */
+  logStacks?: { id: number; x: number; z: number; logs: number }[];
   /**
    * Kde ves dnes pracuje – postavy ve scéně (docs/design/villagers.md). Bez údaje (ves uložená
    * před rozdělením práce, ještě nedopočítaný den) nikdo.
@@ -746,6 +755,11 @@ export interface SceneFieldPart {
   work?: number;
   /** Vzhled nehotové části rozpracovaného dílu; bez údaje povrch před prací (louka u zakládání). */
   before?: FieldLook;
+  /**
+   * Den dohoření paseky (forest.md – Klučení lesa pro pole – postup) – spálenina pak ještě
+   * doutná (`isSmoldering`). Bez údaje díl nehořel.
+   */
+  burnedDay?: number;
   /**
    * Roky přílohu bez pastvy a seče (fields.md – Zarůstání) – podle nich ve scéně rostou keře
    * a stromky (hustota a velikost). Jen u přílohu, který zarůstá (aspoň rok).

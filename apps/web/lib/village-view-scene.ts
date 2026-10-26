@@ -69,6 +69,7 @@ import {
   structureCondition,
   tileCenterWorld,
   wholeLogs,
+  pileLogs,
   type ConstructionSummary,
   type LaborDay,
   type LaborShare,
@@ -161,6 +162,7 @@ export function sceneVillage(
           ...(years > 0 ? { overgrowth: years } : {}),
           ...(grazed && isGrazeableFallow(p) ? { grazed: grazed.has(p.id) } : {}),
           ...(p.roadCut ? { roadCut: [...p.roadCut] } : {}),
+          ...(p.burnedDay === undefined ? {} : { burnedDay: p.burnedDay }),
         },
       ];
     }),
@@ -231,6 +233,11 @@ export function sceneVillage(
       ...(view.before === undefined ? {} : { before: view.before }),
     };
   });
+  // hromady klád u lesa (forest.md – Klučení lesa pro pole – postup) v celých kládách
+  const logStacks = (state.logStacks ?? []).flatMap((stack) => {
+    const logs = wholeLogs(stack.logs);
+    return logs > 0 ? [{ id: stack.id, x: stack.x, z: stack.z, logs }] : [];
+  });
   const penned = pens.reduce((sum, pen) => sum + pen.cows, 0);
   const herds = summary.livestock.herds;
   const threshingFloors = sceneThreshingFloors(state, constructions);
@@ -246,7 +253,8 @@ export function sceneVillage(
     ...(orchards.length > 0 ? { orchards } : {}),
     obstacles,
     ...(reserved.length > 0 ? { reservedTrees: reserved } : {}),
-    woodLogs: wholeLogs(state.woodLogs ?? 0),
+    woodLogs: wholeLogs(pileLogs(state)),
+    ...(logStacks.length > 0 ? { logStacks } : {}),
     ...(labor ? { labor } : {}),
     ...(sacred ? { sacred } : {}),
     ...(threshingFloors.length > 0 ? { threshingFloors } : {}),
