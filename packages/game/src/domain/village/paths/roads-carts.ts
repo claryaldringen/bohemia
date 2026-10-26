@@ -182,9 +182,8 @@ export function villageCartRoutes(
   const blocked = obstacles
     ? cartObstacleMask(terrain, obstacles, obstacleChangesAt(state, day))
     : null;
-  // čtyřkolák vsi po louce a strništi kamkoli, na zoraný díl ne (wagons.md – Co se vozí a na čem)
-  const fourWheel = kind === 'four-wheel';
-  const routes = cartRoutes({ village, terrain, blocked, kind, depots, targets, fourWheel }).routes;
+  // dvoukolák i čtyřkolák platí na poli stálou cenu (paths.md – Stálé trasy) – liší se zatáčením
+  const routes = cartRoutes({ village, terrain, blocked, kind, depots, targets }).routes;
   lastCartRoutes.set(landscape, { obstacles, key, routes });
   return routes;
 }

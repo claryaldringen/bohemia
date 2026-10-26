@@ -618,8 +618,7 @@ export function work(
       if (seed) {
         const work = task.field!.work;
         work.seedHauled = (work.seedHauled ?? 0) + hauled;
-        if (work.seedReach)
-          addHaulTrips(state, work.seedReach, hauled, 'two-wheel', cartLog, work.partIds);
+        if (work.seedReach) addHaulTrips(state, work.seedReach, hauled, 'two-wheel', cartLog);
       } else {
         const owner = task.field
           ? task.field.work
@@ -629,27 +628,19 @@ export function work(
         if (owner) {
           owner.hauled = (owner.hauled ?? 0) + hauled;
           // jízdy do ročního provozu cest po druzích vozů
-          const spare = task.field?.work.partIds;
           const four = haul.work > 1e-9 ? (haul.fourWork ?? 0) / haul.work : 0;
           if (owner.cartReach4 && four > 0) {
-            addHaulTrips(state, owner.cartReach4, hauled * four, 'four-wheel', cartLog, spare);
+            addHaulTrips(state, owner.cartReach4, hauled * four, 'four-wheel', cartLog);
           }
           if (owner.cartReach) {
-            addHaulTrips(state, owner.cartReach, hauled * (1 - four), 'two-wheel', cartLog, spare);
+            addHaulTrips(state, owner.cartReach, hauled * (1 - four), 'two-wheel', cartLog);
           }
           // snopy jedou z pole na humno (production-chains.md – Humno) – i tam se vyjede cesta
           if (task.field?.name === 'harvest') {
             const floors = threshingFloorHaulPoints(state);
             if (floors.length > 0) {
-              addHaulTrips(state, { points: floors }, hauled * four, 'four-wheel', cartLog, spare);
-              addHaulTrips(
-                state,
-                { points: floors },
-                hauled * (1 - four),
-                'two-wheel',
-                cartLog,
-                spare,
-              );
+              addHaulTrips(state, { points: floors }, hauled * four, 'four-wheel', cartLog);
+              addHaulTrips(state, { points: floors }, hauled * (1 - four), 'two-wheel', cartLog);
             }
           }
         }
@@ -729,7 +720,7 @@ export function work(
   // voda v sudech (wagons.md – Co vozy vozí): posádka ve dnešním minimu, jízdy do provozu cest
   if (jobs.water) {
     const water = jobs.water;
-    cartLog.push({ ...water.spot, kind: water.kind, trips: water.trips, sown: water.sown });
+    cartLog.push({ ...water.spot, kind: water.kind, trips: water.trips });
     haulWork.push({
       job: 'water',
       manDays: water.crew,
@@ -855,8 +846,8 @@ export function work(
       });
     }
   }
-  // všechny jízdy dne do provozu cest a pošlapání úrody na jednom místě (wagons.md)
-  flushCartTrips(state, cartLog, day, landscape, obstacles);
+  // všechny jízdy dne do provozu cest na jednom místě (wagons.md)
+  flushCartTrips(state, cartLog);
   const hayMowing = state.hay?.mowing;
   // podíl práce rodiny na poli, který dnes úlohy spotřebovaly – zbytek dne cvičí (`trainLordDay`)
   // při hladu celá rodina (÷ `free`), u pomoci s osevem a ve žních jen muži (÷ `freeMen`), ženy 0

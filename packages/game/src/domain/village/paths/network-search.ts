@@ -73,6 +73,24 @@ export class PathHeap {
   }
 
   topKey = 0;
+
+  /** Cena nejlevnějšího záznamu bez vyjmutí (prázdná halda Infinity). */
+  peekKey(): number {
+    return this.size > 0 ? this.keys[0]! : Infinity;
+  }
+}
+
+/**
+ * Kvantum ceny kroku vozu (paths.md – Stálé trasy, pravidlo 3): cena kroku se zaokrouhlí na
+ * násobek 1/1024 m louky (aspoň jeden) – součty takových čísel jsou ve Float64 přesné, takže dvě
+ * stejně drahé trasy jsou opravdu stejně drahé a remízu rozhodne pravidlo předchůdce, ne
+ * zaokrouhlení sčítání. Dvojková tisícina místo desetinné – přesná bez převodu jednotek.
+ */
+export const STEP_QUANTUM = 1024;
+
+/** Cena kroku zaokrouhlená na kvantum (`STEP_QUANTUM`), aspoň jedno kvantum. */
+export function quantizedStep(cost: number): number {
+  return Math.max(1, Math.round(cost * STEP_QUANTUM)) / STEP_QUANTUM;
 }
 
 const NEIGHBOURS_8: readonly [number, number, number][] = [

@@ -752,3 +752,27 @@ landscape, obstacles)` v `paths/roads-rebuild.ts`; `updateVillage` volá po `wit
   `road-condition.test.ts` (provoz po cestě), `road-parallel.test.ts` (vozové díry),
   `road-gate.test.ts`, `roads-loose-wagons.test.ts`, `roads-rebuild.test.ts` (oprava,
   `nearStretches`).
+
+## Stálé trasy – cena pole a remízy
+
+Návrh `docs/design/paths.md` – Stálé trasy (25. 10. 2026), Úloha A1.
+
+- **Cena pole bez stadia:** `FIELD_WALK.field` 0,6 (cena 1,67) a `CART_SPEED.field` 0,25 (cena 4)
+  v `rules-roads.ts`. `partWalkSpeed` / `isCropPart` (`paths/walk-speed.ts`) i `cartPartSpeed`
+  (`paths/cart.ts`) znají jen zarostlý díl (křoviny, mladý les – chůze jako louka × `OVERGROWN_COST`,
+  vůz neprojede); jinak stálá cena a pěšina dne přes pole nezrychlí. Dvoukolák i čtyřkolák stejně
+  (`CartRoutesInput.fourWheel` zmizel), `harvestReachState` zmizel. `pathVillageOf` už nenese
+  vzhled dílů (`look`, `work`, `before`, `partId`).
+- **Trasa na pole jako celek:** cíl `field:<id>` jsou všechny buňky dílů (`network-targets.ts`) –
+  s jednou cenou končí trasa na téže buňce v každém stadiu (`stable-routes.test.ts`).
+- **Remízy vozu:** `cartRoutes` sčítá ceny kroků po kvantech 1/1024 m (`quantizedStep`,
+  `STEP_QUANTUM` v `paths/network-search.ts` – součty ve Float64 přesné); při stejné ceně vyhraje
+  předchůdce s nižším indexem stavu (buňka × směr), po posledním cíli se dobírají stavy se stejnou
+  cenou a z koncových stavů cíle vyhraje nižší index (`PathHeap.peekKey`).
+- **Remízy chodců zatím beze změny** (odchylka od plánu A1): pravidlo nižšího indexu v síti pěšin
+  rozdělilo trasy do souběžných pruhů v pásu vyšlapanosti 7,5 m (2 buňky – testy slévání
+  a „jedna pěšina“); vrátí se s buňkou vyšlapanosti 3,75 m (A2a).
+- **Pošlapání zmizelo:** `CART_TRAMPLE`, `trampleSownParts`, `FieldPart.trampledM2`,
+  `CartRoute.sown`, `RoadCartTrips.sown/spare`; `flushCartTrips(state, log)` jen sečte provoz cest.
+  Starší ves převede `withoutTrampledParts` (`cart-jobs.ts`, v `updateVillage`) jednou
+  a idempotentně.

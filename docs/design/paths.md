@@ -263,6 +263,10 @@ změně stadia hledaly znovu (měření 25. 10. 2026: hledání tras vozů 67 % 
    nižší index buňky (u vozu buňky a směru). Trasa tak nezávisí na pořadí, v jakém hledání buňky
    probírá, ani na drobné změně jinde v mřížce – mezi „nejdřív dolů, pak doprava“ a obráceně
    nerozhoduje halda. Sleva z vyšlapanosti se pro výběr trasy bere po setinách síly pěšiny.
+   _Stav 26. 10. 2026 (Úloha A1):_ zavedeno pro trasy vozů (kvantum 1/1024 m – dvojková tisícina,
+   součty přesné bez převodu jednotek). V síti pěšin pravidlo indexu rozdělilo trasy do
+   souběžných pruhů pásu vyšlapanosti 7,5 m, proto tam (i setiny síly) přijde až s buňkou 3,75 m
+   (pravidlo 4, A2a) – návrh Clauda.
 4. **Vyšlapanost bez tolerance.** Trasa i jízda vozu přidají jen políčkům, kterými opravdu vedou –
    sousedním ± 1 ne (Martin 25. 10. 2026 k témuž u stavu cest: „proč by lidé chodili kousek vedle,
    když tam je cesta?“). **Políčko vyšlapanosti se zmenší na 3,75 m = buňka mřížky pěšin**

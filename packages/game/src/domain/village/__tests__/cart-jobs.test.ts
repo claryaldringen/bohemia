@@ -5,7 +5,6 @@ import {
   cartTripManDays,
   kilnCartDrive,
   kilnCartOffer,
-  trampleSownParts,
   villageCartDrives,
   waterCartDrive,
   waterCartPlan,
@@ -437,23 +436,4 @@ describe('voda v sudech (wagons.md – Co vozy vozí, paths.md – Pochůzky pro
     const walking = advanceVillage(plain, day + 2, null, LANDSCAPE);
     expect(hauls(walking)).toEqual([]);
   }, 60_000);
-});
-
-describe('trampleSownParts', () => {
-  const parts = (state: FieldPart['state']): { parts: FieldPart[] } => ({
-    parts: [{ id: 3, areaM2: 130, state } as FieldPart],
-  });
-  it('jízda přes osetý díl pošlapá stopu vozu, nejvýš celý díl', () => {
-    const s = parts('sown');
-    // 10 m × 2 m × 2 průjezdy × 3 jízdy
-    trampleSownParts(s, [{ partId: 3, m: 10 }], 3);
-    expect(s.parts[0]!.trampledM2).toBe(120);
-    trampleSownParts(s, [{ partId: 3, m: 3 }], 1);
-    expect(s.parts[0]!.trampledM2).toBe(130);
-  });
-  it('díl, který už osetý není, se nepočítá', () => {
-    const s = parts('fallow');
-    trampleSownParts(s, [{ partId: 3, m: 10 }], 3);
-    expect(s.parts[0]!.trampledM2).toBeUndefined();
-  });
 });

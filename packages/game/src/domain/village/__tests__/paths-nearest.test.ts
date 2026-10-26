@@ -91,7 +91,8 @@ describe('nejbližší díl přes přihrádky (nearestPartFinder)', () => {
 describe('síť pěšin na skutečné krajině – zlatý otisk', () => {
   // Síť počítá server (vzdálenost chůze dílů – simulace) i prohlížeč (vzhled). Zrychlení výpočtu
   // ji nesmí změnit ani o bit; otisk je z doby před indexem nejbližšího dílu (18. 10. 2026).
-  // Spadne-li po záměrné změně pravidel sítě, otisk se vědomě přepíše.
+  // Spadne-li po záměrné změně pravidel sítě, otisk se vědomě přepíše. Přepsán 26. 10. 2026:
+  // stálá cena pole 0,6 v každém stadiu (paths.md – Stálé trasy) – jiné ceny buněk dílů.
   it('ves s polem 12 × 9 dílů v různých stadiích a prací na poli', () => {
     const landscape = generateLandscape(42, INITIAL_LAYER_VERSIONS);
     const layer = obstaclesOf(landscape);
@@ -151,6 +152,6 @@ describe('síť pěšin na skutečné krajině – zlatý otisk', () => {
     // domů (neprůchodné buňky a brány) jsou podle tvaru domu, ne jednoho pro všechny
     // 24. 10. 2026: zvyk (ROUTE_HABIT 25 % mimo vyšlapané) a ploty ohrad, hřbitovů a příkop svatyně
     // neprůchodné (Úloha 2 nového systému cest) – trasy se drží pěšin a obcházejí ploty
-    expect(networkFingerprint(network)).toBe('75105:8d05ea3d');
+    expect(networkFingerprint(network)).toBe('75105:43f4e471');
   }, 30_000);
 });

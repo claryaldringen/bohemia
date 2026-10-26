@@ -3,7 +3,6 @@ import { stockedPenIds } from '../abandonment';
 import { workshopKilns } from '../charcoal';
 import { tileCenterWorld, type Landscape, type ObstacleLayer } from '../../landscape';
 import { villageCemeteries } from '../cemetery';
-import { fieldPartLooks } from '../field-progress';
 import { openGrainPits } from '../grain-pits';
 import { HAY_WINTER_MONTHS } from '../hay';
 import { grazingDemandHa, villageHerds } from '../livestock';
@@ -198,25 +197,15 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
     ),
   ];
   const grazed = pastureGrazedParts(state, day);
-  // vzhled dílů jako ve scéně – podle něj se chodí přes pole (v osevu, strniště – walk-speed.ts)
-  const looks = state.parts.length > 0 ? fieldPartLooks(state, day) : null;
+  // stadium dílu – cenu pole nemění (paths.md – Stálé trasy), jen zarostlý díl a úhor pro pastvu
   const fields = state.fields.map((f) => ({
     id: f.id,
     parts: state.parts.flatMap((p) => {
       if (p.fieldId !== f.id || p.cell === undefined) return [];
-      const view = looks?.get(p.id);
       return [
         {
           ...square(landscape, p.cell, f.grid),
-          partId: p.id,
           stage: partStage(p, day),
-          ...(view
-            ? {
-                look: view.look,
-                ...(view.work !== undefined ? { work: view.work } : {}),
-                ...(view.before ? { before: view.before } : {}),
-              }
-            : {}),
           ...(isGrazeableFallow(p) ? { grazed: grazed.has(p.id) } : {}),
         },
       ];
@@ -656,18 +645,11 @@ export function villageKilnPoints(
  */
 export function walkStageKey(state: VillageState, day: number): string {
   const grazed = pastureGrazedParts(state, day);
-  const looks = state.parts.length > 0 ? fieldPartLooks(state, day) : null;
   const lining = liningKey(state.roads?.roads);
   const parts = state.parts
     .map((p) => {
       const stage = partStage(p, day);
-      const view = looks?.get(p.id);
-      const speed = partWalkSpeed({
-        stage,
-        ...(view ? { look: view.look } : {}),
-        ...(view?.work !== undefined ? { work: view.work } : {}),
-        ...(view?.before ? { before: view.before } : {}),
-      });
+      const speed = partWalkSpeed({ stage });
       return `${p.id}:${stage}/${speed}${isGrazeableFallow(p) && !grazed.has(p.id) ? ':-' : ''}`;
     })
     .join(';');

@@ -382,10 +382,9 @@ export const ERRAND_NEAR_COST = 130;
 
 /**
  * Zarůstající příloh je vegetace, ne pole (fields.md – Zarůstání) – trnité křoviny a houština
- * mladého lesa zdržují (násobek terénu, jako les). Chůze přes díl pole jinak podle rychlosti
- * (`partWalkSpeed` – v osevu 0,5, strniště 0,8, úhor a louka jako louka; Martin, 19. 10. 2026:
- * „Pole, které zrovna neleží ladem: 0.5.“ – pole není zákaz, jen cena: nejkratší cesta je ta
- * nejrychlejší, přes pole se jde, když je obcházení delší).
+ * mladého lesa zdržují (násobek terénu, jako les). Chůze přes díl pole jinak stálou rychlostí
+ * (`partWalkSpeed` – FIELD_WALK.field v každém stadiu, paths.md – Stálé trasy) – pole není zákaz,
+ * jen cena: nejkratší cesta je ta nejrychlejší, přes pole se jde, když je obcházení delší.
  */
 export const OVERGROWN_COST: Partial<Record<PartStage, number>> = {
   shrubs: 2.2,

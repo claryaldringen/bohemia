@@ -9,52 +9,36 @@ import type { RoadGrade, RoadLining } from '../types';
 // se týkají chůze.“). Jedno místo pro síť pěšin (cena buňky = 1 / rychlost) i vzdálenost chůze
 // (`walking.ts`) – obě jdou stejně rychle. Čisté funkce, deterministické (jen dělení).
 
-/** Díl pole, jak ho zná chůze – stadium a vzhled (u rozpracovaného dílu i část před prací). */
+/**
+ * Díl pole, jak ho zná chůze. Cenu určuje jen to, jestli díl zarostl (stadium); vzhled dílu
+ * (`look`, `work`, `before`) mapu tras nemění (paths.md – Stálé trasy) – údaje zůstávají kvůli
+ * volajícím, kteří je dál předávají.
+ */
 export interface WalkPart {
-  /** Id dílu pole (`FieldPart.id`) – vůz podle něj zapisuje pošlapanou úrodu; testy bez něj. */
-  partId?: number;
   stage: PartStage;
-  /** Co je na dílu vidět (`fieldPartLooks`); bez údaje podle stadia. */
+  /** Co je na dílu vidět (`fieldPartLooks`) – na cenu nemá vliv. */
   look?: FieldPartLook;
-  /** Rozpracovaný díl: hotová část 0–1 má `look`, zbytek `before`. */
   work?: number;
   before?: FieldPartLook;
 }
 
-/** Vzhledy dílu v osevu – od orby nebo kopání po sklizeň (zoraný, osetý, rostoucí, zralý, žeň). */
-const CROP_LOOKS: ReadonlySet<FieldPartLook> = new Set<FieldPartLook>([
-  'plowed',
-  'sown',
-  'sprouted',
-  'green',
-  'ripe',
-  'harvesting',
-]);
-
-/** Vzhled dílu pro chůzi – u rozpracovaného dílu ta část, které je víc; bez vzhledu null. */
-function walkLook(part: WalkPart): FieldPartLook | null {
-  if (!part.look) return null;
-  if (part.work !== undefined && part.work < 0.5 && part.before) return part.before;
-  return part.look;
+/** Zarostlý díl (křoviny, mladý les) – zdržuje jako vegetace (`OVERGROWN_COST`), ne jako pole. */
+function overgrown(stage: PartStage): boolean {
+  return stage === 'shrubs' || stage === 'young-forest';
 }
 
 /**
- * Rychlost chůze přes díl pole proti louce (FIELD_WALK): v osevu 0,5, strniště 0,8; úhor, příloh
- * (i zarůstající – křoviny a mladý les zdržují jako vegetace, ne jako pole) a zakládaný díl jako
- * louka. Bez vzhledu podle stadia – díl v plánu osevu (`sown`) jako v osevu.
+ * Rychlost chůze přes díl pole proti louce (paths.md – Stálé trasy, pravidlo 1): stálá
+ * `FIELD_WALK.field` v každém stadiu (zakládaný, v osevu, strniště, úhor, louka přílohu);
+ * zarostlý díl (křoviny, mladý les) jako louka – zdrží vegetace.
  */
 export function partWalkSpeed(part: WalkPart): number {
-  const look = walkLook(part);
-  if (look === null) return part.stage === 'sown' ? FIELD_WALK.crop : 1;
-  if (CROP_LOOKS.has(look)) return FIELD_WALK.crop;
-  if (look === 'stubble') return FIELD_WALK.stubble;
-  return 1;
+  return overgrown(part.stage) ? 1 : FIELD_WALK.field;
 }
 
-/** Díl v osevu – pěšina dne přes něj nezrychlí, platí cena pole. */
+/** Díl, který je polem (ne zarostlý) – pěšina dne přes něj nezrychlí, platí stálá cena pole. */
 export function isCropPart(part: WalkPart): boolean {
-  const look = walkLook(part);
-  return look === null ? part.stage === 'sown' : CROP_LOOKS.has(look);
+  return !overgrown(part.stage);
 }
 
 /** Kolik z ceny louky stojí metr pěšiny dne síly `strength` 0–1 (plná pěšina 1 / PATH_WALK.speed). */

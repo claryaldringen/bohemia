@@ -5,7 +5,7 @@ import type { CartTarget } from './paths/cart';
 import { addRoadCartTrips, villageCartRoutes } from './paths/roads';
 import { PATH_WATER_SPOT } from './paths/terrain';
 import { groundSpots, walkGroundOf } from './paths/walking';
-import { CARTS, CART_JOBS, CART_TRAMPLE, TEAM_TRAVEL, WATER_FETCHING } from './rules';
+import { CARTS, CART_JOBS, TEAM_TRAVEL, WATER_FETCHING } from './rules';
 import type { CartDrive, CartKind, CartTripLog, OreSite, VillageState } from './types';
 
 // Co vozy vozí mimo svoz (wagons.md – Co vozy vozí; Martin 19. 10. 2026: „Pokud budou mít
@@ -37,7 +37,7 @@ function cm(value: number): number {
 
 /**
  * Jízdy vozů vsi (wagons.md – Co vozy vozí): s krajinou trasy vozu druhu `kind` vozovou sítí
- * (`villageCartRoutes` – cena v m po louce, konec trasy; čtyřkolák po louce a strništi, na zoraný díl ne), bez
+ * (`villageCartRoutes` – cena v m po louce, konec trasy; pole stálou cenou – paths.md, Stálé trasy), bez
  * krajiny (testy, kalibrace) dvoukolák vzdušnou čarou od ohrady ke kraji cíle a čtyřkolák nikam. Bez ohrady se spřežením null.
  */
 export function villageCartDrives(
@@ -74,7 +74,6 @@ export function villageCartDrives(
         costM: cm(route.cost),
         x: cm(end.x),
         z: cm(end.z),
-        sown: route.sown,
       };
     });
   };
@@ -267,73 +266,35 @@ export interface WaterCartPlan {
   kind: CartKind;
   /** Kam vůz jezdí – konec trasy u břehu (m). */
   spot: { x: number; z: number };
-  /** Metry trasy přes osetý díl (`CartDrive.sown`) – vůz tam pošlapává úrodu. */
-  sown?: { partId: number; m: number }[];
 }
 
 /**
- * Vůz přejel osetý díl pole (wagons.md – Vůz přes zaseté pole; mutuje): za `trips` jízd tam a zpět
- * pošlape na dílu stopu CART_TRAMPLE.trackM × ujeté metry (`trampledM2`, nejvýš plocha dílu);
- * úroda dílu se při sklizni zmenší o pošlapaný podíl. Díl, který už osetý není, se nepočítá.
+ * Starší ves s pošlapanou plochou dílů (`trampledM2` – vůz přes zaseté pole) ji ztratí: vůz úrodu
+ * nepošlape (paths.md – Stálé trasy; Martin 25. 10. 2026: „Pokud vůz pojede přes pole, tak žádnou
+ * úrodu nepošlape – je to přiměřené herní zjednodušení.“). Jednou a idempotentně – bez pošlapání
+ * týž objekt.
  */
-export function trampleSownParts(
-  state: Pick<VillageState, 'parts'>,
-  sown: readonly { partId: number; m: number }[] | undefined,
-  trips: number,
-): void {
-  if (!sown || trips <= 0) return;
-  for (const s of sown) {
-    const part = state.parts.find((p) => p.id === s.partId);
-    if (!part || part.state !== 'sown') continue;
-    const m2 = CART_TRAMPLE.trackM * s.m * CART_TRAMPLE.passesPerTrip * trips;
-    part.trampledM2 = Math.min(part.areaM2, (part.trampledM2 ?? 0) + m2);
-  }
+export function withoutTrampledParts(state: VillageState): VillageState {
+  if (!state.parts.some((p) => 'trampledM2' in p)) return state;
+  return {
+    ...state,
+    parts: state.parts.map((p) => {
+      if (!('trampledM2' in p)) return p;
+      const rest: Partial<Record<'trampledM2', unknown>> & Omit<typeof p, 'trampledM2'> = { ...p };
+      delete rest.trampledM2;
+      return rest;
+    }),
+  };
 }
 
 /**
- * Jízdy vozů za den na jednom místě (wagons.md – Vyjeté cesty, Vůz přes zaseté pole; mutuje):
- * všechny jízdy z deníku `log` (svoz, voda, uhlí, ruda, klády, osivo) přičte do ročního provozu
- * cest a za metry trasy přes osetý díl pošlape úrodu (`trampleSownParts`). Metry přes díl už
- * znají jízdy pro vodu; ostatním je najde trasa vozu k cíli (`villageCartRoutes`) – bez krajiny
- * se nepošlapává. Díl, který už není osetý (třeba právě sklízený), se nepočítá. Pevné pořadí
- * jízd = pořadí zápisu.
+ * Jízdy vozů za den na jednom místě (wagons.md – Vyjeté cesty; mutuje): všechny jízdy z deníku
+ * `log` (svoz, voda, uhlí, ruda, klády, osivo) přičte do ročního provozu cest. Pevné pořadí jízd =
+ * pořadí zápisu.
  */
-export function flushCartTrips(
-  state: VillageState,
-  log: CartTripLog,
-  day: number,
-  landscape: Landscape | null,
-  obstacles: ObstacleLayer | null,
-): void {
+export function flushCartTrips(state: VillageState, log: CartTripLog): void {
   if (log.length === 0) return;
   if (state.roads) addRoadCartTrips(state.roads, log);
-  if (!state.parts.some((p) => p.state === 'sown')) return;
-  for (const kind of ['two-wheel', 'four-wheel'] as const) {
-    const unknown = log.filter((t) => t.kind === kind && t.trips > 0 && !t.sown);
-    const routes =
-      unknown.length > 0 && landscape
-        ? villageCartRoutes(
-            state,
-            day,
-            landscape,
-            obstacles,
-            kind,
-            unknown.map((t) => ({ x: t.x, z: t.z, reachM: CARTS.reachM })),
-          )
-        : null;
-    const found = new Map(unknown.map((t, k) => [t, routes?.[k]?.sown]));
-    for (const t of log) {
-      if (t.kind !== kind) continue;
-      const sown = t.sown ?? found.get(t);
-      // díl, který vůz právě sklízí nebo seje (cíl jízdy), se nepošlapává
-      const spare = t.spare;
-      trampleSownParts(
-        state,
-        spare ? sown?.filter((s) => !spare.includes(s.partId)) : sown,
-        t.trips,
-      );
-    }
-  }
 }
 
 /**
@@ -385,6 +346,5 @@ export function waterCartPlan(
     carts: Math.min(carts, Math.max(1, Math.ceil(trips / tripsPerCart - EPSILON))),
     kind,
     spot: { x: drive.x, z: drive.z },
-    ...(drive.sown ? { sown: drive.sown } : {}),
   };
 }

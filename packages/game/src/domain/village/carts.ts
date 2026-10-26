@@ -328,8 +328,8 @@ export function haulAvailable(
 /**
  * Dosah vozu (wagons.md – Vozová síť): dojede vůz od ohrady volů k cílům, a kolik metrů
  * jízdy? Rozhraní pro práci s vozy – kde vůz nedojede, nosí se jako dřív (anti-cíl: vůz, který
- * ušetří práci tam, kam nedojede). `state` je stav vsi, ze kterého se síť počítá (i upravený –
- * žeň po strništi, `harvestReachState`); cíle jdou najednou (jedno hledání). Délka v pořadí cílů,
+ * ušetří práci tam, kam nedojede). `state` je stav vsi, ze kterého se síť počítá; cíle jdou
+ * najednou (jedno hledání). Délka v pořadí cílů,
  * null = nedojede.
  */
 export type CartAccess = (state: VillageState, targets: readonly CartTarget[]) => (number | null)[];
@@ -492,23 +492,6 @@ function reachOf(state: VillageState, spots: readonly HaulSpot[], access: CartAc
 }
 
 /**
- * Stav vsi pro žeň (wagons.md – Svoz, rozhodnutí Clauda): vůz jede za žní po strništi – snopy
- * se svážejí z požatých dílů, kde stojí v panácích, a žeň jde od domu ven (fields.md – Postup
- * práce po čtvercích), takže díly sklízené plodiny se pro vůz postupně otevírají. Ostatní osetá
- * pole (jař, luštěniny při žni ozimu) zůstávají neprůjezdná. Díly plodiny `work` proto vozová síť
- * vidí jako sklizené (strniště – stadium `ready`, jede se pomaleji).
- */
-export function harvestReachState(state: VillageState, work: CropWork): VillageState {
-  const reaped = new Set(work.partIds);
-  return {
-    ...state,
-    parts: state.parts.map((p) =>
-      reaped.has(p.id) && p.state === 'sown' ? { ...p, state: 'ready' as const } : p,
-    ),
-  };
-}
-
-/**
  * Kam vůz při žni plodiny dojede (podíl plochy dílů plánu, body jízd po polích) – snopy
  * z ostatních dílů se nosí jako dřív. Bez krajiny všude (body žádné – jízdy se nesčítají).
  */
@@ -526,7 +509,7 @@ export function cropCartReach(
     const at = partCenter(state, landscape, part);
     return [{ ...at, weight: part.areaM2, group: `field:${part.fieldId}` }];
   });
-  return reachOf(harvestReachState(state, work), spots, access);
+  return reachOf(state, spots, access);
 }
 
 /**
@@ -671,7 +654,6 @@ export function addHaulTrips(
   hauled: number,
   kind: CartKind = 'two-wheel',
   log?: CartTripLog,
-  spare?: readonly number[],
 ): void {
   if ((!state.roads && !log) || hauled <= EPSILON || reach.points.length === 0) return;
   const trips = (hauled * CARTS.loadsPerCartDay) / (CARTS.carrierManDays * cartLoadRatio(kind));
@@ -680,9 +662,8 @@ export function addHaulTrips(
     z: p.z,
     kind,
     trips: trips * p.weight,
-    ...(spare ? { spare } : {}),
   }));
-  // s deníkem jízd dne se jízdy jen zapíšou (`flushCartTrips` – provoz cest i pošlapání úrody)
+  // s deníkem jízd dne se jízdy jen zapíšou (`flushCartTrips` – provoz cest)
   if (log) log.push(...list);
   else if (state.roads) addRoadCartTrips(state.roads, list);
 }

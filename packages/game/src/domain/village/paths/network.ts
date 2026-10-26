@@ -89,7 +89,7 @@ export {
   roadMask,
 } from './network-grid';
 export type { GridWindow, PathBox, Building, PathPlot } from './network-grid';
-export { PathHeap, villageBuildings } from './network-search';
+export { PathHeap, quantizedStep, villageBuildings } from './network-search';
 export { simplifyPathLine, smoothPathLine } from './network-lines';
 
 export function computePathNetwork(input: PathNetworkInput): PathNetwork {
