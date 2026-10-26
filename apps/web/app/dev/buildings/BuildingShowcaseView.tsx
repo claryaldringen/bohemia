@@ -16,6 +16,7 @@ import {
   MILIR_OFFSET_M,
   SHOWCASE_BUILDINGS,
   SHOWCASE_CARTS,
+  SHOWCASE_CRAFT_YARDS,
   SHOWCASE_DECAY,
   SHOWCASE_ROADS,
   SHOWCASE_DECOR,
@@ -224,6 +225,7 @@ export function BuildingShowcaseView(): ReactElement {
           SHOWCASE_CARTS,
           SHOWCASE_KILN,
           SHOWCASE_VARIANTS,
+          SHOWCASE_CRAFT_YARDS,
         ].map((target) => (
           <button
             key={target.id}

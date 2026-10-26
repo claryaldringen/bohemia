@@ -17,6 +17,7 @@ import {
   MANOR_AT,
   SHOWCASE_BUILDINGS,
   SHOWCASE_CARTS,
+  SHOWCASE_CRAFT_YARDS,
   SHOWCASE_DECAY,
   SHOWCASE_ROADS,
   SHOWCASE_DECOR,
@@ -26,6 +27,7 @@ import {
   SHOWCASE_VARIANTS,
   showcaseCartGround,
   showcaseCarts,
+  showcaseCraftYards,
   showcaseDecay,
   showcaseKiln,
   showcaseRoads,
@@ -322,6 +324,7 @@ export class BuildingShowcase {
       SHOWCASE_CARTS,
       SHOWCASE_KILN,
       SHOWCASE_VARIANTS,
+      SHOWCASE_CRAFT_YARDS,
     ].find((b) => b.id === id);
     if (!target) return;
     this.setView(target.focus);
@@ -692,7 +695,12 @@ export class BuildingShowcase {
       pitCuts: variantCuts,
       sunDirection: SUN_DIRECTION,
     });
-    this.variants.update(showcaseVariants());
+    // varianty i dvory kovárny a hrnčíře (houba, hřivny, pec, jáma s hlínou) – jeden renderer vsi
+    const variants = showcaseVariants();
+    this.variants.update({
+      ...variants,
+      dwellings: [...variants.dwellings, ...showcaseCraftYards()],
+    });
     this.grounds.setHayMeadows(showcaseHayMeadows());
     this.grounds.setSeason(showcaseMeadowDay(this.progress), this.snow());
     this.grounds.update(showcaseGrounds(this.progress).village);

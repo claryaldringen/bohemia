@@ -26,6 +26,7 @@ import {
   type TileCell,
 } from '@bohemia/game';
 import type {
+  SceneCraftYard,
   FieldLook,
   SceneFieldPart,
   SceneGraveMound,
@@ -1562,4 +1563,45 @@ export function showcaseVariants(): SceneVillage {
     }
   });
   return { dwellings, fields: [] };
+}
+
+// --- Kovárna a hrnčíř (production-chains.md – Kovář; crafts.md – Hlína hrnčíře) ---
+
+export const SHOWCASE_CRAFT_YARDS = {
+  id: 'dvory-dilen',
+  label: 'Kovárna a hrnčíř',
+  focus: { x: 66, z: -129, radius: 40 },
+} as const;
+
+/** Řada ukázky dvorů dílen (z) – za cestami, pod cyklem milíře. */
+const CRAFT_YARDS_Z = -128;
+
+/**
+ * Kovárny a hrnčíři ukázky (x, řemeslo, dvůr dne): tavba v redukční peci s žárem a dýmem (houba
+ * přibývá), překování houby na hřivny (dým výhně), kování nástrojů (hromádka hřiven), hrnčíř
+ * s plnou jámou hlíny, kterou šlape, a s jámou skoro prázdnou. Postavy ukázka nemá – měchaře,
+ * kováře u pece a šlapání hlíny ukazuje ves (villager-plan-crafts.ts – `craftsmen`).
+ */
+export const CRAFT_YARD_ROWS: readonly { x: number; craft: Craft; yard: SceneCraftYard }[] = [
+  { x: 34, craft: 'smith', yard: { task: 'smelt', bellows: true, bloom: 1, bars: 1 } },
+  { x: 48, craft: 'smith', yard: { task: 'refine', bloom: 3, bars: 2 } },
+  { x: 62, craft: 'smith', yard: { task: 'forge', bloom: 0, bars: 3 } },
+  { x: 80, craft: 'potter', yard: { clay: 3, treading: true } },
+  { x: 94, craft: 'potter', yard: { clay: 1 } },
+];
+
+/** Obydlené dílny ukázky dvorů – kreslí herní renderer vsi (s variantami rozměrů). */
+export function showcaseCraftYards(): SceneVillage['dwellings'] {
+  return CRAFT_YARD_ROWS.map((row, k) => ({
+    id: 9700 + k,
+    type: 'polozemnice',
+    position: { x: row.x, z: CRAFT_YARDS_Z, rotation: FACING },
+    built: true,
+    progress: 1,
+    inhabited: true,
+    craft: row.craft,
+    working: row.craft === 'smith' || !!row.yard.treading,
+    yard: row.yard,
+    plainShape: true,
+  }));
 }
