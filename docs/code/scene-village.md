@@ -274,9 +274,9 @@ a pod zemí, visící kotva háku jinde) – srovná je až `alignCarcass` při 
 256 px, licence v `LICENSES.md`). Uzly, počátek každého na zemi pod středem, rozměry v metrech
 (Blender Z nahoru, −Y vpředu = ve scéně +Z):
 
-- `trestle-large` – kozlina na krávu: tři kůly (základna r 1,25 m, vrchol 2,72 m), bidlo podél X
-  ve výšce 2,58 m, provaz, rozpěrák ±0,22 m a dva háky; **hroty háků ve výšce 2,20 m** (kráva visí
-  za hlezna, kopyta 0,18 m nad háky, celá 2,33 m – hlava ≈ 5 cm nad zemí). Otevřená strana mezi
+- `trestle-large` – kozlina na krávu: tři kůly (základna r 1,25 m, vrchol 2,97 m), bidlo podél X
+  ve výšce 2,83 m, provaz, rozpěrák ±0,22 m a dva háky; **hroty háků ve výšce 2,45 m** (kráva visí
+  za hlezna, kopyta 0,18 m nad háky, celá 2,33 m – hlava ≈ 30 cm nad zemí, nad okrajem neckí). Otevřená strana mezi
   kůly je vpředu (−Y Blenderu). Střed háků je v ose (x = 0, y = 0).
 - `trestle-small` – totéž na prase, ovci a kozu (visí 1,34–1,42 m, kopyta 0,1 m nad háky): vrchol
   2,0 m, základna r 0,85 m, **hroty háků ve výšce 1,50 m** – hlava 0,18–0,26 m nad zemí, v neckách.
