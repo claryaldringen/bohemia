@@ -1083,8 +1083,10 @@ export class LandscapeScene {
   wildAnimals(): {
     meshes: { name: string; ready: boolean }[];
     animals: { species: string; model: string; x: number; z: number }[];
+    groups: { species: string; x: number; z: number }[];
   } {
     return {
+      groups: this.wildlife?.plannedGroups() ?? [],
       meshes: this.scene.meshes
         .filter((mesh) => mesh.name.startsWith('wild-'))
         .map((mesh) => ({ name: mesh.name, ready: mesh.isReady(true) })),

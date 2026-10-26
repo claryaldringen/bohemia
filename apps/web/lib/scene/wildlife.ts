@@ -249,6 +249,14 @@ export class VillageWildlife {
     return best;
   }
 
+  /** Naplánované skupiny zvěře (druh a první stanoviště) – i před načtením modelů, pro e2e testy. */
+  plannedGroups(): { species: WildlifeSpecies; x: number; z: number }[] {
+    return (this.plan?.groups ?? []).flatMap((g) => {
+      const spot = g.herd.route[0];
+      return spot ? [{ species: g.species, x: spot.x, z: spot.z }] : [];
+    });
+  }
+
   /** Kusy, které jsou teď vidět (druh, model a poloha) – pro e2e testy (výběr kliknutím). */
   visibleAnimals(): { species: WildlifeSpecies; model: WildModel; x: number; z: number }[] {
     const out: { species: WildlifeSpecies; model: WildModel; x: number; z: number }[] = [];

@@ -21,6 +21,8 @@ export interface E2EHooks {
   wildAnimals?: () => {
     meshes: { name: string; ready: boolean }[];
     animals: { species: string; model: string; x: number; z: number }[];
+    /** Naplánované skupiny (první stanoviště) – modely se načtou až se zvěří v záběru. */
+    groups: { species: string; x: number; z: number }[];
   };
   /** Posune kameru nad bod krajiny (x, z) – zvěř bývá u lesa mimo výchozí záběr. */
   moveCameraTo?: (x: number, z: number) => void;

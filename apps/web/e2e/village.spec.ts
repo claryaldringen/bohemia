@@ -1572,24 +1572,43 @@ test('divoká zvěř ve scéně: modely se načtou a klik na zvíře otevře pan
   await expect
     .poll(async () => (await villageState(s.settlementId)).wildlife !== undefined)
     .toBe(true);
+  // zvěř chodí jen kolem postavené vsi – obydlí hotové (jako ho uloží server)
+  await writeVillageState(
+    s.settlementId,
+    withBuiltFirstDwelling(await villageState(s.settlementId)),
+  );
+  // modely testy jinak přerušují (beforeEach) – modely zvěře pustit, ostatní dál ne
+  await page.unroute('**/models/**');
+  await page.route('**/models/**', (route) =>
+    route.request().url().includes('/models/fauna/wild-') ? route.continue() : route.abort(),
+  );
+  await page.reload();
+  await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
   await pollVillage(page);
+  // zvěř se naplánuje hned, modely se načtou až se zvěří v záběru – kamera k první skupině
+  // (bývá u lesa mimo výchozí záběr) – jelení nebo prasata, vzácní (vlci, medvěd) nemusí být vidět
+  await expect
+    .poll(() => page.evaluate(() => window.__bohemiaE2E?.wildAnimals?.().groups.length ?? 0), {
+      timeout: 60_000,
+    })
+    .toBeGreaterThan(0);
+  await page.evaluate(() => {
+    const groups = window.__bohemiaE2E!.wildAnimals!().groups;
+    const first = groups.find((g) => g.species === 'deer' || g.species === 'boar') ?? groups[0]!;
+    window.__bohemiaE2E!.moveCameraTo!(first.x, first.z);
+  });
   await expect
     .poll(
       () =>
         page.evaluate(() => {
-          const wild = window.__bohemiaE2E?.wildAnimals?.();
-          return wild && wild.meshes.length > 0 && wild.meshes.every((m) => m.ready)
-            ? wild.animals.length
-            : 0;
+          // meshe : všechny připravené : kusy vidět
+          const wild = window.__bohemiaE2E!.wildAnimals!();
+          const ready = wild.meshes.every((m) => m.ready);
+          return `${wild.meshes.length}:${ready}:${wild.animals.length}`;
         }),
       { timeout: 60_000 },
     )
-    .toBeGreaterThan(0);
-  // kamera k prvnímu kusu (zvěř bývá u lesa mimo výchozí záběr)
-  await page.evaluate(() => {
-    const first = window.__bohemiaE2E!.wildAnimals!().animals[0]!;
-    window.__bohemiaE2E!.moveCameraTo!(first.x, first.z);
-  });
+    .toMatch(/^[1-9]\d*:true:[1-9]/);
   const panel = page.getByTestId('selection-panel');
   await expect
     .poll(
