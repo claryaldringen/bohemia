@@ -357,6 +357,48 @@ paměti – hlídá test a měření (Vlkov: rok dopočtu ≈ 50 s, cíl ≈ 20�
 - ~~Plot a stavba do mapy až po dokončení, díl pole až po založení~~ – od umístění.
 - ~~Čtyřkolák zakládaný díl objede~~ – stálá cena jako dvoukolák (Martin 25. 10. 2026).
 
+### Naměřeno – stálé trasy (Vlkov, 26. 10. 2026)
+
+Vlkov ze 14. 9. 819 (44 lidí, 3 569 čtverců polí, z toho ≈ 80 % ladem), dopočet po dnech
+24 měsíců – dosavadní engine (trasy podle stadií) proti stálým trasám (plán, úloha A3):
+
+| Po 12 měsících (start → dosavadní / stálé) | Start | Dosavadní         | Stálé           |
+| ------------------------------------------ | ----- | ----------------- | --------------- |
+| živé cesty                                 | 40    | 49                | 39              |
+| krátké kusy (audit b)                      | 23    | 32                | 21              |
+| souběžné cesty (audit d)                   | 3     | 4                 | 3               |
+| smyčky přes víc uzlů (audit g)             | 4     | 4                 | 4               |
+| přepočty tras za rok                       | –     | 33                | 11              |
+| změněné buňky stálých tras za rok          | –     | 359               | 140             |
+| chůze k dílům Ø / max (m)                  | –     | 325–344 / 715–892 | 384–388 / 1 031 |
+| chůze k vodě Ø / max (m)                   | –     | 322–325 / 454–484 | 331 / 498       |
+| dosah svozu žně (ozim, jař)                | –     | 100 %, 99,8 %     | 100 %, 99,8 %   |
+| úroda ozimu 820 / 821 (kg)                 | –     | 2 259 / 2 824     | 2 221 / 2 491   |
+| dny hladu                                  | –     | 0                 | 0               |
+
+- **Síť přestala růst** – za 24 měsíců dosavadní 51 cest a 34 krátkých kusů, stálé 40 a 22.
+  Mezi přepočty se žádná stálá trasa nezměnila. Zbylé přepočty jsou změny mapy: obilná jáma
+  otevřená a vybraná (3–4× za rok), milíř, pařezy 1. 11., úklid sítě a posun křižovatky podle
+  provozu (krátce po převodu se dvě cesty u jedné křižovatky čtyři měsíce přetvarovávaly, pak se
+  ustálily).
+- **Vozy:** dosah svozu se nezměnil; vůz pro vodu 379 proti 375 m; spřežení k bloku orby jezdí
+  dál (cena pole 4 platí i pro úhor, dřív 1).
+- **Chůze k dílům je o ≈ 15 % delší a jař se oseje na méně dílech** (−16 %), úroda ozimu 821
+  −12 %, zásoby po žni −5 až −6 %; hlad nenastal. Příčina je pravidlo 1: cena chůze 1,67 platí
+  i pro úhor a příloh (dřív jako louka 1,0) – průměr počítal s trojpolím (třetina ladem), na
+  Vlkově ale leží ladem ≈ 80 % polí. Otázka pro Martina níž.
+- **Výkon** (rok vcelku): 130 s → 72 s (−45 %); cíl ≈ 20–25 s až s výpočtem v paměti (níž).
+  Přepočet chůze stojí ≈ 3,5 s – při ceně pole 1,67 se počítá víc kandidátů.
+- **Determinismus:** dopočet po dnech dá stejný stav jako rok vcelku (otisk po 365 dnech).
+
+### Otázka pro Martina (26. 10. 2026)
+
+- **Chůze přes úhor a příloh:** na Vlkově (≈ 80 % polí ladem) prodloužila stálá cena 1,67 chůzi
+  k dílům o 15 % a ubrala úrodu (ozim 821 −12 %). Návrh Clauda: díl, který leží ladem déle než
+  rok (příloh – mění se jednou za rok 1. 11., jako pařezy), stojí chůzi i vůz jako louka (1);
+  díly v osevním postupu dál 1,67 / 4. Mapa se tak mění nejvýš jednou za rok. Druhá možnost:
+  nechat a přijmout posun výživy.
+
 ### Otázky pro Martina – rozhodnuto 25. 10. 2026
 
 - ~~**Vůz přes pole:** stálá cena 4, nebo 1,67?~~ – **4**, „4 je asi dobrý průměr“.

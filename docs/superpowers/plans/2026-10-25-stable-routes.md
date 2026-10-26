@@ -197,17 +197,50 @@ práce dne, převážení) a úprava bodů „Trasy ve stavu vsi“ a „Vyšlap
 
 **Postup:**
 
-- [ ] Krok 1: Výchozí stav (feat/landscape po sloučení `fix/roads-audit-1`, příp. rotace): 12
+- [x] Krok 1: Výchozí stav (feat/landscape po sloučení `fix/roads-audit-1`, příp. rotace): 12
       měsíců dopočtu – audit a–j po měsících, (pošlapání odpadlo),
       časy chůze k dílům (`walkDistanceM` – průměr, max), jízdy a časy vozů (voda, svoz, spřežení
       k orbě), dosah svozu žně (dnes 84 % plochy), počet přepočtů tras a změněných buněk tras.
-- [ ] Krok 2: Totéž po A1–A2b. Krok 3: Srovnání do tabulky (`docs/code/village-roads.md` –
+- [x] Krok 2: Totéž po A1–A2b. Krok 3: Srovnání do tabulky (`docs/code/village-roads.md` –
       Měření cest, bod „Stálé trasy – Vlkov“).
-- [ ] Krok 4: Stabilita sítě – mezi měsíci bez změny mapy 0 změněných buněk tras; souběh (d)
+- [x] Krok 4: Stabilita sítě – mezi měsíci bez změny mapy 0 změněných buněk tras; souběh (d)
       a smyčky (g) neklesnou pod výchozí stav.
-- [ ] Krok 5: Překročí-li dosah svozu mez (níž – Kritéria), **nezačínat B**
+- [x] Krok 5: Překročí-li dosah svozu mez (níž – Kritéria), **nezačínat B**
       a vrátit Martinovi čísla s volbou (cena vozu je rozhodnutá 4; zbývá úsek po poli podle stadia).
-- [ ] Krok 6: Commit `docs: stálé trasy – ověření na Vlkově`.
+- [x] Krok 6: Commit `docs: stálé trasy – ověření na Vlkově`.
+
+**A3 – naměřeno (26. 10. 2026):** Vlkov ze 14. 9. 819 (den 116 771, 44 lidí, 3 569 čtverců polí,
+z toho ≈ 80 % ladem), starý engine `feat/landscape` (5cc65933) proti `perf/stable-routes`
+(a24144cd), 24 měsíců po dnech; tabulka a výklad v [paths.md](../../design/paths.md) – Stálé
+trasy, Naměřeno. Shrnutí:
+
+- **Síť (audit po 12 měsících, starý → nový):** živých cest 49 → 39 (start 40), krátké kusy (b)
+  32 → 21 (start 23), souběh (d) 4 → 3 (start 3), smyčky (g) 13 → 10, z toho skutečné (víc uzlů)
+  4 → 4 (start 4); zbytek g jsou kusy kratší 12 m u křižovatky, které audit počítá jako smyčku
+  o 1 uzlu. Po 24 měsících b 34 → 22, d 4 → 4, g 14 → 10. **Síť přestala růst.**
+- **Přepočty tras:** 33 → 11 za první rok (64 → 23 za dva roky), změněných buněk stálých tras
+  359 → 140 za rok (58 z toho převod při prvním dni); **mezi přepočty 0 změněných buněk** (každá
+  změna stálé trasy přišla se změnou klíče mapy). Zbylé přepočty jsou skutečné změny mapy:
+  otevření a vybrání obilné jámy (3–4× za rok), milíř (2×), pařezy 1. 11., úklid sítě a posun
+  křižovatky (cesty #785 a #1060 u J1061 se 1. 10.–1. 1. čtyřikrát přetvarují podle provozu, pak
+  se ustálí), nové místo. Cíl „jednotky“ splněn jen zčásti – cena je v pravidlech klíče, ne chyba.
+- **Dosah svozu žně:** 100 % ozim i jař v obou (jař 99,8 %) – mez ≥ 79 % splněna, B se může
+  začít. Pošlapání úrody: `trampledM2` zůstal jen v jednorázovém převodu (`cart-jobs.ts`).
+- **Chůze:** k dílům Ø 384–388 m proti 325–344 m (+15 %), max 1 031 proti 715–892 m; k vodě
+  Ø 331 proti 322–325 m, max 498 proti 454–484 m; vůz pro vodu 379 proti 375 m.
+- **Jídlo:** hlad 0 dní v obou, lidé stejně (43–45). Úroda ozimu 820: 2 221 proti 2 259 kg
+  (−1,7 %), 821: 2 491 proti 2 824 kg (−11,8 %); jař 820 osévá 294 proti 351 dílům (−16 %);
+  zásoby 1. 10. 820 6 551 proti 6 917 kg (−5 %), 13. 9. 821 7 364 proti 7 833 kg (−6 %).
+  **Kritérium „jídlo beze změny“ splněno jen pro hlad** – pokles úrody je vlastnost pravidla
+  (chůze přes pole 1,67 i na úhoru a přílohu, dřív 1,0; na Vlkově leží ladem ≈ 80 % polí, ne
+  třetina, se kterou počítal průměr) – otázka pro Martina v paths.md.
+- **Výkon (rok dopočtu vcelku):** 130,2 s → 71,8 s (opakování 71,9 s; −45 %), `uptime` load 1,0–5,2
+  (stroj sdílený s dev serverem). Mez ≤ 25 s platí po B. Profil prvních 120 dní nového:
+  `refreshWalkDistances` 58 % (≈ 3,5 s za přepočet – `walkingDistances` / `groundWalkLength`:
+  dolní mez úsečkou je při ceně pole 1,67 slabá, počítá se víc kandidátů), `work` 30 % (trasy
+  vozů – spřežení k orbě 16 %, vůz pro vodu 14 %) – podklad pro B1.
+- **Determinismus:** po dnech = vcelku – otisk stavu po 365 dnech `9e491e54ed15` v obou (starý engine
+  `958285bd0eb0` v obou).
 
 ### Úloha B1: Mezipaměť mřížky a tras vozů, chůze jen při změně mapy (≈ 130 kroků)
 
