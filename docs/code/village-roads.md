@@ -877,3 +877,27 @@ studeným startem každý den; `cart-memo.test.ts`).
   do konce mřížky, když cíl leží ve stejném kusu, ale vůz k němu nedojede (zatáčení) nebo je dál
   než `maxCost` – ≈ 35 % vytažených stavů; přepočet chůze (`walkingDistances` 20 %, z toho
   `groundWalkLength` 16 %), mřížka vozu (`cartGrid` 8 %).
+- **Naměřeno B3 – souhrn** (Vlkov, den 115545, 32 lidí, rok dopočtu vcelku na jednom jádru;
+  stroje bývají vytížené, proto rozsahy; skripty a logy mimo repo v `scratchpad/diag-b3/`):
+
+  | stav                                  | rok, stěna  | rok, CPU    | poznámka                                                                    |
+  | ------------------------------------- | ----------- | ----------- | --------------------------------------------------------------------------- |
+  | před A (výchozí měření)               | 47–53 s     | –           | 130–145 ms/den; přes `updateVillage` při zátěži 26: 73 s                    |
+  | po A (A1–A3, před B1)                 | 48,5–49,4 s | 54–55 s     | zátěž 3–10                                                                  |
+  | po B1 (mřížky a trasy v paměti)       | 38,4–40,6 s | 46–49 s     |                                                                             |
+  | po B2a (rychlejší hledání vozu)       | 30,4–30,7 s | 34,7–34,8 s | otisk `a92138125afb`                                                        |
+  | teď (po B2b, s kováním koní), 26. 10. | 31,5–33,0 s | 36,0–37,9 s | zátěž 6,5; otisk `08dd07c6c8fe`; 31 dní 5,7 s, 1 095 dní 91 s (≈ 83 ms/den) |
+
+  Otisk stavu po 31 / 365 dnech vcelku i po dnech se studeným startem (`forgetCartRoutes` před
+  každým dnem) je shodný (`66553dbed171` / `08dd07c6c8fe`); po 1 095 dnech vcelku `d765fb2240fd`.
+  Otisk se od B2a změnil jen kvůli sloučenému kování koní (`f58780ee`) – na stavu B2a
+  (`9cad0af4`) vychází stejný skript `a92138125afb`. Mezi B2a a „teď“ rozdíl v čase není
+  měřitelný nad šumem (B2b a okrajové testy jádro nemění; kování přidalo trochu práce).
+  Podíly kroků (profil roku, self / inkluzivně): `refreshWalkDistances` 39,5 % (z toho
+  `walkingDistances` 19 %, `groundWalkLength` self 15 %), `work` 38,7 % (z toho
+  `villageCartRoutes` 36,8 % napříč kroky – `cartRoutesOn` 27 %, self 25,5 %; `cartGrid` 7,5 %),
+  zbytek dne ≈ 20 % (sezóna, pěšiny, hospodářství). Souběh dotazu a skoku: žádný skript z měření
+  neumí souběžný dotaz proti skoku; pokrývají ho testy `exclusive.test.ts` (jeden dopočet, žádný
+  konflikt verze, skok během dopočtu) a `village-action-day.test.ts` (den akce až ve frontě).
+  Zbývá brzdit: `cartRoutesOn` (přejezdy spřežení mezi díly při orbě – `moveCost` 16 %,
+  voda vozem 12 %) a `groundWalkLength`; cíl 20–25 s na rok tím není splněn (návrh Clauda).

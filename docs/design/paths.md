@@ -351,6 +351,14 @@ naráz (dotaz na ves a skok v čase se nepočítají dvakrát). Výsledek je bit
 paměti – hlídá test a měření (Vlkov: rok dopočtu ≈ 50 s, cíl ≈ 20–25 s). Podrobnosti zapíše plán
 (úlohy B1–B3) do [village-roads.md](../code/village-roads.md) – Trasy v paměti.
 
+### Výkon výpočtu v paměti – návrh vs. skutečnost (26. 10. 2026)
+
+Návrh Clauda počítal s rokem Vlkova z ≈ 50 s na 20–25 s. Skutečnost: **≈ 31–33 s stěna,
+36–38 s CPU** (−35 %), výsledek bit po bitu stejný (otisk po 31 a 365 dnech vcelku i po dnech se
+studeným startem se shoduje). Cíl 20–25 s splněn není: třetina roku zůstává ve hledání tras vozu
+při orbě a vodě a pětina v chůzi (`groundWalkLength`). Tabulka po krocích je v
+[village-roads.md](../code/village-roads.md) – Trasy v paměti.
+
 ### Co nahrazuje
 
 - ~~Ceny buněk: díl v osevu 0,5, strniště 0,8~~ (Cena chůze) a pro vůz ~~osetý díl 0,125, zoraný
