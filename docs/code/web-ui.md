@@ -355,3 +355,6 @@ běžící. Horní lišta: popisek klád `woodName` – „u vsi N, u lesa M“,
 Kurzor při malování pole (`fieldCost` v `build-items.ts`, `PlacementCost.burn`, `CursorReason`):
 ikona ohně s počtem čtverců lesa, které se vykácí a vypálí. Ukázky `/dev/panels?panel=pole`,
 `pole-dil-kaceni`, `pole-dil-schne`, `pole-dil-pali`.
+E2E (`village.spec.ts` – „pole v lese ve fázi pálení“): pole v lese zapsané přímo do uložené vsi
+ve fázi pálení (mimo březen–říjen posun času hráče `player_time_offset`), kamera k lesu klikem do
+minimapy, klik na čtverec – panel dílu ukáže ikonu ohně.

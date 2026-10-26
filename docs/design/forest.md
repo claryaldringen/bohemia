@@ -221,6 +221,21 @@ padnou v den převodu (klády dospělých na hromadu u lesa) a větve se počít
 se pálí, jakmile je doba pálení; jinak padne tolik stromů, kolik odpovídá odvedené práci. Bez
 vrstvy překážek (testy jádra) se díl zakládá postaru naráz. Hotové díly se nemění.
 
+**Ověření klučení** (úloha 8 plánu, 27. 10. 2026 – kopie Vlkova z 26. 10., jen čtená): pole
+0,56 ha v lese 129 m od vsi (25 čtverců, 110 stromů, z toho 24 dospělých, cena 88 člověkodní)
+založené 1. 11. 821. Kácení 2.–15. 11. (13 dní), na hromadě u lesa 24 klád (přes zimu shnije na
+22,7 – stavby berou z hromady u vsi, té je ≈ 3 850), větve suché 15. 12., pálení od 1. 3. 822,
+díly dohořívají 8.–14. 3., jař na spálenině osetá 11.–15. 3. (den 134 od založení). Práce na poli
+93 člověkodní (založení 87,6, orba a setí 5,4), hlad žádný (nejnižší zásoby 5 163 kg). Výkon: rok
+bez pole v lese beze změny (≈ 30 s); rok s novým polem v lese ≈ 38 s – jednorázově, každý den, kdy
+dohoří nějaký díl, se přestaví mapa tras (≈ 1,2 s; `clearedObstacles` nemá den, takže klíč mapy
+tras se s každým dohořením mění). Návrh Clauda na později: odstraněné překážky se dnem a řezem jako
+pokácené stromy (mapa tras se s pálením nemění den po dni). Ve scéně (dev náhled, WebGPU i WebGL 2
+bez chyb konzole): v hustém lese řadu čtverců zakryjí koruny stromů před ní – paseka a ohně jsou
+dobře vidět až na větším poli nebo u okraje lesa; plameny hromad zvětšené na výšku člověka
+(z výšky hry se ztrácely), spálenina o odstín světlejší s výraznějším popelem; postavy stojí vedle
+ohně, ne v něm; kouř hustý a odnášený větrem.
+
 **Mimo tento návrh:** stavby v lese (obydlí, dílny – Stavba v lese) se klučí dál naráz; vracení
 zarostlého přílohu (mladý les) beze změny; počasí – až přijde, pálí se jen za suchých dnů a déšť
 schnutí prodlouží; oheň, který přeskočí do lesa; zvuk praskání ohně; postavy a vozy, které vozí
