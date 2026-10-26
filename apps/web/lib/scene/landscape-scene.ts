@@ -53,6 +53,7 @@ import { SceneryCulling } from './scenery-culling';
 import { terrainMeshHeight } from './drape';
 import { InstanceHider } from './instance-hider';
 import { VillageLivestock } from './livestock';
+import { VillageWildlife } from './wildlife';
 import { ridingHorseIds } from './riders';
 import { VillageVillagers } from './villagers';
 import type { FuneralTimeline } from './funeral-plan';
@@ -226,6 +227,8 @@ export class LandscapeScene {
   private village: VillageRenderer | null = null;
   /** Domácí zvířata vsi (ozdoba) – slepice u obydlí, stáda na loukách a v lese. */
   private livestock: VillageLivestock | null = null;
+  /** Divoká zvěř u vsi (wildlife.md – Ve scéně) – terén sdílí s dobytkem. */
+  private wildlife: VillageWildlife | null = null;
   /** Lidé ve vsi – kde ves dnes pracuje (rozdělení práce dne, villagers.md). */
   private villagers: VillageVillagers | null = null;
   /** Vyšlapané pěšiny vsi (paths.md) – lidé po nich chodí. */
@@ -419,6 +422,16 @@ export class LandscapeScene {
       // dobytek karavan výprav jde v herním čase jako lidé (caravan.ts)
       dayWindow: (day) => this.village?.gameDayWindow(day) ?? null,
     });
+    // Divoká zvěř – na okraji lesa a loukách kolem vsi, před lidmi utíká; terén jako dobytek.
+    this.wildlife?.dispose();
+    this.wildlife = new VillageWildlife(this.scene, {
+      landscape,
+      groundHeight: (x, z) => terrainMeshHeight(surface, x, z),
+      ground: (village) => this.livestock?.groundFor(village) ?? null,
+      threats: () => this.villagers?.figureSpots() ?? new Float32Array(0),
+      baseUrl: '/models/fauna/',
+      onLoaded: () => this.renderWhenReady(),
+    });
     // Lidé ve vsi – kde ves dnes pracuje; schůdnou zemi sdílejí se zvířaty, děti pasou stáda.
     this.villagers?.dispose();
     this.villagers = new VillageVillagers(this.scene, {
@@ -560,6 +573,7 @@ export class LandscapeScene {
         addFauna(this.scene, fauna, { baseUrl: '/models/fauna/' }).then(
           (result) => {
             this.fauna = result;
+            this.applyFaunaAbundance();
           },
           (error) => console.warn('Zvířata krajiny se nepodařilo načíst.', error),
         ),
@@ -1100,6 +1114,7 @@ export class LandscapeScene {
     this.village?.dispose();
     this.culling?.dispose();
     this.livestock?.dispose();
+    this.wildlife?.dispose();
     this.villagers?.dispose();
     this.paths?.dispose();
     this.resizeObserver.disconnect();
@@ -1192,6 +1207,15 @@ export class LandscapeScene {
     // postava, nebo spřežení a vůz (i oráč, honák a vozka u nich) – bližší průmět vyhraje
     const person = this.villagers?.pickHit(x, y, project) ?? null;
     const draft = this.village?.pickDraft(x, y, project) ?? null;
+    // divoké zvíře – klik vybere druh (panel druhu); bližší průmět než postava a spřežení vyhraje
+    const wild = this.wildlife?.pickHit(x, y, project) ?? null;
+    if (
+      wild &&
+      (!person || wild.distance < person.distance) &&
+      (!draft || wild.distance < draft.distance)
+    ) {
+      return { kind: 'wildlife', species: wild.species };
+    }
     if (person && (!draft || person.distance <= draft.distance)) {
       return { kind: 'person', id: person.person };
     }
@@ -1207,6 +1231,19 @@ export class LandscapeScene {
       groundHeight,
       cellOf: (wx, wz) => tileOfWorldPoint(landscape, wx, wz),
     });
+  }
+
+  /**
+   * Ryby a vrány krajiny podle jádra (wildlife.md – Ve scéně): hejna ryb podle biomasy, hejna
+   * vran z jádra; bez zvěře všechna. Vrátí true, když se něco změnilo.
+   */
+  private applyFaunaAbundance(): boolean {
+    const wild = this.villageState?.wildlife;
+    return (
+      this.fauna?.setAbundance(
+        wild ? { fishShare: wild.fishShare, crowFlocks: wild.crowFlocks } : null,
+      ) ?? false
+    );
   }
 
   /** Záběr kamery na zemi – rohy obrazovky promítnuté do roviny cíle kamery. */
@@ -1284,6 +1321,8 @@ export class LandscapeScene {
       : false;
     const logs = this.logPile?.update(this.villageState, changes) ?? false;
     const animals = this.livestock?.update(this.villageState, Date.now()) ?? false;
+    const wild = this.wildlife?.update(this.villageState, Date.now()) ?? false;
+    const abundance = this.applyFaunaAbundance();
     // oráč, honák a vozka jsou lidé vsi – kolik spřežení a vozů ves dnes kreslí
     const people =
       this.villagers?.update(this.villageState, Date.now(), village.draftCrews()) ?? false;
@@ -1295,7 +1334,18 @@ export class LandscapeScene {
       this.highlight?.show(this.villageState, this.selection);
       this.outlines?.update(this.villageState);
     }
-    if (!changed && !hidden && !shaded && !cleared && !felled && !logs && !animals && !people) {
+    if (
+      !changed &&
+      !hidden &&
+      !shaded &&
+      !cleared &&
+      !felled &&
+      !logs &&
+      !animals &&
+      !wild &&
+      !abundance &&
+      !people
+    ) {
       return;
     }
     // Dým hned na místě – i při omezeném pohybu, kdy se pak už nehýbe.
@@ -1446,6 +1496,8 @@ export class LandscapeScene {
     }
     // lidé ve vsi – skutečný čas jako zvířata
     if (this.villagers?.animate(epochMs, camera)) animated = true;
+    // divoká zvěř – skutečný čas; po lidech, před kterými utíká
+    if (this.wildlife?.animate(epochMs, camera)) animated = true;
     // voli a krávy v ohradách a spřežení na poli (oxen.md) – skutečný čas jako zvířata
     if (this.village?.animateOxen(epochMs, camera)) animated = true;
     // porážka – překreslí se jen při změně stavu (pád, zavěšení, čtvrtiny, kýty, miska)

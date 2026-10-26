@@ -85,6 +85,7 @@ import { foreignFromScene, plotOfScene } from './scene/neighbour-villages';
 import { sceneFunerals } from './funeral-view';
 import { scenePersons } from './person-view';
 import { sceneWeddings } from './wedding-view';
+import { sceneWildlife } from './wildlife-view';
 
 export function sceneVillage(
   state: VillageState,
@@ -234,6 +235,14 @@ export function sceneVillage(
   const penned = pens.reduce((sum, pen) => sum + pen.cows, 0);
   const herds = summary.livestock.herds;
   const threshingFloors = sceneThreshingFloors(state, constructions);
+  // divoká zvěř (wildlife.md – Ve scéně) – hejna vran podle osetých ha
+  const sownHa =
+    fields.reduce(
+      (sum, f) =>
+        sum + f.parts.reduce((m2, p) => m2 + (p.stage === 'sown' ? p.size * p.size : 0), 0),
+      0,
+    ) / 10_000;
+  const wildlife = sceneWildlife(state, day, sownHa);
   return {
     dwellings: [...built, ...sites],
     ...(ruins.length > 0 ? { ruins } : {}),
@@ -251,6 +260,7 @@ export function sceneVillage(
     ...(sacred ? { sacred } : {}),
     ...(threshingFloors.length > 0 ? { threshingFloors } : {}),
     livestock: { ...herds, cow: Math.max(0, herds.cow - penned) },
+    ...(wildlife ? { wildlife } : {}),
     ...(hayMeadows.length > 0 ? { hayMeadows } : {}),
     ...(pens.length > 0 ? { pens } : {}),
     ...(summary.crafts.coverage.tools > 0 ? { toolCoverage: summary.crafts.coverage.tools } : {}),

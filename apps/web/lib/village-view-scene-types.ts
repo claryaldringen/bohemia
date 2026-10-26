@@ -300,6 +300,11 @@ export interface SceneVillage {
    * ohradu (v zimě stojí krávy v ohradě, když ves nějakou má). Bez údaje se odvodí z domácností.
    */
   livestock?: Record<HerdSpecies, number>;
+  /**
+   * Divoká zvěř pro scénu (wildlife.md – Ve scéně): kolik kusů ukázat podle stupně stavu (ne
+   * jedinci simulace), díl s největší škodou, hejna vran a podíl ryb. Bez údaje bez zvěře.
+   */
+  wildlife?: SceneWildlife;
   /** Ohrady (oxen.md) – čtverec, stavba a zvířata v ní. Bez údaje žádné. */
   pens?: ScenePen[];
   /**
@@ -1014,4 +1019,31 @@ export interface ScenePloughLegs {
   home?: { x: number; z: number }[];
   /** Den bez orby, spřežení na poli – kde stojí (díl na čele orby). */
   stand?: { x: number; z: number };
+}
+
+/** Divoká zvěř vsi pro scénu (wildlife.md – Ve scéně; `sceneWildlife` ve wildlife-view.ts). */
+export interface SceneWildlife {
+  /** Kolik kusů ukázat (podle stupně stavu druhu, s mezí scény – `SCENE_WILD_SHOWN`). */
+  shown: SceneWildShown;
+  /** Měsíc herního dne (1–12) – říje, zima vlků, medvěd duben–listopad, léto na polích. */
+  month: number;
+  /** Díl s největší škodou letos (jádro `damage.topPartId`, jen v okně škod); jinak chybí. */
+  topPartId?: number;
+  /** Hejna vran z jádra (`crowFlocks` – podle osetých ha). */
+  crowFlocks: number;
+  /** Ryby: biomasa ÷ strop (0–1) – kolik hejn ryb v tůních je vidět. */
+  fishShare: number;
+}
+
+/** Viditelné kusy zvěře ve scéně. */
+export interface SceneWildShown {
+  stags: number;
+  hinds: number;
+  calves: number;
+  boars: number;
+  piglets: number;
+  hares: number;
+  foxes: number;
+  wolves: number;
+  bears: number;
 }

@@ -7,6 +7,7 @@ import {
   HUNT,
   MANOR_DOGS,
   PREDATION,
+  crowFlocks,
   dateOfDayIndex,
   dogsWanted,
   huntPool,
@@ -16,6 +17,7 @@ import {
   type VillageState,
   type WildlifeState,
 } from '@bohemia/game';
+import type { SceneWildShown, SceneWildlife } from './village-view-scene-types';
 
 /** Druhy zvěře, které jde vybrat (klik na zvíře – W10) a ukázat v panelu. */
 export type WildlifeSpecies = 'boar' | 'deer' | 'hare' | 'wolf' | 'bear' | 'fox' | 'fish';
@@ -166,6 +168,80 @@ export function wildlifeView(state: VillageState, day: number): VillageWildlife 
     damageShare: damageShareOf(state, w),
     wolvesTroubling: wolvesTroubling(w, day),
     dogsUnfed: w.dogs !== undefined && Math.floor(w.dogs.count + EPSILON) >= 1 && !w.dogs.fed,
+  };
+}
+
+/**
+ * Kolik kusů ukázat ve scéně podle stupně stavu (0–3) – pár kusů, ne jedinci simulace
+ * (wildlife.md – Ve scéně: jelení nejvýš 12, prasata 10 – jedna rota, zajíci 4, liška 1, vlci 5,
+ * medvěd 1; mezistupně návrh Clauda).
+ */
+export const SCENE_WILD_SHOWN = {
+  deer: [0, 4, 8, 12],
+  boar: [0, 4, 7, 10],
+  hare: [0, 1, 2, 4],
+  wolf: [0, 2, 3, 5],
+} as const satisfies Record<string, readonly [number, number, number, number]>;
+
+/**
+ * Zvěř pro scénu: viditelné kusy podle stupňů (`wildlifeView`), díl s největší škodou, hejna
+ * vran podle osetých ha (`sownHa`) a podíl ryb. Ves bez zvěře null.
+ */
+export function sceneWildlife(
+  state: VillageState,
+  day: number,
+  sownHa: number,
+): SceneWildlife | null {
+  const w = state.wildlife;
+  const view = wildlifeView(state, day);
+  if (!w || !view) return null;
+  const levelOf = (id: WildlifeSpecies): WildlifeLevel =>
+    view.species.find((s) => s.species === id)?.level ?? 0;
+  const caps = wildlifeCaps(w.land, villageHerds(state).pig);
+  const top = w.damage?.topPartId ?? null;
+  return {
+    shown: sceneWildShown(w, {
+      deer: levelOf('deer'),
+      boar: levelOf('boar'),
+      hare: levelOf('hare'),
+      wolf: levelOf('wolf'),
+      fox: levelOf('fox'),
+    }),
+    month: dateOfDayIndex(day).month,
+    ...(top !== null ? { topPartId: top } : {}),
+    crowFlocks: crowFlocks(sownHa),
+    fishShare: caps.fishKg > EPSILON ? Math.min(1, Math.max(0, w.fishKg / caps.fishKg)) : 0,
+  };
+}
+
+/** Viditelné kusy: počet podle stupně, rozdělený v poměru stavu (jeleni / laně / kolouši…). */
+export function sceneWildShown(
+  w: Pick<WildlifeState, 'deer' | 'boar' | 'bear'>,
+  levels: Record<'deer' | 'boar' | 'hare' | 'wolf' | 'fox', WildlifeLevel>,
+): SceneWildShown {
+  const deer = SCENE_WILD_SHOWN.deer[levels.deer];
+  const deerSum = w.deer.stags + w.deer.hinds + w.deer.calves;
+  // jelen aspoň jeden, když nějaký je (stádo laní s kolouchy, jeleni zvlášť)
+  const stags =
+    deerSum > EPSILON && w.deer.stags > EPSILON
+      ? Math.min(deer, Math.max(1, Math.round((deer * w.deer.stags) / deerSum)))
+      : 0;
+  const calves =
+    deerSum > EPSILON ? Math.min(deer - stags, Math.round((deer * w.deer.calves) / deerSum)) : 0;
+  const boar = SCENE_WILD_SHOWN.boar[levels.boar];
+  const boarSum = w.boar.adults + w.boar.piglets;
+  const piglets =
+    boarSum > EPSILON ? Math.min(boar - 1, Math.round((boar * w.boar.piglets) / boarSum)) : 0;
+  return {
+    stags,
+    hinds: deer - stags - calves,
+    calves,
+    boars: boar - Math.max(0, piglets),
+    piglets: Math.max(0, piglets),
+    hares: SCENE_WILD_SHOWN.hare[levels.hare],
+    foxes: levels.fox > 0 ? 1 : 0,
+    wolves: SCENE_WILD_SHOWN.wolf[levels.wolf],
+    bears: w.bear.present ? 1 : 0,
   };
 }
 

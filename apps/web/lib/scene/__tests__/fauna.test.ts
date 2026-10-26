@@ -1,6 +1,7 @@
 import { readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
+import { WILD_MODELS } from '../wildlife-placement';
 
 /** Úvodní JSON část GLB (bez Babylonu – jen počty atributů, morph targetů a klipů). */
 interface GlbJson {
@@ -59,6 +60,10 @@ describe('divoká zvěř a pes z 0 A.D. (wild-*, dog)', () => {
       const targets = readGlb(`fauna/${name}.glb`).meshes[0]?.primitives[0]?.targets;
       expect(targets?.length, name).toBeLessThanOrEqual(3);
     }
+  });
+
+  it('scéna (wildlife.ts) kreslí jen modely hlídané tímto testem', () => {
+    for (const model of WILD_MODELS) expect(NAMES).toContain(model);
   });
 
   it('mají tři klíčové pózy (krok, krok, pastva nebo ležení)', () => {

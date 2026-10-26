@@ -250,6 +250,56 @@ skok. Pozn.: `wild-hind` je ta samice bez paroží (`animal_deer_01`).
   z modelů, `spear` (oštěp) a `watch-fire` (pochodeň hlídky) procedurálně.
 - Test `apps/web/lib/scene/__tests__/fauna.test.ts` hlídá buffery, morph targety a velikost GLB.
 
+## Divoká zvěř ve scéně (wildlife Úloha W10)
+
+Zvěř je v jádru jen počty – scéna ukáže **pár kusů podle stupně stavu**, ne jedince simulace.
+Data: `SceneVillage.wildlife` (`SceneWildlife` – `sceneWildlife` ve `lib/wildlife-view.ts`, volá ho
+`sceneVillage`): `shown` (kusy podle stupně 0–3 z `wildlifeView`: jelení 0/4/8/12 rozdělení
+v poměru jeleni / laně / kolouši – jelen aspoň jeden, prasata 0/4/7/10 s podílem selat, zajíci
+0/1/2/4, liška 1, vlci 0/2/3/5, medvěd 1, když je – `SCENE_WILD_SHOWN`, `sceneWildShown`),
+měsíc herního dne, `topPartId` (díl s největší škodou, jen v okně škod), `crowFlocks` (jádro –
+podle osetých ha dílů `sown`) a `fishShare` (biomasa ÷ strop).
+
+- **Rozmístění** (`lib/scene/wildlife-placement.ts`, čisté, `planWildlife`): deterministicky ze
+  seedu krajiny vsi a dat vsi, na rastru terénu dobytka (`LivestockGround` – sdílí ho
+  `VillageLivestock.groundFor`). Stanoviště po 8 m do 320 m od středu vsi: **okraj lesa**
+  (`forestEdge`, −7 až +5 m jako prasata vsi, ≥ 45 m od obydlí), **louka** (`pasture`, ≥ 55 m od
+  obydlí, i strniště – díl `look: 'stubble'`), **kraj vsi** (22–60 m od obydlí – liška) a **díl se
+  škodou** (`topPartId`, červen–srpen; na sousední díly smí). Nikdy ve stavbě, na poli (mimo díl
+  se škodou), na hřbitově, v sadu, ohradě ani ve vodě (`free` – schůdná zem a kruhy staveb přes
+  přihrádky). Skupiny (`wantedGroups`): rota prasat (v létě na dílu se škodou, jinak okraj lesa),
+  laně s kolouchy (na dílu se škodou, když tam nejsou prasata) a jeleni zvlášť – v říji
+  (září–říjen) spolu, zajíci každý zvlášť, liška, vlci jen v zimě (prosinec–únor), medvěd
+  duben–listopad. Skupina je `Herd` dobytka s trasou ≤ 3 stanovišť 14–34 m od sebe, skupiny
+  ≥ 40 m od sebe; kusy v kruhu 2,5 + 0,55 m na kus (osamělé zvíře se toulá do 3 m). Když se
+  skupina na díl se škodou nevejde, zůstane na okraji lesa.
+- **Hra zatím nemá noc** (den a noc jen `/dev/landscape`) – zóny „za soumraku a v noci louky“
+  se řídí jen měsícem; noční louky a liška za soumraku až s denní dobou ve hře (návrh Clauda).
+- **Pohyb** (`wildlife-motion.ts`): pastva a stěhování po trase jako stádo (`herdState`,
+  `herdAnimalPose`, skutečný čas `livestockClock`) s chůzí nejbližšího dobytka (prase → prase,
+  jelen a laň → kůň, kolouch → hříbě, vlk a liška → koza, medvěd → kráva, zajíc → slepice).
+  Vzácní jsou vidět jen v podílu 20minutových úseků skutečného času (`wildPresent` – vlci 35 %,
+  medvěd 30 %, liška 60 %); jinak se zapíšou s nulovým měřítkem. **Útěk** (jen scéna): člověk
+  (i jezdec) blíž než 30 m ke středu skupiny (`nearestThreat` nad `VillageVillagers.figureSpots`)
+  → skupina uteče 45 m od něj (`startFlight`, odklon nejvýš 1,4 rad, když je přímo voda nebo
+  stavba; kam utéct není – zůstane), rychlostí druhu (jelen 7 m/s … medvěd 4 m/s), 75 s stojí
+  a krokem 0,9 m/s se vrátí na trasu (`flightAt`). Běh = rychlejší krok ze stejných morph
+  targetů (délka kroku `RUN_STRIDE_M`), hlava nahoře – žádný nový vertex atribut.
+- **Kreslení** (`wildlife.ts`, `VillageWildlife`, háček v `landscape-scene.ts` vedle dobytka):
+  mesh `wild-<model>` na model (`createAnimalMesh` z `livestock.ts` – klíčové pózy jako vertex
+  atributy + `LivestockPlugin`, 7 bufferů + matice, `fauna.test.ts` hlídá i `WILD_MODELS`),
+  výška a náklon podle terénu (`writeAnimalPose`). Modely se stahují líně – jen ty, které plán
+  potřebuje. Přepočet jen při změně `wildlifeKey` (zvěř z jádra, obydlí, díly, hřbitovy, sady,
+  ohrady); `animate()` v taktu scény pohne jen skupinami v záběru do 900 m, při omezeném pohybu
+  stojí. Ořez: obal skupiny (kontrola záběru) a obal modelu přes trasy a dosah útěku – ořez po
+  čtvercích (`scenery-chunks`) je jen pro nehybné instance, zvěře je pár desítek kusů.
+- **Ryby a vrány z jádra** (`Fauna.setAbundance`, `landscape-scene.ts` – `applyFaunaAbundance`):
+  hejn ryb je dosavadní počet × `fishShare` (aspoň jedno, když ryby jsou – `shownSchools`
+  ve `fauna-placement.ts`), hejn vran `crowFlocks` (nejvýš kolik jich krajina má); skrytá hejna
+  mají nulové měřítko a nehýbou se. Bez zvěře všechna jako dřív.
+- **Výběr:** klik na zvíře (`VillageWildlife.pickHit` – průmět od nohou po hřbet do 14 px, bližší
+  než postava a spřežení vyhraje) → cíl `{ kind: 'wildlife', species }` → panel druhu (W9).
+
 ## Kůň a hříbě (modely – Úloha 8; ve scéně Úloha 10)
 
 `apps/web/public/models/fauna/horse.glb` (≈ 175 kB, 2,2 m dlouhý) a `foal.glb` (≈ 165 kB, 1,3 m,

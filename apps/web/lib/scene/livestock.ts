@@ -490,35 +490,8 @@ export class VillageLivestock {
   }
 
   private createKind(species: LivestockSpecies, geometry: FaunaGeometry): Kind {
-    // Jméno mimo předpony vrhačů stínů (trees-, impostors-, decor-) – stínová mapa je statická.
-    const mesh = new Mesh(`livestock-${species}`, this.scene);
-    geometry.vertexData.applyToMesh(mesh);
-    mesh.setVerticesData('livestockKeyA', geometry.keyA, false, 3);
-    mesh.setVerticesData('livestockKeyB', geometry.keyB, false, 3);
-    mesh.setVerticesData(
-      'livestockKeyC',
-      geometry.keyC ?? new Float32Array(geometry.keyA.length),
-      false,
-      3,
-    );
-    mesh.isPickable = false;
-    mesh.doNotSyncBoundingInfo = true;
-    mesh.freezeWorldMatrix();
-
-    const material = new StandardMaterial(`livestock-${species}-material`, this.scene);
-    // Bez mipmap jako u ryb a ptáků: ostrůvky textury leží na černém pozadí, nejmenší mipmapa
-    // by zvíře z dálky ztmavila.
-    geometry.texture?.updateSamplingMode(Constants.TEXTURE_BILINEAR_SAMPLINGMODE);
-    material.diffuseTexture = geometry.texture;
-    material.specularColor = Color3.Black();
-    // Uši, ocasy a hřebínky jsou jednoduché plochy – kreslí se z obou stran.
-    material.backFaceCulling = false;
-    material.twoSidedLighting = true;
-    // Textura se čte v barvách obrazovky (`loadGeometry`) – StandardMaterial ji bere tak, jak je.
-    new LivestockPlugin(material);
-    mesh.material = material;
     return {
-      mesh,
+      mesh: createAnimalMesh(this.scene, `livestock-${species}`, geometry),
       matrices: new Float32Array(0),
       states: new Float32Array(0),
       count: 0,
@@ -534,34 +507,7 @@ export class VillageLivestock {
       if (!kind) return;
       const pose = group.pose(index, clock, this.pose);
       const scale = group.hidden?.(index, clock) ? 0 : member.scale;
-      const { x, z } = pose;
-      const e = SLOPE_STEP_M;
-      const gx = (height(x + e, z) - height(x - e, z)) / (2 * e);
-      const gz = (height(x, z + e) - height(x, z - e)) / (2 * e);
-      // Dopředu podél svahu (hlava do kopce výš), do strany jen částečně.
-      const fy = gx * pose.forwardX + gz * pose.forwardZ;
-      const length = Math.hypot(pose.forwardX, fy, pose.forwardZ);
-      const nx = -gx;
-      const nz = -gz;
-      const nLength = Math.hypot(nx, 1, nz);
-      writeInstanceMatrix(
-        kind.matrices,
-        member.slot,
-        {
-          x,
-          y: height(x, z),
-          z,
-          forwardX: pose.forwardX / length,
-          forwardY: fy / length,
-          forwardZ: pose.forwardZ / length,
-          tiltX: (nx / nLength) * SIDE_TILT,
-          tiltZ: (nz / nLength) * SIDE_TILT,
-        },
-        scale,
-      );
-      kind.states[member.slot * 2] = pose.stride;
-      kind.states[member.slot * 2 + 1] = pose.head;
-      kind.dirty = true;
+      writeAnimalPose(kind, member.slot, pose, scale, height);
     });
     const written = group.written ?? new BoundingInfo(Vector3.Zero(), Vector3.Zero());
     written.reConstruct(group.current.minimum, group.current.maximum);
@@ -587,6 +533,82 @@ export class VillageLivestock {
       new Vector3(area.maxX, high + HEAD_ROOM_M, area.maxZ),
     );
   }
+}
+
+/**
+ * Mesh zvířete s klíčovými pózami jako vertex atributy (krok, krok, hlava dolů) a materiálem
+ * s `LivestockPlugin` – dobytek i divoká zvěř (wildlife.ts). Instance a stav přidá volající.
+ */
+export function createAnimalMesh(scene: Scene, name: string, geometry: FaunaGeometry): Mesh {
+  // Jméno mimo předpony vrhačů stínů (trees-, impostors-, decor-) – stínová mapa je statická.
+  const mesh = new Mesh(name, scene);
+  geometry.vertexData.applyToMesh(mesh);
+  mesh.setVerticesData('livestockKeyA', geometry.keyA, false, 3);
+  mesh.setVerticesData('livestockKeyB', geometry.keyB, false, 3);
+  mesh.setVerticesData(
+    'livestockKeyC',
+    geometry.keyC ?? new Float32Array(geometry.keyA.length),
+    false,
+    3,
+  );
+  mesh.isPickable = false;
+  mesh.doNotSyncBoundingInfo = true;
+  mesh.freezeWorldMatrix();
+
+  const material = new StandardMaterial(`${name}-material`, scene);
+  // Bez mipmap jako u ryb a ptáků: ostrůvky textury leží na černém pozadí, nejmenší mipmapa
+  // by zvíře z dálky ztmavila.
+  geometry.texture?.updateSamplingMode(Constants.TEXTURE_BILINEAR_SAMPLINGMODE);
+  material.diffuseTexture = geometry.texture;
+  material.specularColor = Color3.Black();
+  // Uši, ocasy a hřebínky jsou jednoduché plochy – kreslí se z obou stran.
+  material.backFaceCulling = false;
+  material.twoSidedLighting = true;
+  // Textura se čte v barvách obrazovky (`loadGeometry`) – StandardMaterial ji bere tak, jak je.
+  new LivestockPlugin(material);
+  mesh.material = material;
+  return mesh;
+}
+
+/**
+ * Zapíše pózu zvířete do instancí (matice a stav kroku a hlavy) – výška a náklon podle terénu
+ * pod ním (`height`). Nulové měřítko = zvíře není vidět.
+ */
+export function writeAnimalPose(
+  kind: { matrices: Float32Array; states: Float32Array; dirty: boolean },
+  slot: number,
+  pose: LivestockPose,
+  scale: number,
+  height: (x: number, z: number) => number,
+): void {
+  const { x, z } = pose;
+  const e = SLOPE_STEP_M;
+  const gx = (height(x + e, z) - height(x - e, z)) / (2 * e);
+  const gz = (height(x, z + e) - height(x, z - e)) / (2 * e);
+  // Dopředu podél svahu (hlava do kopce výš), do strany jen částečně.
+  const fy = gx * pose.forwardX + gz * pose.forwardZ;
+  const length = Math.hypot(pose.forwardX, fy, pose.forwardZ);
+  const nx = -gx;
+  const nz = -gz;
+  const nLength = Math.hypot(nx, 1, nz);
+  writeInstanceMatrix(
+    kind.matrices,
+    slot,
+    {
+      x,
+      y: height(x, z),
+      z,
+      forwardX: pose.forwardX / length,
+      forwardY: fy / length,
+      forwardZ: pose.forwardZ / length,
+      tiltX: (nx / nLength) * SIDE_TILT,
+      tiltZ: (nz / nLength) * SIDE_TILT,
+    },
+    scale,
+  );
+  kind.states[slot * 2] = pose.stride;
+  kind.states[slot * 2 + 1] = pose.head;
+  kind.dirty = true;
 }
 
 /**

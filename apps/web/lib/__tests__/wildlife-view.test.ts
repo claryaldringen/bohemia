@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf, foundVillage, withWildlife, type VillageState } from '@bohemia/game';
-import { fieldDamageViews, huntView, wildlifeView } from '../wildlife-view';
+import {
+  SCENE_WILD_SHOWN,
+  fieldDamageViews,
+  huntView,
+  sceneWildShown,
+  sceneWildlife,
+  wildlifeView,
+} from '../wildlife-view';
 
 // Hrubé stavy zvěře, lov a psi, škoda na dílech (wildlife.md – Co hráč vidí).
 
@@ -155,5 +162,49 @@ describe('fieldDamageViews', () => {
 
   it('bez škod prázdná mapa', () => {
     expect(fieldDamageViews(village(), DAY).size).toBe(0);
+  });
+});
+
+describe('sceneWildlife – zvěř pro scénu (wildlife.md – Ve scéně)', () => {
+  it('ves bez zvěře nemá údaj', () => {
+    const s = foundVillage({ seed: 3, day: DAY, dwellingPosition: { x: 0, z: 0, rotation: 0 } });
+    expect(sceneWildlife(s, DAY, 0)).toBeNull();
+  });
+
+  it('na stropu nejvíc kusů: jelení 12, prasata 10, zajíci 4, liška 1, vlci 5', () => {
+    const scene = sceneWildlife(village(), DAY, 25)!;
+    const v = scene.shown;
+    expect(v.stags + v.hinds + v.calves).toBe(12);
+    expect(v.stags).toBeGreaterThanOrEqual(1);
+    expect(v.boars + v.piglets).toBe(10);
+    expect(v.boars).toBeGreaterThanOrEqual(1);
+    expect(v.hares).toBe(4);
+    expect(v.foxes).toBe(1);
+    expect(v.wolves).toBe(5);
+    expect(scene.month).toBe(7);
+    // hejna vran z jádra: 1 + 1 na 10 ha osetých polí
+    expect(scene.crowFlocks).toBe(3);
+    expect(scene.fishShare).toBeCloseTo(1);
+  });
+
+  it('kusů podle stupně, bez zvěře nic, medvěd jen když je', () => {
+    const w = village().wildlife!;
+    const none = sceneWildShown(w, { deer: 0, boar: 0, hare: 0, wolf: 0, fox: 0 });
+    expect(none.stags + none.hinds + none.calves + none.boars + none.piglets).toBe(0);
+    expect(none.hares + none.wolves + none.foxes).toBe(0);
+    const few = sceneWildShown(w, { deer: 1, boar: 1, hare: 1, wolf: 1, fox: 1 });
+    expect(few.stags + few.hinds + few.calves).toBe(SCENE_WILD_SHOWN.deer[1]);
+    expect(few.boars + few.piglets).toBe(SCENE_WILD_SHOWN.boar[1]);
+    const noBear = sceneWildShown(
+      { ...w, bear: { present: false, backDay: null } },
+      { deer: 3, boar: 3, hare: 3, wolf: 3, fox: 3 },
+    );
+    expect(noBear.bears).toBe(0);
+  });
+
+  it('podíl ryb je biomasa ÷ strop', () => {
+    const s = village();
+    s.wildlife!.fishKg /= 4;
+    expect(sceneWildlife(s, DAY, 0)!.fishShare).toBeCloseTo(0.25);
   });
 });

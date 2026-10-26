@@ -337,6 +337,11 @@ kde to nestačí.
   atribut** (postava má právě 8 bufferů). Počet z jádra (hodiny rybaření ÷ délka dne), nejvýš 3 na
   tůň. Oka se nekreslí.
 - **Psi:** u dvorce (stojí, leží), s pěšími lovci a s jezdci na objížďce.
+- **Ve hře (W10, návrh Clauda):** kusy podle stupně stavu (jelení 4/8/12, prasata 4/7/10, zajíci
+  1/2/4, vlci 2/3/5); hra zatím nemá noc (den a noc jen v náhledu krajiny), takže zóny se řídí
+  jen měsícem a noční louky přijdou s denní dobou ve hře; vzácní (vlci, medvěd, liška) jsou
+  vidět jen v části 20minutových úseků skutečného času; po útěku skupina chvíli stojí a krokem se
+  vrátí. Podrobnosti: `docs/code/scene-village.md` – Divoká zvěř ve scéně.
 - **Výkon:** jeden mesh `wild-*` na druh v instancích jako fauna (`fauna.ts`), 3 morph targety jako
   kráva (WebGPU limit 8 vertex bufferů ověřit u každého druhu). Pohyb ve skutečném čase
   (`livestockClock`), animace v `animate()` v taktu `WATER_FPS`, jen skupiny v záběru, při
