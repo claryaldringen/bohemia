@@ -112,6 +112,13 @@ import {
 } from './dev-wedding';
 import { WeddingControls } from './WeddingControls';
 import { ORE_DEMO_STAGES, demoOre, type OreDemo } from './dev-ore';
+import {
+  THRESHING_DEMO_STAGES,
+  demoThreshing,
+  nextThreshingDemo,
+  withThreshingField,
+  type ThreshingDemo,
+} from './dev-threshing';
 import { devSelectionView } from './dev-selection';
 import { DayTimeControls } from './DayTimeControls';
 import type { CartKind } from '@bohemia/game';
@@ -233,6 +240,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [weddingDemo, setWeddingDemo] = useState<WeddingDemo | null>(null);
   // ukázka rudiště kováře (crafts.md – Uhlí a ruda kováře, dev-ore.ts) – pěšky, pak s vozem
   const [oreDemo, setOreDemo] = useState<OreDemo | null>(null);
+  // ukázka humna (production-chains.md – Humno, dev-threshing.ts) – žně, výmlat, zrno do jam
+  const [threshingDemo, setThreshingDemo] = useState<ThreshingDemo | null>(null);
   // stupeň vylepšení ukázkových cest (dev-road.ts – DEMO_ROAD_STAGES) a stadium jabloní u cesty
   const [roadStage, setRoadStage] = useState(0);
   const [appleStage, setAppleStage] = useState(0);
@@ -338,6 +347,16 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         ...(weddingDemo.sacred ? { sacred: weddingDemo.sacred } : {}),
         weddings: [weddingDemo.wedding],
         labor: weddingDemo.labor,
+      };
+    }
+    if (threshingDemo) {
+      // humno: snopy z pole, mlatci a prohazovači, nosiči zrna do jámy
+      return {
+        ...base,
+        fields: withThreshingField(base.fields, threshingDemo),
+        threshingFloors: threshingDemo.threshingFloors,
+        grainPits: threshingDemo.grainPits,
+        labor: threshingDemo.labor,
       };
     }
     if (oreDemo) {
@@ -447,6 +466,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     funeralDemo,
     weddingDemo,
     oreDemo,
+    threshingDemo,
     roadPlough,
   ]);
   // ukázky s prací dne bez lidí (orba přes cestu, vozy, karavana) – lidé po domech, ať jdou
@@ -1616,6 +1636,24 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
    * uhlí, kovář rudu) → s vozem (vůz se sedlákem jede pro hromadu rudy) → vypnuto; kamera mezi
    * kovárnu a rudiště.
    */
+  /**
+   * Ukázka humna (production-chains.md – Humno, Obilné jámy): vypnuto → žně (snopy na humno) →
+   * výmlat (mlatci s holemi, prohazovači) → zrno do jam → vypnuto; kamera na humno.
+   */
+  const toggleThreshing = (): void => {
+    const next = nextThreshingDemo(threshingDemo?.stage ?? null);
+    if (!next) {
+      setThreshingDemo(null);
+      return;
+    }
+    const sample = demoThreshing(decoded, demoVillage, next, {
+      floor: 9_300_001,
+      pit: 9_300_002,
+    });
+    setThreshingDemo(sample);
+    if (sample) scene?.moveCameraTo(sample.focus.x, sample.focus.z);
+  };
+
   const toggleOre = (): void => {
     const next = oreDemo === null ? 'foot' : oreDemo.stage === 'foot' ? 'cart' : null;
     if (!next) {
@@ -1940,6 +1978,15 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
           data-testid="dev-ore"
         >
           {oreDemo ? `Rudiště: ${ORE_DEMO_STAGES[oreDemo.stage]}` : 'Rudiště'}
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={toggleThreshing}
+          title="Humno – žně a snopy na humno, mlácení holemi a prohazování lopatou, zrno do jam"
+          data-testid="dev-threshing"
+        >
+          {threshingDemo ? `Humno: ${THRESHING_DEMO_STAGES[threshingDemo.stage]}` : 'Humno'}
         </button>
         <button
           className={buttonClass}

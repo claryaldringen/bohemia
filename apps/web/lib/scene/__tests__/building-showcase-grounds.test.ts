@@ -133,3 +133,17 @@ describe('pole, hřbitov a sad na vývojové stránce staveb', () => {
     expect(showcaseGrounds(0.6).labels.orchard).toMatch(/\d+\. rok/);
   });
 });
+
+describe('humno na ukázce staveb (production-chains.md – Humno)', () => {
+  it('posuvník: stavba po fázích, výmlat se stohem, po výmlatu plný stoh', () => {
+    const floorAt = (p: number) => showcaseGrounds(p).village.threshingFloors![0]!;
+    expect(floorAt(0)).toMatchObject({ built: false, progress: 0 });
+    expect(showcaseGrounds(0).labels.threshing).toContain('vytyčení');
+    expect(showcaseGrounds(0.24).labels.threshing).toContain('hlína');
+    const thresh = floorAt(0.7);
+    expect(thresh).toMatchObject({ built: true, threshing: true });
+    expect(thresh.straw).toBeGreaterThan(floorAt(0.55).straw!);
+    expect(floorAt(1)).toMatchObject({ built: true, straw: 1 });
+    expect(floorAt(1).threshing).toBeUndefined();
+  });
+});
