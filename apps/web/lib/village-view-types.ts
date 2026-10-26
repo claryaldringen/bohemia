@@ -3,6 +3,7 @@
 import type { DwellingResident } from './person-view';
 import { SceneVillage } from './village-view-scene-types';
 import {
+  type TradeGood,
   CRAFT_PRODUCTS,
   type RoadKind,
   type AbandonedStructure,
@@ -89,6 +90,17 @@ export interface BuildOption {
    */
   blocked: string | null;
   affordable: boolean;
+  /**
+   * Cena druhu v rozcestníku, který se od stavby liší (ohrada koní: vyšší plot a koně zaplacení
+   * předem z přebytku (hřivny, zvířata, obilí) – horses.md, Koně se stavbou ohrady); klíč = id druhu.
+   */
+  variants?: Record<
+    string,
+    Pick<BuildOption, 'laborManDays' | 'upfront' | 'affordable' | 'blocked'> & {
+      /** Čím ves koně zaplatí (hřivny, zvířata, obilí) – ikony s čísly; prázdné, když nestačí. */
+      payment: { good: TradeGood; amount: number }[];
+    }
+  >;
 }
 
 /** Štěstí obyvatel pro horní lištu (happiness.md). */

@@ -191,6 +191,8 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'horse-starved'; penId: number; horses: number }
   /** Klisny ohrady porodily 1. 5. hříbata (horses.md – Chov; `foals` – kolik). */
   | { kind: 'foal-born'; penId: number; foals: number }
+  /** Do nově dostavěné ohrady koní přivedli hřebce a dvě klisny (horses.md – Koně se stavbou ohrady). */
+  | { kind: 'horses-arrived'; penId: number; horses: number }
   /** Kůň pod jezdcem došel plného výcviku (horses.md – Výcvik koně a jezdec). */
   | { kind: 'horse-trained'; penId: number; horseId: number }
   /**

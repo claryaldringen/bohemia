@@ -1,4 +1,10 @@
 import {
+  PEN_BY_SPECIES,
+  HORSE_PEN_NO_SURPLUS,
+  horsePenPayment,
+  type TradeGood,
+  type BuildCost,
+  type StockResource,
   fieldCapacity,
   BUILD_COSTS,
   isCancellable,
@@ -188,6 +194,43 @@ const BUILD_KINDS = Object.keys(BUILD_COSTS) as BuildKind[];
 export const SHRINE_LIMIT = 'Ves už svatyni má.';
 
 /**
+ * Ohrada koní (horses.md – Koně se stavbou ohrady): vyšší plot (50 člověkodní, 8 stromů) a koně
+ * zaplacení předem z přebytku vsi (hřivny, zvířata, obilí – `horsePenPayment`); nestačí-li přebytek,
+ * stavba je zablokovaná.
+ */
+function horsePenOption(
+  state: VillageState,
+  base: BuildCost,
+  stock: Record<StockResource, number>,
+  coverage: CraftCoverage,
+): NonNullable<BuildOption['variants']>[string] {
+  const upfront = { ...base.upfront, wood: PEN_BY_SPECIES.horse.trees };
+  const { affordable, missing } = affordability(stock, upfront);
+  const paid = horsePenPayment(state, state.lastDay, coverage);
+  const payment: { good: TradeGood; amount: number }[] = paid
+    ? [
+        { good: 'ironBars' as const, amount: paid.ironBarsKg },
+        { good: 'cows' as const, amount: paid.cows },
+        { good: 'foals' as const, amount: paid.horseCounts.foals ?? 0 },
+        { good: 'mares' as const, amount: paid.horseCounts.mares ?? 0 },
+        { good: 'ridingHorses' as const, amount: paid.horseCounts.ridingHorses ?? 0 },
+        { good: 'grain' as const, amount: Math.ceil(paid.grainKg) },
+        { good: 'legumes' as const, amount: Math.ceil(paid.legumesKg) },
+      ].filter((p) => p.amount > 0)
+    : [];
+  return {
+    laborManDays: PEN_BY_SPECIES.horse.laborManDays,
+    upfront: STOCK_RESOURCES.flatMap((resource) => {
+      const amount = upfront[resource] ?? 0;
+      return amount > 0 ? [{ resource, amount, missing: missing[resource] ?? 0 }] : [];
+    }),
+    affordable: affordable && paid !== null,
+    blocked: paid === null ? HORSE_PEN_NO_SURPLUS : null,
+    payment,
+  };
+}
+
+/**
  * Nabídka staveb: cena z pravidel a co z ceny předem (suroviny, dřevo, lidé k osídlení) ves nemá.
  * Dřevo = klády + dospělé stromy krajiny sídla, které jde skácet (vrstva překážek).
  */
@@ -218,6 +261,7 @@ function buildOptions(
       blocked,
       affordable: affordable && blocked === null,
     };
+    if (kind === 'pen') option.variants = { horse: horsePenOption(state, base, stock, coverage) };
     return [kind, option];
   });
   return Object.fromEntries(entries) as Record<BuildKind, BuildOption>;

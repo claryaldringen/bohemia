@@ -143,7 +143,7 @@ export function villageGoodStock(
  * Přičte (záporně ubere) zboží ve vsi v den `day` (mutuje stav). Koupené koně přidává výprava
  * po kusech (`addHorses`), tady se koně jen prodávají.
  */
-function addGood(state: VillageState, good: TradeGood, amount: number, day: number): void {
+export function addGood(state: VillageState, good: TradeGood, amount: number, day: number): void {
   if (isCattleGood(good)) {
     // dobytek do stáda a ohrad volů, prodaný z nich (cattle-trade.ts)
     if (amount > 0) addCattle(state, good, amount, day);

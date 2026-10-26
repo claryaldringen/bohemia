@@ -3,6 +3,8 @@
 
 import type { Craft } from './types-crafts';
 import type { AbandonedStructure, Crop } from './types-land';
+import type { HorseGood } from './types-trade';
+import type { TradedHorse } from './types-livestock';
 import type { DwellingPlot, DwellingType, Position } from './types-people';
 import type { RoadGrade } from './types-roads';
 
@@ -51,6 +53,20 @@ export type LandTaker =
   | 'threshing-floor';
 /** Posvátná stavba, kterou staví hráč (happiness.md). */
 export type SacredBuildingKind = 'idol' | 'shrine';
+/**
+ * Platba za koně nové ohrady koní (horses.md – Koně se stavbou ohrady): hřivny (kg), krávy, prodaní
+ * koně a obilí a luštěniny (kg) z přebytku nad pojistkou.
+ */
+export interface HorsePenPayment {
+  ironBarsKg: number;
+  cows: number;
+  /** Kolik koní kterého druhu se prodalo, a kteří to byli (vrácení při zrušení). */
+  horseCounts: Partial<Record<HorseGood, number>>;
+  horses: TradedHorse[];
+  grainKg: number;
+  legumesKg: number;
+}
+
 export interface Construction {
   id: number;
   kind: ConstructionKind;
@@ -73,6 +89,11 @@ export interface Construction {
   renewal?: true;
   /** Ohrada – stavba ohrady a rádlo pro její spřežení (oxen.md); u ostatních chybí. */
   penId?: number | null;
+  /**
+   * Čím ves zaplatila koně nové ohrady koní (horses.md – Koně se stavbou ohrady); při zrušení
+   * stavby se vrátí přesně to.
+   */
+  horsePenPaid?: HorsePenPayment;
   /**
    * Vylepšení pevné cesty (roads.md): úseky (rozdělení úseku přidá i nový) a stupeň, na který se
    * vylepšují; u ostatních staveb chybí.

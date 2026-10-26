@@ -240,6 +240,8 @@ export interface VillageState {
    * `sowingRotation`; aplikace chybu zapíše do logu (`updateVillage`).
    */
   sowingRotationFailed?: string;
+  /** Převod starších ohrad koní na koně zdarma selhal (`withHorsePenStock`) – text chyby, do logu. */
+  horsePenStockFailed?: string;
   /**
    * Stavby uložené před variantami rozměrů (population.md – Varianty rozměrů) prošly kontrolou,
    * jestli se do své varianty vejdou (`withDwellingShapes`) – nové vsi ho mají od založení.

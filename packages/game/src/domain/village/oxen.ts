@@ -12,6 +12,7 @@ import {
   PEN_PLACES_PER_SQUARE,
   PLANNING_DAY,
 } from './rules';
+import { giveHorsePenStock } from './horse-stock';
 import { builtPenSquares, oxenOf, oxTrainedDay, penSpecies } from './pens';
 import { fencedSquareEquivalents, newFenceSides, SQUARE_SIDES } from './fence-cost';
 import { copyGrid } from './square-grid';
@@ -877,6 +878,8 @@ export function finishPen(
   );
   if (extension.length === 0) {
     pen.builtDay = day;
+    // koně jsou součást stavby (horses.md – Koně se stavbou ohrady)
+    if (penSpecies(pen) === 'horse') giveHorsePenStock(state, pen, day);
     return;
   }
   for (const q of extension) delete q.constructionId;

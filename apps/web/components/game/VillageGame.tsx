@@ -800,7 +800,8 @@ export function VillageGame({
     }
     setBuildGroup(null);
     const option = options[kind];
-    if (option && !option.affordable) return;
+    const affordable = (variant && option?.variants?.[variant]?.affordable) ?? option?.affordable;
+    if (option && affordable === false) return;
     // vybraný díl pole či čtverec sadu patří své stavbě (mřížka rozšíření)
     const chosen = selected && wholeTarget(selected);
     setSelected(null);

@@ -331,6 +331,8 @@ export {
   type HorseKind,
 } from './horses';
 export { horsesOverRoom, horsesWanted } from './horse-breeding';
+export { horsePenValueKg, withHorsePenStock } from './horse-stock';
+export { HORSE_PEN_NO_SURPLUS, horsePenPayment } from './horse-pen-payment';
 // výměna lidí se sousedem – příchod lidí (`settleNewcomers`) je krok simulace a zůstává uvnitř
 export {
   NO_PEOPLE,
