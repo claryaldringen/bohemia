@@ -233,14 +233,19 @@ interface CachedField {
 const FIELDS = new Map<string, CachedField>();
 const FIELDS_KEPT = 8;
 
+/**
+ * Otisk seznamu tras pro mezipaměť pole (FNV-1a přes buňky, cesty a stálou část) – trasy se mění
+ * i beze změny otisku mapy (převážení, trasy k práci dne – paths.md, Stálé trasy, pravidlo 5).
+ */
 function fieldCheck(list: readonly StoredRoute[]): string {
-  let trips = 0;
-  let steps = 0;
+  let h = 0x811c9dc5;
+  const mix = (text: string): void => {
+    for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193);
+  };
   for (const r of list) {
-    trips += r.trips;
-    steps += r.steps.length;
+    mix(`${r.purpose}|${r.to}|${r.trips}|${r.base ?? 0}|${r.start[0]},${r.start[1]}|${r.steps};`);
   }
-  return `${list.length}/${trips}/${steps}`;
+  return `${list.length}/${(h >>> 0).toString(16)}`;
 }
 
 function buildField(list: readonly StoredRoute[], cellM: number): TrafficField {
@@ -316,6 +321,25 @@ export function wearLaborKey(target: LaborTarget): string | null {
     default:
       return `${target.kind}:${target.id}`;
   }
+}
+
+/**
+ * Práce intervalu po cílech tras (`wearLaborKey`) – setiny cest za den za `days` dní (celá čísla);
+ * stav cest ji bere jako vyšlapanost (`trafficOnRoads`, paths.md – Stálé trasy, pravidlo 5).
+ */
+export function laborTripsPerDay(
+  labor: readonly RoadLaborShare[],
+  days: number,
+): Map<string, number> {
+  const out = new Map<string, number>();
+  if (days <= 0) return out;
+  for (const share of labor) {
+    const key = wearLaborKey(share.target);
+    if (key === null) continue;
+    out.set(key, (out.get(key) ?? 0) + Math.round(share.manDays * TRIPS_PER_MAN_DAY * 100));
+  }
+  for (const [key, trips] of out) out.set(key, Math.floor(trips / days));
+  return out;
 }
 
 /** Práce intervalu po políčkách – setiny cest celkem (celá čísla), podle podílu tras cíle. */

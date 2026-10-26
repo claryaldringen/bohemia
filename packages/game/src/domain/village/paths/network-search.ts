@@ -133,8 +133,10 @@ export interface SearchState {
  *
  * Remízy (paths.md – Stálé trasy, pravidlo 3; návrh Clauda): ceny kroků po kvantech
  * (`quantizedStep`) a síla pěšiny po setinách (`trodden`), takže dvě stejně drahé trasy jsou
- * opravdu stejně drahé; ze stejně drahých předchůdců buňky vyhraje vyšší index – nezávisí na tom,
- * v jakém pořadí halda buňky vydá. Každé pevné pravidlo dá přednost jednomu směru; s nižším
+ * opravdu stejně drahé; ze stejně drahých předchůdců buňky vyhraje vyšší index. Bez odhadu
+ * (Dijkstra) to nezávisí na pořadí, v jakém halda buňky vydá – stejně drazí předchůdci mají ostře
+ * menší vzdálenost a rozbalí se dřív; s odhadem a předčasným koncem (`done`) může rodiče cíle určit
+ * i pořadí haldy – výsledek je dál deterministický. Každé pevné pravidlo dá přednost jednomu směru; s nižším
  * indexem (jako u vozů) se v testu „jedna pěšina“ trasy dvou sousedů nesejdou, s vyšším ano.
  */
 function search(
@@ -390,7 +392,10 @@ export function routeAll(
           // pro dřevo se daleko chodí méně často (s větším nákladem) – pěšina tam vznikne, až když
           // se slije; pro vodu vždy naplno
           if (group.nearCost !== undefined) {
-            group.weights[k] = w * Math.min(1, group.nearCost / Math.max(1, total));
+            const scale = Math.min(1, group.nearCost / Math.max(1, total));
+            group.weights[k] = w * scale;
+            // podíl si trasa nese – převážení bez hledání (paths.md – Stálé trasy, pravidlo 5)
+            (group.scale ??= [])[k] = scale;
           }
         }
         const trips = group.weights[k]!;

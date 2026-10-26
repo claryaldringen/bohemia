@@ -42,7 +42,10 @@ import {
   villageBuildings,
 } from './network-search';
 import { extractLines } from './network-lines';
+import { routeCells } from './routes';
 import { wearStrengths } from './wear';
+import type { StoredRoute } from '../types';
+import type { PathVillage } from './network-types';
 
 export {
   PATH_TRAFFIC,
@@ -117,7 +120,7 @@ export function computePathNetwork(input: PathNetworkInput): PathNetwork {
   // nejvytíženější skupiny první – vyšlapou kmen, ke kterému se přidají ostatní
   const groups = [
     ...errandGroups(input.annual ?? false, v, grid, homes),
-    ...tripGroups(input, grid, homes, buildings),
+    ...tripGroups(input, grid, homes, buildings).filter((g) => !input.stable || g.to !== PASTURE),
   ]
     .map((group, order) => ({ group, order, total: group.weights.reduce((a, b) => a + b, 0) }))
     .sort((a, b) => b.total - a.total || a.order - b.order)
@@ -183,6 +186,137 @@ export function computePathNetwork(input: PathNetworkInput): PathNetwork {
   };
 }
 
+// --- vrstvy tras (paths.md – Stálé trasy, pravidlo 5) -------------------------------------------
+
+/** Cíl stád na pastvu – mění se se stadii dílů, hledá se s trasami k práci dne. */
+const PASTURE = 'pasture';
+
+/** Ves pro stálé trasy – bez práce dne (cíle i váhy jen ze stálé části a lidí). */
+export function stableVillage(v: PathVillage): PathVillage {
+  return v.labor ? { ...v, labor: { ...v.labor, shares: [] } } : v;
+}
+
+/** Stálé trasy vsi (paths.md – Stálé trasy, pravidlo 5): síť bez práce dne, s trasami. */
+export function computeStableNetwork(input: PathNetworkInput): PathNetwork {
+  return computePathNetwork({
+    ...input,
+    village: stableVillage(input.village),
+    keepRoutes: true,
+    stable: true,
+  });
+}
+
+interface Layer {
+  grid: ReturnType<typeof villageGrid>;
+  homes: Household[];
+  buildings: ReturnType<typeof villageBuildings>['dwellings'];
+}
+
+function layerOf(input: PathNetworkInput): Layer {
+  const { dwellings: buildings, all: obstaclesOnly } = villageBuildings(input.village);
+  const grid = villageGrid(input, obstaclesOnly);
+  return { grid, homes: households(input.village, grid, buildings), buildings };
+}
+
+/**
+ * Trasy k práci dne nad stálými trasami (paths.md – Stálé trasy, pravidlo 5): cíle bez stálé
+ * části (kácení, seč, úprava cesty, opravy, nošení od kováře…) a pastvina se hledají jedním kolem po cenách
+ * se slevou z vyšlapanosti, pevných cest a provozu uložených stálých tras `stable` – stálé trasy
+ * nemění. Bez domácností null.
+ */
+export function computeWorkRoutes(
+  input: PathNetworkInput,
+  stable: readonly StoredRoute[],
+): Pick<PathNetwork, 'routes' | 'traffic'> | null {
+  const { grid, homes, buildings } = layerOf(input);
+  if (homes.length === 0) return null;
+  const all = grid.width * grid.height;
+  const window = {
+    originX: grid.originX,
+    originZ: grid.originZ,
+    cellM: grid.cellM,
+    width: grid.width,
+    height: grid.height,
+    values: new Float32Array(0),
+    raw: new Float32Array(0),
+  };
+  const stableTo = new Set(
+    tripGroups({ ...input, village: stableVillage(input.village) }, grid, homes, buildings).map(
+      (g) => g.to,
+    ),
+  );
+  stableTo.delete(PASTURE);
+  const groups = tripGroups(input, grid, homes, buildings)
+    .filter((g) => !stableTo.has(g.to))
+    .map((group, order) => ({ group, order, total: group.weights.reduce((a, b) => a + b, 0) }))
+    .sort((a, b) => b.total - a.total || a.order - b.order)
+    .map((g) => g.group);
+  if (groups.length === 0) return { routes: [], traffic: window };
+  // provoz stálých tras po buňkách okna (cesty za den) – sleva jako po posledním kole sítě
+  const traffic = new Float32Array(all);
+  const ci = Math.round(grid.originX / grid.cellM);
+  const cj = Math.round(grid.originZ / grid.cellM);
+  for (const route of stable) {
+    if (route.daily) continue;
+    for (const [i, j] of routeCells(route)) {
+      const x = i - ci;
+      const z = j - cj;
+      if (x < 0 || z < 0 || x >= grid.width || z >= grid.height) continue;
+      traffic[z * grid.width + x] = traffic[z * grid.width + x]! + route.trips / 100;
+    }
+  }
+  const smooth = smoothTraffic(grid, traffic);
+  const fixed = strongerOf(roadCells(grid), input.wear ? wearStrengths(grid, input.wear) : null);
+  const costs: PassCosts = {
+    base: grid.base,
+    previous: new Float32Array(all),
+    cost: new Float32Array(grid.base),
+    plain: grid.plain,
+  };
+  for (let c = 0; c < all; c++) {
+    const s = Math.max(fixed?.[c] ?? 0, pathStrength(smooth[c]!));
+    costs.previous[c] = s;
+    if (s > 0) costs.cost[c] = trodden(costs, c, s);
+  }
+  const state: SearchState = {
+    dist: new Float64Array(all),
+    stamp: new Uint32Array(all),
+    run: 0,
+    parent: new Int32Array(all),
+    heap: new PathHeap(),
+    sinks: new Uint8Array(all),
+  };
+  const records: RouteRecord[] = [];
+  routeAll(grid, costs, homes, groups, state, null, records);
+  return { routes: records.map((r) => networkRoute(r, homes)), traffic: window };
+}
+
+/**
+ * Váhy stálých tras pro převážení bez hledání (paths.md – Stálé trasy, pravidlo 5): cesty za den
+ * a stálá část po trasách `d:<obydlí>>cíl` podle dnešních lidí, stád a stáří spojení. Pochůzka
+ * s `nearCost` vrací váhu domácnosti bez podílu (podíl nese trasa – `StoredRoute.scale`).
+ */
+export function stableRouteWeights(
+  input: PathNetworkInput,
+): Map<string, { trips: number; base: number }> {
+  const { grid, homes, buildings } = layerOf(input);
+  const v = stableVillage(input.village);
+  const groups = [
+    ...errandGroups(false, v, grid, homes),
+    ...tripGroups({ ...input, village: v }, grid, homes, buildings),
+  ];
+  const out = new Map<string, { trips: number; base: number }>();
+  for (const group of groups) {
+    if (group.to === PASTURE) continue;
+    group.weights.forEach((trips, k) => {
+      const key = `d:${homes[k]!.dwellingId}>${group.to}`;
+      if (out.has(key)) return;
+      out.set(key, { trips, base: group.baseWeights?.[k] ?? 0 });
+    });
+  }
+  return out;
+}
+
 /** Trasa posledního kola pro `PathNetwork.routes` – odkud (obydlí domácnosti), kam a proč. */
 function networkRoute(record: RouteRecord, homes: readonly Household[]): NetworkRoute {
   const { group } = record;
@@ -194,6 +328,7 @@ function networkRoute(record: RouteRecord, homes: readonly Household[]): Network
     trips: record.trips,
     cells: record.cells,
     ...(base > 0 ? { base } : {}),
+    ...(group.scale?.[record.home] !== undefined ? { scale: group.scale[record.home] } : {}),
     ...(group.visit ? { visit: group.visit } : {}),
   };
 }

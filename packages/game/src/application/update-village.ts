@@ -23,6 +23,7 @@ import {
   withOxen,
   withPlots,
   withRoutes,
+  withoutWalkStages,
   withWearCells,
   withWearSeed,
   withVisitsSeed,
@@ -210,11 +211,16 @@ export async function updateVillage(
     // dřív se převedou na voly po kusech (oxen.md – Voli po kusech); ves z doby před vyšlapaností ji
     // dostane podél loňských úseků nad prahem (paths.md – Převod starých vsí, bod 3) a cesty stav kusů
     // z historie provozu (bod 2); pošlapaná úroda z doby, kdy ji vozy šlapaly, zmizí a vyšlapanost
-    // políček 7,5 m se rozdělí do buněk 3,75 m (paths.md – Stálé trasy, pravidla 1 a 4)
+    // políček 7,5 m se rozdělí do buněk 3,75 m a otisk stadií dílů zmizí (paths.md – Stálé trasy,
+    // pravidla 1, 4 a 5)
     const base = withRoadCondition(
       withVisitsSeed(
         withWearCells(
-          withWearSeed(withManor(withOxen(withBridgedRoads(withoutTrampledParts(migrated))))),
+          withWearSeed(
+            withManor(
+              withOxen(withBridgedRoads(withoutTrampledParts(withoutWalkStages(migrated)))),
+            ),
+          ),
         ),
       ),
     );

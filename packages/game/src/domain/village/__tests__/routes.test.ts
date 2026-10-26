@@ -17,9 +17,15 @@ import {
 } from '../paths/network';
 import { encodeRoute, routeCells, routeLine, routePoints, storedRoutes } from '../paths/routes';
 import { obstaclePosition, pathTerrainOf, pathWindowFor, withObstacles } from '../paths/terrain';
-import { withRoutes } from '../paths/village';
+import {
+  refreshWalkDistances,
+  routeMapKey,
+  routeTreesDay,
+  withoutWalkStages,
+  withRoutes,
+} from '../paths/village';
 import { advanceVillage } from '../simulate';
-import type { Person, VillageState } from '../types';
+import type { LaborShare, Person, StoredRoute, VillageState } from '../types';
 import { LANDSCAPE } from './paths-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
@@ -332,5 +338,104 @@ describe('trasy ve stavu vsi (refreshWalkDistances, withRoutes)', () => {
     const bare: VillageState = { ...old };
     delete bare.walkLayoutKey;
     expect(withRoutes(bare, LANDSCAPE, null)).toBe(bare);
+  }, 30_000);
+});
+
+/** Buňky tras (bez cest za den) – podle nich se pozná, jestli se trasy hledaly znovu. */
+const cellsOf = (list: readonly StoredRoute[]): string[] =>
+  list.map((r) => `${r.from}>${r.to}:${r.start.join(',')}:${r.steps}`);
+const stableOf = (list: readonly StoredRoute[]): StoredRoute[] => list.filter((r) => !r.daily);
+const JULY = dayIndexOf({ year: 600, month: 7, day: 1 });
+
+describe('trasy jen při změně mapy (paths.md – Stálé trasy, pravidlo 5)', () => {
+  it('zasetí, sklizeň a zakládání dílu klíč ani trasy nemění; 1. den v měsíci bez změny mapy také', () => {
+    const s = advanceVillage(withField(), DAY + 3, null, LANDSCAPE);
+    const routes = s.routes!;
+    const key = routeMapKey(s, DAY + 3);
+    const [a, b, c] = s.parts.filter((p) => p.cell);
+    a!.state = 'sown';
+    b!.state = 'ready';
+    c!.state = 'founding';
+    expect(routeMapKey(s, DAY + 4)).toBe(key);
+    refreshWalkDistances(s, DAY + 4, LANDSCAPE, null);
+    expect(s.routes).toBe(routes);
+    a!.state = 'fallow';
+    refreshWalkDistances(s, JULY, LANDSCAPE, null);
+    // měsíční kontrola: trasy se nehledaly (den výpočtu i buňky stejné), nanejvýš se převážily
+    expect(s.routes!.day).toBe(routes.day);
+    expect(s.routes!.key).toBe(routes.key);
+    expect(cellsOf(stableOf(s.routes!.list))).toEqual(cellsOf(stableOf(routes.list)));
+  }, 30_000);
+
+  it('umístění pole a obydlí mění klíč hned (i v půli měsíce) a trasy se hledají znovu', () => {
+    const s = advanceVillage(withField(), DAY + 3, null, LANDSCAPE);
+    const part = s.parts.find((p) => p.cell)!;
+    s.parts.push({ ...part, id: 999, cell: { x: 12, y: 8 } });
+    refreshWalkDistances(s, DAY + 4, LANDSCAPE, null);
+    expect(s.routes!.day).toBe(DAY + 4);
+    const house = s.dwellings[0]!;
+    s.dwellings.push({ ...house, id: 998, position: { x: -30, z: -55, rotation: 0 } });
+    refreshWalkDistances(s, DAY + 5, LANDSCAPE, null);
+    expect(s.routes!.day).toBe(DAY + 5);
+  }, 30_000);
+
+  it('pokácený strom se do mapy tras promítne až 1. 11.', () => {
+    const s = advanceVillage(withField(), DAY + 3, null, LANDSCAPE);
+    const august = dayIndexOf({ year: 600, month: 8, day: 10 });
+    const november = dayIndexOf({ year: 600, month: 11, day: 1 });
+    expect(routeTreesDay(august)).toBe(dayIndexOf({ year: 599, month: 11, day: 1 }));
+    expect(routeTreesDay(november)).toBe(november);
+    const key = routeMapKey(s, august);
+    s.felledTrees = [...(s.felledTrees ?? []), { id: 4242, day: august }];
+    expect(routeMapKey(s, august + 1)).toBe(key);
+    expect(routeMapKey(s, november - 1)).toBe(key);
+    expect(routeMapKey(s, november)).not.toBe(key);
+  }, 30_000);
+
+  it('narození a stáří spojení změní jen cesty za den (1. dne v měsíci), buňky tras ne', () => {
+    const s = advanceVillage(withField(), DAY + 3, null, LANDSCAPE);
+    const routes = s.routes!;
+    s.people.push({ id: 77, bornDay: DAY + 3, dwellingId: 1 });
+    // mladé spojení (váhy podle stáří obydlí) – mapa tras ani místa se nemění
+    s.dwellings[0]!.builtDay = DAY;
+    refreshWalkDistances(s, DAY + 4, LANDSCAPE, null);
+    expect(s.routes).toBe(routes);
+    refreshWalkDistances(s, JULY, LANDSCAPE, null);
+    expect(s.routes!.day).toBe(routes.day);
+    const stable = stableOf(s.routes!.list);
+    expect(cellsOf(stable)).toEqual(cellsOf(stableOf(routes.list)));
+    expect(stable.map((r) => r.trips)).not.toEqual(stableOf(routes.list).map((r) => r.trips));
+  }, 30_000);
+
+  it('trasy k práci dne jen 1. dne v měsíci se změnou míst práce; stálé trasy bit po bitu', () => {
+    const s = advanceVillage(withField(), DAY + 3, null, LANDSCAPE);
+    const routes = s.routes!;
+    const repair = {
+      activity: 'build',
+      target: { kind: 'dwelling', id: 1 },
+      manDays: 2,
+    } as unknown as LaborShare;
+    s.labor = { ...s.labor!, shares: [...s.labor!.shares, repair] };
+    // v půli měsíce se místa práce nepromítnou
+    refreshWalkDistances(s, DAY + 4, LANDSCAPE, null);
+    expect(s.routes).toBe(routes);
+    refreshWalkDistances(s, JULY, LANDSCAPE, null);
+    expect(s.routes!.workKey).not.toBe(routes.workKey);
+    expect(s.routes!.list.some((r) => r.daily && r.to === 'dwelling:1')).toBe(true);
+    expect(s.routes!.day).toBe(routes.day);
+    expect(cellsOf(stableOf(s.routes!.list))).toEqual(cellsOf(stableOf(routes.list)));
+  }, 30_000);
+
+  it('ves uložená před stálými trasami: otisk stadií zmizí, trasy se přepočítají jednou', () => {
+    const s = advanceVillage(withField(), DAY + 3, null, LANDSCAPE);
+    const old = { ...s, walkStages: '0123456789abcdef', walkLayoutKey: 'stary' } as VillageState;
+    const loaded = withoutWalkStages(old);
+    expect('walkStages' in loaded).toBe(false);
+    expect(withoutWalkStages(loaded)).toBe(loaded);
+    refreshWalkDistances(loaded, DAY + 4, LANDSCAPE, null);
+    expect(loaded.routes!.day).toBe(DAY + 4);
+    const again = loaded.routes;
+    refreshWalkDistances(loaded, DAY + 5, LANDSCAPE, null);
+    expect(loaded.routes).toBe(again);
   }, 30_000);
 });

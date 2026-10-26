@@ -102,12 +102,18 @@ const ROAD_TRAFFIC_CACHE = new WeakMap<
  * bodu (jako `roadBandCells`); každá trasa jednou.
  * Žádné sousední políčko provozního pole (to je pro vznik cest – vyšlapanost). Nic nemění.
  */
-export function trafficOnRoads(routes: readonly StoredRoute[], cellM: number): RoadTraffic {
-  const cached = ROAD_TRAFFIC_CACHE.get(routes);
+export function trafficOnRoads(
+  routes: readonly StoredRoute[],
+  cellM: number,
+  /** Práce intervalu po cílech tras (setiny cest za den – `laborTripsPerDay`). */
+  labor?: ReadonlyMap<string, number>,
+): RoadTraffic {
+  const cached = labor ? undefined : ROAD_TRAFFIC_CACHE.get(routes);
   if (cached && cached.cellM === cellM) return cached.at;
+  const trips = labor ? tripsWithLabor(routes, labor) : routes.map((r) => r.trips);
   const cells = new Map<number, number[]>();
   routes.forEach((route, k) => {
-    if (route.trips <= 0) return;
+    if (trips[k]! <= 0) return;
     for (const [i, j] of routeCells(route)) {
       const key = cellKey(i, j);
       const list = cells.get(key);
@@ -129,14 +135,36 @@ export function trafficOnRoads(routes: readonly StoredRoute[], cellM: number): R
         for (const k of list) {
           if (seen.has(k)) continue;
           seen.add(k);
-          sum += routes[k]!.trips;
+          sum += trips[k]!;
         }
       }
     }
     return sum;
   };
-  ROAD_TRAFFIC_CACHE.set(routes, { cellM, at });
+  if (!labor) ROAD_TRAFFIC_CACHE.set(routes, { cellM, at });
   return at;
+}
+
+/**
+ * Cesty za den tras s prací intervalu (paths.md – Stálé trasy, pravidlo 5): trasa za prací nese
+ * stálou část a podíl odvedené práce svého cíle podle svých cest – jako vyšlapanost (`wear.labor`),
+ * ne snímek práce dne přepočtu tras.
+ */
+function tripsWithLabor(
+  routes: readonly StoredRoute[],
+  labor: ReadonlyMap<string, number>,
+): number[] {
+  const totals = new Map<string, number>();
+  for (const r of routes) {
+    if (r.purpose === 'work') totals.set(r.to, (totals.get(r.to) ?? 0) + r.trips);
+  }
+  return routes.map((r) => {
+    if (r.purpose !== 'work') return r.trips;
+    const base = Math.min(r.trips, r.base ?? 0);
+    const total = totals.get(r.to) ?? 0;
+    const work = labor.get(r.to) ?? 0;
+    return base + (total > 0 ? Math.floor((work * r.trips) / total) : 0);
+  });
 }
 
 /** Provoz kusu osy (setiny cest za den): medián provozu po cestě (`RoadTraffic`) po MEASURE_STEP_M. */

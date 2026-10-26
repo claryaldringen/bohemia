@@ -260,7 +260,7 @@ změně stadia hledaly znovu (měření 25. 10. 2026: hledání tras vozů 67 % 
    mřížce – k témuž dílu vždy stejně.
 3. **Pevné rozhodnutí remíz.** Ceny kroků jsou celá čísla (tisíciny metru louky na krok), takže
    dvě stejně drahé trasy jsou opravdu stejně drahé; z nich vyhraje vždy ta, jejíž předchůdce má
-   nižší index buňky (u vozu buňky a směru). Trasa tak nezávisí na pořadí, v jakém hledání buňky
+   nižší index buňky (u vozu buňky a směru; v síti pěšin **vyšší** – viz Stav A2a níž). Trasa tak nezávisí na pořadí, v jakém hledání buňky
    probírá, ani na drobné změně jinde v mřížce – mezi „nejdřív dolů, pak doprava“ a obráceně
    nerozhoduje halda. Sleva z vyšlapanosti se pro výběr trasy bere po setinách síly pěšiny.
    _Stav 26. 10. 2026 (Úloha A1):_ zavedeno pro trasy vozů (kvantum 1/1024 m – dvojková tisícina,
@@ -282,8 +282,8 @@ změně stadia hledaly znovu (měření 25. 10. 2026: hledání tras vozů 67 % 
    sleva z vyšlapanosti (až 1,3×). Uložená vyšlapanost 7,5 m se jednou převede (hodnota do 4 buněk).
    _Stav 26. 10. 2026 (Úloha A2a):_ zavedeno (`WEAR.cellM` 3,75, značka `RoadWear.cellM`). Jen
    čtení má pás (návrh Clauda): čára trasy je zjednodušená a vyhlazená, její bod leží až o buňku
-   vedle buněk trasy – vyšlapanost bodu čáry (síla pěšiny, vznik cesty) je nejvyšší z buňky bodu
-   a sousedních a provoz nové cesty (`trafficAt`) se bere z pásu ± 1 buňky, každá trasa jednou.
+   vedle buněk trasy – vyšlapanost bodu čáry (síla pěšiny, a tím i rychlost chůze po čáře, vznik
+   cesty) je nejvyšší z buňky bodu a sousedních a provoz nové cesty (`trafficAt`) se bere z pásu ± 1 buňky, každá trasa jednou.
    Vlkov: 825 políček 7,5 m (4,4 kB) → po převodu 3 300 buněk (16,4 kB); se stálými trasami po
    1 500 dnech (co nevede trasou, zaroste) 350 buněk (2,2 kB).
 5. **Přepočet jen při změně mapy tras.** Trasy se hledají znovu, jen když se změní:
@@ -306,6 +306,17 @@ změně stadia hledaly znovu (měření 25. 10. 2026: hledání tras vozů 67 % 
      obilí, nošení od kováře…) se hledají až po stálých, nad nimi (se slevou z jejich provozu),
      a stálé trasy nemění. Přepočítají se se stálými a 1. dne v měsíci, jen pokud se změnila
      množina míst s prací – místa práce se mění, mapa ne. Do vzdálenosti chůze pro práci nevstupují.
+
+   _Stav 26. 10. 2026 (Úloha A2b):_ zavedeno – otisk mapy tras a míst; místa práce jen 1. dne
+   v měsíci. Návrh Clauda k tomu, co pravidlo neříká: lidé a stáda **převáží** cesty za den
+   uložených tras jednou za měsíc (1. dne, po sčtu vyšlapanosti) – stejně často jako se dosud
+   promítala stadia; **pastvina** (mladý úhor, louka po seči) se mění se stadii dílů, proto se
+   trasy na pastvu hledají s trasami k práci dne (1. dne v měsíci se změnou pastviny, nad stálými
+   trasami) – v otisku stálých tras by je stadia přepočítávala 4× za rok; stálá část cest na pole už nezávisí na stadiu (dosud
+   pole celé ladem 0,4 místo 1,6 cesty za den a zakládané pole poloviční); stav cest bere práci
+   dne z odvedené práce intervalu (`wear.labor`) jako vyšlapanost. Vlkov (rok po dnech): stálé
+   trasy se hledaly 11× → 7× (1× převod, ostatní jiná síť cest, pařezy k 1. 11., nové stavby
+   a domácnosti), trasy k práci dne a na pastvu 3×.
 
 ### Co to udělá ve hře
 

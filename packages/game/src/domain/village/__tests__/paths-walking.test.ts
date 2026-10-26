@@ -8,9 +8,9 @@ import {
   WALK_VERSION,
   refreshWalkDistances,
   villagePathNetwork,
+  routeMapKey,
+  routePlacesKey,
   walkLayoutHash,
-  walkLayoutKey,
-  walkStageKey,
 } from '../paths/village';
 import type { PathVillage } from '../paths/network';
 import {
@@ -162,61 +162,35 @@ describe('vzdálenost chůze dílů pole (refreshWalkDistances)', () => {
         distanceFactor(p.distanceM / FIELD_WALK.field),
       );
     }
-    // ve stavu jen otisky – stadia z prvního přepočtu (ráno 2. 6.); díly, které se ten den
-    // dozaložily (bez seče 1. 6. – oxen.md, Seno, dvě seče – má ves na zakládání víc práce), se do
-    // chůze promítnou až 1. dne v měsíci
-    expect(s.walkStages).toBe(walkLayoutHash(walkStageKey(withField(), DAY + 1)));
+    // ve stavu jen otisky – mapa tras a místa z prvního přepočtu (paths.md – Stálé
+    // trasy, pravidlo 5)
     expect(s.walkLayoutKey).toBe(
-      walkLayoutHash(`${walkLayoutKey(s, DAY + 1)}|${s.walkStages}|${WALK_VERSION}`),
+      walkLayoutHash(`${routeMapKey(s, DAY + 1)}|${routePlacesKey(s)}|${WALK_VERSION}`),
     );
     expect(s.walkLayoutKey).toMatch(/^[0-9a-f]{16}$/);
   });
 
-  it('stadia dílů se do chůze promítnou až 1. dne v měsíci, nový díl hned (Martin)', () => {
+  it('stadia dílů chůzi nemění ani 1. dne v měsíci, nový díl hned (paths.md – Stálé trasy)', () => {
     const s = advanceVillage(withField(), DAY + 1, null, LANDSCAPE);
     const [part, other] = s.parts.filter((p) => p.cell);
     part!.walkDistanceM = 1;
-    const stages = s.walkStages;
+    const key = s.walkLayoutKey;
     // díl se v půli měsíce oseje – vzdálenosti chůze zůstanou
     other!.state = other!.state === 'sown' ? 'ready' : 'sown';
     refreshWalkDistances(s, DAY + 2, LANDSCAPE, null);
     expect(part!.walkDistanceM).toBe(1);
-    expect(s.walkStages).toBe(stages);
-    // 1. 7. se stadia promítnou – přepočet
+    // 1. 7. – měsíční kontrola, mapa tras se nezměnila: bez přepočtu
     const july = dayIndexOf({ year: 600, month: 7, day: 1 });
     refreshWalkDistances(s, july, LANDSCAPE, null);
-    expect(part!.walkDistanceM).not.toBe(1);
-    expect(s.walkStages).not.toBe(stages);
-    // nový díl pole (strukturální změna) – přepočet hned, i v půli měsíce
-    part!.walkDistanceM = 1;
+    expect(part!.walkDistanceM).toBe(1);
+    expect(s.walkLayoutKey).toBe(key);
+    // nový díl pole (hráč umístil pole) – přepočet hned, i v půli měsíce
     refreshWalkDistances(s, july + 3, LANDSCAPE, null);
     expect(part!.walkDistanceM).toBe(1);
     s.parts.push({ ...other!, id: 999, cell: { x: 12, y: 8 } });
     refreshWalkDistances(s, july + 4, LANDSCAPE, null);
     expect(part!.walkDistanceM).not.toBe(1);
   });
-
-  it('rychlost chůze přes díl v klíči chůze je stálá – osev ani strniště ji nemění', () => {
-    // nové pole se založí, 1. 9. přijde do osevu, sklidí se a zůstane strniště
-    let s = advanceVillage(withField(), DAY + 1, null, LANDSCAPE);
-    const seen = new Set<string>();
-    const months = [
-      [600, 10],
-      [600, 12],
-      [601, 3],
-      [601, 5],
-      [601, 6],
-      [601, 8],
-      [601, 9],
-    ] as const;
-    for (const [year, month] of months) {
-      const day = dayIndexOf({ year, month, day: 1 });
-      s = advanceVillage(s, day, null, LANDSCAPE);
-      for (const speed of walkStageKey(s, day).match(/\/[0-9.]+/g) ?? []) seen.add(speed);
-    }
-    // stálá cena pole (FIELD_WALK.field – paths.md, Stálé trasy) v každém stadiu
-    expect([...seen]).toEqual(['/0.6']);
-  }, 60_000);
 
   it('otisk klíče: stejný klíč stejný otisk, drobná změna jiný', () => {
     const key = JSON.stringify([['1:zemnice:0,0,0::1:10'], [], ['5:7,3:sown']]);

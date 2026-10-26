@@ -14,7 +14,7 @@ import {
   type Entrance,
 } from '../paths/entrances';
 import { computePathNetwork, type PathNetwork, type PathVillage } from '../paths/network';
-import { pathVillageOf, walkLayoutKey } from '../paths/village';
+import { pathVillageOf, routeMapKey } from '../paths/village';
 import { advanceVillage } from '../simulate';
 import { rotationCosSin, turnRotation } from '../square-grid';
 import type { Person, VillageState } from '../types';
@@ -311,7 +311,7 @@ describe('vchody ve stavu vsi', () => {
     const v = pathVillageOf(s, DAY, LANDSCAPE);
     expect(v.cemeteries?.[0]?.built).toBe(true);
     expect(v.cemeteries?.[0]?.squares.some((q) => q.pending)).toBe(false);
-    const key = walkLayoutKey(s, DAY);
+    const key = routeMapKey(s, DAY);
     expect(key).toContain('"50:4,9"');
     const extended = structuredClone(s);
     extended.cemeteries![0]!.squares.push({
@@ -320,7 +320,7 @@ describe('vchody ve stavu vsi', () => {
       waterDistanceM: 80,
       constructionId: 99,
     });
-    expect(walkLayoutKey(extended, DAY)).toContain('"50:4,9;4,10p"');
+    expect(routeMapKey(extended, DAY)).toContain('"50:4,9;4,10p"');
     expect(pathVillageOf(extended, DAY, LANDSCAPE).cemeteries?.[0]?.squares[1]?.pending).toBe(true);
   });
 

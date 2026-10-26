@@ -92,6 +92,8 @@ export interface NetworkRoute {
   cells: number[];
   /** Stálá část `trips` (chůze na zavedené místo, ne práce dne). */
   base?: number;
+  /** Podíl cest pochůzky s `nearCost` (`TripGroup.scale`) – chybí = 1. */
+  scale?: number;
   visit?: string;
 }
 
@@ -267,6 +269,11 @@ export interface PathNetworkInput {
   /** Zapsat trasy posledního kola (`PathNetwork.routes`) – čáry ani provoz se tím nemění. */
   keepRoutes?: boolean;
   /**
+   * Jen stálé trasy (paths.md – Stálé trasy, pravidlo 5): bez pastviny – ta se mění se stadii
+   * dílů a hledá se s trasami k práci dne (`computeWorkRoutes`).
+   */
+  stable?: boolean;
+  /**
    * Vyšlapanost (`decodeWear` – wear.ts): síla pěšiny buňky nikdy neklesne pod vyšlapanost / práh
    * cesty (od viditelné), takže se trasy slévají po vyšlapaných pěšinách (paths.md – Slévání).
    * Chybí = žádná.
@@ -337,7 +344,6 @@ export const SMITH_SITE_REACH_M = 3;
 /** Zavedená místa – cest za den celé vsi navíc k práci dne (pěšina nezaroste mezi pracemi). */
 export const BASE_TRIPS = {
   field: 1.6,
-  fallow: 0.4,
   orchard: 0.8,
   site: 0.6,
   sacred: 0.6,

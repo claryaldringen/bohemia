@@ -13,6 +13,7 @@ import {
   SceneRide,
   SceneVillage,
 } from './village-view-scene-types';
+import { sceneRoutesKey } from './scene-routes';
 import {
   sceneEarthworks,
   sceneOre,
@@ -267,9 +268,17 @@ export function sceneVillage(
     ...(carts.length > 0 ? { carts } : {}),
     ...(ploughLegs ? { ploughLegs } : {}),
     ...(earthworks.length > 0 ? { earthworks } : {}),
-    ...(state.routes ? { routes: { key: state.routes.key, list: state.routes.list } } : {}),
+    ...(state.routes
+      ? { routes: { key: sceneRoutesKey(state.routes), list: state.routes.list } }
+      : {}),
     ...(state.roads?.wear
-      ? { wear: { day: state.roads.wear.day, cells: state.roads.wear.cells } }
+      ? {
+          wear: {
+            day: state.roads.wear.day,
+            ...(state.roads.wear.cellM !== undefined ? { cellM: state.roads.wear.cellM } : {}),
+            cells: state.roads.wear.cells,
+          },
+        }
       : {}),
     ...(home
       ? { home: { x: Math.round(home.x * 100) / 100, z: Math.round(home.z * 100) / 100 } }
