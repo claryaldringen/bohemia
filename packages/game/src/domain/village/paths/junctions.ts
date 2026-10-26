@@ -30,6 +30,7 @@ import {
   SIMPLIFY_M,
   axisDistance,
   cm,
+  resample,
   roadLengthM,
   MIN_ROAD_M,
 } from './roads-geometry';
@@ -42,6 +43,8 @@ const DEG = Math.PI / 180;
 const STEP = JUNCTION.rotationStepDeg * DEG;
 /** Rozdíl součtu čtverců odchylek, který je ještě shoda (rad²) – pak rozhodne menší úhel a β. */
 const TIE = 1e-9;
+/** Krok vzorků osy při měření, kolik metrů ohnutého konce leží ve stavbě či u plotu (m). */
+const FOOTPRINT_STEP_M = 1;
 
 /** Úhel v [0, 2π). */
 function normAngle(angle: number): number {
@@ -389,6 +392,12 @@ export interface JunctionRoads {
    */
   blocked?: (p: RoadPoint) => boolean;
   /**
+   * Stavba nebo plot přesně, ne po buňkách mřížky (obydlí, pozemek, dílna, ohrada, hřbitov – pruh
+   * u plotu): ohnutý konec osy přes ně nevede víc než neohnutý (`bendEnd`; paths.md – Křižovatky,
+   * Ohyb ramene).
+   */
+  footprint?: (p: RoadPoint) => boolean;
+  /**
    * Šířka pásu úseku pro rozestup křižovatek (m), jiná než podle stupně – přestavba sítě: úsek, ze
    * kterého bude vozová cesta, má šířku vozové (křižovatka s vozovým ramenem se pak už nehne).
    */
@@ -447,6 +456,7 @@ function bendEnd(
   entrance: RoadPoint,
   armDir: number,
   blocked?: (p: RoadPoint) => boolean,
+  footprint?: (p: RoadPoint) => boolean,
 ): boolean {
   const line = [...fromNode(end)].reverse();
   const gap = (p: RoadPoint): number => length2(p.x - entrance.x, p.z - entrance.z);
@@ -480,6 +490,13 @@ function bendEnd(
   if (blocked) {
     const at = (x: number, z: number): boolean => blocked({ x, z });
     if (blockedRun(after, at) > blockedRun(before, at)) return false;
+  }
+  // ani přes stavbu či plot (mřížka je hrubá – osa na kraji buňky vede domem): oblouk nesmí mít
+  // ve stavbě víc metrů než neohnutá osa (paths.md – Křižovatky, Ohyb ramene)
+  if (footprint) {
+    const inside = (points: readonly RoadPoint[]): number =>
+      resample(points, null, FOOTPRINT_STEP_M).points.filter((p) => footprint(p)).length;
+    if (inside(after) > inside(before)) return false;
   }
   end.road.points = after;
   return true;
@@ -633,7 +650,7 @@ function fitNode(
   live.forEach((end, i) => {
     const k = fit.assign[i]!;
     arms[k] = end.road.id;
-    if (!fixed[i] && bendEnd(end, center, entrances[k]!, armDirs[k]!, net.blocked)) {
+    if (!fixed[i] && bendEnd(end, center, entrances[k]!, armDirs[k]!, net.blocked, net.footprint)) {
       bent = true;
       JUNCTION_RUNS.bends++;
     }

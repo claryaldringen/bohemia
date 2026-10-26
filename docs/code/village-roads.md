@@ -249,7 +249,11 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   nemění; oblouk po 1 m se uloží zjednodušený (`simplifyPathLine`, `SIMPLIFY_M`) – body osy
   zdražují chůzi a vozy. Oblouk, který by vedl neprůchodnou plochou (`JunctionRoads.blocked` –
   `villageBlockedAt`) víc než neohnutá osa (`blockedRun` v `roads-overgrow.ts`, nejdelší běh vzorků
-  po 1 m), se nepoužije – jinak by ho měsíční kontrola opustila a vznikal by znovu (obilná jáma ve
+  po 1 m), se nepoužije, stejně jako oblouk, který má ve stavbě či u plotu víc metrů (vzorky po 1 m)
+  než neohnutá osa (`JunctionRoads.footprint` – `footprintOf` v `roads.ts`: obdélníky
+  `villageBuildings` přesně, `inBuilding`, a pruh `FENCE_CLEARANCE.axisM` u plotů `villageFences`;
+  mřížka po buňkách kraj domu nepozná – Vlkov, rameno 1060 přes dům 2137; paths.md – Křižovatky,
+  Ohyb ramene) – jinak by ho měsíční kontrola opustila a vznikal by znovu (obilná jáma ve
   Vlkově). Neohýbá se vozová cesta, stezka, cesta ve vylepšení ani úsek kratší než
   `bendM` (`isFixed` – rameno přesně v jejich směru). Beze změny (`keptJunction` – ohnuté konce
   leží přesně ve vchodech, počet ramen sedí) jen nová id úseků v `arms`; jinak `fitNode` znovu

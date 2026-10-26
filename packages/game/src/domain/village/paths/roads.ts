@@ -11,7 +11,7 @@ import { dateOfDayIndex } from '../../calendar';
 import { type Landscape, type ObstacleLayer } from '../../landscape';
 import { obstacleChangesAt, type ObstacleChanges } from '../obstacles';
 import { roadAppleStage, roadTreeLook } from '../road-trees';
-import { CART_ROADS, ROADS, WEAR } from '../rules';
+import { CART_ROADS, FENCE_CLEARANCE, ROADS, WEAR } from '../rules';
 import {
   type ChronicleEvent,
   type Construction,
@@ -64,7 +64,9 @@ import { type RoadAnchors, roadAnchors } from './road-anchors';
 import { routeLine } from './routes';
 import { pathCellM, trailTerrain } from './terrain';
 import { type FenceOutline } from './entrances';
-import { villageFences } from './fences';
+import { fenceClearance, villageFences } from './fences';
+import { inBuilding } from './network-grid';
+import { villageBuildings } from './network-search';
 import { fenceLayoutKey, pathVillageOf, settleVillageWear, villageBlockedAt } from './village';
 import { type TrafficField, addCartWear, addWearLabor, trafficField, wearMap } from './wear';
 import { villageCemeteries } from '../cemetery';
@@ -326,6 +328,7 @@ function roadsMonthRun(
       buildings,
       entrances,
       fences: fencesOf(state, landscape, day).outlines,
+      footprint: footprintOf(state, landscape, day),
       ...(width ? { width } : {}),
     },
     baseOf,
@@ -382,6 +385,7 @@ export function tidyRoadsNow(
         buildings,
         entrances,
         fences: fencesOf(state, landscape, day).outlines,
+        footprint: footprintOf(state, landscape, day),
       },
       baseOf,
       fieldOf,
@@ -431,6 +435,30 @@ function networkKey(roads: VillageRoads): number {
     for (const p of road.points) add(`${p.x},${p.z};`);
   }
   return hash;
+}
+
+/**
+ * Stavby a ploty vsi přesně, ne po buňkách mřížky (paths.md – Křižovatky, Ohyb ramene): bod
+ * v obdélníku stavby pro pěšiny (`villageBuildings` – obydlí i se šíjí nebo celým pozemkem,
+ * staveniště, milíř, modla, humno…) nebo blíž než `FENCE_CLEARANCE.axisM` k plotu hřbitova,
+ * ohrady či pozemku (i uvnitř). Spočítá se líně a jednou.
+ */
+function footprintOf(
+  state: VillageState,
+  landscape: Landscape,
+  day: number,
+): () => (x: number, z: number) => boolean {
+  let at: ((x: number, z: number) => boolean) | null = null;
+  return () => {
+    if (at) return at;
+    const village = pathVillageOf(state, day, landscape);
+    const buildings = villageBuildings(village).all;
+    const fences = villageFences(village, true).map((f) => f.outline);
+    const reach = FENCE_CLEARANCE.axisM;
+    at = (x, z) =>
+      buildings.some((b) => inBuilding(b, x, z, 0)) || fenceClearance(fences, x, z, reach) < reach;
+    return at;
+  };
 }
 
 /**
@@ -490,6 +518,8 @@ function tidyMonth(
     entrances: () => readonly RoadPoint[];
     /** Ploty vsi – osa cesty k vchodu drží odstup (`fencesOf`). */
     fences: () => readonly FenceOutline[];
+    /** Stavby a ploty přesně – ohyb ramene ke křižovatce přes ně nevede (`footprintOf`). */
+    footprint: () => (x: number, z: number) => boolean;
   },
   base: () => Omit<SpotContext, 'split'>,
   field: () => TrafficField,
@@ -518,6 +548,7 @@ function tidyMonth(
     const entrances = month.anchors.points.filter((a) => a.kind === 'entrance');
     const traffic = trafficOnRoads(routes.list, month.cellM);
     let walkable: ReturnType<typeof month.walk> | undefined;
+    let footprint: ReturnType<typeof month.footprint> | undefined;
     return updateJunctions(roads, month.day, state.seed, {
       live: (road, atStart) => liveRoadEnd(road, atStart, traffic, entrances, frozen),
       fixed: frozen,
@@ -525,6 +556,8 @@ function tidyMonth(
       anchor: (p) => nearEntrance(p, entrances),
       // nový střed křižovatky nesmí do domu, plotu ani zemních prací
       blocked: (p) => (walkable ??= month.walk())?.(p.x, p.z) ?? false,
+      // ohyb ramene ne přes stavbu ani plot (paths.md – Křižovatky, Ohyb ramene)
+      footprint: (p) => (footprint ??= month.footprint())(p.x, p.z),
       ...(month.width ? { width: month.width } : {}),
     });
   };

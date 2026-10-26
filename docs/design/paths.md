@@ -887,6 +887,20 @@ Návrh Clauda:
 - **Pěšiny dne** rozcestí-plácky nemají (dřív jemný kruh `ribbonJunctions`) – čáry tras se jen
   potkají.
 
+### Ohyb ramene ne přes stavbu (26. 10. 2026)
+
+Audit Vlkova po odstupu od plotů: rameno nové křižovatky (úsek 1060) vedlo 4,5 m krajem polozemnice
+2137. Ohyb konce do vchodu ramene hlídal jen mřížku chodců po buňkách – buňka na kraji domu se středem
+mimo dům je průchodná, osa jí vedla domem.
+
+Pravidlo (návrh Clauda – nejjednodušší správné): ohnutý konec osy nesmí mít ve stavbě nebo u plotu
+**víc metrů** (vzorky po 1 m) než neohnutá osa, jinak se konec **neohne** (osa zůstane, rameno
+křižovatky vede rovně do středu jako dosud). Stavba se měří přesně – obdélník obydlí i se šíjí
+(s pozemkem celý pozemek), staveniště, milíř, modla, humno… jako v mřížce chodců – a plot hřbitova,
+ohrady a pozemku pruhem **1 m** (`FENCE_CLEARANCE.axisM`, [Odstup od plotu](#odstup-od-plotu-26-10-2026)).
+Hledat jiný oblouk se nevyplatí: konec bez ohybu je dnešní stav cesty, takže horší být nemůže, a měsíční
+kontrola ho neopouští. Vlkov po přestavbě: přes dům 2137 nevede nic.
+
 ## Vchody
 
 Martin (19. 10. 2026): „A ještě, každá budova by měla mít nějaký vchod, od kterého cesta povede.“

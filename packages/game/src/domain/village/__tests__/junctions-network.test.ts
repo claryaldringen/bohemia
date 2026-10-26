@@ -135,6 +135,31 @@ describe('křižovatky v síti (updateJunctions)', () => {
     for (const r of roads.roads) expect(blockedRun(r.points)).toBeLessThan(5);
   });
 
+  it('ohyb ramene přes stavbu se nedělá, i když ji mřížka nepozná (Vlkov – rameno 1060 přes dům)', () => {
+    // Vlkov 26. 10. 2026: oblouk ramene vedl krajem polozemnice – buňka mřížky na kraji domu byla
+    // průchodná (střed mimo dům), přesný obdélník domu ne
+    const make = (): VillageRoads => roadsOf([arm(1, 40, 0), arm(2, -40, 0), arm(3, 0, 40)]);
+    const offLines = axisDistance(make().roads.map((r) => r.points));
+    const free = make();
+    updateJunctions(free, DAY, SEED, allLive);
+    // dům (4 × 4 m) na místě, kudy vede oblouk mimo původní osy
+    const spot = free.roads
+      .flatMap((r) => resample(r.points, null, 1).points)
+      .find((p) => offLines(p.x, p.z) > 1)!;
+    expect(spot).toBeDefined();
+    const house = (p: RoadPoint): boolean =>
+      Math.abs(p.x - spot.x) < 2 && Math.abs(p.z - spot.z) < 2 && offLines(p.x, p.z) > 0.3;
+    const inHouse = (r: Road): number =>
+      resample(r.points, null, 1).points.filter((p) => house(p)).length;
+    expect(Math.max(...free.roads.map(inHouse))).toBeGreaterThan(0);
+    const roads = make();
+    updateJunctions(roads, DAY, SEED, { ...allLive, footprint: house });
+    expect(roads.junctions).toHaveLength(1);
+    for (const r of roads.roads) expect(inHouse(r)).toBe(0);
+    // ostatní ramena se ohnou dál – přes dům nevedou
+    expect(roads.roads.some((r) => r.points.some((p) => offLines(p.x, p.z) > 0.5))).toBe(true);
+  });
+
   it('pevné rameno (vozová cesta) leží přesně ve směru cesty a osa se neohýbá', () => {
     const wagon = arm(1, 40, 6, 'wagon');
     const roads = roadsOf([wagon, arm(2, -40, 0), arm(3, 3, 40)]);
