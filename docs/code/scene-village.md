@@ -286,6 +286,16 @@ model. Buffery: pozice, normála, uv, keyA, keyB, stav instance, matice = **7** 
 Výška visícího zvířete nad zemí = výška hroty háků − výška visícího modelu (viz Mršiny).
 Kreslení rekvizit je až v `slaughter-renderer`.
 
+### Data porážky ze simulace
+
+Scéna dostává z jádra **kusy poražené dnes** jako `SceneLabor.slaughter` (`Partial<Record<HerdSpecies,
+number>>`, i zlomky kusů; bez údaje se neporáželo) – z `LaborDay.slaughterHeads`
+(`labor-report.ts`), ten z `LivestockState.slaughtered` (`{ day, heads }`, plní `noteSlaughtered`
+v `livestock.ts`: `slaughter()` – jen hned poražené, `winterSlaughterDay`, `hayShortSlaughter`,
+`emergencySlaughter`). Jen hlášení – simulace ho nečte. Dev náhled: `demoLabor` v listopadu
+(`app/dev/landscape/dev-labor.ts`) přidá `slaughter` s ukázkovými kusy. Převod zlomků na
+stanoviště je v plánu porážky (úlohy 5–6).
+
 ## Jezdci (lord-horses Úloha 11)
 
 Kdo, kdy a na kterém koni jede, určuje jádro (`lordRides` → `SceneLord.riders`, `borderTrailId`,

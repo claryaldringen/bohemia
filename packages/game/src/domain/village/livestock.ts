@@ -408,6 +408,23 @@ export function butcher(state: VillageState, kg: number): void {
   addSlaughterWork(state, kg);
 }
 
+/**
+ * Zapíše kusy poražené dnes (`LivestockState.slaughtered` – jen hlášení pro scénu, simulace ho
+ * nečte; mutuje stav). Nový den začíná znovu.
+ */
+export function noteSlaughtered(
+  state: VillageState,
+  day: number,
+  species: HerdSpecies,
+  heads: number,
+): void {
+  if (heads <= EPSILON) return;
+  const livestock = ensureLivestock(state);
+  if (livestock.slaughtered?.day !== day) livestock.slaughtered = { day, heads: {} };
+  const today = livestock.slaughtered.heads;
+  today[species] = (today[species] ?? 0) + heads;
+}
+
 /** Práce porážky `kg` masa (1 člověkoden na LIVESTOCK.slaughterKgPerManDay kg – mutuje stav). */
 function addSlaughterWork(state: VillageState, kg: number): void {
   const livestock = ensureLivestock(state);
@@ -879,6 +896,7 @@ export function winterSlaughterDay(state: VillageState, day: number): void {
       if (heads <= 0) continue;
       culling[species] -= heads;
       livestock.herds[species] -= heads;
+      noteSlaughtered(state, day, species, heads);
       kg += heads * LIVESTOCK.meatKg[species];
       left -= heads * LIVESTOCK.meatKg[species];
     }
@@ -897,6 +915,7 @@ export function winterSlaughterDay(state: VillageState, day: number): void {
   let kg = 0;
   for (const s of HERD_SPECIES) {
     livestock.herds[s] -= culling[s];
+    noteSlaughtered(state, day, s, culling[s]);
     kg += culling[s] * LIVESTOCK.meatKg[s];
   }
   delete livestock.culling;
@@ -1215,6 +1234,7 @@ export function hayShortSlaughter(
     livestock.herds[species] = Math.max(0, herd - killed);
     if (livestock.culling) livestock.culling[species] -= waiting[species];
     animals[species] = Math.round(killed * 100) / 100;
+    noteSlaughtered(state, day, species, killed);
     kg += killed * LIVESTOCK.meatKg[species];
   }
   butcher(state, kg);
@@ -1292,6 +1312,7 @@ export function slaughter(
   let fresh = 0;
   for (const species of HERD_SPECIES) {
     if (killed[species] > EPSILON) animals[species] = Math.round(killed[species] * 100) / 100;
+    noteSlaughtered(state, day, species, killed[species] - wait[species]);
     smoked += (killed[species] - wait[species]) * LIVESTOCK.meatKg[species];
     fresh += wait[species] * LIVESTOCK.meatKg[species];
     herds[species] = keep[species] + wait[species];

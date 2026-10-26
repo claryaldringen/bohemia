@@ -442,3 +442,11 @@ Návrh: `docs/design/horses.md` – Kování. Čísla: `HORSE_SHOEING` v `rules-
 - Známá drobnost: `lordRides` se pro scénu vyhodnocuje před `work()`, takže v den termínu scéna jezdce neukáže, i když ho kovář týž den okuje (od druhého dne jezdí).
 - Scéna: koně kuje muž z domácnosti kovárny (`shareWorker` v `villager-plan.ts`, kovář a synové, záložně starší chlapec; `horse-shoeing` je v `CRAFT_ACTIVITIES`, `WOMEN['horse-shoeing'] = 0`); bez kováře ve vsi (cizí kovář) jde libovolný dospělý muž.
 - Web: `horse-view.ts` (`shoeing`), blok koní v `selection/fields.tsx`, upozornění `horses-unshod` a kronika `horses-shod` v `village-notices.ts`; činnost `horse-shoeing` ve scéně jako `horse-care` (cíl ohrada).
+
+## Kusy poražené dnes (hlášení pro scénu)
+
+`LivestockState.slaughtered?: { day, heads }` – kolik kusů kterého druhu (i zlomky) se dnes
+porazilo; zapisuje `noteSlaughtered` (`livestock.ts`) při porážce 1. 11. (jen hned poražené, ne
+čekající na zimu), v zimní porážce po dnech i zbytku 31. 3., při porážce pro seno a při nouzové
+porážce. Nový den přepíše starý. `laborDay` z něj dělá `LaborDay.slaughterHeads`, scéna
+`SceneLabor.slaughter`. Simulace ho nečte (nemění stav ani determinismus).

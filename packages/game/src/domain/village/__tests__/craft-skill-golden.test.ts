@@ -104,6 +104,8 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
       'dynasty',
       // značka převodu na osevní postup (fields.md – Osevní postup po dílech, bod 7)
       'sowingRotation',
+      // kusy poražené dnes (hlášení pro scénu – LivestockState.slaughtered) – simulace je nečte
+      'slaughtered',
       // věk zemřelého v události úmrtí (happiness.md – Co ubírá) – jen zápis do kroniky
       'age', // hash 3bd10c3d: úmrtí podle věku mění štěstí (a tím práci), jinak shodné s f0150b51
       // hash f78f3f13 (25. 10. 2026): porody brzdí jen energie, ne pestrost – víc porodů

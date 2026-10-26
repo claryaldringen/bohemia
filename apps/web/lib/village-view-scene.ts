@@ -303,7 +303,7 @@ function sceneThreshingFloors(
 }
 
 /** Rozdělení práce posledního dne pro postavy – člověkodny na setiny (drobné podíly 0,01). */
-function sceneLabor(state: VillageState, people: SceneLabor['people']): SceneLabor | null {
+export function sceneLabor(state: VillageState, people: SceneLabor['people']): SceneLabor | null {
   const labor = laborReport(state);
   if (!labor) return null;
   // na setiny, ale nic, co dnes práci dostalo, nezmizí – i drobná práce na stavbě je stavba,
@@ -327,6 +327,7 @@ function sceneLabor(state: VillageState, people: SceneLabor['people']): SceneLab
     people,
     shares,
     ...(labor.herders ? { herders: { ...labor.herders } } : {}),
+    ...(labor.slaughterHeads ? { slaughter: { ...labor.slaughterHeads } } : {}),
     ...(homes.length > 0 ? { homes } : {}),
     ...(persons.length > 0 ? { persons } : {}),
     ...(lord ? { lord } : {}),

@@ -85,6 +85,9 @@ export function demoLabor(
       add({ activity: 'cemetery', target: { kind: 'cemetery', id: cemetery.id }, manDays: 2 });
     }
   }
+  // listopad = porážka (diet.md – Porážka): ukázkové kusy dne pro stanoviště porážky ve scéně
+  const slaughter = month === 11 ? { pig: 1.4, sheep: 0.8, goat: 0.3, cow: 0.4 } : null;
+  if (slaughter) add({ activity: 'slaughter', target: atVillage, manDays: 4 });
   add({ activity: 'idle', target: atVillage, manDays: 1.5 });
   // pasáci (diet.md – Pasáci): dítě z každé domácnosti – stáda bez pasáka stojí u domů
   return {
@@ -93,6 +96,7 @@ export function demoLabor(
     people,
     shares,
     herders: { children: homes },
+    ...(slaughter ? { slaughter } : {}),
     homes: built.map((d) => ({ id: d.id, people: PEOPLE_PER_HOME })),
     persons: demoPersons(built),
   };

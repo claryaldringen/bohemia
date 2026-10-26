@@ -538,4 +538,9 @@ export interface LaborDay {
    * jako ostatní (i dřívější rozdělení).
    */
   lord?: { training: number; field: number; household: number };
+  /**
+   * Kusy poražené dnes (zimní den, 1. 11., nouzová porážka, porážka pro seno; i zlomky kusů) –
+   * jen hlášení pro scénu (porážka ve scéně), simulace ho nečte. Chybí, když se dnes neporáželo.
+   */
+  slaughterHeads?: Partial<Record<HerdSpecies, number>>;
 }
