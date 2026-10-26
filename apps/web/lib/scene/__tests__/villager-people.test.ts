@@ -724,6 +724,43 @@ describe('vojvodova rodina na dvorku (lord.md – Ve scéně)', () => {
     expect(pose(wife, hour(23)).hidden).toBe(true);
   });
 
+  it('vedlejší manželka (lord.md – Manželky): vojvoda večer jde k jejímu domu, přes noc tam je, ráno se vrací', () => {
+    const v = manorVillage();
+    v.labor!.lord!.visit = { lordId: 101, home: 2 };
+    const people = plan(v);
+    const lord = people.find((p) => p.person === 101)!;
+    const boy = people.find((p) => p.person === 103)!;
+    const dist = (x: number, z: number): number => Math.hypot(x - 20, z);
+    // výcvik se nemění (8:15 luk na dvorku), poledne a odpoledne stojí u dvorku
+    expect(pose(lord, hour(8.25)).stage).toBe('bow');
+    expect(onManor(pose(lord, hour(12)).x, pose(lord, hour(12)).z)).toBe(true);
+    // 19–20 h jde po cestě od dvorku k domu 2 (na pozemku dvorce začíná, u domu 2 končí)
+    const start = pose(lord, hour(19.01));
+    const mid = pose(lord, hour(19.5));
+    const end = pose(lord, hour(19.99));
+    expect(mid.hidden).toBe(false);
+    expect(mid.clip).toBe('walk');
+    expect(dist(mid.x, mid.z)).toBeLessThan(dist(start.x, start.z));
+    expect(dist(end.x, end.z)).toBeLessThan(dist(mid.x, mid.z));
+    expect(dist(end.x, end.z)).toBeLessThan(6);
+    // v noci v domě manželky (skrytý), ráno 7–8 h jde zpět a od 8 h cvičí
+    for (const h of [21, 2, 6.5]) expect(pose(lord, hour(h)).hidden).toBe(true);
+    const back = pose(lord, hour(7.5));
+    expect(back.hidden).toBe(false);
+    expect(back.clip).toBe('walk');
+    expect(dist(back.x, back.z)).toBeGreaterThan(dist(end.x, end.z));
+    // ostatní se nemění – chlapec je večer skrytý jako dřív
+    expect(pose(boy, hour(19.5)).hidden).toBe(true);
+  });
+
+  it('bez vedlejších manželek (bez `visit`) vojvoda večer nechodí – skrytý od 19 h jako dřív', () => {
+    const lord = plan(manorVillage()).find((p) => p.person === 101)!;
+    expect(pose(lord, hour(19.5)).hidden).toBe(true);
+    const morning = pose(lord, hour(7.5));
+    expect(onManor(morning.x, morning.z)).toBe(true);
+    expect(morning.clip).toBe('idle');
+  });
+
   it('žena rodiny dělá domácí práce – celý den nestojí na místě, z pozemku nevychází', () => {
     const wife = plan(manorVillage()).find((p) => p.person === 102)!;
     const clips = new Set<string>();

@@ -858,6 +858,11 @@ export interface SceneLord {
   /** Ženy rodiny u dvorce (id). */
   household: number[];
   /**
+   * Večerní návštěva vedlejší manželky (lord.md – Rod vojvody, Manželky; jen vzhled): vojvoda (id)
+   * jde po výcviku k obydlí manželky `home` a ráno se vrátí. Jen když vojvoda dnes cvičí.
+   */
+  visit?: { lordId: number; home: number };
+  /**
    * Jezdci dne (horses.md – Kdy a kam se jezdí, dokud není lov; z jádra `lordRides`): kdo jede, na
    * kterém koni (id), výcvik koně a hodiny jízdy dne; vojvoda první. Jen cvičící (ne na poli). Bez
    * údaje se dnes nejezdí – koně stojí v ohradě.

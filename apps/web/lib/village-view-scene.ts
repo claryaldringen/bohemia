@@ -345,6 +345,19 @@ export function sceneLabor(state: VillageState, people: SceneLabor['people']): S
 }
 
 /**
+ * Kterou vedlejší manželku mimo dvorec vojvoda dnes večer navštíví (lord.md – Rod vojvody,
+ * Manželky; jen vzhled): střídají se po dnech podle id, `day % počet`. Bez nich nikoho.
+ */
+export function visitedWife<W extends { id: number; dwellingId: number }>(
+  wives: readonly W[],
+  manor: number,
+  day: number,
+): W | undefined {
+  const apart = wives.filter((w) => w.dwellingId !== manor).sort((a, b) => a.id - b.id);
+  return apart.length > 0 ? apart[day % apart.length] : undefined;
+}
+
+/**
  * Vojvodova rodina dne pro scénu (lord.md – Ve scéně): z cvičící rodiny (`trainingFamily`) a počtů
  * dne (`LaborDay.lord`). Na poli jsou napřed nejmladší dospělí muži a ženy rodiny (jádro dává jen počty
  * `lordDayCounts`, jména volí scéna), chlapci cvičí vždy; ostatní cvičí hodiny podle věku (`trainingHours`; jezdí
@@ -382,7 +395,13 @@ function sceneLord(state: VillageState, counts: LaborDay['lord'], day: number): 
   });
   const riding = (rides?.riders ?? []).filter((r) => !men.has(r.riderId)).map(scene);
   const escort = rides?.escort && !men.has(rides.escort.riderId) ? rides.escort : null;
+  // vedlejší manželky mimo dvorec se střídají po dnech (podle id, `day % počet`) – jen vzhled
+  const wife = visitedWife(family.wivesApart, home, day);
+  const lordId = family.lord?.id;
+  const visits =
+    wife && lordId !== undefined && family.trainees.some((p) => p.id === lordId && !men.has(p.id));
   return {
+    ...(visits && wife && lordId !== undefined ? { visit: { lordId, home: wife.dwellingId } } : {}),
     ...(riding.length > 0 ? { riders: riding } : {}),
     ...(riding.length > 0 && rides?.trailId != null ? { borderTrailId: rides.trailId } : {}),
     ...(escort
