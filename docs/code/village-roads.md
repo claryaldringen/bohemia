@@ -939,6 +939,7 @@ studeným startem každý den; `cart-memo.test.ts`).
   | po B2a (rychlejší hledání vozu)       | 30,4–30,7 s | 34,7–34,8 s | otisk `a92138125afb`                                                             |
   | po B2b, s kováním koní, 26. 10.       | 31,5–33,0 s | 36,0–37,9 s | zátěž 6,5; otisk `08dd07c6c8fe`; 31 dní 5,7 s, 1 095 dní 91 s (≈ 83 ms/den)      |
   | po C1 (cena A*, voda, chůze), 26. 10. | 26,1–27,6 s | 30,5–32,0 s | zátěž 11–58, střídavě s B3 (tam 36,4–39,5 s, CPU 40,5–40,6 s); otisky beze změny |
+  | po C2 (paměť chůze rovně), 27. 10.    | 22,0 s      | 27,1–27,2 s | se zvěří a klučením, zátěž 8–23, střídavě s C1 (29,0–29,4 s, CPU 33,9–34,4 s)    |
 
   Otisk stavu po 31 / 365 dnech vcelku i po dnech se studeným startem (`forgetCartRoutes` před
   každým dnem) je shodný (`66553dbed171` / `08dd07c6c8fe`); po 1 095 dnech vcelku `d765fb2240fd`.
@@ -987,3 +988,39 @@ studeným startem každý den; `cart-memo.test.ts`).
   beze změny. Zbývá (profil roku): přepočet chůze 46 % (`walkingDistances` 21 %, z toho
   `groundWalkLength` 16 %; síť pěšin 8 %), mřížka vozu 9 % (při orbě nový klíč s každým zoraným
   blokem – díl přestane být zarostlý), hledání tras vozu 11 % (dosah svozu – stovky cílů).
+- **Paměť chůze rovně po úsečkách** (C2, `WalkMemo` v `paths/walking.ts`): přepočet chůze vsi
+  (`refreshWalkDistances` – díly a sady, palivo, voda) volá `walkingDistances` s pamětí krajiny
+  (`walkMemoOf`). Chůze rovně bez pěšiny se pamatuje podle krajních bodů úsečky (přesná čísla
+  v otevřené tabulce, ne řetězce). Délka závisí jen na buňkách půdy v obdélníku kolem úsečky
+  (krajní buňky ± 2 – kroky i obdélníky kusů leží uvnitř), proto záznam platí, dokud se tam žádná
+  buňka nezmění. Paměť drží buňky půdy poslední generace: nová půda se stejným obsahem (nový objekt
+  každým přepočtem) generaci nemění; jiné buňky (díl přibyl, zmizel, zarostl, zoral se) založí
+  další generaci se součty změněných buněk po obdélnících (jako švy) – záznam předchozí generace
+  se ověří jedním součtem obdélníku, jinak se spočítá znovu, starší záznamy vypadnou. Meze:
+  tabulka nejvýš 2¹⁸ míst (≈ 11,5 MB, zaplní se nejvýš ze ¾ – nad mez se nezapisuje), paměť nejvýš
+  pro 2 krajiny (`WeakRef`, nejstarší vypadne – server drží v mezipaměti až 32 krajin);
+  `forgetWalkMemo(landscape)` – studený start. Jen zrychlení, bit po bitu tytéž délky:
+  `walk-memo.test.ts` (30 náhodných map se sledem půd – stejná, málo a hodně změněná, bez polí;
+  přepočet vsi s přidanými a odebranými díly teplou pamětí = studený start před každým
+  přepočtem; test selže, když se změny buněk neověřují). Rozbor roku Vlkova
+  (`scratchpad/diag-c2/`): 11 přepočtů mapy tras za rok (≈ 3 570 cílů, 1 218 uzlů sítě,
+  10 obydlí), 2,13 mil. délek rovně přes paměť (258 tis. různých úseček); z paměti 81,5 % (46 %
+  tatáž generace, 35,6 % ověřeno proti změnám), 7 % změněno, 11,5 % nových; půda se změnila jen
+  v 5 z 10 přepnutí. `groundWalkLength` 4,1 s → 0,75 s, `walkingDistances` 4,9 s → 2,3 s.
+- **Naměřeno C2** (Vlkov `diag-stable/vlkov.json`, den 116 771, rok vcelku, `diag-b3/cpu.mts`,
+  střídavě před / po 2× při zátěži 8–23; od C1 přibyla divoká zvěř a klučení lesa – otisk proto
+  jiný než u C1): stěna 29,0–29,4 s → 22,0 s, CPU 33,9–34,4 s → 27,1–27,2 s (≈ −20 % CPU). Otisk
+  po 31 / 365 dnech vcelku `3ed8a413850e` / `ebd291dad162`, po dnech se studeným startem
+  (`forgetCartRoutes` i `forgetWalkMemo` před každým dnem) po 365 dnech `ebd291dad162` – před
+  i po stejný. Zbývá (profil roku, 22,6 s): přepočet chůze 38,5 % – síť pěšin
+  (`villagePathNetwork`) 9,3 %, `walkingDistances` 9,3 % (dolní meze přes všechny uzly sítě pro
+  každý cíl; omezení na uzly blíž než rovně z obydlí ušetřilo jen 0,2 s – nezařazeno), trasy
+  k práci (`routesOf`) 6 %, klíč mapy tras každý den (`routeMapKey`) 2,8 %; `work` 30 % – mřížka
+  vozu ≈ 10 % (při orbě nový klíč s každým zoraným blokem – inkrementální mřížka by musela
+  hlídat překryvy polí a přepsání pozdějšími vrstvami), ceny přesunů spřežení 11 %.
+- **Klučení a mapa tras** (rozbor C2): klíč mapy tras bere počet `clearedObstacles` bez dne
+  (`routeTreesKey`), proto se mapa tras přepočítá každý den, kdy dohoří díl klučení – na rozdíl
+  od pokácených stromů, které jdou do mapy až k 1. 11. S pamětí chůze takový přepočet stojí
+  odhadem ≈ 0,5 s místo ≈ 0,9 s (půda chůze se klučením nemění – úsečky z paměti); zbývá síť
+  pěšin a trasy. Brát vyklučené překážky do mapy až k 1. 11. by změnilo chování (pěšiny přes
+  vyklučené místo až po 1. 11.) – jen návrh Clauda k rozhodnutí, ne zrychlení.

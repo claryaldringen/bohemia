@@ -272,6 +272,218 @@ function walkCellsOf(ground: WalkGround): WalkCells {
   return cells;
 }
 
+/**
+ * Paměť chůze rovně po úsečkách (`walkingDistances` s `memo` – přepočet chůze vsi, docs/code/
+ * village-roads.md – Trasy v paměti): délka chůze rovně bez pěšiny (`groundWalkLength`) podle
+ * krajních bodů úsečky. Délka závisí jen na buňkách půdy v obdélníku kolem úsečky (s rezervou
+ * dvou buněk – `unchangedAround`), proto záznam platí, dokud se v obdélníku žádná buňka nezmění.
+ * Paměť drží buňky půdy poslední generace; půda s jinými buňkami (díl přibyl, zmizel, zarostl,
+ * zoral se) založí další generaci se součty změněných buněk po obdélnících, záznamy předchozí
+ * generace se ověří proti nim (jinak se spočítají znovu) a starší vypadnou. Jen zrychlení – bit
+ * po bitu tytéž délky jako `groundWalkLength`.
+ */
+export interface WalkMemo {
+  terrain: PathTerrain | null;
+  cells: WalkCells | null;
+  /** Generace buněk `cells`; záznamy nesou generaci, ve které naposledy platily (0 = volno). */
+  gen: number;
+  /** Součty buněk změněných mezi generacemi `gen - 1` a `gen` po obdélnících (jako švy). */
+  changed: Int32Array | null;
+  /** Krajní body úseček po čtveřicích (a.x, a.z, b.x, b.z) v otevřené tabulce. */
+  keys: Float64Array;
+  values: Float64Array;
+  gens: Int32Array;
+  size: number;
+}
+
+/**
+ * Míst tabulky paměti chůze na začátku a nejvýš (zaplní se nejvýš ze tří čtvrtin – nad mez se
+ * úsečky už nezapisují): nejvýš ≈ 11,5 MB tabulky na krajinu, paměť drží nejvýš `MEMO_LANDSCAPES`
+ * krajin (nejstarší vypadne) – server má v mezipaměti víc krajin (apps/web, `cachedLandscapes`).
+ */
+const MEMO_MIN_SLOTS = 1 << 16;
+const MEMO_MAX_SLOTS = 1 << 18;
+const MEMO_LANDSCAPES = 2;
+const walkMemos = new WeakMap<Landscape, WalkMemo>();
+const memoLandscapes: WeakRef<Landscape>[] = [];
+
+/** Paměť chůze rovně pro přepočet chůze vsi v krajině `landscape` (po krajině). */
+export function walkMemoOf(landscape: Landscape): WalkMemo {
+  let memo = walkMemos.get(landscape);
+  if (!memo) {
+    memoLandscapes.push(new WeakRef(landscape));
+    while (memoLandscapes.length > MEMO_LANDSCAPES) {
+      const oldest = memoLandscapes.shift()!.deref();
+      if (oldest) walkMemos.delete(oldest);
+    }
+    memo = {
+      terrain: null,
+      cells: null,
+      gen: 0,
+      changed: null,
+      keys: new Float64Array(MEMO_MIN_SLOTS * 4),
+      values: new Float64Array(MEMO_MIN_SLOTS),
+      gens: new Int32Array(MEMO_MIN_SLOTS),
+      size: 0,
+    };
+    walkMemos.set(landscape, memo);
+  }
+  return memo;
+}
+
+/** Zapomene paměť chůze krajiny (studený start v testech a měření). */
+export function forgetWalkMemo(landscape: Landscape): void {
+  walkMemos.delete(landscape);
+  const at = memoLandscapes.findIndex((r) => r.deref() === landscape);
+  if (at >= 0) memoLandscapes.splice(at, 1);
+}
+
+const memoBits = new Float64Array(4);
+const memoWords = new Uint32Array(memoBits.buffer);
+
+/** Místo úsečky v tabulce – rozptýlené bity čtyř souřadnic (jen pořadí hledání, ne výsledek). */
+function memoHash(ax: number, az: number, bx: number, bz: number): number {
+  memoBits[0] = ax;
+  memoBits[1] = az;
+  memoBits[2] = bx;
+  memoBits[3] = bz;
+  let h = 0x9747b28c;
+  for (let q = 0; q < 8; q++) {
+    h = Math.imul(h ^ memoWords[q]!, 0x85ebca6b);
+    h ^= h >>> 13;
+  }
+  return h >>> 0;
+}
+
+/** Tabulka paměti o `slots` místech se záznamy, které `keep` ponechá (přehashuje je). */
+function rebuildMemo(memo: WalkMemo, slots: number, keep: (gen: number) => boolean): void {
+  const { keys, values, gens } = memo;
+  memo.keys = new Float64Array(slots * 4);
+  memo.values = new Float64Array(slots);
+  memo.gens = new Int32Array(slots);
+  memo.size = 0;
+  for (let s = 0; s < gens.length; s++) {
+    const g = gens[s]!;
+    if (g === 0 || !keep(g)) continue;
+    const k = s * 4;
+    memoInsert(memo, keys[k]!, keys[k + 1]!, keys[k + 2]!, keys[k + 3]!, values[s]!, g);
+  }
+}
+
+/** Zapíše úsečku do volného místa (úsečka v tabulce není); plná tabulka nad mezí nic nezapíše. */
+function memoInsert(
+  memo: WalkMemo,
+  ax: number,
+  az: number,
+  bx: number,
+  bz: number,
+  value: number,
+  gen: number,
+): void {
+  if ((memo.size + 1) * 4 > memo.gens.length * 3) {
+    if (memo.gens.length >= MEMO_MAX_SLOTS) return;
+    rebuildMemo(memo, memo.gens.length * 2, () => true);
+  }
+  const mask = memo.gens.length - 1;
+  let slot = memoHash(ax, az, bx, bz) & mask;
+  while (memo.gens[slot] !== 0) slot = (slot + 1) & mask;
+  const k = slot * 4;
+  memo.keys[k] = ax;
+  memo.keys[k + 1] = az;
+  memo.keys[k + 2] = bx;
+  memo.keys[k + 3] = bz;
+  memo.values[slot] = value;
+  memo.gens[slot] = gen;
+  memo.size++;
+}
+
+/**
+ * Přepne paměť na buňky půdy `ground`: tytéž buňky (i jiný objekt se stejným obsahem) generaci
+ * nemění; jiné založí další generaci se součty změněných buněk a ponechají jen záznamy dosavadní
+ * generace (ověří se proti změnám). Jiný terén paměť vyprázdní.
+ */
+function syncWalkMemo(memo: WalkMemo, ground: WalkGround): void {
+  const cells = walkCellsOf(ground);
+  if (memo.cells === cells) return;
+  const t = ground.terrain;
+  const prev = memo.cells;
+  memo.cells = cells;
+  if (!prev || memo.terrain !== t) {
+    memo.terrain = t;
+    memo.gen++;
+    memo.changed = null;
+    rebuildMemo(memo, MEMO_MIN_SLOTS, () => false);
+    return;
+  }
+  const w = t.width;
+  const h = t.height;
+  const sums = new Int32Array((w + 1) * (h + 1));
+  let any = false;
+  for (let j = 0; j < h; j++) {
+    let line = 0;
+    for (let i = 0; i < w; i++) {
+      const c = j * w + i;
+      if (prev.speed[c] !== cells.speed[c] || prev.mask[c] !== cells.mask[c]) {
+        line++;
+        any = true;
+      }
+      const at = (j + 1) * (w + 1) + i + 1;
+      sums[at] = sums[at - (w + 1)]! + line;
+    }
+  }
+  if (!any) return;
+  const old = memo.gen;
+  memo.gen++;
+  memo.changed = sums;
+  rebuildMemo(memo, memo.gens.length, (g) => g === old);
+}
+
+/**
+ * Žádná buňka v obdélníku kolem úsečky `a`–`b` (krajní buňky ± 2, oříznuto na mřížku) se mezi
+ * generacemi nezměnila. Kroky úsečky i obdélníky kusů v `groundWalkLength` (krajní kroky ± 1)
+ * leží uvnitř – délka chůze je tedy táž.
+ */
+function unchangedAround(changed: Int32Array, t: PathTerrain, a: PathPoint, b: PathPoint): boolean {
+  const ai = (a.x - t.originX) / t.cellM;
+  const bi = (b.x - t.originX) / t.cellM;
+  const aj = (a.z - t.originZ) / t.cellM;
+  const bj = (b.z - t.originZ) / t.cellM;
+  const i0 = Math.max(0, Math.floor(Math.min(ai, bi)) - 2);
+  const i1 = Math.min(t.width - 1, Math.ceil(Math.max(ai, bi)) + 2);
+  const j0 = Math.max(0, Math.floor(Math.min(aj, bj)) - 2);
+  const j1 = Math.min(t.height - 1, Math.ceil(Math.max(aj, bj)) + 2);
+  return rectSum(changed, t.width, i0, i1, j0, j1) === 0;
+}
+
+/** `groundWalkLength(ground, a, b)` (bez pěšiny) přes paměť `memo` přepnutou na `ground`. */
+function memoWalkLength(memo: WalkMemo, ground: WalkGround, a: PathPoint, b: PathPoint): number {
+  const { keys, gens } = memo;
+  const mask = gens.length - 1;
+  let slot = memoHash(a.x, a.z, b.x, b.z) & mask;
+  for (let g = gens[slot]!; g !== 0; g = gens[slot]!) {
+    const k = slot * 4;
+    if (keys[k] === a.x && keys[k + 1] === a.z && keys[k + 2] === b.x && keys[k + 3] === b.z) {
+      if (
+        g === memo.gen ||
+        (g === memo.gen - 1 &&
+          memo.changed !== null &&
+          unchangedAround(memo.changed, ground.terrain, a, b))
+      ) {
+        gens[slot] = memo.gen;
+        return memo.values[slot]!;
+      }
+      const value = groundWalkLength(ground, a, b);
+      memo.values[slot] = value;
+      gens[slot] = memo.gen;
+      return value;
+    }
+    slot = (slot + 1) & mask;
+  }
+  const value = groundWalkLength(ground, a, b);
+  memoInsert(memo, a.x, a.z, b.x, b.z, value, memo.gen);
+  return value;
+}
+
 /** Délka chůze úsekem pěšiny se silou `strength` 0–1 (m) – po pěšině se jde rychleji. */
 export function pathWalkLength(length: number, strength: number): number {
   return length * pathCostFactor(strength);
@@ -392,20 +604,27 @@ export function walkGraph(
 /**
  * Vzdálenost chůze (m) z nejbližšího výchozího bodu (obydlí) ke každému cíli: rovně, nebo
  * k pěšině či cestě, po ní a od ní k cíli – kratší z obou. Rovně podle půdy (`ground` – mokřina,
- * voda), bez ní délka úsečky. Bez výchozích bodů Infinity.
+ * voda), bez ní délka úsečky; s pamětí `memo` (`walkMemoOf`) se délky rovně berou z paměti – tytéž.
+ * Bez výchozích bodů Infinity.
  */
 export function walkingDistances(
   graph: WalkGraph,
   origins: readonly PathPoint[],
   targets: readonly PathPoint[],
   ground: WalkGround | null = null,
+  memo: WalkMemo | null = null,
 ): number[] {
   if (targets.length === 0) return [];
   const n = graph.x.length;
   const dist = new Float64Array(n).fill(Infinity);
   const heap = new PathHeap();
+  if (ground && memo) syncWalkMemo(memo, ground);
   const straight = (a: PathPoint, x: number, z: number): number =>
-    ground ? groundWalkLength(ground, a, { x, z }) : length2(x - a.x, z - a.z);
+    ground
+      ? memo
+        ? memoWalkLength(memo, ground, a, { x, z })
+        : groundWalkLength(ground, a, { x, z })
+      : length2(x - a.x, z - a.z);
   const bound = new Float64Array(Math.max(n, origins.length));
   /**
    * Nejmenší z `start` a `exact(k)` – rovně je vždy aspoň délka úsečky (rychlosti nejvýš louka),

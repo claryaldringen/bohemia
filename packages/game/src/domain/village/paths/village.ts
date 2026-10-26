@@ -64,6 +64,7 @@ import {
   walkGraph,
   walkGroundOf,
   walkingDistances,
+  walkMemoOf,
   waterWalkDistance,
   withFieldWalk,
   type Walk,
@@ -1034,7 +1035,9 @@ export function refreshWalkDistances(
     ...parts.map((p) => squareCenter(landscape, grids.get(p.fieldId), p.cell!)),
     ...orchards.flatMap((o) => o.squares.map((s) => squareCenter(landscape, o.grid, s.cell))),
   ];
-  const walks = targets.length > 0 ? walkingDistances(graph, origins, targets, ground) : [];
+  // délky rovně z paměti krajiny – úsečky se mezi přepočty opakují (Trasy v paměti)
+  const memo = walkMemoOf(landscape);
+  const walks = targets.length > 0 ? walkingDistances(graph, origins, targets, ground, memo) : [];
   parts.forEach((p, k) => {
     p.walkDistanceM = rounded(walks[k]!);
   });
@@ -1043,7 +1046,7 @@ export function refreshWalkDistances(
   });
   // palivo: z každého obydlí k nejbližšímu okraji lesa (vzdušnou čarou) chůzí; voda: k nejbližší
   // vodě (paths.md – Pochůzky pro vodu) – přirážka denního minima (population.md – Práce)
-  const walk: Walk = (from, to) => walkingDistances(graph, [from], to, ground);
+  const walk: Walk = (from, to) => walkingDistances(graph, [from], to, ground, memo);
   const edges = groundSpots(ground, PATH_FOREST_EDGE);
   for (const d of state.dwellings) {
     const edge = nearestSpot(edges, d.position);
