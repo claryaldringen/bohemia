@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { createRandom, type Random } from '../../landscape/random';
 import { CART_ROUTES, CART_SPEED } from '../rules';
-import { cartRoutesOn, type CartGrid, type CartRoute, type CartTarget } from '../paths/cart';
+import {
+  cartCostOn,
+  cartRoutesOn,
+  type CartGrid,
+  type CartRoute,
+  type CartTarget,
+} from '../paths/cart';
 import type { PathPoint } from '../paths/network';
 import type { CartKind } from '../types';
 import { referenceCartRoutesOn } from './fixtures/cart-routes-reference';
@@ -191,5 +197,87 @@ describe('cartRoutesOn – rychlé hledání', () => {
     });
     expect(routes[0]!.reached).toBe(true);
     expect(routes[1]!.reached).toBe(false);
+  });
+});
+
+describe('cartCostOn – jen cena (A* s odhadem od cíle)', () => {
+  it('na 80 náhodných mapách dá tutéž cenu a dojezd jako hledání tras', () => {
+    const r = createRandom(20261027);
+    let reached = 0;
+    let unreached = 0;
+    for (let map = 0; map < 80; map++) {
+      const grid = randomGrid(r, map % 3);
+      const kind: CartKind = r.next() < 0.5 ? 'two-wheel' : 'four-wheel';
+      const reaches = [0, 0.5, 4, 9, 15];
+      for (let q = 0; q < 6; q++) {
+        // výjezd z jednoho místa (přesun spřežení) i z více ohrad
+        const depots = Array.from({ length: q % 3 === 0 ? 2 : 1 }, () => point(r, grid));
+        const target = {
+          ...point(r, grid),
+          reachM: reaches[Math.floor(r.next() * reaches.length)]!,
+        };
+        const expected = cartRoutesOn(grid, { kind, depots, targets: [target] })[0]!;
+        const actual = cartCostOn(grid, { kind, depots, target });
+        expect(actual.reached, `mapa ${map}, cíl ${q}`).toBe(expected.reached);
+        expect(Object.is(actual.cost, expected.cost), `cena – mapa ${map}, cíl ${q}`).toBe(true);
+        if (expected.reached) reached++;
+        else unreached++;
+      }
+    }
+    expect(reached).toBeGreaterThan(200);
+    expect(unreached).toBeGreaterThan(20);
+  });
+
+  it('cíl těsně pod a nad maxCost', () => {
+    const grid: CartGrid = {
+      width: 80,
+      height: 6,
+      originX: 0,
+      originZ: 0,
+      cellM: CELL_M,
+      cost: new Float32Array(80 * 6).fill(14),
+      heights: null,
+    };
+    const depots = [{ x: 0, z: 2 * CELL_M }];
+    for (let i = 60; i < 80; i++) {
+      const target = { x: i * CELL_M, z: 2 * CELL_M, reachM: 0 };
+      const expected = cartRoutesOn(grid, { kind: 'two-wheel', depots, targets: [target] })[0]!;
+      expect(cartCostOn(grid, { kind: 'two-wheel', depots, target })).toEqual({
+        reached: expected.reached,
+        cost: expected.cost,
+      });
+    }
+  });
+});
+
+describe('cartRoutesOn – stačí nejlevnější cíl (nearestM)', () => {
+  it('trasy do nejlevnější + nearestM jsou tytéž jako ze všech cílů', () => {
+    const r = createRandom(20261028);
+    let cut = 0;
+    for (let map = 0; map < 50; map++) {
+      const grid = randomGrid(r, map % 3);
+      const kind: CartKind = r.next() < 0.5 ? 'two-wheel' : 'four-wheel';
+      const depots = [point(r, grid)];
+      const targets: CartTarget[] = Array.from({ length: 2 + Math.floor(r.next() * 30) }, () => ({
+        ...point(r, grid),
+        reachM: 4,
+      }));
+      const full = cartRoutesOn(grid, { kind, depots, targets });
+      const nearestM = map % 2 === 0 ? 1 : 30;
+      const near = cartRoutesOn(grid, { kind, depots, targets }, nearestM);
+      const min = Math.min(...full.filter((x) => x.reached).map((x) => x.cost));
+      near.forEach((route, k) => {
+        if (route.reached) expect(route, `mapa ${map}, cíl ${k}`).toEqual(full[k]);
+        else {
+          // vynechaný cíl je dražší než nejlevnější + nearestM (nebo nedojede vůbec)
+          expect(!full[k]!.reached || full[k]!.cost > min + nearestM, `mapa ${map}, cíl ${k}`).toBe(
+            true,
+          );
+          if (full[k]!.reached) cut++;
+        }
+      });
+    }
+    // hledání opravdu končí dřív
+    expect(cut).toBeGreaterThan(50);
   });
 });

@@ -6,8 +6,10 @@ import type { Landscape, ObstacleLayer } from '../../landscape';
 import type { ObstacleChanges } from '../obstacles';
 import type { CartKind } from '../types';
 import {
+  cartCostOn,
   cartPartSpeed,
   cartRoutesOn,
+  type CartCost,
   type CartGrid,
   type CartRoute,
   type CartTarget,
@@ -77,19 +79,15 @@ const pointKey = (p: PathPoint): string => `${p.x},${p.z}`;
 const targetKey = (t: CartTarget): string => `${t.x},${t.z},${t.reachM}`;
 
 /**
- * Trasy vozu `kind` z `depots` k `targets` po mřížce s klíčem `key` (`cartGridKey`) – mřížku
- * postaví `makeGrid` jen poprvé. Známé cíle se nehledají, neznámé jedním hledáním
- * (`cartRoutesOn` – trasa k cíli nezávisí na ostatních cílech). Výsledek po pořadí cílů.
+ * Mřížka vozu s klíčem `key` (`cartGridKey`) z paměti krajiny – `makeGrid` ji postaví jen
+ * poprvé; použitá mřížka jde na začátek fronty (nejdéle nepoužitá vypadne).
  */
-export function memoCartRoutes(
+function memoGrid(
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
   key: string,
   makeGrid: () => CartGrid,
-  kind: CartKind,
-  depots: readonly PathPoint[],
-  targets: readonly CartTarget[],
-): readonly CartRoute[] {
+): CartMemo {
   const list = MEMO.get(landscape) ?? [];
   const at = list.findIndex((m) => m.obstacles === obstacles && m.key === key);
   const memo: CartMemo =
@@ -99,6 +97,44 @@ export function memoCartRoutes(
   list.unshift(memo);
   if (list.length > GRIDS_PER_LANDSCAPE) list.length = GRIDS_PER_LANDSCAPE;
   MEMO.set(landscape, list);
+  return memo;
+}
+
+/**
+ * Cena trasy vozu `kind` z `depots` k jednomu cíli po mřížce s klíčem `key` (`cartGridKey`) –
+ * jen cena, bez trasy (`cartCostOn` – tatáž cena jako `cartRoutesOn`, rychleji). Ceny se
+ * nepamatují – přesun spřežení má každý den jiný výjezd i cíl.
+ */
+export function memoCartCost(
+  landscape: Landscape,
+  obstacles: ObstacleLayer | null,
+  key: string,
+  makeGrid: () => CartGrid,
+  kind: CartKind,
+  depots: readonly PathPoint[],
+  target: CartTarget,
+): CartCost {
+  return cartCostOn(memoGrid(landscape, obstacles, key, makeGrid).grid, { kind, depots, target });
+}
+
+/**
+ * Trasy vozu `kind` z `depots` k `targets` po mřížce s klíčem `key` (`cartGridKey`) – mřížku
+ * postaví `makeGrid` jen poprvé. Známé cíle se nehledají, neznámé jedním hledáním
+ * (`cartRoutesOn` – trasa k cíli nezávisí na ostatních cílech). Výsledek po pořadí cílů.
+ * S `nearestM` stačí nejlevnější cíl (`cartRoutesOn`): neznámý cíl dražší o víc než `nearestM`
+ * než nejlevnější neznámý vrátí „nedojede“ a nezapamatuje se (není jisté, že nedojede).
+ */
+export function memoCartRoutes(
+  landscape: Landscape,
+  obstacles: ObstacleLayer | null,
+  key: string,
+  makeGrid: () => CartGrid,
+  kind: CartKind,
+  depots: readonly PathPoint[],
+  targets: readonly CartTarget[],
+  nearestM: number | null = null,
+): readonly CartRoute[] {
+  const memo = memoGrid(landscape, obstacles, key, makeGrid);
   const search = `${kind}|${depots.map(pointKey).join(';')}`;
   /** Zapomene hledání (a jeho buňky) z paměti mřížky. */
   const drop = (name: string): void => {
@@ -129,12 +165,18 @@ export function memoCartRoutes(
     missing = unknown(routes);
   }
   if (missing.size === 0) return targets.map((t) => routes.get(targetKey(t))!);
-  const found = cartRoutesOn(memo.grid, { kind, depots, targets: [...missing.values()] });
+  const found = cartRoutesOn(memo.grid, { kind, depots, targets: [...missing.values()] }, nearestM);
+  const unsure = new Map<string, CartRoute>();
   [...missing.keys()].forEach((k, n) => {
-    routes.set(k, found[n]!);
-    memo.cells += found[n]!.cells.length;
+    const route = found[n]!;
+    if (nearestM !== null && !route.reached) {
+      unsure.set(k, route);
+      return;
+    }
+    routes.set(k, route);
+    memo.cells += route.cells.length;
   });
-  const result = targets.map((t) => routes.get(targetKey(t))!);
+  const result = targets.map((t) => routes.get(targetKey(t)) ?? unsure.get(targetKey(t))!);
   // nad mez buněk vypadnou nejstarší hledání; aktuální (poslední vložené) zůstane, i když je samo
   // nad mezí – pak se zapomene až příště
   for (const name of memo.searches.keys()) {

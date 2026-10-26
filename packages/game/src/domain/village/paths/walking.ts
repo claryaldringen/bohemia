@@ -126,34 +126,150 @@ export function groundWalkLength(
   const length = length2(b.x - a.x, b.z - a.z);
   if (!ground || length === 0) return pathWalkLength(length, strength);
   const t = ground.terrain;
-  const fields = ground.fields;
+  const { speed: cellSpeed, mask, seamsI, seamsJ } = walkCellsOf(ground);
   const tread = pathCostFactor(strength);
   const n = Math.max(1, Math.ceil(length / (t.cellM / 2)));
   const piece = length / n;
+  const w = t.width;
+  const h = t.height;
+  const fi = (k: number): number => (a.x + (b.x - a.x) * ((k + 0.5) / n) - t.originX) / t.cellM;
+  const fj = (k: number): number => (a.z + (b.z - a.z) * ((k + 0.5) / n) - t.originZ) / t.cellM;
   let cost = 0;
   let inWater = false;
-  for (let k = 0; k < n; k++) {
-    const u = (k + 0.5) / n;
-    const i = Math.round((a.x + (b.x - a.x) * u - t.originX) / t.cellM);
-    const j = Math.round((a.z + (b.z - a.z) * u - t.originZ) / t.cellM);
-    let speed = 1;
-    let water = false;
-    let factor = tread;
-    if (i >= 0 && j >= 0 && i < t.width && j < t.height) {
-      const c = j * t.width + i;
-      const flags = t.flags[c]!;
-      water = (flags & PATH_WATER) !== 0;
-      if (flags & PATH_WETLAND) speed = ROAD_WALK.wetSpeed;
-      if (fields) {
-        speed = Math.min(speed, fields.speed[c]!);
-        if (fields.crop[c]) factor = 1;
+  for (let k = 0; k < n;) {
+    const end = Math.min(n, k + WALK_RUN);
+    if (end - k === WALK_RUN) {
+      // kus úsečky po stejné půdě: buňky kroků leží v obdélníku mezi krajními kroky (s buňkou
+      // rezervy) – když je celý uvnitř mřížky a bez švu mezi různými buňkami (`seamsI`,
+      // `seamsJ`), mají všechny kroky kusu týž člen součtu a sečtou se bez čtení buněk
+      const x0 = fi(k);
+      const x1 = fi(end - 1);
+      const z0 = fj(k);
+      const z1 = fj(end - 1);
+      const i0 = Math.round(Math.min(x0, x1)) - 1;
+      const i1 = Math.round(Math.max(x0, x1)) + 1;
+      const j0 = Math.round(Math.min(z0, z1)) - 1;
+      const j1 = Math.round(Math.max(z0, z1)) + 1;
+      if (
+        i0 >= 0 &&
+        j0 >= 0 &&
+        i1 < w &&
+        j1 < h &&
+        rectSum(seamsI, w, i0, i1 - 1, j0, j1) === 0 &&
+        rectSum(seamsJ, w, i0, i1, j0, j1 - 1) === 0
+      ) {
+        const c = j0 * w + i0;
+        const m = mask[c]!;
+        const water = (m & WALK_WATER) !== 0;
+        const term = (piece / cellSpeed[c]!) * (m & WALK_CROP ? 1 : tread);
+        if (water && !inWater) cost += ROAD_WALK.fordExtraM;
+        inWater = water;
+        for (; k < end; k++) cost += term;
+        continue;
       }
     }
-    if (water && !inWater) cost += ROAD_WALK.fordExtraM;
-    inWater = water;
-    cost += (piece / speed) * factor;
+    for (; k < end; k++) {
+      const u = (k + 0.5) / n;
+      const i = Math.round((a.x + (b.x - a.x) * u - t.originX) / t.cellM);
+      const j = Math.round((a.z + (b.z - a.z) * u - t.originZ) / t.cellM);
+      let speed = 1;
+      let water = false;
+      let factor = tread;
+      if (i >= 0 && j >= 0 && i < w && j < h) {
+        const c = j * w + i;
+        const m = mask[c]!;
+        water = (m & WALK_WATER) !== 0;
+        speed = cellSpeed[c]!;
+        if (m & WALK_CROP) factor = 1;
+      }
+      if (water && !inWater) cost += ROAD_WALK.fordExtraM;
+      inWater = water;
+      cost += (piece / speed) * factor;
+    }
   }
   return cost;
+}
+
+/** Příznaky buňky půdy chůze (`walkCellsOf`): voda, díl v osevu. */
+const WALK_WATER = 1;
+const WALK_CROP = 2;
+/** Kroků úsečky v kusu, který se po louce sečte bez čtení buněk (`groundWalkLength`). */
+const WALK_RUN = 8;
+
+/**
+ * Půda chůze po buňkách (`groundWalkLength`, po objektu půdy – půda se nemění): rychlost buňky
+ * (mokřina, díl pole – nejpomalejší), příznaky voda a díl v osevu a švy – součty po obdélnících od
+ * rohu mřížky ((šířka + 1) × (výška + 1)) buněk, které se liší od sousední vpravo (`seamsI`) nebo
+ * dole (`seamsJ`). Jen zrychlení – tytéž hodnoty, jaké se dřív skládaly z příznaků terénu a polí
+ * v každém kroku úsečky (docs/code/village-roads.md – Trasy v paměti).
+ */
+interface WalkCells {
+  speed: Float64Array;
+  mask: Uint8Array;
+  seamsI: Int32Array;
+  seamsJ: Int32Array;
+}
+
+const walkCellsCache = new WeakMap<WalkGround, WalkCells>();
+
+/** Součet buněk `i0..i1` × `j0..j1` (včetně) z obdélníkových součtů mřížky šířky `w`. */
+function rectSum(
+  sums: Int32Array,
+  w: number,
+  i0: number,
+  i1: number,
+  j0: number,
+  j1: number,
+): number {
+  if (i0 > i1 || j0 > j1) return 0;
+  const row = w + 1;
+  return (
+    sums[(j1 + 1) * row + i1 + 1]! -
+    sums[j0 * row + i1 + 1]! -
+    sums[(j1 + 1) * row + i0]! +
+    sums[j0 * row + i0]!
+  );
+}
+
+function walkCellsOf(ground: WalkGround): WalkCells {
+  const known = walkCellsCache.get(ground);
+  if (known) return known;
+  const t = ground.terrain;
+  const fields = ground.fields;
+  const w = t.width;
+  const h = t.height;
+  const speed = new Float64Array(w * h);
+  const mask = new Uint8Array(w * h);
+  for (let c = 0; c < w * h; c++) {
+    const flags = t.flags[c]!;
+    let v = 1;
+    if (flags & PATH_WETLAND) v = ROAD_WALK.wetSpeed;
+    let m = flags & PATH_WATER ? WALK_WATER : 0;
+    if (fields) {
+      v = Math.min(v, fields.speed[c]!);
+      if (fields.crop[c]) m |= WALK_CROP;
+    }
+    speed[c] = v;
+    mask[c] = m;
+  }
+  const differs = (c: number, d: number): boolean => speed[c] !== speed[d] || mask[c] !== mask[d];
+  const seamsI = new Int32Array((w + 1) * (h + 1));
+  const seamsJ = new Int32Array((w + 1) * (h + 1));
+  for (let j = 0; j < h; j++) {
+    let lineI = 0;
+    let lineJ = 0;
+    for (let i = 0; i < w; i++) {
+      const c = j * w + i;
+      if (i + 1 < w && differs(c, c + 1)) lineI++;
+      if (j + 1 < h && differs(c, c + w)) lineJ++;
+      const at = (j + 1) * (w + 1) + i + 1;
+      seamsI[at] = seamsI[at - (w + 1)]! + lineI;
+      seamsJ[at] = seamsJ[at - (w + 1)]! + lineJ;
+    }
+  }
+  const cells = { speed, mask, seamsI, seamsJ };
+  walkCellsCache.set(ground, cells);
+  return cells;
 }
 
 /** Délka chůze úsekem pěšiny se silou `strength` 0–1 (m) – po pěšině se jde rychleji. */

@@ -4,7 +4,7 @@ import { startedPartIds, taskPosition, taskSpans } from './field-progress';
 import { partWalkDistance } from './fields';
 import { bandLengthM, bandPartWeight, furrowEfficiency, ploughLayout } from './plough-blocks';
 import { roadCapsules, roadFreeRuns, type RoadCapsule } from './paths/road-land';
-import { villageCartRoutes } from './paths/roads';
+import { villageCartCost } from './paths/roads';
 import { TEAM_TRAVEL } from './rules';
 import { fieldGridOf } from './squares';
 import { rotationCosSin, squareCenter } from './square-grid';
@@ -105,10 +105,12 @@ function tripCost(
 ): number {
   if (landscape && part.cell) {
     const center = squareCenter(landscape, fieldGridOf(state, part.fieldId), part.cell);
-    const routes = villageCartRoutes(state, day, landscape, obstacles, 'two-wheel', [
-      { x: center.x, z: center.z, reachM: BLOCK_REACH_M },
-    ]);
-    const route = routes?.[0];
+    // jen cena – trasa sama se nepotřebuje (`villageCartCost`)
+    const route = villageCartCost(state, day, landscape, obstacles, 'two-wheel', {
+      x: center.x,
+      z: center.z,
+      reachM: BLOCK_REACH_M,
+    });
     if (route?.reached) return route.cost;
   }
   return partWalkDistance(part);
@@ -235,15 +237,15 @@ function moveCost(
   if (landscape && from.cell && to.cell) {
     const a = squareCenter(landscape, fieldGridOf(state, from.fieldId), from.cell);
     const b = squareCenter(landscape, fieldGridOf(state, to.fieldId), to.cell);
-    const route = villageCartRoutes(
+    const route = villageCartCost(
       state,
       day,
       landscape,
       obstacles,
       'two-wheel',
-      [{ x: b.x, z: b.z, reachM: BLOCK_REACH_M }],
+      { x: b.x, z: b.z, reachM: BLOCK_REACH_M },
       { x: a.x, z: a.z },
-    )?.[0];
+    );
     if (route?.reached) return route.cost;
   }
   return Math.abs(partWalkDistance(to) - partWalkDistance(from));

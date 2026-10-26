@@ -10,8 +10,8 @@ import {
   type CartTarget,
   type CartVillage,
 } from '../paths/cart';
-import { cartGridKey, forgetCartRoutes, memoCartRoutes } from '../paths/cart-memo';
-import { villageCartRoutes } from '../paths/roads';
+import { cartGridKey, forgetCartRoutes, memoCartCost, memoCartRoutes } from '../paths/cart-memo';
+import { villageCartCost, villageCartRoutes } from '../paths/roads';
 import type { PathSquare } from '../paths/network';
 import { pathWindowFor } from '../paths/terrain';
 import { advanceVillage } from '../simulate';
@@ -95,6 +95,25 @@ describe('trasy vozu po cílech (cartRoutesOn)', () => {
     const four = memoCartRoutes(l, null, 'k', make, 'four-wheel', depots, TARGETS);
     expect(built).toBe(1);
     expect(four).toEqual(cartRoutesOn(grid, { kind: 'four-wheel', depots, targets: TARGETS }));
+  });
+
+  it('nejlevnější cíl (nearestM): vynechané cíle se nezapamatují jako „nedojede“', () => {
+    const l = pathLandscape();
+    const make = (): typeof grid => grid;
+    const full = cartRoutesOn(grid, { kind: 'two-wheel', depots, targets: TARGETS });
+    const near = memoCartRoutes(l, null, 'n', make, 'two-wheel', depots, TARGETS, 0);
+    // aspoň jeden cíl vynechaný, nejlevnější přesně
+    expect(near.some((r) => !r.reached)).toBe(true);
+    near.forEach((r, k) => {
+      if (r.reached) expect(r).toEqual(full[k]);
+    });
+    // pak všechny cíle – vynechané se dohledají, výsledek jako jedno hledání
+    expect(memoCartRoutes(l, null, 'n', make, 'two-wheel', depots, TARGETS)).toEqual(full);
+    // jen cena (přesun spřežení) – tatáž jako z tras, z mřížky v paměti
+    TARGETS.forEach((t, k) => {
+      const cost = memoCartCost(l, null, 'n', make, 'two-wheel', depots, t);
+      expect(cost).toEqual({ reached: full[k]!.reached, cost: full[k]!.cost });
+    });
   });
 
   it('mez paměti: třetí mřížka vytlačí nejstarší, 65. hledání nejstarší hledání', () => {
@@ -223,6 +242,27 @@ describe('trasy vozu vsi v paměti (villageCartRoutes)', () => {
     const cold = villageCartRoutes(s, DAY + 1, l, null, 'two-wheel', targets)!;
     expect(cold[0]).not.toBe(a[0]);
     expect(cold).toEqual(a);
+  });
+
+  it('jen cena (villageCartCost) = cena trasy, z ohrady i od dílu, teplá i studená paměť', () => {
+    const l = pathLandscape();
+    const s = village();
+    const froms = [null, { x: 30, z: 30 }, { x: -45, z: 15 }];
+    const targets: CartTarget[] = [
+      { x: 60, z: 22.5, reachM: 9 },
+      { x: -60, z: -40, reachM: 9 },
+      { x: 10, z: 70, reachM: 0 },
+    ];
+    for (const from of froms) {
+      for (const t of targets) {
+        const route = villageCartRoutes(s, DAY, l, null, 'two-wheel', [t], from)![0]!;
+        const warm = villageCartCost(s, DAY, l, null, 'two-wheel', t, from)!;
+        forgetCartRoutes(l);
+        const cold = villageCartCost(s, DAY, l, null, 'two-wheel', t, from)!;
+        expect(warm).toEqual({ reached: route.reached, cost: route.cost });
+        expect(cold).toEqual(warm);
+      }
+    }
   });
 
   it('dopočet se studeným startem každý den = dopočet najednou (bit po bitu)', () => {

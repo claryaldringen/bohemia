@@ -12,18 +12,19 @@ import {
   type VillageRoads,
   type VillageState,
 } from '../types';
-import { pathBounds, type PathTraffic } from './network';
+import { pathBounds, type PathPoint, type PathTraffic } from './network';
 import {
   cartDepots,
   cartGrid,
   cartRoutes,
   cartTraffic,
   cartVillageOf,
+  type CartCost,
   type CartGrid,
   type CartRoute,
   type CartTarget,
 } from './cart';
-import { cartGridKey, memoCartRoutes } from './cart-memo';
+import { cartGridKey, memoCartCost, memoCartRoutes } from './cart-memo';
 import { cartObstacleMask, pathTerrainOf, pathWindowFor, type PathTerrain } from './terrain';
 import { pathVillageOf } from './village';
 import {
@@ -146,8 +147,10 @@ export function annualCartNetwork(
  * trasy vozu `kind` od ohrad se spřežením ke všem cílům najednou (jedno hledání) – dojede,
  * cena, délka a osa trasy pro scénu. Terén pěšin v okně vsi a cílů, překážky krajiny a stavby vsi
  * jako v síti pěšin, pevné cesty podle stupně a příznaku vozová. S `from` trasa odtud (spřežení
- * na poli jede k dalšímu bloku – oxen.md, Spřežení zůstane na poli). Bez ohrady se spřežením (nebo
- * bez obydlí) null. Čistá funkce stavu – mřížka a trasy se pamatují (`memoCartRoutes`).
+ * na poli jede k dalšímu bloku – oxen.md, Spřežení zůstane na poli). S `nearestM` stačí
+ * nejlevnější cíl – dražší o víc než `nearestM` může vrátit „nedojede“ (`cartRoutesOn`). Bez
+ * ohrady se spřežením (nebo bez obydlí) null. Čistá funkce stavu – mřížka a trasy se pamatují
+ * (`memoCartRoutes`).
  */
 export function villageCartRoutes(
   state: VillageState,
@@ -157,7 +160,54 @@ export function villageCartRoutes(
   kind: CartKind,
   targets: readonly CartTarget[],
   from: { x: number; z: number } | null = null,
+  nearestM: number | null = null,
 ): readonly CartRoute[] | null {
+  const at = cartGridOf(state, day, landscape, obstacles, targets, from);
+  if (!at) return null;
+  return memoCartRoutes(
+    landscape,
+    obstacles,
+    at.key,
+    at.makeGrid,
+    kind,
+    at.depots,
+    targets,
+    nearestM,
+  );
+}
+
+/**
+ * Cena trasy vozu `kind` k jednomu cíli (`villageCartRoutes` s jedním cílem, jen `reached`
+ * a `cost` – `cartCostOn`, rychleji): cesta spřežení k dílu a přesun mezi díly při orbě. Táž
+ * mřížka (a paměť mřížek) jako `villageCartRoutes`. Bez ohrady se spřežením (nebo bez obydlí)
+ * null.
+ */
+export function villageCartCost(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer | null,
+  kind: CartKind,
+  target: CartTarget,
+  from: { x: number; z: number } | null = null,
+): CartCost | null {
+  const at = cartGridOf(state, day, landscape, obstacles, [target], from);
+  if (!at) return null;
+  return memoCartCost(landscape, obstacles, at.key, at.makeGrid, kind, at.depots, target);
+}
+
+/**
+ * Místa výjezdu, klíč mřížky vozu (`cartGridKey`) a její stavba pro trasy k `targets`
+ * (`villageCartRoutes`, `villageCartCost`) – okno terénu podle vsi a cílů. Null bez výjezdu.
+ */
+function cartGridOf(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer | null,
+  targets: readonly CartTarget[],
+  from: { x: number; z: number } | null,
+): { depots: PathPoint[]; key: string; makeGrid: () => CartGrid } | null {
   // mokřina na ose pevných cest (Road.ground) – vůz ji vidí jako chůze
   const village = cartVillageOf(pathVillageOf(state, day, landscape), state.roads?.roads ?? []);
   const pens = cartDepots(village, teamPens(state));
@@ -181,8 +231,7 @@ export function villageCartRoutes(
     const blocked = obstacles && changes ? cartObstacleMask(terrain, obstacles, changes) : null;
     return cartGrid({ village, terrain, blocked });
   };
-  const key = cartGridKey(village, window, changes);
-  return memoCartRoutes(landscape, obstacles, key, makeGrid, kind, depots, targets);
+  return { depots, key: cartGridKey(village, window, changes), makeGrid };
 }
 
 /**
