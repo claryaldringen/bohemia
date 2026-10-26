@@ -1,7 +1,7 @@
 import type { Landscape, ObstacleLayer } from '../../landscape';
 import { cloneState } from '../clone';
 import { obstacleChangesAt } from '../obstacles';
-import { ROAD_JOIN, ROAD_LAND, ROAD_REBUILD, ROAD_TREES, WEAR } from '../rules';
+import { ROAD_JOIN, ROAD_REBUILD, ROAD_TREES, WEAR } from '../rules';
 import { villageManor } from '../manor';
 import { type OldWagonRoads, type WagonRebuild, rebuildWagonRoads } from '../wagon-rebuild';
 import { trailAxisRoads, trailStart } from '../trail-axis';
@@ -157,23 +157,24 @@ export function* rebuildRoadsSteps(
   // obejité kusy přepočtených vozových cest – opuštěné jako po stavbě, nemažou se
   const bypassed = new Set<number>();
   let patched = false;
-  // úsek, ze kterého bude vozová cesta, má pro rozestup křižovatek šířku vozové – po přepočtu se
-  // křižovatka s vozovým ramenem už nehne (mezipaměť podle pole bodů – posun uzlu ho nahradí)
-  const widths = new WeakMap<readonly RoadPoint[], number | undefined>();
-  const futureWagon = (road: Road): number | undefined => {
-    if (!widths.has(road.points)) {
-      const wagon =
-        road.grade !== 'wagon' && shareNear(road.points, oldWagon.near) >= ROAD_REBUILD.share;
-      widths.set(road.points, wagon ? ROAD_LAND.widthM.wagon : undefined);
+  // úsek, ze kterého bude vozová cesta, má pro rozestup křižovatek šířku i práh živosti vozové –
+  // po přepočtu se křižovatka s vozovým ramenem už nehne (mezipaměť podle pole bodů – posun uzlu
+  // ho nahradí)
+  const soon = new WeakMap<readonly RoadPoint[], boolean>();
+  const futureWagon = (road: Road): boolean => {
+    let wagon = soon.get(road.points);
+    if (wagon === undefined) {
+      wagon = road.grade !== 'wagon' && shareNear(road.points, oldWagon.near) >= ROAD_REBUILD.share;
+      soon.set(road.points, wagon);
     }
-    return widths.get(road.points);
+    return wagon;
   };
   // vznik cest nahradí `next.roads` kopií (`commitDraft`) – po průchodu vždy znovu ze stavu
-  function* settle(width?: (road: Road) => number | undefined): Generator<void, void, void> {
+  function* settle(wagon?: (road: Road) => boolean): Generator<void, void, void> {
     for (let pass = 0; pass < ROAD_REBUILD.passes; pass++) {
       const before = networkOf(next.roads!);
       if (report) report.passes++;
-      rebuildRoadsPass(next, day, landscape, obstacles, width);
+      rebuildRoadsPass(next, day, landscape, obstacles, wagon ? { wagon } : {});
       const current = next.roads!;
       // nová cesta, kterou průchod hned opustil (vede pod stavbou nebo zemními pracemi), zmizí
       current.roads = current.roads.filter(
@@ -200,6 +201,10 @@ export function* rebuildRoadsSteps(
     // kus staré vozové cesty, kam nová síť nedosáhla (1 km k severnímu okraji Vlkova), nezmizí
     const wagonAxes = old.filter((r) => r.grade === 'wagon');
     patchAxes(next.roads!, wagonAxes, day, context(), ROAD_REBUILD.wagonPatchM);
+    // vrácený kus se napojí do uzlu, který může stát blízko křižovatky (Vlkov: 5,9 m) – rozestup
+    // křižovatek musí platit před přepočtem vozových, uzel s vozovým ramenem se pak už nehne
+    yield;
+    yield* settle(futureWagon);
     const gone = new Set(next.roads!.roads.filter((r) => r.abandoned).map((r) => r.id));
     yield;
     const wagons = rebuildWagonRoads(next, day, landscape, obstacles, oldWagon);

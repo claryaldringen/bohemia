@@ -155,9 +155,14 @@ export function mergeParallelRoads(
       const road = order[i]!;
       if (building.has(road.id) || road.points.length < 2) continue;
       // vozová cesta (roads.md – Vozová cesta) se pěší cestou nevyřízne – jen souběžnou silnější
-      // vozovou (paths.md – Zdvojená vozová cesta); silnější než vozová jsou jen vozové
-      const run = parallelRun(road, order.slice(0, i));
-      if (run && (road.grade !== 'wagon' || wagonCutKeepsEnds(road, run, order.slice(0, i)))) {
+      // vozovou (paths.md – Zdvojená vozová cesta); silnější než vozová jsou jen vozové, a to jen
+      // hotové – rozestavěná ještě nejezdí, hotová se kvůli ní nevyřízne
+      const stronger =
+        road.grade === 'wagon'
+          ? order.slice(0, i).filter((r) => !building.has(r.id))
+          : order.slice(0, i);
+      const run = parallelRun(road, stronger);
+      if (run && (road.grade !== 'wagon' || wagonCutKeepsEnds(road, run, stronger))) {
         cut = { road, ...run };
       }
     }

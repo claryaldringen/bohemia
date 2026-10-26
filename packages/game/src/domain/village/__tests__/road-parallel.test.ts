@@ -585,6 +585,63 @@ describe('zdvojená vozová cesta (paths.md – Zdvojená vozová cesta, Martin 
     expect(w.reduce((s, r) => s + r.points.length, 0)).toBeGreaterThanOrEqual(4);
     expect(connected(w, { x: -20, z: 30 }, { x: 120, z: 30 })).toBe(true);
   });
+
+  /** Starší vozová (0, 0)–(100, 0) a mladší 8 m vedle ní z (-20, 30) do (120, 30). */
+  const doubled = (): Road[] => [
+    wagon(
+      1,
+      [
+        [0, 0],
+        [100, 0],
+      ],
+      Y1 - 2000,
+    ),
+    wagon(
+      2,
+      [
+        [-20, 30],
+        [0, 8],
+        [100, 8],
+        [120, 30],
+      ],
+      Y1 - 365,
+    ),
+  ];
+
+  it('rozestavěná vozová není partner – hotová mladší vozová se kvůli ní nevyřízne', () => {
+    const roads: VillageRoads = {
+      nextId: 3,
+      roads: doubled(),
+      trees: [],
+      labor: { from: 0, days: 0, shares: [] },
+    };
+    const before = json(roads.roads);
+    // starší (silnější) vozová se ještě staví – vůz po ní nejezdí
+    const building = [{ roadIds: [1] }] as unknown as Parameters<
+      typeof roadsTidy.mergeParallelRoads
+    >[1];
+    expect(roadsTidy.mergeParallelRoads(roads, building)).toBe(false);
+    expect(roads.roads).toEqual(before);
+    // hotová starší – souběžný kus mladší se vyřízne
+    expect(roadsTidy.mergeParallelRoads(roads, [])).toBe(true);
+  });
+
+  it('sloučení neosciluje: sloučit → po vozové znovu sloučit → stav a počet úseků beze změny', () => {
+    const once = joinedRoadsOf(doubled(), [], TERRAIN);
+    const roads: VillageRoads = {
+      nextId: once.reduce((m, r) => Math.max(m, r.id), 0) + 1,
+      roads: json(once),
+      trees: [],
+      labor: { from: 0, days: 0, shares: [] },
+    };
+    // jako po dostavění úseku vozové cesty (`absorbParallelRoads`) – nic dalšího se nevyřízne
+    expect(roadsTidy.mergeParallelRoads(roads, [])).toBe(false);
+    roadsTidy.absorbParallelRoads(roads, []);
+    expect(roads.roads).toEqual(once);
+    const twice = joinedRoadsOf(once, [], TERRAIN);
+    expect(twice).toHaveLength(once.length);
+    expect(twice).toEqual(once);
+  });
 });
 
 describe('copánek přes křižovatku (paths.md – Copánek přes křižovatku)', () => {

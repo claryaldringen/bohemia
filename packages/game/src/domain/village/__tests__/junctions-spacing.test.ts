@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { junctionSpacingM, updateJunctions, type JunctionRoads } from '../paths/junctions';
+import { liveRoadEnd, type RoadTraffic } from '../paths/road-condition';
+import { rebuildJunctionHints } from '../paths/roads';
 import { emptyRoads } from '../paths/roads-form';
 import { ROAD_LAND } from '../rules';
-import type { Road, RoadGrade, RoadPoint, VillageRoads } from '../types';
+import type { Road, RoadGrade, RoadPoint, Trail, VillageRoads } from '../types';
 
 // Křižovatky blízko sebe (paths.md – Křižovatky; Martin 24. 10. 2026 „jo, pusť se do toho“ –
 // plácky dvou křižovatek se nesmějí překrývat): dvě, které se vejdou do jedné, se sloučí; jinak se
@@ -153,6 +155,50 @@ describe('křižovatky blízko sebe (updateJunctions)', () => {
     updateJunctions(roads, DAY + 30, SEED, net);
     expect(roads.junctions).toHaveLength(2);
     expect(JSON.stringify(roads.roads.find((r) => r.id === 9)!.points)).toBe(before);
+  });
+
+  it('přestavba: úsek stezky (`loose`) uzel nedrží – spojka se sloučí jako volná', () => {
+    const roads = twoYs();
+    updateJunctions(roads, DAY, SEED, allLive);
+    upgrade(roads, 'improved');
+    const net: JunctionRoads = { ...allLive, fixed: new Set([9]), loose: new Set([9]) };
+    updateJunctions(roads, DAY + 30, SEED, net);
+    expect(roads.junctions).toHaveLength(1);
+    expect(roads.roads.some((r) => r.id === 9)).toBe(false);
+  });
+
+  it('přestavba: pevná ramena stezky v obou uzlech – rozestup platí (Vlkov J1130–J1356)', () => {
+    const roads = twoYs();
+    updateJunctions(roads, DAY, SEED, allLive);
+    upgrade(roads, 'improved');
+    const stuck = json(roads);
+    updateJunctions(stuck, DAY + 30, SEED, { ...allLive, fixed: new Set([1, 3]) });
+    const min = junctionSpacingM([ROAD_LAND.widthM.improved], [ROAD_LAND.widthM.improved]);
+    expect(gap(stuck)).toBeLessThan(min);
+    const fixed = new Set([1, 3]);
+    updateJunctions(roads, DAY + 30, SEED, { ...allLive, fixed, loose: fixed });
+    expect(roads.junctions!.length === 1 || gap(roads) >= min).toBe(true);
+  });
+
+  it('přestavba: budoucí vozová je pro křižovatku živá a široká jako vozová (rebuildJunctionHints)', () => {
+    const road = seg(1, { x: -30, z: 0 }, A, 'improved');
+    // provoz po úseku 0,3 cesty za den: pod prahem upravené (0,5), nad prahem vozové (0,25)
+    const traffic: RoadTraffic = () => 30;
+    const live = (r: Road): boolean => liveRoadEnd(r, false, traffic, [], new Set());
+    const plain = rebuildJunctionHints(undefined, []);
+    expect(plain.loose).toBeUndefined();
+    expect(live(plain.asBuilt(road))).toBe(live(road));
+    const trail = { pieces: [{ roadId: 7 }] } as unknown as Trail;
+    const soon = rebuildJunctionHints({ wagon: (r) => r.id === 1 }, [trail]);
+    expect(soon.asBuilt(road).grade).toBe('wagon');
+    expect(soon.width?.(road)).toBe(ROAD_LAND.widthM.wagon);
+    expect([...(soon.loose ?? [])]).toEqual([7]);
+    expect(live(road)).toBe(false);
+    expect(live(soon.asBuilt(road))).toBe(true);
+    // mimo budoucí vozovou beze změny
+    const other = seg(2, { x: 30, z: 0 }, A, 'improved');
+    expect(soon.asBuilt(other)).toBe(other);
+    expect(soon.width?.(other)).toBeUndefined();
   });
 
   it('křižovatka v kotvě (vchod) stojí – odsune se jen druhá, sloučí se do kotvy', () => {

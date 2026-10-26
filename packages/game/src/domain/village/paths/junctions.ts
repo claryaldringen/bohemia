@@ -46,6 +46,25 @@ const TIE = 1e-9;
 /** Krok vzorků osy při měření, kolik metrů ohnutého konce leží ve stavbě či u plotu (m). */
 const FOOTPRINT_STEP_M = 1;
 
+/**
+ * Vede ohnutá osa `after` stavbou či u plotu (`footprint`) větším podílem délky než neohnutá
+ * `before` (paths.md – Křižovatky, Ohyb ramene)? Vzorky po FOOTPRINT_STEP_M; podíl, ne počet
+ * vzorků – delší oblouk neprohraje jen délkou. Neohnutá mimo stavbu – oblouk nesmí do ní vůbec.
+ */
+export function bentFootprintWorse(
+  after: readonly RoadPoint[],
+  before: readonly RoadPoint[],
+  footprint: (p: RoadPoint) => boolean,
+): boolean {
+  const share = (points: readonly RoadPoint[]): { inside: number; all: number } => {
+    const samples = resample(points, null, FOOTPRINT_STEP_M).points;
+    return { inside: samples.filter((p) => footprint(p)).length, all: samples.length };
+  };
+  const bent = share(after);
+  const straight = share(before);
+  return bent.inside * straight.all > straight.inside * bent.all;
+}
+
 /** Úhel v [0, 2π). */
 function normAngle(angle: number): number {
   const a = wrapAngle(angle);
@@ -384,6 +403,11 @@ export interface JunctionRoads {
   live: (road: Road, atStart: boolean) => boolean;
   /** Úseky, které se neohýbají: zemská stezka a cesta ve vylepšení (vozová cesta podle druhu). */
   fixed: ReadonlySet<number>;
+  /**
+   * Úseky z `fixed`, kvůli kterým uzel při rozestupu křižovatek nestojí a které se smí sloučit
+   * (`spaceJunctions`) – přestavba sítě: úseky zemských stezek (stezka se znovu najde).
+   */
+  loose?: ReadonlySet<number>;
   /** Kotva (vchod, cíl tras) – uzel v ní se při rozestupu křižovatek nehýbe. */
   anchor?: (p: RoadPoint) => boolean;
   /**
@@ -491,13 +515,8 @@ function bendEnd(
     const at = (x: number, z: number): boolean => blocked({ x, z });
     if (blockedRun(after, at) > blockedRun(before, at)) return false;
   }
-  // ani přes stavbu či plot (mřížka je hrubá – osa na kraji buňky vede domem): oblouk nesmí mít
-  // ve stavbě víc metrů než neohnutá osa (paths.md – Křižovatky, Ohyb ramene)
-  if (footprint) {
-    const inside = (points: readonly RoadPoint[]): number =>
-      resample(points, null, FOOTPRINT_STEP_M).points.filter((p) => footprint(p)).length;
-    if (inside(after) > inside(before)) return false;
-  }
+  // ani přes stavbu či plot (mřížka je hrubá – osa na kraji buňky vede domem)
+  if (footprint && bentFootprintWorse(after, before, footprint)) return false;
   end.road.points = after;
   return true;
 }
@@ -767,8 +786,13 @@ function hubsOf(nodes: Map<string, RoadEnd[]>, isLive: (end: RoadEnd) => boolean
 }
 
 /** Pevné rameno uzlu: zemská stezka, cesta ve vylepšení (`fixed`) nebo vozová cesta (zemní práce na její ose). */
+/** Pevný úsek, kvůli kterému uzel při rozestupu stojí (`fixed` kromě `loose`). */
+function holding(road: Road, net: JunctionRoads): boolean {
+  return net.fixed.has(road.id) && !(net.loose?.has(road.id) ?? false);
+}
+
 function hasFixedArm(hub: Hub, net: JunctionRoads): boolean {
-  return hub.ends.some((e) => net.fixed.has(e.road.id) || e.road.grade === 'wagon');
+  return hub.ends.some((e) => holding(e.road, net) || e.road.grade === 'wagon');
 }
 
 /**
@@ -837,7 +861,7 @@ function mergeable(
   net: JunctionRoads,
 ): boolean {
   return (
-    !net.fixed.has(link.id) &&
+    !holding(link, net) &&
     link.grade !== 'wagon' &&
     a.live.length - others(a) === 1 &&
     b.live.length - others(b) === 1 &&
