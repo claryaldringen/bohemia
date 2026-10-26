@@ -240,15 +240,16 @@ export interface VillageRoads {
   v2?: true;
   /**
    * Síť je jednou přestavěná (`withRoadsRebuilt`, paths.md – Jednorázová přestavba sítě): cesty
-   * vznikly znovu z vyšlapanosti dnešních tras a vylepšení se přenesla. Hodnota je verze přestavby;
-   * nová ves ji má od začátku. Chybí = ještě ne.
+   * vznikly znovu z vyšlapanosti dnešních tras a vylepšení se přenesla. Hodnota je verze přestavby
+   * (`ROAD_REBUILD.version` – 2 = podle pravidel 26. 10. 2026, Jednorázová přestavba podle nových
+   * pravidel); nižší verze se přestaví znovu, nová ves má aktuální od začátku. Chybí = ještě ne.
    */
-  rebuilt?: 1;
+  rebuilt?: 1 | 2;
   /**
-   * Přestavba skončila chybou – ves zůstala se starou sítí a přestavba se už nezkouší (paths.md –
-   * Jednorázová přestavba sítě). Chybí = proběhla, nebo ještě ne.
+   * Přestavba této verze skončila chybou – ves zůstala se starou sítí a přestavba se už nezkouší
+   * (paths.md – Jednorázová přestavba sítě); hodnota je verze. Chybí = proběhla, nebo ještě ne.
    */
-  rebuildFailed?: 1;
+  rebuildFailed?: 1 | 2;
   /**
    * Síť je jednou opravená (`withRoadsRepaired`, paths.md – Jednorázová oprava sítě 25. 10. 2026):
    * díry i u vozových cest zacelené, vozové spojky po staré vozové ose, cesty ohnuté do branek.

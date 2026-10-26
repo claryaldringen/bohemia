@@ -730,9 +730,12 @@ landscape, obstacles)` v `paths/roads-v2.ts`, `updateVillage` ho volá po `withR
 - **Jednorázová přestavba sítě (Úloha R1, Martin 24. 10. 2026 – varianta A):** `withRoadsRebuilt(state,
 landscape, obstacles)` v `paths/roads-rebuild.ts`; `updateVillage` volá po `withRoadsV2` jeho
   kroky `withRoadsRebuiltSteps` (`rebuiltWithPauses` – port `Pause` mezi průchody a kolem přepočtu
-  vozových cest, generátor `rebuildRoadsSteps`). Výjimka v přestavbě → klon vstupu s `rebuilt: 1`
-  a `rebuildFailed: 1` (stará síť zůstane, příště se nezkouší); ves
-  s `roads.v2` bez `roads.rebuilt` (nová ves má `rebuilt: 1` z `emptyRoads`) a s trasami. Čistá
+  vozových cest, generátor `rebuildRoadsSteps`). `roads.rebuilt` je verze přestavby
+  (`ROAD_REBUILD.version`, 26. 10. 2026 verze 2 – paths.md, Jednorázová přestavba podle nových
+  pravidel): přestaví se ves s `roads.v2`, s trasami a s nižší nebo chybějící verzí (nová ves má
+  aktuální z `emptyRoads`); po přestavbě se smaže `repaired` / `repairFailed`, takže oprava
+  (`withRoadsRepaired`, volá se hned po ní) proběhne znovu. Výjimka v přestavbě → klon vstupu
+  s `rebuilt` a `rebuildFailed` = verze (stará síť zůstane, příště se nezkouší). Čistá
   `rebuildRoads`: `seedWear` (vyšlapanost z `trafficField(routes).cells` × `ROAD_REBUILD.seedDays`,
   max se stávající), zahodí úseky mimo pevné (`Construction.roadIds`, úseky nehotových stezek,
   vozové úseky na ose rozestavěných zemních prací – do `BUILDING_M` 1 m, opuštěné) a `junctions`,

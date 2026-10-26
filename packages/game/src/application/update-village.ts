@@ -242,8 +242,9 @@ export async function updateVillage(
     // starší ves přejde na nový systém cest: jednou uklidí síť a smaže stará pole (paths.md –
     // Převod starých vsí) – až po trasách, kotvy jsou z nich
     // a jednou přestaví síť cest z vyšlapanosti dnešních tras – vylepšení se přenesou (paths.md –
-    // Jednorázová přestavba sítě, Martin 24. 10. 2026) – a jednou ji opraví: vozové cesty napojené,
-    // cesty do branek (paths.md – Jednorázová oprava sítě, Martin 25. 10. 2026)
+    // Jednorázová přestavba sítě, Martin 24. 10. 2026; znovu podle pravidel 26. 10. – verze
+    // `ROAD_REBUILD.version`, Jednorázová přestavba podle nových pravidel) – a jednou ji opraví:
+    // vozové cesty napojené, cesty do branek (paths.md – Jednorázová oprava sítě, Martin 25. 10. 2026)
     const rebuilt = await withPauses(
       withRoadsRebuiltSteps(
         withRoadsV2(withRoutes(advanced, landscape, obstacles), landscape, obstacles),

@@ -89,8 +89,12 @@ export const ROAD_STUB = { remnantM: 30 } as const;
 // a průsek); kus staré stezky dál než `nearM` od nové sítě se vrátí; průchodů nejvýš `passes`.
 // Vozové cesty (R2): řetěz nové sítě s aspoň `share` délky do `nearM` od staré vozové osy se
 // přepočítá jako hotová vozová cesta; souvislý kus staré vozové osy dál než `nearM` od nové sítě
-// a aspoň `wagonPatchM` dlouhý (≈ úsek stavby – k okraji mapy, kudy se nechodí) se vrátí
+// a aspoň `wagonPatchM` dlouhý (≈ úsek stavby – k okraji mapy, kudy se nechodí) se vrátí.
+// `version` – verze přestavby (`VillageRoads.rebuilt`): 2 = přestavba podle pravidel 26. 10. 2026
+// (Martin 26. 10. 2026: „určitě“ – copánek přes křižovatku, vozová bez vlásenky, odstup od plotů,
+// zdvojená vozová cesta, ohyb ramene); ves s nižší verzí se přestaví znovu
 export const ROAD_REBUILD = {
+  version: 2,
   seedDays: 365,
   nearM: 4,
   share: 0.6,

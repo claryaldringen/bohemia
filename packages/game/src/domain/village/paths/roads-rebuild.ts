@@ -215,11 +215,14 @@ export function* rebuildRoadsSteps(
 }
 
 /**
- * Starší ves jednou přestaví síť cest (`rebuildRoads`) a dostane příznak `roads.rebuilt`
- * (paths.md – Jednorázová přestavba sítě; jednou a idempotentně). Volá se při načtení po převodu
- * na nový systém (`withRoadsV2`) a po trasách. Ves bez cest, s příznakem nebo bez tras vrátí týž
- * objekt. Skončí-li přestavba chybou, ves zůstane jako dřív s příznakem a `rebuildFailed` – jinak
- * by chyba (pro týž vstup deterministická) zablokovala každé další načtení.
+ * Starší ves jednou přestaví síť cest (`rebuildRoads`) a dostane příznak `roads.rebuilt` s verzí
+ * `ROAD_REBUILD.version` (paths.md – Jednorázová přestavba sítě a Jednorázová přestavba podle
+ * nových pravidel; jednou a idempotentně). Ves s nižší verzí (přestavěná 24. 10.) se přestaví znovu
+ * a smaže si příznak opravy (`repaired`), aby síť po přestavbě jednou opravila i oprava
+ * (`withRoadsRepaired` – volá se hned po přestavbě). Volá se při načtení po převodu na nový systém
+ * (`withRoadsV2`) a po trasách. Ves bez cest, s aktuální verzí nebo bez tras vrátí týž objekt.
+ * Skončí-li přestavba chybou, ves zůstane jako dřív s verzí a `rebuildFailed` – jinak by chyba
+ * (pro týž vstup deterministická) zablokovala každé další načtení.
  */
 export function withRoadsRebuilt(
   state: VillageState,
@@ -238,19 +241,23 @@ export function* withRoadsRebuiltSteps(
   report?: RebuildReport,
 ): Generator<void, VillageState, void> {
   const roads = state.roads;
-  if (!roads || roads.rebuilt || !roads.v2) return state;
+  if (!roads || roads.rebuilt === ROAD_REBUILD.version || !roads.v2) return state;
   if (!state.routes || state.routes.list.length === 0) return state;
   let next: VillageState;
   try {
     next = yield* rebuildRoadsSteps(state, landscape, obstacles, report);
   } catch {
     const failed = cloneState(state);
-    failed.roads!.rebuilt = 1;
-    failed.roads!.rebuildFailed = 1;
+    failed.roads!.rebuilt = ROAD_REBUILD.version;
+    failed.roads!.rebuildFailed = ROAD_REBUILD.version;
     return failed;
   }
   const flagged = next === state ? cloneState(state) : next;
-  flagged.roads!.rebuilt = 1;
+  flagged.roads!.rebuilt = ROAD_REBUILD.version;
+  delete flagged.roads!.rebuildFailed;
+  // přestavěnou síť jednou opraví i oprava (vozové spojky, volné vozové konce)
+  delete flagged.roads!.repaired;
+  delete flagged.roads!.repairFailed;
   return flagged;
 }
 

@@ -58,7 +58,7 @@ async function settled(): Promise<{ villages: InMemoryVillages; villageId: strin
       trees: [],
       labor: { from: TODAY - 100, days: 0, shares: [] },
       // ručně položené cesty – jednorázová přestavba sítě by je zahodila (paths.md)
-      rebuilt: 1,
+      rebuilt: 2,
     };
   });
   return { villages, villageId: founded.village.id };

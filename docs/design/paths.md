@@ -721,7 +721,8 @@ Pravidla (návrh Clauda, čísla `FENCE_CLEARANCE` v `rules-roads.ts`):
   buňky (u rovné stavby 2,6 m od oblouku plotu), roh neusekne. Nehlídá se **4 m** u začátku a konce trasy (brána domu je 1 m
   před brankou pozemku, cíl v brance). Trasa daleko od plotů se nemění.
 - **Mění trasy všude:** verze tras `routes-v5` – uložené trasy se přepočítají jednou při dalším
-  dni. Postavené cesty se nemění (jednorázová přestavba Vlkova je další úloha); nové trasy,
+  dni. Postavené cesty se nemění (až [jednorázová přestavba podle nových
+  pravidel](#jednorázová-přestavba-podle-nových-pravidel-26-10-2026)); nové trasy,
   vyšlapávání a nové cesty jdou podle nových pravidel.
 - Čáry pěšin ve scéně a v chůzi (`routePaths`) se kreslí z týchž tras po hranách buněk a odstup od
   plotu nehlídají – trasa už vede mimo pruh u plotu, jen zaoblení může roh přiblížit.
@@ -1152,6 +1153,41 @@ vozové k okrajům mapy bez provozu, krátké kusy u křižovatek a západní zb
 i podle starého pole). **Zbývá** (návrhy 3–5 auditu): vozová spojka vede po
 staré ose a JV roh plotu hřbitova přetíná o 2,5 m (dřív vyšlapaná o 3,5 m – odstup od plotů);
 branka je 3,0 m od osy vozové cesty (na jejím okraji – vozová se neohýbá).
+
+## Jednorázová přestavba podle nových pravidel (26. 10. 2026)
+
+Martin 26. 10. 2026 („určitě“ – oprava zdvojených vozových cest a jednorázová přestavba Vlkova):
+postavené cesty nová pravidla nemění – vozové 1051, 936, 1054, 1041 a vyšlapaná 808 vedly přes
+ploty a rameno 1060 a úsek 801 domem. Přestavba sítě (výš) proto proběhne **ještě jednou** podle všech
+pravidel z 26. 10.: copánek přes křižovatku, vozová bez vlásenky (narovnání i na rovině – Martin
+26. 10. 2026: „ano smí“), odstup od plotů (trasy `routes-v5`), zdvojená vozová cesta a ohyb ramene.
+
+Postup (návrh Clauda): stejná přestavba jako 24. 10. – vyšlapanost z dnešních tras, cesty znovu
+týmiž funkcemi jako za běhu, vylepšení se přenesou (upravená, vyjetá a průsek tam, kde nový úsek
+leží aspoň 60 % délky do 4 m od staré osy), vozové cesty se po nových osách naplánují a jsou hned
+hotové, kus staré vozové osy delší než 60 m, kam nová síť nedosáhne, se vrátí. Pak znovu
+[Jednorázová oprava sítě](#jednorázová-oprava-sítě-25-10-2026) (vozové spojky, volné vozové konce).
+
+- **Verze přestavby:** `roads.rebuilt` nese verzi (`ROAD_REBUILD.version` = 2). Ves s verzí 1 (nebo
+  bez přestavby) se při načtení přestaví jednou a idempotentně, smaže si příznak opravy a oprava
+  proběhne hned po ní; nová ves má verzi 2 od začátku. Chyba → ves zůstane jako dřív s verzí 2
+  a `rebuildFailed` (příště se nezkouší). Server dává mezi kroky přestávky jako dřív.
+- **Vlkov** (stav DB den 117 036 → načtení → dopočet 90 dní, měření ve scratchpadu `diag-roads-r3`):
+  přestavba 12,2 s (7 průchodů), oprava 0,25 s; 13 vozových cest naplánováno, 3 krátké řetězy „moc
+  krátká“. Živé úseky 28 → 26 (vozové 15 → 12, upravené 9 → 12), křižovatky 9 → 10; po 90 dnech beze
+  změny. Audit stav DB / 90 dní bez přestavby / po načtení / po 90 dnech: přes stavbu či pole
+  (c) 12 / 8 / 6 / 3, souběh 1 / 0 / 0 / 0, podél plotu (j) 0 / 0 / 0 / 0, smyčky (g) 6 / 4 / 6 / 6,
+  pahýly 14 / 14 / 11 / 11, kličky 9 / 8 / 8 / 8, konec mimo kotvu 3 / 0 / 0 / 0, vozová bez provozu
+  3 / 3 / 13 / 13 (nové vozové cesty mají provoz až po uzavření roku). Okruhy 936 + 1041 + 1054
+  (133 m) a 794 + 921 + 936 + 941 + 1042 (338 m) zmizely; zůstal okruh upravené 1116, vozové 1261
+  a 1271 (235 m, nad 150 m – dvě různé cesty). Přes dům 2137 nevede nic.
+- **Vozová síť:** 15 úseků / 3 293 m → 12 úseků / 3 227 m (o 66 m kratší – zdvojená vlásenka 1054);
+  vůz dojede ke všem 52 cílům (domy, humno, díly polí, ohrady, hřbitov, sad, milíř a oba konce každé
+  vozové cesty ze stavu DB) jako před přestavbou, celkem levněji (dvoukolák 9 592 → 9 183, čtyřkolák
+  11 271 → 10 870); nejhorší cíl dráž o 9 / 12 m jízdy.
+- **Zbývá:** vozová 1257 u hřbitova vede po ose ohnuté do branky a za plotem v rohu má 3,5 m délky
+  (dřív 1051 2,5 m – plán vozové cesty jde po ose řetězu i s ohybem do branky), vozová 1251 u ohrady
+  2586 2 m a upravená 1121 u ohrady 1958 1,5 m (dřív vyšlapaná 808 4,5 m).
 
 ## Co se ukládá a co se dopočítá
 

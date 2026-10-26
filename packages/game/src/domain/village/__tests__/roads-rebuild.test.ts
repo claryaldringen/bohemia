@@ -163,13 +163,36 @@ describe('rebuildRoads – jednorázová přestavba sítě', () => {
     state.roads!.v2 = true;
     const once = withRoadsRebuilt(state, LANDSCAPE, null);
     expect(once).not.toBe(state);
-    expect(once.roads!.rebuilt).toBe(1);
+    expect(once.roads!.rebuilt).toBe(ROAD_REBUILD.version);
     expect(withRoadsRebuilt(once, LANDSCAPE, null)).toBe(once);
-    expect(emptyRoads(START).rebuilt).toBe(1);
+    expect(emptyRoads(START).rebuilt).toBe(ROAD_REBUILD.version);
     // ves bez tras nebo bez převodu na nový systém se nemění
     const plain = oldVillage().state;
     delete plain.roads!.v2;
     expect(withRoadsRebuilt(plain, LANDSCAPE, null)).toBe(plain);
+  }, 120_000);
+
+  it('ves přestavěná verzí 1 se přestaví znovu podle nových pravidel, jednou (Martin 26. 10. 2026)', () => {
+    const { state } = oldVillage();
+    state.roads!.v2 = true;
+    const first = withRoadsRepaired(withRoadsRebuilt(state, LANDSCAPE, null), LANDSCAPE, null);
+    // jako ves přestavěná a opravená 24.–25. 10. (verze 1)
+    const old = cloneState(first);
+    old.roads!.rebuilt = 1;
+    const before = JSON.stringify(old);
+    const again = withRoadsRebuilt(old, LANDSCAPE, null);
+    expect(JSON.stringify(old)).toBe(before);
+    expect(again.roads!.rebuilt).toBe(ROAD_REBUILD.version);
+    // oprava proběhne po přestavbě znovu
+    expect(again.roads!.repaired).toBeUndefined();
+    const repaired = withRoadsRepaired(again, LANDSCAPE, null);
+    expect(repaired.roads!.repaired).toBe(1);
+    // druhé načtení nic nezmění
+    expect(withRoadsRebuilt(repaired, LANDSCAPE, null)).toBe(repaired);
+    expect(withRoadsRepaired(repaired, LANDSCAPE, null)).toBe(repaired);
+    // stupně cest zůstanou (upravená po trase dál upravená) – síť jako po první přestavbě
+    const grades = (s: VillageState): string[] => s.roads!.roads.map((r) => r.grade).sort();
+    expect(grades(repaired)).toEqual(grades(first));
   }, 120_000);
 
   it('dopočet po přestavbě po kouscích = vcelku', () => {
@@ -198,12 +221,12 @@ describe('rebuildRoads – jednorázová přestavba sítě', () => {
     const before = JSON.stringify(state);
     const next = withRoadsRebuilt(state, LANDSCAPE, null);
     expect(JSON.stringify(state)).toBe(before);
-    expect(next.roads!.rebuilt).toBe(1);
-    expect(next.roads!.rebuildFailed).toBe(1);
+    expect(next.roads!.rebuilt).toBe(ROAD_REBUILD.version);
+    expect(next.roads!.rebuildFailed).toBe(ROAD_REBUILD.version);
     // jinak beze změny – stará síť zůstala
     const expected = cloneState(state);
-    expected.roads!.rebuilt = 1;
-    expected.roads!.rebuildFailed = 1;
+    expected.roads!.rebuilt = ROAD_REBUILD.version;
+    expected.roads!.rebuildFailed = ROAD_REBUILD.version;
     expect(JSON.stringify(next)).toBe(JSON.stringify(expected));
     // příště se už nezkouší
     expect(withRoadsRebuilt(next, LANDSCAPE, null)).toBe(next);
@@ -360,7 +383,7 @@ describe('rebuildRoads – vozové cesty (R2, Martin 24. 10. 2026 – varianta A
     const { state } = wagonVillage();
     state.roads!.v2 = true;
     const rebuilt = withRoadsRebuilt(state, LANDSCAPE, null);
-    expect(rebuilt.roads!.rebuilt).toBe(1);
+    expect(rebuilt.roads!.rebuilt).toBe(ROAD_REBUILD.version);
     expect(withRoadsRebuilt(rebuilt, LANDSCAPE, null)).toBe(rebuilt);
     expect(JSON.stringify(rebuildRoads(wagonVillage().state, LANDSCAPE, null))).toBe(
       JSON.stringify(rebuildRoads(wagonVillage().state, LANDSCAPE, null)),
