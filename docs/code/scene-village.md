@@ -227,6 +227,50 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   stoupá s plností o `GRAIN_RISE_M`), u prázdné jámy hliněné dno `FLOOR`; materiál má `zOffset`,
   aby louka neprosvítala. Bez nové textury, jen barvy vrcholů.
 
+## Humno ve scéně (production-chains.md – Humno, Obilné jámy; úloha 5 výrobních řetězů)
+
+Humno je jen mlat bez přístřešku (Martin 21. 10. 2026), mlátí se **holemi** – cepy se tehdy
+nepoužívaly (Martin 21. 10. 2026: „ať do něj mlátí holemi“). Místa jsou v osách humna
+(`threshing-floor-layout.ts` – `floorPoint`, x napříč 8 m, z podél 10 m, vstup před předkem +z jako
+`threshingFloorEntrance`), stejná pro scénu i postavy.
+
+- **Data** (`sceneThreshingFloors` ve `village-view-scene.ts`): `SceneThreshingFloor.straw` (stoh
+  0–1 – `threshingFloorStraw` ve `village-view-buildings.ts`, návrh Clauda: roste v srpnu a září
+  `STRAW_RISE_DAYS` od loňského zbytku `STRAW_LEFT` 0,3 do plného, přes zimu se zkrmí a podestele
+  zpět na zbytek; humno postavené po výmlatu ho má až od příští žně; po dvacetinách),
+  `threshing` (dnes podíl `thresh` s cílem humna) a `grainKg` (vymlácené zrno čekající na jámy –
+  `grainPitWork.queueKg` rovným dílem na hotová humna, na desítky kg).
+- **Kreslení** (`ThreshingFloorRenderer` v `threshing-floor-renderer.ts`, vedle obtisku mlatu ve
+  `VillageRenderer`): staveniště po fázích `FLOOR_PHASES` (vytyčení 0–5 %, sejmutí drnu do 35 %,
+  hlína do 60 %, kropení a dusání do 90 %, vymazání) – `floorSiteLook`: kolíky a provázek
+  (`StakingPegs`, `createStringMesh` jako ohrada) do 35 %, krytí obtisku mlatu, hromada drnů
+  (`TURF_HEAP`) a hlíny na mazanici (`CLAY_HEAP`), které přibývají a při dusání a mazání ubývají.
+  Hotové humno: rozprostřené klasy (`SHEAF_BED`, nízká nerovná vrstva) jen ve dny výmlatu,
+  hromádka zrna (`GRAIN_HEAP`, `grainHeapScale` podle kg) – hromady a klasy jsou jedna síť
+  s barvami vrcholů (`threshingFloorGeometry`, bez textury); stoh slámy (`STRAW_STACK` v zadním
+  rohu) je kupka `models/fields/haystack.glb` (0 A.D., licence v `models/fields/LICENSES.md`)
+  do zlata, v instancích, nižší a užší, když ubývá. Přestaví se jen při změně, kterou je vidět
+  (`threshingFloorsKey`).
+- **Postavy** (`villager-plan-fields.ts`): klipy `thresh` (mlatcí hůl `procedural_stick` ≈ 1,2 m,
+  animace `gather_mine` z 0 A.D. – úder oběma rukama shora) a `winnow` (dřevěná lopata
+  `procedural_shovel`, animace `farming`) v `man.glb` i `woman.glb` (`tools/blender/people.json`,
+  modely CC0, licence v `models/people/LICENSES.md`; bez nového vertex atributu – test ve
+  `fauna.test.ts`). `threshingOnFloor`: páry mlatců naproti sobě přes klasy (`thresherSpot`, nejvýš
+  `THRESHER_PAIRS` 4), každý třetí prohazuje u hromádky zrna čelem proti větru (`WINNOW_FACING`,
+  nejvýš 3), další nosí slámu z klasů na stoh (shuttle po humně), zbytek obrací klasy za mlatci.
+  Nouzový výmlat (`threshing`): na volném místě u vsi dva páry mlatců a dva prohazovači; porážka
+  má dřívější kruh s paličkou (`groundWork`). Stavba humna (`threshingFloorSite`, podíl `build`
+  s cílem staveniště humna): paličkou u kolíků, motykou v řadách (drn), u hromady hlíny motykou
+  a na mlatu roztírání, dusání holí přes mlat, mazání v podřepu.
+- **Nošení**: pěší nosiči snopů (`carriers` – podíl `carry`) nesou snopy obilí a luštěnin z pole na
+  nejbližší hotové humno (`sheafFloor` – vstup před mlatem, len domů); bez humna domů jako dřív.
+  Zrno z humna do jam (`grainPitWorkers` ve `villager-plan-crafts.ts`): první dva u hrdla
+  s motykou, další nosí v koši od vstupu humna, kde zrno čeká (`grainKg`), k jámě po pěšinách.
+- **Ukázky**: `/dev/buildings` – Humno mezi plochami (`showcaseThreshingFloor`: posuvník do
+  poloviny stavba po fázích, pak výmlat s klasy a rostoucím stohem, na konci plný stoh; bez
+  postav), `/dev/landscape` – tlačítko Humno (`dev-threshing.ts`: žně a nosiči snopů na humno →
+  výmlat a prohazování → zrno do jam).
+
 ## Divoká zvěř, pes a prut (modely – wildlife Úloha W8; ve scéně W10–W11)
 
 `apps/web/public/models/fauna/wild-{boar,stag,hind,wolf,bear,fox,hare}.glb` a `dog.glb` (pes

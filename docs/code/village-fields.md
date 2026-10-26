@@ -388,10 +388,10 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   stromy u cest a vzdálenost vsí. Use-case `placeThreshingFloor`, server action
   `placeThreshingFloor` (`{ villageId, position }`), mřížka staveb [K] (umístění i `PlacementMode`
   `threshing-floor` – duch jen obrys půdorysu), ikona
-  `icons/build/humno.png`. Scéna zatím jen obtisk mlatu (`SceneVillage.threshingFloors`,
+  `icons/build/humno.png`. Scéna: obtisk mlatu (`SceneVillage.threshingFloors`,
   `VillageRenderer.updateThreshingFloors`) – světlá udusaná hlína s ostrým okrajem (21. 10. 2026
-  zesvětlená, `alphaIndex` 2,2 a `LIFT.turf` nad poli a hlínou vsi – dřív splývala se zemí), model
-  přinese další úloha plánu. **Výběr** (Martin 21. 10. 2026: „humno nemohu označit“):
+  zesvětlená, `alphaIndex` 2,2 a `LIFT.turf` nad poli a hlínou vsi – dřív splývala se zemí), krytí
+  podle fáze stavby; stoh, klasy, zrno a staveniště – scene-village.md, Humno ve scéně. **Výběr** (Martin 21. 10. 2026: „humno nemohu označit“):
   `VillageTarget` `{ kind: 'threshing-floor', id }` – klik na půdorys (`pickVillageTarget` přes
   `threshingFloorFootprint`), obrys půdorysu v `targetOutline`, panel `ThreshingFloorBody`
   (portrét `humno`; staveniště průběh stavby, hotové nevymlácené snopy v kg a značka „dnes se
@@ -431,7 +431,7 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   čekající výmlat (`pendingThreshLabor` – na humnech nejvýš kapacita za dny okna) z podzimní
   kapacity (`sowingCapacity`) a výmlat ozimu a luštěnin přičte k srpnu (`CropLoad.august` ve
   `sowing.ts`). Rozdělení práce: výmlat na hotová humna rovným dílem (cíl `threshing-floor`),
-  nouzový u vsi (`DayWork.threshing`); ve scéně mlátí podíl s cílem `threshing-floor` na humně (`threshingOnFloor` ve `villager-plan-fields.ts`), podíl s cílem ves nouzově u vsi (`threshing`; issue #3 – dřív mlátili všichni u vsi); síť pěšin vede k humnu vstupem na předku
+  nouzový u vsi (`DayWork.threshing`); ve scéně mlátí podíl s cílem `threshing-floor` na humně (`threshingOnFloor` ve `villager-plan-fields.ts` – páry mlatců s holemi, prohazovači, nosič slámy), podíl s cílem ves nouzově u vsi (`threshing` – dva páry mlatců a dva prohazovači na místo; issue #3 – dřív mlátili všichni u vsi), pěší nosiči snopů jdou z pole na humno (`sheafFloor`, scene-village.md – Humno ve scéně); síť pěšin vede k humnu vstupem na předku
   (`threshingFloorEntrance` v `paths/entrances.ts`, `PathVillage.threshingFloors`, klíče sítě
   a chůze), humno je stavba, kterou obejdou pěšiny, vozy, vozové cesty (`villageBuildings`)
   i zemská stezka (`trailRoutes(…, floors)`); svoz snopů vozem jede i k humnu
