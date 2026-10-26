@@ -155,6 +155,9 @@ describe('síť pěšin na skutečné krajině – zlatý otisk', () => {
     // 26. 10. 2026: pevné remízy (paths.md – Stálé trasy, pravidlo 3) – ceny kroků po 1/1024 m,
     // síla pěšiny po setinách, ze stejně drahých předchůdců vyšší index; trasy se liší jen tam, kde
     // byly dvě stejně drahé (dřív rozhodlo pořadí haldy)
-    expect(networkFingerprint(network)).toBe('75041:2a9dd0e5');
+    // 26. 10. 2026 (Martin „A“): stálá cena chůze přes pole 1,67 → 8 / 7 ≈ 1,14 – časový průměr
+    // přes skutečný osevní postup (paths.md – Stálé trasy, pravidlo 1); celý blok 12 × 9 dílů je
+    // pole, pěšiny přes něj vedou rovněji
+    expect(networkFingerprint(network)).toBe('75041:39bc110a');
   }, 30_000);
 });

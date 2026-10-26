@@ -11,11 +11,14 @@ export const DISTANCE = { freeM: 100, percentPer10M: 1 } as const;
 export const PATH_WALK = { speed: 1.3 } as const;
 // paths.md – Stálé trasy, pravidlo 1 (Martin 25. 10. 2026: „No a kdyby se cesta neměnila podle
 // toho, v jakém je pole stavu, ale použil by se nějaký průměr?“; číslo návrh Clauda, schváleno):
-// rychlost chůze přes pole proti louce je stálá – 0,6 (cena buňky 1,67) v každém stadiu dílu
-// (zakládaný, zoraný, osetý, rostoucí, zralý, žeň, strniště, úhor); časový průměr dřívějších cen
-// (v osevu 0,5, strniště 0,8 – Martin 19. 10. 2026). Zarostlý díl (křoviny, mladý les) jako louka
-// s cenou vegetace. Pole není zákaz, jen cena – síť pěšin hledá nejrychlejší cestu
-export const FIELD_WALK = { field: 0.6 } as const;
+// rychlost chůze přes pole proti louce je stálá – 0,875 (cena buňky 8 / 7 ≈ 1,14) v každém
+// stadiu dílu (zakládaný, zoraný, osetý, rostoucí, zralý, žeň, strniště, úhor). Martin 26. 10.
+// 2026 („A“): časový průměr dřívějších cen (v osevu 2, strniště 1,25, úhor a příloh jako louka 1
+// – Martin 19. 10. 2026) přes skutečný osevní postup (fields.md – Osevní postup po dílech: oběh
+// 12 let, ozim, jař a 10 let úhor) – oseto ≈ šestina dílů → 1,12, Vlkov (≈ 80 % ladem) → 1,14;
+// dřív 0,6 (1,67) podle trojpolí. Zarostlý díl (křoviny, mladý les) jako louka s cenou vegetace.
+// Pole není zákaz, jen cena – síť pěšin hledá nejrychlejší cestu
+export const FIELD_WALK = { field: 0.875 } as const;
 // roads.md – Dvě vrstvy cest (návrh Clauda, schváleno 18. 10. 2026): pevné cesty se počítají
 // jednou za rok k 1. 11. (po sklizni jablek) z celoroční práce; úsek, kudy se dva roky po sobě
 // chodí aspoň 3× denně (roční průměr), se stane pevnou cestou; vyšlapaná cesta, kudy se 5 let po

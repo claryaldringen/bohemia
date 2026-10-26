@@ -36,8 +36,8 @@ function fieldRoute(fields: PathVillage['fields'], onTerrain = terrain): number[
 }
 
 describe('stálá cena pole (paths.md – Stálé trasy, pravidlo 1)', () => {
-  it('chůze: všechna stadia i vzhledy dílu 0,6 louky, zarostlý díl jako dosud', () => {
-    expect(FIELD_WALK.field).toBe(0.6);
+  it('chůze: všechna stadia i vzhledy dílu 0,875 louky, zarostlý díl jako dosud', () => {
+    expect(FIELD_WALK.field).toBe(0.875);
     for (const stage of FIELD_STAGES) {
       expect(partWalkSpeed({ stage })).toBe(FIELD_WALK.field);
       expect(isCropPart({ stage })).toBe(true);

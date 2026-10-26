@@ -191,8 +191,9 @@ describe('computePathNetwork – pěšiny vsi', () => {
         fields: [
           {
             id: 9,
-            // úzký hluboký blok mezi vsí a vodou – obejít je kousek
-            parts: [22.5, 37.5, 52.5].flatMap((z) => [-7.5, 7.5].map((x) => part(x, z, stage))),
+            // úzký hluboký blok (jeden díl na šířku) mezi vsí a vodou – obejít je kousek; při
+            // stálé ceně pole 1,14 se obchůzka vyplatí jen kolem úzkého bloku
+            parts: [22.5, 37.5, 52.5].map((z) => part(0, z, stage)),
           },
         ],
       });
@@ -226,7 +227,7 @@ describe('computePathNetwork – pěšiny vsi', () => {
         fields: [
           {
             id: 9,
-            parts: [22.5, 37.5, 52.5].flatMap((z) => [-7.5, 7.5].map((x) => part(x, z, 'sown'))),
+            parts: [22.5, 37.5, 52.5].map((z) => part(0, z, 'sown')),
           },
         ],
         ...(roads ? { roads } : {}),

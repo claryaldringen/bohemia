@@ -765,7 +765,7 @@ landscape, obstacles)` v `paths/roads-rebuild.ts`; `updateVillage` volá po `wit
 
 Návrh `docs/design/paths.md` – Stálé trasy (25. 10. 2026), Úloha A1.
 
-- **Cena pole bez stadia:** `FIELD_WALK.field` 0,6 (cena 1,67) a `CART_SPEED.field` 0,25 (cena 4)
+- **Cena pole bez stadia:** `FIELD_WALK.field` 0,875 (cena 1,14 – průměr osevního postupu, Martin 26. 10. 2026 „A“; dřív 0,6) a `CART_SPEED.field` 0,25 (cena 4)
   v `rules-roads.ts`. `partWalkSpeed` / `isCropPart` (`paths/walk-speed.ts`) i `cartPartSpeed`
   (`paths/cart.ts`) znají jen zarostlý díl (křoviny, mladý les – chůze jako louka × `OVERGROWN_COST`,
   vůz neprojede); jinak stálá cena a pěšina dne přes pole nezrychlí. Dvoukolák i čtyřkolák stejně

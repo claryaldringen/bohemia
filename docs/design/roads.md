@@ -352,6 +352,9 @@ jednodušší jít přes pole, než ho obcházet i když je cesta přes pole pom
 | mokřina bez cesty i po vyšlapané, vyježděné či upravené cestě       | 0,5                                                | 0,55                                                  |
 | brod bez lávky                                                      | + 30 m                                             | 0,33 – i pod hatí (lávka je jen pro pěší)             |
 
+- **Pole od 25. 10. 2026 stálou cenou** (paths.md – Stálé trasy, pravidlo 1): chůze 0,875 (cena
+  1,14 – časový průměr přes osevní postup, Martin 26. 10. 2026 „A“; do 26. 10. 0,6), vůz 0,25 (cena 4) v každém stadiu dílu. Řádky dílu v osevu, strniště, úhoru a zakládaného dílu výš jsou podklad
+  průměru.
 - **Stejné rychlosti v síti pěšin i ve vzdálenosti chůze** (`walk-speed.ts` – `partWalkSpeed`,
   `pathCostFactor`, `roadWalkSpeed`; čísla `PATH_WALK`, `FIELD_WALK`, `ROAD_WALK` v `rules.ts`):
   buňka sítě stojí 1 / rychlost (krát les, svah a překážky jako dřív), chůze rovně, po pěšině i po

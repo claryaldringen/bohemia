@@ -233,7 +233,8 @@ trasy, Naměřeno. Shrnutí:
   zásoby 1. 10. 820 6 551 proti 6 917 kg (−5 %), 13. 9. 821 7 364 proti 7 833 kg (−6 %).
   **Kritérium „jídlo beze změny“ splněno jen pro hlad** – pokles úrody je vlastnost pravidla
   (chůze přes pole 1,67 i na úhoru a přílohu, dřív 1,0; na Vlkově leží ladem ≈ 80 % polí, ne
-  třetina, se kterou počítal průměr) – otázka pro Martina v paths.md.
+  třetina, se kterou počítal průměr) – otázka pro Martina v paths.md (rozhodnuto 26. 10. 2026
+  „A“ – úloha A4).
 - **Výkon (rok dopočtu vcelku):** 130,2 s → 71,8 s (opakování 71,9 s; −45 %), `uptime` load 1,0–5,2
   (stroj sdílený s dev serverem). Mez ≤ 25 s platí po B. Profil prvních 120 dní nového:
   `refreshWalkDistances` 58 % (≈ 3,5 s za přepočet – `walkingDistances` / `groundWalkLength`:
@@ -241,6 +242,32 @@ trasy, Naměřeno. Shrnutí:
   vozů – spřežení k orbě 16 %, vůz pro vodu 14 %) – podklad pro B1.
 - **Determinismus:** po dnech = vcelku – otisk stavu po 365 dnech `9e491e54ed15` v obou (starý engine
   `958285bd0eb0` v obou).
+
+### Úloha A4: Stálá cena chůze přes pole podle osevního postupu (Martin 26. 10. 2026 „A“)
+
+**Soubory:** `rules-roads.ts` (`FIELD_WALK.field` 0,6 → 0,875), `paths/walking.ts` (komentář),
+testy `stable-routes`, `paths-walking`, `paths-network`, `paths-nearest` (zlatý otisk sítě).
+
+- **Výpočet:** časový průměr cen chůze (cena buňky = 1 / rychlost) přes skutečný osevní postup
+  (fields.md – Osevní postup po dílech): oběh odpočatého dílu 12 let – rok ozimu ≈ 1,9 (10 měsíců
+  v osevu 2, 2 strniště 1,25), rok jaře ≈ 1,55 (5 + 7), 10 let úhor a příloh jako louka 1 →
+  (1,875 + 1,5625 + 10) / 12 ≈ 1,12; na Vlkově je ladem ≈ 80 % polí (oseto ≈ pětina, luštěniny
+  a nouzový příloh) → 1,14. Stálá cena **8 / 7 ≈ 1,14** (rychlost 0,875 – přesná v plovoucí
+  čárce). Vůz dál 4 (Martin 25. 10. 2026).
+- **Testy:** čísla 0,6 → 0,875 a 100 m → 60 / 0,875 přes pás pole; „pole obejde, když je
+  obcházení krátké“ s blokem jednoho dílu na šířku (při 1,14 se obchůzka kolem bloku dvou dílů
+  už nevyplatí – chování stejné, jen geometrie); zlatý otisk sítě `75041:2a9dd0e5` →
+  `75041:39bc110a` (blok 12 × 9 dílů je celý pole, levnější průchod mění trasy). Krajina
+  a překážky beze změny.
+- **Naměřeno – Vlkov 24 měsíců po dnech** (`diag-stable/run.mts`, štítek `fw`): chůze k dílům
+  Ø 334–335 m (dosavadní 325–344, A3 384–388), max 783 m (715–892, A3 1 031); k vodě Ø 327 m
+  (322–325, A3 331), max 493 m (454–484, A3 498). Jař 820 na 328 dílech (dosavadní 351, A3
+  294); úroda ozimu 820 / 821 2 294 / 2 847 kg (dosavadní 2 259 / 2 824, A3 2 221 / 2 491);
+  zásoby 1. 10. 820 6 779 kg (6 917, A3 6 551), 13. 9. 821 8 016 kg (7 833, A3 7 364); hlad 0.
+  Audit po 12 měsících b 21 / d 3 / g 10 (A3 21 / 3 / 10, dosavadní 32 / 4 / 13), přepočty tras
+  11 za rok (A3 11, dosavadní 33), změněné buňky stálých tras 135 (A3 140). Dosah svozu 100 %,
+  99,8 %. Výkon: rok vcelku 56,5 s (A3 71,8 s, dosavadní 130 s); determinismus po dnech = vcelku
+  (otisk po 365 dnech `75dad0432a58`). **Chůze i úroda zhruba jako dosavadní engine.**
 
 ### Úloha B1: Mezipaměť mřížky a tras vozů, chůze jen při změně mapy (≈ 130 kroků)
 
@@ -343,3 +370,8 @@ tak žádnou úrodu nepošlape – je to přiměřené herní zjednodušení.“
 - ~~Cena pole pro vůz~~ – **4**, dvoukolák i čtyřkolák stejně.
 - ~~Čtyřkolák na poli~~ – stálá cena jako dvoukolák.
 - ~~Pošlapání úrody~~ – odpadá (úloha A1).
+
+## Otázka pro Martina – rozhodnuto 26. 10. 2026
+
+- ~~Chůze přes úhor a příloh (A3: chůze k dílům +15 %, ozim 821 −12 %)~~ – Martin: **„A“** –
+  stálou cenu chůze přes pole snížit na skutečný průměr osevního postupu (1,14, úloha A4).
