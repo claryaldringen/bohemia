@@ -20,6 +20,7 @@ import { obstaclePosition, pathTerrainOf, pathWindowFor, withObstacles } from '.
 import {
   refreshWalkDistances,
   routeMapKey,
+  routeWorkKey,
   routeTreesDay,
   withoutWalkStages,
   withRoutes,
@@ -424,6 +425,68 @@ describe('trasy jen při změně mapy (paths.md – Stálé trasy, pravidlo 5)',
     expect(s.routes!.list.some((r) => r.daily && r.to === 'dwelling:1')).toBe(true);
     expect(s.routes!.day).toBe(routes.day);
     expect(cellsOf(stableOf(s.routes!.list))).toEqual(cellsOf(stableOf(routes.list)));
+  }, 30_000);
+
+  it('otevřená obilná jáma po začátku dopočtu dostane stálou trasu (klíč mapy)', () => {
+    const s = advanceVillage(withField(), DAY + 3, null, LANDSCAPE);
+    const key = routeMapKey(s, DAY + 3);
+    s.storesKg = 4000;
+    s.grainPits = [
+      {
+        id: 7,
+        x: -50,
+        z: -30,
+        capacityKg: 1500,
+        grainKg: 1500,
+        state: 'open',
+        dugDay: DAY,
+        filledDay: DAY + 1,
+      },
+    ];
+    expect(routeMapKey(s, DAY + 3)).not.toBe(key);
+    refreshWalkDistances(s, DAY + 4, LANDSCAPE, null);
+    expect(s.routes!.list.some((r) => r.to === 'grain-pit:7')).toBe(true);
+  }, 30_000);
+
+  it('sečená políčka luk mění místa práce (workKey), tentýž počet ne', () => {
+    const s = advanceVillage(withField(), DAY + 3, null, LANDSCAPE);
+    const mow = (x: number): LaborShare =>
+      ({
+        activity: 'mow',
+        target: { kind: 'meadow', cells: [{ x, y: 3 }] },
+        manDays: 2,
+      }) as unknown as LaborShare;
+    s.labor = { ...s.labor!, shares: [...s.labor!.shares, mow(1)] };
+    const a = routeWorkKey(s);
+    s.labor = { ...s.labor, shares: [...s.labor.shares.slice(0, -1), mow(2)] };
+    expect(routeWorkKey(s)).not.toBe(a);
+  }, 30_000);
+
+  it('průběh zemních prací klíč mapy nemění, hotový úsek ano', () => {
+    const s = advanceVillage(withField(), DAY + 3, null, LANDSCAPE);
+    s.roads = {
+      nextId: 2,
+      roads: [],
+      trees: [],
+      labor: { from: 0, days: 0, shares: [] },
+      earthworks: [
+        {
+          id: 1,
+          profile: [
+            { x: 100, z: 300, y: 0 },
+            { x: 100, z: 0, y: 0 },
+          ],
+          pieces: [{ toM: 300, manDays: 10, builtDay: null }],
+          startedDay: DAY,
+          constructionId: 7,
+        },
+      ],
+    };
+    const key = routeMapKey(s, DAY + 3);
+    s.roads.earthworks![0]!.pieces[0]!.manDays = 80;
+    expect(routeMapKey(s, DAY + 3)).toBe(key);
+    s.roads.earthworks![0]!.pieces[0]!.builtDay = DAY + 3;
+    expect(routeMapKey(s, DAY + 3)).not.toBe(key);
   }, 30_000);
 
   it('ves uložená před stálými trasami: otisk stadií zmizí, trasy se přepočítají jednou', () => {

@@ -545,7 +545,8 @@ function computeVillageNetwork(
  * ceny buněk pro chůzi a vůz – obydlí a staveniště (poloha, natočení, druh, pozemek), díly polí
  * (políčka – bez stadia), sady, hřbitovy, posvátná místa, ohrady, les vsi, milíře, humna, pevné
  * cesty (osa, druh, stupeň, mokřina, olemování po desetinách – ne stav kusů, provoz ani opuštění),
- * zemní práce a pařezy k poslednímu 1. 11. Neobsahuje stadia dílů, lidi, stáří spojení, stáda,
+ * zemní práce (profil, brody, hotové úseky – ne průběh), otevřené obilné jámy (stálý cíl) a pařezy
+ * k poslednímu 1. 11. Neobsahuje stadia dílů, lidi, stáří spojení, stáda,
  * práci dne ani den.
  */
 export function routeMapKey(state: VillageState, day: number): string {
@@ -563,9 +564,27 @@ export function routeMapKey(state: VillageState, day: number): string {
     k.woods,
     k.kilns,
     k.floors,
-    state.roads?.earthworks ?? [],
+    earthworksKey(state),
+    openGrainPits(state).map((p) => `${p.id}:${p.x},${p.z}`),
     routeTreesKey(state, day),
   ]);
+}
+
+/**
+ * Zemní práce pro klíč mapy: profil, brody, konce úseků a které jsou hotové, zrušení – ne průběh
+ * (`manDays`), který se mění každý den stavby a mapu tras nepřepočítává (výkon).
+ */
+function earthworksKey(state: VillageState): string {
+  return (state.roads?.earthworks ?? [])
+    .map(
+      (e) =>
+        `${e.id}:${JSON.stringify(e.profile)}:${(e.fords ?? []).join(',')}:${e.pieces
+          .map((p) => `${p.toM}${p.builtDay === null ? '' : '*'}`)
+          .join(
+            ',',
+          )}:${JSON.stringify(e.bypassed ?? [])}:${e.abandonedDay === undefined ? '' : 'x'}`,
+    )
+    .join('|');
 }
 
 /**
@@ -638,7 +657,16 @@ export function routeWorkKey(state: VillageState): string {
   for (const share of state.labor?.shares ?? []) {
     if (share.manDays <= 0 || STABLE_WORK.has(share.target.kind)) continue;
     const key = wearLaborKey(share.target);
-    if (key !== null) keys.add(key);
+    if (key === null) continue;
+    // sečená políčka luk určují cíl trasy (`meadow`) – nové místo seče = nové trasy
+    keys.add(
+      share.target.kind === 'meadow'
+        ? `${key}:${share.target.cells
+            .map((c) => `${c.x},${c.y}`)
+            .sort()
+            .join('.')}`
+        : key,
+    );
   }
   return [...keys].sort().join(';');
 }
@@ -720,6 +748,7 @@ function walkLayoutParts(state: VillageState): WalkLayoutParts {
   const parts = state.parts.map(
     (p) => `${p.id}:${p.cell ? `${p.cell.x},${p.cell.y}${turned(grids.get(p.fieldId))}` : ''}`,
   );
+  // `surface` se po založení lesa nemění (povrch dílu při založení) – do klíče nepatří
   const woods = villageWoods(state).map((w) => `${w.cell.x},${w.cell.y}${turned(w.grid)}`);
   const orchards = villageOrchards(state).map(
     (o) => `${o.id}${turned(o.grid)}:${o.squares.map((s) => `${s.cell.x},${s.cell.y}`).join(';')}`,

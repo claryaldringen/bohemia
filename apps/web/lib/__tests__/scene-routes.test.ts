@@ -95,5 +95,21 @@ describe('trasy a vyšlapanost jen při změně klíče', () => {
     const key = sceneRoutesKey(base);
     expect(sceneRoutesKey({ ...base, workKey: 'w2' })).not.toBe(key);
     expect(sceneRoutesKey({ ...base, list: [{ ...route, trips: 120 } as never] })).not.toBe(key);
+    // převážení s týmž součtem cest
+    const two = {
+      ...base,
+      list: [
+        { ...route, trips: 60 },
+        { ...route, to: 'b', trips: 40 },
+      ],
+    };
+    const swapped = {
+      ...base,
+      list: [
+        { ...route, trips: 40 },
+        { ...route, to: 'b', trips: 60 },
+      ],
+    };
+    expect(sceneRoutesKey(swapped as never)).not.toBe(sceneRoutesKey(two as never));
   });
 });

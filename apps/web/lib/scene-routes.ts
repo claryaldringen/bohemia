@@ -2,7 +2,13 @@
 // v dotazu na ves pošle klíč tras a den vyšlapanosti, které má, server při shodě pošle `null`
 // a klient drží poslední.
 
-import { decodeWear, routePaths, type PathLine, type VillageRoutes } from '@bohemia/game';
+import {
+  decodeWear,
+  routePaths,
+  routesCacheKey,
+  type PathLine,
+  type VillageRoutes,
+} from '@bohemia/game';
 import type { SceneVillage } from './village-view-scene-types';
 
 /** Klíče, které klient má – příloha dotazu na ves. */
@@ -19,8 +25,7 @@ export interface KnownSceneData {
  * – klíč scény proto nese i místa práce a součet cest za den.
  */
 export function sceneRoutesKey(routes: VillageRoutes): string {
-  const trips = routes.list.reduce((sum, r) => sum + r.trips, 0);
-  return `${routes.key}/${routes.workKey ?? ''}/${routes.list.length}/${trips}`;
+  return `${routes.key}/${routes.workKey ?? ''}/${routesCacheKey(routes.list)}`;
 }
 
 /** Klíče tras a vyšlapanosti pohledu (pro dotaz na ves). */

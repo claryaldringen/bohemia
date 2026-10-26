@@ -237,7 +237,7 @@ const FIELDS_KEPT = 8;
  * Otisk seznamu tras pro mezipaměť pole (FNV-1a přes buňky, cesty a stálou část) – trasy se mění
  * i beze změny otisku mapy (převážení, trasy k práci dne – paths.md, Stálé trasy, pravidlo 5).
  */
-function fieldCheck(list: readonly StoredRoute[]): string {
+export function routesCacheKey(list: readonly StoredRoute[]): string {
   let h = 0x811c9dc5;
   const mix = (text: string): void => {
     for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193);
@@ -286,7 +286,7 @@ export function trafficField(
   cellM: number,
 ): TrafficField {
   const key = `${routes.key}|${cellM}`;
-  const check = fieldCheck(routes.list);
+  const check = routesCacheKey(routes.list);
   const cached = FIELDS.get(key);
   if (cached && cached.check === check) return cached.field;
   const field = buildField(routes.list, cellM);

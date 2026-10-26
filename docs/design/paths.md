@@ -234,6 +234,11 @@ změně stadia hledaly znovu (měření 25. 10. 2026: hledání tras vozů 67 % 
    třetinu; vůz 4 je průměr trojpolí. Okraj pole (úvrať) jako louka, pevná cesta přes pole, mokřina
    na poli (platí pomalejší) a zarostlý díl (křoviny a mladý les – vůz neprojede) zůstávají jako
    dosud; zarůstání je změna krajiny (roční krok), ne stadium.
+   - **Stálá část cest k poli je 1,0 i u úhoru** (návrh Clauda, 26. 10. 2026): pole se bere jako
+     celek, který se obdělává a hlídá celý rok, a stálá část cest nezávisí na stadiu dílu
+     (stadia mapu ani trasy nemění). Dřívější nižší váha úhoru (0,4 / 0,5) by stadium vnesla
+     zpět do stálých tras; práci dne nese `wear.labor`. Dopad na vyšlapanost ověřit při
+     kalibraci (Vlkov).
    - **Celá plocha pole je pole od chvíle, kdy ho hráč umístí** – i díly, které se teprve zakládají
      (kácení, drn); postupné zakládání mapu tras nemění. Stromy, které na umístěném poli (nebo
      pozemku stavby) ještě stojí, mapa tras nebere – vesničané je stejně skácí. Totéž stavby:
