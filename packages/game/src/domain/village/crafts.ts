@@ -352,7 +352,7 @@ export function ironOrderBarsKg(state: Pick<VillageState, 'dwellings'>): number 
  * Hřivny na příští kování jezdeckých koní (kg – horses.md, Kování): jezdecké koně (samci od 3 let)
  * × hřivny na koně. Bez importu `horses.ts` (cyklus modulů), proto vlastní počítání z ohrad.
  */
-function shoeingBarsKg(state: Pick<VillageState, 'pens'>, day: number): number {
+export function shoeingBarsKg(state: Pick<VillageState, 'pens'>, day: number): number {
   let horses = 0;
   for (const pen of state.pens ?? []) {
     if (pen.species !== 'horse') continue;
@@ -1165,7 +1165,9 @@ function workSmith(
   let wantLeft = left;
   // 1. nástroje z hřiven do vybavení
   const barsBefore = stocks.ironBarsKg ?? 0;
-  const forgeInput = { labor: left, skill, wantedKg: deficit.forgeKg, barsKg: barsBefore };
+  // hřivny na příští kování koní se na nástroje nekují (horses.md – Kování: rezerva hřiven)
+  const forgeBars = Math.max(0, barsBefore - shoeingBarsKg(state, day));
+  const forgeInput = { labor: left, skill, wantedKg: deficit.forgeKg, barsKg: forgeBars };
   const forge = forgeStep({ ...forgeInput, charcoalKg: stocks.charcoalKg });
   const forgeWant = forgeStep({ ...forgeInput, charcoalKg: Infinity });
   want.forge = forgeWant.charcoalKg;

@@ -132,7 +132,7 @@ export function planShoeing(
   const route = nearestCraftsman(state, 'smith', landscape);
   if (!route) return null;
   const valueKg = foreignValueKg(state, day, coverage, horses, route.days);
-  const pool = paymentPool(state, day, coverage);
+  const pool = paymentPool(state, day, coverage, true);
   const grainKg = Math.min(valueKg / sellPrice('grain'), pool.grainKg, pool.energyKg);
   let left = valueKg - grainKg * sellPrice('grain');
   pool.energyKg -= grainKg;

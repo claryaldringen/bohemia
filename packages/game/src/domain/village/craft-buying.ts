@@ -281,15 +281,20 @@ export interface PaymentPool {
   legumesKg: number;
 }
 
-/** Přebytek obilí a luštěnin nad pojistkou zásob (field-food.ts – `sowingTargets`). */
+/**
+ * Přebytek obilí a luštěnin nad pojistkou zásob (field-food.ts – `sowingTargets`). S `intoBuffer`
+ * smí platba sáhnout i do pojistky – ne pod nulu zásob k příští sklizni (nutný malý výdaj, např.
+ * kování koní – horses.md, Kování).
+ */
 export function paymentPool(
   state: VillageState,
   day: number,
   coverage: CraftCoverage,
+  intoBuffer = false,
 ): PaymentPool {
   const targets = sowingTargets(state, day, legumeNeedPerYear(state, day), coverage.pottery);
   return {
-    energyKg: Math.max(0, targets.leftKg - targets.bufferKg),
+    energyKg: Math.max(0, targets.leftKg - (intoBuffer ? 0 : targets.bufferKg)),
     grainKg: Math.max(0, state.storesKg),
     legumesKg: villageLegumesKg(state),
   };

@@ -8,7 +8,7 @@ import {
   shoeingView,
 } from '../horse-shoeing';
 import { NEIGHBOR_DIRECTIONS } from '../rules';
-import { neighbourCrafts } from '../craft-buying';
+import { neighbourCrafts, paymentPool } from '../craft-buying';
 import { newWorkshop } from '../crafts';
 import { trainHorsesDay } from '../horse-riders';
 import { lordRides } from '../lord';
@@ -98,6 +98,16 @@ describe('vlastní kovář', () => {
   });
 });
 
+describe('rezerva hřiven', () => {
+  it('kovárna kuje nástroje jen z hřiven nad rezervou na kování koní', () => {
+    const s = withSmith(stable(), 0.7);
+    s.toolEquipmentKg = 0;
+    const after = advanceVillage(s, START + 30, null);
+    // rezerva = 2 koně × 0,5 kg; hřivny se nespotřebují na nástroje pod ni
+    expect(after.crafts!.ironBarsKg!).toBeGreaterThanOrEqual(2 * HORSE_SHOEING.ironBarsKg - 1e-9);
+  });
+});
+
 describe('cizí kovář', () => {
   it('bez kováře ve vsi přijde soused, platí se z přebytku nad pojistkou', () => {
     const s = stable();
@@ -119,6 +129,30 @@ describe('cizí kovář', () => {
     expect(planShoeing(s, DUE, NO_CRAFTS, null)).toBeNull();
     expect(isUnshod(s, DUE)).toBe(true);
     expect(isUnshod(s, DUE + 20)).toBe(true);
+  });
+
+  it('platí i z pojistky, jen ne pod nulu zásob do sklizně', () => {
+    const s = stable();
+    // zásoba, při které přebytek nad pojistkou je nulový, ale zásoby do sklizně zbývají
+    let found = 0;
+    for (let kg = 0; kg <= 400_000; kg += 250) {
+      s.storesKg = kg;
+      const cost = shoeingView(s, DUE, NO_CRAFTS)?.foreignKg ?? 0;
+      const over = paymentPool(s, DUE, NO_CRAFTS).energyKg;
+      const all = paymentPool(s, DUE, NO_CRAFTS, true).energyKg;
+      if (over === 0 && all > 2 * cost) {
+        found = kg;
+        break;
+      }
+    }
+    expect(found).toBeGreaterThan(0);
+    s.storesKg = found;
+    const plan = planShoeing(s, DUE, NO_CRAFTS, null);
+    expect(plan).not.toBeNull();
+    expect(plan!.own).toBe(false);
+    // ves, které by po platbě nezbylo jídlo do sklizně, nezaplatí
+    s.storesKg = 0;
+    expect(planShoeing(s, DUE, NO_CRAFTS, null)).toBeNull();
   });
 
   it('cizí kovář je aspoň 3x dražší než vlastní', () => {
