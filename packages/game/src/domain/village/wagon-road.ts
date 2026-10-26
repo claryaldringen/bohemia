@@ -36,6 +36,7 @@ import {
   roadsCartMinutes,
   straightenWagonRoute,
   wagonAxisBlocked,
+  wagonAxisFenceAt,
   wagonAxisPoints,
   wagonEarthworks,
   wagonGridHeight,
@@ -948,9 +949,13 @@ function planAlong(
   const { chain, from, to, oldLengthM, oldMaxGrade } = old;
   const links = chain.map((link) => link.road);
   // vůz jí musí projet a profil vyjít
-  if (wagonAxisBlocked(grid, input.village, axis)) {
+  if (wagonAxisBlocked(grid, input.village, axis, false)) {
     return { ok: false, reason: WAGON_BLOCKED, failAt: -1 };
   }
+  // osa u plotu (stará cesta ohnutá k brance, roh plotu) – objížďka v odstupu (paths.md – Odstup
+  // od plotu; `detourPlan` hledá po mřížce s pruhem u plotu)
+  const fenceAt = wagonAxisFenceAt(grid, axis);
+  if (fenceAt >= 0) return { ok: false, reason: WAGON_BLOCKED, failAt: fenceAt };
   // vlásenka na rovině – objížďka jako u prudkého kusu (paths.md – Vozová cesta bez vlásenky)
   const hairpin = allowHairpin ? -1 : wagonHairpinAt(grid, axis);
   if (hairpin >= 0) return { ok: false, reason: WAGON_HAIRPIN_REASON, failAt: hairpin };

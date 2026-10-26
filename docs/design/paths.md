@@ -732,6 +732,28 @@ Pravidla (návrh Clauda, čísla `FENCE_CLEARANCE` v `rules-roads.ts`):
   ohyb ramene ke křižovatce stavby nehlídá, mimo tuto úlohu). Rok Vlkova CPU 30,9–33,0 s → 31,2–33,2 s
   (stroj vytížený, load ≈ 80 – v šumu).
 
+### Odstup od plotu i u vozové cesty (26. 10. 2026)
+
+Ověření přestavby na Vlkově: vozové cesty dál vedly přes ploty – vozová u hřbitova 2058 po ose
+ohnuté do branky usekla jihovýchodní roh plotu o 3,5 m, vozové u ohrad 2586 a 1958 šly k plotu na
+1–1,5 m. Odstup platil jen v mřížce chodců a ose trasy, plán vozové cesty ho neznal.
+
+Pravidla (návrh Clauda – **stejně jako chodci**, táž čísla `FENCE_CLEARANCE`, týž výpočet pruhu):
+
+- **Mřížka vozové cesty** (hledání trasy, objížďka, serpentina): buňky uvnitř plotu a do **1 m** od
+  něj neprůchodné (jen když pruh nezavře průchod), do **2 m** **1,5×** dražší; branka a ulička mezi
+  dvěma ploty výjimka. Narovnání trasy (přímé úseky) do pruhu do 2 m nově nevjede – jen kde už
+  trasa pruhem vede –, takže objížďka plot neobjímá.
+- **Osa vozové cesty** (po staré cestě, tětiva, vyhlazení, objížďka) se k plotu hřbitova či ohrady
+  nepřiblíží pod **1 m** – měří se přesně ke skutečné čáře plotu po 0,5 m. Vyhlazení, které by roh
+  usekl, se nevezme (roh trasy zůstane). Nehlídá se **4 m** u konců cesty (konec u branky).
+- **Stará cesta u plotu** (osa ohnutá k brance, roh): místo se objede jako prudký kus –
+  [serpentina](#jednorázová-přestavba-podle-nových-pravidel-26-10-2026) po mřížce s pruhem u plotu
+  (objížďka v oknech ±60–200 m po ose); stará osa přes vnitřek plotu (buňky uvnitř) zůstane jako
+  dřív nesjízdná („Vůz po této cestě neprojede – překáží stavba, plot nebo voda.“). Pozemek obydlí
+  hlídá dál okraj stavby s půl vozovkou.
+- Vozy svozu (vozová síť pro jízdy) se nemění – jezdí po pevných cestách.
+
 ## Zdvojená vozová cesta (26. 10. 2026)
 
 Audit Vlkova po odstupu od plotů: okruh vozových cest 936 + 1041 + 1054 kolem ohrady (133 m) –

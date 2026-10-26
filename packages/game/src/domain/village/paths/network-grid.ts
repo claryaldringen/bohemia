@@ -443,6 +443,23 @@ export function gateOf(b: Building): PathPoint {
   return { x, z };
 }
 
+/** Buňky branky či vchodu `e` – kolem bodu ENTRANCE_STEP_M před ním do ENTRANCE_REACH_M. */
+export function entranceCells(grid: GridWindow, e: Entrance): Set<number> {
+  const p = { x: e.x + e.outX * ENTRANCE_STEP_M, z: e.z + e.outZ * ENTRANCE_STEP_M };
+  const out = new Set<number>();
+  cellsIn(
+    grid,
+    p.x - ENTRANCE_REACH_M,
+    p.z - ENTRANCE_REACH_M,
+    p.x + ENTRANCE_REACH_M,
+    p.z + ENTRANCE_REACH_M,
+    (c, x, z) => {
+      if (length2(x - p.x, z - p.z) <= ENTRANCE_REACH_M) out.add(c);
+    },
+  );
+  return out;
+}
+
 /**
  * Mřížka pro hledání: terén (i s překážkami krajiny), mokřina (ROAD_WALK.wetSpeed), k nim stavby
  * vsi (pole podle rychlosti chůze – `partWalkSpeed`, sad, hřbitov) a neprůchodné domy. Pod pevnou
@@ -520,21 +537,7 @@ export function villageGrid(input: PathNetworkInput, buildings: readonly Buildin
   // oplocené.“): hotová ohrada a hřbitov jsou neprůchodné uvnitř plotu (`fencedCells` – ulička
   // 3 m mezi stavbami zůstává), dovnitř se vchází jen brankou; rozestavěné jsou průchozí
   // (staveniště, dřívější cena)
-  const gateCells = (e: Entrance): Set<number> => {
-    const p = { x: e.x + e.outX * ENTRANCE_STEP_M, z: e.z + e.outZ * ENTRANCE_STEP_M };
-    const out = new Set<number>();
-    cellsIn(
-      grid,
-      p.x - ENTRANCE_REACH_M,
-      p.z - ENTRANCE_REACH_M,
-      p.x + ENTRANCE_REACH_M,
-      p.z + ENTRANCE_REACH_M,
-      (c, x, z) => {
-        if (length2(x - p.x, z - p.z) <= ENTRANCE_REACH_M) out.add(c);
-      },
-    );
-    return out;
-  };
+  const gateCells = (e: Entrance): Set<number> => entranceCells(grid, e);
   const fence = (cells: readonly number[], gate: Set<number>): void => {
     for (const c of cells) {
       if (!gate.has(c)) grid.base[c] = Infinity;
@@ -598,33 +601,47 @@ export function villageGrid(input: PathNetworkInput, buildings: readonly Buildin
       grid.village[c] = 1;
     });
   }
-  // odstup od plotu (paths.md – Odstup od plotu): pruh u plotu neprůchodný, kus dál dražší – až po stavbách, aby pruh poznal úzký průchod
-  nearFences(
-    grid,
-    villageFences(v, false).map((f) => ({
-      outline: f.outline,
-      gate: f.gate ? gateCells(f.gate) : new Set<number>(),
-    })),
-    onRoad,
-  );
+  // odstup od plotu (paths.md – Odstup od plotu): pruh u plotu neprůchodný, kus dál dražší – až po
+  // stavbách, aby pruh poznal úzký průchod
+  const band = fenceBand(grid, gridFences(grid, v), (c) => Number.isFinite(grid.base[c]!));
+  for (const c of band.near)
+    if (!onRoad(c)) grid.base[c] = grid.base[c]! * FENCE_CLEARANCE.nearCost;
+  for (const c of band.blocked) grid.base[c] = Infinity;
   return grid;
+}
+
+/** Plot vsi pro pruh mřížky (`fenceBand`): obrys a buňky jeho branky. */
+export interface GridFence {
+  outline: FenceOutline;
+  gate: ReadonlySet<number>;
+}
+
+/** Ploty hřbitovů a ohrad (bez pozemků – ty jsou neprůchodné celé) s buňkami branek v `grid`. */
+export function gridFences(
+  grid: GridWindow,
+  v: Pick<PathVillage, 'cemeteries' | 'pens' | 'dwellings'>,
+): GridFence[] {
+  return villageFences(v, false).map((f) => ({
+    outline: f.outline,
+    gate: f.gate ? entranceCells(grid, f.gate) : new Set<number>(),
+  }));
 }
 
 /**
  * Odstup od plotu (paths.md – Odstup od plotu): buňka se středem uvnitř plotu je neprůchodná, stejně
  * tak buňka blíž než `FENCE_CLEARANCE.axisM` – ale jen když má aspoň tři průchodné sousedy mimo pruh (jinak
  * by pruh zavřel úzký průchod mezi plotem a stavbou, vodou či lesem; tam buňka zůstane jen dražší).
- * Do `nearM` jsou buňky dražší o `nearCost` (pod pevnou cestou jen neprůchodné). Buňky branky
- * kteréhokoli plotu se nemění vůbec. Buňka do `alleyM` od dvou plotů leží v uličce mezi stavbami –
+ * Do `nearM` jsou buňky dražší (`near` – mřížka chodců i vozové cesty `nearCost` krát, pod pevnou
+ * cestou ne; `wagonRoadGrid`). Buňky branky kteréhokoli plotu se nemění vůbec. Buňka do `alleyM` od dvou plotů leží v uličce mezi stavbami –
  * průchodná zůstává jako dřív (`fencedCells`), jen dražší. Výsledek nezávisí na pořadí plotů
  * (minimum, počet, rozhodnutí o pruhu ze stavu před úpravou).
  */
-function nearFences(
-  grid: Grid,
-  fences: readonly { outline: FenceOutline; gate: ReadonlySet<number> }[],
-  onRoad: (c: number) => boolean,
-): void {
-  const { axisM, nearM, nearCost, alleyM } = FENCE_CLEARANCE;
+export function fenceBand(
+  grid: GridWindow,
+  fences: readonly GridFence[],
+  passable: (c: number) => boolean,
+): { blocked: ReadonlySet<number>; near: readonly number[] } {
+  const { axisM, nearM, alleyM } = FENCE_CLEARANCE;
   const gates = new Set<number>();
   for (const { gate } of fences) for (const c of gate) gates.add(c);
   const near = new Map<number, { count: number; d: number; inside: boolean }>();
@@ -655,7 +672,7 @@ function nearFences(
   // kandidáti na zablokování (ulička mezi dvěma ploty se neblokuje)
   const wanted = new Set<number>();
   for (const [c, cell] of near) {
-    if (!Number.isFinite(grid.base[c]!)) continue;
+    if (!passable(c)) continue;
     if (cell.count === 1 && (cell.inside || cell.d < axisM)) wanted.add(c);
   }
   const { width, height } = grid;
@@ -672,7 +689,7 @@ function nearFences(
         if ((dx === 0 && dz === 0) || cx + dx < 0 || cx + dx >= width) continue;
         if (cz + dz < 0 || cz + dz >= height) continue;
         const n = c + dz * width + dx;
-        if (Number.isFinite(grid.base[n]!) && !wanted.has(n)) open++;
+        if (passable(n) && !wanted.has(n)) open++;
       }
     }
     return open >= OPEN_NEIGHBORS;
@@ -682,12 +699,12 @@ function nearFences(
     if (near.get(c)!.inside || opensElsewhere(c)) blockedNow.push(c);
   }
   const blocked = new Set(blockedNow);
+  const dearer: number[] = [];
   for (const [c, cell] of near) {
-    if (!Number.isFinite(grid.base[c]!)) continue;
-    if (blocked.has(c)) continue;
-    if (cell.d < nearM && !onRoad(c)) grid.base[c] = grid.base[c]! * nearCost;
+    if (!passable(c) || blocked.has(c)) continue;
+    if (cell.d < nearM) dearer.push(c);
   }
-  for (const c of blocked) grid.base[c] = Infinity;
+  return { blocked, near: dearer };
 }
 
 /** Nejbližší průchodná buňka k bodu (do `reach` buněk), nebo −1. */

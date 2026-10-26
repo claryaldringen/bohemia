@@ -103,9 +103,10 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
     sjednocení); `fenceDistance` – k úsekům a obloukům (jen v úhlu čtvrtkruhu). `paths/fences.ts`:
     `villageFences(v, plots)` – hotové hřbitovy (bez `pending`), hotové ohrady (`penPathSquares`)
     s brankou, s `plots` i pozemky hotových obydlí (ne staveniště) (`FENCE_INSET_M`, dvorec i s dvorem); `fenceClearance`.
-    `villageGrid` → `nearFences` (po plotech a ohradách, ne pozemcích – ty jsou celé neprůchodné jako
-    stavba): střed uvnitř plotu → Infinity, do `axisM` → Infinity jen s aspoň třemi průchodnými sousedy mimo pruh (úzký průchod zůstane dražší; volá se až po stavbách na konci `villageGrid`), do `nearM` → × `nearCost` (ne pod
-    pevnou cestou), buňky branky všech plotů (`gateCells`) nic, buňka do `alleyM` od dvou plotů (ulička) jen
+    `villageGrid` → `fenceBand(grid, gridFences(grid, v), passable)` v `network-grid.ts` (po plotech
+    a ohradách, ne pozemcích – ty jsou celé neprůchodné jako stavba; tentýž výpočet bere mřížka
+    vozové cesty `wagonRoadGrid`; vrací `blocked` a `near`): střed uvnitř plotu → Infinity, do `axisM` → Infinity jen s aspoň třemi průchodnými sousedy mimo pruh (úzký průchod zůstane dražší; volá se až po stavbách na konci `villageGrid`), do `nearM` → × `nearCost` (ne pod
+    pevnou cestou), buňky branky všech plotů (`entranceCells`) nic, buňka do `alleyM` od dvou plotů (ulička) jen
     dražší. Projeví se i ve `villageBlockedAt` (ohyb do branky). `routeLine(route, cellM, fences)`
     (`routes.ts`): když vyhlazená osa jde k plotu blíž než `axisM` (vzorky po 0,5 m, mimo `gateM` od
     konců), podrží nejbližší vnitřní střed buňky do dvou buněk a vyhladí kusy mezi podrženými zvlášť
@@ -477,12 +478,17 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   souběžný s dostavěnou částí, pokud je souběžných aspoň `WAGON_ROAD.bypassShare` (80 %) délky. **Trasa po staré ose** (Úloha 11a; Martin 22. 10. 2026, #6: „vznikne ze staré pěší cesty a vede po ní“): osa = řetěz úseků cesty hráče
   (`chainAxis` v `wagon-road.ts`, od konce blíž vsi), bez vyhledávání a bez vyhlazení. Mřížka
   `paths/wagon-route.ts` (deterministická vrstva): `wagonRoadGrid` – zákazy jako vozová síť, ohrada
-  a hřbitov jen uvnitř plotu (`fencedCells`, ulička 3 m průjezdná – natočená ohrada jen buňky celé
-  uvnitř), pevná cesta pásem `roadBandCells` z `cart.ts` (díl pole ani samotný strom či keř na ní
+  a hřbitov uvnitř plotu (`fencedCells`, ulička 3 m průjezdná – natočená ohrada jen buňky celé
+  uvnitř) a po stavbách pruh u plotu jako u chodců (`fenceBand` → `blocked`, `nearFence` – v hledání
+  `findWagonRoute` krok × `FENCE_CLEARANCE.nearCost`; `fences` – obrysy plotů v okně; paths.md –
+  Odstup od plotu i u vozové cesty), pevná cesta pásem `roadBandCells` z `cart.ts` (díl pole ani samotný strom či keř na ní
   ji nezavřou), `barred` = zákazy bez okrajů staveb, mez úprav terénu `limit` u staveb a vody;
   `wagonAxisBlocked` – body osy po 2 m mimo 9 m u konců: `barred` (plot, voda mimo brod, sráz,
   balvan) nebo stavba blíž než půl šířky vozu (`inBuilding` přesně v bodě, ne po buňkách) →
-  `WAGON_BLOCKED`; posvátný strom přesně kácením (`wagonClearing` → `WAGON_SACRED`);
+  `WAGON_BLOCKED`, s `fences` (výchozí) i osa blíž plotu než `axisM` (`wagonAxisFenceAt` – vzorky po
+  0,5 m, `fenceClearance`, mimo `gateM` od konců; tětivy, narovnání v `rangeAlong`, vyhlazení
+  v `wagonProfile` totéž, narovnání navíc nově nevjede do pruhu `nearM`); `planAlong` vrátí osu
+  u plotu jako `WAGON_BLOCKED` s místem selhání → objížďka (`detourPlan`) po mřížce s pruhem; posvátný strom přesně kácením (`wagonClearing` → `WAGON_SACRED`);
   `wagonProfile(grid, osa, asIs = true)` – profil po ose jak je, nevyjde-li sklon 6 % ani s úvozem
   a náspem 3 m → `WAGON_STEEP` „Cesta je pro vůz moc prudká.“ **Narovnání** (Úloha 11b):
   `straightenStretches` v `wagon-road.ts` (`WAGON_STRAIGHTEN` – 1,3× / 3 m / 120 m) na osu po 6 m
