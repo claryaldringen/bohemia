@@ -54,7 +54,7 @@ import { decideRebuilds, finishConstructions } from './simulate-build';
 import { eat, endThreshing, harvest, harvestWinter } from './simulate-food';
 import { isOn, lordHelpDay, seasonDay, startSeason } from './simulate-plan';
 import { work } from './simulate-work';
-import { patrolHuntDay } from './field-patrol';
+import { patrolHuntDay, settlePatrol } from './field-patrol';
 import { huntDay, planHuntDay } from './hunt';
 import { dogsYear } from './manor-dogs';
 import { wildlifeYearDay, withWildlife } from './wildlife';
@@ -225,6 +225,7 @@ function simulateDay(
   // nástroje a nádoby v užívání se opotřebí (crafts.md – Účinek)
   wearCraftStocks(state, day);
   // škody zvěře na polích po práci dne – nesklizené díly (wildlife.md – Škody)
+  settlePatrol(state, day);
   wildlifeDamageDay(state, day);
   // zemské stezky – dostavěné úseky od vsi ven hned vylepšené, vrácené výpravy (trade.md)
   trailsDay(state);

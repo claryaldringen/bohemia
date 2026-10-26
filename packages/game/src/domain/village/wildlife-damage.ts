@@ -5,7 +5,7 @@ import { dateOfDayIndex } from '../calendar';
 import type { Landscape } from '../landscape';
 import { effectiveFertility } from './fields';
 import { taskPosition, taskSpans } from './field-progress';
-import { riderPatrol } from './field-patrol';
+import { patrolOfDay } from './field-patrol';
 import { lordTraineeIds } from './lord';
 import { ageGroup } from './people';
 import { isYoungster } from './herding';
@@ -90,8 +90,8 @@ export function damageWindowStart(
 
 /**
  * 1. 6. (hned po `damageWindowStart`): plán noční hlídky (wildlife.md – Noční hlídka vesničanů).
- * Hrozba dílu za sezónu = denní hrozba (`dailyThreatShare`, už s jezdeckou hlídkou dneška) × délka
- * okna plodiny, nejvýš `maxShare`. Hlídají se díly s hrozbou aspoň 10 % úrody, největší napřed;
+ * Hrozba dílu za sezónu = denní hrozba (`dailyThreatShare` bez jezdecké hlídky – ta kolísá ode
+ * dne ke dni podle koní, hladu a výprav, plán ji konzervativně nepočítá) × délka okna plodiny, nejvýš `maxShare`. Hlídají se díly s hrozbou aspoň 10 % úrody, největší napřed;
  * 1. stupeň – staří a výrostci mimo dvorec, 1 hlídač na 5 ha; kde po něm hrozba stále dosahuje
  * 10 %, přidají se dospělí z práce vsi (úloha `'watch'`). Ves hlídá sama, hráč nic nezadává.
  */
@@ -100,7 +100,7 @@ function planWatch(state: VillageState, w: WildlifeState, day: number): void {
   const damage = w.damage;
   if (!damage || damage.risk.length === 0) return;
   const { threat: minThreat, haPerGuard, effect } = FIELD_GUARD.night;
-  const daily = dailyThreatShare(state, day);
+  const daily = dailyThreatShare(state, day, false);
   const cropOf = new Map<number, DamageCrop>();
   for (const { crop, work } of cerealCrops(state))
     for (const id of work.partIds) cropOf.set(id, crop);
@@ -163,7 +163,8 @@ export function watchWanted(state: VillageState, day: number): number {
   const watch = state.wildlife?.watch;
   if (!watch || !watch.parts.some((p) => p.adult)) return 0;
   const month = dateOfDayIndex(day).month;
-  if (month < 6 || month > 8 || day < watch.fromDay) return 0;
+  const { fromMonth, toMonth } = FIELD_GUARD.night;
+  if (month < fromMonth || month > toMonth || day < watch.fromDay) return 0;
   const byId = new Map(state.parts.map((p) => [p.id, p]));
   const harvested = new Set<number>();
   for (const { work } of cerealCrops(state)) {
@@ -240,7 +241,11 @@ export function wildlifeEatsKgPerDay(w: WildlifeState): number {
  * okna plodiny`. Čistá funkce bez zápisu do stavu; obrana polí (jezdecká a noční hlídka) je zde na jednom místě.
  * Mimo okno (1. 6. – 31. 8.) nebo bez rizika prázdná mapa.
  */
-export function dailyThreatShare(state: VillageState, day: number): Map<number, number> {
+export function dailyThreatShare(
+  state: VillageState,
+  day: number,
+  withRiders = true,
+): Map<number, number> {
   const shares = new Map<number, number>();
   const w = state.wildlife;
   const damage = w?.damage;
@@ -265,7 +270,7 @@ export function dailyThreatShare(state: VillageState, day: number): Map<number, 
   const openHa = open.reduce((sum, o) => sum + o.weightHa, 0);
   const eatenKg = wildlifeEatsKgPerDay(w) * Math.min(1, openHa / FIELD_DAMAGE.fullAreaHa);
   // obrana polí: jezdecká hlídka snižuje vše, noční zvěř o 60 % a vrány celé na hlídaném dílu
-  const riders = 1 - riderPatrol(state, day).cut;
+  const riders = withRiders ? 1 - patrolOfDay(state, day).cut : 1;
   for (const o of open) {
     if (o.grossKg <= 0) continue;
     const eaten = openHa > 0 ? (eatenKg * o.weightHa) / openHa : 0;

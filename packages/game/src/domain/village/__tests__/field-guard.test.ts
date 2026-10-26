@@ -2,12 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
 import { cloneState } from '../clone';
-import { patrolHuntDay, riderPatrol } from '../field-patrol';
+import { patrolHuntDay, patrolOfDay, riderPatrol, settlePatrol } from '../field-patrol';
 import { allocateDay } from '../labor';
+import type { DayTask } from '../simulate-plan';
 import { updateLordTraining } from '../lord';
 import { FIELD_GUARD } from '../rules-wildlife';
 import { advanceVillage } from '../simulate';
+import { dayTaskOrder } from '../simulate-work';
 import type { CropWork, Person, VillageState } from '../types';
+import { emptyHunt } from '../hunt';
 import { freshWildlife, withWildlife } from '../wildlife';
 import {
   dailyThreatShare,
@@ -283,5 +286,63 @@ describe('noční hlídka (wildlife.md – Noční hlídka vesničanů)', () => 
     expect(chunked.wildlife!.hunt?.year).toEqual(whole.wildlife!.hunt?.year);
     expect(freshWildlife).toBeDefined();
     expect(wildlifeDamageDay).toBeDefined();
+  });
+});
+
+describe('opravy hlídky po recenzi (W6)', () => {
+  it('lovec a zraněný jezdec hlídku nejedou (nepočítají se do síly)', () => {
+    const base = guardVillage(2, 3);
+    const full = riderPatrol(base, JUNE);
+    expect(full.power).toBeGreaterThan(0);
+    const hunting = cloneState(base);
+    const horseId = hunting.pens![0]!.horses!.find((x) => x.riderId === LORD_ID)!.id;
+    hunting.wildlife!.hunt = {
+      ...(hunting.wildlife!.hunt ?? emptyHunt()),
+      today: {
+        day: JUNE,
+        target: 'game',
+        riders: [{ personId: LORD_ID, horseId }],
+        foot: [],
+        extra: false,
+      },
+    };
+    expect(riderPatrol(hunting, JUNE).power).toBeLessThan(full.power);
+    const hurt = cloneState(base);
+    hurt.people.find((p) => p.id === LORD_ID)!.injuredUntilDay = JUNE + 30;
+    expect(riderPatrol(hurt, JUNE).power).toBeLessThan(full.power);
+    // lovec není hlídkou dvakrát: škoda i úlovek berou z téhož dne stejnou hodnotu
+    settlePatrol(hunting, JUNE);
+    expect(patrolOfDay(hunting, JUNE)).toMatchObject(riderPatrol(hunting, JUNE));
+  });
+
+  it('hlídka dne se spočte jednou: pozdější zranění ji nezmění', () => {
+    const s = guardVillage(2, 3);
+    settlePatrol(s, JUNE);
+    const before = patrolOfDay(s, JUNE);
+    s.people.find((p) => p.id === LORD_ID)!.injuredUntilDay = JUNE + 30;
+    expect(patrolOfDay(s, JUNE)).toEqual(before);
+    expect(riderPatrol(s, JUNE).power).toBeLessThan(before.power);
+    // jiný den se spočte znovu
+    expect(patrolOfDay(s, JUNE + 1)).toEqual(riderPatrol(s, JUNE + 1));
+  });
+
+  it('plán hlídačů nezávisí na jezdcích dne 1. 6.', () => {
+    const riding = guardVillage(2, 3, 100_000);
+    const walking = guardVillage(0, 3, 100_000);
+    for (const s of [riding, walking]) {
+      bigGame(s);
+      addVillagers(s, 0, 1, 1);
+      damageWindowStart(s, JUNE, null);
+    }
+    const plan = (s: VillageState): unknown =>
+      s.wildlife!.watch!.parts.map((p) => [p.partId, p.threat, p.adult]);
+    expect(plan(riding)).toEqual(plan(walking));
+  });
+
+  it('nutná seč má před hlídkou dospělých přednost', () => {
+    const task = (name: string, tie: number): DayTask =>
+      ({ name, remaining: 1, end: Infinity, tie, rank: 1 }) as DayTask;
+    const order = [task('watch', 4), task('mow', 3)].sort(dayTaskOrder).map((t) => t.name);
+    expect(order).toEqual(['mow', 'watch']);
   });
 });

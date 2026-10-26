@@ -42,6 +42,8 @@ export interface WildlifeState {
   smallGame?: SmallGameState;
   /** Noční hlídka polí letošní sezóny (W6; wildlife.md – Obrana polí); chybí = 1. 6. ještě nebylo. */
   watch?: FieldWatch;
+  /** Jezdecká hlídka dnešního dne spočtená jednou (W6): škoda polí i úlovek z hlídky ji čtou stejnou. */
+  patrol?: { day: number; power: number; cut: number };
 }
 
 /** Úlovek ryb a zajíců od 1. 5. (kg masa se počítá zvlášť). */

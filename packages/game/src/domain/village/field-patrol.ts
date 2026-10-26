@@ -44,13 +44,30 @@ export function riderPatrol(state: VillageState, day: number): RiderPatrol {
 }
 
 /**
+ * Hlídka dne tak, jak ji `settlePatrol` ráno spočetl (škoda polí i úlovek čtou totéž, i když lov
+ * dne zraní jezdce až po škodě); bez uložené hodnoty se spočte.
+ */
+export function patrolOfDay(state: VillageState, day: number): RiderPatrol {
+  const stored = state.wildlife?.patrol;
+  return stored && stored.day === day ? stored : riderPatrol(state, day);
+}
+
+/** Spočte hlídku dne jednou a uloží ji (volá `simulateDay` před škodou polí). */
+export function settlePatrol(state: VillageState, day: number): void {
+  const w = state.wildlife;
+  if (!w) return;
+  const { power, cut } = riderPatrol(state, day);
+  if (power > EPSILON || w.patrol) w.patrol = { day, power, cut };
+}
+
+/**
  * Úlovek z hlídky (po `huntDay`): naděje prasat roste o `0,01 × Σ sil × prasata ÷ strop`, celé
  * kusy se uloví (dospělá napřed), maso jde přes porážku a do ročního součtu lovu (bez dne lovu).
  */
 export function patrolHuntDay(state: VillageState, day: number): void {
   const w = state.wildlife;
   if (!w) return;
-  const { power } = riderPatrol(state, day);
+  const { power } = patrolOfDay(state, day);
   if (power <= EPSILON) return;
   const caps = wildlifeCaps(w.land, villageHerds(state).pig);
   const boar = w.boar;

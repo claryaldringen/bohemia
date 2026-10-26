@@ -91,7 +91,7 @@ export const FIELD_GUARD = {
   /** Úlovek prasat z hlídky za den: `huntPerPower × Σ sil × prasata ÷ strop`. */
   huntPerPower: 0.01,
   /** Noční hlídka: díly od této hrozby škody za sezónu (podíl úrody), 1 hlídač na `haPerGuard` ha. */
-  night: { threat: 0.1, haPerGuard: 5, adultManDays: 0.3, effect: 0.6 },
+  night: { threat: 0.1, haPerGuard: 5, adultManDays: 0.3, effect: 0.6, fromMonth: 6, toMonth: 8 },
 } as const;
 
 /** Šelmy na dobytku a slepicích (wildlife.md – Vlci na dobytku, Liška na slepicích). */

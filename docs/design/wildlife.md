@@ -187,6 +187,10 @@ Celková škoda dílu = škoda × (1 − jezdecká hlídka) × (1 − noční hl
   60 %.
 - **Úlovek z hlídky:** k akumulátoru prasat se přičte **0,01 × součet sil × prasata ÷ strop**
   denně (≈ 1–2 prasata za léto).
+- **Kdo jede (návrh Clauda, oprava po recenzi):** jen jezdci z objížďky – **kdo ten den loví, hlídku
+  nejede** a **zraněný taky ne** (ani se nepočítá do síly). Hlídka dne se spočte **jednou** (před
+  škodou polí) a stejnou hodnotu čte škoda i úlovek z hlídky, takže zranění na lovu téhož dne ji
+  nezmění.
 
 ### Noční hlídka vesničanů – kombinace (Martin, 24. 10. 2026)
 
@@ -194,7 +198,8 @@ Martin, 24. 10. 2026: „Kombinace“ – napřed hlídají staří a výrostci,
 kde to nestačí.
 
 - **Kdy a kde:** každou noc okna zrání, na dílech, kterým by **bez hlídky hrozilo aspoň 10 %
-  úrody** za sezónu (odhad 1. 6. ze stavu zvěře a jezdecké hlídky – ves to pozná sama, hráč nic
+  úrody** za sezónu (odhad 1. 6. ze stavu zvěře, **bez jezdecké hlídky** – ta kolísá ode dne ke dni podle koní, hladu
+  a výprav, plán proto počítá konzervativně; snímek hlídačů a dílů platí celou sezónu – ves to pozná sama, hráč nic
   nezadává; Martin – vesničané sami používají, co jim ulehčí práci).
 - **1. stupeň – zdarma, mimo práci vsi:** hlídají **staří a výrostci** (ti, kdo jinak pasou nebo
   dělají práci, která propadá – [populace](population.md), Práce), **1 hlídač na 5 ha**
@@ -202,7 +207,10 @@ kde to nestačí.
 - **2. stupeň – dospělí z práce vsi:** kde po 1. stupni zbývá **hrozba škody ≥ 10 % úrody** dílu
   a hlídačů nemá kdo dodat, přidají se **dospělí**: **1 hlídač na 5 ha**, **0,3 člověkodne za
   noc** (hlídač ráno dospí – návrh). Patří do **potřebných sezónních úloh** (krok 3 pořadí práce,
-  za polními úlohami dne) – v žních tak soupeří se sklizní, což je zamýšlená volba.
+  za polními úlohami dne a **za nutnou sečí** – seno pro voly a krávy je životně důležité, hlídka
+  mu práci nevezme; návrh Clauda) – v žních tak soupeří se sklizní, což je zamýšlená volba. Hlídka
+  zůstává před rybami a okami: ty jsou ze zbytku práce nad potřebu (Martin, 26. 10. 2026).
+  Chtěné člověkodny se počítají i ve dnech, kdy ves na hlídku nedala nic.
 - **Účinek:** škoda prasat a jelenů na hlídaném dílu **−60 %** (oheň, řehtačky, křik), vrány
   **celé** (hlídač je i ve dne – děti s řehtačkou; jen zobrazení).
 
@@ -377,6 +385,7 @@ kde to nestačí.
 | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
 | Jezdecká hlídka bez pravidla „kůň jen když je silnější“ (jede, kdo jede objížďku)                                                        | návrh Clauda (W6)                                      |
 | Noční hlídka: staří a výrostci se počítají 1. 6. na celou sezónu, dospělí denně                                                          | návrh Clauda (W6)                                      |
+| Plán hlídky bez jezdecké hlídky; hlídka dospělých za nutnou sečí; lovci a zranění hlídku nejedou, hlídka dne se počítá jednou           | návrh Clauda (W6, po recenzi)                          |
 | Divoké prase, jelen a laň, vlk, medvěd, zajíc, liška, ptáci, ryby – součást simulace                                                     | Martin (24. 10. 2026)                                  |
 | Stáda jako počty s rozmnožováním, ne na úkor náročnosti                                                                                  | Martin (24. 10. 2026)                                  |
 | Loví vojvoda a synové – ze dvorce na koních, ostatní pěšky s oštěpy a psy; vesničané jen drobné a ryby s prutem                          | Martin (24. 10. 2026)                                  |

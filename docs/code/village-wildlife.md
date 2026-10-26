@@ -199,19 +199,19 @@ vrány `1 − pokrytí`.
 
 - **Jezdecká hlídka:** `riderPatrol(state, day)` (`field-patrol.ts`) – jezdci z `lordRides`
   (nepodkutý kůň, ne v hladový den na poli, ne ve žňový den cvičících mužů ani v den výpravy k hranici),
-  červen–říjen. Síla jezdce = `riderPower ÷ 100`; `cut = min(0,6; 0,25 × Σ sil × min(1,5; 1 + 0,1 × psi))`.
+  červen–říjen; lovec dne (`hunt.today.riders`) ani zraněný (`isInjured`) nejede – obojí řeší `lordRides`, test v `field-guard.test.ts`. Síla jezdce = `riderPower ÷ 100`; `cut = min(0,6; 0,25 × Σ sil × min(1,5; 1 + 0,1 × psi))`.
   Pravidlo „jezdec jen když je silnější než pěšky“ (`ridesBetter` z W4) se zde nepoužívá – kdo jezdí
-  objížďku, určuje `lordRides`, ne lov. Jen čte stav.
+  objížďku, určuje `lordRides`, ne lov. Jen čte stav. **Jednou za den:** `settlePatrol` (v `simulateDay` před `wildlifeDamageDay`) uloží `WildlifeState.patrol` `{ day, power, cut }`; škodu (`dailyThreatShare`) i úlovek (`patrolHuntDay`) čte `patrolOfDay` – stejná hodnota, i když lov dne zraní jezdce až později.
 - **Úlovek z hlídky:** `patrolHuntDay` (v `simulateDay` hned za `huntDay`): `hope.boar += 0,01 × Σ sil ×
 prasata ÷ strop`, celé kusy z dospělých napřed, maso přes `butcher`, do `hunt.year` (kusy a kg,
   `days` se nezvyšuje). `emptyHunt` se exportuje z `hunt.ts`.
-- **Noční hlídka – plán 1. 6.:** `planWatch` (volá `damageWindowStart`) uloží `WildlifeState.watch`
+- **Noční hlídka – plán 1. 6.:** `planWatch` (volá `damageWindowStart`; hrozba z `dailyThreatShare(…, false)`, tedy bez jezdecké hlídky) uloží `WildlifeState.watch`
   (`FieldWatch`): díly s hrozbou za sezónu (`dailyThreatShare` × délka okna plodiny, nejvýš `maxShare`)
   aspoň 10 %, největší napřed. 1. stupeň zdarma – staří a výrostci 7–13 let mimo cvičící rodinu
   (`nightGuards`), 1 hlídač na 5 ha → `free` 0–1 dílu. Kde po něm hrozba stále dosahuje 10 %, je
   `adult`.
 - **2. stupeň:** `watchWanted(state, day)` = Σ nesklizená `adult` plocha × (1 − `free`) ÷ 5 ha × 0,3 čd.
-  `work()` ji přidá jako úlohu `'watch'` (`labor.ts`: `LaborTaskName`; `end` Infinity, `tie` 2) a
+  `work()` ji přidá jako úlohu `'watch'` (`labor.ts`: `LaborTaskName`; `end` Infinity, `tie` 4 – za nutnou sečí `mow` (`tie` 3) a před rybami, které jsou ze zbytku po dílech nad potřebu; měsíce okna `FIELD_GUARD.night.fromMonth/toMonth`) a
   výsledek zapíše `payWatch` (`adultFrac` dne, součty `wantedManDays`/`paidManDays`). Nepokrytá část
   úlohy = menší pokrytí dospělých, 1. stupeň platí vždy.
 - 31. 8. (`wildlifeSeasonEnd`) se `watch` zahodí.

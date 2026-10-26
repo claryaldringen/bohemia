@@ -331,10 +331,11 @@ export function work(
     });
   }
   // noční hlídka polí (wildlife.md – Noční hlídka vesničanů, 2. stupeň): dospělí z práce vsi za
-  // polními úlohami dne – v žních soupeří se sklizní (zamýšlená volba), před sečí a stavbami
+  // polními úlohami dne – v žních soupeří se sklizní (zamýšlená volba) – a za nutnou sečí (seno
+  // pro voly a krávy je životně důležité; návrh Clauda), před stavbami a rybami
   const watchLabor = watchWanted(state, day);
   if (watchLabor > EPSILON) {
-    dayTasks.push({ name: 'watch', remaining: watchLabor, end: Infinity, tie: 2, rank: 2 });
+    dayTasks.push({ name: 'watch', remaining: watchLabor, end: Infinity, tie: 4, rank: 2 });
   }
   const orchard = orchardTask(state, day);
   if (orchard) {
