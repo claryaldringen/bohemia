@@ -232,7 +232,8 @@ describe('cvičící rodina a plánování (lord.md – Den rodiny)', () => {
     const a = advanceVillage(transition, day, null);
     const b = advanceVillage(trained, day, null);
     expect(a.lord).toEqual({ trains: true });
-    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    // pořadí klíčů se liší (zvěř se doplní před `lord`), obsah ne
+    expect(a).toEqual(b);
   });
 
   it('ženy rodiny nejdou do lehké práce a chlapec 7–13 let na pole', () => {

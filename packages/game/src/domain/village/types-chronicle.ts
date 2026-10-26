@@ -202,6 +202,8 @@ export type ChronicleEvent = { day: number } & (
    * víc, než chce (`surplus` – nejdřív nejstarší).
    */
   | { kind: 'horse-retired'; penId: number; horses: number; reason: 'age' | 'surplus' }
+  /** Do kraje přišel nový medvěd (wildlife.md – Roční přepočet: ulovený se vrací za 3 roky). */
+  | { kind: 'bear-returned' }
   /** Sad dosloužil (60. rok) a vrátil se v louku. */
   | { kind: 'orchard-gone'; orchardId: number }
   /** Vesničané zařadili čtverce starého sadu do obnovy (orchard.md – Obnova sadu). */

@@ -92,6 +92,8 @@ vesničanů.
 - **Medvěd:** ulovený medvěd se vrátí (přijde jiný) **za 3 roky**, je-li lesa dost.
 - **Ryby:** přírůstek **biomasa × (1 − biomasa ÷ strop)** – nejrychleji rostou v polovině
   stropu (nejvíc ≈ čtvrtina stropu ročně, typicky ≈ 190 kg).
+- **Paseky se nepočítají** (zjednodušení, návrh Clauda, W1): les je povrch les krajiny a les vsi
+  bez čtverců polí, sadů, hřbitovů, ohrad a obydlí; pokácené stromy v něm ho nezmenšují.
 - **Strop klesá s lesem:** přepočet bere les k 1. 5.; ves, která přes rok vymýtí 30 ha, má o 1–2
   jeleny a prasata méně.
 

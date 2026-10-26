@@ -54,6 +54,7 @@ import type {
 import type { CartDrive, RoadGrade, VillageRoads } from './types-roads';
 import type { VillageRoutes } from './types-routes';
 import type { CraftPurchase, VillageTrade } from './types-trade';
+import type { WildlifeState } from './types-wildlife';
 
 export interface VillageState {
   seed: number;
@@ -167,6 +168,13 @@ export interface VillageState {
    * chybí – výchozí stádo z domácností doplní `withLivestock` (nebo první dopočítaný den).
    */
   livestock?: LivestockState;
+  /**
+   * Divoká zvěř vsi (wildlife.md): stavy, strop z krajiny. U vsí uložených před zvěří chybí –
+   * zvěř na stropu doplní `withWildlife`.
+   */
+  wildlife?: WildlifeState;
+  /** Převod na zvěř selhal (zpráva chyby) – ves dostala výchozí krajinu; aplikace chybu zapíše do logu. */
+  wildlifeFailed?: string;
   /** Zásoba masa (kg) – uzené a sušené (diet.md). Chybí = žádná. */
   meatKg?: number;
   /**

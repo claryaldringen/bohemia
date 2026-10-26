@@ -54,6 +54,7 @@ import { decideRebuilds, finishConstructions } from './simulate-build';
 import { eat, endThreshing, harvest, harvestWinter } from './simulate-food';
 import { isOn, lordHelpDay, seasonDay, startSeason } from './simulate-plan';
 import { work } from './simulate-work';
+import { wildlifeYearDay, withWildlife } from './wildlife';
 import { lordFieldMode, trainLordDay, updateLordTraining } from './lord';
 import { dynastyDay } from './succession';
 
@@ -109,16 +110,18 @@ export function* advanceVillageSteps(
   // před snopy rok odkladu mlácení (production-chains.md – Starší vsi) a ves s ročním plánem osevní
   // postup po dílech (fields.md – Osevní postup po dílech, bod 7) – jednou, idempotentně
   const next = cloneState(
-    withThreshingGrace(
-      withCraftSkill(
-        withHorsePenStock(
-          withOxen(
-            withPenSpecies(
-              withoutForeignGoods(
-                withIronBarsTrade(
-                  withToolEquipment(
-                    withCattleKinds(
-                      withDynasty(withKinship(withSowingRotation(withSeason(state)))),
+    withWildlife(
+      withThreshingGrace(
+        withCraftSkill(
+          withHorsePenStock(
+            withOxen(
+              withPenSpecies(
+                withoutForeignGoods(
+                  withIronBarsTrade(
+                    withToolEquipment(
+                      withCattleKinds(
+                        withDynasty(withKinship(withSowingRotation(withSeason(state)))),
+                      ),
                     ),
                   ),
                 ),
@@ -127,6 +130,7 @@ export function* advanceVillageSteps(
           ),
         ),
       ),
+      landscape,
     ),
   );
   // dosahy čtyřkoláku z doby „jen po pevných cestách“ se spočítají znovu (wagons.md)
@@ -160,6 +164,8 @@ function simulateDay(
   // vojvodova rodina (lord.md): cvičí, nebo pracuje – rozhodnout jednou na začátku dne, ať ho
   // stejně vidí pasení, plán osevu, nákupy i `work()` (i v den přechodu)
   updateLordTraining(state, day);
+  // zvěř: 1. 5. roční přepočet podle krajiny a stropů (wildlife.md – Roční přepočet)
+  wildlifeYearDay(state, day, landscape);
   // nové stavby dne – jámy pod nimi se vyprázdní (production-chains.md – Obilné jámy): stavby vsi
   // vznikají jen s novým id z `nextId`, viz kontrola níž
   const idsBefore = state.nextId;

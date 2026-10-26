@@ -189,7 +189,9 @@ describe('advanceVillage – dopočítání', () => {
     advanceVillage(start, at(601, 3, 15), null);
     expect(start).toEqual(before);
     const same = advanceVillage(start, start.lastDay, null);
-    expect(same).toEqual(start);
+    // jediný rozdíl: ves z doby před zvěří dostala zvěř na stropu (wildlife.md – převod)
+    expect(same).toEqual({ ...start, wildlife: same.wildlife });
+    expect(same.wildlife).toBeDefined();
     expect(same).not.toBe(start);
   });
 
