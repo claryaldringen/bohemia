@@ -12,6 +12,7 @@ import {
   withForestDistances,
   withKinship,
   withLivestockLand,
+  withWildlife,
   withManor,
   withMergedFields,
   withMergedRoads,
@@ -175,21 +176,24 @@ export async function updateVillage(
                       // hotové upravené cesty a stezky lesem dostanou průsek (roads.md – Průsek lesem)
                       withRoadSwaths(
                         withMergedRoads(
-                          withLivestockLand(
-                            withMergedFields(
-                              // varianty rozměrů domů (population.md) – po pozemcích, ať dům zná svůj
-                              withDwellingShapes(
-                                withPlots(
-                                  withForestDistances(
-                                    withObstacleClearing(rotated, obstacles),
+                          withWildlife(
+                            withLivestockLand(
+                              withMergedFields(
+                                // varianty rozměrů domů (population.md) – po pozemcích, ať dům zná svůj
+                                withDwellingShapes(
+                                  withPlots(
+                                    withForestDistances(
+                                      withObstacleClearing(rotated, obstacles),
+                                      landscape,
+                                    ),
                                     landscape,
+                                    obstacles,
                                   ),
                                   landscape,
                                   obstacles,
                                 ),
-                                landscape,
-                                obstacles,
                               ),
+                              landscape,
                             ),
                             landscape,
                           ),
@@ -228,6 +232,9 @@ export async function updateVillage(
         ),
       ),
     );
+    if (base.wildlifeFailed !== undefined && record.state.wildlifeFailed === undefined) {
+      console.error(`Ves ${villageId}: převod zvěře selhal: ${base.wildlifeFailed}`);
+    }
     if (base.horsePenStockFailed !== undefined && record.state.horsePenStockFailed === undefined) {
       console.error(`Ves ${villageId}: převod ohrad koní selhal: ${base.horsePenStockFailed}`);
     }

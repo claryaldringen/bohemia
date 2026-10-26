@@ -64,6 +64,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     (`trainingHours(…, hasHorse)`) cvičí jen jezdec s koněm – páry `assignRiders`
     (`horse-riders.ts`, i když rodina necvičí); bez koně jízda 0 a hodiny jdou do luku a boje.
     Koně pod jezdci, kteří dnes jezdili, cvičí `trainHorsesDay` – `trainLordDay` vrací kroniku.
+    **Den lovu** (`hunt.today`, W4 – `docs/code/village-wildlife.md`): hodiny `HUNT.training` místo
+    `trainingHours`, odešlí synové na lovu cvičí místo `decayArms`.
   - **Pasáci:** synové cvičící rodiny nepasou (`lordTraineeIds` v `youngsterCount`,
     `herdingDay`, `youngsterHerders`).
 - **Rod vojvody** (lord.md – Rod vojvody, fáze 1, #9; `dynasty.ts`, `dynasty-names.ts`): data
@@ -401,3 +403,13 @@ zatím nic nepoužívá, GLB jsou o ≈ 190 kB větší, VAT texturu tvoří ≈
 Propy mají volitelná pole `scale` (měřítko kolem bodu), `rotate_deg` a `offset_m` (posun v osách bodu,
 metry): kýta má `scale` 0,55 (≈ 0,4 m), u muže `offset_m` ji snižuje o 0,3 m z výšky nad hlavou na rameno;
 miska je natočená o −90° kolem X (svislice bodu `weapon_L` je jeho osa Y) a dnem stojí v bodě ruky.
+
+## Lovci, rybáři a děti s řehtačkou (postavy – wildlife Úloha W11)
+
+- **Lovci:** jezdci lovu sedí na koni po trase lovu (`huntPlans`), pěší lovci jdou za nimi
+  (`footHunterPose`) – cvičící muži dvorce mimo blok lovu cvičí, odešlí synové rodu se berou
+  z rozpisu (`takeId`) jen na blok lovu, jinak jsou doma. Panel: úloha `lord`.
+- **Rybáři:** podíl práce `fish` s cílem tůně – postava na břehu s prutem (`anglers`), panel
+  podle podílu práce. Oka (`snare`) postavu nemají.
+- **Děti s řehtačkou:** výrostci (`YOUNGSTERS`) po pasácích, jedno na hlídaný díl (nejvýš 4) –
+  úloha `watch`, panel „hlídá pole“.

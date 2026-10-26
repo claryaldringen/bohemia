@@ -30,6 +30,7 @@ import {
 } from '@bohemia/game';
 import type { LeaveDirection } from './departure-view';
 import type { VillageManor } from './manor-view';
+import type { FieldDamageView, WildlifeSpeciesView } from './wildlife-view';
 import type { VillageHorses } from './horse-view';
 import type { VillageDugSite } from './ore-site-view';
 import type { VillageKiln } from './kiln-view';
@@ -304,6 +305,8 @@ type SelectionKinds =
       surplus: boolean;
       /** Zakládá se – průběh, zbývající práce (člověkodny) a stromy na klády; jinak null. */
       founding: NonNullable<VillageFieldPart['founding']> | null;
+      /** Škoda zvěře letos (wildlife.md – Co hráč vidí); díl mimo ohrožení null. */
+      damage?: FieldDamageView | null;
       /** Id všech polí vsi – tlačítko „Označit všechna pole“. */
       fieldIds?: readonly number[];
     }
@@ -591,7 +594,15 @@ type SelectionKinds =
        * a jestli se dnes mlátí.
        */
       kind: 'threshing-floor';
-    } & VillageThreshingFloor);
+    } & VillageThreshingFloor)
+  | ({
+      /**
+       * Divoké zvíře (wildlife.md – Co hráč vidí; Martin 24. 10. 2026 nechal na Claudovi): druh
+       * s hrubým stavem (tři stupně plnosti, plno), co kraj uživí, loňská škoda a strhnutý dobytek –
+       * bez přesných kusů.
+       */
+      kind: 'wildlife';
+    } & WildlifeSpeciesView);
 
 export type { PersonPortraitIcon };
 
@@ -790,6 +801,10 @@ function selectionKinds(
   draft: DraftFigureState | null = null,
 ): SelectionKinds | null {
   if (!target) return null;
+  if (target.kind === 'wildlife') {
+    const species = view?.wildlife?.species.find((s) => s.species === target.species);
+    return species ? { kind: 'wildlife', ...species } : null;
+  }
   if (target.kind === 'person') return personDetails(view, scene, target.id, person, draft);
   if (target.kind === 'plough-team') return teamDetails(scene, target.team, draft);
   if (target.kind === 'cart') return cartDetails(scene, target.id, draft);
@@ -1165,6 +1180,7 @@ function fieldPartDetails(
     surface: part.surface ?? 'meadow',
     walkM: part.walkM,
     holding: house ? { dwellingId: house.id, type: house.type } : null,
+    ...(part.damage ? { damage: part.damage } : {}),
     sownYears: part.sownYears ?? null,
     fallowYears: part.fallowYears ?? null,
     overgrowthYears: shown.overgrowth ?? 0,

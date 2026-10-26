@@ -79,8 +79,10 @@ describe('pořadí a úseky dílů', () => {
 });
 
 describe('postup po čtvercích', () => {
+  // 22. 9.: výhled škod zvěře počítá násobek malé vsi jen z nesklizených dílů, plán osevu se tak
+  // mírně posunul; v tento den je v ozimu vidět rozpracovaný díl i strniště.
   it('kopání a setí ozimu: hotové díly v pořadí, zbytek čeká; čelo dne mezi nimi', () => {
-    const s = advanceVillage(village(), at(601, 9, 20), null);
+    const s = advanceVillage(village(), at(601, 9, 22), null);
     const winter = seasonCrop(s.season!, 'winter')!;
     const states = statesInOrder(s, winter.partIds);
     // od obydlí: nejdřív zasetí, pak zkopaní, pak loňské strniště – nikdy naopak
@@ -329,7 +331,7 @@ describe('přirozená stadia podle kalendáře', () => {
 
 describe('letošní práce na dílu (panel dílu – fields.md, Co hráč vidí)', () => {
   it('podzim: kopání, pak setí ozimu po dílech od obydlí; vzhled dílu odpovídá práci', () => {
-    const s = advanceVillage(village(), at(601, 9, 20), null);
+    const s = advanceVillage(village(), at(601, 9, 22), null);
     const winter = seasonCrop(s.season!, 'winter')!;
     const work = partYearWork(s, s.lastDay);
     const looks = fieldPartLooks(s, s.lastDay);

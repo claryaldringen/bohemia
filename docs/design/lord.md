@@ -249,6 +249,20 @@ před výcvikem rodiny), **kontrola** (dnešní kód, rodina nikdy necvičí) a 
 
 ### Příkaz na noc (nespouštět, jen na Martinův pokyn)
 
+Rod (fáze 1 issue #9): `measure-village` má volbu `--founders dynasty|pairs` (výchozí `dynasty` =
+vojvoda s manželkami; `pairs` = dva páry bez rodu jako dřív) a řádek „Vojvodova rodina a koně“ má
+navíc muže rodu, manželky, čekající vedlejší manželky a dny bez muže rodu
+(`scripts/lib/lord-columns.ts`). Srovnání rodu se starým základem:
+
+```bash
+npx tsx packages/game/scripts/measure-village.ts 200 60 --founders pairs --out base-pairs.jsonl
+npx tsx packages/game/scripts/measure-village.ts 200 60 --founders dynasty --out base-dynasty.jsonl
+npx tsx packages/game/scripts/measure-village.ts --report-only --out base-pairs.jsonl
+npx tsx packages/game/scripts/measure-village.ts --report-only --out base-dynasty.jsonl
+```
+
+Starší příkaz (koně a vojvodova rodina):
+
 ```bash
 # základ – poslední commit před úlohou 2 (43149f8c^) ve vlastním worktree
 git worktree add ../bohemia-before-lord 43149f8c^
@@ -265,7 +279,7 @@ Dlouhý běh jen v noci (Martin), přes den pozastavit (`kill -STOP` / `-CONT`).
 
 ## Rod vojvody – zakladatelé, manželky, jména, domácnost synů a konec rodu (#9, fáze 1)
 
-Stav: **schváleno** (Martin 24. 10. 2026: „Schvaluji“; issue #9 „Vojvodská rodina“). Implementace zatím není – přijde po cestách a růstu populace.
+Stav: **schváleno** (Martin 24. 10. 2026: „Schvaluji“; issue #9 „Vojvodská rodina“). Stav fáze 1: **implementováno** (jádro, server, panel jmen, upozornění, návštěvy manželek ve scéně; měření na Vlkově a kouřový test `dynasty-smoke.test.ts`, kalibrace 200 vsí zatím neběžela – Příkaz na noc níž).
 Martin 24. 10. 2026 schválil rozdělení issue do fází: **1)** jména, synové po sňatku odcházejí
 z dvorce, vojvoda cvičí celý život → **2)** dělení vsi a odchod mladšího syna → **3)** správa vsi
 NPC → **4)** seniorát a rodové panství. K nástupnictví a náhodě „bez pozvánky“ Martin: „S tímhle
@@ -596,6 +610,13 @@ Clauda.
   neukončí**.
 
 ### Pro implementaci fáze 1 (poznámky, ne kód)
+
+- **Rozhodnutí implementace (návrh Clauda, 24.–26. 10. 2026):** rod se sousedovi nedává – výměna
+  lidí nevybere muže rodu ani manželku muže rodu; nejdéle vdaná manželka je ta s nižším id (hlavní
+  manželka po smrti hlavní); ves z výpravy bez muže rodu je ves bez rodu (`NO_DYNASTY`); poslední
+  zadané jméno zakladatele si prohlížeč pamatuje v `sessionStorage` (`try/catch`, bez nového portu
+  DB) a předvyplní ho po „Začít znovu“; `foundVillage` bez `lord` založí ves bez rodu se dvěma páry
+  (testy, zlaté otisky `smith-golden`, `craft-skill-golden`).
 
 - Volitelné části stavu člověka: jméno, příznak rodu, příznak „syn hlavní manželky“; u muže víc
   manželek s hlavní (dnes jeden manžel / manželka). Převod v `updateVillage` / začátku

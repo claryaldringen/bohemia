@@ -173,7 +173,14 @@ Martin: „**Určitě doplň roční ztráty stáda.**“
 
 - Za rok uhyne podíl stáda – **ovce 12 %, kozy 10 %, prasata 12 %, skot 6 %** (nemoci, vlci,
   úrazy), **rovnoměrně po dnech**, i z letošních mláďat. Stádo je číslo s podílem kusu – ztráta je
-  podíl, žádný los (determinismus beze změny).
+  podíl, žádný los (determinismus beze změny). **Od 26. 10. 2026 (návrh Clauda, W3):** v tom je
+  **vlčí díl** (ovce a kozy 3 %, prasata 2 %, skot 1 % při 5 vlcích × vlci ÷ 5; jen na pastvě
+  duben–říjen, prasata celý rok) – základ bez vlků je **9 / 7 / 10 / 5 %** (`LIVESTOCK.lossPerYear`)
+  a vlčí díl se přidá podle smečky ([wildlife.md](wildlife.md) – Vlci na dobytku); při plné
+  smečce zůstávají dosavadní čísla. **Vědomý kompromis (návrh Clauda, W3):** `yearlyMeatPerHead`
+  počítá se základem **plus plným vlčím dílem** (jako při 5 vlcích), takže plán velikosti stád
+  a kalibrace zůstávají beze změny; ves s vyloveným okolím tak stáda plánuje o vlčí díl menší,
+  než by musela, a skutečná stáda rostou víc.
 - Mláďata k 1. 4. (ovce a kozy +40 %, prasata +100 %, krávy +20 %) jsou ta, která přežila první
   týdny – **zmetání a úhyn novorozených jsou v nich** (čísla růstu beze změny).
 - Stálé stádo tak dá na chovný kus za rok maso z mláďat (1 + růst) × (1 − ztráta) − 1 kusu: ovce

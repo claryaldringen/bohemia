@@ -108,6 +108,8 @@ export function personActivity(
       return 'jde na svatbu';
     case 'share':
       return shareText(job, stage, village);
+    case 'watch':
+      return 'hlídá pole';
     case 'lord':
       if (job.household) return 'vede domácnost';
       return stage === 'combat' ? 'cvičí boj' : 'cvičí lukostřelbu';
@@ -203,6 +205,12 @@ function shareText(
       return 'porází dobytek';
     case 'herding':
       return 'pase';
+    case 'watch':
+      return 'hlídá pole';
+    case 'fish':
+      return 'chytá ryby';
+    case 'snare':
+      return 'staví oka na zajíce';
     case 'pen':
       return 'staví ohradu';
     case 'orchard-harvest':

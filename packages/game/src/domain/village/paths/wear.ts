@@ -318,6 +318,8 @@ export function wearLaborKey(target: LaborTarget): string | null {
       return 'meadow';
     case 'edge':
       return `edge:${target.direction}`;
+    case 'pool':
+      return `pool:${target.index}`;
     default:
       return `${target.kind}:${target.id}`;
   }

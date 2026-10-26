@@ -1,4 +1,5 @@
 import { dateOfDayIndex } from '../calendar';
+import { predationDay } from './predators';
 import type { CalendarDate } from '../calendar';
 import { SLAUGHTER_DAY, spoilMeat } from './diet';
 import {
@@ -337,6 +338,7 @@ export function husbandryDay(
   const livestock = ensureLivestock(state);
   // nemoci, vlci, úrazy – denní díl ročních ztrát; seno ve stohu ztrácí počasím
   herdLosses(state);
+  const predation = predationDay(state, day);
   rotHay(state);
   const winterEnd = isOn(date, WINTER_END);
   // pokrytí sena stáda – s voly, kteří zimu přečkali (dřív, než penDay rozhodne o jejich úhynu)
@@ -345,6 +347,7 @@ export function husbandryDay(
   const horsesCoverage =
     winterEnd && horsesKg > 0 ? horsesHayCoverage(state, villageOxen(state), horsesKg) : 1;
   const events = penDay(state, day, winterEnd, toolCoverage);
+  events.unshift(...predation);
   if (horsesCoverage < 1) events.push(...horsesWinterEnd(state, day, horsesCoverage));
   // chov koní – hříbata 1. 5., koně na maso 1. 11. před porážkou stád (horses.md – Chov)
   events.push(...horsesDay(state, day));

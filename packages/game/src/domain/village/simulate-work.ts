@@ -1,4 +1,5 @@
 // Práce dne – polní úlohy v pořadí a `work()` s rozdělením práce vsi.
+import { smallGameDay, type SmallGameResult } from './small-game';
 import { dateOfDayIndex, dayIndexOf } from '../calendar';
 import type { Landscape, ObstacleLayer } from '../landscape';
 import { carpentryHelp, restingCarpenters, workCarpenters } from './carpentry';
@@ -123,6 +124,7 @@ import {
   withOnceWeedingRates,
   withoutWinterWeeding,
 } from './year-plan';
+import { payWatch, watchWanted } from './wildlife-damage';
 import { build, decayEmptyDwellings, woodworkToday } from './simulate-build';
 import {
   bestWaterPlan,
@@ -327,6 +329,13 @@ export function work(
       tie: 1,
       rank: THRESH_RANK + CROP_ORDER.length,
     });
+  }
+  // noční hlídka polí (wildlife.md – Noční hlídka vesničanů, 2. stupeň): dospělí z práce vsi za
+  // polními úlohami dne – v žních soupeří se sklizní (zamýšlená volba) – a za nutnou sečí (seno
+  // pro voly a krávy je životně důležité; návrh Clauda), před stavbami a rybami
+  const watchLabor = watchWanted(state, day);
+  if (watchLabor > EPSILON) {
+    dayTasks.push({ name: 'watch', remaining: watchLabor, end: Infinity, tie: 4, rank: 2 });
   }
   const orchard = orchardTask(state, day);
   if (orchard) {
@@ -675,6 +684,8 @@ export function work(
       workSlaughter(state, amount);
     } else if (task.name === 'grain-pit') {
       grainPits = workGrainPits(state, day, amount, moreGrain, pitSite);
+    } else if (task.name === 'watch') {
+      payWatch(state, day, task.remaining, amount);
     } else {
       workOrchards(state, amount);
     }
@@ -734,6 +745,13 @@ export function work(
       target: { kind: 'water', ...water.spot },
     });
   }
+  // hladovějící ves chytá ryby a zajíce hned za polními úlohami, před stavbami (wildlife.md –
+  // Drobná zvěř a ryby); jinak až ze zbytku práce po dílech nad potřebu a seči navíc (níž)
+  let game: SmallGameResult = { manDays: 0, shares: [] };
+  if (state.hungry) {
+    game = smallGameDay(state, day, common, true);
+    common -= game.manDays;
+  }
   // tesař pomáhá stavbám – jeho práce jde do staveb a zlevní jejich dřevěnou část (wagons.md)
   const help = carpentryHelp(state, day, coverage, productivity, resting, (extra) =>
     woodworkToday(state, day, common + extra),
@@ -781,6 +799,9 @@ export function work(
     Math.min(afterBuild.left - surplus.labor, mowingRemaining(state, day)),
   );
   if (extraMow > EPSILON) mow(state, extraMow);
+  if (!state.hungry) {
+    game = smallGameDay(state, day, afterBuild.left - surplus.labor - extraMow, false);
+  }
   // večer: spřežení, které dnes vyjelo a oralo, je u bloku; po zorání okna zpět do ohrady
   settlePloughTeams(state, day, travels, teamsCap <= EPSILON, waiting);
   const supply: SmithSupply = {
@@ -871,6 +892,7 @@ export function work(
       : {}),
     fieldWork: [...fieldWork, ...surplus.fieldWork],
     surplusField: surplus.labor,
+    ...(game.manDays > 0 ? { smallGame: game.shares } : {}),
     ...(extraMow > EPSILON ? { extraMow } : {}),
     ...(weeders.length > 0 ? { weedChildAges: weeders } : {}),
     repairs,

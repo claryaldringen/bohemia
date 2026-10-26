@@ -86,6 +86,7 @@ import { foreignFromScene, plotOfScene } from './scene/neighbour-villages';
 import { sceneFunerals } from './funeral-view';
 import { scenePersons } from './person-view';
 import { sceneWeddings } from './wedding-view';
+import { sceneWildlife } from './wildlife-view';
 
 export function sceneVillage(
   state: VillageState,
@@ -241,6 +242,14 @@ export function sceneVillage(
   const penned = pens.reduce((sum, pen) => sum + pen.cows, 0);
   const herds = summary.livestock.herds;
   const threshingFloors = sceneThreshingFloors(state, constructions);
+  // divoká zvěř (wildlife.md – Ve scéně) – hejna vran podle osetých ha
+  const sownHa =
+    fields.reduce(
+      (sum, f) =>
+        sum + f.parts.reduce((m2, p) => m2 + (p.stage === 'sown' ? p.size * p.size : 0), 0),
+      0,
+    ) / 10_000;
+  const wildlife = sceneWildlife(state, day, sownHa, landscape);
   return {
     dwellings: [...built, ...sites],
     ...(ruins.length > 0 ? { ruins } : {}),
@@ -259,6 +268,7 @@ export function sceneVillage(
     ...(sacred ? { sacred } : {}),
     ...(threshingFloors.length > 0 ? { threshingFloors } : {}),
     livestock: { ...herds, cow: Math.max(0, herds.cow - penned) },
+    ...(wildlife ? { wildlife } : {}),
     ...(hayMeadows.length > 0 ? { hayMeadows } : {}),
     ...(pens.length > 0 ? { pens } : {}),
     ...(summary.crafts.coverage.tools > 0 ? { toolCoverage: summary.crafts.coverage.tools } : {}),
@@ -343,6 +353,19 @@ export function sceneLabor(state: VillageState, people: SceneLabor['people']): S
 }
 
 /**
+ * Kterou vedlejší manželku mimo dvorec vojvoda dnes večer navštíví (lord.md – Rod vojvody,
+ * Manželky; jen vzhled): střídají se po dnech podle id, `day % počet`. Bez nich nikoho.
+ */
+export function visitedWife<W extends { id: number; dwellingId: number }>(
+  wives: readonly W[],
+  manor: number,
+  day: number,
+): W | undefined {
+  const apart = wives.filter((w) => w.dwellingId !== manor).sort((a, b) => a.id - b.id);
+  return apart.length > 0 ? apart[day % apart.length] : undefined;
+}
+
+/**
  * Vojvodova rodina dne pro scénu (lord.md – Ve scéně): z cvičící rodiny (`trainingFamily`) a počtů
  * dne (`LaborDay.lord`). Na poli jsou napřed nejmladší dospělí muži a ženy rodiny (jádro dává jen počty
  * `lordDayCounts`, jména volí scéna), chlapci cvičí vždy; ostatní cvičí hodiny podle věku (`trainingHours`; jezdí
@@ -380,7 +403,13 @@ function sceneLord(state: VillageState, counts: LaborDay['lord'], day: number): 
   });
   const riding = (rides?.riders ?? []).filter((r) => !men.has(r.riderId)).map(scene);
   const escort = rides?.escort && !men.has(rides.escort.riderId) ? rides.escort : null;
+  // vedlejší manželky mimo dvorec se střídají po dnech (podle id, `day % počet`) – jen vzhled
+  const wife = visitedWife(family.wivesApart, home, day);
+  const lordId = family.lord?.id;
+  const visits =
+    wife && lordId !== undefined && family.trainees.some((p) => p.id === lordId && !men.has(p.id));
   return {
+    ...(visits && wife && lordId !== undefined ? { visit: { lordId, home: wife.dwellingId } } : {}),
     ...(riding.length > 0 ? { riders: riding } : {}),
     ...(riding.length > 0 && rides?.trailId != null ? { borderTrailId: rides.trailId } : {}),
     ...(escort

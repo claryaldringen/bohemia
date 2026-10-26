@@ -262,7 +262,15 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
         ? 'Ve vsi už nežije žádný muž rodu.'
         : `Ve vsi už nežije žádný muž rodu – posledním vojvodou byl ${event.name}.`;
     case 'death':
+      if (event.cause === 'hunt') {
+        const prey = event.prey === 'bear' ? 'medvěda' : 'divočáka';
+        return `${event.name ?? 'Muž rodu'} zahynul na lovu ${prey}.`;
+      }
       return deathText(event.group, event.cause === 'hunger');
+    case 'hunt-injury': {
+      const prey = event.prey === 'bear' ? 'medvěda' : 'divočáka';
+      return `${event.name ?? 'Lovec'} byl zraněn na lovu ${prey} – 60 dní nepracuje.`;
+    }
     case 'village-extinct':
       return `Zemřel poslední obyvatel – ves ${villageName} vymřela.`;
     case 'household-founded':
@@ -368,6 +376,33 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return 'Do ohrady koní přivedli hřebce a dvě klisny.';
     case 'horses-shod':
       return event.own ? 'Kovář okul koně.' : 'Koně okul kovář ze sousední vsi.';
+    case 'bear-returned':
+      return 'Medvěd se vrátil do lesů.';
+    case 'predator-kill': {
+      const heads = event.heads;
+      if (event.by === 'bear') {
+        return heads === 1
+          ? 'Medvěd strhl prase v lese.'
+          : `Medvěd strhl prasata v lese (${heads}).`;
+      }
+      const one = { sheep: 'ovci', goat: 'kozu', pig: 'prase', cow: 'krávu' }[event.species];
+      const many = { sheep: 'ovce', goat: 'kozy', pig: 'prasata', cow: 'krávy' }[event.species];
+      return heads === 1 ? `Vlci strhli ${one}.` : `Vlci strhli ${many} (${heads}).`;
+    }
+    case 'hunt': {
+      const { boar, deer, wolves, bear } = event.kills;
+      const catches = [
+        boar > 0 ? (boar === 1 ? 'divoké prase' : `divoká prasata (${boar})`) : null,
+        deer > 0 ? (deer === 1 ? 'kus jelení zvěře' : `jelení zvěř (${deer})`) : null,
+        wolves > 0 ? (wolves === 1 ? 'vlka' : `vlky (${wolves})`) : null,
+        bear > 0 ? 'medvěda' : null,
+      ].filter((x): x is string => x !== null);
+      const who = event.names[0] ?? 'Rod';
+      const meat = event.meatKg > 0 ? ` – ${Math.round(event.meatKg)} kg masa do zásoby` : '';
+      return `${who} s lovci ulovil ${catches.join(', ')}${meat}.`;
+    }
+    case 'wildlife-damage':
+      return `Zvěř a vrány zničily letos ${event.kg} kg obilí na polích.`;
     case 'horse-trained':
       return 'Kůň je vycvičený pod jezdcem.';
     case 'horse-retired':

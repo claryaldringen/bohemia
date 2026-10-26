@@ -17,6 +17,15 @@ export interface E2EHooks {
   projectToScreen?: (x: number, z: number) => { x: number; y: number } | null;
   /** Meshe porážky ve scéně (`slaughter-*`) a jestli jsou připravené ke kreslení. */
   slaughterMeshes?: () => { name: string; ready: boolean }[];
+  /** Meshe divoké zvěře (`wild-*`) a kusy, které jsou teď vidět (druh, poloha) – kam kliknout. */
+  wildAnimals?: () => {
+    meshes: { name: string; ready: boolean }[];
+    animals: { species: string; model: string; x: number; z: number }[];
+    /** Naplánované skupiny (první stanoviště) – modely se načtou až se zvěří v záběru. */
+    groups: { species: string; x: number; z: number }[];
+  };
+  /** Posune kameru nad bod krajiny (x, z) – zvěř bývá u lesa mimo výchozí záběr. */
+  moveCameraTo?: (x: number, z: number) => void;
   /** Zeptá se na ves hned (dotazování jinak čeká na další herní den – v testech ≈ 86 s). */
   pollVillage?: () => void;
   /** Vybere člověka vsi (id), jako by hráč klikl na jeho postavu – postavy ve scéně chodí. */

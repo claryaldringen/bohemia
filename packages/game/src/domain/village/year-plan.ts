@@ -499,8 +499,17 @@ export function harvestKg(
   parts: FieldPart[],
   day: number,
   crop: Crop = 'spring',
+  losses?: PartLosses,
 ): number {
-  return cropYieldKg(work, parts, day, planShare(work, 'sow'), workedShare(work, 'harvest'), crop);
+  return cropYieldKg(
+    work,
+    parts,
+    day,
+    planShare(work, 'sow'),
+    workedShare(work, 'harvest'),
+    crop,
+    losses,
+  );
 }
 
 /**
@@ -582,6 +591,12 @@ function unweededYield(crop: Crop): number {
   return UNWEEDED_YIELD;
 }
 
+/**
+ * Ztráty dílů zvěří (wildlife.md – Škody; `FieldDamage.parts`): podíl hrubé úrody po id dílu.
+ * Úroda dílu = bez škody × (1 − share); díl bez záznamu se neztrácí.
+ */
+export type PartLosses = Readonly<Record<string, { share: number }>>;
+
 function cropYieldKg(
   work: CropWork,
   parts: FieldPart[],
@@ -589,6 +604,7 @@ function cropYieldKg(
   sowFrac: number,
   harvestFrac: number,
   crop: Crop = 'spring',
+  losses?: PartLosses,
 ): number {
   const weedFrac = workedShare(work, 'weed');
   // díly plánu podle id najednou – hledat každý v celém poli by bylo kvadratické
@@ -607,7 +623,8 @@ function cropYieldKg(
       sowFrac *
       (unweeded + (1 - unweeded) * weeded) *
       harvestFrac;
-    total += Math.max(0, ha * gross - ha * cropSeedPerHa(crop) * sowFrac);
+    const kept = 1 - (losses?.[id]?.share ?? 0);
+    total += Math.max(0, ha * gross * kept - ha * cropSeedPerHa(crop) * sowFrac);
   }
   return total;
 }
@@ -616,9 +633,14 @@ function cropYieldKg(
  * Odhad čisté úrody ozimu pro příděl: sklizeň celá, pletí jen kolik je hotové (před pletím
  * neopletá úroda – opatrně) a setí do konce okna setí celé, potom jen zasetá část.
  */
-export function expectedWinterKg(work: CropWork, parts: FieldPart[], day: number): number {
+export function expectedWinterKg(
+  work: CropWork,
+  parts: FieldPart[],
+  day: number,
+  losses?: PartLosses,
+): number {
   const sowing = taskWindowEnd('sow', dateOfDayIndex(day).month, 'winter') !== null;
-  return cropYieldKg(work, parts, day, sowing ? 1 : planShare(work, 'sow'), 1);
+  return cropYieldKg(work, parts, day, sowing ? 1 : planShare(work, 'sow'), 1, 'spring', losses);
 }
 
 /**
@@ -632,13 +654,16 @@ export function daysUntilFoodHarvest(
   parts: FieldPart[],
   day: number,
   needPerDayKg: number,
+  losses?: PartLosses,
 ): number {
   const late = daysUntilHarvest(day);
   const winter = plan ? seasonCrop(plan, 'winter') : undefined;
   if (!winter || winter.harvestedKg !== null || winter.partIds.length === 0) return late;
   const early = daysUntilWinterHarvest(day);
   if (early >= late) return late;
-  return expectedWinterKg(winter, parts, day) >= needPerDayKg * (late - early) ? early : late;
+  return expectedWinterKg(winter, parts, day, losses) >= needPerDayKg * (late - early)
+    ? early
+    : late;
 }
 
 /** Roční plán uložený před hospodářským rokem (jař na nejvyšší úrovni, ozim, luštěniny, len zvlášť). */

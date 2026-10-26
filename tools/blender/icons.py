@@ -46,7 +46,8 @@ a mladá bříza z modelů krajiny
 `apps/web/public/models/decor/` a `trees/`, fields.md – Zarůstání), condition (stav stavby –
 zšedlý rozštípnutý kůl s prasklinou a mechem) a abandoned (opuštěná stavba – padlý kůl
 v kopřivách z `apps/web/public/models/dwellings/decay.glb`, abandonment.md) a zvířata stád do panelu
-ohrady – sheep, goat, pig, cow, chicken, foal, mare, horse
+ohrady – sheep, goat, pig, cow, chicken, foal, mare, horse, divoká zvěř a pes – boar, deer (jelen
+s parožím), wolf, bear, hare, fox, fish, dog – spear (oštěp) a watch-fire (pochodeň hlídky)
 (modely `apps/web/public/models/fauna/`) a ox (vůl ze spřežení `apps/web/public/models/plough/ox.glb`;
 v obchodu vycvičený vůl) a young-ox (mladý vůl do výcviku – týž vůl světlejší a menší, stojí na
 stejné zemi; trade.md – Dobytek ve třech druzích),
@@ -2804,6 +2805,46 @@ def icon_ring():
     camera(world_points([ring]), az=0, el=20, margin=1.12)
 
 
+def icon_spear():
+    """Oštěp (lov – wildlife.md): dřevěná tyč šikmo a listovitá železná hrot s krátkou objímkou."""
+    wood, iron = bmesh.new(), bmesh.new()
+    h0, h1 = Vector((-0.8, 0.0, -0.95)), Vector((0.55, 0.0, 0.62))
+    cyl(wood, h0, h1, 0.09, 0.07, 10)
+    d = (h1 - h0).normalized()
+    n = Vector((d.z, 0, -d.x))
+    cyl(iron, h1 - d * 0.05, h1 + d * 0.16, 0.12, 0.1, 10)  # objímka
+    base = h1 + d * 0.14
+    blade = [(0.0, -0.1), (0.2, -0.2), (0.5, -0.17), (0.82, 0.0), (0.5, 0.17), (0.2, 0.2), (0.0, 0.1)]
+    pts = []
+    for u, v in blade:
+        q = base + d * u * 1.15 + n * v * 1.15
+        pts.append((q.x, q.z))
+    flat_plate(iron, pts, 0.0, 0.07)
+    to_obj(wood, "shaft", mat("wood", (0.46, 0.3, 0.15), 0.9, noise=22, bump=0.4))
+    to_obj(iron, "head", mat("iron", (0.52, 0.53, 0.56), 0.5, noise=14, bump=0.2))
+    sun(az=-50, el=48, strength=4.0)
+    camera([Vector((-1.0, -0.5, -1.0)), Vector((1.2, 0.5, 1.6))], az=0, el=20, margin=1.06)
+    return True
+
+
+def icon_watch_fire():
+    """Oheň hlídky (zvěř – wildlife.md): pochodeň v kolu a plamen nad uhlíky – hlídka u stáda v noci."""
+    wood, wrap, outer, inner = bmesh.new(), bmesh.new(), bmesh.new(), bmesh.new()
+    cyl(wood, (0.0, 0.0, -1.0), (0.0, 0.0, 0.55), 0.1, 0.085, 10)
+    cyl(wrap, (0.0, 0.0, 0.3), (0.0, 0.0, 0.72), 0.17, 0.2, 12)  # hadry s pryskyřicí
+    flame(outer, (0, 0, 0.62), 1.05, 0.3)
+    flame(outer, (0.16, 0.03, 0.6), 0.62, 0.17, tilt=(0.25, 0.05))
+    flame(outer, (-0.15, -0.04, 0.6), 0.7, 0.18, tilt=(-0.22, -0.05))
+    flame(inner, (0, -0.04, 0.64), 0.56, 0.17)
+    to_obj(wood, "pole", mat("wood", (0.4, 0.26, 0.13), 0.9, noise=22, bump=0.4))
+    to_obj(wrap, "wrap", mat("wrap", (0.14, 0.1, 0.07), 0.95, noise=18, bump=0.4))
+    to_obj(outer, "flame", glow_mat("flame", (1.0, 0.36, 0.04), 2.2))
+    to_obj(inner, "core", glow_mat("core", (1.0, 0.78, 0.25), 3.5))
+    sun(az=-40, el=50, strength=3.5)
+    camera([Vector((-0.9, -0.6, -1.0)), Vector((0.9, 0.6, 1.8))], az=0, el=20, margin=1.06)
+    return True
+
+
 RESOURCES = {
     "food": icon_food,
     "skill": icon_skill,
@@ -2825,6 +2866,17 @@ RESOURCES = {
     "goat": lambda: icon_animal("goat"),
     "pig": lambda: icon_animal("pig"),
     "cow": lambda: icon_animal("cow"),
+    # divoká zvěř a pes (wildlife.md): modely 0 A.D. z `models/fauna/`, jelen s parožím
+    "boar": lambda: icon_animal("wild-boar"),
+    "deer": lambda: icon_animal("wild-stag"),
+    "wolf": lambda: icon_animal("wild-wolf"),
+    "bear": lambda: icon_animal("wild-bear"),
+    "hare": lambda: icon_animal("wild-hare"),
+    "fox": lambda: icon_animal("wild-fox"),
+    "fish": lambda: icon_animal("fish"),
+    "dog": lambda: icon_animal("dog"),
+    "spear": icon_spear,
+    "watch-fire": icon_watch_fire,
     "chicken": lambda: icon_animal("chicken"),
     "ox": lambda: icon_animal("ox", folder=PLOUGH),
     # mladý vůl do výcviku (trade.md – Dobytek ve třech druzích): světlejší srst, v ikoně menší

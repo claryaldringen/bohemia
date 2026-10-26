@@ -21,7 +21,7 @@ import { sellPrice } from '../trade';
 import type { PenInput } from '../oxen';
 import type { VillageState } from '../types';
 import { block, makeLandscape } from './placement-fixtures';
-import { withBuiltFirstDwelling } from './village-fixtures';
+import { withBuiltFirstDwelling, withoutSmallGame } from './village-fixtures';
 
 // Koně se stavbou ohrady (horses.md – Koně se stavbou ohrady): hodnota 5 600 kg obilí se platí
 // předem z přebytku (hřivny → zvířata → obilí nad pojistkou), tři koně přijdou při dokončení.
@@ -35,7 +35,7 @@ function village(): VillageState {
   const s = withBuiltFirstDwelling(foundVillage({ seed: 5, day: DAY, dwellingPosition: FAR }));
   s.woodLogs = 100;
   s.storesKg = 0;
-  return s;
+  return withoutSmallGame(s);
 }
 
 function input(s: VillageState): PenInput {

@@ -29,6 +29,7 @@ export type VillagerClip =
   | 'gut'
   | 'carry-meat'
   | 'carry-meat-idle'
+  | 'fish'
   // jezdec a výcvik vojvodovy rodiny (horses.md, lord.md) – jen `man.glb`
   | 'ride'
   | 'ride-trot'
@@ -61,6 +62,7 @@ export const VILLAGER_CLIPS: readonly VillagerClip[] = [
   'gut',
   'carry-meat',
   'carry-meat-idle',
+  'fish',
   // jezdec (sed na koni) a výcvik s dřevěnými zbraněmi – klipy má jen `man.glb`
   'ride',
   'ride-trot',

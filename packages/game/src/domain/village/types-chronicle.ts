@@ -6,6 +6,7 @@ import type { Craft } from './types-crafts';
 import type { AbandonedStructure, Crop, TileCell } from './types-land';
 import type { HerdSpecies } from './types-livestock';
 import type { DwellingType } from './types-people';
+import type { HuntKills } from './types-wildlife';
 import type { CartJob, CartKind } from './types-roads';
 import type { Direction8 } from './types-state';
 import type {
@@ -64,7 +65,9 @@ export type ChronicleEvent = { day: number } & (
       kind: 'death';
       group: 'child' | 'adult' | 'elder';
       age?: number;
-      cause?: 'hunger';
+      cause?: 'hunger' | 'hunt';
+      /** Zvěř, na jejímž lovu muž zahynul (`cause: 'hunt'`). */
+      prey?: 'boar' | 'bear';
       name?: string;
     }
   /** Zemřel poslední člověk – ves vymřela (population.md – Hlad a vymření). */
@@ -202,6 +205,16 @@ export type ChronicleEvent = { day: number } & (
    * víc, než chce (`surplus` – nejdřív nejstarší).
    */
   | { kind: 'horse-retired'; penId: number; horses: number; reason: 'age' | 'surplus' }
+  /** Do kraje přišel nový medvěd (wildlife.md – Roční přepočet: ulovený se vrací za 3 roky). */
+  | { kind: 'bear-returned' }
+  /** Šelmy strhly dobytek (wildlife.md – Vlci na dobytku; `heads` – celé kusy dne). */
+  | { kind: 'predator-kill'; species: HerdSpecies; by: 'wolf' | 'bear'; heads: number }
+  /** Velký lov rodu (wildlife.md – Lov rodu): úlovek dne, maso do zásoby a nejlepší lovec. */
+  | { kind: 'hunt'; kills: HuntKills; meatKg: number; names: string[] }
+  /** Lovec byl zraněn a 60 dní nepracuje (wildlife.md – Nebezpečí pro lidi). */
+  | { kind: 'hunt-injury'; prey: 'boar' | 'bear'; name?: string }
+  /** Po žních: zvěř a vrány zničily `kg` obilí na polích (wildlife.md – Škody). */
+  | { kind: 'wildlife-damage'; kg: number }
   /** Sad dosloužil (60. rok) a vrátil se v louku. */
   | { kind: 'orchard-gone'; orchardId: number }
   /** Vesničané zařadili čtverce starého sadu do obnovy (orchard.md – Obnova sadu). */
@@ -353,6 +366,12 @@ export type LaborActivity =
   | 'horse-care'
   /** Kování jezdeckých koní vlastním kovářem u ohrady koní (horses.md – Kování). */
   | 'horse-shoeing'
+  /** Rybaření vesničanů u tůně (wildlife.md – Drobná zvěř a ryby; rybář s prutem). */
+  | 'fish'
+  /** Noční hlídka polí dospělými (wildlife.md – Obrana polí; `allocation.tasks.watch`). */
+  | 'watch'
+  /** Oka na zajíce v zimě (wildlife.md – Drobná zvěř a ryby). */
+  | 'snare'
   /** Sezónní práce v sadech (orchard.md). */
   | 'orchard-care'
   | 'orchard-harvest'
@@ -419,6 +438,8 @@ export type LaborTarget =
        */
       progress?: [number, number][];
     }
+  /** Loviště ryb – tůň do 1 km od vsi (pořadí od nejbližší; wildlife.md – Drobná zvěř a ryby). */
+  | { kind: 'pool'; index: number }
   /** Hotové obydlí (id) – opravy, přestavba, práce řemeslníka v dílně. */
   | { kind: 'dwelling'; id: number }
   /** Staveniště nového obydlí – id stavby. */

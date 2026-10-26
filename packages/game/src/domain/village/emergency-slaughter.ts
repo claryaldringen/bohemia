@@ -84,6 +84,7 @@ export function dayMealInput(
     state.parts,
     day,
     need * fieldFoodShare(state),
+    state.wildlife?.damage?.parts,
   );
   // snopy, které ves vymlátí, jsou ve výhledu jako zrno (production-chains.md – Humno)
   const sheaves = sheavesOutlook(state, day);

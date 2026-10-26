@@ -658,14 +658,26 @@ export function livestockLandAt(
 }
 
 /**
+ * Počátek vsi pro krajinu kolem ní – první zemnice nebo její staveniště (pastva dobytka, zvěř);
+ * ves bez obydlí nemá nic (null).
+ */
+export function villageOrigin(
+  state: Pick<VillageState, 'dwellings' | 'constructions'>,
+): { x: number; z: number } | null {
+  return (
+    state.dwellings[0]?.position ??
+    state.constructions.find((c) => c.kind === 'dwelling' && c.position !== null)?.position ??
+    null
+  );
+}
+
+/**
  * Doplní vsi uložené před dobytkem výchozí stádo a krajinu pro pastvu (louka a les do 600 m od
  * první zemnice nebo jejího staveniště – `livestockLandAt`). Nic nechybí – vrátí týž stav.
  */
 export function withLivestockLand(state: VillageState, landscape: Landscape): VillageState {
   if (state.livestock?.land) return state;
-  const origin =
-    state.dwellings[0]?.position ??
-    state.constructions.find((c) => c.kind === 'dwelling' && c.position !== null)?.position;
+  const origin = villageOrigin(state);
   if (!origin) return state;
   return withLivestock(state, livestockLandAt(landscape, origin.x, origin.z));
 }

@@ -11,6 +11,7 @@ export * from './load-village';
 export * from './village-stamp';
 export * from './found-village';
 export * from './name-line-man';
+export * from './declare-hunt';
 export * from './place-dwelling';
 export * from './cancel-construction';
 export * from './relocate-household';

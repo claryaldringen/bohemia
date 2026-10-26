@@ -748,6 +748,7 @@ function laborKey(target: LaborTarget): string {
       ? `kiln:${target.id}${kiln}>${target.from}`
       : `kiln:${target.id}${kiln}`;
   }
+  if (target.kind === 'pool') return `pool:${target.index}`;
   return target.kind === 'village' ? 'village' : `${target.kind}:${target.id}`;
 }
 

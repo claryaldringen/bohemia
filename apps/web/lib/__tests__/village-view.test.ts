@@ -50,6 +50,7 @@ import {
   sceneRoadApples,
   type VillageView,
 } from '../village-view';
+import { visitedWife } from '../village-view-scene';
 import type { ScenePloughLegs } from '../village-view-scene-types';
 
 const DAY = dayIndexOf({ year: 503, month: 4, day: 12 });
@@ -2626,5 +2627,20 @@ describe('buildVillageView – klučení lesa po fázích', () => {
     const view = buildVillageView(record(), landscape, DAY);
     expect(view.fields[0]!.clearing).toBeUndefined();
     expect(view.fields[0]!.parts.every((p) => p.founding?.clearing === undefined)).toBe(true);
+  });
+});
+
+describe('návštěvy vedlejších manželek vojvody (lord.md – Rod vojvody, Manželky)', () => {
+  const w = (id: number, dwellingId: number): { id: number; dwellingId: number } => ({
+    id,
+    dwellingId,
+  });
+  it('střídají se po dnech podle id (day % počet), manželky v dvorci se nenavštěvují', () => {
+    const wives = [w(30, 4), w(12, 2), w(20, 3), w(11, 1)];
+    expect([0, 1, 2, 3, 4].map((d) => visitedWife(wives, 1, d)?.id)).toEqual([12, 20, 30, 12, 20]);
+  });
+  it('bez vedlejších manželek mimo dvorec nikdo', () => {
+    expect(visitedWife([], 1, 5)).toBeUndefined();
+    expect(visitedWife([w(11, 1)], 1, 5)).toBeUndefined();
   });
 });

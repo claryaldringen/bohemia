@@ -519,6 +519,7 @@ export function villageMeal(
     state.parts,
     day,
     need * fieldFoodShare(state),
+    state.wildlife?.damage?.parts,
   );
   const sheaves = sheavesOutlook(state, day);
   return eatDiet({

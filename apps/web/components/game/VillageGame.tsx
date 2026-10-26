@@ -23,6 +23,7 @@ import {
 } from '@bohemia/game';
 import {
   buildTrail,
+  declareHunt,
   cancelConstruction,
   foundDevVillage,
   foundVillage,
@@ -486,9 +487,13 @@ export function VillageGame({
     if (!scene) return;
     setE2EHook('projectToScreen', (x, z) => scene.projectToScreen(x, z));
     setE2EHook('slaughterMeshes', () => scene.slaughterMeshes());
+    setE2EHook('wildAnimals', () => scene.wildAnimals());
+    setE2EHook('moveCameraTo', (x, z) => scene.moveCameraTo(x, z));
     return () => {
       setE2EHook('projectToScreen', undefined);
       setE2EHook('slaughterMeshes', undefined);
+      setE2EHook('wildAnimals', undefined);
+      setE2EHook('moveCameraTo', undefined);
     };
   }, [scene]);
 
@@ -1185,6 +1190,16 @@ export function VillageGame({
           return villageId
             ? runBuildAction(() => buildTrail({ villageId, direction }))
             : Promise.resolve();
+        }}
+        onDeclareHunt={() => {
+          const villageId = viewRef.current?.id;
+          // důvod odepření se ukáže řádkem nahoře (u kurzoru) a tlačítko ho má v popisku
+          return villageId
+            ? runAction(() => declareHunt({ villageId })).then((failure) => {
+                if (failure !== null) pushNotice({ kind: 'error', tone: 'error', text: failure });
+                return failure;
+              })
+            : Promise.resolve(null);
         }}
         onSendExpedition={(direction, give, get, people) => {
           const villageId = viewRef.current?.id;

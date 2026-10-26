@@ -33,7 +33,7 @@ import { summarizeVillage } from '../summary';
 import type { Craft, Person, VillageState } from '../types';
 import { seasonCrops } from '../year-plan';
 import { makeLandscape } from './placement-fixtures';
-import { withBuiltFirstDwelling } from './village-fixtures';
+import { withBuiltFirstDwelling, withoutSmallGame } from './village-fixtures';
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 const DAY = at(600, 10, 1);
@@ -85,7 +85,7 @@ function fullVillage(day = DAY): VillageState {
   s.storesKg = 50_000;
   s.lastDay = day;
   s.nextId = 100;
-  return s;
+  return withoutSmallGame(s);
 }
 
 /**

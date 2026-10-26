@@ -2,6 +2,9 @@ import { test, expect, type Page } from '@playwright/test';
 import { Client } from 'pg';
 import {
   buyPrice,
+  dateOfDayIndex,
+  dayIndexOf,
+  getWorldState,
   cemeteryPartsFromCells,
   neighbourOf,
   sellPrice,
@@ -9,8 +12,6 @@ import {
   checkDwellingPlacement,
   checkPlotPlacement,
   clearingFellCost,
-  dateOfDayIndex,
-  dayIndexOf,
   fellDueTrees,
   foundField,
   freeVillageSite,
@@ -1540,4 +1541,250 @@ test('lidé odejdou na novou mapu – po cestě umístí první zemnici', async 
     )
     .toBeUndefined();
   await expect(page.getByTestId('journey-banner')).toHaveCount(0);
+});
+
+/** Posune čas hráče tak, aby jeho dnešek byl `month`. `day`. příštího herního roku (accounts.md). */
+async function shiftPlayerTo(email: string, month: number, day: number): Promise<number> {
+  const world = {
+    startMs: Date.parse('2000-01-01T00:00:00+01:00'),
+    endMs: Date.parse('2200-01-01T00:00:00+01:00'),
+  };
+  const now = getWorldState(Date.now(), world);
+  if (now.status !== 'running') throw new Error('Testovací svět neběží.');
+  const today = dayIndexOf(now.date);
+  const target = dayIndexOf({ year: now.date.year + 1, month, day });
+  await query(
+    `INSERT INTO player_time_offset (player_id, offset_days)
+     SELECT id, $2 FROM "user" WHERE email = $1
+     ON CONFLICT (player_id) DO UPDATE SET offset_days = $2, updated_at = now()`,
+    [email, target - today],
+  );
+  return target;
+}
+
+test('dvorec: lov navíc – v dubnu je hájení, v létě se zítra loví', async ({ page }) => {
+  const { email, seat: s } = await newPlayer(page, 'lov');
+  const spots = villageSpots(s.landscape);
+
+  // Hráčův dnešek je 10. 4. – ves se založí v době hájení
+  await shiftPlayerTo(email, 4, 10);
+  await page.reload();
+  await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
+  await found(page, spots.dwelling);
+
+  // Dvorec, vedle čtyři dospělí (rodina cvičí a loví) a zvěř ve stavu, jaký ukládá server
+  const state = withBuiltFirstDwelling(await villageState(s.settlementId));
+  const [neighbour] = freeHomes(s.landscape, spots.dwelling, [spots.dwelling], 1);
+  const home = state.nextId++;
+  state.dwellings.push({
+    id: home,
+    type: 'zemnice',
+    builtDay: state.lastDay,
+    condition: 1,
+    position: neighbour!,
+  });
+  const adultBorn = state.lastDay - Math.ceil(20 * 365.25);
+  for (const sex of ['male', 'male', 'female', 'female'] as const) {
+    state.people.push({ id: state.nextId++, bornDay: adultBorn, dwellingId: home, sex });
+  }
+  state.storesKg = 4000;
+  state.lord = { trains: true };
+  await writeVillageState(s.settlementId, state);
+  await pollVillage(page);
+
+  await page.keyboard.press('r');
+  const panel = page.getByTestId('selection-panel');
+  await expect
+    .poll(
+      async () => {
+        const point = await page.evaluate(
+          (p) => window.__bohemiaE2E!.projectToScreen!(p.x, p.z),
+          spots.dwelling,
+        );
+        if (!point) return null;
+        await page.mouse.move(point.x - 3, point.y);
+        await page.mouse.click(point.x, point.y);
+        return panel.getByTestId('manor-upgrades').count();
+      },
+      { timeout: 30_000 },
+    )
+    .toBe(1);
+
+  // Duben: tlačítko je zašedlé a popisek dává důvod
+  const hunt = panel.getByTestId('manor-hunt');
+  await expect(hunt).toBeDisabled();
+  await expect(panel.getByTestId('hunt-blocked')).toContainText('hájení');
+  // smečka dvorce „psi / kolik jich dvorec chce“ (wildlife.md – Co hráč vidí)
+  await expect(panel.getByTestId('manor-dogs')).toHaveText(/^\d+ \/ \d+$/);
+
+  // Léto: čas hráče na 10. 7., stav vsi o den před ním
+  const july = await shiftPlayerTo(email, 7, 10);
+  const summer = await villageState(s.settlementId);
+  summer.lastDay = july - 1;
+  await writeVillageState(s.settlementId, summer);
+  await page.reload();
+  await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
+  await page.keyboard.press('r');
+  await expect
+    .poll(
+      async () => {
+        const point = await page.evaluate(
+          (p) => window.__bohemiaE2E!.projectToScreen!(p.x, p.z),
+          spots.dwelling,
+        );
+        if (!point) return null;
+        await page.mouse.move(point.x - 3, point.y);
+        await page.mouse.click(point.x, point.y);
+        return panel.getByTestId('manor-upgrades').count();
+      },
+      { timeout: 30_000 },
+    )
+    .toBe(1);
+  await expect(hunt).toBeEnabled({ timeout: 20_000 });
+  await hunt.click();
+  await expect
+    .poll(async () => (await villageState(s.settlementId)).wildlife?.hunt?.extraDay, {
+      timeout: 30_000,
+    })
+    .toBe(july + 1);
+  await expect(page.locator('[data-testid="village-notice"][data-kind="error"]')).toHaveCount(0);
+  // druhý lov hned po něm tlačítko nepustí
+  await expect(hunt).toBeDisabled({ timeout: 20_000 });
+  expect(dateOfDayIndex(july).month).toBe(7);
+
+  // Zítra: čas hráče o dva dny dál – ves se dopočítá a lov proběhl
+  await shiftPlayerTo(email, 7, 12);
+  await page.reload();
+  await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
+  await expect
+    .poll(async () => (await villageState(s.settlementId)).wildlife?.hunt?.year.days ?? 0, {
+      timeout: 30_000,
+    })
+    .toBeGreaterThanOrEqual(1);
+});
+
+test('divoká zvěř ve scéně: modely se načtou a klik na zvíře otevře panel druhu', async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const { seat: s } = await newPlayer(page, 'divoka');
+  const spots = villageSpots(s.landscape);
+  await found(page, spots.dwelling);
+  // ves dostane zvěř při načtení (převod stavu) – scéna ji vykreslí po dalším dotazu
+  await expect
+    .poll(async () => (await villageState(s.settlementId)).wildlife !== undefined)
+    .toBe(true);
+  // zvěř chodí jen kolem postavené vsi – obydlí hotové (jako ho uloží server)
+  await writeVillageState(
+    s.settlementId,
+    withBuiltFirstDwelling(await villageState(s.settlementId)),
+  );
+  // modely testy jinak přerušují (beforeEach) – modely zvěře pustit, ostatní dál ne
+  await page.unroute('**/models/**');
+  await page.route('**/models/**', (route) =>
+    route.request().url().includes('/models/fauna/wild-') ? route.continue() : route.abort(),
+  );
+  await page.reload();
+  await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
+  await pollVillage(page);
+  // zvěř se naplánuje hned, modely se načtou až se zvěří v záběru – kamera k první skupině
+  // (bývá u lesa mimo výchozí záběr) – jelení nebo prasata, vzácní (vlci, medvěd) nemusí být vidět
+  await expect
+    .poll(() => page.evaluate(() => window.__bohemiaE2E?.wildAnimals?.().groups.length ?? 0), {
+      timeout: 60_000,
+    })
+    .toBeGreaterThan(0);
+  await page.evaluate(() => {
+    const groups = window.__bohemiaE2E!.wildAnimals!().groups;
+    const first = groups.find((g) => g.species === 'deer' || g.species === 'boar') ?? groups[0]!;
+    window.__bohemiaE2E!.moveCameraTo!(first.x, first.z);
+  });
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          // meshe : všechny připravené : kusy vidět
+          const wild = window.__bohemiaE2E!.wildAnimals!();
+          const ready = wild.meshes.every((m) => m.ready);
+          return `${wild.meshes.length}:${ready}:${wild.animals.length}`;
+        }),
+      { timeout: 60_000 },
+    )
+    .toMatch(/^[1-9]\d*:true:[1-9]/);
+  const panel = page.getByTestId('selection-panel');
+  await expect
+    .poll(
+      async () => {
+        // zvíře chodí – poloha těsně před kliknutím
+        const point = await page.evaluate(() => {
+          const hooks = window.__bohemiaE2E!;
+          for (const a of hooks.wildAnimals!().animals) {
+            const p = hooks.projectToScreen!(a.x, a.z);
+            if (p && p.x > 20 && p.y > 20 && p.x < innerWidth - 20 && p.y < innerHeight - 160) {
+              return p;
+            }
+          }
+          return null;
+        });
+        if (!point) return null;
+        await page.mouse.move(point.x - 3, point.y - 6);
+        await page.mouse.click(point.x, point.y - 6);
+        return panel.getAttribute('data-kind');
+      },
+      { timeout: 30_000 },
+    )
+    .toBe('wildlife');
+  await expect(panel.getByTestId('wildlife-level')).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('díl pole ukáže škodu zvěře letos', async ({ page }) => {
+  const { seat: s } = await newPlayer(page, 'zver');
+  const spots = villageSpots(s.landscape);
+  await found(page, spots.dwelling);
+  await page.keyboard.press('c');
+  await confirmPlacement(page, { kind: 'squares', cells: spots.cells });
+  await expect.poll(async () => (await villageState(s.settlementId)).fields.length).toBe(1);
+
+  // Ves se zvěří (převod při načtení) a škoda letos na všech dílech pole
+  const withParts = withBuiltFirstDwelling(await villageState(s.settlementId));
+  await expect
+    .poll(async () => (await villageState(s.settlementId)).wildlife !== undefined)
+    .toBe(true);
+  const state = withParts;
+  state.wildlife = (await villageState(s.settlementId)).wildlife!;
+  const ids = state.parts.map((p) => p.id);
+  state.wildlife.damage = {
+    fromDay: state.lastDay - 20,
+    risk: ids.map((partId) => ({ partId, weightHa: 0.01, edgeM: 80 })),
+    parts: Object.fromEntries(ids.map((id) => [String(id), { share: 0.12, kg: 30 }])),
+    topPartId: ids[0] ?? null,
+    totalKg: 30 * ids.length,
+  };
+  await writeVillageState(s.settlementId, state);
+  await pollVillage(page);
+
+  await page.mouse.move(640, 360);
+  await page.keyboard.press('r');
+  const fieldCenter = tileCenterWorld(s.landscape, spots.cells[0]!.x, spots.cells[0]!.y);
+  const panel = page.getByTestId('selection-panel');
+  await expect
+    .poll(
+      async () => {
+        const point = await page.evaluate(
+          (p) => window.__bohemiaE2E!.projectToScreen!(p.x, p.z),
+          fieldCenter,
+        );
+        if (!point) return null;
+        await page.mouse.move(point.x - 3, point.y);
+        await page.mouse.click(point.x, point.y);
+        return panel.getAttribute('data-kind');
+      },
+      { timeout: 30_000 },
+    )
+    .toBe('field-part');
+  await expect(panel.getByTestId('selection-damage')).toHaveText('12 %');
+  await expect(panel.getByTestId('selection-damage')).toHaveAttribute('data-alert', 'true');
+  await expect(page.locator('[data-testid="village-notice"][data-kind="error"]')).toHaveCount(0);
 });

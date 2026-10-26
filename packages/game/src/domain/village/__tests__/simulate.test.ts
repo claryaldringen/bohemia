@@ -16,6 +16,7 @@ import { villageLaborFactor } from '../happiness';
 import { advanceVillage } from '../simulate';
 import { availableSettlers, waitingHouseholds } from '../households';
 import { withKinship } from '../kinship';
+import { freshWildlife } from '../wildlife';
 import type { ChronicleEvent, Dwelling, Person, VillageState } from '../types';
 import { sheafWork, villageSheaves } from '../threshing';
 import {
@@ -27,7 +28,12 @@ import {
   springCrop,
   dropSeasonCrop,
 } from '../year-plan';
-import { withBuiltFirstDwelling, withManorElsewhere, withThreshingFloor } from './village-fixtures';
+import {
+  withBuiltFirstDwelling,
+  withManorElsewhere,
+  withThreshingFloor,
+  withoutSmallGame,
+} from './village-fixtures';
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 const YEAR = 365.25;
@@ -81,7 +87,7 @@ function withoutFields(day: number, extra: Person[] = []): VillageState {
   s.constructions = [];
   s.storesKg = 5000;
   s.people.push(...extra);
-  return s;
+  return withoutSmallGame(s);
 }
 const adultOfAge = (id: number, years: number, day: number): Person => ({
   id,
@@ -189,7 +195,9 @@ describe('advanceVillage – dopočítání', () => {
     advanceVillage(start, at(601, 3, 15), null);
     expect(start).toEqual(before);
     const same = advanceVillage(start, start.lastDay, null);
-    expect(same).toEqual(start);
+    // jediný rozdíl: ves z doby před zvěří dostala zvěř na stropu (wildlife.md – převod)
+    expect(same).toEqual({ ...start, wildlife: same.wildlife });
+    expect(same.wildlife).toBeDefined();
     expect(same).not.toBe(start);
   });
 
@@ -453,7 +461,7 @@ describe('advanceVillage – roční plán a sklizeň', () => {
       ...plan,
       crops: plan.crops.map((c) => ({ ...c, done: { ...c.required } })),
     };
-    return s;
+    return withoutSmallGame(s);
   }
   const hungerEvents = (s: VillageState): ChronicleEvent[] =>
     s.chronicle.filter((e) => e.kind === 'hunger-began' || e.kind === 'hunger-ended');
@@ -539,6 +547,10 @@ describe('advanceVillage – roční plán a sklizeň', () => {
       p.state = 'sown';
     }
     s0.season = createPlan(s0.parts, at(600, 9, 1), NO_CRAFTS.tools);
+    // bez zvěře (jen vrány berou 2 % úrody, wildlife.md – Škody) – tady se měří setí a plán
+    s0.wildlife = freshWildlife({ forestHa: 0, openHa: 0, waterHa: 0, pools: 0 }, 0);
+    s0.wildlife.boar = { adults: 0, piglets: 0 };
+    s0.wildlife.deer = { stags: 0, hinds: 0, calves: 0 };
 
     const summerEnd = advanceVillage(s0, at(601, 8, 30), null);
     const plan = summerEnd.season!;
@@ -559,7 +571,10 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     const ha =
       s0.parts.filter((p) => inPlan.has(p.id)).reduce((sum, p) => sum + p.areaM2, 0) / 10_000;
     const fullYield = ha * sownShare * (760 * (0.4 + 0.6 * 0.7) - 175);
-    expect(harvests(s).at(-1)?.kg).toBe(Math.round(fullYield));
+    // vrány: nejvýš 2 % hrubé úrody (≈ 760 × 0,82 kg/ha), nic víc
+    const kg = harvests(s).at(-1)!.kg;
+    expect(kg).toBeLessThanOrEqual(Math.round(fullYield));
+    expect(kg).toBeGreaterThan(fullYield - 0.02 * ha * sownShare * 760 - 1);
   });
 });
 

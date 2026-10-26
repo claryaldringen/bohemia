@@ -3,6 +3,8 @@ import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
 import { DIET, villageFoodNeed } from '../diet';
 import { winterHayKg } from '../hay';
+import { WILDLIFE_LAND } from '../rules-wildlife';
+import { freshWildlife } from '../wildlife';
 import { herdingDemand, youngsterHerders } from '../herding';
 import { winterHayNeedKg } from '../husbandry';
 import {
@@ -178,6 +180,9 @@ describe('zimní porážka po dnech', () => {
     const s = village(day - 1);
     s.people = s.people.slice(0, 2);
     s.livestock!.herds = herds({ pig: 8 });
+    // bez medvěda (bere prasata absolutně, 2 za sezónu – wildlife.md): test hlídá jen porážku
+    s.wildlife = freshWildlife({ ...WILDLIFE_LAND.defaultLand }, 8);
+    s.wildlife.bear = { present: false, backDay: null };
     const nov = advanceVillage(s, day, null);
     const waiting = cullingMeatKg(nov);
     expect(waiting).toBeGreaterThan(0);

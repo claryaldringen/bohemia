@@ -24,6 +24,7 @@ import {
 import { DWELLING_NAMES } from '@/lib/village-view';
 import type { PartClearingView } from '@/lib/village-view-types';
 import { Tooltip } from '../Tooltip';
+import { FieldDamage } from './wildlife';
 import { Stat, Bar, Wear, RepairBar, ROW, formatM2, Walk, Flag, formatTons } from './parts';
 
 /** Krátký název plodiny malými písmeny (ozim, jař, luštěniny, len) – do popisků. */
@@ -354,6 +355,7 @@ export function FieldPartBody({
           </Tooltip>
         )}
         <Walk meters={details.walkM} />
+        {details.damage && <FieldDamage damage={details.damage} />}
         {holding && (
           <Tooltip
             content={`Hospodářství – ${DWELLING_NAMES[holding.type].nominative.toLowerCase()}`}

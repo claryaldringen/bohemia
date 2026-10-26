@@ -11,6 +11,7 @@ import { insideOreSite, oreHeapRadius, oreSiteDiscs } from './ore-site-layout';
 import { insideGrainPit } from './grain-pit-layout';
 import { scenePenSquares, type SceneVillage } from '../village-view';
 import { nearestJunction } from './junction-shape';
+import type { WildlifeSpecies } from '../wildlife-view';
 import { footprintRect, pointInPolygon, type Point } from './village-layout';
 
 // Výběr obydlí, polí, sadů a hřbitovů kliknutím do scény – čisté funkce bez Babylonu (paprsek
@@ -28,6 +29,8 @@ import { footprintRect, pointInPolygon, type Point } from './village-layout';
  */
 export type VillageTarget =
   | { kind: 'dwelling'; id: number }
+  /** Divoké zvíře – klik vybere druh (wildlife.md – Co hráč vidí; panel druhu s hrubým stavem). */
+  | { kind: 'wildlife'; species: WildlifeSpecies }
   /** Víc obydlí najednou – id ze scény vsi v pořadí výběru (aspoň dvě). */
   | { kind: 'dwellings'; ids: readonly number[] }
   | { kind: 'field'; id: number }
@@ -416,6 +419,8 @@ export function targetExists(village: SceneVillage, target: VillageTarget): bool
   if (target.kind === 'person') return personExists(village, target.id);
   if (target.kind === 'plough-team') return ploughsToday(village);
   if (target.kind === 'cart') return (village.carts ?? []).some((c) => c.id === target.id);
+  // zvíře ve scéně hlídá jeho vlastní výběr (W10); druh zvěře existuje, dokud ves má zvěř
+  if (target.kind === 'wildlife') return true;
   return village.fields.some((f) => f.id === target.id);
 }
 

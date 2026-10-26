@@ -20,10 +20,16 @@ export function ageGroup(person: Person, day: number): 'child' | 'adult' | 'elde
 /**
  * Pracovní síla vsi (pole a stavby) za den (population.md – Práce): dospělý 1; starší 0 – kryjí jen
  * denní minimum své domácnosti (`adultDailyMin` v labor.ts); dítě 0 – výrostci 7–13 let pasou
- * (herding.ts).
+ * (herding.ts); zraněný na lovu 0.
  */
 export function laborPerDay(person: Person, day: number): number {
+  if (isInjured(person, day)) return 0;
   return ageGroup(person, day) === 'adult' ? LABOR_PER_DAY.adult : 0;
+}
+
+/** Je člověk dnes zraněný na lovu (wildlife.md – Nebezpečí pro lidi)? */
+export function isInjured(person: Pick<Person, 'injuredUntilDay'>, day: number): boolean {
+  return (person.injuredUntilDay ?? 0) > day;
 }
 
 /** Potřeba jídla na den v kg podle věkové skupiny. */

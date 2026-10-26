@@ -3,9 +3,13 @@
 // Jen měření ze stavu – žádné pravidlo hry. `measure-village.ts` je volá po každém kroku.
 import {
   horseGrainToday,
+  isDynastyTracked,
+  isSecondaryWife,
+  lineMen,
   laborPerDay,
   trainingFamily,
   villageHorses,
+  villageManorId,
   type VillageState,
 } from '../../src/domain/village';
 import { ageYears } from '../../src/domain/village/people';
@@ -31,6 +35,12 @@ export interface LordYear {
   /** Dny, kdy ves šetřila jídlem (`state.hungry`), a dny kroku celkem. */
   savingDays: number;
   days: number;
+  /** Rod (lord.md – Rod vojvody): muži rodu, jejich manželky a vedlejší manželky bydlící v dvorci × dny. */
+  lineMenDays: number;
+  wivesDays: number;
+  waitingWivesDays: number;
+  /** Dny, kdy ves sleduje rod a nežije v ní žádný muž rodu (rod ve vsi vymřel). */
+  extinctDays: number;
   arms: ArmsSnapshot | null;
 }
 
@@ -42,6 +52,10 @@ export const EMPTY_LORD_YEAR: LordYear = {
   horseGrainKg: 0,
   savingDays: 0,
   days: 0,
+  lineMenDays: 0,
+  wivesDays: 0,
+  waitingWivesDays: 0,
+  extinctDays: 0,
   arms: null,
 };
 
@@ -78,6 +92,20 @@ export function addLordStep(
     out.horseGrainKg += horseGrainToday(horses, day) * days;
   }
   if (after.hungry) out.savingDays += days;
+  if (isDynastyTracked(after)) {
+    const men = lineMen(after);
+    const ids = new Set(men.map((m) => m.id));
+    const wives = after.people.filter(
+      (w) => w.sex === 'female' && w.spouseId !== undefined && ids.has(w.spouseId),
+    );
+    out.lineMenDays += men.length * days;
+    out.wivesDays += wives.length * days;
+    // čekající vedlejší manželka = bydlí v dvorci vsi (ještě nemá vlastní dům)
+    const manor = villageManorId(after);
+    out.waitingWivesDays +=
+      wives.filter((w) => isSecondaryWife(after, w) && w.dwellingId === manor).length * days;
+    if (men.length === 0) out.extinctDays += days;
+  }
   out.days += days;
   return out;
 }
@@ -104,6 +132,7 @@ export function lordColumns(years: readonly LordYear[], capacity: number): strin
     `výcvik ${fmt(sum((y) => y.trainingCd) / n, 0)} čd, pole ${fmt(sum((y) => y.fieldCd) / n, 0)} čd na ves a rok`,
     `koní ${fmt(sum((y) => y.horseDays) / days)}, obilí koní ${fmt(sum((y) => y.horseGrainKg) / n, 0)} kg na rok`,
     `šetření jídlem ${fmt((100 * sum((y) => y.savingDays)) / days)} % dní`,
+    `rod: mužů ${fmt(sum((y) => y.lineMenDays) / days)} | manželek ${fmt(sum((y) => y.wivesDays) / days)} | čekajících vedlejších ${fmt(sum((y) => y.waitingWivesDays) / days)} | bez muže rodu ${fmt((100 * sum((y) => y.extinctDays)) / days)} % dní`,
     `dovednosti mužů luk ${arm((a) => a.bow)} | boj ${arm((a) => a.combat)} | jízda ${arm((a) => a.riding)}`,
   ].join(' | ');
 }

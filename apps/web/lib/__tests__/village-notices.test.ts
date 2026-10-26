@@ -979,3 +979,34 @@ describe('lineNameNotice – muži rodu bez jména (lord.md – Kde se jméno za
     );
   });
 });
+
+describe('divoká zvěř (wildlife.md – Co hráč vidí)', () => {
+  const wildlife = (over: Partial<NonNullable<VillageView['wildlife']>> = {}) => ({
+    species: [],
+    damageShare: 0,
+    wolvesTroubling: false,
+    dogsUnfed: false,
+    ...over,
+  });
+
+  it('prasata ničí úrodu od 5 %, vlci strhávají dobytek, psi bez obilí', () => {
+    expect(villageNotices(view({ wildlife: wildlife({ damageShare: 0.05 }) }))).toEqual([]);
+    expect(
+      villageNotices(
+        view({
+          wildlife: wildlife({ damageShare: 0.06, wolvesTroubling: true, dogsUnfed: true }),
+        }),
+      ).map((n) => n.text),
+    ).toEqual(['Divoká prasata ničí úrodu', 'Vlci strhávají dobytek', 'Psi jsou bez obilí']);
+  });
+
+  it('ohlásí se jednou, když nově vzniknou', () => {
+    expect(
+      newNotices(view(), view({ wildlife: wildlife({ wolvesTroubling: true }) })).map(
+        (n) => n.text,
+      ),
+    ).toEqual(['Vlci strhávají dobytek']);
+    const same = view({ wildlife: wildlife({ wolvesTroubling: true }) });
+    expect(newNotices(same, same)).toEqual([]);
+  });
+});

@@ -10,6 +10,8 @@
 //                        syntetická krajina z doby krajin verze 1 (35 ha louky – starší měření)
 //   --variant base|meadow-burn   pálení drnu (jen kalibrace, ne pravidlo hry): založení louky
 //                        50 místo 100 člověkodní na hektar a první sezóna s úrodností o 20 nižší
+//   --founders dynasty|pairs   zakladatelé vsi: vojvoda s manželkami (výchozí, lord.md – Zakladatelé)
+//                        nebo dva páry bez rodu (základ pro srovnání se starším během)
 //   --out soubor.jsonl   kontrolní bod – každá hotová ves (úloha) se připíše na řádek; stejný
 //                        příkaz běh po přerušení (Ctrl+C) dokončí, hotové vsi přeskočí a tabulku
 //                        spočítá ze souboru (po doběhnutí ji vypíše hned)
@@ -170,6 +172,7 @@ interface Config {
   years: number;
   land: LandKind;
   variant: Variant;
+  founders: Founders;
   out: string | null;
   workers: number;
   foreground: boolean;
@@ -179,7 +182,9 @@ interface Config {
 
 const QUICK_VILLAGES = 50;
 const FLAGS_WITHOUT_VALUE = ['quick', 'foreground', 'eco', 'report-only'];
-const FLAGS_WITH_VALUE = ['land', 'variant', 'out', 'workers'];
+const FLAGS_WITH_VALUE = ['land', 'variant', 'founders', 'out', 'workers'];
+const FOUNDERS = ['dynasty', 'pairs'] as const;
+type Founders = (typeof FOUNDERS)[number];
 
 function parseConfig(argv: readonly string[]): Config {
   const positional: string[] = [];
@@ -210,11 +215,14 @@ function parseConfig(argv: readonly string[]): Config {
   if (!LAND_KINDS.includes(land)) throw new Error(`--land je ${LAND_KINDS.join(' nebo ')}.`);
   const variant = (flags.get('variant') ?? 'base') as Variant;
   if (!VARIANTS.includes(variant)) throw new Error(`--variant je ${VARIANTS.join(' nebo ')}.`);
+  const founders = (flags.get('founders') ?? 'dynasty') as Founders;
+  if (!FOUNDERS.includes(founders)) throw new Error(`--founders je ${FOUNDERS.join(' nebo ')}.`);
   return {
     villages: count(positional[0], flags.has('quick') ? QUICK_VILLAGES : 200, 'Počet vsí'),
     years: count(positional[1], 60, 'Roky'),
     land,
     variant,
+    founders,
     out: flags.get('out') ?? null,
     workers: count(flags.get('workers'), defaultWorkers(), '--workers'),
     foreground: flags.has('foreground'),
@@ -1361,6 +1369,7 @@ function foundOn(
     },
     obstacles: land.obstacles,
     forestDistanceM: land.site.forestDistanceM,
+    ...(config.founders === 'dynasty' ? { lord: {} } : {}),
   });
   applyVariantToNewParts(state, 0, config.variant);
   // hráč postaví humno hned (production-chains.md – Humno – bez humna nová ves nemlátí): hotové
@@ -2508,6 +2517,7 @@ function checkpointConfig(): Record<string, unknown> {
     years: config.years,
     land: config.land,
     variant: config.variant,
+    founders: config.founders,
   };
 }
 

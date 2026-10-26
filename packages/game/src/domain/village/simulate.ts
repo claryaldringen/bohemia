@@ -55,6 +55,11 @@ import { decideRebuilds, finishConstructions } from './simulate-build';
 import { eat, endThreshing, harvest, harvestWinter } from './simulate-food';
 import { isOn, lordHelpDay, seasonDay, startSeason } from './simulate-plan';
 import { work } from './simulate-work';
+import { patrolHuntDay, settlePatrol } from './field-patrol';
+import { huntDay, planHuntDay } from './hunt';
+import { dogsYear } from './manor-dogs';
+import { wildlifeYearDay, withWildlife } from './wildlife';
+import { damageWindowStart, wildlifeDamageDay, wildlifeSeasonEnd } from './wildlife-damage';
 import { lordFieldMode, trainLordDay, updateLordTraining } from './lord';
 import { dynastyDay } from './succession';
 
@@ -110,16 +115,18 @@ export function* advanceVillageSteps(
   // před snopy rok odkladu mlácení (production-chains.md – Starší vsi) a ves s ročním plánem osevní
   // postup po dílech (fields.md – Osevní postup po dílech, bod 7) – jednou, idempotentně
   const next = cloneState(
-    withThreshingGrace(
-      withCraftSkill(
-        withHorsePenStock(
-          withOxen(
-            withPenSpecies(
-              withoutForeignGoods(
-                withIronBarsTrade(
-                  withToolEquipment(
-                    withCattleKinds(
-                      withDynasty(withKinship(withSowingRotation(withSeason(state)))),
+    withWildlife(
+      withThreshingGrace(
+        withCraftSkill(
+          withHorsePenStock(
+            withOxen(
+              withPenSpecies(
+                withoutForeignGoods(
+                  withIronBarsTrade(
+                    withToolEquipment(
+                      withCattleKinds(
+                        withDynasty(withKinship(withSowingRotation(withSeason(state)))),
+                      ),
                     ),
                   ),
                 ),
@@ -128,6 +135,7 @@ export function* advanceVillageSteps(
           ),
         ),
       ),
+      landscape,
     ),
   );
   // rozestavěné díly v lese bez fází dostanou kácení, schnutí a pálení (forest.md – Klučení lesa
@@ -165,6 +173,12 @@ function simulateDay(
   // vojvodova rodina (lord.md): cvičí, nebo pracuje – rozhodnout jednou na začátku dne, ať ho
   // stejně vidí pasení, plán osevu, nákupy i `work()` (i v den přechodu)
   updateLordTraining(state, day);
+  // zvěř: 1. 5. roční přepočet podle krajiny a stropů (wildlife.md – Roční přepočet)
+  wildlifeYearDay(state, day, landscape);
+  // psi dvorce 1. 5.: úbytek a štěňata (wildlife.md – Psi)
+  dogsYear(state, day);
+  // velký lov rodu: kdo dnes loví – pěší lovci jsou mimo práci vsi (wildlife.md – Lov rodu)
+  planHuntDay(state, day);
   // nové stavby dne – jámy pod nimi se vyprázdní (production-chains.md – Obilné jámy): stavby vsi
   // vznikají jen s novým id z `nextId`, viz kontrola níž
   const idsBefore = state.nextId;
@@ -200,6 +214,8 @@ function simulateDay(
   if (isOn(date, PLANNING_DAY)) startSeason(state, day, coverage, landscape);
   const waiting = seasonDay(state, day, coverage);
   lordHelpDay(state, day, coverage, landscape, waiting);
+  // zvěř: 1. 6. ohrožené díly polí podle vzdálenosti od lesa (wildlife.md – Škody)
+  damageWindowStart(state, day, landscape);
   // nákup výrobků řemeslníků u sousedů – jednou za rok po sklizni, ves se rozhodne sama
   // (crafts.md – Nákup u sousedů); skupina vyrazí hned
   startPurchases(state, day, coverage, landscape);
@@ -213,6 +229,9 @@ function simulateDay(
   );
   // nástroje a nádoby v užívání se opotřebí (crafts.md – Účinek)
   wearCraftStocks(state, day);
+  // škody zvěře na polích po práci dne – nesklizené díly (wildlife.md – Škody)
+  settlePatrol(state, day);
+  wildlifeDamageDay(state, day);
   // zemské stezky – dostavěné úseky od vsi ven hned vylepšené, vrácené výpravy (trade.md)
   trailsDay(state);
   // vozové cesty – hotové úseky od vsi ven jsou hned pevnou cestou (roads.md – Vozová cesta)
@@ -259,6 +278,11 @@ function simulateDay(
   // vojvodova rodina (lord.md): při hladu jde od zítřka na pole, po 30 dnech plného přídělu zpět;
   // výcvik dne – kdo necvičil, zapomíná
   state.chronicle.push(...lordFieldMode(state, day));
+  // úlovek velkého lovu a maso do zásoby; den lovu je výcvik (wildlife.md – Lov rodu)
+  const huntEvents = huntDay(state, day, lordField);
+  state.chronicle.push(...huntEvents);
+  // úlovek prasat z jezdecké hlídky polí (červen–říjen; wildlife.md – Obrana polí)
+  patrolHuntDay(state, day);
   // a koně pod jezdci (horses.md – Výcvik koně a jezdec) – po péči (`work()`) a obilí (`eat()`)
   state.chronicle.push(...trainLordDay(state, day, lordField));
   // nahromaděný hlad se počítá z dnešní energie (hladem se umírá z energie, ne z pestrosti –
@@ -271,11 +295,20 @@ function simulateDay(
   );
   const events = populationDay(state, day, satiation, energy);
   state.chronicle.push(...events);
+  // kdo zahynul na lovu, ves oplakává jako každé úmrtí (štěstí), i když zápis dělá lov
+  const happinessEvents = [...events, ...huntEvents.filter((e) => e.kind === 'death')];
   // nová hlavní manželka a nástupnictví (lord.md – Rod vojvody); ves bez rodu nic
   state.chronicle.push(...dynastyDay(state, day));
   // štěstí na konci dne – hlad, úmrtí, přeplněnost, dřina, zásoby, ovoce, maso a posvátná místa
   // (happiness.md, diet.md)
-  updateHappiness(state, day, { satiation, events, toil, fruit, obstacles, meatShare: meat });
+  updateHappiness(state, day, {
+    satiation,
+    events: happinessEvents,
+    toil,
+    fruit,
+    obstacles,
+    meatShare: meat,
+  });
   if (state.people.length === 0) {
     // zemřel poslední člověk – ves vymřela, dál se nesimuluje (ani sklizeň dne)
     state.extinctDay = day;
@@ -285,7 +318,10 @@ function simulateDay(
   // Sklizeň a ztráta nevymláceného až po jídle (Ruling 13) – 31. 8. se jí ještě z loňských
   // zásob, jak počítá daysUntilHarvest (31. 8. → 1 den); ozim stejně 31. 7.
   if (isOn(date, WINTER_HARVEST_DAY)) harvestWinter(state, day);
-  if (isOn(date, HARVEST_DAY)) harvest(state, day);
+  if (isOn(date, HARVEST_DAY)) {
+    harvest(state, day);
+    wildlifeSeasonEnd(state, day);
+  }
   if (isOn(date, THRESH_END_DAY)) endThreshing(state);
   // pevné cesty (roads.md): práce dne do ročního součtu, 1. 11. roční kontrola cest a stromů
   const visits = roadsDay(state, day, landscape, obstacles);

@@ -860,7 +860,10 @@ describe('SelectionPanel – rozvržení', () => {
 
   it('dlouhý název pod portrétem zůstane na jednom řádku', () => {
     const html = render(
-      dwelling({ type: 'dvorec', manor: { dwellingId: 3, trails: [], neighbours: [] } }),
+      dwelling({
+        type: 'dvorec',
+        manor: { dwellingId: 3, huntDenied: null, trails: [], neighbours: [] },
+      }),
     );
     expect(html).toMatch(/<h2 class="[^"]*whitespace-nowrap[^"]*">Dvorec vojvody<\/h2>/);
   });
@@ -869,7 +872,7 @@ describe('SelectionPanel – rozvržení', () => {
     const html = render(
       dwelling({
         type: 'dvorec',
-        manor: { dwellingId: 3, trails: [], neighbours: [] },
+        manor: { dwellingId: 3, huntDenied: null, trails: [], neighbours: [] },
         leave: { households: [3], people: 4, foodKg: 50, cart: null, directions: [] },
       }),
     );
