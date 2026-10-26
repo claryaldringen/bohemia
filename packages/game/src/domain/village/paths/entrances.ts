@@ -63,6 +63,8 @@ interface FenceRun {
   length: number;
   outX: number;
   outZ: number;
+  /** Úsek končí vnitřním rohem (tři čtverce kolem vrcholu) – oblouk WOVEN_FENCE_CORNER_M.inner. */
+  endInner: boolean;
 }
 
 /** Prostor mřížky stavby: natočená stavba se počítá „rovně“ kolem středu prvního čtverce. */
@@ -228,9 +230,132 @@ function outlineRuns(
       // ohrazení vlevo – ven vpravo (0 − x: žádná záporná nula)
       outX: s.dir[1],
       outZ: 0 - s.dir[0],
+      endInner: around(i, j) === 3,
     });
   }
   return runs;
+}
+
+/** Rovný úsek plotu ve světě: začátek, jednotkový směr a délka (m). */
+export interface FenceSegment {
+  x: number;
+  z: number;
+  dx: number;
+  dz: number;
+  length: number;
+}
+
+/** Zakulacený roh plotu: střed a poloměr oblouku, jednotkové směry ke koncům čtvrtkruhu. */
+export interface FenceArc {
+  x: number;
+  z: number;
+  r: number;
+  ux: number;
+  uz: number;
+  vx: number;
+  vz: number;
+}
+
+/**
+ * Pletený plot ve světě (paths.md – Odstup od plotu): rovné úseky a zakulacené rohy jako ve scéně
+ * (`outlineRuns`), obdélník kolem a co je uvnitř.
+ */
+export interface FenceOutline {
+  segments: readonly FenceSegment[];
+  arcs: readonly FenceArc[];
+  minX: number;
+  minZ: number;
+  maxX: number;
+  maxZ: number;
+  /** Leží bod uvnitř plotu? Ostré rohy – zakulacení leží celé do odstupu od plotu. */
+  inside: (x: number, z: number) => boolean;
+}
+
+/**
+ * Plot po obrysu čtverců odsazený `inset` dovnitř (hřbitov, ohrada, pozemek): úseky z `outlineRuns`
+ * a na konci každého úseku čtvrtkruh do dalšího (vnější roh – střed dovnitř, vnitřní – ven).
+ * Natočené čtverce v osách své mřížky kolem středu prvního. Bez čtverců null.
+ */
+export function fenceOutline(
+  squares: readonly EntranceSquare[],
+  inset: number,
+): FenceOutline | null {
+  const first = squares[0];
+  if (!first) return null;
+  const frame = frameOf(first.x, first.z, first.rotation);
+  const flat = squares.map((q) => {
+    const [x, z] = frame.toFlat(q.x, q.z);
+    return { cell: q.cell, x, z, size: q.size };
+  });
+  const segments: FenceSegment[] = [];
+  const arcs: FenceArc[] = [];
+  for (const run of outlineRuns(flat, inset)) {
+    const [x, z] = frame.toWorld(run.x, run.z);
+    const [dx, dz] = frame.dirToWorld(run.dx, run.dz);
+    segments.push({ x, z, dx, dz, length: Math.max(0, run.length) });
+    const r = run.endInner ? WOVEN_FENCE_CORNER_M.inner : WOVEN_FENCE_CORNER_M.outer;
+    // konec úseku → střed oblouku: vnější roh se stáčí dovnitř (proti `out`), vnitřní ven
+    const side = run.endInner ? 1 : -1;
+    const ex = run.x + run.dx * run.length;
+    const ez = run.z + run.dz * run.length;
+    const [cx, cz] = frame.toWorld(ex + run.outX * r * side, ez + run.outZ * r * side);
+    const [ux, uz] = frame.dirToWorld(-run.outX * side, -run.outZ * side);
+    arcs.push({ x: cx, z: cz, r, ux, uz, vx: dx, vz: dz });
+  }
+  let minX = Infinity;
+  let minZ = Infinity;
+  let maxX = -Infinity;
+  let maxZ = -Infinity;
+  for (const s of segments) {
+    for (const [px, pz] of [
+      [s.x, s.z],
+      [s.x + s.dx * s.length, s.z + s.dz * s.length],
+    ] as const) {
+      minX = Math.min(minX, px);
+      minZ = Math.min(minZ, pz);
+      maxX = Math.max(maxX, px);
+      maxZ = Math.max(maxZ, pz);
+    }
+  }
+  for (const a of arcs) {
+    minX = Math.min(minX, a.x - a.r);
+    minZ = Math.min(minZ, a.z - a.r);
+    maxX = Math.max(maxX, a.x + a.r);
+    maxZ = Math.max(maxZ, a.z + a.r);
+  }
+  const eps = 1e-6;
+  const r = inset - eps;
+  const inUnion = (u: number, v: number): boolean =>
+    flat.some((q) => Math.abs(u - q.x) <= q.size / 2 && Math.abs(v - q.z) <= q.size / 2);
+  // čtverec o poloviční straně `inset` kolem bodu celý ve sjednocení (rohy a středy stran)
+  const inside = (x: number, z: number): boolean => {
+    if (x < minX || x > maxX || z < minZ || z > maxZ) return false;
+    const [u, v] = frame.toFlat(x, z);
+    for (const a of [-r, 0, r]) {
+      for (const b of [-r, 0, r]) if (!inUnion(u + a, v + b)) return false;
+    }
+    return true;
+  };
+  return { segments, arcs, minX, minZ, maxX, maxZ, inside };
+}
+
+/** Vzdálenost bodu od čáry plotu – rovných úseků a oblouků rohů (m). */
+export function fenceDistance(fence: FenceOutline, x: number, z: number): number {
+  let best = Infinity;
+  for (const s of fence.segments) {
+    const t = Math.min(s.length, Math.max(0, (x - s.x) * s.dx + (z - s.z) * s.dz));
+    const d = length2(x - s.x - s.dx * t, z - s.z - s.dz * t);
+    if (d < best) best = d;
+  }
+  for (const a of fence.arcs) {
+    const px = x - a.x;
+    const pz = z - a.z;
+    // jen v úhlu čtvrtkruhu – jinde je blíž konec sousedního úseku
+    if (px * a.ux + pz * a.uz < 0 || px * a.vx + pz * a.vz < 0) continue;
+    const d = Math.abs(length2(px, pz) - a.r);
+    if (d < best) best = d;
+  }
+  return best;
 }
 
 /**
@@ -306,10 +431,10 @@ export function penEntrance(
   const [x0, z0, x1, z1] = [square.x - half, square.z - half, square.x + half, square.z + half];
   // obdélník plotu proti směru hodinových ručiček: spodní, pravá, horní, levá strana
   const runs: FenceRun[] = [
-    { x: x0 + t, z: z0, dx: 1, dz: 0, length: run, outX: 0, outZ: -1 },
-    { x: x1, z: z0 + t, dx: 0, dz: 1, length: run, outX: 1, outZ: 0 },
-    { x: x1 - t, z: z1, dx: -1, dz: 0, length: run, outX: 0, outZ: 1 },
-    { x: x0, z: z1 - t, dx: 0, dz: -1, length: run, outX: -1, outZ: 0 },
+    { x: x0 + t, z: z0, dx: 1, dz: 0, length: run, outX: 0, outZ: -1, endInner: false },
+    { x: x1, z: z0 + t, dx: 0, dz: 1, length: run, outX: 1, outZ: 0, endInner: false },
+    { x: x1 - t, z: z1, dx: -1, dz: 0, length: run, outX: 0, outZ: 1, endInner: false },
+    { x: x0, z: z1 - t, dx: 0, dz: -1, length: run, outX: -1, outZ: 0, endInner: false },
   ];
   const toward: [number, number] = [square.x + ux * (half + 1), square.z + uz * (half + 1)];
   const gate = gateOnRuns(runs, toward, PEN_GATE)!;

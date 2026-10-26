@@ -16,11 +16,15 @@ import { terrainEditsFrom, withTerrainEdits } from './earthworks';
 import { nearestPartFinder } from './nearest';
 import {
   cemeteryEntrance,
+  fenceDistance,
   penGateToward,
   penSquaresEntrance,
   sacredEntrance,
   type Entrance,
+  type FenceOutline,
 } from './entrances';
+import { villageFences } from './fences';
+import { FENCE_CLEARANCE } from '../rules-roads';
 import { PATH_WATER, PATH_WETLAND, type PathTerrain } from './terrain';
 import { isCropPart, partWalkSpeed, roadTreeSpeed, roadWalkSpeed } from './walk-speed';
 import {
@@ -561,6 +565,15 @@ export function villageGrid(input: PathNetworkInput, buildings: readonly Buildin
       fence(fencedCells(grid, squares, PEN_FENCE_INSET_M), gate);
     }
   }
+  // odstup od plotu (paths.md – Odstup od plotu): pruh u plotu neprůchodný, kus dál dražší
+  nearFences(
+    grid,
+    villageFences(v, false).map((f) => ({
+      outline: f.outline,
+      gate: f.gate ? gateCells(f.gate) : new Set<number>(),
+    })),
+    onRoad,
+  );
   const woods = (v.woods ?? []).filter((w) => w.surface !== 'forest');
   if (woods.length > 0) {
     for (const c of squareCells(grid, woods).inside) {
@@ -595,6 +608,51 @@ export function villageGrid(input: PathNetworkInput, buildings: readonly Buildin
     });
   }
   return grid;
+}
+
+/**
+ * Odstup od plotu (paths.md – Odstup od plotu): buňka se středem uvnitř plotu nebo blíž než
+ * `FENCE_CLEARANCE.axisM` je neprůchodná, do `nearM` dražší o `nearCost` (pod pevnou cestou jen
+ * neprůchodná) – osa trasy tak nevede plotem ani rohem. Buňky branky plotu nic. Buňka do `alleyM`
+ * od dvou plotů leží v uličce mezi stavbami – průchodná zůstává jako dřív (`fencedCells`), jen
+ * dražší. Buňky v pořadí plotů a jejich obdélníků – výsledek nezávisí na pořadí (minimum, počet).
+ */
+function nearFences(
+  grid: Grid,
+  fences: readonly { outline: FenceOutline; gate: ReadonlySet<number> }[],
+  onRoad: (c: number) => boolean,
+): void {
+  const { axisM, nearM, nearCost, alleyM } = FENCE_CLEARANCE;
+  const near = new Map<number, { count: number; d: number; blocked: boolean }>();
+  for (const { outline, gate } of fences) {
+    const m = alleyM;
+    cellsIn(
+      grid,
+      outline.minX - m,
+      outline.minZ - m,
+      outline.maxX + m,
+      outline.maxZ + m,
+      (c, x, z) => {
+        if (gate.has(c)) return;
+        const inside = outline.inside(x, z);
+        const d = inside ? 0 : fenceDistance(outline, x, z);
+        if (d > alleyM) return;
+        const known = near.get(c);
+        if (known) {
+          known.count++;
+          known.d = Math.min(known.d, d);
+          known.blocked ||= inside || d < axisM;
+        } else {
+          near.set(c, { count: 1, d, blocked: inside || d < axisM });
+        }
+      },
+    );
+  }
+  for (const [c, cell] of near) {
+    if (!Number.isFinite(grid.base[c]!)) continue;
+    if (cell.count === 1 && cell.blocked) grid.base[c] = Infinity;
+    else if (cell.d < nearM && !onRoad(c)) grid.base[c] = grid.base[c]! * nearCost;
+  }
 }
 
 /** Nejbližší průchodná buňka k bodu (do `reach` buněk), nebo −1. */

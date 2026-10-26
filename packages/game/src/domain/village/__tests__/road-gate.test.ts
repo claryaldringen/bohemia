@@ -90,7 +90,7 @@ describe('cesta do branky (paths.md – Vchody)', () => {
       [0, 0],
       [100, 0],
     ]);
-    const guard: GateGuard = { fixed: new Set([1]), blocked: () => false };
+    const guard: GateGuard = { fixed: new Set([1]), blocked: () => false, fences: () => [] };
     const before = JSON.stringify(roads);
     expect(accessDue(roads, [ROUTE], CELL_M, () => true, guard)).toBe(false);
     accessRoads(roads, [ROUTE], CELL_M, 0, CONTEXT, null, () => true, guard);

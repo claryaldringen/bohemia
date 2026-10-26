@@ -421,6 +421,15 @@ export function settleVillageWear(state: VillageState, day: number, landscape: L
 }
 
 /**
+ * Klíč rozložení plotů (obydlí s pozemky, hřbitovy, ohrady – části `walkLayoutKey`) – čáry tras
+ * s odstupem od plotů (`routeLine`) se v mezipaměti ověřují i jím, ne jen sadou tras.
+ */
+export function fenceLayoutKey(state: VillageState): string {
+  const k = walkLayoutParts(state);
+  return JSON.stringify([k.dwellings, k.cemeteries, k.pens]);
+}
+
+/**
  * Neprůchodná plocha hotových staveb ve vsi (paths.md – Stavba přes cestu): pozemek, ohrada,
  * hřbitov, okrsek svatyně, dům – buňky mřížky chodců bez cesty (`Infinity`), kde terén sám
  * průchodný je; branka plot neuzavírá. Bez vsi null. Staví mřížku sítě pěšin (jednou za měsíc).
@@ -857,10 +866,11 @@ export function walkDistancesTo(
 /**
  * Verze tras a měření chůze v otisku – po změně toho, jak se trasy hledají (stálé trasy a práce
  * dne nad nimi – paths.md, Stálé trasy), po přidání nové vzdálenosti (voda – `waterWalkM`) nebo
- * rychlosti (stromy u cest – `Road.lined`) a po změně tvaru domů se vsi uložené dřív přepočítají
- * hned při dalším dni, ne až při změně mapy (jednou – pak otisk sedí).
+ * rychlosti (stromy u cest – `Road.lined`), po změně tvaru domů a po odstupu od plotů (paths.md –
+ * Odstup od plotu, `routes-v4`) se vsi uložené dřív přepočítají hned při dalším dni, ne až při
+ * změně mapy (jednou – pak otisk sedí).
  */
-export const WALK_VERSION = 'routes-v3';
+export const WALK_VERSION = 'routes-v4';
 
 /** Trasy k práci dne nad stálými trasami `stable` (`computeWorkRoutes`) k uložení. */
 function workRoutesOf(
