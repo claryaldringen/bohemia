@@ -4,7 +4,10 @@ import { describe, it, expect } from 'vitest';
 
 /** Úvodní JSON část GLB (bez Babylonu – jen počty atributů, morph targetů a klipů). */
 interface GlbJson {
-  meshes: { primitives: { attributes: Record<string, number>; targets?: unknown[] }[] }[];
+  meshes: {
+    extras?: { targetNames?: string[] };
+    primitives: { attributes: Record<string, number>; targets?: unknown[] }[];
+  }[];
   animations?: { name: string }[];
 }
 
@@ -34,6 +37,22 @@ describe('modely koně a hříběte z 0 A.D.', () => {
   it('kůň a hříbě mají tři klíčové pózy (krok, krok, pastva)', () => {
     for (const name of ['horse', 'foal']) {
       expect(readGlb(`fauna/${name}.glb`).meshes[0]?.primitives[0]?.targets).toHaveLength(3);
+    }
+  });
+});
+
+describe('mršiny pro porážku (carcass-*)', () => {
+  const NAMES = ['carcass-cow', 'carcass-pig', 'carcass-sheep', 'carcass-goat'];
+
+  it('mají klíče stojí a visí (základ = leží) a o buffer méně než živé zvíře', () => {
+    for (const name of NAMES) {
+      const mesh = readGlb(`fauna/${name}.glb`).meshes[0];
+      expect(mesh?.extras?.targetNames).toEqual(['stands', 'hangs']);
+      expect(mesh?.primitives[0]?.targets).toHaveLength(2);
+      // pozice, normála, uv + 2 klíče + stav instance + matice instance
+      const buffers = livestockBuffers(name) + 1;
+      expect(buffers).toBe(7);
+      expect(buffers).toBeLessThanOrEqual(8);
     }
   });
 });

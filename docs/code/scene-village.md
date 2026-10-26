@@ -253,6 +253,18 @@ kapacitu míst se nevykreslí (`horseAnimalsFor`, 4 na čtverec – jádro tolik
 koně a hříběte se stahují po druzích (`PenAnimals.load`, `morphKindsToLoad`), takže kůň, který
 přijde později, se vykreslí. Koně se v noci do ohrady nezahánějí – sdílený nedodělek se dnem a nocí.
 
+## Mršiny pro porážku (modely – ve scéně až `slaughter-renderer`)
+
+`apps/web/public/models/fauna/carcass-{cow,pig,sheep,goat}.glb` (`fauna.json`, `fauna_from_0ad.py`):
+základ = **leží** (poslední snímek smrti z 0 A.D.), morph targety **`stands`** (první, p = +1) a
+**`hangs`** (druhý, p = −1; vzniklo natočením stojící pózy kolem kyčle hlavou dolů, zadní nohy
+vzhůru – klíč `hang` ve specifikaci). `loadGeometry` je načte jako `keyA/keyB`: pád = p 1 → 0,
+zvednutí na kozlinu p 0 → −1. Měřítko podle stojícího zvířete (`size_from`), takže sedí na živý
+model. Buffery: pozice, normála, uv, keyA, keyB, stav instance, matice = **7** (hlídá `fauna.test.ts`).
+**Mizení po čtvrtinách** bez dalšího bufferu: stojící souřadnice vrcholu = `position + keyA + keyB`
+(strana x, podél těla y); vertex shader z nich pošle varying a fragment `discard` podle bitů ve
+`stavu` (přední/zadní × levá/pravá čtvrť). Řez je rovný, vnitřnosti se nekreslí.
+
 ## Jezdci (lord-horses Úloha 11)
 
 Kdo, kdy a na kterém koni jede, určuje jádro (`lordRides` → `SceneLord.riders`, `borderTrailId`,

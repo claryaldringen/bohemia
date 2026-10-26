@@ -293,5 +293,145 @@
     },
     "opaque": true,
     "texture_px": 256
+  },
+  {
+    "name": "carcass-cow",
+    "dae": "meshes/skeletal/cattle_female_a.dae",
+    "texture": "textures/skins/skeletal/animal_cattle_beige.png",
+    "forward": "-y",
+    "size": {
+      "axis": "y",
+      "m": 2.1
+    },
+    "size_from": "stands",
+    "pose": {
+      "animation": "animation/quadraped/bovidae_death_a.dae",
+      "time": 999
+    },
+    "keys": {
+      "stands": {
+        "animation": "animation/quadraped/bovidae_idle_a.dae",
+        "time": 0
+      },
+      "hangs": {
+        "hang": {
+          "from": "stands",
+          "deg": 90,
+          "leg_deg": 90,
+          "pivot": [0.2, 0.5],
+          "legs": {
+            "along": [0.2, 0.32],
+            "below": [0.45, 0.6]
+          }
+        }
+      }
+    },
+    "opaque": true,
+    "texture_px": 256
+  },
+  {
+    "name": "carcass-pig",
+    "dae": "meshes/skeletal/pig.dae",
+    "texture": "textures/skins/skeletal/animal_pig_d.png",
+    "forward": "-y",
+    "size": {
+      "axis": "y",
+      "m": 1.25
+    },
+    "size_from": "stands",
+    "pose": {
+      "animation": "animation/quadraped/animal_pig_death_01.dae",
+      "time": 999
+    },
+    "keys": {
+      "stands": {
+        "animation": "animation/quadraped/animal_pig_idle_01.dae",
+        "time": 0
+      },
+      "hangs": {
+        "hang": {
+          "from": "stands",
+          "deg": 90,
+          "leg_deg": 90,
+          "pivot": [0.2, 0.5],
+          "legs": {
+            "along": [0.2, 0.32],
+            "below": [0.45, 0.6]
+          }
+        }
+      }
+    },
+    "opaque": true,
+    "texture_px": 256
+  },
+  {
+    "name": "carcass-sheep",
+    "dae": "meshes/skeletal/sheep.dae",
+    "texture": "textures/skins/skeletal/animal_sheep_no_player_color_a.dds",
+    "forward": "-y",
+    "size": {
+      "axis": "y",
+      "m": 1.25
+    },
+    "size_from": "stands",
+    "pose": {
+      "animation": "animation/quadraped/sheep_death.dae",
+      "time": 999
+    },
+    "keys": {
+      "stands": {
+        "animation": "animation/quadraped/sheep_idle_01.dae",
+        "time": 0
+      },
+      "hangs": {
+        "hang": {
+          "from": "stands",
+          "deg": 90,
+          "leg_deg": 90,
+          "pivot": [0.2, 0.5],
+          "legs": {
+            "along": [0.2, 0.32],
+            "below": [0.45, 0.6]
+          }
+        }
+      }
+    },
+    "opaque": true,
+    "texture_px": 256
+  },
+  {
+    "name": "carcass-goat",
+    "dae": "meshes/skeletal/goat.dae",
+    "texture": "textures/skins/skeletal/animal_goat.png",
+    "forward": "-y",
+    "size": {
+      "axis": "y",
+      "m": 1.2
+    },
+    "size_from": "stands",
+    "pose": {
+      "animation": "animation/quadraped/goat_death.dae",
+      "time": 999
+    },
+    "keys": {
+      "stands": {
+        "animation": "animation/quadraped/goat_idle_02.dae",
+        "time": 0
+      },
+      "hangs": {
+        "hang": {
+          "from": "stands",
+          "deg": 90,
+          "leg_deg": 90,
+          "pivot": [0.2, 0.5],
+          "legs": {
+            "along": [0.2, 0.32],
+            "below": [0.45, 0.6]
+          }
+        }
+      }
+    },
+    "opaque": true,
+    "texture_px": 256
   }
 ]

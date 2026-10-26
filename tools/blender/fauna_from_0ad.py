@@ -280,6 +280,36 @@ def bend_pose(base, forward, bend):
     return out
 
 
+def hang_pose(base, forward, hang):
+    """Póza „visí za zadní nohy“ z jiné pózy (stojící zvíře): celé tělo se otočí kolem osy X přes
+    kyčel (pivot) o `deg` – hlava dolů, zadní nohy se navíc otočí o `leg_deg` a míří vzhůru k háku.
+    hang: {"from", "deg", "leg_deg", "pivot": [podíl délky těla od zadu, podíl výšky], "legs":
+    {"along": [od, do] podíl délky (zadní část), "below": [od, do] podíl výšky (nízko = nohy)}}.
+    Váha nohou = (1 − hladký přechod podle délky) · (1 − hladký přechod podle výšky)."""
+    sign = 1.0 if forward == "+y" else -1.0
+    ys = [sign * c.y for c in base]
+    zs = [c.z for c in base]
+    y0, y1, z0, z1 = min(ys), max(ys), min(zs), max(zs)
+    py = y0 + (y1 - y0) * hang["pivot"][0]
+    pz = z0 + (z1 - z0) * hang["pivot"][1]
+    out = []
+    for c, y in zip(base, ys):
+        w = (1 - smoothstep(*hang["legs"]["along"], (y - y0) / (y1 - y0))) * (
+            1 - smoothstep(*hang["legs"]["below"], (c.z - z0) / (z1 - z0))
+        )
+        a = math.radians(hang["deg"] + hang["leg_deg"] * w)
+        dy, dz = y - py, c.z - pz
+        ny = dy * math.cos(a) - dz * math.sin(a)
+        nz = dy * math.sin(a) + dz * math.cos(a)
+        out.append(Vector((c.x, sign * (py + ny), pz + nz)))
+    return out
+
+
+def fix_forward(spec):
+    """Otočení o 180° kolem Z pro modely mířící v 0 A.D. na +Y (shodně s meshem níž)."""
+    return Matrix.Rotation(math.pi, 4, "Z") if spec["forward"] == "+y" else Matrix.Identity(4)
+
+
 def import_animal(spec):
     root = ET.parse(spec["dae"]).getroot()
     up = root.findtext(".//c:asset/c:up_axis", default="Z_UP", namespaces=NS).strip()
@@ -305,6 +335,8 @@ def import_animal(spec):
     for name, key in keys.items():
         if "bend" in key:
             poses[name] = bend_pose(poses[None], spec["forward"], key["bend"])
+        if "hang" in key:
+            poses[name] = hang_pose(poses[key["hang"]["from"]], spec["forward"], key["hang"])
     if spec.get("symmetric"):
         # Animace 0 A.D. se při mávání naklání do strany – klíčové pózy mají být souměrné, náklon
         # (do zatáčky) dělá scéna sama. Zachová se pravá polovina (x > 0).
@@ -346,7 +378,13 @@ def import_animal(spec):
     hi = Vector([max(v.co[i] for v in mesh.vertices) for i in range(3)])
     mesh.transform(Matrix.Translation(-(lo + hi) / 2), shape_keys=True)
     axis = "xyz".index(spec["size"]["axis"])
-    s = spec["size"]["m"] / (hi[axis] - lo[axis])
+    size_pose = spec.get("size_from")
+    if size_pose:
+        # Měřítko podle jiné pózy (mršina: podle stojícího zvířete, ať sedí na živé zvíře).
+        pts = [fix_forward(spec) @ p for p in poses[size_pose]]
+        s = spec["size"]["m"] / (max(q[axis] for q in pts) - min(q[axis] for q in pts))
+    else:
+        s = spec["size"]["m"] / (hi[axis] - lo[axis])
     mesh.transform(Matrix.Scale(s, 4), shape_keys=True)
     d = (hi - lo) * s
     if mesh.shape_keys:
