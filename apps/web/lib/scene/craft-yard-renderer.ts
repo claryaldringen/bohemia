@@ -58,7 +58,7 @@ export class CraftYardRenderer {
 
   constructor(
     private readonly scene: Scene,
-    private readonly context: { groundHeight: HeightFn; decalHeight: HeightFn },
+    private readonly context: { decalHeight: HeightFn },
   ) {}
 
   /** Překreslí dvory dílen, když se změnilo, co je vidět; vrátí true při změně. */
@@ -141,7 +141,8 @@ export class CraftYardRenderer {
     const max = new Vector3(-Infinity, -Infinity, -Infinity);
     for (const view of views) {
       const top = bloomeryTop(view);
-      const y = this.context.groundHeight(top.x, top.z) + top.y;
+      // stejná výška jako síť pece (`craftYardGeometry` nad decalHeight) – žár sedí v hrdle
+      const y = this.context.decalHeight(top.x, top.z) + top.y;
       const sprites = Array.from({ length: perFire }, () => {
         const sprite = new Sprite('craft-yard-fire', manager);
         sprite.isVisible = false;

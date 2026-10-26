@@ -1632,11 +1632,6 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   };
 
   /**
-   * Ukázka rudiště (crafts.md – Uhlí a ruda kováře): vypnuto → pěšky (kopáči u jámy, syn nosí
-   * uhlí, kovář rudu) → s vozem (vůz se sedlákem jede pro hromadu rudy) → vypnuto; kamera mezi
-   * kovárnu a rudiště.
-   */
-  /**
    * Ukázka humna (production-chains.md – Humno, Obilné jámy): vypnuto → žně (snopy na humno) →
    * výmlat (mlatci s holemi, prohazovači) → zrno do jam → vypnuto; kamera na humno.
    */
@@ -1654,6 +1649,11 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     if (sample) scene?.moveCameraTo(sample.focus.x, sample.focus.z);
   };
 
+  /**
+   * Ukázka rudiště (crafts.md – Uhlí a ruda kováře): vypnuto → pěšky (kopáči u jámy, syn nosí
+   * uhlí, kovář rudu) → s vozem (vůz se sedlákem jede pro hromadu rudy) → vypnuto; kamera mezi
+   * kovárnu a rudiště.
+   */
   const toggleOre = (): void => {
     const next = oreDemo === null ? 'foot' : oreDemo.stage === 'foot' ? 'cart' : null;
     if (!next) {

@@ -311,10 +311,7 @@ export class VillageRenderer {
       onAsyncChange: () => context.onAsyncChange(),
       prepareMaterial: prepareDwellingMaterial,
     });
-    this.craftYards = new CraftYardRenderer(scene, {
-      groundHeight: context.groundHeight,
-      decalHeight: context.decalHeight,
-    });
+    this.craftYards = new CraftYardRenderer(scene, { decalHeight: context.decalHeight });
     this.orchards = new OrchardRenderer(scene, context);
     this.plots = new HomesteadRenderer(scene, {
       groundHeight: context.groundHeight,

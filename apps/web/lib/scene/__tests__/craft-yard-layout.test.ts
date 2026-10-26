@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DWELLING_CLEARING_M } from '@bohemia/game';
+import { DWELLING_CLEARING_M, WORKSHOP_YARD_PATH_BOX_M } from '@bohemia/game';
 import {
   BAR_PILE,
   BLOOMERY,
@@ -73,11 +73,35 @@ describe('dvůr kovárny a hrnčíře (production-chains.md – Kovář; crafts.
       [BAR_PILE.lx, BAR_PILE.lz, 0.3],
       [CLAY_PIT.lx, CLAY_PIT.lz, CLAY_PIT.rim],
     ];
+    // místa kováře a měchaře u tavby (osy modelu: dílna v počátku bez natočení), postava ≈ 0,25 m
+    const origin = { ...smith(), position: { x: 0, z: 0, rotation: 0 } };
+    for (const spot of smeltSpots(origin)) reach.push([spot.x, spot.z, 0.25]);
     for (const [lx, lz, r] of reach) {
       expect(lx - r).toBeGreaterThan(area.minX);
       expect(lx + r).toBeLessThan(area.maxX);
       expect(lz + r).toBeLessThan(area.maxZ);
     }
+  });
+
+  it('pěšiny dvůr obejdou – pec, měch, houba, hřivny i jáma leží v obdélníku dvora pro pěšiny', () => {
+    const inside = (craft: 'smith' | 'potter', lx: number, lz: number, r: number): void => {
+      const box = WORKSHOP_YARD_PATH_BOX_M[craft]!;
+      expect(lx - r).toBeGreaterThanOrEqual(box.minX);
+      expect(lx + r).toBeLessThanOrEqual(box.maxX);
+      expect(lz - r).toBeGreaterThanOrEqual(box.minZ);
+      expect(lz + r).toBeLessThanOrEqual(box.maxZ);
+    };
+    inside('smith', BLOOMERY.lx, BLOOMERY.lz, BLOOMERY.radiusBottom + 0.06);
+    const bellowsMid = (BLOOMERY_BELLOWS.lx0 + BLOOMERY_BELLOWS.lx1) / 2;
+    inside('smith', bellowsMid, BLOOMERY_BELLOWS.lz, BLOOMERY_BELLOWS.width / 2);
+    inside('smith', BLOOMERY_BELLOWS.lx0, BLOOMERY_BELLOWS.lz, 0);
+    inside('smith', BLOOMERY_BELLOWS.lx1, BLOOMERY_BELLOWS.lz, 0);
+    inside('smith', BLOOM_PILE.lx, BLOOM_PILE.lz, 0.6);
+    inside('smith', BAR_PILE.lx, BAR_PILE.lz, 0.3);
+    inside('potter', CLAY_PIT.lx, CLAY_PIT.lz, CLAY_PIT.rim);
+    // osa vchodu (brána pěšin) mezi pecí a jámou zůstane volná
+    expect(WORKSHOP_YARD_PATH_BOX_M.smith!.maxX).toBeLessThan(-0.5);
+    expect(WORKSHOP_YARD_PATH_BOX_M.potter!.minX).toBeGreaterThan(0.5);
   });
 
   it('pec stojí před přístřeškem a při tavbě v ní žhne uhlí', () => {
@@ -123,5 +147,8 @@ describe('dvůr kovárny a hrnčíře (production-chains.md – Kovář; crafts.
     expect(craftYardsKey([smith({ task: 'refine', bloom: 1 }), potter({ clay: 2 })])).not.toBe(a);
     expect(craftYardsKey([smith({ task: 'smelt', bloom: 2 }), potter({ clay: 2 })])).not.toBe(a);
     expect(craftYardsKey([smith({ task: 'smelt', bloom: 1 }), potter({ clay: 3 })])).not.toBe(a);
+    // jiná práce než tavba dvůr nemění
+    const forge = craftYardsKey([smith({ task: 'forge', bloom: 1 }), potter({ clay: 2 })]);
+    expect(craftYardsKey([smith({ task: 'refine', bloom: 1 }), potter({ clay: 2 })])).toBe(forge);
   });
 });

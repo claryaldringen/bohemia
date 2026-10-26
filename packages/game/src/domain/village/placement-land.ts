@@ -76,6 +76,8 @@ interface GateOwner {
   readonly position: Position;
   readonly plot?: DwellingPlot;
   readonly plainShape?: boolean;
+  /** Dílna – brána kovárny a hrnčíře leží před dvorem (`WORKSHOP_YARD_PATH_BOX_M`). */
+  readonly craft?: Craft;
 }
 
 /** Malý čtverec kolem brány obydlí. */
@@ -90,7 +92,7 @@ function gateProbe(gate: { x: number; z: number }): Point[] {
 }
 
 /** Obydlí vsi s branou – hotová, rozestavěná i obydlí jiných vsí na téže mapě. */
-function gateOwners(village: PlacementVillage): (GateOwner & { readonly craft?: Craft })[] {
+function gateOwners(village: PlacementVillage): GateOwner[] {
   return [
     ...village.dwellings.map(placedDwelling),
     ...village.constructions.flatMap((c) =>

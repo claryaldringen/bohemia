@@ -291,7 +291,7 @@ export function checkWorkshopPlacement(
   const sites = sacredSitesOf(obstacles);
   const sacredProblem = sacredUnder(landscape, obstacles, sites, footprints);
   if (sacredProblem) return { ...fail(sacredProblem), ...none };
-  const gate = gateProblem(landscape, village, { type, position });
+  const gate = gateProblem(landscape, village, { type, position, craft });
   if (gate) return { ...fail(gate), ...none };
   const clearings = freeDwellingClearings(type, position, shape);
   const crowned = freeDwellingClearings(type, position, shape, FOREST_CROWN_MARGIN_M);

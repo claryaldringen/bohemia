@@ -11,7 +11,13 @@ import {
   ROAD_WALK,
   SACRED_BUILDINGS,
 } from '../rules';
-import { type DwellingPlot, type DwellingType, type RoadGrade, type Position } from '../types';
+import {
+  type Craft,
+  type DwellingPlot,
+  type DwellingType,
+  type RoadGrade,
+  type Position,
+} from '../types';
 import { terrainEditsFrom, withTerrainEdits } from './earthworks';
 import { nearestPartFinder } from './nearest';
 import {
@@ -315,7 +321,10 @@ export function buildingBounds(b: Building, margin: number): [number, number, nu
  * straně proti vchodu), volné obydlí jako dům se šíjí, rozestavěné jako staveniště.
  */
 export function dwellingBox(
-  d: Pick<PathVillage['dwellings'][number], 'type' | 'position' | 'built' | 'plot' | 'plainShape'>,
+  d: Pick<
+    PathVillage['dwellings'][number],
+    'type' | 'position' | 'built' | 'plot' | 'plainShape' | 'craft'
+  >,
 ): PathBox {
   if (d.plot) return plotPathBox(d.position, d.plot);
   // varianta rozměrů (population.md – Varianty rozměrů): dům i staveniště podle tvaru domu
@@ -324,7 +333,7 @@ export function dwellingBox(
     position: d.position,
     ...(d.plainShape ? { plainShape: true } : {}),
   });
-  return d.built ? shapeRect(frame, DWELLING_PATH_BOX_M[d.type]) : sitePathBox(d.type, frame);
+  return d.built ? shapeRect(frame, builtPathBox(d.type, d.craft)) : sitePathBox(d.type, frame);
 }
 
 /**
@@ -336,6 +345,32 @@ export const DWELLING_PATH_BOX_M: Record<DwellingType, PathBox> = {
   polozemnice: { minX: -3.4, maxX: 3.4, minZ: -3.8, maxZ: 3.8 },
   dvorec: { minX: -3.8, maxX: 3.8, minZ: -5.9, maxZ: 5.9 },
 };
+
+/**
+ * Dvůr hotové dílny před přístřeškem v souřadnicích domu (x napříč, z k vchodu, m)
+ * (production-chains.md – Kovář; crafts.md – Hlína hrnčíře): u kovárny redukční pec s měchem,
+ * houba a hřivny vlevo, u hrnčíře jáma s hlínou vpravo. Obdélník obydlí pro pěšiny dvůr zahrne
+ * (`dwellingBox`) – brána leží před dvorem a pěšina dvorem nevede ani při zjednodušení čáry; od
+ * vchodu k bráně se chodí osou mezi pecí a jámou. Scéna kreslí dvůr uvnitř (`craft-yard-layout.ts`,
+ * hlídá test).
+ */
+export const WORKSHOP_YARD_PATH_BOX_M: Partial<Record<Craft, PathBox>> = {
+  smith: { minX: -3.5, maxX: -0.9, minZ: 4.5, maxZ: 7.2 },
+  potter: { minX: 0.95, maxX: 2.95, minZ: 5.5, maxZ: 7.5 },
+};
+
+/** Dům se šíjí, u hotové kovárny a hrnčíře i s dvorem (`WORKSHOP_YARD_PATH_BOX_M`). */
+function builtPathBox(type: DwellingType, craft: Craft | undefined): PathBox {
+  const house = DWELLING_PATH_BOX_M[type];
+  const yard = craft ? WORKSHOP_YARD_PATH_BOX_M[craft] : undefined;
+  if (!yard) return house;
+  return {
+    minX: Math.min(house.minX, yard.minX),
+    maxX: Math.max(house.maxX, yard.maxX),
+    minZ: Math.min(house.minZ, yard.minZ),
+    maxZ: Math.max(house.maxZ, yard.maxZ),
+  };
+}
 
 /** Staveniště sahá s hromadou hlíny a nářadím před dům nejméně tak daleko (m). */
 const SITE_FRONT_M = 5;
@@ -417,12 +452,18 @@ export function pathPlotOf(landscape: Landscape, plot: DwellingPlot): PathPlot {
 
 /**
  * Brána hotového obydlí – místo, odkud vychází síť pěšin (`gateOf`): kus před koncem šíje, na
- * pozemku 1 m před brankou proti vchodu, u dvorce za vzdálenou stranou dvora. Kontrola umístění
- * se ptá stejného místa (population.md – Umístění obydlí, paths.md – Vchody).
+ * pozemku 1 m před brankou proti vchodu, u dvorce za vzdálenou stranou dvora, u kovárny a hrnčíře
+ * před dvorem dílny. Kontrola umístění se ptá stejného místa (population.md – Umístění obydlí, paths.md – Vchody).
  */
 export function dwellingGatePoint(
   landscape: Landscape,
-  d: { type: DwellingType; position: Position; plot?: DwellingPlot; plainShape?: boolean },
+  d: {
+    type: DwellingType;
+    position: Position;
+    plot?: DwellingPlot;
+    plainShape?: boolean;
+    craft?: Craft;
+  },
 ): PathPoint {
   const plot = d.plot ? pathPlotOf(landscape, d.plot) : undefined;
   return gateOf({
@@ -433,6 +474,7 @@ export function dwellingGatePoint(
       built: true,
       ...(plot ? { plot } : {}),
       ...(d.plainShape ? { plainShape: true } : {}),
+      ...(d.craft ? { craft: d.craft } : {}),
     }),
   });
 }

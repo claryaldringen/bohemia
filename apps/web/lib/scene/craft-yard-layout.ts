@@ -24,7 +24,8 @@ export const BLOOM_PILE = { lx: -2.85, lz: 6.05 } as const;
 export const BAR_PILE = { lx: -2.15, lz: 4.85 } as const;
 /**
  * Jáma s hlínou před hrnčířem (střed, poloměr dna a valu – m). Pec, měch, houba i jáma leží ve
- * vyklízené ploše dílny (DWELLING_CLEARING_M – před vchodem do 7,5 m), jiná stavba na ně nepřijde.
+ * vyklízené ploše dílny (DWELLING_CLEARING_M – před vchodem do 7,5 m), jiná stavba na ně nepřijde,
+ * a v obdélníku dvora pro pěšiny (`WORKSHOP_YARD_PATH_BOX_M` – brána pěšin leží před dvorem).
  */
 export const CLAY_PIT = { lx: 1.95, lz: 6.5, radius: 0.7, rim: 0.95 } as const;
 
@@ -64,7 +65,8 @@ export function craftYardsKey(views: readonly CraftYardView[]): string {
         p.z.toFixed(2),
         p.rotation.toFixed(3),
         JSON.stringify(f),
-        y.task ?? '',
+        // tavba mění pec (žár, uhlí v hrdle); ostatní práce dne dvůr nevidí
+        y.task === 'smelt' ? 1 : 0,
         y.bloom ?? 0,
         y.bars ?? 0,
         y.clay ?? 0,
@@ -371,13 +373,18 @@ export function smeltVents(view: CraftYardView): WorkshopVent[] {
   return [{ kind: 'craft', x: top.x, z: top.z, y: BLOOMERY.height + 0.1 }];
 }
 
+/** Kovář u tavby stojí šikmo před pecí (od jejího pláště, m) – uvnitř vyklízené plochy dílny. */
+const CHARGE_GAP_M = 0.3;
+
 /**
- * Místa u tavby: kovář sype rudu a uhlí z koše do hrdla pece (klip `seed`), měchař klečí u měchu
- * (`weed` – šlape a tlačí měch). Pak místa kovárny pod přístřeškem (`craftSpots`).
+ * Místa u tavby: kovář sype rudu a uhlí z koše do hrdla pece (klip `seed`) šikmo zpředu od houby,
+ * měchař klečí u měchu (`weed` – šlape a tlačí měch). Pak místa kovárny pod přístřeškem
+ * (`craftSpots`).
  */
 export function smeltSpots(view: CraftYardView): CraftSpot[] {
-  const charge = at(view, BLOOMERY.lx, BLOOMERY.lz + BLOOMERY.radiusBottom + 0.45);
-  const toFurnace = direction(view, 0, -1);
+  const d = (BLOOMERY.radiusBottom + CHARGE_GAP_M) * Math.SQRT1_2;
+  const charge = at(view, BLOOMERY.lx - d, BLOOMERY.lz + d);
+  const toFurnace = direction(view, Math.SQRT1_2, -Math.SQRT1_2);
   const pump = at(view, BLOOMERY_BELLOWS.lx1 + 0.3, BLOOMERY_BELLOWS.lz);
   const toBellows = direction(view, -1, 0);
   return [

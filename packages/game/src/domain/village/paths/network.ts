@@ -87,6 +87,7 @@ export {
   inBuilding,
   buildingBounds,
   DWELLING_PATH_BOX_M,
+  WORKSHOP_YARD_PATH_BOX_M,
   pathPlotOf,
   dwellingGatePoint,
   roadMask,

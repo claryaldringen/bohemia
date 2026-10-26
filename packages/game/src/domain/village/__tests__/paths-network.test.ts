@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DWELLING_PATH_BOX_M,
   PATH_TRAFFIC,
+  WORKSHOP_YARD_PATH_BOX_M,
   computePathNetwork,
   pathAgeFactor,
   pathBounds,
@@ -389,6 +390,33 @@ describe('computePathNetwork – pěšiny vsi', () => {
       pathNetworkKey(village()),
     );
     expect(pathNetworkKey({ ...village(), threshingFloors: [] })).toBe(pathNetworkKey(village()));
+  });
+
+  it('pěšina od dílny dvůr obejde – přes pec ani jámu s hlínou nevede (production-chains.md – Kovář)', () => {
+    // kovárna (hrnčíř) vchodem k jihu (+z), pole šikmo před dvorem – nejkratší cesta by šla dvorem
+    const yards = (craft: 'smith' | 'potter'): PathVillage => {
+      const side = craft === 'smith' ? -1 : 1;
+      return village({
+        dwellings: [house(1, 0, 0, 0, { type: 'polozemnice', craft, plainShape: true })],
+        fields: [{ id: 5, parts: [part(side * 22.5, 22.5)] }],
+        labor: {
+          day: 4000,
+          month: 7,
+          people: { children: 4, adults: 8, elders: 2 },
+          shares: [{ target: { kind: 'field', id: 5 }, manDays: 6 }],
+        },
+      });
+    };
+    for (const craft of ['smith', 'potter'] as const) {
+      const box = WORKSHOP_YARD_PATH_BOX_M[craft]!;
+      const network = computePathNetwork({ village: yards(craft), terrain });
+      expect(network.lines.length).toBeGreaterThan(0);
+      expect(
+        samples(network).filter(
+          (q) => q.x > box.minX && q.x < box.maxX && q.z > box.minZ && q.z < box.maxZ,
+        ),
+      ).toEqual([]);
+    }
   });
 
   it('k otevřené obilné jámě vede pěšina pro zrno, k jámě, kterou kopou, za prací (production-chains.md – Obilné jámy)', () => {
