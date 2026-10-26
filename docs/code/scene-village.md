@@ -271,6 +271,42 @@ nepoužívaly (Martin 21. 10. 2026: „ať do něj mlátí holemi“). Místa js
   postav), `/dev/landscape` – tlačítko Humno (`dev-threshing.ts`: žně a nosiči snopů na humno →
   výmlat a prohazování → zrno do jam).
 
+## Kovárna a hrnčíř ve scéně (production-chains.md – Kovář; crafts.md – Hlína hrnčíře; úloha 6 výrobních řetězů)
+
+Dvůr dílny je jedna síť s barvami vrcholů bez textury (`craft-yard-layout.ts` – čisté funkce,
+`CraftYardRenderer` v `craft-yard-renderer.ts`, volá ho `VillageRenderer`), přestaví se jen při
+změně, kterou je vidět (`craftYardsKey`), a nevrhá stín (jako hromady humna). Místa jsou v osách
+modelu dílny (x napříč, z k vchodu – jako `PORCH_SPOTS`), s variantou rozměrů domu se posunou
+(`shapedToWorld`), a leží ve vyklízené ploše dílny (`DWELLING_CLEARING_M` – před vchodem do 7,5 m;
+hlídá test).
+
+- **Data** (`SceneVillage.dwellings[].yard` – `SceneCraftYard`, village-crafts.md – Kovář):
+  `task` (`smelt` tavba / `refine` překování / `forge` kování nástrojů), `bellows` (měchař u tavby),
+  `bloom` a `bars` (stupně 0–3), u hrnčíře `clay` (0–3) a `treading`. Stupně jsou návrh Clauda
+  („pár stupňů“): houba od 0,05 / 3 / 8 kg, hřivny od 0,05 / 5 / 20 kg na kovárnu, hlína od
+  0,5 / 30 / 120 kg (`CRAFT_YARD_STEPS`).
+- **Kovárna**: **redukční pec** (návrh Clauda – nízká hliněná šachta ⌀ 0,85 m, výška 1,1 m, jako
+  raně středověké kusové pece) stojí vždy před levým rohem přístřešku (`BLOOMERY`), u paty ruční
+  klínový měch s hubicí (`BLOOMERY_BELLOWS`); při tavbě žhne uhlí v hrdle, z hrdla šlehá žár
+  a jiskry (sprity `fireSprites` z `pyre-fire.ts`, `FIRE_SCALE` 0,2 – `animate` jen v záběru, při
+  omezeném pohybu stojí) a stoupá dým z pece místo z výhně (`smeltVents`). **Houba** – 1–3 tmavé
+  hroudy se struskou vedle pece (`BLOOM_PILE`), **hřivny** – hromádka plochých prutů křížem
+  (1 / 3 / 5 vrstev po třech) pod přístřeškem u levé stěny (`BAR_PILE`). Při překování a kování
+  kouří výheň (`workshopSmokes`).
+- **Postavy** (`craftsmen` ve `villager-plan-crafts.ts`): při tavbě kovář sype rudu a uhlí z koše
+  do hrdla (`smeltSpots` – klip `seed`, čelem k peci), měchař klečí u měchu (`weed`) – dospělý
+  z podílu dílny, syn 10–13 z vlastního podílu `craft` s věkem (bere ho z rosteru podle věku);
+  kovář sám jen u pece. Při překování a kování kovář u kovadliny s kladivem (klip `build` –
+  palička z 0 A.D. `build.dae`), další u měchů výhně a u koryta. Postavy bez nového klipu ani
+  vertex bufferu.
+- **Hrnčíř**: mělká **jáma s hlínou** před přístřeškem vpravo (`CLAY_PIT`) – val vykopané země
+  a hladina hlíny podle stupně (prázdná jáma tmavé dno; kreslí se jen s hlínou nebo šlapáním).
+  Když hrnčíř vyrábí, jeden šlape hlínu – pomalu tam a zpět napříč jámou (`treadingLine`, klip
+  `walk`, `TREADING`); jeden hrnčíř každý druhý den, s pomocníkem vždy jeden z nich.
+- **Ukázka**: `/dev/buildings` – **Kovárna a hrnčíř** (`showcaseCraftYards`, kreslí renderer
+  variant): tavba s žárem a dýmem, překování (hodně houby), kování nástrojů (plná hromádka
+  hřiven), hrnčíř s plnou jámou a se skoro prázdnou. Bez postav (ty ukazuje ves).
+
 ## Divoká zvěř, pes a prut (modely – wildlife Úloha W8; ve scéně W10–W11)
 
 `apps/web/public/models/fauna/wild-{boar,stag,hind,wolf,bear,fox,hare}.glb` a `dog.glb` (pes

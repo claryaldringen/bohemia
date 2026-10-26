@@ -672,8 +672,13 @@ v `rules.ts`, rešerše [2026-10-20-production-chains.md](research/2026-10-20-pr
 - **Co hráč vidí:** v liště hřivny (ikona sekerovitých hřiven), v panelu kovárny hřivny
   v zásobě, železná houba, hřivny, které kovář drží (rok obnovy a zakázky), nástroje ve vybavení
   domácností s pokrytím potřeby a kdo šlape měch (syn a věk, člen domácnosti, nebo „kovář taví
-  sám – polovičním tempem“). Pec, měch a hromádky ve scéně kreslí úloha scény (production-chains.md
-  – Postup, krok 6).
+  sám – polovičním tempem“).
+- **Ve scéně** (návrh Clauda): před kovárnou stojí redukční pec – nízká hliněná šachta s ručním
+  měchem u paty. Při tavbě z ní šlehá žár a jiskry a stoupá dým, kovář sype rudu a uhlí z koše do
+  hrdla a měchař klečí u měchu (sám kovář jen u pece); při překování a kování kove u kovadliny
+  a kouří výheň. Vedle pece leží hroudy houby, pod přístřeškem hromádka hřiven – obojí po pár
+  stupních podle zásoby. U hrnčíře je před dílnou mělká jáma s hlínou (hladina podle zásoby)
+  a kdo vyrábí, hlínu v ní šlape.
 
 ## Učení řemesla
 

@@ -292,5 +292,13 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     `selection-details` (`SelectionWorkshop.iron`), `village-view` (`VillageCrafts.equipmentKg`,
     `VillageWorkshop.iron`, `CRAFT_LOOKS.smith` = hřivny), `trade-names` (`ironBars`), ikony
     `resources/iron-bars.png`, `resources/bloom.png`.
+  - **Scéna** (jen čtení – scene-village.md, Kovárna a hrnčíř ve scéně): `craftYard`
+    ve `village-view-crafts.ts` dá obydlené kovárně a hrnčíři `SceneVillage.dwellings[].yard`
+    (`SceneCraftYard`): činnost dne (`smelting` → `smelt`, `refining` → `refine`, `producing` →
+    `forge`), měchař u tavby (podíl `craft` s věkem v rozdělení práce dne = syn, jinak dospělý
+    z domácnosti podle `smithBellows`), houba a hřivny po stupních 0–3 (`yardStage`,
+    `CRAFT_YARD_STEPS` – zásoba kovářů dělená obydlenými kovárnami), u hrnčíře hlína v jámě
+    (`Workshop.clayKg`) a šlapání, když dnes vyrábí. `workshopSmokes` – kovárna kouří i při tavbě
+    a překování.
   - **Dokumentace:** crafts.md – Kovář – houba, hřivny a vybavení; trade.md – Hřivny místo nástrojů;
     production-chains.md – Kovář (Jak to běží); rešerše – Kovář.
