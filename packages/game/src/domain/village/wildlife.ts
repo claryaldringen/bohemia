@@ -1,7 +1,7 @@
 // Divoká zvěř vsi – stropy z krajiny, výchozí stav, převod starších vsí a roční přepočet 1. 5.
 // (wildlife.md – Kde zvěř žije a kolik jí je; Roční přepočet – 1. 5.). Bez náhody.
 
-import { dateOfDayIndex, dayIndexOf } from '../calendar';
+import { TOTAL_GAME_DAYS, dateOfDayIndex, dayIndexOf } from '../calendar';
 import type { Landscape } from '../landscape';
 import { villageHerds } from './livestock';
 import { CROWS, WILDLIFE_CAPS, WILDLIFE_LAND, WILDLIFE_YEAR } from './rules-wildlife';
@@ -98,7 +98,11 @@ export function isWildlifeYearDay(day: number): boolean {
 /** Den, kdy se po úlovku v den `killDay` vrátí medvěd (za `bearReturnYears` let). */
 export function bearBackDay(killDay: number): number {
   const date = dateOfDayIndex(killDay);
-  return dayIndexOf({ ...date, year: date.year + WILDLIFE_YEAR.bearReturnYears });
+  const year = date.year + WILDLIFE_YEAR.bearReturnYears;
+  // konec světa: poslední platný den; 29. 2. do nepřestupného roku → 28. 2.
+  if (year >= 1500) return TOTAL_GAME_DAYS - 1;
+  const day = date.month === 2 && date.day === 29 && year % 4 !== 0 ? 28 : date.day;
+  return dayIndexOf({ ...date, year, day });
 }
 
 /** Jelení zvěř: dospění, úbytek, přírůstek, nad stropem napřed kolouši a laně poměrně. */
@@ -167,6 +171,7 @@ export function wildlifeYearDay(
       state.chronicle.push({ day, kind: 'bear-returned' });
     }
   }
-  const fish = Math.min(caps.fishKg, w.fishKg);
+  // vybité ryby se obnoví z minimálního osazení (1 % stropu)
+  const fish = Math.min(caps.fishKg, Math.max(w.fishKg, caps.fishKg * WILDLIFE_YEAR.fishRestock));
   w.fishKg = caps.fishKg > 0 ? Math.min(caps.fishKg, fish + fish * (1 - fish / caps.fishKg)) : 0;
 }

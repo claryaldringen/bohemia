@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
+import { TOTAL_GAME_DAYS } from '../../calendar';
 import { WILDLIFE_LAND } from '../rules-wildlife';
 import { advanceVillage } from '../simulate';
 import type { VillageState } from '../types';
@@ -12,6 +13,7 @@ import {
   wildlifeYearDay,
   withWildlife,
 } from '../wildlife';
+import { makeLandscape } from './placement-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
@@ -130,7 +132,46 @@ describe('roční přepočet 1. 5.', () => {
   });
 });
 
+describe('medvěd a ryby – krajní případy', () => {
+  function year(state: VillageState, d = at(601, 5, 1)): VillageState {
+    const next = structuredClone(state);
+    wildlifeYearDay(next, d, null);
+    return next;
+  }
+
+  it('medvěd ulovený 29. 2. se vrátí 28. 2. nepřestupného roku, na konci světa nejpozději poslední den', () => {
+    expect(bearBackDay(at(600, 2, 29))).toBe(at(603, 2, 28));
+    expect(bearBackDay(at(1498, 6, 1))).toBe(TOTAL_GAME_DAYS - 1);
+    expect(bearBackDay(at(1499, 12, 31))).toBe(TOTAL_GAME_DAYS - 1);
+  });
+
+  it('vybité ryby se při přepočtu znovu osadí', () => {
+    const s = withStock(village());
+    s.wildlife!.fishKg = 0;
+    const cap = wildlifeCaps(s.wildlife!.land, 0).fishKg;
+    expect(cap).toBeGreaterThan(0);
+    const a = year(s).wildlife!;
+    expect(a.fishKg).toBeGreaterThan(0);
+    expect(year(year(s), at(602, 5, 1)).wildlife!.fishKg).toBeGreaterThan(a.fishKg);
+  });
+});
+
 describe('po kouscích', () => {
+  it('s malou krajinou: 1. 5. přepočítá krajinu a dopočet po kouscích dá týž stav', () => {
+    const start = at(600, 4, 28);
+    const landscape = makeLandscape({ size: 32, surface: (x) => (x < 16 ? 'forest' : 'meadow') });
+    const s = withWildlife(village(start), landscape);
+    const to = start + 10;
+    const whole = advanceVillage(s, to, landscape);
+    let chunked = s;
+    for (let cursor = start; cursor < to;) {
+      cursor = Math.min(to, cursor + 3);
+      chunked = advanceVillage(chunked, cursor, landscape);
+    }
+    expect(whole.wildlife!.land.forestHa).toBeGreaterThan(0);
+    expect(chunked.wildlife).toEqual(whole.wildlife);
+  }, 60_000);
+
   it('1, 7, 30 a 365 dní přes 1. 5. dají týž stav', () => {
     const start = at(600, 4, 25);
     const s = withStock(village(start));

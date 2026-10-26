@@ -77,9 +77,16 @@ export function wildlifeLandAt(
   const total = size * size;
   const cellHa = (landscape.cellSizeM * landscape.cellSizeM) / M2_PER_HA;
   const reach2 = WILDLIFE_LAND.reachM * WILDLIFE_LAND.reachM;
+  // jen obdélník kolem počátku vsi ± dosah, ne celá mapa
+  const half = (size * landscape.cellSizeM) / 2;
+  const lo = (v: number): number =>
+    Math.max(0, Math.floor((v - WILDLIFE_LAND.reachM + half) / landscape.cellSizeM) - 1);
+  const hi = (v: number): number =>
+    Math.min(size - 1, Math.floor((v + WILDLIFE_LAND.reachM + half) / landscape.cellSizeM) + 1);
+  const [x0, x1, y0, y1] = [lo(origin.x), hi(origin.x), lo(origin.z), hi(origin.z)];
   const inReach = new Uint8Array(total);
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
+  for (let y = y0; y <= y1; y++) {
+    for (let x = x0; x <= x1; x++) {
       const c = tileCenterWorld(landscape, x, y);
       const dx = c.x - origin.x;
       const dz = c.z - origin.z;
@@ -110,17 +117,20 @@ export function wildlifeLandAt(
   const forest = new Uint8Array(total);
   let open = 0;
   let water = 0;
-  for (let index = 0; index < total; index++) {
-    if (!inReach[index]) continue;
-    const surface = surfaceAt(landscape, index % size, Math.floor(index / size));
-    if (surface === 'water') {
-      water++;
-    } else if (fieldTiles[index]) {
-      open++;
-    } else if (!taken[index] && (surface === 'forest' || woodTiles[index])) {
-      forest[index] = 1;
-    } else if (surface === 'meadow' && !taken[index]) {
-      open++;
+  for (let y = y0; y <= y1; y++) {
+    for (let x = x0; x <= x1; x++) {
+      const index = y * size + x;
+      if (!inReach[index]) continue;
+      const surface = surfaceAt(landscape, x, y);
+      if (surface === 'water') {
+        water++;
+      } else if (fieldTiles[index]) {
+        open++;
+      } else if (!taken[index] && (surface === 'forest' || woodTiles[index])) {
+        forest[index] = 1;
+      } else if (surface === 'meadow' && !taken[index]) {
+        open++;
+      }
     }
   }
   const forestTiles = bigPatches(forest, size, Math.ceil(WILDLIFE_LAND.minPatchHa / cellHa));

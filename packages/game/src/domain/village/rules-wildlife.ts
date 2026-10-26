@@ -55,6 +55,8 @@ export const WILDLIFE_YEAR = {
   wolfRefill: 0.5,
   /** Medvěd po úlovku přijde zpět za tolik let. */
   bearReturnYears: 3,
+  /** Vybité ryby se při přepočtu osadí tímto podílem stropu (návrh Clauda). */
+  fishRestock: 0.01,
 } as const;
 
 /** Hejna vran (wildlife.md – Kde zvěř žije, ptáci). */
