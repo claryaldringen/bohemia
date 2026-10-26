@@ -81,13 +81,15 @@
         "name": "meat",
         "dae": "meshes/props/special/brontoburger.dae",
         "point": "prop-weapon_R",
-        "texture": "textures/skins/props/shuttle_meat.png"
+        "texture": "textures/skins/props/shuttle_meat.png",
+        "scale": 0.55
       },
       {
         "name": "bowl",
         "procedural": "bowl",
         "point": "prop-weapon_L",
         "texture": "textures/skins/props/prop_weap.dds",
+        "rotate_deg": [-90, 0, 0],
         "uv": {
           "wood": [0.06, 0.36, 0.14, 0.58],
           "liquid": [0.06, 0.72, 0.14, 0.84]
@@ -306,13 +308,16 @@
         "name": "meat",
         "dae": "meshes/props/special/brontoburger.dae",
         "point": "prop-weapon_R",
-        "texture": "textures/skins/props/shuttle_meat.png"
+        "texture": "textures/skins/props/shuttle_meat.png",
+        "scale": 0.55,
+        "offset_m": [0.277, 0.113, 0.02]
       },
       {
         "name": "bowl",
         "procedural": "bowl",
         "point": "prop-weapon_L",
         "texture": "textures/skins/props/prop_weap.dds",
+        "rotate_deg": [-90, 0, 0],
         "uv": {
           "wood": [0.06, 0.36, 0.14, 0.58],
           "liquid": [0.06, 0.72, 0.14, 0.84]

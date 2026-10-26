@@ -5,7 +5,8 @@ blender -b --factory-startup --python tools/blender/people_from_0ad.py -- \
 
 people.json: [{"name", "height_m" | "length_m", "body": {"dae", "texture", "tint", "pattern"?,
 "flatten"?, "multiply"?, "coat"?}, "props": [{"name", "dae" | "procedural" (sickle | yoke | bowl), "point", "texture",
-"tint"?, "uv"?}], "clips": [{"name", "animation", "props": [jména propů viditelných v klipu],
+"tint"?, "uv"?, "scale"? (měřítko kolem bodu, výchozí 1), "rotate_deg"? ([x, y, z] natočení v osách bodu),
+"offset_m"? ([x, y, z] posun v osách bodu, v metrech)}], "clips": [{"name", "animation", "props": [jména propů viditelných v klipu],
 "pose"?, "report"?}]}]
 
 Totéž umí i zvířata s kostrou (voli spřežení – tools/blender/plough-team.json): bez propů,
@@ -364,7 +365,8 @@ def procedural_yoke(uv_wood, uv_band, uv_rope):
 
 def procedural_bowl(uv_wood, uv_liquid):
     """Miska na krev pro jelita (porážka ve scéně – docs/design/slaughter.md; 0 A.D. ji nemá):
-    mělká komolá miska otevřená nahoru (osa z bodu propu), uvnitř tmavá hladina."""
+    mělká komolá miska otevřená nahoru (osa z bodu propu, dno v bodě), uvnitř tmavá hladina.
+    Bod propu „weapon_L“ má svislici v ose Y, proto je miska v people.json natočená o −90° kolem X."""
     positions, normals, uvs, tris = [], [], [], []
 
     def quad(a, b, c, d, na, nb, nc, nd, uv_rect, u0, u1, v0, v1):
@@ -377,7 +379,7 @@ def procedural_bowl(uv_wood, uv_liquid):
         tris.append(((base, i, base), (base + 1, i + 1, base + 1), (base + 2, i + 2, base + 2)))
         tris.append(((base, i, base), (base + 2, i + 2, base + 2), (base + 3, i + 3, base + 3)))
 
-    sides, r_top, r_bottom, top, bottom = 10, 0.30, 0.17, 0.0, -0.17
+    sides, r_top, r_bottom, top, bottom = 10, 0.30, 0.17, 0.17, 0.0
     slope = (r_top - r_bottom) / (top - bottom)
     level = top - 0.05  # hladina kousek pod okrajem
     r_level = r_bottom + (level - bottom) * slope
@@ -822,6 +824,12 @@ def convert(spec, art, out_dir):
         else:
             geo = load_static(os.path.join(art, part["dae"]))
             matrix = rest_world[part["joint"]] @ geo["matrix"]
+        if part["kind"] == "prop" and (part.get("scale", 1) != 1 or part.get("rotate_deg")):
+            # měřítko a natočení propu v souřadnicích jeho bodu (ruka, rameno) – vrcholy v klidové póze
+            rx, ry, rz = (math.radians(a) for a in part.get("rotate_deg", [0, 0, 0]))
+            local = Matrix.Rotation(rz, 4, "Z") @ Matrix.Rotation(ry, 4, "Y") @ Matrix.Rotation(rx, 4, "X") @ Matrix.Scale(part.get("scale", 1), 4)
+            local = Matrix.Translation(Vector(part.get("offset_m", [0, 0, 0])) / scale) @ local
+            matrix = rest_world[part["joint"]] @ local @ (rest_world[part["joint"]].inverted() @ matrix)
         normal_matrix = matrix.to_3x3().inverted().transposed()
         sx, sy, sw, sh = part["slot"]
         lookup = {}
@@ -853,6 +861,10 @@ def convert(spec, art, out_dir):
                     jnt.append(js)
                     wgt.append(ws)
                 idx.append(lookup[key])
+        if part["kind"] == "prop":
+            pp = [matrix @ q for q in geo["positions"]]
+            ext = [(max(c[i] for c in pp) - min(c[i] for c in pp)) * scale for i in range(3)]
+            print(f"  {part['name']}: rozměry (m) {ext[0]:.2f} x {ext[1]:.2f} x {ext[2]:.2f}")
         print(f"  {part.get('name', 'body')}: uv u[{uvs_seen[0]:.2f},{uvs_seen[1]:.2f}] v[{uvs_seen[2]:.2f},{uvs_seen[3]:.2f}]")
 
     pos = np.array(pos, np.float32)
