@@ -36,3 +36,19 @@ výše, základní póza je poslední snímek smrti (`quadraped/bovidae_death_a.
 „stojí“ je klidová póza (`bovidae_idle_a`, `animal_pig_idle_01`, `sheep_idle_01`, `goat_idle_02`)
 a druhý klíč „visí“ vznikl skriptem – stojící póza otočená kolem kyčle hlavou dolů a zadní
 nohy natočené vzhůru (klíč `hang` v `fauna.json`). Stejná licence CC BY-SA 3.0.
+
+**Divoká zvěř a pes** (`wild-*.glb`, `dog.glb`; wildlife.md): 0 A.D., Wildfire Games, CC BY-SA 3.0,
+stejné úpravy jako výše (třetí klíč u zvěře = hlava dole, `bend` v `fauna.json`; u psa mastif
+0 A.D. ležení nemá, klíč `lie` je snímek čichání s hlavou u země z `mastiff_idle_long.dae`).
+Texturu medvěda a zvěře nese JPEG; medvěd má normály dopočtené Blenderem (`smooth`) kvůli velikosti.
+
+| Soubor          | Původní soubory (art/meshes/skeletal/, art/animation/quadraped/, art/textures/skins/skeletal/)                                                                                      |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `wild-boar.glb` | `animal_boar.dae`, `animal_boar_idle_01.dae`, `animal_boar_walk_01.dae`, `animal_boar_01.png`                                                                                       |
+| `wild-stag.glb` | `deer_mesh.dae`, `deer_idle_01.dae`, `deer_walk_01.dae`, `animal_deer_02.png` + paroží `art/meshes/props/deer_antlers.dae` (prop ke kosti `prop-antler`, sloučený do jednoho meshe) |
+| `wild-hind.glb` | `deer_mesh.dae` (samice – bez paroží), `deer_idle_01.dae`, `deer_walk_01.dae`, `animal_deer_01.png`                                                                                 |
+| `wild-wolf.glb` | `wolf.dae`, `wolf_idle_01.dae`, `wolf_walk.dae`, `animal_wolf.png`                                                                                                                  |
+| `wild-bear.glb` | `bear.dae`, `bear_idle_01.dae`, `bear_walk.dae`, `animal_bear_brown.png`                                                                                                            |
+| `wild-fox.glb`  | `fox.dae`, `fox_idle.dae`, `fox_walk.dae`, `animal_fox_red.png`                                                                                                                     |
+| `wild-hare.glb` | `rabbit_01.dae` (zajíc), `rabbit_idle_01.dae`, `rabbit_walk.dae`, `animal_rabbit_01.png`                                                                                            |
+| `dog.glb`       | `mastiff_no_spikes.dae`, `mastiff_idle.dae`, `mastiff_run.dae`, `mastiff_idle_long.dae`, `brit/mastiff_a_01.png`                                                                    |

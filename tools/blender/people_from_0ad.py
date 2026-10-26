@@ -4,7 +4,7 @@ blender -b --factory-startup --python tools/blender/people_from_0ad.py -- \
     tools/blender/people.json <0ad>/binaries/data/mods/public/art apps/web/public/models/people
 
 people.json: [{"name", "height_m" | "length_m", "body": {"dae", "texture", "tint", "pattern"?,
-"flatten"?, "multiply"?, "coat"?}, "props": [{"name", "dae" | "procedural" (sickle | yoke | bowl), "point", "texture",
+"flatten"?, "multiply"?, "coat"?}, "props": [{"name", "dae" | "procedural" (sickle | rod | yoke | bowl), "point", "texture",
 "tint"?, "uv"?, "scale"? (měřítko kolem bodu, výchozí 1), "rotate_deg"? ([x, y, z] natočení v osách bodu),
 "offset_m"? ([x, y, z] posun v osách bodu, v metrech)}], "clips": [{"name", "animation", "props": [jména propů viditelných v klipu],
 "pose"?, "report"?}]}]
@@ -266,6 +266,34 @@ def procedural_sickle(uv_blade, uv_handle):
     return {"matrix": Matrix.Identity(4), "positions": positions, "normals": normals, "uvs": uvs, "tris": tris}
 
 
+def procedural_rod(uv_wood):
+    """Prut (CC0, procedurálně): kuželovitý šestiboký válec podél osy z bodu propu, od držadla
+    za rukou (z = −0,6) po špičku ≈ 3 m od ruky (z = 6,0; postava ≈ 3,9 jednotky = 1,75 m).
+    Vlasec se kreslí až ve scéně."""
+    positions, normals, uvs, tris = [], [], [], []
+    sides, z0, z1, r0, r1 = 6, -0.6, 6.0, 0.05, 0.012
+    u0, v0, u1, v1 = uv_wood
+    for k in range(sides):
+        a0, a1 = 2 * math.pi * k / sides, 2 * math.pi * (k + 1) / sides
+        am = (a0 + a1) / 2
+        n = Vector((math.cos(am), math.sin(am), 0.0))
+        base = len(positions)
+        positions.extend(
+            [
+                Vector((math.cos(a0) * r0, math.sin(a0) * r0, z0)),
+                Vector((math.cos(a1) * r0, math.sin(a1) * r0, z0)),
+                Vector((math.cos(a1) * r1, math.sin(a1) * r1, z1)),
+                Vector((math.cos(a0) * r1, math.sin(a0) * r1, z1)),
+            ]
+        )
+        normals.extend([n] * 4)
+        uvs.extend([[u0, v0], [u1, v0], [u1, v1], [u0, v1]])
+        i = len(normals) - 4
+        tris.append(((base, i, base), (base + 1, i + 1, base + 1), (base + 2, i + 2, base + 2)))
+        tris.append(((base, i, base), (base + 2, i + 2, base + 2), (base + 3, i + 3, base + 3)))
+    return {"matrix": Matrix.Identity(4), "positions": positions, "normals": normals, "uvs": uvs, "tris": tris}
+
+
 def procedural_yoke(uv_wood, uv_band, uv_rope):
     """Vahadlo se dvěma vědry (provaz pro vodu – docs/design/villagers.md, Provoz na cestách;
     0 A.D. ho nemá): prohnutá tyč přes ramena za krkem, z konců provazy a na nich dřevěná vědra
@@ -405,6 +433,7 @@ def procedural_bowl(uv_wood, uv_liquid):
 
 PROCEDURAL = {
     "sickle": lambda r: procedural_sickle(r["blade"], r["handle"]),
+    "rod": lambda r: procedural_rod(r["wood"]),
     "yoke": lambda r: procedural_yoke(r["wood"], r["band"], r["rope"]),
     "bowl": lambda r: procedural_bowl(r["wood"], r["liquid"]),
 }
