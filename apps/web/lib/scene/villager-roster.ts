@@ -37,7 +37,9 @@ export type PersonJob =
    * Vojvodova rodina (lord.md – Ve scéně): muž či chlapec na cvičišti (co právě cvičí, říká úsek
    * pózy – `bow` / `combat`), nebo žena rodiny u dvorce (`household`).
    */
-  | { kind: 'lord'; household: boolean };
+  | { kind: 'lord'; household: boolean }
+  /** Dítě s řehtačkou na hlídaném dílu (wildlife.md – Noční hlídka; jen zobrazení). */
+  | { kind: 'watch' };
 
 /** Koho postava chce – věk, domácnost, pohlaví. */
 export interface PersonRequest {

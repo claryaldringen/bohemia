@@ -10,10 +10,12 @@ import {
   crowFlocks,
   dateOfDayIndex,
   dogsWanted,
+  fishingPools,
   huntPool,
   lordFamily,
   villageHerds,
   wildlifeCaps,
+  type Landscape,
   type VillageState,
   type WildlifeState,
 } from '@bohemia/game';
@@ -191,6 +193,7 @@ export function sceneWildlife(
   state: VillageState,
   day: number,
   sownHa: number,
+  landscape: Landscape | null = null,
 ): SceneWildlife | null {
   const w = state.wildlife;
   const view = wildlifeView(state, day);
@@ -211,7 +214,41 @@ export function sceneWildlife(
     ...(top !== null ? { topPartId: top } : {}),
     crowFlocks: crowFlocks(sownHa),
     fishShare: caps.fishKg > EPSILON ? Math.min(1, Math.max(0, w.fishKg / caps.fishKg)) : 0,
+    ...sceneDefense(state, w, day, landscape),
   };
+}
+
+/** Psi nejvýš (wildlife.md – Psi: dvorec chce nejvýš 8). */
+const SCENE_DOGS_MAX = 8;
+
+/** Lov, psi, hlídky a rybáři dne pro scénu (W11; wildlife.md – Ve scéně). */
+function sceneDefense(
+  state: VillageState,
+  w: WildlifeState,
+  day: number,
+  landscape: Landscape | null,
+): Pick<SceneWildlife, 'hunt' | 'dogs' | 'patrol' | 'watchParts' | 'pools'> {
+  const out: Pick<SceneWildlife, 'hunt' | 'dogs' | 'patrol' | 'watchParts' | 'pools'> = {};
+  const hunt = w.hunt?.today;
+  if (hunt && hunt.day === day && hunt.riders.length + hunt.foot.length > 0) {
+    out.hunt = {
+      target: hunt.target,
+      riders: hunt.riders.map((r) => ({ id: r.personId, horseId: r.horseId })),
+      foot: [...hunt.foot],
+      kills: hunt.kills ?? 0,
+    };
+  }
+  const dogs = Math.min(SCENE_DOGS_MAX, Math.floor((w.dogs?.count ?? 0) + EPSILON));
+  if (dogs > 0) out.dogs = dogs;
+  if (w.patrol && w.patrol.day === day && w.patrol.power > EPSILON) out.patrol = true;
+  if (w.watch && w.watch.parts.length > 0) out.watchParts = w.watch.parts.map((p) => p.partId);
+  const fishing = w.smallGame?.today;
+  if (landscape && fishing && fishing.day === day && fishing.kind === 'fish') {
+    out.pools = fishingPools(landscape, state)
+      .slice(0, fishing.pools.length)
+      .map((p) => ({ ...p }));
+  }
+  return out;
 }
 
 /** Viditelné kusy: počet podle stupně, rozdělený v poměru stavu (jeleni / laně / kolouši…). */

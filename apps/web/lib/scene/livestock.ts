@@ -7,6 +7,7 @@ import {
   ridePlansKey,
   type RidePlan,
 } from './riders';
+import { createDogState, DOG_SCALE, dogArea, dogPlansKey, dogPose, type DogPlan } from './dogs';
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import type { Camera } from '@babylonjs/core/Cameras/camera';
 import { BoundingInfo } from '@babylonjs/core/Culling/boundingInfo';
@@ -77,6 +78,7 @@ const SPECIES: readonly LivestockSpecies[] = [
   'chicken',
   'horse',
   'foal',
+  'dog',
 ];
 /** Dál od kamery (m) se zvířata nehýbou – jsou pár pixelů a pohyb by jen zbytečně kreslil. */
 const ANIMATE_RANGE_M = 900;
@@ -162,6 +164,9 @@ export class VillageLivestock {
   /** Jízdy dne (riders.ts – z plánu postav) a jejich klíč. */
   private rides: readonly RidePlan[] = [];
   private ridesKey = '';
+  /** Psi dvorce dne (dogs.ts – z plánu postav) a jejich klíč. */
+  private dogs: readonly DogPlan[] = [];
+  private dogsKey = '';
   /** Poslední rozmístění kuřat a stád – dobytek karavan ho nepřeplánuje. */
   private plan: { chickens: ReturnType<typeof planLivestock>['chickens']; herds: Herd[] } | null =
     null;
@@ -209,6 +214,20 @@ export class VillageLivestock {
     if (key === this.ridesKey) return false;
     this.ridesKey = key;
     this.rides = rides;
+    return this.rebuild(nowMs, false);
+  }
+
+  /**
+   * Psi dvorce dne (dogs.ts – plány psů z plánu postav, villagers.ts `dogs`). Vrátí true, když se
+   * ve scéně něco změnilo.
+   */
+  setDogs(dogs: readonly DogPlan[], nowMs: number): boolean {
+    if (this.disposed) return false;
+    const key = dogPlansKey(dogs);
+    if (key === this.dogsKey) return false;
+    this.dogsKey = key;
+    this.dogs = dogs;
+    if (dogs.length > 0) void this.load();
     return this.rebuild(nowMs, false);
   }
 
@@ -418,6 +437,20 @@ export class VillageLivestock {
         // mimo blok jízdy je kůň v ohradě (village-pens.ts) – tady se nekreslí
         still: (clock) => !isRiding(plan, clock.seconds),
         hidden: (_index, clock) => !isRiding(plan, clock.seconds),
+        written: null,
+        current: new BoundingInfo(Vector3.Zero(), Vector3.Zero()),
+      });
+    }
+
+    // psi dvorce (wildlife.md – Psi; dogs.ts) – u dvorce, s lovci, s hlídkou
+    for (const plan of this.dogs) {
+      const area = dogArea(plan);
+      addArea('dog', area);
+      const state = createDogState();
+      groups.push({
+        members: [{ species: 'dog', slot: slot('dog'), scale: DOG_SCALE }],
+        prepare: () => area,
+        pose: (_index, clock, out) => dogPose(plan, clock.seconds, state, out),
         written: null,
         current: new BoundingInfo(Vector3.Zero(), Vector3.Zero()),
       });

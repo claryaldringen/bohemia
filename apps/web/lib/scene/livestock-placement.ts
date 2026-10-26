@@ -35,7 +35,16 @@ import { localToWorld, sceneFrame } from './village-layout';
 // (v zimě ovce, kozy a krávy bez ohrady vždy). Stáda se drží mimo jídlo pro lidi – osetý díl,
 // louku před sečí, sad a záhony pozemků.
 
-export type LivestockSpecies = 'sheep' | 'goat' | 'cow' | 'pig' | 'chicken' | 'horse' | 'foal';
+export type LivestockSpecies =
+  | 'sheep'
+  | 'goat'
+  | 'cow'
+  | 'pig'
+  | 'chicken'
+  | 'horse'
+  | 'foal'
+  // pes dvorce (wildlife.md – Psi; dogs.ts) – ve stádech není
+  | 'dog';
 
 /** Co z vsi pro scénu (SceneVillage) zvířata potřebují – pohřebiště jen tam, kde už jsou. */
 export interface LivestockVillage {
@@ -285,6 +294,7 @@ const SCALE: Record<LivestockSpecies, { from: number; to: number }> = {
   foal: { from: 1.0, to: 1.15 },
   pig: { from: 1.1, to: 1.3 },
   chicken: { from: 1.35, to: 1.6 },
+  dog: { from: 1.1, to: 1.1 },
 };
 
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));

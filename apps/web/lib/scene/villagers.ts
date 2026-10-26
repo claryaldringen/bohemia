@@ -5,7 +5,10 @@
 // (bakedVertexAnimationSettingsInstanced), barvu oděvu a vlasů (villagerLook). Pod každou
 // postavou měkký kruhový stín (thin instances, třetí draw call). Kdo kde je, plánuje
 // villager-plan.ts z rozdělení práce dne, pohyb je čistá funkce času (villager-motion.ts).
+import { dogPlansKey, type DogPlan } from './dogs';
+import { FishingLines, fishingLine } from './fishing-lines';
 import { ridePlansKey, type RidePlan } from './riders';
+import type { HuntSpotFn } from './villager-plan-lord';
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import '@babylonjs/loaders/glTF';
 import { BakedVertexAnimationManager } from '@babylonjs/core/BakedVertexAnimation/bakedVertexAnimationManager';
@@ -86,6 +89,8 @@ const WREATH_CELLS = '90.0';
 const HAIR_CODE: Record<HairLook, number> = { natural: 0, grey: 1, linen: 2, madder: 3, wreath: 4 };
 
 export interface VillagersEnvironment {
+  /** Okraj lesa u zvěře pro lov dne (VillageWildlife.huntSpot); bez údaje nejbližší okraj lesa. */
+  huntSpot?: HuntSpotFn;
   /** Vrstva překážek krajiny – stromy ke kácení. */
   layer: ObstacleLayer;
   /** Schůdná země (přes celou krajinu, počítaná líně – livestock-placement.ts), bez obydlí null. */
@@ -161,6 +166,8 @@ export class VillageVillagers {
   /** Obdélník zemských stezek s karavanami (caravan.ts) – patří do obalu postav. */
   private extent: { minX: number; maxX: number; minZ: number; maxZ: number } | null = null;
   private people: PlannedVillager[] = [];
+  /** Vlasce rybářů u tůní (fishing-lines.ts) – rybář stojí, čáry se mění jen s postavami. */
+  private lines: FishingLines | null = null;
   /** Pohřby (cemetery.md – Pohřeb ve scéně) – průvod a kruh kolem hranice. */
   private funerals: FuneralPlan[] = [];
   private funeralsKey = '';
@@ -307,6 +314,11 @@ export class VillageVillagers {
     return this.crew.rides ?? [];
   }
 
+  /** Psi dvorce dne (dogs.ts – z plánu postav) – kreslí je livestock.ts. */
+  dogs(): readonly DogPlan[] {
+    return this.crew.dogs ?? [];
+  }
+
   /** Kde naposledy stála vidět postava člověka (id) – testovací háček; jinak null. */
   spotOf(id: number): { x: number; y: number; z: number } | null {
     const index = this.people.findIndex(
@@ -330,6 +342,7 @@ export class VillageVillagers {
 
   dispose(): void {
     this.disposed = true;
+    this.lines?.dispose();
     for (const kind of this.kinds.values()) {
       kind.mesh.material?.dispose();
       kind.manager.texture?.dispose();
@@ -566,6 +579,7 @@ export class VillageVillagers {
       funerals: this.funerals,
       weddings: this.weddings,
       draft: this.draft,
+      ...(this.env.huntSpot ? { huntSpot: this.env.huntSpot } : {}),
     });
     this.setCrew(plan.crew);
     this.setSlaughter(plan.slaughter);
@@ -599,6 +613,7 @@ export class VillageVillagers {
       ? new Set(village.labor.persons.map((person) => person.id))
       : undefined;
     this.people = carryErrands(this.people, planned, t, living);
+    this.setFishingLines(t);
     this.extent = unionExtent(
       caravanExtent(village),
       ...this.funerals.map((f) => f.extent),
@@ -639,12 +654,28 @@ export class VillageVillagers {
     return had || this.people.length > 0;
   }
 
+  /** Vlasce rybářů (klip `fish`) – rybář stojí, poloha z pózy v čase `t`. */
+  private setFishingLines(t: number): void {
+    const lines: number[][] = [];
+    for (const person of this.people) {
+      this.pose.hidden = false;
+      this.pose.stage = undefined;
+      this.pose.lift = undefined;
+      const pose = person.pose(t, [], this.pose);
+      if (pose.clip !== 'fish' || pose.hidden) continue;
+      lines.push(fishingLine(pose, person.scale, this.env.groundHeight(pose.x, pose.z)));
+    }
+    if (lines.length === 0 && !this.lines) return;
+    this.lines ??= new FishingLines(this.scene);
+    this.lines.set(lines);
+  }
+
   /**
    * Noví lidé u spřežení a vozů – úlohy oráče, honáka a vozky (stálé objekty, dokud se lidé
    * nezmění); scéně to ohlásí (`onCrew`), jen když se změnili.
    */
   private setCrew(crew: DraftCrew): void {
-    const key = `${JSON.stringify({ teams: crew.teams, carts: crew.carts })}#${ridePlansKey(crew.rides ?? [])}`;
+    const key = `${JSON.stringify({ teams: crew.teams, carts: crew.carts })}#${ridePlansKey(crew.rides ?? [])}#${dogPlansKey(crew.dogs ?? [])}`;
     if (key === this.crewKey) return;
     this.crewKey = key;
     this.crew = crew;

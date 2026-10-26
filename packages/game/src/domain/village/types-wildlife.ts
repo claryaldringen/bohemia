@@ -130,6 +130,8 @@ export interface HuntDay {
   foot: number[];
   /** Lov navíc na pokyn hráče (až W5). */
   extra: boolean;
+  /** Celé kusy uloveného dne (po `huntDay`; scéna – nosič s masem cestou zpět). Chybí = ještě se nelovilo. */
+  kills?: number;
 }
 
 /** Škody šelem na dobytku (wildlife.md – Vlci na dobytku): akumulátory celých kusů do kroniky. */

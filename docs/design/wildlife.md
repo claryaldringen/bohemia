@@ -492,3 +492,14 @@ Martin: „Souhlasím se všemi návrhy“ – tři otázky z plánu jsou uzavř
   nárazově (návrh Clauda, oprava po závěrečné recenzi 26. 10. 2026).
 - **Pro scénu (W11):** `wildlife.smallGame.today` (rybáři po tůních) a podíly práce `fish` (cíl
   `pool` – pořadí tůně) a `snare`; „rybář s prutem u loviště“ (Martin 24. 10. 2026).
+
+## Rozhodnutí při implementaci W11 (26. 10. 2026, návrh Clauda)
+
+- **Lov trvá 3–21 h herního dne** a lovci jdou k lesu rychleji (jezdci až 6 m/s, pěší až 3,2 m/s) –
+  den má 86 s, krokem by k lesu nedošli. Dál než ≈ 100 m pěší les nestihnou a v půlce dne se otočí.
+- **Úlovek nese pěší lovec** cestou zpět (klip `carry-meat`), jen když jádro ten den ulovilo –
+  bez nového modelu; kus na koni by potřeboval mršinu natočenou podle koně.
+- **Oštěp** je v `man.glb` jen v klipu `spear-thrust` – pěší lovci ho drží, když v lese stojí;
+  při chůzi ho nemají (klip chůze s oštěpem by potřeboval nový převod z 0 A.D.).
+- **Noční hlídka se nekreslí** – hra nemá noc a oheň za plného světla by vypadal jako požár; ve
+  dne na hlídaných dílech děti s řehtačkou (vrány), noční hlídku ukazuje ikona v panelu (W9).

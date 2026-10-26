@@ -1033,6 +1033,40 @@ export interface SceneWildlife {
   crowFlocks: number;
   /** Ryby: biomasa ÷ strop (0–1) – kolik hejn ryb v tůních je vidět. */
   fishShare: number;
+  /**
+   * Lov dne (jádro `hunt.today` – wildlife.md, Lov rodu): cíl, jezdci (člověk a kůň), pěší lovci
+   * a celé kusy úlovku (po lovu). Chybí = dnes se neloví.
+   */
+  hunt?: SceneHunt;
+  /** Psi dvorce (celé kusy, jádro `dogs.count`, nejvýš 8). Chybí = dvorec psy nechová. */
+  dogs?: number;
+  /** Dnes jede jezdecká hlídka (jádro `patrol` dne se silou > 0) – psi běží s objížďkou. */
+  patrol?: boolean;
+  /** Díly noční hlídky letošní sezóny (jádro `watch.parts`) – ve dne na nich děti s řehtačkou. */
+  watchParts?: number[];
+  /**
+   * Loviště dnešních rybářů (jádro `smallGame.today` – ryby): tůně od nejbližší (`fishingPools`),
+   * index jako cíl práce `{ kind: 'pool', index }`. Chybí = dnes se nerybaří.
+   */
+  pools?: ScenePool[];
+}
+
+/** Lov dne ve scéně (`SceneWildlife.hunt`). */
+export interface SceneHunt {
+  target: 'game' | 'wolves' | 'bear';
+  riders: { id: number; horseId: number }[];
+  foot: number[];
+  kills: number;
+}
+
+/** Tůň – bod osy u nejhlubšího místa, směr toku a polovina šířky vody vlevo a vpravo (m). */
+export interface ScenePool {
+  x: number;
+  z: number;
+  flowX: number;
+  flowZ: number;
+  halfLeft: number;
+  halfRight: number;
 }
 
 /** Viditelné kusy zvěře ve scéně. */

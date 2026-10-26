@@ -248,6 +248,80 @@ export function trailRoute(
   );
 }
 
+/**
+ * Tempo lovu (m/s; wildlife.md – Ve scéně, návrh Clauda): cesta k okraji lesa trvá nejvýš 70 %
+ * půlky bloku lovu – den má 86 s, krokem by lovci les nikdy neviděli –, jezdci nejvýš cvalem,
+ * pěší nejvýš poklusem (dál než ≈ 100 m les pěší nestihnou a v půlce bloku se otočí). V lese krokem (`sweep`); pěší se zastavují s oštěpem (`stop` – úsek
+ * `HUNT_STOP_M` tak pomalu, že stojí, scéna hraje `spear-thrust`).
+ */
+export const HUNT_PACE = {
+  ride: { min: RIDE_PACE.walk, max: 6, sweep: RIDE_PACE.walk },
+  foot: { min: 1.0, max: 3.2, sweep: 0.9 },
+  stop: 0.05,
+} as const;
+/** Podíl půlky bloku lovu na cestu k lesu. */
+export const HUNT_WAY_SHARE = 0.7;
+/** Lovci v lese chodí podél okraje tak daleko na každou stranu (m) a tak hluboko do lesa (m). */
+export const HUNT_SWEEP_M = { along: 22, inward: 6 } as const;
+/** Zastávka pěšího lovce (m úseku pomalým tempem `HUNT_PACE.stop` ≈ 6 s). */
+export const HUNT_STOP_M = 0.3;
+
+/**
+ * Trasa lovu (wildlife.md – Ve scéně): `way` od kůlu u brány k okraji lesa (tempo, aby cesta trvala
+ * `HUNT_WAY_SHARE` z `halfS` s, v mezích `HUNT_PACE`), pak sem a tam podél okraje lesa (`sweep` –
+ * body A a B, krokem; pěší na krajích stojí s oštěpem), dokud trasa nepřesáhne `halfS` – jízda
+ * v bloku (`rideState`) jede půlku bloku tam a pak po téže trase zpět, takže se nikdy nepřetočí
+ * na začátek. Bez cesty null.
+ */
+export function huntRoute(
+  way: readonly Point[],
+  sweep: readonly [Point, Point] | null,
+  foot: boolean,
+  halfS: number,
+): RideRoute | null {
+  if (way.length < 2) return null;
+  const pace = foot ? HUNT_PACE.foot : HUNT_PACE.ride;
+  let length = 0;
+  for (let i = 1; i < way.length; i++) {
+    length += Math.hypot(way[i]!.x - way[i - 1]!.x, way[i]!.z - way[i - 1]!.z);
+  }
+  const speed = Math.min(
+    pace.max,
+    Math.max(pace.min, length / Math.max(1, HUNT_WAY_SHARE * halfS)),
+  );
+  const points: Point[] = [...way];
+  const paces: number[] = way.slice(1).map(() => speed);
+  const edge = way[way.length - 1]!;
+  let time = length / speed;
+  if (sweep) {
+    const stop = (p: Point, to: Point): Point => {
+      const d = Math.hypot(to.x - p.x, to.z - p.z) || 1;
+      return {
+        x: p.x + ((to.x - p.x) / d) * HUNT_STOP_M,
+        z: p.z + ((to.z - p.z) / d) * HUNT_STOP_M,
+      };
+    };
+    // A, (zastávka), okraj, B, (zastávka), okraj … dokud trasa nepokryje půlku bloku
+    for (let k = 0; time < halfS && k < 64; k++) {
+      const end = sweep[k % 2]!;
+      const leg = Math.hypot(end.x - edge.x, end.z - edge.z);
+      if (leg < 1e-3) break;
+      points.push(end);
+      paces.push(pace.sweep);
+      time += leg / pace.sweep;
+      if (foot) {
+        points.push(stop(end, edge));
+        paces.push(HUNT_PACE.stop);
+        time += HUNT_STOP_M / HUNT_PACE.stop;
+      }
+      points.push(edge);
+      paces.push(pace.sweep);
+      time += leg / pace.sweep;
+    }
+  }
+  return buildRoute(points, paces);
+}
+
 /** Kolik metrů trasy jezdec ujel v čase `t` (s skutečného času) – po celé jízdě znovu od kůlu. */
 export function rideDistance(route: RideRoute, t: number): number {
   const tau = ((t % route.period) + route.period) % route.period;

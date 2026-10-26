@@ -242,7 +242,7 @@ export function sceneVillage(
         sum + f.parts.reduce((m2, p) => m2 + (p.stage === 'sown' ? p.size * p.size : 0), 0),
       0,
     ) / 10_000;
-  const wildlife = sceneWildlife(state, day, sownHa);
+  const wildlife = sceneWildlife(state, day, sownHa, landscape);
   return {
     dwellings: [...built, ...sites],
     ...(ruins.length > 0 ? { ruins } : {}),

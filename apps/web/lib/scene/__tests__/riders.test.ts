@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { SceneLord } from '../../village-view';
 import { createLivestockPose, LIVESTOCK_EPOCH_MS } from '../livestock-motion';
-import { straightLeg } from '../rider-route';
+import { HUNT_PACE, HUNT_SWEEP_M, huntRoute, straightLeg } from '../rider-route';
 import {
   createRideState,
+  HUNT_BLOCK,
+  huntPlans,
   isRiding,
+  rideState,
   ridingHorseIds,
   RIDE_HORSE_SCALE,
   RIDER_SEAT_M,
@@ -14,6 +17,7 @@ import {
   type RidePlanInput,
 } from '../riders';
 import { createVillagerPose } from '../villager-motion';
+import type { Point } from '../villager-plan-types';
 
 const LORD: SceneLord = {
   home: 1,
@@ -120,5 +124,64 @@ describe('jezdec na koni (horses.md – Ve scéně)', () => {
 
   it('bez jezdců žádné jízdy', () => {
     expect(ridePlans(input({ ...LORD, riders: [] }))).toEqual([]);
+  });
+});
+
+describe('lov ve scéně (huntPlans – wildlife.md, Ve scéně)', () => {
+  const hunt = {
+    target: 'game' as const,
+    riders: [
+      { id: 10, horseId: 1 },
+      { id: 12, horseId: 2 },
+    ],
+    foot: [20, 21],
+    kills: 1,
+  };
+  const huntInput = {
+    hunt,
+    hitch: { x: 4, z: 0, headingX: 1, headingZ: 0 },
+    edge: { x: 104, z: 0 },
+    leg: straightLeg,
+    walkable: (): boolean => true,
+    window,
+  };
+  const hourT = (h: number): number => (h / 24) * (DAY_MS / 1000);
+
+  it('jezdci a pěší vyrazí v 6 h, v půlce bloku jsou u lesa a ve 19 h zase u kůlu', () => {
+    const { rides, foot } = huntPlans(huntInput);
+    expect(rides.map((r) => r.riderId)).toEqual([10, 12]);
+    expect(foot.map((r) => r.riderId)).toEqual([20, 21]);
+    const state = createRideState();
+    for (const plan of [rides[0]!, foot[0]!]) {
+      expect(isRiding(plan, hourT(HUNT_BLOCK[0] - 0.5))).toBe(false);
+      expect(isRiding(plan, hourT(HUNT_BLOCK[1] + 0.5))).toBe(false);
+      const mid = (HUNT_BLOCK[0] + HUNT_BLOCK[1]) / 2;
+      rideState(plan, hourT(mid - 0.2), state);
+      // u okraje lesa (sem a tam podél něj nejvýš o HUNT_SWEEP_M)
+      expect(Math.hypot(state.x - 104, state.z)).toBeLessThan(HUNT_SWEEP_M.along + 8);
+      rideState(plan, hourT(HUNT_BLOCK[1] - 0.01), state);
+      expect(Math.hypot(state.x - 4, state.z)).toBeLessThan(6);
+    }
+  });
+
+  it('trasa pokryje půlku bloku – jízda se nepřetočí na začátek; pěší stojí s oštěpem', () => {
+    const halfS = ((HUNT_BLOCK[1] - HUNT_BLOCK[0]) / 2) * hourT(1);
+    const way = [huntInput.hitch, { x: 44, z: 0 }];
+    const sweep: [Point, Point] = [
+      { x: 50, z: 20 },
+      { x: 50, z: -20 },
+    ];
+    const ride = huntRoute(way, sweep, false, halfS)!;
+    const walk = huntRoute(way, sweep, true, halfS)!;
+    expect(ride.period).toBeGreaterThanOrEqual(halfS);
+    expect(walk.period).toBeGreaterThanOrEqual(halfS);
+    expect(Math.max(...ride.pace)).toBeLessThanOrEqual(HUNT_PACE.ride.max);
+    expect(walk.pace.some((p) => p === HUNT_PACE.stop)).toBe(true);
+    expect(ride.pace.some((p) => p === HUNT_PACE.stop)).toBe(false);
+  });
+
+  it('plán lovu je čistá funkce vstupu a bez hodin světa se neloví', () => {
+    expect(JSON.stringify(huntPlans(huntInput))).toBe(JSON.stringify(huntPlans(huntInput)));
+    expect(huntPlans({ ...huntInput, window: null })).toEqual({ rides: [], foot: [] });
   });
 });

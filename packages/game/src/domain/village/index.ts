@@ -22,7 +22,7 @@ export {
   huntPool,
   huntToday,
 } from './hunt-party';
-export { wildlifeLandAt } from './wildlife-land';
+export { fishingPools, wildlifeLandAt, type FishingPool } from './wildlife-land';
 export * from './hay';
 export * from './plough';
 export * from './plough-blocks';

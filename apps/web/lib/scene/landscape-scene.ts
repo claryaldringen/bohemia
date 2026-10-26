@@ -467,7 +467,13 @@ export class LandscapeScene {
         if (this.livestock?.setRides(this.villagers?.rides() ?? [], Date.now())) {
           this.renderWhenReady();
         }
+        // psi dvorce (dogs.ts) – u dvorce, s lovci a s hlídkou; plány z plánu postav
+        if (this.livestock?.setDogs(this.villagers?.dogs() ?? [], Date.now())) {
+          this.renderWhenReady();
+        }
       },
+      // lovci jdou k okraji lesa u zvěře (wildlife.md – Ve scéně) – zvěř se plánuje před postavami
+      huntSpot: (target) => this.wildlife?.huntSpot(target) ?? null,
     });
     this.villagers.select(this.selection?.kind === 'person' ? this.selection.id : null);
     this.syncDraftSelection();
