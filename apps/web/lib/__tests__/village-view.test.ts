@@ -424,6 +424,18 @@ describe('buildVillageView', () => {
         upfront: [{ resource: 'wood', amount: 6, missing: 6 }],
         blocked: null,
         affordable: false,
+        // ohrada koní (horses.md – Koně se stavbou ohrady): vyšší plot, koně z přebytku – bez něj
+        // zablokovaná
+        variants: {
+          horse: {
+            laborManDays: 50,
+            upfront: [{ resource: 'wood', amount: 8, missing: 8 }],
+            affordable: false,
+            blocked: 'Na koně nestačí přebytek hřiven, zvířat ani obilí.',
+            payment: [],
+            extendAffordable: false,
+          },
+        },
       },
       // humno (production-chains.md – Humno) – jen mlat, 20 čd bez dřeva, osadníci ne
       'threshing-floor': {

@@ -274,7 +274,7 @@ function withToolCoverage(state: VillageState, ctx: BuyingContext, tools: number
 }
 
 /** Čím ves může platit – přebytek obilí a luštěnin nad pojistkou zásob (kg) a cena v práci. */
-interface PaymentPool {
+export interface PaymentPool {
   /** Přebytek energie nad pojistkou k příští sklizni (kg obilí). */
   energyKg: number;
   grainKg: number;
@@ -282,7 +282,11 @@ interface PaymentPool {
 }
 
 /** Přebytek obilí a luštěnin nad pojistkou zásob (field-food.ts – `sowingTargets`). */
-function paymentPool(state: VillageState, day: number, coverage: CraftCoverage): PaymentPool {
+export function paymentPool(
+  state: VillageState,
+  day: number,
+  coverage: CraftCoverage,
+): PaymentPool {
   const targets = sowingTargets(state, day, legumeNeedPerYear(state, day), coverage.pottery);
   return {
     energyKg: Math.max(0, targets.leftKg - targets.bufferKg),

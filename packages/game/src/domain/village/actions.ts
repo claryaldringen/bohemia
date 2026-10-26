@@ -11,6 +11,7 @@ import {
   type BuildKind,
 } from './costs';
 import { craftCoverage } from './crafts';
+import { HORSE_PEN_NO_SURPLUS, horsePenPayment, payHorsePen } from './horse-pen-payment';
 import { isVillageExtinct } from './extinction';
 import { winterHayKg } from './hay';
 import { foundingLivestock } from './livestock';
@@ -1271,6 +1272,15 @@ export function foundPen(
   }
   if (!connectedCells(all)) throw new RangeError('Čtverce ohrady musí navazovat stranou.');
   requireAffordable(state, 'pen', obstacles ?? undefined);
+  // koně nové ohrady koní jsou součást stavby – platí se předem z přebytku vsi (horses.md – Koně se
+  // stavbou ohrady); rozšíření koně nepřiveze
+  const payment =
+    input.species === 'horse' && !extended
+      ? horsePenPayment(state, day, craftCoverage(state, day))
+      : null;
+  if (input.species === 'horse' && !extended && !payment) {
+    throw new RangeError(HORSE_PEN_NO_SURPLUS);
+  }
   const next = startPen(
     state,
     day,
@@ -1279,6 +1289,10 @@ export function foundPen(
     walk,
     extended?.id,
   );
+  if (payment) {
+    payHorsePen(next, payment, day);
+    next.constructions[next.constructions.length - 1]!.horsePenPaid = payment;
+  }
   // čtverce pole pod ohradou z pole zmizí (fields.md – Pole jako krajina)
   giveWayToBuilding(next, day, input.takenLand ?? [], 'pen');
   return next;

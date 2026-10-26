@@ -19,6 +19,7 @@ import {
   withObstacleClearing,
   withPenGrace,
   withoutTrampledParts,
+  withHorsePenStock,
   withPenSpecies,
   withOxen,
   withPlots,
@@ -218,12 +219,17 @@ export async function updateVillage(
         withWearCells(
           withWearSeed(
             withManor(
-              withOxen(withBridgedRoads(withoutTrampledParts(withoutWalkStages(migrated)))),
+              withHorsePenStock(
+                withOxen(withBridgedRoads(withoutTrampledParts(withoutWalkStages(migrated)))),
+              ),
             ),
           ),
         ),
       ),
     );
+    if (base.horsePenStockFailed !== undefined && record.state.horsePenStockFailed === undefined) {
+      console.error(`Ves ${villageId}: převod ohrad koní selhal: ${base.horsePenStockFailed}`);
+    }
     // jiné vsi na téže mapě – kontroly umístění a kácení o nich vědí (migration.md); přehled se
     // neukládá
     const neighbours = withNeighbours(base, await neighboursOf(villages, record, today));

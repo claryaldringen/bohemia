@@ -3,6 +3,7 @@ import {
   villageRoadWalk,
   buildAffordability,
   foundPen,
+  HORSE_PEN_NO_SURPLUS,
   penSquaresFromCells,
   placementVillageOf,
   type PenSpecies,
@@ -76,8 +77,13 @@ export function placePen(
           ),
         };
       } catch (error) {
-        // dřevo mezitím vyhradila jiná stavba
-        if (error instanceof RangeError) return { ok: false, reason: NO_WOOD };
+        // chybí obilí na koně, nebo dřevo mezitím vyhradila jiná stavba
+        if (error instanceof RangeError) {
+          return {
+            ok: false,
+            reason: error.message === HORSE_PEN_NO_SURPLUS ? HORSE_PEN_NO_SURPLUS : NO_WOOD,
+          };
+        }
         throw error;
       }
     },

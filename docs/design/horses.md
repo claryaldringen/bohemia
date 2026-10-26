@@ -26,7 +26,7 @@ stojí obilí a práci vsi hned, užitek přinese až s lovem a válkou.
 - **Cíl:** kůň potřebuje k práci **obilí**; jen na seně neuhyne, ale jeho **výcvik se zpomalí**
   (Martin).
 - **Cíl:** **jezdci ve scéně už teď** (Martin); kdy a kam jezdí, navrhuje Claude (níž).
-- **Ne-cíl (teď):** lov, válka na koních, tah koněm (vozy, rádlo, brány), sedla, uzdy a podkovy
+- **Ne-cíl (teď):** lov, válka na koních, tah koněm (vozy, rádlo, brány), sedla a uzdy (podkovy jsou od 26. 10. 2026 cíl – viz Kování)
   jako suroviny, koňská plemena, nemoci, závody.
 - **Anti-cíl:** kůň jako levnější vůl – kůň nic netáhne a jeho užitek je jen v jezdci.
 
@@ -117,7 +117,7 @@ stojí obilí a práci vsi hned, užitek přinese až s lovem a válkou.
 - **Koně navíc:** hříbata do 3 let ves drží, dokud jsou místa; koně od 3 let nad potřebu jdou
   1. 11. na maso (napřed bez jezdce a nejméně vycvičení, pak nejstarší) – hráč je může do té doby prodat (panel obchodu je ukáže jako
      navíc). Upozornění **„Koně se nevejdou do ohrady“** jako u stád.
-- **První koně:** nová ves koně nemá – první koupí od souseda (zemská stezka), pak chová sama.
+- **První koně:** přivede je stavba první ohrady koní (viz Koně se stavbou ohrady); další se koupí od souseda (zemská stezka) nebo se odchovají.
 
 ## Nákup a prodej (Martin – jako ostatní zvířata; čísla návrh Clauda)
 
@@ -208,6 +208,35 @@ Tři řádky v panelu obchodu jako u dobytka ([obchod](trade.md) – Dobytek ve 
   a pasou se, hříbata u klisen; ráno a večer u ní koňák, ráno vede jezdecké koně ke dvorci.
 - **Výběr:** klik na koně v ohradě vybere ohradu; klik na jezdce nebo jeho koně vybere člověka
   (vojvoda, vojvodův syn) – kroužek ho sleduje, panel ukáže i koně (věk, výcvik, obilí).
+
+## Koně se stavbou ohrady (Martin 26. 10. 2026; čísla návrh Clauda)
+
+Martin 26. 10. 2026: „Když se postaví ohrada pro koně, tak se v ní sami objeví hřebec a dvě klisny. Odkud se koupí je jedno, je to prostě součást stavby. Jen je teda potřeba myslet na to, že součástí ceny za stavbu je i cena za koně.“ A k ceně: „Cena ohrady – mělo by jít platit nejenom obilím, ale hřivnami i jinými zvířaty. Mělo by se to nakombinovat tak, aby to pro vesnici bylo dostupné a aby kvůli tomu obchodu nehrozil hlad.“
+
+- **Příchod:** každá nově dokončená ohrada koní (nové založení, ne rozšíření) v den dokončení přivede **hřebce** (jezdecký kůň 3 roky, bez výcviku) a **dvě klisny** (4 roky) – věky z dolních mezí věku koní v obchodu. Žádná náhoda. Kronika „Do ohrady koní přivedli hřebce a dvě klisny“.
+- **Hodnota koní** = cena z obchodu: 2 400 + 2 × 1 600 = **5 600 kg obilí**; odvozená z cen koní, při jejich změně se změní i tady. Platí se za ohradu, ne za čtverec.
+- **Čím se platí** (platba se poskládá při zahájení stavby a odečte se předem; ves nic nevybírá hráč):
+  1. **hřivny** (cena jako v obchodu),
+  2. **zvířata, která by ves sama prodala** – krávy nad chovný pár a koně bez jezdce nad chovné (stejná pravidla jako obchod, cena jako při prodeji sousedovi); **voli se nikdy neberou** (spřežení ani výcvik nepřijdou o voly),
+  3. **obilí a luštěniny jen z přebytku nad pojistkou** (stejný výpočet jako nákup u sousedů) – nehrozí hlad ani chybějící osivo.
+     Poslední kus zvířete se vezme celý jen tehdy, když ho přebytek obilí nepokryje. Když se 5 600 poskládat nedá, stavba je zablokovaná (zašedlé tlačítko, červený důvod „Na koně nestačí přebytek hřiven, zvířat ani obilí.“).
+- **Přeplatek:** nejdřív se doplatí obilím a luštěninami z přebytku; kus zvířete navíc (návrh Clauda) se vezme jen na zbytek, který obilí nepokryje, a to nejlevnější kus, který ho pokryje.
+- **Rozšíření ohrady koní** koně nepřiveze ani neplatí – tlačítko druhu zůstane dostupné i bez přebytku na koně, když je vybraná existující ohrada koní.
+- **Zrušení rozestavěné ohrady** vrátí přesně to, co se zaplatilo (platba je uložená u stavby). Koně se vrátí do hotové ohrady koní; když ji ves nemá, dostane za ně obilí v ceně, za kterou se prodali (návrh Clauda – nepřijdou na maso).
+- **UI:** v tooltipu ohrady koní ikony s čísly – práce, stromy a platba (hřivny, krávy, koně, obilí).
+- **Rozestavěná před touto změnou** (stavba bez uložené platby, `horsePenPaid` chybí): koně dostane po dokončení zdarma, platba se zpětně nevybírá (návrh Clauda).
+- **Starší vsi:** stojící ohrada koní, která koně nikdy neměla (`horses` chybí), je dostane při načtení zdarma (cenu zaplatila podle starých pravidel); jednou a idempotentně.
+
+## Kování (Martin 26. 10. 2026; zatím jen návrh Clauda, neimplementováno)
+
+Martin 26. 10. 2026: „Jezdeckého koně je potřeba každé dva měsíce kovat. To obstará ideálně kovář ve vsi, případně kovář z jiné vsi, ale bude to násobně dražší, protože musí přijít.“
+
+- **Kdo a kdy:** každý jezdecký kůň (samec od 3 let) se kuje **každé 2 měsíce** (Martin); celá ves najednou, pevný termín 60 dní od posledního kování (volitelná část stavu vsi).
+- **Vlastní kovář** (pracující kovárna se zásobou): 0,2 čd práce a 1 kg železa (hřivny ze zásoby kovárny) na koně – návrh Clauda, před implementací ověřit proti `rules-crafts.ts` (kolik kg nástrojů kovář vyrobí za den).
+- **Cizí kovář**, když vlastní není nebo nemá železo: přijde nejbližší soused s kovářem (`neighbourCrafts`, `purchaseRoute` jako v `craft-buying.ts`); ves platí obilím z přebytku nad pojistkou: (dny cesty tam i zpět + práce) × hodnota čd z `economy.ts` + železo za cenu souseda. Cíl: aspoň ≈ 3× dražší než vlastní kovář.
+- **Nepodkutý kůň** (termín prošel a kovat nebylo jak): nejezdí (žádná vyjížďka, výcvik nepostupuje), chov beze změny; ves to zkusí znovu každý den. Upozornění „Jezdecký kůň není podkutý“.
+- **Ve scéně:** v den kování vlastní kovář dojde k ohradě koní (podíl práce s cílem ohrady); příchod cizího kováře ve scéně zatím ne.
+- Čísla (60 dní, 0,2 čd, 1 kg) patří při implementaci do `rules*.ts` s odkazem sem.
 
 ## Co hráč vidí (UI jako 0 A.D.)
 

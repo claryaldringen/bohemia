@@ -75,6 +75,7 @@ export type NoticeKind =
   | 'horses-ungrained'
   | 'horses-short'
   | 'foal-born'
+  | 'horses-arrived'
   | 'horse-trained'
   | 'horse-retired'
   | 'horse-starved'
@@ -419,6 +420,11 @@ const CHRONICLE_NOTICES: Partial<
     kind: 'foal-born',
     tone: 'info',
     text: entry.horses === 1 ? 'Narodilo se hříbě' : 'Narodila se hříbata',
+  }),
+  'horses-arrived': () => ({
+    kind: 'horses-arrived',
+    tone: 'info',
+    text: 'Do ohrady koní přivedli hřebce a dvě klisny',
   }),
   'horse-trained': () => ({ kind: 'horse-trained', tone: 'info', text: 'Kůň je vycvičený' }),
   'horse-retired': (entry) => ({

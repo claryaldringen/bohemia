@@ -420,3 +420,12 @@ Horse[]` (`id`, `bornDay`, `sex`, `training`, `riderId?`). `horses.ts` – `hors
   (`escort` – nejstarší jezdec mimo vojvodu); v dnech na poli null. `riderPower` = jízda ×
   (0,4 + 0,6 × výcvik) jen pro panel. Čísla v `HORSES` (`birthDay`, `foalEveryYears`, `maresBase`,
   `ridersPerMare`, `trainingFull`, `trainedAtYears`, `riderPower`, `borderRideEveryDays`).
+
+## Koně se stavbou ohrady
+
+Návrh: `docs/design/horses.md` – Koně se stavbou ohrady.
+
+- `horse-stock.ts` – `horsePenValueKg()` (hodnota koní z `TRADE_GOOD_VALUES`, `HORSE_PEN_STOCK` v `rules-trade.ts`), `giveHorsePenStock` (hřebec 3 roky + 2 klisny 4 roky, kronika `horses-arrived`), `withHorsePenStock` (převod starších vsí: hotová ohrada koní s `horses === undefined`; voláno v `updateVillage` i `advanceVillageSteps`, selhání → `horsePenStockFailed`).
+- `finishPen` (`oxen.ts`) volá `giveHorsePenStock` při dokončení založení ohrady koní (rozšíření ne).
+- `horse-pen-payment.ts` – `horsePenPayment(state, day, coverage)` čistě poskládá platbu (hřivny → krávy a koně bez jezdce → obilí a luštěniny nad pojistkou přes `paymentPool` z `craft-buying.ts`; voli nikdy), `payHorsePen`, `refundHorsePen`. `foundPen` (`actions.ts`) ji odečte a uloží do `Construction.horsePenPaid`; bez platby `RangeError(HORSE_PEN_NO_SURPLUS)` (rozšíření platbu nechce); `cancelConstruction` ji vrátí (koně do hotové ohrady koní, jinak obilím v ceně prodeje). Přeplatek: obilí z přebytku napřed, kus zvířete navíc jen na zbytek (nejlevnější, který stačí). Stavba rozestavěná před změnou (bez `horsePenPaid`) dostane koně po dokončení zdarma.
+- Web: `BuildOption.variants.horse` (`village-view.ts` – `horsePenOption`) nese práci, stromy, platbu, důvod zablokování a `extendAffordable` (rozšíření vybrané ohrady koní – `isBuildAffordable`); tooltip v `BuildGrid.tsx` ukáže platbu ikonami.

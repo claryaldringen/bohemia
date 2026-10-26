@@ -91,6 +91,7 @@ import {
   type ScenePlot,
   type SceneVillage,
   type VillageView,
+  isBuildAffordable,
   scenePenSpecies,
   scenePenSquares,
 } from '@/lib/village-view';
@@ -449,6 +450,10 @@ export function VillageGame({
   const [draftState, setDraftState] = useState<DraftFigureState | null>(null);
   useEffect(() => scene?.onDraftState(setDraftState), [scene]);
   const sceneVillageRef = useRef(sceneVillage);
+  // vybraná ohrada koní: její rozšíření koně neplatí (horses.md – Koně se stavbou ohrady)
+  const extendingVariant = extendsSelectedPen(selected && wholeTarget(selected), 'horse')
+    ? 'horse'
+    : null;
   useEffect(() => {
     sceneVillageRef.current = sceneVillage;
   }, [sceneVillage]);
@@ -788,6 +793,19 @@ export function VillageGame({
     });
   };
 
+  /** Je vybraná ohrada druhu `variant`? Pak stavba téhož druhu ohradu rozšiřuje. */
+  function extendsSelectedPen(
+    chosen: ReturnType<typeof wholeTarget> | null | undefined,
+    variant: string | undefined,
+  ): boolean {
+    if (!chosen || chosen.kind !== 'pen' || !('id' in chosen) || variant === undefined) {
+      return false;
+    }
+    return squareStructures(sceneVillageRef.current, 'pen', variant).some(
+      (s) => s.id === chosen.id,
+    );
+  }
+
   const startBuild = (kind: BuildKind, variant?: string): void => {
     // dokud se nepojmenuje vojvoda, ves se nezakládá – ani zkratkou, ani klikem mimo panel jména
     if (!scene || foundingName || !(kind in options)) return;
@@ -800,9 +818,9 @@ export function VillageGame({
     }
     setBuildGroup(null);
     const option = options[kind];
-    if (option && !option.affordable) return;
     // vybraný díl pole či čtverec sadu patří své stavbě (mřížka rozšíření)
     const chosen = selected && wholeTarget(selected);
+    if (!isBuildAffordable(option, variant, extendsSelectedPen(chosen, variant))) return;
     setSelected(null);
     setPlacingItem(kind);
     if (item.placement === 'squares') {
@@ -1189,6 +1207,7 @@ export function VillageGame({
         active={placement.active ? placingItem : null}
         disabled={scene === null || foundingName}
         group={buildGroup}
+        extendingVariant={extendingVariant}
         onBuild={startBuild}
       />
       <NoticeLines

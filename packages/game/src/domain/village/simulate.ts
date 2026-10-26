@@ -12,6 +12,7 @@ import { craftCoverage, wearCraftStocks } from './crafts';
 import { updateHappiness } from './happiness';
 import { occupyEmptyDwellings } from './households';
 import { withKinship } from './kinship';
+import { withHorsePenStock } from './horse-stock';
 import { withPenSpecies } from './pens';
 import { husbandryDay } from './husbandry';
 import { arrangeMarriages } from './marriage';
@@ -110,12 +111,16 @@ export function* advanceVillageSteps(
   const next = cloneState(
     withThreshingGrace(
       withCraftSkill(
-        withOxen(
-          withPenSpecies(
-            withoutForeignGoods(
-              withIronBarsTrade(
-                withToolEquipment(
-                  withCattleKinds(withDynasty(withKinship(withSowingRotation(withSeason(state))))),
+        withHorsePenStock(
+          withOxen(
+            withPenSpecies(
+              withoutForeignGoods(
+                withIronBarsTrade(
+                  withToolEquipment(
+                    withCattleKinds(
+                      withDynasty(withKinship(withSowingRotation(withSeason(state)))),
+                    ),
+                  ),
                 ),
               ),
             ),

@@ -1,4 +1,5 @@
 import { validateActionDay } from './actions';
+import { refundHorsePen } from './horse-pen-payment';
 import { villageCemeteries } from './cemetery';
 import { villageOrchards } from './orchard';
 import { villagePens } from './oxen';
@@ -203,6 +204,8 @@ export function cancelConstruction(
   const target = next.constructions.find((x) => x.id === constructionId);
   if (!target) throw new RangeError(`Stavba ${constructionId} není rozestavěná.`);
   returnConstructionWood(next, target);
+  // vrátí se přesně to, čím ves zaplatila koně ohrady (horses.md – Koně se stavbou ohrady)
+  if (target.horsePenPaid) refundHorsePen(next, target.horsePenPaid, day);
   dropSite(next, target);
   next.constructions = next.constructions.filter((x) => x.id !== constructionId);
   next.chronicle.push(

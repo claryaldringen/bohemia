@@ -3,8 +3,9 @@
 import type { ReactElement } from 'react';
 import { BUILD_ITEMS, buildVariantName, type BuildItem } from '@/lib/build-items';
 import { formatInteger, formatManDays } from '@/lib/village-format';
+import { TRADE_GOOD_NAMES } from '@/lib/trade-names';
 import type { SquaresVariant } from '@/lib/scene/village-types';
-import type { BuildOption, StockResource } from '@/lib/village-view';
+import { isBuildAffordable, type BuildOption, type StockResource } from '@/lib/village-view';
 import { Tooltip } from './Tooltip';
 
 /** Kolik slotů má mřížka staveb (jako příkazový panel 0 A.D.) – prázdné jsou prohlubně. */
@@ -25,14 +26,21 @@ export const RESOURCE_ICONS: Record<StockResource, { src: string; unit: string; 
  */
 function BuildTooltip({
   item,
-  option,
+  option: baseOption,
   variant,
+  extending = false,
 }: {
   item: BuildItem;
   option: BuildOption | null;
   /** Druh v rozcestníku (ohrada ovcí…) – bez zkratky, klávesové zkratky mají jen stavby. */
   variant?: SquaresVariant;
+  /** Vybraná ohrada tohoto druhu se rozšiřuje – koně se neplatí, platba ani blokace se nezobrazí. */
+  extending?: boolean;
 }): ReactElement {
+  // druh s vlastní cenou (ohrada koní – obilí předem za koně)
+  const own = variant ? baseOption?.variants?.[variant.id] : undefined;
+  const option = baseOption && own ? { ...baseOption, ...own } : baseOption;
+  const payment = extending ? [] : (own?.payment ?? []);
   return (
     <span className="block">
       <span className="font-serif text-sm font-semibold text-[#f3dfb0]">
@@ -68,9 +76,20 @@ function BuildTooltip({
               {RESOURCE_ICONS[cost.resource].unit && ` ${RESOURCE_ICONS[cost.resource].unit}`}
             </span>
           ))}
+          {payment.map((pay) => (
+            <span key={pay.good} data-payment={pay.good} className="flex items-center gap-1">
+              <img
+                src={`/icons/resources/${TRADE_GOOD_NAMES[pay.good].icon}.png`}
+                alt={TRADE_GOOD_NAMES[pay.good].name}
+                width={16}
+                height={16}
+              />
+              {formatInteger(pay.amount)}
+            </span>
+          ))}
         </span>
       )}
-      {option?.blocked && (
+      {option?.blocked && !(extending && own) && (
         <span data-testid="build-blocked" className="mt-0.5 block font-semibold text-red-400">
           {option.blocked}
         </span>
@@ -136,6 +155,7 @@ export function BuildGrid({
   active,
   disabled,
   group = null,
+  extendingVariant = null,
   onBuild,
 }: {
   /** Nabízené stavby; null = bez ceny (první zemnice zakládá ves – osídlí ji zakladatelé). */
@@ -146,6 +166,8 @@ export function BuildGrid({
   disabled: boolean;
   /** Otevřený rozcestník (stavba s druhy), null = všechny stavby. */
   group?: BuildItem['kind'] | null;
+  /** Druh ohrady, jejíž existující ohrada je vybraná (rozšíření bez platby za koně). */
+  extendingVariant?: string | null;
   /**
    * Kliknutí na stavbu (u stavby s druhy otevře či zavře rozcestník – to řeší volající), nebo na
    * druh v rozcestníku (`variant`).
@@ -181,14 +203,23 @@ export function BuildGrid({
               />,
               ...hubVariants.map((variant) => {
                 const option = options[hub.kind] ?? null;
+                const extending = extendingVariant === variant.id;
+                const affordable = isBuildAffordable(option, variant.id, extending);
                 return (
                   <GridButton
                     key={variant.id}
                     label={buildVariantName(hub, variant)}
                     icon={`/icons/resources/${variant.icon}.png`}
-                    tooltip={<BuildTooltip item={hub} option={option} variant={variant} />}
+                    tooltip={
+                      <BuildTooltip
+                        item={hub}
+                        option={option}
+                        variant={variant}
+                        extending={extending}
+                      />
+                    }
                     pressed={false}
-                    disabled={disabled || (option !== null && !option.affordable)}
+                    disabled={disabled || !affordable}
                     onClick={() => onBuild(hub.kind, variant.id)}
                   />
                 );
