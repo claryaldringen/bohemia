@@ -449,10 +449,12 @@ export interface VillageView {
   threshingFloors?: VillageThreshingFloor[];
   /** Pevné cesty (roads.md) – úseky pro panel výběru: stupeň, délka, stáří, stromy, vylepšení. */
   roads: VillageRoad[];
-  /** Klády na hromadě u vsi v kusech (forest.md). */
+  /** Všechny klády vsi v kusech – u vsi i na hromadách u lesa (forest.md). */
   woodLogs: number;
-  /** Z toho klády na hromadách u lesa (zbytek leží u vsi). */
+  /** Z toho klády na hromadách u lesa; bez hromady u lesa bez údaje. */
   woodLogsForest?: number;
+  /** Z toho klády na hromadě u vsi (`pileLogs`); vždy s `woodLogsForest`. */
+  woodLogsPile?: number;
   /** Řemesla – zásoby uhlí, nástrojů a keramiky, pokrytí a dílny (crafts.md). */
   crafts: VillageCrafts;
   storesMonths: number;

@@ -4,7 +4,7 @@ import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
-import type { Landscape, ObstacleChanges, ObstacleLayer } from '@bohemia/game';
+import type { Landscape, ObstacleChanges, ObstacleLayer, Point } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 import { applyGammaFog } from './gamma-fog';
 import {
@@ -13,6 +13,7 @@ import {
   logPileLayout,
   logPileSite,
   logStackSite,
+  pileCorners,
   pileToWorld,
   pileWidth,
   type LogPileSite,
@@ -23,6 +24,8 @@ import { applySeasonSnow } from './season-materials';
 const SIDES = 12;
 const LENGTH_SEGMENTS = 4;
 const BARK = [0.4, 0.29, 0.19] as const;
+/** Po kolika pokácených stromech se hromadě bez místa hledá místo znovu. */
+const RETRY_REMOVED = 12;
 const SAPWOOD = [0.86, 0.7, 0.46] as const;
 const HEARTWOOD = [0.7, 0.5, 0.3] as const;
 
@@ -58,22 +61,27 @@ export class LogPile {
       village.dwellings.map((d) => `${d.id}:${d.position.x}:${d.position.z}`).join(','),
       village.fields.map((f) => f.parts.length).join(','),
       (village.cemeteries ?? []).map((c) => c.squares.length).join(','),
-      changes.removed.length,
-      changes.stumps.length,
     ].join('|');
-    if (siteKey !== this.siteKey) {
-      this.siteKey = siteKey;
+    // padající stromy místo uvolňují, nikdy neubírají – hromady bez místa se zkusí znovu jen
+    // jednou za RETRY_REMOVED pokácených stromů, ostatní místa se kvůli nim nehledají
+    const retry = Math.floor(changes.removed.length / RETRY_REMOVED);
+    const mainKey = this.site ? siteKey : `${siteKey}|${retry}`;
+    if (mainKey !== this.siteKey) {
+      this.siteKey = mainKey;
       this.site = logPileSite(this.options.landscape, village, this.options.layer, changes);
     }
     const piles: { site: LogPileSite; count: number }[] = [];
     if (this.site && count > 0) piles.push({ site: this.site, count });
+    // půdorysy už umístěných hromad – další hromada na ně nesmí
+    const occupied: Point[][] = this.site ? [pileCorners(this.site)] : [];
     // hromady u lesa – místo se hledá znovu jen při změně vsi, předchozí volné místo zůstane
     const stackKey = `${siteKey}|${(village.roads ?? []).length}`;
     const live = new Set<number>();
     for (const stack of village.logStacks ?? []) {
       if (stack.logs <= 0) continue;
       live.add(stack.id);
-      const key = `${stack.x}|${stack.z}|${stackKey}`;
+      const prior = this.stackSites.get(stack.id);
+      const key = `${stack.x}|${stack.z}|${stackKey}${prior && !prior.site ? `|${retry}` : ''}`;
       let known = this.stackSites.get(stack.id);
       if (known?.key !== key) {
         const site = logStackSite(
@@ -83,11 +91,15 @@ export class LogPile {
           changes,
           stack,
           known?.site ?? null,
+          occupied,
         );
         known = { key, site };
         this.stackSites.set(stack.id, known);
       }
-      if (known.site) piles.push({ site: known.site, count: stack.logs });
+      if (known.site) {
+        piles.push({ site: known.site, count: stack.logs });
+        occupied.push(pileCorners(known.site));
+      }
     }
     for (const id of [...this.stackSites.keys()]) if (!live.has(id)) this.stackSites.delete(id);
     const signature = piles

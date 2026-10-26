@@ -203,6 +203,33 @@ describe('logStackSite – hromada klád u lesa (forest.md – Klučení lesa pr
     expect(logStackSite(landscape, village, empty, NO_OBSTACLE_CHANGES, anchor)).toEqual(site);
   });
 
+  it('hromady klád se nepřekrývají – druhá se vyhne půdorysu první', () => {
+    const first = logStackSite(landscape, village, empty, NO_OBSTACLE_CHANGES, anchor)!;
+    const taken = [footprint(first)];
+    const second = logStackSite(
+      landscape,
+      village,
+      empty,
+      NO_OBSTACLE_CHANGES,
+      anchor,
+      null,
+      taken,
+    );
+    expect(second).not.toBeNull();
+    expect(polygonsOverlap(footprint(second!), taken[0]!)).toBe(false);
+    // předchozí místo, které je obsazené jinou hromadou, se nezachová
+    const moved = logStackSite(
+      landscape,
+      village,
+      empty,
+      NO_OBSTACLE_CHANGES,
+      anchor,
+      first,
+      taken,
+    );
+    expect(moved).not.toEqual(first);
+  });
+
   it('mezi stojícími stromy jen na volném místě – pařezy nevadí', () => {
     const site = logStackSite(landscape, village, forest, NO_OBSTACLE_CHANGES, anchor)!;
     expect(site).not.toBeNull();

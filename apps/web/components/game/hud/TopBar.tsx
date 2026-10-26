@@ -211,10 +211,14 @@ export function dairyName(view: Pick<VillageView, 'milkLPerDay'>): string {
 }
 
 /** Popisek klád: u vsi i u lesa, pokud leží hromada u lesa (forest.md – Klády u lesa). */
-export function woodName(view: Pick<VillageView, 'woodLogs' | 'woodLogsForest'>): string {
+export function woodName(
+  view: Pick<VillageView, 'woodLogs' | 'woodLogsForest' | 'woodLogsPile'>,
+): string {
   const forest = Math.min(view.woodLogsForest ?? 0, view.woodLogs);
   if (forest <= 0) return 'Klády na hromadě';
-  return `Klády – u vsi ${formatInteger(view.woodLogs - forest)}, u lesa ${formatInteger(forest)}`;
+  // u vsi z hromady samotné, ne z rozdílu zaokrouhlených čísel (ten by se mohl rozejít o kus)
+  const pile = Math.min(view.woodLogsPile ?? view.woodLogs - forest, view.woodLogs);
+  return `Klády – u vsi ${formatInteger(pile)}, u lesa ${formatInteger(forest)}`;
 }
 
 /** Seno v horní liště – když ves má hotovou ohradu nebo seno v zásobě (oxen.md). */

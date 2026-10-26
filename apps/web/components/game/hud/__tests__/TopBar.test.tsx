@@ -270,5 +270,9 @@ describe('woodName', () => {
     expect(woodName({ woodLogs: 12, woodLogsForest: 0 })).toBe('Klády na hromadě');
     expect(woodName({ woodLogs: 12, woodLogsForest: 5 })).toBe('Klády – u vsi 7, u lesa 5');
     expect(woodName({ woodLogs: 3, woodLogsForest: 5 })).toBe('Klády – u vsi 0, u lesa 3');
+    // u vsi podle hromady samotné, ne podle rozdílu zaokrouhlených čísel
+    expect(woodName({ woodLogs: 10, woodLogsForest: 5, woodLogsPile: 4 })).toBe(
+      'Klády – u vsi 4, u lesa 5',
+    );
   });
 });

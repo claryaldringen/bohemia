@@ -153,6 +153,17 @@ function plotReach(
   };
 }
 
+/** Půdorys hromady na místě `site` (rohy ve světě). */
+export function pileCorners(site: LogPileSite): Point[] {
+  return rectangleCorners(
+    site.x,
+    site.z,
+    pileWidth(site.stacks ?? MAX_STACKS),
+    PILE_DEPTH_M,
+    site.rotation,
+  );
+}
+
 /** Místní (lx, lz) hromady na místě `site` → svět. */
 export function pileToWorld(site: LogPileSite, lx: number, lz: number): Point {
   return localToWorld({ x: site.x, z: site.z, rotation: site.rotation }, lx, lz);
@@ -235,8 +246,10 @@ export function logStackSite(
   changes: ObstacleChanges,
   anchor: { x: number; z: number },
   previous: LogPileSite | null = null,
+  occupied: readonly (readonly Point[])[] = [],
 ): LogPileSite | null {
   const options = {
+    occupied,
     homeId: null,
     margin: STACK_MARGIN_M,
     blocks: (kind: ObstacleKind) => !STACK_TOLERATED.has(kind),
@@ -275,11 +288,16 @@ function isFree(
     blocks: (kind: ObstacleKind) => boolean;
     /** Zkoušet i středy stran a cesty (hromada u lesa). */
     dense: boolean;
+    /** Půdorysy jiných hromad klád – hromady se nepřekrývají. */
+    occupied?: readonly (readonly Point[])[];
   },
 ): boolean {
   const width = pileWidth(site.stacks ?? MAX_STACKS);
   const corners = rectangleCorners(site.x, site.z, width, PILE_DEPTH_M, site.rotation);
   const points: Point[] = [...corners, [site.x, site.z]];
+  for (const other of options.occupied ?? []) {
+    if (polygonsOverlap(corners, other)) return false;
+  }
   if (options.dense) {
     for (let k = 0; k < corners.length; k++) {
       const a = corners[k]!;

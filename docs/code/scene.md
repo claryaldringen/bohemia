@@ -132,7 +132,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   MAX_SHOWN_LOGS na hromadu); místo `logStackSite` (`log-pile-layout.ts`) do STACK_REACH_M od
   kotvy po kružnicích ven, mimo díly polí, hřbitovy, vodu, cesty a obydlí, bez stojících
   stromů (pařezy, keře a kameny nevadí), pro 3 hranice, jinak méně (`LogPileSite.stacks`);
-  předchozí volné místo zůstane (hromada neskáče).
+  předchozí volné místo zůstane (hromada neskáče) a místo se nehledá znovu při každém pokáceném
+  stromu – hromadě bez místa jen po každých `RETRY_REMOVED` pokácených; hromady se navzájem
+  nepřekrývají (`pileCorners` ostatních jde do `isFree`). Dým `slashPlumes` má přednost hořících
+  čtverců před doutnajícími; `burnCrew` jde jen k hromadám za čarou práce (`burnHeaps`);
+  `setWorldClock` přestaví ohně i bez změny vsi a `ClearingFireRenderer.animate` v taktu nealokuje.
 
 - **Paseka klučení – ohně a kouř** (forest.md – Klučení lesa pro pole – postup, bod 3; issue #10
   – Martin 24. 10. 2026: „musí být vidět ohně a kouř“; Úloha 6 plánu). Čisté funkce bez

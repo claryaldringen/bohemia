@@ -31,12 +31,18 @@ interface HeapView {
   shape: FireShape;
   heading: { x: number; z: number };
   flames: FireSprite[];
+  /** Stav ohně v posledním taktu (počítá se jednou na takt). */
+  state: ReturnType<typeof clearingFireState> | null;
 }
 
 interface SquareView {
   heaps: HeapView[];
   bounds: BoundingInfo;
+  /** Vzdálenost od kamery v posledním taktu (m). */
+  distance: number;
 }
+
+const byDistance = (a: SquareView, b: SquareView): number => a.distance - b.distance;
 
 /**
  * Ohně pálení paseky (forest.md – Klučení lesa pro pole – postup; scene.md – Paseka klučení –
@@ -52,6 +58,8 @@ export class ClearingFireRenderer {
   private squares: SquareView[] = [];
   private key = '';
   private used = 0;
+  /** Čtverce s ohněm v tomto taktu – pole se znovu používá, aby takt nealokoval. */
+  private readonly lit: SquareView[] = [];
   private world: WorldClock = OFFICIAL_WORLD;
 
   constructor(
@@ -81,6 +89,7 @@ export class ClearingFireRenderer {
         shape: heapFireShape(fire.scale),
         heading: { x: Math.cos(fire.yaw), z: Math.sin(fire.yaw) },
         flames: [],
+        state: null,
       });
       bySquare.set(fire.square, list);
     }
@@ -102,6 +111,7 @@ export class ClearingFireRenderer {
             Math.max(...zs) + FIRE_SIDE_M,
           ),
         ),
+        distance: 0,
       };
     });
     if (this.squares.length > 0) this.ensureSprites();
@@ -117,26 +127,30 @@ export class ClearingFireRenderer {
     if (this.squares.length === 0 && this.used === 0) return false;
     const gameDay = gameDayAt(nowMs, this.world);
     const timeS = nowMs / 1000;
-    const lit: { square: SquareView; distance: number }[] = [];
+    const lit = this.lit;
+    lit.length = 0;
     for (const square of this.squares) {
-      let distance = 0;
+      square.distance = 0;
       if (camera) {
         if (!camera.isInFrustum(square.bounds)) continue;
         const center = square.bounds.boundingSphere.centerWorld;
-        distance = Vector3.Distance(camera.globalPosition, center);
-        if (distance > ANIMATE_RANGE_M) continue;
+        square.distance = Vector3.Distance(camera.globalPosition, center);
+        if (square.distance > ANIMATE_RANGE_M) continue;
       }
-      const burning = square.heaps.some((h) => {
-        const state = clearingFireState(h.fire.burn, gameDay, h.fire.order);
-        return state.fire > 0 || state.glow > 0;
-      });
-      if (burning) lit.push({ square, distance });
-    }
-    lit.sort((a, b) => a.distance - b.distance);
-    let slot = 0;
-    for (const { square } of lit.slice(0, MAX_FIRE_SQUARES)) {
+      let burning = false;
       for (const heap of square.heaps) {
         const state = clearingFireState(heap.fire.burn, gameDay, heap.fire.order);
+        heap.state = state;
+        if (state.fire > 0 || state.glow > 0) burning = true;
+      }
+      if (burning) lit.push(square);
+    }
+    lit.sort(byDistance);
+    let slot = 0;
+    const shown = Math.min(lit.length, MAX_FIRE_SQUARES);
+    for (let n = 0; n < shown; n++) {
+      for (const heap of lit[n]!.heaps) {
+        const state = heap.state!;
         // hromada sesedá, jak dohořívá – plameny šlehají níž; večer v uhlících ještě problikne
         // pár nízkých plamínků (EMBER_FLAMES × záře)
         const fire = {

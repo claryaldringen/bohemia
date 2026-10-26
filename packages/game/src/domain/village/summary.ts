@@ -449,6 +449,8 @@ export interface VillageSummary {
   woodLogs: number;
   /** Z toho klády na hromadách u lesa (zbytek leží u vsi). */
   forestLogs: number;
+  /** Klády na hromadě u vsi (kusy, bez hromad u lesa). */
+  pileLogs: number;
   /** Na kolik měsíců zásoby obilí vystačí při dnešní potřebě (bez lidí 0). */
   storesMonths: number;
   /** Nasycení příštího dne 0–1 podle přídělového systému (energie × pestrost – diet.md). */
@@ -827,6 +829,7 @@ export function summarizeVillage(
     applesKg: villageApplesKg(state),
     woodLogs: woodLogs(state),
     forestLogs: Math.max(0, woodLogs(state) - pileLogs(state)),
+    pileLogs: pileLogs(state),
     storesMonths:
       needPerDay > 0 ? state.storesKg / ((needPerDay * DAYS_PER_YEAR) / MONTHS_PER_YEAR) : 0,
     satiation: diet.satiation,

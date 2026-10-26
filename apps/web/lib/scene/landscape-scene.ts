@@ -812,6 +812,11 @@ export class LandscapeScene {
     this.clearingFire?.setWorldClock(world);
     this.worldClock = world;
     this.updateSeason(true);
+    // skok v čase mění herní den – ohně a kouř se přestaví a jednou nakreslí i bez změny vsi
+    if (this.updateClearingFires()) {
+      this.clearingFire?.animate(Date.now(), null);
+      this.renderWhenReady();
+    }
     // karavany a pohřby jdou podle okna herního dne – rozmístit lidi podle nových hodin
     if (this.villagers?.clockChanged(Date.now())) this.renderWhenReady();
   }
@@ -1452,7 +1457,6 @@ export class LandscapeScene {
     this.perf?.frameDrawn(now);
   }
 
-  /** Voda, ryby a ptáci, dým, zvířata, lidé, voli a obilí – true, když se něco v záběru hnulo. */
   /**
    * Hořící hromady větví podle vsi a dnešního dne (hodiny světa) – přestaví se jen při změně
    * pálení (`burningKey`). Vrátí true, když se ohně změnily.
@@ -1472,6 +1476,7 @@ export class LandscapeScene {
     );
   }
 
+  /** Voda, ryby a ptáci, dým, zvířata, lidé, voli a obilí – true, když se něco v záběru hnulo. */
   private animate(now: number, camera: Camera): boolean {
     let animated = false;
     // zamrzlá voda neteče – v záběru jen led a stojí, nepřekresluje se

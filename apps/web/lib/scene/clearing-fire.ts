@@ -150,12 +150,19 @@ export interface SlashPlume {
   burn: ClearingBurn;
 }
 
-/** Sloupce dýmu z pálení – po jednom ze středu čtverce, nejvýš MAX_SLASH_PLUMES podle id dílu. */
+/**
+ * Sloupce dýmu z pálení – po jednom ze středu čtverce, nejvýš MAX_SLASH_PLUMES: nejdřív hořící
+ * čtverce, pak doutnající (dohořelé), v obou skupinách podle id dílu.
+ */
 export function slashPlumes(squares: readonly BurningSquare[]): SlashPlume[] {
-  return squares.slice(0, MAX_SLASH_PLUMES).map(({ part, burn }) => ({
-    seed: part.id ?? part.cell.x * 65_536 + part.cell.y,
-    x: part.x,
-    z: part.z,
-    burn,
-  }));
+  const rank = (s: BurningSquare): number => (s.burn.burnedDay === undefined ? 0 : 1);
+  return [...squares]
+    .sort((a, b) => rank(a) - rank(b) || (a.part.id ?? 0) - (b.part.id ?? 0))
+    .slice(0, MAX_SLASH_PLUMES)
+    .map(({ part, burn }) => ({
+      seed: part.id ?? part.cell.x * 65_536 + part.cell.y,
+      x: part.x,
+      z: part.z,
+      burn,
+    }));
 }

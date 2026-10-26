@@ -7,6 +7,7 @@ import { rowDirection } from './field-cells';
 import {
   fieldPartViews,
   villageCenter,
+  workAt,
   workFrame,
   workSteps,
   workedParts,
@@ -390,7 +391,7 @@ export function founding(
   const squares = [...burning, ...felling, ...rest];
   if (squares.length === 0) return none;
   const trees = squares.map((s) => ctx.ground.treesIn(s.part.x, s.part.z, s.part.size / 2, CREW));
-  const heaps = squares.map((s) => (burning.includes(s) ? burnHeaps(ctx, s.part) : []));
+  const heaps = squares.map((s) => (burning.includes(s) ? burnHeaps(ctx, s.part, work) : []));
   return (i, who) => {
     const crew = Math.floor(i / CREW);
     const member = i % CREW;
@@ -430,10 +431,18 @@ function isDryingView(view: PartView): boolean {
   return view.part.stage === 'founding' && view.look === 'slash' && view.work === null;
 }
 
-/** Hromady větví čtverce (jako clearing-slash-layout.ts); bez překážek vrstvy žádné. */
-function burnHeaps(ctx: Context, part: SceneFieldPart): HeapSite[] {
+/**
+ * Hromady větví čtverce, které dnes hoří (jako heapFires v clearing-fire.ts): pálení postupuje
+ * napříč čtvercem, hromady za čarou práce ještě nehoří – u nich lidé nestojí. Bez překážek
+ * vrstvy žádné.
+ */
+export function burnHeaps(ctx: Context, part: SceneFieldPart, work: FieldWork): HeapSite[] {
   const avoid = ctx.ground.squareObstacles?.(part);
-  return avoid ? slashHeapSites(part, avoid) : [];
+  if (!avoid) return [];
+  const done = part.burnedDay === ctx.day ? 1 : workSteps(part.work ?? 0);
+  if (done <= 0) return [];
+  const frame = workFrame(part, work.rows, work.center);
+  return slashHeapSites(part, avoid).filter((site) => workAt(frame, part, site.x, site.z) < done);
 }
 
 /** Odstup člověka od okraje hořící hromady (m) – hrne oheň motykou, do plamenů nevstoupí. */

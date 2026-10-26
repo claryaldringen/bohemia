@@ -21,6 +21,7 @@ import {
   plumeShape,
   ventSmokeStrength,
 } from '../smoke-schedule';
+import { burnHeaps } from '../villager-plan-fields';
 import { createVillagerPose } from '../villager-motion';
 import { planVillagers, type PlannedVillager, type VillagerGround } from '../villager-plan';
 
@@ -168,6 +169,16 @@ describe('ohně hromad větví', () => {
     expect(plumes[0]!.seed).toBe(100 - (MAX_SLASH_PLUMES + 4));
     expect(plumes.every((p) => p.burn.burnedDay === DAY)).toBe(true);
   });
+
+  it('při přebytku dýmu mají přednost hořící čtverce před doutnajícími', () => {
+    const smoldering = Array.from({ length: MAX_SLASH_PLUMES }, (_, i) =>
+      square(i + 2, 10 + i, { stage: 'ready', look: 'burnt', burnedDay: DAY }),
+    );
+    const burning = square(40, 900, BURNING);
+    const plumes = slashPlumes(burningSquares(village([...smoldering, burning]), DAY));
+    expect(plumes.length).toBe(MAX_SLASH_PLUMES);
+    expect(plumes[0]!.seed).toBe(900);
+  });
 });
 
 describe('postavy při klučení', () => {
@@ -194,6 +205,23 @@ describe('postavy při klučení', () => {
       const near = Math.min(...sites.map((s) => Math.hypot(s.x - pose.x, s.z - pose.z)));
       expect(near).toBeLessThan(1.5 * 1.25 + 1.5);
     }
+  });
+
+  it('burnCrew se hlásí jen k hromadám, které už hoří (před čarou práce)', () => {
+    const early = square(2, 11, BURNING);
+    const late = { ...early, work: 0.05 };
+    const full = { ...early, work: 1 };
+    const sites = (part: SceneFieldPart): number =>
+      burnHeaps(
+        { day: DAY, ground: { squareObstacles: () => [] } } as unknown as Parameters<
+          typeof burnHeaps
+        >[0],
+        part,
+        { rows: [1, 0], center: { x: 0, z: 0 } } as unknown as Parameters<typeof burnHeaps>[2],
+      ).length;
+    expect(sites(full)).toBe(slashHeapSites(full, []).length);
+    expect(sites(late)).toBeLessThan(sites(full));
+    expect(sites({ ...early, work: 0 })).toBe(0);
   });
 
   it('na schnoucí pasece nikdo nepracuje – jen na kácené', () => {
