@@ -188,6 +188,18 @@ const residentsOf = (ages: number[]): DwellingResident[] =>
 const manor: VillageManor = {
   dwellingId: 3,
   huntDenied: null,
+  // lov a psi dvorce (wildlife.md – Co hráč vidí)
+  hunt: {
+    catches: [
+      { icon: 'boar', name: 'Divoká prasata', count: 3 },
+      { icon: 'deer', name: 'Jelení zvěř', count: 2 },
+      { icon: 'wolf', name: 'Vlci', count: 1 },
+      { icon: 'hare', name: 'Zajíci', count: 4 },
+      { icon: 'fish', name: 'Ryby (kg)', count: 38 },
+    ],
+    meatKg: 410,
+    dogs: { count: 6, wanted: 7, grainKgPerDay: 1.8, fed: true },
+  },
   trails,
   neighbours,
   family: [
@@ -1017,6 +1029,8 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       rest: { share: 0.81, years: 8 },
       surplus: true,
       founding: null,
+      // škoda zvěře letos, díl se hlídá (wildlife.md – Co hráč vidí)
+      damage: { percent: 12, kg: 41, edgeM: 80, watched: true },
     },
   },
   {
@@ -1300,6 +1314,45 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       progress: 0.2,
       treesToFell: 11,
       relocates: 3,
+    },
+  },
+  {
+    key: 'zver-prase',
+    label: 'Zvěř – prasata (středně, loni škoda)',
+    details: {
+      kind: 'wildlife',
+      species: 'boar',
+      level: 2,
+      full: false,
+      capacity: 10,
+      lastYearDamageKg: 640,
+      killedHeads: null,
+    },
+  },
+  {
+    key: 'zver-vlci',
+    label: 'Zvěř – vlci (plno, dobytek)',
+    details: {
+      kind: 'wildlife',
+      species: 'wolf',
+      level: 3,
+      full: true,
+      capacity: 5,
+      lastYearDamageKg: null,
+      killedHeads: 4,
+    },
+  },
+  {
+    key: 'zver-medved',
+    label: 'Zvěř – medvěd (málo)',
+    details: {
+      kind: 'wildlife',
+      species: 'bear',
+      level: 1,
+      full: false,
+      capacity: 1,
+      lastYearDamageKg: null,
+      killedHeads: null,
     },
   },
 ];

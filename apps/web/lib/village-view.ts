@@ -79,6 +79,7 @@ import {
 } from './relocation-view';
 
 import { manorView } from './manor-view';
+import { wildlifeView, type VillageWildlife } from './wildlife-view';
 import { personPortrait, scenePersons, type DwellingResident } from './person-view';
 import { ROLE_NAMES } from './person-roles';
 import { dynastyView } from './dynasty-view';
@@ -495,11 +496,18 @@ export function buildVillageView(
     purchases: purchaseViews(state),
     lastMarriageDay: lastMarriageDay(state),
     manor: manorView(state, landscape, day, context.ownMaps ?? {}),
+    ...wildlifeField(state, day),
     ...dugSitesField(state, day),
     ...kilnsField(state, day),
     ...grainPitsField(state, day),
     ...junctionsField(state, day),
   };
+}
+
+/** Divoká zvěř vsi (`VillageView.wildlife`); ves bez zvěře bez údaje. */
+function wildlifeField(state: VillageState, day: number): { wildlife?: VillageWildlife } {
+  const wildlife = wildlifeView(state, day);
+  return wildlife ? { wildlife } : {};
 }
 
 /** Nákupy u sousedů na cestě pro panel (crafts.md – Nákup u sousedů). */

@@ -1511,6 +1511,8 @@ test('dvorec: lov navíc – v dubnu je hájení, v létě se zítra loví', asy
   const hunt = panel.getByTestId('manor-hunt');
   await expect(hunt).toBeDisabled();
   await expect(panel.getByTestId('hunt-blocked')).toContainText('hájení');
+  // smečka dvorce „psi / kolik jich dvorec chce“ (wildlife.md – Co hráč vidí)
+  await expect(panel.getByTestId('manor-dogs')).toHaveText(/^\d+ \/ \d+$/);
 
   // Léto: čas hráče na 10. 7., stav vsi o den před ním
   const july = await shiftPlayerTo(email, 7, 10);
@@ -1556,4 +1558,54 @@ test('dvorec: lov navíc – v dubnu je hájení, v létě se zítra loví', asy
       timeout: 30_000,
     })
     .toBeGreaterThanOrEqual(1);
+});
+
+test('díl pole ukáže škodu zvěře letos', async ({ page }) => {
+  const { seat: s } = await newPlayer(page, 'zver');
+  const spots = villageSpots(s.landscape);
+  await found(page, spots.dwelling);
+  await page.keyboard.press('c');
+  await confirmPlacement(page, { kind: 'squares', cells: spots.cells });
+  await expect.poll(async () => (await villageState(s.settlementId)).fields.length).toBe(1);
+
+  // Ves se zvěří (převod při načtení) a škoda letos na všech dílech pole
+  const withParts = withBuiltFirstDwelling(await villageState(s.settlementId));
+  await expect
+    .poll(async () => (await villageState(s.settlementId)).wildlife !== undefined)
+    .toBe(true);
+  const state = withParts;
+  state.wildlife = (await villageState(s.settlementId)).wildlife!;
+  const ids = state.parts.map((p) => p.id);
+  state.wildlife.damage = {
+    fromDay: state.lastDay - 20,
+    risk: ids.map((partId) => ({ partId, weightHa: 0.01, edgeM: 80 })),
+    parts: Object.fromEntries(ids.map((id) => [String(id), { share: 0.12, kg: 30 }])),
+    topPartId: ids[0] ?? null,
+    totalKg: 30 * ids.length,
+  };
+  await writeVillageState(s.settlementId, state);
+  await pollVillage(page);
+
+  await page.mouse.move(640, 360);
+  await page.keyboard.press('r');
+  const fieldCenter = tileCenterWorld(s.landscape, spots.cells[0]!.x, spots.cells[0]!.y);
+  const panel = page.getByTestId('selection-panel');
+  await expect
+    .poll(
+      async () => {
+        const point = await page.evaluate(
+          (p) => window.__bohemiaE2E!.projectToScreen!(p.x, p.z),
+          fieldCenter,
+        );
+        if (!point) return null;
+        await page.mouse.move(point.x - 3, point.y);
+        await page.mouse.click(point.x, point.y);
+        return panel.getAttribute('data-kind');
+      },
+      { timeout: 30_000 },
+    )
+    .toBe('field-part');
+  await expect(panel.getByTestId('selection-damage')).toHaveText('12 %');
+  await expect(panel.getByTestId('selection-damage')).toHaveAttribute('data-alert', 'true');
+  await expect(page.locator('[data-testid="village-notice"][data-kind="error"]')).toHaveCount(0);
 });

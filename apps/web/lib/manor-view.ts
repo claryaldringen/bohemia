@@ -48,6 +48,7 @@ import {
   type ArmsView,
 } from './person-view';
 import { ROLE_NAMES } from './person-roles';
+import { huntView, type HuntView } from './wildlife-view';
 
 /**
  * Výprava na cestě – co nesou, co přinesou, kdo s ní odešel a kdo přijde (rodiny, svobodní muži
@@ -153,6 +154,8 @@ function huntDeniedText(state: VillageState, day: number): string | null {
 export interface VillageManor {
   /** Lov navíc na zítřek: důvod odepření česky, nebo null (lze vyhlásit; wildlife.md – Lov rodu). */
   huntDenied: string | null;
+  /** Lov rodu letos a psi dvorce (wildlife.md – Co hráč vidí); bez psů a úlovku chybí. */
+  hunt?: HuntView;
   /** Obydlí (id domácnosti), které je dvorcem. */
   dwellingId: number;
   /** Zemské stezky do 8 směrů – hotové, rozestavěné a nabídka nových (cena, délka, důvod). */
@@ -332,6 +335,12 @@ export function expeditionView(state: VillageState, e: TradeExpedition): Village
   };
 }
 
+/** Lov a psi pro pohled na dvorec (`VillageManor.hunt`). */
+function huntField(state: VillageState, day: number): { hunt?: HuntView } {
+  const hunt = huntView(state, day);
+  return hunt ? { hunt } : {};
+}
+
 /** Dvorec vsi pro pohled na ves; dokud stojí jen staveniště první zemnice, null. */
 export function manorView(
   state: VillageState,
@@ -345,6 +354,7 @@ export function manorView(
   return {
     dwellingId: manor.id,
     huntDenied: huntDeniedText(state, day),
+    ...huntField(state, day),
     trails: trailOptions(state, day, landscape, obstacles, villageRoadWalk(state, landscape)),
     // tím směrem, kde leží vlastní ves, soused bez simulace není (migration.md)
     neighbours: neighbourViews(state, day, landscape).filter(

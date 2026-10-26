@@ -31,6 +31,8 @@ import {
   ThreshingFloorBody,
   FieldsBody,
 } from './selection/fields';
+import { WildlifeBody } from './selection/wildlife';
+import { WILDLIFE_LABELS } from '@/lib/wildlife-view';
 import { Oaks, OakAge, SACRED_ICONS, SacredBody } from './selection/sacred';
 import {
   JUNCTION_ICONS,
@@ -94,6 +96,15 @@ export function SelectionPanel({
     const texts = DUG_SITE_TEXTS[details.kind];
     portrait = <Portrait icon={texts.portrait} name={texts.name} />;
     body = <DugSiteBody details={details} onSelectTarget={onSelectTarget} />;
+  } else if (details.kind === 'wildlife') {
+    portrait = (
+      <Portrait
+        icon={WILDLIFE_LABELS[details.species].icon}
+        name={WILDLIFE_LABELS[details.species].name}
+        dir="resources"
+      />
+    );
+    body = <WildlifeBody details={details} />;
   } else if (details.kind === 'person') {
     portrait = (
       <PersonPortrait

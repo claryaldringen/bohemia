@@ -220,3 +220,9 @@ prasata ÷ strop`, celé kusy z dospělých napřed, maso přes `butcher`, do `h
 - **Vlkov (2 roky, 26. 10. 2026):** díly jsou čtverce 0,02 ha, hrozbu ≥ 10 % mají jen dvě desítky
   a všechny kryje 1. stupeň (11 hlídačů), práce dospělých 0; jezdecká hlídka je slabá (koně nevycvičení,
   průměrně `cut` ≈ 2 %). Škoda 471 → 452 kg (821), 353 → 335 kg (822).
+
+## Rozhraní (W9)
+
+Pohled a komponenty: `apps/web/lib/wildlife-view.ts`, podrobnosti v [web-ui.md](web-ui.md) – Divoká zvěř
+v rozhraní. Z jádra se čte jen `WildlifeState` (`damage`, `watch`, `dogs`, `hunt`, `smallGame`,
+`predation`) a `wildlifeCaps`, `dogsWanted`, `huntPool`, `lordFamily`; nic se nepřepočítává.

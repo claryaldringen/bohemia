@@ -80,6 +80,10 @@ export type NoticeKind =
   | 'horses-shod'
   | 'horses-unshod'
   | 'horse-retired'
+  /** Divoká zvěř (wildlife.md – Co hráč vidí): prasata ničí úrodu, vlci strhávají dobytek, psi bez obilí. */
+  | 'boar-damage'
+  | 'wolves-killing'
+  | 'dogs-ungrained'
   | 'horse-starved'
   | 'orchard-renewal'
   | 'orchard-gone'
@@ -163,6 +167,9 @@ function oxenText(oxen: number | undefined, legacy: string, one: string, many: s
   return oxen === 1 ? one : many;
 }
 
+/** Škoda zvěře letos nad tímto podílem úrody polí u lesa je upozornění (wildlife.md – Co hráč vidí). */
+const WILDLIFE_DAMAGE_NOTICE_SHARE = 0.05;
+
 /** Upozornění, která pro ves právě platí (pořadí: problémy, pak zprávy). */
 export function villageNotices(view: VillageView): VillageNotice[] {
   const notices: VillageNotice[] = [];
@@ -225,6 +232,17 @@ export function villageNotices(view: VillageView): VillageNotice[] {
   }
   if (view.horses && !view.horses.fed && view.horses.grainKgPerDay > 0) {
     notices.push({ kind: 'horses-ungrained', tone: 'warn', text: 'Koně jsou bez obilí' });
+  }
+  // divoká zvěř (wildlife.md – Co hráč vidí)
+  const wild = view.wildlife;
+  if (wild && wild.damageShare > WILDLIFE_DAMAGE_NOTICE_SHARE) {
+    notices.push({ kind: 'boar-damage', tone: 'warn', text: 'Divoká prasata ničí úrodu' });
+  }
+  if (wild?.wolvesTroubling) {
+    notices.push({ kind: 'wolves-killing', tone: 'warn', text: 'Vlci strhávají dobytek' });
+  }
+  if (wild?.dogsUnfed) {
+    notices.push({ kind: 'dogs-ungrained', tone: 'warn', text: 'Psi jsou bez obilí' });
   }
   // výmlat (production-chains.md – Humno): bez humna ves nemlátí – upozornění s předstihem, aby
   // ves nezahynula hladem jen proto, že hráč o humnu nevěděl (anti-cíl)

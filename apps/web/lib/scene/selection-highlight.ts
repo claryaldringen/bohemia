@@ -262,6 +262,8 @@ export function targetOutline(village: SceneVillage, target: VillageTarget): Poi
       : ROAD_RING_M.trodden;
     return [offsetLine(line, half), offsetLine(line, -half)];
   }
+  // zvíře nemá obrys (zvýrazní ho scéna ve W10)
+  if (target.kind === 'wildlife') return [];
   const field = village.fields.find((f) => f.id === target.id);
   if (!field || field.parts.length === 0) return [];
   return cellsBoundary(field.parts.map(cellSquare));

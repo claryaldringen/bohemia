@@ -10,6 +10,7 @@ import { ManorUpgrades } from '../ManorPanel';
 import { TradePanel } from '../TradePanel';
 import { LeaveControls, RelocateButtons, RelocationProgress } from '../RelocationControls';
 import { Stat, Bar, ROW, Commands, WoodToFell } from './parts';
+import { ManorHunt } from './wildlife';
 import { WorkshopRow, BuyingRow } from './crafts';
 
 /** Akce panelu nad obydlími – přestěhování domácnosti a jeho zrušení (migration.md). */
@@ -78,6 +79,7 @@ export function DwellingBody({
           </Stat>
         </div>
         <DwellingResidents residents={details.residents} onSelect={onSelectTarget} />
+        {details.manor?.hunt && <ManorHunt hunt={details.manor.hunt} />}
         <Bar value={details.condition} name="Stav" testId="selection-condition" />
         {details.rebuild && (
           <div className={ROW}>
