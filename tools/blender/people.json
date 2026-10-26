@@ -70,6 +70,28 @@
           "band": [0.75, 0.78, 0.95, 0.85],
           "rope": [0.06, 0.72, 0.14, 0.84]
         }
+      },
+      {
+        "name": "knife",
+        "dae": "meshes/props/weapons/dagger_01.dae",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds"
+      },
+      {
+        "name": "meat",
+        "dae": "meshes/props/special/brontoburger.dae",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/shuttle_meat.png"
+      },
+      {
+        "name": "bowl",
+        "procedural": "bowl",
+        "point": "prop-weapon_L",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58],
+          "liquid": [0.06, 0.72, 0.14, 0.84]
+        }
       }
     ],
     "clips": [
@@ -150,6 +172,31 @@
             "R": [-0.47, 0.04, 0.98]
           }
         }
+      },
+      {
+        "name": "butcher",
+        "animation": "animation/biped/gatherer/gather_meat.dae",
+        "props": ["head", "knife"]
+      },
+      {
+        "name": "bleed",
+        "animation": "animation/biped/gatherer/gather_berries.dae",
+        "props": ["head", "bowl"]
+      },
+      {
+        "name": "gut",
+        "animation": "animation/biped/gatherer/slaughter.dae",
+        "props": ["head", "knife"]
+      },
+      {
+        "name": "carry-meat",
+        "animation": "animation/biped/gatherer/carry_meat_f.dae",
+        "props": ["head", "meat"]
+      },
+      {
+        "name": "carry-meat-idle",
+        "animation": "animation/biped/gatherer/idle_carry_meat_f.dae",
+        "props": ["head", "meat"]
       }
     ]
   },
@@ -248,6 +295,28 @@
         "dae": "meshes/props/weap_shaft_wood_a.dae",
         "point": "prop-weapon_R",
         "texture": "textures/skins/props/wood_e.png"
+      },
+      {
+        "name": "knife",
+        "dae": "meshes/props/weapons/dagger_01.dae",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds"
+      },
+      {
+        "name": "meat",
+        "dae": "meshes/props/special/brontoburger.dae",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/shuttle_meat.png"
+      },
+      {
+        "name": "bowl",
+        "procedural": "bowl",
+        "point": "prop-weapon_L",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58],
+          "liquid": [0.06, 0.72, 0.14, 0.84]
+        }
       }
     ],
     "clips": [
@@ -368,6 +437,31 @@
         "name": "shield-block",
         "animation": "animation/biped/infantry/swordsman/idle_ready_shield_01.dae",
         "props": ["head", "training-sword", "wicker-shield"]
+      },
+      {
+        "name": "butcher",
+        "animation": "animation/biped/gatherer/gather_meat.dae",
+        "props": ["head", "knife"]
+      },
+      {
+        "name": "bleed",
+        "animation": "animation/biped/gatherer/gather_berries.dae",
+        "props": ["head", "bowl"]
+      },
+      {
+        "name": "gut",
+        "animation": "animation/biped/gatherer/slaughter.dae",
+        "props": ["head", "knife"]
+      },
+      {
+        "name": "carry-meat",
+        "animation": "animation/biped/gatherer/carry_meat_m.dae",
+        "props": ["head", "meat"]
+      },
+      {
+        "name": "carry-meat-idle",
+        "animation": "animation/biped/gatherer/idle_carry_meat_m.dae",
+        "props": ["head", "meat"]
       }
     ]
   }

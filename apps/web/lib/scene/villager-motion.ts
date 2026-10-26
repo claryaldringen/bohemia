@@ -23,6 +23,12 @@ export type VillagerClip =
   | 'fruit'
   | 'carry-water'
   | 'water-idle'
+  // porážka (slaughter.md): řezník s nožem v kleku a vestoje, žena s miskou, nošení masa
+  | 'butcher'
+  | 'bleed'
+  | 'gut'
+  | 'carry-meat'
+  | 'carry-meat-idle'
   // jezdec a výcvik vojvodovy rodiny (horses.md, lord.md) – jen `man.glb`
   | 'ride'
   | 'ride-trot'
@@ -49,6 +55,12 @@ export const VILLAGER_CLIPS: readonly VillagerClip[] = [
   // pro vodu s vahadlem a vědry (provoz na cestách – villagers.md): chůze a stání
   'carry-water',
   'water-idle',
+  // porážka: nůž v kleku (butcher) a vestoje (gut), miska (bleed), kýta na rameni
+  'butcher',
+  'bleed',
+  'gut',
+  'carry-meat',
+  'carry-meat-idle',
   // jezdec (sed na koni) a výcvik s dřevěnými zbraněmi – klipy má jen `man.glb`
   'ride',
   'ride-trot',

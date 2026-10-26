@@ -53,6 +53,11 @@ describe('jezdec a výcvik – postava man.glb', () => {
       'spear-thrust',
       'sword-strike',
       'shield-block',
+      'butcher',
+      'bleed',
+      'gut',
+      'carry-meat',
+      'carry-meat-idle',
     ]) {
       expect(clips).toContain(name);
     }
