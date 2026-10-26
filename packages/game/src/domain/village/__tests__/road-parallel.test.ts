@@ -413,6 +413,180 @@ describe('vozová cesta se napojí (paths.md – Síť, Martin 25. 10. 2026)', (
   });
 });
 
+describe('zdvojená vozová cesta (paths.md – Zdvojená vozová cesta, Martin 26. 10. 2026)', () => {
+  const wagon = (id: number, points: [number, number][], bornDay: number): Road =>
+    road(id, points, bornDay, 'wagon');
+  /** Spojí síť konce `a` a `b` (úseky sdílejí konce na cm)? */
+  function connected(roads: readonly Road[], a: P, b: P): boolean {
+    const key = (p: P): string => `${p.x.toFixed(2)},${p.z.toFixed(2)}`;
+    const edges = roads.map((r) => [key(r.points[0]!), key(r.points.at(-1)!)] as const);
+    const seen = new Set([key(a)]);
+    for (let grow = true; grow;) {
+      grow = false;
+      for (const [u, v] of edges) {
+        if (seen.has(u) !== seen.has(v)) {
+          seen.add(u);
+          seen.add(v);
+          grow = true;
+        }
+      }
+    }
+    return seen.has(key(b));
+  }
+
+  it('vlásenka po ose dvou starších vozových (Vlkov 1054) se sloučí, spojení zůstane', () => {
+    const a: P = { x: 0, z: 0 };
+    const c: P = { x: 40, z: 40 };
+    const roads = joinedRoadsOf(
+      [
+        wagon(
+          1,
+          [
+            [0, 0],
+            [0, 40],
+          ],
+          Y1 - 2000,
+        ),
+        wagon(
+          2,
+          [
+            [0, 40],
+            [40, 40],
+          ],
+          Y1 - 2000,
+        ),
+        // mladší vozová z A do C po ose obou – 4 m vedle, s obratem u B
+        wagon(
+          3,
+          [
+            [0, 0],
+            [4, 5],
+            [4, 35],
+            [6, 36],
+            [35, 36],
+            [40, 40],
+          ],
+          Y1 - 365,
+        ),
+      ],
+      [],
+      TERRAIN,
+    );
+    expect(roads.every((r) => r.grade === 'wagon')).toBe(true);
+    for (const x of roads) {
+      for (const y of roads) {
+        if (x !== y) expect(alongside(x.points, y.points), `${x.id}×${y.id}`).toBeLessThan(25);
+      }
+    }
+    expect(connected(roads, a, c)).toBe(true);
+    const total = roads.reduce(
+      (sum, r) =>
+        sum +
+        r.points
+          .slice(1)
+          .reduce((s, q, k) => s + Math.hypot(q.x - r.points[k]!.x, q.z - r.points[k]!.z), 0),
+      0,
+    );
+    expect(total).toBeLessThan(90);
+  });
+
+  it('souběžný kus mladší vozové zmizí, její konce se napojí; konec daleko od starší zůstane', () => {
+    const roads = joinedRoadsOf(
+      [
+        wagon(
+          1,
+          [
+            [0, 0],
+            [100, 0],
+          ],
+          Y1 - 2000,
+        ),
+        // mladší vozová z (-20, 30) 100 m 8 m vedle starší a zpět do (120, 30)
+        wagon(
+          2,
+          [
+            [-20, 30],
+            [0, 8],
+            [100, 8],
+            [120, 30],
+          ],
+          Y1 - 365,
+        ),
+      ],
+      [],
+      TERRAIN,
+    );
+    for (const x of roads) {
+      for (const y of roads) {
+        if (x !== y) expect(alongside(x.points, y.points), `${x.id}×${y.id}`).toBeLessThan(25);
+      }
+    }
+    const ends = roads.flatMap((r) => [r.points[0]!, r.points.at(-1)!]);
+    expect(ends).toContainEqual({ x: -20, z: 30 });
+    expect(ends).toContainEqual({ x: 120, z: 30 });
+    expect(connected(roads, { x: -20, z: 30 }, { x: 120, z: 30 })).toBe(true);
+  });
+
+  it('vozová, jejíž konec by souběžným kusem zmizel daleko od starší, zůstane celá', () => {
+    // konec (0, 8) je 8 m od starší vozové – mohl by to být vjezd do humna
+    const roads = joinedRoadsOf(
+      [
+        wagon(
+          1,
+          [
+            [-50, 0],
+            [150, 0],
+          ],
+          Y1 - 2000,
+        ),
+        wagon(
+          2,
+          [
+            [0, 8],
+            [90, 8],
+            [120, 30],
+          ],
+          Y1 - 365,
+        ),
+      ],
+      [{ x: 0, z: 8 }],
+      TERRAIN,
+    );
+    expect(roads.flatMap((r) => [r.points[0]!, r.points.at(-1)!])).toContainEqual({ x: 0, z: 8 });
+  });
+
+  it('pěší cesta souběžná s vozovou se vyřízne dál, vozová pěší nikdy', () => {
+    const roads = joinedRoadsOf(
+      [
+        road(
+          1,
+          [
+            [0, 0],
+            [100, 0],
+          ],
+          Y1 - 2000,
+          'improved',
+        ),
+        wagon(
+          2,
+          [
+            [-20, 30],
+            [0, 8],
+            [100, 8],
+            [120, 30],
+          ],
+          Y1 - 365,
+        ),
+      ],
+      [],
+      TERRAIN,
+    );
+    const w = roads.filter((r) => r.grade === 'wagon');
+    expect(w.reduce((s, r) => s + r.points.length, 0)).toBeGreaterThanOrEqual(4);
+    expect(connected(w, { x: -20, z: 30 }, { x: 120, z: 30 })).toBe(true);
+  });
+});
+
 describe('copánek přes křižovatku (paths.md – Copánek přes křižovatku)', () => {
   type Pt = [number, number];
   const at = (dz: number, pts: Pt[]): Pt[] => pts.map(([x, z]) => [x, z + dz]);

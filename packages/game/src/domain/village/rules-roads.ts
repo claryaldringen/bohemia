@@ -61,6 +61,11 @@ export const ROAD_JOIN = { gapM: 12 } as const;
 // obou větví nejvýš `maxM` m dlouhý a uvnitř leží nejvýš `maxInside` staveb a pozemků; Martin
 // 26. 10. 2026: „Ať kruhy kolem domů zůstanou“ – `maxInside` 0, okruh kolem stavby zůstane
 export const ROAD_BRAID_RING = { maxNodes: 2, maxM: 150, maxInside: 0 } as const;
+// paths.md – Zdvojená vozová cesta (Martin 26. 10. 2026: „určitě“ – audit Vlkova, okruh vozových cest
+// 936 + 1041 + 1054 kolem ohrady; čísla návrh Clauda): dvě hotové vozové cesty souběžné jako pěší
+// (do 12 m, směr do ≈ 37°) na aspoň 25 m – slabší se v souběžném kusu vyřízne jako souběžná pěší;
+// konec, který by tím zmizel, musí ležet do `endM` od osy silnější vozové cesty (spojení zůstane)
+export const WAGON_MERGE = { endM: 4 } as const;
 // paths.md – Jednorázová oprava sítě (číslo návrh Clauda): nenapojená vozová cesta bez provozu se
 // v opravě opustí, ale ne do `freshDays` od dostavění zemních prací (bez nich od vzniku úseku) – po
 // nové cestě zatím nikdo nejel; vozová cesta na hotových zemních pracích napojená aspoň jedním

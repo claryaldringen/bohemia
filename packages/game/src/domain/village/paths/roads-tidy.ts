@@ -2,7 +2,7 @@
 
 import { length2 } from '../../landscape';
 import { cloneState } from '../clone';
-import { ROAD_ANCHORS, ROAD_BRAID_RING, ROAD_JOIN, ROAD_TREES } from '../rules';
+import { ROAD_ANCHORS, ROAD_BRAID_RING, ROAD_JOIN, ROAD_TREES, WAGON_MERGE } from '../rules';
 import {
   type Construction,
   type Road,
@@ -135,8 +135,9 @@ export function absorbParallelRoads(
  * úseky (první s id cesty, další s novým) a jejich konce u silnější cesty pak napojí
  * `joinRoadGaps`. Místa na stromy ve vyříznutém kusu: se stromem do ROAD_TREES.offsetM.to + 1 m
  * od silnější cesty přejdou k ní, ostatní stromy stojí dál bez cesty (jako u zarostlé). Jabloně
- * vyříznutého kusu patří silnější cestě. Cesty ve stavbě (vylepšení, výsadba) se nemění. Vrátí,
- * jestli něco sloučil.
+ * vyříznutého kusu patří silnější cestě. Cesty ve stavbě (vylepšení, výsadba) se nemění. Vozová
+ * cesta se vyřízne jen souběžnou silnější vozovou a jen bez ztráty konce (`wagonCutKeepsEnds` –
+ * paths.md, Zdvojená vozová cesta). Vrátí, jestli něco sloučil.
  */
 export function mergeParallelRoads(
   roads: VillageRoads,
@@ -152,16 +153,42 @@ export function mergeParallelRoads(
     // od nejslabší – se silnějšími než ona
     for (let i = order.length - 1; i > 0 && !cut; i--) {
       const road = order[i]!;
-      // vozová cesta (roads.md – Vozová cesta) má vlastní zemní práce – nevyřízne se
-      if (building.has(road.id) || road.points.length < 2 || road.grade === 'wagon') continue;
+      if (building.has(road.id) || road.points.length < 2) continue;
+      // vozová cesta (roads.md – Vozová cesta) se pěší cestou nevyřízne – jen souběžnou silnější
+      // vozovou (paths.md – Zdvojená vozová cesta); silnější než vozová jsou jen vozové
       const run = parallelRun(road, order.slice(0, i));
-      if (run) cut = { road, ...run };
+      if (run && (road.grade !== 'wagon' || wagonCutKeepsEnds(road, run, order.slice(0, i)))) {
+        cut = { road, ...run };
+      }
     }
     if (!cut) break;
     cutRoad(roads, cut.road, cut.from, cut.to, cut.partner, trails);
     merged = true;
   }
   return merged;
+}
+
+/**
+ * Smí se ze slabší vozové cesty `road` vyříznout souběžný kus `run` (paths.md – Zdvojená vozová
+ * cesta)? Partner musí být vozová cesta a konec úseku, který by vyříznutím zmizel (kus začíná na
+ * začátku nebo končí na konci osy), musí ležet do `WAGON_MERGE.endM` od osy silnější vozové cesty –
+ * jinak by vozová síť přišla o spojení (konec u humna, dvorce, pole). Vnitřní konce zbytků leží
+ * u silnější vozové do 12 m a napojí je `joinRoadGaps`.
+ */
+function wagonCutKeepsEnds(
+  road: Road,
+  run: { from: number; to: number; partner: Road },
+  stronger: readonly Road[],
+): boolean {
+  if (run.partner.grade !== 'wagon') return false;
+  const wagons = axisDistance(stronger.filter((r) => r.grade === 'wagon').map((r) => r.points));
+  const length = roadLengthM(road);
+  const first = road.points[0]!;
+  const last = road.points[road.points.length - 1]!;
+  // zbytek kratší než MIN_ROAD_M zmizí s vyříznutým kusem – jeho konec taky
+  if (run.from < MIN_ROAD_M && wagons(first.x, first.z) > WAGON_MERGE.endM) return false;
+  if (length - run.to < MIN_ROAD_M && wagons(last.x, last.z) > WAGON_MERGE.endM) return false;
+  return true;
 }
 
 /** Vyřízne z úseku `road` kus od `from` do `to` m (souběžný s `partner`) – mutuje. */

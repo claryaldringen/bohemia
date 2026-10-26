@@ -658,7 +658,8 @@ Pravidlo (návrh Clauda, čísla `ROAD_BRAID_RING`):
   změny, takže **starší ves převod nepotřebuje** – copánek zmizí při nejbližším měsíčním kroku cest.
 - Vlkov: copánek přes křižovatku se řídí jen prázdným okruhem; okruhy kolem domů (např. 781 + 786 +
   940 kolem domu na stavu z auditu, den 115545) zůstanou. Okruh vozových cest 936 + 1041 + 1054
-  kolem ohrady zůstává také – všechny tři jsou vozové.
+  kolem ohrady zůstává také – všechny tři jsou vozové (řeší ho [Zdvojená vozová
+  cesta](#zdvojená-vozová-cesta-26-10-2026)).
 
 ## Vozová cesta bez vlásenky (26. 10. 2026)
 
@@ -729,6 +730,27 @@ Pravidla (návrh Clauda, čísla `FENCE_CLEARANCE` v `rules-roads.ts`):
   11 → 12 – staré cesty se nemění, nový nález je rameno nové křižovatky (úsek 1060 přes dům 2137 –
   ohyb ramene ke křižovatce stavby nehlídá, mimo tuto úlohu). Rok Vlkova CPU 30,9–33,0 s → 31,2–33,2 s
   (stroj vytížený, load ≈ 80 – v šumu).
+
+## Zdvojená vozová cesta (26. 10. 2026)
+
+Audit Vlkova po odstupu od plotů: okruh vozových cest 936 + 1041 + 1054 kolem ohrady (133 m) –
+vozová 1054 (66,6 m) vede vlásenkou po téže ose jako 936 a 1041, 4 m vedle. Úklid ho nechal, protože
+vozová cesta se jako slabší nikdy nemaže (hráč do ní investoval). Martin 26. 10. 2026 na otázku, zda
+zdvojené vozové cesty opravit a Vlkov jednou přestavět: „určitě“.
+
+Pravidlo (návrh Clauda, `WAGON_MERGE` v `rules-roads.ts`):
+
+- **Dvě hotové vozové cesty souběžné** stejně jako pěší (do **12 m**, směr do ≈ 37°) na aspoň
+  **25 m** – i když jedna leží po ose druhé tam a zpět (vlásenka) – se sloučí: ze slabší (pořadí síly
+  jako u souběžných cest – vyjetá, starší, víc provozu) se souběžný kus vyřízne, zbytky kratší než
+  15 m zmizí a konce zbytků se napojí na silnější (díry do 12 m). Vozová cesta se dál nikdy
+  nevyřízne pěší cestou ani copánkem.
+- **Spojení zůstane:** konec slabší vozové, který by vyříznutím zmizel, musí ležet do **4 m** od osy
+  silnější vozové cesty (např. sdílený uzel) – jinak se kus nevyřízne (konec u humna, dvorce či pole
+  by vozová síť ztratila).
+- Zemní práce vyříznutého kusu zůstanou terénem (zjednodušení – svahy na rovině jsou skoro nulové).
+- Platí v každém úklidu (měsíční kontrola, převod, přestavba). Vlkov: měsíční kontrola 1054 sloučí
+  i bez přestavby (vozová síť 3 293 → 3 227 m, souběh vozových 1 → 0).
 
 ## Stavba přes cestu (Vlkov, Martin 23. 10. 2026)
 

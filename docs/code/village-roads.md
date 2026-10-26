@@ -135,7 +135,9 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   `finishConstructions`, starší vsi při načtení `withMergedRoads` v `updateVillage`; id a den
   vzniku staršího, roads.md – Úseky a rozcestí; dva úseky mezi stejnými uzly do okruhu ne,
   nejrovnější pokračování první) → **souběžné cesty** (do 12 m stejným směrem) se sloučí (`mergeParallelRoads` – kus
-  slabší cesty souběžný aspoň 25 m se vyřízne, `removeBraids` – copánek přes 1–2 mezilehlé uzly
+  slabší cesty souběžný aspoň 25 m se vyřízne; vozová jen se souběžnou silnější vozovou a jen když
+  konec, který by zmizel, leží do `WAGON_MERGE.endM` od osy silnější vozové – `wagonCutKeepsEnds`,
+  paths.md – Zdvojená vozová cesta; zemní práce vyříznutého kusu zůstanou terénem), `removeBraids` – copánek přes 1–2 mezilehlé uzly
   (`ringBraid`, jen se stavbami vsi `SpotContext.buildings` – níž) a copánek mezi stejnými uzly do
   25 m: zmizí oklika; vše v `tidyRoads`) → **díry** (volný konec do 12 m od jiného
   úseku, který není u konce trasy roční sítě – brány, cíle) se napojí (`joinRoadGaps`, starší
