@@ -723,6 +723,13 @@ test('hráč postaví ohradu koní z rozcestníku ohrad – panel ukáže koně,
     .find((c) => penSquaresFromCells(s.landscape, village, [c], 'horse').check.ok);
   expect(cell).toBeDefined();
 
+  // Koně nové ohrady se platí z přebytku vsi (horses.md – Koně se stavbou ohrady) – nová ves
+  // přebytek nemá, dostane hřivny (≈ 130 kg na hodnotu koní).
+  const founded = await villageState(s.settlementId);
+  founded.crafts = { charcoalKg: 0, potteryKg: 0, ...founded.crafts, ironBarsKg: 200 };
+  await writeVillageState(s.settlementId, founded);
+  await pollVillage(page);
+
   // Rozcestník ohrad (O) nabízí i Ohradu koní – druh z mřížky staveb.
   await page.keyboard.press('o');
   const horsePen = grid.getByRole('button', { name: 'Ohrada koní' });
