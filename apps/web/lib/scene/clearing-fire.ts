@@ -48,7 +48,8 @@ export function heapFireShape(scale: number): FireShape {
     heightM: HEAP_SIZE_M.height * scale,
     flames: HEAP_FLAMES,
     sparks: HEAP_SPARKS,
-    scale: 0.55 * scale,
+    // plameny ≈ do výšky člověka – z výšky hry (120 m) se jinak ztratí (ověření úlohy 8, dřív 0,55)
+    scale: 0.75 * scale,
   };
 }
 

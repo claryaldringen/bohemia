@@ -127,9 +127,10 @@ export const LOOK_STYLES: Record<FieldLook, LookStyle> = {
   },
   burnt: {
     texture: 'mud',
-    tint: [0.2, 0.18, 0.17],
+    // ověření úlohy 8: dřív 0,2 / 0,18 / 0,17 a popel 0,55 – z výšky hry černá díra bez popela
+    tint: [0.25, 0.22, 0.2],
     alpha: 1,
-    patches: { texture: 'grass-dirt', tint: [0.62, 0.61, 0.59], alpha: 0.55 },
+    patches: { texture: 'grass-dirt', tint: [0.62, 0.61, 0.59], alpha: 0.7 },
     crop: null,
     stooks: false,
     hay: false,
