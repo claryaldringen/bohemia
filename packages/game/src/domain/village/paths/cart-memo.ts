@@ -22,6 +22,11 @@ const GRIDS_PER_LANDSCAPE = 2;
 const SEARCHES_PER_GRID = 64;
 /** Pamatovaných tras na hledání – nad mez se hledání zapomene celé. */
 const ROUTES_PER_SEARCH = 1024;
+/**
+ * Mez paměti jedné mřížky: součet buněk všech pamatovaných tras (každá nese `cells` i `points`).
+ * Nad ní se nejstarší hledání zapomenou – paměť při dlouhém dopočtu neroste do stovek MB.
+ */
+export const MAX_CELLS_PER_GRID = 200_000;
 
 interface CartMemo {
   obstacles: ObstacleLayer | null;
@@ -29,6 +34,8 @@ interface CartMemo {
   grid: CartGrid;
   /** Trasy po hledáních (`searchKey`) a cílech (`targetKey`). */
   searches: Map<string, Map<string, CartRoute>>;
+  /** Součet `cells.length` pamatovaných tras (mez `MAX_CELLS_PER_GRID`). */
+  cells: number;
 }
 
 const MEMO = new WeakMap<Landscape, CartMemo[]>();
@@ -82,23 +89,31 @@ export function memoCartRoutes(
   kind: CartKind,
   depots: readonly PathPoint[],
   targets: readonly CartTarget[],
-): CartRoute[] {
+): readonly CartRoute[] {
   const list = MEMO.get(landscape) ?? [];
   const at = list.findIndex((m) => m.obstacles === obstacles && m.key === key);
   const memo: CartMemo =
-    at >= 0 ? list.splice(at, 1)[0]! : { obstacles, key, grid: makeGrid(), searches: new Map() };
+    at >= 0
+      ? list.splice(at, 1)[0]!
+      : { obstacles, key, grid: makeGrid(), searches: new Map(), cells: 0 };
   list.unshift(memo);
   if (list.length > GRIDS_PER_LANDSCAPE) list.length = GRIDS_PER_LANDSCAPE;
   MEMO.set(landscape, list);
   const search = `${kind}|${depots.map(pointKey).join(';')}`;
+  /** Zapomene hledání (a jeho buňky) z paměti mřížky. */
+  const drop = (name: string): void => {
+    for (const r of memo.searches.get(name)?.values() ?? []) memo.cells -= r.cells.length;
+    memo.searches.delete(name);
+  };
   let routes = memo.searches.get(search);
   if (!routes) {
-    if (memo.searches.size >= SEARCHES_PER_GRID) {
-      memo.searches.delete(memo.searches.keys().next().value!);
-    }
+    if (memo.searches.size >= SEARCHES_PER_GRID) drop(memo.searches.keys().next().value!);
     routes = new Map();
-    memo.searches.set(search, routes);
+  } else {
+    // nejdéle nepoužité hledání je první ve frontě k zapomenutí
+    memo.searches.delete(search);
   }
+  memo.searches.set(search, routes);
   const unknown = (known: Map<string, CartRoute>): Map<string, CartTarget> => {
     const out = new Map<string, CartTarget>();
     for (const t of targets) {
@@ -109,14 +124,24 @@ export function memoCartRoutes(
   };
   let missing = unknown(routes);
   if (missing.size > 0 && routes.size + missing.size > ROUTES_PER_SEARCH) {
+    for (const r of routes.values()) memo.cells -= r.cells.length;
     routes.clear();
     missing = unknown(routes);
   }
-  if (missing.size > 0) {
-    const found = cartRoutesOn(memo.grid, { kind, depots, targets: [...missing.values()] });
-    [...missing.keys()].forEach((k, n) => routes.set(k, found[n]!));
+  if (missing.size === 0) return targets.map((t) => routes.get(targetKey(t))!);
+  const found = cartRoutesOn(memo.grid, { kind, depots, targets: [...missing.values()] });
+  [...missing.keys()].forEach((k, n) => {
+    routes.set(k, found[n]!);
+    memo.cells += found[n]!.cells.length;
+  });
+  const result = targets.map((t) => routes.get(targetKey(t))!);
+  // nad mez buněk vypadnou nejstarší hledání; aktuální (poslední vložené) zůstane, i když je samo
+  // nad mezí – pak se zapomene až příště
+  for (const name of memo.searches.keys()) {
+    if (memo.cells <= MAX_CELLS_PER_GRID || name === search) break;
+    drop(name);
   }
-  return targets.map((t) => routes.get(targetKey(t))!);
+  return result;
 }
 
 /** Zapomene mřížky a trasy vozu krajiny (studený start – testy). */

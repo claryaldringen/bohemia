@@ -840,7 +840,10 @@ studeným startem každý den; `cart-memo.test.ts`).
   odkud spřežení přejíždí – `plough-trip.ts`).
 - **Meze paměti:** `WeakMap` podle krajiny, nejvýš 2 mřížky (nejdéle nepoužitá vypadne), na
   mřížku 64 hledání (nejstarší vypadne) po nejvýš 1 024 trasách (nad mez se hledání zapomene).
-  `dist` / `parent` hledání se nepamatují (desítky MB). `forgetCartRoutes(landscape)` – studený
+  K tomu mez buněk: součet `cells.length` pamatovaných tras na mřížku nejvýš
+  `MAX_CELLS_PER_GRID` (200 tis.) – nad ni vypadnou nejstarší hledání (použité hledání se řadí na
+  konec fronty), aby paměť při dlouhém dopočtu nerostla do stovek MB. `dist` / `parent` hledání se
+  nepamatují (desítky MB). `forgetCartRoutes(landscape)` – studený
   start v testech.
 - **Chůze** (`walkingDistances`, `paths/walking.ts`): horní mez napřed – rovně z obydlí ke každému
   cíli se spočítá první; uzel sítě, ke kterému je rovně aspoň tak daleko jako nejdelší z nich, do

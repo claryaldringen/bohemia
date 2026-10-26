@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
+import { packObstacles, type ObstacleLayer, type ObstaclePlacement } from '../../landscape';
 import { foundVillage } from '../actions';
-import { NO_OBSTACLE_CHANGES } from '../obstacles';
+import { fellTrees, matureTreesByDistance, NO_OBSTACLE_CHANGES } from '../obstacles';
 import {
   cartGrid,
   cartRoutes,
@@ -11,6 +12,7 @@ import {
 } from '../paths/cart';
 import { cartGridKey, forgetCartRoutes, memoCartRoutes } from '../paths/cart-memo';
 import { villageCartRoutes } from '../paths/roads';
+import type { PathSquare } from '../paths/network';
 import { pathWindowFor } from '../paths/terrain';
 import { advanceVillage } from '../simulate';
 import type { Person, Position, VillageState } from '../types';
@@ -94,6 +96,33 @@ describe('trasy vozu po cílech (cartRoutesOn)', () => {
     expect(built).toBe(1);
     expect(four).toEqual(cartRoutesOn(grid, { kind: 'four-wheel', depots, targets: TARGETS }));
   });
+
+  it('mez paměti: třetí mřížka vytlačí nejstarší, 65. hledání nejstarší hledání', () => {
+    const l = pathLandscape();
+    let built = 0;
+    const make = (): typeof grid => {
+      built++;
+      return grid;
+    };
+    const one = [TARGETS[0]!];
+    memoCartRoutes(l, null, 'a', make, 'two-wheel', depots, one);
+    memoCartRoutes(l, null, 'b', make, 'two-wheel', depots, one);
+    memoCartRoutes(l, null, 'c', make, 'two-wheel', depots, one);
+    expect(built).toBe(3);
+    memoCartRoutes(l, null, 'c', make, 'two-wheel', depots, one);
+    memoCartRoutes(l, null, 'b', make, 'two-wheel', depots, one);
+    expect(built).toBe(3);
+    memoCartRoutes(l, null, 'a', make, 'two-wheel', depots, one);
+    expect(built).toBe(4);
+    // hledání: 64 různých výjezdů zaplní mřížku, další vytlačí nejméně nedávno použité
+    const first = memoCartRoutes(l, null, 'a', make, 'two-wheel', depots, one)[0];
+    for (let n = 1; n <= 64; n++) {
+      memoCartRoutes(l, null, 'a', make, 'two-wheel', [{ x: n * 0.5, z: 0 }], one);
+    }
+    const again = memoCartRoutes(l, null, 'a', make, 'two-wheel', depots, one)[0];
+    expect(again).not.toBe(first);
+    expect(again).toEqual(first);
+  });
 });
 
 describe('klíč mřížky vozu (cartGridKey)', () => {
@@ -124,6 +153,64 @@ describe('klíč mřížky vozu (cartGridKey)', () => {
   });
 });
 
+describe('klíč mřížky vozu – ostatní stavby vsi', () => {
+  const window = pathWindowFor(pathLandscape(), { minX: -150, minZ: -150, maxX: 150, maxZ: 150 });
+  const key = (v: CartVillage): string => cartGridKey(v, window, NO_OBSTACLE_CHANGES);
+  const base: CartVillage = {
+    dwellings: [house(1, -60, -60)],
+    fields: [{ id: 1, parts: [part(30, 30, 'sown')] }],
+  };
+  const sq = (x: number, z: number): PathSquare => ({ ...part(x, z), size: 15 });
+
+  const variants: Record<string, CartVillage> = {
+    ohrada: { ...base, pens: [{ ...sq(-22.5, -7.5), id: 9, built: true }] },
+    svatyně: {
+      ...base,
+      sacred: {
+        oaks: [],
+        groves: [],
+        buildings: [
+          { id: 5, kind: 'shrine', position: { x: 50, z: 50, rotation: 0 }, built: true },
+        ],
+      },
+    },
+    'zemní práce': { ...base, earthworks: [{ profile: [], reachedM: 12 }] },
+    'les vsi': { ...base, woods: [sq(-52.5, 45)] },
+    sad: { ...base, orchards: [{ id: 3, squares: [sq(60, 22.5)] }] },
+    hřbitov: { ...base, cemeteries: [{ id: 4, squares: [sq(45, -60)], built: true }] },
+    'díl s mladým lesem': { ...base, fields: [{ id: 1, parts: [part(30, 30, 'young-forest')] }] },
+    milíř: { ...base, kilns: [{ x: 40, z: 40 }] },
+    humno: {
+      ...base,
+      threshingFloors: [{ id: 6, position: { x: 30, z: -30, rotation: 0 }, built: true }],
+    },
+  };
+
+  it.each(Object.entries(variants))('%s – nový klíč, tytéž vstupy – týž klíč', (_name, v) => {
+    expect(key(v)).not.toBe(key(base));
+    expect(key(structuredClone(v))).toBe(key(v));
+  });
+});
+
+/** Háj dospělých stromů po 6 m na cestě vozu (krajina 20 × 20 políček po 15 m). */
+function treeLayer(): ObstacleLayer {
+  const trees: ObstaclePlacement[] = [];
+  let id = 1;
+  for (let x = -30; x <= 30; x += 6)
+    for (let z = -120; z <= -20; z += 6) {
+      trees.push({
+        id: id++,
+        kind: 'tree',
+        look: 'beech-1',
+        x,
+        z,
+        rotation: 0,
+        scale: 1,
+      });
+    }
+  return packObstacles(trees, 20, 15);
+}
+
 describe('trasy vozu vsi v paměti (villageCartRoutes)', () => {
   it('táž mapa jiný den – zásah; po zapomenutí spočítáno znovu totéž', () => {
     const l = pathLandscape();
@@ -150,4 +237,35 @@ describe('trasy vozu vsi v paměti (villageCartRoutes)', () => {
     }
     expect(s).toEqual(whole);
   }, 60_000);
+
+  it('teplá paměť přes změnu stavu (pokácené stromy) = studený start každý den', () => {
+    const l = pathLandscape();
+    const layer = treeLayer();
+    const start = village(DAY, { x: 0, z: -135, rotation: 0 });
+    const run = (forget: boolean): VillageState => {
+      let s = structuredClone(start);
+      for (let d = DAY + 1; d <= DAY + 4; d++) {
+        if (forget) forgetCartRoutes(l);
+        if (d === DAY + 3) {
+          const ids = matureTreesByDistance(
+            layer,
+            NO_OBSTACLE_CHANGES,
+            { x: 0, z: -70 },
+            { limit: 60 },
+          );
+          s = fellTrees(
+            s,
+            ids.map((t) => t.id),
+            d - 1,
+          );
+        }
+        s = advanceVillage(s, d, layer, l);
+      }
+      return s;
+    };
+    forgetCartRoutes(l);
+    const warm = run(false);
+    expect(run(true)).toEqual(warm);
+    expect(warm.felledTrees?.length ?? 0).toBeGreaterThan(0);
+  }, 120_000);
 });

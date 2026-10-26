@@ -157,7 +157,7 @@ export function villageCartRoutes(
   kind: CartKind,
   targets: readonly CartTarget[],
   from: { x: number; z: number } | null = null,
-): CartRoute[] | null {
+): readonly CartRoute[] | null {
   // mokřina na ose pevných cest (Road.ground) – vůz ji vidí jako chůze
   const village = cartVillageOf(pathVillageOf(state, day, landscape), state.roads?.roads ?? []);
   const pens = cartDepots(village, teamPens(state));
