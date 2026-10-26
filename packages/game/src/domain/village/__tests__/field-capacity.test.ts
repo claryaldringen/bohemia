@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
-import { fieldCapacity, ROTATION_FACTOR, netYieldPerHa } from '../field-capacity';
+import {
+  averageSownShare,
+  fieldCapacity,
+  netYieldPerHa,
+  ROTATION,
+  ROTATION_FACTOR,
+} from '../field-capacity';
 import { FOOD_NEED_KG_PER_YEAR } from '../rules';
 import type { FieldPart, Person, VillageState } from '../types';
 
@@ -26,6 +32,14 @@ const state = (
   parts,
   people: people(n),
   fieldFood: undefined,
+});
+
+describe('oběh odpočatého dílu', () => {
+  it('ozim 95 %, jař 83 %, úhor 5 let zpět na 95 % – pole ≈ 3,5× osevu, průměr osevu 0,89', () => {
+    expect(ROTATION).toEqual({ sown: 2, fallow: 5 });
+    expect(ROTATION_FACTOR).toBeCloseTo(3.5, 9);
+    expect(averageSownShare()).toBeCloseTo(0.89, 9);
+  });
 });
 
 describe('fieldCapacity', () => {

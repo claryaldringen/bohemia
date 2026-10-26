@@ -124,9 +124,9 @@ describe('nouzový osev přílohu pod 70 %', () => {
 
   it('díl s nekladnou čistou úrodou neoseje', () => {
     const s = poorVillage(10, 0);
-    // nejvíc zotavený příloh (1. 9. 0,695) bez plochy – čistá úroda 0
+    // nejvíc zotavený příloh (1. 9. 0,69) bez plochy – čistá úroda 0
     const empty = s.parts[20]!;
-    empty.fertilityShare = 0.67;
+    empty.fertilityShare = 0.64;
     empty.areaM2 = 0;
     expect(expectedNetKg(empty, at(600, 9, 1))).toBe(0);
     const inPlan = chosenIds(s, at(600, 9, 1));
