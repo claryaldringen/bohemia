@@ -4,7 +4,9 @@ blender -b --factory-startup --python tools/blender/fauna_from_0ad.py -- \
     tools/blender/fauna.json <0ad>/binaries/data/mods/public/art apps/web/public/models/fauna [náhled.png]
 
 fauna.json: [{"name", "dae", "texture", "forward", "size": {"axis", "m"}, "pose"?, "keys"?,
-"key_gain"?, "symmetric"?, "opaque"?, "texture_px"?}]
+"key_gain"?, "symmetric"?, "opaque"?, "texture_px"?, "smooth"?, "props"?: [{"dae", "bone"}]}]
+"props": statická rekvizita (paroží jelena) přilepená ke kosti – mesh se sloučí se zvířetem do
+jednoho meshe a v každé póze (i klíčové) se přesune s kostí; sdílí texturu zvířete.
 Kostra ani animace se nepřevádějí – model je statický mesh v základní póze a k ní nejvýš pár
 klíčových póz jako morph targety (glTF), všechny napózované snímky animací 0 A.D. (skinning
 v Pythonu). Scéna mezi pózami plynule přechází ve vertex shaderu (křídla nahoře / dole, ocas
@@ -107,6 +109,21 @@ def joint_worlds(anim_root, time):
     return worlds
 
 
+def complete_worlds(root, worlds):
+    """Kosti, které animace nemá (prop-antler u jelena), se dopočtou z klidové matice uzlu v meshi
+    a z už napózované matice rodiče."""
+
+    def walk(node, parent_name):
+        key = node.get("sid") or node.get("name")
+        if key not in worlds and parent_name in worlds:
+            worlds[key] = worlds[parent_name] @ node_matrix(node)
+        for child in node.findall("c:node", NS):
+            walk(child, key)
+
+    for node in root.findall(".//c:visual_scene/c:node", NS):
+        walk(node, None)
+
+
 def skin_transform(root, skin, pose):
     """Funkce (index vrcholu) -> matice pózy vrcholu; bez pózy jen bind_shape_matrix."""
     bsm_el = skin.find("c:bind_shape_matrix", NS)
@@ -118,6 +135,7 @@ def skin_transform(root, skin, pose):
     names = root.find(f".//c:source[@id='{by_sem['JOINT']}']/c:Name_array", NS).text.split()
     inv_bind = [matrix16(m) for m in source_data(root, by_sem["INV_BIND_MATRIX"])]
     worlds = joint_worlds(ET.parse(pose["animation"]).getroot(), pose.get("time", 0.0))
+    complete_worlds(root, worlds)
     skinning = [worlds[n] @ inv_bind[j] @ bsm for j, n in enumerate(names)]
 
     vw = skin.find("c:vertex_weights", NS)
@@ -150,8 +168,9 @@ def geometry_positions(root, geom_id):
     return [Vector(v[:3]) for v in source_data(root, pos_src)]
 
 
-def build_mesh(root, geom_id, vertex_matrix, name):
-    """Mesh z geometrie; `vertex_matrix(i)` je matice pózy vrcholu i."""
+def collect_geometry(root, geom_id, vertex_matrix):
+    """(vrcholy v póze, plochy, uv, normály po rozích) geometrie; `vertex_matrix(i)` je matice
+    pózy vrcholu i."""
     geom = root.find(f".//c:geometry[@id='{geom_id}']", NS)
     mesh_el = geom.find("c:mesh", NS)
     positions = geometry_positions(root, geom_id)
@@ -184,8 +203,21 @@ def build_mesh(root, geom_id, vertex_matrix, name):
                     for c in corners
                 )
 
+    return [vertex_matrix(i) @ v for i, v in enumerate(positions)], faces, uvs, normals
+
+
+def build_mesh(root, geom_id, vertex_matrix, name, extra=None):
+    """Mesh z geometrie. `extra` = výsledek `collect_geometry` rekvizity, přidaný na konec
+    (jeho vrcholy až za vrcholy zvířete)."""
+    verts, faces, uvs, normals = collect_geometry(root, geom_id, vertex_matrix)
+    if extra:
+        offset = len(verts)
+        verts += extra[0]
+        faces += [[i + offset for i in f] for f in extra[1]]
+        uvs += extra[2]
+        normals += extra[3]
     mesh = bpy.data.meshes.new(name)
-    mesh.from_pydata([vertex_matrix(i) @ v for i, v in enumerate(positions)], [], faces)
+    mesh.from_pydata(verts, [], faces)
     if uvs:
         layer = mesh.uv_layers.new(name="UVMap")
         for loop, uv in zip(layer.data, uvs):
@@ -194,7 +226,7 @@ def build_mesh(root, geom_id, vertex_matrix, name):
         mesh.normals_split_custom_set(normals)
     mesh.validate()
     # Shape keys se přiřazují podle pořadí vrcholů – validace žádný nesmí odebrat.
-    assert len(mesh.vertices) == len(positions), f"{name}: validace změnila vrcholy"
+    assert len(mesh.vertices) == len(verts), f"{name}: validace změnila vrcholy"
     return mesh
 
 
@@ -306,6 +338,52 @@ def hang_pose(base, forward, hang):
     return out
 
 
+def static_node_worlds(root):
+    """Světové matice všech uzlů souboru bez animace: (id uzlu -> matice) a (jméno -> matice)."""
+    by_id, by_name = {}, {}
+
+    def walk(node, parent):
+        world = parent @ node_matrix(node)
+        by_id[node.get("id")] = world
+        by_name[node.get("sid") or node.get("name")] = world
+        by_name.setdefault(node.get("name"), world)
+        by_name.setdefault(node.get("id"), world)
+        for child in node.findall("c:node", NS):
+            walk(child, world)
+
+    for node in root.findall(".//c:visual_scene/c:node", NS):
+        walk(node, Matrix.Identity(4))
+    return by_id, by_name
+
+
+class Prop:
+    """Pevná rekvizita (paroží) přilepená k bodu pro rekvizitu („bone“, v meshi zvířete uzel
+    prop-antler-node): statický mesh se v každé póze přesune s ním. Soubor rekvizity má vlastní
+    uzel „anchor“ (antler01) se stejným měřítkem jako bod – poloha geometrie vůči němu =
+    inv(svět anchoru) @ svět uzlu s geometrií, v póze pak svět bodu @ tato poloha."""
+
+    def __init__(self, art_dir, spec, up_fix):
+        self.root = ET.parse(f"{art_dir}/{spec['dae']}").getroot()
+        self.bone = spec["bone"]
+        by_id, by_name = static_node_worlds(self.root)
+        inst = self.root.find(".//c:visual_scene//c:node/c:instance_geometry", NS)
+        node = next(
+            n for n in self.root.iterfind(".//c:visual_scene//c:node", NS) if inst in list(n)
+        )
+        self.geom_id = inst.get("url")[1:]
+        self.local = by_name[spec["anchor"]].inverted() @ by_id[node.get("id")]
+        self.positions = geometry_positions(self.root, self.geom_id)
+        self.up_fix = up_fix
+
+    def points(self, bone_world):
+        m = self.up_fix @ bone_world @ self.local
+        return [m @ v for v in self.positions]
+
+    def part(self, bone_world):
+        m = self.up_fix @ bone_world @ self.local
+        return collect_geometry(self.root, self.geom_id, lambda i: m)
+
+
 def fix_forward(spec):
     """Otočení o 180° kolem Z pro modely mířící v 0 A.D. na +Y (shodně s meshem níž)."""
     return Matrix.Rotation(math.pi, 4, "Z") if spec["forward"] == "+y" else Matrix.Identity(4)
@@ -320,7 +398,32 @@ def import_animal(spec):
         raise ValueError(f"{spec['name']}: čekám jeden skinovaný mesh, je jich {len(found)}")
     gid, skin = found[0]
     pose = skin_transform(root, skin, spec.get("pose"))
-    mesh = build_mesh(root, gid, lambda i: fix @ pose(i), spec["name"])
+    # Rekvizity (paroží): statický mesh přilepený ke kosti, sloučený do jednoho meshe se zvířetem.
+    props = [Prop(spec["art_dir"], p, fix) for p in spec.get("props", [])]
+
+    def prop_parts(pose_spec):
+        if pose_spec is None:
+            worlds = static_node_worlds(root)[1]
+        else:
+            worlds = joint_worlds(ET.parse(pose_spec["animation"]).getroot(), pose_spec.get("time", 0.0))
+            complete_worlds(root, worlds)
+        return [prop.part(worlds[prop.bone]) for prop in props]
+
+    extra = None
+    if props:
+        extra = ([], [], [], [])
+        for part in prop_parts(spec.get("pose")):
+            offset = len(extra[0])
+            extra[0].extend(part[0])
+            extra[1].extend([[i + offset for i in f] for f in part[1]])
+            extra[2].extend(part[2])
+            extra[3].extend(part[3])
+    mesh = build_mesh(root, gid, lambda i: fix @ pose(i), spec["name"], extra)
+    if spec.get("smooth"):
+        # Normály z 0 A.D. jsou po rozích (3× víc vrcholů v GLB) – Blender je spočítá z tvaru.
+        mesh.normals_split_custom_set([(0.0, 0.0, 0.0)] * len(mesh.loops))
+        for poly in mesh.polygons:
+            poly.use_smooth = True
     obj = bpy.data.objects.new(spec["name"], mesh)
     bpy.context.scene.collection.objects.link(obj)
 
@@ -331,6 +434,12 @@ def import_animal(spec):
         for name, transform in [(None, pose)]
         + [(k, skin_transform(root, skin, p)) for k, p in keys.items() if "animation" in p]
     }
+    if props:
+        for name in poses:
+            key = spec.get("pose") if name is None else keys[name]
+            if name is None or "animation" in key:
+                for part in prop_parts(key):
+                    poses[name].extend(part[0])
     # Klíč „bend“ (kůň nemá v 0 A.D. pastvu): hlava a krk se v základní póze skloní kolem
     # osy napříč tělem, viz bend_pose.
     for name, key in keys.items():
@@ -473,6 +582,7 @@ def main():
     bpy.ops.wm.read_factory_settings(use_empty=True)
     objs = []
     for spec in json.load(open(job_path)):
+        spec["art_dir"] = art_dir
         spec["dae"] = f"{art_dir}/{spec['dae']}"
         spec["texture"] = f"{art_dir}/{spec['texture']}"
         for pose in [spec.get("pose"), *spec.get("keys", {}).values()]:

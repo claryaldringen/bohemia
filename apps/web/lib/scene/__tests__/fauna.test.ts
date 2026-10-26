@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
 
@@ -37,6 +37,42 @@ describe('modely koně a hříběte z 0 A.D.', () => {
   it('kůň a hříbě mají tři klíčové pózy (krok, krok, pastva)', () => {
     for (const name of ['horse', 'foal']) {
       expect(readGlb(`fauna/${name}.glb`).meshes[0]?.primitives[0]?.targets).toHaveLength(3);
+    }
+  });
+});
+
+describe('divoká zvěř a pes z 0 A.D. (wild-*, dog)', () => {
+  const NAMES = [
+    'wild-boar',
+    'wild-stag',
+    'wild-hind',
+    'wild-wolf',
+    'wild-bear',
+    'wild-fox',
+    'wild-hare',
+    'dog',
+  ];
+
+  it('mají nejvýš 8 vertex bufferů ve scéně a nejvýš 3 morph targety', () => {
+    for (const name of NAMES) {
+      expect(livestockBuffers(name), name).toBeLessThanOrEqual(8);
+      const targets = readGlb(`fauna/${name}.glb`).meshes[0]?.primitives[0]?.targets;
+      expect(targets?.length, name).toBeLessThanOrEqual(3);
+    }
+  });
+
+  it('mají tři klíčové pózy (krok, krok, pastva nebo ležení)', () => {
+    for (const name of NAMES) {
+      expect(readGlb(`fauna/${name}.glb`).meshes[0]?.primitives[0]?.targets, name).toHaveLength(3);
+    }
+  });
+
+  it('GLB má nejvýš 200 kB', () => {
+    for (const name of NAMES) {
+      const size = statSync(
+        fileURLToPath(new URL(`../../../public/models/fauna/${name}.glb`, import.meta.url)),
+      ).size;
+      expect(size, name).toBeLessThanOrEqual(200_000);
     }
   });
 });

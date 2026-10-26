@@ -94,6 +94,16 @@
           "wood": [0.06, 0.36, 0.14, 0.58],
           "liquid": [0.06, 0.72, 0.14, 0.84]
         }
+      },
+      {
+        "name": "fishing-rod",
+        "procedural": "rod",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        },
+        "rotate_deg": [-60, 0, 0]
       }
     ],
     "clips": [
@@ -199,6 +209,11 @@
         "name": "carry-meat-idle",
         "animation": "animation/biped/gatherer/idle_carry_meat_f.dae",
         "props": ["head", "meat"]
+      },
+      {
+        "name": "fish",
+        "animation": "animation/biped/citizen/idle_relax_f.dae",
+        "props": ["head", "fishing-rod"]
       }
     ]
   },
@@ -322,6 +337,16 @@
           "wood": [0.06, 0.36, 0.14, 0.58],
           "liquid": [0.06, 0.72, 0.14, 0.84]
         }
+      },
+      {
+        "name": "fishing-rod",
+        "procedural": "rod",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        },
+        "rotate_deg": [-60, 0, 0]
       }
     ],
     "clips": [
@@ -467,6 +492,11 @@
         "name": "carry-meat-idle",
         "animation": "animation/biped/gatherer/idle_carry_meat_m.dae",
         "props": ["head", "meat"]
+      },
+      {
+        "name": "fish",
+        "animation": "animation/biped/citizen/idle_relax_m_a.dae",
+        "props": ["head", "fishing-rod"]
       }
     ]
   }

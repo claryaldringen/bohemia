@@ -44,3 +44,7 @@ Porážka (oba soubory, klipy `butcher`, `bleed`, `gut`, `carry-meat`, `carry-me
 `idle_carry_meat_m.dae` (žena / muž). Rekvizity: nůž `props/weapons/dagger_01.dae` (textura
 `props/prop_weap.dds`), kýta `props/special/brontoburger.dae` (textura `props/shuttle_meat.png`).
 Miska na krev je nový jednoduchý model (skript, `procedural_bowl`) s texturou z `prop_weap.dds`.
+
+Prut (klip `fish`, oba soubory): nový jednoduchý model (skript, `procedural_rod`, **CC0**) – kuželovitý
+šestiboký válec ≈ 3 m s texturou dřeva z `prop_weap.dds` (0 A.D.); klip `fish` je klidová póza
+(`idle_relax_f.dae` / `idle_relax_m_a.dae`), vlasec se kreslí až ve scéně.
