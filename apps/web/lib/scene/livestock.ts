@@ -80,6 +80,8 @@ const SPECIES: readonly LivestockSpecies[] = [
   'foal',
   'dog',
 ];
+/** Dobytek načtený se vsí; psa (`dog.glb`) až ve vsi se psy (`loadDog`). */
+const HERD_SPECIES = SPECIES.filter((s) => s !== 'dog');
 /** Dál od kamery (m) se zvířata nehýbou – jsou pár pixelů a pohyb by jen zbytečně kreslil. */
 const ANIMATE_RANGE_M = 900;
 /** Po takovém posunu středu vsi (m) se rastr terénu pro zvířata spočítá znovu. */
@@ -176,6 +178,8 @@ export class VillageLivestock {
   private readonly kinds = new Map<LivestockSpecies, Kind>();
   private geometries: Map<LivestockSpecies, FaunaGeometry> | null = null;
   private loading: Promise<void> | null = null;
+  private dogLoading: Promise<void> | null = null;
+  private dogGeometry: FaunaGeometry | null = null;
   private readonly pose = createLivestockPose();
   private disposed = false;
 
@@ -227,7 +231,10 @@ export class VillageLivestock {
     if (key === this.dogsKey) return false;
     this.dogsKey = key;
     this.dogs = dogs;
-    if (dogs.length > 0) void this.load();
+    if (dogs.length > 0) {
+      void this.load();
+      void this.loadDog();
+    }
     return this.rebuild(nowMs, false);
   }
 
@@ -505,21 +512,40 @@ export class VillageLivestock {
   private load(): Promise<void> {
     this.loading ??= (async (): Promise<void> => {
       const results = await Promise.allSettled(
-        SPECIES.map((species) => loadGeometry(this.scene, `${this.env.baseUrl}${species}.glb`)),
+        HERD_SPECIES.map((species) =>
+          loadGeometry(this.scene, `${this.env.baseUrl}${species}.glb`),
+        ),
       );
       const geometries = new Map<LivestockSpecies, FaunaGeometry>();
       results.forEach((result, i) => {
         if (result.status === 'fulfilled' && result.value) {
-          geometries.set(SPECIES[i]!, standOnGround(result.value));
+          geometries.set(HERD_SPECIES[i]!, standOnGround(result.value));
         } else if (result.status === 'rejected') {
-          console.warn(`Model zvířete ${SPECIES[i]} se nepodařilo načíst.`, result.reason);
+          console.warn(`Model zvířete ${HERD_SPECIES[i]} se nepodařilo načíst.`, result.reason);
         }
       });
       if (this.disposed) return;
+      if (this.dogGeometry) geometries.set('dog', this.dogGeometry);
       this.geometries = geometries;
       if (this.rebuild(Date.now())) this.env.onLoaded();
     })();
     return this.loading;
+  }
+
+  /** Model psa – líně, až když má ves psy (wildlife.md – Psi). */
+  private loadDog(): Promise<void> {
+    this.dogLoading ??= (async (): Promise<void> => {
+      try {
+        const geometry = await loadGeometry(this.scene, `${this.env.baseUrl}dog.glb`);
+        if (geometry) this.dogGeometry = standOnGround(geometry);
+      } catch (error) {
+        console.warn('Model zvířete dog se nepodařilo načíst.', error);
+      }
+      if (this.disposed || !this.dogGeometry || !this.geometries) return;
+      this.geometries.set('dog', this.dogGeometry);
+      if (this.rebuild(Date.now())) this.env.onLoaded();
+    })();
+    return this.dogLoading;
   }
 
   private createKind(species: LivestockSpecies, geometry: FaunaGeometry): Kind {

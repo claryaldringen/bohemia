@@ -4,7 +4,7 @@ import { foundVillage } from '../actions';
 import { WILDLIFE_LAND } from '../rules-wildlife';
 import type { VillageState } from '../types';
 import { surfaceAt, tileCenterWorld } from '../../landscape';
-import { wildlifeLandAt } from '../wildlife-land';
+import { fishingPools, wildlifeLandAt } from '../wildlife-land';
 import { withBuiltFirstDwelling } from './village-fixtures';
 import { makeLandscape } from './placement-fixtures';
 
@@ -92,5 +92,28 @@ describe('krajina zvěře', () => {
     expect(land.forestHa).toBeGreaterThan((forest - 2) * CELL_HA);
     expect(land.openHa).toBeLessThanOrEqual(open * CELL_HA + 1e-9);
     expect(land.openHa).toBeGreaterThan((open - 2) * CELL_HA);
+  });
+
+  it('potok bez tůně: jádro rybaří na vodě vsi, lovištěm je bod potoka nejblíž vsi', () => {
+    const base = makeLandscape({ size: 128, surface: (_x, y) => (y === 70 ? 'water' : 'meadow') });
+    const stream = Array.from({ length: 128 }, (_, x) => ({
+      x,
+      y: 70,
+      halfWidthLeft: 0.5,
+      halfWidthRight: 0.5,
+      level: 0,
+      shallow: false,
+    }));
+    const landscape = { ...base, stream };
+    const land = wildlifeLandAt(landscape, village());
+    expect(land.pools).toBe(0);
+    expect(land.waterHa).toBeGreaterThan(0);
+    const spots = fishingPools(landscape, village());
+    expect(spots).toHaveLength(1);
+    // osa potoku v řádku 70 (z = −960 + 70,5 × 15), nejblíž obydlí v počátku
+    expect(spots[0]!.z).toBeCloseTo(97.5, 1);
+    expect(Math.abs(spots[0]!.x)).toBeLessThan(15);
+    expect(Math.abs(spots[0]!.flowX)).toBeCloseTo(1, 3);
+    expect(fishingPools(base, village())).toEqual([]);
   });
 });

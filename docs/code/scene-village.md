@@ -307,7 +307,8 @@ Data: `SceneWildlife` (`sceneDefense` ve `lib/wildlife-view.ts`) – `hunt` (já
 cíl, jezdci s koňmi, pěší, `kills` – celé kusy dne, jádro je zapíše v `huntDay`), `dogs` (celé kusy
 smečky, nejvýš 8), `patrol` (jezdecká hlídka dne se silou > 0), `watchParts` (díly noční hlídky)
 a `pools` (loviště dnešních rybářů – jádro `fishingPools`: tůně do 1 km jako `land.pools`, od
-nejbližší, bod osy u nejhlubšího místa se směrem toku a šířkou vody). Nová pole zvěř
+nejbližší, bod osy u nejhlubšího místa se směrem toku a šířkou vody; bez tůně, kde jádro rybaří
+na `waterHa`, bod osy potoka nejblíž vsi – `streamSpot`; bez potoka nic). Nová pole zvěř
 nepřeplánují (`wildlifeKey` bere jen pole W10).
 
 - **Lov** (`huntPlans` v `riders.ts`, `huntRoute` v `rider-route.ts`): jezdci lovu jsou plány jízdy
@@ -318,7 +319,10 @@ nepřeplánují (`wildlifeKey` bere jen pole W10).
   zvěře ve scéně `forestEdge` – první kruh kolem kůlu se 3 stromy), pak sem a tam podél okraje
   (`huntSweep`, ±22 m, 6 m do lesa), dokud trasa nepokryje půlku bloku (nikdy se nepřetočí).
   Tempo cesty k lesu = délka ÷ 70 % půlky bloku v mezích `HUNT_PACE` (jezdci 1,5–6 m/s – klus nad
-  1,5, pěší 1–3,2 m/s); dál než ≈ 100 m pěší les nestihnou a otočí se. Pěší lovci
+  1,5, pěší 1–3,2 m/s, k dalšímu lesu poklusem až 4,5 m/s). Cestu volí `huntWay` zvlášť pro jezdce
+  a pěší: les u zvěře dál, než stihnou (pěší ≈ 73 m chůzí, jezdci ≈ 136 m) → nejbližší okraj lesa
+  (`forestEdge`, `nearEdge`), a cesta zkrácená na dosah (`cutWay` – pěší poklusem ≈ 100 m), sweep
+  pak kolem konce cesty – nikdy se neotočí v poli. Pěší lovci
   (`footHunterPose` ve `villager-plan-lord.ts`) jdou stejnou trasou vlastním tempem v řadě; na
   krajích sweepu je úsek 0,3 m tempem 0,05 m/s – lovec stojí s oštěpem (`spear-thrust`, oštěp je
   v `man.glb` jen v tomto klipu). **Úlovek:** první pěší lovec nese cestou zpět maso
@@ -328,11 +332,14 @@ nepřeplánují (`wildlifeKey` bere jen pole W10).
 - **Psi** (`dogs.ts`, kreslí `VillageLivestock.setDogs` – druh `dog` z `dog.glb`, velikost 1,1):
   na kruhu 4,5 m kolem kůlu u brány chodí po oblouku sem a tam (46 s) a na krajích čichají
   (morph `lie` – hlava u země); v bloku vůdce běží vedle něj (2,2 m před, 1,5 m stranou, krok podle
-  tempa, kde pěší stojí, čichají). V den lovu všichni s pěšími (bez pěších s jezdci), v den hlídky
+  tempa, kde pěší stojí, čichají); prvních a posledních `DOG_JOIN_S` (3 s) bloku dobíhají od
+  svého místa u dvorce k vůdci a zpět (lerp – neskočí). Model psa se načte líně, až má ves psy
+  (`loadDog`). V den lovu všichni s pěšími (bez pěších s jezdci), v den hlídky
   nejvýš 3 s jezdci objížďky. Plány psů jdou s postavami (`DraftCrew.dogs`, `onCrew`).
 - **Hlídka:** jezdecká = dosavadní objížďka (`fieldRing`) se psy. Noční hlídku scéna nekreslí – hra
   nemá noc a oheň by ve dne vypadal jako požár na poli; ve dne na každém hlídaném dílu nejvýš jedno
-  dítě s řehtačkou (`watchChildren`, nejvýš 4) chodí po okraji dílu blíž ke vsi (návrh Clauda).
+  dítě s řehtačkou (`watchChildren`, nejvýš 4) chodí po okraji dílu blíž ke vsi (návrh Clauda) –
+  vždy dítě, ať v jádru hlídá kdokoli; bere se z výrostků až po pasácích (`herderPeople`).
 - **Rybáři** (`anglers` / `anglerSpot` ve `villager-plan-folk.ts`): podíl práce `fish` s cílem
   `pool` – postava stojí na břehu tůně (`stand`, klip `fish` s prutem), střídavě na obou březích,
   po 3,2 m podél toku, na prvním schůdném místě od vody, čelem k vodě, nejvýš 3 na tůň. Vlasec:

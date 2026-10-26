@@ -294,7 +294,9 @@ function poolGroups(
 /**
  * Loviště ryb vsi (wildlife.md – Drobná zvěř a ryby; scéna – rybáři s prutem): tůně do dosahu
  * jako `land.pools`, od nejbližší k počátku vsi (index cíle `{ kind: 'pool', index }`), každá
- * nejhlubším místem. Ves bez obydlí nic.
+ * nejhlubším místem. Bez tůně do dosahu jádro rybaří na vodě vsi (`waterHa`) jako na jedné tůni –
+ * lovištěm je pak bod potoka nejblíž počátku vsi (návrh Clauda); bez potoka do dosahu nic.
+ * Ves bez obydlí nic.
  */
 export function fishingPools(
   landscape: Landscape,
@@ -304,8 +306,48 @@ export function fishingPools(
   if (!origin) return [];
   const d2 = (p: FishingPool): number =>
     (p.x - origin.x) * (p.x - origin.x) + (p.z - origin.z) * (p.z - origin.z);
-  return poolGroups(landscape, origin, WILDLIFE_LAND.reachM * WILDLIFE_LAND.reachM)
+  const reach2 = WILDLIFE_LAND.reachM * WILDLIFE_LAND.reachM;
+  const groups = poolGroups(landscape, origin, reach2);
+  if (groups.length === 0) {
+    const bank = streamSpot(landscape, origin, reach2);
+    return bank ? [bank] : [];
+  }
+  return groups
     .map((p, i) => ({ p, i, d: d2(p) }))
     .sort((a, b) => a.d - b.d || a.i - b.i)
     .map(({ p }) => p);
+}
+
+/** Bod osy potoka nejblíž `origin` do dosahu (lovištěm bez tůně), nebo null. */
+function streamSpot(
+  landscape: Landscape,
+  origin: { x: number; z: number },
+  reach2: number,
+): FishingPool | null {
+  if (landscape.stream.length < 2) return null;
+  const points = streamCenterline(landscape).points;
+  let best = -1;
+  let bestD = reach2;
+  points.forEach((p, k) => {
+    const d = (p.x - origin.x) * (p.x - origin.x) + (p.z - origin.z) * (p.z - origin.z);
+    if (d <= bestD) {
+      bestD = d;
+      best = k;
+    }
+  });
+  if (best < 0) return null;
+  const point = points[best]!;
+  const next = points[Math.min(points.length - 1, best + 1)]!;
+  const prev = points[Math.max(0, best - 1)]!;
+  const fx = next.x - prev.x;
+  const fz = next.z - prev.z;
+  const n = Math.sqrt(fx * fx + fz * fz) || 1;
+  return {
+    x: point.x,
+    z: point.z,
+    flowX: fx / n,
+    flowZ: fz / n,
+    halfLeft: point.halfLeft,
+    halfRight: point.halfRight,
+  };
 }

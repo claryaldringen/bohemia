@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { SceneLord } from '../../village-view';
 import { createLivestockPose, LIVESTOCK_EPOCH_MS } from '../livestock-motion';
-import { HUNT_PACE, HUNT_SWEEP_M, huntRoute, straightLeg } from '../rider-route';
+import {
+  HUNT_PACE,
+  HUNT_SWEEP_M,
+  HUNT_WAY_SHARE,
+  huntRoute,
+  straightLeg,
+  wayLength,
+} from '../rider-route';
 import {
   createRideState,
   HUNT_BLOCK,
@@ -178,6 +185,34 @@ describe('lov ve scéně (huntPlans – wildlife.md, Ve scéně)', () => {
     expect(Math.max(...ride.pace)).toBeLessThanOrEqual(HUNT_PACE.ride.max);
     expect(walk.pace.some((p) => p === HUNT_PACE.stop)).toBe(true);
     expect(ride.pace.some((p) => p === HUNT_PACE.stop)).toBe(false);
+  });
+
+  it('lovci vždy stihnou dojít k lesu a vrátit se – daleký les u zvěře nahradí bližší', () => {
+    const halfS = ((HUNT_BLOCK[1] - HUNT_BLOCK[0]) / 2) * hourT(1);
+    const mid = (HUNT_BLOCK[0] + HUNT_BLOCK[1]) / 2;
+    const state = createRideState();
+    const far = { ...huntInput, edge: { x: 404, z: 0 } };
+    // bližší okraj lesa 90 m od kůlu – pěší i jezdci k němu
+    const near = huntPlans({ ...far, nearEdge: { x: 4, z: 90 } });
+    for (const plan of [near.foot[0]!, near.rides[0]!]) {
+      rideState(plan, hourT(mid - 0.2), state);
+      expect(Math.hypot(state.x - 4, state.z - 90)).toBeLessThan(HUNT_SWEEP_M.along + 8);
+    }
+    // bez bližšího lesa poklusem, nejdál kam za cestu doběhnou – cesta se vejde do půlky bloku
+    const alone = huntPlans(far).foot[0]!;
+    const route = alone.route!;
+    const wayEnd = route.points.findIndex((p) => p.x > 403 || p.z !== 0);
+    expect(Math.max(...route.pace)).toBeLessThanOrEqual(HUNT_PACE.foot.trot);
+    expect(route.times[wayEnd === -1 ? route.points.length - 1 : wayEnd - 1]!).toBeLessThanOrEqual(
+      HUNT_WAY_SHARE * halfS + 1e-6,
+    );
+    expect(wayLength(route.points.slice(0, 2))).toBeLessThanOrEqual(
+      HUNT_PACE.foot.trot * HUNT_WAY_SHARE * halfS + 1e-6,
+    );
+    for (const plan of [near.foot[0]!, near.rides[0]!, alone]) {
+      rideState(plan, hourT(HUNT_BLOCK[1] - 0.01), state);
+      expect(Math.hypot(state.x - 4, state.z)).toBeLessThan(6);
+    }
   });
 
   it('plán lovu je čistá funkce vstupu a bez hodin světa se neloví', () => {

@@ -6,6 +6,7 @@ import {
   ANGLERS_PER_POOL,
   anglerSpot,
   anglers,
+  herderPeople,
   WATCH_CHILDREN,
   watchChildren,
 } from '../villager-plan-folk';
@@ -83,6 +84,16 @@ describe('děti s řehtačkou na hlídaných dílech', () => {
       expect(Math.max(Math.abs(out.x - 40), Math.abs(out.z - 40))).toBeLessThan(11.5);
       expect(Math.max(Math.abs(out.x - 40), Math.abs(out.z - 40))).toBeGreaterThan(9.5);
     }
+  });
+
+  it('děti s řehtačkou se berou až po pasácích – pasáci nezůstanou bez postavy', () => {
+    const c = ctx({ watchParts: [7, 8], persons: [kid(1), kid(2), kid(3)] });
+    const herders = herderPeople(c, { herders: { children: 2 } } as never);
+    expect(herders).toHaveLength(2);
+    const people = watchChildren(c);
+    expect(people).toHaveLength(1);
+    const left = [1, 2, 3].filter((id) => !herders.some((p) => p.id === id));
+    expect(people[0]!.person).toBe(left[0]);
   });
 
   it('bez dětí nebo bez hlídky nikdo', () => {

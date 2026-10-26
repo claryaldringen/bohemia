@@ -8,6 +8,7 @@ import {
   createRideState,
   isRiding,
   rideArea,
+  rideBlockAt,
   ridePlansKey,
   rideState,
   type RidePlan,
@@ -29,6 +30,8 @@ const HOME_STEP = 0.8;
 /** Psi běží vedle vůdce: kus před ním a do stran (m). */
 const AHEAD_M = 2.2;
 const SIDE_M = 1.5;
+/** Na začátku a konci bloku vůdce pes tolik s (skutečného času) dobíhá od dvorce k vůdci a zpět. */
+export const DOG_JOIN_S = 3;
 
 /** Plán psa na den: místo u dvorce a s kým dnes běží (lov, hlídka), nebo nikdo. */
 export interface DogPlan {
@@ -105,7 +108,8 @@ export function createDogState(): RideState {
 
 /**
  * Póza psa v čase `t` (s skutečného času): v bloku vůdce běží vedle něj (krok podle tempa, kde
- * pěší stojí s oštěpem, čichá); jinak u dvorce chodí po oblouku sem a tam a na krajích čichá.
+ * pěší stojí s oštěpem, čichá) – prvních a posledních `DOG_JOIN_S` s bloku dobíhá od svého místa
+ * u dvorce, takže neskočí; jinak u dvorce chodí po oblouku sem a tam a na krajích čichá.
  */
 export function dogPose(
   plan: DogPlan,
@@ -117,8 +121,16 @@ export function dogPose(
     rideState(plan.leader, t, state);
     const hx = state.headingX;
     const hz = state.headingZ;
-    out.x = state.x + hx * plan.ahead - hz * plan.side;
-    out.z = state.z + hz * plan.ahead + hx * plan.side;
+    let x = state.x + hx * plan.ahead - hz * plan.side;
+    let z = state.z + hz * plan.ahead + hx * plan.side;
+    const join = joinShare(plan.leader, t);
+    if (join < 1) {
+      homePose(plan, t, out);
+      x = out.x + (x - out.x) * join;
+      z = out.z + (z - out.z) * join;
+    }
+    out.x = x;
+    out.z = z;
     out.forwardX = hx;
     out.forwardZ = hz;
     const stopped = state.pace <= HUNT_PACE.stop * 2;
@@ -129,6 +141,20 @@ export function dogPose(
       : Math.sin((2 * Math.PI * (state.distance + plan.ahead)) / (stride * DOG_SCALE));
     return out;
   }
+  return homePose(plan, t, out);
+}
+
+/** Jak daleko pes doběhl k vůdci (0 u dvorce – 1 u vůdce) na krajích bloku vůdce. */
+function joinShare(leader: RidePlan, t: number): number {
+  const block = rideBlockAt(leader, t);
+  if (!block || !leader.window) return 1;
+  const hourS = (leader.window.endMs - leader.window.startMs) / 1000 / 24;
+  const edgeS = Math.min(block.elapsed, block.length - block.elapsed) * hourS;
+  return Math.min(1, Math.max(0, edgeS / DOG_JOIN_S));
+}
+
+/** Pes u dvorce: po oblouku kolem svého místa sem a tam, na krajích čichá. */
+function homePose(plan: DogPlan, t: number, out: LivestockPose): LivestockPose {
   const w = (2 * Math.PI * (t + plan.phase)) / WANDER.periodS;
   const theta = plan.angle + WANDER.swing * Math.sin(w);
   const turn = Math.cos(w);

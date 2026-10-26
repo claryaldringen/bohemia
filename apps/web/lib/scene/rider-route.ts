@@ -251,12 +251,14 @@ export function trailRoute(
 /**
  * Tempo lovu (m/s; wildlife.md – Ve scéně, návrh Clauda): cesta k okraji lesa trvá nejvýš 70 %
  * půlky bloku lovu – den má 86 s, krokem by lovci les nikdy neviděli –, jezdci nejvýš cvalem,
- * pěší nejvýš poklusem (dál než ≈ 100 m les pěší nestihnou a v půlce bloku se otočí). V lese krokem (`sweep`); pěší se zastavují s oštěpem (`stop` – úsek
- * `HUNT_STOP_M` tak pomalu, že stojí, scéna hraje `spear-thrust`).
+ * pěší nejvýš rychlou chůzí (`max`, ≈ 70 m), k dalšímu lesu poklusem (`trot`, ≈ 100 m) a dál
+ * jdou jen ke kraji svého dosahu (`huntWay` – k lesu u zvěře, nestihnou-li ho, k nejbližšímu
+ * okraji lesa). V lese krokem (`sweep`); pěší se zastavují s oštěpem (`stop` – úsek `HUNT_STOP_M`
+ * tak pomalu, že stojí, scéna hraje `spear-thrust`).
  */
 export const HUNT_PACE = {
   ride: { min: RIDE_PACE.walk, max: 6, sweep: RIDE_PACE.walk },
-  foot: { min: 1.0, max: 3.2, sweep: 0.9 },
+  foot: { min: 1.0, max: 3.2, trot: 4.5, sweep: 0.9 },
   stop: 0.05,
 } as const;
 /** Podíl půlky bloku lovu na cestu k lesu. */
@@ -281,14 +283,11 @@ export function huntRoute(
 ): RideRoute | null {
   if (way.length < 2) return null;
   const pace = foot ? HUNT_PACE.foot : HUNT_PACE.ride;
-  let length = 0;
-  for (let i = 1; i < way.length; i++) {
-    length += Math.hypot(way[i]!.x - way[i - 1]!.x, way[i]!.z - way[i - 1]!.z);
-  }
-  const speed = Math.min(
-    pace.max,
-    Math.max(pace.min, length / Math.max(1, HUNT_WAY_SHARE * halfS)),
-  );
+  const length = wayLength(way);
+  const wayS = Math.max(1, HUNT_WAY_SHARE * halfS);
+  // pěší ke vzdálenějšímu lesu poklusem
+  const max = foot && length > pace.max * wayS ? HUNT_PACE.foot.trot : pace.max;
+  const speed = Math.min(max, Math.max(pace.min, length / wayS));
   const points: Point[] = [...way];
   const paces: number[] = way.slice(1).map(() => speed);
   const edge = way[way.length - 1]!;
@@ -320,6 +319,35 @@ export function huntRoute(
     }
   }
   return buildRoute(points, paces);
+}
+
+/** Délka lomené cesty (m). */
+export function wayLength(way: readonly Point[]): number {
+  let length = 0;
+  for (let i = 1; i < way.length; i++) {
+    length += Math.hypot(way[i]!.x - way[i - 1]!.x, way[i]!.z - way[i - 1]!.z);
+  }
+  return length;
+}
+
+/** Cesta zkrácená na prvních `maxM` m (konec uprostřed úseku); kratší beze změny. */
+export function cutWay(way: readonly Point[], maxM: number): Point[] {
+  const out: Point[] = way.slice(0, 1);
+  let left = maxM;
+  for (let i = 1; i < way.length; i++) {
+    const a = way[i - 1]!;
+    const b = way[i]!;
+    const d = Math.hypot(b.x - a.x, b.z - a.z);
+    if (d <= left) {
+      out.push(b);
+      left -= d;
+      continue;
+    }
+    const f = d > 0 ? left / d : 0;
+    out.push({ x: a.x + (b.x - a.x) * f, z: a.z + (b.z - a.z) * f });
+    break;
+  }
+  return out;
 }
 
 /** Kolik metrů trasy jezdec ujel v čase `t` (s skutečného času) – po celé jízdě znovu od kůlu. */

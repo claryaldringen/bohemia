@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { createDogState, dogPlans, dogPose, PATROL_DOGS, type DogPlanInput } from '../dogs';
+import {
+  createDogState,
+  DOG_JOIN_S,
+  dogPlans,
+  dogPose,
+  PATROL_DOGS,
+  type DogPlanInput,
+} from '../dogs';
 import { createLivestockPose, LIVESTOCK_EPOCH_MS } from '../livestock-motion';
 import { straightLeg } from '../rider-route';
 import { createRideState, HUNT_BLOCK, huntPlans, rideState, type RidePlan } from '../riders';
@@ -28,6 +35,22 @@ const input = (over: Partial<DogPlanInput>): DogPlanInput => ({
 });
 
 describe('psi dvorce (dogs.ts – wildlife.md, Psi)', () => {
+  it('na začátku a konci bloku lovu pes neskočí – dobíhá od dvorce k vůdci a zpět', () => {
+    const plans = dogPlans(input({ hunt: hunt([20, 21]) }));
+    const pose = createLivestockPose();
+    const state = createDogState();
+    for (const edge of [hourT(HUNT_BLOCK[0]), hourT(HUNT_BLOCK[1])]) {
+      for (const plan of plans) {
+        let last: { x: number; z: number } | null = null;
+        for (let t = edge - 1; t <= edge + DOG_JOIN_S + 1; t += 0.1) {
+          dogPose(plan, t, state, pose);
+          if (last) expect(Math.hypot(pose.x - last.x, pose.z - last.z)).toBeLessThan(1);
+          last = { x: pose.x, z: pose.z };
+        }
+      }
+    }
+  });
+
   it('bez lovu a hlídky jsou všichni u dvorce – kolem kůlu a čichají', () => {
     const plans = dogPlans(input({}));
     expect(plans).toHaveLength(5);

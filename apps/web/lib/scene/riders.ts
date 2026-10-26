@@ -8,7 +8,10 @@ import type { DayWindow } from './caravan';
 import { LIVESTOCK_EPOCH_MS, type Area, type LivestockPose } from './livestock-motion';
 import {
   fieldRing,
+  cutWay,
+  HUNT_PACE,
   HUNT_SWEEP_M,
+  HUNT_WAY_SHARE,
   huntRoute,
   loopRoute,
   RIDE_PACE,
@@ -16,6 +19,7 @@ import {
   rideGroups,
   rideSpot,
   trailRoute,
+  wayLength,
   WINTER_RING_M,
   type RideLeg,
   type RideRoute,
@@ -202,9 +206,31 @@ export interface HuntPlanInput {
   hunt: SceneHunt;
   hitch: TrainingSpot;
   edge: Point;
+  /** Nejbližší okraj lesa od kůlu – lovci k němu, když les u zvěře nestihnou (`huntWay`). */
+  nearEdge?: Point | null;
   leg: RideLeg;
   walkable(x: number, z: number): boolean;
   window: DayWindow | null;
+}
+
+/**
+ * Cesta lovců (wildlife.md – Ve scéně): k lesu u zvěře, když ho stihnou (pěší rychlou chůzí
+ * `HUNT_PACE.foot.max`, jezdci cvalem za `HUNT_WAY_SHARE` půlky bloku); jinak k bližšímu z obou
+ * okrajů lesa a nejdál, kam doběhnou (pěší poklusem `trot`) – v půlce bloku se nikdy neotáčejí
+ * v poli.
+ */
+export function huntWay(
+  way: readonly Point[],
+  near: readonly Point[] | null,
+  halfS: number,
+  foot: boolean,
+): Point[] {
+  const wayS = HUNT_WAY_SHARE * halfS;
+  const easy = foot ? HUNT_PACE.foot.max : HUNT_PACE.ride.max;
+  const fastest = foot ? HUNT_PACE.foot.trot : HUNT_PACE.ride.max;
+  let best = way;
+  if (near && wayLength(way) > easy * wayS && wayLength(near) < wayLength(way)) best = near;
+  return cutWay(best, fastest * wayS);
 }
 
 /**
@@ -248,13 +274,21 @@ export function huntPlans(input: HuntPlanInput): { rides: RidePlan[]; foot: Ride
   if (!window || window.endMs <= window.startMs) return { rides: [], foot: [] };
   const hourS = (window.endMs - window.startMs) / 1000 / 24;
   const halfS = ((HUNT_BLOCK[1] - HUNT_BLOCK[0]) / 2) * hourS;
-  const found = leg(hitch, edge);
-  const way: Point[] =
-    found && found.length >= 2 ? [hitch, ...found.slice(1, -1), edge] : [hitch, edge];
+  const wayTo = (to: Point): Point[] => {
+    const found = leg(hitch, to);
+    return found && found.length >= 2 ? [hitch, ...found.slice(1, -1), to] : [hitch, to];
+  };
+  const way = wayTo(edge);
+  const near = input.nearEdge ? wayTo(input.nearEdge) : null;
   const sweep = huntSweep(hitch, edge, walkable);
   const blocks = [HUNT_BLOCK];
-  const rideRoute = hunt.riders.length > 0 ? huntRoute(way, sweep, false, halfS) : null;
-  const footRoute = hunt.foot.length > 0 ? huntRoute(way, sweep, true, halfS) : null;
+  const route = (foot: boolean): RideRoute | null => {
+    const go = huntWay(way, near, halfS, foot);
+    const end = go[go.length - 1]!;
+    return huntRoute(go, end === edge ? sweep : huntSweep(hitch, end, walkable), foot, halfS);
+  };
+  const rideRoute = hunt.riders.length > 0 ? route(false) : null;
+  const footRoute = hunt.foot.length > 0 ? route(true) : null;
   const rides = hunt.riders.map((r, k): RidePlan => ({
     riderId: r.id,
     horseId: r.horseId,

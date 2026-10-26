@@ -359,7 +359,10 @@ export function forestEdge(ctx: Context, from: Point): Point | null {
   return null;
 }
 
-/** Plány lovu dne: k okraji lesa u zvěře (`huntSpot`), jinak k nejbližšímu okraji lesa. */
+/**
+ * Plány lovu dne: k okraji lesa u zvěře (`huntSpot`), jinak k nejbližšímu okraji lesa – k němu
+ * i když les u zvěře nestihnou (`huntWay`).
+ */
 function huntParty(
   ctx: Context,
   hunt: SceneHunt,
@@ -368,12 +371,16 @@ function huntParty(
   window: DayWindow | null,
   huntSpot: HuntSpotFn | null,
 ): { rides: RidePlan[]; foot: RidePlan[] } | null {
-  const edge = huntSpot?.(hunt.target) ?? forestEdge(ctx, hitch);
+  const spot = huntSpot?.(hunt.target) ?? null;
+  // nejbližší okraj lesa – bez zvěře ve scéně cíl, jinak když lovci les u zvěře nestihnou
+  const near = forestEdge(ctx, hitch);
+  const edge = spot ?? near;
   if (!edge) return null;
   return huntPlans({
     hunt,
     hitch,
     edge,
+    nearEdge: near,
     leg,
     walkable: (x, z) => ctx.ground.walkable(x, z),
     window,

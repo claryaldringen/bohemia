@@ -331,12 +331,21 @@ kde to nestačí.
   stejných morph targetů – žádný nový atribut) – jen scéna.
 - **Lovci:** v den velkého lovu vyjedou jezdci a vyjdou pěší se psy branou k okraji lesa u roty
   a vrátí se (jako jezdci v bloku jízdy – [koně](horses.md), Ve scéně); prasata před nimi utíkají.
-  Hlídka v létě = dosavadní objížďka.
+  Hlídka v létě = dosavadní objížďka. Den má 86 s: cesta k lesu smí trvat nejvýš 70 % půlky
+  bloku lovu – pěší rychlou chůzí dojdou ≈ 70 m, poklusem ≈ 100 m, jezdci cvalem ≈ 135 m. Les
+  u zvěře dál než to jdou lovci k nejbližšímu okraji lesa, a když ani ten nestihnou, jen ke
+  kraji svého dosahu – nikdy se neotočí v půlce cesty.
 - **Rybáři:** stojí na břehu tůně (dosavadní póza stání) s **prutem** – nová rekvizita (vlastní CC0
   model ≈ 3 m, vlasec jako čára), samostatná instance natočená podle postavy, **žádný nový vertex
   atribut** (postava má právě 8 bufferů). Počet z jádra (hodiny rybaření ÷ délka dne), nejvýš 3 na
-  tůň. Oka se nekreslí.
-- **Psi:** u dvorce (stojí, leží), s pěšími lovci a s jezdci na objížďce.
+  tůň. Oka se nekreslí. Ves bez tůně do dosahu jádro rybaří na své vodě (`waterHa`) jako na
+  jedné tůni – rybáři pak stojí na břehu potoka v místě nejblíž vsi; voda bez potoka (jen
+  políčka vody) rybáře nekreslí.
+- **Psi:** u dvorce (stojí, leží), s pěšími lovci a s jezdci na objížďce; na začátku a konci
+  lovu 3 s dobíhají od dvorce k lovcům a zpět (neskočí).
+- **Děti s řehtačkou:** scéna kreslí na každém hlídaném dílu ve dne vždy dítě s řehtačkou, bez
+  ohledu na to, kdo hlídá v jádru (v noci staří a výrostci, pak dospělí) – hra noc nemá, noční
+  hlídače u ohně scéna nekreslí. Děti se berou až po pasácích, pasáci tak nezůstanou bez postavy.
 - **Ve hře (W10, návrh Clauda):** kusy podle stupně stavu (jelení 4/8/12, prasata 4/7/10, zajíci
   1/2/4, vlci 2/3/5); hra zatím nemá noc (den a noc jen v náhledu krajiny), takže zóny se řídí
   jen měsícem a noční louky přijdou s denní dobou ve hře; vzácní (vlci, medvěd, liška) jsou
