@@ -150,7 +150,8 @@ export function wildlifeYearDay(
 ): void {
   const w = state.wildlife;
   if (!w || !isWildlifeYearDay(day)) return;
-  if (landscape) w.land = wildlifeLandAt(landscape, state);
+  // ves s `wildlifeFailed` má krajinu zvěře pevnou (`failedLand`) – nepřepočítává se
+  if (landscape && state.wildlifeFailed === undefined) w.land = wildlifeLandAt(landscape, state);
   const caps = wildlifeCaps(w.land, villagePigs(state));
   deerYear(w, caps.deer);
   boarYear(w, caps.boar);
@@ -172,8 +173,9 @@ export function wildlifeYearDay(
   // vybité ryby se obnoví z minimálního osazení (1 % stropu)
   const fish = Math.min(caps.fishKg, Math.max(w.fishKg, caps.fishKg * WILDLIFE_YEAR.fishRestock));
   w.fishKg = caps.fishKg > 0 ? Math.min(caps.fishKg, fish + fish * (1 - fish / caps.fishKg)) : 0;
-  // maso ze zvěře minulého roku (velký lov i drobná zvěř) – podle něj ves ví, jestli chce víc
-  const wildKg = (w.hunt?.year.meatKg ?? 0) + (w.smallGame?.year.meatKg ?? 0);
+  // maso z velkého lovu minulého roku – podle něj ves ví, jestli chce víc (drobná zvěř se
+  // neočekává, chytá se podle poptávky)
+  const wildKg = w.hunt?.year.meatKg ?? 0;
   if (w.smallGame || wildKg > 0) {
     // roční kvóta ryb a zajíců podle letošního přírůstku (small-game.ts)
     w.smallGame = {

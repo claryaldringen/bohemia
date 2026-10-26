@@ -104,7 +104,7 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
       'dynasty',
       // značka převodu na osevní postup (fields.md – Osevní postup po dílech, bod 7)
       'sowingRotation',
-      // zvěř vsi (wildlife.md, W1) – jen se počítá, nic neovlivňuje; přibyl jen klíč `wildlife`
+      // zvěř vsi (wildlife.md) – přibyl klíč `wildlife`; v rámci dne ovlivňuje i simulaci, ale zlatý běh ji neprojeví
       'wildlife',
       // kusy poražené dnes (hlášení pro scénu – LivestockState.slaughtered) – simulace je nečte
       'slaughtered',
@@ -125,6 +125,7 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
     // hash c98b44a4 (26. 10. 2026, oprava po recenzi W4): psi dvorce vznikají hned (ne až 1. 5.), rodina na poli neloví a slabý jezdec jde pěšky – jiný lov, obilí psů a práce vsi; dřív 89e5e1ce
     // hash 7fc9acc1 (26. 10. 2026, W7 ryby a oka; wildlife.md – Drobná zvěř a ryby): vesničané chytají ryby a zajíce z volné práce (nebo při hladu před stavbami), maso jde do zásoby bez porážky – jiná práce vsi, zásoby a stav zvěře; dřív c98b44a4
     // hash 673f1d6b (26. 10. 2026, oprava po recenzi W7): roční kvóta ryb a zajíců, čerstvé maso a brzda letošním úlovkem – jiný úlovek, jídlo a stav zvěře; dřív 7fc9acc1
-    expect(hash(stripped)).toBe('673f1d6b');
+    // hash 8498535 (26. 10. 2026, závěrečná oprava zvěře): drobná zvěř loňska se do chuti na bílkoviny nepočítá, jen letošní – jiný úlovek ryb a jídlo; dřív 673f1d6b
+    expect(hash(stripped)).toBe('8498535');
   }, 120_000);
 });

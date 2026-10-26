@@ -352,7 +352,7 @@ export function huntRisk(
 /** Důvody, proč nejde vyhlásit lov navíc (`canDeclareHunt`), česky pro hráče. */
 export const HUNT_DENIED_TEXT = {
   'closed-season': 'Zvěř má hájení – od března do května se neloví.',
-  'too-soon': 'Lovci si ještě nevydechli – lov navíc nejdřív za 3 dny po minulém.',
+  'too-soon': `Lovci si ještě nevydechli – lov navíc nejdřív za ${HUNT.extra.minGapDays} dny po minulém.`,
   'no-hunters': 'Na lov není kdo jít.',
   already: 'Lov už je na zítřek vyhlášen.',
 } as const;

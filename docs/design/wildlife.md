@@ -122,6 +122,10 @@ vesničanů.
   se rozdělí na díly. Návrh Clauda (oprava 26. 10. 2026): součet se bere **jen z dosud
   nesklizených dílů**, jinak by po sklizni ozimu šla celá dávka na méně dílů a škoda jaře na ha
   by se zdvojnásobila.
+- **Osev a očekávaná škoda (přijato, návrh Clauda):** plán osevu (`sowingTargets`) s očekávanou
+  škodou nepočítá. Rezerva osevu unese ≈ 7 % úrody, škody jsou desetiny úrody a hlídky je
+  snižují, takže ves kvůli zvěři neseje víc; loňskou škodu (`damage.lastYearKg`) do osevu
+  nezapočítáváme.
 - **Plodiny:** jen obilí – ozim a jař, i díly nad potřebu; luštěniny a len ne (návrh Clauda –
   návrh počítá „kg obilí“). Škodí se jen na dílech, které ves letos zaseje (do 1. 6. dosel).
 - **Co s ≈ 650 kg:** čísla výše platí pro žně, které se protáhnou do poloviny července a srpna;
@@ -385,7 +389,7 @@ kde to nestačí.
 | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
 | Jezdecká hlídka bez pravidla „kůň jen když je silnější“ (jede, kdo jede objížďku)                                                        | návrh Clauda (W6)                                      |
 | Noční hlídka: staří a výrostci se počítají 1. 6. na celou sezónu, dospělí denně                                                          | návrh Clauda (W6)                                      |
-| Plán hlídky bez jezdecké hlídky; hlídka dospělých za nutnou sečí; lovci a zranění hlídku nejedou, hlídka dne se počítá jednou           | návrh Clauda (W6, po recenzi)                          |
+| Plán hlídky bez jezdecké hlídky; hlídka dospělých za nutnou sečí; lovci a zranění hlídku nejedou, hlídka dne se počítá jednou            | návrh Clauda (W6, po recenzi)                          |
 | Divoké prase, jelen a laň, vlk, medvěd, zajíc, liška, ptáci, ryby – součást simulace                                                     | Martin (24. 10. 2026)                                  |
 | Stáda jako počty s rozmnožováním, ne na úkor náročnosti                                                                                  | Martin (24. 10. 2026)                                  |
 | Loví vojvoda a synové – ze dvorce na koních, ostatní pěšky s oštěpy a psy; vesničané jen drobné a ryby s prutem                          | Martin (24. 10. 2026)                                  |
@@ -400,7 +404,7 @@ kde to nestačí.
 | Jezdecká hlídka do 60 %, noční hlídka vesničanů −60 % za 0,3 čd na 5 ha, kde hrozí ≥ 10 %                                                | návrh Clauda                                           |
 | Smečka dvorce 1 pes na lovce + 1 (nejvýš 8), 0,3 kg obilí denně                                                                          | návrh Clauda                                           |
 | Velký lov listopad–únor každý 7. den jako výcvik; akumulátor úlovku; jeleni ne laně                                                      | návrh Clauda                                           |
-| Při hladu jde chytání ryb a ok před stavby (výjimka z „zbytku práce“) – čeká na potvrzení Martina                                          | návrh Clauda                                           |
+| Při hladu jde chytání ryb a ok před stavby (výjimka z „zbytku práce“) – čeká na potvrzení Martina                                        | návrh Clauda                                           |
 | Roční kvóta ryb a zajíců podle přírůstku (ryby nejvýš ¼ stropu, nad ½ stropu); maso z nich čerstvé                                       | návrh Clauda                                           |
 | Ryby a oka jen při potřebě bílkovin nebo hladu, z práce, která by propadla; rybáři s prutem u tůní                                       | návrh Clauda                                           |
 | Zvěř nezabíjí mimo lov; zranění jen na lovu, 60 dní                                                                                      | návrh Clauda                                           |
@@ -477,7 +481,9 @@ Martin: „Souhlasím se všemi návrhy“ – tři otázky z plánu jsou uzavř
   nebo po vyčerpání kvóty se nechytá. Maso jde jako **čerstvé** (`freshMeatKg`, jí se ten den
   napřed, zbytek se udí), bez práce porážky – ryby a zajíci se nekazí v uzené zásobě.
 - **Chce bílkoviny:** roční potřeba masa po obilí, mléku, vejcích a luštěninách je větší než maso
-  stád (`yearlyMeatPerHead` × stáda) + maso ze zvěře loni (velký lov i drobná zvěř, uložené při
-  přepočtu 1. 5.) **nebo letošní, je-li větší** – úlovek roku se tak sám brzdí.
+  stád (`yearlyMeatPerHead` × stáda) + maso z velkého lovu (větší z **loňského**, uloženého při
+  přepočtu 1. 5., a **letošního**) + **letošní** maso z ryb a ok. Loňské ryby a oka se neočekávají
+  (chytá se podle poptávky) – jinak by ves po dobrém roce celé léto nechytala a pak chytala
+  nárazově (návrh Clauda, oprava po závěrečné recenzi 26. 10. 2026).
 - **Pro scénu (W11):** `wildlife.smallGame.today` (rybáři po tůních) a podíly práce `fish` (cíl
   `pool` – pořadí tůně) a `snare`; „rybář s prutem u loviště“ (Martin 24. 10. 2026).

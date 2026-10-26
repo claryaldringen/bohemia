@@ -131,7 +131,7 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
       'dynasty',
       // značka převodu na osevní postup (fields.md – Osevní postup po dílech, bod 7)
       'sowingRotation',
-      // zvěř vsi (wildlife.md, W1) – jen se počítá, nic neovlivňuje; přibyl jen klíč `wildlife`
+      // zvěř vsi (wildlife.md) – přibyl klíč `wildlife`; v rámci dne ovlivňuje i simulaci, ale zlatý běh ji neprojeví
       'wildlife',
       // kusy poražené dnes (hlášení pro scénu – LivestockState.slaughtered) – simulace je nečte
       'slaughtered',

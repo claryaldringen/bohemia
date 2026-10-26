@@ -98,10 +98,11 @@ export function wantsProtein(state: VillageState, day: number): boolean {
   if (state.hungry) return true;
   const herds = villageHerds(state);
   const herdMeat = HERD_SPECIES.reduce((sum, s) => sum + herds[s] * yearlyMeatPerHead(s), 0);
-  // loňské maso ze zvěře, nebo letošní, když je větší – úlovek roku se tak sám brzdí
+  // velký lov: loňský, nebo letošní, když je větší; drobná zvěř (ryby, oka) jen letošní –
+  // loňské se neočekávají, chytá se podle poptávky (jinak by ves po dobrém roce přestala chytat)
   const w = state.wildlife;
-  const thisYear = (w?.hunt?.year.meatKg ?? 0) + (w?.smallGame?.year.meatKg ?? 0);
-  const wild = Math.max(w?.smallGame?.lastWildMeatKg ?? 0, thisYear);
+  const bigGame = Math.max(w?.smallGame?.lastWildMeatKg ?? 0, w?.hunt?.year.meatKg ?? 0);
+  const wild = bigGame + (w?.smallGame?.year.meatKg ?? 0);
   return meatNeedPerYear(state, day) > herdMeat + wild + EPSILON;
 }
 

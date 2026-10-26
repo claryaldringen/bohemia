@@ -59,7 +59,9 @@ export function damageWindowStart(
   const date = dateOfDayIndex(day);
   if (date.month !== FIELD_DAMAGE.windowStart.month || date.day !== FIELD_DAMAGE.windowStart.day)
     return;
-  const distances = landscape ? forestEdgeDistances(landscape, state) : null;
+  // ves s `wildlifeFailed` krajinu nepřepočítává (jako bez krajiny)
+  const distances =
+    landscape && state.wildlifeFailed === undefined ? forestEdgeDistances(landscape, state) : null;
   const byId = new Map(state.parts.map((p) => [p.id, p]));
   const risk: FieldDamage['risk'] = [];
   for (const { work } of cerealCrops(state)) {
@@ -251,7 +253,12 @@ export function dailyThreatShare(
   const damage = w?.damage;
   if (!w || !damage || damage.risk.length === 0) return shares;
   const date = dateOfDayIndex(day);
-  if (date.month < 6 || date.month > 8 || day < damage.fromDay) return shares;
+  if (
+    date.month < FIELD_DAMAGE.windowMonths.from ||
+    date.month > FIELD_DAMAGE.windowMonths.to ||
+    day < damage.fromDay
+  )
+    return shares;
   const riskById = new Map(damage.risk.map((r) => [r.partId, r]));
   const crops = cerealCrops(state).filter(({ work }) => work.harvestedKg === null);
   if (crops.length === 0) return shares;

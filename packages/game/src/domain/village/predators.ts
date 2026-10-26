@@ -11,7 +11,7 @@ const EPSILON = 1e-9;
 /** Dnů v měsících `from`–`to` včetně (nepřestupný rok – denní podíly nezávisí na přestupném dni). */
 function daysInMonths(from: number, to: number): number {
   let days = 0;
-  for (let m = from; m <= to; m++) days += monthLength(501, m);
+  for (let m = from; m <= to; m++) days += monthLength(PREDATION.referenceYear, m);
   return days;
 }
 
