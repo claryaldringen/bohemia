@@ -96,6 +96,9 @@ export function nearestThreat(
   return best;
 }
 
+/** Rozteč vzorků na dráze útěku (m). */
+const FLEE_SAMPLE_M = 5;
+
 /**
  * Úhly odklonu od přímého směru od člověka (rad) – když je přímo voda nebo stavba; vždy ještě
  * od člověka, ne k němu.
@@ -126,13 +129,18 @@ export function startFlight(
     az /= length;
   }
   const d = FLEE.distanceM;
+  const steps = Math.max(2, Math.ceil(d / FLEE_SAMPLE_M));
   for (const turn of FLEE_TURNS) {
     const c = Math.cos(turn);
     const s = Math.sin(turn);
     const dx = ax * c - az * s;
     const dz = ax * s + az * c;
-    if (!free(center.x + dx * d, center.z + dz * d)) continue;
-    if (!free(center.x + dx * d * 0.5, center.z + dz * d * 0.5)) continue;
+    // celá dráha útěku po ≈ 5 m, ne jen cíl a půl cesty
+    let clear = true;
+    for (let i = 1; i <= steps && clear; i++) {
+      clear = free(center.x + (dx * d * i) / steps, center.z + (dz * d * i) / steps);
+    }
+    if (!clear) continue;
     const toX = offset.x + dx * d;
     const toZ = offset.z + dz * d;
     return {

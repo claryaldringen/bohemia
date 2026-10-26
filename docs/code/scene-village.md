@@ -272,7 +272,8 @@ podle osetých ha dílů `sown`) a `fishShare` (biomasa ÷ strop).
   (září–říjen) spolu, zajíci každý zvlášť, liška, vlci jen v zimě (prosinec–únor), medvěd
   duben–listopad. Skupina je `Herd` dobytka s trasou ≤ 3 stanovišť 14–34 m od sebe, skupiny
   ≥ 40 m od sebe; kusy v kruhu 2,5 + 0,55 m na kus (osamělé zvíře se toulá do 3 m). Když se
-  skupina na díl se škodou nevejde, zůstane na okraji lesa.
+  skupina na díl se škodou nevejde, zůstane na okraji lesa. Bod trasy se přijme jen tehdy, když
+  je volná i úsečka z předchozího bodu (vzorky po 4 m, `segmentFree`) a okruh toulání kolem něj.
 - **Hra zatím nemá noc** (den a noc jen `/dev/landscape`) – zóny „za soumraku a v noci louky“
   se řídí jen měsícem; noční louky a liška za soumraku až s denní dobou ve hře (návrh Clauda).
 - **Pohyb** (`wildlife-motion.ts`): pastva a stěhování po trase jako stádo (`herdState`,
@@ -282,15 +283,15 @@ podle osetých ha dílů `sown`) a `fishShare` (biomasa ÷ strop).
   medvěd 30 %, liška 60 %); jinak se zapíšou s nulovým měřítkem. **Útěk** (jen scéna): člověk
   (i jezdec) blíž než 30 m ke středu skupiny (`nearestThreat` nad `VillageVillagers.figureSpots`)
   → skupina uteče 45 m od něj (`startFlight`, odklon nejvýš 1,4 rad, když je přímo voda nebo
-  stavba; kam utéct není – zůstane), rychlostí druhu (jelen 7 m/s … medvěd 4 m/s), 75 s stojí
+  stavba; celá dráha se vzorkuje po 5 m; kam utéct není – zůstane), rychlostí druhu (jelen 7 m/s … medvěd 4 m/s), 75 s stojí
   a krokem 0,9 m/s se vrátí na trasu (`flightAt`). Běh = rychlejší krok ze stejných morph
   targetů (délka kroku `RUN_STRIDE_M`), hlava nahoře – žádný nový vertex atribut.
 - **Kreslení** (`wildlife.ts`, `VillageWildlife`, háček v `landscape-scene.ts` vedle dobytka):
   mesh `wild-<model>` na model (`createAnimalMesh` z `livestock.ts` – klíčové pózy jako vertex
   atributy + `LivestockPlugin`, 7 bufferů + matice, `fauna.test.ts` hlídá i `WILD_MODELS`),
   výška a náklon podle terénu (`writeAnimalPose`). Modely se stahují líně – jen ty, které plán
-  potřebuje. Přepočet jen při změně `wildlifeKey` (zvěř z jádra, obydlí, díly, hřbitovy, sady,
-  ohrady); `animate()` v taktu scény pohne jen skupinami v záběru do 900 m, při omezeném pohybu
+  potřebuje. Přepočet jen při změně `wildlifeKey` (zvěř z jádra, obydlí s pozemky, díly, hřbitovy,
+  sady, ohrady, počty pokácených stromů); rozběhlý útěk přežije přestavbu (podle seedu skupiny); `animate()` v taktu scény pohne jen skupinami v záběru do 900 m (pevný obal dosahu skupiny se testuje dřív než útěk a obal), při omezeném pohybu
   stojí. Ořez: obal skupiny (kontrola záběru) a obal modelu přes trasy a dosah útěku – ořez po
   čtvercích (`scenery-chunks`) je jen pro nehybné instance, zvěře je pár desítek kusů.
 - **Ryby a vrány z jádra** (`Fauna.setAbundance`, `landscape-scene.ts` – `applyFaunaAbundance`):

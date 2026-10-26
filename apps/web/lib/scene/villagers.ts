@@ -271,7 +271,6 @@ export class VillageVillagers {
     return this.pickHit(x, y, project)?.person ?? null;
   }
 
-  /** Jako `pick`, i se vzdáleností průmětu od kurzoru (px) – porovná se se spřežením a vozem. */
   /**
    * Poslední polohy postav (x, y, z po postavách; NaN = není vidět) – divoká zvěř před nimi
    * utíká (wildlife.ts). Jen ke čtení.
@@ -280,6 +279,7 @@ export class VillageVillagers {
     return this.spots;
   }
 
+  /** Jako `pick`, i se vzdáleností průmětu od kurzoru (px) – porovná se se spřežením a vozem. */
   pickHit(x: number, y: number, project: Project): { person: number; distance: number } | null {
     return pickPersonHit(this.people, this.spots, x, y, project);
   }

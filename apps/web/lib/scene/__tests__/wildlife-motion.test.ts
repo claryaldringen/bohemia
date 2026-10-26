@@ -136,3 +136,12 @@ describe('wildPresent', () => {
     expect(shown / 400).toBeLessThan(0.4);
   });
 });
+
+describe('startFlight – celá dráha útěku', () => {
+  it('úzká překážka uprostřed dráhy (mimo cíl a půl cesty) útěk odkloní', () => {
+    const wall = (x: number, z: number): boolean => !(x > 9 && x < 11 && Math.abs(z) < 3);
+    const flight = startFlight(0, { x: 0, z: 0 }, { x: 0, z: 0 }, { x: -10, z: 0 }, 7, wall);
+    expect(flight === null || Math.abs(flight.toZ) > 3).toBe(true);
+    if (flight) expect(flight.toX).toBeGreaterThan(0);
+  });
+});

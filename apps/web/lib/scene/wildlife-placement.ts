@@ -63,6 +63,8 @@ export interface WildlifeVillage extends Pick<
     }[];
   }[];
   wildlife?: SceneWildlife;
+  /** Pokácený les (jen počty do otisku) – okraj lesa se mění s kácením. */
+  obstacles?: { removed: readonly unknown[]; stumps: readonly unknown[] };
 }
 
 /** Rozteč míst, na kterých se hledá stanoviště (m), a jak daleko od středu vsi (m). */
@@ -274,6 +276,37 @@ function villageBlockers(village: WildlifeVillage, fields: boolean): Blocker[] {
   return blockers;
 }
 
+/** Rozteč vzorků na úsečce mezi body trasy (m). */
+const ROUTE_SAMPLE_M = 4;
+
+/** Celá úsečka `a`–`b` je volná zem (vzorky po `ROUTE_SAMPLE_M`, i oba konce). */
+export function segmentFree(
+  test: (x: number, z: number) => boolean,
+  a: { x: number; z: number },
+  b: { x: number; z: number },
+): boolean {
+  const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / ROUTE_SAMPLE_M));
+  for (let i = 0; i <= steps; i++) {
+    const u = i / steps;
+    if (!test(a.x + (b.x - a.x) * u, a.z + (b.z - a.z) * u)) return false;
+  }
+  return true;
+}
+
+/** Okruh `radiusM` kolem bodu (osm směrů), kde se zvěř toulá, je volná zem. */
+function ringFree(
+  test: (x: number, z: number) => boolean,
+  p: { x: number; z: number },
+  radiusM: number,
+): boolean {
+  if (radiusM <= 0) return true;
+  for (let k = 0; k < 8; k++) {
+    const a = (k * Math.PI) / 4;
+    if (!test(p.x + radiusM * Math.cos(a), p.z + radiusM * Math.sin(a))) return false;
+  }
+  return true;
+}
+
 /** Skupiny zvěře vsi a volná zem, kam smí zvěř utéct (wildlife-motion.ts – útěk). */
 export interface WildlifePlan {
   groups: WildGroup[];
@@ -375,9 +408,15 @@ export function planWildlife(
     });
     // stanoviště: celá skupina na volné zemi, dál od ostatních skupin; když se na díl se
     // škodou nevejde, zůstane na okraji lesa
-    const fitsIn = (zone: WildZone, p: { x: number; z: number }): boolean =>
-      animals.every((a) => (zone === 'field' ? freeOnField : free)(p.x + a.homeX, p.z + a.homeZ)) &&
-      taken.every((t) => Math.hypot(t.x - p.x, t.z - p.z) >= GROUP_GAP_M);
+    const wander = animals.length > 1 ? radiusM : SOLO_RADIUS_M;
+    const fitsIn = (zone: WildZone, p: { x: number; z: number }): boolean => {
+      const test = zone === 'field' ? freeOnField : free;
+      return (
+        animals.every((a) => test(p.x + a.homeX, p.z + a.homeZ)) &&
+        ringFree(test, p, wander) &&
+        taken.every((t) => Math.hypot(t.x - p.x, t.z - p.z) >= GROUP_GAP_M)
+      );
+    };
     const orderOf = (zone: WildZone): { p: { x: number; z: number }; key: number }[] =>
       sites[zone].map((p, i) => ({ p, key: hash01(gseed, i, 604) })).sort((a, b) => a.key - b.key);
     let zone = w.zone;
@@ -395,7 +434,13 @@ export function planWildlife(
       const last = route[route.length - 1]!;
       const next = order.find((o) => {
         const d = Math.hypot(o.p.x - last.x, o.p.z - last.z);
-        return d >= ROUTE_STEP_M.from && d <= ROUTE_STEP_M.to && !route.includes(o.p) && fits(o.p);
+        return (
+          d >= ROUTE_STEP_M.from &&
+          d <= ROUTE_STEP_M.to &&
+          !route.includes(o.p) &&
+          fits(o.p) &&
+          segmentFree(zone === 'field' ? freeOnField : free, last, o.p)
+        );
       });
       if (!next) break;
       route.push(next.p);

@@ -5,6 +5,7 @@ import { shownSchools } from '../fauna-placement';
 import type { LivestockGround } from '../livestock-placement';
 import {
   WILD_MODELS,
+  segmentFree,
   planWildlife,
   wantedGroups,
   type WildGroup,
@@ -154,5 +155,38 @@ describe('shownSchools – hejna ryb podle biomasy', () => {
     expect(shownSchools(6, 0.01)).toBe(1);
     expect(shownSchools(6, 0)).toBe(0);
     expect(shownSchools(0, 1)).toBe(0);
+  });
+});
+
+describe('planWildlife – trasy a toulání mimo překážky', () => {
+  it('úsečky mezi body trasy neprocházejí vodou ani stavbou', () => {
+    for (let seed = 1; seed <= 12; seed++) {
+      const plan = planWildlife(village(), ground, seed);
+      for (const g of plan.groups) {
+        const r = g.herd.route;
+        for (let i = 1; i < r.length; i++) {
+          expect(segmentFree(plan.free, r[i - 1]!, r[i]!)).toBe(true);
+        }
+        for (const p of r) expect(plan.free(p.x, p.z)).toBe(true);
+      }
+    }
+  });
+
+  it('segmentFree najde i překážku mezi konci', () => {
+    const wall = (x: number): boolean => !(x > 7 && x < 13);
+    expect(segmentFree(wall, { x: 0, z: 0 }, { x: 20, z: 0 })).toBe(false);
+    expect(segmentFree(wall, { x: 0, z: 0 }, { x: 6, z: 0 })).toBe(true);
+  });
+
+  it('okruh toulání kolem bodu trasy leží na volné zemi', () => {
+    // voda x −160…−140 – žádná skupina nemá okruh ve vodě
+    for (let seed = 1; seed <= 12; seed++) {
+      for (const g of planWildlife(village(), ground, seed).groups) {
+        for (const p of g.herd.route) {
+          expect(ground.walkable(p.x + g.herd.radiusM, p.z)).toBe(true);
+          expect(ground.walkable(p.x - g.herd.radiusM, p.z)).toBe(true);
+        }
+      }
+    }
   });
 });

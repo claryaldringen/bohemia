@@ -90,6 +90,8 @@ interface Live {
   shown: boolean;
   written: BoundingInfo | null;
   current: BoundingInfo;
+  /** Pevný obal všeho, kam se skupina dostane (trasa a útěk) – levný ořez před výpočtem. */
+  reach: BoundingInfo;
 }
 
 /**
@@ -153,6 +155,8 @@ export class VillageWildlife {
         }
         continue;
       }
+      // mimo záběr a dál než ANIMATE_RANGE_M se nepočítá nic (ani útěk a obal)
+      if (camera && live.shown && this.outOfRange(live, camera)) continue;
       herdState(live.group.herd, clock, live.state);
       let flight: FlightState | null = null;
       if (live.flight) {
@@ -255,6 +259,9 @@ export class VillageWildlife {
     const counts = new Map<WildModel, number>();
     const areas = new Map<WildModel, Area[]>();
     const lives: Live[] = [];
+    // rozběhlý útěk přežije přestavbu (dočtení dalšího modelu) – skupiny se poznají podle seedu
+    const running = new Map<number, Flight>();
+    for (const old of this.lives) if (old.flight) running.set(old.group.herd.seed, old.flight);
     this.spotOwners = [];
     for (const group of ready) {
       const route = routeArea(group.herd);
@@ -278,15 +285,18 @@ export class VillageWildlife {
         });
         return slot;
       });
+      const reachBox = new BoundingInfo(Vector3.Zero(), Vector3.Zero());
+      this.setBounds(reachBox, reach);
       lives.push({
         group,
         slots,
         state: createHerdState(),
-        flight: null,
+        flight: running.get(group.herd.seed) ?? null,
         flightState: createFlightState(),
         shown: false,
         written: null,
         current: new BoundingInfo(Vector3.Zero(), Vector3.Zero()),
+        reach: reachBox,
       });
     }
     this.spots = new Float32Array(this.spotOwners.length * 3).fill(NaN);
@@ -322,6 +332,16 @@ export class VillageWildlife {
     // póza v tomto okamžiku – při omezeném pohybu zvěř takhle zůstane
     this.animate(nowMs, null);
     return true;
+  }
+
+  /** Celý dosah skupiny je mimo záběr nebo dál než `ANIMATE_RANGE_M` od kamery. */
+  private outOfRange(live: Live, camera: Camera): boolean {
+    if (!camera.isInFrustum(live.reach)) return true;
+    const sphere = live.reach.boundingSphere;
+    return (
+      Vector3.Distance(camera.globalPosition, sphere.centerWorld) - sphere.radiusWorld >
+      ANIMATE_RANGE_M
+    );
   }
 
   /** Zapíše kusy skupiny (výška a náklon podle terénu) a jejich polohy pro výběr. */
@@ -424,12 +444,14 @@ function wildlifeKey(village: WildlifeVillage): string {
         .join(','),
     )
     .join('|');
+  const plots = village.dwellings.map((d) => (d.plot ? JSON.stringify(d.plot) : '')).join(';');
+  const forest = `${village.obstacles?.removed.length ?? 0}/${village.obstacles?.stumps.length ?? 0}`;
   const squares = [
     ...(village.cemeteries ?? []).map((c) => c.squares.length),
     ...(village.orchards ?? []).map((o) => o.squares.length),
     ...(village.pens ?? []).map((p) => `${p.x.toFixed(1)},${p.z.toFixed(1)}`),
   ].join(',');
-  return `${JSON.stringify(village.wildlife)}#${dwellings}#${parts}#${squares}`;
+  return `${JSON.stringify(village.wildlife)}#${dwellings}#${plots}#${parts}#${squares}#${forest}`;
 }
 
 function villageSeed(l: Landscape): number {
