@@ -6,6 +6,7 @@ import { cellX, cellZ, villageGrid } from '../paths/network-grid';
 import { computePathNetwork, type PathVillage } from '../paths/network';
 import { routeLine, routePoints, type RouteCode } from '../paths/routes';
 import { house, part, pathTestTerrain } from './paths-fixtures';
+import type { Building } from '../paths/network-grid';
 
 // Odstup od plotu (paths.md – Odstup od plotu): mřížka chodců a osa trasy.
 
@@ -197,5 +198,79 @@ describe('odstup od plotu', () => {
     expect(
       fenceDistance(fences[0]!, line[line.length - 1]!.x, line[line.length - 1]!.z),
     ).toBeCloseTo(1.5, 6);
+  });
+
+  it('úzký průchod mezi plotem a stavbou zůstane průchodný (pruh ho nezavře)', () => {
+    // plot pozemku ohrady končí na x = 6,7; stavba od x = 10,5 – jediná řada buněk (x = 7,5)
+    const pens = [{ ...part(0.7, 37.5), id: 4, built: true, stocked: false }];
+    const wall: Building = {
+      position: { x: 15.5, z: 37.5, rotation: 0 },
+      box: { minX: -5, maxX: 5, minZ: -20, maxZ: 20 },
+    };
+    const gap = villageGrid({ village: village({ pens }), terrain }, [wall]);
+    const open = villageGrid({ village: village({ pens }), terrain }, []);
+    for (const z of [33.75, 37.5, 41.25]) {
+      const c = cellAt(gap, 7.5, z);
+      expect(Number.isFinite(gap.base[c]!)).toBe(true);
+      expect(gap.base[c]).toBeGreaterThan(1);
+      // na volném prostranství se tatáž buňka (0,8 m od plotu, soused dál) zablokuje
+      expect(open.base[cellAt(open, 7.5, z)]).toBe(Infinity);
+    }
+  });
+
+  it('buňky branky plotu A blíž než 1 m od plotu B zůstanou průchodné', () => {
+    const a = { ...part(0, 37.5), id: 4, built: true, stocked: false };
+    const gate = villageFences(village({ pens: [a] }), false)[0]!.gate!;
+    // druhá ohrada těsně za brankou: její plot 0,7 m od středu buňky 1,5 m před brankou
+    const cx = gate.x + gate.outX * 1.5;
+    const cz = gate.z + gate.outZ * 1.5;
+    const b = {
+      ...part(cx + gate.outX * 6.7, cz + gate.outZ * 6.7),
+      id: 5,
+      built: true,
+      stocked: false,
+    };
+    const v = village({ pens: [a, b] });
+    const fences = villageFences(v, false);
+    const grid = villageGrid({ village: v, terrain }, []);
+    const cell = cellAt(grid, cx, cz);
+    const d = Math.min(...fences.map((f) => fenceDistance(f.outline, cx, cz)));
+    expect(d).toBeLessThan(FENCE_CLEARANCE.axisM);
+    expect(Number.isFinite(grid.base[cell]!)).toBe(true);
+  });
+
+  it('výsledek nezávisí na pořadí plotů', () => {
+    const pens = [
+      { ...part(0, 37.5), id: 4, built: true, stocked: false },
+      { ...part(3, 60), id: 5, built: true, stocked: false },
+    ];
+    const one = villageGrid({ village: village({ pens }), terrain }, []);
+    const two = villageGrid({ village: village({ pens: [...pens].reverse() }), terrain }, []);
+    expect(Array.from(two.base)).toEqual(Array.from(one.base));
+  });
+
+  it('vnitřní roh plotu je oblouk o poloměru 0,5 m', () => {
+    const fence = fenceOutline(
+      [
+        { cell: { x: 0, y: 0 }, x: 0, z: 0, size: 15 },
+        { cell: { x: 1, y: 0 }, x: 15, z: 0, size: 15 },
+        { cell: { x: 0, y: 1 }, x: 0, z: 15, size: 15 },
+      ],
+      1.5,
+    )!;
+    // roh L: svislý plot x = 6 a vodorovný z = 6 se potkají v (6; 6), oblouk má střed (6,5; 6,5)
+    expect(fenceDistance(fence, 6.5, 6.5)).toBeCloseTo(0.5, 6);
+    expect(fenceDistance(fence, 6.2, 6.2)).toBeCloseTo(0.5 - Math.hypot(0.3, 0.3), 6);
+    expect(fenceDistance(fence, 7.5, 7.5)).toBeCloseTo(1.5, 6);
+    expect(fence.inside(6.5, 6.5)).toBe(false);
+    expect(fence.inside(5, 5)).toBe(true);
+  });
+
+  it('ploty rozestavěných obydlí se neberou', () => {
+    const plot = { cell: { x: 9, y: 9 }, x: -7.5, z: -7.5, size: 15 };
+    const v = village({ dwellings: [house(1, 0, 0, 0, { built: false, plot })] });
+    expect(villageFences(v, true)).toEqual([]);
+    const done = village({ dwellings: [house(1, 0, 0, 0, { plot })] });
+    expect(villageFences(done, true)).toHaveLength(1);
   });
 });

@@ -49,7 +49,8 @@ export function villageFences(
   if (!plots) return out;
   for (const d of v.dwellings) {
     const plot = d.plot;
-    if (!plot) continue;
+    // plot stojí jen u hotového obydlí – staveniště ho nemá (osa se ho nedrží)
+    if (!plot || d.built === false) continue;
     const squares: EntranceSquare[] = [
       {
         cell: plot.cell,

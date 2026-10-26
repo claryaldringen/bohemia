@@ -698,22 +698,28 @@ Pravidla (návrh Clauda, čísla `FENCE_CLEARANCE` v `rules-roads.ts`):
   pletený plot po obrysu čtverců se **zakulacenými rohy** (oblouk 1,25 m, vnitřní roh 0,5 m), jak
   ho kreslí scéna. Vzdálenost se měří ke skutečné čáře plotu včetně oblouků, ne ke čtvercům.
 - **Neprůchodný pruh:** buňka mřížky chodců, jejíž střed leží uvnitř plotu nebo blíž než **1 m**
-  od něj, je neprůchodná. U natočené stavby (po 15°) to dřív neplatilo – buňka napůl za plotem
+  od něj, je neprůchodná – **jen když pruh nezavře průchod**: buňka do 1 m od plotu (střed mimo plot) se
+  zablokuje, jen když má aspoň tři průchodné sousedy mimo pruh (volnou stranu od plotu); u úzkého
+  průchodu mezi plotem a stavbou, vodou či lesem (světlá šířka 4–5 m = jedna řada buněk) a u konce
+  plotu zůstane průchodná, jen **1,5×** dražší (osu tam podrží až vyhlazení osy). Pruh se vyhodnocuje
+  po stavbách, ze stavu před úpravou, takže pořadí plotů nehraje roli. U natočené stavby (po 15°) to dřív neplatilo – buňka napůl za plotem
   byla průchodná, střed mohl ležet až 2,6 m uvnitř.
 - **Dražší pruh:** buňka do **2 m** od plotu (u rovné stavby řada na hranici čtverců, 1,5 m od
   plotu) stojí pro výběr trasy **1,5×** víc – trasa se drží o řadu dál (5,25 m), když to nevychází
   o moc déle. Pod pevnou cestou se cena nemění (cesta je cesta), neprůchodnost platí i tam.
-- **Branka:** buňky branky (kruh u bodu před brankou – jako dřív) jsou výjimka z obou pruhů –
+- **Branka:** buňky branky (kruh u bodu před brankou – jako dřív) jsou výjimka z obou pruhů, i když
+  leží blíž než 1 m u plotu jiného (sousední ohrada) –
   trasa k hřbitovu nebo ohradě dojde až do branky. Cesta, která jde kolem branky, se do ní ohne
   (bod 1,5 m před brankou – `gateBend`, [Vchody](#vchody)); ohyb nesmí přes neprůchodný pruh.
 - **Ulička** mezi dvěma ploty (buňka do 3 m od obou) zůstává průchodná jako dřív, jen dražší –
   mezi sousedními ohradami vede jediná řada buněk.
+- **Ploty rozestavěných obydlí** se osy nedrží – plot stojí jen u hotového domu.
 - **Osa trasy** (z ní vzniká cesta – [Vyšlapanost a vznik cesty](#vyšlapanost-a-vznik-cesty) – i
   cesta k vchodu): kde by vyhlazená osa šla k plotu blíž než **1 m**, podrží se nejbližší střed
   buňky trasy (roh) a kusy mezi podrženými body se vyhladí zvlášť – osa projde středem rohové
   buňky (u rovné stavby 2,6 m od oblouku plotu), roh neusekne. Nehlídá se **4 m** u začátku a konce trasy (brána domu je 1 m
   před brankou pozemku, cíl v brance). Trasa daleko od plotů se nemění.
-- **Mění trasy všude:** verze tras `routes-v4` – uložené trasy se přepočítají jednou při dalším
+- **Mění trasy všude:** verze tras `routes-v5` – uložené trasy se přepočítají jednou při dalším
   dni. Postavené cesty se nemění (jednorázová přestavba Vlkova je další úloha); nové trasy,
   vyšlapávání a nové cesty jdou podle nových pravidel.
 - Čáry pěšin ve scéně a v chůzi (`routePaths`) se kreslí z týchž tras po hranách buněk a odstup od

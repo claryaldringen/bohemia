@@ -867,10 +867,10 @@ export function walkDistancesTo(
  * Verze tras a měření chůze v otisku – po změně toho, jak se trasy hledají (stálé trasy a práce
  * dne nad nimi – paths.md, Stálé trasy), po přidání nové vzdálenosti (voda – `waterWalkM`) nebo
  * rychlosti (stromy u cest – `Road.lined`), po změně tvaru domů a po odstupu od plotů (paths.md –
- * Odstup od plotu, `routes-v4`) se vsi uložené dřív přepočítají hned při dalším dni, ne až při
+ * Odstup od plotu, `routes-v5`) se vsi uložené dřív přepočítají hned při dalším dni, ne až při
  * změně mapy (jednou – pak otisk sedí).
  */
-export const WALK_VERSION = 'routes-v4';
+export const WALK_VERSION = 'routes-v5';
 
 /** Trasy k práci dne nad stálými trasami `stable` (`computeWorkRoutes`) k uložení. */
 function workRoutesOf(

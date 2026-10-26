@@ -565,15 +565,6 @@ export function villageGrid(input: PathNetworkInput, buildings: readonly Buildin
       fence(fencedCells(grid, squares, PEN_FENCE_INSET_M), gate);
     }
   }
-  // odstup od plotu (paths.md – Odstup od plotu): pruh u plotu neprůchodný, kus dál dražší
-  nearFences(
-    grid,
-    villageFences(v, false).map((f) => ({
-      outline: f.outline,
-      gate: f.gate ? gateCells(f.gate) : new Set<number>(),
-    })),
-    onRoad,
-  );
   const woods = (v.woods ?? []).filter((w) => w.surface !== 'forest');
   if (woods.length > 0) {
     for (const c of squareCells(grid, woods).inside) {
@@ -607,15 +598,26 @@ export function villageGrid(input: PathNetworkInput, buildings: readonly Buildin
       grid.village[c] = 1;
     });
   }
+  // odstup od plotu (paths.md – Odstup od plotu): pruh u plotu neprůchodný, kus dál dražší – až po stavbách, aby pruh poznal úzký průchod
+  nearFences(
+    grid,
+    villageFences(v, false).map((f) => ({
+      outline: f.outline,
+      gate: f.gate ? gateCells(f.gate) : new Set<number>(),
+    })),
+    onRoad,
+  );
   return grid;
 }
 
 /**
- * Odstup od plotu (paths.md – Odstup od plotu): buňka se středem uvnitř plotu nebo blíž než
- * `FENCE_CLEARANCE.axisM` je neprůchodná, do `nearM` dražší o `nearCost` (pod pevnou cestou jen
- * neprůchodná) – osa trasy tak nevede plotem ani rohem. Buňky branky plotu nic. Buňka do `alleyM`
- * od dvou plotů leží v uličce mezi stavbami – průchodná zůstává jako dřív (`fencedCells`), jen
- * dražší. Buňky v pořadí plotů a jejich obdélníků – výsledek nezávisí na pořadí (minimum, počet).
+ * Odstup od plotu (paths.md – Odstup od plotu): buňka se středem uvnitř plotu je neprůchodná, stejně
+ * tak buňka blíž než `FENCE_CLEARANCE.axisM` – ale jen když má aspoň tři průchodné sousedy mimo pruh (jinak
+ * by pruh zavřel úzký průchod mezi plotem a stavbou, vodou či lesem; tam buňka zůstane jen dražší).
+ * Do `nearM` jsou buňky dražší o `nearCost` (pod pevnou cestou jen neprůchodné). Buňky branky
+ * kteréhokoli plotu se nemění vůbec. Buňka do `alleyM` od dvou plotů leží v uličce mezi stavbami –
+ * průchodná zůstává jako dřív (`fencedCells`), jen dražší. Výsledek nezávisí na pořadí plotů
+ * (minimum, počet, rozhodnutí o pruhu ze stavu před úpravou).
  */
 function nearFences(
   grid: Grid,
@@ -623,8 +625,10 @@ function nearFences(
   onRoad: (c: number) => boolean,
 ): void {
   const { axisM, nearM, nearCost, alleyM } = FENCE_CLEARANCE;
-  const near = new Map<number, { count: number; d: number; blocked: boolean }>();
-  for (const { outline, gate } of fences) {
+  const gates = new Set<number>();
+  for (const { gate } of fences) for (const c of gate) gates.add(c);
+  const near = new Map<number, { count: number; d: number; inside: boolean }>();
+  for (const { outline } of fences) {
     const m = alleyM;
     cellsIn(
       grid,
@@ -633,7 +637,7 @@ function nearFences(
       outline.maxX + m,
       outline.maxZ + m,
       (c, x, z) => {
-        if (gate.has(c)) return;
+        if (gates.has(c)) return;
         const inside = outline.inside(x, z);
         const d = inside ? 0 : fenceDistance(outline, x, z);
         if (d > alleyM) return;
@@ -641,18 +645,49 @@ function nearFences(
         if (known) {
           known.count++;
           known.d = Math.min(known.d, d);
-          known.blocked ||= inside || d < axisM;
+          known.inside ||= inside;
         } else {
-          near.set(c, { count: 1, d, blocked: inside || d < axisM });
+          near.set(c, { count: 1, d, inside });
         }
       },
     );
   }
+  // kandidáti na zablokování (ulička mezi dvěma ploty se neblokuje)
+  const wanted = new Set<number>();
   for (const [c, cell] of near) {
     if (!Number.isFinite(grid.base[c]!)) continue;
-    if (cell.count === 1 && cell.blocked) grid.base[c] = Infinity;
-    else if (cell.d < nearM && !onRoad(c)) grid.base[c] = grid.base[c]! * nearCost;
+    if (cell.count === 1 && (cell.inside || cell.d < axisM)) wanted.add(c);
   }
+  const { width, height } = grid;
+  // pruh neuzavře průchod: buňka mimo vnitřek plotu se zablokuje, jen když má aspoň
+  // `OPEN_NEIGHBORS` průchodných sousedů mimo pruh (volná strana od plotu; u úzkého průchodu a konce
+  // plotu jsou nejvýš dva) – stav před úpravou, takže pořadí nehraje roli
+  const OPEN_NEIGHBORS = 3;
+  const opensElsewhere = (c: number): boolean => {
+    let open = 0;
+    const cx = c % width;
+    const cz = Math.floor(c / width);
+    for (let dz = -1; dz <= 1; dz++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if ((dx === 0 && dz === 0) || cx + dx < 0 || cx + dx >= width) continue;
+        if (cz + dz < 0 || cz + dz >= height) continue;
+        const n = c + dz * width + dx;
+        if (Number.isFinite(grid.base[n]!) && !wanted.has(n)) open++;
+      }
+    }
+    return open >= OPEN_NEIGHBORS;
+  };
+  const blockedNow: number[] = [];
+  for (const c of wanted) {
+    if (near.get(c)!.inside || opensElsewhere(c)) blockedNow.push(c);
+  }
+  const blocked = new Set(blockedNow);
+  for (const [c, cell] of near) {
+    if (!Number.isFinite(grid.base[c]!)) continue;
+    if (blocked.has(c)) continue;
+    if (cell.d < nearM && !onRoad(c)) grid.base[c] = grid.base[c]! * nearCost;
+  }
+  for (const c of blocked) grid.base[c] = Infinity;
 }
 
 /** Nejbližší průchodná buňka k bodu (do `reach` buněk), nebo −1. */

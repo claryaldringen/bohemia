@@ -97,15 +97,15 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
     buňky vlastního plotu.
     Martin 22. 10. 2026 (#3): „Lidi nesmí chodit přes ohrady. Vždyť jsou oplocené.“
   - **Odstup od plotu** ([paths.md – Odstup od plotu](../design/paths.md#odstup-od-plotu-26-10-2026),
-    `FENCE_CLEARANCE` v `rules-roads.ts`, `WALK_VERSION` `routes-v4`): `fenceOutline(squares, inset)`
+    `FENCE_CLEARANCE` v `rules-roads.ts`, `WALK_VERSION` `routes-v5`): `fenceOutline(squares, inset)`
     v `entrances.ts` – plot ve světě z `outlineRuns` (úsek nese `endInner`): rovné úseky, čtvrtkruhy
     rohů (`WOVEN_FENCE_CORNER_M`), obdélník a `inside` (ostré rohy, čtverec `inset` kolem bodu ve
     sjednocení); `fenceDistance` – k úsekům a obloukům (jen v úhlu čtvrtkruhu). `paths/fences.ts`:
     `villageFences(v, plots)` – hotové hřbitovy (bez `pending`), hotové ohrady (`penPathSquares`)
-    s brankou, s `plots` i pozemky obydlí (`FENCE_INSET_M`, dvorec i s dvorem); `fenceClearance`.
+    s brankou, s `plots` i pozemky hotových obydlí (ne staveniště) (`FENCE_INSET_M`, dvorec i s dvorem); `fenceClearance`.
     `villageGrid` → `nearFences` (po plotech a ohradách, ne pozemcích – ty jsou celé neprůchodné jako
-    stavba): střed uvnitř nebo do `axisM` od plotu → Infinity, do `nearM` → × `nearCost` (ne pod
-    pevnou cestou), buňky branky (`gateCells`) nic, buňka do `alleyM` od dvou plotů (ulička) jen
+    stavba): střed uvnitř plotu → Infinity, do `axisM` → Infinity jen s aspoň třemi průchodnými sousedy mimo pruh (úzký průchod zůstane dražší; volá se až po stavbách na konci `villageGrid`), do `nearM` → × `nearCost` (ne pod
+    pevnou cestou), buňky branky všech plotů (`gateCells`) nic, buňka do `alleyM` od dvou plotů (ulička) jen
     dražší. Projeví se i ve `villageBlockedAt` (ohyb do branky). `routeLine(route, cellM, fences)`
     (`routes.ts`): když vyhlazená osa jde k plotu blíž než `axisM` (vzorky po 0,5 m, mimo `gateM` od
     konců), podrží nejbližší vnitřní střed buňky do dvou buněk a vyhladí kusy mezi podrženými zvlášť
@@ -818,7 +818,7 @@ Návrh `docs/design/paths.md` – Stálé trasy (25. 10. 2026), Úloha A1.
   a idempotentně.
 - **Mapa tras a klíč** (A2b, [paths.md – Stálé trasy, pravidlo 5](../design/paths.md#stálé-trasy-25-10-2026)):
   `refreshWalkDistances` (`paths/village.ts`) drží v `VillageState.walkLayoutKey` = `routes.key`
-  otisk `routeMapKey | routePlacesKey | WALK_VERSION` (`routes-v4` – odstup od plotů).
+  otisk `routeMapKey | routePlacesKey | WALK_VERSION` (`routes-v5` – odstup od plotů).
   - `routeMapKey` – obydlí a staveniště (poloha, natočení, druh, pozemek – bez obyvatel a stáří),
     díly polí (políčka, bez stadia), sady, hřbitovy, posvátná místa, ohrady (políčka, hotová),
     les vsi, milíře, humna, pevné cesty (`roadsKey`), olemování po desetinách (`lineKey`), zemní
