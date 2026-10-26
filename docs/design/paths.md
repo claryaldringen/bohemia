@@ -267,6 +267,11 @@ změně stadia hledaly znovu (měření 25. 10. 2026: hledání tras vozů 67 % 
    součty přesné bez převodu jednotek). V síti pěšin pravidlo indexu rozdělilo trasy do
    souběžných pruhů pásu vyšlapanosti 7,5 m, proto tam (i setiny síly) přijde až s buňkou 3,75 m
    (pravidlo 4, A2a) – návrh Clauda.
+   _Stav 26. 10. 2026 (Úloha A2a):_ i v síti pěšin – ceny kroků po 1/1024 m, síla pěšiny po
+   setinách; ze stejně drahých předchůdců ale vyhraje **vyšší** index (návrh Clauda). Každé pevné
+   pravidlo dá přednost jednomu směru: s nižším indexem se v testu „jedna pěšina“ (dvě domácnosti
+   vedle sebe na pole) trasy nesejdou, s vyšším ano; v zrcadleném rozložení se nesejdou ani
+   s dřívějším pořadím haldy – slévání stálé trasy zajišťuje sleva z vyšlapanosti, ne remíza.
 4. **Vyšlapanost bez tolerance.** Trasa i jízda vozu přidají jen políčkům, kterými opravdu vedou –
    sousedním ± 1 ne (Martin 25. 10. 2026 k témuž u stavu cest: „proč by lidé chodili kousek vedle,
    když tam je cesta?“). **Políčko vyšlapanosti se zmenší na 3,75 m = buňka mřížky pěšin**
@@ -275,6 +280,12 @@ změně stadia hledaly znovu (měření 25. 10. 2026: hledání tras vozů 67 % 
    (0,4 políčka na metr), nově 1 buňka (0,27–0,37 na metr podle směru). Tolerance byla potřeba,
    dokud se trasy s měsíci posouvaly; stálé trasy se neposouvají a novou trasu ke staré stáhne
    sleva z vyšlapanosti (až 1,3×). Uložená vyšlapanost 7,5 m se jednou převede (hodnota do 4 buněk).
+   _Stav 26. 10. 2026 (Úloha A2a):_ zavedeno (`WEAR.cellM` 3,75, značka `RoadWear.cellM`). Jen
+   čtení má pás (návrh Clauda): čára trasy je zjednodušená a vyhlazená, její bod leží až o buňku
+   vedle buněk trasy – vyšlapanost bodu čáry (síla pěšiny, vznik cesty) je nejvyšší z buňky bodu
+   a sousedních a provoz nové cesty (`trafficAt`) se bere z pásu ± 1 buňky, každá trasa jednou.
+   Vlkov: 825 políček 7,5 m (4,4 kB) → po převodu 3 300 buněk (16,4 kB); se stálými trasami po
+   1 500 dnech (co nevede trasou, zaroste) 350 buněk (2,2 kB).
 5. **Přepočet jen při změně mapy tras.** Trasy se hledají znovu, jen když se změní:
    - **mapa tras** (ceny buněk pro chůzi a vůz) – umístění nebo zrušení stavby či pole hráčem,
      spadnutí stavby, zarostení dílu (roční krok), pokácené stromy mimo umístěné plochy (jednou za
@@ -346,7 +357,7 @@ přitom ležet každý rok přesně na stejném místě.“):
 - **Vyšlapanost** je číslo na políčko ~~**7,5 m** (2 × 2 buňky terénu pěšin)~~ **3,75 m** (buňka
   mřížky pěšin – [Stálé trasy](#stálé-trasy-25-10-2026), pravidlo 4) v souřadnicích světa –
   nezávisí na okně sítě, které se s novými stavbami mění. Ve stavu řídce (jen nenulová políčka,
-  celá čísla v setinách) – Vlkov odhadem 1–3 tisíce políček ≈ 5–15 kB.
+  celá čísla v setinách) – Vlkov po převodu 3 300 buněk ≈ 16 kB, ustáleně stovky buněk ≈ 2 kB.
 - **Den po dni:** každá trasa přidá na políčka, kterými vede, ~~**a na sousední políčka** (± 1 –
   tolerance 7,5–11 m, ať se trasa, která se mezi roky posune, sčítá dál)~~ (od 25. 10. 2026 jen
   ta – stálé trasy se neposouvají) své cesty za den, každé políčko jednou na trasu. **Tráva ubere 1 cestu za den** (dorůstá). Vyšlapanost je mezi 0
@@ -360,7 +371,8 @@ přitom ležet každý rok přesně na stejném místě.“):
 - **Provozní pole (výkon):** provoz tras po políčkách (~~i se sousedy~~) se spočítá jednou pro každou
   sadu tras (`routes.key`) a drží v paměti, ne ve stavu. Interval pak projde jen políčka s provozem
   nebo s vyšlapaností – jinak by se při dopočtu desítek let (intervaly po dnech, kdy se ves mění)
-  trasy razítkovaly znovu a znovu. Z téhož pole bere provoz i stav kusů cest (Zarůstání).
+  trasy razítkovaly znovu a znovu. Z téhož pole bere provoz nová cesta (pás ± 1 buňky); stav kusů
+  cest jen z tras, které jdou po cestě (Zarůstání – Provoz po cestě).
 - **Trasy za prací (návrh Clauda, 24. 10. 2026):** trasy s účelem práce (pole, sad, stavby,
   ohrady, kácení, seč…) nesou v intervalu skutečně odvedenou práci (`wear.labor`, 1 cesta na
   člověkoden), rozdělenou po trasách k cíli podle jejich cest za den; práce dne, kdy se trasy počítaly, se

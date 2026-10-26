@@ -24,10 +24,10 @@ function field(x: number, z: number, stage: PartStage, reversed = false): PathVi
   return [{ id: 1, parts: reversed ? parts.reverse() : parts }];
 }
 
-function fieldRoute(fields: PathVillage['fields']): number[] {
+function fieldRoute(fields: PathVillage['fields'], onTerrain = terrain): number[] {
   const network = computePathNetwork({
     village: { dwellings: [house(1, -67.5, -52.5)], fields },
-    terrain,
+    terrain: onTerrain,
     keepRoutes: true,
   });
   const route = (network.routes ?? []).find((r) => r.to === 'field:1');
@@ -95,6 +95,13 @@ describe('trasa na pole jako celek (paths.md – Stálé trasy, pravidlo 2)', ()
 describe('pevné remízy (paths.md – Stálé trasy, pravidlo 3)', () => {
   it('chůze: jiné pořadí dílů pole (cílů) – táž trasa', () => {
     expect(fieldRoute(field(15, 15, 'sown', true))).toEqual(fieldRoute(field(15, 15, 'sown')));
+  });
+
+  it('chůze: dražší buňka daleko od trasy – táž trasa (ceny kroků po 1/1024, remíza podle indexu)', () => {
+    const route = fieldRoute(field(15, 15, 'sown'));
+    const cost = new Float32Array(terrain.cost);
+    for (let c = 0; c < terrain.width * 3; c++) cost[c] = cost[c]! * 1.5; // okraj okna
+    expect(fieldRoute(field(15, 15, 'sown'), { ...terrain, cost })).toEqual(route);
   });
 
   it('vůz: jiné pořadí cílů a vzdálená překážka – tytéž trasy, cena po 1/1024', () => {

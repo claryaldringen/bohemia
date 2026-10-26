@@ -16,6 +16,7 @@ import {
   wearKey,
   wearMap,
   wearStrengths,
+  withWearCells,
   withWearSeed,
 } from '../paths/wear';
 import { WEAR } from '../rules-roads';
@@ -43,6 +44,64 @@ function withCandidates(roads: VillageRoads): VillageState {
   return s;
 }
 
+describe('withWearCells – vyšlapanost 7,5 m do buněk 3,75 m (paths.md – Stálé trasy, pravidlo 4)', () => {
+  const sorted = (cells: ReadonlyMap<number, number>): [number, number][] =>
+    [...cells].sort((a, b) => a[0] - b[0]);
+
+  function oldVillage(cells: Map<number, number>, day = 50): VillageState {
+    const s = village();
+    s.roads = emptyRoads(0);
+    s.roads.wear = { day, cells: encodeWear(cells), labor: [] };
+    return s;
+  }
+
+  it('každé staré políčko do 4 buněk s toutéž hodnotou, se značkou, jen jednou', () => {
+    const s = oldVillage(
+      new Map([
+        [wearKey(0, 0), 90_000],
+        [wearKey(-1, 2), 7_000],
+      ]),
+    );
+    const converted = withWearCells(s);
+    expect(converted).not.toBe(s);
+    expect(s.roads!.wear!.cellM).toBeUndefined();
+    const wear = converted.roads!.wear!;
+    expect(wear.cellM).toBe(WEAR.cellM);
+    expect(wear.day).toBe(50);
+    const expected = new Map<number, number>();
+    for (const [i, j, v] of [
+      [0, 0, 90_000],
+      [-2, 4, 7_000],
+    ] as const) {
+      for (const a of [0, 1]) for (const b of [0, 1]) expected.set(wearKey(i + a, j + b), v);
+    }
+    expect(sorted(decodeWear(wear.cells))).toEqual(sorted(expected));
+    // druhé načtení nic nezmění; ves bez vyšlapanosti zůstane
+    expect(withWearCells(converted)).toBe(converted);
+    const bare = village();
+    delete bare.roads?.wear;
+    expect(withWearCells(bare)).toBe(bare);
+  });
+
+  it('cesta vznikne po převodu ve stejný den jako před ním – tatáž trasa, práh 1 000', () => {
+    // stará vyšlapanost podél trasy (políčko 7,5 m = buňky 2i a 2i + 1) těsně pod prahem
+    const r = route(0, 0, 20, 300);
+    const old = new Map<number, number>();
+    for (let x = 0; x <= 20; x++) old.set(wearKey(Math.floor(x / 2), 0), 90_000);
+    const wear = withWearCells(oldVillage(old, 0)).roads!.wear!;
+    const field = trafficField({ key: 'wear-cells', list: [r] }, CELL);
+    // před převodem: 90 000 + (300 − 100) × dny – práh za 50 dní, po převodu na buňkách trasy totéž
+    settleWear(wear, field, 0, 49);
+    flushWear(wear);
+    for (let x = 0; x <= 20; x++) expect(wearAt(decodeWear(wear.cells), x * CELL, 0)).toBe(99_800);
+    settleWear(wear, field, 49, 50);
+    flushWear(wear);
+    for (let x = 0; x <= 20; x++) {
+      expect(wearAt(decodeWear(wear.cells), x * CELL, 0)).toBe(WEAR.roadAt);
+    }
+  });
+});
+
 describe('withWearSeed – vyšlapanost staré vsi', () => {
   it('podél loňských kandidátů založí polovinu prahu (i sousední políčka), jednou', () => {
     const roads = emptyRoads(100);
@@ -62,9 +121,10 @@ describe('withWearSeed – vyšlapanost staré vsi', () => {
     const cells = decodeWear(wear.cells);
     expect(WEAR.seed).toBe(WEAR.roadAt / 2);
     for (const x of [0, 10, 20, 30, 40]) expect(wearAt(cells, x, 0)).toBe(WEAR.seed);
-    // sousední políčko (± 1) – trasa posunutá o políčko sčítá dál
-    expect(wearAt(cells, 20, 8)).toBe(WEAR.seed);
-    expect(wearAt(cells, 20, 20)).toBe(0);
+    // osa staré cesty je přibližná – založí se i sousední buňky (± 1), dál ne
+    expect(wear.cellM).toBe(WEAR.cellM);
+    expect(wearAt(cells, 20, CELL)).toBe(WEAR.seed);
+    expect(wearAt(cells, 20, 2 * CELL)).toBe(0);
     expect(wearAt(cells, 80, 0)).toBe(0);
     // druhé načtení nic nezmění
     expect(withWearSeed(seeded)).toBe(seeded);

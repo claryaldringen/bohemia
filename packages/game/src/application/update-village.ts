@@ -23,6 +23,7 @@ import {
   withOxen,
   withPlots,
   withRoutes,
+  withWearCells,
   withWearSeed,
   withVisitsSeed,
   withRoadCondition,
@@ -208,11 +209,13 @@ export async function updateVillage(
     // dvorec vojvody – starší ves ho dostane (nejstarší obydlí, trade.md); spřežení ohrad uložených
     // dřív se převedou na voly po kusech (oxen.md – Voli po kusech); ves z doby před vyšlapaností ji
     // dostane podél loňských úseků nad prahem (paths.md – Převod starých vsí, bod 3) a cesty stav kusů
-    // z historie provozu (bod 2); pošlapaná úroda z doby, kdy ji vozy šlapaly, zmizí (paths.md –
-    // Stálé trasy)
+    // z historie provozu (bod 2); pošlapaná úroda z doby, kdy ji vozy šlapaly, zmizí a vyšlapanost
+    // políček 7,5 m se rozdělí do buněk 3,75 m (paths.md – Stálé trasy, pravidla 1 a 4)
     const base = withRoadCondition(
       withVisitsSeed(
-        withWearSeed(withManor(withOxen(withBridgedRoads(withoutTrampledParts(migrated))))),
+        withWearCells(
+          withWearSeed(withManor(withOxen(withBridgedRoads(withoutTrampledParts(migrated))))),
+        ),
       ),
     );
     // jiné vsi na téže mapě – kontroly umístění a kácení o nich vědí (migration.md); přehled se

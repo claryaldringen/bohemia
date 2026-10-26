@@ -152,6 +152,9 @@ describe('síť pěšin na skutečné krajině – zlatý otisk', () => {
     // domů (neprůchodné buňky a brány) jsou podle tvaru domu, ne jednoho pro všechny
     // 24. 10. 2026: zvyk (ROUTE_HABIT 25 % mimo vyšlapané) a ploty ohrad, hřbitovů a příkop svatyně
     // neprůchodné (Úloha 2 nového systému cest) – trasy se drží pěšin a obcházejí ploty
-    expect(networkFingerprint(network)).toBe('75105:43f4e471');
+    // 26. 10. 2026: pevné remízy (paths.md – Stálé trasy, pravidlo 3) – ceny kroků po 1/1024 m,
+    // síla pěšiny po setinách, ze stejně drahých předchůdců vyšší index; trasy se liší jen tam, kde
+    // byly dvě stejně drahé (dřív rozhodlo pořadí haldy)
+    expect(networkFingerprint(network)).toBe('75041:2a9dd0e5');
   }, 30_000);
 });

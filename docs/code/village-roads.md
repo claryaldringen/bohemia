@@ -31,7 +31,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   a zakládaný díl 1; mokřina 0,5 – nejpomalejší platí; `pathCostFactor` – plná pěšina 1 / 1,3,
   přes osev pěšina nezrychlí; `roadWalkSpeed`), čísla `PATH_WALK`, `FIELD_WALK`, `ROAD_WALK`;
   křoviny a mladý les dražší (`OVERGROWN_COST`); pole není zákaz – přes osev se jde, když je
-  obcházení delší; vozy přes osetý díl jen bez jiné cesty (`CART_SPEED.sown`);
+  obcházení delší; vůz jede po poli stálou cenou (`CART_SPEED.field`, v každém stadiu – paths.md,
+  Stálé trasy) a úrodu nepošlape;
   síla `pathStrength` (odmocnina provozu), stáří obydlí →
   `pathAgeFactor`; vyhlazené čáry se sílou a stářím v bodech, provoz po buňkách `traffic.raw`;
   `annual: true` = roční provoz; provoz ke stavbám `visits` – opuštěné stavby, abandonment.md;
@@ -340,9 +341,9 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   `CART_ROUTES` a `CART_ROADS` – návrh Clauda): `paths/cart.ts` (deterministická vrstva jako
   pěšiny) – `cartGrid` na mřížce terénu pěšin (výšky `PathTerrain.heights`, les `PATH_FOREST`,
   překážky `cartObstacleMask` v `terrain.ts`; voda jen brodem, les jen po pevné cestě, pole
-  v lese vymýcené, křoviny, sad, hřbitov, ohrada, les vsi a okrsek svatyně ne, osetý díl jen draze (`CART_SPEED.sown` – `CartGrid.sownPart` nese id dílu, `CartRoute.sown` metry trasy přes osetý díl, `CartDrive.sown` je předá simulaci; `flushCartTrips` v `cart-jobs.ts` – jediné místo, kam `work()` zapisuje jízdy dne (deník `CartTripLog`: svoz, voda, uhlí, ruda, klády, osivo; provoz cest + `trampleSownParts`, metry hledá `villageCartRoutes`, voda je zná z `CartDrive.sown`) – z nich zvedá `FieldPart.trampledM2`, `cropYieldKg` v `year-plan.ts` o podíl zmenší úrodu, `endOfSeason` nuluje), domy
+  v lese vymýcené, křoviny, sad, hřbitov, ohrada, les vsi a okrsek svatyně ne, pole stálou cenou (`cartPartSpeed` – `CART_SPEED.field` v každém stadiu, zarostlý díl ne; vůz úrodu nepošlape – paths.md, Stálé trasy; `flushCartTrips` v `cart-jobs.ts` – jediné místo, kam `work()` zapisuje jízdy dne – deník `CartTripLog`: svoz, voda, uhlí, ruda, klády, osivo; provoz cest), domy
   a pozemky s půl šířkou vozu; každá pevná cesta sjízdná – pás buněk do 0,75 buňky od bodů osy
-  (`ROAD_BAND_CELLS`) a úhlopříčka z buňky cesty na buňku cesty i přes roh lesa, osetého dílu či
+  (`ROAD_BAND_CELLS`) a úhlopříčka z buňky cesty na buňku cesty i přes roh lesa či
   okraje domu (`CartGrid.road`), jinak by šikmá cesta lesem a ohyb u domu nebyly sjízdné (Vlkov 23. 10. 2026; návrh Clauda); stavba přes cestu ji přehradí i vozu (roads.md – Co platí dál); rychlost podle povrchu a druhu cesty –
   `CART_SPEED`, `cartPartSpeed`, `cartRoadSpeed`: vyšlapaná 1,3, vyježděná 1,6, upravená a hať
   1,8, strniště i připravený díl 0,8, zoraný 0,6, mokřina 0,55 – i na cestě kromě hatě, podle
@@ -584,18 +585,22 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
     jiný vstup, týž determinismus (M3).
 - **Vyšlapanost** (nový systém cest, Úloha 3a – jádro, Úloha 3b – zapojení;
   [paths.md – Vyšlapanost a vznik cesty](../design/paths.md#vyšlapanost-a-vznik-cesty)):
-  `VillageRoads.wear?` (`RoadWear { day, cells, labor }`) – setiny cesty na políčko 7,5 m světa,
+  `VillageRoads.wear?` (`RoadWear { day, cells, labor, cellM? }`) – setiny cesty na políčko 3,75 m
+  světa = buňka mřížky pěšin (`WEAR.cellM`, Stálé trasy – pravidlo 4),
   čísla `WEAR` v `rules-roads.ts` (práh cesty `roadAt` 100 000, strop `max` 150 000, tráva ubere
-  `regrowPerDay` 100 denně). `paths/wear.ts`: klíč políčka `wearKey(i, j)` / `wearCellAt(x, z)`,
+  `regrowPerDay` 100 denně). `paths/wear.ts`: klíč políčka `wearKey(i, j)` / `wearCellAt(x, z)` (nejbližší
+  buňka – políčko i je buňka tras i),
   kódování `encodeWear` / `decodeWear` (seřazené klíče, rozdíl klíče a hodnota jako varint v base64
-  – 5 bitů na znak, nuly se neukládají), `wearCellsOf(route, cellM)` – políčka trasy ± 1, každé
-  jednou. **Provozní pole** `trafficField(routes, cellM)` se spočítá jednou pro `routes.key` (pár
+  – 5 bitů na znak, nuly se neukládají), `wearCellsOf(route, cellM, band?)` – buňky trasy bez
+  sousedů (s `band` i ± 1), každé jednou; jízdy vozů (`addCartWear`) také jen buňky jízdy. **Provozní pole** `trafficField(routes, cellM)` se spočítá jednou pro `routes.key` (pár
   posledních sad v paměti, kontrola počtu tras a součtu cest) – `cells`: cesty za den, které se
   sčítají (trasy mimo práci celé, trasy `work` jen stálá část `StoredRoute.base`; `base` zapisuje
   `network-targets.ts` přes `TripGroup.baseWeights` u pole, sadu, ohrady a staveniště a
   `storedRoutes` ji ukládá), `targets`: pro cíl práce (`StoredRoute.to`) políčka tras k němu a kolik
-  cest jimi vede, `walk`: celé `trips` všech tras; `trafficAt(field, x, z)` čte `walk` (provoz pro
-  zarůstání cest). `wearKey` mimo ± 32 768 políček vyhodí `RangeError`. `settleWear(wear, field, fromDay, toDay)` projde jen
+  cest jimi vede, `walk`: celé `trips` všech tras v pásu ± 1 buňky (každá trasa jednou – osa cesty je
+  vyhlazená čára trasy); `trafficAt(field, x, z)` čte `walk` (provoz nové cesty a roční
+  `road.traffic`). Čáry tras čtou vyšlapanost přes `wearNear` (buňka bodu a sousední – vyhlazený
+  bod leží až o buňku vedle trasy): `wearStrengthAt` i vznik cesty (`eachWearRun`). `wearKey` mimo ± 32 768 políček vyhodí `RangeError`. `settleWear(wear, field, fromDay, toDay)` projde jen
   sjednocení políček pole, práce a vyšlapanosti: `w = clamp(min(w + práce, max) + (provoz − 100) × dny, 0, max)`, práce intervalu `wear.labor` (klíč `wearLaborKey` = cíl trasy) se rozdělí po políčkách
   tras k cíli podle jejich cest za den (celé setiny, dolů); vynuluje `labor`, posune `day`, vrátí
   počet prošlých políček. **Pracovní políčka** drží dopočet v paměti (`WeakMap` podle objektu
@@ -622,8 +627,11 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   `wearStrengthAt` = vyšlapanost / `roadAt` (od `visibleFrom`), stáří 0 – tentýž zdroj vezme scéna
   (Úloha 4a); `pathCellM(landscape)` je strana buňky tras. Stará ves: `withWearSeed`
   (`updateVillage` před dopočtem) – chybí-li `wear`, podél loňských `LegacyRoadFields.candidates` (osa vzorkovaná po
-  čtvrtině políčka, ± 1 políčko jako u tras) `WEAR.seed` 50 000, den `lastDay + 1`; ves bez cest
-  nechá být, druhé načtení vrátí týž stav. `road-report.ts` vypisuje políčka a kB vyšlapanosti
+  čtvrtině políčka, ± 1 políčko – osa je přibližná) `WEAR.seed` 50 000, den `lastDay + 1`; ves bez cest
+  nechá být, druhé načtení vrátí týž stav. `withWearCells` (`updateVillage`, po `withWearSeed`) –
+  vyšlapanost bez `cellM` (políčka 7,5 m) rozdělí: políčko (i, j) do buněk 2i…2i + 1 × 2j…2j + 1
+  s toutéž hodnotou, značka `cellM = 3,75`; jednou a idempotentně (Vlkov 825 políček 4,4 kB →
+  3 300 buněk 16,4 kB; se stálými trasami po 1 500 dnech 350 buněk 2,2 kB). `road-report.ts` vypisuje políčka a kB vyšlapanosti
   a čas `settleWear` a `encodeWear` zvlášť (`WEAR_TIMING` – hodiny dává jen měření). Vlkov
   (24. 10. 2026, stroj zatížený jinými agenty): dopočet 1 roku 23,7 s (základ
   feat/landscape týž okamžik 23,5 s), 40 let 246,4 s (základ 253,5 s) – mez + 1 s drží; `settleWear`
@@ -641,8 +649,8 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   jízdy vozů): `c = clamp(c + (provoz − keep) × dny, 0, plný)`. **Provoz po cestě** (Martin 25. 10. 2026: „proč by lidé chodili kousek vedle, když tam je cesta?“): `trafficOnRoads(routes,
 cellM)` (`road-condition.ts`, index buněk tras v `WeakMap` podle pole tras) – součet `trips` tras,
   které mají buňku (`routeCells`) do `ROAD_TRAFFIC.bandCells` (0,75) buňky od bodu osy (pás jako
-  `roadBandCells`), každá trasa jednou; ne provozní pole vyšlapanosti (`trafficAt` – políčka 7,5 m
-  i se sousedy, dosah ≈ 11 m – zůstává pro vznik a vyšlapanost). Stejně `liveRoadEnd` (živá ramena
+  `roadBandCells`), každá trasa jednou; ne provozní pole vyšlapanosti (`trafficAt` – pás ± 1 buňky
+  3,75 m – zůstává pro vznik cesty a roční `road.traffic`). Stejně `liveRoadEnd` (živá ramena
   křižovatek – `tidyMonth`). **Opuštěný úsek** provoz nedostane nikdy (ani jízdy vozů) – bledne
   podle druhu. Kus pod hotovou stavbou: `capUnderBuilding` z `abandonBlockedStretches` (každý měsíc
   pro všechny opuštěné; kus osy s během ≥ `BLOCK_MIN_RUN_M` v neprůchodné ploše) – stav nejvýš
@@ -769,9 +777,10 @@ Návrh `docs/design/paths.md` – Stálé trasy (25. 10. 2026), Úloha A1.
   `STEP_QUANTUM` v `paths/network-search.ts` – součty ve Float64 přesné); při stejné ceně vyhraje
   předchůdce s nižším indexem stavu (buňka × směr), po posledním cíli se dobírají stavy se stejnou
   cenou a z koncových stavů cíle vyhraje nižší index (`PathHeap.peekKey`).
-- **Remízy chodců zatím beze změny** (odchylka od plánu A1): pravidlo nižšího indexu v síti pěšin
-  rozdělilo trasy do souběžných pruhů v pásu vyšlapanosti 7,5 m (2 buňky – testy slévání
-  a „jedna pěšina“); vrátí se s buňkou vyšlapanosti 3,75 m (A2a).
+- **Remízy chodců** (A2a): `search` a `searchErrand` v `network-search.ts` sčítají ceny kroků po
+  `quantizedStep`, `trodden` bere sílu pěšiny po setinách; ze stejně drahých předchůdců vyhraje
+  **vyšší** index (návrh Clauda – s nižším se v „jedna pěšina“ trasy sousedů nesejdou; každé pevné
+  pravidlo dá přednost jednomu směru, slévání v zrcadleném rozložení není zaručené ani dřív).
 - **Pošlapání zmizelo:** `CART_TRAMPLE`, `trampleSownParts`, `FieldPart.trampledM2`,
   `CartRoute.sown`, `RoadCartTrips.sown/spare`; `flushCartTrips(state, log)` jen sečte provoz cest.
   Starší ves převede `withoutTrampledParts` (`cart-jobs.ts`, v `updateVillage`) jednou

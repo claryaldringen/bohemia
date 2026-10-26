@@ -198,8 +198,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   pro vozy – `trailCartPassable`, `axisCartCheck`). **Dosah vozu je rozhraní `CartAccess`** (cíle
   najednou) – s krajinou vozová síť (`networkCartAccess` → `villageCartRoutes`), bez krajiny
   `EVERYWHERE`; dosah úlohy se spočítá jednou při prvním svozu a uloží (`CartReach` –
-  `CropWork.cartReach`, `HayMowing.cartReach`, `ConstructionWood.cartReach`; `cropCartReach` se
-  žní po strništi – `harvestReachState`, `mowingCartReach`, `logsCartReach`); jízdy svozu do
+  `CropWork.cartReach`, `HayMowing.cartReach`, `ConstructionWood.cartReach`; `cropCartReach` – pole
+  stálou cenou, stadium dílu dosah nemění (paths.md – Stálé trasy), `mowingCartReach`, `logsCartReach`); jízdy svozu do
   ročního provozu cest `addHaulTrips` → `addRoadCartTrips` (vyjeté cesty).
   Web: `VillageCrafts.carts` / `cartTargets`, `VillageWorkshop.carpenter`, lišta dřevěné nářadí
   a vozy (`showsWoodTools`, `cartsLabel`), panel dílny (`CarpenterStats`), upozornění

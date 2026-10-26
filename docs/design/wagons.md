@@ -576,8 +576,10 @@ Návrh Clauda (19. 10. 2026) – detaily, které návrh výš nechal otevřené;
     doprostřed velkého osetého pole by nedojel. Snopy se ale svážejí z požatých dílů, kde stojí
     v panácích, a žeň jde od domu ven (fields.md – Postup práce po čtvercích) – díly sklízené
     plodiny se pro vůz postupně otevírají. Dosah žně proto síť počítá s díly sklízené plodiny jako
-    se strništěm (`harvestReachState` – stadium připraveného dílu, jede se jako po strništi 0,8); ostatní osetá pole
-    (jař a luštěniny při žni ozimu) vůz nepustí – snopy za nimi nosí lidé jako dřív. Proti
+    se strništěm ~~(`harvestReachState` – stadium připraveného dílu, jede se jako po strništi 0,8); ostatní osetá pole
+    (jař a luštěniny při žni ozimu) vůz nepustí – snopy za nimi nosí lidé jako dřív.~~ Od 25. 10. 2026
+    má pole pro vůz stálou cenu v každém stadiu a `harvestReachState` zmizel ([paths.md](paths.md) –
+    Stálé trasy, pravidlo 1). Proti
     variantě „jen k dílům na kraji osetého bloku“ by vůz ve velkém poli nevozil skoro nic, ač
     po strništi za žní jezdil; proti „všude“ zůstává překážkou cizí osetí, voda a les.
   - **Jízdy do ročního provozu cest:** vůz za den udělá 8 jízd (`CARTS.loadsPerCartDay`) – podle
@@ -664,11 +666,12 @@ v `paths/roads.ts`, čísla `CART_ROUTES` a `CART_ROADS` v `rules.ts`.
   - **Na poli platí nejpomalejší** z povrchu (mokřina) a dílu, ne součin – jako u chůze (dřív
     zoraný díl v mokřině 1,8 × 1,6). Pod pevnou cestou jen cesta (strniště, zoraný díl i mokřina –
     mokřinu tam pozná osa cesty).
-  - **Připravený díl je strniště** (rozhodnutí Clauda): vozová síť zná díl jen podle stadia
+  - ~~**Připravený díl je strniště**~~ (zrušeno 25. 10. 2026 – pole stálou cenou, [paths.md](paths.md) –
+    Stálé trasy, pravidlo 1) ~~(rozhodnutí Clauda): vozová síť zná díl jen podle stadia
     a dosah žně (`harvestReachState`) vidí sklízené díly jako připravené – vůz po nich jede
     po strništi. Skutečně připravený díl (založený, čeká na osev) do osevu sesedne – jede se po
     něm stejně; zakládaný díl (drn se právě rozrývá) jako zoraný. Díl plánu po orbě je osetý –
-    vůz po něm nejede (beze změny).
+    vůz po něm nejede (beze změny).~~
   - **Co se změní samo:** vše, co bere cenu vozové sítě – cesta spřežení k orbě (`tripCost`
     v `plough-trip.ts`, `TEAM_TRAVEL`), dosah svozu (mez hledání `maxCost`), trasy vozů dne ve
     scéně a roční síť vozů (vyjeté cesty). Vlkov (stav 27. 4. 796): cesta spřežení k bloku jaře

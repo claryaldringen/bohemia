@@ -11,7 +11,7 @@ import { dateOfDayIndex } from '../../calendar';
 import { type Landscape, type ObstacleLayer } from '../../landscape';
 import { obstacleChangesAt, type ObstacleChanges } from '../obstacles';
 import { roadAppleStage, roadTreeLook } from '../road-trees';
-import { CART_ROADS, ROADS } from '../rules';
+import { CART_ROADS, ROADS, WEAR } from '../rules';
 import {
   type ChronicleEvent,
   type Construction,
@@ -83,7 +83,7 @@ export function roadsDay(
   const roads = (state.roads ??= emptyRoads(day));
   // vyšlapanost (paths.md – Vyšlapanost a vznik cesty) – nová ves od dneška od nuly, starší ves
   // ji dostane při načtení (`withWearSeed`)
-  const wear = (roads.wear ??= { day, cells: '', labor: [] });
+  const wear = (roads.wear ??= { day, cells: '', labor: [], cellM: WEAR.cellM });
   let visits: ReadonlyMap<string, number> | null = null;
   if (isRoadYearDay(day) && roads.labor.from < day) {
     const changes = obstacleChangesAt(state, day);

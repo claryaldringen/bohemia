@@ -157,8 +157,8 @@ export interface RoadLaborShare {
 }
 
 /**
- * Vyšlapanost (paths.md – Vyšlapanost a vznik cesty): setiny cesty na políčko 7,5 m, sčítá se po
- * intervalech (`paths/wear.ts` – `settleWear`).
+ * Vyšlapanost (paths.md – Vyšlapanost a vznik cesty): setiny cesty na políčko 3,75 m (buňka mřížky
+ * pěšin), sčítá se po intervalech (`paths/wear.ts` – `settleWear`).
  */
 export interface RoadWear {
   /** Den posledního sčtu – `cells` platí na jeho začátek. */
@@ -167,6 +167,11 @@ export interface RoadWear {
   cells: string;
   /** Práce od `day` po místech (člověkodny celkem) – v intervalu ji nesou trasy za prací. */
   labor: RoadLaborShare[];
+  /**
+   * Strana políčka (m) – `WEAR.cellM`. Chybí = políčka 7,5 m z doby před 26. 10. 2026; převede je
+   * `withWearCells` při načtení (paths.md – Stálé trasy, pravidlo 4).
+   */
+  cellM?: number;
 }
 
 /**

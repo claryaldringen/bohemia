@@ -1,6 +1,6 @@
 // Vyšlapanost (paths.md – Vyšlapanost a vznik cesty): kudy trasy vedou, tam se tráva prošlapává,
-// kde se nechodí, dorůstá. Číslo na políčko 7,5 m v souřadnicích světa, celá čísla v setinách
-// cesty. Sčítá se po intervalech – mezi dny změny tras je provoz stálý, takže změna je
+// kde se nechodí, dorůstá. Číslo na políčko 3,75 m (buňka mřížky pěšin) v souřadnicích světa, celá
+// čísla v setinách cesty. Trasa přidá jen buňkám, kudy vede (bez sousedů). Sčítá se po intervalech – mezi dny změny tras je provoz stálý, takže změna je
 // (provoz − 1 cesta) × dny oříznutá na 0 a strop, přesně jako den po dni. Provoz tras po políčkách
 // (provozní pole) se spočítá jednou pro sadu tras (`routes.key`) a drží v paměti, ne ve stavu.
 
@@ -31,7 +31,10 @@ const BASE64_VALUE: ReadonlyMap<string, number> = new Map(
 const KEY_OFFSET = 32_768;
 const KEY_SPAN = 65_536;
 
-/** Klíč políčka (i, j) – políčko i pokrývá světa x od i × 7,5 m do (i + 1) × 7,5 m. */
+/**
+ * Klíč políčka (i, j) – políčko i je buňka mřížky pěšin i (`routeCells`): pokrývá světa x do půl
+ * buňky od i × 3,75 m (paths.md – Stálé trasy, pravidlo 4).
+ */
 export function wearKey(i: number, j: number): number {
   if (!(Math.abs(i + 0.5) < KEY_OFFSET && Math.abs(j + 0.5) < KEY_OFFSET)) {
     throw new RangeError(`Políčko vyšlapanosti mimo rozsah klíče: ${i}, ${j}`);
@@ -39,8 +42,17 @@ export function wearKey(i: number, j: number): number {
   return (i + KEY_OFFSET) * KEY_SPAN + (j + KEY_OFFSET);
 }
 
+/** Index nejbližší buňky (střed buňky i leží v i × `WEAR.cellM`). */
 function wearIndex(world: number): number {
-  return Math.floor(world / WEAR.cellM);
+  return Math.floor(world / WEAR.cellM + 0.5);
+}
+
+function keyI(key: number): number {
+  return Math.floor(key / KEY_SPAN) - KEY_OFFSET;
+}
+
+function keyJ(key: number): number {
+  return (key % KEY_SPAN) - KEY_OFFSET;
 }
 
 /** Klíč políčka, ve kterém leží bod světa (x, z) v metrech. */
@@ -113,6 +125,22 @@ export function wearAt(cells: ReadonlyMap<number, number>, x: number, z: number)
 }
 
 /**
+ * Vyšlapanost bodu čáry trasy (setiny cesty): nejvyšší z buňky bodu a sousedních. Čára je
+ * zjednodušená a vyhlazená (`extractLines`), takže bod leží až o buňku vedle buněk trasy –
+ * vyšlapanost se tím jen čte, přibývá jen buňkám trasy.
+ */
+export function wearNear(cells: ReadonlyMap<number, number>, x: number, z: number): number {
+  if (cells.size === 0) return 0;
+  const i = wearIndex(x);
+  const j = wearIndex(z);
+  let best = 0;
+  for (let di = -1; di <= 1; di++) {
+    for (let dj = -1; dj <= 1; dj++) best = Math.max(best, cells.get(wearKey(i + di, j + dj)) ?? 0);
+  }
+  return best;
+}
+
+/**
  * Síla pěšiny z vyšlapanosti po buňkách okna mřížky pěšin (paths.md – Slévání): vyšlapanost / práh
  * cesty, nejvýš 1; pod viditelnou (`WEAR.visibleFrom`) nic.
  */
@@ -127,13 +155,13 @@ export function wearStrengths(grid: GridWindow, wear: ReadonlyMap<number, number
   // jen nenulová políčka (okno je o řády větší než vyšlapaná místa): buňky okna, jejichž bod padne
   // do políčka – rozsah odhadem ± 1, rozhodne přesně týž `wearIndex` jako u bodu buňky
   const span = (k: number, origin: number, n: number): [number, number] => [
-    Math.max(0, Math.floor((k * WEAR.cellM - origin) / cellM) - 1),
-    Math.min(n - 1, Math.ceil(((k + 1) * WEAR.cellM - origin) / cellM) + 1),
+    Math.max(0, Math.floor(((k - 0.5) * WEAR.cellM - origin) / cellM) - 1),
+    Math.min(n - 1, Math.ceil(((k + 0.5) * WEAR.cellM - origin) / cellM) + 1),
   ];
   for (const [key, w] of wear) {
     if (w < WEAR.visibleFrom) continue;
-    const i = Math.floor(key / KEY_SPAN) - KEY_OFFSET;
-    const j = (key % KEY_SPAN) - KEY_OFFSET;
+    const i = keyI(key);
+    const j = keyJ(key);
     if (i < i0 || i > i1 || j < j0 || j > j1) continue;
     const s = Math.min(1, w / WEAR.roadAt);
     const [xa, xb] = span(i, originX, width);
@@ -151,21 +179,23 @@ export function wearStrengths(grid: GridWindow, wear: ReadonlyMap<number, number
 // --- provozní pole ------------------------------------------------------------------------
 
 /**
- * Políčka trasy a jejich sousedé (± 1 – trasa, která se mezi roky posune, sčítá dál), každé jednou,
- * vzestupně. `cellM` – strana buňky mřížky pěšin (buňka světa × `cellM` = střed buňky).
+ * Políčka, kterými trasa vede (paths.md – Stálé trasy, pravidlo 4: bez sousedů – stálé trasy se
+ * neposouvají), každé jednou, vzestupně; s `band` i sousední ± 1 (pás pro provoz cest – osa cesty
+ * je vyhlazená čára trasy). `cellM` – strana buňky mřížky pěšin (buňka světa × `cellM` = střed).
  */
-export function wearCellsOf(route: RouteCode, cellM: number): number[] {
+export function wearCellsOf(route: RouteCode, cellM: number, band = false): number[] {
   const cells = new Set<number>();
   let lastI = Number.NaN;
   let lastJ = Number.NaN;
+  const reach = band ? 1 : 0;
   for (const [x, z] of routeCells(route)) {
     const i = wearIndex(x * cellM);
     const j = wearIndex(z * cellM);
     if (i === lastI && j === lastJ) continue;
     lastI = i;
     lastJ = j;
-    for (let di = -1; di <= 1; di++) {
-      for (let dj = -1; dj <= 1; dj++) cells.add(wearKey(i + di, j + dj));
+    for (let di = -reach; di <= reach; di++) {
+      for (let dj = -reach; dj <= reach; dj++) cells.add(wearKey(i + di, j + dj));
     }
   }
   return [...cells].sort((a, b) => a - b);
@@ -186,7 +216,10 @@ export interface TrafficTarget {
 export interface TrafficField {
   /** Provoz, který se sčítá do vyšlapanosti: trasy mimo práci celé, trasy `work` jen `base`. */
   cells: ReadonlyMap<number, number>;
-  /** Celý provoz všech tras (`trips`, i `work`) – podle něj zarůstají kusy cest (`trafficAt`). */
+  /**
+   * Celý provoz všech tras (`trips`, i `work`) v pásu ± 1 políčka, každá trasa jednou – provoz
+   * nových a starých cest (`trafficAt`, `fieldTraffic`).
+   */
   walk: ReadonlyMap<number, number>;
   targets: ReadonlyMap<string, TrafficTarget>;
 }
@@ -216,7 +249,7 @@ function buildField(list: readonly StoredRoute[], cellM: number): TrafficField {
   const covers = new Map<string, { cells: Map<number, number>; total: number }>();
   for (const route of list) {
     const routeCellsOf = wearCellsOf(route, cellM);
-    for (const c of routeCellsOf) walk.set(c, (walk.get(c) ?? 0) + route.trips);
+    for (const c of wearCellsOf(route, cellM, true)) walk.set(c, (walk.get(c) ?? 0) + route.trips);
     if (route.purpose === 'work') {
       // stálá část (chůze na zavedené místo) se vyšlapává hned, práci dne nese `wear.labor`
       const base = Math.min(route.trips, route.base ?? 0);
@@ -238,8 +271,8 @@ function buildField(list: readonly StoredRoute[], cellM: number): TrafficField {
 }
 
 /**
- * Provozní pole tras (paths.md – Vyšlapanost, výkon): políčka 7,5 m se součtem cest za den tras
- * (i sousedi ± 1) – trasy za prací (účel `work`) jen stálou částí `base`, zbytek (práci dne) nese
+ * Provozní pole tras (paths.md – Vyšlapanost, výkon): políčka 3,75 m se součtem cest za den tras,
+ * kterými vedou – trasy za prací (účel `work`) jen stálou částí `base`, zbytek (práci dne) nese
  * `wear.labor` podle podílů cíle, takže se nic nepočítá dvakrát.
  * Spočítá se jednou pro `routes.key` a drží v paměti (pár posledních sad tras).
  */
@@ -258,7 +291,7 @@ export function trafficField(
   return field;
 }
 
-/** Celý provoz tras (i k cílům práce) v bodě světa (x, z) – setiny cest za den. */
+/** Celý provoz tras (i k cílům práce) v pásu ± 1 políčka u bodu světa (x, z) – setiny cest za den. */
 export function trafficAt(field: TrafficField, x: number, z: number): number {
   return field.walk.get(wearCellAt(x, z)) ?? 0;
 }
@@ -441,8 +474,8 @@ export interface CartWearTraffic {
 
 /**
  * Jízdy vozů za rok do vyšlapanosti (mutuje; roads.md – Vozy, paths.md – Vyšlapanost): políčko
- * s jízdami (i sousedé ± 1 jako u tras) přibude o jízdy roku × `WEAR.cartWeight` cesty; v políčku
- * platí nejvyšší provoz buněk terénu, které do něj padnou. `days` – dny roku, `raw` je průměr na
+ * s jízdami (jen to, kudy vůz jel – jako u tras) přibude o jízdy roku × `WEAR.cartWeight` cesty;
+ * v políčku platí nejvyšší provoz buněk terénu, které do něj padnou. `days` – dny roku, `raw` je průměr na
  * den. Volá se jednou za rok (1. 11.) po sečtení vyšlapanosti k tomuto dni.
  */
 export function addCartWear(wear: RoadWear, traffic: CartWearTraffic, days: number): void {
@@ -453,12 +486,8 @@ export function addCartWear(wear: RoadWear, traffic: CartWearTraffic, days: numb
       if (r <= 0) continue;
       const i = wearIndex(traffic.originX + x * traffic.cellM);
       const j = wearIndex(traffic.originZ + z * traffic.cellM);
-      for (let di = -1; di <= 1; di++) {
-        for (let dj = -1; dj <= 1; dj++) {
-          const key = wearKey(i + di, j + dj);
-          if (r > (peak.get(key) ?? 0)) peak.set(key, r);
-        }
-      }
+      const key = wearKey(i, j);
+      if (r > (peak.get(key) ?? 0)) peak.set(key, r);
     }
   }
   if (peak.size === 0) return;
@@ -513,7 +542,10 @@ export function addWearLabor(wear: RoadWear, labor: LaborDay | undefined, day: n
 
 // --- převod starých vsí -------------------------------------------------------------------
 
-/** Políčka podél osy (± 1 jako u tras) – vzorky po čtvrtině políčka, každé políčko jednou. */
+/**
+ * Políčka podél osy i sousední ± 1 (osa loňského úseku je přibližná – trasa vedle ní dostane totéž)
+ * – vzorky po čtvrtině políčka, každé políčko jednou.
+ */
 function axisCells(points: readonly RoadPoint[], out: Set<number>): void {
   const step = WEAR.cellM / 4;
   const mark = (x: number, z: number): void => {
@@ -550,8 +582,38 @@ export function withWearSeed(state: VillageState): VillageState {
     axisCells(axis, keys);
   }
   const cells = new Map<number, number>([...keys].map((k): [number, number] => [k, WEAR.seed]));
-  const wear: RoadWear = { day: state.lastDay + 1, cells: encodeWear(cells), labor: [] };
+  const wear: RoadWear = {
+    day: state.lastDay + 1,
+    cells: encodeWear(cells),
+    labor: [],
+    cellM: WEAR.cellM,
+  };
   return { ...state, roads: { ...roads, wear } };
+}
+
+/** Strana políčka vyšlapanosti uložené bez značky `cellM` (do 26. 10. 2026). */
+const LEGACY_WEAR_CELL_M = 7.5;
+
+/**
+ * Vyšlapanost z doby políček 7,5 m (paths.md – Stálé trasy, pravidlo 4): každé staré políčko
+ * (i, j) se rozdělí do 4 buněk 3,75 m (2i a 2i + 1 × 2j a 2j + 1 – buňky tras, které do něj
+ * padly) s toutéž hodnotou a dostane značku `cellM`. Ves bez vyšlapanosti nebo se značkou vrátí
+ * týž stav (jednou a idempotentně). Den sčtu i práce intervalu zůstanou.
+ */
+export function withWearCells(state: VillageState): VillageState {
+  const wear = state.roads?.wear;
+  if (!wear || wear.cellM === WEAR.cellM) return state;
+  const factor = Math.round((wear.cellM ?? LEGACY_WEAR_CELL_M) / WEAR.cellM);
+  const cells = new Map<number, number>();
+  for (const [key, w] of decodeWear(wear.cells)) {
+    const i = keyI(key) * factor;
+    const j = keyJ(key) * factor;
+    for (let a = 0; a < factor; a++) {
+      for (let b = 0; b < factor; b++) cells.set(wearKey(i + a, j + b), w);
+    }
+  }
+  const converted: RoadWear = { ...wear, cells: encodeWear(cells), cellM: WEAR.cellM };
+  return { ...state, roads: { ...state.roads!, wear: converted } };
 }
 
 // --- provoz ke stavbám ---------------------------------------------------------------------

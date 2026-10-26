@@ -136,13 +136,13 @@ export const CART_SPEED = {
 // paths.md – Kudy (návrh Clauda, Úloha 2): zvyk – místo bez vyšlapané pěšiny stojí pro výběr trasy
 // o `offRoad` (25 %) víc, plně vyšlapané nic; čas chůze se počítá skutečnými rychlostmi
 export const ROUTE_HABIT = { offRoad: 0.25 } as const;
-// paths.md – Vyšlapanost a vznik cesty (návrh Clauda, Úloha 3a): číslo na políčko `cellM` (7,5 m)
-// v setinách cesty – trasa přidá své cesty za den, tráva ubere `regrowPerDay` (1 cesta), mezi 0
+// paths.md – Vyšlapanost a vznik cesty (návrh Clauda, Úloha 3a): číslo na políčko `cellM` (3,75 m =
+// buňka mřížky pěšin – Stálé trasy, pravidlo 4; trasa přidá jen buňkám, kudy vede) v setinách cesty – trasa přidá své cesty za den, tráva ubere `regrowPerDay` (1 cesta), mezi 0
 // a `max` (1 500 cest); cesta vznikne od `roadAt` (1 000), prodlouží se, kudy je aspoň `extendFrom`
 // (500), pěšina je vidět od `visibleFrom` (50); jízda vozu za `cartWeight` cesty. Stará ves dostane
 // podél loňských úseků nad prahem `seed` (500 – polovina prahu; paths.md – Převod starých vsí, bod 3)
 export const WEAR = {
-  cellM: 7.5,
+  cellM: 3.75,
   regrowPerDay: 100,
   max: 150_000,
   roadAt: 100_000,

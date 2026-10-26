@@ -81,7 +81,7 @@ export class PathHeap {
 }
 
 /**
- * Kvantum ceny kroku vozu (paths.md – Stálé trasy, pravidlo 3): cena kroku se zaokrouhlí na
+ * Kvantum ceny kroku vozu i chůze (paths.md – Stálé trasy, pravidlo 3): cena kroku se zaokrouhlí na
  * násobek 1/1024 m louky (aspoň jeden) – součty takových čísel jsou ve Float64 přesné, takže dvě
  * stejně drahé trasy jsou opravdu stejně drahé a remízu rozhodne pravidlo předchůdce, ne
  * zaokrouhlení sčítání. Dvojková tisícina místo desetinné – přesná bez převodu jednotek.
@@ -130,6 +130,12 @@ export interface SearchState {
  * `toward` je to A* (odhad vzdušnou čarou k ní × A_STAR_WEIGHT – jen směr hledání, `done` může
  * skončit i jinde). Úhlopříčně jen kolem průchodných rohů (neproklouzne rohem domu ani podél
  * vody).
+ *
+ * Remízy (paths.md – Stálé trasy, pravidlo 3; návrh Clauda): ceny kroků po kvantech
+ * (`quantizedStep`) a síla pěšiny po setinách (`trodden`), takže dvě stejně drahé trasy jsou
+ * opravdu stejně drahé; ze stejně drahých předchůdců buňky vyhraje vyšší index – nezávisí na tom,
+ * v jakém pořadí halda buňky vydá. Každé pevné pravidlo dá přednost jednomu směru; s nižším
+ * indexem (jako u vozů) se v testu „jedna pěšina“ trasy dvou sousedů nesejdou, s vyšším ano.
  */
 function search(
   grid: Grid,
@@ -178,12 +184,16 @@ function search(
       const next = cost[n]!;
       if (next === Infinity) continue;
       if (k >= 4 && (cost[j * w + ii] === Infinity || cost[jj * w + i] === Infinity)) continue;
-      const nd = d + (own + next) * STEP[k]! * m;
+      // cena kroku po kvantech (`quantizedStep`) – součty přesné, remízy opravdové
+      const nd = d + quantizedStep((own + next) * STEP[k]! * m);
       if (stamp[n] !== run || nd < dist[n]!) {
         stamp[n] = run;
         dist[n] = nd;
         parent[n] = c;
         heap.push(n, weight > 0 ? nd + estimate(n) : nd);
+      } else if (nd === dist[n]! && c > parent[n]!) {
+        // remíza – vyhraje předchůdce s vyšším indexem (viz `search`)
+        parent[n] = c;
       }
     }
   }
@@ -231,8 +241,9 @@ function treadCell(traffic: Traffic, costs: PassCosts, c: number, weight: number
 export function trodden(costs: PassCosts, c: number, strength: number): number {
   const base = costs.base[c]!;
   if (costs.plain?.[c]) return base;
-  // zvyk (ROUTE_HABIT): mimo vyšlapané místo se chodí neradi – cena pro výběr trasy, ne čas chůze
-  const s = Math.min(1, Math.max(0, strength));
+  // zvyk (ROUTE_HABIT): mimo vyšlapané místo se chodí neradi – cena pro výběr trasy, ne čas chůze;
+  // síla po setinách (paths.md – Stálé trasy, pravidlo 3) – drobný rozdíl provozu trasu nemění
+  const s = Math.round(Math.min(1, Math.max(0, strength)) * 100) / 100;
   return base * (1 + ROUTE_HABIT.offRoad * (1 - s)) * (s > 0 ? pathCostFactor(s) : 1);
 }
 
@@ -504,13 +515,16 @@ function searchErrand(
       const next = cost[n]!;
       if (next === Infinity) continue;
       if (k >= 4 && (cost[j * w + ii] === Infinity || cost[jj * w + i] === Infinity)) continue;
-      const nd = d + (own + next) * STEP[k]! * m;
+      const nd = d + quantizedStep((own + next) * STEP[k]! * m);
       if (stamp[n] !== run || nd < dist[n]!) {
         stamp[n] = run;
         dist[n] = nd;
         parent[n] = c;
         heap.push(n, nd + estimate(n));
         offer(n, nd);
+      } else if (nd === dist[n]! && c > parent[n]!) {
+        // remíza – vyhraje předchůdce s vyšším indexem (viz `search`)
+        parent[n] = c;
       }
     }
   }

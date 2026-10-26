@@ -223,7 +223,8 @@ describe('rebuildRoads – jednorázová přestavba sítě', () => {
     const again = oldVillage().state;
     again.roads!.v2 = true;
     const whole = withRoadsRebuilt(again, LANDSCAPE, null, report);
-    expect(yields).toBeGreaterThanOrEqual(report.passes);
+    // průchod, po kterém se síť ustálí, už nečeká (konec smyčky)
+    expect(yields).toBeGreaterThanOrEqual(report.passes - 1);
     expect(report.passes).toBeGreaterThan(1);
     expect(JSON.stringify(step.value)).toBe(JSON.stringify(whole));
   }, 120_000);
