@@ -8,6 +8,7 @@ import {
   SceneCart,
   ScenePloughLegs,
   SceneVillage,
+  type SceneCraftYard,
 } from './village-view-scene-types';
 import { VillageCrafts } from './village-view-types';
 import {
@@ -45,19 +46,90 @@ import {
   workshopKilns,
   saplingGrowth,
   villageOrchards,
+  bloomKg,
+  ironBarsKg,
+  smithBellows,
+  type WorkshopActivity,
 } from '@bohemia/game';
 import { sceneTrails } from './trail-view';
 
+type Workshop = NonNullable<VillageState['dwellings'][number]['workshop']>;
+
 /**
- * Kouří dílna u domu? Pec a výheň, když vyrábí; uhlíř topí jen v milíři – ten je samostatná stavba
- * (`sceneKilns`).
+ * Kouří dílna u domu? Pec a výheň, když vyrábí – u kováře i tavba v redukční peci a překování houby
+ * (production-chains.md – Kovář); uhlíř topí jen v milíři – ten je samostatná stavba (`sceneKilns`).
  */
-export function workshopSmokes(
-  workshop: NonNullable<VillageState['dwellings'][number]['workshop']>,
-): boolean {
+export function workshopSmokes(workshop: Workshop): boolean {
   // tesař netopí – dílna nekouří (wagons.md)
   if (workshop.craft === 'carpenter' || workshop.craft === 'burner') return false;
+  if (workshop.craft === 'smith' && SMITH_TASK[workshop.activity] !== undefined) return true;
   return workshop.activity === 'producing';
+}
+
+/** Činnost kovárny dne → práce ve scéně (production-chains.md – Kovář, Činnost dne). */
+const SMITH_TASK: Partial<Record<WorkshopActivity, NonNullable<SceneCraftYard['task']>>> = {
+  smelting: 'smelt',
+  refining: 'refine',
+  producing: 'forge',
+};
+
+/**
+ * Hranice stupňů zásob u dílny pro scénu (kg; návrh Clauda – „pár stupňů“, ne přesné množství):
+ * houba a hřivny na jednu kovárnu (zásoba kovářů je společná – dělí se rovným dílem), hlína
+ * u hrnčíře (dávka na 30 dní ≈ 50–100 kg, vůz 400 kg – crafts.md, Hlína hrnčíře).
+ */
+export const CRAFT_YARD_STEPS = {
+  bloomKg: [0.05, 3, 8],
+  barsKg: [0.05, 5, 20],
+  clayKg: [0.5, 30, 120],
+} as const;
+
+/** Stupeň zásoby 0–3: kolik hranic `steps` množství `kg` dosáhlo. */
+export function yardStage(kg: number, steps: readonly number[]): number {
+  return steps.filter((step) => kg >= step).length;
+}
+
+/**
+ * Dvůr hotové obývané dílny pro scénu (`SceneCraftYard`) – jen čtení stavu: kovář – činnost dne,
+ * měchař u tavby (syn 10–13 z rozdělení práce dne, nebo dospělý z domácnosti – `smithBellows`),
+ * houba a hřivny po stupních; hrnčíř – hlína v jámě po stupních a šlapání, když dnes vyrábí.
+ * Jiná řemesla nic.
+ */
+export function craftYard(
+  state: VillageState,
+  dwelling: VillageState['dwellings'][number],
+  day: number,
+  smithies: number,
+): SceneCraftYard | null {
+  const w = dwelling.workshop;
+  if (!w) return null;
+  if (w.craft === 'potter') {
+    const clay = yardStage(w.clayKg ?? 0, CRAFT_YARD_STEPS.clayKg);
+    const treading = w.activity === 'producing' && clay > 0;
+    if (clay === 0 && !treading) return null;
+    return { clay, ...(treading ? { treading: true as const } : {}) };
+  }
+  if (w.craft !== 'smith') return null;
+  const task = SMITH_TASK[w.activity];
+  const share = Math.max(1, smithies);
+  const bloom = yardStage(bloomKg(state) / share, CRAFT_YARD_STEPS.bloomKg);
+  const bars = yardStage(ironBarsKg(state) / share, CRAFT_YARD_STEPS.barsKg);
+  const son = (laborReport(state)?.shares ?? []).some(
+    (s) =>
+      s.activity === 'craft' &&
+      s.target.kind === 'dwelling' &&
+      s.target.id === dwelling.id &&
+      (s.ages?.length ?? 0) > 0,
+  );
+  const bellows =
+    task === 'smelt' && (son || smithBellows(state, dwelling.id, day)?.kind === 'adult');
+  if (!task && bloom === 0 && bars === 0) return null;
+  return {
+    ...(task ? { task } : {}),
+    ...(bellows ? { bellows: true as const } : {}),
+    bloom,
+    bars,
+  };
 }
 
 /** Milíře uhlířů pro scénu – fáze, průběh a uhlí (crafts.md – Milíř u skácených buků). */

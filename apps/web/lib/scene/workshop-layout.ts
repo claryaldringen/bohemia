@@ -205,7 +205,8 @@ export interface CraftSpot {
   /** Směr pohledu (jednotkový, svět). */
   hx: number;
   hz: number;
-  clip: 'build' | 'weed' | 'idle';
+  /** `seed` – kovář sype rudu a uhlí z koše do redukční pece (craft-yard-layout.ts). */
+  clip: 'build' | 'weed' | 'idle' | 'seed';
 }
 
 /**

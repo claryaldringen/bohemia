@@ -1,7 +1,7 @@
 // Typy, konstanty a kontext plánu postav (rozhraní Context, Placer, House, Box…).
 import type { RidePlan } from './riders';
 import { type Craft, type Position, type ShapeFrame } from '@bohemia/game';
-import type { LaborActivity, SceneVillage } from '../village-view';
+import type { LaborActivity, SceneCraftYard, SceneVillage } from '../village-view';
 import { type DayWindow } from './caravan';
 import { type FuneralPlan } from './funeral-plan';
 import { type WeddingPlan } from './wedding-plan';
@@ -302,6 +302,11 @@ export interface House {
   craft?: Craft;
   /** Varianta rozměrů domu (population.md – Varianty rozměrů) – místa řemeslníků s ní. */
   frame?: ShapeFrame;
+  /**
+   * Dvůr dílny dne (production-chains.md – Kovář; crafts.md – Hlína hrnčíře): kovář u redukční pece
+   * a měchař při tavbě, hrnčíř šlape hlínu v jámě (craft-yard-layout.ts).
+   */
+  yard?: SceneCraftYard;
   /** Čtverec ohrady (oxen.md) – k brance se chodí krmit, pěšina k ní smí zasáhnout dovnitř. */
   pen?: true;
   /**

@@ -195,6 +195,7 @@ export function context(
           }
         : {}),
       ...(d.craft ? { craft: d.craft } : {}),
+      ...(d.yard ? { yard: d.yard } : {}),
     };
   });
   // milíř uhlíře – lidé ho obcházejí (do kupy se nevstupuje), řemeslníci stojí kolem něj

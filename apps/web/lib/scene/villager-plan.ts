@@ -409,6 +409,16 @@ export function shareWorker(
   const t = share.target;
   const own = (id: number): ReadonlySet<number> => new Set([id]);
   if (share.activity === 'craft' && (t.kind === 'dwelling' || t.kind === 'kiln')) {
+    // měchař u tavby – syn kováře podle věku z jádra (production-chains.md – Kovář)
+    if (age !== undefined) {
+      return roster.take({
+        from: AGE.olderChild,
+        to: Infinity,
+        homes: own(t.id),
+        sex: 'male',
+        age,
+      });
+    }
     // řemeslo dělá jen řemeslník a jeho synové, ženy ne (crafts.md – Kdo dělá řemeslo)
     return (
       roster.take({ ...ADULTS, homes: own(t.id), onlySex: 'male' }) ??
@@ -575,7 +585,8 @@ export function placer(ctx: Context, share: SceneLaborShare, count: number): Pla
       return t.kind === 'dwelling' || t.kind === 'sacred' ? building(ctx, t, 'build') : none;
     case 'craft':
       if (t.kind === 'kiln') return kilnWorkers(ctx, t);
-      return t.kind === 'dwelling' ? craftsmen(ctx, t.id) : none;
+      // podíl s věkem u kovárny je měchař u tavby – syn 10–13 (labor-report.ts)
+      return t.kind === 'dwelling' ? craftsmen(ctx, t.id, (share.ages?.length ?? 0) > 0) : none;
     case 'plant':
       // uhlíř sází mladé buky na pařezy (crafts.md – Uhlíř, obnova lesa)
       return t.kind === 'trees' ? planting(ctx, t.ids) : none;

@@ -64,6 +64,11 @@ export interface SceneVillage {
     /** Bydlí v něm někdo – jen z obydlí s obyvateli stoupá dým. Bez údaje = obývané. */
     inhabited?: boolean;
     /**
+     * Dvůr hotové dílny (production-chains.md – Kovář; crafts.md – Hlína hrnčíře): co dnes kovář
+     * dělá, houba a hřivny u kovárny, u hrnčíře jáma s hlínou. Bez údaje nic z toho.
+     */
+    yard?: SceneCraftYard;
+    /**
      * Pozemek (polozemnice) – políčko krajiny, jeho střed (x, z) ve světě, strana v m a varianta
      * (kde na něm dům stojí). Volná obydlí (zemnice, starší polozemnice) ho nemají.
      */
@@ -358,6 +363,22 @@ export interface SceneWear {
   /** Strana políčka vyšlapanosti (`RoadWear.cellM`) – chybí u políček 7,5 m z doby před převodem. */
   cellM?: number;
   cells: string | null;
+}
+
+/**
+ * Dvůr dílny ve scéně (production-chains.md – Kovář; crafts.md – Hlína hrnčíře; stupně 0–3 –
+ * `yardStage` ve village-view-crafts.ts): kovář dnes taví v redukční peci před kovárnou (`smelt`
+ * – s měchařem `bellows`, jinak sám), překovává houbu na hřivny (`refine`), nebo kove nástroje
+ * (`forge`); houba z tavby (`bloom`) a hromádka hřiven (`bars`) u kovárny; u hrnčíře hlína v jámě
+ * před dílnou (`clay`) a šlapání hlíny (`treading` – hrnčíř dnes vyrábí).
+ */
+export interface SceneCraftYard {
+  task?: 'smelt' | 'refine' | 'forge';
+  bellows?: true;
+  bloom?: number;
+  bars?: number;
+  clay?: number;
+  treading?: true;
 }
 
 /** Rudiště kováře ve scéně (crafts.md – Uhlí a ruda kováře). */

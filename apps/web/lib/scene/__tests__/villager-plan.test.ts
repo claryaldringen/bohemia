@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { LaborShare, SceneLaborShare, SceneVillage } from '../../village-view';
+import type { LaborShare, SceneCraftYard, SceneLaborShare, SceneVillage } from '../../village-view';
 import { chickenBox } from '../livestock-placement';
 import { localToWorld, sceneFrame } from '../village-layout';
 import { worldToLocal } from '../dwelling-pit';
-import { MILIR_SHAPE_M, milirPlace } from '../workshop-layout';
+import { MILIR_SHAPE_M, craftSpots, milirPlace } from '../workshop-layout';
+import { CLAY_PIT, bloomeryTop, smeltSpots, treadingLine } from '../craft-yard-layout';
 import {
   createVillagerPose,
   villagerSeconds,
@@ -1180,6 +1181,111 @@ describe('řemeslníci – práce v dílně (crafts.md)', () => {
         );
       }
     }
+  });
+});
+
+describe('kovárna a hrnčíř – tavba, měchař, překování, šlapání hlíny (production-chains.md – Kovář)', () => {
+  const SMITH = { x: 40, z: -20, rotation: 0.3 };
+  const POTTER = { x: 30, z: -34, rotation: 0 };
+  function yardVillage(
+    shares: LaborShare[],
+    smith: SceneCraftYard,
+    potter: SceneCraftYard = {},
+  ): SceneVillage {
+    const base = village(shares);
+    return {
+      ...base,
+      dwellings: [
+        ...base.dwellings,
+        {
+          ...house(31, SMITH.x, SMITH.z, SMITH.rotation, true, 'polozemnice'),
+          craft: 'smith' as const,
+          yard: smith,
+        },
+        {
+          ...house(20, POTTER.x, POTTER.z, POTTER.rotation, true, 'polozemnice'),
+          craft: 'potter' as const,
+          yard: potter,
+        },
+      ],
+    };
+  }
+  const smithView = { id: 31, craft: 'smith' as const, position: SMITH };
+  const crafting = (id: number, manDays: number, ages?: number[]): LaborShare => ({
+    activity: 'craft',
+    target: { kind: 'dwelling', id },
+    manDays,
+    ...(ages ? { ages } : {}),
+  });
+  const near = (pose: VillagerPose, x: number, z: number): number =>
+    Math.hypot(pose.x - x, pose.z - z);
+
+  it('tavba s měchařem – kovář sype do pece, druhý klečí u měchu', () => {
+    const v = yardVillage([crafting(31, 2)], { task: 'smelt', bellows: true });
+    const smiths = planVillagers(v, GROUND, { seed: 3, herds: 0 }).filter((p) =>
+      p.key.startsWith('craft:dwelling-31:'),
+    );
+    expect(smiths.length).toBe(2);
+    const [charge, pump] = smeltSpots(smithView);
+    const poses = smiths.map((p) => at(p, 5));
+    const charger = poses.find((p) => near(p, charge!.x, charge!.z) < 0.3);
+    const bellows = poses.find((p) => near(p, pump!.x, pump!.z) < 0.3);
+    expect(charger?.clip).toBe('seed');
+    expect(bellows?.clip).toBe('weed');
+    const furnace = bloomeryTop(smithView);
+    // kovář hledí do pece
+    expect(
+      charger!.headingX * (furnace.x - charger!.x) + charger!.headingZ * (furnace.z - charger!.z),
+    ).toBeGreaterThan(0);
+  });
+
+  it('syn u měchu má vlastní podíl s věkem – stojí u měchu, kovář u pece', () => {
+    const v = yardVillage([crafting(31, 1), crafting(31, 1, [11])], {
+      task: 'smelt',
+      bellows: true,
+    });
+    const people = planVillagers(v, GROUND, { seed: 4, herds: 0 }).filter((p) =>
+      p.key.startsWith('craft:dwelling-31:'),
+    );
+    const [charge, pump] = smeltSpots(smithView);
+    const poses = people.map((p) => at(p, 5));
+    expect(poses.some((p) => near(p, charge!.x, charge!.z) < 0.3 && p.clip === 'seed')).toBe(true);
+    expect(poses.some((p) => near(p, pump!.x, pump!.z) < 0.3 && p.clip === 'weed')).toBe(true);
+  });
+
+  it('překování – kovář kove u kovadliny, ne u pece', () => {
+    const v = yardVillage([crafting(31, 1)], { task: 'refine', bloom: 2, bars: 1 });
+    const smith = planVillagers(v, GROUND, { seed: 3, herds: 0 }).find((p) =>
+      p.key.startsWith('craft:dwelling-31:'),
+    );
+    const anvil = craftSpots('smith', SMITH)[0]!;
+    const pose = at(smith!, 5);
+    expect(near(pose, anvil.x, anvil.z)).toBeLessThan(0.3);
+    expect(pose.clip).toBe('build');
+  });
+
+  it('hrnčíř šlape hlínu v jámě – chodí tam a zpět a z jámy nevyjde', () => {
+    const shares = [crafting(20, 2)];
+    const v = yardVillage(shares, {}, { clay: 3, treading: true });
+    const plan = (): PlannedVillager[] =>
+      planVillagers(v, GROUND, { seed: 6, herds: 0 }).filter((p) =>
+        p.key.startsWith('craft:dwelling-20:'),
+      );
+    const [a, b] = treadingLine({ id: 20, craft: 'potter', position: POTTER });
+    const cx = (a[0] + b[0]) / 2;
+    const cz = (a[1] + b[1]) / 2;
+    const treader = plan().find((p) => near(at(p, 0), cx, cz) < CLAY_PIT.radius);
+    expect(treader).toBeDefined();
+    const xs = new Set<number>();
+    for (let t = 0; t < 12; t += 0.7) {
+      const pose = at(treader!, t);
+      expect(near(pose, cx, cz)).toBeLessThan(CLAY_PIT.radius);
+      xs.add(Math.round(pose.x * 10));
+    }
+    expect(xs.size).toBeGreaterThan(2);
+    // deterministicky – stejný plán dvakrát
+    const again = plan().map((p) => at(p, 3));
+    expect(plan().map((p) => at(p, 3))).toEqual(again);
   });
 });
 

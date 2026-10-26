@@ -4,6 +4,7 @@ import type { SceneLabor } from '../village-view';
 import { fetchCarriers, streamPhase } from './road-traffic';
 import { hash01 } from './smoke-schedule';
 import {
+  route,
   shuttle,
   stand,
   walkSpeed,
@@ -12,7 +13,8 @@ import {
   type ShuttleOptions,
 } from './villager-motion';
 import { shuttleErrand } from './villager-errands';
-import { craftSpots, forestKilnAnchor } from './workshop-layout';
+import { craftSpots, forestKilnAnchor, type CraftSpot } from './workshop-layout';
+import { smeltSpots, treadingLine } from './craft-yard-layout';
 import { orePitRadius } from './ore-site-layout';
 import { GRAIN_PIT_RADIUS_M } from './grain-pit-layout';
 import { FLOOR_ENTRANCE, floorPoint } from './threshing-floor-layout';
@@ -23,6 +25,7 @@ import {
   gap,
   none,
   type Context,
+  type House,
   type Placer,
   type PlannedVillager,
   type Point,
@@ -204,12 +207,38 @@ export const FETCH_LOAD_S = 5;
 /**
  * Řemeslníci v dílně (crafts.md): hrnčíř u kruhu a pece, kovář u kovadliny a měchů, uhlíř kolem
  * milíře s hrabicí – místa z workshop-layout.ts, postavy se po nich střídají; místo, kde
- * nejde stát (voda, jiný dům), nahradí nejbližší volné.
+ * nejde stát (voda, jiný dům), nahradí nejbližší volné. Podle dvora dne (craft-yard-layout.ts):
+ * při tavbě kovář sype rudu a uhlí do redukční pece a druhý šlape měch (měchař – syn 10–13 má
+ * v rozdělení práce vlastní podíl s věkem, `bellows`), při překování kove u kovadliny; hrnčíř
+ * šlape hlínu v jámě (střídavě po dnech napřed šlapání, nebo kruh).
  */
-export function craftsmen(ctx: Context, dwellingId: number): Placer {
+export function craftsmen(ctx: Context, dwellingId: number, bellows = false): Placer {
   const house = ctx.houses.find((h) => h.id === dwellingId && h.built && h.craft);
   if (!house?.craft) return none;
-  const spots = craftSpots(house.craft, house.position, house.frame);
+  const view = {
+    id: house.id,
+    craft: house.craft,
+    position: house.position,
+    ...(house.frame ? { frame: house.frame } : {}),
+  };
+  const porch = craftSpots(house.craft, house.position, house.frame);
+  const smelting = house.craft === 'smith' && house.yard?.task === 'smelt';
+  const furnace = smelting ? smeltSpots(view) : [];
+  // měchař z podílu syna stojí jen u měchu; sám kovář taví bez měchaře
+  if (bellows) return smelting ? standAt(ctx, house, [furnace[1]!]) : none;
+  const spots = smelting
+    ? [furnace[0]!, ...(house.yard?.bellows ? [furnace[1]!] : []), ...porch]
+    : porch;
+  const place = standAt(ctx, house, spots);
+  if (house.craft !== 'potter' || !house.yard?.treading) return place;
+  const tread = treading(view, stringHash(`tread:${house.id}`));
+  // jeden hrnčíř šlape každý druhý den, s pomocníkem šlape vždy jeden z nich
+  const first = ctx.day % 2 === 0 ? 0 : 1;
+  return (i, who) => (i === first ? tread : place(i < first ? i : i - 1, who));
+}
+
+/** Postavy po místech `spots` dokola, další řada za nimi; místo, kde nejde stát, nahradí volné. */
+function standAt(ctx: Context, house: House, spots: readonly CraftSpot[]): Placer {
   // pod přístřeškem dílny smí stát její řemeslníci (dům bez přístřešku je v `box`)
   const ok = (x: number, z: number): boolean =>
     ctx.ground.walkable(x, z) &&
@@ -225,4 +254,24 @@ export function craftsmen(ctx: Context, dwellingId: number): Placer {
     const near = nearestFree(ctx, x, z, 4);
     return near ? stand(near.x, near.z, spot.hx, spot.hz, spot.clip) : null;
   };
+}
+
+/** Rychlost šlapání hlíny (m/s) a zastavení na krajích jámy (s). */
+export const TREADING = { speed: 0.28, turnS: 0.6 } as const;
+
+/** Hrnčíř šlape hlínu v jámě – pomalu tam a zpět napříč jámou (klip chůze na místě v hlíně). */
+function treading(view: Parameters<typeof treadingLine>[0], seed: number): PoseFn {
+  const [a, b] = treadingLine(view);
+  const options: ShuttleOptions = {
+    outClip: 'walk',
+    outSpeed: TREADING.speed,
+    endClip: 'idle',
+    endS: TREADING.turnS,
+    backClip: 'walk',
+    backSpeed: TREADING.speed,
+    restClip: 'idle',
+    restS: TREADING.turnS,
+    phase: hash01(seed, 1, 7),
+  };
+  return shuttle(route([a, b]), options);
 }

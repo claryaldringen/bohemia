@@ -29,6 +29,8 @@ import { WeddingRenderer } from './wedding-renderer';
 import { OreSiteRenderer } from './ore-sites';
 import { GrainPitRenderer } from './grain-pits';
 import { ThreshingFloorRenderer } from './threshing-floor-renderer';
+import { CraftYardRenderer } from './craft-yard-renderer';
+import { smeltVents, type CraftYardView } from './craft-yard-layout';
 import { floorSiteLook } from './threshing-floor-layout';
 import {
   DECAY_LOOKS,
@@ -224,6 +226,8 @@ export class VillageRenderer {
   private readonly grainPits: GrainPitRenderer;
   /** Humna kromě obtisku mlatu – vytyčení, hromady, klasy, zrno a stoh slámy. */
   private readonly threshing: ThreshingFloorRenderer;
+  /** Dvory kovárny a hrnčíře – redukční pec, houba, hřivny, jáma s hlínou (craft-yard-renderer.ts). */
+  private readonly craftYards: CraftYardRenderer;
   private readonly pegs: StakingPegs;
   private readonly orchards: OrchardRenderer;
   private readonly sacred: SacredRenderer;
@@ -307,6 +311,10 @@ export class VillageRenderer {
       onAsyncChange: () => context.onAsyncChange(),
       prepareMaterial: prepareDwellingMaterial,
     });
+    this.craftYards = new CraftYardRenderer(scene, {
+      groundHeight: context.groundHeight,
+      decalHeight: context.decalHeight,
+    });
     this.orchards = new OrchardRenderer(scene, context);
     this.plots = new HomesteadRenderer(scene, {
       groundHeight: context.groundHeight,
@@ -381,6 +389,7 @@ export class VillageRenderer {
     const floorDecals = this.updateThreshingFloors(village.threshingFloors ?? []);
     const floors = this.threshing.update(village.threshingFloors ?? []) || floorDecals;
     const ruins = this.updateRuins(village.ruins ?? []);
+    const yards = this.craftYards.update(craftYardViews(village.dwellings));
     if (dwellings || ruins) this.updatePitCuts();
     // ladicí orba za herní den: dnešní díly orby na začátku dne, zbytek přibývá brázdou za rádlem
     this.ploughDay = this.ploughDayOf(village);
@@ -422,7 +431,8 @@ export class VillageRenderer {
       smoke ||
       kilns ||
       remnants ||
-      floors
+      floors ||
+      yards
     );
   }
 
@@ -669,7 +679,9 @@ export class VillageRenderer {
     const mounds = this.refreshMounds(nowMs);
     // svatby: oheň obřadu, věnec na dubu
     const weddings = this.weddings.animate(nowMs, camera);
-    return smoke || funerals || mounds || weddings;
+    // kovárna: žár a jiskry z redukční pece při tavbě
+    const furnaces = this.craftYards.animate(nowMs, camera);
+    return smoke || funerals || mounds || weddings || furnaces;
   }
 
   /**
@@ -945,6 +957,7 @@ export class VillageRenderer {
     this.ores.dispose();
     this.grainPits.dispose();
     this.threshing.dispose();
+    this.craftYards.dispose();
     this.plots.dispose();
     // ohrady uvolní své ploty – před sdílenými ploty
     this.pens.dispose();
@@ -1428,7 +1441,12 @@ export class VillageRenderer {
     // dílna, která dnes vyrábí – pec nebo výheň (uhlíř topí jen v milíři – níž)
     for (const d of this.village.dwellings) {
       if (!d.built || !d.craft || !d.working) continue;
-      for (const vent of workshopVents(d.craft, d.position, sceneFrame(d))) {
+      // kovář při tavbě topí v redukční peci před kovárnou, ne ve výhni (craft-yard-layout.ts)
+      const vents =
+        d.craft === 'smith' && d.yard?.task === 'smelt'
+          ? smeltVents({ id: d.id, craft: d.craft, position: d.position, frame: sceneFrame(d) })
+          : workshopVents(d.craft, d.position, sceneFrame(d));
+      for (const vent of vents) {
         const milir = vent.kind === 'milir';
         sources.push({
           seed: CRAFT_SMOKE_SEED + d.id * 4 + (milir ? 2 : 1),
@@ -1712,4 +1730,21 @@ export class VillageRenderer {
     const mean = corners.reduce((sum, [x, z]) => sum + h(x, z), 0) / corners.length;
     return Math.min(h(d.position.x, d.position.z), mean) - DWELLING_SINK_M;
   }
+}
+
+/** Hotové kovárny a hrnčíři pro dvory dílen (craft-yard-layout.ts). */
+function craftYardViews(dwellings: SceneVillage['dwellings']): CraftYardView[] {
+  return dwellings.flatMap((d): CraftYardView[] =>
+    d.built && (d.craft === 'smith' || d.craft === 'potter')
+      ? [
+          {
+            id: d.id,
+            craft: d.craft,
+            position: d.position,
+            frame: sceneFrame(d),
+            ...(d.yard ? { yard: d.yard } : {}),
+          },
+        ]
+      : [],
+  );
 }

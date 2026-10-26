@@ -12,6 +12,7 @@ import {
   SceneLord,
   SceneRide,
   SceneVillage,
+  type SceneCraftYard,
 } from './village-view-scene-types';
 import { sceneRoutesKey } from './scene-routes';
 import {
@@ -29,6 +30,7 @@ import {
   sceneKilns,
   scenePloughLegs,
   workshopSmokes,
+  craftYard,
 } from './village-view-crafts';
 import {
   cemeteryProgress,
@@ -95,21 +97,31 @@ export function sceneVillage(
 ): SceneVillage {
   const constructions = summary.constructions;
   const occupied = new Set(state.people.map((p) => p.dwellingId));
-  const built = state.dwellings.map((d) => ({
-    id: d.id,
-    type: d.type,
-    position: d.position,
-    built: true,
-    progress: 1,
-    inhabited: occupied.has(d.id),
-    ...(d.plot ? { plot: scenePlot(landscape, d.plot) } : {}),
-    since: d.builtDay,
-    // stav po tisícinách – rozpad ve scéně jde po stupních (dwelling-decay.ts)
-    ...(d.condition < 1 ? { condition: Math.round(d.condition * 1000) / 1000 } : {}),
-    ...(d.workshop ? { craft: d.workshop.craft } : {}),
-    ...(d.workshop && occupied.has(d.id) && workshopSmokes(d.workshop) ? { working: true } : {}),
-    ...(d.plainShape ? { plainShape: true as const } : {}),
-  }));
+  // zásoba houby a hřiven je společná všem obydleným kovárnám (production-chains.md – Kovář)
+  const smithies = state.dwellings.filter(
+    (d) => d.workshop?.craft === 'smith' && occupied.has(d.id),
+  ).length;
+  const yardOf = (d: (typeof state.dwellings)[number]): SceneCraftYard | null =>
+    occupied.has(d.id) ? craftYard(state, d, day, smithies) : null;
+  const built = state.dwellings.map((d) => {
+    const yard = yardOf(d);
+    return {
+      id: d.id,
+      type: d.type,
+      position: d.position,
+      built: true,
+      progress: 1,
+      inhabited: occupied.has(d.id),
+      ...(d.plot ? { plot: scenePlot(landscape, d.plot) } : {}),
+      since: d.builtDay,
+      // stav po tisícinách – rozpad ve scéně jde po stupních (dwelling-decay.ts)
+      ...(d.condition < 1 ? { condition: Math.round(d.condition * 1000) / 1000 } : {}),
+      ...(d.workshop ? { craft: d.workshop.craft } : {}),
+      ...(d.workshop && occupied.has(d.id) && workshopSmokes(d.workshop) ? { working: true } : {}),
+      ...(yard ? { yard } : {}),
+      ...(d.plainShape ? { plainShape: true as const } : {}),
+    };
+  });
   // staveniště ukazuje samotnou stavbu – dřevo se kácí v lese, než se začne stavět; přestavba
   // polozemnice bez pozemku stojí na novém pozemku (domácnost zatím bydlí ve starém domě)
   const sites = state.constructions.flatMap((c) => {
