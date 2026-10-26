@@ -68,6 +68,8 @@ export const CROWS = { base: 1, haPerFlock: 10, max: 5 } as const;
 export const FIELD_DAMAGE = {
   /** Okno škod začíná 1. 6. (měsíc, den). */
   windowStart: { month: 6, day: 1 },
+  /** Měsíce, kdy zvěř škodí (červen–srpen) – mimo ně denní hrozba 0. */
+  windowMonths: { from: 6, to: 8 },
   /** Kg obilí za den na kus: prase, sele, jelen, laň, kolouch. */
   kgPerDay: { adult: 1, piglet: 0.3, stag: 0.6, hind: 0.5, calf: 0.15 },
   /** Váha dílu 1 do `fullM` od okraje lesa, k `zeroM` klesá lineárně na 0. */
@@ -96,6 +98,8 @@ export const FIELD_GUARD = {
 
 /** Šelmy na dobytku a slepicích (wildlife.md – Vlci na dobytku, Liška na slepicích). */
 export const PREDATION = {
+  /** Nepřestupný referenční rok pro délky měsíců (denní podíly nezávisí na přestupném dni). */
+  referenceYear: 501,
   /** Smečka, při které jsou ztráty stáda jako dřív (vlčí díl platí pro tolik vlků). */
   fullPack: 5,
   /** Vlčí díl ročních ztrát při plné smečce; základ `LIVESTOCK.lossPerYear` je o něj nižší. */

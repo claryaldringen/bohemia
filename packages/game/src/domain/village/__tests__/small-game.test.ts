@@ -3,6 +3,7 @@ import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
 import { SMALL_GAME, WILDLIFE_CAPS } from '../rules-wildlife';
 import { advanceVillage } from '../simulate';
+import { wildlifeYearDay } from '../wildlife';
 import { smallGameCapacity, smallGameDay, wantsProtein, yearlyQuota } from '../small-game';
 import type { VillageState } from '../types';
 import { withWildlife } from '../wildlife';
@@ -147,6 +148,19 @@ describe('ryby a oka vesničanů', () => {
     s.wildlife!.smallGame.year.meatKg = 0;
     s.wildlife!.smallGame.lastWildMeatKg = 0;
     expect(wantsProtein(s, SUMMER)).toBe(true);
+  });
+
+  it('drobná zvěř loňského roku se neočekává: po ročním přepočtu ves chce bílkoviny, loňský velký lov ne', () => {
+    const s = wanting(village(), false);
+    s.wildlife!.smallGame = {
+      today: null,
+      year: { fishKg: 0, hares: 0, meatKg: 1e9, days: 1 },
+    };
+    wildlifeYearDay(s, dayIndexOf({ year: 600, month: 5, day: 1 }), null);
+    expect(s.wildlife!.smallGame!.lastWildMeatKg ?? 0).toBe(0);
+    expect(wantsProtein(s, SUMMER)).toBe(true);
+    s.wildlife!.smallGame!.lastWildMeatKg = 1e9;
+    expect(wantsProtein(s, SUMMER)).toBe(false);
   });
 
   it('hladovějící ves chytá před stavbami a maso se sní čerstvé ten den', () => {

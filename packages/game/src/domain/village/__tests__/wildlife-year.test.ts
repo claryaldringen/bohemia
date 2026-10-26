@@ -3,6 +3,7 @@ import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
 import { TOTAL_GAME_DAYS } from '../../calendar';
 import type { Landscape } from '../../landscape';
+import { damageWindowStart } from '../wildlife-damage';
 import { foxCount, foxEggFactor } from '../fox-eggs';
 import { PREDATION, WILDLIFE_LAND } from '../rules-wildlife';
 import { advanceVillage } from '../simulate';
@@ -216,5 +217,24 @@ describe('po kouscích', () => {
     const start = at(600, 4, 25);
     const advanced = advanceVillage(village(start), start + 10, null);
     expect(advanced.wildlife).toBeDefined();
+  });
+});
+
+describe('ves s wildlifeFailed nepřepočítává krajinu', () => {
+  it('1. 5. i 1. 6. s rozbitou krajinou nespadne a krajina zůstane', () => {
+    const broken = new Proxy(
+      {},
+      {
+        get() {
+          throw new Error('rozbitá krajina');
+        },
+      },
+    ) as unknown as Landscape;
+    const s = withWildlife(village(), broken);
+    expect(s.wildlifeFailed).toBeDefined();
+    const land = { ...s.wildlife!.land };
+    expect(() => wildlifeYearDay(s, at(601, 5, 1), broken)).not.toThrow();
+    expect(() => damageWindowStart(s, at(601, 6, 1), broken)).not.toThrow();
+    expect(s.wildlife!.land).toEqual(land);
   });
 });

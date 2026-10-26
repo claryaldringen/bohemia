@@ -114,8 +114,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 - **Obtisky cest a křižovatky** (podrobně village-roads.md – Křižovatky, Scéna): pás cesty
   (`path-ribbon.ts`) má průřez ze čtyř bodů – plné krytí do 0,35 × půl šířky od osy, k okraji pásu
   a měkkému okraji lineárně do nuly; u konců pásu (4 m) se osa nevlní a šířka nekolísá, takže
-  navazující pás i plácek sedí na spoji. **Plácek křižovatky** (`junction-patch.ts`, oprava
-  24. 10. 2026 – Martin: „ty ostrý křižovatky už jsou upravený?“ a „Předtím ty křižovatky byly
+  navazující pás i plácek sedí na spoji. **Plácek křižovatky** (`junction-patch.ts`, oprava 24. 10. 2026 – Martin: „ty ostrý křižovatky už jsou upravený?“ a „Předtím ty křižovatky byly
   tedy lepší“: šedý štěrkový plácek s ostrým obrysem a rovně uříznutými rameny zmizel): pásy cest
   končí v řezu 1,5 m za vchody (`junctionCuts`, `roadBands(roads, cuts)`), kus osy do středu je
   rameno plácku. Krytí v bodě je průřez pásu podle vzdálenosti k osám ramen, ramena slitá hladkým

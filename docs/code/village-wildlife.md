@@ -33,8 +33,9 @@ s `pool ≥ 0,5` do dosahu, sloučené po 60 m. Počítá se **jen při převodu
   `withLivestockLand`. Bez krajiny výchozí `WILDLIFE_LAND.defaultLand` (les 190 ha…). Výchozí
   krajina (les 190 ha → medvěd, 3 lišky) platí jen pro testy a kalibraci s `landscape = null`.
   Selhání výpočtu krajiny → ves **bez zvěře** (`WILDLIFE_LAND.failedLand` samé nuly: bez medvěda
-  a lišek, 5 vlků jako před zvěří) a `wildlifeFailed` (log v `updateVillage`); příští 1. 5.
-  s krajinou se zvěř přepočítá podle skutečné krajiny.
+  a lišek, 5 vlků jako před zvěří) a `wildlifeFailed` (log v `updateVillage`); ves s `wildlifeFailed`
+  krajinu zvěře nepřepočítává (`wildlifeYearDay` 1. 5. ani `damageWindowStart` 1. 6. na ni nesáhnou,
+  test ve `wildlife-year.test.ts`); log chyby je v `updateVillage`.
 - `wildlifeYearDay(state, day, landscape)` – v `simulateDay` hned za `updateLordTraining`; jen
   1. 5.: krajina znovu (s krajinou), jelení zvěř (dospění, úbytek 10 % + 1 % na vlka, kolouši =
      laně × 0,6, nad stropem napřed kolouši a laně), prasata (úbytek 20 %, selata = dospělí, nad
@@ -187,9 +188,9 @@ Návrh: wildlife.md – Drobná zvěř a ryby, Rozhodnutí při implementaci W7.
 - Duben–listopad ryby (biomasa `fishKg`), prosinec–březen oka (`hares`, zlomek kusu). Maso jde do
   `state.freshMeatKg` (čerstvé, jí se napřed) bez práce porážky. Roční kvóta `yearlyQuota`
   (`smallGame.quota`, ryby ≤ ¼ stropu, zajíci podle přírůstku) se počítá 1. 5. ve `wildlife.ts`.
-  `wantsProtein` bere větší z loňského a letošního masa ze zvěře. Stav pro scénu v `wildlife.smallGame.today`; rozdělení práce
+  `wantsProtein` bere větší z loňského a letošního masa z velkého lovu a přičte letošní maso z ryb a ok. Stav pro scénu v `wildlife.smallGame.today`; rozdělení práce
   má činnosti `fish` (cíl `{ kind: 'pool', index }`) a `snare`.
-- `wildlifeYearDay` 1. 5. uloží maso ze zvěře minulého roku (`lastWildMeatKg`) a vynuluje `year`.
+- `wildlifeYearDay` 1. 5. uloží maso z velkého lovu minulého roku (`lastWildMeatKg`, drobná zvěř ne) a vynuluje `year`.
 - Testy ves bez ryb a zajíců: `withoutSmallGame` ve `village-fixtures.ts`.
 
 ## Obrana polí (W6, `field-patrol.ts`, `wildlife-damage.ts`)

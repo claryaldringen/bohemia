@@ -122,6 +122,10 @@ vesničanů.
   se rozdělí na díly. Návrh Clauda (oprava 26. 10. 2026): součet se bere **jen z dosud
   nesklizených dílů**, jinak by po sklizni ozimu šla celá dávka na méně dílů a škoda jaře na ha
   by se zdvojnásobila.
+- **Osev a očekávaná škoda (přijato, návrh Clauda):** plán osevu (`sowingTargets`) s očekávanou
+  škodou nepočítá. Rezerva osevu unese ≈ 7 % úrody, škody jsou desetiny úrody a hlídky je
+  snižují, takže ves kvůli zvěři neseje víc; loňskou škodu (`damage.lastYearKg`) do osevu
+  nezapočítáváme.
 - **Plodiny:** jen obilí – ozim a jař, i díly nad potřebu; luštěniny a len ne (návrh Clauda –
   návrh počítá „kg obilí“). Škodí se jen na dílech, které ves letos zaseje (do 1. 6. dosel).
 - **Co s ≈ 650 kg:** čísla výše platí pro žně, které se protáhnou do poloviny července a srpna;
@@ -477,7 +481,9 @@ Martin: „Souhlasím se všemi návrhy“ – tři otázky z plánu jsou uzavř
   nebo po vyčerpání kvóty se nechytá. Maso jde jako **čerstvé** (`freshMeatKg`, jí se ten den
   napřed, zbytek se udí), bez práce porážky – ryby a zajíci se nekazí v uzené zásobě.
 - **Chce bílkoviny:** roční potřeba masa po obilí, mléku, vejcích a luštěninách je větší než maso
-  stád (`yearlyMeatPerHead` × stáda) + maso ze zvěře loni (velký lov i drobná zvěř, uložené při
-  přepočtu 1. 5.) **nebo letošní, je-li větší** – úlovek roku se tak sám brzdí.
+  stád (`yearlyMeatPerHead` × stáda) + maso z velkého lovu (větší z **loňského**, uloženého při
+  přepočtu 1. 5., a **letošního**) + **letošní** maso z ryb a ok. Loňské ryby a oka se neočekávají
+  (chytá se podle poptávky) – jinak by ves po dobrém roce celé léto nechytala a pak chytala
+  nárazově (návrh Clauda, oprava po závěrečné recenzi 26. 10. 2026).
 - **Pro scénu (W11):** `wildlife.smallGame.today` (rybáři po tůních) a podíly práce `fish` (cíl
   `pool` – pořadí tůně) a `snare`; „rybář s prutem u loviště“ (Martin 24. 10. 2026).
