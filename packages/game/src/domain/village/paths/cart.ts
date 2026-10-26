@@ -416,6 +416,19 @@ function cellsNear(grid: CartGrid, p: PathPoint, radius: number): number[] {
  */
 export function cartRoutes(input: CartRoutesInput): { grid: CartGrid; routes: CartRoute[] } {
   const grid = cartGrid(input);
+  return { grid, routes: cartRoutesOn(grid, input) };
+}
+
+/**
+ * Trasy vozu po hotové mřížce `grid` (`cartGrid`) – hledání jako `cartRoutes`. Trasa k cíli
+ * nezávisí na ostatních cílech: hledání je do posledního cíle pro všechny cíle totéž a remízy
+ * rozhoduje nižší index (paths.md – Stálé trasy, pravidlo 3) – proto jde hledat po kouscích
+ * a pamatovat po cílech (`villageCartRoutes`).
+ */
+export function cartRoutesOn(
+  grid: CartGrid,
+  input: Pick<CartRoutesInput, 'kind' | 'depots' | 'targets'>,
+): CartRoute[] {
   const { width: w, height: h, cost, heights } = grid;
   const road = grid.road ?? null;
   const all = w * h;
@@ -436,7 +449,7 @@ export function cartRoutes(input: CartRoutesInput): { grid: CartGrid; routes: Ca
     }
   });
   const starts = [...new Set(input.depots.flatMap((d) => cellsNear(grid, d, DEPOT_REACH_M)))];
-  if (goals.size === 0 || starts.length === 0) return { grid, routes };
+  if (goals.size === 0 || starts.length === 0) return routes;
   const states = all * HEADINGS;
   const dist = new Float64Array(states).fill(Infinity);
   const parent = new Int32Array(states).fill(-1);
@@ -543,7 +556,7 @@ export function cartRoutes(input: CartRoutesInput): { grid: CartGrid; routes: Ca
       cells,
     };
   });
-  return { grid, routes };
+  return routes;
 }
 
 /**

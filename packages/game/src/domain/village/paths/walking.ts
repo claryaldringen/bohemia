@@ -284,15 +284,18 @@ export function walkingDistances(
   targets: readonly PathPoint[],
   ground: WalkGround | null = null,
 ): number[] {
+  if (targets.length === 0) return [];
   const n = graph.x.length;
   const dist = new Float64Array(n).fill(Infinity);
   const heap = new PathHeap();
   const straight = (a: PathPoint, x: number, z: number): number =>
     ground ? groundWalkLength(ground, a, { x, z }) : length2(x - a.x, z - a.z);
+  const bound = new Float64Array(Math.max(n, origins.length));
   /**
-   * Nejmenší z `lower[k] + straight(k)` – rovně je vždy aspoň délka úsečky (rychlosti nejvýš
-   * louka), takže dražší výpočet půdy jen u kandidátů v pořadí dolní meze, dokud může vyjít
-   * méně (výsledek jako průchod všemi).
+   * Nejmenší z `start` a `exact(k)` – rovně je vždy aspoň délka úsečky (rychlosti nejvýš louka),
+   * takže dražší výpočet půdy jen u kandidátů v pořadí dolní meze (`lower`, při rovnosti nižší
+   * index), dokud může vyjít méně. Horní mez napřed: kandidát s nejmenší dolní mezí se spočítá
+   * hned a řadí se jen kandidáti pod ním (výsledek jako průchod všemi).
    */
   const cheapest = (
     count: number,
@@ -300,16 +303,17 @@ export function walkingDistances(
     exact: (k: number) => number,
     start = Infinity,
   ): number => {
-    let best = start;
-    const order: number[] = [];
-    const bound: number[] = [];
+    let first = -1;
     for (let k = 0; k < count; k++) {
       const lb = lower(k);
-      if (lb < best) {
-        order.push(k);
-        bound[k] = lb;
-      }
+      bound[k] = lb;
+      if (lb < start && (first < 0 || lb < bound[first]!)) first = k;
     }
+    if (first < 0) return start;
+    const value = exact(first);
+    let best = value < start ? value : start;
+    const order: number[] = [];
+    for (let k = 0; k < count; k++) if (k !== first && bound[k]! < best) order.push(k);
     order.sort((a, b) => bound[a]! - bound[b]! || a - b);
     for (const k of order) {
       if (bound[k]! >= best) break;
@@ -318,6 +322,17 @@ export function walkingDistances(
     }
     return best;
   };
+  // rovně z obydlí ke každému cíli – horní mez výsledku; uzel, ke kterému je rovně aspoň tak daleko
+  // jako nejdelší z nich, cestu k žádnému cíli nezkrátí a do sítě nevstupuje (výsledek týž)
+  const direct = targets.map((t) =>
+    cheapest(
+      origins.length,
+      (k) => length2(t.x - origins[k]!.x, t.z - origins[k]!.z),
+      (k) => straight(origins[k]!, t.x, t.z),
+    ),
+  );
+  let limit = 0;
+  for (const d of direct) if (d > limit) limit = d;
   for (let id = 0; id < n; id++) {
     const x = graph.x[id]!;
     const z = graph.z[id]!;
@@ -325,9 +340,11 @@ export function walkingDistances(
       origins.length,
       (k) => length2(x - origins[k]!.x, z - origins[k]!.z),
       (k) => straight(origins[k]!, x, z),
+      limit,
     );
+    if (best >= limit) continue;
     dist[id] = best;
-    if (best < Infinity) heap.push(id, best);
+    heap.push(id, best);
   }
   while (heap.size > 0) {
     const c = heap.pop();
@@ -341,21 +358,15 @@ export function walkingDistances(
       }
     }
   }
-  return targets.map((t) => {
-    // napřed přes pěšiny a cesty (krátké úsečky od bodů u cíle), pak rovně z obydlí – dlouhé
-    // úsečky už jen, když můžou vyjít kratší
-    const via = cheapest(
+  // přes pěšiny a cesty (krátké úsečky od bodů u cíle), nebo rovně z obydlí – kratší z obou
+  return targets.map((t, q) =>
+    cheapest(
       n,
       (id) => dist[id]! + length2(t.x - graph.x[id]!, t.z - graph.z[id]!),
       (id) => dist[id]! + straight({ x: graph.x[id]!, z: graph.z[id]! }, t.x, t.z),
-    );
-    return cheapest(
-      origins.length,
-      (k) => length2(t.x - origins[k]!.x, t.z - origins[k]!.z),
-      (k) => straight(origins[k]!, t.x, t.z),
-      via,
-    );
-  });
+      direct[q]!,
+    ),
+  );
 }
 
 /**
