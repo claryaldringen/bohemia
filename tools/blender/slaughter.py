@@ -12,9 +12,10 @@ Souřadnice Blenderu: Z nahoru, počátek každého dílu na zemi pod jeho stře
 Výstup slaughter.glb – díly (uzly):
   trestle-large  kozlina na krávu: tři kůly (základna r 1,25 m, vrchol 2,72 m), bidlo podél X ve
                  výšce 2,58 m, provaz a rozpěrák (±0,22 m podél X) se dvěma háky, **hroty háků ve
-                 výšce 2,20 m** (kráva visí 2,05 m nad svým počátkem -> počátek zvířete 0,15 m nad zemí).
-  trestle-small  kozlina na prase, ovci a kozu (visí 1,18–1,28 m): vrchol 2,0 m, bidlo 1,88 m,
-                 **hroty háků ve výšce 1,50 m** (počátek zvířete 0,22–0,32 m nad zemí).
+                 výšce 2,20 m** (kráva visí hlavou dolů za hlezna, kopyta 0,18 m nad háky, celá
+                 2,33 m -> hlava ≈ 5 cm nad zemí; CARCASS.hangTop ve slaughter-plan.ts).
+  trestle-small  kozlina na prase, ovci a kozu (visí 1,34–1,42 m): vrchol 2,0 m, bidlo 1,88 m,
+                 **hroty háků ve výšce 1,50 m** (kopyta 0,1 m nad háky, hlava 0,18–0,26 m nad zemí).
   trough         necky: vyhloubené koryto 1,4 × 0,5 m, výška 0,24 m (dno 0,05 m), na dvou příčných
                  trámcích, bez krve (krev jen v misce); leží pod hlavou visícího zvířete.
   block          špalek r 0,3 m, výška 0,55 m, na něm prkno 0,7 × 0,34 × 0,04 m (vršek prkna 0,59 m)

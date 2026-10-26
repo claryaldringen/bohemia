@@ -316,8 +316,8 @@
       "hangs": {
         "hang": {
           "from": "stands",
-          "deg": 90,
-          "leg_deg": 90,
+          "deg": -90,
+          "leg_deg": -90,
           "pivot": [0.2, 0.5],
           "legs": {
             "along": [0.2, 0.32],
@@ -351,8 +351,8 @@
       "hangs": {
         "hang": {
           "from": "stands",
-          "deg": 90,
-          "leg_deg": 90,
+          "deg": -90,
+          "leg_deg": -90,
           "pivot": [0.2, 0.5],
           "legs": {
             "along": [0.2, 0.32],
@@ -386,8 +386,8 @@
       "hangs": {
         "hang": {
           "from": "stands",
-          "deg": 90,
-          "leg_deg": 90,
+          "deg": -90,
+          "leg_deg": -90,
           "pivot": [0.2, 0.5],
           "legs": {
             "along": [0.2, 0.32],
@@ -421,8 +421,8 @@
       "hangs": {
         "hang": {
           "from": "stands",
-          "deg": 90,
-          "leg_deg": 90,
+          "deg": -90,
+          "leg_deg": -90,
           "pivot": [0.2, 0.5],
           "legs": {
             "along": [0.2, 0.32],

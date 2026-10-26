@@ -166,7 +166,14 @@ describe('slaughterState – fáze a zvíře v čase', () => {
     expect(state(pig, fall + 0.3 / 86).carcass.pose).toBeLessThan(1);
     expect(state(pig, fall + 1 / 86).carcass.pose).toBe(0);
     expect(state(pig, 0.36).carcass.pose).toBe(0);
-    const hung = state(pig, 0.38).carcass;
+    // zvedne se na háky plynule (1,2 s): napůl zvednuté je mezi tím, kde leželo, a háky
+    const hoist = SLAUGHTER_TIMING.hoistAt + SLAUGHTER_TIMING.liftS / 2 / 86;
+    const rising = state(pig, hoist).carcass;
+    expect(rising.pose).toBeLessThan(0);
+    expect(rising.pose).toBeGreaterThan(-1);
+    expect(rising.lift).toBeGreaterThan(0);
+    expect(Math.hypot(rising.headingX, rising.headingZ)).toBeCloseTo(1);
+    const hung = state(pig, 0.39).carcass;
     expect(hung.pose).toBe(-1);
     expect(hung.lift).toBeCloseTo(TRESTLE.small.hookY - CARCASS.pig.hangTop);
     expect(Math.hypot(hung.x - pig.x, hung.z - pig.z)).toBeLessThan(1e-9);

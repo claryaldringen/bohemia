@@ -282,7 +282,8 @@ def bend_pose(base, forward, bend):
 
 def hang_pose(base, forward, hang):
     """Póza „visí za zadní nohy“ z jiné pózy (stojící zvíře): celé tělo se otočí kolem osy X přes
-    kyčel (pivot) o `deg` – hlava dolů, zadní nohy se navíc otočí o `leg_deg` a míří vzhůru k háku.
+    kyčel (pivot) o `deg` – záporný úhel = hlava dolů (+90° by zvíře zvedlo hlavou nahoru), zadní
+    nohy se navíc otočí o `leg_deg` (stejné znaménko) a míří vzhůru k háku.
     hang: {"from", "deg", "leg_deg", "pivot": [podíl délky těla od zadu, podíl výšky], "legs":
     {"along": [od, do] podíl délky (zadní část), "below": [od, do] podíl výšky (nízko = nohy)}}.
     Váha nohou = (1 − hladký přechod podle délky) · (1 − hladký přechod podle výšky)."""

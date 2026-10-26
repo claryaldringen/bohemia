@@ -72,7 +72,7 @@ const CARRY_F = phaseFrom('carry');
 
 /**
  * Časy uvnitř fází: omráčené zvíře padne ve 12 % dne (pád 0,6 s), ovce a koza na začátku
- * vykrvení; zavěšení je střih uprostřed fáze (37,5 %); úder palicí (klip `build`) trvá 0,83 s
+ * vykrvení; zavěšení uprostřed fáze (37,5 %) – zvíře se za 1,2 s zvedne na háky; úder palicí (klip `build`) trvá 0,83 s
  * (build.dae z 0 A.D.), podříznutí vestoje 2 s. Rozčtvrcení má 4 kroky: první půlku kroku seká
  * řezník sekerou, v půlce čtvrtina zmizí, další čtvrtinu kroku ji nosič nese na prkno. Odnos:
  * nosiči jdou stálou rychlostí (stav prkna nezávisí na postavě), u dveří chvíli zůstanou uvnitř.
@@ -81,6 +81,7 @@ export const SLAUGHTER_TIMING = {
   fallAt: 0.12,
   fallS: 0.6,
   hoistAt: 0.375,
+  liftS: 1.2,
   blowS: 0.83,
   cutS: 2,
   quarterSteps: 4,
@@ -117,15 +118,19 @@ export type TrestleSize = keyof typeof TRESTLE;
 export const BLOCK = { boardY: 0.59, legSlots: [-0.24, -0.08, 0.08, 0.24] } as const;
 
 /**
- * Mršiny (carcass-<druh>.glb – změřeno): délka a polovina šíře ležícího zvířete, výška visícího
- * modelu nad jeho počátkem (počátek visícího = hroty háků − `hangTop`).
+ * Mršiny (carcass-<druh>.glb – změřeno): délka a polovina šíře ležícího zvířete a výška háku
+ * nad počátkem visícího modelu (počátek visícího = hroty háků − `hangTop`). Visí hlavou dolů
+ * za hlezna – kopyta trčí nad háky (špičky nohou visícího modelu: kráva 1,02 m nad počátkem,
+ * prase 0,52, ovce 0,64, koza 0,74; nejnižší bod −1,31 / −0,82 / −0,78 / −0,64 m). Kráva
+ * o 0,18 m, aby hlava nad zemí zůstala (≈ 5 cm na kozlině 2,2 m), ostatní o 0,1 m (hlava
+ * 0,18–0,26 m nad zemí, v neckách).
  */
 export const CARCASS: Record<HerdSpecies, { length: number; halfWidth: number; hangTop: number }> =
   {
-    cow: { length: 2.04, halfWidth: 0.61, hangTop: 2.05 },
-    pig: { length: 1.18, halfWidth: 0.36, hangTop: 1.18 },
-    sheep: { length: 1.24, halfWidth: 0.45, hangTop: 1.22 },
-    goat: { length: 1.1, halfWidth: 0.36, hangTop: 1.28 },
+    cow: { length: 2.04, halfWidth: 0.61, hangTop: 0.84 },
+    pig: { length: 1.18, halfWidth: 0.36, hangTop: 0.42 },
+    sheep: { length: 1.24, halfWidth: 0.45, hangTop: 0.54 },
+    goat: { length: 1.1, halfWidth: 0.36, hangTop: 0.64 },
   };
 
 /** Odhad chůze přes bod před kozlinou (m/s) – pomalejší postava by na něm poskočila. */
@@ -740,14 +745,20 @@ export function slaughterState(
   c.quarters = QUARTER_BITS.length - cut;
   c.cutMask = mask;
   c.visible = c.quarters > 0;
-  const hung = s >= t.hoistS;
-  const spot = hung ? station.hang : station.animal;
-  c.x = spot.x;
-  c.z = spot.z;
-  c.headingX = spot.headingX;
-  c.headingZ = spot.headingZ;
-  c.lift = hung ? station.hang.lift : 0;
-  c.pose = hung ? -1 : 1 - smooth((s - t.fallS) / SLAUGHTER_TIMING.fallS);
+  // zavěšení: z místa, kde leží, plynule pod háky – zvedne se, otočí a morph leží → visí
+  const u = s >= t.hoistS ? smooth((s - t.hoistS) / SLAUGHTER_TIMING.liftS) : 0;
+  const { animal, hang } = station;
+  c.x = animal.x + (hang.x - animal.x) * u;
+  c.z = animal.z + (hang.z - animal.z) * u;
+  const from = Math.atan2(animal.headingX, animal.headingZ);
+  let turn = Math.atan2(hang.headingX, hang.headingZ) - from;
+  if (turn > Math.PI) turn -= 2 * Math.PI;
+  if (turn < -Math.PI) turn += 2 * Math.PI;
+  const done = u <= 0 ? animal : u >= 1 ? hang : null;
+  c.headingX = done ? done.headingX : Math.sin(from + turn * u);
+  c.headingZ = done ? done.headingZ : Math.cos(from + turn * u);
+  c.lift = hang.lift * u;
+  c.pose = s >= t.hoistS ? -u : 1 - smooth((s - t.fallS) / SLAUGHTER_TIMING.fallS);
   const on = t.legOnS.filter((at) => s >= at).length;
   const off = t.legOffS.filter((at) => s >= at).length;
   out.legsOnBoard = Math.max(0, on - off);

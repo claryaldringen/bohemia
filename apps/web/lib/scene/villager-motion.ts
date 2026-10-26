@@ -144,9 +144,10 @@ export type PoseFn = (t: number, herds: readonly HerdView[], out: VillagerPose) 
  * (změřeno z GLB jako v prvním náhledu postav). Zmenšená postava jde pomaleji.
  */
 export const CLIP_SPEED_M_S: Record<VillagerKind, Partial<Record<VillagerClip, number>>> = {
-  // s vahadlem chůze jako `walk` (stejná animace, ruce drží provazy – people.json)
-  woman: { walk: 1.25, carry: 1.05, 'carry-wood': 1.05, 'carry-water': 1.25 },
-  man: { walk: 1.0, carry: 1.1, 'carry-wood': 1.0, 'carry-water': 1.0 },
+  // s vahadlem chůze jako `walk` (stejná animace, ruce drží provazy – people.json); s masem jako
+  // s dřevem (stejná kadence 1,25 s na dvojkrok a rozkmit stehna – carry_meat z 0 A.D.)
+  woman: { walk: 1.25, carry: 1.05, 'carry-wood': 1.05, 'carry-water': 1.25, 'carry-meat': 1.05 },
+  man: { walk: 1.0, carry: 1.1, 'carry-wood': 1.0, 'carry-water': 1.0, 'carry-meat': 1.0 },
 };
 
 /** Rychlost chůze postavy v klipu `clip` (m/s) – podle druhu a měřítka. */
