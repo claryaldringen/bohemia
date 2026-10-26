@@ -194,15 +194,17 @@ export async function restartGameForPlayer(
   playerId: string,
   options: { abandon: boolean } = { abandon: false },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const today = await playerToday(playerId);
-  if (!today.ok) return today;
-  const result = await exclusive(playerLockKey(playerId), () =>
-    restartGame(
+  // den se načte až uvnitř zámku – akce za skokem v čase dostane den po skoku
+  const result = await exclusive(playerLockKey(playerId), async () => {
+    const today = await playerToday(playerId);
+    if (!today.ok) return today;
+    const restarted = await restartGame(
       { ...dynastyDeps(), seeds: seeds() },
       { playerId, today: today.day, abandon: options.abandon },
-    ),
-  );
-  return result.ok ? { ok: true } : { ok: false, error: result.reason };
+    );
+    return restarted.ok ? { ok: true as const } : { ok: false as const, error: restarted.reason };
+  });
+  return result.ok ? { ok: true } : { ok: false, error: result.error };
 }
 
 /**

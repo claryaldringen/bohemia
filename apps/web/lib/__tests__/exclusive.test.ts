@@ -193,3 +193,25 @@ describe('exclusiveShared', () => {
     expect(village.conflicts).toBe(0);
   });
 });
+
+describe('exclusiveShared – chyby a úklid', () => {
+  it('chyba sdíleného dotazu se nepřilepí na další dotaz po ní', async () => {
+    const key = playerLockKey('hrac');
+    const failing = exclusiveShared(key, '5', () => Promise.reject(new Error('selhal')));
+    await expect(failing).rejects.toThrow('selhal');
+    await new Promise((resolve) => setImmediate(resolve));
+    await expect(exclusiveShared(key, '5', () => Promise.resolve(7))).resolves.toBe(7);
+  });
+
+  it('mapa sdílených položek se po dokončení i po chybě uklidí', async () => {
+    const key = playerLockKey('hrac');
+    await expect(exclusiveShared(key, '1', () => Promise.reject(new Error('x')))).rejects.toThrow();
+    await exclusiveShared(key, '2', () => Promise.resolve(1));
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(pendingExclusiveKeys()).toBe(0);
+    const shared = (globalThis as unknown as Record<symbol, Map<string, unknown> | undefined>)[
+      Symbol.for('bohemia.exclusive-shared')
+    ];
+    expect(shared?.size ?? 0).toBe(0);
+  });
+});
