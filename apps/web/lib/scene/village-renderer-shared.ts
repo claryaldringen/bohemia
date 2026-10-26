@@ -58,6 +58,8 @@ export const CRAFT_MODEL_KEYS: readonly (WorkshopModel | 'milir')[] = [
 export const PORCH_EXTRA_M = 2.6;
 /** Rozvrh dýmu pece, výhně a milíře se liší od dýmníku obydlí (seed = id obydlí × 4 + druh). */
 export const CRAFT_SMOKE_SEED = 1_000_000;
+/** Rozvrh dýmu z pálení paseky (seed = id dílu) – mimo dýmníky a dílny. */
+export const SLASH_SMOKE_SEED = 3_000_000;
 export const TUFT_MODELS: readonly TuftModel[] = ['grass-tuft-1', 'grass-tuft-2'];
 export const AMBIENT = new Color3(0.38, 0.38, 0.36);
 /** Rostliny jako dekorace krajiny (decorations.ts) – trsy u okapu jsou sytější a zelenější. */

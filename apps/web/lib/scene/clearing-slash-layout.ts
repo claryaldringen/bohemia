@@ -2,7 +2,7 @@
 // postup) bez Babylonu: kde na čtverci leží a které jsou v které fázi vidět. Místa jsou
 // deterministická z id dílu (hash01) – v každé fázi stejná, hromada větví na místě shoří a zbyde
 // po ní ohořelý zbytek.
-import { rotationCosSin } from '@bohemia/game';
+import { obstaclesNear, rotationCosSin, type ObstacleLayer } from '@bohemia/game';
 import type { SceneFieldPart, SceneVillage } from '../village-view';
 import { isRotatedSquare, rowDirection } from './field-cells';
 import { villageCenter, workAt, workFrame, workSteps } from './field-look';
@@ -73,6 +73,22 @@ export function slashHeapSites(part: HeapSquare, avoid: readonly Point[]): HeapS
     }
   }
   return sites;
+}
+
+/**
+ * Překážky čtverce z vrstvy (pařezy, stromy, kameny – i ty, které už padly, aby místa hromad
+ * v průběhu kácení neskákala): `avoid` pro slashHeapSites. Hromady (clearing-slash.ts), ohně
+ * (clearing-fire.ts) i lidé u ohňů (villager-plan-fields.ts) je hledají stejně.
+ */
+export function squareObstacles(
+  layer: ObstacleLayer,
+  part: Pick<SceneFieldPart, 'x' | 'z' | 'size'>,
+): Point[] {
+  const h = part.size * 0.71;
+  return obstaclesNear(layer, part.x - h, part.z - h, part.x + h, part.z + h).map((i): Point => [
+    layer.x[i]!,
+    layer.z[i]!,
+  ]);
 }
 
 /** Vzhledy, na kterých leží hromady: paseka (větve) a spálenina (ohořelé zbytky). */

@@ -32,6 +32,7 @@ import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import type { Scene } from '@babylonjs/core/scene';
 import { obstacleIndex, obstacleStatus, obstaclesNear, type ObstacleLayer } from '@bohemia/game';
+import { squareObstacles } from './clearing-slash-layout';
 import type { SceneVillage } from '../village-view';
 import { caravanPoints } from './caravan';
 import type { FuneralPlan } from './funeral-plan';
@@ -720,6 +721,7 @@ export class VillageVillagers {
         const i = obstacleIndex(layer, id);
         return i >= 0 ? { x: layer.x[i]!, z: layer.z[i]! } : null;
       },
+      squareObstacles: (part) => squareObstacles(layer, part),
       treesIn: (x, z, half, max) => {
         const found: { x: number; z: number }[] = [];
         for (const i of obstaclesNear(layer, x - half, z - half, x + half, z + half)) {

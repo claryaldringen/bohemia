@@ -183,6 +183,11 @@ export interface VillagerGround {
   /** Stojící dospělé stromy ve čtverci (střed, polovina strany) – nejvýš `max`. */
   treesIn(x: number, z: number, half: number, max: number): { x: number; z: number }[];
   /**
+   * Překážky čtverce z vrstvy (clearing-slash-layout.ts – `squareObstacles`) – podle nich leží
+   * hromady větví na pasece a lidé u nich při pálení. Bez ní lidé pálí v řadě na čáře práce.
+   */
+  squareObstacles?(part: { x: number; z: number; size: number }): [number, number][];
+  /**
    * Značka stavu stromů: dokud je stejný objekt, jsou stromy (`treesIn`) tytéž – index skupinek
    * stromů se mezi přeplánováními nepočítá znovu. Bez ní se počítá při každém plánu.
    */

@@ -38,6 +38,9 @@ import { addDecorations } from './decorations';
 import { addFauna, type Fauna } from './fauna';
 import { birdFlocks, fishSchools } from './fauna-placement';
 import { ClearingSlash } from './clearing-slash';
+import { burningKey, burningSquares, heapFires } from './clearing-fire';
+import { ClearingFireRenderer } from './clearing-fire-renderer';
+import { gameDayAt } from './smoke-schedule';
 import { FelledTrees } from './felled-trees';
 import { LogPile } from './log-pile';
 import { sameClearing, villageClearedForest, type ClearedForest } from './cleared-forest';
@@ -225,6 +228,8 @@ export class LandscapeScene {
   private felled: FelledTrees | null = null;
   private logPile: LogPile | null = null;
   private clearingSlash: ClearingSlash | null = null;
+  /** Ohně pálení paseky na hromadách větví (clearing-fire-renderer.ts). */
+  private clearingFire: ClearingFireRenderer | null = null;
   private village: VillageRenderer | null = null;
   /** Domácí zvířata vsi (ozdoba) – slepice u obydlí, stáda na loukách a v lese. */
   private livestock: VillageLivestock | null = null;
@@ -417,6 +422,10 @@ export class LandscapeScene {
         else this.pendingCasters.push(mesh);
       },
     });
+    // ohně pálení na hromadách větví (forest.md – Klučení lesa pro pole – postup, bod 3)
+    this.clearingFire?.dispose();
+    this.clearingFire = new ClearingFireRenderer(this.scene, { groundHeight });
+    if (this.worldClock) this.clearingFire.setWorldClock(this.worldClock);
     const relief = buildRelief(landscape);
     // Domácí zvířata vsi – rozmístí se podle vsi (applyVillage), modely až s prvním zvířetem.
     this.livestock?.dispose();
@@ -800,6 +809,7 @@ export class LandscapeScene {
    */
   setWorldClock(world: WorldClock): void {
     this.village?.setWorldClock(world);
+    this.clearingFire?.setWorldClock(world);
     this.worldClock = world;
     this.updateSeason(true);
     // karavany a pohřby jdou podle okna herního dne – rozmístit lidi podle nových hodin
@@ -1296,7 +1306,8 @@ export class LandscapeScene {
       : false;
     const piles = this.logPile?.update(this.villageState, changes) ?? false;
     const slash = this.clearingSlash?.update(this.villageState) ?? false;
-    const logs = piles || slash;
+    const fires = this.updateClearingFires();
+    const logs = piles || slash || fires;
     const animals = this.livestock?.update(this.villageState, Date.now()) ?? false;
     // oráč, honák a vozka jsou lidé vsi – kolik spřežení a vozů ves dnes kreslí
     const people =
@@ -1312,8 +1323,9 @@ export class LandscapeScene {
     if (!changed && !hidden && !shaded && !cleared && !felled && !logs && !animals && !people) {
       return;
     }
-    // Dým hned na místě – i při omezeném pohybu, kdy se pak už nehýbe.
+    // Dým a ohně hned na místě – i při omezeném pohybu, kdy se pak už nehýbe.
     village.animateSmoke(Date.now(), null);
+    this.clearingFire?.animate(Date.now(), null);
     const scene = { village: changed, hidden, felled, logs, shade: shaded, canopy: cleared };
     if (castersChanged({ ...scene, animals, people })) this.shadows?.refresh();
     this.renderWhenReady();
@@ -1441,6 +1453,25 @@ export class LandscapeScene {
   }
 
   /** Voda, ryby a ptáci, dým, zvířata, lidé, voli a obilí – true, když se něco v záběru hnulo. */
+  /**
+   * Hořící hromady větví podle vsi a dnešního dne (hodiny světa) – přestaví se jen při změně
+   * pálení (`burningKey`). Vrátí true, když se ohně změnily.
+   */
+  private updateClearingFires(): boolean {
+    const fire = this.clearingFire;
+    const slash = this.clearingSlash;
+    if (!fire || !slash || !this.villageState) return false;
+    const village = this.villageState;
+    const day = Math.floor(gameDayAt(Date.now(), this.worldClock ?? OFFICIAL_WORLD));
+    const squares = burningSquares(village, day);
+    const key = burningKey(squares, day);
+    if (key === fire.currentKey()) return false;
+    return fire.set(
+      heapFires(village, squares, day, (part) => slash.obstaclesOf(part)),
+      key,
+    );
+  }
+
   private animate(now: number, camera: Camera): boolean {
     let animated = false;
     // zamrzlá voda neteče – v záběru jen led a stojí, nepřekresluje se
@@ -1452,6 +1483,8 @@ export class LandscapeScene {
     // dým z obydlí – rozvrh ohně podle herního dne, proto skutečný čas
     const epochMs = Date.now();
     if (this.village?.animateSmoke(epochMs, camera)) animated = true;
+    // ohně pálení paseky – podle herního dne jako dým
+    if (this.clearingFire?.animate(epochMs, camera)) animated = true;
     // domácí zvířata – skutečný čas (epoch ms), ne herní: stejný okamžik = stejná póza
     if (this.livestock?.animate(epochMs, camera)) animated = true;
     // koně na jízdě nestojí v ohradě (riders.ts, village-pens.ts)

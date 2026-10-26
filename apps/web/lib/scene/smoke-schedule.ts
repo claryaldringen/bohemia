@@ -1,7 +1,7 @@
 // Dým z obydlí bez Babylonu: kdy se v obydlí topí (deterministicky podle herního dne a obydlí)
 // a kde je který obláček kouře. Herní den trvá ≈ 86 s, takže ranní a večerní vaření se střídá
 // s přestávkami – dým „občas“ stoupá a zase přestane.
-import { TOTAL_GAME_DAYS, type WorldClock } from '@bohemia/game';
+import { FOREST_CLEARING, TOTAL_GAME_DAYS, type WorldClock } from '@bohemia/game';
 
 /** Herní den jako spojité číslo (celá část = den od začátku světa, zbytek = denní doba). */
 export function gameDayAt(nowMs: number, world: WorldClock): number {
@@ -67,9 +67,10 @@ export function smokeStrength(seed: number, gameDay: number): number {
  * Odkud dým stoupá: dýmník obydlí (topí se podle rozvrhu ohně – vaření ráno a večer), pec nebo
  * výheň pracující dílny (topí se přes pracovní den), milíř (doutná dnem i nocí – crafts.md)
  * a pohřební hranice (cemetery.md – Pohřeb ve scéně: hustší a vyšší sloupec – PYRE_PLUME; sílu
- * neurčuje rozvrh ohně, ale obřad – funeral-plan.ts, `pyreState`).
+ * neurčuje rozvrh ohně, ale obřad – funeral-plan.ts, `pyreState`) a pálení paseky (forest.md –
+ * Klučení lesa pro pole – postup: SLASH_PLUME, sílu určuje pálení dílu – `clearingFireState`).
  */
-export type SmokeKind = 'hearth' | 'craft' | 'milir' | 'pyre';
+export type SmokeKind = 'hearth' | 'craft' | 'milir' | 'pyre' | 'slash';
 
 /** Pracovní den dílny jako denní doba 0–1 – pec a výheň hoří od rána do večera. */
 const CRAFT_FIRE = { from: 0.26, to: 0.78 } as const;
@@ -81,8 +82,8 @@ const CRAFT_FIRE = { from: 0.26, to: 0.78 } as const;
  */
 export function ventSmokeStrength(kind: SmokeKind, seed: number, gameDay: number): number {
   if (kind === 'hearth') return smokeStrength(seed, gameDay);
-  // hranice hoří podle obřadu (funeral-plan.ts) – mimo něj se nekouří
-  if (kind === 'pyre') return 0;
+  // hranice hoří podle obřadu (funeral-plan.ts), paseka podle pálení (clearingFireState)
+  if (kind === 'pyre' || kind === 'slash') return 0;
   const day = Math.floor(gameDay);
   if (kind === 'milir') return 0.5 + 0.15 * hash01(seed, day, 21);
   const time = gameDay - day;
@@ -145,9 +146,89 @@ export const PYRE_PLUME: PlumeShape = {
   size: { start: 1.1, end: 7 },
 };
 
+/** Pálení paseky – hustší sloupec než z dýmníku, menší než z hranice (hoří zelené chvojí). */
+export const SLASH_PLUME: PlumeShape = {
+  puffs: 24,
+  lifeS: 13,
+  riseM: 16,
+  driftM: 8,
+  size: { start: 0.9, end: 5.2 },
+};
+
 /** Tvar sloupce dýmu podle druhu zdroje. */
 export function plumeShape(kind: SmokeKind): PlumeShape {
-  return kind === 'pyre' ? PYRE_PLUME : HEARTH_PLUME;
+  return kind === 'pyre' ? PYRE_PLUME : kind === 'slash' ? SLASH_PLUME : HEARTH_PLUME;
+}
+
+// --- Pálení paseky ---
+
+/**
+ * Pálení dílu paseky (forest.md – Klučení lesa pro pole – postup): `burnedDay` = den, kdy díl
+ * dohořel – ten den hoří, pak doutná do `burnedDay + smolderDays` (`isSmoldering` v jádru). Bez
+ * údaje se díl teprve pálí – hoří každý den, dokud nedohoří (rozpracované pálení).
+ */
+export interface ClearingBurn {
+  burnedDay?: number;
+}
+
+/** Oheň, záře uhlíků a dým pálení v jednom okamžiku (0–1). */
+export interface ClearingFireState {
+  fire: number;
+  glow: number;
+  smoke: number;
+}
+
+/** Jak dlouho hoří jedna hromada větví (podíl dne ≈ 19 s) – hromady se zapalují postupně. */
+export const HEAP_BURN_DAY = 0.22;
+/** Dým doutnajících pařezů a popela (po dohoření hromad, přes noc a v dnech doutnání). */
+export const SMOLDER_SMOKE = 0.35;
+/** Jak rychle dým po dohoření slábne k doutnání a jak dlouho doutnání na konci mizí (podíl dne). */
+const SMOKE_SETTLE_DAY = 0.12;
+const SMOLDER_FADE_DAY = 0.1;
+
+/**
+ * Oheň, záře a dým pálení paseky v herní okamžik `gameDay` (gameDayAt). Pálí se přes pracovní
+ * den jako pec (CRAFT_FIRE): hromada s pořadím `order` (0–1 – kde leží v postupu práce na
+ * čtverci) vzplane v `CRAFT_FIRE.from + order × (délka dne práce − HEAP_BURN_DAY)` a hoří
+ * HEAP_BURN_DAY; pak žhnou uhlíky do konce dne (večer, záře slábne). Dým čtverce (na pořadí
+ * nezávisí) stoupá od zapálení první hromady, hustý do konce práce, pak slábne k doutnání –
+ * přes noc a v dnech doutnání `SMOLDER_SMOKE`, na konci doutnání zmizí.
+ */
+export function clearingFireState(
+  burn: ClearingBurn,
+  gameDay: number,
+  order = 0,
+): ClearingFireState {
+  const day = Math.floor(gameDay);
+  const time = gameDay - day;
+  const off = { fire: 0, glow: 0, smoke: 0 };
+  const burned = burn.burnedDay;
+  if (burned !== undefined) {
+    if (day < burned) return off;
+    const until = burned + FOREST_CLEARING.smolderDays;
+    if (day >= until) return off;
+    if (day > burned) {
+      // doutná – na konci posledního dne dým zmizí
+      const fade = Math.min(1, Math.max(0, (until - gameDay) / SMOLDER_FADE_DAY));
+      return { fire: 0, glow: 0, smoke: SMOLDER_SMOKE * fade };
+    }
+  }
+  const span = CRAFT_FIRE.to - CRAFT_FIRE.from - HEAP_BURN_DAY;
+  const lit = CRAFT_FIRE.from + Math.min(1, Math.max(0, order)) * span;
+  const out = lit + HEAP_BURN_DAY;
+  const rise = Math.min(1, Math.max(0, (time - lit) / FIRE_EDGE_DAY));
+  const fall = Math.min(1, Math.max(0, (out - time) / (HEAP_BURN_DAY * 0.45)));
+  const fire = Math.min(rise, fall);
+  // uhlíky žhnou, jak plameny slábnou, a do půlnoci vychladnou na třetinu
+  const glow =
+    time < lit ? 0 : time < out ? rise * (1 - fall) : 1 - (0.65 * (time - out)) / (1 - out);
+  // dým čtverce: od zapálení první hromady, po konci práce slábne k doutnání
+  const start = Math.min(1, Math.max(0, (time - CRAFT_FIRE.from) / FIRE_EDGE_DAY));
+  const settle = Math.min(1, Math.max(0, (time - CRAFT_FIRE.to) / SMOKE_SETTLE_DAY));
+  const evening = 1 - (1 - SMOLDER_SMOKE) * settle;
+  // rozpracované pálení: přes noc a ráno před prací doutná včerejší spálenina
+  const morning = burned === undefined && time < CRAFT_FIRE.from ? SMOLDER_SMOKE : 0;
+  return { fire, glow: Math.max(0, glow), smoke: Math.max(morning, start * evening) };
 }
 
 /**

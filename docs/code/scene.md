@@ -132,7 +132,42 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   MAX_SHOWN_LOGS na hromadu); místo `logStackSite` (`log-pile-layout.ts`) do STACK_REACH_M od
   kotvy po kružnicích ven, mimo díly polí, hřbitovy, vodu, cesty a obydlí, bez stojících
   stromů (pařezy, keře a kameny nevadí), pro 3 hranice, jinak méně (`LogPileSite.stacks`);
-  předchozí volné místo zůstane (hromada neskáče). Ohně a kouř pálení jsou Úloha 6.
+  předchozí volné místo zůstane (hromada neskáče).
+
+- **Paseka klučení – ohně a kouř** (forest.md – Klučení lesa pro pole – postup, bod 3; issue #10
+  – Martin 24. 10. 2026: „musí být vidět ohně a kouř“; Úloha 6 plánu). Čisté funkce bez
+  Babylonu: `clearing-fire.ts` – `burningSquares(village, day)` (čtverce, které dnes hoří:
+  rozpracované pálení `isBurningPart` – `burnt` s `before: 'slash'` a podílem 0–1 na poli
+  s dnešní prací `found-field`, bez rozdělení práce se předpokládá; dohořelé `burnedDay` ještě
+  `isSmoldering` z jádra), `heapFires` (hromady větví na těch čtvercích – místa jako
+  `slashHeapSites`, překážky čtverce `squareObstacles` sdílí hromady, ohně i postavy;
+  rozpracované pálení hoří jen na spálené části, dohořelé dnes všechny; `order` 0–1 = pořadí
+  zapálení napříč čtvercem jako obtisk), `slashPlumes` (nejvýš `MAX_SLASH_PLUMES` = 16 sloupců
+  dýmu ze středu čtverce podle id dílu), `burningKey`. Časování v `smoke-schedule.ts` –
+  `clearingFireState(burn, gameDay, order)` → `{ fire, glow, smoke }`: pálí se přes pracovní
+  den jako pec (`CRAFT_FIRE` 0,26–0,78 dne), hromada vzplane podle `order` a hoří
+  `HEAP_BURN_DAY` (≈ 19 s), pak do půlnoci žhnou uhlíky; dým čtverce hustý přes práci, večer
+  slábne k doutnání `SMOLDER_SMOKE`, v dnech doutnání jen kouř a na konci zmizí; rozpracované
+  pálení (bez `burnedDay`) hoří každý pracovní den, přes noc doutná. Dým = `VillageSmoke`
+  s druhem `slash` (`SLASH_PLUME` – hustší než dýmník, menší než hranice; sloupec má tvar podle
+  druhu – `plumeShape`, síla z `SmokeSource.burn`), zdroje v `updateSmokeSources`
+  (village-renderer.ts, seed `SLASH_SMOKE_SEED` + id dílu). Plameny, jiskry a záře =
+  `fireSprites` z pohřební hranice s tvarem ohně (`FireShape` – `PYRE_FIRE`, `heapFireShape`:
+  10 plamenů, 5 jisker, menší), `clearing-fire-renderer.ts` (`ClearingFireRenderer` v
+  landscape-scene.ts vedle `ClearingSlash`) – jeden `SpriteManager` s `fire.png` (aditivně,
+  skupina 1 jako dým, 1 draw call) s pevnou zásobou spritů `MAX_FIRE_SQUARES` (12) × 4 hromady
+  × 16; oheň jen na 12 čtvercích v záběru nejblíž kameře, ostatní hořící čtverce jen kouří.
+  Večer v uhlících problikne pár nízkých plamínků. Animace v `animate()` (takt `WATER_FPS`,
+  herní den podle hodin světa) jen při ohni či žáru v záběru; při omezeném pohybu se ohně
+  nastaví jen po změně vsi a stojí. **Postavy** (`villager-plan-fields.ts` – `founding`):
+  napřed čtverce, které se dnes pálí (`isBurningView`), u hořících hromad lidé dokola s motykou
+  čelem k ohni (`burnCrew`, klip `hoe`); bez překážek čtverce (`VillagerGround.squareObstacles`)
+  v řadě na čáře práce; na kácené pasece půlka kácí, půlka nosí kmeny k nejbližší hromadě klád
+  u lesa (`logCarrier`, `SceneVillage.logStacks`, `walkRoute` + `shuttle` s `carry-wood`); na
+  schnoucí pasece nikdo. **Ukázka:** `/dev/landscape` tlačítko „Klučení“ (`dev-clearing.ts`) –
+  řada lesních čtverců u vsi: kácení, schnutí, pálení, dohořelo dnes, doutnání (den pálení podle
+  hodin scény; oheň jen přes pracovní den ≈ 45 s z 86 s; s „Lidé“ i postavy). Testy
+  `clearing-fire.test.ts`.
 
 - **Obtisky cest a křižovatky** (podrobně village-roads.md – Křižovatky, Scéna): pás cesty
   (`path-ribbon.ts`) má průřez ze čtyř bodů – plné krytí do 0,35 × půl šířky od osy, k okraji pásu

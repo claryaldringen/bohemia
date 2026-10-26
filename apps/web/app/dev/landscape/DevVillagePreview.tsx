@@ -16,6 +16,7 @@ import {
   fieldPartsFromCells,
   matureTreesByDistance,
   obstaclesOf,
+  OFFICIAL_WORLD,
   orchardPartsFromCells,
   ROTATION_STEP,
   sameGrid,
@@ -81,6 +82,8 @@ import {
 import { demoLabor, withDemoPersons } from './dev-labor';
 import { promontoryFocus, promontoryOverlay } from './dev-promontory';
 import { demoOvergrowth, type OvergrowthDemo } from './dev-overgrowth';
+import { demoClearing, type ClearingDemo } from './dev-clearing';
+import { gameDayAt } from '@/lib/scene/smoke-schedule';
 import {
   DEMO_APPLE_STAGES,
   DEMO_ROAD_STAGES,
@@ -242,6 +245,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   const [roadPlough, setRoadPlough] = useState(false);
   // ukázka zarůstání přílohu a lesa vsi (fields.md – Zarůstání, dev-overgrowth.ts)
   const [overgrowth, setOvergrowth] = useState<OvergrowthDemo | null>(null);
+  // ukázka klučení lesa pro pole – kácení, schnutí, pálení, doutnání (forest.md, dev-clearing.ts)
+  const [clearing, setClearing] = useState<ClearingDemo | null>(null);
   // hospodaření podle polohy domů (fields.md): obrysy úseků a vzorec polí ze simulace jádra
   const [holdingsOn, setHoldingsOn] = useState(false);
   const [promontoryOn, setPromontoryOn] = useState(false);
@@ -294,6 +299,18 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         ? { sacred: { oaks: sacredOaks, groves, buildings: sacredBuildings } }
         : {}),
     };
+    if (clearing) {
+      const o = base.obstacles ?? obstacles;
+      const merge = (a: readonly number[], b: readonly number[]): number[] =>
+        [...new Set([...a, ...b])].sort((x, y) => x - y);
+      base.fields = [...base.fields, clearing.field];
+      base.obstacles = {
+        ...o,
+        stumps: merge(o.stumps, clearing.stumps),
+        removed: merge(o.removed, clearing.removed),
+      };
+      base.logStacks = [...(base.logStacks ?? []), ...clearing.logStacks];
+    }
     if (junctionDemo) {
       base.roads = [...(base.roads ?? []), ...junctionDemo.roads];
       base.junctions = junctionDemo.junctions;
@@ -441,6 +458,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     gapClosed,
     simulated,
     overgrowth,
+    clearing,
     cartDemo,
     wagonDemo,
     caravanDemo,
@@ -1495,6 +1513,23 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
    * Ukázka zarůstání: díly nepaseného přílohu v každé fázi (louka, křoviny, mladý les) a les vsi
    * v různém stáří – kamera k nim.
    */
+  /**
+   * Ukázka klučení lesa pro pole (forest.md – Klučení lesa pro pole – postup): řada čtverců
+   * v lese u vsi – kácení, schnutí, pálení, dohořelo dnes, doutnání; den pálení podle hodin
+   * scény (oheň hoří přes pracovní den – ≈ 45 s z 86 s herního dne). Kamera k nim.
+   */
+  const toggleClearing = (): void => {
+    if (clearing) {
+      setClearing(null);
+      return;
+    }
+    const today = Math.floor(gameDayAt(Date.now(), OFFICIAL_WORLD));
+    const sample = demoClearing(decoded, obstaclesOf(decoded), obstacles, nextId.current++, today);
+    if (!sample) return;
+    setClearing(sample);
+    scene?.moveCameraTo(sample.center.x, sample.center.z);
+  };
+
   const toggleOvergrowth = (): void => {
     if (overgrowth) {
       setOvergrowth(null);
@@ -2008,6 +2043,15 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
           data-testid="dev-overgrowth"
         >
           {overgrowth ? 'Zarůstání ✓' : 'Zarůstání'}
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene}
+          onClick={toggleClearing}
+          title="Klučení lesa pro pole: kácení, schnutí, pálení, dohořelo dnes, doutnání (oheň přes pracovní den, s lidmi i postavy u ohňů)"
+          data-testid="dev-clearing"
+        >
+          {clearing ? 'Klučení ✓' : 'Klučení'}
         </button>
         <button
           className={buttonClass}

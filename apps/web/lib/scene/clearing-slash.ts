@@ -5,11 +5,12 @@ import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import type { Scene } from '@babylonjs/core/scene';
-import { obstaclesNear, type ObstacleLayer } from '@bohemia/game';
+import type { ObstacleLayer } from '@bohemia/game';
 import type { SceneFieldPart, SceneVillage } from '../village-view';
 import {
   clearingHeaps,
   clearingHeapsKey,
+  squareObstacles,
   type ClearingHeap,
   type ClearingHeapKind,
 } from './clearing-slash-layout';
@@ -81,16 +82,19 @@ export class ClearingSlash {
     this.meshes.clear();
   }
 
-  /** Překážky čtverce (pařezy, stromy, kameny) z vrstvy – stálé, proto v mezipaměti. */
+  /**
+   * Překážky čtverce (pařezy, stromy, kameny) z vrstvy – stálé, proto v mezipaměti. Podle nich
+   * leží hromady (slashHeapSites) – ohně pálení (clearing-fire.ts) je hledají stejně.
+   */
+  obstaclesOf(part: SceneFieldPart): Point[] {
+    return this.avoidOf(part);
+  }
+
   private avoidOf(part: SceneFieldPart): Point[] {
     const key = `${part.cell.x},${part.cell.y},${part.x},${part.z},${part.rotation ?? 0}`;
     let points = this.avoid.get(key);
     if (!points) {
-      const layer = this.options.layer;
-      const h = part.size * 0.71;
-      points = obstaclesNear(layer, part.x - h, part.z - h, part.x + h, part.z + h).map(
-        (i): Point => [layer.x[i]!, layer.z[i]!],
-      );
+      points = squareObstacles(this.options.layer, part);
       this.avoid.set(key, points);
     }
     return points;
