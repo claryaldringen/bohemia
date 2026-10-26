@@ -36,6 +36,7 @@ import {
   scenePenSpecies,
   scenePens,
   sceneSacred,
+  threshingFloorStraw,
   wearOf,
 } from './village-view-buildings';
 import { FLAX_BLOOM_MONTH, scenePart } from './village-view-fields';
@@ -233,7 +234,7 @@ export function sceneVillage(
   });
   const penned = pens.reduce((sum, pen) => sum + pen.cows, 0);
   const herds = summary.livestock.herds;
-  const threshingFloors = sceneThreshingFloors(state, constructions);
+  const threshingFloors = sceneThreshingFloors(state, constructions, day);
   return {
     dwellings: [...built, ...sites],
     ...(ruins.length > 0 ? { ruins } : {}),
@@ -290,14 +291,34 @@ export function sceneVillage(
 function sceneThreshingFloors(
   state: VillageState,
   constructions: readonly ConstructionSummary[],
+  day: number,
 ): SceneThreshingFloor[] {
-  return (state.threshingFloors ?? []).map((f) => {
+  const floors = state.threshingFloors ?? [];
+  const builtCount = floors.filter((f) => f.builtDay !== null).length;
+  const shares = state.labor?.shares ?? [];
+  // vymlácené zrno čeká na humnech na uložení do jam – rovným dílem
+  const queueKg = builtCount > 0 ? (state.grainPitWork?.queueKg ?? 0) / builtCount : 0;
+  const grainKg = Math.round(queueKg / 10) * 10;
+  return floors.map((f) => {
     const built = f.builtDay !== null;
+    const straw = threshingFloorStraw(f.builtDay, day);
+    const threshing =
+      built &&
+      shares.some(
+        (s) =>
+          s.activity === 'thresh' &&
+          s.manDays > 0 &&
+          s.target.kind === 'threshing-floor' &&
+          s.target.id === f.id,
+      );
     return {
       id: f.id,
       position: f.position,
       built,
       progress: built ? 1 : (constructions.find((c) => c.id === f.id)?.buildProgress ?? 0),
+      ...(built && straw > 0 ? { straw } : {}),
+      ...(threshing ? { threshing: true as const } : {}),
+      ...(built && grainKg > 0 ? { grainKg } : {}),
     };
   });
 }

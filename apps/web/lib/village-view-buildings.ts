@@ -13,6 +13,7 @@ import {
   sacredBuildingHappiness,
   type SacredBuildingKind,
   dateOfDayIndex,
+  dayIndexOf,
   monthInWindow,
   groveAgeYears,
   isAbandoned,
@@ -416,3 +417,36 @@ export const SACRED_HAPPINESS: Record<SacredBuildingKind, number> = {
   idol: sacredBuildingHappiness('idol'),
   shrine: sacredBuildingHappiness('shrine'),
 };
+
+/**
+ * Stoh slámy na humně (production-chains.md – Humno, návrh Clauda): sláma z výmlatu jde na stoh
+ * na kraji mlatu. Výmlat běží hned po žni v srpnu a září (`STRAW_RISE_DAYS` od 1. 8.) – stoh
+ * roste od zbytku loňského (`STRAW_LEFT`; humno postavené až po loňském výmlatu od nuly) do
+ * plného, pak se přes zimu a jaro zkrmí a podestele až na zbytek před další žní. Humno postavené po
+ * letošním výmlatu stoh nemá. Výsledek po dvacetinách (scéna se nepřestavuje každý den).
+ */
+export function threshingFloorStraw(builtDay: number | null, day: number): number {
+  if (builtDay === null || builtDay > day) return 0;
+  const { year, month } = dateOfDayIndex(day);
+  const cycle = month >= 8 ? year : year - 1;
+  const start = dayIndexOf({ year: cycle, month: 8, day: 1 });
+  const riseEnd = start + STRAW_RISE_DAYS;
+  const next = dayIndexOf({ year: cycle + 1, month: 8, day: 1 });
+  const previousRiseEnd = dayIndexOf({ year: cycle - 1, month: 8, day: 1 }) + STRAW_RISE_DAYS;
+  let straw: number;
+  if (day < riseEnd) {
+    const from = Math.max(start, builtDay);
+    const base = builtDay < previousRiseEnd ? STRAW_LEFT : 0;
+    straw = base + (1 - base) * ((day - from + 1) / (riseEnd - from));
+  } else if (builtDay >= riseEnd) {
+    return 0;
+  } else {
+    straw = 1 - (1 - STRAW_LEFT) * ((day - riseEnd) / (next - riseEnd));
+  }
+  return Math.round(Math.min(1, Math.max(0, straw)) * 20) / 20;
+}
+
+/** Výmlat ozimu, luštěnin a jaře – srpen a září (dní od 1. 8.). */
+export const STRAW_RISE_DAYS = 61;
+/** Kolik stohu zbude do příští žně (podíl plného). */
+export const STRAW_LEFT = 0.3;

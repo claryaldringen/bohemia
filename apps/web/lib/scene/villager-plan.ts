@@ -46,7 +46,9 @@ import {
   orchardPlanting,
   orchardTrees,
   planting,
+  groundWork,
   threshing,
+  threshingFloorSite,
   threshingOnFloor,
 } from './villager-plan-fields';
 import {
@@ -534,7 +536,7 @@ export function placer(ctx: Context, share: SceneLaborShare, count: number): Pla
     case 'slaughter':
       // parta porážky stojí u stanoviště (villager-plan-slaughter.ts); zbytek podílu – uzení
       // a práce kolem – na udusané zemi kousek od domů jako výmlat
-      return threshing(ctx, count);
+      return groundWork(ctx, count);
     case 'watch':
       // noční hlídka polí (wildlife.md – Obrana polí): ve dne nikdo, ve scéně ji ukazuje oheň (W10)
       return none;
@@ -563,6 +565,10 @@ export function placer(ctx: Context, share: SceneLaborShare, count: number): Pla
     case 'build':
       if (t.kind === 'road') return roadWork(ctx, t.id);
       if (t.kind === 'wagon') return wagonWork(ctx, t);
+      // humno se staví po fázích na půdorysu mlatu (production-chains.md – Humno)
+      if (t.kind === 'site' && ctx.village.threshingFloors?.some((f) => f.id === t.id)) {
+        return threshingFloorSite(ctx, t.id);
+      }
       return t.kind === 'site' || t.kind === 'dwelling' ? building(ctx, t, 'build') : none;
     case 'repair':
       // opravy obydlí, oprava modly a svatyně (abandonment.md – Oprava) – lidé kolem stavby

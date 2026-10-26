@@ -104,6 +104,24 @@
           "wood": [0.06, 0.36, 0.14, 0.58]
         },
         "rotate_deg": [-60, 0, 0]
+      },
+      {
+        "name": "thresh-stick",
+        "procedural": "stick",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        }
+      },
+      {
+        "name": "shovel",
+        "procedural": "shovel",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        }
       }
     ],
     "clips": [
@@ -214,6 +232,16 @@
         "name": "fish",
         "animation": "animation/biped/citizen/idle_relax_f.dae",
         "props": ["head", "fishing-rod"]
+      },
+      {
+        "name": "thresh",
+        "animation": "animation/biped/gatherer/gather_mine.dae",
+        "props": ["head", "thresh-stick"]
+      },
+      {
+        "name": "winnow",
+        "animation": "animation/biped/gatherer/farming.dae",
+        "props": ["head", "shovel"]
       }
     ]
   },
@@ -347,6 +375,24 @@
           "wood": [0.06, 0.36, 0.14, 0.58]
         },
         "rotate_deg": [-60, 0, 0]
+      },
+      {
+        "name": "thresh-stick",
+        "procedural": "stick",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        }
+      },
+      {
+        "name": "shovel",
+        "procedural": "shovel",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        }
       }
     ],
     "clips": [
@@ -497,6 +543,16 @@
         "name": "fish",
         "animation": "animation/biped/citizen/idle_relax_m_a.dae",
         "props": ["head", "fishing-rod"]
+      },
+      {
+        "name": "thresh",
+        "animation": "animation/biped/gatherer/gather_mine.dae",
+        "props": ["head", "thresh-stick"]
+      },
+      {
+        "name": "winnow",
+        "animation": "animation/biped/gatherer/farming.dae",
+        "props": ["head", "shovel"]
       }
     ]
   }

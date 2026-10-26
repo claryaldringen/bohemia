@@ -3,11 +3,19 @@ import { AGE } from '@bohemia/game';
 import type { SceneLabor } from '../village-view';
 import { fetchCarriers, streamPhase } from './road-traffic';
 import { hash01 } from './smoke-schedule';
-import { shuttle, stand, walkSpeed, type ShuttleOptions } from './villager-motion';
+import {
+  shuttle,
+  stand,
+  walkSpeed,
+  type PoseFn,
+  type Route,
+  type ShuttleOptions,
+} from './villager-motion';
 import { shuttleErrand } from './villager-errands';
 import { craftSpots, forestKilnAnchor } from './workshop-layout';
 import { orePitRadius } from './ore-site-layout';
 import { GRAIN_PIT_RADIUS_M } from './grain-pit-layout';
+import { FLOOR_ENTRANCE, floorPoint } from './threshing-floor-layout';
 import {
   CHILD_UNDER,
   MILIR_ID_OFFSET,
@@ -17,6 +25,7 @@ import {
   type Context,
   type Placer,
   type PlannedVillager,
+  type Point,
 } from './villager-plan-types';
 import {
   free,
@@ -66,18 +75,62 @@ export function oreDiggers(ctx: Context, site: { x: number; z: number }): Placer
 }
 
 /**
- * Lidé u obilné jámy (production-chains.md – Obilné jámy): stojí kolem hrdla čelem k němu
- * a pracují motykou (kopání, pečetění hlínou) – nošení zrna z humna přinese úloha scény.
+ * Lidé u obilné jámy (production-chains.md – Obilné jámy): první dva stojí kolem hrdla čelem
+ * k němu a pracují motykou (kopání, pečetění hlínou), další nosí v koších zrno z hromádky na humně
+ * (vstup před předkem mlatu nejbližšího humna, kde zrno čeká) k jámě po pěšinách. Bez zrna na
+ * humnu (nebo bez cesty) stojí u jámy všichni.
  */
 export function grainPitWorkers(ctx: Context, pit: { x: number; z: number }): Placer {
   const radius = GRAIN_PIT_RADIUS_M + gap(0.35);
-  return (i) => {
+  const atPit = (i: number): PoseFn | null => {
     const a = 0.4 + i * 2.1;
     const spot = nearestFree(ctx, pit.x + Math.cos(a) * radius, pit.z + Math.sin(a) * radius, 3);
     if (!spot) return null;
     const h = unit(pit.x - spot.x, pit.z - spot.z);
     return stand(spot.x, spot.z, h.x, h.z, 'hoe');
   };
+  const path = grainRoute(ctx, pit);
+  return (i, who) => {
+    if (i < 2 || !path) return atPit(i);
+    return shuttle(path, {
+      outClip: 'walk',
+      outSpeed: walkSpeed(who.kind, 'walk', who.scale),
+      endClip: 'weed',
+      endS: FETCH_LOAD_S,
+      backClip: 'carry',
+      backSpeed: walkSpeed(who.kind, 'carry', who.scale),
+      restClip: 'weed',
+      restS: 3,
+      phase: who.phase,
+    });
+  };
+}
+
+/** Cesta od jámy k hromádce zrna na nejbližším humně (vstup před mlatem); bez zrna null. */
+function grainRoute(ctx: Context, pit: { x: number; z: number }): Route | null {
+  let best: { x: number; z: number } | null = null;
+  let bestD = Infinity;
+  for (const f of ctx.village.threshingFloors ?? []) {
+    if (!f.built || !f.grainKg) continue;
+    const e = floorPoint(f.position, FLOOR_ENTRANCE.lx, FLOOR_ENTRANCE.lz);
+    const d = Math.hypot(e.x - pit.x, e.z - pit.z);
+    if (d < bestD) {
+      bestD = d;
+      best = e;
+    }
+  }
+  if (!best) return null;
+  const from = nearestFree(ctx, pit.x + radiusOut(pit, best).x, pit.z + radiusOut(pit, best).z, 3);
+  const to = nearestFree(ctx, best.x, best.z, 4);
+  if (!from || !to) return null;
+  return walkRoute(ctx, from, to);
+}
+
+/** Krok od středu jámy k humnu – nosič stojí za valem (m). */
+function radiusOut(pit: { x: number; z: number }, toward: { x: number; z: number }): Point {
+  const h = unit(toward.x - pit.x, toward.z - pit.z);
+  const r = GRAIN_PIT_RADIUS_M + 0.9;
+  return { x: h.x * r, z: h.z * r };
 }
 
 /** Jámy rudiště leží kolem místa nejvýš tak daleko (m – SMITH_SUPPLY.pitSpreadM a rezerva). */

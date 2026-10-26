@@ -48,3 +48,9 @@ Miska na krev je nový jednoduchý model (skript, `procedural_bowl`) s texturou 
 Prut (klip `fish`, oba soubory): nový jednoduchý model (skript, `procedural_rod`, **CC0**) – kuželovitý
 šestiboký válec ≈ 3 m s texturou dřeva z `prop_weap.dds` (0 A.D.); klip `fish` je klidová póza
 (`idle_relax_f.dae` / `idle_relax_m_a.dae`), vlasec se kreslí až ve scéně.
+
+Humno (klipy `thresh` a `winnow`, oba soubory): mlácení holí je animace
+`animation/biped/gatherer/gather_mine.dae` (úder krumpáčem oběma rukama shora), prohazování zrna
+lopatou `animation/biped/gatherer/farming.dae`. Mlatcí hůl (`procedural_stick`, ≈ 1,2 m)
+a dřevěná lopata (`procedural_shovel`, násada a list z jednoho kusu dřeva) jsou nové jednoduché
+modely (skript, **CC0**) s texturou dřeva z `prop_weap.dds` (0 A.D.).

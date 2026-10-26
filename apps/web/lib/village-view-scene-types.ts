@@ -1005,6 +1005,12 @@ export interface SceneThreshingFloor {
   built: boolean;
   /** Průběh stavby 0–1 (hotové 1). */
   progress: number;
+  /** Stoh slámy na kraji mlatu 0–1 (`threshingFloorStraw`); chybí = žádný. */
+  straw?: number;
+  /** Dnes se na humně mlátí – rozprostřené klasy a mlatci (production-chains.md – Humno). */
+  threshing?: true;
+  /** Vymlácené zrno na humně, které čeká na uložení do jam (kg na desítky); chybí = žádné. */
+  grainKg?: number;
 }
 
 /**

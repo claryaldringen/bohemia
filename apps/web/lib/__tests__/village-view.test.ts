@@ -278,7 +278,8 @@ describe('humno (production-chains.md – Humno)', () => {
     expect(placementVillageFromScene(view.scene).threshingFloors).toEqual([{ position }]);
     const built = advanceVillage(started, DAY + 400, null);
     const later = buildVillageView(record(built), landscape, DAY + 400);
-    expect(later.scene.threshingFloors).toEqual([{ id, position, built: true, progress: 1 }]);
+    // hotové humno nese i stoh slámy a zrno na humně (podle data a výmlatu)
+    expect(later.scene.threshingFloors).toMatchObject([{ id, position, built: true, progress: 1 }]);
     expect(
       later.chronicle.some((e) => e.text === 'Humno je dostavěné – dá se na něm mlátit.'),
     ).toBe(true);

@@ -4,7 +4,7 @@ blender -b --factory-startup --python tools/blender/people_from_0ad.py -- \
     tools/blender/people.json <0ad>/binaries/data/mods/public/art apps/web/public/models/people
 
 people.json: [{"name", "height_m" | "length_m", "body": {"dae", "texture", "tint", "pattern"?,
-"flatten"?, "multiply"?, "coat"?}, "props": [{"name", "dae" | "procedural" (sickle | rod | yoke | bowl), "point", "texture",
+"flatten"?, "multiply"?, "coat"?}, "props": [{"name", "dae" | "procedural" (sickle | rod | yoke | bowl | stick | shovel), "point", "texture",
 "tint"?, "uv"?, "scale"? (měřítko kolem bodu, výchozí 1), "rotate_deg"? ([x, y, z] natočení v osách bodu),
 "offset_m"? ([x, y, z] posun v osách bodu, v metrech)}], "clips": [{"name", "animation", "props": [jména propů viditelných v klipu],
 "pose"?, "report"?}]}]
@@ -431,11 +431,76 @@ def procedural_bowl(uv_wood, uv_liquid):
     return {"matrix": Matrix.Identity(4), "positions": positions, "normals": normals, "uvs": uvs, "tris": tris}
 
 
+def _tapered_rod(out, sides, z0, z1, r0, r1, uv_wood):
+    """Kuželovitý mnohoboký válec podél osy z (do `out` – positions, normals, uvs, tris)."""
+    positions, normals, uvs, tris = out
+    u0, v0, u1, v1 = uv_wood
+    for k in range(sides):
+        a0, a1 = 2 * math.pi * k / sides, 2 * math.pi * (k + 1) / sides
+        am = (a0 + a1) / 2
+        n = Vector((math.cos(am), math.sin(am), 0.0))
+        base = len(positions)
+        positions.extend(
+            [
+                Vector((math.cos(a0) * r0, math.sin(a0) * r0, z0)),
+                Vector((math.cos(a1) * r0, math.sin(a1) * r0, z0)),
+                Vector((math.cos(a1) * r1, math.sin(a1) * r1, z1)),
+                Vector((math.cos(a0) * r1, math.sin(a0) * r1, z1)),
+            ]
+        )
+        normals.extend([n] * 4)
+        uvs.extend([[u0, v0], [u1, v0], [u1, v1], [u0, v1]])
+        i = len(normals) - 4
+        tris.append(((base, i, base), (base + 1, i + 1, base + 1), (base + 2, i + 2, base + 2)))
+        tris.append(((base, i, base), (base + 2, i + 2, base + 2), (base + 3, i + 3, base + 3)))
+
+
+def procedural_stick(uv_wood):
+    """Mlatcí hůl (production-chains.md – Humno: mlátí se holemi, cepy až později – Martin
+    21. 10. 2026; CC0, procedurálně): rovná šestiboká hůl ≈ 1,2 m podél osy z bodu propu, drží se
+    u konce (z = −0,25 … 2,45; postava ≈ 3,9 jednotky = 1,75 m), k úderovému konci mírně silnější."""
+    out = ([], [], [], [])
+    _tapered_rod(out, 6, -0.25, 2.45, 0.045, 0.06, uv_wood)
+    positions, normals, uvs, tris = out
+    return {"matrix": Matrix.Identity(4), "positions": positions, "normals": normals, "uvs": uvs, "tris": tris}
+
+
+def procedural_shovel(uv_wood):
+    """Dřevěná lopata na prohazování zrna proti větru (production-chains.md – Humno; CC0,
+    procedurálně): násada podél osy z bodu propu (z = −0,25 … 1,9) a plochý list z jednoho kusu
+    dřeva (z = 1,9 … 2,75, šířka 0,5, tloušťka 0,05 jednotky – ≈ 38 × 22 cm)."""
+    out = ([], [], [], [])
+    _tapered_rod(out, 6, -0.25, 1.95, 0.045, 0.04, uv_wood)
+    positions, normals, uvs, tris = out
+    u0, v0, u1, v1 = uv_wood
+    hx, hy, z0, z1 = 0.25, 0.025, 1.9, 2.75
+
+    def quad(a, b, c, d, n):
+        base = len(positions)
+        positions.extend([Vector(a), Vector(b), Vector(c), Vector(d)])
+        normals.extend([Vector(n)] * 4)
+        uvs.extend([[u0, v0], [u1, v0], [u1, v1], [u0, v1]])
+        i = len(normals) - 4
+        tris.append(((base, i, base), (base + 1, i + 1, base + 1), (base + 2, i + 2, base + 2)))
+        tris.append(((base, i, base), (base + 2, i + 2, base + 2), (base + 3, i + 3, base + 3)))
+
+    # list: kvádr se zúženým krčkem u násady (spodní hrana užší)
+    nx0 = 0.12
+    quad((-nx0, -hy, z0), (nx0, -hy, z0), (hx, -hy, z1), (-hx, -hy, z1), (0, -1, 0))
+    quad((nx0, hy, z0), (-nx0, hy, z0), (-hx, hy, z1), (hx, hy, z1), (0, 1, 0))
+    quad((hx, -hy, z1), (hx, hy, z1), (-hx, hy, z1), (-hx, -hy, z1), (0, 0, 1))
+    quad((-nx0, hy, z0), (-nx0, -hy, z0), (-hx, -hy, z1), (-hx, hy, z1), (-1, 0, 0))
+    quad((nx0, -hy, z0), (nx0, hy, z0), (hx, hy, z1), (hx, -hy, z1), (1, 0, 0))
+    return {"matrix": Matrix.Identity(4), "positions": positions, "normals": normals, "uvs": uvs, "tris": tris}
+
+
 PROCEDURAL = {
     "sickle": lambda r: procedural_sickle(r["blade"], r["handle"]),
     "rod": lambda r: procedural_rod(r["wood"]),
     "yoke": lambda r: procedural_yoke(r["wood"], r["band"], r["rope"]),
     "bowl": lambda r: procedural_bowl(r["wood"], r["liquid"]),
+    "stick": lambda r: procedural_stick(r["wood"]),
+    "shovel": lambda r: procedural_shovel(r["wood"]),
 }
 
 

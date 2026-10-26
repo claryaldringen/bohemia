@@ -30,6 +30,10 @@ export type VillagerClip =
   | 'carry-meat'
   | 'carry-meat-idle'
   | 'fish'
+  // humno (production-chains.md – Humno): úder mlatcí holí oběma rukama shora, prohazování
+  // zrna dřevěnou lopatou proti větru
+  | 'thresh'
+  | 'winnow'
   // jezdec a výcvik vojvodovy rodiny (horses.md, lord.md) – jen `man.glb`
   | 'ride'
   | 'ride-trot'
@@ -63,6 +67,8 @@ export const VILLAGER_CLIPS: readonly VillagerClip[] = [
   'carry-meat',
   'carry-meat-idle',
   'fish',
+  'thresh',
+  'winnow',
   // jezdec (sed na koni) a výcvik s dřevěnými zbraněmi – klipy má jen `man.glb`
   'ride',
   'ride-trot',

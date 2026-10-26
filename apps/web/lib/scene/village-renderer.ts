@@ -28,6 +28,8 @@ import type { WeddingPlan } from './wedding-plan';
 import { WeddingRenderer } from './wedding-renderer';
 import { OreSiteRenderer } from './ore-sites';
 import { GrainPitRenderer } from './grain-pits';
+import { ThreshingFloorRenderer } from './threshing-floor-renderer';
+import { floorSiteLook } from './threshing-floor-layout';
 import {
   DECAY_LOOKS,
   decayModelParts,
@@ -180,7 +182,7 @@ export class VillageRenderer {
   >();
   /** Milířiště po rozebraných milířích – černá uhlíkatá zem, která zarůstá (crafts.md). */
   private readonly kilnRemnants = new Map<number, { key: string; mesh: Mesh }>();
-  /** Humna – zatím jen obtisk mlatové plochy (`updateThreshingFloors`). */
+  /** Obtisky mlatu humen (`updateThreshingFloors`); zbytek humna kreslí `threshing`. */
   private readonly threshingFloors = new Map<number, { key: string; mesh: Mesh }>();
   private readonly models = new Map<ModelKey, Mesh | null>();
   private readonly ghosts = new Map<ModelKey, Mesh>();
@@ -220,6 +222,8 @@ export class VillageRenderer {
   private readonly ores: OreSiteRenderer;
   /** Otevřené obilné jámy (production-chains.md – Obilné jámy). */
   private readonly grainPits: GrainPitRenderer;
+  /** Humna kromě obtisku mlatu – vytyčení, hromady, klasy, zrno a stoh slámy. */
+  private readonly threshing: ThreshingFloorRenderer;
   private readonly pegs: StakingPegs;
   private readonly orchards: OrchardRenderer;
   private readonly sacred: SacredRenderer;
@@ -296,6 +300,13 @@ export class VillageRenderer {
       addShadowCaster: (mesh) => context.addShadowCaster(mesh),
     });
     this.grainPits = new GrainPitRenderer(scene, { decalHeight: context.decalHeight });
+    this.threshing = new ThreshingFloorRenderer(scene, {
+      groundHeight: context.groundHeight,
+      decalHeight: context.decalHeight,
+      addShadowCaster: (mesh) => context.addShadowCaster(mesh),
+      onAsyncChange: () => context.onAsyncChange(),
+      prepareMaterial: prepareDwellingMaterial,
+    });
     this.orchards = new OrchardRenderer(scene, context);
     this.plots = new HomesteadRenderer(scene, {
       groundHeight: context.groundHeight,
@@ -366,7 +377,9 @@ export class VillageRenderer {
     const dwellings = this.updateDwellings(village.dwellings);
     const kilns = this.updateKilns(village.kilns ?? []);
     const remnants = this.updateKilnRemnants(village.kilnRemnants ?? []);
-    const floors = this.updateThreshingFloors(village.threshingFloors ?? []);
+    // obě části humna se překreslí vždy (ne zkráceným „||“)
+    const floorDecals = this.updateThreshingFloors(village.threshingFloors ?? []);
+    const floors = this.threshing.update(village.threshingFloors ?? []) || floorDecals;
     const ruins = this.updateRuins(village.ruins ?? []);
     if (dwellings || ruins) this.updatePitCuts();
     // ladicí orba za herní den: dnešní díly orby na začátku dne, zbytek přibývá brázdou za rádlem
@@ -931,6 +944,7 @@ export class VillageRenderer {
     this.cemeteries.dispose();
     this.ores.dispose();
     this.grainPits.dispose();
+    this.threshing.dispose();
     this.plots.dispose();
     // ohrady uvolní své ploty – před sdílenými ploty
     this.pens.dispose();
@@ -1049,22 +1063,26 @@ export class VillageRenderer {
   }
 
   /**
-   * Humna (production-chains.md – Humno) – zatím jen zástupný obtisk udusané mlatové plochy přes
-   * půdorys, staveniště slaběji podle průběhu stavby (po desetinách). Model, výběr a postavy
-   * přinese scéna humna. Vrátí true při změně.
+   * Humna (production-chains.md – Humno) – obtisk udusané mlatové plochy přes půdorys, staveniště
+   * slaběji podle fáze stavby (`floorSiteLook` – při vytyčení žádný). Stoh, hromady a klasy kreslí
+   * `ThreshingFloorRenderer`. Vrátí true při změně.
    */
   private updateThreshingFloors(floors: readonly SceneThreshingFloor[]): boolean {
     let changed = false;
     const seen = new Set<number>();
     for (const f of floors) {
       seen.add(f.id);
-      const progress = f.built ? 1 : Math.round(f.progress * 10) / 10;
+      const cover = floorSiteLook(f).decal;
       const { x, z, rotation } = f.position;
-      const key = [x, z, rotation, progress].join('|');
+      const key = [x, z, rotation, cover].join('|');
       const current = this.threshingFloors.get(f.id);
       if (current?.key === key) continue;
       changed = true;
       current?.mesh.dispose();
+      if (cover <= 0) {
+        this.threshingFloors.delete(f.id);
+        continue;
+      }
       const area = threshingFloorFootprint(f.position).map(([px, pz]): Point => [px, pz]);
       const b = polygonBounds(area);
       const pad = THRESHING_FLOOR_SOFT_M;
@@ -1081,7 +1099,7 @@ export class VillageRenderer {
           smoothHeight: this.context.groundHeight,
           lift: LIFT.turf,
           color: THRESHING_FLOOR_COLOR,
-          alpha: THRESHING_FLOOR_ALPHA * (0.45 + 0.55 * progress),
+          alpha: THRESHING_FLOOR_ALPHA * cover,
           uv: 20,
         },
       );

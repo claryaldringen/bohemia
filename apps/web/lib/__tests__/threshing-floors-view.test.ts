@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf, foundVillage } from '@bohemia/game';
-import { threshingFloorsOf } from '../village-view-buildings';
+import { STRAW_LEFT, threshingFloorStraw, threshingFloorsOf } from '../village-view-buildings';
 import { selectionDetails } from '../selection-details';
 import type { SceneVillage, VillageView } from '../village-view';
 
@@ -43,5 +43,34 @@ describe('humna v pohledu na ves', () => {
       ...floor,
     });
     expect(selectionDetails(view, scene, { kind: 'threshing-floor', id: 8 })).toBeNull();
+  });
+});
+
+describe('stoh slámy na humně (threshingFloorStraw)', () => {
+  const day = (year: number, month: number, d: number): number =>
+    dayIndexOf({ year, month, day: d });
+
+  it('roste při výmlatu v srpnu a září, přes zimu ubývá na zbytek', () => {
+    const built = day(600, 3, 1);
+    expect(threshingFloorStraw(null, day(602, 8, 10))).toBe(0);
+    expect(threshingFloorStraw(built, day(600, 4, 1))).toBe(0);
+    const aug = threshingFloorStraw(built, day(600, 8, 15));
+    const sep = threshingFloorStraw(built, day(600, 9, 25));
+    expect(aug).toBeGreaterThan(0);
+    expect(sep).toBeGreaterThan(aug);
+    expect(threshingFloorStraw(built, day(600, 10, 2))).toBe(1);
+    const spring = threshingFloorStraw(built, day(601, 4, 1));
+    expect(spring).toBeLessThan(1);
+    expect(threshingFloorStraw(built, day(601, 7, 31))).toBeCloseTo(STRAW_LEFT, 1);
+    // příští žeň začíná od zbytku
+    expect(threshingFloorStraw(built, day(601, 8, 1))).toBeGreaterThanOrEqual(STRAW_LEFT);
+  });
+
+  it('humno postavené po výmlatu má stoh až od příští žně', () => {
+    const built = day(600, 11, 1);
+    expect(threshingFloorStraw(built, day(601, 2, 1))).toBe(0);
+    const next = threshingFloorStraw(built, day(601, 8, 5));
+    expect(next).toBeGreaterThan(0);
+    expect(next).toBeLessThan(STRAW_LEFT);
   });
 });

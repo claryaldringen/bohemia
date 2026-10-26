@@ -1,5 +1,5 @@
 // Postavy na polích, loukách, v sadu a při výmlatu: řady, nosiči, zakládání.
-import { dateOfDayIndex, type TileCell } from '@bohemia/game';
+import { dateOfDayIndex, threshingFloorFootprint, type TileCell } from '@bohemia/game';
 import type { SceneFieldPart, SceneLaborShare } from '../village-view';
 import { TREE_CLEARANCE_M, buildingClearings, insideClearings } from './building-clearings';
 import { rowDirection } from './field-cells';
@@ -13,8 +13,24 @@ import {
   type WorkFrame,
 } from './field-look';
 import { orchardTreeSpots } from './orchard-layout';
+import {
+  CLAY_HEAP,
+  FLOOR_ENTRANCE,
+  FLOOR_HALF,
+  SHEAF_BED,
+  STRAW_STACK,
+  THRESHER_PAIRS,
+  WINNOWERS,
+  WINNOW_FACING,
+  floorDirection,
+  floorPhase,
+  floorPoint,
+  thresherSpot,
+  winnowerSpot,
+} from './threshing-floor-layout';
 import { hash01 } from './smoke-schedule';
 import {
+  route,
   rowWork,
   shuttle,
   stand,
@@ -334,10 +350,13 @@ export function carriers(ctx: Context, share: SceneLaborShare, fieldId: number):
     const home = nearestHouse(ctx.homes, square);
     const fallback = (): PoseFn | null =>
       frontierRow(ctx, work, view, i % CREW, CREW, 'reap', who, false);
-    if (!home) return fallback();
+    // snopy obilí a luštěnin jdou na hotové humno (production-chains.md – Humno), jinak domů
+    const floor = share.activity === 'carry' ? sheafFloor(ctx, square) : null;
+    if (!home && !floor) return fallback();
     // od vchodu jako provoz na cestách (`trafficDoor` – vchod pozemku může ústit k sousednímu
     // pozemku); stejné místo pro všechny nosiče domu – trasa se hledá jednou
-    const door = trafficDoor(ctx, home) ?? doorPoint(home);
+    const door = floor ?? (home ? (trafficDoor(ctx, home) ?? doorPoint(home)) : null);
+    if (!door) return fallback();
     const half = square.size / 2 - ROW_MARGIN_M;
     // kraj čtverce nejblíž dveřím (v osách čtverce – i natočeného)
     const [u, v] = squareLocal(square, door.x, door.z);
@@ -348,7 +367,8 @@ export function carriers(ctx: Context, share: SceneLaborShare, fieldId: number):
       x: square.x + ax.x * cu + az.x * cv,
       z: square.z + ax.z * cu + az.z * cv,
     };
-    const path = walkRoute(ctx, door, edge, home.id) ?? fieldPath(ctx, door, edge, home.id);
+    const homeId = floor ? undefined : home?.id;
+    const path = walkRoute(ctx, door, edge, homeId) ?? fieldPath(ctx, door, edge, homeId);
     if (!path) return fallback();
     return shuttle(path, {
       outClip: 'walk',
@@ -405,34 +425,128 @@ export function planting(ctx: Context, ids: readonly number[]): Placer {
 }
 
 /**
- * Výmlat na hotovém humnu (production-chains.md – Humno): mlatci v kruhu uprostřed mlatu.
- * Humno, které ve scéně není nebo ještě stojí jen jako staveniště, nikoho nemá.
+ * Výmlat na hotovém humnu (production-chains.md – Humno; Martin 21. 10. 2026: „ať do něj mlátí
+ * holemi“): páry mlatců s holemi naproti sobě přes rozprostřené klasy, u hromádky zrna
+ * prohazovači s lopatou proti větru, pomocník nosí slámu na stoh; další obracejí klasy za mlatci.
+ * Místa z threshing-floor-layout.ts. Humno, které ve scéně není nebo ještě stojí jen jako
+ * staveniště, nikoho nemá.
  */
 export function threshingOnFloor(ctx: Context, floorId: number, count: number): Placer {
   const floor = (ctx.village.threshingFloors ?? []).find((f) => f.id === floorId);
   if (!floor?.built) return none;
-  return (i) => {
-    const a = (i / Math.max(1, count)) * Math.PI * 2 + hash01(ctx.seed, 95, floorId);
-    const x = floor.position.x + Math.cos(a) * gap(1.6);
-    const z = floor.position.z + Math.sin(a) * gap(1.6);
-    return stand(x, z, -Math.cos(a), -Math.sin(a), 'build');
+  const at = floor.position;
+  const winnowers = Math.min(WINNOWERS, Math.floor(count / 3));
+  const threshers = Math.min(2 * THRESHER_PAIRS, count - winnowers);
+  const bed = floorPoint(at, SHEAF_BED.lx, SHEAF_BED.lz + SHEAF_BED.halfZ - 0.6);
+  const stack = floorPoint(at, STRAW_STACK.lx - 1.1, STRAW_STACK.lz + 1.1);
+  const strawPath = route([
+    [bed.x, bed.z],
+    [stack.x, stack.z],
+  ]);
+  return (i, who) => {
+    if (i < threshers) {
+      const spot = thresherSpot(i);
+      const p = floorPoint(at, spot.lx, spot.lz);
+      const h = floorDirection(at, spot.fx, spot.fz);
+      return stand(p.x, p.z, h.x, h.z, 'thresh');
+    }
+    if (i < threshers + winnowers) {
+      const spot = winnowerSpot(i - threshers);
+      const p = floorPoint(at, spot.lx, spot.lz);
+      return stand(p.x, p.z, WINNOW_FACING.x, WINNOW_FACING.z, 'winnow');
+    }
+    const k = i - threshers - winnowers;
+    if (k === 0) {
+      // sláma z vymlácených klasů na stoh
+      return shuttle(strawPath, {
+        outClip: 'walk',
+        outSpeed: walkSpeed(who.kind, 'walk', who.scale),
+        endClip: 'weed',
+        endS: 3,
+        backClip: 'carry',
+        backSpeed: walkSpeed(who.kind, 'carry', who.scale),
+        restClip: 'weed',
+        restS: 4,
+        phase: who.phase,
+      });
+    }
+    // pomocníci obracejí klasy za mlatci (vnitřkem pásu)
+    const spot = thresherSpot(k - 1);
+    const p = floorPoint(at, spot.lx + spot.fx * 0.9, spot.lz + 0.4);
+    const h = floorDirection(at, -spot.fx, 0);
+    return stand(p.x, p.z, h.x, h.z, 'weed');
   };
 }
 
-/** Nouzový výmlat u vsi: mlatci v kruhu na volném místě kousek od domů (cep zatím paličkou). */
-export function threshing(ctx: Context, count: number): Placer {
-  const floors: Point[] = [];
-  const perFloor = 6;
-  const wanted = Math.ceil(count / perFloor);
-  for (let r = 8; r <= 26 && floors.length < wanted; r += 3) {
-    for (let k = 0; k < 12 && floors.length < wanted; k++) {
-      const a = (k / 12) * Math.PI * 2 + hash01(ctx.seed, r, 93);
-      const p = { x: ctx.center.x + Math.cos(a) * r, z: ctx.center.z + Math.sin(a) * r };
-      if (openGround(ctx, p, 2.4) && floors.every((f) => Math.hypot(f.x - p.x, f.z - p.z) > 6)) {
-        floors.push(p);
-      }
+/**
+ * Stavba humna po fázích (threshing-floor-layout.ts – `FLOOR_PHASES`): vytyčení paličkou u kolíků,
+ * sejmutí drnu motykou v řadách, hlína na mazanici (u hromady motyka, na mlatu roztírání),
+ * dusání holí přes celý mlat a vymazání v podřepu.
+ */
+export function threshingFloorSite(ctx: Context, floorId: number): Placer {
+  const floor = (ctx.village.threshingFloors ?? []).find((f) => f.id === floorId && !f.built);
+  if (!floor) return none;
+  const at = floor.position;
+  const phase = floorPhase(floor);
+  const onFloor = (i: number, clip: VillagerClip): PoseFn | null => {
+    // mřížka 2 × 2 m přes mlat, řady čelem k předku
+    const col = i % 4;
+    const row = Math.floor(i / 4) % 5;
+    const p = floorPoint(at, -FLOOR_HALF.x + 1 + col * 2, -FLOOR_HALF.z + 1 + row * 2);
+    const h = floorDirection(at, 0, 1);
+    const spot = nearestFree(ctx, p.x, p.z, 1.5) ?? p;
+    return stand(spot.x, spot.z, h.x, h.z, clip);
+  };
+  return (i) => {
+    if (phase === 'staking') {
+      const corners = threshingFloorFootprint(at);
+      const [cx, cz] = corners[i % corners.length]!;
+      const h = unit(at.x - cx, at.z - cz);
+      const spot = nearestFree(ctx, cx - h.x * gap(0.5), cz - h.z * gap(0.5), 2);
+      return spot ? stand(spot.x, spot.z, h.x, h.z, 'build') : null;
     }
-  }
+    if (phase === 'clay' && i % 2 === 0) {
+      const heap = floorPoint(at, CLAY_HEAP.lx, CLAY_HEAP.lz);
+      const a = 0.6 + i * 1.3;
+      const r = CLAY_HEAP.radius + gap(0.4);
+      const spot = nearestFree(ctx, heap.x + Math.cos(a) * r, heap.z + Math.sin(a) * r, 2);
+      if (!spot) return null;
+      const h = unit(heap.x - spot.x, heap.z - spot.z);
+      return stand(spot.x, spot.z, h.x, h.z, 'hoe');
+    }
+    const clip: VillagerClip = phase === 'turf' ? 'hoe' : phase === 'ramming' ? 'thresh' : 'weed';
+    return onFloor(i, clip);
+  };
+}
+
+/**
+ * Nouzový výmlat u vsi (production-chains.md – Humno: bez humna se mlátí na udusané zemi u domů):
+ * na volném místě kousek od domů dva páry mlatců s holemi naproti sobě a dva prohazovači s lopatou
+ * proti větru; víc lidí – další taková místa.
+ */
+export function threshing(ctx: Context, count: number): Placer {
+  const perFloor = 6;
+  const floors = groundFloors(ctx, Math.ceil(count / perFloor));
+  if (floors.length === 0) return none;
+  return (i) => {
+    const floor = floors[Math.floor(i / perFloor) % floors.length]!;
+    const k = i % perFloor;
+    if (k < 4) {
+      const side = k % 2 === 0 ? -1 : 1;
+      const x = floor.x + side * gap(1.1);
+      const z = floor.z + (Math.floor(k / 2) - 0.5) * 1.5;
+      return stand(x, z, -side, 0, 'thresh');
+    }
+    const x = floor.x - 1.2 + (k - 4) * 1.1;
+    const z = floor.z + 2.4;
+    return stand(x, z, WINNOW_FACING.x, WINNOW_FACING.z, 'winnow');
+  };
+}
+
+/** Práce na udusané zemi u vsi (uzení a práce kolem porážky): lidé v kruhu s paličkou. */
+export function groundWork(ctx: Context, count: number): Placer {
+  const perFloor = 6;
+  const floors = groundFloors(ctx, Math.ceil(count / perFloor));
   if (floors.length === 0) return none;
   return (i) => {
     const floor = floors[Math.floor(i / perFloor) % floors.length]!;
@@ -442,6 +556,41 @@ export function threshing(ctx: Context, count: number): Placer {
     const z = floor.z + Math.sin(a) * gap(1.4);
     return stand(x, z, -Math.cos(a), -Math.sin(a), 'build');
   };
+}
+
+/** Volná místa na udusané zemi kousek od domů (nejvýš `wanted`, od středu vsi ven). */
+function groundFloors(ctx: Context, wanted: number): Point[] {
+  const floors: Point[] = [];
+  for (let r = 8; r <= 26 && floors.length < wanted; r += 3) {
+    for (let k = 0; k < 12 && floors.length < wanted; k++) {
+      const a = (k / 12) * Math.PI * 2 + hash01(ctx.seed, r, 93);
+      const p = { x: ctx.center.x + Math.cos(a) * r, z: ctx.center.z + Math.sin(a) * r };
+      if (openGround(ctx, p, 2.4) && floors.every((f) => Math.hypot(f.x - p.x, f.z - p.z) > 6)) {
+        floors.push(p);
+      }
+    }
+  }
+  return floors;
+}
+
+/**
+ * Nejbližší hotové humno ke čtverci, kam se nosí snopy (production-chains.md – Humno: „snopy jdou
+ * z pole rovnou na humno“) – vstup před předkem mlatu; len se nemlátí (nese se domů).
+ */
+export function sheafFloor(ctx: Context, square: Square & { crop?: string }): Point | null {
+  if (square.crop === 'flax') return null;
+  let best: Point | null = null;
+  let bestD = Infinity;
+  for (const f of ctx.village.threshingFloors ?? []) {
+    if (!f.built) continue;
+    const e = floorPoint(f.position, FLOOR_ENTRANCE.lx, FLOOR_ENTRANCE.lz);
+    const d = Math.hypot(e.x - square.x, e.z - square.z);
+    if (d < bestD) {
+      bestD = d;
+      best = e;
+    }
+  }
+  return best ? (nearestFree(ctx, best.x, best.z, 4) ?? best) : null;
 }
 
 /** Sklizeň jablek a péče: lidé pod jabloněmi vysazených čtverců (střídají se po dnech). */

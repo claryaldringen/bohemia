@@ -118,3 +118,23 @@ describe('jezdec a výcvik – postava man.glb', () => {
     }
   });
 });
+
+describe('humno – postavy man.glb a woman.glb', () => {
+  it('nepřidávají vertex atributy a nesou klipy mlácení holí a prohazování lopatou', () => {
+    for (const file of ['people/man.glb', 'people/woman.glb']) {
+      const glb = readGlb(file);
+      const attributes = Object.keys(glb.meshes[0]?.primitives[0]?.attributes ?? {}).sort();
+      // pozice, normála, uv, klouby a váhy + VAT a barva instance = 8 bufferů (CLAUDE.md)
+      expect(attributes, file).toEqual([
+        'JOINTS_0',
+        'NORMAL',
+        'POSITION',
+        'TEXCOORD_0',
+        'WEIGHTS_0',
+      ]);
+      const clips = (glb.animations ?? []).map((a) => a.name);
+      expect(clips, file).toContain('thresh');
+      expect(clips, file).toContain('winnow');
+    }
+  });
+});
