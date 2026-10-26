@@ -203,6 +203,8 @@ function shareText(
       return 'porází dobytek';
     case 'herding':
       return 'pase';
+    case 'watch':
+      return 'hlídá pole';
     case 'fish':
       return 'chytá ryby';
     case 'snare':

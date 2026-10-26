@@ -368,6 +368,8 @@ export type LaborActivity =
   | 'horse-shoeing'
   /** Rybaření vesničanů u tůně (wildlife.md – Drobná zvěř a ryby; rybář s prutem). */
   | 'fish'
+  /** Noční hlídka polí dospělými (wildlife.md – Obrana polí; `allocation.tasks.watch`). */
+  | 'watch'
   /** Oka na zajíce v zimě (wildlife.md – Drobná zvěř a ryby). */
   | 'snare'
   /** Sezónní práce v sadech (orchard.md). */

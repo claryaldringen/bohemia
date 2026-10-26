@@ -71,6 +71,8 @@ export const WOMEN: Record<LaborActivity, number> = {
   'horse-shoeing': 0,
   herding: 0.2,
   // rybáři a oka na zajíce (wildlife.md – Drobná zvěř a ryby) – scéna je dokreslí až s W11
+  // noční hlídka polí – ve dne nikdo, v noci vesničané spí v domech
+  watch: 0,
   fish: 0.2,
   snare: 0.3,
   'orchard-care': 0.3,

@@ -280,6 +280,8 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
   haulTo('ore', null);
   haulTo('clay', null);
   add('slaughter', { kind: 'village' }, allocation.tasks.slaughter);
+  // noční hlídka polí dospělými (wildlife.md – Obrana polí) – úloha práce, ne propadlá práce
+  add('watch', { kind: 'village' }, allocation.tasks.watch);
   const orchards = orchardAreas(state);
   for (const task of ['orchard-care', 'orchard-harvest'] as const) {
     for (const { target, share } of orchards) {
