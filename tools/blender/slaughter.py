@@ -16,7 +16,7 @@ Výstup slaughter.glb – díly (uzly):
   trestle-small  kozlina na prase, ovci a kozu (visí 1,18–1,28 m): vrchol 2,0 m, bidlo 1,88 m,
                  **hroty háků ve výšce 1,50 m** (počátek zvířete 0,22–0,32 m nad zemí).
   trough         necky: vyhloubené koryto 1,4 × 0,5 m, výška 0,24 m (dno 0,05 m), na dvou příčných
-                 trámcích; leží pod hlavou visícího zvířete.
+                 trámcích, bez krve (krev jen v misce); leží pod hlavou visícího zvířete.
   block          špalek r 0,3 m, výška 0,55 m, na něm prkno 0,7 × 0,34 × 0,04 m (vršek prkna 0,59 m)
                  – na prkno se kladou kýty.
   bowl           miska (horní r 0,14 m, dno 0,08 m, výška 0,09 m) s krví, dno na zemi.
@@ -191,12 +191,6 @@ def box(bm, uv, center, size, region):
             loop[uv].uv = at(region, u, v)
 
 
-def quad(bm, uv, pts, region):
-    face = bm.faces.new([bm.verts.new(p) for p in pts])
-    for loop, (u, v) in zip(face.loops, [(0, 0), (1, 0), (1, 1), (0, 1)]):
-        loop[uv].uv = at(region, u, v)
-
-
 # --- díly ---------------------------------------------------------------------------------------
 
 
@@ -233,8 +227,7 @@ def build_trough(bm, uv):
         box(bm, uv, (0, sign * (width - wall) / 2, 0.04 + height / 2), (length, wall, height), PLANK)
         box(bm, uv, (sign * (length - wall) / 2, 0, 0.04 + height / 2), (wall, width - 2 * wall, height), PLANK)
         box(bm, uv, (sign * 0.45, 0, 0.02), (0.08, width + 0.08, 0.04), BARK)
-    # krev na dně
-    quad(bm, uv, [(-0.55, -0.15, 0.04 + bottom + 0.004), (0.55, -0.15, 0.04 + bottom + 0.004), (0.55, 0.15, 0.04 + bottom + 0.004), (-0.55, 0.15, 0.04 + bottom + 0.004)], BLOOD)
+    # bez krve na dně – krev jen tmavá hladina v misce (Martin 26. 10. 2026)
 
 
 def build_block(bm, uv):

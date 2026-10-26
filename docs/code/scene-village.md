@@ -278,7 +278,8 @@ model. Buffery: pozice, normála, uv, keyA, keyB, stav instance, matice = **7** 
 - `trestle-small` – totéž na prase, ovci a kozu (visí 1,18–1,28 m): vrchol 2,0 m, základna r 0,85 m,
   **hroty háků ve výšce 1,50 m**. Dvě velikosti proto, aby zvíře viselo hlavou nízko nad zemí
   (jedna kozlina 2,2 m by nechala prase s hlavou ve výšce 1 m).
-- `trough` – necky 1,4 × 0,5 m, výška 0,28 m, s krví na dně; pod hlavou visícího zvířete.
+- `trough` – necky 1,4 × 0,5 m, výška 0,28 m, bez krve (Martin 26. 10. 2026: krev jen tmavá
+  hladina v misce); pod hlavou visícího zvířete.
 - `block` – špalek r 0,3 m, výška 0,55 m, nahoře prkno 0,7 × 0,34 m (vršek 0,59 m) pro kýty.
 - `bowl` – miska na zemi (r 0,14 m, výška 0,09 m) s krví; stejný tvar, jaký drží žena v klipu `bleed`
   (prop `bowl` v `people.json`, otevřený nahoru, dno v bodě ruky).
