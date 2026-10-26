@@ -694,7 +694,9 @@ export interface SceneSacred {
  * úhor ve stadiu louky se kosí na seno (Martin) – vysoká tráva na jaře (`meadow`), posečená
  * s řádky sena a kupkami (`mown`), otava se stohy, které přes podzim a zimu mizí (`haystacks`).
  * Nepasený a nesečený příloh zarůstá (fields.md – Zarůstání): křoviny (`shrubs`) a mladý les
- * (`young-forest`) – bez obtisku pole, roste na něm keř a stromky (`overgrowth` dílu).
+ * (`young-forest`) – bez obtisku pole, roste na něm keř a stromky (`overgrowth` dílu). Klučení
+ * lesa (forest.md – Klučení lesa pro pole – postup): paseka s pařezy a větvemi (`slash`)
+ * a spálenina s popelem (`burnt`).
  */
 export type FieldLook =
   | 'bare'
@@ -711,7 +713,9 @@ export type FieldLook =
   | 'mown'
   | 'haystacks'
   | 'shrubs'
-  | 'young-forest';
+  | 'young-forest'
+  | 'slash'
+  | 'burnt';
 
 /**
  * Díl pole ve scéně – políčko krajiny `cell`, jeho střed (x, z) ve světě, strana políčka `size`

@@ -208,7 +208,12 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   v `PlacementVillage`) a stromy zakládaných dílů a čtverců hřbitova obydlí nevyhradí
   (`claimedObstacles`). Dospělé stromy lesa vsi (fields.md – Les vsi) se kácí jako stromy krajiny.
   Mýcení (díly polí, čtverce hřbitova, staveniště) dá kládu za dospělý
-  strom (`trees` u dílu / čtverce). Dřevo je surovina předem (`villageStock` s vrstvou překážek:
+  strom (`trees` u dílu / čtverce). **Hromady klád u lesa** (forest.md – Klučení lesa pro pole –
+  postup; `logStacks` – `LogStack` s kotvou a počtem, podmnožina `woodLogs`): klády z kácení dílu
+  v lese s fázemi jdou na hromadu u lesa pole (`addStackLogs`, kotva = střed čtverce prvního
+  dospělého stromu), odběr staveb, tesaře a prodeje jen přes `takeLogs` (nejdřív hromady u lesa od
+  nejbližší ke staveništi, pak hromada u vsi; prázdná hromada zmizí), hnijí stejně (`rotLogs`);
+  hromada u vsi = `pileLogs`. Dřevo je surovina předem (`villageStock` s vrstvou překážek:
   klády + stromy, které jde skácet – počet stromů vrstvy v mezipaměti). Palivo je v domácí výrobě
   bokem – přirážka za les daleko zmizela (`forestDistanceM` / `forestWalkM` se dál měří). Scéna: hromada klád `lib/scene/log-pile.ts` (místo
   a hranice v `log-pile-layout.ts`, bez volného místa se nekreslí), staveniště ukazuje průběh

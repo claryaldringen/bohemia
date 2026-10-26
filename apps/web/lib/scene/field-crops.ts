@@ -103,6 +103,28 @@ export const LOOK_STYLES: Record<FieldLook, LookStyle> = {
     hay: false,
     weeds: 0,
   },
+  // klučení lesa (forest.md – Klučení lesa pro pole – postup): zatím paseka jako rozrytý drn
+  // a spálenina tmavá s šedým popelem – vlastní obtisky a hromady větví přijdou se scénou paseky
+  slash: {
+    texture: 'grass-dirt',
+    tint: [0.82, 0.68, 0.54],
+    alpha: 1,
+    patches: { texture: 'mud', tint: [0.9, 0.76, 0.6], alpha: 0.75 },
+    crop: null,
+    stooks: false,
+    hay: false,
+    weeds: 0,
+  },
+  burnt: {
+    texture: 'mud',
+    tint: [0.3, 0.27, 0.25],
+    alpha: 1,
+    patches: { texture: 'grass-dirt', tint: [0.55, 0.54, 0.52], alpha: 0.5 },
+    crop: null,
+    stooks: false,
+    hay: false,
+    weeds: 0,
+  },
   plowed: {
     texture: 'farmland',
     tint: [0.84, 0.74, 0.62],

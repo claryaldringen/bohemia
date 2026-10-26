@@ -322,6 +322,12 @@ function resizeParts(
     }
     dropFromMowing(state, part.id);
     handOverObstacles(state, part, day);
+    // díl v lese s fázemi: dospělé stromy, které ještě nepadly, dají klády na hromadu u vsi jako
+    // dřív `trees` (forest.md – Klučení lesa pro pole – postup)
+    if (part.clearing) {
+      const standing = part.clearing.fell.slice(part.clearing.felled).filter((t) => t.log);
+      addLogs(state, logsFromClearedTrees(standing.length));
+    }
   }
   if (removed.size === 0) return loss;
   state.parts = state.parts.filter((p) => !removed.has(p.id));
@@ -558,6 +564,8 @@ function shrinkFounding(state: VillageState, part: FieldPart, share: number): vo
   const done = part.foundingDone * share;
   part.foundingCost -= cost;
   part.foundingDone -= done;
+  // díl v lese s fázemi: pálení se zmenší stejně, ať podíl kácení a pálení zůstane
+  if (part.clearing) part.clearing.burnCost -= part.clearing.burnCost * share;
   const c = state.constructions.find((x) => x.kind === 'field' && x.fieldId === part.fieldId);
   if (!c) return;
   c.cost = Math.max(0, c.cost - cost);

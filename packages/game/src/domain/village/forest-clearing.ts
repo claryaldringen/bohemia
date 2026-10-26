@@ -3,13 +3,20 @@
 // čítač tiků.
 
 import { dateOfDayIndex } from '../calendar';
+import { CELL_SIZE_M, LANDSCAPE_SIZE } from '../landscape';
+import { fellTrees, obstacleChangesAt } from './obstacles';
 import { monthInWindow } from './orchard';
 import { foundingCostPerHa } from './productivity';
 import { BURN_WINDOWS, FOREST_CLEARING } from './rules-fields';
-import type { ClearingStage, FieldPart } from './types';
+import { squareCenter } from './square-grid';
+import { fieldGridOf } from './squares';
+import type { ClearingStage, FieldPart, VillageState } from './types';
+import { addLogs, addStackLogs, logsFromClearedTrees } from './wood';
 
 const EPSILON = 1e-9;
 const M2_PER_HA = 10_000;
+/** Krajina sídla má pevnou velikost (landscape/world.ts). */
+const GEOMETRY = { size: LANDSCAPE_SIZE, cellSizeM: CELL_SIZE_M } as const;
 
 /** Práce pálení dílu (člověkodny): podíl sazby lesa za plochu, který nepatří ke kácení. */
 export function clearingBurnCost(areaM2: number, toolCoverage: number): number {
@@ -83,4 +90,75 @@ export function burnFromDay(part: Pick<FieldPart, 'clearing'>): number | null {
     if (monthInWindow(BURN_WINDOWS, dateOfDayIndex(day).month)) return day;
   }
   return null;
+}
+
+/**
+ * Je kácení dílu hotové? Práce kácení odvedená (i se zaokrouhlením) – poslední strom padl.
+ */
+function fellingDone(part: Pick<FieldPart, 'clearing' | 'foundingCost' | 'foundingDone'>): boolean {
+  return part.foundingDone >= clearingFellCost(part) - EPSILON;
+}
+
+/**
+ * Pokácí stromy dílu, na které došla práce kácení (mutuje stav; forest.md – Klučení lesa pro
+ * pole – postup, bod 1): jedno `fellTrees` za díl a den, po každém stromu zůstane pařez. Strom,
+ * který mezitím padl jinak (dřevo stavby, uhlíř) nebo zmizel, se přeskočí bez klády; dospělé
+ * stromy dají klády na hromadu u lesa pole (kotva = střed čtverce, na kterém padl první dospělý
+ * strom). Jakmile je kácení hotové, padnou všechny zbylé stromy a začne schnutí (`felledDay`).
+ */
+export function fellDueTrees(state: VillageState, part: FieldPart, day: number): void {
+  const clearing = part.clearing;
+  if (!clearing) return;
+  const done = fellingDone(part);
+  const due = done ? clearing.fell.length : treesDue(part, part.foundingDone);
+  if (due > clearing.felled) {
+    // stojí jen strom, který není odstraněný, pařezem ani mladým stromkem (i od sousední vsi
+    // na téže mapě – jako ve `fellTrees`)
+    const changes = obstacleChangesAt(state, day);
+    const gone = new Set([...changes.removed, ...changes.stumps, ...changes.saplings]);
+    const falling = clearing.fell.slice(clearing.felled, due).filter((t) => !gone.has(t.id));
+    if (falling.length > 0) {
+      state.felledTrees =
+        fellTrees(
+          state,
+          falling.map((t) => t.id),
+          day,
+        ).felledTrees ?? [];
+    }
+    const logs = logsFromClearedTrees(falling.filter((t) => t.log).length);
+    if (logs > 0) {
+      if (part.cell) {
+        const anchor = squareCenter(GEOMETRY, fieldGridOf(state, part.fieldId), part.cell);
+        addStackLogs(state, part.fieldId, anchor, logs);
+      } else {
+        addLogs(state, logs);
+      }
+    }
+    clearing.felled = due;
+  }
+  if (done && clearing.felledDay === undefined) clearing.felledDay = day;
+}
+
+/**
+ * Pořadí práce na zakládaných dílech pole ve dni `day` (forest.md – Rozdělení práce): napřed
+ * díly ve fázi pálení, pak kácení a díly bez fází – obojí od nejbližšího k obydlí, při shodě podle
+ * id; schnoucí díly práci neberou a v pořadí nejsou.
+ */
+export function clearingWorkOrder(parts: readonly FieldPart[], day: number): FieldPart[] {
+  const byDistance = (a: FieldPart, b: FieldPart): number =>
+    a.distanceM - b.distanceM || a.id - b.id;
+  const burning: FieldPart[] = [];
+  const rest: FieldPart[] = [];
+  for (const part of parts) {
+    const stage = clearingStage(part, day);
+    if (stage === 'burn') burning.push(part);
+    else if (stage !== 'dry') rest.push(part);
+  }
+  return [...burning.sort(byDistance), ...rest.sort(byDistance)];
+}
+
+/** Doutnají pařezy dílu ve dni `day`? `smolderDays` od dohoření (scéna – kouř bez plamenů). */
+export function isSmoldering(part: Pick<FieldPart, 'burnedDay'>, day: number): boolean {
+  const burned = part.burnedDay;
+  return burned !== undefined && day >= burned && day < burned + FOREST_CLEARING.smolderDays;
 }

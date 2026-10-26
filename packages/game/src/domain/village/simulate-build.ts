@@ -5,6 +5,13 @@ import { villageCemeteries } from './cemetery';
 import { newWorkshop } from './crafts';
 import { decayEmptyDwelling, rebuildType, wantsRebuild, yearlyCommonLabor } from './dwellings';
 import { settleNewDwelling } from './households';
+import {
+  clearingFellCost,
+  clearingNeedToday,
+  clearingStage,
+  clearingWorkOrder,
+  fellDueTrees,
+} from './forest-clearing';
 import { finishArd, finishPen } from './oxen';
 import { recordClearedObstacles } from './obstacles';
 import { mergeRoadChains } from './paths/roads';
@@ -64,7 +71,8 @@ export function decayEmptyDwellings(state: VillageState, day: number, occupied: 
 }
 
 /**
- * Kolik práce stavbě dnes chybí; pole = zbývající zakládání jeho nehotových dílů, sad =
+ * Kolik práce stavbě dnes chybí; pole = dnešní práce jeho nehotových dílů (díl v lese jen
+ * zbytek fáze – kácení, nebo pálení; schnoucí díl nic – forest.md, Klučení lesa pro pole), sad =
  * zbývající výsadba (jen v oknech výsadby – mimo ně stavba čeká).
  */
 export function constructionNeed(
@@ -79,7 +87,7 @@ export function constructionNeed(
   // oprava stavby, která mezitím přestala stát, práci nebere (abandonment.md – Oprava)
   if (c.kind === 'repair') return repairNeed(state, c);
   if (c.kind !== 'field') return Math.max(0, c.cost - c.done);
-  return foundingParts(founding, c).reduce((sum, p) => sum + (p.foundingCost - p.foundingDone), 0);
+  return foundingParts(founding, c).reduce((sum, p) => sum + clearingNeedToday(p, day), 0);
 }
 
 /**
@@ -121,11 +129,13 @@ export function build(
 ): ConstructionWork[] {
   const founding = foundingIndex(state);
   // díl louky, který ves se spřežením zakládá bez překážek, práci nepotřebuje – založí se hned
-  // (drn rozorá první orba – oxen.md, Jen rádlo)
+  // (drn rozorá první orba – oxen.md, Jen rádlo); díl v lese s fázemi se zakládá až dohořením
   for (const c of state.constructions) {
     if (c.kind !== 'field') continue;
     for (const part of foundingParts(founding, c)) {
-      if (part.foundingCost - part.foundingDone <= 0) foundPart(state, day, part);
+      if (!part.clearing && part.foundingCost - part.foundingDone <= 0) {
+        foundPart(state, day, part);
+      }
     }
   }
   let active = state.constructions
@@ -223,19 +233,28 @@ export function invest(
     fellAsWorked(state, c, day);
     return;
   }
-  // pole zakládá díly od nejbližšího k obydlí; přebytek dne teče do dalšího dílu
-  const parts = foundingParts(founding, c).sort((a, b) => a.distanceM - b.distanceM || a.id - b.id);
+  // pole zakládá díly od nejbližšího k obydlí, v lese napřed pálí suché díly a pak kácí
+  // (forest.md – Rozdělení práce); přebytek dne teče do dalšího dílu. `completes` znamená, že
+  // pole dostalo celou dnešní potřebu – kácený díl dostane jen zbytek kácení (stromy padnou,
+  // pak schne), založí se jen díl, který dnes dohoří (nebo díl bez fází)
   let left = amount;
   let used = 0;
-  for (const part of parts) {
-    const need = part.foundingCost - part.foundingDone;
+  for (const part of clearingWorkOrder(foundingParts(founding, c), day)) {
+    const felling = clearingStage(part, day) === 'fell';
+    const need = clearingNeedToday(part, day);
     if (completes || left >= need) {
       left -= need;
       used += need;
-      foundPart(state, day, part);
+      if (felling) {
+        part.foundingDone = clearingFellCost(part);
+        fellDueTrees(state, part, day);
+      } else {
+        foundPart(state, day, part);
+      }
     } else {
       part.foundingDone += left;
       used += left;
+      if (felling) fellDueTrees(state, part, day);
       break;
     }
   }
@@ -248,6 +267,16 @@ export function foundPart(state: VillageState, day: number, part: FieldPart): vo
   part.foundingDone = part.foundingCost;
   part.state = 'ready';
   if (part.surface === 'forest') part.bonusUntilDay = forestBonusUntil(day);
+  // díl v lese s fázemi dnes dohořel (forest.md – Klučení lesa pro pole – postup, bod 3): stromy,
+  // které ještě stály, padnou s kládou na hromadu u lesa; pařezy a padlé stromy shořely – jejich
+  // záznamy kácení zmizí (odstranění má přednost, seznam neroste); bonus popela běží od dneška
+  if (part.clearing) {
+    fellDueTrees(state, part, day);
+    const burnt = new Set([...(part.obstacles ?? []), ...part.clearing.fell.map((t) => t.id)]);
+    if (state.felledTrees) state.felledTrees = state.felledTrees.filter((f) => !burnt.has(f.id));
+    part.burnedDay = day;
+    delete part.clearing;
+  }
   // založený díl: stromy, kameny a keře z něj zmizí natrvalo (fields.md – Zakládání),
   // dospělé stromy dají klády na hromadu (forest.md – Mýcení)
   if (part.obstacles) {
@@ -257,12 +286,6 @@ export function foundPart(state: VillageState, day: number, part: FieldPart): vo
   if (part.trees) {
     addLogs(state, logsFromClearedTrees(part.trees));
     delete part.trees;
-  }
-  // díl s fázemi klučení: klády dospělých stromů, které ještě nepadly (zatím padnou naráz)
-  if (part.clearing) {
-    const logs = part.clearing.fell.filter((t) => t.log).length;
-    addLogs(state, logsFromClearedTrees(logs));
-    delete part.clearing;
   }
   // pole vymýtilo les vsi na čtverci (fields.md – Les vsi) – stromy zmizely s překážkami
   if (part.cell) clearWoodAt(state, part.cell, fieldGridOf(state, part.fieldId));

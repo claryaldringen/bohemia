@@ -1,5 +1,6 @@
 import { dateOfDayIndex } from '../calendar';
 import { distanceFactor, fallowStage, isOvergrown, isWeedFree, partWalkDistance } from './fields';
+import { clearingFellCost, clearingStage } from './forest-clearing';
 import { isHayMeadow, mowingPosition, mowingSpans } from './hay';
 import { PLOUGH_SOD_FACTOR } from './plough';
 import { partStage } from './summary';
@@ -33,7 +34,9 @@ export const PART_TASKS: readonly PartTask[] = [
  * louky, který se seče na seno (oxen.md – Seno): `meadow` – vysoká tráva, `mown` – posečeno,
  * řádky a kupky sena, `haystacks` – stohy na otavě (do jara se zkrmí). Nepasený a nesečený
  * příloh zarůstá (fields.md – Zarůstání): `shrubs` – křoviny, `young-forest` – mladý les (obtisk
- * pole zmizí, tráva louky zůstane, rostou keře a stromky).
+ * pole zmizí, tráva louky zůstane, rostou keře a stromky). Klučení lesa (forest.md – Klučení
+ * lesa pro pole – postup): `slash` – paseka s pařezy a hromadami větví (kácení, schnutí),
+ * `burnt` – spálenina s popelem (pálení a připravený díl po dohoření do první práce).
  */
 export type FieldPartLook =
   | 'bare'
@@ -50,7 +53,9 @@ export type FieldPartLook =
   | 'mown'
   | 'haystacks'
   | 'shrubs'
-  | 'young-forest';
+  | 'young-forest'
+  | 'slash'
+  | 'burnt';
 
 /**
  * Vzhled dílu: `look`, u rozpracovaného dílu (čelo práce) i `work` – kolik práce dnešní úlohy je
@@ -414,7 +419,9 @@ function cropLooks(
       ? 'pasture'
       : part.sownYears > 0
         ? 'stubble'
-        : 'bare';
+        : isFreshBurn(part)
+          ? 'burnt'
+          : 'bare';
     const harvest = share('harvest', id) ?? 0;
     const sow = share('sow', id) ?? 0;
     // plodina, kterou orá spřežení po pásech: zoraná zem jen tam, kam došla orba (klučení křovin
@@ -581,6 +588,37 @@ export function partYearWork(state: VillageState, day: number): Map<number, Part
 }
 
 /**
+ * Spálenina po klučení lesa (forest.md – Klučení lesa pro pole – postup, bod 4): díl po dohoření
+ * do první práce – první oběh osevu (bonus popela běží, ještě nesklizeno).
+ */
+function isFreshBurn(part: FieldPart): boolean {
+  return (
+    part.burnedDay !== undefined && part.sownYears === 0 && part.bonusUntilDay !== null && !part.sod
+  );
+}
+
+/**
+ * Vzhled zakládaného dílu v lese po fázích (forest.md – Klučení lesa pro pole – postup): kácení
+ * – paseka (`slash`) po padlých stromech (čtverec bez stromů podle práce kácení), schnutí –
+ * paseka, pálení – spálenina podle práce pálení, zbytek paseka. Díl bez fází null.
+ */
+function clearingLook(part: FieldPart, day: number): PartView | null {
+  const clearing = part.clearing;
+  const stage = clearingStage(part, day);
+  if (!clearing || stage === null) return null;
+  const fellCost = clearingFellCost(part);
+  if (stage === 'fell') {
+    const n = clearing.fell.length;
+    const work = n > 0 ? clearing.felled / n : fellCost > 0 ? part.foundingDone / fellCost : 0;
+    return { look: 'slash', work: Math.min(1, Math.max(0, work)) };
+  }
+  if (stage === 'dry' && part.foundingDone <= fellCost + EPSILON) return { look: 'slash' };
+  // pálení (i přerušené koncem okna – rozpálená část zůstane spálenina)
+  const burn = clearing.burnCost > 0 ? (part.foundingDone - fellCost) / clearing.burnCost : 1;
+  return { look: 'burnt', work: Math.min(1, Math.max(0, burn)), before: 'slash' };
+}
+
+/**
  * Vzhled dílů pole v den `day` (fields.md – Postup práce po čtvercích): díl id → vzhled.
  * Zakládané díly (rozrytý drn, rozpracovaný s podílem založení – zakládá se od nejbližšího
  * k obydlí, nezačatý má podíl 0), připravené (rozrytý drn), díly plánu podle toho, kam došlo
@@ -602,7 +640,10 @@ export function fieldPartLooks(
   }
   for (const part of state.parts) {
     if (views.has(part.id)) continue;
-    if (part.state === 'founding') {
+    const clearing = part.state === 'founding' ? clearingLook(part, day) : null;
+    if (clearing) {
+      views.set(part.id, clearing);
+    } else if (part.state === 'founding') {
       const work = part.foundingCost > 0 ? part.foundingDone / part.foundingCost : 0;
       // louku zakládanou rádlem jen vyklízí od překážek – drn zůstane do orby (oxen.md – Jen rádlo)
       views.set(part.id, { look: part.sod ? 'pasture' : 'bare', work: Math.min(1, work) });
@@ -612,7 +653,7 @@ export function fieldPartLooks(
       // skutečný stav dílu, takže vzhled strniště je nemění
       views.set(part.id, { look: 'stubble' });
     } else if (part.state === 'ready' || part.state === 'sown') {
-      views.set(part.id, { look: part.sod ? 'pasture' : 'bare' });
+      views.set(part.id, { look: part.sod ? 'pasture' : isFreshBurn(part) ? 'burnt' : 'bare' });
     } else if (isOvergrown(part)) {
       // zarůstající příloh (fields.md – Zarůstání) – křoviny a mladý les
       views.set(part.id, { look: fallowStage(part, day) === 'shrubs' ? 'shrubs' : 'young-forest' });

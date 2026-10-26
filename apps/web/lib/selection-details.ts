@@ -670,6 +670,8 @@ const FIELD_LOOK_NAMES: Record<FieldLook, string> = {
   haystacks: 'Stohy sena',
   shrubs: 'Křoviny',
   'young-forest': 'Mladý les',
+  slash: 'Paseka',
+  burnt: 'Spálenina',
 };
 
 /** Název dílu pole pod portrétem – co na něm je (zakládaný a připravený díl podle stadia). */
