@@ -367,32 +367,35 @@ kde to nestačí.
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                                         | Kdo                                                    |
-| ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------ |
-| Divoké prase, jelen a laň, vlk, medvěd, zajíc, liška, ptáci, ryby – součást simulace                               | Martin (24. 10. 2026)                                  |
-| Stáda jako počty s rozmnožováním, ne na úkor náročnosti                                                            | Martin (24. 10. 2026)                                  |
-| Loví vojvoda a synové – ze dvorce na koních, ostatní pěšky s oštěpy a psy; vesničané jen drobné a ryby s prutem    | Martin (24. 10. 2026)                                  |
-| Obrana polí lovem z koně, hlídáním a psy, ne ploty                                                                 | Martin (24. 10. 2026)                                  |
-| Prasata ničí úrodu a bez koně jsou téměř neulovitelná                                                              | Martin (22. 10. 2026)                                  |
-| Zvěř patří vsi, strop z lesa do 1 km; jeden přepočet 1. 5.                                                         | návrh Clauda                                           |
-| Stropy: jelení 5 a prasata 5 na 100 ha lesa (bez lesa prasat vsi), zajíci 15 na 100 ha luk a polí, lišky 1         | návrh Clauda (rešerše)                                 |
-| Vlci 0–5 podle lesa 100–200 ha, doplní polovinu chybějícího ročně; medvěd od 150 ha lesa, vrací se za 3 roky       | návrh Clauda (rešerše)                                 |
-| Kolouši = laně × 0,6, úmrtnost 10 % + 1 % na vlka; selata = dospělí × 1, úmrtnost 20 %; zajíci × 2                 | návrh Clauda (rešerše)                                 |
-| Škoda 1. 6. – sklizeň: prase 1 kg, jelen 0,6 kg denně; váha 1 do 50 m od lesa, 0 od 250 m; nejvýš 50 % dílu        | návrh Clauda (rešerše)                                 |
-| Vlčí díl dosavadních ztrát stáda (3 / 3 / 2 / 1 %) podle počtu vlků; liška 2 % vajec                               | návrh Clauda                                           |
-| Jezdecká hlídka do 60 %, noční hlídka vesničanů −60 % za 0,3 čd na 5 ha, kde hrozí ≥ 10 %                          | návrh Clauda                                           |
-| Smečka dvorce 1 pes na lovce + 1 (nejvýš 8), 0,3 kg obilí denně                                                    | návrh Clauda                                           |
-| Velký lov listopad–únor každý 7. den jako výcvik; akumulátor úlovku; jeleni ne laně                                | návrh Clauda                                           |
-| Ryby a oka jen při potřebě bílkovin nebo hladu, z práce, která by propadla; rybáři s prutem u tůní                 | návrh Clauda                                           |
-| Zvěř nezabíjí mimo lov; zranění jen na lovu, 60 dní                                                                | návrh Clauda                                           |
-| Noční hlídka: kombinace – napřed staří a výrostci zdarma, kde hrozí ≥ 10 % a nemá kdo, dospělí z práce vsi         | Martin (24. 10. 2026)                                  |
-| Lov smí člena rodu vzácně i zabít; šance prasata 0,02 %, medvěd 0,3 % na den, vyšší bez koně a při nízkém boji     | Martin (24. 10. 2026), čísla návrh Clauda              |
-| Velký lov obojí: rod loví sám v zimě každý 7. den a hráč může vyhlásit lov navíc (mimo březen–květen, 1× za 3 dny) | Martin (24. 10. 2026), pravidla návrh Clauda           |
-| Kůže a kožešiny zatím mimo hru                                                                                     | Martin (24. 10. 2026)                                  |
-| Stavy zvěře hráči hrubě: ikona o třech stupních podle stropu, slova jen v tooltipu                                 | návrh Clauda (Martin nechal na Claudovi, 24. 10. 2026) |
-| Škoda zvěře na polích se násobí min(1; plocha polí u lesa ÷ 10 ha) – malá ves nepřijde o půl úrody                 | Martin (26. 10. 2026: „Souhlasím se všemi návrhy“)     |
-| Ryby a oka jen z práce, která zbude po dílech nad potřebu a po seči navíc                                          | Martin (26. 10. 2026: „Souhlasím se všemi návrhy“)     |
-| Velká zvěř jako porážka (1 člověkoden na 20 kg masa, pak uzení); ryby a zajíci čerstvé bez práce navíc             | Martin (26. 10. 2026: „Souhlasím se všemi návrhy“)     |
+| Rozhodnutí                                                                                                                               | Kdo                                                    |
+| ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| Divoké prase, jelen a laň, vlk, medvěd, zajíc, liška, ptáci, ryby – součást simulace                                                     | Martin (24. 10. 2026)                                  |
+| Stáda jako počty s rozmnožováním, ne na úkor náročnosti                                                                                  | Martin (24. 10. 2026)                                  |
+| Loví vojvoda a synové – ze dvorce na koních, ostatní pěšky s oštěpy a psy; vesničané jen drobné a ryby s prutem                          | Martin (24. 10. 2026)                                  |
+| Obrana polí lovem z koně, hlídáním a psy, ne ploty                                                                                       | Martin (24. 10. 2026)                                  |
+| Prasata ničí úrodu a bez koně jsou téměř neulovitelná                                                                                    | Martin (22. 10. 2026)                                  |
+| Zvěř patří vsi, strop z lesa do 1 km; jeden přepočet 1. 5.                                                                               | návrh Clauda                                           |
+| Stropy: jelení 5 a prasata 5 na 100 ha lesa (bez lesa prasat vsi), zajíci 15 na 100 ha luk a polí, lišky 1                               | návrh Clauda (rešerše)                                 |
+| Vlci 0–5 podle lesa 100–200 ha, doplní polovinu chybějícího ročně; medvěd od 150 ha lesa, vrací se za 3 roky                             | návrh Clauda (rešerše)                                 |
+| Kolouši = laně × 0,6, úmrtnost 10 % + 1 % na vlka; selata = dospělí × 1, úmrtnost 20 %; zajíci × 2                                       | návrh Clauda (rešerše)                                 |
+| Škoda 1. 6. – sklizeň: prase 1 kg, jelen 0,6 kg denně; váha 1 do 50 m od lesa, 0 od 250 m; nejvýš 50 % dílu                              | návrh Clauda (rešerše)                                 |
+| Vlčí díl dosavadních ztrát stáda (3 / 3 / 2 / 1 %) podle počtu vlků; liška 2 % vajec                                                     | návrh Clauda                                           |
+| Jezdecká hlídka do 60 %, noční hlídka vesničanů −60 % za 0,3 čd na 5 ha, kde hrozí ≥ 10 %                                                | návrh Clauda                                           |
+| Smečka dvorce 1 pes na lovce + 1 (nejvýš 8), 0,3 kg obilí denně                                                                          | návrh Clauda                                           |
+| Velký lov listopad–únor každý 7. den jako výcvik; akumulátor úlovku; jeleni ne laně                                                      | návrh Clauda                                           |
+| Ryby a oka jen při potřebě bílkovin nebo hladu, z práce, která by propadla; rybáři s prutem u tůní                                       | návrh Clauda                                           |
+| Zvěř nezabíjí mimo lov; zranění jen na lovu, 60 dní                                                                                      | návrh Clauda                                           |
+| Noční hlídka: kombinace – napřed staří a výrostci zdarma, kde hrozí ≥ 10 % a nemá kdo, dospělí z práce vsi                               | Martin (24. 10. 2026)                                  |
+| Lov smí člena rodu vzácně i zabít; šance prasata 0,02 %, medvěd 0,3 % na den, vyšší bez koně a při nízkém boji                           | Martin (24. 10. 2026), čísla návrh Clauda              |
+| Velký lov obojí: rod loví sám v zimě každý 7. den a hráč může vyhlásit lov navíc (mimo březen–květen, 1× za 3 dny)                       | Martin (24. 10. 2026), pravidla návrh Clauda           |
+| Kůže a kožešiny zatím mimo hru                                                                                                           | Martin (24. 10. 2026)                                  |
+| Stavy zvěře hráči hrubě: ikona o třech stupních podle stropu, slova jen v tooltipu                                                       | návrh Clauda (Martin nechal na Claudovi, 24. 10. 2026) |
+| Škoda zvěře na polích se násobí min(1; plocha polí u lesa ÷ 10 ha) – malá ves nepřijde o půl úrody                                       | Martin (26. 10. 2026: „Souhlasím se všemi návrhy“)     |
+| Ryby a oka jen z práce, která zbude po dílech nad potřebu a po seči navíc                                                                | Martin (26. 10. 2026: „Souhlasím se všemi návrhy“)     |
+| Velká zvěř jako porážka (1 člověkoden na 20 kg masa, pak uzení); ryby a zajíci čerstvé bez práce navíc                                   | Martin (26. 10. 2026: „Souhlasím se všemi návrhy“)     |
+| Psi vždy k pěším lovcům od nejsilnějšího; medvěd jen na každý druhý listopadový lov, všichni pěšky (ať listopad neztratí lov na prasata) | návrh Clauda                                           |
+| Jelen se loví, je-li ho před úlovkem aspoň ⅓ počtu laní; laně jen nad stropem; úlovek se dělí stavem ÷ strop (nejvýš 1)                  | návrh Clauda                                           |
+| Smečka bez obilí nedoroste (štěňata jen z nakrmené); psi jedí až po lidech a koních                                                      | návrh Clauda                                           |
 
 ## Odpovědi Martina (24. 10. 2026)
 

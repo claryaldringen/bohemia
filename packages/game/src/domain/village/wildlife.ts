@@ -171,4 +171,6 @@ export function wildlifeYearDay(
   // vybité ryby se obnoví z minimálního osazení (1 % stropu)
   const fish = Math.min(caps.fishKg, Math.max(w.fishKg, caps.fishKg * WILDLIFE_YEAR.fishRestock));
   w.fishKg = caps.fishKg > 0 ? Math.min(caps.fishKg, fish + fish * (1 - fish / caps.fishKg)) : 0;
+  // úlovek lovu se počítá od 1. 5. znovu (smečku přepočítá `dogsYear` hned po tomto kroku)
+  if (w.hunt) w.hunt.year = { boar: 0, deer: 0, wolves: 0, bear: 0, meatKg: 0, days: 0 };
 }

@@ -54,6 +54,8 @@ import { decideRebuilds, finishConstructions } from './simulate-build';
 import { eat, endThreshing, harvest, harvestWinter } from './simulate-food';
 import { isOn, lordHelpDay, seasonDay, startSeason } from './simulate-plan';
 import { work } from './simulate-work';
+import { huntDay, planHuntDay } from './hunt';
+import { dogsYear } from './manor-dogs';
 import { wildlifeYearDay, withWildlife } from './wildlife';
 import { damageWindowStart, wildlifeDamageDay, wildlifeSeasonEnd } from './wildlife-damage';
 import { lordFieldMode, trainLordDay, updateLordTraining } from './lord';
@@ -167,6 +169,10 @@ function simulateDay(
   updateLordTraining(state, day);
   // zvěř: 1. 5. roční přepočet podle krajiny a stropů (wildlife.md – Roční přepočet)
   wildlifeYearDay(state, day, landscape);
+  // psi dvorce 1. 5.: úbytek a štěňata (wildlife.md – Psi)
+  dogsYear(state, day);
+  // velký lov rodu: kdo dnes loví – pěší lovci jsou mimo práci vsi (wildlife.md – Lov rodu)
+  planHuntDay(state, day);
   // nové stavby dne – jámy pod nimi se vyprázdní (production-chains.md – Obilné jámy): stavby vsi
   // vznikají jen s novým id z `nextId`, viz kontrola níž
   const idsBefore = state.nextId;
@@ -265,6 +271,8 @@ function simulateDay(
   // vojvodova rodina (lord.md): při hladu jde od zítřka na pole, po 30 dnech plného přídělu zpět;
   // výcvik dne – kdo necvičil, zapomíná
   state.chronicle.push(...lordFieldMode(state, day));
+  // úlovek velkého lovu a maso do zásoby; den lovu je výcvik (wildlife.md – Lov rodu)
+  state.chronicle.push(...huntDay(state, day, lordField));
   // a koně pod jezdci (horses.md – Výcvik koně a jezdec) – po péči (`work()`) a obilí (`eat()`)
   state.chronicle.push(...trainLordDay(state, day, lordField));
   // nahromaděný hlad se počítá z dnešní energie (hladem se umírá z energie, ne z pestrosti –

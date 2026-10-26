@@ -174,7 +174,9 @@ describe('len napřed – výběr s kapacitou (do Úlohy 5 pro páry k rádlům)
     // (wildlife.md – Škody, 26. 10. 2026): násobek malé vsi se počítá jen z dosud nesklizených
     // dílů (po sklizni ozimu se škoda jaře na ha nezvyšuje), výhled jídla bere jen dosud nasbíranou
     // škodu, takže skutečná sklizeň a plán osevu k 1. 9. se mírně změnily (dřív 167:abb10b73)
-    expect(fingerprint(plans)).toBe('168:48676c9e');
+    // a se psy dvorce a velkým lovem rodu (wildlife.md – Psi, Lov rodu, 26. 10. 2026): obilí psů se
+    // sije z pole a pěší lovci chybí v práci vsi – jiný plán osevu k 1. 9. (dřív 168:48676c9e)
+    expect(fingerprint(plans)).toBe('161:f2f1018c');
   });
 });
 

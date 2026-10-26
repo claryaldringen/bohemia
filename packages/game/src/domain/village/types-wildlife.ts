@@ -34,6 +34,50 @@ export interface WildlifeState {
   damage?: FieldDamage;
   /** Šelmy na dobytku (W3); chybí = ještě nic neměly. */
   predation?: Predation;
+  /** Psi dvorce (W4; wildlife.md – Psi); chybí = dvorec psy ještě nechová. */
+  dogs?: ManorDogs;
+  /** Velký lov rodu (W4; wildlife.md – Lov rodu); chybí = rod ještě nelovil. */
+  hunt?: HuntState;
+}
+
+/** Smečka dvorce: počet s podílem kusu a zda ji ves naposled nakrmila (štěňata jen z nakrmené). */
+export interface ManorDogs {
+  count: number;
+  fed: boolean;
+}
+
+/** Druhy kusů úlovku (kronika, statistika roku). */
+export interface HuntKills {
+  boar: number;
+  deer: number;
+  wolves: number;
+  bear: number;
+}
+
+/** Velký lov rodu (wildlife.md – Lov rodu): akumulátory úlovku, lov dne a součty roku. */
+export interface HuntState {
+  /** Naděje úlovku po druzích – celé kusy se uloví, zlomek zůstane (bez náhody). */
+  hope: { boar: number; deer: number; wolf: number; bear: number };
+  /** Lov dne – rozhodne `planHuntDay` ráno; null = dnes se neloví. */
+  today: HuntDay | null;
+  /** Lov navíc na pokyn hráče (den; až W5). */
+  extraDay?: number | null;
+  /** Poslední lov navíc (omezení 1× za 3 dny; až W5). */
+  lastExtraDay?: number;
+  /** Úlovek od 1. 5.: kusy po druzích, kg masa a dnů lovu (panel dvorce). */
+  year: HuntKills & { meatKg: number; days: number };
+}
+
+/** Lov jednoho dne: cíl, kdo jede na koni a kdo jde pěšky (id lidí). */
+export interface HuntDay {
+  day: number;
+  /** Prasata a jeleni zároveň / vlci / medvěd. */
+  target: 'game' | 'wolves' | 'bear';
+  riders: { personId: number; horseId: number }[];
+  /** Pěší lovci: muži dvorce bez koně a odešlí synové rodu. */
+  foot: number[];
+  /** Lov navíc na pokyn hráče (až W5). */
+  extra: boolean;
 }
 
 /** Škody šelem na dobytku (wildlife.md – Vlci na dobytku): akumulátory celých kusů do kroniky. */

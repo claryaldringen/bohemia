@@ -398,8 +398,11 @@ describe('osev podle stravy v simulaci', () => {
     // – Osevní postup po dílech, bod 5; 25. 10. 2026) zásoby zase rostou a nutné obilí smí pár let
     // ustat (dřív každý rok od prvního) – obilí (nutné i nad potřebu) ale seje každý rok od prvního
     // a nutné ke konci zase
-    expect(grain[0]).toBe(0);
-    const first = grain.findIndex((kg) => kg > 0);
+    // 26. 10. 2026 (W4, wildlife.md – Psi): obilí psů dvorce (0,3 kg denně na psa) se sije z pole jako
+    // obilí koní – první rok proto ≈ 30 kg obilí (jen na psy), ne 0
+    const dogsKg = 40;
+    expect(grain[0]).toBeLessThan(dogsKg);
+    const first = grain.findIndex((kg) => kg > dogsKg);
     expect(first).toBeGreaterThan(0);
     expect(allGrain.every((kg, i) => i < first || kg > 0 || covered[i])).toBe(true);
     expect(grain.slice(-3).every((kg) => kg > 0)).toBe(true);

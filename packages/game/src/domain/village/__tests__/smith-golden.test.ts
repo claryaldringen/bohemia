@@ -152,6 +152,7 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
     // bez klíčů `plan` a `season` zůstal a87dde34; dřív 573d22e4
     // 26. 10. 2026 (W3 šelmy; wildlife.md – Vlci na dobytku): vlčí díl ztrát jen venku a medvěd bere prasata, takže stáda jdou po dnech jinak; dřív 8c518a4a
     // 26. 10. 2026 podruhé (oprava po recenzi W3): medvěd bere jen z prasat nad chovný pár a kronika šelem jde po měsících (jiné události kroniky); dřív e3e385c3
-    expect(hash(stripped)).toBe('cc8c88e1');
+    // 26. 10. 2026 (W4 psi dvorce a velký lov rodu; wildlife.md – Psi, Lov rodu): obilí psů dvorce se sije z pole a pěší lovci a odešlí synové chybí v den lovu v práci vsi, takže se mění sklizeň, plán osevu a stav zvěře; dřív cc8c88e1
+    expect(hash(stripped)).toBe('f335bac8');
   }, 120_000);
 });

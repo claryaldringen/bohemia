@@ -5,6 +5,7 @@ import { harvestFlax } from './flax';
 import { dayMealInput, emergencySlaughter } from './emergency-slaughter';
 import { drawGrainPits, settleGrainPits } from './grain-pits';
 import { feedHorseGrain } from './horse-feed';
+import { feedDogs } from './manor-dogs';
 import { addSheaves } from './threshing';
 import type { CraftCoverage, SurplusCrop, VillageState } from './types';
 import { harvestKg, seasonCrop, springCrop, surplusCrop, taskRemaining } from './year-plan';
@@ -135,6 +136,8 @@ export function eat(
   }
   // obilí koní po lidech – jen co lidem do sklizně zbude navíc (horses.md – Krmení)
   feedHorseGrain(state, day, meal.grainSpareKg, mealInput.daysToHarvest);
+  // a psi dvorce po koních (wildlife.md – Psi)
+  feedDogs(state, day, meal.grainSpareKg, mealInput.daysToHarvest);
   return {
     satiation: meal.diet.satiation,
     energy: meal.diet.energy,

@@ -104,3 +104,54 @@ export const PREDATION = {
   /** Kolik dní zpět se pamatují dny, kdy šelmy strhly celý kus. */
   killDaysKept: 30,
 } as const;
+
+/** Psi dvorce (wildlife.md – Psi – smečka dvorce). */
+export const MANOR_DOGS = {
+  /** Chce 1 psa na lovce rodu a 1 navíc, nejvýš `max`. */
+  perHunter: 1,
+  extra: 1,
+  max: 8,
+  /** Obilí na psa a den (kg); bez něj smečka nedoroste. */
+  grainKgPerDay: 0.3,
+  /** 1. 5. přibudou nejvýš tolik štěňat do chtěného počtu (jen nakrmená smečka). */
+  puppiesPerYear: 2,
+  /** Úbytek smečky ročně (pes žije ≈ 10 let). */
+  lossPerYear: 0.1,
+} as const;
+
+/** Velký lov rodu (wildlife.md – Lov rodu: Kdo, Kdy, Kolik). */
+export const HUNT = {
+  /** Sezóna 1. 11. – konec února, každý 7. den od 1. 11. */
+  season: { fromMonth: 11, toMonth: 2 },
+  everyDays: 7,
+  /** Jezdec od 14 let; chlapec od 10 let s koněm jede jako doprovod (polovina síly). */
+  riderFromAge: 14,
+  escortFromAge: 10,
+  escortShare: 0.5,
+  /** Síla jezdce: `riderPower ÷ 100 × (bowBase + bowPerSkill × luk ÷ 100)`. */
+  bowBase: 0.5,
+  bowPerSkill: 0.5,
+  /** Pěší: `(luk + boj) ÷ 200`, bez psa tolik z toho. */
+  noDogShare: 0.5,
+  /** Základ úlovku na den lovu: koeficient na sílu jezdců a pěších (wildlife.md – Kolik). */
+  base: {
+    boar: { rider: 0.15, foot: 0.15 * 0.2 },
+    deer: { rider: 0.1, foot: 0.1 * 0.5 },
+    wolves: { rider: 0.05, foot: 0.05 * 0.5 },
+    bear: { rider: 0, foot: 0.2 },
+  },
+  /** Maso do zásoby (kg): dospělé prase, sele, jelen, laň, medvěd. */
+  meatKg: { boar: 45, piglet: 15, stag: 90, hind: 50, bear: 100 },
+  /** Jeleni se loví, dokud jich je aspoň tolik na laň (1 na 3 laně). */
+  stagsPerHind: 1 / 3,
+  /** Vlci dostanou den, když šelmy za posledních 30 dní strhly aspoň tolik kusů dobytka. */
+  wolfKills: 2,
+  /** Medvěd jen v listopadu, na každý druhý lov sezóny (návrh Clauda, ať listopad nepropadne). */
+  bearMonth: 11,
+  bearEveryNth: 2,
+  /** Hodiny výcviku v den lovu (celý den místo výcviku, 6 h). */
+  training: {
+    rider: { bow: 3, combat: 0, riding: 3 },
+    foot: { bow: 2, combat: 4, riding: 0 },
+  },
+} as const;

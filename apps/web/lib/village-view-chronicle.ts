@@ -381,6 +381,18 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       const many = { sheep: 'ovce', goat: 'kozy', pig: 'prasata', cow: 'krávy' }[event.species];
       return heads === 1 ? `Vlci strhli ${one}.` : `Vlci strhli ${many} (${heads}).`;
     }
+    case 'hunt': {
+      const { boar, deer, wolves, bear } = event.kills;
+      const catches = [
+        boar > 0 ? (boar === 1 ? 'divoké prase' : `divoká prasata (${boar})`) : null,
+        deer > 0 ? (deer === 1 ? 'kus jelení zvěře' : `jelení zvěř (${deer})`) : null,
+        wolves > 0 ? (wolves === 1 ? 'vlka' : `vlky (${wolves})`) : null,
+        bear > 0 ? 'medvěda' : null,
+      ].filter((x): x is string => x !== null);
+      const who = event.names[0] ?? 'Rod';
+      const meat = event.meatKg > 0 ? ` – ${Math.round(event.meatKg)} kg masa do zásoby` : '';
+      return `${who} s lovci ulovil ${catches.join(', ')}${meat}.`;
+    }
     case 'wildlife-damage':
       return `Zvěř a vrány zničily ${event.kg} kg obilí na polích.`;
     case 'horse-trained':

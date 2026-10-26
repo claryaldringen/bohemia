@@ -6,6 +6,7 @@ import type { Craft } from './types-crafts';
 import type { AbandonedStructure, Crop, TileCell } from './types-land';
 import type { HerdSpecies } from './types-livestock';
 import type { DwellingType } from './types-people';
+import type { HuntKills } from './types-wildlife';
 import type { CartJob, CartKind } from './types-roads';
 import type { Direction8 } from './types-state';
 import type {
@@ -206,6 +207,8 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'bear-returned' }
   /** Šelmy strhly dobytek (wildlife.md – Vlci na dobytku; `heads` – celé kusy dne). */
   | { kind: 'predator-kill'; species: HerdSpecies; by: 'wolf' | 'bear'; heads: number }
+  /** Velký lov rodu (wildlife.md – Lov rodu): úlovek dne, maso do zásoby a nejlepší lovec. */
+  | { kind: 'hunt'; kills: HuntKills; meatKg: number; names: string[] }
   /** Po žních: zvěř a vrány zničily `kg` obilí na polích (wildlife.md – Škody). */
   | { kind: 'wildlife-damage'; kg: number }
   /** Sad dosloužil (60. rok) a vrátil se v louku. */
