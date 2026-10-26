@@ -244,6 +244,14 @@ export function obstacleStatus(changes: ObstacleChanges = NO_OBSTACLE_CHANGES): 
 }
 
 /** Překážky na místě stavby a co stojí jejich odstranění. */
+/** Stojící strom na čtverci: `log` = dospělý (dá kládu), poloha paty ve světě. */
+export interface StandingTree {
+  id: number;
+  log: boolean;
+  x: number;
+  z: number;
+}
+
 export interface ObstacleTally {
   /** Práce navíc (člověkodny) podle tabulky překážek (fields.md). */
   cost: number;
@@ -251,6 +259,8 @@ export interface ObstacleTally {
   ids: number[];
   /** Z nich dospělé stromy – za každý kláda na hromadu, pokud ho nevyhradila stavba (forest.md). */
   treeIds: number[];
+  /** Stojící stromy (dospělé, mladé, souše) s polohou paty – pro pořadí kácení dílu v lese. */
+  standing: StandingTree[];
   /** Kolik překážek kterého druhu na místě je (i výchozy). */
   counts: Partial<Record<ObstacleKind, number>>;
   /** Plocha pod skalními výchozy (m²) – pole ji obejde. */
@@ -258,7 +268,7 @@ export interface ObstacleTally {
 }
 
 function emptyTally(): ObstacleTally {
-  return { cost: 0, ids: [], treeIds: [], counts: {}, outcropAreaM2: 0 };
+  return { cost: 0, ids: [], treeIds: [], standing: [], counts: {}, outcropAreaM2: 0 };
 }
 
 /**
@@ -306,6 +316,14 @@ function addToTally(
   }
   tally.ids.push(layer.id[index]!);
   if (kind === 'tree') tally.treeIds.push(layer.id[index]!);
+  if (kind === 'tree' || kind === 'youngTree' || kind === 'snag') {
+    tally.standing.push({
+      id: layer.id[index]!,
+      log: kind === 'tree',
+      x: layer.x[index]!,
+      z: layer.z[index]!,
+    });
+  }
   if (paidPerPiece(rated, kind, layer.x[index]!, layer.z[index]!)) {
     tally.cost += OBSTACLE_COST[kind];
   }
@@ -316,6 +334,14 @@ function addAddedToTally(tally: ObstacleTally, obstacle: AddedObstacle, rated?: 
   tally.counts[obstacle.kind] = (tally.counts[obstacle.kind] ?? 0) + 1;
   tally.ids.push(obstacle.id);
   if (obstacle.kind === 'tree') tally.treeIds.push(obstacle.id);
+  if (obstacle.kind === 'tree' || obstacle.kind === 'youngTree' || obstacle.kind === 'snag') {
+    tally.standing.push({
+      id: obstacle.id,
+      log: obstacle.kind === 'tree',
+      x: obstacle.x,
+      z: obstacle.z,
+    });
+  }
   if (paidPerPiece(rated, obstacle.kind, obstacle.x, obstacle.z)) {
     tally.cost += OBSTACLE_COST[obstacle.kind];
   }

@@ -258,6 +258,12 @@ export function foundPart(state: VillageState, day: number, part: FieldPart): vo
     addLogs(state, logsFromClearedTrees(part.trees));
     delete part.trees;
   }
+  // díl s fázemi klučení: klády dospělých stromů, které ještě nepadly (zatím padnou naráz)
+  if (part.clearing) {
+    const logs = part.clearing.fell.filter((t) => t.log).length;
+    addLogs(state, logsFromClearedTrees(logs));
+    delete part.clearing;
+  }
   // pole vymýtilo les vsi na čtverci (fields.md – Les vsi) – stromy zmizely s překážkami
   if (part.cell) clearWoodAt(state, part.cell, fieldGridOf(state, part.fieldId));
 }

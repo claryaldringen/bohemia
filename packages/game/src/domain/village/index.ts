@@ -106,6 +106,7 @@ export * from './summary';
 export * from './names';
 export * from './costs';
 export * from './wood';
+export * from './forest-clearing';
 export * from './sacred';
 export * from './sacred-life';
 export * from './threshing-floors';
