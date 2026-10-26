@@ -366,6 +366,9 @@ kde to nestačí.
 | Velký lov obojí: rod loví sám v zimě každý 7. den a hráč může vyhlásit lov navíc (mimo březen–květen, 1× za 3 dny) | Martin (24. 10. 2026), pravidla návrh Clauda           |
 | Kůže a kožešiny zatím mimo hru                                                                                     | Martin (24. 10. 2026)                                  |
 | Stavy zvěře hráči hrubě: ikona o třech stupních podle stropu, slova jen v tooltipu                                 | návrh Clauda (Martin nechal na Claudovi, 24. 10. 2026) |
+| Škoda zvěře na polích se násobí min(1; plocha polí u lesa ÷ 10 ha) – malá ves nepřijde o půl úrody                 | Martin (26. 10. 2026: „Souhlasím se všemi návrhy“)     |
+| Ryby a oka jen z práce, která zbude po dílech nad potřebu a po seči navíc                                          | Martin (26. 10. 2026: „Souhlasím se všemi návrhy“)     |
+| Velká zvěř jako porážka (1 člověkoden na 20 kg masa, pak uzení); ryby a zajíci čerstvé bez práce navíc             | Martin (26. 10. 2026: „Souhlasím se všemi návrhy“)     |
 
 ## Odpovědi Martina (24. 10. 2026)
 
@@ -382,3 +385,14 @@ Všech pět otázek je uzavřeno; pravidla jsou zapsána výš.
 4. **Kůže a kožešiny:** Martin: „Zatím mimo hru“. → Cíle, ne-cíle, anti-cíle.
 5. **Stavy zvěře hráči:** hrubě (ikona s odhadem, slova jen v tooltipu) – Martin nechal na
    Claudovi, návrh Clauda. → Co hráč vidí.
+
+## Odpovědi Martina (26. 10. 2026)
+
+Martin: „Souhlasím se všemi návrhy“ – tři otázky z plánu jsou uzavřeny:
+
+1. **Škoda u malé vsi:** škoda zvěře na polích se násobí min(1; plocha polí u lesa ÷ 10 ha).
+   → Škody.
+2. **Ryby a oka:** dělají se jen z práce, která zbude po dílech nad potřebu a po seči navíc.
+   → Drobná zvěř a ryby.
+3. **Maso z úlovku:** velká zvěř se zpracuje jako porážka (1 člověkoden na 20 kg masa a pak
+   uzení); ryby a zajíci se jedí čerstvé bez práce navíc. → Lov rodu, Kolik.
