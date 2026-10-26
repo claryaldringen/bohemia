@@ -35,6 +35,8 @@ import {
   CRAFT_NEEDS,
   CRAFT_PRODUCTION,
   DWELLING_FOOTPRINT_M,
+  HORSES,
+  HORSE_SHOEING,
   SMITH_SUPPLY,
   WOOD_TOOLS,
   WORKSHOP_PORCH_M,
@@ -347,11 +349,27 @@ export function ironOrderBarsKg(state: Pick<VillageState, 'dwellings'>): number 
 }
 
 /**
+ * Hřivny na příští kování jezdeckých koní (kg – horses.md, Kování): jezdecké koně (samci od 3 let)
+ * × hřivny na koně. Bez importu `horses.ts` (cyklus modulů), proto vlastní počítání z ohrad.
+ */
+function shoeingBarsKg(state: Pick<VillageState, 'pens'>, day: number): number {
+  let horses = 0;
+  for (const pen of state.pens ?? []) {
+    if (pen.species !== 'horse') continue;
+    for (const horse of pen.horses ?? []) {
+      const ageYears = (day - horse.bornDay) / 365.25;
+      if (horse.sex === 'male' && ageYears >= HORSES.foalUntilYears) horses++;
+    }
+  }
+  return horses * HORSE_SHOEING.ironBarsKg;
+}
+
+/**
  * Zásoba hřiven, kterou kováři drží (kg – production-chains.md, Kovář): na rok obnovy vybavení
  * (`barsReserveKg`) a zakázka kování k vozům.
  */
 export function smithBarsTargetKg(state: VillageState, day: number): number {
-  return barsReserveKg(state, day) + ironOrderBarsKg(state);
+  return barsReserveKg(state, day) + ironOrderBarsKg(state) + shoeingBarsKg(state, day);
 }
 
 /**

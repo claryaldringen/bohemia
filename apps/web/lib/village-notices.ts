@@ -77,6 +77,8 @@ export type NoticeKind =
   | 'foal-born'
   | 'horses-arrived'
   | 'horse-trained'
+  | 'horses-shod'
+  | 'horses-unshod'
   | 'horse-retired'
   | 'horse-starved'
   | 'orchard-renewal'
@@ -217,6 +219,9 @@ export function villageNotices(view: VillageView): VillageNotice[] {
   // bez obilí (výcvik se zpomalil)
   if (view.horses?.overRoom) {
     notices.push({ kind: 'horses-short', tone: 'warn', text: 'Koně se nevejdou do ohrady' });
+  }
+  if (view.horses?.shoeing?.unshod) {
+    notices.push({ kind: 'horses-unshod', tone: 'warn', text: 'Jezdecký kůň není podkutý' });
   }
   if (view.horses && !view.horses.fed && view.horses.grainKgPerDay > 0) {
     notices.push({ kind: 'horses-ungrained', tone: 'warn', text: 'Koně jsou bez obilí' });
@@ -425,6 +430,11 @@ const CHRONICLE_NOTICES: Partial<
     kind: 'horses-arrived',
     tone: 'info',
     text: 'Do ohrady koní přivedli hřebce a dvě klisny',
+  }),
+  'horses-shod': (entry) => ({
+    kind: 'horses-shod',
+    tone: 'info',
+    text: entry.own ? 'Kovář okul koně' : 'Koně okul kovář ze sousední vsi',
   }),
   'horse-trained': () => ({ kind: 'horse-trained', tone: 'info', text: 'Kůň je vycvičený' }),
   'horse-retired': (entry) => ({

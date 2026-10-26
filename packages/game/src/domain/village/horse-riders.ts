@@ -1,4 +1,5 @@
 import { horseAgeYears, horsePens, isGrainHorse, penHorses, villageHorses } from './horses';
+import { isUnshod } from './horse-shoeing-term';
 import type { LordFamily } from './lord';
 import { ageYears } from './people';
 import { HORSES, LORD } from './rules';
@@ -80,6 +81,8 @@ export function trainHorsesDay(
 ): ChronicleEvent[] {
   if (riding.size === 0 || state.lord?.field) return [];
   if ((state.horsesCaredToday ?? 0) < 1 - EPSILON) return [];
+  // nepodkuté koně nejezdí, výcvik stojí (horses.md – Kování)
+  if (isUnshod(state, day)) return [];
   const gain = TRAINING_PER_DAY * (state.horsesFed === false ? HORSES.trainingWithoutGrain : 1);
   const events: ChronicleEvent[] = [];
   for (const pen of horsePens(state)) {

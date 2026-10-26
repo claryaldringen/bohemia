@@ -328,6 +328,12 @@ export interface VillageState {
    * Chybí = ves bez koní.
    */
   horsesFed?: boolean;
+  /**
+   * Kování jezdeckých koní (horses.md – Kování): den posledního kování celé vsi; další termín
+   * `lastDay + HORSE_SHOEING.everyDays`. Vznikne první den, kdy ves má jezdecké koně (termín se
+   * počítá od něj – i u starších vsí), a zanikne, když je ves nemá. Chybí = ves bez jezdeckých koní.
+   */
+  shoeing?: { lastDay: number };
   /** Zemské stezky k sousedům (trade.md – Zemská stezka); chybí = žádné. */
   trails?: Trail[];
   /** Obchod se sousedy – zásoby a poptávka sousedů a výpravy (trade.md – Obchod); chybí = nic. */

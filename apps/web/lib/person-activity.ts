@@ -197,6 +197,8 @@ function shareText(
       return t.kind === 'pen' ? 'krmí dobytek v ohradě' : 'stará se o zvířata';
     case 'horse-care':
       return t.kind === 'pen' ? 'stará se o koně v ohradě' : 'stará se o koně';
+    case 'horse-shoeing':
+      return t.kind === 'pen' ? 'kuje koně u ohrady' : 'kuje koně';
     case 'slaughter':
       return 'porází dobytek';
     case 'herding':

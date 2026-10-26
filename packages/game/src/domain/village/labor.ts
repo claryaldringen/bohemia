@@ -135,6 +135,11 @@ export interface DayAllocationInput {
    */
   horseCare?: number;
   /**
+   * Kování koní vlastním kovářem (horses.md – Kování): práce dne v člověkodnech, hned za péčí
+   * o koně; bez údaje 0.
+   */
+  shoeing?: number;
+  /**
    * Lidé na výpravách k sousedům (trade.md – Doprava, Martin 19. 10. 2026): nosiči, honáci
    * a pomocníci u vozů jsou na cestě – jejich člověkodny jdou hned po denním minimu, před
    * úlohami dne (`expeditionLaborToday`); bez údaje 0.
@@ -155,6 +160,8 @@ export interface DayAllocation {
   eldersDailyMin: number;
   /** Péče o koně (nejvýš `horseCare`, hned po denním minimu). */
   horseCare: number;
+  /** Kování koní vlastním kovářem (nejvýš `shoeing`, hned po péči o koně). */
+  shoeing?: number;
   /** Práce lidí na výpravách (nejvýš `away`, po péči o koně). */
   away: number;
   /** Práce sedláků s vozy pro uhlí a rudu (nejvýš `carting`, po výpravách). */
@@ -210,6 +217,9 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
   const dailyMin = take(adults + Math.max(0, input.manorMin ?? 0));
   // péče o koně (horses.md – Péče) – hned za denním minimem, nedá se odložit
   const horseCare = take(input.horseCare ?? 0);
+  // všechno nebo nic: částečná práce by propadla (`finishShoeing` kuje jen při celé práci)
+  const wantedShoeing = Math.max(0, input.shoeing ?? 0);
+  const shoeing = wantedShoeing <= left + 1e-9 ? take(wantedShoeing) : 0;
   // výpravy (trade.md – Doprava): nosiči jsou na cestě celé dny – po denním minimu, před vším
   // ostatním
   const away = take(input.away ?? 0);
@@ -329,6 +339,7 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     dailyMin,
     eldersDailyMin,
     horseCare,
+    shoeing,
     away,
     carting,
     lordField: lordPool - lordLeft + (lordHarvestPool - lordHarvestLeft) + (helpPool - helpLeft),

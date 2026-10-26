@@ -40,6 +40,13 @@ describe('allocateDay', () => {
       allocateDay({ ...base, householdElders: [0, 0], potteryCoverage: 1 }).dailyMin,
     ).toBeCloseTo(0.9, 9);
   });
+  it('kování je všechno nebo nic – částečná práce se neodečte', () => {
+    expect(allocateDay({ ...base, shoeing: 0.5 }).shoeing).toBeCloseTo(0.5, 9);
+    // kapacita 2,6 − minimum 0,5 = 2,1 – víc kování se nevejde, práce zůstane ostatním
+    const r = allocateDay({ ...base, shoeing: 5 });
+    expect(r.shoeing).toBe(0);
+    expect(r.common).toBeCloseTo(2.6 - DAILY_MIN, 9);
+  });
   it('úlohy v daném pořadí', () => {
     const r = allocateDay({
       ...base,

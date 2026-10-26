@@ -104,3 +104,8 @@ export function horseHayDailyKg(horses: readonly Horse[], day: number, grainFed 
     return sum + hayKg.horse;
   }, 0);
 }
+
+/** Jezdečtí koně (samci od 3 let), které kovář kuje (horses.md – Kování). */
+export function ridingHorses(state: Pick<VillageState, 'pens'>, day: number): Horse[] {
+  return villageHorses(state).filter((h) => isGrainHorse(h, day));
+}

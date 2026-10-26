@@ -55,6 +55,7 @@ import { isToilDay, windowEndDay } from './happiness';
 import { mow, mowingNeededRemaining, mowingRemaining, recordMowingLabor } from './hay';
 import { herdingDay, recordHerding } from './herding';
 import { horseCareLabor, villageHorses } from './horses';
+import { finishShoeing, planShoeing } from './horse-shoeing';
 import {
   slaughterRemaining,
   villageChickens,
@@ -450,6 +451,8 @@ export function work(
   // péče o koně – hodina denně na koně z práce vsi (horses.md – Péče)
   const horses = villageHorses(state);
   const horseCare = horseCareLabor(horses, day);
+  // kování koní (horses.md – Kování): v den termínu vlastní kovář z práce vsi, jinak platba cizímu
+  const shoeingPlan = planShoeing(state, day, coverage, landscape);
   // žně všemi rukama (fields.md – Žně všemi rukama): ve žňový den řemeslníci se syny, výrostci
   // a starší jen na žeň a výmlat (cvičící rodina – chlapci cvičí, starší kryjí dvorec – ne)
   const harvestHands = harvestHandsDay(state, day)
@@ -499,6 +502,7 @@ export function work(
       householdElders: householdElders(villagers, day, manorSkip),
       // péče o koně hned za denním minimem, před výpravami (horses.md – Péče)
       horseCare,
+      shoeing: shoeingPlan?.own ? shoeingPlan.manDays : 0,
       // chůze pro vodu nad denní minimum (population.md – Práce, paths.md – Pochůzky pro vodu); vodu,
       // kterou přivezl vůz, nenosí a platí díl práce posádky (wagons.md – Co vozy vozí)
       householdWater: jobs.water ? jobs.water.water : waterNeeds.map((h) => h.labor),
@@ -566,6 +570,7 @@ export function work(
   if (horses.length > 0) {
     state.horsesCaredToday = horseCare > 0 ? Math.min(1, allocation.horseCare / horseCare) : 1;
   } else if (state.horsesCaredToday !== undefined) delete state.horsesCaredToday;
+  state.chronicle.push(...finishShoeing(state, day, shoeingPlan, allocation.shoeing ?? 0));
 
   // polní práce dne – i odkud kam došla (rozdělení práce po dílech pro postavy, labor-report.ts);
   // `amount` = postup úlohy (s vozy víc než práce vsi), `labor` = práce vsi bez honáků

@@ -601,6 +601,8 @@ export interface VillageView {
     oxen?: number;
     /** Kolik koní se narodilo, dosloužilo nebo uhynulo (horses.md – Chov, Krmení). */
     horses?: number;
+    /** Koně okul vlastní kovář, ne kovář z jiné vsi (horses.md – Kování). */
+    own?: boolean;
     dateLabel: string;
     text: string;
   }[];

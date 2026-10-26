@@ -307,6 +307,8 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
   );
   // péče o koně (horses.md – Péče): koňák ráno a večer u ohrad koní, poměrně k počtu koní
   horseCareShares(state, day, allocation.horseCare, add);
+  // kování koní vlastním kovářem (horses.md – Kování): kovář u ohrady koní
+  horseCareShares(state, day, allocation.shoeing ?? 0, add, 'horse-shoeing');
   // řemeslníci: uhlíř a hrnčíř kácejí u svého stromu, výroba v dílně – uhlíř u svých milířů
   // (samostatné stavby u skácených buků – crafts.md, Milíř u skácených buků), a sází mladé buky
   // na pařezy (crafts.md – Uhlíř)
@@ -416,6 +418,7 @@ function horseCareShares(
   day: number,
   total: number,
   add: (activity: LaborActivity, target: LaborTarget, manDays: number) => void,
+  activity: 'horse-care' | 'horse-shoeing' = 'horse-care',
 ): void {
   if (total <= 0) return;
   const pens = horsePens(state)
@@ -424,11 +427,10 @@ function horseCareShares(
     .filter((p) => p.horses > 0);
   const horses = pens.reduce((sum, p) => sum + p.horses, 0);
   if (horses === 0) {
-    add('horse-care', { kind: 'village' }, total);
+    add(activity, { kind: 'village' }, total);
     return;
   }
-  for (const pen of pens)
-    add('horse-care', { kind: 'pen', id: pen.id }, (total * pen.horses) / horses);
+  for (const pen of pens) add(activity, { kind: 'pen', id: pen.id }, (total * pen.horses) / horses);
 }
 
 /**

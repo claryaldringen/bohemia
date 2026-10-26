@@ -326,11 +326,22 @@ export {
   isFoalByAge,
   isGrainHorse,
   penHorses,
+  ridingHorses,
   stallionId,
   villageHorses,
   type HorseKind,
 } from './horses';
 export { horsesOverRoom, horsesWanted } from './horse-breeding';
+export {
+  finishShoeing,
+  isUnshod,
+  nextShoeingDay,
+  planShoeing,
+  shoeingCosts,
+  shoeingView,
+  type ShoeingPlan,
+  type ShoeingView,
+} from './horse-shoeing';
 export { horsePenValueKg, withHorsePenStock } from './horse-stock';
 export { HORSE_PEN_NO_SURPLUS, horsePenPayment } from './horse-pen-payment';
 // výměna lidí se sousedem – příchod lidí (`settleNewcomers`) je krok simulace a zůstává uvnitř

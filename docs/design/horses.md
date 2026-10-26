@@ -227,16 +227,19 @@ Martin 26. 10. 2026: „Když se postaví ohrada pro koně, tak se v ní sami ob
 - **Rozestavěná před touto změnou** (stavba bez uložené platby, `horsePenPaid` chybí): koně dostane po dokončení zdarma, platba se zpětně nevybírá (návrh Clauda).
 - **Starší vsi:** stojící ohrada koní, která koně nikdy neměla (`horses` chybí), je dostane při načtení zdarma (cenu zaplatila podle starých pravidel); jednou a idempotentně.
 
-## Kování (Martin 26. 10. 2026; zatím jen návrh Clauda, neimplementováno)
+## Kování (Martin 26. 10. 2026; čísla návrh Clauda)
 
 Martin 26. 10. 2026: „Jezdeckého koně je potřeba každé dva měsíce kovat. To obstará ideálně kovář ve vsi, případně kovář z jiné vsi, ale bude to násobně dražší, protože musí přijít.“
 
-- **Kdo a kdy:** každý jezdecký kůň (samec od 3 let) se kuje **každé 2 měsíce** (Martin); celá ves najednou, pevný termín 60 dní od posledního kování (volitelná část stavu vsi).
-- **Vlastní kovář** (pracující kovárna se zásobou): 0,2 čd práce a 1 kg železa (hřivny ze zásoby kovárny) na koně – návrh Clauda, před implementací ověřit proti `rules-crafts.ts` (kolik kg nástrojů kovář vyrobí za den).
-- **Cizí kovář**, když vlastní není nebo nemá železo: přijde nejbližší soused s kovářem (`neighbourCrafts`, `purchaseRoute` jako v `craft-buying.ts`); ves platí obilím z přebytku nad pojistkou: (dny cesty tam i zpět + práce) × hodnota čd z `economy.ts` + železo za cenu souseda. Cíl: aspoň ≈ 3× dražší než vlastní kovář.
-- **Nepodkutý kůň** (termín prošel a kovat nebylo jak): nejezdí (žádná vyjížďka, výcvik nepostupuje), chov beze změny; ves to zkusí znovu každý den. Upozornění „Jezdecký kůň není podkutý“.
-- **Ve scéně:** v den kování vlastní kovář dojde k ohradě koní (podíl práce s cílem ohrady); příchod cizího kováře ve scéně zatím ne.
-- Čísla (60 dní, 0,2 čd, 1 kg) patří při implementaci do `rules*.ts` s odkazem sem.
+- **Kdo a kdy:** každý jezdecký kůň (samec od 3 let) se kuje **každé 2 měsíce** (Martin); celá ves najednou, pevný termín **60 dní** od posledního kování (`VillageState.shoeing.lastDay`). Termín vznikne první den, kdy ves má jezdecké koně (i u starších vsí – převod jednou a idempotentně), a zanikne, když je nemá. Klisny a hříbata se nekují.
+- **Vlastní kovář** (pracující kovárna, v zásobě aspoň hřivny na všechny koně): **0,5 čd** práce vsi na koně (0,2 osazení + 0,3 překování podkov) a **0,5 kg hřiven** ze zásoby kovárny na koně. Původní návrh 0,2 čd a 1 kg byl nesmyslný proti řetězu kovárny: 1 kg hotových výrobků z hřiven stojí 1,5 čd kování a 1,2 kg hřiven, takže šest kování ročně by spotřebovalo víc železa než nástroje 12 lidí. Sada čtyř podkov váží ≈ 1 kg, po dvou měsících se obrousí asi třetina a zbytek se překove – nové železo je ≈ 0,4 kg výrobků = 0,5 kg hřiven. Kovář proto drží v zásobě hřivny i na příští kování (`shoeingBarsKg` v `smithBarsTargetKg`).
+- **Cizí kovář**, když vlastní není nebo nemá hřivny: přijde nejbližší soused s kovářem (`nearestCraftsman` z `craft-buying.ts` – cesta jako nákup u sousedů, po stezce nebo krajinou). Ves platí obilím a pak luštěninami **jen z přebytku nad pojistkou** (`paymentPool`, stejně jako nákup u sousedů a ohrada koní). Cena = (dny cesty tam i zpět + 0,5 čd na koně) × cena jídla v práci (`foodCosts` – kg obilí na člověkoden) + hřivny za cenu souseda (`buyPrice('ironBars')`).
+- **Vlkov (stav v lokální DB 26. 10. 2026):** 1 jezdecký kůň, vlastní kovárna je, ale hřiven má 0,08 kg; nejbližší soused je na východě, 5 dní tam i zpět po stezce. Vlastní kovář vychází na **4,0 čd** (0,5 čd práce + 0,5 kg hřiven oceněných prací na vytavení), cizí na **14,4 čd** – **3,6×** dráž. S rostoucím počtem koní podíl klesá (cesta se rozloží, železo ne): 2 koně 3,0×, 5 koní 2,6×, 10 koní 2,5× – pořád „násobně“, ale pod 3× jen u větších stájí.
+- **Nepodkutý kůň** (termín nastal a kovat nebylo jak – vlastní kovář nemá práci ani hřivny, soused chybí, nebo ves nemá přebytek na platbu): nejezdí (`lordRides` nevrací jízdy), výcvik koně nepostupuje (`trainHorsesDay`); chov, krmení a péče beze změny. Ves to zkusí znovu každý den. Upozornění „Jezdecký kůň není podkutý“.
+- **Kronika:** „Kovář okul koně“ / „Koně okul kovář ze sousední vsi“ – jednou za 2 měsíce, tedy šest záznamů ročně, jako ostatní roční události koní.
+- **Ve scéně:** práce vlastního kováře je činnost `horse-shoeing` s cílem ohrady koní (`horseCareShares` v `labor-report.ts`) – obyvatel dojde k ohradě jako koňák; příchod cizího kováře ve scéně zatím ne.
+- **Panel ohrady koní:** ikona koně s číslem – dny do kování (a za lomítkem cena cizího kováře v kg obilí); červeně, když koně nejsou podkutí. Popisek (Tooltip) říká, kdo kuje.
+- Čísla (60 dní, 0,5 čd, 0,5 kg hřiven) jsou v `HORSE_SHOEING` v `rules-livestock.ts`.
 
 ## Co hráč vidí (UI jako 0 A.D.)
 
@@ -259,27 +262,29 @@ Martin 26. 10. 2026: „Jezdeckého koně je potřeba každé dva měsíce kovat
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                            | Kdo                         |
-| ----------------------------------------------------------------------------------------------------- | --------------------------- |
-| Ohrada pro koně; kůň nejnáročnější na péči; jezdí jen vojvoda a synové                                | Martin (22. 10. 2026)       |
-| Zatím k ničemu; později lov (divoká prasata) a válka                                                  | Martin (22. 10. 2026)       |
-| Vlastní chov v ohradě, nákup a prodej jako u ostatních zvířat                                         | Martin (22. 10. 2026)       |
-| Jen na jízdu – vozy a rádlo dál táhnou voli                                                           | Martin (22. 10. 2026)       |
-| Jízda od 3 let, výcvik hotový ve 12; jezdec postupně účinnější                                        | Martin (22. 10. 2026)       |
-| Obilí k práci; jen na seně neuhyne, výcvik se zpomalí                                                 | Martin (22. 10. 2026)       |
-| Jezdci ve scéně už teď                                                                                | Martin (22. 10. 2026)       |
-| Jezdečtí koně samci (hřebec a valaši), klisny jen na chov; služba do 20 let, pak na maso              | návrh Clauda                |
-| Ohrada 4 koně na čtverec, 50 čd + 8 stromů, plot 1,4 m, přístřešek se žlabem, branka k dvorci         | návrh Clauda                |
-| Péče 1 h na koně denně celý rok, z práce vsi (koňák), hned za denním minimem                          | návrh Clauda                |
-| Pastva 1 ha; seno 6 kg (bez obilí 7); obilí 1,5 kg jen jezdecký kůň; lidé napřed; bez obilí výcvik ½  | návrh Clauda (rešerše)      |
-| Chov: klisna každý druhý rok, hříbata 1. 5.; klisny 1 + 1 na 3 jezdce; navíc 1. 11. na maso           | návrh Clauda                |
-| Ceny 800 / 1 600 / 2 400–3 600 kg obilí; pastevci nabízejí, obilnáři a řemeslníci shánějí; honák na 4 | návrh Clauda                |
-| Výcvik koně ve dnech jízdy; jezdec × (0,4 + 0,6 × výcvik koně); přidělení koní od vojvody             | návrh Clauda                |
-| Denní objížďka polí, jednou za 7 dní k hranici po stezce, doprovod výpravy; síť pěšin beze změny      | návrh Clauda                |
-| Modely koně a jezdce z 0 A.D.; jezdec bez nového vertex atributu                                      | návrh Clauda                |
-| Péče 1 h denně na koně z práce vsi; jezdecký kůň 1,5 kg obilí denně                                   | Martin (23. 10. 2026)       |
-| Starý kůň po službě jde na maso jako ostatní dobytek                                                  | návrh Clauda (23. 10. 2026) |
-| Jezdí se jen na samcích, klisny jsou na chov                                                          | návrh Clauda (23. 10. 2026) |
+| Rozhodnutí                                                                                             | Kdo                         |
+| ------------------------------------------------------------------------------------------------------ | --------------------------- |
+| Ohrada pro koně; kůň nejnáročnější na péči; jezdí jen vojvoda a synové                                 | Martin (22. 10. 2026)       |
+| Zatím k ničemu; později lov (divoká prasata) a válka                                                   | Martin (22. 10. 2026)       |
+| Vlastní chov v ohradě, nákup a prodej jako u ostatních zvířat                                          | Martin (22. 10. 2026)       |
+| Jen na jízdu – vozy a rádlo dál táhnou voli                                                            | Martin (22. 10. 2026)       |
+| Jízda od 3 let, výcvik hotový ve 12; jezdec postupně účinnější                                         | Martin (22. 10. 2026)       |
+| Obilí k práci; jen na seně neuhyne, výcvik se zpomalí                                                  | Martin (22. 10. 2026)       |
+| Jezdci ve scéně už teď                                                                                 | Martin (22. 10. 2026)       |
+| Jezdečtí koně samci (hřebec a valaši), klisny jen na chov; služba do 20 let, pak na maso               | návrh Clauda                |
+| Ohrada 4 koně na čtverec, 50 čd + 8 stromů, plot 1,4 m, přístřešek se žlabem, branka k dvorci          | návrh Clauda                |
+| Péče 1 h na koně denně celý rok, z práce vsi (koňák), hned za denním minimem                           | návrh Clauda                |
+| Pastva 1 ha; seno 6 kg (bez obilí 7); obilí 1,5 kg jen jezdecký kůň; lidé napřed; bez obilí výcvik ½   | návrh Clauda (rešerše)      |
+| Chov: klisna každý druhý rok, hříbata 1. 5.; klisny 1 + 1 na 3 jezdce; navíc 1. 11. na maso            | návrh Clauda                |
+| Ceny 800 / 1 600 / 2 400–3 600 kg obilí; pastevci nabízejí, obilnáři a řemeslníci shánějí; honák na 4  | návrh Clauda                |
+| Výcvik koně ve dnech jízdy; jezdec × (0,4 + 0,6 × výcvik koně); přidělení koní od vojvody              | návrh Clauda                |
+| Denní objížďka polí, jednou za 7 dní k hranici po stezce, doprovod výpravy; síť pěšin beze změny       | návrh Clauda                |
+| Modely koně a jezdce z 0 A.D.; jezdec bez nového vertex atributu                                       | návrh Clauda                |
+| Péče 1 h denně na koně z práce vsi; jezdecký kůň 1,5 kg obilí denně                                    | Martin (23. 10. 2026)       |
+| Jezdecký kůň se kuje každé 2 měsíce, nejlépe vlastním kovářem, jinak kovářem z jiné vsi – násobně dráž | Martin (26. 10. 2026)       |
+| Kování: 0,5 čd a 0,5 kg hřiven na koně; nepodkutý kůň nejezdí; cizí kovář platí z přebytku             | návrh Clauda (26. 10. 2026) |
+| Starý kůň po službě jde na maso jako ostatní dobytek                                                   | návrh Clauda (23. 10. 2026) |
+| Jezdí se jen na samcích, klisny jsou na chov                                                           | návrh Clauda (23. 10. 2026) |
 
 ## Odpovědi Martina (23. 10. 2026)
 

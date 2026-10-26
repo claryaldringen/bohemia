@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { assignRiders, riderPower, trainHorsesDay } from '../horse-riders';
 import { villageHorses } from '../horses';
 import { lordFamily, lordRides, trainLordDay } from '../lord';
-import { HORSES } from '../rules';
+import { HORSE_SHOEING, HORSES } from '../rules';
 import type { ChronicleEvent, Horse, Trail, TradeExpedition, VillageState } from '../types';
 import { horse, horseVillage, LORD_ID, SON_ID, START, YEAR, YOUTH_ID } from './horse-fixtures';
 
@@ -152,6 +152,22 @@ describe('jízdy dne (horses.md – Kdy a kam se jezdí, dokud není lov)', () =
     expect(youth.arms!.riding).toBeLessThanOrEqual(before.riding);
     expect(youth.arms!.bow).toBeGreaterThan(before.bow);
     expect(lordRides(s, START + 1)).toBeNull();
+  });
+
+  it('nepodkutý kůň: jezdec nedostává hodiny jízdy, cvičí luk a boj (horses.md – Kování)', () => {
+    const s = riding([horse(1, 5, 'male', 30)]);
+    const lord = s.people.find((p) => p.id === LORD_ID)!;
+    const due = START + HORSE_SHOEING.everyDays;
+    s.shoeing = { lastDay: START };
+    const before = { ...lord.arms! };
+    trainLordDay(s, due, 0);
+    expect(lord.arms!.riding).toBeLessThanOrEqual(before.riding);
+    expect(lord.arms!.bow + lord.arms!.combat).toBeGreaterThan(before.bow + before.combat);
+    // po podkutí jízda zase roste
+    s.shoeing = { lastDay: due };
+    const mid = lord.arms!.riding;
+    trainLordDay(s, due + 1, 0);
+    expect(lord.arms!.riding).toBeGreaterThan(mid);
   });
 
   it('jednou za 7 dní po hotové zemské stezce k hranici, jinak objížďka polí', () => {
