@@ -18,7 +18,7 @@ import { SATIATION_EPSILON } from './simulate-plan';
 function harvestSurplus(state: VillageState, crop: SurplusCrop, day: number): number | null {
   const work = surplusCrop(state.season, crop);
   if (!work || work.harvestedKg !== null) return null;
-  const kg = harvestKg(work, state.parts, day);
+  const kg = harvestKg(work, state.parts, day, 'spring', state.wildlife?.damage?.parts);
   work.harvestedKg = kg;
   addSheaves(state, crop, kg, taskRemaining(work, 'thresh'));
   return kg;
@@ -42,7 +42,7 @@ export function harvestWinter(state: VillageState, day: number): void {
   const winter = state.season ? seasonCrop(state.season, 'winter') : undefined;
   let kg: number | null = null;
   if (winter && winter.harvestedKg === null) {
-    kg = harvestKg(winter, state.parts, day);
+    kg = harvestKg(winter, state.parts, day, 'spring', state.wildlife?.damage?.parts);
     winter.harvestedKg = kg;
     addSheaves(state, 'winter', kg, taskRemaining(winter, 'thresh'));
   }
@@ -61,7 +61,7 @@ export function harvest(state: VillageState, day: number): void {
   const plan = state.season;
   if (plan === null) return;
   const spring = springCrop(plan);
-  spring.harvestedKg = harvestKg(spring, state.parts, day);
+  spring.harvestedKg = harvestKg(spring, state.parts, day, 'spring', state.wildlife?.damage?.parts);
   addSheaves(state, 'spring', spring.harvestedKg, taskRemaining(spring, 'thresh'));
   const kg = spring.harvestedKg + (harvestSurplus(state, 'spring', day) ?? 0);
   // plán jen s ozimem jař nesklízí – žádná sklizeň do kroniky

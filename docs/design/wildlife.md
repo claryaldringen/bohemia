@@ -116,6 +116,15 @@ vesničanů.
 - **Vrány:** **2 % úrody** každého nehlídaného osetého dílu za okno (bez ohledu na les; neověřeno,
   návrh – malé, ať je hlídání vidět).
 - Škoda sníží úrodu dílu stejně jako nedodělaná práce ([pole](fields.md) – Úroda) – bez náhody.
+- **Malá ves u lesa** (Martin 26. 10. 2026: škoda se násobí min(1; plocha polí u lesa ÷ 10 ha)):
+  návrh Clauda – „plocha polí u lesa“ je součet **plocha × váha** ohrožených dílů, takže pole
+  250 m od lesa se nepočítá a pole 150 m od lesa počítá půlkou. Denní kg zvěře se tím násobí, než
+  se rozdělí na díly.
+- **Plodiny:** jen obilí – ozim a jař, i díly nad potřebu; luštěniny a len ne (návrh Clauda –
+  návrh počítá „kg obilí“). Škodí se jen na dílech, které ves letos zaseje (do 1. 6. dosel).
+- **Co s ≈ 650 kg:** čísla výše platí pro žně, které se protáhnou do poloviny července a srpna;
+  zvěř krmí jen dosud nesklizené díly, takže po sklizni dílu škoda na jeho úrodě končí. Kalibrace
+  na Vlkově (26. 10. 2026, bez obrany): **≈ 8 % úrody** (435–522 kg ročně), hlad žádný.
 
 ### Vlci na dobytku
 

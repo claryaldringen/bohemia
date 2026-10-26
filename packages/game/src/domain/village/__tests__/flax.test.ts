@@ -166,8 +166,10 @@ describe('len napřed – výběr s kapacitou (do Úlohy 5 pro páry k rádlům)
     // 25. 10. 2026): 2. 9. je v práci jen dávka, kterou ves za WORK_FRONT_DAYS stihne (dřív
     // 1018:b6da3f2c); a s díly nad potřebu po stavbách (fields.md – Osevní postup po dílech,
     // bod 3, 25. 10. 2026): ves bez staveb obdělá i díly nad potřebu – víc zásob, jiná potřeba
-    // úrody (dřív 167:3d9cb32c)
-    expect(fingerprint(plans)).toBe('171:fcbccd0e');
+    // úrody (dřív 167:3d9cb32c); a se škodami zvěře na polích (wildlife.md – Škody, 26. 10. 2026):
+    // od 1. 6. ubývá úroda dílů prasaty, jeleny a vranami, výhled jídla a plán osevu k 1. 9. to
+    // zná – jiný výběr dílů (dřív 171:fcbccd0e)
+    expect(fingerprint(plans)).toBe('165:b78c12b3');
   });
 });
 

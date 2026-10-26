@@ -29,7 +29,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   jako zbytek minima, i v plánu osevu (`sowingCapacity`) a v dílnách (`workshopLabor`); bez
   krajiny 0. Před prací dne (`simulate.ts`): 1. 9. `startSeason`, každý den `seasonDay` (konce oken
   setí, nutné díly podle potřeby úrody – fields.md, Osevní postup po dílech) a `lordHelpDay`
-  (podíl dne rodiny na nutné práci); potřebné sezónní úlohy jsou práce nutných dílů – plodiny
+  (podíl dne rodiny na nutné práci) a 1. 6. `damageWindowStart` (ohrožené díly polí pro zvěř – wildlife.md, Škody); po práci dne `wildlifeDamageDay` (škoda zvěře a vran na nesklizených dílech, před jídlem) a po sklizni jaře `wildlifeSeasonEnd` (kronika, vynulování ztrát dílů – podrobnosti `village-wildlife.md`); potřebné sezónní úlohy jsou práce nutných dílů – plodiny
   hospodářského roku bez `SeasonCrop.surplus` (`fieldTasks`; `neededTaskRemaining` je u dílů nad
   potřebu 0). `allocateDay`: denní minimum → péče o koně (`horseCare` – `horseCareLabor`, horses.md – Péče; pokrytí v `state.horsesCaredToday`) → výpravy (`away`) → potřebné sezónní úlohy v pořadí `dayTaskOrder` – **orba rádlem první** (oxen.md – Orba má přednost, Martin 24. 10. 2026; překrývá se jen s osevem, výmlatem jaře a jablky, žeň ne), pak nejbližší konec okna (žeň a výmlat napřed ze žňových rukou – `harvestHands`, `lordHarvest`, fields.md – Žně všemi rukama) → `common` (volná práce
   v liště, `commonLaborHistory`) do staveb (`build`) → z toho, co stavby nespotřebovaly, opravy

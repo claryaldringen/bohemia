@@ -1,8 +1,8 @@
 # Divoká zvěř vsi – stav, stropy, roční přepočet
 
 Pravidla: [wildlife.md](../design/wildlife.md) (Kde zvěř žije a kolik jí je; Roční přepočet – 1. 5.).
-Stav W1: zvěř zatím jen počítá – neškodí a neloví se (to přinášejí další úlohy plánu
-`docs/superpowers/plans/2026-10-26-wildlife.md`).
+Stav: W1 zvěř počítá, W2 škodí na polích (Škody níž); lov a šelmy přinášejí další úlohy plánu
+`docs/superpowers/plans/2026-10-26-wildlife.md`.
 
 ## Stav a stropy
 
@@ -42,3 +42,35 @@ s `pool ≥ 0,5` do dosahu, sloučené po 60 m. Počítá se **jen při převodu
 
 Les 118 ha, louky a pole 132 ha, voda 5,6 ha, 3 tůně; stropy: jelení 5,9, prasata 5,0, zajíci 19,8,
 lišky 2, vlci 0,9, medvěd ne (pod 150 ha lesa), ryby 1 681 kg. Převod ≈ 10 ms.
+
+## Škody na polích (W2, `wildlife-damage.ts`)
+
+Pravidla: [wildlife.md](../design/wildlife.md) – Škody, Prasata a jeleni na polích. Čísla jsou
+`FIELD_DAMAGE` v `rules-wildlife.ts`. Škoda je bez náhody; stav je volitelné `WildlifeState.damage`
+(`FieldDamage` v `types-wildlife.ts`): `risk` (díl, `weightHa`, `edgeM`), `parts` (podíl hrubé úrody
+a kg po dílech, jen nenulové), `topPartId`, `totalKg`, `lastYearKg`.
+
+- **1. 6.** `damageWindowStart(state, day, landscape)` (v `simulateDay` za `lordHelpDay`, před
+  `work()`): ohrožené jsou osetré díly ozimu a jaře (i nad potřebu; luštěniny a len ne), které
+  setí zasáhlo celé (`taskSpans` 'sow'); váha 1 do 50 m od okraje lesa, k 250 m lineárně 0
+  (`edgeWeight`). Vzdálenost: `forestEdgeDistances` (`wildlife-land.ts`) – chamfer 3–4 masky lesa
+  z W1 (jen kusy od 1 ha, jen do 1 km), od středu políčka dílu minus půl políčka; jednou za rok.
+  Bez krajiny: `surface === 'forest'` 0 m, jinak `defaultEdgeM` 120 m. Díl s váhou 0 zůstává
+  v seznamu kvůli vranám. Místo pro obranu (W4–W6): `risk[].weightHa` a vstup `eatenKg` ve
+  `wildlifeDamageDay` – hlídka nebo lov je může snížit, ztráty `parts` zůstávají.
+- **Každý den** `wildlifeDamageDay(state, day)` (po `work()`, před `eat()`): kg zvěře =
+  Σ kusy × kg/kus (`wildlifeEatsKgPerDay`) × `min(1; Σ weightHa ÷ 10 ha)` (malá ves, Martin 26. 10. 2026), rozdělí se podle `weightHa` na dosud nesklizené díly (`taskSpans` 'harvest',
+  díl je sklizený, až úloha prošla jeho koncem), přepočte na podíl hrubé úrody dílu
+  (`cropGrossPerHa` × ha); díl nejvýš `maxShare` 0,5, zbytek propadne. Vrány `crowShare ÷
+windowDays` (ozim 61, jař 92) denně na každý nesklizený ohrožený díl. Mimo 1. 6. – 31. 8. a po
+  sklizni plodiny (`harvestedKg`) nic.
+- **Úroda:** `harvestKg`, `expectedWinterKg` a `daysUntilFoodHarvest` (`year-plan.ts`) berou
+  volitelné `losses` (`PartLosses` = `damage.parts`); díl dá hrubou úrodu × (1 − share). Sklizeň
+  ozimu, jaře a nad potřebu (`simulate-food.ts`) i výhled jídla (`diet.ts`, `emergency-slaughter.ts`)
+  předávají `state.wildlife?.damage?.parts` – příděl nepřecení úrodu. Len a luštěniny škodu nemají.
+- **31. 8.** `wildlifeSeasonEnd` (v `simulateDay` po `harvest()`): kronika `wildlife-damage { kg }`
+  („Zvěř a vrány zničily … kg obilí“, jen > 0), `risk` a `parts` se vyprázdní (ztráty by jinak
+  zkreslily výhled další sezóny podle id dílů); `totalKg` zůstává do 1. 6.
+- **Vlkov (kopie 5. 6. 820):** škoda 522 kg v sezóně 821 (8,1 % úrody) a 435 kg v 822 (8,3 %);
+  sklizeň bez škod 6 441 / 5 354 kg. Hlad 0 dní, nejnižší zásoby shodné, rok se nezpomalil
+  (+0,3 %). Zvěř ≈ 4–6 kg/den při 12–16 ha ohrožených polí (1 040 dílů po ≈ 0,02 ha).

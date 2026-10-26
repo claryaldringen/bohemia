@@ -16,6 +16,7 @@ import { villageLaborFactor } from '../happiness';
 import { advanceVillage } from '../simulate';
 import { availableSettlers, waitingHouseholds } from '../households';
 import { withKinship } from '../kinship';
+import { freshWildlife } from '../wildlife';
 import type { ChronicleEvent, Dwelling, Person, VillageState } from '../types';
 import { sheafWork, villageSheaves } from '../threshing';
 import {
@@ -541,6 +542,10 @@ describe('advanceVillage – roční plán a sklizeň', () => {
       p.state = 'sown';
     }
     s0.season = createPlan(s0.parts, at(600, 9, 1), NO_CRAFTS.tools);
+    // bez zvěře (jen vrány berou 2 % úrody, wildlife.md – Škody) – tady se měří setí a plán
+    s0.wildlife = freshWildlife({ forestHa: 0, openHa: 0, waterHa: 0, pools: 0 }, 0);
+    s0.wildlife.boar = { adults: 0, piglets: 0 };
+    s0.wildlife.deer = { stags: 0, hinds: 0, calves: 0 };
 
     const summerEnd = advanceVillage(s0, at(601, 8, 30), null);
     const plan = summerEnd.season!;
@@ -561,7 +566,10 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     const ha =
       s0.parts.filter((p) => inPlan.has(p.id)).reduce((sum, p) => sum + p.areaM2, 0) / 10_000;
     const fullYield = ha * sownShare * (760 * (0.4 + 0.6 * 0.7) - 175);
-    expect(harvests(s).at(-1)?.kg).toBe(Math.round(fullYield));
+    // vrány: nejvýš 2 % hrubé úrody (≈ 760 × 0,82 kg/ha), nic víc
+    const kg = harvests(s).at(-1)!.kg;
+    expect(kg).toBeLessThanOrEqual(Math.round(fullYield));
+    expect(kg).toBeGreaterThan(fullYield - 0.02 * ha * sownShare * 760 - 1);
   });
 });
 

@@ -19,18 +19,24 @@ function tileOfPoint(landscape: Landscape, point: { x: number; z: number }): num
 }
 
 /** Souvislé kusy lesa (4 sousedů) z masky; kusy pod `minTiles` políček se vyřadí. */
-function bigPatches(mask: Uint8Array, size: number, minTiles: number): number {
+function bigPatches(
+  mask: Uint8Array,
+  size: number,
+  minTiles: number,
+): { count: number; mask: Uint8Array } {
   const seen = new Uint8Array(mask.length);
   const stack: number[] = [];
-  let kept = 0;
+  const kept = new Uint8Array(mask.length);
+  const members: number[] = [];
+  let count = 0;
   for (let start = 0; start < mask.length; start++) {
     if (!mask[start] || seen[start]) continue;
-    let count = 0;
+    members.length = 0;
     seen[start] = 1;
     stack.push(start);
     while (stack.length > 0) {
       const index = stack.pop()!;
-      count++;
+      members.push(index);
       const x = index % size;
       const y = (index - x) / size;
       const near = [
@@ -45,9 +51,12 @@ function bigPatches(mask: Uint8Array, size: number, minTiles: number): number {
         stack.push(n);
       }
     }
-    if (count >= minTiles) kept += count;
+    if (members.length >= minTiles) {
+      count += members.length;
+      for (const index of members) kept[index] = 1;
+    }
   }
-  return kept;
+  return { count, mask: kept };
 }
 
 /**
@@ -57,22 +66,22 @@ function bigPatches(mask: Uint8Array, size: number, minTiles: number): number {
  * políčka vody; tůně = úseky osy potoka s `pool` ≥ `poolMin` do dosahu, sloučené po
  * `poolMergeM`. Ves bez obydlí dostane `defaultLand`.
  */
-export function wildlifeLandAt(
+export function wildlifeLandAt(landscape: Landscape, state: LandState): WildlifeLand {
+  return scanLand(landscape, state)?.land ?? { ...WILDLIFE_LAND.defaultLand };
+}
+
+type LandState = Pick<
+  VillageState,
+  'dwellings' | 'constructions' | 'parts' | 'orchards' | 'cemeteries' | 'pens' | 'woods' | 'fields'
+>;
+
+/** Krajina zvěře a maska lesa (souvislý les od `minPatchHa`) v dosahu; null = ves bez obydlí. */
+function scanLand(
   landscape: Landscape,
-  state: Pick<
-    VillageState,
-    | 'dwellings'
-    | 'constructions'
-    | 'parts'
-    | 'orchards'
-    | 'cemeteries'
-    | 'pens'
-    | 'woods'
-    | 'fields'
-  >,
-): WildlifeLand {
+  state: LandState,
+): { land: WildlifeLand; forest: Uint8Array } | null {
   const origin = villageOrigin(state);
-  if (!origin) return { ...WILDLIFE_LAND.defaultLand };
+  if (!origin) return null;
   const size = landscape.size;
   const total = size * size;
   const cellHa = (landscape.cellSizeM * landscape.cellSizeM) / M2_PER_HA;
@@ -133,13 +142,71 @@ export function wildlifeLandAt(
       }
     }
   }
-  const forestTiles = bigPatches(forest, size, Math.ceil(WILDLIFE_LAND.minPatchHa / cellHa));
+  const patches = bigPatches(forest, size, Math.ceil(WILDLIFE_LAND.minPatchHa / cellHa));
   return {
-    forestHa: forestTiles * cellHa,
-    openHa: open * cellHa,
-    waterHa: water * cellHa,
-    pools: poolsInReach(landscape, origin, reach2),
+    land: {
+      forestHa: patches.count * cellHa,
+      openHa: open * cellHa,
+      waterHa: water * cellHa,
+      pools: poolsInReach(landscape, origin, reach2),
+    },
+    forest: patches.mask,
   };
+}
+
+/**
+ * Vzdálenost od okraje lesa (m) pro díly polí vsi: distanční transformace 3–4 (chamfer) masky lesa
+ * z `wildlifeLandAt` po políčkách krajiny, od středu políčka dílu mínus půl políčka (okraj lesa).
+ * Počítá se jednou 1. 6., ne po dílech. Bez lesa v mapě je vzdálenost nekonečná; díl bez
+ * údaje (bez čtverce, ves bez obydlí) v mapě chybí – volající použije výchozí.
+ */
+export function forestEdgeDistances(landscape: Landscape, state: LandState): Map<number, number> {
+  const out = new Map<number, number>();
+  const scan = scanLand(landscape, state);
+  if (!scan) return out;
+  const size = landscape.size;
+  const INF = 1 << 28;
+  const dist = new Int32Array(size * size);
+  for (let i = 0; i < dist.length; i++) dist[i] = scan.forest[i] ? 0 : INF;
+  // přední průchod
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const i = y * size + x;
+      let d = dist[i]!;
+      if (x > 0) d = Math.min(d, dist[i - 1]! + 3);
+      if (y > 0) {
+        d = Math.min(d, dist[i - size]! + 3);
+        if (x > 0) d = Math.min(d, dist[i - size - 1]! + 4);
+        if (x < size - 1) d = Math.min(d, dist[i - size + 1]! + 4);
+      }
+      dist[i] = d;
+    }
+  }
+  // zpětný průchod
+  for (let y = size - 1; y >= 0; y--) {
+    for (let x = size - 1; x >= 0; x--) {
+      const i = y * size + x;
+      let d = dist[i]!;
+      if (x < size - 1) d = Math.min(d, dist[i + 1]! + 3);
+      if (y < size - 1) {
+        d = Math.min(d, dist[i + size]! + 3);
+        if (x < size - 1) d = Math.min(d, dist[i + size + 1]! + 4);
+        if (x > 0) d = Math.min(d, dist[i + size - 1]! + 4);
+      }
+      dist[i] = d;
+    }
+  }
+  for (const sq of villageLandSquares(landscape, state, ['field'])) {
+    if (sq.partId === undefined) continue;
+    const tile = sq.tile ?? tileOfPoint(landscape, sq.center);
+    if (tile < 0) continue;
+    const d = dist[tile]!;
+    out.set(
+      sq.partId,
+      d >= INF ? Infinity : Math.max(0, (d / 3) * landscape.cellSizeM - landscape.cellSizeM / 2),
+    );
+  }
+  return out;
 }
 
 /** Tůně potoka do dosahu – po sobě jdoucí body osy s tůní, mezera do `poolMergeM` je jedna tůň. */

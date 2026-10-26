@@ -370,6 +370,8 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return event.own ? 'Kovář okul koně.' : 'Koně okul kovář ze sousední vsi.';
     case 'bear-returned':
       return 'V lesích se zase objevil medvěd.';
+    case 'wildlife-damage':
+      return `Zvěř a vrány zničily ${event.kg} kg obilí na polích.`;
     case 'horse-trained':
       return 'Kůň je vycvičený pod jezdcem.';
     case 'horse-retired':

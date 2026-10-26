@@ -55,6 +55,7 @@ import { eat, endThreshing, harvest, harvestWinter } from './simulate-food';
 import { isOn, lordHelpDay, seasonDay, startSeason } from './simulate-plan';
 import { work } from './simulate-work';
 import { wildlifeYearDay, withWildlife } from './wildlife';
+import { damageWindowStart, wildlifeDamageDay, wildlifeSeasonEnd } from './wildlife-damage';
 import { lordFieldMode, trainLordDay, updateLordTraining } from './lord';
 import { dynastyDay } from './succession';
 
@@ -201,6 +202,8 @@ function simulateDay(
   if (isOn(date, PLANNING_DAY)) startSeason(state, day, coverage, landscape);
   const waiting = seasonDay(state, day, coverage);
   lordHelpDay(state, day, coverage, landscape, waiting);
+  // zvěř: 1. 6. ohrožené díly polí podle vzdálenosti od lesa (wildlife.md – Škody)
+  damageWindowStart(state, day, landscape);
   // nákup výrobků řemeslníků u sousedů – jednou za rok po sklizni, ves se rozhodne sama
   // (crafts.md – Nákup u sousedů); skupina vyrazí hned
   startPurchases(state, day, coverage, landscape);
@@ -214,6 +217,8 @@ function simulateDay(
   );
   // nástroje a nádoby v užívání se opotřebí (crafts.md – Účinek)
   wearCraftStocks(state, day);
+  // škody zvěře na polích po práci dne – nesklizené díly (wildlife.md – Škody)
+  wildlifeDamageDay(state, day);
   // zemské stezky – dostavěné úseky od vsi ven hned vylepšené, vrácené výpravy (trade.md)
   trailsDay(state);
   // vozové cesty – hotové úseky od vsi ven jsou hned pevnou cestou (roads.md – Vozová cesta)
@@ -286,7 +291,10 @@ function simulateDay(
   // Sklizeň a ztráta nevymláceného až po jídle (Ruling 13) – 31. 8. se jí ještě z loňských
   // zásob, jak počítá daysUntilHarvest (31. 8. → 1 den); ozim stejně 31. 7.
   if (isOn(date, WINTER_HARVEST_DAY)) harvestWinter(state, day);
-  if (isOn(date, HARVEST_DAY)) harvest(state, day);
+  if (isOn(date, HARVEST_DAY)) {
+    harvest(state, day);
+    wildlifeSeasonEnd(state, day);
+  }
   if (isOn(date, THRESH_END_DAY)) endThreshing(state);
   // pevné cesty (roads.md): práce dne do ročního součtu, 1. 11. roční kontrola cest a stromů
   const visits = roadsDay(state, day, landscape, obstacles);

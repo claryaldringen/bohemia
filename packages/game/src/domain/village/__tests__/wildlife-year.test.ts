@@ -162,11 +162,11 @@ describe('po kouscích', () => {
     const landscape = makeLandscape({ size: 32, surface: (x) => (x < 16 ? 'forest' : 'meadow') });
     const s = withWildlife(village(start), landscape);
     const to = start + 10;
-    const whole = advanceVillage(s, to, landscape);
+    const whole = advanceVillage(s, to, null, landscape);
     let chunked = s;
     for (let cursor = start; cursor < to;) {
       cursor = Math.min(to, cursor + 3);
-      chunked = advanceVillage(chunked, cursor, landscape);
+      chunked = advanceVillage(chunked, cursor, null, landscape);
     }
     expect(whole.wildlife!.land.forestHa).toBeGreaterThan(0);
     expect(chunked.wildlife).toEqual(whole.wildlife);

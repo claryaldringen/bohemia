@@ -28,6 +28,28 @@ export interface WildlifeState {
   bear: { present: boolean; backDay: number | null };
   /** Biomasa ryb (kg). */
   fishKg: number;
+  /** Škody na polích letošní sezóny (W2); chybí = ves ještě nepřešla 1. 6. */
+  damage?: FieldDamage;
+}
+
+/**
+ * Škody zvěře na polích sezóny (wildlife.md – Škody, Prasata a jeleni na polích): ohrožené díly
+ * spočítané 1. 6. a ztráty po dílech (jen nenulové). Po žních (31. 8.) se `risk` a `parts` vyprázdní,
+ * aby ztráty neovlivnily výhled další sezóny.
+ */
+export interface FieldDamage {
+  /** Den 1. 6. sezóny. */
+  fromDay: number;
+  /** Osetý díl ozimu nebo jaře: plocha × váha od lesa (ha) a vzdálenost od okraje lesa (m). */
+  risk: { partId: number; weightHa: number; edgeM: number }[];
+  /** Ztráta dílu: podíl hrubé úrody (nejvýš `FIELD_DAMAGE.maxShare`) a kg obilí. */
+  parts: Record<string, { share: number; kg: number }>;
+  /** Díl s dnes největší škodou (scéna); null = žádná. */
+  topPartId: number | null;
+  /** Škoda letos celkem (kg obilí; kronika, upozornění). */
+  totalKg: number;
+  /** Škoda minulé sezóny (kg; tooltip druhu). */
+  lastYearKg?: number;
 }
 
 /** Stropy kusů podle krajiny (neukládají se). */
