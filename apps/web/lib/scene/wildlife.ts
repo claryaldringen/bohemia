@@ -142,7 +142,7 @@ export class VillageWildlife {
    * zvěře ve scéně null.
    */
   huntSpot(target: 'game' | 'wolves' | 'bear'): { x: number; z: number } | null {
-    const groups = (this.plan?.groups ?? []).filter((g) => g.zone === 'edge');
+    const groups = (this.plan?.groups ?? []).filter((g) => g.zone === 'edge' || g.zone === 'verge');
     const wanted: readonly WildlifeSpecies[] =
       target === 'game' ? ['boar', 'deer'] : target === 'wolves' ? ['wolf'] : ['bear'];
     for (const species of [...wanted, null]) {

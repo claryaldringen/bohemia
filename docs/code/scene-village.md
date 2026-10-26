@@ -263,7 +263,9 @@ podle osetých ha dílů `sown`) a `fishShare` (biomasa ÷ strop).
 - **Rozmístění** (`lib/scene/wildlife-placement.ts`, čisté, `planWildlife`): deterministicky ze
   seedu krajiny vsi a dat vsi, na rastru terénu dobytka (`LivestockGround` – sdílí ho
   `VillageLivestock.groundFor`). Stanoviště po 8 m do 320 m od středu vsi: **okraj lesa**
-  (`forestEdge`, −7 až +5 m jako prasata vsi, ≥ 45 m od obydlí), **louka** (`pasture`, ≥ 55 m od
+  (`forestEdge`, −7 až +5 m jako prasata vsi, vlci a medvěd, ≥ 45 m od obydlí), **louka před
+  lesem** (`verge`, +4 až +18 m od hranice lesa, ≥ 45 m od obydlí – jelení zvěř; z kamery ji
+  nezakryjí koruny, bez `verge` se bere `pasture`; návrh Clauda), **louka** (`pasture`, ≥ 55 m od
   obydlí, i strniště – díl `look: 'stubble'`), **kraj vsi** (22–60 m od obydlí – liška) a **díl se
   škodou** (`topPartId`, červen–srpen; na sousední díly smí). Nikdy ve stavbě, na poli (mimo díl
   se škodou), na hřbitově, v sadu, ohradě ani ve vodě (`free` – schůdná zem a kruhy staveb přes
@@ -272,7 +274,7 @@ podle osetých ha dílů `sown`) a `fishShare` (biomasa ÷ strop).
   (září–říjen) spolu, zajíci každý zvlášť, liška, vlci jen v zimě (prosinec–únor), medvěd
   duben–listopad. Skupina je `Herd` dobytka s trasou ≤ 3 stanovišť 14–34 m od sebe, skupiny
   ≥ 40 m od sebe; kusy v kruhu 2,5 + 0,55 m na kus (osamělé zvíře se toulá do 3 m). Když se
-  skupina na díl se škodou nevejde, zůstane na okraji lesa. Bod trasy se přijme jen tehdy, když
+  skupina na díl se škodou nevejde, zůstane na okraji lesa (jelení zvěř na louce před lesem). Bod trasy se přijme jen tehdy, když
   je volná i úsečka z předchozího bodu (vzorky po 4 m, `segmentFree`) a okruh toulání kolem něj.
 - **Hra zatím nemá noc** (den a noc jen `/dev/landscape`) – zóny „za soumraku a v noci louky“
   se řídí jen měsícem; noční louky a liška za soumraku až s denní dobou ve hře (návrh Clauda).

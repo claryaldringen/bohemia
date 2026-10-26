@@ -178,6 +178,8 @@ export interface LivestockGround {
   pasture(x: number, z: number): boolean;
   /** Okraj lesa pod krajními stromy – tam prasata rozrývají půdu (hlouběji by je zakryly koruny). */
   forestEdge(x: number, z: number): boolean;
+  /** Louka před okrajem lesa, kde jelení zvěř koruny nezakryjí (bez ní se bere `pasture`). */
+  verge?(x: number, z: number): boolean;
   /** Kudy smí slepice – ne voda, skála a prudký svah. */
   walkable(x: number, z: number): boolean;
 }
@@ -1041,6 +1043,8 @@ const PASTURE_LIMITS = { forestM: -6, bankM: 3, slope: 0.12, rock: 0.25 };
  * okrajem lesa z druhé strany je po otočení kamery taky nemusí být vidět – to nevadí.
  */
 const FOREST_EDGE_M = { from: -7, to: 5 };
+/** Zvěř: pás na louce před lesem (m od hranice lesa) – mimo koruny, stále u krytu. */
+const VERGE_M = { from: 4, to: 18 };
 const FOREST_LIMITS = { bankM: 3, slope: 0.16, rock: 0.35 };
 /** Slepice: od vody (m), sklon a skalnatost. */
 const WALK_LIMITS = { bankM: 1, slope: 0.2, rock: 0.5 };
@@ -1050,6 +1054,7 @@ const EDGE_MARGIN_M = 12;
 const PASTURE = 1;
 const FOREST_EDGE = 2;
 const WALKABLE = 4;
+const VERGE = 8;
 
 /**
  * Terén pro zvířata jako rastr kolem středu vsi (po 4 m, do GROUND_REACH_M) – dotazy na potok
@@ -1100,6 +1105,16 @@ export function livestockGround(
       ) {
         f |= FOREST_EDGE;
       }
+      if (
+        surface === SURFACE_CODES.meadow &&
+        forest >= VERGE_M.from &&
+        forest <= VERGE_M.to &&
+        bank > FOREST_LIMITS.bankM &&
+        slope < FOREST_LIMITS.slope &&
+        rock < FOREST_LIMITS.rock
+      ) {
+        f |= VERGE;
+      }
       flags[j * n + i] = f;
     }
   }
@@ -1112,6 +1127,7 @@ export function livestockGround(
   return {
     pasture: (x, z) => at(x, z, PASTURE),
     forestEdge: (x, z) => at(x, z, FOREST_EDGE),
+    verge: (x, z) => at(x, z, VERGE),
     walkable: (x, z) => at(x, z, WALKABLE),
   };
 }

@@ -19,6 +19,7 @@ import {
 const ground: LivestockGround = {
   walkable: (x, z) => !(x > -160 && x < -140) && Math.abs(x) < 400 && Math.abs(z) < 400,
   forestEdge: (x, z) => z >= 103 && z <= 115 && !(x > -160 && x < -140),
+  verge: (x, z) => z >= 83 && z <= 97 && !(x > -163 && x < -137),
   pasture: (x, z) => z < 97 && !(x > -163 && x < -137),
 };
 
@@ -106,6 +107,8 @@ describe('planWildlife', () => {
     for (const g of groups) {
       for (const spot of g.herd.route) {
         if (g.zone === 'edge') expect(ground.forestEdge(spot.x, spot.z)).toBe(true);
+        if (g.zone === 'verge') expect(ground.verge?.(spot.x, spot.z)).toBe(true);
+        if (g.species === 'deer') expect(ground.forestEdge(spot.x, spot.z)).toBe(false);
         if (g.zone === 'meadow') {
           const stubble = Math.hypot(spot.x + 60, spot.z - 40) < 1;
           expect(stubble || ground.pasture(spot.x, spot.z)).toBe(true);

@@ -31,8 +31,8 @@ export const WILD_MODELS: readonly WildModel[] = [
   'wild-hare',
 ];
 
-/** Kde skupina je: okraj lesa, louka (i strniště), kraj vsi, díl se škodou. */
-export type WildZone = 'edge' | 'meadow' | 'village' | 'field';
+/** Kde skupina je: okraj lesa (prasata, šelmy), louka před lesem (jelení zvěř), louka (i strniště), kraj vsi, díl se škodou. */
+export type WildZone = 'edge' | 'verge' | 'meadow' | 'village' | 'field';
 
 /** Skupina zvěře – stádo s trasou (pohyb jako dobytek) a model každého kusu. */
 export interface WildGroup {
@@ -169,14 +169,14 @@ export function wantedGroups(
     // v říji jeleni u stáda laní
     const all = [...stags, ...hinds];
     if (all.length > 0)
-      groups.push({ species: 'deer', zone: 'edge', kind: 'cattle', animals: all });
+      groups.push({ species: 'deer', zone: 'verge', kind: 'cattle', animals: all });
   } else {
     if (hinds.length > 0) {
-      const zone: WildZone = onField && !boarOnField ? 'field' : 'edge';
+      const zone: WildZone = onField && !boarOnField ? 'field' : 'verge';
       groups.push({ species: 'deer', zone, kind: 'cattle', animals: hinds });
     }
     if (stags.length > 0)
-      groups.push({ species: 'deer', zone: 'edge', kind: 'cattle', animals: stags });
+      groups.push({ species: 'deer', zone: 'verge', kind: 'cattle', animals: stags });
   }
   // zajíci každý zvlášť
   for (let i = 0; i < s.hares; i++) {
@@ -348,6 +348,7 @@ export function planWildlife(
   // stanoviště po zónách (mřížka kolem středu vsi)
   const sites: Record<WildZone, { x: number; z: number }[]> = {
     edge: [],
+    verge: [],
     meadow: [],
     village: [],
     field: [],
@@ -360,6 +361,9 @@ export function planWildlife(
       if (Math.hypot(x - cx, z - cz) > SITE_REACH_M || !free(x, z)) continue;
       const home = nearestDwelling(x, z);
       if (ground.forestEdge(x, z) && home >= EDGE_DWELLING_M) sites.edge.push({ x, z });
+      if ((ground.verge ?? ground.pasture)(x, z) && home >= EDGE_DWELLING_M) {
+        sites.verge.push({ x, z });
+      }
       if (ground.pasture(x, z) && home >= MEADOW_DWELLING_M) sites.meadow.push({ x, z });
       if (home >= FOX_DWELLING_M.from && home <= FOX_DWELLING_M.to) sites.village.push({ x, z });
     }
@@ -423,7 +427,7 @@ export function planWildlife(
     let order = orderOf(zone);
     let start = order.find((o) => fitsIn(zone, o.p))?.p;
     if (!start && zone === 'field') {
-      zone = 'edge';
+      zone = w.species === 'deer' ? 'verge' : 'edge';
       order = orderOf(zone);
       start = order.find((o) => fitsIn(zone, o.p))?.p;
     }
