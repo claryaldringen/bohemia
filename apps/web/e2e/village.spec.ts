@@ -825,6 +825,40 @@ test('hráč vysadí sad po čtvercích a vybere ho – panel ukáže výsadbu, 
   await expect(panel.getByTestId('selection-yield')).not.toHaveText('0');
 });
 
+test('porážka ve scéně – mršina a kozlina se nakreslí a jsou připravené ke kreslení', async ({
+  page,
+}) => {
+  const { seat: s } = await newPlayer(page, 'porazka');
+  await found(page, villageSpots(s.landscape).dwelling);
+
+  // Dnešní rozvrh práce s porážkou a prase ve stádě (jako by ho tak dopočítal server).
+  const state = withBuiltFirstDwelling(await villageState(s.settlementId));
+  state.livestock = {
+    young: { sheep: 0, goat: 0, pig: 0, cow: 0 },
+    ...state.livestock,
+    herds: { sheep: 0, goat: 0, pig: 1, cow: 0 },
+  };
+  state.labor = {
+    day: state.lastDay,
+    shares: [{ activity: 'slaughter', target: { kind: 'village' }, manDays: 2 }],
+    slaughterHeads: { pig: 1 },
+  };
+  await writeVillageState(s.settlementId, state);
+  // modely jinak testy přerušují (newPlayer) – porážka se bez nich nenakreslí
+  await page.unroute('**/models/**');
+  await page.reload();
+  await expect
+    .poll(
+      async () => {
+        const meshes = await page.evaluate(() => window.__bohemiaE2E?.slaughterMeshes?.() ?? []);
+        const ready = (name: string): boolean => meshes.some((m) => m.name === name && m.ready);
+        return ready('slaughter-carcass-pig') && ready('slaughter-trestle-small');
+      },
+      { timeout: 30_000 },
+    )
+    .toBe(true);
+});
+
 test('když ves vymře, hra skončí obrazovkou porážky – Začít znovu dá nové sídlo', async ({
   page,
 }) => {

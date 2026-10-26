@@ -345,12 +345,12 @@ export class SlaughterRenderer {
         return null;
       });
       if (!parts || this.disposed || this.scene.isDisposed) {
-        for (const mesh of parts?.values() ?? []) mesh.dispose();
+        for (const mesh of parts?.values() ?? []) mesh.dispose(false, true);
         return;
       }
       for (const [name, mesh] of parts) {
         if (!(PROP_PARTS as readonly string[]).includes(name)) {
-          mesh.dispose();
+          mesh.dispose(false, true);
           continue;
         }
         // dočasné díly (jen den porážky) – ne vrhače stínové mapy; obal přes instance by se
@@ -372,7 +372,10 @@ export class SlaughterRenderer {
     this.carcassLoading.add(species);
     loadGeometry(this.scene, `${CARCASS_URL}${species}.glb`).then(
       (geometry) => {
-        if (!geometry || this.disposed || this.scene.isDisposed) return;
+        if (!geometry || this.disposed || this.scene.isDisposed) {
+          geometry?.texture?.dispose();
+          return;
+        }
         this.carcasses.set(species, this.createCarcass(species, alignCarcass(geometry)));
         this.allocate();
         this.write(Date.now());

@@ -76,6 +76,18 @@ describe('kusy poražené dnes', () => {
     }
   });
 
+  it('nouzová porážka přes advanceVillage: hlášení je v rozvrhu práce toho dne', () => {
+    const day = at(600, 12, 1);
+    const s = village(day - 1);
+    s.livestock!.herds = herds({ pig: 60, sheep: 30 });
+    const input = dayMealInput(s, day, 0, 1);
+    s.storesKg = 0.75 * input.needPerDay * input.daysToHarvest;
+    const next = advanceVillage(s, day, null);
+    expect(next.livestock!.slaughtered?.day).toBe(day);
+    expect(next.labor!.day).toBe(day);
+    expect(next.labor!.slaughterHeads).toEqual(next.livestock!.slaughtered!.heads);
+  });
+
   it('dopočet vcelku = po kouscích (hlášení nemění stav)', () => {
     const start = village(at(600, 10, 25));
     start.livestock!.herds = herds({ pig: 40, sheep: 20, cow: 3 });

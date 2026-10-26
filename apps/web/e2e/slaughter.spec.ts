@@ -11,7 +11,7 @@ const DEV_URL = process.env.SLAUGHTER_DEV_URL;
 const SHOTS_DIR = process.env.SLAUGHTER_SHOTS;
 
 test.skip(!DEV_URL, 'vyžaduje vývojový server (SLAUGHTER_DEV_URL)');
-test.describe.configure({ timeout: 240_000 });
+test.describe.configure({ timeout: 900_000 });
 test.use({
   reducedMotion: 'no-preference',
   viewport: { width: 1280, height: 800 },

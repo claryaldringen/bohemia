@@ -1052,6 +1052,13 @@ export class LandscapeScene {
   }
 
   /** Bod krajiny (x, z) na obrazovce v CSS px plátna, nebo null mimo záběr (testovací háček). */
+  /** Testovací háček: jména a připravenost meshů porážky (`slaughter-*`) ve scéně. */
+  slaughterMeshes(): { name: string; ready: boolean }[] {
+    return this.scene.meshes
+      .filter((mesh) => mesh.name.startsWith('slaughter-'))
+      .map((mesh) => ({ name: mesh.name, ready: mesh.isReady(true) }));
+  }
+
   projectToScreen(x: number, z: number): { x: number; y: number } | null {
     const camera = this.rtsCamera?.camera;
     if (!camera || !this.groundHeight) return null;

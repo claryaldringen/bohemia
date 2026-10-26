@@ -23,7 +23,7 @@ export type VillagerClip =
   | 'fruit'
   | 'carry-water'
   | 'water-idle'
-  // porážka (slaughter.md): řezník s nožem v kleku a vestoje, žena s miskou, nošení masa
+  // porážka (diet.md – Porážka ve scéně): řezník s nožem v kleku a vestoje, žena s miskou, nošení masa
   | 'butcher'
   | 'bleed'
   | 'gut'

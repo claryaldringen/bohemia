@@ -485,7 +485,11 @@ export function VillageGame({
   useEffect(() => {
     if (!scene) return;
     setE2EHook('projectToScreen', (x, z) => scene.projectToScreen(x, z));
-    return () => setE2EHook('projectToScreen', undefined);
+    setE2EHook('slaughterMeshes', () => scene.slaughterMeshes());
+    return () => {
+      setE2EHook('projectToScreen', undefined);
+      setE2EHook('slaughterMeshes', undefined);
+    };
   }, [scene]);
 
   const poll = useCallback(async (): Promise<void> => {

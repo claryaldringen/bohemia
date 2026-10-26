@@ -284,8 +284,10 @@ a pod zemí, visící kotva háku jinde) – srovná je až `alignCarcass` při 
 - `trough` – necky 1,4 × 0,5 m, výška 0,28 m, bez krve (Martin 26. 10. 2026: krev jen tmavá
   hladina v misce); pod hlavou visícího zvířete.
 - `block` – špalek r 0,3 m, výška 0,55 m, nahoře prkno 0,7 × 0,34 m (vršek 0,59 m) pro kýty.
-- `bowl` – miska na zemi (r 0,14 m, výška 0,09 m) s krví; stejný tvar, jaký drží žena v klipu `bleed`
-  (prop `bowl` v `people.json`, otevřený nahoru, dno v bodě ruky).
+- `bowl` – miska na zemi (r 0,19 m, výška 0,13 m, tmavá kůra a tmavá hnědočervená hladina, aby okraj
+  i hladina byly z výšky vidět) s krví; stojí vedle necek za jejich koncem (`BOWL_LOCAL`), řezník při
+  vyvržení stojí z boku (`gutLocal`), ne před zvířetem. Miska v ruce ženy v klipu `bleed` je prop
+  `bowl` v `people.json`.
 
 Výška počátku visícího zvířete = hroty háků − `CARCASS.hangTop` (výška háku nad počátkem visícího
 modelu, slaughter-plan.ts – s kopyty nad háky). Rekvizity kreslí `slaughter-renderer` (níž).
@@ -294,7 +296,7 @@ modelu, slaughter-plan.ts – s kopyty nad háky). Rekvizity kreslí `slaughter-
 
 Scéna dostává z jádra **kusy poražené dnes** jako `SceneLabor.slaughter` (`Partial<Record<HerdSpecies,
 number>>`, i zlomky kusů; bez údaje se neporáželo) – z `LaborDay.slaughterHeads`
-(`labor-report.ts`), ten z `LivestockState.slaughtered` (`{ day, heads }`, plní `noteSlaughtered`
+(`labor-report.ts`; nouzovou porážku, která běží až v `eat()` po `work()`, doplní `simulateDay` do dnešního rozvrhu), ten z `LivestockState.slaughtered` (`{ day, heads }`, plní `noteSlaughtered`
 v `livestock.ts`: `slaughter()` – jen hned poražené, `winterSlaughterDay`, `hayShortSlaughter`,
 `emergencySlaughter`). Jen hlášení – simulace ho nečte. Dev náhled: `demoLabor` v listopadu
 (`app/dev/landscape/dev-labor.ts`) přidá `slaughter` s ukázkovými kusy. Převod zlomků na
@@ -305,7 +307,7 @@ stanoviště je v plánu porážky (níž).
 `apps/web/lib/scene/slaughter-plan.ts` – čistá funkce bez Babylonu (vzor `funeral-plan.ts`):
 
 - **Stanoviště** (`slaughterSites`): počet `stationCount` = zaokrouhlený součet dnešních kusů,
-  1 až `min(3, postavy / 2)` (zimní den se zlomky dá 1; 1. 11., nouzová a porážka pro seno víc).
+  1 až `min(3, postavy / 2)`; zimní den s méně než jedním kusem má stanoviště jen s pravděpodobností rovnou součtu (`slaughterRoll(seed, den, 0)`), takže průměr přes zimu odpovídá kusům; 1. 11., nouzová a porážka pro seno víc.
   Druh losem váženým kusy (zlomky jsou podíly, každé další stanoviště bez už vylosovaného kusu),
   domácnost losem ze seedu a dne (`slaughterRoll`, každá nejvýš jednou). Kozlina 2–3 m před
   vchodem (`STATION_FROM_DOOR_M`, stranou až 3 m), otevřenou stranou k vchodu; všechny body
@@ -331,10 +333,10 @@ stanoviště je v plánu porážky (níž).
   s miskou). Okamžik: `slaughterState` – fáze, `carcass` (`pose` 1 stojí / 0 leží / −1 visí,
   poloha, `lift`, `quarters` a `cutMask` po `QUARTER_BITS`), `legsOnBoard`, `bowlOnGround`.
   Lidé: `slaughterPose` – poloha, natočení, klip a tempo podle scénáře kroků (rekvizitu v ruce
-  dává klip, `slaughterProp`).
+  dává klip).
 - **Postavy** (`villager-plan-slaughter.ts`, `slaughterFigures`): v `planVillagersWithCrew` hned
   po řemeslnících; bez `labor.slaughter`, hodin světa nebo podílu `slaughter` nic. Postav je
-  tolik, kolik má podíl porážky (aspoň 2, nejvýš dospělých); řezník muž a žena s miskou
+  tolik, kolik má podíl porážky (aspoň 2, nejvýš dospělých; nadbytek nad podílem se ubere z domácích prací a nečinných, ať nikomu nechybí postava); řezník muž a žena s miskou
   přednostně z domácnosti stanoviště (`roster.take`), klíč `slaughter-crew:`. Lidé party
   nedělají nic jiného – o ně se zmenší podíl porážky, jeho zbytek stojí jako dřív u výmlatu.
   Plán vrací `planVillagersWithCrew` jako `slaughter` (pro `slaughter-renderer`). Nosič s masem

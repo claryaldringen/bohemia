@@ -231,6 +231,15 @@ export function planVillagersWithCrew(
     counts[s] = (counts[s] ?? 0) - take;
     butchers -= take;
   }
+  // parta má aspoň 2 postavy i při menším podílu – nadbytek ubere z posledních (domácí práce,
+  // nečinní) a nepřipravených podílů, ať nikomu nechybí postava (jako svatby a pohřby)
+  for (let s = counts.length - 1; s >= 0 && butchers > 0; s--) {
+    const act = labor.shares[s]!.activity;
+    if (act === 'slaughter' || CRAFT_ACTIVITIES.has(act)) continue;
+    const take = Math.min(butchers, counts[s] ?? 0);
+    counts[s] = (counts[s] ?? 0) - take;
+    butchers -= take;
+  }
   for (const s of firstBuilders(labor.shares, counts)) if (wanted(s)) place(s, 0);
   all((share) => !LATE_ACTIVITIES.has(share.activity));
   const traffic = trafficFigures(ctx, labor, options.maxTraffic ?? MAX_TRAFFIC);

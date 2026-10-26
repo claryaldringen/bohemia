@@ -1135,7 +1135,7 @@ výsledek porážky (kusy, maso) nemá vliv. Podrobnosti a soubory: `docs/code/s
 - Kolik kusů se dnes poráží, říká simulace; scéna z toho udělá 1 až 3 stanoviště a každé má
   vlastní sekvenci podle herního dne: přivedení, omráčení, vykrvení, zavěšení na kozlinu,
   vyvržení, rozčtvrcení a odnos kýt do domu.
-- **Dvůr u domu** (Martin: porážka se dělá u domu); **kráva u ohrady skotu** (velká kozlina
+- **Dvůr u domu** (Martin 26. 10. 2026: „Zbytek je ok“ k doporučení dělat porážku u domu); **kráva u ohrady skotu** (velká kozlina
   u branky).
 - **Omráčení jen prase a kráva** (palice); ovce a koza se jen přidrží a podříznou vestoje.
 - **Krev jen v misce** na zemi (a tmavá hladina v ní) – nikde jinde se nekreslí.

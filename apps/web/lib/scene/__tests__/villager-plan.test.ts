@@ -1560,6 +1560,30 @@ describe('provoz na cestách – pro vodu, k lesu a na pole (villagers.md)', () 
   });
 });
 
+describe('porážka – parta o 2 postavy nebere lidi jiným činnostem (diet.md – Porážka ve scéně)', () => {
+  const START = LIVESTOCK_EPOCH_MS + 5_000_000;
+  const dayWindow = (day: number): { startMs: number; endMs: number } => ({
+    startMs: START + (day - 1000) * 86_000,
+    endMs: START + (day - 1000 + 1) * 86_000,
+  });
+  it('počet postav celkem se oproti dni bez porážky nezmění', () => {
+    const shares: LaborShare[] = [
+      { activity: 'slaughter', target: { kind: 'village' }, manDays: 0.4 },
+      { activity: 'idle', target: { kind: 'village' }, manDays: 5 },
+      { activity: 'milking', target: { kind: 'village' }, manDays: 1 },
+    ];
+    const base = village(shares, 11, { children: 2, adults: 3, elders: 0 });
+    const plain = planVillagers(base, GROUND, { seed: 3, herds: 0, dayWindow });
+    const withHeads: SceneVillage = {
+      ...base,
+      labor: { ...base.labor!, slaughter: { pig: 1 } },
+    };
+    const people = planVillagers(withHeads, GROUND, { seed: 3, herds: 0, dayWindow });
+    expect(people.some((p) => p.key.startsWith('slaughter-crew:'))).toBe(true);
+    expect(people.length).toBe(plain.length);
+  });
+});
+
 describe('pohřeb – průvod mimo rozpočet pracujících (cemetery.md – Pohřeb ve scéně)', () => {
   const DAY = 1000;
   const START = LIVESTOCK_EPOCH_MS + 5_000_000;

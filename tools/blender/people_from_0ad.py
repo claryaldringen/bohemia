@@ -364,7 +364,7 @@ def procedural_yoke(uv_wood, uv_band, uv_rope):
 
 
 def procedural_bowl(uv_wood, uv_liquid):
-    """Miska na krev pro jelita (porážka ve scéně – docs/design/slaughter.md; 0 A.D. ji nemá):
+    """Miska na krev pro jelita (porážka ve scéně – docs/design/diet.md – Porážka ve scéně; 0 A.D. ji nemá):
     mělká komolá miska otevřená nahoru (osa z bodu propu, dno v bodě), uvnitř tmavá hladina.
     Bod propu „weapon_L“ má svislici v ose Y, proto je miska v people.json natočená o −90° kolem X."""
     positions, normals, uvs, tris = [], [], [], []
