@@ -27,7 +27,7 @@ import {
 import { computePause } from './compute-pause';
 import { ownMapsAround } from './departure-view';
 import { getDatabase } from './db';
-import { exclusive, playerLockKey } from './exclusive';
+import { exclusive, exclusiveShared, playerLockKey } from './exclusive';
 import { cachedLandscapes } from './landscape-cache';
 import { currentWorld, gameDayIndex } from './world';
 
@@ -155,9 +155,15 @@ function dynastyDeps(): Parameters<typeof dynastyStatus>[0] {
  * konec hry.
  */
 export function dynastyOfPlayer(playerId: string, today: number): Promise<DynastyStatus> {
-  return exclusive(playerLockKey(playerId), () =>
-    dynastyStatus(dynastyDeps(), { playerId, today }),
+  // dotazy se stejným dnem sdílejí jeden dopočet (exclusive.ts)
+  return exclusiveShared(playerLockKey(playerId), String(today), () =>
+    dynastyOfPlayerLocked(playerId, today),
   );
+}
+
+/** Totéž bez zámku – jen pro volající, kteří už zámek hráče drží (`exclusive` se nevnořuje). */
+export function dynastyOfPlayerLocked(playerId: string, today: number): Promise<DynastyStatus> {
+  return dynastyStatus(dynastyDeps(), { playerId, today });
 }
 
 /**

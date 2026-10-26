@@ -1,5 +1,11 @@
-import { describe, expect, it } from 'vitest';
-import { exclusive, pendingExclusiveKeys, playerLockKey } from '../exclusive';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  EXCLUSIVE_WARN_MS,
+  exclusive,
+  exclusiveShared,
+  pendingExclusiveKeys,
+  playerLockKey,
+} from '../exclusive';
 
 /**
  * Model dopočtu vsi: záznam s verzí a dnem, `advance` načte, po přestávce (jako `computePause`)
@@ -91,5 +97,99 @@ describe('exclusive', () => {
     await exclusive('player:y', () => Promise.resolve(1));
     await new Promise((resolve) => setImmediate(resolve));
     expect(pendingExclusiveKeys()).toBe(0);
+  });
+});
+
+describe('exclusive – pořadí, úklid a varování', () => {
+  it('čtyři čekatelé běží v pořadí zařazení (FIFO)', async () => {
+    const order: number[] = [];
+    await Promise.all(
+      [1, 2, 3, 4].map((n) =>
+        exclusive('player:fifo', async () => {
+          await new Promise((resolve) => setImmediate(resolve));
+          order.push(n);
+        }),
+      ),
+    );
+    expect(order).toEqual([1, 2, 3, 4]);
+  });
+
+  it('rychlé navázání dalšího volání mapu neuklidí předčasně a nakonec ji uklidí', async () => {
+    const first = exclusive('player:chain', () => Promise.resolve(1));
+    await first;
+    const second = exclusive('player:chain', () => Promise.resolve(2)); // dřív než doběhl úklid prvního
+    expect(pendingExclusiveKeys()).toBeGreaterThan(0);
+    await second;
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(pendingExclusiveKeys()).toBe(0);
+  });
+
+  it('po 120 s čekání i běhu se jen zapíše varování, fronta se neuvolní', async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      let release: () => void = () => undefined;
+      const slow = exclusive('player:warn', () => new Promise<void>((r) => (release = r)));
+      const order: string[] = [];
+      const waiting = exclusive('player:warn', async () => void order.push('druhé'));
+      await vi.advanceTimersByTimeAsync(EXCLUSIVE_WARN_MS + 1000);
+      expect(warn).toHaveBeenCalledTimes(2); // běh prvního i čekání druhého
+      expect(order).toEqual([]); // nic se neuvolnilo
+      release();
+      await slow;
+      await waiting;
+      expect(order).toEqual(['druhé']);
+    } finally {
+      warn.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('exclusiveShared', () => {
+  it('pět souběžných dotazů se stejným dnem: jeden dopočet', async () => {
+    const village = new FakeVillage();
+    const key = playerLockKey('hrac');
+    const results = await Promise.all(
+      [1, 2, 3, 4, 5].map(() => exclusiveShared(key, '365', () => village.advance(365))),
+    );
+    expect(results).toEqual([365, 365, 365, 365, 365]);
+    expect(village.computes).toBe(1);
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(pendingExclusiveKeys()).toBe(0);
+  });
+
+  it('jiný den se nesdílí', async () => {
+    const village = new FakeVillage();
+    const key = playerLockKey('hrac');
+    const [a, b] = await Promise.all([
+      exclusiveShared(key, '365', () => village.advance(365)),
+      exclusiveShared(key, '730', () => village.advance(730)),
+    ]);
+    expect([a, b]).toEqual([365, 730]);
+    expect(village.computes).toBe(2);
+  });
+
+  it('akce mezi dotazy: dotaz po akci se nesdílí s dotazem před ní a akce nedopočítává navíc', async () => {
+    const village = new FakeVillage();
+    const key = playerLockKey('hrac');
+    const log: string[] = [];
+    const q1 = exclusiveShared(key, '365', async () => {
+      log.push('dotaz');
+      return village.advance(365);
+    });
+    const q2 = exclusiveShared(key, '365', () => village.advance(365)); // sdílí q1
+    const act = exclusive(key, async () => {
+      log.push('akce');
+      return village.advance(365);
+    });
+    const q3 = exclusiveShared(key, '365', async () => {
+      log.push('dotaz po akci');
+      return village.advance(365);
+    });
+    await Promise.all([q1, q2, act, q3]);
+    expect(log).toEqual(['dotaz', 'akce', 'dotaz po akci']);
+    expect(village.computes).toBe(1); // akce i druhý dotaz jen zjistily, že je hotovo
+    expect(village.conflicts).toBe(0);
   });
 });

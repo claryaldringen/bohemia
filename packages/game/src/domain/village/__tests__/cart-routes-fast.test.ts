@@ -174,6 +174,9 @@ describe('cartRoutesOn – rychlé hledání', () => {
       ],
     });
     expect(routes).toHaveLength(2);
+    // cíl za zdí je dosažitelný jen přes mezeru
+    expect(routes[0]!.reached).toBe(true);
+    expect(routes[1]!.reached).toBe(true);
   });
 
   it('cíl za maxCost zůstane nedosažený', () => {
@@ -186,6 +189,7 @@ describe('cartRoutesOn – rychlé hledání', () => {
         { ...at(grid, 59, 4), reachM: 0.5 },
       ],
     });
+    expect(routes[0]!.reached).toBe(true);
     expect(routes[1]!.reached).toBe(false);
   });
 });
