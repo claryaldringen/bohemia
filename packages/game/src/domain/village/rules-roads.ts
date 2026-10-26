@@ -55,6 +55,12 @@ export const ROAD_TRAFFIC = { bandCells: 0.75, underBuildingDays: 330 } as const
 // návrh Clauda): volný konec úseku (i vozového – kromě rozestavěné vozové cesty) do `joinGapM` od
 // jiného úseku se v úklidu napojí; stejně daleko se napojí vrácený kus staré osy v přestavbě
 export const ROAD_JOIN = { gapM: 12 } as const;
+// paths.md – Copánek přes křižovatku (Martin 26. 10. 2026: „Udělej zrychlení a opravy cest“ – audit
+// Vlkova 25. 10. 2026, návrh 3; čísla návrh Clauda): slabší úsek, který vede souběžně (do 25 m jako
+// copánek) s jinou cestou mezi týmiž uzly přes 1 až `maxNodes` mezilehlé uzly, zmizí, když je okruh
+// obou větví nejvýš `maxM` m dlouhý a uvnitř leží nejvýš `maxInside` staveb a pozemků; Martin
+// 26. 10. 2026: „Ať kruhy kolem domů zůstanou“ – `maxInside` 0, okruh kolem stavby zůstane
+export const ROAD_BRAID_RING = { maxNodes: 2, maxM: 150, maxInside: 0 } as const;
 // paths.md – Jednorázová oprava sítě (číslo návrh Clauda): nenapojená vozová cesta bez provozu se
 // v opravě opustí, ale ne do `freshDays` od dostavění zemních prací (bez nich od vzniku úseku) – po
 // nové cestě zatím nikdo nejel; vozová cesta na hotových zemních pracích napojená aspoň jedním
@@ -303,6 +309,15 @@ export const WAGON_ROAD = {
  * práce než po staré ose, nebo stará osa nejde vůbec.
  */
 export const WAGON_STRAIGHTEN = { ratio: 1.3, climbM: 3, maxM: 120 } as const;
+/**
+ * paths.md – Vozová cesta bez vlásenky (Martin 26. 10. 2026: „Udělej zrychlení a opravy cest“ –
+ * audit Vlkova 25. 10. 2026, návrh 5, vozová cesta kolem ohrady 3,16× delší než tětiva na 60 m;
+ * čísla návrh Clauda): kus osy nejvýš `spanM` m, který je víc než `ratio`× delší než tětiva mezi
+ * konci, je vlásenka – plán ji nepřijme: kus s ní (do `WAGON_STRAIGHTEN.maxM`) nahradí tětivou
+ * i na rovině, jinak hledá objížďku jako u prudkého kusu. Serpentina do svahu vlásenkou není:
+ * tětiva je tam prudší než `WAGON_ROAD.maxGrade` (po ní by vůz nevyjel).
+ */
+export const WAGON_HAIRPIN = { ratio: 2, spanM: 60 } as const;
 /**
  * roads.md – Postupná úprava a serpentiny (Martin, 24. 10. 2026: „Zemská stezka na sever nejde
  * upravit pro vozy s tím, že je pro vůz moc prudká, ale přesně tohle by ta úprava cesty pro vozy

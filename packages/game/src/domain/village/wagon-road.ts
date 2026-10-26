@@ -52,6 +52,7 @@ import {
   ROAD_SWATH,
   ROAD_UPGRADES,
   WAGON_DETOUR,
+  WAGON_HAIRPIN,
   WAGON_ROAD,
   WAGON_STRAIGHTEN,
 } from './rules';
@@ -102,6 +103,8 @@ export const WAGON_FIRST = 'Napřed uprav cestu.';
 export const WAGON_STEEP = 'Cesta je pro vůz moc prudká.';
 export const WAGON_NO_WOOD = 'Na lávku chybí dřevo.';
 export const WAGON_SACRED = 'Vozové cestě stojí v cestě posvátný dub – kácet se nesmí.';
+/** Vlásenka na rovině bez objížďky (rules-roads.ts – WAGON_HAIRPIN). */
+export const WAGON_HAIRPIN_REASON = 'Cesta se pro vůz stáčí do vlásenky.';
 
 /** Kratší cesta se pro vozy neupravuje (m) – jako nejkratší pevná cesta. */
 const MIN_CHAIN_M = 15;
@@ -559,7 +562,7 @@ function profileCost(
   return sum;
 }
 
-/** Kolik tětiv nejvýš vyzkoušet (od nejvíc ušetřené délky) – ohraničuje cenu plánování. */
+/** Kolik tětiv nejvýš vyzkoušet (vlásenky napřed, pak od nejvíc ušetřené délky) – ohraničuje cenu plánování. */
 const STRAIGHTEN_TRIES = 8;
 const STRAIGHTEN_STEP_M = 6;
 
@@ -569,6 +572,9 @@ const STRAIGHTEN_STEP_M = 6;
  * se liší výškou aspoň o `climbM` m, se nahradí tětivou, když ji vůz projede, profil po ní vyjde
  * a stojí méně práce (zemní práce, zpevnění i kácení) než po staré ose (nebo stará osa nejde
  * vůbec). Tětiva přes posvátný strom se zahodí – osa zůstane stará. Jinak osa zůstane.
+ * Kus s vlásenkou (víc než `WAGON_HAIRPIN.ratio`× delší než tětiva – i na rovině, paths.md –
+ * Vozová cesta bez vlásenky) se nahradí tětivou, kudy vůz projede a profil vyjde, i když by stála
+ * víc práce.
  * Vrací novou osu a obejité kusy staré (zarostou). Bez narovnání je osa beze změny.
  */
 export function straightenStretches(
@@ -584,21 +590,28 @@ export function straightenStretches(
   }
   const height = s.map((p) => wagonGridHeight(grid, p.x, p.z));
   // kandidáti (začátek, konec tětivy) – nejdřív kde se ušetří nejvíc délky
-  const candidates: { i: number; j: number; saved: number }[] = [];
+  const candidates: { i: number; j: number; saved: number; hairpin: boolean }[] = [];
   for (let i = 0; i < s.length - 2; i++) {
     for (let j = i + 2; j < s.length; j++) {
       const along = arc[j]! - arc[i]!;
       if (along > WAGON_STRAIGHTEN.maxM) break;
       const chord = length2(s[j]!.x - s[i]!.x, s[j]!.z - s[i]!.z);
-      if (along < WAGON_STRAIGHTEN.ratio * chord) continue;
-      if (Math.abs(height[j]! - height[i]!) < WAGON_STRAIGHTEN.climbM) continue;
-      candidates.push({ i, j, saved: along - chord });
+      const climb = Math.abs(height[j]! - height[i]!);
+      // kus s vlásenkou se narovná celý – i delší než WAGON_HAIRPIN.spanM
+      const hairpin = isHairpin(along, chord, climb, WAGON_STRAIGHTEN.maxM);
+      if (!hairpin && (along < WAGON_STRAIGHTEN.ratio * chord || climb < WAGON_STRAIGHTEN.climbM)) {
+        continue;
+      }
+      candidates.push({ i, j, saved: along - chord, hairpin });
     }
   }
-  candidates.sort((p, q) => q.saved - p.saved || p.i - q.i || q.j - p.j);
+  // vlásenky napřed – běžné kličky je nevytlačí z limitu zkoušených tětiv
+  candidates.sort(
+    (p, q) => Number(q.hairpin) - Number(p.hairpin) || q.saved - p.saved || p.i - q.i || q.j - p.j,
+  );
   const taken: { i: number; j: number }[] = [];
   let tries = 0;
-  for (const { i, j } of candidates) {
+  for (const { i, j, hairpin } of candidates) {
     if (tries >= STRAIGHTEN_TRIES) break;
     if (taken.some((t) => i < t.j && j > t.i)) continue;
     tries++;
@@ -609,7 +622,7 @@ export function straightenStretches(
     const oldCost = wagonAxisBlocked(grid, village, s.slice(i, j + 1))
       ? null
       : profileCost(grid, input, s.slice(i, j + 1));
-    if (oldCost !== null && straight >= oldCost) continue;
+    if (!hairpin && oldCost !== null && straight >= oldCost) continue;
     taken.push({ i, j });
   }
   if (taken.length === 0) return { axis: [...axis], bypassed: [] };
@@ -624,6 +637,48 @@ export function straightenStretches(
   }
   out.push(...s.slice(at));
   return { axis: out, bypassed };
+}
+
+/**
+ * Je kus osy délky `along` (nejvýš `spanM`) s tětivou `chord` a rozdílem výšek konců `climb`
+ * vlásenka (WAGON_HAIRPIN)? Serpentina do svahu (tětiva prudší než WAGON_ROAD.maxGrade) ne.
+ */
+function isHairpin(along: number, chord: number, climb: number, spanM: number): boolean {
+  return (
+    along <= spanM + 1e-9 &&
+    along > WAGON_HAIRPIN.ratio * chord &&
+    climb <= WAGON_ROAD.maxGrade * chord
+  );
+}
+
+/**
+ * Vlásenka na ose (paths.md – Vozová cesta bez vlásenky; rules-roads.ts – WAGON_HAIRPIN): kus nejvýš
+ * `spanM` m (body po STRAIGHTEN_STEP_M), který je víc než `ratio`× delší než tětiva mezi konci,
+ * a tětiva není prudší než WAGON_ROAD.maxGrade – serpentina do svahu vlásenkou není. Vrátí index
+ * bodu ve `wagonAxisPoints(axis)` uprostřed nejostřejší vlásenky (místo selhání pro objížďku),
+ * jinak −1.
+ */
+export function wagonHairpinAt(grid: WagonGrid, axis: readonly PathPoint[]): number {
+  const s = subdivide(axis, STRAIGHTEN_STEP_M);
+  const arc = arcsOf(s);
+  const height = s.map((p) => wagonGridHeight(grid, p.x, p.z));
+  let worst = WAGON_HAIRPIN.ratio;
+  let midM = -1;
+  for (let i = 0; i < s.length - 2; i++) {
+    for (let j = i + 2; j < s.length; j++) {
+      const along = arc[j]! - arc[i]!;
+      if (along > WAGON_HAIRPIN.spanM + 1e-9) break;
+      const chord = length2(s[j]!.x - s[i]!.x, s[j]!.z - s[i]!.z);
+      const climb = Math.abs(height[j]! - height[i]!);
+      if (along <= worst * chord || !isHairpin(along, chord, climb, WAGON_HAIRPIN.spanM)) continue;
+      worst = along / Math.max(chord, 1e-9);
+      midM = (arc[i]! + arc[j]!) / 2;
+    }
+  }
+  if (midM < 0) return -1;
+  const points = arcsOf(wagonAxisPoints(axis));
+  const k = points.findIndex((d) => d >= midM - 1e-9);
+  return k < 0 ? points.length - 1 : k;
 }
 
 /**
@@ -745,7 +800,14 @@ export function planWagonRoad(input: WagonPlanInput): WagonRoadPlan {
   if (plan.ok) return plan;
   // prudký kus nebo posvátný strom – serpentina (roads.md – Postupná úprava a serpentiny)
   const detour = plan.failAt >= 0 ? detourPlan(input, old, straight, plan.failAt) : null;
-  return detour ?? { ok: false, reason: plan.reason };
+  if (detour) return detour;
+  // vlásenka bez průjezdné tětivy i bez objížďky: úprava po staré ose projde jako dřív
+  // (paths.md – Vozová cesta bez vlásenky; návrh Clauda)
+  if (plan.reason === WAGON_HAIRPIN_REASON) {
+    const along = planAlong(input, old, grid, straight.axis, straight.bypassed, true);
+    if (along.ok) return along;
+  }
+  return { ok: false, reason: plan.reason };
 }
 
 /** Stará cesta, po které vozová cesta vede – řetěz, konce a co o ní plán hlásí. */
@@ -880,6 +942,8 @@ function planAlong(
   grid: WagonGrid,
   axis: PathPoint[],
   bypassed: PathPoint[][],
+  /** Vlásenku na ose nepřijímat (výchozí) – po staré ose, když tětiva ani objížďka nejde. */
+  allowHairpin = false,
 ): WagonAttempt {
   const { chain, from, to, oldLengthM, oldMaxGrade } = old;
   const links = chain.map((link) => link.road);
@@ -887,6 +951,9 @@ function planAlong(
   if (wagonAxisBlocked(grid, input.village, axis)) {
     return { ok: false, reason: WAGON_BLOCKED, failAt: -1 };
   }
+  // vlásenka na rovině – objížďka jako u prudkého kusu (paths.md – Vozová cesta bez vlásenky)
+  const hairpin = allowHairpin ? -1 : wagonHairpinAt(grid, axis);
+  if (hairpin >= 0) return { ok: false, reason: WAGON_HAIRPIN_REASON, failAt: hairpin };
   const profile = wagonProfile(grid, axis, true);
   if (!profile) {
     // u posvátného stromu je mez zemních prací malá – hláška nesmí tvrdit, že je cesta moc prudká

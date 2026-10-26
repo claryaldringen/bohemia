@@ -126,6 +126,8 @@ a úvozy musí být výrazně vidět.“ Nahrazuje „Co nejpříměji“ a „S
   přímější, jednodušší a bez hledání. Konce tětivy leží na staré ose a pláň tam stojí v terénu, takže
   tětiva musí mezi nimi vystoupat po sklonu ≤ 6 % (jinak se kus nenarovná a osa zůstane). Kandidátů
   je nejvýš 8 – zkouší se od nejvíc ušetřené délky, kusy se nepřekrývají (`straightenStretches`).
+  **Vlásenka** (kus do 60 m víc než 2× delší než tětiva, tětiva ne prudší než 6 %) se narovná
+  i na rovině – [paths.md – Vozová cesta bez vlásenky](paths.md#vozová-cesta-bez-vlásenky-26-10-2026).
 - **Cesta je pro vůz moc prudká – výjimka z pravidla „blokuje jen cena předem“** (návrh Clauda,
   Úloha 11b, recenze 11a): důvody `WAGON_STEEP`, `WAGON_BLOCKED` a `WAGON_SACRED` nejsou herní
   podmínka, ale geometrická nemožnost – profil nevyjde, vůz neprojede, dub se kácet nesmí. Úprava se
@@ -223,6 +225,7 @@ Martin: „Pokud vesničané upravují cestu, chci je na té cestě vidět praco
 | Opuštěná cesta mimo síť; jabloně cestu nedrží (provoz u jabloní ano)                             | návrh Clauda |
 | „Upravit cestu“ = úprava + hať + lávka, součet cen; `causeway` → upravená, `unbridged`           | návrh Clauda |
 | Vozová cesta po staré ose, kličku do svahu narovná tětivou (1,3×, 3 m, 120 m), je-li levnější    | návrh Clauda |
+| Vlásenka (do 60 m, víc než 2× delší než tětiva) se narovná tětivou i na rovině                   | návrh Clauda |
 | Vozová cesta vede i uličkou mezi ohradami (`fencedCells` jako vozy)                              | návrh Clauda |
 | Kus cesty pod hotovou stavbou hned opuštěný, objížďka se vyšlape                                 | návrh Clauda |
 | Rozdělanou úpravu a vozovou cestu jde zrušit – hotové úseky zůstanou, dřevo se vrátí             | návrh Clauda |

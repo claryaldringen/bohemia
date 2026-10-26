@@ -581,7 +581,8 @@ Návrh Clauda:
 - **Úklid** po každé změně cest (měsíční kontrola, dostavěné vylepšení, převod) v pevném pořadí:
   1. **souběžné cesty a copánky** – dnešní pravidla ([roads.md – Úseky a
      rozcestí](roads.md#úseky-a-rozcestí): do 12 m stejným směrem, kus od 25 m; copánek mezi
-     stejnými uzly do 25 m, krátký vzdálený kus se toleruje – níž); silnější je vyšší druh, pak víc provozu, pak starší – vozová
+     stejnými uzly do 25 m, krátký vzdálený kus se toleruje – níž; copánek přes 1–2 mezilehlé uzly
+     – [Copánek přes křižovatku](#copánek-přes-křižovatku-26-10-2026)); silnější je vyšší druh, pak víc provozu, pak starší – vozová
      a upravená cesta tak pohltí souběžnou vyšlapanou (Vlkov – voda);
   2. **díry** do 14 m mezi konci a cestou se zacelí (jako dřív);
   3. **uzly se dvěma konci** se spojí do jednoho úseku (jako dřív `mergeRoadChains`, různé druhy
@@ -627,6 +628,61 @@ Návrh Clauda:
   křižovatka, která má úsek v rameni, pak nejbližší kotva v dosahu (vchod 3 m, cíl 7,5 m, nejméně
   6 m jako konec trasy), pás kraje mapy, jiná cesta do 4 m; jinak nikam. Vlkov (den 115545):
   z 23 cest mají 3 konec nikam (cesty 975, 1012, 1019).
+
+## Copánek přes křižovatku (26. 10. 2026)
+
+Martin 26. 10. 2026: „Udělej zrychlení a opravy cest“ – zbylé návrhy auditu cest Vlkova
+(25. 10. 2026). Audit našel okruhy, které úklid nechal: copánek se ruší jen mezi týmiž dvěma uzly,
+ale dvě souběžné cesty spojené přes mezilehlou křižovatku (Vlkov den 115545: upravené cesty 781
+a 786 a vozová 940 kolem jednoho domu, 83 m) zůstanou obě.
+
+Pravidlo (návrh Clauda, čísla `ROAD_BRAID_RING`):
+
+- Slabší úsek A–B zmizí jako copánek i tehdy, když druhá větev z A do B vede přes **1–2 mezilehlé
+  uzly** a skládá se jen ze silnějších úseků (pořadí jako u copánku – vyšší druh, oklika delší
+  o víc než 5 %, víc provozu, starší). Slabší úsek se od druhé větve nesmí vzdálit víc než 25 m
+  (krátký vzdálený kus se toleruje jako u copánku) – je to tatáž cesta.
+- **Okruh** obou větví je nejvýš **150 m** a uvnitř neleží **žádná stavba ani pozemek** (obydlí,
+  ohrada, hřbitov, modla, svatyně, humno, milíř, obilná jáma, díl pole, sad). Martin 26. 10. 2026:
+  „Ať kruhy kolem domů zůstanou“ – okruh kolem stavby je cesta kolem pozemku (každá strana slouží
+  jiným vchodům) a zůstane; copánkem je jen prázdný okruh. Obydlí, modla, humno, milíř a jáma se
+  počítají středem; **pozemky** (díly pole, sad, hřbitov, ohrada) tím, zda okruh obsahuje kterýkoli
+  střed nebo roh jejich čtverců, ne jen střed celku – střed hřbitova z průměru čtverců může
+  u nekonvexního hřbitova ležet mimo něj (návrh Clauda, konzervativně).
+- **Jediný přístup ke stavbě zůstane** (návrh Clauda): slabší úsek, do `ROAD_ANCHORS.entranceM`
+  (3 m) od jehož osy leží vchod stavby a žádný jiný živý úsek tam nevede, se nezruší – stejně pozná
+  vchod s cestou `accessRoads`. Jinak by ho měsíční kontrola vchodu založila znovu jako slabší
+  úsek A–B a příští měsíc by zmizel zas (oscilace).
+- Vozová cesta a cesta ve stavbě jako slabší nezmizí (hráč do ní investoval), jako u copánku.
+- Úklid ji hledá v kroku 1 po copáncích mezi týmiž uzly; měsíční kontrola ji hledá i v síti beze
+  změny, takže **starší ves převod nepotřebuje** – copánek zmizí při nejbližším měsíčním kroku cest.
+- Vlkov: copánek přes křižovatku se řídí jen prázdným okruhem; okruhy kolem domů (např. 781 + 786 +
+  940 kolem domu na stavu z auditu, den 115545) zůstanou. Okruh vozových cest 936 + 1041 + 1054
+  kolem ohrady zůstává také – všechny tři jsou vozové.
+
+## Vozová cesta bez vlásenky (26. 10. 2026)
+
+Martin 26. 10. 2026: „Udělej zrychlení a opravy cest“ (audit 25. 10. 2026, návrh 5): vozová cesta
+936 (dnes 1054) obchází ohradu po rovině vlásenkou – na 60 m je 3,16× delší než tětiva, přímo
+by vedla 25 m mezi ohradou a pozemkem.
+
+Pravidlo (návrh Clauda, čísla `WAGON_HAIRPIN`):
+
+- **Vlásenka** je kus osy nejvýš **60 m**, který je víc než **2×** delší než tětiva mezi svými konci.
+  Serpentina do svahu vlásenkou není – tětiva je tam prudší než mez vozové cesty (6 %), po ní by
+  vůz nevyjel ([roads.md – Postupná úprava a serpentiny](roads.md)).
+- Plán vozové cesty ji nepřijme: kus s vlásenkou (nejvýš 120 m jako narovnání) se nahradí
+  **tětivou**, kudy vůz projede a profil vyjde – i na rovině a i když by tětiva stála víc práce
+  (výjimka z „narovná se jen do svahu“, Martin 22. 10. 2026, #6 – vlásenka po rovině není klička
+  do svahu, ale chyba staré cesty). Nejde-li tětiva, hledá se objížďka jako u prudkého kusu; když
+  ani ta nevyjde bez vlásenky, úprava se nenabídne – „Cesta se pro vůz stáčí do vlásenky.“
+  **Vlásenka na rovině** (Martin 26. 10. 2026 na otázku, jestli smí vozová cesta narovnat vlásenku i na rovině: „ano smí“) je výjimka z pravidla 22. 10. **Mez (návrh Clauda):** vlásenka se odmítne jen tehdy, když existuje průjezdná tětiva nebo
+  objížďka. Vede-li tětiva přes překážku (plot, stavba) a objížďka nevyjde, úprava pro vůz se
+  povolí po staré ose, jak tomu bylo dřív – hráč by jinak o úpravu přišel úplně.
+- Při narovnávání se zkouší nejvýš 8 tětiv; **vlásenky jdou napřed** (pak běžné kličky podle
+  ušetřené délky), aby je běžné kličky z limitu nevytlačily.
+- Platí pro nové plány; postavené vozové cesty se nemění (převod není potřeba). Vlkov: plán po
+  1054 dřív vedl po vlásence (66,6 m), teď tětivou 24,8 m jižně od ohrady.
 
 ## Stavba přes cestu (Vlkov, Martin 23. 10. 2026)
 

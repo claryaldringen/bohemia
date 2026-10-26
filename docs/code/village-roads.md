@@ -117,7 +117,8 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   `finishConstructions`, starší vsi při načtení `withMergedRoads` v `updateVillage`; id a den
   vzniku staršího, roads.md – Úseky a rozcestí; dva úseky mezi stejnými uzly do okruhu ne,
   nejrovnější pokračování první) → **souběžné cesty** (do 12 m stejným směrem) se sloučí (`mergeParallelRoads` – kus
-  slabší cesty souběžný aspoň 25 m se vyřízne, `removeBraids` – copánek mezi stejnými uzly do
+  slabší cesty souběžný aspoň 25 m se vyřízne, `removeBraids` – copánek přes 1–2 mezilehlé uzly
+  (`ringBraid`, jen se stavbami vsi `SpotContext.buildings` – níž) a copánek mezi stejnými uzly do
   25 m: zmizí oklika; vše v `tidyRoads`) → **díry** (volný konec do 12 m od jiného
   úseku, který není u konce trasy roční sítě – brány, cíle) se napojí (`joinRoadGaps`, starší
   vsi jednou při načtení `withRoadsV2`) a určí se skutečné volné
@@ -179,11 +180,18 @@ decodeWear(wear.cells), pathCellM)` (`path-renderer.ts`, `updateRouteLines`), p�
   [Vchody](../design/paths.md#vchody); Martin 22. 10. 2026, pravidla 10 a 11): `roadsMonth` po
   zániku kusů a vzniku z vyšlapanosti pustí `tidyMonth` – jen když se od posledního úklidu změnily
   osy úseků (`VillageRoads.tidyKey`, otisk FNV-1a `networkKey`), nebo nové kotvy a trasy dají práci
-  (`tidyDue` – okruh, díra, pahýl; `accessDue` – vchod bez cesty, počítá tutéž cestu jako `accessRoads` přes `accessPlan`, takže vchod bez možné cesty úklid nespouští); jinak nic, ani kontext míst na
+  (`tidyDue` – okruh, díra, pahýl, copánek přes křižovatku `hasRingBraid`; `accessDue` – vchod bez cesty, počítá tutéž cestu jako `accessRoads` přes `accessPlan`, takže vchod bez možné cesty úklid nespouští); jinak nic, ani kontext míst na
   stromy (čítač `TIDY_RUNS` pro testy). Pořadí: `tidyRoads` s kotvami a čarami tras (`StubNetwork`):
   okruh přes jeden uzel se rozdělí v nejvzdálenějším bodě (`splitLoops`, `roads-stubs.ts`) →
   souběžné → díry (`joinRoadGaps` už nespojí konec zpět do uzlu, ze kterého úsek vychází – vznikal
-  okruh tam a zpět) → copánky → spojení → **pahýly** (`trimStubs`: konec vyšlapaného úseku mimo kotvu a mimo jinou cestu zmizí bez ohledu na délku
+  okruh tam a zpět) → copánky (mezi týmiž uzly, pak **přes křižovatku** – `ringBraid`: slabší úsek
+  A–B, druhá větev přes 1–2 uzly jen ze silnějších úseků, `staysNear` 25 m, okruh do 150 m a uvnitř
+  žádná stavba ani pozemek (`maxInside` 0, Martin 26. 10.) – `ringBuildingPoints` z `pathVillageOf` (`RingBuilding` = body jedné stavby,
+  u pozemků středy a rohy čtverců; uvnitř je, když je uvnitř kterýkoli), líně přes `ringBuildingsOf`
+  v `roads.ts`, `insideRing` sudý počet průsečíků; úsek, který je jediným přístupem k vchodu
+  (`soleAccess`, vchody z `entrancesOf` → `SpotContext.entrances`, do `ROAD_ANCHORS.entranceM`),
+  se nezruší; `ROAD_BRAID_RING`, paths.md – Copánek přes
+  křižovatku; starší ves bez převodu – `tidyDue` ho najde i v síti beze změny) → spojení → **pahýly** (`trimStubs`: konec vyšlapaného úseku mimo kotvu a mimo jinou cestu zmizí bez ohledu na délku
   – nejbližší úklid, ne až zarůstání; upravená cesta zmizí jen kratší než `MIN_ROAD_M` a jinak zarůstá
   podle `ROAD_DECAY`, vozová, rozestavěná a zemská stezka se nemění) → **cesty k vchodům** (`accessRoads`, `roads-access.ts`: stavba s trasou s provozem
   stavby – `StoredRoute.visit` – do vchodu, hotová – rozestavěný hřbitov ne; když u vchodu do 3 m
@@ -454,9 +462,14 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   `wagonProfile(grid, osa, asIs = true)` – profil po ose jak je, nevyjde-li sklon 6 % ani s úvozem
   a náspem 3 m → `WAGON_STEEP` „Cesta je pro vůz moc prudká.“ **Narovnání** (Úloha 11b):
   `straightenStretches` v `wagon-road.ts` (`WAGON_STRAIGHTEN` – 1,3× / 3 m / 120 m) na osu po 6 m
-  najde kličkující kusy, zkusí nejvýš 8 tětiv od nejvíc ušetřené délky (`wagonAxisBlocked` +
+  najde kličkující kusy, zkusí nejvýš 8 tětiv, vlásenky napřed, pak od nejvíc ušetřené délky (`wagonAxisBlocked` +
   `wagonProfile` bez vyhlazení, cena = zemní práce + zpevnění) a přijme tětivu, je-li levnější než
-  stará osa nebo stará nejde; plán nese `bypassed` a `footbridgeTrees`, `startWagonRoad` je uloží
+  stará osa nebo stará nejde; **vlásenku** (`WAGON_HAIRPIN` – kus do 60 m víc než 2× delší než
+  tětiva, tětiva ne prudší než 6 %, `isHairpin`) narovná i na rovině a bez ohledu na cenu (kus do
+  120 m); `planAlong` po průjezdu odmítne osu s vlásenkou (`wagonHairpinAt` – index uprostřed
+  nejostřejší ve `wagonAxisPoints`, důvod `WAGON_HAIRPIN_REASON`) a objížďka (`detourPlan`) ji
+  zkusí obejít; nevyjde-li tětiva ani objížďka, `planWagonRoad` zkusí `planAlong(…, allowHairpin)` po staré ose
+  (paths.md – Vozová cesta bez vlásenky); plán nese `bypassed` a `footbridgeTrees`, `startWagonRoad` je uloží
   (`RoadEarthwork.bypassed`, `Construction.wood`) a `wagonRoadsDay` po `absorbParallelRoads`
   označí obejité zbytky `Road.abandoned` (`abandonBypassed`). **Serpentiny** (Úloha B, roads.md –
   Postupná úprava a serpentiny): `planAlong` vrací i místo selhání (index ve `wagonAxisPoints` –

@@ -58,6 +58,13 @@ export interface SpotContext {
   seed: number;
   /** Úsek se rozdělil – stavby na něm patří i novému úseku. */
   split: (from: number, to: number) => void;
+  /**
+   * Body staveb vsi (jeden na stavbu – `ringBuildingPoints`) pro copánek přes křižovatku
+   * (paths.md); bez nich úklid copánky přes křižovatku nehledá.
+   */
+  buildings?: () => readonly (readonly RoadPoint[])[];
+  /** Vchody staveb (kotvy tras) – jediný přístup k vchodu copánek přes křižovatku nezruší. */
+  entrances?: () => readonly RoadPoint[];
 }
 
 /**
