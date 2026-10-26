@@ -147,6 +147,12 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
   server (jedno vlákno). Jeden drahý den (přepočet sítě pěšin) se nedělí. Výsledek na
   přestávkách nezávisí (test v `villages.test.ts`).
 
+- **Výkon dopočtu** (Vlkov, 44 lidí, rok vcelku): po stálých trasách (A4) ≈ 49 s, po mřížce
+  a trasách vozu v paměti a chůzi s horní mezí napřed (B1 – village-roads.md, Trasy v paměti)
+  ≈ 39 s. Nejvíc bere hledání tras vozu (`cartRoutesOn`, ≈ 38 %) a přepočet chůze se změnou mapy
+  tras (`refreshWalkDistances`, ≈ 31 %). Mezipaměti jsou jen zrychlení – výsledek bit po bitu
+  týž i po studeném startu (`cart-memo.test.ts`).
+
 - **Čísla** pravidel jsou jen v `rules*.ts` (u každého odkaz na sekci návrhu); změna čísla = i
   text v návrhu. Kalibrace: `measure-village.ts` nasimuluje stovky vsí a vypíše cíle z Kalibrace
   obou dokumentů s OK / MIMO (`--quick` = 50 vsí na denní ladění, `200 60` závěrečné ověření,

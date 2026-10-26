@@ -15,12 +15,15 @@ import {
 import { pathBounds, type PathTraffic } from './network';
 import {
   cartDepots,
+  cartGrid,
   cartRoutes,
   cartTraffic,
   cartVillageOf,
+  type CartGrid,
   type CartRoute,
   type CartTarget,
 } from './cart';
+import { cartGridKey, memoCartRoutes } from './cart-memo';
 import { cartObstacleMask, pathTerrainOf, pathWindowFor, type PathTerrain } from './terrain';
 import { pathVillageOf } from './village';
 import {
@@ -138,19 +141,13 @@ export function annualCartNetwork(
   return { traffic, runs };
 }
 
-/** Poslední trasy vozů ze stavu vsi – po krajinách (stejný vstup = stejné trasy). */
-const lastCartRoutes = new WeakMap<
-  Landscape,
-  { obstacles: ObstacleLayer | null; key: string; routes: CartRoute[] | null }
->();
-
 /**
  * Dosah vozů vsi (wagons.md – Vozová síť; rozhraní pro svoz – „dojede vůz k cíli a za kolik“):
  * trasy vozu `kind` od ohrad se spřežením ke všem cílům najednou (jedno hledání) – dojede,
  * cena, délka a osa trasy pro scénu. Terén pěšin v okně vsi a cílů, překážky krajiny a stavby vsi
  * jako v síti pěšin, pevné cesty podle stupně a příznaku vozová. S `from` trasa odtud (spřežení
  * na poli jede k dalšímu bloku – oxen.md, Spřežení zůstane na poli). Bez ohrady se spřežením (nebo
- * bez obydlí) null. Čistá funkce stavu – výsledek se pamatuje pro stejný vstup.
+ * bez obydlí) null. Čistá funkce stavu – mřížka a trasy se pamatují (`memoCartRoutes`).
  */
 export function villageCartRoutes(
   state: VillageState,
@@ -175,17 +172,17 @@ export function villageCartRoutes(
     maxX: Math.max(bounds.maxX, ...ends.map((t) => t.x + t.reachM + margin)),
     maxZ: Math.max(bounds.maxZ, ...ends.map((t) => t.z + t.reachM + margin)),
   };
-  const key = JSON.stringify([village, kind, targets, box, from]);
-  const last = lastCartRoutes.get(landscape);
-  if (last && last.obstacles === obstacles && last.key === key) return last.routes;
-  const terrain = pathTerrainOf(landscape, pathWindowFor(landscape, box));
-  const blocked = obstacles
-    ? cartObstacleMask(terrain, obstacles, obstacleChangesAt(state, day))
-    : null;
+  const window = pathWindowFor(landscape, box);
+  const changes = obstacles ? obstacleChangesAt(state, day) : null;
+  // mřížka a trasy v paměti podle klíče mřížky (docs/code/village-roads.md – Trasy v paměti);
   // dvoukolák i čtyřkolák platí na poli stálou cenu (paths.md – Stálé trasy) – liší se zatáčením
-  const routes = cartRoutes({ village, terrain, blocked, kind, depots, targets }).routes;
-  lastCartRoutes.set(landscape, { obstacles, key, routes });
-  return routes;
+  const makeGrid = (): CartGrid => {
+    const terrain = pathTerrainOf(landscape, window);
+    const blocked = obstacles && changes ? cartObstacleMask(terrain, obstacles, changes) : null;
+    return cartGrid({ village, terrain, blocked });
+  };
+  const key = cartGridKey(village, window, changes);
+  return memoCartRoutes(landscape, obstacles, key, makeGrid, kind, depots, targets);
 }
 
 /**

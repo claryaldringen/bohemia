@@ -819,3 +819,38 @@ Návrh `docs/design/paths.md` – Stálé trasy (25. 10. 2026), Úloha A1.
     od 7. 5. 816): stálé trasy se hledaly 11× → 7× (z toho 1× převod; 4× 1. dne v měsíci jiná síť
     cest, olemování nebo pařezy k 1. 11., 2× v půli měsíce jiné stavby či domácnosti), navíc 3× jen
     trasy k práci dne a na pastvu; 1× jen převážení. Stadia dílů žádný přepočet nevyvolala.
+
+## Trasy v paměti – vozy a chůze (výkon)
+
+Plán `docs/superpowers/plans/2026-10-25-stable-routes.md`, Úloha B1. Jen zrychlení – výsledek je
+bit po bitu týž jako bez paměti (Vlkov, rok vcelku: otisk stavu `75dad0432a58` před i po, i se
+studeným startem každý den; `cart-memo.test.ts`).
+
+- **Mřížka vozu** (`paths/cart-memo.ts`): `villageCartRoutes` staví `cartGrid` jen pro nový klíč
+  `cartGridKey` – okno terénu (podle cílů), změny překážek dne (`obstacleChangesAt`) a z vsi
+  přesně to, co mřížka čte: díly (políčko, poloha, velikost, natočení a ze stadia jen „zarostlý“
+  – jinak stálá cena), les vsi, pevné cesty (osa, druh, stupeň, mokřina, olemování), sady,
+  hřbitovy, ohrady, svatyně a modly, obydlí, milíře, humna, zemní práce. Stadia, lidé, práce dne
+  ani den v klíči nejsou – táž mapa jiný den mřížku najde. `routeMapKey` klíčem být nemůže
+  (návrh Clauda): mřížka vozu bere pokácené stromy dne (ne k 1. 11.), zarostlé díly a olemování
+  přesně (ne po desetinách) – s ním by výsledek nebyl týž.
+- **Trasy po cílech:** `cartRoutesOn(grid, …)` – trasa k cíli nezávisí na ostatních cílech
+  (hledání je do posledního cíle totéž, remízy podle indexu – A1), proto se známé cíle nehledají
+  a neznámé dohledá jedno hledání. Hledání = vůz a místa výjezdu (ohrady se spřežením, nebo díl,
+  odkud spřežení přejíždí – `plough-trip.ts`).
+- **Meze paměti:** `WeakMap` podle krajiny, nejvýš 2 mřížky (nejdéle nepoužitá vypadne), na
+  mřížku 64 hledání (nejstarší vypadne) po nejvýš 1 024 trasách (nad mez se hledání zapomene).
+  `dist` / `parent` hledání se nepamatují (desítky MB). `forgetCartRoutes(landscape)` – studený
+  start v testech.
+- **Chůze** (`walkingDistances`, `paths/walking.ts`): horní mez napřed – rovně z obydlí ke každému
+  cíli se spočítá první; uzel sítě, ke kterému je rovně aspoň tak daleko jako nejdelší z nich, do
+  hledání nevstupuje (cestu k žádnému cíli nezkrátí). `cheapest` spočítá přesně napřed kandidáta
+  s nejmenší dolní mezí a řadí jen kandidáty pod ním (dřív řadil všechny uzly sítě pro každý cíl);
+  cesta přes síť se hledá rovnou s mezí „rovně z obydlí“. Vzdálenosti chůze se počítají jen se
+  změnou otisku `walkLayoutKey` (mapa tras a místa – A2b).
+- **Naměřeno** (Vlkov rok vcelku, `diag-b1/cpu.mts`, střídavě před / po při zátěži 3–10): stěna
+  48,5–49,4 s → 38,4–40,6 s, CPU 54–55 s → 46–49 s. Zbývá: hledání tras vozu (`cartRoutesOn`)
+  38 % – přejezdy spřežení mezi díly (každý z jiného dílu, v paměti se netrefí), voda vozem, dosah
+  svozu; mřížka vozu z paměti v ≈ polovině volání (jinak nový díl nebo zarostlý díl). Přepočet
+  chůze 31 % (`walkingDistances` 14 % – skoro celé `groundWalkLength`, síť pěšin 5 %). Další krok
+  B2 (rychlejší `cartRoutes`).
