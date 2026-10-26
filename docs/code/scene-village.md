@@ -265,6 +265,27 @@ model. Buffery: pozice, normála, uv, keyA, keyB, stav instance, matice = **7** 
 (strana x, podél těla y); vertex shader z nich pošle varying a fragment `discard` podle bitů ve
 `stavu` (přední/zadní × levá/pravá čtvrť). Řez je rovný, vnitřnosti se nekreslí.
 
+### Rekvizity porážky
+
+`apps/web/public/models/slaughter/slaughter.glb` (`tools/blender/slaughter.py`, ≈ 40 kB, jeden atlas
+256 px, licence v `LICENSES.md`). Uzly, počátek každého na zemi pod středem, rozměry v metrech
+(Blender Z nahoru, −Y vpředu = ve scéně +Z):
+
+- `trestle-large` – kozlina na krávu: tři kůly (základna r 1,25 m, vrchol 2,72 m), bidlo podél X
+  ve výšce 2,58 m, provaz, rozpěrák ±0,22 m a dva háky; **hroty háků ve výšce 2,20 m** (kráva visí
+  2,05 m nad svým počátkem, počátek zvířete tedy 0,15 m nad zemí). Otevřená strana mezi kůly je
+  vpředu (−Y Blenderu). Střed háků je v ose (x = 0, y = 0).
+- `trestle-small` – totéž na prase, ovci a kozu (visí 1,18–1,28 m): vrchol 2,0 m, základna r 0,85 m,
+  **hroty háků ve výšce 1,50 m**. Dvě velikosti proto, aby zvíře viselo hlavou nízko nad zemí
+  (jedna kozlina 2,2 m by nechala prase s hlavou ve výšce 1 m).
+- `trough` – necky 1,4 × 0,5 m, výška 0,28 m, s krví na dně; pod hlavou visícího zvířete.
+- `block` – špalek r 0,3 m, výška 0,55 m, nahoře prkno 0,7 × 0,34 m (vršek 0,59 m) pro kýty.
+- `bowl` – miska na zemi (r 0,14 m, výška 0,09 m) s krví; stejný tvar, jaký drží žena v klipu `bleed`
+  (prop `bowl` v `people.json`, otevřený nahoru, dno v bodě ruky).
+
+Výška visícího zvířete nad zemí = výška hroty háků − výška visícího modelu (viz Mršiny).
+Kreslení rekvizit je až v `slaughter-renderer`.
+
 ## Jezdci (lord-horses Úloha 11)
 
 Kdo, kdy a na kterém koni jede, určuje jádro (`lordRides` → `SceneLord.riders`, `borderTrailId`,
