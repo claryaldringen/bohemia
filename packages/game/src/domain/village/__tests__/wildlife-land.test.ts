@@ -3,6 +3,7 @@ import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
 import { WILDLIFE_LAND } from '../rules-wildlife';
 import type { VillageState } from '../types';
+import { surfaceAt, tileCenterWorld } from '../../landscape';
 import { wildlifeLandAt } from '../wildlife-land';
 import { withBuiltFirstDwelling } from './village-fixtures';
 import { makeLandscape } from './placement-fixtures';
@@ -64,5 +65,32 @@ describe('krajina zvěře', () => {
   it('ves bez obydlí dostane výchozí krajinu', () => {
     const empty = { ...village(), dwellings: [], constructions: [] };
     expect(wildlifeLandAt(makeLandscape({ size: 128 }), empty)).toEqual(WILDLIFE_LAND.defaultLand);
+  });
+
+  it('počítání jen v obdélníku kolem vsi dá totéž co průchod celou mapou', () => {
+    const surface = (x: number, y: number): 'forest' | 'water' | 'meadow' =>
+      x % 9 < 3 ? 'forest' : y % 11 === 0 ? 'water' : 'meadow';
+    const landscape = makeLandscape({ size: 128, surface });
+    const land = wildlifeLandAt(landscape, village());
+    // referenčně přes celou mapu (bez čtverců polí; jen obydlí na počátku)
+    let forest = 0;
+    let water = 0;
+    let open = 0;
+    for (let y = 0; y < 128; y++) {
+      for (let x = 0; x < 128; x++) {
+        const c = tileCenterWorld(landscape, x, y);
+        if (c.x * c.x + c.z * c.z > WILDLIFE_LAND.reachM * WILDLIFE_LAND.reachM) continue;
+        const kind = surfaceAt(landscape, x, y);
+        if (kind === 'water') water++;
+        else if (kind === 'forest') forest++;
+        else open++;
+      }
+    }
+    // políčko pod obydlím není les ani louka; pruhy lesa jsou široké 3 políčka, tedy vždy větší kus
+    expect(land.waterHa).toBeCloseTo(water * CELL_HA, 9);
+    expect(land.forestHa).toBeLessThanOrEqual(forest * CELL_HA + 1e-9);
+    expect(land.forestHa).toBeGreaterThan((forest - 2) * CELL_HA);
+    expect(land.openHa).toBeLessThanOrEqual(open * CELL_HA + 1e-9);
+    expect(land.openHa).toBeGreaterThan((open - 2) * CELL_HA);
   });
 });

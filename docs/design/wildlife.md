@@ -119,7 +119,9 @@ vesničanů.
 - **Malá ves u lesa** (Martin 26. 10. 2026: škoda se násobí min(1; plocha polí u lesa ÷ 10 ha)):
   návrh Clauda – „plocha polí u lesa“ je součet **plocha × váha** ohrožených dílů, takže pole
   250 m od lesa se nepočítá a pole 150 m od lesa počítá půlkou. Denní kg zvěře se tím násobí, než
-  se rozdělí na díly.
+  se rozdělí na díly. Návrh Clauda (oprava 26. 10. 2026): součet se bere **jen z dosud
+  nesklizených dílů**, jinak by po sklizni ozimu šla celá dávka na méně dílů a škoda jaře na ha
+  by se zdvojnásobila.
 - **Plodiny:** jen obilí – ozim a jař, i díly nad potřebu; luštěniny a len ne (návrh Clauda –
   návrh počítá „kg obilí“). Škodí se jen na dílech, které ves letos zaseje (do 1. 6. dosel).
 - **Co s ≈ 650 kg:** čísla výše platí pro žně, které se protáhnou do poloviny července a srpna;

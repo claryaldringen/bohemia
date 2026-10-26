@@ -170,8 +170,11 @@ describe('len napřed – výběr s kapacitou (do Úlohy 5 pro páry k rádlům)
     // od 1. 6. ubývá úroda dílů prasaty, jeleny a vranami, výhled jídla a plán osevu k 1. 9. to
     // zná – jiný výběr dílů (dřív 171:fcbccd0e)
     // a se šelmami na dobytku (wildlife.md – Vlci na dobytku, 26. 10. 2026): vlčí díl jen venku a
-    // medvěd – jiná stáda, jiné bílkoviny a plán osevu (dřív 165:b78c12b3)
-    expect(fingerprint(plans)).toBe('167:abb10b73');
+    // medvěd – jiná stáda, jiné bílkoviny a plán osevu (dřív 165:b78c12b3); a s opravou škod zvěře
+    // (wildlife.md – Škody, 26. 10. 2026): násobek malé vsi se počítá jen z dosud nesklizených
+    // dílů (po sklizni ozimu se škoda jaře na ha nezvyšuje), výhled jídla bere jen dosud nasbíranou
+    // škodu, takže skutečná sklizeň a plán osevu k 1. 9. se mírně změnily (dřív 167:abb10b73)
+    expect(fingerprint(plans)).toBe('168:48676c9e');
   });
 });
 

@@ -5,6 +5,7 @@ import { FIELD_DAMAGE } from '../rules-wildlife';
 import { advanceVillage } from '../simulate';
 import type { CropWork, VillageState } from '../types';
 import {
+  dailyThreatShare,
   damageWindowStart,
   edgeWeight,
   wildlifeDamageDay,
@@ -180,6 +181,30 @@ describe('škoda dne', () => {
     expect(game(big, 40_000)).toBeCloseTo(8, 6);
     expect(game(small, 10_000)).toBeCloseTo(4, 6);
     expect(game(tiny, 2_000)).toBeCloseTo(0.8, 6);
+  });
+
+  it('po sklizni ozimu se denní škoda jaře na ha nezvýší (násobek malé vsi z nesklizených dílů)', () => {
+    const s = forestVillage(10_000, 8); // 5 dílů × 1 ha
+    const [winter, spring] = [surplusCrop(s.season, 'winter')!, surplusCrop(s.season, 'spring')!];
+    const id = spring.partIds[0]!;
+    const before = dailyThreatShare(s, JUNE).get(id)!;
+    winter.done.harvest = winter.required.harvest;
+    const after = dailyThreatShare(s, JUNE).get(id)!;
+    expect(after).toBeCloseTo(before, 12);
+    expect(dailyThreatShare(s, JUNE).has(winter.partIds[0]!)).toBe(false);
+  });
+
+  it('dailyThreatShare nic nepíše a wildlifeDamageDay z ní skládá stav', () => {
+    const s = forestVillage(10_000, 8);
+    const copy = structuredClone(s);
+    const threat = dailyThreatShare(s, JUNE);
+    expect(s).toEqual(copy);
+    expect(threat.size).toBe(5);
+    wildlifeDamageDay(s, JUNE);
+    for (const [id, share] of threat) {
+      expect(s.wildlife!.damage!.parts[String(id)]!.share).toBeCloseTo(share, 12);
+    }
+    expect(dailyThreatShare(s, at(600, 9, 1)).size).toBe(0);
   });
 
   it('díl přijde nejvýš o polovinu úrody, zbytek propadne', () => {

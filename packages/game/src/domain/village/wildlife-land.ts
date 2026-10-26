@@ -70,6 +70,9 @@ export function wildlifeLandAt(landscape: Landscape, state: LandState): Wildlife
   return scanLand(landscape, state)?.land ?? { ...WILDLIFE_LAND.defaultLand };
 }
 
+/** Obdélník políček krajiny (včetně krajních). */
+type Rect = { x0: number; x1: number; y0: number; y1: number };
+
 type LandState = Pick<
   VillageState,
   'dwellings' | 'constructions' | 'parts' | 'orchards' | 'cemeteries' | 'pens' | 'woods' | 'fields'
@@ -79,7 +82,7 @@ type LandState = Pick<
 function scanLand(
   landscape: Landscape,
   state: LandState,
-): { land: WildlifeLand; forest: Uint8Array } | null {
+): { land: WildlifeLand; forest: Uint8Array; rect: Rect } | null {
   const origin = villageOrigin(state);
   if (!origin) return null;
   const size = landscape.size;
@@ -151,6 +154,7 @@ function scanLand(
       pools: poolsInReach(landscape, origin, reach2),
     },
     forest: patches.mask,
+    rect: { x0, x1, y0, y1 },
   };
 }
 
@@ -166,43 +170,60 @@ export function forestEdgeDistances(landscape: Landscape, state: LandState): Map
   if (!scan) return out;
   const size = landscape.size;
   const INF = 1 << 28;
-  const dist = new Int32Array(size * size);
-  for (let i = 0; i < dist.length; i++) dist[i] = scan.forest[i] ? 0 : INF;
+  // díly polí (políčka) a obdélník, který pokryje i les v dosahu; mimo něj se nepočítá
+  const fields: { partId: number; tile: number }[] = [];
+  let { x0, x1, y0, y1 } = scan.rect;
+  for (const sq of villageLandSquares(landscape, state, ['field'])) {
+    if (sq.partId === undefined) continue;
+    const tile = sq.tile ?? tileOfPoint(landscape, sq.center);
+    if (tile < 0) continue;
+    fields.push({ partId: sq.partId, tile });
+    const fx = tile % size;
+    const fy = (tile - fx) / size;
+    x0 = Math.min(x0, fx);
+    x1 = Math.max(x1, fx);
+    y0 = Math.min(y0, fy);
+    y1 = Math.max(y1, fy);
+  }
+  const w = x1 - x0 + 1;
+  const h = y1 - y0 + 1;
+  const dist = new Int32Array(w * h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) dist[y * w + x] = scan.forest[(y + y0) * size + x + x0] ? 0 : INF;
+  }
   // přední průchod
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const i = y * size + x;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x;
       let d = dist[i]!;
       if (x > 0) d = Math.min(d, dist[i - 1]! + 3);
       if (y > 0) {
-        d = Math.min(d, dist[i - size]! + 3);
-        if (x > 0) d = Math.min(d, dist[i - size - 1]! + 4);
-        if (x < size - 1) d = Math.min(d, dist[i - size + 1]! + 4);
+        d = Math.min(d, dist[i - w]! + 3);
+        if (x > 0) d = Math.min(d, dist[i - w - 1]! + 4);
+        if (x < w - 1) d = Math.min(d, dist[i - w + 1]! + 4);
       }
       dist[i] = d;
     }
   }
   // zpětný průchod
-  for (let y = size - 1; y >= 0; y--) {
-    for (let x = size - 1; x >= 0; x--) {
-      const i = y * size + x;
+  for (let y = h - 1; y >= 0; y--) {
+    for (let x = w - 1; x >= 0; x--) {
+      const i = y * w + x;
       let d = dist[i]!;
-      if (x < size - 1) d = Math.min(d, dist[i + 1]! + 3);
-      if (y < size - 1) {
-        d = Math.min(d, dist[i + size]! + 3);
-        if (x < size - 1) d = Math.min(d, dist[i + size + 1]! + 4);
-        if (x > 0) d = Math.min(d, dist[i + size - 1]! + 4);
+      if (x < w - 1) d = Math.min(d, dist[i + 1]! + 3);
+      if (y < h - 1) {
+        d = Math.min(d, dist[i + w]! + 3);
+        if (x < w - 1) d = Math.min(d, dist[i + w + 1]! + 4);
+        if (x > 0) d = Math.min(d, dist[i + w - 1]! + 4);
       }
       dist[i] = d;
     }
   }
-  for (const sq of villageLandSquares(landscape, state, ['field'])) {
-    if (sq.partId === undefined) continue;
-    const tile = sq.tile ?? tileOfPoint(landscape, sq.center);
-    if (tile < 0) continue;
-    const d = dist[tile]!;
+  for (const { partId, tile } of fields) {
+    const fx = tile % size;
+    const d = dist[((tile - fx) / size - y0) * w + fx - x0]!;
     out.set(
-      sq.partId,
+      partId,
       d >= INF ? Infinity : Math.max(0, (d / 3) * landscape.cellSizeM - landscape.cellSizeM / 2),
     );
   }

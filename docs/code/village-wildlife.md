@@ -56,10 +56,13 @@ a kg po dílech, jen nenulové), `topPartId`, `totalKg`, `lastYearKg`.
   (`edgeWeight`). Vzdálenost: `forestEdgeDistances` (`wildlife-land.ts`) – chamfer 3–4 masky lesa
   z W1 (jen kusy od 1 ha, jen do 1 km), od středu políčka dílu minus půl políčka; jednou za rok.
   Bez krajiny: `surface === 'forest'` 0 m, jinak `defaultEdgeM` 120 m. Díl s váhou 0 zůstává
-  v seznamu kvůli vranám. Místo pro obranu (W4–W6): `risk[].weightHa` a vstup `eatenKg` ve
-  `wildlifeDamageDay` – hlídka nebo lov je může snížit, ztráty `parts` zůstávají.
-- **Každý den** `wildlifeDamageDay(state, day)` (po `work()`, před `eat()`): kg zvěře =
-  Σ kusy × kg/kus (`wildlifeEatsKgPerDay`) × `min(1; Σ weightHa ÷ 10 ha)` (malá ves, Martin 26. 10. 2026), rozdělí se podle `weightHa` na dosud nesklizené díly (`taskSpans` 'harvest',
+  v seznamu kvůli vranám. Místo pro obranu (W4–W6): `dailyThreatShare` (níž) – hlídka přidá
+  faktor `(1 − hlídka)` na jednom místě, lov snižuje kusy v `wildlifeEatsKgPerDay`.
+- **Denní hrozba** `dailyThreatShare(state, day)` (`wildlife-damage.ts`, čistá funkce bez zápisu)
+  → `Map<partId, podíl hrubé úrody>` pro dosud nesklizené osetré díly; použije ji
+  `wildlifeDamageDay` a W6 do ní přidá obranu polí. Kg zvěře =
+  Σ kusy × kg/kus (`wildlifeEatsKgPerDay`) × `min(1; Σ weightHa ÷ 10 ha)` (malá ves, Martin 26. 10. 2026), kde součet jde **jen přes dosud nesklizené díly** (po sklizni ozimu se denní
+  škoda jaře na ha nezvýší), rozdělí se podle `weightHa` na tytéž díly (`taskSpans` 'harvest',
   díl je sklizený, až úloha prošla jeho koncem), přepočte na podíl hrubé úrody dílu
   (`cropGrossPerHa` × ha); díl nejvýš `maxShare` 0,5, zbytek propadne. Vrány `crowShare ÷
 windowDays` (ozim 61, jař 92) denně na každý nesklizený ohrožený díl. Mimo 1. 6. – 31. 8. a po

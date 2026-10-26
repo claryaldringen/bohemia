@@ -121,21 +121,23 @@ export function wildlifeEatsKgPerDay(w: WildlifeState): number {
 }
 
 /**
- * Škoda dne (po práci dne, před jídlem): kg zvěře podle kusů se vynásobí `min(1; Σ plocha × váha
- * ÷ 10 ha)` (malá ves u lesa; Martin 26. 10. 2026), rozdělí podle plochy × váhy na dosud
- * nesklizené osetré díly a přepočte na podíl hrubé úrody dílu (celkem nejvýš `maxShare`, zbytek
- * zvěř spásla v lese). Vrány berou nesklizeným dílům `crowShare ÷ délka okna plodiny` denně.
- * Sklizené díly neztrácejí. Mimo okno (1. 6. – 31. 8.) nic.
+ * Denní hrozba dílů (wildlife.md – Škody): podíl hrubé úrody, který dnes zvěř a vrány ubírají
+ * každému dosud nesklizenému osetému dílu (před stropem `maxShare`). Kg zvěře podle kusů se
+ * vynásobí `min(1; Σ plocha × váha ÷ 10 ha)` počítanou jen z dosud nesklizených dílů (malá ves
+ * u lesa; Martin 26. 10. 2026) a rozdělí podle plochy × váhy. Vrány berou `crowShare ÷ délka
+ * okna plodiny`. Čistá funkce bez zápisu do stavu; obrana polí (hlídka) sem přidá jediný faktor.
+ * Mimo okno (1. 6. – 31. 8.) nebo bez rizika prázdná mapa.
  */
-export function wildlifeDamageDay(state: VillageState, day: number): void {
+export function dailyThreatShare(state: VillageState, day: number): Map<number, number> {
+  const shares = new Map<number, number>();
   const w = state.wildlife;
   const damage = w?.damage;
-  if (!w || !damage || damage.risk.length === 0) return;
+  if (!w || !damage || damage.risk.length === 0) return shares;
   const date = dateOfDayIndex(day);
-  if (date.month < 6 || date.month > 8 || day < damage.fromDay) return;
+  if (date.month < 6 || date.month > 8 || day < damage.fromDay) return shares;
   const riskById = new Map(damage.risk.map((r) => [r.partId, r]));
   const crops = cerealCrops(state).filter(({ work }) => work.harvestedKg === null);
-  if (crops.length === 0) return;
+  if (crops.length === 0) return shares;
   const byId = new Map(state.parts.map((p) => [p.id, p]));
   const open: { id: number; crop: DamageCrop; weightHa: number; grossKg: number }[] = [];
   for (const { crop, work } of crops) {
@@ -147,24 +149,47 @@ export function wildlifeDamageDay(state: VillageState, day: number): void {
       open.push({ id, crop, weightHa: risk.weightHa, grossKg: grossKgOf(part, crop, day) });
     }
   }
-  if (open.length === 0) return;
-  const totalHa = damage.risk.reduce((sum, r) => sum + r.weightHa, 0);
-  const eatenKg = wildlifeEatsKgPerDay(w) * Math.min(1, totalHa / FIELD_DAMAGE.fullAreaHa);
+  if (open.length === 0) return shares;
   const openHa = open.reduce((sum, o) => sum + o.weightHa, 0);
-  let top = damage.topPartId === null ? -1 : (damage.parts[damage.topPartId]?.kg ?? -1);
+  const eatenKg = wildlifeEatsKgPerDay(w) * Math.min(1, openHa / FIELD_DAMAGE.fullAreaHa);
   for (const o of open) {
     if (o.grossKg <= 0) continue;
     const eaten = openHa > 0 ? (eatenKg * o.weightHa) / openHa : 0;
     const crows = FIELD_DAMAGE.crowShare / FIELD_DAMAGE.windowDays[o.crop];
-    const before = damage.parts[o.id] ?? { share: 0, kg: 0 };
-    const share = Math.min(FIELD_DAMAGE.maxShare, before.share + eaten / o.grossKg + crows);
+    shares.set(o.id, eaten / o.grossKg + crows);
+  }
+  return shares;
+}
+
+/**
+ * Škoda dne (po práci dne, před jídlem): k podílu škody dílu se přičte `dailyThreatShare`
+ * (celkem nejvýš `maxShare`, zbytek zvěř spásla v lese). Sklizené díly neztrácejí.
+ */
+export function wildlifeDamageDay(state: VillageState, day: number): void {
+  const damage = state.wildlife?.damage;
+  if (!damage) return;
+  const threat = dailyThreatShare(state, day);
+  if (threat.size === 0) return;
+  const byId = new Map(state.parts.map((p) => [p.id, p]));
+  const cropOf = new Map<number, DamageCrop>();
+  for (const { crop, work } of cerealCrops(state)) {
+    for (const id of work.partIds) cropOf.set(id, crop);
+  }
+  let top = damage.topPartId === null ? -1 : (damage.parts[damage.topPartId]?.kg ?? -1);
+  for (const [id, daily] of threat) {
+    const part = byId.get(id);
+    const crop = cropOf.get(id);
+    if (!part || !crop) continue;
+    const grossKg = grossKgOf(part, crop, day);
+    const before = damage.parts[id] ?? { share: 0, kg: 0 };
+    const share = Math.min(FIELD_DAMAGE.maxShare, before.share + daily);
     if (share <= before.share + EPSILON) continue;
-    const kg = share * o.grossKg;
+    const kg = share * grossKg;
     damage.totalKg += kg - before.kg;
-    damage.parts[o.id] = { share, kg };
+    damage.parts[id] = { share, kg };
     if (kg > top) {
       top = kg;
-      damage.topPartId = o.id;
+      damage.topPartId = id;
     }
   }
 }
