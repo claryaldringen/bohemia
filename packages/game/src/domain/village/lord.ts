@@ -418,7 +418,8 @@ export function trainLordDay(state: VillageState, day: number, fieldShare = 0): 
       : NO_RIDERS;
   // dny na poli (horses.md – Výcvik koně a jezdec): koně stojí v ohradě, nikdo nejezdí – i chlapci,
   // kteří cvičí vždy, cvičí místo jízdy luk a boj jako jezdec bez koně
-  const mounted = state.lord?.field ? NO_RIDERS : paired;
+  // totéž platí, když kůň není podkutý (horses.md – Kování): jezdec cvičí místo jízdy luk a boj
+  const mounted = state.lord?.field || isUnshod(state, day) ? NO_RIDERS : paired;
   const riding = new Map<number, number>();
   for (const p of state.people) {
     if (family && trainees.has(p.id)) {

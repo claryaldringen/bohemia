@@ -139,6 +139,18 @@ describe('cizí kovář', () => {
   });
 });
 
+describe('panel starší vsi', () => {
+  it('ves bez uloženého termínu ukáže první termín od dneška', () => {
+    const s = horseVillage([horse(1, 8, 'male', 50)]);
+    expect(s.shoeing).toBeUndefined();
+    expect(shoeingView(s, START, NO_CRAFTS)).toMatchObject({
+      daysLeft: HORSE_SHOEING.everyDays,
+      unshod: false,
+    });
+    expect(s.shoeing).toBeUndefined();
+  });
+});
+
 describe('nepodkutý kůň', () => {
   it('nejezdí a výcvik stojí, po podkutí pokračuje', () => {
     const s = stable();

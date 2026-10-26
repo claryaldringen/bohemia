@@ -318,6 +318,7 @@ export const CRAFT_ACTIVITIES: ReadonlySet<LaborActivity> = new Set([
   'ore',
   'clay',
   'plant',
+  'horse-shoeing',
 ]);
 
 /** Domácí práce, dojení, péče o zvířata a nečinní – dostanou lidi až po provozu na cestách. */
@@ -414,6 +415,17 @@ export function shareWorker(
       (crafts.size > 0 ? roster.take({ ...ADULTS, homes: crafts, onlySex: 'male' }) : null) ??
       roster.take({ ...ADULTS, sex })
     );
+  }
+  if (share.activity === 'horse-shoeing') {
+    // koně kuje kovář z domácnosti kovárny, ne libovolný dospělý (horses.md – Kování); bez kováře
+    // ve vsi (cizí kovář) beze změny
+    const smiths = craftHomes(ctx, (craft) => craft === 'smith');
+    if (smiths.size > 0) {
+      const smith =
+        roster.take({ ...ADULTS, homes: smiths, onlySex: 'male' }) ??
+        roster.take({ from: AGE.olderChild, to: Infinity, homes: smiths, onlySex: 'male' });
+      if (smith) return smith;
+    }
   }
   const home = homeHint(ctx, share, i);
   return roster.take({

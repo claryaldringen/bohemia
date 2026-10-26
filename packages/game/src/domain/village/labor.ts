@@ -217,7 +217,9 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
   const dailyMin = take(adults + Math.max(0, input.manorMin ?? 0));
   // péče o koně (horses.md – Péče) – hned za denním minimem, nedá se odložit
   const horseCare = take(input.horseCare ?? 0);
-  const shoeing = take(input.shoeing ?? 0);
+  // všechno nebo nic: částečná práce by propadla (`finishShoeing` kuje jen při celé práci)
+  const wantedShoeing = Math.max(0, input.shoeing ?? 0);
+  const shoeing = wantedShoeing <= left + 1e-9 ? take(wantedShoeing) : 0;
   // výpravy (trade.md – Doprava): nosiči jsou na cestě celé dny – po denním minimu, před vším
   // ostatním
   const away = take(input.away ?? 0);

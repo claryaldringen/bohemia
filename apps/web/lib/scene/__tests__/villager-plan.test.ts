@@ -448,6 +448,41 @@ describe('planVillagers – kdo kde je', () => {
     expect(d).toBeLessThan(11);
   });
 
+  it('koně kuje muž (kovář s dospělým synem), ne žena z vsi (horses.md – Kování)', () => {
+    const pen = {
+      id: 61,
+      species: 'horse' as const,
+      cell: { x: -4, y: 1 },
+      x: -52.5,
+      z: 22.5,
+      size: 15,
+      built: true,
+      progress: 1,
+      oxen: 0,
+      trainees: 0,
+      cows: 0,
+    };
+    const base = village([
+      { activity: 'horse-shoeing', target: { kind: 'pen', id: 61 }, manDays: 2 },
+    ]);
+    const v: SceneVillage = {
+      ...base,
+      pens: [pen],
+      dwellings: [
+        ...base.dwellings,
+        { ...house(31, 40, -20, 0, true, 'polozemnice'), craft: 'smith' as const },
+      ],
+    };
+    for (const seed of [1, 2, 3, 4, 5, 6]) {
+      const smiths = planVillagers(v, GROUND, { seed, herds: 0 }).filter((p) =>
+        p.key.startsWith('horse-shoeing:'),
+      );
+      expect(smiths.length).toBeGreaterThan(0);
+      expect(smiths.every((p) => p.kind === 'man')).toBe(true);
+    }
+    expect(WOMEN['horse-shoeing']).toBe(0);
+  });
+
   it('pasáček jde za svým stádem; vdané ženy mají šátek, starší šediny', () => {
     const herder = of('herder:')[0]!;
     const pose = at(herder, 50);

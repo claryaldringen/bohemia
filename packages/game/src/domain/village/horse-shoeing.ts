@@ -191,9 +191,10 @@ export function shoeingView(
   day: number,
   coverage: CraftCoverage,
 ): ShoeingView | null {
-  const next = nextShoeingDay(state);
   const horses = ridingHorses(state, day).length;
-  if (next === null || horses === 0) return null;
+  // starší ves bez uloženého termínu: první termín by dostala od dneška (`ensureTerm`)
+  const next = nextShoeingDay(state) ?? day + HORSE_SHOEING.everyDays;
+  if (horses === 0) return null;
   const bars = horses * HORSE_SHOEING.ironBarsKg;
   const base = { daysLeft: next - day, unshod: isUnshod(state, day), foreignKg: 0, foreignDays: 0 };
   if (
